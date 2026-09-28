@@ -4322,7 +4322,7 @@
                s'offrait sur une facture que personne n'avait réglée, pour la retenue entière. */''}${t.withholding && s.status !== 'annulée' ? (rsSubie.operee > 0.0005 || s.withholdingCertificate
             ? `<label class="check"><input type="checkbox" id="rs-cert" ${s.withholdingCertificate ? 'checked' : ''}> Attestation de retenue à la source reçue (${C.money(rsSubie.operee, cur)}${rsSubie.operee < rsSubie.due - 0.0005 ? ` retenus sur ${C.money(rsSubie.due, cur)}` : ''}) ${info('compta.rs')}</label>`
             : `<span class="small muted">La retenue (${C.money(rsSubie.due, cur)}) naîtra quand le client paiera : il te remettra alors son attestation. ${info('compta.rs')}</span>`) : ''}
-          ${s.status === 'annulée' ? `<span class="muted small">Facture annulée.</span><button class="btn btn-ghost btn-sm" id="uncancel">Rétablir</button>` : (!b.paid && !b.credits.length ? `<button class="btn btn-ghost btn-sm" id="cancel-inv">Marquer annulée…</button>` : '')}
+          ${bridge.emettre ? '' : s.status === 'annulée' ? `<span class="muted small">Facture annulée.</span><button class="btn btn-ghost btn-sm" id="uncancel">Rétablir</button>` : (!b.paid && !b.credits.length ? `<button class="btn btn-ghost btn-sm" id="cancel-inv">Marquer annulée…</button>` : '')}
         </div>`;
       // « ✎ » et « ✕ », deux pictogrammes muets en bout de ligne — le second supprimait un paiement
       // sans dire lequel (10.12.0, la règle 7.29.0 : une ligne, un menu, des phrases).
@@ -5039,6 +5039,7 @@
         $('#ok', root).onclick = async () => {
         const v = formValues($('#pf2', root));
         if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');
+        if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus($('[name=amount]', root), `Un montant en ${cur} se compte à ${C.decimalsFor(cur)} décimales au plus.`);
         if (!v.date) return refus($('[name=date]', root), 'Date obligatoire.');
         if ($('[name=exchangeRate]', root) && !(Number(v.exchangeRate) > 0)) return refus($('[name=exchangeRate]', root), 'Taux du jour invalide : saisis combien de dinars valait une unité de la devise ce jour-là.');
         if (v.date > C.today() && !await confirmDialog(`La date du ${rend ? 'remboursement' : 'paiement'} (${C.fmtDate(v.date)}) est dans le futur. ${rend ? 'Un remboursement s\'enregistre quand l\'argent part' : 'Un paiement s\'enregistre quand l\'argent est reçu'}, pas quand il est promis. Enregistrer quand même ?`, 'Enregistrer quand même', undefined, { titre: rend ? 'Un remboursement daté dans le futur' : 'Un paiement daté dans le futur' })) return;
@@ -11083,6 +11084,7 @@
         const v = formValues($('#rdf', root));
         if (closedBlock(C.today(), 'Ce remboursement')) return;
         if (licenceBlock('Émettre un avoir sur un ticket', 'caisse')) return;
+        if (bridge.emettre) { toast('La caisse n\'est pas encore dans la version en ligne de SkanFact : rien n\'a été rendu.', true); return; }
         const r = C.remboursementDeTicket(data, company(), doc, qtes(), { mode: v.mode, motif: v.motif });
         // Le refus montre la case qui le règle : le mode quand c'est le compte qui manque, sinon la quantité.
         if (!r.ok) return refus(C.compteDuMode(data, v.mode) ? $('[data-rd]', root) : $('[name=mode]', root), r.motif);
@@ -11241,6 +11243,7 @@
         // Avant le numéro : un refus après `nextNumber` trouerait la série des tickets (6.0.0).
         if (closedBlock(C.today(), 'Ce ticket')) return;
         if (licenceBlock('Émettre un ticket de caisse', 'caisse')) return;
+        if (bridge.emettre) { toast('La caisse n\'est pas encore dans la version en ligne de SkanFact : rien n\'a été vendu.', true); return; }
         b.dataset.busy = '1';
         const t = C.ticketDeCaisse(data, company(), s.panier, { mode: s.mode, recu: recu === '' ? null : recu, clientId: s.clientId });
         data.documents.push(t);

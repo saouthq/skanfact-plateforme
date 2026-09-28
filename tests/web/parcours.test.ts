@@ -252,4 +252,82 @@ describe('le parcours, à la souris', () => {
     expect((await admin.query('select count(*)::int n from socle.dossier_v10 where entreprise = $1', [vraie])).rows[0].n).toBe(avant);
     expect(qui.erreurs).toEqual([]);
   }, 120_000);
+
+  it('une facture émise, puis payée en partie et corrigée par un avoir, à la souris : le serveur tient le paiement et numérote l\'avoir ; l\'écran et le serveur disent le même reste', async () => {
+    const qui = await inscrite('Rania Kefi');
+    const p = await qui.ouvrir(qui.essai, '#/factures');
+    // La facture : 2 × 450,500 à 19 %, timbre 1,000 → 1 073,190 DT.
+    await p.getByRole('button', { name: '+ Nouvelle facture' }).click();
+    await pageV10(p, /Nouvelle facture/);
+    await plusTard(p);
+    await p.locator('[data-combo=clientId] .combo-btn').click();
+    await p.locator('[data-combo=clientId] .combo-q').fill('Menuiserie');
+    await p.locator('[data-combo=clientId] .combo-list [role=option]').first().click();
+    await p.locator('#lines input[data-k=label]').first().fill('Table en chêne massif');
+    await p.locator('#lines input[data-k=qty]').first().fill('2');
+    await p.locator('#lines input[data-k=unitPrice]').first().fill('450.5');
+    await expect.poll(async () => (await p.locator('#totals').innerText()).replace(/\s+/g, ' ')).toMatch(/1 073,190/);
+    await p.locator('#issue').click();
+    await p.locator('#modal-root #ok').click();
+    await pageV10(p, /Facture FAC-2026-001/);
+    await plusTard(p);
+    // Plus de « Marquer annulée… » : une facture émise se corrige par un avoir.
+    expect(await p.getByRole('button', { name: /Marquer annulée/ }).count()).toBe(0);
+
+    // Un paiement : un montant plus précis que le dinar se refuse sur son champ ; 300,000 s'enregistre.
+    await p.locator('#pay').click();
+    await p.locator('#pf2 input[name=amount]').fill('300.1234');
+    await p.locator('#modal-root').getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await expect.poll(() => p.locator('#toast').innerText()).toContain('Un montant en DT se compte à 3 décimales au plus.');
+    await p.locator('#pf2 input[name=amount]').fill('300');
+    await p.locator('#modal-root').getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    const reglements = async () => (await admin.query('select montant from ventes.reglement where entreprise = $1', [qui.essai])).rows.map((r) => r.montant);
+    await expect.poll(reglements).toEqual([300000n]);
+
+    // L'avoir, depuis la facture : une table sur deux (450,500 + 19 % = 536,095 DT).
+    await p.locator('#lock-credit').click();
+    await pageV10(p, /Nouvel avoir/);
+    await plusTard(p);
+    await p.locator('#lines input[data-k=qty]').first().fill('1');
+    await p.screenshot({ path: path.join(PHOTOS, 'avoir-editeur.png') });
+    await p.locator('#issue').click();
+    await p.locator('#modal-root #ok').click();
+    await pageV10(p, /Avoir AVO-2026-001/);
+    const avoir = (await admin.query(`select a.numero_texte, a.net_a_payer, f.numero_texte facture from ventes.piece a join ventes.piece f on f.id = a.corrige where a.entreprise = $1 and a.type = 'avoir'`, [qui.essai])).rows;
+    expect(avoir).toEqual([{ numero_texte: 'AVO-2026-001', net_a_payer: 536095n, facture: 'FAC-2026-001' }]);
+    await p.screenshot({ path: path.join(PHOTOS, 'avoir-emis.png') });
+
+    // Deux chemins, un chiffre : ce que l'écran de la v10 dit rester dû est ce que le serveur calcule.
+    const ecran = await p.evaluate(() => {
+      const w = window as unknown as { __data: { documents: { type: string; number: string }[]; company: unknown }; SkanCore: { invoiceBalance: (d: unknown, data: unknown, c: unknown) => { remaining: number } } };
+      const f = w.__data.documents.find((d) => d.type === 'facture' && d.number === 'FAC-2026-001');
+      return w.SkanCore.invoiceBalance(f, w.__data, w.__data.company).remaining.toFixed(3);
+    });
+    const piece = String((await admin.query(`select id from ventes.piece where entreprise = $1 and type = 'facture'`, [qui.essai])).rows[0].id);
+    const serveur = (await qui.api('GET', `/entreprises/${qui.essai}/ventes/${piece}`, qui.jeton)).suivi as { reste: string; statut: string };
+    // 1 073,190 − 300,000 − 536,095 = 237,095.
+    expect({ ecran, serveur: serveur.reste, statut: serveur.statut }).toEqual({ ecran: '237.095', serveur: '237.095', statut: 'partielle' });
+    expect(qui.erreurs).toEqual([]);
+  }, 120_000);
+
+  it('la caisse n\'est pas encore en ligne : « Encaisser » le dit, et rien n\'est vendu ni écrit', async () => {
+    const qui = await inscrite('Walid Chaabane');
+    // Un compte de caisse et un article au prix connu : tout ce que la caisse de la v10 demande (le
+    // dossier est d'abord lu, comme l'écran le fait : c'est la première lecture qui l'amorce).
+    await qui.api('GET', `/entreprises/${qui.essai}/dossier-v10`, qui.jeton);
+    await qui.api('POST', `/entreprises/${qui.essai}/dossier-v10`, qui.jeton, { changements: [
+      { collection: 'accounts', cle: 'cai', rang: 0, revision: null, contenu: { id: 'cai', name: 'Caisse du magasin', kind: 'caisse' } },
+      { collection: 'catalog', cle: 'art1', rang: 0, revision: null, contenu: { id: 'art1', label: 'Pain de campagne', unitPrice: { '~n': '0.25' }, vatRate: 0 } },
+    ] });
+    const p = await qui.ouvrir(qui.essai, '#/caisse');
+    await p.locator('#view h1').filter({ hasText: /Caisse/ }).first().waitFor();
+    await plusTard(p);
+    await p.locator('#cs-articles [data-art]').first().click();
+    await p.locator('#cs-encaisser').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toContain('La caisse n\'est pas encore dans la version en ligne de SkanFact : rien n\'a été vendu.');
+    await p.screenshot({ path: path.join(PHOTOS, 'caisse-refus.png') });
+    expect((await admin.query(`select count(*)::int n from socle.dossier_v10 where entreprise = $1 and collection = 'documents'`, [qui.essai])).rows[0].n).toBe(0);
+    expect(await p.getByText('Rien n\'a été enregistré').count()).toBe(0);
+    expect(qui.erreurs).toEqual([]);
+  }, 120_000);
 });

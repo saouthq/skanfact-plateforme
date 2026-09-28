@@ -5,7 +5,9 @@
 //   - un objet changé ailleurs n'est jamais écrasé, et un envoi refusé n'écrit RIEN ;
 //   - jamais un nombre à virgule en base ;
 //   - une facture ne devient émise que par le serveur, avec son numéro, au millime de l'écran ;
-//   - une facture émise ne change plus ce qui a été scellé, et ne s'efface pas.
+//   - une facture émise ne change plus ce qui a été scellé, et ne s'efface pas, ni ne s'annule ;
+//   - un avoir s'émet par le serveur, lié à sa facture (0012) ;
+//   - les règlements d'une facture émise sont tenus par le serveur, avec leur trace (0012).
 
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
@@ -100,15 +102,14 @@ describe('le dossier v10 tenu par le serveur', () => {
       .rejects.toThrow(/dossier_v10_contenu_check/);
   });
 
-  it('une facture ne devient émise que par le serveur ; un avoir n\'est pas encore branché et le refus le dit', async () => {
+  it('une facture ou un avoir ne devient émis que par le serveur', async () => {
     const e = await essai();
     const client = (await e.lire()).find((o) => o.collection === 'clients')?.cle ?? '';
+    const motif = 'Une facture ou un avoir ne s\'émet qu\'avec le bouton « Émettre » : c\'est le serveur qui lui donne son numéro.';
     const faux = { ...brouillon('f1', client), number: 'FAC-2026-001', status: 'envoyée' };
-    expect(await e.envoyer([{ collection: 'documents', cle: 'f1', rang: 0, revision: null, contenu: faux }]))
-      .toMatchObject({ statut: 403, corps: { motif: 'Une facture ne s\'émet qu\'avec le bouton « Émettre » : c\'est le serveur qui lui donne son numéro.' } });
+    expect(await e.envoyer([{ collection: 'documents', cle: 'f1', rang: 0, revision: null, contenu: faux }])).toMatchObject({ statut: 403, corps: { motif } });
     const avoir = { ...brouillon('a1', client), type: 'avoir', number: 'AVO-2026-001', status: 'émis' };
-    expect((await e.envoyer([{ collection: 'documents', cle: 'a1', rang: 0, revision: null, contenu: avoir }])).corps.motif)
-      .toBe('L\'émission d\'un avoir n\'est pas encore branchée sur le serveur : garde-le en brouillon pour l\'instant.');
+    expect((await e.envoyer([{ collection: 'documents', cle: 'a1', rang: 0, revision: null, contenu: avoir }])).corps.motif).toBe(motif);
     expect((await e.lire()).filter((o) => o.collection === 'documents')).toEqual([]);
   });
 
@@ -160,6 +161,147 @@ describe('le dossier v10 tenu par le serveur', () => {
     const lignesRangees = (emise.lines as Record<string, unknown>[]).map((l) => Object.fromEntries(Object.entries(l).reverse()));
     expect((await changer({ ...emise, lines: lignesRangees, issuedTs: 1790628906757, payments: [{ id: 'p1', date: '2026-10-05', amount: { '~n': '500.5' } }] })).statut).toBe(200);
     expect((await e.lire()).find((o) => o.cle === 'f1')?.contenu).toMatchObject({ number: 'FAC-2026-001', payments: [{ id: 'p1' }] });
+    // Elle ne s'annule pas non plus : un avoir la corrige (01 § 7).
+    expect((await changer({ ...emise, status: 'annulée' }, 3)).corps.motif)
+      .toBe('La facture FAC-2026-001 est émise : elle ne s\'annule pas, on la corrige par un avoir (un avoir total la solde).');
+  });
+
+  // Une facture émise par le serveur, telle que le parcours de l'interface la laisse.
+  async function factureEmise(e: Awaited<ReturnType<typeof essai>>, cle: string, doc: Record<string, unknown>, netAPayer: string) {
+    const client = (await e.lire()).find((o) => o.collection === 'clients' && o.cle === doc.clientId);
+    await e.envoyer([{ collection: 'documents', cle, rang: 0, revision: null, contenu: doc }]);
+    const r = await appeler('POST', `/entreprises/${e.ent}/dossier-v10/emettre`, e.jeton, { document: doc, client: client?.contenu, revision: 1, rang: 0, netAPayer });
+    if (r.statut !== 200) throw new Error(`émission refusée : ${JSON.stringify(r.corps)}`);
+    const piece = String((await admin.query('select id from ventes.piece where entreprise = $1 and ref_v10 = $2', [e.ent, cle])).rows[0].id);
+    return { contenu: r.corps.contenu as Record<string, unknown>, revision: Number(r.corps.revision), piece };
+  }
+  const avoirDe = (id: string, clientId: string, creditOf: string | undefined, lignes = [{ label: 'Table en chêne massif', description: '', qty: 1, unit: '', unitPrice: { '~n': '450.5' }, vatRate: 19 }]) => ({
+    id, type: 'avoir', number: '', date: '2026-10-10', clientId, ...(creditOf ? { creditOf } : {}), creditReason: 'Une table rendue', status: 'brouillon',
+    lines: lignes, discountRate: 0, applyStamp: false, withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [],
+  });
+
+  it('l\'avoir s\'émet par le serveur : série AVO, lié à sa facture et scellé avec elle ; refusé sans facture émise ; seulement par sa route', async () => {
+    const e = await essai();
+    const client = (await e.lire()).find((o) => o.collection === 'clients' && String(o.contenu.name).startsWith('Menuiserie'));
+    if (!client) throw new Error('client d\'exemple absent');
+    const f = await factureEmise(e, 'f1', brouillon('f1', client.cle), '1073.190');
+    const emettreAvoir = (doc: Record<string, unknown>, netAPayer: string, route = 'emettre-avoir', revision: number | null = null) =>
+      appeler('POST', `/entreprises/${e.ent}/dossier-v10/${route}`, e.jeton, { document: doc, client: client.contenu, revision, rang: 1, netAPayer });
+    // 1 × 450,500 ; TVA 19 % : 85,595 ; sans timbre : 536,095.
+    expect((await emettreAvoir(avoirDe('a1', client.cle, undefined), '536.095')).corps.motif).toBe('Un avoir corrige une facture : indique laquelle.');
+    expect((await emettreAvoir(avoirDe('a1', client.cle, 'f9'), '536.095')).corps.motif).toBe('Un avoir ne corrige qu\'une facture émise.');
+    // Un avoir ne passe pas par la route de la facture (dont le geste est ouvert au commercial).
+    expect((await emettreAvoir(avoirDe('a1', client.cle, 'f1'), '536.095', 'emettre')).statut).toBe(403);
+    expect((await admin.query(`select count(*)::int n from ventes.piece where entreprise = $1 and type = 'avoir'`, [e.ent])).rows[0].n).toBe(0);
+    const ok = await emettreAvoir(avoirDe('a1', client.cle, 'f1'), '536.095');
+    expect(ok).toMatchObject({ statut: 200, corps: { numero: 'AVO-2026-001', contenu: { number: 'AVO-2026-001', status: 'émis', creditOf: 'f1' } } });
+    const avoir = (await admin.query(`select numero_texte, corrige, net_a_payer, statut from ventes.piece where entreprise = $1 and type = 'avoir'`, [e.ent])).rows[0];
+    expect(avoir).toEqual({ numero_texte: 'AVO-2026-001', corrige: f.piece, net_a_payer: 536095n, statut: 'emise' });
+    // La chaîne de la série des avoirs est intègre, et elle scelle la facture corrigée.
+    const serie = (await admin.query(`select id from socle.serie where entreprise = $1 and prefixe = 'AVO' and type = 'avoir'`, [e.ent])).rows[0].id as string;
+    const proprietaire = (await admin.query('select utilisateur from socle.membre where entreprise = $1', [e.ent])).rows[0].utilisateur;
+    const controle = () => enTantQue(pool, proprietaire, (tx) => controler(tx, e.ent, `serie:${serie}`, (o) => relirePourChaine(tx, e.ent, o.id)));
+    expect(await controle()).toEqual({ ok: true });
+    // La facture corrigée est scellée avec l'avoir : la changer en contournant la base (ses règles
+    // tues, comme le ferait une restauration trafiquée) se voit au contrôle de la chaîne.
+    const autre = (await factureEmise(e, 'f2', brouillon('f2', client.cle), '1073.190')).piece;
+    const avoirId = (await admin.query(`select id from ventes.piece where entreprise = $1 and type = 'avoir'`, [e.ent])).rows[0].id;
+    await admin.query('begin');
+    await admin.query('set local session_replication_role = replica');
+    await admin.query('update ventes.piece set corrige = $1 where id = $2', [autre, avoirId]);
+    await admin.query('commit');
+    expect(await controle()).toMatchObject({ ok: false });
+    await admin.query('begin');
+    await admin.query('set local session_replication_role = replica');
+    await admin.query('update ventes.piece set corrige = $1 where id = $2', [f.piece, avoirId]);
+    await admin.query('commit');
+    expect(await controle()).toEqual({ ok: true });
+    // Émis, il ne change plus de facture ni de motif, et ne s'efface pas.
+    const emis = ok.corps.contenu as Record<string, unknown>;
+    const changer = (contenu: unknown) => e.envoyer([{ collection: 'documents', cle: 'a1', rang: 1, revision: 1, contenu }]);
+    expect((await changer({ ...emis, creditOf: 'f2' })).corps.motif).toBe('L\'avoir AVO-2026-001 est émis : il ne se modifie plus.');
+    expect((await changer({ ...emis, creditReason: 'autre chose' })).statut).toBe(403);
+    expect((await changer(null)).corps.motif).toBe('L\'avoir AVO-2026-001 est émis : il ne s\'efface jamais.');
+    // La facture lue par l'API : l'avoir la crédite, le reste le dit.
+    const lue = (await appeler('GET', `/entreprises/${e.ent}/ventes/${f.piece}`, e.jeton)).corps;
+    expect(lue.suivi).toMatchObject({ credite: '536.095', reste: '537.095', statut: 'partielle', avoirs: [{ numero: 'AVO-2026-001', netAPayer: '536.095' }] });
+  });
+
+  it('une facture que ses avoirs couvrent en entier se lit « annulée » : c\'est déduit, jamais saisi', async () => {
+    const e = await essai();
+    const client = (await e.lire()).find((o) => o.collection === 'clients');
+    if (!client) throw new Error('client d\'exemple absent');
+    const sansTimbre = { ...brouillon('f1', client.cle), applyStamp: false };
+    const f = await factureEmise(e, 'f1', sansTimbre, '1072.190');
+    const toutes = [{ label: 'Table en chêne massif', description: '', qty: 2, unit: '', unitPrice: { '~n': '450.5' }, vatRate: 19 }];
+    const r = await appeler('POST', `/entreprises/${e.ent}/dossier-v10/emettre-avoir`, e.jeton, { document: avoirDe('a1', client.cle, 'f1', toutes), client: client.contenu, revision: null, rang: 1, netAPayer: '1072.190' });
+    expect(r.statut).toBe(200);
+    expect((await appeler('GET', `/entreprises/${e.ent}/ventes/${f.piece}`, e.jeton)).corps.suivi).toMatchObject({ reste: '0.000', statut: 'annulee' });
+  });
+
+  it('les règlements d\'une facture émise sont tenus par le serveur : ajoutés, modifiés, retirés, chacun avec sa trace ; la retenue naît à chacun', async () => {
+    const e = await essai();
+    const client = (await e.lire()).find((o) => o.collection === 'clients');
+    if (!client) throw new Error('client d\'exemple absent');
+    // Retenue 1,5 % sur 1 072,190 (TTC hors timbre) : 16,083 ; net à payer 1 073,190 − 16,083 = 1 057,107.
+    const f = await factureEmise(e, 'f1', { ...brouillon('f1', client.cle), withholdingRate: { '~n': '1.5' } }, '1057.107');
+    let revision = f.revision;
+    const payer = async (payments: unknown[]) => {
+      const r = await e.envoyer([{ collection: 'documents', cle: 'f1', rang: 0, revision, contenu: { ...f.contenu, payments } }]);
+      if (r.statut === 200) revision = Number((r.corps.revisions as { revision: number }[])[0]?.revision);
+      return r;
+    };
+    const auServeur = async () => (await admin.query(`select ref_v10, rang, date_reglement, montant, mode, revision from ventes.reglement where entreprise = $1 order by rang`, [e.ent])).rows;
+    const trace = async () => (await admin.query(`select geste from socle.audit where entreprise = $1 and geste like 'ventes.reglement.%' order by instant, id`, [e.ent])).rows.map((x) => x.geste);
+    const suivi = async () => (await appeler('GET', `/entreprises/${e.ent}/ventes/${f.piece}`, e.jeton)).corps.suivi as Record<string, unknown>;
+
+    const p1 = { id: 'p1', date: '2026-10-05', amount: { '~n': '528.554' }, method: 'virement', reference: 'VIR 17' };
+    expect((await payer([p1])).statut).toBe(200);
+    expect(await auServeur()).toEqual([{ ref_v10: 'p1', rang: 0, date_reglement: '2026-10-05', montant: 528554n, mode: 'virement', revision: 1n }]);
+    // 16 083 × 528 554 / 1 057 107 = 8 041,5… : 8,042 de retenue nées de ce règlement.
+    expect(await suivi()).toMatchObject({ paye: '528.554', reste: '528.553', statut: 'partielle', retenueOperee: '8.042', reglements: [{ montant: '528.554', retenue: '8.042' }] });
+
+    // Un second règlement ; puis le premier corrigé (le client avait versé 300,000 de plus).
+    const p2 = { id: 'p2', date: '2026-10-20', amount: 300, method: 'cheque' };
+    expect((await payer([p1, p2])).statut).toBe(200);
+    expect((await suivi()).reglements).toMatchObject([{ retenue: '8.042' }, { retenue: '4.564' }]);
+    expect((await payer([{ ...p1, amount: { '~n': '228.554' } }, p2])).statut).toBe(200);
+    expect(await auServeur()).toMatchObject([{ ref_v10: 'p1', montant: 228554n, revision: 2n }, { ref_v10: 'p2', montant: 300000n, revision: 1n }]);
+    // Le premier retiré : le second prend sa place.
+    expect((await payer([p2])).statut).toBe(200);
+    expect(await auServeur()).toMatchObject([{ ref_v10: 'p2', rang: 0 }]);
+    expect(await trace()).toEqual(['ventes.reglement.enregistrer', 'ventes.reglement.enregistrer', 'ventes.reglement.modifier', 'ventes.reglement.supprimer']);
+    // Le règlement qui solde prend le reste de la retenue : 16,083 en tout.
+    expect((await payer([p2, { id: 'p3', date: '2026-11-02', amount: { '~n': '757.107' }, method: 'virement' }])).statut).toBe(200);
+    expect(await suivi()).toMatchObject({ reste: '0.000', statut: 'payee', retenueOperee: '16.083', retenueDue: '16.083' });
+
+    // Un seul paiement illisible, et rien n'est écrit.
+    const avant = await auServeur();
+    const refus = async (payments: unknown[]) => (await payer(payments)).corps.motif;
+    expect(await refus([p2, { id: 'p4', date: '2026-11-03', amount: 0 }])).toBe('Un paiement de la facture FAC-2026-001 n\'a pas de montant : rien n\'a été enregistré.');
+    expect(await refus([p2, { id: 'p4', date: '2026-13-01', amount: 5 }])).toBe('Un paiement de la facture FAC-2026-001 n\'a pas de date valable : rien n\'a été enregistré.');
+    expect(await refus([p2, { ...p2 }])).toBe('Deux paiements de la facture FAC-2026-001 portent le même identifiant : rien n\'a été enregistré.');
+    expect(await refus([p2, { id: 'p4', date: '2026-11-03', amount: { '~n': '1.2345' } }])).toBe('Un paiement en TND se compte à 3 décimales au plus (1.2345) : rien n\'a été enregistré.');
+    expect(await auServeur()).toEqual(avant);
+  });
+
+  it('un paiement ne se saisit que sur une facture émise ; la base refuse elle-même un règlement ailleurs', async () => {
+    const e = await essai();
+    const client = (await e.lire()).find((o) => o.collection === 'clients');
+    if (!client) throw new Error('client d\'exemple absent');
+    const payeTot = { ...brouillon('f1', client.cle), payments: [{ id: 'p1', date: '2026-10-05', amount: 10 }] };
+    expect((await e.envoyer([{ collection: 'documents', cle: 'f1', rang: 0, revision: null, contenu: payeTot }])).corps.motif)
+      .toBe('Un paiement ne s\'enregistre que sur une facture émise : émets-la d\'abord.');
+    // Un brouillon au serveur : la base refuse qu'un règlement s'y rattache.
+    await e.envoyer([{ collection: 'documents', cle: 'f1', rang: 0, revision: null, contenu: brouillon('f1', client.cle) }]);
+    const proprietaire = (await admin.query('select utilisateur from socle.membre where entreprise = $1', [e.ent])).rows[0].utilisateur;
+    const tiers = (await admin.query('select id from socle.tiers where entreprise = $1 limit 1', [e.ent])).rows[0].id;
+    const b = (await admin.query(`insert into ventes.piece (entreprise, type, tiers, date_piece, cree_par) values ($1, 'facture', $2, '2026-10-01', $3) returning id`, [e.ent, tiers, proprietaire])).rows[0].id;
+    await expect(admin.query(`insert into ventes.reglement (entreprise, piece, rang, date_reglement, montant, mode, cree_par) values ($1, $2, 0, '2026-10-05', 1000, 'virement', $3)`, [e.ent, b, proprietaire]))
+      .rejects.toThrow(/un règlement porte sur une facture émise/);
+    // Et un avoir ne corrige qu'une facture de son entreprise.
+    await expect(admin.query(`insert into ventes.piece (entreprise, type, tiers, date_piece, cree_par, corrige) values ($1, 'devis', $2, '2026-10-01', $3, $4)`, [e.ent, tiers, proprietaire, b]))
+      .rejects.toThrow(/corrige_seulement_avoir/);
   });
 
   it('les droits : seuls ceux qui voient toute l\'entreprise ouvrent son dossier ; une autre entreprise n\'y lit rien', async () => {

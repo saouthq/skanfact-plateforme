@@ -118,4 +118,38 @@ export const ADAPTATIONS = [
     avant: "    return Object.keys(SETTINGS_PANNEAUX).filter(id => !SETTINGS_PANNEAUX[id].visible || SETTINGS_PANNEAUX[id].visible()).map(id => {",
     apres: "    return Object.keys(SETTINGS_PANNEAUX).filter(id => !(bridge.panneauxAbsents || []).includes(id)).filter(id => !SETTINGS_PANNEAUX[id].visible || SETTINGS_PANNEAUX[id].visible()).map(id => {",
   },
+  // ── Une facture émise ne s'annule pas (01 § 7, brique 29) ──
+  // « Marquer annulée… » posait un statut que le cadrage interdit : une facture émise se corrige par
+  // un avoir, et « annulée » se DÉDUIT quand ses avoirs la couvrent (effectiveStatus le fait déjà).
+  // Le serveur refuse le statut (v10.annulee) ; l'écran ne le propose plus.
+  {
+    fichier: 'app.js',
+    pourquoi: '« Marquer annulée… » disparaît : une facture émise se corrige par un avoir',
+    avant: "          ${s.status === 'annulée' ? `<span class=\"muted small\">Facture annulée.</span>",
+    apres: "          ${bridge.emettre ? '' : s.status === 'annulée' ? `<span class=\"muted small\">Facture annulée.</span>",
+  },
+  // ── Un paiement se compte à l'unité de sa devise (brique 29, D3) ──
+  // Le serveur tient chaque règlement en entier dans l'unité de la devise de la facture (le centime
+  // pour l'euro) ; la v10 acceptait le millième d'euro. Le refus se dit sur le champ, avant d'enregistrer.
+  {
+    fichier: 'app.js',
+    pourquoi: 'un paiement plus précis que sa devise se refuse sur son champ',
+    avant: "        const v = formValues($('#pf2', root));\n        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');\n",
+    apres: "        const v = formValues($('#pf2', root));\n        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');\n        if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus($('[name=amount]', root), `Un montant en ${cur} se compte à ${C.decimalsFor(cur)} décimales au plus.`);\n",
+  },
+  // ── La caisse n'est pas encore en ligne (étape 4) ──
+  // Un ticket est une facture numérotée sur l'ordinateur : le serveur la refuserait, et l'écran finirait
+  // sur « Rien n'a été enregistré ». Le geste se refuse avec sa phrase, avant de rien vendre.
+  {
+    fichier: 'app.js',
+    pourquoi: '« Encaisser » se refuse avec sa phrase : la caisse arrive avec l\'étape 4',
+    avant: "        if (licenceBlock('Émettre un ticket de caisse', 'caisse')) return;\n",
+    apres: "        if (licenceBlock('Émettre un ticket de caisse', 'caisse')) return;\n        if (bridge.emettre) { toast('La caisse n\\'est pas encore dans la version en ligne de SkanFact : rien n\\'a été vendu.', true); return; }\n",
+  },
+  {
+    fichier: 'app.js',
+    pourquoi: 'le retour d\'un ticket se refuse de même',
+    avant: "        if (licenceBlock('Émettre un avoir sur un ticket', 'caisse')) return;\n",
+    apres: "        if (licenceBlock('Émettre un avoir sur un ticket', 'caisse')) return;\n        if (bridge.emettre) { toast('La caisse n\\'est pas encore dans la version en ligne de SkanFact : rien n\\'a été rendu.', true); return; }\n",
+  },
 ];

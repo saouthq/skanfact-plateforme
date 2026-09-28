@@ -222,10 +222,12 @@ describe('créer son compte et son entreprise', () => {
 });
 
 describe('les garde-fous de la base elle-même', () => {
-  it('chaque table du socle a sa sécurité par ligne, forcée (sauf la trace des migrations)', async () => {
-    const r = await admin.query(`select c.relname, c.relrowsecurity, c.relforcerowsecurity from pg_class c
-      join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'socle' and c.relkind = 'r' and c.relname <> 'migration'`);
-    expect(r.rows.length).toBeGreaterThanOrEqual(8);
+  it('chaque table de chaque schéma a sa sécurité par ligne, forcée (sauf la trace des migrations)', async () => {
+    const r = await admin.query(`select n.nspname || '.' || c.relname as relname, c.relrowsecurity, c.relforcerowsecurity from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace where n.nspname not in ('pg_catalog', 'information_schema') and n.nspname not like 'pg\\_%'
+        and c.relkind in ('r', 'p') and not c.relispartition and (n.nspname, c.relname) <> ('socle', 'migration')`);
+    // Le socle ET les modules (ventes…) : une table de module qui oublierait sa sécurité ferait tomber ce test.
+    expect(r.rows.map((t) => t.relname)).toEqual(expect.arrayContaining(['socle.entreprise', 'ventes.piece', 'ventes.reglement']));
     for (const t of r.rows) expect([t.relname, t.relrowsecurity, t.relforcerowsecurity]).toEqual([t.relname, true, true]);
   });
 

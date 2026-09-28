@@ -65,6 +65,12 @@
     (`panneauxAbsents`) ; « Voir un exemple » ouvre l'entreprise d'essai, jamais des pièces
     inventées dans une vraie. L'inventaire des ~240 fonctions du pont (entreprise et Cabinet) et
     leur état : `docs/pont-v10.md`.
+  - **L'avoir et les règlements** (brique 29, `docs/avoirs-reglements.md`) : l'avoir s'émet par
+    le serveur (série AVO, lié à sa facture, `ventes.piece.corrige`, route et geste à lui) ; les
+    paiements d'une facture émise sont vérifiés et tenus par le serveur (`ventes.reglement`, 0012,
+    `serveur/ventes/reglements.ts`), chaque geste tracé ; reste, statut et retenue au fil se
+    déduisent par le moteur et se lisent par l'API. Une facture émise ne s'annule pas (un avoir la
+    corrige) ; la caisse se refuse avec sa phrase jusqu'à l'étape 4.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

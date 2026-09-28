@@ -1,5 +1,5 @@
 // Les pièces de vente : le brouillon (créer, modifier, supprimer), la lecture avec ses totaux, et
-// l'ÉMISSION d'une facture (01 § 6, § 7, R6, R7, R9, R11) :
+// l'ÉMISSION d'une facture ou d'un avoir (01 § 6, § 7, R6, R7, R9, R11) :
 //   1. tous les contrôles d'abord (brouillon, lignes, client, série, règles connues à la date) ;
 //   2. puis, dans la même transaction : le numéro, les totaux en entiers (moteur/piece.ts), la copie
 //      figée de ce qui a servi au calcul, et le maillon dans la chaîne de la série.
@@ -17,6 +17,7 @@ import { prendreNumero } from '../numeros.ts';
 import { regle, type RegleLue } from '../regles.ts';
 import { tracer } from '../trace.ts';
 import { motif } from '../../textes/index.ts';
+import { etatDeFacture } from './reglements.ts';
 import './textes.ts';
 
 // ── Ce qu'on saisit (les nombres arrivent en TEXTE, jamais en nombre à virgule) ─────────────────
@@ -28,6 +29,8 @@ export type BrouillonSaisi = {
   type: TypePiece; tiers: string; datePiece: string; echeance?: string | undefined;
   devise?: string | undefined; cours?: string | undefined; tauxRemise?: string | undefined; tauxRetenue?: string | undefined;
   appliquerTimbre?: boolean | undefined; objet?: string | undefined; notes?: string | undefined;
+  // La facture qu'un avoir corrige (0012) : seul un avoir en a une.
+  corrige?: string | undefined;
   lignes: LigneSaisie[];
 };
 // Les décimales de chaque nombre saisi (01 R3).
@@ -36,8 +39,9 @@ export const DECIMALES = { quantite: 3, prix: 6, taux: 4, cours: 6 } as const;
 // ── Ce qu'on lit dans la base ───────────────────────────────────────────────────────────────────
 type LignePieceLue = Pick<Selectable<BaseDeDonnees['ventes.ligne']>,
   'rang' | 'designation' | 'description' | 'quantite' | 'prix_unitaire' | 'taux_tva' | 'sans_remise' | 'ht' | 'tva' | 'ttc'>;
-type PieceLue = {
+export type PieceLue = {
   id: string; entreprise: string; type: TypePiece; statut: string; tiers: string; date_piece: string; echeance: string | null;
+  corrige: string | null;
   devise: string; cours: bigint | null; taux_remise: bigint; taux_retenue: bigint; appliquer_timbre: boolean | null;
   objet: string | null; notes: string | null; serie: string | null; numero_texte: string | null; revision: number;
   totaux: Record<string, bigint> | null; tva_par_taux: Record<string, { base: string; tva: string }> | null;
@@ -52,7 +56,7 @@ async function lireLignes(tx: Transaction, piece: string): Promise<LignePieceLue
     .where('piece', '=', piece).orderBy('rang').execute();
 }
 
-async function lirePieceBrute(tx: Transaction, entreprise: string, id: string, verrou = false): Promise<PieceLue> {
+export async function lirePieceBrute(tx: Transaction, entreprise: string, id: string, verrou = false): Promise<PieceLue> {
   const r = await requetes(tx).selectFrom('ventes.piece').selectAll()
     .where('id', '=', id).where('entreprise', '=', entreprise)
     .$if(verrou, (q) => q.forUpdate()).executeTakeFirst();
@@ -68,6 +72,7 @@ async function lirePieceBrute(tx: Transaction, entreprise: string, id: string, v
   }
   return {
     id: r.id, entreprise: r.entreprise, type: r.type as TypePiece, statut: r.statut, tiers: r.tiers, date_piece: r.date_piece, echeance: r.echeance,
+    corrige: r.corrige,
     devise: r.devise, cours: r.cours, taux_remise: r.taux_remise, taux_retenue: r.taux_retenue,
     appliquer_timbre: r.appliquer_timbre, objet: r.objet, notes: r.notes, serie: r.serie, numero_texte: r.numero_texte,
     revision: Number(r.revision), totaux,
@@ -89,6 +94,7 @@ function valeurs(b: BrouillonSaisi) {
     taux_remise: b.tauxRemise === undefined ? 0n : depuisTexte(b.tauxRemise, DECIMALES.taux),
     taux_retenue: b.tauxRetenue === undefined ? 0n : depuisTexte(b.tauxRetenue, DECIMALES.taux),
     appliquer_timbre: b.appliquerTimbre ?? null, objet: b.objet ?? null, notes: b.notes ?? null,
+    corrige: b.corrige ?? null,
   };
 }
 
@@ -164,6 +170,9 @@ export function contenuScelle(p: PieceLue, lignes: LignePieceLue[]) {
       tauxTva: l.taux_tva, sansRemise: l.sans_remise, ht: l.ht, tva: l.tva, ttc: l.ttc,
     })),
     totaux: p.totaux, tvaParTaux: p.tva_par_taux, copie: p.copie,
+    // La facture qu'un avoir corrige, scellée avec lui. Pour un avoir seulement : l'empreinte des
+    // factures déjà émises ne change pas.
+    ...(p.type === 'avoir' ? { corrige: p.corrige } : {}),
   };
 }
 
@@ -185,7 +194,15 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
   // 1. Les contrôles, tous, avant de prendre quoi que ce soit.
   const p = await lirePieceBrute(tx, entreprise, id, true);
   if (p.statut !== 'brouillon') throw new Refus('ventes.deja_emise');
-  if (p.type !== 'facture') throw new Refus('ventes.seule_facture');
+  if (p.type !== 'facture' && p.type !== 'avoir') throw new Refus('ventes.seule_facture');
+  // Un avoir corrige une facture émise de son client, dans sa devise (01 § 7).
+  if (p.type === 'avoir') {
+    if (!p.corrige) throw new Refus('ventes.avoir_sans_facture');
+    const f = await lirePieceBrute(tx, entreprise, p.corrige);
+    if (f.statut !== 'emise') throw new Refus('ventes.avoir_facture_non_emise');
+    if (f.tiers !== p.tiers) throw new Refus('ventes.avoir_autre_client');
+    if (f.devise !== p.devise) throw new Refus('ventes.avoir_autre_devise', { valeurs: { devise: f.devise } });
+  }
   const lignes = await lireLignes(tx, id);
   if (!lignes.length) throw new Refus('ventes.sans_ligne');
   const calcul = await calculer(tx, p, lignes);
@@ -193,8 +210,9 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
   if (calcul.timbreManquant) {
     throw new Refus('ventes.timbre_manquant', { valeurs: { date: p.date_piece } });
   }
+  // Chaque pièce se numérote dans une série de SON type : un avoir ne prend jamais un numéro de facture.
   const serie = (await db.selectFrom('socle.serie').select('id')
-    .where('entreprise', '=', entreprise).where('type', '=', 'facture').where('legale', '=', true).where('active', '=', true)
+    .where('entreprise', '=', entreprise).where('type', '=', p.type).where('legale', '=', true).where('active', '=', true)
     .$if(serieVoulue !== undefined, (q) => q.where('id', '=', serieVoulue ?? ''))
     .orderBy('cree_le').limit(1).executeTakeFirst())?.id;
   if (!serie) throw new Refus('ventes.sans_serie', { bouton: 'socle.reglages_fiscaux.modifier' });
@@ -229,16 +247,18 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
     tva_par_taux: JSON.stringify(emise.tva_par_taux), copie: JSON.stringify(copie), chaine_rang: BigInt(maillon.rang), empreinte: maillon.empreinte,
     emise_le: sql<Date>`now()`, emise_par: utilisateur, modifie_le: sql<Date>`now()`,
   }).where('id', '=', id).where('entreprise', '=', entreprise).execute();
-  await tracer(tx, entreprise, 'ventes.facture.emettre', { type: 'piece_vente', id }, null, { numero: numero.texte, netAPayer: t.netAPayer });
+  await tracer(tx, entreprise, `ventes.${p.type}.emettre`, { type: 'piece_vente', id }, null, { numero: numero.texte, netAPayer: t.netAPayer });
   // L'avis aux adresses abonnées naît dans la MÊME transaction : une émission qui échoue n'annonce
   // rien, une facture émise est toujours annoncée (14 § 2.5). L'argent en texte décimal, jamais en
-  // nombre à virgule.
+  // nombre à virgule. L'avoir n'a pas encore son événement (docs/avoirs-reglements.md, D5).
   const d = calcul.devise.decimales;
-  await emettreAvis(tx, entreprise, 'facture.emise', {
-    id, numero: numero.texte, datePiece: p.date_piece, client: { id: p.tiers, raisonSociale: client.raison_sociale },
-    devise: calcul.devise.code, totalHT: versTexte(t.netHT, d), totalTVA: versTexte(t.totalTVA, d), totalTTC: versTexte(t.totalTTC, d),
-    retenue: versTexte(t.retenue, d), netAPayer: versTexte(t.netAPayer, d),
-  });
+  if (p.type === 'facture') {
+    await emettreAvis(tx, entreprise, 'facture.emise', {
+      id, numero: numero.texte, datePiece: p.date_piece, client: { id: p.tiers, raisonSociale: client.raison_sociale },
+      devise: calcul.devise.code, totalHT: versTexte(t.netHT, d), totalTVA: versTexte(t.totalTVA, d), totalTTC: versTexte(t.totalTTC, d),
+      retenue: versTexte(t.retenue, d), netAPayer: versTexte(t.netAPayer, d),
+    });
+  }
   return { numero: numero.texte, totaux: t, devise: calcul.devise, empreinte: maillon.empreinte };
 }
 
@@ -289,5 +309,9 @@ export async function lirePiece(tx: Transaction, entreprise: string, id: string)
     })),
     totaux, tvaParTaux,
     ...(timbreNonRenseigne ? { avertissement: motif('ventes.avertissement_timbre') } : {}),
+    // Un avoir : la facture qu'il corrige. Une facture émise : ce qu'elle doit encore, son statut, ses
+    // règlements et la retenue née de chacun, ses avoirs (déduits à chaque lecture, R8).
+    ...(p.corrige ? { corrige: p.corrige } : {}),
+    ...(p.type === 'facture' && p.statut === 'emise' ? { suivi: await etatDeFacture(tx, entreprise, p, devise.decimales) } : {}),
   };
 }

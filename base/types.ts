@@ -376,5 +376,25 @@ export interface BaseDeDonnees {
     modifie_le: Generated<Date>;
     revision: Generated<bigint>;
     ref_v10: string | null;
+    corrige: string | null;
+  };
+  'ventes.reglement': {
+    id: Generated<string>;
+    entreprise: string;
+    piece: string;
+    ref_v10: string | null;
+    rang: number;
+    date_reglement: string;
+    montant: bigint;
+    cours: bigint | null;
+    mode: string;
+    compte: string | null;
+    reference: string | null;
+    note: string | null;
+    cree_par: string;
+    cree_le: Generated<Date>;
+    modifie_par: string | null;
+    modifie_le: Generated<Date>;
+    revision: Generated<bigint>;
   };
 }

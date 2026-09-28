@@ -68,7 +68,7 @@ prouver "l'entreprise visible par tous" $M \
   "le propriétaire de B ne voit rien de A"
 prouver "la sécurité par ligne non forcée sur une table" $M \
   "alter table socle.etablissement force row level security;" "" \
-  "chaque table du socle a sa sécurité par ligne, forcée"
+  "chaque table de chaque schéma a sa sécurité par ligne, forcée"
 prouver "un mandat seulement proposé qui ouvre l'accès" base/migrations/0007_cles_api.sql \
   "where d.statut = 'actif'
      and d.debut" "where d.debut" \
@@ -1138,8 +1138,8 @@ prouver "un nombre à virgule accepté dans le dossier" serveur/v10/routes.ts \
   "z.union([z.number().int(), z.string()," "z.union([z.number(), z.string()," \
   "jamais un nombre à virgule en base"
 prouver "une facture émise par l'interface, sans le serveur" $DV \
-  "    throw new Refus(type === 'avoir' ? 'v10.avoir_pas_encore' : 'v10.emission_par_le_serveur');" "" \
-  "une facture ne devient émise que par le serveur"
+  "  if (emise(apres) || (apres && typeof apres.number === 'string' && apres.number !== '')) throw new Refus('v10.emission_par_le_serveur');" "" \
+  "une facture ou un avoir ne devient émis que par le serveur"
 prouver "une émission dont le net à payer diffère de l'écran" $DV \
   "  if (serveur !== demande.netAPayer) throw" "  if (Date.now() < 0) throw" \
   "l'émission : le numéro du serveur"
@@ -1147,10 +1147,10 @@ prouver "les lignes d'une facture émise encore modifiables" $DV \
   "'exchangeRate', 'lines', 'discountRate'" "'exchangeRate', 'discountRate'" \
   "une facture émise ne change plus ce qui a été scellé"
 prouver "une facture émise refusée parce que la base a rangé ses clés autrement" $DV \
-  "      if (canonique(avant?.[champ]) !== canonique(apres[champ])) {" "      if (JSON.stringify(avant?.[champ]) !== JSON.stringify(apres[champ])) {" \
+  "      if (canonique(avant?.[champ]) !== canonique(apres[champ])) throw" "      if (JSON.stringify(avant?.[champ]) !== JSON.stringify(apres[champ])) throw" \
   "une facture émise ne change plus ce qui a été scellé"
 prouver "une facture émise qu'on peut effacer" $DV \
-  "    if (!apres) throw new Refus('v10.emise_ne_s_efface_pas', { valeurs: { numero: String(avant?.number ?? '') } });" "    if (!apres) return;" \
+  "    if (!apres) throw new Refus(av ? 'v10.avoir_ne_s_efface_pas' : 'v10.emise_ne_s_efface_pas', numero);" "    if (!apres) return;" \
   "une facture émise ne change plus ce qui a été scellé"
 prouver "un commercial qui ouvre tout le dossier" serveur/porte/gestes.ts \
   "  { code: 'socle.dossier.voir', module: 'socle', horsCle: true, ecrit: false,
@@ -1187,5 +1187,74 @@ prouver "un taux illisible qui fait tomber le serveur (500)" serveur/ventes/rout
 prouver "un refus sans sa raison seule" serveur/app.ts \
   ", champ: p ? champ : null, raison: pourquoi });" ", champ: p ? champ : null });" \
   "$CH"
+# ── L'avoir et les règlements par le serveur (0012, brique 29) ──────────────────────────────────
+AV="l'avoir s'émet par le serveur : série AVO"
+RG="les règlements d'une facture émise sont tenus par le serveur"
+PV="un paiement ne se saisit que sur une facture émise"
+PX="une facture émise, puis payée en partie et corrigée par un avoir, à la souris"
+M12=base/migrations/0012_avoirs_reglements.sql
+RGS=serveur/ventes/reglements.ts
+V10A=web/public/v10/app.js
+prouver "un avoir numéroté dans la série des factures" serveur/ventes/pieces.ts \
+  ".where('entreprise', '=', entreprise).where('type', '=', p.type).where('legale', '=', true).where('active', '=', true)" ".where('entreprise', '=', entreprise).where('type', '=', 'facture').where('legale', '=', true).where('active', '=', true)" \
+  "$AV"
+prouver "un avoir émis sans dire quelle facture il corrige" $DV \
+  "    if (!f) throw new Refus('ventes.avoir_sans_facture');" "" \
+  "$AV"
+prouver "un avoir émis par la route de la facture (celle du commercial)" $DV \
+  "  if (!cle || doc.type !== type) throw new Refus('ventes.seule_facture');" "  if (!cle) throw new Refus('ventes.seule_facture');" \
+  "$AV"
+prouver "un avoir émis qui change de facture" $DV \
+  "'stampFee', 'creditOf', 'creditReason'];" "'stampFee', 'creditReason'];" \
+  "$AV"
+prouver "la facture corrigée hors du scellé de l'avoir" serveur/ventes/pieces.ts \
+  "    ...(p.type === 'avoir' ? { corrige: p.corrige } : {})," "" \
+  "$AV"
+prouver "une facture émise qu'on marque annulée" $DV \
+  "    if (apres.status === 'annulée') throw new Refus('v10.annulee', numero);
+    if (apres.status !== STATUT_EMISE[type])" "    if (!['envoyée', 'annulée', 'émis'].includes(String(apres.status)))" \
+  "une facture émise ne change plus ce qui a été scellé"
+prouver "un règlement enregistré sans sa trace" $RGS \
+  "      await tracer(tx, entreprise, 'ventes.reglement.enregistrer', { type: 'reglement', id }, null, pourTrace(r));" "" \
+  "$RG"
+prouver "un règlement retiré de l'écran qui reste au serveur" $RGS \
+  "    await db.deleteFrom('ventes.reglement').where('id', '=', a.id).execute();" "" \
+  "$RG"
+prouver "un règlement modifié qui garde son ancien montant au serveur" $RGS \
+  "    const change = avant.date !== r.date || avant.montant !== r.montant ||" "    const change = avant.date !== r.date ||" \
+  "$RG"
+prouver "un paiement plus précis que sa devise accepté" $DV \
+  "    try { montant = depuisTexte(texte, decimales); }" "    try { montant = depuisTexte(texte, 6); }" \
+  "$RG"
+prouver "un paiement daté d'un jour qui n'existe pas" $DV \
+  "  if (typeof v !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}\$/.test(v)) return false;" "  if (typeof v === 'string') return true;" \
+  "$RG"
+prouver "la retenue ôtée des règlements (le reste compté sur le brut)" $RGS \
+  "  const fil = retenueAuFil(net, net + retenue, liees, regles);" "  const fil = retenueAuFil(net, net, liees, regles);" \
+  "$RG"
+prouver "un paiement saisi sur un brouillon" $DV \
+  "    if (paiements.length) throw new Refus('v10.reglement_sur_brouillon');" "" \
+  "$PV"
+prouver "la base qui accepte un règlement sur une facture non émise" $M12 \
+  "and p.type = 'facture' and p.statut = 'emise'" "and p.type = 'facture'" \
+  "$PV"
+prouver "les règlements sans sécurité par ligne forcée" $M12 \
+  "alter table ventes.reglement force row level security;" "" \
+  "chaque table de chaque schéma a sa sécurité par ligne, forcée"
+prouver "l'avoir envoyé par la route de la facture (le pont)" $PONT \
+  "doc.type === 'avoir' ? '/dossier-v10/emettre-avoir' : '/dossier-v10/emettre'" "'/dossier-v10/emettre'" \
+  "$PX"
+prouver "« Marquer annulée… » encore proposé" $V10A \
+  "\${bridge.emettre ? '' : s.status === 'annulée' ?" "\${s.status === 'annulée' ?" \
+  "$PX"
+prouver "un paiement trop précis découvert seulement à l'enregistrement" $V10A \
+  "        if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus(\$('[name=amount]', root), \`Un montant en \${cur} se compte à \${C.decimalsFor(cur)} décimales au plus.\`);
+" "" \
+  "$PX"
+prouver "la caisse qui vend sans le serveur" $V10A \
+  "        if (bridge.emettre) { toast('La caisse n\\'est pas encore dans la version en ligne de SkanFact : rien n\\'a été vendu.', true); return; }
+" "" \
+  "la caisse n'est pas encore en ligne"
+
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

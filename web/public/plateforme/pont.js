@@ -193,7 +193,7 @@
     dataPath: async () => 'Serveur SkanFact',
     setTitle: (/** @type {string} */ t) => { document.title = t; },
 
-    // L'émission d'une facture (adaptation de `issue()` dans app.js) : le serveur prend la pièce telle
+    // L'émission d'une facture ou d'un avoir (adaptation de `issue()` dans app.js) : le serveur prend la pièce telle
     // que l'écran la montre, la numérote, la scelle, et vérifie qu'il trouve le même net à payer.
     emettre: async (/** @type {any} */ doc, /** @type {any} */ client, /** @type {number} */ netAPayer) => {
       if (enCours) await enCours;
@@ -204,7 +204,8 @@
       const place = Array.isArray(liste) ? liste.findIndex((/** @type {any} */ d) => d.id === doc.id) : -1;
       // Une pièce neuve prendra la dernière place de la liste, comme la v10 l'y ajoute.
       const rang = Array.isArray(liste) ? (place >= 0 ? place : liste.length) : null;
-      const r = await appel('POST', '/dossier-v10/emettre', {
+      // Un avoir a sa route (et son geste : le commercial émet une facture, pas un avoir).
+      const r = await appel('POST', doc.type === 'avoir' ? '/dossier-v10/emettre-avoir' : '/dossier-v10/emettre', {
         document: encoder(doc), client: client ? encoder(client) : null, revision: avant ? avant.revision : null,
         rang: avant ? avant.rang : rang, netAPayer: Number(netAPayer).toFixed(decimales),
       });

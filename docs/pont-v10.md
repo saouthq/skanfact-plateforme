@@ -17,7 +17,8 @@ Cabinet n'est pas encore repris.
 |---|---|---|
 | `loadData` | Lit le dossier de l'entreprise sur le serveur (amorcé la première fois par sa fiche et ses clients) | `tests/v10/dossier.test.ts` |
 | `saveData` | N'envoie que les objets changés, avec leur révision ; si un autre a changé le même objet, la v10 reçoit un conflit, fusionne, le dit, et la version du serveur gagne (l'autre est mise de côté) | `dossier.test.ts`, parcours « deux onglets » |
-| `emettre` (nouvelle) | La facture s'émet par le serveur : numéro de la série FAC, net à payer vérifié au millime de l'écran, pièce scellée | `dossier.test.ts`, parcours à la souris |
+| `emettre` (nouvelle) | La facture et l'avoir s'émettent par le serveur (brique 29 pour l'avoir) : numéro de la série FAC ou AVO, net à payer vérifié au millime de l'écran, pièce scellée ; l'avoir lié à sa facture | `dossier.test.ts`, parcours à la souris |
+| `saveData` (règlements) | Les paiements d'une facture émise sont vérifiés et tenus par le serveur (`ventes.reglement`), avec leur trace ; reste, statut et retenue lus par l'API (brique 29, `docs/avoirs-reglements.md`) | `dossier.test.ts`, parcours à la souris |
 | `listDossiers`, `switchDossier`, `addDossier` | Les « dossiers » de la v10 sont les entreprises du compte : les voir, basculer, en créer une | parcours |
 | `deconnecter` (nouvelle) | « Se déconnecter », dans le menu du haut (à la place de « Partager » et « Rejoindre ») | parcours |
 | `exemple` (nouvelle) | « Voir un exemple » ouvre l'entreprise d'essai ; jamais de pièces inventées dans une vraie entreprise | parcours « vraie entreprise » |
@@ -37,7 +38,7 @@ Cabinet n'est pas encore repris.
 ## 3. Refusé avec sa phrase (pas encore en ligne)
 
 Pièces jointes (le panneau est caché), lecture des factures par photo, paquet et réponses du
-cabinet, abonnement, import d'un fichier qui remplace tout, nommer l'appareil, retirer une
+cabinet, **la caisse** (« Encaisser » et le retour d'un ticket, jusqu'à l'étape 4), abonnement, import d'un fichier qui remplace tout, nommer l'appareil, retirer une
 entreprise de la liste. Le refus dit ce qui n'existe pas encore et que **rien n'a été fait**.
 
 ## 4. Caché : sans objet sur la plateforme
@@ -45,7 +46,8 @@ entreprise de la liste. Le refus dit ce qui n'existe pas encore et que **rien n'
 Panneaux des Paramètres (et leurs entrées de la palette Ctrl K) : dossiers de l'ordinateur,
 sauvegardes du disque, copie externe, mot de passe du fichier, lecture par photo, « Tout effacer »,
 cabinet (appairage par fichier), mises à jour, licence, éditeur, pièces jointes, dépannage.
-« Modifier quand même… » sur une facture émise a disparu : le serveur la scelle.
+« Modifier quand même… » et « Marquer annulée… » sur une facture émise ont disparu : le serveur la
+scelle, et un avoir la corrige (un avoir total la solde : « annulée » se déduit).
 
 ## 5. Reste à faire (connu, écrit ici pour ne pas l'oublier)
 
@@ -58,7 +60,6 @@ cabinet (appairage par fichier), mises à jour, licence, éditeur, pièces joint
   (`docs/cadrage/04-hors-ligne-et-synchro.md` du dépôt `skanfact`).
 - **Les gros dossiers** : le dossier se charge en entier ; à mesurer (la règle : toute liste se
   pagine).
-- **L'avoir** s'émet encore par la v10 : le serveur le refuse et le dit (`v10.avoir_pas_encore`).
 - La version affichée au pied de la barre (« vdev »), le journal des erreurs du serveur
   (`supportInfo`, `supportErreur`), l'historique des nouveautés (`changelog`).
 - **Le Cabinet** : ses 145 fonctions demandent d'abord un livre comptable d'un dossier sur le

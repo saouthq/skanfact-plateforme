@@ -5,7 +5,8 @@
 //   - garde chaque objet avec sa révision, et refuse un changement fait sur une version dépassée ;
 //   - n'accepte jamais qu'une facture devienne émise par un simple enregistrement : l'émission passe
 //     par `emettreDepuisV10`, qui numérote, calcule en entiers, scelle (ventes.piece) ;
-//   - refuse qu'une facture émise change ce qui a été scellé, ou disparaisse.
+//   - refuse qu'une facture émise change ce qui a été scellé, ou disparaisse ;
+//   - tient les règlements d'une facture émise au même état que le dossier (0012, `tenirReglements`).
 // Un nombre non entier arrive en texte exact ({ "~n": "450.5" }) : jamais de nombre à virgule en base.
 
 import { depuisTexte, versTexte } from '../../moteur/argent.ts';
@@ -13,6 +14,7 @@ import { requetes, type Transaction } from '../base.ts';
 import { Perimee, Refus } from '../erreurs.ts';
 import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonSaisi } from '../ventes/pieces.ts';
+import { tenirReglements, type ReglementSaisi } from '../ventes/reglements.ts';
 import './textes.ts';
 
 export type Objet = { collection: string; cle: string; rang: number | null; contenu: unknown; revision: number };
@@ -42,10 +44,13 @@ export function enNombreV10(texte: string): number | { '~n': string } {
 }
 
 // ── Les pièces : ce qu'une facture émise ne change plus ─────────────────────────────────────────
-// Tout ce qui a servi à la calculer et à la numéroter (le reste, ses règlements, ses relances, ses
-// justificatifs, suit sa vie). `annulée` reste possible, comme dans la v10.
+// Tout ce qui a servi à la calculer et à la numéroter, et pour un avoir la facture qu'il corrige et
+// son motif imprimé (le reste, ses règlements, ses relances, ses justificatifs, suit sa vie). Une
+// facture émise ne s'annule pas : un avoir total la solde, et « annulée » se déduit (01 § 7).
 const PIECES_LEGALES = ['facture', 'avoir'];
-const SCELLE = ['type', 'number', 'date', 'clientId', 'currency', 'exchangeRate', 'lines', 'discountRate', 'withholdingRate', 'applyStamp', 'stampFee'];
+const SCELLE = ['type', 'number', 'date', 'clientId', 'currency', 'exchangeRate', 'lines', 'discountRate', 'withholdingRate', 'applyStamp', 'stampFee', 'creditOf', 'creditReason'];
+// Le statut d'une pièce émise, tel que la v10 l'écrit (STATUSES de core.js).
+const STATUT_EMISE: Record<string, string> = { facture: 'envoyée', avoir: 'émis' };
 // Deux contenus égaux, quel que soit l'ordre de leurs champs (la base range les champs d'un objet
 // JSON à sa façon : comparer les textes tels quels verrait un changement là où il n'y en a pas).
 function canonique(v: unknown): string {
@@ -59,20 +64,71 @@ function verifierPiece(avant: Json | null, apres: Json | null) {
   const type = String((apres ?? avant)?.type ?? '');
   if (!PIECES_LEGALES.includes(type)) return;
   if (emise(avant)) {
-    if (!apres) throw new Refus('v10.emise_ne_s_efface_pas', { valeurs: { numero: String(avant?.number ?? '') } });
+    const numero = { valeurs: { numero: String(avant?.number ?? '') } };
+    const av = type === 'avoir';
+    if (!apres) throw new Refus(av ? 'v10.avoir_ne_s_efface_pas' : 'v10.emise_ne_s_efface_pas', numero);
     for (const champ of SCELLE) {
-      if (canonique(avant?.[champ]) !== canonique(apres[champ])) {
-        throw new Refus('v10.emise_ne_se_modifie_plus', { valeurs: { numero: String(avant?.number ?? '') } });
-      }
+      if (canonique(avant?.[champ]) !== canonique(apres[champ])) throw new Refus(av ? 'v10.avoir_ne_se_modifie_plus' : 'v10.emise_ne_se_modifie_plus', numero);
     }
-    if (!['envoyée', 'annulée', 'émis'].includes(String(apres.status))) throw new Refus('v10.emise_ne_se_modifie_plus', { valeurs: { numero: String(avant?.number ?? '') } });
+    if (apres.status === 'annulée') throw new Refus('v10.annulee', numero);
+    if (apres.status !== STATUT_EMISE[type]) throw new Refus(av ? 'v10.avoir_ne_se_modifie_plus' : 'v10.emise_ne_se_modifie_plus', numero);
     return;
   }
-  // Un brouillon ne devient émis QUE par le serveur (la numérotation légale, 01 R9). L'avoir n'y est
-  // pas encore branché : il reste en brouillon, et le refus le dit.
-  if (emise(apres) || (apres && typeof apres.number === 'string' && apres.number !== '')) {
-    throw new Refus(type === 'avoir' ? 'v10.avoir_pas_encore' : 'v10.emission_par_le_serveur');
+  // Un brouillon ne devient émis QUE par le serveur (la numérotation légale, 01 R9).
+  if (emise(apres) || (apres && typeof apres.number === 'string' && apres.number !== '')) throw new Refus('v10.emission_par_le_serveur');
+}
+
+// ── Les règlements d'une facture (0012) ─────────────────────────────────────────────────────────
+// Un jour du calendrier : « 2026-10-01 », et qui existe.
+// (Un « 13e mois » donne une date invalide : elle se refuse, elle ne fait pas tomber le serveur.)
+const estJour = (v: unknown): v is string => {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+};
+const texteOuNul = (v: unknown, max: number) => (typeof v === 'string' && v.trim() !== '' ? v.slice(0, max) : null);
+
+// Les paiements d'une facture émise, tels que la v10 les a saisis (`documents[].payments`), lus et
+// vérifiés : un seul illisible, et rien n'est enregistré.
+function lirePaiements(doc: Json, decimales: number, devise: string): ReglementSaisi[] {
+  const numero = String(doc.number ?? '');
+  const liste = Array.isArray(doc.payments) ? doc.payments : [];
+  const vus = new Set<string>();
+  return liste.map((p, rang) => {
+    if (!estObjet(p) || typeof p.id !== 'string' || p.id === '' || p.id.length > 200) throw new Refus('v10.reglement_sans_identifiant', { valeurs: { numero } });
+    if (vus.has(p.id)) throw new Refus('v10.reglement_double', { valeurs: { numero } });
+    vus.add(p.id);
+    if (!estJour(p.date)) throw new Refus('v10.reglement_date', { valeurs: { numero } });
+    const texte = nombreEnTexte(p.amount);
+    let montant: bigint;
+    try { montant = depuisTexte(texte, decimales); } catch { throw new Refus('v10.reglement_decimales', { valeurs: { devise, decimales: String(decimales), montant: texte } }); }
+    if (montant === 0n) throw new Refus('v10.reglement_montant', { valeurs: { numero } });
+    let cours: bigint | null = null;
+    if (p.exchangeRate !== undefined && p.exchangeRate !== null && p.exchangeRate !== '') {
+      try { cours = depuisTexte(nombreEnTexte(p.exchangeRate), DECIMALES.cours); } catch { cours = 0n; }
+      if (cours <= 0n) throw new Refus('v10.reglement_cours', { valeurs: { numero } });
+    }
+    return {
+      ref: p.id, rang, date: p.date, montant, cours,
+      mode: texteOuNul(p.method, 40) ?? 'inconnu', compte: texteOuNul(p.accountId, 200), reference: texteOuNul(p.reference, 200), note: texteOuNul(p.note, 1000),
+    };
+  });
+}
+
+// Après l'enregistrement d'une pièce du dossier : une facture émise voit ses règlements tenus par le
+// serveur ; une pièce légale qui n'est pas une facture émise n'en a aucun.
+async function suivreReglements(tx: Transaction, entreprise: string, utilisateur: string, cle: string, apres: Json | null) {
+  if (!apres || !PIECES_LEGALES.includes(String(apres.type))) return;
+  const paiements = Array.isArray(apres.payments) ? apres.payments : [];
+  if (apres.type !== 'facture' || !emise(apres)) {
+    if (paiements.length) throw new Refus('v10.reglement_sur_brouillon');
+    return;
   }
+  const db = requetes(tx);
+  const piece = await db.selectFrom('ventes.piece').select(['id', 'devise']).where('entreprise', '=', entreprise).where('ref_v10', '=', cle).where('statut', '=', 'emise').executeTakeFirst();
+  if (!piece) throw new Error(`facture émise du dossier sans sa pièce au serveur : ${cle}`);
+  const { decimales } = await db.selectFrom('socle.devise').select('decimales').where('code', '=', piece.devise).executeTakeFirstOrThrow();
+  await tenirReglements(tx, entreprise, utilisateur, piece.id, lirePaiements(apres, decimales, piece.devise));
 }
 
 // ── Lire le dossier ─────────────────────────────────────────────────────────────────────────────
@@ -123,7 +179,10 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   const resultat: { collection: string; cle: string; revision: number | null }[] = [];
   for (const c of changements) {
     const a = actuels.get(`${c.collection}/${c.cle}`);
-    if (c.collection === 'documents') verifierPiece(estObjet(a?.contenu) ? a.contenu : null, estObjet(c.contenu) ? c.contenu : null);
+    if (c.collection === 'documents') {
+      verifierPiece(estObjet(a?.contenu) ? a.contenu : null, estObjet(c.contenu) ? c.contenu : null);
+      await suivreReglements(tx, entreprise, utilisateur, c.cle, estObjet(c.contenu) ? c.contenu : null);
+    }
     if (c.contenu === null) {
       await db.deleteFrom('socle.dossier_v10').where('entreprise', '=', entreprise).where('collection', '=', c.collection).where('cle', '=', c.cle).execute();
       resultat.push({ collection: c.collection, cle: c.cle, revision: null });
@@ -143,7 +202,9 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   return resultat;
 }
 
-// ── Émettre une facture du dossier ──────────────────────────────────────────────────────────────
+// ── Émettre une facture ou un avoir du dossier ──────────────────────────────────────────────────
+// La série de la v10 de chaque pièce (« FAC-2026-001 », « AVO-2026-001 ») : core.js, PREFIXES.
+const SERIE_V10: Record<string, string> = { facture: 'FAC', avoir: 'AVO' };
 type LigneV10 = { label?: unknown; description?: unknown; qty?: unknown; unitPrice?: unknown; vatRate?: unknown; noDiscount?: unknown };
 // La devise de la v10 (« DT ») et celle du serveur (« TND »).
 const devise = (c: unknown) => (!c || c === 'DT' || c === 'TND' ? 'TND' : String(c));
@@ -151,12 +212,16 @@ const devise = (c: unknown) => (!c || c === 'DT' || c === 'TND' ? 'TND' : String
 // qui en a trop est refusé par le calcul, sur la pièce).
 const decimal = (v: unknown, dec: number) => { const t = nombreEnTexte(v); depuisTexte(t, dec); return t; };
 
+// `type` : la pièce que la route émet (chacune a son geste : un commercial émet une facture, pas un
+// avoir, 03 § 2.1). Une pièce d'un autre type ne passe pas par cette route.
 export async function emettreDepuisV10(tx: Transaction, entreprise: string, utilisateur: string,
-  demande: { document: Json; client: Json | null; revision: number | null; rang: number | null; netAPayer: string }) {
+  demande: { document: Json; client: Json | null; revision: number | null; rang: number | null; netAPayer: string }, type: 'facture' | 'avoir' = 'facture') {
   const db = requetes(tx);
   const doc = demande.document;
   const cle = String(doc.id ?? '');
-  if (!cle || doc.type !== 'facture') throw new Refus('ventes.seule_facture');
+  if (!cle || doc.type !== type) throw new Refus('ventes.seule_facture');
+  // Un paiement ne se saisit qu'une fois la facture émise.
+  if (Array.isArray(doc.payments) && doc.payments.length) throw new Refus('v10.reglement_sur_brouillon');
   const stocke = await db.selectFrom('socle.dossier_v10').select(['contenu', 'revision'])
     .where('entreprise', '=', entreprise).where('collection', '=', 'documents').where('cle', '=', cle).forUpdate().executeTakeFirst();
   if ((stocke ? Number(stocke.revision) : null) !== demande.revision) throw new Conflit([{ collection: 'documents', cle }]);
@@ -179,13 +244,23 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
       .returning('id').executeTakeFirstOrThrow()).id;
   }
 
+  // Un avoir : la facture qu'il corrige, émise dans le dossier ET au serveur.
+  let corrige: string | undefined;
+  if (type === 'avoir') {
+    const f = typeof doc.creditOf === 'string' && doc.creditOf !== '' ? doc.creditOf : null;
+    if (!f) throw new Refus('ventes.avoir_sans_facture');
+    const piece = await db.selectFrom('ventes.piece').select(['id', 'statut']).where('entreprise', '=', entreprise).where('ref_v10', '=', f).where('type', '=', 'facture').executeTakeFirst();
+    if (piece?.statut !== 'emise') throw new Refus('ventes.avoir_facture_non_emise');
+    corrige = piece.id;
+  }
+
   // 2. Le brouillon du serveur, refait à partir de la pièce du dossier.
   const ancien = await db.selectFrom('ventes.piece').select(['id', 'statut']).where('entreprise', '=', entreprise).where('ref_v10', '=', cle).executeTakeFirst();
   if (ancien?.statut === 'emise') throw new Refus('ventes.deja_emise');
   if (ancien) await supprimerBrouillon(tx, entreprise, ancien.id);
   const dev = devise(doc.currency);
   const b: BrouillonSaisi = {
-    type: 'facture', tiers, datePiece: String(doc.date ?? ''), ...(doc.dueDate ? { echeance: String(doc.dueDate) } : {}),
+    type, tiers, datePiece: String(doc.date ?? ''), ...(doc.dueDate ? { echeance: String(doc.dueDate) } : {}), ...(corrige ? { corrige } : {}),
     ...(dev === 'TND' ? {} : { devise: dev, cours: decimal(doc.exchangeRate, DECIMALES.cours) }),
     tauxRemise: decimal(doc.discountRate ?? 0, DECIMALES.taux), tauxRetenue: decimal(doc.withholdingRate ?? 0, DECIMALES.taux),
     ...(doc.applyStamp === undefined ? {} : { appliquerTimbre: doc.applyStamp !== false }),
@@ -199,11 +274,12 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   const piece = await creerBrouillon(tx, utilisateur, entreprise, b);
   await db.updateTable('ventes.piece').set({ ref_v10: cle }).where('id', '=', piece).execute();
 
-  // 3. La série de la v10 (« FAC-2026-001 ») : créée au premier besoin, comme la v10 numérotait dès
-  //    la première facture.
-  let serie = (await db.selectFrom('socle.serie').select('id').where('entreprise', '=', entreprise).where('prefixe', '=', 'FAC')
-    .where('type', '=', 'facture').where('legale', '=', true).where('active', '=', true).executeTakeFirst())?.id;
-  if (!serie) serie = String((await tx.query(`select socle.creer_serie($1, 'facture', 'FAC', true, null, null) id`, [entreprise])).rows[0].id);
+  // 3. La série de la v10 (« FAC-2026-001 », « AVO-2026-001 ») : créée au premier besoin, comme la
+  //    v10 numérotait dès la première pièce.
+  const prefixe = SERIE_V10[type] ?? 'FAC';
+  let serie = (await db.selectFrom('socle.serie').select('id').where('entreprise', '=', entreprise).where('prefixe', '=', prefixe)
+    .where('type', '=', type).where('legale', '=', true).where('active', '=', true).executeTakeFirst())?.id;
+  if (!serie) serie = String((await tx.query(`select socle.creer_serie($1, $2, $3, true, null, null) id`, [entreprise, type, prefixe])).rows[0].id);
 
   // 4. L'émission : les contrôles, le numéro, les montants en entiers, le maillon.
   const r = await emettre(tx, utilisateur, entreprise, piece, serie);
@@ -214,7 +290,7 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
 
   // 5. La pièce du dossier devient émise, avec le numéro du serveur.
   // L'instant de l'émission (`issuedTs`), la v10 le pose elle-même juste après, comme avant.
-  const contenu = { ...doc, number: r.numero, status: 'envoyée', stampFee: enNombreV10(versTexte(r.totaux.timbreBase, 3)) };
+  const contenu = { ...doc, number: r.numero, status: STATUT_EMISE[type], stampFee: enNombreV10(versTexte(r.totaux.timbreBase, 3)) };
   if (stocke) {
     await db.updateTable('socle.dossier_v10').set({ contenu: JSON.stringify(contenu), revision: BigInt(Number(stocke.revision) + 1), modifie_le: new Date(), modifie_par: utilisateur })
       .where('entreprise', '=', entreprise).where('collection', '=', 'documents').where('cle', '=', cle).execute();

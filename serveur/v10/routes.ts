@@ -1,6 +1,6 @@
 // Les routes du dossier v10 (0011) : le point de contact de l'interface v10 (web/public/plateforme/
-// pont.js) lit le dossier entier, y renvoie les objets qui changent, et fait émettre une facture par
-// le serveur. Une clé de l'API n'y entre pas (gestes « horsCle ») : un logiciel branché passe par les
+// pont.js) lit le dossier entier, y renvoie les objets qui changent, et fait émettre une facture ou un
+// avoir par le serveur. Une clé de l'API n'y entre pas (gestes « horsCle ») : un logiciel branché passe par les
 // routes de chaque module.
 
 import { z } from 'zod';
@@ -36,17 +36,20 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     },
   });
 
-  ajouter({
-    methode: 'POST', chemin: '/entreprises/:entreprise/dossier-v10/emettre', geste: 'ventes.facture.emettre',
-    corps: z.object({
-      document: z.record(z.string(), contenu), client: z.record(z.string(), contenu).nullable(),
-      revision: z.number().int().min(1).nullable(), rang: z.number().int().min(0).nullable(), netAPayer: z.string().regex(/^-?\d+(\.\d+)?$/),
-    }),
-    traiter: async ({ params, corps, qui }, tx) => {
-      if (!tx || !qui) throw new Error('transaction attendue');
-      return { corps: await emettreDepuisV10(tx, params.entreprise ?? '', qui.utilisateur, corps as Parameters<typeof emettreDepuisV10>[3]) };
-    },
+  // Émettre une facture, ou un avoir : chacun sa route, chacun son geste (03 § 2.1).
+  const demande = z.object({
+    document: z.record(z.string(), contenu), client: z.record(z.string(), contenu).nullable(),
+    revision: z.number().int().min(1).nullable(), rang: z.number().int().min(0).nullable(), netAPayer: z.string().regex(/^-?\d+(\.\d+)?$/),
   });
+  for (const [type, chemin, geste] of [['facture', 'emettre', 'ventes.facture.emettre'], ['avoir', 'emettre-avoir', 'ventes.avoir.emettre']] as const) {
+    ajouter({
+      methode: 'POST', chemin: `/entreprises/:entreprise/dossier-v10/${chemin}`, geste, corps: demande,
+      traiter: async ({ params, corps, qui }, tx) => {
+        if (!tx || !qui) throw new Error('transaction attendue');
+        return { corps: await emettreDepuisV10(tx, params.entreprise ?? '', qui.utilisateur, corps as Parameters<typeof emettreDepuisV10>[3], type) };
+      },
+    });
+  }
 
   return routes;
 }

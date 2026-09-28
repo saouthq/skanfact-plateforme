@@ -2,7 +2,7 @@
 // porte ne connaît que ces déclarations.
 //
 // Pas encore déclarés ici (ils viendront avec leurs pièces) : les bons de livraison du magasinier,
-// l'avoir, le règlement, la relance, le compte auxiliaire que la comptabilité interne règle sur une
+// le règlement par une route à lui (il s'enregistre aujourd'hui avec le dossier v10), la relance, le compte auxiliaire que la comptabilité interne règle sur une
 // fiche client, et la condition du § 2.2 sur l'émission par un commercial.
 
 import { declarerGestes, type Geste } from '../porte/gestes.ts';
@@ -15,6 +15,9 @@ export const GESTES_VENTES: Geste[] = [
     roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui' } },
   { code: 'ventes.facture.emettre', module: 'ventes', ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui' } },
+  // L'avoir : le commercial le prépare, il ne l'émet pas (03 § 2.1).
+  { code: 'ventes.avoir.emettre', module: 'ventes', ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui' } },
   { code: 'ventes.client.modifier', module: 'ventes', ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', lecture: 'voir' } },
 ];
