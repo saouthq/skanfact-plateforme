@@ -37,6 +37,8 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
+      - name: Le navigateur des tests des écrans
+        run: npx playwright-core install --with-deps chromium
       - name: Types
         run: npm run types
       - name: Lint (0 erreur, 0 avertissement)

@@ -2,6 +2,10 @@
 // qu'aucun fournisseur de SMS n'est choisi), écoute, fait tourner le livreur des avis, s'arrête
 // proprement ; sans fournisseur, un SMS ne part jamais en silence.
 
+import fs from 'node:fs';
+import http from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
 import pg from 'pg';
 import { describe, expect, inject, it } from 'vitest';
 import { rendre } from '../../textes/index.ts';
@@ -49,4 +53,45 @@ describe('le programme serveur', () => {
     }
     await expect(fetch(`${s.adresse}/v1/documentation`)).rejects.toThrow();
   });
+
+  it('il sert les écrans à côté de l\'API, avec leurs en-têtes de sécurité, et jamais un fichier hors de leur dossier', async () => {
+    const web = fs.mkdtempSync(path.join(os.tmpdir(), 'ecrans-'));
+    fs.mkdirSync(path.join(web, 'assets'));
+    fs.writeFileSync(path.join(web, 'index.html'), '<!doctype html><title>SkanFact</title>');
+    fs.writeFileSync(path.join(web, 'assets', 'app.js'), 'console.log(1)');
+    const s = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, livreurMs: 60_000, web });
+    try {
+      const accueil = await fetch(`${s.adresse}/`);
+      expect(accueil.status).toBe(200);
+      expect(accueil.headers.get('content-security-policy')).toContain("script-src 'self'");
+      expect(accueil.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+      expect(await (await fetch(`${s.adresse}/une/adresse/de/l/application`)).text()).toContain('<title>SkanFact</title>');
+      const js = await fetch(`${s.adresse}/assets/app.js`);
+      expect([js.headers.get('content-type'), js.headers.get('cache-control')]).toEqual(['text/javascript; charset=utf-8', 'public, max-age=31536000, immutable']);
+      // Une adresse de l'API inconnue n'est jamais l'application ; un « ../ » ne sort jamais du dossier.
+      expect((await fetch(`${s.adresse}/v1/inconnue`)).status).toBe(404);
+      // La requête part BRUTE : un client ordinaire « nettoie » l'adresse avant de l'envoyer, et le
+      // piège n'atteindrait jamais le serveur.
+      const brut = (chemin: string) => new Promise<{ statut: number; corps: string }>((ok, ko) => {
+        const u = new URL(s.adresse);
+        http.get({ host: u.hostname, port: u.port, path: chemin }, (r) => {
+          let corps = '';
+          r.on('data', (d: Buffer) => { corps += d.toString(); });
+          r.on('end', () => ok({ statut: r.statusCode ?? 0, corps }));
+        }).on('error', ko);
+      });
+      // « %2e%2e » : l'analyse de l'adresse le ramène déjà à la racine (l'application est rendue).
+      expect((await brut('/%2e%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd')).corps).not.toContain('root:');
+      // Une barre encodée passe l'analyse : c'est la garde du serveur qui refuse.
+      for (const chemin of ['/..%2f..%2f..%2f..%2f..%2fetc%2fpasswd', '/assets/..%2f..%2f..%2f..%2f..%2f..%2fetc%2fpasswd']) {
+        const piege = await brut(chemin);
+        expect(piege.statut, chemin).toBe(404);
+        expect(piege.corps, chemin).not.toContain('root:');
+      }
+    } finally {
+      await s.arreter();
+      fs.rmSync(web, { recursive: true, force: true });
+    }
+  });
 });
+

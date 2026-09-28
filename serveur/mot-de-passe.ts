@@ -5,9 +5,10 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import { hash, verify } from '@node-rs/argon2';
+import { LONGUEUR_MINIMALE } from '../commun/compte.ts';
 import { motif, type Texte } from '../textes/index.ts';
 
-export const LONGUEUR_MINIMALE = 10;
+export { LONGUEUR_MINIMALE };
 
 // Une liste de mots de passe volés : on demande seulement « celui-ci y est-il ? ».
 export type ListeVolee = { contient: (motDePasse: string) => boolean };

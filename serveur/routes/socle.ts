@@ -85,7 +85,7 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
     traiter: async ({ qui }, tx) => {
       if (!qui || !tx) throw new Error('session attendue');
       const moi = (await tx.query('select id, email, nom, langue, code_methode from socle.utilisateur where id = $1', [qui.utilisateur])).rows[0];
-      const entreprises = (await tx.query(`select e.id, e.raison_sociale, socle.mes_roles(e.id) roles from socle.entreprise e order by e.raison_sociale`)).rows;
+      const entreprises = (await tx.query(`select e.id, e.raison_sociale, e.essai, socle.mes_roles(e.id) roles from socle.entreprise e order by e.raison_sociale`)).rows;
       return { corps: { ...moi, codeAConfigurer: qui.codeAConfigurer, entreprises } };
     },
   });
@@ -131,6 +131,17 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       const id = (await tx.query('select socle.creer_entreprise($1, $2) id', [corps.raisonSociale, corps.matriculeFiscal ?? null])).rows[0].id;
       await tx.query(`select socle.tracer($1, 'socle.entreprise.creer', 'entreprise', $1, null, $2)`, [id, JSON.stringify({ raisonSociale: corps.raisonSociale })]);
       return { statut: 201, corps: { id } };
+    },
+  });
+
+  // L'entreprise d'essai des développeurs (14 § 2.5) : une par personne, déjà garnie de clients
+  // d'exemple, marquée « essai » pour toujours.
+  ajouter({
+    methode: 'POST', chemin: '/entreprises-essai', geste: 'compte.entreprise.creer',
+    traiter: async (_r, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const id = (await tx.query('select socle.creer_entreprise_essai() id')).rows[0].id as string;
+      return { statut: 201, corps: { id, essai: true } };
     },
   });
 

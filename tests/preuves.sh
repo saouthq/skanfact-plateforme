@@ -1040,5 +1040,49 @@ prouver "un programme qui écoute encore après son arrêt" $SP \
   "      await app.close();" "" \
   "livre les avis dus à chaque tour"
 
+# ── L'entreprise d'essai des développeurs (0009) ────────────────────────────────────────────────
+ME9=base/migrations/0009_entreprise_essai.sql
+TE="une par personne, garnie de clients d'exemple"
+prouver "deux entreprises d'essai pour la même personne" $ME9 \
+  "  if exists (select 1 from socle.entreprise e join socle.membre m on m.entreprise = e.id" "  if false and exists (select 1 from socle.entreprise e join socle.membre m on m.entreprise = e.id" \
+  "$TE"
+prouver "une entreprise d'essai qui devient vraie" $ME9 \
+  "  if new.essai is distinct from old.essai then perform socle.refus(" "  if false then perform socle.refus(" \
+  "$TE"
+prouver "une entreprise d'essai qui n'est pas marquée" $ME9 \
+  "|| v_nom, true) returning id into v_ent;" "|| v_nom, false) returning id into v_ent;" \
+  "$TE"
+prouver "des factures d'essai numérotées comme des vraies" $ME9 \
+  "(v_ent, 'facture', 'ESSAI', true);" "(v_ent, 'facture', 'FAC', true);" \
+  "$TE"
+
+# ── Les écrans (web/) : l'instrument de rendu et le parcours à la souris ────────────────────────
+RE="chaque écran, sur un téléphone et un ordinateur"
+PA="de la création du compte au retour avec le code du téléphone"
+prouver "un bouton trop petit pour un doigt" web/src/composants/Bouton.tsx \
+  "inline-flex min-h-11 items-center" "inline-flex min-h-8 items-center" \
+  "$RE"
+prouver "une phrase écrite en dur dans un écran" web/src/ecrans/Entreprises.tsx \
+  "onClick={creerEssai}>{titre('ecran.entreprises.creer_essai')}</Bouton>" "onClick={creerEssai}>Créer une entreprise d'essai</Bouton>" \
+  "$RE"
+prouver "une adresse qui fait déborder l'écran du téléphone" web/src/ecrans/Entreprises.tsx \
+  "block overflow-x-auto rounded-lg bg-fond p-3 text-sm break-all" "block rounded-lg bg-fond p-3 text-sm whitespace-nowrap" \
+  "$RE"
+prouver "un champ refusé qui ne se montre pas" web/src/composants/Champ.tsx \
+  "  useEffect(() => { if (refus) ref.current?.focus(); }, [refus]);" "  useEffect(() => { void refus; }, [refus]);" \
+  "$PA"
+prouver "un geste sans corps envoyé comme du JSON (refusé par le serveur)" web/src/api.ts \
+  "  if (corps !== undefined) entetes['content-type'] = 'application/json';" "  entetes['content-type'] = 'application/json';" \
+  "$PA"
+prouver "le code du téléphone oublié à la connexion" web/src/ecrans/Connexion.tsx \
+  "      } else if (r.corps.etat === 'code' && r.corps.defi && r.corps.methode) {" "      } else if (Date.now() < 0) {" \
+  "$PA"
+prouver "les écrans servis hors de leur dossier" serveur/principal.ts \
+  "    if (!fichier.startsWith(racine + path.sep) && fichier !== racine) return reponse.code(404).send({});" "" \
+  "il sert les écrans à côté de l'API"
+prouver "des écrans sans leurs en-têtes de sécurité" serveur/principal.ts \
+  "      .header('content-security-policy', POLITIQUE)" "" \
+  "il sert les écrans à côté de l'API"
+
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

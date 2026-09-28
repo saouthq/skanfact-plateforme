@@ -10,29 +10,41 @@
     "migrer": "node base/migrer.ts",
     "test": "vitest run",
     "lint": "eslint . --max-warnings 0",
-    "types": "tsc --noEmit",
+    "types": "tsc --noEmit && tsc --noEmit -p web",
     "verifier": "npm run types && npm run lint && npm test",
     "preuves": "bash tests/preuves.sh",
     "types:base": "node base/generer-types.ts",
     "entreprise": "node base/entreprise.ts",
     "sauvegarde": "node base/sauvegarde.ts",
-    "serveur": "node serveur/principal.ts"
+    "serveur": "node serveur/principal.ts",
+    "web": "vite build --config web/vite.config.ts",
+    "web:dev": "vite --config web/vite.config.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@tailwindcss/vite": "4.3.3",
     "@types/node": "24.19.0",
     "@types/pg": "8.23.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
     "eslint": "10.11.0",
     "globals": "17.12.0",
+    "playwright-core": "1.56.1",
+    "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
     "typescript-eslint": "8.70.1",
+    "vite": "8.3.1",
     "vitest": "5.0.2"
   },
   "dependencies": {
+    "@base-ui-components/react": "1.0.0-rc.0",
     "@node-rs/argon2": "2.2.1",
     "fastify": "5.12.5",
     "kysely": "0.29.6",
     "pg": "8.23.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "zod": "4.6.5"
   }
 }

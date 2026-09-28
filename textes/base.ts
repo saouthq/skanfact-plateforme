@@ -66,6 +66,8 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'ton rôle ne permet pas de gérer les avis d\'événement', cle: 'base.avis.interdit', fr: 'ton rôle ne permet pas de gérer les avis d\'événement' },
   { base: 'abonnement introuvable', cle: 'base.avis.introuvable', fr: 'abonnement introuvable' },
   { base: 'cet abonnement est déjà arrêté', cle: 'base.avis.deja_arrete', fr: 'cet abonnement est déjà arrêté' },
+  { base: 'une entreprise d\'essai le reste, et une vraie ne le devient jamais', cle: 'base.essai.immuable', fr: 'une entreprise d\'essai le reste, et une vraie ne le devient jamais' },
+  { base: 'tu as déjà une entreprise d\'essai', cle: 'base.essai.deja', fr: 'tu as déjà une entreprise d\'essai' },
   { base: 'les lignes d\'une pièce émise ne se modifient plus (01 R6)', cle: 'base.ventes.lignes_emises', fr: 'les lignes d\'une pièce émise ne se modifient plus' },
 ];
 

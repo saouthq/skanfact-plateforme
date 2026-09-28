@@ -34,11 +34,14 @@ feuille de route…). Ce dépôt applique ce cadrage ; il ne le réécrit pas.
 | `base/migrations/0006_tiers_et_ventes.sql`, `serveur/ventes/` | Les **tiers** (clients) et la **facture de vente**, du brouillon à l'émission : le brouillon se calcule à chaque lecture ; l'émission contrôle tout **avant** de prendre le numéro, garde une **copie** de ce qui a servi (société, client, timbre), fige les montants et scelle la facture dans la chaîne de sa série. Une facture émise ne se modifie ni ne s'efface plus (la base le refuse) ; un brouillon modifié par quelqu'un d'autre entre-temps n'est jamais écrasé |
 | `tests/ventes/j1-exemple.test.ts` | **Le jalon J1** : les 273 factures de l'exemple de cinq ans de la v10, saisies en brouillon et émises par le serveur, portent au millime les montants de la v10 ; leurs numéros se suivent sans trou chaque année et leur chaîne se contrôle en relisant chaque facture |
 | `base/entreprise.ts` | **Exporter UNE entreprise et la restaurer à l'identique** (`npm run entreprise -- exporter <id> <fichier>`, puis `restaurer <fichier>`) : chaque table de la base est rangée (part avec l'entreprise, désignée par elle, commune, ou jamais), aucun secret de connexion ne part, les lignes vont de la base au fichier et retour sans passer par JavaScript, un fichier abîmé ou une base à un autre niveau de migrations est refusé, tout lien restauré doit mener quelque part, et la restauration laisse sa trace |
+| `base/migrations/0009_entreprise_essai.sql` | **L'entreprise d'essai des développeurs** (14 § 2.5) : `POST /v1/entreprises-essai`, une par personne, garnie de trois clients d'exemple (une société, une personne, un client étranger en euros), ses factures numérotées « ESSAI », marquée essai pour toujours (une vraie entreprise ne le devient jamais). Plus tard, elle ne sera jamais facturée ni transmise à la TTN |
 | `base/sauvegarde.ts` | **La sauvegarde et l'exercice de restauration** (06 § 4.3) : `npm run sauvegarde -- sauvegarder <fichier>` fait la sauvegarde de toute la base et, dans le même instantané, son manifeste (migrations, lignes de chaque table, bout de chaque chaîne, empreinte du fichier) ; `npm run sauvegarde -- exercice <fichier>` la restaure sans aide dans une base vide, vérifie l'empreinte, les migrations, les lignes de chaque table, chaque chaîne d'empreintes maillon par maillon et que chaque série a scellé autant de maillons qu'elle compte de pièces émises, mesure le temps, et dit tout ce qui ne va pas |
 | `base/migrations/0007_cles_api.sql`, `serveur/cles.ts` | **Les clés de l'API** (03 § 8) : créées par le propriétaire ou l'administrateur, montrées une seule fois (la base n'en garde que l'empreinte), une liste de gestes permis à leur créateur et jamais ceux qui gouvernent l'entreprise, une expiration dans l'année, la révocation ; une clé ne voit que son entreprise, et sa trace porte son nom. Toutes les adresses commencent par **`/v1`**, et **`GET /v1/documentation`** décrit chaque route (OpenAPI), écrite depuis le code. **Des limites d'appels par clé** (`serveur/limites.ts`) : 600 appels par minute, des rafales de 60 ; au-delà, « trop d'appels » (429) avec l'attente à respecter |
 | `base/migrations/0008_avis.sql`, `serveur/avis.ts` | **Les avis d'événement** (14 § 2.5) : une entreprise abonne une adresse https à des événements (une facture émise, pour commencer) ; l'avis naît dans la transaction même du fait (une émission qui échoue n'annonce rien) ; il part **signé** (HMAC-SHA256 de l'horodatage et du corps, avec un secret montré une seule fois et que le serveur ne peut pas relire), l'argent en texte ; un échec se renvoie à 1 min, 5 min, 30 min, 2 h, 6 h, 12 h, 24 h, puis l'avis est abandonné et l'historique le dit ; deux livreurs n'envoient jamais le même avis ; aucune adresse privée ou locale n'est jamais atteinte |
 | `serveur/principal.ts` | **Le programme serveur** (`npm run serveur`) : il lit sa configuration dans l'environnement (jamais dans le dépôt) et refuse de démarrer si elle est fausse, écoute, fait tourner le livreur des avis, s'arrête proprement. Tant que le fournisseur de SMS tunisien n'est pas choisi, il ne démarre qu'en test, et un code par SMS n'y part jamais en silence : la personne est invitée à choisir une application d'authentification |
 | `textes/` | **Le catalogue des textes** (14 § 5) : chaque phrase qu'une personne peut lire vient d'une clé du catalogue (le socle ici, chaque module dans son `textes.ts`) ; les phrases que la base écrit elle-même y sont reconnues mot pour mot ; une **langue factice** 40 % plus longue (en-tête `x-langue: factice`) montre ce qui déborde et ce qui a échappé au catalogue. Un test fait tomber la construction si une phrase est écrite en dur dans le serveur |
+| `web/` | **L'application web commence** (étape 2 ; 12 § 4 : React, Tailwind, Base UI, les outils de Slate) : se connecter, créer son compte, le code du téléphone, mes entreprises, l'entreprise d'essai. Chaque phrase vient du catalogue ; chaque champ a son « i » ; un refus se montre sur son champ ; un seul bouton principal par écran. Le programme serveur sert les écrans à côté de l'API (même origine), avec des en-têtes qui interdisent tout script venu d'ailleurs |
+| `tests/web/` | **L'instrument de rendu** : chaque écran ouvert dans un vrai navigateur, à la largeur d'un téléphone (390) et d'un ordinateur (1 440), en français et en langue factice ; la construction tombe si une page déborde, si une cible fait moins de 44 points, si un texte est coupé ou si une phrase a échappé au catalogue ; chaque écran est photographié (`dist/photos`). Et **le premier parcours joué à la souris**, du compte créé au retour d'un autre appareil avec le code |
 | `tests/` | Les tests, contre un vrai PostgreSQL, et `preuves.sh` qui remet chaque défaut pour vérifier que son test tombe |
 
 **Le jalon J1 est atteint** (28/09/2026) : les factures de l'exemple de cinq ans émises au millime de
@@ -48,8 +51,7 @@ table.
 À venir dans l'étape 1 (`docs/cadrage/09-feuille-de-route.md` dans le dépôt de l'application) : la
 suite du moteur porté (la déclaration d'employeur, les états de fin d'année) ; la sauvegarde
 continue (à la minute) et l'exercice chaque mois sur le serveur de test, rapporté à la console
-(06 § 4) ; pour l'API : l'entreprise d'essai des développeurs (14 § 2.5) ; le fournisseur de SMS
-(03 § 6, à choisir), sans lequel la production ne démarre pas.
+(06 § 4) ; le fournisseur de SMS (03 § 6, à choisir), sans lequel la production ne démarre pas.
 
 ## Comment la base protège les données
 
@@ -73,7 +75,11 @@ npm install
 export PG_ADMIN=postgres://postgres@127.0.0.1:5432/postgres
 npm run verifier        # types, lint, tests
 npm run preuves         # chaque défaut remis, chaque test doit tomber
+npm run web             # construit l'application web (dist/web), que `npm run serveur` sert
 ```
+
+Les tests des écrans ouvrent Chromium par Playwright : `npx playwright-core install chromium` la
+première fois.
 
 GitHub fait la même chose à chaque envoi (`.github/workflows/verifier.yml`), avec en plus une
 recherche de secrets : ce dépôt est public, **aucun secret n'y entre jamais**.

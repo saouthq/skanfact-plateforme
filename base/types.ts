@@ -122,6 +122,7 @@ export interface BaseDeDonnees {
     debut_sur_skanfact: Generated<string>;
     active: Generated<boolean>;
     cree_le: Generated<Date>;
+    essai: Generated<boolean>;
   };
   'socle.etablissement': {
     id: Generated<string>;

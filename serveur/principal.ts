@@ -8,10 +8,12 @@
 //   SKANFACT_ENVIRONNEMENT   « test » ou « production »
 //   SKANFACT_PORT, SKANFACT_HOTE   où écouter (8080, 127.0.0.1 par défaut : un proxy https est devant)
 //   SKANFACT_LISTE_VOLEE     la liste des mots de passe volés (tests/donnees/… par défaut, en test)
+//   SKANFACT_WEB             l'application web construite (dist/web par défaut), servie à côté de l'API
 //   SKANFACT_SMS             « aucun » tant que le fournisseur de SMS tunisien n'est pas choisi
 //                            (03 § 6, 12 : question ouverte) ; le code se reçoit alors par une
 //                            application d'authentification. En production, un fournisseur est exigé.
 
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { creerApp } from './app.ts';
@@ -26,7 +28,7 @@ import { routesVentes } from './ventes/routes.ts';
 
 export type Configuration = {
   base: string; environnement: 'test' | 'production'; port: number; hote: string; listeVolee: string;
-  sms: 'aucun'; livreurMs: number;
+  sms: 'aucun'; livreurMs: number; web: string;
 };
 
 export class ConfigurationFausse extends Error {}
@@ -46,6 +48,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     base, environnement, port, hote: env.SKANFACT_HOTE ?? '127.0.0.1', sms,
     listeVolee: env.SKANFACT_LISTE_VOLEE ?? path.join(ici, '../tests/donnees/mots-de-passe-voles.txt'),
     livreurMs: Number(env.SKANFACT_LIVREUR_MS ?? 15_000),
+    web: env.SKANFACT_WEB ?? path.join(ici, '../dist/web'),
   };
 }
 
@@ -53,11 +56,37 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
 // l'application d'authentification.
 export const smsAucun: Contexte['sms'] = { envoyer: async () => { throw new Refus('connexion.sms_indisponible', { bouton: 'compte.code.configurer' }); } };
 
+// Les écrans : l'application web construite, servie à la même adresse que l'API (même origine).
+// Une adresse inconnue rend l'application (elle choisit son écran) ; une adresse inconnue de l'API,
+// jamais. Les en-têtes interdisent tout script venu d'ailleurs et l'intégration dans un autre site.
+const TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.webmanifest': 'application/manifest+json',
+};
+const POLITIQUE = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; "
+  + "frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'";
+export function servirLesEcrans(app: ReturnType<typeof creerApp>, dossier: string) {
+  const racine = path.resolve(dossier);
+  if (!fs.existsSync(path.join(racine, 'index.html'))) return;
+  app.get('/*', async (requete, reponse) => {
+    const chemin = decodeURIComponent(new URL(requete.url, 'http://x').pathname);
+    if (chemin.startsWith('/v1/') || chemin === '/v1') return reponse.code(404).send({});
+    let fichier = path.resolve(racine, `.${chemin}`);
+    if (!fichier.startsWith(racine + path.sep) && fichier !== racine) return reponse.code(404).send({});
+    if (!fs.existsSync(fichier) || fs.statSync(fichier).isDirectory()) fichier = path.join(racine, 'index.html');
+    reponse.header('content-type', TYPES[path.extname(fichier)] ?? 'application/octet-stream')
+      .header('content-security-policy', POLITIQUE).header('x-content-type-options', 'nosniff').header('referrer-policy', 'no-referrer')
+      .header('cache-control', fichier.includes(`${path.sep}assets${path.sep}`) ? 'public, max-age=31536000, immutable' : 'no-cache');
+    return reponse.send(fs.readFileSync(fichier));
+  });
+}
+
 export async function demarrer(c: Configuration, dependances: { envoyer?: Envoyeur } = {}): Promise<{ adresse: string; arreter: () => Promise<void> }> {
   const pool = creerPool(c.base);
   const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms: smsAucun };
   declarerGestesVentes();
   const app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx)]);
+  servirLesEcrans(app, c.web);
   const adresse = await app.listen({ port: c.port, host: c.hote });
 
   // Le livreur des avis : un tour à la fois, jamais deux en même temps.

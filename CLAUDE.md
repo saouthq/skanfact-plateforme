@@ -45,7 +45,15 @@
   l'environnement, refus de démarrer si elle est fausse ; en production, exige un fournisseur de SMS
   (pas encore choisi : 03 § 6, 12) ; les messages à l'exploitant (`ConfigurationFausse`,
   `console.*`) sont hors du catalogue.
-- **Ouvert** (API, 14 § 2.5) : l'entreprise d'essai des développeurs.
+- **L'application web** (`web/`, étape 2 commencée le 28/09/2026) : React, Tailwind, Base UI. Le
+  jeton de session vit dans l'onglet (sessionStorage), l'appareil reconnu dans le navigateur
+  (localStorage) : décidé par délégation ; **À VÉRIFIER** le passage à un cookie que le JavaScript
+  ne lit pas. Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts`) ET par un
+  parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se regardent.
+  Un bouton se trouve par ce qu'il dit (le catalogue), un écran par son titre.
+- L'entreprise d'essai des développeurs (`0009`, 28/09/2026, par délégation) : une par personne,
+  trois clients d'exemple, numéros « ESSAI », essai pour toujours. À respecter plus tard : jamais
+  facturée par l'abonnement, jamais transmise à la TTN, « ESSAI » sur chaque document.
 - **Ouvert** : les gestes « À reprendre » encore ouverts sont comptés dans l'export mais pas
   restaurés (à revoir avec la file, étape 2) ; la remise en place d'une entreprise **par-dessus**
   son état abîmé (06 § 4.4) n'existe pas encore : on ne restaure que là où elle n'est pas.

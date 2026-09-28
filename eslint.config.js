@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['node_modules/**', 'banc/v10/**'] },
+  { ignores: ['node_modules/**', 'banc/v10/**', 'dist/**'] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {
@@ -16,4 +16,6 @@ export default tseslint.config(
       }],
     },
   },
+  // Les écrans tournent dans le navigateur.
+  { files: ['web/src/**'], languageOptions: { globals: { ...globals.browser } } },
 );
