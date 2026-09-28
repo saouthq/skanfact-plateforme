@@ -28,7 +28,9 @@
   et la documentation générée (`0007`, `serveur/cles.ts`, `GET /v1/documentation`). Le moteur
   d'écritures commence : l'écriture d'une facture de vente, au millime de la v10
   (`moteur/ecritures.ts`) ; ses règlements : la retenue née à chaque encaissement, le reste à payer,
-  le statut, l'écriture de l'encaissement (`moteur/reglements.ts`).
+  le statut, l'écriture de l'encaissement (`moteur/reglements.ts`) ; l'écriture d'un avoir (même
+  fichier que la facture) ; les achats : calcul, écriture, imputation d'un acompte, règlements, reste et statut
+  (`moteur/achats.ts`).
 - **Ouvert** (API, 14 § 2.5) : les limites d'appels par clé, les avis d'événement signés,
   l'entreprise d'essai des développeurs.
 - **Ouvert** : les gestes « À reprendre » encore ouverts sont comptés dans l'export mais pas
@@ -122,10 +124,18 @@
   défaut, et il s'arrête). Les comptes lui sont donnés (le plan de l'entreprise) ; ses lignes disent
   leur nature (client, ventes, TVA, timbre, change, trésorerie, retenue), les libellés viendront du
   catalogue.
+- Un écart de change se range selon son **sens** (un gain au crédit du 755, une perte au débit du
+  655), comme la v10, jamais en contre-passant le compte de la pièce corrigée : la perte de conversion
+  d'une facture devient un gain sur l'avoir identique.
+- Une écriture d'achat en devise met son écart de **conversion** au change, comme les ventes
+  (10.14.1) : la v10 l'avale encore sur la plus grosse ligne (écart tranché le 28/09/2026, vérifié
+  ligne à ligne par le banc des écritures d'achat).
 - Un montant **en devise** s'arrondit à l'unité de sa devise (le centime), jamais au millième :
   la v10 tient encore la part de retenue d'un règlement en euros au millième d'euro (écart tranché
   le 28/09/2026, au plus un centime par règlement, vérifié par le banc des règlements).
-- Le **banc** (`tests/moteur/banc-v10.test.ts`, `ecritures-v10.test.ts`, `reglements-v10.test.ts` ;
+- Le **banc** (`tests/moteur/banc-v10.test.ts`, `ecritures-v10.test.ts`, `reglements-v10.test.ts`,
+  `avoirs-v10.test.ts`, `achats-v10.test.ts`, `achats-ecritures-v10.test.ts`,
+  `reglements-achats-v10.test.ts` ;
   outils communs dans
   `tests/moteur/v10.ts`) compare chaque fonction portée à la v10 figée dans
   `banc/v10/` (jamais modifiée ; remplacée quand la v10 reçoit une correction de calcul) : l'exemple

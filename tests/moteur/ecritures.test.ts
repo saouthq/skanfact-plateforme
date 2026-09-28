@@ -7,7 +7,7 @@ import { ecritureDeVente, versLaBase, type ComptesVente, type LigneEcriture } fr
 import { calculerPiece } from '../../moteur/piece.ts';
 import { convertir, hasard, pieceAuHasard, v10 } from './v10.ts';
 
-const COMPTES: ComptesVente = { clients: '411', ventes: '706', tvaCollectee: '4367', timbre: '4368', gainsChange: '755', pertesChange: '655' };
+const COMPTES: ComptesVente = { clients: '411', ventes: '706', tvaCollectee: '4367', timbre: '4368', gainsChange: '755', pertesChange: '655', retenueSubie: '4358' };
 const somme = (lignes: LigneEcriture[], nature: string, sens: 'debit' | 'credit') =>
   lignes.filter((l) => l.nature === nature).reduce((a, l) => a + l[sens], 0n);
 
@@ -59,9 +59,66 @@ describe('l\'écriture d\'une facture de vente', () => {
     expect(ecriture(3_400_000n)).toEqual(['411 5032 0', '706 0 3400', '4367 0 646', '4368 0 1000', '655 14 0']);
   });
 
-  it('seule une facture s\'écrit pour l\'instant ; une pièce en devise sans cours ne se convertit pas', () => {
-    const p = { type: 'avoir' as const, devise: TND, tauxRemise: 0n, tauxRetenue: 0n, timbre: 0n, lignes: [{ quantite: 1000n, prixUnitaire: 1_000_000n, tauxTva: 0n }] };
-    expect(() => ecritureDeVente(calculerPiece(p), p, TND, COMPTES)).toThrow(/pas encore portée/);
+  it('seules une facture et un avoir s\'écrivent au journal des ventes ; une pièce en devise sans cours ne se convertit pas', () => {
+    const p = { type: 'proforma' as const, devise: TND, tauxRemise: 0n, tauxRetenue: 0n, timbre: 0n, lignes: [{ quantite: 1000n, prixUnitaire: 1_000_000n, tauxTva: 0n }] };
+    expect(() => ecritureDeVente(calculerPiece(p), p, TND, COMPTES)).toThrow(/ne s'écrit pas au journal des ventes/);
     expect(() => versLaBase(100n, { code: 'EUR', decimales: 2 }, 0n, TND)).toThrow(/sans cours/);
+  });
+});
+
+describe('l\'écriture d\'un avoir de vente', () => {
+  const EUR = { code: 'EUR', decimales: 2 };
+  const avoir = (devise: typeof TND, cours: bigint | undefined, prix: bigint, tva: bigint) =>
+    ({ type: 'avoir' as const, devise, ...(cours ? { cours } : {}), tauxRemise: 0n, tauxRetenue: 0n, timbre: 1000n, lignes: [{ quantite: 1000n, prixUnitaire: prix, tauxTva: tva }] });
+  const ecrire = (p: ReturnType<typeof avoir>, r?: Parameters<typeof ecritureDeVente>[4]) =>
+    ecritureDeVente(calculerPiece(p), p, TND, COMPTES, r).lignes.map((l) => `${l.compte} ${l.debit} ${l.credit}`);
+
+  it('un avoir libre s\'écrit à l\'envers : le client au crédit, les ventes et la TVA au débit', () => {
+    expect(ecrire(avoir(TND, undefined, 100_000_000n, 190_000n))).toEqual(['411 0 119000', '706 100000 0', '4367 19000 0']);
+  });
+
+  it('rattaché à une facture d\'un autre cours, il crédite le client au cours de la facture ; l\'écart est du change', () => {
+    // 100 € HT à 19 % à 3,40 ; la facture était à 3,35. Au cours de l'avoir : 404,600 DT ; au cours
+    // de la facture, le client doit 119 € × 3,35 = 398,650 DT de moins : un gain de 5,950.
+    const facture = { devise: EUR, cours: 3_350_000n };
+    expect(ecrire(avoir(EUR, 3_400_000n, 100_000_000n, 190_000n), { facture, regularisationRetenue: 0n }))
+      .toEqual(['411 0 398650', '755 0 5950', '706 340000 0', '4367 64600 0']);
+    // Au même cours que sa facture : pas de change.
+    expect(ecrire(avoir(EUR, 3_350_000n, 100_000_000n, 190_000n), { facture, regularisationRetenue: 0n }))
+      .toEqual(['411 0 398650', '706 335000 0', '4367 63650 0']);
+  });
+
+  it('posé après un règlement, il régularise la retenue que le client a déjà gardée', () => {
+    const facture = { devise: TND };
+    expect(ecrire(avoir(TND, undefined, 200_000_000n, 0n), { facture, regularisationRetenue: 1_250n }))
+      .toEqual(['411 0 200000', '4358 1250 0', '411 0 1250', '706 200000 0']);
+    expect(() => ecritureDeVente(calculerPiece(avoir(TND, undefined, 1_000_000n, 0n)), avoir(TND, undefined, 1_000_000n, 0n), TND,
+      { clients: '411', ventes: '706', tvaCollectee: '4367', timbre: '4368', gainsChange: '755', pertesChange: '655' }, { facture, regularisationRetenue: 5n })).toThrow(/retenue subie/);
+  });
+
+  // Le change fait exception : un écart se range selon son SENS (un gain au crédit du 755, une perte
+  // au débit du 655, comme la v10), jamais en contre-passant le compte de la facture : la perte de
+  // conversion d'une facture devient un gain sur l'avoir identique, du même montant.
+  it('pour chaque pièce tirée au hasard : l\'avoir libre est le miroir exact de la facture identique, le change rangé selon son sens', () => {
+    const h = hasard(99);
+    let vues = 0, change = 0;
+    for (let i = 0; i < 3000; i++) {
+      const d = { ...pieceAuHasard(h), type: 'facture', applyStamp: true };
+      if (d.currency && d.currency !== 'DT' && !(Number(d.exchangeRate) > 0)) continue;
+      const p = convertir(d, { ...v10.DEFAULT_COMPANY });
+      if (typeof p === 'string') continue;
+      const pa = { ...p, type: 'avoir' as const };
+      const f = ecritureDeVente(calculerPiece(p), p, TND, COMPTES).lignes;
+      const a = ecritureDeVente(calculerPiece(pa), pa, TND, COMPTES).lignes;
+      const horsChange = (l: typeof f) => l.filter((x) => x.nature !== 'change');
+      expect(horsChange(a).map((l) => `${l.compte} ${l.credit} ${l.debit}`), `pièce ${i}`).toEqual(horsChange(f).map((l) => `${l.compte} ${l.debit} ${l.credit}`));
+      const resultat = (l: typeof f) => l.filter((x) => x.nature === 'change').reduce((s, x) => s + x.credit - x.debit, 0n);
+      expect(resultat(a), `pièce ${i}`).toBe(-resultat(f));
+      for (const x of [...a, ...f].filter((l) => l.nature === 'change')) expect(x.compte === '755' ? x.credit > 0n : x.debit > 0n, `pièce ${i}`).toBe(true);
+      if (resultat(f) !== 0n) change++;
+      vues++;
+    }
+    expect(vues).toBeGreaterThan(2000);
+    expect(change).toBeGreaterThan(100);
   });
 });

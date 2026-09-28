@@ -29,21 +29,25 @@ for f, a, b in zip(fichiers, avants, apres):
     assert s.count(a) == 1, f"motif introuvable ou multiple dans {p} : {a!r}"
     open(p, 'w', encoding='utf-8').write(s.replace(a, b))
 EOF
-  # Seul le fichier qui contient le test visé est rejoué (ses apostrophes y sont échappées) ;
-  # s'il n'est pas trouvé, toute la suite.
+  # Seuls les fichiers qui contiennent le titre visé sont rejoués (ses apostrophes y sont échappées) :
+  # TOUS ceux qui le contiennent, car deux fichiers peuvent porter la même phrase (ne rejouer que le
+  # premier a laissé verts des défauts que l'autre attrapait) ; s'il n'est trouvé nulle part, toute
+  # la suite.
   local cible; cible="$(python3 - "$copie/tests" "$attendu" <<'EOF'
 import sys, pathlib
 racine, titre = sys.argv[1], sys.argv[2]
 for f in sorted(pathlib.Path(racine).rglob('*.test.ts')):
     texte = f.read_text(encoding='utf-8')
     if titre in texte or titre.replace("'", "\\'") in texte:
-        print(f.relative_to(pathlib.Path(racine).parent)); break
+        print(f.relative_to(pathlib.Path(racine).parent))
 EOF
 )"
   # Les fichiers de travail de vitest restent dans la copie, effacée ensuite (sinon ils
   # s'entassent dans /tmp : environ 500 Ko par lancement).
   mkdir -p "$copie/.tmp"
-  (cd "$copie" && TMPDIR="$copie/.tmp" npx vitest run ${cible:+"$cible"} --reporter=json --outputFile=resultat.json >/dev/null 2>&1)
+  # Un chemin par ligne, sans espace : le découpage de $cible est voulu.
+  # shellcheck disable=SC2086
+  (cd "$copie" && TMPDIR="$copie/.tmp" npx vitest run $cible --reporter=json --outputFile=resultat.json >/dev/null 2>&1)
   if python3 - "$copie/resultat.json" "$attendu" <<'EOF'
 import json, sys
 r = json.load(open(sys.argv[1]))
@@ -685,7 +689,7 @@ prouver "un montant négatif gardé dans sa colonne" $ME \
   "    const auDebit = (sens === 'debit') === (montant > 0n);" "    const auDebit = sens === 'debit';" \
   "10 000 factures tirées au hasard"
 prouver "le timbre reconverti depuis la devise (1,002 DT)" $ME \
-  "  const timbre = t.timbreBase;" "  const timbre = conv(t.timbre);" \
+  "  const timbre = t.timbreBase * signe;" "  const timbre = conv(t.timbre);" \
   "10 000 factures tirées au hasard"
 prouver "le client débité du net après retenue au lieu du brut" $ME \
   "  const ttc = conv(t.totalTTC);" "  const ttc = conv(t.netAPayer);" \
@@ -720,7 +724,7 @@ prouver "la part d'un règlement tronquée au lieu d'arrondie" $MR \
 prouver "un avoir après un règlement ne régularise rien" $MR \
   "    else if (d !== 0n) ajustements.set(" "    else if (d !== 0n && x.date === '') ajustements.set(" \
   "un avoir posé après un règlement régularise à SA date"
-prouver "une même devise convertie par le dinar" $MR \
+prouver "une même devise convertie par le dinar" $ME \
   "  if (source.devise.code === cible.devise.code) return montant;" "" \
   "passe par le dinar et s'arrondit"
 prouver "une facture annulée doit encore quelque chose" $MR \
@@ -750,6 +754,122 @@ prouver "la retenue rendue au client au lieu de naître à l'encaissement" $MR \
 prouver "le banc qui relit 7 700,677 € comme 7 700,68 €" tests/moteur/v10.ts \
   "  if (m) return (m[1]?.length ?? 0) > dec ? null : BigInt(Math.round(v * 10 ** dec));|||  return Math.abs(e - r) > 1e-9 ? null : BigInt(r);" "|||  return Math.abs(e - r) > 1e-6 * Math.max(1, Math.abs(e)) ? null : BigInt(r);" \
   "5 000 factures tirées au hasard"
+
+# ── L'écriture d'un avoir de vente (moteur/ecritures.ts) ────────────────────────────────────────
+prouver "un avoir écrit dans le sens d'une facture" $ME \
+  "  const signe = piece.type === 'avoir' ? -1n : 1n;" "  const signe = 1n;" \
+  "un avoir libre s'écrit à l'envers"
+prouver "le timbre d'un avoir gardé dans le sens d'une facture" $ME \
+  "  const timbre = t.timbreBase * signe;" "  const timbre = t.timbreBase;" \
+  "l'avoir libre est le miroir exact de la facture identique"
+prouver "un avoir crédite le client à son propre cours" $ME \
+  "      deltaChange = versLaBase(dansLaDeviseDe(natif, piece, f, base), f.devise, f.cours, base) - versLaBase(natif, piece.devise, piece.cours, base);" "" \
+  "rattaché à une facture d'un autre cours"
+prouver "un avoir crédite le client à son propre cours (vu par le banc)" $ME \
+  "      deltaChange = versLaBase(dansLaDeviseDe(natif, piece, f, base), f.devise, f.cours, base) - versLaBase(natif, piece.devise, piece.cours, base);" "" \
+  "5 000 avoirs tirés au hasard"
+prouver "un avoir d'une autre devise compté sans conversion" $ME \
+  "versLaBase(dansLaDeviseDe(natif, piece, f, base), f.devise" "versLaBase(natif, f.devise" \
+  "5 000 avoirs tirés au hasard"
+prouver "le gain de change d'un avoir contre-passé en perte" $ME \
+  "  if (deltaChange > 0n) poser(comptes.gainsChange, 'change', deltaChange, 'credit');" "  if (deltaChange > 0n) poser(comptes.pertesChange, 'change', -deltaChange, 'debit');" \
+  "rattaché à une facture d'un autre cours"
+prouver "un avoir après un règlement ne régularise pas la retenue" $ME \
+  "  if (piece.type === 'avoir' && rattachement && rattachement.regularisationRetenue !== 0n) {" "  if (false) {" \
+  "posé après un règlement, il régularise"
+prouver "la régularisation convertie au cours de l'avoir" $ME \
+  "    const b = versLaBase(rattachement.regularisationRetenue, rattachement.facture.devise, rattachement.facture.cours, base);" "    const b = versLaBase(rattachement.regularisationRetenue, piece.devise, piece.cours, base);" \
+  "5 000 avoirs tirés au hasard"
+
+# ── Le calcul d'un achat (moteur/achats.ts) ─────────────────────────────────────────────────────
+MA=moteur/achats.ts
+prouver "une ligne d'achat tronquée au lieu d'arrondie" $MA \
+  "    const ht = diviserArrondi(l.quantite * l.prixUnitaire * s, MILLE * MILLION);" "    const ht = (l.quantite * l.prixUnitaire * s) / (MILLE * MILLION);" \
+  "20 000 achats tirés au hasard"
+prouver "la TVA d'une entreprise non assujettie déduite" $MA \
+  "deductible: a.tvaRecuperable && !l.nonDeductible" "deductible: !l.nonDeductible" \
+  "une entreprise non assujettie n'en déduit aucune"
+prouver "la TVA d'une entreprise non assujettie déduite (vu par le banc)" $MA \
+  "deductible: a.tvaRecuperable && !l.nonDeductible" "deductible: !l.nonDeductible" \
+  "20 000 achats tirés au hasard"
+prouver "un avoir fournisseur qui ajoute au lieu de retirer" $MA \
+  "  const sens = a.nature === 'avoir' ? -1n : 1n;" "  const sens = 1n;" \
+  "un avoir retire et un acompte n'est pas une charge"
+prouver "un acompte compté en charge" $MA \
+  "    b.parDestination[k] = avance ? 0n : conv(parDestination[k]);" "    b.parDestination[k] = conv(parDestination[k]);" \
+  "un avoir retire et un acompte n'est pas une charge"
+prouver "les frais d'un acompte comptés deux fois" $MA \
+  "frais: avance ? 0n : conv(frais)," "frais: conv(frais)," \
+  "20 000 achats tirés au hasard"
+prouver "l'avance d'un acompte sans ses frais" $MA \
+  "      avance: avance ? conv(totalHT + frais) : 0n," "      avance: avance ? conv(totalHT) : 0n," \
+  "un avoir retire et un acompte n'est pas une charge"
+prouver "la retenue d'un achat calculée sur les frais" $MA \
+  "  const retenue = auTaux(totalHT + totalTVA, a.tauxRetenue ?? 0n);" "  const retenue = auTaux(totalTTC, a.tauxRetenue ?? 0n);" \
+  "la retenue porte sur le TTC hors frais"
+prouver "la TVA non déductible oubliée dans le coût" $MA \
+  "    b.cout[k] = b.parDestination[k] + b.nonDeductibleParDestination[k];" "    b.cout[k] = b.parDestination[k];" \
+  "chaque achat de l'exemple de cinq ans se calcule"
+prouver "un achat en devise laissé dans sa devise" $MA \
+  "  const conv = (v: bigint) => sens * versLaBase(v, a.devise, a.cours, base);" "  const conv = (v: bigint) => sens * v;" \
+  "chaque achat de l'exemple de cinq ans se calcule"
+
+# ── L'écriture d'un achat et l'imputation d'un acompte (moteur/achats.ts) ───────────────────────
+prouver "la TVA non déductible toujours passée en charge" $MA \
+  "  else for (const k of DESTINATIONS) poser(compteDe[k], 'achat', b.nonDeductibleParDestination[k], 'debit');" "  else for (const k of DESTINATIONS) poser(comptes.charges, 'achat', b.nonDeductibleParDestination[k], 'debit');" \
+  "jusqu'à l'immobilisation"
+prouver "la TVA non récupérable d'un acompte passée en charge" $MA \
+  "  if (achat.nature === 'acompte') poser(comptes.avancesFournisseurs, 'avance', b.totalTVA - b.tvaDeductible, 'debit');" "  if (achat.nature === 'acompte') poser(comptes.charges, 'achat', b.totalTVA - b.tvaDeductible, 'debit');" \
+  "un acompte va aux avances"
+prouver "le fournisseur crédité du net (la retenue née à la facture)" $MA \
+  "  poser(comptes.fournisseurs, 'fournisseur', b.netAPayer + b.retenue - delta, 'credit');" "  poser(comptes.fournisseurs, 'fournisseur', b.netAPayer - delta, 'credit');" \
+  "chaque achat de l'exemple de cinq ans s'écrit au même millime"
+prouver "l'écart de cours d'un avoir fournisseur dans le mauvais sens" $MA \
+  "  poser(comptes.fournisseurs, 'fournisseur', b.netAPayer + b.retenue - delta, 'credit');" "  poser(comptes.fournisseurs, 'fournisseur', b.netAPayer + b.retenue + delta, 'credit');" \
+  "rattaché, il règle le fournisseur au cours de la facture"
+prouver "un avoir fournisseur ne régularise pas la retenue" $MA \
+  "  if (avoirRattache && avoirRattache.regularisationRetenue !== 0n) {" "  if (false) {" \
+  "rattaché, il règle le fournisseur au cours de la facture"
+prouver "l'écart de conversion d'un achat avalé par la première ligne" $MA \
+  "    // Le débit dépasse : il manque un crédit, un gain ; l'inverse, une perte.
+    if (ecart > 0n) poser(comptes.gainsChange, 'change', ecart, 'credit');
+    else poser(comptes.pertesChange, 'change', -ecart, 'debit');" "    { const l = lignes[0]; if (l) { if (l.debit > 0n) l.debit -= ecart; else l.credit += ecart; } }" \
+  "jamais avalé par une autre ligne"
+prouver "un acompte imputé à son propre cours" $MA \
+  "  const delta = ecartDeCours(acompte, facture, ta.netAPayer + ta.retenue, base);" "  const delta = 0n;" \
+  "3 000 factures d'achat tirées au hasard"
+prouver "le remboursement d'un avoir fournisseur oublié dans ce qu'il couvre" $MA \
+  "  return { net, brut: t.netAPayer + t.retenue - rendu - operee };" "  return { net, brut: t.netAPayer + t.retenue };" \
+  "3 000 factures d'achat tirées au hasard"
+
+# ── Les règlements fournisseurs, le reste et le statut d'un achat (moteur/achats.ts) ────────────
+prouver "le remboursement d'un avoir fournisseur écrit comme un paiement" $MA \
+  "  const sens = achat.nature === 'avoir' ? -1n : 1n;" "  const sens = 1n;" \
+  "le remboursement d'un avoir fournisseur fait entrer l'argent"
+prouver "le fournisseur soldé au cours du jour" $MA \
+  "  const soldeTiers = sens * versLaBase(reglement.montant, achat.devise, achat.cours, base);" "  const soldeTiers = sens * versLaBase(reglement.montant, achat.devise, coursDuJour, base);" \
+  "la banque paie au cours du jour"
+prouver "le fournisseur soldé au cours du jour (vu par le banc)" $MA \
+  "  const soldeTiers = sens * versLaBase(reglement.montant, achat.devise, achat.cours, base);" "  const soldeTiers = sens * versLaBase(reglement.montant, achat.devise, coursDuJour, base);" \
+  "avec avoirs remboursés, acomptes payés et cours du jour"
+prouver "une perte de change au paiement écrite en gain" $MA \
+  "  if (ecart > 0n) poser(comptes.pertesChange, 'change', ecart, 'debit');" "  if (ecart > 0n) poser(comptes.gainsChange, 'change', ecart, 'debit');" \
+  "la banque paie au cours du jour"
+prouver "la retenue opérée oubliée sur le compte du fournisseur" $MA \
+  "  poser(comptes.fournisseurs, 'fournisseur', soldeTiers + retenue, 'debit');" "  poser(comptes.fournisseurs, 'fournisseur', soldeTiers, 'debit');" \
+  "c'est ici qu'elle naît"
+prouver "un avoir imputé compté encore comme un crédit" $MA \
+  "reste: rattache ? 0n : paye - t.netAPayer" "reste: paye - t.netAPayer" \
+  "le reste d'un achat et son statut"
+prouver "les avoirs et acomptes oubliés dans le reste d'un achat" $MA \
+  "  return { paye, impute, reste: t.netAPayer - paye - impute };" "  return { paye, impute, reste: t.netAPayer - paye };" \
+  "le reste d'un achat et son statut"
+prouver "un avoir remboursé en partie dit remboursé" $MA \
+  "solde.paye > 0n && solde.reste >= 0n ? 'rembourse'" "solde.paye > 0n ? 'rembourse'" \
+  "le reste d'un achat et son statut"
+prouver "un achat en retard le jour même de l'échéance" $MA \
+  "  if (echeance && echeance < aujourdhui) return 'en_retard';" "  if (echeance && echeance <= aujourdhui) return 'en_retard';" \
+  "le reste d'un achat et son statut"
 
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

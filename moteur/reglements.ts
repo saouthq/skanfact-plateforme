@@ -7,7 +7,10 @@
 // décimales, comme partout dans le moteur. Pur : il ne lit ni la base ni les règles.
 
 import { diviserArrondi, type Devise } from './argent.ts';
-import { versLaBase, type LigneEcriture, type NatureLigne } from './ecritures.ts';
+import { versLaBase, type EnDevise, type LigneEcriture, type NatureLigne } from './ecritures.ts';
+
+// La conversion d'une pièce dans la devise d'une autre vit avec les écritures (un avoir s'en sert).
+export { dansLaDeviseDe, type EnDevise } from './ecritures.ts';
 
 // Un règlement, dans la devise de la PIÈCE ; négatif, c'est un remboursement (la v10 l'écrit de même,
 // 10.14.0 : le signe fait tout le reste). `cours` : le cours du jour où la banque a reçu, s'il diffère
@@ -52,20 +55,6 @@ export function retenueAuFil(net: bigint, brut: bigint, liees: PieceLiee[], regl
     else if (d !== 0n) ajustements.set(x.cle, (ajustements.get(x.cle) ?? 0n) + d);
   }
   return { parts, ajustements, due: brutDu - netDu, operee: reconnu };
-}
-
-// Un montant d'une pièce dans la devise d'une AUTRE (`montantDansDeviseDe`, 10.14.1) : même devise,
-// tel quel ; sinon par la devise de la comptabilité, arrondi à l'unité de la devise de la cible.
-export type EnDevise = { devise: Devise; cours?: bigint | undefined };
-export function dansLaDeviseDe(montant: bigint, source: EnDevise, cible: EnDevise, base: Devise): bigint {
-  if (source.devise.code === cible.devise.code) return montant;
-  const enBase = versLaBase(montant, source.devise, source.cours, base);
-  if (cible.devise.code === base.code) return enBase;
-  if (cible.cours === undefined || cible.cours <= 0n) throw new Error(`pièce en ${cible.devise.code} sans cours : elle ne se convertit pas`);
-  const exposant = cible.devise.decimales + 6 - base.decimales;
-  return exposant >= 0
-    ? diviserArrondi(enBase * 10n ** BigInt(exposant), cible.cours)
-    : diviserArrondi(enBase, cible.cours * 10n ** BigInt(-exposant));
 }
 
 export type SoldeFacture = { credite: bigint; paye: bigint; reste: bigint };
