@@ -82,16 +82,16 @@ describe('sans nom, rien', () => {
   it('une transaction qui ne dit pas qui agit ne voit aucune ligne, dans aucune table', async () => {
     await enTantQue(pool, null, async (tx) => {
       for (const t of ['organisation', 'entreprise', 'etablissement', 'utilisateur', 'membre', 'mandat', 'mandat_affectation', 'appareil']) {
-        expect((await tx.query(`select count(*) n from socle.${t}`)).rows[0].n, t).toBe('0');
+        expect((await tx.query(`select count(*) n from socle.${t}`)).rows[0].n, t).toBe(0n);
       }
     });
   });
 
   it('une connexion rendue au pool ne garde jamais le nom de la personne précédente', async () => {
     const avant = await enTantQue(poolUnique, id('alice'), async (tx) => (await tx.query('select count(*) n from socle.entreprise')).rows[0].n);
-    expect(avant).toBe('1');
+    expect(avant).toBe(1n);
     const apres = await poolUnique.query('select count(*) n from socle.entreprise');
-    expect(apres.rows[0].n).toBe('0');
+    expect(apres.rows[0].n).toBe(0n);
   });
 });
 
@@ -109,7 +109,7 @@ describe('une entreprise ne voit jamais sa voisine', () => {
       (await tx.query('select count(*) n from socle.mandat where entreprise = $1', [id('A')])).rows[0].n,
       (await tx.query('select count(*) n from socle.mandat_affectation')).rows[0].n,
     ]);
-    expect(mandatsEtAffectations).toEqual(['0', '0']);
+    expect(mandatsEtAffectations).toEqual([0n, 0n]);
   });
 
   it('il ne peut pas écrire chez sa voisine : ni ajouter, ni modifier', async () => {

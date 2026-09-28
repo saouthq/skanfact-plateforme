@@ -225,19 +225,19 @@ describe('le journal inaltérable (R9)', () => {
     const cle = chaine();
     await sceller3(cle);
     await sansGardien(() => admin.query(`update socle.maillon set contenu = $3 where entreprise = $1 and cle = $2 and rang = 2`, [A, cle, empreinteContenu({ faux: 1 })]));
-    expect(await controlerEnBase(cle)).toEqual({ ok: false, rang: '2', motif: 'empreinte fausse' });
+    expect(await controlerEnBase(cle)).toEqual({ ok: false, rang: 2n, motif: 'empreinte fausse' });
   });
 
   it('un maillon retiré au milieu, ou à la fin, se voit', async () => {
     const milieu = chaine();
     await sceller3(milieu);
     await sansGardien(() => admin.query(`delete from socle.maillon where entreprise = $1 and cle = $2 and rang = 2`, [A, milieu]));
-    expect(await controlerEnBase(milieu)).toEqual({ ok: false, rang: '2', motif: 'maillon manquant' });
+    expect(await controlerEnBase(milieu)).toEqual({ ok: false, rang: 2n, motif: 'maillon manquant' });
 
     const fin = chaine();
     await sceller3(fin);
     await sansGardien(() => admin.query(`delete from socle.maillon where entreprise = $1 and cle = $2 and rang = 3`, [A, fin]));
-    expect(await controlerEnBase(fin)).toEqual({ ok: false, rang: '3', motif: 'la fin de la chaîne manque' });
+    expect(await controlerEnBase(fin)).toEqual({ ok: false, rang: 3n, motif: 'la fin de la chaîne manque' });
     expect((await admin.query('select controle_ok from socle.chaine where entreprise = $1 and cle = $2', [A, fin])).rows[0].controle_ok).toBe(false);
   });
 

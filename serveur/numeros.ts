@@ -7,7 +7,7 @@ export type Numero = { numero: number; texte: string };
 
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
 
-function lu(r: { numero: string | number; texte: string } | undefined): Numero {
+function lu(r: { numero: bigint; texte: string } | undefined): Numero {
   if (!r) throw new Error('série introuvable');
   const numero = Number(r.numero);
   if (!Number.isSafeInteger(numero)) throw new Error(`numéro hors limites : ${r.numero}`);

@@ -5,13 +5,16 @@
 //      figée de ce qui a servi au calcul, et le maillon dans la chaîne de la série.
 // Un refus à l'étape 1 ne prend aucun numéro ; une erreur à l'étape 2 annule tout, numéro compris.
 
+import { sql, type Selectable } from 'kysely';
+import type { BaseDeDonnees } from '../../base/types.ts';
 import { depuisTexte, versTexte, type Devise } from '../../moteur/argent.ts';
 import { calculerPiece, timbreApplique, type Piece, type TotauxPiece, type TypePiece } from '../../moteur/piece.ts';
-import type { Transaction } from '../base.ts';
+import { requetes, type Transaction } from '../base.ts';
 import { Introuvable, Perimee, Refus } from '../erreurs.ts';
 import { sceller } from '../journal.ts';
 import { prendreNumero } from '../numeros.ts';
 import { regle, type RegleLue } from '../regles.ts';
+import { tracer } from '../trace.ts';
 
 // ── Ce qu'on saisit (les nombres arrivent en TEXTE, jamais en nombre à virgule) ─────────────────
 export type LigneSaisie = {
@@ -28,11 +31,8 @@ export type BrouillonSaisi = {
 export const DECIMALES = { quantite: 3, prix: 6, taux: 4, cours: 6 } as const;
 
 // ── Ce qu'on lit dans la base ───────────────────────────────────────────────────────────────────
-type LignePieceLue = {
-  rang: number; designation: string; description: string | null;
-  quantite: bigint; prix_unitaire: bigint; taux_tva: bigint; sans_remise: boolean;
-  ht: bigint | null; tva: bigint | null; ttc: bigint | null;
-};
+type LignePieceLue = Pick<Selectable<BaseDeDonnees['ventes.ligne']>,
+  'rang' | 'designation' | 'description' | 'quantite' | 'prix_unitaire' | 'taux_tva' | 'sans_remise' | 'ht' | 'tva' | 'ttc'>;
 type PieceLue = {
   id: string; entreprise: string; type: TypePiece; statut: string; tiers: string; date_piece: string; echeance: string | null;
   devise: string; cours: bigint | null; taux_remise: bigint; taux_retenue: bigint; appliquer_timbre: boolean | null;
@@ -42,64 +42,66 @@ type PieceLue = {
 };
 
 const MONTANTS = ['total_ht', 'remise', 'net_ht', 'total_tva', 'timbre', 'timbre_base', 'total_ttc', 'retenue', 'net_a_payer'] as const;
-const big = (v: unknown): bigint => BigInt(v as string | number);
-const bigOuNull = (v: unknown): bigint | null => (v === null || v === undefined ? null : big(v));
 
 async function lireLignes(tx: Transaction, piece: string): Promise<LignePieceLue[]> {
-  const r = await tx.query(`select rang, designation, description, quantite, prix_unitaire, taux_tva, sans_remise, ht, tva, ttc
-    from ventes.ligne where piece = $1 order by rang`, [piece]);
-  return r.rows.map((l) => ({
-    rang: l.rang, designation: l.designation, description: l.description,
-    quantite: big(l.quantite), prix_unitaire: big(l.prix_unitaire), taux_tva: big(l.taux_tva), sans_remise: l.sans_remise,
-    ht: bigOuNull(l.ht), tva: bigOuNull(l.tva), ttc: bigOuNull(l.ttc),
-  }));
+  return requetes(tx).selectFrom('ventes.ligne')
+    .select(['rang', 'designation', 'description', 'quantite', 'prix_unitaire', 'taux_tva', 'sans_remise', 'ht', 'tva', 'ttc'])
+    .where('piece', '=', piece).orderBy('rang').execute();
 }
 
 async function lirePieceBrute(tx: Transaction, entreprise: string, id: string, verrou = false): Promise<PieceLue> {
-  const r = (await tx.query(`select * from ventes.piece where id = $1 and entreprise = $2 ${verrou ? 'for update' : ''}`, [id, entreprise])).rows[0];
+  const r = await requetes(tx).selectFrom('ventes.piece').selectAll()
+    .where('id', '=', id).where('entreprise', '=', entreprise)
+    .$if(verrou, (q) => q.forUpdate()).executeTakeFirst();
   if (!r) throw new Introuvable();
+  let totaux: Record<string, bigint> | null = null;
+  if (r.statut === 'emise') {
+    totaux = {};
+    for (const m of MONTANTS) {
+      const v = r[m];
+      if (v === null) throw new Error(`facture émise sans ${m} : ${id}`);
+      totaux[m] = v;
+    }
+  }
   return {
-    id: r.id, entreprise: r.entreprise, type: r.type, statut: r.statut, tiers: r.tiers, date_piece: r.date_piece, echeance: r.echeance,
-    devise: r.devise, cours: bigOuNull(r.cours), taux_remise: big(r.taux_remise), taux_retenue: big(r.taux_retenue),
+    id: r.id, entreprise: r.entreprise, type: r.type as TypePiece, statut: r.statut, tiers: r.tiers, date_piece: r.date_piece, echeance: r.echeance,
+    devise: r.devise, cours: r.cours, taux_remise: r.taux_remise, taux_retenue: r.taux_retenue,
     appliquer_timbre: r.appliquer_timbre, objet: r.objet, notes: r.notes, serie: r.serie, numero_texte: r.numero_texte,
-    revision: Number(r.revision),
-    totaux: r.statut === 'emise' ? Object.fromEntries(MONTANTS.map((m) => [m, big(r[m])])) : null,
-    tva_par_taux: r.tva_par_taux, copie: r.copie, empreinte: r.empreinte,
+    revision: Number(r.revision), totaux,
+    tva_par_taux: r.tva_par_taux as PieceLue['tva_par_taux'], copie: r.copie, empreinte: r.empreinte,
   };
 }
 
 async function deviseDe(tx: Transaction, code: string): Promise<Devise> {
-  const r = (await tx.query('select code, decimales from socle.devise where code = $1', [code])).rows[0];
+  const r = await requetes(tx).selectFrom('socle.devise').select(['code', 'decimales']).where('code', '=', code).executeTakeFirst();
   if (!r) throw new Refus(`la devise ${code} n'est pas connue`);
-  return { code: r.code, decimales: r.decimales };
+  return r;
 }
 
 // ── Le brouillon ────────────────────────────────────────────────────────────────────────────────
 function valeurs(b: BrouillonSaisi) {
   return {
+    type: b.type, tiers: b.tiers, date_piece: b.datePiece, echeance: b.echeance ?? null, devise: b.devise ?? 'TND',
     cours: b.cours === undefined ? null : depuisTexte(b.cours, DECIMALES.cours),
-    tauxRemise: b.tauxRemise === undefined ? 0n : depuisTexte(b.tauxRemise, DECIMALES.taux),
-    tauxRetenue: b.tauxRetenue === undefined ? 0n : depuisTexte(b.tauxRetenue, DECIMALES.taux),
+    taux_remise: b.tauxRemise === undefined ? 0n : depuisTexte(b.tauxRemise, DECIMALES.taux),
+    taux_retenue: b.tauxRetenue === undefined ? 0n : depuisTexte(b.tauxRetenue, DECIMALES.taux),
+    appliquer_timbre: b.appliquerTimbre ?? null, objet: b.objet ?? null, notes: b.notes ?? null,
   };
 }
 
 async function ecrireLignes(tx: Transaction, entreprise: string, piece: string, lignes: LigneSaisie[]) {
-  for (const [i, l] of lignes.entries()) {
-    await tx.query(`insert into ventes.ligne (piece, entreprise, rang, designation, description, quantite, prix_unitaire, taux_tva, sans_remise)
-      values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, [piece, entreprise, i + 1, l.designation, l.description ?? null,
-      depuisTexte(l.quantite, DECIMALES.quantite), depuisTexte(l.prixUnitaire, DECIMALES.prix), depuisTexte(l.tauxTva, DECIMALES.taux), l.sansRemise ?? false]);
-  }
+  await requetes(tx).insertInto('ventes.ligne').values(lignes.map((l, i) => ({
+    piece, entreprise, rang: i + 1, designation: l.designation, description: l.description ?? null,
+    quantite: depuisTexte(l.quantite, DECIMALES.quantite), prix_unitaire: depuisTexte(l.prixUnitaire, DECIMALES.prix),
+    taux_tva: depuisTexte(l.tauxTva, DECIMALES.taux), sans_remise: l.sansRemise ?? false,
+  }))).execute();
 }
 
 export async function creerBrouillon(tx: Transaction, utilisateur: string, entreprise: string, b: BrouillonSaisi): Promise<string> {
-  const v = valeurs(b);
-  const id = (await tx.query(`insert into ventes.piece (entreprise, type, tiers, date_piece, echeance, devise, cours, taux_remise, taux_retenue,
-      appliquer_timbre, objet, notes, cree_par)
-    values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) returning id`,
-  [entreprise, b.type, b.tiers, b.datePiece, b.echeance ?? null, b.devise ?? 'TND', v.cours, v.tauxRemise, v.tauxRetenue,
-    b.appliquerTimbre ?? null, b.objet ?? null, b.notes ?? null, utilisateur])).rows[0].id as string;
+  const { id } = await requetes(tx).insertInto('ventes.piece')
+    .values({ entreprise, ...valeurs(b), cree_par: utilisateur }).returning('id').executeTakeFirstOrThrow();
   await ecrireLignes(tx, entreprise, id, b.lignes);
-  await tx.query(`select socle.tracer($1, 'ventes.brouillon.creer', 'piece_vente', $2, null, $3)`, [entreprise, id, JSON.stringify({ type: b.type, tiers: b.tiers })]);
+  await tracer(tx, entreprise, 'ventes.brouillon.creer', { type: 'piece_vente', id }, null, { type: b.type, tiers: b.tiers });
   return id;
 }
 
@@ -107,16 +109,13 @@ export async function modifierBrouillon(tx: Transaction, entreprise: string, id:
   const p = await lirePieceBrute(tx, entreprise, id, true);
   if (p.statut !== 'brouillon') throw new Refus('une pièce émise ne se modifie plus : on la corrige par un avoir');
   if (p.revision !== revisionVue) throw new Perimee();
-  const v = valeurs(b);
-  await tx.query(`update ventes.piece set type = $3, tiers = $4, date_piece = $5, echeance = $6, devise = $7, cours = $8, taux_remise = $9,
-      taux_retenue = $10, appliquer_timbre = $11, objet = $12, notes = $13, revision = revision + 1, modifie_le = now()
-    where id = $1 and entreprise = $2`,
-  [id, entreprise, b.type, b.tiers, b.datePiece, b.echeance ?? null, b.devise ?? 'TND', v.cours, v.tauxRemise, v.tauxRetenue,
-    b.appliquerTimbre ?? null, b.objet ?? null, b.notes ?? null]);
-  await tx.query('delete from ventes.ligne where piece = $1', [id]);
+  const db = requetes(tx);
+  await db.updateTable('ventes.piece')
+    .set((eb) => ({ ...valeurs(b), revision: eb('revision', '+', 1n), modifie_le: sql<Date>`now()` }))
+    .where('id', '=', id).where('entreprise', '=', entreprise).execute();
+  await db.deleteFrom('ventes.ligne').where('piece', '=', id).execute();
   await ecrireLignes(tx, entreprise, id, b.lignes);
-  await tx.query(`select socle.tracer($1, 'ventes.brouillon.modifier', 'piece_vente', $2, $3, $4)`,
-    [entreprise, id, JSON.stringify({ revision: p.revision }), JSON.stringify({ revision: p.revision + 1 })]);
+  await tracer(tx, entreprise, 'ventes.brouillon.modifier', { type: 'piece_vente', id }, { revision: p.revision }, { revision: p.revision + 1 });
   return p.revision + 1;
 }
 
@@ -124,9 +123,8 @@ export async function modifierBrouillon(tx: Transaction, entreprise: string, id:
 export async function supprimerBrouillon(tx: Transaction, entreprise: string, id: string): Promise<void> {
   const p = await lirePieceBrute(tx, entreprise, id, true);
   if (p.statut !== 'brouillon') throw new Refus('une pièce émise ne s\'efface jamais : on la corrige par un avoir');
-  await tx.query('delete from ventes.piece where id = $1', [id]);
-  await tx.query(`select socle.tracer($1, 'ventes.brouillon.supprimer', 'piece_vente', $2, $3, null)`,
-    [entreprise, id, JSON.stringify({ type: p.type, tiers: p.tiers, date: p.date_piece })]);
+  await requetes(tx).deleteFrom('ventes.piece').where('id', '=', id).execute();
+  await tracer(tx, entreprise, 'ventes.brouillon.supprimer', { type: 'piece_vente', id }, { type: p.type, tiers: p.tiers, date: p.date_piece }, null);
 }
 
 // ── Le calcul ───────────────────────────────────────────────────────────────────────────────────
@@ -145,7 +143,7 @@ async function calculer(tx: Transaction, p: PieceLue, lignes: LignePieceLue[]): 
   };
   const applique = timbreApplique(piece);
   const timbre = applique ? await regle(tx, p.entreprise, 'timbre.facture', p.date_piece) : null;
-  if (timbre) piece.timbre = big(timbre.valeur);
+  if (timbre) piece.timbre = BigInt(timbre.valeur as string | number);
   return { devise, totaux: calculerPiece(piece), timbre, timbreManquant: applique && !timbre };
 }
 
@@ -179,6 +177,7 @@ export async function relirePourChaine(tx: Transaction, entreprise: string, id: 
 
 // ── L'émission ──────────────────────────────────────────────────────────────────────────────────
 export async function emettre(tx: Transaction, utilisateur: string, entreprise: string, id: string) {
+  const db = requetes(tx);
   // 1. Les contrôles, tous, avant de prendre quoi que ce soit.
   const p = await lirePieceBrute(tx, entreprise, id, true);
   if (p.statut !== 'brouillon') throw new Refus('cette facture est déjà émise');
@@ -190,11 +189,13 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
   if (calcul.timbreManquant) {
     throw new Refus(`le timbre fiscal n'est pas renseigné au ${p.date_piece} : la facture ne s'émet pas sans lui`);
   }
-  const serie = (await tx.query(`select id from socle.serie where entreprise = $1 and type = 'facture' and legale and active
-    order by cree_le limit 1`, [entreprise])).rows[0]?.id as string | undefined;
+  const serie = (await db.selectFrom('socle.serie').select('id')
+    .where('entreprise', '=', entreprise).where('type', '=', 'facture').where('legale', '=', true).where('active', '=', true)
+    .orderBy('cree_le').limit(1).executeTakeFirst())?.id;
   if (!serie) throw new Refus('aucune série de factures n\'existe encore : crée-la dans les réglages', 'socle.reglages_fiscaux.modifier');
-  const societe = (await tx.query('select raison_sociale, matricule_fiscal from socle.entreprise where id = $1', [entreprise])).rows[0];
-  const client = (await tx.query('select raison_sociale, identifiant, type_identifiant, adresse, pays from socle.tiers where id = $1', [p.tiers])).rows[0];
+  const societe = await db.selectFrom('socle.entreprise').select(['raison_sociale', 'matricule_fiscal']).where('id', '=', entreprise).executeTakeFirstOrThrow();
+  const client = await db.selectFrom('socle.tiers').select(['raison_sociale', 'identifiant', 'type_identifiant', 'adresse', 'pays'])
+    .where('id', '=', p.tiers).executeTakeFirstOrThrow();
 
   // 2. Le numéro, les montants, la copie figée, le maillon.
   const numero = await prendreNumero(tx, serie, p.date_piece);
@@ -204,7 +205,7 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
     regles: { timbre: calcul.timbre ? { regle: calcul.timbre.regle, valeur: calcul.timbre.valeur, origine: calcul.timbre.origine } : null },
   };
   for (const [i, l] of t.lignes.entries()) {
-    await tx.query('update ventes.ligne set ht = $3, tva = $4, ttc = $5 where piece = $1 and rang = $2', [id, i + 1, l.ht, l.tva, l.ttc]);
+    await db.updateTable('ventes.ligne').set({ ht: l.ht, tva: l.tva, ttc: l.ttc }).where('piece', '=', id).where('rang', '=', i + 1).execute();
   }
   const emise: PieceLue = {
     ...p, statut: 'emise', serie, numero_texte: numero.texte,
@@ -216,14 +217,14 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
   };
   const lignesEmises = lignes.map((l, i) => ({ ...l, ht: t.lignes[i]?.ht ?? null, tva: t.lignes[i]?.tva ?? null, ttc: t.lignes[i]?.ttc ?? null }));
   const maillon = await sceller(tx, entreprise, `serie:${serie}`, { type: 'piece_vente', id }, contenuScelle(emise, lignesEmises));
-  await tx.query(`update ventes.piece set statut = 'emise', serie = $3, numero = $4, numero_texte = $5,
-      total_ht = $6, remise = $7, net_ht = $8, total_tva = $9, timbre = $10, timbre_base = $11, total_ttc = $12, retenue = $13, net_a_payer = $14,
-      tva_par_taux = $15, copie = $16, chaine_rang = $17, empreinte = $18, emise_le = now(), emise_par = $19, modifie_le = now()
-    where id = $1 and entreprise = $2`,
-  [id, entreprise, serie, numero.numero, numero.texte, t.totalHT, t.remise, t.netHT, t.totalTVA, t.timbre, t.timbreBase, t.totalTTC,
-    t.retenue, t.netAPayer, JSON.stringify(emise.tva_par_taux), JSON.stringify(copie), maillon.rang, maillon.empreinte, utilisateur]);
-  await tx.query(`select socle.tracer($1, 'ventes.facture.emettre', 'piece_vente', $2, null, $3)`,
-    [entreprise, id, JSON.stringify({ numero: numero.texte, netAPayer: t.netAPayer.toString() })]);
+  await db.updateTable('ventes.piece').set({
+    statut: 'emise', serie, numero: BigInt(numero.numero), numero_texte: numero.texte,
+    total_ht: t.totalHT, remise: t.remise, net_ht: t.netHT, total_tva: t.totalTVA, timbre: t.timbre, timbre_base: t.timbreBase,
+    total_ttc: t.totalTTC, retenue: t.retenue, net_a_payer: t.netAPayer,
+    tva_par_taux: JSON.stringify(emise.tva_par_taux), copie: JSON.stringify(copie), chaine_rang: BigInt(maillon.rang), empreinte: maillon.empreinte,
+    emise_le: sql<Date>`now()`, emise_par: utilisateur, modifie_le: sql<Date>`now()`,
+  }).where('id', '=', id).where('entreprise', '=', entreprise).execute();
+  await tracer(tx, entreprise, 'ventes.facture.emettre', { type: 'piece_vente', id }, null, { numero: numero.texte, netAPayer: t.netAPayer });
   return { numero: numero.texte, totaux: t, devise: calcul.devise, empreinte: maillon.empreinte };
 }
 

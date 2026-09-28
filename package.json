@@ -12,7 +12,8 @@
     "lint": "eslint . --max-warnings 0",
     "types": "tsc --noEmit",
     "verifier": "npm run types && npm run lint && npm test",
-    "preuves": "bash tests/preuves.sh"
+    "preuves": "bash tests/preuves.sh",
+    "types:base": "node base/generer-types.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -27,6 +28,7 @@
   "dependencies": {
     "@node-rs/argon2": "2.2.1",
     "fastify": "5.12.5",
+    "kysely": "0.29.6",
     "pg": "8.23.0",
     "zod": "4.6.5"
   }

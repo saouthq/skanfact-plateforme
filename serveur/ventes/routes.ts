@@ -3,10 +3,13 @@
 // Les nombres entrent et sortent en TEXTE exact (« 2.525 », « 1191.000 ») : jamais en nombre à
 // virgule (01 R3).
 
+import { sql } from 'kysely';
 import { z } from 'zod';
 import { depuisTexte } from '../../moteur/argent.ts';
 import type { Route } from '../app.ts';
+import { requetes } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
+import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, lirePiece, modifierBrouillon, supprimerBrouillon, type BrouillonSaisi } from './pieces.ts';
 
 const LIMITE_MAX = 200;
@@ -46,11 +49,13 @@ export function routesVentes(ctx: Contexte): Route<never>[] {
     }).refine((c) => (c.identifiant === undefined) === (c.typeIdentifiant === undefined), { message: 'un identifiant va avec son type', path: ['typeIdentifiant'] }),
     traiter: async ({ params, corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
-      const id = (await tx.query(`insert into socle.tiers (entreprise, nature, raison_sociale, identifiant, type_identifiant, adresse, pays, email, telephone, devise, roles)
-        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, '{client}') returning id`,
-      [params.entreprise, corps.nature ?? 'societe', corps.raisonSociale, corps.identifiant ?? null, corps.typeIdentifiant ?? null,
-        corps.adresse ?? null, corps.pays ?? 'TN', corps.email ?? null, corps.telephone ?? null, corps.devise ?? 'TND'])).rows[0].id;
-      await tx.query(`select socle.tracer($1, 'ventes.client.creer', 'tiers', $2, null, $3)`, [params.entreprise, id, JSON.stringify({ raisonSociale: corps.raisonSociale })]);
+      const entreprise = params.entreprise ?? '';
+      const { id } = await requetes(tx).insertInto('socle.tiers').values({
+        entreprise, nature: corps.nature ?? 'societe', raison_sociale: corps.raisonSociale, identifiant: corps.identifiant ?? null,
+        type_identifiant: corps.typeIdentifiant ?? null, adresse: corps.adresse ?? null, pays: corps.pays ?? 'TN', email: corps.email ?? null,
+        telephone: corps.telephone ?? null, devise: corps.devise ?? 'TND', roles: ['client'],
+      }).returning('id').executeTakeFirstOrThrow();
+      await tracer(tx, entreprise, 'ventes.client.creer', { type: 'tiers', id }, null, { raisonSociale: corps.raisonSociale });
       return { statut: 201, corps: { id } };
     },
   });
@@ -59,8 +64,9 @@ export function routesVentes(ctx: Contexte): Route<never>[] {
     methode: 'GET', chemin: '/entreprises/:entreprise/clients', geste: 'ventes.pieces.voir',
     traiter: async ({ params }, tx) => {
       if (!tx) throw new Error('transaction attendue');
-      const clients = (await tx.query(`select id, raison_sociale, nature, identifiant, pays, devise from socle.tiers
-        where entreprise = $1 and 'client' = any(roles) order by raison_sociale, id limit $2`, [params.entreprise, LIMITE_MAX])).rows;
+      const clients = await requetes(tx).selectFrom('socle.tiers').select(['id', 'raison_sociale', 'nature', 'identifiant', 'pays', 'devise'])
+        .where('entreprise', '=', params.entreprise ?? '').where(sql<boolean>`'client' = any(roles)`)
+        .orderBy('raison_sociale').orderBy('id').limit(LIMITE_MAX).execute();
       return { corps: { clients } };
     },
   });

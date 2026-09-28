@@ -127,7 +127,7 @@ describe('la facture, du brouillon à l\'émission', () => {
     expect(lu.avertissement).toMatch(/timbre fiscal n'est pas renseigné/);
     const refus = await appeler('POST', `/entreprises/${e.ent}/ventes/${sansTimbre}/emettre`, e.proprio.jeton);
     expect(refus).toMatchObject({ statut: 403, corps: { motif: 'Le timbre fiscal n\'est pas renseigné au 1999-12-31 : la facture ne s\'émet pas sans lui.' } });
-    expect((await admin.query('select count(*) n from socle.compteur where serie = $1', [e.serie])).rows[0].n).toBe('0');
+    expect((await admin.query('select count(*) n from socle.compteur where serie = $1', [e.serie])).rows[0].n).toBe(0n);
     const bon = await brouillon(e, FACTURE(e.client, '2026-10-02'));
     expect((await appeler('POST', `/entreprises/${e.ent}/ventes/${bon}/emettre`, e.proprio.jeton)).corps.numero).toBe('FAC-2026-001');
     // Une facture sans timbre demandé s'émet, elle, sans règle de timbre.
@@ -225,6 +225,9 @@ describe('le journal de la série, relu dans la base', () => {
     const relire = (tx: pg.PoolClient) => (o: { id: string }) => relirePourChaine(tx, e.ent, o.id);
     const controle = () => enTantQue(pool, e.proprio.id, (tx) => controler(tx, e.ent, `serie:${e.serie}`, relire(tx)));
     expect(await controle()).toEqual({ ok: true });
+    // L'état de la chaîne, lu par l'API : son rang (un entier de 64 bits) sort en texte.
+    expect((await appeler('GET', `/entreprises/${e.ent}/chaines`, e.proprio.jeton)).corps.chaines)
+      .toMatchObject([{ cle: `serie:${e.serie}`, rang: '3' }]);
     await admin.query('alter table ventes.piece disable trigger piece_scellee');
     try {
       await admin.query('update ventes.piece set net_a_payer = net_a_payer - 1000 where id = $1', [ids[1]]);

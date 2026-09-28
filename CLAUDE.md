@@ -22,9 +22,8 @@
   (`banc/v10/`) ; les tiers et la facture de vente du brouillon à l'émission (`0006`,
   `serveur/ventes/`), avec **la première moitié du jalon J1** : les 273 factures de l'exemple de
   cinq ans émises par le serveur au millime de la v10 (`tests/ventes/j1-exemple.test.ts`).
-- **Ouvert** : les requêtes sont encore écrites en SQL avec `pg` ; Kysely (choisi en `12` § 3) est
-  la brique suivante, avant que le code grandisse. L'autre moitié de J1 (export et restauration
-  d'une entreprise) reste à faire.
+  Kysely est branché (`requetes(tx)`, `base/types.ts` écrit par `base/generer-types.ts`).
+- **Ouvert** : l'autre moitié de J1 (export et restauration d'une entreprise).
 
 ## Les règles de ce dépôt
 
@@ -34,6 +33,14 @@
 - Le serveur ne touche la base **que par `enTantQue`** (`serveur/base.ts`) : une transaction, le nom
   de la personne posé pour cette transaction seulement. Jamais de connexion administrateur dans le
   serveur.
+- Dans cette transaction, les requêtes d'un module s'écrivent avec **Kysely** : `requetes(tx)`
+  (elles refusent de servir après la fin de leur transaction). Les appels aux fonctions du socle et
+  les états lourds restent en SQL écrit à la main (`sql` de Kysely ou `tx.query`), toujours avec
+  des paramètres, jamais du texte collé. La trace d'un geste : `tracer()` (`serveur/trace.ts`).
+- **Après chaque migration** : `npm run types:base` réécrit `base/types.ts` (un test le vérifie).
+  Un type de colonne nouveau se déclare d'abord dans `base/generer-types.ts`.
+- Un entier de 64 bits se lit en `bigint` (jamais en texte à convertir, jamais en nombre à
+  virgule) et sort de l'API en texte.
 - Une fonction `security definer` est une porte dérobée : elle ne rend que ce qui concerne
   `socle.moi()`, fixe son `search_path`, et son droit d'exécution est retiré à `public`.
 - Les fonctions `security definer` appartiennent au rôle qui applique les migrations : il doit
@@ -104,6 +111,7 @@
 | `npm run verifier` | Types, lint, tests (il faut `PG_ADMIN`) |
 | `npm run preuves` | Chaque défaut remis dans une copie, chaque test doit tomber |
 | `npm run migrer` | Applique les migrations sur la base de `PG_ADMIN` |
+| `npm run types:base` | Réécrit `base/types.ts` à partir des migrations (base jetable sur `PG_ADMIN`) |
 
 Dans une session Claude : PostgreSQL 16 tourne sur `127.0.0.1:5433`
 (`su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /var/lib/pgproto/data -o '-p 5433' start"`

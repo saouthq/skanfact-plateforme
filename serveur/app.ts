@@ -57,6 +57,10 @@ export function creerApp(ctx: Contexte, routes: Route<never>[]): FastifyInstance
   for (const r of routes) verifierDeclaration(r);
 
   const app = Fastify({ logger: false });
+  // Un entier de 64 bits (un rang, un compteur) sort en texte : un nombre JSON au-delà de 2^53
+  // perdrait ses derniers chiffres chez celui qui le lit. L'argent, lui, sort toujours en texte
+  // décimal (versTexte), jamais en unités brutes.
+  app.setReplySerializer((corps) => JSON.stringify(corps, (_cle, v: unknown) => (typeof v === 'bigint' ? v.toString() : v)));
 
   for (const r of routes) {
     app.route({

@@ -154,7 +154,7 @@ describe('la file d\'un appareil (04 § 4)', () => {
     const r = await envoyer(proprio.jeton, op(ent, 1, 'essai.reglage.poser', { code: 'essai.panne', valeur: 1, panne: true }), suivant);
     expect(r.map((x) => x.statut)).toEqual(['erreur']);
     expect(await reglesPosees(ent, 'essai.panne')).toBe(0);
-    expect((await admin.query('select count(*) n from socle.operation where entreprise = $1', [ent])).rows[0].n).toBe('0');
+    expect((await admin.query('select count(*) n from socle.operation where entreprise = $1', [ent])).rows[0].n).toBe(0n);
     const [repris] = await envoyer(proprio.jeton, op(ent, 1, 'essai.reglage.poser', { code: 'essai.panne', valeur: 1 }));
     expect(repris?.statut).toBe('acceptee');
   });

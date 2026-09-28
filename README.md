@@ -16,7 +16,8 @@ feuille de route…). Ce dépôt applique ce cadrage ; il ne le réécrit pas.
 |---|---|
 | `base/migrations/` | Les migrations de la base, numérotées. `0001_socle.sql` : organisations, entreprises, établissements, personnes, membres et leurs rôles, mandats des cabinets, appareils, et la **sécurité par ligne** |
 | `base/migrer.ts` | Applique les migrations dans l'ordre ; refuse une migration déjà appliquée puis modifiée |
-| `serveur/base.ts` | Le seul accès du serveur à la base : `enTantQue(personne, travail)` |
+| `serveur/base.ts` | Le seul accès du serveur à la base : `enTantQue(personne, travail)`, et dans cette transaction `requetes(tx)`, les requêtes écrites avec **Kysely**, vérifiées par les types |
+| `base/types.ts`, `base/generer-types.ts` | La forme de chaque table, **écrite par notre script** à partir des migrations (`npm run types:base`) ; un test tombe si elle ne suit plus la base |
 | `base/migrations/0002_connexion.sql`, `serveur/connexion.ts` | Se connecter : mot de passe (Argon2id, liste de mots de passe volés gardée chez nous), attente qui s'allonge après 5 erreurs, code sur le téléphone (SMS ou application), 10 codes de secours, appareils reconnus 30 jours, sessions (12 h d'inaction, 30 min sur le poste d'un autre), révocation |
 | `base/migrations/0003_equipe_et_trace.sql` | L'équipe (inviter, accepter, changer un rôle, retirer, transférer la propriété) avec ses règles : toujours un propriétaire, personne ne se donne un droit ; et la **trace** de chaque geste, découpée par mois, qui ne se modifie ni ne s'efface |
 | `serveur/porte/` | La **porte des droits** : chaque geste déclaré avec les rôles qui le font (le tableau du cadrage), et `peut()` qui répond toujours ce qui est refusé, pourquoi, et qui peut |
@@ -29,8 +30,8 @@ feuille de route…). Ce dépôt applique ce cadrage ; il ne le réécrit pas.
 | `tests/ventes/j1-exemple.test.ts` | **Le jalon J1** : les 273 factures de l'exemple de cinq ans de la v10, saisies en brouillon et émises par le serveur, portent au millime les montants de la v10 ; leurs numéros se suivent sans trou chaque année et leur chaîne se contrôle en relisant chaque facture |
 | `tests/` | Les tests, contre un vrai PostgreSQL, et `preuves.sh` qui remet chaque défaut pour vérifier que son test tombe |
 
-À venir dans l'étape 1 (`docs/cadrage/09-feuille-de-route.md` dans le dépôt de l'application) : les
-requêtes écrites avec Kysely (`12` § 3), la suite du moteur porté (avoirs, règlements et statut d'une
+À venir dans l'étape 1 (`docs/cadrage/09-feuille-de-route.md` dans le dépôt de l'application) : la
+suite du moteur porté (avoirs, règlements et statut d'une
 facture, écritures comptables, paie), le catalogue de textes, les clés de l'API, l'export et la
 restauration d'une entreprise (l'autre moitié de J1).
 

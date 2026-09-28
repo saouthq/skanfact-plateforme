@@ -11,6 +11,9 @@ ok=0; ko=0
 
 prouver() { # défaut, fichier, avant, après, test qui doit tomber
   local nom="$1" fichier="$2" avant="$3" apres="$4" attendu="$5"
+  # SEULES=motif : ne rejouer que les preuves dont le nom y répond (pendant le travail ; avant un
+  # envoi, toutes).
+  if [ -n "${SEULES:-}" ] && ! [[ "$nom" =~ $SEULES ]]; then return 0; fi
   local copie; copie="$(mktemp -d)"
   (cd "$ICI" && tar --exclude=node_modules --exclude=.git -cf - .) | (cd "$copie" && tar -xf -)
   ln -s "$ICI/node_modules" "$copie/node_modules"
@@ -511,13 +514,13 @@ prouver "le scellé qui ne couvre pas les montants des lignes" $VP \
   "contenuScelle(emise, lignesEmises)" "contenuScelle(emise, lignes)" \
   "la chaîne des factures se contrôle en relisant les pièces"
 prouver "la retenue perdue en chemin (vue par J1)" $VP \
-  "    tauxRetenue: b.tauxRetenue === undefined ? 0n : depuisTexte(b.tauxRetenue, DECIMALES.taux)," "    tauxRetenue: 0n," \
+  "    taux_retenue: b.tauxRetenue === undefined ? 0n : depuisTexte(b.tauxRetenue, DECIMALES.taux)," "    taux_retenue: 0n," \
   "chaque facture émise porte, au millime, les montants de la v10"
 prouver "un brouillon écrasé malgré sa révision" $VP \
   "  if (p.revision !== revisionVue) throw new Perimee();" "" \
   "un brouillon modifié entre-temps n'est pas écrasé"
 prouver "un brouillon supprimé sans trace" $VP \
-  "  await tx.query(\`select socle.tracer(\$1, 'ventes.brouillon.supprimer'" "  if (id === 'jamais') await tx.query(\`select socle.tracer(\$1, 'ventes.brouillon.supprimer'" \
+  "  await tracer(tx, entreprise, 'ventes.brouillon.supprimer'" "  if (id === 'jamais') await tracer(tx, entreprise, 'ventes.brouillon.supprimer'" \
   "supprimer un brouillon laisse sa trace"
 prouver "un caissier qui crée des brouillons de vente" serveur/ventes/gestes.ts \
   "    roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui' } },
@@ -530,6 +533,26 @@ prouver "une pièce en devise sans cours" $VR \
 prouver "une date de pièce lue comme un instant" serveur/base.ts \
   "pg.types.setTypeParser(pg.types.builtins.DATE, (v: string) => v);" "" \
   "J1 en petit"
+
+# ── Les requêtes écrites avec Kysely (base/types.ts, serveur/base.ts) ─────────────────────────────
+prouver "des types de la base qui ne suivent plus les migrations" base/types.ts \
+  "    net_a_payer: bigint | null;" "    net_a_payer: number | null;" \
+  "base/types.ts suit les migrations"
+prouver "un type de colonne inconnu qui devient « unknown » en silence" base/generer-types.ts \
+  "    if (!ts) throw new Error(" "    if (ts === 'jamais') throw new Error(" \
+  "un type de colonne que le générateur ne connaît pas"
+prouver "un entier de 64 bits lu en texte" serveur/base.ts \
+  "pg.types.setTypeParser(pg.types.builtins.INT8, (v: string) => BigInt(v));" "" \
+  "un entier de 64 bits se lit en bigint"
+prouver "des requêtes qui servent encore après leur transaction" serveur/base.ts \
+  "        if (enCours.get(tx) !== jeton) throw new Error('requête après la fin de sa transaction : refusée');" "" \
+  "des requêtes gardées après leur transaction refusent de servir"
+prouver "des requêtes hors de enTantQue" serveur/base.ts \
+  "  if (!jeton) throw new Error('requetes() s\\'emploie dans une transaction ouverte par enTantQue');" "" \
+  "hors d'une transaction ouverte par enTantQue, pas de requêtes"
+prouver "un grand entier qui casse la réponse de l'API" serveur/app.ts \
+  "  app.setReplySerializer(" "  void (" \
+  "la chaîne des factures se contrôle en relisant les pièces"
 
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]
