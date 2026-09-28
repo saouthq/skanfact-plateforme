@@ -11,6 +11,7 @@ import { depuisTexte, versTexte, type Devise } from '../../moteur/argent.ts';
 import { calculerPiece, timbreApplique, type Piece, type TotauxPiece, type TypePiece } from '../../moteur/piece.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { Introuvable, Perimee, Refus } from '../erreurs.ts';
+import { emettreAvis } from '../avis.ts';
 import { sceller } from '../journal.ts';
 import { prendreNumero } from '../numeros.ts';
 import { regle, type RegleLue } from '../regles.ts';
@@ -227,6 +228,15 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
     emise_le: sql<Date>`now()`, emise_par: utilisateur, modifie_le: sql<Date>`now()`,
   }).where('id', '=', id).where('entreprise', '=', entreprise).execute();
   await tracer(tx, entreprise, 'ventes.facture.emettre', { type: 'piece_vente', id }, null, { numero: numero.texte, netAPayer: t.netAPayer });
+  // L'avis aux adresses abonnées naît dans la MÊME transaction : une émission qui échoue n'annonce
+  // rien, une facture émise est toujours annoncée (14 § 2.5). L'argent en texte décimal, jamais en
+  // nombre à virgule.
+  const d = calcul.devise.decimales;
+  await emettreAvis(tx, entreprise, 'facture.emise', {
+    id, numero: numero.texte, datePiece: p.date_piece, client: { id: p.tiers, raisonSociale: client.raison_sociale },
+    devise: calcul.devise.code, totalHT: versTexte(t.netHT, d), totalTVA: versTexte(t.totalTVA, d), totalTTC: versTexte(t.totalTTC, d),
+    retenue: versTexte(t.retenue, d), netAPayer: versTexte(t.netAPayer, d),
+  });
   return { numero: numero.texte, totaux: t, devise: calcul.devise, empreinte: maillon.empreinte };
 }
 

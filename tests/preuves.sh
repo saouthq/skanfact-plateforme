@@ -967,5 +967,78 @@ prouver "un refus sans l'attente à respecter" serveur/app.ts \
   "            reponse.header('retry-after', String(v.attendreSecondes));" "" \
   "au-delà de sa rafale, une clé reçoit 429"
 
+# ── Les avis d'événement (0008, serveur/avis.ts) ────────────────────────────────────────────────
+MV=base/migrations/0008_avis.sql
+AV=serveur/avis.ts
+T1="une facture émise est annoncée, signée"
+T2="un échec se renvoie à 1 min"
+T3="un abonnement arrêté n'envoie plus rien"
+prouver "une facture émise qui n'est pas annoncée" serveur/ventes/pieces.ts \
+  "  await emettreAvis(tx, entreprise, 'facture.emise', {" "  if (Date.now() < 0) await emettreAvis(tx, entreprise, 'facture.emise', {" \
+  "$T1"
+prouver "l'avis d'une entreprise envoyé aux abonnés d'une autre" $MV \
+  "   where a.entreprise = p_entreprise and a.arrete_le is null and p_evenement = any(a.evenements);" "   where a.arrete_le is null and p_evenement = any(a.evenements);" \
+  "$T1"
+prouver "le secret de signature lisible par le serveur" $MV \
+  "grant select (id, entreprise, url, evenements, cree_par, cree_le, arrete_le, arrete_par) on socle.abonnement_avis" "grant select (id, entreprise, url, evenements, secret, cree_par, cree_le, arrete_le, arrete_par) on socle.abonnement_avis" \
+  "$T1"
+prouver "une signature sans l'horodatage (un avis rejoué passerait)" $AV \
+  "update(\`\${horodatage}.\${corps}\`)" "update(corps)" \
+  "la signature est le HMAC-SHA256"
+prouver "le livreur qui atteint une adresse privée" $AV \
+  "  if (!adresses.length || adresses.some((a) => adressePrivee(a.address))) throw new Error('adresse_privee');" "" \
+  "une adresse privée, locale ou réservée n'est jamais atteinte"
+prouver "un échec renvoyé tout de suite, sans délai" $MV \
+  "prochain_essai = p_maintenant + delais[v.essais + 1]," "prochain_essai = p_maintenant," \
+  "$T2"
+prouver "un avis jamais abandonné" $MV \
+  "  elsif v.essais + 1 >= 8 then" "  elsif false then" \
+  "$T2"
+prouver "deux livreurs qui envoient le même avis" $MV \
+  "  update socle.avis v set prochain_essai = p_maintenant + interval '5 minutes'" "  update socle.avis v set prochain_essai = p_maintenant" \
+  "$T2"
+prouver "un abonnement arrêté qui envoie encore ce qui attendait" $MV \
+  "  update socle.avis set abandonne_le = now(), derniere_erreur = 'abonnement_arrete'" "  update socle.avis set abandonne_le = abandonne_le, derniere_erreur = 'abonnement_arrete'" \
+  "$T3"
+prouver "un abonnement arrêté qui reçoit les nouveaux faits" $MV \
+  "   where a.entreprise = p_entreprise and a.arrete_le is null and p_evenement" "   where a.entreprise = p_entreprise and p_evenement" \
+  "$T3"
+prouver "la gestion des avis donnée à une clé de l'API" serveur/porte/gestes.ts \
+  "  { code: 'socle.avis.gerer', module: 'socle', horsCle: true," "  { code: 'socle.avis.gerer', module: 'socle'," \
+  "$T3"
+
+# ── La sauvegarde et l'exercice de restauration (base/sauvegarde.ts) ────────────────────────────
+BS=base/sauvegarde.ts
+prouver "un maillon falsifié qui passe l'exercice" $BS \
+  "         where rang <> attendu or precedente <> avant or empreinte <> socle.empreinte_maillon(precedente, contenu)" "         where false" \
+  "un maillon falsifié et une série qui ne tombe plus juste"
+prouver "une série qui ne tombe plus juste et passe l'exercice" $BS \
+  "      having count(p.id) <> coalesce(ch.rang, 0)" "      having false" \
+  "un maillon falsifié et une série qui ne tombe plus juste"
+prouver "une sauvegarde abîmée restaurée sans le dire" $BS \
+  "  if (sha256Fichier(fichier) !== m.empreinte) {" "  if (Date.now() < 0) {" \
+  "un fichier abîmé est refusé"
+prouver "des lignes perdues qui passent l'exercice" $BS \
+  "      if (m.tables[t] !== comptes[t]) erreurs.push(" "      if (Date.now() < 0) erreurs.push(" \
+  "un fichier abîmé est refusé"
+prouver "la base de l'exercice laissée derrière lui" $BS \
+  "    if (!opts.garder) {" "    if (Date.now() < 0) {" \
+  "une sauvegarde saine se restaure dans une base vide"
+
+# ── Le programme serveur (serveur/principal.ts) ─────────────────────────────────────────────────
+SP=serveur/principal.ts
+prouver "la production qui démarre sans fournisseur de SMS" $SP \
+  "  if (environnement === 'production') throw" "  if (Date.now() < 0) throw" \
+  "une configuration fausse l'arrête"
+prouver "un SMS qui ne part pas, en silence" $SP \
+  "{ envoyer: async () => { throw new Refus(" "{ envoyer: async () => { if (Date.now() > 0) return; throw new Refus(" \
+  "un SMS ne part jamais en silence"
+prouver "un livreur qui ne tourne pas" $SP \
+  "    tour = livrerAvis(pool, envoyer)" "    tour = Promise.resolve()" \
+  "livre les avis dus à chaque tour"
+prouver "un programme qui écoute encore après son arrêt" $SP \
+  "      await app.close();" "" \
+  "livre les avis dus à chaque tour"
+
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

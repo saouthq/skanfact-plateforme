@@ -11,6 +11,7 @@ import { prochainNumero } from '../numeros.ts';
 import { regle } from '../regles.ts';
 import { requetes } from '../base.ts';
 import { creerCle } from '../cles.ts';
+import { EVENEMENTS, nouveauSecret } from '../avis.ts';
 import { motif } from '../../textes/index.ts';
 
 const uuid = z.string().uuid();
@@ -337,6 +338,54 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
     traiter: async ({ params }, tx) => {
       if (!tx || !uuid.safeParse(params.cle).success) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
       await tx.query('select socle.revoquer_cle_api($1)', [params.cle]);
+      return { corps: { ok: true } };
+    },
+  });
+
+  // ── Les avis d'événement (14 § 2.5) ─────────────────────────────────────────────────────────
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/avis-abonnements', geste: 'socle.avis.gerer',
+    corps: z.object({
+      url: z.string().trim().max(2000).regex(/^https:\/\/[^\s/?#]+[^\s]*$/, 'champ.https'),
+      evenements: z.array(z.enum(EVENEMENTS)).min(1).max(EVENEMENTS.length),
+    }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const secret = nouveauSecret();
+      const id = (await tx.query('select socle.creer_abonnement_avis($1, $2, $3, $4) id',
+        [params.entreprise, corps.url, [...new Set(corps.evenements)], secret])).rows[0].id as string;
+      // Le secret de signature ne se montre qu'ici, une seule fois.
+      return { statut: 201, corps: { id, secret } };
+    },
+  });
+
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/avis-abonnements', geste: 'socle.avis.gerer',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const abonnements = await requetes(tx).selectFrom('socle.abonnement_avis')
+        .select(['id', 'url', 'evenements', 'cree_par', 'cree_le', 'arrete_le'])
+        .where('entreprise', '=', params.entreprise ?? '').orderBy('cree_le', 'desc').orderBy('id').limit(LIMITE_MAX).execute();
+      return { corps: { abonnements } };
+    },
+  });
+
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/avis', geste: 'socle.avis.gerer',
+    traiter: async ({ params, query }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const avis = await requetes(tx).selectFrom('socle.avis')
+        .select(['id', 'abonnement', 'evenement', 'cree_le', 'essais', 'prochain_essai', 'livre_le', 'abandonne_le', 'dernier_statut', 'derniere_erreur'])
+        .where('entreprise', '=', params.entreprise ?? '').orderBy('cree_le', 'desc').orderBy('id', 'desc').limit(limite(query)).execute();
+      return { corps: { avis } };
+    },
+  });
+
+  ajouter({
+    methode: 'DELETE', chemin: '/entreprises/:entreprise/avis-abonnements/:abonnement', geste: 'socle.avis.gerer',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.abonnement).success) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
+      await tx.query('select socle.arreter_abonnement_avis($1)', [params.abonnement]);
       return { corps: { ok: true } };
     },
   });

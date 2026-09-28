@@ -14,7 +14,9 @@
     "verifier": "npm run types && npm run lint && npm test",
     "preuves": "bash tests/preuves.sh",
     "types:base": "node base/generer-types.ts",
-    "entreprise": "node base/entreprise.ts"
+    "entreprise": "node base/entreprise.ts",
+    "sauvegarde": "node base/sauvegarde.ts",
+    "serveur": "node serveur/principal.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

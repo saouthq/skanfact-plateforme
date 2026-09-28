@@ -45,7 +45,9 @@ function horsExpressions(gabarit: string): string {
 
 // Les phrases écrites en dur dans le code du serveur : hors SQL, hors messages internes
 // (`new Error(…)` : une erreur du serveur ne montre jamais son message, seulement « une erreur est
-// survenue »), et hors fichiers du catalogue (`textes.ts` d'un module, qui SONT le catalogue).
+// survenue »), hors messages à l'exploitant (le programme qui refuse de démarrer, ce qu'il écrit
+// dans son journal : personne d'autre ne les lit), et hors fichiers du catalogue (`textes.ts` d'un
+// module, qui SONT le catalogue).
 export function phrasesEnDur(): string[] {
   const trouvees: string[] = [];
   for (const f of fichiers('serveur', '.ts').filter((x) => path.basename(x) !== 'textes.ts')) {
@@ -54,7 +56,7 @@ export function phrasesEnDur(): string[] {
       const texte = m[1] ?? horsExpressions(m[2] ?? '');
       if (!PHRASE.test(texte) || SQL.test(texte)) continue;
       const avant = code.slice(Math.max(0, (m.index ?? 0) - 40), m.index).replace(/\s+/g, ' ');
-      if (/new (Error|RouteSansGeste)\($/.test(avant)) continue;
+      if (/(new (Error|RouteSansGeste|ConfigurationFausse)|console\.(log|error))\($/.test(avant)) continue;
       trouvees.push(`${path.relative(RACINE, f)} : ${texte.slice(0, 80)}`);
     }
   }

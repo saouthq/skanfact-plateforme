@@ -8,6 +8,17 @@ import type { ColumnType, Generated } from 'kysely';
 export type Json = unknown;
 
 export interface BaseDeDonnees {
+  'socle.abonnement_avis': {
+    id: Generated<string>;
+    entreprise: string;
+    url: string;
+    evenements: string[];
+    secret: string;
+    cree_par: string;
+    cree_le: Generated<Date>;
+    arrete_le: Date | null;
+    arrete_par: string | null;
+  };
   'socle.appareil': {
     id: Generated<string>;
     utilisateur: string;
@@ -32,6 +43,20 @@ export interface BaseDeDonnees {
     apres: ColumnType<Json | null, string | null, string | null>;
     lecture: Generated<boolean>;
     cle_api: string | null;
+  };
+  'socle.avis': {
+    id: Generated<string>;
+    entreprise: string;
+    abonnement: string;
+    evenement: string;
+    corps: ColumnType<Json, string, string>;
+    cree_le: Generated<Date>;
+    essais: Generated<number>;
+    prochain_essai: Generated<Date>;
+    livre_le: Date | null;
+    abandonne_le: Date | null;
+    dernier_statut: number | null;
+    derniere_erreur: string | null;
   };
   'socle.chaine': {
     entreprise: string;

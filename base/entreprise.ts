@@ -65,6 +65,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   // « reconnu » et redemande le code.
   'socle.appareil': { classe: 'reference', colonnes: ['id', 'utilisateur', 'nom', 'type', 'premier_vu', 'revoque_le'] },
   'socle.cle_api': { classe: 'hors', raison: 'une clé d\'accès ne quitte jamais la plateforme : on en recrée une' },
+  'socle.abonnement_avis': { classe: 'hors', raison: 'un abonnement porte un secret de signature, qui ne quitte jamais la plateforme : on le recrée' },
+  'socle.avis': { classe: 'hors', raison: 'un avis déjà livré ne se renvoie pas ; ceux qui attendaient partent avec leur abonnement' },
   'socle.devise': { classe: 'commune' },
   'socle.regle_fiscale': { classe: 'commune' },
   'socle.migration': { classe: 'hors', raison: 'l\'en-tête du fichier porte la liste des migrations' },

@@ -34,7 +34,18 @@
   (`moteur/paie.ts`) ; la TVA du mois lue dans les écritures (`moteur/declarations.ts`), égale à celle de la v10 sur cinq ans (deux chemins, un chiffre).
 - Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,
   un seau par clé dans la mémoire du programme (à partager le jour où il y aura plusieurs programmes).
-- **Ouvert** (API, 14 § 2.5) : les avis d'événement signés, l'entreprise d'essai des développeurs.
+- Les avis d'événement signés (`0008`, `serveur/avis.ts`, 28/09/2026) : l'avis naît dans la
+  transaction du fait, part signé, se renvoie puis s'abandonne. Le livreur (`livrerAvis`) tourne
+  dans le programme serveur.
+- La sauvegarde et l'exercice de restauration (`base/sauvegarde.ts`, 06 § 4.3) : dans les tests,
+  sur une base à part (d'autres tests cassent des chaînes exprès dans la base commune). Ouvert :
+  l'archivage continu à la minute, l'exercice mensuel sur le serveur de test et son rapport à la
+  console.
+- Le programme serveur (`serveur/principal.ts`, `npm run serveur`) : configuration par
+  l'environnement, refus de démarrer si elle est fausse ; en production, exige un fournisseur de SMS
+  (pas encore choisi : 03 § 6, 12) ; les messages à l'exploitant (`ConfigurationFausse`,
+  `console.*`) sont hors du catalogue.
+- **Ouvert** (API, 14 § 2.5) : l'entreprise d'essai des développeurs.
 - **Ouvert** : les gestes « À reprendre » encore ouverts sont comptés dans l'export mais pas
   restaurés (à revoir avec la file, étape 2) ; la remise en place d'une entreprise **par-dessus**
   son état abîmé (06 § 4.4) n'existe pas encore : on ne restaure que là où elle n'est pas.

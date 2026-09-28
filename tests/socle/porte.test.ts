@@ -27,6 +27,7 @@ const MATRICE: Record<string, string[]> = {
   'socle.audit.lire':             ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
   'socle.abonnement.resilier':    ['✓', '—', '—', '—', '—', '—', '—', '—', '—'],
   'socle.cles_api.gerer':         ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
+  'socle.avis.gerer':             ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
 };
 const ORDRE = ['proprietaire', 'administrateur', 'commercial', 'caissier', 'serveur', 'magasinier', 'comptabilite_interne', 'paie', 'lecture'];
 

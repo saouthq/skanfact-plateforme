@@ -29,6 +29,7 @@ declarerTextes({
   'champ.inconnus': 'champs inconnus : {cles}',
   'champ.valeur': 'valeur invalide',
   'champ.jour': 'un jour du calendrier (AAAA-MM-JJ)',
+  'champ.https': 'une adresse qui commence par https://',
   'champ.code_regle': 'un code de règle (ex. « rs.taux »)',
   'champ.prefixe': '1 à 10 lettres majuscules ou chiffres',
 
@@ -36,6 +37,7 @@ declarerTextes({
   'connexion.refusee': 'l\'adresse ou le mot de passe ne correspond pas',
   'connexion.trop_essais_une': 'trop d\'essais : réessaie dans {minutes} minute. Ton compte n\'est pas bloqué',
   'connexion.trop_essais': 'trop d\'essais : réessaie dans {minutes} minutes. Ton compte n\'est pas bloqué',
+  'connexion.sms_indisponible': 'l\'envoi du code par SMS n\'est pas encore en service : choisis une application d\'authentification',
   'connexion.sms': 'Ton code SkanFact : {code}',
   'connexion.code_perime': 'ce code n\'est plus valable : recommence la connexion',
   'connexion.code_faux': 'ce code ne correspond pas',
@@ -113,4 +115,5 @@ declarerTextes({
   'geste.socle.audit.lire': 'lire la trace de toute l\'entreprise',
   'geste.socle.abonnement.resilier': 'résilier l\'abonnement',
   'geste.socle.cles_api.gerer': 'gérer les clés de l\'API',
+  'geste.socle.avis.gerer': 'gérer les avis d\'événement',
 });

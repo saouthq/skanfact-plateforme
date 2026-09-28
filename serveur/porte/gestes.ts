@@ -64,6 +64,8 @@ export const GESTES_SOCLE: Geste[] = [
     roles: { proprietaire: P, administrateur: P } },
   { code: 'socle.cles_api.gerer', module: 'socle', horsCle: true, ecrit: true, prevenirProprietaire: true,
     roles: { proprietaire: P, administrateur: P } },
+  { code: 'socle.avis.gerer', module: 'socle', horsCle: true, ecrit: true, prevenirProprietaire: true,
+    roles: { proprietaire: P, administrateur: P } },
   { code: 'socle.abonnement.resilier', module: 'socle', horsCle: true, ecrit: true,
     roles: { proprietaire: P } },
 ];

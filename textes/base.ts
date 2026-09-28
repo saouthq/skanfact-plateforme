@@ -63,6 +63,9 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'ton rôle ne permet pas de gérer les clés de l\'API', cle: 'base.cles.interdit', fr: 'ton rôle ne permet pas de gérer les clés de l\'API' },
   { base: 'clé introuvable', cle: 'base.cles.introuvable', fr: 'clé introuvable' },
   { base: 'cette clé est déjà révoquée', cle: 'base.cles.deja_revoquee', fr: 'cette clé est déjà révoquée' },
+  { base: 'ton rôle ne permet pas de gérer les avis d\'événement', cle: 'base.avis.interdit', fr: 'ton rôle ne permet pas de gérer les avis d\'événement' },
+  { base: 'abonnement introuvable', cle: 'base.avis.introuvable', fr: 'abonnement introuvable' },
+  { base: 'cet abonnement est déjà arrêté', cle: 'base.avis.deja_arrete', fr: 'cet abonnement est déjà arrêté' },
   { base: 'les lignes d\'une pièce émise ne se modifient plus (01 R6)', cle: 'base.ventes.lignes_emises', fr: 'les lignes d\'une pièce émise ne se modifient plus' },
 ];
 
