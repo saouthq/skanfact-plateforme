@@ -28,12 +28,16 @@ feuille de route…). Ce dépôt applique ce cadrage ; il ne le réécrit pas.
 | `banc/v10/` | Une copie figée du moteur de la v10 et de son exemple de cinq ans : le **banc** (`tests/moteur/banc-v10.test.ts`) fait calculer les mêmes pièces aux deux moteurs et exige le même millime ; un écart se tranche et s'écrit |
 | `base/migrations/0006_tiers_et_ventes.sql`, `serveur/ventes/` | Les **tiers** (clients) et la **facture de vente**, du brouillon à l'émission : le brouillon se calcule à chaque lecture ; l'émission contrôle tout **avant** de prendre le numéro, garde une **copie** de ce qui a servi (société, client, timbre), fige les montants et scelle la facture dans la chaîne de sa série. Une facture émise ne se modifie ni ne s'efface plus (la base le refuse) ; un brouillon modifié par quelqu'un d'autre entre-temps n'est jamais écrasé |
 | `tests/ventes/j1-exemple.test.ts` | **Le jalon J1** : les 273 factures de l'exemple de cinq ans de la v10, saisies en brouillon et émises par le serveur, portent au millime les montants de la v10 ; leurs numéros se suivent sans trou chaque année et leur chaîne se contrôle en relisant chaque facture |
+| `base/entreprise.ts` | **Exporter UNE entreprise et la restaurer à l'identique** (`npm run entreprise -- exporter <id> <fichier>`, puis `restaurer <fichier>`) : chaque table de la base est rangée (part avec l'entreprise, désignée par elle, commune, ou jamais), aucun secret de connexion ne part, les lignes vont de la base au fichier et retour sans passer par JavaScript, un fichier abîmé ou une base à un autre niveau de migrations est refusé, tout lien restauré doit mener quelque part, et la restauration laisse sa trace |
 | `tests/` | Les tests, contre un vrai PostgreSQL, et `preuves.sh` qui remet chaque défaut pour vérifier que son test tombe |
 
+**Le jalon J1 est atteint** (28/09/2026) : les factures de l'exemple de cinq ans émises au millime de
+la v10, l'entreprise exportée puis restaurée à l'identique, et la voisine qui ne lit rien, par aucune
+table.
+
 À venir dans l'étape 1 (`docs/cadrage/09-feuille-de-route.md` dans le dépôt de l'application) : la
-suite du moteur porté (avoirs, règlements et statut d'une
-facture, écritures comptables, paie), le catalogue de textes, les clés de l'API, l'export et la
-restauration d'une entreprise (l'autre moitié de J1).
+suite du moteur porté (avoirs, règlements et statut d'une facture, écritures comptables, paie), le
+catalogue de textes, les clés de l'API, les sauvegardes et le premier exercice de restauration.
 
 ## Comment la base protège les données
 

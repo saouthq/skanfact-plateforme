@@ -13,7 +13,8 @@
     "types": "tsc --noEmit",
     "verifier": "npm run types && npm run lint && npm test",
     "preuves": "bash tests/preuves.sh",
-    "types:base": "node base/generer-types.ts"
+    "types:base": "node base/generer-types.ts",
+    "entreprise": "node base/entreprise.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

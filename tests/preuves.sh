@@ -554,5 +554,47 @@ prouver "un grand entier qui casse la réponse de l'API" serveur/app.ts \
   "  app.setReplySerializer(" "  void (" \
   "la chaîne des factures se contrôle en relisant les pièces"
 
+# ── Exporter et restaurer une entreprise (base/entreprise.ts) ────────────────────────────────────
+EX=base/entreprise.ts
+prouver "une table nouvelle exportée sans décision" $EX \
+  "    if (manquantes.length) throw" "    if (manquantes.length === -1) throw" \
+  "une table nouvelle que personne n'a rangée arrête l'export"
+prouver "l'empreinte du mot de passe dans l'export" $EX \
+  "  'socle.utilisateur': { classe: 'reference', colonnes: ['id', 'email', 'nom', 'langue', 'cree_le'] }," "  'socle.utilisateur': { classe: 'reference', colonnes: ['id', 'email', 'nom', 'langue', 'cree_le', 'empreinte_mot_de_passe'] }," \
+  "aucun secret de connexion"
+prouver "les factures de la voisine dans l'export" $EX \
+  "  'ventes.piece': { classe: 'entreprise' }," "  'ventes.piece': { classe: 'entreprise', condition: 'true' }," \
+  "l'export ne porte rien de la voisine"
+prouver "un fichier abîmé accepté" $EX \
+  "  if (fin.fin !== true || fin.empreinte !== empreinte(lignes.slice(0, -1))) {" "  if (fin.fin !== true) {" \
+  "un fichier coupé ou abîmé est refusé"
+prouver "une base aux migrations différentes acceptée" $EX \
+  "      throw new Error('la base cible n\\'a pas les mêmes migrations" "      if (Date.now() < 0) throw new Error('la base cible n\\'a pas les mêmes migrations" \
+  "un fichier coupé ou abîmé est refusé"
+prouver "une restauration par-dessus l'entreprise" $EX \
+  "      throw new Error('cette entreprise existe déjà" "      if (Date.now() < 0) throw new Error('cette entreprise existe déjà" \
+  "restaurée dans une base vide"
+prouver "un lien qui mène nulle part accepté" $EX \
+  "      if (pendantes) throw" "      if (pendantes === -1) throw" \
+  "un lien qui mène nulle part annule tout"
+prouver "les règles du métier qui refusent de reposer une facture émise" $EX \
+  "    await client.query('set local session_replication_role = replica');" "" \
+  "restaurée dans une base vide"
+prouver "une restauration sans trace" $EX \
+  "    await client.query(\`insert into socle.audit (entreprise, geste, objet_type, objet_id, apres)" "    if (Date.now() < 0) await client.query(\`insert into socle.audit (entreprise, geste, objet_type, objet_id, apres)" \
+  "restaurée dans une base vide"
+prouver "les lignes relues en JavaScript (un grand entier y perd un chiffre)" $EX \
+  "      lignes.push(JSON.stringify(entete), r.lignes);" "      lignes.push(JSON.stringify(entete), JSON.stringify(JSON.parse(r.lignes)));" \
+  "restaurée dans une base vide"
+prouver "un collaborateur du cabinet oublié (vide comparé à une entreprise)" $EX \
+  "and (\${c.condition ?? 'entreprise = \$1'}) is not true\`;" "and not (\${c.condition ?? 'entreprise = \$1'})\`;" \
+  "restaurée dans une base vide"
+prouver "J1 : un export qui s'arrête en route (272 lignes par table au plus)" $EX \
+  "'[]')::text lignes from (\${p.selection}) t\`;" "'[]')::text lignes from (\${p.selection} limit 272) t\`;" \
+  "l'autre moitié de J1"
+prouver "J1 : les factures d'une entreprise visibles par sa voisine" base/migrations/0006_tiers_et_ventes.sql \
+  "create policy visible on ventes.piece using (entreprise in (select socle.mes_entreprises()));" "create policy visible on ventes.piece using (true);" \
+  "le propriétaire de la voisine ne lit rien de l'entreprise"
+
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

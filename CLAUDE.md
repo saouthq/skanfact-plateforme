@@ -22,8 +22,11 @@
   (`banc/v10/`) ; les tiers et la facture de vente du brouillon à l'émission (`0006`,
   `serveur/ventes/`), avec **la première moitié du jalon J1** : les 273 factures de l'exemple de
   cinq ans émises par le serveur au millime de la v10 (`tests/ventes/j1-exemple.test.ts`).
-  Kysely est branché (`requetes(tx)`, `base/types.ts` écrit par `base/generer-types.ts`).
-- **Ouvert** : l'autre moitié de J1 (export et restauration d'une entreprise).
+  Kysely est branché (`requetes(tx)`, `base/types.ts` écrit par `base/generer-types.ts`) ;
+  l'export et la restauration d'une entreprise (`base/entreprise.ts`). **Le jalon J1 est atteint.**
+- **Ouvert** : les gestes « À reprendre » encore ouverts sont comptés dans l'export mais pas
+  restaurés (à revoir avec la file, étape 2) ; la remise en place d'une entreprise **par-dessus**
+  son état abîmé (06 § 4.4) n'existe pas encore : on ne restaure que là où elle n'est pas.
 
 ## Les règles de ce dépôt
 
@@ -38,6 +41,10 @@
   les états lourds restent en SQL écrit à la main (`sql` de Kysely ou `tx.query`), toujours avec
   des paramètres, jamais du texte collé. La trace d'un geste : `tracer()` (`serveur/trace.ts`).
 - **Après chaque migration** : `npm run types:base` réécrit `base/types.ts` (un test le vérifie).
+- **Une table nouvelle se range** dans `CLASSEMENT` (`base/entreprise.ts`) : part avec
+  l'entreprise, désignée par elle (sans secret), commune, ou jamais (avec sa raison). Sinon l'export
+  refuse et un test tombe. Un lien sans clé étrangère que l'export doit suivre se déclare dans
+  `LIENS_SANS_CONTRAINTE`.
   Un type de colonne nouveau se déclare d'abord dans `base/generer-types.ts`.
 - Un entier de 64 bits se lit en `bigint` (jamais en texte à convertir, jamais en nombre à
   virgule) et sort de l'API en texte.
@@ -111,6 +118,7 @@
 | `npm run verifier` | Types, lint, tests (il faut `PG_ADMIN`) |
 | `npm run preuves` | Chaque défaut remis dans une copie, chaque test doit tomber |
 | `npm run migrer` | Applique les migrations sur la base de `PG_ADMIN` |
+| `npm run entreprise -- exporter <id> <fichier>` / `restaurer <fichier>` | Exporte une entreprise, ou la restaure là où elle n'est pas (`PG_ADMIN`) |
 | `npm run types:base` | Réécrit `base/types.ts` à partir des migrations (base jetable sur `PG_ADMIN`) |
 
 Dans une session Claude : PostgreSQL 16 tourne sur `127.0.0.1:5433`

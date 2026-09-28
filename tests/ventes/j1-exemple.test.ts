@@ -2,13 +2,15 @@
 // au même millime que la v10 sur l'exemple de cinq ans ». Ici : TOUTES les factures de l'exemple de
 // la v10 (figée dans banc/v10) sont saisies en brouillon, émises par le serveur, puis relues dans la
 // base ; chaque montant émis doit être celui de la v10. Puis la chaîne de la série se contrôle en
-// relisant chaque facture.
+// relisant chaque facture. Enfin, l'entreprise est exportée puis restaurée dans une base vide.
 
 import { createRequire } from 'node:module';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import pg from 'pg';
 import { creerPool, enTantQue } from '../../serveur/base.ts';
 import { controler } from '../../serveur/journal.ts';
+import { exporter, restaurer } from '../../base/entreprise.ts';
+import { baseNeuve } from '../base-neuve.ts';
 import { creerBrouillon, emettre, relirePourChaine, type BrouillonSaisi } from '../../serveur/ventes/pieces.ts';
 
 type LigneV10 = { label?: string; qty?: number; unitPrice?: number; vatRate?: number; noDiscount?: boolean };
@@ -91,5 +93,27 @@ describe('le jalon J1 : les factures de l\'exemple de cinq ans, émises par le s
     for (const a of parAn) expect(a.dernier).toBe(a.n);
     const r = await enTantQue(pool, proprio, (tx) => controler(tx, ent, `serie:${serie}`, (o) => relirePourChaine(tx, ent, o.id)));
     expect(r).toEqual({ ok: true });
+  });
+
+  it('l\'autre moitié de J1 : l\'entreprise de l\'exemple, exportée puis restaurée dans une base vide, garde chaque facture au millime et sa chaîne', async () => {
+    const fichier = await exporter(admin, ent);
+    const base = await baseNeuve('skanfact_test_j1');
+    const cible = new pg.Client({ connectionString: base.admin });
+    await cible.connect();
+    const poolCible = creerPool(base.app);
+    try {
+      await restaurer(cible, fichier);
+      const releve = `select count(*)::int n, string_agg(numero_texte || ' ' || net_a_payer || ' ' || total_tva || ' ' || empreinte, ',' order by numero_texte) detail
+        from ventes.piece where entreprise = $1`;
+      const avant = (await admin.query(releve, [ent])).rows[0];
+      expect(avant.n).toBe(factures.length);
+      expect((await cible.query(releve, [ent])).rows[0]).toEqual(avant);
+      expect(await enTantQue(poolCible, proprio, (tx) => controler(tx, ent, `serie:${serie}`, (o) => relirePourChaine(tx, ent, o.id))))
+        .toEqual({ ok: true });
+    } finally {
+      await cible.end();
+      await poolCible.end();
+      await base.jeter();
+    }
   });
 });
