@@ -29,6 +29,7 @@ feuille de route…). Ce dépôt applique ce cadrage ; il ne le réécrit pas.
 | `base/migrations/0006_tiers_et_ventes.sql`, `serveur/ventes/` | Les **tiers** (clients) et la **facture de vente**, du brouillon à l'émission : le brouillon se calcule à chaque lecture ; l'émission contrôle tout **avant** de prendre le numéro, garde une **copie** de ce qui a servi (société, client, timbre), fige les montants et scelle la facture dans la chaîne de sa série. Une facture émise ne se modifie ni ne s'efface plus (la base le refuse) ; un brouillon modifié par quelqu'un d'autre entre-temps n'est jamais écrasé |
 | `tests/ventes/j1-exemple.test.ts` | **Le jalon J1** : les 273 factures de l'exemple de cinq ans de la v10, saisies en brouillon et émises par le serveur, portent au millime les montants de la v10 ; leurs numéros se suivent sans trou chaque année et leur chaîne se contrôle en relisant chaque facture |
 | `base/entreprise.ts` | **Exporter UNE entreprise et la restaurer à l'identique** (`npm run entreprise -- exporter <id> <fichier>`, puis `restaurer <fichier>`) : chaque table de la base est rangée (part avec l'entreprise, désignée par elle, commune, ou jamais), aucun secret de connexion ne part, les lignes vont de la base au fichier et retour sans passer par JavaScript, un fichier abîmé ou une base à un autre niveau de migrations est refusé, tout lien restauré doit mener quelque part, et la restauration laisse sa trace |
+| `textes/` | **Le catalogue des textes** (14 § 5) : chaque phrase qu'une personne peut lire vient d'une clé du catalogue (le socle ici, chaque module dans son `textes.ts`) ; les phrases que la base écrit elle-même y sont reconnues mot pour mot ; une **langue factice** 40 % plus longue (en-tête `x-langue: factice`) montre ce qui déborde et ce qui a échappé au catalogue. Un test fait tomber la construction si une phrase est écrite en dur dans le serveur |
 | `tests/` | Les tests, contre un vrai PostgreSQL, et `preuves.sh` qui remet chaque défaut pour vérifier que son test tombe |
 
 **Le jalon J1 est atteint** (28/09/2026) : les factures de l'exemple de cinq ans émises au millime de
@@ -36,8 +37,8 @@ la v10, l'entreprise exportée puis restaurée à l'identique, et la voisine qui
 table.
 
 À venir dans l'étape 1 (`docs/cadrage/09-feuille-de-route.md` dans le dépôt de l'application) : la
-suite du moteur porté (avoirs, règlements et statut d'une facture, écritures comptables, paie), le
-catalogue de textes, les clés de l'API, les sauvegardes et le premier exercice de restauration.
+suite du moteur porté (avoirs, règlements et statut d'une facture, écritures comptables, paie), les
+clés de l'API et sa documentation, les sauvegardes et le premier exercice de restauration.
 
 ## Comment la base protège les données
 

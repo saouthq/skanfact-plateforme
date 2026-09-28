@@ -11,6 +11,7 @@ import type pg from 'pg';
 import { enTantQue } from './base.ts';
 import { correspond, empreinte, verifierPolitique, verifierPourRien, type ListeVolee } from './mot-de-passe.ts';
 import { adresseTotp, nouveauSecret, verifierTotp } from './totp.ts';
+import { motif, rendre, t, type Texte } from '../textes/index.ts';
 
 export type EnvoiSms = { envoyer: (telephone: string, texte: string) => Promise<void> };
 
@@ -24,18 +25,18 @@ export type Contexte = {
 export type Appareil = { id?: string; nom: string; type: 'navigateur' | 'bureau' | 'telephone' };
 
 export type ResultatConnexion =
-  | { etat: 'refuse'; motif: string }
-  | { etat: 'attendre'; jusqua: Date; motif: string }
+  | { etat: 'refuse'; motif: Texte }
+  | { etat: 'attendre'; jusqua: Date; motif: Texte }
   | { etat: 'code'; defi: string; methode: 'sms' | 'application'; appareil: string }
   | { etat: 'connecte'; jeton: string; appareil: string | null; codeAConfigurer: boolean };
 
 const sha256 = (t: string) => createHash('sha256').update(t, 'utf8').digest('hex');
 const DUREE_DEFI = '10 minutes';
-const MOTIF_REFUS = 'L\'adresse ou le mot de passe ne correspond pas.';
+const MOTIF_REFUS = () => motif('connexion.refusee');
 
-function attenteLisible(jusqua: Date, maintenant: Date): string {
+function attenteLisible(jusqua: Date, maintenant: Date): Texte {
   const minutes = Math.max(1, Math.ceil((jusqua.getTime() - maintenant.getTime()) / 60_000));
-  return `Trop d'essais : réessaie dans ${minutes} minute${minutes > 1 ? 's' : ''}. Ton compte n'est pas bloqué.`;
+  return motif(minutes > 1 ? 'connexion.trop_essais' : 'connexion.trop_essais_une', { minutes });
 }
 
 // Un code à 6 chiffres, écrit « 482 913 » dans le message.
@@ -66,7 +67,7 @@ export async function connecter(ctx: Contexte, demande: {
     const bon = u?.empreinte ? await correspond(u.empreinte, demande.motDePasse) : await verifierPourRien(demande.motDePasse);
     if (!bon) {
       const a = (await tx.query('select socle.noter_erreur($1, $2) a', [demande.email, maintenant])).rows[0].a as Date | null;
-      return a ? { etat: 'attendre', jusqua: a, motif: attenteLisible(a, maintenant) } : { etat: 'refuse', motif: MOTIF_REFUS };
+      return a ? { etat: 'attendre', jusqua: a, motif: attenteLisible(a, maintenant) } : { etat: 'refuse', motif: MOTIF_REFUS() };
     }
 
     // L'appareil : celui qu'on connaît déjà, ou un nouveau.
@@ -88,7 +89,7 @@ export async function connecter(ctx: Contexte, demande: {
       if (u.code_methode === 'sms') {
         const code = codeSms();
         codeEmpreinte = sha256(code);
-        await ctx.sms.envoyer(u.telephone, `Ton code SkanFact : ${code.slice(0, 3)} ${code.slice(3)}`);
+        await ctx.sms.envoyer(u.telephone, rendre(t('connexion.sms', { code: `${code.slice(0, 3)} ${code.slice(3)}` }), 'fr'));
       }
       const defi = (await tx.query('select socle.ouvrir_defi($1, $2, $3, $4, $5, $6) id',
         [u.utilisateur, appareil, u.code_methode, codeEmpreinte, maintenant, DUREE_DEFI])).rows[0].id as string;
@@ -111,7 +112,7 @@ export async function validerCode(ctx: Contexte, demande: {
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
   // Un code refusé compte, même si la suite échoue : on l'écrit dans sa propre transaction.
   const lu = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.lire_defi($1, $2)', [demande.defi, maintenant])).rows[0]);
-  if (!lu) return { etat: 'refuse', motif: 'Ce code n\'est plus valable : recommence la connexion.' };
+  if (!lu) return { etat: 'refuse', motif: motif('connexion.code_perime') };
 
   const saisi = demande.code.replace(/\s/g, '');
   let bon: boolean;
@@ -131,7 +132,7 @@ export async function validerCode(ctx: Contexte, demande: {
       await tx.query('select socle.defi_erreur($1)', [demande.defi]);
       return (await tx.query('select socle.noter_erreur($1, $2) a', [lu.email, maintenant])).rows[0].a as Date | null;
     });
-    return a ? { etat: 'attendre', jusqua: a, motif: attenteLisible(a, maintenant) } : { etat: 'refuse', motif: 'Ce code ne correspond pas.' };
+    return a ? { etat: 'attendre', jusqua: a, motif: attenteLisible(a, maintenant) } : { etat: 'refuse', motif: motif('connexion.code_faux') };
   }
 
   const jeton = randomBytes(32).toString('base64url');

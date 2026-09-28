@@ -3,17 +3,16 @@
 //
 // Ici : les gestes du socle (l'entreprise et son équipe). Les modules ajouteront les leurs.
 
+import { t, texteConnu } from '../../textes/index.ts';
+
 export const ROLES_ENTREPRISE = [
   'proprietaire', 'administrateur', 'commercial', 'caissier', 'serveur', 'magasinier', 'comptabilite_interne', 'paie', 'lecture',
 ] as const;
 export const ROLES_CABINET = ['supervision', 'revision', 'saisie', 'paie'] as const;
 export type Role = (typeof ROLES_ENTREPRISE)[number] | (typeof ROLES_CABINET)[number];
 
-export const NOM_ROLE: Record<Role, string> = {
-  proprietaire: 'Propriétaire', administrateur: 'Administrateur', commercial: 'Commercial', caissier: 'Caissier',
-  serveur: 'Serveur', magasinier: 'Magasinier', comptabilite_interne: 'Comptabilité interne', paie: 'Paie',
-  lecture: 'Lecture', supervision: 'Associé', revision: 'Collaborateur', saisie: 'Assistant de saisie',
-};
+// Le nom d'un rôle, tel qu'une personne le lit : au catalogue des textes (« role.<code> »).
+export const nomDuRole = (r: Role) => t(`role.${r}`);
 
 // « oui » : le geste est permis ; « voir » : lecture seule ; les autres rôles n'ont rien (le geste
 // ne paraît pas, D3).
@@ -22,8 +21,8 @@ export type Acces = 'oui' | 'voir';
 export type Geste = {
   code: string;
   module: string;
-  // Ce que le refus dira : « ton rôle ne permet pas de <libelle> ».
-  libelle: string;
+  // Ce que le refus dira, « ton rôle ne permet pas de … », est au catalogue des textes : la clé
+  // « geste.<code> » (textes/socle.ts, ou les textes du module).
   // Écrit-il quelque chose ? (sinon c'est une lecture : « voir » suffit)
   ecrit: boolean;
   roles: Partial<Record<Role, Acces>>;
@@ -37,31 +36,31 @@ const P: Acces = 'oui';
 const V: Acces = 'voir';
 
 export const GESTES_SOCLE: Geste[] = [
-  { code: 'socle.accueil.voir', module: 'socle', libelle: 'voir l\'accueil', ecrit: false,
+  { code: 'socle.accueil.voir', module: 'socle', ecrit: false,
     roles: { proprietaire: P, administrateur: P, commercial: P, caissier: P, serveur: P, magasinier: P, comptabilite_interne: P, paie: P, lecture: P } },
-  { code: 'socle.fiche_societe.modifier', module: 'socle', libelle: 'modifier la fiche de la société', ecrit: true,
+  { code: 'socle.fiche_societe.modifier', module: 'socle', ecrit: true,
     roles: { proprietaire: P, administrateur: P, comptabilite_interne: V, lecture: V } },
-  { code: 'socle.rib_societe.modifier', module: 'socle', libelle: 'modifier le RIB de la société', ecrit: true, prevenirProprietaire: true, sensible: true,
+  { code: 'socle.rib_societe.modifier', module: 'socle', ecrit: true, prevenirProprietaire: true, sensible: true,
     roles: { proprietaire: P, administrateur: P } },
-  { code: 'socle.reglages_fiscaux.modifier', module: 'socle', libelle: 'modifier le régime fiscal, l\'exercice ou les séries', ecrit: true,
+  { code: 'socle.reglages_fiscaux.modifier', module: 'socle', ecrit: true,
     roles: { proprietaire: P, administrateur: P, comptabilite_interne: V, lecture: V } },
-  { code: 'socle.equipe.gerer', module: 'socle', libelle: 'inviter, retirer un membre ou changer un rôle', ecrit: true,
+  { code: 'socle.equipe.gerer', module: 'socle', ecrit: true,
     roles: { proprietaire: P, administrateur: P } },
-  { code: 'socle.propriete.transferer', module: 'socle', libelle: 'transférer la propriété', ecrit: true,
+  { code: 'socle.propriete.transferer', module: 'socle', ecrit: true,
     roles: { proprietaire: P } },
-  { code: 'socle.offre.changer', module: 'socle', libelle: 'changer d\'offre ou acheter un module', ecrit: true,
+  { code: 'socle.offre.changer', module: 'socle', ecrit: true,
     roles: { proprietaire: P, administrateur: V } },
-  { code: 'socle.abonnement.payer', module: 'socle', libelle: 'payer une échéance de l\'abonnement', ecrit: true,
+  { code: 'socle.abonnement.payer', module: 'socle', ecrit: true,
     roles: { proprietaire: P, administrateur: P } },
-  { code: 'socle.cabinet.choisir', module: 'socle', libelle: 'choisir le cabinet ou arrêter son mandat', ecrit: true,
+  { code: 'socle.cabinet.choisir', module: 'socle', ecrit: true,
     roles: { proprietaire: P } },
-  { code: 'socle.support.autoriser', module: 'socle', libelle: 'accorder un accès au support', ecrit: true, prevenirProprietaire: true,
+  { code: 'socle.support.autoriser', module: 'socle', ecrit: true, prevenirProprietaire: true,
     roles: { proprietaire: P, administrateur: P } },
-  { code: 'socle.export_complet', module: 'socle', libelle: 'exporter toute l\'entreprise', ecrit: false, prevenirProprietaire: true, sensible: true,
+  { code: 'socle.export_complet', module: 'socle', ecrit: false, prevenirProprietaire: true, sensible: true,
     roles: { proprietaire: P, administrateur: P } },
-  { code: 'socle.audit.lire', module: 'socle', libelle: 'lire la trace de toute l\'entreprise', ecrit: false,
+  { code: 'socle.audit.lire', module: 'socle', ecrit: false,
     roles: { proprietaire: P, administrateur: P } },
-  { code: 'socle.abonnement.resilier', module: 'socle', libelle: 'résilier l\'abonnement', ecrit: true,
+  { code: 'socle.abonnement.resilier', module: 'socle', ecrit: true,
     roles: { proprietaire: P } },
 ];
 
@@ -77,6 +76,7 @@ export function registreDesGestes(...listes: Geste[][]): Map<string, Geste> {
   for (const g of listes.flat()) {
     if (registre.has(g.code)) throw new Error(`le geste ${g.code} est déclaré deux fois`);
     if (!/^[a-z_]+(\.[a-z_]+)+$/.test(g.code)) throw new Error(`nom de geste invalide : ${g.code}`);
+    if (!texteConnu(`geste.${g.code}`)) throw new Error(`le geste ${g.code} n'a pas son texte au catalogue (geste.${g.code})`);
     registre.set(g.code, g);
   }
   return registre;

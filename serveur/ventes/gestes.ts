@@ -6,15 +6,16 @@
 // fiche client, et la condition du § 2.2 sur l'émission par un commercial.
 
 import { declarerGestes, type Geste } from '../porte/gestes.ts';
+import './textes.ts';
 
 export const GESTES_VENTES: Geste[] = [
-  { code: 'ventes.pieces.voir', module: 'ventes', libelle: 'voir les devis, commandes et factures', ecrit: false,
+  { code: 'ventes.pieces.voir', module: 'ventes', ecrit: false,
     roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', comptabilite_interne: 'voir', lecture: 'voir' } },
-  { code: 'ventes.brouillon.modifier', module: 'ventes', libelle: 'créer ou modifier un brouillon de vente', ecrit: true,
+  { code: 'ventes.brouillon.modifier', module: 'ventes', ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui' } },
-  { code: 'ventes.facture.emettre', module: 'ventes', libelle: 'émettre une facture', ecrit: true,
+  { code: 'ventes.facture.emettre', module: 'ventes', ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui' } },
-  { code: 'ventes.client.modifier', module: 'ventes', libelle: 'créer ou modifier un client', ecrit: true,
+  { code: 'ventes.client.modifier', module: 'ventes', ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', lecture: 'voir' } },
 ];
 

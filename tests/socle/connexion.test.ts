@@ -28,7 +28,7 @@ let n = 0;
 async function personne(options: { proprietaire?: boolean; telephone?: string } = {}) {
   const email = `personne${++n}@exemple.tn`;
   const r = await inscrire(ctx, email, `Personne ${n}`, MDP);
-  if (!r.ok) throw new Error(r.motif);
+  if (!r.ok) throw new Error(String(r.motif));
   if (options.telephone) await admin.query('update socle.utilisateur set telephone = $1 where id = $2', [options.telephone, r.utilisateur]);
   if (options.proprietaire) await enTantQue(pool, r.utilisateur, (tx) => tx.query(`select socle.creer_entreprise('Société ${n}')`));
   return { email, id: r.utilisateur };
@@ -43,7 +43,8 @@ afterAll(async () => { await admin.end(); await pool.end(); });
 describe('le mot de passe', () => {
   it('10 caractères au moins, et jamais un mot de passe déjà volé', () => {
     expect(verifierPolitique('court', listeVolee).ok).toBe(false);
-    expect(verifierPolitique('motdepasse123', listeVolee)).toEqual({ ok: false, motif: expect.stringMatching(/déjà volés/) });
+    const vole = verifierPolitique('motdepasse123', listeVolee);
+    expect(vole.ok || String(vole.motif)).toMatch(/déjà volés/);
     expect(verifierPolitique('Un-bon-mot-de-passe', listeVolee)).toEqual({ ok: true });
   });
 

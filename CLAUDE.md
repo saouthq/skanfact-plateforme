@@ -24,6 +24,7 @@
   cinq ans émises par le serveur au millime de la v10 (`tests/ventes/j1-exemple.test.ts`).
   Kysely est branché (`requetes(tx)`, `base/types.ts` écrit par `base/generer-types.ts`) ;
   l'export et la restauration d'une entreprise (`base/entreprise.ts`). **Le jalon J1 est atteint.**
+  Le catalogue des textes et la langue factice (`textes/`).
 - **Ouvert** : les gestes « À reprendre » encore ouverts sont comptés dans l'export mais pas
   restaurés (à revoir avec la file, étape 2) ; la remise en place d'une entreprise **par-dessus**
   son état abîmé (06 § 4.4) n'existe pas encore : on ne restaure que là où elle n'est pas.
@@ -59,6 +60,23 @@
   refuse). Deux temps pour retirer quelque chose (ajouter, puis retirer plus tard).
 - L'argent en **entiers** (`bigint`, millimes ou centimes), les taux et prix unitaires en entiers à
   six décimales (01 R3). Une date de pièce est un `date`, un geste est un `timestamptz` (01 R5).
+
+**Les textes (14 § 5)**
+- **Aucune phrase écrite en dur** dans le serveur : chaque texte qu'une personne peut lire est une clé
+  du catalogue (`t(cle, valeurs)` pour un morceau, `motif(cle, valeurs)` pour une phrase entière ;
+  `new Refus(cle, { valeurs, bouton })`). Le socle déclare ses textes dans `textes/socle.ts`, un
+  module dans son propre `textes.ts` (chargé avec le module). Un test fait tomber la construction.
+- Un texte se rend au dernier moment, dans la langue de celui qui lit (`rendreTout` dans
+  `serveur/app.ts`). Ce qui est gardé en base pour être relu plus tard (le motif d'un geste « À
+  reprendre ») s'y écrit en français.
+- Une phrase écrite par la **base** (`socle.refus`, une règle de table) s'ajoute mot pour mot à
+  `textes/base.ts`, avec la clé qui la dit : un test compare les migrations et cette liste.
+- Chaque geste a son texte `geste.<code>` et chaque rôle `role.<code>` : un geste sans texte ne se
+  déclare pas. Une vérification des données reçues donne une clé comme message (`'champ.jour'`,
+  `cleDeVerification(cle, valeurs)`), jamais une phrase : le message anglais de la bibliothèque ne
+  paraît jamais.
+- La **langue factice** (`x-langue: factice`) : 40 % plus longue, accentuée ; elle servira à
+  photographier les écrans (ce qui déborde, ce qui a échappé au catalogue).
 
 **Le serveur**
 - **Chaque route déclare son geste** (`serveur/porte/gestes.ts`, recopié du tableau 03 § 2.1) ;

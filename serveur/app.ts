@@ -7,10 +7,13 @@
 
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { z, type ZodType } from 'zod';
+import { langueDe, motif, rendreTout, type Langue } from '../textes/index.ts';
 import { enTantQue, type Transaction } from './base.ts';
+import { texteDuRefus } from './erreurs.ts';
 import { quiEst, type Contexte, type Qui } from './connexion.ts';
 import { GESTES, GESTES_PERSONNELS } from './porte/gestes.ts';
 import { peut } from './porte/porte.ts';
+import { nomDuChamp, raison } from './validation.ts';
 
 export type Requete<C> = { corps: C; params: Record<string, string>; query: Record<string, string>; qui: Qui | null; requete: FastifyRequest };
 
@@ -41,16 +44,16 @@ function verifierDeclaration(r: Route<never>) {
 }
 
 // Les refus de la base (socle.refus) et du serveur (serveur/erreurs.ts) arrivent avec le code 42501 :
-// on les rend tels quels, avec le bouton qui débloque s'il y en a un.
-function erreurVersReponse(e: unknown, reponse: FastifyReply) {
-  const err = e as { code?: string; message?: string; bouton?: string | null };
-  if (err.code === '42501') return reponse.code(403).send({ motif: capitaliser(err.message ?? 'Refusé.'), qui: [], bouton: err.bouton ?? null });
-  if (err.code === 'introuvable') return reponse.code(404).send({ motif: 'Introuvable.' });
-  if (err.code === 'perimee') return reponse.code(409).send({ motif: capitaliser(err.message ?? 'Périmé.'), bouton: 'recharger' });
+// on les rend dans la langue du lecteur, avec le bouton qui débloque s'il y en a un.
+function erreurVersReponse(e: unknown, reponse: FastifyReply, langue: Langue) {
+  const err = e as { code?: string; message?: string; bouton?: string | null; texte?: unknown };
+  const envoyer = (statut: number, corps: unknown) => reponse.code(statut).send(rendreTout(corps, langue));
+  if (err.code === '42501') return envoyer(403, { motif: texteDuRefus(err), qui: [], bouton: err.bouton ?? null });
+  if (err.code === 'introuvable') return envoyer(404, { motif: motif('commun.introuvable') });
+  if (err.code === 'perimee') return envoyer(409, { motif: texteDuRefus(err), bouton: 'recharger' });
   reponse.request.log.error(e);
-  return reponse.code(500).send({ motif: 'Une erreur est survenue de notre côté. Elle est notée ; réessaie dans un instant.' });
+  return envoyer(500, { motif: motif('commun.erreur_serveur') });
 }
-const capitaliser = (t: string) => (t.charAt(0).toUpperCase() + t.slice(1)).replace(/([^.])$/, '$1.');
 
 export function creerApp(ctx: Contexte, routes: Route<never>[]): FastifyInstance {
   // Le démarrage échoue AVANT d'écouter si une seule route est mal déclarée.
@@ -67,12 +70,15 @@ export function creerApp(ctx: Contexte, routes: Route<never>[]): FastifyInstance
       method: r.methode,
       url: r.chemin,
       handler: async (requete, reponse) => {
+        const langue = langueDe(requete.headers);
+        const envoyer = (statut: number, corps: unknown) => reponse.code(statut).send(rendreTout(corps, langue));
         let corps: unknown = undefined;
         if (r.corps) {
           const lu = r.corps.safeParse(requete.body ?? {});
           if (!lu.success) {
-            const champ = lu.error.issues[0];
-            return reponse.code(400).send({ motif: `Le champ « ${champ?.path.join('.') || 'corps'} » ne va pas : ${champ?.message ?? 'valeur invalide'}.`, champ: champ?.path.join('.') ?? null });
+            const p = lu.error.issues[0];
+            const champ = nomDuChamp(p, 'corps');
+            return envoyer(400, { motif: motif('commun.champ_invalide', { champ, raison: p ? raison(p, requete.body) : motif('champ.valeur') }), champ: p ? champ : null });
           }
           corps = lu.data;
         }
@@ -82,14 +88,14 @@ export function creerApp(ctx: Contexte, routes: Route<never>[]): FastifyInstance
         if (r.geste === 'public') {
           try {
             const res = await r.traiter({ corps: corps as never, params, query, qui: null, requete }, null);
-            return reponse.code(res.statut ?? 200).send(res.corps);
-          } catch (e) { return erreurVersReponse(e, reponse); }
+            return envoyer(res.statut ?? 200, res.corps);
+          } catch (e) { return erreurVersReponse(e, reponse, langue); }
         }
 
         // Toutes les autres routes demandent une session.
         const jeton = /^Bearer (.+)$/.exec(requete.headers.authorization ?? '')?.[1];
         const qui = jeton ? await quiEst(ctx, jeton) : null;
-        if (!qui) return reponse.code(401).send({ motif: 'Connecte-toi pour continuer.', bouton: 'connexion' });
+        if (!qui) return envoyer(401, { motif: motif('commun.connexion_requise'), bouton: 'connexion' });
 
         try {
           const res = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => {
@@ -97,11 +103,11 @@ export function creerApp(ctx: Contexte, routes: Route<never>[]): FastifyInstance
             // (créer son entreprise, être promu administrateur) l'exige aussitôt.
             if (!qui.codeAConfigurer && (await tx.query('select socle.code_manquant() m')).rows[0].m) qui.codeAConfigurer = true;
             if (qui.codeAConfigurer && !['compte.code.configurer', 'compte.voir', 'compte.deconnecter'].includes(r.geste)) {
-              return { statut: 403, corps: { motif: 'Mets d\'abord en place le code sur ton téléphone : ton rôle l\'exige.', qui: [], bouton: 'compte.code.configurer' } };
+              return { statut: 403, corps: { motif: motif('commun.code_requis'), qui: [], bouton: 'compte.code.configurer' } };
             }
             if (GESTES.has(r.geste)) {
               const entreprise = params.entreprise ?? '';
-              if (!/^[0-9a-f-]{36}$/i.test(entreprise)) return { statut: 404, corps: { motif: 'Introuvable.' } };
+              if (!/^[0-9a-f-]{36}$/i.test(entreprise)) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
               const d = await peut(tx, qui, entreprise, r.geste, r.methode !== 'GET');
               if (!d.ok) return { statut: d.raison === 'invisible' ? 404 : 403, corps: { motif: d.motif, qui: d.qui, bouton: d.bouton } };
               // Une lecture de donnée sensible se trace, pas seulement les modifications (D10).
@@ -112,8 +118,8 @@ export function creerApp(ctx: Contexte, routes: Route<never>[]): FastifyInstance
             }
             return r.traiter({ corps: corps as never, params, query, qui, requete }, tx);
           });
-          return reponse.code(res.statut ?? 200).send(res.corps);
-        } catch (e) { return erreurVersReponse(e, reponse); }
+          return envoyer(res.statut ?? 200, res.corps);
+        } catch (e) { return erreurVersReponse(e, reponse, langue); }
       },
     });
   }

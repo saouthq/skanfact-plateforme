@@ -5,6 +5,7 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import { hash, verify } from '@node-rs/argon2';
+import { motif, type Texte } from '../textes/index.ts';
 
 export const LONGUEUR_MINIMALE = 10;
 
@@ -23,14 +24,14 @@ export function listeDepuisFichier(chemin: string): ListeVolee {
   return { contient: (mdp) => ensemble.has(sha1(mdp)) };
 }
 
-export type RefusMotDePasse = { ok: false; motif: string } | { ok: true };
+export type RefusMotDePasse = { ok: false; motif: Texte } | { ok: true };
 
 export function verifierPolitique(motDePasse: string, liste: ListeVolee): RefusMotDePasse {
   if ([...motDePasse].length < LONGUEUR_MINIMALE) {
-    return { ok: false, motif: `Ton mot de passe doit faire au moins ${LONGUEUR_MINIMALE} caractères.` };
+    return { ok: false, motif: motif('mot_de_passe.trop_court', { min: LONGUEUR_MINIMALE }) };
   }
   if (liste.contient(motDePasse)) {
-    return { ok: false, motif: 'Ce mot de passe figure dans une liste de mots de passe déjà volés : choisis-en un autre.' };
+    return { ok: false, motif: motif('mot_de_passe.vole') };
   }
   return { ok: true };
 }

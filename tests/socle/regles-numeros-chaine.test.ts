@@ -9,6 +9,7 @@ import { creerPool, enTantQue } from '../../serveur/base.ts';
 import { canonique, controler, DEPART, empreinteContenu, empreinteMaillon, sceller } from '../../serveur/journal.ts';
 import { prendreNumero, prochainNumero } from '../../serveur/numeros.ts';
 import { regle } from '../../serveur/regles.ts';
+import { t } from '../../textes/index.ts';
 
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 const pool = creerPool(inject('pgApp'));
@@ -218,7 +219,7 @@ describe('le journal inaltérable (R9)', () => {
       const i = ids.indexOf(o.id);
       return i === 1 ? { ...pieces[1], totalTtc: 138001 } : pieces[i] ?? null;
     };
-    expect(await enTantQue(pool, qui('alice'), (tx) => controler(tx, A, cle, truquee))).toEqual({ ok: false, rang: 2, motif: 'pièce modifiée après son scellé' });
+    expect(await enTantQue(pool, qui('alice'), (tx) => controler(tx, A, cle, truquee))).toEqual({ ok: false, rang: 2, motif: t('journal.piece_modifiee') });
   });
 
   it('un maillon réécrit en base se voit', async () => {

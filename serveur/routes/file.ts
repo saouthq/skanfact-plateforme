@@ -6,6 +6,7 @@ import type { Route } from '../app.ts';
 import type { Contexte } from '../connexion.ts';
 import { recevoir, schemaOperation, type Traitement } from '../file.ts';
 import { GESTES } from '../porte/gestes.ts';
+import { motif } from '../../textes/index.ts';
 
 const LIMITE_MAX = 200;
 
@@ -23,7 +24,7 @@ export function routesFile(ctx: Contexte, traitements: Map<string, Traitement<ne
     // Chaque geste passe par la porte et a sa propre transaction : `recevoir` les ouvre.
     traiter: async ({ qui, corps }) => {
       if (!qui) throw new Error('session attendue');
-      if (!qui.appareil) return { statut: 400, corps: { motif: 'Cette session n\'est rattachée à aucun appareil : reconnecte-toi depuis le poste.' } };
+      if (!qui.appareil) return { statut: 400, corps: { motif: motif('file.sans_appareil') } };
       return { corps: { reponses: await recevoir(ctx, qui, corps.operations, traitements) } };
     },
   });
@@ -47,7 +48,7 @@ export function routesFile(ctx: Contexte, traitements: Map<string, Traitement<ne
     methode: 'POST', chemin: '/operations/:operation/reprendre', geste: 'compte.a_reprendre.resoudre',
     corps: z.object({ resolution: z.string().trim().min(1).max(500) }),
     traiter: async ({ params, corps }, tx) => {
-      if (!tx || !z.string().uuid().safeParse(params.operation).success) return { statut: 404, corps: { motif: 'Introuvable.' } };
+      if (!tx || !z.string().uuid().safeParse(params.operation).success) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
       await tx.query('select socle.resoudre_operation($1, $2)', [params.operation, corps.resolution]);
       return { corps: { ok: true } };
     },

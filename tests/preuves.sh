@@ -145,7 +145,7 @@ prouver "on révoque l'appareil d'un autre" $C \
   "where id = p_appareil and utilisateur = socle.moi() and revoque_le is null;" "where id = p_appareil and revoque_le is null;" \
   "on ne révoque que les siens"
 prouver "le SMS emporte plus que le numéro et le code" $S \
-  '`Ton code SkanFact : ${code.slice(0, 3)} ${code.slice(3)}`' '`Ton code SkanFact : ${code.slice(0, 3)} ${code.slice(3)} (${demande.email})`' \
+  '{ code: `${code.slice(0, 3)} ${code.slice(3)}` }' '{ code: `${code.slice(0, 3)} ${code.slice(3)} (${demande.email})` }' \
   "par SMS : seuls le numéro et le code partent"
 prouver "l'empreinte d'un collègue lisible" $C \
   "grant select (id, email, nom, telephone, telephone_verifie_le, langue, code_methode, cree_le) on socle.utilisateur to skanfact_app;" "grant select on socle.utilisateur to skanfact_app;" \
@@ -154,8 +154,8 @@ prouver "on se donne un rôle soi-même" $C \
   "revoke insert, update on socle.membre, socle.mandat from skanfact_app;" "" \
   "personne ne voit l'empreinte d'un autre"
 prouver "une adresse inconnue qui se trahit" $S \
-  "      return a ? { etat: 'attendre', jusqua: a, motif: attenteLisible(a, maintenant) } : { etat: 'refuse', motif: MOTIF_REFUS };" \
-  "      return a ? { etat: 'attendre', jusqua: a, motif: attenteLisible(a, maintenant) } : { etat: 'refuse', motif: u ? MOTIF_REFUS : 'Adresse inconnue.' };" \
+  "      return a ? { etat: 'attendre', jusqua: a, motif: attenteLisible(a, maintenant) } : { etat: 'refuse', motif: MOTIF_REFUS() };" \
+  "      return a ? { etat: 'attendre', jusqua: a, motif: attenteLisible(a, maintenant) } : { etat: 'refuse', motif: u ? MOTIF_REFUS() : motif('connexion.code_faux') };" \
   "une adresse inconnue et un mauvais mot de passe"
 prouver "un mot de passe gardé en clair" serveur/mot-de-passe.ts \
   "export const empreinte = (motDePasse: string): Promise<string> => hash(motDePasse);" "export const empreinte = (motDePasse: string): Promise<string> => Promise.resolve(motDePasse);" \
@@ -502,10 +502,10 @@ prouver "une facture émise sans timbre renseigné" $VP \
   "  if (calcul.timbreManquant) {" "  if (calcul.timbreManquant === 'jamais') {" \
   "le contrôle passe avant le numéro"
 prouver "une facture émise deux fois" $VP \
-  "  if (p.statut !== 'brouillon') throw new Refus('cette facture est déjà émise');" "" \
+  "  if (p.statut !== 'brouillon') throw new Refus('ventes.deja_emise');" "" \
   "une facture déjà émise ne s'émet pas une seconde fois"
 prouver "un refus sans le bouton qui débloque" $VP \
-  "'aucune série de factures n\\'existe encore : crée-la dans les réglages', 'socle.reglages_fiscaux.modifier')" "'aucune série de factures n\\'existe encore : crée-la dans les réglages')" \
+  "throw new Refus('ventes.sans_serie', { bouton: 'socle.reglages_fiscaux.modifier' });" "throw new Refus('ventes.sans_serie');" \
   "sans série de factures, l'émission est refusée et le refus dit où la créer"
 prouver "une facture émise recalculée à la lecture" $VP \
   "  if (p.totaux && p.tva_par_taux) {" "  if (p.totaux === 'jamais' && p.tva_par_taux) {" \
@@ -595,6 +595,32 @@ prouver "J1 : un export qui s'arrête en route (272 lignes par table au plus)" $
 prouver "J1 : les factures d'une entreprise visibles par sa voisine" base/migrations/0006_tiers_et_ventes.sql \
   "create policy visible on ventes.piece using (entreprise in (select socle.mes_entreprises()));" "create policy visible on ventes.piece using (true);" \
   "le propriétaire de la voisine ne lit rien de l'entreprise"
+
+# ── Le catalogue des textes (textes/, serveur) ─────────────────────────────────────────────────
+prouver "une phrase écrite en dur dans le serveur" serveur/ventes/pieces.ts \
+  "avertissement: motif('ventes.avertissement_timbre')" "avertissement: 'le timbre fiscal manque'" \
+  "aucune phrase n'est écrite en dur dans le code du serveur"
+prouver "une phrase de la base oubliée au catalogue" textes/base.ts \
+  "  { base: 'membre introuvable', cle: 'base.equipe.membre_introuvable', fr: 'membre introuvable' }," "" \
+  "chaque phrase de la base est au catalogue"
+prouver "une clé employée mais jamais déclarée" serveur/ventes/textes.ts \
+  "  'ventes.deja_emise': 'cette facture est déjà émise'," "" \
+  "chaque clé employée par le code est déclarée"
+prouver "un geste sans son texte au catalogue" serveur/porte/gestes.ts \
+  "    if (!texteConnu(\`geste.\${g.code}\`)) throw" "    if (g.code === 'jamais') throw" \
+  "chaque clé employée par le code est déclarée"
+prouver "une clé qui change de phrase en cours de route" textes/textes.ts \
+  "    if (deja !== undefined && deja !== fr) throw" "    if (deja === 'jamais') throw" \
+  "chaque clé employée par le code est déclarée"
+prouver "une langue factice qui ne rallonge pas" textes/textes.ts \
+  "  const manque = Math.ceil(longueur * 0.4) + 2;" "  const manque = 2;" \
+  "la langue factice est 40 % plus longue"
+prouver "un refus de la base rendu tel quel, sans le catalogue" serveur/erreurs.ts \
+  "  const reconnu = reconnaitre(e.message ?? '');" "  const reconnu = e.message === 'jamais' ? reconnaitre(e.message) : null;" \
+  "un refus du serveur, un refus de la base et un champ qui ne va pas passent par le catalogue"
+prouver "un champ qui ne va pas, dit en anglais par la bibliothèque" serveur/app.ts \
+  "raison: p ? raison(p, requete.body) : motif('champ.valeur')" "raison: p ? p.message : motif('champ.valeur')" \
+  "un refus du serveur, un refus de la base et un champ qui ne va pas passent par le catalogue"
 
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

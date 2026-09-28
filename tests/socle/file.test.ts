@@ -15,6 +15,7 @@ import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { declarerGestes } from '../../serveur/porte/gestes.ts';
 import { routesFile } from '../../serveur/routes/file.ts';
 import { routesSocle } from '../../serveur/routes/socle.ts';
+import { declarerTextes } from '../../textes/index.ts';
 
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 const pool = creerPool(inject('pgApp'));
@@ -22,9 +23,15 @@ const ctx: Contexte = {
   pool, listeVolee: listeDepuisFichier(path.join(import.meta.dirname, '../donnees/mots-de-passe-voles.txt')), sms: { envoyer: async () => {} },
 };
 
+// Les textes des gestes d'essai, déclarés comme un module le fait.
+declarerTextes({
+  'geste.essai.reglage.poser': 'poser un réglage d\'essai',
+  'geste.essai.ticket.encaisser': 'encaisser un ticket d\'essai',
+  'essai.fiche_changee': 'la fiche a changé depuis que le poste l\'a lue',
+});
 declarerGestes([
-  { code: 'essai.reglage.poser', module: 'essai', libelle: 'poser un réglage d\'essai', ecrit: true, roles: { proprietaire: 'oui', administrateur: 'oui' } },
-  { code: 'essai.ticket.encaisser', module: 'essai', libelle: 'encaisser un ticket d\'essai', ecrit: true, roles: { proprietaire: 'oui', caissier: 'oui' } },
+  { code: 'essai.reglage.poser', module: 'essai', ecrit: true, roles: { proprietaire: 'oui', administrateur: 'oui' } },
+  { code: 'essai.ticket.encaisser', module: 'essai', ecrit: true, roles: { proprietaire: 'oui', caissier: 'oui' } },
 ]);
 const reglage = traitement<{ code: string; valeur: number; miseDeCote?: boolean | undefined; panne?: boolean | undefined }>({
   geste: 'essai.reglage.poser', formats: [1, 2],
@@ -32,7 +39,7 @@ const reglage = traitement<{ code: string; valeur: number; miseDeCote?: boolean 
   traiter: async (tx, op) => {
     const id = (await tx.query(`select socle.poser_regle_entreprise($1, $2, $3, '2026-01-01', null, 'Essai de la file') id`,
       [op.entreprise, op.charge.code, JSON.stringify(op.charge.valeur)])).rows[0].id;
-    if (op.charge.miseDeCote) throw new MiseDeCote('la fiche a changé depuis que le poste l\'a lue');
+    if (op.charge.miseDeCote) throw new MiseDeCote('essai.fiche_changee');
     if (op.charge.panne) throw new Error('panne du serveur');
     return { regle: id };
   },
@@ -225,7 +232,7 @@ describe('« À reprendre » (04 § 5.2)', () => {
   });
 
   it('un geste déjà déclaré ne se remplace pas', () => {
-    expect(() => declarerGestes([{ code: 'socle.equipe.gerer', module: 'essai', libelle: 'tout faire', ecrit: true, roles: { lecture: 'oui' } }]))
+    expect(() => declarerGestes([{ code: 'socle.equipe.gerer', module: 'essai', ecrit: true, roles: { lecture: 'oui' } }]))
       .toThrow(/déclaré deux fois/);
   });
 

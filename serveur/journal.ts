@@ -6,6 +6,7 @@
 // dernier : le contrôle le voit.
 
 import { createHash } from 'node:crypto';
+import { reconnaitre, t, type Texte } from '../textes/index.ts';
 import type { Transaction } from './base.ts';
 
 export const DEPART = '0'.repeat(64);
@@ -45,7 +46,7 @@ export async function sceller(tx: Transaction, entreprise: string, cle: string, 
   return { rang: Number(r.rang), precedente: r.precedente, empreinte: r.empreinte };
 }
 
-export type Controle = { ok: true } | { ok: false; rang: number; motif: string };
+export type Controle = { ok: true } | { ok: false; rang: number; motif: Texte | string };
 
 // Le contrôle complet d'une chaîne : les liens (par la base), puis le contenu de chaque pièce,
 // relue par le module qui la possède. `relire` rend la pièce telle qu'elle est AUJOURD'HUI, ou
@@ -55,12 +56,12 @@ export async function controler(
   relire: (objet: { type: string; id: string }) => Promise<unknown>,
 ): Promise<Controle> {
   const liens = (await tx.query('select * from socle.controler_chaine($1, $2)', [entreprise, cle])).rows[0];
-  if (!liens.ok) return { ok: false, rang: Number(liens.rang), motif: liens.motif };
+  if (!liens.ok) return { ok: false, rang: Number(liens.rang), motif: reconnaitre(liens.motif) ?? liens.motif };
   const maillons = await tx.query('select rang, objet_type, objet_id, contenu from socle.maillon where entreprise = $1 and cle = $2 order by rang', [entreprise, cle]);
   for (const m of maillons.rows) {
     const piece = await relire({ type: m.objet_type, id: m.objet_id });
-    if (piece === null) return { ok: false, rang: Number(m.rang), motif: 'pièce disparue' };
-    if (empreinteContenu(piece) !== m.contenu) return { ok: false, rang: Number(m.rang), motif: 'pièce modifiée après son scellé' };
+    if (piece === null) return { ok: false, rang: Number(m.rang), motif: t('journal.piece_disparue') };
+    if (empreinteContenu(piece) !== m.contenu) return { ok: false, rang: Number(m.rang), motif: t('journal.piece_modifiee') };
   }
   return { ok: true };
 }

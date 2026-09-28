@@ -9,10 +9,11 @@ import type { Transaction } from '../base.ts';
 import { connecter, deconnecter, inscrire, mettreEnPlaceCode, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
 import { prochainNumero } from '../numeros.ts';
 import { regle } from '../regles.ts';
+import { motif } from '../../textes/index.ts';
 
 const uuid = z.string().uuid();
-const jour = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'un jour du calendrier (AAAA-MM-JJ)');
-const codeRegle = z.string().regex(/^[a-z_]+(\.[a-z0-9_]+)+$/, 'un code de règle (ex. « rs.taux »)');
+const jour = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'champ.jour');
+const codeRegle = z.string().regex(/^[a-z_]+(\.[a-z0-9_]+)+$/, 'champ.code_regle');
 // Une valeur de règle : des entiers, des textes, des listes et des objets, jamais un nombre à virgule.
 const valeurRegle: z.ZodType<unknown> = z.lazy(() => z.union([z.number().int(), z.string(), z.boolean(), z.null(), z.array(valeurRegle), z.record(z.string(), valeurRegle)]));
 const sha256 = (t: string) => createHash('sha256').update(t).digest('hex');
@@ -100,9 +101,9 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
   ajouter({
     methode: 'DELETE', chemin: '/moi/appareils/:appareil', geste: 'compte.appareils.gerer',
     traiter: async ({ qui, params }) => {
-      if (!qui || !uuid.safeParse(params.appareil).success) return { statut: 404, corps: { motif: 'Introuvable.' } };
+      if (!qui || !uuid.safeParse(params.appareil).success) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
       const ok = await revoquerAppareil(ctx, qui, params.appareil ?? '');
-      return ok ? { corps: { ok: true } } : { statut: 404, corps: { motif: 'Introuvable.' } };
+      return ok ? { corps: { ok: true } } : { statut: 404, corps: { motif: motif('commun.introuvable') } };
     },
   });
 
@@ -168,9 +169,9 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
     methode: 'PUT', chemin: '/entreprises/:entreprise/membres/:membre/roles', geste: 'socle.equipe.gerer',
     corps: z.object({ roles: ROLES }),
     traiter: async ({ params, corps }, tx) => {
-      if (!tx || !uuid.safeParse(params.membre).success) return { statut: 404, corps: { motif: 'Introuvable.' } };
+      if (!tx || !uuid.safeParse(params.membre).success) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
       const dans = (await tx.query('select 1 from socle.membre where id = $1 and entreprise = $2', [params.membre, params.entreprise])).rowCount;
-      if (!dans) return { statut: 404, corps: { motif: 'Introuvable.' } };
+      if (!dans) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
       await tx.query('select socle.changer_roles($1, $2)', [params.membre, corps.roles]);
       return { corps: { ok: true } };
     },
@@ -179,9 +180,9 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
   ajouter({
     methode: 'DELETE', chemin: '/entreprises/:entreprise/membres/:membre', geste: 'socle.equipe.gerer',
     traiter: async ({ params }, tx) => {
-      if (!tx || !uuid.safeParse(params.membre).success) return { statut: 404, corps: { motif: 'Introuvable.' } };
+      if (!tx || !uuid.safeParse(params.membre).success) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
       const dans = (await tx.query('select 1 from socle.membre where id = $1 and entreprise = $2', [params.membre, params.entreprise])).rowCount;
-      if (!dans) return { statut: 404, corps: { motif: 'Introuvable.' } };
+      if (!dans) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
       await tx.query('select socle.retirer_membre($1)', [params.membre]);
       return { corps: { ok: true } };
     },
@@ -200,7 +201,7 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
   ajouter({
     methode: 'POST', chemin: '/transferts/:transfert/accepter', geste: 'compte.transfert.accepter',
     traiter: async ({ params }, tx) => {
-      if (!tx || !uuid.safeParse(params.transfert).success) return { statut: 404, corps: { motif: 'Introuvable.' } };
+      if (!tx || !uuid.safeParse(params.transfert).success) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
       await tx.query('select socle.accepter_transfert($1, $2)', [params.transfert, maintenant()]);
       return { corps: { ok: true } };
     },
@@ -226,10 +227,10 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       if (!tx) throw new Error('transaction attendue');
       const code = codeRegle.safeParse(params.code);
       const date = jour.safeParse(query.date);
-      if (!code.success || !date.success) return { statut: 400, corps: { motif: 'Il faut un code de règle et une date (AAAA-MM-JJ).', champ: code.success ? 'date' : 'code' } };
+      if (!code.success || !date.success) return { statut: 400, corps: { motif: motif('regles.code_et_date'), champ: code.success ? 'date' : 'code' } };
       const r = await regle(tx, params.entreprise ?? '', code.data, date.data);
       // Une règle inconnue se dit « non renseignée » : jamais un chiffre inventé (01 R12).
-      return { corps: r ?? { valeur: null, motif: 'Règle non renseignée à cette date.' } };
+      return { corps: r ?? { valeur: null, motif: motif('regles.non_renseignee') } };
     },
   });
 
@@ -257,10 +258,10 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
   ajouter({
     methode: 'POST', chemin: '/entreprises/:entreprise/series', geste: 'socle.reglages_fiscaux.modifier',
     corps: z.object({
-      type: z.string().regex(/^[a-z_]+$/), prefixe: z.string().regex(/^[A-Z0-9]{1,10}$/, '1 à 10 lettres majuscules ou chiffres'),
+      type: z.string().regex(/^[a-z_]+$/), prefixe: z.string().regex(/^[A-Z0-9]{1,10}$/, 'champ.prefixe'),
       legale: z.boolean(), remise: z.enum(['annuelle', 'jamais']).optional(), format: z.string().max(40).optional(),
     }).refine((c) => (c.remise ?? 'annuelle') !== 'annuelle' || (c.format ?? '{AAAA}').includes('{AAAA}'),
-      { message: 'une série qui repart à 1 chaque année écrit l\'année dans son numéro ({AAAA})', path: ['format'] }),
+      { message: 'series.annee_requise', path: ['format'] }),
     traiter: async ({ params, corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const id = (await tx.query('select socle.creer_serie($1, $2, $3, $4, $5, $6) id',
@@ -277,7 +278,7 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
     methode: 'POST', chemin: '/entreprises/:entreprise/series/:serie/reprise', geste: 'socle.reglages_fiscaux.modifier',
     corps: z.object({ periode: z.number().int().min(0).max(9999), dernier: z.number().int().min(0) }),
     traiter: async ({ params, corps }, tx) => {
-      if (!tx || !(await serieDe(tx, params.entreprise ?? '', params.serie))) return { statut: 404, corps: { motif: 'Introuvable.' } };
+      if (!tx || !(await serieDe(tx, params.entreprise ?? '', params.serie))) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
       await tx.query('select socle.reprendre_serie($1, $2, $3)', [params.serie, corps.periode, corps.dernier]);
       return { corps: { ok: true } };
     },
@@ -286,9 +287,9 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
   ajouter({
     methode: 'GET', chemin: '/entreprises/:entreprise/series/:serie/prochain', geste: 'socle.accueil.voir',
     traiter: async ({ params, query }, tx) => {
-      if (!tx || !(await serieDe(tx, params.entreprise ?? '', params.serie))) return { statut: 404, corps: { motif: 'Introuvable.' } };
+      if (!tx || !(await serieDe(tx, params.entreprise ?? '', params.serie))) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
       const date = jour.safeParse(query.date);
-      if (!date.success) return { statut: 400, corps: { motif: 'Il faut la date de la pièce (AAAA-MM-JJ).', champ: 'date' } };
+      if (!date.success) return { statut: 400, corps: { motif: motif('series.date_requise'), champ: 'date' } };
       return { corps: await prochainNumero(tx, params.serie ?? '', date.data) };
     },
   });

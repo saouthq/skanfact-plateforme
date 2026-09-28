@@ -14,6 +14,7 @@ import { routesSocle } from '../../serveur/routes/socle.ts';
 import { declarerGestesVentes } from '../../serveur/ventes/gestes.ts';
 import { relirePourChaine } from '../../serveur/ventes/pieces.ts';
 import { routesVentes } from '../../serveur/ventes/routes.ts';
+import { t } from '../../textes/index.ts';
 
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 const pool = creerPool(inject('pgApp'));
@@ -234,6 +235,6 @@ describe('le journal de la série, relu dans la base', () => {
     } finally {
       await admin.query('alter table ventes.piece enable trigger piece_scellee');
     }
-    expect(await controle()).toEqual({ ok: false, rang: 2, motif: 'pièce modifiée après son scellé' });
+    expect(await controle()).toEqual({ ok: false, rang: 2, motif: t('journal.piece_modifiee') });
   });
 });

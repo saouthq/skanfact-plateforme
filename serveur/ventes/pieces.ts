@@ -15,6 +15,8 @@ import { sceller } from '../journal.ts';
 import { prendreNumero } from '../numeros.ts';
 import { regle, type RegleLue } from '../regles.ts';
 import { tracer } from '../trace.ts';
+import { motif } from '../../textes/index.ts';
+import './textes.ts';
 
 // ── Ce qu'on saisit (les nombres arrivent en TEXTE, jamais en nombre à virgule) ─────────────────
 export type LigneSaisie = {
@@ -74,7 +76,7 @@ async function lirePieceBrute(tx: Transaction, entreprise: string, id: string, v
 
 async function deviseDe(tx: Transaction, code: string): Promise<Devise> {
   const r = await requetes(tx).selectFrom('socle.devise').select(['code', 'decimales']).where('code', '=', code).executeTakeFirst();
-  if (!r) throw new Refus(`la devise ${code} n'est pas connue`);
+  if (!r) throw new Refus('ventes.devise_inconnue', { valeurs: { devise: code } });
   return r;
 }
 
@@ -107,7 +109,7 @@ export async function creerBrouillon(tx: Transaction, utilisateur: string, entre
 
 export async function modifierBrouillon(tx: Transaction, entreprise: string, id: string, revisionVue: number, b: BrouillonSaisi): Promise<number> {
   const p = await lirePieceBrute(tx, entreprise, id, true);
-  if (p.statut !== 'brouillon') throw new Refus('une pièce émise ne se modifie plus : on la corrige par un avoir');
+  if (p.statut !== 'brouillon') throw new Refus('ventes.emise_ne_se_modifie_plus');
   if (p.revision !== revisionVue) throw new Perimee();
   const db = requetes(tx);
   await db.updateTable('ventes.piece')
@@ -122,7 +124,7 @@ export async function modifierBrouillon(tx: Transaction, entreprise: string, id:
 // Seul un brouillon se supprime, et la suppression laisse sa trace (01 R6).
 export async function supprimerBrouillon(tx: Transaction, entreprise: string, id: string): Promise<void> {
   const p = await lirePieceBrute(tx, entreprise, id, true);
-  if (p.statut !== 'brouillon') throw new Refus('une pièce émise ne s\'efface jamais : on la corrige par un avoir');
+  if (p.statut !== 'brouillon') throw new Refus('ventes.emise_ne_s_efface_pas');
   await requetes(tx).deleteFrom('ventes.piece').where('id', '=', id).execute();
   await tracer(tx, entreprise, 'ventes.brouillon.supprimer', { type: 'piece_vente', id }, { type: p.type, tiers: p.tiers, date: p.date_piece }, null);
 }
@@ -180,19 +182,19 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
   const db = requetes(tx);
   // 1. Les contrôles, tous, avant de prendre quoi que ce soit.
   const p = await lirePieceBrute(tx, entreprise, id, true);
-  if (p.statut !== 'brouillon') throw new Refus('cette facture est déjà émise');
-  if (p.type !== 'facture') throw new Refus('seule une facture s\'émet pour l\'instant');
+  if (p.statut !== 'brouillon') throw new Refus('ventes.deja_emise');
+  if (p.type !== 'facture') throw new Refus('ventes.seule_facture');
   const lignes = await lireLignes(tx, id);
-  if (!lignes.length) throw new Refus('une facture sans ligne ne s\'émet pas');
+  if (!lignes.length) throw new Refus('ventes.sans_ligne');
   const calcul = await calculer(tx, p, lignes);
   const t = calcul.totaux;
   if (calcul.timbreManquant) {
-    throw new Refus(`le timbre fiscal n'est pas renseigné au ${p.date_piece} : la facture ne s'émet pas sans lui`);
+    throw new Refus('ventes.timbre_manquant', { valeurs: { date: p.date_piece } });
   }
   const serie = (await db.selectFrom('socle.serie').select('id')
     .where('entreprise', '=', entreprise).where('type', '=', 'facture').where('legale', '=', true).where('active', '=', true)
     .orderBy('cree_le').limit(1).executeTakeFirst())?.id;
-  if (!serie) throw new Refus('aucune série de factures n\'existe encore : crée-la dans les réglages', 'socle.reglages_fiscaux.modifier');
+  if (!serie) throw new Refus('ventes.sans_serie', { bouton: 'socle.reglages_fiscaux.modifier' });
   const societe = await db.selectFrom('socle.entreprise').select(['raison_sociale', 'matricule_fiscal']).where('id', '=', entreprise).executeTakeFirstOrThrow();
   const client = await db.selectFrom('socle.tiers').select(['raison_sociale', 'identifiant', 'type_identifiant', 'adresse', 'pays'])
     .where('id', '=', p.tiers).executeTakeFirstOrThrow();
@@ -267,6 +269,6 @@ export async function lirePiece(tx: Transaction, entreprise: string, id: string)
       tauxTva: versTexte(l.taux_tva, DECIMALES.taux), sansRemise: l.sans_remise, ht: m(l.ht), tva: m(l.tva), ttc: m(l.ttc),
     })),
     totaux, tvaParTaux,
-    ...(timbreNonRenseigne ? { avertissement: 'Le timbre fiscal n\'est pas renseigné à cette date : la facture ne pourra pas être émise.' } : {}),
+    ...(timbreNonRenseigne ? { avertissement: motif('ventes.avertissement_timbre') } : {}),
   };
 }

@@ -8,9 +8,12 @@
 // réussissent ou échouent ensemble.
 
 import { z, type ZodType } from 'zod';
+import { motif, rendre, Texte, type Valeurs } from '../textes/index.ts';
 import { enTantQue, type Transaction } from './base.ts';
+import { texteDuRefus } from './erreurs.ts';
 import type { Contexte, Qui } from './connexion.ts';
 import { peut } from './porte/porte.ts';
+import { nomDuChamp, raison } from './validation.ts';
 
 export type Operation = {
   id: string; ordre: number; geste: string; entreprise: string; format: number;
@@ -36,13 +39,16 @@ export type Traitement<C = unknown> = {
 
 // Un traitement qui voit que l'objet a changé depuis que le poste l'a lu (01 R15) le dit ainsi :
 // le geste est mis de côté, jamais écrasé ni jeté (04 § 5).
-export class MiseDeCote extends Error {}
+export class MiseDeCote extends Error {
+  readonly texte: Texte;
+  constructor(cle: string, valeurs?: Valeurs) { const texte = motif(cle, valeurs); super(rendre(texte, 'fr')); this.texte = texte; }
+}
 
 export type Reponse =
   | { id: string; statut: 'acceptee' | 'deja_recue'; resultat: unknown }
-  | { id: string; statut: 'refusee' | 'mise_de_cote' | 'en_attente_decision'; motif: string }
-  | { id: string; statut: 'manquante'; manque: number; motif: string }
-  | { id: string; statut: 'erreur'; motif: string };
+  | { id: string; statut: 'refusee' | 'mise_de_cote' | 'en_attente_decision'; motif: Texte | string }
+  | { id: string; statut: 'manquante'; manque: number; motif: Texte }
+  | { id: string; statut: 'erreur'; motif: Texte };
 
 // Déclarer un traitement (le type de sa charge est vérifié ici, puis effacé pour le registre).
 export const traitement = <C>(t: Traitement<C>): Traitement<never> => t as unknown as Traitement<never>;
@@ -56,7 +62,6 @@ export function registreDesTraitements(...liste: Traitement<never>[]): Map<strin
   return r;
 }
 
-const capitaliser = (t: string) => (t.charAt(0).toUpperCase() + t.slice(1)).replace(/([^.])$/, '$1.');
 
 async function unGeste(ctx: Contexte, qui: Qui, appareil: string, op: Operation, traitements: Map<string, Traitement<never>>): Promise<Reponse> {
   return enTantQue(ctx.pool, qui.utilisateur, async (tx) => {
@@ -65,13 +70,13 @@ async function unGeste(ctx: Contexte, qui: Qui, appareil: string, op: Operation,
     // Déjà reçue : la même réponse, rien de refait.
     const deja = (await tx.query('select * from socle.operation_recue($1)', [op.id])).rows[0];
     if (deja) {
-      if (deja.appareil !== appareil) return { id: op.id, statut: 'refusee', motif: 'Cet identifiant de geste appartient à un autre appareil.' };
+      if (deja.appareil !== appareil) return { id: op.id, statut: 'refusee', motif: motif('file.autre_appareil') };
       return deja.statut === 'acceptee'
         ? { id: op.id, statut: 'deja_recue', resultat: deja.resultat }
         : { id: op.id, statut: deja.statut, motif: deja.motif };
     }
-    if (op.ordre <= dernier) return { id: op.id, statut: 'refusee', motif: `Le numéro d'ordre ${op.ordre} a déjà servi à un autre geste de cet appareil.` };
-    if (op.ordre > dernier + 1) return { id: op.id, statut: 'manquante', manque: dernier + 1, motif: `Il manque le geste n° ${dernier + 1} de cet appareil : il faut l'envoyer d'abord.` };
+    if (op.ordre <= dernier) return { id: op.id, statut: 'refusee', motif: motif('file.ordre_servi', { ordre: op.ordre }) };
+    if (op.ordre > dernier + 1) return { id: op.id, statut: 'manquante', manque: dernier + 1, motif: motif('file.manque', { numero: dernier + 1 }) };
 
     const noter = async (statut: string, motif: string | null, resultat: unknown) => {
       await tx.query('select socle.noter_operation($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)', [
@@ -80,23 +85,26 @@ async function unGeste(ctx: Contexte, qui: Qui, appareil: string, op: Operation,
     };
     const t = traitements.get(op.geste);
     // Un refus ou une mise de côté : noté, jamais jeté. Un fait attend la décision du propriétaire.
-    const nonAccepte = async (motif: string, miseDeCote = false): Promise<Reponse> => {
+    // Le motif est gardé dans la file en français (celui qui reprendra le geste le lira plus tard) et
+    // rendu au poste dans sa langue.
+    const nonAccepte = async (m: Texte | string, miseDeCote = false): Promise<Reponse> => {
+      const texte = typeof m === 'string' ? m : rendre(m, 'fr');
       const statut = miseDeCote ? 'mise_de_cote' : t?.fait ? 'en_attente_decision' : 'refusee';
-      await noter(statut, motif, null);
-      return { id: op.id, statut, motif };
+      await noter(statut, texte, null);
+      return { id: op.id, statut, motif: m };
     };
 
-    if (!t) return nonAccepte(`Ce serveur ne connaît pas le geste « ${op.geste} » : l'application est peut-être plus récente que lui.`);
-    if (!t.formats.includes(op.format)) return nonAccepte(`Le format ${op.format} de ce geste n'est pas lu par ce serveur.`);
+    if (!t) return nonAccepte(motif('file.geste_inconnu', { geste: op.geste }));
+    if (!t.formats.includes(op.format)) return nonAccepte(motif('file.format_inconnu', { format: op.format }));
     const charge = t.charge.safeParse(op.charge);
     if (!charge.success) {
-      const champ = charge.error.issues[0];
-      return nonAccepte(`Le geste est illisible : le champ « ${champ?.path.join('.') || 'charge'} » ne va pas (${champ?.message ?? 'valeur invalide'}).`);
+      const p = charge.error.issues[0];
+      return nonAccepte(motif('file.illisible', { champ: nomDuChamp(p, 'charge'), raison: p ? raison(p, op.charge) : motif('champ.valeur') }));
     }
 
     // La même porte que pour un geste fait à l'écran (03 D2).
     const d = await peut(tx, qui, op.entreprise, op.geste, true);
-    if (!d.ok) return nonAccepte(d.raison === 'invisible' ? 'Tu ne fais plus partie de cette entreprise.' : d.motif);
+    if (!d.ok) return nonAccepte(d.raison === 'invisible' ? motif('file.plus_membre') : d.motif);
 
     await tx.query('savepoint geste');
     try {
@@ -108,7 +116,7 @@ async function unGeste(ctx: Contexte, qui: Qui, appareil: string, op: Operation,
       if (e instanceof MiseDeCote || err.code === '42501') {
         // Rien de ce que le geste avait commencé ne reste.
         await tx.query('rollback to savepoint geste');
-        return nonAccepte(capitaliser(err.message ?? 'Refusé.'), e instanceof MiseDeCote);
+        return nonAccepte(texteDuRefus(e as { message?: string; texte?: unknown }), e instanceof MiseDeCote);
       }
       throw e;
     }
@@ -125,7 +133,7 @@ export async function recevoir(ctx: Contexte, qui: Qui, operations: Operation[],
     try {
       r = await unGeste(ctx, qui, qui.appareil, op, traitements);
     } catch {
-      r = { id: op.id, statut: 'erreur', motif: 'Une erreur est survenue de notre côté ; le geste n\'a pas été noté, il repartira tout seul.' };
+      r = { id: op.id, statut: 'erreur', motif: motif('file.erreur') };
     }
     reponses.push(r);
     if (r.statut === 'manquante' || r.statut === 'erreur') break;

@@ -9,6 +9,7 @@ import pg from 'pg';
 import { creerPool, enTantQue } from '../../serveur/base.ts';
 import { GESTES, GESTES_SOCLE, ROLES_ENTREPRISE } from '../../serveur/porte/gestes.ts';
 import { peut } from '../../serveur/porte/porte.ts';
+import { motif } from '../../textes/index.ts';
 
 //                                   P    A    C    K    S    M    I    Pa   L
 const MATRICE: Record<string, string[]> = {
@@ -84,7 +85,7 @@ describe('les réponses de la porte', () => {
     expect(d.ok).toBe(false);
     if (d.ok) return;
     expect(d.raison).toBe('role');
-    expect(d.motif).toMatch(/^Ton rôle \(Commercial\) ne permet pas de inviter, retirer un membre ou changer un rôle\. Peuvent le faire : /);
+    expect(String(d.motif)).toMatch(/^Ton rôle \(Commercial\) ne permet pas de inviter, retirer un membre ou changer un rôle\. Peuvent le faire : /);
     expect(d.qui.map((q) => q.utilisateur).sort()).toEqual([P.proprietaire, P.administrateur].sort());
     expect(d.bouton).toBe('demander');
   });
@@ -102,7 +103,7 @@ describe('les réponses de la porte', () => {
 
   it('D3 : une entreprise qu\'on ne voit pas n\'existe pas (on ne dit même pas qui peut)', async () => {
     const d = await enTantQue(pool, P.proprietaire ?? '', (tx) => peut(tx, { utilisateur: P.proprietaire ?? '' }, autre, 'socle.accueil.voir'));
-    expect(d).toEqual({ ok: false, raison: 'invisible', motif: 'Introuvable.', qui: [], bouton: null });
+    expect(d).toEqual({ ok: false, raison: 'invisible', motif: motif('commun.introuvable'), qui: [], bouton: null });
   });
 
   it('un code sur le téléphone à mettre en place passe avant tout le reste', async () => {
