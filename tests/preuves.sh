@@ -153,5 +153,95 @@ prouver "un mot de passe volé accepté" serveur/mot-de-passe.ts \
   "  if (liste.contient(motDePasse)) {" "  if (false) {" \
   "10 caractères au moins, et jamais un mot de passe déjà volé"
 
+# ── L'équipe, la porte et la trace (0003) ──────────────────────────────────────────────────────
+E=base/migrations/0003_equipe_et_trace.sql
+G=serveur/porte/gestes.ts
+PO=serveur/porte/porte.ts
+A=serveur/app.ts
+R=serveur/routes/socle.ts
+prouver "un geste donné à un rôle que le tableau ne nomme pas" $G \
+  "roles: { proprietaire: P } },
+];" "roles: { proprietaire: P, administrateur: P } },
+];" \
+  "chaque rôle contre chaque geste"
+prouver "« voir » qui suffit pour écrire" $PO \
+  "(!ecrire && acces.includes('voir'))" "acces.includes('voir')" \
+  "chaque rôle contre chaque geste"
+prouver "la porte renvoie vers un membre absent" $PO \
+  "where m.entreprise = \$1 and m.actif and m.roles" "where m.entreprise = \$1 and m.roles" \
+  "D4 : la porte ne renvoie jamais vers une personne absente"
+prouver "la porte parle d'une entreprise qu'on ne voit pas" $PO \
+  "if (!voit) return" "if (false) return" \
+  "D3 : une entreprise qu'on ne voit pas n'existe pas"
+prouver "la porte oublie le code à mettre en place" $PO \
+  "if (qui.codeAConfigurer) {" "if (false) {" \
+  "un code sur le téléphone à mettre en place passe avant tout"
+prouver "le serveur démarre avec une route sans geste" $A \
+  "for (const r of routes) verifierDeclaration(r);" "" \
+  "une route sans geste, ou avec un geste inconnu"
+prouver "un geste d'entreprise sans :entreprise" $A \
+  "if (parEntreprise !== r.chemin.includes(':entreprise')) {" "if (false) {" \
+  "un geste d'entreprise porte :entreprise dans son chemin"
+prouver "une route qui ne passe pas par la porte" $A \
+  "if (!d.ok) return { statut:" "if (d.ok === 'jamais') return { statut:" \
+  "un refus de rôle nomme qui peut"
+prouver "une lecture sensible non tracée" $A \
+  "if (d.geste.sensible && r.methode === 'GET') {" "if (false) {" \
+  "une lecture de donnée sensible est tracée"
+prouver "le code jugé à la connexion seulement" $A \
+  "if (!qui.codeAConfigurer && (await tx.query('select socle.code_manquant() m')).rows[0].m) qui.codeAConfigurer = true;" "" \
+  "une session ouverte avant de devenir propriétaire"
+prouver "la trace qu'on modifie" $E \
+  "create trigger audit_intouchable before update or delete on socle.audit
+  for each row execute function socle.refuser_modification();" "" \
+  "la trace ne se modifie pas et ne s'efface pas"
+prouver "on écrit la trace d'un autre" $E \
+  "utilisateur = socle.moi() and (entreprise is null" "(entreprise is null" \
+  "on n'écrit pas la trace d'un autre"
+prouver "tout membre lit toute la trace" $E \
+  "  utilisateur = socle.moi()
+  or (entreprise" "  true
+  or (entreprise" \
+  "chacun lit sa propre activité, et seulement la sienne"
+prouver "la page suivante saute les gestes d'un même instant" $R \
+  "where a.entreprise = \$1 and (a.instant, a.id) < (\$2::timestamptz, \$3::uuid) order by a.instant desc, a.id desc" "where a.entreprise = \$1 and a.instant < \$2::timestamptz and \$3::uuid is not null order by a.instant desc" \
+  "lue page par page sans ligne sautée ni doublon"
+prouver "le lien d'invitation gardé en clair" $R \
+  "sha256(jeton), expire])" "jeton, expire])" \
+  "inviter, accepter"
+prouver "une invitation acceptée par une autre adresse" $E \
+  "  if lower(v_email) <> i.email then" "  if false then" \
+  "inviter, accepter"
+prouver "une invitation expirée qui sert encore" $E \
+  " or i.expire_le <= p_maintenant then" " then" \
+  "une invitation expirée ne sert plus"
+prouver "le propriétaire perd son rôle en acceptant une invitation" $E \
+  "  if exists (select 1 from socle.membre where utilisateur = socle.moi() and entreprise = i.entreprise and actif and 'proprietaire' = any(roles)) then" "  if false then" \
+  "le propriétaire qui accepte une invitation dans sa propre entreprise"
+prouver "on change son propre rôle" $E \
+  "  if m.utilisateur = socle.moi() then perform socle.refus('personne ne change son propre rôle'); end if;" "" \
+  "D6 : personne ne se donne un droit"
+prouver "l'administrateur change le rôle du propriétaire" $E \
+  "  if 'proprietaire' = any(m.roles) then perform socle.refus('le rôle du propriétaire ne se change pas : il se transfère'); end if;" "" \
+  "D6 : personne ne se donne un droit"
+prouver "on retire le propriétaire" $E \
+  "  if 'proprietaire' = any(m.roles) then
+    perform socle.refus('on ne retire pas le propriétaire" "  if false then
+    perform socle.refus('on ne retire pas le propriétaire" \
+  "D6 : personne ne se donne un droit"
+prouver "on s'invite soi-même" $E \
+  "    perform socle.refus('personne ne s''invite soi-même');" "    null;" \
+  "D6 : personne ne se donne un droit"
+prouver "un transfert accepté par un autre que le destinataire" $E \
+  "if not found or t.vers <> socle.moi() or" "if not found or" \
+  "D4 : le transfert de propriété"
+prouver "un transfert vers un ancien membre" $E \
+  "  if not exists (select 1 from socle.membre where entreprise = t.entreprise and utilisateur = t.vers and actif)
+     or not exists" "  if false and not exists" \
+  "un transfert vers quelqu'un qui a quitté l'équipe"
+prouver "un membre retiré qui garde l'accès" $E \
+  "  update socle.membre set actif = false where id = p_membre;" "  update socle.membre set actif = actif where id = p_membre;" \
+  "retirer un membre : son accès tombe aussitôt"
+
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

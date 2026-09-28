@@ -14,7 +14,8 @@
 - **Où on en est** : étape 1, le socle (mois 1 à 4). Fait le 28/09/2026 : le dépôt, ses
   vérifications automatiques, la migration `0001_socle` (organisations, entreprises,
   établissements, personnes, membres, mandats, appareils, sécurité par ligne) et ses tests ; la
-  connexion (`0002`, `serveur/connexion.ts`).
+  connexion (`0002`, `serveur/connexion.ts`) ; l'équipe, la porte des droits et la trace (`0003`,
+  `serveur/porte/`, `serveur/app.ts`, `serveur/routes/socle.ts`).
 
 ## Les règles de ce dépôt
 
@@ -30,6 +31,13 @@
   refuse). Deux temps pour retirer quelque chose (ajouter, puis retirer plus tard).
 - L'argent en **entiers** (`bigint`, millimes ou centimes), les taux et prix unitaires en entiers à
   six décimales (01 R3). Une date de pièce est un `date`, un geste est un `timestamptz` (01 R5).
+
+**Le serveur**
+- **Chaque route déclare son geste** (`serveur/porte/gestes.ts`, recopié du tableau 03 § 2.1) ;
+  sinon le serveur ne démarre pas. Un geste d'entreprise porte `:entreprise` dans son chemin.
+- Une écriture sensible (rôles, équipe, propriété) passe par une **fonction de la base** qui applique
+  la règle et **trace** ; le serveur n'a pas le droit d'écrire ces tables en direct.
+- Toute liste se **pagine** (curseur `instant|id` pour la trace, jamais une date seule).
 
 **Les tests**
 - Contre un **vrai PostgreSQL** (`PG_ADMIN`), jamais contre une imitation.

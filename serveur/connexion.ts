@@ -54,7 +54,7 @@ export async function inscrire(ctx: Contexte, email: string, nom: string, motDeP
 }
 
 export async function connecter(ctx: Contexte, demande: {
-  email: string; motDePasse: string; appareil: Appareil; posteDUnAutre?: boolean; ip?: string;
+  email: string; motDePasse: string; appareil: Appareil; posteDUnAutre?: boolean | undefined; ip?: string | undefined;
 }): Promise<ResultatConnexion> {
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
   const posteDUnAutre = demande.posteDUnAutre ?? false;
@@ -106,7 +106,7 @@ export async function connecter(ctx: Contexte, demande: {
 }
 
 export async function validerCode(ctx: Contexte, demande: {
-  defi: string; code: string; posteDUnAutre?: boolean; ip?: string;
+  defi: string; code: string; posteDUnAutre?: boolean | undefined; ip?: string | undefined;
 }): Promise<ResultatConnexion> {
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
   // Un code refusé compte, même si la suite échoue : on l'écrit dans sa propre transaction.
