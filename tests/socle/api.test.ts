@@ -317,3 +317,59 @@ describe('la trace (01 R10, 03 § 7)', () => {
     await expect(enTantQue(pool, bob.id, (tx) => tx.query(`select * from socle.audit_2026_10`))).rejects.toMatchObject({ code: '42501' });
   });
 });
+
+describe('les règles et les séries par l\'API', () => {
+  it('le propriétaire crée une série, annonce où elle en était, et lit le prochain numéro sans le prendre', async () => {
+    const alice = await personne('alice');
+    const ent = await entrepriseDe(alice);
+    const s = await appeler('POST', `/entreprises/${ent}/series`, alice.jeton, { type: 'facture', prefixe: 'FAC', legale: true });
+    expect(s.statut).toBe(201);
+    const serie = String(s.corps.id);
+    const prochain = async () => (await appeler('GET', `/entreprises/${ent}/series/${serie}/prochain?date=2026-10-01`, alice.jeton)).corps;
+    expect(await prochain()).toEqual({ numero: 1, texte: 'FAC-2026-001' });
+    expect((await appeler('POST', `/entreprises/${ent}/series/${serie}/reprise`, alice.jeton, { periode: 2026, dernier: 41 })).statut).toBe(200);
+    expect(await prochain()).toEqual({ numero: 42, texte: 'FAC-2026-042' });
+    expect(await prochain()).toEqual({ numero: 42, texte: 'FAC-2026-042' });
+    expect((await appeler('GET', `/entreprises/${ent}/series/${serie}/prochain`, alice.jeton)).statut).toBe(400);
+  });
+
+  it('une série se touche depuis son entreprise, jamais par le chemin d\'une autre', async () => {
+    const alice = await personne('alice');
+    const ent = await entrepriseDe(alice);
+    const serie = String((await appeler('POST', `/entreprises/${ent}/series`, alice.jeton, { type: 'facture', prefixe: 'FAC', legale: true })).corps.id);
+    const bob = await personne('bob');
+    const autre = await entrepriseDe(bob);
+    await appeler('POST', '/invitations/accepter', alice.jeton, { jeton: await inviter(autre, bob.jeton, alice.email, ['lecture']) });
+    expect((await appeler('GET', `/entreprises/${autre}/series/${serie}/prochain?date=2026-10-01`, alice.jeton)).statut).toBe(404);
+  });
+
+  it('un commercial ne crée pas de série et ne pose pas de règle (la porte le dit)', async () => {
+    const alice = await personne('alice');
+    const ent = await entrepriseDe(alice);
+    const bob = await personne('bob');
+    await appeler('POST', '/invitations/accepter', bob.jeton, { jeton: await inviter(ent, alice.jeton, bob.email, ['commercial']) });
+    const serie = await appeler('POST', `/entreprises/${ent}/series`, bob.jeton, { type: 'facture', prefixe: 'FAC', legale: true });
+    expect(serie.statut).toBe(403);
+    expect(serie.corps.motif).toMatch(/modifier le régime fiscal, l'exercice ou les séries/);
+    expect((await appeler('POST', `/entreprises/${ent}/regles`, bob.jeton, { code: 'essai.taux', valeur: 1, debut: '2026-01-01', motif: 'x' })).statut).toBe(403);
+  });
+
+  it('une règle inconnue se dit « non renseignée » ; une règle posée se relit ; une virgule est refusée', async () => {
+    const alice = await personne('alice');
+    const ent = await entrepriseDe(alice);
+    expect((await appeler('GET', `/entreprises/${ent}/regles/essai.absente?date=2026-10-01`, alice.jeton)).corps)
+      .toEqual({ valeur: null, motif: 'Règle non renseignée à cette date.' });
+    const virgule = await appeler('POST', `/entreprises/${ent}/regles`, alice.jeton, { code: 'essai.api', valeur: 0.5, debut: '2026-01-01', motif: 'x' });
+    expect(virgule.statut).toBe(400);
+    expect(virgule.corps.champ).toBe('valeur');
+    expect((await appeler('POST', `/entreprises/${ent}/regles`, alice.jeton, { code: 'essai.api', valeur: { taux: 15000 }, debut: '2026-01-01', motif: 'Attestation d\'essai' })).statut).toBe(201);
+    expect((await appeler('GET', `/entreprises/${ent}/regles/essai.api?date=2026-10-01`, alice.jeton)).corps)
+      .toMatchObject({ valeur: { taux: 15000 }, origine: 'entreprise', source: 'Attestation d\'essai' });
+  });
+
+  it('l\'état des chaînes du journal se lit par le propriétaire', async () => {
+    const alice = await personne('alice');
+    const ent = await entrepriseDe(alice);
+    expect(await appeler('GET', `/entreprises/${ent}/chaines`, alice.jeton)).toEqual({ statut: 200, corps: { chaines: [] } });
+  });
+});

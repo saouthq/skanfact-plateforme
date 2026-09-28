@@ -5,9 +5,16 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import type { Route } from '../app.ts';
+import type { Transaction } from '../base.ts';
 import { connecter, deconnecter, inscrire, mettreEnPlaceCode, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
+import { prochainNumero } from '../numeros.ts';
+import { regle } from '../regles.ts';
 
 const uuid = z.string().uuid();
+const jour = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'un jour du calendrier (AAAA-MM-JJ)');
+const codeRegle = z.string().regex(/^[a-z_]+(\.[a-z0-9_]+)+$/, 'un code de règle (ex. « rs.taux »)');
+// Une valeur de règle : des entiers, des textes, des listes et des objets, jamais un nombre à virgule.
+const valeurRegle: z.ZodType<unknown> = z.lazy(() => z.union([z.number().int(), z.string(), z.boolean(), z.null(), z.array(valeurRegle), z.record(z.string(), valeurRegle)]));
 const sha256 = (t: string) => createHash('sha256').update(t).digest('hex');
 const ROLES = z.array(z.enum(['administrateur', 'commercial', 'caissier', 'serveur', 'magasinier', 'comptabilite_interne', 'paie', 'lecture'])).min(1);
 // Toute liste qu'on nomme se pagine (règle du projet).
@@ -209,6 +216,90 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
         from socle.audit a left join socle.utilisateur u on u.id = a.utilisateur
         where a.entreprise = $1 and (a.instant, a.id) < ($2::timestamptz, $3::uuid) order by a.instant desc, a.id desc limit $4`, [params.entreprise, instant, id, n])).rows;
       return { corps: page(lignes, n) };
+    },
+  });
+
+  // ── Les règles fiscales et les séries (01 § 3, § 6) ─────────────────────────────────────────
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/regles/:code', geste: 'socle.accueil.voir',
+    traiter: async ({ params, query }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const code = codeRegle.safeParse(params.code);
+      const date = jour.safeParse(query.date);
+      if (!code.success || !date.success) return { statut: 400, corps: { motif: 'Il faut un code de règle et une date (AAAA-MM-JJ).', champ: code.success ? 'date' : 'code' } };
+      const r = await regle(tx, params.entreprise ?? '', code.data, date.data);
+      // Une règle inconnue se dit « non renseignée » : jamais un chiffre inventé (01 R12).
+      return { corps: r ?? { valeur: null, motif: 'Règle non renseignée à cette date.' } };
+    },
+  });
+
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/regles', geste: 'socle.reglages_fiscaux.modifier',
+    corps: z.object({ code: codeRegle, valeur: valeurRegle, debut: jour, fin: jour.optional(), motif: z.string().min(1).max(500) }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const id = (await tx.query('select socle.poser_regle_entreprise($1, $2, $3, $4, $5, $6) id',
+        [params.entreprise, corps.code, JSON.stringify(corps.valeur), corps.debut, corps.fin ?? null, corps.motif])).rows[0].id;
+      return { statut: 201, corps: { id } };
+    },
+  });
+
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/series', geste: 'socle.accueil.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const series = (await tx.query(`select id, type, prefixe, remise, format, legale, active from socle.serie
+        where entreprise = $1 order by type, prefixe limit $2`, [params.entreprise, LIMITE_MAX])).rows;
+      return { corps: { series } };
+    },
+  });
+
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/series', geste: 'socle.reglages_fiscaux.modifier',
+    corps: z.object({
+      type: z.string().regex(/^[a-z_]+$/), prefixe: z.string().regex(/^[A-Z0-9]{1,10}$/, '1 à 10 lettres majuscules ou chiffres'),
+      legale: z.boolean(), remise: z.enum(['annuelle', 'jamais']).optional(), format: z.string().max(40).optional(),
+    }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const id = (await tx.query('select socle.creer_serie($1, $2, $3, $4, $5, $6) id',
+        [params.entreprise, corps.type, corps.prefixe, corps.legale, corps.remise ?? null, corps.format ?? null])).rows[0].id;
+      return { statut: 201, corps: { id } };
+    },
+  });
+
+  // Une série se touche depuis SON entreprise : jamais par le chemin d'une autre.
+  const serieDe = async (tx: Transaction, entreprise: string, serie: string | undefined) =>
+    uuid.safeParse(serie).success && (await tx.query('select 1 from socle.serie where id = $1 and entreprise = $2', [serie, entreprise])).rowCount === 1;
+
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/series/:serie/reprise', geste: 'socle.reglages_fiscaux.modifier',
+    corps: z.object({ periode: z.number().int().min(0).max(9999), dernier: z.number().int().min(0) }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !(await serieDe(tx, params.entreprise ?? '', params.serie))) return { statut: 404, corps: { motif: 'Introuvable.' } };
+      await tx.query('select socle.reprendre_serie($1, $2, $3)', [params.serie, corps.periode, corps.dernier]);
+      return { corps: { ok: true } };
+    },
+  });
+
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/series/:serie/prochain', geste: 'socle.accueil.voir',
+    traiter: async ({ params, query }, tx) => {
+      if (!tx || !(await serieDe(tx, params.entreprise ?? '', params.serie))) return { statut: 404, corps: { motif: 'Introuvable.' } };
+      const date = jour.safeParse(query.date);
+      if (!date.success) return { statut: 400, corps: { motif: 'Il faut la date de la pièce (AAAA-MM-JJ).', champ: 'date' } };
+      return { corps: await prochainNumero(tx, params.serie ?? '', date.data) };
+    },
+  });
+
+  // L'état des chaînes du journal inaltérable (le dernier contrôle de chacune).
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/chaines', geste: 'socle.audit.lire',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const chaines = (await tx.query(`select cle, rang, controle_le, controle_ok from socle.chaine where entreprise = $1 order by cle limit $2`,
+        [params.entreprise, LIMITE_MAX])).rows;
+      return { corps: { chaines } };
     },
   });
 

@@ -26,7 +26,21 @@ for f, a, b in zip(fichiers, avants, apres):
     assert s.count(a) == 1, f"motif introuvable ou multiple dans {p} : {a!r}"
     open(p, 'w', encoding='utf-8').write(s.replace(a, b))
 EOF
-  (cd "$copie" && npx vitest run --reporter=json --outputFile=resultat.json >/dev/null 2>&1)
+  # Seul le fichier qui contient le test visé est rejoué (ses apostrophes y sont échappées) ;
+  # s'il n'est pas trouvé, toute la suite.
+  local cible; cible="$(python3 - "$copie/tests" "$attendu" <<'EOF'
+import sys, pathlib
+racine, titre = sys.argv[1], sys.argv[2]
+for f in sorted(pathlib.Path(racine).rglob('*.test.ts')):
+    texte = f.read_text(encoding='utf-8')
+    if titre in texte or titre.replace("'", "\\'") in texte:
+        print(f.relative_to(pathlib.Path(racine).parent)); break
+EOF
+)"
+  # Les fichiers de travail de vitest restent dans la copie, effacée ensuite (sinon ils
+  # s'entassent dans /tmp : environ 500 Ko par lancement).
+  mkdir -p "$copie/.tmp"
+  (cd "$copie" && TMPDIR="$copie/.tmp" npx vitest run ${cible:+"$cible"} --reporter=json --outputFile=resultat.json >/dev/null 2>&1)
   if python3 - "$copie/resultat.json" "$attendu" <<'EOF'
 import json, sys
 r = json.load(open(sys.argv[1]))
@@ -242,6 +256,104 @@ prouver "un transfert vers un ancien membre" $E \
 prouver "un membre retiré qui garde l'accès" $E \
   "  update socle.membre set actif = false where id = p_membre;" "  update socle.membre set actif = actif where id = p_membre;" \
   "retirer un membre : son accès tombe aussitôt"
+
+# ── Les règles datées, la numérotation et le journal inaltérable (0004) ─────────────────────────
+Q=base/migrations/0004_regles_numeros_chaine.sql
+J=serveur/journal.ts
+prouver "la règle commune passe avant celle de l'entreprise" $Q \
+  "  ) t order by t.ordre limit 1" "  ) t order by t.ordre desc limit 1" \
+  "la règle de l'entreprise passe avant la commune"
+prouver "une règle lue hors de ses dates" $Q \
+  "     where r.code = p_code and p_date >= r.debut and (r.fin is null or p_date <= r.fin)" "     where r.code = p_code" \
+  "une règle inconnue vaut « non renseigné »"
+prouver "deux règles qui se chevauchent" $Q \
+  ",
+  constraint regle_fiscale_sans_chevauchement exclude using gist (code with =, daterange(debut, fin, '[]') with &&)" "" \
+  "deux règles d'un même code ne se chevauchent jamais"
+prouver "une règle qu'on réécrit" $Q \
+  "create trigger regle_fiscale_intouchable before update or delete on socle.regle_fiscale
+  for each row execute function socle.regle_intouchable();" "" \
+  "une règle ne se réécrit pas"
+prouver "un nombre à virgule dans une règle" $Q \
+  "  select not jsonb_path_exists(v, 'lax \$.** ? (@.type() == \"number\" && @.floor() != @)')" "  select true" \
+  "un nombre à virgule n'entre pas dans une règle"
+prouver "la règle précédente jamais fermée" $Q \
+  "    update socle.regle_entreprise set fin = p_debut - 1 where id = ouverte.id;" "    null;" \
+  "une nouvelle règle de l'entreprise ferme la précédente la veille"
+prouver "une règle qui réécrit le passé" $Q \
+  "    if ouverte.debut >= p_debut then" "    if false then" \
+  "une nouvelle règle de l'entreprise ferme la précédente la veille"
+prouver "une caissière pose une règle" $Q \
+  "    perform socle.refus('ton rôle ne permet pas de modifier les réglages fiscaux');" "    null;" \
+  "seuls le propriétaire et l'administrateur posent une règle"
+prouver "lpad qui coupe le millième numéro" $Q \
+  "  if length(chiffres) < largeur then chiffres := lpad(chiffres, largeur, '0'); end if;" "  chiffres := lpad(chiffres, largeur, '0');" \
+  "le millième numéro garde tous ses chiffres"
+prouver "le numéro ne repart pas à 1 en janvier" $Q \
+  "select case p_remise when 'annuelle' then extract(year from p_date)::int else 0 end" "select 0" \
+  "repartent à 1 chaque année"
+prouver "une reprise après des numéros donnés" $Q \
+  "  if existait and c.dernier <> coalesce(c.repris, 0) then" "  if false then" \
+  "une série commencée ailleurs continue"
+prouver "le numéro d'une série d'une autre entreprise" $Q \
+  "  if not found or s.entreprise not in (select socle.mes_entreprises()) then perform socle.refus('série introuvable'); end if;
+  if not s.active" "  if not found then perform socle.refus('série introuvable'); end if;
+  if not s.active" \
+  "la série d'une autre entreprise est introuvable"
+prouver "une caissière crée une série" $Q \
+  "    perform socle.refus('ton rôle ne permet pas de créer une série de numéros');" "    null;" \
+  "seuls le propriétaire et l'administrateur créent une série"
+prouver "le compteur modifiable par le serveur" $Q \
+  "grant select on socle.compteur to skanfact_app;" "grant select, update on socle.compteur to skanfact_app;" \
+  "seuls le propriétaire et l'administrateur créent une série"
+prouver "une série prise par le chemin d'une autre entreprise" $R \
+  "uuid.safeParse(serie).success && (await tx.query('select 1 from socle.serie where id = \$1 and entreprise = \$2', [serie, entreprise])).rowCount === 1;" "uuid.safeParse(serie).success;" \
+  "une série se touche depuis son entreprise"
+prouver "une virgule acceptée par l'API" $R \
+  "z.union([z.number().int(), z.string()" "z.union([z.number(), z.string()" \
+  "une règle inconnue se dit « non renseignée »"
+prouver "la forme canonique sans tri" $J \
+  "Object.keys(o).sort().map(" "Object.keys(o).map(" \
+  "la forme canonique : clés triées"
+prouver "un nombre à virgule dans une pièce scellée" $J \
+  "if (!Number.isSafeInteger(v)) throw" "if (!Number.isFinite(v)) throw" \
+  "la forme canonique : clés triées"
+prouver "la base et le serveur ne chaînent pas pareil" $Q \
+  "encode(sha256(convert_to(p_precedente || p_contenu, 'UTF8')), 'hex')" "encode(sha256(convert_to(p_contenu || p_precedente, 'UTF8')), 'hex')" \
+  "la base et le serveur calculent la même chaîne"
+prouver "le contrôle ne relit pas les pièces" $J \
+  "if (empreinteContenu(piece) !== m.contenu) return" "if (piece === 'jamais') return" \
+  "une pièce modifiée après son scellé se voit"
+prouver "le contrôle ne refait pas les empreintes" $Q \
+  "    if m.empreinte <> socle.empreinte_maillon(m.precedente, m.contenu) then casse := m.rang; pourquoi := 'empreinte fausse'; exit; end if;" "" \
+  "un maillon réécrit en base se voit"
+prouver "le contrôle ne voit pas un trou" $Q \
+  "    if m.rang <> attendu_rang then casse := attendu_rang; pourquoi := 'maillon manquant'; exit; end if;" "" \
+  "un maillon retiré au milieu, ou à la fin, se voit"
+prouver "le contrôle ne voit pas la fin retirée" $Q \
+  "  if casse is null and (coalesce(c.rang, 0) <> attendu_rang or coalesce(c.derniere, repeat('0', 64)) <> attendue) then" "  if false then" \
+  "un maillon retiré au milieu, ou à la fin, se voit"
+prouver "le journal qu'on modifie" $Q \
+  "create trigger maillon_intouchable before update or delete on socle.maillon
+  for each row execute function socle.journal_intouchable();" "" \
+  "le journal ne se modifie pas et ne s'efface pas"
+prouver "une pièce scellée deux fois" $Q \
+  ",
+  -- Une pièce ne se scelle qu'une fois.
+  unique (objet_type, objet_id)" "" \
+  "une pièce ne se scelle qu'une fois"
+prouver "sceller chez une autre entreprise" $Q \
+  "  if p_entreprise not in (select socle.mes_entreprises()) then perform socle.refus('entreprise introuvable'); end if;
+  insert into socle.chaine" "  insert into socle.chaine" \
+  "une pièce ne se scelle qu'une fois, et jamais chez une autre entreprise"
+prouver "une porte dérobée ouverte au public" $E \
+  "revoke execute on function socle.code_manquant() from public;" "" \
+  "chaque porte dérobée (security definer) fixe son chemin"
+prouver "une porte dérobée sans chemin fixé" $E \
+  "language sql stable security definer set search_path = pg_catalog, socle as \$\$
+  select coalesce((select u.code_methode" "language sql stable security definer as \$\$
+  select coalesce((select u.code_methode" \
+  "chaque porte dérobée (security definer) fixe son chemin"
 
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

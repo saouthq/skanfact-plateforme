@@ -15,7 +15,9 @@
   vérifications automatiques, la migration `0001_socle` (organisations, entreprises,
   établissements, personnes, membres, mandats, appareils, sécurité par ligne) et ses tests ; la
   connexion (`0002`, `serveur/connexion.ts`) ; l'équipe, la porte des droits et la trace (`0003`,
-  `serveur/porte/`, `serveur/app.ts`, `serveur/routes/socle.ts`).
+  `serveur/porte/`, `serveur/app.ts`, `serveur/routes/socle.ts`) ; les règles fiscales datées,
+  la numérotation et le journal inaltérable (`0004`, `serveur/regles.ts`, `numeros.ts`,
+  `journal.ts`).
 
 ## Les règles de ce dépôt
 
@@ -27,6 +29,11 @@
   serveur.
 - Une fonction `security definer` est une porte dérobée : elle ne rend que ce qui concerne
   `socle.moi()`, fixe son `search_path`, et son droit d'exécution est retiré à `public`.
+- Les fonctions `security definer` appartiennent au rôle qui applique les migrations : il doit
+  passer au-dessus de la sécurité par ligne (super-utilisateur ou `bypassrls`), sinon elles ne voient
+  rien. Un test le vérifie, avec le chemin fixé et le droit retiré au public.
+- **Aucun taux dans le code ni dans les migrations** : les règles communes se chargent avec leur
+  source (texte de loi), jamais inventées ; les tests utilisent des codes `essai.*`.
 - **Une migration appliquée ne se modifie jamais** : on en écrit une nouvelle (`base/migrer.ts` le
   refuse). Deux temps pour retirer quelque chose (ajouter, puis retirer plus tard).
 - L'argent en **entiers** (`bigint`, millimes ou centimes), les taux et prix unitaires en entiers à
@@ -37,6 +44,9 @@
   sinon le serveur ne démarre pas. Un geste d'entreprise porte `:entreprise` dans son chemin.
 - Une écriture sensible (rôles, équipe, propriété) passe par une **fonction de la base** qui applique
   la règle et **trace** ; le serveur n'a pas le droit d'écrire ces tables en direct.
+- Une pièce légale : les contrôles, PUIS `prendreNumero` et `sceller` dans **la même transaction**
+  que l'émission. Le contenu scellé passe par `canonique()` (clés triées, entiers seulement) ;
+  `empreinte = sha256(précédente || contenu)`, la première précédente valant 64 « 0 ».
 - Toute liste se **pagine** (curseur `instant|id` pour la trace, jamais une date seule).
 
 **Les tests**
