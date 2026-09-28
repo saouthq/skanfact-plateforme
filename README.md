@@ -17,10 +17,10 @@ feuille de route…). Ce dépôt applique ce cadrage ; il ne le réécrit pas.
 | `base/migrations/` | Les migrations de la base, numérotées. `0001_socle.sql` : organisations, entreprises, établissements, personnes, membres et leurs rôles, mandats des cabinets, appareils, et la **sécurité par ligne** |
 | `base/migrer.ts` | Applique les migrations dans l'ordre ; refuse une migration déjà appliquée puis modifiée |
 | `serveur/base.ts` | Le seul accès du serveur à la base : `enTantQue(personne, travail)` |
+| `base/migrations/0002_connexion.sql`, `serveur/connexion.ts` | Se connecter : mot de passe (Argon2id, liste de mots de passe volés gardée chez nous), attente qui s'allonge après 5 erreurs, code sur le téléphone (SMS ou application), 10 codes de secours, appareils reconnus 30 jours, sessions (12 h d'inaction, 30 min sur le poste d'un autre), révocation |
 | `tests/` | Les tests, contre un vrai PostgreSQL, et `preuves.sh` qui remet chaque défaut pour vérifier que son test tombe |
 
-À venir dans l'étape 1 (`docs/cadrage/09-feuille-de-route.md` dans le dépôt de l'application) : la
-connexion et les appareils, la porte des droits et la piste d'audit, le moteur de calcul porté avec
+À venir dans l'étape 1 (`docs/cadrage/09-feuille-de-route.md` dans le dépôt de l'application) : la porte des droits et la piste d'audit, le moteur de calcul porté avec
 ses tests et le banc qui le compare à la v10 au millime, les règles fiscales datées, la
 numérotation, la file d'opérations, l'export et la restauration d'une entreprise.
 

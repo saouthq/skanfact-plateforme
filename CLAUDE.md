@@ -13,7 +13,8 @@
   **là-bas**, avec sa date. Ce qui est incertain (fiscal, légal) s'écrit « À VÉRIFIER ».
 - **Où on en est** : étape 1, le socle (mois 1 à 4). Fait le 28/09/2026 : le dépôt, ses
   vérifications automatiques, la migration `0001_socle` (organisations, entreprises,
-  établissements, personnes, membres, mandats, appareils, sécurité par ligne) et ses tests.
+  établissements, personnes, membres, mandats, appareils, sécurité par ligne) et ses tests ; la
+  connexion (`0002`, `serveur/connexion.ts`).
 
 ## Les règles de ce dépôt
 
