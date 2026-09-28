@@ -871,5 +871,101 @@ prouver "un achat en retard le jour même de l'échéance" $MA \
   "  if (echeance && echeance < aujourdhui) return 'en_retard';" "  if (echeance && echeance <= aujourdhui) return 'en_retard';" \
   "le reste d'un achat et son statut"
 
+# ── Le bulletin de paie (moteur/paie.ts) ────────────────────────────────────────────────────────
+MP=moteur/paie.ts
+prouver "l'IRPP d'une tranche entière quand le revenu s'arrête au milieu" $MP \
+  "    if (haut > depuis) impot += (haut - depuis) * t.taux;" "    if (haut > depuis) impot += ((t.jusqua ?? haut) - depuis) * t.taux;" \
+  "ne taxe chaque tranche que sur la part"
+prouver "les primes non imposables dans l'assiette de la CNSS" $MP \
+  "  const assietteCnss = brutDeBase - retenueAbsence + primesImposables;" "  const assietteCnss = brutDeBase - retenueAbsence + primesImposables + primesNonImposables;" \
+  "un bulletin complet, ligne par ligne"
+prouver "les frais professionnels sans plafond" $MP \
+  "  const fraisPro = pro < bareme.plafondFraisPro ? pro : bareme.plafondFraisPro;" "  const fraisPro = pro;" \
+  "20 000 bulletins tirés au hasard"
+prouver "les enfants au-delà du plafond comptés" $MP \
+  "  const enfants = Math.min(salarie.enfants ?? 0, bareme.enfantsMax);" "  const enfants = salarie.enfants ?? 0;" \
+  "les enfants au-delà du plafond ne comptent pas"
+prouver "un régime sans IRPP qui en retient" $MP \
+  "  const irppAn = bareme.sansIrpp ? 0n : irppAnnuel(imposableAnnuel, bareme.tranches);" "  const irppAn = irppAnnuel(imposableAnnuel, bareme.tranches);" \
+  "un régime sans IRPP n'en retient pas"
+prouver "l'IRPP du mois tronqué au lieu d'arrondi" $MP \
+  "  const irpp = diviserArrondi(irppAn, 12n);" "  const irpp = irppAn / 12n;" \
+  "un bulletin complet, ligne par ligne"
+prouver "la solidarité calculée avant les déductions" $MP \
+  "  const css = diviserArrondi(imposableAnnuel * bareme.solidarite, 12n * MILLION);" "  const css = diviserArrondi(annuel * bareme.solidarite, 12n * MILLION);" \
+  "un bulletin complet, ligne par ligne"
+prouver "l'absence comptée sur trente jours au lieu des jours ouvrables" $MP \
+  "diviserArrondi(brutDeBase * absence, saisie.joursOuvrables)" "diviserArrondi(brutDeBase * absence, 30_000n)" \
+  "20 000 bulletins tirés au hasard"
+prouver "une base imposable négative gardée" $MP \
+  "  const imposableAnnuel = reste > 0n ? reste : 0n;" "  const imposableAnnuel = reste;" \
+  "20 000 bulletins tirés au hasard"
+
+prouver "les retenues diverses oubliées dans ce qui est dû au salarié" $MP \
+  "  poser(comptes.personnel, b.net + b.autresRetenues, 'credit');" "  poser(comptes.personnel, b.net, 'credit');" \
+  "l'écriture du bulletin"
+prouver "l'accident du travail oublié dans la dette CNSS" $MP \
+  "  poser(comptes.cnss, b.cnssSalarie + b.cnssEmployeur + b.accidentTravail, 'credit');" "  poser(comptes.cnss, b.cnssSalarie + b.cnssEmployeur, 'credit');" \
+  "l'écriture du bulletin"
+prouver "un bulletin au net négatif écrit" $MP \
+  "  if (b.brut <= 0n || b.net < 0n) throw" "  if (b.brut <= 0n) throw" \
+  "l'écriture du bulletin"
+prouver "la contribution de solidarité oubliée au crédit de l'État" $MP \
+  "  poser(comptes.irpp, b.irpp + b.css, 'credit');" "  poser(comptes.irpp, b.irpp, 'credit');" \
+  "chaque bulletin, et chaque salaire versé, s'écrit au même millime"
+# ── Les déclarations lues dans les écritures (moteur/declarations.ts) ───────────────────────────
+MD=moteur/declarations.ts
+prouver "le dernier jour du mois oublié" $MD \
+  "    if (e.date < du || e.date > au) continue;" "    if (e.date < du || e.date >= au) continue;" \
+  "bornes comprises"
+prouver "le crédit de TVA qui ne se reporte pas" $MD \
+  "    report = d.creditReporte;" "    report = 0n;" \
+  "un crédit de TVA se reporte sur le mois suivant"
+prouver "le crédit de TVA qui ne se reporte pas (vu par la v10)" $MD \
+  "    report = d.creditReporte;" "    report = 0n;" \
+  "chaque mois des cinq ans de l'exemple : même TVA"
+prouver "la TVA déductible ajoutée au lieu d'être retranchée" $MD \
+  "  const solde = collectee - deductible - reportRecu;" "  const solde = collectee + deductible - reportRecu;" \
+  "chaque mois des cinq ans de l'exemple : même TVA"
+prouver "les retenues subies lues dans le mauvais sens" $MD \
+  "    retenuesSubies: mouvement(ecritures, comptes.retenueSubie, du, au)," "    retenuesSubies: -mouvement(ecritures, comptes.retenueSubie, du, au)," \
+  "chaque mois des cinq ans de l'exemple : même TVA"
+prouver "un report négatif reçu" $MD \
+  "  const reportRecu = report > 0n ? report : 0n;" "  const reportRecu = report;" \
+  "un report négatif ne se reçoit pas"
+
+prouver "l'imputation d'un acompte qui garde sa TVA déductible (vu par la déclaration)" $MA \
+  "  poser(comptes.avancesFournisseurs, 'avance', ta.base.totalTTC - ta.base.tvaDeductible, 'credit');|||  poser(comptes.tvaDeductible, 'tva', ta.base.tvaDeductible, 'credit');" "  poser(comptes.avancesFournisseurs, 'avance', ta.base.totalTTC, 'credit');|||" \
+  "chaque mois des cinq ans de l'exemple : même TVA"
+prouver "le trimestre décalé d'un mois" $MP \
+  "  const premier = (trimestre - 1) * 3 + 1;" "  const premier = (trimestre - 1) * 3 + 2;" \
+  "même déclaration CNSS"
+prouver "l'accident du travail oublié dans le total CNSS" $MP \
+  "    l.total = l.partSalarie + l.partEmployeur + l.accident;" "    l.total = l.partSalarie + l.partEmployeur;" \
+  "même déclaration CNSS"
+prouver "les jours d'absence comptés comme travaillés" $MP \
+  "    const jours = b.joursOuvrables - (b.joursAbsence ?? 0n);" "    const jours = b.joursOuvrables;" \
+  "même déclaration CNSS"
+prouver "les bulletins d'une autre année dans le trimestre" $MP \
+  "  const dans = bulletins.filter((b) => b.annee === annee && b.mois" "  const dans = bulletins.filter((b) => b.mois" \
+  "même déclaration CNSS"
+# ── Les limites d'appels par clé (serveur/limites.ts, serveur/app.ts) ───────────────────────────
+ML=serveur/limites.ts
+prouver "un seau qui se remplit au-delà de sa capacité" $ML \
+  "    s.jetons = Math.min(this.capacite, s.jetons + (Math.max(0, t - s.vu) / 1000) * this.parSeconde);" "    s.jetons = s.jetons + (Math.max(0, t - s.vu) / 1000) * this.parSeconde;" \
+  "un seau ne se remplit jamais au-delà de sa capacité"
+prouver "une horloge qui recule vide le seau" $ML \
+  "s.jetons + (Math.max(0, t - s.vu) / 1000)" "s.jetons + ((t - s.vu) / 1000)" \
+  "un seau ne se remplit jamais au-delà de sa capacité"
+prouver "un seul seau pour toutes les clés" $ML \
+  "    const s = this.seaux.get(qui) ??|||    this.seaux.set(qui, s);" "    const s = this.seaux.get('toutes') ??|||    this.seaux.set('toutes', s);" \
+  "au-delà de sa rafale, une clé reçoit 429"
+prouver "les limites d'appels qui ne s'appliquent pas" serveur/app.ts \
+  "        if (cle) {" "        if (cle && false) {" \
+  "au-delà de sa rafale, une clé reçoit 429"
+prouver "un refus sans l'attente à respecter" serveur/app.ts \
+  "            reponse.header('retry-after', String(v.attendreSecondes));" "" \
+  "au-delà de sa rafale, une clé reçoit 429"
+
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

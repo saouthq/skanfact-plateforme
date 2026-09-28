@@ -30,9 +30,11 @@
   (`moteur/ecritures.ts`) ; ses règlements : la retenue née à chaque encaissement, le reste à payer,
   le statut, l'écriture de l'encaissement (`moteur/reglements.ts`) ; l'écriture d'un avoir (même
   fichier que la facture) ; les achats : calcul, écriture, imputation d'un acompte, règlements, reste et statut
-  (`moteur/achats.ts`).
-- **Ouvert** (API, 14 § 2.5) : les limites d'appels par clé, les avis d'événement signés,
-  l'entreprise d'essai des développeurs.
+  (`moteur/achats.ts`) ; la paie : le bulletin, ses écritures et la CNSS du trimestre
+  (`moteur/paie.ts`) ; la TVA du mois lue dans les écritures (`moteur/declarations.ts`), égale à celle de la v10 sur cinq ans (deux chemins, un chiffre).
+- Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,
+  un seau par clé dans la mémoire du programme (à partager le jour où il y aura plusieurs programmes).
+- **Ouvert** (API, 14 § 2.5) : les avis d'événement signés, l'entreprise d'essai des développeurs.
 - **Ouvert** : les gestes « À reprendre » encore ouverts sont comptés dans l'export mais pas
   restaurés (à revoir avec la file, étape 2) ; la remise en place d'une entreprise **par-dessus**
   son état abîmé (06 § 4.4) n'existe pas encore : on ne restaure que là où elle n'est pas.
@@ -135,7 +137,7 @@
   le 28/09/2026, au plus un centime par règlement, vérifié par le banc des règlements).
 - Le **banc** (`tests/moteur/banc-v10.test.ts`, `ecritures-v10.test.ts`, `reglements-v10.test.ts`,
   `avoirs-v10.test.ts`, `achats-v10.test.ts`, `achats-ecritures-v10.test.ts`,
-  `reglements-achats-v10.test.ts` ;
+  `reglements-achats-v10.test.ts`, `paie-v10.test.ts` ;
   outils communs dans
   `tests/moteur/v10.ts`) compare chaque fonction portée à la v10 figée dans
   `banc/v10/` (jamais modifiée ; remplacée quand la v10 reçoit une correction de calcul) : l'exemple

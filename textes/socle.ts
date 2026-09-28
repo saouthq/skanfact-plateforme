@@ -49,6 +49,8 @@ declarerTextes({
   'porte.aucun_role': 'aucun rôle ici',
   'porte.cle_refuse': 'cette clé de l\'API ne permet pas {de:geste}',
   'porte.cle_personnelle': 'une clé de l\'API n\'agit pas pour une personne : ce geste lui est fermé',
+  'api.trop_d_appels': 'trop d\'appels avec cette clé : réessaie dans {secondes} secondes',
+  'api.trop_d_appels_une': 'trop d\'appels avec cette clé : réessaie dans une seconde',
 
   // ── La documentation de l'API ───────────────────────────────────────────────────────────────
   'doc.public': 'sans connexion',

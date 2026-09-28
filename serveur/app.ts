@@ -11,6 +11,7 @@ import { langueDe, motif, rendre, rendreTout, t, type Langue } from '../textes/i
 import { enTantQue, type Transaction } from './base.ts';
 import { texteDuRefus } from './erreurs.ts';
 import { cleValable } from './cles.ts';
+import { Limiteur } from './limites.ts';
 import { quiEst, type Contexte, type Qui } from './connexion.ts';
 import { GESTES, GESTES_PERSONNELS } from './porte/gestes.ts';
 import { peut } from './porte/porte.ts';
@@ -86,11 +87,12 @@ export function documentation(routes: Route<never>[]) {
   };
 }
 
-export function creerApp(ctx: Contexte, routes: Route<never>[]): FastifyInstance {
+export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limiteur?: Limiteur } = {}): FastifyInstance {
   // Le démarrage échoue AVANT d'écouter si une seule route est mal déclarée.
   for (const r of routes) verifierDeclaration(r);
 
   const app = Fastify({ logger: false });
+  const limiteur = options.limiteur ?? new Limiteur();
   // Un entier de 64 bits (un rang, un compteur) sort en texte : un nombre JSON au-delà de 2^53
   // perdrait ses derniers chiffres chez celui qui le lit. L'argent, lui, sort toujours en texte
   // décimal (versTexte), jamais en unités brutes.
@@ -130,6 +132,15 @@ export function creerApp(ctx: Contexte, routes: Route<never>[]): FastifyInstance
         // Toutes les autres routes demandent une session, ou une clé de l'API (03 § 8).
         const jeton = /^Bearer (.+)$/.exec(requete.headers.authorization ?? '')?.[1];
         const cle = jeton ? await cleValable(ctx, jeton) : null;
+        // Les limites d'appels d'une clé (14 § 2.5), avant tout travail : un appel refusé ne coûte rien.
+        if (cle) {
+          const v = limiteur.appel(cle.id);
+          reponse.header('ratelimit-limit', String(limiteur.limite)).header('ratelimit-remaining', String(v.restants));
+          if (!v.permis) {
+            reponse.header('retry-after', String(v.attendreSecondes));
+            return envoyer(429, { motif: v.attendreSecondes === 1 ? motif('api.trop_d_appels_une') : motif('api.trop_d_appels', { secondes: v.attendreSecondes }), attendreSecondes: v.attendreSecondes });
+          }
+        }
         const qui: Qui | null = cle
           ? { utilisateur: cle.creePar, session: '', appareil: null, posteDUnAutre: false, codeAConfigurer: false, cle: { id: cle.id, gestes: cle.gestes } }
           : jeton ? await quiEst(ctx, jeton) : null;
