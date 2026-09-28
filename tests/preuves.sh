@@ -355,5 +355,70 @@ prouver "une porte dérobée sans chemin fixé" $E \
   select coalesce((select u.code_methode" \
   "chaque porte dérobée (security definer) fixe son chemin"
 
+# ── La file d'opérations (0005) ─────────────────────────────────────────────────────────────────
+Q5=base/migrations/0005_file.sql
+F=serveur/file.ts
+RF=serveur/routes/file.ts
+prouver "un geste reçu deux fois, refait" $F \
+  "    if (deja) {" "    if (deja && false) {" \
+  "un geste envoyé deux fois ne compte qu'une fois"
+prouver "un trou dans la file, accepté" $F \
+  "    if (op.ordre > dernier + 1) return" "    if (false) return" \
+  "un trou arrête la file et dit lequel manque"
+prouver "des gestes rejoués dans l'ordre d'arrivée" $F \
+  "[...operations].sort((a, b) => a.ordre - b.ordre)" "[...operations]" \
+  "un trou arrête la file et dit lequel manque"
+prouver "la base accepte n'importe quel numéro d'ordre" $Q5 \
+  "  if p_ordre <> dernier + 1 then perform socle.refus(format('l''opération attendue porte le numéro %s', dernier + 1)); end if;" "" \
+  "la base elle-même refuse un numéro d'ordre qui n'est pas le suivant"
+prouver "la file d'un autre appareil" $Q5 \
+  "where a.id = p_appareil and a.utilisateur = socle.moi() and a.revoque_le is null" "where a.id = p_appareil" \
+  "la base elle-même refuse un numéro d'ordre qui n'est pas le suivant"
+prouver "un geste de la file qui ne passe pas par la porte" $F \
+  "    if (!d.ok) return nonAccepte(" "    if (d.ok === 'jamais') return nonAccepte(" \
+  "un geste refusé par la porte va dans « À reprendre »"
+prouver "un fait refusé" $F \
+  "t?.fait ? 'en_attente_decision' : 'refusee'" "'refusee'" \
+  "un fait n'est jamais refusé"
+prouver "une mise de côté qui laisse son travail" $F \
+  "        await tx.query('rollback to savepoint geste');" "" \
+  "un geste mis de côté ne laisse rien derrière lui"
+prouver "une erreur du serveur qui n'arrête pas la file" $F \
+  "if (r.statut === 'manquante' || r.statut === 'erreur') break;" "if (r.statut === 'manquante') break;" \
+  "une erreur du serveur n'avale pas le geste"
+prouver "un geste illisible traité quand même" $F \
+  "    if (!charge.success) {" "    if (charge.success === 'jamais') {" \
+  "un geste illisible, d'un format inconnu"
+prouver "un format inconnu lu quand même" $F \
+  "    if (!t.formats.includes(op.format)) return" "    if (false) return" \
+  "un geste illisible, d'un format inconnu"
+prouver "l'horloge d'un poste jamais signalée" $Q5 \
+  "  ecart := abs(extract(epoch from (now() - p_instant_poste))) > 300;" "  ecart := false;" \
+  "une horloge de poste qui s'écarte de plus de 5 minutes"
+prouver "l'identifiant d'un autre appareil réutilisé" $F \
+  "      if (deja.appareil !== appareil) return" "      if (false) return" \
+  "l'identifiant d'un geste d'un autre appareil"
+prouver "une ligne reprise deux fois" $Q5 \
+  "  if o.resolue_le is not null then perform socle.refus('cette opération a déjà été reprise'); end if;" "" \
+  "ne se vide que par un geste"
+prouver "un étranger vide « À reprendre »" $Q5 \
+  "  if not found or not (o.utilisateur = socle.moi()" "  if not found or false and not (o.utilisateur = socle.moi()" \
+  "ne se vide que par un geste"
+prouver "« À reprendre » montré à tous les membres" $Q5 \
+  "      and socle.mes_roles(entreprise) && array['proprietaire', 'administrateur']::text[]));
+grant select on socle.operation" "      and true));
+grant select on socle.operation" \
+  "un geste refusé par la porte va dans « À reprendre »"
+prouver "une opération reçue qu'on réécrit" $Q5 \
+  "create trigger operation_intouchable before update or delete on socle.operation
+  for each row execute function socle.operation_intouchable();" "" \
+  "une opération reçue ne se modifie pas"
+prouver "un traitement fantôme au démarrage" $RF \
+  "    if (!GESTES.has(g)) throw" "    if (false) throw" \
+  "le serveur ne démarre pas avec un traitement dont la porte ignore le geste"
+prouver "un geste de module qui en remplace un autre" serveur/porte/gestes.ts \
+  "    if (GESTES.has(g.code)) throw" "    if (false) throw" \
+  "un geste déjà déclaré ne se remplace pas"
+
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

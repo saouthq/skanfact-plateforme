@@ -22,11 +22,11 @@ feuille de route…). Ce dépôt applique ce cadrage ; il ne le réécrit pas.
 | `serveur/porte/` | La **porte des droits** : chaque geste déclaré avec les rôles qui le font (le tableau du cadrage), et `peut()` qui répond toujours ce qui est refusé, pourquoi, et qui peut |
 | `serveur/app.ts`, `serveur/routes/` | Le serveur web : une route qui ne déclare pas son geste empêche le démarrage ; chaque route passe par la porte, travaille au nom de la personne connectée, et rend un refus lisible |
 | `base/migrations/0004_regles_numeros_chaine.sql`, `serveur/regles.ts`, `serveur/numeros.ts`, `serveur/journal.ts` | Les **règles fiscales datées** (une loi de finances ajoute des lignes, une règle inconnue vaut « non renseignée », jamais un chiffre inventé), la **numérotation** (prise dans la transaction qui émet : un refus ne troue jamais la série ; une série commencée ailleurs continue) et le **journal inaltérable** (chaque pièce scellée est un maillon d'une chaîne d'empreintes ; modifier, retirer ou réécrire le passé se voit au contrôle) |
+| `base/migrations/0005_file.sql`, `serveur/file.ts`, `serveur/routes/file.ts` | La **file d'opérations** des postes : un geste envoyé deux fois ne compte qu'une fois, les gestes d'un appareil se rejouent dans l'ordre (un trou arrête la file et dit lequel manque), chacun passe par la porte ; un geste refusé ou mis de côté n'est jamais jeté mais va dans « À reprendre », qui ne se vide que par un geste ; un **fait** (ticket, règlement) n'est jamais refusé, il attend la décision du propriétaire |
 | `tests/` | Les tests, contre un vrai PostgreSQL, et `preuves.sh` qui remet chaque défaut pour vérifier que son test tombe |
 
 À venir dans l'étape 1 (`docs/cadrage/09-feuille-de-route.md` dans le dépôt de l'application) : le moteur de calcul porté avec
-ses tests et le banc qui le compare à la v10 au millime, la file d'opérations, le catalogue de
-textes, les clés de l'API, l'export et la restauration d'une entreprise.
+ses tests et le banc qui le compare à la v10 au millime, le catalogue de textes, les clés de l'API, l'export et la restauration d'une entreprise.
 
 ## Comment la base protège les données
 

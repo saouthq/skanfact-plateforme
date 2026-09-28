@@ -68,7 +68,8 @@ export const GESTES_SOCLE: Geste[] = [
 // Les gestes PERSONNELS : ils ne portent sur aucune entreprise (son compte, ses appareils).
 export const GESTES_PERSONNELS = [
   'compte.voir', 'compte.deconnecter', 'compte.code.configurer', 'compte.appareils.gerer', 'compte.trace.voir',
-  'compte.entreprise.creer', 'compte.invitation.accepter', 'compte.transfert.accepter', 'public',
+  'compte.entreprise.creer', 'compte.invitation.accepter', 'compte.transfert.accepter', 'compte.file.envoyer',
+  'compte.a_reprendre.resoudre', 'public',
 ] as const;
 
 export function registreDesGestes(...listes: Geste[][]): Map<string, Geste> {
@@ -82,3 +83,11 @@ export function registreDesGestes(...listes: Geste[][]): Map<string, Geste> {
 }
 
 export const GESTES = registreDesGestes(GESTES_SOCLE);
+
+// Un module déclare ses gestes au démarrage (02 M1) ; un geste déjà déclaré ne se remplace pas.
+export function declarerGestes(liste: Geste[]): void {
+  for (const g of registreDesGestes(liste).values()) {
+    if (GESTES.has(g.code)) throw new Error(`le geste ${g.code} est déclaré deux fois`);
+    GESTES.set(g.code, g);
+  }
+}
