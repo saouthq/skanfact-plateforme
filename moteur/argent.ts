@@ -34,6 +34,15 @@ export function depuisTexte(texte: string, decimales: number): bigint {
   if (!m) throw new Error(`nombre illisible : « ${texte} »`);
   const [, signe, entiers = '0', fraction = ''] = m;
   if (fraction.replace(/0+$/, '').length > decimales) throw new Error(`« ${texte} » a plus de ${decimales} décimales`);
-  const v = BigInt(entiers + fraction.padEnd(decimales, '0'));
+  // Les zéros en trop au-delà des décimales permises ne comptent pas (« 2,5000000 » vaut 2,5).
+  const v = BigInt(entiers + fraction.slice(0, decimales).padEnd(decimales, '0'));
   return signe ? -v : v;
+}
+
+// Un entier à `decimales` décimales, écrit en texte exact (« 1191.000 », « -0.5 ») : c'est ainsi que
+// l'argent sort de l'API, jamais en nombre à virgule.
+export function versTexte(v: bigint, decimales: number): string {
+  const signe = v < 0n ? '-' : '';
+  const a = (v < 0n ? -v : v).toString().padStart(decimales + 1, '0');
+  return decimales === 0 ? signe + a : `${signe}${a.slice(0, -decimales)}.${a.slice(-decimales)}`;
 }

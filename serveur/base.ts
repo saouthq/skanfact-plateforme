@@ -6,6 +6,11 @@ import pg from 'pg';
 
 export type Transaction = pg.PoolClient;
 
+// Une date de pièce est un JOUR du calendrier (01 R5) : le pilote la rendrait par défaut comme un
+// instant à minuit, heure du serveur — le défaut de la 5.2.3 (une échéance un jour trop tôt). On la
+// garde telle qu'elle est écrite : « 2026-10-01 ».
+pg.types.setTypeParser(pg.types.builtins.DATE, (v: string) => v);
+
 export function creerPool(adresse: string): pg.Pool {
   return new pg.Pool({ connectionString: adresse, max: 10 });
 }

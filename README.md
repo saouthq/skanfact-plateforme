@@ -25,10 +25,14 @@ feuille de route…). Ce dépôt applique ce cadrage ; il ne le réécrit pas.
 | `base/migrations/0005_file.sql`, `serveur/file.ts`, `serveur/routes/file.ts` | La **file d'opérations** des postes : un geste envoyé deux fois ne compte qu'une fois, les gestes d'un appareil se rejouent dans l'ordre (un trou arrête la file et dit lequel manque), chacun passe par la porte ; un geste refusé ou mis de côté n'est jamais jeté mais va dans « À reprendre », qui ne se vide que par un geste ; un **fait** (ticket, règlement) n'est jamais refusé, il attend la décision du propriétaire |
 | `moteur/` | **Le moteur de calcul**, porté de la v10 en TypeScript, **en entiers** (`bigint`) : `argent.ts` (l'arrondi, les nombres écrits) et `piece.ts` (le calcul d'une pièce : lignes, remise, TVA par taux, timbre, retenue, net à payer). Pur : il ne lit ni la base ni les règles |
 | `banc/v10/` | Une copie figée du moteur de la v10 et de son exemple de cinq ans : le **banc** (`tests/moteur/banc-v10.test.ts`) fait calculer les mêmes pièces aux deux moteurs et exige le même millime ; un écart se tranche et s'écrit |
+| `base/migrations/0006_tiers_et_ventes.sql`, `serveur/ventes/` | Les **tiers** (clients) et la **facture de vente**, du brouillon à l'émission : le brouillon se calcule à chaque lecture ; l'émission contrôle tout **avant** de prendre le numéro, garde une **copie** de ce qui a servi (société, client, timbre), fige les montants et scelle la facture dans la chaîne de sa série. Une facture émise ne se modifie ni ne s'efface plus (la base le refuse) ; un brouillon modifié par quelqu'un d'autre entre-temps n'est jamais écrasé |
+| `tests/ventes/j1-exemple.test.ts` | **Le jalon J1** : les 273 factures de l'exemple de cinq ans de la v10, saisies en brouillon et émises par le serveur, portent au millime les montants de la v10 ; leurs numéros se suivent sans trou chaque année et leur chaîne se contrôle en relisant chaque facture |
 | `tests/` | Les tests, contre un vrai PostgreSQL, et `preuves.sh` qui remet chaque défaut pour vérifier que son test tombe |
 
-À venir dans l'étape 1 (`docs/cadrage/09-feuille-de-route.md` dans le dépôt de l'application) : la suite du moteur
-porté (statut d'une facture, avoirs et règlements, écritures comptables, paie), le catalogue de textes, les clés de l'API, l'export et la restauration d'une entreprise.
+À venir dans l'étape 1 (`docs/cadrage/09-feuille-de-route.md` dans le dépôt de l'application) : les
+requêtes écrites avec Kysely (`12` § 3), la suite du moteur porté (avoirs, règlements et statut d'une
+facture, écritures comptables, paie), le catalogue de textes, les clés de l'API, l'export et la
+restauration d'une entreprise (l'autre moitié de J1).
 
 ## Comment la base protège les données
 

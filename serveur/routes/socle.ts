@@ -259,7 +259,8 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
     corps: z.object({
       type: z.string().regex(/^[a-z_]+$/), prefixe: z.string().regex(/^[A-Z0-9]{1,10}$/, '1 à 10 lettres majuscules ou chiffres'),
       legale: z.boolean(), remise: z.enum(['annuelle', 'jamais']).optional(), format: z.string().max(40).optional(),
-    }),
+    }).refine((c) => (c.remise ?? 'annuelle') !== 'annuelle' || (c.format ?? '{AAAA}').includes('{AAAA}'),
+      { message: 'une série qui repart à 1 chaque année écrit l\'année dans son numéro ({AAAA})', path: ['format'] }),
     traiter: async ({ params, corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const id = (await tx.query('select socle.creer_serie($1, $2, $3, $4, $5, $6) id',

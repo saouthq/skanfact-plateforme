@@ -4,7 +4,7 @@
 // centimes) : 1 191 DT s'écrit 1_191_000n.
 
 import { describe, expect, it } from 'vitest';
-import { depuisTexte, diviserArrondi, TND, type Devise } from '../../moteur/argent.ts';
+import { depuisTexte, diviserArrondi, TND, versTexte, type Devise } from '../../moteur/argent.ts';
 import { calculerPiece, type LignePiece, type Piece } from '../../moteur/piece.ts';
 
 const EUR: Devise = { code: 'EUR', decimales: 2 };
@@ -23,6 +23,10 @@ describe('l\'arrondi et les nombres', () => {
   it('un nombre écrit se lit exactement, et n\'est jamais tronqué en silence', () => {
     expect(depuisTexte('2,525', 6)).toBe(2_525_000n);
     expect(depuisTexte('-0.5', 3)).toBe(-500n);
+    expect(depuisTexte('2.5000000', 6)).toBe(2_500_000n);
+    expect(versTexte(1_191_000n, 3)).toBe('1191.000');
+    expect(versTexte(-5n, 3)).toBe('-0.005');
+    expect(versTexte(29n, 2)).toBe('0.29');
     expect(depuisTexte('19', 4)).toBe(190_000n);
     expect(() => depuisTexte('0,0000001', 6)).toThrow(/plus de 6 décimales/);
     expect(() => depuisTexte('1 000', 3)).toThrow(/illisible/);

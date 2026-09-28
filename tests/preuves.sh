@@ -429,6 +429,9 @@ prouver "une moitié arrondie vers le bas" $MA \
 prouver "une moitié négative arrondie vers le haut" $MA \
   "return n < 0n ? q - 1n : q + 1n;" "return q + 1n;" \
   "au plus proche, la moitié s'éloigne de zéro"
+prouver "des zéros en trop qui multiplient le nombre" $MA \
+  "BigInt(entiers + fraction.slice(0, decimales).padEnd(decimales, '0'))" "BigInt(entiers + fraction.padEnd(decimales, '0'))" \
+  "un nombre écrit se lit exactement"
 prouver "un nombre tronqué en silence" $MA \
   "  if (fraction.replace(/0+\$/, '').length > decimales) throw" "  if (false) throw" \
   "un nombre écrit se lit exactement"
@@ -470,6 +473,63 @@ prouver "le timbre d'office sur un avoir (vu par l'exemple de cinq ans)" $MP \
 prouver "un écart tranché qui a disparu reste dans la liste" tests/moteur/banc-v10.test.ts \
   "  [9418, " "  [9419, " \
   "20 000 pièces tirées au hasard"
+
+# ── Les tiers et la facture de vente, jusqu'à l'émission (0006, serveur/ventes) ─────────────────
+Q6=base/migrations/0006_tiers_et_ventes.sql
+VP=serveur/ventes/pieces.ts
+VR=serveur/ventes/routes.ts
+prouver "une facture émise qu'on modifie" $Q6 \
+  "create trigger piece_scellee before update or delete on ventes.piece
+  for each row execute function ventes.piece_scellee();" "" \
+  "une facture émise ne se modifie plus et ne s'efface jamais"
+prouver "les lignes d'une facture émise qu'on modifie" $Q6 \
+  "  if exists (select 1 from ventes.piece x where x.id = p and x.statut <> 'brouillon') then" "  if false then" \
+  "une facture émise ne se modifie plus et ne s'efface jamais"
+prouver "le client d'une autre entreprise sur une pièce" $Q6 \
+  "create trigger tiers_de_l_entreprise before insert or update on ventes.piece
+  for each row execute function ventes.tiers_de_l_entreprise();" "" \
+  "le client d'une autre entreprise ne sert pas"
+prouver "une série annuelle sans l'année, acceptée par la base" $Q6 \
+  "alter table socle.serie add constraint serie_annuelle_ecrit_l_annee check (remise <> 'annuelle' or format like '%{AAAA}%');" "" \
+  "une série qui repart à 1 chaque année écrit l'année"
+prouver "une série annuelle sans l'année, acceptée par l'API" serveur/routes/socle.ts \
+  "(c.format ?? '{AAAA}').includes('{AAAA}')" "true" \
+  "une série qui repart à 1 chaque année écrit l'année"
+prouver "une facture émise sans timbre renseigné" $VP \
+  "  if (calcul.timbreManquant) {" "  if (calcul.timbreManquant === 'jamais') {" \
+  "le contrôle passe avant le numéro"
+prouver "une facture émise deux fois" $VP \
+  "  if (p.statut !== 'brouillon') throw new Refus('cette facture est déjà émise');" "" \
+  "une facture déjà émise ne s'émet pas une seconde fois"
+prouver "un refus sans le bouton qui débloque" $VP \
+  "'aucune série de factures n\\'existe encore : crée-la dans les réglages', 'socle.reglages_fiscaux.modifier')" "'aucune série de factures n\\'existe encore : crée-la dans les réglages')" \
+  "sans série de factures, l'émission est refusée et le refus dit où la créer"
+prouver "une facture émise recalculée à la lecture" $VP \
+  "  if (p.totaux && p.tva_par_taux) {" "  if (p.totaux === 'jamais' && p.tva_par_taux) {" \
+  "une facture émise garde son timbre et sa copie"
+prouver "le scellé qui ne couvre pas les montants des lignes" $VP \
+  "contenuScelle(emise, lignesEmises)" "contenuScelle(emise, lignes)" \
+  "la chaîne des factures se contrôle en relisant les pièces"
+prouver "la retenue perdue en chemin (vue par J1)" $VP \
+  "    tauxRetenue: b.tauxRetenue === undefined ? 0n : depuisTexte(b.tauxRetenue, DECIMALES.taux)," "    tauxRetenue: 0n," \
+  "chaque facture émise porte, au millime, les montants de la v10"
+prouver "un brouillon écrasé malgré sa révision" $VP \
+  "  if (p.revision !== revisionVue) throw new Perimee();" "" \
+  "un brouillon modifié entre-temps n'est pas écrasé"
+prouver "un brouillon supprimé sans trace" $VP \
+  "  await tx.query(\`select socle.tracer(\$1, 'ventes.brouillon.supprimer'" "  if (id === 'jamais') await tx.query(\`select socle.tracer(\$1, 'ventes.brouillon.supprimer'" \
+  "supprimer un brouillon laisse sa trace"
+prouver "un caissier qui crée des brouillons de vente" serveur/ventes/gestes.ts \
+  "    roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui' } },
+  { code: 'ventes.facture.emettre'" "    roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', caissier: 'oui' } },
+  { code: 'ventes.facture.emettre'" \
+  "les rôles : un caissier ne crée pas de brouillon de vente"
+prouver "une pièce en devise sans cours" $VR \
+  "}).refine((b) => b.devise === undefined || b.devise === 'TND' || b.cours !== undefined," "}).refine(() => true," \
+  "une pièce en devise porte son cours"
+prouver "une date de pièce lue comme un instant" serveur/base.ts \
+  "pg.types.setTypeParser(pg.types.builtins.DATE, (v: string) => v);" "" \
+  "J1 en petit"
 
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

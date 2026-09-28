@@ -19,7 +19,12 @@
   la numérotation et le journal inaltérable (`0004`, `serveur/regles.ts`, `numeros.ts`,
   `journal.ts`) ; la file d'opérations des postes (`0005`, `serveur/file.ts`) ; le moteur commence :
   le calcul d'une pièce en entiers (`moteur/`) et le banc qui le compare à la v10 au millime
-  (`banc/v10/`).
+  (`banc/v10/`) ; les tiers et la facture de vente du brouillon à l'émission (`0006`,
+  `serveur/ventes/`), avec **la première moitié du jalon J1** : les 273 factures de l'exemple de
+  cinq ans émises par le serveur au millime de la v10 (`tests/ventes/j1-exemple.test.ts`).
+- **Ouvert** : les requêtes sont encore écrites en SQL avec `pg` ; Kysely (choisi en `12` § 3) est
+  la brique suivante, avant que le code grandisse. L'autre moitié de J1 (export et restauration
+  d'une entreprise) reste à faire.
 
 ## Les règles de ce dépôt
 
@@ -53,6 +58,13 @@
   `fait` si l'argent a bougé) ; le geste doit exister dans la porte, sinon le serveur ne démarre
   pas. Un objet changé depuis la lecture du poste : `throw new MiseDeCote(...)`, jamais écraser.
 - Toute liste se **pagine** (curseur `instant|id` pour la trace, jamais une date seule).
+- Un refus du métier se lève avec `serveur/erreurs.ts` : `Refus(message, bouton)` (ce qui est
+  refusé, pourquoi, le geste qui débloque), `Introuvable` (404, sans dire si l'objet existe
+  ailleurs), `Perimee` (409 : l'objet a changé depuis sa lecture, on ne l'écrase pas).
+- L'argent entre et sort de l'API **en texte décimal** (« 1250.500 »), jamais en nombre à virgule ;
+  un nombre saisi avec plus de décimales que sa précision est refusé, pas arrondi en silence.
+- Une pièce émise se **relit** telle qu'elle a été émise (montants et copie stockés), jamais
+  recalculée ; seul un brouillon se calcule à la lecture.
 
 **Le moteur (`moteur/`)**
 - Porté de `core.js` / `compta.js` fonction par fonction, **tests d'abord** ; chaque test garde la

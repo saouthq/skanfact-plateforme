@@ -40,10 +40,13 @@ function verifierDeclaration(r: Route<never>) {
   }
 }
 
-// Les refus de la base (socle.refus) arrivent avec le code 42501 : on les rend tels quels.
+// Les refus de la base (socle.refus) et du serveur (serveur/erreurs.ts) arrivent avec le code 42501 :
+// on les rend tels quels, avec le bouton qui débloque s'il y en a un.
 function erreurVersReponse(e: unknown, reponse: FastifyReply) {
-  const err = e as { code?: string; message?: string };
-  if (err.code === '42501') return reponse.code(403).send({ motif: capitaliser(err.message ?? 'Refusé.'), qui: [], bouton: null });
+  const err = e as { code?: string; message?: string; bouton?: string | null };
+  if (err.code === '42501') return reponse.code(403).send({ motif: capitaliser(err.message ?? 'Refusé.'), qui: [], bouton: err.bouton ?? null });
+  if (err.code === 'introuvable') return reponse.code(404).send({ motif: 'Introuvable.' });
+  if (err.code === 'perimee') return reponse.code(409).send({ motif: capitaliser(err.message ?? 'Périmé.'), bouton: 'recharger' });
   reponse.request.log.error(e);
   return reponse.code(500).send({ motif: 'Une erreur est survenue de notre côté. Elle est notée ; réessaie dans un instant.' });
 }
