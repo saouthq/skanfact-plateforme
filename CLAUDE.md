@@ -25,7 +25,10 @@
   Kysely est branché (`requetes(tx)`, `base/types.ts` écrit par `base/generer-types.ts`) ;
   l'export et la restauration d'une entreprise (`base/entreprise.ts`). **Le jalon J1 est atteint.**
   Le catalogue des textes et la langue factice (`textes/`). Les clés de l'API, les adresses `/v1`
-  et la documentation générée (`0007`, `serveur/cles.ts`, `GET /v1/documentation`).
+  et la documentation générée (`0007`, `serveur/cles.ts`, `GET /v1/documentation`). Le moteur
+  d'écritures commence : l'écriture d'une facture de vente, au millime de la v10
+  (`moteur/ecritures.ts`) ; ses règlements : la retenue née à chaque encaissement, le reste à payer,
+  le statut, l'écriture de l'encaissement (`moteur/reglements.ts`).
 - **Ouvert** (API, 14 § 2.5) : les limites d'appels par clé, les avis d'événement signés,
   l'entreprise d'essai des développeurs.
 - **Ouvert** : les gestes « À reprendre » encore ouverts sont comptés dans l'export mais pas
@@ -115,7 +118,16 @@
   version de la v10 où sa règle est née (« 10.14.1 : … »).
 - Tout en `bigint` : montants dans la plus petite unité de la devise, prix unitaires, taux et cours à
   six décimales, quantités en millièmes. L'ordre des arrondis est celui de la v10.
-- Le **banc** (`tests/moteur/banc-v10.test.ts`) compare chaque fonction portée à la v10 figée dans
+- Une écriture s'équilibre **exactement** : elle n'avale jamais un écart (un déséquilibre est un
+  défaut, et il s'arrête). Les comptes lui sont donnés (le plan de l'entreprise) ; ses lignes disent
+  leur nature (client, ventes, TVA, timbre, change, trésorerie, retenue), les libellés viendront du
+  catalogue.
+- Un montant **en devise** s'arrondit à l'unité de sa devise (le centime), jamais au millième :
+  la v10 tient encore la part de retenue d'un règlement en euros au millième d'euro (écart tranché
+  le 28/09/2026, au plus un centime par règlement, vérifié par le banc des règlements).
+- Le **banc** (`tests/moteur/banc-v10.test.ts`, `ecritures-v10.test.ts`, `reglements-v10.test.ts` ;
+  outils communs dans
+  `tests/moteur/v10.ts`) compare chaque fonction portée à la v10 figée dans
   `banc/v10/` (jamais modifiée ; remplacée quand la v10 reçoit une correction de calcul) : l'exemple
   de cinq ans et 20 000 pièces tirées au hasard. Un écart ne se tolère pas : il se **tranche** (en
   fractions exactes), s'écrit dans la liste du banc avec sa raison, et sa situation devient un test.

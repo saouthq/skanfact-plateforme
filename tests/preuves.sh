@@ -667,5 +667,89 @@ prouver "« de » jamais élidé" textes/textes.ts \
   "    return de ? (ELISION.test(valeur) ? \`d'\${valeur}\` : \`de \${valeur}\`) : valeur;" "    return de ? \`de \${valeur}\` : valeur;" \
   "s'élide devant une voyelle"
 
+# ── Le moteur d'écritures : l'écriture d'une facture de vente (moteur/ecritures.ts) ─────────────
+ME=moteur/ecritures.ts
+prouver "l'écart d'une remise répartie mis au change au lieu de la plus grosse base" $ME \
+  "    if (piece.devise.code === base.code) {" "    if (piece.devise.code === 'jamais') {" \
+  "le chiffre d'affaires est le net HT"
+prouver "l'écart de conversion versé dans le chiffre d'affaires" $ME \
+  "    } else ecartConversion = ecart;" "    } else bases.set(taux[0] ?? 0n, (bases.get(taux[0] ?? 0n) ?? 0n) + ecart);" \
+  "10 000 factures tirées au hasard"
+prouver "un gain de change écrit en perte" $ME \
+  "  if (ecartConversion > 0n) poser(comptes.gainsChange, 'change', ecartConversion, 'credit');" "  if (ecartConversion > 0n) poser(comptes.pertesChange, 'change', ecartConversion, 'credit');" \
+  "l'écart de conversion va au change"
+prouver "une conversion tronquée au lieu d'arrondie" $ME \
+  "diviserArrondi(montant * cours, 10n ** BigInt(exposant))" "(montant * cours) / 10n ** BigInt(exposant)" \
+  "la conversion d'un montant en devise arrondit au millime le plus proche"
+prouver "un montant négatif gardé dans sa colonne" $ME \
+  "    const auDebit = (sens === 'debit') === (montant > 0n);" "    const auDebit = sens === 'debit';" \
+  "10 000 factures tirées au hasard"
+prouver "le timbre reconverti depuis la devise (1,002 DT)" $ME \
+  "  const timbre = t.timbreBase;" "  const timbre = conv(t.timbre);" \
+  "10 000 factures tirées au hasard"
+prouver "le client débité du net après retenue au lieu du brut" $ME \
+  "  const ttc = conv(t.totalTTC);" "  const ttc = conv(t.netAPayer);" \
+  "chaque facture de l'exemple de cinq ans s'écrit au même millime"
+prouver "une ligne à zéro écrite" $ME \
+  "    if (montant === 0n) return;" "" \
+  "jamais une ligne à zéro"
+prouver "un écart tranché des écritures qui a disparu reste dans la liste" tests/moteur/ecritures-v10.test.ts \
+  "  [2811, 'suite de" "  [2812, 'suite de" \
+  "10 000 factures tirées au hasard"
+
+# ── Les règlements d'une facture de vente (moteur/reglements.ts) ────────────────────────────────
+MR=moteur/reglements.ts
+prouver "les règlements pris dans l'ordre de saisie, pas des dates" $MR \
+  "  evenements.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) || " "  evenements.sort((a, b) => " \
+  "chaque règlement opère sa part au prorata"
+prouver "les règlements pris dans l'ordre de saisie (vu par le banc)" $MR \
+  "  evenements.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) || " "  evenements.sort((a, b) => " \
+  "5 000 factures tirées au hasard"
+prouver "le même jour, le règlement passe avant l'avoir" $MR \
+  "(a.lie === b.lie ? a.i - b.i : a.lie ? -1 : 1)" "(a.lie === b.lie ? a.i - b.i : a.lie ? 1 : -1)" \
+  "un avoir posé après un règlement régularise à SA date"
+prouver "celui qui solde ne prend pas le reste (prorata au-delà du dû)" $MR \
+  "    return cumul >= netDu ? due : diviserArrondi(due * cumul, netDu);" "    return netDu === 0n ? due : diviserArrondi(due * cumul, netDu);" \
+  "parts et régularisations font la retenue née"
+prouver "une retenue née sans rien de versé" $MR \
+  "    if (due === 0n || cumul <= 0n) return 0n;" "    if (due === 0n) return 0n;" \
+  "parts et régularisations font la retenue née"
+prouver "la part d'un règlement tronquée au lieu d'arrondie" $MR \
+  "diviserArrondi(due * cumul, netDu);" "(due * cumul) / netDu;" \
+  "chaque règlement opère sa part au prorata"
+prouver "un avoir après un règlement ne régularise rien" $MR \
+  "    else if (d !== 0n) ajustements.set(" "    else if (d !== 0n && x.date === '') ajustements.set(" \
+  "un avoir posé après un règlement régularise à SA date"
+prouver "une même devise convertie par le dinar" $MR \
+  "  if (source.devise.code === cible.devise.code) return montant;" "" \
+  "passe par le dinar et s'arrondit"
+prouver "une facture annulée doit encore quelque chose" $MR \
+  "reste: annulee ? 0n : netAPayer - credite - paye" "reste: netAPayer - credite - paye" \
+  "le statut s'en déduit"
+prouver "des avoirs qui couvrent la facture la disent payée" $MR \
+  "netAPayer > 0n && solde.credite >= netAPayer ? 'annulee' : 'payee'" "false ? 'annulee' : 'payee'" \
+  "le statut s'en déduit"
+prouver "en retard le jour même de l'échéance" $MR \
+  "  if (echeance && echeance < aujourdhui) return 'en_retard';" "  if (echeance && echeance <= aujourdhui) return 'en_retard';" \
+  "le statut s'en déduit"
+prouver "le client soldé au cours du jour (le change disparaît)" $MR \
+  "  const solde = versLaBase(reglement.montant, piece.devise, piece.cours, base);" "  const solde = versLaBase(reglement.montant, piece.devise, coursDuJour, base);" \
+  "l'écart est du change"
+prouver "le client soldé au cours du jour (vu par le banc)" $MR \
+  "  const solde = versLaBase(reglement.montant, piece.devise, piece.cours, base);" "  const solde = versLaBase(reglement.montant, piece.devise, coursDuJour, base);" \
+  "5 000 factures tirées au hasard"
+prouver "un gain de change écrit en perte, à l'encaissement" $MR \
+  "  if (ecart > 0n) poser(comptes.gainsChange, 'change', ecart, 'credit');" "  if (ecart > 0n) poser(comptes.pertesChange, 'change', ecart, 'credit');" \
+  "l'écart est du change"
+prouver "un remboursement gardé dans la colonne d'un encaissement" $MR \
+  "    const auDebit = (sens === 'debit') === (montant > 0n);" "    const auDebit = sens === 'debit';" \
+  "un remboursement change chaque ligne de colonne"
+prouver "la retenue rendue au client au lieu de naître à l'encaissement" $MR \
+  "  poser(comptes.retenueSubie, 'retenue', retenue, 'debit');" "  poser(comptes.retenueSubie, 'retenue', retenue, 'credit');" \
+  "la retenue naît ici"
+prouver "le banc qui relit 7 700,677 € comme 7 700,68 €" tests/moteur/v10.ts \
+  "  if (m) return (m[1]?.length ?? 0) > dec ? null : BigInt(Math.round(v * 10 ** dec));|||  return Math.abs(e - r) > 1e-9 ? null : BigInt(r);" "|||  return Math.abs(e - r) > 1e-6 * Math.max(1, Math.abs(e)) ? null : BigInt(r);" \
+  "5 000 factures tirées au hasard"
+
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]
