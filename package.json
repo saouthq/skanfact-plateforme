@@ -1,0 +1,30 @@
+{
+  "name": "skanfact-plateforme",
+  "private": true,
+  "type": "module",
+  "description": "SkanFact, la plateforme : gestion commerciale, caisse, paie et comptabilité pour les entreprises tunisiennes et leur cabinet comptable.",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "migrer": "node base/migrer.ts",
+    "test": "vitest run",
+    "lint": "eslint . --max-warnings 0",
+    "types": "tsc --noEmit",
+    "verifier": "npm run types && npm run lint && npm test",
+    "preuves": "bash tests/preuves.sh"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.0",
+    "@types/pg": "8.23.1",
+    "eslint": "10.11.0",
+    "globals": "17.12.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.1",
+    "vitest": "5.0.2"
+  },
+  "dependencies": {
+    "pg": "8.23.0"
+  }
+}

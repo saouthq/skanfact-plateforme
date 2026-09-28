@@ -1,0 +1,59 @@
+# À chaque envoi : les types, le lint, les tests contre un vrai PostgreSQL, les preuves par
+# réintroduction, et la recherche de secrets. Une construction rouge ne se contourne jamais
+# (12 § 8) : on ne saute pas un test, on ne le met pas de côté.
+name: Vérifier
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    name: Tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Une base jetable, qui n'existe que le temps de la vérification : ce n'est pas un secret.
+      PG_ADMIN: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - name: Types
+        run: npm run types
+      - name: Lint (0 erreur, 0 avertissement)
+        run: npm run lint
+      - name: Tests
+        run: npm test
+      - name: Preuves (chaque test tombe quand on remet son défaut)
+        if: matrix.node == 24
+        run: npm run preuves
+
+  secrets:
+    name: Aucun secret dans le dépôt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
