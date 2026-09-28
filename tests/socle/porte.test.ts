@@ -26,6 +26,7 @@ const MATRICE: Record<string, string[]> = {
   'socle.export_complet':         ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
   'socle.audit.lire':             ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
   'socle.abonnement.resilier':    ['✓', '—', '—', '—', '—', '—', '—', '—', '—'],
+  'socle.cles_api.gerer':         ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
 };
 const ORDRE = ['proprietaire', 'administrateur', 'commercial', 'caissier', 'serveur', 'magasinier', 'comptabilite_interne', 'paie', 'lecture'];
 
@@ -85,7 +86,7 @@ describe('les réponses de la porte', () => {
     expect(d.ok).toBe(false);
     if (d.ok) return;
     expect(d.raison).toBe('role');
-    expect(String(d.motif)).toMatch(/^Ton rôle \(Commercial\) ne permet pas de inviter, retirer un membre ou changer un rôle\. Peuvent le faire : /);
+    expect(String(d.motif)).toMatch(/^Ton rôle \(Commercial\) ne permet pas d'inviter, retirer un membre ou changer un rôle\. Peuvent le faire : /);
     expect(d.qui.map((q) => q.utilisateur).sort()).toEqual([P.proprietaire, P.administrateur].sort());
     expect(d.bouton).toBe('demander');
   });

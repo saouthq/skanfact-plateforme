@@ -30,6 +30,8 @@ export type Geste = {
   prevenirProprietaire?: boolean;
   // Une donnée sensible : même une LECTURE est tracée (D10).
   sensible?: boolean;
+  // Jamais donné à une clé de l'API (03 § 8) : ce qui gouverne l'entreprise reste aux personnes.
+  horsCle?: true;
 };
 
 const P: Acces = 'oui';
@@ -40,27 +42,29 @@ export const GESTES_SOCLE: Geste[] = [
     roles: { proprietaire: P, administrateur: P, commercial: P, caissier: P, serveur: P, magasinier: P, comptabilite_interne: P, paie: P, lecture: P } },
   { code: 'socle.fiche_societe.modifier', module: 'socle', ecrit: true,
     roles: { proprietaire: P, administrateur: P, comptabilite_interne: V, lecture: V } },
-  { code: 'socle.rib_societe.modifier', module: 'socle', ecrit: true, prevenirProprietaire: true, sensible: true,
+  { code: 'socle.rib_societe.modifier', module: 'socle', horsCle: true, ecrit: true, prevenirProprietaire: true, sensible: true,
     roles: { proprietaire: P, administrateur: P } },
   { code: 'socle.reglages_fiscaux.modifier', module: 'socle', ecrit: true,
     roles: { proprietaire: P, administrateur: P, comptabilite_interne: V, lecture: V } },
-  { code: 'socle.equipe.gerer', module: 'socle', ecrit: true,
+  { code: 'socle.equipe.gerer', module: 'socle', horsCle: true, ecrit: true,
     roles: { proprietaire: P, administrateur: P } },
-  { code: 'socle.propriete.transferer', module: 'socle', ecrit: true,
+  { code: 'socle.propriete.transferer', module: 'socle', horsCle: true, ecrit: true,
     roles: { proprietaire: P } },
-  { code: 'socle.offre.changer', module: 'socle', ecrit: true,
+  { code: 'socle.offre.changer', module: 'socle', horsCle: true, ecrit: true,
     roles: { proprietaire: P, administrateur: V } },
-  { code: 'socle.abonnement.payer', module: 'socle', ecrit: true,
+  { code: 'socle.abonnement.payer', module: 'socle', horsCle: true, ecrit: true,
     roles: { proprietaire: P, administrateur: P } },
-  { code: 'socle.cabinet.choisir', module: 'socle', ecrit: true,
+  { code: 'socle.cabinet.choisir', module: 'socle', horsCle: true, ecrit: true,
     roles: { proprietaire: P } },
-  { code: 'socle.support.autoriser', module: 'socle', ecrit: true, prevenirProprietaire: true,
+  { code: 'socle.support.autoriser', module: 'socle', horsCle: true, ecrit: true, prevenirProprietaire: true,
     roles: { proprietaire: P, administrateur: P } },
-  { code: 'socle.export_complet', module: 'socle', ecrit: false, prevenirProprietaire: true, sensible: true,
+  { code: 'socle.export_complet', module: 'socle', horsCle: true, ecrit: false, prevenirProprietaire: true, sensible: true,
     roles: { proprietaire: P, administrateur: P } },
   { code: 'socle.audit.lire', module: 'socle', ecrit: false,
     roles: { proprietaire: P, administrateur: P } },
-  { code: 'socle.abonnement.resilier', module: 'socle', ecrit: true,
+  { code: 'socle.cles_api.gerer', module: 'socle', horsCle: true, ecrit: true, prevenirProprietaire: true,
+    roles: { proprietaire: P, administrateur: P } },
+  { code: 'socle.abonnement.resilier', module: 'socle', horsCle: true, ecrit: true,
     roles: { proprietaire: P } },
 ];
 

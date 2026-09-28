@@ -9,6 +9,8 @@ import type { Transaction } from '../base.ts';
 import { connecter, deconnecter, inscrire, mettreEnPlaceCode, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
 import { prochainNumero } from '../numeros.ts';
 import { regle } from '../regles.ts';
+import { requetes } from '../base.ts';
+import { creerCle } from '../cles.ts';
 import { motif } from '../../textes/index.ts';
 
 const uuid = z.string().uuid();
@@ -302,6 +304,40 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       const chaines = (await tx.query(`select cle, rang, controle_le, controle_ok from socle.chaine where entreprise = $1 order by cle limit $2`,
         [params.entreprise, LIMITE_MAX])).rows;
       return { corps: { chaines } };
+    },
+  });
+
+  // ── Les clés de l'API (03 § 8) ──────────────────────────────────────────────────────────────
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/cles-api', geste: 'socle.cles_api.gerer',
+    corps: z.object({ nom: z.string().trim().min(1).max(100), gestes: z.array(z.string().min(3).max(100)).min(1).max(100), expireLe: jour }),
+    traiter: async ({ params, corps, qui }, tx) => {
+      if (!tx || !qui) throw new Error('transaction attendue');
+      // La clé expire à la fin du jour dit (heure de Tunis, UTC+1).
+      const expireLe = new Date(`${corps.expireLe}T23:59:59+01:00`);
+      const cle = await creerCle(tx, qui, params.entreprise ?? '', { nom: corps.nom, gestes: corps.gestes, expireLe }, maintenant());
+      // La clé ne se montre qu'ici, une seule fois.
+      return { statut: 201, corps: cle };
+    },
+  });
+
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/cles-api', geste: 'socle.cles_api.gerer',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const cles = await requetes(tx).selectFrom('socle.cle_api')
+        .select(['id', 'nom', 'prefixe', 'gestes', 'cree_par', 'cree_le', 'expire_le', 'revoquee_le', 'derniere_utilisation'])
+        .where('entreprise', '=', params.entreprise ?? '').orderBy('cree_le', 'desc').orderBy('id').limit(LIMITE_MAX).execute();
+      return { corps: { cles } };
+    },
+  });
+
+  ajouter({
+    methode: 'DELETE', chemin: '/entreprises/:entreprise/cles-api/:cle', geste: 'socle.cles_api.gerer',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cle).success) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
+      await tx.query('select socle.revoquer_cle_api($1)', [params.cle]);
+      return { corps: { ok: true } };
     },
   });
 

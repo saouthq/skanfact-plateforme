@@ -56,6 +56,8 @@ EOF
 }
 
 M=base/migrations/0001_socle.sql
+# socle.mes_entreprises() est redéfinie par 0007 (les clés de l'API) : ses preuves visent la
+# définition EN VIGUEUR. Une preuve qui vise une définition remplacée reste verte (code mort).
 prouver "l'entreprise visible par tous" $M \
   "create policy visible on socle.entreprise
   using (id in (select socle.mes_entreprises()));" "create policy visible on socle.entreprise using (true);" \
@@ -63,17 +65,17 @@ prouver "l'entreprise visible par tous" $M \
 prouver "la sécurité par ligne non forcée sur une table" $M \
   "alter table socle.etablissement force row level security;" "" \
   "chaque table du socle a sa sécurité par ligne, forcée"
-prouver "un mandat seulement proposé qui ouvre l'accès" $M \
+prouver "un mandat seulement proposé qui ouvre l'accès" base/migrations/0007_cles_api.sql \
   "where d.statut = 'actif'
      and d.debut" "where d.debut" \
   "pas celui dont le mandat est seulement proposé"
-prouver "un mandat dont la date est passée qui ouvre encore l'accès" $M \
+prouver "un mandat dont la date est passée qui ouvre encore l'accès" base/migrations/0007_cles_api.sql \
   "and d.debut <= current_date and (d.fin is null or d.fin >= current_date)" "" \
   "un mandat dont la date de fin est passée"
-prouver "tout le cabinet voit tous les dossiers" $M \
+prouver "tout le cabinet voit tous les dossiers" base/migrations/0007_cles_api.sql \
   "and ('supervision' = any(m.roles)" "and (true" \
   "le collaborateur voit le dossier qui lui est confié"
-prouver "le dossier tenu vu par tout le cabinet" $M \
+prouver "le dossier tenu vu par tout le cabinet" base/migrations/0007_cles_api.sql \
   "and exists (select 1 from socle.organisation o where o.id = e.organisation and o.type <> 'cabinet')" "" \
   "un dossier tenu, rangé dans le cabinet"
 prouver "on écrit chez la voisine" $M \
@@ -206,7 +208,7 @@ prouver "une lecture sensible non tracée" $A \
   "if (d.geste.sensible && r.methode === 'GET') {" "if (false) {" \
   "une lecture de donnée sensible est tracée"
 prouver "le code jugé à la connexion seulement" $A \
-  "if (!qui.codeAConfigurer && (await tx.query('select socle.code_manquant() m')).rows[0].m) qui.codeAConfigurer = true;" "" \
+  "if (!qui.cle && !qui.codeAConfigurer && (await tx.query('select socle.code_manquant() m')).rows[0].m) qui.codeAConfigurer = true;" "" \
   "une session ouverte avant de devenir propriétaire"
 prouver "la trace qu'on modifie" $E \
   "create trigger audit_intouchable before update or delete on socle.audit
@@ -621,6 +623,49 @@ prouver "un refus de la base rendu tel quel, sans le catalogue" serveur/erreurs.
 prouver "un champ qui ne va pas, dit en anglais par la bibliothèque" serveur/app.ts \
   "raison: p ? raison(p, requete.body) : motif('champ.valeur')" "raison: p ? p.message : motif('champ.valeur')" \
   "un refus du serveur, un refus de la base et un champ qui ne va pas passent par le catalogue"
+
+# ── Les clés de l'API, /v1 et la documentation (0007, serveur/cles.ts) ─────────────────────────
+Q7=base/migrations/0007_cles_api.sql
+prouver "une clé révoquée ou expirée qui voit encore son entreprise" $Q7 \
+  "   where k.id = socle.ma_cle() and k.revoquee_le is null and k.expire_le > now()" "   where k.id = socle.ma_cle()" \
+  "révoquée ou expirée, une clé ne sert plus à rien"
+prouver "une clé révoquée ou expirée reconnue par le serveur" $Q7 \
+  "   where k.empreinte = p_empreinte and k.revoquee_le is null and k.expire_le > now()" "   where k.empreinte = p_empreinte" \
+  "révoquée ou expirée, une clé ne sert plus à rien"
+prouver "une clé qui fait tous les gestes, pas seulement les siens" serveur/porte/porte.ts \
+  "    if (!geste.horsCle && qui.cle.gestes.includes(geste.code)) return" "    if (!geste.horsCle) return" \
+  "une clé fait ses gestes dans son entreprise"
+prouver "une clé à qui l'on donne ce qui gouverne l'entreprise" serveur/cles.ts \
+  "    if (g.horsCle) throw" "    if (code === 'jamais') throw" \
+  "personne ne donne à une clé un droit qu'il n'a pas"
+prouver "une clé qui reçoit un droit que son créateur n'a pas" serveur/cles.ts \
+  "    if (!d.ok || (g.ecrit && d.lectureSeule)) throw" "    if (code === 'jamais') throw" \
+  "personne ne donne à une clé un droit qu'il n'a pas"
+prouver "une clé qui agit comme une personne (son compte)" serveur/app.ts \
+  "        if (qui.cle && !GESTES.has(r.geste)) return" "        if (qui.cle && r.geste === 'jamais') return" \
+  "une clé fait ses gestes dans son entreprise"
+prouver "une clé qui agit au nom de son créateur (et voit tout ce qu'il voit)" serveur/app.ts \
+  "enTantQue(ctx.pool, qui.cle ? null : qui.utilisateur, async (tx) => {|||          }, qui.cle?.id ?? null);" "enTantQue(ctx.pool, qui.utilisateur, async (tx) => {|||          });" \
+  "une clé fait ses gestes dans son entreprise"
+prouver "la clé gardée par la connexion" serveur/base.ts \
+  "\$2, true)" "\$2, false)" \
+  "une connexion rendue au pool ne garde jamais la clé précédente"
+prouver "une trace qui oublie la clé" $Q7 \
+  "  values (p_entreprise, socle.moi(), socle.ma_cle(), p_geste," "  values (p_entreprise, socle.moi(), null, p_geste," \
+  "une clé fait ses gestes dans son entreprise"
+prouver "l'empreinte des clés lisible par le serveur" $Q7 \
+  "grant select (id, entreprise, nom, prefixe, gestes, cree_par, cree_le, expire_le, revoquee_le, revoquee_par, derniere_utilisation)
+  on socle.cle_api to skanfact_app;" "grant select on socle.cle_api to skanfact_app;" \
+  "une clé ne se montre qu'une fois"
+prouver "les clés visibles par toute l'équipe" $Q7 \
+  "  using (entreprise in (select socle.mes_entreprises()) and socle.mes_roles(entreprise) && array['proprietaire', 'administrateur']);" "  using (entreprise in (select socle.mes_entreprises()));" \
+  "personne ne donne à une clé un droit qu'il n'a pas"
+prouver "une documentation qui oublie le corps attendu" serveur/app.ts \
+  "        ...(r.corps ? { requestBody:" "        ...(r.corps === 'jamais' ? { requestBody:" \
+  "décrit chaque route depuis le code"
+prouver "« de » jamais élidé" textes/textes.ts \
+  "    return de ? (ELISION.test(valeur) ? \`d'\${valeur}\` : \`de \${valeur}\`) : valeur;" "    return de ? \`de \${valeur}\` : valeur;" \
+  "s'élide devant une voyelle"
 
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

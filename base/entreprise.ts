@@ -64,6 +64,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   // Un appareil désigné par la trace, sans sa clé ni sa reconnaissance : recréé, il n'est pas
   // « reconnu » et redemande le code.
   'socle.appareil': { classe: 'reference', colonnes: ['id', 'utilisateur', 'nom', 'type', 'premier_vu', 'revoque_le'] },
+  'socle.cle_api': { classe: 'hors', raison: 'une clé d\'accès ne quitte jamais la plateforme : on en recrée une' },
   'socle.devise': { classe: 'commune' },
   'socle.regle_fiscale': { classe: 'commune' },
   'socle.migration': { classe: 'hors', raison: 'l\'en-tête du fichier porte la liste des migrations' },

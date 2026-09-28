@@ -60,6 +60,9 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'une pièce émise ne s\'efface jamais (01 R6)', cle: 'base.ventes.piece_effacer', fr: 'une pièce émise ne s\'efface jamais : on la corrige par un avoir' },
   { base: 'une pièce émise ne se modifie plus : on la corrige par un avoir (01 R6)', cle: 'base.ventes.piece_modifier', fr: 'une pièce émise ne se modifie plus : on la corrige par un avoir' },
   { base: 'une ligne ne change pas de pièce', cle: 'base.ventes.ligne_piece', fr: 'une ligne ne change pas de pièce' },
+  { base: 'ton rôle ne permet pas de gérer les clés de l\'API', cle: 'base.cles.interdit', fr: 'ton rôle ne permet pas de gérer les clés de l\'API' },
+  { base: 'clé introuvable', cle: 'base.cles.introuvable', fr: 'clé introuvable' },
+  { base: 'cette clé est déjà révoquée', cle: 'base.cles.deja_revoquee', fr: 'cette clé est déjà révoquée' },
   { base: 'les lignes d\'une pièce émise ne se modifient plus (01 R6)', cle: 'base.ventes.lignes_emises', fr: 'les lignes d\'une pièce émise ne se modifient plus' },
 ];
 

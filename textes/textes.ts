@@ -52,12 +52,18 @@ function valeurEnTexte(v: Valeur, langue: Langue): string {
   return String(v);
 }
 
+// « {de:nom} » : « de » devant la valeur, élidé en « d' » devant une voyelle ou un h (« ne permet
+// pas d'émettre une facture », « de poser un réglage »).
+const ELISION = /^[aeiouyhàâäéèêëîïôöùûü]/i;
+
 export function rendre(x: Texte, langue: Langue): string {
   const fr = CATALOGUE.get(x.cle) ?? x.cle;
   const modele = langue === 'factice' ? factice(fr) : fr;
-  const texte = modele.replace(/\{([a-zA-Z_]+)\}/g, (tout, nom: string) => {
+  const texte = modele.replace(/\{(de:)?([a-zA-Z_]+)\}/g, (tout, de: string | undefined, nom: string) => {
     const v = x.valeurs[nom];
-    return v === undefined ? tout : valeurEnTexte(v, langue);
+    if (v === undefined) return tout;
+    const valeur = valeurEnTexte(v, langue);
+    return de ? (ELISION.test(valeur) ? `d'${valeur}` : `de ${valeur}`) : valeur;
   });
   return x.phrase ? enPhrase(texte) : texte;
 }
@@ -76,7 +82,7 @@ const ACCENTS: Record<string, string> = {
   A: 'Á', E: 'É', I: 'Í', O: 'Ó', U: 'Ú', C: 'Ç', N: 'Ñ', S: 'Ś', Z: 'Ź', Y: 'Ý',
 };
 export function factice(fr: string): string {
-  const morceaux = fr.split(/(\{[a-zA-Z_]+\})/);
+  const morceaux = fr.split(/(\{(?:de:)?[a-zA-Z_]+\})/);
   const accentue = morceaux.map((m) => (m.startsWith('{') ? m : [...m].map((c) => ACCENTS[c] ?? c).join(''))).join('');
   const longueur = [...fr].length;
   const manque = Math.ceil(longueur * 0.4) + 2;

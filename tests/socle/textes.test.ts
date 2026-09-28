@@ -7,8 +7,8 @@ import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { clesDuCatalogue, declarerTextes, factice, MESSAGES_DE_LA_BASE, texteConnu, texteFrancais } from '../../textes/index.ts';
-import { creerApp } from '../../serveur/app.ts';
+import { clesDuCatalogue, declarerTextes, factice, MESSAGES_DE_LA_BASE, motif, rendre, t, texteConnu, texteFrancais } from '../../textes/index.ts';
+import { creerApp, VERSION } from '../../serveur/app.ts';
 import { creerPool } from '../../serveur/base.ts';
 import type { Contexte } from '../../serveur/connexion.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
@@ -79,7 +79,7 @@ const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 let app: FastifyInstance;
 async function appeler(methode: 'GET' | 'POST', url: string, options: { jeton?: string; corps?: unknown; factice?: boolean } = {}) {
   const r = await app.inject({
-    method: methode, url,
+    method: methode, url: VERSION + url,
     headers: { ...(options.jeton ? { authorization: `Bearer ${options.jeton}` } : {}), ...(options.factice ? { 'x-langue': 'factice' } : {}) },
     ...(options.corps === undefined ? {} : { payload: options.corps as Record<string, unknown> }),
   });
@@ -121,11 +121,17 @@ describe('le catalogue des textes', () => {
     expect(() => declarerTextes({ 'commun.introuvable': 'autre chose' })).toThrow(/déclaré deux fois/);
   });
 
+  it('« de » s\'élide devant une voyelle : « ne permet pas d\'inviter », « ne permet pas de voir »', () => {
+    const refus = (geste: string) => rendre(motif('porte.role_refuse', { roles: 'Lecture', geste: t(`geste.${geste}`) }), 'fr');
+    expect(refus('socle.equipe.gerer')).toBe('Ton rôle (Lecture) ne permet pas d\'inviter, retirer un membre ou changer un rôle.');
+    expect(refus('socle.accueil.voir')).toBe('Ton rôle (Lecture) ne permet pas de voir l\'accueil.');
+  });
+
   it('la langue factice est 40 % plus longue, change chaque mot, et garde les valeurs', () => {
     for (const cle of clesDuCatalogue()) {
       const fr = texteFrancais(cle) ?? '';
       const f = factice(fr);
-      const valeurs = (s: string) => [...s.matchAll(/\{[a-zA-Z_]+\}/g)].map((m) => m[0]).sort();
+      const valeurs = (s: string) => [...s.matchAll(/\{(?:de:)?[a-zA-Z_]+\}/g)].map((m) => m[0]).sort();
       expect(valeurs(f), cle).toEqual(valeurs(fr));
       expect([...f].length, cle).toBeGreaterThanOrEqual(Math.ceil([...fr].length * 1.4));
       if (/[aeiou]/i.test(fr.replace(/\{[a-zA-Z_]+\}/g, ''))) expect(f, cle).not.toContain(fr);

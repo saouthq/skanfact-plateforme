@@ -24,7 +24,10 @@
   cinq ans émises par le serveur au millime de la v10 (`tests/ventes/j1-exemple.test.ts`).
   Kysely est branché (`requetes(tx)`, `base/types.ts` écrit par `base/generer-types.ts`) ;
   l'export et la restauration d'une entreprise (`base/entreprise.ts`). **Le jalon J1 est atteint.**
-  Le catalogue des textes et la langue factice (`textes/`).
+  Le catalogue des textes et la langue factice (`textes/`). Les clés de l'API, les adresses `/v1`
+  et la documentation générée (`0007`, `serveur/cles.ts`, `GET /v1/documentation`).
+- **Ouvert** (API, 14 § 2.5) : les limites d'appels par clé, les avis d'événement signés,
+  l'entreprise d'essai des développeurs.
 - **Ouvert** : les gestes « À reprendre » encore ouverts sont comptés dans l'export mais pas
   restaurés (à revoir avec la file, étape 2) ; la remise en place d'une entreprise **par-dessus**
   son état abîmé (06 § 4.4) n'existe pas encore : on ne restaure que là où elle n'est pas.
@@ -58,6 +61,9 @@
   source (texte de loi), jamais inventées ; les tests utilisent des codes `essai.*`.
 - **Une migration appliquée ne se modifie jamais** : on en écrit une nouvelle (`base/migrer.ts` le
   refuse). Deux temps pour retirer quelque chose (ajouter, puis retirer plus tard).
+- Une migration qui **redéfinit** une fonction (`create or replace`) rend l'ancienne définition
+  morte : les preuves qui la visaient se réorientent vers la nouvelle (sinon elles restent vertes,
+  et `preuves.sh` les dit « non prouvées », comme le 28/09/2026 avec `mes_entreprises`).
 - L'argent en **entiers** (`bigint`, millimes ou centimes), les taux et prix unitaires en entiers à
   six décimales (01 R3). Une date de pièce est un `date`, un geste est un `timestamptz` (01 R5).
 
@@ -79,6 +85,12 @@
   photographier les écrans (ce qui déborde, ce qui a échappé au catalogue).
 
 **Le serveur**
+- Une **clé de l'API** agit comme une personne : sa transaction est ouverte à SON nom
+  (`enTantQueCle`, `app.cle_api`), jamais à celui de son créateur ; ses pièces portent le nom du
+  créateur, sa trace le nom de la clé. Un geste qui gouverne l'entreprise porte `horsCle: true`
+  (jamais donné à une clé). Toute adresse commence par `VERSION` (`/v1`).
+- Une phrase qui place une valeur après « de » l'écrit `{de:nom}` : le catalogue élide
+  (« d'émettre », « de voir »).
 - **Chaque route déclare son geste** (`serveur/porte/gestes.ts`, recopié du tableau 03 § 2.1) ;
   sinon le serveur ne démarre pas. Un geste d'entreprise porte `:entreprise` dans son chemin.
 - Une écriture sensible (rôles, équipe, propriété) passe par une **fonction de la base** qui applique

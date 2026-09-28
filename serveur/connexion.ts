@@ -146,7 +146,12 @@ export async function validerCode(ctx: Contexte, demande: {
   return { etat: 'connecte', jeton, appareil: lu.appareil, codeAConfigurer: false };
 }
 
-export type Qui = { utilisateur: string; session: string; appareil: string | null; posteDUnAutre: boolean; codeAConfigurer: boolean };
+export type Qui = {
+  utilisateur: string; session: string; appareil: string | null; posteDUnAutre: boolean; codeAConfigurer: boolean;
+  // Une clé de l'API qui agit (03 § 8) : `utilisateur` est alors celui qui l'a créée (les pièces
+  // portent son nom), mais la transaction est ouverte au nom de la CLÉ, jamais au sien.
+  cle?: { id: string; gestes: string[] } | undefined;
+};
 
 // Qui est derrière ce jeton ? `null` si la session est fermée, trop longtemps inactive, ou si son
 // appareil a été révoqué.

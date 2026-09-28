@@ -31,14 +31,16 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const enCours = new WeakMap<Transaction, object>();
 const parTransaction = new WeakMap<object, Requetes>();
 
-export async function enTantQue<T>(pool: pg.Pool, utilisateur: string | null, travail: (tx: Transaction) => Promise<T>): Promise<T> {
+// `cle` : une clé de l'API qui agit (03 § 8), à la place d'une personne (voir enTantQueCle).
+export async function enTantQue<T>(pool: pg.Pool, utilisateur: string | null, travail: (tx: Transaction) => Promise<T>, cle: string | null = null): Promise<T> {
   if (utilisateur !== null && !UUID.test(utilisateur)) throw new Error('identifiant de personne invalide');
+  if (cle !== null && (!UUID.test(cle) || utilisateur !== null)) throw new Error('une clé agit seule, avec un identifiant valide');
   const tx = await pool.connect();
   try {
     await tx.query('begin');
     // `true` : le nom ne vaut que pour cette transaction. Une connexion rendue au pool ne garde
     // jamais le nom de la personne précédente.
-    await tx.query(`select set_config('app.utilisateur', $1, true)`, [utilisateur ?? '']);
+    await tx.query(`select set_config('app.utilisateur', $1, true), set_config('app.cle_api', $2, true)`, [utilisateur ?? '', cle ?? '']);
     enCours.set(tx, {});
     const resultat = await travail(tx);
     await tx.query('commit');
@@ -51,6 +53,10 @@ export async function enTantQue<T>(pool: pg.Pool, utilisateur: string | null, tr
     tx.release();
   }
 }
+
+// Une transaction au nom d'une clé de l'API : la base ne lui montre que son entreprise, tant
+// qu'elle n'est ni révoquée ni expirée (socle.mes_entreprises).
+export const enTantQueCle = <T>(pool: pg.Pool, cle: string, travail: (tx: Transaction) => Promise<T>) => enTantQue(pool, null, travail, cle);
 
 // Les requêtes Kysely de CETTE transaction : même connexion, même personne. Gardées au-delà, elles
 // refusent de servir : la connexion est alors rendue au pool, peut-être déjà au nom d'un autre.

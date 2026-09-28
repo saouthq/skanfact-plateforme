@@ -7,9 +7,10 @@
 
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import { z, type ZodType } from 'zod';
-import { langueDe, motif, rendreTout, type Langue } from '../textes/index.ts';
+import { langueDe, motif, rendre, rendreTout, t, type Langue } from '../textes/index.ts';
 import { enTantQue, type Transaction } from './base.ts';
 import { texteDuRefus } from './erreurs.ts';
+import { cleValable } from './cles.ts';
 import { quiEst, type Contexte, type Qui } from './connexion.ts';
 import { GESTES, GESTES_PERSONNELS } from './porte/gestes.ts';
 import { peut } from './porte/porte.ts';
@@ -30,6 +31,10 @@ export type Route<C = unknown> = {
 };
 
 export class RouteSansGeste extends Error {}
+
+// Les adresses de l'API portent leur version (14 § 2.5) : une intégration écrite pour /v1 ne casse
+// pas le jour où /v2 existe.
+export const VERSION = '/v1';
 
 const PERSONNELS = new Set<string>(GESTES_PERSONNELS);
 
@@ -55,6 +60,32 @@ function erreurVersReponse(e: unknown, reponse: FastifyReply, langue: Langue) {
   return envoyer(500, { motif: motif('commun.erreur_serveur') });
 }
 
+// La description des routes au format OpenAPI (14 § 2.5) : le chemin, le geste et ce qu'il fait
+// (au catalogue), le corps attendu (tiré des mêmes vérifications que celles du serveur).
+export function documentation(routes: Route<never>[]) {
+  const chemins: Record<string, Record<string, unknown>> = {};
+  for (const r of routes) {
+    const chemin = VERSION + r.chemin.replace(/:([a-z_]+)/g, '{$1}');
+    const resume = GESTES.has(r.geste) ? t(`geste.${r.geste}`) : t(r.geste === 'public' ? 'doc.public' : 'doc.personnel');
+    chemins[chemin] = {
+      ...chemins[chemin],
+      [r.methode.toLowerCase()]: {
+        summary: rendre(resume, 'fr'),
+        'x-geste': r.geste,
+        parameters: [...r.chemin.matchAll(/:([a-z_]+)/g)].map((m) => ({ name: m[1], in: 'path', required: true, schema: { type: 'string' } })),
+        ...(r.corps ? { requestBody: { required: true, content: { 'application/json': { schema: z.toJSONSchema(r.corps, { unrepresentable: 'any' }) } } } } : {}),
+        security: r.geste === 'public' ? [] : [{ jeton: [] }],
+      },
+    };
+  }
+  return {
+    openapi: '3.1.0',
+    info: { title: 'SkanFact', version: VERSION.slice(2) },
+    components: { securitySchemes: { jeton: { type: 'http', scheme: 'bearer', description: rendre(t('doc.jeton'), 'fr') } } },
+    paths: chemins,
+  };
+}
+
 export function creerApp(ctx: Contexte, routes: Route<never>[]): FastifyInstance {
   // Le démarrage échoue AVANT d'écouter si une seule route est mal déclarée.
   for (const r of routes) verifierDeclaration(r);
@@ -65,10 +96,14 @@ export function creerApp(ctx: Contexte, routes: Route<never>[]): FastifyInstance
   // décimal (versTexte), jamais en unités brutes.
   app.setReplySerializer((corps) => JSON.stringify(corps, (_cle, v: unknown) => (typeof v === 'bigint' ? v.toString() : v)));
 
+  // La documentation de l'API, écrite depuis les routes elles-mêmes : jamais en retard sur elles.
+  const doc = documentation(routes);
+  app.get(`${VERSION}/documentation`, async () => doc);
+
   for (const r of routes) {
     app.route({
       method: r.methode,
-      url: r.chemin,
+      url: VERSION + r.chemin,
       handler: async (requete, reponse) => {
         const langue = langueDe(requete.headers);
         const envoyer = (statut: number, corps: unknown) => reponse.code(statut).send(rendreTout(corps, langue));
@@ -92,16 +127,23 @@ export function creerApp(ctx: Contexte, routes: Route<never>[]): FastifyInstance
           } catch (e) { return erreurVersReponse(e, reponse, langue); }
         }
 
-        // Toutes les autres routes demandent une session.
+        // Toutes les autres routes demandent une session, ou une clé de l'API (03 § 8).
         const jeton = /^Bearer (.+)$/.exec(requete.headers.authorization ?? '')?.[1];
-        const qui = jeton ? await quiEst(ctx, jeton) : null;
+        const cle = jeton ? await cleValable(ctx, jeton) : null;
+        const qui: Qui | null = cle
+          ? { utilisateur: cle.creePar, session: '', appareil: null, posteDUnAutre: false, codeAConfigurer: false, cle: { id: cle.id, gestes: cle.gestes } }
+          : jeton ? await quiEst(ctx, jeton) : null;
         if (!qui) return envoyer(401, { motif: motif('commun.connexion_requise'), bouton: 'connexion' });
+        // Une clé n'est pas une personne : son compte, ses appareils, ses invitations ne la regardent pas.
+        if (qui.cle && !GESTES.has(r.geste)) return envoyer(403, { motif: motif('porte.cle_personnelle'), qui: [], bouton: null });
 
         try {
-          const res = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => {
+          // La transaction est ouverte au nom de la personne, ou au nom de la CLÉ (jamais de celui
+          // qui l'a créée : la clé ne voit que son entreprise, et seulement tant qu'elle vaut).
+          const res = await enTantQue(ctx.pool, qui.cle ? null : qui.utilisateur, async (tx) => {
             // Le code sur le téléphone se juge à CHAQUE requête : un rôle reçu après la connexion
             // (créer son entreprise, être promu administrateur) l'exige aussitôt.
-            if (!qui.codeAConfigurer && (await tx.query('select socle.code_manquant() m')).rows[0].m) qui.codeAConfigurer = true;
+            if (!qui.cle && !qui.codeAConfigurer && (await tx.query('select socle.code_manquant() m')).rows[0].m) qui.codeAConfigurer = true;
             if (qui.codeAConfigurer && !['compte.code.configurer', 'compte.voir', 'compte.deconnecter'].includes(r.geste)) {
               return { statut: 403, corps: { motif: motif('commun.code_requis'), qui: [], bouton: 'compte.code.configurer' } };
             }
@@ -112,12 +154,12 @@ export function creerApp(ctx: Contexte, routes: Route<never>[]): FastifyInstance
               if (!d.ok) return { statut: d.raison === 'invisible' ? 404 : 403, corps: { motif: d.motif, qui: d.qui, bouton: d.bouton } };
               // Une lecture de donnée sensible se trace, pas seulement les modifications (D10).
               if (d.geste.sensible && r.methode === 'GET') {
-                await tx.query(`insert into socle.audit (entreprise, utilisateur, appareil, geste, lecture) values ($1, $2, $3, $4, true)`,
-                  [entreprise, qui.utilisateur, qui.appareil, r.geste]);
+                await tx.query(`insert into socle.audit (entreprise, utilisateur, cle_api, appareil, geste, lecture)
+                  values ($1, socle.moi(), socle.ma_cle(), $2, $3, true)`, [entreprise, qui.appareil, r.geste]);
               }
             }
             return r.traiter({ corps: corps as never, params, query, qui, requete }, tx);
-          });
+          }, qui.cle?.id ?? null);
           return envoyer(res.statut ?? 200, res.corps);
         } catch (e) { return erreurVersReponse(e, reponse, langue); }
       },

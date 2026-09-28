@@ -16,7 +16,7 @@ export type Decision =
   | { ok: false; raison: 'code_a_configurer' | 'invisible' | 'condition' | 'role' | 'geste_inconnu'; motif: Texte;
       qui: { utilisateur: string; nom: string; roles: string[] }[]; bouton: string | null };
 
-export type QuiAgit = { utilisateur: string; codeAConfigurer?: boolean };
+export type QuiAgit = { utilisateur: string; codeAConfigurer?: boolean; cle?: { gestes: string[] } | undefined };
 
 // Une condition « ici et maintenant » (2e question), branchée par un module : elle rend un refus
 // ou rien.
@@ -51,6 +51,13 @@ export async function peut(tx: Transaction, qui: QuiAgit, entreprise: string, co
   for (const c of conditions) {
     const refus = await c(tx, entreprise, geste);
     if (refus) return { ok: false, raison: 'condition', motif: refus.motif, qui: [], bouton: refus.bouton };
+  }
+
+  // 3. Une clé de l'API : sa liste de gestes, comme un rôle ; ce qui gouverne l'entreprise ne se
+  //    donne jamais à une clé, même si la liste le dit (03 § 8).
+  if (qui.cle) {
+    if (!geste.horsCle && qui.cle.gestes.includes(geste.code)) return { ok: true, geste, roles: [], lectureSeule: false };
+    return { ok: false, raison: 'role', qui: [], bouton: null, motif: motif('porte.cle_refuse', { geste: t(`geste.${geste.code}`) }) };
   }
 
   // 3. Son rôle ? L'union de ses rôles (D7).

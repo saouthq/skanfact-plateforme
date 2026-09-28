@@ -31,6 +31,7 @@ export interface BaseDeDonnees {
     avant: ColumnType<Json | null, string | null, string | null>;
     apres: ColumnType<Json | null, string | null, string | null>;
     lecture: Generated<boolean>;
+    cle_api: string | null;
   };
   'socle.chaine': {
     entreprise: string;
@@ -39,6 +40,20 @@ export interface BaseDeDonnees {
     derniere: Generated<string>;
     controle_le: Date | null;
     controle_ok: boolean | null;
+  };
+  'socle.cle_api': {
+    id: Generated<string>;
+    entreprise: string;
+    nom: string;
+    prefixe: string;
+    empreinte: string;
+    gestes: string[];
+    cree_par: string;
+    cree_le: Generated<Date>;
+    expire_le: Date;
+    revoquee_le: Date | null;
+    revoquee_par: string | null;
+    derniere_utilisation: Date | null;
   };
   'socle.code_secours': {
     id: Generated<string>;

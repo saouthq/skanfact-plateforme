@@ -7,7 +7,7 @@ import type { FastifyInstance } from 'fastify';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { CLASSEMENT, exporter, restaurer, tablesNonClassees } from '../../base/entreprise.ts';
-import { creerApp } from '../../serveur/app.ts';
+import { creerApp, VERSION } from '../../serveur/app.ts';
 import { creerPool, enTantQue } from '../../serveur/base.ts';
 import type { Contexte } from '../../serveur/connexion.ts';
 import { controler } from '../../serveur/journal.ts';
@@ -25,7 +25,7 @@ let app: FastifyInstance;
 
 type Reponse = { statut: number; corps: Record<string, unknown> };
 async function appeler(methode: 'GET' | 'POST', url: string, jeton?: string, corps?: unknown): Promise<Reponse> {
-  const r = await app.inject({ method: methode, url, headers: jeton ? { authorization: `Bearer ${jeton}` } : {}, ...(corps === undefined ? {} : { payload: corps as Record<string, unknown> }) });
+  const r = await app.inject({ method: methode, url: VERSION + url, headers: jeton ? { authorization: `Bearer ${jeton}` } : {}, ...(corps === undefined ? {} : { payload: corps as Record<string, unknown> }) });
   return { statut: r.statusCode, corps: r.json() };
 }
 let n = 0;

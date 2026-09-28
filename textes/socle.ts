@@ -44,9 +44,22 @@ declarerTextes({
 
   // ── La porte des droits ─────────────────────────────────────────────────────────────────────
   'porte.geste_inconnu': 'geste inconnu : {geste}',
-  'porte.role_refuse': 'ton rôle ({roles}) ne permet pas de {geste}',
-  'porte.role_refuse_qui': 'ton rôle ({roles}) ne permet pas de {geste}. Peuvent le faire : {noms}',
+  'porte.role_refuse': 'ton rôle ({roles}) ne permet pas {de:geste}',
+  'porte.role_refuse_qui': 'ton rôle ({roles}) ne permet pas {de:geste}. Peuvent le faire : {noms}',
   'porte.aucun_role': 'aucun rôle ici',
+  'porte.cle_refuse': 'cette clé de l\'API ne permet pas {de:geste}',
+  'porte.cle_personnelle': 'une clé de l\'API n\'agit pas pour une personne : ce geste lui est fermé',
+
+  // ── La documentation de l'API ───────────────────────────────────────────────────────────────
+  'doc.public': 'sans connexion',
+  'doc.personnel': 'pour la personne connectée, sur son compte',
+  'doc.jeton': 'le jeton d\'une session (après connexion), ou une clé de l\'API (skf_…)',
+
+  // ── Les clés de l'API (03 § 8) ──────────────────────────────────────────────────────────────
+  'cles.geste_inconnu': 'geste inconnu : {geste}',
+  'cles.geste_ferme': 'le geste {geste} ne se donne jamais à une clé de l\'API',
+  'cles.geste_non_permis': 'tu ne peux pas donner à une clé le geste {geste} : ton rôle ne le permet pas',
+  'cles.expiration': 'une clé expire dans l\'année : entre demain et {jours} jours',
 
   // ── La file des postes ──────────────────────────────────────────────────────────────────────
   'file.sans_appareil': 'cette session n\'est rattachée à aucun appareil : reconnecte-toi depuis le poste',
@@ -97,4 +110,5 @@ declarerTextes({
   'geste.socle.export_complet': 'exporter toute l\'entreprise',
   'geste.socle.audit.lire': 'lire la trace de toute l\'entreprise',
   'geste.socle.abonnement.resilier': 'résilier l\'abonnement',
+  'geste.socle.cles_api.gerer': 'gérer les clés de l\'API',
 });
