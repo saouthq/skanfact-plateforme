@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['node_modules/**'] },
+  { ignores: ['node_modules/**', 'banc/v10/**'] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {

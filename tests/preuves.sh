@@ -420,5 +420,56 @@ prouver "un geste de module qui en remplace un autre" serveur/porte/gestes.ts \
   "    if (GESTES.has(g.code)) throw" "    if (false) throw" \
   "un geste déjà déclaré ne se remplace pas"
 
+# ── Le moteur : le calcul d'une pièce, en entiers, et le banc v10 ────────────────────────────────
+MA=moteur/argent.ts
+MP=moteur/piece.ts
+prouver "une moitié arrondie vers le bas" $MA \
+  "  if (2n * (r < 0n ? -r : r) >= d) return" "  if (2n * (r < 0n ? -r : r) > d) return" \
+  "au plus proche, la moitié s'éloigne de zéro"
+prouver "une moitié négative arrondie vers le haut" $MA \
+  "return n < 0n ? q - 1n : q + 1n;" "return q + 1n;" \
+  "au plus proche, la moitié s'éloigne de zéro"
+prouver "un nombre tronqué en silence" $MA \
+  "  if (fraction.replace(/0+\$/, '').length > decimales) throw" "  if (false) throw" \
+  "un nombre écrit se lit exactement"
+prouver "la remise portée sur la déduction d'acompte" $MP \
+  "const remisable = lignes.filter((l) => !l.sansRemise)" "const remisable = lignes.filter(() => true)" \
+  "la remise globale ne porte pas sur la déduction d'un acompte"
+prouver "la TVA calculée avant la remise" $MP \
+  "    const base = l.sansRemise || remisable <= 0n ? l.ht : diviserArrondi(l.ht * (remisable - remise), remisable);" "    const base = l.ht;" \
+  "un devis n'a pas de timbre ; la remise globale réduit la base de TVA"
+prouver "la TVA d'un taux arrondie ligne par ligne (et non en cumul comme la v10)" $MP \
+  "    t.tva = diviserArrondi(t.tva * MILLION + base * l.tauxTva, MILLION);" "    t.tva += auTaux(base, l.tauxTva);" \
+  "un demi-millime EXACT s'arrondit loin de zéro"
+prouver "le timbre d'office sur un avoir" $MP \
+  "|| ((p.type === 'avoir' || p.type === 'proforma') && p.appliquerTimbre === true);" "|| p.type === 'avoir' || (p.type === 'proforma' && p.appliquerTimbre === true);" \
+  "le timbre : d'office sur une facture"
+prouver "le timbre en dinars ajouté tel quel à une pièce en euros" $MP \
+  "    : p.cours ? diviserArrondi(p.timbre * MILLION * s, MILLE * p.cours)" "    : false ? 0n" \
+  "une pièce en euros se calcule au centime"
+prouver "la retenue calculée sur le timbre aussi" $MP \
+  "  const retenue = auTaux(netHT + totalTVA, tauxRetenue);" "  const retenue = auTaux(netHT + totalTVA + timbre, tauxRetenue);" \
+  "la retenue à la source porte sur le TTC hors timbre"
+prouver "une retenue sur un devis" $MP \
+  "RETENUE_POSSIBLE.includes(p.type) ? (p.tauxRetenue ?? 0n) : 0n" "(p.tauxRetenue ?? 0n)" \
+  "la retenue à la source porte sur le TTC hors timbre"
+prouver "une pièce en euros calculée au millime" $MA \
+  "export const echelle = (d: Devise): bigint => 10n ** BigInt(d.decimales);" "export const echelle = (_d: Devise): bigint => 1000n;" \
+  "une pièce en euros se calcule au centime"
+prouver "le timbre déclaré dans la devise de la pièce" $MP \
+  "    timbreBase: applique ? p.timbre : 0n," "    timbreBase: timbre," \
+  "une pièce en euros se calcule au centime"
+# Les prix de l'exemple de cinq ans ne demandent jamais d'arrondir une ligne : c'est le tirage qui
+# voit ce défaut-là (une preuve restée verte sur l'exemple, le 28/09/2026).
+prouver "une ligne tronquée au lieu d'être arrondie (vue par le banc)" $MP \
+  "    const ht = diviserArrondi(l.quantite * l.prixUnitaire * s, MILLE * MILLION);" "    const ht = (l.quantite * l.prixUnitaire * s) / (MILLE * MILLION);" \
+  "20 000 pièces tirées au hasard"
+prouver "le timbre d'office sur un avoir (vu par l'exemple de cinq ans)" $MP \
+  "|| ((p.type === 'avoir' || p.type === 'proforma') && p.appliquerTimbre === true);" "|| p.type === 'avoir' || (p.type === 'proforma' && p.appliquerTimbre === true);" \
+  "les pièces de l'exemple de cinq ans tombent sur le même millime"
+prouver "un écart tranché qui a disparu reste dans la liste" tests/moteur/banc-v10.test.ts \
+  "  [9418, " "  [9419, " \
+  "20 000 pièces tirées au hasard"
+
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

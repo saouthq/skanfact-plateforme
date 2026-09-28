@@ -17,7 +17,9 @@
   connexion (`0002`, `serveur/connexion.ts`) ; l'équipe, la porte des droits et la trace (`0003`,
   `serveur/porte/`, `serveur/app.ts`, `serveur/routes/socle.ts`) ; les règles fiscales datées,
   la numérotation et le journal inaltérable (`0004`, `serveur/regles.ts`, `numeros.ts`,
-  `journal.ts`) ; la file d'opérations des postes (`0005`, `serveur/file.ts`).
+  `journal.ts`) ; la file d'opérations des postes (`0005`, `serveur/file.ts`) ; le moteur commence :
+  le calcul d'une pièce en entiers (`moteur/`) et le banc qui le compare à la v10 au millime
+  (`banc/v10/`).
 
 ## Les règles de ce dépôt
 
@@ -51,6 +53,16 @@
   `fait` si l'argent a bougé) ; le geste doit exister dans la porte, sinon le serveur ne démarre
   pas. Un objet changé depuis la lecture du poste : `throw new MiseDeCote(...)`, jamais écraser.
 - Toute liste se **pagine** (curseur `instant|id` pour la trace, jamais une date seule).
+
+**Le moteur (`moteur/`)**
+- Porté de `core.js` / `compta.js` fonction par fonction, **tests d'abord** ; chaque test garde la
+  version de la v10 où sa règle est née (« 10.14.1 : … »).
+- Tout en `bigint` : montants dans la plus petite unité de la devise, prix unitaires, taux et cours à
+  six décimales, quantités en millièmes. L'ordre des arrondis est celui de la v10.
+- Le **banc** (`tests/moteur/banc-v10.test.ts`) compare chaque fonction portée à la v10 figée dans
+  `banc/v10/` (jamais modifiée ; remplacée quand la v10 reçoit une correction de calcul) : l'exemple
+  de cinq ans et 20 000 pièces tirées au hasard. Un écart ne se tolère pas : il se **tranche** (en
+  fractions exactes), s'écrit dans la liste du banc avec sa raison, et sa situation devient un test.
 
 **Les tests**
 - Contre un **vrai PostgreSQL** (`PG_ADMIN`), jamais contre une imitation.
