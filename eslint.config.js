@@ -3,7 +3,9 @@ import tseslint from 'typescript-eslint';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['node_modules/**', 'banc/v10/**', 'dist/**'] },
+  // Le code de la v10 repris TEL QUEL (web/public/v10) n'est pas le nôtre à reformuler : il se
+  // vérifie par ses empreintes (PROVENANCE.json), et ses adaptations sont écrites dans web/v10.
+  { ignores: ['node_modules/**', 'banc/v10/**', 'dist/**', 'web/public/v10/**'] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {
@@ -17,5 +19,5 @@ export default tseslint.config(
     },
   },
   // Les écrans tournent dans le navigateur.
-  { files: ['web/src/**'], languageOptions: { globals: { ...globals.browser } } },
+  { files: ['web/src/**', 'web/public/plateforme/**'], languageOptions: { globals: { ...globals.browser } } },
 );

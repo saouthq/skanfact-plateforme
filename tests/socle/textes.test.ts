@@ -26,6 +26,8 @@ const sansCommentaires = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').s
 const LITTERAL = /'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g;
 const PHRASE = /\p{L}{2,}[ ’']\p{L}{2,}/u;
 const SQL = /^\s*(select|insert|update|delete|with|set|begin|commit|rollback|savepoint|create|drop|alter|grant)\b/i;
+// Une table nommée pour une requête Kysely (« ventes.piece as p ») : du code, pas une phrase.
+const ALIAS = /^[a-z_]+(\.[a-z_]+)? as [a-z_]+$/;
 
 // Le texte d'un gabarit `…${x}…` sans ses expressions (qui sont du code).
 function horsExpressions(gabarit: string): string {
@@ -54,7 +56,7 @@ export function phrasesEnDur(): string[] {
     const code = sansCommentaires(fs.readFileSync(f, 'utf8'));
     for (const m of code.matchAll(LITTERAL)) {
       const texte = m[1] ?? horsExpressions(m[2] ?? '');
-      if (!PHRASE.test(texte) || SQL.test(texte)) continue;
+      if (!PHRASE.test(texte) || SQL.test(texte) || ALIAS.test(texte)) continue;
       const avant = code.slice(Math.max(0, (m.index ?? 0) - 40), m.index).replace(/\s+/g, ' ');
       if (/(new (Error|RouteSansGeste|ConfigurationFausse)|console\.(log|error))\($/.test(avant)) continue;
       trouvees.push(`${path.relative(RACINE, f)} : ${texte.slice(0, 80)}`);

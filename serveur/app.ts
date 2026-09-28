@@ -115,7 +115,10 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
           if (!lu.success) {
             const p = lu.error.issues[0];
             const champ = nomDuChamp(p, 'corps');
-            return envoyer(400, { motif: motif('commun.champ_invalide', { champ, raison: p ? raison(p, requete.body) : motif('champ.valeur') }), champ: p ? champ : null });
+            const pourquoi = p ? raison(p, requete.body) : motif('champ.valeur');
+            // `raison` seule, pour l'écran qui la montre SOUS le champ (le nom technique du champ n'y
+            // a rien à faire) ; `motif` entier, pour qui lit la réponse sans écran.
+            return envoyer(400, { motif: motif('commun.champ_invalide', { champ, raison: pourquoi }), champ: p ? champ : null, raison: pourquoi });
           }
           corps = lu.data;
         }

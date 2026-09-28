@@ -56,6 +56,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   'socle.tiers': { classe: 'entreprise' },
   'ventes.piece': { classe: 'entreprise' },
   'ventes.ligne': { classe: 'entreprise' },
+  // Le dossier v10 de l'entreprise (0011) : ce que son interface tient, objet par objet.
+  'socle.dossier_v10': { classe: 'entreprise' },
   // Le code d'un cabinet n'est pas repris : unique sur la plateforme, il reste à son cabinet.
   'socle.organisation': { classe: 'reference', colonnes: ['id', 'type', 'nom', 'cree_le'] },
   // Jamais l'empreinte du mot de passe ni le téléphone vérifié : une personne recréée se reconnecte

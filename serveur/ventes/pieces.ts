@@ -179,7 +179,8 @@ export async function relirePourChaine(tx: Transaction, entreprise: string, id: 
 }
 
 // ── L'émission ──────────────────────────────────────────────────────────────────────────────────
-export async function emettre(tx: Transaction, utilisateur: string, entreprise: string, id: string) {
+// `serieVoulue` : la série où numéroter (celle de la v10, « FAC ») ; sans elle, la première série légale.
+export async function emettre(tx: Transaction, utilisateur: string, entreprise: string, id: string, serieVoulue?: string) {
   const db = requetes(tx);
   // 1. Les contrôles, tous, avant de prendre quoi que ce soit.
   const p = await lirePieceBrute(tx, entreprise, id, true);
@@ -194,6 +195,7 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
   }
   const serie = (await db.selectFrom('socle.serie').select('id')
     .where('entreprise', '=', entreprise).where('type', '=', 'facture').where('legale', '=', true).where('active', '=', true)
+    .$if(serieVoulue !== undefined, (q) => q.where('id', '=', serieVoulue ?? ''))
     .orderBy('cree_le').limit(1).executeTakeFirst())?.id;
   if (!serie) throw new Refus('ventes.sans_serie', { bouton: 'socle.reglages_fiscaux.modifier' });
   const societe = await db.selectFrom('socle.entreprise').select(['raison_sociale', 'matricule_fiscal']).where('id', '=', entreprise).executeTakeFirstOrThrow();
@@ -266,9 +268,16 @@ export async function lirePiece(tx: Transaction, entreprise: string, id: string)
     tvaParTaux = [...t.tvaParTaux.entries()].map(([taux, v]) => ({ taux: versTexte(taux, DECIMALES.taux), base: m(v.base), tva: m(v.tva) }));
     lignesSortie = lignes.map((l, i) => ({ ...l, ht: t.lignes[i]?.ht ?? null, tva: t.lignes[i]?.tva ?? null, ttc: t.lignes[i]?.ttc ?? null }));
   }
+  // Pour l'affichage : le symbole de la devise, et le nom du client (celui de la copie figée pour
+  // une pièce émise, R7 ; celui de sa fiche pour un brouillon).
+  const db = requetes(tx);
+  const fiche = await db.selectFrom('socle.tiers').select('raison_sociale').where('id', '=', p.tiers).executeTakeFirstOrThrow();
+  const { symbole } = await db.selectFrom('socle.devise').select('symbole').where('code', '=', p.devise).executeTakeFirstOrThrow();
+  const figee = (p.copie as { client?: { raisonSociale?: string } } | null)?.client?.raisonSociale;
   return {
     id: p.id, type: p.type, statut: p.statut, numero: p.numero_texte, tiers: p.tiers, datePiece: p.date_piece, echeance: p.echeance,
-    devise: p.devise, cours: p.cours === null ? null : versTexte(p.cours, DECIMALES.cours),
+    client: figee ?? fiche.raison_sociale,
+    devise: p.devise, deviseSymbole: symbole, cours: p.cours === null ? null : versTexte(p.cours, DECIMALES.cours),
     tauxRemise: versTexte(p.taux_remise, DECIMALES.taux), tauxRetenue: versTexte(p.taux_retenue, DECIMALES.taux),
     appliquerTimbre: p.appliquer_timbre, objet: p.objet, notes: p.notes, revision: p.revision, empreinte: p.empreinte,
     // Ce qui a servi à la calculer, figé à l'émission (R7) ; rien pour un brouillon.

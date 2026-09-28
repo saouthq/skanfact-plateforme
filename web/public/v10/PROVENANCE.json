@@ -1,0 +1,26 @@
+{
+  "depot": "saouthq/skanfact",
+  "branche": "beta",
+  "commit": "d0749e2",
+  "reprisLe": "2026-09-28",
+  "adaptations": 15,
+  "fichiers": {
+    "app.js": "5fd35e720deca80a3a09cc0ea643dbdd35c059e70f7f873bcd9e4f029361a5b0",
+    "compta.js": "2b928b5a8ef6a92d5414ac3853d709424007af1675f2a6562643f574feb06c1f",
+    "core.js": "27275977631288e7039120e2237a14fb084e6ea386daee18041a9c942a2e0fc5",
+    "demo.js": "7831c54cb6ce833e60421c7f837510c3d722efdb94139db2e369ccb3b5fcc18a",
+    "guide.js": "6c80afbbba7dc3a286342505b7bb5271abf6c4540645f90ebf09cbd39918003d",
+    "index.html": "92aa065b94f10f2717fc724e0f93565de40979677635ee6d9675c14fc7ecb8ca",
+    "listes.js": "90b0298f6d69676294ce3d0df34358618b92eab7072de4f5f6a07b035aef9cfa",
+    "majui.js": "4e510979f9abb6e59386af4463d30fe25c6ac44ec04395294506d68d7b02ef7d",
+    "nouveautes.js": "71de9bce8598a3bd2df435d873eee02a7c64aa4d7273c3ac90c64cddc4b86225",
+    "onboarding.js": "4c3b3a43c9becbfa9b637174383cdf9d7214963debc24d84ea3bcf22f915c53a",
+    "placement.js": "2db5b35f4ea8674909daa6587f289ab09e0b95620c62434910e946b28a39d77e",
+    "reglages.js": "86f0b35f86e58c37a7c2e63524f452dd2f8bbb12a16667f2225e84d6502fcc8e",
+    "rowmenu.js": "9ce5fb1062efcca4890e4e0b93e0ae33feb6cfdd09a76e6a1484d2eadba5d146",
+    "style.css": "50186b8a6e2727addc9b34602e3e235fabdb206fa62ebd975cfa5f2c6a7fd012",
+    "teif.js": "87e7870460227508739bac49cf77e13c4435c2e7c1ddbaf99f4a9f31679b45d4",
+    "visite.js": "e2251e94b8ad0d3ea182d9ddff317e84bc71c4e552af4f613cc6040c0c925358",
+    "visites.js": "5257f0a95cd6ac80f9ff9ab687b7bb8850f2b037fccad6dfa1c23ad2859c934e"
+  }
+}

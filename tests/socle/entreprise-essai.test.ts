@@ -1,5 +1,6 @@
 // L'entreprise d'essai des développeurs (14 § 2.5) : une par personne, garnie de clients
-// d'exemple, ses factures numérotées « ESSAI », marquée essai pour toujours ; une clé de l'API s'y
+// d'exemple, ses factures numérotées comme dans la v10 (« FAC-2026-001 », 0011 : l'écran de la v10
+// annonce ce préfixe), marquée essai pour toujours ; une clé de l'API s'y
 // crée et y travaille comme ailleurs, et la voisine n'y voit rien.
 
 import path from 'node:path';
@@ -39,7 +40,7 @@ describe('l\'entreprise d\'essai des développeurs', () => {
   });
   afterAll(async () => { await app.close(); await admin.end(); await pool.end(); });
 
-  it('une par personne, garnie de clients d\'exemple ; ses factures portent « ESSAI » ; une clé y travaille ; la voisine n\'y voit rien', async () => {
+  it('une par personne, garnie de clients d\'exemple ; ses factures suivent la série de la v10 ; une clé y travaille ; la voisine n\'y voit rien', async () => {
     const dev = await personne('Développeuse');
     const r = await appeler('POST', '/entreprises-essai', dev);
     expect(r.statut).toBe(201);
@@ -58,7 +59,7 @@ describe('l\'entreprise d\'essai des développeurs', () => {
     const piece = await appeler('POST', `/entreprises/${ent}/ventes`, cle, { type: 'facture', tiers: tunisien, datePiece: '2026-10-01', lignes: [{ designation: 'Essai', quantite: '1', prixUnitaire: '10', tauxTva: '19' }] });
     const emise = await appeler('POST', `/entreprises/${ent}/ventes/${piece.corps.id}/emettre`, cle);
     expect(emise.statut).toBe(200);
-    expect(String(emise.corps.numero)).toMatch(/^ESSAI-2026-0*1$/);
+    expect(String(emise.corps.numero)).toBe('FAC-2026-001');
     // Une voisine ne voit rien de l'entreprise d'essai.
     const voisine = await personne('Voisine');
     expect((await appeler('GET', `/entreprises/${ent}/clients`, voisine)).statut).toBe(404);

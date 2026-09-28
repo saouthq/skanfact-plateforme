@@ -1,37 +1,38 @@
-// Le code du téléphone, après le mot de passe.
-import { useState, type FormEvent } from 'react';
+// Le code du téléphone, après le mot de passe, dans la carte d'accueil de la v10.
+import { useState } from 'react';
 import { appeler, ErreurReseau, session } from '../api.ts';
 import { Bouton } from '../composants/Bouton.tsx';
+import { Carte } from '../composants/Carte.tsx';
 import { Champ } from '../composants/Champ.tsx';
-import { Page } from '../composants/Page.tsx';
+import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
 import type { Defi } from './Connexion.tsx';
 
-export function Code({ defi, connecte }: { defi: Defi; connecte: () => void }) {
-  const [code, setCode] = useState('');
-  const [refus, setRefus] = useState<string | null>(null);
-  const [occupe, setOccupe] = useState(false);
+const rien = () => undefined;
 
-  async function envoyer(e: FormEvent) {
-    e.preventDefault();
-    setOccupe(true);
+export function Code({ defi, connecte, retour }: { defi: Defi; connecte: () => void; retour: () => void }) {
+  const g = useGeste(rien);
+  const [code, setCode] = useState('');
+
+  const envoyer = () => g.geste(async () => {
+    let r;
     try {
-      const r = await appeler<{ etat: string; jeton?: string }>('POST', '/connexion/code', { defi: defi.defi, code: code.replace(/\s/g, ''), posteDUnAutre: defi.posteDUnAutre });
-      if (r.corps.etat === 'connecte' && r.corps.jeton) { session.ouvrir(r.corps.jeton); connecte(); } else setRefus(r.corps.motif ?? null);
-    } catch (x) {
-      setRefus(x instanceof ErreurReseau ? phrase('ecran.erreur_reseau') : String(x));
-    } finally {
-      setOccupe(false);
-    }
-  }
+      r = await appeler<{ etat: string; jeton?: string }>('POST', '/connexion/code', { defi: defi.defi, code: code.replace(/\s/g, ''), posteDUnAutre: defi.posteDUnAutre });
+    } catch (x) { g.refuser({ texte: phrase(x instanceof ErreurReseau ? 'ecran.erreur_reseau' : 'ecran.erreur_serveur'), champ: null }); return; }
+    if (r.corps.etat === 'connecte' && r.corps.jeton) { session.ouvrir(r.corps.jeton); connecte(); }
+    // Un code faux tient au champ du code, même quand le serveur ne le nomme pas.
+    else g.refuser({ ...refusDe(r), champ: 'code' });
+  });
 
   return (
-    <Page titre={titre('ecran.code.titre')}>
-      <p className="text-doux">{phrase(defi.methode === 'sms' ? 'ecran.code.sms' : 'ecran.code.application')}</p>
-      <form onSubmit={envoyer} className="flex flex-col gap-3" noValidate>
-        <Champ libelle={titre('ecran.code.champ')} aide={phrase('ecran.code.champ_aide')} valeur={code} changer={setCode} autoComplete="one-time-code" inputMode="numeric" refus={refus} />
-        <Bouton principal type="submit" occupe={occupe}>{titre('ecran.code.bouton')}</Bouton>
-      </form>
-    </Page>
+    <Carte titre={titre('ecran.code.titre')} sous={phrase(defi.methode === 'sms' ? 'ecran.code.sms' : 'ecran.code.application')} onSubmit={() => { void envoyer(); }}
+      pied={<>
+        <Bouton discret onClick={retour}>{titre('ecran.code.retour')}</Bouton>
+        <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.code.bouton')}</Bouton>
+      </>}>
+      <div className="grid-2">
+        <Champ classe="span-2" libelle={titre('ecran.code.champ')} aide={phrase('ecran.code.champ_aide')} valeur={code} changer={setCode} autoComplete="one-time-code" inputMode="numeric" {...g.sur('code')} />
+      </div>
+    </Carte>
   );
 }

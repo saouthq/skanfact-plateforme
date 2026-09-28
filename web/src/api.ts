@@ -3,7 +3,7 @@
 // dans le navigateur (localStorage), pour ne pas redemander le code pendant 30 jours.
 import { LANGUE } from './langue.ts';
 
-export type Reponse<T = Record<string, unknown>> = { statut: number; corps: T & { motif?: string; champ?: string | null; bouton?: string | null } };
+export type Reponse<T = Record<string, unknown>> = { statut: number; corps: T & { motif?: string; champ?: string | null; raison?: string; bouton?: string | null } };
 
 const lire = (cle: string, ou: Storage) => { try { return ou.getItem(cle); } catch { return null; } };
 const ecrire = (cle: string, v: string | null, ou: Storage) => { try { if (v === null) ou.removeItem(cle); else ou.setItem(cle, v); } catch { /* stockage refusé : la session vit en mémoire */ } };
@@ -19,7 +19,7 @@ export const session = {
 
 export class ErreurReseau extends Error {}
 
-export async function appeler<T = Record<string, unknown>>(methode: 'GET' | 'POST' | 'DELETE', chemin: string, corps?: unknown): Promise<Reponse<T>> {
+export async function appeler<T = Record<string, unknown>>(methode: 'GET' | 'POST' | 'PUT' | 'DELETE', chemin: string, corps?: unknown): Promise<Reponse<T>> {
   const entetes: Record<string, string> = { 'x-langue': LANGUE };
   if (corps !== undefined) entetes['content-type'] = 'application/json';
   if (jeton) entetes.authorization = `Bearer ${jeton}`;

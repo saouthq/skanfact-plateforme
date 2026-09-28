@@ -18,7 +18,8 @@
     "sauvegarde": "node base/sauvegarde.ts",
     "serveur": "node serveur/principal.ts",
     "web": "vite build --config web/vite.config.ts",
-    "web:dev": "vite --config web/vite.config.ts"
+    "web:dev": "vite --config web/vite.config.ts",
+    "reprendre-v10": "node web/v10/reprendre.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

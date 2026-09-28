@@ -110,6 +110,16 @@ export interface BaseDeDonnees {
     decimales: number;
     nom: string;
   };
+  'socle.dossier_v10': {
+    entreprise: string;
+    collection: string;
+    cle: string;
+    contenu: ColumnType<Json, string, string>;
+    rang: number | null;
+    revision: Generated<bigint>;
+    modifie_le: Generated<Date>;
+    modifie_par: string | null;
+  };
   'socle.entreprise': {
     id: Generated<string>;
     organisation: string;
@@ -290,6 +300,7 @@ export interface BaseDeDonnees {
     revision: Generated<bigint>;
     cree_le: Generated<Date>;
     modifie_le: Generated<Date>;
+    ref_v10: string | null;
   };
   'socle.transfert_propriete': {
     id: Generated<string>;
@@ -364,5 +375,6 @@ export interface BaseDeDonnees {
     cree_le: Generated<Date>;
     modifie_le: Generated<Date>;
     revision: Generated<bigint>;
+    ref_v10: string | null;
   };
 }

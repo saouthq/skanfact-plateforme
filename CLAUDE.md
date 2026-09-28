@@ -45,15 +45,41 @@
   l'environnement, refus de démarrer si elle est fausse ; en production, exige un fournisseur de SMS
   (pas encore choisi : 03 § 6, 12) ; les messages à l'exploitant (`ConfigurationFausse`,
   `console.*`) sont hors du catalogue.
-- **L'application web** (`web/`, étape 2 commencée le 28/09/2026) : React, Tailwind, Base UI. Le
-  jeton de session vit dans l'onglet (sessionStorage), l'appareil reconnu dans le navigateur
-  (localStorage) : décidé par délégation ; **À VÉRIFIER** le passage à un cookie que le JavaScript
-  ne lit pas. Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts`) ET par un
-  parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se regardent.
-  Un bouton se trouve par ce qu'il dit (le catalogue), un écran par son titre.
+- **L'application web EST le code de la v10** (Skander, 28/09/2026 : « récupérer le même code et
+  l'adapter », `VISION-ARCHITECTURE.md` § 4.8 du dépôt `skanfact`). Les fichiers de
+  `src/renderer` (branche `beta`) sont copiés TELS QUELS dans `web/public/v10` par
+  `npm run reprendre-v10 -- /chemin/de/skanfact` ; seules les retouches écrites dans
+  `web/v10/adaptations.mjs` (chacune avec sa raison) y sont appliquées, et
+  `tests/v10/provenance.test.ts` refuse toute retouche à la main. La copie s'est faite une fois ;
+  la plateforme est désormais la seule maison des écrans (une correction urgente de la v10 en
+  entretien se reporte à la main, par une nouvelle reprise ou une adaptation). Aucun lien vivant
+  avec le dépôt `skanfact`.
+  - **Le pont** (`web/public/plateforme/pont.js`) remplace ce que la v10 demandait à l'ordinateur
+    (`window.skanfact`) : le dossier vient du serveur et y repart objet par objet
+    (`serveur/v10/`, table `socle.dossier_v10`, 0011), avec sa révision ; un objet changé ailleurs
+    revient à la v10 comme un conflit (`{ conflict, disk }`) qu'elle fusionne et dit, la version du
+    serveur gagnant ; jamais un nombre à virgule (`{ "~n": "450.5" }`). Une facture s'émet par le
+    serveur (numéro de la série FAC, net à payer vérifié au millime de l'écran, pièce scellée).
+    Ce qui n'existe pas encore en ligne se refuse avec sa phrase (`pasEncore`) ; les panneaux des
+    Paramètres sans objet (sauvegardes du disque, mot de passe du fichier, licence…) sont cachés
+    (`panneauxAbsents`) ; « Voir un exemple » ouvre l'entreprise d'essai, jamais des pièces
+    inventées dans une vraie. L'inventaire des ~240 fonctions du pont (entreprise et Cabinet) et
+    leur état : `docs/pont-v10.md`.
+  - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
+    et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
+  - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première
+    fois) : les seuls écrans écrits pour la plateforme, en React (`web/src`), à l'habillage de la
+    v10 ; leurs phrases viennent du catalogue. Le jeton de session vit dans l'onglet
+    (sessionStorage) : décidé par délégation ; **À VÉRIFIER** le passage à un cookie que le
+    JavaScript ne lit pas.
+  - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
+    et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
+    les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se
+    regardent.
 - L'entreprise d'essai des développeurs (`0009`, 28/09/2026, par délégation) : une par personne,
-  trois clients d'exemple, numéros « ESSAI », essai pour toujours. À respecter plus tard : jamais
-  facturée par l'abonnement, jamais transmise à la TTN, « ESSAI » sur chaque document.
+  trois clients d'exemple, essai pour toujours ; depuis `0011`, ses factures suivent la série
+  « FAC » de la v10 (l'écran de la v10 annonce ce préfixe). À respecter plus tard : jamais facturée
+  par l'abonnement, jamais transmise à la TTN, « ESSAI » sur chaque document.
 - **Ouvert** : les gestes « À reprendre » encore ouverts sont comptés dans l'export mais pas
   restaurés (à revoir avec la file, étape 2) ; la remise en place d'une entreprise **par-dessus**
   son état abîmé (06 § 4.4) n'existe pas encore : on ne restaure que là où elle n'est pas.
@@ -193,6 +219,7 @@
 | `npm run migrer` | Applique les migrations sur la base de `PG_ADMIN` |
 | `npm run entreprise -- exporter <id> <fichier>` / `restaurer <fichier>` | Exporte une entreprise, ou la restaure là où elle n'est pas (`PG_ADMIN`) |
 | `npm run types:base` | Réécrit `base/types.ts` à partir des migrations (base jetable sur `PG_ADMIN`) |
+| `npm run reprendre-v10 -- <dépôt skanfact>` | Recopie l'interface v10 (`src/renderer`, branche `beta`) dans `web/public/v10` et y applique `web/v10/adaptations.mjs` |
 
 Dans une session Claude : PostgreSQL 16 tourne sur `127.0.0.1:5433`
 (`su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /var/lib/pgproto/data -o '-p 5433' start"`

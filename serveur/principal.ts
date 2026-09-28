@@ -25,6 +25,7 @@ import { listeDepuisFichier } from './mot-de-passe.ts';
 import { routesSocle } from './routes/socle.ts';
 import { declarerGestesVentes } from './ventes/gestes.ts';
 import { routesVentes } from './ventes/routes.ts';
+import { routesV10 } from './v10/routes.ts';
 
 export type Configuration = {
   base: string; environnement: 'test' | 'production'; port: number; hote: string; listeVolee: string;
@@ -63,7 +64,9 @@ const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.webmanifest': 'application/manifest+json',
 };
-const POLITIQUE = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; "
+// L'aperçu d'un document de la v10 se dessine dans un cadre (`frame-src` : data: et blob:, comme sa
+// propre politique le permet).
+const POLITIQUE = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' data: blob:; "
   + "frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'";
 export function servirLesEcrans(app: ReturnType<typeof creerApp>, dossier: string) {
   const racine = path.resolve(dossier);
@@ -73,7 +76,10 @@ export function servirLesEcrans(app: ReturnType<typeof creerApp>, dossier: strin
     if (chemin.startsWith('/v1/') || chemin === '/v1') return reponse.code(404).send({});
     let fichier = path.resolve(racine, `.${chemin}`);
     if (!fichier.startsWith(racine + path.sep) && fichier !== racine) return reponse.code(404).send({});
-    if (!fs.existsSync(fichier) || fs.statSync(fichier).isDirectory()) fichier = path.join(racine, 'index.html');
+    // Un dossier sert sa propre page d'entrée (/v10/ : l'application v10) ; une adresse inconnue,
+    // l'entrée de l'application.
+    if (fs.existsSync(fichier) && fs.statSync(fichier).isDirectory()) fichier = path.join(fichier, 'index.html');
+    if (!fs.existsSync(fichier)) fichier = path.join(racine, 'index.html');
     reponse.header('content-type', TYPES[path.extname(fichier)] ?? 'application/octet-stream')
       .header('content-security-policy', POLITIQUE).header('x-content-type-options', 'nosniff').header('referrer-policy', 'no-referrer')
       .header('cache-control', fichier.includes(`${path.sep}assets${path.sep}`) ? 'public, max-age=31536000, immutable' : 'no-cache');
@@ -85,7 +91,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const pool = creerPool(c.base);
   const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms: smsAucun };
   declarerGestesVentes();
-  const app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx)]);
+  const app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesV10(ctx)]);
   servirLesEcrans(app, c.web);
   const adresse = await app.listen({ port: c.port, host: c.hote });
 

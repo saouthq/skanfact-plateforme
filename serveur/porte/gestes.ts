@@ -68,6 +68,13 @@ export const GESTES_SOCLE: Geste[] = [
     roles: { proprietaire: P, administrateur: P } },
   { code: 'socle.abonnement.resilier', module: 'socle', horsCle: true, ecrit: true,
     roles: { proprietaire: P } },
+  // Le dossier que l'interface de la v10 tient en entier (0011, décision de Skander du 28/09/2026) :
+  // tant qu'il n'est pas découpé par module, seuls ceux qui voient TOUTE l'entreprise l'ouvrent. Une
+  // clé de l'API n'y touche pas : les logiciels branchés passent par les routes de chaque module.
+  { code: 'socle.dossier.voir', module: 'socle', horsCle: true, ecrit: false,
+    roles: { proprietaire: P, administrateur: P } },
+  { code: 'socle.dossier.modifier', module: 'socle', horsCle: true, ecrit: true,
+    roles: { proprietaire: P, administrateur: P } },
 ];
 
 // Les gestes PERSONNELS : ils ne portent sur aucune entreprise (son compte, ses appareils).

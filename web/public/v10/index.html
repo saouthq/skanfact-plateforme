@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-src 'self' data: blob:">
+  <title>SkanFact</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="../plateforme/telephone.css">
+  <script src="../plateforme/pont.js"></script>
+  <script src="../plateforme/telephone.js"></script>
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar">
+      <!-- L'en-tête est le sélecteur d'entreprise (7.14.0). Changer de dossier — la société de la
+           famille, celle du père, un essai — demandait d'aller dans Paramètres → Dossiers, cinq
+           clics plus loin, alors que le nom de l'entreprise ouverte est écrit là, en haut à gauche.
+           Ce qui affiche l'état est l'endroit où on s'attend à le changer. -->
+      <div class="brand-wrap">
+        <button class="brand" id="brand-btn" aria-haspopup="true" aria-expanded="false" title="Changer d'entreprise">
+          <span class="brand-mark">SF</span>
+          <span class="brand-txt">
+            <!-- Une version d'essai doit se reconnaître d'un coup d'œil, tout le temps, sans ouvrir
+                 les Paramètres : c'est la seule protection contre « je croyais être sur la stable ». -->
+            <span class="brand-name">SkanFact <span class="beta-tag" id="beta-tag" hidden>bêta</span></span>
+            <span class="brand-sub" id="brand-company">—</span>
+          </span>
+          <span class="brand-chev" aria-hidden="true">▾</span>
+        </button>
+        <div class="dos-menu" id="dos-menu" hidden></div>
+      </div>
+      <!-- La recherche générale existait depuis la 1.5.0 et n'était écrite NULLE PART dans la
+           fenêtre : ni champ, ni bouton, seulement un raccourci clavier mentionné dans le menu
+           natif « Affichage » et dans l'avant-dernier des trente-deux articles d'aide. Beaucoup de
+           débutants n'emploient aucun raccourci : pour eux, le meilleur outil de l'application
+           n'existait pas. Ce bouton est dessiné comme un champ, il dit la touche, et il est
+           au-dessus de <nav> — donc il ne défile jamais. -->
+      <button class="nav-search" id="nav-search" type="button">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <span>Rechercher…</span><kbd id="nav-search-k"></kbd>
+      </button>
+      <!-- La barre latérale est dessinée par app.js à partir de core.PAGES : à dix-neuf entrées
+           écrites à la main, elle ne tenait plus sur aucun écran, et « Aide » était hors champ
+           jusqu'à 1680×1050. Le contenu ci-dessous n'est qu'un repli si le script ne démarre pas. -->
+      <nav id="nav"><noscript>
+        <div class="nav-group">Ventes</div>
+        <a href="#/devis" data-route="devis"><svg viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h6"/></svg>Devis</a>
+        <a href="#/factures" data-route="factures"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Factures</a>
+        <a href="#/relances" data-route="relances"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>Relances<span class="nav-count" id="nav-relances" hidden></span></a>
+        <a href="#/autres" data-route="autres"><svg viewBox="0 0 24 24"><path d="M9 3h8l4 4v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 3v5h4"/><path d="M5 7v13a2 2 0 0 0 2 2h9"/></svg>Autres documents</a>
+        <a href="#/contrats" data-route="contrats"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>Contrats<span class="nav-count info" id="nav-contrats" hidden></span></a>
+        <div class="nav-group">Achats</div>
+        <a href="#/achats" data-route="achats"><svg viewBox="0 0 24 24"><path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6L5 3H2"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/></svg>Achats<span class="nav-count" id="nav-achats" hidden></span></a>
+        <a href="#/fournisseurs" data-route="fournisseurs"><svg viewBox="0 0 24 24"><path d="M3 9l2-5h14l2 5"/><path d="M4 9h16v11H4z"/><path d="M9 20v-6h6v6"/></svg>Fournisseurs</a>
+        <div class="nav-group">Fichiers</div>
+        <a href="#/clients" data-route="clients"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Clients</a>
+        <a href="#/catalogue" data-route="catalogue"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg>Catalogue</a>
+        <div class="nav-group">Gestion</div>
+        <a href="#/tresorerie" data-route="tresorerie"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="15" r="1.5"/></svg>Trésorerie<span class="nav-count" id="nav-treso" hidden></span></a>
+        <a href="#/marges" data-route="marges"><svg viewBox="0 0 24 24"><path d="M3 17l5-5 4 3 8-8"/><path d="M15 7h5v5"/><path d="M3 21h18"/></svg>Marges</a>
+        <a href="#/paie" data-route="paie"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.3 3-5.5 6.5-5.5s6.5 2.2 6.5 5.5"/><path d="M17 4h5v6h-5z"/><path d="M18.5 6.5h2"/></svg>Paie<span class="nav-count" id="nav-paie" hidden></span></a>
+        <a href="#/stock" data-route="stock"><svg viewBox="0 0 24 24"><path d="M3 8l9-4 9 4v8l-9 4-9-4z"/><path d="M3 8l9 4 9-4"/><path d="M12 12v8"/></svg>Stock<span class="nav-count" id="nav-stock" hidden></span></a>
+        <a href="#/immos" data-route="immos"><svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M10 21v-6h4v6"/></svg>Immobilisations<span class="nav-count info" id="nav-immos" hidden></span></a>
+        <a href="#/stats" data-route="stats"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Statistiques</a>
+        <a href="#/compta" data-route="compta"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>Comptabilité</a>
+        <a href="#/parametres" data-route="parametres"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Paramètres</a>
+        <a href="#/aide" data-route="aide"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.2a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4"/><path d="M12 17.5v.01"/></svg>Aide</a>
+      </noscript></nav>
+      <!-- Le pied de la barre est en `margin-top: auto` : il ne défile jamais, quelle que soit la
+           hauteur de la fenêtre. C'est pour ça que « Paramètres » et « Aide » vivent ici. Avant la
+           7.0.0 ils étaient en bout de `nav`, donc hors champ dès 1440×900 — et « Aide » l'était
+           même sur un écran de 1050 px de haut. Quelqu'un qui se perd cherche le bouton Aide. -->
+      <div class="sidebar-foot">
+        <button class="update-pill" id="lic-banner" hidden></button>
+        <button class="update-pill" id="update-pill" hidden>Mise à jour disponible</button>
+        <!-- « Tous les modules » était la DERNIÈRE entrée de <nav>, donc la première à tomber sous
+             la coupe : mesuré à 1366×768, cinq entrées hors champ dont celle-là. Une porte de
+             sortie hors champ n'est pas une porte de sortie — et c'est la condition qui rend le
+             filtrage du menu inoffensif. Le pied est en margin-top:auto : il ne défile jamais. -->
+        <a href="#/modules" data-route="modules" class="foot-link"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/></svg>Tous les modules</a>
+        <a href="#/parametres" data-route="parametres" class="foot-link"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Paramètres</a>
+        <!-- 10.14.0 — « Me guider » : la visite guidée, là où l'on cherche de l'aide, et au même
+             endroit sur toutes les pages. L'Aide explique ; « Me guider » MONTRE où cliquer. -->
+        <a href="#/guide" data-route="guide" class="foot-link"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>Me guider</a>
+        <a href="#/aide" data-route="aide" class="foot-link"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.2a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4"/><path d="M12 17.5v.01"/></svg>Aide</a>
+        <div class="app-version" id="app-version"></div>
+      </div>
+    </aside>
+    <main id="view"></main>
+  </div>
+
+  <div id="palette-root" hidden></div>
+  <div id="modal-root"></div>
+  <div id="toast"></div>
+
+  <!-- Le moteur comptable, partagé avec l'application du cabinet (9.1.0). Il se charge AVANT
+       core.js, qui en réexporte `entriesBalance` et `entriesByAccount` : l'inverse laisserait
+       `root.SkanCompta` indéfini au moment où core.js le lit, sans rien afficher en console. -->
+  <script src="compta.js"></script>
+  <script src="core.js"></script>
+  <script src="teif.js"></script>
+  <script src="demo.js"></script>
+  <script src="guide.js"></script>
+  <script src="onboarding.js"></script>
+  <!-- Le menu d'actions d'une ligne, partagé avec l'application du cabinet (voir rowmenu.js). -->
+  <script src="rowmenu.js"></script>
+  <script src="listes.js"></script>
+  <script src="placement.js"></script>
+  <!-- Le sommaire et la recherche des pages de réglages, partagés eux aussi (voir reglages.js). -->
+  <script src="reglages.js"></script>
+  <!-- L'écran des mises à jour, le même dans les deux applications (voir majui.js). -->
+  <script src="majui.js"></script>
+  <script src="nouveautes.js"></script>
+  <!-- La visite guidée (10.14.0) : le moteur, sans métier, puis le contenu de cette application. -->
+  <script src="visite.js"></script>
+  <script src="visites.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

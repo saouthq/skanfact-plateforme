@@ -1,0 +1,53 @@
+/* Ce que la plateforme AJOUTE à la feuille de style de la v10 (reprise telle quelle dans
+   v10/style.css). Rien ici ne change un écran de la v10 sur un ordinateur : on y ajoute la racine de
+   React, le bouton « Menu » et la mise en page du téléphone (14 § 2.6 : les écrans du quotidien
+   marchent sur téléphone dès le lancement), que la v10, application de bureau, n'avait pas. */
+
+#racine { height: 100%; }
+
+/* Le bouton qui ouvre le menu : il n'existe que sur un téléphone. */
+.menu-tel { display: none; }
+
+/* Une liste trop large pour l'écran défile dans son cadre, jamais la page. */
+.defile-x { overflow-x: auto; border-radius: var(--radius); }
+
+@media (max-width: 760px) {
+  /* La barre latérale devient une barre du haut : l'entreprise et le bouton « Menu » ; le menu
+     s'ouvre en dessous, par-dessus la page. */
+  #app { flex-direction: column; height: auto; min-height: 100%; }
+  .sidebar { width: 100%; padding: 8px 12px; border-inline-end: none; border-block-end: 1px solid var(--border); position: sticky; top: 0; z-index: 60; }
+  .sidebar .brand-wrap { padding-bottom: 0; display: flex; align-items: center; gap: 8px; }
+  .sidebar .brand { flex: 1 1 auto; min-width: 0; min-height: 44px; }
+  .menu-tel { display: inline-flex; min-height: 44px; }
+  .sidebar > nav, .sidebar > .sidebar-foot { display: none; }
+  .sidebar.menu-ouvert > nav, .sidebar.menu-ouvert > .sidebar-foot { display: flex; }
+  .sidebar.menu-ouvert > nav { padding-block-start: 8px; }
+  main { --main-haut: 18px; padding: var(--main-haut) 16px 40px; overflow-y: visible; }
+
+  /* Tout se touche du doigt : 44 points au moins. Les bulles « i » gardent leur dessin de 15 px,
+     au centre d'une cible de 44 (des marges négatives : rien ne bouge autour). */
+  .btn, nav a, .sidebar-foot .foot-link, .dos-menu button, button.nav-group { min-height: 44px; }
+  input:not([type=checkbox]):not([type=radio]), select, textarea { min-height: 44px; font-size: 16px; }
+  label.check { min-height: 44px; }
+  button.i { width: 44px; height: 44px; flex-basis: 44px; margin: -14px -12px; background: radial-gradient(circle, var(--ink-soft) 7px, transparent 7.5px); }
+  button.i:hover, button.i:focus-visible { background: radial-gradient(circle, var(--primary-soft-2) 7px, transparent 7.5px); }
+
+  .page-head h1 { font-size: 21px; }
+  #setup { padding: 16px 12px; }
+  .setup-head, .setup-body, .setup-foot { padding-inline: 18px; }
+  .setup-body { max-height: none; }
+  .setup-porte .sp-choix { grid-template-columns: minmax(0, 1fr); }
+  .setup-foot { flex-wrap: wrap; }
+  .grid-2, .grid-3 { grid-template-columns: minmax(0, 1fr); }
+  .span-2 { grid-column: auto; }
+}
+
+/* La carte d'accueil porte un vrai titre (`h1`, pour les lecteurs d'écran) : sans marge, il garde
+   exactement le dessin du titre de la v10 (`.setup-t`). */
+h1.setup-t { margin: 0; }
+
+/* Le code du téléphone (la v10 n'en avait pas) : l'adresse à ajouter dans l'application, qui se
+   coupe n'importe où plutôt que de déborder, et les dix codes de secours, en deux colonnes. */
+.adresse-code { display: block; overflow-x: auto; word-break: break-all; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--ink-soft); font-size: 12.5px; }
+.codes-secours { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+.codes-secours li { padding: 4px 8px; border-radius: 6px; background: var(--ink-soft); }

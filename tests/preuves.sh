@@ -183,9 +183,9 @@ PO=serveur/porte/porte.ts
 A=serveur/app.ts
 R=serveur/routes/socle.ts
 prouver "un geste donné à un rôle que le tableau ne nomme pas" $G \
-  "roles: { proprietaire: P } },
-];" "roles: { proprietaire: P, administrateur: P } },
-];" \
+  "  { code: 'socle.abonnement.resilier', module: 'socle', horsCle: true, ecrit: true,
+    roles: { proprietaire: P } }," "  { code: 'socle.abonnement.resilier', module: 'socle', horsCle: true, ecrit: true,
+    roles: { proprietaire: P, administrateur: P } }," \
   "chaque rôle contre chaque geste"
 prouver "« voir » qui suffit pour écrire" $PO \
   "(!ecrire && acces.includes('voir'))" "acces.includes('voir')" \
@@ -625,7 +625,7 @@ prouver "un refus de la base rendu tel quel, sans le catalogue" serveur/erreurs.
   "  const reconnu = reconnaitre(e.message ?? '');" "  const reconnu = e.message === 'jamais' ? reconnaitre(e.message) : null;" \
   "un refus du serveur, un refus de la base et un champ qui ne va pas passent par le catalogue"
 prouver "un champ qui ne va pas, dit en anglais par la bibliothèque" serveur/app.ts \
-  "raison: p ? raison(p, requete.body) : motif('champ.valeur')" "raison: p ? p.message : motif('champ.valeur')" \
+  "const pourquoi = p ? raison(p, requete.body) : motif('champ.valeur');" "const pourquoi = p ? p.message : motif('champ.valeur');" \
   "un refus du serveur, un refus de la base et un champ qui ne va pas passent par le catalogue"
 
 # ── Les clés de l'API, /v1 et la documentation (0007, serveur/cles.ts) ─────────────────────────
@@ -1040,42 +1040,84 @@ prouver "un programme qui écoute encore après son arrêt" $SP \
   "      await app.close();" "" \
   "livre les avis dus à chaque tour"
 
-# ── L'entreprise d'essai des développeurs (0009) ────────────────────────────────────────────────
+# ── L'entreprise d'essai des développeurs (0009, 0011) ────────────────────────────────────────────────
 ME9=base/migrations/0009_entreprise_essai.sql
 TE="une par personne, garnie de clients d'exemple"
-prouver "deux entreprises d'essai pour la même personne" $ME9 \
+# Sa fonction de création est refaite par 0011 (la série « FAC » de la v10) : c'est là qu'on la retouche.
+ME11=base/migrations/0011_dossier_v10.sql
+prouver "deux entreprises d'essai pour la même personne" $ME11 \
   "  if exists (select 1 from socle.entreprise e join socle.membre m on m.entreprise = e.id" "  if false and exists (select 1 from socle.entreprise e join socle.membre m on m.entreprise = e.id" \
   "$TE"
 prouver "une entreprise d'essai qui devient vraie" $ME9 \
   "  if new.essai is distinct from old.essai then perform socle.refus(" "  if false then perform socle.refus(" \
   "$TE"
-prouver "une entreprise d'essai qui n'est pas marquée" $ME9 \
+prouver "une entreprise d'essai qui n'est pas marquée" $ME11 \
   "|| v_nom, true) returning id into v_ent;" "|| v_nom, false) returning id into v_ent;" \
   "$TE"
-prouver "des factures d'essai numérotées comme des vraies" $ME9 \
-  "(v_ent, 'facture', 'ESSAI', true);" "(v_ent, 'facture', 'FAC', true);" \
+prouver "une entreprise d'essai qui annonce à l'écran un autre numéro que le sien" $ME11 \
+  "(v_ent, 'facture', 'FAC', true);" "(v_ent, 'facture', 'ESSAI', true);" \
   "$TE"
 
-# ── Les écrans (web/) : l'instrument de rendu et le parcours à la souris ────────────────────────
-RE="chaque écran, sur un téléphone et un ordinateur"
-PA="de la création du compte au retour avec le code du téléphone"
-prouver "un bouton trop petit pour un doigt" web/src/composants/Bouton.tsx \
-  "inline-flex min-h-11 items-center" "inline-flex min-h-8 items-center" \
+# ── Les écrans (web/) : l'entrée, le code v10 repris, son pont, le téléphone ─────────────────────
+RE="les écrans de l'entrée, sur un téléphone et un ordinateur"
+RV="les pages du quotidien de la v10"
+PA="du compte à la facture émise par le serveur"
+CO="deux onglets modifient le même client"
+VR="dans une vraie entreprise"
+PONT=web/public/plateforme/pont.js
+TEL=web/public/plateforme/telephone.css
+prouver "une phrase écrite en dur dans un écran de l'entrée" web/src/ecrans/Porte.tsx \
+  "onClick={() => { void essai(); }}>{titre('ecran.porte.essai_bouton')}</Bouton>" "onClick={() => { void essai(); }}>Commencer la découverte</Bouton>" \
   "$RE"
-prouver "une phrase écrite en dur dans un écran" web/src/ecrans/Entreprises.tsx \
-  "onClick={creerEssai}>{titre('ecran.entreprises.creer_essai')}</Bouton>" "onClick={creerEssai}>Créer une entreprise d'essai</Bouton>" \
+prouver "un bouton de l'entrée trop petit pour un doigt" web/src/plateforme.css \
+  "  .btn, nav a, .sidebar-foot .foot-link, .dos-menu button, button.nav-group { min-height: 44px; }" "" \
   "$RE"
-prouver "une adresse qui fait déborder l'écran du téléphone" web/src/ecrans/Entreprises.tsx \
-  "block overflow-x-auto rounded-lg bg-fond p-3 text-sm break-all" "block rounded-lg bg-fond p-3 text-sm whitespace-nowrap" \
-  "$RE"
-prouver "un champ refusé qui ne se montre pas" web/src/composants/Champ.tsx \
-  "  useEffect(() => { if (refus) ref.current?.focus(); }, [refus]);" "  useEffect(() => { void refus; }, [refus]);" \
+prouver "les lignes d'une facture plus larges que le téléphone (la grille de la v10)" $TEL \
+  '    grid-template-columns: repeat(3, minmax(0, 1fr));|||    grid-template-areas: "lab lab lab" "qte unite pu" "tva total total" "outils outils outils";' \
+  '    grid-template-columns: 64px 104px 108px 84px minmax(0, 1fr) 126px;|||    grid-template-areas: "lab lab lab lab lab outils" "qte unite pu tva total total";' \
+  "$RV"
+prouver "les listes et les onglets de la v10 laissés à la taille de la souris" $TEL \
+  "  .combo-btn, .tabs button, .somm-chip, .row-menu-btn, .pp-guide, .collapse-h { min-height: 44px; }" "" \
+  "$RV"
+prouver "le téléphone sans menu" web/public/plateforme/telephone.js \
+  "    tete.appendChild(b);" "" \
   "$PA"
-prouver "un geste sans corps envoyé comme du JSON (refusé par le serveur)" web/src/api.ts \
-  "  if (corps !== undefined) entetes['content-type'] = 'application/json';" "  entetes['content-type'] = 'application/json';" \
+prouver "une entreprise ouverte sans le code du téléphone que son rôle exige" "web/src/App.tsx|||$PONT" \
+  "ecran = <Porte creee={(id) => { retenir(id); void charger(); }}|||    if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
+    if (!r.ok) {" \
+  "ecran = <Porte creee={ouvrirEntreprise}|||    if (!r.ok) {" \
   "$PA"
-prouver "le code du téléphone oublié à la connexion" web/src/ecrans/Connexion.tsx \
-  "      } else if (r.corps.etat === 'code' && r.corps.defi && r.corps.methode) {" "      } else if (Date.now() < 0) {" \
+prouver "un net à payer de l'écran qui n'est pas celui que le serveur scelle" $PONT \
+  "netAPayer: Number(netAPayer).toFixed(decimales)," "netAPayer: Number(netAPayer + 0.001).toFixed(decimales)," \
+  "$PA"
+prouver "« Se déconnecter » qui ne ferme rien" $PONT \
+  "      try { sessionStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
+      location.replace('/');" "      void 0;" \
+  "$PA"
+prouver "un conflit d'enregistrement qui finit en « Rien n'a été enregistré »" $PONT \
+  "        if (/** @type {any} */ (e).statut === 409) return { conflict: true, disk: Object.assign(await relire(), { syncWrittenAt: Date.now() }) };" "" \
+  "$CO"
+prouver "un conflit tranché contre le serveur (l'onglet en retard écrase)" $PONT \
+  "disk: Object.assign(await relire(), { syncWrittenAt: Date.now() }) };" "disk: await relire() };" \
+  "$CO"
+prouver "l'exemple écrit dans la vraie entreprise" $PONT \
+  "      ouvrirEntreprise(essai ? essai.id : (await appelCompte('POST', '/entreprises-essai')).id);
+      return {};" "      return { motif: 'x' };" \
+  "$VR"
+prouver "« Tout effacer » laissé sur la plateforme" $PONT \
+  "'p-ocr', 'p-danger', 'p-cabinet'" "'p-ocr', 'p-cabinet'" \
+  "$VR"
+prouver "un fichier exporté qui perd son nom" $PONT \
+  "    a.href = url; a.download = propre; a.hidden = true;" "    a.href = url; a.download = 'export.txt'; a.hidden = true;" \
+  "$VR"
+prouver "un fichier de la v10 retouché à la main" web/public/v10/listes.js \
+  "'use strict';" "'use strict'; /* retouche */" \
+  "chaque fichier repris a l'empreinte"
+prouver "une adaptation écrite qui n'a pas été reprise" web/v10/adaptations.mjs \
+  "const canUnlock = !bridge.emettre && locked" "const canUnlock = !bridge.emettre &&  locked" \
+  "chaque adaptation écrite est dans le code repris"
+prouver "le dossier v10 servi comme l'entrée (la page se recharge sans fin)" serveur/principal.ts \
+  "    if (fs.existsSync(fichier) && fs.statSync(fichier).isDirectory()) fichier = path.join(fichier, 'index.html');" "" \
   "$PA"
 prouver "les écrans servis hors de leur dossier" serveur/principal.ts \
   "    if (!fichier.startsWith(racine + path.sep) && fichier !== racine) return reponse.code(404).send({});" "" \
@@ -1084,5 +1126,66 @@ prouver "des écrans sans leurs en-têtes de sécurité" serveur/principal.ts \
   "      .header('content-security-policy', POLITIQUE)" "" \
   "il sert les écrans à côté de l'API"
 
+# ── Le dossier v10 tenu par le serveur (0011) ───────────────────────────────────────────────────
+DV=serveur/v10/dossier.ts
+prouver "le dossier amorcé sans l'ordre des clients" $DV \
+  "rang: o.collection === '_racine' ? null : i - 1," "rang: o.collection === '_racine' ? null : 0," \
+  "le premier chargement naît de la fiche"
+prouver "un objet changé ailleurs écrasé sans le dire" $DV \
+  "    if ((a ? Number(a.revision) : null) !== c.revision) conflits.push({ collection: c.collection, cle: c.cle });" "" \
+  "un objet changé ailleurs n'est jamais écrasé"
+prouver "un nombre à virgule accepté dans le dossier" serveur/v10/routes.ts \
+  "z.union([z.number().int(), z.string()," "z.union([z.number(), z.string()," \
+  "jamais un nombre à virgule en base"
+prouver "une facture émise par l'interface, sans le serveur" $DV \
+  "    throw new Refus(type === 'avoir' ? 'v10.avoir_pas_encore' : 'v10.emission_par_le_serveur');" "" \
+  "une facture ne devient émise que par le serveur"
+prouver "une émission dont le net à payer diffère de l'écran" $DV \
+  "  if (serveur !== demande.netAPayer) throw" "  if (Date.now() < 0) throw" \
+  "l'émission : le numéro du serveur"
+prouver "les lignes d'une facture émise encore modifiables" $DV \
+  "'exchangeRate', 'lines', 'discountRate'" "'exchangeRate', 'discountRate'" \
+  "une facture émise ne change plus ce qui a été scellé"
+prouver "une facture émise refusée parce que la base a rangé ses clés autrement" $DV \
+  "      if (canonique(avant?.[champ]) !== canonique(apres[champ])) {" "      if (JSON.stringify(avant?.[champ]) !== JSON.stringify(apres[champ])) {" \
+  "une facture émise ne change plus ce qui a été scellé"
+prouver "une facture émise qu'on peut effacer" $DV \
+  "    if (!apres) throw new Refus('v10.emise_ne_s_efface_pas', { valeurs: { numero: String(avant?.number ?? '') } });" "    if (!apres) return;" \
+  "une facture émise ne change plus ce qui a été scellé"
+prouver "un commercial qui ouvre tout le dossier" serveur/porte/gestes.ts \
+  "  { code: 'socle.dossier.voir', module: 'socle', horsCle: true, ecrit: false,
+    roles: { proprietaire: P, administrateur: P } }," "  { code: 'socle.dossier.voir', module: 'socle', horsCle: true, ecrit: false,
+    roles: { proprietaire: P, administrateur: P, commercial: P } }," \
+  "les droits : seuls ceux qui voient toute"
+
+# ── Les écrans des ventes : les listes paginées, la facture à l'écran ───────────────────────────
+LI="les factures, la plus récente d'abord, page après page"
+CL="les clients, par ordre alphabétique, page après page"
+R7L="R7 : dans la liste comme en la lisant"
+CH="un champ refusé donne aussi sa raison seule"
+prouver "une page de factures qui oublie l'identifiant (trois le même jour)" serveur/ventes/routes.ts \
+  '(p.date_piece, p.id) < (${avant?.[0]}::date, ${avant?.[1]}::uuid)' 'p.date_piece < ${avant?.[0]}::date' \
+  "$LI"
+prouver "une liste de factures dans le désordre" serveur/ventes/routes.ts \
+  ".orderBy('p.date_piece', 'desc').orderBy('p.id', 'desc')" ".orderBy('p.id', 'asc')" \
+  "$LI"
+prouver "une dernière page qui annonce une suite" serveur/ventes/routes.ts \
+  "suite: lignes.length === n && dernier ? versCurseur(dernier.date_piece, dernier.id) : null," "suite: dernier ? versCurseur(dernier.date_piece, dernier.id) : null," \
+  "$LI"
+prouver "une page de clients qui oublie l'identifiant (deux du même nom)" serveur/ventes/routes.ts \
+  '(raison_sociale, id) > (${apres?.[0]}, ${apres?.[1]}::uuid)' 'raison_sociale > ${apres?.[0]}' \
+  "$CL"
+prouver "la liste qui montre la fiche du client au lieu de la copie figée" serveur/ventes/routes.ts \
+  "coalesce(p.copie->'client'->>'raisonSociale', t.raison_sociale)" "t.raison_sociale" \
+  "$R7L"
+prouver "la lecture qui montre la fiche du client au lieu de la copie figée" serveur/ventes/pieces.ts \
+  "    client: figee ?? fiche.raison_sociale," "    client: fiche.raison_sociale," \
+  "$R7L"
+prouver "un taux illisible qui fait tomber le serveur (500)" serveur/ventes/routes.ts \
+  "  try { t = depuisTexte(v, DECIMALES.taux); } catch { return true; }" "  t = depuisTexte(v, DECIMALES.taux);" \
+  "$CH"
+prouver "un refus sans sa raison seule" serveur/app.ts \
+  ", champ: p ? champ : null, raison: pourquoi });" ", champ: p ? champ : null });" \
+  "$CH"
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

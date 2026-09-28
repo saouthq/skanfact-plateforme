@@ -19,7 +19,7 @@ declarerTextes({
   'ventes.sans_serie': 'aucune série de factures n\'existe encore : crée-la dans les réglages',
   'ventes.avertissement_timbre': 'le timbre fiscal n\'est pas renseigné à cette date : la facture ne pourra pas être émise',
 
-  'ventes.champ.decimal': 'un nombre écrit en texte, à {dec} décimales au plus (« 2.525 »)',
+  'ventes.champ.decimal': 'un nombre à {dec} décimales au plus, écrit avec une virgule ou un point (« 2,525 »)',
   'ventes.champ.pourcentage': 'un pourcentage entre 0 et 100',
   'ventes.champ.cours_requis': 'une pièce en devise porte son cours',
   'ventes.champ.identifiant_et_type': 'un identifiant va avec son type',

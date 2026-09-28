@@ -1,16 +1,16 @@
-// Un seul bouton principal par écran (règle du projet) ; les autres sont discrets. Au moins 44
-// points de haut : un doigt doit pouvoir les toucher.
+// Les boutons de la v10 : `.btn`, le principal en `.btn-primary` (un seul par écran : l'étape
+// suivante), le discret en `.btn-ghost`, le petit en `.btn-sm`. Un bouton occupé ne part pas deux fois.
 import type { ReactNode } from 'react';
 
-type Props = { children: ReactNode; principal?: boolean; occupe?: boolean; type?: 'submit' | 'button'; onClick?: () => void };
+type Props = {
+  children: ReactNode; principal?: boolean; discret?: boolean; petit?: boolean; danger?: boolean; occupe?: boolean;
+  type?: 'submit' | 'button'; onClick?: () => void; id?: string; classe?: string; titre?: string;
+};
 
-export function Bouton({ children, principal = false, occupe = false, type = 'button', onClick }: Props) {
-  const style = principal
-    ? 'bg-accent text-white hover:bg-accent-fonce'
-    : 'bg-transparent text-accent hover:bg-accent-pale';
+export function Bouton({ children, principal, discret, petit, danger, occupe = false, type = 'button', onClick, id, classe, titre }: Props) {
+  const c = ['btn', principal ? 'btn-primary' : '', discret ? 'btn-ghost' : '', petit ? 'btn-sm' : '', danger ? 'btn-danger' : '', classe ?? ''].filter(Boolean).join(' ');
   return (
-    <button type={type} onClick={onClick} disabled={occupe} aria-busy={occupe || undefined}
-      className={`inline-flex min-h-11 items-center justify-center rounded-lg px-4 py-2 text-base font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-60 ${style}`}>
+    <button type={type} className={c} onClick={onClick} disabled={occupe} aria-busy={occupe || undefined} {...(id ? { id } : {})} {...(titre ? { title: titre } : {})}>
       {children}
     </button>
   );

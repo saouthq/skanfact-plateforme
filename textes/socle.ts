@@ -116,4 +116,6 @@ declarerTextes({
   'geste.socle.abonnement.resilier': 'résilier l\'abonnement',
   'geste.socle.cles_api.gerer': 'gérer les clés de l\'API',
   'geste.socle.avis.gerer': 'gérer les avis d\'événement',
+  'geste.socle.dossier.voir': 'ouvrir le dossier de l\'entreprise dans l\'application',
+  'geste.socle.dossier.modifier': 'enregistrer des changements dans le dossier de l\'entreprise',
 });
