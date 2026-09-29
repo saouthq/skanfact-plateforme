@@ -61,8 +61,12 @@
     /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
     // Les mois des cinq dernières années (le plafond du Cabinet v10, MAX_MOIS_ATTENDUS).
     const depuis = `${new Date().getUTCFullYear() - 5}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}-01`;
-    const [moi, mes, porte, lues, mois, regles] = await Promise.all([appel('GET', '/moi'), appel('GET', '/cabinets'), appel('GET', `/cabinets/${cabinetId}/portefeuille`),
-      appel('GET', `/cabinets/${cabinetId}/fiches`), appel('GET', `/cabinets/${cabinetId}/mois?depuis=${depuis}`), appel('GET', `/cabinets/${cabinetId}/reglages`)]);
+    const [moi, mes, porte, lues, mois, regles, eq] = await Promise.all([appel('GET', '/moi'), appel('GET', '/cabinets'), appel('GET', `/cabinets/${cabinetId}/portefeuille`),
+      appel('GET', `/cabinets/${cabinetId}/fiches`), appel('GET', `/cabinets/${cabinetId}/mois?depuis=${depuis}`), appel('GET', `/cabinets/${cabinetId}/reglages`),
+      appel('GET', `/cabinets/${cabinetId}/equipe`)]);
+    equipeLue = { membres: eq.membres || [], invitations: eq.invitations || [], affectations: eq.affectations || [] };
+    mandats.clear();
+    for (const d of porte.dossiers || []) mandats.set(d.entreprise, d.mandat);
     reglages = { contenu: regles.contenu || {}, revision: regles.revision ?? null };
     fiches.clear();
     for (const f of lues.fiches || []) fiches.set(f.entreprise, { contenu: f.contenu, revision: f.revision });
@@ -80,7 +84,15 @@
       return K.migrateDossier({ ...(fiche ? depuisFiche(fiche.contenu) : {}), id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu,
         packs: moisVersPaquets(K, (mois.mois || []).filter((/** @type {any} */ x) => x.entreprise === d.entreprise)) });
     });
+    // L'équipe (brique 46) : chaque membre du cabinet est un collaborateur de la v10 (son rôle, son
+    // adresse à la place du poste) ; les dossiers confiés sont les droits posés sur chaque dossier.
+    const utilisateurDuMembre = new Map(equipeLue.membres.map((/** @type {any} */ m) => [m.membre, m.utilisateur]));
+    for (const d of liste) {
+      d.droits = Object.fromEntries(equipeLue.affectations.filter((/** @type {any} */ a) => a.entreprise === d.id && utilisateurDuMembre.has(a.membre))
+        .map((/** @type {any} */ a) => [utilisateurDuMembre.get(a.membre), VERS_V10[a.role] || 'saisie']));
+    }
     const etat = K.migrate({ cabinet: { name: cab.nom, email: '', phone: '' }, dossiers: liste });
+    etat.collaborateurs = equipeLue.membres.map((/** @type {any} */ m) => ({ id: m.utilisateur, nom: m.nom, role: VERS_V10[m.roles[0]] || 'saisie', actif: true, poste: m.email, creeLe: null }));
     // Ce que la banque apprend pour tous les clients du cabinet (0023) : la v10 le gardait dans son état.
     etat.banques = reglages.contenu.banques || {};
     etat.libelles = reglages.contenu.libelles || [];
@@ -698,6 +710,7 @@
     'correspondance', 'page-dossier-paquets'];
   const VISITES_PAS_ENCORE = [
     'nommer-cabinet', // la fiche du cabinet ne s'enregistre pas encore en ligne
+    'equipe', // la personne invitée rejoint le cabinet chez elle, en ouvrant le lien : la visite se réécrira pour l'invitation
     'suivre-production', // le tableau de production
   ];
   // Les articles de l'Aide sans objet en ligne : les sauvegardes, changer d'ordinateur, la licence,
@@ -714,6 +727,18 @@
   /** @type {any[]} */
   let proposes = [];
   let nomDuCabinet = '';
+  // L'équipe du cabinet lue au serveur (brique 46), et le mandat de chaque dossier.
+  /** @type {{ membres: any[], invitations: any[], affectations: any[] }} */
+  let equipeLue = { membres: [], invitations: [], affectations: [] };
+  /** @type {Map<string, string>} */
+  const mandats = new Map();
+  // Les rôles de la v10 et ceux du serveur : « Saisie et validation » est le collaborateur (03 § 3).
+  /** @type {Record<string, string>} */
+  const VERS_V10 = { supervision: 'supervision', revision: 'validation', saisie: 'saisie', paie: 'saisie' };
+  /** @type {Record<string, string>} */
+  const VERS_SERVEUR = { supervision: 'supervision', validation: 'revision', saisie: 'saisie' };
+  /** @param {string} utilisateur */
+  const membreDe = (utilisateur) => (equipeLue.membres.find((m) => m.utilisateur === utilisateur) || {}).membre;
   // Le nom de qui travaille : la v10 signe les comptes, les notes et le questionnaire de ce nom.
   let moiNom = '';
   /** @param {unknown} x */
@@ -1367,6 +1392,51 @@
         registreBouge: r.biens.repris + r.biens.retires + r.salaries.repris + r.salaries.retires,
         complement: r.complement || 0, complementRetire: r.complementRetire || 0, piece: r.ecriture ? r.ecriture.piece : '',
       };
+    },
+
+    // ── L'équipe du cabinet (brique 46) : ses membres, les invitations qui attendent, le rôle de chacun,
+    // les dossiers confiés ; chacun entre avec son propre compte (plus d'identité déclarée par poste) ──
+    collaborateurs: async () => {
+      const etat = await construireEtat();
+      const associes = equipeLue.membres.filter((m) => (m.roles || []).includes('supervision'));
+      const suis = associes.some((m) => m.utilisateur === etat.moi);
+      return {
+        liste: etat.collaborateurs, moi: etat.moi, invitations: equipeLue.invitations.map((i) => ({ ...i, role: VERS_V10[i.role] || 'saisie' })),
+        gestion: suis ? { ok: true } : { ok: false, motif: 'Seul un associé du cabinet invite, change un rôle ou retire quelqu\'un.',
+          geste: `${associes.map((m) => m.nom).join(', ')} ${associes.length > 1 ? 'peuvent' : 'peut'} le faire.` },
+      };
+    },
+    // Inviter : le lien, à transmettre à la personne ; elle l'ouvre et se connecte avec cette adresse.
+    inviterCollaborateur: async (/** @type {any} */ o) => {
+      const r = await appel('POST', `/cabinets/${cabinetId}/invitations`, { email: String(o.email || '').trim(), role: VERS_SERVEUR[o.role] || 'saisie' });
+      return { lien: `${location.origin}/?invitation=${encodeURIComponent(r.jeton)}`, expire: r.expire };
+    },
+    annulerInvitation: async (/** @type {string} */ id) => { await appel('DELETE', `/cabinets/${cabinetId}/invitations/${id}`); return true; },
+    // Changer le rôle d'un membre (son nom est celui de son compte : il ne se change pas ici).
+    saveCollaborateur: async (/** @type {any} */ o = {}) => {
+      const membre = membreDe(String(o.id || ''));
+      if (!membre) throw new Error('Une personne rejoint le cabinet par une invitation : « Inviter un collaborateur… ».');
+      await appel('PUT', `/cabinets/${cabinetId}/membres/${membre}`, { role: VERS_SERVEUR[o.role] || 'saisie' });
+      return construireEtat();
+    },
+    retirerCollaborateur: async (/** @type {string} */ id) => {
+      const membre = membreDe(String(id || ''));
+      if (!membre) throw new Error('Cette personne ne fait plus partie du cabinet.');
+      await appel('DELETE', `/cabinets/${cabinetId}/membres/${membre}`);
+      return construireEtat();
+    },
+    // Les dossiers confiés : un rôle posé sur un dossier le confie à la personne ; vide, il ne l'est plus.
+    saveDroits: async (/** @type {string} */ dossierId, /** @type {Record<string, string>} */ droits) => {
+      const mandat = mandats.get(dossierId);
+      if (!mandat) throw new Error('Dossier introuvable.');
+      for (const m of equipeLue.membres) {
+        const choisi = droits ? droits[m.utilisateur] : undefined;
+        const voulu = choisi ? VERS_SERVEUR[choisi] || '' : '';
+        const pose = (equipeLue.affectations.find((a) => a.entreprise === dossierId && a.membre === m.membre) || {}).role || '';
+        if (voulu && voulu !== pose) await appel('PUT', `/cabinets/${cabinetId}/mandats/${mandat}/affectations/${m.membre}`, { role: voulu });
+        else if (!voulu && pose) await appel('DELETE', `/cabinets/${cabinetId}/mandats/${mandat}/affectations/${m.membre}`);
+      }
+      return construireEtat();
     },
 
     // Un dossier créé à la main est un dossier TENU (0019) ; ses notes vont dans sa fiche (0020).

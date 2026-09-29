@@ -1,0 +1,119 @@
+Relire une fois (brique 46, correctif de la brique 45). Format : voir sans-paquets.mjs.
+
+Les onglets du livre (Déclaration, Révision, Liasse, Exercice, Immobilisations, Inventaire) se relisent
+quand la piste d'audit du livre s'allonge. Après un geste, l'écran relisait ses données, puis se
+relisait une seconde fois en voyant la piste allongée : un clic tombé pendant cette seconde relecture se
+perdait. Une lecture retient désormais le livre qu'elle a lu.
+
+== cabinet/app.js | lu après un geste, l'écran se sait à jour : il ne se relit pas une seconde fois (un clic tombé pendant cette relecture se perdait)
+-- avant
+  async function chargerDeclaration(root, dossier) {
+    const s = livresState;
+    try {
+      s.decl = await api.declaration({ dossierId: dossier.id, annee: s.annee, periode: declState.mois || moisDeclarationPropose(s.livre) });
+    } catch (e) { s.decl = { erreur: plainError(e), periode: declState.mois || moisDeclarationPropose(s.livre) }; }
+    drawLivres(root, dossier);
+  }
+-- après
+  async function chargerDeclaration(root, dossier) {
+    const s = livresState;
+    try {
+      s.decl = await api.declaration({ dossierId: dossier.id, annee: s.annee, periode: declState.mois || moisDeclarationPropose(s.livre) });
+    } catch (e) { s.decl = { erreur: plainError(e), periode: declState.mois || moisDeclarationPropose(s.livre) }; }
+    s.declRev = revDuLivre(s.livre);
+    drawLivres(root, dossier);
+  }
+-- fin
+
+== cabinet/app.js | lu après un geste, l'écran se sait à jour : il ne se relit pas une seconde fois (un clic tombé pendant cette relecture se perdait)
+-- avant
+  async function chargerCloture(root, dossier) {
+    const s = livresState;
+    try { s.cloture = await api.cloture({ dossierId: dossier.id, annee: s.annee }); }
+    catch (e) { s.cloture = { erreur: plainError(e) }; }
+    drawLivres(root, dossier);
+  }
+-- après
+  async function chargerCloture(root, dossier) {
+    const s = livresState;
+    try { s.cloture = await api.cloture({ dossierId: dossier.id, annee: s.annee }); }
+    catch (e) { s.cloture = { erreur: plainError(e) }; }
+    s.clotureRev = revDuLivre(s.livre);
+    drawLivres(root, dossier);
+  }
+-- fin
+
+== cabinet/app.js | lu après un geste, l'écran se sait à jour : il ne se relit pas une seconde fois (un clic tombé pendant cette relecture se perdait)
+-- avant
+  async function chargerLiasse(root, dossier) {
+    const s = livresState;
+    try { s.liasse = await api.liasse({ dossierId: dossier.id, annee: s.annee }); }
+    catch (e) { s.liasse = { erreur: plainError(e) }; }
+    drawLivres(root, dossier);
+  }
+-- après
+  async function chargerLiasse(root, dossier) {
+    const s = livresState;
+    try { s.liasse = await api.liasse({ dossierId: dossier.id, annee: s.annee }); }
+    catch (e) { s.liasse = { erreur: plainError(e) }; }
+    s.liasseRev = revDuLivre(s.livre);
+    drawLivres(root, dossier);
+  }
+-- fin
+
+== cabinet/app.js | lu après un geste, l'écran se sait à jour : il ne se relit pas une seconde fois (un clic tombé pendant cette relecture se perdait)
+-- avant
+  async function chargerImmobilisations(root, dossier) {
+    const s = livresState;
+    try { s.immo = await api.immobilisations({ dossierId: dossier.id, annee: s.annee }); }
+    catch (e) { s.immo = { erreur: plainError(e) }; }
+    drawLivres(root, dossier);
+  }
+-- après
+  async function chargerImmobilisations(root, dossier) {
+    const s = livresState;
+    try { s.immo = await api.immobilisations({ dossierId: dossier.id, annee: s.annee }); }
+    catch (e) { s.immo = { erreur: plainError(e) }; }
+    s.immoRev = revDuLivre(s.livre);
+    drawLivres(root, dossier);
+  }
+-- fin
+
+== cabinet/app.js | lu après un geste, l'écran se sait à jour : il ne se relit pas une seconde fois (un clic tombé pendant cette relecture se perdait)
+-- avant
+  async function chargerInventaire(root, dossier) {
+    const s = livresState;
+    try { s.inv = await api.inventaire({ dossierId: dossier.id, annee: s.annee }); }
+    catch (e) { s.inv = { erreur: plainError(e) }; }
+    drawLivres(root, dossier);
+  }
+-- après
+  async function chargerInventaire(root, dossier) {
+    const s = livresState;
+    try { s.inv = await api.inventaire({ dossierId: dossier.id, annee: s.annee }); }
+    catch (e) { s.inv = { erreur: plainError(e) }; }
+    s.invRev = revDuLivre(s.livre);
+    drawLivres(root, dossier);
+  }
+-- fin
+
+== cabinet/app.js | lue après un geste, la révision se sait à jour : elle ne se relit pas une seconde fois
+-- avant
+  async function chargerRevision(root, dossier) {
+    const s = livresState;
+    try { s.revision = await api.revision({ dossierId: dossier.id, annee: s.annee, periode: s.revPeriode || String(s.annee) }); }
+    catch (e) { s.revision = { erreur: plainError(e) }; }
+    drawLivres(root, dossier);
+  }
+-- après
+  // Ce qui fait relire le dossier de révision : le livre, la période, la méthode du cabinet.
+  // (Un livre quitté pendant la lecture n'a plus de piste : `revDuLivre` le sait.)
+  const revDeLaRevision = s => `${revDuLivre(s.livre)}:${s.revPeriode || s.annee}:${JSON.stringify([S.questionnaire || [], S.cycles || []])}`;
+  async function chargerRevision(root, dossier) {
+    const s = livresState;
+    try { s.revision = await api.revision({ dossierId: dossier.id, annee: s.annee, periode: s.revPeriode || String(s.annee) }); }
+    catch (e) { s.revision = { erreur: plainError(e) }; }
+    s.revisionRev = revDeLaRevision(s);
+    drawLivres(root, dossier);
+  }
+-- fin

@@ -228,6 +228,13 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'une réouverture demande un motif : c\'est la seule trace qui expliquera pourquoi un chiffre a changé après coup', cle: 'base.compta.rouvrir_motif', fr: 'une réouverture demande un motif : c\'est la seule trace qui expliquera pourquoi un chiffre a changé après coup' },
   { base: 'un motif se dit en cinq cents caractères au plus', cle: 'base.compta.rouvrir_motif_long', fr: 'un motif se dit en cinq cents caractères au plus' },
   { base: 'la période est validée jusqu\'au %s, après la fin de l\'exercice %s : le rouvrir rouvrirait aussi ces jours-là', cle: 'base.compta.rouvrir_apres', fr: 'la période est validée jusqu\'au {jour}, après la fin de l\'exercice {annee} : le rouvrir rouvrirait aussi ces jours-là', valeurs: ['jour', 'annee'] },
+  { base: 'seul un associé du cabinet invite quelqu\'un dans son équipe', cle: 'base.cabinet.inviter_associe', fr: 'seul un associé du cabinet invite quelqu\'un dans son équipe' },
+  { base: 'ce rôle n\'existe pas au cabinet', cle: 'base.cabinet.role_inconnu', fr: 'ce rôle n\'existe pas au cabinet' },
+  { base: 'cette personne fait déjà partie du cabinet', cle: 'base.cabinet.deja_membre', fr: 'cette personne fait déjà partie du cabinet' },
+  { base: 'cette invitation n\'existe pas', cle: 'base.cabinet.invitation_absente', fr: 'cette invitation n\'existe pas' },
+  { base: 'cette invitation a déjà été acceptée : retire la personne du cabinet si elle ne doit plus y être', cle: 'base.cabinet.invitation_acceptee', fr: 'cette invitation a déjà été acceptée : retire la personne du cabinet si elle ne doit plus y être' },
+  { base: 'seul un associé du cabinet change son équipe', cle: 'base.cabinet.equipe_associe', fr: 'seul un associé du cabinet change son équipe' },
+  { base: 'personne ne change son propre rôle, ni ne se retire soi-même : un autre associé le fait', cle: 'base.cabinet.equipe_soi', fr: 'personne ne change son propre rôle, ni ne se retire soi-même : un autre associé le fait' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

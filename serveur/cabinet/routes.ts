@@ -6,6 +6,7 @@
 //     mandat (le propriétaire seul, geste socle.cabinet.choisir).
 // Chaque changement d'un mandat se trace chez l'entreprise : elle voit qui a fait quoi (03 § 3.4).
 
+import { createHash, randomBytes } from 'node:crypto';
 import { sql } from 'kysely';
 import { z } from 'zod';
 import { versTexte } from '../../moteur/argent.ts';
@@ -19,6 +20,8 @@ const uuid = z.string().uuid();
 const PERIMETRES = ['comptabilite', 'declarations', 'saisie_achats', 'paie'] as const;
 const perimetre = z.array(z.enum(PERIMETRES)).min(1).max(4).refine((p) => new Set(p).size === p.length, { message: 'cabinet.champ.perimetre' });
 const ROLES_SUR_DOSSIER = ['supervision', 'revision', 'saisie', 'paie'] as const;
+// Les rôles d'une personne au cabinet (0030) : associé, collaborateur, assistant de saisie.
+const ROLES_AU_CABINET = ['supervision', 'revision', 'saisie'] as const;
 const introuvable = { statut: 404 as const, corps: { motif: motif('commun.introuvable') } };
 // Les champs de la fiche d'un dossier au cabinet : cette liste, et rien d'autre (0020). Les
 // honoraires en millimes (jamais de nombre à virgule en base).
@@ -90,7 +93,6 @@ async function mandatEnCours(tx: Transaction, entreprise: string) {
 }
 
 export function routesCabinet(ctx: Contexte): Route<never>[] {
-  void ctx;
   const routes: Route<never>[] = [];
   const ajouter = <C>(r: Route<C>) => { routes.push(r as unknown as Route<never>); };
 
@@ -324,6 +326,68 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       const r = (await tx.query('select cabinet.poser_revision($1, $2, $3, $4::jsonb, $5::bigint) revision',
         [params.cabinet, params.dossier, params.periode, JSON.stringify(corps.contenu), corps.revision])).rows[0];
       return { corps: { revision: Number(r.revision) } };
+    },
+  });
+
+  // ── L'équipe du cabinet (brique 46, 0030) ───────────────────────────────────────────────────
+  // Ses membres (leur nom, leur adresse, leur rôle), les dossiers confiés à chacun (les mandats actifs),
+  // et — pour un associé — les invitations qui attendent. La sécurité par ligne dit qui voit quoi.
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/equipe', geste: 'compte.cabinets.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const cabinet = params.cabinet ?? '';
+      const membres = (await tx.query(`select m.id membre, m.utilisateur, u.nom, u.email, m.roles from socle.membre m
+        join socle.utilisateur u on u.id = m.utilisateur where m.organisation = $1 and m.actif order by u.nom, m.id`, [cabinet])).rows;
+      if (!membres.length) return introuvable;
+      const affectations = (await tx.query(`select a.mandat, d.entreprise, a.membre, a.role from socle.mandat_affectation a
+        join socle.mandat d on d.id = a.mandat where d.cabinet = $1 and d.statut = 'actif' order by d.entreprise, a.membre`, [cabinet])).rows;
+      const invitations = (await tx.query(`select id, email, roles, expire_le from socle.invitation
+        where organisation = $1 and acceptee_le is null and annulee_le is null and expire_le > now() order by cree_le`, [cabinet])).rows as { id: string; email: string; roles: string[]; expire_le: Date }[];
+      return {
+        corps: {
+          membres, affectations,
+          invitations: invitations.map((i) => ({ id: i.id, email: i.email, role: i.roles[0], expire: i.expire_le.toISOString() })),
+        },
+      };
+    },
+  });
+  // Inviter une personne par son adresse : le lien n'est rendu qu'ici, une fois ; la base n'en garde que l'empreinte.
+  ajouter({
+    methode: 'POST', chemin: '/cabinets/:cabinet/invitations', geste: 'compte.cabinet.gerer',
+    corps: z.object({ email: z.string().trim().email({ message: 'cabinet.champ.email' }), role: z.enum(ROLES_AU_CABINET) }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const jeton = randomBytes(24).toString('base64url');
+      const expire = new Date((ctx.maintenant ?? (() => new Date()))().getTime() + 7 * 24 * 3600_000);
+      const id = (await tx.query('select socle.inviter_au_cabinet($1, $2, $3, $4, $5) id',
+        [params.cabinet, corps.email, corps.role, createHash('sha256').update(jeton).digest('hex'), expire])).rows[0].id as string;
+      return { statut: 201, corps: { id, jeton, expire: expire.toISOString() } };
+    },
+  });
+  ajouter({
+    methode: 'DELETE', chemin: '/cabinets/:cabinet/invitations/:invitation', geste: 'compte.cabinet.gerer',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.invitation).success) return introuvable;
+      await tx.query('select socle.annuler_invitation_cabinet($1)', [params.invitation]);
+      return { corps: { id: params.invitation } };
+    },
+  });
+  ajouter({
+    methode: 'PUT', chemin: '/cabinets/:cabinet/membres/:membre', geste: 'compte.cabinet.gerer',
+    corps: z.object({ role: z.enum(ROLES_AU_CABINET) }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.membre).success) return introuvable;
+      await tx.query('select socle.changer_role_cabinet($1, $2, $3)', [params.cabinet, params.membre, corps.role]);
+      return { corps: { membre: params.membre, role: corps.role } };
+    },
+  });
+  ajouter({
+    methode: 'DELETE', chemin: '/cabinets/:cabinet/membres/:membre', geste: 'compte.cabinet.gerer',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.membre).success) return introuvable;
+      await tx.query('select socle.retirer_du_cabinet($1, $2)', [params.cabinet, params.membre]);
+      return { corps: { membre: params.membre } };
     },
   });
 

@@ -377,7 +377,7 @@
   b('#ap-ecrire', 'Ouvre ta messagerie avec le message tout prêt : tes clients en copie cachée, ce qu\'ils doivent faire, et l\'empreinte à vérifier.');
   b('#ap-montrer', 'Montre le fichier dans son dossier, pour le glisser dans le message.');
   b('#c-copier-emp, #w-copier-emp, #lic-copier-emp', 'Copie l\'empreinte de ton cabinet, pour la dicter ou l\'envoyer.', { nom: 'Copier', cle: 'copier-emp' });
-  b('#eq-add', 'Déclare un collaborateur et son rôle : qui saisit, qui valide.');
+  b('#eq-add', 'Invite un collaborateur par son adresse, avec son rôle : qui saisit, qui valide.');
   b('#lic-ask', 'Prépare le mail de demande de licence, avec l\'empreinte de ton cabinet.');
   b('#lic-save', 'Enregistre la clé de licence collée.');
   b('#lic-clear', 'Retire la clé de licence de ce poste.');

@@ -181,6 +181,12 @@
     sont validés ; `compta.reouverture` les garde. Geste `compta.exercice.cloturer` (au cabinet,
     l'associé). Les à-nouveaux : le geste de la v10 joué sur l'année d'après, écrit en brouillard.
     Le livre du point de contact porte un geste par enregistrement (`livre.audit`) : les onglets s'y relisent.
+  - **L'équipe du cabinet** (brique 46, 0030, C36) : `socle.invitation` vaut aussi pour un cabinet
+    (`organisation`) ; `socle.inviter_au_cabinet`, `annuler_invitation_cabinet`, `changer_role_cabinet`,
+    `retirer_du_cabinet` (un associé ; jamais sur soi-même) ; `GET /cabinets/:c/equipe`. L'entrée React
+    accepte `/?invitation=<jeton>` après la connexion. Les collaborateurs de la v10 sont les membres
+    (id = utilisateur) ; « Saisie et validation » = `revision` ; les droits d'un dossier = les affectations.
+    Une lecture d'onglet retient le livre qu'elle a lu (`relectures.txt`) : jamais deux relectures par geste.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

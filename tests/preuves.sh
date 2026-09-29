@@ -2890,5 +2890,53 @@ prouver "les écrans qui ne se relisent pas après une validation" $PC \
   "    livre.audit = new Array(gestesFaits);" "" \
   "$WC1"
 
+# ── Brique 46 : l'équipe du cabinet (docs/cabinet.md, C36) ──
+EQ1="l'associé invite par l'adresse ; la personne rejoint avec cette adresse ; on lui confie un dossier ; retirée, elle n'ouvre plus rien"
+EQ2="seul un associé invite, change un rôle, retire ; personne ne change son propre rôle ni ne se retire ; une invitation annulée ne vaut plus"
+WE1="inviter par l'adresse, rejoindre par le lien, confier un dossier, changer le rôle, retirer"
+M30=base/migrations/0030_cabinet_equipe.sql
+prouver "une invitation acceptée par une autre adresse" $M30 \
+  "  if lower(v_email) <> i.email then" "  if false then" \
+  "$EQ1"
+prouver "une invitation au cabinet qui donne un autre rôle" $M30 \
+  "values (socle.moi(), i.organisation, i.roles, i.invite_par)" "values (socle.moi(), i.organisation, array['supervision'], i.invite_par)" \
+  "$EQ1"
+prouver "un membre retiré qui ouvre encore le cabinet" $M30 \
+  "  update socle.membre set actif = false where id = p_membre;" "  update socle.membre set actif = true where id = p_membre;" \
+  "$EQ1"
+prouver "les invitations acceptées ou annulées qui attendent encore" serveur/cabinet/routes.ts \
+  "where organisation = \$1 and acceptee_le is null and annulee_le is null and expire_le > now()" "where organisation = \$1" \
+  "$EQ1"
+prouver "le cabinet rejoint que l'entrée ne sait pas ouvrir" serveur/routes/socle.ts \
+  "cabinet: ou?.organisation ?? null" "cabinet: null" \
+  "$EQ1"
+prouver "un collaborateur qui invite" $M30 \
+  "  if not socle.suis_associe(p_cabinet) then perform socle.refus('seul un associé du cabinet invite" "  if false then perform socle.refus('seul un associé du cabinet invite" \
+  "$EQ2"
+prouver "une personne invitée deux fois" $M30 \
+  "  if exists (select 1 from socle.membre m join socle.utilisateur u on u.id = m.utilisateur" "  if false and exists (select 1 from socle.membre m join socle.utilisateur u on u.id = m.utilisateur" \
+  "$EQ2"
+prouver "un associé qui se rétrograde ou se retire" $M30 \
+  "  if m.utilisateur = socle.moi() then perform socle.refus('personne ne change" "  if false then perform socle.refus('personne ne change" \
+  "$EQ2"
+prouver "un collaborateur qui change l'équipe" $M30 \
+  "  if not socle.suis_associe(p_cabinet) then perform socle.refus('seul un associé du cabinet change son équipe'); end if;" "" \
+  "$EQ2"
+prouver "une invitation annulée qui vaut encore" $M30 \
+  "  update socle.invitation set annulee_le = now() where id = p_invitation;" "" \
+  "$EQ2"
+prouver "l'entrée qui n'ouvre pas le cabinet rejoint" web/src/App.tsx \
+  "        if (r.statut === 200 && r.corps.cabinet) { ouvrirCabinet(r.corps.cabinet); return; }" "" \
+  "$WE1"
+prouver "un dossier confié que le serveur ne reçoit pas" $PC \
+  "        if (voulu && voulu !== pose) await appel('PUT'" "        if (false) await appel('PUT'" \
+  "$WE1"
+prouver "« Saisie et validation » envoyé comme saisie" $PC \
+  "validation: 'revision'" "validation: 'saisie'" \
+  "$WE1"
+prouver "un menu sur sa propre ligne" web/public/v10/cabinet/app.js \
+  "\${g.ok && c.id !== equipe.moi ? RowMenu.cellule" "\${g.ok ? RowMenu.cellule" \
+  "$WE1"
+
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

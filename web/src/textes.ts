@@ -10,6 +10,8 @@ declarerTextes({
   'ecran.erreur_reseau': 'le serveur ne répond pas : vérifie ta connexion, puis réessaie',
   'ecran.erreur_serveur': 'le serveur a rencontré une erreur : réessaie dans un instant',
   'ecran.deconnexion': 'se déconnecter',
+  'ecran.invitation.titre': 'l\'invitation n\'a pas abouti',
+  'ecran.invitation.continuer': 'continuer',
   // La phrase d'accueil de la v10, sous le titre de chaque carte.
   'ecran.accueil.sous': 'tes devis, tes factures et ta gestion, en main dès aujourd\'hui',
 

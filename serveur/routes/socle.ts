@@ -181,7 +181,9 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
     traiter: async ({ corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const membre = (await tx.query('select socle.accepter_invitation($1, $2) id', [sha256(corps.jeton), maintenant()])).rows[0].id;
-      return { corps: { membre } };
+      // Ce que la personne vient de rejoindre : une entreprise, ou un cabinet (brique 46).
+      const ou = (await tx.query('select entreprise, organisation from socle.membre where id = $1', [membre])).rows[0] as { entreprise: string | null; organisation: string | null } | undefined;
+      return { corps: { membre, entreprise: ou?.entreprise ?? null, cabinet: ou?.organisation ?? null } };
     },
   });
 

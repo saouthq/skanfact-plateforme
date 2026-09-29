@@ -1,0 +1,258 @@
+L'équipe du cabinet (brique 46). Format : voir sans-paquets.mjs.
+
+La v10 déclarait ses collaborateurs par leur nom (une identité déclarée sur un poste, sans mot de
+passe) et posait des droits dossier par dossier. Sur la plateforme, chacun entre avec son propre
+compte : un associé invite par l'adresse, la personne rejoint le cabinet en ouvrant le lien ; un
+rôle posé sur un dossier le lui confie (docs/cabinet.md, C36).
+
+== cabinet/app.js | chacun entre avec son propre compte : plus d'identité déclarée par poste
+-- avant
+      ${liste.length ? `<div class="${moi ? 'ok-box' : 'warn-box'} mb" id="eq-moi">
+          ${/* 10.14.0 — la phrase est UN élément : dans ce bandeau flex, chaque morceau de texte et le
+                nom en gras devenaient trois éléments séparés par l'écart du bandeau (« c'est   Karim
+                   qui travaille »), la règle de la 10.12.0 sur l'étiquette d'une case, vue à la souris. */''}
+          <span class="eq-phrase">${moi ? `Sur cet ordinateur, c'est <b>${esc(moi.nom)}</b> qui travaille — ${esc(K.LIBELLE_ROLE[moi.role])}.`
+    : 'Cet ordinateur ne dit pas qui travaille dessus : la piste d\'audit portera le nom du poste, et les droits par dossier ne s\'appliquent pas.'}</span>
+          <label class="f-lab mt-s">Je suis
+            <select id="eq-je-suis" aria-label="Qui travaille sur cet ordinateur">
+              <option value="">— personne de déclaré —</option>
+              ${liste.map(c => `<option value="${esc(c.id)}" ${c.id === equipe.moi ? 'selected' : ''}>${esc(c.nom)}</option>`).join('')}
+            </select></label>
+        </div>`
+    : `<p class="small">Ce cabinet fonctionne <strong>à une personne</strong> : rien n'est restreint, et la piste
+          d'audit porte le nom de cet ordinateur. Déclare tes collaborateurs le jour où vous êtes plusieurs —
+          chaque écriture validée portera alors le nom de qui l'a validée.</p>`}
+-- après
+      ${moi ? `<div class="ok-box mb" id="eq-moi"><span class="eq-phrase">Tu es connecté sous le nom de <b>${esc(moi.nom)}</b> — ${esc(K.LIBELLE_ROLE[moi.role])}.
+          Chacun entre avec son propre compte : chaque écriture validée porte le nom de qui l'a validée.</span></div>` : ''}
+-- fin
+
+== cabinet/app.js | la personne se reconnaît à son adresse, plus à son poste
+-- avant
+          <th>Nom</th><th>Rôle</th><th>Poste habituel</th><th></th></tr></thead>
+-- après
+          <th>Nom</th><th>Rôle</th><th>Adresse</th><th></th></tr></thead>
+-- fin
+
+== cabinet/app.js | « toi », plus « ce poste »
+-- avant
+          <td>${esc(c.nom)}${c.id === equipe.moi ? ' <span class="badge">ce poste</span>' : ''}</td>
+-- après
+          <td>${esc(c.nom)}${c.id === equipe.moi ? ' <span class="badge">toi</span>' : ''}</td>
+-- fin
+
+== cabinet/app.js | personne ne change son propre rôle ni ne se retire : pas de menu sur sa propre ligne ; les invitations qui attendent se lisent sous l'équipe
+-- avant
+          ${g.ok ? RowMenu.cellule('EQ:' + c.id) : '<td class="row-actions"></td>'}</tr>`).join('')}</tbody></table></div>` : ''}
+-- après
+          ${g.ok && c.id !== equipe.moi ? RowMenu.cellule('EQ:' + c.id) : '<td class="row-actions"></td>'}</tr>`).join('')}</tbody></table></div>` : ''}
+      ${(equipe.invitations || []).length ? `<p class="small mt"><b>Invitations qui attendent :</b></p><div class="scroll-x"><table class="list compact" id="eq-invitations"><tbody>${equipe.invitations.map(i => `<tr>
+          <td>${esc(i.email)}</td><td>${esc(K.LIBELLE_ROLE[i.role])}</td><td class="muted small">jusqu'au ${esc(fmtJour(KC.jourDeLInstant(Date.parse(i.expire))))}</td>
+          <td class="row-actions">${g.ok ? `<button type="button" class="btn btn-sm" data-inv="${esc(i.id)}">Annuler l'invitation</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}
+-- fin
+
+== cabinet/app.js | une personne rejoint le cabinet par une invitation
+-- avant
+        <button class="btn" id="eq-add" ${g.ok ? '' : 'disabled'}>Ajouter un collaborateur…</button>
+-- après
+        <button class="btn" id="eq-add" ${g.ok ? '' : 'disabled'}>Inviter un collaborateur…</button>
+-- fin
+
+== cabinet/app.js | chacun son compte : les rôles disent qui a fait quoi ; un collaborateur voit les dossiers qu'on lui confie
+-- avant
+      <p class="muted small">Une identité <strong>déclarée</strong>, pas un mot de passe : celui du cabinet ouvre déjà
+      toute la base, donc un second par personne ne protégerait rien de plus. Ce que les rôles apportent, c'est de
+      savoir <strong>qui</strong> a validé une écriture, et d'éviter qu'elle soit validée par quelqu'un dont ce n'est
+      pas le travail. Les droits d'un dossier précis se règlent dans sa fiche, onglet <strong>Suivi</strong>.</p>`;
+-- après
+      <p class="muted small">Chacun entre avec <strong>son propre compte</strong> et son code : les rôles disent
+      <strong>qui</strong> a validé une écriture, et évitent qu'elle le soit par quelqu'un dont ce n'est pas le travail. Un associé
+      voit tous les dossiers ; un collaborateur, ceux qu'un associé lui confie, dans la fiche du dossier, onglet <strong>Suivi</strong>.</p>`;
+-- fin
+
+== cabinet/app.js | le nom est celui du compte de la personne : seul son rôle se change
+-- avant
+        { icon: 'modifier', label: 'Modifier ce collaborateur', detail: 'Son nom et son rôle.', run: () => formCollaborateur(c) },
+-- après
+        { icon: 'modifier', label: 'Changer son rôle', detail: 'Son nom est celui de son compte.', run: () => formCollaborateur(c) },
+-- fin
+
+== cabinet/app.js | annuler une invitation qui attend
+-- avant
+    if (add) add.onclick = () => formCollaborateur(null);
+-- après
+    if (add) add.onclick = () => formCollaborateur(null);
+    $$('[data-inv]', box).forEach(b => { b.onclick = async () => {
+      try { await api.annulerInvitation(b.dataset.inv); equipe = await api.collaborateurs(); dessinerEquipe(document, true); toast('Invitation annulée.'); }
+      catch (e) { toast(plainError(e), 'error'); }
+    }; });
+-- fin
+
+== cabinet/app.js | inviter une personne par son adresse ; pour quelqu'un qui est déjà là, changer son rôle
+-- avant
+  function formCollaborateur(c) {
+    // 10.14.0 — le premier déclaré devient l'identité de ce poste (9.9.0) : c'est presque toujours le
+    // comptable lui-même, envoyé ici par « Tes premiers pas ». On le lui dit AVANT d'enregistrer
+    // (un avertissement se lit avant le geste, 9.4.2) — le toast le disait après — et on lui propose
+    // « Supervision » : « Saisie », la première option, lui retirait la validation de ses écritures.
+    const premier = !c && !K.collaborateurs({ collaborateurs: (equipe && equipe.liste) || [] }).length;
+    const role = c ? c.role : K.roleProposeCollab({ collaborateurs: (equipe && equipe.liste) || [] });
+    modal(`<h2>${c ? 'Modifier ' + esc(c.nom) : 'Ajouter un collaborateur'}</h2>
+      ${premier ? `<div class="info-box mb" id="eq-premier"><b>Commence par toi : le premier déclaré devient le nom de cet
+        ordinateur.</b> Tes écritures validées le porteront. « Supervision » te garde tous les droits — la clôture et la
+        gestion de l'équipe comprises.</div>` : ''}
+      <label class="field obligatoire">${lbl('Nom', 'eq.nom')}
+        <input type="text" id="eq-nom" value="${esc(c ? c.nom : '')}" placeholder="Amine Ben Salah"></label>
+      <label class="field">${lbl('Rôle', 'eq.role')}<select id="eq-role">
+        ${K.ROLES_COLLAB.map(r => `<option value="${r}" ${role === r ? 'selected' : ''}>${esc(K.LIBELLE_ROLE[r])}</option>`).join('')}
+      </select></label>
+      <p class="muted small" id="eq-detail"></p>
+      <p class="muted small">Le rôle vaut partout, sauf sur les dossiers où un droit a été posé pour cette personne :
+      c'est ce qui permet de confier un dossier à quelqu'un sans lui ouvrir tout le portefeuille.</p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button>
+        <button class="btn btn-primary" id="eq-ok">${c ? 'Enregistrer' : 'Ajouter'}</button></div>`,
+    (couche, close) => {
+      // Le détail du rôle suit la liste : choisir « Supervision » sans savoir ce que ça ouvre, c'est
+      // choisir au hasard. La phrase vient de `DETAIL_ROLE`, la même que le tableau affiche.
+      const r = $('#eq-role', couche), d = $('#eq-detail', couche);
+      const dire = () => { d.textContent = K.DETAIL_ROLE[r.value] || ''; };
+      r.onchange = dire; dire();
+      $('#eq-ok', couche).onclick = async () => {
+        const nom = $('#eq-nom', couche).value.trim();
+        try {
+          const avant = (equipe.liste || []).filter(x => x.actif).length;
+          S = await api.saveCollaborateur({ id: c ? c.id : '', nom, role: r.value });
+          equipe = await api.collaborateurs();
+          close(); dessinerEquipe(document, true);
+          // Le premier déclaré devient l'identité de ce poste : on le DIT, sinon la personne
+          // découvre son nom en haut d'un bandeau sans savoir qui l'y a mis.
+          toast(c ? 'Collaborateur enregistré.'
+            : avant ? `${nom} fait partie du cabinet.`
+              : `${nom} fait partie du cabinet, et c'est ton nom sur cet ordinateur.`);
+        } catch (e) {
+          // Un refus se MONTRE : on ramène le champ fautif à l'écran avec le curseur dedans,
+          // plutôt qu'une phrase au-dessus d'un formulaire qui a pu défiler (règle 7.0.0).
+          refus($('#eq-nom', couche), plainError(e));
+        }
+      };
+    });
+  }
+-- après
+  // La plateforme (brique 46) : une personne rejoint le cabinet par une INVITATION, à son adresse, avec
+  // son rôle ; le lien se transmet à la personne, qui l'ouvre et se connecte avec cette adresse (ou crée
+  // son compte avec elle). Son nom est celui de son compte : pour quelqu'un qui est déjà là, seul le rôle
+  // se change.
+  function formCollaborateur(c) {
+    const role = c ? c.role : 'saisie';
+    modal(`<h2>${c ? 'Le rôle de ' + esc(c.nom) : 'Inviter un collaborateur'}</h2>
+      ${c ? '' : `<label class="field obligatoire">${lbl('Son adresse e-mail', 'eq.email')}
+        <input type="email" id="eq-email" placeholder="amine@cabinet.tn" autocomplete="off"></label>`}
+      <label class="field">${lbl('Rôle', 'eq.role')}<select id="eq-role">
+        ${K.ROLES_COLLAB.map(r => `<option value="${r}" ${role === r ? 'selected' : ''}>${esc(K.LIBELLE_ROLE[r])}</option>`).join('')}
+      </select></label>
+      <p class="muted small" id="eq-detail"></p>
+      <p class="muted small">Un associé voit tous les dossiers ; un collaborateur, ceux qu'on lui confie dans la fiche du dossier.</p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button>
+        <button class="btn btn-primary" id="eq-ok">${c ? 'Enregistrer' : 'Inviter'}</button></div>`,
+    (couche, close) => {
+      const r = $('#eq-role', couche), d = $('#eq-detail', couche);
+      const dire = () => { d.textContent = K.DETAIL_ROLE[r.value] || ''; };
+      r.onchange = dire; dire();
+      $('#eq-ok', couche).onclick = async () => {
+        if (c) {
+          try {
+            S = await api.saveCollaborateur({ id: c.id, role: r.value });
+            equipe = await api.collaborateurs();
+            close(); dessinerEquipe(document, true);
+            toast('Rôle enregistré.');
+          } catch (e) { toast(plainError(e), 'error'); }
+          return;
+        }
+        const email = $('#eq-email', couche).value.trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return refus($('#eq-email', couche), 'Écris son adresse e-mail : c\'est avec elle qu\'il rejoindra le cabinet.');
+        try {
+          const inv = await api.inviterCollaborateur({ email, role: r.value });
+          equipe = await api.collaborateurs();
+          close(); dessinerEquipe(document, true);
+          modal(`<h2>Invitation prête</h2>
+            <p>Envoie ce lien à <b>${esc(email)}</b> (par mail, par exemple). Il l'ouvre, se connecte avec cette adresse — ou crée son compte
+            avec elle — et rejoint le cabinet. Le lien vaut jusqu'au ${esc(fmtJour(KC.jourDeLInstant(Date.parse(inv.expire))))}, une seule fois.</p>
+            <p><input type="text" id="eq-lien" readonly value="${esc(inv.lien)}" style="width:100%"></p>
+            <div class="modal-actions"><button class="btn" id="eq-copier">Copier le lien</button><button class="btn btn-primary" data-close>Fermer</button></div>`,
+          (c2) => {
+            $('#eq-copier', c2).onclick = async () => {
+              try { await navigator.clipboard.writeText(inv.lien); toast('Lien copié.'); }
+              catch { $('#eq-lien', c2).select(); toast('Sélectionné : copie-le avec Ctrl C.'); }
+            };
+          });
+        } catch (e) { refus($('#eq-email', couche), plainError(e)); }
+      };
+    });
+  }
+-- fin
+
+== cabinet/app.js | retiré, il n'ouvre plus le cabinet ni ses dossiers
+-- avant
+      + 'et c\'est elle que lit un contrôle.</p><p>Il ne pourra plus être choisi comme identité sur un poste, '
+      + 'et les droits posés pour lui sur des dossiers cessent de s\'appliquer.</p>', 'Retirer', true);
+-- après
+      + 'et c\'est elle que lit un contrôle.</p><p>Il n\'ouvrira plus le cabinet ni les dossiers qui lui étaient confiés ; '
+      + 'son compte, lui, reste le sien.</p>', 'Retirer', true);
+-- fin
+
+== cabinet/app.js | sans rôle posé, le dossier n'est pas confié à la personne
+-- avant
+          <option value="">— son rôle général —</option>
+-- après
+          <option value="">— pas confié —</option>
+-- fin
+
+== cabinet/app.js | un dossier confié à personne n'est ouvert qu'aux associés
+-- avant
+    : 'Ce dossier n\'est confié à personne : tout le monde peut y travailler selon son rôle général, et il n\'apparaît dans aucun « À faire » personnel.'}</p>
+-- après
+    : 'Ce dossier n\'est confié à personne : seuls les associés y travaillent.'}</p>
+-- fin
+
+== cabinet/cabguide.js | l'équipe, sur la plateforme : des comptes, des invitations
+-- avant
+    'eq.equipe': { t: 'Travailler à plusieurs', d: 'Tant que tu es <b>seul</b>, tu n\'as rien à déclarer ici : rien n\'est restreint et la piste d\'audit porte le nom de cet ordinateur. Dès que vous êtes plusieurs, déclare chacun : son nom apparaîtra alors sur chaque écriture qu\'il valide, et c\'est la seule chose qu\'un contrôle vient lire. Trois rôles, qui se contiennent l\'un l\'autre — <b>Saisie</b> écrit au brouillard, <b>Validation</b> valide et déclare, <b>Supervision</b> clôture et gère l\'équipe. Une identité <b>déclarée</b>, pas un mot de passe : celui du cabinet ouvre déjà toute la base, donc un second par personne ne protégerait rien de plus. Ce que les rôles apportent, c\'est de savoir qui a fait quoi, et d\'éviter qu\'une écriture soit validée par quelqu\'un dont ce n\'est pas le travail.' },
+-- après
+    'eq.equipe': { t: 'Travailler à plusieurs', d: 'Chacun entre avec <b>son propre compte</b> et son code : son nom apparaît sur chaque écriture qu\'il valide, et c\'est ce qu\'un contrôle vient lire. Un associé <b>invite</b> ses collaborateurs par leur adresse ; ils rejoignent le cabinet en ouvrant le lien. Trois rôles, qui se contiennent l\'un l\'autre — <b>Saisie</b> écrit au brouillard, <b>Saisie et validation</b> valide et déclare, <b>Supervision</b> (l\'associé) voit tous les dossiers, clôture et gère l\'équipe. Un collaborateur ne voit que les dossiers qu\'un associé lui confie.' },
+-- fin
+
+== cabinet/cabguide.js | l'adresse de la personne invitée
+-- avant
+    'eq.nom': { t: 'Son nom', d: 'Tel qu\'il apparaîtra sur chaque écriture que cette personne valide : c\'est ce qu\'un contrôle vient lire dans la piste d\'audit. Deux personnes du même nom ne se distingueraient pas, et le Cabinet le refuse. Le <b>premier</b> déclaré devient le nom de cet ordinateur : commence par toi.' },
+-- après
+    'eq.nom': { t: 'Son nom', d: 'Tel qu\'il apparaîtra sur chaque écriture que cette personne valide : c\'est ce qu\'un contrôle vient lire dans la piste d\'audit. Deux personnes du même nom ne se distingueraient pas, et le Cabinet le refuse. Le <b>premier</b> déclaré devient le nom de cet ordinateur : commence par toi.' },
+    'eq.email': { t: 'Son adresse e-mail', d: 'Celle avec laquelle cette personne se connecte à SkanFact — ou avec laquelle elle créera son compte. Le lien d\'invitation ne s\'accepte qu\'avec elle, une seule fois, pendant sept jours. Son nom, sur les écritures, sera celui de son compte.' },
+-- fin
+
+== cabinet/cabguide.js | le rôle, sur la plateforme
+-- avant
+    'eq.role': { t: 'Son rôle', d: 'Trois rôles, qui se contiennent l\'un l\'autre : <b>Saisie</b> écrit au brouillard, importe et rapproche ; <b>Saisie et validation</b> valide aussi, lettre et déclare ; <b>Supervision</b> fait tout, plus la clôture d\'un exercice et la gestion de l\'équipe. Un droit posé sur un dossier précis, dans sa fiche, l\'emporte sur ce rôle. Tant qu\'aucun superviseur n\'existe, chacun peut gérer l\'équipe — pour que personne ne ferme la porte derrière lui.' },
+-- après
+    'eq.role': { t: 'Son rôle', d: 'Trois rôles, qui se contiennent l\'un l\'autre : <b>Saisie</b> écrit au brouillard, importe et rapproche ; <b>Saisie et validation</b> valide aussi, lettre et déclare ; <b>Supervision</b> (l\'associé) voit tous les dossiers et fait tout, plus la clôture d\'un exercice et la gestion de l\'équipe. Un collaborateur ne voit que les dossiers qui lui sont confiés, avec le rôle posé sur chacun. Personne ne change son propre rôle : un autre associé le fait.' },
+-- fin
+
+== cabinet/cabguide.js | confier un dossier, sur la plateforme
+-- avant
+    'eq.droits': { t: 'Les droits sur ce dossier', d: 'Un droit posé ici l\'emporte sur le rôle général : quelqu\'un qui valide partout peut n\'être que saisisseur sur ce client-là, et l\'inverse est vrai aussi. C\'est aussi ce qui <b>confie</b> un dossier à quelqu\'un : son « À faire » ne montre que les dossiers où un droit a été posé pour lui. Laisser vide ne lui interdit rien — il retombe simplement sur son rôle général.' },
+-- après
+    'eq.droits': { t: 'Qui travaille sur ce dossier', d: 'Un rôle posé ici <b>confie</b> le dossier à la personne : elle le voit dans son portefeuille, avec ce rôle-là, et il apparaît dans son « À faire ». Sans rôle posé, le dossier ne lui est pas ouvert — seuls les associés voient tous les dossiers.' },
+-- fin
+
+== cabinet/cabvisites.js | inviter, plus déclarer
+-- avant
+  b('#eq-add', 'Déclare un collaborateur et son rôle : qui saisit, qui valide.');
+-- après
+  b('#eq-add', 'Invite un collaborateur par son adresse, avec son rôle : qui saisit, qui valide.');
+-- fin
+
+== cabinet/app.js | inviter, plus déclarer
+-- avant
+    equipe: ['Déclarer mon équipe', () => versReglages('pan-equipe')],
+-- après
+    equipe: ['Inviter mon équipe', () => versReglages('pan-equipe')],
+-- fin

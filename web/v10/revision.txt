@@ -91,11 +91,11 @@ livres du client : l'envoi la lui rend visible, dans son SkanFact, et chaque env
       detail: `Envoyées deux fois sans réponse. ${qs.slice(0, 6).map(q => `${q.name} (${pl(q.aRelancer, 'question')})`).join(' · ')}`,
 -- fin
 
-== cabinet/app.js | le dossier de révision se relit aussi quand la méthode du cabinet a changé : le questionnaire écrit dans les Réglages se propose au retour (la v10 montrait encore « Écrire le questionnaire… »)
+== cabinet/app.js | le dossier de révision se relit aussi quand la méthode du cabinet a changé : le questionnaire écrit dans les Réglages se propose au retour (la v10 montrait encore « Écrire le questionnaire… ») ; son repère est `revDeLaRevision` (relectures.txt)
 -- avant
     const rev = `${(s.livre.audit || []).length}:${(s.livre.ecritures || []).length}:${s.revPeriode || s.annee}`;
 -- après
-    const rev = `${(s.livre.audit || []).length}:${(s.livre.ecritures || []).length}:${s.revPeriode || s.annee}:${JSON.stringify([S.questionnaire || [], S.cycles || []])}`;
+    const rev = revDeLaRevision(s);
 -- fin
 
 == cabinet/app.js | le tableau de production n'est pas encore en ligne : arrêter la révision ne promet pas d'y marquer la période

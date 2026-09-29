@@ -4302,6 +4302,7 @@
     try {
       s.decl = await api.declaration({ dossierId: dossier.id, annee: s.annee, periode: declState.mois || moisDeclarationPropose(s.livre) });
     } catch (e) { s.decl = { erreur: plainError(e), periode: declState.mois || moisDeclarationPropose(s.livre) }; }
+    s.declRev = revDuLivre(s.livre);
     drawLivres(root, dossier);
   }
 
@@ -4702,6 +4703,7 @@
     const s = livresState;
     try { s.cloture = await api.cloture({ dossierId: dossier.id, annee: s.annee }); }
     catch (e) { s.cloture = { erreur: plainError(e) }; }
+    s.clotureRev = revDuLivre(s.livre);
     drawLivres(root, dossier);
   }
 
@@ -4717,6 +4719,7 @@
     const s = livresState;
     try { s.liasse = await api.liasse({ dossierId: dossier.id, annee: s.annee }); }
     catch (e) { s.liasse = { erreur: plainError(e) }; }
+    s.liasseRev = revDuLivre(s.livre);
     drawLivres(root, dossier);
   }
 
@@ -4904,10 +4907,14 @@
   // et le questionnaire de fin d'exercice part VIDE — les cinq questions les plus fréquentes du
   // pilote ne sont pas connues, et les inventer serait écrire sa méthode à sa place.
 
+  // Ce qui fait relire le dossier de révision : le livre, la période, la méthode du cabinet.
+  // (Un livre quitté pendant la lecture n'a plus de piste : `revDuLivre` le sait.)
+  const revDeLaRevision = s => `${revDuLivre(s.livre)}:${s.revPeriode || s.annee}:${JSON.stringify([S.questionnaire || [], S.cycles || []])}`;
   async function chargerRevision(root, dossier) {
     const s = livresState;
     try { s.revision = await api.revision({ dossierId: dossier.id, annee: s.annee, periode: s.revPeriode || String(s.annee) }); }
     catch (e) { s.revision = { erreur: plainError(e) }; }
+    s.revisionRev = revDeLaRevision(s);
     drawLivres(root, dossier);
   }
 
@@ -5041,7 +5048,7 @@
     const s = livresState;
     // Le dossier se relit dès que le LIVRE a bougé : signer un compte, valider un brouillard ou
     // poser une question change ce que les feuilles maîtresses montrent (même parade qu'en T-24).
-    const rev = `${(s.livre.audit || []).length}:${(s.livre.ecritures || []).length}:${s.revPeriode || s.annee}:${JSON.stringify([S.questionnaire || [], S.cycles || []])}`;
+    const rev = revDeLaRevision(s);
     if (!s.revision || s.revisionRev !== rev) { s.revisionRev = rev; chargerRevision(root, dossier); return; }
     if (s.revision.erreur) return;
     // 10.13.0 — un raccourci vise un PANNEAU (7.18.0) : « Lire la réponse », depuis le compte rendu
@@ -5491,6 +5498,7 @@
     const s = livresState;
     try { s.immo = await api.immobilisations({ dossierId: dossier.id, annee: s.annee }); }
     catch (e) { s.immo = { erreur: plainError(e) }; }
+    s.immoRev = revDuLivre(s.livre);
     drawLivres(root, dossier);
   }
 
@@ -6266,6 +6274,7 @@
     const s = livresState;
     try { s.inv = await api.inventaire({ dossierId: dossier.id, annee: s.annee }); }
     catch (e) { s.inv = { erreur: plainError(e) }; }
+    s.invRev = revDuLivre(s.livre);
     drawLivres(root, dossier);
   }
 
@@ -9334,14 +9343,14 @@
         <td>${esc(c.nom)}${c.id === S.moi ? ' <span class="badge">toi</span>' : ''}</td>
         <td class="muted">${esc(K.LIBELLE_ROLE[c.role])}</td>
         <td><select class="dr-role" data-collab="${esc(c.id)}" aria-label="Droit de ${esc(c.nom)} sur ce dossier">
-          <option value="">— son rôle général —</option>
+          <option value="">— pas confié —</option>
           ${K.ROLES_COLLAB.map(r => `<option value="${r}" ${droits[c.id] === r ? 'selected' : ''}>${esc(K.LIBELLE_ROLE[r])}</option>`).join('')}
         </select></td></tr>`).join('')}</tbody></table></div>
       ${/* « Confié » et « autorisé » ne sont pas la même question, et les confondre ferait mentir
             le « À faire » de chacun. On le DIT plutôt que de le laisser deviner. */''}
       <p class="muted small mt">${confies.length
     ? `Ce dossier est confié à <b>${confies.map(c => esc(c.nom)).join(', ')}</b> : il apparaît dans ${confies.length > 1 ? 'leurs' : 'son'} « À faire ».`
-    : 'Ce dossier n\'est confié à personne : tout le monde peut y travailler selon son rôle général, et il n\'apparaît dans aucun « À faire » personnel.'}</p>
+    : 'Ce dossier n\'est confié à personne : seuls les associés y travaillent.'}</p>
       ${/* 10.14.1 (U-11) — au repos, rien à enregistrer : le vert de la page est « Relancer ». Le
             bouton s'allume au premier choix changé (`data-enreg` + `sale`, comme les Réglages). */''}
       <div class="modal-actions"><span class="saved" id="dr-saved" hidden></span>
@@ -9385,29 +9394,19 @@
     const g = equipe.gestion || { ok: false };
     const moi = liste.find(c => c.id === equipe.moi) || null;
     box.innerHTML = `
-      ${liste.length ? `<div class="${moi ? 'ok-box' : 'warn-box'} mb" id="eq-moi">
-          ${/* 10.14.0 — la phrase est UN élément : dans ce bandeau flex, chaque morceau de texte et le
-                nom en gras devenaient trois éléments séparés par l'écart du bandeau (« c'est   Karim
-                   qui travaille »), la règle de la 10.12.0 sur l'étiquette d'une case, vue à la souris. */''}
-          <span class="eq-phrase">${moi ? `Sur cet ordinateur, c'est <b>${esc(moi.nom)}</b> qui travaille — ${esc(K.LIBELLE_ROLE[moi.role])}.`
-    : 'Cet ordinateur ne dit pas qui travaille dessus : la piste d\'audit portera le nom du poste, et les droits par dossier ne s\'appliquent pas.'}</span>
-          <label class="f-lab mt-s">Je suis
-            <select id="eq-je-suis" aria-label="Qui travaille sur cet ordinateur">
-              <option value="">— personne de déclaré —</option>
-              ${liste.map(c => `<option value="${esc(c.id)}" ${c.id === equipe.moi ? 'selected' : ''}>${esc(c.nom)}</option>`).join('')}
-            </select></label>
-        </div>`
-    : `<p class="small">Ce cabinet fonctionne <strong>à une personne</strong> : rien n'est restreint, et la piste
-          d'audit porte le nom de cet ordinateur. Déclare tes collaborateurs le jour où vous êtes plusieurs —
-          chaque écriture validée portera alors le nom de qui l'a validée.</p>`}
+      ${moi ? `<div class="ok-box mb" id="eq-moi"><span class="eq-phrase">Tu es connecté sous le nom de <b>${esc(moi.nom)}</b> — ${esc(K.LIBELLE_ROLE[moi.role])}.
+          Chacun entre avec son propre compte : chaque écriture validée porte le nom de qui l'a validée.</span></div>` : ''}
 
       ${liste.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
-          <th>Nom</th><th>Rôle</th><th>Poste habituel</th><th></th></tr></thead>
+          <th>Nom</th><th>Rôle</th><th>Adresse</th><th></th></tr></thead>
         <tbody>${liste.map(c => `<tr${c.id === equipe.moi ? ' class="eq-moi"' : ''}>
-          <td>${esc(c.nom)}${c.id === equipe.moi ? ' <span class="badge">ce poste</span>' : ''}</td>
+          <td>${esc(c.nom)}${c.id === equipe.moi ? ' <span class="badge">toi</span>' : ''}</td>
           <td>${esc(K.LIBELLE_ROLE[c.role])} <span class="muted small">— ${esc(K.DETAIL_ROLE[c.role])}</span></td>
           <td class="muted">${esc(c.poste || '—')}</td>
-          ${g.ok ? RowMenu.cellule('EQ:' + c.id) : '<td class="row-actions"></td>'}</tr>`).join('')}</tbody></table></div>` : ''}
+          ${g.ok && c.id !== equipe.moi ? RowMenu.cellule('EQ:' + c.id) : '<td class="row-actions"></td>'}</tr>`).join('')}</tbody></table></div>` : ''}
+      ${(equipe.invitations || []).length ? `<p class="small mt"><b>Invitations qui attendent :</b></p><div class="scroll-x"><table class="list compact" id="eq-invitations"><tbody>${equipe.invitations.map(i => `<tr>
+          <td>${esc(i.email)}</td><td>${esc(K.LIBELLE_ROLE[i.role])}</td><td class="muted small">jusqu'au ${esc(fmtJour(KC.jourDeLInstant(Date.parse(i.expire))))}</td>
+          <td class="row-actions">${g.ok ? `<button type="button" class="btn btn-sm" data-inv="${esc(i.id)}">Annuler l'invitation</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}
 
       ${/* Un bouton éteint DIT pourquoi, et par la même fonction que celle qui refusera (9.4.5) :
             `peutGererCollaborateurs` est appelée côté processus principal au moment du geste, et
@@ -9415,12 +9414,11 @@
             l'écran proposerait un geste que l'enregistrement refuse. */''}
       ${g.ok ? '' : `<p class="muted small mt">${esc(g.motif || '')} ${esc(g.geste || '')}</p>`}
       <div class="modal-actions">
-        <button class="btn" id="eq-add" ${g.ok ? '' : 'disabled'}>Ajouter un collaborateur…</button>
+        <button class="btn" id="eq-add" ${g.ok ? '' : 'disabled'}>Inviter un collaborateur…</button>
       </div>
-      <p class="muted small">Une identité <strong>déclarée</strong>, pas un mot de passe : celui du cabinet ouvre déjà
-      toute la base, donc un second par personne ne protégerait rien de plus. Ce que les rôles apportent, c'est de
-      savoir <strong>qui</strong> a validé une écriture, et d'éviter qu'elle soit validée par quelqu'un dont ce n'est
-      pas le travail. Les droits d'un dossier précis se règlent dans sa fiche, onglet <strong>Suivi</strong>.</p>`;
+      <p class="muted small">Chacun entre avec <strong>son propre compte</strong> et son code : les rôles disent
+      <strong>qui</strong> a validé une écriture, et évitent qu'elle le soit par quelqu'un dont ce n'est pas le travail. Un associé
+      voit tous les dossiers ; un collaborateur, ceux qu'un associé lui confie, dans la fiche du dossier, onglet <strong>Suivi</strong>.</p>`;
 
     const sel = $('#eq-je-suis', box);
     if (sel) {
@@ -9436,11 +9434,15 @@
     }
     const add = $('#eq-add', box);
     if (add) add.onclick = () => formCollaborateur(null);
+    $$('[data-inv]', box).forEach(b => { b.onclick = async () => {
+      try { await api.annulerInvitation(b.dataset.inv); equipe = await api.collaborateurs(); dessinerEquipe(document, true); toast('Invitation annulée.'); }
+      catch (e) { toast(plainError(e), 'error'); }
+    }; });
     RowMenu.brancherMenus(box, id => {
       const c = liste.find(x => x.id === String(id).slice(3));
       if (!c) return [];
       return [
-        { icon: 'modifier', label: 'Modifier ce collaborateur', detail: 'Son nom et son rôle.', run: () => formCollaborateur(c) },
+        { icon: 'modifier', label: 'Changer son rôle', detail: 'Son nom est celui de son compte.', run: () => formCollaborateur(c) },
         { sep: true },
         { icon: 'supprimer', label: 'Retirer du cabinet', danger: true,
           detail: 'Son nom reste sur les écritures qu\'il a validées : une piste d\'audit ne s\'efface pas.',
@@ -9449,50 +9451,54 @@
     });
   }
 
+  // La plateforme (brique 46) : une personne rejoint le cabinet par une INVITATION, à son adresse, avec
+  // son rôle ; le lien se transmet à la personne, qui l'ouvre et se connecte avec cette adresse (ou crée
+  // son compte avec elle). Son nom est celui de son compte : pour quelqu'un qui est déjà là, seul le rôle
+  // se change.
   function formCollaborateur(c) {
-    // 10.14.0 — le premier déclaré devient l'identité de ce poste (9.9.0) : c'est presque toujours le
-    // comptable lui-même, envoyé ici par « Tes premiers pas ». On le lui dit AVANT d'enregistrer
-    // (un avertissement se lit avant le geste, 9.4.2) — le toast le disait après — et on lui propose
-    // « Supervision » : « Saisie », la première option, lui retirait la validation de ses écritures.
-    const premier = !c && !K.collaborateurs({ collaborateurs: (equipe && equipe.liste) || [] }).length;
-    const role = c ? c.role : K.roleProposeCollab({ collaborateurs: (equipe && equipe.liste) || [] });
-    modal(`<h2>${c ? 'Modifier ' + esc(c.nom) : 'Ajouter un collaborateur'}</h2>
-      ${premier ? `<div class="info-box mb" id="eq-premier"><b>Commence par toi : le premier déclaré devient le nom de cet
-        ordinateur.</b> Tes écritures validées le porteront. « Supervision » te garde tous les droits — la clôture et la
-        gestion de l'équipe comprises.</div>` : ''}
-      <label class="field obligatoire">${lbl('Nom', 'eq.nom')}
-        <input type="text" id="eq-nom" value="${esc(c ? c.nom : '')}" placeholder="Amine Ben Salah"></label>
+    const role = c ? c.role : 'saisie';
+    modal(`<h2>${c ? 'Le rôle de ' + esc(c.nom) : 'Inviter un collaborateur'}</h2>
+      ${c ? '' : `<label class="field obligatoire">${lbl('Son adresse e-mail', 'eq.email')}
+        <input type="email" id="eq-email" placeholder="amine@cabinet.tn" autocomplete="off"></label>`}
       <label class="field">${lbl('Rôle', 'eq.role')}<select id="eq-role">
         ${K.ROLES_COLLAB.map(r => `<option value="${r}" ${role === r ? 'selected' : ''}>${esc(K.LIBELLE_ROLE[r])}</option>`).join('')}
       </select></label>
       <p class="muted small" id="eq-detail"></p>
-      <p class="muted small">Le rôle vaut partout, sauf sur les dossiers où un droit a été posé pour cette personne :
-      c'est ce qui permet de confier un dossier à quelqu'un sans lui ouvrir tout le portefeuille.</p>
+      <p class="muted small">Un associé voit tous les dossiers ; un collaborateur, ceux qu'on lui confie dans la fiche du dossier.</p>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button>
-        <button class="btn btn-primary" id="eq-ok">${c ? 'Enregistrer' : 'Ajouter'}</button></div>`,
+        <button class="btn btn-primary" id="eq-ok">${c ? 'Enregistrer' : 'Inviter'}</button></div>`,
     (couche, close) => {
-      // Le détail du rôle suit la liste : choisir « Supervision » sans savoir ce que ça ouvre, c'est
-      // choisir au hasard. La phrase vient de `DETAIL_ROLE`, la même que le tableau affiche.
       const r = $('#eq-role', couche), d = $('#eq-detail', couche);
       const dire = () => { d.textContent = K.DETAIL_ROLE[r.value] || ''; };
       r.onchange = dire; dire();
       $('#eq-ok', couche).onclick = async () => {
-        const nom = $('#eq-nom', couche).value.trim();
+        if (c) {
+          try {
+            S = await api.saveCollaborateur({ id: c.id, role: r.value });
+            equipe = await api.collaborateurs();
+            close(); dessinerEquipe(document, true);
+            toast('Rôle enregistré.');
+          } catch (e) { toast(plainError(e), 'error'); }
+          return;
+        }
+        const email = $('#eq-email', couche).value.trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return refus($('#eq-email', couche), 'Écris son adresse e-mail : c\'est avec elle qu\'il rejoindra le cabinet.');
         try {
-          const avant = (equipe.liste || []).filter(x => x.actif).length;
-          S = await api.saveCollaborateur({ id: c ? c.id : '', nom, role: r.value });
+          const inv = await api.inviterCollaborateur({ email, role: r.value });
           equipe = await api.collaborateurs();
           close(); dessinerEquipe(document, true);
-          // Le premier déclaré devient l'identité de ce poste : on le DIT, sinon la personne
-          // découvre son nom en haut d'un bandeau sans savoir qui l'y a mis.
-          toast(c ? 'Collaborateur enregistré.'
-            : avant ? `${nom} fait partie du cabinet.`
-              : `${nom} fait partie du cabinet, et c'est ton nom sur cet ordinateur.`);
-        } catch (e) {
-          // Un refus se MONTRE : on ramène le champ fautif à l'écran avec le curseur dedans,
-          // plutôt qu'une phrase au-dessus d'un formulaire qui a pu défiler (règle 7.0.0).
-          refus($('#eq-nom', couche), plainError(e));
-        }
+          modal(`<h2>Invitation prête</h2>
+            <p>Envoie ce lien à <b>${esc(email)}</b> (par mail, par exemple). Il l'ouvre, se connecte avec cette adresse — ou crée son compte
+            avec elle — et rejoint le cabinet. Le lien vaut jusqu'au ${esc(fmtJour(KC.jourDeLInstant(Date.parse(inv.expire))))}, une seule fois.</p>
+            <p><input type="text" id="eq-lien" readonly value="${esc(inv.lien)}" style="width:100%"></p>
+            <div class="modal-actions"><button class="btn" id="eq-copier">Copier le lien</button><button class="btn btn-primary" data-close>Fermer</button></div>`,
+          (c2) => {
+            $('#eq-copier', c2).onclick = async () => {
+              try { await navigator.clipboard.writeText(inv.lien); toast('Lien copié.'); }
+              catch { $('#eq-lien', c2).select(); toast('Sélectionné : copie-le avec Ctrl C.'); }
+            };
+          });
+        } catch (e) { refus($('#eq-email', couche), plainError(e)); }
       };
     });
   }
@@ -9500,8 +9506,8 @@
   async function retirerCollaborateur(c) {
     const ok = await confirmDialog(`Retirer ${c.nom} ?`,
       '<p>Son nom <strong>reste</strong> sur les écritures qu\'il a validées : une piste d\'audit ne s\'efface pas, '
-      + 'et c\'est elle que lit un contrôle.</p><p>Il ne pourra plus être choisi comme identité sur un poste, '
-      + 'et les droits posés pour lui sur des dossiers cessent de s\'appliquer.</p>', 'Retirer', true);
+      + 'et c\'est elle que lit un contrôle.</p><p>Il n\'ouvrira plus le cabinet ni les dossiers qui lui étaient confiés ; '
+      + 'son compte, lui, reste le sien.</p>', 'Retirer', true);
     if (!ok) return;
     try {
       S = await api.retirerCollaborateur(c.id);
@@ -11036,7 +11042,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
   const PAS_ACTIONS = {
     decouverte: ['Faire la découverte', () => { const r = decouverteEnPause(); lancerVisite(visiteParId('decouvrir'), r ? r.i : 0); }],
     cabinet: ['Nommer mon cabinet', () => versReglages('pan-cabinet')],
-    equipe: ['Déclarer mon équipe', () => versReglages('pan-equipe')],
+    equipe: ['Inviter mon équipe', () => versReglages('pan-equipe')],
     clients: ['Ajouter un client…', () => newDossierForm()],
     appairage: ['Remettre le fichier à mes clients…', () => remettreAppairage()],
     cle: ['Enregistrer ma clé…', () => versReglages('pan-secu')],

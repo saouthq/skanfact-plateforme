@@ -89,7 +89,7 @@ mêmes données que son client.
 | **44** | La révision (feuilles maîtresses, comptes signés, notes, questionnaire, révision arrêtée) et les questions au client, posées puis envoyées. |
 | **44 bis** | Le client lit les questions de son cabinet dans son SkanFact, en face de la pièce, et y répond. |
 | **45** | La clôture de l'exercice, sa réouverture (avec un motif), l'exercice suivant. |
-| 46 | L'équipe du cabinet : invitations, rôles, affectations par dossier, trace de l'équipe. |
+| **46** | L'équipe du cabinet : invitations, rôles, affectations par dossier, trace de l'équipe. |
 
 Chaque brique a ses tests « deux chemins » (ce que calcule l'écran du Cabinet contre ce que tient
 le serveur), ses preuves, et un parcours joué à la souris.
@@ -815,3 +815,52 @@ brouillard, le brouillard validé dans la Saisie et l'Exercice relu sans recharg
   relettre dans l'année d'après.
 - Prévoir l'extourne d'une écriture de décembre à l'ouverture (`prevoirExtourne`) n'est pas en ligne :
   l'extourne se pose directement (brique 38).
+
+## Brique 46 : l'équipe du cabinet (fait le 29/09/2026)
+
+Le Cabinet v10 déclarait ses collaborateurs par leur **nom** — une identité déclarée sur un poste, sans
+mot de passe (celui du cabinet ouvrait déjà toute la base) — et posait des droits dossier par dossier.
+Sur la plateforme, le même panneau (Réglages → Mon cabinet → L'équipe) et la même fiche de dossier.
+
+**C36. Chacun son compte ; on rejoint un cabinet par une invitation** (par délégation, migration
+`0030`) : un **associé** invite une personne par son **adresse**, avec un rôle — associé
+(« Supervision »), collaborateur (« Saisie et validation »), assistant de saisie (« Saisie »). Le lien
+se transmet à la personne (SkanFact n'envoie pas encore de courriel : l'écran le montre, à copier) ;
+elle l'ouvre, se connecte avec **cette adresse** — ou crée son compte avec elle — et rejoint le cabinet
+(l'invitation de l'entreprise, 0003, étendue aux cabinets ; une fois, sept jours). Plus d'identité
+déclarée par poste : « Je suis » disparaît, l'écran dit sous quel nom on est connecté. Un associé
+change le rôle d'un membre ou le **retire** (il n'est pas effacé : son nom reste sur ce qu'il a fait ;
+il n'ouvre plus le cabinet ni ses dossiers) ; **personne ne change son propre rôle ni ne se retire** —
+un autre associé le fait, et le cabinet garde donc toujours un associé. Une invitation qui attend
+s'annule. **Confier un dossier** : dans sa fiche (onglet Suivi), un rôle posé sur une personne le lui
+confie (`confier_dossier`, brique 36) ; sans rôle posé, le dossier ne lui est pas ouvert — seuls les
+associés voient tous les dossiers (la v10 : « son rôle général » s'appliquait partout). Chaque geste
+se trace au nom du cabinet.
+
+**L'entrée** (l'écran de connexion de la plateforme) garde le lien d'invitation le temps de se
+connecter, l'accepte, et ouvre ce qu'il fait rejoindre ; refusée (une autre adresse, un lien qui ne vaut
+plus), la raison se lit, et « Continuer » reprend le chemin habituel. Elle vaut aussi pour une
+invitation dans une entreprise.
+
+**Les tests** : par l'API et dans la base (`tests/cabinet/equipe.test.ts`) : l'invitation acceptée par
+la bonne adresse seulement, une fois ; le dossier confié dans le portefeuille ; le membre retiré qui
+n'ouvre plus rien ; la trace ; seul un associé invite, change ou retire (jusque dans la base) ; on ne
+s'invite pas soi-même, ni deux fois ; on ne se rétrograde ni ne se retire ; une invitation annulée ne vaut
+plus. À la souris (`tests/web/cabinet-equipe.test.ts`) : l'invitation écrite dans le panneau, son lien,
+ouvert par la personne connectée — elle arrive dans le Cabinet ; le dossier confié depuis sa fiche ; son
+rôle changé, puis retirée ; pas de menu sur sa propre ligne.
+
+**Reste connu** :
+- SkanFact n'envoie pas encore le courriel d'invitation : le lien se copie et se transmet à la main.
+- La visite guidée « Travailler à plusieurs » se réécrira pour l'invitation (elle se termine chez
+  l'invité) : elle n'est pas proposée en ligne.
+- L'état du cabinet se lit à l'ouverture : un membre qui vient de rejoindre apparaît dans la fiche des
+  dossiers après avoir rouvert la page (le panneau L'équipe, lui, se relit à chaque affichage).
+- La trace de l'équipe est gardée au serveur ; elle ne se lit pas encore à l'écran.
+
+**Un défaut de la brique 45, corrigé ici** : depuis que les onglets se relisent quand la piste du livre
+s'allonge, un geste faisait relire l'écran **deux fois** (sa propre relecture, puis celle de la piste
+allongée) ; un clic tombé pendant la seconde se perdait (vu sur la vérification en ligne : l'inventaire,
+la déclaration, la révision). Une lecture retient désormais le livre qu'elle a lu, et ne se refait pas
+pour lui ; un livre quitté pendant une lecture ne fait plus d'erreur. Les seize parcours du Cabinet
+passent côte à côte.

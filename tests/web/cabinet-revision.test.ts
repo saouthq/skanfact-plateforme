@@ -115,6 +115,8 @@ describe('la révision et les questions au client, à la souris', () => {
     await ouvrir('#sr-quest-add', '[data-q="0"]');
     await p.locator('[data-q="0"]').fill('Des litiges en cours ?');
     await p.locator('#sr-quest-save').click();
+    // Comme une personne : on attend le « ✓ enregistré » de l'écran avant de le quitter.
+    await expect.poll(() => p.locator('#sr-quest-saved').innerText().catch(() => ''), { timeout: 30_000 }).toBe('✓ enregistré');
     // Les cycles s'enregistrent avec lui : ceux que la v10 propose (sept, la trésorerie d'abord).
     const methode = async () => (await api('GET', `/cabinets/${cabinet}/reglages`, associe)).corps.contenu as { questionnaire?: unknown; cycles?: { id: string }[] };
     await expect.poll(async () => (await methode()).questionnaire).toEqual([{ question: 'Des litiges en cours ?' }]);

@@ -492,7 +492,7 @@ export interface BaseDeDonnees {
   };
   'socle.invitation': {
     id: Generated<string>;
-    entreprise: string;
+    entreprise: string | null;
     email: string;
     roles: string[];
     jeton_empreinte: string;
@@ -501,6 +501,7 @@ export interface BaseDeDonnees {
     expire_le: Date;
     acceptee_le: Date | null;
     annulee_le: Date | null;
+    organisation: string | null;
   };
   'socle.maillon': {
     entreprise: string;

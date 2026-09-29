@@ -913,7 +913,7 @@ titre: 'Une question au client', texte: 'Elle part chez lui et s\'affiche <b>en 
 -- avant
       <p class="small">Elle ne donne pas un mot de passe à chaque collaborateur. Les collaborateurs se <b>déclarent</b> (Réglages → Mon cabinet) : leurs droits et la piste d'audit portent leur nom. Mais le mot de passe du cabinet ouvre déjà toute la base — un second, par personne, ne protégerait rien de plus.</p>` },
 -- après
-      <p class="small">Chacun se connecte avec <b>son propre compte</b> : la trace de ce qui a été fait porte son nom. Inviter un collaborateur dans ton cabinet n'est pas encore dans la version en ligne.</p>` },
+      <p class="small">Chacun se connecte avec <b>son propre compte</b> : la trace de ce qui a été fait porte son nom. Un associé invite ses collaborateurs par leur adresse (Réglages → Mon cabinet → L'équipe).</p>` },
 -- fin
 
 == cabinet/app.js | une échéance compte les clients dont le mois a des écritures à valider
