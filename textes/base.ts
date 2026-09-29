@@ -167,6 +167,13 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'prépare la déclaration avant d\'en écrire l\'écriture', cle: 'base.compta.declaration_a_preparer', fr: 'prépare la déclaration avant d\'en écrire l\'écriture' },
   { base: 'l\'écriture de la déclaration de %s se date dans ce mois', cle: 'base.compta.declaration_date', fr: 'l\'écriture de la déclaration de {mois} se date dans ce mois', valeurs: ['mois'] },
   { base: 'l\'écriture de cette déclaration existe déjà dans le livre : la repasser compterait la TVA du mois deux fois', cle: 'base.compta.declaration_ecrite', fr: 'l\'écriture de cette déclaration existe déjà dans le livre : la repasser compterait la TVA du mois deux fois' },
+  { base: 'ton rôle ne permet pas de préparer la liasse de ce dossier', cle: 'base.compta.liasse_interdit', fr: 'ton rôle ne permet pas de préparer la liasse de ce dossier' },
+  { base: 'les retraitements d\'une année sont une liste de deux cents au plus', cle: 'base.compta.retraitements_liste', fr: 'les retraitements d\'une année sont une liste de deux cents au plus' },
+  { base: 'la nature de ce retraitement n\'est pas connue', cle: 'base.compta.retraitement_nature', fr: 'la nature de ce retraitement n\'est pas connue' },
+  { base: 'un retraitement sans libellé ne s\'explique pas devant un contrôle', cle: 'base.compta.retraitement_libelle', fr: 'un retraitement sans libellé ne s\'explique pas devant un contrôle' },
+  { base: 'le montant d\'un retraitement est positif, en millimes : c\'est la nature qui dit dans quel sens il joue', cle: 'base.compta.retraitement_montant', fr: 'le montant d\'un retraitement est positif, en millimes : c\'est la nature qui dit dans quel sens il joue' },
+  { base: 'le taux d\'impôt se donne en pourcentage, entre 0 et 100', cle: 'base.compta.taux_impot', fr: 'le taux d\'impôt se donne en pourcentage, entre 0 et 100' },
+  { base: 'la liasse de cette année a été changée ailleurs entre-temps : recharge-la, rien n\'a été enregistré', cle: 'base.compta.annuel_change', fr: 'la liasse de cette année a été changée ailleurs entre-temps : recharge-la, rien n\'a été enregistré' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

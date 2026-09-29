@@ -2312,8 +2312,8 @@ prouver "le rang de la ligne en face perdu" $BQS \
   "rang: Number(l.rang_face)," "rang: 1," \
   "$BQ2"
 prouver "des réglages du cabinet qui prennent un champ de plus" $CRT \
-  "  formatCopie: z.enum(['point', 'virgule', 'millimes']),
-}).partial().strict();" "  formatCopie: z.enum(['point', 'virgule', 'millimes']),
+  "  }).strict()).max(300),
+}).partial().strict();" "  }).strict()).max(300),
 }).partial();" \
   "$BQ3"
 prouver "des réglages du cabinet écrasés" $CRT \
@@ -2415,8 +2415,8 @@ prouver "la porte qui lit le périmètre du module, jamais celui du geste" serve
   "$DC2"
 prouver "la porte qui laisse l'assistant préparer" serveur/compta/gestes.ts \
   "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } },
-];" "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } },
-];" \
+  // Préparer la liasse" "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } },
+  // Préparer la liasse" \
   "$DC2"
 prouver "écrire l'écriture d'une déclaration sans le garde, dans la base" $M24 \
   "declare d compta.declaration; v_id uuid;
@@ -2487,6 +2487,81 @@ prouver "la visite de l'export encore absente" $PC \
   "    'suivre-production', // le tableau de production" "    'suivre-production', // le tableau de production
     'exporter-ecritures'," \
   "$WE1"
+
+# ── Brique 41 ter : la liasse et l'annuel (docs/cabinet.md, C26 et C27) ──
+M25=base/migrations/0025_compta_annuel.sql
+ANS=serveur/compta/annuel.ts
+AN1="retraitements et taux : posés et relus au millime ; ce qui n'est pas envoyé ne change pas ; ce qui ne se lit pas se refuse ; changés ailleurs, jamais écrasés ; une voisine n'en lit rien"
+AN2="qui peut : le propriétaire et l'associé ; ni le collaborateur ni l'assistant ; la porte et la base"
+AN3="le modèle de liasse du cabinet : ses rubriques, rien d'autre"
+WL1="le résultat des livres du serveur ; le taux et un retraitement font le résultat fiscal et l'impôt ; le modèle de rubriques s'écrit"
+prouver "un retraitement de nature inconnue" $M25 \
+  "    if coalesce(r->>'nature', '') not in ('reintegration', 'deduction', 'deficit', 'amortissement') then" "    if false then" \
+  "$AN1"
+prouver "un retraitement sans libellé" $M25 \
+  "    if length(trim(coalesce(r->>'libelle', ''))) = 0 or length(r->>'libelle') > 200 then" "    if false then" \
+  "$AN1"
+prouver "un retraitement nul, à virgule ou en texte" $M25 \
+  "    if jsonb_typeof(r->'montant') <> 'number' or not socle.sans_virgule(r->'montant') or (r->>'montant')::numeric <= 0 then" "    if false then" \
+  "$AN1"
+prouver "un taux d'impôt hors de 0 à 100" $M25 \
+  "  if p_taux is not null and (p_taux < 0 or p_taux > 1000000) then perform socle.refus(" "  if false then perform socle.refus(" \
+  "$AN1"
+prouver "une liasse changée ailleurs, écrasée" $M25 \
+  "  if coalesce(a.revision, 0) <> coalesce(p_revision, 0) then" "  if false then" \
+  "$AN1"
+prouver "la liasse d'une voisine lue" $M25 \
+  "create policy visible on compta.annuel using (entreprise in (select compta.mes_entreprises()));" "create policy visible on compta.annuel using (true);" \
+  "$AN1"
+prouver "le taux seul qui efface les retraitements" $ANS \
+  "      let retraitements = avant?.retraitements ?? [];" "      let retraitements = [];" \
+  "$AN1"
+prouver "un taux lu à la mauvaise échelle" $ANS \
+  "try { taux = depuisTexte(brut, 4).toString(); }" "try { taux = depuisTexte(brut, 3).toString(); }" \
+  "$AN1"
+prouver "un taux relu avec ses zéros" $ANS \
+  "versTexte(BigInt(v), 4).replace(/\\.?0+\$/, '')" "versTexte(BigInt(v), 4)" \
+  "$AN1"
+prouver "un retraitement relu en millimes bruts" $ANS \
+  "montant: versTexte(BigInt(r.montant), 3) }))," "montant: String(r.montant) }))," \
+  "$AN1"
+prouver "le collaborateur qui prépare la liasse, dans la base" $M25 \
+  "'comptabilite' = any(socle.perimetre_cabinet(p_entreprise)) and 'supervision' = any(socle.mes_roles(p_entreprise))" "'comptabilite' = any(socle.perimetre_cabinet(p_entreprise)) and socle.mes_roles(p_entreprise) && array['supervision', 'revision']::text[]" \
+  "$AN2"
+prouver "poser la liasse sans le garde, dans la base" $M25 \
+  "  if not compta.peut_liasse(p_entreprise) then perform socle.refus('ton rôle ne permet pas de préparer la liasse de ce dossier'); end if;" "" \
+  "$AN2"
+prouver "la porte qui laisse le collaborateur préparer la liasse" serveur/compta/gestes.ts \
+  "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui' } },
+];" "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } },
+];" \
+  "$AN2"
+prouver "une rubrique de liasse sur un état inventé" $CRT \
+  "id: z.string().min(1).max(20), etat: z.enum(['bilan-actif', 'bilan-passif', 'resultat']), label:" "id: z.string().min(1).max(20), etat: z.string(), label:" \
+  "$AN3"
+prouver "une rubrique de liasse sur un compte qui n'en est pas un" $CRT \
+  "comptes: z.array(z.string().regex(/^\\d{1,12}\$/)).max(100)," "comptes: z.array(z.string()).max(100)," \
+  "$AN3"
+prouver "une rubrique de liasse qui prend un champ de plus" $CRT \
+  "    deduit: z.boolean(), charge: z.boolean(), resultat: z.boolean(), deuxSens: z.boolean(),
+  }).strict()).max(300)," "    deduit: z.boolean(), charge: z.boolean(), resultat: z.boolean(), deuxSens: z.boolean(),
+  })).max(300)," \
+  "$AN3"
+prouver "le taux gardé qui tombe quand on ajoute un retraitement" $ANS \
+  "      let taux = avant?.taux_impot ?? null;" "      let taux = null;" \
+  "$WL1"
+prouver "l'impôt calculé sans le taux du serveur" $PC \
+  "fiscal: KC.resultatFiscal(liasse.resultat, annuel.retraitements, { taux: annuel.tauxImpot })," "fiscal: KC.resultatFiscal(liasse.resultat, annuel.retraitements, { taux: null })," \
+  "$WL1"
+prouver "le taux saisi jamais envoyé" $PC \
+  "      if (o.tauxImpot !== undefined) {" "      if (false) {" \
+  "$WL1"
+prouver "le modèle de liasse du cabinet ignoré" $PC \
+  "      const modele = (reglages.contenu.liasse || []).length ? KC.migrerModeleLiasse(reglages.contenu.liasse) : KC.MODELE_LIASSE;" "      const modele = KC.MODELE_LIASSE;" \
+  "$WL1"
+prouver "le modèle de liasse jamais enregistré" $PC \
+  "        const contenu = { ...reglages.contenu, liasse };" "        const contenu = { ...reglages.contenu };" \
+  "$WL1"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

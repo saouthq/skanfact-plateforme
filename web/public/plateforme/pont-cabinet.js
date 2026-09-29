@@ -81,6 +81,8 @@
     etat.libelles = reglages.contenu.libelles || [];
     // La forme d'un montant copié pour le portail (brique 41) : un réglage du cabinet.
     if (reglages.contenu.formatCopie) etat.settings.formatCopie = reglages.contenu.formatCopie;
+    // Le modèle de liasse du cabinet (brique 41 ter) ; vide : celui que la v10 propose.
+    etat.liasse = reglages.contenu.liasse || [];
     nomDuCabinet = String(cab.nom || '');
     etat.moi = moi.id;
     etat.moiNom = moi.nom;
@@ -223,6 +225,16 @@
       cases: Object.fromEntries(Object.entries(d.cases || {}).map(([k, v]) => [k, { montant: v === null ? null : nombre(/** @type {string} */ (v)) }])),
       controles: [], deposee: d.deposee, payee: d.payee, ecritureId: d.ecriture || '',
     }));
+  }
+  // Les retraitements et le taux d'impôt d'une année (brique 41 ter), dans la forme de la v10 : les
+  // montants en dinars, le taux en pourcentage (null : pas saisi).
+  /** @param {string} ent @param {string|number} annee */
+  async function annuelDe(ent, annee) {
+    const r = await appel('GET', `/entreprises/${ent}/compta/annuel/${Number(annee)}`);
+    return {
+      retraitements: (r.retraitements || []).map((/** @type {any} */ x) => ({ id: x.id, nature: x.nature, libelle: x.libelle, montant: nombre(x.montant) })),
+      tauxImpot: r.tauxImpot == null ? null : Number(r.tauxImpot), revision: r.revision ?? null,
+    };
   }
   // Les cases d'une déclaration que le serveur garde (compta.cases_declaration, 0024).
   const CASES_DECLARATION = ['tvaCollectee', 'tvaDeductible', 'creditReporte', 'netAPayer', 'creditAReporter', 'timbre', 'retenuesOperees',
@@ -810,6 +822,62 @@
       if (d.rienAEcrire) throw new Error(KC.MOTIF_RIEN_A_ECRIRE);
       const r = await appel('POST', url, { ecriture: versLeServeur(KC.ecritureDeclaration(livre, d)) });
       return { ok: true, id: r.id, livre: await livreDe(o.dossierId, o.annee) };
+    },
+
+    // ── La liasse et l'annuel (brique 41 ter) : déduits par la v10 du livre du serveur ; les
+    // retraitements et le taux d'impôt de l'année au serveur (0025) ; le modèle de liasse, un réglage
+    // du cabinet ──
+    liasse: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const [livre, annuel] = await Promise.all([livreDe(o.dossierId, o.annee), annuelDe(o.dossierId, o.annee)]);
+      const lignes = KC.lignesDuLivre(livre, { du: livre.exercice.du, au: livre.exercice.au });
+      const libelle = (/** @type {string} */ c) => ((livre.plan || []).find((/** @type {any} */ p) => p.compte === c) || {}).libelle || KC.libelleDuPlan(c) || '';
+      const modele = (reglages.contenu.liasse || []).length ? KC.migrerModeleLiasse(reglages.contenu.liasse) : KC.MODELE_LIASSE;
+      const liasse = KC.liasseDepuisLignes(lignes, KC.soldesDepuisOuverture(livre), { libelle, modele });
+      return {
+        ok: true, liasse,
+        fiscal: KC.resultatFiscal(liasse.resultat, annuel.retraitements, { taux: annuel.tauxImpot }),
+        employeur: KC.employeurAnnuel(livre, {}),
+        retraitements: annuel.retraitements, tauxImpot: annuel.tauxImpot,
+        natures: KC.RETRAITEMENTS, modele, etats: KC.LIASSE_ETATS, clos: false,
+      };
+    },
+    fiscalAnnuel: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const annuel = await annuelDe(o.dossierId, o.annee);
+      /** @type {Record<string, unknown>} */ const corps = { revision: annuel.revision };
+      if (Array.isArray(o.retraitements)) {
+        // Les refus de la v10, mot pour mot, avant d'écrire ; le serveur les refait.
+        const mauvais = o.retraitements.map((/** @type {any} */ r) => KC.retraitementValide(r)).filter((/** @type {any} */ v) => !v.ok);
+        if (mauvais.length) throw new Error(mauvais[0].motifs.join(' '));
+        corps.retraitements = o.retraitements.map((/** @type {any} */ r) => ({
+          id: String(r.id || ''), nature: String(r.nature || ''), libelle: String(r.libelle || '').slice(0, 200), montant: signe(r.montant),
+        }));
+      }
+      if (o.tauxImpot !== undefined) {
+        const t = String(o.tauxImpot == null ? '' : o.tauxImpot).trim();
+        const n = Number(t.replace(',', '.'));
+        if (t && (!isFinite(n) || n < 0 || n > 100)) throw new Error('Le taux d\'impôt se donne en pourcentage, entre 0 et 100.');
+        corps.tauxImpot = t || null;
+      }
+      await appel('PUT', `/entreprises/${o.dossierId}/compta/annuel/${Number(o.annee)}`, corps);
+      return { ok: true, livre: await livreDe(o.dossierId, o.annee) };
+    },
+    // Le modèle de liasse vit au niveau du cabinet (on l'ajuste une fois pour tous ses clients) : les
+    // rubriques que la v10 garde, rien d'autre.
+    saveLiasse: async (/** @type {any} */ o = {}) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      if (Array.isArray(o.modele)) {
+        const liasse = o.modele.map((/** @type {any} */ r) => ({
+          id: String(r.id || '').trim(), etat: String(r.etat || '').trim(), label: String(r.label || '').trim(),
+          comptes: (Array.isArray(r.comptes) ? r.comptes : []).map((/** @type {unknown} */ c) => String(c).trim()).filter(Boolean),
+          signe: Number(r.signe) === -1 ? -1 : 1, deduit: !!r.deduit, charge: !!r.charge, resultat: !!r.resultat, deuxSens: !!r.deuxSens,
+        })).filter((/** @type {any} */ r) => r.id && r.label && KC.LIASSE_ETATS.some((/** @type {any} */ e) => e.id === r.etat));
+        const contenu = { ...reglages.contenu, liasse };
+        const r = await appel('PUT', `/cabinets/${cabinetId}/reglages`, { contenu, revision: reglages.revision });
+        reglages = { contenu, revision: r.revision };
+      }
+      return construireEtat();
     },
 
     // Un dossier créé à la main est un dossier TENU (0019) ; ses notes vont dans sa fiche (0020).

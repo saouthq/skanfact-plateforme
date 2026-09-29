@@ -23,6 +23,10 @@ export const GESTES_COMPTA: Geste[] = [
   // 03 § 2.1 « Déclarations » et § 3.1). La base le garde aussi (compta.peut_declarer, 0024).
   { code: 'compta.declarations.preparer', module: 'compta', ecrit: true, perimetre: ['declarations'],
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } },
+  // Préparer la liasse de l'année : ses retraitements, son taux d'impôt (brique 41 ter ; 03 § 3.1 :
+  // au cabinet, l'associé seul). La base le garde aussi (compta.peut_liasse, 0025).
+  { code: 'compta.liasse.preparer', module: 'compta', ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui' } },
 ];
 
 let declares = false;

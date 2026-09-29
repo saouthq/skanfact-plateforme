@@ -46,6 +46,12 @@ const REGLAGES = z.object({
   libelles: z.array(z.object({ motif: z.string().min(1).max(40), compte: z.string().regex(/^\d{1,12}$/) }).strict()).max(500),
   // La forme d'un montant copié pour le portail (l'onglet Déclaration, brique 41).
   formatCopie: z.enum(['point', 'virgule', 'millimes']),
+  // Le modèle de liasse du cabinet (brique 41 ter) : ses rubriques, celles de la v10.
+  liasse: z.array(z.object({
+    id: z.string().min(1).max(20), etat: z.enum(['bilan-actif', 'bilan-passif', 'resultat']), label: z.string().min(1).max(200),
+    comptes: z.array(z.string().regex(/^\d{1,12}$/)).max(100), signe: z.union([z.literal(1), z.literal(-1)]),
+    deduit: z.boolean(), charge: z.boolean(), resultat: z.boolean(), deuxSens: z.boolean(),
+  }).strict()).max(300),
 }).partial().strict();
 
 const tracer = (tx: Transaction, entreprise: string, geste: string, objet: string, avant: unknown, apres: unknown) =>

@@ -10,6 +10,8 @@ declarerTextes({
   'geste.compta.lettrage.poser': 'lettrer les écritures d\'un compte, délettrer',
   'geste.compta.declarations.preparer': 'préparer la déclaration du mois, la marquer déposée et payée, en écrire l\'écriture',
   'compta.champ.periode': 'un mois : AAAA-MM',
+  'geste.compta.liasse.preparer': 'préparer la liasse de l\'année : ses retraitements et son taux d\'impôt',
+  'compta.champ.taux': 'un taux en pourcentage (« 25 » ou « 22,5 »)',
   'compta.libelle.extourne': 'Extourne de {numero}',
   'compta.champ.ecriture': 'une écriture : sa date, son journal, au moins deux lignes',
   'compta.champ.montant': 'un montant en dinars, sans signe (« 1191,000 »)',

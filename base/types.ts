@@ -86,6 +86,15 @@ export interface BaseDeDonnees {
     modifie_par: string | null;
     modifie_le: Generated<Date>;
   };
+  'compta.annuel': {
+    entreprise: string;
+    annee: number;
+    retraitements: ColumnType<Json, string | undefined, string>;
+    taux_impot: bigint | null;
+    revision: Generated<bigint>;
+    modifie_par: string | null;
+    modifie_le: Generated<Date>;
+  };
   'compta.cloture': {
     entreprise: string;
     jusqua: string;

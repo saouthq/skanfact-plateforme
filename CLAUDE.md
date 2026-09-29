@@ -152,6 +152,10 @@
   - **La page Écritures** (brique 41 bis, C25) : les mois où les clients ont des écritures (plus de
     fichier reçu : `web/v10/ecritures.txt`) ; l'export lit les livres au serveur, colonnes du
     livre-journal + état, regroupées par `mergeEcritures` de la v10, téléchargées.
+  - **La liasse et l'annuel** (brique 41 ter, 0025, C26, C27) : calculés par la v10 sur le livre du
+    serveur ; `compta.annuel` garde par année les retraitements (millimes) et le taux d'impôt (entier
+    à six décimales), avec une révision ; le modèle de rubriques dans `cabinet.reglages` (`liasse`) ;
+    au cabinet, l'associé seul (`compta.peut_liasse`).
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

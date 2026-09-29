@@ -82,7 +82,7 @@ mêmes données que son client.
 | **40** | La banque : relevés (lus dans le navigateur, bouclés, une fois), rapprochement (automatique et à la main), l'écriture manquante depuis la ligne ; ce que la banque apprend, dans les réglages du cabinet. |
 | **41** | La déclaration du mois (TVA, timbre, retenues) : calculée par la v10 sur le livre du serveur, préparée au serveur, déposée et payée (deux pense-bêtes), son écriture au brouillard et son complément. |
 | **41 bis** | La page Écritures : les écritures de tous les clients d'une période, en un fichier. |
-| 41 ter | La liasse et le résultat fiscal de l'année. |
+| **41 ter** | La liasse et le résultat fiscal de l'année. |
 | 42 | Immobilisations et dotations, inventaire et variation de stock. |
 | 43 | La paie tenue par le cabinet (mandat Paie). |
 | 44 | La révision, le questionnaire, les questions au client et ses réponses. |
@@ -523,7 +523,6 @@ copiée retenue.
 - Le serveur **ne recalcule pas** la déclaration : il garde ce que le moteur de la v10 a déduit du
   livre, et c'est le point de contact qui refuse un dépôt sur des chiffres qui ont changé. Refaire le
   calcul au serveur (le moteur porté en TypeScript) viendra avec le portage du moteur.
-- La **liasse** et le résultat fiscal de l'année : brique 41 ter.
 
 ## Brique 41 bis : la page Écritures (fait le 29/09/2026)
 
@@ -551,3 +550,38 @@ dans « Me guider ».
 **Reste connu** : créer un dossier tenu avec un matricule qu'une autre entreprise active porte déjà
 répond « une erreur est survenue » (l'index unique du matricule, brique 36) au lieu d'un refus qui dit
 pourquoi — et dire pourquoi révélerait qu'une entreprise porte ce matricule : la phrase est à décider.
+
+## Brique 41 ter : la liasse et le résultat fiscal (fait le 29/09/2026)
+
+Le Cabinet v10 déduisait la liasse de la balance par une table de rubriques modifiable, montrait ce
+qu'aucune rubrique ne capte, et calculait le résultat fiscal à partir du résultat comptable et de
+retraitements saisis un à un, avec un taux d'impôt qui se saisit (vide : l'impôt s'écrit « — », jamais
+un taux deviné). Sur la plateforme, le même onglet Liasse.
+
+**C26. Le calcul reste celui de la v10** (par délégation) : la liasse, le résultat fiscal et la
+déclaration d'employeur se déduisent dans le navigateur du livre du serveur (`liasseDepuisLignes`,
+`resultatFiscal`, `employeurAnnuel`). **Deux chemins, un chiffre** : le résultat comptable de la liasse
+est celui des comptes 6 et 7 que le serveur tient.
+
+**C27. Ce qui se saisit se garde au serveur** (par délégation, migration `0025`, `compta.annuel`) :
+par année, les **retraitements** (nature connue, libellé, montant positif en millimes : la nature dit
+le sens) et le **taux d'impôt**, un entier à six décimales comme tout taux (25 % = 250000), ou rien.
+Ce qui n'est pas envoyé ne change pas ; une révision : changé ailleurs, jamais écrasé. **Ce qui part au
+serveur** (compté) : pour chaque retraitement sa nature, son libellé, son montant et son identifiant ;
+le taux. Le **modèle de rubriques** vaut pour tous les clients du cabinet : `cabinet.reglages`, champ
+`liasse` (code, état, libellé, comptes, sens, déduit, charge, résultat, deux sens ; rien d'autre).
+
+**Qui peut** : le propriétaire, l'administrateur, la comptabilité interne ; au cabinet, **l'associé
+seul** (03 § 3.1 : « états financiers, liasse »), si le mandat comprend la comptabilité — la v10 le
+donnait à qui valide. La porte et la base (`compta.peut_liasse`).
+
+**Les tests** : par l'API et dans la base (`tests/compta/annuel.test.ts`) ; à la souris
+(`tests/web/cabinet-liasse.test.ts`) : 6 800,500 de résultat, pris aux comptes du serveur, la liasse
+qui tombe juste ; le taux à 25 %, une réintégration de 1 000,125 : 7 800,625 de résultat fiscal et
+1 950,156 d'impôt, que le serveur tient ; le retraitement retiré ; le modèle repris, une rubrique
+renommée, et la liasse qui la montre.
+
+**Reste connu** :
+- La déclaration annuelle d'employeur ne lit que les comptes (les bulletins de la paie tenue par le
+  cabinet : brique 43).
+- Un exercice clos (la clôture : brique 45) ne verrouille pas encore la liasse.
