@@ -873,7 +873,7 @@
     const livresConnus = () => (ctx.livres ? ctx.livres() : 0);
     const aTenir = () => {
       const tenus = ctx.avecLivre ? ctx.avecLivre() : new Set();
-      const libre = d => !!d && !d.demo && !d.archived && !(d.packs || []).length && !tenus.has(d.id);
+      const libre = d => !!d && !!d.manual && !d.demo && !d.archived && !(d.packs || []).length && !tenus.has(d.id);
       const ouvert = reels().find(d => d.id === dossierOuvert());
       return libre(ouvert) ? ouvert : reels().find(libre) || null;
     };

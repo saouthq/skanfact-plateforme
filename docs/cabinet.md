@@ -78,7 +78,7 @@ mêmes données que son client.
 | **38** | La saisie : écritures saisies par le cabinet (brouillard, modification, suppression), validation d'une écriture ou d'un lot, contre-passation, extourne, lettrage ; le mois validé par le cabinet (C8). |
 | **38 bis** | Le Cabinet sans paquets, dans les mots : le tableau, les relances, la fiche, les guides et les visites réécrits pour des livres tenus en direct ; la relance notée dans la fiche. |
 | **39** | La reprise : l'exercice et sa balance d'ouverture (à-nouveaux), tapée ou lue dans un CSV ou un classeur Excel. |
-| 39 bis | Le plan comptable d'un client ; ses écritures par tableur (l'aller-retour : exporter le livre-journal, corriger, réimporter). |
+| **39 bis** | Les écritures par tableur, l'aller-retour : exporter le livre-journal (et le FEC), le corriger, le réimporter. |
 | 40 | La banque : relevés, rapprochement, lettrage automatique. |
 | 41 | Les déclarations (TVA, retenues), la liasse, le FEC et les exports. |
 | 42 | Immobilisations et dotations, inventaire et variation de stock. |
@@ -247,7 +247,7 @@ l'exemple, l'appairage, la clé de secours, la copie, recevoir et lire un paquet
 réception, les sauvegardes, changer d'ordinateur, les mises à jour, la licence, le mot de passe du
 cabinet, envoyer la clôture, la correspondance, l'écran des paquets), et celles d'un geste **pas
 encore en ligne**, qui reviennent avec leur brique (nommer le cabinet, commencer un livre par sa
-reprise — avec la brique 39 bis —, exporter les écritures, suivre la production).
+reprise — revenue à la brique 39 bis —, exporter les écritures, suivre la production).
 
 **Les tests** : un parcours lit, à la souris, **chaque écran** du Cabinet et chaque bulle qu'il porte
 (texte, champs, infobulles, « À faire » déplié, après un second dessin) : aucun mot de paquet. Un
@@ -321,13 +321,58 @@ ouvert), puis ouverts ; janvier n'est pas écrit
 par la balance d'ouverture, un mois au brouillard n'est pas réclamé.
 
 **Reste connu** :
-- Le plan comptable d'un client et ses écritures par tableur (« Réimporter depuis un tableur… ») :
-  brique 39 bis ; la visite « Commencer le livre d'un client » revient avec elle (sa fin propose le
-  tableur).
+- ~~Les écritures par tableur (« Réimporter depuis un tableur… »), et la visite « Commencer le livre
+  d'un client »~~ : faits à la brique 39 bis (ci-dessous).
 - L'exercice suivant (« Ouvrir N+1 », ses à-nouveaux calculés à la clôture) : brique 45.
 - Au début d'un mois, avant le jour de relance, l'en-tête d'un dossier ne compte pas encore le mois
   qui vient de finir, et l'alerte du livre si (héritage de la v10) : à accorder avec les réglages du
   cabinet.
+
+## Brique 39 bis : les écritures par tableur, l'aller-retour (fait le 29/09/2026)
+
+Le Cabinet v10 rendait la main au tableur : exporter le livre-journal, corriger dans Excel une
+comptabilité mal tenue, réimporter — ce que le comptable pilote fait déjà avec Sage. Sur la plateforme,
+le même aller-retour, au serveur.
+
+**Les fichiers du livre** : le tableau CSV de chaque vue (livre-journal, grand livre, balance, lettrage ;
+et le tableau du portefeuille) et le fichier des écritures (FEC) se **téléchargent** par le navigateur,
+au nom et au contenu de la v10 (le BOM qu'Excel en français attend ; le FEC sans les brouillards, avec
+leur date de validation). Rien ne part au serveur.
+
+**C18. Le réimport d'un tableur** (par délégation) : le fichier choisi est lu dans le navigateur (CSV
+ou Excel, le lecteur de la brique 39) et comparé au livre du serveur par l'analyse de la v10 (une pièce
+par numéro, sinon par journal, pièce et date) ; la fenêtre dit **avant le clic** ce que l'import fera.
+Puis :
+- une pièce nouvelle entre **au brouillard** ; un brouillard que le fichier change est remplacé (sa
+  révision est vérifiée : un brouillard changé ailleurs n'est jamais écrasé) ; une pièce identique ne
+  bouge pas ; une écriture du livre absente du fichier ne bouge pas ;
+- une **validée** que le fichier change ne se modifie jamais : si on le demande (la case de la
+  fenêtre), elle se **contre-passe** et sa version corrigée attend au brouillard — les deux d'un geste,
+  ou rien (`POST …/ecritures/:id/corriger`, qui revient à qui valide) ;
+- une pièce qui **ne tombe pas juste se refuse**, nommée avec son écart, avant le clic : sur le serveur,
+  un brouillard tombe juste (brique 38) — la v10 la faisait entrer au brouillard ;
+- le serveur refait chaque contrôle : les pièces partent en lots de cinq cents
+  (`POST …/ecritures/lot`, qui revient à qui saisit) ; chacune entre, ou est nommée avec la raison de
+  son refus (la période validée, un compte qui n'est pas un numéro, une écriture née d'une pièce du
+  client, qui se corrige dans sa pièce), sans laisser de trace — les autres entrent quand même.
+
+**Ce qui part au serveur** (compté) : pour chaque pièce, sa date, son journal, sa référence, son
+libellé et ses lignes (compte, libellé, tiers, débit, crédit) — ce que la saisie envoie déjà. Le
+lettrage d'un fichier n'est pas repris (il se pose sur des écritures validées, brique 38).
+
+**La visite « Commencer le livre d'un client »** revient (sa fin propose le tableur) ; elle ne choisit
+qu'un client hors SkanFact, ce qu'elle annonce.
+
+**Les tests** : par l'API et dans la base (`tests/compta/import.test.ts`) ; à la souris
+(`tests/web/cabinet-tableur.test.ts`) : l'export téléchargé, corrigé comme dans un tableur (un
+brouillard changé, une validée changée, une pièce nouvelle, une pièce qui ne tombe pas juste sur un
+compte nouveau), réimporté ; ce que la fenêtre annonce, ce que le serveur tient ensuite ; le FEC,
+autant de lignes que les écritures validées du serveur ; la visite dans « Me guider ».
+
+**Reste connu** :
+- Le plan comptable propre d'un client (ses sous-comptes et leurs noms, tenus sur le serveur) : le plan
+  d'un livre, ce sont les comptes que ses écritures portent, nommés par le plan de référence.
+- L'export des écritures de **tous** les clients d'un mois (la page Écritures) : brique 41.
 
 ## Ce qui reste à décider avec Skander ou un comptable
 

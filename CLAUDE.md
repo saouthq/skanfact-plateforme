@@ -131,6 +131,11 @@
     son mois. La balance se lit dans un CSV ou un classeur Excel, dans le navigateur (le ZIP s'ouvre
     par `DecompressionStream`) ; seules ses lignes partent au serveur. Adaptations :
     `web/v10/reprise.txt`.
+  - **Les écritures par tableur** (brique 39 bis, C18) : les CSV du livre et le FEC se téléchargent
+    (rien ne part au serveur) ; le réimport lit le fichier dans le navigateur, l'analyse de la v10 le
+    compare au livre du serveur et la fenêtre dit tout avant le clic ; une pièce qui ne tombe pas juste
+    se refuse ; les pièces partent en lots (`POST …/ecritures/lot`, un point de reprise par pièce) ; une
+    validée changée se corrige d'un geste (`…/:id/corriger` : contre-passation + version au brouillard).
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

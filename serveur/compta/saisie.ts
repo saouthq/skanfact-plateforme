@@ -99,6 +99,45 @@ export function routesSaisie(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // Un lot d'écritures (brique 39 bis : le réimport d'un tableur) : chacune entre, ou en remplace une
+  // au brouillard, à part des autres — une pièce refusée (déséquilibrée, dans la période validée, un
+  // brouillard changé ailleurs) est nommée avec sa raison, et les autres entrent quand même, comme
+  // dans la v10. Chaque pièce a son point de reprise : une refusée ne laisse aucune trace.
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/compta/ecritures/lot', geste: 'compta.ecritures.saisir',
+    corps: z.object({
+      pieces: z.array(z.object({
+        ecriture: ECRITURE,
+        remplace: z.object({ id: uuid, revision: z.number().int().positive({ message: 'compta.champ.revision' }) }).strict().optional(),
+      }).strict()).min(1).max(500, { message: 'compta.champ.ids' }),
+    }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const resultats: ({ statut: 'ajoutee' | 'remplacee'; id: string; revision: number } | { statut: 'refusee'; motif: unknown; champ?: string })[] = [];
+      for (const [i, p] of corps.pieces.entries()) {
+        const e = versLaBase(p.ecriture);
+        if ('statut' in e) { resultats.push({ statut: 'refusee', motif: e.corps.motif, champ: `pieces.${i}.ecriture.${e.corps.champ}` }); continue; }
+        await tx.query('savepoint piece');
+        try {
+          if (p.remplace) {
+            const r = (await tx.query('select compta.modifier_saisie($1, $2, $3, $4::jsonb) revision', [params.entreprise ?? '', p.remplace.id, p.remplace.revision, e.json])).rows[0];
+            resultats.push({ statut: 'remplacee', id: p.remplace.id, revision: Number(r.revision) });
+          } else {
+            const id = (await tx.query('select compta.saisir($1, $2::jsonb) id', [params.entreprise ?? '', e.json])).rows[0].id as string;
+            resultats.push({ statut: 'ajoutee', id, revision: 1 });
+          }
+          await tx.query('release savepoint piece');
+        } catch (err) {
+          await tx.query('rollback to savepoint piece');
+          const code = (err as { code?: string }).code;
+          if (code !== '42501' && code !== 'SK409') throw err;
+          resultats.push({ statut: 'refusee', motif: texteDuRefus(err as { message?: string }) });
+        }
+      }
+      return { corps: { resultats } };
+    },
+  });
+
   ajouter({
     methode: 'DELETE', chemin: '/entreprises/:entreprise/compta/ecritures/:ecriture', geste: 'compta.ecritures.saisir',
     traiter: async ({ params, query }, tx) => {
@@ -135,6 +174,22 @@ export function routesSaisie(ctx: Contexte): Route<never>[] {
       const r = await tx.query('select * from compta.contrepasser($1, $2, $3::date, $4)',
         [params.entreprise ?? '', params.ecriture, corps.date ?? null, libelle('compta.libelle.contre_passation', { numero: '{numero}' })]);
       return { statut: 201, corps: miroir(r.rows[0] as Miroir | undefined) };
+    },
+  });
+
+  // Corriger une écriture validée (brique 39 bis) : la contre-passer ET poser sa version corrigée au
+  // brouillard, d'un geste — les deux, ou rien. Une validée ne se modifie jamais.
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/compta/ecritures/:ecriture/corriger', geste: 'compta.ecritures.valider',
+    corps: z.object({ date: z.string().refine(estJour, { message: 'champ.jour' }).optional(), ecriture: ECRITURE }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.ecriture).success) return introuvable;
+      const e = versLaBase(corps.ecriture);
+      if ('statut' in e) return { ...e, corps: { ...e.corps, champ: `ecriture.${e.corps.champ}` } };
+      const m = await tx.query('select * from compta.contrepasser($1, $2, $3::date, $4)',
+        [params.entreprise ?? '', params.ecriture, corps.date ?? null, libelle('compta.libelle.contre_passation', { numero: '{numero}' })]);
+      const id = (await tx.query('select compta.saisir($1, $2::jsonb) id', [params.entreprise ?? '', e.json])).rows[0].id as string;
+      return { statut: 201, corps: { miroir: miroir(m.rows[0] as Miroir | undefined), id, revision: 1 } };
     },
   });
 

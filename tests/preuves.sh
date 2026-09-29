@@ -2190,5 +2190,65 @@ prouver "« Écrire au client » qui parle encore de paquets" $CVI \
   "Écrit au client qu\\'aucune pièce n\\'est encore enregistrée" "Écrit au client qu\\'aucun paquet n\\'est arrivé" \
   "$TX1"
 
+# ── Brique 39 bis : les écritures par tableur, l'aller-retour (docs/cabinet.md, C18) ──
+SAI=serveur/compta/saisie.ts
+IM1="un lot : chaque pièce entre, ou remplace un brouillard, ou est nommée avec sa raison sans laisser de trace ; qui ne saisit pas n'importe rien"
+IM2="corriger une validée : sa contre-passation et sa version corrigée, d'un geste, ou rien ; l'assistant ne corrige pas ; une écriture née d'une pièce se corrige dans sa pièce"
+TB1="le livre-journal s'exporte en CSV, se corrige dans un tableur et se réimporte : ce qui entre, ce qui se contre-passe, ce qui est refusé ; le FEC se télécharge sans les brouillards"
+prouver "un lot sans point de reprise : une pièce refusée emporte les autres" $SAI \
+  "          await tx.query('rollback to savepoint piece');" "" \
+  "$IM1"
+prouver "un lot ouvert à qui ne saisit pas" $SAI \
+  "methode: 'POST', chemin: '/entreprises/:entreprise/compta/ecritures/lot', geste: 'compta.ecritures.saisir'," "methode: 'POST', chemin: '/entreprises/:entreprise/compta/ecritures/lot', geste: 'socle.accueil.voir'," \
+  "$IM1"
+prouver "un lot sans borne" $SAI \
+  "}).strict()).min(1).max(500, { message: 'compta.champ.ids' })," "}).strict()).min(1).max(5000, { message: 'compta.champ.ids' })," \
+  "$IM1"
+prouver "un brouillard remplacé sans que sa révision compte" $SAI \
+  "p.remplace.id, p.remplace.revision, e.json]" "p.remplace.id, 2, e.json]" \
+  "$IM1"
+prouver "une validée corrigée par l'assistant de saisie" $SAI \
+  "methode: 'POST', chemin: '/entreprises/:entreprise/compta/ecritures/:ecriture/corriger', geste: 'compta.ecritures.valider'," "methode: 'POST', chemin: '/entreprises/:entreprise/compta/ecritures/:ecriture/corriger', geste: 'compta.ecritures.saisir'," \
+  "$IM2"
+prouver "une validée contre-passée sans sa version corrigée" $SAI \
+  "      const id = (await tx.query('select compta.saisir(\$1, \$2::jsonb) id', [params.entreprise ?? '', e.json])).rows[0].id as string;
+      return { statut: 201, corps: { miroir:" "      await tx.query('savepoint v'); let id = ''; try { id = (await tx.query('select compta.saisir(\$1, \$2::jsonb) id', [params.entreprise ?? '', e.json])).rows[0].id as string; } catch { await tx.query('rollback to savepoint v'); }
+      return { statut: 201, corps: { miroir:" \
+  "$IM2"
+prouver "une pièce du tableur qui ne tombe pas juste envoyée au serveur" $PC \
+  "      if (!cle || KC.round3(p.ecart) === 0) continue;" "      if (!cle || true) continue;" \
+  "$TB1"
+prouver "les comptes d'une pièce refusée annoncés au plan" $PC \
+  "    a.comptesNouveaux = [...new Set(a.pieces.filter(" "    void [...new Set(a.pieces.filter(" \
+  "$TB1"
+prouver "un brouillard corrigé au tableur qui entre en double" $PC \
+  "envois.push({ p, piece: { ecriture: pieceVersLeServeur(p), remplace: { id: p.cibleId, revision: revisions.get(p.cibleId) ?? 1 } } });" "envois.push({ p, piece: { ecriture: pieceVersLeServeur(p) } });" \
+  "$TB1"
+prouver "une validée corrigée sans être contre-passée" $PC \
+  "            await appel('POST', \`/entreprises/\${id}/compta/ecritures/\${p.cibleId}/corriger\`, { date: KC.dateDuMiroir(livre, cible, K.today()), ecriture: pieceVersLeServeur(p) });" "            await appel('POST', \`/entreprises/\${id}/compta/ecritures\`, pieceVersLeServeur(p));" \
+  "$TB1"
+prouver "la case « contre-passer » sans effet" $PC \
+  "      if (corriger) {
+        for (const p of a.pieces.filter(" "      if (false) {
+        for (const p of a.pieces.filter(" \
+  "$TB1"
+prouver "le CSV sans le BOM qu'Excel attend" $PC \
+  "\`\\uFEFF\${String(texte || '')}\`" "String(texte || '')" \
+  "$TB1"
+prouver "le CSV sous un nom de fichier brut" $PC \
+  "telecharger(\`\${slug(nom || 'dossiers')}.csv\`" "telecharger(\`\${nom}.csv\`" \
+  "$TB1"
+prouver "le FEC qui ne se télécharge pas" $PC \
+  "    exportFec: async (" "    exportFecAbsent: async (" \
+  "$TB1"
+prouver "la visite « Commencer le livre » encore cachée en ligne" $PC \
+  "  const VISITES_PAS_ENCORE = [
+    'nommer-cabinet'," "  const VISITES_PAS_ENCORE = [
+    'nommer-cabinet', 'premier-livre'," \
+  "$TB1"
+prouver "la visite « Commencer le livre » qui choisit un client sur SkanFact" $CVI \
+  "      const libre = d => !!d && !!d.manual && !d.demo" "      const libre = d => !!d && !d.demo" \
+  "$TB1"
+
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

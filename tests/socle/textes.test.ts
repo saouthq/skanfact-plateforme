@@ -25,7 +25,7 @@ const sansCommentaires = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').s
   .map((l) => l.replace(/(^|[^:'"`\\])\/\/.*$/, '$1')).join('\n');
 const LITTERAL = /'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g;
 const PHRASE = /\p{L}{2,}[ ’']\p{L}{2,}/u;
-const SQL = /^\s*(select|insert|update|delete|with|set|begin|commit|rollback|savepoint|create|drop|alter|grant)\b/i;
+const SQL = /^\s*(select|insert|update|delete|with|set|begin|commit|rollback|savepoint|release|create|drop|alter|grant)\b/i;
 // Une table nommée pour une requête Kysely (« ventes.piece as p ») : du code, pas une phrase.
 const ALIAS = /^[a-z_]+(\.[a-z_]+)? as [a-z_]+$/;
 

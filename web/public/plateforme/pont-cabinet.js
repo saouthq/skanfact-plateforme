@@ -302,6 +302,64 @@
     return String(r.texte);
   }
 
+  // Un fichier que le navigateur télécharge : la v10 l'enregistrait par sa fenêtre « Enregistrer ».
+  /** @param {string} nom @param {string} contenu */
+  function telecharger(nom, contenu) {
+    const propre = String(nom || 'export.txt').replace(/[\\/:*?"<>|]/g, '_');
+    const url = URL.createObjectURL(new Blob([contenu], { type: 'application/octet-stream' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = propre; a.hidden = true;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return { path: propre };
+  }
+  // Le nom d'un fichier, formé comme la v10 le formait (cabstore.js, slug).
+  /** @param {unknown} s */
+  const slug = (s) => String(s || '').normalize('NFKC').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'sans-nom';
+
+  // ── Les écritures par tableur (brique 39 bis, C18) ─────────────────────────────────────────
+  // Le texte d'un fichier lu, gardé le temps de la fenêtre : l'import le relit contre le livre du
+  // serveur tel qu'il est au clic, comme la v10 relisait le fichier au second geste.
+  /** @type {Map<string, string>} */
+  const lectures = new Map();
+  let lectureSuivante = 0;
+  /** @param {number} n */
+  const chiffre = (n) => Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  // L'analyse de la v10 (compta.js, analyserImportEcritures), dite pour la plateforme : un brouillard
+  // tombe juste sur le serveur (brique 38), donc une pièce qui ne tombe pas juste se refuse, nommée,
+  // AVANT le clic (la v10 la faisait entrer au brouillard). Les comptes qui « entreront au plan » (le
+  // plan du livre : les comptes que ses écritures portent) se recomptent sans elle : une pièce refusée
+  // n'ajoute rien.
+  /** @param {any} livre @param {string} texte */
+  function analyser(livre, texte) {
+    /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+    const a = KC.analyserImportEcritures(livre, texte);
+    if (!a.ok) throw new Error(a.motif);
+    const compteur = /** @type {Record<string, string>} */ ({ nouvelle: 'nouvelles', brouillard: 'brouillards', validee: 'validees' });
+    for (const p of a.pieces) {
+      const cle = compteur[p.action];
+      if (!cle || KC.round3(p.ecart) === 0) continue;
+      a.compte[cle]--;
+      a.compte.refusees++;
+      p.action = 'refusee';
+      p.motif = `débit ${chiffre(p.debit)} ≠ crédit ${chiffre(p.credit)} : elle ne tombe pas juste — corrige-la dans ton tableur, puis réimporte-le`;
+    }
+    a.compte.desequilibrees = 0;
+    const planAvant = new Set((livre.plan || []).map((/** @type {any} */ c) => String(c.compte)));
+    a.comptesNouveaux = [...new Set(a.pieces.filter((/** @type {any} */ p) => ['nouvelle', 'brouillard', 'validee'].includes(p.action))
+      .flatMap((/** @type {any} */ p) => p.lignes.map((/** @type {any} */ l) => String(l.compte))).filter((/** @type {string} */ c) => !planAvant.has(c)))].sort();
+    return a;
+  }
+  // Une pièce du tableur, pour le serveur (ses montants en texte exact).
+  /** @param {any} p */
+  const pieceVersLeServeur = (p) => ({
+    date: String(p.date), journal: String(p.journal), piece: String(p.piece || ''), libelle: String(p.libelle || ''),
+    lignes: p.lignes.map((/** @type {any} */ l) => ({ compte: String(l.compte), libelle: String(l.libelle || ''), tiers: String(l.tiers || ''), debit: montant(l.debit), credit: montant(l.credit) })),
+  });
+  /** @param {any} p */
+  const nomDePiece = (p) => `${p.journal || '?'} ${p.piece || '(sans pièce)'} du ${String(p.date || '').split('-').reverse().join('/')}`;
+
   // Ouvrir un lien que le navigateur confie à un autre logiciel (la messagerie, le téléphone) : un
   // lien cliqué, jamais une navigation qui quitterait l'écran.
   /** @param {string} url */
@@ -334,7 +392,6 @@
     'correspondance', 'page-dossier-paquets'];
   const VISITES_PAS_ENCORE = [
     'nommer-cabinet', // la fiche du cabinet ne s'enregistre pas encore en ligne
-    'premier-livre', // la reprise d'un dossier (balance d'ouverture) : brique 39
     'exporter-ecritures', // l'export des écritures de tous les clients : brique 41
     'suivre-production', // le tableau de production
   ];
@@ -453,6 +510,65 @@
       const r = KC.balanceDepuisCsv(KC.rangeesDeTexte(await lireTableur(f)));
       if (r.motif) throw new Error(r.motif);
       return { lignes: r.lignes, ignorees: r.ignorees, fichier: f.name };
+    },
+
+    // ── Les fichiers du livre (brique 39 bis) : le tableau CSV (le BOM que la v10 posait, pour Excel
+    // en français) et le fichier des écritures (FEC), téléchargés par le navigateur ; rien ne part au
+    // serveur.
+    exportCsv: async (/** @type {string} */ texte, /** @type {string} */ nom) => telecharger(`${slug(nom || 'dossiers')}.csv`, `\uFEFF${String(texte || '')}`),
+    exportFec: async (/** @type {string} */ texte, /** @type {string} */ nom) => telecharger(String(nom || 'FEC.txt').split(/[\\/]/).pop() || 'FEC.txt', String(texte || '')),
+    // Réimporter depuis un tableur : le fichier choisi est lu dans le navigateur et comparé au livre
+    // du serveur (l'analyse de la v10) ; la fenêtre dit ce que l'import fera avant d'écrire quoi que ce soit.
+    lireEcrituresTableur: async (/** @type {string} */ id, /** @type {string} */ annee) => {
+      const f = await choisirFichier('.xlsx,.csv,.txt');
+      if (!f) return { annule: true };
+      const texte = await lireTableur(f);
+      const analyse = analyser(await livreDe(id, annee), texte);
+      const cle = String(++lectureSuivante);
+      lectures.set(cle, texte);
+      return { fichier: cle, nom: f.name, analyse };
+    },
+    // Puis l'import : les pièces nouvelles et les brouillards corrigés partent en lots (chacune entre,
+    // ou est nommée avec sa raison) ; une validée que le fichier change se corrige à part, si on l'a
+    // demandé : sa contre-passation et sa version corrigée, d'un geste. Ce que le serveur refuse se dit.
+    importerEcrituresTableur: async (/** @type {string} */ id, /** @type {string} */ annee, /** @type {string} */ cle, /** @type {boolean} */ corriger) => {
+      const texte = lectures.get(String(cle));
+      if (texte === undefined) throw new Error('Ce fichier n\'est plus ouvert : choisis-le de nouveau.');
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
+      const livre = await livreDe(id, annee);
+      const a = analyser(livre, texte);
+      /** @type {{ ajoutees: number, remplacees: number, corrigees: number, identiques: number, refusees: any[], validees: any[], desequilibrees: any[], comptesNouveaux: string[] }} */
+      const out = { ajoutees: 0, remplacees: 0, corrigees: 0, identiques: 0, refusees: [], validees: [], desequilibrees: [], comptesNouveaux: [] };
+      /** @type {{ p: any, piece: any }[]} */ const envois = [];
+      for (const p of a.pieces) {
+        if (p.action === 'identique') out.identiques++;
+        else if (p.action === 'refusee') out.refusees.push({ nom: nomDePiece(p), lignes: p.lignes_csv, motif: p.motif });
+        else if (p.action === 'nouvelle') envois.push({ p, piece: { ecriture: pieceVersLeServeur(p) } });
+        else if (p.action === 'brouillard') envois.push({ p, piece: { ecriture: pieceVersLeServeur(p), remplace: { id: p.cibleId, revision: revisions.get(p.cibleId) ?? 1 } } });
+        else if (p.action === 'validee' && !corriger) out.validees.push({ nom: nomDePiece(p), numero: p.cibleNumero, lignes: p.lignes_csv });
+      }
+      for (let i = 0; i < envois.length; i += 500) {
+        const tranche = envois.slice(i, i + 500);
+        const r = await appel('POST', `/entreprises/${id}/compta/ecritures/lot`, { pieces: tranche.map((x) => x.piece) });
+        (r.resultats || []).forEach((/** @type {any} */ x, /** @type {number} */ k) => {
+          const p = tranche[k]?.p;
+          if (x.statut === 'ajoutee') out.ajoutees++;
+          else if (x.statut === 'remplacee') out.remplacees++;
+          else out.refusees.push({ nom: nomDePiece(p), lignes: p?.lignes_csv, motif: x.motif });
+        });
+      }
+      if (corriger) {
+        for (const p of a.pieces.filter((/** @type {any} */ x) => x.action === 'validee')) {
+          const cible = (livre.ecritures || []).find((/** @type {any} */ e) => e.id === p.cibleId) || {};
+          try {
+            await appel('POST', `/entreprises/${id}/compta/ecritures/${p.cibleId}/corriger`, { date: KC.dateDuMiroir(livre, cible, K.today()), ecriture: pieceVersLeServeur(p) });
+            out.corrigees++;
+          } catch (e) { out.refusees.push({ nom: nomDePiece(p), lignes: p.lignes_csv, motif: e instanceof Error ? e.message : String(e) }); }
+        }
+      }
+      lectures.delete(String(cle));
+      return { ...out, livre: await livreDe(id, annee) };
     },
 
     // Un dossier créé à la main est un dossier TENU (0019) ; ses notes vont dans sa fiche (0020).

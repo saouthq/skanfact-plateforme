@@ -107,3 +107,12 @@ d: 'L\'année que ce livre couvre. Pour un client que tu prends en cours d\'ann�
 -- après
 d: 'L\'année que ce livre couvre. Chaque exercice s\'ouvre une fois, avec sa balance d\'ouverture : pour un client que tu prends en cours d\'année, ouvre aussi <b>l\'exercice précédent</b> si ses comptes restent à tenir.' },
 -- fin
+
+═══════════════════════════════════════════════════════════════════ la visite « Commencer le livre d'un client » (brique 39 bis)
+
+== cabinet/cabvisites.js | la visite annonce un client hors SkanFact (« Sa comptabilité se tient ici, à la main ») : elle ne choisit qu'un dossier tenu, jamais un client sur SkanFact qui n'a encore rien enregistré
+-- avant
+      const libre = d => !!d && !d.demo && !d.archived && !(d.packs || []).length && !tenus.has(d.id);
+-- après
+      const libre = d => !!d && !!d.manual && !d.demo && !d.archived && !(d.packs || []).length && !tenus.has(d.id);
+-- fin
