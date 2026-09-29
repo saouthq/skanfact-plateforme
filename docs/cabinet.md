@@ -88,7 +88,7 @@ mêmes données que son client.
 | **43** | La paie tenue par le cabinet (mandat Paie) : les salariés et les bulletins du client, dans son propre dossier. |
 | **44** | La révision (feuilles maîtresses, comptes signés, notes, questionnaire, révision arrêtée) et les questions au client, posées puis envoyées. |
 | **44 bis** | Le client lit les questions de son cabinet dans son SkanFact, en face de la pièce, et y répond. |
-| 45 | La clôture de l'exercice, sa réouverture (avec un motif), l'exercice suivant. |
+| **45** | La clôture de l'exercice, sa réouverture (avec un motif), l'exercice suivant. |
 | 46 | L'équipe du cabinet : invitations, rôles, affectations par dossier, trace de l'équipe. |
 
 Chaque brique a ses tests « deux chemins » (ce que calcule l'écran du Cabinet contre ce que tient
@@ -762,3 +762,56 @@ importer, plus d'étape « elle part dans le paquet »).
 **Reste connu** :
 - Les autres visites et pages de l'entreprise qui parlent encore du paquet du mois (fabriquer,
   envoyer au comptable) sont à revoir avec la partie entreprise (hors des briques du Cabinet).
+
+## Brique 45 : la clôture de l'exercice, sa réouverture, l'année d'après (fait le 29/09/2026)
+
+Le Cabinet v10 clôturait un exercice après ses contrôles (qui nomment sans bloquer) : plus rien n'y
+bougeait, et le rouvrir exigeait un motif, gardé avec la clôture qu'il défaisait. « Ouvrir N+1 » posait
+les à-nouveaux dans l'année d'après, en brouillard, à refaire tant qu'ils n'étaient pas validés. Sur la
+plateforme, le même onglet Exercice.
+
+**C35. Clôturer, c'est fermer la période jusqu'au dernier jour** (par délégation, migration `0029`) :
+les livres du serveur ont déjà leur période close (brique 35 : validée jusqu'à un jour, plus rien ne s'y
+écrit, une pièce qui change s'écrit au premier jour ouvert). Clôturer l'exercice valide la période
+jusqu'au 31 décembre et le marque clos (qui, quand). Deux différences avec la v10, dites **avant** la
+question : l'exercice doit être **fini** (une période ne se valide qu'une fois passée), et **aucune
+écriture ne doit rester au brouillard** jusque-là — la clôture ne valide rien en silence ; le contrôle
+« Les pièces encore en brouillard » mène au brouillard. **Rouvrir** exige un motif (cinq caractères au
+moins, comme la v10) : la période close revient où elle était **avant** la clôture (rien de validé :
+plus de période close ; validée jusqu'au 30 septembre : le 30 septembre), et la réouverture se garde
+(quand, qui, pourquoi, la clôture qu'elle défait) ; jamais si des jours d'après l'exercice sont déjà
+validés (les rouvrir aussi n'est pas ce qu'on demande). Une écriture validée ne bouge pas pour autant :
+elle se contre-passe. Qui : qui valide ; au cabinet, **l'associé** seulement (la v10 : « supervision »),
+à la porte et dans la base.
+
+**L'année d'après** : « Ouvrir N+1 » joue le geste de la v10 (`ouvrirExerciceSuivant`) sur le livre de
+l'année d'après et écrit au serveur ce qu'il y change — les à-nouveaux au 1er janvier, au journal AN, en
+**brouillard** (relus, puis validés), ceux qu'il remplace retirés ; l'exercice d'après s'ouvre s'il ne
+l'est pas. « Refaire », « Ajuster » (les à-nouveaux complémentaires quand l'exercice a changé après leur
+validation) et « Voir » suivent l'état que la v10 calcule.
+
+**Un défaut de la plateforme, corrigé ici** : les onglets qui se relisent « quand le livre a bougé »
+(Déclaration, Révision, Liasse, Exercice) guettaient la piste d'audit du livre, que le point de contact
+laissait vide : valider un brouillard dans la Saisie laissait l'Exercice sur ses contrôles d'avant. Le
+livre porte maintenant un geste par enregistrement fait depuis l'ouverture.
+
+Sans objet en ligne : « Réunir le livre d'un autre poste » (un seul livre, au serveur) disparaît.
+
+**Les tests** : par l'API et dans la base (`tests/compta/cloture-exercice.test.ts`) : la clôture refusée
+sur un brouillard et sur un exercice qui court encore, faite (validée jusqu'au 31 décembre, au nom de
+l'associé), refaite (« déjà clos »), plus rien ne s'y écrit ; la réouverture sans motif refusée, avec
+motif gardée, la période revenue à rien, puis au 30 septembre validé avant ; refusée quand janvier
+d'après est validé ; le collaborateur refusé à la porte et dans la base, l'entreprise sous mandat aussi.
+À la souris (`tests/web/cabinet-cloture.test.ts`) : la clôture refusée avant la question sur un
+brouillard, le brouillard validé dans la Saisie et l'Exercice relu sans recharger, la clôture, les
+à-nouveaux de 2026 au 1er janvier au millime, la réouverture et son motif à l'écran.
+
+**Reste connu** :
+- « Le dossier pour le client » (le fichier de clôture signé, avec ses états en PDF) n'est pas encore en
+  ligne : le client lit ses livres en direct ; ses états arrêtés viendront avec les documents du serveur.
+- La porte, sous un mandat de comptabilité, écrit « Peuvent le faire : » le propriétaire, que la base
+  refuse ensuite (c'est le cabinet qui valide) : sa liste ne connaît pas encore les mandats.
+- Une ligne d'à-nouveau lettrée ne garde pas sa lettre (la saisie du serveur ne la prend pas) : elle se
+  relettre dans l'année d'après.
+- Prévoir l'extourne d'une écriture de décembre à l'ouverture (`prevoirExtourne`) n'est pas en ligne :
+  l'extourne se pose directement (brique 38).

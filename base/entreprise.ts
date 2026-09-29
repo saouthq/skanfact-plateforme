@@ -87,6 +87,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   'compta.inventaire': { classe: 'entreprise' },
   // Les questions du cabinet au client (0028) : elles se lisent dans ses livres, en face de ses pièces.
   'compta.question': { classe: 'entreprise' },
+  // Les réouvertures d'un exercice clos (0029) : quand, qui, pourquoi.
+  'compta.reouverture': { classe: 'entreprise' },
   // La révision d'un dossier (0028) : le dossier de travail du CABINET ; elle ne part pas avec l'entreprise.
   'cabinet.revision': { classe: 'hors', raison: 'le dossier de révision appartient au cabinet qui révise' },
   // Le dossier v10 de l'entreprise (0011) : ce que son interface tient, objet par objet.

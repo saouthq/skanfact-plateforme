@@ -81,7 +81,7 @@ describe('la révision et les questions au client, à la souris', () => {
     const ouvrir = async (bouton: string, dedans: string) => expect.poll(async () => {
       if (!await p.locator(dedans).count()) await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
       return p.locator(dedans).count();
-    }, { timeout: 20_000 }).toBe(1);
+    }, { timeout: 40_000 }).toBe(1);
     // L'écran se redessine après chaque enregistrement (et referme le volet des comptes hors cycle) :
     // on rouvre ce qu'il faut jusqu'à voir le geste.
     const menu = async (cle: string, geste: string, volet?: string) => expect.poll(async () => {

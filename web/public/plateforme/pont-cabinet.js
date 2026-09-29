@@ -36,8 +36,13 @@
     const lu = texte ? JSON.parse(texte) : {};
     if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
     if (!r.ok) throw new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.');
+    if (methode !== 'GET') gestesFaits++;
     return lu;
   }
+  // Les gestes enregistrés depuis l'ouverture : la piste d'audit du livre en porte autant (brique 45).
+  // Les écrans du Cabinet se relisent quand elle s'allonge (la déclaration, la révision, la liasse,
+  // l'exercice : `revDuLivre`) ; vide, ils gardaient leurs contrôles d'avant une validation.
+  let gestesFaits = 0;
 
   // ── L'état du cabinet : le cabinet, son portefeuille, la personne qui travaille ────────────
   /** @type {Map<string, { id: string, name: string, matricule: string }>} */
@@ -125,7 +130,7 @@
   }
   // Les exercices OUVERTS sur le serveur (brique 39) : leur année, leurs bornes, leur balance
   // d'ouverture. Gardés par dossier, pour l'écran qui demande sans attendre si un exercice est ouvert.
-  /** @type {Map<string, { annee: number, du: string, au: string, ouverture: string | null }[]>} */
+  /** @type {Map<string, { annee: number, du: string, au: string, ouverture: string | null, closLe: string | null, closPar: string | null, reouvertures: any[] }[]>} */
   const exercicesConnus = new Map();
   /** @param {string} ent */
   async function exercicesDe(ent) {
@@ -214,13 +219,21 @@
       declarationsDe(ent, annee), immobilisationsDe(ent), inventaireDe(ent, annee), revisionsDe(ent, annee), questionsDe(ent, annee)]);
     const livre = versLeLivre(ent, Number(annee), ecritures);
     const ex = exerciceDe(ent, annee);
-    if (ex) { livre.exercice.du = ex.du; livre.exercice.au = ex.au; }
+    if (ex) {
+      livre.exercice.du = ex.du; livre.exercice.au = ex.au;
+      // La clôture (brique 45) : qui, quand, et chaque réouverture avec son motif.
+      livre.exercice.clos = !!ex.closLe;
+      livre.exercice.closLe = ex.closLe ? Date.parse(ex.closLe) : null;
+      livre.exercice.closPar = ex.closPar || '';
+      livre.exercice.reouvertures = (ex.reouvertures || []).map((/** @type {any} */ x) => ({ le: Date.parse(x.le) || 0, par: x.par || '', motif: x.motif, closLe: Date.parse(x.closLe) || 0 }));
+    }
     livre.releves = releves;
     livre.declarations = declarations;
     livre.immobilisations = biens;
     livre.inventaires = inventaire ? [inventaire] : [];
     livre.revisions = revisionsLues;
     livre.questions = questions;
+    livre.audit = new Array(gestesFaits);
     return livre;
   };
   // Les révisions d'une année (brique 44), celles du cabinet : l'exercice et ses mois, dans la forme de
@@ -273,6 +286,12 @@
     const cle = `${o.dossierId}/${periode}`;
     await appel('PUT', `/cabinets/${cabinetId}/revisions/${o.dossierId}/${periode}`, { contenu, revision: revisionsRevision.get(cle) ?? null });
     return { ...r, livre: await livreDe(o.dossierId, o.annee) };
+  }
+  // Le livre de l'année d'après, s'il existe (des écritures, ou un exercice ouvert) ; sinon rien.
+  /** @param {string} ent @param {number} annee */
+  async function livreSiIlExiste(ent, annee) {
+    const [ecritures] = await Promise.all([ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`), exercicesDe(ent)]);
+    return ecritures.length || exerciceDe(ent, annee) ? livreDe(ent, annee, ecritures) : null;
   }
   // L'inventaire d'une année (brique 42 bis), dans la forme de la v10 : son total est celui que le
   // serveur a calculé ; l'écriture de variation, tant qu'elle vaut encore.
@@ -1293,6 +1312,61 @@
       return (r.dossiers || []).filter((/** @type {any} */ x) => dossiers.has(x.entreprise)).map((/** @type {any} */ x) => ({
         dossierId: x.entreprise, name: (dossiers.get(x.entreprise) || { name: '' }).name, ouvertes: x.ouvertes, aRelancer: x.aRelancer, repondues: x.repondues,
       })).filter((/** @type {any} */ x) => x.ouvertes || x.repondues);
+    },
+
+    // ── L'exercice (brique 45) : ses contrôles, ses états et ses à-nouveaux calculés par la v10 sur le
+    // livre du serveur ; la clôture et la réouverture au serveur (0029), qui valide la période jusqu'au
+    // dernier jour ; l'année d'après reçoit les à-nouveaux que la v10 pose, en brouillard ──
+    cloture: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const [livre, suivant] = await Promise.all([livreDe(o.dossierId, o.annee), livreSiIlExiste(o.dossierId, Number(o.annee) + 1)]);
+      const lignes = KC.lignesDuLivre(livre, { du: livre.exercice.du, au: livre.exercice.au });
+      const ouv = KC.soldesDepuisOuverture(livre);
+      const libelle = (/** @type {string} */ c) => ((livre.plan || []).find((/** @type {any} */ p) => p.compte === c) || {}).libelle || KC.libelleDuPlan(c) || '';
+      return {
+        exercice: livre.exercice, controles: KC.controlesCloture(livre), etats: KC.etatsDepuisLignes(lignes, ouv, { libelle }),
+        sig: KC.sigDepuisLignes(lignes, ouv, { libelle }), anouveaux: KC.anouveauxDe(livre), extournes: KC.extournesDe(livre, Number(o.annee) + 1),
+        guides: KC.GUIDES_INVENTAIRE, suivant: KC.etatExerciceSuivant(livre, suivant),
+      };
+    },
+    cloturer: async (/** @type {any} */ o) => {
+      await appel('POST', `/entreprises/${o.dossierId}/compta/exercices/${Number(o.annee)}/cloturer`, {});
+      await exercicesDe(o.dossierId);
+      return { ok: true, brouillards: 0, livre: await livreDe(o.dossierId, o.annee) };
+    },
+    rouvrir: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      // Le refus de la v10 d'abord (le motif), mot pour mot ; le serveur le refait.
+      const essai = KC.rouvrirExercice(JSON.parse(JSON.stringify(await livreDe(o.dossierId, o.annee))), o.motif, moiNom, Date.now());
+      if (!essai.ok) throw new Error(essai.motif);
+      await appel('POST', `/entreprises/${o.dossierId}/compta/exercices/${Number(o.annee)}/rouvrir`, { motif: String(o.motif || '').trim() });
+      await exercicesDe(o.dossierId);
+      return { ok: true, livre: await livreDe(o.dossierId, o.annee) };
+    },
+    // Les à-nouveaux de l'année d'après : le geste de la v10 (compta.js, ouvrirExerciceSuivant) joué sur le
+    // livre de l'année d'après, puis ce qu'il y change écrit au serveur — ses pièces en brouillard, celles
+    // qu'il remplace retirées ; l'exercice d'après s'ouvre s'il ne l'est pas.
+    ouvrirSuivant: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const annee = Number(o.annee) + 1;
+      const [livre, cible] = await Promise.all([livreDe(o.dossierId, o.annee), livreSiIlExiste(o.dossierId, annee)]);
+      const essai = cible ? JSON.parse(JSON.stringify(cible)) : KC.livreSuivantVide(livre, o.dossierId);
+      const r = KC.ouvrirExerciceSuivant(livre, essai, moiNom, Date.now());
+      if (!r.ok) throw new Error(r.motif);
+      const avant = new Map(((cible && cible.ecritures) || []).map((/** @type {any} */ e) => [e.id, e]));
+      const apres = new Set(essai.ecritures.map((/** @type {any} */ e) => e.id));
+      if (!exerciceDe(o.dossierId, annee)) await appel('POST', `/entreprises/${o.dossierId}/compta/exercices`, { annee, ouverture: [] });
+      for (const [id, e] of avant) {
+        if (!apres.has(id)) await appel('DELETE', `/entreprises/${o.dossierId}/compta/ecritures/${id}?revision=${revisions.get(e.id) ?? 1}`);
+      }
+      let id = null;
+      for (const e of essai.ecritures) if (!avant.has(e.id)) id = (await appel('POST', `/entreprises/${o.dossierId}/compta/ecritures`, versLeServeur(e))).id;
+      await exercicesDe(o.dossierId);
+      return {
+        ok: true, id, annee, refaits: r.refaits, anDejaValides: r.anDejaValides, biens: r.biens.total, salaries: r.salaries.total, extournes: r.extournes,
+        registreBouge: r.biens.repris + r.biens.retires + r.salaries.repris + r.salaries.retires,
+        complement: r.complement || 0, complementRetire: r.complementRetire || 0, piece: r.ecriture ? r.ecriture.piece : '',
+      };
     },
 
     // Un dossier créé à la main est un dossier TENU (0019) ; ses notes vont dans sa fiche (0020).

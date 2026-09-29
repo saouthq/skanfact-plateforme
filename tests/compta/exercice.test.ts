@@ -122,7 +122,7 @@ describe('l\'exercice et sa balance d\'ouverture', () => {
     expect(an?.lignes.map((l) => [l.compte, l.libelle, l.debit, l.credit])).toEqual([
       ['532', 'Banque', '12500.250', '0.000'], ['411', 'Clients', '3400.500', '0.000'], ['401', 'Fournisseurs', '0.000', '2890.125'], ['101', 'Capital', '0.000', '13010.625'],
     ]);
-    expect(await exercices(d.ent, d.client)).toEqual([{ annee: 2026, du: '2026-01-01', au: '2026-12-31', ouverture: o.corps.ouverture }]);
+    expect(await exercices(d.ent, d.client)).toEqual([{ annee: 2026, du: '2026-01-01', au: '2026-12-31', ouverture: o.corps.ouverture, closLe: null, closPar: null, reouvertures: [] }]);
     // Une voisine n'en lit rien, même dans la base.
     const voisine = await personne('voisine');
     await appeler('POST', '/entreprises', voisine.jeton, { raisonSociale: 'Quincaillerie voisine' });

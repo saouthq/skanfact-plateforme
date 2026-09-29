@@ -221,7 +221,7 @@ describe('la reprise d\'un client, à la souris', () => {
     await expect.poll(() => p.locator('#rf-exo').innerText())
       .toBe('Le livre ouvrira le 01/06/2025 et finira le 31/12/2025. La balance d\'ouverture ci-dessous est celle du 01/06/2025.');
     await fenetre.getByRole('button', { name: 'Créer le livre' }).click();
-    await expect.poll(() => exercices(boulangerie, associe), { timeout: 10_000 }).toEqual([{ annee: 2025, du: '2025-06-01', au: '2025-12-31', ouverture: null }]);
+    await expect.poll(() => exercices(boulangerie, associe), { timeout: 10_000 }).toEqual([{ annee: 2025, du: '2025-06-01', au: '2025-12-31', ouverture: null, closLe: null, closPar: null, reouvertures: [] }]);
     expect(await livres(boulangerie, associe)).toEqual([]);
     await expect.poll(() => p.locator('#toast').innerText()).toBe('Livre de 2025 créé');
     await expect.poll(() => p.locator('#sa-journal').count()).toBe(1);

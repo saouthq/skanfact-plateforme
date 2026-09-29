@@ -1,0 +1,32 @@
+La clôture de l'exercice (brique 45). Format : voir sans-paquets.mjs.
+
+Sur la plateforme, clôturer l'exercice valide la période jusqu'à son dernier jour (docs/cabinet.md,
+C35) : l'exercice doit être fini, et sans brouillard. Un seul livre au serveur : plus de livre d'un
+autre poste à réunir.
+
+== cabinet/app.js | un seul livre, au serveur : réunir le livre d'un autre poste n'a plus d'objet
+-- avant
+      <span class="nw"><button class="btn btn-sm" id="cl-fusion">Réunir le livre d'un autre poste…</button>${info('eq.fusion')}</span>
+-- après
+
+-- fin
+
+== cabinet/app.js | un exercice qui court encore ne se clôture pas (la période ne se valide qu'une fois finie), et la clôture ne valide aucun brouillard à ta place : les deux se disent avant la question
+-- avant
+      const enCours = !exerciceTermine(s.annee)
+        ? `<p class="warn-box"><b>L'exercice ${esc(String(s.annee))} n'est pas terminé</b> : il court jusqu'au 31/12/${esc(String(s.annee))}. Le clôturer maintenant refusera toute écriture datée d'ici là, jusqu'à une réouverture motivée.</p>` : '';
+-- après
+      // La plateforme (brique 45) : clôturer valide la période jusqu'au dernier jour — elle doit être
+      // finie, et sans brouillard (la clôture ne valide rien en silence). Les deux se disent avant la question.
+      if (!exerciceTermine(s.annee)) return toast(`L'exercice ${s.annee} n'est pas fini : il se clôture à partir du 01/01/${Number(s.annee) + 1}.`, 'error');
+      const enBrouillard = (s.cloture.controles || []).find(c => c.id === 'brouillard' && !c.ok);
+      if (enBrouillard) return toast(enBrouillard.detail, 'error');
+      const enCours = '';
+-- fin
+
+== cabinet/app.js | la clôture valide la période jusqu'au dernier jour de l'exercice : la question le dit
+-- avant
+        enCours + `<p>Après la clôture, plus aucune écriture de cet exercice ne bouge. La rouvrir reste possible, mais elle exigera un motif — c'est la seule trace qui expliquera pourquoi un chiffre a changé après coup.</p>`
+-- après
+        enCours + `<p>La période sera validée jusqu'au 31/12/${esc(String(s.annee))} : plus aucune écriture de cet exercice ne bouge. La rouvrir reste possible, mais elle exigera un motif — c'est la seule trace qui expliquera pourquoi un chiffre a changé après coup.</p>`
+-- fin

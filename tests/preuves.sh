@@ -2177,7 +2177,7 @@ prouver "l'année d'un exercice ouvert absente de la liste" $PC \
   ", ...ouverts.map((x) => String(x.du).slice(0, 7))])].sort();" "])].sort();" \
   "$RP1"
 prouver "les bornes d'un exercice que le livre ignore" $PC \
-  "    if (ex) { livre.exercice.du = ex.du; livre.exercice.au = ex.au; }" "" \
+  "      livre.exercice.du = ex.du; livre.exercice.au = ex.au;" "" \
   "$RP1"
 prouver "« Aucun paquet reçu » revenu sur le livre vide" $CA \
   "        : 'Aucune écriture pour l\\'instant.'}</b>" "        : 'Aucun paquet reçu pour l\\'instant.'}</b>" \
@@ -2838,6 +2838,57 @@ prouver "l'onglet Cabinet qui fabrique encore un paquet" web/public/v10/app.js \
       if (bridge.dessinerMandat) {" "      // en direct. L'onglet porte les questions du comptable, et dit à qui le dossier est confié.
       if (false) {" \
   "$QC1"
+
+# ── Brique 45 : la clôture de l'exercice (docs/cabinet.md, C35) ──
+CE1="se clôt fini et sans brouillard ; clos, plus rien ne s'y écrit ; rouvert avec un motif, la période revient où elle était"
+CE2="rouvert, la période revient à ce qui était validé avant la clôture ; jamais si des jours d'après sont validés"
+CE3="qui clôture : l'associé ; ni le collaborateur, ni l'entreprise sous mandat — à la porte et dans la base"
+WC1="refusée sur un brouillard, clôturée, les à-nouveaux posés au 1er janvier, rouverte avec son motif"
+M29=base/migrations/0029_compta_cloture_exercice.sql
+prouver "une clôture qui valide les brouillards en silence" $M29 \
+  "  if n > 0 then" "  if false then" \
+  "$CE1"
+prouver "un exercice clôturé avant d'être fini" $M29 \
+  "  if x.au >= aujourdhui then" "  if false then" \
+  "$CE1"
+prouver "une clôture qui ne ferme pas la période" $M29 \
+  "  if c is null or c < x.au then perform compta.valider(p_entreprise, x.au); end if;" "" \
+  "$CE1"
+prouver "une réouverture sans motif" $M29 \
+  "  if length(v_motif) < 5 then" "  if false then" \
+  "$CE1"
+prouver "le motif d'une réouverture perdu" $M29 \
+  "values (p_entreprise, p_annee, x.clos_le, x.clos_par, socle.moi(), v_motif);" "values (p_entreprise, p_annee, x.clos_le, x.clos_par, socle.moi(), 'motif perdu');" \
+  "$CE1"
+prouver "une réouverture qui rouvre plus que la clôture" $M29 \
+  "  if x.jusqua_avant is null then delete from compta.cloture where entreprise = p_entreprise;" "  if true then delete from compta.cloture where entreprise = p_entreprise;" \
+  "$CE2"
+prouver "une réouverture qui rouvre aussi les jours d'après" $M29 \
+  "  if c > x.au then" "  if false then" \
+  "$CE2"
+prouver "le collaborateur qui clôture, dans la base" $M29 \
+  "  if socle.perimetre_cabinet(p_entreprise) is not null and not ('supervision' = any(socle.mes_roles(p_entreprise))) then" "  if false then" \
+  "$CE3"
+prouver "la porte qui laisse le collaborateur clôturer" serveur/compta/gestes.ts \
+  "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui' } },
+];" "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } },
+];" \
+  "$CE3"
+prouver "l'écran qui ouvre la question de clôture sur un brouillard" web/public/v10/cabinet/app.js \
+  "      if (enBrouillard) return toast(enBrouillard.detail, 'error');" "" \
+  "$WC1"
+prouver "l'exercice clos que l'écran ne voit pas" $PC \
+  "      livre.exercice.clos = !!ex.closLe;" "      livre.exercice.clos = false;" \
+  "$WC1"
+prouver "les à-nouveaux qui ne partent pas au serveur" $PC \
+  "      for (const e of essai.ecritures) if (!avant.has(e.id))" "      for (const e of []) if (!avant.has(e.id))" \
+  "$WC1"
+prouver "l'année d'après qui ne s'ouvre pas" $PC \
+  "{ annee, ouverture: [] }" "{ annee: annee + 50, ouverture: [] }" \
+  "$WC1"
+prouver "les écrans qui ne se relisent pas après une validation" $PC \
+  "    livre.audit = new Array(gestesFaits);" "" \
+  "$WC1"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

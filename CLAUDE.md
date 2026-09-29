@@ -175,6 +175,12 @@
   - **Les questions chez le client** (brique 44 bis, C34) : `pont.js` lit les questions envoyées et
     non fermées dans `data.questionsCabinet` (jamais écrites dans le dossier v10) et envoie chaque
     réponse nouvelle au serveur ; l'onglet Cabinet de la Comptabilité porte les questions et le mandat.
+  - **La clôture de l'exercice** (brique 45, 0029, C35) : `compta.cloturer_exercice` valide la période
+    jusqu'au 31 décembre (exercice fini, aucun brouillard) et le marque clos ; `compta.rouvrir_exercice`
+    (motif) remet la période close où elle était avant (`jusqua_avant`), jamais si des jours d'après
+    sont validés ; `compta.reouverture` les garde. Geste `compta.exercice.cloturer` (au cabinet,
+    l'associé). Les à-nouveaux : le geste de la v10 joué sur l'année d'après, écrit en brouillard.
+    Le livre du point de contact porte un geste par enregistrement (`livre.audit`) : les onglets s'y relisent.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

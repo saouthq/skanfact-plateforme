@@ -101,13 +101,6 @@ arrivent déjà dans ses livres, tant que son exercice n'est pas ouvert.
         texte: '<p>Il n\'a encore aucune écriture pour cet exercice. <b>« Commencer le livre »</b>
 -- fin
 
-== cabinet/cabguide.js | « Ouvrir N+1 » vient avec la clôture (brique 45) : la bulle ne le promet pas avant
--- avant
-d: 'L\'année que ce livre couvre. Pour un client que tu prends en cours d\'année, commence souvent par <b>l\'exercice précédent</b> (à clôturer), puis « Ouvrir N+1 » reprendra ses soldes au 1er janvier.' },
--- après
-d: 'L\'année que ce livre couvre. Chaque exercice s\'ouvre une fois, avec sa balance d\'ouverture : pour un client que tu prends en cours d\'année, ouvre aussi <b>l\'exercice précédent</b> si ses comptes restent à tenir.' },
--- fin
-
 ═══════════════════════════════════════════════════════════════════ la visite « Commencer le livre d'un client » (brique 39 bis)
 
 == cabinet/cabvisites.js | la visite annonce un client hors SkanFact (« Sa comptabilité se tient ici, à la main ») : elle ne choisit qu'un dossier tenu, jamais un client sur SkanFact qui n'a encore rien enregistré

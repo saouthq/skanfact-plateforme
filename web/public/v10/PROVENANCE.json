@@ -1,14 +1,14 @@
 {
   "depot": "saouthq/skanfact",
   "branche": "beta",
-  "commit": "c764a5d",
+  "commit": "66051be",
   "reprisLe": "2026-09-29",
-  "adaptations": 211,
+  "adaptations": 213,
   "fichiers": {
     "app.js": "a9a3bd29c2b373f5d73338b604443f1a4c982954fac521f23ebe9b39d5858ef0",
-    "cabinet/app.js": "b83bffd8695df0f2bfbcf79491c2b05932cc4dc896e7576a55d45f86d3d5717e",
+    "cabinet/app.js": "ff615cf063ed084c2d30462e0b940e7ba10aec49dd5191fb217959cdc33a2681",
     "cabinet/cabcore.js": "84cd43912cd60b911fe88574c87908bab34110c28bfa6c0a3da050fd3811af73",
-    "cabinet/cabguide.js": "1123b852050e6e6c9284ffc4682758384607987e117b5a3b2c4338bbc2b3add2",
+    "cabinet/cabguide.js": "c70525cbe5ab5c333ddd648da6d6caff1155bf14ea237540d6cea3bf83f47b8c",
     "cabinet/cabinet.css": "87d227365f0446d8d2aa86cabb94724f8c65c37468fd47250c584ab55cc2b4a4",
     "cabinet/cabvisites.js": "5bea374b992325565643c39bd4991f3678c79ff004f96ce4f4c3dde57562caed",
     "cabinet/index.html": "94ad1f6d1300e865f1369973a680b15a8e58606ab01a7c5161e1fd53af11c137",

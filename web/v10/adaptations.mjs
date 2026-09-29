@@ -343,4 +343,5 @@ export const ADAPTATIONS = [
   ...lireFichier('ecritures.txt'),
   ...lireFichier('revision.txt'),
   ...lireFichier('questions-client.txt'),
+  ...lireFichier('cloture.txt'),
 ];

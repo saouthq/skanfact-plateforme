@@ -1,8 +1,7 @@
 // Les gestes du module Comptabilité (03 § 2.1, tableau « Comptabilité complète »). Le module les
 // DÉCLARE (02 M1) ; la porte ne connaît que ces déclarations.
 //
-// Pas encore déclaré ici (il viendra avec ses routes) : clôturer l'exercice. La base garde elle-même
-// chacun de ces gestes (compta.peut, 0021).
+// La base garde elle-même chacun de ces gestes (compta.peut, 0021).
 
 import { declarerGestes, type Geste } from '../porte/gestes.ts';
 import './textes.ts';
@@ -35,7 +34,10 @@ export const GESTES_COMPTA: Geste[] = [
   { code: 'compta.questions.envoyer', module: 'compta', ecrit: true,
     roles: { supervision: 'oui', revision: 'oui' } },
   { code: 'compta.questions.repondre', module: 'compta', ecrit: true, horsCle: true,
-    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui' } },
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui' } },  // Clôturer l'exercice, le rouvrir avec un motif (brique 45) : qui valide ; au cabinet, l'associé
+  // seulement (la v10 : « supervision »). La base le garde aussi (compta.exiger_cloture, 0029).
+  { code: 'compta.exercice.cloturer', module: 'compta', ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui' } },
 ];
 
 let declares = false;

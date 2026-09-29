@@ -161,6 +161,9 @@ export interface BaseDeDonnees {
     ouverture: string | null;
     ouvert_par: string | null;
     ouvert_le: Generated<Date>;
+    clos_le: Date | null;
+    clos_par: string | null;
+    jusqua_avant: string | null;
   };
   'compta.immobilisation': {
     id: Generated<string>;
@@ -272,6 +275,16 @@ export interface BaseDeDonnees {
     reference: Generated<string>;
     montant: bigint;
     niveau: Generated<string>;
+  };
+  'compta.reouverture': {
+    id: Generated<string>;
+    entreprise: string;
+    annee: number;
+    clos_le: Date;
+    clos_par: string | null;
+    rouvert_le: Generated<Date>;
+    rouvert_par: string | null;
+    motif: string;
   };
   'paie.bulletin': {
     id: Generated<string>;

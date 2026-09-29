@@ -220,6 +220,14 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'cette question est fermée : ton cabinet n\'attend plus de réponse', cle: 'base.compta.question_fermee', fr: 'cette question est fermée : ton cabinet n\'attend plus de réponse' },
   { base: 'une réponse vide ne répond à rien', cle: 'base.compta.question_reponse_vide', fr: 'une réponse vide ne répond à rien' },
   { base: 'une réponse se borne à quatre mille caractères', cle: 'base.compta.question_reponse_longue', fr: 'une réponse se borne à quatre mille caractères' },
+  { base: 'au cabinet, clôturer ou rouvrir un exercice revient à l\'associé', cle: 'base.compta.cloture_associe', fr: 'au cabinet, clôturer ou rouvrir un exercice revient à l\'associé' },
+  { base: 'l\'exercice %s est déjà clos depuis le %s', cle: 'base.compta.cloture_deja', fr: 'l\'exercice {annee} est déjà clos depuis le {jour}', valeurs: ['annee', 'jour'] },
+  { base: 'l\'exercice %s n\'est pas fini : il se clôture à partir du %s', cle: 'base.compta.cloture_pas_fini', fr: 'l\'exercice {annee} n\'est pas fini : il se clôture à partir du {jour}', valeurs: ['annee', 'jour'] },
+  { base: 'il reste %s au brouillard jusqu\'au %s : valide-les ou supprime-les, puis clôture', cle: 'base.compta.cloture_brouillards', fr: 'il reste {nombre} au brouillard jusqu\'au {jour} : valide-les ou supprime-les, puis clôture', valeurs: ['nombre', 'jour'] },
+  { base: 'cet exercice n\'est pas clos', cle: 'base.compta.rouvrir_pas_clos', fr: 'cet exercice n\'est pas clos' },
+  { base: 'une réouverture demande un motif : c\'est la seule trace qui expliquera pourquoi un chiffre a changé après coup', cle: 'base.compta.rouvrir_motif', fr: 'une réouverture demande un motif : c\'est la seule trace qui expliquera pourquoi un chiffre a changé après coup' },
+  { base: 'un motif se dit en cinq cents caractères au plus', cle: 'base.compta.rouvrir_motif_long', fr: 'un motif se dit en cinq cents caractères au plus' },
+  { base: 'la période est validée jusqu\'au %s, après la fin de l\'exercice %s : le rouvrir rouvrirait aussi ces jours-là', cle: 'base.compta.rouvrir_apres', fr: 'la période est validée jusqu\'au {jour}, après la fin de l\'exercice {annee} : le rouvrir rouvrirait aussi ces jours-là', valeurs: ['jour', 'annee'] },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

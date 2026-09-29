@@ -14,6 +14,7 @@ declarerTextes({
   'geste.compta.questions.poser': 'poser une question au client, la préciser, la fermer, la retirer',
   'geste.compta.questions.envoyer': 'envoyer au client les questions qui attendent leur réponse',
   'geste.compta.questions.repondre': 'répondre aux questions de son cabinet',
+  'geste.compta.exercice.cloturer': 'clôturer l\'exercice, le rouvrir avec un motif',
   'geste.compta.liasse.preparer': 'préparer la liasse de l\'année : ses retraitements et son taux d\'impôt',
   'compta.champ.taux': 'un taux en pourcentage (« 25 » ou « 22,5 »)',
   'compta.champ.duree': 'une durée en années (« 5 » ou « 6,5 »)',

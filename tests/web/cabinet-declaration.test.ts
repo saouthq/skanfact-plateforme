@@ -152,8 +152,12 @@ describe('la déclaration du mois, à la souris', () => {
     expect([d?.deposee.le, d?.payee.le]).toEqual(['', '']);
 
     // ── La forme d'un montant copié : un réglage du cabinet ──────────────────────────────────────────
-    await p.locator('#dc-format').selectOption('millimes');
-    await expect.poll(async () => ((await api('GET', `/cabinets/${cabinet}/reglages`, associe)).corps.contenu as { formatCopie?: string }).formatCopie).toBe('millimes');
+    // L'écran se relit après chaque geste : le choix se refait tant qu'il n'est pas enregistré.
+    await expect.poll(async () => {
+      const f = ((await api('GET', `/cabinets/${cabinet}/reglages`, associe)).corps.contenu as { formatCopie?: string }).formatCopie;
+      if (f !== 'millimes') await p.locator('#dc-format').selectOption('millimes', { timeout: 2_000 }).catch(() => {});
+      return f;
+    }, { timeout: 30_000 }).toBe('millimes');
     await aller();
     expect(await p.locator('#dc-format').inputValue()).toBe('millimes');
     expect(await p.locator('[data-copier]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-valeur')))).toContain('209125');

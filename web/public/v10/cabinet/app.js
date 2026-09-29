@@ -4408,7 +4408,7 @@
             et qui touche le livre entier. Quand les deux postes voient le même fichier, il ne sert
             à rien — l'application s'en aperçoit toute seule à l'enregistrement, fusionne et le
             dit. Il ne reste que le cas où les deux ne se sont jamais vus. */''}
-      <span class="nw"><button class="btn btn-sm" id="cl-fusion">Réunir le livre d'un autre poste…</button>${info('eq.fusion')}</span>
+
     </div>
     ${/* Un bouton éteint dit POURQUOI sous ses yeux, jamais dans une infobulle (9.4.5) — et par la
           fonction même qui refuserait le geste. En gris : « rien à reporter » est l'état d'un
@@ -4598,10 +4598,14 @@
       // 10.14.0 — un exercice qui court encore se clôt quand même (les contrôles nomment, ils ne
       // bloquent pas, 6.0.0), mais la question le DIT avant le geste : tout ce qui reste à passer
       // jusqu'au 31 décembre sera refusé. Trouvé à la souris : le bouton était vert en septembre.
-      const enCours = !exerciceTermine(s.annee)
-        ? `<p class="warn-box"><b>L'exercice ${esc(String(s.annee))} n'est pas terminé</b> : il court jusqu'au 31/12/${esc(String(s.annee))}. Le clôturer maintenant refusera toute écriture datée d'ici là, jusqu'à une réouverture motivée.</p>` : '';
+      // La plateforme (brique 45) : clôturer valide la période jusqu'au dernier jour — elle doit être
+      // finie, et sans brouillard (la clôture ne valide rien en silence). Les deux se disent avant la question.
+      if (!exerciceTermine(s.annee)) return toast(`L'exercice ${s.annee} n'est pas fini : il se clôture à partir du 01/01/${Number(s.annee) + 1}.`, 'error');
+      const enBrouillard = (s.cloture.controles || []).find(c => c.id === 'brouillard' && !c.ok);
+      if (enBrouillard) return toast(enBrouillard.detail, 'error');
+      const enCours = '';
       const ok = await confirmDialog(`Clôturer l'exercice ${s.annee} ?`,
-        enCours + `<p>Après la clôture, plus aucune écriture de cet exercice ne bouge. La rouvrir reste possible, mais elle exigera un motif — c'est la seule trace qui expliquera pourquoi un chiffre a changé après coup.</p>`
+        enCours + `<p>La période sera validée jusqu'au 31/12/${esc(String(s.annee))} : plus aucune écriture de cet exercice ne bouge. La rouvrir reste possible, mais elle exigera un motif — c'est la seule trace qui expliquera pourquoi un chiffre a changé après coup.</p>`
         + (echecs.length ? `<p><b>${pl(echecs.length, 'contrôle signale', 'contrôles signalent')} encore quelque chose :</b></p><ul>${echecs.map(c => `<li>${esc(c.detail)}</li>`).join('')}</ul>` : ''),
         'Clôturer', false);
       if (!ok) return;
