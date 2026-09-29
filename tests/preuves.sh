@@ -256,13 +256,15 @@ prouver "la page suivante saute les gestes d'un même instant" $R \
 prouver "le lien d'invitation gardé en clair" $R \
   "sha256(jeton), expire])" "jeton, expire])" \
   "inviter, accepter"
-prouver "une invitation acceptée par une autre adresse" $E \
+# socle.accepter_invitation est redéfinie par 0030 (l'équipe du cabinet) : ces trois preuves visent la
+# définition EN VIGUEUR (une preuve qui vise une définition remplacée reste verte : code mort).
+prouver "une invitation acceptée par une autre adresse" base/migrations/0030_cabinet_equipe.sql \
   "  if lower(v_email) <> i.email then" "  if false then" \
   "inviter, accepter"
-prouver "une invitation expirée qui sert encore" $E \
+prouver "une invitation expirée qui sert encore" base/migrations/0030_cabinet_equipe.sql \
   " or i.expire_le <= p_maintenant then" " then" \
   "une invitation expirée ne sert plus"
-prouver "le propriétaire perd son rôle en acceptant une invitation" $E \
+prouver "le propriétaire perd son rôle en acceptant une invitation" base/migrations/0030_cabinet_equipe.sql \
   "  if exists (select 1 from socle.membre where utilisateur = socle.moi() and entreprise = i.entreprise and actif and 'proprietaire' = any(roles)) then" "  if false then" \
   "le propriétaire qui accepte une invitation dans sa propre entreprise"
 prouver "on change son propre rôle" $E \
