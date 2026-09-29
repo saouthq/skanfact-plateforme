@@ -203,6 +203,8 @@
   - **Les abonnements** (brique 51, C41) : `abonnements` dans la fiche (montant en texte décimal) ;
     `genererAbonnements` sérialisé (`generation`), pièces au brouillard par la saisie du serveur, mois
     faits notés même en cas de refus, pièce déjà au livre (numéro + date) jamais réécrite.
+  - **Une liste de clients collée** (brique 52, C42) : `importDossiers` = `parseDossierLines`, tous les
+    matricules contrôlés avant d'écrire (forme du serveur), puis `newDossier` ligne par ligne.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

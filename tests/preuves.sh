@@ -3177,5 +3177,21 @@ prouver "le menu d'un abonnement qui n'ouvre rien" web/public/v10/cabinet/app.js
   "    bindRowMenus(box, cle => actionsAbonnement(root, dossier, cle));" "" \
   "$WA1"
 
+# ── Brique 52 : une liste de clients collée (docs/cabinet.md, C42) ──
+WL1="une ligne fausse arrête tout ; la liste corrigée ajoute chaque client, un doublon est ignoré et nommé"
+prouver "une liste de clients qui ne s'ajoute pas en ligne" $PC \
+  "    importDossiers: async (" "    importDossiersAbsent: async (" \
+  "$WL1"
+prouver "une ligne fausse qui laisse passer les lignes d'avant" $PC \
+  "      if (faux) throw new Error(" "      if (false) throw new Error(" \
+  "$WL1"
+prouver "un matricule écrit avec des points refusé" $PC \
+  "String(d.matricule || '').replace(/\\s+/g, '').replace(/[.-]/g, '/').toUpperCase()" "String(d.matricule || '').replace(/\\s+/g, '').toUpperCase()" \
+  "$WL1"
+prouver "les coordonnées d'une liste collée perdues" $PC \
+  "        await poserFiche(cree.entreprise, d, null);
+        added++;" "        added++;" \
+  "$WL1"
+
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

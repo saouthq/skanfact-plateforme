@@ -95,6 +95,7 @@ mêmes données que son client.
 | **49** | Le fichier CNSS du trimestre : fabriqué par le moteur de la v10 sur la paie du serveur, téléchargé sous le nom du format. |
 | **50** | Les guides d'écritures du cabinet (des pièces types que la saisie préremplit) et le journal retenu par dossier. |
 | **51** | Les abonnements d'un dossier : un guide qui revient tous les mois, écrit au brouillard une fois par mois dû. |
+| **52** | Une liste de clients collée (depuis un tableur) : chaque client entre au portefeuille, les doublons sont nommés. |
 
 Chaque brique a ses tests « deux chemins » (ce que calcule l'écran du Cabinet contre ce que tient
 le serveur), ses preuves, et un parcours joué à la souris.
@@ -1061,3 +1062,23 @@ s'en va, l'abonnement est « à jour » ; suspendu depuis son menu, il ne propos
 - Deux postes qui génèrent au même instant sans préfixe de pièce peuvent écrire le même mois deux fois
   (avec un préfixe, la seconde pièce se reconnaît et ne s'écrit pas) : les brouillards se relisent avant
   d'être validés.
+
+## Brique 52 : une liste de clients collée (fait le 29/09/2026)
+
+Le Cabinet v10 laissait coller une liste de clients (depuis un tableur : un client par ligne, le nom,
+et s'il y en a le matricule, l'adresse, le téléphone ; une ligne de titres décide des colonnes) ; un
+aperçu montre ce qui entrera, et un client déjà là est ignoré et nommé. En ligne, « Ajouter ces
+clients » répondait « pas encore en ligne » — dans les Dossiers comme dans l'assistant de bienvenue.
+
+**C42. Une liste collée se contrôle en entier avant d'écrire** (par délégation ; rien de neuf au
+serveur). La liste est lue par la v10 (`parseDossierLines`, les doublons écartés). Le matricule s'écrit
+comme le serveur le garde (sans espace, en majuscules, « / » entre ses codes : « 1234567A.P.M.000 »
+devient « 1234567A/P/M/000 ») ; **une seule ligne dont le matricule est incomplet ou illisible arrête
+tout, et rien n'est ajouté** — le refus nomme le client et dit la forme attendue (la v10 acceptait un
+matricule court, « 1234567A » ; le serveur demande la forme entière). Puis chaque client est créé comme
+par « Nouveau client » (le dossier tenu au serveur, sa fiche : l'adresse, le téléphone).
+
+**Les tests** : à la souris (`tests/web/cabinet-liste.test.ts`) : une liste dont une ligne porte un
+matricule court est refusée sur cette ligne, et le portefeuille ne bouge pas ; corrigée, ses deux clients
+entrent (le matricule écrit avec des points, gardé avec des « / » ; l'adresse et le téléphone dans la
+fiche), le client déjà là est ignoré et nommé.

@@ -1646,6 +1646,25 @@
       await poserFiche(cree.entreprise, f, null);
       return { state: await construireEtat(), id: cree.entreprise };
     },
+    // Une liste de clients collée (brique 52 ; docs/cabinet.md, C42) : lue par la v10 (parseDossierLines,
+    // les doublons écartés et nommés), chaque ligne contrôlée AVANT d'écrire (un matricule que le serveur
+    // refuserait arrête tout, rien n'est ajouté), puis chaque client créé comme par « Nouveau client ».
+    importDossiers: async (/** @type {string} */ texte) => {
+      /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
+      const etat = await construireEtat();
+      const r = K.parseDossierLines(texte, etat.dossiers);
+      // Le matricule s'écrit comme le serveur le garde : sans espace, en majuscules, « / » entre ses codes.
+      const lus = r.dossiers.map((/** @type {any} */ d) => ({ d, matricule: String(d.matricule || '').replace(/\s+/g, '').replace(/[.-]/g, '/').toUpperCase() }));
+      const faux = lus.find((/** @type {any} */ x) => x.matricule && !/^[0-9]{7}[A-Z]\/?[A-Z]\/?[A-Z]\/?[0-9]{3}$/.test(x.matricule));
+      if (faux) throw new Error(`« ${faux.d.name} » : le matricule fiscal « ${faux.matricule} » est incomplet ou ne se lit pas : il s'écrit en entier, comme « 1234567A/P/M/000 ». Corrige cette ligne : rien n'a été ajouté.`);
+      let added = 0;
+      for (const { d, matricule } of /** @type {any[]} */ (lus)) {
+        const cree = await appel('POST', `/cabinets/${cabinetId}/dossiers`, { raisonSociale: String(d.name).trim(), ...(matricule ? { matriculeFiscal: matricule } : {}) });
+        await poserFiche(cree.entreprise, d, null);
+        added++;
+      }
+      return { added, ignorés: r.ignorés, state: await construireEtat() };
+    },
     saveDossier: async (/** @type {string} */ id, /** @type {Record<string, unknown>} */ patch) => {
       const d = dossiers.get(id);
       if (!d) throw new Error('Dossier introuvable.');
