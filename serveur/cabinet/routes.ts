@@ -33,6 +33,17 @@ const FICHE = z.object({
   from: z.string().regex(/^(\d{4}-\d{2})?$/), regime: texte(40), tvaPeriod: texte(20),
   fees: z.number().int().min(0).max(1_000_000_000_000), cnssEmployeur: texte(40), cnssCode: texte(10),
   relances: z.array(RELANCE).max(50),
+  // Le compte bancaire du dossier, sa banque, et l'écart de jours du rapprochement (brique 40, C21).
+  banque: z.object({ compte: z.string().regex(/^(\d{1,12})?$/), banque: texte(60), jours: z.number().int().min(0).max(30).nullable() }).partial().strict(),
+}).partial().strict();
+// Les réglages du cabinet (0023, C21) : cette liste, et rien d'autre. L'association des colonnes d'un
+// relevé PAR BANQUE (le rang de chaque colonne), et les mots retenus (un mot d'un libellé → le compte
+// proposé), pour tous ses clients.
+const COLONNE = z.number().int().min(0).max(200);
+const REGLAGES = z.object({
+  banques: z.record(z.string().min(1).max(60), z.object({ date: COLONNE, libelle: COLONNE, montant: COLONNE, debit: COLONNE, credit: COLONNE, reference: COLONNE }).partial().strict())
+    .refine((o) => Object.keys(o).length <= 50, { message: 'cabinet.champ.banques' }),
+  libelles: z.array(z.object({ motif: z.string().min(1).max(40), compte: z.string().regex(/^\d{1,12}$/) }).strict()).max(500),
 }).partial().strict();
 
 const tracer = (tx: Transaction, entreprise: string, geste: string, objet: string, avant: unknown, apres: unknown) =>
@@ -220,6 +231,40 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
         : (await db.insertInto('cabinet.fiche').values({ cabinet, entreprise, contenu, modifie_par: qui.utilisateur })
           .onConflict((oc) => oc.doNothing()).executeTakeFirst()).numInsertedOrUpdatedRows;
       if (!ecrites) return { statut: 409, corps: { motif: motif('cabinet.fiche_changee'), revision: null } };
+      return { corps: { revision: (connue ?? 0) + 1 } };
+    },
+  });
+
+  // ── Les réglages du cabinet (0023) ──────────────────────────────────────────────────────────
+  // Les lit et les écrit qui est du cabinet (la sécurité par ligne le décide) ; changés ailleurs
+  // entre-temps, ils ne sont jamais écrasés.
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/reglages', geste: 'compte.cabinets.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const r = await requetes(tx).selectFrom('cabinet.reglages').select(['contenu', 'revision']).where('cabinet', '=', params.cabinet ?? '').executeTakeFirst();
+      return { corps: { contenu: r ? r.contenu : {}, revision: r ? Number(r.revision) : null } };
+    },
+  });
+  ajouter({
+    methode: 'PUT', chemin: '/cabinets/:cabinet/reglages', geste: 'compte.cabinet.gerer',
+    corps: z.object({ contenu: REGLAGES, revision: z.number().int().positive().nullable() }),
+    traiter: async ({ params, corps, qui }, tx) => {
+      if (!tx || !qui || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const cabinet = params.cabinet ?? '';
+      const db = requetes(tx);
+      const membre = (await tx.query('select 1 from socle.mes_organisations() o where o = $1', [cabinet])).rowCount;
+      if (!membre) return introuvable;
+      const deja = await db.selectFrom('cabinet.reglages').select('revision').where('cabinet', '=', cabinet).executeTakeFirst();
+      const connue = deja ? Number(deja.revision) : null;
+      if (connue !== corps.revision) return { statut: 409, corps: { motif: motif('cabinet.reglages_changes'), revision: connue } };
+      const contenu = JSON.stringify(corps.contenu);
+      const ecrites = deja
+        ? (await db.updateTable('cabinet.reglages').set({ contenu, revision: BigInt(connue ?? 0) + 1n, modifie_par: qui.utilisateur, modifie_le: new Date() })
+          .where('cabinet', '=', cabinet).where('revision', '=', BigInt(connue ?? 0)).executeTakeFirst()).numUpdatedRows
+        : (await db.insertInto('cabinet.reglages').values({ cabinet, contenu, modifie_par: qui.utilisateur })
+          .onConflict((oc) => oc.doNothing()).executeTakeFirst()).numInsertedOrUpdatedRows;
+      if (!ecrites) return { statut: 409, corps: { motif: motif('cabinet.reglages_changes'), revision: null } };
       return { corps: { revision: (connue ?? 0) + 1 } };
     },
   });

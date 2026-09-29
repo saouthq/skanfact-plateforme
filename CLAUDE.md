@@ -136,6 +136,11 @@
     compare au livre du serveur et la fenêtre dit tout avant le clic ; une pièce qui ne tombe pas juste
     se refuse ; les pièces partent en lots (`POST …/ecritures/lot`, un point de reprise par pièce) ; une
     validée changée se corrige d'un geste (`…/:id/corriger` : contre-passation + version au brouillard).
+  - **La banque** (brique 40, 0023, C19 à C21) : un relevé (lu dans le navigateur, son empreinte
+    d'octets, bouclé au millime, rangé dans le livre d'une année) ; un rapprochement lie une ligne du
+    relevé à UNE ligne d'écriture du même compte (`compta.rapprochement`, qui tombe avec la ligne d'un
+    brouillard qui change) ; l'automatique juge dans le navigateur (la v10) et pose au serveur ; les
+    banques et les mots retenus : `cabinet.reglages` (champs comptés, révision).
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

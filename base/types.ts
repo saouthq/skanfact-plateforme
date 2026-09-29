@@ -79,6 +79,13 @@ export interface BaseDeDonnees {
     modifie_par: string | null;
     modifie_le: Generated<Date>;
   };
+  'cabinet.reglages': {
+    cabinet: string;
+    contenu: ColumnType<Json, string, string>;
+    revision: Generated<bigint>;
+    modifie_par: string | null;
+    modifie_le: Generated<Date>;
+  };
   'compta.cloture': {
     entreprise: string;
     jusqua: string;
@@ -147,6 +154,41 @@ export interface BaseDeDonnees {
     ligne: string;
     lettrage: string;
     entreprise: string;
+  };
+  'compta.rapprochement': {
+    releve_ligne: string;
+    ligne: string;
+    entreprise: string;
+    niveau: string;
+    auto: Generated<boolean>;
+    pose_par: string | null;
+    pose_le: Generated<Date>;
+  };
+  'compta.releve': {
+    id: Generated<string>;
+    entreprise: string;
+    annee: number;
+    compte: string;
+    banque: Generated<string>;
+    du: string;
+    au: string;
+    solde_debut: bigint;
+    solde_fin: bigint;
+    fichier: Generated<string>;
+    empreinte: string;
+    importe_par: string | null;
+    importe_le: Generated<Date>;
+  };
+  'compta.releve_ligne': {
+    id: Generated<string>;
+    releve: string;
+    entreprise: string;
+    rang: number;
+    date_operation: string;
+    libelle: Generated<string>;
+    reference: Generated<string>;
+    montant: bigint;
+    niveau: Generated<string>;
   };
   'paie.bulletin': {
     id: Generated<string>;

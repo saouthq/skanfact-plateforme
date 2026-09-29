@@ -1844,13 +1844,15 @@ prouver "une fiche écrasée par un poste qui ne l'a pas relue" serveur/cabinet/
   "      if (connue !== corps.revision) return { statut: 409, corps: { motif: motif('cabinet.fiche_changee'), revision: connue } };" "" \
   "$E3"
 prouver "deux postes qui enregistrent la même fiche au même instant" serveur/cabinet/routes.ts \
-  ".where('revision', '=', BigInt(connue ?? 0))" "" \
+  ".where('entreprise', '=', entreprise).where('revision', '=', BigInt(connue ?? 0))" ".where('entreprise', '=', entreprise)" \
   "$E3"
 prouver "une fiche lue sans voir le dossier" $M20 \
   "  using (cabinet in (select socle.mes_organisations()) and entreprise in (select socle.mes_entreprises()));" "  using (cabinet in (select socle.mes_organisations()));" \
   "$E3"
 prouver "une fiche aux champs non comptés" serveur/cabinet/routes.ts \
-  "}).partial().strict();" "}).partial().passthrough();" \
+  "  banque: z.object({ compte: z.string().regex(/^(\\d{1,12})?\$/), banque: texte(60), jours: z.number().int().min(0).max(30).nullable() }).partial().strict(),
+}).partial().strict();" "  banque: z.object({ compte: z.string().regex(/^(\\d{1,12})?\$/), banque: texte(60), jours: z.number().int().min(0).max(30).nullable() }).partial().strict(),
+}).partial().passthrough();" \
   "$E3"
 prouver "l'entrée qui ouvre l'entreprise d'un client comme la sienne" web/src/App.tsx \
   "    const siennes = moi.entreprises.filter((x) => !x.parCabinet);" "    const siennes = moi.entreprises;" \
@@ -2249,6 +2251,101 @@ prouver "la visite « Commencer le livre » encore cachée en ligne" $PC \
 prouver "la visite « Commencer le livre » qui choisit un client sur SkanFact" $CVI \
   "      const libre = d => !!d && !!d.manual && !d.demo" "      const libre = d => !!d && !d.demo" \
   "$TB1"
+
+# ── Brique 40 : la banque, relevés et rapprochements (docs/cabinet.md, C19 à C21) ──
+M23=base/migrations/0023_compta_banque.sql
+BQS=serveur/compta/banque.ts
+CRT=serveur/cabinet/routes.ts
+BQ1="un relevé s'importe s'il se boucle, une fois, avec son compte ; ses lignes se lisent au millime ; une voisine n'en lit rien"
+BQ2="un rapprochement : une ligne du relevé, une ligne d'écriture du même compte, qui ne répond que d'elle ; un brouillard qui change le fait tomber ; tout se défait, le relevé se retire"
+BQ3="les réglages du cabinet : les banques et les mots retenus, rien d'autre ; changés ailleurs, jamais écrasés ; un autre cabinet n'y lit rien"
+WB1="un relevé s'importe, l'automatique pose le certain et garde l'ambiguïté, qui se tranche à la main ; l'écriture manquante s'écrit depuis la ligne ; tout se défait, le relevé se retire"
+prouver "un relevé qui ne se boucle pas, importé" $M23 \
+  "  if v_debut + v_somme <> v_fin then" "  if false then" \
+  "$BQ1"
+prouver "le même fichier de relevé importé deux fois" $M23 \
+  "  if found then
+    perform socle.refus(format('ce fichier a déjà été importé" "  if false then
+    perform socle.refus(format('ce fichier a déjà été importé" \
+  "$BQ1"
+prouver "un relevé sans compte bancaire" $M23 \
+  "  if coalesce(p_releve->>'compte', '') !~ '^[0-9]{1,12}\$' then" "  if false then" \
+  "$BQ1"
+prouver "un relevé sans ligne" $M23 \
+  "  if v_n = 0 then perform socle.refus('ce relevé ne porte aucune ligne lisible'); end if;" "" \
+  "$BQ1"
+prouver "les relevés que la voisine lit" $M23 \
+  "create policy visible on compta.releve using (entreprise in (select compta.mes_entreprises()));" "create policy visible on compta.releve using (true);" \
+  "$BQ1"
+prouver "les lignes de relevé que la voisine lit" $M23 \
+  "create policy visible on compta.releve_ligne using (entreprise in (select compta.mes_entreprises()));" "create policy visible on compta.releve_ligne using (true);" \
+  "$BQ1"
+prouver "un montant de relevé illisible accepté" $BQS \
+  "        if (m === null) return champInvalide(\`lignes.\${i}.montant\`, t('compta.champ.montant_signe'));" "" \
+  "$BQ1"
+prouver "une ligne d'un autre compte rapprochée" $M23 \
+  "      if v_compte <> r.compte then" "      if false then" \
+  "$BQ2"
+prouver "une ligne d'écriture qui répond de deux lignes de relevé" $M23 \
+  "      if exists (select 1 from compta.rapprochement where ligne = v_face and releve_ligne <> v_ligne) then" "      if false then" \
+  "$BQ2"
+prouver "un rapprochement qui retient un brouillard changé" $M23 \
+  "  ligne uuid not null unique references compta.ligne(id) on delete cascade," "  ligne uuid not null unique references compta.ligne(id)," \
+  "$BQ2"
+prouver "un jugement « certain » sans écriture en face" $M23 \
+  "      if v_niveau not in ('aucun', 'probable', 'a-confirmer') then perform socle.refus('un jugement" "      if false then perform socle.refus('un jugement" \
+  "$BQ2"
+prouver "le jugement de l'automatique perdu" $M23 \
+  "      update compta.releve_ligne set niveau = v_niveau where id = v_ligne;" "      update compta.releve_ligne set niveau = 'aucun' where id = v_ligne;" \
+  "$BQ2"
+prouver "« tout défaire » qui ne défait rien" $M23 \
+  "where a.releve_ligne = l.id and l.releve = p_releve;" "where false;" \
+  "$BQ2"
+prouver "rapprocher sans saisir, dans la base" $M23 \
+  "declare v_n int;
+begin
+  perform compta.exiger(p_entreprise, 'compta.ecritures.saisir');" "declare v_n int;
+begin
+  perform compta.exiger(p_entreprise, 'compta.livres.voir');" \
+  "$BQ2"
+prouver "le rang de la ligne en face perdu" $BQS \
+  "rang: Number(l.rang_face)," "rang: 1," \
+  "$BQ2"
+prouver "des réglages du cabinet qui prennent un champ de plus" $CRT \
+  "  libelles: z.array(z.object({ motif: z.string().min(1).max(40), compte: z.string().regex(/^\\d{1,12}\$/) }).strict()).max(500),
+}).partial().strict();" "  libelles: z.array(z.object({ motif: z.string().min(1).max(40), compte: z.string().regex(/^\\d{1,12}\$/) }).strict()).max(500),
+}).partial();" \
+  "$BQ3"
+prouver "des réglages du cabinet écrasés" $CRT \
+  "      if (connue !== corps.revision) return { statut: 409, corps: { motif: motif('cabinet.reglages_changes'), revision: connue } };" "" \
+  "$BQ3"
+prouver "les réglages d'un autre cabinet écrits" $CRT \
+  "      if (!membre) return introuvable;" "" \
+  "$BQ3"
+prouver "les réglages d'un autre cabinet lus" $M23 \
+  "create policy visible on cabinet.reglages using (cabinet in (select socle.mes_organisations()));" "create policy visible on cabinet.reglages using (true);" \
+  "$BQ3"
+prouver "la fiche qui prend n'importe quoi sous « banque »" $CRT \
+  "jours: z.number().int().min(0).max(30).nullable() }).partial().strict()," "jours: z.number().int().min(0).max(30).nullable() }).partial()," \
+  "$BQ3"
+prouver "l'automatique qui ne pose rien au serveur" $PC \
+  "        await appel('POST', \`/entreprises/\${o.dossierId}/compta/releves/\${o.releveId}/rapprochements\`, { poses: poses.slice(i, i + 5000) });" "        void poses;" \
+  "$WB1"
+prouver "l'association des colonnes d'une banque oubliée" $PC \
+  "        if (o.banques && typeof o.banques === 'object') contenu.banques = o.banques;" "" \
+  "$WB1"
+prouver "le mot retenu oublié" $PC \
+  "        if (Array.isArray(o.libelles)) contenu.libelles = o.libelles;" "" \
+  "$WB1"
+prouver "le compte bancaire du dossier oublié" $PC \
+  "    if (bq && typeof bq === 'object') {" "    if (false) {" \
+  "$WB1"
+prouver "un rapprochement vers la mauvaise ligne de l'écriture" $PC \
+  "    const l = e && e.lignes[Number(i)];" "    const l = e && e.lignes[0];" \
+  "$WB1"
+prouver "les relevés que le livre ne lit pas" $PC \
+  "    livre.releves = releves;" "" \
+  "$WB1"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

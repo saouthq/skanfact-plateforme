@@ -42,6 +42,9 @@
   // ── L'état du cabinet : le cabinet, son portefeuille, la personne qui travaille ────────────
   /** @type {Map<string, { id: string, name: string, matricule: string }>} */
   const dossiers = new Map();
+  // Les réglages du cabinet (0023) : les banques et les mots retenus, et leur révision.
+  /** @type {{ contenu: Record<string, any>, revision: number | null }} */
+  let reglages = { contenu: {}, revision: null };
   // La fiche de chaque dossier au cabinet (0020) : son contenu et sa révision.
   /** @type {Map<string, { contenu: Record<string, unknown>, revision: number | null }>} */
   const fiches = new Map();
@@ -53,8 +56,9 @@
     /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
     // Les mois des cinq dernières années (le plafond du Cabinet v10, MAX_MOIS_ATTENDUS).
     const depuis = `${new Date().getUTCFullYear() - 5}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}-01`;
-    const [moi, mes, porte, lues, mois] = await Promise.all([appel('GET', '/moi'), appel('GET', '/cabinets'), appel('GET', `/cabinets/${cabinetId}/portefeuille`),
-      appel('GET', `/cabinets/${cabinetId}/fiches`), appel('GET', `/cabinets/${cabinetId}/mois?depuis=${depuis}`)]);
+    const [moi, mes, porte, lues, mois, regles] = await Promise.all([appel('GET', '/moi'), appel('GET', '/cabinets'), appel('GET', `/cabinets/${cabinetId}/portefeuille`),
+      appel('GET', `/cabinets/${cabinetId}/fiches`), appel('GET', `/cabinets/${cabinetId}/mois?depuis=${depuis}`), appel('GET', `/cabinets/${cabinetId}/reglages`)]);
+    reglages = { contenu: regles.contenu || {}, revision: regles.revision ?? null };
     fiches.clear();
     for (const f of lues.fiches || []) fiches.set(f.entreprise, { contenu: f.contenu, revision: f.revision });
     const cab = (mes.cabinets || []).find((/** @type {any} */ c) => c.id === cabinetId);
@@ -72,6 +76,9 @@
         packs: moisVersPaquets(K, (mois.mois || []).filter((/** @type {any} */ x) => x.entreprise === d.entreprise)) });
     });
     const etat = K.migrate({ cabinet: { name: cab.nom, email: '', phone: '' }, dossiers: liste });
+    // Ce que la banque apprend pour tous les clients du cabinet (0023) : la v10 le gardait dans son état.
+    etat.banques = reglages.contenu.banques || {};
+    etat.libelles = reglages.contenu.libelles || [];
     etat.moi = moi.id;
     etat.moiNom = moi.nom;
     return etat;
@@ -176,7 +183,7 @@
         contrepasseDe: e.origine.type === 'contre_passation' ? e.origine.id : null,
         extourneDe: e.origine.type === 'extourne' ? e.origine.id : null, extourne: false, extourneeLe: null,
         lignes: e.lignes.map((/** @type {any} */ l) => ({
-          compte: l.compte, tiersId: e.tiers, tiers: l.tiers || '', libelle: l.libelle, debit: nombre(l.debit), credit: nombre(l.credit), lettre: l.lettre || '',
+          ligneId: l.id, compte: l.compte, tiersId: e.tiers, tiers: l.tiers || '', libelle: l.libelle, debit: nombre(l.debit), credit: nombre(l.credit), lettre: l.lettre || '',
         })),
       });
       for (const l of e.lignes) {
@@ -194,11 +201,44 @@
   // premier exercice commence en cours d'année).
   /** @param {string} ent @param {string|number} annee @param {any[]} [lues] */
   const livreDe = async (ent, annee, lues) => {
-    const livre = versLeLivre(ent, Number(annee), lues || await ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`));
+    const [ecritures, releves] = await Promise.all([lues || ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`), relevesDe(ent, annee)]);
+    const livre = versLeLivre(ent, Number(annee), ecritures);
     const ex = exerciceDe(ent, annee);
     if (ex) { livre.exercice.du = ex.du; livre.exercice.au = ex.au; }
+    livre.releves = releves;
     return livre;
   };
+  // Les relevés bancaires rangés dans le livre d'une année (brique 40), dans la forme de la v10 : ce qui
+  // répond à une ligne est une écriture et le RANG de sa ligne ; un jugement de l'automatique qui n'a
+  // pas tranché se garde sur la ligne (« probable », « à confirmer »).
+  /** @param {string} ent @param {string|number} annee */
+  async function relevesDe(ent, annee) {
+    const r = await appel('GET', `/entreprises/${ent}/compta/releves?annee=${Number(annee)}`);
+    return (r.releves || []).map((/** @type {any} */ x) => ({
+      id: x.id, compte: x.compte, banque: x.banque, du: x.du, au: x.au, soldeDebut: nombre(x.soldeDebut), soldeFin: nombre(x.soldeFin),
+      fichier: x.fichier, empreinte: x.empreinte, importeLe: x.importeLe, par: '',
+      lignes: x.lignes.map((/** @type {any} */ l) => ({
+        id: l.id, date: l.date, libelle: l.libelle, reference: l.reference, montant: nombre(l.montant), ecritureId: '',
+        rapprochement: l.rapprochement
+          ? { niveau: l.rapprochement.niveau, ecritureId: l.rapprochement.ecriture, ligne: l.rapprochement.rang - 1, le: l.rapprochement.le || '', par: l.rapprochement.auto ? 'auto' : '' }
+          : { niveau: l.niveau, ecritureId: '', ligne: -1, le: '', par: l.niveau === 'aucun' ? '' : 'auto' },
+      })),
+    }));
+  }
+  // La ligne d'écriture (son identifiant au serveur) que désignent une écriture et le rang d'une de ses lignes.
+  /** @param {any} livre @param {string} ecritureId @param {number} i */
+  const ligneDuLivre = (livre, ecritureId, i) => {
+    const e = (livre.ecritures || []).find((/** @type {any} */ x) => x.id === ecritureId);
+    const l = e && e.lignes[Number(i)];
+    if (!l || !l.ligneId) throw new Error('Cette écriture n\'existe pas.');
+    return String(l.ligneId);
+  };
+  // Un montant signé en texte exact (les soldes et les mouvements d'un relevé, au sens de la banque).
+  /** @param {unknown} n */
+  const signe = (n) => (Math.round((Number(n) || 0) * 1000) / 1000).toFixed(3);
+  // Les fichiers de relevé lus, gardés le temps de la fenêtre (« Relire avec cette association »).
+  /** @type {Map<string, { texte: string, empreinte: string }>} */
+  const lecturesReleve = new Map();
 
   // Une écriture de la grille de saisie, pour le serveur : ses lignes remplies (la grille en garde
   // une vide au bout), ses montants en texte exact.
@@ -221,6 +261,11 @@
     if (f.archived != null) contenu.archived = !!f.archived;
     if (f.fees != null) contenu.fees = Math.round((Number(f.fees) || 0) * 1000);
     if (Array.isArray(f.relances)) contenu.relances = f.relances;
+    const bq = /** @type {any} */ (f.banque);
+    if (bq && typeof bq === 'object') {
+      contenu.banque = { ...(bq.compte ? { compte: String(bq.compte) } : {}), ...(bq.banque ? { banque: String(bq.banque) } : {}),
+        ...(bq.jours != null && bq.jours !== '' ? { jours: Number(bq.jours) } : {}) };
+    }
     await appel('PUT', `/cabinets/${cabinetId}/fiches/${ent}`, { contenu, revision });
   }
 
@@ -569,6 +614,85 @@
       }
       lectures.delete(String(cle));
       return { ...out, livre: await livreDe(id, annee) };
+    },
+
+    // ── La banque (brique 40, C19 à C21) : le relevé se lit dans le navigateur (le lecteur de la v10),
+    // son empreinte est celle de ses octets ; l'import, les rapprochements et les réglages vont au
+    // serveur, qui refait chaque contrôle. L'automatique juge comme la v10, puis pose au serveur.
+    lireReleve: async (/** @type {any} */ o = {}) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      let cle = String((o && o.chemin) || '');
+      let lu = lecturesReleve.get(cle);
+      if (!lu) {
+        const f = await choisirFichier('.xlsx,.csv,.txt');
+        if (!f) return { annule: true };
+        const octets = new Uint8Array(await f.arrayBuffer());
+        const empreinte = [...new Uint8Array(await crypto.subtle.digest('SHA-256', octets))].map((b) => b.toString(16).padStart(2, '0')).join('');
+        lu = { texte: await lireTableur(f), empreinte };
+        cle = `${++lectureSuivante}/${f.name}`;
+        lecturesReleve.set(cle, lu);
+      }
+      return { ...KC.releveDepuisCsv(KC.rangeesDeTexte(lu.texte), (o && o.assoc) || null), fichier: cle, empreinte: lu.empreinte };
+    },
+    ajouterReleve: async (/** @type {any} */ o) => {
+      const r = o.releve || {};
+      const cree = await appel('POST', `/entreprises/${o.dossierId}/compta/releves`, {
+        annee: Number(o.annee), compte: String(r.compte || '').trim(), banque: String(r.banque || '').slice(0, 60),
+        fichier: String(r.fichier || '').split('/').pop()?.slice(0, 200) || '', empreinte: String(r.empreinte || ''),
+        soldeDebut: signe(r.soldeDebut), soldeFin: signe(r.soldeFin),
+        lignes: (r.lignes || []).map((/** @type {any} */ l) => ({ date: String(l.date), libelle: String(l.libelle || '').slice(0, 500), reference: String(l.reference || '').slice(0, 100), montant: signe(l.montant) })),
+      });
+      const livre = await livreDe(o.dossierId, o.annee);
+      return { ok: true, releve: (livre.releves || []).find((/** @type {any} */ x) => x.id === cree.id), livre };
+    },
+    supprimerReleve: async (/** @type {any} */ o) => {
+      await appel('DELETE', `/entreprises/${o.dossierId}/compta/releves/${o.id}`);
+      return { ok: true, ecrituresGardees: 0, livre: await livreDe(o.dossierId, o.annee) };
+    },
+    rapprocher: async (/** @type {any} */ o) => {
+      const c = o.choix || {};
+      const pose = c.ecritureId
+        ? { ligne: o.ligneId, ecritureLigne: ligneDuLivre(await livreDe(o.dossierId, o.annee), c.ecritureId, c.ligne), niveau: c.niveau || 'certain', auto: false }
+        : { ligne: o.ligneId, ecritureLigne: null, niveau: 'aucun', auto: false };
+      await appel('POST', `/entreprises/${o.dossierId}/compta/releves/${o.releveId}/rapprochements`, { poses: [pose] });
+      return { ok: true, niveau: pose.niveau, livre: await livreDe(o.dossierId, o.annee) };
+    },
+    rapprocherAuto: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
+      const livre = await livreDe(o.dossierId, o.annee);
+      const R = (livre.releves || []).find((/** @type {any} */ x) => x.id === o.releveId);
+      const poses0 = new Set(R ? R.lignes.filter((/** @type {any} */ l) => l.rapprochement.ecritureId).map((/** @type {any} */ l) => l.id) : []);
+      const r = KC.rapprocherAuto(livre, o.releveId, { jours: o.jours, date: K.today() });
+      if (!r.ok) throw new Error(r.motif);
+      // Ce que l'automatique a jugé des lignes qu'il pouvait juger : posé (certain), ou gardé (le reste).
+      const poses = R.lignes.filter((/** @type {any} */ l) => !poses0.has(l.id)).map((/** @type {any} */ l) => (l.rapprochement.ecritureId
+        ? { ligne: l.id, ecritureLigne: ligneDuLivre(livre, l.rapprochement.ecritureId, l.rapprochement.ligne), niveau: 'certain', auto: true }
+        : { ligne: l.id, ecritureLigne: null, niveau: l.rapprochement.niveau, auto: true }));
+      for (let i = 0; i < poses.length; i += 5000) {
+        await appel('POST', `/entreprises/${o.dossierId}/compta/releves/${o.releveId}/rapprochements`, { poses: poses.slice(i, i + 5000) });
+      }
+      return { ...r, livre: await livreDe(o.dossierId, o.annee) };
+    },
+    derapprocher: async (/** @type {any} */ o) => {
+      const r = await appel('POST', `/entreprises/${o.dossierId}/compta/releves/${o.releveId}/derapprocher`, {});
+      return { ok: true, defaits: r.defaits, livre: await livreDe(o.dossierId, o.annee) };
+    },
+    // Les banques (l'association des colonnes) et les mots retenus : les réglages du cabinet ; le compte
+    // bancaire d'un dossier : sa fiche.
+    saveBanque: async (/** @type {any} */ o = {}) => {
+      if ((o.banques && typeof o.banques === 'object') || Array.isArray(o.libelles)) {
+        const contenu = { ...reglages.contenu };
+        if (o.banques && typeof o.banques === 'object') contenu.banques = o.banques;
+        if (Array.isArray(o.libelles)) contenu.libelles = o.libelles;
+        const r = await appel('PUT', `/cabinets/${cabinetId}/reglages`, { contenu, revision: reglages.revision });
+        reglages = { contenu, revision: r.revision };
+      }
+      if (o.dossierId && dossiers.has(o.dossierId)) {
+        const f = fiches.get(o.dossierId);
+        await poserFiche(o.dossierId, { ...(f ? depuisFiche(f.contenu) : {}), banque: o.banque || {} }, f ? f.revision : null);
+      }
+      return construireEtat();
     },
 
     // Un dossier créé à la main est un dossier TENU (0019) ; ses notes vont dans sa fiche (0020).

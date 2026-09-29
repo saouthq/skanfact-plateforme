@@ -79,7 +79,7 @@ mêmes données que son client.
 | **38 bis** | Le Cabinet sans paquets, dans les mots : le tableau, les relances, la fiche, les guides et les visites réécrits pour des livres tenus en direct ; la relance notée dans la fiche. |
 | **39** | La reprise : l'exercice et sa balance d'ouverture (à-nouveaux), tapée ou lue dans un CSV ou un classeur Excel. |
 | **39 bis** | Les écritures par tableur, l'aller-retour : exporter le livre-journal (et le FEC), le corriger, le réimporter. |
-| 40 | La banque : relevés, rapprochement, lettrage automatique. |
+| **40** | La banque : relevés (lus dans le navigateur, bouclés, une fois), rapprochement (automatique et à la main), l'écriture manquante depuis la ligne ; ce que la banque apprend, dans les réglages du cabinet. |
 | 41 | Les déclarations (TVA, retenues), la liasse, le FEC et les exports. |
 | 42 | Immobilisations et dotations, inventaire et variation de stock. |
 | 43 | La paie tenue par le cabinet (mandat Paie). |
@@ -373,6 +373,52 @@ autant de lignes que les écritures validées du serveur ; la visite dans « Me 
 - Le plan comptable propre d'un client (ses sous-comptes et leurs noms, tenus sur le serveur) : le plan
   d'un livre, ce sont les comptes que ses écritures portent, nommés par le plan de référence.
 - L'export des écritures de **tous** les clients d'un mois (la page Écritures) : brique 41.
+
+## Brique 40 : la banque, relevés et rapprochement (fait le 29/09/2026)
+
+Le Cabinet v10 importait le relevé d'un compte bancaire dans le livre d'un dossier, puis rapprochait
+chaque ligne du relevé de la ligne d'écriture qui lui répond ; ce qui reste de part et d'autre (les
+suspens) explique l'écart entre la banque et le livre. Sur la plateforme, les mêmes écrans, au serveur.
+
+**C19. Un relevé** (par délégation) : son compte (532…), sa banque, ses dates, ses deux soldes, le nom
+du fichier et l'**empreinte de ses octets** (le même fichier ne s'importe pas deux fois : c'est dit dès
+qu'on le choisit, puis refusé par le serveur). Il se range dans le livre de l'année où on l'importe,
+comme la v10 le rangeait. Il doit **se boucler** (solde de début + mouvements = solde de fin, au
+millime), sinon il manque des lignes et il se refuse, avec l'écart. Le fichier se lit **dans le
+navigateur**, par le lecteur de la v10 (CSV ou Excel, les lignes au-dessus du tableau et les totaux
+reconnus) ; ce qui part au serveur (compté) : le compte, la banque, le nom du fichier, son empreinte,
+les deux soldes, et pour chaque ligne sa date, son libellé, sa référence et son montant.
+
+**C20. Un rapprochement** (par délégation) : une ligne du relevé et **la** ligne d'écriture qui lui
+répond, sur le même compte ; une ligne d'écriture ne répond que d'une ligne de relevé. Un brouillard
+peut être rapproché (le comptable écrit depuis le relevé et valide ensuite, comme dans la v10) ; s'il
+change, ses lignes renaissent et **le rapprochement tombe avec elles** : la ligne du relevé redevient
+« sans réponse », à l'écran, jamais un rapprochement vers une ligne qui n'existe plus (la v10 refusait
+de modifier un brouillard rapproché ; ici, un client qui corrige sa pièce n'est jamais bloqué par le
+travail de son cabinet). L'automatique juge comme la v10 (un seul candidat au bon montant à ± 3 jours :
+posé ; plusieurs : « probable » ou « à confirmer », gardé sur la ligne, **rien n'est posé**) ; le
+comptable tranche, écrit l'écriture manquante depuis la ligne (un brouillard, rapproché du même geste),
+défait une ligne ou tout le relevé, retire un relevé (les écritures restent). Importer, rapprocher,
+retirer : qui saisit, à la porte et dans la base (`compta.importer_releve`, `compta.rapprocher`,
+`compta.derapprocher`, `compta.retirer_releve`, migration `0023`).
+
+**C21. Ce que la banque apprend** (par délégation) : l'association des colonnes **par banque** et les
+**mots retenus** (un mot d'un libellé → le compte proposé) valent pour tous les clients du cabinet :
+les **réglages du cabinet** (`cabinet.reglages`, leurs champs comptés, jamais écrasés : une révision) ;
+le compte bancaire d'un dossier et sa banque vont dans sa **fiche**. Les lit et les écrit qui est du
+cabinet.
+
+**Les tests** : par l'API et dans la base (`tests/compta/banque.test.ts`) ; à la souris
+(`tests/web/cabinet-banque.test.ts`) : un relevé CSV importé (un titre au-dessus du tableau), les
+colonnes et le compte retenus ; l'automatique qui pose le virement et garde les deux chèques du même
+montant sans rien poser ; l'ambiguïté tranchée à la main ; l'écriture manquante écrite depuis la ligne,
+rapprochée, et son mot retenu ; tout défait, le relevé retiré, les écritures restées.
+
+**Reste connu** :
+- « Relevé retiré : N écritures gardées » ne compte pas les écritures nées d'un relevé (le serveur ne
+  garde pas ce lien) : le compte rendu dit seulement « Relevé retiré », et la question avant le geste
+  dit bien que ces écritures restent.
+- Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : pas encore en ligne.
 
 ## Ce qui reste à décider avec Skander ou un comptable
 

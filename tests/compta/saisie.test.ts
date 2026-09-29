@@ -117,8 +117,8 @@ describe('la saisie dans les livres du serveur', () => {
     let lue = (await livres(d.ent, d.client)).find((e) => e.id === id);
     expect(lue).toMatchObject({ statut: 'brouillard', numero: null, origine: { type: 'saisie', id }, revision: 1, libelle: 'Loyer d\'août' });
     expect(lue?.lignes).toEqual([
-      { compte: '6132', libelle: 'Loyer d\'août', debit: '850.500', credit: '0.000', tauxTva: null, tiers: null, lettre: null },
-      { compte: '401', libelle: 'Agence du Lac', debit: '0.000', credit: '850.500', tauxTva: null, tiers: 'Agence du Lac', lettre: null },
+      { id: expect.stringMatching(/^[0-9a-f-]{36}$/), compte: '6132', libelle: 'Loyer d\'août', debit: '850.500', credit: '0.000', tauxTva: null, tiers: null, lettre: null },
+      { id: expect.stringMatching(/^[0-9a-f-]{36}$/), compte: '401', libelle: 'Agence du Lac', debit: '0.000', credit: '850.500', tauxTva: null, tiers: 'Agence du Lac', lettre: null },
     ]);
     // Les contrôles de la v10, chacun avec sa phrase et le numéro de sa ligne.
     const refus = async (corps: unknown) => (await appeler('POST', `/entreprises/${d.ent}/compta/ecritures`, d.assistant.jeton, corps)).corps.motif;

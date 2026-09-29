@@ -144,6 +144,17 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'l\'exercice %s finit le 31/12/%s : il ne peut pas commencer après', cle: 'base.compta.exercice_apres', fr: 'l\'exercice {annee} finit le 31/12/{annee} : il ne peut pas commencer après', valeurs: ['annee', 'annee'] },
   { base: 'l\'exercice %s est déjà ouvert : une balance d\'ouverture fausse se contre-passe, puis la bonne se saisit au journal AN', cle: 'base.compta.exercice_ouvert', fr: 'l\'exercice {annee} est déjà ouvert : une balance d\'ouverture fausse se contre-passe, puis la bonne se saisit au journal AN', valeurs: ['annee'] },
   { base: 'la balance d\'ouverture ne se valide pas : %s', cle: 'base.compta.exercice_ouverture', fr: 'la balance d\'ouverture ne se valide pas : {raison}', valeurs: ['raison'] },
+  { base: 'ce fichier a déjà été importé le %s (%s → %s)', cle: 'base.compta.releve_deja', fr: 'ce fichier a déjà été importé le {jour} ({du} → {au})', valeurs: ['jour', 'du', 'au'] },
+  { base: 'choisis le compte bancaire de ce relevé avant de l\'importer : il ne se devine pas', cle: 'base.compta.releve_compte', fr: 'choisis le compte bancaire de ce relevé avant de l\'importer : il ne se devine pas' },
+  { base: 'ce relevé ne porte aucune ligne lisible', cle: 'base.compta.releve_vide', fr: 'ce relevé ne porte aucune ligne lisible' },
+  { base: 'un relevé se borne à cinq mille lignes : importe-le en plusieurs fichiers', cle: 'base.compta.releve_trop', fr: 'un relevé se borne à cinq mille lignes : importe-le en plusieurs fichiers' },
+  { base: 'ce relevé ne se boucle pas : %s au départ, %s de mouvements, cela fait %s — et le relevé annonce %s. Il manque %s : il manque des lignes, ou le solde de fin n\'est pas le bon', cle: 'base.compta.releve_boucle', fr: 'ce relevé ne se boucle pas : {debut} au départ, {mouvements} de mouvements, cela fait {attendu} — et le relevé annonce {fin}. Il manque {ecart} : il manque des lignes, ou le solde de fin n\'est pas le bon', valeurs: ['debut', 'mouvements', 'attendu', 'fin', 'ecart'] },
+  { base: 'ce relevé n\'existe pas', cle: 'base.compta.releve_introuvable', fr: 'ce relevé n\'existe pas' },
+  { base: 'cette ligne de relevé n\'existe pas', cle: 'base.compta.releve_ligne_introuvable', fr: 'cette ligne de relevé n\'existe pas' },
+  { base: 'un jugement sans écriture en face est « probable », « à confirmer » ou « aucun »', cle: 'base.compta.releve_jugement', fr: 'un jugement sans écriture en face est « probable », « à confirmer » ou « aucun »' },
+  { base: 'un rapprochement posé ne peut pas être « aucun » : c\'est ce que veut dire le défaire', cle: 'base.compta.releve_aucun', fr: 'un rapprochement posé ne peut pas être « aucun » : c\'est ce que veut dire le défaire' },
+  { base: 'cette ligne d\'écriture ne touche pas le compte %s', cle: 'base.compta.releve_compte_face', fr: 'cette ligne d\'écriture ne touche pas le compte {compte}', valeurs: ['compte'] },
+  { base: 'cette ligne d\'écriture répond déjà d\'une autre ligne de relevé : défais ce rapprochement d\'abord', cle: 'base.compta.releve_deja_prise', fr: 'cette ligne d\'écriture répond déjà d\'une autre ligne de relevé : défais ce rapprochement d\'abord' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

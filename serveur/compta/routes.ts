@@ -13,6 +13,7 @@ import type { Route } from '../app.ts';
 import { requetes, type Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
+import { routesBanque } from './banque.ts';
 import { routesExercice } from './exercice.ts';
 import { routesSaisie } from './saisie.ts';
 import './textes.ts';
@@ -104,7 +105,7 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
             revision: e.revision, valideeLe: e.validee_le,
             contrepassee: corrigee(e.id, 'contre_passation'), extournee: corrigee(e.id, 'extourne'),
             lignes: lignes.filter((l) => l.ecriture === e.id).map((l) => ({
-              compte: l.compte, libelle: l.libelle, debit: m(l.debit), credit: m(l.credit), tauxTva: l.taux_tva === null ? null : versTexte(l.taux_tva, 4),
+              id: l.id, compte: l.compte, libelle: l.libelle, debit: m(l.debit), credit: m(l.credit), tauxTva: l.taux_tva === null ? null : versTexte(l.taux_tva, 4),
               tiers: l.tiers_libelle, lettre: lettres.get(l.id) ?? null,
             })),
           })),
@@ -203,5 +204,6 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
 
   routes.push(...routesSaisie(ctx));
   routes.push(...routesExercice(ctx));
+  routes.push(...routesBanque(ctx));
   return routes;
 }
