@@ -160,6 +160,9 @@ describe('la fiche du cabinet, à la souris', () => {
     await taperLeNom();
     await bulle.getByRole('button', { name: 'Suivant' }).click();
     await expect.poll(() => bulle.innerText()).toMatch(/Enregistrer/);
+    // On lit la bulle avant de cliquer, comme un humain : la visite regarde l'étape au premier tour, et
+    // un geste fait avant ce tour se lit comme « déjà fait » (vu sur GitHub, plus lent).
+    await p.waitForTimeout(1_500);
     expect(await bulle.innerText()).not.toMatch(/DÉJÀ FAIT/i);
     await p.locator('#c-save').click();
     await expect.poll(() => bulle.innerText()).toMatch(/Ton cabinet a son nom/);
