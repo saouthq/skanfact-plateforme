@@ -226,6 +226,15 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
           where entreprise in (${portefeuille}) and periode >= to_char($2::date, 'YYYY-MM') order by 1, 2`, [params.cabinet, depuis]);
       const revisions = await tx.query(`select entreprise, periode, contenu->>'faite' = 'true' faite from cabinet.revision
           where cabinet = $1 and entreprise in (${portefeuille}) and periode ~ '^[0-9]{4}-[0-9]{2}$' and periode >= to_char($2::date, 'YYYY-MM') order by 1, 2`, [params.cabinet, depuis]);
+      // Employeur, mois par mois (brique 54, C44) : un mois dont une écriture (hors à-nouveaux ; une écriture
+      // contre-passée et son miroir ne comptent pas) touche les salaires (640) ou la CNSS (4531) — les comptes par défaut de la paie de la
+      // v10 (compta.js, moisEmployeur). Un bulletin écrit toujours son écriture de paie : elle y est.
+      const employeurs = await tx.query(`select e.entreprise, to_char(e.date_ecriture, 'YYYY-MM') mois,
+            bool_or(l.compte like '640%' or l.compte like '4531%') employeur
+          from compta.ecriture e join compta.ligne l on l.ecriture = e.id
+          where e.entreprise in (${portefeuille}) and e.date_ecriture >= $2::date and e.journal <> 'AN' and e.origine_type <> 'contre_passation'
+            and not exists (select 1 from compta.ecriture k where k.entreprise = e.entreprise and k.origine_type = 'contre_passation' and k.origine = e.id)
+          group by e.entreprise, to_char(e.date_ecriture, 'YYYY-MM') order by 1, 2`, [params.cabinet, depuis]);
       const exercices = await tx.query(`select entreprise, annee, to_char(du, 'YYYY-MM-DD') du, to_char(au, 'YYYY-MM-DD') au, clos_le is not null clos from compta.exercice
           where entreprise in (${portefeuille}) and au >= $2::date order by 1, 2`, [params.cabinet, depuis]);
       return {
@@ -237,6 +246,7 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
           declarations: declarations.rows as { entreprise: string; periode: string; deposee: boolean }[],
           revisions: revisions.rows as { entreprise: string; periode: string; faite: boolean }[],
           exercices: exercices.rows as { entreprise: string; annee: number; du: string; au: string; clos: boolean }[],
+          employeurs: employeurs.rows as { entreprise: string; mois: string; employeur: boolean }[],
         },
       };
     },

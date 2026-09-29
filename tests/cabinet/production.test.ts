@@ -115,7 +115,25 @@ describe('la production du portefeuille', () => {
     expect(JSON.stringify(p)).not.toContain(voisin);
     expect(JSON.stringify(p)).not.toContain(cafe);
     // L'autre cabinet ne lit pas celui-ci ; une date qui n'est pas le premier d'un mois est refusée.
-    expect((await appeler('GET', `/cabinets/${cabinet}/production?depuis=2021-09-01`, autre.jeton)).corps).toEqual({ mois: [], declarations: [], revisions: [], exercices: [] });
+    expect((await appeler('GET', `/cabinets/${cabinet}/production?depuis=2021-09-01`, autre.jeton)).corps).toEqual({ mois: [], declarations: [], revisions: [], exercices: [], employeurs: [] });
     expect((await appeler('GET', `/cabinets/${cabinet}/production?depuis=2021-09-15`, associe.jeton)).statut).toBe(400);
+  });
+
+  it('employeur, mois par mois : un mois qui touche les salaires ou la CNSS l\'est, un mois saisi sans eux ne l\'est pas ; une écriture contre-passée et son miroir ne comptent pas', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Ennour' })).corps.id);
+    const garage = String((await appeler('POST', `/cabinets/${cabinet}/dossiers`, associe.jeton, { raisonSociale: 'Garage du Port' })).corps.entreprise);
+    const od = async (date: string, piece: string, debit: string, credit: string) => String((await appeler('POST', `/entreprises/${garage}/compta/ecritures`, associe.jeton, {
+      date, journal: 'OD', piece, libelle: piece, lignes: [{ compte: debit, debit: '1250,500' }, { compte: credit, credit: '1250,500' }] })).corps.id);
+    await od('2026-04-30', 'SAL-4', '6400', '421');
+    await od('2026-05-31', 'CNSS-5', '421', '4531');
+    await od('2026-06-10', 'LOY-6', '6132', '401');
+    // Un salaire de juillet saisi par erreur, puis contre-passé : juillet n'est pas employeur pour autant.
+    const faux = await od('2026-07-31', 'SAL-7', '6400', '421');
+    expect((await appeler('POST', `/entreprises/${garage}/compta/ecritures/valider`, associe.jeton, { ids: [faux] })).statut).toBe(200);
+    expect((await appeler('POST', `/entreprises/${garage}/compta/ecritures/${faux}/contrepasser`, associe.jeton, { date: '2026-07-31' })).statut).toBe(201);
+    const p = (await appeler('GET', `/cabinets/${cabinet}/production?depuis=2026-01-01`, associe.jeton)).corps as { employeurs: { entreprise: string; mois: string; employeur: boolean }[] };
+    // Juillet : le salaire et son miroir s'annulent, ni l'un ni l'autre ne compte — le mois n'est pas connu.
+    expect(p.employeurs.map((x) => [x.mois, x.employeur])).toEqual([['2026-04', true], ['2026-05', true], ['2026-06', false]]);
   });
 });

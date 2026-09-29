@@ -939,8 +939,7 @@ la v10 (`production`), au même calcul que le portefeuille.
 au cabinet y entre avec ses mois à saisir, et un mois dont la déclaration est déposée y compte déposé.
 Jusqu'ici, sur la plateforme, un dossier tenu n'y entrait pas, et les visites qui cherchent « un
 dossier qui a son livre » n'en trouvaient qu'après en avoir ouvert un. Ce que le livre sait des
-salariés (la CNSS des seuls employeurs) n'est pas encore lu : la CNSS reste comptée par prudence, et
-la carte le dit.
+salariés (la CNSS des seuls employeurs) est lu depuis la brique 54 (C44).
 
 **Les mots** : ceux du Cabinet sans paquets (C14). Un mois passé sans aucune écriture est
 « manquant » (il était « pas encore reçu ») ; le détail d'une case dit « écrit » ou « manquant ». Le
@@ -958,8 +957,7 @@ les mois dus d'un dossier tenu, et se relit en revenant ; la page ne dit ni « p
 Échéances nomment le dossier tenu ; la ligne ouvre la comptabilité ; la visite se joue jusqu'au bout.
 
 **Reste connu** :
-- La CNSS des seuls employeurs : ce que la Paie ou les comptes de rémunération disent des salariés
-  n'est pas encore compté au serveur ; chaque client déposant reste compté par prudence.
+- La CNSS des seuls employeurs : faite à la brique 54 (C44).
 
 ## Brique 49 : le fichier CNSS du trimestre (fait le 29/09/2026)
 
@@ -1097,3 +1095,31 @@ ligne ».
 **Les tests** : à la souris (`tests/web/cabinet-equipe.test.ts`, second parcours) : la visite trouvée
 dans « Me guider » avec son nouveau résumé, jouée pas à pas, l'invitation créée au serveur à l'adresse
 tapée, la fin « Ton invitation est prête ».
+
+## Brique 54 : la CNSS des seuls employeurs (fait le 29/09/2026)
+
+**C44. Un mois est « employeur » quand ses écritures touchent les salaires ou la CNSS** (par délégation).
+La v10 lisait dans le paquet de chaque client s'il avait des salariés, mois par mois (`moisEmployeur`),
+et la carte CNSS des Échéances ne réclamait le fichier qu'aux employeurs. Sur la plateforme, rien ne
+le disait encore : chaque client déposant était compté par prudence, et la carte l'avouait. Désormais
+la page de production du serveur (`GET /cabinets/:c/production`) rend aussi `employeurs` : pour chaque
+dossier et chaque mois depuis la date demandée, s'il a une écriture (hors à-nouveaux) qui touche un
+compte de salaires (640…) ou de CNSS (4531…) — les comptes de la paie de la v10. Un bulletin écrit
+toujours son écriture de paie, donc un client payé par la Paie y est ; un client dont le cabinet saisit
+les salaires à la main aussi. Une écriture contre-passée et son miroir ne comptent pas (une paie
+annulée ne fait pas un employeur). Le point de contact range ce résultat dans l'index du livre
+(`employeur`), comme la v10, et `questionsEnAttente` le rend : la carte CNSS du trimestre compte les
+seuls employeurs, et sa phrase de prudence disparaît. Ce qui part au serveur ne change pas ; ce qui en
+revient : un booléen par dossier et par mois, rien d'autre.
+
+**Les tests** : par l'API et dans la base (`tests/cabinet/production.test.ts`) : un mois qui touche les
+salaires, un mois qui touche la CNSS, un mois saisi sans eux ; une paie contre-passée et son miroir qui
+ne comptent pas ; rien d'un autre cabinet. À la souris (`tests/web/cabinet-employeurs.test.ts`) : sur le
+dernier trimestre fini, un client payé et un client saisi sans salaire ; la carte CNSS dit « sur 1
+client », « 1 prêt », que les employeurs se lisent dans la Paie ou les comptes de rémunération, et ne
+parle plus de prudence.
+
+**Reste connu** :
+- Un client qui paie ses salariés sur d'autres comptes que 640 et 4531 (un plan de comptes à lui) n'est
+  pas vu employeur. **À VÉRIFIER** avec les comptables pilotes : faut-il lire aussi le 64 entier, ou un
+  réglage par dossier ?

@@ -98,7 +98,11 @@ describe('le Cabinet sans paquets, dans les mots', () => {
       await p.goto('about:blank');
       await p.goto(`${serveur.adresse}/v10/cabinet/?c=${c}${hash}`);
       await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
-      for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+      // L'offre de visite peut partir avec un redessin entre le moment où on la voit et le clic : un
+      // bouton parti n'est plus à fermer.
+      for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
+        await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
+      }
       // L'écran se redessine une fois ce qui arrive après le premier dessin connu (le Cabinet réclamait
       // la clé de secours à ce moment-là seulement) : on lit le second dessin, comme une personne qui
       // revient sur l'écran.

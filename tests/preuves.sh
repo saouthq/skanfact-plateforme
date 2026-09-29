@@ -3023,7 +3023,9 @@ PR1="compte chaque mois de chaque dossier : écritures, validées, brouillards, 
 WP1="les étapes de chaque mois, « à saisir » relu en revenant, la ligne qui ouvre le client, la visite"
 CR=serveur/cabinet/routes.ts
 prouver "les à-nouveaux comptés comme une saisie" $CR \
-  "and e.date_ecriture >= \$2::date and e.journal <> 'AN'" "and e.date_ecriture >= \$2::date" \
+  "and e.date_ecriture >= \$2::date and e.journal <> 'AN'
+          group by" "and e.date_ecriture >= \$2::date
+          group by" \
   "$PR1"
 prouver "les brouillards comptés validés" $CR \
   "count(*) filter (where e.statut = 'validee') validees" "count(*) validees" \
@@ -3044,7 +3046,9 @@ prouver "la révision de l'année comptée comme un mois" $CR \
   "and periode ~ '^[0-9]{4}-[0-9]{2}\$' and periode >= to_char" "and periode >= to_char" \
   "$PR1"
 prouver "les mois d'avant la date demandée" $CR \
-  "where e.entreprise in (\${portefeuille}) and e.date_ecriture >= \$2::date and" "where e.entreprise in (\${portefeuille}) and" \
+  "where e.entreprise in (\${portefeuille}) and e.date_ecriture >= \$2::date and e.journal <> 'AN'
+          group by" "where e.entreprise in (\${portefeuille}) and e.journal <> 'AN'
+          group by" \
   "$PR1"
 prouver "les déclarations oubliées par le tableau" $PC \
   "    for (const d of p.declarations || []) mois(d.entreprise, d.periode).declare = !!d.deposee;" "" \
@@ -3062,7 +3066,7 @@ prouver "le tableau de production lu une fois pour toutes" web/public/v10/cabine
   "    if (route !== routeLue && route === 'production') prodState.lignes = null;" "" \
   "$WP1"
 prouver "le dossier tenu absent des Échéances" $PC \
-  "repondues: q.repondues, tenu: d.manual ? { exercices } : null, declares };" "repondues: q.repondues, tenu: null, declares };" \
+  "repondues: q.repondues, employeur, tenu: d.manual ? { exercices } : null, declares };" "repondues: q.repondues, employeur, tenu: null, declares };" \
   "$WP1"
 prouver "la légende qui parle encore de reçu" web/public/v10/cabinet/app.js \
   "    ['recu', 'manquant'], ['saisi', 'à saisir']," "    ['recu', 'pas encore reçu'], ['saisi', 'à saisir']," \
@@ -3207,6 +3211,27 @@ prouver "la visite de l'équipe qui attend un collaborateur déclaré" $CVI \
 prouver "la visite de l'équipe qui déclare encore par le nom" $CVI \
   "          titre: 'Son adresse', texte:" "          titre: 'Son nom', texte:" \
   "$WV1"
+
+# ── Brique 54 : la CNSS des seuls employeurs (docs/cabinet.md, C44) ──
+EM1="employeur, mois par mois : un mois qui touche les salaires ou la CNSS l'est, un mois saisi sans eux ne l'est pas ; une écriture contre-passée et son miroir ne comptent pas"
+WE2="la carte CNSS du dernier trimestre ne vise que l'employeur, plus le client saisi sans salaire"
+prouver "les salaires oubliés par l'employeur" serveur/cabinet/routes.ts \
+  "bool_or(l.compte like '640%' or l.compte like '4531%') employeur" "bool_or(l.compte like '4531%') employeur" \
+  "$EM1"
+prouver "la CNSS oubliée par l'employeur" serveur/cabinet/routes.ts \
+  "bool_or(l.compte like '640%' or l.compte like '4531%') employeur" "bool_or(l.compte like '640%') employeur" \
+  "$EM1"
+prouver "une écriture contre-passée qui fait l'employeur" serveur/cabinet/routes.ts \
+  "and e.journal <> 'AN' and e.origine_type <> 'contre_passation'
+            and not exists" "and e.journal <> 'AN'
+            and not exists" \
+  "$EM1"
+prouver "l'employeur que les Échéances ne reçoivent pas" $PC \
+  "repondues: q.repondues, employeur, tenu:" "repondues: q.repondues, employeur: {}, tenu:" \
+  "$WE2"
+prouver "l'employeur que l'index oublie" $PC \
+  "(index[e.entreprise] = index[e.entreprise] || { exercices: [], employeur: {} }).employeur[e.mois] = !!e.employeur;" "void e;" \
+  "$WE2"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

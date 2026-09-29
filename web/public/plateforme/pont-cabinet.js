@@ -164,8 +164,10 @@
     };
     for (const x of p.exercices || []) Object.assign(exercice(x.entreprise, Number(x.annee)), { du: x.du, au: x.au, clos: !!x.clos });
     for (const [ent, prod] of parDossier) for (const [m, x] of Object.entries(prod)) exercice(ent, Number(m.slice(0, 4))).production[m] = x;
-    /** @type {Record<string, { exercices: any[] }>} */ const index = {};
-    for (const [ent, x] of exercices) index[ent] = { exercices: [...x.values()].sort((a, b) => a.annee - b.annee) };
+    /** @type {Record<string, { exercices: any[], employeur: Record<string, boolean> }>} */ const index = {};
+    for (const [ent, x] of exercices) index[ent] = { exercices: [...x.values()].sort((a, b) => a.annee - b.annee), employeur: {} };
+    // Ce que les livres disent des salariés, mois par mois (brique 54) : la CNSS ne vise que les employeurs.
+    for (const e of p.employeurs || []) (index[e.entreprise] = index[e.entreprise] || { exercices: [], employeur: {} }).employeur[e.mois] = !!e.employeur;
     return index;
   }
 
@@ -1524,17 +1526,18 @@
 
     // Le résumé des index de la v10 (cab:questionsEnAttente) : les questions de chaque dossier ; pour un
     // dossier tenu au cabinet, ses exercices et leur production (c'est ce qui le fait entrer dans le
-    // calendrier des Échéances) ; les mois dont la déclaration est déposée (brique 48). Ce que le livre
-    // sait des salariés n'est pas encore lu : la CNSS reste comptée par prudence, et la carte le dit.
+    // calendrier des Échéances) ; les mois dont la déclaration est déposée (brique 48) ; ce que le livre
+    // sait des salariés, mois par mois (brique 54) : la CNSS ne se réclame qu'aux employeurs.
     questionsEnAttente: async () => {
       const [r, index] = await Promise.all([appel('GET', `/cabinets/${cabinetId}/questions`), indexDesLivres()]);
       const questions = new Map((r.dossiers || []).map((/** @type {any} */ x) => [x.entreprise, x]));
       return [...dossiers.values()].map((d) => {
         const q = questions.get(d.id) || { ouvertes: 0, aRelancer: 0, repondues: 0 };
         /** @type {any[]} */ const exercices = (index[d.id] || { exercices: [] }).exercices;
+        const employeur = (index[d.id] || { employeur: {} }).employeur;
         const declares = exercices.flatMap((e) => Object.keys(e.production).filter((m) => e.production[m].declare)).sort();
-        return { dossierId: d.id, name: d.name, ouvertes: q.ouvertes, aRelancer: q.aRelancer, repondues: q.repondues, tenu: d.manual ? { exercices } : null, declares };
-      }).filter((x) => x.ouvertes || x.repondues || (x.tenu && x.tenu.exercices.length) || x.declares.length);
+        return { dossierId: d.id, name: d.name, ouvertes: q.ouvertes, aRelancer: q.aRelancer, repondues: q.repondues, employeur, tenu: d.manual ? { exercices } : null, declares };
+      }).filter((x) => x.ouvertes || x.repondues || Object.keys(x.employeur).length || (x.tenu && x.tenu.exercices.length) || x.declares.length);
     },
 
     // ── L'exercice (brique 45) : ses contrôles, ses états et ses à-nouveaux calculés par la v10 sur le
