@@ -1,0 +1,65 @@
+La page Production (brique 48). Format : voir sans-paquets.mjs.
+
+Le tableau de production lit ce que le serveur compte pour tout le portefeuille (docs/cabinet.md,
+C38). Ses mots sont ceux du Cabinet sans paquets (C14) : un mois ÉCRIT a des écritures dans ses
+livres ; un mois passé sans aucune écriture est MANQUANT. Et il se relit chaque fois qu'on entre sur
+la page : la v10 le lisait une fois, et un mois saisi dans la journée y restait « à saisir ».
+
+== cabinet/app.js | le tableau de production se relit chaque fois qu'on entre sur la page
+-- avant
+    if (route !== routeLue && (route === 'echeances' || route === 'dossiers')) chargerQuestionsAttente(true);
+-- après
+    if (route !== routeLue && (route === 'echeances' || route === 'dossiers')) chargerQuestionsAttente(true);
+    // (plateforme) Le tableau de production se relit quand on ENTRE sur sa page : lu une fois, un mois
+    // saisi dans la journée y restait « à saisir » (même règle que le résumé ci-dessus).
+    if (route !== routeLue && route === 'production') prodState.lignes = null;
+-- fin
+
+== cabinet/app.js | un mois sans écriture est manquant (plus de paquet reçu)
+-- avant
+    ['recu', 'pas encore reçu'], ['saisi', 'à saisir'], ['revise', 'saisi, à réviser'],
+-- après
+    ['recu', 'manquant'], ['saisi', 'à saisir'], ['revise', 'saisi, à réviser'],
+-- fin
+
+== cabinet/app.js | un mois écrit ou manquant (plus de paquet reçu)
+-- avant
+      `${K.monthLabel(m)} — ${c.recu === null ? 'tenu au cabinet' : c.recu ? 'reçu' : 'pas reçu'}`,
+-- après
+      `${K.monthLabel(m)} — ${c.recu === null ? 'tenu au cabinet' : c.recu ? 'écrit' : 'manquant : aucune écriture'}`,
+-- fin
+
+== cabinet/app.js | le tableau suit les livres ; plus de paquets à relire
+-- avant
+      ? 'Aucun livre n\'est encore ouvert.<br><span class="small">Le tableau de production suit les <b>livres</b> de tes dossiers, pas leurs paquets : ouvre la comptabilité d\'un client et relis ses paquets pour qu\'il apparaisse ici.</span><div class="inline mt"><button class="btn btn-sm btn-primary" id="pr-vers-dossiers">Voir mes dossiers</button></div>'
+-- après
+      ? 'Aucun livre n\'est encore ouvert.<br><span class="small">Le tableau de production suit les <b>livres</b> de tes dossiers : ouvre la comptabilité d\'un client pour qu\'il apparaisse ici.</span><div class="inline mt"><button class="btn btn-sm btn-primary" id="pr-vers-dossiers">Voir mes dossiers</button></div>'
+-- fin
+
+== cabinet/cabvisites.js | la visite de la Production, sans paquets
+-- avant
+      conclusion: 'Le tableau lit les livres, pas les paquets : un dossier apparaît dès que sa comptabilité est ouverte, qu\'il soit sur SkanFact ou tenu au cabinet.',
+-- après
+      conclusion: 'Le tableau lit les livres : un dossier apparaît dès que sa comptabilité a des écritures, qu\'il soit sur SkanFact ou tenu au cabinet. Il se relit chaque fois que tu reviens sur la page.',
+-- fin
+
+== cabinet/cabvisites.js | ce qui attend : les mois écrits ou tenus au cabinet, pas encore saisis
+-- avant
+          texte: 'Le nombre de mois reçus, ou tenus au cabinet, qui ne sont pas encore saisis.' },
+-- après
+          texte: 'Le nombre de mois qui attendent leur saisie : ceux d\'un dossier tenu au cabinet où rien n\'est encore écrit.' },
+-- fin
+
+== cabinet/cabvisites.js | la page Production : ses étapes, sans « reçu »
+-- avant
+    production: { titre: 'La production', resume: 'Où en est chaque dossier, mois par mois : reçu, saisi, révisé, déclaré.',
+-- après
+    production: { titre: 'La production', resume: 'Où en est chaque dossier, mois par mois : à saisir, à réviser, à déclarer, déclaré.',
+-- fin
+
+== cabinet/cabguide.js | la bulle de la Production : ce qu'elle lit, sans paquets
+-- avant
+    'eq.production': { t: 'Le tableau de production', d: 'Par client et par mois : <b>reçu → saisi → révisé → déclaré</b>, qui et depuis quand. Tout est <b>lu</b> — les paquets reçus, les écritures du livre, les déclarations pointées — jamais coché à la main : une liste d\'états qu\'on coche est fausse le jour où quelqu\'un oublie de cocher. « Révisé » affiche « — » tant que le dossier de révision n\'existe pas : ne pas savoir n\'est pas « non ».' },
+-- après
+    'eq.production': { t: 'Le tableau de production', d: 'Par client et par mois : <b>à saisir → à réviser → à déclarer → déclaré</b>, qui et depuis quand. Tout est <b>lu</b> — les écritures des livres, les révisions arrêtées, les déclarations déposées — jamais coché à la main : une liste d\'états qu\'on coche est fausse le jour où quelqu\'un oublie de cocher. Un mois passé sans aucune écriture d\'un client sur SkanFact est « manquant ». « Révisé » affiche « — » tant que le mois n\'a rien dans ses livres : ne pas savoir n\'est pas « non ».' },
+-- fin

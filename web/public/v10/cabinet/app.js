@@ -1589,6 +1589,9 @@
     // saisi dans la journée restait « à saisir » au calendrier jusqu'au lendemain. On ne redessine
     // que s'il a changé : la page ne clignote pas, et rien ne boucle.
     if (route !== routeLue && (route === 'echeances' || route === 'dossiers')) chargerQuestionsAttente(true);
+    // (plateforme) Le tableau de production se relit quand on ENTRE sur sa page : lu une fois, un mois
+    // saisi dans la journée y restait « à saisir » (même règle que le résumé ci-dessus).
+    if (route !== routeLue && route === 'production') prodState.lignes = null;
     routeLue = route;
     const view = $('#view');
     if (route === 'dossier') drawDossier(view, arg, hash.split('/')[2], hash.split('/')[3], hash.split('/')[4]);
@@ -8890,7 +8893,7 @@
   // « à saisir » et non « reçu, rien de saisi » : un dossier TENU AU CABINET n'a rien à recevoir,
   // et son mois vide est quand même une saisie à faire (10.12.0). C'est le mot de la colonne.
   const LEGENDE_PRODUCTION = [
-    ['recu', 'pas encore reçu'], ['saisi', 'à saisir'], ['revise', 'saisi, à réviser'],
+    ['recu', 'manquant'], ['saisi', 'à saisir'], ['revise', 'saisi, à réviser'],
     ['declare', 'révisé, à déclarer'], ['fini', 'déclaré'], ['hors', 'hors mission']
   ];
 
@@ -8944,7 +8947,7 @@
     // qui dit le contraire de ce que l'écran d'à côté affiche est un bug, pas une imprécision
     // (7.3.0) — et un état vide sans geste n'apprend rien (7.0.0).
     : (S.dossiers || []).filter(d => !d.archived).length
-      ? 'Aucun livre n\'est encore ouvert.<br><span class="small">Le tableau de production suit les <b>livres</b> de tes dossiers, pas leurs paquets : ouvre la comptabilité d\'un client et relis ses paquets pour qu\'il apparaisse ici.</span><div class="inline mt"><button class="btn btn-sm btn-primary" id="pr-vers-dossiers">Voir mes dossiers</button></div>'
+      ? 'Aucun livre n\'est encore ouvert.<br><span class="small">Le tableau de production suit les <b>livres</b> de tes dossiers : ouvre la comptabilité d\'un client pour qu\'il apparaisse ici.</span><div class="inline mt"><button class="btn btn-sm btn-primary" id="pr-vers-dossiers">Voir mes dossiers</button></div>'
       : 'Aucun dossier dans le portefeuille.<div class="inline mt"><button class="btn btn-sm btn-primary" id="pr-vers-dossiers">Ajouter un client</button></div>'}</div></div>`
     // « reçus et pas encore saisis » comptait aussi les mois d'un dossier tenu au cabinet, qui ne
     // reçoit rien : la phrase dit ce que la colonne compte, pour les deux sortes de dossiers.
@@ -8964,7 +8967,7 @@
     const c = (parDossier.get(l.id) || new Map()).get(m);
     if (!c) return '<td class="r prod-c"><span class="prod-p prod-hors" title="Hors mission : rien n\'est attendu pour ce mois">–</span></td>';
     const t = [
-      `${K.monthLabel(m)} — ${c.recu === null ? 'tenu au cabinet' : c.recu ? 'reçu' : 'pas reçu'}`,
+      `${K.monthLabel(m)} — ${c.recu === null ? 'tenu au cabinet' : c.recu ? 'écrit' : 'manquant : aucune écriture'}`,
       c.saisi ? `${pl(c.saisi, 'écriture')} dont ${c.brouillards} au brouillard` : 'rien de saisi',
       // « — » et non « non » : la révision n'a pas encore d'écrivain, et ne pas savoir
       // n'est pas savoir que non (règle des cases fiscales, 9.6.0).

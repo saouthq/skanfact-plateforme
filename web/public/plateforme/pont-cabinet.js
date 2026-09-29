@@ -45,7 +45,7 @@
   let gestesFaits = 0;
 
   // ── L'état du cabinet : le cabinet, son portefeuille, la personne qui travaille ────────────
-  /** @type {Map<string, { id: string, name: string, matricule: string }>} */
+  /** @type {Map<string, { id: string, name: string, matricule: string, manual: boolean }>} */
   const dossiers = new Map();
   // Les réglages du cabinet (0023) : les banques et les mots retenus, et leur révision.
   /** @type {{ contenu: Record<string, any>, revision: number | null }} */
@@ -59,10 +59,11 @@
   const TEXTES_FICHE = ['email', 'phone', 'contact', 'note', 'regime', 'tvaPeriod', 'from', 'cnssEmployeur', 'cnssCode'];
   /** @param {Record<string, unknown>} c */
   const depuisFiche = (c) => ({ ...c, fees: Number(c.fees || 0) / 1000 });
+  // Les mois des cinq dernières années (le plafond du Cabinet v10, MAX_MOIS_ATTENDUS).
+  const debutDesMois = () => `${new Date().getUTCFullYear() - 5}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}-01`;
   async function construireEtat() {
     /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
-    // Les mois des cinq dernières années (le plafond du Cabinet v10, MAX_MOIS_ATTENDUS).
-    const depuis = `${new Date().getUTCFullYear() - 5}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}-01`;
+    const depuis = debutDesMois();
     const [moi, mes, porte, lues, mois, regles, eq] = await Promise.all([appel('GET', '/moi'), appel('GET', '/cabinets'), appel('GET', `/cabinets/${cabinetId}/portefeuille`),
       appel('GET', `/cabinets/${cabinetId}/fiches`), appel('GET', `/cabinets/${cabinetId}/mois?depuis=${depuis}`), appel('GET', `/cabinets/${cabinetId}/reglages`),
       appel('GET', `/cabinets/${cabinetId}/equipe`)]);
@@ -80,7 +81,7 @@
     proposes = (porte.dossiers || []).filter((/** @type {any} */ d) => d.statut === 'propose');
     dossiers.clear();
     const liste = (porte.dossiers || []).filter((/** @type {any} */ d) => d.statut === 'actif').map((/** @type {any} */ d) => {
-      dossiers.set(d.entreprise, { id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '' });
+      dossiers.set(d.entreprise, { id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu });
       // Un dossier tenu est le « dossier créé à la main » de la v10 : un client hors SkanFact.
       const fiche = fiches.get(d.entreprise);
       return K.migrateDossier({ ...(fiche ? depuisFiche(fiche.contenu) : {}), id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu,
@@ -127,6 +128,39 @@
       files: 0, missing: [], absent: 0, digest: '', bytes: 0, path: '', sealed: false, appVersion: '',
       figures: { ca: Number(m.ca), devise: 'DT' }, integrity: null,
     })).sort((a, b) => (a.month < b.month ? 1 : -1));
+  }
+
+  // L'index des livres de chaque dossier (brique 48 ; docs/cabinet.md, C38), dans la forme que la v10
+  // rangeait à côté de chaque livre (cabstore.js, productionDuLivre) : ce que le serveur compte pour
+  // tout le portefeuille, en une fois. Un mois qui a une écriture, une déclaration ou une révision
+  // existe ; « révisé » et « déclaré » y valent non tant que rien ne les pose. Chaque année a son
+  // exercice — ouvert au serveur, sinon celui du calendrier — : c'est lui qui donne ses mois à un
+  // dossier tenu au cabinet.
+  async function indexDesLivres() {
+    const p = await appel('GET', `/cabinets/${cabinetId}/production?depuis=${debutDesMois()}`);
+    /** @type {Map<string, Record<string, any>>} */ const parDossier = new Map();
+    /** @param {string} ent @param {string} m */
+    const mois = (ent, m) => {
+      if (!parDossier.has(ent)) parDossier.set(ent, {});
+      const x = /** @type {Record<string, any>} */ (parDossier.get(ent));
+      return (x[m] = x[m] || { ecritures: 0, validees: 0, brouillards: 0, revise: false, declare: false, qui: '', depuis: null });
+    };
+    for (const m of p.mois || []) Object.assign(mois(m.entreprise, m.mois), { ecritures: m.ecritures, validees: m.validees, brouillards: m.brouillards, qui: m.qui, depuis: Date.parse(m.depuis) || null });
+    for (const d of p.declarations || []) mois(d.entreprise, d.periode).declare = !!d.deposee;
+    for (const r of p.revisions || []) mois(r.entreprise, r.periode).revise = !!r.faite;
+    /** @type {Map<string, Map<number, any>>} */ const exercices = new Map();
+    /** @param {string} ent @param {number} a */
+    const exercice = (ent, a) => {
+      if (!exercices.has(ent)) exercices.set(ent, new Map());
+      const x = /** @type {Map<number, any>} */ (exercices.get(ent));
+      if (!x.has(a)) x.set(a, { annee: a, du: `${a}-01-01`, au: `${a}-12-31`, clos: false, production: {} });
+      return x.get(a);
+    };
+    for (const x of p.exercices || []) Object.assign(exercice(x.entreprise, Number(x.annee)), { du: x.du, au: x.au, clos: !!x.clos });
+    for (const [ent, prod] of parDossier) for (const [m, x] of Object.entries(prod)) exercice(ent, Number(m.slice(0, 4))).production[m] = x;
+    /** @type {Record<string, { exercices: any[] }>} */ const index = {};
+    for (const [ent, x] of exercices) index[ent] = { exercices: [...x.values()].sort((a, b) => a.annee - b.annee) };
+    return index;
   }
 
   // ── Le livre d'un dossier : les écritures que le serveur tient pour l'entreprise ────────────
@@ -715,7 +749,6 @@
     'correspondance', 'page-dossier-paquets'];
   const VISITES_PAS_ENCORE = [
     'equipe', // la personne invitée rejoint le cabinet chez elle, en ouvrant le lien : la visite se réécrira pour l'invitation
-    'suivre-production', // le tableau de production
   ];
   // Les articles de l'Aide sans objet en ligne : les sauvegardes, changer d'ordinateur, la licence,
   // les mises à jour (le serveur garde les livres ; rien à installer).
@@ -1363,11 +1396,27 @@
       return construireEtat();
     },
     // Ce que le cabinet attend de ses clients, dossier par dossier (« À faire ») : les questions.
+    // ── La production (brique 48) : le tableau de la v10 (cabcore.js, production) sur l'index des livres
+    // que le serveur compte pour tout le portefeuille (indexDesLivres) ──
+    production: async (/** @type {any} */ o = {}) => {
+      /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
+      const [etat, index] = await Promise.all([construireEtat(), indexDesLivres()]);
+      return { lignes: K.production(etat, index, o), etapes: K.ETAPES_PRODUCTION, collaborateurs: K.collaborateurs(etat) };
+    },
+
+    // Le résumé des index de la v10 (cab:questionsEnAttente) : les questions de chaque dossier ; pour un
+    // dossier tenu au cabinet, ses exercices et leur production (c'est ce qui le fait entrer dans le
+    // calendrier des Échéances) ; les mois dont la déclaration est déposée (brique 48). Ce que le livre
+    // sait des salariés n'est pas encore lu : la CNSS reste comptée par prudence, et la carte le dit.
     questionsEnAttente: async () => {
-      const r = await appel('GET', `/cabinets/${cabinetId}/questions`);
-      return (r.dossiers || []).filter((/** @type {any} */ x) => dossiers.has(x.entreprise)).map((/** @type {any} */ x) => ({
-        dossierId: x.entreprise, name: (dossiers.get(x.entreprise) || { name: '' }).name, ouvertes: x.ouvertes, aRelancer: x.aRelancer, repondues: x.repondues,
-      })).filter((/** @type {any} */ x) => x.ouvertes || x.repondues);
+      const [r, index] = await Promise.all([appel('GET', `/cabinets/${cabinetId}/questions`), indexDesLivres()]);
+      const questions = new Map((r.dossiers || []).map((/** @type {any} */ x) => [x.entreprise, x]));
+      return [...dossiers.values()].map((d) => {
+        const q = questions.get(d.id) || { ouvertes: 0, aRelancer: 0, repondues: 0 };
+        /** @type {any[]} */ const exercices = (index[d.id] || { exercices: [] }).exercices;
+        const declares = exercices.flatMap((e) => Object.keys(e.production).filter((m) => e.production[m].declare)).sort();
+        return { dossierId: d.id, name: d.name, ouvertes: q.ouvertes, aRelancer: q.aRelancer, repondues: q.repondues, tenu: d.manual ? { exercices } : null, declares };
+      }).filter((x) => x.ouvertes || x.repondues || (x.tenu && x.tenu.exercices.length) || x.declares.length);
     },
 
     // ── L'exercice (brique 45) : ses contrôles, ses états et ses à-nouveaux calculés par la v10 sur le

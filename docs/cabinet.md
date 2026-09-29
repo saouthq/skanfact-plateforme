@@ -91,6 +91,7 @@ mêmes données que son client.
 | **45** | La clôture de l'exercice, sa réouverture (avec un motif), l'exercice suivant. |
 | **46** | L'équipe du cabinet : invitations, rôles, affectations par dossier, trace de l'équipe. |
 | **47** | La fiche et les réglages du cabinet : son nom (un associé le change), son adresse, son téléphone, les jours, la saisie, le thème, les régimes. |
+| **48** | La page Production : chaque dossier, chaque mois, son étape (à saisir, à réviser, à déclarer, déclaré), comptée au serveur pour tout le portefeuille ; les dossiers tenus entrent dans les Échéances. |
 
 Chaque brique a ses tests « deux chemins » (ce que calcule l'écran du Cabinet contre ce que tient
 le serveur), ses preuves, et un parcours joué à la souris.
@@ -910,3 +911,48 @@ GitHub. Elle se trie désormais sans tenir compte des majuscules.
 **Reste connu** :
 - Le téléphone et l'adresse du cabinet ne partent encore nulle part d'eux-mêmes : SkanFact n'envoie pas
   de courriel (les relances s'écrivent dans la messagerie du comptable, comme dans la v10).
+
+## Brique 48 : la page Production (fait le 29/09/2026)
+
+Le Cabinet v10 rangeait à côté de chaque livre un **index** : pour chaque mois, combien d'écritures,
+validées, au brouillard, qui y a fait le dernier geste et quand, et si le mois est révisé, déclaré
+(`cabstore.js`, `productionDuLivre`). Le tableau de production le lisait sans ouvrir un seul livre ; les
+Échéances aussi (les mois d'un dossier tenu au cabinet, les mois déclarés).
+
+**C38. La production se compte au serveur, pour tout le portefeuille, en une fois** (par délégation ;
+pas de migration) : `GET /cabinets/:c/production?depuis=` rend, pour les dossiers actifs du
+portefeuille et depuis le premier jour d'un mois — par mois, les écritures **hors à-nouveaux** (une
+balance d'ouverture n'est pas une saisie), validées et au brouillard, **qui** a fait le dernier geste
+(celui qui a validé, sinon celui qui a saisi) et **quand** ; les déclarations (déposée ou non) ; les
+révisions d'un **mois** (arrêtée ou non) ; les exercices ouverts. Quatre lectures groupées, la sécurité
+par ligne dit qui lit (un autre cabinet n'en lit rien). Le point de contact en refait l'index de la v10
+(`indexDesLivres`) : un mois qui a une écriture, une déclaration ou une révision existe, « révisé » et
+« déclaré » y valent non tant que rien ne les pose ; chaque année a son exercice — ouvert au serveur,
+sinon celui du calendrier —, et c'est lui qui donne ses mois à un dossier tenu. Le tableau est celui de
+la v10 (`production`), au même calcul que le portefeuille.
+
+**Le même index nourrit les Échéances** (le résumé `questionsEnAttente` de la v10) : un dossier tenu
+au cabinet y entre avec ses mois à saisir, et un mois dont la déclaration est déposée y compte déposé.
+Jusqu'ici, sur la plateforme, un dossier tenu n'y entrait pas, et les visites qui cherchent « un
+dossier qui a son livre » n'en trouvaient qu'après en avoir ouvert un. Ce que le livre sait des
+salariés (la CNSS des seuls employeurs) n'est pas encore lu : la CNSS reste comptée par prudence, et
+la carte le dit.
+
+**Les mots** : ceux du Cabinet sans paquets (C14). Un mois passé sans aucune écriture est
+« manquant » (il était « pas encore reçu ») ; le détail d'une case dit « écrit » ou « manquant ». Le
+tableau **se relit chaque fois qu'on entre sur la page** : la v10 le lisait une fois, et un mois saisi
+dans la journée y restait « à saisir » jusqu'au lendemain (le défaut existe aussi dans la v10 en
+entretien, où il n'est pas corrigé). La visite « Suivre la production du cabinet » se montre ; la bulle
+« i » de la page et le résumé de la page dans « Me guider » disent les étapes sans « reçu » ni paquets.
+
+**Les tests** : par l'API et dans la base (`tests/cabinet/production.test.ts`) : les mois comptés
+(hors à-nouveaux, validées, brouillards, dernier geste et son auteur), la déclaration déposée ou
+préparée, la révision arrêtée ou ouverte (celle de l'année ne compte pas pour un mois), l'exercice ;
+rien d'avant la date, rien d'un autre cabinet, rien d'un dossier sans livre. À la souris
+(`tests/web/cabinet-production.test.ts`) : chaque case dit son étape et son détail ; « à saisir » compte
+les mois dus d'un dossier tenu, et se relit en revenant ; la page ne dit ni « paquet » ni « reçu » ; les
+Échéances nomment le dossier tenu ; la ligne ouvre la comptabilité ; la visite se joue jusqu'au bout.
+
+**Reste connu** :
+- La CNSS des seuls employeurs : ce que la Paie ou les comptes de rémunération disent des salariés
+  n'est pas encore compté au serveur ; chaque client déposant reste compté par prudence.

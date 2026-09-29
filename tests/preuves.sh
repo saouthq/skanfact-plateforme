@@ -2485,8 +2485,10 @@ prouver "les mois proposés qui attendent un fichier reçu" web/public/v10/cabin
   "(S.dossiers || []).forEach(d => (d.packs || []).forEach(p => { s.add(p.month); }));" "(S.dossiers || []).forEach(d => (d.packs || []).forEach(p => { if (p.path) s.add(p.month); }));" \
   "$WE1"
 prouver "la visite de l'export encore absente" $PC \
-  "    'suivre-production', // le tableau de production" "    'suivre-production', // le tableau de production
-    'exporter-ecritures'," \
+  "  const VISITES_PAS_ENCORE = [
+" "  const VISITES_PAS_ENCORE = [
+    'exporter-ecritures',
+" \
   "$WE1"
 
 # ── Brique 41 ter : la liasse et l'annuel (docs/cabinet.md, C26 et C27) ──
@@ -3014,5 +3016,67 @@ prouver "la visite qui promet encore un fichier d'appairage" $CVI \
   "      conclusion: 'Il signe désormais tes relances, et tes clients le lisent quand ils te confient leur dossier.'," "      conclusion: 'Il signe désormais tes relances et le fichier d\\'appairage que tes clients importent.'," \
   "$WF1"
 
+# ── Brique 48 : la production du portefeuille (docs/cabinet.md, C38) ──
+PR1="compte chaque mois de chaque dossier : écritures, validées, brouillards, dernier geste ; déclarations, révisions, exercices ; rien d'autre"
+WP1="les étapes de chaque mois, « à saisir » relu en revenant, la ligne qui ouvre le client, la visite"
+CR=serveur/cabinet/routes.ts
+prouver "les à-nouveaux comptés comme une saisie" $CR \
+  "and e.date_ecriture >= \$2::date and e.journal <> 'AN'" "and e.date_ecriture >= \$2::date" \
+  "$PR1"
+prouver "les brouillards comptés validés" $CR \
+  "count(*) filter (where e.statut = 'validee') validees" "count(*) validees" \
+  "$PR1"
+prouver "le dernier geste d'une saisie sans son auteur" $CR \
+  "on u.id = coalesce(e.validee_par, e.saisie_par)" "on u.id = e.validee_par" \
+  "$PR1"
+prouver "le dernier geste sans la validation" $CR \
+  "            max(greatest(e.cree_le, e.validee_le)) depuis" "            max(e.cree_le) depuis" \
+  "$PR1"
+prouver "une déclaration préparée comptée déposée" $CR \
+  "select entreprise, periode, deposee_le is not null deposee from compta.declaration" "select entreprise, periode, true deposee from compta.declaration" \
+  "$PR1"
+prouver "une révision ouverte comptée arrêtée" $CR \
+  "select entreprise, periode, contenu->>'faite' = 'true' faite from cabinet.revision" "select entreprise, periode, true faite from cabinet.revision" \
+  "$PR1"
+prouver "la révision de l'année comptée comme un mois" $CR \
+  "and periode ~ '^[0-9]{4}-[0-9]{2}\$' and periode >= to_char" "and periode >= to_char" \
+  "$PR1"
+prouver "les mois d'avant la date demandée" $CR \
+  "where e.entreprise in (\${portefeuille}) and e.date_ecriture >= \$2::date and" "where e.entreprise in (\${portefeuille}) and" \
+  "$PR1"
+prouver "les déclarations oubliées par le tableau" $PC \
+  "    for (const d of p.declarations || []) mois(d.entreprise, d.periode).declare = !!d.deposee;" "" \
+  "$WP1"
+prouver "les révisions oubliées par le tableau" $PC \
+  "    for (const r of p.revisions || []) mois(r.entreprise, r.periode).revise = !!r.faite;" "" \
+  "$WP1"
+prouver "le dernier geste sans son nom" $PC \
+  "brouillards: m.brouillards, qui: m.qui," "brouillards: m.brouillards, qui: ''," \
+  "$WP1"
+prouver "l'année d'un dossier tenu qui ne commence pas en janvier" $PC \
+  "if (!x.has(a)) x.set(a, { annee: a, du: \`\${a}-01-01\`," "if (!x.has(a)) x.set(a, { annee: a, du: \`\${a}-03-01\`," \
+  "$WP1"
+prouver "le tableau de production lu une fois pour toutes" web/public/v10/cabinet/app.js \
+  "    if (route !== routeLue && route === 'production') prodState.lignes = null;" "" \
+  "$WP1"
+prouver "le dossier tenu absent des Échéances" $PC \
+  "repondues: q.repondues, tenu: d.manual ? { exercices } : null, declares };" "repondues: q.repondues, tenu: null, declares };" \
+  "$WP1"
+prouver "la légende qui parle encore de reçu" web/public/v10/cabinet/app.js \
+  "    ['recu', 'manquant'], ['saisi', 'à saisir']," "    ['recu', 'pas encore reçu'], ['saisi', 'à saisir']," \
+  "$WP1"
+prouver "la visite de la production qui parle encore de paquets" $CVI \
+  "      conclusion: 'Le tableau lit les livres : un dossier apparaît dès que sa comptabilité a des écritures," "      conclusion: 'Le tableau lit les livres, pas les paquets : un dossier apparaît dès que sa comptabilité a des écritures," \
+  "$WP1"
+prouver "la visite de la production encore cachée" $PC \
+  "  const VISITES_PAS_ENCORE = [
+" "  const VISITES_PAS_ENCORE = [
+    'suivre-production',
+" \
+  "$WP1"
+
+prouver "la bulle de la production qui parle encore de paquets" web/public/v10/cabinet/cabguide.js \
+  "Tout est <b>lu</b> — les écritures des livres, les révisions arrêtées" "Tout est <b>lu</b> — les paquets reçus, les révisions arrêtées" \
+  "chaque écran du Cabinet, et chaque bulle qu'il porte, se lit sans un mot de paquet"
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

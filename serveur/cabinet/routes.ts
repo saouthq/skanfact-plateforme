@@ -177,6 +177,48 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // La production du portefeuille (brique 48 ; docs/cabinet.md, C38) : ce que le Cabinet v10 rangeait
+  // dans l'index de chaque livre (cabstore.js, productionDuLivre), compté pour tous les dossiers en une
+  // fois — par mois, les écritures (hors à-nouveaux), validées et au brouillard, qui y a fait le dernier
+  // geste et quand ; les déclarations (déposée ou non) ; les révisions d'un mois (arrêtée ou non) ; et
+  // les exercices ouverts. Tout est lu, rien n'est coché à la main ; la sécurité par ligne dit qui lit.
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/production', geste: 'compte.cabinets.voir',
+    traiter: async ({ params, query }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const depuis = query.depuis ?? '';
+      if (!/^\d{4}-\d{2}-01$/.test(depuis)) {
+        return { statut: 400, corps: { motif: motif('commun.champ_invalide', { champ: 'depuis', raison: t('cabinet.champ.depuis') }), champ: 'depuis' } };
+      }
+      const portefeuille = `select p.entreprise from socle.portefeuille($1) p where p.statut = 'actif'`;
+      // Une connexion, une requête à la fois.
+      const mois = await tx.query(`select e.entreprise, to_char(e.date_ecriture, 'YYYY-MM') mois, count(*) ecritures,
+            count(*) filter (where e.statut = 'validee') validees, count(*) filter (where e.statut = 'brouillard') brouillards,
+            (array_agg(coalesce(u.nom, '') order by greatest(e.cree_le, e.validee_le) desc, e.id desc))[1] qui,
+            max(greatest(e.cree_le, e.validee_le)) depuis
+          from compta.ecriture e left join socle.utilisateur u on u.id = coalesce(e.validee_par, e.saisie_par)
+          where e.entreprise in (${portefeuille}) and e.date_ecriture >= $2::date and e.journal <> 'AN'
+          group by e.entreprise, to_char(e.date_ecriture, 'YYYY-MM') order by 1, 2`, [params.cabinet, depuis]);
+      const declarations = await tx.query(`select entreprise, periode, deposee_le is not null deposee from compta.declaration
+          where entreprise in (${portefeuille}) and periode >= to_char($2::date, 'YYYY-MM') order by 1, 2`, [params.cabinet, depuis]);
+      const revisions = await tx.query(`select entreprise, periode, contenu->>'faite' = 'true' faite from cabinet.revision
+          where cabinet = $1 and entreprise in (${portefeuille}) and periode ~ '^[0-9]{4}-[0-9]{2}$' and periode >= to_char($2::date, 'YYYY-MM') order by 1, 2`, [params.cabinet, depuis]);
+      const exercices = await tx.query(`select entreprise, annee, to_char(du, 'YYYY-MM-DD') du, to_char(au, 'YYYY-MM-DD') au, clos_le is not null clos from compta.exercice
+          where entreprise in (${portefeuille}) and au >= $2::date order by 1, 2`, [params.cabinet, depuis]);
+      return {
+        corps: {
+          mois: (mois.rows as { entreprise: string; mois: string; ecritures: string; validees: string; brouillards: string; qui: string; depuis: Date }[]).map((x) => ({
+            entreprise: x.entreprise, mois: x.mois, ecritures: Number(x.ecritures), validees: Number(x.validees), brouillards: Number(x.brouillards),
+            qui: x.qui, depuis: x.depuis.toISOString(),
+          })),
+          declarations: declarations.rows as { entreprise: string; periode: string; deposee: boolean }[],
+          revisions: revisions.rows as { entreprise: string; periode: string; faite: boolean }[],
+          exercices: exercices.rows as { entreprise: string; annee: number; du: string; au: string; clos: boolean }[],
+        },
+      };
+    },
+  });
+
   // Un dossier tenu : un client qui n'est pas (encore) sur SkanFact (03 § 3.5).
   ajouter({
     methode: 'POST', chemin: '/cabinets/:cabinet/dossiers', geste: 'compte.cabinet.gerer',

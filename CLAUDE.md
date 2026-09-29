@@ -191,6 +191,10 @@
     `PUT /cabinets/:c/nom` ; l'adresse, le téléphone et les réglages de la v10 dans `cabinet.reglages`
     (liste `REGLAGES_V10` du point de contact, forme fixée par `REGLAGES`). `saveCabinet` fusionne comme
     la v10 (`cab:saveCabinet`), normalise par `migrate`, écrit les réglages puis le nom.
+  - **La production** (brique 48, C38) : `GET /cabinets/:c/production?depuis=` (mois hors AN, validées,
+    brouillards, dernier geste ; déclarations ; révisions d'un mois ; exercices). Le point de contact en
+    refait l'index d'un livre v10 (`indexDesLivres`) pour `production` ET `questionsEnAttente` (les
+    dossiers tenus et les mois déclarés des Échéances). Le tableau se relit à chaque entrée sur la page.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première
