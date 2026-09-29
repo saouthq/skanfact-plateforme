@@ -13,6 +13,7 @@ import type { Route } from '../app.ts';
 import { requetes, type Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
+import { routesSaisie } from './saisie.ts';
 import './textes.ts';
 
 const LIMITE_MAX = 500;
@@ -79,6 +80,17 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
       const lignes = ecritures.length
         ? await db.selectFrom('compta.ligne').selectAll().where('ecriture', 'in', ecritures.map((e) => e.id)).orderBy('ecriture').orderBy('rang').execute()
         : [];
+      // Les écritures déjà corrigées par un miroir validé : contre-passées, extournées (brique 38).
+      const miroirs = ecritures.length
+        ? await db.selectFrom('compta.ecriture').select(['origine', 'origine_type']).where('entreprise', '=', entreprise).where('statut', '=', 'validee')
+          .where('origine_type', 'in', ['contre_passation', 'extourne']).where('origine', 'in', ecritures.map((e) => e.id)).execute()
+        : [];
+      const corrigee = (id: string, type: string) => miroirs.some((x) => x.origine === id && x.origine_type === type);
+      // La lettre de chaque ligne lettrée (brique 38).
+      const lettres = new Map(lignes.length
+        ? (await db.selectFrom('compta.ligne_lettree as t').innerJoin('compta.lettrage as g', 'g.id', 't.lettrage')
+          .select(['t.ligne', 'g.lettre']).where('t.ligne', 'in', lignes.map((l) => l.id)).execute()).map((x) => [x.ligne, x.lettre])
+        : []);
       const dernier = ecritures.at(-1);
       return {
         corps: {
@@ -87,8 +99,12 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
             // Son rang dans la chaîne des livres (validée) : l'ordre unique de validation, tous journaux confondus.
             chaine: e.chaine_rang === null ? null : Number(e.chaine_rang),
             origine: { type: e.origine_type, id: e.origine }, tiers: e.tiers,
+            // La révision d'un brouillard saisi : on la renvoie pour le modifier (01 R15).
+            revision: e.revision, valideeLe: e.validee_le,
+            contrepassee: corrigee(e.id, 'contre_passation'), extournee: corrigee(e.id, 'extourne'),
             lignes: lignes.filter((l) => l.ecriture === e.id).map((l) => ({
               compte: l.compte, libelle: l.libelle, debit: m(l.debit), credit: m(l.credit), tauxTva: l.taux_tva === null ? null : versTexte(l.taux_tva, 4),
+              tiers: l.tiers_libelle, lettre: lettres.get(l.id) ?? null,
             })),
           })),
           suite: ecritures.length === n && dernier ? versCurseur(dernier.date_ecriture, dernier.id) : null,
@@ -184,5 +200,6 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
     },
   });
 
+  routes.push(...routesSaisie(ctx));
   return routes;
 }

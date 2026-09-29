@@ -76,6 +76,7 @@ npm install
 export PG_ADMIN=postgres://postgres@127.0.0.1:5432/postgres
 npm run verifier        # types, lint, tests
 npm run preuves         # chaque défaut remis, chaque test doit tomber
+npm run preuves:paralleles   # les mêmes, en quatre groupes côte à côte
 npm run web             # construit l'application web (dist/web), que `npm run serveur` sert
 ```
 

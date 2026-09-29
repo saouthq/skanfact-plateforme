@@ -45,9 +45,41 @@ jobs:
         run: npm run lint
       - name: Tests
         run: npm test
+
+  # Les preuves par réintroduction, en quatre groupes sur quatre machines qui tournent en même temps
+  # (une preuve sur quatre chacune) : toutes les preuves, en un quart du temps. Un seul groupe qui ne
+  # prouve pas tout fait échouer la vérification.
+  preuves:
+    name: Preuves (groupe ${{ matrix.groupe }}/4)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        groupe: [1, 2, 3, 4]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PG_ADMIN: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Le navigateur des tests des écrans
+        run: npx playwright-core install --with-deps chromium
       - name: Preuves (chaque test tombe quand on remet son défaut)
-        if: matrix.node == 24
         run: npm run preuves
+        env:
+          PARTIE: ${{ matrix.groupe }}/4
 
   secrets:
     name: Aucun secret dans le dépôt

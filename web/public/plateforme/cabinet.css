@@ -1,7 +1,7 @@
 /* Le Cabinet sur la plateforme (brique 37, docs/cabinet.md) : il n'y a plus de paquets (C4). Les
-   boutons qui en importaient et l'onglet qui les listait n'ont plus d'objet : ils se cachent, plutôt
+   boutons qui en importaient ou les relisaient, et l'onglet qui les listait, n'ont plus d'objet : ils se cachent, plutôt
    que d'ouvrir un geste qui ne mènerait nulle part. */
-#imp, #rl-imp, [role="tab"][data-tab="paquets"] { display: none !important; }
+#imp, #rl-imp, [role="tab"][data-tab="paquets"], #lv-relire, #lv-relire2 { display: none !important; }
 /* L'écran du mot de passe du cabinet n'existe plus en ligne (la session ouvre le cabinet) : il ne se
    montre pas le temps du chargement. */
 #lock-screen { visibility: hidden !important; }

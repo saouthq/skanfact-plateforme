@@ -7,14 +7,18 @@ import { migrer } from '../base/migrer.ts';
 
 const avecBase = (adresse: string, base: string) => { const u = new URL(adresse); u.pathname = '/' + base; return u.toString(); };
 
-export async function baseNeuve(nom: string): Promise<{ admin: string; app: string; jeter: () => Promise<void> }> {
+export async function baseNeuve(nomDemande: string): Promise<{ admin: string; app: string; jeter: () => Promise<void> }> {
+  // Un groupe de preuves (tests/preuves-paralleles.sh) a ses propres bases : jamais celle d'un voisin.
+  const groupe = /^[0-9]{1,2}$/.test(process.env.SKANFACT_TEST_GROUPE ?? '') ? `_g${process.env.SKANFACT_TEST_GROUPE}` : '';
+  const nom = `${nomDemande}${groupe}`;
   const serveur = new pg.Client({ connectionString: avecBase(inject('pgAdmin'), 'postgres') });
   await serveur.connect();
   await serveur.query(`drop database if exists ${nom} with (force)`);
   await serveur.query(`create database ${nom}`);
-  await serveur.end();
   const admin = avecBase(inject('pgAdmin'), nom);
-  await migrer(admin);
+  // Le même verrou que tests/preparer-base.ts : une migration à la fois sur tout le serveur.
+  await serveur.query('select pg_advisory_lock(20260929)');
+  try { await migrer(admin); } finally { await serveur.query('select pg_advisory_unlock(20260929)'); await serveur.end(); }
   return {
     admin,
     app: avecBase(inject('pgApp'), nom),

@@ -313,4 +313,31 @@ export const ADAPTATIONS = [
     avant: "quoi: 'Ce nom signe tes relances et le fichier que tes clients importent.'",
     apres: "quoi: 'Ce nom signe tes relances, et tes clients le lisent quand ils te confient leur dossier.'",
   },
+  // ── La saisie du cabinet (brique 38) : une écriture née d'une pièce de l'entreprise suit sa pièce ──
+  // Le serveur refuse de la modifier, de la supprimer, de la contre-passer ou de l'extourner à la
+  // main (C6) : le menu ne propose pas ce qui serait refusé. Un miroir ne se contre-passe pas non plus.
+  {
+    fichier: 'cabinet/app.js',
+    pourquoi: 'un brouillard né d\'une pièce de l\'entreprise ne se reprend pas dans la grille',
+    avant: "      a.push({ icon: 'modifier', label: 'Reprendre dans la grille',",
+    apres: "      if (e.source !== 'skanfact') a.push({ icon: 'modifier', label: 'Reprendre dans la grille',",
+  },
+  {
+    fichier: 'cabinet/app.js',
+    pourquoi: 'un brouillard né d\'une pièce de l\'entreprise ne se supprime pas dans les livres',
+    avant: "      detruire = { icon: 'supprimer', label: 'Supprimer ce brouillard'",
+    apres: "      if (e.source !== 'skanfact') detruire = { icon: 'supprimer', label: 'Supprimer ce brouillard'",
+  },
+  {
+    fichier: 'cabinet/app.js',
+    pourquoi: 'seule une écriture saisie se contre-passe ou s\'extourne à la main, et jamais un miroir',
+    avant: "    if (e.statut === 'validee') {",
+    apres: "    if (e.statut === 'validee' && e.source !== 'skanfact' && !e.contrepasseDe) {",
+  },
+  {
+    fichier: 'cabinet/app.js',
+    pourquoi: 'les livres du serveur ne s\'arrêtent pas au 31 décembre : l\'extourne d\'une écriture de décembre se pose directement au 1er janvier',
+    avant: "      const auSuivant = dateExt && dateExt > String((livresState.livre.exercice || {}).au || '');",
+    apres: "      const auSuivant = false;",
+  },
 ];

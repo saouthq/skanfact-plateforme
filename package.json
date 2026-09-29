@@ -13,6 +13,7 @@
     "types": "tsc --noEmit && tsc --noEmit -p web",
     "verifier": "npm run types && npm run lint && npm test",
     "preuves": "bash tests/preuves.sh",
+    "preuves:paralleles": "bash tests/preuves-paralleles.sh",
     "types:base": "node base/generer-types.ts",
     "entreprise": "node base/entreprise.ts",
     "sauvegarde": "node base/sauvegarde.ts",

@@ -108,6 +108,19 @@ export interface BaseDeDonnees {
     cree_le: Generated<Date>;
     chaine_rang: bigint | null;
     empreinte: string | null;
+    saisie_par: string | null;
+    revision: Generated<number>;
+    validee_par: string | null;
+    validee_le: Date | null;
+  };
+  'compta.lettrage': {
+    id: Generated<string>;
+    entreprise: string;
+    compte: string;
+    lettre: string;
+    rang: bigint | null;
+    cree_par: string | null;
+    cree_le: Generated<Date>;
   };
   'compta.ligne': {
     id: Generated<string>;
@@ -119,6 +132,12 @@ export interface BaseDeDonnees {
     debit: Generated<bigint>;
     credit: Generated<bigint>;
     taux_tva: bigint | null;
+    tiers_libelle: string | null;
+  };
+  'compta.ligne_lettree': {
+    ligne: string;
+    lettrage: string;
+    entreprise: string;
   };
   'paie.bulletin': {
     id: Generated<string>;

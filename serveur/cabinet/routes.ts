@@ -7,10 +7,11 @@
 // Chaque changement d'un mandat se trace chez l'entreprise : elle voit qui a fait quoi (03 § 3.4).
 
 import { z } from 'zod';
+import { versTexte } from '../../moteur/argent.ts';
 import type { Route } from '../app.ts';
 import { requetes, type Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
-import { motif } from '../../textes/index.ts';
+import { motif, t } from '../../textes/index.ts';
 import './textes.ts';
 
 const uuid = z.string().uuid();
@@ -82,6 +83,29 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
           dossiers: r.rows.map((d) => ({
             mandat: d.mandat, entreprise: d.entreprise, raisonSociale: d.raison_sociale, matriculeFiscal: d.matricule_fiscal,
             statut: d.statut, perimetre: d.perimetre, debut: d.debut, tenu: d.tenu, role: d.role,
+          })),
+        },
+      };
+    },
+  });
+
+  // Les mois des dossiers (brique 38) : pour chaque dossier dont la personne lit les livres, chaque
+  // mois qui a des écritures — combien, combien au brouillard, le chiffre d'affaires (comptes 70) et
+  // le dernier mouvement. C'est ce que le tableau du portefeuille compte, à la place des paquets.
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/mois', geste: 'compte.cabinets.voir',
+    traiter: async ({ params, query }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const depuis = query.depuis ?? '';
+      if (!/^\d{4}-\d{2}-01$/.test(depuis)) {
+        return { statut: 400, corps: { motif: motif('commun.champ_invalide', { champ: 'depuis', raison: t('cabinet.champ.depuis') }), champ: 'depuis' } };
+      }
+      const r = await tx.query('select * from compta.mois_du_portefeuille($1, $2::date) order by entreprise, mois', [params.cabinet, depuis]);
+      return {
+        corps: {
+          mois: (r.rows as { entreprise: string; mois: string; ecritures: string; brouillards: string; ca: string; dernier: Date | null }[]).map((x) => ({
+            entreprise: x.entreprise, mois: x.mois, ecritures: Number(x.ecritures), brouillards: Number(x.brouillards),
+            ca: versTexte(BigInt(x.ca), 3), dernier: x.dernier,
           })),
         },
       };

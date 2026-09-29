@@ -14,8 +14,11 @@ declare module 'vitest' {
   }
 }
 
-const BASE = 'skanfact_test';
-const COMPTE = 'skanfact_test_serveur';
+// Un groupe de preuves qui tourne à côté d'un autre (tests/preuves-paralleles.sh) a sa propre base et
+// son propre compte : SKANFACT_TEST_GROUPE (des chiffres), sinon la base de toujours.
+const GROUPE = /^[0-9]{1,2}$/.test(process.env.SKANFACT_TEST_GROUPE ?? '') ? `_g${process.env.SKANFACT_TEST_GROUPE}` : '';
+const BASE = `skanfact_test${GROUPE}`;
+const COMPTE = `skanfact_test_serveur${GROUPE}`;
 
 function adresse(modele: string, base: string, compte?: { nom: string; mdp: string }): string {
   const u = new URL(modele);
@@ -36,10 +39,13 @@ export default async function preparer(projet: TestProject) {
       if exists (select from pg_roles where rolname = '${COMPTE}') then execute 'drop owned by ${COMPTE}'; execute 'drop role ${COMPTE}'; end if;
     end $$`);
   await c.query(`create role ${COMPTE} login nobypassrls password '${mdp}'`);
-  await c.end();
 
+  // Les migrations touchent aussi le rôle `skanfact_app`, commun à tout le serveur : deux groupes de
+  // preuves qui migrent au même instant se heurteraient (« tuple concurrently updated »). Un verrou,
+  // pris dans la base `postgres` que tous partagent, les fait passer l'un après l'autre.
   const pgAdmin = adresse(admin, BASE);
-  await migrer(pgAdmin);
+  await c.query('select pg_advisory_lock(20260929)');
+  try { await migrer(pgAdmin); } finally { await c.query('select pg_advisory_unlock(20260929)'); await c.end(); }
   const m = new pg.Client({ connectionString: pgAdmin });
   await m.connect();
   await m.query(`grant skanfact_app to ${COMPTE}`);

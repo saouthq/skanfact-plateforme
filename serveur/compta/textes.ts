@@ -5,7 +5,15 @@ import { declarerTextes } from '../../textes/index.ts';
 
 declarerTextes({
   'geste.compta.livres.voir': 'voir les livres, la balance et le grand livre',
-  'geste.compta.ecritures.valider': 'valider une période des livres (numéros, chaîne, période close)',
+  'geste.compta.ecritures.valider': 'valider les livres : une période, une écriture ou un lot ; contre-passer, extourner',
+  'geste.compta.ecritures.saisir': 'saisir une écriture au brouillard, la modifier, la supprimer',
+  'geste.compta.lettrage.poser': 'lettrer les écritures d\'un compte, délettrer',
+  'compta.libelle.extourne': 'Extourne de {numero}',
+  'compta.champ.ecriture': 'une écriture : sa date, son journal, au moins deux lignes',
+  'compta.champ.montant': 'un montant en dinars, sans signe (« 1191,000 »)',
+  'compta.champ.ids': 'la liste des écritures (de 1 à 500)',
+  'compta.champ.revision': 'la révision du brouillard que tu as vue',
+  'compta.champ.lettre': 'une à cinq lettres, de A à Z',
   'compta.champ.jusqua': 'le dernier jour de la période à valider (AAAA-MM-JJ)',
   'compta.libelle.contre_passation': 'Contre-passation de {numero}',
   'compta.champ.journal': 'un journal : VT, AC, BQ, CA, OD, PAIE ou AN',

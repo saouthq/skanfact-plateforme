@@ -7978,12 +7978,12 @@
     if (e.statut === 'brouillard') {
       a.push({ icon: 'oui', label: 'Valider cette écriture', hint: 'Elle prend son numéro et ne se modifiera plus',
         run: () => validerEcriture(root, dossier, e) });
-      a.push({ icon: 'modifier', label: 'Reprendre dans la grille', hint: 'Elle remonte dans la saisie, modifiable',
+      if (e.source !== 'skanfact') a.push({ icon: 'modifier', label: 'Reprendre dans la grille', hint: 'Elle remonte dans la saisie, modifiable',
         run: () => { saisieState.piece = pieceDepuis(e); allerSousOnglet(root, dossier, 'saisie'); } });
-      detruire = { icon: 'supprimer', label: 'Supprimer ce brouillard', hint: 'Il n\'a pas de numéro : rien ne restera', danger: true,
+      if (e.source !== 'skanfact') detruire = { icon: 'supprimer', label: 'Supprimer ce brouillard', hint: 'Il n\'a pas de numéro : rien ne restera', danger: true,
         run: () => supprimerBrouillard(root, dossier, e) };
     }
-    if (e.statut === 'validee') {
+    if (e.statut === 'validee' && e.source !== 'skanfact' && !e.contrepasseDe) {
       // Le jour du miroir se dit dès le menu, par la fonction qui le posera : « à la date du jour »
       // sur un exercice passé était faux — le miroir tombe au dernier jour de l'exercice.
       const jour = K.today();
@@ -7999,7 +7999,7 @@
       const extournable = e.source !== 'an' && !e.contrepasseDe && !e.extourneDe;
       const dejaExt = indexDuLivre(livresState.livre).extournees.has(e.id);
       const dateExt = KC.premierDuMoisSuivant(e.date);
-      const auSuivant = dateExt && dateExt > String((livresState.livre.exercice || {}).au || '');
+      const auSuivant = false;
       const suivante = Number((livresState.livre.exercice || {}).annee) + 1;
       if (extournable && !dejaExt && !auSuivant) {
         a.push({ icon: 'horloge', label: 'Extourner au 1er du mois suivant', hint: 'Pour une charge à payer ou un produit à recevoir',

@@ -51,7 +51,10 @@
   const depuisFiche = (c) => ({ ...c, fees: Number(c.fees || 0) / 1000 });
   async function construireEtat() {
     /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
-    const [moi, mes, porte, lues] = await Promise.all([appel('GET', '/moi'), appel('GET', '/cabinets'), appel('GET', `/cabinets/${cabinetId}/portefeuille`), appel('GET', `/cabinets/${cabinetId}/fiches`)]);
+    // Les mois des cinq dernières années (le plafond du Cabinet v10, MAX_MOIS_ATTENDUS).
+    const depuis = `${new Date().getUTCFullYear() - 5}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}-01`;
+    const [moi, mes, porte, lues, mois] = await Promise.all([appel('GET', '/moi'), appel('GET', '/cabinets'), appel('GET', `/cabinets/${cabinetId}/portefeuille`),
+      appel('GET', `/cabinets/${cabinetId}/fiches`), appel('GET', `/cabinets/${cabinetId}/mois?depuis=${depuis}`)]);
     fiches.clear();
     for (const f of lues.fiches || []) fiches.set(f.entreprise, { contenu: f.contenu, revision: f.revision });
     const cab = (mes.cabinets || []).find((/** @type {any} */ c) => c.id === cabinetId);
@@ -65,12 +68,27 @@
       dossiers.set(d.entreprise, { id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '' });
       // Un dossier tenu est le « dossier créé à la main » de la v10 : un client hors SkanFact.
       const fiche = fiches.get(d.entreprise);
-      return K.migrateDossier({ ...(fiche ? depuisFiche(fiche.contenu) : {}), id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu, packs: [] });
+      return K.migrateDossier({ ...(fiche ? depuisFiche(fiche.contenu) : {}), id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu,
+        packs: moisVersPaquets(K, (mois.mois || []).filter((/** @type {any} */ x) => x.entreprise === d.entreprise)) });
     });
     const etat = K.migrate({ cabinet: { name: cab.nom, email: '', phone: '' }, dossiers: liste });
     etat.moi = moi.id;
     etat.moiNom = moi.nom;
     return etat;
+  }
+
+  // Les mois des livres d'un dossier, dans la forme des « paquets » que le tableau du portefeuille
+  // compte (cabcore.js, packSummary) : un mois qui a des écritures est « reçu » ; il est DÉFINITIF
+  // quand aucune n'est plus au brouillard ; son chiffre d'affaires est celui des comptes 70, et son
+  // jour celui du dernier mouvement. Rien n'est inventé : un mois sans écriture n'a pas de paquet.
+  /** @param {any} K @param {any[]} mois */
+  function moisVersPaquets(K, mois) {
+    return mois.map((m) => ({
+      month: m.mois, label: K.monthLabel(m.mois), definitive: m.brouillards === 0,
+      receivedAt: Date.parse(m.dernier) || null, generatedAt: m.dernier || null,
+      files: 0, missing: [], absent: 0, digest: '', bytes: 0, path: '', sealed: false, appVersion: '',
+      figures: { ca: Number(m.ca), devise: 'DT' }, integrity: null,
+    })).sort((a, b) => (a.month < b.month ? 1 : -1));
   }
 
   // ── Le livre d'un dossier : les écritures que le serveur tient pour l'entreprise ────────────
@@ -112,27 +130,67 @@
     };
   }
   const nombre = (/** @type {string} */ v) => Number(v) || 0;
+  // La révision de chaque brouillard lu : on la renvoie pour le modifier ou le supprimer, et un
+  // brouillard changé ailleurs entre-temps n'est jamais écrasé (01 R15).
+  /** @type {Map<string, number>} */
+  const revisions = new Map();
   // Une écriture du serveur, dans la forme du livre de la v10 (compta.js, `ajouterEcriture`) : son
   // numéro est son rang dans la chaîne des livres (validée), comme le numéro unique du livre v10.
+  // Sa source : « saisie » quand le comptable l'a saisie (elle se modifie, se contre-passe,
+  // s'extourne) ; « skanfact » quand elle est née d'une pièce de l'entreprise (elle suit sa pièce) ;
+  // « an » pour des à-nouveaux.
   /** @param {string} ent @param {number} annee @param {any[]} ecritures */
   function versLeLivre(ent, annee, ecritures) {
     /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
     const livre = KC.livreVide(ent, annee);
-    const contrePassees = new Set(ecritures.filter((e) => e.origine.type === 'contre_passation' && e.statut === 'validee').map((e) => e.origine.id));
+    const parId = new Map(ecritures.map((e) => [e.id, e]));
+    /** @param {any} e @returns {string} */
+    const source = (e) => {
+      if (e.journal === 'AN') return 'an';
+      if (e.origine.type === 'saisie' || e.origine.type === 'extourne') return 'saisie';
+      if (e.origine.type === 'contre_passation' && parId.has(e.origine.id)) return source(parId.get(e.origine.id));
+      return 'skanfact';
+    };
+    /** @type {Map<string, { lettre: string, compte: string, ecritures: string[], le: string, par: string }>} */
+    const lettrages = new Map();
     for (const e of ecritures) {
+      revisions.set(e.id, e.revision);
       livre.ecritures.push({
         id: e.id, numero: e.chaine ?? null, date: e.date, journal: e.journal, piece: e.piece || '', libelle: e.libelle,
-        source: 'skanfact', mois: String(e.date).slice(0, 7), docId: e.origine.id, pieceJointe: null,
-        statut: e.statut === 'validee' ? (contrePassees.has(e.id) ? 'contrepassee' : 'validee') : 'brouillard',
-        auteur: '', creeLe: 0, valideeLe: null,
-        contrepasseDe: e.origine.type === 'contre_passation' ? e.origine.id : null, extourneDe: null, extourne: false, extourneeLe: null,
+        source: source(e), mois: String(e.date).slice(0, 7), docId: e.origine.id, pieceJointe: null,
+        statut: e.statut === 'validee' ? (e.contrepassee ? 'contrepassee' : 'validee') : 'brouillard',
+        auteur: '', creeLe: 0, valideeLe: e.valideeLe ? Date.parse(e.valideeLe) : null,
+        contrepasseDe: e.origine.type === 'contre_passation' ? e.origine.id : null,
+        extourneDe: e.origine.type === 'extourne' ? e.origine.id : null, extourne: false, extourneeLe: null,
         lignes: e.lignes.map((/** @type {any} */ l) => ({
-          compte: l.compte, tiersId: e.tiers, tiers: '', libelle: l.libelle, debit: nombre(l.debit), credit: nombre(l.credit), lettre: '',
+          compte: l.compte, tiersId: e.tiers, tiers: l.tiers || '', libelle: l.libelle, debit: nombre(l.debit), credit: nombre(l.credit), lettre: l.lettre || '',
         })),
       });
-      for (const l of e.lignes) KC.assurerCompte(livre, l.compte, l.libelle);
+      for (const l of e.lignes) {
+        KC.assurerCompte(livre, l.compte, l.libelle);
+        if (!l.lettre) continue;
+        const g = lettrages.get(l.lettre) || { lettre: String(l.lettre), compte: String(l.compte), ecritures: /** @type {string[]} */ ([]), le: '', par: '' };
+        if (!g.ecritures.includes(e.id)) g.ecritures.push(e.id);
+        lettrages.set(l.lettre, g);
+      }
     }
+    livre.lettrages = [...lettrages.values()];
     return livre;
+  }
+  /** @param {string} ent @param {string|number} annee */
+  const livreDe = async (ent, annee) => versLeLivre(ent, Number(annee), await ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`));
+
+  // Une écriture de la grille de saisie, pour le serveur : ses lignes remplies (la grille en garde
+  // une vide au bout), ses montants en texte exact.
+  /** @param {unknown} n */
+  const montant = (n) => (Number(n) ? (Math.round(Number(n) * 1000) / 1000).toFixed(3) : '');
+  /** @param {any} ec */
+  function versLeServeur(ec) {
+    return {
+      date: String(ec.date || ''), journal: String(ec.journal || ''), piece: String(ec.piece || ''), libelle: String(ec.libelle || ''),
+      lignes: (ec.lignes || []).filter((/** @type {any} */ l) => l && (String(l.compte || '').trim() || Number(l.debit) || Number(l.credit)))
+        .map((/** @type {any} */ l) => ({ compte: String(l.compte || '').trim(), libelle: String(l.libelle || ''), tiers: String(l.tiers || ''), debit: montant(l.debit), credit: montant(l.credit) })),
+    };
   }
 
   // La fiche : les champs de la liste, rien d'autre ; les honoraires en millimes.
@@ -256,6 +314,83 @@
       const f = fiches.get(id);
       await poserFiche(id, { ...(f ? depuisFiche(f.contenu) : {}), ...patch }, f ? f.revision : null);
       return { state: await construireEtat(), moved: 0, id };
+    },
+
+    // ── La saisie (brique 38) : chaque geste va au serveur, puis le livre se relit ─────────────
+    saisir: async (/** @type {string} */ id, /** @type {string} */ annee, /** @type {any} */ ec) => {
+      const r = await appel('POST', `/entreprises/${id}/compta/ecritures`, versLeServeur(ec));
+      return { ok: true, id: r.id, livre: await livreDe(id, annee) };
+    },
+    modifierEcriture: async (/** @type {string} */ id, /** @type {string} */ annee, /** @type {string} */ ecriture, /** @type {any} */ patch) => {
+      await appel('PUT', `/entreprises/${id}/compta/ecritures/${ecriture}`, { ...versLeServeur(patch), revision: revisions.get(ecriture) ?? 1 });
+      return { ok: true, id: ecriture, livre: await livreDe(id, annee) };
+    },
+    supprimerEcriture: async (/** @type {string} */ id, /** @type {string} */ annee, /** @type {string} */ ecriture) => {
+      await appel('DELETE', `/entreprises/${id}/compta/ecritures/${ecriture}?revision=${revisions.get(ecriture) ?? 1}`);
+      return { ok: true, livre: await livreDe(id, annee) };
+    },
+    valider: async (/** @type {string} */ id, /** @type {string} */ annee, /** @type {string} */ ecriture) => {
+      const r = await appel('POST', `/entreprises/${id}/compta/ecritures/valider`, { ids: [ecriture] });
+      if (!r.validees.length) throw new Error((r.refusees[0] && r.refusees[0].motif) || 'Cette écriture n\'a pas été validée.');
+      return { ok: true, numero: r.validees[0].chaine, livre: await livreDe(id, annee) };
+    },
+    // Un lot : les brouillards du journal, du mois ou de la sélection, lus dans le livre du serveur ;
+    // chacun validé ou nommé avec la raison de son refus (compta.js, validerLot).
+    validerLot: async (/** @type {any} */ o) => {
+      const avant = await livreDe(o.dossierId, o.annee);
+      const ids = o.ids ? new Set(o.ids) : null;
+      const cibles = avant.ecritures.filter((/** @type {any} */ e) => e.statut === 'brouillard' && (!o.journal || e.journal === o.journal)
+        && (!o.mois || String(e.date).slice(0, 7) === o.mois) && (!ids || ids.has(e.id)));
+      /** @type {any[]} */ const validees = [];
+      /** @type {any[]} */ const refusees = [];
+      for (let i = 0; i < cibles.length; i += 500) {
+        const r = await appel('POST', `/entreprises/${o.dossierId}/compta/ecritures/valider`, { ids: cibles.slice(i, i + 500).map((/** @type {any} */ e) => e.id) });
+        validees.push(...r.validees);
+        refusees.push(...r.refusees);
+      }
+      const de = (/** @type {string} */ x) => cibles.find((/** @type {any} */ e) => e.id === x) || {};
+      return {
+        ok: true, candidates: cibles.length, livre: await livreDe(o.dossierId, o.annee),
+        validees: validees.map((v) => ({ id: v.id, numero: v.chaine, piece: de(v.id).piece, journal: de(v.id).journal, date: de(v.id).date })),
+        refusees: refusees.map((v) => ({ id: v.id, piece: de(v.id).piece, journal: de(v.id).journal, date: de(v.id).date, motif: v.motif, motifs: [v.motif] })),
+      };
+    },
+    // Le jour du miroir : celui que l'écran a annoncé (compta.js, dateDuMiroir : jamais hors de
+    // l'exercice affiché ni avant l'écriture) ; le serveur le repousse au premier jour ouvert si la
+    // période est close, et le dit.
+    contrepasser: async (/** @type {string} */ id, /** @type {string} */ annee, /** @type {string} */ ecriture, /** @type {string} */ date) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreDe(id, annee);
+      const e = livre.ecritures.find((/** @type {any} */ x) => x.id === ecriture);
+      const jour = e ? KC.dateDuMiroir(livre, e, date) : date;
+      const r = await appel('POST', `/entreprises/${id}/compta/ecritures/${ecriture}/contrepasser`, jour ? { date: jour } : {});
+      return { ok: true, numero: r.chaine, date: r.date, livre: await livreDe(id, annee) };
+    },
+    extourner: async (/** @type {string} */ id, /** @type {string} */ annee, /** @type {string} */ ecriture) => {
+      const r = await appel('POST', `/entreprises/${id}/compta/ecritures/${ecriture}/extourner`, {});
+      return { ok: true, numero: r.chaine, date: r.date, livre: await livreDe(id, annee) };
+    },
+    // Le lettrage automatique : la règle de la v10 (compta.js, lettrageAuto : une paire qui se solde
+    // sans ambiguïté, entre écritures validées), calculée sur le livre du serveur ; chaque paire est
+    // posée par le serveur, qui refait le contrôle et choisit la lettre.
+    lettrageAuto: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreDe(o.dossierId, o.annee);
+      const r = KC.lettrageAuto(livre, o.compte, { jours: o.jours, par: 'auto', date: new Date().toISOString().slice(0, 10) });
+      /** @type {any[]} */ const poses = [];
+      for (const p of r.poses) {
+        const l = await appel('POST', `/entreprises/${o.dossierId}/compta/lettrages`, { compte: String(o.compte), ecritures: p.ecritures });
+        poses.push({ ...p, lettre: l.lettre });
+      }
+      return { ok: true, poses, restent: r.restent, livre: await livreDe(o.dossierId, o.annee) };
+    },
+    lettrer: async (/** @type {any} */ o) => {
+      if (o.delettrer) {
+        await appel('DELETE', `/entreprises/${o.dossierId}/compta/lettrages/${encodeURIComponent(String(o.lettre || ''))}`);
+        return { ok: true, livre: await livreDe(o.dossierId, o.annee) };
+      }
+      const l = await appel('POST', `/entreprises/${o.dossierId}/compta/lettrages`, { compte: String(o.compte), ecritures: o.ids || [], ...(o.lettre ? { lettre: String(o.lettre) } : {}) });
+      return { ok: true, lettre: l.lettre, livre: await livreDe(o.dossierId, o.annee) };
     },
 
     // Ce qui n'a pas d'objet en ligne, et que l'ouverture demande : sans réponse, sans erreur.

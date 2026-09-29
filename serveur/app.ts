@@ -59,7 +59,8 @@ function erreurVersReponse(e: unknown, reponse: FastifyReply, langue: Langue) {
   const envoyer = (statut: number, corps: unknown) => reponse.code(statut).send(rendreTout(corps, langue));
   if (err.code === '42501') return envoyer(403, { motif: texteDuRefus(err), qui: [], bouton: err.bouton ?? null });
   if (err.code === 'introuvable') return envoyer(404, { motif: motif('commun.introuvable') });
-  if (err.code === 'perimee') return envoyer(409, { motif: texteDuRefus(err), bouton: 'recharger' });
+  // Changé ailleurs entre-temps (01 R15) : du serveur (Perimee), ou de la base (errcode SK409).
+  if (err.code === 'perimee' || err.code === 'SK409') return envoyer(409, { motif: texteDuRefus(err), bouton: 'recharger' });
   reponse.request.log.error(e);
   return envoyer(500, { motif: motif('commun.erreur_serveur') });
 }

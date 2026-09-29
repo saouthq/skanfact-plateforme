@@ -234,7 +234,7 @@ describe('les livres tenus par le serveur', () => {
       suite = r.corps.suite as string | null;
     } while (suite);
     expect(vues.map((x) => `${x.journal} ${x.date}`)).toEqual(['VT 2026-10-01', 'CA 2026-10-05', 'VT 2026-10-10']);
-    expect(vues[0]?.lignes[0]).toEqual({ compte: '411', libelle: 'Facture FAC-2026-001 — Menuiserie du Lac (exemple)', debit: '1073.190', credit: '0.000', tauxTva: null });
+    expect(vues[0]?.lignes[0]).toEqual({ compte: '411', libelle: 'Facture FAC-2026-001 — Menuiserie du Lac (exemple)', debit: '1073.190', credit: '0.000', tauxTva: null, tiers: null, lettre: null });
     // La balance : ses totaux sont égaux, et chaque compte dit la somme de ses lignes.
     const b = (await appeler('GET', `/entreprises/${e.ent}/compta/balance`, e.jeton)).corps as { comptes: { compte: string; debit: string; credit: string; solde: string }[]; totaux: { debit: string; credit: string } };
     expect(b.totaux.debit).toBe(b.totaux.credit);

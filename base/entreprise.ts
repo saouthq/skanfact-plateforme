@@ -73,6 +73,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   // pas avec l'entreprise.
   'cabinet.fiche': { classe: 'hors', raison: 'les notes du cabinet sur son client appartiennent au cabinet' },
   'compta.compteur': { classe: 'entreprise' },
+  'compta.lettrage': { classe: 'entreprise' },
+  'compta.ligne_lettree': { classe: 'entreprise' },
   // Le dossier v10 de l'entreprise (0011) : ce que son interface tient, objet par objet.
   'socle.dossier_v10': { classe: 'entreprise' },
   // Le code d'un cabinet n'est pas repris : unique sur la plateforme, il reste à son cabinet.

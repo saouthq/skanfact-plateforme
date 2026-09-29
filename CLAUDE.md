@@ -113,6 +113,11 @@
     par le code du cabinet (Paramètres → Envois) ; `/moi` dit `parCabinet` : l'entrée n'ouvre jamais
     l'entreprise d'un client comme la sienne. Sans paquets (C4) : ce qui en parlait est caché ou
     retiré, par la liste du point de contact ou une adaptation.
+  - **La saisie du cabinet** (brique 38, 0021) : saisir, modifier (révision, `SK409` → 409),
+    supprimer un brouillard ; valider une écriture ou un lot ; contre-passer, extourner une écriture
+    SAISIE (miroir validé, jamais dans la période close) ; lettrer des écritures validées. Qui peut :
+    `compta.peut`, dans la base ET à la porte. Une écriture née d'une pièce suit sa pièce (C6). Le
+    tableau du portefeuille lit `GET /cabinets/:c/mois` (les mois des livres, en « paquets »).
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première
@@ -241,9 +246,11 @@
 - Contre un **vrai PostgreSQL** (`PG_ADMIN`), jamais contre une imitation.
 - **Chaque test se prouve** : `tests/preuves.sh` remet le défaut et vérifie que le test tombe. Un test
   nouveau vient avec sa ligne dans ce script.
-- Avant tout envoi : `npm run verifier` (types, lint 0 erreur 0 avertissement, tests) et
-  `npm run preuves`. Lire le **code de sortie**. GitHub refait tout à chaque envoi ; une construction
-  rouge ne se contourne jamais.
+- Avant tout envoi : `npm run verifier` (types, lint 0 erreur 0 avertissement, tests) et les preuves
+  des fichiers de tests que la brique touche, en groupes côte à côte (`FICHIERS=motif npm run
+  preuves:paralleles` ; chaque groupe a sa propre base de test). Lire le **code de sortie**. GitHub
+  refait tout à chaque envoi, les preuves en quatre groupes sur quatre machines (`PARTIE=k/4`, environ
+  15 minutes au lieu de 50) ; une construction rouge ne se contourne jamais.
 
 **Sécurité (sans exception)**
 - Dépôt **public** : jamais de secret, de jeton, de mot de passe réel ni de donnée de client. Les
@@ -263,7 +270,8 @@
 | Commande | Ce qu'elle fait |
 |---|---|
 | `npm run verifier` | Types, lint, tests (il faut `PG_ADMIN`) |
-| `npm run preuves` | Chaque défaut remis dans une copie, chaque test doit tomber |
+| `npm run preuves` | Chaque défaut remis dans une copie, chaque test doit tomber (`SEULES`, `FICHIERS`, `PARTIE=k/n`) |
+| `npm run preuves:paralleles` | Les mêmes, en `GROUPES` groupes côte à côte (4 par défaut) |
 | `npm run migrer` | Applique les migrations sur la base de `PG_ADMIN` |
 | `npm run entreprise -- exporter <id> <fichier>` / `restaurer <fichier>` | Exporte une entreprise, ou la restaure là où elle n'est pas (`PG_ADMIN`) |
 | `npm run types:base` | Réécrit `base/types.ts` à partir des migrations (base jetable sur `PG_ADMIN`) |

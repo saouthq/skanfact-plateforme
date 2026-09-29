@@ -75,7 +75,8 @@ mêmes données que son client.
 |---|---|
 | **36** | Le cabinet côté serveur : créer un cabinet ; le mandat (proposé par le propriétaire, accepté par l'associé, arrêté par l'un ou l'autre) et son périmètre ; les dossiers tenus ; le portefeuille ; le rôle d'un collaborateur sur un dossier et le périmètre, gardés par la porte **et** par la base ; la validation au cabinet quand il a le mandat de comptabilité. |
 | **37** | Les écrans du Cabinet copiés et chargés ; le portefeuille et le livre d'un dossier lus au serveur (la balance que calcule l'écran égale celle du serveur : deux chemins, un chiffre) ; tout le reste répond « pas encore en ligne ». |
-| 38 | La saisie : écritures saisies par le cabinet (brouillard, modification, suppression), validation d'une écriture ou d'un lot, contre-passation, extourne, lettrage ; le mois validé par le cabinet (C8). |
+| **38** | La saisie : écritures saisies par le cabinet (brouillard, modification, suppression), validation d'une écriture ou d'un lot, contre-passation, extourne, lettrage ; le mois validé par le cabinet (C8). |
+| 38 bis | Le Cabinet sans paquets, dans les mots : le tableau, les relances, la fiche, les guides et les visites réécrits pour des livres tenus en direct. |
 | 39 | La reprise : plan, balance d'ouverture (à-nouveaux), écritures par tableur. |
 | 40 | La banque : relevés, rapprochement, lettrage automatique. |
 | 41 | Les déclarations (TVA, retenues), la liasse, le FEC et les exports. |
@@ -144,6 +145,64 @@ pastilles, leurs résultats de recherche et la palette).
 (dernier mois reçu, mois manquants, « aucun paquet », « a envoyé ses mois clôturés ») : il se
 rebranche sur les mois du serveur (écritures, mois validés) avec la saisie et la validation par le
 cabinet ; l'exemple à six clients fictifs n'est pas encore en ligne (le bouton le dit).
+
+## Brique 38 : la saisie du cabinet dans les livres du serveur (fait le 29/09/2026)
+
+**La base** (migration `0021`) — chaque geste y est contrôlé, et gardé par `compta.peut` :
+- **Saisir** (`compta.saisir`) : une écriture au brouillard, sa propre famille (origine « saisie »),
+  avec les contrôles de la v10 (`ecritureValide`) avant toute écriture : la date, le journal, deux
+  lignes au moins, un compte en chiffres, un côté par ligne, un montant, l'équilibre (« Débit 10,000
+  ≠ crédit 9,000 »), et jamais dans la période close. **C12** : une ligne sans libellé prend celui de
+  l'écriture, une écriture sans libellé celui de sa première ligne ; sans aucun, elle est refusée dès
+  le brouillard (la v10 l'acceptait au brouillard et le réclamait à la validation : le serveur garde
+  ainsi une seule règle, et la validation d'une période ne scelle jamais une écriture muette).
+- **Modifier, supprimer** un brouillard saisi, avec la révision vue : un brouillard changé ailleurs
+  entre-temps n'est jamais écrasé (erreur `SK409`, rendue en 409 « recharge-le »).
+- **Valider** une écriture ou un lot (`compta.valider_ecritures`) : le numéro de son journal et de son
+  année, le maillon de la chaîne, qui et quand ; dans l'ordre des dates ; une écriture refusée (déjà
+  validée, datée de demain, inconnue) est nommée avec sa raison et ne troue pas la numérotation.
+- **Contre-passer** (`compta.contrepasser`) et **extourner** (`compta.extourner`) une écriture SAISIE :
+  le miroir est posé et validé d'un geste (comme la v10) ; la contre-passation au jour demandé,
+  jamais avant l'écriture ni dans la période close (premier jour ouvert) ; l'extourne au premier du
+  mois suivant, refusée si ce jour est clos, jamais pour des à-nouveaux ni une écriture contre-passée.
+- **Lettrer** (`compta.lettrer`, tables `compta.lettrage` et `compta.ligne_lettree`) des écritures
+  validées d'un même compte dont la somme fait zéro (« il reste 690,000 » sinon), une lettre unique
+  par entreprise (A, B… AA…), et **délettrer**. **C13** : un brouillard ne se lettre pas (la v10 le
+  permettait) : sur le serveur, un brouillard peut changer sous le cabinet quand le client modifie sa
+  pièce, et le lettrage désignerait des lignes réécrites.
+- **C6 rendu concret** : une écriture née d'une pièce de l'entreprise ne se modifie, ne se supprime,
+  ne se contre-passe ni ne s'extourne à la main ; elle suit sa pièce (le serveur la contre-passe
+  lui-même quand la pièce change). Elle se **valide** et se **lettre**. **Corriger une imputation**
+  (le compte d'une écriture née d'une pièce, avant validation : `03` § 3.1) viendra à part : la
+  correction doit survivre à la réécriture de la famille.
+- Qui (`03` § 2.1 et § 3.1) : saisir, la comptabilité de l'entreprise (propriétaire, administrateur,
+  comptabilité interne) et tout le cabinet (associé, collaborateur, assistant) ; valider,
+  contre-passer, extourner et lettrer, la comptabilité de l'entreprise (valider : sans mandat de
+  comptabilité, C8) et l'associé ou le collaborateur ; une clé de l'API, si elle porte le geste. Les
+  gestes déclarés : `compta.ecritures.saisir`, `compta.ecritures.valider`, `compta.lettrage.poser`.
+
+**Le tableau du portefeuille** : `GET /cabinets/:c/mois` donne, pour chaque dossier dont on lit les
+livres, chaque mois qui a des écritures (combien, combien au brouillard, le chiffre d'affaires des
+comptes 70, le dernier mouvement). Le point de contact en fait les « paquets » que le tableau du
+Cabinet v10 compte : un mois écrit est reçu, **définitif** quand plus rien n'y est au brouillard. Un
+mois sans écriture n'a pas de paquet (rien n'est inventé).
+
+**L'écran** : la grille de saisie, « Enregistrer en brouillard », « Enregistrer et valider », les lots
+(par journal, par mois), le menu d'une écriture (valider, reprendre, supprimer ; contre-passer,
+extourner), le lettrage automatique (la règle de la v10, `lettrageAuto`, calculée sur le livre du
+serveur ; chaque paire est posée par le serveur) : chacun va au serveur puis relit le livre. Le menu
+ne propose pas à une écriture née d'une pièce ce que le serveur refuserait ; l'extourne d'une écriture
+de décembre se pose directement au 1er janvier (les livres du serveur ne s'arrêtent pas au 31
+décembre). Le numéro affiché d'une écriture validée est son rang dans la chaîne des livres (le numéro
+unique de la v10) ; son numéro de journal (« OD-2026-000004 ») est celui du serveur.
+
+**Reste connu** :
+- **Le vocabulaire des paquets** (brique 38 bis) : le tableau, les relances, la fiche d'un dossier,
+  les guides et les visites parlent encore de « paquets », de « mois reçus » et de « relancer le
+  client pour son paquet » (≈ 530 mentions dans les fichiers du Cabinet) : ils se réécrivent pour des
+  livres tenus en direct.
+- Un écran déjà ouvert ne voit pas un changement fait ailleurs avant d'être rouvert.
+- Les justificatifs joints à une écriture, la reprise, la banque : briques suivantes.
 
 ## Ce qui reste à décider avec Skander ou un comptable
 

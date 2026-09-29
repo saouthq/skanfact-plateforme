@@ -4,16 +4,40 @@
 # Chaque défaut est posé dans une COPIE du dépôt : le code n'est jamais touché.
 #
 #   PG_ADMIN=postgres://… bash tests/preuves.sh
+#
+# Pendant le travail, on peut restreindre (avant un envoi, et sur GitHub, toutes) :
+#   SEULES=motif    les preuves dont le NOM y répond ;
+#   FICHIERS=motif  les preuves dont le test visé vit dans un fichier dont le chemin y répond.
+# PARTIE=k/n : le k-ième groupe sur n (une preuve sur n, à partir de la k-ième) ; chaque groupe a sa
+# propre base de test, et les n groupes tournent côte à côte (tests/preuves-paralleles.sh, et n
+# machines sur GitHub). Un groupe qui ne prouve pas tout échoue, comme le lot entier.
 set -u
 ICI="$(cd "$(dirname "$0")/.." && pwd)"
 : "${PG_ADMIN:?PG_ADMIN manque (adresse d'un compte d'administration PostgreSQL)}"
-ok=0; ko=0
+ok=0; ko=0; rang=0
+groupe=1; groupes=1
+if [ -n "${PARTIE:-}" ]; then
+  if ! [[ "$PARTIE" =~ ^([0-9]+)/([0-9]+)$ ]] || [ "${BASH_REMATCH[1]}" -lt 1 ] || [ "${BASH_REMATCH[1]}" -gt "${BASH_REMATCH[2]}" ]; then
+    echo "PARTIE=$PARTIE ne va pas : k/n, avec 1 ≤ k ≤ n" >&2; exit 2
+  fi
+  groupe="${BASH_REMATCH[1]}"; groupes="${BASH_REMATCH[2]}"
+  export SKANFACT_TEST_GROUPE="$groupe"
+fi
 
 prouver() { # défaut, fichier, avant, après, test qui doit tomber
   local nom="$1" fichier="$2" avant="$3" apres="$4" attendu="$5"
-  # SEULES=motif : ne rejouer que les preuves dont le nom y répond (pendant le travail ; avant un
-  # envoi, toutes).
+  rang=$((rang+1))
+  if [ $(( (rang - 1) % groupes )) -ne $((groupe - 1)) ]; then return 0; fi
   if [ -n "${SEULES:-}" ] && ! [[ "$nom" =~ $SEULES ]]; then return 0; fi
+  if [ -n "${FICHIERS:-}" ] && ! python3 - "$ICI/tests" "$attendu" "$FICHIERS" <<'PYF'
+import sys, pathlib, re
+racine, titre, motif = sys.argv[1], sys.argv[2], sys.argv[3]
+for f in sorted(pathlib.Path(racine).rglob('*.test.ts')):
+    t = f.read_text(encoding='utf-8')
+    if (titre in t or titre.replace("'", "\\'") in t) and re.search(motif, str(f)): sys.exit(0)
+sys.exit(1)
+PYF
+  then return 0; fi
   local copie; copie="$(mktemp -d)"
   (cd "$ICI" && tar --exclude=node_modules --exclude=.git -cf - .) | (cd "$copie" && tar -xf -)
   ln -s "$ICI/node_modules" "$copie/node_modules"
@@ -1623,7 +1647,8 @@ prouver "un plan changé qui ne réécrit pas les achats" serveur/v10/dossier.ts
   "$LAC"
 # La contrainte des origines est redéfinie à chaque brique (0016, 0017, 0018) : la preuve vise la
 # définition EN VIGUEUR (une preuve qui vise une définition remplacée reste verte : code mort).
-prouver "la base qui refuse l'origine d'une imputation" base/migrations/0018_compta_validation.sql \
+# La contrainte des origines est redéfinie par 0021 : ses preuves visent la définition EN VIGUEUR.
+prouver "la base qui refuse l'origine d'une imputation" base/migrations/0021_compta_saisie.sql \
   "'achat', 'imputation', 'reglement_fournisseur', 'paie'" "'achat', 'reglement_fournisseur', 'paie'" \
   "$LAC"
 
@@ -1668,8 +1693,8 @@ prouver "la paie réécrite par qui ne la voit pas" $CPA \
 prouver "un plan changé qui ne réécrit pas la paie" serveur/v10/dossier.ts \
   "    await reecrireLaPaie(tx, entreprise);" "" \
   "$PP"
-prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0018_compta_validation.sql \
-  "'reglement_fournisseur', 'paie', 'salaires', 'avance', 'contre_passation'" "'reglement_fournisseur', 'salaires', 'avance', 'contre_passation'" \
+prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0021_compta_saisie.sql \
+  "'reglement_fournisseur', 'paie', 'salaires', 'avance'," "'reglement_fournisseur', 'salaires', 'avance'," \
   "$PE"
 
 
@@ -1722,7 +1747,9 @@ prouver "la base qui laisse le commercial valider" base/migrations/0019_cabinet.
   "  elsif not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne']::text[]" "  elsif not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'commercial']::text[]" \
   "$VD"
 prouver "un commercial qui valide" serveur/compta/gestes.ts \
-  "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', commercial: 'oui' } }," \
+  "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', commercial: 'oui' } }," \
   "$VD"
 
 
@@ -1778,7 +1805,9 @@ prouver "l'assistant de saisie qui valide, dans la base" $M19 \
   "    if not ('comptabilite' = any(v_perimetre) and socle.mes_roles(p_entreprise) && array['supervision', 'revision']::text[]) then" "    if false then" \
   "$CM"
 prouver "l'assistant de saisie qui valide, à la porte" serveur/compta/gestes.ts \
-  "comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } }," \
+  "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } }," \
   "$CM"
 prouver "un dossier tenu créé par un collaborateur" $M19 \
   "  if not socle.suis_associe(p_cabinet) then perform socle.refus('seul un associé du cabinet crée un dossier'); end if;" "" \
@@ -1848,5 +1877,130 @@ prouver "la balance du Cabinet qui n'est pas celle du serveur" $PC \
   "debit: nombre(l.debit), credit: nombre(l.credit)" "debit: nombre(l.credit), credit: nombre(l.debit)" \
   "$W1"
 
-echo; echo "$ok preuves faites, $ko non prouvées."
+# ── Brique 38 : la saisie du cabinet dans les livres du serveur (docs/cabinet.md) ──
+M21=base/migrations/0021_compta_saisie.sql
+S1="saisir au brouillard avec les contrôles de la v10, modifier sans écraser un autre poste, supprimer ; une écriture née d'une pièce ne se change pas"
+S2="qui saisit : la comptabilité de l'entreprise et tout le cabinet ; ni la lecture, ni un cabinet sans la comptabilité, ni dans la base"
+S3="valider une écriture ou un lot : le numéro de son journal et le maillon de la chaîne ; une écriture datée de demain est nommée sans trouer la numérotation ; l'assistant et le client ne valident pas"
+S4="contre-passer et extourner une écriture saisie : le miroir validé, jamais dans la période close ; une écriture née d'une pièce se corrige dans sa pièce"
+S5="lettrer une facture et son règlement : la somme fait zéro, sinon l'écart est dit ; un brouillard ne se lettre pas ; délettrer"
+S6="les mois du portefeuille disent ce que disent les livres : écritures, brouillards, chiffre d'affaires (deux chemins, un chiffre)"
+W38="le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur"
+prouver "la base qui refuse l'origine d'une écriture saisie" $M21 \
+  "'contre_passation', 'saisie', 'extourne'));" "'contre_passation', 'extourne'));" \
+  "$S1"
+prouver "une saisie déséquilibrée qui entre" $M21 \
+  "  if td <> tc then" "  if false then" \
+  "$S1"
+prouver "une saisie dans la période close" $M21 \
+  "  if c is not null and v_date <= c then
+    perform socle.refus(format('la période est validée jusqu''au %s : une écriture ne s''y écrit plus'" "  if false then
+    perform socle.refus(format('la période est validée jusqu''au %s : une écriture ne s''y écrit plus'" \
+  "$S1"
+prouver "un compte qui n'est pas un numéro" $M21 \
+  "    if coalesce(l->>'compte', '') !~ '^[0-9]{1,12}\$' then perform socle.refus(format('ligne %s : le compte doit être un numéro', i)); end if;" "" \
+  "$S1"
+prouver "une écriture sans libellé" $M21 \
+  "  if v_libelle is null then perform socle.refus('le libellé manque : écris-le sur la pièce ou sur une ligne'); end if;" "" \
+  "$S1"
+prouver "un brouillard écrasé par un poste qui ne l'a pas relu" $M21 \
+  "  if x.revision <> p_revision then" "  if false then" \
+  "$S1"
+prouver "le changé-ailleurs rendu en erreur du serveur" serveur/app.ts \
+  "err.code === 'perimee' || err.code === 'SK409'" "err.code === 'perimee'" \
+  "$S1"
+prouver "une écriture née d'une pièce changée dans les livres" $M21 \
+  "  if x.origine_type <> 'saisie' then
+    perform socle.refus('cette écriture vient d''une pièce de l''entreprise : elle suit sa pièce" "  if false then
+    perform socle.refus('cette écriture vient d''une pièce de l''entreprise : elle suit sa pièce" \
+  "$S1"
+prouver "la lecture qui saisit, dans la base" $M21 \
+  "    else socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne']::text[]" "    else true" \
+  "$S2"
+prouver "un cabinet sans la comptabilité qui saisit" $M21 \
+  "      'comptabilite' = any(socle.perimetre_cabinet(p_entreprise))
+      and" "      true
+      and" \
+  "$S2"
+prouver "l'assistant de saisie qui valide des écritures, dans la base" $M21 \
+  "else array['supervision', 'revision']::text[] end" "else array['supervision', 'revision', 'saisie']::text[] end" \
+  "$S3"
+prouver "l'assistant de saisie qui valide des écritures, à la porte" serveur/compta/gestes.ts \
+  "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } }," \
+  "$S3"
+prouver "le client qui valide des écritures malgré le mandat" $M21 \
+  "      and (p_geste <> 'compta.ecritures.valider' or not exists (" "      and (true or not exists (" \
+  "$S3"
+prouver "une écriture validée avant son jour" $M21 \
+  "    if x.date_ecriture > aujourdhui then" "    if false then" \
+  "$S3"
+prouver "une écriture revalidée" $M21 \
+  "    if x.statut <> 'brouillard' then
+      pourquoi :=" "    if false then
+      pourquoi :=" \
+  "$S3"
+prouver "une contre-passation dans la période close" $M21 \
+  "  v_date := greatest(coalesce(p_date, aujourdhui), x.date_ecriture, coalesce(c + 1, x.date_ecriture));" "  v_date := greatest(coalesce(p_date, aujourdhui), x.date_ecriture);" \
+  "$S4"
+prouver "une écriture née d'une pièce contre-passée à la main" $M21 \
+  "  if x.origine_type not in ('saisie', 'extourne') then" "  if false then" \
+  "$S4"
+prouver "une écriture contre-passée deux fois" $M21 \
+  "  if exists (select 1 from compta.ecriture k where k.entreprise = p_entreprise and k.origine_type = 'contre_passation' and k.origine = x.id) then
+    perform socle.refus('cette écriture a déjà été contre-passée');" "  if false then
+    perform socle.refus('cette écriture a déjà été contre-passée');" \
+  "$S4"
+prouver "un miroir aux lignes non inversées" $M21 \
+  "y.libelle, y.credit, y.debit, y.taux_tva" "y.libelle, y.debit, y.credit, y.taux_tva" \
+  "$S4"
+prouver "une extourne dans la période close" $M21 \
+  "  if c is not null and v_date <= c then
+    perform socle.refus(format('son extourne tomberait" "  if false then
+    perform socle.refus(format('son extourne tomberait" \
+  "$S4"
+prouver "une écriture extournée deux fois" $M21 \
+  "    perform socle.refus('cette écriture a déjà été extournée');" "" \
+  "$S4"
+prouver "un lettrage qui ne se solde pas" $M21 \
+  "  if solde <> 0 then perform socle.refus(" "  if false then perform socle.refus(" \
+  "$S5"
+prouver "un brouillard lettré" $M21 \
+  "  if exists (select 1 from compta.ecriture e where e.id = any (p_ecritures) and e.statut <> 'validee') then" "  if false then" \
+  "$S5"
+prouver "une ligne lettrée deux fois" $M21 \
+  "    perform socle.refus('une de ces lignes est déjà lettrée : délettre-la d''abord');" "" \
+  "$S5"
+prouver "deux lettrages simultanés qui se heurtent" $M21 \
+  "  perform pg_advisory_xact_lock(hashtextextended('compta.lettrage:' || p_entreprise::text, 0));" "" \
+  "$S5"
+prouver "l'assistant de saisie qui lettre, à la porte" serveur/compta/gestes.ts \
+  "  { code: 'compta.lettrage.poser', module: 'compta', ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "  { code: 'compta.lettrage.poser', module: 'compta', ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } }," \
+  "$S5"
+prouver "la lettre absente du journal" serveur/compta/routes.ts \
+  "lettre: lettres.get(l.id) ?? null," "lettre: null," \
+  "$S5"
+prouver "le chiffre d'affaires du mois sans les avoirs" $M21 \
+  "select sum(l.credit - l.debit) ca from compta.ligne l" "select sum(l.credit) ca from compta.ligne l" \
+  "$S6"
+prouver "les brouillards du mois mal comptés" $M21 \
+  "count(*) filter (where e.statut = 'brouillard')" "count(*)" \
+  "$S6"
+prouver "une écriture saisie prise pour une pièce du client" web/public/plateforme/pont-cabinet.js \
+  "      if (e.origine.type === 'saisie' || e.origine.type === 'extourne') return 'saisie';" "" \
+  "$W38"
+prouver "le brouillard d'une pièce du client proposé à la reprise" web/public/v10/cabinet/app.js \
+  "      if (e.source !== 'skanfact') a.push({ icon: 'modifier', label: 'Reprendre dans la grille'," "      a.push({ icon: 'modifier', label: 'Reprendre dans la grille'," \
+  "$W38"
+prouver "un mois au brouillard compté comme définitif" web/public/plateforme/pont-cabinet.js \
+  "definitive: m.brouillards === 0," "definitive: true," \
+  "$W38"
+prouver "le lettrage automatique qui ne pose rien au serveur" web/public/plateforme/pont-cabinet.js \
+  "        const l = await appel('POST', \`/entreprises/\${o.dossierId}/compta/lettrages\`, { compte: String(o.compte), ecritures: p.ecritures });" "        const l = { lettre: p.lettre };" \
+  "$W38"
+
+echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]
