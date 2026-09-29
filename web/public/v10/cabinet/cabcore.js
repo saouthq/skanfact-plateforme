@@ -2146,13 +2146,13 @@
       // Ce qui décide reste `p.path` : ce qui a un fichier s'exporte, ce qui n'en a pas ne s'exporte
       // pas — un seul critère, le même pour tout le monde.
       if (ids && !ids.has(d.id)) return;
-      const dans = (d.packs || []).filter(p => p.path && (!du || (p.month >= du && p.month <= au)))
+      const dans = (d.packs || []).filter(p => (!du || (p.month >= du && p.month <= au)))
         .sort((a, b) => a.month < b.month ? -1 : 1);
       // `sansPaquet` nomme les clients à qui il manque quelque chose : un dossier d'exemple n'y entre
       // jamais, même sans fichier. On ne reproche rien à un client qui n'existe pas — c'est la règle
       // « on ne réclame pas le néant » (Cabinet 1.0.0), et c'est la SEULE chose que l'étiquette
       // `demo` décide ici ; ce qui entre dans l'export, lui, se décide sur le fichier.
-      if (!dans.length) { if (!d.manual && !d.archived && !d.demo) sansPaquet.push(d.name); return; }
+      if (!dans.length) { if (!d.archived && !d.demo) sansPaquet.push(d.name); return; }
       dans.forEach(p => pris.push({
         id: d.id, name: d.name, matricule: d.matricule, month: p.month,
         path: p.path, definitive: !!p.definitive, sealed: !!p.sealed

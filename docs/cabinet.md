@@ -81,7 +81,7 @@ mêmes données que son client.
 | **39 bis** | Les écritures par tableur, l'aller-retour : exporter le livre-journal (et le FEC), le corriger, le réimporter. |
 | **40** | La banque : relevés (lus dans le navigateur, bouclés, une fois), rapprochement (automatique et à la main), l'écriture manquante depuis la ligne ; ce que la banque apprend, dans les réglages du cabinet. |
 | **41** | La déclaration du mois (TVA, timbre, retenues) : calculée par la v10 sur le livre du serveur, préparée au serveur, déposée et payée (deux pense-bêtes), son écriture au brouillard et son complément. |
-| 41 bis | La page Écritures : les écritures de tous les clients d'une période, en un fichier. |
+| **41 bis** | La page Écritures : les écritures de tous les clients d'une période, en un fichier. |
 | 41 ter | La liasse et le résultat fiscal de l'année. |
 | 42 | Immobilisations et dotations, inventaire et variation de stock. |
 | 43 | La paie tenue par le cabinet (mandat Paie). |
@@ -523,5 +523,31 @@ copiée retenue.
 - Le serveur **ne recalcule pas** la déclaration : il garde ce que le moteur de la v10 a déduit du
   livre, et c'est le point de contact qui refuse un dépôt sur des chiffres qui ont changé. Refaire le
   calcul au serveur (le moteur porté en TypeScript) viendra avec le portage du moteur.
-- La page **Écritures** (les écritures de tous les clients d'un mois, en un fichier) : brique 41 bis.
 - La **liasse** et le résultat fiscal de l'année : brique 41 ter.
+
+## Brique 41 bis : la page Écritures (fait le 29/09/2026)
+
+Le Cabinet v10 rassemblait sur cette page les écritures que les **paquets** de ses clients portaient,
+pour les importer d'un coup dans le logiciel de production du cabinet. Sur la plateforme, les livres
+de chaque client sont au serveur : la même page, sans paquets.
+
+**C25. Les écritures de tous les clients d'une période, en un fichier** (par délégation) : la page
+propose les mois où au moins un client a des écritures ; le plan de la v10 (`ecrituresPlan`) dit avant
+le clic quels clients et quels mois entreront, lesquels sont **à valider** (une écriture y est encore
+au brouillard ; le mot de C14, plus « provisoire ») et quels clients n'ont **aucune écriture** sur la période — un client hors SkanFact
+compris : ses livres sont au serveur comme ceux des autres (la v10 les laissait dehors, faute de
+paquet). L'export lit les livres au serveur, écrit les colonnes du livre-journal de SkanFact (numéro
+de la chaîne, date, journal, pièce, compte, tiers, libellé, débit, crédit, lettrage, **état** :
+validée, au brouillard, contre-passée) et les regroupe comme la v10 (`mergeEcritures` : Client,
+Matricule, Mois devant chaque ligne, le BOM qu'Excel attend) ; le fichier se télécharge. Rien ne part
+au serveur. Le compte rendu compte des **lignes** d'écriture (la v10 disait « écritures »). La visite
+« Exporter les écritures vers mon logiciel » revient. Adaptations : `web/v10/ecritures.txt`.
+
+**Les tests** : à la souris (`tests/web/cabinet-ecritures.test.ts`) : trois clients hors SkanFact (un
+mois validé, un mois au brouillard, un sans rien) ; ce que la page nomme avant le clic ; le fichier
+téléchargé, ligne à ligne, sans le mois d'après ; sur deux mois, chaque ligne sous son mois ; la visite
+dans « Me guider ».
+
+**Reste connu** : créer un dossier tenu avec un matricule qu'une autre entreprise active porte déjà
+répond « une erreur est survenue » (l'index unique du matricule, brique 36) au lieu d'un refus qui dit
+pourquoi — et dire pourquoi révélerait qu'une entreprise porte ce matricule : la phrase est à décider.

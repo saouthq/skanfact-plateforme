@@ -353,7 +353,7 @@ ${r.lastMonth && !r.lastDefinitive ? ' <span class="badge partielle">à valider<
     $('#ech-livre').onclick = () => { location.hash = seul ? `#/dossier/${seul.id}/comptabilite` : '#/dossiers'; };
 -- fin
 
-== cabinet/app.js | l'export des écritures de tous les clients n'est pas encore en ligne : la page le dit, et mène aux livres
+== cabinet/app.js | sans aucune écriture chez aucun client, il n'y a rien à regrouper : la page le dit, et mène aux dossiers (brique 41 bis)
 -- avant
         <div class="panel"><h2>Rien à regrouper pour l'instant</h2>
           <p>Dès qu'un client t'aura envoyé un paquet, tu pourras sortir d'ici <strong>toutes les écritures du mois,
@@ -363,11 +363,11 @@ ${r.lastMonth && !r.lastDefinitive ? ' <span class="badge partielle">à valider<
           <div class="modal-actions"><button class="btn btn-primary" id="imp">Importer un paquet…</button></div></div>`;
       $('#imp').onclick = () => doImport();
 -- après
-        <div class="panel"><h2>Pas encore dans la version en ligne</h2>
-          <p>Sortir d'ici <strong>toutes les écritures d'un mois, tous clients confondus</strong>, dans un seul fichier
-          pour ton logiciel : ce regroupement n'est pas encore en ligne.</p>
-          <p class="small muted">Les écritures de chaque client se lisent dès maintenant dans sa comptabilité, au livre-journal :
-          les pièces qu'il enregistre dans SkanFact y sont, à jour.</p>
+        <div class="panel"><h2>Rien à regrouper pour l'instant</h2>
+          <p>Dès qu'un de tes clients aura une écriture dans ses livres, tu pourras sortir d'ici <strong>toutes les écritures
+          du mois, tous clients confondus</strong>, dans un seul fichier à importer dans ton logiciel.</p>
+          <p class="small muted">Les pièces qu'un client enregistre dans SkanFact arrivent dans ses livres d'elles-mêmes ; pour un
+          client hors SkanFact, c'est ce que tu saisis dans sa comptabilité.</p>
           <div class="modal-actions"><button class="btn btn-primary" id="e-dossiers">Voir mes dossiers</button></div></div>`;
       $('#e-dossiers').onclick = () => { location.hash = '#/dossiers'; };
 -- fin

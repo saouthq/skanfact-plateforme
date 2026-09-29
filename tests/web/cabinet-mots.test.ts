@@ -87,9 +87,11 @@ describe('le Cabinet sans paquets, dans les mots', () => {
       const bulles = await p.evaluate(() => {
         const G = (window as unknown as { CabGuide?: { INFO?: Record<string, { t?: string; d?: string }> } }).CabGuide;
         return [...new Set([...document.querySelectorAll<HTMLElement>('[data-info]')].filter((b) => b.offsetParent !== null).map((b) => b.dataset.info ?? ''))]
-          .map((k) => `(bulle ${k}) ${(G?.INFO?.[k]?.t ?? '')} — ${(G?.INFO?.[k]?.d ?? '').replace(/<[^>]+>/g, '')}`);
+          .map((k) => ({ cle: k, texte: `${(G?.INFO?.[k]?.t ?? '')} — ${(G?.INFO?.[k]?.d ?? '').replace(/<[^>]+>/g, '')}` }));
       });
-      vus[nom] = [...texte.split('\n'), ...bulles].map((l) => l.trim()).filter((l) => INTERDIT.test(l));
+      // Le nom d'une bulle (« e.provisoire ») ne se lit pas à l'écran : seul son texte se juge.
+      vus[nom] = [...texte.split('\n').map((l) => l.trim()).filter((l) => INTERDIT.test(l)),
+        ...bulles.filter((b) => INTERDIT.test(b.texte)).map((b) => `(bulle ${b.cle}) ${b.texte}`)];
       tout.push(`== ${nom}\n${texte}`);
     };
     const ouvrir = async (c: string, hash: string) => {

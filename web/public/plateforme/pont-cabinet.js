@@ -466,7 +466,6 @@
     'correspondance', 'page-dossier-paquets'];
   const VISITES_PAS_ENCORE = [
     'nommer-cabinet', // la fiche du cabinet ne s'enregistre pas encore en ligne
-    'exporter-ecritures', // l'export des écritures de tous les clients : brique 41
     'suivre-production', // le tableau de production
   ];
   // Les articles de l'Aide sans objet en ligne : les sauvegardes, changer d'ordinateur, la licence,
@@ -590,6 +589,32 @@
     // ── Les fichiers du livre (brique 39 bis) : le tableau CSV (le BOM que la v10 posait, pour Excel
     // en français) et le fichier des écritures (FEC), téléchargés par le navigateur ; rien ne part au
     // serveur.
+    // Les écritures de TOUS les clients d'une période, en un fichier (brique 41 bis) : le plan de la v10
+    // (cabcore.js, ecrituresPlan : les mois où chaque client a des écritures), les livres lus au
+    // serveur, les colonnes du livre-journal de SkanFact, et le regroupement de la v10 (mergeEcritures :
+    // Client, Matricule, Mois devant chaque ligne). Rien ne part au serveur.
+    exportEcritures: async (/** @type {any} */ o = {}) => {
+      /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
+      const plan = K.ecrituresPlan(await construireEtat(), o);
+      if (!plan.packs.length) throw new Error('Aucune écriture sur cette période.');
+      const du = `${plan.mois[0]}-01`;
+      const fin = String(plan.mois.at(-1));
+      const au = new Date(Date.UTC(Number(fin.slice(0, 4)), Number(fin.slice(5, 7)), 0)).toISOString().slice(0, 10);
+      /** @type {Map<string, any[]>} */ const livres = new Map();
+      for (const id of new Set(plan.packs.map((/** @type {any} */ p) => p.id))) livres.set(id, await ecrituresDe(id, du, au));
+      const tete = ['N°', 'Date', 'Journal', 'Pièce', 'Compte', 'Tiers', 'Libellé', 'Débit', 'Crédit', 'Lettrage', 'État'];
+      const etatDe = (/** @type {any} */ e) => (e.statut !== 'validee' ? 'brouillard' : e.contrepassee ? 'contre-passée' : 'validée');
+      const sources = plan.packs.map((/** @type {any} */ p) => {
+        const lignes = (livres.get(p.id) || []).filter((e) => String(e.date).startsWith(p.month)).flatMap((e) => e.lignes.map((/** @type {any} */ l) => K.toCsvLine([
+          e.chaine ?? '', K.csvDate(e.date), e.journal, e.piece || '', l.compte, l.tiers || '', l.libelle || e.libelle,
+          K.csvMontant(nombre(l.debit)), K.csvMontant(nombre(l.credit)), l.lettre || '', etatDe(e)])));
+        return { name: p.name, matricule: p.matricule, month: p.month, csv: [K.toCsvLine(tete), ...lignes].join('\r\n') };
+      });
+      const out = K.mergeEcritures(sources);
+      const periode = plan.mois.length > 1 ? `${plan.mois[0]}_${fin}` : plan.mois[0];
+      const f = telecharger(`ecritures-${slug(nomDuCabinet || 'cabinet')}-${periode}.csv`, out.csv);
+      return { path: f.path, lignes: out.lignes, dossiers: out.dossiers, vides: out.vides, illisibles: [], mois: plan.mois };
+    },
     exportCsv: async (/** @type {string} */ texte, /** @type {string} */ nom) => telecharger(`${slug(nom || 'dossiers')}.csv`, `\uFEFF${String(texte || '')}`),
     exportFec: async (/** @type {string} */ texte, /** @type {string} */ nom) => telecharger(String(nom || 'FEC.txt').split(/[\\/]/).pop() || 'FEC.txt', String(texte || '')),
     // Réimporter depuis un tableur : le fichier choisi est lu dans le navigateur et comparé au livre

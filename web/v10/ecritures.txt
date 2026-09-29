@@ -1,0 +1,203 @@
+La page Écritures (brique 41 bis). Format : voir sans-paquets.mjs.
+
+Le Cabinet v10 rassemblait ici les écritures que les PAQUETS de ses clients portaient. Sur la
+plateforme, les livres de chaque client sont au serveur : la page lit les mois où chaque client a des
+écritures (les siens, et ceux des clients hors SkanFact que le cabinet tient), et l'export les
+regroupe en un fichier, avec le client, son matricule et le mois devant chaque ligne. Un mois est
+« provisoire » tant qu'une de ses écritures est au brouillard.
+
+═══════════════════════════════════════════════════════════════════ les mois à regrouper (app.js, cabcore.js)
+
+== cabinet/app.js | un mois se regroupe dès qu'il a des écritures : il n'y a plus de fichier reçu
+-- avant
+    (S.dossiers || []).forEach(d => (d.packs || []).forEach(p => { if (p.path) s.add(p.month); }));
+-- après
+    (S.dossiers || []).forEach(d => (d.packs || []).forEach(p => { s.add(p.month); }));
+-- fin
+
+== cabinet/cabcore.js | le plan lit les mois qui ont des écritures, pas des fichiers reçus
+-- avant
+      const dans = (d.packs || []).filter(p => p.path && (!du || (p.month >= du && p.month <= au)))
+-- après
+      const dans = (d.packs || []).filter(p => (!du || (p.month >= du && p.month <= au)))
+-- fin
+
+== cabinet/cabcore.js | un client hors SkanFact sans écriture sur la période se nomme aussi : ses livres sont au serveur, comme ceux des autres
+-- avant
+      if (!dans.length) { if (!d.manual && !d.archived && !d.demo) sansPaquet.push(d.name); return; }
+-- après
+      if (!dans.length) { if (!d.archived && !d.demo) sansPaquet.push(d.name); return; }
+-- fin
+
+═══════════════════════════════════════════════════════════════════ la page (app.js)
+
+== cabinet/app.js | les clients hors SkanFact y entrent : leurs livres sont au serveur, comme ceux des autres
+-- avant
+      ${(S.dossiers || []).some(d => d.manual && !d.archived && !d.demo)
+    ? '<p class="muted small mb">Les clients <b>hors SkanFact</b> n\'y entrent pas : ils n\'envoient pas de paquet. Leur livre-journal s\'exporte depuis leur fiche, onglet Comptabilité → Livre-journal.</p>' : ''}
+-- après
+      ${''}
+-- fin
+
+== cabinet/app.js | ce qu'on compte : les mois de livres, client par client
+-- avant
+          <div class="stat"><div class="lbl">Paquets</div><div class="val">${plan.packs.length}</div>
+-- après
+          <div class="stat"><div class="lbl">Mois de livres</div><div class="val">${plan.packs.length}</div>
+-- fin
+
+== cabinet/app.js | « à valider », le mot de C14
+-- avant
+          <div class="stat"><div class="lbl">Provisoires</div><div class="val ${plan.provisoires.length ? 'due' : 'ok'}">${plan.provisoires.length}</div>
+            <div class="sub">${plan.provisoires.length ? 'chiffres susceptibles de bouger' : 'tout est définitif'}</div></div>
+-- après
+          <div class="stat"><div class="lbl">À valider</div><div class="val ${plan.provisoires.length ? 'due' : 'ok'}">${plan.provisoires.length}</div>
+            <div class="sub">${plan.provisoires.length ? 'chiffres susceptibles de bouger' : 'tout est validé'}</div></div>
+-- fin
+
+== cabinet/app.js | l'état d'un mois, dans le tableau : validé, ou à valider
+-- avant
+          <td>${p.definitive ? '<span class="badge accepté">définitif</span>' : '<span class="badge partielle">provisoire</span>'}</td></tr>`).join('')}</tbody></table></div></div>` : ''}`;
+-- après
+          <td>${p.definitive ? '<span class="badge accepté">validé</span>' : '<span class="badge partielle">à valider</span>'}</td></tr>`).join('')}</tbody></table></div></div>` : ''}`;
+-- fin
+
+== cabinet/app.js | un client n'envoie plus rien : il a des écritures, ou pas
+-- avant
+            <div class="sub">${plan.sansPaquet.length ? `${plan.sansPaquet.length} sans rien envoyé` : 'tous ont envoyé'}</div></div>
+-- après
+            <div class="sub">${plan.sansPaquet.length ? `${plan.sansPaquet.length} sans écriture` : 'tous ont des écritures'}</div></div>
+-- fin
+
+== cabinet/app.js | un mois est « à valider » tant qu'une écriture y est au brouillard (le mot de C14, plus « provisoire »)
+-- avant
+        ${plan.provisoires.length ? `<div class="warn-box mt">${info('e.provisoire')} <strong>${pl(plan.provisoires.length, 'paquet')} ${provPlus ? 'ne sont' : 'n\'est'} pas définitif${provPlus ? 's' : ''}</strong> :
+          ${esc(plan.provisoires.slice(0, 6).join(' · '))}${plan.provisoires.length > 6 ? ' …' : ''}.
+          ${provPlus ? 'Leur mois n\'a' : 'Son mois n\'a'} pas été clôturé chez le client : les chiffres peuvent encore changer. ${provPlus ? 'Ils sont quand même exportés' : 'Il est quand même exporté'}.</div>` : ''}
+-- après
+        ${plan.provisoires.length ? `<div class="warn-box mt">${info('e.provisoire')} <strong>${pl(plan.provisoires.length, 'mois')} ${provPlus ? 'sont' : 'est'} à valider</strong> :
+          ${esc(plan.provisoires.slice(0, 6).join(' · '))}${plan.provisoires.length > 6 ? ' …' : ''}.
+          Des écritures y sont encore au brouillard : les chiffres peuvent encore changer. ${provPlus ? 'Ils sont quand même exportés' : 'Il est quand même exporté'}.</div>` : ''}
+-- fin
+
+== cabinet/app.js | ceux qui n'ont aucune écriture sur la période
+-- avant
+        ${plan.sansPaquet.length ? `<p class="small mt">${info('e.manquants')} <span class="err-inline">${pl(plan.sansPaquet.length, 'client')} n'${plan.sansPaquet.length > 1 ? 'ont' : 'a'} rien envoyé sur cette période</span> :
+-- après
+        ${plan.sansPaquet.length ? `<p class="small mt">${info('e.manquants')} <span class="err-inline">${pl(plan.sansPaquet.length, 'client')} n'${plan.sansPaquet.length > 1 ? 'ont' : 'a'} aucune écriture sur cette période</span> :
+-- fin
+
+== cabinet/app.js | le bouton éteint dit pourquoi, sans paquet
+-- avant
+          <span class="muted small">${plan.packs.length ? 'Un seul fichier, prêt pour ton logiciel.' : 'Aucun paquet sur cette période.'}</span>
+-- après
+          <span class="muted small">${plan.packs.length ? 'Un seul fichier, prêt pour ton logiciel.' : 'Aucune écriture sur cette période.'}</span>
+-- fin
+
+== cabinet/app.js | ce qui se lit pendant l'export : les livres du serveur
+-- avant
+      const b = $('#e-go'); b.disabled = true; b.textContent = 'Lecture des paquets…';
+-- après
+      const b = $('#e-go'); b.disabled = true; b.textContent = 'Lecture des livres…';
+-- fin
+
+═══════════════════════════════════════════════════════════════════ le compte rendu (app.js)
+
+== cabinet/app.js | le compte est celui des LIGNES du fichier : deux écritures de deux lignes font quatre lignes, pas quatre écritures
+-- avant
+      `<h2>${pl(r.lignes, 'écriture')} regroupée${r.lignes > 1 ? 's' : ''}</h2>
+-- après
+      `<h2>${pl(r.lignes, 'ligne')} d'écriture regroupée${r.lignes > 1 ? 's' : ''}</h2>
+-- fin
+
+== cabinet/app.js | un mois qu'on ne peut pas lire se nomme en mois
+-- avant
+       ${r.illisibles && r.illisibles.length ? `<div class="warn-box mt"><strong>${pl(r.illisibles.length, 'paquet')} n'${r.illisibles.length > 1 ? 'ont' : 'a'} pas pu être lu${r.illisibles.length > 1 ? 's' : ''}</strong> :
+-- après
+       ${r.illisibles && r.illisibles.length ? `<div class="warn-box mt"><strong>${pl(r.illisibles.length, 'livre')} n'${r.illisibles.length > 1 ? 'ont' : 'a'} pas pu être lu${r.illisibles.length > 1 ? 's' : ''}</strong> :
+-- fin
+
+== cabinet/app.js | un mois sans écriture, en mois
+-- avant
+       ${r.vides && r.vides.length ? `<p class="small muted mt">${pl(r.vides.length, 'paquet')} sans aucune écriture (mois sans activité) : ${esc(r.vides.slice(0, 5).join(', '))}.</p>` : ''}
+-- après
+       ${r.vides && r.vides.length ? `<p class="small muted mt">${pl(r.vides.length, 'mois', 'mois')} sans aucune écriture (mois sans activité) : ${esc(r.vides.slice(0, 5).join(', '))}.</p>` : ''}
+-- fin
+
+== cabinet/app.js | les colonnes sont celles du livre-journal de SkanFact ; le fichier se télécharge (rien à montrer dans un dossier)
+-- avant
+       <p class="muted small mt">Les colonnes sont celles de tes clients, avec <strong>Client</strong>, <strong>Matricule</strong> et <strong>Mois</strong> ajoutées devant.
+       Si les numéros de compte ne sont pas les tiens, donne-les une fois à ton client : il les saisit dans son SkanFact et tous ses envois suivants sont à ton format.</p>
+       <div class="modal-actions"><button class="btn" id="rev">Montrer dans le dossier</button><span class="grow"></span><button class="btn btn-primary" id="ok">Fermer</button></div>`,
+      (layer, close) => {
+        $('#ok', layer).onclick = close;
+        $('#rev', layer).onclick = () => api.reveal(r.path);
+      }
+-- après
+       <p class="muted small mt">Les colonnes sont celles du livre-journal de SkanFact (numéro, date, journal, pièce, compte, tiers, libellé,
+       débit, crédit, lettrage, état), avec <strong>Client</strong>, <strong>Matricule</strong> et <strong>Mois</strong> ajoutées devant. Le fichier est dans tes téléchargements.</p>
+       <div class="modal-actions"><span class="grow"></span><button class="btn btn-primary" id="ok">Fermer</button></div>`,
+      (layer, close) => {
+        $('#ok', layer).onclick = close;
+      }
+-- fin
+
+═══════════════════════════════════════════════════════════════════ les bulles (cabguide.js)
+
+== cabinet/cabguide.js | les colonnes sont celles du livre-journal de SkanFact
+-- avant
+ Les colonnes sont celles que tes clients ont produites : date, journal, pièce, compte, tiers, libellé, débit, crédit, devise.' },
+-- après
+ Les colonnes sont celles du livre-journal de SkanFact : numéro, date, journal, pièce, compte, tiers, libellé, débit, crédit, lettrage et état (validée, au brouillard, contre-passée).' },
+-- fin
+
+== cabinet/cabguide.js | les mois proposés sont ceux qui ont des écritures
+-- avant
+Seuls les mois où au moins un paquet est arrivé sont proposés : on ne propose pas d\'exporter le néant.' },
+-- après
+Seuls les mois où au moins un client a des écritures sont proposés : on ne propose pas d\'exporter le néant.' },
+-- fin
+
+== cabinet/cabguide.js | un mois à valider a des écritures au brouillard
+-- avant
+    'e.provisoire': { t: 'Paquets provisoires dans l\'export', d: 'Un paquet <b>provisoire</b> vient d\'un mois que le client n\'a pas clôturé : ses chiffres peuvent encore changer. Il est quand même exporté — tu en as souvent besoin pour travailler — mais ne déclare pas dessus, et redemande le paquet définitif avant de déposer.' },
+-- après
+    'e.provisoire': { t: 'Des mois à valider dans l\'export', d: 'Un mois <b>à valider</b> a encore des écritures au brouillard : ses chiffres peuvent encore changer. Il est quand même exporté — tu en as souvent besoin pour travailler — mais ne déclare pas dessus : valide d\'abord ses écritures.' },
+-- fin
+
+== cabinet/cabguide.js | ceux qui n'ont aucune écriture
+-- avant
+    'e.manquants': { t: 'Les clients qui n\'ont rien envoyé', d: 'Ils ne figurent pas dans le fichier, forcément.
+-- après
+    'e.manquants': { t: 'Les clients sans écriture sur la période', d: 'Ils ne figurent pas dans le fichier, forcément.
+-- fin
+
+═══════════════════════════════════════════════════════════════════ la visite (cabvisites.js)
+
+== cabinet/cabvisites.js | les écritures de tous les clients, pas de tous les paquets
+-- avant
+      resume: 'Les écritures de tous les paquets d\'une période, en un seul fichier.',
+-- après
+      resume: 'Les écritures de tous tes clients sur une période, en un seul fichier.',
+-- fin
+
+== cabinet/cabvisites.js | la fin dit ce qui est vrai en ligne
+-- avant
+      conclusion: 'Un paquet illisible ne fait pas échouer l\'export : il part sans lui, et le manque est nommé.',
+-- après
+      conclusion: 'Un client sans écriture sur la période n\'y entre pas, et il est nommé au-dessus du bouton.',
+-- fin
+
+== cabinet/cabvisites.js | la période lit les livres de tes clients
+-- avant
+          texte: 'Choisis le début et la fin : les écritures de tous les paquets reçus sur la période sont regroupées.' },
+-- après
+          texte: 'Choisis le début et la fin : les écritures de tous tes clients sur la période sont regroupées.' },
+-- fin
+
+== cabinet/cabvisites.js | le fichier se télécharge
+-- avant
+          titre: 'Exporter', texte: 'Le fichier s\'enregistre où tu veux.', action: 'Clique sur <b>« Exporter les écritures… »</b>.', essai: { clic: true } }
+-- après
+          titre: 'Exporter', texte: 'Le fichier se télécharge.', action: 'Clique sur <b>« Exporter les écritures… »</b>.', essai: { clic: true } }
+-- fin

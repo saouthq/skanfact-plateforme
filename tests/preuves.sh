@@ -2462,5 +2462,31 @@ prouver "le nom du cabinet « enregistré » sans l'être" $PC \
   "      if (String(c.name ?? nomDuCabinet) !== nomDuCabinet || c.email || c.phone || autres.length || !reglage.formatCopie) throw new Error(PAS_EN_LIGNE);" "" \
   "$WD1"
 
+# ── Brique 41 bis : la page Écritures (docs/cabinet.md, C25) ──
+WE1="les mois qui ont des écritures, le mois à valider et le client sans écriture nommés ; le fichier regroupe les livres du serveur, rien d'autre"
+CCC=web/public/v10/cabinet/cabcore.js
+prouver "un mois qui déborde dans un autre" $PC \
+  "(livres.get(p.id) || []).filter((e) => String(e.date).startsWith(p.month))" "(livres.get(p.id) || []).filter(() => true)" \
+  "$WE1"
+prouver "le numéro d'export qui n'est pas celui du livre-journal" $PC \
+  "          e.chaine ?? '', K.csvDate(e.date), e.journal," "          e.numero || '', K.csvDate(e.date), e.journal," \
+  "$WE1"
+prouver "un brouillard exporté comme validé" $PC \
+  "(e.statut !== 'validee' ? 'brouillard' : e.contrepassee" "(false ? 'brouillard' : e.contrepassee" \
+  "$WE1"
+prouver "le plan qui attend encore un fichier reçu" $CCC \
+  "      const dans = (d.packs || []).filter(p => (!du || (p.month >= du && p.month <= au)))" "      const dans = (d.packs || []).filter(p => p.path && (!du || (p.month >= du && p.month <= au)))" \
+  "$WE1"
+prouver "un client hors SkanFact sans écriture tu" $CCC \
+  "      if (!dans.length) { if (!d.archived && !d.demo) sansPaquet.push(d.name); return; }" "      if (!dans.length) { if (!d.manual && !d.archived && !d.demo) sansPaquet.push(d.name); return; }" \
+  "$WE1"
+prouver "les mois proposés qui attendent un fichier reçu" web/public/v10/cabinet/app.js \
+  "(S.dossiers || []).forEach(d => (d.packs || []).forEach(p => { s.add(p.month); }));" "(S.dossiers || []).forEach(d => (d.packs || []).forEach(p => { if (p.path) s.add(p.month); }));" \
+  "$WE1"
+prouver "la visite de l'export encore absente" $PC \
+  "    'suivre-production', // le tableau de production" "    'suivre-production', // le tableau de production
+    'exporter-ecritures'," \
+  "$WE1"
+
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

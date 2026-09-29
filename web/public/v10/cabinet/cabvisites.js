@@ -1459,16 +1459,16 @@
     visite({
       id: 'exporter-ecritures', theme: 'recevoir', type: 'faire', duree: '1 min', page: '#/ecritures',
       titre: 'Exporter les écritures vers mon logiciel',
-      resume: 'Les écritures de tous les paquets d\'une période, en un seul fichier.',
+      resume: 'Les écritures de tous tes clients sur une période, en un seul fichier.',
       mots: ['export', 'ecritures', 'logiciel', 'fichier', 'csv', 'regrouper'],
       suite: ['page-ecritures'],
       bravo: 'Tu sais exporter',
-      conclusion: 'Un paquet illisible ne fait pas échouer l\'export : il part sans lui, et le manque est nommé.',
+      conclusion: 'Un client sans écriture sur la période n\'y entre pas, et il est nommé au-dessus du bouton.',
       etapes: [
         { page: '#/ecritures', cible: ['#view .panel'], cote: 'dessus', titre: 'La période',
-          texte: 'Choisis le début et la fin : les écritures de tous les paquets reçus sur la période sont regroupées.' },
+          texte: 'Choisis le début et la fin : les écritures de tous tes clients sur la période sont regroupées.' },
         { page: '#/ecritures', cible: '#e-go', cote: 'dessus', faire: 'clic', facultatif: true,
-          titre: 'Exporter', texte: 'Le fichier s\'enregistre où tu veux.', action: 'Clique sur <b>« Exporter les écritures… »</b>.', essai: { clic: true } }
+          titre: 'Exporter', texte: 'Le fichier se télécharge.', action: 'Clique sur <b>« Exporter les écritures… »</b>.', essai: { clic: true } }
       ]
     });
 

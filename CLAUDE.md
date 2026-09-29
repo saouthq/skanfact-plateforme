@@ -149,6 +149,9 @@
     `compta.peut_declarer` ; un geste peut porter son propre périmètre de mandat (`Geste.perimetre`,
     ici « les déclarations »). Le serveur ne recalcule pas la déclaration : l'écart avant un dépôt se
     juge dans le point de contact.
+  - **La page Écritures** (brique 41 bis, C25) : les mois où les clients ont des écritures (plus de
+    fichier reçu : `web/v10/ecritures.txt`) ; l'export lit les livres au serveur, colonnes du
+    livre-journal + état, regroupées par `mergeEcritures` de la v10, téléchargées.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première
