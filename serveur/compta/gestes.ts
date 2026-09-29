@@ -27,6 +27,15 @@ export const GESTES_COMPTA: Geste[] = [
   // au cabinet, l'associé seul). La base le garde aussi (compta.peut_liasse, 0025).
   { code: 'compta.liasse.preparer', module: 'compta', ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui' } },
+  // Les questions du cabinet au client (brique 44) : les poser, les préciser, les fermer, les retirer
+  // (qui saisit, comme la v10) ; les envoyer (qui valide) ; y répondre (l'entreprise). La base le garde
+  // aussi (compta.poser_question et les suivantes, 0028).
+  { code: 'compta.questions.poser', module: 'compta', ecrit: true,
+    roles: { supervision: 'oui', revision: 'oui', saisie: 'oui' } },
+  { code: 'compta.questions.envoyer', module: 'compta', ecrit: true,
+    roles: { supervision: 'oui', revision: 'oui' } },
+  { code: 'compta.questions.repondre', module: 'compta', ecrit: true, horsCle: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui' } },
 ];
 
 let declares = false;

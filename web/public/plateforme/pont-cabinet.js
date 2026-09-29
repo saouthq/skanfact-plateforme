@@ -83,7 +83,11 @@
     if (reglages.contenu.formatCopie) etat.settings.formatCopie = reglages.contenu.formatCopie;
     // Le modèle de liasse du cabinet (brique 41 ter) ; vide : celui que la v10 propose.
     etat.liasse = reglages.contenu.liasse || [];
+    // La méthode de révision du cabinet (brique 44) : son questionnaire et ses cycles ; vides, ceux de la v10.
+    etat.questionnaire = reglages.contenu.questionnaire || [];
+    etat.cycles = reglages.contenu.cycles || [];
     nomDuCabinet = String(cab.nom || '');
+    moiNom = String(moi.nom || '');
     etat.moi = moi.id;
     etat.moiNom = moi.nom;
     return etat;
@@ -206,8 +210,8 @@
   // premier exercice commence en cours d'année).
   /** @param {string} ent @param {string|number} annee @param {any[]} [lues] */
   const livreDe = async (ent, annee, lues) => {
-    const [ecritures, releves, declarations, biens, inventaire] = await Promise.all([lues || ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`), relevesDe(ent, annee),
-      declarationsDe(ent, annee), immobilisationsDe(ent), inventaireDe(ent, annee)]);
+    const [ecritures, releves, declarations, biens, inventaire, revisionsLues, questions] = await Promise.all([lues || ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`), relevesDe(ent, annee),
+      declarationsDe(ent, annee), immobilisationsDe(ent), inventaireDe(ent, annee), revisionsDe(ent, annee), questionsDe(ent, annee)]);
     const livre = versLeLivre(ent, Number(annee), ecritures);
     const ex = exerciceDe(ent, annee);
     if (ex) { livre.exercice.du = ex.du; livre.exercice.au = ex.au; }
@@ -215,8 +219,61 @@
     livre.declarations = declarations;
     livre.immobilisations = biens;
     livre.inventaires = inventaire ? [inventaire] : [];
+    livre.revisions = revisionsLues;
+    livre.questions = questions;
     return livre;
   };
+  // Les révisions d'une année (brique 44), celles du cabinet : l'exercice et ses mois, dans la forme de
+  // la v10 (compta.js, revisionVide), et la révision de chacune pour la réécrire sans rien écraser.
+  /** @type {Map<string, number>} */
+  const revisionsRevision = new Map();
+  /** @param {string} ent @param {string|number} annee */
+  async function revisionsDe(ent, annee) {
+    const r = await appel('GET', `/cabinets/${cabinetId}/revisions/${ent}?annee=${Number(annee)}`);
+    return (r.revisions || []).map((/** @type {any} */ x) => {
+      revisionsRevision.set(`${ent}/${x.periode}`, x.revision);
+      return { periode: x.periode, ...x.contenu };
+    });
+  }
+  // Les questions au client d'une année (brique 44), dans la forme de la v10 (compta.js, ajouterQuestion) :
+  // les statuts sont les siens ; chaque envoi, son instant ; la réponse, celle que le client a écrite.
+  /** @param {string} ent @param {string|number} annee */
+  async function questionsDe(ent, annee) {
+    const r = await appel('GET', `/entreprises/${ent}/compta/questions?annee=${Number(annee)}`);
+    return (r.questions || []).map((/** @type {any} */ q) => ({
+      id: q.id, creeLe: Date.parse(q.poseeLe) || 0, creePar: '', periode: q.periode, cycle: q.cycle, compte: q.compte,
+      ecritureId: q.ecriture || '', piece: q.piece, numero: null, montant: nombre(q.montant), objet: q.objet, texte: q.texte, attendu: q.attendu,
+      statut: q.statut, envois: (q.envois || []).map((/** @type {string} */ d) => Date.parse(d) || 0),
+      reponse: q.reponse ? { texte: q.reponse, le: Date.parse(q.reponduLe) || 0, piece: null } : null,
+      closeLe: q.closeLe ? Date.parse(q.closeLe) || 0 : null, closePar: '',
+    }));
+  }
+  // Les cycles du cabinet ; aucun : les sept de la v10 (jamais un mélange des deux).
+  const cyclesDuCabinet = () => {
+    /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+    return (reglages.contenu.cycles || []).length ? reglages.contenu.cycles : KC.CYCLES_REVISION;
+  };
+  // Un geste de révision : la fonction de la v10 sur le livre du serveur (ses refus, mot pour mot),
+  // puis la révision de la période, entière, au serveur.
+  /** @param {any} o @param {(KC: any, livre: any, periode: string) => any} faire */
+  async function reviser(o, faire) {
+    /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+    const livre = await livreDe(o.dossierId, o.annee);
+    const periode = String(o.periode || o.annee);
+    const r = faire(KC, livre, periode);
+    if (!r.ok) throw new Error(r.motif || (r.motifs || []).join(' '));
+    const x = KC.revisionDe(livre, periode);
+    const contenu = {
+      faite: !!x.faite, faiteLe: x.faiteLe || null, faitePar: String(x.faitePar || ''),
+      comptes: x.comptes.map((/** @type {any} */ c) => ({ compte: String(c.compte), revuLe: Number(c.revuLe) || 0, revuPar: String(c.revuPar || ''), note: String(c.note || '') })),
+      notes: x.notes.map((/** @type {any} */ n) => ({ id: String(n.id), texte: String(n.texte), cycle: String(n.cycle || ''), compte: String(n.compte || ''), par: String(n.par || ''),
+        le: Number(n.le) || 0, levee: !!n.levee, leveeLe: n.leveeLe || null, leveePar: String(n.leveePar || '') })),
+      questionnaire: x.questionnaire.map((/** @type {any} */ q) => ({ id: String(q.id), question: String(q.question), reponse: String(q.reponse || ''), par: String(q.par || ''), le: q.le || null })),
+    };
+    const cle = `${o.dossierId}/${periode}`;
+    await appel('PUT', `/cabinets/${cabinetId}/revisions/${o.dossierId}/${periode}`, { contenu, revision: revisionsRevision.get(cle) ?? null });
+    return { ...r, livre: await livreDe(o.dossierId, o.annee) };
+  }
   // L'inventaire d'une année (brique 42 bis), dans la forme de la v10 : son total est celui que le
   // serveur a calculé ; l'écriture de variation, tant qu'elle vaut encore.
   /** @param {string} ent @param {string|number} annee */
@@ -638,6 +695,8 @@
   /** @type {any[]} */
   let proposes = [];
   let nomDuCabinet = '';
+  // Le nom de qui travaille : la v10 signe les comptes, les notes et le questionnaire de ce nom.
+  let moiNom = '';
   /** @param {unknown} x */
   const esc = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   const PERIMETRES = /** @type {Record<string, string>} */ ({ comptabilite: 'la comptabilité', declarations: 'les déclarations', saisie_achats: 'la saisie des achats', paie: 'la paie' });
@@ -1156,6 +1215,86 @@
       return KC.cnssDuTrimestre(await livreEtPaie(o.dossierId, o.annee), o.annee, o.trimestre);
     },
 
+    // ── La révision et les questions au client (brique 44) : le dossier de travail de la v10, gardé
+    // par le cabinet au serveur (0028) ; les questions, dans les livres du client, qu'il voit à l'envoi ──
+    revision: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreDe(o.dossierId, o.annee);
+      const opts = { periode: String(o.periode || o.annee), cycles: cyclesDuCabinet() };
+      return {
+        ok: true, dossier: KC.dossierDeRevision(livre, opts), controles: KC.controlesRevision(livre, opts.periode, opts),
+        questions: livre.questions, modeles: (reglages.contenu.questionnaire || []).slice(), cycles: opts.cycles,
+      };
+    },
+    signerCompte: async (/** @type {any} */ o) => reviser(o, (KC, livre, p) => KC.signerCompte(livre, p, o.compte, moiNom, Date.now(), { revu: o.revu, note: o.note })),
+    noteRevue: async (/** @type {any} */ o) => reviser(o, (KC, livre, p) => (o.id
+      ? KC.leverNoteRevue(livre, p, o.id, moiNom, Date.now(), o.levee) : KC.ajouterNoteRevue(livre, p, o.note, moiNom, Date.now()))),
+    questionnaire: async (/** @type {any} */ o) => {
+      const r = await reviser(o, (KC, livre, p) => (o.poser
+        ? KC.poserQuestionnaire(livre, p, reglages.contenu.questionnaire || [], moiNom, Date.now())
+        : KC.repondreQuestionnaire(livre, p, o.id, o.reponse, moiNom, Date.now())));
+      return { ...r, poses: r.poses || 0 };
+    },
+    arreterRevision: async (/** @type {any} */ o) => reviser(o, (KC, livre, p) => KC.arreterRevision(livre, p, moiNom, Date.now(), { faite: o.faite, cycles: cyclesDuCabinet() })),
+    question: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreDe(o.dossierId, o.annee);
+      const url = `/entreprises/${o.dossierId}/compta/questions`;
+      /** @param {any} r */
+      const refuse = (r) => { if (!r.ok) throw new Error((r.motifs || []).join(' ')); };
+      // Les refus de la v10 d'abord, mot pour mot ; le serveur les refait.
+      if (o.geste === 'modifier') {
+        refuse(KC.modifierQuestion(livre, o.id, o.champs, moiNom, Date.now()));
+        /** @type {Record<string, string>} */ const champs = {};
+        for (const k of ['objet', 'texte', 'attendu', 'cycle', 'compte']) if (o.champs && o.champs[k] != null) champs[k] = String(o.champs[k]).trim();
+        await appel('PUT', `${url}/${o.id}`, champs);
+      } else if (o.geste === 'supprimer') {
+        refuse(KC.supprimerQuestion(livre, o.id, moiNom, Date.now()));
+        await appel('DELETE', `${url}/${o.id}`);
+      } else if (o.geste === 'fermer' || o.geste === 'rouvrir') {
+        refuse(KC.fermerQuestion(livre, o.id, moiNom, Date.now(), o.geste === 'rouvrir'));
+        await appel('POST', `${url}/${o.id}/fermer`, { rouvrir: o.geste === 'rouvrir' });
+      } else {
+        const r = KC.ajouterQuestion(livre, { ...(o.question || {}), cycles: cyclesDuCabinet() }, moiNom, Date.now());
+        refuse(r);
+        const q = r.question;
+        await appel('POST', url, {
+          periode: String(q.periode || o.annee), cycle: String(q.cycle || ''), compte: String(q.compte || ''), ecriture: q.ecritureId || null,
+          piece: String(q.piece || ''), montant: signe(q.montant), objet: String(q.objet || ''), texte: String(q.texte), attendu: String(q.attendu || 'explication'),
+        });
+      }
+      return { ok: true, livre: await livreDe(o.dossierId, o.annee) };
+    },
+    // Envoyer les questions : plus de fichier, le client les voit dans son SkanFact ; chaque envoi se compte.
+    ecrireQuestions: async (/** @type {any} */ o) => {
+      const r = await appel('POST', `/entreprises/${o.dossierId}/compta/questions/envoyer`, { annee: Number(o.annee) });
+      return { ok: true, envoyees: r.envoyees, livre: await livreDe(o.dossierId, o.annee) };
+    },
+    // La méthode du cabinet : son questionnaire et ses cycles, un réglage du cabinet, comme la v10 les normalisait.
+    saveQuestionnaire: async (/** @type {any} */ o = {}) => {
+      const contenu = { ...reglages.contenu };
+      if (Array.isArray(o.modeles)) {
+        contenu.questionnaire = o.modeles.map((/** @type {any} */ m) => String(m && m.question != null ? m.question : m).trim())
+          .filter(Boolean).slice(0, 60).map((/** @type {string} */ question) => ({ question }));
+      }
+      if (Array.isArray(o.cycles)) {
+        contenu.cycles = o.cycles.map((/** @type {any} */ c) => ({
+          id: String(c.id || '').trim(), label: String(c.label || '').trim(),
+          prefixes: (Array.isArray(c.prefixes) ? c.prefixes : []).map((/** @type {unknown} */ x) => String(x).trim()).filter(Boolean),
+        })).filter((/** @type {any} */ c) => c.id && c.label);
+      }
+      const r = await appel('PUT', `/cabinets/${cabinetId}/reglages`, { contenu, revision: reglages.revision });
+      reglages = { contenu, revision: r.revision };
+      return construireEtat();
+    },
+    // Ce que le cabinet attend de ses clients, dossier par dossier (« À faire ») : les questions.
+    questionsEnAttente: async () => {
+      const r = await appel('GET', `/cabinets/${cabinetId}/questions`);
+      return (r.dossiers || []).filter((/** @type {any} */ x) => dossiers.has(x.entreprise)).map((/** @type {any} */ x) => ({
+        dossierId: x.entreprise, name: (dossiers.get(x.entreprise) || { name: '' }).name, ouvertes: x.ouvertes, aRelancer: x.aRelancer, repondues: x.repondues,
+      })).filter((/** @type {any} */ x) => x.ouvertes || x.repondues);
+    },
+
     // Un dossier créé à la main est un dossier TENU (0019) ; ses notes vont dans sa fiche (0020).
     newDossier: async (/** @type {Record<string, unknown>} */ f) => {
       const nom = String(f.name || '').trim();
@@ -1287,7 +1426,6 @@
     takePending: async () => [],
     backups: async () => ({ entries: [] }),
     inbox: async () => ({ nouveaux: [] }),
-    questionsEnAttente: async () => [],
     // Ce que le Cabinet envoie sans attendre de réponse (le signalement d'une erreur, « une saisie
     // est en cours ») : ils ne doivent jamais échouer, sinon l'échec se signale à son tour, sans fin.
     supportErreur: async () => undefined,

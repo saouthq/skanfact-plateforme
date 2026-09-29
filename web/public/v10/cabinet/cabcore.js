@@ -1468,7 +1468,7 @@
     if (qs.length) out.push({
       id: 'questions', level: 'warn',
       label: `${pl(qs.length, 'client n\'a pas répondu', 'clients n\'ont pas répondu')} à tes questions`,
-      detail: `Parties dans deux paquets sans réponse. ${qs.slice(0, 6).map(q => `${q.name} (${pl(q.aRelancer, 'question')})`).join(' · ')}`,
+      detail: `Envoyées deux fois sans réponse. ${qs.slice(0, 6).map(q => `${q.name} (${pl(q.aRelancer, 'question')})`).join(' · ')}`,
       count: qs.reduce((s, q) => s + q.aRelancer, 0),
       rows: qs.map(q => rows.find(r => r.id === q.dossierId)).filter(Boolean)
     });

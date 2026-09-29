@@ -86,7 +86,8 @@ mêmes données que son client.
 | **42** | Les immobilisations : fiches des biens au serveur, dotations et sorties au brouillard, liées à leur bien. |
 | **42 bis** | L'inventaire de stock et sa variation. |
 | **43** | La paie tenue par le cabinet (mandat Paie) : les salariés et les bulletins du client, dans son propre dossier. |
-| 44 | La révision, le questionnaire, les questions au client et ses réponses. |
+| **44** | La révision (feuilles maîtresses, comptes signés, notes, questionnaire, révision arrêtée) et les questions au client, posées puis envoyées. |
+| 44 bis | Le client lit les questions de son cabinet dans son SkanFact, en face de la pièce, et y répond. |
 | 45 | La clôture de l'exercice, sa réouverture (avec un motif), l'exercice suivant. |
 | 46 | L'équipe du cabinet : invitations, rôles, affectations par dossier, trace de l'équipe. |
 
@@ -679,3 +680,55 @@ avec une prime, le même net à l'écran et au serveur, l'écriture du mois déj
   demande de revoir ce que les écritures du serveur y lisent (le plan, les avances). À décider.
 - Les barèmes de paie propres à un dossier (le réglage « paie » de sa fiche au Cabinet v10) : le
   barème général s'applique.
+
+## Brique 44 : la révision et les questions au client (fait le 29/09/2026)
+
+Le Cabinet v10 tenait, dans le livre de chaque exercice, son dossier de travail — les feuilles
+maîtresses par cycle, les comptes signés, les notes de revue, le questionnaire de fin d'exercice, la
+révision arrêtée — et les questions posées au client, qui partaient dans un fichier `.skanask` (signé,
+scellé au besoin) et revenaient avec leurs réponses dans le paquet suivant. Sur la plateforme, le même
+onglet Révision.
+
+**C32. La révision est le dossier de travail du cabinet** (par délégation, migration `0028`) : elle
+appartient au **cabinet** (comme la fiche d'un dossier, elle ne part pas avec l'entreprise), par
+dossier et par période (l'exercice, ou un mois), et se garde **entière**, dans la forme de la v10, avec
+une révision : deux postes qui écrivent en même temps, le second relit (rien n'est écrasé). Les
+feuilles maîtresses se calculent par la v10 sur le livre du serveur ; signer un compte, écrire ou lever
+une note, poser et remplir le questionnaire, arrêter ou rouvrir la révision : la fonction de la v10,
+puis la révision de la période au serveur, **au nom de qui l'a fait**. Qui révise : l'associé et le
+collaborateur, sur un dossier dont le mandat comprend la comptabilité — jamais l'assistant ni le
+client, qui ne la lit pas (`cabinet.peut_reviser`). Le **questionnaire** et les **cycles** du cabinet
+sont des réglages du cabinet (`cabinet.reglages`), écrits une fois pour tous ses dossiers.
+
+**C33. Une question appartient à l'entreprise** (par délégation) : elle se range dans ses livres, en
+face de sa pièce (`compta.question`). Le cabinet la **pose** (qui saisit, l'assistant aussi, comme la
+v10) ; elle reste chez lui jusqu'à ce qu'il l'**envoie** (qui valide) : plus de fichier, l'envoi la rend
+visible au client, et **chaque envoi se compte** comme chaque fichier se comptait — deux envois sans
+réponse, elle remonte dans « À faire ». Jamais envoyée, elle se retire sans trace ; envoyée, elle se
+ferme (et se rouvre), elle ne s'efface plus ; elle se précise tant qu'elle n'a pas sa réponse. Le
+client y répond (le propriétaire, l'administrateur, la comptabilité interne — jamais le cabinet à sa
+place), tant qu'elle n'est pas fermée ; répondue, elle ne se réécrit plus. **Ce qui part au serveur**
+(compté) : la période, le cycle, le compte, l'écriture et la pièce visées, le montant (en millimes),
+l'objet, le texte, ce qu'elle attend ; la réponse du client, en texte. Rien de tout cela ne touche aux
+chiffres du client. Le journal de l'entreprise trace chaque geste (posée, précisée, retirée, envoyée,
+répondue, fermée, rouverte).
+
+**Un défaut de la v10, corrigé ici** : après avoir écrit le questionnaire dans les Réglages, l'onglet
+Révision du dossier montrait encore « Écrire le questionnaire… » (le dossier de révision ne se relisait
+que si le livre avait bougé) ; il se relit maintenant aussi quand la méthode du cabinet change. La v10
+en entretien garde ce défaut (il ne touche aucun chiffre).
+
+**Les tests** : par l'API et dans la base (`tests/cabinet/revision.test.ts`) : la révision gardée
+entière, jamais écrasée, refusée à l'assistant, au client et sans la comptabilité au mandat ; une
+question posée par l'assistant, invisible au client, retirée avant l'envoi, envoyée deux fois (« À
+faire » : à relancer), refusée à l'effacement, précisée, répondue par le client seul, fermée,
+rouverte, et le journal de l'entreprise qui le dit. À la souris (`tests/web/cabinet-revision.test.ts`) :
+un compte signé, une note écrite puis levée, le questionnaire écrit dans les Réglages, posé et rempli,
+une question depuis la ligne du 471 (hors cycle), envoyée, lue par le client, sa réponse revenue sur
+l'écran du cabinet, la révision arrêtée « par associe ».
+
+**Reste connu** :
+- **Le client lit et répond dans son SkanFact** : brique 44 bis (d'ici là, par l'API).
+- Une réponse du client n'emporte pas encore de pièce jointe (le serveur ne garde pas encore les
+  fichiers) : elle est en texte.
+- Le « Suivi » de production (la période marquée révisée) viendra avec le tableau de production.

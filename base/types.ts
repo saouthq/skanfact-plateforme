@@ -86,6 +86,15 @@ export interface BaseDeDonnees {
     modifie_par: string | null;
     modifie_le: Generated<Date>;
   };
+  'cabinet.revision': {
+    cabinet: string;
+    entreprise: string;
+    periode: string;
+    contenu: ColumnType<Json, string, string>;
+    revision: Generated<bigint>;
+    modifie_par: string | null;
+    modifie_le: Generated<Date>;
+  };
   'compta.annuel': {
     entreprise: string;
     annee: number;
@@ -205,6 +214,29 @@ export interface BaseDeDonnees {
     ligne: string;
     lettrage: string;
     entreprise: string;
+  };
+  'compta.question': {
+    id: Generated<string>;
+    entreprise: string;
+    cabinet: string | null;
+    periode: string;
+    cycle: Generated<string>;
+    compte: Generated<string>;
+    ecriture: string | null;
+    piece: Generated<string>;
+    montant: Generated<bigint>;
+    objet: Generated<string>;
+    texte: string;
+    attendu: Generated<string>;
+    statut: Generated<string>;
+    envois: Generated<Date[]>;
+    reponse: string | null;
+    repondu_par: string | null;
+    repondu_le: Date | null;
+    pose_par: string | null;
+    pose_le: Generated<Date>;
+    close_par: string | null;
+    close_le: Date | null;
   };
   'compta.rapprochement': {
     releve_ligne: string;

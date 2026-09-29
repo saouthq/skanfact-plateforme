@@ -85,6 +85,10 @@ export const CLASSEMENT: Record<string, Classe> = {
   'compta.immobilisation': { classe: 'entreprise' },
   'compta.immobilisation_ecriture': { classe: 'entreprise' },
   'compta.inventaire': { classe: 'entreprise' },
+  // Les questions du cabinet au client (0028) : elles se lisent dans ses livres, en face de ses pièces.
+  'compta.question': { classe: 'entreprise' },
+  // La révision d'un dossier (0028) : le dossier de travail du CABINET ; elle ne part pas avec l'entreprise.
+  'cabinet.revision': { classe: 'hors', raison: 'le dossier de révision appartient au cabinet qui révise' },
   // Le dossier v10 de l'entreprise (0011) : ce que son interface tient, objet par objet.
   'socle.dossier_v10': { classe: 'entreprise' },
   // Le code d'un cabinet n'est pas repris : unique sur la plateforme, il reste à son cabinet.

@@ -6,6 +6,7 @@
 //     mandat (le propriétaire seul, geste socle.cabinet.choisir).
 // Chaque changement d'un mandat se trace chez l'entreprise : elle voit qui a fait quoi (03 § 3.4).
 
+import { sql } from 'kysely';
 import { z } from 'zod';
 import { versTexte } from '../../moteur/argent.ts';
 import type { Route } from '../app.ts';
@@ -52,7 +53,26 @@ const REGLAGES = z.object({
     comptes: z.array(z.string().regex(/^\d{1,12}$/)).max(100), signe: z.union([z.literal(1), z.literal(-1)]),
     deduit: z.boolean(), charge: z.boolean(), resultat: z.boolean(), deuxSens: z.boolean(),
   }).strict()).max(300),
+  // La méthode de révision du cabinet (brique 44) : le questionnaire de fin d'exercice (soixante
+  // questions au plus, comme la v10) et ses cycles (vides : les sept que la v10 propose).
+  questionnaire: z.array(z.object({ question: z.string().trim().min(1).max(500) }).strict()).max(60),
+  cycles: z.array(z.object({
+    id: z.string().trim().min(1).max(40), label: z.string().trim().min(1).max(80), prefixes: z.array(z.string().regex(/^\d{1,12}$/)).min(1).max(50),
+  }).strict()).max(30),
 }).partial().strict();
+// Le dossier de révision d'une période (0028), la forme de la v10 (compta.js, revisionVide) : cette
+// liste, et rien d'autre. Les instants en millisecondes ; les noms, ceux de qui a signé.
+const INSTANT = z.number().int().min(0).max(8_640_000_000_000_000);
+const REVISION = z.object({
+  faite: z.boolean(), faiteLe: INSTANT.nullable(), faitePar: texte(200),
+  comptes: z.array(z.object({ compte: z.string().regex(/^\d{1,12}$/), revuLe: INSTANT, revuPar: texte(200), note: texte(2000) }).strict()).max(5000),
+  notes: z.array(z.object({
+    id: z.string().min(1).max(40), texte: z.string().trim().min(1).max(2000), cycle: texte(40), compte: z.string().regex(/^(\d{1,12})?$/),
+    par: texte(200), le: INSTANT, levee: z.boolean(), leveeLe: INSTANT.nullable(), leveePar: texte(200),
+  }).strict()).max(500),
+  questionnaire: z.array(z.object({ id: z.string().min(1).max(40), question: z.string().trim().min(1).max(500), reponse: texte(4000), par: texte(200), le: INSTANT.nullable() }).strict()).max(60),
+}).strict();
+const PERIODE_REVISION = /^\d{4}(-(0[1-9]|1[0-2]))?$/;
 
 const tracer = (tx: Transaction, entreprise: string, geste: string, objet: string, avant: unknown, apres: unknown) =>
   tx.query('select socle.tracer($1, $2, $3, $4, $5, $6)', [entreprise, geste, 'mandat', objet, avant === null ? null : JSON.stringify(avant), apres === null ? null : JSON.stringify(apres)]);
@@ -274,6 +294,36 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
           .onConflict((oc) => oc.doNothing()).executeTakeFirst()).numInsertedOrUpdatedRows;
       if (!ecrites) return { statut: 409, corps: { motif: motif('cabinet.reglages_changes'), revision: null } };
       return { corps: { revision: (connue ?? 0) + 1 } };
+    },
+  });
+
+  // ── La révision d'un dossier (0028) : le dossier de travail du cabinet, période par période ───
+  // Les révisions d'une année (l'exercice et ses mois) ; la sécurité par ligne dit qui les lit.
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/revisions/:dossier', geste: 'compte.cabinets.voir',
+    traiter: async ({ params, query }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.dossier).success) return introuvable;
+      const annee = query.annee ?? '';
+      if (!/^\d{4}$/.test(annee)) return { statut: 400, corps: { motif: motif('commun.champ_invalide', { champ: 'annee', raison: t('cabinet.champ.annee') }), champ: 'annee' } };
+      const r = await requetes(tx).selectFrom('cabinet.revision').select(['periode', 'contenu', 'revision'])
+        .where('cabinet', '=', params.cabinet ?? '').where('entreprise', '=', params.dossier ?? '').where(sql<boolean>`left(periode, 4) = ${annee}`)
+        .orderBy('periode').execute();
+      return { corps: { revisions: r.map((x) => ({ periode: x.periode, contenu: x.contenu, revision: Number(x.revision) })) } };
+    },
+  });
+  // La poser entière, avec la révision connue (null : la première) ; la base garde qui révise
+  // (cabinet.peut_reviser) et ne l'écrase jamais si elle a changé ailleurs entre-temps.
+  ajouter({
+    methode: 'PUT', chemin: '/cabinets/:cabinet/revisions/:dossier/:periode', geste: 'compte.cabinet.gerer',
+    corps: z.object({ contenu: REVISION, revision: z.number().int().positive().nullable() }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.dossier).success) return introuvable;
+      if (!PERIODE_REVISION.test(params.periode ?? '')) {
+        return { statut: 400, corps: { motif: motif('commun.champ_invalide', { champ: 'periode', raison: t('cabinet.champ.periode') }), champ: 'periode' } };
+      }
+      const r = (await tx.query('select cabinet.poser_revision($1, $2, $3, $4::jsonb, $5::bigint) revision',
+        [params.cabinet, params.dossier, params.periode, JSON.stringify(corps.contenu), corps.revision])).rows[0];
+      return { corps: { revision: Number(r.revision) } };
     },
   });
 

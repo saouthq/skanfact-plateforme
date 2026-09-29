@@ -2312,8 +2312,8 @@ prouver "le rang de la ligne en face perdu" $BQS \
   "rang: Number(l.rang_face)," "rang: 1," \
   "$BQ2"
 prouver "des réglages du cabinet qui prennent un champ de plus" $CRT \
-  "  }).strict()).max(300),
-}).partial().strict();" "  }).strict()).max(300),
+  "  }).strict()).max(30),
+}).partial().strict();" "  }).strict()).max(30),
 }).partial();" \
   "$BQ3"
 prouver "des réglages du cabinet écrasés" $CRT \
@@ -2533,8 +2533,8 @@ prouver "poser la liasse sans le garde, dans la base" $M25 \
   "$AN2"
 prouver "la porte qui laisse le collaborateur préparer la liasse" serveur/compta/gestes.ts \
   "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui' } },
-];" "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } },
-];" \
+  // Les questions" "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } },
+  // Les questions" \
   "$AN2"
 prouver "une rubrique de liasse sur un état inventé" $CRT \
   "id: z.string().min(1).max(20), etat: z.enum(['bilan-actif', 'bilan-passif', 'resultat']), label:" "id: z.string().min(1).max(20), etat: z.string(), label:" \
@@ -2750,6 +2750,75 @@ prouver "un bulletin écrit sans son calcul" $PC \
 prouver "l'écriture de paie du serveur ignorée" $PC \
   "e.journal === 'PAIE' && String(e.date).slice(0, 7) === mois && e.statut !== 'contrepassee'" "false" \
   "$WP1"
+
+# ── Brique 44 : la révision et les questions au client (docs/cabinet.md, C32 et C33) ──
+RV1="se garde entière par période, avec sa révision ; changée ailleurs, jamais écrasée"
+RV2="qui révise : l'associé et le collaborateur ; ni l'assistant, ni le client (qui ne la lit pas), ni sans la comptabilité au mandat"
+RV3="le questionnaire et les cycles du cabinet sont des réglages du cabinet"
+QU1="posée, elle reste au cabinet ; envoyée, le client la lit et y répond ; chaque envoi se compte"
+QU2="seul le cabinet pose ; une question sans texte, ou qui attend on ne sait quoi, se refuse — à la porte et dans la base"
+WR1="la révision se tient à la souris et se garde au serveur ; une question part au client à l'envoi, et sa réponse revient"
+M28=base/migrations/0028_revision_questions.sql
+prouver "une révision écrasée par un poste qui ne l'avait pas relue" $M28 \
+  "  if coalesce(x.revision, 0) <> coalesce(p_revision, 0) then" "  if false then" \
+  "$RV1"
+prouver "une révision qui prend n'importe quelle forme" serveur/cabinet/routes.ts \
+  "corps: z.object({ contenu: REVISION, revision: z.number().int().positive().nullable() }).strict()," "corps: z.object({ contenu: z.record(z.string(), z.unknown()), revision: z.number().int().positive().nullable() }).strict()," \
+  "$RV1"
+prouver "l'assistant qui révise" $M28 \
+  "     and socle.mes_roles(p_entreprise) && array['supervision', 'revision']::text[]" "     and socle.mes_roles(p_entreprise) && array['supervision', 'revision', 'saisie']::text[]" \
+  "$RV2"
+prouver "la révision sans la comptabilité au mandat" $M28 \
+  "and (d.fin is null or d.fin >= current_date) and 'comptabilite' = any(d.perimetre))" "and (d.fin is null or d.fin >= current_date))" \
+  "$RV2"
+prouver "des cycles aux préfixes qui ne sont pas des comptes" serveur/cabinet/routes.ts \
+  "prefixes: z.array(z.string().regex(/^\d{1,12}$/)).min(1).max(50)" "prefixes: z.array(z.string()).min(1).max(50)" \
+  "$RV3"
+prouver "une question jamais envoyée que le client lit" $M28 \
+  "  and (cardinality(envois) > 0 or cabinet is null or cabinet in (select socle.mes_organisations())));" "  and true);" \
+  "$QU1"
+prouver "une réponse à une question jamais reçue" $M28 \
+  "  if not found or cardinality(q.envois) = 0 then perform socle.refus('cette question n''existe plus'); end if;" "  if not found then perform socle.refus('cette question n''existe plus'); end if;" \
+  "$QU1"
+prouver "une question envoyée qui s'efface" $M28 \
+  "  if cardinality(q.envois) > 0 then perform socle.refus('cette question est déjà partie" "  if false then perform socle.refus('cette question est déjà partie" \
+  "$QU1"
+prouver "un envoi qui ne se compte qu'une fois" $M28 \
+  "  update compta.question set envois = envois || now(), statut" "  update compta.question set envois = case when cardinality(envois) = 0 then envois || now() else envois end, statut" \
+  "$QU1"
+prouver "une question répondue qui se réécrit" $M28 \
+  "  if q.statut in ('repondue', 'close') then perform socle.refus('cette question a reçu" "  if q.statut in ('close') then perform socle.refus('cette question a reçu" \
+  "$QU1"
+prouver "le cabinet qui répond à la place du client, dans la base" $M28 \
+  "  if socle.perimetre_cabinet(p_entreprise) is not null or socle.ma_cle() is not null|||     or not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne']::text[]) then" "  if socle.ma_cle() is not null|||     then" \
+  "$QU1"
+prouver "une question à relancer dès le premier envoi" serveur/compta/questions.ts \
+  "cardinality(q.envois) >= 2) a_relancer" "cardinality(q.envois) >= 1) a_relancer" \
+  "$QU1"
+prouver "les questions de toutes les années mêlées" serveur/compta/questions.ts \
+  "and (\$2 = '' or left(periode, 4) = \$2)" "and (\$2 = \$2)" \
+  "$QU1"
+prouver "le client qui pose des questions dans ses propres livres" $M28 \
+  "  if v_cabinet is null then perform socle.refus('seul le cabinet" "  if false then perform socle.refus('seul le cabinet" \
+  "$QU2"
+prouver "la révision réécrite sans sa révision connue" $PC \
+  "{ contenu, revision: revisionsRevision.get(cle) ?? null }" "{ contenu, revision: null }" \
+  "$WR1"
+prouver "les signatures sans nom" $PC \
+  "    moiNom = String(moi.nom || '');" "    moiNom = '';" \
+  "$WR1"
+prouver "la réponse du client qui ne revient pas à l'écran" $PC \
+  "reponse: q.reponse ? { texte: q.reponse, le: Date.parse(q.reponduLe) || 0, piece: null } : null," "reponse: null," \
+  "$WR1"
+prouver "l'envoi qui n'atteint pas le serveur" $PC \
+  "/compta/questions/envoyer" "/compta/questions" \
+  "$WR1"
+prouver "le questionnaire du cabinet qui ne s'enregistre pas" $PC \
+  "        contenu.questionnaire = o.modeles.map(" "        contenu.questionnaire_ = o.modeles.map(" \
+  "$WR1"
+prouver "le dossier de révision qui ne voit pas le questionnaire écrit" web/public/v10/cabinet/app.js \
+  ":\${JSON.stringify([S.questionnaire || [], S.cycles || []])}\`;" "\`;" \
+  "$WR1"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

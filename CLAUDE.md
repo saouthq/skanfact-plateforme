@@ -166,6 +166,12 @@
     dossier du client (`employees`, `payslips`) par `GET/POST /entreprises/:e/paie/dossier` (ces deux
     collections seulement, gestes `paie.dossier.*`, périmètre « paie ») ; recalculés au serveur ;
     l'écriture de paie du mois suit d'elle-même.
+  - **La révision et les questions au client** (brique 44, 0028, C32, C33) : `cabinet.revision`, le
+    dossier de travail du cabinet par (dossier, période), gardé entier avec sa révision
+    (`GET/PUT /cabinets/:c/revisions/:dossier`) ; `compta.question`, dans les livres du client : posée
+    (qui saisit), invisible au client jusqu'à son envoi (qui valide ; chaque envoi se compte),
+    retirée si jamais envoyée, fermée sinon, répondue par l'entreprise (`compta.questions.*`) ; le
+    questionnaire et les cycles, réglages du cabinet.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

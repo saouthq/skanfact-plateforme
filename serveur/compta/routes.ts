@@ -18,6 +18,7 @@ import { routesBanque } from './banque.ts';
 import { routesDeclaration } from './declaration.ts';
 import { routesImmobilisations } from './immobilisations.ts';
 import { routesInventaire } from './inventaire.ts';
+import { routesQuestions } from './questions.ts';
 import { routesExercice } from './exercice.ts';
 import { routesSaisie } from './saisie.ts';
 import './textes.ts';
@@ -213,5 +214,6 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
   routes.push(...routesAnnuel(ctx));
   routes.push(...routesImmobilisations(ctx));
   routes.push(...routesInventaire(ctx));
+  routes.push(...routesQuestions(ctx));
   return routes;
 }

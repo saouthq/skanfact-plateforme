@@ -205,6 +205,21 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'aucun inventaire saisi pour %s', cle: 'base.compta.inv_absent', fr: 'aucun inventaire saisi pour {annee}', valeurs: ['annee'] },
   { base: 'la variation de stock de cet exercice est déjà passée : la repasser compterait le stock deux fois', cle: 'base.compta.inv_variation_ecrite', fr: 'la variation de stock de cet exercice est déjà passée : la repasser compterait le stock deux fois' },
   { base: 'la variation de stock de %s se date dans cette année', cle: 'base.compta.inv_variation_annee', fr: 'la variation de stock de {annee} se date dans cette année', valeurs: ['annee'] },
+  { base: 'ton rôle ne permet pas de réviser ce dossier', cle: 'base.cabinet.reviser_role', fr: 'ton rôle ne permet pas de réviser ce dossier' },
+  { base: 'une période de révision est une année (AAAA) ou un mois (AAAA-MM)', cle: 'base.cabinet.revision_periode', fr: 'une période de révision est une année (AAAA) ou un mois (AAAA-MM)' },
+  { base: 'la révision de ce dossier a été changée ailleurs entre-temps : recharge-la, rien n\'a été enregistré', cle: 'base.cabinet.revision_changee', fr: 'la révision de ce dossier a été changée ailleurs entre-temps : recharge-la, rien n\'a été enregistré' },
+  { base: 'seul le cabinet de l\'entreprise lui pose des questions', cle: 'base.compta.question_cabinet', fr: 'seul le cabinet de l\'entreprise lui pose des questions' },
+  { base: 'une question sans texte n\'apprend rien au client', cle: 'base.compta.question_texte', fr: 'une question sans texte n\'apprend rien au client' },
+  { base: 'ce que la question attend en retour n\'est pas connu', cle: 'base.compta.question_attendu', fr: 'ce que la question attend en retour n\'est pas connu' },
+  { base: 'un montant se donne en millimes', cle: 'base.compta.question_montant', fr: 'un montant se donne en millimes' },
+  { base: 'cette question n\'existe plus', cle: 'base.compta.question_absente', fr: 'cette question n\'existe plus' },
+  { base: 'cette question a reçu sa réponse : elle ne se réécrit plus', cle: 'base.compta.question_repondue', fr: 'cette question a reçu sa réponse : elle ne se réécrit plus' },
+  { base: 'cette question est déjà partie chez le client : elle se ferme, elle ne s\'efface pas', cle: 'base.compta.question_partie', fr: 'cette question est déjà partie chez le client : elle se ferme, elle ne s\'efface pas' },
+  { base: 'aucune question n\'attend de réponse : il n\'y aurait rien à envoyer', cle: 'base.compta.questions_rien', fr: 'aucune question n\'attend de réponse : il n\'y aurait rien à envoyer' },
+  { base: 'seule l\'entreprise répond aux questions de son cabinet', cle: 'base.compta.question_entreprise', fr: 'seule l\'entreprise répond aux questions de son cabinet' },
+  { base: 'cette question est fermée : ton cabinet n\'attend plus de réponse', cle: 'base.compta.question_fermee', fr: 'cette question est fermée : ton cabinet n\'attend plus de réponse' },
+  { base: 'une réponse vide ne répond à rien', cle: 'base.compta.question_reponse_vide', fr: 'une réponse vide ne répond à rien' },
+  { base: 'une réponse se borne à quatre mille caractères', cle: 'base.compta.question_reponse_longue', fr: 'une réponse se borne à quatre mille caractères' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

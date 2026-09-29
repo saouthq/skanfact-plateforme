@@ -10,4 +10,6 @@ declarerTextes({
   'cabinet.champ.banques': 'cinquante banques au plus',
   'cabinet.champ.code': 'le code du cabinet : six à dix lettres ou chiffres',
   'cabinet.champ.depuis': 'le premier jour d\'un mois (AAAA-MM-01)',
+  'cabinet.champ.annee': 'une année sur quatre chiffres',
+  'cabinet.champ.periode': 'une année (AAAA) ou un mois (AAAA-MM)',
 });

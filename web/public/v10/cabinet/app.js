@@ -5037,7 +5037,7 @@
     const s = livresState;
     // Le dossier se relit dès que le LIVRE a bougé : signer un compte, valider un brouillard ou
     // poser une question change ce que les feuilles maîtresses montrent (même parade qu'en T-24).
-    const rev = `${(s.livre.audit || []).length}:${(s.livre.ecritures || []).length}:${s.revPeriode || s.annee}`;
+    const rev = `${(s.livre.audit || []).length}:${(s.livre.ecritures || []).length}:${s.revPeriode || s.annee}:${JSON.stringify([S.questionnaire || [], S.cycles || []])}`;
     if (!s.revision || s.revisionRev !== rev) { s.revisionRev = rev; chargerRevision(root, dossier); return; }
     if (s.revision.erreur) return;
     // 10.13.0 — un raccourci vise un PANNEAU (7.18.0) : « Lire la réponse », depuis le compte rendu
@@ -5090,7 +5090,7 @@
           ? { icon: 'reprendre', label: 'Rouvrir cette question', hint: 'Elle repartira dans le prochain envoi.', run: () => geste(id, 'rouvrir') }
           : { icon: 'oui', label: 'Fermer cette question', hint: 'Elle a trouvé sa réponse ailleurs : elle ne repartira plus.', run: () => geste(id, 'fermer') },
         !q.reponse && q.statut !== 'close'
-          ? { icon: 'modifier', label: 'Préciser la question', hint: 'Le client verra le texte corrigé au prochain envoi.', run: () => questionForm(root, dossier, null, id) } : null,
+          ? { icon: 'modifier', label: 'Préciser la question', hint: 'Le client lit le texte corrigé.', run: () => questionForm(root, dossier, null, id) } : null,
         // Une question DÉJÀ PARTIE ne s'efface pas : le client l'a sous les yeux, et la faire
         // disparaître de notre côté le laisserait répondre à une question qui n'existe plus.
         !partie ? { sep: true } : null,
@@ -5145,7 +5145,7 @@
         // fichier, écrit dans une question posée à un comptable.
         const per = String(s.revision.dossier.periode);
         const ok = await confirmDialog(`Arrêter la révision ${/^\d{4}-\d{2}$/.test(per) ? K.de(moisLabelCourt(per)) : 'de l\'exercice ' + per} ?`,
-          '<p>La période est marquée révisée dans le tableau de production. Tu peux la rouvrir à tout moment.</p>'
+          '<p>Tu peux la rouvrir à tout moment.</p>'
           + (c.length ? `<p><b>${pl(c.length, 'point signalé', 'points signalés')} :</b></p><ul>${c.map(x => `<li>${esc(x.texte)}</li>`).join('')}</ul>` : ''),
           'Arrêter la révision', false);
         if (!ok) return;
@@ -5186,8 +5186,8 @@
     const q = id ? (s.revision.questions || []).find(x => x.id === id) : null;
     const b = base || {};
     modal(`<h2>${id ? 'Préciser la question' : 'Poser une question au client'}</h2>
-      <p class="small muted">Elle s'affichera chez lui <b>en face de la pièce</b> qu'elle vise, et sa réponse
-      reviendra toute seule dans son prochain paquet. Rien de ce que tu écris ici ne touche à ses chiffres.</p>
+      <p class="small muted">Elle s'affichera chez lui <b>en face de la pièce</b> qu'elle vise dès que tu la lui
+      envoies, et sa réponse reviendra ici. Rien de ce que tu écris ici ne touche à ses chiffres.</p>
       <div class="grid-2">
         <label class="field">${lbl('La pièce', 'qf.piece')}<input type="text" id="qf-piece" value="${esc((q && q.piece) || b.piece || '')}" placeholder="FAC-2026-014"></label>
         <label class="field">${lbl('Le compte', 'qf.compte')}<input type="text" id="qf-compte" value="${esc((q && q.compte) || b.compte || '')}" placeholder="471"></label>
@@ -5221,32 +5221,17 @@
     const en = (s.revision && s.revision.questions || []).filter(q => q.statut !== 'close' && q.statut !== 'repondue');
     if (!en.length) return toast('Aucune question n\'attend de réponse : il n\'y a rien à envoyer.', 'error');
     modal(`<h2>Envoyer les questions à ${esc(dossier.name)}</h2>
-      <p class="small">${esc(pl(en.length, 'question partira', 'questions partiront'))} dans un fichier <code>.skanask</code>.
-      Chez le client, chacune s'affiche en face de la pièce qu'elle vise, et ses réponses reviennent dans son prochain paquet.</p>
-      <label class="check"><input type="checkbox" id="qe-seal"> Protéger le fichier par un mot de passe</label>
-      <label class="field" id="qe-pwf" hidden>${lbl('Le mot de passe', 'rv.pwQuestions')}<input type="password" id="qe-pw" placeholder="Dis-le-lui au téléphone, jamais dans le même mail"></label>
-      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="qe-ok">Écrire le fichier…</button></div>`,
+      <p class="small">${esc(pl(en.length, 'question partira', 'questions partiront'))} chez le client : il ${en.length > 1 ? 'les' : 'la'} lira dans son SkanFact,
+      en face de la pièce qu'${en.length > 1 ? 'elles visent' : 'elle vise'}, et y répondra. Rien de ce que tu envoies ne touche à ses chiffres.</p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="qe-ok">Envoyer</button></div>`,
     (couche, close) => {
-      const c = $('#qe-seal', couche);
-      c.onchange = () => { $('#qe-pwf', couche).hidden = !c.checked; };
       $('#qe-ok', couche).onclick = async () => {
-        const pw = c.checked ? $('#qe-pw', couche).value.trim() : '';
-        if (c.checked && pw.length < 6) return refus($('#qe-pw', couche), 'Choisis un mot de passe d\'au moins six caractères.');
         try {
-          const r = await api.ecrireQuestions({ dossierId: dossier.id, annee: s.annee, motDePasse: pw });
+          const r = await api.ecrireQuestions({ dossierId: dossier.id, annee: s.annee });
           close();
-          if (r.annule) return;
           s.livre = r.livre; s.revisionRev = '';
           chargerRevision(root, dossier);
-          // 10.13.0 (test humain du pont) — « 1 question envoyée » disait faux : un FICHIER vient
-          // d'être écrit, et il reste à le transmettre. Même compte rendu que le fichier
-          // d'appairage : ce qu'il faut en faire, où il est, et le bouton qui le montre.
-          const pluriel = r.envoyees > 1 ? 's' : '';
-          const quoi = `${pl(r.envoyees, 'question', 'questions')}${r.signe ? ` signée${pluriel}` : ''}${r.scelle ? ` et scellée${pluriel}` : ''}`;
-          const voir = await confirmDialog('Fichier de questions écrit',
-            `<p>${esc(quoi)} dans ce fichier. Envoie-le à ${esc(dossier.name)} (par mail, par exemple) : il l'ouvre dans SkanFact, et ses réponses te reviendront dans son prochain paquet.${r.scelle ? ' Dis-lui le mot de passe au téléphone, jamais dans le même mail.' : ''}</p>
-             <p class="muted small">${esc(r.path || '')}</p>`, 'Le montrer dans le dossier', false, 'Fermer');
-          if (voir && r.path) api.reveal(r.path);
+          toast(`${pl(r.envoyees, 'question envoyée', 'questions envoyées')} à ${dossier.name}.`);
         } catch (e) { toast(plainError(e), 'error'); }
       };
     });

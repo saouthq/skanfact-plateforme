@@ -341,4 +341,5 @@ export const ADAPTATIONS = [
   // ── La reprise d'un client : l'exercice et sa balance d'ouverture (brique 39, C16 et C17) : ./reprise.txt ──
   ...lireFichier('reprise.txt'),
   ...lireFichier('ecritures.txt'),
+  ...lireFichier('revision.txt'),
 ];
