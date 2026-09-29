@@ -2312,8 +2312,8 @@ prouver "le rang de la ligne en face perdu" $BQS \
   "rang: Number(l.rang_face)," "rang: 1," \
   "$BQ2"
 prouver "des réglages du cabinet qui prennent un champ de plus" $CRT \
-  "  libelles: z.array(z.object({ motif: z.string().min(1).max(40), compte: z.string().regex(/^\\d{1,12}\$/) }).strict()).max(500),
-}).partial().strict();" "  libelles: z.array(z.object({ motif: z.string().min(1).max(40), compte: z.string().regex(/^\\d{1,12}\$/) }).strict()).max(500),
+  "  formatCopie: z.enum(['point', 'virgule', 'millimes']),
+}).partial().strict();" "  formatCopie: z.enum(['point', 'virgule', 'millimes']),
 }).partial();" \
   "$BQ3"
 prouver "des réglages du cabinet écrasés" $CRT \
@@ -2346,6 +2346,121 @@ prouver "un rapprochement vers la mauvaise ligne de l'écriture" $PC \
 prouver "les relevés que le livre ne lit pas" $PC \
   "    livre.releves = releves;" "" \
   "$WB1"
+
+# ── Brique 41 : la déclaration du mois (docs/cabinet.md, C22 à C24) ──
+M24=base/migrations/0024_compta_declaration.sql
+DCS=serveur/compta/declaration.ts
+DC1="une période a une déclaration : ses cases au millime, refaite tant qu'elle n'est pas déposée ; on ne paie pas ce qu'on n'a pas déposé ; une voisine n'en lit rien"
+DC2="qui peut : le propriétaire, l'associé, le collaborateur si le mandat comprend les déclarations ; jamais l'assistant ; la porte et la base"
+DC3="l'écriture du mois : au brouillard, datée dans le mois, liée ; la repasser se refuse ; un complément ne remplace pas le lien ; supprimée ou contre-passée, le lien tombe"
+WD1="préparer, écrire, recalculer après une vente oubliée, compléter, déposer, payer, dé-pointer ; la forme copiée se retient"
+prouver "une case de déclaration inventée" $M24 \
+  "    if not (k = any(compta.cases_declaration())) then" "    if false then" \
+  "$DC1"
+prouver "une case de déclaration qui n'est pas en millimes" $M24 \
+  "    if not (jsonb_typeof(v) = 'null' or (jsonb_typeof(v) = 'number' and socle.sans_virgule(v))) then" "    if false then" \
+  "$DC1"
+prouver "une déclaration déposée refaite" $M24 \
+  "  if d.deposee_le is not null then" "  if false then" \
+  "$DC1"
+prouver "une déclaration refaite qui s'ajoute" $M24 \
+  "  if d.id is not null then
+    update compta.declaration set cases" "  if false then
+    update compta.declaration set cases" \
+  "$DC1"
+prouver "payée sans être déposée" $M24 \
+  "  if p_quoi = 'payee' and p_le is not null and d.deposee_le is null then" "  if false then" \
+  "$DC1"
+prouver "le paiement qui tombe avec le dépôt, sans le dire" $M24 \
+  "    v_aussi := p_le is null and d.payee_le is not null;" "    v_aussi := false;" \
+  "$DC1"
+prouver "les déclarations d'une voisine lues" $M24 \
+  "create policy visible on compta.declaration using (entreprise in (select compta.mes_entreprises()));" "create policy visible on compta.declaration using (true);" \
+  "$DC1"
+prouver "une période illisible envoyée à la base" $DCS \
+  "      if (!estPeriode(params.periode)) return champInvalide('periode', t('compta.champ.periode'));
+      const cases" "      const cases" \
+  "$DC1"
+prouver "les cases lues en millimes bruts" $DCS \
+  "v === null ? null : versTexte(BigInt(v), 3)" "v === null ? null : String(v)" \
+  "$DC1"
+prouver "une forme de montant copié inventée" $CRT \
+  "  formatCopie: z.enum(['point', 'virgule', 'millimes'])," "  formatCopie: z.string()," \
+  "$DC1"
+prouver "l'assistant qui prépare, dans la base" $M24 \
+  "socle.mes_roles(p_entreprise) && array['supervision', 'revision']::text[]
+    when socle.ma_cle()" "socle.mes_roles(p_entreprise) && array['supervision', 'revision', 'saisie']::text[]
+    when socle.ma_cle()" \
+  "$DC2"
+prouver "un cabinet sans le périmètre des déclarations qui déclare, dans la base" $M24 \
+  "      'declarations' = any(socle.perimetre_cabinet(p_entreprise)) and socle.mes_roles" "      socle.mes_roles" \
+  "$DC2"
+prouver "préparer sans le garde, dans la base" $M24 \
+  "declare d compta.declaration; v_id uuid; k text; v jsonb;
+begin
+  perform compta.exiger_declarer(p_entreprise);" "declare d compta.declaration; v_id uuid; k text; v jsonb;
+begin" \
+  "$DC2"
+prouver "pointer sans le garde, dans la base" $M24 \
+  "declare d compta.declaration; v_aussi boolean := false;
+begin
+  perform compta.exiger_declarer(p_entreprise);" "declare d compta.declaration; v_aussi boolean := false;
+begin" \
+  "$DC2"
+prouver "la porte qui oublie le périmètre des déclarations" serveur/compta/gestes.ts \
+  "  { code: 'compta.declarations.preparer', module: 'compta', ecrit: true, perimetre: ['declarations']," "  { code: 'compta.declarations.preparer', module: 'compta', ecrit: true," \
+  "$DC2"
+prouver "la porte qui lit le périmètre du module, jamais celui du geste" serveur/porte/porte.ts \
+  "    const ouvrent = geste.perimetre ?? PERIMETRE_DU_MODULE[geste.module] ?? [];" "    const ouvrent = PERIMETRE_DU_MODULE[geste.module] ?? [];" \
+  "$DC2"
+prouver "la porte qui laisse l'assistant préparer" serveur/compta/gestes.ts \
+  "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } },
+];" "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } },
+];" \
+  "$DC2"
+prouver "écrire l'écriture d'une déclaration sans le garde, dans la base" $M24 \
+  "declare d compta.declaration; v_id uuid;
+begin
+  perform compta.exiger_declarer(p_entreprise);" "declare d compta.declaration; v_id uuid;
+begin" \
+  "$DC3"
+prouver "l'écriture d'une déclaration jamais préparée" $M24 \
+  "  if not found then perform socle.refus('prépare la déclaration avant d''en écrire l''écriture'); end if;" "" \
+  "$DC3"
+prouver "l'écriture d'une déclaration datée hors du mois" $M24 \
+  "  if coalesce(p_ecriture->>'date', '') not like p_periode || '-%' then" "  if false then" \
+  "$DC3"
+prouver "l'écriture du mois passée deux fois" $M24 \
+  "  if not coalesce(p_complement, false) and compta.ecriture_vivante(d.ecriture) then" "  if false then" \
+  "$DC3"
+prouver "un complément qui prend le lien de l'écriture du mois" $M24 \
+  "  if not coalesce(p_complement, false) then update compta.declaration set ecriture = v_id" "  if true then update compta.declaration set ecriture = v_id" \
+  "$DC3"
+prouver "une écriture contre-passée qui reste liée" $M24 \
+  "     and not exists (select 1 from compta.ecriture c where c.origine_type = 'contre_passation' and c.origine = p_id)" "" \
+  "$DC3"
+prouver "le lien lu sans savoir s'il vaut encore" $DCS \
+  "          case when compta.ecriture_vivante(d.ecriture) then d.ecriture end ecriture" "          d.ecriture ecriture" \
+  "$DC3"
+prouver "les déclarations que le livre ne lit pas" $PC \
+  "    livre.declarations = declarations;" "" \
+  "$WD1"
+prouver "les cases préparées envoyées vides" $PC \
+  "        if (c) cases[k] = c.montant == null ? null : signe(c.montant);" "        if (c) cases[k] = null;" \
+  "$WD1"
+prouver "un dépôt pointé sur des chiffres qui ont changé" $PC \
+  "      const essai = KC.pointerDeclaration(livre, o.periode, o.quoi, o.valeur, '', Date.now());
+      if (!essai.ok) throw new Error(essai.motif);" "      void KC;" \
+  "$WD1"
+prouver "un complément envoyé comme une seconde écriture du mois" $PC \
+  "        const r = await appel('POST', url, { ecriture: versLeServeur(complement), complement: true });" "        const r = await appel('POST', url, { ecriture: versLeServeur(complement), complement: false });" \
+  "$WD1"
+prouver "la forme copiée oubliée au rechargement" $PC \
+  "    if (reglages.contenu.formatCopie) etat.settings.formatCopie = reglages.contenu.formatCopie;" "" \
+  "$WD1"
+prouver "le nom du cabinet « enregistré » sans l'être" $PC \
+  "      if (String(c.name ?? nomDuCabinet) !== nomDuCabinet || c.email || c.phone || autres.length || !reglage.formatCopie) throw new Error(PAS_EN_LIGNE);" "" \
+  "$WD1"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

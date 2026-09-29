@@ -32,6 +32,9 @@ export type Geste = {
   sensible?: boolean;
   // Jamais donné à une clé de l'API (03 § 8) : ce qui gouverne l'entreprise reste aux personnes.
   horsCle?: true;
+  // Ce qu'il faut au mandat d'un cabinet pour ce geste, quand ce n'est pas le périmètre de son module
+  // (03 § 3.4 : les déclarations sont une case à part).
+  perimetre?: string[];
 };
 
 const P: Acces = 'oui';

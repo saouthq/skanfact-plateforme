@@ -141,6 +141,14 @@
     relevé à UNE ligne d'écriture du même compte (`compta.rapprochement`, qui tombe avec la ligne d'un
     brouillard qui change) ; l'automatique juge dans le navigateur (la v10) et pose au serveur ; les
     banques et les mots retenus : `cabinet.reglages` (champs comptés, révision).
+  - **La déclaration du mois** (brique 41, 0024, C22 à C24) : le moteur de la v10 la déduit, dans le
+    navigateur, du livre du serveur ; le serveur garde la déclaration préparée (`compta.declaration` :
+    ses cases en millimes ou vides, une par période, pas refaite une fois déposée), les pense-bêtes
+    déposée / payée, et le lien vers l'écriture du mois (au brouillard par `compta.saisir` ; un
+    complément ne remplace pas le lien ; contre-passée, le lien ne vaut plus). Qui peut :
+    `compta.peut_declarer` ; un geste peut porter son propre périmètre de mandat (`Geste.perimetre`,
+    ici « les déclarations »). Le serveur ne recalcule pas la déclaration : l'écart avant un dépôt se
+    juge dans le point de contact.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

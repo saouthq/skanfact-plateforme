@@ -44,6 +44,8 @@ const REGLAGES = z.object({
   banques: z.record(z.string().min(1).max(60), z.object({ date: COLONNE, libelle: COLONNE, montant: COLONNE, debit: COLONNE, credit: COLONNE, reference: COLONNE }).partial().strict())
     .refine((o) => Object.keys(o).length <= 50, { message: 'cabinet.champ.banques' }),
   libelles: z.array(z.object({ motif: z.string().min(1).max(40), compte: z.string().regex(/^\d{1,12}$/) }).strict()).max(500),
+  // La forme d'un montant copié pour le portail (l'onglet Déclaration, brique 41).
+  formatCopie: z.enum(['point', 'virgule', 'millimes']),
 }).partial().strict();
 
 const tracer = (tx: Transaction, entreprise: string, geste: string, objet: string, avant: unknown, apres: unknown) =>

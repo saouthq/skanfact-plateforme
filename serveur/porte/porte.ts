@@ -72,7 +72,7 @@ export async function peut(tx: Transaction, qui: QuiAgit, entreprise: string, co
   // propriétaire n'a pas ouvert ne s'ouvre pas, quel que soit le rôle au cabinet.
   const perimetre = (await tx.query('select socle.perimetre_cabinet($1) p', [entreprise])).rows[0].p as string[] | null;
   if (perimetre !== null) {
-    const ouvrent = PERIMETRE_DU_MODULE[geste.module] ?? [];
+    const ouvrent = geste.perimetre ?? PERIMETRE_DU_MODULE[geste.module] ?? [];
     if (!ouvrent.some((p) => perimetre.includes(p))) {
       return { ok: false, raison: 'role', qui: [], bouton: null,
         motif: motif('porte.hors_perimetre', { geste: t(`geste.${geste.code}`), perimetre: ouvrent.length ? ouvrent.map((p) => t(`perimetre.${p}`)) : t('porte.aucun_perimetre') }) };

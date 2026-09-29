@@ -155,6 +155,18 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'un rapprochement posé ne peut pas être « aucun » : c\'est ce que veut dire le défaire', cle: 'base.compta.releve_aucun', fr: 'un rapprochement posé ne peut pas être « aucun » : c\'est ce que veut dire le défaire' },
   { base: 'cette ligne d\'écriture ne touche pas le compte %s', cle: 'base.compta.releve_compte_face', fr: 'cette ligne d\'écriture ne touche pas le compte {compte}', valeurs: ['compte'] },
   { base: 'cette ligne d\'écriture répond déjà d\'une autre ligne de relevé : défais ce rapprochement d\'abord', cle: 'base.compta.releve_deja_prise', fr: 'cette ligne d\'écriture répond déjà d\'une autre ligne de relevé : défais ce rapprochement d\'abord' },
+  { base: 'ton rôle ne permet pas de préparer les déclarations de ce dossier', cle: 'base.compta.declarer_interdit', fr: 'ton rôle ne permet pas de préparer les déclarations de ce dossier' },
+  { base: 'la période d\'une déclaration mensuelle s\'écrit AAAA-MM', cle: 'base.compta.declaration_periode', fr: 'la période d\'une déclaration mensuelle s\'écrit AAAA-MM' },
+  { base: 'une déclaration porte ses cases', cle: 'base.compta.declaration_cases', fr: 'une déclaration porte ses cases' },
+  { base: 'la case « %s » n\'est pas une case de la déclaration', cle: 'base.compta.declaration_case_inconnue', fr: 'la case « {cas} » n\'est pas une case de la déclaration', valeurs: ['cas'] },
+  { base: 'la case « %s » se donne en millimes, ou vide', cle: 'base.compta.declaration_case_montant', fr: 'la case « {cas} » se donne en millimes, ou vide', valeurs: ['cas'] },
+  { base: 'la déclaration de %s est marquée déposée le %s : dé-pointe-la d\'abord si tu veux la refaire — sinon deux chiffres différents auraient porté le même dépôt', cle: 'base.compta.declaration_deposee', fr: 'la déclaration de {mois} est marquée déposée le {jour} : dé-pointe-la d\'abord si tu veux la refaire — sinon deux chiffres différents auraient porté le même dépôt', valeurs: ['mois', 'jour'] },
+  { base: 'on ne pointe qu\'un dépôt ou un paiement', cle: 'base.compta.declaration_pointage', fr: 'on ne pointe qu\'un dépôt ou un paiement' },
+  { base: 'aucune déclaration préparée pour cette période', cle: 'base.compta.declaration_absente', fr: 'aucune déclaration préparée pour cette période' },
+  { base: 'cette déclaration n\'est pas marquée déposée : on ne paie pas ce qu\'on n\'a pas déposé', cle: 'base.compta.declaration_pas_deposee', fr: 'cette déclaration n\'est pas marquée déposée : on ne paie pas ce qu\'on n\'a pas déposé' },
+  { base: 'prépare la déclaration avant d\'en écrire l\'écriture', cle: 'base.compta.declaration_a_preparer', fr: 'prépare la déclaration avant d\'en écrire l\'écriture' },
+  { base: 'l\'écriture de la déclaration de %s se date dans ce mois', cle: 'base.compta.declaration_date', fr: 'l\'écriture de la déclaration de {mois} se date dans ce mois', valeurs: ['mois'] },
+  { base: 'l\'écriture de cette déclaration existe déjà dans le livre : la repasser compterait la TVA du mois deux fois', cle: 'base.compta.declaration_ecrite', fr: 'l\'écriture de cette déclaration existe déjà dans le livre : la repasser compterait la TVA du mois deux fois' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

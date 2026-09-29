@@ -14,6 +14,7 @@ import { requetes, type Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
 import { routesBanque } from './banque.ts';
+import { routesDeclaration } from './declaration.ts';
 import { routesExercice } from './exercice.ts';
 import { routesSaisie } from './saisie.ts';
 import './textes.ts';
@@ -205,5 +206,6 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
   routes.push(...routesSaisie(ctx));
   routes.push(...routesExercice(ctx));
   routes.push(...routesBanque(ctx));
+  routes.push(...routesDeclaration(ctx));
   return routes;
 }

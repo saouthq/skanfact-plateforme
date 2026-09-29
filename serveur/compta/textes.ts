@@ -8,6 +8,8 @@ declarerTextes({
   'geste.compta.ecritures.valider': 'valider les livres : une période, une écriture ou un lot ; contre-passer, extourner',
   'geste.compta.ecritures.saisir': 'saisir une écriture au brouillard, la modifier, la supprimer',
   'geste.compta.lettrage.poser': 'lettrer les écritures d\'un compte, délettrer',
+  'geste.compta.declarations.preparer': 'préparer la déclaration du mois, la marquer déposée et payée, en écrire l\'écriture',
+  'compta.champ.periode': 'un mois : AAAA-MM',
   'compta.libelle.extourne': 'Extourne de {numero}',
   'compta.champ.ecriture': 'une écriture : sa date, son journal, au moins deux lignes',
   'compta.champ.montant': 'un montant en dinars, sans signe (« 1191,000 »)',

@@ -19,6 +19,10 @@ export const GESTES_COMPTA: Geste[] = [
   // Lettrer des écritures validées d'un compte, délettrer.
   { code: 'compta.lettrage.poser', module: 'compta', ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } },
+  // Préparer la déclaration du mois, la marquer déposée et payée, en écrire l'écriture (brique 41 ;
+  // 03 § 2.1 « Déclarations » et § 3.1). La base le garde aussi (compta.peut_declarer, 0024).
+  { code: 'compta.declarations.preparer', module: 'compta', ecrit: true, perimetre: ['declarations'],
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } },
 ];
 
 let declares = false;

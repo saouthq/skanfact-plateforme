@@ -31,7 +31,7 @@ export const LIGNE = z.object({
   debit: z.string().max(20).optional(),
   credit: z.string().max(20).optional(),
 }).strict();
-const ECRITURE = z.object({
+export const ECRITURE = z.object({
   date: z.string().refine(estJour, { message: 'champ.jour' }),
   journal: z.enum(JOURNAUX, { message: 'compta.champ.journal' }),
   piece: z.string().max(200).optional(),
@@ -60,7 +60,7 @@ export function lignesVersLaBase(entree: z.infer<typeof LIGNE>[], champ = 'ligne
 }
 
 // L'écriture pour la base, ou le champ qui ne va pas.
-function versLaBase(e: Ecriture): { json: string } | ReturnType<typeof champInvalide> {
+export function versLaBase(e: Ecriture): { json: string } | ReturnType<typeof champInvalide> {
   const r = lignesVersLaBase(e.lignes);
   if ('statut' in r) return r;
   return { json: JSON.stringify({ date: e.date, journal: e.journal, piece: e.piece ?? '', libelle: e.libelle ?? '', lignes: r.lignes }) };

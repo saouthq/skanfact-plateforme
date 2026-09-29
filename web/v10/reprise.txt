@@ -116,3 +116,12 @@ d: 'L\'année que ce livre couvre. Chaque exercice s\'ouvre une fois, avec sa ba
 -- après
       const libre = d => !!d && !!d.manual && !d.demo && !d.archived && !(d.packs || []).length && !tenus.has(d.id);
 -- fin
+
+═══════════════════════════════════════════════════════════════════ la déclaration du mois (brique 41, cabguide.js)
+
+== cabinet/cabguide.js | plus de paquet qui arrive : un mois « reçu » est un mois dont les pièces sont déjà dans les livres du client
+-- avant
+    'dc.etat': { t: 'L\'état du mois', d: '<b>Reçu</b> : le paquet du client est arrivé. <b>Saisi</b>
+-- après
+    'dc.etat': { t: 'L\'état du mois', d: '<b>Reçu</b> : les pièces du client sont dans ses livres, aucune écriture du mois n\'est encore validée. <b>Saisi</b>
+-- fin

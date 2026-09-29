@@ -98,6 +98,21 @@ export interface BaseDeDonnees {
     annee: number;
     dernier: bigint;
   };
+  'compta.declaration': {
+    id: Generated<string>;
+    entreprise: string;
+    type: Generated<string>;
+    periode: string;
+    cases: ColumnType<Json, string, string>;
+    preparee_par: string | null;
+    preparee_le: Generated<Date>;
+    deposee_le: string | null;
+    deposee_par: string | null;
+    deposee_reference: Generated<string>;
+    payee_le: string | null;
+    payee_par: string | null;
+    ecriture: string | null;
+  };
   'compta.ecriture': {
     id: Generated<string>;
     entreprise: string;

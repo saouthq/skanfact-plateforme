@@ -80,7 +80,9 @@ mêmes données que son client.
 | **39** | La reprise : l'exercice et sa balance d'ouverture (à-nouveaux), tapée ou lue dans un CSV ou un classeur Excel. |
 | **39 bis** | Les écritures par tableur, l'aller-retour : exporter le livre-journal (et le FEC), le corriger, le réimporter. |
 | **40** | La banque : relevés (lus dans le navigateur, bouclés, une fois), rapprochement (automatique et à la main), l'écriture manquante depuis la ligne ; ce que la banque apprend, dans les réglages du cabinet. |
-| 41 | Les déclarations (TVA, retenues), la liasse, le FEC et les exports. |
+| **41** | La déclaration du mois (TVA, timbre, retenues) : calculée par la v10 sur le livre du serveur, préparée au serveur, déposée et payée (deux pense-bêtes), son écriture au brouillard et son complément. |
+| 41 bis | La page Écritures : les écritures de tous les clients d'une période, en un fichier. |
+| 41 ter | La liasse et le résultat fiscal de l'année. |
 | 42 | Immobilisations et dotations, inventaire et variation de stock. |
 | 43 | La paie tenue par le cabinet (mandat Paie). |
 | 44 | La révision, le questionnaire, les questions au client et ses réponses. |
@@ -469,3 +471,57 @@ changement d'un mandat se trace chez l'entreprise.
   livres.
 - **C11.** L'équipe du cabinet (inviter un collaborateur) viendra à la brique 46 ; d'ici là, les
   tests posent les membres dans la base.
+
+## Brique 41 : la déclaration du mois (fait le 29/09/2026)
+
+Le Cabinet v10 préparait la déclaration mensuelle d'un dossier (TVA, timbre, retenues) en la
+**déduisant** de son livre (`compta.js`, `declarationMensuelle`), l'enregistrait, y posait deux
+pense-bêtes (déposée, payée) et proposait l'écriture du mois au brouillard. Sur la plateforme, le même
+onglet Déclaration, branché sur le serveur.
+
+**C22. Le calcul reste celui de la v10** (par délégation) : le moteur de la v10 tourne dans le
+navigateur sur le livre du serveur, comme il tournait dans le processus principal de la v10 ; rien ne
+se saisit à côté du livre. **Deux chemins, un chiffre** : la TVA collectée que l'écran déclare est le
+mouvement du 4367 que le serveur tient (`GET compta/balance`). Ce que la v10 ne calcule pas encore sur
+la plateforme : la TFP, le FOPROLOS et l'IRPP lus sur les bulletins (la paie tenue par le cabinet,
+brique 43) ; sans eux, ces cases disent pourquoi elles restent vides, comme la v10.
+
+**C23. La déclaration préparée se garde au serveur** (par délégation, migration `0024`) : ses cases
+(la liste de la v10, chacune en millimes, ou vide quand elle ne se sait pas), qui l'a préparée et
+quand. Une période n'en a qu'une : la refaire la remplace, sauf une fois marquée **déposée**
+(dé-pointe-la d'abord : deux chiffres auraient porté le même dépôt). Les deux pense-bêtes : déposée
+(le jour, une référence), payée (le jour) ; on ne paie pas ce qu'on n'a pas déposé ; dé-pointer le
+dépôt dé-pointe le paiement, et l'écran le dit. **Ce qui part au serveur** (compté) : la période, les
+cases (montant ou vide), et pour un pointage le jour et la référence. SkanFact ne dépose rien et ne se
+connecte à aucune administration.
+
+**C24. L'écriture du mois** entre au **brouillard** par la saisie (`compta.saisir`), datée dans le
+mois, et se lie à sa déclaration ; la repasser se refuse (la TVA du mois compterait deux fois) ;
+supprimée ou contre-passée, le lien ne vaut plus et elle se refait. Une pièce saisie **après** : les
+chiffres ont changé, l'écran le dit, le dépôt s'éteint ; recalculée, le **complément** pose ce qui
+manque, au brouillard, sans remplacer le lien — jamais une seconde écriture entière.
+
+**Qui peut** : préparer, pointer, écrire l'écriture — le propriétaire, l'administrateur, la
+comptabilité interne ; au cabinet, l'associé et le collaborateur, **si le mandat comprend les
+déclarations** (03 § 3.1 et § 3.4) ; jamais l'assistant. La porte le garde (un geste peut maintenant
+porter son propre périmètre de mandat, `perimetre` : ici « les déclarations », pas « la
+comptabilité ») et la base aussi (`compta.peut_declarer`). La déclaration se lit dans les livres : le
+cabinet doit aussi avoir la comptabilité.
+
+**La forme d'un montant copié pour le portail** (point, virgule, millimes) est un réglage du cabinet
+(`cabinet.reglages`, champ `formatCopie`). Le reste de la fiche du cabinet (son nom, son e-mail…) ne
+s'enregistre pas encore en ligne, et le dit.
+
+**Les tests** : par l'API et dans la base (`tests/compta/declaration.test.ts`) ; à la souris
+(`tests/web/cabinet-declaration.test.ts`) : mars avec une vente et un achat, les cases (190,125 de TVA
+collectée, 140,870 à décaisser), préparée au millime, l'écriture du mois au brouillard, validée ; une
+vente oubliée saisie après — les chiffres ont changé, le dépôt s'éteint (et le point de contact le
+refuse, même appelé sans le bouton) ; recalculée, le complément ; déposée, payée, dé-pointée ; la forme
+copiée retenue.
+
+**Reste connu** :
+- Le serveur **ne recalcule pas** la déclaration : il garde ce que le moteur de la v10 a déduit du
+  livre, et c'est le point de contact qui refuse un dépôt sur des chiffres qui ont changé. Refaire le
+  calcul au serveur (le moteur porté en TypeScript) viendra avec le portage du moteur.
+- La page **Écritures** (les écritures de tous les clients d'un mois, en un fichier) : brique 41 bis.
+- La **liasse** et le résultat fiscal de l'année : brique 41 ter.

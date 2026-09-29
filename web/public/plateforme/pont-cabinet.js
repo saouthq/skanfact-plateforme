@@ -79,6 +79,9 @@
     // Ce que la banque apprend pour tous les clients du cabinet (0023) : la v10 le gardait dans son état.
     etat.banques = reglages.contenu.banques || {};
     etat.libelles = reglages.contenu.libelles || [];
+    // La forme d'un montant copié pour le portail (brique 41) : un réglage du cabinet.
+    if (reglages.contenu.formatCopie) etat.settings.formatCopie = reglages.contenu.formatCopie;
+    nomDuCabinet = String(cab.nom || '');
     etat.moi = moi.id;
     etat.moiNom = moi.nom;
     return etat;
@@ -201,13 +204,39 @@
   // premier exercice commence en cours d'année).
   /** @param {string} ent @param {string|number} annee @param {any[]} [lues] */
   const livreDe = async (ent, annee, lues) => {
-    const [ecritures, releves] = await Promise.all([lues || ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`), relevesDe(ent, annee)]);
+    const [ecritures, releves, declarations] = await Promise.all([lues || ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`), relevesDe(ent, annee), declarationsDe(ent, annee)]);
     const livre = versLeLivre(ent, Number(annee), ecritures);
     const ex = exerciceDe(ent, annee);
     if (ex) { livre.exercice.du = ex.du; livre.exercice.au = ex.au; }
     livre.releves = releves;
+    livre.declarations = declarations;
     return livre;
   };
+  // Les déclarations préparées d'une année (brique 41), dans la forme de la v10 : chaque case porte son
+  // montant (ou null : elle ne se savait pas) ; l'écriture liée, tant qu'elle existe et n'est pas
+  // contre-passée.
+  /** @param {string} ent @param {string|number} annee */
+  async function declarationsDe(ent, annee) {
+    const r = await appel('GET', `/entreprises/${ent}/compta/declarations?annee=${Number(annee)}`);
+    return (r.declarations || []).map((/** @type {any} */ d) => ({
+      id: d.id, type: d.type, periode: d.periode, prepareeLe: Date.parse(d.prepareeLe) || 0, par: d.par || '',
+      cases: Object.fromEntries(Object.entries(d.cases || {}).map(([k, v]) => [k, { montant: v === null ? null : nombre(/** @type {string} */ (v)) }])),
+      controles: [], deposee: d.deposee, payee: d.payee, ecritureId: d.ecriture || '',
+    }));
+  }
+  // Les cases d'une déclaration que le serveur garde (compta.cases_declaration, 0024).
+  const CASES_DECLARATION = ['tvaCollectee', 'tvaDeductible', 'creditReporte', 'netAPayer', 'creditAReporter', 'timbre', 'retenuesOperees',
+    'retenuesSubies', 'irpp', 'aDecaisser', 'tfp', 'foprolos', 'tcl', 'acomptes'];
+  // La déclaration d'un mois, DÉDUITE du livre du serveur par le moteur de la v10 (compta.js), comme le
+  // processus principal de la v10 la déduisait : jamais un chiffre saisi à côté du livre.
+  /** @param {string} ent @param {string|number} annee @param {string} periode */
+  async function declarationDuLivre(ent, annee, periode) {
+    /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+    const livre = await livreDe(ent, annee);
+    const d = KC.declarationMensuelle(livre, periode);
+    if (!d.ok) throw new Error(d.motif);
+    return { KC, livre, d };
+  }
   // Les relevés bancaires rangés dans le livre d'une année (brique 40), dans la forme de la v10 : ce qui
   // répond à une ligne est une écriture et le RANG de sa ligne ; un jugement de l'automatique qui n'a
   // pas tranché se garde sur la ligne (« probable », « à confirmer »).
@@ -453,6 +482,7 @@
   let code = '';
   /** @type {any[]} */
   let proposes = [];
+  let nomDuCabinet = '';
   /** @param {unknown} x */
   const esc = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   const PERIMETRES = /** @type {Record<string, string>} */ ({ comptabilite: 'la comptabilité', declarations: 'les déclarations', saisie_achats: 'la saisie des achats', paie: 'la paie' });
@@ -693,6 +723,68 @@
         await poserFiche(o.dossierId, { ...(f ? depuisFiche(f.contenu) : {}), banque: o.banque || {} }, f ? f.revision : null);
       }
       return construireEtat();
+    },
+
+    // La fiche du cabinet ne s'enregistre pas encore en ligne ; seule la forme d'un montant copié pour
+    // le portail (l'onglet Déclaration) est un réglage du cabinet (brique 41). Le reste le dit.
+    saveCabinet: async (/** @type {any} */ c = {}) => {
+      const reglage = (c.settings || {});
+      const autres = Object.keys(reglage).filter((k) => k !== 'formatCopie');
+      if (String(c.name ?? nomDuCabinet) !== nomDuCabinet || c.email || c.phone || autres.length || !reglage.formatCopie) throw new Error(PAS_EN_LIGNE);
+      const contenu = { ...reglages.contenu, formatCopie: String(reglage.formatCopie) };
+      const r = await appel('PUT', `/cabinets/${cabinetId}/reglages`, { contenu, revision: reglages.revision });
+      reglages = { contenu, revision: r.revision };
+      return construireEtat();
+    },
+
+    // ── La déclaration du mois (brique 41) : calculée par la v10 sur le livre du serveur ; préparée,
+    // pointée et écrite au serveur, qui refait ses contrôles (0024) ──
+    declaration: async (/** @type {any} */ o) => {
+      const { KC, livre, d } = await declarationDuLivre(o.dossierId, o.annee, o.periode);
+      const posee = (livre.declarations || []).find((/** @type {any} */ x) => x.periode === d.periode) || null;
+      return { ...d, posee, formulaire: KC.formulaireMensuel(livre, d) };
+    },
+    poserDeclaration: async (/** @type {any} */ o) => {
+      const { KC, livre, d } = await declarationDuLivre(o.dossierId, o.annee, o.periode);
+      // Le refus de la v10 d'abord (une déclaration déposée ne se refait pas), mot pour mot ; le serveur le refait.
+      const essai = KC.poserDeclaration(livre, d, '', Date.now());
+      if (!essai.ok) throw new Error(essai.motif);
+      /** @type {Record<string, string | null>} */ const cases = {};
+      for (const k of CASES_DECLARATION) {
+        const c = d.cases[k];
+        if (c) cases[k] = c.montant == null ? null : signe(c.montant);
+      }
+      await appel('PUT', `/entreprises/${o.dossierId}/compta/declarations/${d.periode}`, { cases });
+      const apres = await livreDe(o.dossierId, o.annee);
+      return { ok: true, declaration: apres.declarations.find((/** @type {any} */ x) => x.periode === d.periode), livre: apres };
+    },
+    pointerDeclaration: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreDe(o.dossierId, o.annee);
+      // Les refus de la v10, dont l'écart : on ne pointe pas un dépôt sur des chiffres qui ont changé.
+      const essai = KC.pointerDeclaration(livre, o.periode, o.quoi, o.valeur, '', Date.now());
+      if (!essai.ok) throw new Error(essai.motif);
+      const v = o.valeur || null;
+      const r = await appel('POST', `/entreprises/${o.dossierId}/compta/declarations/${o.periode}/pointer`,
+        { quoi: o.quoi, le: v ? String(v.le || '') : null, ...(v && v.reference ? { reference: String(v.reference) } : {}) });
+      const apres = await livreDe(o.dossierId, o.annee);
+      return { ok: true, declaration: apres.declarations.find((/** @type {any} */ x) => x.periode === o.periode), aussiPayee: !!r.aussiPayee, livre: apres };
+    },
+    // L'écriture du mois entre au BROUILLARD ; déjà passée, seul ce qui lui MANQUE se pose (le
+    // complément de la v10), jamais une seconde écriture entière.
+    ecrireDeclaration: async (/** @type {any} */ o) => {
+      const { KC, livre, d } = await declarationDuLivre(o.dossierId, o.annee, o.periode);
+      if (!(livre.declarations || []).some((/** @type {any} */ x) => x.periode === d.periode)) throw new Error('Prépare la déclaration avant d\'en écrire l\'écriture.');
+      const url = `/entreprises/${o.dossierId}/compta/declarations/${d.periode}/ecriture`;
+      if (d.ecritureExistante) {
+        const complement = KC.ecritureComplementDeclaration(livre, d);
+        if (!complement) throw new Error('L\'écriture de cette déclaration existe déjà dans le livre : la repasser compterait la TVA du mois deux fois.');
+        const r = await appel('POST', url, { ecriture: versLeServeur(complement), complement: true });
+        return { ok: true, id: r.id, complement: true, livre: await livreDe(o.dossierId, o.annee) };
+      }
+      if (d.rienAEcrire) throw new Error(KC.MOTIF_RIEN_A_ECRIRE);
+      const r = await appel('POST', url, { ecriture: versLeServeur(KC.ecritureDeclaration(livre, d)) });
+      return { ok: true, id: r.id, livre: await livreDe(o.dossierId, o.annee) };
     },
 
     // Un dossier créé à la main est un dossier TENU (0019) ; ses notes vont dans sa fiche (0020).
