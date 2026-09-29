@@ -200,6 +200,9 @@
   - **Les guides d'écritures** (brique 50, C40) : `guides` dans `cabinet.reglages` (montant et taux en
     texte décimal) ; `dernierJournal` dans la fiche ; `poserFiche` tient la fiche lue à jour. La
     correspondance des comptes reste sans objet (C4).
+  - **Les abonnements** (brique 51, C41) : `abonnements` dans la fiche (montant en texte décimal) ;
+    `genererAbonnements` sérialisé (`generation`), pièces au brouillard par la saisie du serveur, mois
+    faits notés même en cas de refus, pièce déjà au livre (numéro + date) jamais réécrite.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

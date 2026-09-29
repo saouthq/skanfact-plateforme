@@ -94,6 +94,7 @@ mêmes données que son client.
 | **48** | La page Production : chaque dossier, chaque mois, son étape (à saisir, à réviser, à déclarer, déclaré), comptée au serveur pour tout le portefeuille ; les dossiers tenus entrent dans les Échéances. |
 | **49** | Le fichier CNSS du trimestre : fabriqué par le moteur de la v10 sur la paie du serveur, téléchargé sous le nom du format. |
 | **50** | Les guides d'écritures du cabinet (des pièces types que la saisie préremplit) et le journal retenu par dossier. |
+| **51** | Les abonnements d'un dossier : un guide qui revient tous les mois, écrit au brouillard une fois par mois dû. |
 
 Chaque brique a ses tests « deux chemins » (ce que calcule l'écran du Cabinet contre ce que tient
 le serveur), ses preuves, et un parcours joué à la souris.
@@ -1024,3 +1025,39 @@ fournisseur au solde), gardé au serveur et relu ; dans la grille, il prérempli
 montant, et l'écriture enregistrée porte exactement les lignes de l'écran (deux chemins, un chiffre) ;
 deux journaux choisis de suite, le second retenu et repris à la réouverture ; le guide modifié, puis
 supprimé après confirmation.
+
+## Brique 51 : les abonnements d'un dossier (fait le 29/09/2026)
+
+Le Cabinet v10 gardait, pour un dossier, des **abonnements** : un guide d'écritures qui revient tous
+les N mois depuis une date (le loyer du local, les honoraires), pour un montant. « Générer ce qui
+manque » écrit une pièce **au brouillard** par mois dû — jamais validée d'office — et note les mois
+faits : rejouer ne double rien.
+
+**C41. Les abonnements vivent dans la fiche du dossier ; la génération écrit au serveur** (par
+délégation ; pas de migration). **Ce qui part au serveur, compté** : `abonnements` dans la fiche du
+dossier (`cabinet.fiche`, 0020) — cinquante au plus, chacun son identifiant, son nom, son guide, actif
+ou suspendu, sa date de départ et de fin (des jours), son pas (un à douze mois), son **montant en texte
+décimal au millime**, son préfixe de pièce, son libellé, et les mois déjà faits. La génération joue le
+moteur de la v10 (`occurrencesAGenerer`, `ecritureDepuisGuide`) et écrit chaque pièce par la saisie du
+serveur (au brouillard, le serveur refait ses contrôles) ; les mois faits se notent même si une pièce
+plus loin est refusée. **Une génération à la fois** : un second clic attend la première et relit les
+mois faits ; et une pièce déjà au livre sous le même numéro et à la même date ne se réécrit pas (un
+autre poste l'a écrite). Sur la plateforme, un double-clic doublait chaque mois : vu par le parcours à
+la souris, corrigé avant la publication.
+
+**Un défaut de la v10, corrigé ici** : dans la saisie, les menus des lignes étaient branchés avant que
+le panneau des abonnements soit dessiné ; le bouton « Actions » d'un abonnement n'ouvrait rien (ni
+« Modifier », ni « Suspendre »). Le panneau branche ses lignes une fois dessiné. Le défaut reste dans la
+v10 en entretien.
+
+**Les tests** : par l'API (`tests/cabinet/guides.test.ts`) : un abonnement gardé et relu tel quel ;
+refusés, un montant en nombre à virgule, écrit « 850,500 » ou négatif, un pas de treize mois, une date
+illisible, un mois fait illisible, un champ inconnu. À la souris (`tests/web/cabinet-abonnements.test.ts`) :
+l'abonnement créé (850,500 DT le 5 de chaque mois) ; un double-clic sur « Générer ce qui manque » : une
+pièce au brouillard par mois dû, une seule fois, aux lignes du guide, les mois faits notés ; le bouton
+s'en va, l'abonnement est « à jour » ; suspendu depuis son menu, il ne propose plus rien.
+
+**Reste connu** :
+- Deux postes qui génèrent au même instant sans préfixe de pièce peuvent écrire le même mois deux fois
+  (avec un préfixe, la seconde pièce se reconnaît et ne s'écrit pas) : les brouillards se relisent avant
+  d'être validés.

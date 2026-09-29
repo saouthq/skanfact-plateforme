@@ -83,4 +83,24 @@ describe('les guides d\'écritures et le journal retenu', () => {
       .find((f) => f.entreprise === garage)?.contenu).toEqual({ dernierJournal: 'AC' });
     expect((await appeler('PUT', `/cabinets/${cabinet}/fiches/${garage}`, associe.jeton, { contenu: { dernierJournal: 'achats' }, revision: 1 })).statut).toBe(400);
   });
+
+  it('un abonnement se garde dans la fiche du dossier, son montant en texte décimal ; une forme fausse est refusée', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Ennour' })).corps.id);
+    const garage = String((await appeler('POST', `/cabinets/${cabinet}/dossiers`, associe.jeton, { raisonSociale: 'Garage du Port' })).corps.entreprise);
+    const ABO = { id: 'a1', nom: 'Loyer du local', guideId: 'g1', actif: true, depuis: '2026-01-05', jusqua: '', tousLesMois: 1, montant: '850.500',
+      piece: 'LOYER', libelle: 'Loyer', faites: ['2026-01', '2026-02'] };
+    const ecrire = async (abonnements: unknown[], revision: number | null) => appeler('PUT', `/cabinets/${cabinet}/fiches/${garage}`, associe.jeton, { contenu: { abonnements }, revision });
+    expect((await ecrire([ABO], null)).statut).toBe(200);
+    expect(((await appeler('GET', `/cabinets/${cabinet}/fiches`, associe.jeton)).corps.fiches as { entreprise: string; contenu: unknown }[])
+      .find((f) => f.entreprise === garage)?.contenu).toEqual({ abonnements: [ABO] });
+    const refuse = async (a: Record<string, unknown>) => (await ecrire([{ ...ABO, ...a }], 1)).statut;
+    expect(await refuse({ montant: 850.5 })).toBe(400);
+    expect(await refuse({ montant: '850,500' })).toBe(400);
+    expect(await refuse({ montant: '-10.000' })).toBe(400);
+    expect(await refuse({ tousLesMois: 13 })).toBe(400);
+    expect(await refuse({ depuis: '05/01/2026' })).toBe(400);
+    expect(await refuse({ faites: ['2026-13'] })).toBe(400);
+    expect(await refuse({ inconnu: 1 })).toBe(400);
+  });
 });

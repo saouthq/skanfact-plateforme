@@ -58,7 +58,9 @@
   // Les champs de la fiche : ceux que le serveur garde (serveur/cabinet/routes.ts, FICHE).
   const TEXTES_FICHE = ['email', 'phone', 'contact', 'note', 'regime', 'tvaPeriod', 'from', 'cnssEmployeur', 'cnssCode'];
   /** @param {Record<string, unknown>} c */
-  const depuisFiche = (c) => ({ ...c, fees: Number(c.fees || 0) / 1000 });
+  const depuisFiche = (c) => ({ ...c, fees: Number(c.fees || 0) / 1000,
+    // Les abonnements (brique 51) : leur montant, gardé en texte décimal, redevient un nombre pour la v10.
+    ...(Array.isArray(c.abonnements) ? { abonnements: c.abonnements.map((/** @type {any} */ a) => ({ ...a, montant: Number(a.montant) || 0 })) } : {}) });
   // Les mois des cinq dernières années (le plafond du Cabinet v10, MAX_MOIS_ATTENDUS).
   const debutDesMois = () => `${new Date().getUTCFullYear() - 5}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}-01`;
   async function construireEtat() {
@@ -165,6 +167,48 @@
     /** @type {Record<string, { exercices: any[] }>} */ const index = {};
     for (const [ent, x] of exercices) index[ent] = { exercices: [...x.values()].sort((a, b) => a.annee - b.annee) };
     return index;
+  }
+
+  // Générer ce que les abonnements d'un dossier doivent à ce jour (brique 51, C41) ; une pièce déjà au
+  // livre sous le même numéro et à la même date ne se réécrit pas (un autre poste l'a écrite).
+  /** @type {Promise<unknown>} */
+  let generation = Promise.resolve();
+  /** @param {any} o */
+  async function genererAbonnements(o) {
+    /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
+    /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+    const etat = await construireEtat();
+    const d = etat.dossiers.find((/** @type {any} */ x) => x.id === o.dossierId);
+    if (!d) throw new Error('Dossier introuvable.');
+    const livre = await livreDe(o.dossierId, o.annee);
+    const guides = K.guidesDuDossier(etat, d);
+    /** @type {{ crees: number, sansGuide: string[], horsExercice: number, details: any[] }} */
+    const bilan = { crees: 0, sansGuide: [], horsExercice: 0, details: [] };
+    const abonnements = (d.abonnements || []).map((/** @type {any} */ a) => ({ ...a, faites: [...(a.faites || [])] }));
+    let notes = 0;
+    try {
+      for (const a of abonnements) {
+        const g = guides.find((/** @type {any} */ x) => x.id === a.guideId);
+        if (!g) { if (a.actif) bilan.sansGuide.push(a.nom || a.id); continue; }
+        for (const date of KC.occurrencesAGenerer(a, o.jusquA || K.today())) {
+          if (date < livre.exercice.du || date > livre.exercice.au) { bilan.horsExercice++; continue; }
+          const ecr = KC.ecritureDepuisGuide(g, { date, journal: g.journal, montant: a.montant, piece: a.piece ? `${a.piece}-${date.slice(0, 7)}` : '', libelle: a.libelle || a.nom });
+          a.faites.push(date.slice(0, 7));
+          notes++;
+          if (ecr.piece && (livre.ecritures || []).some((/** @type {any} */ e) => e.piece === ecr.piece && e.date === date)) continue;
+          const r = await appel('POST', `/entreprises/${o.dossierId}/compta/ecritures`, versLeServeur(ecr));
+          bilan.crees++;
+          bilan.details.push({ id: r.id, date, nom: a.nom || g.nom });
+        }
+      }
+    } finally {
+      // Les mois écrits se notent même si une pièce plus loin est refusée : rejouer ne les double pas.
+      if (notes) {
+        const f = fiches.get(o.dossierId);
+        await poserFiche(o.dossierId, { ...(f ? depuisFiche(f.contenu) : {}), abonnements }, f ? f.revision : null);
+      }
+    }
+    return { ...bilan, livre: await livreDe(o.dossierId, o.annee) };
   }
 
   // ── Le livre d'un dossier : les écritures que le serveur tient pour l'entreprise ────────────
@@ -583,6 +627,14 @@
         ...(bq.jours != null && bq.jours !== '' ? { jours: Number(bq.jours) } : {}) };
     }
     if (f.dernierJournal != null) contenu.dernierJournal = String(f.dernierJournal).toUpperCase().slice(0, 5);
+    if (Array.isArray(f.abonnements)) {
+      contenu.abonnements = f.abonnements.map((/** @type {any} */ a) => ({
+        id: String(a.id || ''), nom: String(a.nom || ''), guideId: String(a.guideId || ''), actif: !!a.actif,
+        depuis: String(a.depuis || ''), jusqua: String(a.jusqua || ''), tousLesMois: Math.min(12, Math.max(1, Math.round(Number(a.tousLesMois) || 1))),
+        montant: (Math.round((Number(a.montant) || 0) * 1000) / 1000).toFixed(3), piece: String(a.piece || ''), libelle: String(a.libelle || ''),
+        faites: Array.isArray(a.faites) ? a.faites.map(String) : [],
+      }));
+    }
     const r = await appel('PUT', `/cabinets/${cabinetId}/fiches/${ent}`, { contenu, revision });
     // La fiche lue reste celle du serveur : un geste suivant écrit sur la bonne révision.
     fiches.set(ent, { contenu, revision: r.revision });
@@ -1117,6 +1169,19 @@
       reglages = { contenu, revision: r.revision };
       return construireEtat();
     },
+    // ── Les abonnements d'un dossier (brique 51 ; docs/cabinet.md, C41) : gardés dans sa fiche ; « Générer
+    // ce qui manque » joue le moteur de la v10 (occurrencesAGenerer, ecritureDepuisGuide) et écrit chaque
+    // pièce AU BROUILLARD par le serveur, puis note les mois faits (rejouer ne double rien) ──
+    saveAbonnements: async (/** @type {string} */ id, /** @type {any[]} */ liste) => {
+      if (!dossiers.has(id)) throw new Error('Dossier introuvable.');
+      const f = fiches.get(id);
+      await poserFiche(id, { ...(f ? depuisFiche(f.contenu) : {}), abonnements: Array.isArray(liste) ? liste : [] }, f ? f.revision : null);
+      return construireEtat();
+    },
+    // Une génération à la fois : un second clic attend la première, puis relit la fiche (les mois faits)
+    // et ne double rien — la v10, dans son processus principal, les jouait déjà l'une après l'autre.
+    genererAbonnements: (/** @type {any} */ o) => (generation = generation.then(() => genererAbonnements(o), () => genererAbonnements(o))),
+
     // Le journal que la grille de saisie reprend pour ce dossier : sa fiche.
     dernierJournal: async (/** @type {string} */ id, /** @type {string} */ journal) => {
       const j = String(journal || '').toUpperCase().slice(0, 5);

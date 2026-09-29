@@ -7797,8 +7797,9 @@
     const nw = $('#ab-new', box); if (nw) nw.onclick = () => abonnementForm(root, dossier, null);
     const gen = $('#ab-gen', box);
     if (gen) gen.onclick = () => genererAbonnements(root, dossier);
-    // Les menus des lignes sont branchés par la SAISIE, dont ce panneau fait partie (T-18) : UNE
-    // seule table d'actions par racine (9.4.8), et le panneau vit dans `#c-livres`.
+    // (plateforme) La saisie branche ses menus AVANT que ce panneau soit dessiné : ses lignes se
+    // branchent ici, le panneau étant leur racine (une table d'actions par racine, 9.4.8).
+    bindRowMenus(box, cle => actionsAbonnement(root, dossier, cle));
   }
 
   function actionsAbonnement(root, dossier, cle) {

@@ -349,4 +349,5 @@ export const ADAPTATIONS = [
   ...lireFichier('fiche-cabinet.txt'),
   ...lireFichier('production.txt'),
   ...lireFichier('cnss.txt'),
+  ...lireFichier('abonnements.txt'),
 ];

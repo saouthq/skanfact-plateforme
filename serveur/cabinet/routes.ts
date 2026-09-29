@@ -32,6 +32,15 @@ const RELANCE = z.object({
   at: z.number().int().min(0).max(8_640_000_000_000_000), via: z.enum(['email', 'tel', 'whatsapp', 'autre']),
   months: z.array(z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)).max(120), note: texte(500),
 }).strict();
+// Un abonnement du dossier (brique 51) : un guide qui revient tous les N mois, depuis une date, pour un
+// montant (texte décimal au millime, jamais un nombre à virgule en base) ; `faites` porte les mois déjà
+// écrits, pour que rejouer ne double rien.
+const JOUR_OU_RIEN = z.string().regex(/^(\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))?$/);
+const ABONNEMENT = z.object({
+  id: z.string().min(1).max(40), nom: texte(120), guideId: z.string().max(40), actif: z.boolean(), depuis: JOUR_OU_RIEN, jusqua: JOUR_OU_RIEN,
+  tousLesMois: z.number().int().min(1).max(12), montant: z.string().regex(/^\d{1,12}(\.\d{1,3})?$/), piece: texte(40), libelle: texte(200),
+  faites: z.array(z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)).max(600),
+}).strict();
 const FICHE = z.object({
   email: texte(200), phone: texte(40), contact: texte(200), note: texte(2000), archived: z.boolean(),
   from: z.string().regex(/^(\d{4}-\d{2})?$/), regime: texte(40), tvaPeriod: texte(20),
@@ -41,6 +50,8 @@ const FICHE = z.object({
   banque: z.object({ compte: z.string().regex(/^(\d{1,12})?$/), banque: texte(60), jours: z.number().int().min(0).max(30).nullable() }).partial().strict(),
   // Le dernier journal de saisie du dossier, celui que la grille reprend (brique 50).
   dernierJournal: z.string().regex(/^[A-Z0-9]{0,5}$/),
+  // Les abonnements du dossier (brique 51).
+  abonnements: z.array(ABONNEMENT).max(50),
 }).partial().strict();
 // Les réglages du cabinet (0023, C21) : cette liste, et rien d'autre. L'association des colonnes d'un
 // relevé PAR BANQUE (le rang de chaque colonne), et les mots retenus (un mot d'un libellé → le compte

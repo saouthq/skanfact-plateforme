@@ -1852,8 +1852,8 @@ prouver "une fiche lue sans voir le dossier" $M20 \
   "  using (cabinet in (select socle.mes_organisations()) and entreprise in (select socle.mes_entreprises()));" "  using (cabinet in (select socle.mes_organisations()));" \
   "$E3"
 prouver "une fiche aux champs non comptés" serveur/cabinet/routes.ts \
-  "  dernierJournal: z.string().regex(/^[A-Z0-9]{0,5}\$/),
-}).partial().strict();" "  dernierJournal: z.string().regex(/^[A-Z0-9]{0,5}\$/),
+  "  abonnements: z.array(ABONNEMENT).max(50),
+}).partial().strict();" "  abonnements: z.array(ABONNEMENT).max(50),
 }).partial().passthrough();" \
   "$E3"
 prouver "l'entrée qui ouvre l'entreprise d'un client comme la sienne" web/src/App.tsx \
@@ -3141,6 +3141,41 @@ prouver "le journal retenu oublié par la fiche" $PC \
 prouver "une fiche réécrite sur une révision périmée" $PC \
   "    fiches.set(ent, { contenu, revision: r.revision });" "    void r;" \
   "$WG1"
+
+# ── Brique 51 : les abonnements d'un dossier (docs/cabinet.md, C41) ──
+AB1="un abonnement se garde dans la fiche du dossier, son montant en texte décimal ; une forme fausse est refusée"
+WA1="un abonnement créé, ses mois dus générés au brouillard une seule fois, puis suspendu"
+prouver "un montant d'abonnement à virgule gardé" serveur/cabinet/routes.ts \
+  "tousLesMois: z.number().int().min(1).max(12), montant: z.string().regex(/^\\d{1,12}(\\.\\d{1,3})?\$/)," "tousLesMois: z.number().int().min(1).max(12), montant: z.string().max(30)," \
+  "$AB1"
+prouver "un abonnement tous les treize mois" serveur/cabinet/routes.ts \
+  "tousLesMois: z.number().int().min(1).max(12)," "tousLesMois: z.number().int().min(1).max(99)," \
+  "$AB1"
+prouver "un mois fait illisible gardé" serveur/cabinet/routes.ts \
+  "  faites: z.array(z.string().regex(/^\\d{4}-(0[1-9]|1[0-2])\$/)).max(600)," "  faites: z.array(z.string().max(10)).max(600)," \
+  "$AB1"
+prouver "une date de départ illisible gardée" serveur/cabinet/routes.ts \
+  "const JOUR_OU_RIEN = z.string().regex(/^(\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01]))?\$/);" "const JOUR_OU_RIEN = z.string().max(20);" \
+  "$AB1"
+prouver "un abonnement qui ne s'enregistre pas en ligne" $PC \
+  "    saveAbonnements: async (" "    saveAbonnementsAbsent: async (" \
+  "$WA1"
+prouver "un abonnement dont le montant se perd en partant" $PC \
+  "montant: (Math.round((Number(a.montant) || 0) * 1000) / 1000).toFixed(3), piece:" "montant: '0.000', piece:" \
+  "$WA1"
+prouver "deux générations côte à côte qui doublent les mois" $PC \
+  "(generation = generation.then(() => genererAbonnements(o), () => genererAbonnements(o)))" "genererAbonnements(o)" \
+  "$WA1"
+prouver "les mois générés oubliés" $PC \
+  "          a.faites.push(date.slice(0, 7));
+          notes++;" "          notes++;" \
+  "$WA1"
+prouver "les mois faits jamais notés dans la fiche" $PC \
+  "      if (notes) {" "      if (false) {" \
+  "$WA1"
+prouver "le menu d'un abonnement qui n'ouvre rien" web/public/v10/cabinet/app.js \
+  "    bindRowMenus(box, cle => actionsAbonnement(root, dossier, cle));" "" \
+  "$WA1"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

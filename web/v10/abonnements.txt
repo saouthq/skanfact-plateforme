@@ -1,0 +1,20 @@
+Les abonnements d'un dossier (brique 51). Format : voir sans-paquets.mjs.
+
+Dans la saisie, les menus des lignes sont branchés AVANT que le panneau des abonnements soit dessiné
+(`brancherSaisie`, puis `dessinerAbonnements`) : le bouton « Actions » d'un abonnement n'ouvrait rien —
+ni « Modifier », ni « Suspendre » (vu à la souris sur la plateforme ; le défaut est aussi dans la v10).
+Le panneau branche ses propres lignes une fois dessiné : sa racine, sa table d'actions (règle 9.4.8).
+
+== cabinet/app.js | le menu d'un abonnement se branche une fois le panneau dessiné
+-- avant
+    if (gen) gen.onclick = () => genererAbonnements(root, dossier);
+    // Les menus des lignes sont branchés par la SAISIE, dont ce panneau fait partie (T-18) : UNE
+    // seule table d'actions par racine (9.4.8), et le panneau vit dans `#c-livres`.
+  }
+-- après
+    if (gen) gen.onclick = () => genererAbonnements(root, dossier);
+    // (plateforme) La saisie branche ses menus AVANT que ce panneau soit dessiné : ses lignes se
+    // branchent ici, le panneau étant leur racine (une table d'actions par racine, 9.4.8).
+    bindRowMenus(box, cle => actionsAbonnement(root, dossier, cle));
+  }
+-- fin
