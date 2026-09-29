@@ -16,6 +16,7 @@ import { REGLEMENTS_VENTES, tenirReglements } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonSaisi } from '../ventes/pieces.ts';
 import { suivreAchats } from './achats.ts';
+import { suivrePaie } from './paie.ts';
 import { canonique, deviseV10 as devise, enNombreV10, estObjet, lirePaiements, nombreEnTexte, type Json } from './lecture.ts';
 import './textes.ts';
 
@@ -143,9 +144,12 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
       await tracer(tx, entreprise, c.contenu === null ? 'v10.piece.supprimer' : 'v10.piece.modifier', { type: 'piece_v10', id: null }, a ? { cle: c.cle, revision: a.revision } : null, c.contenu === null ? null : { cle: c.cle });
     }
   }
-  // Les achats et les fournisseurs, une fois TOUT l'envoi écrit : une pièce rattachée et sa facture,
-  // un achat et son fournisseur, arrivent souvent ensemble (0013, serveur/v10/achats.ts).
-  await suivreAchats(tx, entreprise, utilisateur, changements.map((c) => ({ collection: c.collection, cle: c.cle, avant: actuels.get(`${c.collection}/${c.cle}`)?.contenu ?? null, apres: c.contenu })));
+  // Les achats et les fournisseurs, puis la paie, une fois TOUT l'envoi écrit : une pièce rattachée et
+  // sa facture, un achat et son fournisseur, un bulletin et son salarié arrivent souvent ensemble
+  // (0013, serveur/v10/achats.ts ; 0014, serveur/v10/paie.ts).
+  const lus = changements.map((c) => ({ collection: c.collection, cle: c.cle, avant: actuels.get(`${c.collection}/${c.cle}`)?.contenu ?? null, apres: c.contenu }));
+  await suivreAchats(tx, entreprise, utilisateur, lus);
+  await suivrePaie(tx, entreprise, utilisateur, lus);
   return resultat;
 }
 

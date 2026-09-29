@@ -393,6 +393,80 @@ describe('le parcours, à la souris', () => {
     expect(qui.erreurs).toEqual([]);
   }, 120_000);
 
+  it('la paie à la souris : le premier salarié, le bulletin du mois, une prime, une loi de finances, payé ; le serveur recalcule chaque bulletin au millime de l\'écran, et un bulletin garde son barème', async () => {
+    const qui = await inscrite('Rania Mejri');
+    const p = await qui.ouvrir(qui.essai, '#/paie');
+    await pageV10(p, /Paie/);
+    await plusTard(p);
+    const auServeur = async () => (await admin.query(`select b.id, b.annee, b.mois, b.brut, b.net, b.paye_le, b.bareme->>'cnssSalarie' cnss, s.nom
+      from paie.bulletin b join paie.salarie s on s.id = b.salarie where b.entreprise = $1 order by b.annee, b.mois`, [qui.essai])).rows;
+
+    // Le premier salarié, par sa fiche : embauché le 1er mars 2025, chef de famille, deux enfants.
+    await p.locator('#emp-first').click();
+    await p.locator('#ef input[name=name]').fill('Sonia Trabelsi');
+    await p.locator('#ef input[name=grossSalary]').fill('1234.567');
+    await p.locator('#ef input[name=headOfFamily]').check();
+    await p.locator('#ef input[name=children]').fill('2');
+    const embauche = p.locator('#ef .datefield').filter({ has: p.locator('input[name=hireDate]') }).locator('.d-txt');
+    await embauche.fill('01/03/2025');
+    await embauche.press('Tab');
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(async () => (await admin.query('select nom, enfants, chef_de_famille, date_entree from paie.salarie where entreprise = $1', [qui.essai])).rows)
+      .toEqual([{ nom: 'Sonia Trabelsi', enfants: 2, chef_de_famille: true, date_entree: '2025-03-01' }]);
+
+    // Le bulletin du mois (« Établir le bulletin manquant »), puis une prime de rendement.
+    await p.locator('#p-tabs button[data-tab=bulletins]').click();
+    await p.locator('#p-gen').click();
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(async () => (await auServeur()).length).toBe(1);
+    await p.locator('#p-body tr', { hasText: 'Sonia Trabelsi' }).getByRole('button', { name: /Actions/ }).click();
+    await p.getByText('Modifier le bulletin', { exact: true }).click();
+    await p.locator('#add-bon').click();
+    await p.locator('#bf-bon input[data-f=label]').fill('Rendement');
+    await p.locator('#bf-bon input[data-f=amount]').fill('150.555');
+    await p.locator('#modal-root #ok').click();
+    // Calculé à la main dans tests/v10/paie.test.ts : brut 1 385,122 ; net 1 120,270.
+    await expect.poll(auServeur).toMatchObject([{ nom: 'Sonia Trabelsi', brut: 1385122n, net: 1120270n, paye_le: null, cnss: '91800' }]);
+    const [premier] = await auServeur();
+    await expect.poll(() => p.locator('#p-body tr', { hasText: 'Sonia Trabelsi' }).innerText()).toMatch(/1\s?120,270/);
+
+    // Une loi de finances : la CNSS du salarié passe à 9,68 % dans les barèmes. Le bulletin établi
+    // garde la sienne : marqué payé ensuite, il ne change pas d'un millime.
+    await p.locator('#p-tabs button[data-tab=baremes]').click();
+    await p.locator('#rf input[name=cnssEmployee]').fill('9.68');
+    await p.locator('#rf-save').click();
+    await expect.poll(async () => (await admin.query(`select contenu->'cnssEmployee'->>'~n' c from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [qui.essai])).rows[0]?.c).toBe('9.68');
+    await p.locator('#p-tabs button[data-tab=bulletins]').click();
+    await p.locator('#p-body [data-payer]').click();
+    await expect.poll(async () => (await auServeur())[0]?.paye_le).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect((await auServeur())[0]).toMatchObject({ net: 1120270n, cnss: '91800' });
+
+    // Le mois suivant se calcule avec le nouveau barème.
+    const suivant = Number(premier?.mois) === 12 ? 1 : Number(premier?.mois) + 1;
+    if (suivant === 1) await p.locator('#p-year').selectOption(String(Number(premier?.annee) + 1));
+    await p.locator('#p-month').selectOption(String(suivant));
+    await p.locator('#p-gen').click();
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(async () => (await auServeur()).length).toBe(2);
+    const [, second] = await auServeur();
+    expect(second).toMatchObject({ cnss: '96800', brut: 1234567n });
+    await p.screenshot({ path: path.join(PHOTOS, 'paie.png') });
+
+    // Deux chemins, un chiffre : ce que l'écran a calculé est ce que le serveur recalcule.
+    const ecran = await p.evaluate(() => {
+      const w = window as unknown as { __data: { payslips: { year: number; month: number; computed: { net: number; employerCost: number } }[] } };
+      return w.__data.payslips.map((b) => ({ periode: `${b.year}-${b.month}`, net: b.computed.net.toFixed(3), cout: b.computed.employerCost.toFixed(3) })).sort((a, b) => a.periode.localeCompare(b.periode));
+    });
+    const serveur = [];
+    for (const b of await auServeur()) {
+      const lu = await qui.api('GET', `/entreprises/${qui.essai}/paie/bulletins/${String(b.id)}`, qui.jeton) as { annee: number; mois: number; montants: { net: string; coutEmployeur: string } };
+      serveur.push({ periode: `${lu.annee}-${lu.mois}`, net: lu.montants.net, cout: lu.montants.coutEmployeur });
+    }
+    expect(serveur).toEqual(ecran);
+    expect(ecran[0]).toMatchObject({ net: '1120.270' });
+    expect(qui.erreurs).toEqual([]);
+  }, 120_000);
+
   it('la caisse n\'est pas encore en ligne : « Encaisser » le dit, et rien n\'est vendu ni écrit', async () => {
     const qui = await inscrite('Walid Chaabane');
     // Un compte de caisse et un article au prix connu : tout ce que la caisse de la v10 demande (le

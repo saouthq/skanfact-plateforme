@@ -78,6 +78,14 @@
     chaque achat (reste, statut, retenue de chaque règlement : `serveur/achats/`, un seul calcul pour
     les deux). La tenue des règlements (`serveur/reglements.ts`) et la lecture des paiements de la
     v10 (`serveur/v10/lecture.ts`) sont partagées par les ventes et les achats.
+  - **La paie** (brique 31, `docs/paie.md`) : chaque bulletin du dossier est RECALCULÉ par le
+    serveur (`serveur/v10/paie.ts`) avec le barème et la situation du salarié qu'il a figés (une
+    adaptation de `computePayslip`) et comparé montant par montant à l'écran ; tenu dans
+    `paie.bulletin` (0014), les salariés dans `paie.salarie` (ni CIN ni RIB). Données sensibles
+    (03 D10) : la base ne montre la paie qu'au propriétaire, à l'administrateur, au rôle Paie
+    (`paie.mes_entreprises()`) ; chaque lecture se trace avec l'objet lu (`objetLu` d'une route) ;
+    la masse salariale, sans nom, par `paie.masse_salariale`. Dans un test, l'écran de la
+    plateforme se charge par `ecranDeLaPlateforme` (tests/moteur/v10.ts).
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

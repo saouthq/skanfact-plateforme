@@ -62,6 +62,9 @@ export const CLASSEMENT: Record<string, Classe> = {
   'achats.piece': { classe: 'entreprise' },
   'achats.ligne': { classe: 'entreprise' },
   'achats.reglement': { classe: 'entreprise' },
+  // La paie (0014) : les salariés et leurs bulletins, chacun avec le barème qui l'a calculé.
+  'paie.salarie': { classe: 'entreprise' },
+  'paie.bulletin': { classe: 'entreprise' },
   // Le dossier v10 de l'entreprise (0011) : ce que son interface tient, objet par objet.
   'socle.dossier_v10': { classe: 'entreprise' },
   // Le code d'un cabinet n'est pas repris : unique sur la plateforme, il reste à son cabinet.

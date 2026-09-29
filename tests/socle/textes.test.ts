@@ -92,6 +92,9 @@ async function appeler(methode: 'GET' | 'POST', url: string, options: { jeton?: 
 
 beforeAll(async () => {
   await admin.connect();
+  // Les textes de CHAQUE module (un module déclare les siens en se chargeant) : une clé employée par
+  // un module que ce test ne charge pas serait sinon « inconnue » à tort.
+  for (const f of fichiers('serveur', '.ts').filter((x) => path.basename(x) === 'textes.ts')) await import(f);
   declarerGestesVentes();
   app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx)]);
   await app.ready();

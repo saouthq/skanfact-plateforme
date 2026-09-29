@@ -1288,8 +1288,8 @@ prouver "une ligne d'achat rangée en charge quoi qu'elle soit" $VA \
 prouver "les frais d'un achat oubliés dans son total" $VA \
   "lignes: a.lignes.map((l) => ({ ...l })), frais: a.frais," "lignes: a.lignes.map((l) => ({ ...l }))," \
   "$AM"
-prouver "un achat seulement déplacé dans la liste, recalculé et tracé" $VA \
-  "  const change = (c: ChangementLu) => c.apres === null || c.avant === null || canonique(c.avant) !== canonique(c.apres);" "  const change = (c: ChangementLu) => c.apres !== undefined || canonique(c.avant) === '';" \
+prouver "un achat seulement déplacé dans la liste, recalculé et tracé" serveur/v10/lecture.ts \
+  "export const aVraimentChange = (c: ChangementLu) => c.apres === null || c.avant === null || canonique(c.avant) !== canonique(c.apres);" "export const aVraimentChange = (c: ChangementLu) => c.apres !== undefined || canonique(c.avant) === '';" \
   "$AM"
 prouver "un avoir rattaché que le serveur ne rattache pas" $VA \
   "    await db.updateTable('achats.piece').set({ lie: cible })" "    await db.updateTable('achats.piece').set({})" \
@@ -1352,6 +1352,131 @@ prouver "un règlement fournisseur trop précis découvert seulement à l'enregi
 prouver "des frais d'achat trop précis découverts seulement à l'enregistrement" $V10A \
   "      if (bridge.emettre && (String(p.fees || 0)" "      if (false && (String(p.fees || 0)" \
   "$AP"
+
+# ── La paie tenue par le serveur (0014, brique 31) ──────────────────────────────────────────────
+VP=serveur/v10/paie.ts
+RP=serveur/paie/routes.ts
+GP=serveur/paie/gestes.ts
+M14=base/migrations/0014_paie.sql
+V10C=web/public/v10/compta.js
+PX="les bulletins de l'exemple de cinq ans se recalculent au serveur"
+PH="200 bulletins tirés au hasard (barèmes, régimes de contrat"
+PB="un bulletin garde son barème : une loi de finances plus tard"
+PR="un bulletin qui ne tombe pas juste, sans son barème"
+PM="modifier, supprimer, chacun avec sa trace ; un bulletin seulement déplacé"
+PL="la paie ne se lit qu'avec son geste"
+PBA="la base refuse elle-même un bulletin d'un salarié d'une autre entreprise"
+PP="la paie à la souris"
+prouver "un bulletin enregistré sans comparer ses montants à ceux de l'écran" $VP \
+  "    if (ecran !== calcul[n]) {" "    if (ecran === null && calcul[n] === -1n) {" \
+  "$PR"
+prouver "un bulletin recalculé sans la situation figée du salarié" $VP \
+  "chefDeFamille: sit.headOfFamily === true, enfants: Number(enfants) };" "chefDeFamille: false, enfants: Number(enfants) };" \
+  "$PX"
+prouver "un bulletin recalculé sans les tranches de l'IRPP qu'il a figées" $VP \
+  "    tranches: tranches.map((x) => ({ jusqua: x?.jusqua ?? null, taux: x?.taux ?? 0n }))," "    tranches: []," \
+  "$PX"
+prouver "un bulletin sans son barème, recalculé avec des zéros" $VP \
+  "  const fige = c.bareme, sit = c.situation;" "  const fige = c.bareme ?? {}, sit = c.situation ?? {};" \
+  "$PR"
+prouver "un bulletin au net négatif accepté" $VP \
+  "  if (calcul.net < 0n) throw new Refus('v10.bulletin_net', { valeurs: { salarie: nom, periode } });" "" \
+  "$PR"
+prouver "un bulletin au brut nul accepté" $VP \
+  "  if (calcul.brut <= 0n) throw new Refus('v10.bulletin_brut', { valeurs: { salarie: nom, periode } });" "" \
+  "$PR"
+prouver "un taux du barème plus précis que quatre décimales, lu autrement" $VP \
+  "  const taux = (v: unknown) => { const x = exact(v ?? 0, 4);" "  const taux = (v: unknown) => { const x = exact(v ?? 0, 6);" \
+  "$PR"
+prouver "une date de paiement impossible qui fait tomber le serveur" $VP \
+  "  if (payeLe !== null && !estJour(payeLe)) throw new Refus('v10.bulletin_paye_le', { valeurs: { salarie: nom, periode } });" "" \
+  "$PR"
+prouver "un treizième mois qui fait tomber le serveur" $VP \
+  "  if (!Number.isInteger(annee) || annee < 2000 || annee > 2200 || !Number.isInteger(mois) || mois < 1 || mois > 12) throw" "  if (false) throw" \
+  "$PR"
+prouver "un salarié aux enfants négatifs qui fait tomber le serveur" $VP \
+  "  if (enfants === null || enfants < 0n || enfants > 99n) throw new Refus('v10.salarie_enfants'" "  if (enfants === null) throw new Refus('v10.salarie_enfants'" \
+  "$PR"
+prouver "la fiche du salarié réécrite et tracée pour un RIB" $VP \
+  "  if (canonique(avant) !== canonique(fiche)) {" "  if (canonique(avant) !== '') {" \
+  "$PM"
+prouver "un bulletin retiré du dossier gardé au serveur" $VP \
+  "    await db.deleteFrom('paie.bulletin').where('id', '=', b.id).execute();" "" \
+  "$PM"
+prouver "une modification de bulletin sans sa trace" $VP \
+  "    await tracer(tx, entreprise, 'paie.bulletin.modifier'," "    if (deja.revision < 0n) await tracer(tx, entreprise, 'paie.bulletin.modifier'," \
+  "$PB"
+prouver "un bulletin seulement déplacé dans la liste, recalculé et tracé" serveur/v10/lecture.ts \
+  "export const aVraimentChange = (c: ChangementLu) => c.apres === null || c.avant === null || canonique(c.avant) !== canonique(c.apres);" "export const aVraimentChange = (c: ChangementLu) => c.apres !== undefined || canonique(c.avant) === '';" \
+  "$PM"
+prouver "un bulletin qui ne fige pas la situation du salarié (la v10 telle quelle)" $V10C \
+  "      situation: { headOfFamily: !!emp.headOfFamily, children: Number(emp.children) || 0 }
+" "" \
+  "$PX"
+prouver "l'écran qui fige un barème sans les tranches de l'IRPP" $V10C \
+  "        brackets: (s.brackets || DEFAULT_PAYROLL.brackets).map(b => ({ upTo: b.upTo == null ? null : Number(b.upTo), rate: Number(b.rate) || 0 }))" "        brackets: []" \
+  "$PP"
+prouver "la déclaration CNSS qui oublie les jours d'absence" $RP \
+  "joursAbsence: l.jours_absence," "joursAbsence: 0n," \
+  "$PX"
+prouver "la masse salariale qui annonce le net pour le coût" $RP \
+  "coutEmployeur: x(r?.cout_employeur)" "coutEmployeur: x(r?.net)" \
+  "$PL"
+prouver "une page de bulletins qui saute ceux du même mois" $RP \
+  "q.where(sql<boolean>\`(to_char(make_date(b.annee, b.mois, 1), 'YYYY-MM'), b.id) < (\${avant?.[0] ?? ''}, \${avant?.[1] ?? ''}::uuid)\`)" "q.where(sql<boolean>\`to_char(make_date(b.annee, b.mois, 1), 'YYYY-MM') < \${avant?.[0] ?? ''}\`)" \
+  "$PL"
+prouver "le barème relu d'un bulletin avec ses taux cent fois trop petits" $RP \
+  "const pct = (v: unknown) => versTexte(BigInt(Number(v) || 0), 4);" "const pct = (v: unknown) => versTexte(BigInt(Number(v) || 0), 6);" \
+  "$PB"
+prouver "la comptabilité interne qui lit les bulletins" $GP \
+  "    roles: { proprietaire: 'oui', administrateur: 'oui', paie: 'oui' } },
+  { code: 'paie.declarations.voir'" "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', paie: 'oui' } },
+  { code: 'paie.declarations.voir'" \
+  "$PL"
+prouver "la lecture d'un bulletin qui ne se trace pas" $GP \
+  "  { code: 'paie.bulletins.voir', module: 'paie', ecrit: false, sensible: true," "  { code: 'paie.bulletins.voir', module: 'paie', ecrit: false," \
+  "$PL"
+prouver "un commercial qui voit la masse salariale" $GP \
+  "roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', paie: 'oui', lecture: 'voir' } }," "roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', comptabilite_interne: 'oui', paie: 'oui', lecture: 'voir' } }," \
+  "$PL"
+prouver "la trace d'une lecture qui ne dit pas quel bulletin" serveur/app.ts \
+  "                const objet = r.objetLu && /^[0-9a-f-]{36}\$/i.test(lu) ? [r.objetLu.type, lu] : [null, null];" "                const objet = [null, null];" \
+  "$PL"
+prouver "la base qui montre la paie à la comptabilité interne" $M14 \
+  "   where socle.mes_roles(e) && array['proprietaire', 'administrateur', 'paie']::text[]" "   where socle.mes_roles(e) && array['proprietaire', 'administrateur', 'paie', 'comptabilite_interne']::text[]" \
+  "$PL"
+prouver "la base qui ouvre la masse salariale au commercial" $M14 \
+  "          and (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'paie', 'lecture']::text[]" "          and (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'commercial', 'paie', 'lecture']::text[]" \
+  "$PL"
+prouver "la masse salariale qui compte un bulletin au premier jour de son mois" $M14 \
+  "       and (make_date(b.annee, b.mois, 1) + interval '1 month' - interval '1 day')::date between p_du and p_au;" "       and make_date(b.annee, b.mois, 1) between p_du and p_au;" \
+  "$PL"
+prouver "la base qui laisse un bulletin changer de salarié" $M14 \
+  "  if tg_op = 'UPDATE' and new.salarie <> old.salarie then" "  if false then" \
+  "$PBA"
+prouver "la base qui accepte le salarié d'une autre entreprise" $M14 \
+  "  if not exists (select 1 from paie.salarie s where s.id = new.salarie and s.entreprise = new.entreprise) then" "  if false and not exists (select 1 from paie.salarie s where s.id = new.salarie and s.entreprise = new.entreprise) then" \
+  "$PBA"
+prouver "la base qui garde un net qui ne se tient pas" $M14 \
+  "  check (net = brut - cnss_salarie - irpp - css - autres_retenues),
+" "" \
+  "$PBA"
+prouver "la base qui garde des charges qui oublient la TFP" $M14 \
+  "  check (charges_patronales = cnss_employeur + accident_travail + tfp + foprolos),
+" "" \
+  "$PBA"
+prouver "la base qui garde un coût qui oublie une charge" $M14 \
+  "  check (cout_employeur = brut + charges_patronales)
+);" "  check (true)
+);" \
+  "$PBA"
+prouver "la base qui garde un barème à virgule" $M14 \
+  "  bareme jsonb not null check (jsonb_typeof(bareme) = 'object' and socle.sans_virgule(bareme))," "  bareme jsonb not null check (jsonb_typeof(bareme) = 'object')," \
+  "$PBA"
+prouver "une clé employée par un module sans son texte" serveur/paie/textes.ts \
+  "  'paie.champ.annee': 'une année, de 2000 à 2200',
+" "" \
+  "chaque clé employée par le code est déclarée"
 
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

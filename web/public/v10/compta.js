@@ -6235,7 +6235,17 @@
         cnssEmployee: Number(s.cnssEmployee) || 0, cnssEmployer: Number(s.cnssEmployer) || 0,
         accidentRate: Number(s.accidentRate) || 0, solidarity: Number(s.solidarity) || 0,
         tfpRate: Number(s.tfpRate) || 0, foprolosRate: Number(s.foprolosRate) || 0
-      }
+      },
+      // (plateforme) Le barème ENTIER de ce calcul et la situation du salarié ce mois-là : le bulletin
+      // les garde, et le serveur le recalcule avec eux.
+      bareme: {
+        cnssEmployee: Number(s.cnssEmployee) || 0, cnssEmployer: Number(s.cnssEmployer) || 0, accidentRate: Number(s.accidentRate) || 0,
+        tfpRate: Number(s.tfpRate) || 0, foprolosRate: Number(s.foprolosRate) || 0, solidarity: Number(s.solidarity) || 0,
+        proRate: Number(s.proRate) || 0, proCap: Number(s.proCap) || 0, headOfFamily: Number(s.headOfFamily) || 0,
+        perChild: Number(s.perChild) || 0, maxChildren: Number(s.maxChildren) || 0, sansIrpp: !!regime.sansIrpp,
+        brackets: (s.brackets || DEFAULT_PAYROLL.brackets).map(b => ({ upTo: b.upTo == null ? null : Number(b.upTo), rate: Number(b.rate) || 0 }))
+      },
+      situation: { headOfFamily: !!emp.headOfFamily, children: Number(emp.children) || 0 }
     };
   }
   // Les charges patronales d'un bulletin, telles qu'il les a FIGÉES (5.0.0) : un bulletin d'avant la

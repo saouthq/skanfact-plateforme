@@ -9,16 +9,13 @@
 // Un seul refus, et rien de l'envoi n'est écrit (la transaction de l'enregistrement).
 
 import { sql } from 'kysely';
-import { depuisTexte } from '../../moteur/argent.ts';
 import { calculerAchat, DESTINATIONS, type Achat, type Destination, type NatureAchat } from '../../moteur/achats.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { Refus } from '../erreurs.ts';
 import { REGLEMENTS_ACHATS, tenirReglements } from '../reglements.ts';
 import { tracer } from '../trace.ts';
-import { canonique, deviseV10, estJour, estObjet, lirePaiements, nombreEnTexte, texteOuNul, type Json } from './lecture.ts';
+import { aVraimentChange, deviseV10, estJour, estObjet, exact, lirePaiements, objetDuDossier, texteOuNul, type ChangementLu, type Json } from './lecture.ts';
 import './textes.ts';
-
-export type ChangementLu = { collection: string; cle: string; avant: unknown; apres: unknown };
 
 const NATURES: NatureAchat[] = ['facture', 'depense', 'avoir', 'acompte'];
 // Les régimes de la v10 qui ne récupèrent pas la TVA (REGIMES de core.js ; vide vaut « réel »).
@@ -28,11 +25,6 @@ const CENT_POUR_CENT = 1_000_000n;   // un taux à quatre décimales : 100 % = 1
 
 // Le nom d'un achat dans un refus : le numéro du fournisseur, sinon sa date.
 const nomDe = (p: Json) => (typeof p.number === 'string' && p.number.trim() !== '' ? p.number.trim() : `du ${String(p.date ?? '?')}`);
-
-// Un nombre de la v10 à `dec` décimales au plus, ou `null` s'il en a trop.
-function exact(v: unknown, dec: number): bigint | null {
-  try { return depuisTexte(nombreEnTexte(v), dec); } catch { return null; }
-}
 
 // ── Les fournisseurs ─────────────────────────────────────────────────────────────────────────────
 // La fiche du serveur suit celle du dossier. Un fournisseur retiré du dossier garde sa fiche (D7) :
@@ -52,13 +44,6 @@ async function ficheFournisseur(tx: Transaction, entreprise: string, ref: string
   }
   return (await db.insertInto('socle.tiers').values({ entreprise, nature: 'societe', ...fiche, pays: 'TN', roles: ['fournisseur'], ref_v10: ref })
     .returning('id').executeTakeFirstOrThrow()).id;
-}
-
-// L'objet du dossier tel qu'il est APRÈS l'envoi (tout l'envoi est déjà écrit).
-async function objetDuDossier(tx: Transaction, entreprise: string, collection: string, cle: string): Promise<Json | null> {
-  const o = await requetes(tx).selectFrom('socle.dossier_v10').select('contenu')
-    .where('entreprise', '=', entreprise).where('collection', '=', collection).where('cle', '=', cle).executeTakeFirst();
-  return o && estObjet(o.contenu) ? o.contenu : null;
 }
 
 // ── Lire un achat de la v10 ──────────────────────────────────────────────────────────────────────
@@ -173,11 +158,9 @@ async function tenirAchat(tx: Transaction, entreprise: string, utilisateur: stri
 }
 
 export async function suivreAchats(tx: Transaction, entreprise: string, utilisateur: string, changements: ChangementLu[]): Promise<void> {
-  // Seul ce qui a VRAIMENT changé : une pièce qui n'a fait que changer de place dans la liste (une
-  // autre ajoutée avant elle) revient dans l'envoi, et ne doit ni se recalculer ni laisser de trace.
-  const change = (c: ChangementLu) => c.apres === null || c.avant === null || canonique(c.avant) !== canonique(c.apres);
-  const fournisseurs = changements.filter((c) => c.collection === 'suppliers' && estObjet(c.apres) && change(c));
-  const achats = changements.filter((c) => c.collection === 'purchases' && change(c));
+  // Seul ce qui a VRAIMENT changé : une pièce seulement déplacée ne se recalcule pas.
+  const fournisseurs = changements.filter((c) => c.collection === 'suppliers' && estObjet(c.apres) && aVraimentChange(c));
+  const achats = changements.filter((c) => c.collection === 'purchases' && aVraimentChange(c));
   if (!fournisseurs.length && !achats.length) return;
   const db = requetes(tx);
 

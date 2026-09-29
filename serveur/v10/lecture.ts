@@ -1,8 +1,9 @@
 // Lire ce que l'interface v10 a écrit dans son dossier : ses nombres, ses jours, ses paiements.
-// Partagé par les ventes (0012) et les achats (0013) : un paiement se lit de la même façon des deux
-// côtés, et se refuse avec les mêmes phrases.
+// Partagé par les ventes (0012), les achats (0013) et la paie (0014) : un paiement se lit de la même
+// façon des deux côtés, et se refuse avec les mêmes phrases.
 
 import { depuisTexte } from '../../moteur/argent.ts';
+import { requetes, type Transaction } from '../base.ts';
 import { Refus } from '../erreurs.ts';
 import type { ReglementSaisi } from '../reglements.ts';
 import './textes.ts';
@@ -16,6 +17,24 @@ export function canonique(v: unknown): string {
   if (Array.isArray(v)) return `[${v.map(canonique).join(',')}]`;
   if (estObjet(v)) return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonique(v[k])}`).join(',')}}`;
   return JSON.stringify(v ?? null);
+}
+
+// Un objet du dossier dans un envoi : ce qu'il était, ce qu'il devient (null : retiré).
+export type ChangementLu = { collection: string; cle: string; avant: unknown; apres: unknown };
+// Seul ce qui a VRAIMENT changé compte : un objet qui n'a fait que changer de place dans sa liste (un
+// autre ajouté avant lui) revient dans l'envoi, et ne doit ni se recalculer ni laisser de trace.
+export const aVraimentChange = (c: ChangementLu) => c.apres === null || c.avant === null || canonique(c.avant) !== canonique(c.apres);
+
+// L'objet du dossier tel qu'il est APRÈS l'envoi (tout l'envoi est déjà écrit).
+export async function objetDuDossier(tx: Transaction, entreprise: string, collection: string, cle: string): Promise<Json | null> {
+  const o = await requetes(tx).selectFrom('socle.dossier_v10').select('contenu')
+    .where('entreprise', '=', entreprise).where('collection', '=', collection).where('cle', '=', cle).executeTakeFirst();
+  return o && estObjet(o.contenu) ? o.contenu : null;
+}
+
+// Un nombre de la v10 à `dec` décimales au plus, ou `null` s'il en a trop.
+export function exact(v: unknown, dec: number): bigint | null {
+  try { return depuisTexte(nombreEnTexte(v), dec); } catch { return null; }
 }
 
 // Un nombre de la v10, tel que l'interface l'a écrit (un entier, ou { "~n": "450.5" }), en texte exact.

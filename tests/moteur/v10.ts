@@ -2,7 +2,9 @@
 // exemple de cinq ans, la conversion d'une pièce v10 dans le nouveau format, et un tirage de pièces
 // au hasard, toujours le même (la graine est fixe).
 
+import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import vm from 'node:vm';
 import { TND, type Devise } from '../../moteur/argent.ts';
 import type { Piece, TypePiece } from '../../moteur/piece.ts';
 
@@ -21,6 +23,16 @@ export type Societe = { currency: string; stampFee: number };
 export const exiger = createRequire(import.meta.url);
 export const v10 = exiger('../../banc/v10/core.js') as { computeTotals: (d: DocV10, c: Societe) => ResultatV10; DEFAULT_COMPANY: Societe };
 export const demo = exiger('../../banc/v10/demo.js') as { buildDemoData: (c: Societe, jour: string) => { company: Societe; documents: DocV10[] } };
+
+// Un fichier de l'écran de la PLATEFORME (web/public/v10 : la v10 et ses adaptations), dans Node. Le
+// paquet de la plateforme est en modules ES : `require` ne lui donne pas l'objet `module` qu'il
+// attend pour se rendre (il se poserait sur l'objet global) ; on le lui donne.
+export function ecranDeLaPlateforme(fichier: string): unknown {
+  const module = { exports: {} as unknown };
+  const source = fs.readFileSync(new URL(`../../web/public/v10/${fichier}`, import.meta.url), 'utf8');
+  (vm.runInThisContext(`(function (module, exports) {${source}\n})`, { filename: fichier }) as (m: unknown, e: unknown) => void)(module, module.exports);
+  return module.exports;
+}
 
 // Un nombre de la v10 en entier à `dec` décimales ; `null` s'il en a davantage (une donnée que le
 // nouveau format ne sait pas tenir exactement : elle se signale, elle ne s'arrondit pas en silence).

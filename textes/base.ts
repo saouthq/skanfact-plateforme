@@ -76,6 +76,9 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'un règlement ne change pas de pièce', cle: 'base.achats.reglement_piece', fr: 'un règlement ne change pas de pièce' },
   { base: 'un règlement porte sur un achat de son entreprise', cle: 'base.achats.reglement_achat', fr: 'un règlement porte sur un achat de son entreprise' },
   { base: 'les lignes d\'une pièce émise ne se modifient plus (01 R6)', cle: 'base.ventes.lignes_emises', fr: 'les lignes d\'une pièce émise ne se modifient plus' },
+  { base: 'un bulletin ne change pas de salarié', cle: 'base.paie.bulletin_salarie', fr: 'un bulletin ne change pas de salarié' },
+  { base: 'un bulletin appartient à l\'entreprise de son salarié', cle: 'base.paie.bulletin_entreprise', fr: 'un bulletin appartient à l\'entreprise de son salarié' },
+  { base: 'ton rôle ne permet pas de voir la masse salariale', cle: 'base.paie.masse_interdite', fr: 'ton rôle ne permet pas de voir la masse salariale' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

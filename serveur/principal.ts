@@ -25,6 +25,8 @@ import { listeDepuisFichier } from './mot-de-passe.ts';
 import { routesSocle } from './routes/socle.ts';
 import { declarerGestesAchats } from './achats/gestes.ts';
 import { routesAchats } from './achats/routes.ts';
+import { declarerGestesPaie } from './paie/gestes.ts';
+import { routesPaie } from './paie/routes.ts';
 import { declarerGestesVentes } from './ventes/gestes.ts';
 import { routesVentes } from './ventes/routes.ts';
 import { routesV10 } from './v10/routes.ts';
@@ -94,7 +96,8 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms: smsAucun };
   declarerGestesVentes();
   declarerGestesAchats();
-  const app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesAchats(ctx), ...routesV10(ctx)]);
+  declarerGestesPaie();
+  const app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesAchats(ctx), ...routesPaie(ctx), ...routesV10(ctx)]);
   servirLesEcrans(app, c.web);
   const adresse = await app.listen({ port: c.port, host: c.hote });
 

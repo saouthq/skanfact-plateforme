@@ -29,6 +29,9 @@ export type Route<C = unknown> = {
   // Le travail. Pour un geste d'entreprise ou personnel, `tx` est une transaction au nom de la
   // personne ; pour un geste public, il n'y a pas de transaction (le travail ouvre les siennes).
   traiter: (r: Requete<C>, tx: Transaction | null) => Promise<{ statut?: number; corps: unknown }>;
+  // La lecture sensible d'UN objet (03 D10) : son type, et le paramètre du chemin qui le nomme. La
+  // trace de la lecture dit alors quel objet a été lu, pas seulement qu'on a lu.
+  objetLu?: { type: string; param: string };
 };
 
 export class RouteSansGeste extends Error {}
@@ -168,8 +171,10 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
               if (!d.ok) return { statut: d.raison === 'invisible' ? 404 : 403, corps: { motif: d.motif, qui: d.qui, bouton: d.bouton } };
               // Une lecture de donnée sensible se trace, pas seulement les modifications (D10).
               if (d.geste.sensible && r.methode === 'GET') {
-                await tx.query(`insert into socle.audit (entreprise, utilisateur, cle_api, appareil, geste, lecture)
-                  values ($1, socle.moi(), socle.ma_cle(), $2, $3, true)`, [entreprise, qui.appareil, r.geste]);
+                const lu = r.objetLu ? params[r.objetLu.param] ?? '' : '';
+                const objet = r.objetLu && /^[0-9a-f-]{36}$/i.test(lu) ? [r.objetLu.type, lu] : [null, null];
+                await tx.query(`insert into socle.audit (entreprise, utilisateur, cle_api, appareil, geste, objet_type, objet_id, lecture)
+                  values ($1, socle.moi(), socle.ma_cle(), $2, $3, $4, $5, true)`, [entreprise, qui.appareil, r.geste, ...objet]);
               }
             }
             return r.traiter({ corps: corps as never, params, query, qui, requete }, tx);

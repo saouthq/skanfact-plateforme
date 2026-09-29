@@ -60,8 +60,13 @@ export async function decrireBase(client: pg.Client): Promise<string> {
     let t = c.tableau ? `${ts}[]` : ts;
     // Une vue ne dit pas ce qui peut être vide : tout y est permis vide.
     if (!c.requis || c.vue) t += ' | null';
-    if (ts === 'Json') t = `ColumnType<${t}, ${c.requis && !c.vue ? 'string' : 'string | null'}, ${c.requis && !c.vue ? 'string' : 'string | null'}>`;
-    if (c.generee) t = `GeneratedAlways<${t}>`;
+    const ecrit = c.requis && !c.vue ? 'string' : 'string | null';
+    if (ts === 'Json') {
+      // Un jsonb s'écrit en texte JSON. S'il a une valeur par défaut, il peut manquer à l'insertion :
+      // c'est dit dans le même ColumnType (Kysely ne sait pas écrire un Generated<ColumnType<…>>).
+      t = `ColumnType<${t}, ${ecrit}${c.defaut && !c.generee ? ' | undefined' : ''}, ${ecrit}>`;
+      if (c.generee) t = `GeneratedAlways<${t}>`;
+    } else if (c.generee) t = `GeneratedAlways<${t}>`;
     else if (c.defaut) t = `Generated<${t}>`;
     const cle = `${c.schema}.${c.table}`;
     if (!tables.has(cle)) tables.set(cle, []);
