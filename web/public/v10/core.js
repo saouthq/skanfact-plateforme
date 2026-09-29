@@ -8104,8 +8104,8 @@
         id: 'questions', level: bloquees.length ? 'danger' : 'warn',
         label: `${plFr(qsOuvertes.length, 'question')} de ton comptable ${qsOuvertes.length > 1 ? 'attendent' : 'attend'} ta réponse`,
         detail: bloquees.length
-          ? `${plFr(bloquees.length, 'est arrivée', 'sont arrivées')} dans deux paquets sans réponse : ton comptable ne peut pas arrêter ton mois tant qu'${bloquees.length > 1 ? 'elles restent' : 'elle reste'} en l'air.`
-          : 'Chacune est posée en face de la pièce qu\'elle vise : ouvre-la et réponds, ta réponse repart dans le prochain paquet.',
+          ? `${plFr(bloquees.length, 't\'a été envoyée', 't\'ont été envoyées')} deux fois sans réponse : ton comptable ne peut pas arrêter ton mois tant qu'${bloquees.length > 1 ? 'elles restent' : 'elle reste'} en l'air.`
+          : 'Chacune est posée en face de la pièce qu\'elle vise : ouvre-la et réponds : ton comptable lit ta réponse dès que tu l\'enregistres.',
         count: qsOuvertes.length, route: '#/compta?onglet=cabinet', docs: []
       });
     }

@@ -85,8 +85,10 @@
   function decouper(data) {
     /** @type {Map<string, Morceau>} */
     const m = new Map();
-    for (const [champ, v] of Object.entries(data)) {
-      if (v === undefined || typeof v === 'function') continue;
+    for (const [champ, brut] of Object.entries(data)) {
+      if (brut === undefined || typeof brut === 'function') continue;
+      // Les questions du cabinet vivent dans les livres, au serveur (brique 44 bis) : jamais dans le dossier.
+      const v = champ === 'questionsCabinet' ? [] : brut;
       if (COLLECTION.test(champ) && listeAIdentifiants(v)) {
         /** @type {any[]} */ (v).forEach((x, i) => m.set(`${champ}\u0000${x.id}`, { collection: champ, cle: x.id, rang: i, json: JSON.stringify(encoder(x)) }));
       } else {
@@ -117,6 +119,7 @@
   let enAttente = null;
   /** @param {Record<string, unknown>} data */
   async function envoyer(data) {
+    await envoyerReponses(data);
     const maintenant = decouper(data);
     const changements = [];
     for (const [k, m] of maintenant) {
@@ -176,7 +179,38 @@
     const r = await appel('GET', '/dossier-v10');
     vu = new Map();
     for (const o of r.objets) vu.set(`${o.collection}\u0000${o.cle}`, { json: JSON.stringify(o.contenu), rang: o.rang, revision: o.revision });
-    return assembler(r.objets);
+    const data = assembler(r.objets);
+    data.questionsCabinet = await questionsDuCabinet();
+    return data;
+  }
+
+  // ── Les questions du cabinet (brique 44 bis ; docs/cabinet.md, C34) ─────────────────────────
+  // Elles sont dans les livres de l'entreprise : celles que le cabinet a envoyées et n'a pas
+  // fermées, dans la forme de la v10 (compta.js, fusionnerQuestionsRecues) — chaque envoi compte une
+  // réception. Qui ne lit pas les livres ne les voit pas. La réponse part au serveur dès qu'elle est
+  // enregistrée, et elle seule : rien d'autre de la question ne se change ici.
+  /** @type {Map<string, string>} */
+  let reponsesConnues = new Map();
+  async function questionsDuCabinet() {
+    /** @type {any[]} */ let lues = [];
+    try { lues = (await appel('GET', '/compta/questions')).questions || []; } catch (e) { if (/** @type {any} */ (e).statut !== 403) throw e; }
+    const qs = lues.filter((q) => q.statut !== 'close').map((q) => ({
+      id: q.id, periode: q.periode, piece: q.piece, compte: q.compte, libelleCompte: '', montant: Number(q.montant) || 0,
+      objet: q.objet, texte: q.texte, attendu: q.attendu, cabinet: '', exercice: Number(String(q.periode).slice(0, 4)),
+      recueLe: Date.parse(q.envois[q.envois.length - 1]) || 0, recues: q.envois.length,
+      reponse: q.reponse ? { texte: q.reponse, le: Date.parse(q.reponduLe) || 0, piece: null } : null,
+    }));
+    reponsesConnues = new Map(qs.map((q) => [q.id, q.reponse ? q.reponse.texte : '']));
+    return qs;
+  }
+  /** @param {Record<string, unknown>} data */
+  async function envoyerReponses(data) {
+    for (const q of /** @type {any[]} */ (Array.isArray(data.questionsCabinet) ? data.questionsCabinet : [])) {
+      const texte = String((q && q.reponse && q.reponse.texte) || '').trim();
+      if (!texte || !reponsesConnues.has(q.id) || reponsesConnues.get(q.id) === texte) continue;
+      await appel('POST', `/compta/questions/${encodeURIComponent(q.id)}/repondre`, { texte });
+      reponsesConnues.set(q.id, texte);
+    }
   }
 
   // Les panneaux des Paramètres sans objet sur la plateforme (voir `panneauxAbsents`).

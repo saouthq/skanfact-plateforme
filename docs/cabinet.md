@@ -87,7 +87,7 @@ mêmes données que son client.
 | **42 bis** | L'inventaire de stock et sa variation. |
 | **43** | La paie tenue par le cabinet (mandat Paie) : les salariés et les bulletins du client, dans son propre dossier. |
 | **44** | La révision (feuilles maîtresses, comptes signés, notes, questionnaire, révision arrêtée) et les questions au client, posées puis envoyées. |
-| 44 bis | Le client lit les questions de son cabinet dans son SkanFact, en face de la pièce, et y répond. |
+| **44 bis** | Le client lit les questions de son cabinet dans son SkanFact, en face de la pièce, et y répond. |
 | 45 | La clôture de l'exercice, sa réouverture (avec un motif), l'exercice suivant. |
 | 46 | L'équipe du cabinet : invitations, rôles, affectations par dossier, trace de l'équipe. |
 
@@ -728,7 +728,37 @@ une question depuis la ligne du 471 (hors cycle), envoyée, lue par le client, s
 l'écran du cabinet, la révision arrêtée « par associe ».
 
 **Reste connu** :
-- **Le client lit et répond dans son SkanFact** : brique 44 bis (d'ici là, par l'API).
+- **Le client lit et répond dans son SkanFact** : brique 44 bis, ci-dessous.
 - Une réponse du client n'emporte pas encore de pièce jointe (le serveur ne garde pas encore les
   fichiers) : elle est en texte.
 - Le « Suivi » de production (la période marquée révisée) viendra avec le tableau de production.
+
+## Brique 44 bis : les questions du cabinet chez le client (fait le 29/09/2026)
+
+SkanFact v10 recevait les questions du comptable dans un fichier `.skanask`, les posait en face de la
+pièce qu'elles visent et dans l'onglet Cabinet de la Comptabilité, et renvoyait les réponses dans le
+paquet suivant. Sur la plateforme, les mêmes écrans.
+
+**C34. Les questions arrivent d'elles-mêmes, les réponses partent aussitôt** (par délégation) : le
+point de contact de l'entreprise lit, dans ses livres (`GET compta/questions`), celles que le cabinet
+lui a **envoyées** et n'a **pas fermées**, dans la forme de la v10 (chaque envoi compte une réception :
+la règle des deux envois vaut des deux côtés) ; qui ne lit pas les livres ne les voit pas. Elles ne
+vont **jamais** dans le dossier de l'entreprise (le dossier v10 garde une liste vide). La réponse
+enregistrée part au serveur (`POST …/repondre`) avant le reste du dossier, et elle seule : rien d'autre
+de la question ne se change ici. **L'onglet Cabinet** de la Comptabilité ne fabrique plus de paquet :
+il porte les questions, et dit à qui le dossier est confié (le même panneau que Paramètres → Envois).
+Les textes (« À faire », les bulles, la fenêtre de réponse) disent l'envoi et la lecture en direct,
+plus le paquet ; une pièce jointe à une réponse n'est pas encore en ligne, et la fenêtre ne la promet
+plus.
+
+**Les tests** : à la souris (`tests/web/questions-client.test.ts`) : quatre questions — deux envoyées,
+une fermée, une jamais partie ; le client voit les deux premières seulement, et son cabinet ; il
+répond à l'une depuis l'onglet Cabinet, à l'autre en face de l'achat qu'elle vise (le bandeau
+disparaît) ; les deux réponses sont au serveur, et son dossier ne contient aucune question.
+
+La visite guidée « Répondre aux questions de mon comptable » dit la même chose (plus de fichier à
+importer, plus d'étape « elle part dans le paquet »).
+
+**Reste connu** :
+- Les autres visites et pages de l'entreprise qui parlent encore du paquet du mois (fabriquer,
+  envoyer au comptable) sont à revoir avec la partie entreprise (hors des briques du Cabinet).

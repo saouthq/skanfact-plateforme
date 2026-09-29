@@ -1761,24 +1761,22 @@
     visite({
       id: 'repondre-comptable', theme: 'compta', type: 'faire', duree: '2 min', page: '#/compta',
       titre: 'Répondre aux questions de mon comptable',
-      resume: 'Sa question arrive sur la pièce qu\'elle vise ; ta réponse repart dans le paquet du mois.',
-      mots: ['question', 'repondre', 'reponse', 'comptable', 'cabinet', 'skanask', 'demande'],
-      suite: ['paquet', 'justificatif'],
+      resume: 'Sa question arrive sur la pièce qu\'elle vise ; ton comptable lit ta réponse dès que tu l\'enregistres.',
+      mots: ['question', 'repondre', 'reponse', 'comptable', 'cabinet', 'demande'],
+      suite: ['justificatif'],
       bravo: 'Tu sais lui répondre',
-      conclusion: 'Ta réponse part dans le paquet du mois, dès que tu le fabriques — ou que tu le refais s\'il était déjà fait. Il n\'y a rien d\'autre à envoyer.',
+      conclusion: 'Ton comptable lit ta réponse dès que tu l\'enregistres : il n\'y a rien d\'autre à envoyer.',
       etapes: [
         { page: '#/compta', avant: onglet('#c-tabs', 'cabinet'), cible: '#p-questions', cote: 'dessus', titre: 'Ses questions',
-          texte: 'Ton comptable t\'envoie un fichier <b>.skanask</b> : « Importer les questions de ton comptable » le lit. Chaque question vise une pièce, et dit ce qu\'il attend — une pièce, une explication ou une confirmation.' },
+          texte: 'Quand ton comptable t\'envoie une question, elle arrive ici d\'elle-même. Chacune vise une pièce, et dit ce qu\'il attend — une pièce, une explication ou une confirmation.' },
         { page: () => ctx.premier('pieceQuestion'), si: () => !!ctx.premier('pieceQuestion'), cible: '#q-piece', cote: 'dessous',
           titre: 'Sur la pièce elle-même', texte: 'La question s\'affiche aussi en haut de la pièce qu\'elle vise : tu la vois en travaillant, et tu réponds sans chercher.' },
         { si: () => !!$('#q-piece'), cible: '#q-piece [data-qrep]', cote: 'dessous', faire: 'clic',
           titre: 'Répondre', texte: 'Une phrase suffit : c\'est ce qu\'il lira.', action: 'Clique sur {bouton}.', fait: () => fenetre('Répondre'), essai: { clic: true } },
         { si: () => fenetre('Répondre'), cible: '#modal-root .modal textarea[name="texte"]', cote: 'droite', faire: 'valeur',
-          titre: 'Ta réponse', texte: 'S\'il attend une pièce, joins-la sur la pièce elle-même : elle part déjà dans le paquet.', action: 'Tape ta réponse.', essai: { taper: 'Oui : elle reste au bureau plusieurs années.' } },
+          titre: 'Ta réponse', texte: 'S\'il attend une pièce, dis-lui où la trouver.', action: 'Tape ta réponse.', essai: { taper: 'Oui : elle reste au bureau plusieurs années.' } },
         { si: () => fenetre('Répondre'), cible: '#modal-root .modal #ok', cote: 'dessus', faire: 'clic',
-          titre: 'Enregistrer ta réponse', texte: 'Tu pourras la reprendre : « Corriger ma réponse », dans la liste de ses questions.', action: 'Clique sur <b>« Enregistrer ma réponse »</b>.', fait: () => aucuneFenetre(), essai: { clic: true } },
-        { page: '#/compta', avant: onglet('#c-tabs', 'cabinet'), cible: ['#cab-build', '#p-envoyer'], cote: 'dessous', titre: 'Elle part dans le paquet',
-          texte: 'Ta réponse part dans le <b>paquet du mois</b>, dès que tu le fabriques. S\'il était déjà fait, ce bouton devient « Refaire le paquet avec ta réponse » : il n\'y a rien d\'autre à envoyer.' }
+          titre: 'Enregistrer ta réponse', texte: 'Tu pourras la reprendre : « Corriger ma réponse », dans la liste de ses questions.', action: 'Clique sur <b>« Enregistrer ma réponse »</b>.', fait: () => aucuneFenetre(), essai: { clic: true } }
       ]
     });
 

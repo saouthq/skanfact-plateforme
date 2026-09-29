@@ -7259,8 +7259,8 @@
       <div class="warn-box mb">${h(q.objet ? q.objet + ' — ' : '')}${h(C.typoFr(q.texte))}</div>
       <form id="qf"><label class="field obligatoire">${lbl('Ta réponse', 'cab.reponse')}
         <textarea name="texte" rows="4" placeholder="Réponds en une phrase : c'est ce que ton comptable lira.">${h((q.reponse && q.reponse.texte) || '')}</textarea></label>
-        <p class="small muted">Une pièce justificative se joint sur la pièce elle-même : elle part déjà dans le paquet,
-        et la joindre ici en ferait une seconde copie.</p></form>
+        <p class="small muted">Ton comptable la lit dès que tu l'enregistres. Si ton comptable attend une pièce,
+        dis-lui dans ta réponse où la trouver.</p></form>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer ma réponse</button></div>`,
       (root, close) => {
         $('#ok', root).onclick = () => {
@@ -7270,7 +7270,7 @@
           if (!r.ok) return toast(r.motif, true);
           data.questionsCabinet = r.liste;
           save(true); close();
-          toast('Réponse enregistrée — elle partira dans le prochain paquet que tu fabriques');
+          toast('Réponse enregistrée : ton comptable la lit dans SkanFact Cabinet');
           render(true); updateNavCounts();
         };
       });
@@ -14485,6 +14485,15 @@
       const suivante = moisVide ? '' : enAttente.length ? 'repondre'
         : !sent.length ? 'fabriquer' : nonParties.length || change.length ? 'refaire' : 'envoyer';
 
+      // La plateforme (brique 44 bis) : plus de paquet — les livres sont au serveur, le cabinet les lit
+      // en direct. L'onglet porte les questions du comptable, et dit à qui le dossier est confié.
+      if (bridge.dessinerMandat) {
+        $('#c-body').innerHTML = `${panneauQuestions()}
+          <div class="panel" id="p-cabinet-mandat"><h2>Ton cabinet comptable</h2><div id="cab-pair"></div></div>`;
+        void bridge.dessinerMandat($('#cab-pair'));
+        $$('[data-rep]').forEach(b => b.onclick = () => repondreA(b.dataset.rep));
+        return;
+      }
       $('#c-body').innerHTML = `
         <div class="panel"><h2>Le paquet du mois ${info('cab.paquet')}</h2>
           <div class="inline mb">
@@ -14615,7 +14624,7 @@
         const bloquees = C.questionsSansReponse(data.questionsCabinet || []);
         const attendu = id => (C.QUESTION_ATTENDUS.find(x => x.id === id) || {}).label || 'Une explication';
         return `<div class="panel" id="p-questions"><h2>Les questions de ton comptable ${info('cab.questions')}</h2>
-          ${bloquees.length ? `<div class="warn-box grave mb">${h(pl(bloquees.length, 'question est arrivée', 'questions sont arrivées'))} dans deux paquets sans réponse.
+          ${bloquees.length ? `<div class="warn-box grave mb">${h(pl(bloquees.length, 'question t\'a été envoyée', 'questions t\'ont été envoyées'))} deux fois sans réponse.
             Tant qu'${bloquees.length > 1 ? 'elles restent' : 'elle reste'} en l'air, ton comptable ne peut pas arrêter ton mois.</div>` : ''}
           ${qs.length
             ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Pièce</th><th>La question</th><th>Attendu</th><th>Reçue</th><th>Réponse</th><th></th></tr></thead><tbody>
@@ -14630,10 +14639,10 @@
                     : '<span class="badge b-due">sans réponse</span>'}</td>
                   <td class="actions r nw"><button class="btn btn-sm${suivante === 'repondre' && i === 0 ? ' btn-primary' : ''}" data-rep="${h(q.id)}">${repondue(q) ? 'Corriger ma réponse' : 'Répondre'}</button></td></tr>`).join('')}
               </tbody></table></div>
-              <p class="small muted mt">Tes réponses partent <strong>dans le paquet du mois</strong>, dès que tu le fabriques (ou le refais) : il n'y a rien d'autre à envoyer.</p>`
+              <p class="small muted mt">Ton comptable lit tes réponses dès que tu les enregistres : il n'y a rien d'autre à envoyer.</p>`
             : `<div class="empty mini">Aucune question reçue. Quand ton comptable a besoin d'une pièce ou d'une explication,
-               il t'envoie un fichier <code>.skanask</code> : chaque question s'affiche ensuite en face de la pièce qu'elle vise.</div>`}
-          <div class="inline mt"><button class="btn" id="q-import">Importer les questions de ton comptable…</button></div>
+               sa question arrive ici d'elle-même, et en face de la pièce qu'elle vise.</div>`}
+
         </div>`;
       }
       $$('[data-rep]').forEach(b => b.onclick = () => repondreA(b.dataset.rep));

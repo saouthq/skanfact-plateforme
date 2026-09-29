@@ -3,9 +3,9 @@
   "branche": "beta",
   "commit": "c764a5d",
   "reprisLe": "2026-09-29",
-  "adaptations": 195,
+  "adaptations": 211,
   "fichiers": {
-    "app.js": "564e1bfd481d079a5ce0bdaa994db3d48cdac0d5f519cf75ce0242b3a4cb3158",
+    "app.js": "a9a3bd29c2b373f5d73338b604443f1a4c982954fac521f23ebe9b39d5858ef0",
     "cabinet/app.js": "b83bffd8695df0f2bfbcf79491c2b05932cc4dc896e7576a55d45f86d3d5717e",
     "cabinet/cabcore.js": "84cd43912cd60b911fe88574c87908bab34110c28bfa6c0a3da050fd3811af73",
     "cabinet/cabguide.js": "1123b852050e6e6c9284ffc4682758384607987e117b5a3b2c4338bbc2b3add2",
@@ -13,9 +13,9 @@
     "cabinet/cabvisites.js": "5bea374b992325565643c39bd4991f3678c79ff004f96ce4f4c3dde57562caed",
     "cabinet/index.html": "94ad1f6d1300e865f1369973a680b15a8e58606ab01a7c5161e1fd53af11c137",
     "compta.js": "a1228cbab17b53cd0aa40454d782cabff3165a599788a9a6053f49fcf0368668",
-    "core.js": "27275977631288e7039120e2237a14fb084e6ea386daee18041a9c942a2e0fc5",
+    "core.js": "a6fc4c705d713038f3fa4d355110c6409e2d6b512be99a43ac4868aec307d08b",
     "demo.js": "7831c54cb6ce833e60421c7f837510c3d722efdb94139db2e369ccb3b5fcc18a",
-    "guide.js": "6c80afbbba7dc3a286342505b7bb5271abf6c4540645f90ebf09cbd39918003d",
+    "guide.js": "ac55f03eb87d3cc2bcef445902384f2779c50502e5ff817625b935e70a22a31d",
     "index.html": "92aa065b94f10f2717fc724e0f93565de40979677635ee6d9675c14fc7ecb8ca",
     "listes.js": "90b0298f6d69676294ce3d0df34358618b92eab7072de4f5f6a07b035aef9cfa",
     "majui.js": "4e510979f9abb6e59386af4463d30fe25c6ac44ec04395294506d68d7b02ef7d",
@@ -27,6 +27,6 @@
     "style.css": "50186b8a6e2727addc9b34602e3e235fabdb206fa62ebd975cfa5f2c6a7fd012",
     "teif.js": "87e7870460227508739bac49cf77e13c4435c2e7c1ddbaf99f4a9f31679b45d4",
     "visite.js": "e2251e94b8ad0d3ea182d9ddff317e84bc71c4e552af4f613cc6040c0c925358",
-    "visites.js": "5257f0a95cd6ac80f9ff9ab687b7bb8850f2b037fccad6dfa1c23ad2859c934e"
+    "visites.js": "3d40ae4df28d930571b49fc55c3cadb3d140946ce7c932cb5cec5dacde6bb7d1"
   }
 }

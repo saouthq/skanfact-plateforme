@@ -1,0 +1,140 @@
+Les questions du cabinet, chez le client (brique 44 bis). Format : voir sans-paquets.mjs.
+
+La v10 recevait les questions du comptable dans un fichier (.skanask) et renvoyait les réponses dans
+le paquet suivant. Sur la plateforme, la question est dans les livres de l'entreprise : elle arrive
+d'elle-même quand le cabinet l'envoie, et la réponse part au serveur dès qu'elle est enregistrée.
+L'onglet Cabinet de la Comptabilité ne fabrique plus de paquet : il porte les questions, et dit à qui
+le dossier est confié.
+
+== app.js | plus de paquet : l'onglet Cabinet porte les questions du comptable et dit à qui le dossier est confié
+-- avant
+      $('#c-body').innerHTML = `
+        <div class="panel"><h2>Le paquet du mois ${info('cab.paquet')}</h2>
+-- après
+      // La plateforme (brique 44 bis) : plus de paquet — les livres sont au serveur, le cabinet les lit
+      // en direct. L'onglet porte les questions du comptable, et dit à qui le dossier est confié.
+      if (bridge.dessinerMandat) {
+        $('#c-body').innerHTML = `${panneauQuestions()}
+          <div class="panel" id="p-cabinet-mandat"><h2>Ton cabinet comptable</h2><div id="cab-pair"></div></div>`;
+        void bridge.dessinerMandat($('#cab-pair'));
+        $$('[data-rep]').forEach(b => b.onclick = () => repondreA(b.dataset.rep));
+        return;
+      }
+      $('#c-body').innerHTML = `
+        <div class="panel"><h2>Le paquet du mois ${info('cab.paquet')}</h2>
+-- fin
+
+== app.js | une question se compte par envoi, plus par paquet
+-- avant
+          ${bloquees.length ? `<div class="warn-box grave mb">${h(pl(bloquees.length, 'question est arrivée', 'questions sont arrivées'))} dans deux paquets sans réponse.
+-- après
+          ${bloquees.length ? `<div class="warn-box grave mb">${h(pl(bloquees.length, 'question t\'a été envoyée', 'questions t\'ont été envoyées'))} deux fois sans réponse.
+-- fin
+
+== app.js | ton comptable lit tes réponses dès que tu les enregistres
+-- avant
+              <p class="small muted mt">Tes réponses partent <strong>dans le paquet du mois</strong>, dès que tu le fabriques (ou le refais) : il n'y a rien d'autre à envoyer.</p>`
+-- après
+              <p class="small muted mt">Ton comptable lit tes réponses dès que tu les enregistres : il n'y a rien d'autre à envoyer.</p>`
+-- fin
+
+== app.js | les questions arrivent d'elles-mêmes, sans fichier
+-- avant
+            : `<div class="empty mini">Aucune question reçue. Quand ton comptable a besoin d'une pièce ou d'une explication,
+               il t'envoie un fichier <code>.skanask</code> : chaque question s'affiche ensuite en face de la pièce qu'elle vise.</div>`}
+-- après
+            : `<div class="empty mini">Aucune question reçue. Quand ton comptable a besoin d'une pièce ou d'une explication,
+               sa question arrive ici d'elle-même, et en face de la pièce qu'elle vise.</div>`}
+-- fin
+
+== app.js | plus de fichier de questions à importer
+-- avant
+          <div class="inline mt"><button class="btn" id="q-import">Importer les questions de ton comptable…</button></div>
+-- après
+
+-- fin
+
+== app.js | la réponse arrive chez le comptable dès qu'elle est enregistrée ; une pièce jointe n'est pas encore en ligne
+-- avant
+        <p class="small muted">Une pièce justificative se joint sur la pièce elle-même : elle part déjà dans le paquet,
+        et la joindre ici en ferait une seconde copie.</p></form>
+-- après
+        <p class="small muted">Ton comptable la lit dès que tu l'enregistres. Si ton comptable attend une pièce,
+        dis-lui dans ta réponse où la trouver.</p></form>
+-- fin
+
+== app.js | la réponse est chez le comptable, pas dans un prochain paquet
+-- avant
+          toast('Réponse enregistrée — elle partira dans le prochain paquet que tu fabriques');
+-- après
+          toast('Réponse enregistrée : ton comptable la lit dans SkanFact Cabinet');
+-- fin
+
+== core.js | « À faire » : une question se compte par envoi, et la réponse arrive d'elle-même
+-- avant
+          ? `${plFr(bloquees.length, 'est arrivée', 'sont arrivées')} dans deux paquets sans réponse : ton comptable ne peut pas arrêter ton mois tant qu'${bloquees.length > 1 ? 'elles restent' : 'elle reste'} en l'air.`
+          : 'Chacune est posée en face de la pièce qu\'elle vise : ouvre-la et réponds, ta réponse repart dans le prochain paquet.',
+-- après
+          ? `${plFr(bloquees.length, 't\'a été envoyée', 't\'ont été envoyées')} deux fois sans réponse : ton comptable ne peut pas arrêter ton mois tant qu'${bloquees.length > 1 ? 'elles restent' : 'elle reste'} en l'air.`
+          : 'Chacune est posée en face de la pièce qu\'elle vise : ouvre-la et réponds : ton comptable lit ta réponse dès que tu l\'enregistres.',
+-- fin
+
+== guide.js | la réponse, sans paquet ni pièce jointe
+-- avant
+    'cab.reponse': { a: 'cabinet', t: 'Ta réponse à ton comptable', d: 'Écris-la comme tu la dirais au téléphone : une phrase suffit (« relancé le 12, il paie fin du mois », « c\'est un acompte, la facture arrive »). Elle est gardée ici et part <b>toute seule dans ton prochain paquet</b> : il n\'y a rien d\'autre à envoyer. Tu peux la corriger : c\'est la dernière version qui part. <b>Rien de tes chiffres ne change</b> : une réponse explique, elle n\'écrit pas. Si ton comptable attend une pièce, joins-la sur la facture ou l\'achat lui-même — elle part déjà dans le paquet.' },
+-- après
+    'cab.reponse': { a: 'cabinet', t: 'Ta réponse à ton comptable', d: 'Écris-la comme tu la dirais au téléphone : une phrase suffit (« relancé le 12, il paie fin du mois », « c\'est un acompte, la facture arrive »). Ton comptable la lit <b>dès que tu l\'enregistres</b> : il n\'y a rien d\'autre à envoyer. Tu peux la corriger tant qu\'il n\'a pas fermé la question. <b>Rien de tes chiffres ne change</b> : une réponse explique, elle n\'écrit pas. Si ton comptable attend une pièce, dis-lui où la trouver.' },
+-- fin
+
+== guide.js | les questions, sans fichier ni paquet
+-- avant
+    'cab.questions': { a: 'cabinet', t: 'Les questions de ton comptable', d: 'Quand ton comptable révise ton mois, il tombe sur des choses qu\'il ne peut pas deviner : un justificatif absent, un virement sans facture, un compte d\'attente qui ne se solde pas. Il t\'envoie alors un fichier <code>.skanask</code>, et chaque question vient se poser <b>en face de la pièce qu\'elle vise</b> — tu la vois en ouvrant la facture, pas dans une liste que personne n\'ouvre. <b>Aucun de tes chiffres ne change :</b> une question est une demande, jamais une écriture — ton comptable n\'écrit rien chez toi. Tes réponses repartent toutes seules <b>dans ton prochain paquet</b> : il n\'y a rien d\'autre à envoyer. Une question restée sans réponse après deux paquets remonte en rouge : tant qu\'elle est en l\'air, ton comptable ne peut pas arrêter ton mois.' },
+-- après
+    'cab.questions': { a: 'cabinet', t: 'Les questions de ton comptable', d: 'Quand ton comptable révise ton mois, il tombe sur des choses qu\'il ne peut pas deviner : un justificatif absent, un virement sans facture, un compte d\'attente qui ne se solde pas. Sa question arrive ici d\'elle-même, et vient se poser <b>en face de la pièce qu\'elle vise</b> — tu la vois en ouvrant la facture, pas dans une liste que personne n\'ouvre. <b>Aucun de tes chiffres ne change :</b> une question est une demande, jamais une écriture — ton comptable n\'écrit rien chez toi. Il lit tes réponses dès que tu les enregistres. Une question qu\'il t\'a envoyée deux fois sans réponse remonte en rouge : tant qu\'elle est en l\'air, ton comptable ne peut pas arrêter ton mois.' },
+-- fin
+
+== visites.js | la visite « Répondre à mon comptable » : la réponse part aussitôt, plus dans le paquet
+-- avant
+      resume: 'Sa question arrive sur la pièce qu\'elle vise ; ta réponse repart dans le paquet du mois.',
+-- après
+      resume: 'Sa question arrive sur la pièce qu\'elle vise ; ton comptable lit ta réponse dès que tu l\'enregistres.',
+-- fin
+
+== visites.js | plus de fichier de questions
+-- avant
+      mots: ['question', 'repondre', 'reponse', 'comptable', 'cabinet', 'skanask', 'demande'],
+      suite: ['paquet', 'justificatif'],
+-- après
+      mots: ['question', 'repondre', 'reponse', 'comptable', 'cabinet', 'demande'],
+      suite: ['justificatif'],
+-- fin
+
+== visites.js | la fin de la visite dit ce qui est vrai en ligne
+-- avant
+      conclusion: 'Ta réponse part dans le paquet du mois, dès que tu le fabriques — ou que tu le refais s\'il était déjà fait. Il n\'y a rien d\'autre à envoyer.',
+-- après
+      conclusion: 'Ton comptable lit ta réponse dès que tu l\'enregistres : il n\'y a rien d\'autre à envoyer.',
+-- fin
+
+== visites.js | ses questions arrivent d'elles-mêmes
+-- avant
+          texte: 'Ton comptable t\'envoie un fichier <b>.skanask</b> : « Importer les questions de ton comptable » le lit. Chaque question vise une pièce, et dit ce qu\'il attend — une pièce, une explication ou une confirmation.' },
+-- après
+          texte: 'Quand ton comptable t\'envoie une question, elle arrive ici d\'elle-même. Chacune vise une pièce, et dit ce qu\'il attend — une pièce, une explication ou une confirmation.' },
+-- fin
+
+== visites.js | une pièce jointe à une réponse n'est pas encore en ligne
+-- avant
+          titre: 'Ta réponse', texte: 'S\'il attend une pièce, joins-la sur la pièce elle-même : elle part déjà dans le paquet.', action: 'Tape ta réponse.', essai: { taper: 'Oui : elle reste au bureau plusieurs années.' } },
+-- après
+          titre: 'Ta réponse', texte: 'S\'il attend une pièce, dis-lui où la trouver.', action: 'Tape ta réponse.', essai: { taper: 'Oui : elle reste au bureau plusieurs années.' } },
+-- fin
+
+== visites.js | plus d'étape « elle part dans le paquet » : la réponse est déjà chez le comptable
+-- avant
+          titre: 'Enregistrer ta réponse', texte: 'Tu pourras la reprendre : « Corriger ma réponse », dans la liste de ses questions.', action: 'Clique sur <b>« Enregistrer ma réponse »</b>.', fait: () => aucuneFenetre(), essai: { clic: true } },
+        { page: '#/compta', avant: onglet('#c-tabs', 'cabinet'), cible: ['#cab-build', '#p-envoyer'], cote: 'dessous', titre: 'Elle part dans le paquet',
+          texte: 'Ta réponse part dans le <b>paquet du mois</b>, dès que tu le fabriques. S\'il était déjà fait, ce bouton devient « Refaire le paquet avec ta réponse » : il n\'y a rien d\'autre à envoyer.' }
+-- après
+          titre: 'Enregistrer ta réponse', texte: 'Tu pourras la reprendre : « Corriger ma réponse », dans la liste de ses questions.', action: 'Clique sur <b>« Enregistrer ma réponse »</b>.', fait: () => aucuneFenetre(), essai: { clic: true } }
+-- fin

@@ -2820,5 +2820,24 @@ prouver "le dossier de révision qui ne voit pas le questionnaire écrit" web/pu
   ":\${JSON.stringify([S.questionnaire || [], S.cycles || []])}\`;" "\`;" \
   "$WR1"
 
+# ── Brique 44 bis : les questions du cabinet chez le client (docs/cabinet.md, C34) ──
+QC1="le client voit les questions envoyées, y répond depuis l'onglet Cabinet et en face de la pièce ; la réponse est au serveur"
+PE=web/public/plateforme/pont.js
+prouver "les questions du cabinet rangées dans le dossier de l'entreprise" $PE \
+  "      const v = champ === 'questionsCabinet' ? [] : brut;" "      const v = brut;" \
+  "$QC1"
+prouver "une question fermée par le cabinet qui s'affiche chez le client" $PE \
+  "    const qs = lues.filter((q) => q.statut !== 'close').map((q) => ({" "    const qs = lues.map((q) => ({" \
+  "$QC1"
+prouver "la réponse du client qui ne part pas au serveur" $PE \
+  "    await envoyerReponses(data);
+    const maintenant" "    const maintenant" \
+  "$QC1"
+prouver "l'onglet Cabinet qui fabrique encore un paquet" web/public/v10/app.js \
+  "      // en direct. L'onglet porte les questions du comptable, et dit à qui le dossier est confié.
+      if (bridge.dessinerMandat) {" "      // en direct. L'onglet porte les questions du comptable, et dit à qui le dossier est confié.
+      if (false) {" \
+  "$QC1"
+
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

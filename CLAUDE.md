@@ -172,6 +172,9 @@
     (qui saisit), invisible au client jusqu'à son envoi (qui valide ; chaque envoi se compte),
     retirée si jamais envoyée, fermée sinon, répondue par l'entreprise (`compta.questions.*`) ; le
     questionnaire et les cycles, réglages du cabinet.
+  - **Les questions chez le client** (brique 44 bis, C34) : `pont.js` lit les questions envoyées et
+    non fermées dans `data.questionsCabinet` (jamais écrites dans le dossier v10) et envoie chaque
+    réponse nouvelle au serveur ; l'onglet Cabinet de la Comptabilité porte les questions et le mandat.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première
