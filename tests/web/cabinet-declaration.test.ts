@@ -161,9 +161,9 @@ describe('la déclaration du mois, à la souris', () => {
     await aller();
     expect(await p.locator('#dc-format').inputValue()).toBe('millimes');
     expect(await p.locator('[data-copier]').evaluateAll((bs) => bs.map((b) => b.getAttribute('data-valeur')))).toContain('209125');
-    // Le reste de la fiche du cabinet ne s'enregistre pas encore en ligne : ça se dit, rien n'est fait.
+    // Un réglage que le serveur ne garde pas se dit, et rien n'est fait, pas même le reste (brique 47).
     const nomme = await p.evaluate(async () => {
-      try { await (window as unknown as { cabinet: { saveCabinet: (x: unknown) => Promise<unknown> } }).cabinet.saveCabinet({ name: 'Cabinet Ennour et associés', settings: { formatCopie: 'point' } }); return 'enregistré'; } catch (e) { return String((e as Error).message); }
+      try { await (window as unknown as { cabinet: { saveCabinet: (x: unknown) => Promise<unknown> } }).cabinet.saveCabinet({ name: 'Cabinet Ennour', settings: { formatCopie: 'point', inconnu: 1 } }); return 'enregistré'; } catch (e) { return String((e as Error).message); }
     });
     expect(nomme).toBe('Pas encore dans la version en ligne de SkanFact Cabinet : rien n\'a été fait.');
     expect(((await api('GET', `/cabinets/${cabinet}/reglages`, associe)).corps.contenu as { formatCopie?: string }).formatCopie).toBe('millimes');

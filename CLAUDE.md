@@ -187,6 +187,10 @@
     accepte `/?invitation=<jeton>` après la connexion. Les collaborateurs de la v10 sont les membres
     (id = utilisateur) ; « Saisie et validation » = `revision` ; les droits d'un dossier = les affectations.
     Une lecture d'onglet retient le livre qu'elle a lu (`relectures.txt`) : jamais deux relectures par geste.
+  - **La fiche du cabinet** (brique 47, 0031, C37) : `socle.renommer_cabinet` (un associé) et
+    `PUT /cabinets/:c/nom` ; l'adresse, le téléphone et les réglages de la v10 dans `cabinet.reglages`
+    (liste `REGLAGES_V10` du point de contact, forme fixée par `REGLAGES`). `saveCabinet` fusionne comme
+    la v10 (`cab:saveCabinet`), normalise par `migrate`, écrit les réglages puis le nom.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

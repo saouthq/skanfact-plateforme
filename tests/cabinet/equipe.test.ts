@@ -130,7 +130,8 @@ describe('l\'équipe du cabinet', () => {
     // Nour devient associée ; elle peut alors rétrograder le premier.
     expect((await appeler('PUT', `/cabinets/${cabinet}/membres/${mNour}`, associe.jeton, { role: 'supervision' })).statut).toBe(200);
     expect((await appeler('PUT', `/cabinets/${cabinet}/membres/${mAssocie}`, nour.jeton, { role: 'revision' })).statut).toBe(200);
-    expect((await equipe(cabinet, nour)).membres.map((m) => [m.nom, m.roles])).toEqual([['Nour', ['supervision']], ['associe', ['revision']]]);
+    // L'équipe se lit dans l'ordre des noms, sans tenir compte des majuscules (ni de la langue de la base).
+    expect((await equipe(cabinet, nour)).membres.map((m) => [m.nom, m.roles])).toEqual([['associe', ['revision']], ['Nour', ['supervision']]]);
     // Une invitation annulée ne vaut plus.
     const tard = `tard-${adresse}`;
     const inv = await inviter(nour, tard);

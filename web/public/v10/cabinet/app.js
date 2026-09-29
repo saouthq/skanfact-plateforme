@@ -10397,6 +10397,13 @@
           return refus(sel, `${quoi} doit être un jour du mois, entre ${min} et ${max}.`);
         }
       }
+      // Sur la plateforme, le serveur refuse un nom vide et une adresse illisible : on le dit ici, sur
+      // le champ, avant d'envoyer quoi que ce soit.
+      if (!$('#c-name').value.trim()) return refus('#c-name', 'Donne un nom à ton cabinet : il signe tes relances.');
+      const courriel = $('#c-email').value.trim();
+      if (courriel && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(courriel)) {
+        return refus('#c-email', 'L\'adresse e-mail du cabinet ne se lit pas : écris-la comme « contact@cabinet.tn ».');
+      }
       try {
         S = await api.saveCabinet({
           name: $('#c-name').value.trim(), email: $('#c-email').value.trim(), phone: $('#c-phone').value.trim(),

@@ -2245,8 +2245,9 @@ prouver "le FEC qui ne se télécharge pas" $PC \
   "$TB1"
 prouver "la visite « Commencer le livre » encore cachée en ligne" $PC \
   "  const VISITES_PAS_ENCORE = [
-    'nommer-cabinet'," "  const VISITES_PAS_ENCORE = [
-    'nommer-cabinet', 'premier-livre'," \
+" "  const VISITES_PAS_ENCORE = [
+    'premier-livre',
+" \
   "$TB1"
 prouver "la visite « Commencer le livre » qui choisit un client sur SkanFact" $CVI \
   "      const libre = d => !!d && !!d.manual && !d.demo" "      const libre = d => !!d && !d.demo" \
@@ -2456,10 +2457,10 @@ prouver "un complément envoyé comme une seconde écriture du mois" $PC \
   "        const r = await appel('POST', url, { ecriture: versLeServeur(complement), complement: true });" "        const r = await appel('POST', url, { ecriture: versLeServeur(complement), complement: false });" \
   "$WD1"
 prouver "la forme copiée oubliée au rechargement" $PC \
-  "    if (reglages.contenu.formatCopie) etat.settings.formatCopie = reglages.contenu.formatCopie;" "" \
+  "if (c[k] !== undefined && c[k] !== null) settings[k] = c[k];" "if (c[k] !== undefined && c[k] !== null && k !== 'formatCopie') settings[k] = c[k];" \
   "$WD1"
-prouver "le nom du cabinet « enregistré » sans l'être" $PC \
-  "      if (String(c.name ?? nomDuCabinet) !== nomDuCabinet || c.email || c.phone || autres.length || !reglage.formatCopie) throw new Error(PAS_EN_LIGNE);" "" \
+prouver "un réglage que le serveur ne garde pas « enregistré » sans l'être" $PC \
+  "      if (Object.keys(p).some((k) => !REGLAGES_V10.includes(k))) throw new Error(PAS_EN_LIGNE);" "" \
   "$WD1"
 
 # ── Brique 41 bis : la page Écritures (docs/cabinet.md, C25) ──
@@ -2922,6 +2923,9 @@ prouver "un associé qui se rétrograde ou se retire" $M30 \
 prouver "un collaborateur qui change l'équipe" $M30 \
   "  if not socle.suis_associe(p_cabinet) then perform socle.refus('seul un associé du cabinet change son équipe'); end if;" "" \
   "$EQ2"
+prouver "l'équipe triée selon la langue de la base" serveur/cabinet/routes.ts \
+  "and m.actif order by lower(u.nom), u.nom, m.id\`" "and m.actif order by u.nom collate \\"C\\", m.id\`" \
+  "$EQ2"
 prouver "une invitation annulée qui vaut encore" $M30 \
   "  update socle.invitation set annulee_le = now() where id = p_invitation;" "" \
   "$EQ2"
@@ -2937,6 +2941,78 @@ prouver "« Saisie et validation » envoyé comme saisie" $PC \
 prouver "un menu sur sa propre ligne" web/public/v10/cabinet/app.js \
   "\${g.ok && c.id !== equipe.moi ? RowMenu.cellule" "\${g.ok ? RowMenu.cellule" \
   "$WE1"
+
+# ── Brique 47 : la fiche et les réglages du cabinet (docs/cabinet.md, C37) ──
+FI1="l'associé renomme le cabinet ; un collaborateur ne le peut pas ; un nom vide est refusé ; le changement se trace"
+FI2="l'adresse, le téléphone et les réglages de la v10 se gardent et se relisent ; une valeur hors de sa forme est refusée"
+WF1="le nom, l'adresse, le téléphone, les jours, la grille de saisie et le thème s'enregistrent et se relisent"
+M31=base/migrations/0031_cabinet_nom.sql
+prouver "un collaborateur qui renomme le cabinet" $M31 \
+  "  if not socle.suis_associe(p_cabinet) then perform socle.refus('seul un associé du cabinet change son nom'); end if;" "" \
+  "$FI1"
+prouver "un nom de cabinet vide" $M31 \
+  "  if length(v_nom) = 0 or length(v_nom) > 200 then" "  if length(v_nom) > 200 then" \
+  "$FI1"
+prouver "un nom changé sans trace" $M31 \
+  "  perform socle.tracer(null, 'cabinet.renommer'" "  perform socle.tracer(null, 'cabinet.nommer'" \
+  "$FI1"
+prouver "le nom gardé tel que tapé, espaces compris" serveur/cabinet/routes.ts \
+  "      return { corps: { nom: corps.nom.trim() } };" "      return { corps: { nom: corps.nom } };" \
+  "$FI1"
+prouver "une adresse du cabinet illisible gardée" serveur/cabinet/routes.ts \
+  "  email: z.string().max(200).regex(/^([^\\s@]+@[^\\s@]+\\.[^\\s@]+)?\$/, { message: 'cabinet.champ.email' })," "  email: z.string().max(200)," \
+  "$FI2"
+prouver "un jour de relance hors du mois" serveur/cabinet/routes.ts \
+  "  relanceDay: z.number().int().min(1).max(28)," "  relanceDay: z.number().int().min(1).max(31)," \
+  "$FI2"
+prouver "un jour d'échéance hors du mois" serveur/cabinet/routes.ts \
+  "tvaDay: z.number().int().min(1).max(31)," "tvaDay: z.number().int().min(1).max(99)," \
+  "$FI2"
+prouver "un thème inventé" serveur/cabinet/routes.ts \
+  "  theme: z.enum(['light', 'dark', 'auto'])," "  theme: z.string().max(20)," \
+  "$FI2"
+prouver "une échéance pointée illisible" serveur/cabinet/routes.ts \
+  "  depots: z.array(z.string().regex(/^[a-z-]+@\\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])\$/)).max(5000)," "  depots: z.array(z.string().max(40)).max(5000)," \
+  "$FI2"
+prouver "un régime à la TVA inventée" serveur/cabinet/routes.ts \
+  "tva: z.enum(['', 'mensuelle', 'trimestrielle', 'aucune'])," "tva: z.string().max(20)," \
+  "$FI2"
+prouver "un journal proposé illisible" serveur/cabinet/routes.ts \
+  "    journalParDefaut: z.string().regex(/^[A-Z]{0,6}\$/)," "    journalParDefaut: z.string().max(20)," \
+  "$FI2"
+prouver "le nom du cabinet qui ne part pas au serveur" $PC \
+  "      if (nom !== nomDuCabinet) await appel('PUT', \`/cabinets/\${cabinetId}/nom\`, { nom });" "" \
+  "$WF1"
+prouver "l'adresse du cabinet qui ne part pas au serveur" $PC \
+  "      if (c.email !== undefined) contenu.email = String(c.email || '').trim();" "" \
+  "$WF1"
+prouver "l'adresse du cabinet oubliée au rechargement" $PC \
+  "email: String(c.email || '')," "email: ''," \
+  "$WF1"
+prouver "le thème qui ne part pas au serveur" $PC \
+  "        if (p.theme) s.theme = String(p.theme);" "" \
+  "$WF1"
+prouver "les jours d'échéance qui ne partent pas au serveur" $PC \
+  "        if (p.deadlines) s.deadlines = { ...(s.deadlines || {}), ...p.deadlines };" "" \
+  "$WF1"
+prouver "la grille de saisie qui ne part pas au serveur" $PC \
+  "        if (p.saisie) s.saisie =" "        if (false) s.saisie =" \
+  "$WF1"
+prouver "une adresse illisible envoyée sans un mot sur le champ" web/public/v10/cabinet/app.js \
+  "      if (courriel && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+\$/.test(courriel)) {" "      if (false) {" \
+  "$WF1"
+prouver "un nom vide refusé sans montrer le champ" web/public/v10/cabinet/app.js \
+  "      if (!\$('#c-name').value.trim()) return refus('#c-name'," "      if (false) return refus('#c-name'," \
+  "$WF1"
+prouver "la visite « Nommer mon cabinet » encore cachée" $PC \
+  "  const VISITES_PAS_ENCORE = [
+" "  const VISITES_PAS_ENCORE = [
+    'nommer-cabinet',
+" \
+  "$WF1"
+prouver "la visite qui promet encore un fichier d'appairage" $CVI \
+  "      conclusion: 'Il signe désormais tes relances, et tes clients le lisent quand ils te confient leur dossier.'," "      conclusion: 'Il signe désormais tes relances et le fichier d\\'appairage que tes clients importent.'," \
+  "$WF1"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

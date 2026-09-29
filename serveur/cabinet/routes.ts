@@ -56,6 +56,23 @@ const REGLAGES = z.object({
     comptes: z.array(z.string().regex(/^\d{1,12}$/)).max(100), signe: z.union([z.literal(1), z.literal(-1)]),
     deduit: z.boolean(), charge: z.boolean(), resultat: z.boolean(), deuxSens: z.boolean(),
   }).strict()).max(300),
+  // La fiche et les réglages du Cabinet v10 (brique 47) : l'adresse et le téléphone du cabinet, le jour
+  // des relances, les jours des échéances, la saisie, le thème, les régimes, les échéances pointées.
+  email: z.string().max(200).regex(/^([^\s@]+@[^\s@]+\.[^\s@]+)?$/, { message: 'cabinet.champ.email' }),
+  phone: texte(40),
+  relanceDay: z.number().int().min(1).max(28),
+  deadlines: z.object({ tvaDay: z.number().int().min(1).max(31), cnssDay: z.number().int().min(1).max(31) }).strict().nullable(),
+  saisie: z.object({
+    journalParDefaut: z.string().regex(/^[A-Z]{0,6}$/), dateComplete: z.boolean(), validerParLot: z.boolean(),
+    touches: z.object({ ligneSuivante: texte(30), solder: texte(30), recopier: texte(30), dupliquer: texte(30), valider: texte(30) }).strict(),
+    regleLe: texte(40).optional(),
+  }).strict().nullable(),
+  theme: z.enum(['light', 'dark', 'auto']),
+  depots: z.array(z.string().regex(/^[a-z-]+@\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/)).max(5000),
+  regimes: z.array(z.object({
+    id: z.string().trim().min(1).max(40), label: z.string().trim().min(1).max(80), tva: z.enum(['', 'mensuelle', 'trimestrielle', 'aucune']), cnss: z.boolean(),
+    annuelles: z.array(z.object({ id: z.string().trim().min(1).max(40), label: z.string().trim().min(1).max(120), mois: z.number().int().min(1).max(12), jour: z.number().int().min(1).max(31) }).strict()).max(30),
+  }).strict()).max(50),
   // La méthode de révision du cabinet (brique 44) : le questionnaire de fin d'exercice (soixante
   // questions au plus, comme la v10) et ses cycles (vides : les sept que la v10 propose).
   questionnaire: z.array(z.object({ question: z.string().trim().min(1).max(500) }).strict()).max(60),
@@ -265,6 +282,17 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // ── Le nom du cabinet (brique 47, 0031) : un associé le change ─────────────────────────────────
+  ajouter({
+    methode: 'PUT', chemin: '/cabinets/:cabinet/nom', geste: 'compte.cabinet.gerer',
+    corps: z.object({ nom: z.string().max(200) }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      await tx.query('select socle.renommer_cabinet($1, $2)', [params.cabinet, corps.nom]);
+      return { corps: { nom: corps.nom.trim() } };
+    },
+  });
+
   // ── Les réglages du cabinet (0023) ──────────────────────────────────────────────────────────
   // Les lit et les écrit qui est du cabinet (la sécurité par ligne le décide) ; changés ailleurs
   // entre-temps, ils ne sont jamais écrasés.
@@ -338,7 +366,7 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
       const cabinet = params.cabinet ?? '';
       const membres = (await tx.query(`select m.id membre, m.utilisateur, u.nom, u.email, m.roles from socle.membre m
-        join socle.utilisateur u on u.id = m.utilisateur where m.organisation = $1 and m.actif order by u.nom, m.id`, [cabinet])).rows;
+        join socle.utilisateur u on u.id = m.utilisateur where m.organisation = $1 and m.actif order by lower(u.nom), u.nom, m.id`, [cabinet])).rows;
       if (!membres.length) return introuvable;
       const affectations = (await tx.query(`select a.mandat, d.entreprise, a.membre, a.role from socle.mandat_affectation a
         join socle.mandat d on d.id = a.mandat where d.cabinet = $1 and d.statut = 'actif' order by d.entreprise, a.membre`, [cabinet])).rows;

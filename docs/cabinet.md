@@ -90,6 +90,7 @@ mêmes données que son client.
 | **44 bis** | Le client lit les questions de son cabinet dans son SkanFact, en face de la pièce, et y répond. |
 | **45** | La clôture de l'exercice, sa réouverture (avec un motif), l'exercice suivant. |
 | **46** | L'équipe du cabinet : invitations, rôles, affectations par dossier, trace de l'équipe. |
+| **47** | La fiche et les réglages du cabinet : son nom (un associé le change), son adresse, son téléphone, les jours, la saisie, le thème, les régimes. |
 
 Chaque brique a ses tests « deux chemins » (ce que calcule l'écran du Cabinet contre ce que tient
 le serveur), ses preuves, et un parcours joué à la souris.
@@ -422,7 +423,7 @@ rapprochée, et son mot retenu ; tout défait, le relevé retiré, les écriture
 - « Relevé retiré : N écritures gardées » ne compte pas les écritures nées d'un relevé (le serveur ne
   garde pas ce lien) : le compte rendu dit seulement « Relevé retiré », et la question avant le geste
   dit bien que ces écritures restent.
-- Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : pas encore en ligne.
+- Les autres réglages du cabinet (son nom, son e-mail, le jour de relance) : en ligne depuis la brique 47.
 
 ## Ce qui reste à décider avec Skander ou un comptable
 
@@ -511,8 +512,8 @@ comptabilité ») et la base aussi (`compta.peut_declarer`). La déclaration se 
 cabinet doit aussi avoir la comptabilité.
 
 **La forme d'un montant copié pour le portail** (point, virgule, millimes) est un réglage du cabinet
-(`cabinet.reglages`, champ `formatCopie`). Le reste de la fiche du cabinet (son nom, son e-mail…) ne
-s'enregistre pas encore en ligne, et le dit.
+(`cabinet.reglages`, champ `formatCopie`). Le reste de la fiche du cabinet (son nom, son e-mail…) est
+en ligne depuis la brique 47.
 
 **Les tests** : par l'API et dans la base (`tests/compta/declaration.test.ts`) ; à la souris
 (`tests/web/cabinet-declaration.test.ts`) : mars avec une vente et un achat, les cases (190,125 de TVA
@@ -864,3 +865,48 @@ allongée) ; un clic tombé pendant la seconde se perdait (vu sur la vérificati
 la déclaration, la révision). Une lecture retient désormais le livre qu'elle a lu, et ne se refait pas
 pour lui ; un livre quitté pendant une lecture ne fait plus d'erreur. Les seize parcours du Cabinet
 passent côte à côte.
+
+## Brique 47 : la fiche et les réglages du cabinet (fait le 29/09/2026)
+
+Le Cabinet v10 gardait sa fiche (nom, adresse, téléphone) et ses réglages (le jour des relances, les
+jours de dépôt TVA et CNSS, la grille de saisie, le thème, les régimes et leurs échéances, les
+échéances pointées) dans son fichier. Sur la plateforme, les mêmes écrans (Réglages → Mon cabinet,
+Comptabilité, L'application ; la page Échéances ; l'assistant de bienvenue).
+
+**C37. Le nom du cabinet est un geste d'associé ; le reste de sa fiche est un réglage du cabinet**
+(par délégation, migration `0031`) : le nom signe les relances et se lit chez chaque client quand il
+confie son dossier ; **seul un associé le change** (`socle.renommer_cabinet`, un à deux cents
+caractères), et le changement se trace au nom du cabinet (avant, après). L'adresse, le téléphone et les
+réglages de la v10 vivent dans les réglages du cabinet (`cabinet.reglages`, 0023, une révision : jamais
+écrasés par un autre poste). **Ce qui part au serveur, compté** — ces champs, et rien d'autre (le
+serveur refuse tout autre champ, et toute valeur hors de sa forme) :
+`email` (une adresse, ou rien), `phone` (40 caractères), `relanceDay` (1 à 28), `deadlines` (`tvaDay`,
+`cnssDay` : 1 à 31), `saisie` (le journal proposé, la date complète, la validation par lot, les cinq
+touches, la date du réglage), `theme` (clair, sombre, comme le système), `depots` (les échéances
+pointées, « tva-m@2026-05-28 »), `regimes` (cinquante au plus : leur nom, leur TVA, la CNSS, trente
+échéances annuelles chacun), avec `formatCopie` (brique 41). Les règles de fusion sont celles de la
+v10 : ce qui n'est pas fourni ne change pas ; la saisie se fusionne touche par touche ; les régimes et
+les échéances pointées se remplacent (retirer, dépointer sont des gestes) ; puis la v10 normalise
+(`migrate`), et c'est ce qui s'enregistre. Un réglage que le serveur ne garde pas se dit « pas encore en
+ligne », et rien ne part. Le nom part **en dernier** : un collaborateur qui enregistre la fiche garde
+ses réglages, et lit pourquoi le nom n'a pas changé.
+
+**L'écran** dit sur le champ, avant d'envoyer, qu'un nom est vide ou qu'une adresse ne se lit pas (le
+serveur le refuserait). La visite « Nommer mon cabinet » se montre de nouveau, sans parler du fichier
+d'appairage (il n'y en a plus : le client confie son dossier par le code du cabinet).
+
+**Les tests** : par l'API et dans la base (`tests/cabinet/fiche.test.ts`) : l'associé renomme, un
+collaborateur et une personne hors du cabinet ne le peuvent pas, un nom vide est refusé, la trace ;
+chaque réglage se garde et se relit, chaque forme fausse est refusée (adresse, jours, thème, échéance
+pointée, régime, journal, champ inconnu). À la souris (`tests/web/cabinet-fiche.test.ts`) : le nom vide
+et l'adresse illisible refusés sur leur champ, sans rien envoyer ; la fiche enregistrée, le nom en haut
+de l'écran ; la grille de saisie ; le thème appliqué tout de suite et gardé ; tout relu après
+rechargement ; la visite jouée jusqu'au bout.
+
+**Un défaut de la brique 46, corrigé ici** : la liste de l'équipe se triait par nom selon la langue de
+la base ; « associe » et « Nour » ne venaient pas dans le même ordre sur la machine de travail et sur
+GitHub. Elle se trie désormais sans tenir compte des majuscules.
+
+**Reste connu** :
+- Le téléphone et l'adresse du cabinet ne partent encore nulle part d'eux-mêmes : SkanFact n'envoie pas
+  de courriel (les relances s'écrivent dans la messagerie du comptable, comme dans la v10).

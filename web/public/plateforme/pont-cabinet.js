@@ -50,6 +50,8 @@
   // Les réglages du cabinet (0023) : les banques et les mots retenus, et leur révision.
   /** @type {{ contenu: Record<string, any>, revision: number | null }} */
   let reglages = { contenu: {}, revision: null };
+  // Les réglages de la v10 que le serveur garde (serveur/cabinet/routes.ts, REGLAGES ; briques 41 et 47).
+  const REGLAGES_V10 = ['formatCopie', 'relanceDay', 'deadlines', 'saisie', 'theme', 'depots', 'regimes'];
   // La fiche de chaque dossier au cabinet (0020) : son contenu et sa révision.
   /** @type {Map<string, { contenu: Record<string, unknown>, revision: number | null }>} */
   const fiches = new Map();
@@ -91,13 +93,16 @@
       d.droits = Object.fromEntries(equipeLue.affectations.filter((/** @type {any} */ a) => a.entreprise === d.id && utilisateurDuMembre.has(a.membre))
         .map((/** @type {any} */ a) => [utilisateurDuMembre.get(a.membre), VERS_V10[a.role] || 'saisie']));
     }
-    const etat = K.migrate({ cabinet: { name: cab.nom, email: '', phone: '' }, dossiers: liste });
+    // La fiche et les réglages du cabinet (brique 47) : ceux que le serveur garde, remis à la v10 qui
+    // les complète de ses valeurs par défaut (`migrate`).
+    const c = reglages.contenu;
+    /** @type {Record<string, unknown>} */ const settings = {};
+    for (const k of REGLAGES_V10) if (c[k] !== undefined && c[k] !== null) settings[k] = c[k];
+    const etat = K.migrate({ cabinet: { name: cab.nom, email: String(c.email || ''), phone: String(c.phone || '') }, dossiers: liste, settings });
     etat.collaborateurs = equipeLue.membres.map((/** @type {any} */ m) => ({ id: m.utilisateur, nom: m.nom, role: VERS_V10[m.roles[0]] || 'saisie', actif: true, poste: m.email, creeLe: null }));
     // Ce que la banque apprend pour tous les clients du cabinet (0023) : la v10 le gardait dans son état.
     etat.banques = reglages.contenu.banques || {};
     etat.libelles = reglages.contenu.libelles || [];
-    // La forme d'un montant copié pour le portail (brique 41) : un réglage du cabinet.
-    if (reglages.contenu.formatCopie) etat.settings.formatCopie = reglages.contenu.formatCopie;
     // Le modèle de liasse du cabinet (brique 41 ter) ; vide : celui que la v10 propose.
     etat.liasse = reglages.contenu.liasse || [];
     // La méthode de révision du cabinet (brique 44) : son questionnaire et ses cycles ; vides, ceux de la v10.
@@ -709,7 +714,6 @@
     'boite-reception', 'sauvegardes', 'changer-ordinateur', 'mises-a-jour', 'licence', 'mot-de-passe', 'envoyer-cloture',
     'correspondance', 'page-dossier-paquets'];
   const VISITES_PAS_ENCORE = [
-    'nommer-cabinet', // la fiche du cabinet ne s'enregistre pas encore en ligne
     'equipe', // la personne invitée rejoint le cabinet chez elle, en ouvrant le lien : la visite se réécrira pour l'invitation
     'suivre-production', // le tableau de production
   ];
@@ -1009,15 +1013,42 @@
       return construireEtat();
     },
 
-    // La fiche du cabinet ne s'enregistre pas encore en ligne ; seule la forme d'un montant copié pour
-    // le portail (l'onglet Déclaration) est un réglage du cabinet (brique 41). Le reste le dit.
+    // La fiche du cabinet (brique 47) : son nom (un associé le change), son adresse et son téléphone, et
+    // les réglages de la v10 (la forme d'un montant copié, le jour des relances, les échéances, la
+    // saisie, le thème, les régimes, les échéances pointées), gardés dans les réglages du cabinet.
+    // Les règles de fusion sont celles du processus principal de la v10 (cab:saveCabinet) : l'identité
+    // ne change que FOURNIE ; un jour de relance hors bornes garde l'ancien ; les échéances, la saisie
+    // (touche par touche), le thème et la forme d'un montant se fusionnent ; les régimes et les
+    // échéances pointées se REMPLACENT (retirer, dépointer sont des gestes) ; puis `migrate` normalise.
     saveCabinet: async (/** @type {any} */ c = {}) => {
-      const reglage = (c.settings || {});
-      const autres = Object.keys(reglage).filter((k) => k !== 'formatCopie');
-      if (String(c.name ?? nomDuCabinet) !== nomDuCabinet || c.email || c.phone || autres.length || !reglage.formatCopie) throw new Error(PAS_EN_LIGNE);
-      const contenu = { ...reglages.contenu, formatCopie: String(reglage.formatCopie) };
-      const r = await appel('PUT', `/cabinets/${cabinetId}/reglages`, { contenu, revision: reglages.revision });
-      reglages = { contenu, revision: r.revision };
+      const nom = c.name === undefined ? nomDuCabinet : String(c.name || '').trim();
+      // Vérifié avant d'écrire quoi que ce soit : rien ne part si le nom est vide.
+      if (!nom) throw new Error('Donne un nom à ton cabinet : il signe tes relances.');
+      const p = c.settings || {};
+      if (Object.keys(p).some((k) => !REGLAGES_V10.includes(k))) throw new Error(PAS_EN_LIGNE);
+      /** @type {Record<string, any>} */ const s = {};
+      for (const k of REGLAGES_V10) if (reglages.contenu[k] !== undefined && reglages.contenu[k] !== null) s[k] = reglages.contenu[k];
+      if (c.settings) {
+        const jour = Number(p.relanceDay);
+        if (jour >= 1 && jour <= 28) s.relanceDay = Math.round(jour);
+        if (p.deadlines) s.deadlines = { ...(s.deadlines || {}), ...p.deadlines };
+        if (Array.isArray(p.regimes)) s.regimes = p.regimes;
+        if (p.saisie) s.saisie = { ...(s.saisie || {}), ...p.saisie, touches: { ...((s.saisie || {}).touches || {}), ...(p.saisie.touches || {}) } };
+        if (p.theme) s.theme = String(p.theme);
+        if (p.formatCopie) s.formatCopie = String(p.formatCopie);
+        if (Array.isArray(p.depots)) s.depots = p.depots;
+      }
+      const normal = /** @type {any} */ (window).CabCore.migrate({ cabinet: {}, dossiers: [], settings: s }).settings;
+      /** @type {Record<string, unknown>} */ const contenu = { ...reglages.contenu };
+      if (c.email !== undefined) contenu.email = String(c.email || '').trim();
+      if (c.phone !== undefined) contenu.phone = String(c.phone || '').trim();
+      for (const k of Object.keys(s)) contenu[k] = normal[k];
+      if (JSON.stringify(contenu) !== JSON.stringify(reglages.contenu)) {
+        const r = await appel('PUT', `/cabinets/${cabinetId}/reglages`, { contenu, revision: reglages.revision });
+        reglages = { contenu, revision: r.revision };
+      }
+      // Le nom en dernier : seul un associé le change, le reste est à toute l'équipe.
+      if (nom !== nomDuCabinet) await appel('PUT', `/cabinets/${cabinetId}/nom`, { nom });
       return construireEtat();
     },
 

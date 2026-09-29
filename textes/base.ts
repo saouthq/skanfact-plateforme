@@ -235,6 +235,8 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'cette invitation a déjà été acceptée : retire la personne du cabinet si elle ne doit plus y être', cle: 'base.cabinet.invitation_acceptee', fr: 'cette invitation a déjà été acceptée : retire la personne du cabinet si elle ne doit plus y être' },
   { base: 'seul un associé du cabinet change son équipe', cle: 'base.cabinet.equipe_associe', fr: 'seul un associé du cabinet change son équipe' },
   { base: 'personne ne change son propre rôle, ni ne se retire soi-même : un autre associé le fait', cle: 'base.cabinet.equipe_soi', fr: 'personne ne change son propre rôle, ni ne se retire soi-même : un autre associé le fait' },
+  { base: 'seul un associé du cabinet change son nom', cle: 'base.cabinet.renommer_associe', fr: 'seul un associé du cabinet change son nom' },
+  { base: 'le nom du cabinet s\'écrit en un à deux cents caractères', cle: 'base.cabinet.nom_longueur', fr: 'le nom du cabinet s\'écrit en un à deux cents caractères' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

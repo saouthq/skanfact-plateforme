@@ -740,21 +740,21 @@
     visite({
       id: 'nommer-cabinet', theme: 'demarrer', type: 'faire', duree: '1 min', page: '#/reglages',
       titre: 'Nommer mon cabinet',
-      resume: 'Le nom, l\'adresse et le téléphone qui signent tes relances et le fichier de tes clients.',
+      resume: 'Le nom, l\'adresse et le téléphone qui signent tes relances.',
       mots: ['nom', 'cabinet', 'coordonnees', 'email', 'telephone'],
       suite: ['ajouter-client', 'appairage'],
       // Nommé quand le nom est ENREGISTRÉ — celui qu'on voit dans la case, pas un nom tapé et laissé là.
       preuve: nomEnregistre,
-      echec: 'Le nom du cabinet n\'est pas enregistré : sans « Enregistrer mon cabinet », il ne signe ni tes relances ni ton fichier d\'appairage.',
+      echec: 'Le nom du cabinet n\'est pas enregistré : sans « Enregistrer mon cabinet », il ne signe pas tes relances.',
       bravo: 'Ton cabinet a son nom',
-      conclusion: 'Il signe désormais tes relances et le fichier d\'appairage que tes clients importent.',
+      conclusion: 'Il signe désormais tes relances, et tes clients le lisent quand ils te confient leur dossier.',
       etapes: [
         { page: '#/reglages', avant: onglet('#set-tabs', 'cabinet'), cible: '#c-name', cote: 'droite', faire: 'valeur', bouton: 'Suivant',
           titre: 'Le nom du cabinet', texte: 'Tel qu\'il doit apparaître en bas de tes relances.', action: 'Tape le nom de ton cabinet.', essai: { taper: 'Cabinet Essai' } },
         { page: '#/reglages', cible: '#c-email', cote: 'droite', titre: 'Son adresse', facultatif: true,
-          texte: 'Tes clients répondent à cette adresse ; elle entre dans le fichier d\'appairage.' },
+          texte: 'Tes clients répondent à cette adresse.' },
         { page: '#/reglages', cible: '#c-save', cote: 'dessus', faire: 'clic', fait: nomEnregistre,
-          titre: 'Enregistrer', texte: 'Tant que ce n\'est pas enregistré, rien n\'a changé : le nom, l\'adresse et le téléphone signent tes relances et entrent dans le fichier que tes clients importent.', action: 'Clique sur <b>« Enregistrer mon cabinet »</b>.', essai: { clic: true } }
+          titre: 'Enregistrer', texte: 'Tant que ce n\'est pas enregistré, rien n\'a changé : le nom, l\'adresse et le téléphone signent tes relances.', action: 'Clique sur <b>« Enregistrer mon cabinet »</b>.', essai: { clic: true } }
       ]
     });
 
