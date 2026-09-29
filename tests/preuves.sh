@@ -3078,5 +3078,27 @@ prouver "la visite de la production encore cachée" $PC \
 prouver "la bulle de la production qui parle encore de paquets" web/public/v10/cabinet/cabguide.js \
   "Tout est <b>lu</b> — les écritures des livres, les révisions arrêtées" "Tout est <b>lu</b> — les paquets reçus, les révisions arrêtées" \
   "chaque écran du Cabinet, et chaque bulle qu'il porte, se lit sans un mot de paquet"
+# ── Brique 49 : le fichier CNSS du trimestre (docs/cabinet.md, C39) ──
+WC1="refusé sans matricule employeur, puis téléchargé sous son nom ; son salaire est l'assiette du serveur"
+prouver "le fichier CNSS encore absent en ligne" $PC \
+  "    fichierCnss: async (" "    fichierCnssAbsent: async (" \
+  "$WC1"
+prouver "le fichier CNSS sans le matricule de la fiche" $PC \
+  "{ matricule: fiche.cnssEmployeur, code: fiche.cnssCode }" "{ matricule: '', code: fiche.cnssCode }" \
+  "$WC1"
+prouver "le fichier CNSS fabriqué mais jamais téléchargé" $PC \
+  "      telecharger(f.nom, f.contenu);
+      return { ok: true, path: f.nom," "      return { ok: true, path: f.nom," \
+  "$WC1"
+prouver "le fichier CNSS téléchargé sans dire de garder son nom" web/public/v10/cabinet/app.js \
+  "Il est dans tes téléchargements. Garde-lui exactement ce nom" "Il est dans tes téléchargements. Garde ce fichier" \
+  "$WC1"
+
+prouver "une page du fichier CNSS à onze lignes" web/public/v10/compta.js \
+  "  const FORMAT_CNSS = { nom: 'CNSS 2012', longueur: 122, lignesParPage: 12 };" "  const FORMAT_CNSS = { nom: 'CNSS 2012', longueur: 122, lignesParPage: 11 };" \
+  "exactement 12 lignes par page, pages et lignes consécutives, chaque ligne finie par un retour chariot, en ASCII"
+prouver "un salaire du fichier CNSS tronqué au lieu d'arrondi" web/public/v10/compta.js \
+  "      const millimes = Math.round((Number(l.salaire) || 0) * 1000);" "      const millimes = Math.floor((Number(l.salaire) || 0) * 1000);" \
+  "le salaire en millimes entiers, sans virgule, arrondi au millime"
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

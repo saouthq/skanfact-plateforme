@@ -5909,10 +5909,10 @@
         if (!r) return;                                    // le choix du dossier a été annulé
         if (!r.ok) { redraw(); return toast((r.refus[0] || {}).motif || 'Le fichier n\'a pas pu être fabriqué.', 'error'); }
         const html = `<p>Le fichier <b class="mono">${esc(r.nom)}</b> est prêt : ${esc(pl(r.lignes, 'salarié'))}, ${esc(money(r.total))} de salaires déclarés.</p>
-          <p class="small muted">${r.renomme ? 'Il porte le nom que le format exige — le portail refuse un fichier renommé. ' : ''}Dépose-le sur le portail CNSS
+          <p class="small muted">Il est dans tes téléchargements. Garde-lui exactement ce nom : le portail refuse un fichier renommé — et ton
+          navigateur ajoute « (1) » au nom d'un fichier déjà téléchargé. Dépose-le sur le portail CNSS
           (télédéclaration des salaires), puis vérifie que le nombre de salariés et le total que le portail affiche sont ceux-ci.</p>`;
-        await infoHtml('Fichier CNSS enregistré', html);
-        api.reveal(r.path);
+        await infoHtml('Fichier CNSS téléchargé', html);
       } catch (err) { toast(plainError(err), 'error'); }
       finally { fc.disabled = false; }
     };

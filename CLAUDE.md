@@ -195,6 +195,8 @@
     brouillards, dernier geste ; déclarations ; révisions d'un mois ; exercices). Le point de contact en
     refait l'index d'un livre v10 (`indexDesLivres`) pour `production` ET `questionsEnAttente` (les
     dossiers tenus et les mois déclarés des Échéances). Le tableau se relit à chaque entrée sur la page.
+  - **Le fichier CNSS** (brique 49, C39) : `fichierCnss` du point de contact = `fichierCnssDuLivre` sur
+    `livreEtPaie` + la fiche du dossier (`cnssEmployeur`, `cnssCode`), puis `telecharger` ; rien au serveur.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

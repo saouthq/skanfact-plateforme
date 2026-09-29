@@ -1,0 +1,19 @@
+Le fichier CNSS du trimestre (brique 49). Format : voir sans-paquets.mjs.
+
+Sur la plateforme, le fichier se télécharge (docs/cabinet.md, C39) : il n'y a pas de fenêtre
+« Enregistrer sous » ni de dossier à montrer. Son nom est celui que le format exige, et un navigateur
+ajoute « (1) » au nom d'un fichier déjà téléchargé : l'écran le dit, parce que le portail refuse un
+fichier renommé.
+
+== cabinet/app.js | le fichier CNSS se télécharge : son nom doit rester celui du format
+-- avant
+          <p class="small muted">${r.renomme ? 'Il porte le nom que le format exige — le portail refuse un fichier renommé. ' : ''}Dépose-le sur le portail CNSS
+          (télédéclaration des salaires), puis vérifie que le nombre de salariés et le total que le portail affiche sont ceux-ci.</p>`;
+        await infoHtml('Fichier CNSS enregistré', html);
+        api.reveal(r.path);
+-- après
+          <p class="small muted">Il est dans tes téléchargements. Garde-lui exactement ce nom : le portail refuse un fichier renommé — et ton
+          navigateur ajoute « (1) » au nom d'un fichier déjà téléchargé. Dépose-le sur le portail CNSS
+          (télédéclaration des salaires), puis vérifie que le nombre de salariés et le total que le portail affiche sont ceux-ci.</p>`;
+        await infoHtml('Fichier CNSS téléchargé', html);
+-- fin

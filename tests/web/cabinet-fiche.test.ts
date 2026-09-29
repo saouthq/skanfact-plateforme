@@ -146,12 +146,21 @@ describe('la fiche du cabinet, à la souris', () => {
     await ligne.getByRole('button', { name: 'Commencer' }).click();
     const bulle = p.locator('#visite-bulle');
     await expect.poll(() => bulle.innerText()).toMatch(/Le nom du cabinet/);
-    await p.locator('#c-name').fill('Cabinet Ennour');
+    // La page peut encore se redessiner juste après son ouverture (l'équipe se lit après) : le nom
+    // tapé se retape tant qu'il n'est pas resté dans la case.
+    const taperLeNom = () => expect.poll(async () => {
+      if (await p.locator('#c-name').inputValue() !== 'Cabinet Ennour') await p.locator('#c-name').fill('Cabinet Ennour');
+      await p.waitForTimeout(400);
+      return p.locator('#c-name').inputValue();
+    }, { timeout: 20_000 }).toBe('Cabinet Ennour');
+    await taperLeNom();
     await bulle.getByRole('button', { name: 'Suivant' }).click();
     await expect.poll(() => bulle.innerText()).toMatch(/Son adresse/);
     expect(await bulle.innerText()).not.toMatch(/appairage/);
+    await taperLeNom();
     await bulle.getByRole('button', { name: 'Suivant' }).click();
     await expect.poll(() => bulle.innerText()).toMatch(/Enregistrer/);
+    expect(await bulle.innerText()).not.toMatch(/DÉJÀ FAIT/i);
     await p.locator('#c-save').click();
     await expect.poll(() => bulle.innerText()).toMatch(/Ton cabinet a son nom/);
     expect(await bulle.innerText()).toMatch(/Il signe désormais tes relances, et tes clients le lisent quand ils te confient leur dossier\./);

@@ -1322,6 +1322,19 @@
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       return KC.cnssDuTrimestre(await livreEtPaie(o.dossierId, o.annee), o.annee, o.trimestre);
     },
+    // Le fichier de télédéclaration des salaires du trimestre (brique 49 ; docs/cabinet.md, C39) : le
+    // moteur de la v10 (compta.js, fichierCnssDuLivre) sur le livre et la paie du dossier, avec le
+    // matricule employeur et le code d'exploitation de sa fiche ; refusé, il dit chaque case à corriger.
+    // Il se télécharge sous le nom que le format exige ; rien ne part au serveur.
+    fichierCnss: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreEtPaie(o.dossierId, o.annee);
+      const fiche = /** @type {Record<string, any>} */ ((fiches.get(o.dossierId) || { contenu: {} }).contenu);
+      const f = KC.fichierCnssDuLivre(livre, { matricule: fiche.cnssEmployeur, code: fiche.cnssCode }, Number(o.annee), Number(o.trimestre));
+      if (!f.ok) return { ok: false, refus: f.refus };
+      telecharger(f.nom, f.contenu);
+      return { ok: true, path: f.nom, nom: f.nom, lignes: f.lignes, total: f.total, avertissements: f.avertissements, renomme: false };
+    },
 
     // ── La révision et les questions au client (brique 44) : le dossier de travail de la v10, gardé
     // par le cabinet au serveur (0028) ; les questions, dans les livres du client, qu'il voit à l'envoi ──

@@ -99,8 +99,9 @@ describe('la banque, à la souris', () => {
     const [, L2, L3] = R?.lignes.map((l) => l.id) ?? [];
     // Le compte du dossier et l'association des colonnes de cette banque sont retenus.
     await expect.poll(async () => ((await api('GET', `/cabinets/${cabinet}/reglages`, associe)).corps.contenu as { banques?: Record<string, unknown> }).banques?.BIAT).toBeTruthy();
-    const fiches = (await api('GET', `/cabinets/${cabinet}/fiches`, associe)).corps.fiches as { entreprise: string; contenu: { banque?: unknown } }[];
-    expect(fiches.find((f) => f.entreprise === cafe)?.contenu.banque).toEqual({ compte: '532', banque: 'BIAT' });
+    // La fiche du dossier s'écrit après les réglages : on l'attend.
+    await expect.poll(async () => ((await api('GET', `/cabinets/${cabinet}/fiches`, associe)).corps.fiches as { entreprise: string; contenu: { banque?: unknown } }[])
+      .find((f) => f.entreprise === cafe)?.contenu.banque).toEqual({ compte: '532', banque: 'BIAT' });
 
     // ── L'automatique : le virement se pose ; le chèque de 700 est ambigu : gardé, pas posé ──────────
     await expect.poll(() => p.locator('#bq-auto').count()).toBe(1);

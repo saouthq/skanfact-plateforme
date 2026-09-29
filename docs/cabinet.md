@@ -92,6 +92,7 @@ mêmes données que son client.
 | **46** | L'équipe du cabinet : invitations, rôles, affectations par dossier, trace de l'équipe. |
 | **47** | La fiche et les réglages du cabinet : son nom (un associé le change), son adresse, son téléphone, les jours, la saisie, le thème, les régimes. |
 | **48** | La page Production : chaque dossier, chaque mois, son étape (à saisir, à réviser, à déclarer, déclaré), comptée au serveur pour tout le portefeuille ; les dossiers tenus entrent dans les Échéances. |
+| **49** | Le fichier CNSS du trimestre : fabriqué par le moteur de la v10 sur la paie du serveur, téléchargé sous le nom du format. |
 
 Chaque brique a ses tests « deux chemins » (ce que calcule l'écran du Cabinet contre ce que tient
 le serveur), ses preuves, et un parcours joué à la souris.
@@ -675,8 +676,7 @@ la base. À la souris (`tests/web/cabinet-paie.test.ts`) : un salarié déclaré
 avec une prime, le même net à l'écran et au serveur, l'écriture du mois déjà là.
 
 **Reste connu** :
-- Le fichier CNSS du trimestre (`fichierCnss`) n'est pas encore en ligne : il demande le matricule
-  employeur du dossier, pas encore dans sa fiche.
+- Le fichier CNSS du trimestre (`fichierCnss`) : en ligne depuis la brique 49.
 - La base laisse encore un membre du cabinet lire par une requête directe tout le dossier v10 d'un
   client dont il a un mandat (les routes, elles, ne l'ouvrent pas) : resserrer sa sécurité par ligne
   demande de revoir ce que les écritures du serveur y lisent (le plan, les avances). À décider.
@@ -956,3 +956,38 @@ les mois dus d'un dossier tenu, et se relit en revenant ; la page ne dit ni « p
 **Reste connu** :
 - La CNSS des seuls employeurs : ce que la Paie ou les comptes de rémunération disent des salariés
   n'est pas encore compté au serveur ; chaque client déposant reste compté par prudence.
+
+## Brique 49 : le fichier CNSS du trimestre (fait le 29/09/2026)
+
+Le Cabinet v10 fabriquait, depuis l'onglet Paie d'un dossier, le fichier de télédéclaration des
+salaires du trimestre (le format « CNSS 2012 » : un enregistrement de 122 caractères par salarié, douze
+par page, un nom de fichier imposé), et l'enregistrait par une fenêtre « Enregistrer sous ».
+
+**C39. Le fichier CNSS se fabrique dans le navigateur et se télécharge** (par délégation ; rien de
+neuf au serveur) : le moteur de la v10 (`fichierCnssDuLivre`) sur le livre et la paie que le serveur
+tient pour le dossier (salariés, bulletins de l'année, brique 43), avec le matricule employeur et le
+code d'exploitation de la fiche du dossier (`cnssEmployeur`, `cnssCode`, déjà gardés au serveur depuis
+la brique 36). Refusé, il nomme chaque case à corriger avec le geste qui la lève (la v10, inchangée).
+Accepté, il se **télécharge** sous le nom que le format exige (`DS` + matricule + code + trimestre +
+année) ; rien ne part au serveur. L'écran le dit : le fichier est dans les téléchargements, et il faut
+lui garder exactement ce nom — le portail refuse un fichier renommé, et un navigateur ajoute « (1) » au
+nom d'un fichier déjà téléchargé.
+
+**Les tests** : à la souris (`tests/web/cabinet-cnss.test.ts`) : une salariée avec sa fiche CNSS
+complète et son bulletin de mars ; sans matricule employeur, le fichier ne sort pas et la case est
+nommée ; le matricule posé depuis ce refus (gardé au serveur) ; le fichier téléchargé sous son nom, en
+ASCII, un enregistrement de 122 caractères, dont le salaire est l'assiette que le serveur déclare pour
+le trimestre (deux chemins, un chiffre) ; le message qui dit de garder le nom. Le format lui-même : les tests du moteur de la v10
+(`test/suites/cnss-fichier.js`) portés sur l'écran de la plateforme (`tests/v10/cnss-fichier.test.ts`) —
+chaque champ à sa place (positions écrites depuis le document), douze lignes par page, le salaire en
+millimes arrondi, aucun fichier tant qu'une ligne est fausse, le fichier tiré du livre.
+
+**Deux parcours rendus sûrs sur GitHub** (plus lent que la machine de travail) : la visite « Nommer mon
+cabinet » (brique 47) tapait le nom pendant que la page finissait de se dessiner, et la frappe se
+perdait — le parcours retape le nom tant qu'il n'est pas resté dans la case, et vérifie que l'étape
+n'est pas déclarée « déjà faite » ; le parcours de la banque (brique 40) lisait la fiche du dossier
+juste après les réglages, alors qu'elle s'écrit en second — il l'attend.
+
+**Reste connu** :
+- Le format est celui que la v10 a écrit d'après le document de la CNSS : **À VÉRIFIER** sur le
+  portail avec le comptable pilote, comme dans la v10.
