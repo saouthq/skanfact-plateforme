@@ -2725,5 +2725,31 @@ prouver "le refus de la v10 sauté avant de refaire l'inventaire" $PC \
       if (!r.ok) throw new Error(r.motif);" "      const r = KC.poserInventaire({ ...livre, inventaires: [] }, o.inventaire, '', Date.now());" \
   "$WV1"
 
+# ── Brique 43 : la paie tenue par le cabinet (docs/cabinet.md, C31) ──
+PA1="avec le mandat de la paie, l'associé tient les salariés et les bulletins du client : recalculés au serveur, écrits au livre ; sans lui, rien"
+PA2="qui peut : l'associé et le collaborateur Paie, le propriétaire ; pas le collaborateur comptable"
+WP1="un salarié et son bulletin, écrits dans le dossier du client ; le serveur les tient au millime et écrit le mois"
+prouver "le cabinet qui écrit autre chose que la paie du dossier" serveur/paie/routes.ts \
+  "collection: z.enum(['employees', 'payslips'], { message: 'paie.champ.collection' }), cle:" "collection: z.string(), cle:" \
+  "$PA1"
+prouver "la paie ouverte au cabinet sans le mandat de la paie" serveur/paie/gestes.ts \
+  "  { code: 'paie.dossier.modifier', module: 'paie', ecrit: true, horsCle: true," "  { code: 'paie.dossier.modifier', module: 'paie', ecrit: true, horsCle: true, perimetre: ['comptabilite']," \
+  "$PA1"
+prouver "la paie ouverte, dans la base, au collaborateur comptable" base/migrations/0019_cabinet.sql \
+  "      or (socle.mes_roles(e) && array['supervision', 'paie']::text[] and 'paie' = any(coalesce(socle.perimetre_cabinet(e), '{}')))" "      or (socle.mes_roles(e) && array['supervision', 'paie', 'revision']::text[] and 'paie' = any(coalesce(socle.perimetre_cabinet(e), '{}')))" \
+  "$PA2"
+prouver "les salariés que la paie du Cabinet ne lit pas" $PC \
+  "    livre.salaries = objets.filter((/** @type {any} */ o) => o.collection === 'employees').map((/** @type {any} */ o) => salarieDe(o.contenu));" "    livre.salaries = [];" \
+  "$WP1"
+prouver "le nom du salarié perdu en l'écrivant" $PC \
+  "    method: 'virement', iban: '', ...(avant || {}), id: s.id, name: s.nom," "    method: 'virement', iban: '', ...(avant || {}), id: s.id, name: ''," \
+  "$WP1"
+prouver "un bulletin écrit sans son calcul" $PC \
+  "gross: b.brut, workedDays: b.joursTravailles, absentDays: b.joursAbsence, bonuses: b.primes, deductions: b.retenues, computed: b.calcul," "gross: b.brut, workedDays: b.joursTravailles, absentDays: b.joursAbsence, bonuses: b.primes, deductions: b.retenues, computed: {}," \
+  "$WP1"
+prouver "l'écriture de paie du serveur ignorée" $PC \
+  "e.journal === 'PAIE' && String(e.date).slice(0, 7) === mois && e.statut !== 'contrepassee'" "false" \
+  "$WP1"
+
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

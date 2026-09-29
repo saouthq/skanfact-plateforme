@@ -162,6 +162,10 @@
     plan ne change plus et la fiche ne se supprime pas ; le plan se calcule par la v10.
   - **L'inventaire de stock** (brique 42 bis, 0027, C30) : `compta.inventaire` par année (quantités en
     millièmes, coûts en millimes, total calculé au serveur) ; la variation au brouillard, liée.
+  - **La paie tenue par le cabinet** (brique 43, C31) : les salariés et bulletins s'écrivent dans le
+    dossier du client (`employees`, `payslips`) par `GET/POST /entreprises/:e/paie/dossier` (ces deux
+    collections seulement, gestes `paie.dossier.*`, périmètre « paie ») ; recalculés au serveur ;
+    l'écriture de paie du mois suit d'elle-même.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

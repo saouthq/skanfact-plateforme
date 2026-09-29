@@ -85,7 +85,7 @@ mêmes données que son client.
 | **41 ter** | La liasse et le résultat fiscal de l'année. |
 | **42** | Les immobilisations : fiches des biens au serveur, dotations et sorties au brouillard, liées à leur bien. |
 | **42 bis** | L'inventaire de stock et sa variation. |
-| 43 | La paie tenue par le cabinet (mandat Paie). |
+| **43** | La paie tenue par le cabinet (mandat Paie) : les salariés et les bulletins du client, dans son propre dossier. |
 | 44 | La révision, le questionnaire, les questions au client et ses réponses. |
 | 45 | La clôture de l'exercice, sa réouverture (avec un motif), l'exercice suivant. |
 | 46 | L'équipe du cabinet : invitations, rôles, affectations par dossier, trace de l'équipe. |
@@ -643,3 +643,39 @@ valeur s'arrondit vers le haut (12,345 × 1,779 = 21,961755 → 21,962) ; à la 
 
 **Reste connu** : le stock d'ouverture d'une année se lit dans ses écritures ; sans les à-nouveaux de
 la clôture (brique 45), l'année suivante ne voit pas le stock de l'année d'avant.
+
+## Brique 43 : la paie tenue par le cabinet (fait le 29/09/2026)
+
+Le Cabinet v10 tenait, dans le livre de chaque dossier, ses salariés et ses bulletins (le calcul de
+`compta.js`, celui de l'entreprise) et y passait l'écriture de paie du mois. Sur la plateforme, le même
+onglet Paie.
+
+**C31. Une seule paie par entreprise** (par délégation) : les salariés et les bulletins que le cabinet
+établit s'écrivent dans le **dossier du client** (`employees`, `payslips`), les mêmes que son SkanFact
+écrit, par le même chemin d'enregistrement (`appliquer`, brique 31) : chaque bulletin y est
+**recalculé** par le moteur du serveur (un millime d'écart : refusé), la paie du serveur le tient, et
+l'**écriture de paie du mois suit d'elle-même** (en totaux du mois, brique 34) — « Passer l'écriture de
+paie » n'a plus rien à faire, l'écran le dit. Le client voit dans son SkanFact les bulletins que son
+cabinet établit, et l'inverse. Une route à part (`GET/POST /entreprises/:e/paie/dossier`) n'ouvre que
+ces deux collections ; **ce qui part au serveur** : la fiche du salarié et le bulletin, dans la forme
+de l'entreprise (ce que la v10 du client y met, comme son RIB, reste tel quel). Modifier ou supprimer
+un bulletin d'un mois déjà écrit n'est plus refusé : le serveur réécrit le mois.
+
+**Qui peut** : le propriétaire, l'administrateur, le rôle Paie de l'entreprise ; au cabinet,
+l'associé et le collaborateur Paie, **si le mandat comprend la paie** (décochée par défaut, 03 § 3.4)
+— la porte, et la base, qui ne laisse écrire la paie qu'à ceux qui la font (`paie.mes_entreprises`).
+
+**Les tests** : par l'API (`tests/cabinet/paie.test.ts`) : sans la paie au mandat, rien ; avec, un
+bulletin faux d'un millime refusé et rien d'écrit, puis le juste, tenu au serveur, son écriture de mars
+au journal PAIE, et le client qui voit le même dossier ; le collaborateur comptable refusé, jusque dans
+la base. À la souris (`tests/web/cabinet-paie.test.ts`) : un salarié déclaré, son bulletin de mars
+avec une prime, le même net à l'écran et au serveur, l'écriture du mois déjà là.
+
+**Reste connu** :
+- Le fichier CNSS du trimestre (`fichierCnss`) n'est pas encore en ligne : il demande le matricule
+  employeur du dossier, pas encore dans sa fiche.
+- La base laisse encore un membre du cabinet lire par une requête directe tout le dossier v10 d'un
+  client dont il a un mandat (les routes, elles, ne l'ouvrent pas) : resserrer sa sécurité par ligne
+  demande de revoir ce que les écritures du serveur y lisent (le plan, les avances). À décider.
+- Les barèmes de paie propres à un dossier (le réglage « paie » de sa fiche au Cabinet v10) : le
+  barème général s'applique.

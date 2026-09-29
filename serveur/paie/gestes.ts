@@ -16,6 +16,13 @@ export const GESTES_PAIE: Geste[] = [
     roles: { proprietaire: 'oui', administrateur: 'oui', paie: 'oui', supervision: 'oui' } },
   { code: 'paie.declarations.voir', module: 'paie', ecrit: false, sensible: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', paie: 'oui', supervision: 'oui' } },
+  // Les salariés et les bulletins du dossier, lus et tenus par qui fait la paie (brique 43 ; 03 § 3.1 :
+  // au cabinet, l'associé et le collaborateur Paie, si le mandat comprend la paie). Ils s'enregistrent
+  // dans le même dossier que ceux du client, et le serveur les recalcule de la même façon.
+  { code: 'paie.dossier.voir', module: 'paie', ecrit: false, sensible: true, horsCle: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', paie: 'oui', supervision: 'oui' } },
+  { code: 'paie.dossier.modifier', module: 'paie', ecrit: true, horsCle: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', paie: 'oui', supervision: 'oui' } },
   { code: 'paie.masse.voir', module: 'paie', ecrit: false,
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', paie: 'oui', lecture: 'voir', supervision: 'oui' } },
 ];

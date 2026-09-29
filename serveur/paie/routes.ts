@@ -12,6 +12,7 @@ import { cnssDuTrimestre, type Bulletin } from '../../moteur/paie.ts';
 import type { Route } from '../app.ts';
 import { requetes } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
+import { appliquer, type Changement } from '../v10/dossier.ts';
 import { motif, t } from '../../textes/index.ts';
 import './textes.ts';
 
@@ -34,6 +35,16 @@ const periodeDe = (annee: number, mois: number) => `${annee}-${String(mois).padS
 const champInvalide = (champ: string, raison: ReturnType<typeof t>) => ({ statut: 400, corps: { motif: motif('commun.champ_invalide', { champ, raison }), champ } });
 const m = (v: bigint | number) => versTexte(BigInt(v), 3);
 const pct = (v: unknown) => versTexte(BigInt(Number(v) || 0), 4);   // un taux en millionièmes, dit en pour cent
+
+// Les deux collections du dossier que la paie tient (brique 43).
+const COLLECTIONS_PAIE = ['employees', 'payslips'];
+const contenuV10: z.ZodType<unknown> = z.lazy(() => z.union([z.number().int(), z.string(), z.boolean(), z.null(), z.array(contenuV10), z.record(z.string(), contenuV10)]));
+const CHANGEMENTS_PAIE = z.object({
+  changements: z.array(z.object({
+    collection: z.enum(['employees', 'payslips'], { message: 'paie.champ.collection' }), cle: z.string().min(1).max(200),
+    rang: z.number().int().min(0).nullable(), revision: z.number().int().min(1).nullable(), contenu: contenuV10,
+  }).strict()).min(1).max(500),
+}).strict();
 
 export function routesPaie(ctx: Contexte): Route<never>[] {
   void ctx;
@@ -170,6 +181,29 @@ export function routesPaie(ctx: Contexte): Route<never>[] {
         select * from paie.masse_salariale(${params.entreprise ?? ''}::uuid, ${du}::date, ${au}::date)`.execute(requetes(tx))).rows[0];
       const x = (v: string | undefined) => m(BigInt(v ?? '0'));
       return { corps: { du, au, bulletins: Number(r?.bulletins ?? 0), brut: x(r?.brut), net: x(r?.net), chargesPatronales: x(r?.charges_patronales), coutEmployeur: x(r?.cout_employeur) } };
+    },
+  });
+
+  // ── Les salariés et les bulletins du dossier (brique 43 ; docs/cabinet.md, C31) ──────────────────
+  // Ce que le Cabinet lit et écrit de la paie d'un client : les deux collections du dossier que la
+  // paie tient (`employees`, `payslips`), rien d'autre. L'enregistrement passe par le même chemin que
+  // celui du client (serveur/v10/dossier.ts, `appliquer`) : chaque bulletin y est recalculé par le
+  // moteur du serveur, au millime, et ses écritures du mois suivent.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/paie/dossier', geste: 'paie.dossier.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const objets = (await tx.query(`select collection, cle, rang, revision, contenu from socle.dossier_v10
+          where entreprise = $1 and collection = any($2::text[]) order by collection, rang, cle`, [params.entreprise ?? '', COLLECTIONS_PAIE])).rows;
+      return { corps: { objets: objets.map((o) => ({ collection: o.collection, cle: o.cle, rang: o.rang, revision: Number(o.revision), contenu: o.contenu })) } };
+    },
+  });
+
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/paie/dossier', geste: 'paie.dossier.modifier', corps: CHANGEMENTS_PAIE,
+    traiter: async ({ params, corps, qui }, tx) => {
+      if (!tx || !qui) throw new Error('transaction attendue');
+      return { corps: { revisions: await appliquer(tx, params.entreprise ?? '', qui.utilisateur, corps.changements as Changement[]) } };
     },
   });
 

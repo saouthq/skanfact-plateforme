@@ -293,6 +293,93 @@
       tauxImpot: r.tauxImpot == null ? null : Number(r.tauxImpot), revision: r.revision ?? null,
     };
   }
+  // ── La paie d'un client (brique 43) : ses salariés et ses bulletins sont ceux de SON dossier ───────
+  // (`employees`, `payslips`), les mêmes que son SkanFact écrit ; le serveur recalcule chaque bulletin
+  // et tient l'écriture de paie du mois. Un nombre non entier part en texte exact, comme le point de
+  // contact de l'entreprise l'écrit (pont.js).
+  /** @param {unknown} v @returns {unknown} */
+  function encoder(v) {
+    if (typeof v === 'number') return Number.isInteger(v) ? v : (Number.isFinite(v) ? { '~n': String(v) } : null);
+    if (Array.isArray(v)) return v.map(encoder);
+    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined && typeof x !== 'function').map(([k, x]) => [k, encoder(x)]));
+    return v;
+  }
+  /** @param {unknown} v @returns {unknown} */
+  function decoder(v) {
+    if (Array.isArray(v)) return v.map(decoder);
+    if (v && typeof v === 'object') {
+      const cles = Object.keys(v);
+      if (cles.length === 1 && cles[0] === '~n') return Number(/** @type {any} */ (v)['~n']);
+      return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, decoder(x)]));
+    }
+    return v;
+  }
+  // Les objets de paie lus, par dossier : leur révision et leur rang, pour les réécrire sans rien écraser.
+  /** @type {Map<string, Map<string, { collection: string, cle: string, rang: number | null, revision: number, contenu: any }>>} */
+  const paieLue = new Map();
+  /** @param {string} ent */
+  async function paieDe(ent) {
+    const r = await appel('GET', `/entreprises/${ent}/paie/dossier`);
+    const objets = (r.objets || []).map((/** @type {any} */ o) => ({ ...o, contenu: decoder(o.contenu) }));
+    paieLue.set(ent, new Map(objets.map((/** @type {any} */ o) => [`${o.collection}/${o.cle}`, o])));
+    return objets;
+  }
+  // Un salarié du dossier (la forme de l'entreprise) → celui du Cabinet v10, et retour.
+  /** @param {any} e */
+  const salarieDe = (e) => ({
+    id: e.id, nom: e.name || '', cin: e.cin || '', cnss: e.cnss || '', identiteCnss: e.identiteCnss || '', poste: e.position || '',
+    contrat: e.contract || 'cdi', embauche: e.hireDate || '', sortie: e.endDate || '', brut: Number(e.grossSalary) || 0,
+    chefDeFamille: !!e.headOfFamily, enfants: Number(e.children) || 0, actif: e.active !== false, note: e.notes || '',
+  });
+  /** @param {any} s @param {any} avant */
+  const employeDe = (s, avant) => ({
+    method: 'virement', iban: '', ...(avant || {}), id: s.id, name: s.nom, cin: s.cin, cnss: s.cnss, identiteCnss: s.identiteCnss, position: s.poste,
+    contract: s.contrat, hireDate: s.embauche, endDate: s.sortie, grossSalary: s.brut, headOfFamily: s.chefDeFamille, children: s.enfants,
+    active: s.actif !== false, notes: s.note,
+  });
+  /** @param {any} p @param {string | null} ecritureId */
+  const bulletinDe = (p, ecritureId) => {
+    const c = p.computed || {};
+    return {
+      id: p.id, salarieId: p.employeeId, annee: Number(p.year), mois: Number(p.month),
+      brut: Number(p.gross ?? c.baseGross) || 0, joursTravailles: Number(p.workedDays ?? c.workedDays) || 26, joursAbsence: Number(p.absentDays ?? c.absentDays) || 0,
+      primes: p.bonuses || c.bonuses || [], retenues: p.deductions || c.deductions || [], calcul: c, payeLe: p.paidDate || '',
+      ecritureId, creeLe: 0, auteur: '',
+    };
+  };
+  /** @param {any} b @param {any} avant */
+  const fichePayeDe = (b, avant) => ({
+    accountId: '', method: 'virement', reference: '', ...(avant || {}), id: b.id, employeeId: b.salarieId, year: b.annee, month: b.mois,
+    gross: b.brut, workedDays: b.joursTravailles, absentDays: b.joursAbsence, bonuses: b.primes, deductions: b.retenues, computed: b.calcul,
+    paidDate: b.payeLe || '', issuedAt: (avant && avant.issuedAt) || new Date().toISOString().slice(0, 10),
+  });
+  // Le livre d'une année et sa paie : les salariés, les bulletins de l'année, et pour chacun l'écriture
+  // de paie de son mois, que le serveur tient (journal PAIE, au dernier jour du mois).
+  /** @param {string} ent @param {string|number} annee */
+  async function livreEtPaie(ent, annee) {
+    const [livre, objets] = await Promise.all([livreDe(ent, annee), paieDe(ent)]);
+    /** @param {string} mois */
+    const ecritureDuMois = (mois) => ((livre.ecritures || []).find((/** @type {any} */ e) => e.journal === 'PAIE' && String(e.date).slice(0, 7) === mois && e.statut !== 'contrepassee') || {}).id || null;
+    livre.salaries = objets.filter((/** @type {any} */ o) => o.collection === 'employees').map((/** @type {any} */ o) => salarieDe(o.contenu));
+    livre.bulletins = objets.filter((/** @type {any} */ o) => o.collection === 'payslips' && Number(o.contenu.year) === Number(annee))
+      .map((/** @type {any} */ o) => bulletinDe(o.contenu, ecritureDuMois(`${o.contenu.year}-${String(o.contenu.month).padStart(2, '0')}`)));
+    return livre;
+  }
+  // Écrire un objet de paie dans le dossier du client, dans la révision qu'on a lue.
+  /** @param {string} ent @param {string} collection @param {string} cle @param {any} contenu */
+  async function ecrirePaieDuDossier(ent, collection, cle, contenu) {
+    const avant = (paieLue.get(ent) || new Map()).get(`${collection}/${cle}`);
+    await appel('POST', `/entreprises/${ent}/paie/dossier`, { changements: [{
+      collection, cle, rang: avant ? avant.rang : null, revision: avant ? avant.revision : null, contenu: contenu === null ? null : encoder(contenu),
+    }] });
+  }
+  // L'objet de paie tel que le dossier le garde (pour ne rien perdre de ce que l'entreprise y met).
+  /** @param {string} ent @param {string} collection @param {string} cle */
+  const paieAvant = (ent, collection, cle) => ((paieLue.get(ent) || new Map()).get(`${collection}/${cle}`) || {}).contenu || null;
+  // Sur la plateforme, l'écriture de paie SUIT les bulletins (le serveur la réécrit) : modifier ou
+  // supprimer un bulletin d'un mois déjà écrit n'est plus refusé, comme la v10 le refusait.
+  /** @param {any} livre */
+  const sansEcritures = (livre) => ({ ...livre, bulletins: (livre.bulletins || []).map((/** @type {any} */ b) => ({ ...b, ecritureId: null })) });
   // Les cases d'une déclaration que le serveur garde (compta.cases_declaration, 0024).
   const CASES_DECLARATION = ['tvaCollectee', 'tvaDeductible', 'creditReporte', 'netAPayer', 'creditAReporter', 'timbre', 'retenuesOperees',
     'retenuesSubies', 'irpp', 'aDecaisser', 'tfp', 'foprolos', 'tcl', 'acomptes'];
@@ -1009,6 +1096,64 @@
       if (inv && inv.ecritureId) throw new Error('La variation de stock de cet exercice est déjà passée : la repasser compterait le stock deux fois.');
       const r = await appel('POST', `/entreprises/${o.dossierId}/compta/inventaires/${Number(o.annee)}/variation`, { ecriture: versLeServeur(v.ecriture) });
       return { ok: true, id: r.id, livre: await livreDe(o.dossierId, o.annee) };
+    },
+
+    // ── La paie (brique 43) : les salariés et les bulletins du dossier du client ──
+    paie: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreEtPaie(o.dossierId, o.annee);
+      const m = Number(o.mois) || 1;
+      const bulletins = KC.bulletinsDuMois(livre, o.annee, m);
+      return {
+        salaries: livre.salaries, bulletins, masse: KC.masseSalariale(bulletins),
+        annee: KC.masseSalariale(livre.bulletins.filter((/** @type {any} */ b) => Number(b.annee) === Number(o.annee))),
+        controles: KC.controlesPaie(livre, o.annee, m), aEcrire: bulletins.some((/** @type {any} */ b) => !b.ecritureId), baremes: KC.baremesPaie({}),
+      };
+    },
+    saveSalarie: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreEtPaie(o.dossierId, o.annee);
+      const r = KC.ajouterSalarie(livre, o.salarie, '', Date.now());
+      if (!r.ok) throw new Error(r.motif);
+      await ecrirePaieDuDossier(o.dossierId, 'employees', r.salarie.id, employeDe(r.salarie, paieAvant(o.dossierId, 'employees', r.salarie.id)));
+      return { ok: true, salarie: r.salarie, livre: await livreEtPaie(o.dossierId, o.annee) };
+    },
+    retirerSalarie: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreEtPaie(o.dossierId, o.annee);
+      const r = KC.retirerSalarie(livre, o.id, '', Date.now());
+      if (!r.ok) throw new Error(r.motif);
+      const s = livre.salaries.find((/** @type {any} */ x) => x.id === o.id);
+      await ecrirePaieDuDossier(o.dossierId, 'employees', o.id, employeDe(s, paieAvant(o.dossierId, 'employees', o.id)));
+      return { ok: true, livre: await livreEtPaie(o.dossierId, o.annee) };
+    },
+    saveBulletin: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = sansEcritures(await livreEtPaie(o.dossierId, o.annee));
+      const r = KC.ajouterBulletin(livre, o.bulletin, {}, '', Date.now());
+      if (!r.ok) throw new Error(r.motif);
+      await ecrirePaieDuDossier(o.dossierId, 'payslips', r.bulletin.id, fichePayeDe(r.bulletin, paieAvant(o.dossierId, 'payslips', r.bulletin.id)));
+      return { ok: true, bulletin: r.bulletin, livre: await livreEtPaie(o.dossierId, o.annee) };
+    },
+    supprimerBulletin: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = sansEcritures(await livreEtPaie(o.dossierId, o.annee));
+      const r = KC.supprimerBulletin(livre, o.id, '', Date.now());
+      if (!r.ok) throw new Error(r.motif);
+      await ecrirePaieDuDossier(o.dossierId, 'payslips', o.id, null);
+      return { ok: true, livre: await livreEtPaie(o.dossierId, o.annee) };
+    },
+    // L'écriture de paie du mois : le serveur la tient au fil des bulletins (en totaux du mois).
+    ecrirePaie: async (/** @type {any} */ o) => {
+      const livre = await livreEtPaie(o.dossierId, o.annee);
+      const mois = `${o.annee}-${String(o.mois).padStart(2, '0')}`;
+      const b = livre.bulletins.find((/** @type {any} */ x) => `${x.annee}-${String(x.mois).padStart(2, '0')}` === mois && x.ecritureId);
+      if (!b) throw new Error('Ce mois n\'a pas de bulletin : il n\'y a pas d\'écriture de paie à passer.');
+      return { ok: true, id: b.ecritureId, livre };
+    },
+    cnss: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      return KC.cnssDuTrimestre(await livreEtPaie(o.dossierId, o.annee), o.annee, o.trimestre);
     },
 
     // Un dossier créé à la main est un dossier TENU (0019) ; ses notes vont dans sa fiche (0020).
