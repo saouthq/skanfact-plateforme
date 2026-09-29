@@ -71,6 +71,18 @@ export interface BaseDeDonnees {
     modifie_le: Generated<Date>;
     revision: Generated<bigint>;
   };
+  'compta.cloture': {
+    entreprise: string;
+    jusqua: string;
+    par: string | null;
+    le: Generated<Date>;
+  };
+  'compta.compteur': {
+    entreprise: string;
+    journal: string;
+    annee: number;
+    dernier: bigint;
+  };
   'compta.ecriture': {
     id: Generated<string>;
     entreprise: string;
@@ -86,6 +98,8 @@ export interface BaseDeDonnees {
     statut: Generated<string>;
     numero: string | null;
     cree_le: Generated<Date>;
+    chaine_rang: bigint | null;
+    empreinte: string | null;
   };
   'compta.ligne': {
     id: Generated<string>;

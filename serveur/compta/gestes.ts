@@ -1,8 +1,8 @@
 // Les gestes du module Comptabilité (03 § 2.1, tableau « Comptabilité complète »). Le module les
 // DÉCLARE (02 M1) ; la porte ne connaît que ces déclarations.
 //
-// Pas encore déclarés ici (ils viendront avec leurs routes) : saisir une OD, lettrer, valider une
-// période, clôturer l'exercice. Aujourd'hui, les écritures naissent des pièces que le serveur tient.
+// Pas encore déclarés ici (ils viendront avec leurs routes) : saisir une OD, lettrer, clôturer
+// l'exercice. Aujourd'hui, les écritures naissent des pièces que le serveur tient.
 
 import { declarerGestes, type Geste } from '../porte/gestes.ts';
 import './textes.ts';
@@ -10,6 +10,9 @@ import './textes.ts';
 export const GESTES_COMPTA: Geste[] = [
   { code: 'compta.livres.voir', module: 'compta', ecrit: false,
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', lecture: 'voir' } },
+  // Valider une période (brique 35) : les numéros, la chaîne, la période close. La base le garde aussi.
+  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui' } },
 ];
 
 let declares = false;

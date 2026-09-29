@@ -98,7 +98,10 @@
     libre est la sienne), réécrite avant ET après chaque envoi du dossier (`reecrireFamillesDAchat`).
     La paie (brique 34, `serveur/compta/paie.ts`) : EN TOTAUX DU MOIS, sans un nom (03 § 2.1) ; le
     mois est la famille ; salaires versés et avances en un total par jour et par compte ; seul qui
-    voit la paie la réécrit. Vient : la validation (35).
+    voit la paie la réécrit. La validation (brique 35, 0018) : `compta.valider` numérote par journal
+    et par année, scelle dans la chaîne des livres, ferme la période ; ensuite `ecrire_famille`
+    garde une écriture validée identique, contre-passe celle qui ne tient plus, et n'écrit jamais
+    dans la période close (premier jour ouvert). `compta.controler` recalcule la chaîne.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

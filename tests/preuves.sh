@@ -1530,12 +1530,9 @@ prouver "une émission qui n'écrit pas son écriture" serveur/ventes/pieces.ts 
 prouver "un avoir qui réécrit sa propre famille au lieu de celle de sa facture" serveur/ventes/pieces.ts \
   "  await ecrireFamilleDeVente(tx, entreprise, p.type === 'avoir' ? (p.corrige ?? id) : id);" "  await ecrireFamilleDeVente(tx, entreprise, id);" \
   "$LG"
-prouver "une famille réécrite sans effacer son ancien brouillard" $M15 \
+prouver "une famille réécrite sans effacer son ancien brouillard" base/migrations/0018_compta_validation.sql \
   "  delete from compta.ecriture where entreprise = p_entreprise and famille = p_famille and statut = 'brouillard';" "" \
   "$LG"
-prouver "une famille validée réécrite par-dessus" $M15 \
-  "  if exists (select 1 from compta.ecriture where entreprise = p_entreprise and famille = p_famille and statut = 'validee') then" "  if false then" \
-  "$LB"
 prouver "la base qui garde une écriture déséquilibrée" $M15 \
   "  if d <> c then" "  if false then" \
   "$LB"
@@ -1626,9 +1623,6 @@ prouver "un plan changé qui ne réécrit pas les achats" serveur/v10/dossier.ts
 prouver "la base qui refuse l'origine d'une imputation" $M16 \
   "check (origine_type in ('vente', 'encaissement', 'achat', 'imputation', 'reglement_fournisseur'));" "check (origine_type in ('vente', 'encaissement', 'achat', 'reglement_fournisseur'));" \
   "$LAC"
-prouver "une famille d'achat validée réécrite par-dessus" $M15 \
-  "  if exists (select 1 from compta.ecriture where entreprise = p_entreprise and famille = p_famille and statut = 'validee') then" "  if false then" \
-  "$LAC"
 
 
 # ── Les écritures de la paie, en totaux du mois (0017, brique 34) ───────────────────────────────
@@ -1674,6 +1668,59 @@ prouver "un plan changé qui ne réécrit pas la paie" serveur/v10/dossier.ts \
 prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0017_compta_paie.sql \
   "'reglement_fournisseur', 'paie', 'salaires', 'avance'));" "'reglement_fournisseur', 'salaires', 'avance'));" \
   "$PE"
+
+
+# ── La validation des livres (0018, brique 35) ──────────────────────────────────────────────────
+M18=base/migrations/0018_compta_validation.sql
+VJ="valider numérote et ferme la période"
+VC="la chaîne des livres se contrôle"
+VD="valider : le propriétaire, l'administrateur, la comptabilité interne"
+prouver "une écriture validée que la famille veut telle quelle, contre-passée quand même" $M18 \
+  "        trouve := i; exit;" "        exit;" \
+  "$VJ"
+prouver "une écriture validée comparée sans ses montants" $M18 \
+  "from jsonb_array_elements(e->'lignes') with ordinality z(value, n)) = lignes_v then" "from jsonb_array_elements(e->'lignes') with ordinality z(value, n)) is not null then" \
+  "$VJ"
+prouver "une écriture nouvelle écrite dans la période close" $M18 \
+  "greatest((e->>'date')::date, coalesce(v_ouvert, (e->>'date')::date))" "(e->>'date')::date" \
+  "$VJ"
+prouver "une contre-passation écrite dans la période close" $M18 \
+  "greatest(v.date_ecriture, coalesce(v_ouvert, v.date_ecriture))" "v.date_ecriture" \
+  "$VJ"
+prouver "une contre-passation qui ne change pas les colonnes" $M18 \
+  "y.rang, y.compte, y.libelle, y.credit, y.debit, y.taux_tva" "y.rang, y.compte, y.libelle, y.debit, y.credit, y.taux_tva" \
+  "$VJ"
+prouver "une écriture déjà contre-passée qui se contre-passe encore" $M18 \
+  "and c.origine = x.id and c.statut = 'validee')" "and c.origine = x.id and c.statut = 'validee' and false)" \
+  "$VJ"
+prouver "une contre-passation validée elle-même contre-passée" $M18 \
+  "and x.statut = 'validee' and x.origine_type <> 'contre_passation'" "and x.statut = 'validee'" \
+  "$VJ"
+prouver "une période validée à reculons" $M18 \
+  "  if c is not null and p_jusqua <= c then" "  if false then" \
+  "$VJ"
+prouver "une période validée dans l'avenir" $M18 \
+  "  if p_jusqua is null or p_jusqua > aujourdhui then" "  if p_jusqua is null then" \
+  "$VJ"
+prouver "une validation qui ne ferme pas la période" $M18 \
+  "  insert into compta.cloture (entreprise, jusqua, par) values (p_entreprise, p_jusqua, socle.moi())
+  on conflict (entreprise) do update set jusqua = excluded.jusqua, par = excluded.par, le = now();" "" \
+  "$VJ"
+prouver "des numéros qui ne se suivent pas par journal" $M18 \
+  "values (p_entreprise, x.journal, extract(year from x.date_ecriture)::int, 1)" "values (p_entreprise, 'XX', extract(year from x.date_ecriture)::int, 1)" \
+  "$VJ"
+prouver "le contenu scellé sans les lignes" $M18 \
+  "(select string_agg(concat_ws(':', l.compte, l.debit::text, l.credit::text, l.libelle), ';' order by l.rang) from compta.ligne l where l.ecriture = e.id)" "''" \
+  "$VC"
+prouver "le contrôle qui ne recalcule pas le contenu" $M18 \
+  "    if x.contenu <> compta.contenu_ecriture(x.id, x.numero) or x.empreinte <> x.empreinte_maillon then" "    if x.empreinte <> x.empreinte_maillon then" \
+  "$VC"
+prouver "la base qui laisse le commercial valider" $M18 \
+  "  if not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne']::text[]" "  if not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'commercial']::text[]" \
+  "$VD"
+prouver "un commercial qui valide" serveur/compta/gestes.ts \
+  "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui' } }," "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', commercial: 'oui' } }," \
+  "$VD"
 
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

@@ -5,6 +5,9 @@ import { declarerTextes } from '../../textes/index.ts';
 
 declarerTextes({
   'geste.compta.livres.voir': 'voir les livres, la balance et le grand livre',
+  'geste.compta.ecritures.valider': 'valider une période des livres (numéros, chaîne, période close)',
+  'compta.champ.jusqua': 'le dernier jour de la période à valider (AAAA-MM-JJ)',
+  'compta.libelle.contre_passation': 'Contre-passation de {numero}',
   'compta.champ.journal': 'un journal : VT, AC, BQ, CA, OD, PAIE ou AN',
   'compta.champ.compte': 'un numéro de compte (des chiffres)',
   'compta.champ.fin_avant_debut': 'la fin de la période ne peut pas précéder son début',

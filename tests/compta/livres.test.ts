@@ -201,13 +201,6 @@ describe('les livres tenus par le serveur', () => {
     const comptes = (await admin.query(`select distinct l.compte from compta.ligne l join compta.ecriture e on e.id = l.ecriture
       where e.entreprise = $1 and e.origine_type <> 'vente' and e.origine_type <> 'encaissement' and l.compte like '401%'`, [e.ent])).rows.map((r) => r.compte);
     expect(comptes).toEqual(['401001']);
-    // Une écriture validée (brique 35) : la famille ne se réécrit plus, l'enregistrement est refusé
-    // et rien n'est écrit.
-    await admin.query(`update compta.ecriture set statut = 'validee', numero = 'AC-000001' where entreprise = $1 and origine_type = 'achat' and date_ecriture = '2026-10-02'`, [e.ent]);
-    const refuse = await e.envoyer('purchases', 'a1', { ...paye, number: 'FF-1 bis' });
-    expect(refuse.statut, JSON.stringify(refuse.corps)).toBe(403);
-    expect(String(refuse.corps.motif)).toContain('contre-passation');
-    expect((await admin.query(`select numero_fournisseur from achats.piece where entreprise = $1 and ref_v10 = 'a1'`, [e.ent])).rows[0].numero_fournisseur).toBe('FF-1');
   });
 
   it('le plan de l\'entreprise : ses propres comptes et ses comptes auxiliaires réécrivent tout le brouillard', async () => {
@@ -317,15 +310,17 @@ describe('les livres tenus par le serveur', () => {
     // Une ligne d'une autre entreprise sous cette écriture.
     const autre = await essai();
     await expect(admin.query(`insert into compta.ligne (ecriture, entreprise, rang, compte, libelle, debit) values ($1, $2, 9, '471', 'Essai', 1)`, [ecriture, autre.ent])).rejects.toThrow(/une ligne appartient à l'entreprise de son écriture/);
-    // Validée (comme la brique 35 le fera), elle ne bouge plus : ni elle, ni ses lignes ; et sa
-    // famille ne se réécrit plus (elle se corrigera par une contre-passation).
-    await admin.query(`update compta.ecriture set statut = 'validee', numero = 'VT-2026-0001' where id = $1`, [ecriture]);
+    // Validée, elle ne bouge plus : ni elle, ni ses lignes (la validation elle-même : validation.test.ts).
+    await admin.query(`update compta.ecriture set statut = 'validee', numero = 'VT-2026-000001', chaine_rang = 1, empreinte = repeat('a', 64) where id = $1`, [ecriture]);
     await expect(admin.query(`delete from compta.ecriture where id = $1`, [ecriture])).rejects.toThrow(/une écriture validée ne se modifie pas/);
     await expect(admin.query(`update compta.ecriture set libelle = 'autre' where id = $1`, [ecriture])).rejects.toThrow(/une écriture validée ne se modifie pas/);
     await expect(admin.query(`update compta.ligne set debit = debit + 1 where ecriture = $1 and rang = 1`, [ecriture])).rejects.toThrow(/une écriture validée ne se modifie pas/);
     await expect(admin.query(`delete from compta.ligne where ecriture = $1`, [ecriture])).rejects.toThrow(/une écriture validée ne se modifie pas/);
+    // Sa famille se réécrit encore : un encaissement s'ajoute en brouillard, et la facture validée,
+    // que la famille veut telle quelle, reste seule (ni doublon, ni contre-passation).
     const r = await e.envoyer('documents', 'f1', { ...(emise.corps.contenu as Record<string, unknown>), payments: [{ id: 'p1', date: '2026-10-05', amount: 500, method: 'especes' }] });
-    expect(r.corps.motif).toBe('Cette pièce a une écriture validée : elle se corrige par une contre-passation.');
-    expect((await admin.query(`select count(*)::int n from ventes.reglement where entreprise = $1`, [e.ent])).rows[0].n).toBe(0);
+    expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+    expect((await admin.query(`select origine_type, statut from compta.ecriture where entreprise = $1 order by date_ecriture, rang`, [e.ent])).rows)
+      .toEqual([{ origine_type: 'vente', statut: 'validee' }, { origine_type: 'encaissement', statut: 'brouillard' }]);
   });
 });

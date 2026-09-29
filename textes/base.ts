@@ -83,6 +83,9 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'une ligne appartient à l\'entreprise de son écriture', cle: 'base.compta.ligne_entreprise', fr: 'une ligne appartient à l\'entreprise de son écriture' },
   { base: 'une écriture a au moins deux lignes', cle: 'base.compta.deux_lignes', fr: 'une écriture a au moins deux lignes' },
   { base: 'une écriture est équilibrée : ses débits égalent ses crédits', cle: 'base.compta.equilibre', fr: 'une écriture est équilibrée : ses débits égalent ses crédits' },
+  { base: 'valider une période est réservé au propriétaire, à l\'administrateur et à la comptabilité interne', cle: 'base.compta.valider_interdit', fr: 'valider une période est réservé au propriétaire, à l\'administrateur et à la comptabilité interne' },
+  { base: 'on ne valide pas une période qui n\'est pas finie', cle: 'base.compta.valider_avenir', fr: 'on ne valide pas une période qui n\'est pas finie' },
+  { base: 'la période est déjà validée jusqu\'au %s', cle: 'base.compta.deja_validee', fr: 'la période est déjà validée jusqu\'au {jour}', valeurs: ['jour'] },
   { base: 'cette pièce a une écriture validée : elle se corrige par une contre-passation', cle: 'base.compta.famille_validee', fr: 'cette pièce a une écriture validée : elle se corrige par une contre-passation' },
 ];
 

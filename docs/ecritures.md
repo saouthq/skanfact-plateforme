@@ -23,7 +23,7 @@ inaltérable (chaîne d'empreintes) ; la TVA se lit dans les livres (deux chemin
 | **32** | Les tables de la comptabilité ; les écritures des **ventes** (facture, avoir, encaissements) tenues au fil des pièces ; les livres lus par l'API (journal, balance, grand livre). |
 | **33** | Les écritures des **achats** (facture, dépense, avoir, acompte, imputation) et des règlements fournisseurs ; la TVA du mois lue dans les livres du serveur. |
 | **34** | La **paie** en totaux du mois, sans un nom de salarié (`03` § 2.1), et les salaires versés. |
-| 35 | La **validation** : numéros par journal, chaîne d'empreintes, période close, contre-passation. |
+| **35** | La **validation** : numéros par journal, chaîne d'empreintes, période close, contre-passation. |
 
 ## Brique 32 : les écritures des ventes
 
@@ -156,9 +156,8 @@ Changer le plan réécrit tout le brouillard des achats comme celui des ventes (
 
 - **D6.** L'origine d'une imputation est l'**acompte** imputé (un acompte ne s'impute que sur une
   facture) ; sa famille, celle de la facture.
-- **D7.** Une famille d'achat qui a une écriture validée refuse l'enregistrement qui la changerait
-  (403, « elle se corrige par une contre-passation ») : rien de l'envoi n'est écrit. La
-  contre-passation viendra à la brique 35.
+- **D7.** Une famille d'achat qui a une écriture validée refusait l'enregistrement qui la changerait.
+  **Remplacé par la brique 35** (D11) : l'écriture validée se contre-passe.
 
 ### Ce qui la prouve
 
@@ -222,3 +221,51 @@ mois donne toujours la même famille).
   avance illisible refusée sans rien écrire, un bulletin retiré.
 - Qui ne voit pas la paie ne peut pas en réécrire le brouillard ; la comptabilité interne lit la paie
   dans les livres, jamais un bulletin.
+
+## Brique 35 : la validation
+
+### 1. Valider une période
+
+`POST /v1/entreprises/:e/compta/valider { jusqua }` (geste `compta.ecritures.valider` :
+propriétaire, administrateur, comptabilité interne ; la base le vérifie elle-même) :
+
+- les contrôles passent **avant** le premier numéro : un jour passé (on ne valide pas une période
+  qui n'est pas finie), après la période déjà close (jamais à reculons) ;
+- chaque écriture en brouillard de la période, dans l'ordre des dates, prend son **numéro** (par
+  journal et par année : « AC-2026-000001 ») et devient un **maillon** de la chaîne des livres
+  (`socle.sceller`, la même chaîne d'empreintes que les pièces émises) ;
+- la période est **close** (`compta.cloture`) : plus rien ne s'y écrit.
+
+`GET /v1/entreprises/:e/compta/cloture` dit jusqu'où les livres sont validés et **contrôle** la
+chaîne : chaque maillon suit le précédent, et chaque écriture validée, recalculée aujourd'hui, a le
+contenu qui a été scellé (une ligne retouchée par-dessous la base se voit).
+
+### 2. Après la validation : la contre-passation
+
+Une pièce qui change réécrit toujours sa famille, mais le passé validé ne bouge plus :
+
+- une écriture validée que la famille veut **telle quelle** (mêmes comptes, mêmes montants, même
+  date) reste ; rien ne s'écrit (changer l'objet d'un achat ne touche pas les livres) ;
+- une écriture validée qui ne tient plus se **contre-passe** : l'écriture inverse, en brouillard ;
+  la nouvelle s'écrit à côté ; une pièce retirée contre-passe tout ce qui compte encore d'elle ;
+- rien ne s'écrit dans la période close : ce qui y tomberait (une contre-passation, une nouvelle
+  écriture, une pièce datée d'avant la clôture) s'écrit au **premier jour ouvert**.
+
+### Décisions (par délégation, 29/09/2026)
+
+- **D11.** Une écriture validée ne se corrige que par contre-passation, écrite par le serveur quand
+  la pièce change (01 R6). Une écriture déjà contre-passée par une écriture validée ne compte plus.
+- **D12.** La correction d'une période close s'écrit au premier jour ouvert (10.14.0 : un fait se
+  régularise quand il change, jamais en réécrivant un mois déclaré). À VÉRIFIER avec le comptable.
+- **D13.** Numéros par journal et par année, attribués à la validation, dans l'ordre des dates ;
+  une seule chaîne d'empreintes pour tous les journaux de l'entreprise.
+
+### Ce qui la prouve
+
+- Un parcours : un achat et son règlement ; valider jusqu'au 5 août (l'achat seul, AC-2026-000001) ;
+  jamais à reculons, jamais l'avenir ; l'objet changé n'écrit rien ; le prix corrigé contre-passe au
+  6 août et réécrit la retenue du règlement (9,131) ; valider le mois (les numéros se suivent par
+  journal) ; un achat daté dans la période close s'écrit au 1er septembre ; l'achat retiré se
+  contre-passe entier, et chaque compte revient à zéro.
+- La chaîne : une ligne retouchée par-dessous la base (déclencheurs coupés) se voit au contrôle.
+- Les droits : ni le commercial ni la lecture ne valident, même dans la base.

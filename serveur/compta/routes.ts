@@ -158,5 +158,29 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // Valider une période (brique 35) : jusqu'à un jour passé, chaque brouillard prend son numéro et son
+  // maillon, et la période se ferme. La base refait elle-même chaque contrôle (compta.valider).
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/compta/valider', geste: 'compta.ecritures.valider',
+    corps: z.object({ jusqua: z.string().refine((v) => estJour(v), { message: 'compta.champ.jusqua' }) }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const r = await tx.query('select compta.valider($1, $2::date) n', [params.entreprise ?? '', corps.jusqua]);
+      return { corps: { validees: Number(r.rows[0]?.n ?? 0), jusqua: corps.jusqua } };
+    },
+  });
+
+  // La période close, et le contrôle des livres : la chaîne, et chaque écriture validée recalculée.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/compta/cloture', geste: 'compta.livres.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const entreprise = params.entreprise ?? '';
+      const c = await requetes(tx).selectFrom('compta.cloture').select(['jusqua', 'le']).where('entreprise', '=', entreprise).executeTakeFirst();
+      const controle = (await tx.query('select * from compta.controler($1)', [entreprise])).rows[0] as { ok: boolean; numero: string | null; motif: string | null };
+      return { corps: { jusqua: c?.jusqua ?? null, le: c?.le ?? null, controle } };
+    },
+  });
+
   return routes;
 }
