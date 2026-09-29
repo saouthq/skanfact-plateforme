@@ -13,6 +13,7 @@ declarerTextes({
   'geste.compta.liasse.preparer': 'préparer la liasse de l\'année : ses retraitements et son taux d\'impôt',
   'compta.champ.taux': 'un taux en pourcentage (« 25 » ou « 22,5 »)',
   'compta.champ.duree': 'une durée en années (« 5 » ou « 6,5 »)',
+  'compta.champ.quantite': 'une quantité (« 24 » ou « 2,5 »)',
   'compta.libelle.extourne': 'Extourne de {numero}',
   'compta.champ.ecriture': 'une écriture : sa date, son journal, au moins deux lignes',
   'compta.champ.montant': 'un montant en dinars, sans signe (« 1191,000 »)',

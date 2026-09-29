@@ -84,7 +84,7 @@ mêmes données que son client.
 | **41 bis** | La page Écritures : les écritures de tous les clients d'une période, en un fichier. |
 | **41 ter** | La liasse et le résultat fiscal de l'année. |
 | **42** | Les immobilisations : fiches des biens au serveur, dotations et sorties au brouillard, liées à leur bien. |
-| 42 bis | L'inventaire de stock et sa variation. |
+| **42 bis** | L'inventaire de stock et sa variation. |
 | 43 | La paie tenue par le cabinet (mandat Paie). |
 | 44 | La révision, le questionnaire, les questions au client et ses réponses. |
 | 45 | La clôture de l'exercice, sa réouverture (avec un motif), l'exercice suivant. |
@@ -620,3 +620,26 @@ liée ; puis la durée qui ne change plus et le bien qui ne se supprime pas.
   de la v10) ne sont pas encore ce registre : deux registres pour une entreprise, à réunir.
 - Une reprise de subvention n'est pas liée à son bien (comme dans la v10) : elle se propose tant que
   l'année a une dotation ou une sortie à écrire.
+
+## Brique 42 bis : l'inventaire de stock (fait le 29/09/2026)
+
+Le Cabinet v10 gardait l'inventaire compté au dernier jour de l'exercice (référence, désignation,
+quantité, coût unitaire, collés depuis un tableur) et proposait la variation de stock : ce que le
+compte de stock portait, contre ce qu'on vient de compter. Sur la plateforme, le même onglet Inventaire.
+
+**C30. L'inventaire d'une année se garde au serveur** (par délégation, migration `0027`,
+`compta.inventaire`) : ses lignes (la quantité en **millièmes** — un stock se compte aussi en kilos —,
+le coût unitaire en millimes) et son **total, calculé au serveur** (chaque ligne arrondie au millime,
+puis la somme ; l'écran montre ce total). **Ce qui part au serveur** (compté) : la date, le compte de
+stock, et pour chaque ligne sa référence, sa désignation, sa quantité et son coût. Refait, il remplace
+le précédent, sauf une fois sa variation passée en écriture. La variation se calcule par la v10 sur le
+livre du serveur, entre au brouillard (qui valide l'écrit), datée dans l'année, et se lie à
+l'inventaire ; repassée, elle se refuse ; supprimée ou contre-passée, le lien ne vaut plus.
+
+**Les tests** : par l'API et dans la base (`tests/compta/inventaire.test.ts`), avec une ligne dont la
+valeur s'arrondit vers le haut (12,345 × 1,779 = 21,961755 → 21,962) ; à la souris
+(`tests/web/cabinet-inventaire.test.ts`) : l'inventaire collé, 203,282 au serveur ; la variation de
++53,282 contre les 150,000 du compte ; dessous, l'inventaire qui ne se refait pas, et le refus de la v10.
+
+**Reste connu** : le stock d'ouverture d'une année se lit dans ses écritures ; sans les à-nouveaux de
+la clôture (brique 45), l'année suivante ne voit pas le stock de l'année d'avant.

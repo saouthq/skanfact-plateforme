@@ -2659,5 +2659,71 @@ prouver "l'acquisition d'où vient un bien oubliée" $PC \
   "docId: String((f.origine || {}).docId || '').slice(0, 100)," "docId: ''," \
   "$WI1"
 
+# ── Brique 42 bis : l'inventaire de stock (docs/cabinet.md, C30) ──
+M27=base/migrations/0027_compta_inventaire.sql
+INS=serveur/compta/inventaire.ts
+IV1="un inventaire : posé, son total calculé au serveur au millime ; ce qui ne tient pas se refuse ; une voisine n'en lit rien"
+IV2="la variation : au brouillard, liée ; repassée, refusée ; l'inventaire ne se refait pas sous elle ; supprimée ou contre-passée, le lien tombe"
+WV1="l'inventaire collé s'enregistre au millime ; la variation s'écrit au brouillard, liée ; dessous, l'inventaire ne se refait pas"
+prouver "un inventaire daté dans une autre année" $M27 \
+  "  if extract(year from v_date) <> p_annee then perform socle.refus(" "  if false then perform socle.refus(" \
+  "$IV1"
+prouver "un inventaire sans ligne" $M27 \
+  "  if jsonb_typeof(p_inventaire->'lignes') <> 'array' or jsonb_array_length(p_inventaire->'lignes') = 0 then" "  if false then" \
+  "$IV1"
+prouver "une ligne d'inventaire sans désignation" $M27 \
+  "    if length(trim(coalesce(l->>'libelle', ''))) = 0 then perform socle.refus(format('ligne %s : la désignation manque', k)); end if;" "" \
+  "$IV1"
+prouver "une quantité négative ou à virgule inventoriée" $M27 \
+  "    if jsonb_typeof(l->'quantite') <> 'number' or not socle.sans_virgule(l->'quantite') or (l->>'quantite')::numeric < 0 then" "    if false then" \
+  "$IV1"
+prouver "un coût unitaire négatif inventorié" $M27 \
+  "    if jsonb_typeof(l->'cout') <> 'number' or not socle.sans_virgule(l->'cout') or (l->>'cout')::numeric < 0 then" "    if false then" \
+  "$IV1"
+prouver "un inventaire sans compte de stock" $M27 \
+  "  if coalesce(p_inventaire->>'compte', '') !~ '^[0-9]{1,12}\$' then perform socle.refus(" "  if false then perform socle.refus(" \
+  "$IV1"
+prouver "la valeur d'une ligne tronquée au lieu d'arrondie" $M27 \
+  "    v_total := v_total + round((l->>'quantite')::numeric * (l->>'cout')::numeric / 1000)::bigint;" "    v_total := v_total + trunc((l->>'quantite')::numeric * (l->>'cout')::numeric / 1000)::bigint;" \
+  "$IV1"
+prouver "l'inventaire d'une voisine lu" $M27 \
+  "create policy visible on compta.inventaire using (entreprise in (select compta.mes_entreprises()));" "create policy visible on compta.inventaire using (true);" \
+  "$IV1"
+prouver "une quantité lue en entiers seulement" $INS \
+  "try { quantite = depuisTexte(l.quantite, 3); }" "try { quantite = depuisTexte(l.quantite, 0); }" \
+  "$IV1"
+prouver "un inventaire refait sous sa variation" $M27 \
+  "  if found and compta.ecriture_vivante(x.ecriture) then" "  if false then" \
+  "$IV2"
+prouver "une variation de stock passée deux fois" $M27 \
+  "  if compta.ecriture_vivante(x.ecriture) then
+    perform socle.refus('la variation de stock de cet exercice est déjà passée" "  if false then
+    perform socle.refus('la variation de stock de cet exercice est déjà passée" \
+  "$IV2"
+prouver "une variation datée hors de son année" $M27 \
+  "  if coalesce(p_ecriture->>'date', '') not like p_annee || '-%' then" "  if false then" \
+  "$IV2"
+prouver "une variation écrite sans lien vers son inventaire" $M27 \
+  "  update compta.inventaire set ecriture = v_id where entreprise = p_entreprise and annee = p_annee;" "" \
+  "$IV2"
+prouver "une variation écrite par qui ne valide pas, dans la base" $M27 \
+  "  perform compta.exiger(p_entreprise, 'compta.ecritures.valider');
+  select * into x from compta.inventaire" "  perform compta.exiger(p_entreprise, 'compta.ecritures.saisir');
+  select * into x from compta.inventaire" \
+  "$IV2"
+prouver "le lien d'une variation contre-passée lu comme s'il valait" $INS \
+  "case when compta.ecriture_vivante(ecriture) then ecriture end ecriture from compta.inventaire" "ecriture from compta.inventaire" \
+  "$IV2"
+prouver "l'inventaire que le livre ne lit pas" $PC \
+  "    livre.inventaires = inventaire ? [inventaire] : [];" "" \
+  "$WV1"
+prouver "le total du serveur ignoré" $PC \
+  "      id: \`inv_\${x.annee}\`, date: x.date, compte: x.compte, total: nombre(x.total)," "      id: \`inv_\${x.annee}\`, date: x.date, compte: x.compte, total: 0," \
+  "$WV1"
+prouver "le refus de la v10 sauté avant de refaire l'inventaire" $PC \
+  "      const r = KC.poserInventaire(livre, o.inventaire, '', Date.now());
+      if (!r.ok) throw new Error(r.motif);" "      const r = KC.poserInventaire({ ...livre, inventaires: [] }, o.inventaire, '', Date.now());" \
+  "$WV1"
+
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

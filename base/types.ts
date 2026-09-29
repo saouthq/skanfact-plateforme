@@ -169,6 +169,17 @@ export interface BaseDeDonnees {
     ecriture: string;
     entreprise: string;
   };
+  'compta.inventaire': {
+    entreprise: string;
+    annee: number;
+    date_inventaire: string;
+    compte: string;
+    lignes: ColumnType<Json, string, string>;
+    total: bigint;
+    ecriture: string | null;
+    saisi_par: string | null;
+    saisi_le: Generated<Date>;
+  };
   'compta.lettrage': {
     id: Generated<string>;
     entreprise: string;

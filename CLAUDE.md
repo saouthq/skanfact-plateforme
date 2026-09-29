@@ -160,6 +160,8 @@
     pour toute la vie de l'entreprise (montants en millimes, durée en centièmes d'année, révision) ;
     `compta.immobilisation_ecriture` lie (bien, année, dotation ou sortie) à son écriture ; écrite, le
     plan ne change plus et la fiche ne se supprime pas ; le plan se calcule par la v10.
+  - **L'inventaire de stock** (brique 42 bis, 0027, C30) : `compta.inventaire` par année (quantités en
+    millièmes, coûts en millimes, total calculé au serveur) ; la variation au brouillard, liée.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

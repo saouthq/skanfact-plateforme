@@ -206,16 +206,32 @@
   // premier exercice commence en cours d'année).
   /** @param {string} ent @param {string|number} annee @param {any[]} [lues] */
   const livreDe = async (ent, annee, lues) => {
-    const [ecritures, releves, declarations, biens] = await Promise.all([lues || ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`), relevesDe(ent, annee),
-      declarationsDe(ent, annee), immobilisationsDe(ent)]);
+    const [ecritures, releves, declarations, biens, inventaire] = await Promise.all([lues || ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`), relevesDe(ent, annee),
+      declarationsDe(ent, annee), immobilisationsDe(ent), inventaireDe(ent, annee)]);
     const livre = versLeLivre(ent, Number(annee), ecritures);
     const ex = exerciceDe(ent, annee);
     if (ex) { livre.exercice.du = ex.du; livre.exercice.au = ex.au; }
     livre.releves = releves;
     livre.declarations = declarations;
     livre.immobilisations = biens;
+    livre.inventaires = inventaire ? [inventaire] : [];
     return livre;
   };
+  // L'inventaire d'une année (brique 42 bis), dans la forme de la v10 : son total est celui que le
+  // serveur a calculé ; l'écriture de variation, tant qu'elle vaut encore.
+  /** @param {string} ent @param {string|number} annee */
+  async function inventaireDe(ent, annee) {
+    const r = await appel('GET', `/entreprises/${ent}/compta/inventaires/${Number(annee)}`);
+    const x = r.inventaire;
+    if (!x) return null;
+    return {
+      id: `inv_${x.annee}`, date: x.date, compte: x.compte, total: nombre(x.total), saisiLe: 0, par: '', ecritureId: x.ecriture || '',
+      lignes: x.lignes.map((/** @type {any} */ l) => {
+        const quantite = nombre(l.quantite), cout = nombre(l.cout);
+        return { ref: l.ref, libelle: l.libelle, quantite, cout, valeur: Math.round(quantite * cout * 1000) / 1000 };
+      }),
+    };
+  }
   // Les biens de l'entreprise (brique 42), dans la forme de la v10 : une fiche par bien pour toute la
   // vie de l'entreprise, son plan recalculé par la v10, chaque année écrite retenant l'écriture qui
   // porte sa dotation ou sa sortie (le serveur ne rend que celles qui valent encore).
@@ -959,6 +975,40 @@
         annee: Number(o.annee), pieces: props.map((/** @type {any} */ p) => ({ immobilisation: p.immoId, genre: p.genre, ecriture: versLeServeur(p) })),
       });
       return { ok: true, ids: r.ids, livre: await livreDe(o.dossierId, o.annee) };
+    },
+
+    // ── L'inventaire de stock (brique 42 bis) : la variation de la v10, l'inventaire au serveur (0027) ──
+    inventaire: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreDe(o.dossierId, o.annee);
+      return { inventaire: livre.inventaires[0] || null, variation: KC.variationDeStock(livre, o.annee) };
+    },
+    saveInventaire: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreDe(o.dossierId, o.annee);
+      // Les refus de la v10 d'abord, mot pour mot (un inventaire dont la variation est passée) ; le serveur les refait.
+      const r = KC.poserInventaire(livre, o.inventaire, '', Date.now());
+      if (!r.ok) throw new Error(r.motif);
+      /** @param {unknown} n */
+      const quantite = (n) => (Math.round((Number(n) || 0) * 1000) / 1000).toFixed(3);
+      await appel('PUT', `/entreprises/${o.dossierId}/compta/inventaires/${Number(o.annee)}`, {
+        date: r.inventaire.date, compte: r.inventaire.compte,
+        lignes: r.inventaire.lignes.map((/** @type {any} */ l) => ({ ref: String(l.ref || '').slice(0, 60), libelle: String(l.libelle || ''), quantite: quantite(l.quantite), cout: signe(l.cout) })),
+      });
+      const apres = await livreDe(o.dossierId, o.annee);
+      return { ok: true, inventaire: apres.inventaires[0] || null, livre: apres };
+    },
+    // La variation de stock de l'année, au BROUILLARD, liée à l'inventaire.
+    ecrireVariationStock: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreDe(o.dossierId, o.annee);
+      const v = KC.variationDeStock(livre, o.annee);
+      if (!v.ok) throw new Error(v.motif);
+      if (!v.ecriture) throw new Error(v.motif || 'Le stock compté est celui des comptes : aucune écriture à passer.');
+      const inv = livre.inventaires[0];
+      if (inv && inv.ecritureId) throw new Error('La variation de stock de cet exercice est déjà passée : la repasser compterait le stock deux fois.');
+      const r = await appel('POST', `/entreprises/${o.dossierId}/compta/inventaires/${Number(o.annee)}/variation`, { ecriture: versLeServeur(v.ecriture) });
+      return { ok: true, id: r.id, livre: await livreDe(o.dossierId, o.annee) };
     },
 
     // Un dossier créé à la main est un dossier TENU (0019) ; ses notes vont dans sa fiche (0020).

@@ -193,6 +193,18 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'une écriture d\'immobilisation est une dotation, une reprise de subvention ou une sortie', cle: 'base.compta.immo_genre', fr: 'une écriture d\'immobilisation est une dotation, une reprise de subvention ou une sortie' },
   { base: 'les écritures d\'immobilisation de %s se datent dans cette année', cle: 'base.compta.immo_annee', fr: 'les écritures d\'immobilisation de {annee} se datent dans cette année', valeurs: ['annee'] },
   { base: 'la %s %s de « %s » est déjà passée : la repasser la compterait deux fois', cle: 'base.compta.immo_deja', fr: 'la {genre} {annee} de « {bien} » est déjà passée : la repasser la compterait deux fois', valeurs: ['genre', 'annee', 'bien'] },
+  { base: 'la date de l\'inventaire manque : c\'est le dernier jour de l\'exercice', cle: 'base.compta.inv_date', fr: 'la date de l\'inventaire manque : c\'est le dernier jour de l\'exercice' },
+  { base: 'l\'inventaire de %s se date dans cette année', cle: 'base.compta.inv_annee', fr: 'l\'inventaire de {annee} se date dans cette année', valeurs: ['annee'] },
+  { base: 'le compte de stock de l\'inventaire manque', cle: 'base.compta.inv_compte', fr: 'le compte de stock de l\'inventaire manque' },
+  { base: 'un inventaire sans une seule ligne ne dit pas « le stock est vide », il dit « rien n\'a été compté »', cle: 'base.compta.inv_vide', fr: 'un inventaire sans une seule ligne ne dit pas « le stock est vide », il dit « rien n\'a été compté »' },
+  { base: 'un inventaire se borne à dix mille lignes', cle: 'base.compta.inv_trop', fr: 'un inventaire se borne à dix mille lignes' },
+  { base: 'ligne %s : la désignation manque', cle: 'base.compta.inv_libelle', fr: 'ligne {ligne} : la désignation manque', valeurs: ['ligne'] },
+  { base: 'ligne %s : une quantité négative ne s\'inventorie pas', cle: 'base.compta.inv_quantite', fr: 'ligne {ligne} : une quantité négative ne s\'inventorie pas', valeurs: ['ligne'] },
+  { base: 'ligne %s : un coût unitaire négatif n\'existe pas', cle: 'base.compta.inv_cout', fr: 'ligne {ligne} : un coût unitaire négatif n\'existe pas', valeurs: ['ligne'] },
+  { base: 'l\'inventaire de %s est déjà passé en écriture (la variation de stock) : contre-passe-la ou supprime-la, puis refais-le', cle: 'base.compta.inv_ecrit', fr: 'l\'inventaire de {annee} est déjà passé en écriture (la variation de stock) : contre-passe-la ou supprime-la, puis refais-le', valeurs: ['annee'] },
+  { base: 'aucun inventaire saisi pour %s', cle: 'base.compta.inv_absent', fr: 'aucun inventaire saisi pour {annee}', valeurs: ['annee'] },
+  { base: 'la variation de stock de cet exercice est déjà passée : la repasser compterait le stock deux fois', cle: 'base.compta.inv_variation_ecrite', fr: 'la variation de stock de cet exercice est déjà passée : la repasser compterait le stock deux fois' },
+  { base: 'la variation de stock de %s se date dans cette année', cle: 'base.compta.inv_variation_annee', fr: 'la variation de stock de {annee} se date dans cette année', valeurs: ['annee'] },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));
