@@ -39,6 +39,8 @@ const FICHE = z.object({
   relances: z.array(RELANCE).max(50),
   // Le compte bancaire du dossier, sa banque, et l'écart de jours du rapprochement (brique 40, C21).
   banque: z.object({ compte: z.string().regex(/^(\d{1,12})?$/), banque: texte(60), jours: z.number().int().min(0).max(30).nullable() }).partial().strict(),
+  // Le dernier journal de saisie du dossier, celui que la grille reprend (brique 50).
+  dernierJournal: z.string().regex(/^[A-Z0-9]{0,5}$/),
 }).partial().strict();
 // Les réglages du cabinet (0023, C21) : cette liste, et rien d'autre. L'association des colonnes d'un
 // relevé PAR BANQUE (le rang de chaque colonne), et les mots retenus (un mot d'un libellé → le compte
@@ -73,6 +75,16 @@ const REGLAGES = z.object({
     id: z.string().trim().min(1).max(40), label: z.string().trim().min(1).max(80), tva: z.enum(['', 'mensuelle', 'trimestrielle', 'aucune']), cnss: z.boolean(),
     annuelles: z.array(z.object({ id: z.string().trim().min(1).max(40), label: z.string().trim().min(1).max(120), mois: z.number().int().min(1).max(12), jour: z.number().int().min(1).max(31) }).strict()).max(30),
   }).strict()).max(50),
+  // Les guides d'écritures du cabinet (brique 50) : une pièce type (son nom, son journal, ses lignes),
+  // que la saisie propose. Un montant ou un taux s'écrit en texte décimal (jamais un nombre à virgule
+  // en base) ; vide, la ligne prend son montant ailleurs (la base, le solde) ou se tape.
+  guides: z.array(z.object({
+    id: z.string().min(1).max(40), nom: z.string().trim().min(1).max(120), journal: z.string().regex(/^[A-Z0-9]{1,5}$/),
+    lignes: z.array(z.object({
+      compte: z.string().regex(/^\d{1,12}$/), libelle: texte(200), sens: z.enum(['debit', 'credit']),
+      montant: z.string().regex(/^(\d{1,12}(\.\d{1,3})?)?$/), taux: z.string().regex(/^(\d{1,4}(\.\d{1,6})?)?$/), base: z.boolean(), solde: z.boolean(),
+    }).strict()).min(2).max(40),
+  }).strict()).max(200),
   // La méthode de révision du cabinet (brique 44) : le questionnaire de fin d'exercice (soixante
   // questions au plus, comme la v10) et ses cycles (vides : les sept que la v10 propose).
   questionnaire: z.array(z.object({ question: z.string().trim().min(1).max(500) }).strict()).max(60),

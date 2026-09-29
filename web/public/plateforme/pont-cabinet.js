@@ -106,6 +106,10 @@
     etat.libelles = reglages.contenu.libelles || [];
     // Le modèle de liasse du cabinet (brique 41 ter) ; vide : celui que la v10 propose.
     etat.liasse = reglages.contenu.liasse || [];
+    // Les guides d'écritures du cabinet (brique 50) : un montant ou un taux gardé en texte décimal
+    // redevient un nombre pour la v10.
+    etat.guides = (reglages.contenu.guides || []).map((/** @type {any} */ g) => ({ ...g, lignes: g.lignes.map((/** @type {any} */ l) => ({
+      ...l, montant: l.montant === '' ? '' : Number(l.montant), taux: l.taux === '' ? '' : Number(l.taux) })) }));
     // La méthode de révision du cabinet (brique 44) : son questionnaire et ses cycles ; vides, ceux de la v10.
     etat.questionnaire = reglages.contenu.questionnaire || [];
     etat.cycles = reglages.contenu.cycles || [];
@@ -578,7 +582,10 @@
       contenu.banque = { ...(bq.compte ? { compte: String(bq.compte) } : {}), ...(bq.banque ? { banque: String(bq.banque) } : {}),
         ...(bq.jours != null && bq.jours !== '' ? { jours: Number(bq.jours) } : {}) };
     }
-    await appel('PUT', `/cabinets/${cabinetId}/fiches/${ent}`, { contenu, revision });
+    if (f.dernierJournal != null) contenu.dernierJournal = String(f.dernierJournal).toUpperCase().slice(0, 5);
+    const r = await appel('PUT', `/cabinets/${cabinetId}/fiches/${ent}`, { contenu, revision });
+    // La fiche lue reste celle du serveur : un geste suivant écrit sur la bonne révision.
+    fiches.set(ent, { contenu, revision: r.revision });
   }
 
   // Un fichier choisi sur l'ordinateur (le navigateur ouvre sa fenêtre), ou null si on l'a fermée.
@@ -1083,6 +1090,39 @@
       // Le nom en dernier : seul un associé le change, le reste est à toute l'équipe.
       if (nom !== nomDuCabinet) await appel('PUT', `/cabinets/${cabinetId}/nom`, { nom });
       return construireEtat();
+    },
+
+    // ── Les guides d'écritures (brique 50 ; docs/cabinet.md, C40) : un réglage du cabinet, contrôlé par la
+    // v10 (compta.js) avant de partir, puis par le serveur ──
+    saveGuides: async (/** @type {any[]} */ guides) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const liste = Array.isArray(guides) ? guides : [];
+      const mauvais = liste.map((g, i) => ({ i, v: KC.guideValide(g) })).find((x) => !x.v.ok);
+      if (mauvais) throw new Error(`Guide « ${liste[mauvais.i].nom || mauvais.i + 1} » : ${mauvais.v.motif}`);
+      /** @param {unknown} v @param {number} dec */
+      const decimal = (v, dec) => {
+        if (v === '' || v == null) return '';
+        const n = typeof v === 'number' ? v : Number(String(v).replace(/\s/g, '').replace(',', '.'));
+        return Number.isFinite(n) && n >= 0 ? String(Math.round(n * 10 ** dec) / 10 ** dec) : '';
+      };
+      const aEcrire = liste.map((g) => ({
+        id: String(g.id), nom: String(g.nom).trim(), journal: String(g.journal).trim().toUpperCase(),
+        lignes: (g.lignes || []).filter((/** @type {any} */ l) => l && String(l.compte || '').trim()).map((/** @type {any} */ l) => ({
+          compte: String(l.compte).trim(), libelle: String(l.libelle || '').trim(), sens: l.sens,
+          montant: decimal(l.montant, 3), taux: decimal(l.taux, 6), base: !!l.base, solde: !!l.solde,
+        })),
+      }));
+      const contenu = { ...reglages.contenu, guides: aEcrire };
+      const r = await appel('PUT', `/cabinets/${cabinetId}/reglages`, { contenu, revision: reglages.revision });
+      reglages = { contenu, revision: r.revision };
+      return construireEtat();
+    },
+    // Le journal que la grille de saisie reprend pour ce dossier : sa fiche.
+    dernierJournal: async (/** @type {string} */ id, /** @type {string} */ journal) => {
+      const j = String(journal || '').toUpperCase().slice(0, 5);
+      const f = fiches.get(id);
+      if (!dossiers.has(id) || String((f && f.contenu.dernierJournal) || '') === j) return;
+      await poserFiche(id, { ...(f ? depuisFiche(f.contenu) : {}), dernierJournal: j }, f ? f.revision : null);
     },
 
     // ── La déclaration du mois (brique 41) : calculée par la v10 sur le livre du serveur ; préparée,

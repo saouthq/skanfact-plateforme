@@ -1852,8 +1852,8 @@ prouver "une fiche lue sans voir le dossier" $M20 \
   "  using (cabinet in (select socle.mes_organisations()) and entreprise in (select socle.mes_entreprises()));" "  using (cabinet in (select socle.mes_organisations()));" \
   "$E3"
 prouver "une fiche aux champs non comptés" serveur/cabinet/routes.ts \
-  "  banque: z.object({ compte: z.string().regex(/^(\\d{1,12})?\$/), banque: texte(60), jours: z.number().int().min(0).max(30).nullable() }).partial().strict(),
-}).partial().strict();" "  banque: z.object({ compte: z.string().regex(/^(\\d{1,12})?\$/), banque: texte(60), jours: z.number().int().min(0).max(30).nullable() }).partial().strict(),
+  "  dernierJournal: z.string().regex(/^[A-Z0-9]{0,5}\$/),
+}).partial().strict();" "  dernierJournal: z.string().regex(/^[A-Z0-9]{0,5}\$/),
 }).partial().passthrough();" \
   "$E3"
 prouver "l'entrée qui ouvre l'entreprise d'un client comme la sienne" web/src/App.tsx \
@@ -3102,5 +3102,45 @@ prouver "une page du fichier CNSS à onze lignes" web/public/v10/compta.js \
 prouver "un salaire du fichier CNSS tronqué au lieu d'arrondi" web/public/v10/compta.js \
   "      const millimes = Math.round((Number(l.salaire) || 0) * 1000);" "      const millimes = Math.floor((Number(l.salaire) || 0) * 1000);" \
   "le salaire en millimes entiers, sans virgule, arrondi au millime"
+# ── Brique 50 : les guides d'écritures et le journal retenu (docs/cabinet.md, C40) ──
+GU1="un guide se garde dans sa forme et se relit ; une forme fausse est refusée ; le journal retenu se garde dans la fiche"
+WG1="créer un guide, s'en servir dans la saisie, retenir le journal, modifier puis supprimer le guide"
+prouver "un montant de guide à virgule gardé" serveur/cabinet/routes.ts \
+  "      montant: z.string().regex(/^(\\d{1,12}(\\.\\d{1,3})?)?\$/), taux:" "      montant: z.string().max(30), taux:" \
+  "$GU1"
+prouver "un taux de guide négatif gardé" serveur/cabinet/routes.ts \
+  "taux: z.string().regex(/^(\\d{1,4}(\\.\\d{1,6})?)?\$/), base:" "taux: z.string().max(30), base:" \
+  "$GU1"
+prouver "une ligne de guide sans sens" serveur/cabinet/routes.ts \
+  "libelle: texte(200), sens: z.enum(['debit', 'credit'])," "libelle: texte(200), sens: z.string().max(10)," \
+  "$GU1"
+prouver "un guide d'une seule ligne" serveur/cabinet/routes.ts \
+  "    }).strict()).min(2).max(40)," "    }).strict()).min(1).max(40)," \
+  "$GU1"
+prouver "un journal de guide en minuscules" serveur/cabinet/routes.ts \
+  "journal: z.string().regex(/^[A-Z0-9]{1,5}\$/)," "journal: z.string().min(1).max(5)," \
+  "$GU1"
+prouver "un journal retenu illisible" serveur/cabinet/routes.ts \
+  "  dernierJournal: z.string().regex(/^[A-Z0-9]{0,5}\$/)," "  dernierJournal: texte(20)," \
+  "$GU1"
+prouver "un guide qui ne s'enregistre pas en ligne" $PC \
+  "    saveGuides: async (" "    saveGuidesAbsent: async (" \
+  "$WG1"
+prouver "les guides oubliés au rechargement" $PC \
+  "    etat.guides = (reglages.contenu.guides || []).map(" "    etat.guidesOublies = (reglages.contenu.guides || []).map(" \
+  "$WG1"
+prouver "le taux d'un guide perdu en partant" $PC \
+  "montant: decimal(l.montant, 3), taux: decimal(l.taux, 6)," "montant: decimal(l.montant, 3), taux: ''," \
+  "$WG1"
+prouver "le journal retenu qui ne part pas" $PC \
+  "    dernierJournal: async (" "    dernierJournalAbsent: async (" \
+  "$WG1"
+prouver "le journal retenu oublié par la fiche" $PC \
+  "    if (f.dernierJournal != null) contenu.dernierJournal = String(f.dernierJournal).toUpperCase().slice(0, 5);" "" \
+  "$WG1"
+prouver "une fiche réécrite sur une révision périmée" $PC \
+  "    fiches.set(ent, { contenu, revision: r.revision });" "    void r;" \
+  "$WG1"
+
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

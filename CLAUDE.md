@@ -197,6 +197,9 @@
     dossiers tenus et les mois déclarés des Échéances). Le tableau se relit à chaque entrée sur la page.
   - **Le fichier CNSS** (brique 49, C39) : `fichierCnss` du point de contact = `fichierCnssDuLivre` sur
     `livreEtPaie` + la fiche du dossier (`cnssEmployeur`, `cnssCode`), puis `telecharger` ; rien au serveur.
+  - **Les guides d'écritures** (brique 50, C40) : `guides` dans `cabinet.reglages` (montant et taux en
+    texte décimal) ; `dernierJournal` dans la fiche ; `poserFiche` tient la fiche lue à jour. La
+    correspondance des comptes reste sans objet (C4).
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

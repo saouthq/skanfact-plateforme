@@ -93,6 +93,7 @@ mêmes données que son client.
 | **47** | La fiche et les réglages du cabinet : son nom (un associé le change), son adresse, son téléphone, les jours, la saisie, le thème, les régimes. |
 | **48** | La page Production : chaque dossier, chaque mois, son étape (à saisir, à réviser, à déclarer, déclaré), comptée au serveur pour tout le portefeuille ; les dossiers tenus entrent dans les Échéances. |
 | **49** | Le fichier CNSS du trimestre : fabriqué par le moteur de la v10 sur la paie du serveur, téléchargé sous le nom du format. |
+| **50** | Les guides d'écritures du cabinet (des pièces types que la saisie préremplit) et le journal retenu par dossier. |
 
 Chaque brique a ses tests « deux chemins » (ce que calcule l'écran du Cabinet contre ce que tient
 le serveur), ses preuves, et un parcours joué à la souris.
@@ -991,3 +992,35 @@ juste après les réglages, alors qu'elle s'écrit en second — il l'attend.
 **Reste connu** :
 - Le format est celui que la v10 a écrit d'après le document de la CNSS : **À VÉRIFIER** sur le
   portail avec le comptable pilote, comme dans la v10.
+
+## Brique 50 : les guides d'écritures et le journal retenu (fait le 29/09/2026)
+
+Le Cabinet v10 gardait des **guides d'écritures** — une pièce type (un nom, un journal, des lignes :
+un compte, un sens, et d'où vient le montant : fixe, un taux du montant tapé, le montant tapé lui-même,
+ou le solde) que la grille de saisie propose : on tape le montant, le guide préremplit la pièce, rien ne
+s'écrit tout seul. Il retenait aussi, par dossier, le **dernier journal** choisi dans la grille. En
+ligne, le panneau des guides s'affichait, mais « Enregistrer » répondait « pas encore en ligne ».
+
+**C40. Les guides sont un réglage du cabinet ; le journal retenu, un champ de la fiche du dossier**
+(par délégation ; pas de migration). **Ce qui part au serveur, compté** : `guides` dans les réglages
+du cabinet (`cabinet.reglages`, 0023) — deux cents guides au plus, chacun son identifiant, son nom, son
+journal (majuscules et chiffres, cinq au plus) et de deux à quarante lignes (le compte, un libellé, le
+sens débit ou crédit, le montant fixe en texte décimal au millime, le taux en texte décimal, « base »,
+« solde ») : **jamais un nombre à virgule en base**, le point de contact écrit le montant et le taux en
+texte et les rend en nombres à la v10. Le moteur de la v10 contrôle un guide avant qu'il parte
+(`guideValide`), le serveur refait la forme. `dernierJournal` dans la fiche du dossier (cinq
+caractères, majuscules). La fiche lue reste celle du serveur après chaque écriture : deux gestes de
+suite s'écrivent chacun sur la bonne révision.
+
+**La correspondance des comptes reste sans objet en ligne** (C4) : elle traduisait les comptes d'un
+paquet importé ; le client et son cabinet tiennent maintenant les mêmes livres.
+
+**Les tests** : par l'API (`tests/cabinet/guides.test.ts`) : un guide gardé et relu tel quel ; refusés,
+un montant en nombre à virgule ou écrit « 850,500 », un taux négatif, un sens inconnu, un compte qui
+n'est pas un numéro, un journal en minuscules, un nom vide, une seule ligne, un champ inconnu ; le
+journal retenu gardé dans la fiche, un journal illisible refusé. À la souris
+(`tests/web/cabinet-guides.test.ts`) : le guide créé dans son formulaire (le loyer, sa TVA à 19 %, le
+fournisseur au solde), gardé au serveur et relu ; dans la grille, il préremplit la pièce depuis un
+montant, et l'écriture enregistrée porte exactement les lignes de l'écran (deux chemins, un chiffre) ;
+deux journaux choisis de suite, le second retenu et repris à la réouverture ; le guide modifié, puis
+supprimé après confirmation.
