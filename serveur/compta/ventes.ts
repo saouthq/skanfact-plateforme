@@ -7,19 +7,10 @@
 import { TND, versTexte, type Devise } from '../../moteur/argent.ts';
 import { ecritureDeVente, type LigneEcriture } from '../../moteur/ecritures.ts';
 import { ecritureDEncaissement, retenueAuFil, type PieceLiee, type Reglement } from '../../moteur/reglements.ts';
-import { rendre, t, type Valeurs } from '../../textes/index.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { lirePieceBrute, type PieceLue } from '../ventes/pieces.ts';
+import { ecrireFamille, libelle, type EcritureAEcrire, type LigneAEcrire } from './ecrire.ts';
 import { compteClient, journalDeCompte, lirePlan, type PlanDuDossier } from './plan.ts';
-import './textes.ts';
-
-type LigneAEcrire = { compte: string; libelle: string; debit: bigint; credit: bigint; tauxTva: bigint | null };
-export type EcritureAEcrire = {
-  journal: 'VT' | 'BQ' | 'CA'; date: string; origineType: 'vente' | 'encaissement'; origine: string;
-  piece: string | null; tiers: string | null; libelle: string; lignes: LigneAEcrire[];
-};
-
-const libelle = (cle: string, valeurs: Valeurs) => rendre(t(cle, valeurs), 'fr').slice(0, 500);
 // Un taux à six décimales (19 % = 190 000), dit comme la v10 l'écrit : « 19 », « 13,5 ».
 const tauxEnTexte = (taux: bigint) => versTexte(taux, 4).replace(/\.?0+$/, '');
 
@@ -120,12 +111,7 @@ export async function ecrituresDeLaFamille(tx: Transaction, entreprise: string, 
 // Réécrit le brouillard d'une famille (compta.ecrire_famille : le seul chemin d'écriture). `plan` :
 // le plan déjà lu, quand on réécrit plusieurs familles d'un coup.
 export async function ecrireFamilleDeVente(tx: Transaction, entreprise: string, facture: string, plan?: PlanDuDossier): Promise<void> {
-  const ecritures = await ecrituresDeLaFamille(tx, entreprise, facture, plan ?? await lirePlan(tx, entreprise));
-  const json = JSON.stringify(ecritures.map((e, rang) => ({
-    journal: e.journal, date: e.date, origine_type: e.origineType, origine: e.origine, rang, piece: e.piece, tiers: e.tiers, libelle: e.libelle,
-    lignes: e.lignes.map((l) => ({ compte: l.compte, libelle: l.libelle, debit: l.debit.toString(), credit: l.credit.toString(), taux_tva: l.tauxTva === null ? null : l.tauxTva.toString() })),
-  })));
-  await tx.query('select compta.ecrire_famille($1, $2, $3::jsonb)', [entreprise, facture, json]);
+  await ecrireFamille(tx, entreprise, facture, await ecrituresDeLaFamille(tx, entreprise, facture, plan ?? await lirePlan(tx, entreprise)));
 }
 
 // Tout le brouillard des ventes de l'entreprise, réécrit (le plan a changé : D3).

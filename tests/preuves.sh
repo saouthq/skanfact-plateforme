@@ -1515,7 +1515,7 @@ prouver "un compte par défaut qui n'est pas celui de la v10" moteur/comptes.ts 
   "  ventes: '706'," "  ventes: '707'," \
   "$CP"
 prouver "un plan changé qui ne réécrit pas le brouillard" serveur/v10/dossier.ts \
-  "  if (await planChange(tx, entreprise, lus)) await reecrireLesVentes(tx, entreprise);" "  if (await planChange(tx, entreprise, lus) && entreprise === '') await reecrireLesVentes(tx, entreprise);" \
+  "  if (await planChange(tx, entreprise, lus)) {" "  if (await planChange(tx, entreprise, lus) && entreprise === '') {" \
   "$LP"
 prouver "un compte de trésorerie ajouté qui ne change pas le plan" serveur/compta/suivre.ts \
   "  if (vrais.some((c) => c.collection === 'accounts' &&" "  if (vrais.some((c) => c.collection === 'nulle-part' &&" \
@@ -1568,6 +1568,67 @@ prouver "le grand livre qui repart de zéro à chaque page" serveur/compta/route
 prouver "le journal qui ne suit pas l'ordre des dates" serveur/compta/routes.ts \
   "        .orderBy('date_ecriture').orderBy('id').limit(n).execute();" "        .orderBy('date_ecriture', 'desc').orderBy('id').limit(n).execute();" \
   "$LA"
+
+
+# ── Les écritures des achats tenues par le serveur (0016, brique 33) ────────────────────────────
+CAS=serveur/compta/achats.ts
+VAC=serveur/v10/achats.ts
+M16=base/migrations/0016_compta_achats.sql
+CAE="chaque achat, chaque imputation d'acompte et chaque règlement fournisseur de l'exemple"
+CAH="150 familles tirées au hasard"
+CAT="la TVA déductible de chaque mois et les retenues opérées"
+LAC="les achats : chaque enregistrement réécrit la famille"
+prouver "un avoir rattaché écrit comme un avoir libre (ni le cours de sa facture ni la retenue régularisée)" $CAS \
+  "const rattachement = m.nature === 'avoir' && m !== tete" "const rattachement = m.nature === 'avoir' && m === tete" \
+  "$CAH"
+prouver "un avoir rattaché qui ne régularise pas la retenue déjà opérée" $CAS \
+  "regularisationRetenue: filTete.ajustements.get(m.id) ?? 0n }" "regularisationRetenue: 0n }" \
+  "$LAC"
+prouver "un acompte qui ne couvre sa facture qu'à sa date" $CAS \
+  "date: m.nature === 'acompte' ? '' : m.date" "date: m.date" \
+  "$CAH"
+prouver "une facture qui ne compte pas ce que ses pièces rattachées couvrent" $CAS \
+  "retenueAuFil(t.netAPayer, t.netAPayer + t.retenue, liees, regles(tete))" "retenueAuFil(t.netAPayer, t.netAPayer + t.retenue, [], regles(tete))" \
+  "$LAC"
+prouver "un acompte jamais imputé sur sa facture" $CAS \
+  "for (const a of rattachees.filter((m) => m.nature === 'acompte'))" "for (const a of rattachees.filter((m) => m.nature === ('rien' as NatureAchat)))" \
+  "$CAE"
+prouver "un règlement fournisseur écrit sans sa part de retenue" $CAS \
+  "fil.parts.get(r.id) ?? 0n, TND," "0n, TND," \
+  "$CAT"
+prouver "les règlements d'une pièce rattachée lus au fil de sa facture" $CAS \
+  "const fil = fils.get(m.id) as RetenueAuFil;" "const fil = filTete;" \
+  "$CAH"
+prouver "les écritures d'une famille dans l'ordre de saisie, pas des dates" $CAS \
+  ".sort((x, y) => (x.date < y.date ? -1 : x.date > y.date ? 1 : x.ordre - y.ordre))" ".sort((x, y) => x.ordre - y.ordre)" \
+  "$CAH"
+prouver "une pièce toute nulle qui écrit une écriture vide" $CAS \
+  "return datees.filter((x) => x.e.lignes.length > 0)" "return datees.filter(() => true)" \
+  "$CAH"
+prouver "un fournisseur écrit sans son compte auxiliaire" $CAS \
+  "fournisseurs: compteFournisseur(plan, m.fournisseur), charges:" "fournisseurs: P.fournisseurs, charges:" \
+  "$LAC"
+prouver "un règlement fournisseur écrit au journal de banque quoi qu'il arrive" $CAS \
+  "const j = journalDeCompte(plan, r.compte, r.mode);" "const j = journalDeCompte(plan, r.compte, 'virement');" \
+  "$LAC"
+prouver "un avoir détaché que son ancienne famille garde" $VAC \
+  "const familles = await famillesDesAchats(tx, entreprise, achats.map((c) => c.cle));" "const familles: string[] = [];" \
+  "$LAC"
+prouver "une famille sans tête qui ne se vide pas" $CAS \
+  "  for (const f of liste) await ecrireFamille(tx, entreprise, f, []);" "" \
+  "$LAC"
+prouver "un fournisseur renommé dont les écritures gardent l'ancien nom" $VAC \
+  "  if (fournisseurs.length) {" "  if (false) {" \
+  "$LAC"
+prouver "un plan changé qui ne réécrit pas les achats" serveur/v10/dossier.ts \
+  "    await reecrireLesAchats(tx, entreprise);" "" \
+  "$LAC"
+prouver "la base qui refuse l'origine d'une imputation" $M16 \
+  "check (origine_type in ('vente', 'encaissement', 'achat', 'imputation', 'reglement_fournisseur'));" "check (origine_type in ('vente', 'encaissement', 'achat', 'reglement_fournisseur'));" \
+  "$LAC"
+prouver "une famille d'achat validée réécrite par-dessus" $M15 \
+  "  if exists (select 1 from compta.ecriture where entreprise = p_entreprise and famille = p_famille and statut = 'validee') then" "  if false then" \
+  "$LAC"
 
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

@@ -17,6 +17,7 @@ import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonSaisi } from '../ventes/pieces.ts';
 import { suivreAchats } from './achats.ts';
 import { suivrePaie } from './paie.ts';
+import { reecrireLesAchats } from '../compta/achats.ts';
 import { planChange } from '../compta/suivre.ts';
 import { ecrireFamilleDeVente, reecrireLesVentes } from '../compta/ventes.ts';
 import { canonique, deviseV10 as devise, enNombreV10, estObjet, lirePaiements, nombreEnTexte, type Json } from './lecture.ts';
@@ -155,7 +156,10 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   await suivreAchats(tx, entreprise, utilisateur, lus);
   await suivrePaie(tx, entreprise, utilisateur, lus);
   // Le plan comptable changé (comptes, auxiliaires, trésorerie) : tout le brouillard le suit (D3).
-  if (await planChange(tx, entreprise, lus)) await reecrireLesVentes(tx, entreprise);
+  if (await planChange(tx, entreprise, lus)) {
+    await reecrireLesVentes(tx, entreprise);
+    await reecrireLesAchats(tx, entreprise);
+  }
   return resultat;
 }
 

@@ -93,7 +93,10 @@
     commercial émet sans lire les livres). Le plan : défauts de la v10 (`moteur/comptes.ts`) +
     `chartAccounts`, auxiliaires, trésorerie du dossier (`serveur/compta/plan.ts`) ; un plan changé
     réécrit le brouillard. La base refuse une écriture déséquilibrée et toute retouche d'une
-    écriture validée. Viennent : achats (33), paie en totaux (34), validation (35).
+    écriture validée. Les achats (brique 33, `serveur/compta/achats.ts`) : la famille d'une facture
+    d'achat ou d'une dépense (ses avoirs et acomptes rattachés, tous leurs règlements ; une pièce
+    libre est la sienne), réécrite avant ET après chaque envoi du dossier (`reecrireFamillesDAchat`).
+    Viennent : paie en totaux (34), validation (35).
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

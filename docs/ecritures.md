@@ -21,7 +21,7 @@ inaltérable (chaîne d'empreintes) ; la TVA se lit dans les livres (deux chemin
 | Brique | Ce qu'elle fait |
 |---|---|
 | **32** | Les tables de la comptabilité ; les écritures des **ventes** (facture, avoir, encaissements) tenues au fil des pièces ; les livres lus par l'API (journal, balance, grand livre). |
-| 33 | Les écritures des **achats** (facture, dépense, avoir, acompte, imputation) et des règlements fournisseurs ; la TVA du mois lue dans les livres du serveur. |
+| **33** | Les écritures des **achats** (facture, dépense, avoir, acompte, imputation) et des règlements fournisseurs ; la TVA du mois lue dans les livres du serveur. |
 | 34 | La **paie** en totaux du mois, sans un nom de salarié (`03` § 2.1), et les salaires versés. |
 | 35 | La **validation** : numéros par journal, chaîne d'empreintes, période close, contre-passation. |
 
@@ -117,3 +117,60 @@ que le geste. Jamais une écriture validée (brique 35 : la contre-passation).
 - La base refuse une écriture déséquilibrée, une ligne à zéro ou des deux côtés, et toute
   modification d'une écriture validée ; le commercial ne lit pas les livres, même dans la base.
 - Chaque test est prouvé en réintroduisant son défaut (`tests/preuves.sh`).
+
+## Brique 33 : les écritures des achats
+
+### 1. La famille d'un achat
+
+Le même principe que les ventes (D2) : une **famille** est une facture d'achat ou une dépense, les
+avoirs et acomptes qui y sont **rattachés**, et tous leurs règlements. Un avoir ou un acompte
+**libre** est sa propre famille. La part de retenue de chaque règlement dépend de ce que les pièces
+rattachées couvrent (un acompte dès l'origine, un avoir à SA date) : toute la famille se réécrit
+quand l'une de ses pièces change.
+
+Quand l'écran de la v10 enregistre des achats (`serveur/v10/achats.ts`), le serveur réécrit, dans
+la même transaction, chaque famille **touchée** : celle de chaque pièce **avant** l'envoi et celle
+d'**après** (un avoir détaché quitte sa facture, un avoir rattaché la rejoint). Une famille qui n'a
+plus de tête (pièce retirée, ou rattachée ailleurs) se vide d'abord ; puis chaque famille qui a sa
+tête se réécrit : une écriture ne vit que dans une famille. Un fournisseur renommé réécrit les
+familles de ses achats (le libellé suit son nom : un achat n'a pas de copie scellée, il se modifie).
+Changer le plan réécrit tout le brouillard des achats comme celui des ventes (D3).
+
+### 2. Ce qui s'écrit, comme la v10
+
+- **L'achat** (journal AC, à sa date ; `ecritureDAchat`) : D charges, stock ou immobilisations le HT
+  de chaque destination ; D frais accessoires ; D TVA déductible ; la TVA non déductible grossit la
+  destination ; C fournisseur le **brut** (la retenue naît au règlement). Un acompte va aux avances
+  (409). Un avoir s'écrit à l'envers ; rattaché, il règle le fournisseur au cours de sa facture et
+  régularise la retenue déjà opérée, à sa date.
+- **L'imputation d'un acompte** (OD, à la date de la facture ; `ecritureDImputationAcompte`) : D
+  fournisseur le brut de l'acompte ; C avances et TVA déductible, que l'acompte avait posées.
+- **Chaque règlement fournisseur** (BQ ou CA, à sa date ; `ecritureDeReglementFournisseur`) : D
+  fournisseur ce qu'on verse plus la retenue qu'on garde ; C trésorerie ; C retenue opérée sa part
+  (elle **naît** ici) ; l'écart de cours au change. Porté par un avoir, c'est un remboursement :
+  l'argent entre.
+- Les montants sont recalculés par le moteur depuis la pièce tenue (`achats.piece`, `achats.ligne`) :
+  ce sont les mêmes que l'écran (brique 30, deux chemins). Une pièce dont tout est nul n'écrit rien.
+
+### Décisions (par délégation, 29/09/2026)
+
+- **D6.** L'origine d'une imputation est l'**acompte** imputé (un acompte ne s'impute que sur une
+  facture) ; sa famille, celle de la facture.
+- **D7.** Une famille d'achat qui a une écriture validée refuse l'enregistrement qui la changerait
+  (403, « elle se corrige par une contre-passation ») : rien de l'envoi n'est écrit. La
+  contre-passation viendra à la brique 35.
+
+### Ce qui la prouve
+
+- Les 181 achats de **l'exemple de cinq ans** et leurs règlements, enregistrés par le dossier comme
+  l'écran les envoie : chaque écriture d'achat, chaque imputation et chaque règlement est celui de la
+  v10 (journal, date, compte, débit, crédit, dans l'ordre), l'achat en euros compris ; la TVA
+  déductible et les retenues opérées de chaque mois, lues dans les écritures du serveur, sont celles
+  que la v10 déclare.
+- **150 familles tirées au hasard** (factures et dépenses en dinars, avoirs posés après des
+  règlements, acomptes, remboursements) : les mêmes écritures que la v10. Les familles en devise ont
+  leur banc au moteur, qui vérifie un à un les deux écarts tranchés.
+- Un parcours à la main : la part de retenue du règlement (9,129, puis 11,453 quand l'acompte
+  arrive), l'imputation de l'acompte, la régularisation de l'avoir (0,332) égale à celle que la
+  lecture de la facture annonce, l'avoir détaché qui devient sa propre famille, le fournisseur
+  renommé, l'avoir retiré, les comptes auxiliaires (401001), la famille validée qui refuse.

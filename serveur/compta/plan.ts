@@ -11,8 +11,9 @@ type CompteDeTresorerie = { id: string; caisse: boolean; parDefaut: boolean };
 export type PlanDuDossier = {
   plan: Plan;
   auxiliaires: boolean;
-  // Le code auxiliaire de chaque client, par sa fiche du serveur (socle.tiers).
+  // Le code auxiliaire de chaque client et de chaque fournisseur, par sa fiche du serveur (socle.tiers).
   codesClients: Map<string, string>;
+  codesFournisseurs: Map<string, string>;
   tresorerie: CompteDeTresorerie[];
 };
 
@@ -43,25 +44,31 @@ export async function lirePlan(tx: Transaction, entreprise: string): Promise<Pla
   const racine = new Map((await objetsDe(tx, entreprise, '_racine')).map((o) => [o.cle, o.contenu]));
   const reglage = racine.get('chartAccounts');
   const auxiliaires = racine.get('auxiliaires') === true;
-  const codesClients = new Map<string, string>();
+  const codesClients = new Map<string, string>(), codesFournisseurs = new Map<string, string>();
   if (auxiliaires) {
-    const clients = (await objetsDe(tx, entreprise, 'clients')).map((o) => ({ id: o.cle, compteAux: estObjet(o.contenu) ? o.contenu.compteAux : undefined }));
-    const codes = codesAuxiliaires(clients);
-    // Un client du dossier est une fiche du serveur par son identifiant v10.
+    // Un tiers du dossier est une fiche du serveur par son identifiant v10.
     const fiches = await requetes(tx).selectFrom('socle.tiers').select(['id', 'ref_v10']).where('entreprise', '=', entreprise).where((eb) => eb.not(eb('ref_v10', 'is', null))).execute();
-    for (const f of fiches) { const c = codes.get(f.ref_v10 ?? ''); if (c) codesClients.set(f.id, c); }
+    for (const [collection, cible] of [['clients', codesClients], ['suppliers', codesFournisseurs]] as const) {
+      const codes = codesAuxiliaires((await objetsDe(tx, entreprise, collection)).map((o) => ({ id: o.cle, compteAux: estObjet(o.contenu) ? o.contenu.compteAux : undefined })));
+      for (const f of fiches) { const c = codes.get(f.ref_v10 ?? ''); if (c) cible.set(f.id, c); }
+    }
   }
   const tresorerie = (await objetsDe(tx, entreprise, 'accounts')).filter((o) => estObjet(o.contenu)).map((o) => {
     const a = o.contenu as Record<string, unknown>;
     return { id: o.cle, caisse: a.kind === 'caisse', parDefaut: a.isDefault === true };
   });
-  return { plan: planDeLEntreprise(estObjet(reglage) ? reglage : null), auxiliaires, codesClients, tresorerie };
+  return { plan: planDeLEntreprise(estObjet(reglage) ? reglage : null), auxiliaires, codesClients, codesFournisseurs, tresorerie };
 }
 
 // Le compte d'un client : 411, ou 411 + son code quand l'entreprise tient des comptes auxiliaires.
 export const compteClient = (p: PlanDuDossier, tiers: string | null) => {
   const code = p.auxiliaires && tiers ? p.codesClients.get(tiers) : undefined;
   return code ? p.plan.clients + code : p.plan.clients;
+};
+// Celui d'un fournisseur : 401, ou 401 + son code.
+export const compteFournisseur = (p: PlanDuDossier, tiers: string | null) => {
+  const code = p.auxiliaires && tiers ? p.codesFournisseurs.get(tiers) : undefined;
+  return code ? p.plan.fournisseurs + code : p.plan.fournisseurs;
 };
 
 // Le journal et le compte d'un règlement (`journalDeCompte`, core.js) : le compte de trésorerie

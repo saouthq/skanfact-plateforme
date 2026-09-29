@@ -10,6 +10,8 @@ import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { creerApp, VERSION } from '../../serveur/app.ts';
 import { creerPool, enTantQue, requetes } from '../../serveur/base.ts';
+import { declarerGestesAchats } from '../../serveur/achats/gestes.ts';
+import { routesAchats } from '../../serveur/achats/routes.ts';
 import { declarerGestesCompta } from '../../serveur/compta/gestes.ts';
 import { routesCompta } from '../../serveur/compta/routes.ts';
 import type { Contexte } from '../../serveur/connexion.ts';
@@ -85,7 +87,8 @@ beforeAll(async () => {
     select 'timbre.facture', '1000', '2000-01-01', 'Règle d''essai des tests' where not exists (select 1 from socle.regle_fiscale where code = 'timbre.facture')`);
   declarerGestesVentes();
   declarerGestesCompta();
-  app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesCompta(ctx), ...routesV10(ctx)]);
+  declarerGestesAchats();
+  app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesAchats(ctx), ...routesCompta(ctx), ...routesV10(ctx)]);
   await app.ready();
 });
 afterAll(async () => { await app.close(); await admin.end(); await pool.end(); });
@@ -133,6 +136,78 @@ describe('les livres tenus par le serveur', () => {
     // Aucune écriture déséquilibrée, aucune en double.
     const origines = (await admin.query(`select origine, count(*)::int n from compta.ecriture where entreprise = $1 group by origine`, [e.ent])).rows;
     expect(origines.every((o) => o.n === 1)).toBe(true);
+  });
+
+  it('les achats : chaque enregistrement réécrit la famille (la facture, son acompte, son avoir, leurs règlements), jamais en double', async () => {
+    const e = await essai();
+    expect((await e.envoyer('suppliers', 's1', { id: 's1', name: 'Papeterie du Lac' })).statut).toBe(200);
+    // 1 000,000 HT à 19 %, 1,000 de frais (le timbre du fournisseur), retenue 1,5 % de 1 190,000 = 17,850.
+    const ligne = (prix: number, label = 'Papier') => ({ label, qty: 1, unitPrice: prix, vatRate: 19, destination: 'charge', deductible: true });
+    const achat = (id: string, x: Record<string, unknown>) => ({
+      id, supplierId: 's1', currency: 'DT', exchangeRate: 1, fees: 0, withholdingRate: 0, tvaRecuperable: true, payments: [], ...x,
+    });
+    const facture = achat('a1', { kind: 'facture', number: 'FF-1', date: '2026-10-02', lines: [ligne(1000)], fees: 1, withholdingRate: { '~n': '1.5' } });
+    expect((await e.envoyer('purchases', 'a1', facture)).statut).toBe(200);
+    const ACHAT = { origine_type: 'achat', journal: 'AC', date: '2026-10-02', lignes: '606 1000000 0 | 608 1000 0 | 4366 190000 0 | 401 0 1191000' };
+    expect(await e.ecritures()).toEqual([ACHAT]);
+    // Un règlement de 600,000 en espèces : sa part de retenue, 17,850 × 600 / 1 173,150 = 9,129 ; le
+    // fournisseur est débité de 609,129 et la retenue opérée naît ici.
+    const paye = { ...facture, payments: [{ id: 'r1', date: '2026-10-05', amount: 600, method: 'especes' }] };
+    expect((await e.envoyer('purchases', 'a1', paye)).statut).toBe(200);
+    expect(await e.ecritures()).toEqual([ACHAT, { origine_type: 'reglement_fournisseur', journal: 'CA', date: '2026-10-05', lignes: '401 609129 0 | 54 0 600000 | 4352 0 9129' }]);
+    // Un acompte de 238,000 (200,000 HT et sa TVA), versé par virement le 28/09, rattaché à la facture :
+    // il pose une avance au 409, la facture l'impute à sa date (OD), et il couvre dès l'origine : la
+    // part du règlement devient 17,850 × 600 / 935,150 = 11,453. La même écriture, réécrite.
+    const acompte = achat('ac1', { kind: 'acompte', number: 'AC-1', date: '2026-09-28', lines: [ligne(200, 'Acompte')], achatLie: 'a1',
+      payments: [{ id: 'r2', date: '2026-09-28', amount: 238, method: 'virement' }] });
+    expect((await e.envoyer('purchases', 'ac1', acompte, 1)).statut).toBe(200);
+    const AVANT_AVOIR = [
+      { origine_type: 'achat', journal: 'AC', date: '2026-09-28', lignes: '409 200000 0 | 4366 38000 0 | 401 0 238000' },
+      { origine_type: 'reglement_fournisseur', journal: 'BQ', date: '2026-09-28', lignes: '401 238000 0 | 532 0 238000' },
+      ACHAT,
+      { origine_type: 'imputation', journal: 'OD', date: '2026-10-02', lignes: '401 238000 0 | 409 0 200000 | 4366 0 38000' },
+      { origine_type: 'reglement_fournisseur', journal: 'CA', date: '2026-10-05', lignes: '401 611453 0 | 54 0 600000 | 4352 0 11453' },
+    ];
+    expect(await e.ecritures()).toEqual(AVANT_AVOIR);
+    // Un avoir de 119,000 (100,000 HT et sa TVA) le 10/10, APRÈS le règlement : il reprend la charge et
+    // la TVA, et régularise à sa date la retenue déjà opérée : 16,065 × 600 / 817,935 = 11,785, moins
+    // les 11,453 déjà nés, 0,332.
+    const avoir = achat('av1', { kind: 'avoir', number: 'AV-1', date: '2026-10-10', lines: [ligne(100, 'Retour')], achatLie: 'a1', withholdingRate: { '~n': '1.5' } });
+    expect((await e.envoyer('purchases', 'av1', avoir, 2)).statut).toBe(200);
+    const AVOIR = { origine_type: 'achat', journal: 'AC', date: '2026-10-10', lignes: '606 0 100000 | 4366 0 19000 | 401 119000 0 | 4352 0 332 | 401 332 0' };
+    expect(await e.ecritures()).toEqual([...AVANT_AVOIR, AVOIR]);
+    // Deux chemins, un chiffre : la lecture de la facture (serveur/achats/etat.ts) dit la même part et
+    // la même régularisation.
+    const piece = String((await admin.query(`select id from achats.piece where entreprise = $1 and ref_v10 = 'a1'`, [e.ent])).rows[0].id);
+    const suivi = (await appeler('GET', `/entreprises/${e.ent}/achats/${piece}`, e.jeton)).corps.suivi as { reglements: { retenue: string }[]; rattachees: { regularisation: string }[] };
+    expect(suivi.reglements.map((r) => r.retenue)).toEqual(['11.453']);
+    expect(suivi.rattachees.map((r) => r.regularisation).sort()).toEqual(['0.000', '0.332']);
+    // Détaché, l'avoir devient sa propre famille : plus de régularisation, et la facture n'en porte plus rien.
+    expect((await e.envoyer('purchases', 'av1', { ...avoir, achatLie: '' }, 2)).statut).toBe(200);
+    expect(await e.ecritures()).toEqual([...AVANT_AVOIR, { ...AVOIR, lignes: '606 0 100000 | 4366 0 19000 | 401 119000 0' }]);
+    // Le fournisseur renommé : le libellé de ses écritures suit.
+    expect((await e.envoyer('suppliers', 's1', { id: 's1', name: 'Papeterie de la Marsa' })).statut).toBe(200);
+    const libelles = (await admin.query(`select libelle from compta.ecriture where entreprise = $1 and origine_type = 'achat'`, [e.ent])).rows.map((r) => String(r.libelle));
+    expect(libelles.length).toBe(3);
+    expect(libelles.every((l) => l.includes('Papeterie de la Marsa'))).toBe(true);
+    // Retiré, l'avoir emporte son écriture ; aucune écriture en double.
+    expect((await e.envoyer('purchases', 'av1', null)).statut).toBe(200);
+    expect(await e.ecritures()).toEqual(AVANT_AVOIR);
+    // (l'acompte a deux écritures : la sienne, et son imputation sur la facture)
+    const origines = (await admin.query(`select origine_type, origine, count(*)::int n from compta.ecriture where entreprise = $1 group by origine_type, origine`, [e.ent])).rows;
+    expect(origines.every((o) => o.n === 1)).toBe(true);
+    // Les comptes auxiliaires : 401 + le code du fournisseur, partout.
+    expect((await e.envoyer('_racine', 'auxiliaires', true, null)).statut).toBe(200);
+    const comptes = (await admin.query(`select distinct l.compte from compta.ligne l join compta.ecriture e on e.id = l.ecriture
+      where e.entreprise = $1 and e.origine_type <> 'vente' and e.origine_type <> 'encaissement' and l.compte like '401%'`, [e.ent])).rows.map((r) => r.compte);
+    expect(comptes).toEqual(['401001']);
+    // Une écriture validée (brique 35) : la famille ne se réécrit plus, l'enregistrement est refusé
+    // et rien n'est écrit.
+    await admin.query(`update compta.ecriture set statut = 'validee', numero = 'AC-000001' where entreprise = $1 and origine_type = 'achat' and date_ecriture = '2026-10-02'`, [e.ent]);
+    const refuse = await e.envoyer('purchases', 'a1', { ...paye, number: 'FF-1 bis' });
+    expect(refuse.statut, JSON.stringify(refuse.corps)).toBe(403);
+    expect(String(refuse.corps.motif)).toContain('contre-passation');
+    expect((await admin.query(`select numero_fournisseur from achats.piece where entreprise = $1 and ref_v10 = 'a1'`, [e.ent])).rows[0].numero_fournisseur).toBe('FF-1');
   });
 
   it('le plan de l\'entreprise : ses propres comptes et ses comptes auxiliaires réécrivent tout le brouillard', async () => {

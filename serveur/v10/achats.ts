@@ -10,6 +10,7 @@
 
 import { sql } from 'kysely';
 import { calculerAchat, DESTINATIONS, type Achat, type Destination, type NatureAchat } from '../../moteur/achats.ts';
+import { famillesDesAchats, reecrireFamillesDAchat } from '../compta/achats.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { Refus } from '../erreurs.ts';
 import { REGLEMENTS_ACHATS, tenirReglements } from '../reglements.ts';
@@ -166,6 +167,8 @@ export async function suivreAchats(tx: Transaction, entreprise: string, utilisat
 
   // 1. Les fiches des fournisseurs changés.
   for (const c of fournisseurs) await ficheFournisseur(tx, entreprise, c.cle, c.apres as Json);
+  // Les familles d'écritures des achats changés, AVANT l'envoi (un avoir détaché quitte la sienne).
+  const familles = await famillesDesAchats(tx, entreprise, achats.map((c) => c.cle));
 
   // 2. Chaque achat changé : sa pièce, ses lignes, ses règlements. Récupérer la TVA suit, par défaut,
   //    le régime de l'entreprise tel que le dossier le dit maintenant.
@@ -226,4 +229,13 @@ export async function suivreAchats(tx: Transaction, entreprise: string, utilisat
       throw new Refus('v10.achat_lie_nature', { valeurs: { numero } });
     }
   }
+
+  // 6. Les écritures (brique 33) : chaque famille touchée, avant et après l'envoi, se réécrit. Un
+  //    fournisseur renommé change le libellé des écritures de ses achats.
+  familles.push(...await famillesDesAchats(tx, entreprise, achats.map((c) => c.cle)));
+  if (fournisseurs.length) {
+    familles.push(...(await db.selectFrom('achats.piece as p').innerJoin('socle.tiers as t', 't.id', 'p.fournisseur').select(['p.id', 'p.lie'])
+      .where('p.entreprise', '=', entreprise).where('t.ref_v10', 'in', fournisseurs.map((c) => c.cle)).execute()).map((p) => p.lie ?? p.id));
+  }
+  await reecrireFamillesDAchat(tx, entreprise, familles);
 }
