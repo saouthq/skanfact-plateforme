@@ -1570,7 +1570,6 @@ prouver "le journal qui ne suit pas l'ordre des dates" serveur/compta/routes.ts 
 # ── Les écritures des achats tenues par le serveur (0016, brique 33) ────────────────────────────
 CAS=serveur/compta/achats.ts
 VAC=serveur/v10/achats.ts
-M16=base/migrations/0016_compta_achats.sql
 CAE="chaque achat, chaque imputation d'acompte et chaque règlement fournisseur de l'exemple"
 CAH="150 familles tirées au hasard"
 CAT="la TVA déductible de chaque mois et les retenues opérées"
@@ -1620,8 +1619,10 @@ prouver "un fournisseur renommé dont les écritures gardent l'ancien nom" $VAC 
 prouver "un plan changé qui ne réécrit pas les achats" serveur/v10/dossier.ts \
   "    await reecrireLesAchats(tx, entreprise);" "" \
   "$LAC"
-prouver "la base qui refuse l'origine d'une imputation" $M16 \
-  "check (origine_type in ('vente', 'encaissement', 'achat', 'imputation', 'reglement_fournisseur'));" "check (origine_type in ('vente', 'encaissement', 'achat', 'reglement_fournisseur'));" \
+# La contrainte des origines est redéfinie à chaque brique (0016, 0017, 0018) : la preuve vise la
+# définition EN VIGUEUR (une preuve qui vise une définition remplacée reste verte : code mort).
+prouver "la base qui refuse l'origine d'une imputation" base/migrations/0018_compta_validation.sql \
+  "'achat', 'imputation', 'reglement_fournisseur', 'paie'" "'achat', 'reglement_fournisseur', 'paie'" \
   "$LAC"
 
 
@@ -1665,8 +1666,8 @@ prouver "la paie réécrite par qui ne la voit pas" $CPA \
 prouver "un plan changé qui ne réécrit pas la paie" serveur/v10/dossier.ts \
   "    await reecrireLaPaie(tx, entreprise);" "" \
   "$PP"
-prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0017_compta_paie.sql \
-  "'reglement_fournisseur', 'paie', 'salaires', 'avance'));" "'reglement_fournisseur', 'salaires', 'avance'));" \
+prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0018_compta_validation.sql \
+  "'reglement_fournisseur', 'paie', 'salaires', 'avance', 'contre_passation'" "'reglement_fournisseur', 'salaires', 'avance', 'contre_passation'" \
   "$PE"
 
 
