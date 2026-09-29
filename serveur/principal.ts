@@ -26,6 +26,7 @@ import { routesSocle } from './routes/socle.ts';
 import { declarerGestesAchats } from './achats/gestes.ts';
 import { routesAchats } from './achats/routes.ts';
 import { declarerGestesCompta } from './compta/gestes.ts';
+import { routesCabinet } from './cabinet/routes.ts';
 import { routesCompta } from './compta/routes.ts';
 import { declarerGestesPaie } from './paie/gestes.ts';
 import { routesPaie } from './paie/routes.ts';
@@ -100,7 +101,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   declarerGestesAchats();
   declarerGestesPaie();
   declarerGestesCompta();
-  const app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesV10(ctx)]);
+  const app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx)]);
   servirLesEcrans(app, c.web);
   const adresse = await app.listen({ port: c.port, host: c.hote });
 

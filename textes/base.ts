@@ -87,6 +87,19 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'on ne valide pas une période qui n\'est pas finie', cle: 'base.compta.valider_avenir', fr: 'on ne valide pas une période qui n\'est pas finie' },
   { base: 'la période est déjà validée jusqu\'au %s', cle: 'base.compta.deja_validee', fr: 'la période est déjà validée jusqu\'au {jour}', valeurs: ['jour'] },
   { base: 'cette pièce a une écriture validée : elle se corrige par une contre-passation', cle: 'base.compta.famille_validee', fr: 'cette pièce a une écriture validée : elle se corrige par une contre-passation' },
+  { base: 'seul le propriétaire de l\'entreprise choisit son cabinet', cle: 'base.cabinet.choisir_proprietaire', fr: 'seul le propriétaire de l\'entreprise choisit son cabinet' },
+  { base: 'aucun cabinet n\'a ce code', cle: 'base.cabinet.code_inconnu', fr: 'aucun cabinet n\'a ce code' },
+  { base: 'cette entreprise a déjà un cabinet : arrête d\'abord son mandat', cle: 'base.cabinet.deja_un_cabinet', fr: 'cette entreprise a déjà un cabinet : arrête d\'abord son mandat' },
+  { base: 'seul un associé du cabinet accepte un dossier', cle: 'base.cabinet.accepter_associe', fr: 'seul un associé du cabinet accepte un dossier' },
+  { base: 'ce mandat n\'attend pas d\'être accepté', cle: 'base.cabinet.pas_propose', fr: 'ce mandat n\'attend pas d\'être accepté' },
+  { base: 'seuls le propriétaire de l\'entreprise et un associé du cabinet arrêtent un mandat', cle: 'base.cabinet.arreter_qui', fr: 'seuls le propriétaire de l\'entreprise et un associé du cabinet arrêtent un mandat' },
+  { base: 'ce mandat est déjà arrêté', cle: 'base.cabinet.deja_arrete', fr: 'ce mandat est déjà arrêté' },
+  { base: 'seul le propriétaire de l\'entreprise change le périmètre de son cabinet', cle: 'base.cabinet.perimetre_proprietaire', fr: 'seul le propriétaire de l\'entreprise change le périmètre de son cabinet' },
+  { base: 'seul un associé du cabinet crée un dossier', cle: 'base.cabinet.dossier_associe', fr: 'seul un associé du cabinet crée un dossier' },
+  { base: 'seul un associé du cabinet confie un dossier', cle: 'base.cabinet.confier_associe', fr: 'seul un associé du cabinet confie un dossier' },
+  { base: 'cette personne n\'est pas de l\'équipe du cabinet', cle: 'base.cabinet.pas_de_l_equipe', fr: 'cette personne n\'est pas de l\'équipe du cabinet' },
+  { base: 'valider une période est réservé à l\'associé et aux collaborateurs du cabinet', cle: 'base.compta.valider_cabinet', fr: 'valider une période est réservé à l\'associé et aux collaborateurs du cabinet' },
+  { base: 'avec un mandat de comptabilité, c\'est le cabinet qui valide la période', cle: 'base.compta.valider_au_cabinet', fr: 'avec un mandat de comptabilité, c\'est le cabinet qui valide la période' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

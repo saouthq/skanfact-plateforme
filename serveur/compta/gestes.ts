@@ -9,10 +9,10 @@ import './textes.ts';
 
 export const GESTES_COMPTA: Geste[] = [
   { code: 'compta.livres.voir', module: 'compta', ecrit: false,
-    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', lecture: 'voir' } },
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', lecture: 'voir', supervision: 'oui', revision: 'oui', saisie: 'oui' } },
   // Valider une période (brique 35) : les numéros, la chaîne, la période close. La base le garde aussi.
   { code: 'compta.ecritures.valider', module: 'compta', ecrit: true,
-    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui' } },
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } },
 ];
 
 let declares = false;

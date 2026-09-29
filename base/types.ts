@@ -300,6 +300,7 @@ export interface BaseDeDonnees {
     active: Generated<boolean>;
     cree_le: Generated<Date>;
     essai: Generated<boolean>;
+    tenue_par: string | null;
   };
   'socle.etablissement': {
     id: Generated<string>;

@@ -102,6 +102,11 @@
     et par année, scelle dans la chaîne des livres, ferme la période ; ensuite `ecrire_famille`
     garde une écriture validée identique, contre-passe celle qui ne tient plus, et n'écrit jamais
     dans la période close (premier jour ouvert). `compta.controler` recalcule la chaîne.
+  - **Le cabinet** (brique 36, 0019, `docs/cabinet.md`) : mandat proposé par le propriétaire (code
+    du cabinet, périmètre), accepté par l'associé ; dossiers tenus ; portefeuille ; le rôle d'une
+    personne par son cabinet dans `socle.mes_roles` et le périmètre dans `socle.perimetre_cabinet`,
+    gardés par la porte (`PERIMETRE_DU_MODULE`) ET par la base. Une fonction redéfinie par une
+    migration plus récente : ses preuves visent la définition EN VIGUEUR.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

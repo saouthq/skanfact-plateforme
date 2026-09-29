@@ -10,7 +10,7 @@ import './textes.ts';
 
 export const GESTES_ACHATS: Geste[] = [
   { code: 'achats.pieces.voir', module: 'achats', ecrit: false,
-    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', lecture: 'voir' } },
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', lecture: 'voir', supervision: 'voir', revision: 'voir', saisie: 'voir' } },
 ];
 
 let declares = false;

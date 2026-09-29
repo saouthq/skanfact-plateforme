@@ -22,6 +22,12 @@ export type QuiAgit = { utilisateur: string; codeAConfigurer?: boolean; cle?: { 
 // ou rien.
 export type Condition = (tx: Transaction, entreprise: string, geste: Geste) => Promise<{ motif: Texte; bouton: string | null } | null>;
 const conditions: Condition[] = [];
+
+// Ce qu'il faut au mandat d'un cabinet pour les gestes de chaque module (03 § 3.4) : l'une des
+// cases. Un module absent d'ici est fermé au cabinet (l'équipe, les réglages, les ventes à émettre).
+const PERIMETRE_DU_MODULE: Record<string, string[]> = {
+  compta: ['comptabilite'], ventes: ['comptabilite'], achats: ['comptabilite', 'saisie_achats'], paie: ['paie'],
+};
 export function brancherCondition(c: Condition) { conditions.push(c); }
 
 async function quiPeut(tx: Transaction, entreprise: string, geste: Geste) {
@@ -62,6 +68,16 @@ export async function peut(tx: Transaction, qui: QuiAgit, entreprise: string, co
 
   // 3. Son rôle ? L'union de ses rôles (D7).
   const roles = (await tx.query('select socle.mes_roles($1) r', [entreprise])).rows[0].r as Role[];
+  // Qui n'agit ici QUE par son cabinet agit dans le périmètre du mandat (03 § 3.4) : ce que le
+  // propriétaire n'a pas ouvert ne s'ouvre pas, quel que soit le rôle au cabinet.
+  const perimetre = (await tx.query('select socle.perimetre_cabinet($1) p', [entreprise])).rows[0].p as string[] | null;
+  if (perimetre !== null) {
+    const ouvrent = PERIMETRE_DU_MODULE[geste.module] ?? [];
+    if (!ouvrent.some((p) => perimetre.includes(p))) {
+      return { ok: false, raison: 'role', qui: [], bouton: null,
+        motif: motif('porte.hors_perimetre', { geste: t(`geste.${geste.code}`), perimetre: ouvrent.length ? ouvrent.map((p) => t(`perimetre.${p}`)) : t('porte.aucun_perimetre') }) };
+    }
+  }
   const acces = roles.map((r) => geste.roles[r]).filter(Boolean);
   const permis = acces.includes('oui') || (!ecrire && acces.includes('voir'));
   if (permis) return { ok: true, geste, roles, lectureSeule: !acces.includes('oui') };

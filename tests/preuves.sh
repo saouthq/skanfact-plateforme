@@ -1326,7 +1326,7 @@ prouver "une page d'achats qui saute ceux du même jour" serveur/achats/routes.t
   "q.where((eb) => eb.or([eb('p.date_piece', '<', avant?.[0] ?? ''), eb.and([eb('p.date_piece', '=', avant?.[0] ?? ''), eb('p.id', '<', avant?.[1] ?? '')])]))" "q.where('p.date_piece', '<', avant?.[0] ?? '')" \
   "$AL"
 prouver "un commercial qui voit les achats" serveur/achats/gestes.ts \
-  "roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', lecture: 'voir' } }," "roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', comptabilite_interne: 'oui', lecture: 'voir' } }," \
+  "administrateur: 'oui', comptabilite_interne: 'oui', lecture: 'voir', supervision" "administrateur: 'oui', commercial: 'oui', comptabilite_interne: 'oui', lecture: 'voir', supervision" \
   "$AL"
 prouver "la liste des factures de vente qui annonce le net au lieu du reste" serveur/ventes/routes.ts \
   "              reste: soldes.has(l.id) ? versTexte(soldes.get(l.id)?.reste ?? 0n, l.decimales) : net," "              reste: net," \
@@ -1429,26 +1429,28 @@ prouver "le barème relu d'un bulletin avec ses taux cent fois trop petits" $RP 
   "const pct = (v: unknown) => versTexte(BigInt(Number(v) || 0), 4);" "const pct = (v: unknown) => versTexte(BigInt(Number(v) || 0), 6);" \
   "$PB"
 prouver "la comptabilité interne qui lit les bulletins" $GP \
-  "    roles: { proprietaire: 'oui', administrateur: 'oui', paie: 'oui' } },
-  { code: 'paie.declarations.voir'" "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', paie: 'oui' } },
+  "    roles: { proprietaire: 'oui', administrateur: 'oui', paie: 'oui', supervision: 'oui' } },
+  { code: 'paie.declarations.voir'" "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', paie: 'oui', supervision: 'oui' } },
   { code: 'paie.declarations.voir'" \
   "$PL"
 prouver "la lecture d'un bulletin qui ne se trace pas" $GP \
   "  { code: 'paie.bulletins.voir', module: 'paie', ecrit: false, sensible: true," "  { code: 'paie.bulletins.voir', module: 'paie', ecrit: false," \
   "$PL"
 prouver "un commercial qui voit la masse salariale" $GP \
-  "roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', paie: 'oui', lecture: 'voir' } }," "roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', comptabilite_interne: 'oui', paie: 'oui', lecture: 'voir' } }," \
+  "roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', paie: 'oui', lecture: 'voir', supervision: 'oui' } }," "roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', comptabilite_interne: 'oui', paie: 'oui', lecture: 'voir', supervision: 'oui' } }," \
   "$PL"
 prouver "la trace d'une lecture qui ne dit pas quel bulletin" serveur/app.ts \
   "                const objet = r.objetLu && /^[0-9a-f-]{36}\$/i.test(lu) ? [r.objetLu.type, lu] : [null, null];" "                const objet = [null, null];" \
   "$PL"
-prouver "la base qui montre la paie à la comptabilité interne" $M14 \
-  "   where socle.mes_roles(e) && array['proprietaire', 'administrateur', 'paie']::text[]" "   where socle.mes_roles(e) && array['proprietaire', 'administrateur', 'paie', 'comptabilite_interne']::text[]" \
+# paie.mes_entreprises, paie.masse_salariale, compta.mes_entreprises et compta.valider sont
+# redéfinies par 0019 (le cabinet) : leurs preuves visent la définition EN VIGUEUR.
+prouver "la base qui montre la paie à la comptabilité interne" base/migrations/0019_cabinet.sql \
+  "   where (socle.mes_roles(e) && array['proprietaire', 'administrateur', 'paie']::text[] and socle.perimetre_cabinet(e) is null)" "   where (socle.mes_roles(e) && array['proprietaire', 'administrateur', 'paie', 'comptabilite_interne']::text[] and socle.perimetre_cabinet(e) is null)" \
   "$PL"
-prouver "la base qui ouvre la masse salariale au commercial" $M14 \
-  "          and (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'paie', 'lecture']::text[]" "          and (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'commercial', 'paie', 'lecture']::text[]" \
+prouver "la base qui ouvre la masse salariale au commercial" base/migrations/0019_cabinet.sql \
+  "          and ((socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'paie', 'lecture']::text[]" "          and ((socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'commercial', 'paie', 'lecture']::text[]" \
   "$PL"
-prouver "la masse salariale qui compte un bulletin au premier jour de son mois" $M14 \
+prouver "la masse salariale qui compte un bulletin au premier jour de son mois" base/migrations/0019_cabinet.sql \
   "       and (make_date(b.annee, b.mois, 1) + interval '1 month' - interval '1 day')::date between p_du and p_au;" "       and make_date(b.annee, b.mois, 1) between p_du and p_au;" \
   "$PL"
 prouver "la base qui laisse un bulletin changer de salarié" $M14 \
@@ -1553,11 +1555,11 @@ prouver "la base qui laisse bouger les lignes d'une écriture validée" $M15 \
 prouver "la base qui accepte une ligne d'une autre entreprise" $M15 \
   "  if not found or e.entreprise <> new.entreprise then" "  if not found then" \
   "$LB"
-prouver "la base qui montre les livres au commercial" $M15 \
-  "   where socle.mes_roles(e) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'lecture']::text[]" "   where socle.mes_roles(e) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'lecture', 'commercial']::text[]" \
+prouver "la base qui montre les livres au commercial" base/migrations/0019_cabinet.sql \
+  "   where (socle.mes_roles(e) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'lecture']::text[]" "   where (socle.mes_roles(e) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'lecture', 'commercial']::text[]" \
   "$LD"
 prouver "un commercial qui lit les livres" serveur/compta/gestes.ts \
-  "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', lecture: 'voir' } }," "    roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', comptabilite_interne: 'oui', lecture: 'voir' } }," \
+  "comptabilite_interne: 'oui', lecture: 'voir', supervision: 'oui', revision: 'oui', saisie: 'oui' } }," "comptabilite_interne: 'oui', lecture: 'voir', commercial: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } }," \
   "$LD"
 prouver "le grand livre qui repart de zéro à chaque page" serveur/compta/routes.ts \
   "      let solde = await soldeAvant(tx, entreprise, compte, p.du, apres);" "      let solde = await soldeAvant(tx, entreprise, compte, p.du, null);" \
@@ -1697,17 +1699,17 @@ prouver "une écriture déjà contre-passée qui se contre-passe encore" $M18 \
 prouver "une contre-passation validée elle-même contre-passée" $M18 \
   "and x.statut = 'validee' and x.origine_type <> 'contre_passation'" "and x.statut = 'validee'" \
   "$VJ"
-prouver "une période validée à reculons" $M18 \
+prouver "une période validée à reculons" base/migrations/0019_cabinet.sql \
   "  if c is not null and p_jusqua <= c then" "  if false then" \
   "$VJ"
-prouver "une période validée dans l'avenir" $M18 \
+prouver "une période validée dans l'avenir" base/migrations/0019_cabinet.sql \
   "  if p_jusqua is null or p_jusqua > aujourdhui then" "  if p_jusqua is null then" \
   "$VJ"
-prouver "une validation qui ne ferme pas la période" $M18 \
+prouver "une validation qui ne ferme pas la période" base/migrations/0019_cabinet.sql \
   "  insert into compta.cloture (entreprise, jusqua, par) values (p_entreprise, p_jusqua, socle.moi())
   on conflict (entreprise) do update set jusqua = excluded.jusqua, par = excluded.par, le = now();" "" \
   "$VJ"
-prouver "des numéros qui ne se suivent pas par journal" $M18 \
+prouver "des numéros qui ne se suivent pas par journal" base/migrations/0019_cabinet.sql \
   "values (p_entreprise, x.journal, extract(year from x.date_ecriture)::int, 1)" "values (p_entreprise, 'XX', extract(year from x.date_ecriture)::int, 1)" \
   "$VJ"
 prouver "le contenu scellé sans les lignes" $M18 \
@@ -1716,12 +1718,80 @@ prouver "le contenu scellé sans les lignes" $M18 \
 prouver "le contrôle qui ne recalcule pas le contenu" $M18 \
   "    if x.contenu <> compta.contenu_ecriture(x.id, x.numero) or x.empreinte <> x.empreinte_maillon then" "    if x.empreinte <> x.empreinte_maillon then" \
   "$VC"
-prouver "la base qui laisse le commercial valider" $M18 \
-  "  if not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne']::text[]" "  if not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'commercial']::text[]" \
+prouver "la base qui laisse le commercial valider" base/migrations/0019_cabinet.sql \
+  "  elsif not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne']::text[]" "  elsif not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'commercial']::text[]" \
   "$VD"
 prouver "un commercial qui valide" serveur/compta/gestes.ts \
-  "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui' } }," "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', commercial: 'oui' } }," \
+  "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', commercial: 'oui' } }," \
   "$VD"
+
+
+# ── Le cabinet côté serveur (0019, brique 36) ───────────────────────────────────────────────────
+M19=base/migrations/0019_cabinet.sql
+CM="le propriétaire choisit son cabinet par son code"
+CT="le dossier tenu : l'associé le crée"
+CJ="le cabinet ne fait jamais chez son client ce qui est au client"
+prouver "le créateur d'un cabinet qui n'en est pas l'associé" $M19 \
+  "values (socle.moi(), v_org, array['supervision']);" "values (socle.moi(), v_org, array['revision']);" \
+  "$CM"
+prouver "un rôle posé sur un dossier qui ne l'emporte pas" $M19 \
+  "                else coalesce(a.role, case when 'supervision' = any(m.roles) then 'supervision' end) end" "                else 'supervision' end" \
+  "$CM"
+prouver "un cabinet qui agit hors de tout périmètre" $M19 \
+  "    when exists (select 1 from socle.membre m where m.utilisateur = socle.moi() and m.actif and m.entreprise = p_entreprise) then null" "    when true then null" \
+  "$CM"
+prouver "la porte qui ignore le périmètre du mandat" serveur/porte/porte.ts \
+  "    if (!ouvrent.some((p) => perimetre.includes(p))) {" "    if (false) {" \
+  "$CM"
+prouver "la base qui ouvre les livres au cabinet sans la comptabilité" $M19 \
+  "          and 'comptabilite' = any(coalesce(socle.perimetre_cabinet(e), '{}')))" "          and true)" \
+  "$CM"
+prouver "la base qui ouvre la paie au cabinet sans la paie" $M19 \
+  "      or (socle.mes_roles(e) && array['supervision', 'paie']::text[] and 'paie' = any(coalesce(socle.perimetre_cabinet(e), '{}')))" "      or (socle.mes_roles(e) && array['supervision', 'paie']::text[])" \
+  "$CM"
+prouver "un mandat proposé par un autre que le propriétaire" $M19 \
+  "  if not ('proprietaire' = any(socle.mes_roles(p_entreprise))) or socle.perimetre_cabinet(p_entreprise) is not null then" "  if false then" \
+  "$CM"
+prouver "deux cabinets à la fois" $M19 \
+  "  if exists (select 1 from socle.mandat d where d.entreprise = p_entreprise and d.statut in ('propose', 'actif')) then" "  if false then" \
+  "$CM"
+prouver "un mandat accepté par un collaborateur" $M19 \
+  "  if not found or not socle.suis_associe(d.cabinet) then perform socle.refus('seul un associé du cabinet accepte un dossier'); end if;" "  if not found then perform socle.refus('seul un associé du cabinet accepte un dossier'); end if;" \
+  "$CM"
+prouver "un mandat arrêté qui laisse le cabinet voir" $M19 \
+  "  update socle.mandat set statut = 'termine', fin = greatest(current_date, debut) where id = p_mandat;" "" \
+  "$CM"
+prouver "un périmètre changé par le cabinet" $M19 \
+  "  if not found or not ('proprietaire' = any(socle.mes_roles(d.entreprise))) or socle.perimetre_cabinet(d.entreprise) is not null then" "  if not found then" \
+  "$CM"
+prouver "un dossier confié par un collaborateur" $M19 \
+  "  if not found or not socle.suis_associe(d.cabinet) then perform socle.refus('seul un associé du cabinet confie un dossier'); end if;
+  if not exists" "  if not exists" \
+  "$CM"
+prouver "un collaborateur qui voit tout le portefeuille" $M19 \
+  "     and ('supervision' = any(m.roles) or (a.role is not null and d.statut = 'actif'))" "     and true" \
+  "$CM"
+prouver "le client qui valide malgré le mandat de comptabilité" $M19 \
+  "  elsif v_mandat and ma_cle() is null then" "  elsif false then" \
+  "$CM"
+prouver "l'assistant de saisie qui valide, dans la base" $M19 \
+  "    if not ('comptabilite' = any(v_perimetre) and socle.mes_roles(p_entreprise) && array['supervision', 'revision']::text[]) then" "    if false then" \
+  "$CM"
+prouver "l'assistant de saisie qui valide, à la porte" serveur/compta/gestes.ts \
+  "comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } }," \
+  "$CM"
+prouver "un dossier tenu créé par un collaborateur" $M19 \
+  "  if not socle.suis_associe(p_cabinet) then perform socle.refus('seul un associé du cabinet crée un dossier'); end if;" "" \
+  "$CT"
+prouver "un dossier tenu sans tout son périmètre" $M19 \
+  "array['comptabilite', 'declarations', 'saisie_achats', 'paie'], 'actif');" "array['comptabilite'], 'actif');" \
+  "$CT"
+prouver "un matricule mal formé qui fait tomber le serveur" serveur/cabinet/routes.ts \
+  ".regex(/^[0-9]{7}[A-Z]\/?[A-Z]\/?[A-Z]\/?[0-9]{3}$/, { message: 'cabinet.champ.matricule' })" "" \
+  "$CT"
+prouver "les pièces de vente fermées au cabinet de comptabilité" serveur/porte/porte.ts \
+  "  compta: ['comptabilite'], ventes: ['comptabilite']," "  compta: ['comptabilite'], ventes: []," \
+  "$CJ"
 
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

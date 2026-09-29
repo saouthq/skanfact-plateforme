@@ -10,7 +10,7 @@ import './textes.ts';
 
 export const GESTES_VENTES: Geste[] = [
   { code: 'ventes.pieces.voir', module: 'ventes', ecrit: false,
-    roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', comptabilite_interne: 'voir', lecture: 'voir' } },
+    roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', comptabilite_interne: 'voir', lecture: 'voir', supervision: 'voir', revision: 'voir', saisie: 'voir' } },
   { code: 'ventes.brouillon.modifier', module: 'ventes', ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui' } },
   { code: 'ventes.facture.emettre', module: 'ventes', ecrit: true,

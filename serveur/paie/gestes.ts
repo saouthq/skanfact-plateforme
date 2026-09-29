@@ -13,11 +13,11 @@ import './textes.ts';
 
 export const GESTES_PAIE: Geste[] = [
   { code: 'paie.bulletins.voir', module: 'paie', ecrit: false, sensible: true,
-    roles: { proprietaire: 'oui', administrateur: 'oui', paie: 'oui' } },
+    roles: { proprietaire: 'oui', administrateur: 'oui', paie: 'oui', supervision: 'oui' } },
   { code: 'paie.declarations.voir', module: 'paie', ecrit: false, sensible: true,
-    roles: { proprietaire: 'oui', administrateur: 'oui', paie: 'oui' } },
+    roles: { proprietaire: 'oui', administrateur: 'oui', paie: 'oui', supervision: 'oui' } },
   { code: 'paie.masse.voir', module: 'paie', ecrit: false,
-    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', paie: 'oui', lecture: 'voir' } },
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', paie: 'oui', lecture: 'voir', supervision: 'oui' } },
 ];
 
 let declares = false;

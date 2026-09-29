@@ -1,4 +1,4 @@
-# Le Cabinet sur la plateforme (briques 36 et suivantes)
+# Le Cabinet sur la plateforme (briques 36 à 46)
 
 *Conception du 29/09/2026 (par délégation : Skander, « toi fait la partie concevoir »). Ce document
 dit comment le Cabinet v10 devient celui de la plateforme, dans quel ordre, et pourquoi.*
@@ -73,16 +73,17 @@ mêmes données que son client.
 
 | Brique | Ce qu'elle fait |
 |---|---|
-| **36** | Le cabinet et son portefeuille : créer un cabinet, ses dossiers (mandats acceptés, dossiers tenus), le rôle d'un collaborateur sur un dossier dans la base ; les écrans du Cabinet copiés et chargés ; le livre d'un dossier lu au serveur (la balance que calcule l'écran égale celle du serveur : deux chemins, un chiffre) ; tout le reste répond « pas encore en ligne ». |
-| 37 | La saisie : écritures saisies par le cabinet (brouillard, modification, suppression), validation d'une écriture ou d'un lot, contre-passation, extourne, lettrage ; le mois validé par le cabinet (C8). |
-| 38 | La reprise : plan, balance d'ouverture (à-nouveaux), écritures par tableur. |
-| 39 | La banque : relevés, rapprochement, lettrage automatique. |
-| 40 | Les déclarations (TVA, retenues), la liasse, le FEC et les exports. |
-| 41 | Immobilisations et dotations, inventaire et variation de stock. |
-| 42 | La paie tenue par le cabinet (mandat Paie). |
-| 43 | La révision, le questionnaire, les questions au client et ses réponses. |
-| 44 | La clôture de l'exercice, sa réouverture (avec un motif), l'exercice suivant. |
-| 45 | L'équipe du cabinet : invitations, rôles, affectations par dossier, trace de l'équipe. |
+| **36** | Le cabinet côté serveur : créer un cabinet ; le mandat (proposé par le propriétaire, accepté par l'associé, arrêté par l'un ou l'autre) et son périmètre ; les dossiers tenus ; le portefeuille ; le rôle d'un collaborateur sur un dossier et le périmètre, gardés par la porte **et** par la base ; la validation au cabinet quand il a le mandat de comptabilité. |
+| 37 | Les écrans du Cabinet copiés et chargés ; le portefeuille et le livre d'un dossier lus au serveur (la balance que calcule l'écran égale celle du serveur : deux chemins, un chiffre) ; tout le reste répond « pas encore en ligne ». |
+| 38 | La saisie : écritures saisies par le cabinet (brouillard, modification, suppression), validation d'une écriture ou d'un lot, contre-passation, extourne, lettrage ; le mois validé par le cabinet (C8). |
+| 39 | La reprise : plan, balance d'ouverture (à-nouveaux), écritures par tableur. |
+| 40 | La banque : relevés, rapprochement, lettrage automatique. |
+| 41 | Les déclarations (TVA, retenues), la liasse, le FEC et les exports. |
+| 42 | Immobilisations et dotations, inventaire et variation de stock. |
+| 43 | La paie tenue par le cabinet (mandat Paie). |
+| 44 | La révision, le questionnaire, les questions au client et ses réponses. |
+| 45 | La clôture de l'exercice, sa réouverture (avec un motif), l'exercice suivant. |
+| 46 | L'équipe du cabinet : invitations, rôles, affectations par dossier, trace de l'équipe. |
 
 Chaque brique a ses tests « deux chemins » (ce que calcule l'écran du Cabinet contre ce que tient
 le serveur), ses preuves, et un parcours joué à la souris.
@@ -93,3 +94,46 @@ le serveur), ses preuves, et un parcours joué à la souris.
   le client ne l'a jamais rejoint et que le mandat s'arrête (`03` § 3.5).
 - **À VÉRIFIER** (comptable) : les écritures de paie en totaux du mois conviennent-elles au cabinet
   et en cas de contrôle (`03`, question 3 ; D8 de `docs/ecritures.md`).
+
+## Brique 36 : le cabinet côté serveur (fait le 29/09/2026)
+
+**La base** (migration `0019`) :
+- `socle.creer_cabinet` : son créateur en est l'associé ; son code (huit lettres ou chiffres) est
+  ce que le client donne pour le choisir.
+- Le mandat : `proposer_mandat` (le **propriétaire** seul, par le code, avec le périmètre ; la paie
+  décochée par défaut ; un seul cabinet à la fois), `accepter_mandat` (un **associé**),
+  `arreter_mandat` (le propriétaire ou un associé), `changer_perimetre` (le propriétaire seul).
+- `creer_dossier_tenu` : l'entreprise d'un client pas encore sur SkanFact (`tenue_par`), sans membre
+  côté client, mandat actif, périmètre complet.
+- `confier_dossier`, `reprendre_dossier` : le rôle d'un membre de l'équipe **sur** un dossier.
+- `socle.portefeuille` : tous les dossiers (et les propositions) pour un associé ; les dossiers
+  confiés pour un collaborateur.
+- `socle.mes_roles` connaît maintenant le rôle d'une personne **par son cabinet** : celui posé sur
+  le dossier, sinon « supervision » pour un associé (un rôle posé l'emporte, `03` § 3) ; le rôle
+  Paie ne vaut que si le mandat comprend la paie. `socle.perimetre_cabinet` dit le périmètre du
+  mandat par lequel on agit (vide pour un membre de l'entreprise).
+- Les livres (`compta.mes_entreprises`), la paie (`paie.mes_entreprises`) et la masse salariale
+  s'ouvrent au cabinet **selon le périmètre**, dans la base elle-même.
+- `compta.valider` : avec un mandat de comptabilité, c'est le cabinet (associé, collaborateur) qui
+  valide ; ni le client, ni l'assistant de saisie (C8).
+
+**La porte** : qui n'agit que par son cabinet agit dans le périmètre du mandat ; un module qu'il
+n'ouvre pas se refuse avec sa phrase (« le mandat de ton cabinet ne comprend pas la paie : seul le
+propriétaire de l'entreprise peut l'ouvrir »). Un module absent de la table (l'équipe, les
+réglages, les ventes à émettre) est fermé au cabinet (C6).
+
+**L'API** : `POST /cabinets`, `GET /cabinets`, `GET /cabinets/:c/portefeuille`,
+`POST /cabinets/:c/dossiers` (dossier tenu), `POST /cabinets/:c/mandats/:m/accepter|arreter`,
+`PUT|DELETE /cabinets/:c/mandats/:m/affectations/:membre` ; côté entreprise,
+`GET|POST|DELETE /entreprises/:e/mandat` et `PUT /entreprises/:e/mandat/perimetre`. Chaque
+changement d'un mandat se trace chez l'entreprise.
+
+**Décisions (par délégation)** :
+- **C9.** Le mandat naît chez le client (le propriétaire propose, par le code du cabinet) et
+  s'active quand l'associé l'accepte ; il commence ce jour-là.
+- **C10.** Les pièces de vente et d'achat du client se voient au cabinet avec la comptabilité (et
+  les achats aussi avec la saisie des achats) ; la paie seulement avec la paie ; la masse salariale
+  (un total) avec la comptabilité ou la paie, puisque les totaux de la paie sont déjà dans les
+  livres.
+- **C11.** L'équipe du cabinet (inviter un collaborateur) viendra à la brique 46 ; d'ici là, les
+  tests posent les membres dans la base.
