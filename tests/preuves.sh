@@ -2563,5 +2563,101 @@ prouver "le modèle de liasse jamais enregistré" $PC \
   "        const contenu = { ...reglages.contenu, liasse };" "        const contenu = { ...reglages.contenu };" \
   "$WL1"
 
+# ── Brique 42 : les immobilisations (docs/cabinet.md, C28 et C29) ──
+M26=base/migrations/0026_compta_immobilisations.sql
+IMS=serveur/compta/immobilisations.ts
+IM1="une fiche : posée et relue au millime ; ce qui ne tient pas se refuse ; changée ailleurs, jamais écrasée ; une voisine n'en lit rien"
+IM2="les dotations : au brouillard, liées ; repassées, refusées ; écrite, le plan ne change pas et la fiche ne se supprime pas ; supprimée ou contre-passée, le lien tombe"
+IM3="qui peut : qui saisit pose une fiche, qui valide écrit les dotations ; la base aussi"
+WI1="l'acquisition se propose, la fiche se crée, la dotation s'écrit au millime et se lie ; écrite, le plan ne change plus"
+prouver "un bien sans libellé" $M26 \
+  "  if length(trim(coalesce(p_fiche->>'libelle', ''))) = 0 then perform socle.refus('le bien" "  if false then perform socle.refus('le bien" \
+  "$IM1"
+prouver "un bien sans valeur" $M26 \
+  "  if jsonb_typeof(p_fiche->'valeur') <> 'number' or (p_fiche->>'valeur')::numeric <= 0 then" "  if false then" \
+  "$IM1"
+prouver "une valeur résiduelle qui atteint la valeur" $M26 \
+  "  if (p_fiche->>'residuelle')::numeric >= (p_fiche->>'valeur')::numeric then" "  if false then" \
+  "$IM1"
+prouver "une durée nulle" $M26 \
+  "  if jsonb_typeof(p_fiche->'dureeCentiemes') <> 'number' or (p_fiche->>'dureeCentiemes')::numeric <= 0 then" "  if false then" \
+  "$IM1"
+prouver "un dégressif sans taux" $M26 \
+  "  if p_fiche->>'methode' = 'degressif' and coalesce((p_fiche->>'tauxDegressif')::numeric, 0) <= 0 then" "  if false then" \
+  "$IM1"
+prouver "un bien cédé avant sa mise en service" $M26 \
+  "  if jsonb_typeof(p_fiche->'cession') = 'object' and coalesce(p_fiche->'cession'->>'date', '') < v_mes then" "  if false then" \
+  "$IM1"
+prouver "une fiche changée ailleurs, écrasée" $M26 \
+  "  if x.revision <> coalesce(p_revision, 0) then
+    raise exception 'cette fiche a été changée ailleurs entre-temps : recharge-la, rien n''a été enregistré' using errcode = 'SK409';
+  end if;
+  v_ecrite := compta.annee_ecrite(x.id);
+  if v_ecrite is not null then
+    foreach" "  if false then
+    raise exception 'cette fiche a été changée ailleurs entre-temps : recharge-la, rien n''a été enregistré' using errcode = 'SK409';
+  end if;
+  v_ecrite := compta.annee_ecrite(x.id);
+  if v_ecrite is not null then
+    foreach" \
+  "$IM1"
+prouver "les biens d'une voisine lus" $M26 \
+  "create policy visible on compta.immobilisation using (entreprise in (select compta.mes_entreprises()));" "create policy visible on compta.immobilisation using (true);" \
+  "$IM1"
+prouver "un montant de bien lu à la mauvaise échelle" $IMS \
+  "const argent = (v: string, champ: string) => exact(v, 3) ?? champ;" "const argent = (v: string, champ: string) => exact(v, 2) ?? champ;" \
+  "$IM1"
+prouver "une durée en années entières seulement" $IMS \
+  "  const duree = exact(f.duree, 2);" "  const duree = exact(f.duree, 0);" \
+  "$IM1"
+prouver "une durée relue avec ses zéros" $IMS \
+  "    duree: versTexte(BigInt(dureeCentiemes), 2).replace(/\\.?0+\$/, '')," "    duree: versTexte(BigInt(dureeCentiemes), 2)," \
+  "$IM1"
+prouver "le plan changé sous une dotation écrite" $M26 \
+  "      if (x.fiche->k) is distinct from (p_fiche->k) then" "      if false then" \
+  "$IM2"
+prouver "une sortie posée sous une dotation écrite" $M26 \
+  "    if (x.fiche->'cession') is distinct from (p_fiche->'cession') then" "    if false then" \
+  "$IM2"
+prouver "une fiche supprimée sous sa dotation" $M26 \
+  "  if v_ecrite is not null then
+    perform socle.refus(format('la dotation de %s est passée en écriture : supprimer" "  if false then
+    perform socle.refus(format('la dotation de %s est passée en écriture : supprimer" \
+  "$IM2"
+prouver "une dotation passée deux fois" $M26 \
+  "    if v_genre <> 'subvention' and exists (select 1 from compta.immobilisation_ecriture l where l.immobilisation = x.id and l.annee = p_annee" "    if false and exists (select 1 from compta.immobilisation_ecriture l where l.immobilisation = x.id and l.annee = p_annee" \
+  "$IM2"
+prouver "une dotation datée hors de son année" $M26 \
+  "    if coalesce(p->'ecriture'->>'date', '') not like p_annee || '-%' then" "    if false then" \
+  "$IM2"
+prouver "une dotation écrite sans lien vers son bien" $M26 \
+  "      insert into compta.immobilisation_ecriture (immobilisation, annee, genre, ecriture, entreprise) values (x.id, p_annee, v_genre, v_id, p_entreprise)
+      on conflict (immobilisation, annee, genre) do update set ecriture = excluded.ecriture;" "      null;" \
+  "$IM2"
+prouver "le lien d'une dotation contre-passée lu comme s'il valait" $IMS \
+  "where l.entreprise = \$1 and compta.ecriture_vivante(l.ecriture) order by" "where l.entreprise = \$1 order by" \
+  "$IM2"
+prouver "une dotation contre-passée qui bloque encore sa fiche" $M26 \
+  "  select min(l.annee) from compta.immobilisation_ecriture l where l.immobilisation = p_immobilisation and compta.ecriture_vivante(l.ecriture)" "  select min(l.annee) from compta.immobilisation_ecriture l where l.immobilisation = p_immobilisation" \
+  "$IM2"
+prouver "les dotations écrites par qui ne valide pas, dans la base" $M26 \
+  "  perform compta.exiger(p_entreprise, 'compta.ecritures.valider');
+  if p_pieces is null" "  perform compta.exiger(p_entreprise, 'compta.ecritures.saisir');
+  if p_pieces is null" \
+  "$IM3"
+prouver "les biens que le livre ne lit pas" $PC \
+  "    livre.immobilisations = biens;" "" \
+  "$WI1"
+prouver "les dotations écrites oubliées du plan" $PC \
+  "        plan: (x.ecritures || []).map((/** @type {any} */ l) => ({ annee: l.annee, ecritureId: l.ecriture }))," "        plan: []," \
+  "$WI1"
+prouver "le refus de la v10 sauté avant d'enregistrer un bien" $PC \
+  "      if (!r.ok) throw new Error(r.motif);
+      const corps = { fiche: ficheVersLeServeur(r.fiche) };" "      const corps = { fiche: ficheVersLeServeur(r.fiche) };" \
+  "$WI1"
+prouver "l'acquisition d'où vient un bien oubliée" $PC \
+  "docId: String((f.origine || {}).docId || '').slice(0, 100)," "docId: ''," \
+  "$WI1"
+
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

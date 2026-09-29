@@ -88,7 +88,13 @@ describe('la liasse et l\'annuel, à la souris', () => {
     await p.locator('#li-taux-ok').click();
     await expect.poll(async () => (await annuel(cafe, associe)).tauxImpot).toBe('25');
     await expect.poll(fiscal).toMatch(/Impôt au taux de 25 % 1 700,125 DT/);
-    await p.locator('#li-rt-add').click();
+    // L'écran se redessine encore après l'enregistrement du taux : un clic entre deux dessins se
+    // perd. On clique jusqu'à ce que la fenêtre soit ouverte — ouvrir une fenêtre ne fait rien d'autre.
+    const ouvrir = async (bouton: string, dedans: string) => expect.poll(async () => {
+      if (!await p.locator(dedans).count()) await p.locator(bouton).click({ timeout: 2_000 }).catch(() => {});
+      return p.locator(dedans).count();
+    }, { timeout: 20_000 }).toBe(1);
+    await ouvrir('#li-rt-add', '#rt-montant');
     const fenetre = p.locator('#modal-root .modal').last();
     await fenetre.locator('#rt-montant').fill('1000,125');
     await fenetre.locator('#rt-libelle').fill('Amende fiscale non déductible');
@@ -97,14 +103,16 @@ describe('la liasse et l\'annuel, à la souris', () => {
     await expect.poll(fiscal).toMatch(/\+ Réintégrations 1 000,125 DT − Déductions et reports 0,000 DT Résultat fiscal 7 800,625 DT Impôt au taux de 25 % 1 950,156 DT/i);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-liasse-1-fiscal.png'), fullPage: true });
     // Retiré, il ne compte plus.
-    await p.locator('[data-rtx]').first().click();
-    await expect.poll(async () => (await annuel(cafe, associe)).retraitements).toEqual([]);
+    await expect.poll(async () => {
+      if ((await annuel(cafe, associe)).retraitements.length) await p.locator('[data-rtx]').first().click({ timeout: 2_000 }).catch(() => {});
+      return (await annuel(cafe, associe)).retraitements;
+    }, { timeout: 20_000 }).toEqual([]);
     // Attendre ce qui CHANGE : « 6 800,500 » était déjà vrai avant l'ajout.
     await expect.poll(() => p.locator('#li-rt-table').count()).toBe(0);
     await expect.poll(fiscal).toMatch(/\+ Réintégrations 0,000 DT − Déductions et reports 0,000 DT Résultat fiscal 6 800,500 DT/i);
 
     // ── Le modèle de rubriques du cabinet : repris, une rubrique renommée, la liasse le suit ──────────
-    await p.locator('#li-modele').click();
+    await ouvrir('#li-modele', '#sr-liasse-reset');
     const modele = p.locator('#modal-root .modal').last();
     await modele.locator('#sr-liasse-reset').click();
     await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Reprendre', exact: true }).click();

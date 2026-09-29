@@ -83,7 +83,8 @@ mêmes données que son client.
 | **41** | La déclaration du mois (TVA, timbre, retenues) : calculée par la v10 sur le livre du serveur, préparée au serveur, déposée et payée (deux pense-bêtes), son écriture au brouillard et son complément. |
 | **41 bis** | La page Écritures : les écritures de tous les clients d'une période, en un fichier. |
 | **41 ter** | La liasse et le résultat fiscal de l'année. |
-| 42 | Immobilisations et dotations, inventaire et variation de stock. |
+| **42** | Les immobilisations : fiches des biens au serveur, dotations et sorties au brouillard, liées à leur bien. |
+| 42 bis | L'inventaire de stock et sa variation. |
 | 43 | La paie tenue par le cabinet (mandat Paie). |
 | 44 | La révision, le questionnaire, les questions au client et ses réponses. |
 | 45 | La clôture de l'exercice, sa réouverture (avec un motif), l'exercice suivant. |
@@ -585,3 +586,37 @@ renommée, et la liasse qui la montre.
 - La déclaration annuelle d'employeur ne lit que les comptes (les bulletins de la paie tenue par le
   cabinet : brique 43).
 - Un exercice clos (la clôture : brique 45) ne verrouille pas encore la liasse.
+
+## Brique 42 : les immobilisations (fait le 29/09/2026)
+
+Le Cabinet v10 tenait, dans le livre de chaque exercice, les fiches des biens d'un dossier : leur plan
+d'amortissement se calcule, les dotations, les reprises de subvention et les sorties d'actif s'écrivent
+au brouillard, et chaque ligne du plan retient l'écriture qui la porte. Sur la plateforme, le même
+onglet Immobilisations.
+
+**C28. Une fiche par bien, pour toute la vie de l'entreprise** (par délégation, migration `0026`,
+`compta.immobilisation`) : plus de « bien repris » d'un exercice à l'autre — le registre est celui de
+l'entreprise, et chaque exercice le lit. Le plan se calcule par la v10 (`planDuBien`), dans le
+navigateur. **Ce qui part au serveur** (compté) : le libellé, les trois comptes, les deux dates, la
+valeur, la valeur résiduelle et la TVA (en millimes), la méthode, la durée (en centièmes d'année), le
+taux dégressif (entier à quatre décimales), la bascule, la subvention (montant et deux comptes), la
+sortie (date, prix, cession ou rebut) et l'origine (l'acquisition du livre d'où la fiche est née). Une
+révision : changée ailleurs, jamais écrasée. Poser une fiche : qui saisit.
+
+**C29. Une dotation écrite est liée à son bien** (`compta.immobilisation_ecriture`) : les dotations,
+reprises de subvention et sorties d'une année entrent au brouillard (qui valide les écrit, comme la
+v10), datées dans l'année ; une dotation ou une sortie déjà passée ne se repasse pas. Tant qu'une
+dotation est écrite, ce qui fait le plan (valeur, durée, dates, méthode…) ne change pas, une sortie ne
+se pose pas sous elle, et la fiche ne se supprime pas — le refus de la v10 d'abord, mot pour mot, puis
+celui du serveur. Supprimée ou contre-passée, l'écriture ne vaut plus, et le lien avec elle.
+
+**Les tests** : par l'API et dans la base (`tests/compta/immobilisations.test.ts`) ; à la souris
+(`tests/web/cabinet-immobilisations.test.ts`) : l'acquisition d'une camionnette (36 000,600) proposée,
+sa fiche créée sur cinq ans, la dotation de 2025 écrite au millime (6 000,100 : dix mois sur douze),
+liée ; puis la durée qui ne change plus et le bien qui ne se supprime pas.
+
+**Reste connu** :
+- Les immobilisations que l'**entreprise** tient dans son propre SkanFact (son écran « Immobilisations »
+  de la v10) ne sont pas encore ce registre : deux registres pour une entreprise, à réunir.
+- Une reprise de subvention n'est pas liée à son bien (comme dans la v10) : elle se propose tant que
+  l'année a une dotation ou une sortie à écrire.

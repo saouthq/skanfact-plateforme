@@ -156,6 +156,10 @@
     serveur ; `compta.annuel` garde par année les retraitements (millimes) et le taux d'impôt (entier
     à six décimales), avec une révision ; le modèle de rubriques dans `cabinet.reglages` (`liasse`) ;
     au cabinet, l'associé seul (`compta.peut_liasse`).
+  - **Les immobilisations** (brique 42, 0026, C28, C29) : `compta.immobilisation`, une fiche par bien
+    pour toute la vie de l'entreprise (montants en millimes, durée en centièmes d'année, révision) ;
+    `compta.immobilisation_ecriture` lie (bien, année, dotation ou sortie) à son écriture ; écrite, le
+    plan ne change plus et la fiche ne se supprime pas ; le plan se calcule par la v10.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

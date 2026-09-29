@@ -153,6 +153,22 @@ export interface BaseDeDonnees {
     ouvert_par: string | null;
     ouvert_le: Generated<Date>;
   };
+  'compta.immobilisation': {
+    id: Generated<string>;
+    entreprise: string;
+    fiche: ColumnType<Json, string, string>;
+    revision: Generated<bigint>;
+    cree_par: string | null;
+    cree_le: Generated<Date>;
+    modifie_le: Generated<Date>;
+  };
+  'compta.immobilisation_ecriture': {
+    immobilisation: string;
+    annee: number;
+    genre: string;
+    ecriture: string;
+    entreprise: string;
+  };
   'compta.lettrage': {
     id: Generated<string>;
     entreprise: string;

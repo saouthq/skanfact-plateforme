@@ -206,14 +206,55 @@
   // premier exercice commence en cours d'année).
   /** @param {string} ent @param {string|number} annee @param {any[]} [lues] */
   const livreDe = async (ent, annee, lues) => {
-    const [ecritures, releves, declarations] = await Promise.all([lues || ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`), relevesDe(ent, annee), declarationsDe(ent, annee)]);
+    const [ecritures, releves, declarations, biens] = await Promise.all([lues || ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`), relevesDe(ent, annee),
+      declarationsDe(ent, annee), immobilisationsDe(ent)]);
     const livre = versLeLivre(ent, Number(annee), ecritures);
     const ex = exerciceDe(ent, annee);
     if (ex) { livre.exercice.du = ex.du; livre.exercice.au = ex.au; }
     livre.releves = releves;
     livre.declarations = declarations;
+    livre.immobilisations = biens;
     return livre;
   };
+  // Les biens de l'entreprise (brique 42), dans la forme de la v10 : une fiche par bien pour toute la
+  // vie de l'entreprise, son plan recalculé par la v10, chaque année écrite retenant l'écriture qui
+  // porte sa dotation ou sa sortie (le serveur ne rend que celles qui valent encore).
+  /** @type {Map<string, number>} */
+  const revisionsImmo = new Map();
+  /** @param {string} ent */
+  async function immobilisationsDe(ent) {
+    /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+    const r = await appel('GET', `/entreprises/${ent}/compta/immobilisations`);
+    return (r.immobilisations || []).map((/** @type {any} */ x) => {
+      revisionsImmo.set(x.id, x.revision);
+      const f = x.fiche;
+      const fiche = {
+        id: x.id, libelle: f.libelle, compte: f.compte, compteAmort: f.compteAmort, compteDotation: f.compteDotation,
+        dateAcquisition: f.dateAcquisition, dateMiseEnService: f.dateMiseEnService,
+        valeur: nombre(f.valeur), residuelle: nombre(f.residuelle), tva: nombre(f.tva), methode: f.methode, duree: nombre(f.duree),
+        tauxDegressif: f.tauxDegressif === null ? null : nombre(f.tauxDegressif), bascule: !!f.bascule, prorata: 'jours360',
+        subvention: f.subvention ? { ...f.subvention, montant: nombre(f.subvention.montant) } : null,
+        cession: f.cession ? { ...f.cession, prix: nombre(f.cession.prix) } : null,
+        origine: f.origine, creeLe: 0, par: '',
+        plan: (x.ecritures || []).map((/** @type {any} */ l) => ({ annee: l.annee, ecritureId: l.ecriture })),
+      };
+      fiche.plan = KC.planDuBien(fiche);
+      return fiche;
+    });
+  }
+  // Une fiche de la v10, pour le serveur : les champs de la liste (serveur/compta/immobilisations.ts),
+  // les montants en texte exact.
+  /** @param {any} f */
+  const ficheVersLeServeur = (f) => ({
+    libelle: String(f.libelle || ''), compte: String(f.compte || ''), compteAmort: String(f.compteAmort || ''), compteDotation: String(f.compteDotation || ''),
+    dateAcquisition: String(f.dateAcquisition || f.dateMiseEnService || ''), dateMiseEnService: String(f.dateMiseEnService || f.dateAcquisition || ''),
+    valeur: signe(f.valeur), residuelle: signe(f.residuelle), tva: signe(f.tva), methode: String(f.methode || 'lineaire'), duree: String(Number(f.duree) || 0),
+    tauxDegressif: f.tauxDegressif == null || f.tauxDegressif === '' ? null : String(Number(f.tauxDegressif)), bascule: !!f.bascule,
+    subvention: f.subvention && Number(f.subvention.montant)
+      ? { montant: signe(f.subvention.montant), compte: String(f.subvention.compte || ''), compteReprise: String(f.subvention.compteReprise || '') } : null,
+    cession: f.cession && f.cession.date ? { date: String(f.cession.date), prix: signe(f.cession.prix), motif: f.cession.motif === 'rebut' ? 'rebut' : 'cession' } : null,
+    origine: { source: String((f.origine || {}).source || 'saisie').slice(0, 20), docId: String((f.origine || {}).docId || '').slice(0, 100), mois: String((f.origine || {}).mois || '').slice(0, 7) },
+  });
   // Les déclarations préparées d'une année (brique 41), dans la forme de la v10 : chaque case porte son
   // montant (ou null : elle ne se savait pas) ; l'écriture liée, tant qu'elle existe et n'est pas
   // contre-passée.
@@ -878,6 +919,46 @@
         reglages = { contenu, revision: r.revision };
       }
       return construireEtat();
+    },
+
+    // ── Les immobilisations (brique 42) : le plan de la v10, les fiches et les dotations au serveur (0026) ──
+    immobilisations: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreDe(o.dossierId, o.annee);
+      return { etat: KC.etatImmobilisations(livre, o.annee), aCreer: KC.immobilisationsACreer(livre, o.annee), aEcrire: KC.ecrituresImmobilisations(livre, o.annee), fiches: livre.immobilisations };
+    },
+    saveImmobilisation: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreDe(o.dossierId, o.annee);
+      const existe = !!(o.fiche && o.fiche.id && livre.immobilisations.some((/** @type {any} */ x) => x.id === o.fiche.id));
+      // Les refus de la v10 d'abord, mot pour mot (une dotation écrite que le changement rendrait fausse) ; le serveur les refait.
+      const r = existe ? KC.modifierImmobilisation(livre, o.fiche.id, o.fiche, '', Date.now()) : KC.ajouterImmobilisation(livre, { ...o.fiche, id: '' }, '', Date.now());
+      if (!r.ok) throw new Error(r.motif);
+      const corps = { fiche: ficheVersLeServeur(r.fiche) };
+      const dit = existe
+        ? await appel('PUT', `/entreprises/${o.dossierId}/compta/immobilisations/${r.fiche.id}`, { ...corps, revision: revisionsImmo.get(r.fiche.id) })
+        : await appel('POST', `/entreprises/${o.dossierId}/compta/immobilisations`, corps);
+      const apres = await livreDe(o.dossierId, o.annee);
+      return { ok: true, fiche: apres.immobilisations.find((/** @type {any} */ x) => x.id === dit.id), livre: apres };
+    },
+    supprimerImmobilisation: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreDe(o.dossierId, o.annee);
+      const r = KC.supprimerImmobilisation(livre, o.id, '', Date.now());
+      if (!r.ok) throw new Error(r.motif);
+      await appel('DELETE', `/entreprises/${o.dossierId}/compta/immobilisations/${o.id}?revision=${revisionsImmo.get(o.id)}`);
+      return { ok: true, livre: await livreDe(o.dossierId, o.annee) };
+    },
+    // Les dotations, reprises de subvention et sorties de l'année, au BROUILLARD, chacune liée à son bien.
+    ecrireDotations: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const livre = await livreDe(o.dossierId, o.annee);
+      const props = KC.ecrituresImmobilisations(livre, o.annee);
+      if (!props.length) throw new Error('Rien à passer : aucune dotation ni sortie en attente sur cet exercice.');
+      const r = await appel('POST', `/entreprises/${o.dossierId}/compta/immobilisations/ecrire`, {
+        annee: Number(o.annee), pieces: props.map((/** @type {any} */ p) => ({ immobilisation: p.immoId, genre: p.genre, ecriture: versLeServeur(p) })),
+      });
+      return { ok: true, ids: r.ids, livre: await livreDe(o.dossierId, o.annee) };
     },
 
     // Un dossier créé à la main est un dossier TENU (0019) ; ses notes vont dans sa fiche (0020).

@@ -82,6 +82,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   'compta.rapprochement': { classe: 'entreprise' },
   'compta.declaration': { classe: 'entreprise' },
   'compta.annuel': { classe: 'entreprise' },
+  'compta.immobilisation': { classe: 'entreprise' },
+  'compta.immobilisation_ecriture': { classe: 'entreprise' },
   // Le dossier v10 de l'entreprise (0011) : ce que son interface tient, objet par objet.
   'socle.dossier_v10': { classe: 'entreprise' },
   // Le code d'un cabinet n'est pas repris : unique sur la plateforme, il reste à son cabinet.
