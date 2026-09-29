@@ -1630,5 +1630,50 @@ prouver "une famille d'achat validée réécrite par-dessus" $M15 \
   "  if exists (select 1 from compta.ecriture where entreprise = p_entreprise and famille = p_famille and statut = 'validee') then" "  if false then" \
   "$LAC"
 
+
+# ── Les écritures de la paie, en totaux du mois (0017, brique 34) ───────────────────────────────
+CPA=serveur/compta/paie.ts
+VPA=serveur/v10/paie.ts
+PE="chaque mois : la paie, les salaires versés et les avances"
+PN="aucun nom de salarié n'entre dans les livres"
+PP="un mois se réécrit à chaque geste"
+PV="qui ne voit pas la paie ne peut pas en réécrire le brouillard"
+prouver "une paie du mois sans les charges patronales" moteur/paie.ts \
+  "  poser(comptes.chargesPatronales, b.cnssEmployeur + b.accidentTravail, 'debit');" "  poser(comptes.chargesPatronales, b.cnssEmployeur, 'debit');
+  poser(comptes.personnel, b.accidentTravail, 'debit');" \
+  "$PE"
+prouver "les salaires versés tous portés à la banque" $CPA \
+  "    const j = journalDeCompte(plan, p.compte, p.mode ?? '');" "    const j = journalDeCompte(plan, p.compte, 'virement');" \
+  "$PP"
+prouver "les avances oubliées" $CPA \
+  "    if (!lisible(a) || a.date < du || a.date > au) continue;" "    continue;" \
+  "$PE"
+prouver "une avance comptée dans le mois d'à côté" $CPA \
+  "const du = \`\${cleDuMois(m)}-01\`, au = dernierJour(m);" "const du = '0000-01-01', au = '9999-12-31';" \
+  "$PE"
+prouver "le nom du salarié dans les livres" $CPA \
+  "origineType: 'paie', origine: famille, piece, tiers: null, libelle: entree," "origineType: 'paie', origine: famille, piece, tiers: null, libelle: entree + (await tx.query('select nom from paie.salarie where entreprise = \$1 limit 1', [entreprise])).rows.map((r) => ' ' + String(r.nom)).join('')," \
+  "$PN"
+prouver "un bulletin déplacé que son ancien mois garde" $VPA \
+  "    ? (await db.selectFrom('paie.bulletin').select(['annee', 'mois']).where('entreprise', '=', entreprise).where('ref_v10', 'in', bulletins.map((c) => c.cle)).execute())
+    : [];" "    ? []
+    : [];" \
+  "$PP"
+prouver "une avance illisible acceptée" $VPA \
+  "    if (apres === 'illisible') throw new Refus('v10.avance_illisible');" "" \
+  "$PP"
+prouver "une avance changée qui ne réécrit pas son mois" $VPA \
+  "    for (const a of [avant, apres]) if (a !== null && a !== 'illisible') mois.push(moisDe(a.date));" "" \
+  "$PP"
+prouver "la paie réécrite par qui ne la voit pas" $CPA \
+  "  if (!voit) throw new Error('les écritures de la paie se réécrivent par qui voit la paie');" "" \
+  "$PV"
+prouver "un plan changé qui ne réécrit pas la paie" serveur/v10/dossier.ts \
+  "    await reecrireLaPaie(tx, entreprise);" "" \
+  "$PP"
+prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0017_compta_paie.sql \
+  "'reglement_fournisseur', 'paie', 'salaires', 'avance'));" "'reglement_fournisseur', 'salaires', 'avance'));" \
+  "$PE"
+
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

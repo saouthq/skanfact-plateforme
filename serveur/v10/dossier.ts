@@ -18,6 +18,7 @@ import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonS
 import { suivreAchats } from './achats.ts';
 import { suivrePaie } from './paie.ts';
 import { reecrireLesAchats } from '../compta/achats.ts';
+import { reecrireLaPaie } from '../compta/paie.ts';
 import { planChange } from '../compta/suivre.ts';
 import { ecrireFamilleDeVente, reecrireLesVentes } from '../compta/ventes.ts';
 import { canonique, deviseV10 as devise, enNombreV10, estObjet, lirePaiements, nombreEnTexte, type Json } from './lecture.ts';
@@ -159,6 +160,7 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   if (await planChange(tx, entreprise, lus)) {
     await reecrireLesVentes(tx, entreprise);
     await reecrireLesAchats(tx, entreprise);
+    await reecrireLaPaie(tx, entreprise);
   }
   return resultat;
 }

@@ -96,7 +96,9 @@
     écriture validée. Les achats (brique 33, `serveur/compta/achats.ts`) : la famille d'une facture
     d'achat ou d'une dépense (ses avoirs et acomptes rattachés, tous leurs règlements ; une pièce
     libre est la sienne), réécrite avant ET après chaque envoi du dossier (`reecrireFamillesDAchat`).
-    Viennent : paie en totaux (34), validation (35).
+    La paie (brique 34, `serveur/compta/paie.ts`) : EN TOTAUX DU MOIS, sans un nom (03 § 2.1) ; le
+    mois est la famille ; salaires versés et avances en un total par jour et par compte ; seul qui
+    voit la paie la réécrit. Vient : la validation (35).
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

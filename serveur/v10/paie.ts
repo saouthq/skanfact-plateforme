@@ -11,6 +11,7 @@
 import { versTexte } from '../../moteur/argent.ts';
 import { calculerBulletin, type BaremePaie, type Bulletin } from '../../moteur/paie.ts';
 import { t } from '../../textes/index.ts';
+import { lireAvance, moisDe, reecrireLesMois, type Mois } from '../compta/paie.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { Refus } from '../erreurs.ts';
 import '../paie/textes.ts';
@@ -199,8 +200,19 @@ async function tenirBulletin(tx: Transaction, entreprise: string, utilisateur: s
 export async function suivrePaie(tx: Transaction, entreprise: string, utilisateur: string, changements: ChangementLu[]): Promise<void> {
   const salaries = changements.filter((c) => c.collection === 'employees' && estObjet(c.apres) && aVraimentChange(c));
   const bulletins = changements.filter((c) => c.collection === 'payslips' && aVraimentChange(c));
-  if (!salaries.length && !bulletins.length) return;
+  const avances = changements.filter((c) => c.collection === 'advances' && aVraimentChange(c));
+  if (!salaries.length && !bulletins.length && !avances.length) return;
   const db = requetes(tx);
+  // Les mois dont les écritures changent (brique 34) : celui de chaque bulletin AVANT l'envoi (un
+  // bulletin déplacé quitte son mois), et celui de chaque avance, avant et après.
+  const mois: Mois[] = bulletins.length
+    ? (await db.selectFrom('paie.bulletin').select(['annee', 'mois']).where('entreprise', '=', entreprise).where('ref_v10', 'in', bulletins.map((c) => c.cle)).execute())
+    : [];
+  for (const c of avances) {
+    const avant = lireAvance(c.avant), apres = c.apres === null ? null : lireAvance(c.apres);
+    if (apres === 'illisible') throw new Refus('v10.avance_illisible');
+    for (const a of [avant, apres]) if (a !== null && a !== 'illisible') mois.push(moisDe(a.date));
+  }
 
   // 1. Les fiches des salariés changés (avant leurs bulletins : un bulletin et son salarié arrivent souvent ensemble).
   for (const c of salaries) await ficheSalarie(tx, entreprise, utilisateur, c.cle, c.apres as Json);
@@ -216,4 +228,10 @@ export async function suivrePaie(tx: Transaction, entreprise: string, utilisateu
     await db.deleteFrom('paie.bulletin').where('id', '=', b.id).execute();
     await tracer(tx, entreprise, 'paie.bulletin.supprimer', { type: 'bulletin', id: b.id }, { annee: b.annee, mois: b.mois, net: b.net, coutEmployeur: b.cout_employeur, payeLe: b.paye_le }, null);
   }
+
+  // 4. Les écritures des mois touchés, avant et après l'envoi (en totaux, sans un nom).
+  if (bulletins.length) {
+    mois.push(...await db.selectFrom('paie.bulletin').select(['annee', 'mois']).where('entreprise', '=', entreprise).where('ref_v10', 'in', bulletins.map((c) => c.cle)).execute());
+  }
+  await reecrireLesMois(tx, entreprise, mois);
 }

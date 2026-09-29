@@ -27,6 +27,7 @@ declarerTextes({
   'v10.bulletin_ecart': 'le serveur ne trouve pas les mêmes montants que l\'écran pour le bulletin de {salarie} ({periode}) : {montant} vaut {ecran} à l\'écran, {serveur} au serveur. Rien n\'a été enregistré',
   'v10.bulletin_brut': 'le bulletin de {salarie} ({periode}) a un salaire brut nul une fois les absences déduites : ouvre-le et corrige ses jours d\'absence, ou supprime-le. Rien n\'a été enregistré',
   'v10.bulletin_net': 'le bulletin de {salarie} ({periode}) aurait un net négatif, ses retenues dépassent le salaire : ouvre-le et réduis une retenue (une avance se rembourse sur plusieurs mois), ou supprime-le. Rien n\'a été enregistré',
+  'v10.avance_illisible': 'une avance sur salaire n\'a pas de date ou de montant valable (un montant positif, trois décimales au plus) : rien n\'a été enregistré',
   'v10.bulletin_paye_le': 'la date de paiement du bulletin de {salarie} ({periode}) n\'est pas une date valable : rien n\'a été enregistré',
   'v10.achat_reglement_sans_identifiant': 'un règlement de l\'achat {numero} n\'a pas d\'identifiant : rien n\'a été enregistré',
   'v10.achat_reglement_double': 'deux règlements de l\'achat {numero} portent le même identifiant : rien n\'a été enregistré',

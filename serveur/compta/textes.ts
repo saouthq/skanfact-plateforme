@@ -31,4 +31,7 @@ declarerTextes({
   'compta.libelle.reglement_fournisseur': 'Règlement fournisseur {numero} — {fournisseur}',
   'compta.libelle.remboursement_fournisseur': 'Remboursement {numero} — {fournisseur}',
   'compta.libelle.retenue_operee': 'Retenue à la source opérée {numero}',
+  'compta.libelle.paie': 'Salaires {periode}',
+  'compta.libelle.salaires_verses': 'Salaires versés — {periode}',
+  'compta.libelle.avances': 'Avances sur salaire — {periode}',
 });

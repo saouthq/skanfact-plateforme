@@ -22,7 +22,7 @@ inaltérable (chaîne d'empreintes) ; la TVA se lit dans les livres (deux chemin
 |---|---|
 | **32** | Les tables de la comptabilité ; les écritures des **ventes** (facture, avoir, encaissements) tenues au fil des pièces ; les livres lus par l'API (journal, balance, grand livre). |
 | **33** | Les écritures des **achats** (facture, dépense, avoir, acompte, imputation) et des règlements fournisseurs ; la TVA du mois lue dans les livres du serveur. |
-| 34 | La **paie** en totaux du mois, sans un nom de salarié (`03` § 2.1), et les salaires versés. |
+| **34** | La **paie** en totaux du mois, sans un nom de salarié (`03` § 2.1), et les salaires versés. |
 | 35 | La **validation** : numéros par journal, chaîne d'empreintes, période close, contre-passation. |
 
 ## Brique 32 : les écritures des ventes
@@ -174,3 +174,51 @@ Changer le plan réécrit tout le brouillard des achats comme celui des ventes (
   arrive), l'imputation de l'acompte, la régularisation de l'avoir (0,332) égale à celle que la
   lecture de la facture annonce, l'avoir détaché qui devient sa propre famille, le fournisseur
   renommé, l'avoir retiré, les comptes auxiliaires (401001), la famille validée qui refuse.
+
+## Brique 34 : la paie en totaux du mois
+
+### 1. Pourquoi des totaux
+
+La comptabilité interne lit les livres ; elle ne lit jamais un salaire nommé (`03` § 2.1, « un
+total, sans nom », comme la masse salariale). La v10 écrit une écriture **par bulletin**, au nom du
+salarié ; le serveur écrit, pour chaque **mois**, sans aucun nom (ni libellé, ni tiers, ni pièce) :
+
+- **la paie du mois** (journal PAIE, au dernier jour du mois) : la somme des bulletins du mois,
+  compte par compte (`ecritureDeBulletin` du moteur, sur les totaux) : D salaires bruts, charges
+  patronales, taxes sur salaires ; C TFP et FOPROLOS, CNSS, IRPP et contribution sociale, personnel ;
+- **les salaires versés** : un total par jour et par compte de trésorerie (D personnel, C banque ou
+  caisse), le journal choisi comme pour tout règlement ;
+- **les avances sur salaire** versées ce mois-là (le dossier `advances`) : un total par jour et par
+  compte de trésorerie (D personnel, C trésorerie).
+
+Chaque compte, chaque jour, chaque journal porte donc exactement la somme de ce que la v10 écrit :
+la balance, le grand livre et la TVA sont les mêmes ; seul le détail par salarié n'est pas dans les
+livres (il est dans la paie, qui a ses droits).
+
+### 2. Le mois est la famille
+
+Chaque enregistrement qui touche un bulletin réécrit le mois du bulletin **avant** l'envoi (un
+bulletin déplacé quitte son mois) et **après** ; une avance, le mois de sa date avant et après. Un
+plan changé réécrit toute la paie. L'identifiant d'une famille de paie est tiré du mois (le même
+mois donne toujours la même famille).
+
+### Décisions (par délégation, 29/09/2026)
+
+- **D8.** La paie entre dans les livres en **totaux du mois**, sans un nom (`03` § 2.1). Le salaire
+  versé et l'avance aussi, par jour et par compte de trésorerie.
+- **D9.** Seul qui voit la paie en réécrit le brouillard (le dossier ne s'ouvre qu'au propriétaire et
+  à l'administrateur) : à quelqu'un d'autre, les totaux lus seraient vides et le mois s'effacerait ;
+  le serveur refuse plutôt que d'écrire un mois faux.
+- **D10.** Une avance sur salaire illisible (sans date, montant négatif ou à plus de trois
+  décimales) refuse l'enregistrement ; une avance nulle n'écrit rien (comme la v10).
+
+### Ce qui la prouve
+
+- Les 78 bulletins, les salaires versés et les avances de **l'exemple de cinq ans** : chaque jour,
+  chaque journal, chaque compte porte au serveur la somme des écritures de la v10 ; une écriture par
+  mois, pas une par bulletin ; aucun nom de salarié dans les livres (la v10, elle, les nomme).
+- Un parcours : deux bulletins le même mois (une écriture, leur somme), l'un déplacé en octobre (deux
+  mois réécrits), le salaire versé en espèces (la caisse), une avance par virement (la banque), une
+  avance illisible refusée sans rien écrire, un bulletin retiré.
+- Qui ne voit pas la paie ne peut pas en réécrire le brouillard ; la comptabilité interne lit la paie
+  dans les livres, jamais un bulletin.

@@ -125,7 +125,9 @@ export type LigneEcriturePaie = { compte: string; debit: bigint; credit: bigint 
 //                            rembourse solde le 425 qu'elle avait débité)
 // Un bulletin au brut nul ou au net négatif ne s'écrit jamais : l'écriture inverserait ses colonnes
 // et resterait plausible (la v10 le refuse au Cabinet depuis la 10.10.0).
-export function ecritureDeBulletin(b: Bulletin, comptes: ComptesPaie): { journal: 'PAIE'; lignes: LigneEcriturePaie[] } {
+// Sur un bulletin, ou sur la SOMME des bulletins d'un mois (le serveur écrit la paie en totaux, 03 § 2.1).
+export type MontantsEcrits = Pick<Bulletin, 'brut' | 'net' | 'cnssSalarie' | 'cnssEmployeur' | 'accidentTravail' | 'tfp' | 'foprolos' | 'irpp' | 'css' | 'autresRetenues'>;
+export function ecritureDeBulletin(b: MontantsEcrits, comptes: ComptesPaie): { journal: 'PAIE'; lignes: LigneEcriturePaie[] } {
   if (b.brut <= 0n || b.net < 0n) throw new Error('un bulletin au salaire nul ou négatif ne s\'écrit pas');
   const lignes: LigneEcriturePaie[] = [];
   const poser = (compte: string, montant: bigint, sens: 'debit' | 'credit') => {
