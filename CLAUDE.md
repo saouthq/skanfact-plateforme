@@ -86,6 +86,14 @@
     (`paie.mes_entreprises()`) ; chaque lecture se trace avec l'objet lu (`objetLu` d'une route) ;
     la masse salariale, sans nom, par `paie.masse_salariale`. Dans un test, l'écran de la
     plateforme se charge par `ecranDeLaPlateforme` (tests/moteur/v10.ts).
+  - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
+    (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
+    transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs
+    règlements : `serveur/compta/ventes.ts`), par le seul chemin `compta.ecrire_famille` (un
+    commercial émet sans lire les livres). Le plan : défauts de la v10 (`moteur/comptes.ts`) +
+    `chartAccounts`, auxiliaires, trésorerie du dossier (`serveur/compta/plan.ts`) ; un plan changé
+    réécrit le brouillard. La base refuse une écriture déséquilibrée et toute retouche d'une
+    écriture validée. Viennent : achats (33), paie en totaux (34), validation (35).
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

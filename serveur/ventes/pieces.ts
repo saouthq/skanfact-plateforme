@@ -18,6 +18,7 @@ import { regle, type RegleLue } from '../regles.ts';
 import { tracer } from '../trace.ts';
 import { motif } from '../../textes/index.ts';
 import { etatDeFacture } from './reglements.ts';
+import { ecrireFamilleDeVente } from '../compta/ventes.ts';
 import './textes.ts';
 
 // ── Ce qu'on saisit (les nombres arrivent en TEXTE, jamais en nombre à virgule) ─────────────────
@@ -259,6 +260,8 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
       retenue: versTexte(t.retenue, d), netAPayer: versTexte(t.netAPayer, d),
     });
   }
+  // Ses écritures (brique 32) : la famille de la facture se réécrit, dans la même transaction.
+  await ecrireFamilleDeVente(tx, entreprise, p.type === 'avoir' ? (p.corrige ?? id) : id);
   return { numero: numero.texte, totaux: t, devise: calcul.devise, empreinte: maillon.empreinte };
 }
 

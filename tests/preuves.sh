@@ -1478,5 +1478,96 @@ prouver "une clé employée par un module sans son texte" serveur/paie/textes.ts
 " "" \
   "chaque clé employée par le code est déclarée"
 
+# ── Les écritures des ventes tenues par le serveur (0015, brique 32) ────────────────────────────
+CVS=serveur/compta/ventes.ts
+CPL=serveur/compta/plan.ts
+M15=base/migrations/0015_compta.sql
+CV="chaque facture, chaque avoir et chaque encaissement de l'exemple s'écrit au serveur comme la v10"
+CT="la TVA collectée de chaque mois, les timbres et les retenues subies"
+CP="le plan comptable par défaut est celui de la v10"
+LG="chaque geste de l'écran réécrit la famille, jamais en double"
+LP="le plan de l'entreprise : ses propres comptes et ses comptes auxiliaires"
+LA="l'API lit le journal page après page"
+LD="les livres : la comptabilité interne et la lecture les lisent"
+LB="la base refuse elle-même une écriture déséquilibrée"
+prouver "un avoir écrit sans sa facture (ni son cours ni la retenue régularisée)" $CVS \
+  "{ facture: enDevise(f), regularisationRetenue: fil.ajustements.get(a.id) ?? 0n });" "{ facture: enDevise(a), regularisationRetenue: 0n });" \
+  "$LG"
+prouver "un encaissement écrit sans sa part de retenue" $CVS \
+  "fil.parts.get(r.id) ?? 0n, TND," "0n, TND," \
+  "$LG"
+prouver "la TVA d'une vente écrite au compte des ventes" $CVS \
+  "tvaCollectee: plan.plan.tvaCollectee," "tvaCollectee: plan.plan.ventes," \
+  "$CT"
+prouver "le libellé d'une écriture sans le nom du client" $CVS \
+  "  return typeof c?.raisonSociale === 'string' ? c.raisonSociale : '';" "  return '';" \
+  "$LA"
+prouver "un encaissement en espèces à la caisse quel que soit le compte de trésorerie" $CPL \
+  "  const caisse = t ? t.caisse : ESPECES.includes(mode);" "  const caisse = ESPECES.includes(mode);" \
+  "$LG"
+prouver "les comptes auxiliaires ignorés" $CPL \
+  "  const code = p.auxiliaires && tiers ? p.codesClients.get(tiers) : undefined;" "  const code = p.auxiliaires && tiers ? undefined : undefined;" \
+  "$LP"
+prouver "le plan réglé par l'entreprise ignoré" moteur/comptes.ts \
+  "    if (NUMERO_DE_COMPTE.test(texte)) plan[role] = texte;" "    if (NUMERO_DE_COMPTE.test(texte) && texte === '') plan[role] = texte;" \
+  "$LP"
+prouver "un compte par défaut qui n'est pas celui de la v10" moteur/comptes.ts \
+  "  ventes: '706'," "  ventes: '707'," \
+  "$CP"
+prouver "un plan changé qui ne réécrit pas le brouillard" serveur/v10/dossier.ts \
+  "  if (await planChange(tx, entreprise, lus)) await reecrireLesVentes(tx, entreprise);" "  if (await planChange(tx, entreprise, lus) && entreprise === '') await reecrireLesVentes(tx, entreprise);" \
+  "$LP"
+prouver "un compte de trésorerie ajouté qui ne change pas le plan" serveur/compta/suivre.ts \
+  "  if (vrais.some((c) => c.collection === 'accounts' &&" "  if (vrais.some((c) => c.collection === 'nulle-part' &&" \
+  "$LG"
+prouver "un encaissement qui ne réécrit pas sa famille" serveur/v10/dossier.ts \
+  "  // Les écritures de sa famille (brique 32) : ses encaissements, et ses avoirs qui en dépendent.
+  await ecrireFamilleDeVente(tx, entreprise, piece.id);" "" \
+  "$LG"
+prouver "une émission qui n'écrit pas son écriture" serveur/ventes/pieces.ts \
+  "  await ecrireFamilleDeVente(tx, entreprise, p.type === 'avoir' ? (p.corrige ?? id) : id);" "" \
+  "$LG"
+prouver "un avoir qui réécrit sa propre famille au lieu de celle de sa facture" serveur/ventes/pieces.ts \
+  "  await ecrireFamilleDeVente(tx, entreprise, p.type === 'avoir' ? (p.corrige ?? id) : id);" "  await ecrireFamilleDeVente(tx, entreprise, id);" \
+  "$LG"
+prouver "une famille réécrite sans effacer son ancien brouillard" $M15 \
+  "  delete from compta.ecriture where entreprise = p_entreprise and famille = p_famille and statut = 'brouillard';" "" \
+  "$LG"
+prouver "une famille validée réécrite par-dessus" $M15 \
+  "  if exists (select 1 from compta.ecriture where entreprise = p_entreprise and famille = p_famille and statut = 'validee') then" "  if false then" \
+  "$LB"
+prouver "la base qui garde une écriture déséquilibrée" $M15 \
+  "  if d <> c then" "  if false then" \
+  "$LB"
+prouver "la base qui garde une écriture d'une seule ligne" $M15 \
+  "  if n < 2 then" "  if false then" \
+  "$LB"
+prouver "la base qui garde une ligne des deux côtés" $M15 \
+  "  check ((debit = 0) <> (credit = 0))," "  check (true)," \
+  "$LB"
+prouver "la base qui laisse effacer une écriture validée" $M15 \
+  "  if old.statut = 'validee' then" "  if false then" \
+  "$LB"
+prouver "la base qui laisse bouger les lignes d'une écriture validée" $M15 \
+  "  select entreprise, statut into e from compta.ecriture where id = new.ecriture;
+  if found and e.statut = 'validee' then" "  select entreprise, statut into e from compta.ecriture where id = new.ecriture;
+  if false then" \
+  "$LB"
+prouver "la base qui accepte une ligne d'une autre entreprise" $M15 \
+  "  if not found or e.entreprise <> new.entreprise then" "  if not found then" \
+  "$LB"
+prouver "la base qui montre les livres au commercial" $M15 \
+  "   where socle.mes_roles(e) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'lecture']::text[]" "   where socle.mes_roles(e) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'lecture', 'commercial']::text[]" \
+  "$LD"
+prouver "un commercial qui lit les livres" serveur/compta/gestes.ts \
+  "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', lecture: 'voir' } }," "    roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', comptabilite_interne: 'oui', lecture: 'voir' } }," \
+  "$LD"
+prouver "le grand livre qui repart de zéro à chaque page" serveur/compta/routes.ts \
+  "      let solde = await soldeAvant(tx, entreprise, compte, p.du, apres);" "      let solde = await soldeAvant(tx, entreprise, compte, p.du, null);" \
+  "$LA"
+prouver "le journal qui ne suit pas l'ordre des dates" serveur/compta/routes.ts \
+  "        .orderBy('date_ecriture').orderBy('id').limit(n).execute();" "        .orderBy('date_ecriture', 'desc').orderBy('id').limit(n).execute();" \
+  "$LA"
+
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

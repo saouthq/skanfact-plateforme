@@ -17,6 +17,8 @@ import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonSaisi } from '../ventes/pieces.ts';
 import { suivreAchats } from './achats.ts';
 import { suivrePaie } from './paie.ts';
+import { planChange } from '../compta/suivre.ts';
+import { ecrireFamilleDeVente, reecrireLesVentes } from '../compta/ventes.ts';
 import { canonique, deviseV10 as devise, enNombreV10, estObjet, lirePaiements, nombreEnTexte, type Json } from './lecture.ts';
 import './textes.ts';
 
@@ -74,6 +76,8 @@ async function suivreReglements(tx: Transaction, entreprise: string, utilisateur
   if (!piece) throw new Error(`facture émise du dossier sans sa pièce au serveur : ${cle}`);
   const { decimales } = await db.selectFrom('socle.devise').select('decimales').where('code', '=', piece.devise).executeTakeFirstOrThrow();
   await tenirReglements(tx, REGLEMENTS_VENTES, entreprise, utilisateur, piece.id, lirePaiements(apres.payments, String(apres.number ?? ''), decimales, piece.devise));
+  // Les écritures de sa famille (brique 32) : ses encaissements, et ses avoirs qui en dépendent.
+  await ecrireFamilleDeVente(tx, entreprise, piece.id);
 }
 
 // ── Lire le dossier ─────────────────────────────────────────────────────────────────────────────
@@ -150,6 +154,8 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   const lus = changements.map((c) => ({ collection: c.collection, cle: c.cle, avant: actuels.get(`${c.collection}/${c.cle}`)?.contenu ?? null, apres: c.contenu }));
   await suivreAchats(tx, entreprise, utilisateur, lus);
   await suivrePaie(tx, entreprise, utilisateur, lus);
+  // Le plan comptable changé (comptes, auxiliaires, trésorerie) : tout le brouillard le suit (D3).
+  if (await planChange(tx, entreprise, lus)) await reecrireLesVentes(tx, entreprise);
   return resultat;
 }
 

@@ -79,6 +79,11 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'un bulletin ne change pas de salarié', cle: 'base.paie.bulletin_salarie', fr: 'un bulletin ne change pas de salarié' },
   { base: 'un bulletin appartient à l\'entreprise de son salarié', cle: 'base.paie.bulletin_entreprise', fr: 'un bulletin appartient à l\'entreprise de son salarié' },
   { base: 'ton rôle ne permet pas de voir la masse salariale', cle: 'base.paie.masse_interdite', fr: 'ton rôle ne permet pas de voir la masse salariale' },
+  { base: 'une écriture validée ne se modifie pas : elle se contre-passe', cle: 'base.compta.validee', fr: 'une écriture validée ne se modifie pas : elle se contre-passe' },
+  { base: 'une ligne appartient à l\'entreprise de son écriture', cle: 'base.compta.ligne_entreprise', fr: 'une ligne appartient à l\'entreprise de son écriture' },
+  { base: 'une écriture a au moins deux lignes', cle: 'base.compta.deux_lignes', fr: 'une écriture a au moins deux lignes' },
+  { base: 'une écriture est équilibrée : ses débits égalent ses crédits', cle: 'base.compta.equilibre', fr: 'une écriture est équilibrée : ses débits égalent ses crédits' },
+  { base: 'cette pièce a une écriture validée : elle se corrige par une contre-passation', cle: 'base.compta.famille_validee', fr: 'cette pièce a une écriture validée : elle se corrige par une contre-passation' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

@@ -71,6 +71,33 @@ export interface BaseDeDonnees {
     modifie_le: Generated<Date>;
     revision: Generated<bigint>;
   };
+  'compta.ecriture': {
+    id: Generated<string>;
+    entreprise: string;
+    journal: string;
+    date_ecriture: string;
+    origine_type: string;
+    origine: string;
+    famille: string;
+    rang: Generated<number>;
+    piece: string | null;
+    tiers: string | null;
+    libelle: string;
+    statut: Generated<string>;
+    numero: string | null;
+    cree_le: Generated<Date>;
+  };
+  'compta.ligne': {
+    id: Generated<string>;
+    ecriture: string;
+    entreprise: string;
+    rang: number;
+    compte: string;
+    libelle: string;
+    debit: Generated<bigint>;
+    credit: Generated<bigint>;
+    taux_tva: bigint | null;
+  };
   'paie.bulletin': {
     id: Generated<string>;
     entreprise: string;

@@ -61,7 +61,7 @@ export function dansLaDeviseDe(montant: bigint, source: EnDevise, cible: EnDevis
 export type Rattachement = { facture: EnDevise; regularisationRetenue: bigint };
 
 export function ecritureDeVente(
-  t: TotauxPiece, piece: { type: string; devise: Devise; cours?: bigint | undefined }, base: Devise, comptes: ComptesVente,
+  t: Pick<TotauxPiece, 'tvaParTaux' | 'timbreBase' | 'totalTTC'>, piece: { type: string; devise: Devise; cours?: bigint | undefined }, base: Devise, comptes: ComptesVente,
   rattachement?: Rattachement,
 ): Ecriture {
   if (piece.type !== 'facture' && piece.type !== 'avoir') throw new Error(`une pièce « ${piece.type} » ne s'écrit pas au journal des ventes`);
