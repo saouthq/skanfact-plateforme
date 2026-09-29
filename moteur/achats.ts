@@ -119,7 +119,7 @@ export function calculerAchat(a: Achat, base: Devise): TotauxAchat {
 // propre devise : en net (ce que la facture ne versera pas) et en brut (ce que le compte du
 // fournisseur ne portera plus). Un acompte couvre son montant entier (sa retenue a été opérée quand
 // il a été versé) ; un avoir couvre ce que le fournisseur n'a pas remboursé.
-export function imputationAchat(t: TotauxAchat, nature: NatureAchat, remboursements: Reglement[] = []): { net: bigint; brut: bigint } {
+export function imputationAchat(t: Pick<TotauxAchat, 'netAPayer' | 'retenue'>, nature: NatureAchat, remboursements: Reglement[] = []): { net: bigint; brut: bigint } {
   if (nature !== 'avoir') return { net: t.netAPayer, brut: t.netAPayer + t.retenue };
   const rendu = remboursements.reduce((s, r) => s + r.montant, 0n);
   const net = t.netAPayer - rendu;
@@ -225,7 +225,7 @@ export type SoldeAchat = { paye: bigint; impute: bigint; reste: bigint };
 // de chaque avoir et acompte, dans la devise de l'achat). Un avoir imputé est consommé par sa
 // facture (il ne doit plus rien) ; un avoir libre est un crédit détenu : son reste est négatif, et
 // il revient à zéro quand le fournisseur le rembourse.
-export function soldeAchat(t: TotauxAchat, nature: NatureAchat, rattache: boolean, reglements: bigint[], imputes: bigint[] = []): SoldeAchat {
+export function soldeAchat(t: Pick<TotauxAchat, 'netAPayer'>, nature: NatureAchat, rattache: boolean, reglements: bigint[], imputes: bigint[] = []): SoldeAchat {
   const paye = reglements.reduce((a, b) => a + b, 0n);
   if (nature === 'avoir') return { paye, impute: 0n, reste: rattache ? 0n : paye - t.netAPayer };
   const impute = imputes.reduce((a, b) => a + b, 0n);

@@ -5,7 +5,7 @@ import type { Achat, Destination, NatureAchat } from '../../moteur/achats.ts';
 import { DESTINATIONS } from '../../moteur/achats.ts';
 import { deviseDe, entier, exiger, type hasard, type Societe } from './v10.ts';
 
-export type LigneAchatV10 = { qty?: number | string; unitPrice?: number | string; vatRate?: number | string; destination?: string | undefined; deductible?: boolean };
+export type LigneAchatV10 = { label?: string; qty?: number | string; unitPrice?: number | string; vatRate?: number | string; destination?: string | undefined; deductible?: boolean };
 export type AchatV10 = {
   id?: string; kind?: string; currency?: string; exchangeRate?: number | string; lines?: LigneAchatV10[];
   fees?: number | string; withholdingRate?: number | string; tvaRecuperable?: boolean;

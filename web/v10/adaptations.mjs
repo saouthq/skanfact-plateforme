@@ -137,6 +137,30 @@ export const ADAPTATIONS = [
     avant: "        const v = formValues($('#pf2', root));\n        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');\n",
     apres: "        const v = formValues($('#pf2', root));\n        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');\n        if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus($('[name=amount]', root), `Un montant en ${cur} se compte à ${C.decimalsFor(cur)} décimales au plus.`);\n",
   },
+  // ── Les achats tenus par le serveur (brique 30, docs/achats.md) ──
+  // Le serveur tient chaque achat et ses règlements en entiers dans l'unité de la devise de la pièce :
+  // un montant plus précis se refuse sur son champ, avant d'enregistrer (comme le paiement d'une vente).
+  {
+    fichier: 'app.js',
+    pourquoi: 'un règlement fournisseur plus précis que sa devise se refuse sur son champ',
+    avant: "      $('#ok', root).onclick = async () => {\n        const v = formValues($('#spf', root));\n        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');\n",
+    apres: "      $('#ok', root).onclick = async () => {\n        const v = formValues($('#spf', root));\n        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');\n        if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus($('[name=amount]', root), `Un montant en ${cur} se compte à ${C.decimalsFor(cur)} décimales au plus.`);\n",
+  },
+  {
+    fichier: 'app.js',
+    pourquoi: 'des frais d\'achat plus précis que leur devise se refusent sur leur champ',
+    avant: "      if (p.dueDate && p.dueDate < p.date) return refus('[name=dueDate]', 'L\\'échéance ne peut pas précéder la date de la pièce.');\n      return true;\n",
+    apres: "      if (p.dueDate && p.dueDate < p.date) return refus('[name=dueDate]', 'L\\'échéance ne peut pas précéder la date de la pièce.');\n      if (bridge.emettre && (String(p.fees || 0).split('.')[1] || '').length > C.decimalsFor(p.currency || company().currency)) return refus('[name=fees]', `Des frais en ${p.currency || company().currency} se comptent à ${C.decimalsFor(p.currency || company().currency)} décimales au plus.`);\n      return true;\n",
+  },
+  // La v10 laissait supprimer une facture d'achat à laquelle un avoir ou un acompte était rattaché :
+  // l'avoir restait « imputé » à une facture qui n'existait plus. Le serveur le refuse (D2) ; l'écran
+  // le dit AVANT la question « Supprimer ? », avec ce qu'il faut faire.
+  {
+    fichier: 'app.js',
+    pourquoi: 'un achat auquel un avoir ou un acompte est rattaché ne se supprime pas : on le détache d\'abord',
+    avant: "    if ($('#del')) $('#del').onclick = async () => {\n      if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ? Les règlements enregistrés seront perdus.`)) return;\n",
+    apres: "    if ($('#del')) $('#del').onclick = async () => {\n      if (bridge.emettre && data.purchases.some(x => x.achatLie === p.id)) { toast('Un avoir ou un acompte est rattaché à cet achat : détache-le (ou supprime-le) d\\'abord. Rien n\\'a été supprimé.', true); return; }\n      if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ? Les règlements enregistrés seront perdus.`)) return;\n",
+  },
   // ── La caisse n'est pas encore en ligne (étape 4) ──
   // Un ticket est une facture numérotée sur l'ordinateur : le serveur la refuserait, et l'écran finirait
   // sur « Rien n'a été enregistré ». Le geste se refuse avec sa phrase, avant de rien vendre.

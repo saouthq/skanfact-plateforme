@@ -274,6 +274,8 @@ describe('le dossier v10 tenu par le serveur', () => {
     // Le règlement qui solde prend le reste de la retenue : 16,083 en tout.
     expect((await payer([p2, { id: 'p3', date: '2026-11-02', amount: { '~n': '757.107' }, method: 'virement' }])).statut).toBe(200);
     expect(await suivi()).toMatchObject({ reste: '0.000', statut: 'payee', retenueOperee: '16.083', retenueDue: '16.083' });
+    // La liste des factures dit le même reste que la lecture de la facture (une seule fonction).
+    expect((await appeler('GET', `/entreprises/${e.ent}/ventes`, e.jeton)).corps.lignes).toMatchObject([{ numero: 'FAC-2026-001', netAPayer: '1057.107', reste: '0.000' }]);
 
     // Un seul paiement illisible, et rien n'est écrit.
     const avant = await auServeur();

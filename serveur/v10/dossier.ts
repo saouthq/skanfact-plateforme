@@ -12,10 +12,14 @@
 import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { Perimee, Refus } from '../erreurs.ts';
+import { REGLEMENTS_VENTES, tenirReglements } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonSaisi } from '../ventes/pieces.ts';
-import { tenirReglements, type ReglementSaisi } from '../ventes/reglements.ts';
+import { suivreAchats } from './achats.ts';
+import { canonique, deviseV10 as devise, enNombreV10, estObjet, lirePaiements, nombreEnTexte, type Json } from './lecture.ts';
 import './textes.ts';
+
+export { enNombreV10, nombreEnTexte };
 
 export type Objet = { collection: string; cle: string; rang: number | null; contenu: unknown; revision: number };
 export type Changement = { collection: string; cle: string; rang: number | null; revision: number | null; contenu: unknown };
@@ -26,23 +30,6 @@ export class Conflit extends Perimee {
   constructor(objets: { collection: string; cle: string }[]) { super('v10.conflit'); this.objets = objets; }
 }
 
-type Json = Record<string, unknown>;
-const estObjet = (v: unknown): v is Json => typeof v === 'object' && v !== null && !Array.isArray(v);
-
-// Un nombre de la v10, tel que l'interface l'a écrit (un entier, ou { "~n": "450.5" }), en texte exact.
-export function nombreEnTexte(v: unknown): string {
-  if (typeof v === 'number' && Number.isInteger(v)) return String(v);
-  if (estObjet(v) && typeof v['~n'] === 'string') return v['~n'];
-  if (typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v.trim())) return v.trim();
-  return '0';
-}
-// Un nombre en texte exact, écrit comme l'interface l'écrit elle-même (sans zéro inutile : « 1.000 »
-// devient 1, « 0.600 » devient { "~n": "0.6" }) : relu puis réécrit, il ne change pas d'un caractère.
-export function enNombreV10(texte: string): number | { '~n': string } {
-  const t = texte.includes('.') ? texte.replace(/0+$/, '').replace(/\.$/, '') : texte;
-  return /^-?\d+$/.test(t) ? Number(t) : { '~n': t };
-}
-
 // ── Les pièces : ce qu'une facture émise ne change plus ─────────────────────────────────────────
 // Tout ce qui a servi à la calculer et à la numéroter, et pour un avoir la facture qu'il corrige et
 // son motif imprimé (le reste, ses règlements, ses relances, ses justificatifs, suit sa vie). Une
@@ -51,13 +38,6 @@ const PIECES_LEGALES = ['facture', 'avoir'];
 const SCELLE = ['type', 'number', 'date', 'clientId', 'currency', 'exchangeRate', 'lines', 'discountRate', 'withholdingRate', 'applyStamp', 'stampFee', 'creditOf', 'creditReason'];
 // Le statut d'une pièce émise, tel que la v10 l'écrit (STATUSES de core.js).
 const STATUT_EMISE: Record<string, string> = { facture: 'envoyée', avoir: 'émis' };
-// Deux contenus égaux, quel que soit l'ordre de leurs champs (la base range les champs d'un objet
-// JSON à sa façon : comparer les textes tels quels verrait un changement là où il n'y en a pas).
-function canonique(v: unknown): string {
-  if (Array.isArray(v)) return `[${v.map(canonique).join(',')}]`;
-  if (estObjet(v)) return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonique(v[k])}`).join(',')}}`;
-  return JSON.stringify(v ?? null);
-}
 const emise = (d: Json | null) => !!d && typeof d.number === 'string' && d.number !== '' && d.status !== 'brouillon';
 
 function verifierPiece(avant: Json | null, apres: Json | null) {
@@ -79,42 +59,6 @@ function verifierPiece(avant: Json | null, apres: Json | null) {
 }
 
 // ── Les règlements d'une facture (0012) ─────────────────────────────────────────────────────────
-// Un jour du calendrier : « 2026-10-01 », et qui existe.
-// (Un « 13e mois » donne une date invalide : elle se refuse, elle ne fait pas tomber le serveur.)
-const estJour = (v: unknown): v is string => {
-  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
-  const d = new Date(`${v}T00:00:00Z`);
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
-};
-const texteOuNul = (v: unknown, max: number) => (typeof v === 'string' && v.trim() !== '' ? v.slice(0, max) : null);
-
-// Les paiements d'une facture émise, tels que la v10 les a saisis (`documents[].payments`), lus et
-// vérifiés : un seul illisible, et rien n'est enregistré.
-function lirePaiements(doc: Json, decimales: number, devise: string): ReglementSaisi[] {
-  const numero = String(doc.number ?? '');
-  const liste = Array.isArray(doc.payments) ? doc.payments : [];
-  const vus = new Set<string>();
-  return liste.map((p, rang) => {
-    if (!estObjet(p) || typeof p.id !== 'string' || p.id === '' || p.id.length > 200) throw new Refus('v10.reglement_sans_identifiant', { valeurs: { numero } });
-    if (vus.has(p.id)) throw new Refus('v10.reglement_double', { valeurs: { numero } });
-    vus.add(p.id);
-    if (!estJour(p.date)) throw new Refus('v10.reglement_date', { valeurs: { numero } });
-    const texte = nombreEnTexte(p.amount);
-    let montant: bigint;
-    try { montant = depuisTexte(texte, decimales); } catch { throw new Refus('v10.reglement_decimales', { valeurs: { devise, decimales: String(decimales), montant: texte } }); }
-    if (montant === 0n) throw new Refus('v10.reglement_montant', { valeurs: { numero } });
-    let cours: bigint | null = null;
-    if (p.exchangeRate !== undefined && p.exchangeRate !== null && p.exchangeRate !== '') {
-      try { cours = depuisTexte(nombreEnTexte(p.exchangeRate), DECIMALES.cours); } catch { cours = 0n; }
-      if (cours <= 0n) throw new Refus('v10.reglement_cours', { valeurs: { numero } });
-    }
-    return {
-      ref: p.id, rang, date: p.date, montant, cours,
-      mode: texteOuNul(p.method, 40) ?? 'inconnu', compte: texteOuNul(p.accountId, 200), reference: texteOuNul(p.reference, 200), note: texteOuNul(p.note, 1000),
-    };
-  });
-}
-
 // Après l'enregistrement d'une pièce du dossier : une facture émise voit ses règlements tenus par le
 // serveur ; une pièce légale qui n'est pas une facture émise n'en a aucun.
 async function suivreReglements(tx: Transaction, entreprise: string, utilisateur: string, cle: string, apres: Json | null) {
@@ -128,7 +72,7 @@ async function suivreReglements(tx: Transaction, entreprise: string, utilisateur
   const piece = await db.selectFrom('ventes.piece').select(['id', 'devise']).where('entreprise', '=', entreprise).where('ref_v10', '=', cle).where('statut', '=', 'emise').executeTakeFirst();
   if (!piece) throw new Error(`facture émise du dossier sans sa pièce au serveur : ${cle}`);
   const { decimales } = await db.selectFrom('socle.devise').select('decimales').where('code', '=', piece.devise).executeTakeFirstOrThrow();
-  await tenirReglements(tx, entreprise, utilisateur, piece.id, lirePaiements(apres, decimales, piece.devise));
+  await tenirReglements(tx, REGLEMENTS_VENTES, entreprise, utilisateur, piece.id, lirePaiements(apres.payments, String(apres.number ?? ''), decimales, piece.devise));
 }
 
 // ── Lire le dossier ─────────────────────────────────────────────────────────────────────────────
@@ -199,6 +143,9 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
       await tracer(tx, entreprise, c.contenu === null ? 'v10.piece.supprimer' : 'v10.piece.modifier', { type: 'piece_v10', id: null }, a ? { cle: c.cle, revision: a.revision } : null, c.contenu === null ? null : { cle: c.cle });
     }
   }
+  // Les achats et les fournisseurs, une fois TOUT l'envoi écrit : une pièce rattachée et sa facture,
+  // un achat et son fournisseur, arrivent souvent ensemble (0013, serveur/v10/achats.ts).
+  await suivreAchats(tx, entreprise, utilisateur, changements.map((c) => ({ collection: c.collection, cle: c.cle, avant: actuels.get(`${c.collection}/${c.cle}`)?.contenu ?? null, apres: c.contenu })));
   return resultat;
 }
 
@@ -206,8 +153,6 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
 // La série de la v10 de chaque pièce (« FAC-2026-001 », « AVO-2026-001 ») : core.js, PREFIXES.
 const SERIE_V10: Record<string, string> = { facture: 'FAC', avoir: 'AVO' };
 type LigneV10 = { label?: unknown; description?: unknown; qty?: unknown; unitPrice?: unknown; vatRate?: unknown; noDiscount?: unknown };
-// La devise de la v10 (« DT ») et celle du serveur (« TND »).
-const devise = (c: unknown) => (!c || c === 'DT' || c === 'TND' ? 'TND' : String(c));
 // Un nombre de la v10 à `dec` décimales au plus : lu exactement, jamais arrondi en silence (un nombre
 // qui en a trop est refusé par le calcul, sur la pièce).
 const decimal = (v: unknown, dec: number) => { const t = nombreEnTexte(v); depuisTexte(t, dec); return t; };

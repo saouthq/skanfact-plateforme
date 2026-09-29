@@ -58,6 +58,10 @@ export const CLASSEMENT: Record<string, Classe> = {
   'ventes.ligne': { classe: 'entreprise' },
   // Les règlements d'une facture (0012) : ils partent avec elle.
   'ventes.reglement': { classe: 'entreprise' },
+  // Les achats (0013) : la pièce du fournisseur, ses lignes, ses règlements.
+  'achats.piece': { classe: 'entreprise' },
+  'achats.ligne': { classe: 'entreprise' },
+  'achats.reglement': { classe: 'entreprise' },
   // Le dossier v10 de l'entreprise (0011) : ce que son interface tient, objet par objet.
   'socle.dossier_v10': { classe: 'entreprise' },
   // Le code d'un cabinet n'est pas repris : unique sur la plateforme, il reste à son cabinet.

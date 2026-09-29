@@ -71,6 +71,10 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'cet abonnement est déjà arrêté', cle: 'base.avis.deja_arrete', fr: 'cet abonnement est déjà arrêté' },
   { base: 'une entreprise d\'essai le reste, et une vraie ne le devient jamais', cle: 'base.essai.immuable', fr: 'une entreprise d\'essai le reste, et une vraie ne le devient jamais' },
   { base: 'tu as déjà une entreprise d\'essai', cle: 'base.essai.deja', fr: 'tu as déjà une entreprise d\'essai' },
+  { base: 'le fournisseur appartient à l\'entreprise de l\'achat', cle: 'base.achats.fournisseur', fr: 'le fournisseur appartient à l\'entreprise de l\'achat' },
+  { base: 'un avoir ou un acompte se rattache à une facture ou une dépense de son entreprise', cle: 'base.achats.lie', fr: 'un avoir ou un acompte se rattache à une facture ou une dépense de son entreprise' },
+  { base: 'un règlement ne change pas de pièce', cle: 'base.achats.reglement_piece', fr: 'un règlement ne change pas de pièce' },
+  { base: 'un règlement porte sur un achat de son entreprise', cle: 'base.achats.reglement_achat', fr: 'un règlement porte sur un achat de son entreprise' },
   { base: 'les lignes d\'une pièce émise ne se modifient plus (01 R6)', cle: 'base.ventes.lignes_emises', fr: 'les lignes d\'une pièce émise ne se modifient plus' },
 ];
 

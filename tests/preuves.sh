@@ -1214,19 +1214,19 @@ prouver "une facture émise qu'on marque annulée" $DV \
   "    if (apres.status === 'annulée') throw new Refus('v10.annulee', numero);
     if (apres.status !== STATUT_EMISE[type])" "    if (!['envoyée', 'annulée', 'émis'].includes(String(apres.status)))" \
   "une facture émise ne change plus ce qui a été scellé"
-prouver "un règlement enregistré sans sa trace" $RGS \
-  "      await tracer(tx, entreprise, 'ventes.reglement.enregistrer', { type: 'reglement', id }, null, pourTrace(r));" "" \
+prouver "un règlement enregistré sans sa trace" serveur/reglements.ts \
+  "      await tracer(tx, entreprise, \`\${cote.trace}.enregistrer\`, { type: 'reglement', id }, null, pourTrace(r));" "" \
   "$RG"
-prouver "un règlement retiré de l'écran qui reste au serveur" $RGS \
-  "    await db.deleteFrom('ventes.reglement').where('id', '=', a.id).execute();" "" \
+prouver "un règlement retiré de l'écran qui reste au serveur" serveur/reglements.ts \
+  "    await db.deleteFrom(table).where('id', '=', a.id).execute();" "" \
   "$RG"
-prouver "un règlement modifié qui garde son ancien montant au serveur" $RGS \
+prouver "un règlement modifié qui garde son ancien montant au serveur" serveur/reglements.ts \
   "    const change = avant.date !== r.date || avant.montant !== r.montant ||" "    const change = avant.date !== r.date ||" \
   "$RG"
-prouver "un paiement plus précis que sa devise accepté" $DV \
+prouver "un paiement plus précis que sa devise accepté" serveur/v10/lecture.ts \
   "    try { montant = depuisTexte(texte, decimales); }" "    try { montant = depuisTexte(texte, 6); }" \
   "$RG"
-prouver "un paiement daté d'un jour qui n'existe pas" $DV \
+prouver "un paiement daté d'un jour qui n'existe pas" serveur/v10/lecture.ts \
   "  if (typeof v !== 'string' || !/^\\d{4}-\\d{2}-\\d{2}\$/.test(v)) return false;" "  if (typeof v === 'string') return true;" \
   "$RG"
 prouver "la retenue ôtée des règlements (le reste compté sur le brut)" $RGS \
@@ -1248,13 +1248,110 @@ prouver "« Marquer annulée… » encore proposé" $V10A \
   "\${bridge.emettre ? '' : s.status === 'annulée' ?" "\${s.status === 'annulée' ?" \
   "$PX"
 prouver "un paiement trop précis découvert seulement à l'enregistrement" $V10A \
-  "        if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus(\$('[name=amount]', root), \`Un montant en \${cur} se compte à \${C.decimalsFor(cur)} décimales au plus.\`);
-" "" \
+  "        const v = formValues(\$('#pf2', root));
+        if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Montant invalide.');
+        if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus(\$('[name=amount]', root), \`Un montant en \${cur} se compte à \${C.decimalsFor(cur)} décimales au plus.\`);
+" "        const v = formValues(\$('#pf2', root));
+        if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Montant invalide.');
+" \
   "$PX"
 prouver "la caisse qui vend sans le serveur" $V10A \
   "        if (bridge.emettre) { toast('La caisse n\\'est pas encore dans la version en ligne de SkanFact : rien n\\'a été vendu.', true); return; }
 " "" \
   "la caisse n'est pas encore en ligne"
+
+# ── Les achats tenus par le serveur (0013, brique 30) ───────────────────────────────────────────
+VA=serveur/v10/achats.ts
+EA=serveur/achats/etat.ts
+M13=base/migrations/0013_achats.sql
+ACX="les 181 achats de l'exemple de cinq ans"
+AH="200 achats tirés au hasard"
+AM="un achat se modifie et se supprime comme dans la v10"
+ARG="sans choix sur la pièce, récupérer la TVA suit le régime"
+AR="un avoir et un acompte rattachés se déduisent de leur facture"
+AI="un seul achat illisible, et rien de l'envoi n'est écrit"
+AL="la liste des achats, page après page"
+AB="la base refuse elle-même un fournisseur ou une facture"
+AP="un achat saisi, réglé puis corrigé par un avoir, à la souris"
+prouver "un achat qui ignore le choix « récupérer la TVA » de sa pièce" $VA \
+  "    tvaRecuperable: typeof p.tvaRecuperable === 'boolean' ? p.tvaRecuperable : recuperableParDefaut," "    tvaRecuperable: recuperableParDefaut," \
+  "$AH"
+prouver "un achat qui ignore le régime de l'entreprise" $VA \
+  "  const recuperable = !REGIMES_SANS_TVA.includes(String(societe?.taxRegime ?? '').trim());" "  const recuperable = societe !== undefined;" \
+  "$ARG"
+prouver "une ligne d'achat dont la TVA non déductible est déduite" $VA \
+  "nonDeductible: x.deductible === false };" "nonDeductible: false };" \
+  "$AH"
+prouver "une ligne d'achat rangée en charge quoi qu'elle soit" $VA \
+  "    const destination = (DESTINATIONS as unknown[]).includes(x.destination) ? x.destination as Destination : 'charge';" "    const destination: Destination = DESTINATIONS[0] ?? 'charge';" \
+  "$AM"
+prouver "les frais d'un achat oubliés dans son total" $VA \
+  "lignes: a.lignes.map((l) => ({ ...l })), frais: a.frais," "lignes: a.lignes.map((l) => ({ ...l }))," \
+  "$AM"
+prouver "un achat seulement déplacé dans la liste, recalculé et tracé" $VA \
+  "  const change = (c: ChangementLu) => c.apres === null || c.avant === null || canonique(c.avant) !== canonique(c.apres);" "  const change = (c: ChangementLu) => c.apres !== undefined || canonique(c.avant) === '';" \
+  "$AM"
+prouver "un avoir rattaché que le serveur ne rattache pas" $VA \
+  "    await db.updateTable('achats.piece').set({ lie: cible })" "    await db.updateTable('achats.piece').set({})" \
+  "$AR"
+prouver "une facture supprimée sous son avoir" $VA \
+  "    if (rattachee) throw new Refus('v10.achat_rattache');" "" \
+  "$AR"
+prouver "un avoir en euros rattaché à une facture en dinars" $VA \
+  "eb.or([eb('f.devise', '<>', eb.ref('p.devise')), eb.not(" "eb.or([eb.not(" \
+  "$AR"
+prouver "un achat en devise accepté sans son taux" $VA \
+  "    if (cours === null || cours <= 0n) throw new Refus('v10.achat_cours', { valeurs: { numero, devise } });" "    if (cours === null || cours <= 0n) cours = 1_000_000n;" \
+  "$AI"
+prouver "des frais plus précis que leur devise acceptés" $VA \
+  "  const frais = exact(p.fees ?? 0, d.decimales);" "  const frais = exact(p.fees ?? 0, 6);" \
+  "$AI"
+prouver "un achat dont le fournisseur n'existe pas, accepté sans fournisseur" $VA \
+  "      if (!s) throw new Refus('v10.achat_fournisseur', { valeurs: { numero } });
+      fournisseur = await ficheFournisseur(tx, entreprise, ref, s);" "      if (s) fournisseur = await ficheFournisseur(tx, entreprise, ref, s);" \
+  "$AI"
+prouver "un règlement d'achat refusé avec les phrases d'une facture de vente" $VA \
+  ", a.decimales, a.devise, 'v10.achat_reglement'));" ", a.decimales, a.devise));" \
+  "$AI"
+prouver "la retenue d'un achat oubliée au fil de ses règlements" $EA \
+  "    const fil = retenueAuFil(t.netAPayer, t.netAPayer + t.retenue, pl, regs);" "    const fil = retenueAuFil(t.netAPayer, t.netAPayer, pl, regs);" \
+  "$ACX"
+prouver "un avoir rattaché qui ne diminue pas le reste de sa facture" $EA \
+  "regs.map((r) => r.montant), pl.map((x) => x.net));" "regs.map((r) => r.montant), []);" \
+  "$AR"
+prouver "la liste des achats qui annonce le net au lieu du reste" serveur/achats/routes.ts \
+  "            reste: etats.get(l.id)?.reste ?? null," "            reste: versTexte(l.net_a_payer, l.decimales)," \
+  "$AL"
+prouver "une page d'achats qui saute ceux du même jour" serveur/achats/routes.ts \
+  "q.where((eb) => eb.or([eb('p.date_piece', '<', avant?.[0] ?? ''), eb.and([eb('p.date_piece', '=', avant?.[0] ?? ''), eb('p.id', '<', avant?.[1] ?? '')])]))" "q.where('p.date_piece', '<', avant?.[0] ?? '')" \
+  "$AL"
+prouver "un commercial qui voit les achats" serveur/achats/gestes.ts \
+  "roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', lecture: 'voir' } }," "roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', comptabilite_interne: 'oui', lecture: 'voir' } }," \
+  "$AL"
+prouver "la liste des factures de vente qui annonce le net au lieu du reste" serveur/ventes/routes.ts \
+  "              reste: soldes.has(l.id) ? versTexte(soldes.get(l.id)?.reste ?? 0n, l.decimales) : net," "              reste: net," \
+  "$RG"
+prouver "la base qui accepte le fournisseur d'une autre entreprise" $M13 \
+  "  if new.fournisseur is not null and not exists (" "  if false and not exists (" \
+  "$AB"
+prouver "la base qui laisse un règlement changer d'achat" $M13 \
+  "  if tg_op = 'UPDATE' and new.piece <> old.piece then
+    raise exception 'un règlement ne change pas de pièce'" "  if false then
+    raise exception 'un règlement ne change pas de pièce'" \
+  "$AB"
+prouver "l'écran qui laisse supprimer une facture sous son avoir" $V10A \
+  "      if (bridge.emettre && data.purchases.some(x => x.achatLie === p.id))" "      if (false)" \
+  "$AP"
+prouver "un règlement fournisseur trop précis découvert seulement à l'enregistrement" $V10A \
+  "        const v = formValues(\$('#spf', root));
+        if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Montant invalide.');
+        if (bridge.emettre" "        const v = formValues(\$('#spf', root));
+        if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Montant invalide.');
+        if (false" \
+  "$AP"
+prouver "des frais d'achat trop précis découverts seulement à l'enregistrement" $V10A \
+  "      if (bridge.emettre && (String(p.fees || 0)" "      if (false && (String(p.fees || 0)" \
+  "$AP"
 
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

@@ -71,6 +71,13 @@
     `serveur/ventes/reglements.ts`), chaque geste tracé ; reste, statut et retenue au fil se
     déduisent par le moteur et se lisent par l'API. Une facture émise ne s'annule pas (un avoir la
     corrige) ; la caisse se refuse avec sa phrase jusqu'à l'étape 4.
+  - **Les achats** (brique 30, `docs/achats.md`) : chaque achat du dossier (facture fournisseur,
+    dépense, avoir, acompte), ses lignes et ses règlements sont vérifiés, calculés par le moteur et
+    tenus par le serveur (`achats.*`, 0013, `serveur/v10/achats.ts`), une fois tout l'envoi écrit ;
+    les fournisseurs ont leur fiche (`socle.tiers`, rôle « fournisseur ») ; l'API lit la liste et
+    chaque achat (reste, statut, retenue de chaque règlement : `serveur/achats/`, un seul calcul pour
+    les deux). La tenue des règlements (`serveur/reglements.ts`) et la lecture des paiements de la
+    v10 (`serveur/v10/lecture.ts`) sont partagées par les ventes et les achats.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

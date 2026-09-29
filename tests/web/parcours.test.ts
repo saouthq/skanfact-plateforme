@@ -310,6 +310,89 @@ describe('le parcours, à la souris', () => {
     expect(qui.erreurs).toEqual([]);
   }, 120_000);
 
+  it('un achat saisi, réglé puis corrigé par un avoir, à la souris : le serveur tient la pièce, son règlement et l\'avoir rattaché ; l\'écran et le serveur disent le même reste ; la facture ne se supprime pas sous son avoir', async () => {
+    const qui = await inscrite('Nadia Ferchichi');
+    await qui.api('GET', `/entreprises/${qui.essai}/dossier-v10`, qui.jeton);
+    await qui.api('POST', `/entreprises/${qui.essai}/dossier-v10`, qui.jeton, { changements: [
+      { collection: 'suppliers', cle: 's1', rang: 0, revision: null, contenu: { id: 's1', name: 'Bureau Plus SARL', contact: '', matricule: '', address: '', phone: '', email: '', rib: '', bank: '', notes: '', paymentTermsDays: '', withholdingRate: '' } },
+    ] });
+    const p = await qui.ouvrir(qui.essai, '#/achats');
+    const auServeur = async () => (await admin.query('select ref_v10, nature, numero_fournisseur, net_a_payer, lie from achats.piece where entreprise = $1 order by cree_le', [qui.essai])).rows;
+    // La facture du fournisseur : 40 × 12,345 à 19 %, 1,000 de frais, retenue 1,5 % → 579,808 DT.
+    await p.locator('#new').click();
+    await pageV10(p, /Nouvelle facture/);
+    await plusTard(p);
+    await p.locator('[data-combo=supplierId] .combo-btn').click();
+    await p.locator('[data-combo=supplierId] .combo-q').fill('Bureau');
+    await p.locator('[data-combo=supplierId] .combo-list [role=option]').first().click();
+    await p.locator('#view input[name=number]').fill('FA-2026-0412');
+    await p.locator('#view input[name=fees]').fill('1');
+    await p.locator('#view select[name=withholdingRate]').selectOption('1.5');
+    await p.locator('#b-lines input[data-k=label]').first().fill('Ramettes de papier');
+    await p.locator('#b-lines input[data-k=qty]').first().fill('40');
+    await p.locator('#b-lines input[data-k=unitPrice]').first().fill('12.345');
+    // Des frais plus précis que le dinar se refusent sur leur champ, avant d'enregistrer.
+    await p.locator('#view input[name=fees]').fill('1.2345');
+    await p.locator('#save').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toContain('Des frais en DT se comptent à 3 décimales au plus.');
+    expect(await auServeur()).toEqual([]);
+    await p.locator('#view input[name=fees]').fill('1');
+    await p.locator('#save').click();
+    await expect.poll(auServeur).toMatchObject([{ nature: 'facture', numero_fournisseur: 'FA-2026-0412', net_a_payer: 579808n }]);
+    await pageV10(p, /FA-2026-0412/);
+    await plusTard(p);
+
+    // Un règlement : trop précis, il se refuse sur son champ ; 300,000 s'enregistre au serveur.
+    await p.locator('#pay').click();
+    await p.locator('#spf input[name=amount]').fill('300.1234');
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toContain('Un montant en DT se compte à 3 décimales au plus.');
+    await p.locator('#spf input[name=amount]').fill('300');
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(async () => (await admin.query('select montant from achats.reglement where entreprise = $1', [qui.essai])).rows.map((r) => r.montant)).toEqual([300000n]);
+
+    // L'avoir, depuis la liste : « Saisir un avoir sur cette pièce » le rattache tout seul.
+    await p.locator('#nav a[href="#/achats"], a[href="#/achats"]').first().click();
+    await pageV10(p, /Achats/);
+    await p.locator('tr', { hasText: 'FA-2026-0412' }).getByRole('button', { name: /Actions/ }).click();
+    await p.getByText('Saisir un avoir sur cette pièce', { exact: true }).click();
+    await pageV10(p, /avoir/i);
+    await plusTard(p);
+    await p.locator('#view input[name=number]').fill('AV-2026-0033');
+    await p.locator('#b-lines input[data-k=label]').first().fill('Ramettes abîmées');
+    await p.locator('#b-lines input[data-k=qty]').first().fill('4');
+    await p.locator('#b-lines input[data-k=unitPrice]').first().fill('12.345');
+    await p.locator('#save').click();
+    await expect.poll(async () => (await auServeur()).length).toBe(2);
+    const [f, av] = await auServeur();
+    expect(av).toMatchObject({ nature: 'avoir', numero_fournisseur: 'AV-2026-0033', lie: expect.any(String) });
+    await p.screenshot({ path: path.join(PHOTOS, 'achat-avoir.png') });
+
+    // Deux chemins, un chiffre : le reste que l'écran calcule est celui du serveur.
+    const ecran = await p.evaluate(() => {
+      const w = window as unknown as { __data: { purchases: { number: string }[]; company: unknown }; SkanCore: { purchaseBalance: (x: unknown, c: unknown, d: unknown) => { remaining: number }; purchaseStatus: (x: unknown, c: unknown, j: undefined, d: unknown) => string } };
+      const x = w.__data.purchases.find((y) => y.number === 'FA-2026-0412');
+      return { reste: w.SkanCore.purchaseBalance(x, w.__data.company, w.__data).remaining.toFixed(3), statut: w.SkanCore.purchaseStatus(x, w.__data.company, undefined, w.__data) };
+    });
+    const id = String((await admin.query('select id from achats.piece where entreprise = $1 and ref_v10 = $2', [qui.essai, f?.ref_v10])).rows[0].id);
+    const serveur = (await qui.api('GET', `/entreprises/${qui.essai}/achats/${id}`, qui.jeton)).suivi as { reste: string; statut: string };
+    // L'avoir reprend la retenue de sa facture : 58,762 − 0,881 = 57,881 ; 579,808 − 300,000 − 57,881 = 221,927.
+    expect({ ecran: ecran.reste, serveur: serveur.reste, statut: serveur.statut }).toEqual({ ecran: '221.927', serveur: '221.927', statut: 'partiel' });
+    expect(ecran.statut).toBe('partiel');
+
+    // La facture ne se supprime pas tant que l'avoir y est rattaché : l'écran le dit avant de demander.
+    await p.locator('#nav a[href="#/achats"], a[href="#/achats"]').first().click();
+    await pageV10(p, /Achats/);
+    await p.locator('tr', { hasText: 'FA-2026-0412' }).first().click();
+    await pageV10(p, /FA-2026-0412/);
+    await p.locator('#more-btn').click();
+    await p.locator('#del').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toContain('Un avoir ou un acompte est rattaché à cet achat');
+    expect(await auServeur()).toHaveLength(2);
+    expect(await p.getByText('Rien n\'a été enregistré').count()).toBe(0);
+    expect(qui.erreurs).toEqual([]);
+  }, 120_000);
+
   it('la caisse n\'est pas encore en ligne : « Encaisser » le dit, et rien n\'est vendu ni écrit', async () => {
     const qui = await inscrite('Walid Chaabane');
     // Un compte de caisse et un article au prix connu : tout ce que la caisse de la v10 demande (le

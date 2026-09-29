@@ -8405,6 +8405,7 @@
       $('#ok', root).onclick = async () => {
         const v = formValues($('#spf', root));
         if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');
+        if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus($('[name=amount]', root), `Un montant en ${cur} se compte à ${C.decimalsFor(cur)} décimales au plus.`);
         if (!v.date) return refus($('[name=date]', root), 'Date invalide.');
         if ($('[name=exchangeRate]', root) && !(Number(v.exchangeRate) > 0)) return refus($('[name=exchangeRate]', root), 'Taux du jour invalide : saisis combien de dinars valait une unité de la devise ce jour-là.');
         if (v.date > C.today() && !await confirmDialog(`La date (${C.fmtDate(v.date)}) est dans le futur. Enregistrer quand même ?`, 'Enregistrer', undefined, { titre: 'Un règlement daté dans le futur' })) return;
@@ -9105,6 +9106,7 @@
         }
       }
       if (p.dueDate && p.dueDate < p.date) return refus('[name=dueDate]', 'L\'échéance ne peut pas précéder la date de la pièce.');
+      if (bridge.emettre && (String(p.fees || 0).split('.')[1] || '').length > C.decimalsFor(p.currency || company().currency)) return refus('[name=fees]', `Des frais en ${p.currency || company().currency} se comptent à ${C.decimalsFor(p.currency || company().currency)} décimales au plus.`);
       return true;
     }
     // Saisir deux fois la même facture fournisseur ne déclenchait RIEN : elle entrait deux fois dans
@@ -9150,6 +9152,7 @@
     $$('#more-list button:not(.i)').forEach(b => b.addEventListener('click', () => { $('#more-list').hidden = true; }));
     if ($('#dup')) $('#dup').onclick = () => { untouch(); duplicatePurchase(purchaseById(p.id)); };
     if ($('#del')) $('#del').onclick = async () => {
+      if (bridge.emettre && data.purchases.some(x => x.achatLie === p.id)) { toast('Un avoir ou un acompte est rattaché à cet achat : détache-le (ou supprime-le) d\'abord. Rien n\'a été supprimé.', true); return; }
       if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ? Les règlements enregistrés seront perdus.`)) return;
       if (closedBlock(p.date, 'Cet achat')) return;
       forget('purchases', p.id, p.number || '');

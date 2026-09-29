@@ -12,6 +12,7 @@ import { cleDeVerification } from '../validation.ts';
 import type { Contexte } from '../connexion.ts';
 import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, lirePiece, modifierBrouillon, supprimerBrouillon, type BrouillonSaisi } from './pieces.ts';
+import { soldesDeFactures } from './reglements.ts';
 import { motif, t } from '../../textes/index.ts';
 
 // Toute liste qu'on nomme se pagine (règle du projet) : 50 lignes par défaut, 200 au plus.
@@ -119,6 +120,10 @@ export function routesVentes(ctx: Contexte): Route<never>[] {
         .$if(avant !== null, (q) => q.where(sql<boolean>`(p.date_piece, p.id) < (${avant?.[0]}::date, ${avant?.[1]}::uuid)`))
         .orderBy('p.date_piece', 'desc').orderBy('p.id', 'desc').limit(n).execute();
       const dernier = lignes.at(-1);
+      // Ce qui reste à encaisser sur une facture émise : ses règlements et ses avoirs retranchés, par la
+      // même fonction que la lecture d'une facture (serveur/ventes/reglements.ts).
+      const soldes = await soldesDeFactures(tx, params.entreprise ?? '', lignes.filter((l) => l.type === 'facture' && l.statut === 'emise' && l.net_a_payer !== null)
+        .map((l) => ({ id: l.id, net: l.net_a_payer ?? 0n })));
       // Le compte de toute la liste, pour dire « 1–25 sur 443 » et le nombre de pages, comme la v10.
       const { total } = await requetes(tx).selectFrom('ventes.piece').select((eb) => eb.fn.countAll<string>().as('total'))
         .where('entreprise', '=', params.entreprise ?? '').where('type', '=', type.data).executeTakeFirstOrThrow();
@@ -129,9 +134,7 @@ export function routesVentes(ctx: Contexte): Route<never>[] {
             return {
               id: l.id, type: l.type, statut: l.statut, numero: l.numero_texte, datePiece: l.date_piece, client: l.client, objet: l.objet,
               devise: l.devise, symbole: l.symbole, netAPayer: net,
-              // Ce qui reste à encaisser : aucun règlement ne s'enregistre encore, tout reste dû. Le jour
-              // où les règlements arrivent, c'est ICI (une seule fonction) qu'ils se retranchent.
-              reste: net,
+              reste: soldes.has(l.id) ? versTexte(soldes.get(l.id)?.reste ?? 0n, l.decimales) : net,
             };
           }),
           suite: lignes.length === n && dernier ? versCurseur(dernier.date_piece, dernier.id) : null,
