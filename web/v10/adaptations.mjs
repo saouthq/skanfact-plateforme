@@ -6,6 +6,8 @@
 // Règle : une adaptation touche le BRANCHEMENT (le point de contact, les gestes officiels), jamais
 // un écran. Ce qui se voit reste la v10.
 
+import { SANS_PAQUETS } from './sans-paquets.mjs';
+
 export const ADAPTATIONS = [
   {
     fichier: 'index.html',
@@ -302,12 +304,6 @@ export const ADAPTATIONS = [
     apres: "    'p-cabinet': { onglet: 'envois', titre: 'Ton cabinet comptable', mots: 'cabinet comptable expert code confier mandat livres' },",
   },
   {
-    fichier: 'cabinet/app.js',
-    pourquoi: 'l\'exemple ne s\'efface plus « au premier vrai paquet » : il n\'y a plus de paquets (C4)',
-    avant: "compris. Il s'efface\n          tout seul au premier vrai paquet, et tu peux l'effacer à la main quand tu veux.</p>",
-    apres: "compris. Tu\n          peux l'effacer à la main quand tu veux.</p>",
-  },
-  {
     fichier: 'cabinet/cabcore.js',
     pourquoi: 'le nom du cabinet ne signe plus un fichier d\'appairage : le client le lit quand il confie son dossier',
     avant: "quoi: 'Ce nom signe tes relances et le fichier que tes clients importent.'",
@@ -340,4 +336,6 @@ export const ADAPTATIONS = [
     avant: "      const auSuivant = dateExt && dateExt > String((livresState.livre.exercice || {}).au || '');",
     apres: "      const auSuivant = false;",
   },
+  // ── Le Cabinet sans paquets, dans les mots (brique 38 bis, C14) : ./sans-paquets.txt ──
+  ...SANS_PAQUETS,
 ];

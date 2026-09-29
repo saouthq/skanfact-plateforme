@@ -76,7 +76,7 @@ mêmes données que son client.
 | **36** | Le cabinet côté serveur : créer un cabinet ; le mandat (proposé par le propriétaire, accepté par l'associé, arrêté par l'un ou l'autre) et son périmètre ; les dossiers tenus ; le portefeuille ; le rôle d'un collaborateur sur un dossier et le périmètre, gardés par la porte **et** par la base ; la validation au cabinet quand il a le mandat de comptabilité. |
 | **37** | Les écrans du Cabinet copiés et chargés ; le portefeuille et le livre d'un dossier lus au serveur (la balance que calcule l'écran égale celle du serveur : deux chemins, un chiffre) ; tout le reste répond « pas encore en ligne ». |
 | **38** | La saisie : écritures saisies par le cabinet (brouillard, modification, suppression), validation d'une écriture ou d'un lot, contre-passation, extourne, lettrage ; le mois validé par le cabinet (C8). |
-| 38 bis | Le Cabinet sans paquets, dans les mots : le tableau, les relances, la fiche, les guides et les visites réécrits pour des livres tenus en direct. |
+| **38 bis** | Le Cabinet sans paquets, dans les mots : le tableau, les relances, la fiche, les guides et les visites réécrits pour des livres tenus en direct ; la relance notée dans la fiche. |
 | 39 | La reprise : plan, balance d'ouverture (à-nouveaux), écritures par tableur. |
 | 40 | La banque : relevés, rapprochement, lettrage automatique. |
 | 41 | Les déclarations (TVA, retenues), la liasse, le FEC et les exports. |
@@ -197,12 +197,73 @@ décembre). Le numéro affiché d'une écriture validée est son rang dans la ch
 unique de la v10) ; son numéro de journal (« OD-2026-000004 ») est celui du serveur.
 
 **Reste connu** :
-- **Le vocabulaire des paquets** (brique 38 bis) : le tableau, les relances, la fiche d'un dossier,
-  les guides et les visites parlent encore de « paquets », de « mois reçus » et de « relancer le
-  client pour son paquet » (≈ 530 mentions dans les fichiers du Cabinet) : ils se réécrivent pour des
-  livres tenus en direct.
+- ~~Le vocabulaire des paquets~~ : fait à la brique 38 bis (ci-dessous).
 - Un écran déjà ouvert ne voit pas un changement fait ailleurs avant d'être rouvert.
 - Les justificatifs joints à une écriture, la reprise, la banque : briques suivantes.
+
+## Brique 38 bis : le Cabinet sans paquets, dans les mots et les gestes (fait le 29/09/2026)
+
+Le Cabinet v10 parlait partout de paquets : « 2 paquets reçus », « n'a envoyé que du provisoire »,
+« dernier paquet le … », des relances qui demandaient de « clôturer le mois et renvoyer le paquet ».
+Sur la plateforme, les livres de chaque client sont tenus en direct : ces phrases mentaient.
+
+**C14. Les mots d'un Cabinet sans paquets** (par délégation) :
+- un mois **écrit** a des écritures dans les livres du client (il était « reçu ») ;
+- il est **validé** quand plus rien n'y est au brouillard (« définitif ») ;
+- il est **à valider** tant qu'il y reste des brouillards (« provisoire ») : c'est le travail du
+  cabinet (C8), **jamais une relance** ; « À faire » le dit (« 1 dossier a des écritures à valider »),
+  et « Valider » ouvre la saisie du dossier sur l'exercice de ce mois ;
+- il est **manquant** quand un mois passé (après le jour de relance) n'a **aucune écriture** : c'est
+  lui, et lui seul, qu'on relance — « Il me manque vos pièces de mai et juin 2026 … Il vous suffit de
+  les enregistrer dans SkanFact : je les vois dans vos livres dès qu'elles y sont » ;
+- « Reçu le » devient « Mis à jour » (la dernière écriture enregistrée ou validée du dernier mois).
+
+**C15. Les relances notées dans la fiche** (par délégation) : la relance faite depuis le Cabinet (le
+message s'ouvre dans la messagerie, ou WhatsApp ; un appel se note à la main) se garde dans la fiche du
+dossier au cabinet (`cabinet.fiche`). **Les champs, comptés** : l'instant, le moyen (e-mail,
+téléphone, WhatsApp, autre), les mois réclamés, une note de 500 caractères au plus ; les cinquante
+dernières. Tout autre champ se refuse (`RELANCE`, serveur/cabinet/routes.ts). Elle reste, comme la
+fiche, au cabinet seul.
+
+**Comment** : les adaptations sont du texte ; elles s'écrivent **telles quelles** dans
+`web/v10/sans-paquets.txt` (un bloc « avant », un bloc « après », sans rien à échapper), lues par
+`sans-paquets.mjs` et ajoutées à la liste de `adaptations.mjs`. Chaque « avant » doit toujours se
+trouver une fois exactement dans la v10.
+
+**Ce qui change à l'écran** : le tableau du portefeuille (cartes, « À faire », légende, colonnes « À
+valider » et « Mis à jour », export CSV) ; la fiche d'un dossier (son état, ses douze mois : un mois
+écrit s'ouvre dans ses livres — sa saisie s'il reste à valider, son livre-journal sinon ; un mois
+manquant porte la relance) ; la page Relances (le client dont un mois est vide, seul) ; les échéances ;
+la page Écritures (« pas encore dans la version en ligne », et le chemin vers les livres) ; les
+réglages (le nom du cabinet, le code du cabinet) ; « Tes premiers pas » (« Tenir un premier livre »,
+qui ouvre la saisie d'un client) ; les bulles, l'Aide et les visites.
+
+**Retiré en ligne (C4)** : l'exemple à six clients fictifs (son bouton, son panneau, sa découverte),
+la correspondance des comptes (elle traduisait les comptes d'un paquet importé), la clé de secours
+(plus jamais réclamée : « on ne sait pas » reste la réponse) ; les articles « Ne rien perdre »,
+« Changer d'ordinateur », « La licence », « Les mises à jour » ; les visites sans objet (découvrir
+l'exemple, l'appairage, la clé de secours, la copie, recevoir et lire un paquet, la boîte de
+réception, les sauvegardes, changer d'ordinateur, les mises à jour, la licence, le mot de passe du
+cabinet, envoyer la clôture, la correspondance, l'écran des paquets), et celles d'un geste **pas
+encore en ligne**, qui reviennent avec leur brique (nommer le cabinet, commencer un livre par sa
+reprise, exporter les écritures, suivre la production).
+
+**Les tests** : un parcours lit, à la souris, **chaque écran** du Cabinet et chaque bulle qu'il porte
+(texte, champs, infobulles, « À faire » déplié, après un second dessin) : aucun mot de paquet. Un
+autre lit **tout ce que le Cabinet peut montrer sans qu'on l'ouvre** : chaque bulle, chaque article,
+chaque visite proposée en ligne, ce qu'une visite dit d'un écran, d'un bouton ou d'un champ ; ce que
+la version en ligne ne montre jamais y est nommé un par un, avec sa raison, et la liste ne peut pas
+nommer un disparu. Un troisième joue la relance : « À faire », « Valider », la page Relances, le mail
+dans la messagerie, la relance notée au serveur, les mois du Suivi ouverts dans les livres.
+
+**Reste connu** :
+- Les réglages du cabinet (son nom, son e-mail, le jour de relance) ne s'enregistrent pas encore en
+  ligne : le jour de relance est celui par défaut (le 10), et « À faire » dit encore « Tu as fixé le
+  10 ».
+- Un mois sans aucune activité reste « manquant » : la clôture d'une période, quand le cabinet l'aura
+  à l'écran, le comptera comme fait.
+- Les écrans pas encore en ligne (banque, déclarations, immobilisations, paie, révision, clôture,
+  production) gardent le texte de la v10 : chacun se relit, à la souris, avec sa brique.
 
 ## Ce qui reste à décider avec Skander ou un comptable
 

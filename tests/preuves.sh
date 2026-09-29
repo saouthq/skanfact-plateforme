@@ -1856,10 +1856,10 @@ prouver "l'entrée qui ouvre l'entreprise d'un client comme la sienne" web/src/A
   "    const siennes = moi.entreprises.filter((x) => !x.parCabinet);" "    const siennes = moi.entreprises;" \
   "$W1"
 prouver "« Tes premiers pas » qui réclame encore l'appairage et la clé de secours" $PC \
-  "const ETAPES_ABSENTES = ['appairage', 'cle', 'copie', 'travail'];" "const ETAPES_ABSENTES = [];" \
+  "const ETAPES_ABSENTES = ['decouverte', 'appairage', 'cle', 'copie'];" "const ETAPES_ABSENTES = [];" \
   "$W2"
 prouver "les réglages de la boîte de réception et des sauvegardes sur l'ordinateur" $PC \
-  "const PANNEAUX_ABSENTS = ['pan-licence', 'pan-inbox', 'pan-backup', 'pan-maj'];" "const PANNEAUX_ABSENTS = ['pan-licence', 'pan-maj'];" \
+  "const PANNEAUX_ABSENTS = ['pan-licence', 'pan-inbox', 'pan-backup', 'pan-maj', 'pan-exemple', 'pan-comptes'];" "const PANNEAUX_ABSENTS = ['pan-licence', 'pan-maj'];" \
   "$W2"
 prouver "« Verrouiller » qui laisse la session ouverte" $PC \
   "      try { await fetch('/v1/deconnexion', { method: 'POST', headers: { authorization: \`Bearer \${jeton}\` } }); } catch { /* la session se ferme de toute façon ici */ }" "" \
@@ -2001,6 +2001,85 @@ prouver "un mois au brouillard compté comme définitif" web/public/plateforme/p
 prouver "le lettrage automatique qui ne pose rien au serveur" web/public/plateforme/pont-cabinet.js \
   "        const l = await appel('POST', \`/entreprises/\${o.dossierId}/compta/lettrages\`, { compte: String(o.compte), ecritures: p.ecritures });" "        const l = { lettre: p.lettre };" \
   "$W38"
+
+# ── Brique 38 bis : le Cabinet sans paquets, dans les mots et les gestes (docs/cabinet.md, C14, C15) ──
+CC=web/public/v10/cabinet/cabcore.js
+CA=web/public/v10/cabinet/app.js
+CG=web/public/v10/cabinet/cabguide.js
+CVI=web/public/v10/cabinet/cabvisites.js
+R1="un mois vide se relance, un mois au brouillard se valide ; la relance part dans la messagerie et se note dans la fiche"
+MO1="chaque écran du Cabinet, et chaque bulle qu'il porte, se lit sans un mot de paquet"
+TX1="chaque visite proposée en ligne, chaque écran, bouton et champ qu'une visite explique, se lit sans un mot de paquet"
+TX2="chaque bulle « i » et chaque article de l'Aide se lit sans un mot de paquet"
+TX3="ce qui est déclaré « jamais montré » existe encore : une liste qui nomme un disparu ne protège rien"
+prouver "un mois au brouillard relancé chez le client" $CC \
+  "    return dossierList(state, todayIso).filter(r => r.missingCount > 0);" "    return dossierList(state, todayIso).filter(r => r.missingCount > 0 || r.provisionalCount > 0);" \
+  "$R1"
+prouver "le mail de relance qui réclame encore un paquet" $CC \
+  "'\nIl vous suffit de les enregistrer dans SkanFact" "'\nFabriquez le paquet du mois et envoyez-le-moi" \
+  "$R1"
+prouver "une relance qui ne s'ouvre pas dans la messagerie" $PC \
+  "      ouvrirLien(u.url);" "" \
+  "$R1"
+prouver "une relance qui n'est pas notée au serveur" $PC \
+  "      await poserFiche(id, { ...avant, relances: [...deja, relance].slice(-50) }, f ? f.revision : null);" "      void relance;" \
+  "$R1"
+prouver "« Valider » qui mène aux relances au lieu de la saisie" $CA \
+  "      location.hash = '#/dossier/' + encodeURIComponent(d.id) + '/comptabilite/saisie/' + m.slice(0, 4);" "      location.hash = '#/relances';" \
+  "$R1"
+prouver "un mois écrit qui ouvre un paquet" $CA \
+  "        const m = c.dataset.m, aValider = c.classList.contains('provisoire');" "        const m = c.dataset.m, aValider = c.classList.contains('provisoire'); if (m) return openPack(dossier, m);" \
+  "$R1"
+prouver "l'état d'un dossier qui dit encore « provisoire »" $CA \
+  "pl(row.provisionalCount, 'mois à valider', 'mois à valider')" "pl(row.provisionalCount, 'provisoire')" \
+  "$R1"
+prouver "la fiche qui refuse les relances" serveur/cabinet/routes.ts \
+  "  relances: z.array(RELANCE).max(50)," "" \
+  "$E3"
+prouver "une relance au moyen inventé" serveur/cabinet/routes.ts \
+  "via: z.enum(['email', 'tel', 'whatsapp', 'autre'])," "via: z.string()," \
+  "$E3"
+prouver "une relance aux mois mal écrits" serveur/cabinet/routes.ts \
+  "months: z.array(z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)).max(120)," "months: z.array(z.string()).max(120)," \
+  "$E3"
+prouver "plus de cinquante relances gardées" serveur/cabinet/routes.ts \
+  "  relances: z.array(RELANCE).max(50)," "  relances: z.array(RELANCE).max(500)," \
+  "$E3"
+prouver "une relance qui porte un champ de plus" serveur/cabinet/routes.ts \
+  "note: texte(500),
+}).strict();" "note: texte(500),
+});" \
+  "$E3"
+prouver "« Tenir un premier livre » caché des premiers pas" $PC \
+  "const ETAPES_ABSENTES = ['decouverte', 'appairage', 'cle', 'copie'];" "const ETAPES_ABSENTES = ['decouverte', 'appairage', 'cle', 'copie', 'travail'];" \
+  "$W2"
+prouver "un mot de paquet revenu sur le portefeuille" $CA \
+  "    p.paquets ? pl(p.paquets, 'mois écrit', 'mois écrits') : 'aucun mois écrit'," "    p.paquets ? pl(p.paquets, 'paquet') + ' reçu' + (p.paquets > 1 ? 's' : '') : 'aucun paquet reçu'," \
+  "$MO1"
+prouver "la clé de secours réclamée en ligne" $PC \
+  "    sansCleDeSecours: true," "" \
+  "$MO1"
+prouver "la clé de secours réclamée par l'écran" $CA \
+  "    if (api.sansCleDeSecours === true) return Promise.resolve();" "" \
+  "$MO1"
+prouver "une bulle visible qui parle encore de paquets" $CG \
+  "Pour un client sur SkanFact, ce sont <b>les mêmes livres que les siens</b>" "Pour un client sur SkanFact, <b>à partir des paquets reçus</b>" \
+  "$MO1"
+prouver "une visite qui parle encore de paquets" $CVI \
+  "texte: 'Chaque client sur SkanFact dont un mois passé n\\'a aucune écriture. Le mois en cours n\\'est jamais réclamé.' }," "texte: 'Chaque client qui ne t\\'a pas envoyé un mois terminé, ou seulement du provisoire. Le mois en cours n\\'est jamais réclamé.' }," \
+  "$TX1"
+prouver "une visite sans objet proposée en ligne" $PC \
+  "'copie-externe', 'recevoir-paquet', 'lire-paquet'," "'copie-externe', 'lire-paquet'," \
+  "$TX1"
+prouver "un article de l'Aide qui parle encore de paquets" $CG \
+  "      <p class=\"small\">Un mois est <b>validé</b> quand plus aucune" "      <p class=\"small\">Un paquet est <b>validé</b> quand plus aucune" \
+  "$TX2"
+prouver "un article sans objet proposé en ligne" $PC \
+  "const ARTICLES_ABSENTS = ['filets', 'demenager', 'licence', 'maj'];" "const ARTICLES_ABSENTS = ['demenager', 'licence', 'maj'];" \
+  "$TX2"
+prouver "une liste « jamais montré » qui nomme un disparu" $CG \
+  "    'lic.cle': {" "    'lic.clef': {" \
+  "$TX3"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

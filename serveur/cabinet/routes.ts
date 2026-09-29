@@ -22,10 +22,17 @@ const introuvable = { statut: 404 as const, corps: { motif: motif('commun.introu
 // Les champs de la fiche d'un dossier au cabinet : cette liste, et rien d'autre (0020). Les
 // honoraires en millimes (jamais de nombre à virgule en base).
 const texte = (max: number) => z.string().max(max);
+// Une relance notée (brique 38 bis, C15) : son instant (en millisecondes), son moyen, les mois qu'elle
+// réclamait, une note ; les cinquante dernières, comme la v10.
+const RELANCE = z.object({
+  at: z.number().int().min(0).max(8_640_000_000_000_000), via: z.enum(['email', 'tel', 'whatsapp', 'autre']),
+  months: z.array(z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)).max(120), note: texte(500),
+}).strict();
 const FICHE = z.object({
   email: texte(200), phone: texte(40), contact: texte(200), note: texte(2000), archived: z.boolean(),
   from: z.string().regex(/^(\d{4}-\d{2})?$/), regime: texte(40), tvaPeriod: texte(20),
   fees: z.number().int().min(0).max(1_000_000_000_000), cnssEmployeur: texte(40), cnssCode: texte(10),
+  relances: z.array(RELANCE).max(50),
 }).partial().strict();
 
 const tracer = (tx: Transaction, entreprise: string, geste: string, objet: string, avant: unknown, apres: unknown) =>

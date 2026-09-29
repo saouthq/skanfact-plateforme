@@ -1,0 +1,958 @@
+Le Cabinet sans paquets, dans les mots (brique 38 bis). Format : voir sans-paquets.mjs.
+
+Les mots (docs/cabinet.md, C14) : un mois ÉCRIT a des écritures dans ses livres (il était « reçu ») ;
+il est VALIDÉ quand plus rien n'y est au brouillard (« définitif ») ; À VALIDER tant qu'il y reste des
+brouillards (« provisoire ») — c'est le travail du cabinet (C8), jamais une relance ; il est MANQUANT
+quand un mois passé n'a aucune écriture : c'est lui, et lui seul, qu'on relance.
+
+═══════════════════════════════════════════════════════════════════ le moteur (cabcore.js)
+
+== cabinet/cabcore.js | des écritures à valider ne se relancent pas : seul un mois passé sans écriture se relance
+-- avant
+    return dossierList(state, todayIso).filter(r => r.missingCount > 0 || r.provisionalCount > 0);
+-- après
+    // (plateforme) Des écritures à valider sont le travail du cabinet (C8) : on ne relance le client
+    // que pour un mois passé sans aucune écriture (C14).
+    return dossierList(state, todayIso).filter(r => r.missingCount > 0);
+-- fin
+
+== cabinet/cabcore.js | une échéance nomme les clients dont le mois n'a aucune écriture (plus de mois « envoyé »)
+-- avant
+        m ? `${pl(m, 'client')} ${m > 1 ? `n'ont pas envoyé ${plusieursMois ? 'leurs mois' : 'leur mois'}` : `n'a pas envoyé ${plusieursMois ? 'ses mois' : 'son mois'}`}` : '',
+-- après
+        m ? `${pl(m, 'client')} ${m > 1 ? 'n\'ont' : 'n\'a'} aucune écriture sur ${plusieursMois ? 'ces mois' : 'ce mois'}` : '',
+-- fin
+
+== cabinet/cabcore.js | « À faire » nomme les mois sans écriture, pas ce qui n'a pas été envoyé
+-- avant
+      label: `${pl(late.length, 'dossier')} n'${late.length > 1 ? 'ont' : 'a'} pas tout envoyé`,
+-- après
+      label: `${pl(late.length, 'dossier')} ${late.length > 1 ? 'ont' : 'a'} des mois sans écriture`,
+-- fin
+
+== cabinet/cabcore.js | « À faire » : des écritures à valider, le travail du cabinet (C8), avec les dossiers nommés
+-- avant
+      label: `${pl(prov.length, 'dossier')} n'${prov.length > 1 ? 'ont' : 'a'} envoyé que du provisoire`,
+      // L'accord suit le nombre de dossiers (10.12.0) : « 1 dossier… Leur mois » se lisait dans « À faire ».
+      detail: `${prov.length > 1 ? 'Leur' : 'Son'} mois n'est pas clôturé : les chiffres peuvent encore bouger. À relancer avant de déclarer.`,
+-- après
+      label: `${pl(prov.length, 'dossier')} ${prov.length > 1 ? 'ont' : 'a'} des écritures à valider`,
+      // (plateforme) Des brouillards dans des mois passés : c'est au cabinet de les valider (C8).
+      detail: `${prov.slice(0, 6).map(r => `${r.name} (${pl(r.provisionalCount, 'mois', 'mois')})`).join(' · ')} — valide-les avant de déclarer.`,
+-- fin
+
+== cabinet/cabcore.js | le mail de relance demande les pièces dans SkanFact : plus de paquet à fabriquer ni de mois à clôturer
+-- avant
+    const sujet = mois.length
+      ? (longue
+        ? `Il me manque ${miss.length} mois de dossiers (${intervalle})`
+        : `Il me manque ${mois.length > 1 ? 'vos dossiers' : 'votre dossier'} ${de(monthListLabel(miss))}`)
+      : `Votre dossier ${de(row.lastLabel)} n'est pas définitif`;
+    const corps = mois.length
+      ? `Bonjour,\n\nPour tenir votre comptabilité à jour, il me manque ${mois.length > 1 ? 'les dossiers' : 'le dossier'} `
+        + (longue ? `des ${miss.length} mois suivants :\n${mois.map(m => '  · ' + m).join('\n')}\n` : `${de(monthListLabel(miss))}.\n`)
+        + `\n`
+        + `Dans SkanFact : Comptabilité → Clôtures pour clôturer le mois, puis Comptabilité → Cabinet pour fabriquer et m'envoyer le paquet.\n\n`
+        + `Bien à vous,\n${(cabinet && cabinet.name) || ''}`
+      : `Bonjour,\n\nJ'ai bien reçu votre dossier ${de(row.lastLabel)}, mais il est marqué « provisoire » : le mois n'a pas été clôturé dans SkanFact, donc les chiffres peuvent encore changer.\n\n`
+        + `Quand tout est saisi, clôturez le mois (Comptabilité → Clôtures) et renvoyez-moi le paquet : je pourrai alors déclarer sans risque.\n\n`
+        + `Bien à vous,\n${(cabinet && cabinet.name) || ''}`;
+-- après
+    // (plateforme) Plus de paquet à fabriquer ni de mois à clôturer : le client enregistre ses pièces
+    // dans SkanFact, et le cabinet les voit dans ses livres dès qu'elles y sont (C14).
+    const sujet = mois.length
+      ? (longue
+        ? `Il me manque ${miss.length} mois de pièces (${intervalle})`
+        : `Il me manque vos pièces ${de(monthListLabel(miss))}`)
+      : 'Vos pièces dans SkanFact';
+    const corps = `Bonjour,\n\n`
+      + (mois.length
+        ? 'Pour tenir votre comptabilité à jour, il me manque vos pièces '
+          + (longue ? `des ${miss.length} mois suivants :\n${mois.map(m => '  · ' + m).join('\n')}\n` : `${de(monthListLabel(miss))}.\n`)
+        : 'Pour tenir votre comptabilité à jour, j\'ai besoin de vos dernières pièces.\n')
+      + '\nIl vous suffit de les enregistrer dans SkanFact — vos ventes, vos achats, vos notes de frais : je les vois dans vos livres dès qu\'elles y sont, sans rien avoir à m\'envoyer.\n\n'
+      + `Bien à vous,\n${(cabinet && cabinet.name) || ''}`;
+-- fin
+
+== cabinet/cabcore.js | « Tes premiers pas » : tenir un premier livre, sans paquet à recevoir
+-- avant
+      { id: 'travail', titre: 'Tenir un premier livre, ou recevoir un premier paquet', fait: unPaquet || unLivre,
+        quoi: unPaquet || unLivre ? 'Ton portefeuille vit : les mois reçus et saisis s\'y comptent tout seuls.'
+          : aTenir ? 'Ouvre ' + aTenir.name + ' et commence son livre : son exercice, sa balance d\'ouverture s\'il en a une, puis la saisie. Un client sur SkanFact, lui, t\'envoie son paquet du mois.'
+            : 'Un client sur SkanFact t\'envoie son paquet du mois (tu le glisses sur la fenêtre) ; pour un client hors SkanFact, tu crées son livre et tu saisis.',
+        action: !unPaquet && !unLivre && aTenir ? 'livre' : 'travail', dossierId: aTenir ? aTenir.id : null },
+-- après
+      // (plateforme) Plus de paquet à recevoir : les livres d'un client sur SkanFact se remplissent au fil
+      // de ses pièces ; « unPaquet » compte ici les dossiers dont un mois est écrit.
+      { id: 'travail', titre: 'Tenir un premier livre', fait: unPaquet || unLivre,
+        quoi: unPaquet || unLivre ? 'Ton portefeuille vit : les mois écrits de chaque client s\'y comptent tout seuls.'
+          : aTenir ? 'Ouvre ' + aTenir.name + ' et saisis sa première pièce. Un client sur SkanFact, lui, remplit ses livres en enregistrant ses pièces : tu les vois ici dès qu\'elles y sont.'
+            : 'Un client sur SkanFact remplit ses livres en enregistrant ses pièces ; pour un client hors SkanFact, tu saisis ici.',
+        action: 'livre', dossierId: aTenir ? aTenir.id : null },
+-- fin
+
+═══════════════════════════════════════════════════════════════════ le portefeuille (app.js)
+
+== cabinet/app.js | « À faire » : les mois manquants mènent aux relances ; les écritures à valider, à la saisie
+-- avant
+    'manquants': { texte: 'Voir qui doit envoyer', run: () => { location.hash = '#/relances'; } },
+    'provisoires': { texte: 'Voir le provisoire', run: () => { location.hash = '#/relances'; } },
+-- après
+    'manquants': { texte: 'Voir qui relancer', run: () => { location.hash = '#/relances'; } },
+    // (plateforme) Des écritures à valider : la saisie du dossier, sur l'exercice de son dernier mois à
+    // valider, où les lots se valident ; plusieurs dossiers : la liste, les plus urgents d'abord.
+    'provisoires': { texte: 'Valider', run: () => {
+      const r = K.dossierList(S).filter(x => x.provisionalCount > 0 && !x.missingCount);
+      const d = r.length === 1 ? (S.dossiers || []).find(x => x.id === r[0].id) : null;
+      if (!d) { listState.q = ''; listState.onlySkanfact = true; listState.sort = 'urgence'; listState.desc = false; render(); return; }
+      const m = K.dossierMonths(d).filter(x => x.state === 'provisoire').map(x => x.month).pop() || K.today();
+      location.hash = '#/dossier/' + encodeURIComponent(d.id) + '/comptabilite/saisie/' + m.slice(0, 4);
+    } },
+-- fin
+
+== cabinet/app.js | « tout est à jour » dit ce qui est vrai : aucun mois passé vide ni à valider
+-- avant
+        ? `<div class="todo-ok">Tout est à jour : tes ${p.surSkanfact} dossiers sur SkanFact ont envoyé leurs mois clôturés.</div>`
+        : `<div class="todo-ok">Tout est à jour : ton dossier sur SkanFact a envoyé ses mois clôturés.</div>`;
+-- après
+        ? `<div class="todo-ok">Tout est à jour : chez tes ${p.surSkanfact} dossiers sur SkanFact, aucun mois passé n'est vide ni à valider.</div>`
+        : `<div class="todo-ok">Tout est à jour : chez ton dossier sur SkanFact, aucun mois passé n'est vide ni à valider.</div>`;
+-- fin
+
+== cabinet/app.js | la légende des couleurs : un mois sans écriture, des écritures à valider
+-- avant
+    danger: 'en retard : il manque au moins un mois',
+    warn: 'à surveiller : du provisoire, ou des pièces signalées',
+-- après
+    danger: 'en retard : au moins un mois passé sans écriture',
+    warn: 'à valider : des écritures encore au brouillard',
+-- fin
+
+== cabinet/app.js | la carte du chiffre d'affaires sans mois écrit
+-- avant
+    const caSub = !ca.mois ? 'aucun paquet ne porte de chiffres'
+-- après
+    const caSub = !ca.mois ? 'aucun mois écrit'
+-- fin
+
+== cabinet/app.js | la carte « à jour » compte les dossiers à valider
+-- avant
+    `${p.enRetard ? `${p.enRetard} en retard` : 'aucun retard'}${p.provisoires ? ` · ${p.provisoires} en provisoire` : ''}`,
+-- après
+    `${p.enRetard ? `${p.enRetard} en retard` : 'aucun retard'}${p.provisoires ? ` · ${p.provisoires} à valider` : ''}`,
+-- fin
+
+== cabinet/app.js | la carte des mois manquants compte les mois écrits, et mène à ceux qu'on relance
+-- avant
+    p.paquets ? pl(p.paquets, 'paquet') + ' reçu' + (p.paquets > 1 ? 's' : '') : 'aucun paquet reçu',
+    p.moisManquants ? 'due' : 'ok', 'Voir qui doit envoyer, et le relancer')}
+-- après
+    p.paquets ? pl(p.paquets, 'mois écrit', 'mois écrits') : 'aucun mois écrit',
+    p.moisManquants ? 'due' : 'ok', 'Voir qui relancer : les mois passés sans écriture')}
+-- fin
+
+== cabinet/app.js | l'export CSV du portefeuille : les colonnes disent « écrit » et « validé »
+-- avant
+    { label: 'Dernier mois reçu', get: r => r.lastLabel },
+    { label: 'Définitif', get: r => r.lastMonth ? (r.lastDefinitive ? 'oui' : 'non') : '' },
+    { label: 'CA du dernier mois reçu', get: r => r.lastFigures ? K.csvMontant(r.lastFigures.ca) : '' },
+    { label: 'Mois manquants', get: r => r.missingCount },
+    { label: 'Provisoires', get: r => r.provisionalCount },
+-- après
+    { label: 'Dernier mois écrit', get: r => r.lastLabel },
+    { label: 'Validé', get: r => r.lastMonth ? (r.lastDefinitive ? 'oui' : 'non') : '' },
+    { label: 'CA du dernier mois écrit', get: r => r.lastFigures ? K.csvMontant(r.lastFigures.ca) : '' },
+    { label: 'Mois manquants', get: r => r.missingCount },
+    { label: 'Mois à valider', get: r => r.provisionalCount },
+-- fin
+
+== cabinet/app.js | le portefeuille vide dit ce que la liste montrera
+-- avant
+          <p>Tes clients, un par ligne, avec le dernier mois reçu et ce qui manque.</p>
+-- après
+          <p>Tes clients, un par ligne : le dernier mois de leurs livres, ce qui reste à valider, et les mois passés sans écriture.</p>
+-- fin
+
+== cabinet/app.js | l'exemple à six clients fictifs n'est pas en ligne : le portefeuille vide n'en parle pas (C4)
+-- avant
+          <p class="small muted">L'exemple montre ce que tu rencontreras : un client à jour, un en retard, un qui n'a
+          envoyé que du provisoire, un qui s'est endormi, un dont les pièces sont incomplètes et dont tu rapproches la
+          banque — et un client hors SkanFact dont tu tiens toute la comptabilité, paie et biens compris. Il s'efface
+          tout seul au premier vrai paquet, et tu peux l'effacer à la main quand tu veux.</p>
+-- après
+          ${/* (plateforme) L'exemple à six clients fictifs n'est pas dans la version en ligne (C4). */''}
+-- fin
+
+== cabinet/app.js | les colonnes du tableau : à valider, mis à jour
+-- avant
+        ${col.provisoires ? '<th class="r nw">Provisoires</th>' : ''}${col.signale ? '<th class="r nw">Signalés</th>' : ''}
+        ${col.relance ? sortHead('Relancé le', 'relance', 'r.history') : ''}${sortHead('Reçu le', 'recu')}<th></th></tr></thead>
+-- après
+        ${col.provisoires ? '<th class="r nw">À valider</th>' : ''}${col.signale ? '<th class="r nw">Signalés</th>' : ''}
+        ${col.relance ? sortHead('Relancé le', 'relance', 'r.history') : ''}${sortHead('Mis à jour', 'recu')}<th></th></tr></thead>
+-- fin
+
+== cabinet/app.js | le badge du dernier mois : à valider
+-- avant
+${r.lastMonth && !r.lastDefinitive ? ' <span class="badge partielle">provisoire</span>' : ''}
+-- après
+${r.lastMonth && !r.lastDefinitive ? ' <span class="badge partielle">à valider</span>' : ''}
+-- fin
+
+== cabinet/app.js | le menu d'une ligne : la relance pour un mois sans écriture seulement, et plus de paquets à voir
+-- avant
+      const aRelancer = r.missingCount > 0 || r.provisionalCount > 0;
+-- après
+      // (plateforme) Des écritures à valider ne se relancent pas (C14).
+      const aRelancer = r.missingCount > 0;
+-- fin
+
+== cabinet/app.js | le menu d'une ligne n'ouvre plus d'onglet des paquets
+-- avant
+        { icon: 'dossier', label: 'Voir ses paquets reçus', hint: 'Ce qu\'il a envoyé, mois par mois', run: () => vers('paquets') },
+-- après
+        // (plateforme) Plus d'onglet des paquets : ses mois sont dans sa comptabilité (C4).
+-- fin
+
+═══════════════════════════════════════════════════════════════════ la fiche d'un dossier (app.js)
+
+== cabinet/app.js | l'état du dossier compte des mois écrits
+-- avant
+      packs.length ? pl(packs.length, 'mois reçu', 'mois reçus') :
+-- après
+      packs.length ? pl(packs.length, 'mois écrit', 'mois écrits') :
+-- fin
+
+== cabinet/app.js | l'état du dossier : les mois à valider, la dernière mise à jour de ses livres
+-- avant
+      row.provisionalCount ? `<span class="warn-text">${pl(row.provisionalCount, 'provisoire')}</span>` : '',
+      dernierRecu ? 'dernier paquet le ' + esc(fmtDay(dernierRecu)) : '',
+-- après
+      row.provisionalCount ? `<span class="warn-text">${pl(row.provisionalCount, 'mois à valider', 'mois à valider')}</span>` : '',
+      dernierRecu ? 'mis à jour le ' + esc(fmtDay(dernierRecu)) : '',
+-- fin
+
+== cabinet/app.js | « Relancer » n'apparaît que pour un mois sans écriture
+-- avant
+        ${row.missingCount || row.provisionalCount ? `<button class="btn${onglet === 'comptabilite' ? '' : ' btn-primary'}" id="rel">Relancer</button>` : ''}
+-- après
+        ${row.missingCount ? `<button class="btn${onglet === 'comptabilite' ? '' : ' btn-primary'}" id="rel">Relancer</button>` : ''}
+-- fin
+
+== cabinet/app.js | les mois du Suivi : le mois en cours n'est pas réclamé, le client y enregistre encore ses pièces
+-- avant
+        : 'Le mois en cours et les suivants ne sont jamais réclamés — le client ne peut pas encore les clôturer.')}">
+-- après
+        : 'Le mois en cours et les suivants ne sont jamais réclamés : le client y enregistre encore ses pièces.')}">
+-- fin
+
+== cabinet/app.js | chaque mois du Suivi s'ouvre dans les livres : validé, à valider, ou manquant (on relance)
+-- avant
+    const ouvrable = !!(m.pack && m.pack.path);
+    const etat = m.state === 'complet' ? 'définitif' : m.state === 'provisoire' ? 'provisoire' : 'manquant';
+    // Un mois reçu avant la 6.1.0 n'a pas de fichier sur le disque : le bouton DIT pourquoi au
+    // lieu de ne rien faire (règle 7.21.0). Un bouton qui accepte le clic sans agir est pire
+    // qu'un bouton absent.
+    const quoi = ouvrable ? 'Ouvrir le paquet de ' + m.label
+      : m.state === 'manquant' ? 'Relancer sur ' + m.label
+        : 'Reçu avant que les paquets ne soient rangés sur le disque : rien à ouvrir.';
+-- après
+    // (plateforme) Un mois écrit s'ouvre dans les livres du dossier : sa saisie s'il reste à valider,
+    // son livre-journal sinon. Un mois manquant porte la relance.
+    const ouvrable = !!m.pack;
+    const etat = m.state === 'complet' ? 'validé' : m.state === 'provisoire' ? 'à valider' : 'manquant';
+    const quoi = m.state === 'provisoire' ? 'Valider les écritures ' + K.de(m.label)
+      : m.state === 'complet' ? 'Voir les écritures ' + K.de(m.label)
+        : 'Relancer sur ' + m.label;
+-- fin
+
+== cabinet/app.js | le Suivi sans mois attendu : l'attente démarre à la première écriture
+-- avant
+          : '<span class="muted small">Aucun mois attendu pour l\'instant : l\'attente démarre au premier paquet reçu, ou à la date de début de mission que tu renseignes dans la fiche.</span>'}
+        ${!dossier.manual && months.length ? `<p class="muted small mt">Un mois <strong>provisoire</strong> n'a pas été clôturé chez le client : ses chiffres peuvent encore changer,
+        ne déclare pas dessus. Le mois en cours n'est jamais réclamé.</p>` : ''}
+-- après
+          : '<span class="muted small">Aucun mois attendu pour l\'instant : l\'attente démarre à la première écriture de ses livres, ou à la date de début de mission que tu renseignes dans la fiche.</span>'}
+        ${!dossier.manual && months.length ? `<p class="muted small mt">Un mois <strong>à valider</strong> a encore des écritures au brouillard : valide-les avant de déclarer.
+        Un mois <strong>manquant</strong> n'a aucune écriture : c'est lui qu'on relance. Le mois en cours n'est jamais réclamé.</p>` : ''}
+-- fin
+
+== cabinet/app.js | le panneau des relances d'un client à jour : rien à réclamer tant qu'aucun mois ne manque
+-- avant
+                lui réclame rien, et ses mois à saisir sont le travail du cabinet. */''}${row.missingCount || row.provisionalCount
+-- après
+                lui réclame rien, et ses mois à saisir sont le travail du cabinet. */''}${row.missingCount
+-- fin
+
+== cabinet/app.js | un clic sur un mois écrit ouvre ses écritures, plus un paquet
+-- avant
+    $$('[data-m]', view).forEach(c => { c.onclick = () => openPack(dossier, c.dataset.m); });
+-- après
+    $$('[data-m]', view).forEach(c => {
+      c.onclick = () => {
+        // (plateforme) Le mois s'ouvre dans les livres : sa saisie s'il reste à valider, son livre-journal sinon.
+        const m = c.dataset.m, aValider = c.classList.contains('provisoire');
+        changerDeDossierCompta(dossier.id);
+        livresState.annee = m.slice(0, 4);
+        if (!aValider) { livresState.mode = 'mois'; livresState.mois = m; }
+        location.hash = '#/dossier/' + encodeURIComponent(dossier.id) + '/comptabilite/' + (aValider ? 'saisie' : 'journal') + '/' + m.slice(0, 4);
+      };
+    });
+-- fin
+
+== cabinet/app.js | un livre vide dit d'où viennent les écritures : la saisie, la banque, les pièces du client
+-- avant
+                        ? `<div class="empty mini">Aucune écriture sur cette période : elles arrivent par la saisie, un relevé de banque ou un paquet du client.
+-- après
+                        ? `<div class="empty mini">Aucune écriture sur cette période : elles arrivent par la saisie, un relevé de banque, ou les pièces que ton client enregistre dans SkanFact.
+-- fin
+
+== cabinet/app.js | il n'y a rien à relire : les livres sont ceux du serveur, à jour en direct
+-- avant
+        ${(dossier.packs || []).length ? `<span class="nw"><button class="btn btn-sm" id="lv-relire2">Relire les paquets reçus</button>${info('lv.relire')}</span>` : ''}`
+-- après
+        ${/* (plateforme) Rien à relire : les livres sont ceux du serveur, à jour en direct (C2). */''}`
+-- fin
+
+═══════════════════════════════════════════════════════════════════ les relances (app.js)
+
+== cabinet/app.js | personne à relancer : les clients tenus au cabinet n'ont rien à envoyer
+-- avant
+      if (!envoient) return `<div class="info-box">Personne à relancer : aucun de tes ${esc(pl(tous.length, 'client'))} ne t'envoie encore ses paquets depuis SkanFact. Un client que tu tiens au cabinet n'a rien à t'envoyer.</div>`;
+      return `<div class="todo-ok">Personne à relancer : ${envoient === 1 ? 'ton client sur SkanFact est à jour' : `tes ${esc(pl(envoient, 'client'))} sur SkanFact sont à jour`}${envoient < tous.length ? ` — les ${esc(String(tous.length - envoient))} autres ne t'envoient rien, ils sont tenus au cabinet ou pas encore sur SkanFact` : ''}.</div>`;
+-- après
+      if (!envoient) return `<div class="info-box">Personne à relancer : aucun de tes ${esc(pl(tous.length, 'client'))} n'est sur SkanFact. Tu tiens leurs livres au cabinet, et rien ne leur est réclamé.</div>`;
+      return `<div class="todo-ok">Personne à relancer : ${envoient === 1 ? 'ton client sur SkanFact est à jour' : `tes ${esc(pl(envoient, 'client'))} sur SkanFact sont à jour`}${envoient < tous.length ? ` — les ${esc(String(tous.length - envoient))} autres sont tenus au cabinet : rien ne leur est réclamé` : ''}.</div>`;
+-- fin
+
+== cabinet/app.js | le menu d'une relance ouvre le dossier : ses mois, ses chiffres, son historique
+-- avant
+        { icon: 'dossier', label: 'Ouvrir le dossier', hint: 'Ses paquets, ses chiffres et son historique', run: () => { location.hash = '#/dossier/' + encodeURIComponent(r.id); } },
+-- après
+        { icon: 'dossier', label: 'Ouvrir le dossier', hint: 'Ses mois, ses chiffres et son historique', run: () => { location.hash = '#/dossier/' + encodeURIComponent(r.id); } },
+-- fin
+
+═══════════════════════════════════════════════════════════════════ les autres pages (app.js)
+
+== cabinet/app.js | les échéances vides : le calendrier suit les clients dont les livres ont des écritures
+-- avant
+        <p>Le calendrier suit les clients qui t'envoient leurs paquets depuis SkanFact, et ceux dont tu tiens
+        la comptabilité ici. ${seul ? `<b>${esc(seul.name)}</b> n'est encore dans aucun de ces deux cas`
+    : `Tes ${clients.length} clients ne sont encore dans aucun de ces deux cas`} : dès qu'un client t'envoie
+        un paquet ou que tu ouvres son livre, ses déclarations apparaissent ici.</p>
+        <div class="modal-actions"><button class="btn btn-primary" id="ech-livre">${seul ? `Ouvrir la comptabilité ${esc(K.de(seul.name))}` : 'Choisir un client à tenir…'}</button>
+        <button class="btn" id="ech-pair">Remettre le fichier à mes clients…</button></div></div>`;
+    $('#ech-livre').onclick = () => { location.hash = seul ? `#/dossier/${seul.id}/comptabilite` : '#/dossiers'; };
+    $('#ech-pair').onclick = () => remettreAppairage();
+-- après
+        <p>Le calendrier suit les clients dont les livres ont des écritures : ceux qui enregistrent leurs pièces dans
+        SkanFact, et ceux dont tu tiens la comptabilité ici. ${seul ? `<b>${esc(seul.name)}</b> n'a encore aucune écriture`
+    : `Tes ${clients.length} clients n'ont encore aucune écriture`} : dès que ses livres en ont une, ses déclarations
+        apparaissent ici.</p>
+        <div class="modal-actions"><button class="btn btn-primary" id="ech-livre">${seul ? `Ouvrir la comptabilité ${esc(K.de(seul.name))}` : 'Choisir un client à tenir…'}</button></div></div>`;
+    $('#ech-livre').onclick = () => { location.hash = seul ? `#/dossier/${seul.id}/comptabilite` : '#/dossiers'; };
+-- fin
+
+== cabinet/app.js | l'export des écritures de tous les clients n'est pas encore en ligne : la page le dit, et mène aux livres
+-- avant
+        <div class="panel"><h2>Rien à regrouper pour l'instant</h2>
+          <p>Dès qu'un client t'aura envoyé un paquet, tu pourras sortir d'ici <strong>toutes les écritures du mois,
+          tous clients confondus</strong>, dans un seul fichier à importer dans ton logiciel.</p>
+          <p class="small muted">Chaque paquet contient déjà ses écritures en partie double : cette page les rassemble,
+          en ajoutant le nom du client et le mois devant chaque ligne.</p>
+          <div class="modal-actions"><button class="btn btn-primary" id="imp">Importer un paquet…</button></div></div>`;
+      $('#imp').onclick = () => doImport();
+-- après
+        <div class="panel"><h2>Pas encore dans la version en ligne</h2>
+          <p>Sortir d'ici <strong>toutes les écritures d'un mois, tous clients confondus</strong>, dans un seul fichier
+          pour ton logiciel : ce regroupement n'est pas encore en ligne.</p>
+          <p class="small muted">Les écritures de chaque client se lisent dès maintenant dans sa comptabilité, au livre-journal :
+          les pièces qu'il enregistre dans SkanFact y sont, à jour.</p>
+          <div class="modal-actions"><button class="btn btn-primary" id="e-dossiers">Voir mes dossiers</button></div></div>`;
+      $('#e-dossiers').onclick = () => { location.hash = '#/dossiers'; };
+-- fin
+
+== cabinet/app.js | le nom du cabinet ne signe plus un fichier d'appairage : les clients le lisent quand ils confient leur dossier
+-- avant
+        <p class="muted small mt">Ce nom apparaît en bas des relances que tu envoies et dans le fichier d'appairage remis à tes clients.</p>
+-- après
+        <p class="muted small mt">Ce nom apparaît en bas des relances que tu envoies, et tes clients le lisent quand ils te confient leur dossier.</p>
+-- fin
+
+== cabinet/app.js | la palette ne propose ni d'importer un paquet ni de sauvegarder l'ordinateur (C4)
+-- avant
+      { kind: 'action', main: 'Importer un paquet…', go: () => doImport() },
+      { kind: 'action', main: 'Nouveau dossier client…', go: () => newDossierForm() },
+      { kind: 'action', main: 'Sauvegarder maintenant', go: () => quickBackup() },
+-- après
+      { kind: 'action', main: 'Nouveau dossier client…', go: () => newDossierForm() },
+-- fin
+
+== cabinet/app.js | « Tes premiers pas » : le geste du premier livre ouvre la saisie d'un client
+-- avant
+    travail: ['Importer un paquet…', () => doImport()],
+    // 26/09 — le premier client hors SkanFact sans livre : sa comptabilité, où l'attend « Commencer le livre ».
+    livre: ['Commencer son livre…', () => ouvrirPremierLivre()]
+  };
+  function ouvrirPremierLivre() {
+    const e = lesPas().etapes.find(x => x.id === 'travail');
+    if (e && e.dossierId) location.hash = '#/dossier/' + encodeURIComponent(e.dossierId) + '/comptabilite';
+  }
+  const PAS_VISITES = { decouverte: 'decouvrir', cabinet: 'nommer-cabinet', equipe: 'equipe', clients: 'ajouter-client', appairage: 'appairage',
+    cle: 'cle-secours', copie: 'copie-externe', saisie: 'grille-saisie', travail: 'recevoir-paquet', livre: 'premier-livre' };
+-- après
+    // (plateforme) Le livre de chaque dossier existe déjà : le premier geste est d'y saisir (C2).
+    livre: ['Ouvrir sa saisie', () => ouvrirPremierLivre()]
+  };
+  function ouvrirPremierLivre() {
+    const e = lesPas().etapes.find(x => x.id === 'travail');
+    location.hash = e && e.dossierId ? '#/dossier/' + encodeURIComponent(e.dossierId) + '/comptabilite/saisie' : '#/dossiers';
+  }
+  const PAS_VISITES = { decouverte: 'decouvrir', cabinet: 'nommer-cabinet', equipe: 'equipe', clients: 'ajouter-client', appairage: 'appairage',
+    cle: 'cle-secours', copie: 'copie-externe', saisie: 'grille-saisie', livre: 'saisir-piece' };
+-- fin
+
+== cabinet/app.js | « Me guider » ne propose pas une visite sans objet en ligne (C4), ni une visite d'un geste pas encore en ligne
+-- avant
+    Visite
+  }));
+  const visiteParId = id => visites().find(v => v.id === id) || null;
+-- après
+    Visite
+  }).filter(v => !(api.visitesAbsentes || []).includes(v.id)));
+  const visiteParId = id => visites().find(v => v.id === id) || null;
+-- fin
+
+== cabinet/app.js | la recherche de l'Aide ne cite plus la clé de secours
+-- avant
+placeholder="Rechercher : un mot, une question… (« empreinte », « clé de secours »)"
+-- après
+placeholder="Rechercher : un mot, une question… (« lettrage », « à valider »)"
+-- fin
+
+═══════════════════════════════════════════════════════════════════ les bulles (cabguide.js)
+
+== cabinet/cabguide.js | la bulle du nom du cabinet : il signe les relances, les clients le lisent au mandat
+-- avant
+    'cab.name': { t: 'Nom du cabinet', d: 'Le nom sous lequel tes clients te connaissent. Il apparaît en bas des relances que tu envoies et dans le fichier d\'appairage que tu leur remets. Écris-le comme sur ton papier à en-tête.' },
+    'cab.email': { t: 'Email du cabinet', d: 'L\'adresse à laquelle tes clients te répondent. Elle est écrite dans le fichier d\'appairage : c\'est aussi comme ça qu\'ils savent que le fichier vient bien de toi.' },
+-- après
+    'cab.name': { t: 'Nom du cabinet', d: 'Le nom sous lequel tes clients te connaissent. Il apparaît en bas des relances que tu envoies, et tes clients le lisent quand ils te confient leur dossier. Écris-le comme sur ton papier à en-tête.' },
+    'cab.email': { t: 'Email du cabinet', d: 'L\'adresse à laquelle tes clients te répondent. Tes relances partent de ta propre messagerie : c\'est l\'adresse qu\'ils verront.' },
+-- fin
+
+== cabinet/cabguide.js | la bulle du jour de relance : les mois passés sans écriture
+-- avant
+À partir de cette date, l\'application met en tête de « À faire » les clients qui n\'ont pas encore envoyé leurs mois clôturés.
+-- après
+À partir de cette date, l\'application met en tête de « À faire » les clients dont un mois passé n\'a encore aucune écriture.
+-- fin
+
+== cabinet/cabguide.js | la bulle du panneau du code du cabinet (l'appairage n'existe plus)
+-- avant
+    'cab.pairing': { t: 'Fichier d\'appairage', d: 'Un petit fichier <b>.skanpair</b> à envoyer à chaque client (par mail, il ne contient rien de secret : seulement ta clé <b>publique</b>). Il l\'importe une fois dans <b>Paramètres → Envois → Ton cabinet comptable</b> de son SkanFact. À partir de là, tous ses paquets sont chiffrés pour toi seul, et il n\'a plus aucun mot de passe à te communiquer. « Remettre le fichier à mes clients… » l\'enregistre, puis prépare le message qui l\'envoie : tes clients en copie cachée, et ce qu\'ils doivent faire.' },
+-- après
+    'cab.pairing': { t: 'Le code de ton cabinet', d: 'Huit lettres ou chiffres, sans rien de secret. Un client sur SkanFact le tape dans <b>Paramètres → Envois → Ton cabinet comptable</b> et coche ce qu\'il te confie ; tu acceptes sur la page Dossiers. Ses livres sont alors les mêmes pour lui et pour toi, <b>à jour en direct</b> : il n\'a plus rien à t\'envoyer.' },
+-- fin
+
+== cabinet/cabguide.js | les bulles de la fiche d'un client : son nom et son matricule sont ceux de l'entreprise
+-- avant
+    'd.name': { t: 'Nom du client', d: 'La raison sociale, comme sur son registre de commerce. Si le client t\'envoie des paquets, ce nom se met à jour tout seul d\'après ce qu\'il a saisi dans son SkanFact : c\'est lui qui fait foi.' },
+    'd.matricule': { t: 'Matricule fiscal', d: 'C\'est <b>lui</b> qui identifie un dossier, pas le nom : un nom se corrige, change de forme juridique, et deux clients peuvent s\'appeler pareil. En Tunisie il ressemble à <b>1234567X/A/M/000</b>. Saisis-le dès la création : le jour où ce client passera à SkanFact, ses paquets tomberont dans ce dossier-ci au lieu d\'en créer un second.' },
+-- après
+    'd.name': { t: 'Nom du client', d: 'La raison sociale, comme sur son registre de commerce. C\'est celle de son entreprise dans SkanFact : elle fait foi, et ne se change pas depuis ta fiche.' },
+    'd.matricule': { t: 'Matricule fiscal', d: 'C\'est <b>lui</b> qui identifie un dossier, pas le nom : un nom se corrige, change de forme juridique, et deux clients peuvent s\'appeler pareil. En Tunisie il ressemble à <b>1234567X/A/M/000</b>. Saisis-le dès la création d\'un client que tu tiens : c\'est celui de son entreprise.' },
+-- fin
+
+== cabinet/cabguide.js | la bulle d'un dossier archivé : ses livres restent consultables
+-- avant
+Il disparaît des listes et n\'est plus réclamé, mais ses paquets restent consultables
+-- après
+Il disparaît des listes et n\'est plus réclamé, mais ses livres restent consultables
+-- fin
+
+== cabinet/cabguide.js | la bulle d'un client hors SkanFact : ses livres se tiennent ici, rien ne lui est réclamé
+-- avant
+Il compte dans ton portefeuille mais rien ne lui est réclamé : on ne réclame pas des paquets à quelqu\'un qui n\'a pas l\'application. Sa comptabilité se tient ici, à la main : onglet <b>Comptabilité</b> de sa fiche, « Commencer le livre ». Le jour où il t\'enverra son premier paquet, le dossier deviendra un dossier ordinaire tout seul.' },
+-- après
+Il compte dans ton portefeuille mais rien ne lui est réclamé : on ne réclame pas des pièces dans SkanFact à quelqu\'un qui n\'a pas l\'application. Sa comptabilité se tient ici, à la main : onglet <b>Comptabilité</b> de sa fiche.' },
+-- fin
+
+== cabinet/cabguide.js | la bulle du début de mission : l'attente part de la première écriture
+-- avant
+Pour un client <b>sur SkanFact</b> : laisse vide pour partir de son premier paquet, et renseigne-le quand tu reprends son dossier en cours d\'année
+-- après
+Pour un client <b>sur SkanFact</b> : laisse vide pour partir de la première écriture de ses livres, et renseigne-le quand tu reprends son dossier en cours d\'année
+-- fin
+
+== cabinet/cabguide.js | la bulle des mois du Suivi : validé, à valider, manquant
+-- avant
+    'p.definitif': { t: 'Définitif ou provisoire', d: 'Un paquet est <b>définitif</b> quand le client a clôturé son mois : il ne peut plus modifier ni supprimer une pièce de cette période sans rouvrir le mois, avec un motif écrit. Un paquet <b>provisoire</b> se lit, mais ses chiffres peuvent encore bouger : ne déclare pas dessus.' },
+    'p.moisTenus': { t: 'Les mois d\'un client tenu au cabinet', d: 'Ce client n\'envoie aucun paquet : ses mois se lisent dans le <b>livre</b> que tu tiens pour lui,
+-- après
+    'p.definitif': { t: 'Validé ou à valider', d: 'Un mois est <b>validé</b> quand plus aucune de ses écritures n\'est au brouillard : chacune a son numéro et ne se modifie plus. Un mois <b>à valider</b> a encore des brouillards — ceux que les pièces de ton client viennent d\'écrire, ou ceux que tu as saisis : valide-les avant de déclarer. Un mois <b>manquant</b> n\'a aucune écriture : c\'est lui qu\'on relance.' },
+    'p.moisTenus': { t: 'Les mois d\'un client tenu au cabinet', d: 'Ce client n\'est pas sur SkanFact : ses mois se lisent dans le <b>livre</b> que tu tiens pour lui,
+-- fin
+
+== cabinet/cabguide.js | la bulle de la comptabilité d'un client : les livres du serveur, les mêmes que les siens (C2)
+-- avant
+    'lv.compta': { t: 'La comptabilité de ce client', d: 'Le <b>livre</b> que tu tiens pour ce client, exercice par exercice : saisie, livre-journal, grand livre, balance, lettrage, déclaration, banque, immobilisations, paie, révision, clôture et liasse.<br><br>Il se crée de deux façons. Pour un client sur SkanFact, <b>à partir des paquets reçus</b> : ses écritures arrivent déjà écrites, avec le même moteur que son application, au millime près. Pour un client <b>hors SkanFact</b>, ou repris d\'un autre logiciel, en posant son exercice et sa balance d\'ouverture : tout se saisit ensuite ici.<br><br>Le Cabinet ne modifie jamais rien chez le client. Les mois qui manquent sur la période sont nommés en tête : un livre incomplet qui ne le dirait pas serait un livre faux.' },
+-- après
+    'lv.compta': { t: 'La comptabilité de ce client', d: 'Ses <b>livres</b>, exercice par exercice : saisie, livre-journal, grand livre, balance, lettrage, déclaration, banque, immobilisations, paie, révision, clôture et liasse.<br><br>Pour un client sur SkanFact, ce sont <b>les mêmes livres que les siens</b>, au millime : ses pièces y deviennent des écritures au fil de ses ventes, de ses achats et de sa paie, et tu les lis ici à jour, sans rien à recevoir. Tu valides ses brouillards, et tu saisis ce qui te revient. Pour un client <b>hors SkanFact</b>, tout se saisit ici.<br><br>Tu n\'écris jamais une pièce à sa place : une écriture née d\'une pièce suit sa pièce. Les mois qui manquent sur la période sont nommés en tête : un livre incomplet qui ne le dirait pas serait un livre faux.' },
+-- fin
+
+== cabinet/cabguide.js | la bulle de l'ouverture : il n'y a plus d'écritures lues dans des paquets
+-- avant
+<br><br>Quand les écritures sont <b>lues dans les paquets</b> (pas encore de livre), il n\'y a aucune ouverture : les soldes sont ceux des mouvements reçus, pas ceux du compte depuis sa création.' },
+-- après
+' },
+-- fin
+
+== cabinet/cabguide.js | la bulle d'une question au client : sa réponse revient ici
+-- avant
+Elle part dans le prochain fichier de questions ; la réponse revient toute seule dans son paquet suivant.
+-- après
+Elle s\'affiche chez lui en face de la pièce qu\'elle vise, et sa réponse te revient ici.
+-- fin
+
+== cabinet/cabguide.js | la bulle des questions posées au client : plus de paquet pour porter la réponse
+-- avant
+Sa réponse revient toute seule dans son prochain paquet. Une question partie dans deux paquets sans réponse remonte en rouge des deux côtés : c\'est le moment de décrocher le téléphone.' },
+-- après
+Sa réponse te revient ici. Une question restée longtemps sans réponse remonte en rouge des deux côtés : c\'est le moment de décrocher le téléphone.' },
+-- fin
+
+== cabinet/cabguide.js | la bulle de l'inventaire : un client sur SkanFact tient déjà son stock
+-- avant
+un client sur SkanFact, lui, tient déjà le sien et l\'envoie dans son paquet.' },
+-- après
+un client sur SkanFact, lui, tient déjà le sien dans SkanFact.' },
+-- fin
+
+═══════════════════════════════════════════════════════════════════ l'Aide (cabguide.js)
+
+== cabinet/cabguide.js | l'article « En trois gestes » : le code du cabinet, des livres en direct, la relance d'un mois vide
+-- avant
+      <ol class="small" style="line-height:1.9">
+        <li><b>Une fois :</b> renseigne ton cabinet dans Réglages, puis remets le fichier d'appairage (<code>.skanpair</code>) à tes clients : « Remettre le fichier à mes clients… » l'enregistre et prépare le message — tes clients qui ont une adresse en copie cachée, ce qu'ils doivent faire, et l'empreinte à vérifier. Tu n'as plus qu'à joindre le fichier.</li>
+        <li><b>Chaque mois :</b> ton client clôture son mois puis t'envoie un paquet (<code>.skanpack</code>). Tu le glisses sur la fenêtre, ou tu le double-cliques dans ton gestionnaire de fichiers.</li>
+        <li><b>Le jour que tu as choisi</b> (le 10 par défaut, réglable dans Réglages) : la page Dossiers met en tête ceux qui n'ont rien envoyé. Un clic sur « Relancer » prépare le message, et la relance est enregistrée.</li>
+      </ol>
+      <p class="small">Tes clients qui n'utilisent pas encore SkanFact ont leur place ici aussi : « Nouveau client… » les fait entrer dans ton portefeuille. Rien ne leur est réclamé tant qu'ils n'ont pas commencé — et le message du fichier d'appairage leur dit de ne pas en tenir compte.</p>
+      <p class="small">Deux réglages attendent le moment où ils servent, et « Tes premiers pas » les rappellent sans jamais les réclamer : <b>ton équipe</b>, si tu n'es pas seul (qui saisit, qui valide — seul, rien n'est restreint), et <b>ta grille de saisie</b>, pour reprendre les touches de ton logiciel actuel (telle quelle, elle marche déjà).</p>` },
+-- après
+      <ol class="small" style="line-height:1.9">
+        <li><b>Une fois :</b> donne à tes clients sur SkanFact le <b>code de ton cabinet</b> (Réglages → Mon cabinet). Chacun le tape dans son SkanFact (Paramètres → Envois → Ton cabinet comptable) et coche ce qu'il te confie ; tu acceptes sur la page Dossiers.</li>
+        <li><b>Chaque mois :</b> il n'y a rien à recevoir. Ton client enregistre ses pièces dans SkanFact ; leurs écritures sont dans ses livres, que tu lis ici <b>à jour, en direct</b>. Tu valides ce qui est au brouillard, et tu saisis ce qui te revient.</li>
+        <li><b>Le jour de relance</b> (le 10 par défaut) : la page Dossiers met en tête ceux dont un mois passé n'a <b>aucune écriture</b>. « Relancer » prépare le message, et la relance est notée dans sa fiche.</li>
+      </ol>
+      <p class="small">Tes clients qui n'utilisent pas encore SkanFact ont leur place ici aussi : « Nouveau client… » crée leur dossier, et tu tiens leurs livres toi-même. Rien ne leur est réclamé.</p>` },
+-- fin
+
+== cabinet/cabguide.js | l'article « Saisir au kilomètre » : une écriture née d'une pièce suit sa pièce (C6)
+-- avant
+        <li>Une pièce reçue d'un client que tu as corrigée ici <b>n'est plus écrasée</b> quand il renvoie son mois : ta correction fait foi, l'écart éventuel t'est signalé.</li>
+-- après
+        <li>Une écriture née d'une pièce de ton client <b>suit sa pièce</b> : ton fichier ne la réécrit pas. Quand ton client change sa pièce, SkanFact réécrit lui-même son écriture — et contre-passe celle que tu avais déjà validée.</li>
+-- fin
+
+== cabinet/cabguide.js | l'article sur les paquets devient celui des livres d'un client sur SkanFact
+-- avant
+      id: 'paquet', t: 'Ce que contient un paquet',
+      s: 'Ce que ton client t\'envoie, et ce que tu peux en affirmer', couleur: 'th-vendre', geste: { label: 'Voir mes dossiers', hash: '#/' },
+      icon: '<path d="M3 8l9-4 9 4v8l-9 4-9-4z"/><path d="M3 8l9 4 9-4"/><path d="M12 12v8"/>', d: `
+      <p class="small">La page de garde (un PDF qui résume le mois et liste ce qui manque), les journaux au format CSV (ventes, achats, encaissements, règlements fournisseurs, trésorerie), les factures et avoirs en PDF, les bulletins de paie, et les justificatifs que ton client a joints à ses achats.</p>
+      <p class="small"><b>Et surtout <code>journaux/ecritures.csv</code></b> : les pièces du mois déjà transformées en écritures en partie double, à importer dans ton logiciel au lieu de les ressaisir. Si les numéros de compte ne sont pas les tiens, donne-les à ton client une fois : il les saisit dans son SkanFact et tous ses envois suivants sont à ton format.</p>
+      <p class="small">Un <b>manifeste</b> porte l'empreinte de chaque fichier. À l'import, SkanFact les recalcule toutes : c'est ce qui te permet d'affirmer que ce que tu as reçu est exactement ce qui a été envoyé.</p>
+      <p class="small">Le compte va dans les <b>deux sens</b>. Un fichier présent dans le paquet que le manifeste n'annonce pas est signalé à part (« non annoncé ») : il n'entre jamais dans les pièces vérifiées, il porte un « ? » dans la liste, et l'application te pose une question avant de l'ouvrir. Un paquet fabriqué par SkanFact n'en contient jamais.</p>
+      <p class="small">Les paquets sont rangés sur ton disque par <b>client</b>, puis par <b>année</b>. Tu peux les retrouver dans ton gestionnaire de fichiers sans ouvrir l'application, et rendre à un client ses pièces en copiant un dossier.</p>
+      <p class="small">Tu peux en déposer <b>vingt d'un coup</b> : l'application les range l'un après l'autre en te disant où elle en est, et tu peux arrêter en cours de route. L'arrêt attend la fin du paquet en cours — ce qui est rangé l'est pour de bon, le reste se redépose plus tard.</p>` },
+-- après
+      id: 'paquet', t: 'Les livres d\'un client sur SkanFact',
+      s: 'Ce que tu vois de lui, et d\'où ça vient', couleur: 'th-vendre', geste: { label: 'Voir mes dossiers', hash: '#/' },
+      icon: '<path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 13h8M8 17h5"/>', d: `
+      <p class="small">Un client sur SkanFact qui t'a confié son dossier n'a <b>rien à t'envoyer</b> : ses factures, ses achats, ses règlements et sa paie deviennent des écritures dans <b>ses livres</b>, au fil de ses pièces. Ce sont ces livres que tu lis ici — les mêmes que les siens, au millime.</p>
+      <p class="small">Une écriture née d'une pièce arrive <b>au brouillard</b> : c'est toi qui la valides, puisque le mandat de comptabilité te le confie. Elle <b>suit sa pièce</b> : tu ne la modifies pas, et quand ton client change sa pièce, SkanFact réécrit lui-même son écriture — et contre-passe celle que tu avais déjà validée. Ce que tu saisis toi-même (opérations diverses, régularisations) se corrige, se valide, se contre-passe.</p>
+      <p class="small">Ce que ton client te confie se lit dans son mandat : la comptabilité, les déclarations, la saisie des achats, la paie. Tu ne lis que ce qu'il te confie, et <b>tu n'écris jamais une pièce à sa place</b> : ni une facture, ni un encaissement.</p>` },
+-- fin
+
+== cabinet/cabguide.js | l'article sur les paquets reçus devient celui des échéances et des relances
+-- avant
+      id: 'travail', t: 'Ce que tu fais des paquets reçus',
+      s: 'Échéances et écritures : les deux pages qui s\'en nourrissent', couleur: 'th-declarer', geste: { label: 'Ouvrir l\'export d\'écritures', hash: '#/ecritures' },
+      icon: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/>', d: `
+      <p class="small">Deux pages vivent de ce que tes clients t'envoient :</p>
+      <ul class="small" style="line-height:1.8">
+        <li><b>Échéances</b> rattache chaque date de dépôt aux clients dont tu n'as <i>pas</i> les pièces. Un calendrier papier te donne la date ; celui-ci te donne la date <b>et</b> la liste de ceux qu'il faut relancer avant. Les jours proposés suivent l'usage tunisien et se règlent dans Réglages — <b>À VÉRIFIER</b>, ils dépendent de la forme juridique et du régime.</li>
+        <li><b>Écritures</b> sort en un seul fichier CSV les écritures en partie double de <b>tous</b> tes clients sur le mois (ou l'année), avec le client, son matricule et le mois devant chaque ligne. C'est ce fichier que tu importes dans ton logiciel, au lieu de ressaisir.</li>
+      </ul>
+      <p class="small">Si les numéros de compte proposés ne sont pas les tiens, donne-les une fois à ton client : il les saisit dans son SkanFact (Comptabilité → Écritures → Plan comptable) et tous ses envois suivants arrivent à ton format.</p>` },
+-- après
+      id: 'travail', t: 'Échéances et relances',
+      s: 'Les deux pages qui lisent les livres de tes clients', couleur: 'th-declarer', geste: { label: 'Voir les échéances', hash: '#/echeances' },
+      icon: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/>', d: `
+      <p class="small">Deux pages vivent des livres de tes clients :</p>
+      <ul class="small" style="line-height:1.8">
+        <li><b>Échéances</b> rattache chaque date de dépôt aux clients dont un mois n'a <i>aucune écriture</i>. Un calendrier papier te donne la date ; celui-ci te donne la date <b>et</b> la liste de ceux qu'il faut relancer avant. Les jours proposés suivent l'usage tunisien — <b>À VÉRIFIER</b>, ils dépendent de la forme juridique et du régime.</li>
+        <li><b>Relances</b> réunit les clients dont un mois passé est vide, avec le message déjà écrit : il nomme les mois, et la relance est notée dans la fiche du client.</li>
+      </ul>
+      <p class="small">L'export des écritures de tous tes clients en un seul fichier, pour ton logiciel, n'est pas encore dans la version en ligne.</p>` },
+-- fin
+
+== cabinet/cabguide.js | l'article « Définitif ou provisoire » devient « Validé ou à valider »
+-- avant
+      id: 'definitif', t: 'Définitif ou provisoire',
+      s: 'Un mois clôturé ne bougera plus, un mois provisoire peut encore changer', couleur: 'th-encaisser', geste: { label: 'Voir les échéances', hash: '#/echeances' },
+      icon: '<path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>', d: `
+      <p class="small">Un paquet n'est <b>définitif</b> que si le client a clôturé son mois : après une clôture, il ne peut plus ni modifier ni supprimer une pièce de cette période sans rouvrir le mois, avec un motif écrit.</p>
+      <p class="small">Un paquet <b>provisoire</b> se lit, mais ses chiffres peuvent encore bouger. Si tu reçois deux fois le même mois, SkanFact te le dit — et te prévient si le remplacé était définitif.</p>` },
+-- après
+      id: 'definitif', t: 'Validé ou à valider',
+      s: 'Un mois validé ne bougera plus ; un mois à valider attend ton geste', couleur: 'th-encaisser', geste: { label: 'Voir mes dossiers', hash: '#/' },
+      icon: '<path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>', d: `
+      <p class="small">Un mois est <b>validé</b> quand plus aucune de ses écritures n'est au brouillard : chacune a son numéro, et ne se modifie plus — elle se contre-passe.</p>
+      <p class="small">Un mois <b>à valider</b> a encore des écritures au brouillard : celles que les pièces de ton client viennent d'écrire, ou celles que tu as saisies. Elles se lisent, mais elles peuvent encore bouger : <b>valide-les avant de déclarer</b>. C'est ton travail, pas celui de ton client : on ne le relance pas pour ça.</p>
+      <p class="small">Un mois <b>manquant</b> est un mois passé sans aucune écriture : c'est lui, et lui seul, qu'on relance.</p>` },
+-- fin
+
+== cabinet/cabguide.js | le manuel de tenue : lire les livres, sans paquet à recevoir
+-- avant
+        <li><b>Recevoir</b> — le paquet du client arrive dans la boîte de réception, ou se glisse sur la fenêtre.
+          Un client hors SkanFact n'envoie rien : sa saisie se fait à la main, à l'étape suivante — la première
+          fois, <b>Comptabilité → Commencer le livre</b> pose son exercice et sa balance d'ouverture.</li>
+        <li><b>Saisir</b> — <b>Comptabilité → Saisie</b>, au clavier. Ce qui vient d'un paquet est déjà là ; le reste
+-- après
+        <li><b>Lire</b> — un client sur SkanFact n'a rien à envoyer : ses pièces sont déjà dans ses livres, au
+          brouillard, dès qu'il les enregistre. Un client hors SkanFact n'a rien dans SkanFact : sa saisie se fait à
+          la main, à l'étape suivante.</li>
+        <li><b>Saisir</b> — <b>Comptabilité → Saisie</b>, au clavier. Ce qui vient des pièces du client est déjà là ; le reste
+-- fin
+
+== cabinet/cabguide.js | le manuel de tenue : les questions reviennent avec leurs réponses, sans paquet
+-- avant
+          <b>questions</b> qui partent chez le client et reviennent avec leurs réponses dans son paquet suivant.</li>
+-- après
+          <b>questions</b> qui s'affichent chez le client, en face de ses pièces, et te reviennent avec leurs réponses.</li>
+-- fin
+
+== cabinet/cabguide.js | le manuel de tenue : la paie d'un client sur SkanFact est déjà dans ses livres
+-- avant
+      <p class="small">Un client qui utilise SkanFact, lui, tient sa paie chez lui : ses bulletins arrivent déjà
+      écrits dans son paquet mensuel.</p>
+-- après
+      <p class="small">Un client qui utilise SkanFact, lui, tient sa paie chez lui : l'écriture de sa paie est déjà
+      dans ses livres.</p>
+-- fin
+
+== cabinet/cabguide.js | l'article sur la révision : la réponse d'un client revient ici
+-- avant
+<b>Envoyer les questions au client…</b> écrit un fichier <code>.skanask</code>
+      signé — scellé par un mot de passe si tu le veux — que ton client importe ; ses réponses reviennent dans son paquet
+      suivant, sans rien à envoyer à part. Sans réponse après deux paquets, la question se signale.
+-- après
+Sa réponse te revient ici, sans rien à envoyer à part ;
+      une question restée longtemps sans réponse se signale.
+-- fin
+
+== cabinet/cabguide.js | l'article sur la paie : celle d'un client sur SkanFact est déjà dans ses livres
+-- avant
+      <p class="small">Pour les dossiers qui <b>n'ont pas SkanFact</b> : un client qui l'utilise tient sa paie chez lui,
+      et ses bulletins arrivent déjà écrits dans son paquet mensuel.</p>
+-- après
+      <p class="small">Pour les dossiers qui <b>n'ont pas SkanFact</b> : un client qui l'utilise tient sa paie chez lui,
+      et l'écriture de sa paie est déjà dans ses livres.</p>
+-- fin
+
+== cabinet/cabguide.js | l'article sur les immobilisations : une acquisition enregistrée par le client remonte sans fiche
+-- avant
+      <p class="small">Une acquisition venue d'un paquet remonte <b>sans fiche</b> : l'écran propose de la créer, jamais
+-- après
+      <p class="small">Une acquisition que ton client a enregistrée dans SkanFact remonte <b>sans fiche</b> : l'écran propose de la créer, jamais
+-- fin
+
+== cabinet/cabguide.js | l'Aide ne propose pas un article sans objet en ligne : sauvegardes, changer d'ordinateur, licence, mises à jour (C4)
+-- avant
+  ];
+
+  // 10.13.0 — CHAQUE bulle mène à l'article qui la développe.
+-- après
+  ].filter(a => !((typeof window !== 'undefined' && window.cabinet && window.cabinet.articlesAbsents) || []).includes(a.id));
+
+  // 10.13.0 — CHAQUE bulle mène à l'article qui la développe.
+-- fin
+
+═══════════════════════════════════════════════════════════════════ les visites (cabvisites.js)
+
+== cabinet/cabvisites.js | les familles de « Me guider » : ce qui reste à faire en ligne
+-- avant
+    { id: 'demarrer', titre: 'Pour commencer', sous: 'Découvrir sur l\'exemple, puis poser ton cabinet', aide: 'demarrer', couleur: 'commencer' },
+-- après
+    { id: 'demarrer', titre: 'Pour commencer', sous: 'Les premiers pas de ton cabinet', aide: 'demarrer', couleur: 'commencer' },
+-- fin
+
+== cabinet/cabvisites.js | la famille des clients sur SkanFact : leurs livres en direct, leurs questions
+-- avant
+    { id: 'recevoir', titre: 'Les clients sur SkanFact', sous: 'Leurs paquets, leurs questions, ta clôture', aide: 'paquet', couleur: 'encaisser',
+-- après
+    { id: 'recevoir', titre: 'Les clients sur SkanFact', sous: 'Leurs livres en direct, leurs questions', aide: 'paquet', couleur: 'encaisser',
+-- fin
+
+== cabinet/cabvisites.js | la famille du cabinet : plus de sauvegardes, de clé de secours, de licence ni de mises à jour
+-- avant
+    { id: 'cabinet', titre: 'Ton cabinet et tes données', sous: 'Sauvegardes, clé de secours, équipe, licence, mises à jour', aide: 'filets', couleur: 'piloter',
+-- après
+    { id: 'cabinet', titre: 'Ton cabinet', sous: 'L\'équipe, la grille de saisie, les régimes, l\'apparence', aide: 'equipe', couleur: 'piloter',
+-- fin
+
+== cabinet/cabvisites.js | la visite de la page Dossiers : le dernier mois écrit
+-- avant
+Chaque client sur une ligne : le dernier mois reçu ou saisi, son chiffre d\'affaires, ce qui manque
+-- après
+Chaque client sur une ligne : le dernier mois de ses livres, son chiffre d\'affaires, ce qui manque
+-- fin
+
+== cabinet/cabvisites.js | la visite des relances : les mois passés sans écriture
+-- avant
+      texte: '<p>Les clients sur SkanFact qui ne t\'ont pas envoyé un mois terminé, ou seulement du provisoire. Pour chacun, <b>le mail est prêt</b> : tu relis, tu envoies.</p>
+-- après
+      texte: '<p>Les clients sur SkanFact dont un mois passé n\'a aucune écriture. Pour chacun, <b>le mail est prêt</b> : tu relis, tu envoies.</p>
+-- fin
+
+== cabinet/cabvisites.js | la visite de la page Écritures : le regroupement n'est pas encore en ligne
+-- avant
+      texte: '<p>Tu choisis une période : les écritures de tous les paquets reçus sont regroupées, <b>dans le format de ton logiciel</b>, en un seul fichier.</p><p>Un paquet illisible ne fait pas échouer l\'export : il part sans lui, et le manque est nommé.</p>' },
+-- après
+      texte: '<p>Les écritures de tous tes clients sur une période, regroupées <b>dans le format de ton logiciel</b>, en un seul fichier : pas encore dans la version en ligne.</p><p>En attendant, les écritures de chaque client se lisent dans sa comptabilité, au livre-journal.</p>' },
+-- fin
+
+== cabinet/cabvisites.js | la visite des réglages : ce qui reste en ligne
+-- avant
+      texte: '<p>Quatre onglets : <b>ton cabinet</b> (nom, fichier d\'appairage, équipe, licence), <b>la comptabilité</b> (la grille, les guides, la liasse), <b>tes données</b> (sauvegardes, clé de secours) et <b>l\'application</b> (thème, mises à jour).</p>
+-- après
+      texte: '<p>Quatre onglets : <b>ton cabinet</b> (nom, code, régimes, équipe), <b>la comptabilité</b> (la grille, les guides, la liasse), <b>tes données</b> (verrouiller ta session) et <b>l\'application</b> (thème, dépannage).</p>
+-- fin
+
+== cabinet/cabvisites.js | la visite de l'Aide : les livres des clients plutôt que les paquets
+-- avant
+Les articles qui expliquent le métier du Cabinet : les paquets, la tenue, la banque, la déclaration, la révision, la clôture.
+-- après
+Les articles qui expliquent le métier du Cabinet : les livres de tes clients, la tenue, la banque, la déclaration, la révision, la clôture.
+-- fin
+
+== cabinet/cabvisites.js | la visite de la fiche d'un dossier : deux onglets, plus de paquets
+-- avant
+    dossier: { titre: 'La fiche d\'un dossier', resume: 'Un client : ses mois, ses relances, sa comptabilité, ses paquets.', dossier: 'client',
+      texte: '<p>Tout ce qui concerne un client, en trois onglets : <b>Suivi</b> (ses douze mois, ses relances, ta note), <b>Comptabilité</b> (son livre) et <b>Paquets</b> (ce qu\'il t\'a envoyé).</p><p>En haut, qui il est, et l\'état du dossier en une phrase.</p>' },
+-- après
+    dossier: { titre: 'La fiche d\'un dossier', resume: 'Un client : ses mois, ses relances, sa comptabilité.', dossier: 'client',
+      texte: '<p>Tout ce qui concerne un client, en deux onglets : <b>Suivi</b> (ses douze mois, ses relances, ta note) et <b>Comptabilité</b> (ses livres).</p><p>En haut, qui il est, et l\'état du dossier en une phrase.</p>' },
+-- fin
+
+== cabinet/cabvisites.js | le bloc des onglets d'un dossier : Suivi et Comptabilité
+-- avant
+    { sel: '#d-tabs', titre: 'Les trois onglets du dossier', texte: 'Suivi, Comptabilité, Paquets : l\'onglet vit dans l\'adresse, « ← » revient dessus.' },
+-- après
+    { sel: '#d-tabs', titre: 'Les onglets du dossier', texte: 'Suivi et Comptabilité : l\'onglet vit dans l\'adresse, « ← » revient dessus.' },
+-- fin
+
+== cabinet/cabvisites.js | les onglets du Suivi et des réglages, dits pour la version en ligne
+-- avant
+    'dossier:suivi': 'Les douze mois de l\'année, dans le sens du temps : reçu, provisoire, manquant, hors mission. Ses relances et ta note.',
+-- après
+    'dossier:suivi': 'Les douze mois de l\'année, dans le sens du temps : validé, à valider, manquant, hors mission. Ses relances et ta note.',
+-- fin
+
+== cabinet/cabvisites.js | les onglets des réglages, sans appairage, licence, sauvegardes ni mises à jour
+-- avant
+    'reglages:cabinet': 'Ton cabinet : son nom, le fichier à remettre à tes clients, les régimes, l\'équipe, la licence.',
+    'reglages:compta': 'La comptabilité : les touches de la grille, les guides d\'écritures, la correspondance des comptes, la révision, la liasse.',
+    'reglages:donnees': 'Tes données : la boîte de réception, les sauvegardes, la copie externe, la clé de secours, le mot de passe.',
+    'reglages:app': 'L\'application : le thème, les mises à jour, le dépannage, l\'exemple.'
+-- après
+    'reglages:cabinet': 'Ton cabinet : son nom, son code, les régimes, l\'équipe.',
+    'reglages:compta': 'La comptabilité : les touches de la grille, les guides d\'écritures, la révision, la liasse.',
+    'reglages:donnees': 'La sécurité : verrouiller ta session sur cet appareil.',
+    'reglages:app': 'L\'application : le thème, le dépannage.'
+-- fin
+
+== cabinet/cabvisites.js | le bouton des échéances vides : les échéances viennent des livres
+-- avant
+Leurs échéances apparaissent ici dès qu\'ils envoient un paquet ou que tu tiens leur livre.');
+-- après
+Leurs échéances apparaissent ici dès que leurs livres ont une écriture.');
+-- fin
+
+== cabinet/cabvisites.js | le filtre « Sur SkanFact seulement »
+-- avant
+  b('#onlysf', 'Ne garde que les clients qui t\'envoient leurs paquets depuis SkanFact.', { nom: 'Sur SkanFact seulement' });
+-- après
+  b('#onlysf', 'Ne garde que les clients qui sont sur SkanFact, dont tu lis les livres en direct.', { nom: 'Sur SkanFact seulement' });
+-- fin
+
+== cabinet/cabvisites.js | un mois du Suivi : validé, à valider ou manquant, et ce qu'un clic ouvre
+-- avant
+  b('[data-m]', 'Ce mois-là : reçu, provisoire, manquant ou hors mission. Un mois manquant porte le geste qui le réclame.', { nom: 'Un mois', cle: 'mois' });
+-- après
+  b('[data-m]', 'Ce mois-là : validé ou à valider. Un clic ouvre ses écritures — sa saisie s\'il reste à valider ; un mois manquant porte le geste qui le réclame.', { nom: 'Un mois', cle: 'mois' });
+-- fin
+
+== cabinet/cabvisites.js | ce qu'il faut pour une visite : un client sur SkanFact qui t'a confié son dossier, un client que tu tiens
+-- avant
+      skanfact: { texte: 'Il faut un client qui t\'envoie ses paquets : importe son premier paquet, ou charge l\'exemple (Réglages → L\'application).', visite: 'recevoir-paquet' },
+      hors: { texte: 'Il faut un client dont tu tiens le livre : crée un dossier et son livre, ou charge l\'exemple.', visite: 'ajouter-client' },
+-- après
+      skanfact: { texte: 'Il faut un client sur SkanFact qui t\'a confié son dossier : donne-lui le code de ton cabinet (Réglages → Mon cabinet), puis accepte son dossier sur la page Dossiers.' },
+      hors: { texte: 'Il faut un client que tu tiens au cabinet : ajoute-le (« Nouveau client… »), ses livres s\'ouvrent aussitôt.', visite: 'ajouter-client' },
+-- fin
+
+== cabinet/cabvisites.js | ce qu'il faut pour saisir : un client, dont les livres s'ouvrent dès son dossier
+-- avant
+      saisie: { texte: 'Il faut un dossier qui a son livre : crée le livre d\'un client (sa fiche → Comptabilité), ou charge l\'exemple.', get visite() { return aTenir() ? 'premier-livre' : 'ajouter-client'; } },
+      livre: { texte: 'Il faut un dossier qui a son livre : crée le livre d\'un client, ou charge l\'exemple.', get visite() { return aTenir() ? 'premier-livre' : 'ajouter-client'; } },
+-- après
+      saisie: { texte: 'Il faut un dossier dont tu as ouvert la comptabilité : ouvre la fiche d\'un client, onglet Comptabilité.', visite: 'ajouter-client' },
+      livre: { texte: 'Il faut un dossier dont tu as ouvert la comptabilité : ouvre la fiche d\'un client, onglet Comptabilité.', visite: 'ajouter-client' },
+-- fin
+
+== cabinet/cabvisites.js | la visite des premiers pas : l'ordre des choses en ligne
+-- avant
+      resume: 'Tes premiers pas, dans l\'ordre : ton cabinet, tes clients, le fichier à leur remettre, tes filets.',
+      mots: ['premiers pas', 'demarrer', 'commencer', 'installer', 'mon cabinet'],
+      suite: ['nommer-cabinet', 'ajouter-client', 'appairage'],
+-- après
+      resume: 'Tes premiers pas, dans l\'ordre : ton cabinet, tes clients, leur premier livre.',
+      mots: ['premiers pas', 'demarrer', 'commencer', 'installer', 'mon cabinet'],
+      suite: ['ajouter-client', 'saisir-piece'],
+-- fin
+
+== cabinet/cabvisites.js | le panneau des premiers pas, dit pour la version en ligne
+-- avant
+          texte: 'L\'ordre à suivre : ton cabinet, tes clients, le fichier à leur remettre, ta clé de secours, ta copie externe — puis ton premier paquet ou ton premier livre. <b>Chaque étape se coche toute seule</b> quand c\'est fait.' },
+-- après
+          texte: 'L\'ordre à suivre : ton cabinet, tes clients, puis leur premier livre. <b>Chaque étape se coche toute seule</b> quand c\'est fait.' },
+-- fin
+
+== cabinet/cabvisites.js | ajouter un client : il te confie son dossier par le code du cabinet, ou tu le tiens
+-- avant
+      suite: ['premier-livre', 'appairage', 'page-dossier'],
+      mesure: () => reels().length, but: n0 => reels().length > n0 && aucuneFenetre(),
+      bravo: 'Ton client est dans le portefeuille',
+      conclusion: 'Rien ne lui est réclamé tant qu\'il n\'a pas commencé. S\'il utilise SkanFact, remets-lui le fichier d\'appairage ; sinon, crée son livre et saisis.',
+-- après
+      suite: ['saisir-piece', 'page-dossier'],
+      mesure: () => reels().length, but: n0 => reels().length > n0 && aucuneFenetre(),
+      bravo: 'Ton client est dans le portefeuille',
+      conclusion: 'Rien ne lui est réclamé : tu tiens ses livres ici. S\'il utilise SkanFact, il te confie lui-même son dossier avec le code de ton cabinet.',
+-- fin
+
+== cabinet/cabvisites.js | le matricule d'un client tenu : celui de son entreprise
+-- avant
+          texte: 'C\'est lui qui identifie le dossier : son premier paquet arrivera dans CE dossier, et pas dans un second.' },
+-- après
+          texte: 'C\'est lui qui identifie le dossier : celui de son entreprise.' },
+-- fin
+
+== cabinet/cabvisites.js | relancer : les clients dont un mois passé n'a aucune écriture
+-- avant
+          texte: 'Chaque client qui ne t\'a pas envoyé un mois terminé, ou seulement du provisoire. Le mois en cours n\'est jamais réclamé.' },
+-- après
+          texte: 'Chaque client sur SkanFact dont un mois passé n\'a aucune écriture. Le mois en cours n\'est jamais réclamé.' },
+-- fin
+
+== cabinet/cabvisites.js | poser une question : la réponse revient ici
+-- avant
+      suite: ['page-compta-revision', 'recevoir-paquet'],
+      bravo: 'Tu sais questionner un client',
+      conclusion: 'Ta question part dans un fichier signé ; elle s\'affiche dans son SkanFact, sur la pièce qu\'elle vise. Sa réponse revient dans son paquet suivant — sans un appel.',
+-- après
+      suite: ['page-compta-revision'],
+      bravo: 'Tu sais questionner un client',
+      conclusion: 'Ta question s\'affiche dans son SkanFact, sur la pièce qu\'elle vise, et sa réponse te revient ici — sans un appel.',
+-- fin
+
+== cabinet/cabvisites.js | la fiche d'un client : le nom et le matricule sont ceux de l'entreprise ; ses mois s'ouvrent dans ses livres
+-- avant
+          texte: 'Nom, matricule, email, téléphone, régime, honoraires. Tant qu\'aucun paquet n\'est arrivé, <b>corriger le matricule corrige l\'identifiant</b> : son premier paquet arrivera ici.' },
+        { page: dans('client', 'suivi'), cible: ['#view .mois-annee', '#view .panel'], cote: 'dessous', titre: 'Ses douze mois',
+          texte: 'Reçu, provisoire, manquant, hors mission. Un mois manquant porte son geste : la relance part sur ce mois-là.' },
+-- après
+          texte: 'Email, téléphone, régime, honoraires, ta note. Le nom et le matricule sont ceux de son entreprise : ils ne se changent pas ici.' },
+        { page: dans('client', 'suivi'), cible: ['#view .mois-annee', '#view .panel'], cote: 'dessous', titre: 'Ses douze mois',
+          texte: 'Validé, à valider, manquant, hors mission. Un mois écrit s\'ouvre dans ses livres ; un mois manquant porte son geste : la relance part sur ce mois-là.' },
+-- fin
+
+== cabinet/cabvisites.js | réviser : la réponse à une question revient ici
+-- avant
+titre: 'Une question au client', texte: 'Elle part chez lui et s\'affiche <b>en face de la pièce</b> qu\'elle vise ; sa réponse revient dans son prochain paquet.',
+-- après
+titre: 'Une question au client', texte: 'Elle part chez lui et s\'affiche <b>en face de la pièce</b> qu\'elle vise ; sa réponse te revient ici.',
+-- fin
+
+== cabinet/cabguide.js | l'article de chaque écran : les réglages mènent à un article qui existe en ligne
+-- avant
+    production: 'tenue', reglages: 'filets', dossier: 'tenue', 'dossier-paquets': 'paquet',
+-- après
+    production: 'tenue', reglages: 'demarrer', dossier: 'tenue', 'dossier-paquets': 'paquet',
+-- fin
+
+== cabinet/cabguide.js | l'article de chaque onglet des réglages, parmi ceux qui existent en ligne
+-- avant
+    reglages: { barre: '#set-tabs', articles: { cabinet: 'demarrer', compta: 'saisir', donnees: 'filets', app: 'maj' } }
+-- après
+    reglages: { barre: '#set-tabs', articles: { cabinet: 'demarrer', compta: 'saisir', donnees: 'limites', app: 'limites' } }
+-- fin
+
+== cabinet/cabguide.js | ce que le Cabinet ne fait pas, en ligne : il écrit ses écritures dans les livres du client, jamais ses pièces
+-- avant
+      <p class="small">Elle <b>ne modifie jamais</b> la comptabilité de tes clients et ne leur renvoie rien. Une correction se demande au client, qui la saisit chez lui : sinon deux versions des mêmes comptes coexistent, et plus personne ne sait laquelle fait foi.</p>
+-- après
+      <p class="small">Elle <b>ne modifie jamais les pièces</b> de tes clients : une facture, un achat, un encaissement se corrigent chez le client, qui les saisit. Tes écritures à toi — opérations diverses, régularisations — vont dans ses livres, les seuls : il n'existe jamais deux versions des mêmes comptes.</p>
+-- fin
+
+== cabinet/cabguide.js | ce que le Cabinet ne fait pas : plus de mot de passe du cabinet, chacun son compte
+-- avant
+      <p class="small">Elle ne donne pas un mot de passe à chaque collaborateur. Les collaborateurs se <b>déclarent</b> (Réglages → Mon cabinet) : leurs droits et la piste d'audit portent leur nom. Mais le mot de passe du cabinet ouvre déjà toute la base — un second, par personne, ne protégerait rien de plus.</p>` },
+-- après
+      <p class="small">Chacun se connecte avec <b>son propre compte</b> : la trace de ce qui a été fait porte son nom. Inviter un collaborateur dans ton cabinet n'est pas encore dans la version en ligne.</p>` },
+-- fin
+
+== cabinet/app.js | une échéance compte les clients dont le mois a des écritures à valider
+-- avant
+          ${e.provisoires.length ? `<span class="warn-inline">${e.provisoires.length} en provisoire</span>` : ''}
+-- après
+          ${e.provisoires.length ? `<span class="warn-inline">${e.provisoires.length} à valider</span>` : ''}
+-- fin
+
+== cabinet/cabvisites.js | le nom du cabinet ne signe plus un fichier que les clients importent
+-- avant
+    '#c-name': 'Le nom de ton cabinet : il signe tes relances et le fichier que tes clients importent.',
+    '#c-email': 'L\'adresse de ton cabinet.',
+    '#c-phone': 'Le téléphone de ton cabinet.',
+    '#w-name': 'Le nom de ton cabinet : il signe tes relances et le fichier que tes clients importent.',
+-- après
+    '#c-name': 'Le nom de ton cabinet : il signe tes relances, et tes clients le lisent quand ils te confient leur dossier.',
+    '#c-email': 'L\'adresse de ton cabinet.',
+    '#c-phone': 'Le téléphone de ton cabinet.',
+    '#w-name': 'Le nom de ton cabinet : il signe tes relances, et tes clients le lisent quand ils te confient leur dossier.',
+-- fin
+
+== cabinet/app.js | la clé de secours n'existe pas en ligne : on ne la réclame jamais (C4)
+-- avant
+  function chargerRecovery(redessiner) {
+    if (!api.recoveryStatus) { recoveryAt = null; return Promise.resolve(); }
+-- après
+  function chargerRecovery(redessiner) {
+    // (plateforme) Pas de clé de secours en ligne (C4) : « on ne sait pas » reste la réponse, et rien
+    // ne se réclame (ni ligne dans « À faire », ni bandeau).
+    if (api.sansCleDeSecours === true) return Promise.resolve();
+    if (!api.recoveryStatus) { recoveryAt = null; return Promise.resolve(); }
+-- fin
+
+== cabinet/cabcore.js | le premier livre à tenir est celui d'un client tenu au cabinet : un client sur SkanFact remplit ses livres lui-même
+-- avant
+    const aTenir = reels.find(d => !d.archived && !(d.packs || []).length && !tenus[d.id]) || null;
+-- après
+    // (plateforme) Un client tenu au cabinet d'abord : un client sur SkanFact remplit ses livres lui-même.
+    const sansLivre = d => !d.archived && !(d.packs || []).length && !tenus[d.id];
+    const aTenir = reels.find(d => d.manual && sansLivre(d)) || reels.find(sansLivre) || null;
+-- fin

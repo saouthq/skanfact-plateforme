@@ -244,15 +244,41 @@ describe('les écrans du Cabinet, côté serveur', () => {
     expect((await poser(cab.associe, { email: 'menuiserie@exemple.tn', fees: 150500, note: 'relue' }, 1)).corps).toEqual({ revision: 2 });
     expect((await poser(cab.associe, { note: 'écrase' }, 1)).statut).toBe(409);
     // Deux postes au même instant, sur la même révision : un seul passe, l'autre est refusé (jamais une erreur).
-    const [a, b] = await Promise.all([poser(cab.associe, { note: 'A' }, 2), poser(cab.associe, { note: 'B' }, 2)]);
+    // « Au même instant » pour de vrai : deux personnes du cabinet (deux sessions : deux requêtes d'une
+    // même session passent l'une après l'autre), et la fiche retenue jusqu'à ce que les deux aient lu
+    // la même révision et attendent d'écrire — sans quoi la seconde arrive souvent après la première,
+    // et le test ne prouve plus rien.
+    const second = await cab.collaborateur('supervision');
+    await admin.query('begin');
+    await admin.query('select 1 from cabinet.fiche where entreprise = $1 for update', [cl.ent]);
+    const paire = Promise.all([poser(cab.associe, { note: 'A' }, 2), poser(second, { note: 'B' }, 2)]);
+    // Qui attend d'écrire, vu d'une autre connexion (dans une transaction, l'activité lue ne bouge plus).
+    const guet = new pg.Client({ connectionString: inject('pgAdmin') });
+    await guet.connect();
+    const enAttente = async () => Number((await guet.query(`select count(*)::int n from pg_stat_activity where wait_event_type = 'Lock' and query ilike 'update "cabinet"."fiche"%'`)).rows[0].n);
+    for (let i = 0; i < 200 && await enAttente() < 2; i++) await new Promise((r) => setTimeout(r, 25));
+    expect(await enAttente()).toBe(2);
+    await guet.end();
+    await admin.query('commit');
+    const [a, b] = await paire;
     expect([a.statut, b.statut].sort()).toEqual([200, 409]);
     const fiches = (await appeler('GET', `/cabinets/${cab.id}/fiches`, cab.associe.jeton)).corps.fiches as { entreprise: string; contenu: Record<string, unknown>; revision: number }[];
     expect(fiches).toEqual([{ entreprise: cl.ent, contenu: { note: a.statut === 200 ? 'A' : 'B' }, revision: 3 }]);
+    // Les relances notées (C15) : le jour, le moyen, les mois réclamés, une note — rien d'autre, et
+    // jamais plus de cinquante.
+    const relance = { at: Date.UTC(2026, 8, 29, 9), via: 'email', months: ['2026-07', '2026-08'], note: '' };
+    expect((await poser(cab.associe, { relances: [relance], note: 'x' }, 2)).statut).toBe(409);
+    expect((await poser(cab.associe, { relances: [{ ...relance, via: 'pigeon' }] }, 3)).statut).toBe(400);
+    expect((await poser(cab.associe, { relances: [{ ...relance, months: ['2026-13'] }] }, 3)).statut).toBe(400);
+    expect((await poser(cab.associe, { relances: [{ ...relance, montant: 1 }] }, 3)).statut).toBe(400);
+    expect((await poser(cab.associe, { relances: Array.from({ length: 51 }, () => relance) }, 3)).statut).toBe(400);
+    expect((await poser(cab.associe, { relances: [relance] }, 3)).corps).toEqual({ revision: 4 });
+    expect(((await appeler('GET', `/cabinets/${cab.id}/fiches`, cab.associe.jeton)).corps.fiches as { contenu: unknown }[])[0]?.contenu).toEqual({ relances: [relance] });
     // Au cabinet seul : ni le client, ni un collaborateur à qui le dossier n'est pas confié, ni un autre cabinet.
     expect(await enTantQue(pool, cl.utilisateur, async (tx) => (await tx.query('select count(*)::int n from cabinet.fiche where entreprise = $1', [cl.ent])).rows[0].n)).toBe(0);
     const saisie = await cab.collaborateur('saisie');
     expect((await appeler('GET', `/cabinets/${cab.id}/fiches`, saisie.jeton)).corps.fiches).toEqual([]);
-    expect((await poser(saisie, { note: 'x' }, 3)).statut).toBe(404);
+    expect((await poser(saisie, { note: 'x' }, 4)).statut).toBe(404);
     const autre = await cabinet();
     expect((await appeler('GET', `/cabinets/${cab.id}/fiches`, autre.associe.jeton)).corps.fiches).toEqual([]);
     // Le mandat arrêté, la fiche ne se lit plus.

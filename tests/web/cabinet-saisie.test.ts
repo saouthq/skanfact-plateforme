@@ -1,7 +1,7 @@
 // La saisie du Cabinet, à la souris (brique 38 ; docs/cabinet.md). Les écrans sont ceux du Cabinet
 // v10 ; chaque geste va au serveur. Ce que le parcours vérifie, écran ET serveur :
 //   - le tableau du portefeuille compte les mois des livres du serveur (un mois au brouillard est
-//     « à surveiller ») ;
+//     « à valider ») ;
 //   - la grille de saisie : une OD en brouillard, une autre « enregistrée et validée » (son numéro) ;
 //     le brouillard se valide depuis son menu ;
 //   - une écriture née d'une pièce du client ne se reprend, ne se supprime ni ne se contre-passe ;
@@ -85,11 +85,11 @@ describe('la saisie du Cabinet, à la souris', () => {
       for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     };
 
-    // Le portefeuille : août a une écriture au brouillard (l'achat) : le dossier est à surveiller,
+    // Le portefeuille : août a une écriture au brouillard (l'achat) : le dossier est à valider,
     // son dernier mois est août.
     await aller('#/dossiers');
     const ligne = p.locator('#view tr', { hasText: 'Menuiserie Ben Salah' }).first();
-    await expect.poll(() => ligne.innerText()).toMatch(/août 2026\s*provisoire/i);
+    await expect.poll(() => ligne.innerText()).toMatch(/août 2026\s*à valider/i);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-saisie-1-portefeuille.png') });
 
     // La grille de saisie : une OD en brouillard.

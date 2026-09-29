@@ -160,8 +160,10 @@ describe('le Cabinet, à la souris', () => {
     // Sans paquets (C4) : « Tes premiers pas » ne réclame ni fichier d'appairage, ni clé de secours, ni
     // copie sur un disque.
     const vue = await p.locator('#view').innerText();
-    for (const absent of ['appairage', 'clé de secours', 'Mettre ton cabinet à l\'abri', 'paquet']) expect(vue).not.toContain(absent);
+    for (const absent of ['appairage', 'clé de secours', 'Mettre ton cabinet à l\'abri', 'paquet', 'exemple']) expect(vue).not.toContain(absent);
     expect(vue).toContain('Ajouter tes clients');
+    // Le premier livre revient avec la saisie (38 bis) : sans paquet à recevoir.
+    expect(vue).toContain('Tenir un premier livre');
     // « Verrouiller » : la session se ferme ; on revient à la connexion, et le jeton ne vaut plus rien.
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/reglages`);
     // Le bouton vit dans l'onglet des réglages qui le porte.

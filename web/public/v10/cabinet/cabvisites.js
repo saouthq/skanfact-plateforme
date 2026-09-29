@@ -31,15 +31,15 @@
   // Les familles de « Me guider ». `couleur` : un des sept domaines de la feuille partagée (`th-<nom>`),
   // les mêmes que ceux de l'Aide du Cabinet — la visite, la carte et l'article parlent la même langue.
   const THEMES = [
-    { id: 'demarrer', titre: 'Pour commencer', sous: 'Découvrir sur l\'exemple, puis poser ton cabinet', aide: 'demarrer', couleur: 'commencer' },
+    { id: 'demarrer', titre: 'Pour commencer', sous: 'Les premiers pas de ton cabinet', aide: 'demarrer', couleur: 'commencer' },
     { id: 'portefeuille', titre: 'Le portefeuille', sous: 'Tes clients, leurs mois, ce qui manque, les relances', aide: 'travail', couleur: 'vendre',
       icone: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>' },
-    { id: 'recevoir', titre: 'Les clients sur SkanFact', sous: 'Leurs paquets, leurs questions, ta clôture', aide: 'paquet', couleur: 'encaisser',
+    { id: 'recevoir', titre: 'Les clients sur SkanFact', sous: 'Leurs livres en direct, leurs questions', aide: 'paquet', couleur: 'encaisser',
       icone: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>' },
     { id: 'saisir', titre: 'Tenir le livre', sous: 'La saisie, la banque, la paie, les biens', aide: 'saisir', couleur: 'acheter',
       icone: '<path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 13h8M8 17h5"/>' },
     { id: 'declarer', titre: 'Déclarer et clôturer', sous: 'La TVA du mois, la révision, l\'exercice, la liasse', aide: 'declaration', couleur: 'declarer' },
-    { id: 'cabinet', titre: 'Ton cabinet et tes données', sous: 'Sauvegardes, clé de secours, équipe, licence, mises à jour', aide: 'filets', couleur: 'piloter',
+    { id: 'cabinet', titre: 'Ton cabinet', sous: 'L\'équipe, la grille de saisie, les régimes, l\'apparence', aide: 'equipe', couleur: 'piloter',
       icone: '<path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="M9.2 12.2l2 2 3.6-3.8"/>' },
     { id: 'pages', titre: 'Chaque écran, bouton par bouton', sous: 'À quoi il sert, et ce que fait chacun de ses boutons', aide: null, couleur: 'commencer' }
   ];
@@ -84,23 +84,23 @@
   // dossier de l'exemple qui le montre rempli (`livre` : un dossier qui a son livre).
   const PAGES = {
     dossiers: { titre: 'Les dossiers', resume: 'Ton portefeuille : chaque client, son dernier mois, ce qui manque.',
-      texte: '<p>La page où le Cabinet s\'ouvre. Chaque client sur une ligne : le dernier mois reçu ou saisi, son chiffre d\'affaires, ce qui manque — et la dernière relance quand il y en a eu une (une colonne vide se masque).</p><p>Au-dessus, les chiffres du portefeuille et <b>« À faire »</b> : ce qui attend un geste de ta part, du plus urgent au moins urgent.</p>' },
+      texte: '<p>La page où le Cabinet s\'ouvre. Chaque client sur une ligne : le dernier mois de ses livres, son chiffre d\'affaires, ce qui manque — et la dernière relance quand il y en a eu une (une colonne vide se masque).</p><p>Au-dessus, les chiffres du portefeuille et <b>« À faire »</b> : ce qui attend un geste de ta part, du plus urgent au moins urgent.</p>' },
     relances: { titre: 'Les relances', resume: 'Les clients qui te doivent un mois, et le mail tout prêt.',
-      texte: '<p>Les clients sur SkanFact qui ne t\'ont pas envoyé un mois terminé, ou seulement du provisoire. Pour chacun, <b>le mail est prêt</b> : tu relis, tu envoies.</p><p>Une relance faite ailleurs (un appel) se note aussi : l\'historique dit qui a été relancé, et quand.</p>' },
+      texte: '<p>Les clients sur SkanFact dont un mois passé n\'a aucune écriture. Pour chacun, <b>le mail est prêt</b> : tu relis, tu envoies.</p><p>Une relance faite ailleurs (un appel) se note aussi : l\'historique dit qui a été relancé, et quand.</p>' },
     echeances: { titre: 'Les échéances', resume: 'Les dates fiscales du mois, et qui n\'a pas ses pièces avant.',
       texte: '<p>Un calendrier, tu en as déjà un. Ce que personne ne fait pour toi : <b>nommer les clients dont tu n\'as pas les pièces</b> avant chaque échéance — TVA, CNSS, déclarations annuelles.</p><p>Tu pointes chaque dépôt : c\'est un pense-bête, SkanFact ne dépose rien.</p>' },
     ecritures: { titre: 'L\'export d\'écritures', resume: 'Les écritures de plusieurs clients, en un fichier pour ton logiciel.',
-      texte: '<p>Tu choisis une période : les écritures de tous les paquets reçus sont regroupées, <b>dans le format de ton logiciel</b>, en un seul fichier.</p><p>Un paquet illisible ne fait pas échouer l\'export : il part sans lui, et le manque est nommé.</p>' },
+      texte: '<p>Les écritures de tous tes clients sur une période, regroupées <b>dans le format de ton logiciel</b>, en un seul fichier : pas encore dans la version en ligne.</p><p>En attendant, les écritures de chaque client se lisent dans sa comptabilité, au livre-journal.</p>' },
     production: { titre: 'La production', resume: 'Où en est chaque dossier, mois par mois : reçu, saisi, révisé, déclaré.',
       texte: '<p>Le tableau de bord du cabinet : pour chaque dossier et chaque mois, l\'étape atteinte. Filtré par collaborateur, c\'est <b>ton « À faire » personnel</b>.</p>' },
     reglages: { titre: 'Les réglages', resume: 'Ton cabinet, ta comptabilité, tes données, l\'application.',
-      texte: '<p>Quatre onglets : <b>ton cabinet</b> (nom, fichier d\'appairage, équipe, licence), <b>la comptabilité</b> (la grille, les guides, la liasse), <b>tes données</b> (sauvegardes, clé de secours) et <b>l\'application</b> (thème, mises à jour).</p><p>La recherche en haut trouve un réglage par son nom, même dans un autre onglet.</p>' },
+      texte: '<p>Quatre onglets : <b>ton cabinet</b> (nom, code, régimes, équipe), <b>la comptabilité</b> (la grille, les guides, la liasse), <b>tes données</b> (verrouiller ta session) et <b>l\'application</b> (thème, dépannage).</p><p>La recherche en haut trouve un réglage par son nom, même dans un autre onglet.</p>' },
     aide: { titre: 'L\'Aide', resume: 'Chaque sujet expliqué en détail, avec son geste.',
-      texte: '<p>Les articles qui expliquent le métier du Cabinet : les paquets, la tenue, la banque, la déclaration, la révision, la clôture. <b>Chaque article finit par son geste</b>, qui t\'emmène au bon écran.</p>' },
+      texte: '<p>Les articles qui expliquent le métier du Cabinet : les livres de tes clients, la tenue, la banque, la déclaration, la révision, la clôture. <b>Chaque article finit par son geste</b>, qui t\'emmène au bon écran.</p>' },
     guide: { titre: 'Me guider', resume: 'Toutes les visites guidées, et où tu en es.',
       texte: '<p>La découverte sur l\'exemple, les gestes guidés clic par clic, et la visite de chaque écran. Ce que tu as déjà fait est coché.</p>' },
-    dossier: { titre: 'La fiche d\'un dossier', resume: 'Un client : ses mois, ses relances, sa comptabilité, ses paquets.', dossier: 'client',
-      texte: '<p>Tout ce qui concerne un client, en trois onglets : <b>Suivi</b> (ses douze mois, ses relances, ta note), <b>Comptabilité</b> (son livre) et <b>Paquets</b> (ce qu\'il t\'a envoyé).</p><p>En haut, qui il est, et l\'état du dossier en une phrase.</p>' },
+    dossier: { titre: 'La fiche d\'un dossier', resume: 'Un client : ses mois, ses relances, sa comptabilité.', dossier: 'client',
+      texte: '<p>Tout ce qui concerne un client, en deux onglets : <b>Suivi</b> (ses douze mois, ses relances, ta note) et <b>Comptabilité</b> (ses livres).</p><p>En haut, qui il est, et l\'état du dossier en une phrase.</p>' },
     'dossier-paquets': { titre: 'Les paquets d\'un client', resume: 'Chaque paquet reçu, vérifié pièce par pièce.', dossier: 'skanfact',
       texte: '<p>Chaque mois reçu : définitif ou provisoire, son chiffre d\'affaires, et le verdict de la vérification — <b>chaque pièce comparée à son empreinte</b>. Un paquet s\'ouvre pour lire ses journaux et ses justificatifs.</p>' },
     compta: { titre: 'La comptabilité d\'un dossier', resume: 'Le livre du client, rangé en trois groupes.', dossier: 'livre',
@@ -147,7 +147,7 @@
     { sel: '.premiers-pas', titre: 'Tes premiers pas', texte: 'L\'ordre des choses pour démarrer le Cabinet. Chaque étape se coche <b>toute seule</b> quand c\'est fait.' },
     // Dit tel qu'il EST : le bouton vert nommé, ou son absence (`texteDuHaut`, 10.14.1).
     { sel: '.page-head', titre: 'Le haut de l\'écran', texte: el => M.texteDuHaut(el, el.querySelector('.guide-moi') ? '« Guide-moi » liste tout ce qu\'on peut faire ici : la visite de l\'écran, chaque geste montré pas à pas, et l\'article qui l\'explique.' : '') },
-    { sel: '#d-tabs', titre: 'Les trois onglets du dossier', texte: 'Suivi, Comptabilité, Paquets : l\'onglet vit dans l\'adresse, « ← » revient dessus.' },
+    { sel: '#d-tabs', titre: 'Les onglets du dossier', texte: 'Suivi et Comptabilité : l\'onglet vit dans l\'adresse, « ← » revient dessus.' },
     { sel: '#c-groupes', titre: 'Les trois groupes', texte: 'Saisir, Consulter, Déclarer et clôturer : l\'ordre du mois. Le chiffre sur un groupe dit ce qui y attend une décision.' },
     { sel: '.tabs', titre: 'Les onglets', texte: 'L\'écran se range en onglets. Je vais te les ouvrir un par un ; « Passer au chapitre suivant » en saute un.' },
     { sel: '.filters', titre: 'Retrouver une ligne', texte: 'La recherche lit le nom, le matricule et le téléphone pendant que tu tapes ; « n sur N » dit combien de lignes tu gardes.' },
@@ -162,7 +162,7 @@
 
   // ========================================================================== LES ONGLETS
   const ONGLETS = {
-    'dossier:suivi': 'Les douze mois de l\'année, dans le sens du temps : reçu, provisoire, manquant, hors mission. Ses relances et ta note.',
+    'dossier:suivi': 'Les douze mois de l\'année, dans le sens du temps : validé, à valider, manquant, hors mission. Ses relances et ta note.',
     'dossier:comptabilite': 'Son livre : la saisie, la banque, la paie, les biens, les journaux, la déclaration, la révision et la clôture.',
     'dossier:paquets': 'Chaque paquet reçu, vérifié pièce par pièce, et le chiffre d\'affaires mois par mois.',
     suivi: 'Les douze mois du client, ses relances, ta note.', comptabilite: 'Son livre, en quatorze écrans.', paquets: 'Les paquets qu\'il t\'a envoyés.',
@@ -180,10 +180,10 @@
     revision: 'Les cycles, les comptes à signer, les questions au client.',
     exercice: 'Les contrôles avant clôture, les soldes de gestion, la clôture.',
     liasse: 'Les états financiers, rubrique par rubrique.',
-    'reglages:cabinet': 'Ton cabinet : son nom, le fichier à remettre à tes clients, les régimes, l\'équipe, la licence.',
-    'reglages:compta': 'La comptabilité : les touches de la grille, les guides d\'écritures, la correspondance des comptes, la révision, la liasse.',
-    'reglages:donnees': 'Tes données : la boîte de réception, les sauvegardes, la copie externe, la clé de secours, le mot de passe.',
-    'reglages:app': 'L\'application : le thème, les mises à jour, le dépannage, l\'exemple.'
+    'reglages:cabinet': 'Ton cabinet : son nom, son code, les régimes, l\'équipe.',
+    'reglages:compta': 'La comptabilité : les touches de la grille, les guides d\'écritures, la révision, la liasse.',
+    'reglages:donnees': 'La sécurité : verrouiller ta session sur cet appareil.',
+    'reglages:app': 'L\'application : le thème, le dépannage.'
   };
 
   // ========================================================================== CE QUE FAIT CHAQUE BOUTON
@@ -226,7 +226,7 @@
   // Les boutons des états vides d'une PAGE : ils vivent dans une barre `.modal-actions` sans être dans
   // une fenêtre, et la famille « Valide ce que tu viens de saisir dans la fenêtre » leur répondait
   // (10.14.0). Chacun dit son propre geste.
-  b('#nd', 'Ajoute tes clients : un par un, ou toute la liste collée depuis ton tableur. Leurs échéances apparaissent ici dès qu\'ils envoient un paquet ou que tu tiens leur livre.');
+  b('#nd', 'Ajoute tes clients : un par un, ou toute la liste collée depuis ton tableur. Leurs échéances apparaissent ici dès que leurs livres ont une écriture.');
   b('#rl-nd', 'Ajoute tes clients : un par un, ou toute la liste collée depuis ton tableur. Ceux à qui il manque un mois arrivent ensuite ici, la relance déjà écrite.');
   b('#rl-imp', 'Importe un paquet reçu par mail (.skanpack) : le client entre dans ton portefeuille avec ses mois.');
   b('#ech-livre', 'Ouvre la comptabilité d\'un client que tu tiens toi-même : dès que son livre existe, ses déclarations entrent dans le calendrier.');
@@ -241,7 +241,7 @@
   b('#demo-visite', 'Lance la découverte guidée sur les dossiers de l\'exemple.');
   b('#q', 'Tape un nom, un matricule, un téléphone : la liste se réduit pendant la frappe.', { nom: 'Chercher' });
   b('#arch', 'Montre aussi les clients archivés (partis) : ils ne sont plus relancés.', { nom: 'Archivés' });
-  b('#onlysf', 'Ne garde que les clients qui t\'envoient leurs paquets depuis SkanFact.', { nom: 'Sur SkanFact seulement' });
+  b('#onlysf', 'Ne garde que les clients qui sont sur SkanFact, dont tu lis les livres en direct.', { nom: 'Sur SkanFact seulement' });
   b('#par-urgence', 'Remet la liste dans l\'ordre de l\'urgence : les retards d\'abord.');
   b('#csv', 'Enregistre la liste affichée dans un fichier que ton tableur ouvre.', { nom: 'Exporter en CSV' });
   b('#col-tout', 'Affiche les colonnes vides que la liste masquait pour laisser la place aux autres.');
@@ -260,7 +260,7 @@
   b('#edit', 'Modifie la fiche du client : son nom, son matricule, ses coordonnées, ses honoraires.');
   b('#d-tabs button', null, { onglet: true });
   b('#note-rel', 'Note une relance faite ailleurs (un appel, un message) : l\'historique la garde.');
-  b('[data-m]', 'Ce mois-là : reçu, provisoire, manquant ou hors mission. Un mois manquant porte le geste qui le réclame.', { nom: 'Un mois', cle: 'mois' });
+  b('[data-m]', 'Ce mois-là : validé ou à valider. Un clic ouvre ses écritures — sa saisie s\'il reste à valider ; un mois manquant porte le geste qui le réclame.', { nom: 'Un mois', cle: 'mois' });
   b('#lv-relire', 'Crée le livre de ce client à partir des paquets reçus : ses écritures arrivent déjà écrites.');
   b('#lv-relire2', 'Relit les paquets reçus pour mettre le livre à jour.');
   b('#lv-saisir', 'Ouvre la saisie de ce dossier.');
@@ -455,10 +455,10 @@
     '#f-phone': 'Le téléphone, pour appeler depuis la fiche.',
     '#f-contact': 'La personne qui suit le dossier chez le client.',
     '#f-note': 'Ce qu\'il faut se rappeler de ce client. Jamais envoyé.',
-    '#c-name': 'Le nom de ton cabinet : il signe tes relances et le fichier que tes clients importent.',
+    '#c-name': 'Le nom de ton cabinet : il signe tes relances, et tes clients le lisent quand ils te confient leur dossier.',
     '#c-email': 'L\'adresse de ton cabinet.',
     '#c-phone': 'Le téléphone de ton cabinet.',
-    '#w-name': 'Le nom de ton cabinet : il signe tes relances et le fichier que tes clients importent.',
+    '#w-name': 'Le nom de ton cabinet : il signe tes relances, et tes clients le lisent quand ils te confient leur dossier.',
     '#w-email': 'L\'adresse de ton cabinet.',
     '#w-phone': 'Le téléphone de ton cabinet.',
     '#w-clients': 'Colle ta liste de clients, un par ligne : nom ; matricule ; email ; téléphone.',
@@ -535,12 +535,12 @@
     // Les écrans qui vivent DANS un dossier : la fiche, ses paquets, et chaque écran de comptabilité.
     const ecranDeDossier = cle => cle === 'dossier' || cle === 'dossier-paquets' || /^compta/.test(cle);
     const DOSSIER_MANQUE = {
-      skanfact: { texte: 'Il faut un client qui t\'envoie ses paquets : importe son premier paquet, ou charge l\'exemple (Réglages → L\'application).', visite: 'recevoir-paquet' },
-      hors: { texte: 'Il faut un client dont tu tiens le livre : crée un dossier et son livre, ou charge l\'exemple.', visite: 'ajouter-client' },
+      skanfact: { texte: 'Il faut un client sur SkanFact qui t\'a confié son dossier : donne-lui le code de ton cabinet (Réglages → Mon cabinet), puis accepte son dossier sur la page Dossiers.' },
+      hors: { texte: 'Il faut un client que tu tiens au cabinet : ajoute-le (« Nouveau client… »), ses livres s\'ouvrent aussitôt.', visite: 'ajouter-client' },
       // La visite proposée se calcule : commencer un livre s'il y a un client à tenir, sinon en ajouter un
       // — jamais un bouton éteint qui renvoie à un autre bouton éteint (26/09).
-      saisie: { texte: 'Il faut un dossier qui a son livre : crée le livre d\'un client (sa fiche → Comptabilité), ou charge l\'exemple.', get visite() { return aTenir() ? 'premier-livre' : 'ajouter-client'; } },
-      livre: { texte: 'Il faut un dossier qui a son livre : crée le livre d\'un client, ou charge l\'exemple.', get visite() { return aTenir() ? 'premier-livre' : 'ajouter-client'; } },
+      saisie: { texte: 'Il faut un dossier dont tu as ouvert la comptabilité : ouvre la fiche d\'un client, onglet Comptabilité.', visite: 'ajouter-client' },
+      livre: { texte: 'Il faut un dossier dont tu as ouvert la comptabilité : ouvre la fiche d\'un client, onglet Comptabilité.', visite: 'ajouter-client' },
       client: { texte: 'Il faut au moins un client dans ton portefeuille.', visite: 'ajouter-client' }
     };
 
@@ -720,15 +720,15 @@
     visite({
       id: 'premiers-pas', theme: 'demarrer', type: 'faire', duree: '2 min', page: '#/dossiers',
       titre: 'Démarrer mon cabinet',
-      resume: 'Tes premiers pas, dans l\'ordre : ton cabinet, tes clients, le fichier à leur remettre, tes filets.',
+      resume: 'Tes premiers pas, dans l\'ordre : ton cabinet, tes clients, leur premier livre.',
       mots: ['premiers pas', 'demarrer', 'commencer', 'installer', 'mon cabinet'],
-      suite: ['nommer-cabinet', 'ajouter-client', 'appairage'],
+      suite: ['ajouter-client', 'saisir-piece'],
       bravo: 'Te voilà prêt',
       conclusion: 'Chaque étape de « Tes premiers pas » a son bouton, et sa visite guidée dans « Me guider ». Elles se cochent toutes seules quand c\'est fait.',
       etapes: [
         { page: '#/dossiers', titre: 'Ton cabinet', texte: '<p>Ici, c\'est <b>ton</b> cabinet : tout ce que tu fais compte.</p><p>Je te montre l\'ordre des choses. Pour chaque étape, une visite te guide <b>clic par clic</b>.</p>' },
         { page: '#/dossiers', cible: '.premiers-pas', cote: 'dessous', titre: 'Tes premiers pas',
-          texte: 'L\'ordre à suivre : ton cabinet, tes clients, le fichier à leur remettre, ta clé de secours, ta copie externe — puis ton premier paquet ou ton premier livre. <b>Chaque étape se coche toute seule</b> quand c\'est fait.' },
+          texte: 'L\'ordre à suivre : ton cabinet, tes clients, puis leur premier livre. <b>Chaque étape se coche toute seule</b> quand c\'est fait.' },
         { page: '#/dossiers', cible: '.premiers-pas .encours [data-pas]', cote: 'gauche', facultatif: true, faire: 'clic', titre: 'Le bouton de chaque étape',
           texte: 'Il t\'emmène au bon endroit. <b>« Me guider »</b>, juste à côté, t\'y emmène en te montrant où cliquer.',
           action: 'Clique sur le bouton de l\'étape en cours.', essai: { clic: true } }
@@ -763,17 +763,17 @@
       titre: 'Ajouter un client',
       resume: 'Un client dans ton portefeuille, même s\'il n\'utilise pas encore SkanFact.',
       mots: ['client', 'ajouter', 'nouveau', 'dossier', 'creer'],
-      suite: ['premier-livre', 'appairage', 'page-dossier'],
+      suite: ['saisir-piece', 'page-dossier'],
       mesure: () => reels().length, but: n0 => reels().length > n0 && aucuneFenetre(),
       bravo: 'Ton client est dans le portefeuille',
-      conclusion: 'Rien ne lui est réclamé tant qu\'il n\'a pas commencé. S\'il utilise SkanFact, remets-lui le fichier d\'appairage ; sinon, crée son livre et saisis.',
+      conclusion: 'Rien ne lui est réclamé : tu tiens ses livres ici. S\'il utilise SkanFact, il te confie lui-même son dossier avec le code de ton cabinet.',
       etapes: [
         { page: '#/dossiers', cible: '#new-d', cote: 'dessous', faire: 'clic', avant: () => { clientsAvant = reels().length; },
           titre: 'Nouveau client', texte: 'Plusieurs clients d\'un coup ? La fenêtre qui s\'ouvre propose <b>« Coller une liste de clients… »</b>, depuis un tableur.', action: 'Clique sur <b>« Nouveau client… »</b>.', essai: { clic: true } },
         { page: '#/dossiers', cible: '#f-name', cote: 'droite', faire: 'valeur', bouton: 'Suivant',
           titre: 'Son nom', texte: 'Tel qu\'il s\'écrit sur ses papiers, forme juridique comprise.', action: 'Tape le nom du client.', essai: { taper: 'Client Essai SARL' } },
         { page: '#/dossiers', cible: '#f-mat', cote: 'droite', titre: 'Son matricule', facultatif: true,
-          texte: 'C\'est lui qui identifie le dossier : son premier paquet arrivera dans CE dossier, et pas dans un second.' },
+          texte: 'C\'est lui qui identifie le dossier : celui de son entreprise.' },
         { page: '#/dossiers', cible: '#f-tva', cote: 'droite', titre: 'Sa TVA', facultatif: true,
           texte: 'Mensuelle, trimestrielle ou non assujetti : c\'est elle qui décide des déclarations que la page Échéances lui réclame. « non précisé » compte comme mensuelle, sauf si son régime en décide autrement.' },
         { page: '#/dossiers', cible: '#f-from', cote: 'droite', titre: 'Le début de ta mission', facultatif: true,
@@ -1075,7 +1075,7 @@
       suite: ['page-relances'],
       etapes: [
         { page: '#/relances', cible: ['#view table.list', '#view .panel'], cote: 'dessus', titre: 'Qui te doit un mois',
-          texte: 'Chaque client qui ne t\'a pas envoyé un mois terminé, ou seulement du provisoire. Le mois en cours n\'est jamais réclamé.' },
+          texte: 'Chaque client sur SkanFact dont un mois passé n\'a aucune écriture. Le mois en cours n\'est jamais réclamé.' },
         { page: '#/relances', cible: '#view [data-rel]', cote: 'gauche', faire: 'clic', fait: () => !!document.querySelector('#modal-root #r-body'),
           titre: 'Écrire', texte: 'Le mail nomme les mois qui manquent — l\'intervalle, au-delà de trois — et il est signé du nom de ton cabinet.', action: 'Clique sur <b>« Écrire »</b> au bout d\'une ligne.', essai: { clic: true } },
         { cible: '#modal-root .modal', cote: 'gauche', titre: 'Relis avant d\'envoyer',
@@ -1304,9 +1304,9 @@
       resume: 'Une question née sur une ligne du livre, qui s\'affiche chez lui en face de la pièce.',
       mots: ['question', 'questions', 'client', 'revision', 'demander', 'piece', 'justificatif'],
       si: () => !!ctx.dossier('skanfact'), manque: DOSSIER_MANQUE.skanfact,
-      suite: ['page-compta-revision', 'recevoir-paquet'],
+      suite: ['page-compta-revision'],
       bravo: 'Tu sais questionner un client',
-      conclusion: 'Ta question part dans un fichier signé ; elle s\'affiche dans son SkanFact, sur la pièce qu\'elle vise. Sa réponse revient dans son paquet suivant — sans un appel.',
+      conclusion: 'Ta question s\'affiche dans son SkanFact, sur la pièce qu\'elle vise, et sa réponse te revient ici — sans un appel.',
       etapes: [
         { page: dans('skanfact', 'comptabilite/revision'), cible: ['#c-livres .panel'], cote: 'dessus', titre: 'Sur une ligne',
           texte: 'Dans la révision, chaque compte a son menu <b>« Actions »</b> : « Poser une question » part de là, avec le compte, l\'écriture et la pièce. C\'est ce qui la fait apparaître chez le client en face de la bonne pièce.' },
@@ -1504,9 +1504,9 @@
       conclusion: 'Ce qui est noté sur la fiche — un email, un téléphone, une relance faite ailleurs — sert aux relances suivantes : le mail se prépare avec, et l\'historique ne ment pas.',
       etapes: [
         { page: dans('client', 'suivi'), cible: '#edit', cote: 'gauche', titre: 'Modifier la fiche',
-          texte: 'Nom, matricule, email, téléphone, régime, honoraires. Tant qu\'aucun paquet n\'est arrivé, <b>corriger le matricule corrige l\'identifiant</b> : son premier paquet arrivera ici.' },
+          texte: 'Email, téléphone, régime, honoraires, ta note. Le nom et le matricule sont ceux de son entreprise : ils ne se changent pas ici.' },
         { page: dans('client', 'suivi'), cible: ['#view .mois-annee', '#view .panel'], cote: 'dessous', titre: 'Ses douze mois',
-          texte: 'Reçu, provisoire, manquant, hors mission. Un mois manquant porte son geste : la relance part sur ce mois-là.' },
+          texte: 'Validé, à valider, manquant, hors mission. Un mois écrit s\'ouvre dans ses livres ; un mois manquant porte son geste : la relance part sur ce mois-là.' },
         { page: dans('client', 'suivi'), cible: '#note-rel', cote: 'dessus', faire: 'clic', facultatif: true,
           titre: 'Une relance faite ailleurs', texte: 'Un appel, un message : noté ici, il compte dans l\'historique comme une relance par mail.',
           action: 'Clique sur <b>« Noter une relance faite ailleurs… »</b>.', essai: { clic: true } }
@@ -1991,7 +1991,7 @@
           titre: 'Écrire la note', texte: 'Elle rejoint les notes de revue, ouverte jusqu\'à ce que tu la lèves.',
           action: 'Clique sur <b>« Écrire la note »</b>.', essai: { clic: true } },
         { page: dans('livre', 'comptabilite/revision'), cible: '#rv-question', cote: 'dessous', faire: 'clic', facultatif: true,
-          titre: 'Une question au client', texte: 'Elle part chez lui et s\'affiche <b>en face de la pièce</b> qu\'elle vise ; sa réponse revient dans son prochain paquet.',
+          titre: 'Une question au client', texte: 'Elle part chez lui et s\'affiche <b>en face de la pièce</b> qu\'elle vise ; sa réponse te revient ici.',
           action: 'Clique sur <b>« Poser une question… »</b>.', essai: { clic: true } },
         { page: dans('livre', 'comptabilite/revision'), cible: '#modal-root #qf-texte', cote: 'droite', faire: 'valeur', bouton: 'Suivant', si: fenetreQuestion,
           titre: 'La question', texte: 'La pièce et le compte au-dessus la placent chez le client ; la question dit ce que tu attends de lui.',

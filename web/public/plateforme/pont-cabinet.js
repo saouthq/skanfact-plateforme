@@ -200,17 +200,49 @@
     for (const k of TEXTES_FICHE) if (f[k] != null) contenu[k] = String(f[k]);
     if (f.archived != null) contenu.archived = !!f.archived;
     if (f.fees != null) contenu.fees = Math.round((Number(f.fees) || 0) * 1000);
+    if (Array.isArray(f.relances)) contenu.relances = f.relances;
     await appel('PUT', `/cabinets/${cabinetId}/fiches/${ent}`, { contenu, revision });
   }
+
+  // Ouvrir un lien que le navigateur confie à un autre logiciel (la messagerie, le téléphone) : un
+  // lien cliqué, jamais une navigation qui quitterait l'écran.
+  /** @param {string} url */
+  const ouvrirLien = (url) => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+  // Les moyens d'une relance, ceux que le serveur garde (serveur/cabinet/routes.ts, RELANCE).
+  const MOYENS = ['email', 'tel', 'whatsapp', 'autre'];
 
   // C4 (docs/cabinet.md) : ce qui n'a plus d'objet sans paquets ni fichier sur l'ordinateur. Les
   // panneaux des Réglages se cachent, leur pastille et leur résultat de recherche aussi ; la
   // palette ne les propose plus (adaptation). Du panneau Sécurité ne reste que « Verrouiller ».
-  const PANNEAUX_ABSENTS = ['pan-licence', 'pan-inbox', 'pan-backup', 'pan-maj'];
-  // Les étapes de « Tes premiers pas » sans objet : l'appairage, la clé de secours, la copie sur un
-  // disque ; et « recevoir un premier paquet », qui reviendra en « tenir un premier livre » avec la
-  // saisie du cabinet (brique 38).
-  const ETAPES_ABSENTES = ['appairage', 'cle', 'copie', 'travail'];
+  // L'exemple à six clients fictifs n'est pas en ligne ; la correspondance des comptes traduisait
+  // les comptes d'un paquet importé : il n'y a plus d'import, et le client et son cabinet tiennent
+  // les mêmes livres.
+  const PANNEAUX_ABSENTS = ['pan-licence', 'pan-inbox', 'pan-backup', 'pan-maj', 'pan-exemple', 'pan-comptes'];
+  // Les étapes de « Tes premiers pas » sans objet : la découverte sur l'exemple, l'appairage, la clé
+  // de secours, la copie sur un disque. « Tenir un premier livre » revient avec la saisie (38 bis).
+  const ETAPES_ABSENTES = ['decouverte', 'appairage', 'cle', 'copie'];
+  // Les visites guidées que « Me guider » ne propose pas (adaptation de `visites`) : celles dont le
+  // sujet a disparu avec les paquets (C4), et celles d'un geste pas encore en ligne, qui reviennent
+  // avec leur brique.
+  const VISITES_SANS_OBJET = ['decouvrir', 'appairage', 'cle-secours', 'copie-externe', 'recevoir-paquet', 'lire-paquet',
+    'boite-reception', 'sauvegardes', 'changer-ordinateur', 'mises-a-jour', 'licence', 'mot-de-passe', 'envoyer-cloture',
+    'correspondance', 'page-dossier-paquets'];
+  const VISITES_PAS_ENCORE = [
+    'nommer-cabinet', // la fiche du cabinet ne s'enregistre pas encore en ligne
+    'premier-livre', // la reprise d'un dossier (balance d'ouverture) : brique 39
+    'exporter-ecritures', // l'export des écritures de tous les clients : brique 41
+    'suivre-production', // le tableau de production
+  ];
+  // Les articles de l'Aide sans objet en ligne : les sauvegardes, changer d'ordinateur, la licence,
+  // les mises à jour (le serveur garde les livres ; rien à installer).
+  const ARTICLES_ABSENTS = ['filets', 'demenager', 'licence', 'maj'];
   const style = document.createElement('style');
   style.textContent = `${PANNEAUX_ABSENTS.flatMap((id) => [`#${id}`, `[data-somm="${id}"]`, `[data-go="${id}"]`]).join(', ')},
     #pan-secu > :not(h2):not(.modal-actions), #pan-secu .modal-actions > :not(#s-lock), #rec-banniere { display: none !important; }`;
@@ -270,6 +302,10 @@
     bandeauMandats,
     panneauxAbsents: PANNEAUX_ABSENTS,
     etapesAbsentes: ETAPES_ABSENTES,
+    visitesAbsentes: [...VISITES_SANS_OBJET, ...VISITES_PAS_ENCORE],
+    articlesAbsents: ARTICLES_ABSENTS,
+    // Pas de clé de secours en ligne (C4) : le Cabinet ne la réclame jamais (adaptation de chargerRecovery).
+    sansCleDeSecours: true,
     // L'ouverture : la session de la plateforme ouvre le cabinet (adaptation de boot()).
     status: async () => ({ exists: true, session: true, version: VERSION, backups: 0, corruptFile: false }),
     unlock: async () => ({ state: await construireEtat(), created: false, reorganized: null, exemple: null }),
@@ -314,6 +350,34 @@
       const f = fiches.get(id);
       await poserFiche(id, { ...(f ? depuisFiche(f.contenu) : {}), ...patch }, f ? f.revision : null);
       return { state: await construireEtat(), moved: 0, id };
+    },
+
+    // ── Les relances (brique 38 bis) : le message s'ouvre dans la messagerie (ou WhatsApp), et la
+    // relance se note dans la fiche du dossier, sur le serveur (C15) ─────────────────────────────
+    mail: async (/** @type {any} */ m) => {
+      /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
+      const u = K.mailtoUrl({ to: m.to, bcc: Array.isArray(m.bcc) ? m.bcc : [], subject: m.subject, body: m.body });
+      ouvrirLien(u.url);
+      return { state: 'mailto', bccInclus: u.bccInclus, montre: false };
+    },
+    tel: async (/** @type {any} */ o) => {
+      const n = String((o && o.number) || '').replace(/[^\d+]/g, '');
+      if (!n) throw new Error('Ce dossier n\'a pas de numéro de téléphone.');
+      if (o.whatsapp) window.open(`https://wa.me/${n.replace(/^\+/, '')}${o.text ? `?text=${encodeURIComponent(o.text)}` : ''}`, '_blank', 'noopener');
+      else ouvrirLien(`tel:${n}`);
+      return true;
+    },
+    noteRelance: async (/** @type {string} */ id, /** @type {string[]} */ months, /** @type {string} */ via, /** @type {string} */ note) => {
+      if (!dossiers.has(id)) throw new Error('Dossier introuvable.');
+      const f = fiches.get(id);
+      /** @type {Record<string, unknown>} */ const avant = f ? depuisFiche(f.contenu) : {};
+      const deja = Array.isArray(avant.relances) ? avant.relances : [];
+      const relance = {
+        at: Date.now(), via: MOYENS.includes(via) ? via : 'autre', note: String(note || '').slice(0, 500),
+        months: (months || []).filter((m) => /^\d{4}-(0[1-9]|1[0-2])$/.test(String(m))).slice(0, 120),
+      };
+      await poserFiche(id, { ...avant, relances: [...deja, relance].slice(-50) }, f ? f.revision : null);
+      return construireEtat();
     },
 
     // ── La saisie (brique 38) : chaque geste va au serveur, puis le livre se relit ─────────────

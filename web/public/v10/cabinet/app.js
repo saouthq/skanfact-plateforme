@@ -1723,8 +1723,16 @@
     // on clique pour savoir, et on revient.
     'jour-de-relance': { texte: 'Relancer', run: () => { location.hash = '#/relances'; } },
     'echeance': { texte: 'Voir l\'échéance', run: () => { location.hash = '#/echeances'; } },
-    'manquants': { texte: 'Voir qui doit envoyer', run: () => { location.hash = '#/relances'; } },
-    'provisoires': { texte: 'Voir le provisoire', run: () => { location.hash = '#/relances'; } },
+    'manquants': { texte: 'Voir qui relancer', run: () => { location.hash = '#/relances'; } },
+    // (plateforme) Des écritures à valider : la saisie du dossier, sur l'exercice de son dernier mois à
+    // valider, où les lots se valident ; plusieurs dossiers : la liste, les plus urgents d'abord.
+    'provisoires': { texte: 'Valider', run: () => {
+      const r = K.dossierList(S).filter(x => x.provisionalCount > 0 && !x.missingCount);
+      const d = r.length === 1 ? (S.dossiers || []).find(x => x.id === r[0].id) : null;
+      if (!d) { listState.q = ''; listState.onlySkanfact = true; listState.sort = 'urgence'; listState.desc = false; render(); return; }
+      const m = K.dossierMonths(d).filter(x => x.state === 'provisoire').map(x => x.month).pop() || K.today();
+      location.hash = '#/dossier/' + encodeURIComponent(d.id) + '/comptabilite/saisie/' + m.slice(0, 4);
+    } },
     'pieces': { texte: 'Voir les dossiers', run: () => { location.hash = '#/dossiers'; } },
     // Les questions restées sans réponse (9.10.0). On emmène sur le portefeuille : la ligne nomme
     // les clients, et c'est de là qu'on ouvre le dossier de révision de chacun.
@@ -1751,8 +1759,8 @@
       const p = K.portfolio(S);
       if (!p.surSkanfact) return '';
       return p.surSkanfact > 1
-        ? `<div class="todo-ok">Tout est à jour : tes ${p.surSkanfact} dossiers sur SkanFact ont envoyé leurs mois clôturés.</div>`
-        : `<div class="todo-ok">Tout est à jour : ton dossier sur SkanFact a envoyé ses mois clôturés.</div>`;
+        ? `<div class="todo-ok">Tout est à jour : chez tes ${p.surSkanfact} dossiers sur SkanFact, aucun mois passé n'est vide ni à valider.</div>`
+        : `<div class="todo-ok">Tout est à jour : chez ton dossier sur SkanFact, aucun mois passé n'est vide ni à valider.</div>`;
     }
     // 9.4.4 — repliable, et plafonné. Six lignes font 400 px : avec les cartes au-dessus, la liste
     // des clients partait sous l'écran. Le panneau garde les DEUX plus urgentes sous les yeux (la
@@ -1793,8 +1801,8 @@
   // Les quatre niveaux sont ceux de `dossierRow` — `danger`, `warn`, `ok`, `hors` — et pas des noms
   // inventés ici : une légende qui nomme des couleurs que le code ne pose pas ne légende rien.
   const NIVEAUX = {
-    danger: 'en retard : il manque au moins un mois',
-    warn: 'à surveiller : du provisoire, ou des pièces signalées',
+    danger: 'en retard : au moins un mois passé sans écriture',
+    warn: 'à valider : des écritures encore au brouillard',
     ok: 'à jour',
     hors: 'pas encore sur SkanFact : rien ne lui est réclamé'
   };
@@ -1848,7 +1856,7 @@
     // Le MOIS se lit sur la ligne du dessous, à côté du nombre de clients qu'il couvre : écrit dans
     // l'étiquette, il poussait le chevron hors de la carte. Les honoraires ne sont pas du chiffre
     // d'affaires : ils vivent dans la colonne « Honoraires » du tableau, avec leur total en pied.
-    const caSub = !ca.mois ? 'aucun paquet ne porte de chiffres'
+    const caSub = !ca.mois ? 'aucun mois écrit'
       : [esc(K.monthLabel(ca.mois)), ca.montant == null ? 'pas de total entre deux devises' : '',
         `${pl(ca.clients, 'client')} sur ${ca.sur}`].filter(Boolean).join(' · ');
     // 26/09 — un portefeuille SANS aucun client sur SkanFact (le premier jour d'un comptable, qui
@@ -1875,11 +1883,11 @@
             « 6 clients suivis » se lisait comme une erreur — le 5, ce sont les clients sur
             SkanFact, les seuls à qui l'on réclame quelque chose. */''}
       ${item('ajour', 'à jour', `${p.aJour}<span class="val-sur"> / ${p.surSkanfact || 0}</span>`,
-    `${p.enRetard ? `${p.enRetard} en retard` : 'aucun retard'}${p.provisoires ? ` · ${p.provisoires} en provisoire` : ''}`,
+    `${p.enRetard ? `${p.enRetard} en retard` : 'aucun retard'}${p.provisoires ? ` · ${p.provisoires} à valider` : ''}`,
     p.enRetard ? '' : 'ok', 'Voir tes clients sur SkanFact, les plus urgents d\'abord')}
       ${item('manquants', p.moisManquants > 1 ? 'mois manquants' : 'mois manquant', p.moisManquants,
-    p.paquets ? pl(p.paquets, 'paquet') + ' reçu' + (p.paquets > 1 ? 's' : '') : 'aucun paquet reçu',
-    p.moisManquants ? 'due' : 'ok', 'Voir qui doit envoyer, et le relancer')}
+    p.paquets ? pl(p.paquets, 'mois écrit', 'mois écrits') : 'aucun mois écrit',
+    p.moisManquants ? 'due' : 'ok', 'Voir qui relancer : les mois passés sans écriture')}
       ${item('ca', 'de CA', caVal, caSub, '', 'Classer tes clients par chiffre d\'affaires')}
     </div>`;
   }
@@ -1927,11 +1935,11 @@
     { label: 'Téléphone', get: r => r.phone },
     { label: 'Interlocuteur', get: r => r.contact },
     { label: 'Sur SkanFact', get: r => r.manual ? 'non' : 'oui' },
-    { label: 'Dernier mois reçu', get: r => r.lastLabel },
-    { label: 'Définitif', get: r => r.lastMonth ? (r.lastDefinitive ? 'oui' : 'non') : '' },
-    { label: 'CA du dernier mois reçu', get: r => r.lastFigures ? K.csvMontant(r.lastFigures.ca) : '' },
+    { label: 'Dernier mois écrit', get: r => r.lastLabel },
+    { label: 'Validé', get: r => r.lastMonth ? (r.lastDefinitive ? 'oui' : 'non') : '' },
+    { label: 'CA du dernier mois écrit', get: r => r.lastFigures ? K.csvMontant(r.lastFigures.ca) : '' },
     { label: 'Mois manquants', get: r => r.missingCount },
-    { label: 'Provisoires', get: r => r.provisionalCount },
+    { label: 'Mois à valider', get: r => r.provisionalCount },
     { label: 'Points signalés', get: r => r.issues },
     { label: 'Dernière relance', get: r => r.lastRelanceAt ? fmtDay(r.lastRelanceAt) : '' },
     { label: 'Régime', get: r => r.regime },
@@ -1986,14 +1994,11 @@
               lisent comme deux choses). Le rouge, lui, ne peut pas vivre ici : il suit un vrai paquet. */''}
         ${premiersPasPanel(true)}
         <div class="panel"><h2>Ce que tu verras ici</h2>
-          <p>Tes clients, un par ligne, avec le dernier mois reçu et ce qui manque.</p>
+          <p>Tes clients, un par ligne : le dernier mois de leurs livres, ce qui reste à valider, et les mois passés sans écriture.</p>
           ${/* 10.12.0 — « les quatre situations » datait de l'exemple à quatre dossiers : il en a six, dont
                 les deux qu'un cabinet tient de bout en bout (U-10). Un compte écrit à la main se périme au
                 dossier suivant : la phrase énumère, elle ne compte pas. */''}
-          <p class="small muted">L'exemple montre ce que tu rencontreras : un client à jour, un en retard, un qui n'a
-          envoyé que du provisoire, un qui s'est endormi, un dont les pièces sont incomplètes et dont tu rapproches la
-          banque — et un client hors SkanFact dont tu tiens toute la comptabilité, paie et biens compris. Tu
-          peux l'effacer à la main quand tu veux.</p>
+          ${/* (plateforme) L'exemple à six clients fictifs n'est pas dans la version en ligne (C4). */''}
         </div>
         ${inboxBanner()}
         ${api.commentUnClientArrive()}`;
@@ -2043,15 +2048,15 @@
       ${rows.length ? `<div class="scroll-x"><table class="list sortable dl-table">
         <thead><tr>${sortHead('Client', 'nom')}${sortHead('Dernier mois', 'dernier')}
         ${sortHead('CA de ce mois', 'ca', null, true)}${col.honoraires ? '<th class="r nw">Honoraires</th>' : ''}${sortHead('Manquants', 'manquants', null, true)}
-        ${col.provisoires ? '<th class="r nw">Provisoires</th>' : ''}${col.signale ? '<th class="r nw">Signalés</th>' : ''}
-        ${col.relance ? sortHead('Relancé le', 'relance', 'r.history') : ''}${sortHead('Reçu le', 'recu')}<th></th></tr></thead>
+        ${col.provisoires ? '<th class="r nw">À valider</th>' : ''}${col.signale ? '<th class="r nw">Signalés</th>' : ''}
+        ${col.relance ? sortHead('Relancé le', 'relance', 'r.history') : ''}${sortHead('Mis à jour', 'recu')}<th></th></tr></thead>
         <tbody>${shown.map(r => `<tr class="clickable" data-id="${esc(r.id)}">
           <td class="dl-client"><div class="dl-cell"><span class="dot-lvl ${r.level === 'ok' ? '' : esc(r.level)}" title="${esc(NIVEAUX[r.level] || '')}"></span><span class="dl-nom" title="${esc(r.name)}">${esc(r.name)}</span>${r.archived ? ' <span class="badge">archivé</span>' : ''}</div></td>
           ${/* « hors SkanFact » vit dans « Dernier mois », pas à côté du nom (H-1, trouvé en testant
                 comme un humain) : dans la cellule du nom, il le coupait — « Garage Ben… » — alors
                 que la ligne avait de la place partout ailleurs. Ici, il remplace un tiret qui ne
                 disait rien par la RAISON pour laquelle il n'y a pas de dernier mois. */''}
-          <td class="dl-mois">${r.manual && !r.lastLabel ? '<span class="badge b-hors" title="Pas encore sur SkanFact : rien ne lui est réclamé">hors SkanFact</span>' : `<span class="nw">${esc(r.lastLabel || '—')}</span>`}${r.lastMonth && !r.lastDefinitive ? ' <span class="badge partielle">provisoire</span>' : ''}</td>
+          <td class="dl-mois">${r.manual && !r.lastLabel ? '<span class="badge b-hors" title="Pas encore sur SkanFact : rien ne lui est réclamé">hors SkanFact</span>' : `<span class="nw">${esc(r.lastLabel || '—')}</span>`}${r.lastMonth && !r.lastDefinitive ? ' <span class="badge partielle">à valider</span>' : ''}</td>
           <td class="r nw">${esc(r.lastFigures ? money(r.lastFigures.ca, r.lastFigures.devise) : '—')}</td>
           ${col.honoraires ? `<td class="r nw">${r.fees ? esc(money(r.fees)) : '—'}</td>` : ''}
           <td class="r">${r.missingCount || '—'}</td>
@@ -2128,7 +2133,8 @@
       // brute — les deux existent ici et se ressemblent, et c'est exactement le genre de confusion
       // qui produit un mail vide. Et on ne propose la relance que s'il y a quelque chose à
       // réclamer : une action qui n'a rien à faire est du bruit dans un menu.
-      const aRelancer = r.missingCount > 0 || r.provisionalCount > 0;
+      // (plateforme) Des écritures à valider ne se relancent pas (C14).
+      const aRelancer = r.missingCount > 0;
       return [
         ...(aRelancer ? [{
           icon: 'email', label: 'Relancer ce client',
@@ -2136,7 +2142,7 @@
           run: () => writeRelance(r)
         }] : []),
         { icon: 'contrat', label: 'Ouvrir sa comptabilité', hint: 'Livre-journal, grand livre, balance, saisie', run: () => vers('comptabilite') },
-        { icon: 'dossier', label: 'Voir ses paquets reçus', hint: 'Ce qu\'il a envoyé, mois par mois', run: () => vers('paquets') },
+        // (plateforme) Plus d'onglet des paquets : ses mois sont dans sa comptabilité (C4).
         { sep: true },
         { icon: 'modifier', label: 'Modifier la fiche', hint: 'Nom, matricule, contact, honoraires', run: () => dossierForm(d) }
       ];
@@ -2311,10 +2317,10 @@
     const etat = [
       // Un dossier tenu au cabinet dit ce que ça VEUT DIRE (10.12.0) : « pas encore sur SkanFact »
       // répétait le badge du titre, dix pixels plus haut.
-      packs.length ? pl(packs.length, 'mois reçu', 'mois reçus') : (dossier.manual ? 'tenu au cabinet' : 'sur SkanFact : ses livres sont à jour en direct'),
+      packs.length ? pl(packs.length, 'mois écrit', 'mois écrits') : (dossier.manual ? 'tenu au cabinet' : 'sur SkanFact : ses livres sont à jour en direct'),
       row.missingCount ? `<span class="warn-text">${pl(row.missingCount, 'manquant')}</span>` : '',
-      row.provisionalCount ? `<span class="warn-text">${pl(row.provisionalCount, 'provisoire')}</span>` : '',
-      dernierRecu ? 'dernier paquet le ' + esc(fmtDay(dernierRecu)) : '',
+      row.provisionalCount ? `<span class="warn-text">${pl(row.provisionalCount, 'mois à valider', 'mois à valider')}</span>` : '',
+      dernierRecu ? 'mis à jour le ' + esc(fmtDay(dernierRecu)) : '',
       packs.length && anneeVue ? `CA ${esc(periodeCA)} : <strong>${esc(money(caAnnee))}</strong>` : '',
       // Les points signalés dans ses paquets (achats sans justificatif, brouillons…) : la colonne
       // « Signalé » de la liste les comptait, la fiche ne les nommait nulle part avant l'onglet Paquets.
@@ -2356,7 +2362,7 @@
               livre (le créer, saisir, déclarer) et « Relancer » y redevient un bouton ordinaire : deux
               verts côte à côte ne désignent plus rien. Il reprend sa couleur sur le Suivi et les
               Paquets, où c'est lui qui répond au manque. */''}
-        ${row.missingCount || row.provisionalCount ? `<button class="btn${onglet === 'comptabilite' ? '' : ' btn-primary'}" id="rel">Relancer</button>` : ''}
+        ${row.missingCount ? `<button class="btn${onglet === 'comptabilite' ? '' : ' btn-primary'}" id="rel">Relancer</button>` : ''}
         <button class="btn" id="edit">Modifier la fiche</button>
         ${/* Un en-tête de fiche a un budget de boutons, comme une ligne de liste (7.29.0).
               « Imprimer » est un geste rare : il occupait une place premium à côté de ceux qu'on
@@ -2407,26 +2413,25 @@
       const raison = avant ? 'hors mission' : mois === K.today().slice(0, 7) ? 'en cours' : 'à venir';
       return `<div class="mcell hors" title="${esc(avant
         ? 'Avant le début de mission : rien n\'est réclamé pour ce mois.'
-        : 'Le mois en cours et les suivants ne sont jamais réclamés — le client ne peut pas encore les clôturer.')}">
+        : 'Le mois en cours et les suivants ne sont jamais réclamés : le client y enregistre encore ses pièces.')}">
         <div class="m-lab">${esc(nom)}</div><div class="m-st">${esc(raison)}</div></div>`;
     }
-    const ouvrable = !!(m.pack && m.pack.path);
-    const etat = m.state === 'complet' ? 'définitif' : m.state === 'provisoire' ? 'provisoire' : 'manquant';
-    // Un mois reçu avant la 6.1.0 n'a pas de fichier sur le disque : le bouton DIT pourquoi au
-    // lieu de ne rien faire (règle 7.21.0). Un bouton qui accepte le clic sans agir est pire
-    // qu'un bouton absent.
-    const quoi = ouvrable ? 'Ouvrir le paquet de ' + m.label
-      : m.state === 'manquant' ? 'Relancer sur ' + m.label
-        : 'Reçu avant que les paquets ne soient rangés sur le disque : rien à ouvrir.';
+    // (plateforme) Un mois écrit s'ouvre dans les livres du dossier : sa saisie s'il reste à valider,
+    // son livre-journal sinon. Un mois manquant porte la relance.
+    const ouvrable = !!m.pack;
+    const etat = m.state === 'complet' ? 'validé' : m.state === 'provisoire' ? 'à valider' : 'manquant';
+    const quoi = m.state === 'provisoire' ? 'Valider les écritures ' + K.de(m.label)
+      : m.state === 'complet' ? 'Voir les écritures ' + K.de(m.label)
+        : 'Relancer sur ' + m.label;
     const agit = ouvrable || m.state === 'manquant';
     return `<button type="button" class="mcell ${m.state}${agit ? ' clickable' : ''}"
       ${ouvrable ? `data-m="${esc(m.month)}"` : m.state === 'manquant' ? `data-relm="${esc(m.month)}"` : 'disabled'}
       title="${esc(quoi)}" aria-label="${esc(m.label)} — ${esc(etat)}. ${esc(quoi)}">
       <div class="m-lab">${esc(nom)}</div><div class="m-st">${esc(etat)}</div></button>`;
   }).join('')}</div></div>`).join('')
-          : '<span class="muted small">Aucun mois attendu pour l\'instant : l\'attente démarre au premier paquet reçu, ou à la date de début de mission que tu renseignes dans la fiche.</span>'}
-        ${!dossier.manual && months.length ? `<p class="muted small mt">Un mois <strong>provisoire</strong> n'a pas été clôturé chez le client : ses chiffres peuvent encore changer,
-        ne déclare pas dessus. Le mois en cours n'est jamais réclamé.</p>` : ''}
+          : '<span class="muted small">Aucun mois attendu pour l\'instant : l\'attente démarre à la première écriture de ses livres, ou à la date de début de mission que tu renseignes dans la fiche.</span>'}
+        ${!dossier.manual && months.length ? `<p class="muted small mt">Un mois <strong>à valider</strong> a encore des écritures au brouillard : valide-les avant de déclarer.
+        Un mois <strong>manquant</strong> n'a aucune écriture : c'est lui qu'on relance. Le mois en cours n'est jamais réclamé.</p>` : ''}
       </div>
 
       <div class="panel"><h2>Relances ${info('r.history')}</h2>
@@ -2440,7 +2445,7 @@
           <span class="small">${/* 10.12.0 (U-22) — la phrase suit la condition du bouton : sur un client à
                 jour, « Relancer » n'existe pas, et l'écran renvoyait vers un bouton absent (7.3.0).
                 Un dossier tenu au cabinet n'est pas « à jour » pour autant (10.14.1, MC-14) : on ne
-                lui réclame rien, et ses mois à saisir sont le travail du cabinet. */''}${row.missingCount || row.provisionalCount
+                lui réclame rien, et ses mois à saisir sont le travail du cabinet. */''}${row.missingCount
     ? 'Le bouton « Relancer », en haut, écrit le message et l\'enregistre ici. '
     : dossier.manual ? 'Tenu au cabinet : SkanFact ne lui réclame rien. '
       : 'Ce client est à jour : il n\'y a rien à lui réclamer. '}Un appel ou un message
@@ -2541,7 +2546,16 @@
     const rel = $('#rel'); if (rel) rel.onclick = () => writeRelance(row);
     $('#note-rel').onclick = () => noteRelanceForm(row);
     brancherDroits(view, dossier);
-    $$('[data-m]', view).forEach(c => { c.onclick = () => openPack(dossier, c.dataset.m); });
+    $$('[data-m]', view).forEach(c => {
+      c.onclick = () => {
+        // (plateforme) Le mois s'ouvre dans les livres : sa saisie s'il reste à valider, son livre-journal sinon.
+        const m = c.dataset.m, aValider = c.classList.contains('provisoire');
+        changerDeDossierCompta(dossier.id);
+        livresState.annee = m.slice(0, 4);
+        if (!aValider) { livresState.mode = 'mois'; livresState.mois = m; }
+        location.hash = '#/dossier/' + encodeURIComponent(dossier.id) + '/comptabilite/' + (aValider ? 'saisie' : 'journal') + '/' + m.slice(0, 4);
+      };
+    });
     // Un mois manquant NOMME un manque : le geste qui va avec, c'est la relance — et elle part
     // préremplie sur CE mois-là, pas sur tous. Cinq cartouches rouges et aucun bouton, c'était
     // l'écran qui décrit un problème sans offrir d'y répondre (7.15.0).
@@ -3471,7 +3485,7 @@
                       // Un écran de lecture vide sur un livre OUVERT dit d'où viennent les écritures,
                       // et mène à la saisie (7.0.0 : une liste vide donne le geste qui la remplit).
                       ? (s.livre && s.livreEtat === 'ouvert'
-                        ? `<div class="empty mini">Aucune écriture sur cette période : elles arrivent par la saisie, un relevé de banque ou un paquet du client.
+                        ? `<div class="empty mini">Aucune écriture sur cette période : elles arrivent par la saisie, un relevé de banque, ou les pièces que ton client enregistre dans SkanFact.
                             <div class="modal-actions" style="justify-content:flex-start"><button class="btn btn-sm btn-primary" id="lv-vers-saisie">Saisir une première pièce</button></div></div>`
                         : `<div class="empty mini">Aucune écriture sur cette période.</div>`)
                       : s.onglet === 'journal' ? vueJournal(lignes)
@@ -3493,7 +3507,7 @@
         <span class="muted">${pl((s.livre.ecritures || []).filter(e => e.statut === 'validee').length, 'écriture validée', 'écritures validées')}</span>
         ${nbBr ? `<label class="check" title="Un brouillard n'est pas encore de la comptabilité : il n'entre dans les tableaux que si tu coches cette case."><input type="checkbox" id="lv-brouillard" ${s.brouillard ? 'checked' : ''}> Compter ${esc(pl(nbBr, 'écriture'))} en brouillard</label>` : ''}
         ${/* Un dossier qui ne reçoit aucun paquet n'a rien à relire : le bouton y était un geste sans objet. */''}
-        ${(dossier.packs || []).length ? `<span class="nw"><button class="btn btn-sm" id="lv-relire2">Relire les paquets reçus</button>${info('lv.relire')}</span>` : ''}`
+        ${/* (plateforme) Rien à relire : les livres sont ceux du serveur, à jour en direct (C2). */''}`
       : `<b>Lu dans les paquets reçus</b> ${info('lv.compta')}`;
     const barre = $('#c-livre-etat', root) || $('#c-livre-etat');
     if (barre) barre.innerHTML = etatLivre;
@@ -8685,8 +8699,8 @@
     const phraseRienARelancer = () => {
       const tous = K.dossierList(S);
       const envoient = tous.filter(r => r.level !== 'hors').length;
-      if (!envoient) return `<div class="info-box">Personne à relancer : aucun de tes ${esc(pl(tous.length, 'client'))} ne t'envoie encore ses paquets depuis SkanFact. Un client que tu tiens au cabinet n'a rien à t'envoyer.</div>`;
-      return `<div class="todo-ok">Personne à relancer : ${envoient === 1 ? 'ton client sur SkanFact est à jour' : `tes ${esc(pl(envoient, 'client'))} sur SkanFact sont à jour`}${envoient < tous.length ? ` — les ${esc(String(tous.length - envoient))} autres ne t'envoient rien, ils sont tenus au cabinet ou pas encore sur SkanFact` : ''}.</div>`;
+      if (!envoient) return `<div class="info-box">Personne à relancer : aucun de tes ${esc(pl(tous.length, 'client'))} n'est sur SkanFact. Tu tiens leurs livres au cabinet, et rien ne leur est réclamé.</div>`;
+      return `<div class="todo-ok">Personne à relancer : ${envoient === 1 ? 'ton client sur SkanFact est à jour' : `tes ${esc(pl(envoient, 'client'))} sur SkanFact sont à jour`}${envoient < tous.length ? ` — les ${esc(String(tous.length - envoient))} autres sont tenus au cabinet : rien ne leur est réclamé` : ''}.</div>`;
     };
     // Trois cents clients en retard faisaient trois cents lignes d'un bloc : on pagine ce qu'on NOMME.
     // Le geste de groupe, lui, porte sur tous ceux qui restent à relancer — pas sur la page.
@@ -8743,7 +8757,7 @@
         { icon: 'cloche', label: 'Écrire la relance', hint: 'Le message tout prêt, avec les mois qui manquent', run: () => writeRelance(r) },
         r.phone ? { icon: 'telephone', label: 'Appeler le client', hint: `${r.phone} — l'appel est noté comme une relance`, run: () => appeler(r) } : null,
         { sep: true },
-        { icon: 'dossier', label: 'Ouvrir le dossier', hint: 'Ses paquets, ses chiffres et son historique', run: () => { location.hash = '#/dossier/' + encodeURIComponent(r.id); } },
+        { icon: 'dossier', label: 'Ouvrir le dossier', hint: 'Ses mois, ses chiffres et son historique', run: () => { location.hash = '#/dossier/' + encodeURIComponent(r.id); } },
         // Le métier du Cabinet est une BOUCLE : un paquet arrive, on vérifie, on écrit, on exporte,
         // on relance qui n'a rien envoyé. Chaque écran doit finir par le geste suivant — c'est ce
         // que l'Aide de l'app entreprise applique depuis la 7.27.0, et qu'aucune page du Cabinet
@@ -9003,14 +9017,12 @@
     const seul = clients.length === 1 ? clients[0] : null;
     view.innerHTML = `<div class="page-head"><h1>Échéances</h1></div>
       <div class="panel"><h2>Aucune échéance à suivre pour l'instant</h2>
-        <p>Le calendrier suit les clients qui t'envoient leurs paquets depuis SkanFact, et ceux dont tu tiens
-        la comptabilité ici. ${seul ? `<b>${esc(seul.name)}</b> n'est encore dans aucun de ces deux cas`
-    : `Tes ${clients.length} clients ne sont encore dans aucun de ces deux cas`} : dès qu'un client t'envoie
-        un paquet ou que tu ouvres son livre, ses déclarations apparaissent ici.</p>
-        <div class="modal-actions"><button class="btn btn-primary" id="ech-livre">${seul ? `Ouvrir la comptabilité ${esc(K.de(seul.name))}` : 'Choisir un client à tenir…'}</button>
-        <button class="btn" id="ech-pair">Remettre le fichier à mes clients…</button></div></div>`;
+        <p>Le calendrier suit les clients dont les livres ont des écritures : ceux qui enregistrent leurs pièces dans
+        SkanFact, et ceux dont tu tiens la comptabilité ici. ${seul ? `<b>${esc(seul.name)}</b> n'a encore aucune écriture`
+    : `Tes ${clients.length} clients n'ont encore aucune écriture`} : dès que ses livres en ont une, ses déclarations
+        apparaissent ici.</p>
+        <div class="modal-actions"><button class="btn btn-primary" id="ech-livre">${seul ? `Ouvrir la comptabilité ${esc(K.de(seul.name))}` : 'Choisir un client à tenir…'}</button></div></div>`;
     $('#ech-livre').onclick = () => { location.hash = seul ? `#/dossier/${seul.id}/comptabilite` : '#/dossiers'; };
-    $('#ech-pair').onclick = () => remettreAppairage();
     typographie(view);
   }
 
@@ -9071,7 +9083,7 @@
         <div class="ech-bar">
           ${(e.deposes || []).length ? `<span class="ok-inline" title="${esc(e.deposes.join(', '))}">${e.deposes.length} déposé${e.deposes.length > 1 ? 's' : ''}</span>` : ''}
           ${e.prets || !(e.deposes || []).length ? `<span class="ok-inline">${e.prets} prêt${e.prets > 1 ? 's' : ''}</span>` : ''}
-          ${e.provisoires.length ? `<span class="warn-inline">${e.provisoires.length} en provisoire</span>` : ''}
+          ${e.provisoires.length ? `<span class="warn-inline">${e.provisoires.length} à valider</span>` : ''}
           ${e.manquants.length ? `<span class="err-inline">${e.manquants.length} sans ${e.mois.length > 1 ? 'les mois' : 'le mois'}</span>` : ''}
           ${(e.aSaisir || []).length ? `<span class="err-inline">${e.aSaisir.length} à saisir au cabinet</span>` : ''}
           <span class="muted small">sur ${pl(e.clients, 'client')}</span>
@@ -9176,13 +9188,13 @@
     const mois = moisDisponibles();
     if (!mois.length) {
       view.innerHTML = `<div class="page-head"><h1>Écritures</h1></div>
-        <div class="panel"><h2>Rien à regrouper pour l'instant</h2>
-          <p>Dès qu'un client t'aura envoyé un paquet, tu pourras sortir d'ici <strong>toutes les écritures du mois,
-          tous clients confondus</strong>, dans un seul fichier à importer dans ton logiciel.</p>
-          <p class="small muted">Chaque paquet contient déjà ses écritures en partie double : cette page les rassemble,
-          en ajoutant le nom du client et le mois devant chaque ligne.</p>
-          <div class="modal-actions"><button class="btn btn-primary" id="imp">Importer un paquet…</button></div></div>`;
-      $('#imp').onclick = () => doImport();
+        <div class="panel"><h2>Pas encore dans la version en ligne</h2>
+          <p>Sortir d'ici <strong>toutes les écritures d'un mois, tous clients confondus</strong>, dans un seul fichier
+          pour ton logiciel : ce regroupement n'est pas encore en ligne.</p>
+          <p class="small muted">Les écritures de chaque client se lisent dès maintenant dans sa comptabilité, au livre-journal :
+          les pièces qu'il enregistre dans SkanFact y sont, à jour.</p>
+          <div class="modal-actions"><button class="btn btn-primary" id="e-dossiers">Voir mes dossiers</button></div></div>`;
+      $('#e-dossiers').onclick = () => { location.hash = '#/dossiers'; };
       return;
     }
     if (!ecrState.from || !mois.includes(ecrState.from)) ecrState.from = mois[mois.length - 1];
@@ -10137,7 +10149,7 @@
         </div>
         <p class="muted small">Les jours de dépôt alimentent la page <a href="#/echeances">Échéances</a>.
         <strong>À VÉRIFIER</strong> : ils dépendent de la forme juridique, du régime et de la loi de finances.</p>
-        <p class="muted small mt">Ce nom apparaît en bas des relances que tu envoies et dans le fichier d'appairage remis à tes clients.</p>
+        <p class="muted small mt">Ce nom apparaît en bas des relances que tu envoies, et tes clients le lisent quand ils te confient leur dossier.</p>
         <div class="modal-actions"><span class="saved" id="c-saved" hidden></span><button class="btn" id="c-save" data-enreg>Enregistrer mon cabinet</button></div>
       </div>
 
@@ -10645,6 +10657,9 @@
   // fois ferait cliquer « Plus tard » sans lire.
   let cleReclameeCetteSession = false;
   function chargerRecovery(redessiner) {
+    // (plateforme) Pas de clé de secours en ligne (C4) : « on ne sait pas » reste la réponse, et rien
+    // ne se réclame (ni ligne dans « À faire », ni bandeau).
+    if (api.sansCleDeSecours === true) return Promise.resolve();
     if (!api.recoveryStatus) { recoveryAt = null; return Promise.resolve(); }
     const avant = recoveryAt;
     return api.recoveryStatus().then(r => {
@@ -10949,7 +10964,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     // Les dossiers qui ont leur livre, et leur nombre : la preuve qu'un livre vient d'être créé (26/09).
     avecLivre: () => avecLivre(), livres: () => avecLivre().size,
     Visite
-  }));
+  }).filter(v => !(api.visitesAbsentes || []).includes(v.id)));
   const visiteParId = id => visites().find(v => v.id === id) || null;
   const visitePage = cle => visiteParId('page-' + cle);
   const decouverteEnPause = () => { const r = visitesEtat().reprise; return r && r.id === 'decouvrir' ? r : null; };
@@ -11036,16 +11051,15 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     cle: ['Enregistrer ma clé…', () => versReglages('pan-secu')],
     copie: ['Choisir un dossier de copie…', () => versReglages('pan-backup')],
     saisie: ['Régler ma grille', () => versReglages('pan-saisie')],
-    travail: ['Importer un paquet…', () => doImport()],
-    // 26/09 — le premier client hors SkanFact sans livre : sa comptabilité, où l'attend « Commencer le livre ».
-    livre: ['Commencer son livre…', () => ouvrirPremierLivre()]
+    // (plateforme) Le livre de chaque dossier existe déjà : le premier geste est d'y saisir (C2).
+    livre: ['Ouvrir sa saisie', () => ouvrirPremierLivre()]
   };
   function ouvrirPremierLivre() {
     const e = lesPas().etapes.find(x => x.id === 'travail');
-    if (e && e.dossierId) location.hash = '#/dossier/' + encodeURIComponent(e.dossierId) + '/comptabilite';
+    location.hash = e && e.dossierId ? '#/dossier/' + encodeURIComponent(e.dossierId) + '/comptabilite/saisie' : '#/dossiers';
   }
   const PAS_VISITES = { decouverte: 'decouvrir', cabinet: 'nommer-cabinet', equipe: 'equipe', clients: 'ajouter-client', appairage: 'appairage',
-    cle: 'cle-secours', copie: 'copie-externe', saisie: 'grille-saisie', travail: 'recevoir-paquet', livre: 'premier-livre' };
+    cle: 'cle-secours', copie: 'copie-externe', saisie: 'grille-saisie', livre: 'saisir-piece' };
   const ICONE_GUIDE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>';
   const ICONE_LECTURE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10.2 8.6l5 3.4-5 3.4z"/></svg>';
   const ICONE_COCHE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
@@ -11607,9 +11621,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     // Chaque entrée dit ce qu'elle EST (U-07) : un réglage étiqueté « action » faisait croire que
     // taper « tva » lançait quelque chose.
     const actions = [
-      { kind: 'action', main: 'Importer un paquet…', go: () => doImport() },
       { kind: 'action', main: 'Nouveau dossier client…', go: () => newDossierForm() },
-      { kind: 'action', main: 'Sauvegarder maintenant', go: () => quickBackup() },
       { kind: 'page', main: 'Relances', go: () => { location.hash = '#/relances'; } },
       { kind: 'page', main: 'Échéances', go: () => { location.hash = '#/echeances'; } },
       { kind: 'page', main: 'Écritures — exporter un mois', text: 'export exporter regrouper cabinet', go: () => { location.hash = '#/ecritures'; } },
@@ -11945,7 +11957,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
         ${/* 10.12.0 (U-30) — la loupe vit AVEC le champ. Centrée sur le bloc entier, elle
               descendait sous la ligne du texte dès que le compte des résultats s'affichait. */''}
         <span class="hs-champ"><svg class="hs-loupe" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4.2-4.2"/></svg>
-        <input type="search" id="aide-q" placeholder="Rechercher : un mot, une question… (« empreinte », « clé de secours »)" autocomplete="off" spellcheck="false" value="${esc(aideQ)}"></span>
+        <input type="search" id="aide-q" placeholder="Rechercher : un mot, une question… (« lettrage », « à valider »)" autocomplete="off" spellcheck="false" value="${esc(aideQ)}"></span>
         <div class="help-count small muted" id="aide-n" hidden></div>
       </div>
       <div id="aide-res" hidden></div>

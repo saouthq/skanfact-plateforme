@@ -1274,7 +1274,9 @@
   // (elle y ajoutait les provisoires). Deux chiffres pour la même chose, et aucun des deux faux —
   // c'est le genre d'incohérence qui fait douter de tout le reste.
   function relanceRows(state, todayIso) {
-    return dossierList(state, todayIso).filter(r => r.missingCount > 0 || r.provisionalCount > 0);
+    // (plateforme) Des écritures à valider sont le travail du cabinet (C8) : on ne relance le client
+    // que pour un mois passé sans aucune écriture (C14).
+    return dossierList(state, todayIso).filter(r => r.missingCount > 0);
   }
 
   // Ce que le cabinet a sur le feu, tous dossiers confondus. C'est ce qu'il regarde en arrivant.
@@ -1305,7 +1307,9 @@
     const unPaquet = reels.some(d => (d.packs || []).length);
     const unLivre = reels.some(d => tenus[d.id]);
     // Le premier client qu'on tiendra : hors SkanFact (aucun paquet), sans livre, pas archivé.
-    const aTenir = reels.find(d => !d.archived && !(d.packs || []).length && !tenus[d.id]) || null;
+    // (plateforme) Un client tenu au cabinet d'abord : un client sur SkanFact remplit ses livres lui-même.
+    const sansLivre = d => !d.archived && !(d.packs || []).length && !tenus[d.id];
+    const aTenir = reels.find(d => d.manual && sansLivre(d)) || reels.find(sansLivre) || null;
     const sansPaquet = unLivre && !unPaquet;
     const etapes = [
       // La découverte : facultative, comme dans l'application entreprise. Faite, elle compte ; pas
@@ -1333,11 +1337,13 @@
       // clients sont tous hors SkanFact — le cas du premier jour — n'a pas à passer par le fichier
       // d'appairage pour y arriver. Son geste suit le portefeuille : un client hors SkanFact sans livre
       // → commencer son livre ; sinon, importer un paquet.
-      { id: 'travail', titre: 'Tenir un premier livre, ou recevoir un premier paquet', fait: unPaquet || unLivre,
-        quoi: unPaquet || unLivre ? 'Ton portefeuille vit : les mois reçus et saisis s\'y comptent tout seuls.'
-          : aTenir ? 'Ouvre ' + aTenir.name + ' et commence son livre : son exercice, sa balance d\'ouverture s\'il en a une, puis la saisie. Un client sur SkanFact, lui, t\'envoie son paquet du mois.'
-            : 'Un client sur SkanFact t\'envoie son paquet du mois (tu le glisses sur la fenêtre) ; pour un client hors SkanFact, tu crées son livre et tu saisis.',
-        action: !unPaquet && !unLivre && aTenir ? 'livre' : 'travail', dossierId: aTenir ? aTenir.id : null },
+      // (plateforme) Plus de paquet à recevoir : les livres d'un client sur SkanFact se remplissent au fil
+      // de ses pièces ; « unPaquet » compte ici les dossiers dont un mois est écrit.
+      { id: 'travail', titre: 'Tenir un premier livre', fait: unPaquet || unLivre,
+        quoi: unPaquet || unLivre ? 'Ton portefeuille vit : les mois écrits de chaque client s\'y comptent tout seuls.'
+          : aTenir ? 'Ouvre ' + aTenir.name + ' et saisis sa première pièce. Un client sur SkanFact, lui, remplit ses livres en enregistrant ses pièces : tu les vois ici dès qu\'elles y sont.'
+            : 'Un client sur SkanFact remplit ses livres en enregistrant ses pièces ; pour un client hors SkanFact, tu saisis ici.',
+        action: 'livre', dossierId: aTenir ? aTenir.id : null },
       // 26/09 — un cabinet qui TIENT ses livres sans avoir reçu un seul paquet (le premier jour d'un
       // comptable dont les clients sont hors SkanFact) n'a encore rien à chiffrer ni à ouvrir :
       // l'appairage et la clé de secours ne protègent que des paquets. Ils restent listés, mais ne
@@ -1425,7 +1431,7 @@
       const plusieursMois = urgente.mois.length > 1;
       const morceaux = [
         // « 2 clients n'ont pas envoyé son mois » : l'accord suit les clients, pas l'échéance.
-        m ? `${pl(m, 'client')} ${m > 1 ? `n'ont pas envoyé ${plusieursMois ? 'leurs mois' : 'leur mois'}` : `n'a pas envoyé ${plusieursMois ? 'ses mois' : 'son mois'}`}` : '',
+        m ? `${pl(m, 'client')} ${m > 1 ? 'n\'ont' : 'n\'a'} aucune écriture sur ${plusieursMois ? 'ces mois' : 'ce mois'}` : '',
         a ? `${pl(a, m ? 'autre' : 'client')} tenu${a > 1 ? 's' : ''} au cabinet ${a > 1 ? 'sont' : 'est'} encore à saisir` : ''
       ].filter(Boolean);
       const noms = urgente.manquants.concat(urgente.aSaisir);
@@ -1442,16 +1448,16 @@
     const late = rows.filter(r => r.missingCount > 0);
     if (late.length) out.push({
       id: 'manquants', level: 'danger',
-      label: `${pl(late.length, 'dossier')} n'${late.length > 1 ? 'ont' : 'a'} pas tout envoyé`,
+      label: `${pl(late.length, 'dossier')} ${late.length > 1 ? 'ont' : 'a'} des mois sans écriture`,
       detail: late.slice(0, 6).map(r => `${r.name} (${pl(r.missingCount, 'mois', 'mois')})`).join(' · '),
       count: late.length, rows: late
     });
     const prov = rows.filter(r => r.provisionalCount > 0 && !r.missingCount);
     if (prov.length) out.push({
       id: 'provisoires', level: 'warn',
-      label: `${pl(prov.length, 'dossier')} n'${prov.length > 1 ? 'ont' : 'a'} envoyé que du provisoire`,
-      // L'accord suit le nombre de dossiers (10.12.0) : « 1 dossier… Leur mois » se lisait dans « À faire ».
-      detail: `${prov.length > 1 ? 'Leur' : 'Son'} mois n'est pas clôturé : les chiffres peuvent encore bouger. À relancer avant de déclarer.`,
+      label: `${pl(prov.length, 'dossier')} ${prov.length > 1 ? 'ont' : 'a'} des écritures à valider`,
+      // (plateforme) Des brouillards dans des mois passés : c'est au cabinet de les valider (C8).
+      detail: `${prov.slice(0, 6).map(r => `${r.name} (${pl(r.provisionalCount, 'mois', 'mois')})`).join(' · ')} — valide-les avant de déclarer.`,
       count: prov.length, rows: prov
     });
     // Les questions posées au client et restées sans réponse au bout de DEUX paquets (9.10.0).
@@ -1517,20 +1523,20 @@
     const mois = miss.map(monthLabel);
     const longue = miss.length > 3;
     const intervalle = longue ? `${de(monthLabel(miss[0]))} à ${monthLabel(miss[miss.length - 1])}` : '';
+    // (plateforme) Plus de paquet à fabriquer ni de mois à clôturer : le client enregistre ses pièces
+    // dans SkanFact, et le cabinet les voit dans ses livres dès qu'elles y sont (C14).
     const sujet = mois.length
       ? (longue
-        ? `Il me manque ${miss.length} mois de dossiers (${intervalle})`
-        : `Il me manque ${mois.length > 1 ? 'vos dossiers' : 'votre dossier'} ${de(monthListLabel(miss))}`)
-      : `Votre dossier ${de(row.lastLabel)} n'est pas définitif`;
-    const corps = mois.length
-      ? `Bonjour,\n\nPour tenir votre comptabilité à jour, il me manque ${mois.length > 1 ? 'les dossiers' : 'le dossier'} `
-        + (longue ? `des ${miss.length} mois suivants :\n${mois.map(m => '  · ' + m).join('\n')}\n` : `${de(monthListLabel(miss))}.\n`)
-        + `\n`
-        + `Dans SkanFact : Comptabilité → Clôtures pour clôturer le mois, puis Comptabilité → Cabinet pour fabriquer et m'envoyer le paquet.\n\n`
-        + `Bien à vous,\n${(cabinet && cabinet.name) || ''}`
-      : `Bonjour,\n\nJ'ai bien reçu votre dossier ${de(row.lastLabel)}, mais il est marqué « provisoire » : le mois n'a pas été clôturé dans SkanFact, donc les chiffres peuvent encore changer.\n\n`
-        + `Quand tout est saisi, clôturez le mois (Comptabilité → Clôtures) et renvoyez-moi le paquet : je pourrai alors déclarer sans risque.\n\n`
-        + `Bien à vous,\n${(cabinet && cabinet.name) || ''}`;
+        ? `Il me manque ${miss.length} mois de pièces (${intervalle})`
+        : `Il me manque vos pièces ${de(monthListLabel(miss))}`)
+      : 'Vos pièces dans SkanFact';
+    const corps = `Bonjour,\n\n`
+      + (mois.length
+        ? 'Pour tenir votre comptabilité à jour, il me manque vos pièces '
+          + (longue ? `des ${miss.length} mois suivants :\n${mois.map(m => '  · ' + m).join('\n')}\n` : `${de(monthListLabel(miss))}.\n`)
+        : 'Pour tenir votre comptabilité à jour, j\'ai besoin de vos dernières pièces.\n')
+      + '\nIl vous suffit de les enregistrer dans SkanFact — vos ventes, vos achats, vos notes de frais : je les vois dans vos livres dès qu\'elles y sont, sans rien avoir à m\'envoyer.\n\n'
+      + `Bien à vous,\n${(cabinet && cabinet.name) || ''}`;
     return { to: row.email || '', subject: sujet, body: corps };
   }
 

@@ -14,28 +14,28 @@
   const INFO = {
     // — le cabinet —
     'u.essai': { t: 'Versions d\'essai', d: 'Activé, ce poste reçoit les versions d\'essai de SkanFact Cabinet <b>avant</b> tous les autres cabinets. Elles peuvent contenir des défauts : c\'est à ça qu\'elles servent. Une sauvegarde « avant-beta » est prise au moment où tu l\'actives, et désactiver te ramène au canal normal à la prochaine version stable. La ligne dit quelle version d\'essai est en cours, telle qu\'elle est publiée.' },
-    'cab.name': { t: 'Nom du cabinet', d: 'Le nom sous lequel tes clients te connaissent. Il apparaît en bas des relances que tu envoies et dans le fichier d\'appairage que tu leur remets. Écris-le comme sur ton papier à en-tête.' },
-    'cab.email': { t: 'Email du cabinet', d: 'L\'adresse à laquelle tes clients te répondent. Elle est écrite dans le fichier d\'appairage : c\'est aussi comme ça qu\'ils savent que le fichier vient bien de toi.' },
+    'cab.name': { t: 'Nom du cabinet', d: 'Le nom sous lequel tes clients te connaissent. Il apparaît en bas des relances que tu envoies, et tes clients le lisent quand ils te confient leur dossier. Écris-le comme sur ton papier à en-tête.' },
+    'cab.email': { t: 'Email du cabinet', d: 'L\'adresse à laquelle tes clients te répondent. Tes relances partent de ta propre messagerie : c\'est l\'adresse qu\'ils verront.' },
     'cab.phone': { t: 'Téléphone du cabinet', d: 'Facultatif. Utile si tu veux qu\'il apparaisse dans tes messages de relance : en Tunisie, un client rappelle plus souvent qu\'il ne répond à un mail.' },
-    'cab.relanceDay': { t: 'Jour de relance', d: 'Le jour du mois où tu fais ta tournée de relances. À partir de cette date, l\'application met en tête de « À faire » les clients qui n\'ont pas encore envoyé leurs mois clôturés. Le 10 est l\'usage : les clients ont eu le temps de finir le mois précédent. Entre 1 et 28.' },
+    'cab.relanceDay': { t: 'Jour de relance', d: 'Le jour du mois où tu fais ta tournée de relances. À partir de cette date, l\'application met en tête de « À faire » les clients dont un mois passé n\'a encore aucune écriture. Le 10 est l\'usage : les clients ont eu le temps de finir le mois précédent. Entre 1 et 28.' },
     'cab.fingerprint': { t: 'Empreinte de ton cabinet', d: 'Cinq groupes de quatre caractères calculés à partir de ta clé publique. Elle identifie ton cabinet de façon unique. Quand un client importe ton fichier d\'appairage, son SkanFact lui montre cette empreinte : s\'il te la lit au téléphone et qu\'elle correspond, c\'est bien à toi qu\'il enverra ses paquets — et à personne d\'autre.' },
     'cab.signature': { t: 'Empreinte de ta signature', d: 'Tes fichiers de clôture et de questions partent <b>signés</b>. La première fois qu\'un client en reçoit un, son SkanFact retient cette signature ; ensuite il refuse un envoi signé par une autre clé, ou pas signé du tout. C\'est ce qui lui prouve que le fichier vient bien de toi — personne ne peut fabriquer ta signature sans la clé de ton cabinet. Elle suit ta clé : tous tes postes signent pareil, et elle ne change que si tu changes de clé.' },
-    'cab.pairing': { t: 'Fichier d\'appairage', d: 'Un petit fichier <b>.skanpair</b> à envoyer à chaque client (par mail, il ne contient rien de secret : seulement ta clé <b>publique</b>). Il l\'importe une fois dans <b>Paramètres → Envois → Ton cabinet comptable</b> de son SkanFact. À partir de là, tous ses paquets sont chiffrés pour toi seul, et il n\'a plus aucun mot de passe à te communiquer. « Remettre le fichier à mes clients… » l\'enregistre, puis prépare le message qui l\'envoie : tes clients en copie cachée, et ce qu\'ils doivent faire.' },
+    'cab.pairing': { t: 'Le code de ton cabinet', d: 'Huit lettres ou chiffres, sans rien de secret. Un client sur SkanFact le tape dans <b>Paramètres → Envois → Ton cabinet comptable</b> et coche ce qu\'il te confie ; tu acceptes sur la page Dossiers. Ses livres sont alors les mêmes pour lui et pour toi, <b>à jour en direct</b> : il n\'a plus rien à t\'envoyer.' },
 
     // — un dossier —
-    'd.name': { t: 'Nom du client', d: 'La raison sociale, comme sur son registre de commerce. Si le client t\'envoie des paquets, ce nom se met à jour tout seul d\'après ce qu\'il a saisi dans son SkanFact : c\'est lui qui fait foi.' },
-    'd.matricule': { t: 'Matricule fiscal', d: 'C\'est <b>lui</b> qui identifie un dossier, pas le nom : un nom se corrige, change de forme juridique, et deux clients peuvent s\'appeler pareil. En Tunisie il ressemble à <b>1234567X/A/M/000</b>. Saisis-le dès la création : le jour où ce client passera à SkanFact, ses paquets tomberont dans ce dossier-ci au lieu d\'en créer un second.' },
+    'd.name': { t: 'Nom du client', d: 'La raison sociale, comme sur son registre de commerce. C\'est celle de son entreprise dans SkanFact : elle fait foi, et ne se change pas depuis ta fiche.' },
+    'd.matricule': { t: 'Matricule fiscal', d: 'C\'est <b>lui</b> qui identifie un dossier, pas le nom : un nom se corrige, change de forme juridique, et deux clients peuvent s\'appeler pareil. En Tunisie il ressemble à <b>1234567X/A/M/000</b>. Saisis-le dès la création d\'un client que tu tiens : c\'est celui de son entreprise.' },
     'd.email': { t: 'Email du client', d: 'L\'adresse à laquelle partent tes relances. Sans elle, le bouton « Écrire » ouvre quand même le message, mais tu devras taper le destinataire à la main.' },
     'd.phone': { t: 'Téléphone du client', d: 'Avec l\'indicatif si tu veux appeler ou écrire sur WhatsApp depuis l\'application (<b>+216 …</b>). C\'est souvent le seul moyen d\'obtenir une réponse rapide.' },
     'd.contact': { t: 'Interlocuteur', d: 'La personne que tu appelles vraiment : le gérant, la secrétaire, le comptable interne. Utile quand la société a un nom et que la personne en a un autre.' },
     'd.note': { t: 'Note interne', d: 'Ce que tu veux te rappeler sur ce dossier : particularités, accords, historique. Cette note ne quitte jamais ton ordinateur et n\'est jamais envoyée au client.' },
-    'd.archived': { t: 'Dossier archivé', d: 'Un client parti ou en sommeil. Il disparaît des listes et n\'est plus réclamé, mais ses paquets restent consultables : coche « Voir les dossiers archivés » pour le retrouver. Préfère toujours l\'archivage à la suppression.' },
-    'd.manual': { t: 'Client hors SkanFact', d: 'Un dossier que tu as créé toi-même, pour un client qui n\'utilise pas encore SkanFact. Il compte dans ton portefeuille mais rien ne lui est réclamé : on ne réclame pas des paquets à quelqu\'un qui n\'a pas l\'application. Sa comptabilité se tient ici, à la main : onglet <b>Comptabilité</b> de sa fiche, « Commencer le livre ». Le jour où il t\'enverra son premier paquet, le dossier deviendra un dossier ordinaire tout seul.' },
+    'd.archived': { t: 'Dossier archivé', d: 'Un client parti ou en sommeil. Il disparaît des listes et n\'est plus réclamé, mais ses livres restent consultables : coche « Voir les dossiers archivés » pour le retrouver. Préfère toujours l\'archivage à la suppression.' },
+    'd.manual': { t: 'Client hors SkanFact', d: 'Un dossier que tu as créé toi-même, pour un client qui n\'utilise pas encore SkanFact. Il compte dans ton portefeuille mais rien ne lui est réclamé : on ne réclame pas des pièces dans SkanFact à quelqu\'un qui n\'a pas l\'application. Sa comptabilité se tient ici, à la main : onglet <b>Comptabilité</b> de sa fiche.' },
     // — commencer le livre d'un client (26/09) —
     'rp.exercice': { a: 'tenue', t: 'L\'exercice du livre', d: 'L\'année que ce livre couvre. Pour un client que tu prends en cours d\'année, commence souvent par <b>l\'exercice précédent</b> (à clôturer), puis « Ouvrir N+1 » reprendra ses soldes au 1er janvier.' },
     'rp.bornes': { a: 'tenue', t: 'Les bornes de l\'exercice', d: 'Du 1er janvier au 31 décembre : un exercice suit l\'année civile, et les à-nouveaux s\'ouvrent au 1er janvier. Pour une société créée en cours d\'année, fais commencer son premier livre au jour de sa création. Un exercice décalé (d\'avril à mars, par exemple) ne se tient pas ici. <em>À VÉRIFIER avec ton client.</em>' },
     'rp.balance': { a: 'tenue', t: 'La balance d\'ouverture', d: 'Ce que chaque compte portait <b>au premier jour</b> de l\'exercice : capital, banque, clients, fournisseurs, emprunts… Elle devient la pièce d\'à-nouveaux du livre. <b>Laisse-la vide pour un client qui démarre.</b> « Importer depuis Excel ou CSV… » reprend celle d\'un autre logiciel, telle qu\'il l\'exporte (colonnes Compte, Libellé, Débit, Crédit ; un titre au-dessus ou une ligne de totaux dessous sont laissés de côté). Elle doit s\'équilibrer : débit = crédit.' },
-    'd.from': { t: 'Début de mission', d: 'Le premier mois dont tu t\'occupes, écrit comme <b>01/2026</b>. Pour un client <b>sur SkanFact</b> : laisse vide pour partir de son premier paquet, et renseigne-le quand tu reprends son dossier en cours d\'année — sans cette date, les mois antérieurs ne te seraient jamais réclamés. Pour un client <b>tenu au cabinet</b> : c\'est de ce mois que partent ses mois à saisir et ses échéances ; les déclarations d\'avant, celles de ton prédécesseur, ne te sont plus réclamées (un mois d\'avant que tu saisis quand même reste compté).' },
+    'd.from': { t: 'Début de mission', d: 'Le premier mois dont tu t\'occupes, écrit comme <b>01/2026</b>. Pour un client <b>sur SkanFact</b> : laisse vide pour partir de la première écriture de ses livres, et renseigne-le quand tu reprends son dossier en cours d\'année — sans cette date, les mois antérieurs ne te seraient jamais réclamés. Pour un client <b>tenu au cabinet</b> : c\'est de ce mois que partent ses mois à saisir et ses échéances ; les déclarations d\'avant, celles de ton prédécesseur, ne te sont plus réclamées (un mois d\'avant que tu saisis quand même reste compté).' },
     'd.regime': { t: 'Régime fiscal', d: 'Le régime d\'imposition du client. Il ne change pas ce que l\'application attend de lui (un client tient sa comptabilité tous les mois quoi qu\'il arrive) mais il te rappelle ce que tu dois déposer pour lui. <em>À VÉRIFIER avec le dossier fiscal du client.</em>' },
     'd.tvaPeriod': { t: 'Périodicité de la TVA', d: 'Mensuelle, trimestrielle, ou non assujetti. Sert de pense-bête pour tes déclarations. <em>À VÉRIFIER : la périodicité dépend du régime et du chiffre d\'affaires.</em>' },
     'd.cnss': { t: 'Matricule CNSS employeur', d: 'Le numéro d\'affiliation de ce client à la CNSS, écrit comme sur ses déclarations : <b>123456-72</b> (le matricule, puis sa clé sur deux chiffres). Le fichier de télédéclaration du trimestre, dans l\'écran Paie, en a besoin : sans lui, il ne sort pas.' },
@@ -45,11 +45,11 @@
     'd.liste': { t: 'Coller une liste de clients', d: 'Une ligne par client. Tu peux copier une colonne entière depuis Excel ou Numbers et la coller ici. Si tu veux donner plus qu\'un nom, sépare les colonnes par un point-virgule, dans cet ordre : <b>nom ; matricule ; email ; téléphone</b>. Seul le nom est obligatoire, et l\'ordre des trois autres n\'a pas d\'importance : un email et un numéro de téléphone se reconnaissent tout seuls. Les doublons (même matricule, ou même nom) sont ignorés et signalés.' },
 
     // — les paquets —
-    'p.definitif': { t: 'Définitif ou provisoire', d: 'Un paquet est <b>définitif</b> quand le client a clôturé son mois : il ne peut plus modifier ni supprimer une pièce de cette période sans rouvrir le mois, avec un motif écrit. Un paquet <b>provisoire</b> se lit, mais ses chiffres peuvent encore bouger : ne déclare pas dessus.' },
-    'p.moisTenus': { t: 'Les mois d\'un client tenu au cabinet', d: 'Ce client n\'envoie aucun paquet : ses mois se lisent dans le <b>livre</b> que tu tiens pour lui, du premier mois de l\'exercice à celui qui vient de finir. Un mois est <b>à saisir</b> tant qu\'il n\'a aucune écriture, <b>saisi</b> puis <b>déclaré</b> quand sa déclaration est marquée déposée — le même état que dans la page Production. Clique un mois pour le saisir ou ouvrir sa déclaration.' },
+    'p.definitif': { t: 'Validé ou à valider', d: 'Un mois est <b>validé</b> quand plus aucune de ses écritures n\'est au brouillard : chacune a son numéro et ne se modifie plus. Un mois <b>à valider</b> a encore des brouillards — ceux que les pièces de ton client viennent d\'écrire, ou ceux que tu as saisis : valide-les avant de déclarer. Un mois <b>manquant</b> n\'a aucune écriture : c\'est lui qu\'on relance.' },
+    'p.moisTenus': { t: 'Les mois d\'un client tenu au cabinet', d: 'Ce client n\'est pas sur SkanFact : ses mois se lisent dans le <b>livre</b> que tu tiens pour lui, du premier mois de l\'exercice à celui qui vient de finir. Un mois est <b>à saisir</b> tant qu\'il n\'a aucune écriture, <b>saisi</b> puis <b>déclaré</b> quand sa déclaration est marquée déposée — le même état que dans la page Production. Clique un mois pour le saisir ou ouvrir sa déclaration.' },
     // Les livres lus dans les paquets (9.1.0).
-    'lv.compta': { t: 'La comptabilité de ce client', d: 'Le <b>livre</b> que tu tiens pour ce client, exercice par exercice : saisie, livre-journal, grand livre, balance, lettrage, déclaration, banque, immobilisations, paie, révision, clôture et liasse.<br><br>Il se crée de deux façons. Pour un client sur SkanFact, <b>à partir des paquets reçus</b> : ses écritures arrivent déjà écrites, avec le même moteur que son application, au millime près. Pour un client <b>hors SkanFact</b>, ou repris d\'un autre logiciel, en posant son exercice et sa balance d\'ouverture : tout se saisit ensuite ici.<br><br>Le Cabinet ne modifie jamais rien chez le client. Les mois qui manquent sur la période sont nommés en tête : un livre incomplet qui ne le dirait pas serait un livre faux.' },
-    'lv.ouverture': { t: 'Ce que « ouverture » veut dire ici', d: 'L\'<b>ouverture</b> d\'une période, c\'est ce que chaque compte portait la veille de son premier jour. Sur le <b>livre</b> du dossier, elle se calcule : les pièces du journal AN — la balance d\'ouverture reprise (« Reprendre les soldes d\'ouverture… », onglet Exercice) ou les à-nouveaux reportés par la clôture de l\'exercice précédent — plus les mouvements de l\'exercice antérieurs à la période affichée. La phrase au-dessus de la balance les nomme. Sur l\'exercice entier elle est donc nulle par construction : ce sont ces pièces d\'à-nouveau, datées du premier jour, qui portent les soldes reportés.<br><br>Quand les écritures sont <b>lues dans les paquets</b> (pas encore de livre), il n\'y a aucune ouverture : les soldes sont ceux des mouvements reçus, pas ceux du compte depuis sa création.' },
+    'lv.compta': { t: 'La comptabilité de ce client', d: 'Ses <b>livres</b>, exercice par exercice : saisie, livre-journal, grand livre, balance, lettrage, déclaration, banque, immobilisations, paie, révision, clôture et liasse.<br><br>Pour un client sur SkanFact, ce sont <b>les mêmes livres que les siens</b>, au millime : ses pièces y deviennent des écritures au fil de ses ventes, de ses achats et de sa paie, et tu les lis ici à jour, sans rien à recevoir. Tu valides ses brouillards, et tu saisis ce qui te revient. Pour un client <b>hors SkanFact</b>, tout se saisit ici.<br><br>Tu n\'écris jamais une pièce à sa place : une écriture née d\'une pièce suit sa pièce. Les mois qui manquent sur la période sont nommés en tête : un livre incomplet qui ne le dirait pas serait un livre faux.' },
+    'lv.ouverture': { t: 'Ce que « ouverture » veut dire ici', d: 'L\'<b>ouverture</b> d\'une période, c\'est ce que chaque compte portait la veille de son premier jour. Sur le <b>livre</b> du dossier, elle se calcule : les pièces du journal AN — la balance d\'ouverture reprise (« Reprendre les soldes d\'ouverture… », onglet Exercice) ou les à-nouveaux reportés par la clôture de l\'exercice précédent — plus les mouvements de l\'exercice antérieurs à la période affichée. La phrase au-dessus de la balance les nomme. Sur l\'exercice entier elle est donc nulle par construction : ce sont ces pièces d\'à-nouveau, datées du premier jour, qui portent les soldes reportés.' },
     'lv.relire': { t: 'Ce que « Relire les paquets reçus » fait', d: 'Un geste <b>sûr</b>. Il relit les paquets du client et : <b>ajoute</b> les écritures qui manquent au livre, <b>remplace</b> les brouillards d\'un mois que le client a renvoyé, et <b>ne touche jamais</b> une écriture validée — si le client a changé une pièce que tu as déjà validée, l\'écart t\'est montré et c\'est toi qui tranches. Ton travail (saisies, validations, lettrages) n\'est pas en jeu.' },
     'rg.regimes': { t: 'Les régimes et leurs échéances', d: 'Ce que chaque régime <b>dépose</b>, et quand. Le champ « Régime fiscal » existe sur la fiche d\'un client depuis longtemps ; jusqu\'ici personne ne le lisait, et le calendrier réclamait une TVA mensuelle à tout le monde — <b>y compris à un forfaitaire qui n\'en dépose pas</b>. Tant que tu ne déclares aucun régime, rien ne change : c\'est le comportement d\'avant, et il ne se modifie pas tout seul. Dès que tu en déclares un, les dossiers qui le portent suivent SES règles : périodicité de TVA, CNSS ou non, et les échéances annuelles que tu écris toi-même (<code>nom@JJ-MM</code>). <em>À VÉRIFIER : aucune de ces périodicités ni aucune de ces dates n\'est écrite dans SkanFact. Ce sont les tiennes.</em>' },
     'li.liasse': { a: 'liasse', t: 'La liasse', d: 'Le bilan et l\'état de résultat en <b>rubriques</b>, déduits de la balance — jamais saisis. Chaque rubrique s\'ouvre sur les comptes qui l\'ont remplie : un chiffre qu\'on ne peut pas ouvrir se croit ou ne se croit pas, et sur une liasse c\'est le pire des deux. Une rubrique qu\'aucun compte n\'a remplie vaut « — » avec sa raison, jamais 0 : un zéro se recopie sur un formulaire. Et ce qu\'<b>aucune</b> rubrique ne capte est montré en rouge : une liasse qui perd un compte en silence est une liasse fausse. <em>À VÉRIFIER : la présentation exacte du système comptable des entreprises n\'est validée par personne ici. Confronte-la à ce que le portail attend.</em>' },
@@ -66,8 +66,8 @@
     'qf.compte': { a: 'revision', t: 'Le compte', d: 'Le compte sur lequel tu es tombé sur la question (<code>471</code>, <code>411</code>). Il te sert à toi : la question se range sur la feuille maîtresse de ce compte, et elle se retrouve quand tu y reviens. Ton client, lui, voit la pièce et la question.' },
     'qf.objet': { a: 'revision', t: 'L\'objet', d: 'Trois ou quatre mots qui titrent la question (« Justificatif absent », « Virement sans facture »). C\'est ce que ton client lit en premier dans sa liste ; la question elle-même dit le détail.' },
     'qf.attendu': { a: 'revision', t: 'Ce que tu attends', d: 'Une explication, une pièce, ou une correction de sa part. Ton client le lit à côté de la question : il sait tout de suite s\'il doit écrire une phrase ou joindre un justificatif sur la pièce.' },
-    'qf.texte': { a: 'revision', t: 'La question', d: 'Écris-la comme tu la dirais au téléphone, avec le montant ou la date qui la rend précise. Elle part dans le prochain fichier de questions ; la réponse revient toute seule dans son paquet suivant. <b>Rien de ce que tu écris ici ne touche à ses chiffres</b> : une question est une demande, jamais une écriture.' },
-    'rv.questions': { a: 'revision', t: 'Les questions posées au client', d: 'Une question naît d\'une <b>ligne</b> : elle porte le compte et la pièce sur lesquels elle est née, et c\'est ce qui lui permet de s\'afficher chez le client <b>en face de cette pièce</b> — pas dans une liste que personne n\'ouvre. Sa réponse revient toute seule dans son prochain paquet. Une question partie dans deux paquets sans réponse remonte en rouge des deux côtés : c\'est le moment de décrocher le téléphone.' },
+    'qf.texte': { a: 'revision', t: 'La question', d: 'Écris-la comme tu la dirais au téléphone, avec le montant ou la date qui la rend précise. Elle s\'affiche chez lui en face de la pièce qu\'elle vise, et sa réponse te revient ici. <b>Rien de ce que tu écris ici ne touche à ses chiffres</b> : une question est une demande, jamais une écriture.' },
+    'rv.questions': { a: 'revision', t: 'Les questions posées au client', d: 'Une question naît d\'une <b>ligne</b> : elle porte le compte et la pièce sur lesquels elle est née, et c\'est ce qui lui permet de s\'afficher chez le client <b>en face de cette pièce</b> — pas dans une liste que personne n\'ouvre. Sa réponse te revient ici. Une question restée longtemps sans réponse remonte en rouge des deux côtés : c\'est le moment de décrocher le téléphone.' },
     'rv.envoi': { a: 'revision', t: 'Envoyer les questions', d: 'Un fichier <code>.skanask</code> : un ZIP ordinaire, signé par ton cabinet et scellé par un mot de passe si tu le souhaites. Le client l\'importe dans SkanFact, et chaque question va se poser en face de sa pièce. <b>Tu n\'écris rien chez lui</b> : une question est une demande, jamais une écriture. Les questions déjà closes ou répondues ne repartent pas.' },
     'rv.reglages': { t: 'Ta méthode de révision', d: 'Les <b>cycles</b> rattachent un compte à sa feuille maîtresse par préfixe (le plus long gagne). Tant que tu n\'en écris aucun, les sept proposés servent ; dès que tu en écris, les tiens les remplacent — jamais un mélange des deux, qui donnerait un rattachement que personne n\'a décidé. Le <b>questionnaire</b> de fin d\'exercice s\'écrit ici une fois pour tous tes dossiers.' },
     'cl.produits': { t: 'Les dossiers de clôture produits', d: 'Chaque fichier <code>.skanclose</code> produit pour ce client, avec sa date, l\'endroit où il a été enregistré, et s\'il était scellé par un mot de passe. « Ouvrir le dossier » le retrouve dans l\'explorateur de fichiers — un fichier qu\'on ne retrouve pas est un fichier qu\'on ne peut pas envoyer. C\'est aussi ce qui répond à « lesquels de mes clients ont reçu le leur ? ».' },
@@ -242,7 +242,7 @@
     'pa.fichier': { a: 'paie', t: 'Le fichier CNSS du trimestre', d: 'Le fichier de télédéclaration des salaires, au format « DS » publié par la CNSS (version 2012) : une ligne par salarié, son numéro d\'assuré, son identité, son CIN et son salaire du trimestre en millimes. Au lieu de taper chaque salarié sur le portail, tu y déposes ce fichier. Il porte le nom que le format exige (« DS », le matricule de l\'employeur, le code, le trimestre et l\'année) : <b>ne le renomme pas</b>. Il ne sort pas tant qu\'une ligne est fausse — chaque case à corriger est nommée, avec le bouton qui l\'ouvre. <b>À VÉRIFIER</b> : contrôle le nombre de salariés et le total sur le portail avant de valider le dépôt.' },
     'pa.identite': { a: 'paie', t: 'Identité CNSS', d: 'Le nom du salarié tel que la CNSS l\'écrit, <b>comme sur sa carte d\'assuré</b> : prénom, prénom du père, nom — et le nom de jeune fille pour une femme mariée. En lettres latines : le fichier du trimestre l\'écrit en majuscules, sans accents. Laissée vide, le fichier reprend le nom de la fiche et te le signale.' },
     'pa.masse': { a: 'paie', t: 'La masse salariale de l\'exercice', d: 'Ce que la paie coûte réellement sur l\'année : le brut versé, ce qui a été retenu au salarié, le net qui est sorti, et les charges patronales (CNSS employeur, accident du travail, TFP, FOPROLOS). Le total est le <b>coût employeur</b>, celui qui entre dans le résultat et dans le seuil de rentabilité.' },
-    'iv.etat': { t: 'L\'inventaire de fin d\'exercice', d: 'Inventaire <b>intermittent</b> : on compte ce qui reste au dernier jour, on le valorise, et la différence avec ce que portent les comptes devient une écriture. C\'est ce qu\'on fait pour un dossier sans logiciel de stock — un client sur SkanFact, lui, tient déjà le sien et l\'envoie dans son paquet.' },
+    'iv.etat': { t: 'L\'inventaire de fin d\'exercice', d: 'Inventaire <b>intermittent</b> : on compte ce qui reste au dernier jour, on le valorise, et la différence avec ce que portent les comptes devient une écriture. C\'est ce qu\'on fait pour un dossier sans logiciel de stock — un client sur SkanFact, lui, tient déjà le sien dans SkanFact.' },
     'iv.lignes': { t: 'Ce qui a été compté', d: 'Une ligne par référence : quantité × coût unitaire. Elles se <b>collent depuis un tableur</b> — deux cents références saisies une par une dans un formulaire, personne ne le ferait. Le détail reste dans le livre : un total de stock qu\'on ne peut pas ouvrir se croit ou ne se croit pas.' },
     'iv.variation': { a: 'immobilisations', t: 'La variation de stock', d: 'Ce que le compte de stock portait à l\'ouverture, contre ce que tu viens de compter. Le stock <b>augmente</b> → on débite le stock, on crédite la variation (c\'est une charge en moins) ; il <b>diminue</b> → l\'inverse. Une variation nulle ne produit aucune écriture : une pièce à zéro dans un journal n\'apprend rien. L\'écriture arrive en <b>brouillard</b>, à la date de l\'inventaire.' },
     'bq.agee': { t: 'La balance âgée', d: 'Ce qui reste dû, rangé par ancienneté de l\'échéance : pas encore échu, puis 30, 60, 90 jours et au-delà. C\'est la liste d\'appels du lundi matin. Les tranches sont celles de l\'usage — <b>À VÉRIFIER</b> avec ton cabinet, elles ne sont pas une règle.' },
@@ -274,12 +274,11 @@
       s: 'Ce qu\'il faut faire une fois, et ce qui revient chaque mois', couleur: 'th-commencer', geste: { label: 'Voir mes dossiers', hash: '#/' },
       icon: '<circle cx="12" cy="12" r="9"/><path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z"/>', d: `
       <ol class="small" style="line-height:1.9">
-        <li><b>Une fois :</b> renseigne ton cabinet dans Réglages, puis remets le fichier d'appairage (<code>.skanpair</code>) à tes clients : « Remettre le fichier à mes clients… » l'enregistre et prépare le message — tes clients qui ont une adresse en copie cachée, ce qu'ils doivent faire, et l'empreinte à vérifier. Tu n'as plus qu'à joindre le fichier.</li>
-        <li><b>Chaque mois :</b> ton client clôture son mois puis t'envoie un paquet (<code>.skanpack</code>). Tu le glisses sur la fenêtre, ou tu le double-cliques dans ton gestionnaire de fichiers.</li>
-        <li><b>Le jour que tu as choisi</b> (le 10 par défaut, réglable dans Réglages) : la page Dossiers met en tête ceux qui n'ont rien envoyé. Un clic sur « Relancer » prépare le message, et la relance est enregistrée.</li>
+        <li><b>Une fois :</b> donne à tes clients sur SkanFact le <b>code de ton cabinet</b> (Réglages → Mon cabinet). Chacun le tape dans son SkanFact (Paramètres → Envois → Ton cabinet comptable) et coche ce qu'il te confie ; tu acceptes sur la page Dossiers.</li>
+        <li><b>Chaque mois :</b> il n'y a rien à recevoir. Ton client enregistre ses pièces dans SkanFact ; leurs écritures sont dans ses livres, que tu lis ici <b>à jour, en direct</b>. Tu valides ce qui est au brouillard, et tu saisis ce qui te revient.</li>
+        <li><b>Le jour de relance</b> (le 10 par défaut) : la page Dossiers met en tête ceux dont un mois passé n'a <b>aucune écriture</b>. « Relancer » prépare le message, et la relance est notée dans sa fiche.</li>
       </ol>
-      <p class="small">Tes clients qui n'utilisent pas encore SkanFact ont leur place ici aussi : « Nouveau client… » les fait entrer dans ton portefeuille. Rien ne leur est réclamé tant qu'ils n'ont pas commencé — et le message du fichier d'appairage leur dit de ne pas en tenir compte.</p>
-      <p class="small">Deux réglages attendent le moment où ils servent, et « Tes premiers pas » les rappellent sans jamais les réclamer : <b>ton équipe</b>, si tu n'es pas seul (qui saisit, qui valide — seul, rien n'est restreint), et <b>ta grille de saisie</b>, pour reprendre les touches de ton logiciel actuel (telle quelle, elle marche déjà).</p>` },
+      <p class="small">Tes clients qui n'utilisent pas encore SkanFact ont leur place ici aussi : « Nouveau client… » crée leur dossier, et tu tiens leurs livres toi-même. Rien ne leur est réclamé.</p>` },
     {
       id: 'saisir', t: 'Saisir au kilomètre',
       s: 'Le brouillard, la validation, et ce qui ne se modifie plus', couleur: 'th-declarer', geste: { label: 'Voir mes dossiers', hash: '#/' },
@@ -307,34 +306,32 @@
         <li>Tout entre en <b>brouillard</b>, même une pièce qui ne tombe pas juste : tu la corriges dans la grille, puis tu valides toi-même.</li>
         <li><b>Rien n'est supprimé</b> : une écriture du livre que ton fichier ne contient pas ne bouge pas. Pour en retirer une, supprime le brouillard dans la grille.</li>
         <li>Une écriture <b>validée</b> ne se modifie jamais. Si ton fichier la change, une case te propose de la <b>contre-passer</b> et de poser ta version en brouillard ; sans elle, la validée reste telle quelle.</li>
-        <li>Une pièce reçue d'un client que tu as corrigée ici <b>n'est plus écrasée</b> quand il renvoie son mois : ta correction fait foi, l'écart éventuel t'est signalé.</li>
+        <li>Une écriture née d'une pièce de ton client <b>suit sa pièce</b> : ton fichier ne la réécrit pas. Quand ton client change sa pièce, SkanFact réécrit lui-même son écriture — et contre-passe celle que tu avais déjà validée.</li>
       </ul>` },
     {
-      id: 'paquet', t: 'Ce que contient un paquet',
-      s: 'Ce que ton client t\'envoie, et ce que tu peux en affirmer', couleur: 'th-vendre', geste: { label: 'Voir mes dossiers', hash: '#/' },
-      icon: '<path d="M3 8l9-4 9 4v8l-9 4-9-4z"/><path d="M3 8l9 4 9-4"/><path d="M12 12v8"/>', d: `
-      <p class="small">La page de garde (un PDF qui résume le mois et liste ce qui manque), les journaux au format CSV (ventes, achats, encaissements, règlements fournisseurs, trésorerie), les factures et avoirs en PDF, les bulletins de paie, et les justificatifs que ton client a joints à ses achats.</p>
-      <p class="small"><b>Et surtout <code>journaux/ecritures.csv</code></b> : les pièces du mois déjà transformées en écritures en partie double, à importer dans ton logiciel au lieu de les ressaisir. Si les numéros de compte ne sont pas les tiens, donne-les à ton client une fois : il les saisit dans son SkanFact et tous ses envois suivants sont à ton format.</p>
-      <p class="small">Un <b>manifeste</b> porte l'empreinte de chaque fichier. À l'import, SkanFact les recalcule toutes : c'est ce qui te permet d'affirmer que ce que tu as reçu est exactement ce qui a été envoyé.</p>
-      <p class="small">Le compte va dans les <b>deux sens</b>. Un fichier présent dans le paquet que le manifeste n'annonce pas est signalé à part (« non annoncé ») : il n'entre jamais dans les pièces vérifiées, il porte un « ? » dans la liste, et l'application te pose une question avant de l'ouvrir. Un paquet fabriqué par SkanFact n'en contient jamais.</p>
-      <p class="small">Les paquets sont rangés sur ton disque par <b>client</b>, puis par <b>année</b>. Tu peux les retrouver dans ton gestionnaire de fichiers sans ouvrir l'application, et rendre à un client ses pièces en copiant un dossier.</p>
-      <p class="small">Tu peux en déposer <b>vingt d'un coup</b> : l'application les range l'un après l'autre en te disant où elle en est, et tu peux arrêter en cours de route. L'arrêt attend la fin du paquet en cours — ce qui est rangé l'est pour de bon, le reste se redépose plus tard.</p>` },
+      id: 'paquet', t: 'Les livres d\'un client sur SkanFact',
+      s: 'Ce que tu vois de lui, et d\'où ça vient', couleur: 'th-vendre', geste: { label: 'Voir mes dossiers', hash: '#/' },
+      icon: '<path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 13h8M8 17h5"/>', d: `
+      <p class="small">Un client sur SkanFact qui t'a confié son dossier n'a <b>rien à t'envoyer</b> : ses factures, ses achats, ses règlements et sa paie deviennent des écritures dans <b>ses livres</b>, au fil de ses pièces. Ce sont ces livres que tu lis ici — les mêmes que les siens, au millime.</p>
+      <p class="small">Une écriture née d'une pièce arrive <b>au brouillard</b> : c'est toi qui la valides, puisque le mandat de comptabilité te le confie. Elle <b>suit sa pièce</b> : tu ne la modifies pas, et quand ton client change sa pièce, SkanFact réécrit lui-même son écriture — et contre-passe celle que tu avais déjà validée. Ce que tu saisis toi-même (opérations diverses, régularisations) se corrige, se valide, se contre-passe.</p>
+      <p class="small">Ce que ton client te confie se lit dans son mandat : la comptabilité, les déclarations, la saisie des achats, la paie. Tu ne lis que ce qu'il te confie, et <b>tu n'écris jamais une pièce à sa place</b> : ni une facture, ni un encaissement.</p>` },
     {
-      id: 'travail', t: 'Ce que tu fais des paquets reçus',
-      s: 'Échéances et écritures : les deux pages qui s\'en nourrissent', couleur: 'th-declarer', geste: { label: 'Ouvrir l\'export d\'écritures', hash: '#/ecritures' },
+      id: 'travail', t: 'Échéances et relances',
+      s: 'Les deux pages qui lisent les livres de tes clients', couleur: 'th-declarer', geste: { label: 'Voir les échéances', hash: '#/echeances' },
       icon: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/>', d: `
-      <p class="small">Deux pages vivent de ce que tes clients t'envoient :</p>
+      <p class="small">Deux pages vivent des livres de tes clients :</p>
       <ul class="small" style="line-height:1.8">
-        <li><b>Échéances</b> rattache chaque date de dépôt aux clients dont tu n'as <i>pas</i> les pièces. Un calendrier papier te donne la date ; celui-ci te donne la date <b>et</b> la liste de ceux qu'il faut relancer avant. Les jours proposés suivent l'usage tunisien et se règlent dans Réglages — <b>À VÉRIFIER</b>, ils dépendent de la forme juridique et du régime.</li>
-        <li><b>Écritures</b> sort en un seul fichier CSV les écritures en partie double de <b>tous</b> tes clients sur le mois (ou l'année), avec le client, son matricule et le mois devant chaque ligne. C'est ce fichier que tu importes dans ton logiciel, au lieu de ressaisir.</li>
+        <li><b>Échéances</b> rattache chaque date de dépôt aux clients dont un mois n'a <i>aucune écriture</i>. Un calendrier papier te donne la date ; celui-ci te donne la date <b>et</b> la liste de ceux qu'il faut relancer avant. Les jours proposés suivent l'usage tunisien — <b>À VÉRIFIER</b>, ils dépendent de la forme juridique et du régime.</li>
+        <li><b>Relances</b> réunit les clients dont un mois passé est vide, avec le message déjà écrit : il nomme les mois, et la relance est notée dans la fiche du client.</li>
       </ul>
-      <p class="small">Si les numéros de compte proposés ne sont pas les tiens, donne-les une fois à ton client : il les saisit dans son SkanFact (Comptabilité → Écritures → Plan comptable) et tous ses envois suivants arrivent à ton format.</p>` },
+      <p class="small">L'export des écritures de tous tes clients en un seul fichier, pour ton logiciel, n'est pas encore dans la version en ligne.</p>` },
     {
-      id: 'definitif', t: 'Définitif ou provisoire',
-      s: 'Un mois clôturé ne bougera plus, un mois provisoire peut encore changer', couleur: 'th-encaisser', geste: { label: 'Voir les échéances', hash: '#/echeances' },
+      id: 'definitif', t: 'Validé ou à valider',
+      s: 'Un mois validé ne bougera plus ; un mois à valider attend ton geste', couleur: 'th-encaisser', geste: { label: 'Voir mes dossiers', hash: '#/' },
       icon: '<path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>', d: `
-      <p class="small">Un paquet n'est <b>définitif</b> que si le client a clôturé son mois : après une clôture, il ne peut plus ni modifier ni supprimer une pièce de cette période sans rouvrir le mois, avec un motif écrit.</p>
-      <p class="small">Un paquet <b>provisoire</b> se lit, mais ses chiffres peuvent encore bouger. Si tu reçois deux fois le même mois, SkanFact te le dit — et te prévient si le remplacé était définitif.</p>` },
+      <p class="small">Un mois est <b>validé</b> quand plus aucune de ses écritures n'est au brouillard : chacune a son numéro, et ne se modifie plus — elle se contre-passe.</p>
+      <p class="small">Un mois <b>à valider</b> a encore des écritures au brouillard : celles que les pièces de ton client viennent d'écrire, ou celles que tu as saisies. Elles se lisent, mais elles peuvent encore bouger : <b>valide-les avant de déclarer</b>. C'est ton travail, pas celui de ton client : on ne le relance pas pour ça.</p>
+      <p class="small">Un mois <b>manquant</b> est un mois passé sans aucune écriture : c'est lui, et lui seul, qu'on relance.</p>` },
     {
       id: 'tenue', t: 'Le manuel de tenue',
       s: 'Le mois, le trimestre, l\'année — et ce que SkanFact ne fera jamais à ta place',
@@ -344,10 +341,10 @@
       celle qu'on saute est celle qui fait tomber les chiffres du mois suivant.</p>
       <h3 class="eyebrow">Chaque mois</h3>
       <ol class="small" style="line-height:1.9">
-        <li><b>Recevoir</b> — le paquet du client arrive dans la boîte de réception, ou se glisse sur la fenêtre.
-          Un client hors SkanFact n'envoie rien : sa saisie se fait à la main, à l'étape suivante — la première
-          fois, <b>Comptabilité → Commencer le livre</b> pose son exercice et sa balance d'ouverture.</li>
-        <li><b>Saisir</b> — <b>Comptabilité → Saisie</b>, au clavier. Ce qui vient d'un paquet est déjà là ; le reste
+        <li><b>Lire</b> — un client sur SkanFact n'a rien à envoyer : ses pièces sont déjà dans ses livres, au
+          brouillard, dès qu'il les enregistre. Un client hors SkanFact n'a rien dans SkanFact : sa saisie se fait à
+          la main, à l'étape suivante.</li>
+        <li><b>Saisir</b> — <b>Comptabilité → Saisie</b>, au clavier. Ce qui vient des pièces du client est déjà là ; le reste
           se tape au kilomètre. Tout arrive au <b>brouillard</b>, qui ne porte aucun numéro.</li>
         <li><b>Rapprocher</b> — <b>Banque</b> : le relevé entre, l'automatique ne pose QUE ce qui est certain, et
           l'écriture manquante s'écrit depuis la ligne. L'écart de suspens doit tomber à zéro.</li>
@@ -358,7 +355,7 @@
           « Déposée » et « payée » sont des <b>pense-bêtes</b> : SkanFact ne dépose rien et ne se connecte à
           aucune administration.</li>
         <li><b>Réviser</b> — <b>Révision</b> : les feuilles maîtresses par cycle, les comptes signés, et les
-          <b>questions</b> qui partent chez le client et reviennent avec leurs réponses dans son paquet suivant.</li>
+          <b>questions</b> qui s'affichent chez le client, en face de ses pièces, et te reviennent avec leurs réponses.</li>
       </ol>
       <h3 class="eyebrow">La paie, pour les dossiers qui n'ont pas SkanFact</h3>
       <p class="small"><b>Comptabilité → Paie</b>. Les salariés se déclarent une fois ; chaque mois, un bulletin par
@@ -369,8 +366,8 @@
       bouton s'éteint en le disant. La <b>déclaration CNSS</b> du trimestre s'affiche à côté, un salarié par ligne,
       à recopier sur le portail. <em>À VÉRIFIER : les barèmes, les taux et la date d'échéance dépendent de la loi de
       finances et du régime.</em></p>
-      <p class="small">Un client qui utilise SkanFact, lui, tient sa paie chez lui : ses bulletins arrivent déjà
-      écrits dans son paquet mensuel.</p>
+      <p class="small">Un client qui utilise SkanFact, lui, tient sa paie chez lui : l'écriture de sa paie est déjà
+      dans ses livres.</p>
       <h3 class="eyebrow">À la fin de l'exercice</h3>
       <ol class="small" style="line-height:1.9">
         <li><b>Immobilisations</b> : les dotations de l'année passent en brouillard au 31/12. Un bien dont la
@@ -465,9 +462,8 @@
       à ta place. <b>Arrêter la révision</b> ne bloque jamais : les contrôles nomment d'abord ce qui reste.</p>
       <h3>Les questions au client</h3>
       <p class="small">Une question naît d'une <b>ligne</b> — un compte, une écriture, une pièce — et s'affiche chez ton
-      client <b>en face de cette pièce</b>. <b>Envoyer les questions au client…</b> écrit un fichier <code>.skanask</code>
-      signé — scellé par un mot de passe si tu le veux — que ton client importe ; ses réponses reviennent dans son paquet
-      suivant, sans rien à envoyer à part. Sans réponse après deux paquets, la question se signale. Une question déjà
+      client <b>en face de cette pièce</b>. Sa réponse te revient ici, sans rien à envoyer à part ;
+      une question restée longtemps sans réponse se signale. Une question déjà
       partie se <b>ferme</b>, elle ne s'efface pas : ton client l'a sous les yeux.</p>
       <p class="small">Une question n'est jamais une écriture. Le Cabinet n'écrit pas chez ton client : il lui demande.</p>` },
     {
@@ -476,7 +472,7 @@
       geste: { label: 'Ouvrir la Paie', ecran: 'paie' },
       icon: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 11h5M18.5 8.5v5"/>', d: `
       <p class="small">Pour les dossiers qui <b>n'ont pas SkanFact</b> : un client qui l'utilise tient sa paie chez lui,
-      et ses bulletins arrivent déjà écrits dans son paquet mensuel.</p>
+      et l'écriture de sa paie est déjà dans ses livres.</p>
       <p class="small"><b>Déclarer un salarié…</b> une fois. Un numéro CNSS manquant est signalé, jamais bloquant : il
       empêche de déclarer, pas de calculer. Chaque mois, <b>Établir un bulletin…</b> — brut, absences, primes,
       retenues — et le net se recalcule pendant la frappe. Un brut négatif est refusé : la pièce serait équilibrée,
@@ -514,7 +510,7 @@
       d'amortissement se lit <b>pendant la saisie</b>. Le mode dégressif demande son coefficient : il n'est écrit nulle
       part dans SkanFact, et un dégressif sans coefficient est refusé en le nommant. La bascule au linéaire est une case,
       décochée. <em>À VÉRIFIER : les durées et le coefficient relèvent du droit.</em></p>
-      <p class="small">Une acquisition venue d'un paquet remonte <b>sans fiche</b> : l'écran propose de la créer, jamais
+      <p class="small">Une acquisition que ton client a enregistrée dans SkanFact remonte <b>sans fiche</b> : l'écran propose de la créer, jamais
       d'office — la durée est une décision.</p>
       <p class="small"><b>Passer les écritures d'inventaire</b> pose les dotations de l'exercice en brouillard au
       31 décembre ; chaque bien retient son écriture, et le bouton s'éteint quand tout est passé. Un bien dont la dotation
@@ -619,16 +615,16 @@
       id: 'limites', t: 'Ce que cette application ne fait pas',
       s: 'Ce qu\'elle ne fera pas — et pourquoi c\'est volontaire', couleur: 'th-equipe', geste: null,
       icon: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/>', d: `
-      <p class="small">Elle <b>ne modifie jamais</b> la comptabilité de tes clients et ne leur renvoie rien. Une correction se demande au client, qui la saisit chez lui : sinon deux versions des mêmes comptes coexistent, et plus personne ne sait laquelle fait foi.</p>
+      <p class="small">Elle <b>ne modifie jamais les pièces</b> de tes clients : une facture, un achat, un encaissement se corrigent chez le client, qui les saisit. Tes écritures à toi — opérations diverses, régularisations — vont dans ses livres, les seuls : il n'existe jamais deux versions des mêmes comptes.</p>
       <p class="small">Elle ne dépose aucune déclaration et ne se connecte à aucune administration. Elle ne facture pas tes honoraires. Elle n'envoie aucun mail toute seule : elle prépare le texte, ta messagerie l'envoie.</p>
-      <p class="small">Elle ne donne pas un mot de passe à chaque collaborateur. Les collaborateurs se <b>déclarent</b> (Réglages → Mon cabinet) : leurs droits et la piste d'audit portent leur nom. Mais le mot de passe du cabinet ouvre déjà toute la base — un second, par personne, ne protégerait rien de plus.</p>` },
+      <p class="small">Chacun se connecte avec <b>son propre compte</b> : la trace de ce qui a été fait porte son nom. Inviter un collaborateur dans ton cabinet n'est pas encore dans la version en ligne.</p>` },
     {
       id: 'maj', t: 'Les mises à jour',
       s: 'Comment elles arrivent, et où les déclencher', couleur: 'th-piloter', geste: { label: 'Ouvrir les mises à jour', hash: '#/reglages', panneau: 'pan-maj' },
       icon: '<path d="M12 3v12"/><path d="M7.5 11L12 15.5 16.5 11"/><path d="M4 19h16"/>', d: `
       <p class="small">SkanFact Cabinet vérifie au démarrage s'il existe une version plus récente, la télécharge et te propose de l'installer : <b>Réglages → L'application → Mises à jour</b>. Sur Mac, l'application se ferme, se remplace toute seule et se relance — une dizaine de secondes.</p>
       <p class="small">L'application et celle de tes clients portent le <b>même numéro de version</b> : si un client dit « je suis en 6.8.0 » et que tu es en 6.8.0, vous parlez bien de la même chose.</p>` }
-  ];
+  ].filter(a => !((typeof window !== 'undefined' && window.cabinet && window.cabinet.articlesAbsents) || []).includes(a.id));
 
   // 10.13.0 — CHAQUE bulle mène à l'article qui la développe. Seize sur cent dix-huit le faisaient :
   // les autres s'arrêtaient à leur dernière phrase, avec une question plus précise et nulle part où
@@ -678,7 +674,7 @@
   // propose un lien mort.
   const PAR_PAGE = {
     dossiers: 'demarrer', relances: 'definitif', echeances: 'travail', ecritures: 'travail',
-    production: 'tenue', reglages: 'filets', dossier: 'tenue', 'dossier-paquets': 'paquet',
+    production: 'tenue', reglages: 'demarrer', dossier: 'tenue', 'dossier-paquets': 'paquet',
     compta: 'tenue', 'compta-saisie': 'saisir', 'compta-journal': 'saisir', 'compta-grand-livre': 'tenue',
     'compta-recherche': 'saisir', 'compta-balance': 'tenue', 'compta-banque': 'banque', 'compta-lettrage': 'banque',
     'compta-paie': 'paie', 'compta-immobilisations': 'immobilisations', 'compta-inventaire': 'immobilisations',
@@ -688,7 +684,7 @@
   // Les Réglages parlent de plusieurs sujets : l'article de « Guide-moi » suit l'onglet OUVERT (le
   // jumeau de l'app entreprise, 10.14.1). Un onglet absent de la table garde l'article de l'écran.
   const PAR_ONGLET = {
-    reglages: { barre: '#set-tabs', articles: { cabinet: 'demarrer', compta: 'saisir', donnees: 'filets', app: 'maj' } }
+    reglages: { barre: '#set-tabs', articles: { cabinet: 'demarrer', compta: 'saisir', donnees: 'limites', app: 'limites' } }
   };
   const articleDeLaPage = (cle, ongletActif) => {
     const o = PAR_ONGLET[cle];

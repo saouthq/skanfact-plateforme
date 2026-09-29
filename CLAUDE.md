@@ -118,6 +118,11 @@
     SAISIE (miroir validé, jamais dans la période close) ; lettrer des écritures validées. Qui peut :
     `compta.peut`, dans la base ET à la porte. Une écriture née d'une pièce suit sa pièce (C6). Le
     tableau du portefeuille lit `GET /cabinets/:c/mois` (les mois des livres, en « paquets »).
+  - **Le Cabinet sans paquets, dans les mots** (brique 38 bis, C14, C15) : un mois écrit, validé, à
+    valider (le travail du cabinet, jamais une relance), manquant (le seul qu'on relance). Les
+    adaptations de texte s'écrivent telles quelles dans `web/v10/sans-paquets.txt`. Un parcours lit
+    chaque écran, un test lit chaque bulle, article et visite : aucun mot de paquet, sauf ce que la
+    version en ligne ne montre jamais, nommé avec sa raison. La relance se note dans la fiche.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première
