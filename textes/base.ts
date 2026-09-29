@@ -139,6 +139,11 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'une lettre s\'écrit de une à cinq lettres, de A à Z', cle: 'base.compta.lettre_forme', fr: 'une lettre s\'écrit de une à cinq lettres, de A à Z' },
   { base: 'la lettre %s est déjà prise', cle: 'base.compta.lettre_prise', fr: 'la lettre {lettre} est déjà prise', valeurs: ['lettre'] },
   { base: 'ce lettrage n\'existe pas', cle: 'base.compta.lettrage_introuvable', fr: 'ce lettrage n\'existe pas' },
+  { base: 'une année s\'écrit sur quatre chiffres', cle: 'base.compta.exercice_annee', fr: 'une année s\'écrit sur quatre chiffres' },
+  { base: 'l\'exercice %s ne peut pas commencer avant le 01/01/%s : un premier exercice de plus de douze mois se reprend en deux, l\'un par année', cle: 'base.compta.exercice_avant', fr: 'l\'exercice {annee} ne peut pas commencer avant le 01/01/{annee} : un premier exercice de plus de douze mois se reprend en deux, l\'un par année', valeurs: ['annee', 'annee'] },
+  { base: 'l\'exercice %s finit le 31/12/%s : il ne peut pas commencer après', cle: 'base.compta.exercice_apres', fr: 'l\'exercice {annee} finit le 31/12/{annee} : il ne peut pas commencer après', valeurs: ['annee', 'annee'] },
+  { base: 'l\'exercice %s est déjà ouvert : une balance d\'ouverture fausse se contre-passe, puis la bonne se saisit au journal AN', cle: 'base.compta.exercice_ouvert', fr: 'l\'exercice {annee} est déjà ouvert : une balance d\'ouverture fausse se contre-passe, puis la bonne se saisit au journal AN', valeurs: ['annee'] },
+  { base: 'la balance d\'ouverture ne se valide pas : %s', cle: 'base.compta.exercice_ouverture', fr: 'la balance d\'ouverture ne se valide pas : {raison}', valeurs: ['raison'] },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

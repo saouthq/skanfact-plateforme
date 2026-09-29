@@ -6,7 +6,7 @@
 // Règle : une adaptation touche le BRANCHEMENT (le point de contact, les gestes officiels), jamais
 // un écran. Ce qui se voit reste la v10.
 
-import { SANS_PAQUETS } from './sans-paquets.mjs';
+import { SANS_PAQUETS, lireFichier } from './sans-paquets.mjs';
 
 export const ADAPTATIONS = [
   {
@@ -338,4 +338,6 @@ export const ADAPTATIONS = [
   },
   // ── Le Cabinet sans paquets, dans les mots (brique 38 bis, C14) : ./sans-paquets.txt ──
   ...SANS_PAQUETS,
+  // ── La reprise d'un client : l'exercice et sa balance d'ouverture (brique 39, C16 et C17) : ./reprise.txt ──
+  ...lireFichier('reprise.txt'),
 ];

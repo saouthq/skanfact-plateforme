@@ -2891,9 +2891,10 @@
       // réclamé (Cabinet 1.0.0), et un livre encore VIDE n'est pas incomplet, il est vide.
       // Le compte vit dans cabcore (`moisManquants`), le MÊME pour un dossier avec ou sans livre (T-47).
       let manquants = [];
-      if (toutes.length && jour(du) && jour(au)) {
+      const ecrites = KC.lignesDuLivre(s.livre, { brouillard: true }).filter(l => l.journal !== 'AN');
+      if (ecrites.length && jour(du) && jour(au)) {
         const debutEx = String((s.livre.exercice || {}).du || '').slice(0, 7);
-        manquants = K.moisManquants(toutes.map(l => l.date), plusTard(plusTard(du, debutEx), mission), au);
+        manquants = K.moisManquants(ecrites.map(l => l.date), plusTard(plusTard(du, debutEx), mission), au);
       }
       return { source: 'livre', lignes, avant, ouverture, du: duJ, au: auJ, illisibles: [], anciens: [], manquants, pris: [] };
     }
@@ -3033,7 +3034,8 @@
     // ailleurs ») alors qu'elle est aussi celle du client qui démarre, à qui l'écran d'avant et la
     // visite disent de laisser la balance vide. Elle dit les deux, et ses trois champs tiennent sur
     // une ligne avec leur bulle (vu à la souris).
-    modal(`<h2>Commencer le livre de ${esc(dossier.name)}</h2>
+    const livreTenu = !!s.livre;
+    modal(`<h2>${livreTenu ? 'Reprendre les soldes d\'ouverture de' : 'Commencer le livre de'} ${esc(dossier.name)}</h2>
       <p class="small muted"><b>Un client qui démarre</b> : pose son exercice et laisse la balance d'ouverture vide.
       <b>Un client qui tenait sa comptabilité ailleurs</b> : reprends ce que ses comptes portaient au premier jour
       — à la main, ou « Importer depuis Excel ou CSV… » depuis son ancien logiciel. Elle doit s'équilibrer : une reprise fausse
@@ -3054,7 +3056,7 @@
       </div>
       <div class="modal-actions">
         <button class="btn" data-close>Annuler</button>
-        <button class="btn btn-primary" id="ok">Créer le livre</button></div>`,
+        <button class="btn btn-primary" id="ok">${livreTenu ? 'Ouvrir l\'exercice' : 'Créer le livre'}</button></div>`,
       (rootModal, close) => {
         const corps = $('#rf-lignes', rootModal);
         const lire = () => {
@@ -3157,7 +3159,7 @@
             // écriture sur cette période », sans un geste — la première impasse d'un comptable qui
             // commence un client hors SkanFact.
             allerSousOnglet(root, dossier, 'saisie');
-            toast(`Livre de ${v.annee} créé`);
+            toast(livreTenu ? `Exercice ${v.annee} ouvert` : `Livre de ${v.annee} créé`);
           } catch (e) { await infoDialog('Reprise impossible', plainError(e)); }
         };
       });
@@ -3390,10 +3392,10 @@
     if (s.data.aucunPaquet && s.livreEtat === 'absent') {
       el.innerHTML = `<div class="info-box mb"><b>${dossier.manual
         ? 'Ce client n\'utilise pas SkanFact : sa comptabilité se tient ici, à la main.'
-        : 'Aucun paquet reçu pour l\'instant.'}</b>
+        : 'Aucune écriture pour l\'instant.'}</b>
           Commence son livre de ${esc(s.annee)} : tu poses son exercice et, s'il en a une, sa balance d'ouverture
           (laisse-la vide pour un client qui démarre). S'ouvrent alors la <b>Saisie</b> et tous les onglets du livre.
-          ${dossier.manual ? '' : 'Ses paquets, quand il en enverra, s\'y ajouteront d\'eux-mêmes.'}</div>
+          ${dossier.manual ? '' : 'Les pièces qu\'il enregistre dans SkanFact s\'y ajouteront d\'elles-mêmes.'}</div>
         <div class="modal-actions mb">
           <button class="btn btn-primary" id="lv-reprendre">Commencer le livre de ${esc(s.annee)}…</button>
           ${dossier.manual ? '' : '<button class="btn" id="lv-ecrire">Écrire au client</button>'}
@@ -3504,6 +3506,7 @@
     const nbBr = source === 'livre' ? (s.livre.ecritures || []).filter(e => e.statut === 'brouillard').length : 0;
     const etatLivre = source === 'livre'
       ? `<b>Le livre de ${esc(s.annee)}</b> ${info('lv.compta')}
+        ${api.exerciceOuvert(dossier.id, s.annee) === true ? '' : '<button type="button" class="btn btn-sm" id="lv-ouvrir">Reprendre les soldes d\'ouverture…</button>'}
         <span class="muted">${pl((s.livre.ecritures || []).filter(e => e.statut === 'validee').length, 'écriture validée', 'écritures validées')}</span>
         ${nbBr ? `<label class="check" title="Un brouillard n'est pas encore de la comptabilité : il n'entre dans les tableaux que si tu coches cette case."><input type="checkbox" id="lv-brouillard" ${s.brouillard ? 'checked' : ''}> Compter ${esc(pl(nbBr, 'écriture'))} en brouillard</label>` : ''}
         ${/* Un dossier qui ne reçoit aucun paquet n'a rien à relire : le bouton y était un geste sans objet. */''}
@@ -3585,6 +3588,7 @@
     if (cb) cb.onchange = () => { s.brouillard = cb.checked; drawLivres(root, dossier); };
     [$('#lv-relire', el), $('#lv-relire2')].forEach(b => { if (b) b.onclick = () => relireLesPaquets(root, dossier); });
     const rp = $('#lv-reprendre', el); if (rp) rp.onclick = () => repriseForm(root, dossier);
+    const ov = $('#lv-ouvrir'); if (ov) ov.onclick = () => repriseForm(root, dossier);
     const vs = $('#lv-vers-saisie', el); if (vs) vs.onclick = () => allerSousOnglet(root, dossier, 'saisie');
     // Le manque NOMMÉ porte son geste (7.15.0) : la relance part préremplie sur CES mois-là.
     const rm = $('#lv-relancer', el);

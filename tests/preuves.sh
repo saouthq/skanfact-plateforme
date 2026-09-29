@@ -1983,10 +1983,12 @@ prouver "l'assistant de saisie qui lettre, à la porte" serveur/compta/gestes.ts
 prouver "la lettre absente du journal" serveur/compta/routes.ts \
   "lettre: lettres.get(l.id) ?? null," "lettre: null," \
   "$S5"
-prouver "le chiffre d'affaires du mois sans les avoirs" $M21 \
+# Les mois du portefeuille : la fonction de la 0021 est remplacée par celle de la 0022 (brique 39, les
+# à-nouveaux n'écrivent aucun mois) ; c'est celle-là qui compte.
+prouver "le chiffre d'affaires du mois sans les avoirs" base/migrations/0022_compta_exercice.sql \
   "select sum(l.credit - l.debit) ca from compta.ligne l" "select sum(l.credit) ca from compta.ligne l" \
   "$S6"
-prouver "les brouillards du mois mal comptés" $M21 \
+prouver "les brouillards du mois mal comptés" base/migrations/0022_compta_exercice.sql \
   "count(*) filter (where e.statut = 'brouillard')" "count(*)" \
   "$S6"
 prouver "une écriture saisie prise pour une pièce du client" web/public/plateforme/pont-cabinet.js \
@@ -2080,6 +2082,113 @@ prouver "un article sans objet proposé en ligne" $PC \
 prouver "une liste « jamais montré » qui nomme un disparu" $CG \
   "    'lic.cle': {" "    'lic.clef': {" \
   "$TX3"
+
+# ── Brique 39 : l'exercice et sa balance d'ouverture ; la reprise d'un client (docs/cabinet.md, C16, C17) ──
+M22=base/migrations/0022_compta_exercice.sql
+EXS=serveur/compta/exercice.ts
+EX1="la balance d'ouverture : une écriture AN au premier jour, validée d'un geste avec l'exercice, ou rien ; l'exercice s'ouvre une fois ; fausse, elle se contre-passe"
+EX2="un premier exercice qui commence en cours d'année, sans balance ; une balance datée d'un jour à venir, ou dans la période validée, ne s'ouvre pas ; deux ouvertures au même instant, une seule passe"
+RP1="un client tenu commence son livre avec la balance d'un CSV ; un client sur SkanFact reprend ses soldes depuis Excel, refusés tant qu'ils ne tombent pas juste"
+prouver "l'exercice ouvert par l'assistant de saisie, à la porte" $EXS \
+  "geste: 'compta.ecritures.valider', corps: OUVRIR," "geste: 'compta.ecritures.saisir', corps: OUVRIR," \
+  "$EX1"
+prouver "l'exercice ouvert par qui ne valide pas, dans la base" $M22 \
+  "  perform compta.exiger(p_entreprise, 'compta.ecritures.valider');" "  perform compta.exiger(p_entreprise, 'compta.ecritures.saisir');" \
+  "$EX1"
+prouver "l'exercice lu par la voisine" $M22 \
+  "create policy visible on compta.exercice using (entreprise in (select compta.mes_entreprises()));" "create policy visible on compta.exercice using (true);" \
+  "$EX1"
+prouver "un exercice qui commence avant le 1er janvier" $M22 \
+  "  if p_du is null or p_du < make_date(p_annee, 1, 1) then" "  if p_du is null then" \
+  "$EX1"
+prouver "un exercice qui commence après sa fin" $M22 \
+  "  if p_du > v_au then perform socle.refus(" "  if false then perform socle.refus(" \
+  "$EX1"
+prouver "un exercice ouvert deux fois" $M22 \
+  "  if not found then
+    perform socle.refus(format('l''exercice %s est déjà ouvert" "  if false then
+    perform socle.refus(format('l''exercice %s est déjà ouvert" \
+  "$EX1"
+prouver "une balance d'ouverture laissée au brouillard" $M22 \
+  "    select * into v from compta.valider_ecritures(p_entreprise, array[v_id]);" "    select null::text as r_motif, null::text as r_numero into v;" \
+  "$EX1"
+prouver "une balance d'ouverture qui ne se valide pas, ouverte quand même" $M22 \
+  "    if v.r_motif is not null then perform socle.refus(format('la balance d''ouverture ne se valide pas : %s', v.r_motif)); end if;" "" \
+  "$EX2"
+prouver "une balance d'ouverture ailleurs qu'au premier jour" $M22 \
+  "jsonb_build_object('date', p_du, 'journal', 'AN'" "jsonb_build_object('date', p_du + 1, 'journal', 'AN'" \
+  "$EX1"
+prouver "une ouverture sans sa trace" $M22 \
+  "  perform socle.tracer(p_entreprise, 'compta.exercice.ouvrir', 'exercice', v_id, null,
+    jsonb_build_object('annee', p_annee, 'du', p_du, 'au', v_au, 'ouverture', v_id));" "" \
+  "$EX1"
+prouver "une rangée laissée blanche refusée" $EXS \
+  "    const pleines = corps.ouverture.filter((l) => l.compte.trim() || (l.debit ?? '').trim() || (l.credit ?? '').trim());" "    const pleines = corps.ouverture;" \
+  "$EX1"
+prouver "les à-nouveaux qui écrivent janvier au portefeuille" $M22 \
+  "     and e.journal <> 'AN'
+" "" \
+  "$EX1"
+prouver "les soldes d'ouverture qu'on ne peut pas reprendre depuis le livre" $CA \
+  "\${api.exerciceOuvert(dossier.id, s.annee) === true ? '' :" "\${api.exerciceOuvert(dossier.id, s.annee) !== undefined ? '' :" \
+  "$RP1"
+prouver "un bouton de reprise qui ne mène nulle part" $CA \
+  "    const ov = \$('#lv-ouvrir'); if (ov) ov.onclick = () => repriseForm(root, dossier);" "" \
+  "$RP1"
+prouver "le bouton de reprise qui reste une fois l'exercice ouvert" $PC \
+  "    exerciceOuvert: (/** @type {string} */ id, /** @type {string} */ annee) => !!exerciceDe(id, annee)," "    exerciceOuvert: () => false," \
+  "$RP1"
+prouver "« Commencer le livre » d'un livre qui a des écritures" $CA \
+  "\${livreTenu ? 'Reprendre les soldes d\\'ouverture de' : 'Commencer le livre de'}" "Commencer le livre de" \
+  "$RP1"
+prouver "« Créer le livre » pour ouvrir un exercice" $CA \
+  "\${livreTenu ? 'Ouvrir l\\'exercice' : 'Créer le livre'}" "Créer le livre" \
+  "$RP1"
+prouver "« Livre créé » pour un exercice ouvert" $CA \
+  "toast(livreTenu ? \`Exercice \${v.annee} ouvert\` : \`Livre de \${v.annee} créé\`);" "toast(\`Livre de \${v.annee} créé\`);" \
+  "$RP1"
+prouver "une balance Excel refusée" $PC \
+  "      try { entrees = await dezipper(octets); } catch (e) {" "      try { entrees = null; } catch (e) {" \
+  "$RP1"
+prouver "un classeur dont une entrée gonfle sans limite" $PC \
+  "  const MAX_ENTREE = 20 * 1024 * 1024;" "  const MAX_ENTREE = 2000 * 1024 * 1024;" \
+  "$RP1"
+prouver "un classeur qui gonfle sans limite au total" $PC \
+  "  const MAX_CLASSEUR = 60 * 1024 * 1024;" "  const MAX_CLASSEUR = 6000 * 1024 * 1024;" \
+  "$RP1"
+prouver "le refus d'un classeur trop gros avalé" $PC \
+  "if (e instanceof Error && e.message === TROP_GROS) throw e; " "" \
+  "$RP1"
+prouver "les feuilles d'un classeur lues sans être décompressées" $PC \
+  "(methode === 8 ? await inflater(corps, MAX_CLASSEUR - lu) : corps.slice())" "corps.slice()" \
+  "$RP1"
+prouver "une balance d'ouverture perdue en route" $PC \
+  "...(o.du ? { du: String(o.du) } : {}), ouverture });" "...(o.du ? { du: String(o.du) } : {}), ouverture: [] });" \
+  "$RP1"
+prouver "un premier exercice qui commence toujours le 1er janvier" $PC \
+  "{ annee: Number(o.annee), ...(o.du ? { du: String(o.du) } : {}), ouverture }" "{ annee: Number(o.annee), ouverture }" \
+  "$RP1"
+prouver "un exercice ouvert sans écriture qui n'a pas de livre" $PC \
+  "      if (!ecritures.length && !exerciceDe(id, annee)) return { dossier: d, livre: null };" "      if (!ecritures.length) return { dossier: d, livre: null };" \
+  "$RP1"
+prouver "l'année d'un exercice ouvert absente de la liste" $PC \
+  ", ...ouverts.map((x) => String(x.du).slice(0, 7))])].sort();" "])].sort();" \
+  "$RP1"
+prouver "les bornes d'un exercice que le livre ignore" $PC \
+  "    if (ex) { livre.exercice.du = ex.du; livre.exercice.au = ex.au; }" "" \
+  "$RP1"
+prouver "« Aucun paquet reçu » revenu sur le livre vide" $CA \
+  "        : 'Aucune écriture pour l\\'instant.'}</b>" "        : 'Aucun paquet reçu pour l\\'instant.'}</b>" \
+  "$RP1"
+prouver "un mois au brouillard réclamé par le livre" $CA \
+  "KC.lignesDuLivre(s.livre, { brouillard: true }).filter(l => l.journal !== 'AN');" "KC.lignesDuLivre(s.livre, { brouillard: s.brouillard }).filter(l => l.journal !== 'AN');" \
+  "$RP1"
+prouver "la balance d'ouverture qui écrit janvier dans le livre" $CA \
+  "KC.lignesDuLivre(s.livre, { brouillard: true }).filter(l => l.journal !== 'AN');" "KC.lignesDuLivre(s.livre, { brouillard: true });" \
+  "$RP1"
+prouver "« Écrire au client » qui parle encore de paquets" $CVI \
+  "Écrit au client qu\\'aucune pièce n\\'est encore enregistrée" "Écrit au client qu\\'aucun paquet n\\'est arrivé" \
+  "$TX1"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

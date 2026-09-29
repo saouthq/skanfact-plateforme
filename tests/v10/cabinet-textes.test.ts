@@ -23,13 +23,12 @@ const JAMAIS_MONTRE = {
   // n'apparaît qu'avec l'exemple, qui n'est pas en ligne.
   pages: ['dossier-paquets'], onglets: ['dossier:paquets', 'paquets'], menus: ['dossier-paquets'], zones: ['#demo-banner'],
   // Des boutons cachés (plateforme/cabinet.css), rangés dans un panneau absent (pont-cabinet.js,
-  // PANNEAUX_ABSENTS), retirés par une adaptation, ou dans un état que la version en ligne n'atteint
-  // jamais (un livre « absent », la page d'export).
+  // PANNEAUX_ABSENTS), retirés par une adaptation, ou sur une page pas encore en ligne (l'export).
   boutons: ['#imp', '#rl-imp', '#demo-on', '#lv-relire', '#lv-relire2', // cachés
     '#i-pick', '#s-rec', '#s-rec-in', '#sr-corr-save', '#sr-corr input[data-k="de"]', // panneaux absents
     '#ech-pair', '#c-pair', '#inbox-go', '#inbox-skip', // retirés (adaptations)
     '#rec-banniere', '#rec-go', // la clé de secours (pont-cabinet.js les cache)
-    '#lv-ecrire', '#e-go'], // un livre absent ; l'export de toutes les écritures (pas encore en ligne)
+    '#e-go'], // l'export de toutes les écritures (pas encore en ligne)
   bulles: [
     'cab.fingerprint', // l'empreinte du fichier d'appairage : le panneau devient celui du code du cabinet
     'd.ca', 'p.integrity', 'p.intrus', 'p.actions', 'p.arret', 'lv.relire', // l'onglet des paquets, l'import

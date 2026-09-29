@@ -84,7 +84,9 @@ describe('le jalon J1 : les factures de l\'exemple de cinq ans, émises par le s
       }
     }
     expect(ecarts).toEqual([]);
-  });
+    // Plus de 270 factures émises une à une (≈ 15 s seul) : la limite commune de 20 s tombait quand
+    // toute la suite tourne à la fois (29/09/2026). Ce test vérifie des montants, pas une vitesse.
+  }, 60_000);
 
   it('les numéros se suivent sans trou dans chaque année, et la chaîne de la série se contrôle en relisant chaque facture', async () => {
     const parAn = (await admin.query(`select extract(year from date_piece)::int an, count(*)::int n, max(numero)::int dernier

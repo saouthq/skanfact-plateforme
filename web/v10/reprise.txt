@@ -1,0 +1,109 @@
+La reprise d'un client (brique 39). Format : voir sans-paquets.mjs.
+
+L'exercice s'ouvre sur le serveur (docs/cabinet.md, C16), une fois, avec sa balance d'ouverture s'il en
+a une (C17) : c'est le geste « Commencer le livre » de la v10 pour un client qui n'a encore aucune
+écriture, et « Reprendre les soldes d'ouverture… » pour un client sur SkanFact dont les écritures
+arrivent déjà dans ses livres, tant que son exercice n'est pas ouvert.
+
+═══════════════════════════════════════════════════════════════════ le livre sans écriture (app.js)
+
+== cabinet/app.js | un client sur SkanFact qui n'a encore rien enregistré n'a aucune écriture : il n'y a pas de paquet à attendre
+-- avant
+        : 'Aucun paquet reçu pour l\'instant.'}</b>
+-- après
+        : 'Aucune écriture pour l\'instant.'}</b>
+-- fin
+
+== cabinet/app.js | ses pièces arrivent dans ses livres dès qu'il les enregistre
+-- avant
+          ${dossier.manual ? '' : 'Ses paquets, quand il en enverra, s\'y ajouteront d\'eux-mêmes.'}</div>
+-- après
+          ${dossier.manual ? '' : 'Les pièces qu\'il enregistre dans SkanFact s\'y ajouteront d\'elles-mêmes.'}</div>
+-- fin
+
+═══════════════════════════════════════════════════════════════════ le livre qui a des écritures (app.js)
+
+== cabinet/app.js | un client sur SkanFact a des écritures avant que son exercice soit ouvert : la barre du livre propose d'en reprendre les soldes, tant que l'exercice ne l'est pas
+-- avant
+      ? `<b>Le livre de ${esc(s.annee)}</b> ${info('lv.compta')}
+-- après
+      ? `<b>Le livre de ${esc(s.annee)}</b> ${info('lv.compta')}
+        ${api.exerciceOuvert(dossier.id, s.annee) === true ? '' : '<button type="button" class="btn btn-sm" id="lv-ouvrir">Reprendre les soldes d\'ouverture…</button>'}
+-- fin
+
+== cabinet/app.js | le bouton vit dans la barre de la période, hors de l'écran du livre
+-- avant
+    const rp = $('#lv-reprendre', el); if (rp) rp.onclick = () => repriseForm(root, dossier);
+    const vs = $('#lv-vers-saisie', el);
+-- après
+    const rp = $('#lv-reprendre', el); if (rp) rp.onclick = () => repriseForm(root, dossier);
+    const ov = $('#lv-ouvrir'); if (ov) ov.onclick = () => repriseForm(root, dossier);
+    const vs = $('#lv-vers-saisie', el);
+-- fin
+
+== cabinet/app.js | sur un livre qui a déjà des écritures, le geste ouvre l'exercice avec ses soldes : il ne crée aucun livre
+-- avant
+    modal(`<h2>Commencer le livre de ${esc(dossier.name)}</h2>
+-- après
+    const livreTenu = !!s.livre;
+    modal(`<h2>${livreTenu ? 'Reprendre les soldes d\'ouverture de' : 'Commencer le livre de'} ${esc(dossier.name)}</h2>
+-- fin
+
+== cabinet/app.js | le bouton dit ce qu'il fait
+-- avant
+        <button class="btn btn-primary" id="ok">Créer le livre</button></div>`,
+-- après
+        <button class="btn btn-primary" id="ok">${livreTenu ? 'Ouvrir l\'exercice' : 'Créer le livre'}</button></div>`,
+-- fin
+
+== cabinet/app.js | et le compte rendu aussi
+-- avant
+            toast(`Livre de ${v.annee} créé`);
+-- après
+            toast(livreTenu ? `Exercice ${v.annee} ouvert` : `Livre de ${v.annee} créé`);
+-- fin
+
+═══════════════════════════════════════════════════════════════════ les mois écrits (app.js)
+
+== cabinet/app.js | un mois est écrit dès qu'il a une écriture, brouillards compris (un brouillard est à valider, jamais un mois à réclamer), et les à-nouveaux ne sont l'activité d'aucun mois (C14) : la règle du tableau du portefeuille (0022)
+-- avant
+      if (toutes.length && jour(du) && jour(au)) {
+        const debutEx = String((s.livre.exercice || {}).du || '').slice(0, 7);
+        manquants = K.moisManquants(toutes.map(l => l.date), plusTard(plusTard(du, debutEx), mission), au);
+-- après
+      const ecrites = KC.lignesDuLivre(s.livre, { brouillard: true }).filter(l => l.journal !== 'AN');
+      if (ecrites.length && jour(du) && jour(au)) {
+        const debutEx = String((s.livre.exercice || {}).du || '').slice(0, 7);
+        manquants = K.moisManquants(ecrites.map(l => l.date), plusTard(plusTard(du, debutEx), mission), au);
+-- fin
+
+═══════════════════════════════════════════════════════════════════ les bulles et les visites
+
+== cabinet/cabvisites.js | écrire au client qui n'a encore rien enregistré
+-- avant
+  b('#lv-ecrire', 'Écrit au client qu\'aucun paquet n\'est arrivé : le mail est prêt, tu le relis avant qu\'il parte.');
+-- après
+  b('#lv-ecrire', 'Écrit au client qu\'aucune pièce n\'est encore enregistrée : le message est prêt, tu le relis avant qu\'il parte.');
+-- fin
+
+== cabinet/cabvisites.js | le bouton de la barre du livre a son explication
+-- avant
+  b('#lv-reprendre', 'Commence le livre de l\'exercice : vide pour un client qui démarre, ou avec les soldes de départ d\'un client qui arrive au cabinet.');
+-- après
+  b('#lv-reprendre', 'Commence le livre de l\'exercice : vide pour un client qui démarre, ou avec les soldes de départ d\'un client qui arrive au cabinet.');
+  b('#lv-ouvrir', 'Ouvre l\'exercice avec ce que ses comptes portaient au premier jour — sa balance d\'ouverture, tapée ou importée d\'un tableur. Une fois ouvert, le bouton disparaît.');
+-- fin
+
+== cabinet/cabvisites.js | un livre sans écriture n'est pas forcément celui d'un client hors SkanFact
+-- avant
+        texte: '<p>Sa comptabilité se tient ici, à la main. <b>« Commencer le livre »</b>
+-- après
+        texte: '<p>Il n\'a encore aucune écriture pour cet exercice. <b>« Commencer le livre »</b>
+-- fin
+
+== cabinet/cabguide.js | « Ouvrir N+1 » vient avec la clôture (brique 45) : la bulle ne le promet pas avant
+-- avant
+d: 'L\'année que ce livre couvre. Pour un client que tu prends en cours d\'année, commence souvent par <b>l\'exercice précédent</b> (à clôturer), puis « Ouvrir N+1 » reprendra ses soldes au 1er janvier.' },
+-- après
+d: 'L\'année que ce livre couvre. Chaque exercice s\'ouvre une fois, avec sa balance d\'ouverture : pour un client que tu prends en cours d\'année, ouvre aussi <b>l\'exercice précédent</b> si ses comptes restent à tenir.' },
+-- fin

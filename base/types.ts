@@ -113,6 +113,15 @@ export interface BaseDeDonnees {
     validee_par: string | null;
     validee_le: Date | null;
   };
+  'compta.exercice': {
+    entreprise: string;
+    annee: number;
+    du: string;
+    au: string;
+    ouverture: string | null;
+    ouvert_par: string | null;
+    ouvert_le: Generated<Date>;
+  };
   'compta.lettrage': {
     id: Generated<string>;
     entreprise: string;

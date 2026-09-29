@@ -18,13 +18,13 @@ import './textes.ts';
 
 const uuid = z.string().uuid();
 const JOURNAUX = ['VT', 'AC', 'BQ', 'CA', 'OD', 'PAIE', 'AN'] as const;
-const estJour = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v;
+export const estJour = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && new Date(`${v}T00:00:00Z`).toISOString().slice(0, 10) === v;
 const champInvalide = (champ: string, raison: ReturnType<typeof t>) => ({ statut: 400 as const, corps: { motif: motif('commun.champ_invalide', { champ, raison }), champ } });
 const introuvable = { statut: 404 as const, corps: { motif: motif('commun.introuvable') } };
 
 // Une ligne : ce que la grille de saisie envoie. Le compte, l'équilibre et le reste se contrôlent
 // dans la base, avec la phrase de la v10 et le numéro de la ligne fautive.
-const LIGNE = z.object({
+export const LIGNE = z.object({
   compte: z.string().max(20),
   libelle: z.string().max(500).optional(),
   tiers: z.string().max(200).optional(),
@@ -40,22 +40,30 @@ const ECRITURE = z.object({
 }).strict();
 type Ecriture = z.infer<typeof ECRITURE>;
 
-// L'écriture pour la base (les montants en millimes, en texte), ou le champ qui ne va pas.
-function versLaBase(e: Ecriture): { json: string } | ReturnType<typeof champInvalide> {
+// Les lignes pour la base (les montants en millimes, en texte), ou le champ qui ne va pas. `champ` :
+// le nom de la liste dans le corps (« lignes », « ouverture »).
+export function lignesVersLaBase(entree: z.infer<typeof LIGNE>[], champ = 'lignes') {
   const lignes = [];
-  for (const [i, l] of e.lignes.entries()) {
+  for (const [i, l] of entree.entries()) {
     const montants: Record<'debit' | 'credit', string> = { debit: '0', credit: '0' };
     for (const cote of ['debit', 'credit'] as const) {
       const brut = (l[cote] ?? '').trim();
       if (!brut) continue;
       let v: bigint;
-      try { v = depuisTexte(brut, 3); } catch { return champInvalide(`lignes.${i}.${cote}`, t('compta.champ.montant')); }
-      if (v < 0n) return champInvalide(`lignes.${i}.${cote}`, t('compta.champ.montant'));
+      try { v = depuisTexte(brut, 3); } catch { return champInvalide(`${champ}.${i}.${cote}`, t('compta.champ.montant')); }
+      if (v < 0n) return champInvalide(`${champ}.${i}.${cote}`, t('compta.champ.montant'));
       montants[cote] = v.toString();
     }
     lignes.push({ compte: l.compte.trim(), libelle: l.libelle ?? '', tiers: l.tiers ?? '', ...montants });
   }
-  return { json: JSON.stringify({ date: e.date, journal: e.journal, piece: e.piece ?? '', libelle: e.libelle ?? '', lignes }) };
+  return { lignes };
+}
+
+// L'écriture pour la base, ou le champ qui ne va pas.
+function versLaBase(e: Ecriture): { json: string } | ReturnType<typeof champInvalide> {
+  const r = lignesVersLaBase(e.lignes);
+  if ('statut' in r) return r;
+  return { json: JSON.stringify({ date: e.date, journal: e.journal, piece: e.piece ?? '', libelle: e.libelle ?? '', lignes: r.lignes }) };
 }
 
 // Le miroir posé (contre-passation, extourne) : son identifiant, son numéro, son rang, son jour.

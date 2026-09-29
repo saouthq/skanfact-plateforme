@@ -77,7 +77,8 @@ mêmes données que son client.
 | **37** | Les écrans du Cabinet copiés et chargés ; le portefeuille et le livre d'un dossier lus au serveur (la balance que calcule l'écran égale celle du serveur : deux chemins, un chiffre) ; tout le reste répond « pas encore en ligne ». |
 | **38** | La saisie : écritures saisies par le cabinet (brouillard, modification, suppression), validation d'une écriture ou d'un lot, contre-passation, extourne, lettrage ; le mois validé par le cabinet (C8). |
 | **38 bis** | Le Cabinet sans paquets, dans les mots : le tableau, les relances, la fiche, les guides et les visites réécrits pour des livres tenus en direct ; la relance notée dans la fiche. |
-| 39 | La reprise : plan, balance d'ouverture (à-nouveaux), écritures par tableur. |
+| **39** | La reprise : l'exercice et sa balance d'ouverture (à-nouveaux), tapée ou lue dans un CSV ou un classeur Excel. |
+| 39 bis | Le plan comptable d'un client ; ses écritures par tableur (l'aller-retour : exporter le livre-journal, corriger, réimporter). |
 | 40 | La banque : relevés, rapprochement, lettrage automatique. |
 | 41 | Les déclarations (TVA, retenues), la liasse, le FEC et les exports. |
 | 42 | Immobilisations et dotations, inventaire et variation de stock. |
@@ -246,7 +247,7 @@ l'exemple, l'appairage, la clé de secours, la copie, recevoir et lire un paquet
 réception, les sauvegardes, changer d'ordinateur, les mises à jour, la licence, le mot de passe du
 cabinet, envoyer la clôture, la correspondance, l'écran des paquets), et celles d'un geste **pas
 encore en ligne**, qui reviennent avec leur brique (nommer le cabinet, commencer un livre par sa
-reprise, exporter les écritures, suivre la production).
+reprise — avec la brique 39 bis —, exporter les écritures, suivre la production).
 
 **Les tests** : un parcours lit, à la souris, **chaque écran** du Cabinet et chaque bulle qu'il porte
 (texte, champs, infobulles, « À faire » déplié, après un second dessin) : aucun mot de paquet. Un
@@ -264,6 +265,69 @@ dans la messagerie, la relance notée au serveur, les mois du Suivi ouverts dans
   à l'écran, le comptera comme fait.
 - Les écrans pas encore en ligne (banque, déclarations, immobilisations, paie, révision, clôture,
   production) gardent le texte de la v10 : chacun se relit, à la souris, avec sa brique.
+
+## Brique 39 : l'exercice et sa balance d'ouverture (fait le 29/09/2026)
+
+Le Cabinet v10 « commençait le livre » d'un dossier : son exercice (l'année, ses bornes) et, pour un
+client qui arrive d'un autre cabinet ou d'un autre logiciel, sa balance d'ouverture. Sur la plateforme,
+les livres existent déjà (C2) : ce qui manquait au serveur, c'est l'exercice lui-même et ses
+à-nouveaux.
+
+**C16. L'exercice s'ouvre sur le serveur, une fois** (par délégation) : son année ; son premier jour,
+le 1er janvier, ou plus tard pour un premier exercice (une société créée en cours d'année) ; son
+dernier, le 31 décembre (la v10 ne tient que des exercices civils — **À VÉRIFIER** avec un comptable
+pour un client dont l'exercice est décalé, d'avril à mars par exemple). L'ouvrir revient à qui valide :
+avec un mandat de comptabilité, le cabinet (C8) ; gardé à la porte et dans la base
+(`compta.ouvrir_exercice`, migration `0022`). Deux ouvertures au même instant : une seule passe,
+l'autre lit sa phrase.
+
+**C17. La balance d'ouverture est une écriture du journal AN** (par délégation) : pièce
+« OUVERTURE », datée du premier jour de l'exercice, posée **et validée** d'un geste avec lui, dans la
+même transaction — ou rien : déséquilibrée, un compte qui n'est pas un numéro, datée d'un jour à
+venir, dans une période validée, ni l'exercice ni l'écriture n'existent. Vide pour un client qui
+démarre. Fausse, elle se contre-passe, et la bonne se saisit au journal AN. **Les à-nouveaux ne sont
+l'activité d'aucun mois** : la balance d'ouverture dit ce que les comptes portaient AVANT le premier
+jour ; janvier n'en devient pas « écrit » (le tableau du portefeuille, `mois_du_portefeuille` redéfinie
+en `0022`, et l'alerte du livre les écartent tous deux). Et un mois au brouillard est écrit : à
+valider, jamais réclamé (C14) — l'alerte du livre le comptait encore comme manquant.
+
+**Ce qui part au serveur** (compté) : l'année, le premier jour, et les lignes de la balance (compte,
+libellé, débit, crédit). Un CSV ou un classeur Excel se lit **dans le navigateur**, par le lecteur de
+la v10 (`compta.js`) ; le ZIP d'un classeur s'ouvre par `DecompressionStream`, ses seuls fichiers XML,
+et plus de 20 Mo pour une entrée, ou de 60 Mo pour le classeur, se refuse avec sa raison. Rien ne part
+avant « Créer le livre » (ou « Ouvrir l'exercice »), et rien d'autre du fichier.
+
+**À l'écran** :
+- un client sans écriture (tenu, ou sur SkanFact sans rien d'enregistré) : « Commencer le livre de
+  2026… », la fenêtre de la v10 (l'exercice, ses bornes, la balance d'ouverture, l'écart qui se lit
+  pendant la frappe, « Importer depuis Excel ou CSV… ») et « Créer le livre » ; la saisie s'ouvre
+  ensuite ;
+- un client sur SkanFact dont les pièces sont déjà dans ses livres : « Reprendre les soldes
+  d'ouverture… » dans la barre du livre, tant que son exercice n'est pas ouvert ; la même fenêtre dit
+  « Reprendre les soldes d'ouverture de … » et « Ouvrir l'exercice » ;
+- un livre sans écriture, pour un client sur SkanFact, dit « Aucune écriture pour l'instant » (il
+  disait « Aucun paquet reçu ») ; la bulle de l'exercice ne promet plus « Ouvrir N+1 » (la clôture,
+  brique 45).
+
+**Les adaptations** : `web/v10/reprise.txt`, au format de `sans-paquets.txt`.
+
+**Les tests** : par l'API et dans la base (`tests/compta/exercice.test.ts`) ; à la souris
+(`tests/web/cabinet-reprise.test.ts`) : un client tenu commence son livre avec la balance d'un CSV (un
+titre au-dessus, une ligne qui n'est pas un compte — ignorée et dite —, un total dessous), l'écriture
+AN au millime du fichier, la balance de l'écran égale à celle du serveur ; un client qui démarre le
+1er juin 2025, sans balance ; un client sur SkanFact reprend ses soldes depuis un classeur Excel (un
+classeur trop gros une fois ouvert se refuse), refusés tant qu'ils ne tombent pas juste (rien n'est
+ouvert), puis ouverts ; janvier n'est pas écrit
+par la balance d'ouverture, un mois au brouillard n'est pas réclamé.
+
+**Reste connu** :
+- Le plan comptable d'un client et ses écritures par tableur (« Réimporter depuis un tableur… ») :
+  brique 39 bis ; la visite « Commencer le livre d'un client » revient avec elle (sa fin propose le
+  tableur).
+- L'exercice suivant (« Ouvrir N+1 », ses à-nouveaux calculés à la clôture) : brique 45.
+- Au début d'un mois, avant le jour de relance, l'en-tête d'un dossier ne compte pas encore le mois
+  qui vient de finir, et l'alerte du livre si (héritage de la v10) : à accorder avec les réglages du
+  cabinet.
 
 ## Ce qui reste à décider avec Skander ou un comptable
 

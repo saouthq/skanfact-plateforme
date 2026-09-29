@@ -15,12 +15,13 @@
 //   (ce qu'il devient)
 //   -- fin
 // Tout ce qui est hors d'un bloc est un commentaire. Un bloc qui finit par une ligne vide finit par
-// un saut de ligne.
+// un saut de ligne. D'autres briques écrivent leurs adaptations de texte dans le même format
+// (reprise.txt, brique 39) : `lireFichier` les lit.
 
 import fs from 'node:fs';
 
-/** @param {string} texte le contenu de sans-paquets.txt */
-export function lireAdaptations(texte) {
+/** @param {string} texte le contenu du fichier @param {string} [nom] son nom, pour les messages */
+export function lireAdaptations(texte, nom = 'sans-paquets.txt') {
   const lignes = texte.split('\n');
   /** @type {{ fichier: string, pourquoi: string, avant: string, apres: string }[]} */
   const out = [];
@@ -28,21 +29,24 @@ export function lireAdaptations(texte) {
   const jusqua = (i, fin) => {
     const pris = [];
     for (; i < lignes.length && lignes[i] !== fin; i++) pris.push(lignes[i]);
-    if (i >= lignes.length) throw new Error(`sans-paquets.txt : « ${fin} » manque après la ligne ${i}`);
+    if (i >= lignes.length) throw new Error(`${nom} : « ${fin} » manque après la ligne ${i}`);
     return { pris, i };
   };
   for (let i = 0; i < lignes.length; i++) {
     if (!lignes[i].startsWith('== ')) continue;
     const [fichier, ...raison] = lignes[i].slice(3).split(' | ');
     const pourquoi = raison.join(' | ').trim();
-    if (!fichier || !pourquoi || lignes[i + 1] !== '-- avant') throw new Error(`sans-paquets.txt, ligne ${i + 1} : « == fichier | pourquoi » puis « -- avant » attendus`);
+    if (!fichier || !pourquoi || lignes[i + 1] !== '-- avant') throw new Error(`${nom}, ligne ${i + 1} : « == fichier | pourquoi » puis « -- avant » attendus`);
     const avant = jusqua(i + 2, '-- après');
     const apres = jusqua(avant.i + 1, '-- fin');
-    if (!avant.pris.join('\n')) throw new Error(`sans-paquets.txt, ligne ${i + 1} : un « avant » vide ne désigne rien`);
+    if (!avant.pris.join('\n')) throw new Error(`${nom}, ligne ${i + 1} : un « avant » vide ne désigne rien`);
     out.push({ fichier: fichier.trim(), pourquoi, avant: avant.pris.join('\n'), apres: apres.pris.join('\n') });
     i = apres.i;
   }
   return out;
 }
 
-export const SANS_PAQUETS = lireAdaptations(fs.readFileSync(new URL('./sans-paquets.txt', import.meta.url), 'utf8'));
+/** @param {string} nom un fichier de web/v10 */
+export const lireFichier = (nom) => lireAdaptations(fs.readFileSync(new URL(`./${nom}`, import.meta.url), 'utf8'), nom);
+
+export const SANS_PAQUETS = lireFichier('sans-paquets.txt');

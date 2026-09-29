@@ -107,11 +107,24 @@
     } while (suite);
     return toutes;
   }
-  // Les mois où le dossier a des écritures, et ses exercices (les années).
+  // Les exercices OUVERTS sur le serveur (brique 39) : leur année, leurs bornes, leur balance
+  // d'ouverture. Gardés par dossier, pour l'écran qui demande sans attendre si un exercice est ouvert.
+  /** @type {Map<string, { annee: number, du: string, au: string, ouverture: string | null }[]>} */
+  const exercicesConnus = new Map();
+  /** @param {string} ent */
+  async function exercicesDe(ent) {
+    const r = await appel('GET', `/entreprises/${ent}/compta/exercices`);
+    exercicesConnus.set(ent, r.exercices || []);
+    return exercicesConnus.get(ent) || [];
+  }
+  /** @param {string} ent @param {string|number} annee */
+  const exerciceDe = (ent, annee) => (exercicesConnus.get(ent) || []).find((x) => String(x.annee) === String(annee)) || null;
+  // Les mois où le dossier a des écritures, et ses exercices : les années qui ont des écritures, et
+  // celles qui sont ouvertes sur le serveur (un exercice ouvert sans balance n'a encore rien d'écrit).
   /** @param {string} ent */
   async function moisEtExercices(ent) {
-    const toutes = await ecrituresDe(ent, '', '');
-    const presents = [...new Set(toutes.map((e) => String(e.date).slice(0, 7)))].sort();
+    const [toutes, ouverts] = await Promise.all([ecrituresDe(ent, '', ''), exercicesDe(ent)]);
+    const presents = [...new Set([...toutes.map((e) => String(e.date).slice(0, 7)), ...ouverts.map((x) => String(x.du).slice(0, 7))])].sort();
     // Plus de paquets, donc plus de mois « manquants » : les livres du client sont à jour en direct.
     // Tous les mois, de janvier de la première année jusqu'au mois en cours (ou au dernier mois écrit).
     const courant = new Date().toISOString().slice(0, 7);
@@ -177,8 +190,15 @@
     livre.lettrages = [...lettrages.values()];
     return livre;
   }
-  /** @param {string} ent @param {string|number} annee */
-  const livreDe = async (ent, annee) => versLeLivre(ent, Number(annee), await ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`));
+  // Le livre d'une année ; ses bornes sont celles de l'exercice ouvert sur le serveur, s'il l'est (un
+  // premier exercice commence en cours d'année).
+  /** @param {string} ent @param {string|number} annee @param {any[]} [lues] */
+  const livreDe = async (ent, annee, lues) => {
+    const livre = versLeLivre(ent, Number(annee), lues || await ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`));
+    const ex = exerciceDe(ent, annee);
+    if (ex) { livre.exercice.du = ex.du; livre.exercice.au = ex.au; }
+    return livre;
+  };
 
   // Une écriture de la grille de saisie, pour le serveur : ses lignes remplies (la grille en garde
   // une vide au bout), ses montants en texte exact.
@@ -202,6 +222,84 @@
     if (f.fees != null) contenu.fees = Math.round((Number(f.fees) || 0) * 1000);
     if (Array.isArray(f.relances)) contenu.relances = f.relances;
     await appel('PUT', `/cabinets/${cabinetId}/fiches/${ent}`, { contenu, revision });
+  }
+
+  // Un fichier choisi sur l'ordinateur (le navigateur ouvre sa fenêtre), ou null si on l'a fermée.
+  /** @param {string} accepte @returns {Promise<File | null>} */
+  const choisirFichier = (accepte) => new Promise((resoudre) => {
+    const i = document.createElement('input');
+    i.type = 'file';
+    i.accept = accepte;
+    i.style.display = 'none';
+    i.addEventListener('change', () => { resoudre((i.files && i.files[0]) || null); i.remove(); });
+    i.addEventListener('cancel', () => { resoudre(null); i.remove(); });
+    document.body.appendChild(i);
+    i.click();
+  });
+  // Un classeur Excel (.xlsx) est une archive ZIP : ses fichiers XML se décompressent ici, dans le
+  // navigateur, puis la v10 lit sa première feuille (compta.js, texteDeClasseur). Plus de 20 Mo pour
+  // une entrée, ou de 60 Mo pour le classeur, se refuse : un petit fichier peut annoncer des gigaoctets.
+  const MAX_ENTREE = 20 * 1024 * 1024;
+  const MAX_CLASSEUR = 60 * 1024 * 1024;
+  const TROP_GROS = 'Ce classeur est anormalement gros : refusé.';
+  /** @param {Uint8Array} corps @param {number} permis ce que l'entrée peut encore occuper */
+  async function inflater(corps, permis) {
+    const lecteur = new Blob([new Uint8Array(corps)]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+    /** @type {Uint8Array[]} */ const morceaux = [];
+    let total = 0;
+    for (;;) {
+      const { done, value } = await lecteur.read();
+      if (done) break;
+      total += value.length;
+      if (total > Math.min(MAX_ENTREE, permis)) { await lecteur.cancel(); throw new Error(TROP_GROS); }
+      morceaux.push(value);
+    }
+    const tout = new Uint8Array(total);
+    let o = 0;
+    for (const m of morceaux) { tout.set(m, o); o += m.length; }
+    return tout;
+  }
+  /** @param {Uint8Array} u8 */
+  async function dezipper(u8) {
+    const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    let fin = -1;
+    for (let i = u8.length - 22; i >= 0 && i >= u8.length - 22 - 65535; i--) if (dv.getUint32(i, true) === 0x06054b50) { fin = i; break; }
+    if (fin < 0) return null;
+    const n = dv.getUint16(fin + 10, true);
+    if (n > 5000) return null;
+    /** @type {{ name: string, data: () => Uint8Array }[]} */ const entrees = [];
+    let p = dv.getUint32(fin + 16, true);
+    let lu = 0;
+    for (let k = 0; k < n; k++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) return null;
+      const methode = dv.getUint16(p + 10, true), taille = dv.getUint32(p + 20, true);
+      const lnom = dv.getUint16(p + 28, true), lextra = dv.getUint16(p + 30, true), lcom = dv.getUint16(p + 32, true);
+      const local = dv.getUint32(p + 42, true);
+      const nom = new TextDecoder().decode(u8.subarray(p + 46, p + 46 + lnom));
+      const debut = local + 30 + dv.getUint16(local + 26, true) + dv.getUint16(local + 28, true);
+      const corps = u8.subarray(debut, debut + taille);
+      // Seuls les fichiers XML servent à lire une feuille : les images et le reste restent fermés.
+      const data = /\.(xml|rels)$/.test(nom) ? (methode === 8 ? await inflater(corps, MAX_CLASSEUR - lu) : corps.slice()) : null;
+      lu += data ? data.length : 0;
+      entrees.push({ name: nom, data: () => { if (!data) throw new Error('entrée non lue'); return data; } });
+      p += 46 + lnom + lextra + lcom;
+    }
+    return entrees;
+  }
+  // Le texte d'un tableur (Excel ou CSV), lu par la v10 ; son refus, avec le geste qui marche.
+  /** @param {File} f */
+  async function lireTableur(f) {
+    /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+    const octets = new Uint8Array(await f.arrayBuffer());
+    let entrees = null;
+    // Une archive abîmée se lit comme la v10 le dit (« enregistre-le de nouveau ») ; un classeur trop
+    // gros se refuse avec sa raison.
+    if (octets[0] === 0x50 && octets[1] === 0x4b) {
+      try { entrees = await dezipper(octets); } catch (e) { if (e instanceof Error && e.message === TROP_GROS) throw e; entrees = null; }
+    }
+    const r = KC.lireFichierTexte(octets, f.name, entrees ? { dezipper: () => entrees } : {});
+    if (!r.ok) throw new Error(r.motif);
+    return String(r.texte);
   }
 
   // Ouvrir un lien que le navigateur confie à un autre logiciel (la messagerie, le téléphone) : un
@@ -325,10 +423,36 @@
       const m = await moisEtExercices(id);
       return { dossier: d, paquets: [], tousLesMois: m.mois, aucunPaquet: true, exercices: m.exercices };
     },
+    // Une année sans écriture et sans exercice ouvert n'a pas encore de livre : l'écran propose de le
+    // commencer (son exercice, sa balance d'ouverture).
     livre: async (/** @type {string} */ id, /** @type {string} */ annee) => {
       const d = dossiers.get(id) || { id, name: '', matricule: '' };
-      const ecritures = await ecrituresDe(id, `${annee}-01-01`, `${annee}-12-31`);
-      return { dossier: d, livre: versLeLivre(id, Number(annee), ecritures) };
+      const [ecritures] = await Promise.all([ecrituresDe(id, `${annee}-01-01`, `${annee}-12-31`), exercicesDe(id)]);
+      if (!ecritures.length && !exerciceDe(id, annee)) return { dossier: d, livre: null };
+      return { dossier: d, livre: await livreDe(id, annee, ecritures) };
+    },
+    // L'exercice est-il ouvert sur le serveur ? (L'écran propose sinon d'en reprendre les soldes.)
+    exerciceOuvert: (/** @type {string} */ id, /** @type {string} */ annee) => !!exerciceDe(id, annee),
+
+    // ── La reprise (brique 39) : l'exercice s'ouvre sur le serveur, avec sa balance d'ouverture ──
+    reprendre: async (/** @type {any} */ o) => {
+      const ouverture = (o.ouverture || []).map((/** @type {any} */ l) => ({
+        compte: String(l.compte || '').trim(), libelle: String(l.libelle || ''), debit: montant(l.debit), credit: montant(l.credit),
+      }));
+      await appel('POST', `/entreprises/${o.dossierId}/compta/exercices`, { annee: Number(o.annee), ...(o.du ? { du: String(o.du) } : {}), ouverture });
+      await exercicesDe(o.dossierId);
+      return { livre: await livreDe(o.dossierId, o.annee) };
+    },
+    // Une balance d'ouverture lue dans un classeur Excel ou un CSV, choisi sur l'ordinateur : la
+    // lecture est celle de la v10 (compta.js) ; rien ne part au serveur avant que la fenêtre l'envoie
+    // (« Créer le livre », « Ouvrir l'exercice »), et seulement ses lignes.
+    importerBalance: async () => {
+      const f = await choisirFichier('.xlsx,.csv,.txt');
+      if (!f) return { annule: true };
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const r = KC.balanceDepuisCsv(KC.rangeesDeTexte(await lireTableur(f)));
+      if (r.motif) throw new Error(r.motif);
+      return { lignes: r.lignes, ignorees: r.ignorees, fichier: f.name };
     },
 
     // Un dossier créé à la main est un dossier TENU (0019) ; ses notes vont dans sa fiche (0020).

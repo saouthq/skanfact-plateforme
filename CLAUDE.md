@@ -123,6 +123,14 @@
     adaptations de texte s'écrivent telles quelles dans `web/v10/sans-paquets.txt`. Un parcours lit
     chaque écran, un test lit chaque bulle, article et visite : aucun mot de paquet, sauf ce que la
     version en ligne ne montre jamais, nommé avec sa raison. La relance se note dans la fiche.
+  - **La reprise d'un client** (brique 39, 0022, C16, C17) : l'exercice s'ouvre sur le serveur, une
+    fois (`compta.ouvrir_exercice` : son année, son premier jour — le 1er janvier, ou plus tard pour
+    un premier exercice —, le 31 décembre), avec sa balance d'ouverture : UNE écriture AN
+    « OUVERTURE » posée ET validée d'un geste, ou rien. Les à-nouveaux ne sont l'activité d'aucun
+    mois (`mois_du_portefeuille` redéfinie en 0022 ; l'alerte du livre de même) ; un brouillard écrit
+    son mois. La balance se lit dans un CSV ou un classeur Excel, dans le navigateur (le ZIP s'ouvre
+    par `DecompressionStream`) ; seules ses lignes partent au serveur. Adaptations :
+    `web/v10/reprise.txt`.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

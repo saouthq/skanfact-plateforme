@@ -107,7 +107,7 @@
       // 26/09 — un client hors SkanFact qu'on vient d'ajouter n'a PAS de livre : la visite décrivait
       // quatorze écrans absents au-dessus du seul bouton qui existe. Elle commence alors par lui.
       vide: { cible: '#lv-reprendre', titre: 'Ce client n\'a pas encore de livre',
-        texte: '<p>Sa comptabilité se tient ici, à la main. <b>« Commencer le livre »</b> pose son exercice et, s\'il en a une, sa balance d\'ouverture — laisse-la vide pour un client qui démarre.</p><p>S\'ouvrent alors la <b>Saisie</b> et les quatorze écrans du livre : Saisir, Consulter, Déclarer et clôturer.</p>' },
+        texte: '<p>Il n\'a encore aucune écriture pour cet exercice. <b>« Commencer le livre »</b> pose son exercice et, s\'il en a une, sa balance d\'ouverture — laisse-la vide pour un client qui démarre.</p><p>S\'ouvrent alors la <b>Saisie</b> et les quatorze écrans du livre : Saisir, Consulter, Déclarer et clôturer.</p>' },
       texte: '<p>Quatorze écrans, rangés dans l\'ordre du mois : <b>Saisir</b> (la grille, la banque, la paie, les biens), <b>Consulter</b> (journal, grand livre, balance, lettrage) et <b>Déclarer et clôturer</b>.</p><p>Chaque dossier rouvre sur l\'écran où tu l\'as laissé.</p>' },
     'compta-saisie': { titre: 'La saisie', resume: 'La grille où l\'on tape les pièces, au clavier.', dossier: 'hors',
       texte: '<p>La grille de saisie : une pièce, ses lignes, et le solde qui se calcule pendant la frappe. <b>Tout se fait au clavier</b> — Entrée descend, Tab solde la pièce.</p><p>Une pièce s\'enregistre en <b>brouillard</b> (elle se corrige), puis se <b>valide</b> : elle reçoit son numéro et ne se modifie plus.</p>' },
@@ -231,7 +231,7 @@
   b('#rl-imp', 'Importe un paquet reçu par mail (.skanpack) : le client entre dans ton portefeuille avec ses mois.');
   b('#ech-livre', 'Ouvre la comptabilité d\'un client que tu tiens toi-même : dès que son livre existe, ses déclarations entrent dans le calendrier.');
   b('#ech-pair', 'Enregistre le fichier à remettre à tes clients et prépare le message qui l\'envoie : quand ils l\'importent dans SkanFact, leurs paquets arrivent chez toi, et leurs échéances ici.');
-  b('#lv-ecrire', 'Écrit au client qu\'aucun paquet n\'est arrivé : le mail est prêt, tu le relis avant qu\'il parte.');
+  b('#lv-ecrire', 'Écrit au client qu\'aucune pièce n\'est encore enregistrée : le message est prêt, tu le relis avant qu\'il parte.');
   b('#rv-relire', 'Relit le fichier avec les colonnes que tu viens d\'associer : les lignes lues s\'affichent avant que rien n\'entre.');
   b('#s-rec-in', 'Restaure une clé de secours enregistrée ailleurs : les paquets qu\'elle ouvre redeviennent lisibles sur ce poste.');
   b('#imp', 'Importe un paquet reçu par mail (.skanpack). Tu peux aussi le glisser sur la fenêtre, ou le double-cliquer.');
@@ -266,6 +266,7 @@
   b('#lv-saisir', 'Ouvre la saisie de ce dossier.');
   b('#lv-relancer', 'Prépare la relance de ce client pour les mois qui manquent.');
   b('#lv-reprendre', 'Commence le livre de l\'exercice : vide pour un client qui démarre, ou avec les soldes de départ d\'un client qui arrive au cabinet.');
+  b('#lv-ouvrir', 'Ouvre l\'exercice avec ce que ses comptes portaient au premier jour — sa balance d\'ouverture, tapée ou importée d\'un tableur. Une fois ouvert, le bouton disparaît.');
   b('#lv-vers-saisie', 'Ouvre la saisie : c\'est là qu\'on écrit la première pièce d\'un livre encore vide.');
   b('#lv-brouillard', 'Montre aussi les pièces en brouillard, pas encore validées.', { nom: 'Brouillard' });
   b('#c-groupes button', 'Ouvre ce groupe d\'écrans : Saisir, Consulter, ou Déclarer et clôturer.', { nom: 'Les groupes', cle: 'groupe' });
