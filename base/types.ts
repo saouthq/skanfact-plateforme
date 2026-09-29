@@ -71,6 +71,14 @@ export interface BaseDeDonnees {
     modifie_le: Generated<Date>;
     revision: Generated<bigint>;
   };
+  'cabinet.fiche': {
+    cabinet: string;
+    entreprise: string;
+    contenu: ColumnType<Json, string, string>;
+    revision: Generated<bigint>;
+    modifie_par: string | null;
+    modifie_le: Generated<Date>;
+  };
   'compta.cloture': {
     entreprise: string;
     jusqua: string;

@@ -85,8 +85,14 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
     traiter: async ({ qui }, tx) => {
       if (!qui || !tx) throw new Error('session attendue');
       const moi = (await tx.query('select id, email, nom, langue, code_methode from socle.utilisateur where id = $1', [qui.utilisateur])).rows[0];
-      const entreprises = (await tx.query(`select e.id, e.raison_sociale, e.essai, socle.mes_roles(e.id) roles from socle.entreprise e order by e.raison_sociale`)).rows;
-      return { corps: { ...moi, codeAConfigurer: qui.codeAConfigurer, entreprises } };
+      // Les entreprises de la personne, et celles qu'elle voit par un mandat de son cabinet
+      // (parCabinet : elles s'ouvrent dans le Cabinet, jamais comme les siennes).
+      const entreprises = (await tx.query(`select e.id, e.raison_sociale, e.essai, socle.mes_roles(e.id) roles,
+          socle.perimetre_cabinet(e.id) is not null "parCabinet" from socle.entreprise e order by e.raison_sociale`)).rows;
+      const cabinets = (await tx.query(`select o.id, o.nom from socle.organisation o
+          join socle.membre m on m.organisation = o.id and m.utilisateur = socle.moi() and m.actif
+         where o.type = 'cabinet' order by o.nom, o.id`)).rows;
+      return { corps: { ...moi, codeAConfigurer: qui.codeAConfigurer, entreprises, cabinets } };
     },
   });
 

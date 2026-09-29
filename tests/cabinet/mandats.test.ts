@@ -196,3 +196,67 @@ describe('le cabinet et ses mandats', () => {
     expect((await livres(cl.ent, autre.associe)).statut).toBe(404);
   });
 });
+
+// Brique 37 : ce que les écrans du Cabinet lisent et écrivent au serveur.
+describe('les écrans du Cabinet, côté serveur', () => {
+  it('« Ton cabinet comptable » : le client lit le nom et le code de son cabinet, rien de plus ; personne d\'autre ne les lit par ce chemin', async () => {
+    const cl = await client();
+    const cab = await cabinet();
+    const mandat = String((await appeler('POST', `/entreprises/${cl.ent}/mandat`, cl.jeton, { codeCabinet: cab.code })).corps.mandat);
+    expect((await appeler('GET', `/entreprises/${cl.ent}/mandat`, cl.jeton)).corps.mandat).toMatchObject({ statut: 'propose', cabinet: { nom: 'Cabinet Ennour', code: cab.code } });
+    await appeler('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, cab.associe.jeton);
+    expect((await appeler('GET', `/entreprises/${cl.ent}/mandat`, cl.jeton)).corps.mandat).toMatchObject({ statut: 'actif', cabinet: { nom: 'Cabinet Ennour', code: cab.code } });
+    // La fiche du cabinet reste fermée au client ; la fonction ne répond qu'à qui voit l'entreprise.
+    expect(await enTantQue(pool, cl.utilisateur, async (tx) => (await tx.query('select count(*)::int n from socle.organisation where id = $1', [cab.id])).rows[0].n)).toBe(0);
+    const inconnu = await personne('inconnu');
+    expect(await enTantQue(pool, inconnu.utilisateur, async (tx) => (await tx.query('select * from socle.cabinet_du_mandat($1)', [mandat])).rows)).toEqual([]);
+  });
+
+  it('l\'entrée sait ce qui est à la personne et ce qu\'elle voit par son cabinet', async () => {
+    const cl = await client();
+    const cab = await cabinet();
+    const mandat = String((await appeler('POST', `/entreprises/${cl.ent}/mandat`, cl.jeton, { codeCabinet: cab.code })).corps.mandat);
+    await appeler('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, cab.associe.jeton);
+    const moiAssocie = (await appeler('GET', '/moi', cab.associe.jeton)).corps as { entreprises: { id: string; parCabinet: boolean }[]; cabinets: { id: string; nom: string }[] };
+    expect(moiAssocie.entreprises).toMatchObject([{ id: cl.ent, parCabinet: true }]);
+    expect(moiAssocie.cabinets).toEqual([{ id: cab.id, nom: 'Cabinet Ennour' }]);
+    const moiClient = (await appeler('GET', '/moi', cl.jeton)).corps as { entreprises: { id: string; parCabinet: boolean }[]; cabinets: unknown[] };
+    expect(moiClient.entreprises).toMatchObject([{ id: cl.ent, parCabinet: false }]);
+    expect(moiClient.cabinets).toEqual([]);
+  });
+
+  it('la fiche d\'un dossier : au cabinet seul, champs comptés, jamais écrasée par un poste qui ne l\'a pas relue', async () => {
+    const cl = await client();
+    const cab = await cabinet();
+    const mandat = String((await appeler('POST', `/entreprises/${cl.ent}/mandat`, cl.jeton, { codeCabinet: cab.code })).corps.mandat);
+    const poser = (p: Personne, contenu: unknown, revision: number | null) => appeler('PUT', `/cabinets/${cab.id}/fiches/${cl.ent}`, p.jeton, { contenu, revision });
+    // Avant l'accord, le dossier n'est pas au portefeuille : pas de fiche.
+    expect((await poser(cab.associe, { note: 'x' }, null)).statut).toBe(404);
+    await appeler('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, cab.associe.jeton);
+    // Les champs sont comptés : un champ inconnu, des honoraires à virgule se refusent.
+    expect((await poser(cab.associe, { note: 'x', motDePasseImpots: 'secret' }, null)).statut).toBe(400);
+    expect((await poser(cab.associe, { fees: 150.5 }, null)).statut).toBe(400);
+    expect((await poser(cab.associe, { email: 'menuiserie@exemple.tn', fees: 150500 }, null)).corps).toEqual({ revision: 1 });
+    // Un autre poste qui n'a pas relu (révision ancienne, ou « première » alors qu'elle existe) : refusé, rien d'écrasé.
+    const perime = await poser(cab.associe, { note: 'autre poste' }, null);
+    expect(perime.statut).toBe(409);
+    expect(String(perime.corps.motif)).toMatch(/changée par quelqu'un d'autre/i);
+    expect((await poser(cab.associe, { email: 'menuiserie@exemple.tn', fees: 150500, note: 'relue' }, 1)).corps).toEqual({ revision: 2 });
+    expect((await poser(cab.associe, { note: 'écrase' }, 1)).statut).toBe(409);
+    // Deux postes au même instant, sur la même révision : un seul passe, l'autre est refusé (jamais une erreur).
+    const [a, b] = await Promise.all([poser(cab.associe, { note: 'A' }, 2), poser(cab.associe, { note: 'B' }, 2)]);
+    expect([a.statut, b.statut].sort()).toEqual([200, 409]);
+    const fiches = (await appeler('GET', `/cabinets/${cab.id}/fiches`, cab.associe.jeton)).corps.fiches as { entreprise: string; contenu: Record<string, unknown>; revision: number }[];
+    expect(fiches).toEqual([{ entreprise: cl.ent, contenu: { note: a.statut === 200 ? 'A' : 'B' }, revision: 3 }]);
+    // Au cabinet seul : ni le client, ni un collaborateur à qui le dossier n'est pas confié, ni un autre cabinet.
+    expect(await enTantQue(pool, cl.utilisateur, async (tx) => (await tx.query('select count(*)::int n from cabinet.fiche where entreprise = $1', [cl.ent])).rows[0].n)).toBe(0);
+    const saisie = await cab.collaborateur('saisie');
+    expect((await appeler('GET', `/cabinets/${cab.id}/fiches`, saisie.jeton)).corps.fiches).toEqual([]);
+    expect((await poser(saisie, { note: 'x' }, 3)).statut).toBe(404);
+    const autre = await cabinet();
+    expect((await appeler('GET', `/cabinets/${cab.id}/fiches`, autre.associe.jeton)).corps.fiches).toEqual([]);
+    // Le mandat arrêté, la fiche ne se lit plus.
+    await appeler('DELETE', `/entreprises/${cl.ent}/mandat`, cl.jeton);
+    expect((await appeler('GET', `/cabinets/${cab.id}/fiches`, cab.associe.jeton)).corps.fiches).toEqual([]);
+  });
+});

@@ -21,13 +21,25 @@ if (!fs.existsSync(path.join(renderer, 'app.js'))) { console.error(`Pas d'interf
 const git = (...a) => execFileSync('git', ['-C', source, ...a], { encoding: 'utf8' }).trim();
 const branche = git('rev-parse', '--abbrev-ref', 'HEAD');
 const commit = git('rev-parse', '--short', 'HEAD');
-if (git('status', '--porcelain', '--', 'src/renderer')) { console.error('src/renderer a des changements non enregistrés : on ne reprend que du code publié.'); process.exit(2); }
+if (git('status', '--porcelain', '--', 'src/renderer', 'src/cabinet')) { console.error('src/renderer ou src/cabinet a des changements non enregistrés : on ne reprend que du code publié.'); process.exit(2); }
 
 const cible = path.join(import.meta.dirname, '../public/v10');
 fs.rmSync(cible, { recursive: true, force: true });
 fs.mkdirSync(cible, { recursive: true });
 const fichiers = fs.readdirSync(renderer).filter((f) => /\.(html|css|js)$/.test(f)).sort();
 for (const f of fichiers) fs.copyFileSync(path.join(renderer, f), path.join(cible, f));
+// Le Cabinet (brique 37, docs/cabinet.md) : ses écrans et son moteur, dans cabinet/ ; les fichiers
+// qu'il partage avec l'entreprise (compta.js, visite.js…) sont ceux de la copie ci-dessus, jamais une
+// seconde copie qui divergerait.
+const cabinet = path.join(source, 'src/cabinet');
+fs.mkdirSync(path.join(cible, 'cabinet'));
+for (const f of fs.readdirSync(path.join(cabinet, 'renderer')).filter((x) => /\.(html|css|js)$/.test(x)).sort()) {
+  fs.copyFileSync(path.join(cabinet, 'renderer', f), path.join(cible, 'cabinet', f));
+  fichiers.push(`cabinet/${f}`);
+}
+fs.copyFileSync(path.join(cabinet, 'cabcore.js'), path.join(cible, 'cabinet', 'cabcore.js'));
+fichiers.push('cabinet/cabcore.js');
+fichiers.sort();
 
 for (const a of ADAPTATIONS) {
   const p = path.join(cible, a.fichier);

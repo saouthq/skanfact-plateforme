@@ -107,6 +107,12 @@
     personne par son cabinet dans `socle.mes_roles` et le périmètre dans `socle.perimetre_cabinet`,
     gardés par la porte (`PERIMETRE_DU_MODULE`) ET par la base. Une fonction redéfinie par une
     migration plus récente : ses preuves visent la définition EN VIGUEUR.
+  - **Les écrans du Cabinet** (brique 37) : le code du Cabinet v10 copié dans
+    `web/public/v10/cabinet/`, branché par `web/public/plateforme/pont-cabinet.js` ; la fiche d'un
+    dossier (0020, champs comptés, révision vérifiée dans l'écriture) ; le client confie son dossier
+    par le code du cabinet (Paramètres → Envois) ; `/moi` dit `parCabinet` : l'entrée n'ouvre jamais
+    l'entreprise d'un client comme la sienne. Sans paquets (C4) : ce qui en parlait est caché ou
+    retiré, par la liste du point de contact ou une adaptation.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

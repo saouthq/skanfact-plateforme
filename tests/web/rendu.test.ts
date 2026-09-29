@@ -109,6 +109,7 @@ describe('l\'instrument de rendu des écrans', () => {
     { nom: 'inscription', titre: 'ecran.inscription.titre', etape: null, ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.connexion.creer_compte', l) }).click(); } },
     { nom: 'porte', titre: 'ecran.porte.titre', etape: 'vide' },
     { nom: 'porte-entreprise', titre: 'ecran.porte.entreprise_titre', etape: 'vide', ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.porte.demarrer_titre', l), exact: true }).click(); } },
+    { nom: 'porte-cabinet', titre: 'ecran.porte.cabinet_titre', etape: 'vide', ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.porte.cabinet_lien', l), exact: true }).click(); } },
     { nom: 'code-requis', titre: 'ecran.code_requis.titre', etape: 'code_requis' },
     { nom: 'code-pose', titre: 'ecran.code_pose.titre', etape: 'code_requis', ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.code_requis.bouton', l) }).click(); } },
   ];

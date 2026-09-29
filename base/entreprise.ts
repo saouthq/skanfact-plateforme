@@ -69,6 +69,9 @@ export const CLASSEMENT: Record<string, Classe> = {
   'compta.ecriture': { classe: 'entreprise' },
   'compta.ligne': { classe: 'entreprise' },
   'compta.cloture': { classe: 'entreprise' },
+  // La fiche d'un dossier au cabinet appartient au CABINET (ses notes sur son client) : elle ne part
+  // pas avec l'entreprise.
+  'cabinet.fiche': { classe: 'hors', raison: 'les notes du cabinet sur son client appartiennent au cabinet' },
   'compta.compteur': { classe: 'entreprise' },
   // Le dossier v10 de l'entreprise (0011) : ce que son interface tient, objet par objet.
   'socle.dossier_v10': { classe: 'entreprise' },

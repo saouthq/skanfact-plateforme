@@ -18,6 +18,14 @@ const PERIMETRES = ['comptabilite', 'declarations', 'saisie_achats', 'paie'] as 
 const perimetre = z.array(z.enum(PERIMETRES)).min(1).max(4).refine((p) => new Set(p).size === p.length, { message: 'cabinet.champ.perimetre' });
 const ROLES_SUR_DOSSIER = ['supervision', 'revision', 'saisie', 'paie'] as const;
 const introuvable = { statut: 404 as const, corps: { motif: motif('commun.introuvable') } };
+// Les champs de la fiche d'un dossier au cabinet : cette liste, et rien d'autre (0020). Les
+// honoraires en millimes (jamais de nombre à virgule en base).
+const texte = (max: number) => z.string().max(max);
+const FICHE = z.object({
+  email: texte(200), phone: texte(40), contact: texte(200), note: texte(2000), archived: z.boolean(),
+  from: z.string().regex(/^(\d{4}-\d{2})?$/), regime: texte(40), tvaPeriod: texte(20),
+  fees: z.number().int().min(0).max(1_000_000_000_000), cnssEmployeur: texte(40), cnssCode: texte(10),
+}).partial().strict();
 
 const tracer = (tx: Transaction, entreprise: string, geste: string, objet: string, avant: unknown, apres: unknown) =>
   tx.query('select socle.tracer($1, $2, $3, $4, $5, $6)', [entreprise, geste, 'mandat', objet, avant === null ? null : JSON.stringify(avant), apres === null ? null : JSON.stringify(apres)]);
@@ -146,6 +154,45 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // ── La fiche du dossier au cabinet (0020) ───────────────────────────────────────────────────
+  // Toutes les fiches des dossiers que la personne voit (la sécurité par ligne le décide).
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/fiches', geste: 'compte.cabinets.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const r = await requetes(tx).selectFrom('cabinet.fiche').select(['entreprise', 'contenu', 'revision'])
+        .where('cabinet', '=', params.cabinet ?? '').orderBy('entreprise').execute();
+      return { corps: { fiches: r.map((f) => ({ entreprise: f.entreprise, contenu: f.contenu, revision: Number(f.revision) })) } };
+    },
+  });
+  // La poser : son contenu entier, avec la révision connue (null : la première) ; une fiche changée
+  // ailleurs entre-temps n'est jamais écrasée.
+  ajouter({
+    methode: 'PUT', chemin: '/cabinets/:cabinet/fiches/:dossier', geste: 'compte.cabinet.gerer',
+    corps: z.object({ contenu: FICHE, revision: z.number().int().positive().nullable() }),
+    traiter: async ({ params, corps, qui }, tx) => {
+      if (!tx || !qui || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.dossier).success) return introuvable;
+      const cabinet = params.cabinet ?? '', entreprise = params.dossier ?? '';
+      const db = requetes(tx);
+      // Le dossier doit être au portefeuille de la personne (mandat actif) : sinon, il n'existe pas pour elle.
+      const auPortefeuille = (await tx.query(`select 1 from socle.portefeuille($1) where entreprise = $2 and statut = 'actif'`, [cabinet, entreprise])).rowCount;
+      if (!auPortefeuille) return introuvable;
+      const deja = await db.selectFrom('cabinet.fiche').select('revision').where('cabinet', '=', cabinet).where('entreprise', '=', entreprise).executeTakeFirst();
+      const connue = deja ? Number(deja.revision) : null;
+      if (connue !== corps.revision) return { statut: 409, corps: { motif: motif('cabinet.fiche_changee'), revision: connue } };
+      const contenu = JSON.stringify(corps.contenu);
+      // La révision connue se vérifie DANS l'écriture : deux postes qui enregistrent au même instant
+      // ne passent pas tous les deux (le second reçoit le refus, jamais un écrasement ni une erreur).
+      const ecrites = deja
+        ? (await db.updateTable('cabinet.fiche').set({ contenu, revision: BigInt(connue ?? 0) + 1n, modifie_par: qui.utilisateur, modifie_le: new Date() })
+          .where('cabinet', '=', cabinet).where('entreprise', '=', entreprise).where('revision', '=', BigInt(connue ?? 0)).executeTakeFirst()).numUpdatedRows
+        : (await db.insertInto('cabinet.fiche').values({ cabinet, entreprise, contenu, modifie_par: qui.utilisateur })
+          .onConflict((oc) => oc.doNothing()).executeTakeFirst()).numInsertedOrUpdatedRows;
+      if (!ecrites) return { statut: 409, corps: { motif: motif('cabinet.fiche_changee'), revision: null } };
+      return { corps: { revision: (connue ?? 0) + 1 } };
+    },
+  });
+
   // ── L'entreprise et son cabinet ────────────────────────────────────────────────────────────
   ajouter({
     methode: 'GET', chemin: '/entreprises/:entreprise/mandat', geste: 'socle.accueil.voir',
@@ -153,8 +200,9 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       if (!tx) throw new Error('transaction attendue');
       const d = await mandatEnCours(tx, params.entreprise ?? '');
       if (!d) return { corps: { mandat: null } };
-      const cabinet = await requetes(tx).selectFrom('socle.organisation').select(['nom', 'code_cabinet']).where('id', '=', d.cabinet).executeTakeFirst();
-      return { corps: { mandat: { id: d.id, statut: d.statut, perimetre: d.perimetre, debut: d.debut, cabinet: { nom: cabinet?.nom ?? null, code: cabinet?.code_cabinet ?? null } } } };
+      // La fiche du cabinet n'est pas ouverte au client : son nom et son code seulement (0020).
+      const cabinet = (await tx.query('select nom, code from socle.cabinet_du_mandat($1)', [d.id])).rows[0] as { nom: string; code: string } | undefined;
+      return { corps: { mandat: { id: d.id, statut: d.statut, perimetre: d.perimetre, debut: d.debut, cabinet: { nom: cabinet?.nom ?? null, code: cabinet?.code ?? null } } } };
     },
   });
 

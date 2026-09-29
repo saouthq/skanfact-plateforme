@@ -66,4 +66,11 @@ declarerTextes({
   'ecran.porte.matricule_aide': 'il est obligatoire sur une facture en Tunisie : si tu ne l\'as pas encore, laisse vide et complète-le avant ta première facture',
   'ecran.porte.retour': 'retour',
   'ecran.porte.creer': 'créer mon entreprise',
+  // Un cabinet comptable qui arrive : son nom, puis le Cabinet.
+  'ecran.porte.cabinet_lien': 'je suis un cabinet comptable',
+  'ecran.porte.cabinet_titre': 'ton cabinet',
+  'ecran.porte.cabinet_sous': 'tes clients te confient leurs livres depuis leur SkanFact ; ceux qui n\'y sont pas encore, tu les tiens toi-même',
+  'ecran.porte.cabinet_nom': 'nom du cabinet',
+  'ecran.porte.cabinet_nom_aide': 'tel que tes clients le liront quand ils te confieront leur dossier',
+  'ecran.porte.cabinet_creer': 'créer mon cabinet',
 });

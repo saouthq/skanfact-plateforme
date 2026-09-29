@@ -17,7 +17,9 @@ const provenance = JSON.parse(fs.readFileSync(path.join(V10, 'PROVENANCE.json'),
 
 describe('la reprise du code v10', () => {
   it('chaque fichier repris a l\'empreinte notée à la reprise, et il n\'y en a pas d\'autre', () => {
-    const presents = fs.readdirSync(V10).filter((f) => f !== 'PROVENANCE.json').sort();
+    // Tous les fichiers, sous-dossiers compris (le Cabinet vit dans cabinet/).
+    const presents = (fs.readdirSync(V10, { recursive: true }) as string[]).map((f) => f.split(path.sep).join('/'))
+      .filter((f) => f !== 'PROVENANCE.json' && fs.statSync(path.join(V10, f)).isFile()).sort();
     expect(presents).toEqual(Object.keys(provenance.fichiers).sort());
     for (const f of presents) {
       expect({ f, empreinte: createHash('sha256').update(fs.readFileSync(path.join(V10, f))).digest('hex') }).toEqual({ f, empreinte: provenance.fichiers[f] });

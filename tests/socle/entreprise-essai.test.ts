@@ -49,7 +49,7 @@ describe('l\'entreprise d\'essai des développeurs', () => {
     await appeler('POST', '/moi/code', dev, { methode: 'application' });
     expect((await appeler('POST', '/entreprises-essai', dev)).corps.motif).toBe('Tu as déjà une entreprise d\'essai.');
     const moi = (await appeler('GET', '/moi', dev)).corps.entreprises as Record<string, unknown>[];
-    expect(moi).toEqual([{ id: ent, raison_sociale: 'Entreprise d\'essai de Développeuse', essai: true, roles: ['proprietaire'] }]);
+    expect(moi).toEqual([{ id: ent, raison_sociale: 'Entreprise d\'essai de Développeuse', essai: true, roles: ['proprietaire'], parCabinet: false }]);
     // Elle crée une clé, et la clé facture un client d'exemple.
     const clients = (await appeler('GET', `/entreprises/${ent}/clients`, dev)).corps.clients as { id: string; raison_sociale: string }[];
     expect(clients.map((c) => c.raison_sociale).sort()).toEqual(['Amel Ben Salah (exemple)', 'Atelier Lumière (exemple)', 'Menuiserie du Lac (exemple)']);

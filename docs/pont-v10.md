@@ -9,7 +9,7 @@ branchement change ; les écrans restent le code de la v10.
 
 L'inventaire complet (lu dans le code par quatre lecteurs, le 28/09/2026) compte **94 fonctions**
 côté entreprise et **145** côté Cabinet. Ce document dit où en est chacune, côté entreprise ; le
-Cabinet n'est pas encore repris.
+Cabinet a son propre point de contact (`pont-cabinet.js`), décrit dans `docs/cabinet.md`.
 
 ## 1. Branché au serveur
 
@@ -47,7 +47,9 @@ entreprise de la liste. Le refus dit ce qui n'existe pas encore et que **rien n'
 
 Panneaux des Paramètres (et leurs entrées de la palette Ctrl K) : dossiers de l'ordinateur,
 sauvegardes du disque, copie externe, mot de passe du fichier, lecture par photo, « Tout effacer »,
-cabinet (appairage par fichier), mises à jour, licence, éditeur, pièces jointes, dépannage.
+mises à jour, licence, éditeur, pièces jointes, dépannage.
+Le panneau « Ton cabinet comptable » ne parle plus d'appairage : le propriétaire y confie son
+dossier par le code du cabinet (brique 37).
 « Modifier quand même… » et « Marquer annulée… » sur une facture émise ont disparu : le serveur la
 scelle, et un avoir la corrige (un avoir total la solde : « annulée » se déduit).
 
@@ -64,5 +66,5 @@ scelle, et un avoir la corrige (un avoir total la solde : « annulée » se déd
   pagine).
 - La version affichée au pied de la barre (« vdev »), le journal des erreurs du serveur
   (`supportInfo`, `supportErreur`), l'historique des nouveautés (`changelog`).
-- **Le Cabinet** : ses 145 fonctions demandent d'abord un livre comptable d'un dossier sur le
-  serveur. C'est un chantier à part, pas un branchement.
+- **Le Cabinet** : repris à la brique 37 (`docs/cabinet.md`) ; ses gestes arrivent brique par
+  brique (38 à 46).

@@ -182,12 +182,74 @@
   // Les panneaux des Paramètres sans objet sur la plateforme (voir `panneauxAbsents`).
   // `p-pj` (les pièces jointes d'une pièce) reviendra quand le serveur gardera les fichiers ;
   // `p-depannage` (le journal de l'ordinateur, le signalement) quand le serveur tiendra le sien.
-  const PANNEAUX_ABSENTS = ['p-dossiers', 'p-sauvegardes', 'p-externe', 'p-motdepasse', 'p-ocr', 'p-danger', 'p-cabinet', 'p-maj', 'p-licence', 'p-editeur', 'p-pj', 'p-depannage'];
+  const PANNEAUX_ABSENTS = ['p-dossiers', 'p-sauvegardes', 'p-externe', 'p-motdepasse', 'p-ocr', 'p-danger', 'p-maj', 'p-licence', 'p-editeur', 'p-pj', 'p-depannage'];
   const style = document.createElement('style');
   style.textContent = `${PANNEAUX_ABSENTS.map((id) => `#${id}`).join(', ')} { display: none !important; }`;
   document.head.appendChild(style);
 
+  // ── Ton cabinet comptable (brique 37 ; docs/cabinet.md) ─────────────────────────────────────
+  // Plus d'appairage ni de paquets : le propriétaire confie son dossier à son cabinet en tapant le
+  // code du cabinet (un MANDAT, que l'associé accepte). Le panneau de la v10 se dessine ici.
+  /** @param {unknown} x */
+  const esc = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  /** @param {string} iso */
+  const jour = (iso) => { const [a, m, j] = String(iso).slice(0, 10).split('-'); return `${j}/${m}/${a}`; };
+  /** @type {[string, string, string][]} */
+  const PERIMETRES = [['comptabilite', 'La comptabilité', 'ses écritures, la validation des mois, la balance'],
+    ['declarations', 'Les déclarations', 'TVA, retenues à la source'],
+    ['saisie_achats', 'La saisie des achats', 'tes factures d\'achat, s\'il les saisit pour toi'],
+    ['paie', 'La paie', 'le salaire de chacun : décochée tant que tu ne la confies pas']];
+  /** @param {string[]} p */
+  const lesPerimetres = (p) => PERIMETRES.filter(([k]) => p.includes(k)).map(([, l]) => l.toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' et $1');
+  /** @param {HTMLElement} el */
+  async function dessinerMandat(el) {
+    /** @param {string} html */
+    const poser = (html) => { el.innerHTML = html; };
+    /** @param {unknown} x */
+    const refus = (x) => { const a = el.querySelector('[role=alert]'); if (a) a.textContent = x instanceof Error ? x.message : String(x); };
+    /** @param {() => Promise<unknown>} geste @param {HTMLElement} b */
+    const agir = async (geste, b) => { b.setAttribute('disabled', ''); try { await geste(); await dessinerMandat(el); } catch (x) { b.removeAttribute('disabled'); refus(x); } };
+    let m;
+    try { m = (await appel('GET', '/mandat')).mandat; } catch (x) { poser(`<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`); return; }
+    if (!m) {
+      poser(`<p>Ton cabinet comptable tient tes livres ici même : il lit tes écritures à jour, et valide tes mois. Rien ne lui est envoyé : il n'y a plus de paquet ni de fichier.</p>
+        <label class="field mt">Le code de ton cabinet<input type="text" id="mandat-code" maxlength="10" autocomplete="off" spellcheck="false" style="max-width:220px"></label>
+        <p class="small muted">Ton comptable le lit dans SkanFact Cabinet (Réglages → Mon cabinet). Ce que tu lui confies :</p>
+        ${PERIMETRES.map(([k, l, d]) => `<label class="check"><input type="checkbox" data-perimetre="${k}"${k === 'paie' ? '' : ' checked'}> ${esc(l)} <span class="muted small">— ${esc(d)}</span></label>`).join('')}
+        <p class="small" role="alert"></p>
+        <button type="button" class="btn btn-primary mt" id="mandat-confier">Confier mon dossier</button>`);
+      const b = /** @type {HTMLElement} */ (el.querySelector('#mandat-confier'));
+      b.onclick = () => agir(async () => {
+        const codeCabinet = String(/** @type {HTMLInputElement} */ (el.querySelector('#mandat-code')).value).trim();
+        if (!codeCabinet) { /** @type {HTMLInputElement} */ (el.querySelector('#mandat-code')).focus(); throw new Error('Tape d\'abord le code de ton cabinet : rien n\'a été envoyé.'); }
+        const perimetre = [...el.querySelectorAll('[data-perimetre]')].filter((x) => /** @type {HTMLInputElement} */ (x).checked).map((x) => String(/** @type {HTMLElement} */ (x).dataset.perimetre));
+        if (!perimetre.length) throw new Error('Coche au moins ce que tu lui confies : rien n\'a été envoyé.');
+        await appel('POST', '/mandat', { codeCabinet, perimetre });
+      }, b);
+      return;
+    }
+    const nom = `<strong>${esc(m.cabinet.nom)}</strong>`;
+    poser(`${m.statut === 'propose'
+      ? `<p>Tu as confié ton dossier à ${nom} : il ne le voit qu'une fois qu'il a accepté.</p>`
+      : `<p>${nom} tient tes livres depuis le ${esc(jour(m.debut))} : ${esc(lesPerimetres(m.perimetre))}.</p>
+         <p class="small muted">Il lit tes écritures à jour et valide tes mois ; il ne touche jamais à tes factures, à ta caisse ni à ton équipe.</p>`}
+      <p class="small" role="alert"></p>
+      <div class="inline mt"><button type="button" class="btn btn-danger" id="mandat-arreter">${m.statut === 'propose' ? 'Retirer ma proposition' : 'Arrêter le mandat…'}</button></div>`);
+    const b = /** @type {HTMLElement} */ (el.querySelector('#mandat-arreter'));
+    b.onclick = () => {
+      // Arrêter un mandat se demande : le cabinet ne verra plus tes livres.
+      if (m.statut === 'actif' && !b.dataset.confirme) {
+        b.dataset.confirme = '1';
+        b.textContent = 'Oui, arrêter : il ne verra plus mes livres';
+        refus(`${m.cabinet.nom} ne verra plus tes livres à partir d'aujourd'hui. Ce qu'il a déjà validé reste validé.`);
+        return;
+      }
+      void agir(() => appel('DELETE', '/mandat'), b);
+    };
+  }
+
   /** @type {any} */ (window).skanfact = {
+    dessinerMandat,
     loadData: async () => ({ data: await relire(), corruptFile: null }),
     saveData: (/** @type {Record<string, unknown>} */ data) => enregistrer(data),
     dataPath: async () => 'Serveur SkanFact',
@@ -218,7 +280,9 @@
     listDossiers: async () => {
       const moi = await appelCompte('GET', '/moi');
       return {
-        dossiers: moi.entreprises.map((/** @type {any} */ e) => ({ id: e.id, name: e.raison_sociale, shared: false, dir: 'Serveur SkanFact' })),
+        // Celles que la personne voit par son cabinet s'ouvrent dans le Cabinet, pas ici.
+        dossiers: moi.entreprises.filter((/** @type {any} */ e) => !e.parCabinet)
+          .map((/** @type {any} */ e) => ({ id: e.id, name: e.raison_sociale, shared: false, dir: 'Serveur SkanFact' })),
         current: ent, device: { name: '' }, retires: [],
       };
     },
@@ -324,7 +388,7 @@
     // vraie entreprise (adaptation de `loadDemo`).
     exemple: async () => {
       const moi = await appelCompte('GET', '/moi');
-      const essai = moi.entreprises.find((/** @type {any} */ e) => e.essai);
+      const essai = moi.entreprises.find((/** @type {any} */ e) => e.essai && !e.parCabinet);
       if (essai && essai.id === ent) return { motif: 'Tu es dans ton entreprise d\'essai : c\'est elle, l\'exemple. Tout ce que tu y fais reste ici, et ne touche jamais une vraie entreprise.' };
       ouvrirEntreprise(essai ? essai.id : (await appelCompte('POST', '/entreprises-essai')).id);
       return {};

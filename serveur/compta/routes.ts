@@ -84,6 +84,8 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
         corps: {
           ecritures: ecritures.map((e) => ({
             id: e.id, journal: e.journal, date: e.date_ecriture, piece: e.piece, libelle: e.libelle, statut: e.statut, numero: e.numero,
+            // Son rang dans la chaîne des livres (validée) : l'ordre unique de validation, tous journaux confondus.
+            chaine: e.chaine_rang === null ? null : Number(e.chaine_rang),
             origine: { type: e.origine_type, id: e.origine }, tiers: e.tiers,
             lignes: lignes.filter((l) => l.ecriture === e.id).map((l) => ({
               compte: l.compte, libelle: l.libelle, debit: m(l.debit), credit: m(l.credit), tauxTva: l.taux_tva === null ? null : versTexte(l.taux_tva, 4),

@@ -74,7 +74,7 @@ mêmes données que son client.
 | Brique | Ce qu'elle fait |
 |---|---|
 | **36** | Le cabinet côté serveur : créer un cabinet ; le mandat (proposé par le propriétaire, accepté par l'associé, arrêté par l'un ou l'autre) et son périmètre ; les dossiers tenus ; le portefeuille ; le rôle d'un collaborateur sur un dossier et le périmètre, gardés par la porte **et** par la base ; la validation au cabinet quand il a le mandat de comptabilité. |
-| 37 | Les écrans du Cabinet copiés et chargés ; le portefeuille et le livre d'un dossier lus au serveur (la balance que calcule l'écran égale celle du serveur : deux chemins, un chiffre) ; tout le reste répond « pas encore en ligne ». |
+| **37** | Les écrans du Cabinet copiés et chargés ; le portefeuille et le livre d'un dossier lus au serveur (la balance que calcule l'écran égale celle du serveur : deux chemins, un chiffre) ; tout le reste répond « pas encore en ligne ». |
 | 38 | La saisie : écritures saisies par le cabinet (brouillard, modification, suppression), validation d'une écriture ou d'un lot, contre-passation, extourne, lettrage ; le mois validé par le cabinet (C8). |
 | 39 | La reprise : plan, balance d'ouverture (à-nouveaux), écritures par tableur. |
 | 40 | La banque : relevés, rapprochement, lettrage automatique. |
@@ -87,6 +87,63 @@ mêmes données que son client.
 
 Chaque brique a ses tests « deux chemins » (ce que calcule l'écran du Cabinet contre ce que tient
 le serveur), ses preuves, et un parcours joué à la souris.
+
+## Brique 37 : les écrans du Cabinet, copiés et branchés (fait le 29/09/2026)
+
+**Les écrans** : `src/cabinet/renderer` et `cabcore.js` (branche `beta` de `skanfact`) copiés tels
+quels dans `web/public/v10/cabinet/` par `npm run reprendre-v10`, avec les fichiers qu'ils partagent
+avec l'entreprise pris dans la **même** copie (`../compta.js`, `../reglages.js`…). Les adaptations
+sont listées, chacune avec sa raison, dans `web/v10/adaptations.mjs` ; l'adresse est
+`/v10/cabinet/?c=<cabinet>`.
+
+**Le point de contact** (`web/public/plateforme/pont-cabinet.js`) :
+- la session de la plateforme ouvre le cabinet : ni mot de passe du cabinet, ni écran de
+  verrouillage (qui ne se montre même pas le temps du chargement) ; « Verrouiller » ferme la
+  session ;
+- les dossiers sont le **portefeuille** du serveur (mandats actifs, dossiers tenus) ; « Nouveau
+  client… » crée un dossier tenu ;
+- le livre d'un dossier est celui du serveur (numéro de la chaîne, brouillard / validée /
+  contre-passée) ; les mois vont de janvier de la première année jusqu'au mois courant, sans
+  « mois manquants » inventés. **Deux chemins, un chiffre** : la balance que l'écran calcule
+  (`compta.js`) est celle de `GET compta/balance`, compte par compte ;
+- les dossiers confiés au cabinet s'annoncent sur la page Dossiers (« … te confie son dossier :
+  la comptabilité, les déclarations et la saisie des achats », Accepter / Refuser) ; le **code du
+  cabinet** se lit dans « Comment un client arrive jusqu'ici » (portefeuille vide) et dans
+  Réglages → Mon cabinet → « Le code de ton cabinet » ;
+- tout le reste répond « Pas encore dans la version en ligne de SkanFact Cabinet : rien n'a été
+  fait. », sauf ce que le Cabinet envoie sans attendre de réponse (le signalement d'une erreur),
+  qui ne doit jamais échouer (sinon l'échec se signale à son tour, sans fin).
+
+**La fiche d'un dossier** (migration `0020`, `cabinet.fiche`) : ce que le cabinet note sur son
+client et qui n'est pas sa comptabilité. **Les champs, comptés** (`FICHE`, serveur/cabinet/routes.ts) :
+e-mail, téléphone, contact, note, archivé, début de mission, régime, période de TVA, honoraires
+(entier, en millimes), matricule CNSS employeur, code CNSS ; tout autre champ se refuse. Elle
+appartient au cabinet (ni le client, ni un collaborateur à qui le dossier n'est pas confié, ni un
+autre cabinet ne la lisent) ; une fiche changée ailleurs n'est jamais écrasée (la révision se
+vérifie dans l'écriture elle-même : deux postes au même instant, un seul passe).
+
+**Côté entreprise** : Paramètres → Envois → « Ton cabinet comptable » : le propriétaire tape le
+code de son cabinet, coche ce qu'il lui confie (la paie décochée), puis voit « … tient tes livres
+depuis le … » ; arrêter se demande d'abord. `GET /entreprises/:e/mandat` donne le nom et le code
+du cabinet par `socle.cabinet_du_mandat` (la fiche du cabinet reste fermée au client).
+
+**L'entrée** : `GET /moi` distingue les entreprises de la personne de celles qu'elle voit par son
+cabinet (`parCabinet`) et donne ses cabinets. L'entrée ouvre ce qui a été ouvert la dernière fois
+sur ce navigateur, à défaut la première entreprise de la personne, puis son premier cabinet :
+**jamais l'entreprise d'un client comme la sienne**. La porte de la première fois a un troisième
+choix, « Je suis un cabinet comptable » (le nom du cabinet ; puis le code du téléphone, que le
+rôle d'associé exige).
+
+**Sans paquets (C4), caché ou retiré** : importer un paquet, l'onglet des paquets ; dans
+« Tes premiers pas », l'appairage, la clé de secours, la copie sur un disque et « recevoir un
+premier paquet » ; dans les Réglages, la licence, la boîte de réception, les sauvegardes de
+l'ordinateur, les mises à jour, et du panneau Sécurité tout sauf « Verrouiller » (panneaux, leurs
+pastilles, leurs résultats de recherche et la palette).
+
+**Reste connu, pour la brique 38** : le tableau du portefeuille compte encore en « mois reçus »
+(dernier mois reçu, mois manquants, « aucun paquet », « a envoyé ses mois clôturés ») : il se
+rebranche sur les mois du serveur (écritures, mois validés) avec la saisie et la validation par le
+cabinet ; l'exemple à six clients fictifs n'est pas encore en ligne (le bouton le dit).
 
 ## Ce qui reste à décider avec Skander ou un comptable
 

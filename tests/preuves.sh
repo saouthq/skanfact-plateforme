@@ -1105,7 +1105,7 @@ prouver "l'exemple écrit dans la vraie entreprise" $PONT \
       return {};" "      return { motif: 'x' };" \
   "$VR"
 prouver "« Tout effacer » laissé sur la plateforme" $PONT \
-  "'p-ocr', 'p-danger', 'p-cabinet'" "'p-ocr', 'p-cabinet'" \
+  "'p-ocr', 'p-danger', 'p-maj'" "'p-ocr', 'p-maj'" \
   "$VR"
 prouver "un fichier exporté qui perd son nom" $PONT \
   "    a.href = url; a.download = propre; a.hidden = true;" "    a.href = url; a.download = 'export.txt'; a.hidden = true;" \
@@ -1792,6 +1792,61 @@ prouver "un matricule mal formé qui fait tomber le serveur" serveur/cabinet/rou
 prouver "les pièces de vente fermées au cabinet de comptabilité" serveur/porte/porte.ts \
   "  compta: ['comptabilite'], ventes: ['comptabilite']," "  compta: ['comptabilite'], ventes: []," \
   "$CJ"
+
+# ── Brique 37 : les écrans du Cabinet (docs/cabinet.md) ──
+M20=base/migrations/0020_cabinet_fiches.sql
+PC=web/public/plateforme/pont-cabinet.js
+E1="« Ton cabinet comptable » : le client lit le nom et le code de son cabinet, rien de plus ; personne d'autre ne les lit par ce chemin"
+E2="l'entrée sait ce qui est à la personne et ce qu'elle voit par son cabinet"
+E3="la fiche d'un dossier : au cabinet seul, champs comptés, jamais écrasée par un poste qui ne l'a pas relue"
+W1="la session ouvre le cabinet ; ses dossiers sont le portefeuille du serveur ; le livre d'un client est celui du serveur"
+W2="« je suis un cabinet comptable » sur la porte : le cabinet se crée, le code du téléphone se pose, le Cabinet s'ouvre ; « Verrouiller » ferme la session"
+W3="le client confie son dossier par le code que le Cabinet affiche ; l'associé accepte sur sa page Dossiers ; le client arrête le mandat après confirmation"
+prouver "le compte qui confond ses entreprises et celles de son cabinet" serveur/routes/socle.ts \
+  'socle.perimetre_cabinet(e.id) is not null "parCabinet"' 'false "parCabinet"' \
+  "$E2"
+prouver "le nom du cabinet lu par n'importe qui" $M20 \
+  "   where d.id = p_mandat and d.entreprise in (select socle.mes_entreprises())" "   where d.id = p_mandat" \
+  "$E1"
+prouver "le client qui ne lit pas le nom de son cabinet" serveur/cabinet/routes.ts \
+  "(await tx.query('select nom, code from socle.cabinet_du_mandat(\$1)', [d.id])).rows[0]" "(await tx.query('select nom, code_cabinet code from socle.organisation where id = \$1', [d.cabinet])).rows[0]" \
+  "$E1"
+prouver "une fiche écrasée par un poste qui ne l'a pas relue" serveur/cabinet/routes.ts \
+  "      if (connue !== corps.revision) return { statut: 409, corps: { motif: motif('cabinet.fiche_changee'), revision: connue } };" "" \
+  "$E3"
+prouver "deux postes qui enregistrent la même fiche au même instant" serveur/cabinet/routes.ts \
+  ".where('revision', '=', BigInt(connue ?? 0))" "" \
+  "$E3"
+prouver "une fiche lue sans voir le dossier" $M20 \
+  "  using (cabinet in (select socle.mes_organisations()) and entreprise in (select socle.mes_entreprises()));" "  using (cabinet in (select socle.mes_organisations()));" \
+  "$E3"
+prouver "une fiche aux champs non comptés" serveur/cabinet/routes.ts \
+  "}).partial().strict();" "}).partial().passthrough();" \
+  "$E3"
+prouver "l'entrée qui ouvre l'entreprise d'un client comme la sienne" web/src/App.tsx \
+  "    const siennes = moi.entreprises.filter((x) => !x.parCabinet);" "    const siennes = moi.entreprises;" \
+  "$W1"
+prouver "« Tes premiers pas » qui réclame encore l'appairage et la clé de secours" $PC \
+  "const ETAPES_ABSENTES = ['appairage', 'cle', 'copie', 'travail'];" "const ETAPES_ABSENTES = [];" \
+  "$W2"
+prouver "les réglages de la boîte de réception et des sauvegardes sur l'ordinateur" $PC \
+  "const PANNEAUX_ABSENTS = ['pan-licence', 'pan-inbox', 'pan-backup', 'pan-maj'];" "const PANNEAUX_ABSENTS = ['pan-licence', 'pan-maj'];" \
+  "$W2"
+prouver "« Verrouiller » qui laisse la session ouverte" $PC \
+  "      try { await fetch('/v1/deconnexion', { method: 'POST', headers: { authorization: \`Bearer \${jeton}\` } }); } catch { /* la session se ferme de toute façon ici */ }" "" \
+  "$W2"
+prouver "un dossier confié qui ne s'annonce pas au cabinet" $PC \
+  "    proposes = (porte.dossiers || []).filter((/** @type {any} */ d) => d.statut === 'propose');" "    proposes = [];" \
+  "$W3"
+prouver "le Cabinet qui affiche un autre code que le sien" $PC \
+  "    code = String(cab.code || '');" "    code = String(cab.id || '');" \
+  "$W3"
+prouver "un mandat arrêté sans le demander" web/public/plateforme/pont.js \
+  "      if (m.statut === 'actif' && !b.dataset.confirme) {" "      if (false) {" \
+  "$W3"
+prouver "la balance du Cabinet qui n'est pas celle du serveur" $PC \
+  "debit: nombre(l.debit), credit: nombre(l.credit)" "debit: nombre(l.credit), credit: nombre(l.debit)" \
+  "$W1"
 
 echo; echo "$ok preuves faites, $ko non prouvées."
 [ "$ko" -eq 0 ]

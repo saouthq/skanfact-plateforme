@@ -7520,7 +7520,7 @@
     'p-envoi': { onglet: 'envois', titre: 'Envoi des emails', mots: 'mail messagerie apple mailto envoyer piece jointe' },
     'p-comptable': { onglet: 'envois', titre: 'Ton comptable', mots: 'comptable email adresse envoyer journaux' },
     'p-modeles': { onglet: 'envois', titre: 'Modèles de messages', mots: 'modele message objet relance rappel email gabarit variables' },
-    'p-cabinet': { onglet: 'envois', titre: 'Ton cabinet comptable', mots: 'cabinet comptable appairage empreinte cle publique paquet chiffre' },
+    'p-cabinet': { onglet: 'envois', titre: 'Ton cabinet comptable', mots: 'cabinet comptable expert code confier mandat livres' },
     'p-dossiers': { onglet: 'donnees', titre: 'Dossiers — plusieurs entreprises sur cet ordinateur', mots: 'dossier entreprise changer basculer partager deux postes rejoindre poste ordinateur nom appareil machine' },
     'p-sauvegardes': { onglet: 'donnees', titre: 'Sauvegardes', mots: 'sauvegarde restaurer restauration perdu recuperer export import fichier donnees backup' },
     'p-externe': { onglet: 'donnees', titre: 'Copie externe', mots: 'copie externe icloud onedrive usb disque reseau miroir abri' },
@@ -15177,7 +15177,7 @@
            s'écrire en deux sections portant le même data-pane : elles se montrent ensemble, et les
            panneaux voisins, masqués, ne laissent aucun trou entre elles. -->
       <section data-pane="envois" hidden>
-        ${panneau('p-cabinet', info('cab.appaire'))}
+        ${panneau('p-cabinet')}
           <div id="cab-pair"></div>
         </div>
       </section>
@@ -15467,6 +15467,7 @@
     // volée chez un client n'ouvre aucun paquet, pas même les siens.
     function drawCabinetPair() {
       const el = $('#cab-pair'); if (!el) return;
+      if (bridge.dessinerMandat) { void bridge.dessinerMandat(el); return; }
       const cab = company().cabinet;
       const sig = data.cabinetSignature;
       el.innerHTML = cab && cab.publicKey

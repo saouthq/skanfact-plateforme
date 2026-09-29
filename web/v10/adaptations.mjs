@@ -188,4 +188,129 @@ export const ADAPTATIONS = [
     avant: "        tfpRate: Number(s.tfpRate) || 0, foprolosRate: Number(s.foprolosRate) || 0\n      }\n    };\n  }\n",
     apres: "        tfpRate: Number(s.tfpRate) || 0, foprolosRate: Number(s.foprolosRate) || 0\n      },\n      // (plateforme) Le barème ENTIER de ce calcul et la situation du salarié ce mois-là : le bulletin\n      // les garde, et le serveur le recalcule avec eux.\n      bareme: {\n        cnssEmployee: Number(s.cnssEmployee) || 0, cnssEmployer: Number(s.cnssEmployer) || 0, accidentRate: Number(s.accidentRate) || 0,\n        tfpRate: Number(s.tfpRate) || 0, foprolosRate: Number(s.foprolosRate) || 0, solidarity: Number(s.solidarity) || 0,\n        proRate: Number(s.proRate) || 0, proCap: Number(s.proCap) || 0, headOfFamily: Number(s.headOfFamily) || 0,\n        perChild: Number(s.perChild) || 0, maxChildren: Number(s.maxChildren) || 0, sansIrpp: !!regime.sansIrpp,\n        brackets: (s.brackets || DEFAULT_PAYROLL.brackets).map(b => ({ upTo: b.upTo == null ? null : Number(b.upTo), rate: Number(b.rate) || 0 }))\n      },\n      situation: { headOfFamily: !!emp.headOfFamily, children: Number(emp.children) || 0 }\n    };\n  }\n",
   },
+  // ── Le Cabinet (brique 37, docs/cabinet.md) ──
+  // Ses écrans sont copiés dans cabinet/, à côté de ceux de l'entreprise : les fichiers qu'il partage
+  // avec elle (le moteur comptable, les listes, la visite…) sont CEUX de la copie de l'entreprise, par
+  // leur nouveau chemin ; jamais une seconde copie qui divergerait (« un fichier partagé ne diverge pas »).
+  ...['rowmenu', 'listes', 'placement', 'reglages', 'majui', 'nouveautes', 'compta', 'visite'].map((n) => ({
+    fichier: 'cabinet/index.html',
+    pourquoi: `${n}.js est celui que le Cabinet partage avec l'entreprise : la même copie`,
+    avant: `<script src="../../renderer/${n}.js"></script>`,
+    apres: `<script src="../${n}.js"></script>`,
+  })),
+  {
+    fichier: 'cabinet/index.html',
+    pourquoi: 'la feuille de style partagée avec l\'entreprise : la même copie',
+    avant: '<link rel="stylesheet" href="../../renderer/style.css">',
+    apres: '<link rel="stylesheet" href="../style.css">',
+  },
+  {
+    fichier: 'cabinet/index.html',
+    pourquoi: 'le moteur du Cabinet est copié à côté de ses écrans',
+    avant: '<script src="../cabcore.js"></script>',
+    apres: '<script src="cabcore.js"></script>',
+  },
+  {
+    fichier: 'cabinet/index.html',
+    pourquoi: 'le point de contact du Cabinet avec le serveur se charge avant tout le reste',
+    avant: '  <script src="../rowmenu.js"></script>\n',
+    apres: '  <script src="../../plateforme/pont-cabinet.js"></script>\n  <script src="../rowmenu.js"></script>\n',
+  },
+  {
+    fichier: 'cabinet/index.html',
+    pourquoi: 'ce qui n\'a plus d\'objet sans paquets (importer, l\'onglet des paquets) se cache',
+    avant: '  <link rel="stylesheet" href="cabinet.css">\n',
+    apres: '  <link rel="stylesheet" href="cabinet.css">\n  <link rel="stylesheet" href="../../plateforme/cabinet.css">\n',
+  },
+  {
+    fichier: 'cabinet/app.js',
+    pourquoi: 'l\'état d\'un dossier ne parle plus de paquets : ses livres sont ceux du serveur, à jour en direct',
+    avant: "(dossier.manual ? 'tenu au cabinet : aucun paquet attendu' : 'aucun paquet reçu pour l\\'instant')",
+    apres: "(dossier.manual ? 'tenu au cabinet' : 'sur SkanFact : ses livres sont à jour en direct')",
+  },
+  {
+    fichier: 'cabinet/app.js',
+    pourquoi: 'la session de la plateforme ouvre le cabinet : plus de mot de passe du cabinet ni d\'écran de verrouillage (03 § 7)',
+    avant: '    const st = await api.status();\n',
+    apres: "    const st = await api.status();\n    // (plateforme) La session ouvre le cabinet : ni mot de passe du cabinet, ni écran de verrouillage.\n    if (st.session) {\n      const r = await api.unlock('');\n      S = r.state;\n      appliquerTheme();\n      $('#lock-screen').remove();\n      $('#app').hidden = false;\n      start(false, null, false, null);\n      return;\n    }\n",
+  },
+  // C4 : sans paquets, l'appairage, la clé de secours et la copie sur un disque n'ont plus d'objet (le
+  // serveur garde les livres et leurs copies). Le point de contact en tient la liste
+  // (`panneauxAbsents`, `etapesAbsentes`), comme celui de l'entreprise.
+  {
+    fichier: 'cabinet/app.js',
+    pourquoi: 'la palette ne propose pas un réglage absent en ligne',
+    avant: '      ...Object.keys(REG_PANNEAUX).map(id => ({',
+    apres: '      ...Object.keys(REG_PANNEAUX).filter(id => !(api.panneauxAbsents || []).includes(id)).map(id => ({',
+  },
+  {
+    fichier: 'cabinet/cabcore.js',
+    pourquoi: '« Tes premiers pas » ne réclame pas une étape sans objet en ligne',
+    avant: '    ];\n    const faits = etapes.filter(x => x.fait).length;',
+    apres: "    ].filter(x => !((typeof window !== 'undefined' && window.cabinet && window.cabinet.etapesAbsentes) || []).includes(x.id));\n    const faits = etapes.filter(x => x.fait).length;",
+  },
+  // Un client arrive au cabinet par un MANDAT (brique 36) : il tape le code du cabinet dans son
+  // SkanFact, l'associé accepte. Le code se lit là où la v10 expliquait l'appairage, et les
+  // dossiers qu'on lui confie s'annoncent là où la v10 annonçait les paquets arrivés.
+  {
+    fichier: 'cabinet/app.js',
+    pourquoi: 'le portefeuille vide explique comment un client arrive (le code du cabinet), plus comment un paquet arrive',
+    avant: "        <div class=\"panel\"><h2>Comment un paquet arrive jusqu'ici</h2>\n          <ol class=\"small\" style=\"line-height:1.9;margin:0;padding-inline-start:20px\">\n            <li>Tu remets à ton client le <strong>fichier d'appairage</strong> (Réglages → Mon cabinet → Le fichier à remettre à tes clients).</li>\n            <li>Il l'importe une fois dans son SkanFact, puis t'envoie son <strong>.skanpack</strong> chaque mois.</li>\n            <li>Tu le <strong>glisses sur cette fenêtre</strong>, ou tu le double-cliques dans ${EXPLORATEUR()}.</li>\n          </ol>\n        </div>",
+    apres: '        ${api.commentUnClientArrive()}',
+  },
+  {
+    fichier: 'cabinet/app.js',
+    pourquoi: 'le panneau de l\'appairage devient celui du code du cabinet',
+    avant: "        <p class=\"small\">Chaque client doit importer ce fichier une fois, dans <strong>Paramètres → Envois → Ton cabinet comptable</strong> de son SkanFact.\n        À partir de là, les paquets qu'il fabrique sont chiffrés <strong>pour toi seul</strong> : personne d'autre ne peut les ouvrir,\n        même en interceptant le mail, et il n'a plus aucun mot de passe à te communiquer.</p>\n        <div class=\"mt\"><div class=\"muted small\">${lbl('Empreinte de ton cabinet', 'cab.fingerprint')}</div>\n          <div class=\"empreinte-ligne\"><span class=\"fingerprint\">${esc(c.fingerprint || '—')}</span>${c.fingerprint\n            ? '<button type=\"button\" class=\"btn btn-sm\" id=\"c-copier-emp\">Copier</button>' : ''}</div></div>\n        <p class=\"muted small mt\">Cette empreinte identifie ton cabinet. Ton client la voit après l'import : s'il te la lit au téléphone\n        et qu'elle correspond, c'est bien à toi qu'il envoie.</p>\n        ${c.signatureFingerprint ? `<div class=\"mt\"><div class=\"muted small\">${lbl('Empreinte de ta signature', 'cab.signature')}</div>\n          <div class=\"empreinte-ligne\"><span class=\"fingerprint\">${esc(c.signatureFingerprint)}</span></div></div>\n        <p class=\"muted small mt\">Tes clôtures et tes questions partent signées. Ton client retient cette signature la première fois,\n        puis refuse un envoi qui en porterait une autre : si l'un d'eux te la lit au téléphone, c'est celle-ci.</p>` : ''}\n        <div class=\"modal-actions\"><button class=\"btn\" id=\"c-pair\">Remettre le fichier à mes clients…</button></div>\n",
+    apres: '        ${api.commentUnClientArrive(true)}\n',
+  },
+  {
+    fichier: 'cabinet/app.js',
+    pourquoi: 'le même panneau, son titre et ses mots de recherche',
+    avant: "    'pan-appairage': { onglet: 'cabinet', titre: 'Le fichier à remettre à tes clients', mots: 'appairage fichier client empreinte cle publique chiffrer skanpair' },",
+    apres: "    'pan-appairage': { onglet: 'cabinet', titre: 'Le code de ton cabinet', mots: 'code cabinet client confier dossier mandat accepter' },",
+  },
+  {
+    fichier: 'cabinet/app.js',
+    pourquoi: 'le bouton de l\'appairage n\'existe plus',
+    avant: "    $('#c-pair').onclick = () => remettreAppairage();",
+    apres: "    if ($('#c-pair')) $('#c-pair').onclick = () => remettreAppairage();",
+  },
+  {
+    fichier: 'cabinet/app.js',
+    pourquoi: 'les dossiers qu\'on confie au cabinet s\'annoncent à la place des paquets arrivés (il n\'y a plus de boîte de réception)',
+    avant: "  function inboxBanner() {\n    if (!inboxInfo || !inboxInfo.dir) return '';",
+    apres: "  function inboxBanner() {\n    if (api.bandeauMandats) return api.bandeauMandats();\n    if (!inboxInfo || !inboxInfo.dir) return '';",
+  },
+  // ── Ton cabinet comptable, côté entreprise (brique 37) ──
+  {
+    fichier: 'app.js',
+    pourquoi: 'le panneau « Ton cabinet comptable » confie le dossier par le code du cabinet (un mandat), plus par un fichier d\'appairage',
+    avant: "    function drawCabinetPair() {\n      const el = $('#cab-pair'); if (!el) return;",
+    apres: "    function drawCabinetPair() {\n      const el = $('#cab-pair'); if (!el) return;\n      if (bridge.dessinerMandat) { void bridge.dessinerMandat(el); return; }",
+  },
+  {
+    fichier: 'app.js',
+    pourquoi: 'la bulle de ce panneau expliquait l\'appairage : le panneau s\'explique lui-même',
+    avant: "        ${panneau('p-cabinet', info('cab.appaire'))}",
+    apres: "        ${panneau('p-cabinet')}",
+  },
+  {
+    fichier: 'app.js',
+    pourquoi: 'les mots de recherche du même panneau',
+    avant: "    'p-cabinet': { onglet: 'envois', titre: 'Ton cabinet comptable', mots: 'cabinet comptable appairage empreinte cle publique paquet chiffre' },",
+    apres: "    'p-cabinet': { onglet: 'envois', titre: 'Ton cabinet comptable', mots: 'cabinet comptable expert code confier mandat livres' },",
+  },
+  {
+    fichier: 'cabinet/app.js',
+    pourquoi: 'l\'exemple ne s\'efface plus « au premier vrai paquet » : il n\'y a plus de paquets (C4)',
+    avant: "compris. Il s'efface\n          tout seul au premier vrai paquet, et tu peux l'effacer à la main quand tu veux.</p>",
+    apres: "compris. Tu\n          peux l'effacer à la main quand tu veux.</p>",
+  },
+  {
+    fichier: 'cabinet/cabcore.js',
+    pourquoi: 'le nom du cabinet ne signe plus un fichier d\'appairage : le client le lit quand il confie son dossier',
+    avant: "quoi: 'Ce nom signe tes relances et le fichier que tes clients importent.'",
+    apres: "quoi: 'Ce nom signe tes relances, et tes clients le lisent quand ils te confient leur dossier.'",
+  },
 ];
