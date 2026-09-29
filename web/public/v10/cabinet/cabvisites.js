@@ -1418,26 +1418,29 @@
     visite({
       id: 'equipe', theme: 'cabinet', type: 'faire', duree: '1 min', page: '#/reglages',
       titre: 'Travailler à plusieurs',
-      resume: 'Tes collaborateurs, leur rôle, et le cabinet sur plusieurs postes.',
-      mots: ['equipe', 'collaborateur', 'role', 'plusieurs', 'poste', 'saisisseur', 'superviseur'],
-      suite: ['licence', 'page-production'],
-      // Un collaborateur de plus : le geste était facultatif, et la fin disait « Ton équipe peut
-      // travailler » d'une équipe que personne n'avait déclarée (10.14.1).
-      mesure: () => collaborateursActifs(), but: n0 => collaborateursActifs() > n0 && aucuneFenetre(),
-      echec: 'Personne n\'est déclaré — c\'est « Ajouter », dans la fenêtre, qui déclare un collaborateur.',
-      bravo: 'Ton équipe est déclarée',
-      conclusion: 'Chaque écriture validée porte le nom de qui l\'a validée. Un saisisseur saisit et ne valide pas ; aucune lecture n\'est jamais fermée. Sur un autre poste, la liste « Je suis », dans le même panneau, dit qui est assis devant.',
+      resume: 'Inviter une personne par son adresse, avec son rôle : elle rejoint le cabinet avec son propre compte.',
+      mots: ['equipe', 'collaborateur', 'role', 'plusieurs', 'inviter', 'invitation', 'associe'],
+      suite: ['page-production'],
+      // (plateforme) Chacun entre avec son propre compte : on invite par l'adresse, la personne rejoint en
+      // ouvrant le lien. Le geste est fait quand l'invitation attend dans la liste.
+      mesure: () => document.querySelectorAll('#eq-invitations [data-inv]').length,
+      but: n0 => document.querySelectorAll('#eq-invitations [data-inv]').length > n0 && aucuneFenetre(),
+      echec: 'Personne n\'est invité — c\'est « Inviter », dans la fenêtre, qui prépare le lien d\'une invitation.',
+      bravo: 'Ton invitation est prête',
+      conclusion: 'Transmets le lien à la personne : elle l\'ouvre, se connecte avec cette adresse, et arrive dans le cabinet. Chaque écriture validée porte le nom de qui l\'a validée ; un dossier se confie à quelqu\'un dans sa fiche.',
       etapes: [
         { page: '#/reglages', avant: onglet('#set-tabs', 'cabinet'), cible: '#pan-equipe', cote: 'dessus', titre: 'L\'équipe',
-          texte: 'Tant que personne n\'est déclaré, <b>rien n\'est restreint</b> : un cabinet d\'une personne n\'a personne à qui donner un droit. Le premier collaborateur déclaré devient l\'identité de ce poste.' },
-        { page: '#/reglages', cible: '#eq-add', cote: 'dessus', faire: 'clic', fait: () => !!document.querySelector('#modal-root #eq-nom'),
-          titre: 'Déclarer un collaborateur', texte: 'Commence par toi : tes écritures validées porteront ton nom.', action: 'Clique sur <b>« Ajouter un collaborateur… »</b>.', essai: { clic: true } },
-        { cible: '#modal-root #eq-nom', cote: 'droite', faire: 'valeur', bouton: 'Suivant',
-          titre: 'Son nom', texte: 'Tel qu\'il apparaîtra sur les écritures qu\'il valide, et dans la piste d\'audit.', action: 'Tape son nom.', essai: { taper: 'Amine Ben Salah' } },
+          texte: 'Chacun entre avec <b>son propre compte</b>. Un associé invite une personne par son adresse ; elle rejoint le cabinet en ouvrant le lien.' },
+        { page: '#/reglages', cible: '#eq-add', cote: 'dessus', faire: 'clic', fait: () => !!document.querySelector('#modal-root #eq-email'),
+          titre: 'Inviter quelqu\'un', texte: 'Un collaborateur, un assistant de saisie, un autre associé.', action: 'Clique sur <b>« Inviter un collaborateur… »</b>.', essai: { clic: true } },
+        { cible: '#modal-root #eq-email', cote: 'droite', faire: 'valeur', bouton: 'Suivant',
+          titre: 'Son adresse', texte: 'C\'est avec elle qu\'il se connectera pour rejoindre le cabinet.', action: 'Tape son adresse e-mail.', essai: { taper: 'amine@cabinet.tn' } },
         { cible: '#modal-root #eq-role', cote: 'droite', titre: 'Son rôle',
-          texte: '<b>Saisie</b> : saisir et corriger, pas valider. <b>Validation</b> : valider aussi. <b>Supervision</b> : tout, la clôture et l\'équipe comprises. La phrase sous la liste dit ce que le rôle ouvre.' },
+          texte: '<b>Saisie</b> : saisir et corriger, pas valider. <b>Saisie et validation</b> : valider aussi. <b>Supervision</b> : tout, la clôture et l\'équipe comprises. La phrase sous la liste dit ce que le rôle ouvre.' },
         { cible: '#modal-root #eq-ok', cote: 'dessus', faire: 'clic',
-          titre: 'Ajouter', texte: 'Il fait partie du cabinet dès maintenant.', action: 'Clique sur <b>« Ajouter »</b>.', fait: () => aucuneFenetre(), essai: { clic: true } }
+          titre: 'Inviter', texte: 'L\'invitation est prête : un lien, valable sept jours, une fois.', action: 'Clique sur <b>« Inviter »</b>.', fait: () => !!document.querySelector('#modal-root #eq-lien'), essai: { clic: true } },
+        { cible: '#modal-root #eq-lien', cote: 'dessus', faire: 'clic', fait: () => aucuneFenetre(),
+          titre: 'Le lien à transmettre', texte: 'SkanFact n\'envoie pas encore de courriel : copie ce lien et envoie-le-lui (courriel, WhatsApp).', action: 'Copie le lien, puis clique sur <b>« Fermer »</b>.' }
       ]
     });
 

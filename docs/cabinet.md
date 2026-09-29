@@ -96,6 +96,7 @@ mêmes données que son client.
 | **50** | Les guides d'écritures du cabinet (des pièces types que la saisie préremplit) et le journal retenu par dossier. |
 | **51** | Les abonnements d'un dossier : un guide qui revient tous les mois, écrit au brouillard une fois par mois dû. |
 | **52** | Une liste de clients collée (depuis un tableur) : chaque client entre au portefeuille, les doublons sont nommés. |
+| **53** | La visite « Travailler à plusieurs », réécrite pour l'invitation par l'adresse. |
 
 Chaque brique a ses tests « deux chemins » (ce que calcule l'écran du Cabinet contre ce que tient
 le serveur), ses preuves, et un parcours joué à la souris.
@@ -857,8 +858,8 @@ rôle changé, puis retirée ; pas de menu sur sa propre ligne.
 
 **Reste connu** :
 - SkanFact n'envoie pas encore le courriel d'invitation : le lien se copie et se transmet à la main.
-- La visite guidée « Travailler à plusieurs » se réécrira pour l'invitation (elle se termine chez
-  l'invité) : elle n'est pas proposée en ligne.
+- La visite guidée « Travailler à plusieurs » : réécrite pour l'invitation et proposée en ligne depuis la
+  brique 53.
 - L'état du cabinet se lit à l'ouverture : un membre qui vient de rejoindre apparaît dans la fiche des
   dossiers après avoir rouvert la page (le panneau L'équipe, lui, se relit à chaque affichage).
 - La trace de l'équipe est gardée au serveur ; elle ne se lit pas encore à l'écran.
@@ -1082,3 +1083,17 @@ par « Nouveau client » (le dossier tenu au serveur, sa fiche : l'adresse, le t
 matricule court est refusée sur cette ligne, et le portefeuille ne bouge pas ; corrigée, ses deux clients
 entrent (le matricule écrit avec des points, gardé avec des « / » ; l'adresse et le téléphone dans la
 fiche), le client déjà là est ignoré et nommé.
+
+## Brique 53 : la visite « Travailler à plusieurs » (fait le 29/09/2026)
+
+**C43. La visite de l'équipe suit le chemin en ligne** (par délégation). La v10 y faisait déclarer un
+collaborateur par son nom, sur ce poste ; en ligne, on invite par l'adresse (brique 46). La visite
+montre le panneau de l'équipe, fait cliquer « Inviter un collaborateur… », taper l'adresse, lire les
+rôles, inviter, puis montre le lien à transmettre (SkanFact n'envoie pas encore de courriel) ; elle se
+termine quand l'invitation attend dans la liste — la preuve est lue à l'écran, pas supposée. Elle se
+montre de nouveau dans « Me guider » : plus aucune visite du Cabinet n'est cachée pour « pas encore en
+ligne ».
+
+**Les tests** : à la souris (`tests/web/cabinet-equipe.test.ts`, second parcours) : la visite trouvée
+dans « Me guider » avec son nouveau résumé, jouée pas à pas, l'invitation créée au serveur à l'adresse
+tapée, la fin « Ton invitation est prête ».

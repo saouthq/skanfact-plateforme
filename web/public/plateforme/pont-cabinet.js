@@ -806,8 +806,8 @@
   const VISITES_SANS_OBJET = ['decouvrir', 'appairage', 'cle-secours', 'copie-externe', 'recevoir-paquet', 'lire-paquet',
     'boite-reception', 'sauvegardes', 'changer-ordinateur', 'mises-a-jour', 'licence', 'mot-de-passe', 'envoyer-cloture',
     'correspondance', 'page-dossier-paquets'];
+  /** @type {string[]} */
   const VISITES_PAS_ENCORE = [
-    'equipe', // la personne invitée rejoint le cabinet chez elle, en ouvrant le lien : la visite se réécrira pour l'invitation
   ];
   // Les articles de l'Aide sans objet en ligne : les sauvegardes, changer d'ordinateur, la licence,
   // les mises à jour (le serveur garde les livres ; rien à installer).

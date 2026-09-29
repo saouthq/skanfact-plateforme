@@ -3193,5 +3193,20 @@ prouver "les coordonnées d'une liste collée perdues" $PC \
         added++;" "        added++;" \
   "$WL1"
 
+# ── Brique 53 : la visite « Travailler à plusieurs » (docs/cabinet.md, C43) ──
+WV1="la visite « Travailler à plusieurs » invite par l'adresse et se joue jusqu'au bout"
+prouver "la visite de l'équipe encore cachée" $PC \
+  "  const VISITES_PAS_ENCORE = [
+" "  const VISITES_PAS_ENCORE = [
+    'equipe',
+" \
+  "$WV1"
+prouver "la visite de l'équipe qui attend un collaborateur déclaré" $CVI \
+  "      but: n0 => document.querySelectorAll('#eq-invitations [data-inv]').length > n0 && aucuneFenetre()," "      but: n0 => collaborateursActifs() > n0 && aucuneFenetre()," \
+  "$WV1"
+prouver "la visite de l'équipe qui déclare encore par le nom" $CVI \
+  "          titre: 'Son adresse', texte:" "          titre: 'Son nom', texte:" \
+  "$WV1"
+
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]
