@@ -40,16 +40,24 @@ describe('enregistrer sans réseau, à la souris', () => {
     fs.mkdirSync(PHOTOS, { recursive: true });
   }, 120_000);
   afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); fs.rmSync(dossier, { recursive: true, force: true }); });
-  const couper = async (c: BrowserContext) => { await c.setOffline(true); await serveur?.arreter(); serveur = null; };
-  const retablir = async () => { if (!serveur) serveur = await demarrer({ ...configuration(), port: Number(new URL(adresse).port) }); };
+  // Une étape qui ne finit pas échoue en disant laquelle (30/09/2026 : sur GitHub, un parcours a attendu
+  // en silence jusqu'à la limite du test, 180 s, sans qu'on sache où). Rien n'attend sans limite : ni
+  // l'arrêt du serveur, ni son redémarrage, ni un appel à l'API (le fetch de Node attend cinq minutes).
+  const borne = <T>(quoi: string, promesse: Promise<T>, ms = 30_000) => {
+    let minuterie: NodeJS.Timeout | undefined;
+    return Promise.race([promesse, new Promise<never>((_, ko) => { minuterie = setTimeout(() => ko(new Error(`${quoi} : rien après ${ms / 1000} s`)), ms); })])
+      .finally(() => clearTimeout(minuterie));
+  };
+  const couper = async (c: BrowserContext) => { await c.setOffline(true); if (serveur) await borne('arrêter le serveur', serveur.arreter()); serveur = null; };
+  const retablir = async () => { if (!serveur) serveur = await borne('redémarrer le serveur', demarrer({ ...configuration(), port: Number(new URL(adresse).port) })); };
   // Un parcours qui s'arrête en route ne laisse pas le serveur arrêté aux suivants.
   afterEach(async () => { await retablir(); });
 
   const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
     const r = await fetch(`${adresse}/v1${chemin}`, {
       method: methode, headers: { ...(jeton ? { authorization: `Bearer ${jeton}` } : {}), ...(corps === undefined ? {} : { 'content-type': 'application/json' }) },
-      ...(corps === undefined ? {} : { body: JSON.stringify(corps) }),
-    });
+      ...(corps === undefined ? {} : { body: JSON.stringify(corps) }), signal: AbortSignal.timeout(20_000),
+    }).catch((e: unknown) => { throw new Error(`${methode} ${chemin} : pas de réponse du serveur (${e instanceof Error ? e.message : String(e)})`); });
     const texte = await r.text();
     return { statut: r.status, corps: (texte ? JSON.parse(texte) : {}) as Record<string, unknown> };
   };
@@ -174,7 +182,7 @@ describe('enregistrer sans réseau, à la souris', () => {
     await expect.poll(() => attente(p, ent, 'Hors Réseau')).toBe(null);
     await p.screenshot({ path: path.join(PHOTOS, 'hors-ligne-envoi-2-parti.png') });
     // Et rien ne se double : la page rouverte ne renvoie rien.
-    await p.close();
+    await borne('fermer la page', p.close());
     p = await c.newPage();
     await ouvrir(p, `${adresse}/v10/?e=${ent}#/clients`);
     await p.waitForTimeout(1_500);
@@ -214,7 +222,7 @@ describe('enregistrer sans réseau, à la souris', () => {
     await renommerC1(p, 'Boulangerie du Lac (poste)');
     // Gardé sur le poste avant de fermer : le bandeau compte le changement de plus.
     await expect.poll(() => enAttente(p), { timeout: 10_000 }).toBeGreaterThan(apresAmal);
-    await p.close();
+    await borne('fermer la page', p.close());
     await retablir();
     await changerAilleurs(jeton, ent, 'Boulangerie du Lac (serveur)');
     await c.setOffline(false);
@@ -260,7 +268,7 @@ describe('enregistrer sans réseau, à la souris', () => {
     await couper(c);
     await nouveauClient(p, 'Épicerie du Retour');
     await expect.poll(() => enAttente(p), { timeout: 10_000 }).toBe(1);
-    await p.close();
+    await borne('fermer la page', p.close());
     // Pendant la coupure, la session a pris fin au serveur (12 heures sans rien faire).
     await retablir();
     expect((await api('POST', '/deconnexion', jeton)).statut).toBe(200);
