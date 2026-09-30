@@ -58,7 +58,7 @@ export function App() {
 
   const sortir = useCallback(async () => {
     await appeler('POST', '/deconnexion').catch(() => undefined);
-    session.fermer();
+    session.quitter();
     setMoi(null);
     setAccueil({ ecran: 'connexion' });
   }, []);
@@ -69,6 +69,9 @@ export function App() {
       if (r.statut === 401) { session.fermer(); setAccueil({ ecran: 'connexion' }); return; }
       setMoi(r.corps);
     } catch (x) {
+      // Sans réseau, l'entreprise dont ce poste garde une copie s'ouvre quand même (brique 72).
+      const copie = x instanceof ErreurReseau ? session.horsLigne() : null;
+      if (copie) { location.assign(`/v10/?e=${encodeURIComponent(copie)}`); return; }
       toast(phrase(x instanceof ErreurReseau ? 'ecran.erreur_reseau' : 'ecran.erreur_serveur'), true);
     }
   }, []);

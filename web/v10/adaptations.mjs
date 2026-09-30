@@ -11,9 +11,9 @@ import { SANS_PAQUETS, lireFichier } from './sans-paquets.mjs';
 export const ADAPTATIONS = [
   {
     fichier: 'index.html',
-    pourquoi: 'le point de contact avec le serveur se charge avant tout le reste, et la mise en page du téléphone après la feuille de style de la v10',
+    pourquoi: 'le point de contact avec le serveur se charge avant tout le reste (précédé du poste, qui garde la copie pour le hors-ligne, brique 72), et la mise en page du téléphone après la feuille de style de la v10 ; l\'application s\'installe (son manifeste)',
     avant: '  <link rel="stylesheet" href="style.css">\n',
-    apres: '  <link rel="stylesheet" href="style.css">\n  <link rel="stylesheet" href="../plateforme/telephone.css">\n  <script src="../plateforme/pont.js"></script>\n  <script src="../plateforme/telephone.js"></script>\n',
+    apres: '  <link rel="stylesheet" href="style.css">\n  <link rel="manifest" href="/manifest.webmanifest">\n  <link rel="stylesheet" href="../plateforme/telephone.css">\n  <script src="../plateforme/poste.js"></script>\n  <script src="../plateforme/pont.js"></script>\n  <script src="../plateforme/telephone.js"></script>\n',
   },
   {
     fichier: 'app.js',

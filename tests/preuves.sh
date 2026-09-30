@@ -1124,7 +1124,8 @@ prouver "un net à payer de l'écran qui n'est pas celui que le serveur scelle" 
   "netAPayer: Number(netAPayer).toFixed(decimales)," "netAPayer: Number(netAPayer + 0.001).toFixed(decimales)," \
   "$PA"
 prouver "« Se déconnecter » qui ne ferme rien" $PONT \
-  "      try { sessionStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
+  "      try { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
+      await poste.effacer();
       location.replace('/');" "      void 0;" \
   "$PA"
 prouver "un conflit d'enregistrement qui finit en « Rien n'a été enregistré »" $PONT \
@@ -3987,6 +3988,89 @@ prouver "la reprise du portefeuille absente de la page vide" web/public/v10/cabi
 prouver "un portefeuille à anomalie qu'on peut quand même créer" web/public/v10/cabinet/app.js \
   "        \${n || !k ? '' : \`<button class=\"btn btn-primary\" id=\"ok\">Créer" "        \${!k ? '' : \`<button class=\"btn btn-primary\" id=\"ok\">Créer" \
   "$RW1"
+
+# ── Brique 72 : l'application installable, qui s'ouvre et se consulte sans réseau (docs/hors-ligne.md) ──
+HL1="sur mon ordinateur : la copie chiffrée ; sans réseau, l'entreprise se rouvre et se consulte ; le réseau revenu, on recharge ; déconnecté, le poste oublie"
+HL2="sur l'ordinateur d'un autre : rien n'est gardé, et sans réseau l'écran le dit"
+HL4="une page mise à jour, vue en ligne, est celle qui s'ouvre sans réseau"
+HL3="par l'entrée : mon ordinateur garde la session, le poste d'un autre non ; une nouvelle connexion efface les copies de la précédente"
+prouver "la clé de l'appareil exportable" web/public/plateforme/poste.js \
+  "{ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']" "{ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']" \
+  "$HL1"
+prouver "la copie du poste gardée en clair" web/public/plateforme/poste.js \
+  "    const chiffre = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await cle(), new TextEncoder().encode(JSON.stringify(contenu)));" "    const chiffre = new TextEncoder().encode(JSON.stringify(contenu)).buffer;" \
+  "$HL1"
+prouver "une copie gardée sur l'ordinateur d'un autre" web/public/plateforme/poste.js \
+  "  const garde = () => { try { return !!localStorage.getItem('skanfact.jeton'); } catch { return false; } };" "  const garde = () => true;" \
+  "$HL2"
+prouver "la copie qui survit à la déconnexion" web/public/plateforme/poste.js \
+  "    await new Promise((ok) => { const r = indexedDB.deleteDatabase(BASE); r.onsuccess = r.onerror = r.onblocked = () => ok(undefined); });" "" \
+  "$HL1"
+prouver "le bandeau qui tait de quand date la copie" web/public/plateforme/poste.js \
+  "    if (o.copieLe) copieLue = o.copieLe;
+" "" \
+  "$HL1"
+prouver "le réseau revenu sans « Recharger »" web/public/plateforme/poste.js \
+  "    if (!copieLue) { if (bandeau) bandeau.hidden = true; return; }" "    if (bandeau) bandeau.hidden = true; return;" \
+  "$HL1"
+prouver "le retour du réseau qu'on n'entend pas" web/public/plateforme/poste.js \
+  "  window.addEventListener('online', () => enLigne());
+" "" \
+  "$HL1"
+prouver "l'écran vide sans un mot, hors ligne et sans copie" web/public/plateforme/poste.js \
+  "    poser(\`<span><strong>\${motif.replace(" "    void (\`<span><strong>\${motif.replace(" \
+  "$HL2"
+prouver "hors ligne, la copie du poste jamais ouverte" $PONT \
+  "        if (!/** @type {any} */ (e).horsLigne) throw e;
+        return { data: await lireLaCopie(), corruptFile: null };" "        throw e;" \
+  "$HL1"
+prouver "la copie jamais écrite après une lecture" $PONT \
+  "    questionsLues = data.questionsCabinet;
+    garderLaCopie();
+" "    questionsLues = data.questionsCabinet;
+" \
+  "$HL1"
+prouver "la session gardée après « Se déconnecter »" $PONT \
+  "sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
+      await poste.effacer();" "sessionStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
+      await poste.effacer();" \
+  "$HL1"
+prouver "la session du navigateur ignorée par l'application" $PONT \
+  "jeton = sessionStorage.getItem('skanfact.jeton') || localStorage.getItem('skanfact.jeton');" "jeton = sessionStorage.getItem('skanfact.jeton');" \
+  "$HL1"
+prouver "l'entrée qui, sans réseau, n'ouvre pas la copie" web/src/App.tsx \
+  "      if (copie) { location.assign(\`/v10/?e=\${encodeURIComponent(copie)}\`); return; }
+" "" \
+  "$HL1"
+prouver "la session jamais gardée sur mon ordinateur" web/src/api.ts \
+  "ecrire('skanfact.jeton', garder ? j : null, localStorage);" "ecrire('skanfact.jeton', null, localStorage);" \
+  "$HL3"
+prouver "la session gardée sur le poste d'un autre" web/src/api.ts \
+  "ecrire('skanfact.jeton', garder ? j : null, localStorage);" "ecrire('skanfact.jeton', j, localStorage);" \
+  "$HL3"
+prouver "les copies d'une autre session qui survivent à la connexion" web/src/api.ts \
+  "    jeton = j; effacerLePoste();" "    jeton = j;" \
+  "$HL3"
+prouver "la case « poste de quelqu'un d'autre » sans effet" web/src/ecrans/Connexion.tsx \
+  "      session.ouvrir(r.corps.jeton, !posteDUnAutre);" "      session.ouvrir(r.corps.jeton, true);" \
+  "$HL3"
+prouver "la case « poste de quelqu'un d'autre » oubliée au code" web/src/ecrans/Code.tsx \
+  "session.ouvrir(r.corps.jeton, !defi.posteDUnAutre);" "session.ouvrir(r.corps.jeton, true);" \
+  "$HL3"
+prouver "le menu fermé sans réseau (plus de « Se déconnecter »)" $PONT \
+  "        if (!/** @type {any} */ (e).horsLigne) throw e;
+        // Sans réseau : l'entreprise ouverte seulement" "        throw e;
+        // Sans réseau : l'entreprise ouverte seulement" \
+  "$HL1"
+prouver "les écrans jamais gardés pour le hors-ligne" web/public/sw.js \
+  "      if (r.ok) await (await caches.open(CACHE)).put(cle, r.clone());
+" "" \
+  "$HL4"
+prouver "sans réseau, les écrans gardés jamais servis" web/public/sw.js \
+  "      const garde = (await caches.match(cle)) || (e.request.mode === 'navigate' ? await caches.match('/') : undefined);
+      if (garde) return garde;
+" "" \
+  "$HL1"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

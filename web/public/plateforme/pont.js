@@ -15,7 +15,9 @@
   'use strict';
   /** @type {string | null} */
   let jeton = null;
-  try { jeton = sessionStorage.getItem('skanfact.jeton'); } catch { /* stockage refusé : pas de session */ }
+  // La session de l'onglet, ou celle gardée sur « mon ordinateur » (brique 72) : l'application se rouvre.
+  try { jeton = sessionStorage.getItem('skanfact.jeton') || localStorage.getItem('skanfact.jeton'); } catch { /* stockage refusé : pas de session */ }
+  /** @type {any} */ const poste = /** @type {any} */ (window).SkanPoste;
   const ent = new URLSearchParams(location.search).get('e');
   // Sans session ou sans entreprise, retour à la connexion.
   if (!jeton || !ent || !/^[0-9a-f-]{36}$/.test(ent)) { location.replace('/'); return; }
@@ -29,8 +31,13 @@
     try {
       r = await fetch(`/v1/entreprises/${ent}${chemin}`, { method: methode, headers: entetes, ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
     } catch (e) {
-      throw new Error('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e });
+      // Le réseau manque (brique 72) : le bandeau le dit, et la copie du poste prend le relais.
+      poste.horsLigne();
+      const x = new Error('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e });
+      /** @type {any} */ (x).horsLigne = true;
+      throw x;
     }
+    poste.enLigne();
     // La session est finie : retour à la connexion (ce qui n'est pas enregistré le dit à l'écran d'avant).
     if (r.status === 401) { location.replace('/'); throw new Error('Ta session est terminée : reconnecte-toi.'); }
     const texte = await r.text();
@@ -156,6 +163,7 @@
         if (c.contenu === null) vu.delete(k); else vu.set(k, { json: JSON.stringify(c.contenu), rang: c.rang, revision: rev });
       }
     }
+    garderLaCopie();
     return true;
   }
   /** @param {Record<string, unknown>} data */
@@ -181,6 +189,44 @@
     for (const o of r.objets) vu.set(`${o.collection}\u0000${o.cle}`, { json: JSON.stringify(o.contenu), rang: o.rang, revision: o.revision });
     const data = assembler(r.objets);
     data.questionsCabinet = await questionsDuCabinet();
+    questionsLues = data.questionsCabinet;
+    garderLaCopie();
+    return data;
+  }
+
+  // ── La copie du poste (brique 72 ; docs/hors-ligne.md, H3) ─────────────────────────────────
+  // Sur « mon ordinateur », ce que le serveur a (les objets et leurs révisions, tels que `vu` les
+  // connaît) se garde chiffré après chaque lecture et chaque enregistrement ; sans réseau, l'écran
+  // s'ouvre dessus.
+  /** @type {any[]} */ let questionsLues = [];
+  /** @type {ReturnType<typeof setTimeout> | null} */ let copieAFaire = null;
+  const objetsVus = () => [...vu].map(([k, v]) => {
+    const [collection = '', cle = ''] = k.split('\u0000');
+    return { collection, cle, rang: v.rang, revision: v.revision, contenu: JSON.parse(v.json) };
+  }).sort((a, b) => (a.collection < b.collection ? -1 : a.collection > b.collection ? 1 : (a.rang ?? 0) - (b.rang ?? 0)));
+  function garderLaCopie() {
+    if (!poste.garde()) return;
+    if (copieAFaire) clearTimeout(copieAFaire);
+    copieAFaire = setTimeout(() => {
+      copieAFaire = null;
+      poste.ecrireCopie(ent, { objets: objetsVus(), questions: questionsLues }).catch(() => { /* sans copie, le hors-ligne attendra la prochaine */ });
+    }, 300);
+  }
+  // Sans réseau : la copie du poste, ce qu'on en sait (révisions), et le bandeau qui dit de quand elle est.
+  async function lireLaCopie() {
+    const c = await poste.lireCopie(ent);
+    if (!c) {
+      // Rien à montrer : le bandeau dit pourquoi, et l'écran attend le réseau (« Réessayer »).
+      poste.sansCopie(poste.garde()
+        ? 'Hors ligne, et ce poste n\'a pas encore de copie de cette entreprise : ouvre-la une fois avec le réseau pour pouvoir la consulter ensuite sans lui.'
+        : 'Hors ligne : sur l\'ordinateur d\'un autre, rien n\'est gardé sur le poste. Reviens quand le réseau sera là.');
+      return await new Promise(() => { /* rien ne s'ouvre sans données */ });
+    }
+    vu = new Map();
+    for (const o of c.contenu.objets) vu.set(`${o.collection}\u0000${o.cle}`, { json: JSON.stringify(o.contenu), rang: o.rang, revision: o.revision });
+    const data = assembler(c.contenu.objets);
+    data.questionsCabinet = questionsLues = c.contenu.questions || [];
+    poste.horsLigne({ copieLe: c.le });
     return data;
   }
 
@@ -284,7 +330,12 @@
 
   /** @type {any} */ (window).skanfact = {
     dessinerMandat,
-    loadData: async () => ({ data: await relire(), corruptFile: null }),
+    loadData: async () => {
+      try { return { data: await relire(), corruptFile: null }; } catch (e) {
+        if (!/** @type {any} */ (e).horsLigne) throw e;
+        return { data: await lireLaCopie(), corruptFile: null };
+      }
+    },
     saveData: (/** @type {Record<string, unknown>} */ data) => enregistrer(data),
     dataPath: async () => 'Serveur SkanFact',
     setTitle: (/** @type {string} */ t) => { document.title = t; },
@@ -306,13 +357,21 @@
         rang: avant ? avant.rang : rang, netAPayer: Number(netAPayer).toFixed(decimales),
       });
       vu.set(k, { json: JSON.stringify(r.contenu), rang: avant ? avant.rang : rang, revision: r.revision });
+      garderLaCopie();
       return decoder(r.contenu);
     },
 
     // ── Les entreprises (les « dossiers » de la v10) ──────────────────────────────────────────
     // Un dossier de la v10 était un fichier sur l'ordinateur ; ici, c'est une entreprise du compte.
     listDossiers: async () => {
-      const moi = await appelCompte('GET', '/moi');
+      let moi;
+      try { moi = await appelCompte('GET', '/moi'); } catch (e) {
+        if (!/** @type {any} */ (e).horsLigne) throw e;
+        // Sans réseau : l'entreprise ouverte seulement (les autres se listent en ligne) ; le menu garde
+        // « Se déconnecter », qui efface la copie du poste même sans réseau.
+        const nom = String((((/** @type {any} */ (window).__data) || {}).company || {}).name || '');
+        return { dossiers: [{ id: ent, name: nom, shared: false, dir: 'Copie de ce poste' }], current: ent, device: { name: '' }, retires: [] };
+      }
       return {
         // Celles que la personne voit par son cabinet s'ouvrent dans le Cabinet, pas ici.
         dossiers: moi.entreprises.filter((/** @type {any} */ e) => !e.parCabinet)
@@ -335,9 +394,11 @@
     shareDossier: async () => ({ ok: false, error: PARTAGE }),
     joinDossier: async () => ({ ok: false, error: PARTAGE }),
     renameDevice: pasEncore('Nommer cet appareil'),
+    // Se déconnecter efface aussi ce que le poste garde (la copie chiffrée et sa clé).
     deconnecter: async () => {
       try { await appelCompte('POST', '/deconnexion'); } catch { /* la session se ferme de toute façon ici */ }
-      try { sessionStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
+      try { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
+      await poste.effacer();
       location.replace('/');
     },
 
@@ -439,8 +500,12 @@
     try {
       r = await fetch(`/v1${chemin}`, { method: methode, headers: entetes, ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
     } catch (e) {
-      throw new Error('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e });
+      poste.horsLigne();
+      const x = new Error('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e });
+      /** @type {any} */ (x).horsLigne = true;
+      throw x;
     }
+    poste.enLigne();
     if (r.status === 401) { location.replace('/'); throw new Error('Ta session est terminée : reconnecte-toi.'); }
     const texte = await r.text();
     /** @type {any} */

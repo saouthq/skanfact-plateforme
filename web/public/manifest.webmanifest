@@ -1,0 +1,16 @@
+{
+  "name": "SkanFact",
+  "short_name": "SkanFact",
+  "description": "Gestion commerciale, caisse, paie et comptabilité, avec ton cabinet comptable.",
+  "lang": "fr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f9d8f",
+  "icons": [
+    { "src": "/icones/skanfact-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icones/skanfact-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icones/skanfact-masquable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -12,5 +12,8 @@ const appliquerTheme = () => document.body.classList.toggle('dark', sombre.match
 appliquerTheme();
 sombre.addEventListener('change', appliquerTheme);
 
+// Le service des écrans (brique 72) : l'application s'installe, et s'ouvre sans réseau.
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => { /* en ligne, tout marche sans lui */ });
+
 const racine = document.getElementById('racine');
 if (racine) createRoot(racine).render(<StrictMode><App /></StrictMode>);

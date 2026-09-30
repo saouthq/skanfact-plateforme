@@ -60,8 +60,9 @@ scelle, et un avoir la corrige (un avoir total la solde : « annulée » se déd
 - **Les sauvegardes d'UNE entreprise** vues par la personne (`createBackup`, `listBackups`,
   `peekBackup`, `restoreBackup`) : le serveur sait exporter et restaurer une entreprise, pas encore
   depuis l'écran.
-- **Hors ligne** : le pont ne garde pas encore les changements faits pendant une coupure
-  (`docs/cadrage/04-hors-ligne-et-synchro.md` du dépôt `skanfact`).
+- **Hors ligne** : l'application s'installe, s'ouvre et se consulte sans réseau depuis la brique 72
+  (`docs/hors-ligne.md`) ; le pont ne garde pas encore les changements faits pendant une coupure (la
+  file d'envoi, brique suivante).
 - **Les gros dossiers** : le dossier se charge en entier ; à mesurer (la règle : toute liste se
   pagine).
 - La version affichée au pied de la barre (« vdev »), le journal des erreurs du serveur

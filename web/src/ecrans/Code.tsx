@@ -19,7 +19,7 @@ export function Code({ defi, connecte, retour }: { defi: Defi; connecte: () => v
     try {
       r = await appeler<{ etat: string; jeton?: string }>('POST', '/connexion/code', { defi: defi.defi, code: code.replace(/\s/g, ''), posteDUnAutre: defi.posteDUnAutre });
     } catch (x) { g.refuser({ texte: phrase(x instanceof ErreurReseau ? 'ecran.erreur_reseau' : 'ecran.erreur_serveur'), champ: null }); return; }
-    if (r.corps.etat === 'connecte' && r.corps.jeton) { session.ouvrir(r.corps.jeton); connecte(); }
+    if (r.corps.etat === 'connecte' && r.corps.jeton) { session.ouvrir(r.corps.jeton, !defi.posteDUnAutre); connecte(); }
     // Un code faux tient au champ du code, même quand le serveur ne le nomme pas.
     else g.refuser({ ...refusDe(r), champ: 'code' });
   });

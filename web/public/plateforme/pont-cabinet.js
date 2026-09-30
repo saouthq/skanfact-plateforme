@@ -11,7 +11,8 @@
   'use strict';
   /** @type {string | null} */
   let jeton = null;
-  try { jeton = sessionStorage.getItem('skanfact.jeton'); } catch { /* stockage refusé : pas de session */ }
+  // La session de l'onglet, ou celle gardée sur « mon ordinateur » (brique 72, docs/hors-ligne.md).
+  try { jeton = sessionStorage.getItem('skanfact.jeton') || localStorage.getItem('skanfact.jeton'); } catch { /* stockage refusé : pas de session */ }
   const cabinetId = new URLSearchParams(location.search).get('c');
   if (!jeton || !cabinetId || !/^[0-9a-f-]{36}$/.test(cabinetId)) { location.replace('/'); return; }
 
@@ -943,7 +944,9 @@
     // Verrouiller ferme la session : on rouvre avec son mot de passe, comme la v10 le promet.
     lock: async () => {
       try { await fetch('/v1/deconnexion', { method: 'POST', headers: { authorization: `Bearer ${jeton}` } }); } catch { /* la session se ferme de toute façon ici */ }
-      try { sessionStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
+      try { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.hors_ligne'); } catch { /* rien à retirer */ }
+      // Ce que le poste gardait pour le hors-ligne (les copies chiffrées et leur clé) s'efface aussi.
+      try { indexedDB.deleteDatabase('skanfact-poste'); } catch { /* rien de gardé */ }
       location.replace('/');
       return true;
     },

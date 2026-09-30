@@ -27,7 +27,7 @@ export function Connexion({ connecte, code, inscription }: Props) {
       });
     } catch (x) { g.refuser({ texte: phrase(x instanceof ErreurReseau ? 'ecran.erreur_reseau' : 'ecran.erreur_serveur'), champ: null }); return; }
     if (r.corps.etat === 'connecte' && r.corps.jeton) {
-      session.ouvrir(r.corps.jeton);
+      session.ouvrir(r.corps.jeton, !posteDUnAutre);
       if (!posteDUnAutre) session.retenirAppareil(r.corps.appareil ?? null);
       connecte();
     } else if (r.corps.etat === 'code' && r.corps.defi && r.corps.methode) {
