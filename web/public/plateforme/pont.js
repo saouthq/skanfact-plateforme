@@ -305,7 +305,7 @@
   /** @param {any} lu */
   const finDeSession = (lu) => (finEnCours = finEnCours || (async () => {
     if (lu && lu.effacer) {
-      if (!(await remettre())) {
+      if ((await remettre()) === null) {
         poste.sansCopie('Cet appareil a été retiré de ton compte. Ce qu\'il avait enregistré sans réseau n\'a pas encore pu être remis au serveur : rien n\'est effacé tant qu\'il ne l\'a pas reçu.');
         return;
       }
@@ -314,20 +314,37 @@
     location.replace('/');
   })());
   // Remettre ce qui attend, par rapport à ce que le poste avait vu (`vu` : la copie, que la page ait
-  // gardé l'attente ou l'ait relue à l'ouverture) : `true` quand le serveur l'a reçu, ou qu'il n'y avait
-  // rien à remettre.
+  // gardé l'attente ou l'ait relue à l'ouverture) : le nombre de changements que le serveur a reçus (0
+  // s'il n'y avait rien à remettre), ou null quand la remise n'a pas pu passer.
+  /** @returns {Promise<number | null>} */
   async function remettre() {
     const attente = await poste.lireAttente(ent).catch(() => null);
-    if (!attente) return true;
+    if (!attente) return 0;
     const changements = changementsDe(attente.contenu.data);
-    if (!changements.length) return true;
+    if (!changements.length) return 0;
     try {
       const r = await fetch('/v1/quarantaine', {
         method: 'POST', headers: { authorization: `Bearer ${jeton}`, 'content-type': 'application/json' },
         body: JSON.stringify({ entreprise: ent, changements }),
       });
-      return r.status < 500;
-    } catch { return false; }
+      if (r.status >= 500) return null;
+      /** @type {any} */ const lu = await r.json().catch(() => ({}));
+      return typeof lu.recus === 'number' ? lu.recus : 0;
+    } catch { return null; }
+  }
+  // L'entreprise ne s'ouvre plus à cette personne (retirée de son équipe, brique 76 ; 03 D8) : ce qui
+  // l'attendait est remis, puis ce que le poste en gardait s'efface — elle seule —, et le bandeau le dit.
+  async function plusOuverte() {
+    const recus = await remettre();
+    if (recus === null) {
+      poste.sansCopie('Cette entreprise ne t\'est plus ouverte. Ce que tu y avais enregistré sans réseau n\'a pas encore pu être remis au serveur : rien n\'est effacé tant qu\'il ne l\'a pas reçu.');
+      return await new Promise(() => { /* rien ne s'ouvre */ });
+    }
+    await poste.effacerEntreprise(ent);
+    const remis = recus > 1 ? `, et tes ${recus} changements faits hors ligne sont remis à son propriétaire, qui décidera`
+      : recus === 1 ? ', et ton changement fait hors ligne est remis à son propriétaire, qui décidera' : '';
+    poste.conclure(`Cette entreprise ne t'est plus ouverte (tu as été retiré de son équipe, ou elle n'existe plus) : ce que ce poste en gardait est effacé${remis}.`);
+    return await new Promise(() => { /* rien ne s'ouvre */ });
   }
 
   // Sans réseau : la copie du poste, ce qu'on en sait (révisions), et le bandeau qui dit de quand elle est.
@@ -459,6 +476,7 @@
         await chargerRemises();
         return { data, corruptFile: null };
       } catch (e) {
+        if (/** @type {any} */ (e).statut === 404) return await plusOuverte();
         if (!/** @type {any} */ (e).horsLigne) throw e;
         const copie = await lireLaCopie();
         if (!attente) return { data: copie, corruptFile: null };

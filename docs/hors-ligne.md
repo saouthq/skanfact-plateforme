@@ -193,3 +193,25 @@ rechargement ; l'application qui demande à garder (un premier lancement) — ac
 attend et la limite ; le réseau revenu sans le serveur ne remet pas le compte à zéro ; le serveur
 revenu, ce qui attendait part (avec ce qui était resté à l'écran), et le compte repart. Les parcours
 hors ligne des briques 72 à 74 bis jouent l'application installée (le stockage persistant accordé).
+
+## Brique 76 : un membre retiré (fait le 30/09/2026)
+
+**H13. Une personne retirée de l'équipe : ses postes effacent ce qu'ils gardaient de CETTE entreprise,
+après avoir remis ce qui l'attendait** (par délégation ; 03 D8 : « un membre retiré voit les données
+de cette entreprise effacées de ses postes à leur reconnexion »). Quand son poste rouvre l'entreprise
+avec le réseau, le serveur ne la lui montre plus : l'écran remet d'abord ce qui l'attendait (en
+quarantaine, comme un appareil retiré, H10 : sa session est valable, et la base vérifie qu'elle a été
+membre et ne l'est plus, 0045), puis efface la copie, ce qui attendait et le souvenir de cette
+entreprise — **les autres entreprises du poste restent** —, et le bandeau le dit (« Cette entreprise ne
+t'est plus ouverte (tu as été retiré de son équipe, ou elle n'existe plus) : ce que ce poste en gardait
+est effacé, et ton changement fait hors ligne est remis à son propriétaire, qui décidera. »), avec
+« Continuer », qui mène à l'entrée. Une remise qui échoue n'efface rien, et l'écran le dit. Le
+propriétaire décide de la remise comme pour un appareil retiré.
+
+**Les tests** : par l'API (`tests/socle/quarantaine.test.ts`) — encore membre, rien n'est reçu ; retiré,
+sa session valable remet ; jamais membre, rien ; le propriétaire voit qui et depuis quel appareil. À la
+souris (`tests/web/membre-retire.test.ts`) — Karim, administrateur de l'épicerie et patron de sa propre
+entreprise, crée un client sans réseau ; Nadia le retire ; son portable rouvre l'épicerie : une remise
+qui échoue n'efface rien, « Réessayer » remet, la copie et l'attente de l'épicerie s'effacent (celle de
+son entreprise reste), l'entrée ne la rouvrira plus sans réseau, et « Continuer » ouvre son entreprise ;
+Nadia voit la remise.

@@ -8,7 +8,9 @@
 //   - le propriétaire voit la remise (qui, quel appareil, quoi) et décide : accepter applique chaque
 //     changement comme s'il arrivait maintenant, avec la révision que l'appareil avait vue ; ce qui a
 //     changé depuis est mis de côté et dit, la version du serveur gardée ; rejeter n'applique rien ;
-//     une remise ne se décide qu'une fois, et ne se réécrit jamais.
+//     une remise ne se décide qu'une fois, et ne se réécrit jamais ;
+//   - une personne retirée de l'équipe (brique 76) remet aussi, par sa session valable ; encore membre,
+//     jamais membre, ou session fermée : rien.
 
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
@@ -139,5 +141,34 @@ describe('la quarantaine', () => {
     // L'autre entreprise ne voit rien de tout ça, pas même dans la base.
     expect((await appeler('GET', `/entreprises/${autre.ent}/quarantaine`, autre.bureau.jeton)).corps.remises).toEqual([]);
     expect((await enTantQue(pool, autre.utilisateur, (tx) => tx.query('select count(*)::int n from socle.quarantaine'))).rows[0].n).toBe(0);
+  });
+
+  it('un membre retiré remet par sa session valable ; encore membre, ou jamais membre, rien n\'est reçu', async () => {
+    const { ent, bureau, session } = await nadia();
+    // Karim, administrateur de l'épicerie (le code en place : son rôle l'exige).
+    const email = `karim-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await appeler('POST', '/inscription', undefined, { email, nom: 'Karim', motDePasse: 'Un-bon-mot-de-passe' });
+    const karim = String((await appeler('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Portable de Karim', type: 'navigateur' } })).corps.jeton);
+    await appeler('POST', '/moi/code', karim, { methode: 'application' });
+    const invitation = String((await appeler('POST', `/entreprises/${ent}/invitations`, bureau.jeton, { email, roles: ['administrateur'] })).corps.jeton);
+    expect((await appeler('POST', '/invitations/accepter', karim, { jeton: invitation })).statut).toBe(200);
+    const changements = [{ collection: 'clients', cle: 'k1', rang: 1, revision: null, contenu: { id: 'k1', name: 'Client de Karim' } }];
+    // Encore membre : il enregistre par le chemin ordinaire, rien n'est reçu ici.
+    expect((await appeler('POST', '/quarantaine', karim, { entreprise: ent, changements })).statut).toBe(401);
+    // Retiré de l'épicerie : sa session reste valable (il a d'autres entreprises), et il remet.
+    const membre = String((await admin.query('select m.id from socle.membre m join socle.utilisateur u on u.id = m.utilisateur where u.email = $1 and m.entreprise = $2', [email, ent])).rows[0].id);
+    expect((await appeler('DELETE', `/entreprises/${ent}/membres/${membre}`, bureau.jeton)).statut).toBe(200);
+    expect((await appeler('GET', `/entreprises/${ent}/dossier-v10`, karim)).statut).toBe(404);
+    expect(await appeler('POST', '/quarantaine', karim, { entreprise: ent, changements })).toEqual({ statut: 200, corps: { recus: 1 } });
+    // Jamais membre de l'autre entreprise : rien.
+    const autre = await nadia();
+    expect((await appeler('POST', '/quarantaine', karim, { entreprise: autre.ent, changements })).statut).toBe(401);
+    // Le propriétaire la voit : Karim, depuis son portable.
+    const remises = (await appeler('GET', `/entreprises/${ent}/quarantaine`, bureau.jeton)).corps.remises as { appareil: string; utilisateur: string }[];
+    expect(remises.map((r) => [r.appareil, r.utilisateur])).toEqual([['Portable de Karim', 'Karim']]);
+    // Une session fermée ne remet plus rien.
+    await appeler('POST', '/deconnexion', karim);
+    expect((await appeler('POST', '/quarantaine', karim, { entreprise: ent, changements })).statut).toBe(401);
+    void session;
   });
 });

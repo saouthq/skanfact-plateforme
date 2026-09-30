@@ -88,6 +88,14 @@
     try { localStorage.removeItem(DERNIERE); localStorage.removeItem('skanfact.poste_de'); } catch { /* rien à retirer */ }
     await new Promise((ok) => { const r = indexedDB.deleteDatabase(BASE); r.onsuccess = r.onerror = r.onblocked = () => ok(undefined); });
   }
+  // Ce que le poste garde d'UNE entreprise (brique 76 : la personne n'en fait plus partie) : sa copie,
+  // ce qui l'attendait, et le souvenir de l'avoir ouverte en dernier. Les autres entreprises restent.
+  /** @param {string} id */
+  async function effacerEntreprise(id) {
+    await faire('copies', 'readwrite', (s) => s.delete(id));
+    await faire('attentes', 'readwrite', (s) => s.delete(id));
+    try { if (localStorage.getItem(DERNIERE) === id) localStorage.removeItem(DERNIERE); } catch { /* rien à retirer */ }
+  }
 
   // ── Les limites du hors-ligne (brique 75 ; docs/hors-ligne.md, H11 et H12) ────────────────────
   // Le stockage persistant (04 § 4) : sans lui, le navigateur peut vider ce que le poste garde
@@ -203,6 +211,13 @@
       const o = document.getElementById('poste-oui'); if (o) o.onclick = () => fin(true);
     });
   }
+  // Ce qui clôt la page (brique 76), et le bouton qui continue, vers l'entrée.
+  /** @param {string} texte */
+  function conclure(texte) {
+    poser(`<span><strong>${esc(texte)}</strong></span><button type="button" id="poste-continuer">Continuer</button>`);
+    const b = document.getElementById('poste-continuer');
+    if (b) b.onclick = () => location.replace('/');
+  }
   // Hors ligne, sans rien à montrer : la raison, et le bouton qui réessaie.
   /** @param {string} motif */
   function sansCopie(motif) {
@@ -223,7 +238,7 @@
   window.addEventListener('online', () => enLigne(false));
 
   /** @type {any} */ (window).SkanPoste = {
-    garde, ecrireCopie, lireCopie, ecrireAttente, lireAttente, effacerAttente, effacer,
+    garde, ecrireCopie, lireCopie, ecrireAttente, lireAttente, effacerAttente, effacer, effacerEntreprise, conclure,
     horsLigne, enLigne, sansCopie, attente, envoye, demander, annoncer, limite,
     /** @param {() => void} f */ auRetour: (f) => { quandRevenu = f; },
   };

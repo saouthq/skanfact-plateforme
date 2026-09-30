@@ -166,13 +166,19 @@ export async function jetonDUnAppareilRetire(ctx: Contexte, jeton: string): Prom
   return enTantQue(ctx.pool, null, async (tx) => (await tx.query('select socle.jeton_d_un_appareil_retire($1) r', [sha256(jeton)])).rows[0].r as boolean);
 }
 
-// La quarantaine (brique 74 bis) : ce qu'un appareil retiré avait en attente, remis par son jeton avant
-// qu'il efface tout. Rend le nombre de changements faits par la personne, ou null (rien n'est reçu :
-// jeton qui n'est pas celui d'une session ouverte au retrait, ou entreprise dont elle n'est pas membre).
+// La quarantaine (briques 74 bis et 76) : ce qu'un appareil retiré (0044), ou une personne retirée de
+// l'entreprise (0045), avait en attente, remis par son jeton avant d'effacer. Rend le nombre de
+// changements faits par la personne, ou null (rien n'est reçu : ni l'un ni l'autre).
 export async function mettreEnQuarantaine(ctx: Contexte, jeton: string, entreprise: string, changements: unknown[]): Promise<number | null> {
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
-  return enTantQue(ctx.pool, null, async (tx) => (await tx.query('select socle.mettre_en_quarantaine($1, $2, $3, $4) n',
+  const retire = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select socle.mettre_en_quarantaine($1, $2, $3, $4) n',
     [sha256(jeton), entreprise, JSON.stringify(changements), maintenant])).rows[0].n as number | null);
+  if (retire !== null) return retire;
+  // Une personne retirée de l'entreprise (brique 76) : sa session est valable, elle n'en est plus membre.
+  const qui = await quiEst(ctx, jeton);
+  if (!qui) return null;
+  return enTantQue(ctx.pool, null, async (tx) => (await tx.query('select socle.remettre_d_un_membre_retire($1, $2, $3, $4) n',
+    [qui.session, entreprise, JSON.stringify(changements), maintenant])).rows[0].n as number | null);
 }
 // Ce que cette session d'un appareil retiré a remis : l'entrée le dit à la personne.
 export async function remisParCeJeton(ctx: Contexte, jeton: string): Promise<number> {

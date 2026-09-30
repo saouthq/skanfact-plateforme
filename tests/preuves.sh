@@ -4229,14 +4229,15 @@ prouver "une remise décidée deux fois" serveur/v10/routes.ts \
 " "" \
   "$AQ1"
 prouver "l'appareil retiré qui efface sans remettre" $PONT \
-  "      if (!(await remettre())) {" "      if (false) {" \
+  "      if ((await remettre()) === null) {" "      if (false) {" \
   "$AW2"
 prouver "une remise ratée qui efface quand même" $PONT \
   "n\\'est effacé tant qu\\'il ne l\\'a pas reçu.');
         return;" "n\\'est effacé tant qu\\'il ne l\\'a pas reçu.');" \
   "$AW2"
 prouver "un serveur qui trébuche pris pour une remise reçue" $PONT \
-  "      return r.status < 500;" "      return true;" \
+  "      if (r.status >= 500) return null;
+" "" \
   "$AW2"
 prouver "l'entrée qui efface avant que l'entreprise ne remette" web/src/api.ts \
   "    if (gardee && jeton) {" "    if (false) {" \
@@ -4301,6 +4302,54 @@ prouver "hors limite, l'enregistrement gardé quand même" $PONT \
 prouver "le refus hors limite qui ne dit pas pourquoi" $PONT \
   "    return l ? Object.assign(new Error(l), { horsLigne: true }) : e;" "    return e;" \
   "$HP1"
+
+# ── Brique 76 : un membre retiré (docs/hors-ligne.md, H13) ──
+AQ3="un membre retiré remet par sa session valable ; encore membre, ou jamais membre, rien n'est reçu"
+MR1="le portable de Karim, retiré de l'équipe : ce qu'il avait fait est remis, la copie de l'épicerie s'efface, la sienne reste"
+M45=base/migrations/0045_membre_retire.sql
+prouver "une remise d'un membre encore actif" $M45 \
+  " and m.entreprise = p_entreprise and not m.actif) then" " and m.entreprise = p_entreprise) then" \
+  "$AQ3"
+prouver "une remise dans une entreprise dont on n'a jamais été membre" $M45 \
+  "  if not exists (select 1 from socle.membre m where m.utilisateur = s.utilisateur and m.entreprise = p_entreprise and not m.actif) then
+    return null;
+  end if;
+" "" \
+  "$AQ3"
+prouver "le membre retiré jamais entendu" serveur/connexion.ts \
+  "  if (retire !== null) return retire;" "  return retire;" \
+  "$AQ3"
+prouver "l'entreprise qui ne s'ouvre plus, et le poste qui garde sa copie" $PONT \
+  "        if (/** @type {any} */ (e).statut === 404) return await plusOuverte();
+" "" \
+  "$MR1"
+prouver "le membre retiré qui efface sans remettre" $PONT \
+  "    if (recus === null) {" "    if (false) {" \
+  "$MR1"
+prouver "le souvenir d'une entreprise fermée gardé pour l'entrée" $POSTE \
+  "    try { if (localStorage.getItem(DERNIERE) === id) localStorage.removeItem(DERNIERE); } catch { /* rien à retirer */ }
+" "" \
+  "$MR1"
+prouver "la copie d'une entreprise fermée gardée" $POSTE \
+  "    await faire('copies', 'readwrite', (s) => s.delete(id));
+" "" \
+  "$MR1"
+prouver "ce qui attendait une entreprise fermée gardé" $POSTE \
+  "    await faire('attentes', 'readwrite', (s) => s.delete(id));
+" "" \
+  "$MR1"
+prouver "le bandeau qui tait ce qui a été remis" $PONT \
+  "      : recus === 1 ? ', et ton changement fait hors ligne est remis à son propriétaire, qui décidera' : '';" "      : '';" \
+  "$MR1"
+prouver "le nombre remis jamais lu" $PONT \
+  "      return typeof lu.recus === 'number' ? lu.recus : 0;" "      return 0;" \
+  "$MR1"
+prouver "« Continuer » qui ne mène nulle part" $POSTE \
+  "    if (b) b.onclick = () => location.replace('/');
+  }
+  // Hors ligne, sans rien à montrer" "  }
+  // Hors ligne, sans rien à montrer" \
+  "$MR1"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
