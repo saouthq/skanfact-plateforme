@@ -64,4 +64,10 @@
     grid-template-areas: "lab lab lab" "qte unite pu" "tva total total" "outils outils outils";
   }
   table.lignes-doc td.line-tools { text-align: start; }
+
+  /* Les lignes d'un achat (l'écran d'achat, et la relecture d'une facture lue en photo : brique 84, la
+     photo se prend au téléphone) : le tableau défile dans son cadre, jamais la page. */
+  table.lines-edit.buy-lines { display: block; overflow-x: auto; }
+  table.lines-edit.buy-lines td input, table.lines-edit.buy-lines td select { min-width: 72px; }
+  table.lines-edit.buy-lines td:first-child input { min-width: 170px; }
 }

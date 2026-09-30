@@ -635,10 +635,39 @@
     openAttachment: pasEncore('Ouvrir une pièce jointe'),
     revealAttachment: pasEncore('Montrer une pièce jointe'),
     removeAttachment: async () => undefined,
-    ocrStatus: async () => ({ hasKey: false }),
-    ocrSetKey: pasEncore('La lecture des factures par photo'),
-    ocrPick: pasEncore('La lecture des factures par photo'),
-    ocrRead: pasEncore('La lecture des factures par photo'),
+    // ── La lecture d'une facture d'achat (brique 84 ; docs/achats.md) : par le serveur de SkanFact ──────
+    // Le serveur dit s'il sait lire (et si cette personne a le geste) ; le fichier choisi part tel quel, et
+    // revient une PROPOSITION que la fenêtre de la v10 fait relire. Les pièces jointes, elles, ne sont pas
+    // encore en ligne : la lecture ne tente pas d'y ranger le fichier.
+    lectureSurLeServeur: true,
+    piecesJointes: false,
+    ocrStatus: async () => {
+      etatLecture ??= appel('GET', '/achats/lecture').catch((/** @type {any} */ e) => { if (e.horsLigne) etatLecture = null; return { disponible: false }; });
+      const st = await etatLecture;
+      return { hasKey: !!(st && st.disponible) };
+    },
+    ocrSetKey: pasEncore('La clé d\'un service de lecture à l\'étranger'),
+    ocrPick: async () => {
+      const f = await choisirFichier('image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf');
+      if (!f) return null;
+      if (f.size > LECTURE_MAX) throw new Error(`Le fichier « ${f.name} » fait ${(f.size / 1048576).toFixed(1).replace('.', ',')} Mo : au-delà de 10 Mo, il ne se lit pas. Prends une photo moins lourde.`);
+      const chemin = `lecture:${++lecturesChoisies}`;
+      fichiersALire.set(chemin, f);
+      return { path: chemin, name: f.name, size: f.size, type: f.type };
+    },
+    ocrRead: async (/** @type {string} */ chemin) => {
+      const f = fichiersALire.get(chemin);
+      if (!f) throw new Error('Le fichier choisi n\'est plus là : choisis-le de nouveau.');
+      fichiersALire.delete(chemin);
+      const contenu = await new Promise((ok, ko) => {
+        const r = new FileReader();
+        r.onload = () => ok(String(r.result).replace(/^data:[^,]*,/, ''));
+        r.onerror = () => ko(new Error(`« ${f.name} » ne se lit pas sur cet appareil.`));
+        r.readAsDataURL(f);
+      });
+      const r = await appel('POST', '/achats/lecture', { nom: f.name, contenu });
+      return Object.assign({}, r.lecture, { remarques: r.remarques || [], ou: r.ou || {}, moteur: r.moteur });
+    },
     buildPack: pasEncore('Le paquet pour le comptable'),
     onPackProgress: () => () => undefined,
     importCabinet: pasEncore('La réponse du cabinet'),
@@ -842,6 +871,12 @@
   /** @type {Record<string, string>} */
   const CANAUX = { email: 'envoyé par e-mail', whatsapp: 'envoyé par WhatsApp' };
   /** @type {Window | null} */ let fenetreWhatsApp = null;
+  // La lecture d'une facture d'achat (brique 84) : ce que le serveur dit de sa lecture (demandé une fois),
+  // et les fichiers choisis, le temps de les envoyer.
+  /** @type {Promise<any> | null} */ let etatLecture = null;
+  /** @type {Map<string, File>} */ const fichiersALire = new Map();
+  let lecturesChoisies = 0;
+  const LECTURE_MAX = 10 * 1048576;
   // « Veuillez trouver ci-joint notre facture » : rien n'est joint. La phrase des modèles devient « Voici ».
   /** @param {string} texte */
   function sansPieceJointe(texte) {

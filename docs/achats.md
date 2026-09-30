@@ -124,3 +124,124 @@ son prochain changement (la plateforme n'a pas encore de données réelles).
   sur leur champ), un règlement (trop précis, refusé sur son champ), un avoir depuis la liste ; le
   reste de l'écran (221,927 DT) égale celui du serveur ; la facture ne se supprime pas sous son avoir.
 - Chaque test est prouvé en réintroduisant son défaut (`tests/preuves.sh`).
+
+---
+
+# Brique 84 : lire une facture d'achat en photo ou en PDF, sur nos serveurs
+
+*Conception du 30/09/2026 (par délégation ; cadrage `14` § 2.3, `12` § 3 et § 10 point 7, `03` § 2.3).*
+
+La v10 envoyait la photo d'une facture à un service à l'étranger, avec une clé saisie dans les Paramètres ;
+cette lecture était en pause depuis la 8.7.0. Sur la plateforme, **le serveur de SkanFact lit lui-même**, en
+Tunisie : aucune image ne sort.
+
+## Ce que fait la brique
+
+**L1. Le moteur, sur nos serveurs** (`serveur/achats/lecteur.ts`). Un PDF écrit par un logiciel porte son
+texte : Poppler le lit tel quel (`pdftotext`, rien n'est deviné). Une photo (JPEG, PNG, WEBP), ou un PDF
+scanné page par page (`pdftoppm`, trois pages au plus), passe à **Tesseract en français** (5.3.4). Le type
+d'un fichier se lit sur ses premiers octets, jamais sur son nom. Le fichier vit dans un dossier temporaire le
+temps de la lecture, puis s'efface : il n'est **ni gardé, ni écrit dans le journal**. Chaque programme est
+lancé sans interpréteur de commandes, avec sa limite de temps (60 secondes).
+
+**L2. La file de la lecture.** Au plus deux lectures à la fois par serveur (`SKANFACT_LECTURES`), les suivantes
+attendent leur tour (huit au plus, 90 secondes au plus) ; au-delà : « le lecteur de factures est occupé :
+réessaie dans une minute ». Un serveur sans Tesseract (avec le français) ou sans Poppler n'a pas la lecture,
+et le dit (le bouton ne paraît pas ; l'API répond « pas branchée »). À la mise en service, la lecture tournera
+sur son propre serveur, sans accès à la base (`09` § 4).
+
+**L3. Une proposition, jamais un enregistrement** (`POST /entreprises/:e/achats/lecture`, geste
+`achats.facture.lire` : propriétaire, administrateur, comptabilité interne, `03` § 2.3). La réponse dit le
+fournisseur, son matricule, le numéro, la date, l'échéance, l'objet, la devise, le timbre (et le FODEC), le
+hors-taxes, le total et les lignes (quantité, prix, taux) ; les montants en **texte exact** (01 R3). Rien n'entre
+dans les données : la fenêtre de la v10 (« Ce que SkanFact a lu ») les fait relire, puis « Utiliser ces
+informations » pré-remplit l'achat, qui ne s'enregistre qu'à « Enregistrer ».
+
+**L4. Chaque champ dit où il a été lu** (`ou`) : sous chaque champ de la fenêtre, « Lu : « … » », la ligne de la
+pièce (et celle des étiquettes, quand les valeurs sont écrites sous elles) ; sous le total des lignes, la ligne
+du hors-taxes. Elle se lit en entier, même sur un téléphone.
+
+**L5. Deux chemins, un chiffre** (`serveur/achats/lecture-facture.ts`). Le total se **recompte** depuis les
+montants lus (hors taxes, TVA taux par taux, timbre, FODEC) : s'il tombe sur le total lu (le TTC, ou le net à
+payer retenue rajoutée), la fenêtre le dit ; sinon, elle dit les deux chiffres et « SkanFact ne choisit pas :
+vérifie ces montants sur la pièce » — le total lu reste celui de la pièce, rien n'est « corrigé ». Chaque TVA
+se recompte aussi sur sa base ; un total illisible, ou seul lisible, se dit.
+
+**L6. Aucun taux supposé.** Un taux se lit sur la pièce, tel qu'elle l'imprime (aucun taux n'est écrit dans le
+code du serveur). Une ligne sans taux lisible le reçoit :
+- de la seule répartition des lignes qui refait EXACTEMENT les bases annoncées par la pièce (plusieurs
+  répartitions possibles, ou aucune : rien n'est choisi) ;
+- sinon, la remarque le dit, avec les bases que la pièce annonce ; la fenêtre de la v10 met alors la ligne
+  au taux d'une ligne neuve, et le dit (un taux non lu n'est **jamais** une TVA à 0 % : défaut de la v10,
+  corrigé en passant) ;
+- un taux lu que SkanFact ne propose pas se dit aussi.
+Sans détail de lignes lisible, un seul hors-taxes et une TVA qui tombe juste sur un nombre entier de
+pour-cent donnent une ligne à ce taux, et la remarque le dit.
+
+**L7. Les lignes de la pièce.** Le tableau se reconnaît à son en-tête (même coupé sur deux lignes) ; chaque
+rangée se lit par « quantité × prix = total » : les traits du tableau (« | ») ne sont pas des mots, une unité
+(« kg ») reste dans la désignation, une remise par ligne donne le prix net, une colonne « Remise 0 % » n'est
+pas une TVA à 0 %, « 1 500,000 » est mille cinq cents. Une quantité que le moteur n'a pas lue se retrouve quand
+un vrai prix (écrit avec ses décimales) divise exactement le total. Si les lignes lues ne refont pas le
+hors-taxes, la proposition est **une ligne par taux**, depuis les bases lues, et la remarque le dit.
+
+**L8. Le fournisseur.** Son matricule : le premier de la pièce qui **n'est pas celui de l'entreprise** (la fiche
+de l'entreprise le donne au serveur) ; la v10 reconnaît le fournisseur par ce matricule, sinon par son nom,
+et ne crée jamais une fiche toute seule. Une pièce qui porte un autre matricule que le nôtre (et pas le nôtre)
+se dit : « vérifie qu'elle t'est bien adressée ».
+
+**L9. Dans l'écran de la v10** (`web/v10/lecture-photo.txt`, huit adaptations ; `web/public/plateforme/pont.js`).
+« Lire une photo… » paraît sur un **achat neuf** quand le serveur sait lire (une pièce saisie ne se relit pas
+par-dessus, comme la facture électronique) ; le sélecteur propose l'appareil photo sur un téléphone. Pas de
+question avant la lecture (elle existait pour un service à l'étranger) ; le bouton attend la réponse. Un échec
+se dit avec la phrase du serveur, sans proposer de joindre la photo (les pièces jointes ne sont pas encore en
+ligne ; la lecture n'essaie pas non plus de l'y ranger). Les Paramètres de la clé d'un service étranger
+restent cachés.
+
+**L10. Sur un téléphone** (`telephone.css`). Photographier une facture est un écran du quotidien (`14` § 2.6) :
+l'écran d'achat entre dans l'instrument des écrans du téléphone (`tests/web/rendu.test.ts`) ; le tableau des
+lignes d'un achat défile dans son cadre, jamais la page, et ses cases font la taille d'un doigt.
+
+## Le seuil, et le banc qui le mesure
+
+Le cadrage fixe le seuil d'avance : le moteur est retenu s'il lit juste **le matricule, la date et le total sur
+au moins 9 factures sur 10** d'un lot de vraies factures tunisiennes, prêtées avec l'accord de leurs
+propriétaires. Le banc est prêt : `npm run banc:lecture -- /chemin/du/lot [matricule de l'acheteur]`
+(`banc/lecture/mesurer.ts`), avec un `attendu.json` écrit à la main ; il dit, facture par facture, ce qui est
+juste et ce qui ne l'est pas, puis le verdict (code 0 si le seuil est atteint). Un lot vide ne passe pas. **Le
+lot ne vient jamais dans le dépôt** (une vraie facture ne s'y met pas).
+
+Sur nos six pièces d'essai (inventées : `tests/donnees/lecture`, fabriquées par `fabriquer.mjs` — une facture
+de la v10 en PDF, photographiée de travers et floue, scannée ; un fournisseur de matériaux ; un bureau
+d'études avec retenue ; un fournisseur étranger en euros) : **6 sur 6**.
+
+**À VÉRIFIER** : la mesure sur le vrai lot (tant qu'elle n'est pas faite, la lecture de photo ne s'annonce
+pas : ni sur le site, ni dans les offres) ; PaddleOCR contre Tesseract sur ce même lot (`12` § 10, point 7) ;
+les mentions de TVA propres à certains fournisseurs (FODEC compté avec le timbre, comme la lecture d'une
+facture TEIF, À VÉRIFIER avec un comptable).
+
+## Ce qui reste hors de la brique
+
+Les pièces jointes en ligne (le fichier lu ne se range pas encore avec l'achat) ; le serveur de lecture à
+part ; les factures en arabe (arabe abandonné, 28/09/2026) ; les tickets de caisse ; un modèle de facture
+appris par fournisseur (la lecture d'une deuxième facture du même fournisseur ne profite pas de la première).
+
+## Ce qui la prouve
+
+- `tests/achats/lecture-facture.test.ts` : les cinq textes d'essai lus JUSTE, champ par champ, ligne par ligne,
+  taux compris (la photo : deux quantités et deux taux perdus, retrouvés) ; et chaque règle sur un texte écrit
+  pour elle (notre matricule lu le premier, un total faux, une TVA fausse, un total seul ou illisible, des lignes
+  illisibles, un taux déduit ou jamais supposé, une répartition ambiguë, les étiquettes au-dessus des valeurs,
+  une date de livraison, une pièce adressée à un autre, le FODEC, un texte qui n'est pas une facture).
+- `tests/achats/lecture.test.ts` : le VRAI moteur sur la photo, le PDF et le scan ; rien ne reste sur le
+  serveur, rien n'est enregistré ; le matricule de l'acheteur vient de la fiche ; un fichier qui n'est ni
+  une photo ni un PDF (quel que soit son nom), ou de 11 Mo, se refuse avec sa phrase ; un serveur sans
+  moteur le dit ; au-delà de la file, « occupé », et le créneau se rend ; un commercial ne lit pas.
+- `tests/achats/banc-lecture.test.ts` : le banc lit les six pièces justes, et il sait dire non.
+- `tests/v10/lecture-v10.test.ts` : dans la v10, un taux non lu n'est pas une TVA à 0 %.
+- `tests/web/lecture-photo.test.ts` : à la souris, Nadia photographie la facture ; la fenêtre dit ce qui a
+  été lu, où, et le total recompté ; enregistré, l'achat calculé par le serveur tombe **au millime** sur le
+  total lu (332,222 DT) ; un fichier qui n'est pas une facture se refuse ; sur un téléphone, tout tient dans
+  l'écran et le parcours va jusqu'à l'achat pré-rempli. Photos dans `dist/photos/lecture-*.png`.
+- `tests/web/rendu.test.ts` : l'écran d'achat, au téléphone et à l'ordinateur.
+- 44 preuves (`tests/preuves.sh`, brique 84) : chaque défaut remis fait tomber son test.

@@ -1,5 +1,6 @@
 // Les routes du module Achats : la liste des achats (page après page) et la lecture d'un achat, avec
-// ses lignes, ses montants, ce qu'il doit encore, son statut et la retenue de chaque règlement.
+// ses lignes, ses montants, ce qu'il doit encore, son statut et la retenue de chaque règlement ; et la
+// lecture d'une facture d'achat en photo ou en PDF (brique 84).
 // Les nombres sortent en TEXTE exact (« 1191.000 ») : jamais en nombre à virgule (01 R3).
 
 import { z } from 'zod';
@@ -9,7 +10,10 @@ import type { Route } from '../app.ts';
 import { requetes } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
+import { objetDuDossier } from '../v10/lecture.ts';
 import { etatsDAchats } from './etat.ts';
+import { lireFacture } from './lecture-facture.ts';
+import { LecteurOccupe, LectureImpossible, LectureTropLongue, sorteDe } from './lecteur.ts';
 import './textes.ts';
 
 const LIMITE_MAX = 200;
@@ -28,9 +32,13 @@ function depuisCurseur(texte: string | undefined): [string, string] | null {
   return null;
 }
 const TND = { code: 'TND', decimales: 3 };
+// Une photo de téléphone pèse quelques Mo ; au-delà de 10 Mo, ce n'est plus une facture (la v10 avait la
+// même limite). Le corps porte le fichier en base 64 (un tiers de plus) : il est accepté jusqu'à 16 Mo,
+// pour qu'un fichier un peu trop lourd reçoive sa phrase (« il fait 11 Mo ») plutôt qu'un refus muet.
+const LIMITE_FICHIER = 10 * 1_048_576;
+const LIMITE_CORPS = 16 * 1_048_576;
 
 export function routesAchats(ctx: Contexte): Route<never>[] {
-  void ctx;
   const routes: Route<never>[] = [];
   const ajouter = <C>(r: Route<C>) => { routes.push(r as unknown as Route<never>); };
 
@@ -115,5 +123,46 @@ export function routesAchats(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // Ce serveur sait-il lire ? Le bouton « Lire une photo… » ne paraît que s'il sait, et pour qui a le geste.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/achats/lecture', geste: 'achats.facture.lire',
+    traiter: async () => ({ corps: { disponible: !!ctx.lecteur?.disponible, limite: String(LIMITE_FICHIER) } }),
+  });
+
+  // Lire une facture d'achat en photo ou en PDF (brique 84 ; 14 § 2.3) : le fichier est lu sur ce
+  // serveur, jamais gardé ; la réponse est une PROPOSITION (rien ne s'enregistre), avec l'endroit où
+  // chaque champ a été lu et ce que le recomptage en dit.
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/achats/lecture', geste: 'achats.facture.lire', limiteCorps: LIMITE_CORPS,
+    corps: z.object({ nom: z.string().trim().min(1).max(200), contenu: z.string().min(1).max(LIMITE_CORPS) }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const lecteur = ctx.lecteur;
+      if (!lecteur?.disponible) return { statut: 503, corps: { motif: motif('achats.lecture.indisponible'), bouton: null } };
+      const nom = corps.nom;
+      const fichier = /^[A-Za-z0-9+/]+={0,2}$/.test(corps.contenu) ? Buffer.from(corps.contenu, 'base64') : Buffer.alloc(0);
+      if (fichier.length > LIMITE_FICHIER) {
+        return { statut: 413, corps: { motif: motif('achats.lecture.trop_lourd', { nom, taille: (fichier.length / 1_048_576).toFixed(1).replace('.', ','), limite: LIMITE_FICHIER / 1_048_576 }), bouton: null } };
+      }
+      const sorte = sorteDe(fichier);
+      if (!sorte) return { statut: 415, corps: { motif: motif('achats.lecture.format', { nom }), bouton: null } };
+      // L'acheteur, c'est nous : notre matricule n'est jamais pris pour celui du fournisseur.
+      const societe = await objetDuDossier(tx, params.entreprise ?? '', '_racine', 'company');
+      const entreprise = await requetes(tx).selectFrom('socle.entreprise').select('matricule_fiscal').where('id', '=', params.entreprise ?? '').executeTakeFirst();
+      const notreMatricule = (typeof societe?.matricule === 'string' && societe.matricule) || entreprise?.matricule_fiscal || null;
+      let lu;
+      try { lu = await lecteur.lire(fichier, sorte); } catch (e) {
+        if (e instanceof LecteurOccupe) return { statut: 503, corps: { motif: motif('achats.lecture.occupe'), bouton: null } };
+        if (e instanceof LectureTropLongue) return { statut: 504, corps: { motif: motif('achats.lecture.trop_long', { nom }), bouton: null } };
+        if (e instanceof LectureImpossible) return { statut: 422, corps: { motif: motif('achats.lecture.echec', { nom }), bouton: null } };
+        throw e;
+      }
+      if (!/\p{L}{2,}/u.test(lu.texte)) return { statut: 422, corps: { motif: motif('achats.lecture.vide', { nom }), bouton: null } };
+      const p = lireFacture(lu.texte, { notreMatricule });
+      return { corps: { lecture: p.lecture, ou: p.ou, remarques: p.remarques, moteur: lu.moteur, pages: lu.pages } };
+    },
+  });
+
   return routes;
 }
+

@@ -33,6 +33,14 @@ function problemes(cibles: boolean): string[] {
   const pb: string[] = [];
   const W = window.innerWidth;
   if (document.documentElement.scrollWidth > W) pb.push(`la page déborde : ${document.documentElement.scrollWidth} points pour ${W}`);
+  // Un élément dans un cadre qui défile de côté, ce cadre étant lui-même dans l'écran (la fonction tourne
+  // dans la page : ce qu'elle emploie vit en elle).
+  const dansUnCadre = (el: Element) => {
+    for (let a = el.parentElement; a; a = a.parentElement) {
+      if (['auto', 'scroll'].includes(getComputedStyle(a).overflowX) && a.getBoundingClientRect().right <= W + 1) return true;
+    }
+    return false;
+  };
   const visible = (el: Element) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden'; };
   if (cibles) {
     for (const el of document.querySelectorAll<HTMLElement>('button, a[href], input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]), select, [role=button]')) {
@@ -48,8 +56,9 @@ function problemes(cibles: boolean): string[] {
     // Un champ de saisie défile sous le doigt : son texte n'est pas coupé.
     if (coupe && cs.textOverflow !== 'ellipsis' && !el.matches('input, textarea, select') && el.scrollWidth > el.clientWidth + 1 && !el.closest('table, .preview, .doc-page')) pb.push(`texte coupé : <${el.tagName.toLowerCase()}${el.className ? `.${String(el.className).split(' ').join('.')}` : ''}> ${(el.textContent || el.getAttribute('placeholder') || el.getAttribute('name') || el.id || '').slice(0, 60)}`);
     const r = el.getBoundingClientRect();
-    // Un tableau large défile dans son cadre (telephone.css) : ce qui dépasse DANS ce cadre ne sort pas de l'écran.
-    if (r.right > W + 1 && cs.position !== 'fixed' && !el.closest('table.list, .preview, .doc-page, .combo-pop')) pb.push(`sort de l'écran : <${el.tagName.toLowerCase()}> ${(el.textContent ?? '').slice(0, 40)}`);
+    // Un tableau large défile dans son cadre (telephone.css : les listes, les lignes d'un achat) : ce qui
+    // dépasse DANS un cadre qui défile, lui-même dans l'écran, ne sort pas de l'écran.
+    if (r.right > W + 1 && cs.position !== 'fixed' && !el.closest('.preview, .doc-page, .combo-pop') && !dansUnCadre(el)) pb.push(`sort de l'écran : <${el.tagName.toLowerCase()}> ${(el.textContent ?? '').slice(0, 40)}`);
   }
   return pb;
 }
@@ -152,6 +161,8 @@ describe('l\'instrument de rendu des écrans', () => {
     { nom: 'factures', hash: '#/factures', titre: /^Factures/ },
     { nom: 'facture-nouvelle', hash: '#/doc/new/facture', titre: /^Nouvelle facture/ },
     { nom: 'clients', hash: '#/clients', titre: /^Clients/ },
+    // Photographier une facture d'achat se fait au téléphone (14 § 2.6 ; brique 84).
+    { nom: 'achat-nouveau', hash: '#/achat/new', titre: /^Nouvelle facture d'achat/ },
     { nom: 'parametres', hash: '#/parametres', titre: /^Paramètres/ },
   ];
 

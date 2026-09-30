@@ -1,0 +1,118 @@
+La lecture d'une facture d'achat en photo ou en PDF, sur le serveur de SkanFact (brique 84 ; 14 § 2.3 ;
+docs/achats.md). Format : voir sans-paquets.mjs.
+
+La v10 envoyait la photo à un service à l'étranger, avec une clé saisie dans les Paramètres ; la
+lecture était en pause depuis la 8.7.0 (OCR_EN_PAUSE). Sur la plateforme, le serveur lit lui-même
+(Tesseract et Poppler, en Tunisie) : le bouton paraît quand le serveur sait lire, pour une pièce neuve ;
+la fenêtre de vérification dit, sous chaque champ, où il a été lu, et affiche ce que le recomptage en dit
+(deux chemins, un chiffre). Les Paramètres de la clé restent cachés (OCR_EN_PAUSE ne change pas).
+
+== app.js | le bouton « Lire une photo… » paraît quand le serveur de SkanFact sait lire, pour une pièce neuve
+-- avant
+    if (!OCR_EN_PAUSE) bridge.ocrStatus().then(st => { if (st && st.hasKey && $('#photo')) $('#photo').hidden = false; }, () => {});
+-- après
+    // Sur la plateforme (brique 84), c'est le serveur de SkanFact qui lit : le bouton paraît quand il sait
+    // lire, et seulement pour une pièce neuve (une pièce saisie ne se relit pas par-dessus, comme pour la
+    // facture électronique).
+    if (!OCR_EN_PAUSE || (bridge.lectureSurLeServeur && isNew && !clos)) bridge.ocrStatus().then(st => { if (st && st.hasKey && $('#photo')) $('#photo').hidden = false; }, () => {});
+-- fin
+
+== app.js | sans pièces jointes en ligne, la lecture ne tente pas de joindre le fichier
+-- avant
+      const jointe = await joindreFichier(file);
+-- après
+      const jointe = bridge.piecesJointes === false ? false : await joindreFichier(file);
+-- fin
+
+== app.js | la lecture par le serveur : pas de question avant, le bouton attend la réponse, l'échec se dit, et la fenêtre reçoit le recomptage et l'endroit de chaque champ
+-- avant
+      if (!await confirmDialog(`Envoyer « ${file.name} » (${(file.size / 1024).toFixed(0)} Ko) au service de lecture ?\n\nL'image part sur internet. Rien d'autre n'est envoyé. Le résultat te sera proposé : tu le valides ou tu le corriges avant qu'il n'entre dans tes données.`, 'Lire la facture', false)) return;
+      toast('Lecture en cours…');
+      let read;
+      try { read = await bridge.ocrRead(file.path); }
+      catch (e) {
+        const retry = await confirmDialog(`La lecture a échoué.\n\n${e.message || 'Erreur inconnue.'}\n\nTu peux joindre la photo et saisir la facture à la main.`, 'Joindre la photo', false, { titre: 'La lecture de la photo a échoué' });
+        if (retry) await joindreFichier(file);
+        return;
+      }
+      ocrReviewForm(read, file, values => appliquerLecture(values, file));
+-- après
+      // Sur la plateforme, le fichier est lu par le serveur de SkanFact, en Tunisie, comme le reste du dossier
+      // y vit déjà : la question d'avant existait pour un service à l'étranger.
+      if (!bridge.lectureSurLeServeur && !await confirmDialog(`Envoyer « ${file.name} » (${(file.size / 1024).toFixed(0)} Ko) au service de lecture ?\n\nL'image part sur internet. Rien d'autre n'est envoyé. Le résultat te sera proposé : tu le valides ou tu le corriges avant qu'il n'entre dans tes données.`, 'Lire la facture', false)) return;
+      toast(bridge.lectureSurLeServeur ? `Lecture de « ${file.name} »…` : 'Lecture en cours…');
+      let read;
+      const boutonPhoto = $('#photo');
+      if (boutonPhoto) boutonPhoto.disabled = true;
+      try { read = await bridge.ocrRead(file.path); }
+      catch (e) {
+        // Sans pièces jointes en ligne (pour l'instant), l'échec se dit sans proposer de joindre la photo.
+        if (bridge.piecesJointes === false) return infoDialog('La lecture de la facture a échoué', e.message || 'Erreur inconnue.');
+        const retry = await confirmDialog(`La lecture a échoué.\n\n${e.message || 'Erreur inconnue.'}\n\nTu peux joindre la photo et saisir la facture à la main.`, 'Joindre la photo', false, { titre: 'La lecture de la photo a échoué' });
+        if (retry) await joindreFichier(file);
+        return;
+      } finally { if (boutonPhoto) boutonPhoto.disabled = false; }
+      // Ce que le serveur dit de sa lecture (le recomptage du total, ce qui manque) et où il a lu chaque
+      // champ. Un taux lu que SkanFact ne propose pas se dit aussi : la ligne passe au taux d'une ligne neuve.
+      const horsListe = [...new Set((read.lines || []).map(l => l.vatRate).filter(r => r != null && r !== '' && !C.VAT_RATES.includes(Number(r))))];
+      ocrReviewForm(read, file, values => appliquerLecture(values, file), bridge.lectureSurLeServeur ? {
+        remarques: (read.remarques || []).concat(horsListe.map(r => `Le taux de TVA ${r} % lu sur la pièce n'est pas un taux que SkanFact propose : la ligne est proposée à 19 %, vérifie-la.`)),
+        ou: read.ou || {}
+      } : undefined);
+-- fin
+
+== app.js | la fenêtre de vérification sait dire où chaque champ a été lu
+-- avant
+  function ocrReviewForm(read, file, done, o) {
+    o = o || {};
+-- après
+  function ocrReviewForm(read, file, done, o) {
+    o = o || {};
+    // Où chaque champ a été lu sur la pièce (brique 84 ; 14 § 2.3) : la ligne lue, en petit sous le champ,
+    // en entier (elle passe à la ligne sur un téléphone : c'est elle qui dit d'où vient le chiffre).
+    const luIci = (...cles) => {
+      const lu = cles.map(k => o.ou && o.ou[k]).filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(' · ');
+      return lu ? `<span class="small muted lu-ici" title="${h(lu)}" style="display:block;margin-top:3px;overflow-wrap:anywhere">Lu : « ${h(lu)} »</span>` : '';
+    };
+    const ici = (html, k) => { const s = luIci(k); return s ? html.replace(/<\/(label|div)>\s*$/, `${s}</$1>`) : html; };
+-- fin
+
+== app.js | sous chaque champ proposé, la ligne de la pièce où il a été lu
+-- avant
+          ${combo({ name: 'supplierId', value: head.supplierId, items: data.suppliers.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(x => ({ v: x.id, label: x.name, sub: x.matricule || '', text: `${x.name} ${x.matricule || ''}` })), placeholder: '— À choisir —', search: 'Rechercher un fournisseur…', add: head.supplierName && !head.supplierId ? `+ Créer « ${h(head.supplierName)} »` : '+ Nouveau fournisseur' })}
+        </div>
+        ${field(lbl('Numéro de la facture', 'buy.number'), 'number', head.number, 'text', '')}
+        ${dateFieldHtml(lbl('Date', 'buy.date'), 'date', head.date, { obligatoire: true })}
+        ${dateFieldHtml(lbl('Échéance', 'buy.due'), 'dueDate', head.dueDate, { clearable: true })}
+        ${field(lbl(`Timbre et frais (${h(C.normCurrency(company().currency))})`, 'buy.fees'), 'fees', head.fees, 'number', 'step="0.001" min="0" class="num"')}
+        <label class="field span-2">${lbl('Objet', 'buy.subject')}<input type="text" name="subject" value="${h(head.subject)}"></label>
+-- après
+          ${combo({ name: 'supplierId', value: head.supplierId, items: data.suppliers.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(x => ({ v: x.id, label: x.name, sub: x.matricule || '', text: `${x.name} ${x.matricule || ''}` })), placeholder: '— À choisir —', search: 'Rechercher un fournisseur…', add: head.supplierName && !head.supplierId ? `+ Créer « ${h(head.supplierName)} »` : '+ Nouveau fournisseur' })}${luIci('supplier', 'matricule')}
+        </div>
+        ${ici(field(lbl('Numéro de la facture', 'buy.number'), 'number', head.number, 'text', ''), 'number')}
+        ${ici(dateFieldHtml(lbl('Date', 'buy.date'), 'date', head.date, { obligatoire: true }), 'date')}
+        ${ici(dateFieldHtml(lbl('Échéance', 'buy.due'), 'dueDate', head.dueDate, { clearable: true }), 'dueDate')}
+        ${ici(field(lbl(`Timbre et frais (${h(C.normCurrency(company().currency))})`, 'buy.fees'), 'fees', head.fees, 'number', 'step="0.001" min="0" class="num"'), 'fees')}
+        ${ici(`<label class="field span-2">${lbl('Objet', 'buy.subject')}<input type="text" name="subject" value="${h(head.subject)}"></label>`, 'subject')}
+-- fin
+
+== app.js | sous le total des lignes, la ligne de la pièce où le hors-taxes a été lu
+-- avant
+            + (prep.readHT != null ? ` · total lu sur la pièce : ${C.money(prep.readHT, cur)}` : '');
+-- après
+            + (prep.readHT != null ? ` · total lu sur la pièce : ${C.money(prep.readHT, cur)}` : '') + luIci('totalHT');
+-- fin
+
+== core.js | un taux de TVA que la lecture n'a pas trouvé n'est pas un taux de 0 % : la ligne passe au taux d'une ligne neuve
+-- avant
+      vatRate: VAT_RATES.includes(ocrNumber(l.vatRate)) ? ocrNumber(l.vatRate) : 19,
+-- après
+      vatRate: l.vatRate != null && l.vatRate !== '' && VAT_RATES.includes(ocrNumber(l.vatRate)) ? ocrNumber(l.vatRate) : 19,
+-- fin
+
+== guide.js | la bulle du bouton dit où la lecture se fait, et ce que la fenêtre montre
+-- avant
+    'ocr.photo': { t: 'Lire une photo', d: 'Photographier la facture du fournisseur au lieu de la saisir. Ce bouton n\'apparaît que si tu as activé la lecture dans les Paramètres : l\'image part alors sur internet, revient lue, et SkanFact te propose un formulaire à valider — rien n\'entre dans tes données sans toi. Pour simplement <b>joindre</b> la photo ou le PDF comme justificatif, c\'est « Joindre un justificatif… », hors ligne et sans rien envoyer.' },
+-- après
+    'ocr.photo': { t: 'Lire une photo', d: 'Photographier la facture du fournisseur (ou choisir son PDF) au lieu de la saisir. Le fichier est lu sur le serveur de SkanFact, en Tunisie, qui ne le garde pas. SkanFact te propose ensuite un formulaire à valider : sous chaque champ, la ligne de la pièce où il a été lu, et le total recompté depuis les montants lus — rien n\'entre dans tes données sans toi.' },
+-- fin

@@ -1,0 +1,22 @@
+FOURNITURES PRO SAS
+
+18 rue des Artisans, 69003 Lyon, France
+SIRET 123 456 789 00012
+
+FACTURE N° F-2026-1187
+
+Date de facture : 02/09/2026
+Date d'échéance : 02/10/2026
+
+Client : Atelier Nadia, 5 avenue de Carthage, Tunis, Tunisie
+
+Désignation Qté Prix unitaire HT Total HT
+
+Scie circulaire pro 1 850,00 € 850,00 €
+
+Lames carbure (lot de 3) 2 120,00 € 240,00 €
+Total HT 1 090,00 €
+TVA 0 % 0,00 €
+Total TTC 1 090,00 €
+
+Exportation hors de l'Union européenne : exonération de TVA.

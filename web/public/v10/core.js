@@ -4436,7 +4436,7 @@
       qty: ocrNumber(l.qty) || 1,
       unit: '',
       unitPrice: ocrNumber(l.unitPrice),
-      vatRate: VAT_RATES.includes(ocrNumber(l.vatRate)) ? ocrNumber(l.vatRate) : 19,
+      vatRate: l.vatRate != null && l.vatRate !== '' && VAT_RATES.includes(ocrNumber(l.vatRate)) ? ocrNumber(l.vatRate) : 19,
       destination: 'charge', deductible: true
     })).filter(l => l.label || l.unitPrice);
     if (!lines.length) {

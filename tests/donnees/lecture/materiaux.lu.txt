@@ -1,0 +1,23 @@
+STE MATERIAUX DU SAHEL SARL FACTURE N° : 2026/0158
+
+Route de Sousse km 5, 4000 Sousse : Date : 12/09/2026
+Tél : 73 000 111 — Fax : 73 000 112 Échéance : 12/10/2026
+M.F : 0876543/K/A/M/000 — RC B1234562010
+
+Client : Atelier Nadia
+Adresse : 5 avenue de Carthage, Tunis
+Code TVA : 7654321B/A/M/000
+
+L 2 : ; | P.U. : Montant
+Réf | Désignation Qté HT Remise HT
+C425 | Ciment gris 42.5 sac 50 kg 20 | 12,500 5% 237,500
+FER8 per à béton diamètre 8 (barre de 12 40 9,850 0% 394,000
+SAB1 | Sable lavé (m3) 3 | 45,000 0% 135,000
+Taux Base HT Montant TVA
+19% 766,500 145,635
+Total H.T 766,500
+Total TVA 145,635
+Timbre fiscal 1,000
+Net à payer 913,135 DT
+
+Arrêtée la présente facture à la somme de : neuf cent treize dinars et cent trente-cinq millimes.

@@ -11,6 +11,10 @@ import './textes.ts';
 export const GESTES_ACHATS: Geste[] = [
   { code: 'achats.pieces.voir', module: 'achats', ecrit: false,
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', lecture: 'voir', supervision: 'voir', revision: 'voir', saisie: 'voir' } },
+  // Lire une facture en photo ou en PDF, puis la confirmer (03 § 2.3, ajouté par le 14 § 2.3) : la
+  // lecture ne range rien, mais elle prépare un achat ; c'est une création (une licence expirée la bloque).
+  { code: 'achats.facture.lire', module: 'achats', ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui' } },
 ];
 
 let declares = false;

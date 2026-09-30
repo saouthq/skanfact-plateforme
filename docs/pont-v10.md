@@ -33,6 +33,7 @@ Cabinet a son propre point de contact (`pont-cabinet.js`), décrit dans `docs/ca
 | `dessinerTtn` (nouvelle) | Paramètres → Documents → « Facture électronique (El Fatoora) » → « L'envoi à la TTN » : le compte El Fatoora de l'entreprise (le mot de passe scellé par le serveur, jamais relu), son dernier refus, les derniers envois (brique 82, `docs/facture-electronique.md`) | `tests/v10/ttn.test.ts`, parcours à la souris (`tests/web/ttn.test.ts`) |
 | `ttnDansLaFenetre` (nouvelle) | Dans « Le fichier El Fatoora est prêt » d'une pièce signée : où en est son envoi à la TTN (en route et ce qui la retient, déposée, acceptée avec sa référence, refusée), et le bouton qui débloque (« Brancher le compte El Fatoora », « Renvoyer à la TTN ») (brique 82) | `tests/v10/ttn.test.ts`, parcours à la souris |
 | `SkanQr` (nouveau fichier, `plateforme/qr.js`) | Le point d'extension du moteur qui dessine un code QR (`SkanCore.qrImage`), branché au chargement (`loadData`) et dans l'espace client : la pièce imprimée d'une facture acceptée par la TTN porte sa référence et son code QR (brique 83, `docs/facture-electronique.md`) ; le dessin vient de `tiers/qrcode.js`, recopié tel quel | `tests/v10/espace-client.test.ts`, `tests/socle/tiers.test.ts`, parcours à la souris (`tests/web/ttn.test.ts`, relu par un lecteur de QR) |
+| `ocrStatus`, `ocrPick`, `ocrRead`, `lectureSurLeServeur`, `piecesJointes` | La lecture d'une facture d'achat en photo ou en PDF **par le serveur de SkanFact** (brique 84, `docs/achats.md`) : le serveur dit s'il sait lire (et si la personne a le geste) ; le fichier choisi (l'appareil photo sur un téléphone, 10 Mo au plus) part tel quel et revient une proposition (où chaque champ a été lu, le recomptage), que la fenêtre de la v10 fait relire ; les pièces jointes n'étant pas encore en ligne, la lecture n'essaie pas d'y ranger le fichier | `tests/achats/lecture.test.ts`, parcours à la souris (`tests/web/lecture-photo.test.ts`) |
 | `externalBackupInfo` | L'étape « Mettre tes données à l'abri » est faite : les données sont sur le serveur | — |
 
 ## 2. Fait par le navigateur
@@ -48,14 +49,16 @@ Cabinet a son propre point de contact (`pont-cabinet.js`), décrit dans `docs/ca
 
 ## 3. Refusé avec sa phrase (pas encore en ligne)
 
-Pièces jointes (le panneau est caché), lecture des factures par photo, paquet et réponses du
+Pièces jointes (le panneau est caché), la clé d'un service de lecture à l'étranger (la lecture des factures
+se fait sur le serveur de SkanFact : brique 84), paquet et réponses du
 cabinet, **la caisse** (« Encaisser » et le retour d'un ticket, jusqu'à l'étape 4), abonnement, import d'un fichier qui remplace tout, nommer l'appareil, retirer une
 entreprise de la liste. Le refus dit ce qui n'existe pas encore et que **rien n'a été fait**.
 
 ## 4. Caché : sans objet sur la plateforme
 
 Panneaux des Paramètres (et leurs entrées de la palette Ctrl K) : dossiers de l'ordinateur,
-sauvegardes du disque, copie externe, mot de passe du fichier, lecture par photo, « Tout effacer »,
+sauvegardes du disque, copie externe, mot de passe du fichier, la clé de la lecture par photo (un service
+à l'étranger : sur la plateforme, c'est le serveur qui lit), « Tout effacer »,
 mises à jour, licence, éditeur, pièces jointes, dépannage.
 Le panneau « Ton cabinet comptable » ne parle plus d'appairage : le propriétaire y confie son
 dossier par le code du cabinet (brique 37).

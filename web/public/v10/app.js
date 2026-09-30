@@ -8996,7 +8996,10 @@
     // sans clé, il n'a rien à proposer que « Joindre un justificatif » ne fasse déjà — et la question
     // « la lecture n'est pas activée, joindre quand même ? » à chaque photo était un piège (8.5.1).
     // En PAUSE depuis la 8.7.0 (voir OCR_EN_PAUSE) : jamais montré, quoi que dise le réglage.
-    if (!OCR_EN_PAUSE) bridge.ocrStatus().then(st => { if (st && st.hasKey && $('#photo')) $('#photo').hidden = false; }, () => {});
+    // Sur la plateforme (brique 84), c'est le serveur de SkanFact qui lit : le bouton paraît quand il sait
+    // lire, et seulement pour une pièce neuve (une pièce saisie ne se relit pas par-dessus, comme pour la
+    // facture électronique).
+    if (!OCR_EN_PAUSE || (bridge.lectureSurLeServeur && isNew && !clos)) bridge.ocrStatus().then(st => { if (st && st.hasKey && $('#photo')) $('#photo').hidden = false; }, () => {});
     const joindreFichier = async (file) => {
       try { return await joindre([await bridge.attachPath(p.id, file.path)]); }
       catch (e) { toast(e.message || 'Impossible de joindre la photo', true); return false; }
@@ -9008,7 +9011,7 @@
     const appliquerLecture = async (values, file, quoi) => {
       Object.assign(p, values.head);
       p.lines = values.lines;
-      const jointe = await joindreFichier(file);
+      const jointe = bridge.piecesJointes === false ? false : await joindreFichier(file);
       achatReprise = { hash: location.hash, p, isNew };
       render(true);
       toast(jointe ? `Facture pré-remplie et ${quoi || 'photo'} jointe — vérifie avant d'enregistrer` : 'Facture pré-remplie — vérifie avant d\'enregistrer');
@@ -9032,16 +9035,28 @@
       let file;
       try { file = await bridge.ocrPick(); } catch (e) { return toast(e.message || 'Fichier illisible', true); }
       if (!file) return;
-      if (!await confirmDialog(`Envoyer « ${file.name} » (${(file.size / 1024).toFixed(0)} Ko) au service de lecture ?\n\nL'image part sur internet. Rien d'autre n'est envoyé. Le résultat te sera proposé : tu le valides ou tu le corriges avant qu'il n'entre dans tes données.`, 'Lire la facture', false)) return;
-      toast('Lecture en cours…');
+      // Sur la plateforme, le fichier est lu par le serveur de SkanFact, en Tunisie, comme le reste du dossier
+      // y vit déjà : la question d'avant existait pour un service à l'étranger.
+      if (!bridge.lectureSurLeServeur && !await confirmDialog(`Envoyer « ${file.name} » (${(file.size / 1024).toFixed(0)} Ko) au service de lecture ?\n\nL'image part sur internet. Rien d'autre n'est envoyé. Le résultat te sera proposé : tu le valides ou tu le corriges avant qu'il n'entre dans tes données.`, 'Lire la facture', false)) return;
+      toast(bridge.lectureSurLeServeur ? `Lecture de « ${file.name} »…` : 'Lecture en cours…');
       let read;
+      const boutonPhoto = $('#photo');
+      if (boutonPhoto) boutonPhoto.disabled = true;
       try { read = await bridge.ocrRead(file.path); }
       catch (e) {
+        // Sans pièces jointes en ligne (pour l'instant), l'échec se dit sans proposer de joindre la photo.
+        if (bridge.piecesJointes === false) return infoDialog('La lecture de la facture a échoué', e.message || 'Erreur inconnue.');
         const retry = await confirmDialog(`La lecture a échoué.\n\n${e.message || 'Erreur inconnue.'}\n\nTu peux joindre la photo et saisir la facture à la main.`, 'Joindre la photo', false, { titre: 'La lecture de la photo a échoué' });
         if (retry) await joindreFichier(file);
         return;
-      }
-      ocrReviewForm(read, file, values => appliquerLecture(values, file));
+      } finally { if (boutonPhoto) boutonPhoto.disabled = false; }
+      // Ce que le serveur dit de sa lecture (le recomptage du total, ce qui manque) et où il a lu chaque
+      // champ. Un taux lu que SkanFact ne propose pas se dit aussi : la ligne passe au taux d'une ligne neuve.
+      const horsListe = [...new Set((read.lines || []).map(l => l.vatRate).filter(r => r != null && r !== '' && !C.VAT_RATES.includes(Number(r))))];
+      ocrReviewForm(read, file, values => appliquerLecture(values, file), bridge.lectureSurLeServeur ? {
+        remarques: (read.remarques || []).concat(horsListe.map(r => `Le taux de TVA ${r} % lu sur la pièce n'est pas un taux que SkanFact propose : la ligne est proposée à 19 %, vérifie-la.`)),
+        ou: read.ou || {}
+      } : undefined);
     };
 
 
@@ -11784,6 +11799,13 @@
   // est EXACT (un XML ne se devine pas) et ses remarques sont celles du recomptage, pas d'une machine.
   function ocrReviewForm(read, file, done, o) {
     o = o || {};
+    // Où chaque champ a été lu sur la pièce (brique 84 ; 14 § 2.3) : la ligne lue, en petit sous le champ,
+    // en entier (elle passe à la ligne sur un téléphone : c'est elle qui dit d'où vient le chiffre).
+    const luIci = (...cles) => {
+      const lu = cles.map(k => o.ou && o.ou[k]).filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(' · ');
+      return lu ? `<span class="small muted lu-ici" title="${h(lu)}" style="display:block;margin-top:3px;overflow-wrap:anywhere">Lu : « ${h(lu)} »</span>` : '';
+    };
+    const ici = (html, k) => { const s = luIci(k); return s ? html.replace(/<\/(label|div)>\s*$/, `${s}</$1>`) : html; };
     const teif = o.source === 'teif';
     const cur = (read && read.currency && C.normCurrency(read.currency)) || company().currency;
     // Toute la normalisation (nombres, dates, reconnaissance du fournisseur, avertissements) vit dans
@@ -11803,13 +11825,13 @@
       <div id="ocr-warn"></div>
       <form id="orf" class="grid-2">
         <div class="field span-2 obligatoire">${lbl('Fournisseur', 'ocr.supplier')}
-          ${combo({ name: 'supplierId', value: head.supplierId, items: data.suppliers.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(x => ({ v: x.id, label: x.name, sub: x.matricule || '', text: `${x.name} ${x.matricule || ''}` })), placeholder: '— À choisir —', search: 'Rechercher un fournisseur…', add: head.supplierName && !head.supplierId ? `+ Créer « ${h(head.supplierName)} »` : '+ Nouveau fournisseur' })}
+          ${combo({ name: 'supplierId', value: head.supplierId, items: data.suppliers.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(x => ({ v: x.id, label: x.name, sub: x.matricule || '', text: `${x.name} ${x.matricule || ''}` })), placeholder: '— À choisir —', search: 'Rechercher un fournisseur…', add: head.supplierName && !head.supplierId ? `+ Créer « ${h(head.supplierName)} »` : '+ Nouveau fournisseur' })}${luIci('supplier', 'matricule')}
         </div>
-        ${field(lbl('Numéro de la facture', 'buy.number'), 'number', head.number, 'text', '')}
-        ${dateFieldHtml(lbl('Date', 'buy.date'), 'date', head.date, { obligatoire: true })}
-        ${dateFieldHtml(lbl('Échéance', 'buy.due'), 'dueDate', head.dueDate, { clearable: true })}
-        ${field(lbl(`Timbre et frais (${h(C.normCurrency(company().currency))})`, 'buy.fees'), 'fees', head.fees, 'number', 'step="0.001" min="0" class="num"')}
-        <label class="field span-2">${lbl('Objet', 'buy.subject')}<input type="text" name="subject" value="${h(head.subject)}"></label>
+        ${ici(field(lbl('Numéro de la facture', 'buy.number'), 'number', head.number, 'text', ''), 'number')}
+        ${ici(dateFieldHtml(lbl('Date', 'buy.date'), 'date', head.date, { obligatoire: true }), 'date')}
+        ${ici(dateFieldHtml(lbl('Échéance', 'buy.due'), 'dueDate', head.dueDate, { clearable: true }), 'dueDate')}
+        ${ici(field(lbl(`Timbre et frais (${h(C.normCurrency(company().currency))})`, 'buy.fees'), 'fees', head.fees, 'number', 'step="0.001" min="0" class="num"'), 'fees')}
+        ${ici(`<label class="field span-2">${lbl('Objet', 'buy.subject')}<input type="text" name="subject" value="${h(head.subject)}"></label>`, 'subject')}
         <div class="field span-2">${lbl('Catégorie de charge', 'buy.category')}
           ${combo({ name: 'category', value: '', items: C.expenseCategories(data).map(c => ({ v: c, label: c })), placeholder: '— À choisir —', search: 'Rechercher une catégorie…' })}
         </div>
@@ -11850,7 +11872,7 @@
           $$('[data-rm]', $('#orf-lines', root)).forEach(b => b.onclick = () => { lines.splice(Number(b.dataset.rm), 1); if (!lines.length) lines.push({ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19, destination: 'charge', deductible: true }); drawLines(); });
           const g = gapHT();
           $('#orf-sum', root).innerHTML = `Total des lignes : <b>${C.money(computed(), cur)}</b> HT`
-            + (prep.readHT != null ? ` · total lu sur la pièce : ${C.money(prep.readHT, cur)}` : '');
+            + (prep.readHT != null ? ` · total lu sur la pièce : ${C.money(prep.readHT, cur)}` : '') + luIci('totalHT');
           $('#ocr-warn', root).innerHTML = [
             !$('input[name=supplierId]', root).value ? 'Aucun fournisseur reconnu : choisis-le, ou crée-le depuis la liste.' : '',
             g != null && Math.abs(g) > 0.005 ? `Les lignes lues totalisent ${C.money(computed(), cur)} alors que la pièce annonce ${C.money(prep.readHT, cur)} : un écart de ${C.money(g, cur)}. Corrige avant de valider.` : '',

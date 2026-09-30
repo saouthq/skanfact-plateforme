@@ -1,0 +1,8 @@
+{
+  "quincaillerie.pdf": { "matricule": "1234567A/B/M/000", "date": "2026-10-03", "total": "332.222" },
+  "quincaillerie-photo.jpg": { "matricule": "1234567A/B/M/000", "date": "2026-10-03", "total": "332.222" },
+  "quincaillerie-scan.pdf": { "matricule": "1234567A/B/M/000", "date": "2026-10-03", "total": "332.222" },
+  "materiaux.png": { "matricule": "0876543K/A/M/000", "date": "2026-09-12", "total": "913.135" },
+  "bureau-etudes.png": { "matricule": "1112223P/A/P/000", "date": "2026-09-25", "total": "2381.000" },
+  "fournisseur-eur.png": { "matricule": null, "date": "2026-09-02", "total": "1090.00" }
+}

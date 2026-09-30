@@ -41,6 +41,11 @@
   efface tout ; le propriétaire décide. Un test hors ligne coupe le réseau en ARRÊTANT le serveur : le
   service des écrans passe à côté de la coupure que le navigateur simule (ou on le bloque dans le
   contexte du navigateur, `serviceWorkers: 'block'`, quand le parcours n'a pas à rouvrir sans réseau).
+- **La lecture d'une facture d'achat en photo ou en PDF** (brique 84, `docs/achats.md`) : sur NOS serveurs
+  (Tesseract, Poppler : `serveur/achats/lecteur.ts`, une file de deux lectures), le fichier jamais gardé ;
+  une proposition que la v10 fait relire, chaque champ avec la ligne où il a été lu, le total recompté
+  (`serveur/achats/lecture-facture.ts`) ; aucun taux supposé. Le seuil (9 sur 10 sur de vraies factures)
+  reste à mesurer : la lecture de photo ne s'annonce pas avant.
 - Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,
   un seau par clé dans la mémoire du programme (à partager le jour où il y aura plusieurs programmes).
 - Les avis d'événement signés (`0008`, `serveur/avis.ts`, 28/09/2026) : l'avis naît dans la
@@ -419,6 +424,11 @@
 | `npm run entreprise -- exporter <id> <fichier>` / `restaurer <fichier>` | Exporte une entreprise, ou la restaure là où elle n'est pas (`PG_ADMIN`) |
 | `npm run types:base` | Réécrit `base/types.ts` à partir des migrations (base jetable sur `PG_ADMIN`) |
 | `npm run reprendre-v10 -- <dépôt skanfact>` | Recopie l'interface v10 (`src/renderer`, branche `beta`) dans `web/public/v10` et y applique `web/v10/adaptations.mjs` |
+
+Les tests demandent aussi xmllint, Tesseract (avec le français) et Poppler (la facture électronique, la
+lecture des factures d'achat, brique 84) : `apt-get install -y libxml2-utils tesseract-ocr tesseract-ocr-fra
+poppler-utils` s'ils manquent (GitHub les installe à chaque envoi). `npm run banc:lecture -- <lot>` mesure la
+lecture sur un lot de vraies factures, gardé HORS du dépôt (`docs/achats.md`, brique 84).
 
 Dans une session Claude : PostgreSQL 16 tourne sur `127.0.0.1:5433`
 (`su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /var/lib/pgproto/data -o '-p 5433' start"`

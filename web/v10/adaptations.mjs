@@ -634,4 +634,6 @@ export const ADAPTATIONS = [
   ...lireFichier('equipe-trace.txt'),
   ...lireFichier('reprise-v10.txt'),
   ...lireFichier('reprise-portefeuille.txt'),
+  // ── La lecture d'une facture d'achat en photo ou en PDF, par le serveur (brique 84) ──
+  ...lireFichier('lecture-photo.txt'),
 ];

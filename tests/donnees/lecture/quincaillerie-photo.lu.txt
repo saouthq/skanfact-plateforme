@@ -1,0 +1,50 @@
+Quincaillerie Ben Salem
+
+jme Facture
+
+1002 Tunis
+
+MF 1234567A/B/M/000 FV-2026-0412
++216 71 000 000
+
+ÉMISE LE À RÉGLER AVANT LE
+
+03/10/2026 02/11/2026
+
+FACTURÉ À
+Atelier Nadia
+
+5 avenue de Carthage, Tunis
+MF / CIN 7654321B/A/M/000
+
+OBJET
+
+Fournitures atelier
+
+DÉSIGNATION
+
+QTÉ PRIX UNIT. HT TOTAL HT
+
+Vis inox 6x40 (boîte de 200) 3 42,350 127,050
+
+Colle à bois 5 kg 68,900 137,800
+
+Livraison 15,000 15,000
+RÈGLEMENT
+Banque BIAT Total HT 279,850
+RIB 08 006 0123456789012 34 TVA 7% sur 15,000 1,050
+Motif FV-2026-0412 TVA 19% sur 264,850 50,322
+Timbre fiscal 1,000
+
+NET À PAYER 332,222 DT
+
+Arrêtée la présente facture à la somme de trois
+cent trente-deux dinars et deux cent vingt-
+deux millimes.
+
+CACHET ET SIGNATURE
+
+Quincaillerie Ben Salem
+
+4567A/B/M/000 Facture FV-2026-0412
+

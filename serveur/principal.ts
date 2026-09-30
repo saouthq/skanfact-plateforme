@@ -24,6 +24,9 @@
 //   SKANFACT_COFFRE          la clé du coffre (32 octets en base64) qui scelle les clés confiées par les
 //                            entreprises (serveur/coffre.ts) ; exigée en production, une clé d'essai
 //                            connue de tous sinon
+//   SKANFACT_LECTURES        combien de factures d'achat se lisent à la fois sur ce serveur (2 par défaut) ;
+//                            la lecture demande Tesseract (avec le français) et Poppler, sinon elle n'est
+//                            pas branchée (et l'écran le dit)
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -37,6 +40,7 @@ import { Refus } from './erreurs.ts';
 import { listeDepuisFichier } from './mot-de-passe.ts';
 import { routesSocle } from './routes/socle.ts';
 import { declarerGestesAchats } from './achats/gestes.ts';
+import { lecteurDuServeur } from './achats/lecteur.ts';
 import { routesAchats } from './achats/routes.ts';
 import { declarerGestesCompta } from './compta/gestes.ts';
 import { routesCabinet } from './cabinet/routes.ts';
@@ -55,6 +59,7 @@ export type Configuration = {
   sms: 'aucun'; livreurMs: number; web: string; adresse: string | null; konnect: string; coffre: Buffer; verificationMs: number;
   digigo: { base: string; cle: string } | null;
   ttn: string | null; ttnMs: number;
+  lectures: number;
 };
 
 export class ConfigurationFausse extends Error {}
@@ -87,6 +92,8 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   if (digigo && !env.SKANFACT_DIGIGO_CLE) throw new ConfigurationFausse('SKANFACT_DIGIGO_CLE manque : la clé de SkanFact comme entité d\'intégration DigiGo');
   const ttn = env.SKANFACT_TTN ? env.SKANFACT_TTN.replace(/\/+$/, '') : null;
   if (ttn && !/^https?:\/\//.test(ttn)) throw new ConfigurationFausse(`SKANFACT_TTN « ${ttn} » n'est pas une adresse`);
+  const lectures = Number(env.SKANFACT_LECTURES ?? 2);
+  if (!Number.isInteger(lectures) || lectures < 1 || lectures > 32) throw new ConfigurationFausse(`SKANFACT_LECTURES « ${env.SKANFACT_LECTURES} » : un nombre de lectures à la fois, de 1 à 32`);
   return {
     base, environnement, port, hote: env.SKANFACT_HOTE ?? '127.0.0.1', sms,
     listeVolee: env.SKANFACT_LISTE_VOLEE ?? path.join(ici, '../tests/donnees/mots-de-passe-voles.txt'),
@@ -95,6 +102,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     adresse, konnect, coffre, verificationMs: Number(env.SKANFACT_VERIFICATION_MS ?? 60_000),
     digigo: digigo ? { base: digigo, cle: env.SKANFACT_DIGIGO_CLE ?? '' } : null,
     ttn, ttnMs: Number(env.SKANFACT_TTN_MS ?? 60_000),
+    lectures,
   };
 }
 
@@ -137,7 +145,8 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   // L'adresse publique : réglée, sinon celle où le serveur écoute (connue une fois qu'il écoute).
   let publique = c.adresse ?? '';
   const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms: smsAucun, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique },
-    ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}), ttn: { adresse: c.ttn, coffre: c.coffre } };
+    ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}), ttn: { adresse: c.ttn, coffre: c.coffre },
+    lecteur: await lecteurDuServeur({ simultanees: c.lectures }) };
   declarerGestesVentes();
   declarerGestesAchats();
   declarerGestesPaie();

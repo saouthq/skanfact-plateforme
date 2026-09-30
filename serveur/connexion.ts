@@ -8,6 +8,7 @@
 
 import { createHash, randomBytes, randomInt } from 'node:crypto';
 import type pg from 'pg';
+import type { Lecteur } from './achats/lecteur.ts';
 import { enTantQue } from './base.ts';
 import { correspond, empreinte, verifierPolitique, verifierPourRien, type ListeVolee } from './mot-de-passe.ts';
 import { adresseTotp, nouveauSecret, verifierTotp } from './totp.ts';
@@ -29,6 +30,9 @@ export type Contexte = {
   // L'envoi à la TTN (brique 82) : l'adresse du service El Fatoora (null : pas branché sur ce serveur), et
   // la clé du coffre qui scelle le mot de passe El Fatoora de chaque entreprise.
   ttn?: { adresse: string | null; coffre: Buffer };
+  // La lecture des factures d'achat (brique 84) : le moteur de ce serveur (Tesseract et Poppler), et sa
+  // file ; absent ou non disponible, la lecture n'est pas branchée (et l'écran le dit).
+  lecteur?: Lecteur;
 };
 
 export type Appareil = { id?: string; nom: string; type: 'navigateur' | 'bureau' | 'telephone' };
