@@ -1,10 +1,10 @@
 # Les commandes fournisseurs et leurs réceptions, même partielles
 
-*30/09/2026, briques 87, 88 et 89. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 du
+*30/09/2026, briques 87 à 90. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 du
 dépôt `skanfact` (au lancement : « Côté achats : demande de prix, commande fournisseur, réception (même
 partielle), et la facture rapprochée de la réception (un écart de quantité ou de prix se signale) »).
 La brique 87 fait la commande, la réception et la facture saisie depuis les réceptions ; la brique 88
-signale les écarts ; la brique 89 fait la demande de prix, à un ou plusieurs fournisseurs. Toutes les décisions sont prises par délégation, le
+signale les écarts ; la brique 89 fait la demande de prix, à un ou plusieurs fournisseurs ; la brique 90 les annonce dans « À faire ». Toutes les décisions sont prises par délégation, le
 30/09/2026.*
 
 ## Ce que la v10 faisait
@@ -92,6 +92,13 @@ puis le total hors taxes des demandes **complètes** (le moins cher en gras, son
 commander sans le prix du fournisseur est refusé, et le refus nomme les lignes à compléter. Une demande seule
 a son bouton « Commander ». Les titres de l'écran disent « la demande » tant qu'elle en est une.
 
+**C11. « À faire » annonce ce qui attend** (brique 90). Sur l'accueil : « N bons de livraison à facturer »
+(le montant hors taxes livré, pas facturé), « N commandes fournisseurs en retard de livraison » (envoyées ou
+reçues en partie, dont la livraison souhaitée est passée ; la plus ancienne nommée : « Relance le
+fournisseur ») et « N réceptions attendent la facture du fournisseur ». Chaque ligne compte avec la fonction
+de la liste qu'elle ouvre (`bonsAFacturer`, `commandesFournisseurEnRetard`, `receptionsAFacturer`), et cette
+liste marque ce qu'elle annonce (« en retard », « à facturer ») : deux écrans, un chiffre.
+
 ## Ce qui part au serveur
 
 Rien vers un tiers. Deux collections nouvelles du dossier de l'entreprise, sur le serveur de SkanFact :
@@ -119,7 +126,9 @@ notes) ; et deux champs sur un achat, `receptions` (identifiant et numéro de ch
   aussi à un second fournisseur, le refus de commander sans prix, la comparaison (17,250 contre 16,900),
   « Commander chez Béton du Nord », l'autre demande écartée ; puis la comparaison au téléphone. Quatre écrans
   regardés.
-- 66 preuves (`tests/preuves.sh`, briques 87 à 89) : chaque défaut remis fait tomber son test.
+- « À faire » à la souris (`tests/web/a-faire-achats.test.ts`) : les deux lignes sur l'accueil, puis chaque
+  bouton vers la liste qui les marque. Deux écrans regardés.
+- 75 preuves (`tests/preuves.sh`, briques 87 à 90) : chaque défaut remis fait tomber son test.
 
 ## Reste connu
 
@@ -137,8 +146,6 @@ notes) ; et deux champs sur un achat, `receptions` (identifiant et numéro de ch
 - **Les droits** : la commande et la réception s'écrivent avec le droit de modifier le dossier. La grille
   du cadrage (`03-droits.md` § 1 et § 2.3 : l'acheteur prépare une commande ; le magasinier valide une
   réception ; une commande au-delà d'un seuil demande un accord) n'est pas encore appliquée geste par geste.
-- « À faire » ne compte pas les réceptions qui attendent leur facture ni les commandes en retard (livraison
-  souhaitée dépassée).
 - Une ligne saisie à la main sur un achat, pour une marchandise déjà reçue par une réception (sans passer
   par « Saisir la facture du fournisseur »), l'y ferait entrer deux fois : rien n'avertit encore.
 - Une réception en préparation d'une commande annulée ensuite peut encore se valider (la marchandise est

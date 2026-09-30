@@ -59,6 +59,8 @@
   se disent sous les lignes et sur la commande ; rien n'est refusé.
   La demande de prix (brique 89) : le statut « demande » (même série BCF, imprimée sans prix) ; ses copies
   chez d'autres fournisseurs partagent un `groupe` ; `comparerDemandes` les compare en dinars.
+  « À faire » (brique 90) : bons à facturer, réceptions sans facture, commandes en retard, comptés par les
+  fonctions des listes qu'ils ouvrent.
 - Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,
   un seau par clé dans la mémoire du programme (à partager le jour où il y aura plusieurs programmes).
 - Les avis d'événement signés (`0008`, `serveur/avis.ts`, 28/09/2026) : l'avis naît dans la

@@ -7598,6 +7598,12 @@
     });
     return out;
   }
+  // Les commandes fournisseurs en retard (brique 90) : envoyées ou reçues en partie, dont la livraison souhaitée
+  // est passée. UNE fonction pour la ligne de « À faire » et la mention « en retard » de la liste qu'elle ouvre.
+  function commandesFournisseurEnRetard(data, todayIso) {
+    const t = todayIso || today();
+    return (data.supplierOrders || []).filter(o => o.dueDate && o.dueDate < t && ['envoyée', 'partielle'].includes(statutCommandeFournisseur(data, o)));
+  }
   // Une demande de prix envoyée à plusieurs fournisseurs (brique 89) : ses copies partagent un groupe (l'identifiant
   // de la première). Seules les demandes encore ouvertes comptent : une demande commandée ou écartée n'en est plus une.
   function demandesDuGroupe(data, d) {
@@ -8461,6 +8467,30 @@
       detail: due.map(r => fillTemplate(r.subject, { mois: monthLabel(r.nextDate) })).join(' · '),
       count: due.length, route: '#/contrats', docs: []
     });
+
+    // Plateforme (brique 90) : ce qui est livré sans être facturé, reçu sans la facture du fournisseur, commandé
+    // et pas arrivé à la date souhaitée. Chaque ligne compte avec la fonction de la liste qu'elle ouvre.
+    const bonsAF = bonsAFacturer(data);
+    if (bonsAF.length) {
+      const ht = round3(bonsAF.reduce((s, d) => s + toBase(d, computeTotals(d, company).netHT, company), 0));
+      out.push({ id: 'bons-a-facturer', level: 'warn', label: `${plFr(bonsAF.length, 'bon de livraison', 'bons de livraison')} à facturer`,
+        detail: `${fmt(ht)} HT livrés, pas encore facturés. « Facturer des bons… » en fait une facture par client.`,
+        count: bonsAF.length, amount: ht, route: '#/autres/livraison', docs: bonsAF });
+    }
+    const recAF = receptionsAFacturer(data);
+    if (recAF.length) {
+      const noms = Array.from(new Set(recAF.map(r => ((data.suppliers || []).find(x => x.id === r.supplierId) || {}).name).filter(Boolean)));
+      out.push({ id: 'receptions-a-facturer', level: 'info', label: `${plFr(recAF.length, 'réception attend', 'réceptions attendent')} la facture du fournisseur`,
+        detail: `${noms.join(', ')} : la marchandise est en stock, sa facture n'est pas saisie. Saisis-la depuis la réception.`,
+        count: recAF.length, route: '#/commandesf/receptions', docs: [] });
+    }
+    const enRetard = commandesFournisseurEnRetard(data, t);
+    if (enRetard.length) {
+      const plusVieille = enRetard.slice().sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+      out.push({ id: 'commandesf-retard', level: 'warn', label: `${plFr(enRetard.length, 'commande fournisseur', 'commandes fournisseurs')} en retard de livraison`,
+        detail: `La plus ancienne : ${plusVieille.number} (${((data.suppliers || []).find(x => x.id === plusVieille.supplierId) || {}).name || 'fournisseur'}), attendue le ${fmtDate(plusVieille.dueDate)}. Relance le fournisseur.`,
+        count: enRetard.length, route: '#/commandesf/commandes', docs: [] });
+    }
 
     // Devis acceptés dont le montant n'a pas été facturé EN ENTIER (même en brouillon) : le travail
     // est vendu, pas facturé. Un ACOMPTE porte `fromQuoteId` lui aussi (7.29.0) : le compter comme la
@@ -10915,7 +10945,7 @@
     CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, decimalsFor, arrondiDevise, prixDuCatalogue, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
-    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes,
+    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard,
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
     vatReturn, vatChain, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
     ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, cashMovements, accountBalance, cashPosition, cashForecast, reconciliation,

@@ -204,6 +204,12 @@ serveur tient au millime (seule la facture du fournisseur en est une).
     });
     return out;
   }
+  // Les commandes fournisseurs en retard (brique 90) : envoyées ou reçues en partie, dont la livraison souhaitée
+  // est passée. UNE fonction pour la ligne de « À faire » et la mention « en retard » de la liste qu'elle ouvre.
+  function commandesFournisseurEnRetard(data, todayIso) {
+    const t = todayIso || today();
+    return (data.supplierOrders || []).filter(o => o.dueDate && o.dueDate < t && ['envoyée', 'partielle'].includes(statutCommandeFournisseur(data, o)));
+  }
   // Une demande de prix envoyée à plusieurs fournisseurs (brique 89) : ses copies partagent un groupe (l'identifiant
   // de la première). Seules les demandes encore ouvertes comptent : une demande commandée ou écartée n'en est plus une.
   function demandesDuGroupe(data, d) {
@@ -286,6 +292,49 @@ ${isSupplierOrder ? L.supplier : isInvoice || isProforma ? L.billedTo : isCredit
       ? docLabel('facture', company, lang) : isDemandePrix ? L.demandePrix : (L[doc.type] || 'Document');
 -- fin
 
+== core.js | « À faire » : les bons à facturer, les réceptions sans facture, les commandes en retard (brique 90)
+-- avant
+      count: due.length, route: '#/contrats', docs: []
+    });
+-- après
+      count: due.length, route: '#/contrats', docs: []
+    });
+
+    // Plateforme (brique 90) : ce qui est livré sans être facturé, reçu sans la facture du fournisseur, commandé
+    // et pas arrivé à la date souhaitée. Chaque ligne compte avec la fonction de la liste qu'elle ouvre.
+    const bonsAF = bonsAFacturer(data);
+    if (bonsAF.length) {
+      const ht = round3(bonsAF.reduce((s, d) => s + toBase(d, computeTotals(d, company).netHT, company), 0));
+      out.push({ id: 'bons-a-facturer', level: 'warn', label: `${plFr(bonsAF.length, 'bon de livraison', 'bons de livraison')} à facturer`,
+        detail: `${fmt(ht)} HT livrés, pas encore facturés. « Facturer des bons… » en fait une facture par client.`,
+        count: bonsAF.length, amount: ht, route: '#/autres/livraison', docs: bonsAF });
+    }
+    const recAF = receptionsAFacturer(data);
+    if (recAF.length) {
+      const noms = Array.from(new Set(recAF.map(r => ((data.suppliers || []).find(x => x.id === r.supplierId) || {}).name).filter(Boolean)));
+      out.push({ id: 'receptions-a-facturer', level: 'info', label: `${plFr(recAF.length, 'réception attend', 'réceptions attendent')} la facture du fournisseur`,
+        detail: `${noms.join(', ')} : la marchandise est en stock, sa facture n'est pas saisie. Saisis-la depuis la réception.`,
+        count: recAF.length, route: '#/commandesf/receptions', docs: [] });
+    }
+    const enRetard = commandesFournisseurEnRetard(data, t);
+    if (enRetard.length) {
+      const plusVieille = enRetard.slice().sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+      out.push({ id: 'commandesf-retard', level: 'warn', label: `${plFr(enRetard.length, 'commande fournisseur', 'commandes fournisseurs')} en retard de livraison`,
+        detail: `La plus ancienne : ${plusVieille.number} (${((data.suppliers || []).find(x => x.id === plusVieille.supplierId) || {}).name || 'fournisseur'}), attendue le ${fmtDate(plusVieille.dueDate)}. Relance le fournisseur.`,
+        count: enRetard.length, route: '#/commandesf/commandes', docs: [] });
+    }
+-- fin
+
+== app.js | les actions des lignes de « À faire » des achats et des livraisons (brique 90)
+-- avant
+    retards: { label: 'Voir les relances', run: vers('#/relances') },
+-- après
+    retards: { label: 'Voir les relances', run: vers('#/relances') },
+    'bons-a-facturer': { label: 'Voir les bons', run: vers('#/autres/livraison') },
+    'receptions-a-facturer': { label: 'Voir les réceptions', run: vers('#/commandesf/receptions') },
+    'commandesf-retard': { label: 'Voir les commandes', run: vers('#/commandesf/commandes') },
+-- fin
+
 == core.js | les mots de la commande fournisseur imprimée
 -- avant
 from: 'Suite à', deliveryNotes: 'Bons de livraison', deliveryNote1: 'Bon de livraison',
@@ -313,7 +362,7 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
 -- après
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
-    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes,
+    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard,
 -- fin
 
 ── Les écrans (app.js) ──
@@ -419,6 +468,9 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
     if (parts[0] === 'receptions' || parts[0] === 'commandes') etatCF.onglet = parts[0];
     const onglet = etatCF.onglet;
     const cmds = commandesF().slice().sort(parDateCF), recs = receptionsF().slice().sort(parDateCF);
+    // Ce que « À faire » annonce, marqué dans la liste qu'il ouvre (brique 90) : les mêmes fonctions.
+    const enRetard = new Set(C.commandesFournisseurEnRetard(data).map(x => x.id));
+    const aFacturerR = new Set(C.receptionsAFacturer(data).map(x => x.id));
     const vide = !cmds.length && !recs.length;
     $('#view').innerHTML = `
       <div class="page-head"><h1>Commandes fournisseurs ${info('cf.page')}</h1>
@@ -447,10 +499,10 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
             : '<th>Numéro</th><th>Fournisseur</th><th>Commande</th><th>Date</th><th>Statut</th><th class="r">Lignes</th>'}</tr></thead><tbody>
           ${rows.map(x => onglet === 'commandes'
             ? `<tr><td class="nw"><a href="#/commandef/${h(x.id)}"><b>${h(x.number || '(brouillon)')}</b></a></td><td>${h(supplierName(x.supplierId))}</td>
-                <td class="nw">${h(C.fmtDate(x.date))}</td><td class="nw">${x.dueDate ? h(C.fmtDate(x.dueDate)) : '—'}</td><td>${badgeCF(C.statutCommandeFournisseur(data, x))}</td>
+                <td class="nw">${h(C.fmtDate(x.date))}</td><td class="nw">${x.dueDate ? h(C.fmtDate(x.dueDate)) : '—'}</td><td>${badgeCF(C.statutCommandeFournisseur(data, x))}${enRetard.has(x.id) ? ' <span class="warn-text small nw">en retard</span>' : ''}</td>
                 <td class="r num nw">${h(C.money(C.computeTotals(x, company()).netHT, x.currency || company().currency))}</td></tr>`
             : `<tr><td class="nw"><a href="#/reception/${h(x.id)}"><b>${h(x.number || '(brouillon)')}</b></a></td><td>${h(supplierName(x.supplierId))}</td>
-                <td class="nw">${x.orderId ? `<a href="#/commandef/${h(x.orderId)}">${h(x.orderNumber || '—')}</a>` : '—'}</td><td class="nw">${h(C.fmtDate(x.date))}</td><td>${badgeCF(x.status)}</td>
+                <td class="nw">${x.orderId ? `<a href="#/commandef/${h(x.orderId)}">${h(x.orderNumber || '—')}</a>` : '—'}</td><td class="nw">${h(C.fmtDate(x.date))}</td><td>${badgeCF(x.status)}${aFacturerR.has(x.id) ? ' <span class="small muted nw">à facturer</span>' : ''}</td>
                 <td class="r num">${(x.lines || []).length}</td></tr>`).join('')}
           </tbody></table></div>${pagerBar(pg, { noun: onglet === 'commandes' ? 'commande' : 'réception' })}`;
       bindPager($('#cf-list'), st, dessiner);

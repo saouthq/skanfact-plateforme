@@ -89,8 +89,6 @@ de chaque bon) sur une facture.
 
 - Un bon qui livre plus que commandé se dit sur le panneau de la commande, mais rien n'avertit AVANT de
   l'enregistrer.
-- « À faire » ne compte pas encore les bons qui attendent leur facture (le bouton principal de la liste
-  des bons, oui).
 - La facture de plusieurs bons ne dit pas, ligne par ligne, de quel bon vient chaque quantité (la liste
   des bons est en tête). **À VÉRIFIER** avec un comptable : est-ce attendu sur une facture tunisienne ?
 - Le fichier TEIF ne porte pas les numéros des bons. **À VÉRIFIER** : la TTN les attend-elle ?

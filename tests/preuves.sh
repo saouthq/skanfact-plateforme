@@ -5447,6 +5447,39 @@ prouver "« Commander chez… » le moins cher qui n'est pas le bouton principal
   "\${t.id === groupe.moinsCher ? 'btn-primary' : ''}\" data-commander" "\" data-commander" \
   "$CFD"
 
+# ── Brique 90 : « À faire » annonce les achats et livraisons en attente (docs/commandes-fournisseurs.md) ──
+CF7="« À faire » annonce les bons à facturer, les réceptions sans facture et les commandes en retard, avec les fonctions de leurs listes"
+AFW="Nadia voit sur son accueil la commande en retard et la réception sans facture, et chaque bouton l'y mène"
+prouver "une commande attendue plus tard dite en retard" web/public/v10/core.js \
+  "(data.supplierOrders || []).filter(o => o.dueDate && o.dueDate < t && ['envoyée', 'partielle']" "(data.supplierOrders || []).filter(o => o.dueDate && ['envoyée', 'partielle']" \
+  "$CF7"
+prouver "une commande soldée ou reçue dite en retard" web/public/v10/core.js \
+  "o.dueDate < t && ['envoyée', 'partielle'].includes(statutCommandeFournisseur(data, o)));" "o.dueDate < t);" \
+  "$CF7"
+prouver "les bons à facturer absents de « À faire »" web/public/v10/core.js \
+  "    if (bonsAF.length) {" "    if (false) {" \
+  "$CF7"
+prouver "les réceptions sans facture absentes de « À faire »" web/public/v10/core.js \
+  "    if (recAF.length) {" "    if (false) {" \
+  "$CF7"
+prouver "les commandes en retard absentes de « À faire »" web/public/v10/core.js \
+  "    if (enRetard.length) {" "    if (false) {" \
+  "$CF7"
+prouver "la ligne des commandes en retard qui ne mène nulle part" web/public/v10/app.js \
+  "    'commandesf-retard': { label: 'Voir les commandes', run: vers('#/commandesf/commandes') },
+" "" \
+  "$AFW"
+prouver "la ligne des réceptions sans facture qui ne mène nulle part" web/public/v10/app.js \
+  "    'receptions-a-facturer': { label: 'Voir les réceptions', run: vers('#/commandesf/receptions') },
+" "" \
+  "$AFW"
+prouver "la liste qui ne marque pas la commande en retard" web/public/v10/app.js \
+  "\${enRetard.has(x.id) ? ' <span" "\${false ? ' <span" \
+  "$AFW"
+prouver "la liste qui ne marque pas la réception à facturer" web/public/v10/app.js \
+  "\${aFacturerR.has(x.id) ? ' <span" "\${false ? ' <span" \
+  "$AFW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

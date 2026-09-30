@@ -29,6 +29,8 @@ type Core = {
   copieLigneAchat: (l: Ligne) => Ligne;
   ecartsAchatReceptions: (data: unknown, p: unknown) => Record<string, unknown>[];
   demandesDuGroupe: (data: unknown, d: Piece) => Piece[];
+  commandesFournisseurEnRetard: (data: unknown, today: string) => Piece[];
+  todoList: (data: unknown, company: unknown, today: string, opts?: unknown) => { id: string; label: string; detail: string; count: number; route: string }[];
   comparerDemandes: (data: unknown, d: Piece) => { demandes: Piece[]; lignes: { label: string; prix: (number | null)[]; meilleur: number }[]; totaux: { id: string; complete: boolean; totalHT: number }[]; moinsCher: string | null };
   costOfGoodsSold: (data: unknown, period?: { from?: string; to?: string }) => number;
   documentHtml: (doc: unknown, client: unknown, company: unknown) => string;
@@ -199,5 +201,33 @@ describe('les commandes fournisseurs et leurs réceptions, dans la v10', () => {
     expect(texte).not.toMatch(/16,900|2 240,000|Total/);
     expect(texte).not.toContain('Bon de commande');
     expect(C.documentHtml(commandee, { name: 'Ciments de Bizerte' }, company).replace(/<[^>]+>/g, ' ')).toMatch(/17,250/);
+  });
+
+  it('« À faire » annonce les bons à facturer, les réceptions sans facture et les commandes en retard, avec les fonctions de leurs listes', () => {
+    const cf = { ...commande(), dueDate: '2026-10-08' };
+    const cf2 = { ...commande(), id: 'cf2', number: 'BCF-2026-002', dueDate: '2026-10-30' };
+    const soldee = { ...commande(), id: 'cf3', number: 'BCF-2026-003', status: 'soldée' };
+    const data = {
+      company, catalog, suppliers: [{ id: 's1', name: 'Ciments de Bizerte' }], clients: [{ id: 'c1', name: 'Chantier Ennasr' }],
+      documents: [{ id: 'bl1', type: 'livraison', number: 'BL-2026-001', status: 'émis', date: '2026-10-05', clientId: 'c1', currency: 'DT', lines: [{ label: 'Ciment', qty: 40, unitPrice: 21.5, vatRate: 19 }] }],
+      purchases: [] as Piece[], supplierOrders: [cf, cf2, soldee], receptions: [] as Piece[],
+    };
+    data.receptions.push(valider(C.receptionDeCommande(data, cf, '2026-10-03'), 'r1', 'BR-2026-001', [60, 1.25, 1]));
+    // Le 20/10 : BCF-001 (attendue le 08/10) est en retard, reçue en partie ; BCF-002 (le 30/10) ne l'est pas ; une soldée jamais.
+    expect(C.commandesFournisseurEnRetard(data, '2026-10-20').map((x) => x.number)).toEqual(['BCF-2026-001']);
+    const lignes = C.todoList(data, company, '2026-10-20').filter((x) => ['bons-a-facturer', 'receptions-a-facturer', 'commandesf-retard'].includes(x.id));
+    expect(lignes.map((x) => [x.id, x.label, x.route])).toEqual([
+      // Triées par gravité, comme toute la liste : les avertissements avant l'information.
+      ['bons-a-facturer', '1 bon de livraison à facturer', '#/autres/livraison'],
+      ['commandesf-retard', '1 commande fournisseur en retard de livraison', '#/commandesf/commandes'],
+      ['receptions-a-facturer', '1 réception attend la facture du fournisseur', '#/commandesf/receptions'],
+    ]);
+    expect(lignes[0]?.detail.replace(/\s/g, ' ')).toMatch(/^860,000 DT HT livrés, pas encore facturés/);
+    expect(lignes[2]?.detail).toMatch(/^Ciments de Bizerte : la marchandise est en stock/);
+    expect(lignes[1]?.detail).toContain('La plus ancienne : BCF-2026-001 (Ciments de Bizerte), attendue le 08/10/2026');
+    // Toute la commande reçue : elle n'est plus en retard ; la réception facturée ne s'annonce plus.
+    data.receptions.push(valider(C.receptionDeCommande(data, cf, '2026-10-21'), 'r2', 'BR-2026-002'));
+    data.purchases.push({ id: 'a1', status: '', lines: [], receptions: [{ id: 'r1' }, { id: 'r2' }] });
+    expect(C.todoList(data, company, '2026-10-22').map((x) => x.id).filter((id) => id.includes('commandesf') || id.includes('receptions'))).toEqual([]);
   });
 });

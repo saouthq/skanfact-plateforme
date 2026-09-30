@@ -7439,6 +7439,9 @@
     }) },
     contrats: { label: 'Générer les brouillons', run: () => { const res = generateRecurring(); toast(`${pl(res.n, 'brouillon créé', 'brouillons créés')} — à relire puis émettre`); render(); } },
     retards: { label: 'Voir les relances', run: vers('#/relances') },
+    'bons-a-facturer': { label: 'Voir les bons', run: vers('#/autres/livraison') },
+    'receptions-a-facturer': { label: 'Voir les réceptions', run: vers('#/commandesf/receptions') },
+    'commandesf-retard': { label: 'Voir les commandes', run: vers('#/commandesf/commandes') },
     societe: { label: 'Compléter', run: vers('#/parametres', () => { settingsTab = 'societe'; settingsFocus = 'p-identite'; }) },
     'devis-brouillons': { label: 'Voir les devis', run: vers('#/devis', filtre('devis', 'brouillon')) },
     'devis-acceptes': { label: 'Facturer', run: vers('#/devis', filtre('devis', 'accepté')) },
@@ -8334,6 +8337,9 @@
     if (parts[0] === 'receptions' || parts[0] === 'commandes') etatCF.onglet = parts[0];
     const onglet = etatCF.onglet;
     const cmds = commandesF().slice().sort(parDateCF), recs = receptionsF().slice().sort(parDateCF);
+    // Ce que « À faire » annonce, marqué dans la liste qu'il ouvre (brique 90) : les mêmes fonctions.
+    const enRetard = new Set(C.commandesFournisseurEnRetard(data).map(x => x.id));
+    const aFacturerR = new Set(C.receptionsAFacturer(data).map(x => x.id));
     const vide = !cmds.length && !recs.length;
     $('#view').innerHTML = `
       <div class="page-head"><h1>Commandes fournisseurs ${info('cf.page')}</h1>
@@ -8362,10 +8368,10 @@
             : '<th>Numéro</th><th>Fournisseur</th><th>Commande</th><th>Date</th><th>Statut</th><th class="r">Lignes</th>'}</tr></thead><tbody>
           ${rows.map(x => onglet === 'commandes'
             ? `<tr><td class="nw"><a href="#/commandef/${h(x.id)}"><b>${h(x.number || '(brouillon)')}</b></a></td><td>${h(supplierName(x.supplierId))}</td>
-                <td class="nw">${h(C.fmtDate(x.date))}</td><td class="nw">${x.dueDate ? h(C.fmtDate(x.dueDate)) : '—'}</td><td>${badgeCF(C.statutCommandeFournisseur(data, x))}</td>
+                <td class="nw">${h(C.fmtDate(x.date))}</td><td class="nw">${x.dueDate ? h(C.fmtDate(x.dueDate)) : '—'}</td><td>${badgeCF(C.statutCommandeFournisseur(data, x))}${enRetard.has(x.id) ? ' <span class="warn-text small nw">en retard</span>' : ''}</td>
                 <td class="r num nw">${h(C.money(C.computeTotals(x, company()).netHT, x.currency || company().currency))}</td></tr>`
             : `<tr><td class="nw"><a href="#/reception/${h(x.id)}"><b>${h(x.number || '(brouillon)')}</b></a></td><td>${h(supplierName(x.supplierId))}</td>
-                <td class="nw">${x.orderId ? `<a href="#/commandef/${h(x.orderId)}">${h(x.orderNumber || '—')}</a>` : '—'}</td><td class="nw">${h(C.fmtDate(x.date))}</td><td>${badgeCF(x.status)}</td>
+                <td class="nw">${x.orderId ? `<a href="#/commandef/${h(x.orderId)}">${h(x.orderNumber || '—')}</a>` : '—'}</td><td class="nw">${h(C.fmtDate(x.date))}</td><td>${badgeCF(x.status)}${aFacturerR.has(x.id) ? ' <span class="small muted nw">à facturer</span>' : ''}</td>
                 <td class="r num">${(x.lines || []).length}</td></tr>`).join('')}
           </tbody></table></div>${pagerBar(pg, { noun: onglet === 'commandes' ? 'commande' : 'réception' })}`;
       bindPager($('#cf-list'), st, dessiner);
