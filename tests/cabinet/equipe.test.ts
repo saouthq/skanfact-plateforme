@@ -104,6 +104,42 @@ describe('l\'équipe du cabinet', () => {
     expect(traces).toEqual(['cabinet.equipe.inviter', 'cabinet.equipe.accepter', 'cabinet.equipe.retirer']);
   });
 
+  it('ce qui a changé dans l\'équipe : l\'associé le lit, du plus récent au plus ancien, avec qui l\'a fait et qui est visé ; personne d\'autre', async () => {
+    const associe = await personneA(`leila-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`, 'Leila');
+    const c = await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Ennour' });
+    const cabinet = String(c.corps.id);
+    const adresse = `amine-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    const inv = await appeler('POST', `/cabinets/${cabinet}/invitations`, associe.jeton, { email: adresse, role: 'saisie' });
+    const autreAdresse = `sonia-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    const inv2 = await appeler('POST', `/cabinets/${cabinet}/invitations`, associe.jeton, { email: autreAdresse, role: 'revision' });
+    expect((await appeler('DELETE', `/cabinets/${cabinet}/invitations/${inv2.corps.id}`, associe.jeton)).statut).toBe(200);
+    const amine = await personneA(adresse, 'Amine');
+    expect((await appeler('POST', '/invitations/accepter', amine.jeton, { jeton: inv.corps.jeton })).statut).toBe(200);
+    const membreAmine = String((await equipe(cabinet, associe)).membres.find((m) => m.nom === 'Amine')?.membre);
+    // Un collaborateur ne lit pas la trace de l'équipe.
+    const refus = await appeler('GET', `/cabinets/${cabinet}/equipe/trace`, amine.jeton);
+    expect([refus.statut, refus.corps.motif]).toEqual([403, 'Seul un associé du cabinet lit ce qui a changé dans son équipe.']);
+    expect((await appeler('PUT', `/cabinets/${cabinet}/membres/${membreAmine}`, associe.jeton, { role: 'revision' })).statut).toBe(200);
+    expect((await appeler('PUT', `/cabinets/${cabinet}/nom`, associe.jeton, { nom: 'Cabinet Ennour et associés' })).statut).toBe(200);
+    expect((await appeler('DELETE', `/cabinets/${cabinet}/membres/${membreAmine}`, associe.jeton)).statut).toBe(200);
+    type Trace = { instant: string; qui: string; geste: string; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null; membre: string };
+    const trace = (await appeler('GET', `/cabinets/${cabinet}/equipe/trace`, associe.jeton)).corps.trace as Trace[];
+    expect(trace.map((x) => [x.geste, x.qui, x.membre])).toEqual([
+      ['cabinet.equipe.retirer', 'Leila', 'Amine'],
+      ['cabinet.renommer', 'Leila', ''],
+      ['cabinet.equipe.changer_role', 'Leila', 'Amine'],
+      ['cabinet.equipe.accepter', 'Amine', 'Amine'],
+      ['cabinet.equipe.annuler', 'Leila', ''],
+      ['cabinet.equipe.inviter', 'Leila', ''],
+      ['cabinet.equipe.inviter', 'Leila', ''],
+    ]);
+    expect([trace[2]?.avant?.roles, trace[2]?.apres?.roles, trace[1]?.apres?.nom, trace[4]?.apres?.email]).toEqual([['saisie'], ['revision'], 'Cabinet Ennour et associés', autreAdresse]);
+    // Un associé d'un autre cabinet ne la lit pas.
+    const ailleurs = await personne('ailleurs');
+    await appeler('POST', '/cabinets', ailleurs.jeton, { nom: 'Autre cabinet' });
+    expect((await appeler('GET', `/cabinets/${cabinet}/equipe/trace`, ailleurs.jeton)).statut).toBe(403);
+  });
+
   it('seul un associé invite, change un rôle, retire ; personne ne change son propre rôle ni ne se retire ; une invitation annulée ne vaut plus', async () => {
     const associe = await personne('associe');
     const cabinet = String((await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Ennour' })).corps.id);

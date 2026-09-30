@@ -1,0 +1,21 @@
+Ce qui a changé dans l'équipe (brique 61). Format : voir sans-paquets.mjs.
+
+Sur la plateforme, chaque geste sur l'équipe se trace au serveur ; un associé en lit les cinquante
+derniers, en phrases, sous la liste de l'équipe (docs/cabinet.md, C51). La v10 n'en avait pas : les
+collaborateurs s'y déclaraient sur un poste, sans rien de ce qui se trace ici.
+
+== cabinet/app.js | l'associé lit ce qui a changé dans l'équipe, sous les invitations
+-- avant
+      ${g.ok ? '' : `<p class="muted small mt">${esc(g.motif || '')} ${esc(g.geste || '')}</p>`}
+      <div class="modal-actions">
+        <button class="btn" id="eq-add" ${g.ok ? '' : 'disabled'}>Inviter un collaborateur…</button>
+      </div>
+-- après
+      ${g.ok ? '' : `<p class="muted small mt">${esc(g.motif || '')} ${esc(g.geste || '')}</p>`}
+      <div class="modal-actions">
+        <button class="btn" id="eq-add" ${g.ok ? '' : 'disabled'}>Inviter un collaborateur…</button>
+      </div>
+      ${(equipe.trace || []).length ? `<p class="small mt"><b>Ce qui a changé dans l'équipe</b> <span class="muted">— les derniers gestes, du plus récent au plus ancien</span></p>
+        <div class="scroll-x"><table class="list compact" id="eq-trace"><tbody>${equipe.trace.map(x => `<tr>
+          <td class="nw muted small">${esc(fmtJour(KC.jourDeLInstant(Date.parse(x.instant))))}</td><td>${esc(x.phrase)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+-- fin

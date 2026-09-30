@@ -3404,5 +3404,34 @@ prouver "toute case du mandat qui ouvre la paie" $M35 \
   "  select e from socle.mes_entreprises() e where p_case = any(socle.perimetre_cabinet(e))" "  select e from socle.mes_entreprises() e where socle.perimetre_cabinet(e) is not null" \
   "$DV1"
 
+# ── Brique 61 : ce qui a changé dans l'équipe (docs/cabinet.md, C51) ──
+TE1="ce qui a changé dans l'équipe : l'associé le lit, du plus récent au plus ancien, avec qui l'a fait et qui est visé ; personne d'autre"
+TE2="l'associé lit ce qui a changé dans l'équipe, en phrases ; le collaborateur ne voit pas la liste"
+M36=base/migrations/0036_cabinet_trace_equipe.sql
+prouver "la trace de l'équipe lue par un collaborateur" $M36 \
+  "  if not socle.suis_associe(p_cabinet) then perform socle.refus('seul un associé du cabinet lit ce qui a changé dans son équipe'); end if;" "" \
+  "$TE1"
+prouver "la trace des autres cabinets mêlée à la sienne" $M36 \
+  "a.objet_type = 'cabinet' and a.objet_id = p_cabinet" "a.objet_type = 'cabinet'" \
+  "$TE1"
+prouver "la personne qui rejoint, sans son nom" $M36 \
+  "coalesce(a.apres->>'membre', a.avant->>'membre')::uuid" "(a.avant->>'membre')::uuid" \
+  "$TE1"
+prouver "le nom du cabinet oublié par la trace de l'équipe" $M36 \
+  "(a.geste like 'cabinet.equipe.%' or a.geste = 'cabinet.renommer')" "a.geste like 'cabinet.equipe.%'" \
+  "$TE1"
+prouver "la trace de l'équipe du plus ancien au plus récent" $M36 \
+  "     order by a.instant desc, a.id desc" "     order by a.instant, a.id" \
+  "$TE1"
+prouver "la trace demandée pour un collaborateur" $PC \
+  "const trace = suis ? ((await appel(" "const trace = true ? ((await appel(" \
+  "$TE2"
+prouver "un changement de rôle dit sans l'ancien rôle" $PC \
+  "a changé le rôle de \${membre} : \${role((av.roles || [])[0])} → \${role((ap.roles || [])[0])}." "a changé le rôle de \${membre} : \${role((ap.roles || [])[0])}." \
+  "$TE2"
+prouver "la trace de l'équipe absente de l'écran" web/public/v10/cabinet/app.js \
+  "      \${(equipe.trace || []).length ? \`<p class=\"small mt\"><b>Ce qui a changé dans l'équipe</b>" "      \${false ? \`<p class=\"small mt\"><b>Ce qui a changé dans l'équipe</b>" \
+  "$TE2"
+
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

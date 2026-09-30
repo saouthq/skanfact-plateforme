@@ -854,6 +854,24 @@
   let moiNom = '';
   /** @param {unknown} x */
   const esc = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  // Un geste sur l'équipe, dit en une phrase (brique 61) : qui a fait quoi, à qui.
+  /** @param {any} x */
+  function phraseDeLEquipe(x) {
+    /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
+    /** @param {unknown} r */
+    const role = (r) => K.LIBELLE_ROLE[/** @type {Record<string, string>} */ (VERS_V10)[String(r)] || 'saisie'] || String(r);
+    const av = x.avant || {}, ap = x.apres || {};
+    const membre = x.membre || 'une personne';
+    switch (x.geste) {
+      case 'cabinet.equipe.inviter': return `${x.qui} a invité ${ap.email} (${role(ap.role)}).`;
+      case 'cabinet.equipe.annuler': return `${x.qui} a annulé l'invitation de ${ap.email}.`;
+      case 'cabinet.equipe.accepter': return `${x.qui} a rejoint le cabinet (${role((ap.roles || [])[0])}).`;
+      case 'cabinet.equipe.changer_role': return `${x.qui} a changé le rôle de ${membre} : ${role((av.roles || [])[0])} → ${role((ap.roles || [])[0])}.`;
+      case 'cabinet.equipe.retirer': return `${x.qui} a retiré ${membre} du cabinet.`;
+      case 'cabinet.renommer': return `${x.qui} a renommé le cabinet : « ${av.nom} » → « ${ap.nom} ».`;
+      default: return `${x.qui} : ${x.geste}.`;
+    }
+  }
   const PERIMETRES = /** @type {Record<string, string>} */ ({ comptabilite: 'la comptabilité', declarations: 'les déclarations', saisie_achats: 'la saisie des achats', paie: 'la paie' });
   /** @param {boolean} [reglages] */
   function commentUnClientArrive(reglages) {
@@ -1635,7 +1653,10 @@
       const etat = await construireEtat();
       const associes = equipeLue.membres.filter((m) => (m.roles || []).includes('supervision'));
       const suis = associes.some((m) => m.utilisateur === etat.moi);
+      // Ce qui a changé dans l'équipe (brique 61) : un associé le lit, en phrases.
+      /** @type {any[]} */ const trace = suis ? ((await appel('GET', `/cabinets/${cabinetId}/equipe/trace`)).trace || []) : [];
       return {
+        trace: trace.map((x) => ({ instant: x.instant, phrase: phraseDeLEquipe(x) })),
         liste: etat.collaborateurs, moi: etat.moi, invitations: equipeLue.invitations.map((i) => ({ ...i, role: VERS_V10[i.role] || 'saisie' })),
         gestion: suis ? { ok: true } : { ok: false, motif: 'Seul un associé du cabinet invite, change un rôle ou retire quelqu\'un.',
           geste: `${associes.map((m) => m.nom).join(', ')} ${associes.length > 1 ? 'peuvent' : 'peut'} le faire.` },

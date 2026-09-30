@@ -9429,6 +9429,9 @@
       <div class="modal-actions">
         <button class="btn" id="eq-add" ${g.ok ? '' : 'disabled'}>Inviter un collaborateur…</button>
       </div>
+      ${(equipe.trace || []).length ? `<p class="small mt"><b>Ce qui a changé dans l'équipe</b> <span class="muted">— les derniers gestes, du plus récent au plus ancien</span></p>
+        <div class="scroll-x"><table class="list compact" id="eq-trace"><tbody>${equipe.trace.map(x => `<tr>
+          <td class="nw muted small">${esc(fmtJour(KC.jourDeLInstant(Date.parse(x.instant))))}</td><td>${esc(x.phrase)}</td></tr>`).join('')}</tbody></table></div>` : ''}
       <p class="muted small">Chacun entre avec <strong>son propre compte</strong> et son code : les rôles disent
       <strong>qui</strong> a validé une écriture, et évitent qu'elle le soit par quelqu'un dont ce n'est pas le travail. Un associé
       voit tous les dossiers ; un collaborateur, ceux qu'un associé lui confie, dans la fiche du dossier, onglet <strong>Suivi</strong>.</p>`;

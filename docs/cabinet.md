@@ -862,7 +862,7 @@ rôle changé, puis retirée ; pas de menu sur sa propre ligne.
   brique 53.
 - L'état du cabinet se lit à l'ouverture : un membre qui vient de rejoindre apparaît dans la fiche des
   dossiers après avoir rouvert la page (le panneau L'équipe, lui, se relit à chaque affichage).
-- La trace de l'équipe est gardée au serveur ; elle ne se lit pas encore à l'écran.
+- La trace de l'équipe : l'associé la lit dans le panneau depuis la brique 61 (C51).
 
 **Un défaut de la brique 45, corrigé ici** : depuis que les onglets se relisent quand la piste du livre
 s'allonge, un geste faisait relire l'écran **deux fois** (sa propre relecture, puis celle de la piste
@@ -1281,3 +1281,22 @@ pas de la ligne : la base les évalue une fois par requête, pas une fois par li
 et le collaborateur ne lisent que le plan (ni la facture, ni la société, ni le salarié) ; une facture
 ne se modifie ni ne s'ajoute ; sous un mandat qui comprend la paie, le salarié aussi ; le client lit
 tout. Toute la suite du cabinet (la saisie, la paie, les déclarations…) passe avec la règle resserrée.
+
+## Brique 61 : ce qui a changé dans l'équipe (fait le 30/09/2026)
+
+**C51. L'associé lit la trace de son équipe, en phrases** (par délégation). Chaque geste sur l'équipe
+(inviter, annuler une invitation, rejoindre, changer un rôle, retirer) et le nom du cabinet se tracent au
+serveur depuis les briques 46 et 47, au nom du cabinet ; mais une trace sans entreprise ne se lisait que
+par qui l'avait écrite (0003). Désormais un **associé** la lit (`socle.trace_de_l_equipe`, 0036 ;
+`GET /cabinets/:c/equipe/trace`) : les cinquante derniers gestes, du plus récent au plus ancien, avec le
+nom de qui les a faits et de la personne visée. Personne d'autre (un collaborateur, un autre cabinet :
+refusé). Le panneau « L'équipe » (Réglages → Mon cabinet) les montre sous la liste, en phrases (le point
+de contact les écrit : « Leila a changé le rôle de Amine : Saisie → Saisie et validation. ») ; un
+collaborateur ne voit pas la liste. Un index (`audit_objet`) garde la lecture rapide quand la trace
+grandit.
+
+**Les tests** : par l'API (`tests/cabinet/equipe.test.ts`) : sept gestes (deux invitations, une annulée,
+une acceptée, un rôle changé, le cabinet renommé, un retrait) relus dans l'ordre, avec qui et à qui, et
+ce qui a changé ; le collaborateur et l'associé d'un autre cabinet refusés. À la souris
+(`tests/web/cabinet-equipe-trace.test.ts`) : les quatre phrases de l'associé, dans l'ordre ; pas de liste
+pour le collaborateur.

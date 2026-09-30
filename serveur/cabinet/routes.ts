@@ -482,6 +482,20 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       };
     },
   });
+  // Ce qui a changé dans l'équipe (brique 61, 0036) : les cinquante derniers gestes, pour un associé.
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/equipe/trace', geste: 'compte.cabinets.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const r = await tx.query('select instant, qui, geste, avant, apres, membre from socle.trace_de_l_equipe($1)', [params.cabinet]);
+      return {
+        corps: {
+          trace: (r.rows as { instant: Date; qui: string; geste: string; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null; membre: string }[])
+            .map((x) => ({ instant: x.instant.toISOString(), qui: x.qui, geste: x.geste, avant: x.avant, apres: x.apres, membre: x.membre })),
+        },
+      };
+    },
+  });
   // Inviter une personne par son adresse : le lien n'est rendu qu'ici, une fois ; la base n'en garde que l'empreinte.
   ajouter({
     methode: 'POST', chemin: '/cabinets/:cabinet/invitations', geste: 'compte.cabinet.gerer',
