@@ -28,6 +28,12 @@ export const GESTES_VENTES: Geste[] = [
   // ou le débrancher. L'argent de l'entreprise : le propriétaire et l'administrateur seulement.
   { code: 'ventes.paiement.regler', module: 'ventes', horsCle: true, ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui' } },
+  // La facture électronique (brique 81) : désigner qui signe, et signer. Signer est l'acte d'une personne
+  // (le code arrive sur SON téléphone) : jamais une clé de l'API.
+  { code: 'ventes.efacture.regler', module: 'ventes', horsCle: true, ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui' } },
+  { code: 'ventes.facture.signer', module: 'ventes', horsCle: true, ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui' } },
 ];
 
 let declares = false;

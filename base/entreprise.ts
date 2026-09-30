@@ -99,6 +99,10 @@ export const CLASSEMENT: Record<string, Classe> = {
   'ventes.prestataire': { classe: 'hors', raison: 'la clé du prestataire de paiement est scellée par le coffre de CE serveur : elle se repose après une restauration' },
   'ventes.paiement_en_ligne': { classe: 'entreprise' },
   'ventes.efacture': { classe: 'entreprise' },
+  // Qui signe (brique 81) : une personne de l'entreprise, avec son certificat chez TunTrust.
+  'ventes.signataire': { classe: 'entreprise' },
+  'ventes.signature_demande': { classe: 'entreprise' },
+  'ventes.efacture_signee': { classe: 'entreprise' },
   // Le code d'un cabinet n'est pas repris : unique sur la plateforme, il reste à son cabinet.
   'socle.organisation': { classe: 'reference', colonnes: ['id', 'type', 'nom', 'cree_le'] },
   // Jamais l'empreinte du mot de passe ni le téléphone vérifié : une personne recréée se reconnecte

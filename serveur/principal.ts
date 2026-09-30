@@ -15,6 +15,9 @@
 //   SKANFACT_ADRESSE         l'adresse publique du serveur (https), où reviennent le client et l'avis
 //                            du prestataire de paiement ; par défaut, celle où il écoute
 //   SKANFACT_KONNECT         l'API de Konnect (https://api.konnect.network/api/v2 par défaut)
+//   SKANFACT_DIGIGO          l'API DigiGo de TunTrust (la signature de la facture électronique) ; sans elle,
+//                            la signature n'est pas branchée (et le dit)
+//   SKANFACT_DIGIGO_CLE      la clé de SkanFact comme « entité d'intégration » DigiGo (exigée avec l'API)
 //   SKANFACT_COFFRE          la clé du coffre (32 octets en base64) qui scelle les clés confiées par les
 //                            entreprises (serveur/coffre.ts) ; exigée en production, une clé d'essai
 //                            connue de tous sinon
@@ -46,6 +49,7 @@ import { KONNECT_PAR_DEFAUT } from './ventes/konnect.ts';
 export type Configuration = {
   base: string; environnement: 'test' | 'production'; port: number; hote: string; listeVolee: string;
   sms: 'aucun'; livreurMs: number; web: string; adresse: string | null; konnect: string; coffre: Buffer; verificationMs: number;
+  digigo: { base: string; cle: string } | null;
 };
 
 export class ConfigurationFausse extends Error {}
@@ -73,12 +77,16 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   if (adresse && !/^https?:\/\/[^/]+$/.test(adresse)) throw new ConfigurationFausse(`SKANFACT_ADRESSE « ${adresse} » : une origine (https://nom), sans chemin`);
   const konnect = (env.SKANFACT_KONNECT ?? KONNECT_PAR_DEFAUT).replace(/\/+$/, '');
   if (!/^https?:\/\//.test(konnect)) throw new ConfigurationFausse(`SKANFACT_KONNECT « ${konnect} » n'est pas une adresse`);
+  const digigo = env.SKANFACT_DIGIGO ? env.SKANFACT_DIGIGO.replace(/\/+$/, '') : null;
+  if (digigo && !/^https?:\/\//.test(digigo)) throw new ConfigurationFausse(`SKANFACT_DIGIGO « ${digigo} » n'est pas une adresse`);
+  if (digigo && !env.SKANFACT_DIGIGO_CLE) throw new ConfigurationFausse('SKANFACT_DIGIGO_CLE manque : la clé de SkanFact comme entité d\'intégration DigiGo');
   return {
     base, environnement, port, hote: env.SKANFACT_HOTE ?? '127.0.0.1', sms,
     listeVolee: env.SKANFACT_LISTE_VOLEE ?? path.join(ici, '../tests/donnees/mots-de-passe-voles.txt'),
     livreurMs: Number(env.SKANFACT_LIVREUR_MS ?? 15_000),
     web: env.SKANFACT_WEB ?? path.join(ici, '../dist/web'),
     adresse, konnect, coffre, verificationMs: Number(env.SKANFACT_VERIFICATION_MS ?? 60_000),
+    digigo: digigo ? { base: digigo, cle: env.SKANFACT_DIGIGO_CLE ?? '' } : null,
   };
 }
 
@@ -120,7 +128,8 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const pool = creerPool(c.base);
   // L'adresse publique : réglée, sinon celle où le serveur écoute (connue une fois qu'il écoute).
   let publique = c.adresse ?? '';
-  const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms: smsAucun, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique } };
+  const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms: smsAucun, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique },
+    ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}) };
   declarerGestesVentes();
   declarerGestesAchats();
   declarerGestesPaie();

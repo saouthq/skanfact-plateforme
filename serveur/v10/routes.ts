@@ -15,6 +15,7 @@ import { aujourdhuiATunis } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { appliquer, Conflit, emettreDepuisV10, lireDossier, type Changement } from './dossier.ts';
 import { demanderPaiement, verifierPaiement } from './paiement.ts';
+import { demanderSignature, signerAvecLeCode } from './signature.ts';
 
 // Une clé v10 : l'identifiant qu'elle a donné à l'objet, ou le nom d'un champ du dossier.
 const cle = z.string().min(1).max(200);
@@ -67,10 +68,56 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     methode: 'GET', chemin: '/entreprises/:entreprise/dossier-v10/:cle/teif', geste: 'ventes.pieces.voir',
     traiter: async ({ params }, tx) => {
       if (!tx) throw new Error('transaction attendue');
-      const f = (await tx.query(`select e.nom, e.xml, e.empreinte from ventes.efacture e join ventes.piece p on p.id = e.piece
-        where p.entreprise = $1 and p.ref_v10 = $2`, [params.entreprise, params.cle])).rows[0] as { nom: string; xml: string; empreinte: string } | undefined;
+      // Signé (brique 81) : le fichier signé, celui qui se dépose.
+      const f = (await tx.query(`select e.nom, coalesce(g.xml, e.xml) xml, coalesce(g.empreinte, e.empreinte) empreinte, (g.piece is not null) signe,
+          g.signe_le, g.titulaire from ventes.efacture e join ventes.piece p on p.id = e.piece left join ventes.efacture_signee g on g.piece = e.piece
+        where p.entreprise = $1 and p.ref_v10 = $2`, [params.entreprise, params.cle])).rows[0] as { nom: string; xml: string; empreinte: string; signe: boolean; signe_le: Date | null; titulaire: string | null } | undefined;
       if (!f) return { statut: 404, corps: { motif: motif('efacture.absent') } };
-      return { corps: f };
+      return { corps: { nom: f.signe ? f.nom.replace(/\.xml$/, '_signe.xml') : f.nom, xml: f.xml, empreinte: f.empreinte, signe: f.signe,
+        signeLe: f.signe_le ? f.signe_le.toISOString() : null, titulaire: f.titulaire } };
+    },
+  });
+
+  // ── La signature DigiGo (brique 81 ; docs/facture-electronique.md) ─────────────────────────────────
+  // Qui signe pour l'entreprise : son identifiant DigiGo (le propriétaire ou un administrateur le pose).
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/efacture/signataire', geste: 'ventes.pieces.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const s = (await tx.query(`select s.identifiant, s.pose_le, u.nom pose_par from ventes.signataire s left join socle.utilisateur u on u.id = s.pose_par
+        where s.entreprise = $1`, [params.entreprise])).rows[0] as { identifiant: string; pose_le: Date; pose_par: string | null } | undefined;
+      return { corps: { signataire: s ? { identifiant: s.identifiant, poseLe: s.pose_le.toISOString(), posePar: s.pose_par ?? '' } : null, branche: !!ctx.efacture } };
+    },
+  });
+  ajouter({
+    methode: 'PUT', chemin: '/entreprises/:entreprise/efacture/signataire', geste: 'ventes.efacture.regler',
+    corps: z.object({ identifiant: z.string().trim().min(4).max(60) }),
+    traiter: async ({ params, corps, qui }, tx) => {
+      if (!tx || !qui) throw new Error('transaction attendue');
+      const ent = params.entreprise ?? '';
+      await tx.query(`insert into ventes.signataire (entreprise, identifiant, pose_le, pose_par) values ($1, $2, now(), $3)
+        on conflict (entreprise) do update set identifiant = excluded.identifiant, pose_le = excluded.pose_le, pose_par = excluded.pose_par`, [ent, corps.identifiant, qui.utilisateur]);
+      await tracer(tx, ent, 'ventes.efacture.regler', { type: 'signataire', id: null }, null, { identifiant: corps.identifiant });
+      return { corps: { ok: true } };
+    },
+  });
+  // Signer des pièces émises : DigiGo envoie un code au signataire…
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/efacture/signatures', geste: 'ventes.facture.signer',
+    corps: z.object({ pieces: z.array(z.string().min(1).max(200)).min(1).max(100) }),
+    traiter: async ({ params, corps, qui }, tx) => {
+      if (!tx || !qui) throw new Error('transaction attendue');
+      return demanderSignature(ctx, tx, params.entreprise ?? '', qui.utilisateur, [...new Set(corps.pieces)]);
+    },
+  });
+  // … et ce code, tapé, signe les fichiers.
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/efacture/signatures/:demande/code', geste: 'ventes.facture.signer',
+    corps: z.object({ code: z.string().trim().regex(/^\d{4,8}$/) }),
+    traiter: async ({ params, corps, qui }, tx) => {
+      if (!tx || !qui) throw new Error('transaction attendue');
+      if (!/^[0-9a-f-]{36}$/.test(params.demande ?? '')) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
+      return signerAvecLeCode(ctx, tx, params.entreprise ?? '', qui.utilisateur, params.demande ?? '', corps.code);
     },
   });
 

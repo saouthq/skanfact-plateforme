@@ -4615,7 +4615,7 @@ prouver "la clé ramassée par les Paramètres de la v10" web/public/plateforme/
   "$PW"
 prouver "la frappe de la clé qui propose d'enregistrer les Paramètres" web/public/plateforme/pont.js \
   "    for (const t of ['input', 'change']) el.addEventListener(t, (ev) => ev.stopPropagation());
-" "" \
+    const form = /** @type {HTMLElement} */ (el.querySelector('#pl-form'));" "    const form = /** @type {HTMLElement} */ (el.querySelector('#pl-form'));" \
   "$PW"
 prouver "le champ de la clé vide qui ne se montre pas" web/public/plateforme/pont.js \
   "champ(vide).focus(); return; }" "return; }" \
@@ -4755,6 +4755,91 @@ prouver "le réglage « soumise à la facture électronique » jamais dessiné" 
   "\${bridge.teifDuServeur ? \`\${panneau('p-efacture'" "\${false ? \`\${panneau('p-efacture'" \
   "$EFW"
 
+# ── Brique 81 : la signature DigiGo (docs/facture-electronique.md) ──
+SG1="le signataire désigné reçoit un code ; le bon code signe les fichiers du serveur, qui se gardent tels quels"
+SG2="trois codes faux perdent la demande ; un fichier rendu autre n'est pas gardé ; sans DigiGo, rien ne se signe"
+SGW="Nadia désigne le signataire depuis le refus, puis signe la facture avec le code reçu ; le fichier signé se télécharge"
+prouver "une signature demandée sans signataire désigné" serveur/v10/signature.ts \
+  "  if (!s) throw new Refus('efacture.sans_signataire', { bouton: 'efacture.signataire' });
+" "" \
+  "$SG1"
+prouver "« Personne n'est désigné » sans le bouton qui mène au réglage" serveur/v10/signature.ts \
+  "new Refus('efacture.sans_signataire', { bouton: 'efacture.signataire' })" "new Refus('efacture.sans_signataire')" \
+  "$SG1"
+prouver "une pièce sans fichier du serveur envoyée à la signature" serveur/v10/signature.ts \
+  "    if (!p?.fichier) throw new Refus('efacture.sans_fichier', { valeurs: { numero: p?.numero_texte ?? cle } });
+" "" \
+  "$SG2"
+prouver "une pièce signée deux fois" serveur/v10/signature.ts \
+  "    if (p.signee) throw new Refus('efacture.deja_signee', { valeurs: { numero: p.numero_texte } });
+" "" \
+  "$SG1"
+prouver "un quatrième code essayé" serveur/v10/signature.ts \
+  "const ESSAIS = 3;" "const ESSAIS = 4;" \
+  "$SG2"
+prouver "trois codes faux, et la demande signe encore" serveur/v10/signature.ts \
+  "perdue ? 'echouee' : 'code_envoye']" "'code_envoye']" \
+  "$SG2"
+prouver "trois codes faux sans le bouton qui recommence" serveur/v10/signature.ts \
+  "{ motif: motif('efacture.code_epuise'), bouton: 'efacture.recommencer' }" "{ motif: motif('efacture.code_epuise'), bouton: null }" \
+  "$SG2"
+prouver "un fichier rendu autre par DigiGo gardé" serveur/v10/signature.ts \
+  "    if (!signatureEnveloppe(f.xml, s.valeur)) return echec(motif('efacture.signature_fausse'));
+" "" \
+  "$SG2"
+prouver "une demande à moitié signée gardée (le fichier faux sauté)" serveur/v10/signature.ts \
+  "if (!signatureEnveloppe(f.xml, s.valeur)) return echec(motif('efacture.signature_fausse'));" "if (!signatureEnveloppe(f.xml, s.valeur)) continue;" \
+  "$SG2"
+prouver "un fichier rendu SANS signature pris pour signé" serveur/v10/digigo.ts \
+  "return signatures.length === 1 && signe.replace(" "return signe.replace(" \
+  "$SG1"
+prouver "« Fichier pour El Fatoora » donne le fichier non signé d'une pièce signée" serveur/v10/routes.ts \
+  "coalesce(g.xml, e.xml) xml" "e.xml xml" \
+  "$SG1"
+prouver "le fichier signé réécrit ou effacé par le compte du serveur" base/migrations/0050_signature.sql \
+  "grant select, insert on ventes.efacture_signee to skanfact_app;" "grant select, insert, update, delete on ventes.efacture_signee to skanfact_app;" \
+  "$SG1"
+prouver "une signature sans trace de qui l'a faite" serveur/v10/signature.ts \
+  "    await tracer(tx, entreprise, 'ventes.facture.signer', { type: 'piece', id: f.piece }, null, { demande: d.id, numero: f.numero, titulaire: d.titulaire });
+" "" \
+  "$SG1"
+prouver "le refus « Personne n'est désigné » sans son bouton, à l'écran" web/public/plateforme/pont.js \
+  "      /** @type {any} */ (e).bouton = typeof lu.bouton === 'string' ? lu.bouton : null;
+" "" \
+  "$SGW"
+prouver "taper le signataire propose d'enregistrer les Paramètres" web/public/plateforme/pont.js \
+  "    for (const t of ['input', 'change']) el.addEventListener(t, (ev) => ev.stopPropagation());
+    const champ = /** @type {HTMLInputElement} */ (el.querySelector('[data-champ=identifiant]'));" "    const champ = /** @type {HTMLInputElement} */ (el.querySelector('[data-champ=identifiant]'));" \
+  "$SGW"
+prouver "le bouton « Désigner le signataire » laisse chercher la case" web/public/plateforme/pont.js \
+  "    if (amenerSignataire) { amenerSignataire = false; if (!s) champ.focus({ preventScroll: true }); }
+" "" \
+  "$SGW"
+prouver "après un code faux, le curseur n'est plus dans la case du code" web/public/plateforme/pont.js \
+  "            else { champ.focus(); champ.select(); }
+" "" \
+  "$SGW"
+prouver "« Signer (DigiGo)… » absent du menu d'une pièce émise" web/public/v10/app.js \
+  "&& bridge.signerPiece ? \`<div class=\"ml-ligne\"><button id=\"signer\">" "&& false ? \`<div class=\"ml-ligne\"><button id=\"signer\">" \
+  "$SGW"
+prouver "le panneau « Qui signe » jamais dessiné" web/public/v10/app.js \
+  "    if (bridge.dessinerSignataire && \$('#signataire-panel')) void bridge.dessinerSignataire(\$('#signataire-panel'));
+" "" \
+  "$SGW"
+prouver "la fenêtre du fichier signé dit qu'il reste deux gestes" web/public/v10/app.js \
+  "\${duServeur && duServeur.signe ? \`Il est signé" "\${false ? \`Il est signé" \
+  "$SGW"
+prouver "la fenêtre du fichier signé demande encore de le signer" web/public/v10/app.js \
+  "\${duServeur && duServeur.signe ? '' : \`<li><b>Le signer</b>" "\${false ? '' : \`<li><b>Le signer</b>" \
+  "$SGW"
+prouver "une session refusée par DigiGo qui garde la demande ouverte" serveur/v10/signature.ts \
+  "    if (a.statut !== 401) return echec(a.motif);
+" "    if (a.statut !== 401) return { statut: 502, corps: { motif: phrase(a.motif), bouton: null } };
+" \
+  "$SG2"
+prouver "la fenêtre d'une pièce signée qui propose encore d'envoyer un code" web/public/plateforme/pont.js \
+  "        if (f && f.signe) fini(" "        if (false) fini(" \
+  "$SGW"
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

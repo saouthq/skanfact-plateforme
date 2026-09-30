@@ -690,6 +690,16 @@ export interface BaseDeDonnees {
     ecrit_le: Date;
     ecrit_par: string;
   };
+  'ventes.efacture_signee': {
+    piece: string;
+    entreprise: string;
+    xml: string;
+    empreinte: string;
+    titulaire: string | null;
+    demande: string;
+    signe_le: Date;
+    signe_par: string;
+  };
   'ventes.lien': {
     id: Generated<string>;
     entreprise: string;
@@ -806,5 +816,24 @@ export interface BaseDeDonnees {
     modifie_par: string | null;
     modifie_le: Generated<Date>;
     revision: Generated<bigint>;
+  };
+  'ventes.signataire': {
+    entreprise: string;
+    identifiant: string;
+    pose_le: Date;
+    pose_par: string;
+  };
+  'ventes.signature_demande': {
+    id: Generated<string>;
+    entreprise: string;
+    pieces: string[];
+    identifiant: string;
+    session: string;
+    titulaire: string | null;
+    statut: Generated<string>;
+    essais: Generated<number>;
+    motif: ColumnType<Json | null, string | null, string | null>;
+    cree_le: Date;
+    cree_par: string;
   };
 }

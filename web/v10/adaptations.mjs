@@ -68,7 +68,7 @@ export const ADAPTATIONS = [
     fichier: 'app.js',
     pourquoi: 'le point de contact dessine ses panneaux quand les Paramètres s\'ouvrent',
     avant: '    drawCabinetPair();\n    drawLicencePanel();\n',
-    apres: "    drawCabinetPair();\n    if (bridge.dessinerQuarantaine && $('#quarantaine-panel')) bridge.dessinerQuarantaine($('#quarantaine-panel'));\n    if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));\n    if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));\n    drawLicencePanel();\n",
+    apres: "    drawCabinetPair();\n    if (bridge.dessinerQuarantaine && $('#quarantaine-panel')) bridge.dessinerQuarantaine($('#quarantaine-panel'));\n    if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));\n    if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));\n    if (bridge.dessinerSignataire && $('#signataire-panel')) void bridge.dessinerSignataire($('#signataire-panel'));\n    drawLicencePanel();\n",
   },
   // ── Le paiement en ligne (brique 78 ; docs/paiement-en-ligne.md) : son panneau dans l'onglet Documents
   // (dessiné par le point de contact), et le mode de règlement « Paiement en ligne » (celui que le
@@ -101,9 +101,9 @@ export const ADAPTATIONS = [
   },
   {
     fichier: "app.js",
-    pourquoi: "le panneau « Facture électronique (El Fatoora) » : l'entreprise dit si elle y est soumise (un champ de la fiche) ; il se pose avant celui du paiement en ligne",
+    pourquoi: "le panneau « Facture électronique (El Fatoora) » : l'entreprise dit si elle y est soumise (un champ de la fiche), et qui signe (dessiné par le point de contact, brique 81) ; il se pose avant celui du paiement en ligne",
     avant: "        ${bridge.dessinerPaiement ? `${panneau('p-paiement')}",
-    apres: "        ${bridge.teifDuServeur ? `${panneau('p-efacture', info('set.efacture'))}\n          <label class=\"check\"><input type=\"checkbox\" name=\"efacture\" ${c.efacture ? 'checked' : ''}> Mon entreprise est soumise à la facture électronique</label>\n          <p class=\"small muted mt\">SkanFact écrit le fichier TEIF de chaque facture et de chaque avoir à l'émission, avec les montants de la pièce. Soumise, ton entreprise ne peut pas émettre une pièce dont le fichier serait refusé (ton matricule, l'identifiant du client) : SkanFact le dit avant de prendre le numéro, avec le bouton qui corrige. La signature et l'envoi à la TTN viennent ensuite. Qui est soumis, et depuis quand : À VÉRIFIER avec ton comptable (loi de finances 2026, art. 53).</p></div>` : ''}\n        ${bridge.dessinerPaiement ? `${panneau('p-paiement')}",
+    apres: "        ${bridge.teifDuServeur ? `${panneau('p-efacture', info('set.efacture'))}\n          <label class=\"check\"><input type=\"checkbox\" name=\"efacture\" ${c.efacture ? 'checked' : ''}> Mon entreprise est soumise à la facture électronique</label>\n          <p class=\"small muted mt\">SkanFact écrit le fichier TEIF de chaque facture et de chaque avoir à l'émission, avec les montants de la pièce. Soumise, ton entreprise ne peut pas émettre une pièce dont le fichier serait refusé (ton matricule, l'identifiant du client) : SkanFact le dit avant de prendre le numéro, avec le bouton qui corrige. Chaque pièce émise se signe ensuite avec DigiGo (« Signer (DigiGo)… », dans son menu « Plus ») ; l'envoi à la TTN vient après. Qui est soumis, et depuis quand : À VÉRIFIER avec ton comptable (loi de finances 2026, art. 53).</p>${bridge.dessinerSignataire ? '<div id=\"signataire-panel\"></div>' : ''}</div>` : ''}\n        ${bridge.dessinerPaiement ? `${panneau('p-paiement')}",
   },
   {
     fichier: "app.js",
@@ -125,9 +125,9 @@ export const ADAPTATIONS = [
   },
   {
     fichier: "app.js",
-    pourquoi: "le fichier téléchargé est dans les Téléchargements (un navigateur ne sait pas le montrer dans un dossier)",
+    pourquoi: "le fichier téléchargé est dans les Téléchargements (un navigateur ne sait pas le montrer dans un dossier) ; signé (brique 81), il ne reste qu'à le déposer",
     avant: "      <p><b>${h(r.nom)}</b> est enregistré. Il reste deux gestes, faits avec les outils de ton entreprise :</p>\n",
-    apres: "      <p><b>${h(r.nom)}</b> est ${bridge.teifDuServeur ? 'dans tes Téléchargements' : 'enregistré'}. Il reste deux gestes, faits avec les outils de ton entreprise :</p>\n",
+    apres: "      <p><b>${h(r.nom)}</b> est ${bridge.teifDuServeur ? 'dans tes Téléchargements' : 'enregistré'}. ${duServeur && duServeur.signe ? `Il est signé${duServeur.titulaire ? ` par ${h(duServeur.titulaire)}` : ''} (DigiGo). Il reste un geste :` : 'Il reste deux gestes, faits avec les outils de ton entreprise :'}</p>\n",
   },
   {
     fichier: "app.js",
@@ -149,9 +149,29 @@ export const ADAPTATIONS = [
   },
   {
     fichier: "guide.js",
-    pourquoi: "le réglage de la facture électronique a son aide",
+    pourquoi: "le réglage de la facture électronique et « Signer (DigiGo)… » ont leur aide",
     avant: "    'ed.teif': {",
-    apres: "    'set.efacture': { t: 'Facture électronique (El Fatoora)', d: 'Coche si ton entreprise doit émettre ses factures en électronique (loi de finances 2026, art. 53 : les prestataires de services ; qui exactement, et depuis quand : À VÉRIFIER avec ton comptable). SkanFact écrit le fichier TEIF de chaque facture et de chaque avoir à l\\'émission. Soumise, une pièce dont le fichier serait refusé ne s\\'émet pas, et SkanFact dit pourquoi avant de prendre le numéro. Non soumise, tes pièces s\\'émettent comme avant, et leur fichier s\\'écrit quand ta fiche et celle du client le permettent.' },\n    'ed.teif': {",
+    apres: "    'set.efacture': { t: 'Facture électronique (El Fatoora)', d: 'Coche si ton entreprise doit émettre ses factures en électronique (loi de finances 2026, art. 53 : les prestataires de services ; qui exactement, et depuis quand : À VÉRIFIER avec ton comptable). SkanFact écrit le fichier TEIF de chaque facture et de chaque avoir à l\\'émission. Soumise, une pièce dont le fichier serait refusé ne s\\'émet pas, et SkanFact dit pourquoi avant de prendre le numéro. Non soumise, tes pièces s\\'émettent comme avant, et leur fichier s\\'écrit quand ta fiche et celle du client le permettent.' },\n    'ed.signer': { t: 'Signer (DigiGo)', d: 'Signe le fichier El Fatoora de cette pièce (celui que SkanFact a écrit à l\\'émission) avec le certificat DigiGo de ton signataire, chez TunTrust. Un code arrive sur SON téléphone : rien ne se signe sans lui. Le signataire se désigne dans Paramètres → Documents. Une pièce signée ne se signe plus : « Fichier pour El Fatoora » télécharge alors le fichier signé, celui qui se dépose à la TTN.' },\n    'ed.teif': {",
+  },
+  // ── La signature DigiGo (brique 81 ; docs/facture-electronique.md) : « Signer (DigiGo)… » sur une pièce émise
+  // (la fenêtre est celle du point de contact), et la fenêtre du fichier qui sait qu'il est signé.
+  {
+    fichier: "app.js",
+    pourquoi: "« Signer (DigiGo)… » dans le menu « Plus » d'une facture ou d'un avoir émis, quand le point de contact sait signer",
+    avant: "            ${locked && (isInv || isAv) && doc.status !== 'annulée' ? `<div class=\"ml-ligne\"><button id=\"teif\">Fichier pour El Fatoora (TEIF)…</button>${info('ed.teif')}</div>` : ''}\n",
+    apres: "            ${locked && (isInv || isAv) && doc.status !== 'annulée' ? `<div class=\"ml-ligne\"><button id=\"teif\">Fichier pour El Fatoora (TEIF)…</button>${info('ed.teif')}</div>` : ''}\n            ${locked && (isInv || isAv) && doc.status !== 'annulée' && !C.estTicket(doc) && bridge.signerPiece ? `<div class=\"ml-ligne\"><button id=\"signer\">Signer (DigiGo)…</button>${info('ed.signer')}</div>` : ''}\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "« Signer (DigiGo)… » ouvre la fenêtre du point de contact ; signée, la pièce propose son fichier signé",
+    avant: "    if ($('#teif')) $('#teif').onclick = () => exporterTeif(docById(doc.id) || doc);\n",
+    apres: "    if ($('#teif')) $('#teif').onclick = () => exporterTeif(docById(doc.id) || doc);\n    if ($('#signer')) $('#signer').onclick = () => bridge.signerPiece(docById(doc.id) || doc, modal, () => exporterTeif(docById(doc.id) || doc));\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "la fenêtre du fichier ne demande plus de le signer quand il l'est, et dit où se signe une pièce",
+    avant: "        <li><b>Le signer</b> avec ta signature électronique (certificat TunTrust, sur clé ou avec DigiGo).</li>\n",
+    apres: "        ${duServeur && duServeur.signe ? '' : `<li><b>Le signer</b> ${bridge.signerPiece ? 'avec « Signer (DigiGo)… », dans le menu « Plus » de la pièce (ou avec ta clé TunTrust)' : 'avec ta signature électronique (certificat TunTrust, sur clé ou avec DigiGo)'}.</li>`}\n",
   },
   // ── Les envois (brique 79 ; docs/espace-client.md, E7) : un navigateur ne joint pas de fichier ; l'e-mail et
   // le WhatsApp d'une facture ou d'un avoir émis portent le LIEN de la pièce (créé à l'envoi par le point de

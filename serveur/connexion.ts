@@ -23,6 +23,9 @@ export type Contexte = {
   // Le paiement en ligne (brique 78) : l'adresse de l'API du prestataire, la clé du coffre du serveur
   // (serveur/coffre.ts), et l'adresse publique du serveur (où reviennent l'avis et le client).
   paiement?: { konnect: string; coffre: Buffer; adresse: () => string };
+  // La signature de la facture électronique (brique 81) : l'API DigiGo de TunTrust, et la clé de SkanFact
+  // comme « entité d'intégration » (de l'environnement du serveur, jamais du dépôt).
+  efacture?: { digigo: string; cleDigigo: string };
 };
 
 export type Appareil = { id?: string; nom: string; type: 'navigateur' | 'bureau' | 'telephone' };

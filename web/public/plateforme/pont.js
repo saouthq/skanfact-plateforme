@@ -49,6 +49,8 @@
     if (!r.ok) {
       const e = new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.');
       /** @type {any} */ (e).statut = r.status;
+      // Le bouton qui débloque, quand le serveur le nomme (brique 81 : « Désigner le signataire »…).
+      /** @type {any} */ (e).bouton = typeof lu.bouton === 'string' ? lu.bouton : null;
       throw e;
     }
     return lu;
@@ -473,6 +475,8 @@
     sansPieceJointe,
     lienBascule,
     teifDuServeur,
+    dessinerSignataire,
+    signerPiece,
     // Des remises attendent-elles une décision ? (le panneau ne paraît que dans ce cas)
     quarantaine: () => remises.length,
     loadData: async () => {
@@ -877,10 +881,132 @@
   // ── La facture électronique (brique 80 ; docs/facture-electronique.md) ──────────────────────────
   // Le fichier TEIF qu'a écrit le serveur à l'émission (celui qui sera signé et envoyé) ; null si la pièce
   // n'en a pas (émise avant, ou d'une entreprise non soumise dont la fiche ne le permettait pas).
-  /** @param {any} doc @returns {Promise<{ nom: string, xml: string } | null>} */
+  /** @param {any} doc @returns {Promise<{ nom: string, xml: string, signe: boolean, titulaire: string | null, signeLe: string | null } | null>} */
   async function teifDuServeur(doc) {
     try { return await appel('GET', `/dossier-v10/${encodeURIComponent(doc.id)}/teif`); }
     catch (x) { if (/** @type {any} */ (x).statut === 404) return null; throw x; }
+  }
+
+  // ── La signature DigiGo (brique 81 ; docs/facture-electronique.md) ────────────────────────────────
+  // Qui signe pour l'entreprise : l'identifiant DigiGo (TunTrust) de son signataire, posé par le
+  // propriétaire ou un administrateur. Le panneau vit DANS le formulaire des Paramètres : champs sans nom,
+  // frappes qui ne remontent pas (comme le paiement en ligne).
+  // Venu du refus « Personne n'est désigné » : le curseur attend dans la case de l'identifiant.
+  let amenerSignataire = false;
+  /** @param {HTMLElement} el */
+  async function dessinerSignataire(el) {
+    /** @type {any} */ let lu;
+    try { lu = await appel('GET', '/efacture/signataire'); } catch (x) { el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`; return; }
+    const s = lu.signataire;
+    el.innerHTML = `<h4 class="small mt">Qui signe les pièces (DigiGo)</h4>
+      <p id="sg-etat">${s ? `Le signataire est <strong>${esc(s.identifiant)}</strong>, désigné le ${esc(quand(s.poseLe))}${s.posePar ? ` par ${esc(s.posePar)}` : ''}.`
+        : 'Personne n\'est désigné : les pièces ne peuvent pas encore être signées.'}</p>
+      ${lu.branche ? '' : '<p class="small" id="sg-debranche">La signature DigiGo n\'est pas encore branchée sur ce serveur : tu peux déjà désigner le signataire.</p>'}
+      <div id="sg-form" ${s ? 'hidden' : ''}>
+        <label class="field">Identifiant DigiGo du signataire<input data-champ="identifiant" autocomplete="off" value="${esc(s ? s.identifiant : '')}"></label>
+        <p class="small muted">Celui de son compte DigiGo, chez TunTrust. À chaque signature, un code part sur SON téléphone : c'est lui qui le donne, et rien ne se signe sans lui.</p>
+        <button type="button" class="btn btn-primary" id="sg-poser">Enregistrer le signataire</button>
+      </div>
+      ${s ? '<p><button type="button" class="btn btn-sm" id="sg-changer">Changer le signataire…</button></p>' : ''}
+      <p class="small" role="alert"></p>`;
+    /** @param {unknown} x */
+    const dire = (x) => { const a = el.querySelector('[role=alert]'); if (a) a.textContent = x instanceof Error ? x.message : String(x); };
+    for (const t of ['input', 'change']) el.addEventListener(t, (ev) => ev.stopPropagation());
+    const champ = /** @type {HTMLInputElement} */ (el.querySelector('[data-champ=identifiant]'));
+    const poser = /** @type {HTMLElement} */ (el.querySelector('#sg-poser'));
+    poser.onclick = async () => {
+      const identifiant = champ.value.trim();
+      // Un refus dit ce qui manque, et montre le champ.
+      if (identifiant.length < 4) { dire('Donne l\'identifiant DigiGo du signataire (celui de son compte chez TunTrust).'); champ.focus(); return; }
+      poser.setAttribute('disabled', '');
+      try { await appel('PUT', '/efacture/signataire', { identifiant }); await dessinerSignataire(el); dire('Enregistré : les pièces émises se signent avec « Signer (DigiGo)… », dans leur menu « Plus ».'); } catch (x) { poser.removeAttribute('disabled'); dire(x); }
+    };
+    const changer = /** @type {HTMLElement | null} */ (el.querySelector('#sg-changer'));
+    if (changer) changer.onclick = () => { /** @type {HTMLElement} */ (el.querySelector('#sg-form')).hidden = false; champ.focus(); champ.select(); };
+    if (amenerSignataire) { amenerSignataire = false; if (!s) champ.focus({ preventScroll: true }); }
+  }
+
+  // « Signer (DigiGo)… » sur une pièce émise : le fichier El Fatoora que le serveur a écrit à l'émission part
+  // à DigiGo ; un code arrive sur le téléphone du signataire, et ce code tapé signe le fichier. Le code se
+  // demande d'un geste (jamais en ouvrant la fenêtre : un SMS partirait à chaque fois).
+  /** @param {any} doc @param {any} modal @param {() => void} telecharger */
+  function signerPiece(doc, modal, telecharger) {
+    modal(`<h2>Signer ${esc(doc.number)} avec DigiGo</h2>
+      <p class="small">Le fichier El Fatoora de cette pièce, écrit par SkanFact à l'émission, est signé par DigiGo (TunTrust) avec le certificat de ton signataire. Un code arrive sur SON téléphone : c'est lui qui te le donne.</p>
+      <div id="sg-etape"></div>
+      <div class="modal-actions"><button class="btn" data-close>Fermer</button></div>`, (/** @type {HTMLElement} */ root, /** @type {() => void} */ close) => {
+      const $r = (/** @type {string} */ q) => /** @type {HTMLElement} */ (root.querySelector(q));
+      const etape = $r('#sg-etape');
+      // Chaque étape a sa ligne de refus, là où il se lit : avant le bouton qui débloque, sous le champ du code.
+      /** @param {unknown} x */
+      const dire = (x) => { const a = root.querySelector('[role=alert]'); if (a) a.textContent = x instanceof Error ? x.message : String(x); };
+      /** @param {string} texte */
+      const demander = (texte) => {
+        etape.innerHTML = `<p class="small" role="alert"></p><div class="inline"><button type="button" class="btn btn-primary" id="sg-demander">${texte}</button></div>`;
+        const b = $r('#sg-demander');
+        b.onclick = async () => {
+          b.setAttribute('disabled', '');
+          dire('');
+          try {
+            const d = await appel('POST', '/efacture/signatures', { pieces: [doc.id] });
+            saisir(d.id, d.titulaire);
+          } catch (x) {
+            b.removeAttribute('disabled');
+            // Personne n'est désigné : renvoyer le code n'y ferait rien ; le bouton principal mène au réglage.
+            if (/** @type {any} */ (x).bouton === 'efacture.signataire') {
+              etape.innerHTML = '<p class="small" role="alert"></p><div class="inline"><button type="button" class="btn btn-primary" id="sg-regler">Désigner le signataire</button></div>';
+              $r('#sg-regler').onclick = () => {
+                close();
+                amenerSignataire = true;
+                const w = /** @type {any} */ (window);
+                if (typeof w.__allerParametres === 'function') w.__allerParametres('documents', 'p-efacture');
+              };
+            }
+            dire(x);
+          }
+        };
+      };
+      /** @param {string} demande @param {string | null} titulaire */
+      const saisir = (demande, titulaire) => {
+        etape.innerHTML = `<p>Un code est parti sur le téléphone de ${titulaire ? `<strong>${esc(titulaire)}</strong>` : 'ton signataire'}. Tape-le ici :</p>
+          <label class="field">Code reçu par le signataire<input id="sg-code" inputmode="numeric" autocomplete="one-time-code" maxlength="8"></label>
+          <p class="small" role="alert"></p>
+          <div class="inline mt"><button type="button" class="btn btn-primary" id="sg-signer">Signer</button></div>`;
+        const champ = /** @type {HTMLInputElement} */ ($r('#sg-code'));
+        const b = $r('#sg-signer');
+        champ.focus();
+        champ.onkeydown = (ev) => { if (ev.key === 'Enter') b.click(); };
+        b.onclick = async () => {
+          const code = champ.value.replace(/\s+/g, '');
+          if (!/^\d{4,8}$/.test(code)) { dire('Tape les chiffres du code reçu par le signataire.'); champ.focus(); return; }
+          b.setAttribute('disabled', '');
+          dire('');
+          try {
+            const r = await appel('POST', `/efacture/signatures/${encodeURIComponent(demande)}/code`, { code });
+            fini(r);
+          } catch (x) {
+            b.removeAttribute('disabled');
+            // Trois codes faux, ou DigiGo en panne en pleine signature : la demande est perdue, un nouveau
+            // code se demande. Sinon, le même code se retape.
+            if (/** @type {any} */ (x).bouton === 'efacture.recommencer') demander('Envoyer un nouveau code');
+            else { champ.focus(); champ.select(); }
+            dire(x);
+          }
+        };
+      };
+      /** @param {any} r @param {boolean} [deja] */
+      const fini = (r, deja) => {
+        etape.innerHTML = `<p id="sg-fait">La pièce <strong>${esc(r.signees.join(', '))}</strong> est ${deja ? 'déjà ' : ''}signée${r.titulaire ? ` par ${esc(r.titulaire)}` : ''}, le ${esc(quand(r.signeLe))}. Le fichier signé est celui qui se dépose à la TTN.</p>
+          <div class="inline"><button type="button" class="btn btn-primary" id="sg-telecharger">Télécharger le fichier signé</button></div>`;
+        $r('#sg-telecharger').onclick = () => { close(); telecharger(); };
+      };
+      // Déjà signée : la fenêtre le dit d'emblée (aucun code ne partirait pour rien).
+      etape.innerHTML = '<p class="small muted">Un instant…</p>';
+      teifDuServeur(doc).catch(() => null).then((f) => {
+        if (f && f.signe) fini({ signees: [doc.number], titulaire: f.titulaire, signeLe: f.signeLe }, true);
+        else demander('Envoyer le code au signataire');
+      });
+    });
   }
 
   // ── Ce qu'un appareil retiré a remis (brique 74 bis ; docs/hors-ligne.md, H10) ────────────────

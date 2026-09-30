@@ -57,5 +57,17 @@ declarerTextes({
   'efacture.manques': 'ton entreprise est soumise à la facture électronique, et le fichier El Fatoora de cette pièce serait refusé : {manques} Rien n\'a été émis, aucun numéro n\'a été pris',
   'efacture.ecart': 'le fichier El Fatoora ne dirait pas les montants de la pièce ({code} : {fichier} dans le fichier, {serveur} au serveur) : rien n\'a été émis',
   'efacture.absent': 'cette pièce n\'a pas de fichier El Fatoora écrit par le serveur',
+  // La signature DigiGo (brique 81).
+  'efacture.signature_indisponible': 'la signature DigiGo n\'est pas encore branchée sur ce serveur : rien n\'a été signé',
+  'efacture.sans_signataire': 'personne n\'est désigné pour signer : pose l\'identifiant DigiGo du signataire dans Paramètres → Documents',
+  'efacture.sans_fichier': 'la pièce {numero} n\'a pas de fichier El Fatoora écrit par le serveur : rien n\'a été signé',
+  'efacture.deja_signee': 'la pièce {numero} est déjà signée',
+  'efacture.digigo_injoignable': 'DigiGo ne répond pas pour le moment : rien n\'a été signé, réessaie dans un instant',
+  'efacture.digigo_refus': 'DigiGo a refusé la demande (réponse {statut}) : rien n\'a été signé',
+  'efacture.code_faux': 'ce n\'est pas le code envoyé par DigiGo : il te reste {restants} essais',
+  'efacture.code_faux_dernier': 'ce n\'est pas le code envoyé par DigiGo : il te reste un essai',
+  'efacture.code_epuise': 'trois codes faux : cette demande est perdue, rien n\'a été signé. Recommence la signature : un nouveau code partira',
+  'efacture.demande_finie': 'cette demande de signature est terminée : recommence la signature si besoin',
+  'efacture.signature_fausse': 'DigiGo a rendu un fichier qui n\'est pas celui qu\'on lui a envoyé : rien n\'a été gardé',
   'v10.ecart_montant': 'le serveur ne trouve pas le même net à payer que l\'écran ({ecran} à l\'écran, {serveur} au serveur) : rien n\'a été émis. Vérifie le timbre et les taux, puis réessaie',
 });

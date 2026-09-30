@@ -8,6 +8,8 @@ declarerTextes({
   'geste.ventes.brouillon.modifier': 'créer ou modifier un brouillon de vente',
   'geste.ventes.facture.emettre': 'émettre une facture',
   'geste.ventes.avoir.emettre': 'émettre un avoir',
+  'geste.ventes.facture.signer': 'signer une facture électronique',
+  'geste.ventes.efacture.regler': 'désigner le signataire de la facture électronique',
   'geste.ventes.client.modifier': 'créer ou modifier un client',
   'geste.ventes.lien.partager': 'donner à un client le lien de ses pièces, ou le retirer',
 
