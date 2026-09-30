@@ -6029,6 +6029,7 @@
           if (!t) continue;
           const n = Number(t.replace(/\s/g, '').replace(',', '.'));
           if (!Number.isFinite(n) || n < 0 || n > 100) return refus(i, `« ${t} » n'est pas un taux entre 0 et 100. Laisse la case vide pour le taux général.`);
+          if (Math.round(n * 1e4) / 1e4 !== n) return refus(i, `« ${t} » : un taux se garde avec quatre décimales au plus.`);
           (rc[i.dataset.rc] = rc[i.dataset.rc] || {})[i.dataset.k] = n;
         }
         $$('[data-rc-irpp]', layer).forEach(i => { if (i.checked) (rc[i.dataset.rcIrpp] = rc[i.dataset.rcIrpp] || {}).sansIrpp = true; });

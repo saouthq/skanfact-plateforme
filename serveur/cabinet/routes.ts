@@ -41,6 +41,15 @@ const ABONNEMENT = z.object({
   tousLesMois: z.number().int().min(1).max(12), montant: z.string().regex(/^\d{1,12}(\.\d{1,3})?$/), piece: texte(40), libelle: texte(200),
   faites: z.array(z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)).max(600),
 }).strict();
+// Les taux de la paie qui s'écartent du barème pour un type de contrat (brique 55) : en pour cent, en
+// texte décimal à quatre décimales au plus (celles du barème qu'un bulletin fige) ; une case absente suit
+// le barème, et le CDI le suit toujours (la v10, compta.js, regimeDuContrat).
+const TAUX_POUR_CENT = z.string().regex(/^(100(\.0{1,4})?|\d{1,2}(\.\d{1,4})?)$/);
+const REGIME_DE_CONTRAT = z.object({
+  cnssEmployee: TAUX_POUR_CENT, cnssEmployer: TAUX_POUR_CENT, accidentRate: TAUX_POUR_CENT, tfpRate: TAUX_POUR_CENT,
+  foprolosRate: TAUX_POUR_CENT, solidarity: TAUX_POUR_CENT, sansIrpp: z.literal(true),
+}).partial().strict();
+const CONTRATS_A_REGIME = ['cdd', 'saisonnier', 'civp', 'sivp', 'karama', 'stage', 'autre'] as const;
 const FICHE = z.object({
   email: texte(200), phone: texte(40), contact: texte(200), note: texte(2000), archived: z.boolean(),
   from: z.string().regex(/^(\d{4}-\d{2})?$/), regime: texte(40), tvaPeriod: texte(20),
@@ -52,6 +61,8 @@ const FICHE = z.object({
   dernierJournal: z.string().regex(/^[A-Z0-9]{0,5}$/),
   // Les abonnements du dossier (brique 51).
   abonnements: z.array(ABONNEMENT).max(50),
+  // Les taux par contrat de la paie du dossier (brique 55).
+  paie: z.object({ regimesContrat: z.partialRecord(z.enum(CONTRATS_A_REGIME), REGIME_DE_CONTRAT) }).strict(),
 }).partial().strict();
 // Les réglages du cabinet (0023, C21) : cette liste, et rien d'autre. L'association des colonnes d'un
 // relevé PAR BANQUE (le rang de chaque colonne), et les mots retenus (un mot d'un libellé → le compte

@@ -1123,3 +1123,32 @@ parle plus de prudence.
 - Un client qui paie ses salariés sur d'autres comptes que 640 et 4531 (un plan de comptes à lui) n'est
   pas vu employeur. **À VÉRIFIER** avec les comptables pilotes : faut-il lire aussi le 64 entier, ou un
   réglage par dossier ?
+
+## Brique 55 : les taux de paie par contrat d'un dossier (fait le 29/09/2026)
+
+**C45. Les taux par contrat vivent dans la fiche du dossier ; le bulletin les fige** (par délégation).
+La v10 (10.15.0, H4) laissait le comptable régler, pour un client, les taux qui s'écartent du barème
+général pour un type de contrat (un CIVP sans CNSS employeur, un contrat Karama sans IRPP) : « Taux par
+contrat… » sur l'onglet Paie. Sur la plateforme, le geste était « pas encore en ligne », et chaque
+bulletin du cabinet se calculait au barème général. Désormais :
+- les taux se gardent dans la fiche du dossier (`paie.regimesContrat`), comme la v10 les gardait sur le
+  dossier ; chaque taux en **texte décimal**, en pour cent, à **quatre décimales au plus** (celles du
+  barème qu'un bulletin fige, et que le serveur relit) ; une case vide suit le barème ; le CDI le suit
+  toujours ; l'exonération d'IRPP est un « oui » ou rien. Le serveur refuse toute autre forme ;
+- le point de contact les normalise par le moteur de la v10 (`normaliserRegimes` : un régime qui ne
+  change rien ne se garde pas), et un bulletin se calcule avec eux (`ajouterBulletin`) : il fige le
+  barème de SON contrat, et le serveur le recalcule avec ce barème au millime (brique 43) ;
+- un taux plus fin que quatre décimales se refuse **sur sa case**, avant l'enregistrement (adaptation
+  `paie-regimes.txt`), plutôt qu'au premier bulletin du mois.
+
+Ce qui part au serveur : la fiche, avec ce seul champ de plus (les taux par contrat). **À VÉRIFIER**
+avec les comptables pilotes, comme dans la v10 : SkanFact ne connaît aucune exonération, le comptable
+les règle.
+
+**Les tests** : par l'API (`tests/cabinet/guides.test.ts`) : les taux gardés et relus tels quels ; un
+nombre, une virgule, cinq décimales, plus de 100 %, un taux négatif, une exonération « non », un taux
+inconnu, le CDI, un contrat inconnu, un champ de plus : refusés. À la souris
+(`tests/web/cabinet-paie-regimes.test.ts`) : un taux trop fin refusé sur sa case, rien d'écrit ; les taux
+du CIVP enregistrés dans la fiche, dits par le panneau ; un salarié en CIVP et son bulletin de mars, dont
+le barème gardé au serveur est celui du CIVP (CNSS employeur 0, solidarité 0,5, sans IRPP ; la CNSS
+salarié, celle du barème général).

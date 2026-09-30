@@ -1852,8 +1852,8 @@ prouver "une fiche lue sans voir le dossier" $M20 \
   "  using (cabinet in (select socle.mes_organisations()) and entreprise in (select socle.mes_entreprises()));" "  using (cabinet in (select socle.mes_organisations()));" \
   "$E3"
 prouver "une fiche aux champs non comptés" serveur/cabinet/routes.ts \
-  "  abonnements: z.array(ABONNEMENT).max(50),
-}).partial().strict();" "  abonnements: z.array(ABONNEMENT).max(50),
+  "REGIME_DE_CONTRAT) }).strict(),
+}).partial().strict();" "REGIME_DE_CONTRAT) }).strict(),
 }).partial().passthrough();" \
   "$E3"
 prouver "l'entrée qui ouvre l'entreprise d'un client comme la sienne" web/src/App.tsx \
@@ -3232,6 +3232,34 @@ prouver "l'employeur que les Échéances ne reçoivent pas" $PC \
 prouver "l'employeur que l'index oublie" $PC \
   "(index[e.entreprise] = index[e.entreprise] || { exercices: [], employeur: {} }).employeur[e.mois] = !!e.employeur;" "void e;" \
   "$WE2"
+
+# ── Brique 55 : les taux par contrat de la paie d'un dossier (docs/cabinet.md, C45) ──
+TR1="les taux par contrat de la paie se gardent dans la fiche, en texte décimal à quatre décimales au plus ; une forme fausse est refusée"
+TR2="les taux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'un salarié en CIVP les suit"
+prouver "un taux par contrat plus fin que le barème d'un bulletin" $CR \
+  '|\d{1,2}(\.\d{1,4})?)$/);' '|\d{1,2}(\.\d{1,6})?)$/);' \
+  "$TR1"
+prouver "une exonération d'IRPP qui se garde fausse" $CR \
+  "foprolosRate: TAUX_POUR_CENT, solidarity: TAUX_POUR_CENT, sansIrpp: z.literal(true)," "foprolosRate: TAUX_POUR_CENT, solidarity: TAUX_POUR_CENT, sansIrpp: z.boolean()," \
+  "$TR1"
+prouver "un régime posé sur le CDI" $CR \
+  "const CONTRATS_A_REGIME = ['cdd'," "const CONTRATS_A_REGIME = ['cdi', 'cdd'," \
+  "$TR1"
+prouver "les taux par contrat que la fiche ne garde pas" $CR \
+  "  paie: z.object({ regimesContrat: z.partialRecord(z.enum(CONTRATS_A_REGIME), REGIME_DE_CONTRAT) }).strict()," "" \
+  "$TR1"
+prouver "le bulletin du cabinet calculé au barème général" $PC \
+  "KC.ajouterBulletin(livre, o.bulletin, paieDuDossier(o.dossierId), '', Date.now());" "KC.ajouterBulletin(livre, o.bulletin, {}, '', Date.now());" \
+  "$TR2"
+prouver "un taux envoyé en nombre à virgule" $PC \
+  "[t, t === 'sansIrpp' ? true : String(Number(v))]" "[t, t === 'sansIrpp' ? true : Number(v)]" \
+  "$TR2"
+prouver "les taux par contrat jamais envoyés" $PC \
+  "      contenu.paie = { regimesContrat: regimes };" "" \
+  "$TR2"
+prouver "le taux trop fin refusé loin de sa case" web/public/v10/cabinet/app.js \
+  "          if (Math.round(n * 1e4) / 1e4 !== n) return refus(i, " "          if (false) return refus(i, " \
+  "$TR2"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

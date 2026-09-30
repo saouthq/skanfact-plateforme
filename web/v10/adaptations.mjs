@@ -351,4 +351,5 @@ export const ADAPTATIONS = [
   ...lireFichier('cnss.txt'),
   ...lireFichier('abonnements.txt'),
   ...lireFichier('equipe-visite.txt'),
+  ...lireFichier('paie-regimes.txt'),
 ];

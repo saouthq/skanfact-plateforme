@@ -103,4 +103,26 @@ describe('les guides d\'écritures et le journal retenu', () => {
     expect(await refuse({ faites: ['2026-13'] })).toBe(400);
     expect(await refuse({ inconnu: 1 })).toBe(400);
   });
+
+  it('les taux par contrat de la paie se gardent dans la fiche, en texte décimal à quatre décimales au plus ; une forme fausse est refusée', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Ennour' })).corps.id);
+    const garage = String((await appeler('POST', `/cabinets/${cabinet}/dossiers`, associe.jeton, { raisonSociale: 'Garage du Port' })).corps.entreprise);
+    const PAIE = { regimesContrat: { civp: { cnssEmployee: '0', cnssEmployer: '0', sansIrpp: true }, cdd: { cnssEmployer: '12.5' }, karama: { solidarity: '0.3755', accidentRate: '100' } } };
+    const ecrire = async (paie: unknown, revision: number | null) => appeler('PUT', `/cabinets/${cabinet}/fiches/${garage}`, associe.jeton, { contenu: { paie }, revision });
+    expect((await ecrire(PAIE, null)).statut).toBe(200);
+    expect(((await appeler('GET', `/cabinets/${cabinet}/fiches`, associe.jeton)).corps.fiches as { entreprise: string; contenu: unknown }[])
+      .find((f) => f.entreprise === garage)?.contenu).toEqual({ paie: PAIE });
+    const refuse = async (regime: Record<string, unknown>, contrat = 'cdd') => (await ecrire({ regimesContrat: { [contrat]: regime } }, 1)).statut;
+    expect(await refuse({ cnssEmployer: 12.5 })).toBe(400);
+    expect(await refuse({ cnssEmployer: '12,5' })).toBe(400);
+    expect(await refuse({ cnssEmployer: '12.56789' })).toBe(400);
+    expect(await refuse({ cnssEmployer: '100.5' })).toBe(400);
+    expect(await refuse({ cnssEmployer: '-1' })).toBe(400);
+    expect(await refuse({ sansIrpp: false })).toBe(400);
+    expect(await refuse({ proRate: '5' })).toBe(400);
+    expect(await refuse({ cnssEmployer: '5' }, 'cdi')).toBe(400);
+    expect(await refuse({ cnssEmployer: '5' }, 'inconnu')).toBe(400);
+    expect((await ecrire({ regimesContrat: {}, autre: 1 }, 1)).statut).toBe(400);
+  });
 });

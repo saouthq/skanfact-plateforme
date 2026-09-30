@@ -553,6 +553,11 @@
   // L'objet de paie tel que le dossier le garde (pour ne rien perdre de ce que l'entreprise y met).
   /** @param {string} ent @param {string} collection @param {string} cle */
   const paieAvant = (ent, collection, cle) => ((paieLue.get(ent) || new Map()).get(`${collection}/${cle}`) || {}).contenu || null;
+  // Les réglages de paie du dossier (brique 55) : ses taux par contrat, gardés dans sa fiche en texte
+  // décimal, que le moteur de la v10 lit tels quels (regimeDuContrat) ; le bulletin les fige avec son
+  // calcul, et le serveur le recalcule avec ce barème figé.
+  /** @param {string} ent */
+  const paieDuDossier = (ent) => { const f = fiches.get(ent); return (f && /** @type {any} */ (depuisFiche(f.contenu)).paie) || {}; };
   // Sur la plateforme, l'écriture de paie SUIT les bulletins (le serveur la réécrit) : modifier ou
   // supprimer un bulletin d'un mois déjà écrit n'est plus refusé, comme la v10 le refusait.
   /** @param {any} livre */
@@ -636,6 +641,14 @@
         montant: (Math.round((Number(a.montant) || 0) * 1000) / 1000).toFixed(3), piece: String(a.piece || ''), libelle: String(a.libelle || ''),
         faites: Array.isArray(a.faites) ? a.faites.map(String) : [],
       }));
+    }
+    const pa = /** @type {any} */ (f.paie);
+    if (pa && typeof pa === 'object') {
+      /** @type {Record<string, Record<string, string | boolean>>} */ const regimes = {};
+      for (const [k, r] of Object.entries(pa.regimesContrat || {})) {
+        regimes[k] = Object.fromEntries(Object.entries(/** @type {any} */ (r)).map(([t, v]) => [t, t === 'sansIrpp' ? true : String(Number(v))]));
+      }
+      contenu.paie = { regimesContrat: regimes };
     }
     const r = await appel('PUT', `/cabinets/${cabinetId}/fiches/${ent}`, { contenu, revision });
     // La fiche lue reste celle du serveur : un geste suivant écrit sur la bonne révision.
@@ -1180,6 +1193,18 @@
       await poserFiche(id, { ...(f ? depuisFiche(f.contenu) : {}), abonnements: Array.isArray(liste) ? liste : [] }, f ? f.revision : null);
       return construireEtat();
     },
+    // ── Les taux par contrat de la paie d'un dossier (brique 55 ; docs/cabinet.md, C45) : gardés dans sa
+    // fiche, normalisés par le moteur de la v10 (un régime qui ne change rien ne se garde pas). Un taux
+    // se garde à quatre décimales au plus (celles du barème qu'un bulletin fige) : l'écran le refuse sur
+    // sa case, le serveur aussi ──
+    savePaie: async (/** @type {string} */ id, /** @type {any} */ regimesContrat) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      if (!dossiers.has(id)) throw new Error('Dossier introuvable.');
+      const regimes = KC.normaliserRegimes(regimesContrat || {});
+      const f = fiches.get(id);
+      await poserFiche(id, { ...(f ? depuisFiche(f.contenu) : {}), paie: { regimesContrat: regimes } }, f ? f.revision : null);
+      return construireEtat();
+    },
     // Une génération à la fois : un second clic attend la première, puis relit la fiche (les mois faits)
     // et ne double rien — la v10, dans son processus principal, les jouait déjà l'une après l'autre.
     genererAbonnements: (/** @type {any} */ o) => (generation = generation.then(() => genererAbonnements(o), () => genererAbonnements(o))),
@@ -1381,7 +1406,7 @@
       return {
         salaries: livre.salaries, bulletins, masse: KC.masseSalariale(bulletins),
         annee: KC.masseSalariale(livre.bulletins.filter((/** @type {any} */ b) => Number(b.annee) === Number(o.annee))),
-        controles: KC.controlesPaie(livre, o.annee, m), aEcrire: bulletins.some((/** @type {any} */ b) => !b.ecritureId), baremes: KC.baremesPaie({}),
+        controles: KC.controlesPaie(livre, o.annee, m), aEcrire: bulletins.some((/** @type {any} */ b) => !b.ecritureId), baremes: KC.baremesPaie(paieDuDossier(o.dossierId)),
       };
     },
     saveSalarie: async (/** @type {any} */ o) => {
@@ -1404,7 +1429,7 @@
     saveBulletin: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       const livre = sansEcritures(await livreEtPaie(o.dossierId, o.annee));
-      const r = KC.ajouterBulletin(livre, o.bulletin, {}, '', Date.now());
+      const r = KC.ajouterBulletin(livre, o.bulletin, paieDuDossier(o.dossierId), '', Date.now());
       if (!r.ok) throw new Error(r.motif);
       await ecrirePaieDuDossier(o.dossierId, 'payslips', r.bulletin.id, fichePayeDe(r.bulletin, paieAvant(o.dossierId, 'payslips', r.bulletin.id)));
       return { ok: true, bulletin: r.bulletin, livre: await livreEtPaie(o.dossierId, o.annee) };

@@ -1,0 +1,13 @@
+Les taux par contrat de la paie d'un dossier (brique 55). Format : voir sans-paquets.mjs.
+
+Sur la plateforme, un taux se garde au serveur avec quatre décimales au plus : celles du barème qu'un
+bulletin fige et que le serveur relit pour recalculer le bulletin (docs/cabinet.md, C45). Un taux plus
+fin se refuse sur SA case, avant l'enregistrement, plutôt qu'au premier bulletin du mois.
+
+== cabinet/app.js | un taux par contrat se refuse sur sa case au-delà de quatre décimales
+-- avant
+          if (!Number.isFinite(n) || n < 0 || n > 100) return refus(i, `« ${t} » n'est pas un taux entre 0 et 100. Laisse la case vide pour le taux général.`);
+-- après
+          if (!Number.isFinite(n) || n < 0 || n > 100) return refus(i, `« ${t} » n'est pas un taux entre 0 et 100. Laisse la case vide pour le taux général.`);
+          if (Math.round(n * 1e4) / 1e4 !== n) return refus(i, `« ${t} » : un taux se garde avec quatre décimales au plus.`);
+-- fin

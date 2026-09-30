@@ -208,6 +208,9 @@
   - **La CNSS des seuls employeurs** (brique 54, C44) : `employeurs` dans la production (un mois dont une
     écriture hors AN touche 640… ou 4531…, contre-passations exclues) ; l'index du point de contact le
     range en `employeur`, que `questionsEnAttente` rend à la carte CNSS des Échéances.
+  - **Les taux de paie par contrat** (brique 55, C45) : `paie.regimesContrat` dans la fiche (taux en texte
+    décimal, quatre décimales au plus, jamais le CDI) ; `savePaie` normalise par `normaliserRegimes` ; la
+    paie et `saveBulletin` du point de contact calculent avec eux (`paieDuDossier`).
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première
