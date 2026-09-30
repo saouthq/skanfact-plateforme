@@ -1080,6 +1080,33 @@
   // se comparait à un prix en euros dans la marge. Converti au taux de la pièce, arrondi à la devise
   // de la pièce. Sans taux saisi, la conversion est impossible : `null`, et l'écran le dit au lieu de
   // poser un chiffre faux. Un champ vide reste vide.
+  // Le prix par quantité (plateforme, brique 92) : le palier le plus haut que la quantité atteint ; sous le premier,
+  // le prix de l'article. Un palier sans quantité ou sans prix positifs ne compte pas.
+  function prixCataloguePourQuantite(item, qty) {
+    const q = Number(qty) || 0;
+    const p = (Array.isArray(item && item.paliers) ? item.paliers : [])
+      .filter(x => Number(x.min) > 0 && Number(x.prix) > 0 && q >= Number(x.min))
+      .sort((a, b) => Number(b.min) - Number(a.min))[0];
+    return p ? Number(p.prix) : (Number(item && item.unitPrice) || 0);
+  }
+  // Les paliers tels qu'on les tape : « 10 : 20,500 ; 100 : 19 ». Rend { paliers } triés, ou { erreur } qui dit
+  // ce qui ne va pas (le palier qui ne se lit pas, la quantité en double).
+  function lirePaliers(texte) {
+    const morceaux = String(texte || '').split(/[;\n]+/).map(x => x.trim()).filter(Boolean);
+    const paliers = [];
+    for (const m of morceaux) {
+      const r = /^(\d+(?:[.,]\d+)?)\s*[:=]\s*(\d+(?:[.,]\d+)?)$/.exec(m.replace(/\s+(?=\d{3}\b)/g, ''));
+      if (!r) return { erreur: `« ${m} » ne se lit pas : écris la quantité, deux-points, puis le prix (par exemple « 10 : 20,500 »).` };
+      const min = Number(r[1].replace(',', '.')), prix = round3(Number(r[2].replace(',', '.')));
+      if (!(min > 0) || !(prix > 0)) return { erreur: `« ${m} » : la quantité et le prix doivent être plus grands que zéro.` };
+      if (paliers.some(p => p.min === min)) return { erreur: `La quantité ${String(min).replace('.', ',')} a deux prix : garde-en un seul.` };
+      paliers.push({ min, prix });
+    }
+    return { paliers: paliers.sort((a, b) => a.min - b.min) };
+  }
+  function paliersEnTexte(paliers) {
+    return (Array.isArray(paliers) ? paliers : []).map(p => `${String(p.min).replace('.', ',')} : ${String(p.prix).replace('.', ',')}`).join(' ; ');
+  }
   function prixDuCatalogue(montant, doc, company) {
     if (montant === '' || montant == null) return montant;
     const n = Number(montant); if (!Number.isFinite(n)) return montant;
@@ -10966,7 +10993,7 @@
     depositLines, depositLinesMontant, acompteDit, settlementLines, salesJournal, vatSummary, paymentsJournal, toCsv, migrateData,
     PERIODS, MONTHS_FR, MONTHS_SHORT, monthLabel, deLibelle, addMonths, nextRecurrenceDate, dueRecurrences, catchUpRecurrence, fillTemplate, buildRecurringInvoice,
     reminderLevel, REMINDER_LABELS, daysBetween, overdueInvoices, facturesAVenir, todoList, companyGaps, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
-    CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, decimalsFor, arrondiDevise, prixDuCatalogue, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
+    CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, decimalsFor, arrondiDevise, prixDuCatalogue, prixCataloguePourQuantite, lirePaliers, paliersEnTexte, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
     STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard, encoursClient, depassementEncours,

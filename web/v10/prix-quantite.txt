@@ -1,0 +1,111 @@
+Le prix par quantité (brique 92 ; 14 § 3.2 : « prix par quantité (à partir de 10, de 100…) » ; docs/prix-quantite.md).
+Format : voir sans-paquets.mjs.
+
+Un article du catalogue porte ses paliers (`paliers`, [{ min, prix }], en dinars) : à partir de 10, tel prix ; à
+partir de 100, tel autre. Sur une pièce de vente, la ligne d'un article suit le palier que sa quantité atteint,
+tant qu'on n'a pas tapé son prix à la main (`prixManuel`) : un prix tapé est une décision, il ne bouge plus.
+
+── Le moteur (core.js) ──
+
+== core.js | le prix par quantité : le moteur
+-- avant
+  function prixDuCatalogue(montant, doc, company) {
+-- après
+  // Le prix par quantité (plateforme, brique 92) : le palier le plus haut que la quantité atteint ; sous le premier,
+  // le prix de l'article. Un palier sans quantité ou sans prix positifs ne compte pas.
+  function prixCataloguePourQuantite(item, qty) {
+    const q = Number(qty) || 0;
+    const p = (Array.isArray(item && item.paliers) ? item.paliers : [])
+      .filter(x => Number(x.min) > 0 && Number(x.prix) > 0 && q >= Number(x.min))
+      .sort((a, b) => Number(b.min) - Number(a.min))[0];
+    return p ? Number(p.prix) : (Number(item && item.unitPrice) || 0);
+  }
+  // Les paliers tels qu'on les tape : « 10 : 20,500 ; 100 : 19 ». Rend { paliers } triés, ou { erreur } qui dit
+  // ce qui ne va pas (le palier qui ne se lit pas, la quantité en double).
+  function lirePaliers(texte) {
+    const morceaux = String(texte || '').split(/[;\n]+/).map(x => x.trim()).filter(Boolean);
+    const paliers = [];
+    for (const m of morceaux) {
+      const r = /^(\d+(?:[.,]\d+)?)\s*[:=]\s*(\d+(?:[.,]\d+)?)$/.exec(m.replace(/\s+(?=\d{3}\b)/g, ''));
+      if (!r) return { erreur: `« ${m} » ne se lit pas : écris la quantité, deux-points, puis le prix (par exemple « 10 : 20,500 »).` };
+      const min = Number(r[1].replace(',', '.')), prix = round3(Number(r[2].replace(',', '.')));
+      if (!(min > 0) || !(prix > 0)) return { erreur: `« ${m} » : la quantité et le prix doivent être plus grands que zéro.` };
+      if (paliers.some(p => p.min === min)) return { erreur: `La quantité ${String(min).replace('.', ',')} a deux prix : garde-en un seul.` };
+      paliers.push({ min, prix });
+    }
+    return { paliers: paliers.sort((a, b) => a.min - b.min) };
+  }
+  function paliersEnTexte(paliers) {
+    return (Array.isArray(paliers) ? paliers : []).map(p => `${String(p.min).replace('.', ',')} : ${String(p.prix).replace('.', ',')}`).join(' ; ');
+  }
+  function prixDuCatalogue(montant, doc, company) {
+-- fin
+
+== core.js | le prix par quantité est public
+-- avant
+arrondiDevise, prixDuCatalogue, toBase,
+-- après
+arrondiDevise, prixDuCatalogue, prixCataloguePourQuantite, lirePaliers, paliersEnTexte, toBase,
+-- fin
+
+── Les écrans (app.js) ──
+
+== app.js | les paliers se saisissent sur la fiche de l'article
+-- avant
+        ${field(lbl(`Coût de revient HT (${h(company().currency || 'DT')})`, 'cat.cost'), 'unitCost', it.unitCost || 0, 'number', 'step="0.001" min="0" class="num"')}
+-- après
+        <label class="field">${lbl(`Prix par quantité (${h(company().currency || 'DT')})`, 'cat.paliers')}<input type="text" name="paliers" id="cat-paliers" value="${h(C.paliersEnTexte(it.paliers))}" placeholder="10 : 20,500 ; 100 : 19"></label>
+        ${field(lbl(`Coût de revient HT (${h(company().currency || 'DT')})`, 'cat.cost'), 'unitCost', it.unitCost || 0, 'number', 'step="0.001" min="0" class="num"')}
+-- fin
+
+== app.js | les paliers s'enregistrent lus, ou le refus dit lequel ne va pas
+-- avant
+          if (meme) return refus('#cat-code', `Ce code est déjà celui de « ${meme.label} » : un code désigne un seul article, sinon la caisse vendrait l'un pour l'autre.`);
+-- après
+          if (meme) return refus('#cat-code', `Ce code est déjà celui de « ${meme.label} » : un code désigne un seul article, sinon la caisse vendrait l'un pour l'autre.`);
+          // Le prix par quantité (brique 92) : lu, trié ; un palier illisible se refuse en disant lequel.
+          const lusPaliers = C.lirePaliers(v.paliers);
+          if (lusPaliers.erreur) return refus('#cat-paliers', lusPaliers.erreur);
+          v.paliers = lusPaliers.paliers;
+-- fin
+
+== app.js | un article posé sur une ligne prend le prix du palier de sa quantité
+-- avant
+      Object.assign(l, depuisCatalogue(it));
+      if (it.description) openDesc.add(i);
+-- après
+      Object.assign(l, depuisCatalogue(it));
+      // Le prix par quantité (brique 92) : la quantité déjà saisie choisit le palier ; le prix n'est plus « tapé ».
+      delete l.prixManuel;
+      const auPalier = C.prixDuCatalogue(C.prixCataloguePourQuantite(it, l.qty), doc, company());
+      if (auPalier !== null && auPalier !== '') l.unitPrice = auPalier;
+      if (it.description) openDesc.add(i);
+-- fin
+
+== app.js | la quantité d'une ligne choisit le palier de son article ; un prix tapé ne bouge plus
+-- avant
+            doc.lines[i][el.dataset.k] = Number(el.value);
+-- après
+            doc.lines[i][el.dataset.k] = Number(el.value);
+            // Le prix par quantité (brique 92) : un prix tapé est une décision ; sinon, la quantité choisit le palier.
+            if (el.dataset.k === 'unitPrice') doc.lines[i].prixManuel = true;
+            if (el.dataset.k === 'qty' && doc.lines[i].itemId && !doc.lines[i].prixManuel) {
+              const it = data.catalog.find(c => c.id === doc.lines[i].itemId);
+              const pu = it && Array.isArray(it.paliers) && it.paliers.length ? C.prixDuCatalogue(C.prixCataloguePourQuantite(it, doc.lines[i].qty), doc, company()) : null;
+              if (pu !== null && pu !== '' && Number(pu) !== Number(doc.lines[i].unitPrice)) {
+                doc.lines[i].unitPrice = pu;
+                const champ = el.closest('tr').querySelector('input[data-k=unitPrice]');
+                if (champ) champ.value = pu;
+              }
+            }
+-- fin
+
+── Les bulles (guide.js) ──
+
+== guide.js | la bulle du prix par quantité
+-- avant
+    'cat.price': { t: 'Prix unitaire HT',
+-- après
+    'cat.paliers': { t: 'Prix par quantité', d: 'Des prix dégressifs : « 10 : 20,500 ; 100 : 19 » veut dire 20,500 à partir de 10, et 19 à partir de 100 (sous 10, le prix unitaire). Sur un devis ou une facture, la ligne de cet article suit la quantité que tu tapes, tant que tu n\'as pas tapé son prix toi-même.' },
+    'cat.price': { t: 'Prix unitaire HT',
+-- fin

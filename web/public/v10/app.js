@@ -3981,6 +3981,10 @@
     const poserArticle = (i, it) => {
       const l = doc.lines[i]; if (!l) return;
       Object.assign(l, depuisCatalogue(it));
+      // Le prix par quantité (brique 92) : la quantité déjà saisie choisit le palier ; le prix n'est plus « tapé ».
+      delete l.prixManuel;
+      const auPalier = C.prixDuCatalogue(C.prixCataloguePourQuantite(it, l.qty), doc, company());
+      if (auPalier !== null && auPalier !== '') l.unitPrice = auPalier;
       if (it.description) openDesc.add(i);
       touch(); drawLines();
       const q = $(`tr[data-i="${i}"] input[data-k=qty]`, linesBody); if (q) { q.focus(); q.select(); }
@@ -4018,6 +4022,17 @@
             el.classList.toggle('champ-faute', vide);
             if (vide) return;
             doc.lines[i][el.dataset.k] = Number(el.value);
+            // Le prix par quantité (brique 92) : un prix tapé est une décision ; sinon, la quantité choisit le palier.
+            if (el.dataset.k === 'unitPrice') doc.lines[i].prixManuel = true;
+            if (el.dataset.k === 'qty' && doc.lines[i].itemId && !doc.lines[i].prixManuel) {
+              const it = data.catalog.find(c => c.id === doc.lines[i].itemId);
+              const pu = it && Array.isArray(it.paliers) && it.paliers.length ? C.prixDuCatalogue(C.prixCataloguePourQuantite(it, doc.lines[i].qty), doc, company()) : null;
+              if (pu !== null && pu !== '' && Number(pu) !== Number(doc.lines[i].unitPrice)) {
+                doc.lines[i].unitPrice = pu;
+                const champ = el.closest('tr').querySelector('input[data-k=unitPrice]');
+                if (champ) champ.value = pu;
+              }
+            }
           } else {
             doc.lines[i][el.dataset.k] = el.value;
           }
@@ -6087,6 +6102,7 @@
            l'Unité, qui occupaient chacune une rangée à moitié vide — on la lisait comme une remarque
            sur la TVA (10.12.0, parcours d'une menuiserie). Les prix disent leur unité (9.4.8). */''}
         ${field(lbl(`Prix unitaire HT (${h(company().currency || 'DT')})`, 'cat.price'), 'unitPrice', it.unitPrice, 'number', 'step="0.001" min="0" class="num"')}
+        <label class="field">${lbl(`Prix par quantité (${h(company().currency || 'DT')})`, 'cat.paliers')}<input type="text" name="paliers" id="cat-paliers" value="${h(C.paliersEnTexte(it.paliers))}" placeholder="10 : 20,500 ; 100 : 19"></label>
         ${field(lbl(`Coût de revient HT (${h(company().currency || 'DT')})`, 'cat.cost'), 'unitCost', it.unitCost || 0, 'number', 'step="0.001" min="0" class="num"')}
         ${/* Le calculateur vit À CÔTÉ de la phrase de marge (H6) : c'est là qu'on lit qu'un prix ne va
            pas, et c'est là qu'on veut le refaire. Même rangée : il ne pousse rien. */''}
@@ -6194,6 +6210,10 @@
           v.code = String(v.code || '').trim();
           const meme = v.code && data.catalog.find(c => c.id !== it.id && C.normCode(c.code) === C.normCode(v.code));
           if (meme) return refus('#cat-code', `Ce code est déjà celui de « ${meme.label} » : un code désigne un seul article, sinon la caisse vendrait l'un pour l'autre.`);
+          // Le prix par quantité (brique 92) : lu, trié ; un palier illisible se refuse en disant lequel.
+          const lusPaliers = C.lirePaliers(v.paliers);
+          if (lusPaliers.erreur) return refus('#cat-paliers', lusPaliers.erreur);
+          v.paliers = lusPaliers.paliers;
           if (v.tracked && already && already.moves.length > 1) { v.initialQty = it.initialQty; v.initialCost = it.initialCost; }
           // Un stock de départ EST un mouvement de stock (core.stockMovements en fabrique un) : il
           // passe par le garde-fou de l'offre comme un ajustement, la première fois seulement.

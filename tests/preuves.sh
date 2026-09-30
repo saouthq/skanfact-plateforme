@@ -5512,6 +5512,35 @@ prouver "la page du client qui tait son encours" web/public/v10/app.js \
   "      \${Number(c.creditLimit) > 0 ? (() => { const e = C.encoursClient(" "      \${false ? (() => { const e = C.encoursClient(" \
   "$ENW"
 
+# ── Brique 92 : le prix par quantité (docs/prix-quantite.md) ──
+PQ1="le palier le plus haut que la quantité atteint ; sous le premier, le prix de l'article"
+PQ2="ce qu'on tape se lit et se trie ; un palier illisible, nul ou en double se refuse en disant lequel"
+PQW="Nadia donne au ciment des prix dégressifs, et la ligne de sa facture les suit, jusqu'au prix qu'elle tape"
+prouver "un palier qui ne compte qu'au-delà de sa quantité" web/public/v10/core.js \
+  "Number(x.prix) > 0 && q >= Number(x.min))" "Number(x.prix) > 0 && q > Number(x.min))" \
+  "$PQ1"
+prouver "le palier le plus bas atteint au lieu du plus haut" web/public/v10/core.js \
+  "      .sort((a, b) => Number(b.min) - Number(a.min))[0];" "      .sort((a, b) => Number(a.min) - Number(b.min))[0];" \
+  "$PQ1"
+prouver "un palier sans prix qui vend pour rien" web/public/v10/core.js \
+  ".filter(x => Number(x.min) > 0 && Number(x.prix) > 0 && q" ".filter(x => Number(x.min) > 0 && q" \
+  "$PQ1"
+prouver "deux prix pour la même quantité acceptés" web/public/v10/core.js \
+  "      if (paliers.some(p => p.min === min)) return {" "      if (false) return {" \
+  "$PQ2"
+prouver "des paliers gardés dans le désordre" web/public/v10/core.js \
+  "    return { paliers: paliers.sort((a, b) => a.min - b.min) };" "    return { paliers };" \
+  "$PQ2"
+prouver "un palier illisible enregistré sans un mot" web/public/v10/app.js \
+  "          if (lusPaliers.erreur) return refus('#cat-paliers', lusPaliers.erreur);" "" \
+  "$PQW"
+prouver "la quantité qui ne choisit pas le palier" web/public/v10/app.js \
+  "            if (el.dataset.k === 'qty' && doc.lines[i].itemId && !doc.lines[i].prixManuel) {" "            if (false) {" \
+  "$PQW"
+prouver "un prix tapé que la quantité écrase" web/public/v10/app.js \
+  "            if (el.dataset.k === 'unitPrice') doc.lines[i].prixManuel = true;" "" \
+  "$PQW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

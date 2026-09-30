@@ -64,6 +64,8 @@
 - **L'encours autorisé** (brique 91, `docs/encours.md`) : `creditLimit` sur la fiche du client ;
   `encoursClient` (factures non réglées + bons livrés à facturer, en dinars) ; au-delà, la fenêtre d'émission
   le dit avant, avec les chiffres ; la personne décide.
+- **Le prix par quantité** (brique 92, `docs/prix-quantite.md`, `web/v10/prix-quantite.txt`) : `paliers`
+  sur l'article ; la ligne suit le palier de sa quantité tant que son prix n'est pas tapé (`prixManuel`).
 - Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,
   un seau par clé dans la mémoire du programme (à partager le jour où il y aura plusieurs programmes).
 - Les avis d'événement signés (`0008`, `serveur/avis.ts`, 28/09/2026) : l'avis naît dans la

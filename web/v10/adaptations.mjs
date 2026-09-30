@@ -640,4 +640,6 @@ export const ADAPTATIONS = [
   ...lireFichier('livraisons.txt'),
   // ── Les commandes fournisseurs et leurs réceptions, même partielles (brique 87) ──
   ...lireFichier('commandes-fournisseurs.txt'),
+  // ── Le prix par quantité (brique 92) ──
+  ...lireFichier('prix-quantite.txt'),
 ];
