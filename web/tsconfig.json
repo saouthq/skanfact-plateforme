@@ -16,5 +16,5 @@
     "allowJs": true,
     "checkJs": true
   },
-  "include": ["src", "vite.config.ts", "public/plateforme"]
+  "include": ["src", "vite.config.ts", "public/plateforme", "public/espace"]
 }

@@ -3675,6 +3675,7 @@
           ${avecPlus ? `<div class="more"><button class="btn" id="more-btn" aria-label="Autres actions">Plus ▾</button><div class="more-list" id="more-list" hidden>
             ${emailDansPlus ? `<button id="email">Envoyer par email…</button>` : ''}
             <div class="ml-ligne"><button id="wa">Envoyer par WhatsApp…</button>${info('wa.envoi')}</div>
+            ${locked && (isInv || isAv) && doc.status !== 'annulée' && !C.estTicket(doc) && bridge.lienClient ? '<button id="lien-client">Lien pour le client…</button>' : ''}
             ${convDansPlus ? `<div class="ml-titre">Transformer en…</div>${convBoutons}<div class="ml-sep"></div>` : ''}
             ${!isAv ? `<button id="dup">Dupliquer</button><button id="as-template">Enregistrer comme modèle…</button>` : ''}
             ${hasSerials ? `<button id="serials">Numéros de série livrés…</button>` : ''}
@@ -4747,6 +4748,7 @@
     };
     if ($('#email')) $('#email').onclick = envoyerPar(sendByEmail, 'Envoyer un email');
     if ($('#wa')) $('#wa').onclick = envoyerPar(sendByWhatsApp, 'Envoyer par WhatsApp');
+    if ($('#lien-client')) $('#lien-client').onclick = () => bridge.lienClient(docById(doc.id) || doc, modal);
     if ($('#as-template')) $('#as-template').onclick = () => saveAsTemplate(doc);
     if ($('#teif')) $('#teif').onclick = () => exporterTeif(docById(doc.id) || doc);
     if ($('#make-recurring')) $('#make-recurring').onclick = () => recurrenceForm(recurrenceFromInvoice(doc), () => { toast('Contrat créé'); navigate('#/contrats'); });

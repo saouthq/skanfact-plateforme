@@ -4351,6 +4351,144 @@ prouver "« Continuer » qui ne mène nulle part" $POSTE \
   // Hors ligne, sans rien à montrer" \
   "$MR1"
 
+# ── Brique 77 : l'espace client (docs/espace-client.md) ──
+EC1="le lien d'une pièce et celui du compte : ses pièces émises seulement, ce qu'il en doit, rien de ce qui reste dans l'entreprise ; retiré, il ne s'ouvre plus"
+EC2="une pièce réduite à ce qu'elle imprime s'imprime exactement comme la pièce entière"
+EC3="le lien d'une facture, puis celui du compte : la pièce comme imprimée, ce qu'il doit, vu, puis retiré"
+prouver "le brouillon montré au client" base/migrations/0046_espace_client.sql \
+  "where p.entreprise = l.entreprise and p.statut = 'emise' and p.type in ('facture', 'avoir')" "where p.entreprise = l.entreprise and p.type in ('facture', 'avoir')" \
+  "$EC1"
+prouver "les pièces du client d'à côté montrées" base/migrations/0046_espace_client.sql \
+  "join socle.tiers t on t.id = p.tiers and t.ref_v10 = l.client_v10" "join socle.tiers t on t.id = p.tiers" \
+  "$EC1"
+prouver "le lien d'une pièce qui montre tout le compte" base/migrations/0046_espace_client.sql \
+  "
+         and (l.piece_v10 is null or p.ref_v10 = l.piece_v10)" "" \
+  "$EC1"
+prouver "le ticket de caisse montré au client" base/migrations/0046_espace_client.sql \
+  "
+         and (d.contenu -> 'ticket') is distinct from 'true'::jsonb" "" \
+  "$EC1"
+prouver "un lien retiré qui s'ouvre encore" base/migrations/0046_espace_client.sql \
+  "where jeton_empreinte = p_jeton_empreinte and revoque_le is null;" "where jeton_empreinte = p_jeton_empreinte;" \
+  "$EC1"
+prouver "l'ouverture d'un lien jamais notée" base/migrations/0046_espace_client.sql \
+  "  update ventes.lien set vu_le = p_maintenant, vues = vues + 1 where id = l.id;
+" "" \
+  "$EC1"
+prouver "les avoirs d'une facture oubliés par l'espace" base/migrations/0046_espace_client.sql \
+  "where a.entreprise = p.entreprise and a.corrige = p.id and a.statut = 'emise'" "where false" \
+  "$EC1"
+prouver "les règlements d'une facture oubliés par l'espace" base/migrations/0046_espace_client.sql \
+  "where r.entreprise = p.entreprise and r.piece = p.id" "where false" \
+  "$EC1"
+prouver "le prix de revient d'une ligne envoyé au client" serveur/ventes/espace.ts \
+  "'unitPrice', 'vatRate', 'noDiscount'] as const;" "'unitPrice', 'vatRate', 'noDiscount', 'unitCost'] as const;" \
+  "$EC1"
+prouver "les paiements envoyés au client" serveur/ventes/espace.ts \
+  "'withholdingRate', 'lines',
+] as const;" "'withholdingRate', 'lines', 'payments',
+] as const;" \
+  "$EC1"
+prouver "la fiche société entière envoyée au client" serveur/ventes/espace.ts \
+  "export const nettoyerSociete = (societe: unknown) => garder(societe, CHAMPS_SOCIETE);" "export const nettoyerSociete = (societe: unknown) => societe as Objet;" \
+  "$EC1"
+prouver "la fiche client entière envoyée au client" serveur/ventes/espace.ts \
+  "export const nettoyerClient = (client: unknown) => garder(client, CHAMPS_CLIENT);" "export const nettoyerClient = (client: unknown) => client as Objet;" \
+  "$EC1"
+prouver "une ligne envoyée entière au client" serveur/ventes/espace.ts \
+  "  if (Array.isArray(d.lines)) d.lines = d.lines.map((l) => garder(l, CHAMPS_LIGNE));
+" "" \
+  "$EC1"
+prouver "la référence d'une pièce oubliée par l'espace" serveur/ventes/espace.ts \
+  "'subject', 'reference', 'notes'," "'subject', 'notes'," \
+  "$EC2"
+prouver "le régime de TVA figé oublié par l'espace" serveur/ventes/espace.ts \
+  "'creditReason', 'regimeTva', 'exonerationRS'," "'creditReason', 'exonerationRS'," \
+  "$EC2"
+prouver "la fin de l'exonération oubliée par l'espace" serveur/ventes/espace.ts \
+  "exonerationRS: ['numero', 'au']" "exonerationRS: ['numero']" \
+  "$EC2"
+prouver "une exonération figée à « aucune » changée en mention vide" serveur/ventes/espace.ts \
+  "if (objet(d[cle])) d[cle] = garder(d[cle], champs);" "if (cle in d) d[cle] = garder(d[cle], champs);" \
+  "$EC2"
+prouver "un avoir compté dans ce que le client doit" serveur/ventes/espace.ts \
+  "    if (p.type !== 'facture') continue;
+" "" \
+  "$EC1"
+prouver "le reste d'une facture sans ses avoirs" serveur/ventes/espace.ts \
+  "soldeFacture(net, p.avoirs.map(BigInt), p.reglements.map(BigInt)) : null;" "soldeFacture(net, [], p.reglements.map(BigInt)) : null;" \
+  "$EC1"
+prouver "un lien donné pour un client inconnu" serveur/ventes/routes.ts \
+  "      if (!client) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
+" "" \
+  "$EC1"
+prouver "un lien donné pour une pièce pas encore émise" serveur/ventes/routes.ts \
+  "and t.ref_v10 = \$3 and p.statut = 'emise' and p.type in ('facture', 'avoir')" "and t.ref_v10 = \$3 and p.type in ('facture', 'avoir')" \
+  "$EC1"
+prouver "un lien donné pour la pièce d'un autre client" serveur/ventes/routes.ts \
+  "and t.ref_v10 = \$3 and p.statut = 'emise'" "and \$3::text is not null and p.statut = 'emise'" \
+  "$EC1"
+prouver "un lien donné pour un ticket de caisse" serveur/ventes/routes.ts \
+  "
+            and (d.contenu -> 'ticket') is distinct from 'true'::jsonb" "" \
+  "$EC1"
+prouver "le jeton d'un lien gardé en clair" serveur/ventes/routes.ts \
+  "empreinte(jeton), maintenant()" "jeton, maintenant()" \
+  "$EC1"
+prouver "retirer un lien qui ne le retire pas" serveur/ventes/routes.ts \
+  "update ventes.lien set revoque_le = \$3, revoque_par = socle.moi()" "update ventes.lien set vu_le = \$3, revoque_par = revoque_par" \
+  "$EC1"
+prouver "la fenêtre qui sème un lien à chaque ouverture" web/public/plateforme/pont.js \
+  "      \$r('#lc-compte').onclick = () => { void creer(true); };
+" "      \$r('#lc-compte').onclick = () => { void creer(true); };
+      void creer(false);
+" \
+  "$EC3"
+prouver "« Vu le … » jamais dit à l'entreprise" web/public/plateforme/pont.js \
+  ": l.vuLe ? " ": false ? " \
+  "$EC3"
+prouver "« Retirer » qui ne retire rien" web/public/plateforme/pont.js \
+  "try { await appel('DELETE', \`/espace/liens/" "try { if (false) await appel('DELETE', \`/espace/liens/" \
+  "$EC3"
+prouver "le lien du compte qui donne celui de la pièce" web/public/plateforme/pont.js \
+  "compte ? { client: doc.clientId } : { client: doc.clientId, piece: doc.id }" "{ client: doc.clientId, piece: doc.id }" \
+  "$EC3"
+prouver "« Lien pour le client… » absent d'une facture émise" web/public/v10/app.js \
+  "&& !C.estTicket(doc) && bridge.lienClient ? '<button id=\"lien-client\">" "&& !C.estTicket(doc) && false ? '<button id=\"lien-client\">" \
+  "$EC3"
+prouver "les nombres exacts illisibles pour le client" web/public/espace/espace.js \
+  "      if (cles.length === 1 && cles[0] === '~n') return Number(/** @type {any} */ (v)['~n']);
+" "" \
+  "$EC3"
+prouver "le reste à payer tu au client" web/public/espace/espace.js \
+  "Number(p.reste) > 0 ? " "false ? " \
+  "$EC3"
+prouver "« Tu dois » qui tait ce qui est dû" web/public/espace/espace.js \
+  "const du = vue.totaux.filter((/** @type {any} */ t) => Number(t.du) > 0);" "const du = vue.totaux.filter(() => false);" \
+  "$EC3"
+prouver "le lien d'une pièce qui ouvre la liste" web/public/espace/espace.js \
+  "    if (vue.lien === 'piece' && vue.pieces[0]) piece(vue.pieces[0], false);
+    else releve();" "    releve();" \
+  "$EC3"
+prouver "l'impression refusée par le navigateur" web/public/espace/espace.js \
+  "f.setAttribute('sandbox', 'allow-same-origin allow-modals');" "f.setAttribute('sandbox', 'allow-same-origin');" \
+  "$EC3"
+prouver "sur un téléphone, des chiffres sans ce qu'ils sont" web/public/espace/espace.css \
+  "  .etiquette { display: inline; color: var(--doux); }
+" "" \
+  "$EC3"
+prouver "ce qu'une facture a déjà reçu jamais envoyé au client" serveur/ventes/espace.ts \
+  "paye: solde ? m(solde.paye) : null, credite: solde ? m(solde.credite) : null," "paye: null, credite: null," \
+  "$EC1"
+prouver "ce qu'une facture a déjà reçu tu au client" web/public/espace/espace.js \
+  "\${recu(p) ? \`<div class=\"recu\">\${recu(p)}</div>\` : ''}" "" \
+  "$EC3"
+prouver "les avoirs d'une facture tus dans le relevé" web/public/espace/espace.js \
+  "    Number(p.credite) > 0 ? \`Avoirs : \${esc(montant(p.credite, p.devise))}\` : '',
+" "" \
+  "$EC3"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -24,6 +24,7 @@ Cabinet a son propre point de contact (`pont-cabinet.js`), décrit dans `docs/ca
 | `listDossiers`, `switchDossier`, `addDossier` | Les « dossiers » de la v10 sont les entreprises du compte : les voir, basculer, en créer une | parcours |
 | `deconnecter` (nouvelle) | « Se déconnecter », dans le menu du haut (à la place de « Partager » et « Rejoindre ») | parcours |
 | `exemple` (nouvelle) | « Voir un exemple » ouvre l'entreprise d'essai ; jamais de pièces inventées dans une vraie entreprise | parcours « vraie entreprise » |
+| `lienClient` (nouvelle) | Sur une facture ou un avoir émis, « Plus » → « Lien pour le client… » : le lien de la pièce ou du compte, les liens déjà donnés (« Vu le … »), « Retirer » ; le client voit la pièce comme imprimée et ce qu'il doit (brique 77, `docs/espace-client.md`) | `tests/v10/espace-client.test.ts`, parcours à la souris |
 | `externalBackupInfo` | L'étape « Mettre tes données à l'abri » est faite : les données sont sur le serveur | — |
 
 ## 2. Fait par le navigateur

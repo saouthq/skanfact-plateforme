@@ -19,7 +19,7 @@ export default tseslint.config(
     },
   },
   // Les écrans tournent dans le navigateur.
-  { files: ['web/src/**', 'web/public/plateforme/**'], languageOptions: { globals: { ...globals.browser } } },
+  { files: ['web/src/**', 'web/public/plateforme/**', 'web/public/espace/**'], languageOptions: { globals: { ...globals.browser } } },
   // Le service des écrans (brique 72) tourne à part, dans le navigateur, sans page.
   { files: ['web/public/sw.js'], languageOptions: { globals: { ...globals.serviceworker } } },
 );

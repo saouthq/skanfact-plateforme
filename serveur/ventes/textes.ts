@@ -9,6 +9,10 @@ declarerTextes({
   'geste.ventes.facture.emettre': 'émettre une facture',
   'geste.ventes.avoir.emettre': 'émettre un avoir',
   'geste.ventes.client.modifier': 'créer ou modifier un client',
+  'geste.ventes.lien.partager': 'donner à un client le lien de ses pièces, ou le retirer',
+
+  'espace.lien_invalide': 'ce lien n\'est plus valable : demande un nouveau lien à l\'entreprise qui te l\'a envoyé',
+  'espace.piece_non_emise': 'seule une facture ou un avoir émis se partage avec le client : émets la pièce d\'abord',
 
   'ventes.devise_inconnue': 'la devise {devise} n\'est pas connue',
   'ventes.emise_ne_se_modifie_plus': 'une pièce émise ne se modifie plus : on la corrige par un avoir',

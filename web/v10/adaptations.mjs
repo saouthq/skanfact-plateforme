@@ -35,6 +35,20 @@ export const ADAPTATIONS = [
     avant: '  function allerParametres(tab, focus) {\n',
     apres: '  // (plateforme) Le point de contact mène à un panneau des Paramètres (brique 74 bis).\n  window.__allerParametres = (tab, focus) => allerParametres(tab, focus);\n  function allerParametres(tab, focus) {\n',
   },
+  // ── L'espace client (brique 77 ; docs/espace-client.md) : sur une facture ou un avoir émis, « Lien pour
+  // le client… » dans « Plus » ; la fenêtre est celle du point de contact, dessinée avec la `modal` de la v10.
+  {
+    fichier: 'app.js',
+    pourquoi: 'une pièce émise se partage avec son client par un lien secret (l\'espace client)',
+    avant: "            <div class=\"ml-ligne\"><button id=\"wa\">Envoyer par WhatsApp…</button>${info('wa.envoi')}</div>\n",
+    apres: "            <div class=\"ml-ligne\"><button id=\"wa\">Envoyer par WhatsApp…</button>${info('wa.envoi')}</div>\n            ${locked && (isInv || isAv) && doc.status !== 'annulée' && !C.estTicket(doc) && bridge.lienClient ? '<button id=\"lien-client\">Lien pour le client…</button>' : ''}\n",
+  },
+  {
+    fichier: 'app.js',
+    pourquoi: 'le bouton « Lien pour le client… » ouvre la fenêtre du point de contact',
+    avant: "    if ($('#wa')) $('#wa').onclick = envoyerPar(sendByWhatsApp, 'Envoyer par WhatsApp');\n",
+    apres: "    if ($('#wa')) $('#wa').onclick = envoyerPar(sendByWhatsApp, 'Envoyer par WhatsApp');\n    if ($('#lien-client')) $('#lien-client').onclick = () => bridge.lienClient(docById(doc.id) || doc, modal);\n",
+  },
   // ── Tes appareils (brique 74 ; docs/hors-ligne.md, H9) et ce qu'un appareil retiré a remis (brique
   // 74 bis, H10) : des panneaux des Paramètres, dessinés par le point de contact (comme « Ton cabinet
   // comptable ») ; la v10 de l'ordinateur ne les a pas.

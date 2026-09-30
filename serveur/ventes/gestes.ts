@@ -20,6 +20,10 @@ export const GESTES_VENTES: Geste[] = [
     roles: { proprietaire: 'oui', administrateur: 'oui' } },
   { code: 'ventes.client.modifier', module: 'ventes', ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', lecture: 'voir' } },
+  // L'espace client (brique 77) : un lien secret vers les pièces émises d'un client. Jamais pour une clé
+  // de l'API : c'est une personne qui donne un accès à un tiers.
+  { code: 'ventes.lien.partager', module: 'ventes', horsCle: true, ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui' } },
 ];
 
 let declares = false;

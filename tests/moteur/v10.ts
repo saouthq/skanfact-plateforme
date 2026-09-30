@@ -4,6 +4,7 @@
 
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import path from 'node:path';
 import vm from 'node:vm';
 import { TND, type Devise } from '../../moteur/argent.ts';
 import type { Piece, TypePiece } from '../../moteur/piece.ts';
@@ -26,11 +27,13 @@ export const demo = exiger('../../banc/v10/demo.js') as { buildDemoData: (c: Soc
 
 // Un fichier de l'écran de la PLATEFORME (web/public/v10 : la v10 et ses adaptations), dans Node. Le
 // paquet de la plateforme est en modules ES : `require` ne lui donne pas l'objet `module` qu'il
-// attend pour se rendre (il se poserait sur l'objet global) ; on le lui donne.
+// attend pour se rendre (il se poserait sur l'objet global) ; on le lui donne. Un fichier qui en
+// charge un autre (core.js charge « ./compta ») le reçoit de la même façon.
 export function ecranDeLaPlateforme(fichier: string): unknown {
   const module = { exports: {} as unknown };
   const source = fs.readFileSync(new URL(`../../web/public/v10/${fichier}`, import.meta.url), 'utf8');
-  (vm.runInThisContext(`(function (module, exports) {${source}\n})`, { filename: fichier }) as (m: unknown, e: unknown) => void)(module, module.exports);
+  const charger = (nom: string) => ecranDeLaPlateforme(path.posix.join(path.posix.dirname(fichier), `${nom}.js`));
+  (vm.runInThisContext(`(function (module, exports, require) {${source}\n})`, { filename: fichier }) as (m: unknown, e: unknown, r: unknown) => void)(module, module.exports, charger);
   return module.exports;
 }
 

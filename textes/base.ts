@@ -48,6 +48,7 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'empreinte fausse', cle: 'base.journal.empreinte_fausse', fr: 'une empreinte est fausse' },
   { base: 'la fin de la chaîne manque', cle: 'base.journal.fin_manque', fr: 'la fin de la chaîne manque' },
   { base: 'une opération reçue ne se modifie pas et ne s\'efface pas', cle: 'base.file.intouchable', fr: 'une opération reçue ne se modifie pas et ne s\'efface pas' },
+  { base: 'une remise en quarantaine ne se modifie pas et ne s\'efface pas', cle: 'base.quarantaine.intouchable', fr: 'ce qu\'un appareil retiré a remis ne se modifie pas et ne s\'efface pas' },
   { base: 'appareil inconnu ou révoqué', cle: 'base.file.appareil', fr: 'appareil inconnu ou révoqué' },
   { base: 'file introuvable', cle: 'base.file.introuvable', fr: 'file introuvable' },
   { base: 'l\'opération attendue porte le numéro %s', cle: 'base.file.attendue', fr: 'l\'opération attendue porte le numéro {numero}', valeurs: ['numero'] },

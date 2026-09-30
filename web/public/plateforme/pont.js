@@ -467,6 +467,7 @@
     dessinerMandat,
     dessinerAppareils,
     dessinerQuarantaine,
+    lienClient,
     // Des remises attendent-elles une décision ? (le panneau ne paraît que dans ce cas)
     quarantaine: () => remises.length,
     loadData: async () => {
@@ -700,6 +701,55 @@
       };
     });
   }
+  // ── L'espace client (brique 77 ; docs/espace-client.md) ────────────────────────────────────────
+  // « Lien pour le client… » sur une pièce émise : les liens déjà donnés (vus ? « Retirer ») ; en créer un
+  // vers cette pièce (ou vers tout son compte), à copier dans un message. Le serveur ne garde que
+  // l'empreinte d'un lien : il se montre une fois, à sa création.
+  /** @param {any} doc @param {any} modal */
+  function lienClient(doc, modal) {
+    modal(`<h2>Lien pour le client</h2>
+      <p class="small">Ton client ouvre ce lien sans rien installer : il voit la pièce telle que tu l'imprimes, et ce qu'il en doit. Il ne peut rien y changer. Garde-le pour lui : qui a le lien voit la pièce.</p>
+      <div id="lc-lien"><button type="button" class="btn btn-primary" id="lc-piece">Créer le lien de cette pièce</button></div>
+      <p><button type="button" class="btn btn-sm" id="lc-compte">Plutôt le lien de son compte (toutes ses pièces, et ce qu'il doit)</button></p>
+      <h3 class="small">Liens déjà donnés</h3><div id="lc-liste" class="small"></div>
+      <p class="small" role="alert"></p>
+      <div class="modal-actions"><button class="btn" data-close>Fermer</button></div>`, (/** @type {HTMLElement} */ root) => {
+      const $r = (/** @type {string} */ q) => /** @type {HTMLElement} */ (root.querySelector(q));
+      const dire = (/** @type {unknown} */ x) => { $r('[role=alert]').textContent = x instanceof Error ? x.message : String(x); };
+      const liste = async () => {
+        try {
+          const r = await appel('GET', `/espace/liens?client=${encodeURIComponent(doc.clientId)}`);
+          const miens = r.liens.filter((/** @type {any} */ l) => l.piece === doc.id || l.piece === null);
+          $r('#lc-liste').innerHTML = miens.length ? `<table class="list compact"><tbody>${miens.map((/** @type {any} */ l) => `<tr><td>${l.piece ? 'Cette pièce' : 'Son compte'}, donné le ${esc(quand(l.creeLe))}${l.creePar ? ` par ${esc(l.creePar)}` : ''}
+            <div class="muted">${l.retireLe ? `Retiré le ${esc(quand(l.retireLe))}` : l.vuLe ? `Vu le ${esc(quand(l.vuLe))}${l.vues > 1 ? ` (${l.vues} fois)` : ''}` : 'Pas encore ouvert'}</div></td>
+            <td class="r">${l.retireLe ? '' : `<button type="button" class="btn btn-sm" data-retirer="${esc(l.id)}">Retirer</button>`}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">Aucun.</p>';
+          root.querySelectorAll('[data-retirer]').forEach((b) => {
+            /** @type {HTMLElement} */ (b).onclick = async () => {
+              try { await appel('DELETE', `/espace/liens/${encodeURIComponent(String(/** @type {HTMLElement} */ (b).dataset.retirer))}`); await liste(); } catch (x) { dire(x); }
+            };
+          });
+        } catch (x) { dire(x); }
+      };
+      /** @param {boolean} compte */
+      const creer = async (compte) => {
+        try {
+          const r = await appel('POST', '/espace/liens', compte ? { client: doc.clientId } : { client: doc.clientId, piece: doc.id });
+          const adresse = `${location.origin}${r.adresse}`;
+          $r('#lc-lien').innerHTML = `<label class="field">${compte ? 'Le lien de son compte' : 'Le lien de cette pièce'}<input type="text" readonly id="lc-adresse" value="${esc(adresse)}"></label>
+            <button type="button" class="btn btn-primary btn-sm" id="lc-copier">Copier le lien</button>`;
+          $r('#lc-copier').onclick = async () => {
+            try { await navigator.clipboard.writeText(adresse); dire('Copié : colle-le dans ton message au client.'); } catch { /** @type {HTMLInputElement} */ ($r('#lc-adresse')).select(); dire('Sélectionné : copie-le (Ctrl+C).'); }
+          };
+          await liste();
+        } catch (x) { dire(x); }
+      };
+      // Un lien se crée d'un geste (jamais en ouvrant la fenêtre : on en sèmerait un à chaque fois).
+      $r('#lc-piece').onclick = () => { void creer(false); };
+      $r('#lc-compte').onclick = () => { void creer(true); };
+      void liste();
+    });
+  }
+
   // ── Ce qu'un appareil retiré a remis (brique 74 bis ; docs/hors-ligne.md, H10) ────────────────
   // À l'ouverture, en ligne : s'il y a des remises à décider, le bandeau le dit, et « Voir » mène au
   // panneau des Paramètres qui les montre ; le propriétaire (ou un administrateur) accepte ou rejette.

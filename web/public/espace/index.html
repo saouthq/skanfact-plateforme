@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- L'espace client (brique 77 ; docs/espace-client.md) : le lien secret est dans le fragment « # »,
+       que le navigateur n'envoie jamais ; aucune adresse de cette page ne part ailleurs. -->
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-src 'self' data: blob:">
+  <title>Espace client</title>
+  <link rel="stylesheet" href="espace.css">
+  <script src="/v10/compta.js"></script>
+  <script src="/v10/core.js"></script>
+  <script src="espace.js" defer></script>
+</head>
+<body>
+  <main id="espace" aria-live="polite"><p class="attente">Ouverture de ton espace…</p></main>
+</body>
+</html>

@@ -1,0 +1,40 @@
+/* L'espace client (brique 77) : sobre, lisible sur un téléphone comme sur un ordinateur. */
+:root { --fond: #f5f7fa; --carte: #fff; --texte: #1c2430; --doux: #5b6675; --trait: #e3e8ef; --accent: #0f9488; --retard: #b42318; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+.attente, .refus { background: var(--carte); border: 1px solid var(--trait); border-radius: 12px; padding: 20px; }
+.refus strong { display: block; margin-bottom: 6px; }
+header.societe { display: flex; gap: 16px; align-items: center; margin-bottom: 20px; }
+header.societe img { max-height: 56px; max-width: 160px; object-fit: contain; }
+header.societe h1 { font-size: 22px; margin: 0; }
+header.societe p { margin: 2px 0 0; color: var(--doux); }
+.carte { background: var(--carte); border: 1px solid var(--trait); border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; }
+.du { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; }
+.du strong { font-size: 22px; }
+table.pieces { width: 100%; border-collapse: collapse; }
+table.pieces th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--doux); font-weight: 600; padding: 8px 6px; border-bottom: 1px solid var(--trait); }
+table.pieces td { padding: 10px 6px; border-bottom: 1px solid var(--trait); vertical-align: top; }
+table.pieces th.m { text-align: right; }
+table.pieces td.m { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+table.pieces tr:last-child td { border-bottom: 0; }
+.etiquette { display: none; }
+.statut { font-size: 13px; color: var(--doux); }
+.statut.en_retard { color: var(--retard); font-weight: 600; }
+.recu { font-size: 13px; color: var(--doux); }
+button, .bouton { font: inherit; border-radius: 8px; border: 1px solid var(--trait); background: var(--carte); color: var(--texte); padding: 6px 14px; cursor: pointer; }
+button.principal { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.barre { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.barre .reste { color: var(--doux); }
+iframe.piece { width: 100%; border: 1px solid var(--trait); border-radius: 8px; background: #fff; height: 75vh; }
+footer { color: var(--doux); font-size: 13px; margin-top: 24px; }
+/* Sur un téléphone : la liste en cartes, une pièce par carte. */
+@media (max-width: 640px) {
+  table.pieces thead { display: none; }
+  table.pieces, table.pieces tbody, table.pieces tr, table.pieces td { display: block; width: 100%; }
+  table.pieces tr { border-bottom: 1px solid var(--trait); padding: 8px 0; }
+  table.pieces tr:last-child { border-bottom: 0; }
+  table.pieces td { border: 0; padding: 2px 0; }
+  table.pieces td.m { text-align: left; }
+  .etiquette { display: inline; color: var(--doux); }
+}

@@ -680,6 +680,19 @@ export interface BaseDeDonnees {
     code_methode: string | null;
     code_secret: string | null;
   };
+  'ventes.lien': {
+    id: Generated<string>;
+    entreprise: string;
+    client_v10: string;
+    piece_v10: string | null;
+    jeton_empreinte: string;
+    cree_par: string;
+    cree_le: Date;
+    revoque_le: Date | null;
+    revoque_par: string | null;
+    vu_le: Date | null;
+    vues: Generated<number>;
+  };
   'ventes.ligne': {
     id: Generated<string>;
     piece: string;
