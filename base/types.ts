@@ -692,6 +692,7 @@ export interface BaseDeDonnees {
     revoque_par: string | null;
     vu_le: Date | null;
     vues: Generated<number>;
+    canal: string | null;
   };
   'ventes.ligne': {
     id: Generated<string>;

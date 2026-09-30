@@ -51,6 +51,24 @@ puis chaque pièce, la plus récente d'abord : date, échéance, montant, reste 
 **E6. Rien ne change par l'espace client**, sauf le paiement en ligne (brique 78,
 `docs/paiement-en-ligne.md`), qui passe par le prestataire de l'entreprise.
 
+**E7. Le lien part dans l'e-mail et le WhatsApp de la pièce** (brique 79, 30/09/2026, par délégation). Un
+navigateur ne joint pas de fichier : sur la plateforme, « Envoyer par email… » et « Envoyer par WhatsApp… »
+d'une facture ou d'un avoir émis proposent « Ajouter le lien de la pièce » (cochée) à la place de
+« Joindre le PDF ». Le lien se crée au clic qui ouvre le message (un geste, jamais à l'ouverture de la
+fenêtre), il note par où il part (« envoyé par e-mail le … », « envoyé par WhatsApp le … » dans « Lien pour
+le client… », et dans la trace), et sa phrase se place avant la formule de politesse, dans la langue du
+message : « Pour voir la facture en ligne : … », ou « Pour voir la facture et la régler en ligne : … » quand
+le serveur dit qu'elle se règle en ligne (la même définition que l'espace : une facture qui doit encore, en
+dinars, chez une entreprise qui a branché son prestataire). La phrase « Veuillez trouver ci-joint » des
+modèles devient « Voici » (rien n'est joint) ; décocher le lien la rend, tant que le message n'a pas été
+retouché. Chaque envoi crée son propre lien : la base ne garde que l'empreinte d'un lien, elle ne peut pas
+redonner le précédent ; un message ouvert puis abandonné laisse donc un lien jamais vu, que l'on retire
+d'un clic. Un devis, un bon ou un brouillon partent sans rien de joint, et la fenêtre le dit (« le bouton
+« PDF » l'enregistre ; glisse-le ensuite dans le message »). Paramètres → Envois ne propose plus « Mail
+(Apple) avec le PDF joint » : un navigateur n'ouvre que la messagerie de l'appareil. **À VÉRIFIER** sur
+Safari (iPhone, Mac) : le message s'ouvre après la création du lien (une attente du serveur) ; Safari peut
+demander d'autoriser l'ouverture de la messagerie.
+
 ## Ce qui part vers le client, compté et décidé
 
 Des **listes fermées** (`serveur/ventes/espace.ts`), tirées de ce que lit le gabarit d'impression pour
@@ -79,6 +97,8 @@ le plafond de crédit, la langue et la devise d'un client ; l'identifiant intern
 - ~~« Payer en ligne »~~ : fait à la brique 78 (`docs/paiement-en-ligne.md`).
 - **Les bons de livraison** émis.
 - **Le fichier XML signé** : avec la signature (DigiGo, puis la signature serveur).
-- **Le lien dans l'e-mail et le WhatsApp** qui envoient la pièce ; aujourd'hui, on copie le lien.
+- ~~Le lien dans l'e-mail et le WhatsApp~~ : fait à la brique 79 (E7).
+- **Le relevé de compte envoyé par e-mail** : il part sans le relevé (le message le dit) ; le lien du compte
+  y aurait sa place, mais il montre le compte d'aujourd'hui, pas celui de la date du relevé.
 - **Une limite d'appels par adresse** sur les routes publiques (celle-ci comme l'entrée) : à poser avec
   le frontal, avant la mise en ligne.

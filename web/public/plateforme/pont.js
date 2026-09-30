@@ -469,6 +469,9 @@
     dessinerQuarantaine,
     dessinerPaiement,
     lienClient,
+    ajouterLien,
+    sansPieceJointe,
+    lienBascule,
     // Des remises attendent-elles une décision ? (le panneau ne paraît que dans ce cas)
     quarantaine: () => remises.length,
     loadData: async () => {
@@ -602,9 +605,17 @@
       document.body.appendChild(a); a.click(); a.remove();
       return { state: 'mailto' };
     },
+    // WhatsApp s'ouvre dans un nouvel onglet. La fenêtre ouverte pendant le geste (quand le lien de la pièce
+    // a d'abord été créé, brique 79) reçoit l'adresse ; sinon elle s'ouvre ici. Jamais « noopener » dans
+    // `window.open` : il rend toujours null, et l'on aurait dit « bloquée » d'une fenêtre ouverte.
     ouvrirWhatsApp: async (/** @type {{ numero: string, texte: string }} */ o) => {
-      const w = window.open(`https://wa.me/${encodeURIComponent(o.numero)}?text=${encodeURIComponent(o.texte || '')}`, '_blank', 'noopener');
+      const adresse = `https://wa.me/${encodeURIComponent(o.numero)}?text=${encodeURIComponent(o.texte || '')}`;
+      const deja = fenetreWhatsApp;
+      fenetreWhatsApp = null;
+      const w = deja && !deja.closed ? deja : window.open('', '_blank');
       if (!w) throw new Error('Ton navigateur a bloqué l\'ouverture de WhatsApp : autorise les fenêtres de ce site, puis réessaie.');
+      w.opener = null;
+      w.location.href = adresse;
       return { ok: true };
     },
 
@@ -783,7 +794,7 @@
         try {
           const r = await appel('GET', `/espace/liens?client=${encodeURIComponent(doc.clientId)}`);
           const miens = r.liens.filter((/** @type {any} */ l) => l.piece === doc.id || l.piece === null);
-          $r('#lc-liste').innerHTML = miens.length ? `<table class="list compact"><tbody>${miens.map((/** @type {any} */ l) => `<tr><td>${l.piece ? 'Cette pièce' : 'Son compte'}, donné le ${esc(quand(l.creeLe))}${l.creePar ? ` par ${esc(l.creePar)}` : ''}
+          $r('#lc-liste').innerHTML = miens.length ? `<table class="list compact"><tbody>${miens.map((/** @type {any} */ l) => `<tr><td>${l.piece ? 'Cette pièce' : 'Son compte'}, ${CANAUX[l.canal] || 'donné'} le ${esc(quand(l.creeLe))}${l.creePar ? ` par ${esc(l.creePar)}` : ''}
             <div class="muted">${l.retireLe ? `Retiré le ${esc(quand(l.retireLe))}` : l.vuLe ? `Vu le ${esc(quand(l.vuLe))}${l.vues > 1 ? ` (${l.vues} fois)` : ''}` : 'Pas encore ouvert'}</div></td>
             <td class="r">${l.retireLe ? '' : `<button type="button" class="btn btn-sm" data-retirer="${esc(l.id)}">Retirer</button>`}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">Aucun.</p>';
           root.querySelectorAll('[data-retirer]').forEach((b) => {
@@ -811,6 +822,55 @@
       $r('#lc-compte').onclick = () => { void creer(true); };
       void liste();
     });
+  }
+
+  // ── Les envois (brique 79 ; docs/espace-client.md, E7) ─────────────────────────────────────────
+  // Un navigateur ne joint pas de fichier à un e-mail ni à un WhatsApp : une facture ou un avoir émis part
+  // avec son LIEN, créé à l'envoi (d'un geste : le bouton qui ouvre le message), qui note par où il part.
+  // Sa phrase se place avant la formule de politesse, dans la langue du message, et ne propose de régler
+  // en ligne que si le serveur dit que cette facture se règle en ligne.
+  /** @type {Record<string, string>} */
+  const CANAUX = { email: 'envoyé par e-mail', whatsapp: 'envoyé par WhatsApp' };
+  /** @type {Window | null} */ let fenetreWhatsApp = null;
+  // « Veuillez trouver ci-joint notre facture » : rien n'est joint. La phrase des modèles devient « Voici ».
+  /** @param {string} texte */
+  function sansPieceJointe(texte) {
+    return String(texte || '').replace(/Veuillez trouver ci-joint /g, 'Voici ').replace(/Vous trouverez ci-joint /g, 'Voici ')
+      .replace(/Please find attached /g, 'Here is ');
+  }
+  // Décocher le lien rend au message sa phrase d'origine (et le recocher la retire), tant qu'il n'a pas
+  // été retouché : un texte que la personne a écrit ne se réécrit jamais.
+  /** @param {HTMLElement} root @param {string} avec @param {string} sans */
+  function lienBascule(root, avec, sans) {
+    const c = /** @type {HTMLInputElement | null} */ (root.querySelector('input[name=lien]'));
+    const ta = /** @type {HTMLTextAreaElement | null} */ (root.querySelector('textarea[name=body]'));
+    if (!c || !ta || avec === sans) return;
+    c.addEventListener('change', () => {
+      if (!c.checked && ta.value === avec) ta.value = sans;
+      else if (c.checked && ta.value === sans) ta.value = avec;
+    });
+  }
+  /** @param {any} doc @param {'email' | 'whatsapp'} canal @param {string} texte @param {boolean} en @param {boolean} liberal */
+  async function ajouterLien(doc, canal, texte, en, liberal) {
+    // WhatsApp s'ouvre dans un nouvel onglet : il s'ouvre ICI, encore dans le geste (après l'attente du
+    // serveur, un navigateur bloquerait la fenêtre), et reçoit son adresse ensuite (`ouvrirWhatsApp`).
+    if (canal === 'whatsapp') fenetreWhatsApp = window.open('', '_blank');
+    try {
+      const r = await appel('POST', '/espace/liens', { client: doc.clientId, piece: doc.id, canal });
+      const adresse = `${location.origin}${r.adresse}`;
+      const avoir = doc.type === 'avoir';
+      const piece = en ? (avoir ? 'the credit note' : liberal ? 'the fee note' : 'the invoice')
+        : (avoir ? 'l\'avoir' : liberal ? 'la note d\'honoraires' : 'la facture');
+      const phrase = en ? `${r.payable ? `To view and pay ${piece} online` : `To view ${piece} online`}: ${adresse}`
+        : `${r.payable ? `Pour voir ${piece} et la régler en ligne` : `Pour voir ${piece} en ligne`} : ${adresse}`;
+      // Avant la formule de politesse (le dernier paragraphe : « Cordialement,\n<société> »).
+      const t = String(texte || '').replace(/\s+$/, '');
+      const i = t.lastIndexOf('\n\n');
+      return i > 0 ? `${t.slice(0, i)}\n\n${phrase}${t.slice(i)}` : `${t}\n\n${phrase}`;
+    } catch (x) {
+      if (fenetreWhatsApp) { fenetreWhatsApp.close(); fenetreWhatsApp = null; }
+      throw x;
+    }
   }
 
   // ── Ce qu'un appareil retiré a remis (brique 74 bis ; docs/hors-ligne.md, H10) ────────────────

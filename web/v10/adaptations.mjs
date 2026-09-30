@@ -91,6 +91,117 @@ export const ADAPTATIONS = [
     avant: "['carte', 'Carte'], ['autre', 'Autre']];",
     apres: "['carte', 'Carte'], ['en_ligne', 'Paiement en ligne'], ['autre', 'Autre']];",
   },
+  // ── Les envois (brique 79 ; docs/espace-client.md, E7) : un navigateur ne joint pas de fichier ; l'e-mail et
+  // le WhatsApp d'une facture ou d'un avoir émis portent le LIEN de la pièce (créé à l'envoi par le point de
+  // contact) ; les phrases qui promettaient un PDF joint disent ce qui part vraiment.
+  {
+    fichier: "app.js",
+    pourquoi: "l'e-mail d'une facture ou d'un avoir émis porte le lien de la pièce (un navigateur ne joint pas de fichier) ; la phrase « ci-joint » du modèle se réécrit",
+    avant: "    const m = C.emailFor(kind, doc, client, company(), extra, data);\n    const mtitle = ",
+    apres: "    const m = C.emailFor(kind, doc, client, company(), extra, data);\n    // (plateforme) Un navigateur ne joint pas de fichier : une facture ou un avoir émis part avec son LIEN,\n    // créé à l'envoi par le point de contact (brique 79).\n    const lien = !!bridge.ajouterLien && C.isLocked(doc) && doc.status !== 'annulée' && !C.estTicket(doc);\n    const corpsOrigine = m.body;\n    if (lien) m.body = bridge.sansPieceJointe(m.body);\n    const mtitle = ",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "la case « Joindre le PDF » devient « Ajouter le lien de la pièce » (rien ne se joint dans un navigateur)",
+    avant: "        <label class=\"check\" style=\"align-self:end\"><input type=\"checkbox\" name=\"attach\" checked> Joindre le PDF</label>\n",
+    apres: "        ${lien ? `<label class=\"check\" style=\"align-self:end\"><input type=\"checkbox\" name=\"lien\" checked> Ajouter le lien de la pièce ${info('mail.lien')}</label>` : ''}\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "la fenêtre de l'e-mail dit ce qui part vraiment : le lien de la pièce, ou rien de joint",
+    avant: "      <p class=\"small muted\" id=\"mf-envoi\">${envoiParMail() ? 'Le message s\\'ouvre dans Mail avec le PDF joint : tu le relis et tu cliques sur Envoyer.' : `Le message s'ouvre dans ta messagerie ; le PDF s'affiche dans ${EXPLORATEUR}, pour que tu le glisses dans le message.`} Modèles d'email : Paramètres → Envois.</p>\n",
+    apres: "      <p class=\"small muted\" id=\"mf-envoi\">${lien ? 'Le message s\\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. Un navigateur ne joint pas de fichier : le lien de la pièce s\\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\\'imprimes, et ce qu\\'il en doit.' : 'Le message s\\'ouvre dans ta messagerie, sans pièce jointe : un navigateur ne sait pas en joindre. Pour envoyer le PDF, le bouton « PDF » de la pièce l\\'enregistre (« Enregistrer au format PDF ») ; glisse-le ensuite dans le message.'} Modèles d'email : Paramètres → Envois.</p>\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "décocher le lien rend au message sa phrase d'origine (et le recocher la retire), tant qu'il n'a pas été retouché",
+    avant: "      (root, close) => { $('#ok', root).onclick = async () => {\n        const v = formValues($('#mf', root));",
+    apres: "      (root, close) => { if (lien) bridge.lienBascule(root, m.body, corpsOrigine); $('#ok', root).onclick = async () => {\n        const v = formValues($('#mf', root));",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "le lien de la pièce se crée à l'envoi (d'un geste) et se place dans le message",
+    avant: "          const r = await bridge.composeMail({ to: v.to, subject: v.subject, body: v.body, attachment, mode: modeEnvoi() });\n          if (!client.email) { client.email = v.to; }",
+    apres: "          const corps = lien && v.lien ? await bridge.ajouterLien(doc, 'email', v.body, (doc.lang || client.lang || company().defaultLang) === 'en', C.estLiberal(company())) : v.body;\n          const r = await bridge.composeMail({ to: v.to, subject: v.subject, body: corps, attachment, mode: modeEnvoi() });\n          if (!client.email) { client.email = v.to; }",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "l'e-mail ouvert le dit avec son lien",
+    avant: "          toast(messageOuvert(r, attachment ? 'le PDF' : null));\n",
+    apres: "          toast(corps !== v.body ? 'Message ouvert dans ta messagerie, avec le lien de la pièce' : messageOuvert(r, attachment ? 'le PDF' : null));\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "le WhatsApp d'une facture ou d'un avoir émis porte le lien de la pièce ; la phrase « ci-joint » du modèle se réécrit",
+    avant: "    const m = C.emailFor(kind, doc, client, company(), extra, data);\n    const titre = ",
+    apres: "    const m = C.emailFor(kind, doc, client, company(), extra, data);\n    // (plateforme) Le lien de la pièce au lieu du PDF à glisser (brique 79).\n    const lien = !!bridge.ajouterLien && C.isLocked(doc) && doc.status !== 'annulée' && !C.estTicket(doc);\n    const corpsOrigine = m.body;\n    if (lien) m.body = bridge.sansPieceJointe(m.body);\n    const titre = ",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "la case « Préparer le PDF à glisser » devient « Ajouter le lien de la pièce »",
+    avant: "        <label class=\"check\" style=\"align-self:end\"><input type=\"checkbox\" name=\"attach\" checked> <span>Préparer le PDF à glisser</span></label>\n",
+    apres: "        ${lien ? `<label class=\"check\" style=\"align-self:end\"><input type=\"checkbox\" name=\"lien\" checked> <span>Ajouter le lien de la pièce</span> ${info('mail.lien')}</label>` : ''}\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "la fenêtre du WhatsApp dit ce qui part vraiment",
+    avant: "      <p class=\"small muted\">WhatsApp s'ouvre sur la conversation, le message déjà écrit. Un lien ne peut pas y joindre de fichier : le PDF s'affiche dans ${EXPLORATEUR}, glisse-le dans la conversation. Le texte vient du modèle d'email (Paramètres → Envois).</p>\n",
+    apres: "      <p class=\"small muted\">WhatsApp s'ouvre sur la conversation, le message déjà écrit. ${lien ? 'Un lien WhatsApp ne porte pas de fichier : le lien de la pièce s\\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\\'imprimes, et ce qu\\'il en doit.' : 'Un lien WhatsApp ne porte pas de fichier : pour envoyer le PDF, le bouton « PDF » de la pièce l\\'enregistre (« Enregistrer au format PDF ») ; glisse-le ensuite dans la conversation.'} Le texte vient du modèle d'email (Paramètres → Envois).</p>\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "décocher le lien rend au message WhatsApp sa phrase d'origine",
+    avant: "        const tel = $('[name=tel]', root);\n",
+    apres: "        if (lien) bridge.lienBascule(root, m.body, corpsOrigine);\n        const tel = $('[name=tel]', root);\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "le lien de la pièce se crée à l'envoi et se place dans le message WhatsApp",
+    avant: "            await bridge.ouvrirWhatsApp({ numero: n.numero, texte: v.body, fichier });\n",
+    apres: "            const corps = lien && v.lien ? await bridge.ajouterLien(doc, 'whatsapp', v.body, (doc.lang || client.lang || company().defaultLang) === 'en', C.estLiberal(company())) : v.body;\n            await bridge.ouvrirWhatsApp({ numero: n.numero, texte: corps, fichier });\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "le WhatsApp ouvert le dit avec son lien",
+    avant: "            toast(fichier ? `WhatsApp s'ouvre sur la conversation : glisse le PDF qui s'affiche dans ${EXPLORATEUR}` : 'WhatsApp s\\'ouvre sur la conversation');\n",
+    apres: "            toast(fichier ? `WhatsApp s'ouvre sur la conversation : glisse le PDF qui s'affiche dans ${EXPLORATEUR}` : corps !== v.body ? 'WhatsApp s\\'ouvre sur la conversation, avec le lien de la pièce' : 'WhatsApp s\\'ouvre sur la conversation');\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "rien à choisir au premier envoi (la question « Mail ou une autre messagerie » n'a pas d'objet)",
+    avant: "  async function messagerie() {\n    if (!SUR_MAC || company().mailClient) return modeEnvoi();\n",
+    apres: "  async function messagerie() {\n    // (plateforme) Rien à choisir : le navigateur ouvre la messagerie de l'appareil (brique 79).\n    if (bridge.ajouterLien) return 'mailto';\n    if (!SUR_MAC || company().mailClient) return modeEnvoi();\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "Paramètres → Envois dit ce que fait un navigateur (la messagerie de l'appareil, le lien de la pièce), sans choix de messagerie",
+    avant: "        ${panneau('p-envoi', SUR_MAC ? '' : info('mail.client'))}${SUR_MAC\n          ? `<div class=\"grid-2\">\n              ${/* 10.14.0 — tant que rien n'est choisi, la liste le DIT : sans cette entrée, « Mail\n                   (Apple) » s'affichait choisi d'office, et le premier enregistrement des Paramètres\n                   — la fiche société, n'importe quoi — l'écrivait pour de bon, en silence : la question\n                   du premier envoi n'arrivait jamais. */''}\n              <label class=\"field\">${lbl('Messagerie', 'mail.client')}<select name=\"mailClient\">${c.mailClient ? '' : '<option value=\"\" selected>Je choisirai au premier envoi</option>'}<option value=\"auto\" ${c.mailClient && c.mailClient !== 'mailto' ? 'selected' : ''}>Mail (Apple) avec le PDF joint</option><option value=\"mailto\" ${c.mailClient === 'mailto' ? 'selected' : ''}>Autre messagerie (mailto, PDF à glisser)</option></select></label>\n            </div>`\n          : `<p class=\"small muted\" id=\"mail-fixe\">Le message s'ouvre dans ta messagerie par défaut, et le PDF s'affiche dans ${EXPLORATEUR} pour que tu le glisses dedans. Sur cet ordinateur, il n'y a rien à régler.</p>`}</div>\n",
+    apres: "        ${panneau('p-envoi')}<p class=\"small muted\" id=\"mail-fixe\">Le message s'ouvre dans la messagerie de ton appareil, sans pièce jointe : un navigateur ne sait pas en joindre. Pour une facture ou un avoir émis, SkanFact met dans le message le lien de la pièce : ton client y voit la pièce telle que tu l'imprimes, et ce qu'il en doit ; il la règle en ligne si tu as branché le paiement en ligne (onglet Documents). Il n'y a rien à régler ici.</p></div>\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "le relevé envoyé ne prétend pas être joint (un navigateur ne joint pas de fichier)",
+    avant: "            close(); toast(messageOuvert(rm, 'le relevé'));\n",
+    apres: "            close(); toast(att ? messageOuvert(rm, 'le relevé') : 'Message ouvert dans ta messagerie, sans le relevé : un navigateur ne sait pas le joindre. « Exporter en PDF » l\\'enregistre ; glisse-le ensuite dans le message.');\n",
+  },
+  {
+    fichier: "guide.js",
+    pourquoi: "l'aide de l'envoi par WhatsApp dit ce qui part vraiment (le lien de la pièce), et la case du lien a son aide",
+    avant: "    'wa.envoi': { t: 'Envoyer par WhatsApp', d: 'Ouvre WhatsApp sur la conversation du client, le message déjà écrit (le même modèle que l\\'email, Paramètres → Envois). Un lien WhatsApp ne peut pas joindre de fichier : SkanFact prépare le PDF et l\\'affiche dans son dossier, tu le glisses dans la conversation.",
+    apres: "    'mail.lien': { t: 'Le lien de la pièce', d: 'Un navigateur ne joint pas de fichier : à la place, le message porte le lien de cette facture ou de cet avoir, avant la formule de politesse. Ton client l\\'ouvre sans rien installer : il voit la pièce telle que tu l\\'imprimes et ce qu\\'il en doit, et il la règle en ligne si tu as branché le paiement en ligne (Paramètres → Documents). Le lien se crée quand tu ouvres le message ; il se retrouve, et se retire, dans « Plus » → « Lien pour le client… ».' },\n    'wa.envoi': { t: 'Envoyer par WhatsApp', d: 'Ouvre WhatsApp sur la conversation du client, le message déjà écrit (le même modèle que l\\'email, Paramètres → Envois). Un lien WhatsApp ne porte pas de fichier : pour une facture ou un avoir émis, le message porte le lien de la pièce ; ton client l\\'ouvre, la voit telle que tu l\\'imprimes, et la règle en ligne si tu as branché le paiement en ligne.",
+  },
+  {
+    fichier: "visites.js",
+    pourquoi: "la visite de l'envoi ne promet pas un PDF joint",
+    avant: "texte: 'SkanFact prépare le mail dans ta messagerie, avec le PDF joint et un texte poli (que tu changes dans Paramètres → Envois).',",
+    apres: "texte: 'SkanFact prépare le mail dans ta messagerie, avec un texte poli (que tu changes dans Paramètres → Envois) ; pour une facture ou un avoir émis, avec le lien de la pièce.',",
+  },
+  {
+    fichier: "visites.js",
+    pourquoi: "la visite de l'envoi décrit ce qui part (pas de pièce jointe dans un navigateur)",
+    avant: "<b>Joindre le PDF</b> : la pièce part telle que ton client la verra, sans le tampon « Brouillon ».",
+    apres: "Pas de pièce jointe (un navigateur ne sait pas en joindre) : pour une facture ou un avoir émis, <b>Ajouter le lien de la pièce</b> la montre à ton client telle que tu l\\'imprimes.",
+  },
   {
     fichier: 'app.js',
     pourquoi: 'la fin du même objet : le pont de la plateforme se pose par-dessus le repli',

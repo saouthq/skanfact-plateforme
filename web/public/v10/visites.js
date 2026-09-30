@@ -1235,7 +1235,7 @@
           titre: 'L\'envoi est dans « Plus »', texte: 'Ce devis est déjà parti : renvoyer n\'est plus l\'étape suivante, alors le geste attend dans le menu.',
           action: 'Clique sur <b>« Plus ▾ »</b>.', fait: () => { const l = $('#more-list'); return !!(l && !l.hidden); }, essai: { clic: true } },
         { page: () => ctx.premier('pieceAEnvoyer'), cible: '#email', cote: 'dessous', faire: 'clic',
-          titre: 'Envoyer par mail', texte: 'SkanFact prépare le mail dans ta messagerie, avec le PDF joint et un texte poli (que tu changes dans Paramètres → Envois).',
+          titre: 'Envoyer par mail', texte: 'SkanFact prépare le mail dans ta messagerie, avec un texte poli (que tu changes dans Paramètres → Envois) ; pour une facture ou un avoir émis, avec le lien de la pièce.',
           // Fait quand une fenêtre s'ouvre : « Annuler » dans la question qui suit y ramène (10.14.1).
           action: 'Clique sur <b>« Email »</b>.', fait: () => !aucuneFenetre(), essai: { clic: true } },
         // Deux questions peuvent précéder la fenêtre d'envoi (10.14.0) : l'exemple le rappelle avant
@@ -1250,7 +1250,7 @@
           titre: 'Ta messagerie', texte: 'La toute première fois seulement : Mail, qui joint le PDF tout seul, ou ta messagerie habituelle. Tu pourras changer d\'avis dans Paramètres → Envois.',
           action: 'Choisis celle avec laquelle tu écris.', fait: () => !$('#msg-choix'), essai: { clic: true } },
         { cible: '#modal-root .modal', cote: 'gauche', titre: 'Relis avant d\'envoyer',
-          texte: '<b>Destinataire</b> : l\'adresse de la fiche du client (corrige-la ici, elle se retiendra). <b>Objet</b> et <b>message</b> : un texte poli, rempli avec le numéro, le montant et l\'échéance — change ce que tu veux. <b>Joindre le PDF</b> : la pièce part telle que ton client la verra, sans le tampon « Brouillon ».' },
+          texte: '<b>Destinataire</b> : l\'adresse de la fiche du client (corrige-la ici, elle se retiendra). <b>Objet</b> et <b>message</b> : un texte poli, rempli avec le numéro, le montant et l\'échéance — change ce que tu veux. Pas de pièce jointe (un navigateur ne sait pas en joindre) : pour une facture ou un avoir émis, <b>Ajouter le lien de la pièce</b> la montre à ton client telle que tu l\'imprimes.' },
         { si: () => fenetre('par email'), cible: '#modal-root .modal #ok', cote: 'dessus', faire: 'clic',
           titre: 'Ouvrir dans ta messagerie', texte: 'Ta messagerie s\'ouvre avec le message tout prêt. <b>Rien ne part tant que tu n\'as pas cliqué sur « Envoyer » dans ta messagerie</b> : tu peux encore tout relire.',
           action: 'Clique sur <b>« Ouvrir dans la messagerie »</b>.', fait: () => aucuneFenetre(), essai: { clic: true } }

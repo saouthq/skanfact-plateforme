@@ -76,6 +76,9 @@ e-mail, ni son téléphone) : Konnect demande au payeur ce dont il a besoin sur 
 - Un client qui fait une retenue à la source paie le net : le reste est déjà net de retenue (le net à
   payer de la v10) ; l'attestation se réclame (`05` § 3.3).
 
+Depuis la brique 79, l'e-mail et le WhatsApp d'une facture portent son lien, et disent « la régler en
+ligne » quand elle se règle en ligne (`docs/espace-client.md`, E7).
+
 ## Reste à faire
 
 - Une limite d'appels par adresse sur les routes publiques (l'avis, le retour, l'espace) : avec le

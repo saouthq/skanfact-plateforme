@@ -667,6 +667,8 @@
   // marchait. Lui poser la question à la mise à jour, ce serait lui faire douter d'un geste qui marche.
   const dejaEnvoye = () => (data.documents || []).some(d => (d.emails || []).length) || (data.licences || []).some(l => (l.emails || []).length);
   async function messagerie() {
+    // (plateforme) Rien à choisir : le navigateur ouvre la messagerie de l'appareil (brique 79).
+    if (bridge.ajouterLien) return 'mailto';
     if (!SUR_MAC || company().mailClient) return modeEnvoi();
     if (dejaEnvoye()) { data.company.mailClient = 'auto'; save(); return modeEnvoi(); }
     return (await choisirMessagerie()) ? modeEnvoi() : null;
@@ -5136,7 +5138,7 @@
             const att = await bridge.exportPdfSilent(html(), nom());
             const r = releve();
             const rm = await bridge.composeMail({ to: c.email || '', mode: modeEnvoi(), attachment: att, ...C.mailReleve(r, company()) });
-            close(); toast(messageOuvert(rm, 'le relevé'));
+            close(); toast(att ? messageOuvert(rm, 'le relevé') : 'Message ouvert dans ta messagerie, sans le relevé : un navigateur ne sait pas le joindre. « Exporter en PDF » l\'enregistre ; glisse-le ensuite dans le message.');
           } catch (e) { b.disabled = false; b.textContent = 'Envoyer au client…'; toast(plainError(e), true); }
         };
       });
@@ -6472,19 +6474,24 @@
     if (!await messagerie()) return;
     kind = kind || doc.type;
     const m = C.emailFor(kind, doc, client, company(), extra, data);
+    // (plateforme) Un navigateur ne joint pas de fichier : une facture ou un avoir émis part avec son LIEN,
+    // créé à l'envoi par le point de contact (brique 79).
+    const lien = !!bridge.ajouterLien && C.isLocked(doc) && doc.status !== 'annulée' && !C.estTicket(doc);
+    const corpsOrigine = m.body;
+    if (lien) m.body = bridge.sansPieceJointe(m.body);
     const mtitle = kind === 'relanceDevis' ? 'Relancer le devis ' + h(doc.number)
       : /^relance\d$/.test(kind) ? C.REMINDER_LABELS[Number(kind.slice(-1))] + ' — ' + h(doc.number)
       : 'Envoyer ' + h(docLabel(doc)) + ' par email';
     modal(`<h2>${mtitle}</h2>
       <form id="mf" class="grid-2">
         ${field(lbl('Destinataire', 'mail.to'), 'to', m.to, 'email', 'placeholder="email@client.tn"')}
-        <label class="check" style="align-self:end"><input type="checkbox" name="attach" checked> Joindre le PDF</label>
+        ${lien ? `<label class="check" style="align-self:end"><input type="checkbox" name="lien" checked> Ajouter le lien de la pièce ${info('mail.lien')}</label>` : ''}
         <label class="field span-2">${lbl('Objet', 'mail.objet')}<input type="text" name="subject" value="${h(m.subject)}"></label>
         <label class="field span-2">${lbl('Message', 'mail.message')}<textarea name="body" rows="9">${h(m.body)}</textarea></label>
       </form>
-      <p class="small muted" id="mf-envoi">${envoiParMail() ? 'Le message s\'ouvre dans Mail avec le PDF joint : tu le relis et tu cliques sur Envoyer.' : `Le message s'ouvre dans ta messagerie ; le PDF s'affiche dans ${EXPLORATEUR}, pour que tu le glisses dans le message.`} Modèles d'email : Paramètres → Envois.</p>
+      <p class="small muted" id="mf-envoi">${lien ? 'Le message s\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. Un navigateur ne joint pas de fichier : le lien de la pièce s\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\'imprimes, et ce qu\'il en doit.' : 'Le message s\'ouvre dans ta messagerie, sans pièce jointe : un navigateur ne sait pas en joindre. Pour envoyer le PDF, le bouton « PDF » de la pièce l\'enregistre (« Enregistrer au format PDF ») ; glisse-le ensuite dans le message.'} Modèles d'email : Paramètres → Envois.</p>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Ouvrir dans la messagerie</button></div>`,
-      (root, close) => { $('#ok', root).onclick = async () => {
+      (root, close) => { if (lien) bridge.lienBascule(root, m.body, corpsOrigine); $('#ok', root).onclick = async () => {
         const v = formValues($('#mf', root));
         if (!v.to || !/^[^@\s]+@[^@\s]+$/.test(v.to)) return refus($('[name=to]', root), 'Adresse email invalide.');
         const b = $('#ok', root); b.disabled = true; b.textContent = 'Préparation…';
@@ -6496,14 +6503,15 @@
           const telle = passe ? { ...doc, status: envoi } : doc;
           let attachment = null;
           if (v.attach) attachment = await bridge.exportPdfSilent(C.documentHtml(telle, client, company(), { stampText: stampFor(telle) }), docFileName(telle));
-          const r = await bridge.composeMail({ to: v.to, subject: v.subject, body: v.body, attachment, mode: modeEnvoi() });
+          const corps = lien && v.lien ? await bridge.ajouterLien(doc, 'email', v.body, (doc.lang || client.lang || company().defaultLang) === 'en', C.estLiberal(company())) : v.body;
+          const r = await bridge.composeMail({ to: v.to, subject: v.subject, body: corps, attachment, mode: modeEnvoi() });
           if (!client.email) { client.email = v.to; }
           const stored = docById(doc.id) || doc;
           stored.emails = stored.emails || []; stored.emails.push({ date: C.today(), to: v.to, subject: v.subject, kind });
           if (passe && stored.status === 'brouillon') { stored.status = envoi; if (doc !== stored) doc.status = envoi; }
           if (afterSend) afterSend(stored);
           save(true); close();
-          toast(messageOuvert(r, attachment ? 'le PDF' : null));
+          toast(corps !== v.body ? 'Message ouvert dans ta messagerie, avec le lien de la pièce' : messageOuvert(r, attachment ? 'le PDF' : null));
           render();
         } catch (e) { b.disabled = false; b.textContent = 'Ouvrir dans la messagerie'; toast(plainError(e), true); }
       }; });
@@ -6524,19 +6532,24 @@
     if (!client) return toast('Choisis un client.', true);
     kind = kind || doc.type;
     const m = C.emailFor(kind, doc, client, company(), extra, data);
+    // (plateforme) Le lien de la pièce au lieu du PDF à glisser (brique 79).
+    const lien = !!bridge.ajouterLien && C.isLocked(doc) && doc.status !== 'annulée' && !C.estTicket(doc);
+    const corpsOrigine = m.body;
+    if (lien) m.body = bridge.sansPieceJointe(m.body);
     const titre = kind === 'relanceDevis' ? 'Relancer le devis ' + h(doc.number) + ' par WhatsApp'
       : /^relance\d$/.test(kind) ? C.REMINDER_LABELS[Number(kind.slice(-1))] + ' par WhatsApp — ' + h(doc.number)
       : 'Envoyer ' + h(docLabel(doc)) + ' par WhatsApp';
     modal(`<h2>${titre}</h2>
       <form id="wf" class="grid-2">
         <label class="field obligatoire">${lbl('Numéro WhatsApp', 'wa.numero')}<input type="tel" name="tel" value="${h(client.phone || '')}" placeholder="98 123 456"></label>
-        <label class="check" style="align-self:end"><input type="checkbox" name="attach" checked> <span>Préparer le PDF à glisser</span></label>
+        ${lien ? `<label class="check" style="align-self:end"><input type="checkbox" name="lien" checked> <span>Ajouter le lien de la pièce</span> ${info('mail.lien')}</label>` : ''}
         <p class="small muted span-2 annonce-stable" id="wf-num"></p>
         <label class="field span-2">${lbl('Message', 'wa.message')}<textarea name="body" rows="9">${h(m.body)}</textarea></label>
       </form>
-      <p class="small muted">WhatsApp s'ouvre sur la conversation, le message déjà écrit. Un lien ne peut pas y joindre de fichier : le PDF s'affiche dans ${EXPLORATEUR}, glisse-le dans la conversation. Le texte vient du modèle d'email (Paramètres → Envois).</p>
+      <p class="small muted">WhatsApp s'ouvre sur la conversation, le message déjà écrit. ${lien ? 'Un lien WhatsApp ne porte pas de fichier : le lien de la pièce s\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\'imprimes, et ce qu\'il en doit.' : 'Un lien WhatsApp ne porte pas de fichier : pour envoyer le PDF, le bouton « PDF » de la pièce l\'enregistre (« Enregistrer au format PDF ») ; glisse-le ensuite dans la conversation.'} Le texte vient du modèle d'email (Paramètres → Envois).</p>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Ouvrir WhatsApp</button></div>`,
       (root, close) => {
+        if (lien) bridge.lienBascule(root, m.body, corpsOrigine);
         const tel = $('[name=tel]', root);
         const dire = () => {
           const r = C.numeroWhatsApp(tel.value), el = $('#wf-num', root);
@@ -6557,14 +6570,15 @@
             const telle = passe ? { ...doc, status: envoi } : doc;
             let fichier = null;
             if (v.attach) fichier = await bridge.exportPdfSilent(C.documentHtml(telle, client, company(), { stampText: stampFor(telle) }), docFileName(telle));
-            await bridge.ouvrirWhatsApp({ numero: n.numero, texte: v.body, fichier });
+            const corps = lien && v.lien ? await bridge.ajouterLien(doc, 'whatsapp', v.body, (doc.lang || client.lang || company().defaultLang) === 'en', C.estLiberal(company())) : v.body;
+            await bridge.ouvrirWhatsApp({ numero: n.numero, texte: corps, fichier });
             if (!String(client.phone || '').trim()) client.phone = v.tel.trim();
             const stored = docById(doc.id) || doc;
             stored.emails = stored.emails || []; stored.emails.push({ date: C.today(), to: '+' + n.numero, kind, canal: 'whatsapp' });
             if (passe && stored.status === 'brouillon') { stored.status = envoi; if (doc !== stored) doc.status = envoi; }
             if (afterSend) afterSend(stored);
             save(true); close();
-            toast(fichier ? `WhatsApp s'ouvre sur la conversation : glisse le PDF qui s'affiche dans ${EXPLORATEUR}` : 'WhatsApp s\'ouvre sur la conversation');
+            toast(fichier ? `WhatsApp s'ouvre sur la conversation : glisse le PDF qui s'affiche dans ${EXPLORATEUR}` : corps !== v.body ? 'WhatsApp s\'ouvre sur la conversation, avec le lien de la pièce' : 'WhatsApp s\'ouvre sur la conversation');
             render();
           } catch (e) { b.disabled = false; b.textContent = 'Ouvrir WhatsApp'; toast(plainError(e), true); }
         };
@@ -15147,15 +15161,7 @@
         ${/* 10.12.0 — hors Mac il n'y a rien à choisir : la phrase était posée dans un « champ » qui
              répétait le titre du panneau en étiquette, et elle héritait du gras des étiquettes. La
              bulle passe sur le titre, la phrase redevient une phrase. */''}
-        ${panneau('p-envoi', SUR_MAC ? '' : info('mail.client'))}${SUR_MAC
-          ? `<div class="grid-2">
-              ${/* 10.14.0 — tant que rien n'est choisi, la liste le DIT : sans cette entrée, « Mail
-                   (Apple) » s'affichait choisi d'office, et le premier enregistrement des Paramètres
-                   — la fiche société, n'importe quoi — l'écrivait pour de bon, en silence : la question
-                   du premier envoi n'arrivait jamais. */''}
-              <label class="field">${lbl('Messagerie', 'mail.client')}<select name="mailClient">${c.mailClient ? '' : '<option value="" selected>Je choisirai au premier envoi</option>'}<option value="auto" ${c.mailClient && c.mailClient !== 'mailto' ? 'selected' : ''}>Mail (Apple) avec le PDF joint</option><option value="mailto" ${c.mailClient === 'mailto' ? 'selected' : ''}>Autre messagerie (mailto, PDF à glisser)</option></select></label>
-            </div>`
-          : `<p class="small muted" id="mail-fixe">Le message s'ouvre dans ta messagerie par défaut, et le PDF s'affiche dans ${EXPLORATEUR} pour que tu le glisses dedans. Sur cet ordinateur, il n'y a rien à régler.</p>`}</div>
+        ${panneau('p-envoi')}<p class="small muted" id="mail-fixe">Le message s'ouvre dans la messagerie de ton appareil, sans pièce jointe : un navigateur ne sait pas en joindre. Pour une facture ou un avoir émis, SkanFact met dans le message le lien de la pièce : ton client y voit la pièce telle que tu l'imprimes, et ce qu'il en doit ; il la règle en ligne si tu as branché le paiement en ligne (onglet Documents). Il n'y a rien à régler ici.</p></div>
         ${panneau('p-comptable')}<div class="grid-2">
           ${field(lbl('Email du comptable', 'compta.comptable'), 'accountantEmail', c.accountantEmail || '', 'email', 'placeholder="comptable@cabinet.tn"')}
         </div><p class="small muted mt">Utilisé par « Envoyer au comptable » sur la page Comptabilité.</p></div>

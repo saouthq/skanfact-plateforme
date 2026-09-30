@@ -14,7 +14,7 @@ import type { Contexte } from '../connexion.ts';
 import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, lirePiece, modifierBrouillon, supprimerBrouillon, type BrouillonSaisi } from './pieces.ts';
 import { soldesDeFactures } from './reglements.ts';
-import { vueEspace } from './espace.ts';
+import { payableEnLigne, vueEspace } from './espace.ts';
 import { motif, t } from '../../textes/index.ts';
 
 // Toute liste qu'on nomme se pagine (règle du projet) : 50 lignes par défaut, 200 au plus.
@@ -194,28 +194,38 @@ export function routesVentes(ctx: Contexte): Route<never>[] {
 
   // ── L'espace client (brique 77 ; docs/espace-client.md ; 14 § 2.1) ────────────────────────────
   // Un lien secret vers les pièces émises d'un client : d'une pièce, ou de son compte (sans pièce).
-  // Le jeton n'est rendu qu'ici, une fois ; la base n'en garde que l'empreinte.
+  // Le jeton n'est rendu qu'ici, une fois ; la base n'en garde que l'empreinte. Un lien créé par un envoi
+  // (brique 79) note par où il part, et dit si la pièce se règle en ligne (la phrase du message le dit).
   ajouter({
     methode: 'POST', chemin: '/entreprises/:entreprise/espace/liens', geste: 'ventes.lien.partager',
-    corps: z.object({ client: z.string().min(1).max(200), piece: z.string().min(1).max(200).optional() }),
+    corps: z.object({ client: z.string().min(1).max(200), piece: z.string().min(1).max(200).optional(), canal: z.enum(['email', 'whatsapp']).optional() }),
     traiter: async ({ params, corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const ent = params.entreprise ?? '';
       const client = (await tx.query("select 1 from socle.dossier_v10 where entreprise = $1 and collection = 'clients' and cle = $2", [ent, corps.client])).rowCount;
       if (!client) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
       // Une pièce se partage émise, et avec SON client (jamais un ticket de caisse : il se remet au comptoir).
+      let piece: { id: string; type: string; devise: string; net_a_payer: string | null } | undefined;
       if (corps.piece) {
-        const emise = (await tx.query(`select 1 from ventes.piece p join socle.tiers t on t.id = p.tiers
+        piece = (await tx.query(`select p.id, p.type, p.devise, p.net_a_payer from ventes.piece p join socle.tiers t on t.id = p.tiers
           join socle.dossier_v10 d on d.entreprise = p.entreprise and d.collection = 'documents' and d.cle = p.ref_v10
           where p.entreprise = $1 and p.ref_v10 = $2 and t.ref_v10 = $3 and p.statut = 'emise' and p.type in ('facture', 'avoir')
-            and (d.contenu -> 'ticket') is distinct from 'true'::jsonb`, [ent, corps.piece, corps.client])).rowCount;
-        if (!emise) return { statut: 409, corps: { motif: motif('espace.piece_non_emise') } };
+            and (d.contenu -> 'ticket') is distinct from 'true'::jsonb`, [ent, corps.piece, corps.client])).rows[0];
+        if (!piece) return { statut: 409, corps: { motif: motif('espace.piece_non_emise') } };
       }
       const jeton = randomBytes(24).toString('base64url');
-      const id = String((await tx.query(`insert into ventes.lien (entreprise, client_v10, piece_v10, jeton_empreinte, cree_par, cree_le)
-        values ($1, $2, $3, $4, socle.moi(), $5) returning id`, [ent, corps.client, corps.piece ?? null, empreinte(jeton), maintenant()])).rows[0].id);
-      await tracer(tx, ent, 'ventes.lien.partager', { type: 'lien', id }, null, { client: corps.client, piece: corps.piece ?? null });
-      return { statut: 201, corps: { id, jeton, adresse: `/espace/#${jeton}` } };
+      const id = String((await tx.query(`insert into ventes.lien (entreprise, client_v10, piece_v10, jeton_empreinte, cree_par, cree_le, canal)
+        values ($1, $2, $3, $4, socle.moi(), $5, $6) returning id`, [ent, corps.client, corps.piece ?? null, empreinte(jeton), maintenant(), corps.canal ?? null])).rows[0].id);
+      await tracer(tx, ent, 'ventes.lien.partager', { type: 'lien', id }, null, { client: corps.client, piece: corps.piece ?? null, canal: corps.canal ?? null });
+      // Se règle-t-elle en ligne ? Le reste par la fonction de la liste des ventes, la règle de l'espace.
+      let payable = false;
+      if (piece) {
+        const net = BigInt(piece.net_a_payer ?? '0');
+        const reste = piece.type === 'facture' ? (await soldesDeFactures(tx, ent, [{ id: piece.id, net }])).get(piece.id)?.reste ?? null : null;
+        const paiement = !!(await tx.query('select 1 from ventes.prestataire where entreprise = $1', [ent])).rowCount;
+        payable = payableEnLigne(piece.type, piece.devise, reste, paiement);
+      }
+      return { statut: 201, corps: { id, jeton, adresse: `/espace/#${jeton}`, payable } };
     },
   });
 
@@ -224,14 +234,14 @@ export function routesVentes(ctx: Contexte): Route<never>[] {
     methode: 'GET', chemin: '/entreprises/:entreprise/espace/liens', geste: 'ventes.pieces.voir',
     traiter: async ({ params, query }, tx) => {
       if (!tx) throw new Error('transaction attendue');
-      const r = await tx.query(`select l.id, l.client_v10, l.piece_v10, l.cree_le, u.nom cree_par, l.vu_le, l.vues, l.revoque_le
+      const r = await tx.query(`select l.id, l.client_v10, l.piece_v10, l.canal, l.cree_le, u.nom cree_par, l.vu_le, l.vues, l.revoque_le
         from ventes.lien l left join socle.utilisateur u on u.id = l.cree_par
         where l.entreprise = $1 and ($2::text is null or l.client_v10 = $2) and ($3::text is null or l.piece_v10 = $3)
         order by l.cree_le desc, l.id desc limit 50`, [params.entreprise, query.client ?? null, query.piece ?? null]);
       return {
         corps: {
-          liens: (r.rows as { id: string; client_v10: string; piece_v10: string | null; cree_le: Date; cree_par: string | null; vu_le: Date | null; vues: number; revoque_le: Date | null }[]).map((l) => ({
-            id: l.id, client: l.client_v10, piece: l.piece_v10, creeLe: l.cree_le.toISOString(), creePar: l.cree_par ?? '',
+          liens: (r.rows as { id: string; client_v10: string; piece_v10: string | null; canal: string | null; cree_le: Date; cree_par: string | null; vu_le: Date | null; vues: number; revoque_le: Date | null }[]).map((l) => ({
+            id: l.id, client: l.client_v10, piece: l.piece_v10, canal: l.canal, creeLe: l.cree_le.toISOString(), creePar: l.cree_par ?? '',
             vuLe: l.vu_le ? l.vu_le.toISOString() : null, vues: l.vues, retireLe: l.revoque_le ? l.revoque_le.toISOString() : null,
           })),
         },

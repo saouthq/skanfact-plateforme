@@ -4543,10 +4543,10 @@ prouver "l'espace qui tait le paiement en ligne" base/migrations/0047_paiement_e
   "'paiement', exists (select 1 from ventes.prestataire pr where pr.entreprise = l.entreprise)," "'paiement', false," \
   "$PA3"
 prouver "« Payer en ligne » chez une entreprise qui ne l'accepte pas" serveur/ventes/espace.ts \
-  " && lu.paiement === true," "," \
+  " && devise === 'TND' && paiement;" " && devise === 'TND';" \
   "$PA3"
 prouver "« Payer en ligne » proposé en devise" serveur/ventes/espace.ts \
-  " && p.devise === 'TND'" "" \
+  " && devise === 'TND' && paiement;" " && paiement;" \
   "$PA4"
 prouver "le montant entier demandé au lieu du reste" serveur/v10/paiement.ts \
   "const reste = soldeFacture(BigInt(a.piece.net), a.piece.avoirs.map(BigInt), a.piece.reglements.map(BigInt)).reste;" "const reste = BigInt(a.piece.net);" \
@@ -4653,6 +4653,60 @@ prouver "une clé du coffre qui n'a pas ses 32 octets" serveur/coffre.ts \
   "  if (cle.length !== 32) throw new CoffreFaux('coffre.cle_32_octets');
 " "" \
   "une configuration fausse l'arrête"
+
+# ── Brique 79 : les envois portent le lien de la pièce (docs/espace-client.md, E7) ──
+EN1="le lien qu'un envoi porte : il dit par où il part, et ne promet le paiement en ligne qu'à une facture qui se paie en ligne"
+EN2="la facture part avec son lien, par e-mail puis par WhatsApp ; le devis et le relevé partent sans rien de joint"
+prouver "le canal d'un lien jamais noté" serveur/ventes/routes.ts \
+  "maintenant(), corps.canal ?? null])).rows[0].id);" "maintenant(), null])).rows[0].id);" \
+  "$EN1"
+prouver "« régler en ligne » promis sans paiement en ligne branché" serveur/ventes/routes.ts \
+  "payable = payableEnLigne(piece.type, piece.devise, reste, paiement);" "payable = payableEnLigne(piece.type, piece.devise, reste, true);" \
+  "$EN1"
+prouver "« régler en ligne » promis pour une facture réglée" serveur/ventes/routes.ts \
+  "(await soldesDeFactures(tx, ent, [{ id: piece.id, net }])).get(piece.id)?.reste ?? null" "net" \
+  "$EN1"
+prouver "l'e-mail d'une facture émise parti sans son lien" web/public/v10/app.js \
+  "const corps = lien && v.lien ? await bridge.ajouterLien(doc, 'email'" "const corps = false ? await bridge.ajouterLien(doc, 'email'" \
+  "$EN2"
+prouver "le WhatsApp d'une facture émise parti sans son lien" web/public/v10/app.js \
+  "const corps = lien && v.lien ? await bridge.ajouterLien(doc, 'whatsapp'" "const corps = false ? await bridge.ajouterLien(doc, 'whatsapp'" \
+  "$EN2"
+prouver "« Veuillez trouver ci-joint » laissé dans un message sans pièce jointe" web/public/plateforme/pont.js \
+  ".replace(/Veuillez trouver ci-joint /g, 'Voici ')" "" \
+  "$EN2"
+prouver "le lien posé après la signature" web/public/plateforme/pont.js \
+  "      return i > 0 ? \`\${t.slice(0, i)}\\n\\n\${phrase}\${t.slice(i)}\` : \`\${t}\\n\\n\${phrase}\`;" "      return \`\${t}\\n\\n\${phrase}\`;" \
+  "$EN2"
+prouver "« régler en ligne » promis sans que le serveur le dise" web/public/plateforme/pont.js \
+  "r.payable ? \`Pour voir \${piece} et la régler en ligne\`" "true ? \`Pour voir \${piece} et la régler en ligne\`" \
+  "$EN2"
+prouver "la case du lien décochée qui ne rend pas la phrase du modèle" web/public/plateforme/pont.js \
+  "      if (!c.checked && ta.value === avec) ta.value = sans;
+" "" \
+  "$EN2"
+prouver "WhatsApp ouvert après l'attente du serveur (hors du geste)" web/public/plateforme/pont.js \
+  "    if (canal === 'whatsapp') fenetreWhatsApp = window.open('', '_blank');
+" "" \
+  "$EN2"
+prouver "WhatsApp dit « bloqué » d'une fenêtre ouverte (noopener)" web/public/plateforme/pont.js \
+  ": window.open('', '_blank');
+      if (!w) throw" ": window.open('', '_blank', 'noopener');
+      if (!w) throw" \
+  "$EN2"
+prouver "« Lien pour le client… » tait par où le lien est parti" web/public/plateforme/pont.js \
+  "\${CANAUX[l.canal] || 'donné'} le" "donné le" \
+  "$EN2"
+prouver "la question « Mail ou une autre messagerie » posée dans un navigateur" web/public/v10/app.js \
+  "    if (bridge.ajouterLien) return 'mailto';
+" "" \
+  "$EN2"
+prouver "Paramètres → Envois propose encore de choisir sa messagerie" web/public/v10/app.js \
+  "\${panneau('p-envoi')}<p class=\"small muted\" id=\"mail-fixe\">" "\${panneau('p-envoi')}<select name=\"mailClient\"></select><p class=\"small muted\" id=\"mail-fixe\">" \
+  "$EN2"
+prouver "le relevé dit joint alors qu'un navigateur ne joint rien" web/public/v10/app.js \
+  "close(); toast(att ? messageOuvert(rm, 'le relevé')" "close(); toast(true ? messageOuvert(rm, 'le relevé')" \
+  "$EN2"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

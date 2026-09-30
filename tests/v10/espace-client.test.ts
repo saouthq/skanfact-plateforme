@@ -7,7 +7,8 @@
 //     les paiements, les e-mails, les relances, l'affaire, ni ce que la fiche société ou la fiche client
 //     gardent pour elles ; et une pièce ainsi réduite s'imprime EXACTEMENT comme la pièce entière ;
 //   - un ticket de caisse n'est pas de l'espace client ;
-//   - chaque ouverture se compte (« vue le … ») ; un lien retiré ne s'ouvre plus.
+//   - chaque ouverture se compte (« vue le … ») ; un lien retiré ne s'ouvre plus ;
+//   - le lien qu'un envoi porte dit par où il part, et « se règle en ligne » selon la règle de l'espace.
 
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
@@ -164,6 +165,48 @@ describe('l\'espace client', () => {
     ]);
     // Un jeton inventé : rien.
     expect((await ouvrir('un-jeton-invente-de-toutes-pieces')).statut).toBe(404);
+  });
+
+  // Brique 79 : le lien qu'un envoi (e-mail, WhatsApp) porte au client.
+  it('le lien qu\'un envoi porte : il dit par où il part, et ne promet le paiement en ligne qu\'à une facture qui se paie en ligne', async () => {
+    const e = await essai();
+    const menuiserie = (await e.lire()).find((o) => o.collection === 'clients' && String(o.contenu.name).startsWith('Menuiserie'));
+    if (!menuiserie) throw new Error('client d\'exemple absent');
+    const emettre = async (doc: Record<string, unknown>, route: string, netAPayer: string, rang: number) => {
+      await e.envoyer([{ collection: 'documents', cle: String(doc.id), rang, revision: null, contenu: doc }]);
+      const r = await appeler('POST', `/entreprises/${e.ent}/dossier-v10/${route}`, e.jeton, { document: doc, client: menuiserie.contenu, revision: 1, rang, netAPayer });
+      if (r.statut !== 200) throw new Error(`émission refusée : ${JSON.stringify(r.corps)}`);
+      return r.corps as { contenu: Record<string, unknown>; revision: number };
+    };
+    // f1 (1 073,190), son avoir d'une table (536,095 : il reste 537,095), et f5 en euros.
+    await emettre(brouillon('f1', menuiserie.cle), 'emettre', '1073.190', 0);
+    await emettre(avoir('a1', menuiserie.cle, 'f1'), 'emettre-avoir', '536.095', 1);
+    await emettre({ ...brouillon('f5', menuiserie.cle), currency: 'EUR', exchangeRate: { '~n': '3.35' } }, 'emettre', '1072.49', 2);
+    const donner = (corps: unknown) => appeler('POST', `/entreprises/${e.ent}/espace/liens`, e.jeton, corps);
+    expect((await donner({ client: menuiserie.cle, piece: 'f1', canal: 'sms' })).statut).toBe(400);
+    // Sans paiement en ligne branché, rien ne se règle en ligne.
+    expect((await donner({ client: menuiserie.cle, piece: 'f1', canal: 'email' })).corps).toMatchObject({ payable: false });
+    // Branché (posé à la main : la clé n'est pas l'objet ici) : la facture qui doit encore, en dinars, se
+    // règle en ligne ; ni l'avoir, ni la facture en euros, ni le compte.
+    await admin.query(`insert into ventes.prestataire (entreprise, prestataire, portefeuille, cle_scellee, cle_fin, compte_v10, pose_le, pose_par)
+      select $1, 'konnect', 'portefeuille-essai', 'v1.a.b.c', 'b3f2', 'konnect', now(), m.utilisateur from socle.membre m where m.entreprise = $1 limit 1`, [e.ent]);
+    expect((await donner({ client: menuiserie.cle, piece: 'f1', canal: 'whatsapp' })).corps).toMatchObject({ payable: true });
+    expect((await donner({ client: menuiserie.cle, piece: 'a1', canal: 'email' })).corps).toMatchObject({ payable: false });
+    expect((await donner({ client: menuiserie.cle, piece: 'f5', canal: 'email' })).corps).toMatchObject({ payable: false });
+    expect((await donner({ client: menuiserie.cle })).corps.payable).toBe(false);
+    // Réglée (le reste, 537,095) : plus rien à régler en ligne. Le même chiffre que l'espace du client.
+    const f1lue = (await e.lire()).find((o) => o.collection === 'documents' && o.cle === 'f1');
+    if (!f1lue) throw new Error('facture absente');
+    expect((await e.envoyer([{ collection: 'documents', cle: 'f1', rang: 0, revision: f1lue.revision, contenu: { ...f1lue.contenu, payments: [{ id: 'p1', date: '2026-10-05', amount: { '~n': '537.095' }, method: 'virement' }] } }])).statut).toBe(200);
+    const reglee = await donner({ client: menuiserie.cle, piece: 'f1', canal: 'email' });
+    expect(reglee.corps).toMatchObject({ payable: false });
+    const vue = (await appeler('POST', '/espace', undefined, { jeton: reglee.corps.jeton })).corps as { pieces: { reste: string; payable: boolean }[] };
+    expect(vue.pieces[0]).toMatchObject({ reste: '0.000', payable: false });
+    // Par où chaque lien est parti (« Lien pour le client… » le dit), et la trace le garde.
+    const liens = (await appeler('GET', `/entreprises/${e.ent}/espace/liens?client=${menuiserie.cle}`, e.jeton)).corps.liens as { piece: string | null; canal: string | null }[];
+    expect(liens.map((l) => [l.piece, l.canal])).toEqual([['f1', 'email'], [null, null], ['f5', 'email'], ['a1', 'email'], ['f1', 'whatsapp'], ['f1', 'email']]);
+    const traces = (await admin.query("select apres ->> 'canal' canal from socle.audit where entreprise = $1 and geste = 'ventes.lien.partager' order by id", [e.ent])).rows.map((x) => x.canal as string | null);
+    expect(traces).toEqual(['email', 'whatsapp', 'email', 'email', null, 'email']);
   });
 
   // Deux chemins, un document : le gabarit d'impression de la v10, sur la pièce entière (ce que

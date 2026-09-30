@@ -26,6 +26,7 @@ Cabinet a son propre point de contact (`pont-cabinet.js`), décrit dans `docs/ca
 | `exemple` (nouvelle) | « Voir un exemple » ouvre l'entreprise d'essai ; jamais de pièces inventées dans une vraie entreprise | parcours « vraie entreprise » |
 | `dessinerPaiement` (nouvelle) | Paramètres → Documents → « Paiement en ligne » : brancher le compte Konnect de l'entreprise (la clé scellée par le serveur, jamais relue), voir les paiements demandés, arrêter (brique 78, `docs/paiement-en-ligne.md`) | `tests/v10/paiement-en-ligne.test.ts`, parcours à la souris |
 | `lienClient` (nouvelle) | Sur une facture ou un avoir émis, « Plus » → « Lien pour le client… » : le lien de la pièce ou du compte, les liens déjà donnés (« Vu le … »), « Retirer » ; le client voit la pièce comme imprimée et ce qu'il doit (brique 77, `docs/espace-client.md`) | `tests/v10/espace-client.test.ts`, parcours à la souris |
+| `ajouterLien`, `sansPieceJointe`, `lienBascule` (nouvelles) | « Envoyer par email… » et « Envoyer par WhatsApp… » d'une facture ou d'un avoir émis : la case « Ajouter le lien de la pièce » ; le lien se crée au clic qui ouvre le message et note son canal ; sa phrase se place avant la formule de politesse, et dit « la régler en ligne » quand le serveur le dit ; « Veuillez trouver ci-joint » devient « Voici » (brique 79, `docs/espace-client.md`, E7) | `tests/v10/espace-client.test.ts`, parcours à la souris (`tests/web/envois.test.ts`) |
 | `externalBackupInfo` | L'étape « Mettre tes données à l'abri » est faite : les données sont sur le serveur | — |
 
 ## 2. Fait par le navigateur
@@ -34,8 +35,8 @@ Cabinet a son propre point de contact (`pont-cabinet.js`), décrit dans `docs/ca
 |---|---|
 | `saveText`, `saveTextSilent`, `exportData` | Le fichier (CSV, XML El Fatoora, export complet) se **télécharge** sous son nom |
 | `openText`, `pickLogo` | Le sélecteur de fichier du navigateur (un classeur .xlsx se refuse avec sa phrase : l'enregistrer en CSV) |
-| `composeMail` | Le message s'ouvre dans la messagerie de l'appareil (lien « mailto »), **sans pièce jointe** |
-| `ouvrirWhatsApp` | La conversation WhatsApp s'ouvre dans un nouvel onglet |
+| `composeMail` | Le message s'ouvre dans la messagerie de l'appareil (lien « mailto »), **sans pièce jointe** ; pour une facture ou un avoir émis, il porte le lien de la pièce (`ajouterLien`, brique 79) ; aucune question « Mail ou une autre messagerie » |
+| `ouvrirWhatsApp` | La conversation WhatsApp s'ouvre dans un nouvel onglet (ouvert pendant le geste quand le lien de la pièce se crée d'abord) ; défaut corrigé à la brique 79 : l'ouverture était toujours dite « bloquée » (`noopener` fait rendre null à `window.open`) |
 | `setDirty` | Fermer l'onglet en pleine saisie : le navigateur demande d'abord |
 | `exportPdf`, `imprimerTicket` | La fenêtre d'impression du navigateur (« Enregistrer au format PDF ») : le repli de la v10 |
 
@@ -65,7 +66,8 @@ scelle, et un avoir la corrige (un avoir total la solde : « annulée » se déd
 ## 5. Reste à faire (connu, écrit ici pour ne pas l'oublier)
 
 - **Les PDF** : `exportPdfSilent` et `exportPdfMany` ne font rien ; un envoi par mail ou WhatsApp
-  part sans le PDF. À faire : les PDF fabriqués par le serveur.
+  part sans le PDF (une facture ou un avoir émis, avec son lien : brique 79). À faire : les PDF
+  fabriqués par le serveur.
 - **Les sauvegardes d'UNE entreprise** vues par la personne (`createBackup`, `listBackups`,
   `peekBackup`, `restoreBackup`) : le serveur sait exporter et restaurer une entreprise, pas encore
   depuis l'écran.
