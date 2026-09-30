@@ -18,6 +18,7 @@ type Core = {
   transfertStock: (data: unknown, t: Record<string, unknown>) => { erreur?: string; ajustements?: Ajustement[] };
   stockOf: (data: unknown, itemId: string, date?: string) => { qty: number; cmp: number; value: number };
   stockMovements: (data: unknown, itemId: string) => unknown[];
+  stockImpact: (doc: unknown, data: unknown) => { depot: string; have: number; need: number; after: number; total: number }[];
   runningStock: (moves: unknown[]) => { rows: { source: string; qty: number; qtyAfter: number; unitApplied: number }[] };
 };
 const module = { exports: {} as unknown };
@@ -70,5 +71,18 @@ describe('le stock par dépôt, dans la v10', () => {
       .toBe('Magasin de Sfax n\'en a que 26 le 20/09/2026 : on ne transfère pas ce qui n\'y est pas.');
     expect(C.transfertStock(data, { id: 't3', itemId: 'ciment', de: 'sfax', vers: 'sfax', qty: 1, date: '2026-09-20' }).erreur).toMatch(/^Choisis deux dépôts différents/);
     expect(C.transfertStock(data, { id: 't4', itemId: 'ciment', de: 'sfax', vers: 'principal', qty: 0, date: '2026-09-20' }).erreur).toBe('Saisis la quantité à transférer.');
+  });
+
+  it('le stock insuffisant se lit dans le dépôt de la pièce (brique 95)', () => {
+    const data = donnees();
+    const brouillon = (qty: number, depotId?: string) => ({ id: 'f9', type: 'facture', status: 'brouillon', date: '2026-09-20', lines: [ligne(qty, 21)], ...(depotId ? { depotId } : {}) });
+    // Principal : 5 ; Sfax : 46 ; 51 en tout. 7 sacs manquent au principal (sans dépôt choisi, c'est lui), pas à Sfax.
+    expect(C.stockImpact(brouillon(7), data).map((x) => [x.depot, x.have, x.need, x.after, x.total])).toEqual([['Dépôt principal', 5, 7, -2, 51]]);
+    expect(C.stockImpact(brouillon(7, 'sfax'), data)).toEqual([]);
+    expect(C.stockImpact(brouillon(48, 'sfax'), data).map((x) => [x.depot, x.have, x.after, x.total])).toEqual([['Magasin de Sfax', 46, -2, 51]]);
+    // Un seul dépôt : rien ne change, le stock total fait foi.
+    const seul = { ...data, depots: [] };
+    expect(C.stockImpact(brouillon(48), seul)).toEqual([]);
+    expect(C.stockImpact(brouillon(53), seul).map((x) => [x.depot, x.have, x.after])).toEqual([['', 51, -2]]);
   });
 });

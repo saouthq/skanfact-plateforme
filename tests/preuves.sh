@@ -5612,6 +5612,31 @@ prouver "la page de l'article qui tait son stock par dépôt" web/public/v10/app
   "      \${C.depotsDe(data).length > 1 ? \`<p class=\"small mb\" id=\"art-depots\">" "      \${false ? \`<p class=\"small mb\" id=\"art-depots\">" \
   "$DPW"
 
+# ── Brique 95 : le dépôt sur les ventes et les achats (docs/depots.md) ──
+DP3="le stock insuffisant se lit dans le dépôt de la pièce (brique 95)"
+DPW2="Nadia range un achat à Sfax, puis vend depuis le dépôt qui a la marchandise ; l'avoir y rentre"
+prouver "le stock insuffisant lu sur tous les dépôts" web/public/v10/core.js \
+  "      const depot = depotsDe(data).length > 1 ? (doc.depotId || DEPOT_PRINCIPAL) : '';" "      const depot = '';" \
+  "$DP3"
+prouver "le dépôt de la pièce lu sans son choix" web/public/v10/core.js \
+  "      const have = depot ? (stockParDepot(data, c.id).find(x => x.depotId === depot) || { qty: 0 }).qty : s.qty;" "      const have = depot ? (stockParDepot(data, c.id).find(x => x.depotId === DEPOT_PRINCIPAL) || { qty: 0 }).qty : s.qty;" \
+  "$DP3"
+prouver "la pièce de vente sans choix de dépôt" web/public/v10/app.js \
+  "\${C.depotsDe(data).length > 1 && (isInv || isDelivery || isAv) && doc.fromDocType !== 'livraison' ?" "\${false ?" \
+  "$DPW2"
+prouver "l'achat sans choix de dépôt" web/public/v10/app.js \
+  "\${C.depotsDe(data).length > 1 ? \`<label class=\"field\">\${lbl('Dépôt', 'dep.achat')}" "\${false ? \`<label class=\"field\">\${lbl('Dépôt', 'dep.achat')}" \
+  "$DPW2"
+prouver "l'avoir tiré d'une facture qui oublie son dépôt" web/public/v10/app.js \
+  "      depotId: inv.depotId || ''          //" "      depotId: ''          //" \
+  "$DPW2"
+prouver "l'avoir qui ne suit pas le dépôt de la facture choisie" web/public/v10/app.js \
+  "        if (inv && !figee && \$('select[name=depotId]', head)) { doc.depotId = inv.depotId || C.DEPOT_PRINCIPAL;" "        if (false) { doc.depotId = inv.depotId || C.DEPOT_PRINCIPAL;" \
+  "$DPW2"
+prouver "l'avertissement qui ne propose jamais le transfert" web/public/v10/app.js \
+  "\${x.total >= x.need ? \`Les autres dépôts" "\${false ? \`Les autres dépôts" \
+  "$DPW2"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

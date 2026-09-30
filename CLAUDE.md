@@ -69,8 +69,9 @@
 - **Les listes de prix** (brique 93, `docs/listes-prix.md`, `web/v10/listes-prix.txt`) : `priceLists` (catégorie
   `categorieTarif` du client ou clients choisis, dates d'effet) ; `prixArticlePour` : liste qui nomme le client,
   puis sa catégorie, puis palier, puis catalogue ; les lignes déjà faites gardent leur prix.
-- **Le stock par dépôt** (brique 94, `docs/depots.md`, `web/v10/depots.txt`) : le dépôt principal (`principal`)
-  plus `depots` ; chaque mouvement porte `depotId` ; un transfert = deux ajustements sans coût (`transfertId`),
+- **Le stock par dépôt** (briques 94-95, `docs/depots.md`, `web/v10/depots.txt`) : le dépôt principal (`principal`)
+  plus `depots` ; chaque mouvement porte le `depotId` de sa pièce (réception, facture, BL, avoir, achat : le champ
+  « Dépôt » n'apparaît qu'à partir de deux dépôts) ; `stockImpact` lit le dépôt de la pièce ; un transfert = deux ajustements sans coût (`transfertId`),
   supprimés ensemble. Une seule adaptation par texte : une adaptation ne s'ancre jamais au milieu du texte
   posé par une autre (le test de provenance le refuse) ; elle s'ancre avant son début.
 - Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,

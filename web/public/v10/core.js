@@ -3732,8 +3732,12 @@
       if (qty <= 0) return;
       // Le stock actuel ne compte pas ce document tant qu'il n'est pas émis.
       const s = stockOf(data, c.id);
-      const after = round3(s.qty - qty);
-      if (after < 0) out.push({ itemId: c.id, label: c.label, unit: c.unit || '', have: s.qty, need: qty, after });
+      // Avec plusieurs dépôts (brique 95), c'est le dépôt de la pièce qui doit l'avoir ; `total` dit si
+      // les autres en ont assez, pour proposer un transfert plutôt qu'un achat oublié.
+      const depot = depotsDe(data).length > 1 ? (doc.depotId || DEPOT_PRINCIPAL) : '';
+      const have = depot ? (stockParDepot(data, c.id).find(x => x.depotId === depot) || { qty: 0 }).qty : s.qty;
+      const after = round3(have - qty);
+      if (after < 0) out.push({ itemId: c.id, label: c.label, unit: c.unit || '', have, need: qty, after, depot: depot ? nomDepot(data, depot) : '', total: s.qty });
     });
     return out;
   }

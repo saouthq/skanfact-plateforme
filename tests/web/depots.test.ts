@@ -121,4 +121,81 @@ describe('le stock par dépôt et les transferts, à la souris', () => {
     expect(erreurs).toEqual([]);
     await cn.close();
   }, 120_000);
+
+  it('Nadia range un achat à Sfax, puis vend depuis le dépôt qui a la marchandise ; l\'avoir y rentre', async () => {
+    const email = `nadia-depots-pieces-${Date.now()}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Nadia', motDePasse: 'Un-bon-mot-de-passe' });
+    const premier = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Premier', type: 'navigateur' } })).corps.jeton);
+    const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', premier, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '';
+    const r = await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Chrome sur Linux', type: 'navigateur' } });
+    const jeton = String((await api('POST', '/connexion/code', undefined, { defi: r.corps.defi, code: codeTotp(depuisBase32(secret), Date.now()) })).corps.jeton);
+    const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Matériaux Ben Youssef' })).corps.id);
+    const aujourdhui = new Date().toISOString().slice(0, 10);
+    await api('GET', `/entreprises/${ent}/dossier-v10`, jeton);
+    // Deux dépôts ; 20 sacs au principal ; un achat de 30 sacs pas encore rangé ; une facture de 25 sacs en brouillon.
+    const ligne = { label: 'Ciment gris 50 kg', description: '', unit: 'sac', vatRate: 19, itemId: 'ciment' };
+    const ecrit = await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'depots', cle: 'sfax', rang: 0, revision: null, contenu: { id: 'sfax', nom: 'Magasin de Sfax' } },
+      { collection: 'suppliers', cle: 's1', rang: 0, revision: null, contenu: { id: 's1', name: 'Ciments de Bizerte' } },
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Chantier Ennasr', address: 'Ennasr 2, Ariana' } },
+      { collection: 'catalog', cle: 'ciment', rang: 0, revision: null, contenu: { id: 'ciment', label: 'Ciment gris 50 kg', unit: 'sac', unitPrice: 21, tracked: true, initialQty: 20, initialCost: 17, initialDate: aujourdhui } },
+      { collection: 'purchases', cle: 'p1', rang: 0, revision: null, contenu: { id: 'p1', kind: 'facture', number: 'F-8841', date: aujourdhui, supplierId: 's1', currency: 'DT', category: 'Achats de marchandises', fees: 0, withholdingRate: 0, createdAt: Date.now(),
+        lines: [{ ...ligne, qty: 30, unitPrice: { '~n': '17.5' }, destination: 'stock' }] } },
+      { collection: 'documents', cle: 'f1', rang: 0, revision: null, contenu: { id: 'f1', type: 'facture', number: '', status: 'brouillon', date: aujourdhui, clientId: 'c1', createdAt: Date.now(),
+        lines: [{ ...ligne, qty: 25, unitPrice: 25 }], discountRate: 0, withholdingRate: 0, applyStamp: false, payments: [] } },
+    ] });
+    expect(ecrit.statut).toBe(200);
+
+    const cn = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await cn.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cn.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    const parDepot = async () => net(await p.locator('#art-depots').innerText().catch(() => ''));
+    const avertissement = async () => net(await p.locator('#modal-root .warn-box').innerText().catch(() => ''));
+
+    // 1. L'achat entre à Sfax.
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/p1`);
+    await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/F-8841/);
+    await plusTard(p);
+    await p.locator('#b-head select[name=depotId]').selectOption({ label: 'Magasin de Sfax' });
+    await p.locator('#save').click();
+    await p.evaluate(() => { location.hash = '#/article/ciment'; });
+    await expect.poll(parDepot, { timeout: 10_000 }).toBe('Par dépôt i : Dépôt principal 20 sacs · Magasin de Sfax 30 sacs');
+
+    // 2. La facture part du principal par défaut : il n'en a que 20, les autres en ont. Depuis Sfax, rien à dire.
+    await p.evaluate(() => { location.hash = '#/doc/f1'; });
+    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Facture/);
+    await plusTard(p);
+    expect(await p.locator('#f-head select[name=depotId]').inputValue()).toBe('principal');
+    await p.locator('#issue').click();
+    await expect.poll(avertissement, { timeout: 10_000 }).toContain('Stock insuffisant sur « Ciment gris 50 kg » dans Dépôt principal : il en reste 20 sacs et cette pièce en sort 25. Les autres dépôts en ont assez (50 en tout) : choisis le bon dépôt, ou transfère d\'abord (page de l\'article → « Transférer… »).');
+    await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'depots-2-avertissement.png') });
+    await p.locator('#modal-root [data-close]').first().click();
+    await p.locator('#f-head select[name=depotId]').selectOption({ label: 'Magasin de Sfax' });
+    await p.locator('#issue').click();
+    await expect.poll(() => p.locator('#modal-root #ok').count(), { timeout: 10_000 }).toBe(1);
+    expect(await avertissement()).not.toContain('Stock insuffisant');
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/^Facture FAC-\d{4}-001/);
+    await p.evaluate(() => { location.hash = '#/article/ciment'; });
+    await expect.poll(parDepot, { timeout: 10_000 }).toBe('Par dépôt i : Dépôt principal 20 sacs · Magasin de Sfax 5 sacs');
+
+    // 3. L'avoir de cette facture rentre la marchandise à Sfax, d'où elle était sortie.
+    await p.evaluate(() => { location.hash = '#/doc/f1'; });
+    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Facture FAC-/);
+    await plusTard(p);
+    if (!await p.locator('#credit').isVisible()) await p.locator('#more-btn').click();
+    await p.locator('#credit').click();
+    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Nouvel avoir/);
+    expect(await p.locator('#f-head select[name=depotId] option:checked').innerText()).toBe('Magasin de Sfax');
+    // Le dépôt changé à la main, la facture choisie de nouveau le remet à celui de la facture.
+    await p.locator('#f-head select[name=depotId]').selectOption({ label: 'Dépôt principal' });
+    await p.locator('[data-combo=creditOf] .combo-btn').click();
+    await p.locator('[data-combo=creditOf] .combo-q').fill('FAC');
+    await p.locator('[data-combo=creditOf] .combo-list [role=option]').first().click();
+    expect(await p.locator('#f-head select[name=depotId] option:checked').innerText()).toBe('Magasin de Sfax');
+    expect(erreurs).toEqual([]);
+    await cn.close();
+  }, 120_000);
 });

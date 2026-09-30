@@ -70,7 +70,65 @@ normCurrency, decimalsFor,
 normCurrency, DEPOT_PRINCIPAL, depotsDe, nomDepot, stockParDepot, transfertStock, decimalsFor,
 -- fin
 
+== core.js | le stock insuffisant se lit dans le dépôt de la pièce (brique 95)
+-- avant
+      const s = stockOf(data, c.id);
+      const after = round3(s.qty - qty);
+      if (after < 0) out.push({ itemId: c.id, label: c.label, unit: c.unit || '', have: s.qty, need: qty, after });
+-- après
+      const s = stockOf(data, c.id);
+      // Avec plusieurs dépôts (brique 95), c'est le dépôt de la pièce qui doit l'avoir ; `total` dit si
+      // les autres en ont assez, pour proposer un transfert plutôt qu'un achat oublié.
+      const depot = depotsDe(data).length > 1 ? (doc.depotId || DEPOT_PRINCIPAL) : '';
+      const have = depot ? (stockParDepot(data, c.id).find(x => x.depotId === depot) || { qty: 0 }).qty : s.qty;
+      const after = round3(have - qty);
+      if (after < 0) out.push({ itemId: c.id, label: c.label, unit: c.unit || '', have, need: qty, after, depot: depot ? nomDepot(data, depot) : '', total: s.qty });
+-- fin
+
 ── Les écrans (app.js) ──
+
+== app.js | une pièce de vente choisit son dépôt (brique 95)
+-- avant
+              ${hasDue ? dateFieldHtml(isQ ? lbl('Valable jusqu\'au', 'ed.validUntil') : lbl('Échéance', 'ed.due'), 'dueDate', doc.dueDate, { ro: figee, quick: true }) : ''}
+-- après
+              ${hasDue ? dateFieldHtml(isQ ? lbl('Valable jusqu\'au', 'ed.validUntil') : lbl('Échéance', 'ed.due'), 'dueDate', doc.dueDate, { ro: figee, quick: true }) : ''}
+              ${/* Le dépôt d'où sort la marchandise (où elle rentre, pour un avoir) : seulement à partir de deux
+                  dépôts, et jamais sur une facture tirée d'un bon de livraison (c'est le bon qui sort le stock). */''}
+              ${C.depotsDe(data).length > 1 && (isInv || isDelivery || isAv) && doc.fromDocType !== 'livraison' ? `<label class="field">${lbl('Dépôt', 'dep.piece')}<select name="depotId" ${ro}>${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === (doc.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}
+-- fin
+
+== app.js | un avoir rentre la marchandise dans le dépôt de sa facture (brique 95)
+-- avant
+        if (inv && inv.lang && !figee) { doc.lang = inv.lang; $('select[name=lang]', head).value = inv.lang; }
+-- après
+        if (inv && inv.lang && !figee) { doc.lang = inv.lang; $('select[name=lang]', head).value = inv.lang; }
+        if (inv && !figee && $('select[name=depotId]', head)) { doc.depotId = inv.depotId || C.DEPOT_PRINCIPAL; $('select[name=depotId]', head).value = doc.depotId; }
+-- fin
+
+== app.js | l'avoir tiré d'une facture garde son dépôt (brique 95)
+-- avant
+      lang: inv.lang || 'fr', currency: inv.currency || company().currency, exchangeRate: inv.exchangeRate || ''
+-- après
+      lang: inv.lang || 'fr', currency: inv.currency || company().currency, exchangeRate: inv.exchangeRate || '',
+      depotId: inv.depotId || ''          // la marchandise rentre là d'où elle était sortie
+-- fin
+
+== app.js | l'avertissement de stock nomme le dépôt, et propose le transfert quand les autres en ont (brique 95)
+-- avant
+          `Stock insuffisant sur « ${x.label} » : il en reste ${pct(x.have)}${x.unit ? ' ' + x.unit : ''} et cette pièce en sort ${pct(x.need)}. Le stock passerait à ${pct(x.after)}. Vérifie qu'une facture d'achat n'a pas été oubliée.`));
+-- après
+          x.depot
+            ? `Stock insuffisant sur « ${x.label} » dans ${x.depot} : il en reste ${pct(x.have)}${x.unit ? ' ' + C.uniteAccordee(x.have, x.unit) : ''} et cette pièce en sort ${pct(x.need)}. ${x.total >= x.need ? `Les autres dépôts en ont assez (${pct(x.total)} en tout) : choisis le bon dépôt, ou transfère d'abord (page de l'article → « Transférer… »).` : `Le stock de ce dépôt passerait à ${pct(x.after)}. Vérifie qu'une facture d'achat n'a pas été oubliée.`}`
+            : `Stock insuffisant sur « ${x.label} » : il en reste ${pct(x.have)}${x.unit ? ' ' + x.unit : ''} et cette pièce en sort ${pct(x.need)}. Le stock passerait à ${pct(x.after)}. Vérifie qu'une facture d'achat n'a pas été oubliée.`));
+-- fin
+
+== app.js | un achat choisit le dépôt où entre sa marchandise (brique 95)
+-- avant
+              ${dateFieldHtml(lbl('Échéance de paiement', 'buy.due'), 'dueDate', p.dueDate || '', { quick: true, ro: clos })}
+-- après
+              ${dateFieldHtml(lbl('Échéance de paiement', 'buy.due'), 'dueDate', p.dueDate || '', { quick: true, ro: clos })}
+              ${C.depotsDe(data).length > 1 ? `<label class="field">${lbl('Dépôt', 'dep.achat')}<select name="depotId" ${clos ? 'disabled' : ''}>${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === (p.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}
+-- fin
 
 == app.js | les dépôts se gèrent depuis la page Stock
 -- avant
@@ -186,5 +244,7 @@ normCurrency, DEPOT_PRINCIPAL, depotsDe, nomDepot, stockParDepot, transfertStock
 -- après
     'dep.depots': { t: 'Dépôts', d: 'Là où ta marchandise est rangée : le magasin, l\'entrepôt, le camion. Chaque entrée et chaque sortie appartient à un dépôt (celui de la réception, de la pièce ou du mouvement) ; « Transférer… » fait passer de la marchandise de l\'un à l\'autre sans changer ni la quantité totale ni son coût moyen.' },
     'dep.reception': { t: 'Dépôt de la réception', d: 'Là où la marchandise reçue entre en stock.' },
+    'dep.piece': { t: 'Dépôt', d: 'Le dépôt d\'où sort la marchandise de cette pièce (où elle rentre, pour un avoir). L\'avertissement « stock insuffisant » regarde ce dépôt-là.' },
+    'dep.achat': { t: 'Dépôt', d: 'Là où la marchandise de cet achat entre en stock (d\'où elle ressort, pour un avoir du fournisseur).' },
     'lp.page': { t: 'Listes de prix',
 -- fin

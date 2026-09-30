@@ -3853,6 +3853,9 @@
               ${isAv ? `<div class="field span-2">${lbl('Facture concernée', 'ed.creditOf')}${combo({ name: 'creditOf', value: doc.creditOf, items: invoiceItems(), placeholder: '— Facture concernée —', search: 'Rechercher : n°, client, objet…', ro: figee })}</div>` : ''}
               ${dateFieldHtml(lbl('Date', 'ed.date'), 'date', doc.date, { ro: figee })}
               ${hasDue ? dateFieldHtml(isQ ? lbl('Valable jusqu\'au', 'ed.validUntil') : lbl('Échéance', 'ed.due'), 'dueDate', doc.dueDate, { ro: figee, quick: true }) : ''}
+              ${/* Le dépôt d'où sort la marchandise (où elle rentre, pour un avoir) : seulement à partir de deux
+                  dépôts, et jamais sur une facture tirée d'un bon de livraison (c'est le bon qui sort le stock). */''}
+              ${C.depotsDe(data).length > 1 && (isInv || isDelivery || isAv) && doc.fromDocType !== 'livraison' ? `<label class="field">${lbl('Dépôt', 'dep.piece')}<select name="depotId" ${ro}>${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === (doc.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}
               <label class="field span-2">${lbl('Objet', 'ed.subject')}<input type="text" name="subject" value="${h(doc.subject)}" placeholder="${h(exempleObjet())}" ${ro}></label>
               ${field(lbl('Référence (optionnel)', 'ed.reference'), 'reference', doc.reference || '', 'text', ro)}
               <div class="field">${lbl('Affaire (optionnel)', 'ed.project')}
@@ -4205,6 +4208,7 @@
         // L'avoir parle la langue de la facture qu'il corrige (10.14.0), comme celui qu'on tire de la
         // facture elle-même : un client anglophone recevait un avoir en français.
         if (inv && inv.lang && !figee) { doc.lang = inv.lang; $('select[name=lang]', head).value = inv.lang; }
+        if (inv && !figee && $('select[name=depotId]', head)) { doc.depotId = inv.depotId || C.DEPOT_PRINCIPAL; $('select[name=depotId]', head).value = doc.depotId; }
       }
       // Changer la date ne recalculait jamais l'échéance : on corrigeait la date d'une facture et
       // elle restait due au 30e jour de l'ANCIENNE. On ne recalcule que tant que l'échéance est
@@ -4581,7 +4585,9 @@
       // du fournisseur), mais on le dit — un stock négatif est presque toujours une saisie manquante.
       if (isInv || doc.type === 'livraison') {
         C.stockImpact(doc, data).forEach(x => w.push(
-          `Stock insuffisant sur « ${x.label} » : il en reste ${pct(x.have)}${x.unit ? ' ' + x.unit : ''} et cette pièce en sort ${pct(x.need)}. Le stock passerait à ${pct(x.after)}. Vérifie qu'une facture d'achat n'a pas été oubliée.`));
+          x.depot
+            ? `Stock insuffisant sur « ${x.label} » dans ${x.depot} : il en reste ${pct(x.have)}${x.unit ? ' ' + C.uniteAccordee(x.have, x.unit) : ''} et cette pièce en sort ${pct(x.need)}. ${x.total >= x.need ? `Les autres dépôts en ont assez (${pct(x.total)} en tout) : choisis le bon dépôt, ou transfère d'abord (page de l'article → « Transférer… »).` : `Le stock de ce dépôt passerait à ${pct(x.after)}. Vérifie qu'une facture d'achat n'a pas été oubliée.`}`
+            : `Stock insuffisant sur « ${x.label} » : il en reste ${pct(x.have)}${x.unit ? ' ' + x.unit : ''} et cette pièce en sort ${pct(x.need)}. Le stock passerait à ${pct(x.after)}. Vérifie qu'une facture d'achat n'a pas été oubliée.`));
       }
       // Une ligne à zéro est légitime (une prestation offerte), mais c'est aussi la trace d'une
       // quantité effacée et jamais retapée. On la nomme avant d'émettre : après, la pièce est
@@ -5071,7 +5077,8 @@
       creditOf: inv.id, creditOfNumber: inv.number, clientId: inv.clientId, subject: `Avoir sur facture ${inv.number}${inv.subject ? ' — ' + inv.subject : ''}`,
       lines: deepCopy(inv.lines || []), discountRate: inv.discountRate || 0, withholdingRate: inv.withholdingRate || 0, applyStamp: false, creditReason: '',
       projectId: inv.projectId || '',     // un avoir se retranche de l'affaire de la facture qu'il annule
-      lang: inv.lang || 'fr', currency: inv.currency || company().currency, exchangeRate: inv.exchangeRate || ''
+      lang: inv.lang || 'fr', currency: inv.currency || company().currency, exchangeRate: inv.exchangeRate || '',
+      depotId: inv.depotId || ''          // la marchandise rentre là d'où elle était sortie
     };
   }
 
@@ -9278,6 +9285,7 @@
               </div>
               ${dateFieldHtml(lbl('Date de la pièce', 'buy.date'), 'date', p.date, { ro: clos })}
               ${dateFieldHtml(lbl('Échéance de paiement', 'buy.due'), 'dueDate', p.dueDate || '', { quick: true, ro: clos })}
+              ${C.depotsDe(data).length > 1 ? `<label class="field">${lbl('Dépôt', 'dep.achat')}<select name="depotId" ${clos ? 'disabled' : ''}>${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === (p.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}
               <div class="field">${lbl('Catégorie de charge', 'buy.category')}
                 ${combo({ name: 'category', value: p.category || '', items: cats.map(c => ({ v: c, label: c })), placeholder: '— Choisir une catégorie —', search: 'Rechercher une catégorie…', add: clos ? null : '+ Nouvelle catégorie', ro: clos })}
               </div>
