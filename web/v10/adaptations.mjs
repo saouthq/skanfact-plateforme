@@ -13,7 +13,7 @@ export const ADAPTATIONS = [
     fichier: "index.html",
     pourquoi: "le point de contact avec le serveur se charge avant tout le reste (précédé du poste, qui garde la copie pour le hors-ligne, brique 72), et la mise en page du téléphone après la feuille de style de la v10 ; l'application s'installe (son manifeste) ; le dessin des codes QR (brique 83) se charge avec lui",
     avant: "  <link rel=\"stylesheet\" href=\"style.css\">\n",
-    apres: "  <link rel=\"stylesheet\" href=\"style.css\">\n  <link rel=\"manifest\" href=\"/manifest.webmanifest\">\n  <link rel=\"stylesheet\" href=\"../plateforme/telephone.css\">\n  <script src=\"../tiers/qrcode.js\"></script>\n  <script src=\"../plateforme/qr.js\"></script>\n  <script src=\"../plateforme/poste.js\"></script>\n  <script src=\"../plateforme/pont.js\"></script>\n  <script src=\"../plateforme/telephone.js\"></script>\n",
+    apres: "  <link rel=\"stylesheet\" href=\"style.css\">\n  <link rel=\"manifest\" href=\"/manifest.webmanifest\">\n  <link rel=\"stylesheet\" href=\"../plateforme/telephone.css\">\n  <script src=\"../tiers/qrcode.js\"></script>\n  <script src=\"../plateforme/qr.js\"></script>\n  <script src=\"../plateforme/poste.js\"></script>\n  <script src=\"../plateforme/tableur.js\"></script>\n  <script src=\"../plateforme/pont.js\"></script>\n  <script src=\"../plateforme/telephone.js\"></script>\n",
   },
   {
     fichier: 'app.js',
@@ -492,7 +492,7 @@ export const ADAPTATIONS = [
     fichier: 'cabinet/index.html',
     pourquoi: 'le point de contact du Cabinet avec le serveur se charge avant tout le reste',
     avant: '  <script src="../rowmenu.js"></script>\n',
-    apres: '  <script src="../../plateforme/pont-cabinet.js"></script>\n  <script src="../rowmenu.js"></script>\n',
+    apres: '  <script src="../../plateforme/tableur.js"></script>\n  <script src="../../plateforme/pont-cabinet.js"></script>\n  <script src="../rowmenu.js"></script>\n',
   },
   {
     fichier: 'cabinet/index.html',

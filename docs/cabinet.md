@@ -305,7 +305,9 @@ valider, jamais réclamé (C14) — l'alerte du livre le comptait encore comme m
 **Ce qui part au serveur** (compté) : l'année, le premier jour, et les lignes de la balance (compte,
 libellé, débit, crédit). Un CSV ou un classeur Excel se lit **dans le navigateur**, par le lecteur de
 la v10 (`compta.js`) ; le ZIP d'un classeur s'ouvre par `DecompressionStream`, ses seuls fichiers XML,
-et plus de 20 Mo pour une entrée, ou de 60 Mo pour le classeur, se refuse avec sa raison. Rien ne part
+et plus de 20 Mo pour une entrée, ou de 60 Mo pour le classeur, se refuse avec sa raison. Depuis la
+brique 85, ce lecteur est un fichier à part, partagé avec l'entreprise (`plateforme/tableur.js`,
+`SkanTableur.lire`) : un seul code pour les deux applications, qui ne diverge pas. Rien ne part
 avant « Créer le livre » (ou « Ouvrir l'exercice »), et rien d'autre du fichier.
 
 **À l'écran** :

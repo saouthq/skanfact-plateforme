@@ -2162,19 +2162,21 @@ prouver "« Créer le livre » pour ouvrir un exercice" $CA \
 prouver "« Livre créé » pour un exercice ouvert" $CA \
   "toast(livreTenu ? \`Exercice \${v.annee} ouvert\` : \`Livre de \${v.annee} créé\`);" "toast(\`Livre de \${v.annee} créé\`);" \
   "$RP1"
-prouver "une balance Excel refusée" $PC \
+# Le lecteur des classeurs est partagé par l'entreprise et le Cabinet depuis la brique 85 (tableur.js).
+prouver "une balance Excel refusée" web/public/plateforme/tableur.js \
   "      try { entrees = await dezipper(octets); } catch (e) {" "      try { entrees = null; } catch (e) {" \
   "$RP1"
-prouver "un classeur dont une entrée gonfle sans limite" $PC \
+prouver "un classeur dont une entrée gonfle sans limite" web/public/plateforme/tableur.js \
   "  const MAX_ENTREE = 20 * 1024 * 1024;" "  const MAX_ENTREE = 2000 * 1024 * 1024;" \
   "$RP1"
-prouver "un classeur qui gonfle sans limite au total" $PC \
+prouver "un classeur qui gonfle sans limite au total" web/public/plateforme/tableur.js \
   "  const MAX_CLASSEUR = 60 * 1024 * 1024;" "  const MAX_CLASSEUR = 6000 * 1024 * 1024;" \
   "$RP1"
-prouver "le refus d'un classeur trop gros avalé" $PC \
-  "if (e instanceof Error && e.message === TROP_GROS) throw e; " "" \
+prouver "le refus d'un classeur trop gros avalé" web/public/plateforme/tableur.js \
+  "        if (e instanceof Error && e.message === TROP_GROS) return { ok: false, motif: TROP_GROS };
+" "" \
   "$RP1"
-prouver "les feuilles d'un classeur lues sans être décompressées" $PC \
+prouver "les feuilles d'un classeur lues sans être décompressées" web/public/plateforme/tableur.js \
   "(methode === 8 ? await inflater(corps, MAX_CLASSEUR - lu) : corps.slice())" "corps.slice()" \
   "$RP1"
 prouver "une balance d'ouverture perdue en route" $PC \
@@ -5115,6 +5117,21 @@ prouver "les cases d'un achat trop petites pour un doigt" web/public/plateforme/
   "  table.lines-edit.buy-lines td input, table.lines-edit.buy-lines td select { min-width: 72px; }
 " "" \
   "$RV"
+
+# ── Brique 85 : les classeurs Excel lus en ligne, par un lecteur partagé (docs/pont-v10.md) ──
+TB1="Nadia importe ses clients depuis un classeur Excel"
+TB2="un client tenu commence son livre avec la balance d'un CSV ; un client sur SkanFact reprend ses soldes depuis Excel, refusés tant qu'ils ne tombent pas juste"
+prouver "l'entreprise qui lit un classeur sans le décompresser" web/public/plateforme/pont.js \
+  "await /** @type {any} */ (window).SkanTableur.lire(octets, f.name);" "/** @type {any} */ (window).SkanCompta.lireFichierTexte(octets, f.name, {});" \
+  "$TB1"
+prouver "le lecteur des classeurs absent de la page de l'entreprise" web/public/v10/index.html \
+  "  <script src=\"../plateforme/tableur.js\"></script>
+" "" \
+  "$TB1"
+prouver "le lecteur des classeurs absent de la page du Cabinet" web/public/v10/cabinet/index.html \
+  "  <script src=\"../../plateforme/tableur.js\"></script>
+" "" \
+  "$TB2"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

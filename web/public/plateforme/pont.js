@@ -592,7 +592,10 @@
       if (f.size > 5 * 1024 * 1024) {
         return { ok: false, nom: f.name, motif: `« ${f.name} » fait ${Math.round(f.size / 1048576)} Mo : ${xml ? 'une facture électronique' : 'une liste de clients ou de prix'} en fait quelques dizaines de Ko. Ce n'est probablement pas le bon fichier.` };
       }
-      const lu = /** @type {any} */ (window).SkanCompta.lireFichierTexte(new Uint8Array(await f.arrayBuffer()), f.name, {});
+      // Un tableur (CSV, ou classeur Excel décompressé dans le navigateur : plateforme/tableur.js, brique 85) ;
+      // une facture électronique, telle quelle.
+      const octets = new Uint8Array(await f.arrayBuffer());
+      const lu = xml ? /** @type {any} */ (window).SkanCompta.lireFichierTexte(octets, f.name, {}) : await /** @type {any} */ (window).SkanTableur.lire(octets, f.name);
       return Object.assign({ nom: f.name }, xml ? { chemin: null } : {}, lu);
     },
     pickLogo: async () => {

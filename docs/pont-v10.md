@@ -41,7 +41,7 @@ Cabinet a son propre point de contact (`pont-cabinet.js`), décrit dans `docs/ca
 | Fonction | Sur la plateforme |
 |---|---|
 | `saveText`, `saveTextSilent`, `exportData` | Le fichier (CSV, XML El Fatoora, export complet) se **télécharge** sous son nom |
-| `openText`, `pickLogo` | Le sélecteur de fichier du navigateur (un classeur .xlsx se refuse avec sa phrase : l'enregistrer en CSV) |
+| `openText`, `pickLogo` | Le sélecteur de fichier du navigateur ; un classeur Excel (.xlsx) se lit **dans le navigateur** (brique 85), par le lecteur que l'entreprise partage avec le Cabinet (`plateforme/tableur.js`, puis `lireFichierTexte` de la v10) : importer ses clients ou son catalogue (« Ouvrir un fichier Excel ou CSV… ») ; un classeur LibreOffice (.ods), un ancien .xls ou un classeur qui gonfle une fois ouvert se refusent avec la phrase de la v10 et le geste qui marche |
 | `composeMail` | Le message s'ouvre dans la messagerie de l'appareil (lien « mailto »), **sans pièce jointe** ; pour une facture ou un avoir émis, il porte le lien de la pièce (`ajouterLien`, brique 79) ; aucune question « Mail ou une autre messagerie » |
 | `ouvrirWhatsApp` | La conversation WhatsApp s'ouvre dans un nouvel onglet (ouvert pendant le geste quand le lien de la pièce se crée d'abord) ; défaut corrigé à la brique 79 : l'ouverture était toujours dite « bloquée » (`noopener` fait rendre null à `window.open`) |
 | `setDirty` | Fermer l'onglet en pleine saisie : le navigateur demande d'abord |
