@@ -5737,6 +5737,59 @@ prouver "le lot du départ perdu à l'enregistrement" web/public/v10/app.js \
   "          v.initialLot = String(v.initialLot ?? it.initialLot ?? '').trim();" "          v.initialLot = '';" \
   "$LTW"
 
+# ── Brique 98 : l'accord d'un responsable au-delà de l'encours, par le serveur (docs/accords.md) ──
+AC1="sans accord le commercial n'émet pas au-delà ; refusé, il attend ; accordé pour ce montant, il émet, et la pièce porte les deux noms"
+AC2="le propriétaire émet au-delà sans accord ; sans le réglage, le commercial aussi ; seul un responsable règle les seuils"
+prouver "l'émission qui ne regarde pas l'encours" serveur/v10/dossier.ts \
+  "  const accord = type === 'facture' ? await controlerEncours(tx, entreprise, cle, doc) : null;" "  const accord = null;" \
+  "$AC1"
+prouver "le propriétaire arrêté comme un commercial" serveur/v10/accords.ts \
+  "  if (await estResponsable(tx, entreprise)) return null;" "  if (false) return null;" \
+  "$AC2"
+prouver "l'accord exigé même quand l'entreprise ne le demande pas" serveur/v10/accords.ts \
+  "  if (societe.encoursAccord !== true) return null;" "  if (false) return null;" \
+  "$AC2"
+prouver "un accord qui couvre un montant plus grand" serveur/v10/accords.ts \
+  "  if (!r || r.statut !== 'accorde' || Number(r.montant) < montant) return null;" "  if (!r || r.statut !== 'accorde') return null;" \
+  "$AC1"
+prouver "un refus pris pour un accord" serveur/v10/accords.ts \
+  "  if (!r || r.statut !== 'accorde' || Number(r.montant) < montant) return null;" "  if (!r || Number(r.montant) < montant) return null;" \
+  "$AC1"
+prouver "la pièce émise qui tait les deux noms" serveur/v10/dossier.ts \
+  "    ...(accord ? { accordEncours: accord } : {}) };" "    ...({}) };" \
+  "$AC1"
+prouver "une demande en double pour le même montant" serveur/v10/routes.ts \
+  "and statut = 'en_attente' and montant = \$3" "and statut = 'en_attente' and montant = \$3 and false" \
+  "$AC1"
+prouver "une demande redécidée" serveur/v10/routes.ts \
+  "      if (a.statut !== 'en_attente') throw new Refus('ventes.accord_deja_decide');" "      if (false) throw new Refus('ventes.accord_deja_decide');" \
+  "$AC1"
+prouver "sa propre demande décidée" serveur/v10/routes.ts \
+  "      if (a.mienne) throw new Refus('ventes.accord_le_sien');" "      if (false) throw new Refus('ventes.accord_le_sien');" \
+  "$AC2"
+prouver "une demande sans dépassement acceptée" serveur/v10/routes.ts \
+  "      if (!d) throw new Refus('ventes.accord_inutile');" "      if (false) throw new Refus('ventes.accord_inutile');" \
+  "$AC2"
+prouver "une demande décidée qui se réécrit en base" base/migrations/0052_accords.sql \
+  "  if old.statut <> 'en_attente' then" "  if false then" \
+  "$AC1"
+prouver "une demande qui naît accordée en base" base/migrations/0052_accords.sql \
+  "    if new.statut <> 'en_attente' then
+      raise exception 'Une demande d''accord naît en attente.'" "    if false then
+      raise exception 'Une demande d''accord naît en attente.'" \
+  "$AC1"
+prouver "le plafond d'un client changé par un commercial en base" base/migrations/0052_accords.sql \
+  "  if new.collection = 'clients' then champ := 'creditLimit';" "  if false then champ := 'creditLimit';" \
+  "$AC2"
+prouver "le réglage de l'accord changé par un commercial en base" base/migrations/0052_accords.sql \
+  "  elsif new.collection = '_racine' and new.cle = 'company' then champ := 'encoursAccord';" "  elsif false then champ := 'encoursAccord';" \
+  "$AC2"
+prouver "le propriétaire empêché de régler le plafond en base" base/migrations/0052_accords.sql \
+  "     and not (socle.mes_roles(new.entreprise) && array['proprietaire', 'administrateur']) then
+    if champ = 'creditLimit' then" "     then
+    if champ = 'creditLimit' then" \
+  "$AC2"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

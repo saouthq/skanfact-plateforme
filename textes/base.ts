@@ -266,6 +266,15 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'seul un associé du cabinet change son nom', cle: 'base.cabinet.renommer_associe', fr: 'seul un associé du cabinet change son nom' },
   { base: 'le nom du cabinet s\'écrit en un à deux cents caractères', cle: 'base.cabinet.nom_longueur', fr: 'le nom du cabinet s\'écrit en un à deux cents caractères' },
   { base: 'une pièce acceptée par la TTN ne change plus', cle: 'base.ttn.acceptee_figee', fr: 'une pièce acceptée par la TTN ne change plus : sa référence et la facture validée sont définitives' },
+  // L'accord d'un responsable (0052, brique 98).
+  { base: 'Une demande d\'accord naît en attente.', cle: 'base.accord.nait_en_attente', fr: 'une demande d\'accord naît en attente' },
+  { base: 'Une demande d\'accord se fait en son propre nom.', cle: 'base.accord.son_nom', fr: 'une demande d\'accord se fait en son propre nom' },
+  { base: 'Une demande d\'accord déjà décidée ne change plus.', cle: 'base.accord.decidee', fr: 'cette demande a déjà été décidée : elle ne change plus' },
+  { base: 'Une demande d\'accord ne se réécrit pas : on en fait une autre.', cle: 'base.accord.reecrite', fr: 'une demande d\'accord ne se réécrit pas : on en fait une autre' },
+  { base: 'Un accord se donne en son propre nom.', cle: 'base.accord.nom_du_decideur', fr: 'un accord se donne en son propre nom' },
+  { base: 'Seul le propriétaire ou un administrateur accorde ou refuse.', cle: 'base.accord.responsable', fr: 'seul le propriétaire ou un administrateur accorde ou refuse' },
+  { base: 'L\'encours autorisé d\'un client se règle par le propriétaire ou un administrateur.', cle: 'base.accord.plafond', fr: 'l\'encours autorisé d\'un client se règle par le propriétaire ou un administrateur' },
+  { base: 'L\'accord au-delà de l\'encours se règle par le propriétaire ou un administrateur.', cle: 'base.accord.reglage', fr: 'l\'accord au-delà de l\'encours se règle par le propriétaire ou un administrateur' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

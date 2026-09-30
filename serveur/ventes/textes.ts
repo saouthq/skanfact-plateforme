@@ -8,6 +8,7 @@ declarerTextes({
   'geste.ventes.brouillon.modifier': 'créer ou modifier un brouillon de vente',
   'geste.ventes.facture.emettre': 'émettre une facture',
   'geste.ventes.avoir.emettre': 'émettre un avoir',
+  'geste.ventes.accord.donner': 'accorder ou refuser une vente au-delà de l\'encours d\'un client',
   'geste.ventes.facture.signer': 'signer une facture électronique',
   'geste.ventes.efacture.regler': 'régler la facture électronique (le signataire, le compte El Fatoora)',
   'geste.ventes.facture.envoyer': 'envoyer une facture électronique à la TTN',

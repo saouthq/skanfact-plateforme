@@ -16,6 +16,7 @@ import { Perimee, Refus } from '../erreurs.ts';
 import { REGLEMENTS_VENTES, tenirReglements } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonSaisi } from '../ventes/pieces.ts';
+import { controlerEncours } from './accords.ts';
 import { suivreAchats } from './achats.ts';
 import { suivrePaie } from './paie.ts';
 import { reecrireLesAchats } from '../compta/achats.ts';
@@ -209,6 +210,10 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
     if (manques.length) throw new Refus('efacture.manques', { valeurs: { manques: manques.map((m) => m.message).join(' ') } });
   }
 
+  // L'encours autorisé du client (brique 98 ; 03 D11) : au-delà, une facture ne s'émet qu'avec l'accord d'un
+  // responsable, quand l'entreprise le demande. Dit AVANT le numéro.
+  const accord = type === 'facture' ? await controlerEncours(tx, entreprise, cle, doc) : null;
+
   // 1. Le client, tel qu'il est aujourd'hui dans le dossier : sa fiche du serveur le suit.
   const fiche = {
     raison_sociale: String(client.name ?? '').trim() || '—', identifiant: String(client.matricule ?? '').trim() || null,
@@ -270,7 +275,9 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
 
   // 5. La pièce du dossier devient émise, avec le numéro du serveur.
   // L'instant de l'émission (`issuedTs`), la v10 le pose elle-même juste après, comme avant.
-  const contenu = { ...doc, number: r.numero, status: STATUT_EMISE[type], stampFee: enNombreV10(versTexte(r.totaux.timbreBase, 3)) };
+  const contenu = { ...doc, number: r.numero, status: STATUT_EMISE[type], stampFee: enNombreV10(versTexte(r.totaux.timbreBase, 3)),
+    // La pièce émise avec un accord porte les deux noms (03 D11).
+    ...(accord ? { accordEncours: accord } : {}) };
   // 6. Le fichier de la facture électronique, écrit maintenant et gardé (jamais réécrit) ; ses montants
   //    sont ceux que le serveur vient de sceller, sinon rien n'est émis. Une entreprise non soumise dont
   //    la fiche ne permet pas le fichier émet quand même : il s'écrira à la main, comme dans la v10.

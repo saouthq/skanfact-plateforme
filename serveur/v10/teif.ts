@@ -34,6 +34,8 @@ function charger(fichier: string): unknown {
   charges.set(fichier, module.exports);
   return module.exports;
 }
+// Un autre fichier de l'écran, chargé de la même façon (le moteur `core.js` : l'encours d'un client, brique 98).
+export function codeDeLEcran<T>(fichier: string): T { return charger(fichier) as T; }
 let teif: Teif | null = null;
 const T = () => (teif ??= charger('teif.js') as Teif);
 

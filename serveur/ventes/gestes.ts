@@ -18,6 +18,10 @@ export const GESTES_VENTES: Geste[] = [
   // L'avoir : le commercial le prépare, il ne l'émet pas (03 § 2.1).
   { code: 'ventes.avoir.emettre', module: 'ventes', ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui' } },
+  // L'accord d'un responsable au-delà de l'encours d'un client (brique 98 ; 03 § 2.3, D11) : c'est une personne
+  // qui l'engage, jamais une clé de l'API.
+  { code: 'ventes.accord.donner', module: 'ventes', horsCle: true, ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui' } },
   { code: 'ventes.client.modifier', module: 'ventes', ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', lecture: 'voir' } },
   // L'espace client (brique 77) : un lien secret vers les pièces émises d'un client. Jamais pour une clé
