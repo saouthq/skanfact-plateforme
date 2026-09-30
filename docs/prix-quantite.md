@@ -17,7 +17,8 @@ convertit au taux de la pièce, comme tout prix du catalogue. Choisir un article
 quantité prend le prix de son palier.
 
 **Q3. Un prix tapé est une décision** : dès qu'on tape le prix d'une ligne, la quantité ne le change plus
-(`prixManuel`). Choisir de nouveau l'article le rend au palier.
+(`prixManuel`). Choisir de nouveau l'article le rend au palier. Une ligne d'avant les paliers, à un autre prix que le leur,
+ne bouge pas non plus (brique 93).
 
 ## Ce qui part au serveur
 
@@ -36,8 +37,8 @@ Rien ne change de ce que le serveur tient d'une facture émise : le prix est cel
 
 ## Reste connu
 
-- Les paliers ne valent que pour la vente (pas pour les achats), et ne dépendent pas du client : le **prix
-  par client ou par catégorie** (14 § 3.2, `01` § 5) est une brique suivante.
+- Les paliers ne valent que pour la vente (pas pour les achats). Le prix par client ou par catégorie, lui, vient
+  des listes de prix (brique 93, `docs/listes-prix.md`), qui passent avant les paliers.
 - La caisse ne suit pas encore les paliers.
 - La ligne ne dit pas qu'elle est « au prix de 100 et plus » : **À VÉRIFIER** avec des commerçants si
   l'imprimé doit le dire.

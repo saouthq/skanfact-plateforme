@@ -5541,6 +5541,38 @@ prouver "un prix tapé que la quantité écrase" web/public/v10/app.js \
   "            if (el.dataset.k === 'unitPrice') doc.lines[i].prixManuel = true;" "" \
   "$PQW"
 
+# ── Brique 93 : les listes de prix, par client ou par catégorie (docs/listes-prix.md) ──
+LP1="valent pour un client à une date : celles qui le nomment, puis celles de sa catégorie, la plus récente d'abord"
+LP2="le prix d'un article : la première liste qui le porte, sinon le palier de sa quantité, sinon le prix de l'article"
+LPW="Nadia fait une liste de prix pour ses revendeurs, et leurs factures la suivent"
+prouver "une liste qui vaut avant sa date" web/public/v10/core.js \
+  "(!l.depuis || l.depuis <= d) && (!l.jusquau || d <= l.jusquau)" "(!l.jusquau || d <= l.jusquau)" \
+  "$LP1"
+prouver "une liste qui vaut après sa fin" web/public/v10/core.js \
+  "(!l.depuis || l.depuis <= d) && (!l.jusquau || d <= l.jusquau)" "(!l.depuis || l.depuis <= d)" \
+  "$LP1"
+prouver "la liste d'une catégorie qui passe devant celle qui nomme le client" web/public/v10/core.js \
+  "      .sort((a, b) => (nomme(b) ? 1 : 0) - (nomme(a) ? 1 : 0) || String(b.depuis" "      .sort((a, b) => String(b.depuis" \
+  "$LP1"
+prouver "une catégorie écrite autrement qui ne se reconnaît pas" web/public/v10/core.js \
+  "  const normCategorie = s => String(s || '').trim().toLowerCase();" "  const normCategorie = s => String(s || '');" \
+  "$LP1"
+prouver "le prix de la liste ignoré au profit du catalogue" web/public/v10/core.js \
+  "      if (x) return { prix: Number(x.prix), source: 'liste', liste: l.nom || '' };" "" \
+  "$LP2"
+prouver "un article choisi au prix du catalogue malgré la liste du client" web/public/v10/app.js \
+  "const pu = C.prixDuCatalogue(C.prixArticlePour(data, it, doc.clientId, doc.date, 1).prix, doc, company())" "const pu = C.prixDuCatalogue(it.unitPrice, doc, company())" \
+  "$LPW"
+prouver "la catégorie de prix absente de la fiche du client" web/public/v10/app.js \
+  "<input type=\"text\" name=\"categorieTarif\"" "<input type=\"text\" name=\"categorieTarifAbsente\"" \
+  "$LPW"
+prouver "les listes de prix absentes du menu" web/public/v10/core.js \
+  "    { id: 'listesprix', titre: 'Listes de prix', module: 'fichiers', famille: 'Vendre'," "    { id: 'listesprix-absente', titre: 'Listes de prix', module: 'fichiers', famille: 'Vendre'," \
+  "$LPW"
+prouver "une ancienne ligne à un prix choisi que la quantité écrase" web/public/v10/app.js \
+  " && Number(auto(ancienneQte)) === Number(doc.lines[i].unitPrice)) {" ") {" \
+  "$PQW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

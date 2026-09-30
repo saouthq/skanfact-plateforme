@@ -1,0 +1,206 @@
+Les listes de prix, par client ou par catégorie de clients, avec dates d'effet (brique 93 ; 14 § 3.2 ; 01 § 5
+`liste_prix` ; docs/listes-prix.md).
+Format : voir sans-paquets.mjs.
+
+Une liste de prix (`data.priceLists`) : un nom, à qui elle s'applique (une catégorie de clients, `categorie`, que
+porte la fiche du client en `categorieTarif` ; ou des clients choisis, `clientIds`), ses dates d'effet (`depuis`,
+`jusquau`) et ses prix hors taxes par article (`lignes` : [{ itemId, prix }], en dinars). Sur une pièce de vente,
+le prix d'un article pour ce client à cette date : celui de la liste qui le nomme, sinon celui de sa catégorie
+(la plus récente l'emporte), sinon le palier de sa quantité, sinon le prix de l'article.
+
+── Le moteur (core.js) ──
+
+== core.js | les listes de prix : le moteur
+-- avant
+  // Le prix par quantité (plateforme, brique 92)
+-- après
+  // Les listes de prix (plateforme, brique 93 ; 01 § 5 `liste_prix`). Celles qui valent pour ce client à cette
+  // date : d'abord celles qui le nomment, puis celles de sa catégorie ; à égalité, la plus récente.
+  const normCategorie = s => String(s || '').trim().toLowerCase();
+  function listesPrixApplicables(data, clientId, dateIso) {
+    const d = dateIso || today();
+    const c = (data.clients || []).find(x => x.id === clientId);
+    const cat = normCategorie(c && c.categorieTarif);
+    const nomme = l => Array.isArray(l.clientIds) && l.clientIds.includes(clientId);
+    return (data.priceLists || [])
+      .filter(l => (!l.depuis || l.depuis <= d) && (!l.jusquau || d <= l.jusquau) && (nomme(l) || (cat && normCategorie(l.categorie) === cat)))
+      .sort((a, b) => (nomme(b) ? 1 : 0) - (nomme(a) ? 1 : 0) || String(b.depuis || '').localeCompare(String(a.depuis || '')));
+  }
+  // Le prix d'un article pour ce client, à cette date et cette quantité, en dinars, et d'où il vient.
+  function prixArticlePour(data, item, clientId, dateIso, qty) {
+    for (const l of listesPrixApplicables(data, clientId, dateIso)) {
+      const x = (l.lignes || []).find(y => y.itemId === (item && item.id) && Number(y.prix) > 0);
+      if (x) return { prix: Number(x.prix), source: 'liste', liste: l.nom || '' };
+    }
+    const p = prixCataloguePourQuantite(item, qty);
+    return { prix: p, source: p !== (Number(item && item.unitPrice) || 0) ? 'palier' : 'article', liste: '' };
+  }
+  // Le prix par quantité (plateforme, brique 92)
+-- fin
+
+== core.js | les listes de prix sont publiques
+-- avant
+decimalsFor, arrondiDevise,
+-- après
+decimalsFor, listesPrixApplicables, prixArticlePour, arrondiDevise,
+-- fin
+
+== core.js | la page des listes de prix, dans la famille « Vendre »
+-- avant
+      quoi: 'Ce que tu vends, avec son prix : pour insérer une ligne dans un devis sans la retaper.' },
+-- après
+      quoi: 'Ce que tu vends, avec son prix : pour insérer une ligne dans un devis sans la retaper.' },
+    // Les prix par client ou par catégorie de clients, avec leurs dates (plateforme, brique 93).
+    { id: 'listesprix', titre: 'Listes de prix', module: 'fichiers', famille: 'Vendre',
+      quoi: 'Des prix à part pour un client ou une catégorie de clients (revendeurs, chantiers…), à partir d\'une date.' },
+-- fin
+
+── Les écrans (app.js) ──
+
+== app.js | le nom des pages des listes de prix, pour le bouton retour
+-- avant
+client: 'la fiche client', catalogue: 'Catalogue',
+-- après
+client: 'la fiche client', catalogue: 'Catalogue', listesprix: 'Listes de prix', listeprix: 'la liste de prix',
+-- fin
+
+== app.js | l'icône des listes de prix dans le menu
+-- avant
+    catalogue: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>',
+-- après
+    catalogue: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>',
+    listesprix: '<path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+-- fin
+
+== app.js | une liste de prix allume « Listes de prix » dans le menu
+-- avant
+    else if (name === 'article') active = 'stock';
+-- après
+    else if (name === 'article') active = 'stock';
+    else if (name === 'listeprix') active = 'listesprix';
+-- fin
+
+== app.js | la catégorie de prix se saisit sur la fiche du client
+-- avant
+        ${field(lbl('Email', 'cl.email'), 'email', c.email, 'email')}
+-- après
+        <label class="field">${lbl('Catégorie de prix', 'cl.categorie')}<input type="text" name="categorieTarif" value="${h(c.categorieTarif || '')}" list="cl-categories" placeholder="Revendeur, Chantier…"><datalist id="cl-categories">${Array.from(new Set([...(data.clients || []).map(x => x.categorieTarif), ...(data.priceLists || []).map(x => x.categorie)].map(x => String(x || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fr')).map(x => `<option value="${h(x)}">`).join('')}</datalist></label>
+        ${field(lbl('Email', 'cl.email'), 'email', c.email, 'email')}
+-- fin
+
+== app.js | les listes de prix : les écrans
+-- avant
+  routes.client = (parts) => {
+-- après
+  // ---------- les listes de prix (plateforme, brique 93 ; 01 § 5) ----------
+  const listesPrix = () => (data.priceLists = data.priceLists || []);
+  const aQuiListe = l => l.categorie ? `la catégorie « ${l.categorie} »` : `${(l.clientIds || []).length > 1 ? (l.clientIds || []).length + ' clients' : ((clientById((l.clientIds || [])[0]) || {}).name || 'aucun client')}`;
+  routes.listesprix = () => {
+    const ls = listesPrix().slice().sort((a, b) => String(b.depuis || '').localeCompare(String(a.depuis || '')) || String(a.nom || '').localeCompare(String(b.nom || ''), 'fr'));
+    $('#view').innerHTML = `
+      <div class="page-head"><h1>Listes de prix ${info('lp.page')}</h1>
+        <div class="actions"><button class="btn btn-primary" id="lp-new">+ Nouvelle liste</button></div></div>
+      ${!ls.length ? etatVide('Des prix à part pour certains clients', ['Un revendeur paie moins qu\'un particulier, un grand chantier a son prix négocié : une liste de prix vaut pour une catégorie de clients ou pour des clients choisis, à partir d\'une date. Sur leurs devis et leurs factures, ses prix remplacent ceux du catalogue.'], [])
+        : `<div class="scroll-x"><table class="list" id="lp-list"><thead><tr><th>Nom</th><th>S'applique à</th><th>Du</th><th>Au</th><th class="r">Articles</th></tr></thead><tbody>
+          ${ls.map(l => `<tr><td><a href="#/listeprix/${h(l.id)}"><b>${h(l.nom || '(sans nom)')}</b></a></td><td>${h(aQuiListe(l))}</td>
+            <td class="nw">${l.depuis ? h(C.fmtDate(l.depuis)) : '—'}</td><td class="nw">${l.jusquau ? h(C.fmtDate(l.jusquau)) : '—'}</td><td class="r num">${(l.lignes || []).length}</td></tr>`).join('')}
+        </tbody></table></div>`}`;
+    $('#lp-new').onclick = () => navigate('#/listeprix/new');
+  };
+
+  routes.listeprix = (parts) => {
+    const isNew = parts[0] === 'new';
+    const stored = isNew ? null : listesPrix().find(l => l.id === parts[0]);
+    if (!isNew && !stored) return navigate('#/listesprix');
+    const l = stored ? deepCopy(stored) : { id: C.uid(), nom: '', categorie: '', clientIds: [], depuis: C.today(), jusquau: '', lignes: [{ itemId: '', prix: '' }] };
+    let mode = l.categorie || !(l.clientIds || []).length ? 'categorie' : 'clients';
+    const categories = Array.from(new Set([...(data.clients || []).map(x => x.categorieTarif), ...listesPrix().map(x => x.categorie)].map(x => String(x || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fr'));
+    const articles = data.catalog.slice().sort((a, b) => (a.label || '').localeCompare(b.label || '', 'fr'));
+    $('#view').innerHTML = `
+      <div class="page-head"><div><h1>${stored ? h(l.nom || 'Liste de prix') : 'Nouvelle liste de prix'} <span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></h1></div>
+        <div class="actions">${backButton('#/listesprix')}<button class="btn btn-primary" id="save">Enregistrer</button>
+          ${stored ? '<button class="btn btn-danger" id="lp-del">Supprimer</button>' : ''}</div></div>
+      <div class="panel"><h2>La liste ${info('lp.liste')}</h2>
+        <form id="lp-head" class="grid-2" onsubmit="return false">
+          <label class="field obligatoire">${lbl('Nom', '')}<input type="text" name="nom" value="${h(l.nom)}" placeholder="Revendeurs 2026"></label>
+          <label class="field">${lbl('S\'applique à', 'lp.aqui')}<select name="mode"><option value="categorie" ${mode === 'categorie' ? 'selected' : ''}>Une catégorie de clients</option><option value="clients" ${mode === 'clients' ? 'selected' : ''}>Des clients choisis</option></select></label>
+          <label class="field" id="lp-cat" ${mode === 'categorie' ? '' : 'hidden'}>${lbl('Catégorie', 'cl.categorie')}<input type="text" name="categorie" value="${h(l.categorie || '')}" list="lp-categories" placeholder="Revendeur"><datalist id="lp-categories">${categories.map(x => `<option value="${h(x)}">`).join('')}</datalist></label>
+          ${dateFieldHtml(lbl('À partir du', ''), 'depuis', l.depuis || '')}
+          ${dateFieldHtml(lbl('Jusqu\'au (optionnel)', ''), 'jusquau', l.jusquau || '')}
+        </form>
+        <div id="lp-clients" class="mt" ${mode === 'clients' ? '' : 'hidden'}>
+          <input type="search" id="lp-filtre" placeholder="Filtrer les clients…" class="mb">
+          <div class="lp-clients-liste">${data.clients.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr')).map(c => `<label class="check" data-nom="${h((c.name || '').toLowerCase())}"><input type="checkbox" value="${h(c.id)}" ${(l.clientIds || []).includes(c.id) ? 'checked' : ''}> ${h(c.name)}</label>`).join('')}</div>
+        </div>
+      </div>
+      <div class="panel"><h2>Les prix ${info('lp.prix')}</h2>
+        <div class="scroll-x"><table class="lines-edit"><thead><tr><th>Article</th><th class="r">Prix du catalogue</th><th class="r">Prix de la liste HT (${h(company().currency)})</th><th></th></tr></thead><tbody id="lp-lignes"></tbody></table></div>
+        <button class="btn btn-sm mt" id="lp-add">+ Article</button>
+      </div>`;
+    let dirty = false;
+    const touch = () => { if (dirty) return; dirty = true; $('#dirty-dot').hidden = false; };
+    const dessiner = () => {
+      $('#lp-lignes').innerHTML = l.lignes.map((x, i) => { const it = articles.find(a => a.id === x.itemId); return `<tr>
+        <td><select data-lk="itemId" data-i="${i}"><option value="">— Choisir un article —</option>${articles.map(a => `<option value="${h(a.id)}" ${a.id === x.itemId ? 'selected' : ''}>${h(a.label)}</option>`).join('')}</select></td>
+        <td class="r num nw">${it ? h(C.money(Number(it.unitPrice) || 0, company().currency)) : '—'}</td>
+        <td><input type="number" class="num" data-lk="prix" data-i="${i}" value="${h(x.prix)}" step="0.001" min="0"></td>
+        <td><button type="button" class="btn btn-ghost btn-sm" data-lrm="${i}" aria-label="Retirer la ligne ${i + 1}">✕</button></td></tr>`; }).join('');
+      $$('#lp-lignes [data-lk]').forEach(el => { el[el.tagName === 'SELECT' ? 'onchange' : 'oninput'] = () => { l.lignes[Number(el.dataset.i)][el.dataset.lk] = el.value; touch(); if (el.tagName === 'SELECT') dessiner(); }; });
+      $$('#lp-lignes [data-lrm]').forEach(b => { b.onclick = () => { l.lignes.splice(Number(b.dataset.lrm), 1); if (!l.lignes.length) l.lignes.push({ itemId: '', prix: '' }); touch(); dessiner(); }; });
+    };
+    dessiner();
+    $('#lp-add').onclick = () => { l.lignes.push({ itemId: '', prix: '' }); touch(); dessiner(); };
+    $('#lp-head').addEventListener('input', touch);
+    $('#lp-head').addEventListener('change', e => {
+      touch();
+      if (e.target.name === 'mode') { mode = e.target.value; $('#lp-cat').hidden = mode !== 'categorie'; $('#lp-clients').hidden = mode !== 'clients'; }
+    });
+    $('#lp-clients').addEventListener('change', touch);
+    $('#lp-filtre').oninput = e => { const q = e.target.value.trim().toLowerCase(); $$('#lp-clients label.check').forEach(x => { x.hidden = !!q && !x.dataset.nom.includes(q); }); };
+    const enregistrer = () => {
+      const v = formValues($('#lp-head'));
+      l.nom = String(v.nom || '').trim();
+      if (!l.nom) return refus('#lp-head input[name=nom]', 'Donne un nom à la liste : c\'est lui qui se lit sur la page, et sur la ligne d\'un devis qui prend son prix.'), false;
+      l.depuis = v.depuis || ''; l.jusquau = v.jusquau || '';
+      if (l.depuis && l.jusquau && l.jusquau < l.depuis) return refus('#lp-head [name=jusquau]', 'La liste finit avant de commencer : « jusqu\'au » vient après « à partir du ».'), false;
+      if (mode === 'categorie') {
+        l.categorie = String(v.categorie || '').trim(); l.clientIds = [];
+        if (!l.categorie) return refus('#lp-head input[name=categorie]', 'Choisis la catégorie de clients à qui elle s\'applique (celle de leur fiche), ou choisis des clients.'), false;
+      } else {
+        l.categorie = ''; l.clientIds = $$('#lp-clients input[type=checkbox]:checked').map(x => x.value);
+        if (!l.clientIds.length) { toast('Coche au moins un client à qui elle s\'applique.', true); return false; }
+      }
+      l.lignes = l.lignes.filter(x => x.itemId && Number(x.prix) > 0).map(x => ({ itemId: x.itemId, prix: C.round3(Number(x.prix)) }));
+      if (!l.lignes.length) { l.lignes.push({ itemId: '', prix: '' }); dessiner(); toast('Ajoute au moins un article et son prix.', true); return false; }
+      const i = listesPrix().findIndex(x => x.id === l.id);
+      if (i >= 0) listesPrix()[i] = deepCopy(l); else listesPrix().push(deepCopy(l));
+      save(true); dirty = false; clearGuard(garde);
+      return true;
+    };
+    const garde = { dirty: () => dirty, save: enregistrer, what: 'cette liste de prix' };
+    setGuard(garde);
+    $('#save').onclick = () => { if (enregistrer()) { toast(`Liste « ${l.nom} » enregistrée : ses prix valent sur les nouvelles lignes des devis et factures de ses clients.`); if (!stored) remplacerPage('#/listeprix/' + l.id); else render(true); } };
+    if ($('#lp-del')) $('#lp-del').onclick = async () => {
+      if (!await confirmDialog(`Supprimer la liste « ${l.nom} » ? Les pièces déjà faites gardent leurs prix.`, 'Supprimer', true)) return;
+      data.priceLists = listesPrix().filter(x => x.id !== l.id); save(true);
+      dirty = false; clearGuard(garde);
+      navigate('#/listesprix');
+    };
+  };
+
+  routes.client = (parts) => {
+-- fin
+
+── Les bulles (guide.js) ──
+
+== guide.js | les bulles des listes de prix
+-- avant
+    'cat.paliers': { t: 'Prix par quantité',
+-- après
+    'lp.page': { t: 'Listes de prix', d: 'Des prix à part pour certains clients : une liste vaut pour une catégorie de clients (celle de leur fiche) ou pour des clients choisis, à partir d\'une date et, si tu veux, jusqu\'à une autre. Sur leurs nouvelles lignes de devis et de factures, ses prix remplacent ceux du catalogue ; les pièces déjà faites gardent les leurs.' },
+    'lp.liste': { t: 'La liste', d: 'Son nom, à qui elle s\'applique et depuis quand. Si deux listes valent pour le même client, celle qui le nomme l\'emporte sur celle de sa catégorie ; à égalité, la plus récente.' },
+    'lp.aqui': { t: 'S\'applique à', d: 'Une catégorie de clients (« Revendeur ») : tous les clients dont la fiche porte cette catégorie. Ou des clients choisis un par un.' },
+    'lp.prix': { t: 'Les prix', d: 'Le prix hors taxes de chaque article pour ces clients, en dinars. Un article absent de la liste garde son prix du catalogue (et ses prix par quantité).' },
+    'cl.categorie': { t: 'Catégorie de prix', d: 'Le groupe de prix de ce client (revendeur, chantier, particulier…). Une liste de prix peut s\'appliquer à toute une catégorie. Vide : les prix du catalogue.' },
+    'cat.paliers': { t: 'Prix par quantité',
+-- fin

@@ -642,4 +642,6 @@ export const ADAPTATIONS = [
   ...lireFichier('commandes-fournisseurs.txt'),
   // ── Le prix par quantité (brique 92) ──
   ...lireFichier('prix-quantite.txt'),
+  // ── Les listes de prix, par client ou par catégorie (brique 93) ──
+  ...lireFichier('listes-prix.txt'),
 ];

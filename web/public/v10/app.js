@@ -1755,7 +1755,7 @@
   let goingBack = false;
   const PAGE_LABELS = {
     dashboard: 'Accueil', devis: 'Devis', factures: 'Factures', relances: 'Relances', contrats: 'Facturation récurrente',
-    contrat: 'le contrat', autres: 'Proforma, bons et contrats', clients: 'Clients', client: 'la fiche client', catalogue: 'Catalogue',
+    contrat: 'le contrat', autres: 'Proforma, bons et contrats', clients: 'Clients', client: 'la fiche client', catalogue: 'Catalogue', listesprix: 'Listes de prix', listeprix: 'la liste de prix',
     tresorerie: 'Trésorerie', stats: 'Statistiques', compta: 'Comptabilité', parametres: 'Paramètres', aide: 'Aide', doc: 'le document', licences: 'Licences',
     achats: 'Achats et dépenses', achat: 'l\'achat', fournisseurs: 'Fournisseurs', fournisseur: 'la fiche fournisseur',
     commandesf: 'Commandes fournisseurs', commandef: 'la commande fournisseur', reception: 'la réception',
@@ -1863,6 +1863,7 @@
     commandesf: '<path d="M3 7h13v10H3z"/><path d="M16 10h3l2 3v4h-5"/><circle cx="7" cy="18" r="1.5"/><circle cx="17.5" cy="18" r="1.5"/>',
     clients: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
     catalogue: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>',
+    listesprix: '<path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
     caisse: '<path d="M4 10h16l-1 10H5z"/><path d="M8 10V6h8v4"/><path d="M8 14h2M12 14h2M16 14h0M8 17h8"/>',
     tresorerie: '<rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="15" r="1.5"/>',
     marges: '<path d="M3 17l5-5 4 3 8-8"/><path d="M15 7h5v5"/><path d="M3 21h18"/>',
@@ -2525,6 +2526,7 @@
     else if (name === 'affaire') active = 'marges';
     else if (name === 'immo') active = 'immos';
     else if (name === 'article') active = 'stock';
+    else if (name === 'listeprix') active = 'listesprix';
     else if (name === 'garanties') active = 'stock';
     else if (name === 'salarie') active = 'paie';
     // La barre se redessine à chaque navigation : un module qui vient de recevoir sa première ligne
@@ -3971,7 +3973,7 @@
     // sont tenus dans la devise de la société, et se convertissent au taux de la pièce. Sans taux
     // saisi, le prix reste vide et l'écran dit pourquoi — jamais 150 DT recopiés en 150 €.
     const depuisCatalogue = it => {
-      const pu = C.prixDuCatalogue(it.unitPrice, doc, company()), cu = C.prixDuCatalogue(it.unitCost || '', doc, company());
+      const pu = C.prixDuCatalogue(C.prixArticlePour(data, it, doc.clientId, doc.date, 1).prix, doc, company()), cu = C.prixDuCatalogue(it.unitCost || '', doc, company());
       if (pu === null) toast(`Saisis d'abord le taux de change de la pièce : les prix du catalogue sont en ${company().currency || 'DT'}.`, true);
       return { label: it.label, description: it.description || '', unit: it.unit || '',
         unitPrice: pu === null ? '' : pu, unitCost: cu === null ? '' : cu, vatRate: C.tauxPourRegime(company(), it.vatRate), itemId: it.id };
@@ -3981,9 +3983,10 @@
     const poserArticle = (i, it) => {
       const l = doc.lines[i]; if (!l) return;
       Object.assign(l, depuisCatalogue(it));
-      // Le prix par quantité (brique 92) : la quantité déjà saisie choisit le palier ; le prix n'est plus « tapé ».
+      // Le prix par quantité (brique 92) et la liste de prix du client (brique 93) : la quantité déjà saisie
+      // choisit le palier ; le prix n'est plus « tapé ».
       delete l.prixManuel;
-      const auPalier = C.prixDuCatalogue(C.prixCataloguePourQuantite(it, l.qty), doc, company());
+      const auPalier = C.prixDuCatalogue(C.prixArticlePour(data, it, doc.clientId, doc.date, l.qty).prix, doc, company());
       if (auPalier !== null && auPalier !== '') l.unitPrice = auPalier;
       if (it.description) openDesc.add(i);
       touch(); drawLines();
@@ -4021,13 +4024,17 @@
             const vide = el.value.trim() === '' || el.validity.badInput;
             el.classList.toggle('champ-faute', vide);
             if (vide) return;
+            const ancienneQte = doc.lines[i].qty;
             doc.lines[i][el.dataset.k] = Number(el.value);
             // Le prix par quantité (brique 92) : un prix tapé est une décision ; sinon, la quantité choisit le palier.
             if (el.dataset.k === 'unitPrice') doc.lines[i].prixManuel = true;
             if (el.dataset.k === 'qty' && doc.lines[i].itemId && !doc.lines[i].prixManuel) {
               const it = data.catalog.find(c => c.id === doc.lines[i].itemId);
-              const pu = it && Array.isArray(it.paliers) && it.paliers.length ? C.prixDuCatalogue(C.prixCataloguePourQuantite(it, doc.lines[i].qty), doc, company()) : null;
-              if (pu !== null && pu !== '' && Number(pu) !== Number(doc.lines[i].unitPrice)) {
+              // Le prix que les règles donnent (liste du client, palier, article : brique 93) à une quantité.
+              const auto = q => it ? C.prixDuCatalogue(C.prixArticlePour(data, it, doc.clientId, doc.date, q).prix, doc, company()) : null;
+              const pu = auto(doc.lines[i].qty);
+              // Une ligne d'avant ces règles, à un autre prix que le leur, a été choisie : elle ne bouge pas.
+              if (pu !== null && pu !== '' && Number(pu) !== Number(doc.lines[i].unitPrice) && Number(auto(ancienneQte)) === Number(doc.lines[i].unitPrice)) {
                 doc.lines[i].unitPrice = pu;
                 const champ = el.closest('tr').querySelector('input[data-k=unitPrice]');
                 if (champ) champ.value = pu;
@@ -5357,6 +5364,7 @@
         <label class="check"><input type="checkbox" name="stampExempt" ${c.stampExempt ? 'checked' : ''}> Exonéré de timbre fiscal ${info('client.stampExempt')}</label>
         <label class="field">${lbl(`Encours autorisé (${h(company().currency)})`, 'cl.encours')}<input type="number" name="creditLimit" value="${h(c.creditLimit || '')}" step="0.001" min="0" class="num" placeholder="Sans plafond"></label>
         ${field(lbl('Téléphone', 'cl.phone'), 'phone', c.phone)}
+        <label class="field">${lbl('Catégorie de prix', 'cl.categorie')}<input type="text" name="categorieTarif" value="${h(c.categorieTarif || '')}" list="cl-categories" placeholder="Revendeur, Chantier…"><datalist id="cl-categories">${Array.from(new Set([...(data.clients || []).map(x => x.categorieTarif), ...(data.priceLists || []).map(x => x.categorie)].map(x => String(x || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fr')).map(x => `<option value="${h(x)}">`).join('')}</datalist></label>
         ${field(lbl('Email', 'cl.email'), 'email', c.email, 'email')}
         <label class="field">${lbl('Langue des documents', 'cl.lang')}<select name="lang"><option value="" ${!c.lang ? 'selected' : ''}>Par défaut</option><option value="fr" ${c.lang === 'fr' ? 'selected' : ''}>Français</option><option value="en" ${c.lang === 'en' ? 'selected' : ''}>English</option></select></label>
         <label class="field">${lbl('Devise', 'cl.currency')}<select name="currency"><option value="" ${!c.currency ? 'selected' : ''}>Par défaut (${h(company().currency)})</option>${C.CURRENCIES.map(x => `<option value="${x}" ${c.currency === x ? 'selected' : ''}>${h(C.libelleDevise(x))}</option>`).join('')}</select></label>
@@ -5780,6 +5788,102 @@
   };
 
   // ---------- fiche client ----------
+  // ---------- les listes de prix (plateforme, brique 93 ; 01 § 5) ----------
+  const listesPrix = () => (data.priceLists = data.priceLists || []);
+  const aQuiListe = l => l.categorie ? `la catégorie « ${l.categorie} »` : `${(l.clientIds || []).length > 1 ? (l.clientIds || []).length + ' clients' : ((clientById((l.clientIds || [])[0]) || {}).name || 'aucun client')}`;
+  routes.listesprix = () => {
+    const ls = listesPrix().slice().sort((a, b) => String(b.depuis || '').localeCompare(String(a.depuis || '')) || String(a.nom || '').localeCompare(String(b.nom || ''), 'fr'));
+    $('#view').innerHTML = `
+      <div class="page-head"><h1>Listes de prix ${info('lp.page')}</h1>
+        <div class="actions"><button class="btn btn-primary" id="lp-new">+ Nouvelle liste</button></div></div>
+      ${!ls.length ? etatVide('Des prix à part pour certains clients', ['Un revendeur paie moins qu\'un particulier, un grand chantier a son prix négocié : une liste de prix vaut pour une catégorie de clients ou pour des clients choisis, à partir d\'une date. Sur leurs devis et leurs factures, ses prix remplacent ceux du catalogue.'], [])
+        : `<div class="scroll-x"><table class="list" id="lp-list"><thead><tr><th>Nom</th><th>S'applique à</th><th>Du</th><th>Au</th><th class="r">Articles</th></tr></thead><tbody>
+          ${ls.map(l => `<tr><td><a href="#/listeprix/${h(l.id)}"><b>${h(l.nom || '(sans nom)')}</b></a></td><td>${h(aQuiListe(l))}</td>
+            <td class="nw">${l.depuis ? h(C.fmtDate(l.depuis)) : '—'}</td><td class="nw">${l.jusquau ? h(C.fmtDate(l.jusquau)) : '—'}</td><td class="r num">${(l.lignes || []).length}</td></tr>`).join('')}
+        </tbody></table></div>`}`;
+    $('#lp-new').onclick = () => navigate('#/listeprix/new');
+  };
+
+  routes.listeprix = (parts) => {
+    const isNew = parts[0] === 'new';
+    const stored = isNew ? null : listesPrix().find(l => l.id === parts[0]);
+    if (!isNew && !stored) return navigate('#/listesprix');
+    const l = stored ? deepCopy(stored) : { id: C.uid(), nom: '', categorie: '', clientIds: [], depuis: C.today(), jusquau: '', lignes: [{ itemId: '', prix: '' }] };
+    let mode = l.categorie || !(l.clientIds || []).length ? 'categorie' : 'clients';
+    const categories = Array.from(new Set([...(data.clients || []).map(x => x.categorieTarif), ...listesPrix().map(x => x.categorie)].map(x => String(x || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fr'));
+    const articles = data.catalog.slice().sort((a, b) => (a.label || '').localeCompare(b.label || '', 'fr'));
+    $('#view').innerHTML = `
+      <div class="page-head"><div><h1>${stored ? h(l.nom || 'Liste de prix') : 'Nouvelle liste de prix'} <span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></h1></div>
+        <div class="actions">${backButton('#/listesprix')}<button class="btn btn-primary" id="save">Enregistrer</button>
+          ${stored ? '<button class="btn btn-danger" id="lp-del">Supprimer</button>' : ''}</div></div>
+      <div class="panel"><h2>La liste ${info('lp.liste')}</h2>
+        <form id="lp-head" class="grid-2" onsubmit="return false">
+          <label class="field obligatoire">${lbl('Nom', '')}<input type="text" name="nom" value="${h(l.nom)}" placeholder="Revendeurs 2026"></label>
+          <label class="field">${lbl('S\'applique à', 'lp.aqui')}<select name="mode"><option value="categorie" ${mode === 'categorie' ? 'selected' : ''}>Une catégorie de clients</option><option value="clients" ${mode === 'clients' ? 'selected' : ''}>Des clients choisis</option></select></label>
+          <label class="field" id="lp-cat" ${mode === 'categorie' ? '' : 'hidden'}>${lbl('Catégorie', 'cl.categorie')}<input type="text" name="categorie" value="${h(l.categorie || '')}" list="lp-categories" placeholder="Revendeur"><datalist id="lp-categories">${categories.map(x => `<option value="${h(x)}">`).join('')}</datalist></label>
+          ${dateFieldHtml(lbl('À partir du', ''), 'depuis', l.depuis || '')}
+          ${dateFieldHtml(lbl('Jusqu\'au (optionnel)', ''), 'jusquau', l.jusquau || '')}
+        </form>
+        <div id="lp-clients" class="mt" ${mode === 'clients' ? '' : 'hidden'}>
+          <input type="search" id="lp-filtre" placeholder="Filtrer les clients…" class="mb">
+          <div class="lp-clients-liste">${data.clients.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr')).map(c => `<label class="check" data-nom="${h((c.name || '').toLowerCase())}"><input type="checkbox" value="${h(c.id)}" ${(l.clientIds || []).includes(c.id) ? 'checked' : ''}> ${h(c.name)}</label>`).join('')}</div>
+        </div>
+      </div>
+      <div class="panel"><h2>Les prix ${info('lp.prix')}</h2>
+        <div class="scroll-x"><table class="lines-edit"><thead><tr><th>Article</th><th class="r">Prix du catalogue</th><th class="r">Prix de la liste HT (${h(company().currency)})</th><th></th></tr></thead><tbody id="lp-lignes"></tbody></table></div>
+        <button class="btn btn-sm mt" id="lp-add">+ Article</button>
+      </div>`;
+    let dirty = false;
+    const touch = () => { if (dirty) return; dirty = true; $('#dirty-dot').hidden = false; };
+    const dessiner = () => {
+      $('#lp-lignes').innerHTML = l.lignes.map((x, i) => { const it = articles.find(a => a.id === x.itemId); return `<tr>
+        <td><select data-lk="itemId" data-i="${i}"><option value="">— Choisir un article —</option>${articles.map(a => `<option value="${h(a.id)}" ${a.id === x.itemId ? 'selected' : ''}>${h(a.label)}</option>`).join('')}</select></td>
+        <td class="r num nw">${it ? h(C.money(Number(it.unitPrice) || 0, company().currency)) : '—'}</td>
+        <td><input type="number" class="num" data-lk="prix" data-i="${i}" value="${h(x.prix)}" step="0.001" min="0"></td>
+        <td><button type="button" class="btn btn-ghost btn-sm" data-lrm="${i}" aria-label="Retirer la ligne ${i + 1}">✕</button></td></tr>`; }).join('');
+      $$('#lp-lignes [data-lk]').forEach(el => { el[el.tagName === 'SELECT' ? 'onchange' : 'oninput'] = () => { l.lignes[Number(el.dataset.i)][el.dataset.lk] = el.value; touch(); if (el.tagName === 'SELECT') dessiner(); }; });
+      $$('#lp-lignes [data-lrm]').forEach(b => { b.onclick = () => { l.lignes.splice(Number(b.dataset.lrm), 1); if (!l.lignes.length) l.lignes.push({ itemId: '', prix: '' }); touch(); dessiner(); }; });
+    };
+    dessiner();
+    $('#lp-add').onclick = () => { l.lignes.push({ itemId: '', prix: '' }); touch(); dessiner(); };
+    $('#lp-head').addEventListener('input', touch);
+    $('#lp-head').addEventListener('change', e => {
+      touch();
+      if (e.target.name === 'mode') { mode = e.target.value; $('#lp-cat').hidden = mode !== 'categorie'; $('#lp-clients').hidden = mode !== 'clients'; }
+    });
+    $('#lp-clients').addEventListener('change', touch);
+    $('#lp-filtre').oninput = e => { const q = e.target.value.trim().toLowerCase(); $$('#lp-clients label.check').forEach(x => { x.hidden = !!q && !x.dataset.nom.includes(q); }); };
+    const enregistrer = () => {
+      const v = formValues($('#lp-head'));
+      l.nom = String(v.nom || '').trim();
+      if (!l.nom) return refus('#lp-head input[name=nom]', 'Donne un nom à la liste : c\'est lui qui se lit sur la page, et sur la ligne d\'un devis qui prend son prix.'), false;
+      l.depuis = v.depuis || ''; l.jusquau = v.jusquau || '';
+      if (l.depuis && l.jusquau && l.jusquau < l.depuis) return refus('#lp-head [name=jusquau]', 'La liste finit avant de commencer : « jusqu\'au » vient après « à partir du ».'), false;
+      if (mode === 'categorie') {
+        l.categorie = String(v.categorie || '').trim(); l.clientIds = [];
+        if (!l.categorie) return refus('#lp-head input[name=categorie]', 'Choisis la catégorie de clients à qui elle s\'applique (celle de leur fiche), ou choisis des clients.'), false;
+      } else {
+        l.categorie = ''; l.clientIds = $$('#lp-clients input[type=checkbox]:checked').map(x => x.value);
+        if (!l.clientIds.length) { toast('Coche au moins un client à qui elle s\'applique.', true); return false; }
+      }
+      l.lignes = l.lignes.filter(x => x.itemId && Number(x.prix) > 0).map(x => ({ itemId: x.itemId, prix: C.round3(Number(x.prix)) }));
+      if (!l.lignes.length) { l.lignes.push({ itemId: '', prix: '' }); dessiner(); toast('Ajoute au moins un article et son prix.', true); return false; }
+      const i = listesPrix().findIndex(x => x.id === l.id);
+      if (i >= 0) listesPrix()[i] = deepCopy(l); else listesPrix().push(deepCopy(l));
+      save(true); dirty = false; clearGuard(garde);
+      return true;
+    };
+    const garde = { dirty: () => dirty, save: enregistrer, what: 'cette liste de prix' };
+    setGuard(garde);
+    $('#save').onclick = () => { if (enregistrer()) { toast(`Liste « ${l.nom} » enregistrée : ses prix valent sur les nouvelles lignes des devis et factures de ses clients.`); if (!stored) remplacerPage('#/listeprix/' + l.id); else render(true); } };
+    if ($('#lp-del')) $('#lp-del').onclick = async () => {
+      if (!await confirmDialog(`Supprimer la liste « ${l.nom} » ? Les pièces déjà faites gardent leurs prix.`, 'Supprimer', true)) return;
+      data.priceLists = listesPrix().filter(x => x.id !== l.id); save(true);
+      dirty = false; clearGuard(garde);
+      navigate('#/listesprix');
+    };
+  };
+
   routes.client = (parts) => {
     const c = clientById(parts[0]);
     if (!c) return navigate('#/clients');

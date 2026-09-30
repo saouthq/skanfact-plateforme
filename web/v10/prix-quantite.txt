@@ -75,24 +75,36 @@ arrondiDevise, prixDuCatalogue, prixCataloguePourQuantite, lirePaliers, paliersE
       if (it.description) openDesc.add(i);
 -- après
       Object.assign(l, depuisCatalogue(it));
-      // Le prix par quantité (brique 92) : la quantité déjà saisie choisit le palier ; le prix n'est plus « tapé ».
+      // Le prix par quantité (brique 92) et la liste de prix du client (brique 93) : la quantité déjà saisie
+      // choisit le palier ; le prix n'est plus « tapé ».
       delete l.prixManuel;
-      const auPalier = C.prixDuCatalogue(C.prixCataloguePourQuantite(it, l.qty), doc, company());
+      const auPalier = C.prixDuCatalogue(C.prixArticlePour(data, it, doc.clientId, doc.date, l.qty).prix, doc, company());
       if (auPalier !== null && auPalier !== '') l.unitPrice = auPalier;
       if (it.description) openDesc.add(i);
+-- fin
+
+== app.js | un article choisi sur une pièce prend le prix de la liste du client (brique 93)
+-- avant
+      const pu = C.prixDuCatalogue(it.unitPrice, doc, company()), cu = C.prixDuCatalogue(it.unitCost || '', doc, company());
+-- après
+      const pu = C.prixDuCatalogue(C.prixArticlePour(data, it, doc.clientId, doc.date, 1).prix, doc, company()), cu = C.prixDuCatalogue(it.unitCost || '', doc, company());
 -- fin
 
 == app.js | la quantité d'une ligne choisit le palier de son article ; un prix tapé ne bouge plus
 -- avant
             doc.lines[i][el.dataset.k] = Number(el.value);
 -- après
+            const ancienneQte = doc.lines[i].qty;
             doc.lines[i][el.dataset.k] = Number(el.value);
             // Le prix par quantité (brique 92) : un prix tapé est une décision ; sinon, la quantité choisit le palier.
             if (el.dataset.k === 'unitPrice') doc.lines[i].prixManuel = true;
             if (el.dataset.k === 'qty' && doc.lines[i].itemId && !doc.lines[i].prixManuel) {
               const it = data.catalog.find(c => c.id === doc.lines[i].itemId);
-              const pu = it && Array.isArray(it.paliers) && it.paliers.length ? C.prixDuCatalogue(C.prixCataloguePourQuantite(it, doc.lines[i].qty), doc, company()) : null;
-              if (pu !== null && pu !== '' && Number(pu) !== Number(doc.lines[i].unitPrice)) {
+              // Le prix que les règles donnent (liste du client, palier, article : brique 93) à une quantité.
+              const auto = q => it ? C.prixDuCatalogue(C.prixArticlePour(data, it, doc.clientId, doc.date, q).prix, doc, company()) : null;
+              const pu = auto(doc.lines[i].qty);
+              // Une ligne d'avant ces règles, à un autre prix que le leur, a été choisie : elle ne bouge pas.
+              if (pu !== null && pu !== '' && Number(pu) !== Number(doc.lines[i].unitPrice) && Number(auto(ancienneQte)) === Number(doc.lines[i].unitPrice)) {
                 doc.lines[i].unitPrice = pu;
                 const champ = el.closest('tr').querySelector('input[data-k=unitPrice]');
                 if (champ) champ.value = pu;

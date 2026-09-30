@@ -420,6 +420,9 @@
       quoi: 'Les gens et les entreprises à qui tu vends : coordonnées, historique, ce qu\'ils te doivent.' },
     { id: 'catalogue', titre: 'Catalogue', module: 'fichiers', famille: 'Vendre',
       quoi: 'Ce que tu vends, avec son prix : pour insérer une ligne dans un devis sans la retaper.' },
+    // Les prix par client ou par catégorie de clients, avec leurs dates (plateforme, brique 93).
+    { id: 'listesprix', titre: 'Listes de prix', module: 'fichiers', famille: 'Vendre',
+      quoi: 'Des prix à part pour un client ou une catégorie de clients (revendeurs, chantiers…), à partir d\'une date.' },
     // « Contrats » menait aux contrats RÉCURRENTS (les périodicités qui fabriquent des factures) ;
     // le contrat que le client signe est un onglet d'« Autres documents ». Quelqu'un qui veut
     // rédiger un contrat cliquait donc « Contrats », tombait sur des jours de facturation, et
@@ -1080,6 +1083,27 @@
   // se comparait à un prix en euros dans la marge. Converti au taux de la pièce, arrondi à la devise
   // de la pièce. Sans taux saisi, la conversion est impossible : `null`, et l'écran le dit au lieu de
   // poser un chiffre faux. Un champ vide reste vide.
+  // Les listes de prix (plateforme, brique 93 ; 01 § 5 `liste_prix`). Celles qui valent pour ce client à cette
+  // date : d'abord celles qui le nomment, puis celles de sa catégorie ; à égalité, la plus récente.
+  const normCategorie = s => String(s || '').trim().toLowerCase();
+  function listesPrixApplicables(data, clientId, dateIso) {
+    const d = dateIso || today();
+    const c = (data.clients || []).find(x => x.id === clientId);
+    const cat = normCategorie(c && c.categorieTarif);
+    const nomme = l => Array.isArray(l.clientIds) && l.clientIds.includes(clientId);
+    return (data.priceLists || [])
+      .filter(l => (!l.depuis || l.depuis <= d) && (!l.jusquau || d <= l.jusquau) && (nomme(l) || (cat && normCategorie(l.categorie) === cat)))
+      .sort((a, b) => (nomme(b) ? 1 : 0) - (nomme(a) ? 1 : 0) || String(b.depuis || '').localeCompare(String(a.depuis || '')));
+  }
+  // Le prix d'un article pour ce client, à cette date et cette quantité, en dinars, et d'où il vient.
+  function prixArticlePour(data, item, clientId, dateIso, qty) {
+    for (const l of listesPrixApplicables(data, clientId, dateIso)) {
+      const x = (l.lignes || []).find(y => y.itemId === (item && item.id) && Number(y.prix) > 0);
+      if (x) return { prix: Number(x.prix), source: 'liste', liste: l.nom || '' };
+    }
+    const p = prixCataloguePourQuantite(item, qty);
+    return { prix: p, source: p !== (Number(item && item.unitPrice) || 0) ? 'palier' : 'article', liste: '' };
+  }
   // Le prix par quantité (plateforme, brique 92) : le palier le plus haut que la quantité atteint ; sous le premier,
   // le prix de l'article. Un palier sans quantité ou sans prix positifs ne compte pas.
   function prixCataloguePourQuantite(item, qty) {
@@ -10993,7 +11017,7 @@
     depositLines, depositLinesMontant, acompteDit, settlementLines, salesJournal, vatSummary, paymentsJournal, toCsv, migrateData,
     PERIODS, MONTHS_FR, MONTHS_SHORT, monthLabel, deLibelle, addMonths, nextRecurrenceDate, dueRecurrences, catchUpRecurrence, fillTemplate, buildRecurringInvoice,
     reminderLevel, REMINDER_LABELS, daysBetween, overdueInvoices, facturesAVenir, todoList, companyGaps, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
-    CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, decimalsFor, arrondiDevise, prixDuCatalogue, prixCataloguePourQuantite, lirePaliers, paliersEnTexte, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
+    CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, decimalsFor, listesPrixApplicables, prixArticlePour, arrondiDevise, prixDuCatalogue, prixCataloguePourQuantite, lirePaliers, paliersEnTexte, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
     STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard, encoursClient, depassementEncours,

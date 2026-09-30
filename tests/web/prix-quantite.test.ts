@@ -1,7 +1,8 @@
 // Le prix par quantité, à la souris (brique 92 ; 14 § 3.2 ; web/v10/prix-quantite.txt) :
 //   - les paliers se saisissent sur la fiche de l'article ; un palier illisible se refuse en disant lequel ;
 //   - sur une facture, la ligne de l'article suit le palier que sa quantité atteint ;
-//   - un prix tapé à la main est une décision : la quantité ne le change plus.
+//   - un prix tapé à la main est une décision : la quantité ne le change plus ; une ligne d'avant les paliers,
+//     à un autre prix que le leur, non plus.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -59,7 +60,9 @@ describe('le prix par quantité, à la souris', () => {
       { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Chantier Ennasr' } },
       { collection: 'catalog', cle: 'ciment', rang: 0, revision: null, contenu: { id: 'ciment', label: 'Ciment gris 50 kg', unit: 'sac', unitPrice: 21, unitCost: { '~n': '17.25' }, vatRate: 19 } },
       { collection: 'documents', cle: 'f1', rang: 0, revision: null, contenu: { id: 'f1', type: 'facture', number: '', status: 'brouillon', date: aujourdhui, clientId: 'c1', createdAt: Date.now(),
-        lines: [{ label: 'Ciment gris 50 kg', description: '', qty: 1, unit: 'sac', unitPrice: 21, vatRate: 19, itemId: 'ciment' }], discountRate: 0, withholdingRate: 0, payments: [] } },
+        // Une seconde ligne du même article, d'avant les paliers, à un prix choisi (19,900) : elle ne bougera pas.
+        lines: [{ label: 'Ciment gris 50 kg', description: '', qty: 1, unit: 'sac', unitPrice: 21, vatRate: 19, itemId: 'ciment' },
+          { label: 'Ciment gris 50 kg', description: '', qty: 1, unit: 'sac', unitPrice: { '~n': '19.9' }, vatRate: 19, itemId: 'ciment' }], discountRate: 0, withholdingRate: 0, payments: [] } },
     ] });
     expect(ecrit.statut).toBe(200);
 
@@ -95,12 +98,17 @@ describe('le prix par quantité, à la souris', () => {
     expect(net(await p.locator('#lines [data-total="0"]').innerText())).toBe('2 850,000');
     await qte.fill('5');
     await expect.poll(() => prix.inputValue()).toMatch(/^21(\.000)?$/);
-    // 3. Nadia tape son prix : 18. La quantité ne le change plus.
-    await prix.fill('18');
+    // 3. Nadia confirme le prix en le tapant, 21 (celui-là même que donne la règle) : c'est sa décision, la
+    // quantité ne le change plus.
+    await prix.fill('21');
     await qte.fill('150');
     await p.waitForTimeout(300);
-    expect(await prix.inputValue()).toMatch(/^18(\.000)?$/);
-    expect(net(await p.locator('#lines [data-total="0"]').innerText())).toBe('2 700,000');
+    expect(await prix.inputValue()).toMatch(/^21(\.000)?$/);
+    expect(net(await p.locator('#lines [data-total="0"]').innerText())).toBe('3 150,000');
+    // 4. La ligne d'avant les paliers, à 19,900 : un prix choisi, que la quantité ne change pas non plus.
+    await p.locator('#lines tr[data-i="1"] input[data-k=qty]').fill('120');
+    await p.waitForTimeout(300);
+    expect(await p.locator('#lines tr[data-i="1"] input[data-k=unitPrice]').inputValue()).toMatch(/^19\.9(00)?$/);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'prix-quantite-2-facture.png') });
     expect(erreurs).toEqual([]);
     await cn.close();
