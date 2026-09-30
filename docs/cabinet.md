@@ -1625,6 +1625,7 @@ champ de plus et la clé privée à côté, refusés ; un collaborateur refusé.
 nommée, aucun bouton pour créer), puis le bon : « Créer 2 dossiers », les deux dans la liste — et
 aucune requête partie du navigateur ne porte une clé.
 
-**Reste à faire (la reprise)** : la paie du livre (salariés, bulletins : sans doubler les écritures de
-paie déjà reprises) ; les réglages du cabinet (guides, questionnaire, cycles, banques) ; le bouton
-« Passer à la plateforme » de la v10.
+**La reprise de la v10 s'arrête là** (décision de Skander, 30/09/2026) : personne n'utilise ni n'a
+utilisé SkanFact v10 ni SkanFact Cabinet v10, il n'y a rien à reprendre. Ce qui est fait (briques 62 à
+70) reste ; la paie du livre, les réglages du cabinet et le bouton « Passer à la plateforme » ne se
+feront pas.
