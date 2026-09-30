@@ -1342,3 +1342,36 @@ son écriture ; un fichier qui n'est pas un livre, refusé ; un collaborateur, r
 numérotation ci-dessus, la période validée, la chaîne qui commence à la reprise) ; puis les lettrages,
 les relevés, les immobilisations, la révision et les questions, la paie ; l'écran du Cabinet qui envoie
 le fichier et montre le rapport ; enfin le fichier entier du cabinet (ses dossiers, ses réglages).
+
+## Brique 63 : la reprise d'un livre du Cabinet v10 dans un dossier tenu (fait le 30/09/2026)
+
+**C53. Le livre s'écrit une fois, avec ses numéros, et sa balance est relue** (par délégation).
+`POST /cabinets/:c/reprise/livre` (un associé ; `{ dossier, livre }`) relit le livre comme l'essai à
+blanc : **une seule anomalie, et rien ne s'écrit** (le rapport les nomme). Sinon la base l'écrit
+(`compta.reprendre_livre_v10`, 0037), qui refait chaque contrôle de la saisie, écriture par écriture :
+- **seulement dans un dossier tenu** par le cabinet de la personne (un client sur SkanFact passera avec
+  son propre fichier, `08` § 2.4), et **dans un exercice sans aucune écriture** : une reprise ne se
+  mélange jamais à un livre commencé, et ne se rejoue pas ; ni dans une période close, ni dans un
+  exercice clos ;
+- chaque écriture validée dans la v10 garde **son numéro** (`<journal>-<année>-<numéro v10>`, C52) ;
+  la **chaîne des livres** les scelle dans l'ordre de leurs numéros ; chaque journal **continue** au plus
+  grand numéro repris ;
+- la période se **valide** jusqu'au dernier jour où tout est validé : la veille du premier brouillard,
+  jamais après la dernière validée ; le brouillard de la v10 reste au brouillard ;
+- la trace (`compta.reprise.livre_v10`) porte **l'empreinte** (SHA-256) du fichier envoyé : la chaîne
+  commence à la reprise, et l'on sait d'où elle vient (`08` § 2.2).
+
+Écrit, le livre est **relu dans la base** : sa balance des validées doit être celle du livre de la v10,
+au millime ; un écart défait tout (deux chemins, un chiffre). Qui a validé : la personne qui reprend,
+à l'instant de la reprise (le nom inscrit dans la v10 reste dans le fichier dont l'empreinte est gardée).
+
+**Les tests** (`tests/cabinet/reprise-livre.test.ts`) : le livre de 2025 de la v10, plus une validée
+après le brouillard de mai : quatre validées avec leurs numéros (AN-2025-000001, VT-2025-000002,
+BQ-2025-000003, OD-2025-000004), le brouillard au brouillard, la chaîne dans l'ordre des numéros, la
+période validée jusqu'au 19 mai (la veille du brouillard) ; la trace et son empreinte ; une facture
+saisie ensuite prend VT-2025-000003 ; une seconde reprise du même exercice, refusée. Un livre à une
+anomalie : refusé, rien d'écrit ; un client sur SkanFact : refusé ; un collaborateur : refusé.
+
+**Reste à faire** : les lettrages, relevés, immobilisations, révisions, questions et la paie du livre ;
+un livre dont le dossier n'existe pas encore (le créer depuis le fichier du cabinet) ; l'écran du
+Cabinet qui envoie le fichier et montre le rapport ; le bouton « Passer à la plateforme » de la v10.

@@ -61,15 +61,17 @@ export function lireLivreV10(o: unknown): LivreLu | null {
       numeroV10: x.statut === 'validee' && Number.isInteger(Number(x.numero)) && Number(x.numero) > 0 ? Number(x.numero) : null, lignes: [],
     };
     const nomme = (m: Texte) => anomalies.push({ ecriture: e.refV10, piece: e.piece, date: e.date, motif: m });
-    let lisible = true;
+    let lisible = true, unCote = true;
     for (const l of liste(x.lignes)) {
       if (!estObjet(l)) continue;
       const debit = montant(l.debit), credit = montant(l.credit);
       if (debit === null || credit === null || debit < 0n || credit < 0n) { lisible = false; continue; }
       if (debit === 0n && credit === 0n && !String(l.compte ?? '').trim()) continue;   // une ligne vide
+      if ((debit > 0n) === (credit > 0n)) unCote = false;
       e.lignes.push({ compte: String(l.compte ?? '').trim(), libelle: texte(l.libelle), tiers: texte(l.tiers, 200), debit, credit, lettre: texte(l.lettre, 20) });
     }
     if (!lisible) nomme(motif('reprise.montant'));
+    if (!unCote) nomme(motif('reprise.un_cote'));
     if (!estJour(e.date)) nomme(motif('reprise.date'));
     else if (e.date < du || e.date > au) nomme(motif('reprise.hors_exercice', { du, au }));
     if (!(JOURNAUX_REPRIS as readonly string[]).includes(e.journal)) nomme(motif('reprise.journal', { journal: e.journal }));

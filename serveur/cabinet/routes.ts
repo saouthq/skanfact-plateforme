@@ -6,7 +6,6 @@
 //     mandat (le propriétaire seul, geste socle.cabinet.choisir).
 // Chaque changement d'un mandat se trace chez l'entreprise : elle voit qui a fait quoi (03 § 3.4).
 
-import { lireLivreV10, rapportDuLivre } from '../reprise/livre-v10.ts';
 import { createHash, randomBytes } from 'node:crypto';
 import { sql } from 'kysely';
 import { z } from 'zod';
@@ -16,6 +15,8 @@ import { requetes, type Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
 import './textes.ts';
+import { Refus } from '../erreurs.ts';
+import { lireLivreV10, rapportDuLivre } from '../reprise/livre-v10.ts';
 
 const uuid = z.string().uuid();
 const PERIMETRES = ['comptabilite', 'declarations', 'saisie_achats', 'paie'] as const;
@@ -494,6 +495,36 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       const lu = lireLivreV10(corps.livre);
       if (!lu) return { statut: 400, corps: { motif: motif('cabinet.reprise.pas_un_livre'), champ: 'livre' } };
       return { corps: rapportDuLivre(lu) };
+    },
+  });
+  // La reprise d'un livre du Cabinet v10 dans un dossier tenu (brique 63, 0037, C53) : relu et contrôlé
+  // comme à l'essai à blanc ; une seule anomalie, et rien ne s'écrit. Écrit, sa balance est relue dans
+  // la base et comparée à celle du livre : un écart défait tout (deux chemins, un chiffre).
+  ajouter({
+    methode: 'POST', chemin: '/cabinets/:cabinet/reprise/livre', geste: 'compte.cabinet.gerer', limiteCorps: 32 * 1024 * 1024,
+    corps: z.object({ dossier: z.string().uuid(), livre: z.unknown() }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      if (!(await tx.query('select socle.suis_associe($1) a', [params.cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.associe') } };
+      const lu = lireLivreV10(corps.livre);
+      if (!lu) return { statut: 400, corps: { motif: motif('cabinet.reprise.pas_un_livre'), champ: 'livre' } };
+      const rapport = rapportDuLivre(lu);
+      if (lu.anomalies.length) return { statut: 400, corps: { motif: motif('cabinet.reprise.anomalies', { n: String(lu.anomalies.length) }), rapport } };
+      const ecritures = lu.ecritures.map((e) => ({
+        date: e.date, journal: e.journal, piece: e.piece, libelle: e.libelle, statut: e.statut, numero: e.numeroV10 === null ? null : String(e.numeroV10),
+        lignes: e.lignes.map((l) => ({ compte: l.compte, libelle: l.libelle, tiers: l.tiers, debit: l.debit.toString(), credit: l.credit.toString() })),
+      }));
+      const empreinte = createHash('sha256').update(JSON.stringify(corps.livre)).digest('hex');
+      const cree = (await tx.query('select compta.reprendre_livre_v10($1, $2, $3, $4, $5::jsonb, $6) r',
+        [corps.dossier, lu.annee, lu.du, lu.au, JSON.stringify(ecritures), empreinte])).rows[0].r as { validees: number; brouillard: number; jusqua: string | null };
+      // Deux chemins, un chiffre : la balance que la base tient maintenant est celle du livre.
+      const b = (await tx.query(`select l.compte, sum(l.debit)::text debit, sum(l.credit)::text credit from compta.ligne l join compta.ecriture e on e.id = l.ecriture
+          where e.entreprise = $1 and e.statut = 'validee' and e.date_ecriture between $2::date and $3::date group by l.compte`, [corps.dossier, lu.du, lu.au])).rows as { compte: string; debit: string; credit: string }[];
+      const tenue = b.map((x) => ({ compte: x.compte, debit: versTexte(BigInt(x.debit), 3), credit: versTexte(BigInt(x.credit), 3) }))
+        .sort((x, y) => (x.compte < y.compte ? -1 : x.compte > y.compte ? 1 : 0));
+      const attendue = rapport.balance.map((x) => ({ compte: x.compte, debit: x.debit, credit: x.credit }));
+      if (JSON.stringify(tenue) !== JSON.stringify(attendue)) throw new Refus('cabinet.reprise.ecart');
+      return { statut: 201, corps: { ...cree, empreinte, rapport } };
     },
   });
   // Ce qui a changé dans l'équipe (brique 61, 0036) : les cinquante derniers gestes, pour un associé.

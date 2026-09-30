@@ -3475,8 +3475,42 @@ prouver "un fichier quelconque lu comme un livre" $LV \
   "  if (!estObjet(o) || o.format !== 1 || !estObjet(o.exercice) || !Array.isArray(o.ecritures)) return null;" "  if (!estObjet(o)) return null;" \
   "$RL2"
 prouver "la reprise ouverte au collaborateur" serveur/cabinet/routes.ts \
-  "      if (!(await tx.query('select socle.suis_associe(\$1) a', [params.cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.associe') } };" "" \
+  "      if (!(await tx.query('select socle.suis_associe(\$1) a', [params.cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.associe') } };
+      const lu = lireLivreV10(corps.livre);
+      if (!lu) return { statut: 400, corps: { motif: motif('cabinet.reprise.pas_un_livre'), champ: 'livre' } };
+      return { corps: rapportDuLivre(lu) };" "      const lu = lireLivreV10(corps.livre);
+      if (!lu) return { statut: 400, corps: { motif: motif('cabinet.reprise.pas_un_livre'), champ: 'livre' } };
+      return { corps: rapportDuLivre(lu) };" \
   "$RL2"
+
+# ── Brique 63 : la reprise d'un livre du Cabinet v10 dans un dossier tenu (docs/cabinet.md, C53) ──
+RC1="les écritures s'écrivent avec leur numéro de la v10 ; la période se valide jusqu'au dernier jour tout validé ; chaque journal continue ; une seconde reprise, refusée"
+RC2="un livre qui a une anomalie ne s'écrit pas ; un client sur SkanFact ne reçoit pas de reprise ; un collaborateur non plus"
+M37=base/migrations/0037_compta_reprise_livre_v10.sql
+prouver "une reprise écrite chez un client sur SkanFact" $M37 \
+  "     or not exists (select 1 from socle.entreprise where id = p_entreprise and tenue_par is not null) then" "     or false then" \
+  "$RC2"
+prouver "une reprise mêlée à un livre commencé" $M37 \
+  "  if exists (select 1 from compta.ecriture where entreprise = p_entreprise and date_ecriture between p_du and p_au) then" "  if false then" \
+  "$RC1"
+prouver "un numéro de la v10 renuméroté" $M37 \
+  "    v_numero := e.journal || '-' || p_annee || '-' || lpad(e.numero::text, 6, '0');" "    v_numero := e.journal || '-' || p_annee || '-' || lpad('1', 6, '0');" \
+  "$RC1"
+prouver "la chaîne scellée dans le désordre" $M37 \
+  "from unnest(v_ids, v_nums, v_jnx) r(id, numero, journal) order by r.numero loop" "from unnest(v_ids, v_nums, v_jnx) r(id, numero, journal) order by r.numero desc loop" \
+  "$RC1"
+prouver "un journal qui repart à un" $M37 \
+  "    insert into compta.compteur (entreprise, journal, annee, dernier) values (p_entreprise, e.journal, p_annee, e.dernier)" "    insert into compta.compteur (entreprise, journal, annee, dernier) values (p_entreprise, e.journal, p_annee, 1)" \
+  "$RC1"
+prouver "la période validée par-dessus un brouillard" $M37 \
+  "else least(v_derniere_validee, v_premier_brouillard - 1) end;" "else v_derniere_validee end;" \
+  "$RC1"
+prouver "une reprise sans l'empreinte de son fichier" $M37 \
+  "  perform socle.tracer(p_entreprise, 'compta.reprise.livre_v10', 'exercice', null, null," "  perform socle.tracer(p_entreprise, 'compta.reprise.livre_v10_oubliee', 'exercice', null, null," \
+  "$RC1"
+prouver "un livre à anomalie envoyé à la base" serveur/cabinet/routes.ts \
+  "      if (lu.anomalies.length) return { statut: 400," "      if (false) return { statut: 400," \
+  "$RC2"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

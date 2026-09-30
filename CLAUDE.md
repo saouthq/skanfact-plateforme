@@ -229,6 +229,10 @@
     `livre-AAAA.json` (montants au millime exact, anomalies nommées) ; `POST /cabinets/:c/reprise/livre/essai`
     (un associé, 32 Mo : `limiteCorps` d'une route) rend le rapport sans rien créer. Règle de numérotation
     de la reprise (C52) : le numéro de la v10 gardé, `<journal>-<année>-<numéro sur six chiffres>`.
+  - **La reprise d'un livre dans un dossier tenu** (brique 63, 0037, C53) : `POST /cabinets/:c/reprise/livre`
+    → `compta.reprendre_livre_v10` (dossier tenu, exercice vide, numéros v10, chaîne dans leur ordre,
+    compteurs, période validée jusqu'à la veille du premier brouillard, empreinte du fichier dans la
+    trace) ; la balance relue dans la base doit être celle du livre, sinon tout se défait.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première
