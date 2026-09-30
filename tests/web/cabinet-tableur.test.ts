@@ -139,9 +139,20 @@ describe('l\'aller-retour par le tableur, à la souris', () => {
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${cafe}/comptabilite/journal/2026`);
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await p.waitForTimeout(800);
-    await p.getByRole('button', { name: /^Exporter/ }).first().click();
-    await p.getByRole('menuitem', { name: /Fichier FEC/ }).click();
-    const [fec] = await Promise.all([p.waitForEvent('download'), p.locator('#modal-root .modal').last().getByRole('button', { name: 'Exporter sans les brouillards' }).click()]);
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
+      await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
+    }
+    // L'écran se redessine une fois après son premier dessin : le menu se rouvre tant que la fenêtre
+    // d'export n'est pas là (un clic tombé pendant le redessin se perdait, et le téléchargement avec).
+    const sansBrouillards = p.getByRole('button', { name: 'Exporter sans les brouillards' });
+    await expect.poll(async () => {
+      if (!await sansBrouillards.count()) {
+        await p.getByRole('button', { name: /^Exporter/ }).first().click({ timeout: 2_000 }).catch(() => undefined);
+        await p.getByRole('menuitem', { name: /Fichier FEC/ }).click({ timeout: 2_000 }).catch(() => undefined);
+      }
+      return sansBrouillards.count();
+    }, { timeout: 30_000 }).toBe(1);
+    const [fec] = await Promise.all([p.waitForEvent('download'), sansBrouillards.click()]);
     expect(fec.suggestedFilename()).toMatch(/FEC20261231\.txt$/);
     const rangs = fs.readFileSync(await fec.path(), 'utf8').trim().split('\r\n');
     expect(rangs[0]?.startsWith('JournalCode\tJournalLib\tEcritureNum\tEcritureDate')).toBe(true);
