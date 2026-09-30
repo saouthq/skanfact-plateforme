@@ -82,6 +82,18 @@ export async function peut(tx: Transaction, qui: QuiAgit, entreprise: string, co
   const permis = acces.includes('oui') || (!ecrire && acces.includes('voir'));
   if (permis) return { ok: true, geste, roles, lectureSeule: !acces.includes('oui') };
 
+  // Sous un mandat qui réserve ce geste au cabinet (brique 58), personne de l'entreprise ne le fait : le
+  // refus nomme le cabinet, jamais le propriétaire que la base refuserait ensuite. Les personnes du
+  // cabinet ne se nomment pas au client (il ne lit que le nom de son cabinet).
+  if (geste.auCabinet && perimetre === null) {
+    const cabinet = (await tx.query(`select c.nom from socle.mandat d, socle.cabinet_du_mandat(d.id) c
+        where d.entreprise = $1 and d.statut = 'actif' and $2 = any(d.perimetre)`, [entreprise, geste.auCabinet])).rows[0];
+    if (cabinet) {
+      return { ok: false, raison: 'role', qui: [], bouton: null,
+        motif: motif('porte.au_cabinet', { roles: roles.length ? roles.map(nomDuRole) : t('porte.aucun_role'), geste: t(`geste.${geste.code}`), cabinet: cabinet.nom as string }) };
+    }
+  }
+
   const quiA = await quiPeut(tx, entreprise, geste);
   const valeurs = { roles: roles.length ? roles.map(nomDuRole) : t('porte.aucun_role'), geste: t(`geste.${geste.code}`), noms: quiA.map((q) => q.nom) };
   return {

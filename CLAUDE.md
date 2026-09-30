@@ -216,6 +216,8 @@
   - **Le nom et le matricule d'un dossier tenu** (brique 57, 0033, C47) : `socle.renommer_dossier_tenu` et
     `PUT /cabinets/:c/dossiers/:d` (un associé ; jamais un client sur SkanFact) ; `saveDossier` les envoie
     avant la fiche ; un matricule déjà pris se refuse en le disant (`exiger_matricule_libre`).
+  - **Un geste réservé au cabinet sous mandat** (brique 58, C48) : `auCabinet` sur un geste (la validation :
+    `comptabilite`) ; la porte refuse alors à l'entreprise en nommant le cabinet, sans liste ni bouton.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

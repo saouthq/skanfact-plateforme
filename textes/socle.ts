@@ -48,6 +48,7 @@ declarerTextes({
   'porte.geste_inconnu': 'geste inconnu : {geste}',
   'porte.role_refuse': 'ton rôle ({roles}) ne permet pas {de:geste}',
   'porte.role_refuse_qui': 'ton rôle ({roles}) ne permet pas {de:geste}. Peuvent le faire : {noms}',
+  'porte.au_cabinet': 'ton rôle ({roles}) ne permet pas {de:geste}. Avec le mandat de comptabilité, c\'est ton cabinet, {cabinet}, qui le fait',
   'porte.aucun_role': 'aucun rôle ici',
   'porte.hors_perimetre': 'le mandat de ton cabinet ne comprend pas {perimetre} : seul le propriétaire de l\'entreprise peut l\'ouvrir (ici, {geste})',
   'porte.aucun_perimetre': 'ce geste, fermé à un cabinet',

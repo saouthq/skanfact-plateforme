@@ -196,6 +196,35 @@ describe('le cabinet et ses mandats', () => {
     expect((await livres(cl.ent, autre.associe)).statut).toBe(404);
   });
 
+  it('sous un mandat de comptabilité, un refus de valider nomme le cabinet, jamais le propriétaire ; sans ce mandat, il nomme le propriétaire', async () => {
+    const cab = await cabinet();
+    const vendeur = async (ent: string) => {
+      const p = await personne('vendeur');
+      await admin.query(`insert into socle.membre (utilisateur, entreprise, roles) values ($1, $2, '{commercial}')`, [p.utilisateur, ent]);
+      return p;
+    };
+    const valider = (ent: string, p: Personne) => appeler('POST', `/entreprises/${ent}/compta/valider`, p.jeton, { jusqua: '2026-08-31' });
+    // Un mandat de comptabilité : le refus nomme le cabinet, et personne de l'entreprise.
+    const cl = await client();
+    const mandat = String((await appeler('POST', `/entreprises/${cl.ent}/mandat`, cl.jeton, { codeCabinet: cab.code })).corps.mandat);
+    await appeler('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, cab.associe.jeton);
+    const r = await valider(cl.ent, await vendeur(cl.ent));
+    expect([r.statut, r.corps.qui, r.corps.bouton]).toEqual([403, [], null]);
+    expect(String(r.corps.motif)).toMatch(/Avec le mandat de comptabilité, c'est ton cabinet, Cabinet Ennour, qui le fait/);
+    expect(String(r.corps.motif)).not.toMatch(/Peuvent le faire/);
+    // Un mandat de paie seulement : la validation reste à l'entreprise, le refus nomme le propriétaire.
+    const autre = await client();
+    const m2 = String((await appeler('POST', `/entreprises/${autre.ent}/mandat`, autre.jeton, { codeCabinet: cab.code, perimetre: ['paie'] })).corps.mandat);
+    await appeler('POST', `/cabinets/${cab.id}/mandats/${m2}/accepter`, cab.associe.jeton);
+    const r2 = await valider(autre.ent, await vendeur(autre.ent));
+    expect([r2.statut, (r2.corps.qui as { utilisateur: string }[]).map((q) => q.utilisateur)]).toEqual([403, [autre.utilisateur]]);
+    expect(String(r2.corps.motif)).toMatch(/Peuvent le faire : client/);
+    // Un mandat proposé, pas encore accepté : l'entreprise valide encore elle-même.
+    const trois = await client();
+    await appeler('POST', `/entreprises/${trois.ent}/mandat`, trois.jeton, { codeCabinet: cab.code });
+    expect(String((await valider(trois.ent, await vendeur(trois.ent))).corps.motif)).toMatch(/Peuvent le faire : client/);
+  });
+
   it('le nom et le matricule d\'un dossier tenu : un associé les corrige, tracés ; un collaborateur, non ; ceux d\'un client sur SkanFact, jamais ; un matricule déjà pris, refusé en le disant', async () => {
     const cab = await cabinet();
     const revision = await cab.collaborateur('revision');

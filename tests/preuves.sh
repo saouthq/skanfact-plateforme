@@ -1749,8 +1749,8 @@ prouver "la base qui laisse le commercial valider" base/migrations/0019_cabinet.
   "  elsif not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne']::text[]" "  elsif not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne', 'commercial']::text[]" \
   "$VD"
 prouver "un commercial qui valide" serveur/compta/gestes.ts \
-  "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true,
-    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true,
+  "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true, auCabinet: 'comptabilite',
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true, auCabinet: 'comptabilite',
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', commercial: 'oui' } }," \
   "$VD"
 
@@ -1809,8 +1809,8 @@ prouver "l'assistant de saisie qui valide, dans la base" $M19 \
   "    if not ('comptabilite' = any(v_perimetre) and socle.mes_roles(p_entreprise) && array['supervision', 'revision']::text[]) then" "    if false then" \
   "$CM"
 prouver "l'assistant de saisie qui valide, à la porte" serveur/compta/gestes.ts \
-  "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true,
-    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true,
+  "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true, auCabinet: 'comptabilite',
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true, auCabinet: 'comptabilite',
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } }," \
   "$CM"
 prouver "un dossier tenu créé par un collaborateur" $M33 \
@@ -1932,8 +1932,8 @@ prouver "l'assistant de saisie qui valide des écritures, dans la base" $M21 \
   "else array['supervision', 'revision']::text[] end" "else array['supervision', 'revision', 'saisie']::text[] end" \
   "$S3"
 prouver "l'assistant de saisie qui valide des écritures, à la porte" serveur/compta/gestes.ts \
-  "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true,
-    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true,
+  "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true, auCabinet: 'comptabilite',
+    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true, auCabinet: 'comptabilite',
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } }," \
   "$S3"
 prouver "le client qui valide des écritures malgré le mandat" $M21 \
@@ -3339,6 +3339,21 @@ prouver "un matricule mal écrit refusé loin de sa case, à la création" web/p
 prouver "un matricule mal écrit refusé loin de sa case, dans la fiche" web/public/v10/cabinet/app.js \
   "          if (dossier.manual && !matriculeFiscalLisible(f.matricule)) return refus(" "          if (false) return refus(" \
   "$NT2"
+
+# ── Brique 58 : la porte nomme le cabinet sous un mandat de comptabilité (docs/cabinet.md, C48) ──
+PM1="sous un mandat de comptabilité, un refus de valider nomme le cabinet, jamais le propriétaire ; sans ce mandat, il nomme le propriétaire"
+prouver "un refus sous mandat qui nomme le propriétaire" serveur/porte/porte.ts \
+  "  if (geste.auCabinet && perimetre === null) {" "  if (false) {" \
+  "$PM1"
+prouver "la validation qui n'est plus réservée au cabinet" serveur/compta/gestes.ts \
+  "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true, auCabinet: 'comptabilite'," "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true," \
+  "$PM1"
+prouver "un mandat de paie qui prend la validation" serveur/porte/porte.ts \
+  "where d.entreprise = \$1 and d.statut = 'actif' and \$2 = any(d.perimetre)\`" "where d.entreprise = \$1 and d.statut = 'actif'\`" \
+  "$PM1"
+prouver "un mandat proposé qui prend la validation" serveur/porte/porte.ts \
+  "where d.entreprise = \$1 and d.statut = 'actif' and \$2 = any(d.perimetre)\`" "where d.entreprise = \$1 and \$2 = any(d.perimetre)\`" \
+  "$PM1"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

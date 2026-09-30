@@ -35,6 +35,9 @@ export type Geste = {
   // Ce qu'il faut au mandat d'un cabinet pour ce geste, quand ce n'est pas le périmètre de son module
   // (03 § 3.4 : les déclarations sont une case à part).
   perimetre?: string[];
+  // Réservé au cabinet quand un mandat comprend cette case (03 § 2, C8 : avec un mandat de comptabilité,
+  // c'est le cabinet qui valide) : personne de l'entreprise ne le fait alors, et un refus nomme le cabinet.
+  auCabinet?: string;
 };
 
 const P: Acces = 'oui';

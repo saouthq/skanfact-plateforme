@@ -815,12 +815,13 @@ brouillard, le brouillard validé dans la Saisie et l'Exercice relu sans recharg
 **Reste connu** :
 - « Le dossier pour le client » (le fichier de clôture signé, avec ses états en PDF) n'est pas encore en
   ligne : le client lit ses livres en direct ; ses états arrêtés viendront avec les documents du serveur.
-- La porte, sous un mandat de comptabilité, écrit « Peuvent le faire : » le propriétaire, que la base
-  refuse ensuite (c'est le cabinet qui valide) : sa liste ne connaît pas encore les mandats.
+- La porte, sous un mandat de comptabilité, écrivait « Peuvent le faire : » le propriétaire, que la base
+  refuse ensuite : elle nomme le cabinet depuis la brique 58 (C48).
 - Une ligne d'à-nouveau lettrée ne garde pas sa lettre (la saisie du serveur ne la prend pas) : elle se
   relettre dans l'année d'après.
-- Prévoir l'extourne d'une écriture de décembre à l'ouverture (`prevoirExtourne`) n'est pas en ligne :
-  l'extourne se pose directement (brique 38).
+- Prévoir l'extourne d'une écriture de décembre à l'ouverture (`prevoirExtourne`) : sans objet en ligne
+  (relu le 30/09/2026) — l'extourne se pose directement au 1er janvier, dans le livre suivant (brique 38),
+  et l'écran ne propose que ce geste.
 
 ## Brique 46 : l'équipe du cabinet (fait le 29/09/2026)
 
@@ -1215,3 +1216,22 @@ pourquoi, sa fiche (l'adresse) qui s'enregistre quand même.
 **Reste connu** :
 - Les cases en lecture seule d'un client sur SkanFact ont l'air des autres : la phrase sous la fiche le
   dit, rien ne les grise encore.
+
+## Brique 58 : la porte nomme le cabinet sous un mandat de comptabilité (fait le 30/09/2026)
+
+**C48. Un geste réservé au cabinet par le mandat se refuse en nommant le cabinet** (par délégation).
+Avec un mandat de comptabilité, c'est le cabinet qui valide les écritures (03 § 2, C8 ; la base le
+garde depuis 0019). Mais la porte, quand elle refusait la validation à une personne de l'entreprise
+(un commercial, par exemple), écrivait « Peuvent le faire : » le propriétaire — que la base refusait
+ensuite. Une phrase que rien ne tenait. Désormais un geste peut se déclarer **réservé au cabinet** sous
+un mandat qui comprend une case (`auCabinet`, `serveur/porte/gestes.ts`) ; la validation l'est pour la
+comptabilité. Sous un tel mandat **actif**, la porte refuse à une personne de l'entreprise en nommant
+le cabinet : « Avec le mandat de comptabilité, c'est ton cabinet, <nom>, qui le fait » — sans liste de
+personnes et sans bouton (le client ne lit que le nom de son cabinet, jamais son équipe). Un mandat
+qui ne comprend pas la comptabilité (la paie seule), ou seulement proposé, laisse la validation à
+l'entreprise, et le refus nomme ceux qui peuvent, comme avant. Le propriétaire lui-même reçoit
+toujours le refus de la base (« c'est le cabinet qui valide »).
+
+**Les tests** : par l'API (`tests/cabinet/mandats.test.ts`) : un commercial, sous un mandat de
+comptabilité, refusé en nommant le cabinet, sans personne ni bouton ; sous un mandat de paie seule, et
+sous un mandat seulement proposé, le refus nomme le propriétaire.
