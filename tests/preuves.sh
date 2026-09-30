@@ -5681,6 +5681,62 @@ prouver "le coût de revient d'un kit laissé à zéro" web/public/v10/app.js \
   "            coutAuto = String(C.coutDuKit(data, lu)); champCout.value = coutAuto;" "            coutAuto = '';" \
   "$KTW"
 
+# ── Brique 97 : les lots (docs/lots.md) ──
+LT1="chaque mouvement dit son lot ; le stock se lit lot par lot ; le lot conseillé périme le premier"
+LT2="« À faire » dit les lots qui périment ; une pièce dit ses lots manquants, périmés, courts"
+LTW="Samia saisit ses yaourts par lot, voit ceux qui périment, et vend le plus ancien"
+prouver "la vente qui oublie le lot de sa ligne" web/public/v10/core.js \
+  "      (data.documents || []).forEach(d => (d.lines || []).forEach((l, i) => { if (l.lot) lotDe.set(" "      (data.documents || []).forEach(d => (d.lines || []).forEach((l, i) => { if (false) lotDe.set(" \
+  "$LT1"
+prouver "le lot du stock de départ oublié" web/public/v10/core.js \
+  "      (data.catalog || []).forEach(c => { if (c.initialLot) lotDe.set(" "      (data.catalog || []).forEach(c => { if (false) lotDe.set(" \
+  "$LT1"
+prouver "les lots rangés du plus tardif au plus proche" web/public/v10/core.js \
+  "(!a.lot) - (!b.lot) || (a.peremption || '9999').localeCompare(b.peremption || '9999')" "(!a.lot) - (!b.lot) || (b.peremption || '9999').localeCompare(a.peremption || '9999')" \
+  "$LT1"
+prouver "un lot périmé conseillé à la vente" web/public/v10/core.js \
+  "x.lot && x.qty > 0 && (!x.peremption || x.peremption >= t)) || null;" "x.lot && x.qty > 0) || null;" \
+  "$LT1"
+prouver "« À faire » qui ne regarde que les lots déjà périmés" web/public/v10/core.js \
+  "      .filter(x => x.lot && x.qty > 0 && x.peremption && x.peremption <= limite)" "      .filter(x => x.lot && x.qty > 0 && x.peremption && x.peremption < t)" \
+  "$LT2"
+prouver "un lot périmé jamais dit périmé" web/public/v10/core.js \
+  "peremption: x.peremption, qty: x.qty, perime: x.peremption < t })))" "peremption: x.peremption, qty: x.qty, perime: false })))" \
+  "$LT2"
+prouver "un lot trop court accepté en silence" web/public/v10/core.js \
+  "      if (doc.type !== 'avoir' && x.qty < qty) out.push(" "      if (false) out.push(" \
+  "$LT2"
+prouver "un lot périmé vendu en silence" web/public/v10/core.js \
+  "      if (x.peremption && doc.date && x.peremption < doc.date) out.push(" "      if (false) out.push(" \
+  "$LT2"
+prouver "des lots périmés annoncés comme une simple information" web/public/v10/core.js \
+  "      out.push({ id: 'lots-peremption', level: perimes ? 'warn' : 'info'," "      out.push({ id: 'lots-peremption', level: 'info'," \
+  "$LT2"
+prouver "« À faire » muet sur les lots qui périment" web/public/v10/core.js \
+  "    if (aPerimer.length) {" "    if (false) {" \
+  "$LTW"
+prouver "la ligne d'achat sans lot ni péremption" web/public/v10/app.js \
+  "      return \`<div class=\"inline lot-saisie\">" "      return '' && \`<div class=\"inline lot-saisie\">" \
+  "$LTW"
+prouver "la ligne de vente sans choix du lot" web/public/v10/app.js \
+  "      return \`<div class=\"lot-choix\">" "      return '' && \`<div class=\"lot-choix\">" \
+  "$LTW"
+prouver "l'émission muette sur une ligne sans lot" web/public/v10/app.js \
+  "      if ((isInv && doc.fromDocType !== 'livraison') || isAv) C.lotsDeLaPiece(doc, data)" "      if (false) C.lotsDeLaPiece(doc, data)" \
+  "$LTW"
+prouver "la page de l'article qui tait son stock par lot" web/public/v10/app.js \
+  "      \${item.parLot ? \`<p class=\"small mb\" id=\"art-lots\">" "      \${false ? \`<p class=\"small mb\" id=\"art-lots\">" \
+  "$LTW"
+prouver "l'historique qui tait le lot" web/public/v10/core.js \
+  "        if (m.lot) m.note = [m.note, \`lot \${m.lot}\`]" "        if (false) m.note = [m.note, \`lot \${m.lot}\`]" \
+  "$LTW"
+prouver "« suivre par lot » qui ne coche pas le suivi en stock" web/public/v10/app.js \
+  "          if (e.target.checked && !cs.checked) { cs.checked = true; cs.onchange({ target: cs }); }" "          if (false) { cs.checked = true; cs.onchange({ target: cs }); }" \
+  "$LTW"
+prouver "le lot du départ perdu à l'enregistrement" web/public/v10/app.js \
+  "          v.initialLot = String(v.initialLot ?? it.initialLot ?? '').trim();" "          v.initialLot = '';" \
+  "$LTW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

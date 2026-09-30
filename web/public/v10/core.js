@@ -3505,6 +3505,26 @@
     // de son jour, puis chaque mouvement à l'instant où il a eu lieu (création d'un achat ou d'un
     // mouvement, émission d'une facture). Sans instant connu (données anciennes), les entrées passent
     // avant les sorties : une sortie ne se valorise pas sur une marchandise qui n'est pas encore là.
+    // (Le lot de chaque mouvement, plateforme brique 97 : celui de sa ligne ; la péremption, celle que
+    // l'entrée du lot a dite.)
+    if ((data.catalog || []).some(c => c.parLot)) {
+      const lotDe = new Map();
+      (data.purchases || []).forEach(p => (p.lines || []).forEach((l, i) => { if (l.lot) lotDe.set(`buy-${p.id}-${i}`, l); }));
+      (data.receptions || []).forEach(r => (r.lines || []).forEach((l, i) => { if (l.lot) lotDe.set(`rec-${r.id}-${i}`, l); }));
+      (data.documents || []).forEach(d => (d.lines || []).forEach((l, i) => { if (l.lot) lotDe.set(`doc-${d.id}-${i}`, l); }));
+      (data.stockAdjustments || []).forEach(a => { if (a.lot) lotDe.set(a.id, a); });
+      (data.catalog || []).forEach(c => { if (c.initialLot) lotDe.set(`init-${c.id}`, { lot: c.initialLot, peremption: c.initialPeremption }); });
+      const peremptionDe = new Map();
+      out.forEach(m => {
+        const l = lotDe.get(m.id);
+        m.lot = l ? String(l.lot).trim() : '';
+        if (m.lot && m.qty > 0 && l.peremption) peremptionDe.set(`${m.itemId}|${m.lot}`, String(l.peremption));
+      });
+      out.forEach(m => {
+        m.peremption = m.lot ? peremptionDe.get(`${m.itemId}|${m.lot}`) || '' : '';
+        if (m.lot) m.note = [m.note, `lot ${m.lot}`].filter(Boolean).join(' · ');
+      });
+    }
     return out.sort((a, b) => (a.date || '').localeCompare(b.date || '')
       || (a.rang - b.rang) || (a.ts - b.ts) || ((b.qty > 0) - (a.qty > 0)) || String(a.id).localeCompare(String(b.id)));
   }
@@ -3575,6 +3595,50 @@
       return { ...m, unitApplied: unit, qtyAfter: qty, valueAfter: value, cmpAfter: cmp };
     });
     return { rows, qty, value, cmp };
+  }
+
+  // ---------- les lots (plateforme, brique 97) ----------
+  // Le stock d'un article lot par lot, à une date : les lots qui périment le plus tôt d'abord, « sans lot » à la fin.
+  function stockParLot(data, itemId, toIso) {
+    const q = new Map();
+    stockMovements(data, itemId, toIso).forEach(m => {
+      const k = m.lot || '';
+      const x = q.get(k) || { lot: k, peremption: '', qty: 0 };
+      x.qty = round3(x.qty + (Number(m.qty) || 0));
+      if (m.peremption && !x.peremption) x.peremption = m.peremption;
+      q.set(k, x);
+    });
+    return [...q.values()].filter(x => x.qty !== 0)
+      .sort((a, b) => (!a.lot) - (!b.lot) || (a.peremption || '9999').localeCompare(b.peremption || '9999') || a.lot.localeCompare(b.lot));
+  }
+  // Le lot à vendre d'abord : celui qui périme le plus tôt sans être périmé (et qui en a).
+  function lotConseille(data, itemId, todayIso) {
+    const t = todayIso || today();
+    return stockParLot(data, itemId, t).find(x => x.lot && x.qty > 0 && (!x.peremption || x.peremption >= t)) || null;
+  }
+  // Les lots encore en stock qui périment dans `jours` jours (ou le sont déjà).
+  function lotsAPerimer(data, todayIso, jours) {
+    const t = todayIso || today(), limite = addDays(t, jours == null ? 30 : jours);
+    return (data.catalog || []).filter(c => c.tracked && c.parLot).flatMap(c => stockParLot(data, c.id, t)
+      .filter(x => x.lot && x.qty > 0 && x.peremption && x.peremption <= limite)
+      .map(x => ({ itemId: c.id, label: c.label, unit: c.unit || '', lot: x.lot, peremption: x.peremption, qty: x.qty, perime: x.peremption < t })))
+      .sort((a, b) => a.peremption.localeCompare(b.peremption));
+  }
+  // Ce qu'une pièce de vente doit dire de ses lots avant d'être émise : une ligne sans lot, un lot périmé à la
+  // date de la pièce, un lot qui n'en a pas assez.
+  function lotsDeLaPiece(doc, data) {
+    const out = [];
+    (doc.lines || []).forEach(l => {
+      if (l.noDiscount) return;
+      const c = itemOfLine(l, data);
+      const qty = Number(l.qty) || 0;
+      if (!c || !c.tracked || !c.parLot || qty <= 0) return;
+      if (!l.lot) { out.push({ genre: 'sans', label: c.label, conseil: lotConseille(data, c.id, doc.date) }); return; }
+      const x = stockParLot(data, c.id).find(y => y.lot === l.lot) || { qty: 0, peremption: '' };
+      if (x.peremption && doc.date && x.peremption < doc.date) out.push({ genre: 'perime', label: c.label, lot: l.lot, peremption: x.peremption });
+      if (doc.type !== 'avoir' && x.qty < qty) out.push({ genre: 'court', label: c.label, lot: l.lot, have: x.qty, need: qty });
+    });
+    return out;
   }
 
   // L'état d'un article à une date : quantité, valeur, coût moyen, et le signal qui compte — le négatif.
@@ -8641,6 +8705,16 @@
         count: enRetard.length, route: '#/commandesf/commandes', docs: [] });
     }
 
+    // Les lots qui périment dans les 30 jours (plateforme, brique 97) : les vendre d'abord, ou les retirer.
+    const aPerimer = lotsAPerimer(data, t, 30);
+    if (aPerimer.length) {
+      const perimes = aPerimer.filter(x => x.perime).length, p0 = aPerimer[0];
+      out.push({ id: 'lots-peremption', level: perimes ? 'warn' : 'info',
+        label: perimes ? `${plFr(perimes, 'lot périmé', 'lots périmés')} encore en stock` : `${plFr(aPerimer.length, 'lot périme', 'lots périment')} dans les 30 jours`,
+        detail: `Le premier : ${p0.label}, lot ${p0.lot} (${round3(p0.qty)}), ${p0.perime ? 'périmé le' : 'périme le'} ${fmtDate(p0.peremption)}. Vends-le d'abord, ou sors-le du stock (casse).`,
+        count: aPerimer.length, route: `#/article/${p0.itemId}`, docs: [] });
+    }
+
     // Devis acceptés dont le montant n'a pas été facturé EN ENTIER (même en brouillon) : le travail
     // est vendu, pas facturé. Un ACOMPTE porte `fromQuoteId` lui aussi (7.29.0) : le compter comme la
     // facture du devis faisait disparaître de « À faire » un devis dont 30 % seulement étaient
@@ -11103,7 +11177,7 @@
     DEFAULT_ASSET_CLASSES, assetClassLabel, assetClassYears, days360, assetSchedule, assetYear,
     assetCumulated, assetNBV, disposalResult, assetsList, assetTotals, assetsToCreate, immosEnAttente, immosHorsTableau, ligneDeFiche, biensADiminuer, depreciationFor,
     cappedCumulated,
-    moisDePaie, anneesDePaie, premierePieceApres, MOVE_SOURCES, SOURCES_SORTIE, qteMouvement, moveSourceLabel, trackedItems, itemOfLine, stockMovements, runningStock, stockOf, estKit, composantsDe, lignesDeStock, kitsPossibles, coutDuKit,
+    moisDePaie, anneesDePaie, premierePieceApres, MOVE_SOURCES, SOURCES_SORTIE, qteMouvement, moveSourceLabel, trackedItems, itemOfLine, stockParLot, lotConseille, lotsAPerimer, lotsDeLaPiece, stockMovements, runningStock, stockOf, estKit, composantsDe, lignesDeStock, kitsPossibles, coutDuKit,
     stockList, stockTotals, stockJournal, inventoryDiff, stockAlerts, stockImpact, costOfGoodsSold, inventaireComptable, coutAchat, sceauEcritures, ecartsSceau,
     ocrNumber, ocrToPurchase,
     CONTRACT_TYPES, contractLabel, REGIME_TAUX: Compta.REGIME_TAUX, regimeDuContrat: Compta.regimeDuContrat, normaliserRegimes: Compta.normaliserRegimes, libelleRegime: Compta.libelleRegime,

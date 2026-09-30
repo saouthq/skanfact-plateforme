@@ -77,6 +77,9 @@
 - **Les kits** (brique 96, `docs/kits.md`, `web/v10/kits.txt`) : un article non suivi qui porte `composants`
   ([{ itemId, qty }], des articles suivis) ; `lignesDeStock` déplie la ligne d'un kit en ses composants (pour
   `stockImpact`), `stockMovements` sort chaque composant ; `kitsPossibles`, `coutDuKit`.
+- **Les lots** (brique 97, `docs/lots.md`, `web/v10/lots.txt`) : `parLot` sur l'article ; `lot`/`peremption` sur
+  les lignes d'entrée, `lot` sur les lignes de sortie ; `stockMovements` pose `lot`, `peremption` (celle de
+  l'entrée) ; `stockParLot`, `lotConseille`, `lotsAPerimer`, `lotsDeLaPiece`.
 - Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,
   un seau par clé dans la mémoire du programme (à partager le jour où il y aura plusieurs programmes).
 - Les avis d'événement signés (`0008`, `serveur/avis.ts`, 28/09/2026) : l'avis naît dans la

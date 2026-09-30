@@ -3995,6 +3995,15 @@
       touch(); drawLines();
       const q = $(`tr[data-i="${i}"] input[data-k=qty]`, linesBody); if (q) { q.focus(); q.select(); }
     };
+    // Le lot d'une ligne de vente (plateforme, brique 97) : un article suivi par lot dit de quel lot il sort
+    // (il rentre, pour un avoir). Seulement sur une pièce qui bouge le stock.
+    const lotChoix = (l, i) => {
+      const bouge = (isInv && doc.fromDocType !== 'livraison') || isDelivery || isAv;
+      const it = bouge ? C.itemOfLine(l, data) : null;
+      if (!it || !it.parLot || !it.tracked) return '';
+      const lots = C.stockParLot(data, it.id).filter(x => x.lot && (x.qty > 0 || x.lot === l.lot || isAv));
+      return `<div class="lot-choix"><select data-k="lot" ${ro} aria-label="Lot de la ligne ${i + 1}"><option value="">— Quel lot ? —</option>${lots.map(x => `<option value="${h(x.lot)}" ${x.lot === l.lot ? 'selected' : ''}>Lot ${h(x.lot)}${x.peremption ? ' · périme le ' + C.fmtDate(x.peremption) : ''} · ${pct(x.qty)} en stock</option>`).join('')}</select></div>`;
+    };
     function drawLines() {
       const n = doc.lines.length;
       // Unités déjà employées ailleurs dans les données, plus celles du document en cours :
@@ -4004,7 +4013,7 @@
         <td><input type="text" data-k="label" value="${h(l.label)}" placeholder="Désignation" ${ro}>
             ${openDesc.has(i)
               ? `<textarea data-k="description" placeholder="Description : ce que comprend la prestation" ${ro}>${h(l.description || '')}</textarea>`
-              : (figee ? '' : `<button type="button" class="link-add" data-desc="${i}">+ description</button>`)}</td>
+              : (figee ? '' : `<button type="button" class="link-add" data-desc="${i}">+ description</button>`)}${lotChoix(l, i)}</td>
         <td><input type="number" class="num" data-k="qty" value="${l.qty}" step="0.01" ${ro}></td>
         <td><select data-k="unit" ${ro}>${unitOptions(l.unit, extraUnits)}</select></td>
         <td><input type="number" class="num" data-k="unitPrice" value="${l.unitPrice}" step="0.001" ${ro}></td>
@@ -4589,6 +4598,11 @@
             ? `Stock insuffisant sur « ${x.label} » dans ${x.depot} : il en reste ${pct(x.have)}${x.unit ? ' ' + C.uniteAccordee(x.have, x.unit) : ''} et cette pièce en sort ${pct(x.need)}. ${x.total >= x.need ? `Les autres dépôts en ont assez (${pct(x.total)} en tout) : choisis le bon dépôt, ou transfère d'abord (page de l'article → « Transférer… »).` : `Le stock de ce dépôt passerait à ${pct(x.after)}. Vérifie qu'une facture d'achat n'a pas été oubliée.`}`
             : `Stock insuffisant sur « ${x.label} » : il en reste ${pct(x.have)}${x.unit ? ' ' + x.unit : ''} et cette pièce en sort ${pct(x.need)}. Le stock passerait à ${pct(x.after)}. Vérifie qu'une facture d'achat n'a pas été oubliée.`));
       }
+      // Les lots (brique 97) : une ligne sans lot, un lot périmé, un lot qui n'en a pas assez se disent avant.
+      if ((isInv && doc.fromDocType !== 'livraison') || isAv) C.lotsDeLaPiece(doc, data).forEach(x => w.push(
+        x.genre === 'sans' ? `La ligne « ${x.label} » ne dit pas de quel lot elle sort${x.conseil ? ` : le plus ancien est le lot ${x.conseil.lot}${x.conseil.peremption ? `, qui périme le ${C.fmtDate(x.conseil.peremption)}` : ''}` : ''}. Choisis-le sous la ligne, sinon elle sortira « sans lot ».`
+          : x.genre === 'perime' ? `Le lot ${x.lot} de « ${x.label} » est périmé depuis le ${C.fmtDate(x.peremption)} : vérifie que tu veux bien le vendre.`
+            : `Le lot ${x.lot} de « ${x.label} » n'en a que ${pct(x.have)} et cette pièce en sort ${pct(x.need)} : choisis un autre lot, ou partage la ligne.`));
       // Une ligne à zéro est légitime (une prestation offerte), mais c'est aussi la trace d'une
       // quantité effacée et jamais retapée. On la nomme avant d'émettre : après, la pièce est
       // verrouillée et il faut un avoir.
@@ -6225,6 +6239,7 @@
              venait de lire « coche l'option sur une prestation du catalogue » ouvrait la fiche et ne
              la trouvait pas — elle n'existait pas à l'écran. Elle est ici, toujours visible, et elle
              coche « Suivi en stock » elle-même : suivre des numéros implique de suivre le stock. -->
+        <label class="check span-2"><input type="checkbox" name="parLot" ${it.parLot ? 'checked' : ''}> Suivre par lot (numéro et date de péremption) ${info('lot.parLot')}</label>
         <label class="check span-2"><input type="checkbox" name="serialized" ${suit.serialized ? 'checked' : ''}> Suivre chaque unité par son numéro de série ${info('ser.serialized')}</label>
         <div class="field span-2" id="serial-block" ${suit.serialized ? '' : 'hidden'}>
           <label class="field">${lbl('Garantie proposée', 'ser.warranty')}<select name="warrantyMonths">${C.WARRANTY_CHOICES.map(m => `<option value="${m}" ${Number(it.warrantyMonths) === m ? 'selected' : ''}>${m ? m + ' mois' : 'Aucune'}</option>`).join('')}</select></label>
@@ -6240,6 +6255,8 @@
             ${field(lbl('Emplacement', 'stk.location'), 'location', it.location || '', 'text', 'placeholder="Étagère A, réserve…"')}
             ${field(lbl('Stock de départ', 'stk.initial'), 'initialQty', it.initialQty || 0, 'number', 'step="0.01" class="num"' + (already && already.moves.length > 1 ? ' disabled' : ''))}
             ${field(lbl(`Coût unitaire du départ (${h(C.normCurrency(company().currency))})`, 'stk.initialCost'), 'initialCost', it.initialCost || 0, 'number', 'step="0.001" min="0" class="num"' + (already && already.moves.length > 1 ? ' disabled' : ''))}
+            ${field(lbl('Lot du départ (si suivi par lot)', 'lot.initial'), 'initialLot', it.initialLot || '', 'text', already && already.moves.length > 1 ? 'disabled' : '')}
+            ${field(lbl('Péremption du départ', 'lot.peremption'), 'initialPeremption', it.initialPeremption || '', 'date', already && already.moves.length > 1 ? 'disabled' : '')}
           </div>
           ${already && already.moves.length > 1
             ? `<p class="small muted mt">Stock actuel : <b>${pct(already.qty)}${already.unit ? ' ' + h(C.uniteAccordee(already.qty, already.unit)) : ''}</b> au coût moyen de ${C.money(already.cmp, company().currency)}. Le stock de départ n'est plus modifiable ici — des mouvements s'y appuient. Passe par un ajustement sur la page Stock.</p>`
@@ -6317,6 +6334,11 @@
           el.innerHTML = `<span class="small ${m <= 0 ? 'warn-text' : 'ok-text'}">Marge : <strong>${C.money(m, company().currency)}</strong> par unité, soit ${pct(r)} %${m <= 0 ? ' — tu vends à perte.' : ''}</span>`;
         };
         $('#kf', root).oninput = hint; hint();
+        // Suivre par lot implique de suivre le stock (brique 97), comme le numéro de série : la case se coche.
+        $('input[name=parLot]', root).onchange = e => {
+          const cs = $('input[name=tracked]', root);
+          if (e.target.checked && !cs.checked) { cs.checked = true; cs.onchange({ target: cs }); }
+        };
         // Le calculateur part du coût et de la TVA de la fiche, et y rend le prix — et le coût de revient
         // quand on y a ajouté des frais : un coût de revient COMPREND le transport et la douane.
         $('#cat-calc', root).onclick = () => {
@@ -6367,6 +6389,11 @@
           if (kitLu.length && v.tracked) return refus('#kf input[name=tracked]', 'Un kit ne se suit pas en stock : ce sont ses composants qui sortent. Décoche « Suivi en stock », ou retire ses composants.');
           v.composants = kitLu.map(k => ({ itemId: k.itemId, qty: Number(k.qty) }));
           if (v.tracked && already && already.moves.length > 1) { v.initialQty = it.initialQty; v.initialCost = it.initialCost; }
+          // Le lot (brique 97) : seulement pour un article suivi en stock ; le lot du départ ne bouge plus une fois utilisé.
+          v.parLot = !!v.tracked && !!v.parLot;
+          v.initialLot = String(v.initialLot ?? it.initialLot ?? '').trim();
+          v.initialPeremption = String(v.initialPeremption ?? it.initialPeremption ?? '');
+          if (already && already.moves.length > 1) { v.initialLot = it.initialLot || ''; v.initialPeremption = it.initialPeremption || ''; }
           // Un stock de départ EST un mouvement de stock (core.stockMovements en fabrique un) : il
           // passe par le garde-fou de l'offre comme un ajustement, la première fois seulement.
           if (v.tracked && Number(v.initialQty) && !(it.tracked && Number(it.initialQty)) && licenceBlock('Créer un stock de départ', 'stock')) return;
@@ -7624,6 +7651,7 @@
     'bons-a-facturer': { label: 'Voir les bons', run: vers('#/autres/livraison') },
     'receptions-a-facturer': { label: 'Voir les réceptions', run: vers('#/commandesf/receptions') },
     'commandesf-retard': { label: 'Voir les commandes', run: vers('#/commandesf/commandes') },
+    'lots-peremption': { label: 'Voir l\'article', run: () => { const x = C.lotsAPerimer(data, C.today(), 30)[0]; navigate(x ? '#/article/' + x.itemId : '#/stock'); } },
     societe: { label: 'Compléter', run: vers('#/parametres', () => { settingsTab = 'societe'; settingsFocus = 'p-identite'; }) },
     'devis-brouillons': { label: 'Voir les devis', run: vers('#/devis', filtre('devis', 'brouillon')) },
     'devis-acceptes': { label: 'Facturer', run: vers('#/devis', filtre('devis', 'accepté')) },
@@ -9395,9 +9423,16 @@
       touch(); drawLines();
       const q = $(`tr[data-i="${i}"] input[data-k=qty]`, body); if (q) { q.focus(); q.select(); }
     };
+    // Le lot d'une ligne d'achat (plateforme, brique 97) : un article suivi par lot, qui entre en stock, dit son
+    // numéro et sa péremption.
+    const lotSaisie = l => {
+      const it = l.destination === 'stock' && !l.recue ? C.itemOfLine(l, data) : null;
+      if (!it || !it.parLot || !it.tracked) return '';
+      return `<div class="inline lot-saisie"><input type="text" data-k="lot" value="${h(l.lot || '')}" placeholder="N° de lot" aria-label="Numéro de lot" style="max-width:9rem"><input type="date" data-k="peremption" value="${h(l.peremption || '')}" aria-label="Date de péremption" title="Date de péremption" style="max-width:10rem"></div>`;
+    };
     function drawLines() {
       body.innerHTML = p.lines.map((l, i) => `<tr data-i="${i}">
-        <td><input type="text" data-k="label" value="${h(l.label || '')}" placeholder="Désignation"></td>
+        <td><input type="text" data-k="label" value="${h(l.label || '')}" placeholder="Désignation">${lotSaisie(l)}</td>
         <td><input type="number" class="num" data-k="qty" value="${l.qty}" step="0.01"></td>
         <td><input type="number" class="num" data-k="unitPrice" value="${l.unitPrice}" step="0.001"></td>
         <td><select data-k="vatRate">${C.VAT_RATES.map(r => `<option value="${r}" ${Number(l.vatRate) === r ? 'selected' : ''}>${r}%</option>`).join('')}</select></td>
@@ -12500,6 +12535,7 @@
           ${C.depotsDe(data).length > 1 ? '<button class="btn" id="transfert">Transférer…</button>' : ''}
           <button class="btn btn-primary" id="adj-item">+ Mouvement</button></div></div>
       ${C.depotsDe(data).length > 1 ? `<p class="small mb" id="art-depots">Par dépôt ${info('dep.depots')} : ${C.stockParDepot(data, item.id).map(x => `<b>${h(x.nom)}</b> ${pct(x.qty)}${st.unit ? ' ' + h(C.uniteAccordee(x.qty, st.unit)) : ''}`).join(' · ')}</p>` : ''}
+      ${item.parLot ? `<p class="small mb" id="art-lots">Par lot ${info('lot.parLot')} : ${C.stockParLot(data, item.id).map(x => `<b>${h(x.lot || 'sans lot')}</b> ${pct(x.qty)}${st.unit ? ' ' + h(C.uniteAccordee(x.qty, st.unit)) : ''}${x.peremption ? ` <span class="${x.peremption < C.today() ? 'warn-text' : 'muted'}">(${x.peremption < C.today() ? 'périmé le' : 'périme le'} ${C.fmtDate(x.peremption)})</span>` : ''}`).join(' · ') || 'rien en stock'}</p>` : ''}
       ${st.negative ? `<div class="panel" style="border-inline-start:3px solid var(--danger)"><h2 style="color:var(--danger)">Stock négatif</h2>
         <p class="small">D'après les pièces saisies, il en reste <b>${pct(st.qty)}</b> — ce qui est impossible. Il manque une entrée : un achat non saisi, une quantité mal recopiée, ou un stock de départ oublié. Corrige la pièce en cause plutôt que d'ajuster, sinon l'erreur restera dans les chiffres.</p></div>` : ''}
       <div class="stats">
