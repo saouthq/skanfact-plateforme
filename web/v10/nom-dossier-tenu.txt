@@ -1,0 +1,60 @@
+Le nom et le matricule d'un dossier (brique 57). Format : voir sans-paquets.mjs.
+
+Sur la plateforme, il n'y a pas de paquets : le nom et le matricule d'un client sur SkanFact sont les
+siens (lui seul les change), et ceux d'un dossier tenu par le cabinet se corrigent depuis sa fiche
+(docs/cabinet.md, C47). La fiche le dit, et ses cases suivent : lecture seule pour un client sur
+SkanFact, modifiables pour un dossier tenu.
+
+== cabinet/app.js | le nom d'un client sur SkanFact est le sien : sa case ne s'écrit pas
+-- avant
+        <label class="field obligatoire span-2">${lbl('Nom du client', 'd.name')}<input type="text" id="f-name" value="${esc(d.name || '')}"></label>
+        <label class="field span-2">${lbl('Matricule fiscal', 'd.matricule')}<input type="text" id="f-mat" value="${esc(d.matricule || '')}" placeholder="1234567X/A/M/000" ${d.packs && d.packs.length ? 'readonly' : ''}></label>
+-- après
+        <label class="field obligatoire span-2">${lbl('Nom du client', 'd.name')}<input type="text" id="f-name" value="${esc(d.name || '')}" ${d.id && !d.manual ? 'readonly' : ''}></label>
+        <label class="field span-2">${lbl('Matricule fiscal', 'd.matricule')}<input type="text" id="f-mat" value="${esc(d.matricule || '')}" placeholder="1234567X/A/M/000" ${d.id && !d.manual ? 'readonly' : ''}></label>
+-- fin
+
+== cabinet/app.js | la fiche dit à qui sont le nom et le matricule, sans paquets
+-- avant
+       ${dossier.packs && dossier.packs.length
+         ? `<p class="muted small mt">Le matricule vient des paquets de ce client : c'est lui qui identifie le dossier, il ne se modifie plus ici.</p>`
+         : ''}
+-- après
+       ${!dossier.manual
+         ? `<p class="muted small mt">Ce client est sur SkanFact : son nom et son matricule sont ceux qu'il y a donnés, lui seul les change.</p>`
+         : ''}
+-- fin
+
+== cabinet/app.js | le matricule d'un dossier tenu qui a des mois part avec sa fiche (il n'y a pas de paquets)
+-- avant
+            if (dossier.packs && dossier.packs.length) delete patch.matricule;  // il vient des paquets
+-- après
+            // Le nom et le matricule partent avec la fiche : ceux d'un dossier tenu se corrigent (brique 57).
+-- fin
+
+== cabinet/app.js | un matricule fiscal mal écrit se refuse sur sa case, à la création
+-- avant
+          if (!f.name) return refus($('#f-name', layer), 'Donne au moins un nom à ce client.');
+-- après
+          if (!f.name) return refus($('#f-name', layer), 'Donne au moins un nom à ce client.');
+          if (!matriculeFiscalLisible(f.matricule)) return refus($('#f-mat', layer), MATRICULE_FISCAL_FORME);
+-- fin
+
+== cabinet/app.js | un matricule fiscal mal écrit se refuse sur sa case, dans la fiche d'un dossier tenu
+-- avant
+          if (f.cnssCode && !/^\d{1,4}$/.test(f.cnssCode)) return refus($('#f-cnss-code', layer), 'Le code d\'exploitation tient en quatre chiffres (0000 pour le code ordinaire).');
+-- après
+          if (f.cnssCode && !/^\d{1,4}$/.test(f.cnssCode)) return refus($('#f-cnss-code', layer), 'Le code d\'exploitation tient en quatre chiffres (0000 pour le code ordinaire).');
+          if (dossier.manual && !matriculeFiscalLisible(f.matricule)) return refus($('#f-mat', layer), MATRICULE_FISCAL_FORME);
+-- fin
+
+== cabinet/app.js | la forme d'un matricule fiscal, celle que le serveur garde
+-- avant
+  function readDossierFields(layer) {
+-- après
+  // La forme d'un matricule fiscal (brique 57) : celle que le serveur garde (« 1234567A/B/C/000 »), les
+  // espaces ôtés, un point ou un tiret lus comme une barre ; vide, il n'y en a pas.
+  const MATRICULE_FISCAL_FORME = 'Le matricule fiscal s\'écrit 1234567A/B/C/000 : sept chiffres, trois lettres, trois chiffres. Laisse la case vide si tu ne l\'as pas.';
+  const matriculeFiscalLisible = m => !m || /^[0-9]{7}[A-Z]\/?[A-Z]\/?[A-Z]\/?[0-9]{3}$/.test(String(m).replace(/\s+/g, '').replace(/[.-]/g, '/').toUpperCase());
+  function readDossierFields(layer) {
+-- fin

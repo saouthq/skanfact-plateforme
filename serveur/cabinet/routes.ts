@@ -278,6 +278,22 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       return { statut: 201, corps: { entreprise: id } };
     },
   });
+  // Le nom et le matricule d'un dossier tenu (brique 57, 0033) : un associé les corrige ; ceux d'un
+  // client sur SkanFact sont les siens. Un matricule vide retire le matricule.
+  ajouter({
+    methode: 'PUT', chemin: '/cabinets/:cabinet/dossiers/:dossier', geste: 'compte.cabinet.gerer',
+    corps: z.object({
+      raisonSociale: z.string().trim().min(1).max(200),
+      matriculeFiscal: z.string().trim().toUpperCase().regex(/^([0-9]{7}[A-Z]\/?[A-Z]\/?[A-Z]\/?[0-9]{3})?$/, { message: 'cabinet.champ.matricule' }),
+    }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.dossier).success) return introuvable;
+      const dossier = params.dossier ?? '';
+      const avant = (await tx.query('select socle.renommer_dossier_tenu($1, $2, $3, $4) avant', [params.cabinet, dossier, corps.raisonSociale, corps.matriculeFiscal || null])).rows[0].avant;
+      await tracer(tx, dossier, 'cabinet.dossier_tenu.renommer', dossier, avant, { raisonSociale: corps.raisonSociale, matriculeFiscal: corps.matriculeFiscal || null });
+      return { corps: { entreprise: dossier } };
+    },
+  });
 
   ajouter({
     methode: 'POST', chemin: '/cabinets/:cabinet/mandats/:mandat/accepter', geste: 'compte.cabinet.gerer',

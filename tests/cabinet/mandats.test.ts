@@ -196,6 +196,45 @@ describe('le cabinet et ses mandats', () => {
     expect((await livres(cl.ent, autre.associe)).statut).toBe(404);
   });
 
+  it('le nom et le matricule d\'un dossier tenu : un associé les corrige, tracés ; un collaborateur, non ; ceux d\'un client sur SkanFact, jamais ; un matricule déjà pris, refusé en le disant', async () => {
+    const cab = await cabinet();
+    const revision = await cab.collaborateur('revision');
+    const matricule = () => `${1_000_000 + Math.floor(Math.random() * 8_999_999)}A/P/M/000`;
+    const tenu = String((await appeler('POST', `/cabinets/${cab.id}/dossiers`, cab.associe.jeton, { raisonSociale: 'Boulangerie' })).corps.entreprise);
+    const renommer = (ent: string, p: Personne, corps: unknown) => appeler('PUT', `/cabinets/${cab.id}/dossiers/${ent}`, p.jeton, corps);
+    const m1 = matricule();
+    expect(String((await renommer(tenu, revision, { raisonSociale: 'Boulangerie Ennour', matriculeFiscal: m1 })).corps.motif)).toMatch(/seul un associé du cabinet/i);
+    const r = await renommer(tenu, cab.associe, { raisonSociale: '  Boulangerie Ennour  ', matriculeFiscal: m1.toLowerCase() });
+    expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+    const lu = async () => (await portefeuille(cab.id, cab.associe)).find((d) => d.entreprise === tenu) as unknown as { raisonSociale: string; matriculeFiscal: string | null };
+    expect([(await lu()).raisonSociale, (await lu()).matriculeFiscal]).toEqual(['Boulangerie Ennour', m1]);
+    const trace = (await admin.query(`select avant, apres from socle.audit where entreprise = $1 and geste = 'cabinet.dossier_tenu.renommer'`, [tenu])).rows;
+    expect(trace).toEqual([{ avant: { raisonSociale: 'Boulangerie', matriculeFiscal: null }, apres: { raisonSociale: 'Boulangerie Ennour', matriculeFiscal: m1 } }]);
+    expect((await admin.query('select o.nom from socle.organisation o join socle.entreprise e on e.organisation = o.id where e.id = $1', [tenu])).rows[0].nom).toBe('Boulangerie Ennour');
+    // Son propre matricule n'est pas « déjà pris ».
+    expect((await renommer(tenu, cab.associe, { raisonSociale: 'Boulangerie Ennour', matriculeFiscal: m1 })).statut).toBe(200);
+    // Une forme fausse, un nom vide : refusés ; un matricule vide le retire.
+    expect((await renommer(tenu, cab.associe, { raisonSociale: 'Boulangerie Ennour', matriculeFiscal: '1234567A' })).statut).toBe(400);
+    expect((await renommer(tenu, cab.associe, { raisonSociale: '  ', matriculeFiscal: '' })).statut).toBe(400);
+    expect((await renommer(tenu, cab.associe, { raisonSociale: 'Boulangerie Ennour', matriculeFiscal: '' })).statut).toBe(200);
+    expect((await lu()).matriculeFiscal).toBeNull();
+    // Un matricule déjà porté par une autre entreprise : refusé en le disant, ici comme à la création.
+    const m2 = matricule();
+    expect((await appeler('POST', `/cabinets/${cab.id}/dossiers`, cab.associe.jeton, { raisonSociale: 'Café des Arts', matriculeFiscal: m2 })).statut).toBe(201);
+    const pris = await renommer(tenu, cab.associe, { raisonSociale: 'Boulangerie Ennour', matriculeFiscal: m2 });
+    expect([pris.statut, String(pris.corps.motif)]).toEqual([403, expect.stringMatching(/ce matricule fiscal est déjà celui d'une entreprise sur SkanFact/i)]);
+    const double = await appeler('POST', `/cabinets/${cab.id}/dossiers`, cab.associe.jeton, { raisonSociale: 'Autre café', matriculeFiscal: m2 });
+    expect([double.statut, String(double.corps.motif)]).toEqual([403, expect.stringMatching(/ce matricule fiscal est déjà celui/i)]);
+    // Un client sur SkanFact : son nom est le sien.
+    const cl = await client();
+    const mandat = String((await appeler('POST', `/entreprises/${cl.ent}/mandat`, cl.jeton, { codeCabinet: cab.code })).corps.mandat);
+    await appeler('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, cab.associe.jeton);
+    expect(String((await renommer(cl.ent, cab.associe, { raisonSociale: 'Autre nom', matriculeFiscal: '' })).corps.motif)).toMatch(/ce client est sur SkanFact : son nom et son matricule sont les siens/i);
+    // Un dossier hors du portefeuille : il n'existe pas pour ce cabinet.
+    const autre = await cabinet();
+    expect(String((await appeler('PUT', `/cabinets/${autre.id}/dossiers/${tenu}`, autre.associe.jeton, { raisonSociale: 'X', matriculeFiscal: '' })).corps.motif)).toMatch(/pas au portefeuille/i);
+  });
+
   it('retirer un dossier : un dossier tenu sans écriture sort du portefeuille ; avec une écriture, refusé ; un client sur SkanFact garde ses livres', async () => {
     const cab = await cabinet();
     const cree = async (nom: string) => String((await appeler('POST', `/cabinets/${cab.id}/dossiers`, cab.associe.jeton, { raisonSociale: nom })).corps.entreprise);

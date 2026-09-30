@@ -1758,6 +1758,7 @@ prouver "un commercial qui valide" serveur/compta/gestes.ts \
 # ── Le cabinet côté serveur (0019, brique 36) ───────────────────────────────────────────────────
 M19=base/migrations/0019_cabinet.sql
 M32=base/migrations/0032_cabinet_retirer_dossier.sql
+M33=base/migrations/0033_cabinet_dossier_tenu_nom.sql
 CM="le propriétaire choisit son cabinet par son code"
 CT="le dossier tenu : l'associé le crée"
 CJ="le cabinet ne fait jamais chez son client ce qui est au client"
@@ -1812,10 +1813,10 @@ prouver "l'assistant de saisie qui valide, à la porte" serveur/compta/gestes.ts
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } }," \
   "$CM"
-prouver "un dossier tenu créé par un collaborateur" $M19 \
+prouver "un dossier tenu créé par un collaborateur" $M33 \
   "  if not socle.suis_associe(p_cabinet) then perform socle.refus('seul un associé du cabinet crée un dossier'); end if;" "" \
   "$CT"
-prouver "un dossier tenu sans tout son périmètre" $M19 \
+prouver "un dossier tenu sans tout son périmètre" $M33 \
   "array['comptabilite', 'declarations', 'saisie_achats', 'paie'], 'actif');" "array['comptabilite'], 'actif');" \
   "$CT"
 prouver "un matricule mal formé qui fait tomber le serveur" serveur/cabinet/routes.ts \
@@ -3286,6 +3287,58 @@ prouver "la confirmation qui dit encore Supprimer" web/public/v10/cabinet/app.js
 prouver "la confirmation qui tait la règle du dossier tenu" web/public/v10/cabinet/app.js \
   "Tu tiens ce dossier pour un client hors SkanFact : il ne se retire que" "Tu tiens ce dossier pour un client hors SkanFact : il se retire même" \
   "$RD2"
+
+# ── Brique 57 : le nom et le matricule d'un dossier tenu (docs/cabinet.md, C47) ──
+NT1="le nom et le matricule d'un dossier tenu : un associé les corrige, tracés ; un collaborateur, non ; ceux d'un client sur SkanFact, jamais ; un matricule déjà pris, refusé en le disant"
+NT2="le dossier tenu se renomme et reçoit son matricule ; celui d'un client sur SkanFact reste le sien"
+prouver "le nom d'un client sur SkanFact changé par son cabinet" $M33 \
+  "  if e.tenue_par is distinct from p_cabinet then" "  if false then" \
+  "$NT1"
+prouver "un dossier renommé hors du portefeuille" $M33 \
+  "  if not found or not exists (select 1 from socle.mandat m where m.cabinet = p_cabinet and m.entreprise = p_entreprise and m.statut = 'actif') then" "  if not found then" \
+  "$NT1"
+prouver "un matricule déjà pris, renommé sans un mot" $M33 \
+  "  perform socle.exiger_matricule_libre(p_matricule, p_entreprise);" "" \
+  "$NT1"
+prouver "un matricule déjà pris, créé sans un mot" $M33 \
+  "  perform socle.exiger_matricule_libre(p_matricule, null);" "" \
+  "$NT1"
+prouver "son propre matricule compté comme déjà pris" $M33 \
+  "e.matricule_fiscal = p_matricule and e.id is distinct from p_sauf" "e.matricule_fiscal = p_matricule" \
+  "$NT1"
+prouver "l'organisation du dossier qui garde l'ancien nom" $M33 \
+  "  update socle.organisation set nom = v_nom where id = e.organisation;" "" \
+  "$NT1"
+prouver "un matricule vidé écrit comme une chaîne vide" $CR \
+  "[params.cabinet, dossier, corps.raisonSociale, corps.matriculeFiscal || null]" "[params.cabinet, dossier, corps.raisonSociale, corps.matriculeFiscal]" \
+  "$NT1"
+prouver "un dossier renommé sans trace" $CR \
+  "      await tracer(tx, dossier, 'cabinet.dossier_tenu.renommer', dossier, avant," "      void (tx, dossier, 'cabinet.dossier_tenu.renommer', dossier, avant," \
+  "$NT1"
+prouver "le nom d'un dossier tenu que l'écran n'envoie pas" $PC \
+  '        await appel('"'"'PUT'"'"', `/cabinets/${cabinetId}/dossiers/${id}`, { raisonSociale: nom, matriculeFiscal: matricule });' "" \
+  "$NT2"
+prouver "un matricule à points envoyé tel quel" $PC \
+  "String(patch.matricule).replace(/\\s+/g, '').replace(/[.-]/g, '/').toUpperCase()" "String(patch.matricule).replace(/\\s+/g, '').toUpperCase()" \
+  "$NT2"
+prouver "le nom d'un client sur SkanFact qui s'écrit" web/public/v10/cabinet/app.js \
+  "id=\"f-name\" value=\"\${esc(d.name || '')}\" \${d.id && !d.manual ? 'readonly' : ''}>" "id=\"f-name\" value=\"\${esc(d.name || '')}\">" \
+  "$NT2"
+prouver "le matricule d'un dossier tenu figé par ses mois" web/public/v10/cabinet/app.js \
+  "placeholder=\"1234567X/A/M/000\" \${d.id && !d.manual ? 'readonly' : ''}>" "placeholder=\"1234567X/A/M/000\" \${d.packs && d.packs.length ? 'readonly' : ''}>" \
+  "$NT2"
+prouver "la fiche qui parle encore de paquets" web/public/v10/cabinet/app.js \
+  "Ce client est sur SkanFact : son nom et son matricule sont ceux qu'il y a donnés, lui seul les change." "Le matricule vient des paquets de ce client : c'est lui qui identifie le dossier, il ne se modifie plus ici." \
+  "$NT2"
+prouver "le matricule d'un dossier tenu retiré de sa fiche" web/public/v10/cabinet/app.js \
+  "            // Le nom et le matricule partent avec la fiche : ceux d'un dossier tenu se corrigent (brique 57)." "            if (dossier.packs && dossier.packs.length) delete patch.matricule;" \
+  "$NT2"
+prouver "un matricule mal écrit refusé loin de sa case, à la création" web/public/v10/cabinet/app.js \
+  "          if (!matriculeFiscalLisible(f.matricule)) return refus(" "          if (false) return refus(" \
+  "$NT2"
+prouver "un matricule mal écrit refusé loin de sa case, dans la fiche" web/public/v10/cabinet/app.js \
+  "          if (dossier.manual && !matriculeFiscalLisible(f.matricule)) return refus(" "          if (false) return refus(" \
+  "$NT2"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

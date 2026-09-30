@@ -684,8 +684,8 @@ avec une prime, le même net à l'écran et au serveur, l'écriture du mois déj
 - La base laisse encore un membre du cabinet lire par une requête directe tout le dossier v10 d'un
   client dont il a un mandat (les routes, elles, ne l'ouvrent pas) : resserrer sa sécurité par ligne
   demande de revoir ce que les écritures du serveur y lisent (le plan, les avances). À décider.
-- Les barèmes de paie propres à un dossier (le réglage « paie » de sa fiche au Cabinet v10) : le
-  barème général s'applique.
+- Les barèmes de paie propres à un dossier (le réglage « paie » de sa fiche au Cabinet v10) : les taux
+  par contrat, faits à la brique 55 (C45).
 
 ## Brique 44 : la révision et les questions au client (fait le 29/09/2026)
 
@@ -1182,3 +1182,36 @@ portefeuille ; le dossier vide retiré, absent de la liste.
 - Un dossier tenu qui a des écritures ne se retire jamais : le jour où le client hors SkanFact repart
   avec sa comptabilité, il faudra l'exporter pour lui (l'export d'une entreprise existe, brique 9 ; son
   chemin depuis le Cabinet reste à écrire).
+
+## Brique 57 : le nom et le matricule d'un dossier tenu (fait le 30/09/2026)
+
+**C47. Le cabinet corrige le nom et le matricule d'un dossier qu'il tient ; jamais ceux d'un client sur
+SkanFact** (par délégation). Jusqu'ici, la fiche d'un dossier refusait tout changement de nom ou de
+matricule (« pas encore depuis la version en ligne »), et disait même, pour un dossier tenu qui avait
+des mois, « Le matricule vient des paquets de ce client » — une phrase que rien ne tenait, la case figée.
+Un cabinet qui avait créé un client sans son matricule ne pouvait plus le lui donner. Désormais :
+- un dossier **tenu** par le cabinet : un associé corrige son nom et son matricule depuis la fiche
+  (`socle.renommer_dossier_tenu`, 0033 ; `PUT /cabinets/:c/dossiers/:d`) ; le changement se trace chez
+  le dossier (avant, après) ; un matricule vide retire le matricule ;
+- un client **sur SkanFact** : son nom et son matricule sont les siens. La fiche ne les laisse pas écrire
+  et dit pourquoi (« Ce client est sur SkanFact : son nom et son matricule sont ceux qu'il y a donnés,
+  lui seul les change ») ; le serveur le refuse aussi ;
+- un matricule mal écrit se refuse **sur sa case**, à la création comme dans la fiche (sept chiffres,
+  trois lettres, trois chiffres ; les espaces ôtés, un point ou un tiret lus comme une barre) ;
+- un matricule déjà porté par une autre entreprise sur SkanFact se refuse en le disant (« si c'est ton
+  client, qu'il te propose le mandat avec le code de ton cabinet »), à la création comme ici : la base
+  le refusait jusque-là sans un mot.
+
+**Les tests** : par l'API (`tests/cabinet/mandats.test.ts`) : un associé renomme et donne le matricule
+(la trace, le nom de l'organisation), son propre matricule n'est pas « déjà pris », une forme fausse et
+un nom vide refusés, un matricule vidé ; un matricule déjà pris refusé au renommage et à la création ; un
+collaborateur refusé ; le client sur SkanFact refusé ; un autre cabinet, « pas au portefeuille ». À la
+souris (`tests/web/cabinet-nom-dossier.test.ts`) : un dossier tenu qui a des mois, ni « paquet » ni case
+figée ; un matricule mal écrit refusé sur sa case, rien d'écrit ; un matricule à points et en minuscules
+gardé dans sa forme, avec le nouveau nom, lu dans l'en-tête ; un nouveau client au matricule faux refusé
+sur sa case, rien de créé ; le client sur SkanFact, ses cases en lecture seule, la phrase qui dit
+pourquoi, sa fiche (l'adresse) qui s'enregistre quand même.
+
+**Reste connu** :
+- Les cases en lecture seule d'un client sur SkanFact ont l'air des autres : la phrase sous la fiche le
+  dit, rien ne les grise encore.

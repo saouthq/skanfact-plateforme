@@ -8475,8 +8475,8 @@
   // ---------- les formulaires de dossier ----------
   function dossierFields(d) {
     return `<div class="grid-2">
-        <label class="field obligatoire span-2">${lbl('Nom du client', 'd.name')}<input type="text" id="f-name" value="${esc(d.name || '')}"></label>
-        <label class="field span-2">${lbl('Matricule fiscal', 'd.matricule')}<input type="text" id="f-mat" value="${esc(d.matricule || '')}" placeholder="1234567X/A/M/000" ${d.packs && d.packs.length ? 'readonly' : ''}></label>
+        <label class="field obligatoire span-2">${lbl('Nom du client', 'd.name')}<input type="text" id="f-name" value="${esc(d.name || '')}" ${d.id && !d.manual ? 'readonly' : ''}></label>
+        <label class="field span-2">${lbl('Matricule fiscal', 'd.matricule')}<input type="text" id="f-mat" value="${esc(d.matricule || '')}" placeholder="1234567X/A/M/000" ${d.id && !d.manual ? 'readonly' : ''}></label>
         <label class="field">${lbl('Email', 'd.email')}<input type="email" id="f-email" value="${esc(d.email || '')}" placeholder="Pour les relances"></label>
         <label class="field">${lbl('Téléphone', 'd.phone')}<input type="tel" id="f-phone" value="${esc(d.phone || '')}" placeholder="+216 …"></label>
         <label class="field span-2">${lbl('Interlocuteur', 'd.contact')}<input type="text" id="f-contact" value="${esc(d.contact || '')}" placeholder="La personne que tu appelles"></label>
@@ -8492,6 +8492,10 @@
       <label class="field mt">${lbl('Note interne', 'd.note')}<textarea id="f-note" rows="3">${esc(d.note || '')}</textarea></label>`;
   }
 
+  // La forme d'un matricule fiscal (brique 57) : celle que le serveur garde (« 1234567A/B/C/000 »), les
+  // espaces ôtés, un point ou un tiret lus comme une barre ; vide, il n'y en a pas.
+  const MATRICULE_FISCAL_FORME = 'Le matricule fiscal s\'écrit 1234567A/B/C/000 : sept chiffres, trois lettres, trois chiffres. Laisse la case vide si tu ne l\'as pas.';
+  const matriculeFiscalLisible = m => !m || /^[0-9]{7}[A-Z]\/?[A-Z]\/?[A-Z]\/?[0-9]{3}$/.test(String(m).replace(/\s+/g, '').replace(/[.-]/g, '/').toUpperCase());
   function readDossierFields(layer) {
     const from = K.moisTape($('#f-from', layer).value);
     return {
@@ -8528,6 +8532,7 @@
           const f = readDossierFields(layer);
           // Un refus MONTRE la case (7.0.0, 10.12.0) : le curseur y va, elle se marque.
           if (!f.name) return refus($('#f-name', layer), 'Donne au moins un nom à ce client.');
+          if (!matriculeFiscalLisible(f.matricule)) return refus($('#f-mat', layer), MATRICULE_FISCAL_FORME);
           const mois = K.moisTape($('#f-from', layer).value);
           if (!mois.ok) return refus($('#f-from', layer), mois.motif);
           try {
@@ -8611,8 +8616,8 @@
       `<h2>Fiche du dossier</h2>
        ${dossierFields(dossier)}
        <label class="inline small mt"><input type="checkbox" id="f-arch" ${dossier.archived ? 'checked' : ''}> ${lbl('Dossier archivé (client parti : on ne le réclame plus)', 'd.archived')}</label>
-       ${dossier.packs && dossier.packs.length
-         ? `<p class="muted small mt">Le matricule vient des paquets de ce client : c'est lui qui identifie le dossier, il ne se modifie plus ici.</p>`
+       ${!dossier.manual
+         ? `<p class="muted small mt">Ce client est sur SkanFact : son nom et son matricule sont ceux qu'il y a donnés, lui seul les change.</p>`
          : ''}
        <div class="modal-actions">
          <button class="btn btn-danger" id="del">Retirer du portefeuille…</button>
@@ -8643,11 +8648,12 @@
           // n'arriverait qu'au fichier du trimestre, le jour de l'échéance.
           if (f.cnssEmployeur && !KC.lireMatriculeCnss(f.cnssEmployeur).ok) return refus($('#f-cnss', layer), 'Le matricule CNSS s\'écrit 123456-72 : huit chiffres au plus, puis la clé sur deux.');
           if (f.cnssCode && !/^\d{1,4}$/.test(f.cnssCode)) return refus($('#f-cnss-code', layer), 'Le code d\'exploitation tient en quatre chiffres (0000 pour le code ordinaire).');
+          if (dossier.manual && !matriculeFiscalLisible(f.matricule)) return refus($('#f-mat', layer), MATRICULE_FISCAL_FORME);
           const mois = K.moisTape($('#f-from', layer).value);
           if (!mois.ok) return refus($('#f-from', layer), mois.motif);
           try {
             const patch = { ...f, archived: $('#f-arch', layer).checked };
-            if (dossier.packs && dossier.packs.length) delete patch.matricule;  // il vient des paquets
+            // Le nom et le matricule partent avec la fiche : ceux d'un dossier tenu se corrigent (brique 57).
             const r = await api.saveDossier(dossier.id, patch);
             S = r.state;
             close();

@@ -1678,7 +1678,7 @@
     newDossier: async (/** @type {Record<string, unknown>} */ f) => {
       const nom = String(f.name || '').trim();
       if (!nom) throw new Error('Donne au moins un nom à ce client.');
-      const matricule = String(f.matricule || '').replace(/\s+/g, '').toUpperCase();
+      const matricule = String(f.matricule || '').replace(/\s+/g, '').replace(/[.-]/g, '/').toUpperCase();
       const cree = await appel('POST', `/cabinets/${cabinetId}/dossiers`, { raisonSociale: nom, ...(matricule ? { matriculeFiscal: matricule } : {}) });
       await poserFiche(cree.entreprise, f, null);
       return { state: await construireEtat(), id: cree.entreprise };
@@ -1705,9 +1705,13 @@
     saveDossier: async (/** @type {string} */ id, /** @type {Record<string, unknown>} */ patch) => {
       const d = dossiers.get(id);
       if (!d) throw new Error('Dossier introuvable.');
-      // Le nom et le matricule sont ceux de l'entreprise : ils ne se changent pas depuis la fiche.
-      if ((patch.name != null && String(patch.name).trim() !== d.name) || (patch.matricule != null && String(patch.matricule).trim() !== d.matricule)) {
-        throw new Error('Le nom et le matricule d\'un dossier sont ceux de l\'entreprise : ils ne se changent pas encore depuis la version en ligne. Rien n\'a été enregistré.');
+      // Le nom et le matricule sont ceux de l'entreprise (brique 57, C47) : ceux d'un dossier tenu se
+      // corrigent par le serveur, avant la fiche ; ceux d'un client sur SkanFact sont les siens (l'écran
+      // ne les laisse pas écrire, et le serveur le refuse).
+      const nom = patch.name != null ? String(patch.name).trim() : d.name;
+      const matricule = patch.matricule != null ? String(patch.matricule).replace(/\s+/g, '').replace(/[.-]/g, '/').toUpperCase() : d.matricule;
+      if (nom !== d.name || matricule !== d.matricule) {
+        await appel('PUT', `/cabinets/${cabinetId}/dossiers/${id}`, { raisonSociale: nom, matriculeFiscal: matricule });
       }
       const f = fiches.get(id);
       await poserFiche(id, { ...(f ? depuisFiche(f.contenu) : {}), ...patch }, f ? f.revision : null);

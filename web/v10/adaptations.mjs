@@ -353,4 +353,5 @@ export const ADAPTATIONS = [
   ...lireFichier('equipe-visite.txt'),
   ...lireFichier('paie-regimes.txt'),
   ...lireFichier('retirer-dossier.txt'),
+  ...lireFichier('nom-dossier-tenu.txt'),
 ];
