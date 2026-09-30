@@ -1,0 +1,48 @@
+La liasse d'un exercice clos (brique 59). Format : voir sans-paquets.mjs.
+
+Sur la plateforme, un exercice clos fige sa liasse : ses retraitements et son taux d'impôt ne changent
+plus (la base le refuse, 0034 ; docs/cabinet.md, C49). L'onglet le dit AVANT le geste : ni case de taux
+à enregistrer, ni ligne à ajouter ou retirer, et la phrase qui dit comment rouvrir.
+
+== cabinet/app.js | la liasse sait si son exercice est clos
+-- avant
+  function vueLiasse(dossier) {
+    const s = livresState;
+    const L = s.liasse;
+-- après
+  function vueLiasse(dossier) {
+    const s = livresState;
+    const L = s.liasse;
+    const liasseClose = !!(L && L.clos);  // le même drapeau que le badge « clos » de l'en-tête
+-- fin
+
+== cabinet/app.js | le taux d'un exercice clos ne s'enregistre plus : l'onglet dit comment rouvrir
+-- avant
+      <div class="inline mt">
+        <label class="field narrow"><span>Taux d'impôt (%) ${info('li.taux')}</span>
+          <input type="text" id="li-taux" value="${esc(taux(L.tauxImpot))}" placeholder="vide = aucun"></label>
+        <button class="btn btn-sm" id="li-taux-ok">Enregistrer le taux</button>
+      </div>
+-- après
+      ${liasseClose
+    ? `<p class="small mt" id="li-close"><b>L'exercice ${esc(String(s.annee))} est clos</b> : sa liasse ne change plus. Pour changer un retraitement ou le taux, rouvre-le dans l'onglet <b>Exercice</b> (avec un motif).</p>`
+    : `<div class="inline mt">
+        <label class="field narrow"><span>Taux d'impôt (%) ${info('li.taux')}</span>
+          <input type="text" id="li-taux" value="${esc(taux(L.tauxImpot))}" placeholder="vide = aucun"></label>
+        <button class="btn btn-sm" id="li-taux-ok">Enregistrer le taux</button>
+      </div>`}
+-- fin
+
+== cabinet/app.js | un retraitement d'un exercice clos ne se retire plus
+-- avant
+          <td class="row-actions"><button type="button" class="btn btn-sm" data-rtx="${esc(r.id)}">Retirer la ligne</button></td></tr>`).join('')}</tbody></table>`
+-- après
+          ${liasseClose ? '<td></td>' : `<td class="row-actions"><button type="button" class="btn btn-sm" data-rtx="${esc(r.id)}">Retirer la ligne</button></td>`}</tr>`).join('')}</tbody></table>`
+-- fin
+
+== cabinet/app.js | un retraitement ne s'ajoute plus à un exercice clos
+-- avant
+      <div class="sous-table"><button class="btn btn-sm" id="li-rt-add">Ajouter un retraitement…</button></div>
+-- après
+      ${liasseClose ? '' : '<div class="sous-table"><button class="btn btn-sm" id="li-rt-add">Ajouter un retraitement…</button></div>'}
+-- fin

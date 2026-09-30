@@ -218,6 +218,8 @@
     avant la fiche ; un matricule déjà pris se refuse en le disant (`exiger_matricule_libre`).
   - **Un geste réservé au cabinet sous mandat** (brique 58, C48) : `auCabinet` sur un geste (la validation :
     `comptabilite`) ; la porte refuse alors à l'entreprise en nommant le cabinet, sans liste ni bouton.
+  - **La liasse d'un exercice clos** (brique 59, 0034, C49) : `poser_annuel` refuse une année close ;
+    l'onglet Liasse le dit avant le geste (`liasse-close.txt`, drapeau `clos` de la liasse, lu au serveur).
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

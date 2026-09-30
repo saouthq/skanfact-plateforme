@@ -4729,6 +4729,7 @@
   function vueLiasse(dossier) {
     const s = livresState;
     const L = s.liasse;
+    const liasseClose = !!(L && L.clos);  // le même drapeau que le badge « clos » de l'en-tête
     if (!L) return `<div class="empty mini">Lecture de la liasse…</div>`;
     if (L.erreur) return lectureRatee(L.erreur, 'liasse');
     const li = L.liasse, f = L.fiscal;
@@ -4791,19 +4792,21 @@
       </tbody></table>
       <p class="small muted mt">Le <b>minimum d'impôt</b> n'est pas calculé : il dépend d'une règle de droit que
       personne n'a confirmée ici, et un chiffre inventé sur une déclaration coûte plus cher qu'une case vide.</p>
-      <div class="inline mt">
+      ${liasseClose
+    ? `<p class="small mt" id="li-close"><b>L'exercice ${esc(String(s.annee))} est clos</b> : sa liasse ne change plus. Pour changer un retraitement ou le taux, rouvre-le dans l'onglet <b>Exercice</b> (avec un motif).</p>`
+    : `<div class="inline mt">
         <label class="field narrow"><span>Taux d'impôt (%) ${info('li.taux')}</span>
           <input type="text" id="li-taux" value="${esc(taux(L.tauxImpot))}" placeholder="vide = aucun"></label>
         <button class="btn btn-sm" id="li-taux-ok">Enregistrer le taux</button>
-      </div>
+      </div>`}
       <h3 class="eyebrow mt">Retraitements</h3>
       ${L.retraitements.length
     ? `<table class="list compact" id="li-rt-table"><tbody>${L.retraitements.map(r => `<tr>
           <td class="nw small">${esc(nature(r.nature))}</td><td>${esc(r.libelle)}</td>
           <td class="r nw">${money0(r.montant)}</td>
-          <td class="row-actions"><button type="button" class="btn btn-sm" data-rtx="${esc(r.id)}">Retirer la ligne</button></td></tr>`).join('')}</tbody></table>`
+          ${liasseClose ? '<td></td>' : `<td class="row-actions"><button type="button" class="btn btn-sm" data-rtx="${esc(r.id)}">Retirer la ligne</button></td>`}</tr>`).join('')}</tbody></table>`
     : '<div class="empty mini">Aucun retraitement. Ce qui se réintègre et ce qui se déduit dépend du droit : chaque ligne se saisit, rien n\'est proposé.</div>'}
-      <div class="sous-table"><button class="btn btn-sm" id="li-rt-add">Ajouter un retraitement…</button></div>
+      ${liasseClose ? '' : '<div class="sous-table"><button class="btn btn-sm" id="li-rt-add">Ajouter un retraitement…</button></div>'}
     </div>
 
     <div class="panel"><h2>Déclaration annuelle d'employeur ${info('li.employeur')}</h2>

@@ -115,6 +115,21 @@ describe('la liasse et l\'annuel', () => {
     expect([await vus(d.collaborateur), await vus(voisine)]).toEqual([1, 0]);
   });
 
+  it('un exercice clos fige sa liasse : ni retraitement ni taux ne changent ; rouvert avec un motif, ils changent de nouveau', async () => {
+    const d = await dossier();
+    expect((await poser(d.ent, d.associe, { retraitements: [AMENDE], tauxImpot: '22,5', revision: null }, 2025)).corps).toEqual({ revision: 1 });
+    const clos = await appeler('POST', `/entreprises/${d.ent}/compta/exercices/2025/cloturer`, d.associe.jeton, {});
+    expect(clos.statut, JSON.stringify(clos.corps)).toBe(200);
+    const refus = await poser(d.ent, d.associe, { tauxImpot: '25', revision: 1 }, 2025);
+    expect([refus.statut, refus.corps.motif]).toEqual([403, 'L\'exercice 2025 est clos : sa liasse ne change plus. Rouvre-le (onglet Exercice, avec un motif) pour changer un retraitement ou le taux.']);
+    expect(await annuel(d.ent, d.associe, 2025)).toMatchObject({ tauxImpot: '22.5', revision: 1 });
+    // L'année d'après, ouverte, se prépare toujours.
+    expect((await poser(d.ent, d.associe, { tauxImpot: '25', revision: null }, 2026)).statut).toBe(200);
+    // Rouvert avec un motif : la liasse change de nouveau.
+    expect((await appeler('POST', `/entreprises/${d.ent}/compta/exercices/2025/rouvrir`, d.associe.jeton, { motif: 'Le taux d\'impôt était faux' })).statut).toBe(200);
+    expect((await poser(d.ent, d.associe, { tauxImpot: '25', revision: 1 }, 2025)).corps).toEqual({ revision: 2 });
+  });
+
   it('qui peut : le propriétaire et l\'associé ; ni le collaborateur ni l\'assistant ; la porte et la base', async () => {
     const d = await dossier();
     const refus = await poser(d.ent, d.collaborateur, { tauxImpot: '25', revision: null });

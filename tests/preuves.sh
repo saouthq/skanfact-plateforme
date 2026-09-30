@@ -2497,24 +2497,25 @@ prouver "la visite de l'export encore absente" $PC \
 
 # ── Brique 41 ter : la liasse et l'annuel (docs/cabinet.md, C26 et C27) ──
 M25=base/migrations/0025_compta_annuel.sql
+M34=base/migrations/0034_compta_liasse_close.sql
 ANS=serveur/compta/annuel.ts
 AN1="retraitements et taux : posés et relus au millime ; ce qui n'est pas envoyé ne change pas ; ce qui ne se lit pas se refuse ; changés ailleurs, jamais écrasés ; une voisine n'en lit rien"
 AN2="qui peut : le propriétaire et l'associé ; ni le collaborateur ni l'assistant ; la porte et la base"
 AN3="le modèle de liasse du cabinet : ses rubriques, rien d'autre"
 WL1="le résultat des livres du serveur ; le taux et un retraitement font le résultat fiscal et l'impôt ; le modèle de rubriques s'écrit"
-prouver "un retraitement de nature inconnue" $M25 \
+prouver "un retraitement de nature inconnue" $M34 \
   "    if coalesce(r->>'nature', '') not in ('reintegration', 'deduction', 'deficit', 'amortissement') then" "    if false then" \
   "$AN1"
-prouver "un retraitement sans libellé" $M25 \
+prouver "un retraitement sans libellé" $M34 \
   "    if length(trim(coalesce(r->>'libelle', ''))) = 0 or length(r->>'libelle') > 200 then" "    if false then" \
   "$AN1"
-prouver "un retraitement nul, à virgule ou en texte" $M25 \
+prouver "un retraitement nul, à virgule ou en texte" $M34 \
   "    if jsonb_typeof(r->'montant') <> 'number' or not socle.sans_virgule(r->'montant') or (r->>'montant')::numeric <= 0 then" "    if false then" \
   "$AN1"
-prouver "un taux d'impôt hors de 0 à 100" $M25 \
+prouver "un taux d'impôt hors de 0 à 100" $M34 \
   "  if p_taux is not null and (p_taux < 0 or p_taux > 1000000) then perform socle.refus(" "  if false then perform socle.refus(" \
   "$AN1"
-prouver "une liasse changée ailleurs, écrasée" $M25 \
+prouver "une liasse changée ailleurs, écrasée" $M34 \
   "  if coalesce(a.revision, 0) <> coalesce(p_revision, 0) then" "  if false then" \
   "$AN1"
 prouver "la liasse d'une voisine lue" $M25 \
@@ -2535,7 +2536,7 @@ prouver "un retraitement relu en millimes bruts" $ANS \
 prouver "le collaborateur qui prépare la liasse, dans la base" $M25 \
   "'comptabilite' = any(socle.perimetre_cabinet(p_entreprise)) and 'supervision' = any(socle.mes_roles(p_entreprise))" "'comptabilite' = any(socle.perimetre_cabinet(p_entreprise)) and socle.mes_roles(p_entreprise) && array['supervision', 'revision']::text[]" \
   "$AN2"
-prouver "poser la liasse sans le garde, dans la base" $M25 \
+prouver "poser la liasse sans le garde, dans la base" $M34 \
   "  if not compta.peut_liasse(p_entreprise) then perform socle.refus('ton rôle ne permet pas de préparer la liasse de ce dossier'); end if;" "" \
   "$AN2"
 prouver "la porte qui laisse le collaborateur préparer la liasse" serveur/compta/gestes.ts \
@@ -3354,6 +3355,30 @@ prouver "un mandat de paie qui prend la validation" serveur/porte/porte.ts \
 prouver "un mandat proposé qui prend la validation" serveur/porte/porte.ts \
   "where d.entreprise = \$1 and d.statut = 'actif' and \$2 = any(d.perimetre)\`" "where d.entreprise = \$1 and \$2 = any(d.perimetre)\`" \
   "$PM1"
+
+# ── Brique 59 : un exercice clos fige sa liasse (docs/cabinet.md, C49) ──
+LC1="un exercice clos fige sa liasse : ni retraitement ni taux ne changent ; rouvert avec un motif, ils changent de nouveau"
+LC2="un exercice clos montre sa liasse sans rien laisser changer, et dit comment rouvrir"
+prouver "la liasse d'un exercice clos qui change encore" $M34 \
+  "  if exists (select 1 from compta.exercice x where x.entreprise = p_entreprise and x.annee = p_annee and x.clos_le is not null) then" "  if false then" \
+  "$LC1"
+prouver "un exercice clos qui fige aussi l'année d'après" $M34 \
+  "x.entreprise = p_entreprise and x.annee = p_annee and x.clos_le is not null" "x.entreprise = p_entreprise and x.clos_le is not null" \
+  "$LC1"
+prouver "la liasse qui se dit toujours ouverte" $PC \
+  "etats: KC.LIASSE_ETATS, clos: !!(livre.exercice && livre.exercice.clos)," "etats: KC.LIASSE_ETATS, clos: false," \
+  "$LC2"
+prouver "le taux d'un exercice clos qui s'offre encore" web/public/v10/cabinet/app.js \
+  "      \${liasseClose
+    ? \`<p class=\"small mt\" id=\"li-close\">" "      \${false
+    ? \`<p class=\"small mt\" id=\"li-close\">" \
+  "$LC2"
+prouver "un retraitement d'un exercice clos qui se retire encore" web/public/v10/cabinet/app.js \
+  "          \${liasseClose ? '<td></td>' : \`" "          \${false ? '<td></td>' : \`" \
+  "$LC2"
+prouver "un retraitement qui s'ajoute encore à un exercice clos" web/public/v10/cabinet/app.js \
+  "      \${liasseClose ? '' : '<div class=\"sous-table\">" "      \${false ? '' : '<div class=\"sous-table\">" \
+  "$LC2"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

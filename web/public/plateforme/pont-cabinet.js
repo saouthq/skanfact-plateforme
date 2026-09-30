@@ -1291,7 +1291,7 @@
         fiscal: KC.resultatFiscal(liasse.resultat, annuel.retraitements, { taux: annuel.tauxImpot }),
         employeur: KC.employeurAnnuel(livre, {}),
         retraitements: annuel.retraitements, tauxImpot: annuel.tauxImpot,
-        natures: KC.RETRAITEMENTS, modele, etats: KC.LIASSE_ETATS, clos: false,
+        natures: KC.RETRAITEMENTS, modele, etats: KC.LIASSE_ETATS, clos: !!(livre.exercice && livre.exercice.clos),
       };
     },
     fiscalAnnuel: async (/** @type {any} */ o) => {

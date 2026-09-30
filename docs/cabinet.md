@@ -593,7 +593,7 @@ renommée, et la liasse qui la montre.
 **Reste connu** :
 - La déclaration annuelle d'employeur ne lit que les comptes (les bulletins de la paie tenue par le
   cabinet : brique 43).
-- Un exercice clos (la clôture : brique 45) ne verrouille pas encore la liasse.
+- Un exercice clos (la clôture : brique 45) verrouille sa liasse depuis la brique 59 (C49).
 
 ## Brique 42 : les immobilisations (fait le 29/09/2026)
 
@@ -1235,3 +1235,28 @@ toujours le refus de la base (« c'est le cabinet qui valide »).
 **Les tests** : par l'API (`tests/cabinet/mandats.test.ts`) : un commercial, sous un mandat de
 comptabilité, refusé en nommant le cabinet, sans personne ni bouton ; sous un mandat de paie seule, et
 sous un mandat seulement proposé, le refus nomme le propriétaire.
+
+## Brique 59 : un exercice clos fige sa liasse (fait le 30/09/2026)
+
+**C49. Les retraitements et le taux d'impôt d'une année close ne changent plus** (par délégation). La
+clôture (brique 45, 0029) arrête les livres d'une année : plus une écriture n'y entre. Ses retraitements
+fiscaux et son taux d'impôt (brique 41 ter, 0025) restaient pourtant modifiables : le résultat fiscal et
+l'impôt d'une année close pouvaient changer sans réouverture, donc sans motif ni trace de réouverture.
+Désormais la base les refuse (`compta.poser_annuel`, 0034) : « L'exercice 2025 est clos : sa liasse ne
+change plus. Rouvre-le (onglet Exercice, avec un motif) pour changer un retraitement ou le taux. »
+Rouvert, l'exercice rend sa liasse modifiable ; l'année d'après, ouverte, ne l'est jamais moins.
+
+L'onglet Liasse le dit **avant** le geste (adaptation `liasse-close.txt`) : sur un exercice clos, ni case
+de taux à enregistrer, ni retraitement à ajouter ou retirer, et la phrase qui dit comment rouvrir ; les
+retraitements gardés se lisent toujours. Le modèle de rubriques, lui, est celui du cabinet pour tous ses
+clients : il reste réglable.
+
+**Un défaut corrigé au passage** : l'en-tête de la liasse disait toujours « Exercice 2025 **ouvert** »,
+même clos (le point de contact répondait `clos: false`), quand l'onglet Exercice disait « clos ». Les
+deux lisent désormais l'exercice du serveur.
+
+**Les tests** : par l'API (`tests/compta/annuel.test.ts`) : la liasse posée, l'exercice clos, le taux
+refusé avec la phrase, rien de changé ; l'année d'après toujours modifiable ; rouvert avec un motif, le
+taux s'enregistre. À la souris (`tests/web/cabinet-liasse-close.test.ts`) : ouvert, le taux, l'ajout et
+le retrait sont là et l'en-tête dit « ouvert » ; clos, plus rien à changer, les deux badges disent
+« clos », la phrase se lit, le retraitement gardé aussi.
