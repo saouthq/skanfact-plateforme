@@ -57,4 +57,9 @@ declarerTextes({
   'reprise.inventaire_compte': 'le compte de stock de l\'inventaire ne s\'écrit pas en chiffres',
   'reprise.inventaire_ligne': 'la ligne {n} de l\'inventaire n\'a pas de désignation, ou sa quantité ou son coût ne se lit pas',
   'reprise.inventaire_ecriture': 'l\'écriture de variation de l\'inventaire n\'est pas dans le livre',
+  'reprise.dossier_nom': 'un dossier n\'a pas de nom (ou un nom de plus de deux cents caractères)',
+  'reprise.dossier_matricule': 'le matricule fiscal « {matricule} » ne se lit pas (1234567A/P/M/000)',
+  'reprise.dossier_matricule_double': 'le matricule fiscal {matricule} est celui de deux dossiers du fichier',
+  'reprise.dossier_honoraires': 'les honoraires de ce dossier ne se lisent pas au millime',
+  'reprise.dossier_fiche': 'la fiche de ce dossier ne se reprend pas telle quelle ({champ})',
 });

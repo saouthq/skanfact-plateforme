@@ -3910,3 +3910,76 @@ prouver "les déclarations absentes du rapport à l'écran" web/public/v10/cabin
 prouver "l'inventaire absent du rapport à l'écran" web/public/v10/cabinet/app.js \
   "        <tr><td>Inventaire de stock</td>" "        <tr hidden><td>Inventaire de stock</td>" \
   "$RE1"
+
+# ── Brique 70 : le portefeuille du Cabinet v10 repris (docs/cabinet.md, C60) ──
+RP1="les dossiers tenus créés avec leur fiche ; les clients sur SkanFact et les exemples dits ; une seconde reprise les retrouve"
+RP2="ce qui ne se reprendrait pas tel quel est nommé et rien ne se crée ; un champ de plus (la clé privée) refusé ; un collaborateur refusé"
+RW1="le rapport se lit avant que rien ne se crée ; une anomalie bloque ; le bon fichier crée les dossiers tenus, sans que la clé parte"
+CV=serveur/reprise/cabinet-v10.ts
+prouver "un champ de plus d'un dossier accepté (la clé d'un client)" $CV \
+  "  relances: z.array(z.unknown()).max(200), abonnements: z.array(z.unknown()).max(200),
+}).strict();" "  relances: z.array(z.unknown()).max(200), abonnements: z.array(z.unknown()).max(200),
+});" \
+  "$RP2"
+prouver "la clé privée du cabinet acceptée à côté des dossiers" $CV \
+  "export const PORTEFEUILLE_V10 = z.object({ dossiers: z.array(DOSSIER_V10).max(2000) }).strict();" "export const PORTEFEUILLE_V10 = z.object({ dossiers: z.array(DOSSIER_V10).max(2000) });" \
+  "$RP2"
+prouver "un dossier d'exemple repris comme un vrai" $CV \
+  "    if (d.demo) { exemples++; continue; }" "" \
+  "$RP1"
+prouver "un client sur SkanFact repris comme un dossier tenu" $CV \
+  "    if (!d.manual) { surSkanfact.push(nom); continue; }" "" \
+  "$RP1"
+prouver "un dossier sans nom qui passe l'essai" $CV \
+  "    if (!nom || nom.length > 200) nomme(" "    if (false) nomme(" \
+  "$RP2"
+prouver "un matricule illisible qui passe l'essai" $CV \
+  "    if (matricule && !MATRICULE.test(matricule)) nomme(" "    if (false) nomme(" \
+  "$RP2"
+prouver "un matricule en double dans le fichier qui passe l'essai" $CV \
+  "    else if (matricule && matricules.has(matricule)) nomme(" "    else if (false) nomme(" \
+  "$RP2"
+prouver "un matricule à points de la v10 refusé" $CV \
+  ".replace(/\\s+/g, '').replace(/[.-]/g, '/').toUpperCase();" ".replace(/\\s+/g, '').toUpperCase();" \
+  "$RP1"
+prouver "des honoraires illisibles qui passent l'essai" $CV \
+  "    if (fees === null) nomme(motif('reprise.dossier_honoraires'));" "" \
+  "$RP2"
+prouver "les honoraires repris à zéro" $CV \
+  "fees: Number(fees)," "fees: 0," \
+  "$RP1"
+prouver "le montant d'un abonnement repris tel quel, sans ses millimes" $CV \
+  "montant: m === null ? String(x.montant) : versTexte(m, 3)," "montant: String(x.montant)," \
+  "$RP1"
+prouver "une fiche illisible qui passe l'essai" serveur/cabinet/routes.ts \
+  "      if (!f.success) anomalies.push(" "      if (false) anomalies.push(" \
+  "$RP2"
+prouver "un dossier déjà au portefeuille recréé" serveur/cabinet/routes.ts \
+  "    const aCreer = lu.dossiers.filter((d) => !retrouve(d));" "    const aCreer = lu.dossiers;" \
+  "$RP1"
+prouver "un portefeuille à anomalie créé quand même" serveur/cabinet/routes.ts \
+  "      if (rapport.anomalies.length) return { statut: 400, corps: { motif: motif('cabinet.reprise.portefeuille_anomalies'" "      if (false) return { statut: 400, corps: { motif: motif('cabinet.reprise.portefeuille_anomalies'" \
+  "$RP2"
+prouver "l'essai du portefeuille ouvert au collaborateur" serveur/cabinet/routes.ts \
+  "      if (!(await tx.query('select socle.suis_associe(\$1) a', [params.cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.portefeuille_associe') } };
+      return { corps: (await lirePortefeuille(" "      return { corps: (await lirePortefeuille(" \
+  "$RP2"
+prouver "la reprise du portefeuille ouverte au collaborateur" serveur/cabinet/routes.ts \
+  "      if (!(await tx.query('select socle.suis_associe(\$1) a', [cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.portefeuille_associe') } };
+      const { aCreer, rapport }" "      const { aCreer, rapport }" \
+  "$RP2"
+prouver "les dossiers repris sans leur fiche" serveur/cabinet/routes.ts \
+  "        await requetes(tx).insertInto('cabinet.fiche').values({ cabinet, entreprise: id, contenu: JSON.stringify(d.fiche), modifie_par: qui.utilisateur }).execute();" "" \
+  "$RP1"
+prouver "le fichier du cabinet envoyé tel quel (sa clé privée)" $PC \
+  "  const portefeuilleAEnvoyer = (etat) => ({ dossiers: (etat.dossiers || []).map((/** @type {any} */ d) => Object.fromEntries(CHAMPS_PORTEFEUILLE.map((k) => [k, d[k]]))) });" "  const portefeuilleAEnvoyer = (etat) => etat;" \
+  "$RW1"
+prouver "le portefeuille lu oublié entre l'essai et la création" $PC \
+  "      portefeuilleEnAttente = corps;" "" \
+  "$RW1"
+prouver "la reprise du portefeuille absente de la page vide" web/public/v10/cabinet/app.js \
+  "            <button class=\"btn\" id=\"rp-v10\">Reprendre mon portefeuille de SkanFact Cabinet v10…</button>" "" \
+  "$RW1"
+prouver "un portefeuille à anomalie qu'on peut quand même créer" web/public/v10/cabinet/app.js \
+  "        \${n || !k ? '' : \`<button class=\"btn btn-primary\" id=\"ok\">Créer" "        \${!k ? '' : \`<button class=\"btn btn-primary\" id=\"ok\">Créer" \
+  "$RW1"

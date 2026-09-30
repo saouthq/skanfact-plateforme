@@ -1584,3 +1584,47 @@ SkanFact. À la souris : les deux lignes du rapport.
 
 **Reste à faire (la reprise)** : la paie du livre (salariés, bulletins) ; un livre dont le dossier
 n'existe pas encore ; le bouton « Passer à la plateforme » de la v10.
+
+## Brique 70 : le portefeuille du Cabinet v10 repris (fait le 30/09/2026)
+
+**C60. Le comptable reprend son portefeuille de la v10 en une fois : ses dossiers tenus, leur fiche**
+(par délégation). Avant, chaque dossier se recréait à la main avant d'y reprendre son livre ; avec
+soixante clients, c'était une matinée. Sur la page Dossiers (vide ou non), **« Reprendre mon portefeuille
+de SkanFact Cabinet v10… »** ouvre la fenêtre du navigateur sur le fichier du cabinet.
+
+**Ce qui part du poste, compté et décidé.** Le fichier du cabinet de la v10 porte, avec ses dossiers,
+**la clé privée du cabinet**, les clés épinglées de ses clients et leurs licences : il ne part jamais tel
+quel. Le point de contact le lit sur le poste, le relit comme la v10 (`migrate`), et n'envoie de chaque
+dossier que cette liste : l'identifiant de la v10, le nom, le matricule, tenu ou client sur SkanFact,
+exemple ou non, archivé ou non, l'adresse, le téléphone, le contact, la note, le premier mois suivi, le
+régime, la périodicité de TVA, les honoraires, le matricule CNSS de l'employeur et son code, les
+relances, les abonnements. La route n'accepte **que** cette liste (un champ de plus : refusé), ni rien
+à côté des dossiers.
+
+**Ce qui se crée.** Chaque dossier **tenu** (créé à la main dans la v10) se crée par le geste ordinaire
+(`socle.creer_dossier_tenu`, qui refait ses contrôles, dont le matricule libre), avec sa fiche (les
+honoraires au millime, les abonnements, les relances). Ce qui ne se crée pas, et se dit : les **clients
+sur SkanFact** (ils rejoignent le cabinet par leur mandat, avec son code), les **dossiers d'exemple**,
+et ceux **déjà au portefeuille** (même matricule, ou même nom sans matricule) : une seconde reprise ne
+recrée rien. Le matricule se lit comme « Nouveau client » (sans espaces, points et tirets en « / »,
+en majuscules).
+
+**Rien ne se crée tant qu'une anomalie reste**, nommée au dossier : sans nom, un matricule illisible ou
+en double dans le fichier, des honoraires illisibles, une fiche qui n'entre pas dans la forme de la
+plateforme (le champ en cause). Seul un associé reprend.
+
+**Aujourd'hui**, comme le livre, le fichier du cabinet est chiffré sur le poste de la v10 : le bouton
+« Passer à la plateforme » viendra à la fin du développement (`08` § 2.1).
+
+**Les tests** : `tests/cabinet/reprise-portefeuille.test.ts` : le fichier d'un cabinet fabriqué **par la
+v10** (`migrate`) : sa clé privée ne part pas ; l'essai compte deux dossiers à créer, un client sur
+SkanFact, un exemple ; la reprise crée les deux avec leur fiche (honoraires 350,500, abonnement
+850,500, relance, archivé), et une seconde les retrouve ; cinq défauts nommés et rien de créé ; un
+champ de plus et la clé privée à côté, refusés ; un collaborateur refusé. À la souris
+(`tests/web/cabinet-reprise-portefeuille.test.ts`) : depuis la page vide, un fichier abîmé (l'anomalie
+nommée, aucun bouton pour créer), puis le bon : « Créer 2 dossiers », les deux dans la liste — et
+aucune requête partie du navigateur ne porte une clé.
+
+**Reste à faire (la reprise)** : la paie du livre (salariés, bulletins : sans doubler les écritures de
+paie déjà reprises) ; les réglages du cabinet (guides, questionnaire, cycles, banques) ; le bouton
+« Passer à la plateforme » de la v10.

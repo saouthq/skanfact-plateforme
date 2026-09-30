@@ -17,6 +17,7 @@ import { motif, t } from '../../textes/index.ts';
 import './textes.ts';
 import { Refus } from '../erreurs.ts';
 import { lireLivreV10, rapportDuLivre } from '../reprise/livre-v10.ts';
+import { lirePortefeuilleV10, PORTEFEUILLE_V10 } from '../reprise/cabinet-v10.ts';
 import { versLaBaseFiche } from '../compta/immobilisations.ts';
 import { PERIODE_REVISION, REVISION } from './revision.ts';
 
@@ -580,6 +581,54 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       const attendue = rapport.balance.map((x) => ({ compte: x.compte, debit: x.debit, credit: x.credit }));
       if (JSON.stringify(tenue) !== JSON.stringify(attendue)) throw new Refus('cabinet.reprise.ecart');
       return { statut: 201, corps: { ...resultat, releves: lu.releves.length, rapprochees, immobilisations, revisions: lu.revisions.length, questions, declarations: lu.declarations.length, inventaire: !!lu.inventaire, empreinte, rapport } };
+    },
+  });
+  // Le portefeuille du Cabinet v10 (brique 70, C60) : ses dossiers tenus, lus et contrôlés ; ceux déjà
+  // au portefeuille (même matricule, ou même nom sans matricule) sont retrouvés, jamais recréés.
+  const lirePortefeuille = async (tx: Transaction, cabinet: string, corps: z.infer<typeof PORTEFEUILLE_V10>) => {
+    const lu = lirePortefeuilleV10(corps);
+    const anomalies = lu.anomalies.map((a) => ({ nom: a.nom, motif: a.motif }));
+    for (const d of lu.dossiers) {
+      const f = FICHE.safeParse(d.fiche);
+      if (!f.success) anomalies.push({ nom: d.nom, motif: motif('reprise.dossier_fiche', { champ: f.error.issues[0]?.path.join('.') ?? '' }) });
+    }
+    const deja = (await tx.query(`select raison_sociale, matricule_fiscal from socle.portefeuille($1) where tenu`, [cabinet])).rows as { raison_sociale: string; matricule_fiscal: string | null }[];
+    const retrouve = (d: { nom: string; matricule: string | null }) => deja.some((x) => (d.matricule ? x.matricule_fiscal === d.matricule
+      : !x.matricule_fiscal && x.raison_sociale.trim().toLowerCase() === d.nom.toLowerCase()));
+    const aCreer = lu.dossiers.filter((d) => !retrouve(d));
+    return {
+      aCreer, rapport: {
+        aCreer: aCreer.map((d) => ({ nom: d.nom, matricule: d.matricule })), retrouves: lu.dossiers.filter(retrouve).map((d) => d.nom),
+        surSkanfact: lu.surSkanfact, exemples: lu.exemples, anomalies,
+      },
+    };
+  };
+  ajouter({
+    methode: 'POST', chemin: '/cabinets/:cabinet/reprise/portefeuille/essai', geste: 'compte.cabinet.gerer', limiteCorps: 8 * 1024 * 1024, corps: PORTEFEUILLE_V10,
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      if (!(await tx.query('select socle.suis_associe($1) a', [params.cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.portefeuille_associe') } };
+      return { corps: (await lirePortefeuille(tx, params.cabinet ?? '', corps)).rapport };
+    },
+  });
+  // Créer les dossiers : chacun par le geste ordinaire (socle.creer_dossier_tenu, qui refait ses
+  // contrôles, dont le matricule libre), avec sa fiche. Une seule anomalie, et rien ne se crée.
+  ajouter({
+    methode: 'POST', chemin: '/cabinets/:cabinet/reprise/portefeuille', geste: 'compte.cabinet.gerer', limiteCorps: 8 * 1024 * 1024, corps: PORTEFEUILLE_V10,
+    traiter: async ({ params, corps, qui }, tx) => {
+      if (!tx || !qui || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const cabinet = params.cabinet ?? '';
+      if (!(await tx.query('select socle.suis_associe($1) a', [cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.portefeuille_associe') } };
+      const { aCreer, rapport } = await lirePortefeuille(tx, cabinet, corps);
+      if (rapport.anomalies.length) return { statut: 400, corps: { motif: motif('cabinet.reprise.portefeuille_anomalies', { n: String(rapport.anomalies.length) }), rapport } };
+      const crees: { v10: string; entreprise: string }[] = [];
+      for (const d of aCreer) {
+        const id = (await tx.query('select socle.creer_dossier_tenu($1, $2, $3) id', [cabinet, d.nom, d.matricule])).rows[0].id as string;
+        await tracer(tx, id, 'cabinet.dossier_tenu.creer', id, null, { cabinet, raisonSociale: d.nom, repriseV10: true });
+        await requetes(tx).insertInto('cabinet.fiche').values({ cabinet, entreprise: id, contenu: JSON.stringify(d.fiche), modifie_par: qui.utilisateur }).execute();
+        crees.push({ v10: d.refV10, entreprise: id });
+      }
+      return { statut: 201, corps: { crees, rapport } };
     },
   });
   // Ce qui a changé dans l'équipe (brique 61, 0036) : les cinquante derniers gestes, pour un associé.

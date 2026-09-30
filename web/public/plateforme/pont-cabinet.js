@@ -661,6 +661,13 @@
     fiches.set(ent, { contenu, revision: r.revision });
   }
 
+  // Ce qui part du poste, de chaque dossier du portefeuille v10 (brique 70) : cette liste, et rien d'autre.
+  const CHAMPS_PORTEFEUILLE = ['id', 'name', 'matricule', 'manual', 'demo', 'archived', 'email', 'phone', 'contact', 'note', 'from', 'regime', 'tvaPeriod',
+    'fees', 'cnssEmployeur', 'cnssCode', 'relances', 'abonnements'];
+  /** @param {any} etat */
+  const portefeuilleAEnvoyer = (etat) => ({ dossiers: (etat.dossiers || []).map((/** @type {any} */ d) => Object.fromEntries(CHAMPS_PORTEFEUILLE.map((k) => [k, d[k]]))) });
+  /** @type {any} */ let portefeuilleEnAttente = null;
+
   // Un fichier choisi sur l'ordinateur (le navigateur ouvre sa fenêtre), ou null si on l'a fermée.
   /** @param {string} accepte @returns {Promise<File | null>} */
   const choisirFichier = (accepte) => new Promise((resoudre) => {
@@ -1251,6 +1258,28 @@
       const rapport = await appel('POST', `/cabinets/${cabinetId}/reprise/livre/essai`, { livre });
       repriseEnAttente = { dossierId: o.dossierId, livre, nom: f.name };
       return { nom: f.name, rapport };
+    },
+    // Le portefeuille du Cabinet v10 (brique 70, C60) : le fichier du cabinet est lu SUR CE POSTE ; il porte
+    // la clé privée du cabinet et celles des clients, qui ne partent jamais. De chaque dossier ne part que
+    // la liste comptée (serveur/reprise/cabinet-v10.ts, DOSSIER_V10), telle que la v10 la relit (migrate).
+    essaiRepriseV10Portefeuille: async () => {
+      /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
+      const f = await choisirFichier('.json,application/json');
+      if (!f) return null;
+      /** @type {any} */ let etat;
+      try { etat = JSON.parse(await f.text()); } catch { throw new Error(`« ${f.name} » ne se lit pas : ce n'est pas un fichier JSON. Choisis le fichier de ton cabinet.`); }
+      if (!etat || typeof etat !== 'object' || !Array.isArray(etat.dossiers)) throw new Error(`« ${f.name} » n'est pas le fichier d'un cabinet de SkanFact Cabinet v10 : rien n'a été lu.`);
+      const corps = portefeuilleAEnvoyer(K.migrate(etat));
+      const rapport = await appel('POST', `/cabinets/${cabinetId}/reprise/portefeuille/essai`, corps);
+      portefeuilleEnAttente = corps;
+      return { nom: f.name, rapport };
+    },
+    repriseV10Portefeuille: async () => {
+      const corps = portefeuilleEnAttente;
+      if (!corps) throw new Error('Choisis d\'abord le fichier de ton cabinet : aucun dossier n\'a été créé.');
+      const r = await appel('POST', `/cabinets/${cabinetId}/reprise/portefeuille`, corps);
+      portefeuilleEnAttente = null;
+      return { crees: (r.crees || []).length, state: await construireEtat() };
     },
     repriseV10: async (/** @type {any} */ o) => {
       const r = repriseEnAttente;

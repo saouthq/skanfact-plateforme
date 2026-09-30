@@ -9,6 +9,8 @@ declarerTextes({
   'cabinet.reprise.associe': 'seul un associé du cabinet reprend les livres de la v10',
   'cabinet.reprise.anomalies': 'ce livre ne se reprend pas tel quel : le rapport nomme ce qui l\'empêche ({n}), un point après l\'autre ; rien n\'a été écrit',
   'cabinet.reprise.ecart': 'la balance écrite ne tombe pas sur celle du livre de la v10 : rien n\'a été écrit',
+  'cabinet.reprise.portefeuille_associe': 'seul un associé du cabinet reprend son portefeuille de la v10',
+  'cabinet.reprise.portefeuille_anomalies': 'ce portefeuille ne se reprend pas tel quel : le rapport nomme ce qui l\'empêche ({n}), dossier par dossier ; aucun dossier n\'a été créé',
   'cabinet.fiche_changee': 'la fiche de ce dossier a été changée par quelqu\'un d\'autre entre-temps : recharge-la, rien n\'a été enregistré',
   'cabinet.reglages_changes': 'les réglages du cabinet ont été changés par quelqu\'un d\'autre entre-temps : recharge-les, rien n\'a été enregistré',
   'cabinet.champ.banques': 'cinquante banques au plus',

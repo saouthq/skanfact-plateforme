@@ -1989,6 +1989,7 @@
           <div class="actions">
             <button class="btn" id="demo-on">Voir un exemple (${nbExemple()} clients fictifs)</button>
             <button class="btn" id="imp">Importer un paquet…</button>
+            <button class="btn" id="rp-v10">Reprendre mon portefeuille de SkanFact Cabinet v10…</button>
             <button class="btn btn-primary" id="new-d">Ajouter mes clients…</button>
           </div></div>
         ${/* 10.14.0 — la ligne calme de la clé de secours doublait l'étape « Enregistrer ta clé de secours »
@@ -2008,6 +2009,7 @@
       $('#imp').onclick = () => doImport();
       $('#new-d').onclick = () => newDossierForm();
       $('#demo-on').onclick = async () => { S = await chargerOuRetirerExemple(true); VISITES = null; render(); toast(phraseExemple()); };
+      $('#rp-v10').onclick = () => repriseV10PortefeuilleForm();
       bindInboxBanner(view);
       bindRecoveryBanner(view);
       bindPremiersPas(view);
@@ -2027,6 +2029,7 @@
       <div class="page-head"><h1>Dossiers</h1>
         <div class="actions">
           <button class="btn" id="new-d">Nouveau client…</button>
+          <button class="btn" id="rp-v10">Reprendre mon portefeuille v10…</button>
           <button class="btn${importerVert ? ' btn-primary' : ''}" id="imp">Importer un paquet…</button>
           ${premierLivre ? '<button class="btn btn-primary" id="pp-livre">Commencer un premier livre…</button>' : ''}
         </div></div>
@@ -2086,6 +2089,7 @@
 
     $('#imp').onclick = () => doImport();
     const ppl = $('#pp-livre'); if (ppl) ppl.onclick = () => ouvrirPremierLivre();
+    $('#rp-v10').onclick = () => repriseV10PortefeuilleForm();
     $('#new-d').onclick = () => newDossierForm();
     const q = $('#q');
     q.oninput = () => { listState.q = q.value; listState.page = 1; sansPerdreLaFrappe(q, render); };
@@ -8570,6 +8574,41 @@
       cnssCode: $('#f-cnss-code', layer).value.trim(),
       note: $('#f-note', layer).value
     };
+  }
+
+  async function repriseV10PortefeuilleForm() {
+    let lu;
+    try { lu = await api.essaiRepriseV10Portefeuille(); } catch (e) { await infoDialog('Ce portefeuille ne se reprend pas', plainError(e)); return; }
+    if (!lu) return;
+    const R = lu.rapport;
+    const n = R.anomalies.length, k = R.aCreer.length;
+    modal(`<h2>Reprendre mon portefeuille de SkanFact Cabinet v10</h2>
+      <p class="small muted">Fichier « ${esc(lu.nom)} », lu sur ce poste : de chaque dossier ne part que sa fiche, jamais la clé de ton cabinet. <b>Rien n'est encore créé.</b></p>
+      <table class="list compact" id="rpv-rapport"><tbody>
+        <tr><td>Dossiers tenus à créer, avec leur fiche</td><td class="r">${esc(String(k))}</td></tr>
+        <tr><td>Déjà dans ton portefeuille — laissés tels quels</td><td class="r">${esc(String(R.retrouves.length))}</td></tr>
+        <tr><td>Clients sur SkanFact — ils te rejoignent par leur mandat (ton code de cabinet)</td><td class="r">${esc(String(R.surSkanfact.length))}</td></tr>
+        <tr><td>Dossiers d'exemple — laissés</td><td class="r">${esc(String(R.exemples))}</td></tr>
+      </tbody></table>
+      ${n
+    ? `<div class="warn-box mt" id="rpv-anomalies"><b>${n > 1 ? `${n} points empêchent la reprise` : 'Un point empêche la reprise'}</b> : corrige-${n > 1 ? 'les' : 'le'} dans la v10, puis choisis de nouveau le fichier. Aucun dossier ne se crée tant qu'il en reste un.
+        <ul>${R.anomalies.slice(0, 20).map(a => `<li>${esc(a.nom || '(sans nom)')} : ${esc(a.motif)}</li>`).join('')}</ul>${n > 20 ? `<p class="small">… et ${n - 20} autres.</p>` : ''}</div>`
+    : k ? `<p class="small ligne-ok mt" id="rpv-ok"><span aria-hidden="true">✓</span> ${esc(R.aCreer.slice(0, 5).map(d => d.nom).join(', '))}${k > 5 ? ` et ${k - 5} autre${k - 5 > 1 ? 's' : ''}` : ''}. Leurs livres se reprennent ensuite, dossier par dossier.</p>`
+      : '<p class="small muted mt" id="rpv-rien">Rien à créer : chaque dossier tenu de ce fichier est déjà dans ton portefeuille.</p>'}
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button>
+        ${n || !k ? '' : `<button class="btn btn-primary" id="ok">Créer ${k} dossier${k > 1 ? 's' : ''}</button>`}</div>`,
+    (rootModal, close) => {
+      const ok = $('#ok', rootModal);
+      if (!ok) return;
+      ok.onclick = async () => {
+        ok.disabled = true;
+        try {
+          const r = await api.repriseV10Portefeuille();
+          S = r.state; close(); render();
+          toast(`${r.crees} dossier${r.crees > 1 ? 's' : ''} repris de SkanFact Cabinet v10.`);
+        } catch (e) { ok.disabled = false; await infoDialog('Reprise impossible', plainError(e)); }
+      };
+    });
   }
 
   function newDossierForm() {
