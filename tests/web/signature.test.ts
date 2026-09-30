@@ -148,7 +148,7 @@ describe('la signature DigiGo, à la souris', () => {
     await champ.fill(vrai);
     await fenetre.getByRole('button', { name: 'Signer', exact: true }).click();
     await expect.poll(async () => net(await fenetre.locator('#sg-fait').innerText()), { timeout: 10_000 })
-      .toMatch(/^La pièce FAC-2026-001 est signée par Nadia Ben Salah, le \d\d\/\d\d\/\d{4} à \d+ h \d\d\. Le fichier signé est celui qui se dépose à la TTN\.$/);
+      .toMatch(/^La pièce FAC-2026-001 est signée par Nadia Ben Salah, le \d\d\/\d\d\/\d{4} à \d+ h \d\d\. Elle part d'elle-même à la TTN : « Fichier pour El Fatoora » dit où elle en est\.$/);
     await nadia.screenshot({ path: path.join(PHOTOS, 'signature-5-signee.png') });
 
     // « Télécharger le fichier signé » : le fichier signé du serveur, tel quel ; il reste un geste.
@@ -162,8 +162,11 @@ describe('la signature DigiGo, à la souris', () => {
     expect(signe.xml).toContain('<ds:Signature');
     const pret = nadia.locator('#modal-root .modal').last();
     await expect.poll(() => pret.locator('h2').innerText()).toBe('Le fichier El Fatoora est prêt');
-    expect(net(await pret.locator('p').first().innerText())).toBe(`${signe.nom} est dans tes Téléchargements. Il est signé par Nadia Ben Salah (DigiGo). Il reste un geste :`);
-    expect(net(await pret.locator('.teif-suite').innerText())).toMatch(/^Le déposer sur la plateforme El Fatoora/);
+    expect(net(await pret.locator('p').first().innerText())).toBe(`${signe.nom} est dans tes Téléchargements. Il est signé par Nadia Ben Salah (DigiGo).`);
+    // Plus rien à faire à la main : la fenêtre dit où en est son envoi à la TTN (une entreprise d'essai n'envoie
+    // jamais rien).
+    expect(await pret.locator('.teif-suite').count()).toBe(0);
+    expect(net(await pret.locator('#ttn-piece').innerText())).toBe('Entreprise d\'essai : cette pièce ne part jamais à la TTN.');
     await nadia.screenshot({ path: path.join(PHOTOS, 'signature-6-fichier.png') });
 
     // Signée, la pièce le dit dès qu'on rouvre « Signer (DigiGo)… » : aucun code ne part pour rien.

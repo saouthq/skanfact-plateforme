@@ -9,7 +9,8 @@ declarerTextes({
   'geste.ventes.facture.emettre': 'émettre une facture',
   'geste.ventes.avoir.emettre': 'émettre un avoir',
   'geste.ventes.facture.signer': 'signer une facture électronique',
-  'geste.ventes.efacture.regler': 'désigner le signataire de la facture électronique',
+  'geste.ventes.efacture.regler': 'régler la facture électronique (le signataire, le compte El Fatoora)',
+  'geste.ventes.facture.envoyer': 'envoyer une facture électronique à la TTN',
   'geste.ventes.client.modifier': 'créer ou modifier un client',
   'geste.ventes.lien.partager': 'donner à un client le lien de ses pièces, ou le retirer',
 

@@ -103,6 +103,9 @@ export const CLASSEMENT: Record<string, Classe> = {
   'ventes.signataire': { classe: 'entreprise' },
   'ventes.signature_demande': { classe: 'entreprise' },
   'ventes.efacture_signee': { classe: 'entreprise' },
+  // L'envoi à la TTN (brique 82) : le mot de passe El Fatoora est scellé par le coffre de CE serveur.
+  'ventes.ttn_compte': { classe: 'hors', raison: 'le mot de passe El Fatoora est scellé par le coffre de CE serveur : il se repose après une restauration' },
+  'ventes.envoi_ttn': { classe: 'entreprise' },
   // Le code d'un cabinet n'est pas repris : unique sur la plateforme, il reste à son cabinet.
   'socle.organisation': { classe: 'reference', colonnes: ['id', 'type', 'nom', 'cree_le'] },
   // Jamais l'empreinte du mot de passe ni le téléphone vérifié : une personne recréée se reconnecte

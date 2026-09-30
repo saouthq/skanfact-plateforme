@@ -11,6 +11,7 @@ import type { Contexte } from '../connexion.ts';
 import { Refus } from '../erreurs.ts';
 import { tracer } from '../trace.ts';
 import { activer, ouvrirSession, signatureEnveloppe, signer } from './digigo.ts';
+import { mettreEnRoute } from './envoi.ts';
 import './textes.ts';
 
 const ESSAIS = 3;
@@ -89,6 +90,8 @@ export async function signerAvecLeCode(ctx: Contexte, tx: Transaction, entrepris
       values ($1, $2, $3, $4, $5, $6, $7, $8)`, [f.piece, entreprise, f.xml, createHash('sha256').update(f.xml, 'utf8').digest('hex'), d.titulaire, d.id, maintenant, utilisateur]);
     await tracer(tx, entreprise, 'ventes.facture.signer', { type: 'piece', id: f.piece }, null, { demande: d.id, numero: f.numero, titulaire: d.titulaire });
   }
+  // Signées, elles partent d'elles-mêmes à la TTN (brique 82).
+  await mettreEnRoute(tx, entreprise, utilisateur, faits.map((f) => f.piece), maintenant);
   const signees = faits.map((f) => f.numero);
   await tx.query(`update ventes.signature_demande set statut = 'signee', essais = $2 where id = $1`, [d.id, d.essais]);
   return { corps: { signees, titulaire: d.titulaire, signeLe: maintenant.toISOString() } };

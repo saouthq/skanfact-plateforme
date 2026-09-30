@@ -477,6 +477,8 @@
     teifDuServeur,
     dessinerSignataire,
     signerPiece,
+    dessinerTtn,
+    ttnDansLaFenetre,
     // Des remises attendent-elles une décision ? (le panneau ne paraît que dans ce cas)
     quarantaine: () => remises.length,
     loadData: async () => {
@@ -996,7 +998,7 @@
       };
       /** @param {any} r @param {boolean} [deja] */
       const fini = (r, deja) => {
-        etape.innerHTML = `<p id="sg-fait">La pièce <strong>${esc(r.signees.join(', '))}</strong> est ${deja ? 'déjà ' : ''}signée${r.titulaire ? ` par ${esc(r.titulaire)}` : ''}, le ${esc(quand(r.signeLe))}. Le fichier signé est celui qui se dépose à la TTN.</p>
+        etape.innerHTML = `<p id="sg-fait">La pièce <strong>${esc(r.signees.join(', '))}</strong> est ${deja ? 'déjà ' : ''}signée${r.titulaire ? ` par ${esc(r.titulaire)}` : ''}, le ${esc(quand(r.signeLe))}. Elle part d'elle-même à la TTN : « Fichier pour El Fatoora » dit où elle en est.</p>
           <div class="inline"><button type="button" class="btn btn-primary" id="sg-telecharger">Télécharger le fichier signé</button></div>`;
         $r('#sg-telecharger').onclick = () => { close(); telecharger(); };
       };
@@ -1007,6 +1009,104 @@
         else demander('Envoyer le code au signataire');
       });
     });
+  }
+
+  // ── L'envoi à la TTN (brique 82 ; docs/facture-electronique.md) ──────────────────────────────────
+  // Le compte El Fatoora de l'entreprise : son identifiant, et son mot de passe (écrit ici, scellé par le
+  // serveur, jamais relu). Chaque pièce signée part d'elle-même ; les derniers envois, et ce que la TTN en a
+  // fait. Le panneau vit dans le formulaire des Paramètres : champs sans nom, frappes qui ne remontent pas.
+  /** @type {Record<string, string>} */
+  const ETATS_TTN = { a_envoyer: 'En route', deposee: 'Déposée, en attente de la TTN', acceptee: 'Acceptée', refusee: 'Refusée' };
+  // Une phrase du serveur (un fragment) dite seule : sa majuscule et son point.
+  /** @param {string} x */
+  const phrase = (x) => `${x.charAt(0).toUpperCase()}${x.slice(1)}.`;
+  // Venu de « Brancher le compte El Fatoora » : le curseur attend dans la case de l'identifiant.
+  let amenerTtn = false;
+  /** @param {HTMLElement} el */
+  async function dessinerTtn(el) {
+    /** @type {any} */ let lu;
+    try { lu = await appel('GET', '/efacture/ttn'); } catch (x) { el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`; return; }
+    const c = lu.compte;
+    el.innerHTML = `<h4 class="small mt">L'envoi à la TTN (El Fatoora)</h4>
+      ${lu.essai ? '<p class="small">Entreprise d\'essai : ses pièces ne partent jamais à la TTN.</p>' : ''}
+      <p id="ttn-etat">${c ? `Branché le ${esc(quand(c.poseLe))}${c.posePar ? ` par ${esc(c.posePar)}` : ''} : compte <strong>${esc(c.identifiant)}</strong>. Chaque pièce signée part d'elle-même à la TTN.`
+        : 'Pas branché : les pièces signées attendent de partir à la TTN.'}</p>
+      ${c && c.dernierRefus ? `<p class="small" id="ttn-refus">Dernier refus de la TTN, le ${esc(quand(c.dernierRefusLe))} : ${esc(c.dernierRefus)}.</p>` : ''}
+      ${lu.branche ? '' : '<p class="small" id="ttn-debranche">L\'envoi à la TTN n\'est pas encore branché sur ce serveur : tu peux déjà poser ton compte, les pièces partiront dès qu\'il le sera.</p>'}
+      <div id="ttn-form" ${c && !c.dernierRefus ? 'hidden' : ''}>
+        <label class="field">Identifiant de ton compte El Fatoora<input data-champ="identifiant" autocomplete="off" value="${esc(c ? c.identifiant : '')}"></label>
+        <label class="field">Mot de passe El Fatoora<input data-champ="motDePasse" type="password" autocomplete="off"></label>
+        <p class="small muted">Ceux que la TTN t'a donnés à l'adhésion à El Fatoora. Le mot de passe est scellé par le serveur : il ne se relit plus ici, jamais.</p>
+        <button type="button" class="btn btn-primary" id="ttn-brancher">Brancher</button>
+      </div>
+      ${c ? '<p><button type="button" class="btn btn-sm" id="ttn-changer">Changer le compte…</button></p>' : ''}
+      <p class="small" role="alert"></p>
+      ${lu.envois.length ? `<h4 class="small">Derniers envois</h4><table class="list compact" id="ttn-envois"><tbody>${lu.envois.map((/** @type {any} */ x) => `<tr>
+        <td>${esc(x.numero)}</td><td>${esc(ETATS_TTN[x.statut] || x.statut)}${x.reference ? `, ${esc(x.reference)}` : ''}${x.motif ? `<div class="small muted">${esc(phrase(x.motif))}</div>` : ''}</td></tr>`).join('')}</tbody></table>` : ''}`;
+    /** @param {unknown} x */
+    const dire = (x) => { const a = el.querySelector('[role=alert]'); if (a) a.textContent = x instanceof Error ? x.message : String(x); };
+    for (const t of ['input', 'change']) el.addEventListener(t, (ev) => ev.stopPropagation());
+    const form = /** @type {HTMLElement} */ (el.querySelector('#ttn-form'));
+    const champ = (/** @type {string} */ nom) => /** @type {HTMLInputElement} */ (form.querySelector(`[data-champ=${nom}]`));
+    const brancher = /** @type {HTMLElement} */ (form.querySelector('#ttn-brancher'));
+    brancher.onclick = async () => {
+      const v = { identifiant: champ('identifiant').value.trim(), motDePasse: champ('motDePasse').value };
+      // Un refus dit ce qui manque, et montre le champ.
+      const vide = !v.identifiant ? 'identifiant' : !v.motDePasse ? 'motDePasse' : '';
+      if (vide) { dire(vide === 'identifiant' ? 'Donne l\'identifiant de ton compte El Fatoora.' : 'Tape le mot de passe de ton compte El Fatoora.'); champ(vide).focus(); return; }
+      brancher.setAttribute('disabled', '');
+      try { await appel('PUT', '/efacture/ttn', v); await dessinerTtn(el); dire('Branché : les pièces signées partent maintenant à la TTN, d\'elles-mêmes.'); } catch (x) { brancher.removeAttribute('disabled'); dire(x); }
+    };
+    const changer = /** @type {HTMLElement | null} */ (el.querySelector('#ttn-changer'));
+    if (changer) changer.onclick = () => { form.hidden = false; champ('motDePasse').focus(); };
+    if (amenerTtn) { amenerTtn = false; if (!form.hidden) champ(c ? 'motDePasse' : 'identifiant').focus({ preventScroll: true }); }
+  }
+
+  // La fenêtre « Le fichier El Fatoora est prêt » d'une pièce signée : où en est son envoi à la TTN, et le
+  // bouton qui débloque (brancher le compte, renvoyer une pièce refusée).
+  /** @param {HTMLElement} el @param {any} doc @param {any} f @param {() => void} close */
+  function ttnDansLaFenetre(el, doc, f, close) {
+    const x = f.envoi;
+    const vers = () => {
+      close();
+      amenerTtn = true;
+      const w = /** @type {any} */ (window);
+      if (typeof w.__allerParametres === 'function') w.__allerParametres('documents', 'p-efacture');
+    };
+    if (f.essai) { el.innerHTML = '<p id="ttn-piece">Entreprise d\'essai : cette pièce ne part jamais à la TTN.</p>'; return; }
+    if (!x) { el.innerHTML = '<p id="ttn-piece">Cette pièce n\'est pas en route vers la TTN (signée avant que l\'envoi n\'existe).</p>'; return; }
+    if (x.statut === 'acceptee') {
+      el.innerHTML = `<p id="ttn-piece"><strong>Acceptée par la TTN</strong> le ${esc(quand(x.accepteLe))}, référence <strong>${esc(x.reference)}</strong>. Le fichier que tu viens de télécharger est la facture validée par la TTN : c'est elle qui fait foi, garde-la.</p>`;
+      return;
+    }
+    if (x.statut === 'deposee') {
+      el.innerHTML = `<p id="ttn-piece"><strong>Déposée à la TTN</strong> le ${esc(quand(x.deposeLe))} : SkanFact attend sa réponse, et la lira tout seul.</p>`;
+      return;
+    }
+    if (x.statut === 'refusee') {
+      el.innerHTML = `<p id="ttn-piece"><strong>Refusée par la TTN.</strong> ${esc(phrase(x.motif || ''))}</p>
+        <p class="small muted">Corrige ce qu'elle reproche (ton compte, ta signature…), puis renvoie-la. Ce que devient une facture refusée : À VÉRIFIER avec ton comptable.</p>
+        <div class="inline"><button type="button" class="btn btn-primary" id="ttn-renvoyer">Renvoyer à la TTN</button></div><p class="small" role="alert"></p>`;
+      const b = /** @type {HTMLElement} */ (el.querySelector('#ttn-renvoyer'));
+      b.onclick = async () => {
+        b.setAttribute('disabled', '');
+        try {
+          await appel('POST', `/efacture/envois/${encodeURIComponent(doc.id)}/renvoyer`);
+          el.innerHTML = '<p id="ttn-piece"><strong>Elle repart à la TTN</strong> : SkanFact la dépose tout seul, et te dira ce qu\'elle en fait.</p>';
+        } catch (e) {
+          b.removeAttribute('disabled');
+          const a = el.querySelector('[role=alert]');
+          if (a) a.textContent = e instanceof Error ? e.message : String(e);
+        }
+      };
+      return;
+    }
+    // En route : ce qui la retient, et le bouton qui débloque.
+    const compte = ['ttn.sans_compte', 'ttn.compte_refuse', 'ttn.compte_illisible'].includes(x.motifCle);
+    el.innerHTML = `<p id="ttn-piece"><strong>Elle part à la TTN</strong> : SkanFact la dépose tout seul.${!f.ttnBranche ? ' L\'envoi à la TTN n\'est pas encore branché sur ce serveur : elle partira dès qu\'il le sera.' : x.motif ? ` Pour l'instant, ${esc(x.motif)}.` : ''}</p>
+      ${compte ? '<div class="inline"><button type="button" class="btn btn-primary" id="ttn-vers-compte">Brancher le compte El Fatoora</button></div>' : ''}`;
+    const b = /** @type {HTMLElement | null} */ (el.querySelector('#ttn-vers-compte'));
+    if (b) b.onclick = vers;
   }
 
   // ── Ce qu'un appareil retiré a remis (brique 74 bis ; docs/hors-ligne.md, H10) ────────────────

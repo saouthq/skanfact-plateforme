@@ -700,6 +700,23 @@ export interface BaseDeDonnees {
     signe_le: Date;
     signe_par: string;
   };
+  'ventes.envoi_ttn': {
+    piece: string;
+    entreprise: string;
+    statut: Generated<string>;
+    essais: Generated<number>;
+    prochain_essai: Date;
+    bail: Date | null;
+    depose_le: Date | null;
+    id_ttn: string | null;
+    reference: string | null;
+    qr: string | null;
+    xml_valide: string | null;
+    accepte_le: Date | null;
+    motif: ColumnType<Json | null, string | null, string | null>;
+    cree_le: Date;
+    cree_par: string;
+  };
   'ventes.lien': {
     id: Generated<string>;
     entreprise: string;
@@ -835,5 +852,14 @@ export interface BaseDeDonnees {
     motif: ColumnType<Json | null, string | null, string | null>;
     cree_le: Date;
     cree_par: string;
+  };
+  'ventes.ttn_compte': {
+    entreprise: string;
+    identifiant: string;
+    mot_de_passe_scelle: string;
+    pose_le: Date;
+    pose_par: string;
+    dernier_refus: ColumnType<Json | null, string | null, string | null>;
+    dernier_refus_le: Date | null;
   };
 }

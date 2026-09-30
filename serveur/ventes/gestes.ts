@@ -34,6 +34,10 @@ export const GESTES_VENTES: Geste[] = [
     roles: { proprietaire: 'oui', administrateur: 'oui' } },
   { code: 'ventes.facture.signer', module: 'ventes', horsCle: true, ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui' } },
+  // L'envoi à la TTN (brique 82) : il part de lui-même une fois la pièce signée ; renvoyer une pièce refusée
+  // est une décision (une personne).
+  { code: 'ventes.facture.envoyer', module: 'ventes', horsCle: true, ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui' } },
 ];
 
 let declares = false;

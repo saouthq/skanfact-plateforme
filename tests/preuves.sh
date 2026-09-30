@@ -4618,7 +4618,7 @@ prouver "la frappe de la clé qui propose d'enregistrer les Paramètres" web/pub
     const form = /** @type {HTMLElement} */ (el.querySelector('#pl-form'));" "    const form = /** @type {HTMLElement} */ (el.querySelector('#pl-form'));" \
   "$PW"
 prouver "le champ de la clé vide qui ne se montre pas" web/public/plateforme/pont.js \
-  "champ(vide).focus(); return; }" "return; }" \
+  "portefeuille Konnect.'); champ(vide).focus(); return; }" "portefeuille Konnect.'); return; }" \
   "$PW"
 prouver "arrêter le paiement en ligne sans demander" web/public/plateforme/pont.js \
   "      if (!arreter.dataset.confirme) {" "      if (false) {" \
@@ -4794,7 +4794,7 @@ prouver "un fichier rendu SANS signature pris pour signé" serveur/v10/digigo.ts
   "return signatures.length === 1 && signe.replace(" "return signe.replace(" \
   "$SG1"
 prouver "« Fichier pour El Fatoora » donne le fichier non signé d'une pièce signée" serveur/v10/routes.ts \
-  "coalesce(g.xml, e.xml) xml" "e.xml xml" \
+  "coalesce(x.xml_valide, g.xml, e.xml) xml" "coalesce(x.xml_valide, e.xml) xml" \
   "$SG1"
 prouver "le fichier signé réécrit ou effacé par le compte du serveur" base/migrations/0050_signature.sql \
   "grant select, insert on ventes.efacture_signee to skanfact_app;" "grant select, insert, update, delete on ventes.efacture_signee to skanfact_app;" \
@@ -4830,7 +4830,7 @@ prouver "la fenêtre du fichier signé dit qu'il reste deux gestes" web/public/v
   "\${duServeur && duServeur.signe ? \`Il est signé" "\${false ? \`Il est signé" \
   "$SGW"
 prouver "la fenêtre du fichier signé demande encore de le signer" web/public/v10/app.js \
-  "\${duServeur && duServeur.signe ? '' : \`<li><b>Le signer</b>" "\${false ? '' : \`<li><b>Le signer</b>" \
+  "\${duServeur && duServeur.signe && bridge.ttnDansLaFenetre ? '<div id=\"teif-ttn\"></div>'" "\${false ? '<div id=\"teif-ttn\"></div>'" \
   "$SGW"
 prouver "une session refusée par DigiGo qui garde la demande ouverte" serveur/v10/signature.ts \
   "    if (a.statut !== 401) return echec(a.motif);
@@ -4840,6 +4840,85 @@ prouver "une session refusée par DigiGo qui garde la demande ouverte" serveur/v
 prouver "la fenêtre d'une pièce signée qui propose encore d'envoyer un code" web/public/plateforme/pont.js \
   "        if (f && f.signe) fini(" "        if (false) fini(" \
   "$SGW"
+# ── Brique 82 : l'envoi à la TTN (docs/facture-electronique.md) ──
+TT1="une pièce signée part d'elle-même, une seule fois ; acceptée, sa référence, son code QR et la facture validée se gardent"
+TT2="jamais deux dépôts : ni quand la réponse se perd, ni quand deux tours se croisent ; une panne se réessaie plus tard"
+TT3="un refus se dit, et la pièce se renvoie ; un compte refusé se dit à l'entreprise ; une entreprise d'essai n'envoie rien"
+TTW="la pièce signée attend le compte El Fatoora ; Nadia le pose depuis la fenêtre ; acceptée, la facture validée se télécharge"
+prouver "une pièce signée qui ne part pas d'elle-même" serveur/v10/signature.ts \
+  "  await mettreEnRoute(tx, entreprise, utilisateur, faits.map((f) => f.piece), maintenant);
+" "" \
+  "$TT1"
+prouver "une entreprise d'essai qui envoie à la TTN" serveur/v10/envoi.ts \
+  "  if (!e || e.essai) return;" "  if (!e) return;" \
+  "$TT3"
+prouver "un dépôt refait sans voir que la TTN a déjà la pièce" serveur/v10/envoi.ts \
+  "  if (vu.valeur) return verdict(vu.valeur, e);" "  if (vu.valeur && e.statut === 'deposee') return verdict(vu.valeur, e);" \
+  "$TT2"
+prouver "deux tours du facteur qui déposent la même pièce" serveur/v10/envoi.ts \
+  "and prochain_essai <= \$3 and (bail is null or bail < \$3) returning statut, essais" "and prochain_essai <= \$3 returning statut, essais" \
+  "$TT2"
+prouver "une panne réessayée aussitôt, sans attendre" serveur/v10/envoi.ts \
+  "essais: e.essais + 1, apres: attente(e.essais) });" "essais: e.essais + 1, apres: 0 });" \
+  "$TT2"
+prouver "des pannes réessayées toujours au même rythme" serveur/v10/envoi.ts \
+  "const ATTENTES = [1, 5, 15, 60];" "const ATTENTES = [1, 1, 1, 1];" \
+  "$TT2"
+prouver "« Fichier pour El Fatoora » donne le fichier signé d'une pièce acceptée par la TTN" serveur/v10/routes.ts \
+  "coalesce(x.xml_valide, g.xml, e.xml) xml" "coalesce(g.xml, e.xml) xml" \
+  "$TT1"
+prouver "une pièce acceptée par la TTN qui change encore" base/migrations/0051_envoi_ttn.sql \
+  "  if old.statut = 'acceptee' then perform socle.refus('une pièce acceptée par la TTN ne change plus'); end if;
+" "" \
+  "$TT1"
+prouver "le mot de passe El Fatoora lisible par le compte du serveur" base/migrations/0051_envoi_ttn.sql \
+  "grant select (entreprise, identifiant, pose_le, pose_par, dernier_refus, dernier_refus_le) on ventes.ttn_compte to skanfact_app;" "grant select on ventes.ttn_compte to skanfact_app;" \
+  "$TT1"
+prouver "un refus au dépôt pris pour une panne" serveur/v10/envoi.ts \
+  "  if (!r.ok) return r.panne ? panne(r.motif) : { quoi: 'refusee', motif: t('ttn.depot_refuse', { message: r.message }) };" "  if (!r.ok) return panne(r.panne ? r.motif : t('ttn.injoignable'));" \
+  "$TT3"
+prouver "un refus au traitement pris pour une pièce encore en cours" serveur/v10/envoi.ts \
+  "  if (depot.accuses.length) return {" "  if (false) return {" \
+  "$TT3"
+prouver "un compte refusé par la TTN qui ne se dit pas à l'entreprise" serveur/v10/envoi.ts \
+  "      if (issue.compteRefuse) {" "      if (false) {" \
+  "$TT3"
+prouver "le compte posé, les pièces retenues attendent encore une heure" serveur/v10/envoi.ts \
+  "update ventes.envoi_ttn set prochain_essai = \$2, essais = 0," "update ventes.envoi_ttn set prochain_essai = greatest(prochain_essai, \$2), essais = 0," \
+  "$TT1"
+prouver "le compte posé, les pièces se disent encore retenues par lui" serveur/v10/envoi.ts \
+  "motif = case when motif ->> 'cle' in ('ttn.sans_compte', 'ttn.compte_refuse', 'ttn.compte_illisible') then null else motif end" "motif = motif" \
+  "$TT1"
+prouver "le renvoi d'une pièce que la TTN n'a pas refusée" serveur/v10/envoi.ts \
+  "  if (x.statut !== 'refusee') throw new Refus('ttn.renvoi_impossible', { valeurs: { numero: x.numero_texte } });
+" "" \
+  "$TT1"
+prouver "le fichier non signé déposé à la TTN" serveur/v10/envoi.ts \
+  "select g.xml, p.numero_texte from ventes.efacture_signee g join ventes.piece p on p.id = g.piece where g.piece = \$1" "select g.xml, p.numero_texte from ventes.efacture g join ventes.piece p on p.id = g.piece where g.piece = \$1" \
+  "$TT1"
+prouver "la TTN interrogée avec le matricule du client" serveur/v10/envoi.ts \
+  "matricule: champ(e.xml, 'MessageSenderIdentifier')" "matricule: champ(e.xml, 'MessageRecieverIdentifier')" \
+  "$TT1"
+prouver "la fenêtre d'une pièce retenue sans le bouton qui mène au compte" web/public/plateforme/pont.js \
+  "\${compte ? '<div class=\"inline\"><button type=\"button\" class=\"btn btn-primary\" id=\"ttn-vers-compte\">" "\${false ? '<div class=\"inline\"><button type=\"button\" class=\"btn btn-primary\" id=\"ttn-vers-compte\">" \
+  "$TTW"
+prouver "« Brancher le compte El Fatoora » laisse chercher la case" web/public/plateforme/pont.js \
+  "    if (amenerTtn) { amenerTtn = false; if (!form.hidden) champ(c ? 'motDePasse' : 'identifiant').focus({ preventScroll: true }); }
+" "" \
+  "$TTW"
+prouver "taper le compte El Fatoora propose d'enregistrer les Paramètres" web/public/plateforme/pont.js \
+  "    for (const t of ['input', 'change']) el.addEventListener(t, (ev) => ev.stopPropagation());
+    const form = /** @type {HTMLElement} */ (el.querySelector('#ttn-form'));" "    const form = /** @type {HTMLElement} */ (el.querySelector('#ttn-form'));" \
+  "$TTW"
+prouver "le panneau du compte El Fatoora jamais dessiné" web/public/v10/app.js \
+  "    if (bridge.dessinerTtn && \$('#ttn-panel')) void bridge.dessinerTtn(\$('#ttn-panel'));
+" "" \
+  "$TTW"
+prouver "la fenêtre du fichier qui tait où en est l'envoi à la TTN" web/public/v10/app.js \
+  "        if (bridge.ttnDansLaFenetre && \$('#teif-ttn', root)) bridge.ttnDansLaFenetre(\$('#teif-ttn', root), doc, duServeur, close);
+" "" \
+  "$TTW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

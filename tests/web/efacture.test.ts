@@ -141,7 +141,9 @@ describe('la facture électronique, à la souris', () => {
     expect(duServeur.xml).not.toContain('Sfax');
     const pret = nadia.locator('#modal-root .modal').last();
     await expect.poll(() => pret.locator('h2').innerText()).toBe('Le fichier El Fatoora est prêt');
-    expect(net(await pret.locator('p').first().innerText())).toBe(`${duServeur.nom} est dans tes Téléchargements. Il reste deux gestes, faits avec les outils de ton entreprise :`);
+    expect(net(await pret.locator('p').first().innerText())).toBe(`${duServeur.nom} est dans tes Téléchargements. Il reste deux gestes :`);
+    // Sur la plateforme : les signer dans SkanFact ; SkanFact les dépose lui-même.
+    expect(net(await pret.locator('.teif-suite').innerText())).toMatch(/^Le signer avec « Signer \(DigiGo\)… », dans le menu « Plus » de la pièce \(ou avec ta clé TunTrust\)\. Le déposer : une fois signé, SkanFact le dépose lui-même à la TTN/);
     expect(await pret.getByRole('button', { name: 'Montrer le fichier' }).count()).toBe(0);
     await nadia.screenshot({ path: path.join(PHOTOS, 'efacture-3-fichier.png') });
     expect(erreurs).toEqual([]);

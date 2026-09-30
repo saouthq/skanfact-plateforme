@@ -14,6 +14,7 @@ import { Refus, texteDuRefus } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { appliquer, Conflit, emettreDepuisV10, lireDossier, type Changement } from './dossier.ts';
+import { poserCompte, renvoyer } from './envoi.ts';
 import { demanderPaiement, verifierPaiement } from './paiement.ts';
 import { demanderSignature, signerAvecLeCode } from './signature.ts';
 
@@ -68,13 +69,20 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     methode: 'GET', chemin: '/entreprises/:entreprise/dossier-v10/:cle/teif', geste: 'ventes.pieces.voir',
     traiter: async ({ params }, tx) => {
       if (!tx) throw new Error('transaction attendue');
-      // Signé (brique 81) : le fichier signé, celui qui se dépose.
-      const f = (await tx.query(`select e.nom, coalesce(g.xml, e.xml) xml, coalesce(g.empreinte, e.empreinte) empreinte, (g.piece is not null) signe,
-          g.signe_le, g.titulaire from ventes.efacture e join ventes.piece p on p.id = e.piece left join ventes.efacture_signee g on g.piece = e.piece
-        where p.entreprise = $1 and p.ref_v10 = $2`, [params.entreprise, params.cle])).rows[0] as { nom: string; xml: string; empreinte: string; signe: boolean; signe_le: Date | null; titulaire: string | null } | undefined;
+      // Signé (brique 81) : le fichier signé ; accepté par la TTN (brique 82) : la facture validée, qui fait foi.
+      const f = (await tx.query(`select e.nom, coalesce(x.xml_valide, g.xml, e.xml) xml, coalesce(g.empreinte, e.empreinte) empreinte, (g.piece is not null) signe,
+          g.signe_le, g.titulaire, x.statut envoi, x.depose_le, x.accepte_le, x.reference, x.motif, s.essai
+          from ventes.efacture e join ventes.piece p on p.id = e.piece left join ventes.efacture_signee g on g.piece = e.piece
+          left join ventes.envoi_ttn x on x.piece = e.piece join socle.entreprise s on s.id = p.entreprise
+        where p.entreprise = $1 and p.ref_v10 = $2`, [params.entreprise, params.cle])).rows[0] as { nom: string; xml: string; empreinte: string; signe: boolean;
+          signe_le: Date | null; titulaire: string | null; envoi: string | null; depose_le: Date | null; accepte_le: Date | null; reference: string | null;
+          motif: { cle: string; valeurs: Record<string, string> } | null; essai: boolean } | undefined;
       if (!f) return { statut: 404, corps: { motif: motif('efacture.absent') } };
-      return { corps: { nom: f.signe ? f.nom.replace(/\.xml$/, '_signe.xml') : f.nom, xml: f.xml, empreinte: f.empreinte, signe: f.signe,
-        signeLe: f.signe_le ? f.signe_le.toISOString() : null, titulaire: f.titulaire } };
+      const nom = f.envoi === 'acceptee' ? f.nom.replace(/\.xml$/, '_ttn.xml') : f.signe ? f.nom.replace(/\.xml$/, '_signe.xml') : f.nom;
+      return { corps: { nom, xml: f.xml, empreinte: f.empreinte, signe: f.signe, signeLe: f.signe_le ? f.signe_le.toISOString() : null, titulaire: f.titulaire,
+        essai: f.essai, ttnBranche: Boolean(ctx.ttn?.adresse),
+        envoi: f.envoi ? { statut: f.envoi, deposeLe: f.depose_le ? f.depose_le.toISOString() : null, accepteLe: f.accepte_le ? f.accepte_le.toISOString() : null,
+          reference: f.reference, motif: f.motif ? t(f.motif.cle, f.motif.valeurs) : null, motifCle: f.motif?.cle ?? null } : null } };
     },
   });
 
@@ -118,6 +126,49 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       if (!tx || !qui) throw new Error('transaction attendue');
       if (!/^[0-9a-f-]{36}$/.test(params.demande ?? '')) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
       return signerAvecLeCode(ctx, tx, params.entreprise ?? '', qui.utilisateur, params.demande ?? '', corps.code);
+    },
+  });
+
+  // ── L'envoi à la TTN (brique 82 ; docs/facture-electronique.md) ────────────────────────────────────
+  // Le compte El Fatoora (jamais le mot de passe), son dernier refus, et les derniers envois.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/efacture/ttn', geste: 'ventes.pieces.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const c = (await tx.query(`select c.identifiant, c.pose_le, u.nom pose_par, c.dernier_refus, c.dernier_refus_le
+        from ventes.ttn_compte c left join socle.utilisateur u on u.id = c.pose_par where c.entreprise = $1`, [params.entreprise])).rows[0] as
+        { identifiant: string; pose_le: Date; pose_par: string | null; dernier_refus: { cle: string; valeurs: Record<string, string> } | null; dernier_refus_le: Date | null } | undefined;
+      const envois = (await tx.query(`select p.numero_texte numero, x.statut, x.depose_le, x.accepte_le, x.reference, x.motif
+        from ventes.envoi_ttn x join ventes.piece p on p.id = x.piece where x.entreprise = $1 order by x.cree_le desc limit 10`, [params.entreprise])).rows as
+        { numero: string; statut: string; depose_le: Date | null; accepte_le: Date | null; reference: string | null; motif: { cle: string; valeurs: Record<string, string> } | null }[];
+      const essai = Boolean((await tx.query('select essai from socle.entreprise where id = $1', [params.entreprise])).rows[0]?.essai);
+      const dire = (m: { cle: string; valeurs: Record<string, string> } | null) => (m ? t(m.cle, m.valeurs) : null);
+      return {
+        corps: {
+          branche: Boolean(ctx.ttn?.adresse), essai,
+          compte: c ? { identifiant: c.identifiant, poseLe: c.pose_le.toISOString(), posePar: c.pose_par ?? '', dernierRefus: dire(c.dernier_refus),
+            dernierRefusLe: c.dernier_refus_le ? c.dernier_refus_le.toISOString() : null } : null,
+          envois: envois.map((x) => ({ numero: x.numero, statut: x.statut, deposeLe: x.depose_le ? x.depose_le.toISOString() : null,
+            accepteLe: x.accepte_le ? x.accepte_le.toISOString() : null, reference: x.reference, motif: dire(x.motif) })),
+        },
+      };
+    },
+  });
+  ajouter({
+    methode: 'PUT', chemin: '/entreprises/:entreprise/efacture/ttn', geste: 'ventes.efacture.regler',
+    corps: z.object({ identifiant: z.string().trim().min(1).max(100), motDePasse: z.string().min(1).max(200) }),
+    traiter: async ({ params, corps, qui }, tx) => {
+      if (!tx || !qui) throw new Error('transaction attendue');
+      await poserCompte(ctx, tx, params.entreprise ?? '', qui.utilisateur, corps.identifiant, corps.motDePasse);
+      return { corps: { ok: true } };
+    },
+  });
+  // Renvoyer une pièce que la TTN a refusée.
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/efacture/envois/:cle/renvoyer', geste: 'ventes.facture.envoyer',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      return renvoyer(ctx, tx, params.entreprise ?? '', params.cle ?? '');
     },
   });
 

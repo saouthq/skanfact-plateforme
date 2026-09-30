@@ -265,6 +265,7 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'personne ne change son propre rôle, ni ne se retire soi-même : un autre associé le fait', cle: 'base.cabinet.equipe_soi', fr: 'personne ne change son propre rôle, ni ne se retire soi-même : un autre associé le fait' },
   { base: 'seul un associé du cabinet change son nom', cle: 'base.cabinet.renommer_associe', fr: 'seul un associé du cabinet change son nom' },
   { base: 'le nom du cabinet s\'écrit en un à deux cents caractères', cle: 'base.cabinet.nom_longueur', fr: 'le nom du cabinet s\'écrit en un à deux cents caractères' },
+  { base: 'une pièce acceptée par la TTN ne change plus', cle: 'base.ttn.acceptee_figee', fr: 'une pièce acceptée par la TTN ne change plus : sa référence et la facture validée sont définitives' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

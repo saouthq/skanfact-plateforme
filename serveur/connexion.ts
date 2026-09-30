@@ -26,6 +26,9 @@ export type Contexte = {
   // La signature de la facture électronique (brique 81) : l'API DigiGo de TunTrust, et la clé de SkanFact
   // comme « entité d'intégration » (de l'environnement du serveur, jamais du dépôt).
   efacture?: { digigo: string; cleDigigo: string };
+  // L'envoi à la TTN (brique 82) : l'adresse du service El Fatoora (null : pas branché sur ce serveur), et
+  // la clé du coffre qui scelle le mot de passe El Fatoora de chaque entreprise.
+  ttn?: { adresse: string | null; coffre: Buffer };
 };
 
 export type Appareil = { id?: string; nom: string; type: 'navigateur' | 'bureau' | 'telephone' };

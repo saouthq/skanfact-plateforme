@@ -1,6 +1,6 @@
 # La facture électronique (El Fatoora)
 
-*30/09/2026, briques 80 et 81. Le cadrage fait foi : `docs/cadrage/05-obligations-legales.md` § 3.1 et 3.8, et
+*30/09/2026, briques 80 à 82. Le cadrage fait foi : `docs/cadrage/05-obligations-legales.md` § 3.1 et 3.8, et
 `VISION-ARCHITECTURE.md` § 5, du dépôt `skanfact`. Ce document dit ce qui en est fait ; les décisions sont
 prises par délégation, le 30/09/2026.*
 
@@ -85,6 +85,52 @@ fichier en XAdES). Les noms exacts, les champs et les erreurs sont **À VÉRIFIE
 d'intégration ; `serveur/v10/digigo.ts` est le seul fichier à reprendre. Le simulé signe « pour de faux » :
 aucun certificat n'est en jeu.
 
+## Ce que fait la brique 82 : l'envoi à la TTN
+
+*Décisions prises par délégation le 30/09/2026 ; le cadrage (`05` § 3.1) : « l'envoi par le serveur, par la
+file de travaux, sans jamais envoyer deux fois ; l'état de chaque facture ».*
+
+**T1. Le compte El Fatoora de l'entreprise.** Paramètres → Documents → « Facture électronique (El Fatoora) »
+→ « L'envoi à la TTN » : l'identifiant et le mot de passe que la TTN a donnés à l'adhésion. Le mot de passe
+est **scellé par le coffre du serveur** (comme la clé Konnect, `docs/paiement-en-ligne.md`), lié à
+l'entreprise ; le compte du serveur ne peut même pas le lire (seule la fonction de l'envoi le reçoit), et
+aucun écran ne le relit. Il ne suit pas l'export d'une entreprise : il se repose après une restauration.
+
+**T2. Une pièce signée part d'elle-même.** La signer (S2) la met en route. Le facteur du serveur (un tour
+par minute, `SKANFACT_TTN_MS`) la dépose sur El Fatoora (`saveEfact`, le fichier signé en base 64), puis la
+relit (`consultEfact`) jusqu'à la réponse de la TTN :
+- **acceptée** : la référence de la TTN, le contenu de son code QR et la **facture validée** (le fichier
+  signé, avec la référence et la signature de la TTN) se gardent, et ne changent plus (la base le refuse) ;
+  « Fichier pour El Fatoora » donne désormais cette facture validée (`…_ttn.xml`), celle qui fait foi ;
+- **refusée** : on dit pourquoi (le message de la TTN, ou ses accusés), et « Renvoyer à la TTN » la remet
+  en route une fois la cause corrigée. Ce que devient une facture refusée : **À VÉRIFIER** avec la TTN.
+
+**T3. Jamais deux fois.** Avant chaque dépôt, le serveur demande à la TTN si elle a déjà la pièce : une
+réponse de dépôt perdue (la TTN l'a reçue, le serveur ne le sait pas) ne fait pas de second dépôt. Et un seul
+tour travaille sur une pièce à la fois (un **bail** de cinq minutes, pris dans la base) : deux serveurs qui
+tournent en même temps ne déposent pas deux fois.
+
+**T4. Ce qui retient une pièce se dit.** Une panne (la TTN ne répond pas) se réessaie tout seul, de plus en
+plus tard (1, 5, 15 minutes, puis toutes les heures). Un compte absent ou refusé retient la pièce, et le dit
+dans la fenêtre du fichier avec le bouton « Brancher le compte El Fatoora » (le réglage amené à l'écran, le
+curseur dans la case) ; un compte refusé se lit aussi dans les réglages (« Dernier refus de la TTN »). Le
+compte posé ou corrigé, les pièces retenues repartent aussitôt.
+
+**T5. Une entreprise d'essai n'envoie jamais rien** (règle de l'entreprise d'essai, `0009`) : ses pièces se
+signent, et ne partent pas ; la fenêtre le dit.
+
+**T6. Ce qui part vers la TTN** (liste comptée) : l'identifiant et le mot de passe El Fatoora de
+l'entreprise, son matricule (celui que porte le fichier), et le fichier signé de la pièce — ou son seul
+numéro, pour la consulter. Rien d'autre. L'adresse du service vient de l'environnement du serveur
+(`SKANFACT_TTN`) ; sans elle, les pièces attendent, et l'écran le dit.
+
+**T7. Contre une TTN simulée.** Tant que l'accès de test El Fatoora n'est pas là (démarche du père de
+Skander, `05`), le serveur parle à `tests/ttn-simule.ts`, écrit d'après ce qui est publié du service
+(« EfactService » : `saveEfact`, `consultEfact`, la facture validée dans `xmlContent`, sa référence et son
+code QR dans `RefTtnVal`, qui est dans le schéma TEIF 1.8.8). Les noms exacts, les champs, les codes, la
+forme des accusés et le moment où la TTN traite une pièce sont **À VÉRIFIER** avec l'accès de test ;
+`serveur/v10/ttn.ts` est le seul fichier à reprendre.
+
 ## Comment c'est vérifié
 
 - `tests/v10/efacture.test.ts` : le fichier passe le schéma officiel (`xmllint`, sur la forme XSD 1.0 du
@@ -101,16 +147,24 @@ aucun certificat n'est en jeu.
   amené à l'écran (le curseur dans la case, sans proposer d'enregistrer les Paramètres), un code faux puis le
   bon, le fichier signé téléchargé tel que le serveur le garde, et la fenêtre qui ne demande plus de le
   signer. Six écrans.
+- `tests/v10/ttn.test.ts` : une pièce signée part d'elle-même, attend un compte absent, se dépose une fois,
+  s'accepte (référence, code QR, facture validée gardée et figée) ; une réponse de dépôt perdue et trois tours
+  simultanés ne font jamais deux dépôts ; une panne se réessaie 1 puis 5 minutes plus tard ; un refus au dépôt
+  ou au traitement se dit, et la pièce se renvoie ; un compte refusé se dit à l'entreprise ; une entreprise
+  d'essai n'envoie rien ; le mot de passe ne se lit pas.
+- `tests/web/ttn.test.ts` : le parcours de Nadia, à la souris : la pièce qui attend et son bouton, le compte
+  posé (le curseur dans la case, sans proposer d'enregistrer les Paramètres), puis la facture validée
+  téléchargée telle que le serveur la garde, avec sa référence. Quatre écrans.
 
 ## Reste à faire (`05` § 3.1 et 3.2 ; vision § 5)
 
 - **La signature**, suite : signer plusieurs pièces d'un coup depuis la liste (le serveur le sait déjà), la
   clé USB par l'agent local, puis la signature par le serveur après homologation ANCE. Brancher le vrai
   DigiGo quand l'adhésion est là (S7).
-- **L'envoi à la TTN** par la file de travaux, sans jamais envoyer deux fois ; l'état de chaque facture
-  (préparée, signée, envoyée, acceptée, refusée) ; la référence et le QR code imprimés sur la pièce et
-  montrés dans l'espace client. Contre un simulateur écrit d'après la documentation, tant que l'accès de
-  test El Fatoora n'est pas là (`09`, risques).
+- **La référence de la TTN et son code QR imprimés sur la pièce**, et montrés dans l'espace client ; l'état
+  de l'envoi dans la liste des factures.
+- Brancher la vraie TTN quand l'accès de test est là (T7) ; l'archivage dix ans de la facture validée (`05`
+  § 3.8 : elle est gardée ; la durée et l'effacement au bout, à écrire).
 - « Tes premiers pas » : l'adhésion à El Fatoora expliquée pas à pas, avec le lien.
 - **À VÉRIFIER** avec la TTN (`05` § 3.1) : la version du schéma en vigueur, les tickets de caisse,
   l'acompte, la note d'honoraires (I-13), ce que devient une facture refusée.

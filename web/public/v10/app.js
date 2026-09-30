@@ -5198,12 +5198,12 @@
     const chemin = await bridge.saveText(r.nom, r.xml);
     if (!chemin) return;
     modal(`<h2>Le fichier El Fatoora est prêt</h2>
-      <p><b>${h(r.nom)}</b> est ${bridge.teifDuServeur ? 'dans tes Téléchargements' : 'enregistré'}. ${duServeur && duServeur.signe ? `Il est signé${duServeur.titulaire ? ` par ${h(duServeur.titulaire)}` : ''} (DigiGo). Il reste un geste :` : 'Il reste deux gestes, faits avec les outils de ton entreprise :'}</p>
-      <ol class="teif-suite">
-        ${duServeur && duServeur.signe ? '' : `<li><b>Le signer</b> ${bridge.signerPiece ? 'avec « Signer (DigiGo)… », dans le menu « Plus » de la pièce (ou avec ta clé TunTrust)' : 'avec ta signature électronique (certificat TunTrust, sur clé ou avec DigiGo)'}.</li>`}
-        <li><b>Le déposer</b> sur la plateforme El Fatoora de Tunisie TradeNet. Elle te rend la facture
-        validée, avec sa référence et son code QR : c'est elle qui fait foi, garde-la.</li>
-      </ol>
+      <p><b>${h(r.nom)}</b> est ${bridge.teifDuServeur ? 'dans tes Téléchargements' : 'enregistré'}. ${duServeur && duServeur.signe ? `Il est signé${duServeur.titulaire ? ` par ${h(duServeur.titulaire)}` : ''} (DigiGo).${bridge.ttnDansLaFenetre ? '' : ' Il reste un geste :'}` : bridge.ttnDansLaFenetre ? 'Il reste deux gestes :' : 'Il reste deux gestes, faits avec les outils de ton entreprise :'}</p>
+      ${duServeur && duServeur.signe && bridge.ttnDansLaFenetre ? '<div id="teif-ttn"></div>' : `<ol class="teif-suite">
+        <li><b>Le signer</b> ${bridge.signerPiece ? 'avec « Signer (DigiGo)… », dans le menu « Plus » de la pièce (ou avec ta clé TunTrust)' : 'avec ta signature électronique (certificat TunTrust, sur clé ou avec DigiGo)'}.</li>
+        ${bridge.ttnDansLaFenetre ? '<li><b>Le déposer</b> : une fois signé, SkanFact le dépose lui-même à la TTN, et te dit ce qu\'elle en fait.</li>' : `<li><b>Le déposer</b> sur la plateforme El Fatoora de Tunisie TradeNet. Elle te rend la facture
+        validée, avec sa référence et son code QR : c'est elle qui fait foi, garde-la.</li>`}
+      </ol>`}
       ${r.remarques.length ? `<p class="small">À relire : ${r.remarques.map(x => h(x.message)).join(' ')}</p>` : ''}
       <p class="small muted">Le fichier suit le format TEIF ${h(T.VERSION)} publié par la TTN. Qui est tenu à la
       facture électronique, et depuis quand : À VÉRIFIER avec ton comptable.</p>
@@ -5211,6 +5211,7 @@
       (root, close) => {
         $('[data-close]', root).onclick = close;
         if ($('#teif-montrer', root)) $('#teif-montrer', root).onclick = () => { bridge.showInFolder(chemin); };
+        if (bridge.ttnDansLaFenetre && $('#teif-ttn', root)) bridge.ttnDansLaFenetre($('#teif-ttn', root), doc, duServeur, close);
       });
   }
 
@@ -15169,7 +15170,7 @@
         </div></div>
         ${bridge.teifDuServeur ? `${panneau('p-efacture', info('set.efacture'))}
           <label class="check"><input type="checkbox" name="efacture" ${c.efacture ? 'checked' : ''}> Mon entreprise est soumise à la facture électronique</label>
-          <p class="small muted mt">SkanFact écrit le fichier TEIF de chaque facture et de chaque avoir à l'émission, avec les montants de la pièce. Soumise, ton entreprise ne peut pas émettre une pièce dont le fichier serait refusé (ton matricule, l'identifiant du client) : SkanFact le dit avant de prendre le numéro, avec le bouton qui corrige. Chaque pièce émise se signe ensuite avec DigiGo (« Signer (DigiGo)… », dans son menu « Plus ») ; l'envoi à la TTN vient après. Qui est soumis, et depuis quand : À VÉRIFIER avec ton comptable (loi de finances 2026, art. 53).</p>${bridge.dessinerSignataire ? '<div id="signataire-panel"></div>' : ''}</div>` : ''}
+          <p class="small muted mt">SkanFact écrit le fichier TEIF de chaque facture et de chaque avoir à l'émission, avec les montants de la pièce. Soumise, ton entreprise ne peut pas émettre une pièce dont le fichier serait refusé (ton matricule, l'identifiant du client) : SkanFact le dit avant de prendre le numéro, avec le bouton qui corrige. Chaque pièce émise se signe ensuite avec DigiGo (« Signer (DigiGo)… », dans son menu « Plus ») ; signée, elle part d'elle-même à la TTN, avec le compte El Fatoora de l'entreprise. Qui est soumis, et depuis quand : À VÉRIFIER avec ton comptable (loi de finances 2026, art. 53).</p>${bridge.dessinerSignataire ? '<div id="signataire-panel"></div>' : ''}${bridge.dessinerTtn ? '<div id="ttn-panel"></div>' : ''}</div>` : ''}
         ${bridge.dessinerPaiement ? `${panneau('p-paiement')}<div id="paiement-panel"></div></div>` : ''}
         ${panneau('p-caisse')}
           <p class="small muted mb">Ces réglages ne servent qu'aux tickets de la page Caisse : tes devis et tes factures n'en dépendent pas.</p>
@@ -15574,6 +15575,7 @@
     if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));
     if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));
     if (bridge.dessinerSignataire && $('#signataire-panel')) void bridge.dessinerSignataire($('#signataire-panel'));
+    if (bridge.dessinerTtn && $('#ttn-panel')) void bridge.dessinerTtn($('#ttn-panel'));
     drawLicencePanel();
     drawEditeurPanel();
     drawUpdatePanel();

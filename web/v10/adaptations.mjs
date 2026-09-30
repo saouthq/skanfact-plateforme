@@ -65,10 +65,10 @@ export const ADAPTATIONS = [
     apres: "      ${bridge.quarantaine && bridge.quarantaine() ? `${panneau('p-quarantaine')}<div id=\"quarantaine-panel\"></div></div>` : ''}\n      ${bridge.dessinerAppareils ? `${panneau('p-appareils')}<div id=\"appareils-panel\"></div></div>` : ''}\n      ${panneau('p-dossiers', info('data.dossiers'))}\n",
   },
   {
-    fichier: 'app.js',
-    pourquoi: 'le point de contact dessine ses panneaux quand les Paramètres s\'ouvrent',
-    avant: '    drawCabinetPair();\n    drawLicencePanel();\n',
-    apres: "    drawCabinetPair();\n    if (bridge.dessinerQuarantaine && $('#quarantaine-panel')) bridge.dessinerQuarantaine($('#quarantaine-panel'));\n    if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));\n    if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));\n    if (bridge.dessinerSignataire && $('#signataire-panel')) void bridge.dessinerSignataire($('#signataire-panel'));\n    drawLicencePanel();\n",
+    fichier: "app.js",
+    pourquoi: "le point de contact dessine ses panneaux quand les Paramètres s'ouvrent",
+    avant: "    drawCabinetPair();\n    drawLicencePanel();\n",
+    apres: "    drawCabinetPair();\n    if (bridge.dessinerQuarantaine && $('#quarantaine-panel')) bridge.dessinerQuarantaine($('#quarantaine-panel'));\n    if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));\n    if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));\n    if (bridge.dessinerSignataire && $('#signataire-panel')) void bridge.dessinerSignataire($('#signataire-panel'));\n    if (bridge.dessinerTtn && $('#ttn-panel')) void bridge.dessinerTtn($('#ttn-panel'));\n    drawLicencePanel();\n",
   },
   // ── Le paiement en ligne (brique 78 ; docs/paiement-en-ligne.md) : son panneau dans l'onglet Documents
   // (dessiné par le point de contact), et le mode de règlement « Paiement en ligne » (celui que le
@@ -101,9 +101,9 @@ export const ADAPTATIONS = [
   },
   {
     fichier: "app.js",
-    pourquoi: "le panneau « Facture électronique (El Fatoora) » : l'entreprise dit si elle y est soumise (un champ de la fiche), et qui signe (dessiné par le point de contact, brique 81) ; il se pose avant celui du paiement en ligne",
+    pourquoi: "le panneau « Facture électronique (El Fatoora) » : l'entreprise dit si elle y est soumise (un champ de la fiche), qui signe, et son compte El Fatoora (dessinés par le point de contact, briques 81 et 82) ; il se pose avant celui du paiement en ligne",
     avant: "        ${bridge.dessinerPaiement ? `${panneau('p-paiement')}",
-    apres: "        ${bridge.teifDuServeur ? `${panneau('p-efacture', info('set.efacture'))}\n          <label class=\"check\"><input type=\"checkbox\" name=\"efacture\" ${c.efacture ? 'checked' : ''}> Mon entreprise est soumise à la facture électronique</label>\n          <p class=\"small muted mt\">SkanFact écrit le fichier TEIF de chaque facture et de chaque avoir à l'émission, avec les montants de la pièce. Soumise, ton entreprise ne peut pas émettre une pièce dont le fichier serait refusé (ton matricule, l'identifiant du client) : SkanFact le dit avant de prendre le numéro, avec le bouton qui corrige. Chaque pièce émise se signe ensuite avec DigiGo (« Signer (DigiGo)… », dans son menu « Plus ») ; l'envoi à la TTN vient après. Qui est soumis, et depuis quand : À VÉRIFIER avec ton comptable (loi de finances 2026, art. 53).</p>${bridge.dessinerSignataire ? '<div id=\"signataire-panel\"></div>' : ''}</div>` : ''}\n        ${bridge.dessinerPaiement ? `${panneau('p-paiement')}",
+    apres: "        ${bridge.teifDuServeur ? `${panneau('p-efacture', info('set.efacture'))}\n          <label class=\"check\"><input type=\"checkbox\" name=\"efacture\" ${c.efacture ? 'checked' : ''}> Mon entreprise est soumise à la facture électronique</label>\n          <p class=\"small muted mt\">SkanFact écrit le fichier TEIF de chaque facture et de chaque avoir à l'émission, avec les montants de la pièce. Soumise, ton entreprise ne peut pas émettre une pièce dont le fichier serait refusé (ton matricule, l'identifiant du client) : SkanFact le dit avant de prendre le numéro, avec le bouton qui corrige. Chaque pièce émise se signe ensuite avec DigiGo (« Signer (DigiGo)… », dans son menu « Plus ») ; signée, elle part d'elle-même à la TTN, avec le compte El Fatoora de l'entreprise. Qui est soumis, et depuis quand : À VÉRIFIER avec ton comptable (loi de finances 2026, art. 53).</p>${bridge.dessinerSignataire ? '<div id=\"signataire-panel\"></div>' : ''}${bridge.dessinerTtn ? '<div id=\"ttn-panel\"></div>' : ''}</div>` : ''}\n        ${bridge.dessinerPaiement ? `${panneau('p-paiement')}",
   },
   {
     fichier: "app.js",
@@ -125,15 +125,15 @@ export const ADAPTATIONS = [
   },
   {
     fichier: "app.js",
-    pourquoi: "le fichier téléchargé est dans les Téléchargements (un navigateur ne sait pas le montrer dans un dossier) ; signé (brique 81), il ne reste qu'à le déposer",
+    pourquoi: "le fichier téléchargé est dans les Téléchargements (un navigateur ne sait pas le montrer dans un dossier) ; signé (brique 81), il part de lui-même à la TTN (brique 82)",
     avant: "      <p><b>${h(r.nom)}</b> est enregistré. Il reste deux gestes, faits avec les outils de ton entreprise :</p>\n",
-    apres: "      <p><b>${h(r.nom)}</b> est ${bridge.teifDuServeur ? 'dans tes Téléchargements' : 'enregistré'}. ${duServeur && duServeur.signe ? `Il est signé${duServeur.titulaire ? ` par ${h(duServeur.titulaire)}` : ''} (DigiGo). Il reste un geste :` : 'Il reste deux gestes, faits avec les outils de ton entreprise :'}</p>\n",
+    apres: "      <p><b>${h(r.nom)}</b> est ${bridge.teifDuServeur ? 'dans tes Téléchargements' : 'enregistré'}. ${duServeur && duServeur.signe ? `Il est signé${duServeur.titulaire ? ` par ${h(duServeur.titulaire)}` : ''} (DigiGo).${bridge.ttnDansLaFenetre ? '' : ' Il reste un geste :'}` : bridge.ttnDansLaFenetre ? 'Il reste deux gestes :' : 'Il reste deux gestes, faits avec les outils de ton entreprise :'}</p>\n",
   },
   {
     fichier: "app.js",
-    pourquoi: "pas de bouton « Montrer le fichier » dans un navigateur",
+    pourquoi: "pas de bouton « Montrer le fichier » dans un navigateur ; l'état de l'envoi à la TTN se dessine dans la fenêtre (brique 82)",
     avant: "      <div class=\"modal-actions\"><button class=\"btn\" id=\"teif-montrer\">Montrer le fichier</button><button class=\"btn btn-primary\" data-close>Fermer</button></div>`,\n      (root, close) => {\n        $('[data-close]', root).onclick = close;\n        $('#teif-montrer', root).onclick = () => { bridge.showInFolder(chemin); };\n      });\n",
-    apres: "      <div class=\"modal-actions\">${bridge.teifDuServeur ? '' : '<button class=\"btn\" id=\"teif-montrer\">Montrer le fichier</button>'}<button class=\"btn btn-primary\" data-close>Fermer</button></div>`,\n      (root, close) => {\n        $('[data-close]', root).onclick = close;\n        if ($('#teif-montrer', root)) $('#teif-montrer', root).onclick = () => { bridge.showInFolder(chemin); };\n      });\n",
+    apres: "      <div class=\"modal-actions\">${bridge.teifDuServeur ? '' : '<button class=\"btn\" id=\"teif-montrer\">Montrer le fichier</button>'}<button class=\"btn btn-primary\" data-close>Fermer</button></div>`,\n      (root, close) => {\n        $('[data-close]', root).onclick = close;\n        if ($('#teif-montrer', root)) $('#teif-montrer', root).onclick = () => { bridge.showInFolder(chemin); };\n        if (bridge.ttnDansLaFenetre && $('#teif-ttn', root)) bridge.ttnDansLaFenetre($('#teif-ttn', root), doc, duServeur, close);\n      });\n",
   },
   {
     fichier: "app.js",
@@ -169,9 +169,9 @@ export const ADAPTATIONS = [
   },
   {
     fichier: "app.js",
-    pourquoi: "la fenêtre du fichier ne demande plus de le signer quand il l'est, et dit où se signe une pièce",
-    avant: "        <li><b>Le signer</b> avec ta signature électronique (certificat TunTrust, sur clé ou avec DigiGo).</li>\n",
-    apres: "        ${duServeur && duServeur.signe ? '' : `<li><b>Le signer</b> ${bridge.signerPiece ? 'avec « Signer (DigiGo)… », dans le menu « Plus » de la pièce (ou avec ta clé TunTrust)' : 'avec ta signature électronique (certificat TunTrust, sur clé ou avec DigiGo)'}.</li>`}\n",
+    pourquoi: "la fenêtre du fichier : signée sur la plateforme, l'état de son envoi à la TTN (dessiné par le point de contact, brique 82) à la place des gestes ; sinon, où se signe une pièce, et que SkanFact la déposera",
+    avant: "      <ol class=\"teif-suite\">\n        <li><b>Le signer</b> avec ta signature électronique (certificat TunTrust, sur clé ou avec DigiGo).</li>\n        <li><b>Le déposer</b> sur la plateforme El Fatoora de Tunisie TradeNet. Elle te rend la facture\n        validée, avec sa référence et son code QR : c'est elle qui fait foi, garde-la.</li>\n      </ol>\n",
+    apres: "      ${duServeur && duServeur.signe && bridge.ttnDansLaFenetre ? '<div id=\"teif-ttn\"></div>' : `<ol class=\"teif-suite\">\n        <li><b>Le signer</b> ${bridge.signerPiece ? 'avec « Signer (DigiGo)… », dans le menu « Plus » de la pièce (ou avec ta clé TunTrust)' : 'avec ta signature électronique (certificat TunTrust, sur clé ou avec DigiGo)'}.</li>\n        ${bridge.ttnDansLaFenetre ? '<li><b>Le déposer</b> : une fois signé, SkanFact le dépose lui-même à la TTN, et te dit ce qu\\'elle en fait.</li>' : `<li><b>Le déposer</b> sur la plateforme El Fatoora de Tunisie TradeNet. Elle te rend la facture\n        validée, avec sa référence et son code QR : c'est elle qui fait foi, garde-la.</li>`}\n      </ol>`}\n",
   },
   // ── Les envois (brique 79 ; docs/espace-client.md, E7) : un navigateur ne joint pas de fichier ; l'e-mail et
   // le WhatsApp d'une facture ou d'un avoir émis portent le LIEN de la pièce (créé à l'envoi par le point de

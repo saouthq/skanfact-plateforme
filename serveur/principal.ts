@@ -18,6 +18,9 @@
 //   SKANFACT_DIGIGO          l'API DigiGo de TunTrust (la signature de la facture électronique) ; sans elle,
 //                            la signature n'est pas branchée (et le dit)
 //   SKANFACT_DIGIGO_CLE      la clé de SkanFact comme « entité d'intégration » DigiGo (exigée avec l'API)
+//   SKANFACT_TTN             le service El Fatoora de la TTN (l'envoi des factures électroniques signées) ;
+//                            sans lui, les pièces signées attendent (et l'écran le dit)
+//   SKANFACT_TTN_MS          le rythme du facteur de la TTN, en millisecondes (60 000 par défaut)
 //   SKANFACT_COFFRE          la clé du coffre (32 octets en base64) qui scelle les clés confiées par les
 //                            entreprises (serveur/coffre.ts) ; exigée en production, une clé d'essai
 //                            connue de tous sinon
@@ -42,6 +45,7 @@ import { declarerGestesPaie } from './paie/gestes.ts';
 import { routesPaie } from './paie/routes.ts';
 import { declarerGestesVentes } from './ventes/gestes.ts';
 import { routesVentes } from './ventes/routes.ts';
+import { envoyerALaTtn } from './v10/envoi.ts';
 import { verifierEnAttente } from './v10/paiement.ts';
 import { routesV10 } from './v10/routes.ts';
 import { KONNECT_PAR_DEFAUT } from './ventes/konnect.ts';
@@ -50,6 +54,7 @@ export type Configuration = {
   base: string; environnement: 'test' | 'production'; port: number; hote: string; listeVolee: string;
   sms: 'aucun'; livreurMs: number; web: string; adresse: string | null; konnect: string; coffre: Buffer; verificationMs: number;
   digigo: { base: string; cle: string } | null;
+  ttn: string | null; ttnMs: number;
 };
 
 export class ConfigurationFausse extends Error {}
@@ -80,6 +85,8 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   const digigo = env.SKANFACT_DIGIGO ? env.SKANFACT_DIGIGO.replace(/\/+$/, '') : null;
   if (digigo && !/^https?:\/\//.test(digigo)) throw new ConfigurationFausse(`SKANFACT_DIGIGO « ${digigo} » n'est pas une adresse`);
   if (digigo && !env.SKANFACT_DIGIGO_CLE) throw new ConfigurationFausse('SKANFACT_DIGIGO_CLE manque : la clé de SkanFact comme entité d\'intégration DigiGo');
+  const ttn = env.SKANFACT_TTN ? env.SKANFACT_TTN.replace(/\/+$/, '') : null;
+  if (ttn && !/^https?:\/\//.test(ttn)) throw new ConfigurationFausse(`SKANFACT_TTN « ${ttn} » n'est pas une adresse`);
   return {
     base, environnement, port, hote: env.SKANFACT_HOTE ?? '127.0.0.1', sms,
     listeVolee: env.SKANFACT_LISTE_VOLEE ?? path.join(ici, '../tests/donnees/mots-de-passe-voles.txt'),
@@ -87,6 +94,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     web: env.SKANFACT_WEB ?? path.join(ici, '../dist/web'),
     adresse, konnect, coffre, verificationMs: Number(env.SKANFACT_VERIFICATION_MS ?? 60_000),
     digigo: digigo ? { base: digigo, cle: env.SKANFACT_DIGIGO_CLE ?? '' } : null,
+    ttn, ttnMs: Number(env.SKANFACT_TTN_MS ?? 60_000),
   };
 }
 
@@ -129,7 +137,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   // L'adresse publique : réglée, sinon celle où le serveur écoute (connue une fois qu'il écoute).
   let publique = c.adresse ?? '';
   const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms: smsAucun, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique },
-    ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}) };
+    ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}), ttn: { adresse: c.ttn, coffre: c.coffre } };
   declarerGestesVentes();
   declarerGestesAchats();
   declarerGestesPaie();
@@ -159,13 +167,25 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
     verification = verifierEnAttente(ctx).catch((e: unknown) => { app.log.error(e); }).finally(() => { verifie = false; });
   }, c.verificationMs);
 
+  // Le facteur de la TTN (brique 82) : les pièces signées à déposer, celles déposées à relire ; un seul
+  // tour à la fois.
+  let tournee: Promise<unknown> = Promise.resolve();
+  let enTournee = false;
+  const facteur = setInterval(() => {
+    if (enTournee || !c.ttn) return;
+    enTournee = true;
+    tournee = envoyerALaTtn(ctx).catch((e: unknown) => { app.log.error(e); }).finally(() => { enTournee = false; });
+  }, c.ttnMs);
+
   return {
     adresse,
     arreter: async () => {
       clearInterval(minuterie);
       clearInterval(veilleur);
+      clearInterval(facteur);
       await tour;
       await verification;
+      await tournee;
       await app.close();
       await pool.end();
     },

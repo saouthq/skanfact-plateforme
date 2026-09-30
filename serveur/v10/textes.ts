@@ -69,5 +69,14 @@ declarerTextes({
   'efacture.code_epuise': 'trois codes faux : cette demande est perdue, rien n\'a été signé. Recommence la signature : un nouveau code partira',
   'efacture.demande_finie': 'cette demande de signature est terminée : recommence la signature si besoin',
   'efacture.signature_fausse': 'DigiGo a rendu un fichier qui n\'est pas celui qu\'on lui a envoyé : rien n\'a été gardé',
+  // L'envoi à la TTN (brique 82).
+  'ttn.injoignable': 'la TTN ne répond pas pour le moment : SkanFact réessaiera tout seul',
+  'ttn.panne': 'la TTN a répondu par une erreur (réponse {statut}) : SkanFact réessaiera tout seul',
+  'ttn.sans_compte': 'le compte El Fatoora de l\'entreprise n\'est pas posé : branche-le dans Paramètres → Documents, et la pièce partira',
+  'ttn.compte_illisible': 'le mot de passe El Fatoora ne se lit plus sur ce serveur : pose-le de nouveau dans Paramètres → Documents',
+  'ttn.compte_refuse': 'la TTN refuse le compte El Fatoora de l\'entreprise (« {message} ») : vérifie l\'identifiant et le mot de passe dans Paramètres → Documents',
+  'ttn.depot_refuse': 'la TTN a refusé la pièce au dépôt : « {message} »',
+  'ttn.refusee': 'la TTN a refusé la pièce : {accuses}',
+  'ttn.renvoi_impossible': 'seule une pièce refusée par la TTN se renvoie ; la pièce {numero} ne l\'est pas',
   'v10.ecart_montant': 'le serveur ne trouve pas le même net à payer que l\'écran ({ecran} à l\'écran, {serveur} au serveur) : rien n\'a été émis. Vérifie le timbre et les taux, puis réessaie',
 });
