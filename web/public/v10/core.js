@@ -3460,16 +3460,21 @@
       if (isSale && d.fromDocType === 'livraison') return;
       (d.lines || []).forEach((l, i) => {
         if (l.noDiscount) return;              // ligne d'acompte ou de déduction : aucune marchandise
-        const c = itemOfLine(l, data);
-        if (!keep(c)) return;
-        const qty = Number(l.qty) || 0;
-        if (!qty) return;
-        out.push({ id: `doc-${d.id}-${i}`, date: d.date, itemId: c.id, label: c.label,
-          qty: isReturn ? qty : -qty, unitCost: null,
-          source: isReturn ? 'avoir' : (isDelivery ? 'livraison' : 'vente'),
-          ref: d.number || '', docId: d.id, note: '', rang: 1,
-          // La marchandise sort à l'ÉMISSION : c'est l'instant qui compte, pas celui du brouillon.
-          ts: Number(d.issuedTs || d.createdAt) || 0 });
+        // Un kit (brique 96) : ce sont ses composants qui sortent (ou rentrent, sur un avoir), chacun à sa
+        // quantité par kit ; la ligne d'un article ordinaire est son propre et unique composant.
+        const art = itemOfLine(l, data);
+        const parts = estKit(art) ? composantsDe(data, art).map(k => ({ c: k.item, par: k.qty, kit: art.label })) : [{ c: art, par: 1, kit: '' }];
+        parts.forEach(({ c, par, kit }, j) => {
+          if (!keep(c)) return;
+          const qty = par === 1 ? Number(l.qty) || 0 : round3((Number(l.qty) || 0) * par);
+          if (!qty) return;
+          out.push({ id: kit ? `doc-${d.id}-${i}-${j}` : `doc-${d.id}-${i}`, date: d.date, itemId: c.id, label: c.label,
+            qty: isReturn ? qty : -qty, unitCost: null,
+            source: isReturn ? 'avoir' : (isDelivery ? 'livraison' : 'vente'),
+            ref: d.number || '', docId: d.id, note: kit ? `kit « ${kit} »` : '', rang: 1,
+            // La marchandise sort à l'ÉMISSION : c'est l'instant qui compte, pas celui du brouillon.
+            ts: Number(d.issuedTs || d.createdAt) || 0 });
+        });
       });
     });
 
@@ -3722,9 +3727,35 @@
 
   // Ce qu'un document sortirait du stock : appelé avant d'émettre une facture ou un bon de livraison,
   // pour prévenir quand on s'apprête à vendre ce qu'on n'a pas.
+  // ---------- les kits (plateforme, brique 96 ; 02 : « recettes et kits ») ----------
+  // Un kit est un article NON suivi qui porte ses composants ([{ itemId, qty }], des articles suivis) : le
+  // vendre sort ses composants. Il n'a pas de stock à lui ; il en reste ce que ses composants permettent.
+  function estKit(c) { return !!c && !c.tracked && Array.isArray(c.composants) && c.composants.length > 0; }
+  function composantsDe(data, kit) {
+    return ((kit && kit.composants) || []).map(k => ({ item: (data.catalog || []).find(x => x.id === k.itemId), qty: Number(k.qty) || 0 }))
+      .filter(k => k.item && k.item.tracked && k.qty > 0);
+  }
+  // Les lignes d'une pièce vues par le stock : la ligne d'un kit devient celles de ses composants.
+  function lignesDeStock(lines, data) {
+    return (lines || []).flatMap(l => {
+      const c = l && !l.noDiscount ? itemOfLine(l, data) : null;
+      if (!estKit(c)) return [l];
+      return composantsDe(data, c).map(k => ({ itemId: k.item.id, label: k.item.label, qty: round3((Number(l.qty) || 0) * k.qty), kit: c.label }));
+    });
+  }
+  function kitsPossibles(data, kit, toIso) {
+    const ks = composantsDe(data, kit);
+    if (!ks.length) return 0;
+    return Math.max(0, Math.min(...ks.map(k => Math.floor(round3(stockOf(data, k.item.id, toIso).qty / k.qty) + 1e-9))));
+  }
+  // Ce que coûtent aujourd'hui les composants d'un kit : chacun à son coût moyen (à défaut, son coût de revient).
+  function coutDuKit(data, kit) {
+    return round3(composantsDe(data, kit).reduce((a, k) => a + k.qty * (stockOf(data, k.item.id).cmp || Number(k.item.unitCost) || 0), 0));
+  }
+
   function stockImpact(doc, data) {
     const out = [];
-    (doc.lines || []).forEach(l => {
+    lignesDeStock(doc.lines || [], data).forEach(l => {
       if (l.noDiscount) return;
       const c = itemOfLine(l, data);
       if (!c || !c.tracked) return;
@@ -11072,7 +11103,7 @@
     DEFAULT_ASSET_CLASSES, assetClassLabel, assetClassYears, days360, assetSchedule, assetYear,
     assetCumulated, assetNBV, disposalResult, assetsList, assetTotals, assetsToCreate, immosEnAttente, immosHorsTableau, ligneDeFiche, biensADiminuer, depreciationFor,
     cappedCumulated,
-    moisDePaie, anneesDePaie, premierePieceApres, MOVE_SOURCES, SOURCES_SORTIE, qteMouvement, moveSourceLabel, trackedItems, itemOfLine, stockMovements, runningStock, stockOf,
+    moisDePaie, anneesDePaie, premierePieceApres, MOVE_SOURCES, SOURCES_SORTIE, qteMouvement, moveSourceLabel, trackedItems, itemOfLine, stockMovements, runningStock, stockOf, estKit, composantsDe, lignesDeStock, kitsPossibles, coutDuKit,
     stockList, stockTotals, stockJournal, inventoryDiff, stockAlerts, stockImpact, costOfGoodsSold, inventaireComptable, coutAchat, sceauEcritures, ecartsSceau,
     ocrNumber, ocrToPurchase,
     CONTRACT_TYPES, contractLabel, REGIME_TAUX: Compta.REGIME_TAUX, regimeDuContrat: Compta.regimeDuContrat, normaliserRegimes: Compta.normaliserRegimes, libelleRegime: Compta.libelleRegime,

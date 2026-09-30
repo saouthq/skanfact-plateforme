@@ -5637,6 +5637,50 @@ prouver "l'avertissement qui ne propose jamais le transfert" web/public/v10/app.
   "\${x.total >= x.need ? \`Les autres dépôts" "\${false ? \`Les autres dépôts" \
   "$DPW2"
 
+# ── Brique 96 : les kits (docs/kits.md) ──
+KT1="vendre un kit sort ses composants ; un avoir les rentre ; le kit se compte en kits possibles"
+KT2="« stock insuffisant » regarde les composants du kit"
+KTW="Nadia compose un pack chape, le vend, et ses composants sortent du stock"
+prouver "un article suivi pris pour un kit" web/public/v10/core.js \
+  "  function estKit(c) { return !!c && !c.tracked && Array.isArray(c.composants)" "  function estKit(c) { return !!c && Array.isArray(c.composants)" \
+  "$KT1"
+prouver "un kit vendu qui sort un seul de chaque composant" web/public/v10/core.js \
+  "          const qty = par === 1 ? Number(l.qty) || 0 : round3((Number(l.qty) || 0) * par);" "          const qty = Number(l.qty) || 0;" \
+  "$KT1"
+prouver "les kits possibles comptés sur le composant le plus abondant" web/public/v10/core.js \
+  "    return Math.max(0, Math.min(...ks.map(k => Math.floor(" "    return Math.max(0, Math.max(...ks.map(k => Math.floor(" \
+  "$KT1"
+prouver "les kits possibles arrondis au-dessus" web/public/v10/core.js \
+  "ks.map(k => Math.floor(round3(stockOf(data, k.item.id, toIso).qty / k.qty) + 1e-9))" "ks.map(k => Math.ceil(round3(stockOf(data, k.item.id, toIso).qty / k.qty)))" \
+  "$KT1"
+prouver "le coût d'un kit sans les quantités de ses composants" web/public/v10/core.js \
+  "    return round3(composantsDe(data, kit).reduce((a, k) => a + k.qty * (stockOf(" "    return round3(composantsDe(data, kit).reduce((a, k) => a + (stockOf(" \
+  "$KT1"
+prouver "le stock insuffisant qui ignore la quantité par kit" web/public/v10/core.js \
+  "qty: round3((Number(l.qty) || 0) * k.qty), kit: c.label" "qty: Number(l.qty) || 0, kit: c.label" \
+  "$KT2"
+prouver "le stock insuffisant qui ne regarde pas les composants" web/public/v10/core.js \
+  "    lignesDeStock(doc.lines || [], data).forEach(l => {" "    (doc.lines || []).forEach(l => {" \
+  "$KT2"
+prouver "un composant sans article accepté" web/public/v10/app.js \
+  "          if (kitLu.some(k => !k.itemId)) return refus(" "          if (false) return refus(" \
+  "$KTW"
+prouver "un même article deux fois dans le kit" web/public/v10/app.js \
+  "          if (new Set(kitLu.map(k => k.itemId)).size < kitLu.length) return refus(" "          if (false) return refus(" \
+  "$KTW"
+prouver "un kit suivi lui-même en stock" web/public/v10/app.js \
+  "          if (kitLu.length && v.tracked) return refus(" "          if (false) return refus(" \
+  "$KTW"
+prouver "les composants d'un kit perdus à l'enregistrement" web/public/v10/app.js \
+  "          v.composants = kitLu.map(k => ({ itemId: k.itemId, qty: Number(k.qty) }));" "          v.composants = [];" \
+  "$KTW"
+prouver "le catalogue qui tait les kits possibles" web/public/v10/app.js \
+  "        if (C.estKit(c)) {" "        if (false) {" \
+  "$KTW"
+prouver "le coût de revient d'un kit laissé à zéro" web/public/v10/app.js \
+  "            coutAuto = String(C.coutDuKit(data, lu)); champCout.value = coutAuto;" "            coutAuto = '';" \
+  "$KTW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

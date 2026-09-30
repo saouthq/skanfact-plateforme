@@ -6229,6 +6229,11 @@
         <div class="field span-2" id="serial-block" ${suit.serialized ? '' : 'hidden'}>
           <label class="field">${lbl('Garantie proposée', 'ser.warranty')}<select name="warrantyMonths">${C.WARRANTY_CHOICES.map(m => `<option value="${m}" ${Number(it.warrantyMonths) === m ? 'selected' : ''}>${m ? m + ' mois' : 'Aucune'}</option>`).join('')}</select></label>
         </div>
+        <div class="field span-2" id="kit-block">
+          ${lbl('Composé de (kit)', 'kit.composants')}
+          <div id="kit-rows" class="kit-rows"></div>
+          <div class="inline"><button type="button" class="btn btn-sm" id="kit-add">+ Composant</button><span class="small muted" id="kit-hint"></span></div>
+        </div>
         <div class="field span-2" id="stock-block" ${suit.tracked ? '' : 'hidden'}>
           <div class="grid-2">
             ${field(lbl('Seuil d\'alerte', 'stk.min'), 'minStock', it.minStock || 0, 'number', 'step="0.01" min="0" class="num"')}
@@ -6261,6 +6266,35 @@
           save(true); close(); if (done) done(null);
         };
         bindUnitSelect($('#cat-unit', root), () => unit, u => { unit = u; });
+        // Les composants d'un kit (brique 96) : des articles suivis en stock, chacun avec sa quantité par kit.
+        const composants = (it.composants || []).map(k => ({ itemId: k.itemId, qty: k.qty }));
+        const suivis = data.catalog.filter(c => c.tracked && c.id !== it.id).sort((a, b) => String(a.label || '').localeCompare(String(b.label || ''), 'fr'));
+        // Le coût de revient d'un kit est celui de ses composants : posé tant qu'on n'en a pas tapé un autre.
+        let coutAuto = '';
+        const drawKit = () => {
+          $('#kit-rows', root).innerHTML = composants.map((k, i) => `<div class="inline kit-row" data-kit="${i}">
+            <select data-kit-art aria-label="Composant ${i + 1}"><option value="">— Choisir un article suivi —</option>${suivis.map(c => `<option value="${h(c.id)}" ${c.id === k.itemId ? 'selected' : ''}>${h(c.label)}</option>`).join('')}</select>
+            <input type="number" class="num" data-kit-qte step="any" min="0" value="${h(String(k.qty ?? 1))}" aria-label="Quantité par kit, composant ${i + 1}" style="width:96px">
+            <button type="button" class="btn btn-sm btn-ghost" data-kit-rm aria-label="Retirer le composant ${i + 1}">✕</button></div>`).join('');
+          $('#kit-add', root).disabled = !suivis.length;
+          const lu = { ...it, tracked: false, composants: composants.filter(k => k.itemId && Number(k.qty) > 0) };
+          $('#kit-hint', root).textContent = !suivis.length ? 'Il faut d\'abord des articles suivis en stock pour composer un kit.'
+            : !composants.length ? 'Un pack, un coffret, un lot : le vendre sortira ses composants du stock.'
+              : C.estKit(lu) ? `Les composants coûtent aujourd'hui ${C.money(C.coutDuKit(data, lu), company().currency)} ; il y a de quoi en faire ${pct(C.kitsPossibles(data, lu))}.` : '';
+          const champCout = $('input[name=unitCost]', root);
+          if (C.estKit(lu) && (!(Number(champCout.value) > 0) || champCout.value === coutAuto)) {
+            coutAuto = String(C.coutDuKit(data, lu)); champCout.value = coutAuto;
+            $('#kf', root).dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          $$('[data-kit]', root).forEach(r => {
+            const i = Number(r.dataset.kit);
+            $('[data-kit-art]', r).onchange = e => { composants[i].itemId = e.target.value; drawKit(); };
+            $('[data-kit-qte]', r).onchange = e => { composants[i].qty = e.target.value; drawKit(); };
+            $('[data-kit-rm]', r).onclick = () => { composants.splice(i, 1); drawKit(); };
+          });
+        };
+        $('#kit-add', root).onclick = () => { composants.push({ itemId: '', qty: 1 }); drawKit(); };
+        drawKit();
         // Une douchette tape le code PUIS Entrée : dans une fenêtre, Entrée enregistrerait une fiche à
         // moitié remplie. Ici Entrée passe au champ suivant, comme on l'attend d'un scan.
         $('#cat-code', root).addEventListener('keydown', e => {
@@ -6325,6 +6359,13 @@
           const lusPaliers = C.lirePaliers(v.paliers);
           if (lusPaliers.erreur) return refus('#cat-paliers', lusPaliers.erreur);
           v.paliers = lusPaliers.paliers;
+          // Un kit (brique 96) : chaque composant a son article et sa quantité ; un kit ne se suit pas lui-même.
+          const kitLu = composants.filter(k => k.itemId || String(k.qty ?? '').trim() !== '');
+          if (kitLu.some(k => !k.itemId)) return refus('#kit-rows select', 'Choisis l\'article de chaque composant, ou retire sa ligne.');
+          if (kitLu.some(k => !(Number(k.qty) > 0))) return refus('#kit-rows input', 'Chaque composant a une quantité par kit plus grande que zéro.');
+          if (new Set(kitLu.map(k => k.itemId)).size < kitLu.length) return refus('#kit-rows select', 'Un même article est deux fois dans le kit : mets toute sa quantité sur une seule ligne.');
+          if (kitLu.length && v.tracked) return refus('#kf input[name=tracked]', 'Un kit ne se suit pas en stock : ce sont ses composants qui sortent. Décoche « Suivi en stock », ou retire ses composants.');
+          v.composants = kitLu.map(k => ({ itemId: k.itemId, qty: Number(k.qty) }));
           if (v.tracked && already && already.moves.length > 1) { v.initialQty = it.initialQty; v.initialCost = it.initialCost; }
           // Un stock de départ EST un mouvement de stock (core.stockMovements en fabrique un) : il
           // passe par le garde-fou de l'offre comme un ajustement, la première fois seulement.
@@ -6508,6 +6549,10 @@
         : `<span title="${h(`Taux de l'article : ${c.vatRate} %. Ton régime (${C.regimeOf(company()).court.toLowerCase()}) ne facture pas de TVA : tes pièces le portent à 0 %.`)}">0 %</span>` },
       { key: 'unit', label: 'Unité', asc: true, val: c => (c.unit || '').toLowerCase(), get: c => h(c.unit || '') },
       { key: 'stock', label: 'Stock', r: true, val: c => c.tracked ? C.stockOf(data, c.id).qty : -Infinity, get: c => {
+        if (C.estKit(c)) {
+          const n = C.kitsPossibles(data, c);
+          return `<span class="${n ? '' : 'warn-text'}" data-kit-possibles><strong>${pct(n)}</strong> possible${n > 1 ? 's' : ''}</span><div class="small muted">kit de ${pl(C.composantsDe(data, c).length, 'composant')}</div>`;
+        }
         if (!c.tracked) return '<span class="muted">—</span>';
         const st = C.stockOf(data, c.id);
         const cls = st.negative ? 'warn-text' : st.low ? 'warn-text' : '';

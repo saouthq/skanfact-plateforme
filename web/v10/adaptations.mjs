@@ -646,4 +646,5 @@ export const ADAPTATIONS = [
   ...lireFichier('listes-prix.txt'),
   // ── Le stock par dépôt, et les transferts (brique 94) ──
   ...lireFichier('depots.txt'),
+  ...lireFichier('kits.txt'),
 ];

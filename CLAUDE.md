@@ -74,6 +74,9 @@
   « Dépôt » n'apparaît qu'à partir de deux dépôts) ; `stockImpact` lit le dépôt de la pièce ; un transfert = deux ajustements sans coût (`transfertId`),
   supprimés ensemble. Une seule adaptation par texte : une adaptation ne s'ancre jamais au milieu du texte
   posé par une autre (le test de provenance le refuse) ; elle s'ancre avant son début.
+- **Les kits** (brique 96, `docs/kits.md`, `web/v10/kits.txt`) : un article non suivi qui porte `composants`
+  ([{ itemId, qty }], des articles suivis) ; `lignesDeStock` déplie la ligne d'un kit en ses composants (pour
+  `stockImpact`), `stockMovements` sort chaque composant ; `kitsPossibles`, `coutDuKit`.
 - Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,
   un seau par clé dans la mémoire du programme (à partager le jour où il y aura plusieurs programmes).
 - Les avis d'événement signés (`0008`, `serveur/avis.ts`, 28/09/2026) : l'avis naît dans la
