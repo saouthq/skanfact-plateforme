@@ -40,9 +40,11 @@ export class Conflit extends Perimee {
 // ── Les pièces : ce qu'une facture émise ne change plus ─────────────────────────────────────────
 // Tout ce qui a servi à la calculer et à la numéroter, et pour un avoir la facture qu'il corrige et
 // son motif imprimé (le reste, ses règlements, ses relances, ses justificatifs, suit sa vie). Une
-// facture émise ne s'annule pas : un avoir total la solde, et « annulée » se déduit (01 § 7).
+// facture émise ne s'annule pas : un avoir total la solde, et « annulée » se déduit (01 § 7). Les bons
+// de livraison qu'une facture regroupe (brique 86) s'impriment sur elle et décident que le stock ne
+// sort pas une seconde fois : ils sont scellés avec elle.
 const PIECES_LEGALES = ['facture', 'avoir'];
-const SCELLE = ['type', 'number', 'date', 'clientId', 'currency', 'exchangeRate', 'lines', 'discountRate', 'withholdingRate', 'applyStamp', 'stampFee', 'creditOf', 'creditReason'];
+const SCELLE = ['type', 'number', 'date', 'clientId', 'currency', 'exchangeRate', 'lines', 'discountRate', 'withholdingRate', 'applyStamp', 'bonsLivraison', 'stampFee', 'creditOf', 'creditReason'];
 // Le statut d'une pièce émise, tel que la v10 l'écrit (STATUSES de core.js).
 const STATUT_EMISE: Record<string, string> = { facture: 'envoyée', avoir: 'émis' };
 const emise = (d: Json | null) => !!d && typeof d.number === 'string' && d.number !== '' && d.status !== 'brouillon';

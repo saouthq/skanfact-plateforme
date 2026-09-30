@@ -157,6 +157,8 @@ describe('le dossier v10 tenu par le serveur', () => {
     expect((await changer({ ...emise, lines: [{ label: 'Table en chêne massif', qty: 3, unitPrice: { '~n': '450.5' }, vatRate: 19, description: '', unit: '' }] })).corps.motif)
       .toBe('La facture FAC-2026-001 est émise : elle ne se modifie plus, on la corrige par un avoir.');
     expect((await changer({ ...emise, date: '2026-10-02' })).statut).toBe(403);
+    // Les bons de livraison qu'elle regroupe s'impriment sur elle (brique 86) : scellés aussi.
+    expect((await changer({ ...emise, bonsLivraison: [{ id: 'bl9', number: 'BL-2026-009' }] })).statut).toBe(403);
     expect((await changer(null)).corps.motif).toBe('La facture FAC-2026-001 est émise : elle ne s\'efface jamais, on la corrige par un avoir.');
     const lignesRangees = (emise.lines as Record<string, unknown>[]).map((l) => Object.fromEntries(Object.entries(l).reverse()));
     expect((await changer({ ...emise, lines: lignesRangees, issuedTs: 1790628906757, payments: [{ id: 'p1', date: '2026-10-05', amount: { '~n': '500.5' } }] })).statut).toBe(200);

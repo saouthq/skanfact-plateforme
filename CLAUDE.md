@@ -46,6 +46,10 @@
   une proposition que la v10 fait relire, chaque champ avec la ligne où il a été lu, le total recompté
   (`serveur/achats/lecture-facture.ts`) ; aucun taux supposé. Le seuil (9 sur 10 sur de vraies factures)
   reste à mesurer : la lecture de photo ne s'annonce pas avant.
+- **Les commandes livrées en plusieurs fois** (brique 86, `docs/livraisons.md`) : le bon tiré d'une commande
+  reprend ce qui reste (lignes rattachées : `ligneCommande`) ; UNE fonction compte ce qui est livré
+  (`suiviCommande`, core.js) ; « Facturer des bons… » fait une facture de plusieurs bons, chaque ligne de
+  commande en une ligne ; ses bons (`bonsLivraison`) sont scellés par le serveur à l'émission.
 - Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,
   un seau par clé dans la mémoire du programme (à partager le jour où il y aura plusieurs programmes).
 - Les avis d'événement signés (`0008`, `serveur/avis.ts`, 28/09/2026) : l'avis naît dans la

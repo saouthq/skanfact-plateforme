@@ -1,0 +1,506 @@
+Les commandes livrées en plusieurs fois, et plusieurs bons de livraison en une facture (brique 86 ; 14 § 3.2 ;
+docs/livraisons.md). Format : voir sans-paquets.mjs.
+
+La v10 transformait une commande en UN bon de livraison, qui reprenait toute la commande : un grossiste qui
+livre ce qu'il a en stock et le reliquat plus tard n'avait aucun moyen de suivre ce qui restait, et une
+commande livrée en deux fois se voyait « déjà livrée » dès le premier bon. Ici :
+  - le bon de livraison tiré d'une commande reprend ce qui RESTE à livrer, chaque ligne rattachée à la
+    sienne (`ligneCommande`) ; on ajuste les quantités à ce qui part vraiment ;
+  - une fonction du moteur compte, ligne par ligne, ce que les bons émis ou signés ont livré
+    (`suiviCommande`) : le statut de la commande (« livrée en partie », « livrée »), son panneau
+    « Livraisons », son menu (« Livrer le reste ») et le bon suivant la lisent ;
+  - plusieurs bons d'un même client se facturent en une facture (`factureDeBons`), qui les nomme et les
+    imprime ; un bon facturé ne se propose plus, et chaque bon d'une commande se facture à part.
+
+── Le moteur (core.js) ──
+
+== core.js | une pièce tirée d'une facture ne reprend pas les bons de livraison que celle-ci regroupe
+-- avant
+    'exonerationRS'];
+-- après
+    'exonerationRS',
+    // Les bons de livraison qu'une facture regroupe (brique 86) sont les siens : une pièce tirée d'elle
+    // n'en couvre aucun.
+    'bonsLivraison'];
+-- fin
+
+== core.js | l'historique d'un bon de livraison montre la facture qui le regroupe avec d'autres
+-- avant
+    return (data.documents || []).filter(d => d.fromDocId === doc.id)
+-- après
+    // Une facture de plusieurs bons de livraison (brique 86) est tirée de chacun d'eux.
+    return (data.documents || []).filter(d => d.fromDocId === doc.id || (d.type === 'facture' && Array.isArray(d.bonsLivraison) && d.bonsLivraison.some(b => b.id === doc.id)))
+-- fin
+
+== core.js | une facture de plusieurs bons appartient à la vente de chacun
+-- avant
+    const enfantDe = (x, id) => x.fromDocId === id || x.fromQuoteId === id || !!(x.deposit && x.deposit.quoteId === id);
+-- après
+    const enfantDe = (x, id) => x.fromDocId === id || x.fromQuoteId === id || !!(x.deposit && x.deposit.quoteId === id)
+      || (x.type === 'facture' && Array.isArray(x.bonsLivraison) && x.bonsLivraison.some(b => b.id === id));
+-- fin
+
+== core.js | supprimer un bon de livraison nomme la facture qui le regroupe
+-- avant
+      else if (d.fromDocId === doc.id) quoi = 'issue de cette pièce';
+-- après
+      else if (d.fromDocId === doc.id) quoi = 'issue de cette pièce';
+      else if (d.type === 'facture' && Array.isArray(d.bonsLivraison) && d.bonsLivraison.some(b => b.id === doc.id)) quoi = 'facture de ce bon';
+-- fin
+
+== core.js | les commandes livrées en plusieurs fois et la facture de plusieurs bons : le moteur
+-- avant
+  // Clauses d'un contrat de prestation. Textes de départ, tous modifiables sur le document.
+-- après
+  // ---------- les commandes livrées en plusieurs fois (plateforme, brique 86 ; 14 § 3.2) ----------
+  // Un grossiste livre une commande en plusieurs fois : le premier bon emporte ce qui est en stock, le
+  // reliquat suit. Chaque ligne d'un bon tiré d'une commande garde le rang de SA ligne de commande
+  // (`ligneCommande`) : ce qui est livré se compte ligne par ligne, par UNE fonction (`suiviCommande`),
+  // que lisent le statut de la commande, son panneau « Livraisons », son menu et le bon suivant. Seul un
+  // bon émis ou signé a livré ; un bon en brouillon est « en préparation » (le bon suivant ne le propose
+  // pas une seconde fois) ; un bon annulé ne compte pas. Un bon tiré d'une commande avant ce rattachement
+  // (aucune de ses lignes ne porte `ligneCommande`) se lit ligne à ligne : même rang, même désignation.
+  const BON_LIVRE = ['émis', 'signé'];
+  function bonsDeCommande(data, commande) {
+    if (!commande || !commande.id) return [];
+    const idx = duLot(data, 'bons-par-commande', () => {
+      const m = new Map();
+      (data.documents || []).forEach(d => {
+        if (d.type !== 'livraison' || !d.fromDocId || /^annul/.test(d.status || '')) return;
+        if (!m.has(d.fromDocId)) m.set(d.fromDocId, []);
+        m.get(d.fromDocId).push(d);
+      });
+      return m;
+    });
+    return (idx.get(commande.id) || []).slice()
+      .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.createdAt || 0) - (b.createdAt || 0));
+  }
+  function suiviCommande(data, commande) {
+    const source = (commande && commande.lines) || [];
+    const lignes = source.map((l, i) => ({ i, label: l.label || '', unit: l.unit || '', commandee: round3(Number(l.qty) || 0), livree: 0, enPreparation: 0 }));
+    const bons = bonsDeCommande(data, commande);
+    bons.forEach(b => {
+      const rattache = (b.lines || []).some(l => Number.isInteger(l.ligneCommande));
+      (b.lines || []).forEach((l, j) => {
+        const i = rattache ? l.ligneCommande : (source[j] && (source[j].label || '') === (l.label || '') ? j : null);
+        const x = Number.isInteger(i) ? lignes[i] : null;
+        if (!x) return;
+        const q = round3(Number(l.qty) || 0);
+        if (BON_LIVRE.includes(b.status)) x.livree = round3(x.livree + q);
+        else if (b.status === 'brouillon') x.enPreparation = round3(x.enPreparation + q);
+      });
+    });
+    lignes.forEach(x => {
+      x.reste = round3(Math.max(0, x.commandee - x.livree));
+      x.enPlus = round3(Math.max(0, x.livree - x.commandee));
+      x.aProposer = round3(Math.max(0, x.commandee - x.livree - x.enPreparation));
+    });
+    const utiles = lignes.filter(x => x.commandee > 0);
+    const toutLivre = utiles.length > 0 && utiles.every(x => x.reste <= 0);
+    return {
+      lignes, bons, brouillons: bons.filter(b => b.status === 'brouillon'),
+      livree: toutLivre, partielle: !toutLivre && lignes.some(x => x.livree > 0),
+      aProposer: utiles.some(x => x.aProposer > 0)
+    };
+  }
+  // « Reste à livrer : Ciment gris (40 sac) » : la même phrase dans le menu de la commande et sur son panneau.
+  function resteALivrerDit(s) {
+    const r = ((s && s.lignes) || []).filter(x => x.aProposer > 0);
+    if (!r.length) return '';
+    const une = x => `${x.label || 'ligne sans désignation'} (${String(x.aProposer).replace('.', ',')}${x.unit ? ' ' + x.unit : ''})`;
+    return r.length === 1 ? `Reste à livrer : ${une(r[0])}` : `Reste à livrer sur ${r.length} lignes : ${une(r[0])}, …`;
+  }
+  // Le bon de livraison d'une commande : ce qui reste à livrer, et rien d'autre (une ligne déjà partie, ou
+  // dans un bon en préparation, ne revient pas). Rien à livrer : null.
+  function livraisonDeCommande(data, commande, company, todayIso, client) {
+    const s = suiviCommande(data, commande);
+    const out = convertDoc(commande, 'livraison', company, todayIso, client);
+    out.lines = (out.lines || []).map((l, i) => ({ ...l, qty: s.lignes[i] ? s.lignes[i].aProposer : 0, ligneCommande: i }))
+      .filter(l => l.qty > 0);
+    return out.lines.length ? out : null;
+  }
+  // Les bons qu'une facture regroupe : ceux qu'elle nomme, ou le bon dont elle est tirée.
+  function bonsDeFacture(f) {
+    if (!f || f.type !== 'facture') return [];
+    if (Array.isArray(f.bonsLivraison) && f.bonsLivraison.length) return f.bonsLivraison;
+    return f.fromDocType === 'livraison' && f.fromDocId ? [{ id: f.fromDocId, number: f.fromDocNumber || '' }] : [];
+  }
+  // La facture qui couvre un bon de livraison : celle qui le nomme, sinon une facture de la même vente (la
+  // même origine, comme `chaineDePieces`) qui ne vient d'aucun bon — tirée du devis, de la proforma ou de
+  // la commande, elle facture toute la vente. Une facture d'acompte ne facture pas la marchandise ; une
+  // facture annulée ne couvre rien. L'index se construit une fois par lot (une liste de cent bons ne relit
+  // pas cent fois toutes les pièces).
+  function facturesDesBons(data) {
+    return duLot(data, 'factures-des-bons', () => {
+      const docs = data.documents || [];
+      const parId = new Map(docs.map(d => [d.id, d]));
+      const parent = x => x.fromDocId || x.fromQuoteId || (x.deposit && x.deposit.quoteId) || '';
+      const racine = d => { let r = d; for (let i = 0; i < 50; i++) { const p = parent(r) && parId.get(parent(r)); if (!p || p.id === d.id) break; r = p; } return r.id; };
+      const parBon = new Map(), parVente = new Map();
+      docs.forEach(f => {
+        if (f.type !== 'facture' || effectiveStatus(f, data, data.company) === 'annulée') return;
+        const bons = bonsDeFacture(f);
+        if (bons.length) bons.forEach(b => { if (!parBon.has(b.id)) parBon.set(b.id, f); });
+        else if (!f.deposit) { const r = racine(f); if (!parVente.has(r)) parVente.set(r, f); }
+      });
+      return { parBon, parVente, racine };
+    });
+  }
+  function factureDuBon(data, bon) {
+    if (!bon || !bon.id) return null;
+    const x = facturesDesBons(data);
+    return x.parBon.get(bon.id) || x.parVente.get(x.racine(bon)) || null;
+  }
+  // Les bons émis ou signés qu'aucune facture ne couvre : de la marchandise partie sans être facturée.
+  function bonsAFacturer(data) {
+    return enLot(() => (data.documents || []).filter(d => d.type === 'livraison' && BON_LIVRE.includes(d.status) && !factureDuBon(data, d)));
+  }
+  // Une facture pour plusieurs bons de livraison d'un même client, dans une même devise : leurs lignes à la
+  // suite, aux prix qu'ils portent (ceux de la commande), et les bons qu'elle regroupe, imprimés sur elle.
+  // Elle naît brouillon, comme toute pièce tirée d'une autre ; tirée d'un bon, elle ne sort pas le stock
+  // une seconde fois (ce sont les bons qui l'ont sorti). Des bons de clients ou de devises différents : null.
+  // Une même ligne de commande livrée en plusieurs fois se facture en UNE ligne, sa quantité totale au même
+  // prix : 2,5 t livrées 1,25 + 1,25 se factureraient sinon deux fois 2 938,438 — un millime de plus que la
+  // commande (chaque ligne s'arrondit). Une ligne changée sur un bon (un autre prix) reste à part.
+  function factureDeBons(bons, company, todayIso, client) {
+    if (!bons || !bons.length) return null;
+    const devise = b => b.currency || (company || {}).currency || '';
+    if (bons.some(b => b.clientId !== bons[0].clientId || devise(b) !== devise(bons[0]))) return null;
+    const out = convertDoc(bons[0], 'facture', company, todayIso, client);
+    const objets = Array.from(new Set(bons.map(b => String(b.subject || '').trim()).filter(Boolean)));
+    const refs = Array.from(new Set(bons.map(b => String(b.reference || '').trim()).filter(Boolean)));
+    const parCle = new Map();
+    out.lines = [];
+    bons.forEach(b => JSON.parse(JSON.stringify(b.lines || [])).forEach(l => {
+      const rang = l.ligneCommande;
+      delete l.ligneCommande;
+      const cle = Number.isInteger(rang) && b.fromDocId ? JSON.stringify([b.fromDocId, rang, { ...l, qty: 0 }]) : '';
+      const deja = cle ? parCle.get(cle) : null;
+      if (deja) { deja.qty = round3((Number(deja.qty) || 0) + (Number(l.qty) || 0)); return; }
+      if (cle) parCle.set(cle, l);
+      out.lines.push(l);
+    }));
+    out.subject = objets.join(' ; ');
+    out.reference = refs.join(', ');
+    out.bonsLivraison = bons.map(b => ({ id: b.id, number: b.number || '' }));
+    delete out.hidePrices;
+    return out;
+  }
+
+  // Clauses d'un contrat de prestation. Textes de départ, tous modifiables sur le document.
+-- fin
+
+== core.js | une commande reçue se dit livrée, en partie ou en tout, par ses bons de livraison
+-- avant
+    if (doc.type !== 'facture') return doc.status;
+    if (doc.status === 'brouillon' || doc.status === 'annulée') return doc.status;
+-- après
+    // Une commande reçue se dit livrée, en partie ou en tout, par ses bons (brique 86). « Livrée » choisie
+    // à la main reste le geste qui clôt une commande dont le reste ne partira pas.
+    if (doc.type === 'commande') {
+      if (doc.status !== 'reçue' || !data) return doc.status;
+      const s = suiviCommande(data, doc);
+      return s.livree ? 'livrée' : s.partielle ? 'partielle' : 'reçue';
+    }
+    if (doc.type !== 'facture') return doc.status;
+    if (doc.status === 'brouillon' || doc.status === 'annulée') return doc.status;
+-- fin
+
+== core.js | le statut « livrée en partie » d'une commande
+-- avant
+    if (s === 'envoyée' && type !== 'proforma') return 'émise';
+-- après
+    if (s === 'envoyée' && type !== 'proforma') return 'émise';
+    if (s === 'partielle' && type === 'commande') return 'livrée en partie';
+-- fin
+
+== core.js | les statuts d'une commande à l'écran comptent « livrée en partie »
+-- avant
+    proforma: STATUSES.proforma, commande: STATUSES.commande, livraison: STATUSES.livraison, contrat: STATUSES.contrat
+-- après
+    proforma: STATUSES.proforma, commande: ['brouillon', 'reçue', 'partielle', 'livrée', 'annulée'], livraison: STATUSES.livraison, contrat: STATUSES.contrat
+-- fin
+
+== core.js | l'historique d'une facture de plusieurs bons nomme chacun, cliquable
+-- avant
+      label: `Établi à partir du ${(TITLES[doc.fromDocType] || 'document').toLowerCase()} ${doc.fromDocNumber || '(brouillon)'}`
+    });
+-- après
+      label: `Établi à partir du ${(TITLES[doc.fromDocType] || 'document').toLowerCase()} ${doc.fromDocNumber || '(brouillon)'}`
+    });
+    // Une facture de plusieurs bons de livraison (brique 86) : chacun des autres, cliquable comme le premier.
+    (Array.isArray(doc.bonsLivraison) ? doc.bonsLivraison : []).filter(b => b.id !== doc.fromDocId).forEach(b => ev.push({
+      date: doc.date, kind: 'source', id: b.id, label: `Établi à partir du bon de livraison ${b.number || '(brouillon)'}`
+    }));
+-- fin
+
+== core.js | les mots de la facture imprimée : « Bons de livraison »
+-- avant
+established: 'Établi le', orderedOn: 'Commandé le', deliveredOn: 'Livré le', signedOn: 'Signé le', from: 'Suite à',
+-- après
+established: 'Établi le', orderedOn: 'Commandé le', deliveredOn: 'Livré le', signedOn: 'Signé le', from: 'Suite à', deliveryNotes: 'Bons de livraison', deliveryNote1: 'Bon de livraison',
+-- fin
+
+== core.js | les mots de la facture imprimée en anglais : « Delivery notes »
+-- avant
+established: 'Issued on', orderedOn: 'Ordered on', deliveredOn: 'Delivered on', signedOn: 'Signed on', from: 'Following',
+-- après
+established: 'Issued on', orderedOn: 'Ordered on', deliveredOn: 'Delivered on', signedOn: 'Signed on', from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery note',
+-- fin
+
+== core.js | la facture de plusieurs bons imprime les bons qu'elle regroupe
+-- avant
+      doc.reference ? [L.reference, doc.reference] : null
+    ] : isCredit ? [
+-- après
+      // Les bons de livraison qu'elle regroupe (brique 86) : le client rapproche la facture de ses bons signés.
+      Array.isArray(doc.bonsLivraison) && doc.bonsLivraison.length
+        ? [doc.bonsLivraison.length > 1 ? L.deliveryNotes : L.deliveryNote1, doc.bonsLivraison.map(b => b.number).filter(Boolean).join(', ')] : null,
+      doc.reference ? [L.reference, doc.reference] : null
+    ] : isCredit ? [
+-- fin
+
+== core.js | le moteur des livraisons est public
+-- avant
+EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
+-- après
+EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
+    BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
+-- fin
+
+── Les écrans (app.js) ──
+
+== app.js | le bon de livraison d'une commande ne reprend que ce qui reste à livrer
+-- avant
+    const out = C.convertDoc(src, t, company(), C.today(), clientById(src.clientId));
+    data.documents.push(out); save(true);
+-- après
+    // Le bon de livraison d'une commande ne reprend que ce qui reste à livrer, chaque ligne rattachée à la
+    // sienne (brique 86) : la commande se livre en plusieurs fois.
+    const out = src.type === 'commande' && t === 'livraison'
+      ? C.livraisonDeCommande(data, src, company(), C.today(), clientById(src.clientId))
+      : C.convertDoc(src, t, company(), C.today(), clientById(src.clientId));
+    if (!out) return toast(`Rien ne reste à livrer sur ${src.number || 'ce bon de commande'} : tout est livré, ou dans un bon en préparation.`);
+    data.documents.push(out); save(true);
+-- fin
+
+== app.js | le panneau « Livraisons » d'une commande, et la fenêtre qui facture plusieurs bons
+-- avant
+  const ICONE_CONVERSION = { facture: 'facture', livraison: 'stock', proforma: 'texte', commande: 'panier', contrat: 'contrat' };
+-- après
+  const ICONE_CONVERSION = { facture: 'facture', livraison: 'stock', proforma: 'texte', commande: 'panier', contrat: 'contrat' };
+  // Le panneau « Livraisons » d'une commande (brique 86) : ligne par ligne, ce qui est commandé, livré (par
+  // les bons émis ou signés) et ce qui reste ; ses bons, cliquables ; et le geste du reste.
+  function panneauLivraisons(doc, s) {
+    const close = doc.status === 'livrée' || /^annul/.test(doc.status || '');
+    const lignes = s.lignes.filter(x => x.commandee > 0 || x.livree > 0).map(x => `<tr>
+      <td>${h(x.label || '—')}${x.unit ? ` <span class="small muted">(${h(x.unit)})</span>` : ''}</td>
+      <td class="r num">${pct(x.commandee)}</td>
+      <td class="r num">${pct(x.livree)}${x.enPreparation ? `<div class="small muted">+ ${pct(x.enPreparation)} en préparation</div>` : ''}</td>
+      <td class="r num">${x.enPlus ? `<span class="warn-text">${pct(x.enPlus)} de plus</span>` : pct(x.reste)}</td></tr>`).join('');
+    const bons = s.bons.map(b => `<a href="#/doc/${h(b.id)}">${h(b.number || 'bon en brouillon')}</a> <span class="small muted">(${h(C.statusLabel(b.status, 'livraison'))}${b.date ? ', ' + h(C.fmtDate(b.date)) : ''})</span>`).join(', ');
+    return `<div class="panel" id="livraisons-panel"><h2>Livraisons ${info('ed.livraisons')}</h2>
+      <div class="scroll-x"><table class="list compact"><thead><tr><th>Désignation</th><th class="r">Commandé</th><th class="r">Livré</th><th class="r">Reste</th></tr></thead><tbody>${lignes}</tbody></table></div>
+      <p class="small mt">${s.bons.length > 1 ? 'Bons de livraison' : 'Bon de livraison'} : ${bons}</p>
+      ${!close && s.aProposer ? `<div class="inline mt"><button class="btn btn-sm" data-conv="livraison" id="livrer-reste">Livrer le reste</button><span class="small muted">${h(C.resteALivrerDit(s))}</span></div>` : ''}
+      ${doc.status === 'livrée' && s.lignes.some(x => x.reste > 0) ? '<p class="small muted mt">Marquée « livrée » à la main : le reste n\'est plus proposé.</p>' : ''}
+    </div>`;
+  }
+  // Facturer des bons de livraison (brique 86) : les bons émis ou signés d'un client qu'aucune facture ne
+  // couvre, cochés ; une seule facture en brouillon, qu'on relit avant de l'émettre.
+  function facturerDesBons(clientId) {
+    if (licenceBlock('Créer une pièce')) return;
+    const tous = C.bonsAFacturer(data);
+    const clients = Array.from(new Set(tous.map(b => b.clientId || '')));
+    if (!tous.length) return toast('Aucun bon de livraison n\'attend sa facture : chaque bon émis ou signé est déjà facturé.');
+    let client = clients.includes(clientId) ? clientId : clients[0];
+    const coches = new Set();
+    const cocherTout = () => { coches.clear(); tous.filter(b => (b.clientId || '') === client).forEach(b => coches.add(b.id)); };
+    cocherTout();
+    modal(`<h2>Facturer des bons de livraison ${info('liv.facturer')}</h2>
+      <p class="small muted">Les bons émis ou signés d'un client, pas encore facturés, deviennent une seule facture en brouillon : leurs lignes, aux prix qu'ils portent. Tu la relis avant de l'émettre.</p>
+      <label class="field">${lbl('Client', '')}<select id="fb-client">${clients.map(id => `<option value="${h(id)}" ${id === client ? 'selected' : ''}>${h(id ? clientName(id) : 'Sans client')}</option>`).join('')}</select></label>
+      <div id="fb-bons" class="mt"></div>
+      <p class="small mt" id="fb-total"></p>
+      <p class="small warn-text" id="fb-refus" hidden></p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="fb-ok">Créer la facture</button></div>`,
+    (layer, close) => {
+      const choisis = () => tous.filter(b => coches.has(b.id))
+        .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.number || '').localeCompare(b.number || '', undefined, { numeric: true }));
+      const maj = () => {
+        const bons = choisis();
+        const devises = Array.from(new Set(bons.map(docCur)));
+        const refus = $('#fb-refus', layer);
+        refus.hidden = devises.length < 2;
+        refus.textContent = devises.length < 2 ? '' : `Ces bons sont en ${devises.join(' et en ')} : une facture n'a qu'une devise. Décoche ceux d'une des deux.`;
+        const ok = $('#fb-ok', layer);
+        ok.disabled = !bons.length || devises.length > 1;
+        ok.textContent = bons.length ? `Facturer ${pl(bons.length, 'bon')}` : 'Créer la facture';
+        // Le montant de LA facture, calculé sur elle (deux chemins, un chiffre) : une ligne de commande
+        // livrée en plusieurs fois s'y facture en une ligne, arrondie une fois — un millime peut séparer
+        // ce total de la somme des bons, et la fenêtre dit pourquoi.
+        const inv = bons.length && devises.length < 2 ? C.factureDeBons(bons, company(), C.today(), clientById(client)) : null;
+        const total = inv ? C.computeTotals(inv, company()).netHT : 0;
+        const somme = bons.reduce((s, b) => s + C.computeTotals(b, company()).netHT, 0);
+        const ecart = Math.round((total - somme) * 1000) / 1000;
+        $('#fb-total', layer).textContent = !inv ? '' : `La facture : ${C.money(total, devises[0])} HT.`
+          + (Math.abs(ecart) >= 0.0005 ? ` ${C.money(Math.abs(ecart), devises[0])} de ${ecart > 0 ? 'plus' : 'moins'} que la somme des bons : une ligne de commande livrée en plusieurs fois s'y facture en une seule ligne, arrondie une fois.` : '');
+      };
+      const dessiner = () => {
+        const bons = tous.filter(b => (b.clientId || '') === client)
+          .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.number || '').localeCompare(b.number || '', undefined, { numeric: true }));
+        $('#fb-bons', layer).innerHTML = `<div class="scroll-x"><table class="list compact"><thead><tr><th></th><th>Bon</th><th>Date</th><th>Objet</th><th class="r">Montant HT</th></tr></thead><tbody>
+          ${bons.map(b => `<tr><td><label class="check"><input type="checkbox" data-fb="${h(b.id)}" ${coches.has(b.id) ? 'checked' : ''} aria-label="Facturer ${h(b.number || 'ce bon')}"></label></td>
+            <td class="nw">${h(b.number || '')}</td><td class="nw">${h(C.fmtDate(b.date))}</td><td>${h(b.subject || '')}</td>
+            <td class="r num nw">${h(C.money(C.computeTotals(b, company()).netHT, docCur(b)))}</td></tr>`).join('')}
+        </tbody></table></div>`;
+        $$('[data-fb]', layer).forEach(c => { c.onchange = () => { if (c.checked) coches.add(c.dataset.fb); else coches.delete(c.dataset.fb); maj(); }; });
+        maj();
+      };
+      $('#fb-client', layer).onchange = e => { client = e.target.value; cocherTout(); dessiner(); };
+      $('#fb-ok', layer).onclick = () => {
+        const bons = choisis();
+        const inv = C.factureDeBons(bons, company(), C.today(), clientById(client));
+        if (!inv) return;
+        close();
+        data.documents.push(inv); save(true);
+        toast(`${pieceCreee('facture')} en brouillon à partir de ${pl(bons.length, 'bon')} de livraison`);
+        navigate('#/doc/' + inv.id);
+      };
+      dessiner();
+    });
+  }
+-- fin
+
+== app.js | le menu d'une commande propose « Livrer le reste » ; la facture d'un bon est celle qui le couvre
+-- avant
+          const deja = C.chaineDePieces(data, d).find(x => x.type === t && !/^annul/.test(x.status || ''));
+-- après
+          // Une commande se livre en plusieurs fois, et chaque bon se facture à part (brique 86) : tant qu'il
+          // reste à livrer, le geste est « Livrer le reste » ; la facture d'un bon est celle qui le couvre,
+          // pas celle d'un autre bon de la même vente.
+          const suivi = d.type === 'commande' && t === 'livraison' ? C.suiviCommande(data, d) : null;
+          if (suivi && suivi.bons.length && suivi.aProposer && d.status !== 'livrée') {
+            a.push({ icon: ICONE_CONVERSION[t], label: 'Livrer le reste', hint: C.resteALivrerDit(suivi), run: () => transformerPiece(d, t) });
+            return;
+          }
+          const deja = suivi ? (suivi.brouillons[0] || suivi.bons[suivi.bons.length - 1])
+            : d.type === 'livraison' && t === 'facture' ? C.factureDuBon(data, d)
+            : C.chaineDePieces(data, d).find(x => x.type === t && !/^annul/.test(x.status || ''));
+-- fin
+
+== app.js | le menu d'un bon qui attend sa facture propose de le facturer avec les autres bons du client
+-- avant
+      // Le statut d'un devis se saisit à la main (celui d'une facture se déduit des paiements).
+-- après
+      // Un bon de livraison qui attend sa facture, quand son client en a d'autres (brique 86) : une seule
+      // facture pour tous.
+      if (d.type === 'livraison' && C.BON_LIVRE.includes(d.status) && !C.factureDuBon(data, d)
+        && C.bonsAFacturer(data).filter(b => b.clientId === d.clientId).length > 1)
+        a.push({ icon: 'facture', label: 'Facturer avec d\'autres bons…', hint: 'Une seule facture pour plusieurs bons de ce client', run: () => facturerDesBons(d.clientId) });
+      // Le statut d'un devis se saisit à la main (celui d'une facture se déduit des paiements).
+-- fin
+
+== app.js | la copie d'une facture ne reprend pas les bons de livraison qu'elle regroupe
+-- avant
+settles: undefined, recurringId: undefined };
+-- après
+settles: undefined, recurringId: undefined, bonsLivraison: undefined };
+-- fin
+
+== app.js | ce qu'une commande a livré, et si livrer le reste est l'étape suivante
+-- avant
+    const suiteExtra = !isExtra || isNew || figee ? ''
+-- après
+    // Une commande livrée en plusieurs fois (brique 86) : ce qui est livré, ce qui reste, et si livrer le reste
+    // est l'étape suivante (jamais sur une commande close à la main, annulée ou figée).
+    const suiviCde = doc.type === 'commande' && !isNew && stored ? C.suiviCommande(data, stored) : null;
+    const resteALivrer = !!(suiviCde && suiviCde.bons.length && suiviCde.aProposer && stored.status !== 'livrée' && !/^annul/.test(stored.status || '') && !figee);
+    const suiteExtra = !isExtra || isNew || figee ? ''
+-- fin
+
+== app.js | l'étape suivante d'un bon de livraison est sa facture tant qu'aucune ne le couvre ; celle d'une commande livrée en partie, le reste
+-- avant
+      : !/^annul/.test(doc.status || '') && convertibles.length && !C.chaineDePieces(data, doc).some(x => convertibles.includes(x.type) && !/^annul/.test(x.status || '')) ? 'transform' : '';
+-- après
+      // Brique 86 : un bon de livraison se facture tant qu'aucune facture ne le couvre (les bons d'une
+      // commande livrée en plusieurs fois se facturent chacun) ; une commande livrée en partie se livre encore.
+      : !/^annul/.test(doc.status || '') && doc.type === 'livraison' ? (C.factureDuBon(data, stored || doc) ? '' : 'transform')
+      : resteALivrer ? 'transform'
+      : !/^annul/.test(doc.status || '') && convertibles.length && !C.chaineDePieces(data, doc).some(x => convertibles.includes(x.type) && !/^annul/.test(x.status || '')) ? 'transform' : '';
+-- fin
+
+== app.js | « Transformer » d'une commande livrée en partie dit « Livrer le reste »
+-- avant
+    const convBoutons = convertibles.map(t => `<button data-conv="${t}">${h(C.CONVERSION_LABELS[t] || C.TITLES[t])}</button>`).join('');
+-- après
+    const convBoutons = convertibles.map(t => `<button data-conv="${t}">${h(t === 'livraison' && resteALivrer ? 'Livrer le reste' : (C.CONVERSION_LABELS[t] || C.TITLES[t]))}</button>`).join('');
+-- fin
+
+== app.js | le panneau « Livraisons » d'une commande qui a des bons
+-- avant
+          ${bal ? `<div class="panel" id="pay-panel"><h2>Paiements et situation ${info('ed.payments')}</h2><div id="pay-body"></div></div>` : ''}
+-- après
+          ${bal ? `<div class="panel" id="pay-panel"><h2>Paiements et situation ${info('ed.payments')}</h2><div id="pay-body"></div></div>` : ''}
+          ${suiviCde && suiviCde.bons.length ? panneauLivraisons(stored, suiviCde) : ''}
+-- fin
+
+== app.js | « Livrer le reste » du panneau fait ce que fait « Transformer »
+-- avant
+    $$('#conv-list button, #more-list [data-conv]').forEach(b => b.addEventListener('click', async () => {
+-- après
+    $$('#conv-list button, #more-list [data-conv], #livrer-reste').forEach(b => b.addEventListener('click', async () => {
+-- fin
+
+== app.js | les bons de livraison qui attendent leur facture, vus depuis la liste
+-- avant
+    const aPartir = vide && sourcesAutres(type).length > 0;
+-- après
+    const aPartir = vide && sourcesAutres(type).length > 0;
+    // Brique 86 : des bons émis ou signés qu'aucune facture ne couvre. Les facturer est alors l'étape suivante.
+    const aFacturer = type === 'livraison' ? C.bonsAFacturer(data) : [];
+-- fin
+
+== app.js | « Facturer des bons… » en tête de la liste des bons de livraison
+-- avant
+        <div class="actions"><button class="btn ${vide ? '' : 'btn-primary'}" id="new">+ ${h(NEW_LABELS[type])}</button></div></div>
+-- après
+        <div class="actions">${aFacturer.length ? '<button class="btn btn-primary" id="facturer-bons">Facturer des bons…</button>' : ''}<button class="btn ${vide || aFacturer.length ? '' : 'btn-primary'}" id="new">+ ${h(NEW_LABELS[type])}</button></div></div>
+-- fin
+
+== app.js | le filtre des statuts connaît « livrée en partie »
+-- avant
+        <select id="st"><option value="">Tous les statuts</option>${C.STATUSES[type].map(x =>
+-- après
+        <select id="st"><option value="">Tous les statuts</option>${(C.DISPLAY_STATUSES[type] || C.STATUSES[type]).map(x =>
+-- fin
+
+== app.js | la liste filtre sur le statut qu'elle montre
+-- avant
+        .filter(d => !s.st || d.status === s.st)
+        .filter(d => !s.q || C.correspondRecherche([d.number, clientName(d.clientId), d.subject, d.reference, C.nomsJustificatifs(d)].join(' '), s.q))
+-- après
+        .filter(d => !s.st || effStatus(d) === s.st)
+        .filter(d => !s.q || C.correspondRecherche([d.number, clientName(d.clientId), d.subject, d.reference, C.nomsJustificatifs(d)].join(' '), s.q))
+-- fin
+
+== app.js | « Facturer des bons… » ouvre la fenêtre
+-- avant
+    $$('#a-tabs button').forEach(b => b.onclick = () => { autresTab = b.dataset.tab; navigate('#/autres/' + b.dataset.tab); });
+    $('#new').onclick = () => navigate('#/doc/new/' + type);
+-- après
+    $$('#a-tabs button').forEach(b => b.onclick = () => { autresTab = b.dataset.tab; navigate('#/autres/' + b.dataset.tab); });
+    $('#new').onclick = () => navigate('#/doc/new/' + type);
+    if ($('#facturer-bons')) $('#facturer-bons').onclick = () => facturerDesBons();
+-- fin
+
+── Les bulles (guide.js) ──
+
+== guide.js | les bulles du panneau « Livraisons » et de la facture de plusieurs bons
+-- avant
+    'ed.clauses': { t: 'Clauses du contrat',
+-- après
+    'ed.livraisons': { t: 'Livraisons', d: 'Une commande se livre en une ou plusieurs fois. Chaque bon de livraison tiré d\'elle reprend ce qui reste à livrer : ajuste les quantités à ce qui part vraiment. Ce tableau compte, ligne par ligne, ce que les bons <b>émis ou signés</b> ont livré ; un bon en brouillon est « en préparation ». Quand tout est parti, la commande se dit livrée. Si le reste ne partira jamais, choisis le statut « Livrée » : le reste n\'est plus proposé.' },
+    'liv.facturer': { t: 'Facturer des bons de livraison', d: 'Les bons émis ou signés d\'un client, qu\'aucune facture ne couvre encore, deviennent une seule facture : leurs lignes à la suite, aux prix qu\'ils portent (ceux de la commande), et la liste des bons imprimée sur la facture. Le stock ne sort pas une seconde fois : ce sont les bons qui l\'ont sorti. Un bon facturé ne se propose plus.' },
+    'ed.clauses': { t: 'Clauses du contrat',
+-- fin

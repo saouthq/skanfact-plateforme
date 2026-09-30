@@ -636,4 +636,6 @@ export const ADAPTATIONS = [
   ...lireFichier('reprise-portefeuille.txt'),
   // ── La lecture d'une facture d'achat en photo ou en PDF, par le serveur (brique 84) ──
   ...lireFichier('lecture-photo.txt'),
+  // ── Les commandes livrées en plusieurs fois, et plusieurs bons de livraison en une facture (brique 86) ──
+  ...lireFichier('livraisons.txt'),
 ];

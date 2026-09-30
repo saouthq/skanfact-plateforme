@@ -5133,6 +5133,96 @@ prouver "le lecteur des classeurs absent de la page du Cabinet" web/public/v10/c
 " "" \
   "$TB2"
 
+# ── Brique 86 : les commandes livrées en plusieurs fois, et plusieurs bons en une facture (docs/livraisons.md) ──
+LC1="le bon d'une commande reprend ce qui reste ; livrée en partie, puis livrée ; un brouillon est en préparation, un bon annulé ne compte pas"
+LC2="« livrée » choisie à la main clôt la commande ; un bon d'avant le rattachement se lit ligne à ligne"
+LC3="plusieurs bons d'un client font une facture égale à la commande ; un bon facturé ne se propose plus ; le stock ne sort qu'une fois"
+LC4="chaque bon d'une commande se facture à part : la facture d'un bon ne couvre pas l'autre ; une facture de toute la vente les couvre tous"
+LCW="Nadia livre la commande en deux fois, puis facture les deux bons en une facture égale à la commande"
+LCS="une facture émise ne change plus ce qui a été scellé et ne s'efface pas ; ses règlements et son heure d'émission, oui"
+prouver "le bon suivant d'une commande qui reprend toute la commande" web/public/v10/core.js \
+  "    out.lines = (out.lines || []).map((l, i) => ({ ...l, qty: s.lignes[i] ? s.lignes[i].aProposer : 0, ligneCommande: i }))" "    out.lines = (out.lines || []).map((l, i) => ({ ...l, ligneCommande: i }))" \
+  "$LC1"
+prouver "un bon en brouillon compté comme livré" web/public/v10/core.js \
+  "  const BON_LIVRE = ['émis', 'signé'];" "  const BON_LIVRE = ['émis', 'signé', 'brouillon'];" \
+  "$LC1"
+prouver "un bon annulé compté parmi les bons de la commande" web/public/v10/core.js \
+  "        if (d.type !== 'livraison' || !d.fromDocId || /^annul/.test(d.status || '')) return;" "        if (d.type !== 'livraison' || !d.fromDocId) return;" \
+  "$LC1"
+prouver "une commande livrée en partie dite reçue" web/public/v10/core.js \
+  "      return s.livree ? 'livrée' : s.partielle ? 'partielle' : 'reçue';" "      return s.livree ? 'livrée' : 'reçue';" \
+  "$LC1"
+prouver "le statut « livrée en partie » dit « partiellement payée »" web/public/v10/core.js \
+  "    if (s === 'partielle' && type === 'commande') return 'livrée en partie';
+" "" \
+  "$LC1"
+prouver "« livrée » choisie à la main rouverte par les bons" web/public/v10/core.js \
+  "      if (doc.status !== 'reçue' || !data) return doc.status;" "      if (!data) return doc.status;" \
+  "$LC2"
+prouver "un bon d'avant le rattachement ignoré" web/public/v10/core.js \
+  "        const i = rattache ? l.ligneCommande : (source[j] && (source[j].label || '') === (l.label || '') ? j : null);" "        const i = l.ligneCommande;" \
+  "$LC2"
+prouver "une ligne de commande livrée en deux fois facturée en deux lignes" web/public/v10/core.js \
+  "      if (deja) { deja.qty = round3((Number(deja.qty) || 0) + (Number(l.qty) || 0)); return; }" "" \
+  "$LC3"
+prouver "des bons de deux clients ou de deux devises sur une facture" web/public/v10/core.js \
+  "    if (bons.some(b => b.clientId !== bons[0].clientId || devise(b) !== devise(bons[0]))) return null;" "" \
+  "$LC3"
+prouver "un bon facturé encore proposé" web/public/v10/core.js \
+  "BON_LIVRE.includes(d.status) && !factureDuBon(data, d)));" "BON_LIVRE.includes(d.status)));" \
+  "$LC3"
+prouver "l'historique d'un bon sans la facture qui le regroupe" web/public/v10/core.js \
+  "    return (data.documents || []).filter(d => d.fromDocId === doc.id || (d.type === 'facture' && Array.isArray(d.bonsLivraison) && d.bonsLivraison.some(b => b.id === doc.id)))" "    return (data.documents || []).filter(d => d.fromDocId === doc.id)" \
+  "$LC3"
+prouver "une pièce tirée d'une facture de plusieurs bons qui les couvre encore" web/public/v10/core.js \
+  "    'bonsLivraison'];" "    ];" \
+  "$LC3"
+prouver "la facture d'un bon qui couvre les autres bons de la commande" web/public/v10/core.js \
+  "        else if (!f.deposit) { const r = racine(f); if (!parVente.has(r)) parVente.set(r, f); }" "        if (!f.deposit) { const r = racine(f); if (!parVente.has(r)) parVente.set(r, f); }" \
+  "$LC4"
+prouver "une facture d'acompte qui couvre la marchandise" web/public/v10/core.js \
+  "        else if (!f.deposit) { const r = racine(f); if (!parVente.has(r)) parVente.set(r, f); }" "        else { const r = racine(f); if (!parVente.has(r)) parVente.set(r, f); }" \
+  "$LC4"
+prouver "une facture de toute la vente qui ne couvre pas ses bons" web/public/v10/core.js \
+  "    return x.parBon.get(bon.id) || x.parVente.get(x.racine(bon)) || null;" "    return x.parBon.get(bon.id) || null;" \
+  "$LC4"
+prouver "la facture de plusieurs bons sans ses bons imprimés" web/public/v10/core.js \
+  "        ? [doc.bonsLivraison.length > 1 ? L.deliveryNotes : L.deliveryNote1, doc.bonsLivraison.map(b => b.number).filter(Boolean).join(', ')] : null," "        ? null : null," \
+  "$LCW"
+prouver "le panneau des livraisons absent de la commande" web/public/v10/app.js \
+  "          \${suiviCde && suiviCde.bons.length ? panneauLivraisons(stored, suiviCde) : ''}" "" \
+  "$LCW"
+prouver "« Livrer le reste » du panneau qui ne fait rien" web/public/v10/app.js \
+  "\$\$('#conv-list button, #more-list [data-conv], #livrer-reste')" "\$\$('#conv-list button, #more-list [data-conv]')" \
+  "$LCW"
+prouver "le bon suivant tiré de toute la commande" web/public/v10/app.js \
+  "    const out = src.type === 'commande' && t === 'livraison'" "    const out = false" \
+  "$LCW"
+prouver "« Facturer des bons… » absent de la liste des bons" web/public/v10/app.js \
+  "\${aFacturer.length ? '<button class=\"btn btn-primary\" id=\"facturer-bons\">Facturer des bons…</button>' : ''}" "" \
+  "$LCW"
+prouver "la fenêtre qui annonce la somme des bons pour le montant de la facture" web/public/v10/app.js \
+  "        const total = inv ? C.computeTotals(inv, company()).netHT : 0;" "        const total = inv ? bons.reduce((s, b) => s + C.computeTotals(b, company()).netHT, 0) : 0;" \
+  "$LCW"
+prouver "la liste des commandes qui filtre sur le statut enregistré" web/public/v10/app.js \
+  "        .filter(d => !s.st || effStatus(d) === s.st)" "        .filter(d => !s.st || d.status === s.st)" \
+  "$LCW"
+prouver "le menu d'une commande livrée en partie sans « Livrer le reste »" web/public/v10/app.js \
+  "          if (suivi && suivi.bons.length && suivi.aProposer && d.status !== 'livrée') {" "          if (false) {" \
+  "$LCW"
+prouver "« Facturer avec d'autres bons… » absent du menu d'un bon" web/public/v10/app.js \
+  "        a.push({ icon: 'facture', label: 'Facturer avec d\'autres bons…', hint: 'Une seule facture pour plusieurs bons de ce client', run: () => facturerDesBons(d.clientId) });" "        ;" \
+  "$LCW"
+prouver "« Transformer » d'une commande livrée en partie qui n'est plus l'étape suivante" web/public/v10/app.js \
+  "      : resteALivrer ? 'transform'" "      : false ? 'transform'" \
+  "$LCW"
+prouver "une copie de la facture qui reprend ses bons de livraison" web/public/v10/app.js \
+  "settles: undefined, recurringId: undefined, bonsLivraison: undefined };" "settles: undefined, recurringId: undefined };" \
+  "$LCW"
+prouver "les bons de livraison d'une facture émise hors du scellé" serveur/v10/dossier.ts \
+  "'applyStamp', 'bonsLivraison', 'stampFee'" "'applyStamp', 'stampFee'" \
+  "$LCS"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

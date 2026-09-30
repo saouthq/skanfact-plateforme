@@ -970,7 +970,7 @@
     devis: ['brouillon', 'envoyé', 'expiré', 'accepté', 'refusé'],
     facture: ['brouillon', 'envoyée', 'partielle', 'retard', 'payée', 'annulée'],
     avoir: STATUSES.avoir,
-    proforma: STATUSES.proforma, commande: STATUSES.commande, livraison: STATUSES.livraison, contrat: STATUSES.contrat
+    proforma: STATUSES.proforma, commande: ['brouillon', 'reçue', 'partielle', 'livrée', 'annulée'], livraison: STATUSES.livraison, contrat: STATUSES.contrat
   };
   const STATUS_LABELS = { partielle: 'partiellement payée', retard: 'en retard', expiré: 'expiré' };
 
@@ -1331,6 +1331,7 @@
   // — le journal des ventes et les listes de factures n'en passent pas.
   function statusLabel(s, type) {
     if (s === 'envoyée' && type !== 'proforma') return 'émise';
+    if (s === 'partielle' && type === 'commande') return 'livrée en partie';
     return STATUS_LABELS[s] || s;
   }
 
@@ -1623,6 +1624,13 @@
   function effectiveStatus(doc, data, company, todayIso) {
     if (doc.type === 'devis') {
       return doc.status === 'envoyé' && doc.dueDate && doc.dueDate < (todayIso || today()) ? 'expiré' : doc.status;
+    }
+    // Une commande reçue se dit livrée, en partie ou en tout, par ses bons (brique 86). « Livrée » choisie
+    // à la main reste le geste qui clôt une commande dont le reste ne partira pas.
+    if (doc.type === 'commande') {
+      if (doc.status !== 'reçue' || !data) return doc.status;
+      const s = suiviCommande(data, doc);
+      return s.livree ? 'livrée' : s.partielle ? 'partielle' : 'reçue';
     }
     if (doc.type !== 'facture') return doc.status;
     if (doc.status === 'brouillon' || doc.status === 'annulée') return doc.status;
@@ -7353,7 +7361,10 @@
     'ticket', 'caisse',
     // La mention d'exonération de retenue se fige à l'émission (10.15.0, H7) : une pièce tirée d'une
     // facture émise se juge à SA date, pas avec l'attestation de l'autre.
-    'exonerationRS'];
+    'exonerationRS',
+    // Les bons de livraison qu'une facture regroupe (brique 86) sont les siens : une pièce tirée d'elle
+    // n'en couvre aucun.
+    'bonsLivraison'];
 
   // La retenue à la source proposée pour un client : la sienne s'il en a une (même 0 %), sinon celle
   // de la société. UNE règle pour l'éditeur (`clientWithholding`) et pour les conversions.
@@ -7407,6 +7418,7 @@
       let quoi = '';
       if (d.fromQuoteId === doc.id) quoi = d.deposit ? `acompte ${acompteDit(d.deposit, d.currency)}` : d.settles ? 'facture de solde' : 'facture du devis';
       else if (d.fromDocId === doc.id) quoi = 'issue de cette pièce';
+      else if (d.type === 'facture' && Array.isArray(d.bonsLivraison) && d.bonsLivraison.some(b => b.id === doc.id)) quoi = 'facture de ce bon';
       else if (d.creditOf === doc.id) quoi = 'avoir sur cette facture';
       else if (d.settles && d.settles.quoteId === doc.id) quoi = 'facture de solde';
       if (quoi) out.push({ id: d.id, number: d.number || '(brouillon)', type: d.type, quoi });
@@ -7416,7 +7428,8 @@
 
   function derivedDocs(doc, data) {
     if (!doc || !doc.id) return [];   // sans identifiant, `undefined === undefined` renverrait toute la base
-    return (data.documents || []).filter(d => d.fromDocId === doc.id)
+    // Une facture de plusieurs bons de livraison (brique 86) est tirée de chacun d'eux.
+    return (data.documents || []).filter(d => d.fromDocId === doc.id || (d.type === 'facture' && Array.isArray(d.bonsLivraison) && d.bonsLivraison.some(b => b.id === doc.id)))
       .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.createdAt || 0) - (b.createdAt || 0));
   }
   // Toutes les pièces d'une même vente, sauf celle-ci (10.12.0). `derivedDocs` ne voit que les
@@ -7428,7 +7441,8 @@
     if (!doc || !doc.id) return [];
     const docs = data.documents || [];
     const parent = x => x.fromDocId || x.fromQuoteId || (x.deposit && x.deposit.quoteId) || '';
-    const enfantDe = (x, id) => x.fromDocId === id || x.fromQuoteId === id || !!(x.deposit && x.deposit.quoteId === id);
+    const enfantDe = (x, id) => x.fromDocId === id || x.fromQuoteId === id || !!(x.deposit && x.deposit.quoteId === id)
+      || (x.type === 'facture' && Array.isArray(x.bonsLivraison) && x.bonsLivraison.some(b => b.id === id));
     let racine = doc;
     for (let i = 0; i < 50; i++) { const p = parent(racine) && docs.find(x => x.id === parent(racine)); if (!p || p.id === doc.id) break; racine = p; }
     const vus = new Set([racine.id]); const file = [racine];
@@ -7438,6 +7452,141 @@
     }
     vus.add(doc.id);
     return docs.filter(d => vus.has(d.id) && d.id !== doc.id);
+  }
+
+  // ---------- les commandes livrées en plusieurs fois (plateforme, brique 86 ; 14 § 3.2) ----------
+  // Un grossiste livre une commande en plusieurs fois : le premier bon emporte ce qui est en stock, le
+  // reliquat suit. Chaque ligne d'un bon tiré d'une commande garde le rang de SA ligne de commande
+  // (`ligneCommande`) : ce qui est livré se compte ligne par ligne, par UNE fonction (`suiviCommande`),
+  // que lisent le statut de la commande, son panneau « Livraisons », son menu et le bon suivant. Seul un
+  // bon émis ou signé a livré ; un bon en brouillon est « en préparation » (le bon suivant ne le propose
+  // pas une seconde fois) ; un bon annulé ne compte pas. Un bon tiré d'une commande avant ce rattachement
+  // (aucune de ses lignes ne porte `ligneCommande`) se lit ligne à ligne : même rang, même désignation.
+  const BON_LIVRE = ['émis', 'signé'];
+  function bonsDeCommande(data, commande) {
+    if (!commande || !commande.id) return [];
+    const idx = duLot(data, 'bons-par-commande', () => {
+      const m = new Map();
+      (data.documents || []).forEach(d => {
+        if (d.type !== 'livraison' || !d.fromDocId || /^annul/.test(d.status || '')) return;
+        if (!m.has(d.fromDocId)) m.set(d.fromDocId, []);
+        m.get(d.fromDocId).push(d);
+      });
+      return m;
+    });
+    return (idx.get(commande.id) || []).slice()
+      .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.createdAt || 0) - (b.createdAt || 0));
+  }
+  function suiviCommande(data, commande) {
+    const source = (commande && commande.lines) || [];
+    const lignes = source.map((l, i) => ({ i, label: l.label || '', unit: l.unit || '', commandee: round3(Number(l.qty) || 0), livree: 0, enPreparation: 0 }));
+    const bons = bonsDeCommande(data, commande);
+    bons.forEach(b => {
+      const rattache = (b.lines || []).some(l => Number.isInteger(l.ligneCommande));
+      (b.lines || []).forEach((l, j) => {
+        const i = rattache ? l.ligneCommande : (source[j] && (source[j].label || '') === (l.label || '') ? j : null);
+        const x = Number.isInteger(i) ? lignes[i] : null;
+        if (!x) return;
+        const q = round3(Number(l.qty) || 0);
+        if (BON_LIVRE.includes(b.status)) x.livree = round3(x.livree + q);
+        else if (b.status === 'brouillon') x.enPreparation = round3(x.enPreparation + q);
+      });
+    });
+    lignes.forEach(x => {
+      x.reste = round3(Math.max(0, x.commandee - x.livree));
+      x.enPlus = round3(Math.max(0, x.livree - x.commandee));
+      x.aProposer = round3(Math.max(0, x.commandee - x.livree - x.enPreparation));
+    });
+    const utiles = lignes.filter(x => x.commandee > 0);
+    const toutLivre = utiles.length > 0 && utiles.every(x => x.reste <= 0);
+    return {
+      lignes, bons, brouillons: bons.filter(b => b.status === 'brouillon'),
+      livree: toutLivre, partielle: !toutLivre && lignes.some(x => x.livree > 0),
+      aProposer: utiles.some(x => x.aProposer > 0)
+    };
+  }
+  // « Reste à livrer : Ciment gris (40 sac) » : la même phrase dans le menu de la commande et sur son panneau.
+  function resteALivrerDit(s) {
+    const r = ((s && s.lignes) || []).filter(x => x.aProposer > 0);
+    if (!r.length) return '';
+    const une = x => `${x.label || 'ligne sans désignation'} (${String(x.aProposer).replace('.', ',')}${x.unit ? ' ' + x.unit : ''})`;
+    return r.length === 1 ? `Reste à livrer : ${une(r[0])}` : `Reste à livrer sur ${r.length} lignes : ${une(r[0])}, …`;
+  }
+  // Le bon de livraison d'une commande : ce qui reste à livrer, et rien d'autre (une ligne déjà partie, ou
+  // dans un bon en préparation, ne revient pas). Rien à livrer : null.
+  function livraisonDeCommande(data, commande, company, todayIso, client) {
+    const s = suiviCommande(data, commande);
+    const out = convertDoc(commande, 'livraison', company, todayIso, client);
+    out.lines = (out.lines || []).map((l, i) => ({ ...l, qty: s.lignes[i] ? s.lignes[i].aProposer : 0, ligneCommande: i }))
+      .filter(l => l.qty > 0);
+    return out.lines.length ? out : null;
+  }
+  // Les bons qu'une facture regroupe : ceux qu'elle nomme, ou le bon dont elle est tirée.
+  function bonsDeFacture(f) {
+    if (!f || f.type !== 'facture') return [];
+    if (Array.isArray(f.bonsLivraison) && f.bonsLivraison.length) return f.bonsLivraison;
+    return f.fromDocType === 'livraison' && f.fromDocId ? [{ id: f.fromDocId, number: f.fromDocNumber || '' }] : [];
+  }
+  // La facture qui couvre un bon de livraison : celle qui le nomme, sinon une facture de la même vente (la
+  // même origine, comme `chaineDePieces`) qui ne vient d'aucun bon — tirée du devis, de la proforma ou de
+  // la commande, elle facture toute la vente. Une facture d'acompte ne facture pas la marchandise ; une
+  // facture annulée ne couvre rien. L'index se construit une fois par lot (une liste de cent bons ne relit
+  // pas cent fois toutes les pièces).
+  function facturesDesBons(data) {
+    return duLot(data, 'factures-des-bons', () => {
+      const docs = data.documents || [];
+      const parId = new Map(docs.map(d => [d.id, d]));
+      const parent = x => x.fromDocId || x.fromQuoteId || (x.deposit && x.deposit.quoteId) || '';
+      const racine = d => { let r = d; for (let i = 0; i < 50; i++) { const p = parent(r) && parId.get(parent(r)); if (!p || p.id === d.id) break; r = p; } return r.id; };
+      const parBon = new Map(), parVente = new Map();
+      docs.forEach(f => {
+        if (f.type !== 'facture' || effectiveStatus(f, data, data.company) === 'annulée') return;
+        const bons = bonsDeFacture(f);
+        if (bons.length) bons.forEach(b => { if (!parBon.has(b.id)) parBon.set(b.id, f); });
+        else if (!f.deposit) { const r = racine(f); if (!parVente.has(r)) parVente.set(r, f); }
+      });
+      return { parBon, parVente, racine };
+    });
+  }
+  function factureDuBon(data, bon) {
+    if (!bon || !bon.id) return null;
+    const x = facturesDesBons(data);
+    return x.parBon.get(bon.id) || x.parVente.get(x.racine(bon)) || null;
+  }
+  // Les bons émis ou signés qu'aucune facture ne couvre : de la marchandise partie sans être facturée.
+  function bonsAFacturer(data) {
+    return enLot(() => (data.documents || []).filter(d => d.type === 'livraison' && BON_LIVRE.includes(d.status) && !factureDuBon(data, d)));
+  }
+  // Une facture pour plusieurs bons de livraison d'un même client, dans une même devise : leurs lignes à la
+  // suite, aux prix qu'ils portent (ceux de la commande), et les bons qu'elle regroupe, imprimés sur elle.
+  // Elle naît brouillon, comme toute pièce tirée d'une autre ; tirée d'un bon, elle ne sort pas le stock
+  // une seconde fois (ce sont les bons qui l'ont sorti). Des bons de clients ou de devises différents : null.
+  // Une même ligne de commande livrée en plusieurs fois se facture en UNE ligne, sa quantité totale au même
+  // prix : 2,5 t livrées 1,25 + 1,25 se factureraient sinon deux fois 2 938,438 — un millime de plus que la
+  // commande (chaque ligne s'arrondit). Une ligne changée sur un bon (un autre prix) reste à part.
+  function factureDeBons(bons, company, todayIso, client) {
+    if (!bons || !bons.length) return null;
+    const devise = b => b.currency || (company || {}).currency || '';
+    if (bons.some(b => b.clientId !== bons[0].clientId || devise(b) !== devise(bons[0]))) return null;
+    const out = convertDoc(bons[0], 'facture', company, todayIso, client);
+    const objets = Array.from(new Set(bons.map(b => String(b.subject || '').trim()).filter(Boolean)));
+    const refs = Array.from(new Set(bons.map(b => String(b.reference || '').trim()).filter(Boolean)));
+    const parCle = new Map();
+    out.lines = [];
+    bons.forEach(b => JSON.parse(JSON.stringify(b.lines || [])).forEach(l => {
+      const rang = l.ligneCommande;
+      delete l.ligneCommande;
+      const cle = Number.isInteger(rang) && b.fromDocId ? JSON.stringify([b.fromDocId, rang, { ...l, qty: 0 }]) : '';
+      const deja = cle ? parCle.get(cle) : null;
+      if (deja) { deja.qty = round3((Number(deja.qty) || 0) + (Number(l.qty) || 0)); return; }
+      if (cle) parCle.set(cle, l);
+      out.lines.push(l);
+    }));
+    out.subject = objets.join(' ; ');
+    out.reference = refs.join(', ');
+    out.bonsLivraison = bons.map(b => ({ id: b.id, number: b.number || '' }));
+    delete out.hidePrices;
+    return out;
   }
 
   // Clauses d'un contrat de prestation. Textes de départ, tous modifiables sur le document.
@@ -8779,6 +8928,10 @@
       date: doc.date, kind: 'source', id: doc.fromDocId,
       label: `Établi à partir du ${(TITLES[doc.fromDocType] || 'document').toLowerCase()} ${doc.fromDocNumber || '(brouillon)'}`
     });
+    // Une facture de plusieurs bons de livraison (brique 86) : chacun des autres, cliquable comme le premier.
+    (Array.isArray(doc.bonsLivraison) ? doc.bonsLivraison : []).filter(b => b.id !== doc.fromDocId).forEach(b => ev.push({
+      date: doc.date, kind: 'source', id: b.id, label: `Établi à partir du bon de livraison ${b.number || '(brouillon)'}`
+    }));
     // Une facture de licence (7.33.0) dit quelle clé elle a portée : la ligne renvoie à la page
     // Licences de l'éditeur, où la clé se copie et se renvoie.
     if (doc.licenceId) {
@@ -9064,7 +9217,7 @@
       wordsInvoice: 'Arrêtée la présente facture à la somme de', wordsFees: 'Arrêtée la présente note d\'honoraires à la somme de', wordsCredit: 'Arrêté le présent avoir à la somme de', wordsQuote: 'Arrêté le présent devis à la somme de', wordsDoc: 'Arrêté le présent document à la somme de',
       approve: 'Bon pour accord', approveSub: 'Date, signature et cachet du client', stampSign: 'Cachet et signature', provider: 'Le prestataire', draft: 'Brouillon', paid: 'Payée', cancelled: 'Annulée', mf: 'MF', mfCin: 'MF / CIN', rate: 'Taux',
       proforma: 'Facture proforma', commande: 'Bon de commande', livraison: 'Bon de livraison', contrat: 'Contrat de prestation',
-      established: 'Établi le', orderedOn: 'Commandé le', deliveredOn: 'Livré le', signedOn: 'Signé le', from: 'Suite à',
+      established: 'Établi le', orderedOn: 'Commandé le', deliveredOn: 'Livré le', signedOn: 'Signé le', from: 'Suite à', deliveryNotes: 'Bons de livraison', deliveryNote1: 'Bon de livraison',
       proformaNote: 'Document sans valeur comptable. Il ne remplace pas une facture et ne donne lieu à aucune déclaration de TVA.',
       orderNote: 'Bon de commande établi d\'après votre demande. Merci de nous le retourner daté et signé pour lancer l\'exécution.',
       deliveryNote: 'Marchandises et prestations livrées au client. À signer à la réception.',
@@ -9081,7 +9234,7 @@
       wordsInvoice: 'Total amount in words:', wordsFees: 'Total amount in words:', wordsCredit: 'Total amount in words:', wordsQuote: 'Total amount in words:', wordsDoc: 'Total amount in words:',
       approve: 'Approved — signature', approveSub: 'Date, signature and stamp of the client', stampSign: 'Stamp and signature', provider: 'Provider', draft: 'Draft', paid: 'Paid', cancelled: 'Cancelled', mf: 'Tax ID', mfCin: 'Tax ID', rate: 'Rate',
       proforma: 'Proforma invoice', commande: 'Purchase order', livraison: 'Delivery note', contrat: 'Service agreement',
-      established: 'Issued on', orderedOn: 'Ordered on', deliveredOn: 'Delivered on', signedOn: 'Signed on', from: 'Following',
+      established: 'Issued on', orderedOn: 'Ordered on', deliveredOn: 'Delivered on', signedOn: 'Signed on', from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery note',
       proformaNote: 'This document has no accounting value. It does not replace an invoice and is not subject to VAT reporting.',
       orderNote: 'Purchase order drawn up from your request. Please return it dated and signed so we can proceed.',
       deliveryNote: 'Goods and services delivered to the client. To be signed on receipt.',
@@ -9160,6 +9313,9 @@
       [L.issuedF, fmtDate(doc.date), aReception(doc) ? L.payOnReceipt : ''],
       dueCard(doc),
       doc.deposit ? [L.deposit, doc.deposit.montant ? `${money(doc.deposit.montant, cur, undefined, lang)} ${L.depositAmountOf} ${doc.deposit.quoteNumber}` : `${pct(doc.deposit.percent)} ${L.depositOf} ${doc.deposit.quoteNumber}`] : (doc.settles ? [L.balance, `${L.balanceOf} ${doc.settles.quoteNumber}`] : (doc.fromQuoteNumber ? [L.afterQuote, doc.fromQuoteNumber] : null)),
+      // Les bons de livraison qu'elle regroupe (brique 86) : le client rapproche la facture de ses bons signés.
+      Array.isArray(doc.bonsLivraison) && doc.bonsLivraison.length
+        ? [doc.bonsLivraison.length > 1 ? L.deliveryNotes : L.deliveryNote1, doc.bonsLivraison.map(b => b.number).filter(Boolean).join(', ')] : null,
       doc.reference ? [L.reference, doc.reference] : null
     ] : isCredit ? [
       [L.issued, fmtDate(doc.date)],
@@ -10569,6 +10725,7 @@
     reminderLevel, REMINDER_LABELS, daysBetween, overdueInvoices, facturesAVenir, todoList, companyGaps, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
     CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, decimalsFor, arrondiDevise, prixDuCatalogue, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
+    BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
     vatReturn, vatChain, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
     ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, cashMovements, accountBalance, cashPosition, cashForecast, reconciliation,

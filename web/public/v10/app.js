@@ -520,12 +520,98 @@
     if (licenceBlock('Créer une pièce')) return;
     // Le client de la pièce (10.14.1, MR-01) : une facture tirée d'un bon ou d'une proforma prend
     // son exonération de timbre et sa retenue, comme « Facturer ce devis » les prend.
-    const out = C.convertDoc(src, t, company(), C.today(), clientById(src.clientId));
+    // Le bon de livraison d'une commande ne reprend que ce qui reste à livrer, chaque ligne rattachée à la
+    // sienne (brique 86) : la commande se livre en plusieurs fois.
+    const out = src.type === 'commande' && t === 'livraison'
+      ? C.livraisonDeCommande(data, src, company(), C.today(), clientById(src.clientId))
+      : C.convertDoc(src, t, company(), C.today(), clientById(src.clientId));
+    if (!out) return toast(`Rien ne reste à livrer sur ${src.number || 'ce bon de commande'} : tout est livré, ou dans un bon en préparation.`);
     data.documents.push(out); save(true);
     toast(`${pieceCreee(t)} en brouillon à partir de ${src.number || 'ce brouillon'}`);
     navigate('#/doc/' + out.id);
   }
   const ICONE_CONVERSION = { facture: 'facture', livraison: 'stock', proforma: 'texte', commande: 'panier', contrat: 'contrat' };
+  // Le panneau « Livraisons » d'une commande (brique 86) : ligne par ligne, ce qui est commandé, livré (par
+  // les bons émis ou signés) et ce qui reste ; ses bons, cliquables ; et le geste du reste.
+  function panneauLivraisons(doc, s) {
+    const close = doc.status === 'livrée' || /^annul/.test(doc.status || '');
+    const lignes = s.lignes.filter(x => x.commandee > 0 || x.livree > 0).map(x => `<tr>
+      <td>${h(x.label || '—')}${x.unit ? ` <span class="small muted">(${h(x.unit)})</span>` : ''}</td>
+      <td class="r num">${pct(x.commandee)}</td>
+      <td class="r num">${pct(x.livree)}${x.enPreparation ? `<div class="small muted">+ ${pct(x.enPreparation)} en préparation</div>` : ''}</td>
+      <td class="r num">${x.enPlus ? `<span class="warn-text">${pct(x.enPlus)} de plus</span>` : pct(x.reste)}</td></tr>`).join('');
+    const bons = s.bons.map(b => `<a href="#/doc/${h(b.id)}">${h(b.number || 'bon en brouillon')}</a> <span class="small muted">(${h(C.statusLabel(b.status, 'livraison'))}${b.date ? ', ' + h(C.fmtDate(b.date)) : ''})</span>`).join(', ');
+    return `<div class="panel" id="livraisons-panel"><h2>Livraisons ${info('ed.livraisons')}</h2>
+      <div class="scroll-x"><table class="list compact"><thead><tr><th>Désignation</th><th class="r">Commandé</th><th class="r">Livré</th><th class="r">Reste</th></tr></thead><tbody>${lignes}</tbody></table></div>
+      <p class="small mt">${s.bons.length > 1 ? 'Bons de livraison' : 'Bon de livraison'} : ${bons}</p>
+      ${!close && s.aProposer ? `<div class="inline mt"><button class="btn btn-sm" data-conv="livraison" id="livrer-reste">Livrer le reste</button><span class="small muted">${h(C.resteALivrerDit(s))}</span></div>` : ''}
+      ${doc.status === 'livrée' && s.lignes.some(x => x.reste > 0) ? '<p class="small muted mt">Marquée « livrée » à la main : le reste n\'est plus proposé.</p>' : ''}
+    </div>`;
+  }
+  // Facturer des bons de livraison (brique 86) : les bons émis ou signés d'un client qu'aucune facture ne
+  // couvre, cochés ; une seule facture en brouillon, qu'on relit avant de l'émettre.
+  function facturerDesBons(clientId) {
+    if (licenceBlock('Créer une pièce')) return;
+    const tous = C.bonsAFacturer(data);
+    const clients = Array.from(new Set(tous.map(b => b.clientId || '')));
+    if (!tous.length) return toast('Aucun bon de livraison n\'attend sa facture : chaque bon émis ou signé est déjà facturé.');
+    let client = clients.includes(clientId) ? clientId : clients[0];
+    const coches = new Set();
+    const cocherTout = () => { coches.clear(); tous.filter(b => (b.clientId || '') === client).forEach(b => coches.add(b.id)); };
+    cocherTout();
+    modal(`<h2>Facturer des bons de livraison ${info('liv.facturer')}</h2>
+      <p class="small muted">Les bons émis ou signés d'un client, pas encore facturés, deviennent une seule facture en brouillon : leurs lignes, aux prix qu'ils portent. Tu la relis avant de l'émettre.</p>
+      <label class="field">${lbl('Client', '')}<select id="fb-client">${clients.map(id => `<option value="${h(id)}" ${id === client ? 'selected' : ''}>${h(id ? clientName(id) : 'Sans client')}</option>`).join('')}</select></label>
+      <div id="fb-bons" class="mt"></div>
+      <p class="small mt" id="fb-total"></p>
+      <p class="small warn-text" id="fb-refus" hidden></p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="fb-ok">Créer la facture</button></div>`,
+    (layer, close) => {
+      const choisis = () => tous.filter(b => coches.has(b.id))
+        .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.number || '').localeCompare(b.number || '', undefined, { numeric: true }));
+      const maj = () => {
+        const bons = choisis();
+        const devises = Array.from(new Set(bons.map(docCur)));
+        const refus = $('#fb-refus', layer);
+        refus.hidden = devises.length < 2;
+        refus.textContent = devises.length < 2 ? '' : `Ces bons sont en ${devises.join(' et en ')} : une facture n'a qu'une devise. Décoche ceux d'une des deux.`;
+        const ok = $('#fb-ok', layer);
+        ok.disabled = !bons.length || devises.length > 1;
+        ok.textContent = bons.length ? `Facturer ${pl(bons.length, 'bon')}` : 'Créer la facture';
+        // Le montant de LA facture, calculé sur elle (deux chemins, un chiffre) : une ligne de commande
+        // livrée en plusieurs fois s'y facture en une ligne, arrondie une fois — un millime peut séparer
+        // ce total de la somme des bons, et la fenêtre dit pourquoi.
+        const inv = bons.length && devises.length < 2 ? C.factureDeBons(bons, company(), C.today(), clientById(client)) : null;
+        const total = inv ? C.computeTotals(inv, company()).netHT : 0;
+        const somme = bons.reduce((s, b) => s + C.computeTotals(b, company()).netHT, 0);
+        const ecart = Math.round((total - somme) * 1000) / 1000;
+        $('#fb-total', layer).textContent = !inv ? '' : `La facture : ${C.money(total, devises[0])} HT.`
+          + (Math.abs(ecart) >= 0.0005 ? ` ${C.money(Math.abs(ecart), devises[0])} de ${ecart > 0 ? 'plus' : 'moins'} que la somme des bons : une ligne de commande livrée en plusieurs fois s'y facture en une seule ligne, arrondie une fois.` : '');
+      };
+      const dessiner = () => {
+        const bons = tous.filter(b => (b.clientId || '') === client)
+          .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.number || '').localeCompare(b.number || '', undefined, { numeric: true }));
+        $('#fb-bons', layer).innerHTML = `<div class="scroll-x"><table class="list compact"><thead><tr><th></th><th>Bon</th><th>Date</th><th>Objet</th><th class="r">Montant HT</th></tr></thead><tbody>
+          ${bons.map(b => `<tr><td><label class="check"><input type="checkbox" data-fb="${h(b.id)}" ${coches.has(b.id) ? 'checked' : ''} aria-label="Facturer ${h(b.number || 'ce bon')}"></label></td>
+            <td class="nw">${h(b.number || '')}</td><td class="nw">${h(C.fmtDate(b.date))}</td><td>${h(b.subject || '')}</td>
+            <td class="r num nw">${h(C.money(C.computeTotals(b, company()).netHT, docCur(b)))}</td></tr>`).join('')}
+        </tbody></table></div>`;
+        $$('[data-fb]', layer).forEach(c => { c.onchange = () => { if (c.checked) coches.add(c.dataset.fb); else coches.delete(c.dataset.fb); maj(); }; });
+        maj();
+      };
+      $('#fb-client', layer).onchange = e => { client = e.target.value; cocherTout(); dessiner(); };
+      $('#fb-ok', layer).onclick = () => {
+        const bons = choisis();
+        const inv = C.factureDeBons(bons, company(), C.today(), clientById(client));
+        if (!inv) return;
+        close();
+        data.documents.push(inv); save(true);
+        toast(`${pieceCreee('facture')} en brouillon à partir de ${pl(bons.length, 'bon')} de livraison`);
+        navigate('#/doc/' + inv.id);
+      };
+      dessiner();
+    });
+  }
   // Un statut dans une LISTE DÉROULANTE commence par une majuscule, comme ses voisines (« Tous les
   // statuts », « Français », « Factures et avoirs ») : « brouillon » entre les deux se lisait comme
   // une valeur oubliée (10.12.0). Le badge, lui, garde sa minuscule d'étiquette ; la VALEUR ne change
@@ -3302,12 +3388,27 @@
         const cibles = C.CONVERSIONS[d.type] || [];
         if (cibles.length) a.push({ sep: true });
         cibles.forEach(t => {
-          const deja = C.chaineDePieces(data, d).find(x => x.type === t && !/^annul/.test(x.status || ''));
+          // Une commande se livre en plusieurs fois, et chaque bon se facture à part (brique 86) : tant qu'il
+          // reste à livrer, le geste est « Livrer le reste » ; la facture d'un bon est celle qui le couvre,
+          // pas celle d'un autre bon de la même vente.
+          const suivi = d.type === 'commande' && t === 'livraison' ? C.suiviCommande(data, d) : null;
+          if (suivi && suivi.bons.length && suivi.aProposer && d.status !== 'livrée') {
+            a.push({ icon: ICONE_CONVERSION[t], label: 'Livrer le reste', hint: C.resteALivrerDit(suivi), run: () => transformerPiece(d, t) });
+            return;
+          }
+          const deja = suivi ? (suivi.brouillons[0] || suivi.bons[suivi.bons.length - 1])
+            : d.type === 'livraison' && t === 'facture' ? C.factureDuBon(data, d)
+            : C.chaineDePieces(data, d).find(x => x.type === t && !/^annul/.test(x.status || ''));
           a.push(deja
             ? { icon: ICONE_CONVERSION[t], label: `Voir ${deja.number || `${t === 'facture' || t === 'proforma' ? 'la' : 'le'} ${C.docLabel(t, company()).toLowerCase()} en brouillon`}`, hint: deja.fromDocId === d.id ? `Déjà tiré${t === 'facture' || t === 'proforma' ? 'e' : ''} de ${d.number}` : 'Déjà établi' + (t === 'facture' || t === 'proforma' ? 'e' : '') + ' pour cette vente', run: () => navigate('#/doc/' + deja.id) }
             : { icon: ICONE_CONVERSION[t], label: C.CONVERSION_LABELS[t], hint: 'En brouillon, avec ses lignes et son client', run: () => transformerPiece(d, t) });
         });
       }
+      // Un bon de livraison qui attend sa facture, quand son client en a d'autres (brique 86) : une seule
+      // facture pour tous.
+      if (d.type === 'livraison' && C.BON_LIVRE.includes(d.status) && !C.factureDuBon(data, d)
+        && C.bonsAFacturer(data).filter(b => b.clientId === d.clientId).length > 1)
+        a.push({ icon: 'facture', label: 'Facturer avec d\'autres bons…', hint: 'Une seule facture pour plusieurs bons de ce client', run: () => facturerDesBons(d.clientId) });
       // Le statut d'un devis se saisit à la main (celui d'une facture se déduit des paiements).
       if (d.type === 'devis' && ['envoyé', 'expiré'].includes(effStatus(d)))
         a.push({ sep: true },
@@ -3323,7 +3424,7 @@
   function duplicateDoc(doc) {
     const isQ = doc.type === 'devis';
     const numbered = isQ || C.EXTRA_TYPES.includes(doc.type);   // ces pièces portent un numéro dès l'enregistrement
-    const copy = { ...deepCopy(doc), id: C.uid(), number: '', status: 'brouillon', date: C.today(), createdAt: Date.now(), issuedTs: undefined, regimeTva: undefined, exonerationRS: undefined, payments: [], emails: [], reminders: [], attachments: [], withholdingCertificate: false, ticket: undefined, caisse: undefined, fromQuoteId: undefined, fromQuoteNumber: undefined, fromDocId: undefined, fromDocType: undefined, fromDocNumber: undefined, deposit: undefined, settles: undefined, recurringId: undefined };
+    const copy = { ...deepCopy(doc), id: C.uid(), number: '', status: 'brouillon', date: C.today(), createdAt: Date.now(), issuedTs: undefined, regimeTva: undefined, exonerationRS: undefined, payments: [], emails: [], reminders: [], attachments: [], withholdingCertificate: false, ticket: undefined, caisse: undefined, fromQuoteId: undefined, fromQuoteNumber: undefined, fromDocId: undefined, fromDocType: undefined, fromDocNumber: undefined, deposit: undefined, settles: undefined, recurringId: undefined, bonsLivraison: undefined };
     if (copy.dueDate) copy.dueDate = C.addDays(copy.date, C.delaiJours(isQ ? company().quoteValidityDays : company().paymentTermsDays, 30));
     if (numbered) copy.number = C.nextNumber(data, doc.type, copy.date);
     data.documents.push(copy); save(true);
@@ -3626,10 +3727,18 @@
     // numéro, c'est « Enregistrer » qui le lui donne ; une proforma ou un contrat numérotés
     // s'envoient (`envoiSuivant`) ; un bon de livraison s'imprime pour être signé ; et une pièce qui
     // n'a encore rien donné se transforme — jamais une seconde fois (le geste suivant, 7.16.0).
+    // Une commande livrée en plusieurs fois (brique 86) : ce qui est livré, ce qui reste, et si livrer le reste
+    // est l'étape suivante (jamais sur une commande close à la main, annulée ou figée).
+    const suiviCde = doc.type === 'commande' && !isNew && stored ? C.suiviCommande(data, stored) : null;
+    const resteALivrer = !!(suiviCde && suiviCde.bons.length && suiviCde.aProposer && stored.status !== 'livrée' && !/^annul/.test(stored.status || '') && !figee);
     const suiteExtra = !isExtra || isNew || figee ? ''
       : !doc.number ? 'save'
       : envoiSuivant ? ''
       : doc.type === 'livraison' && doc.status === 'brouillon' ? 'pdf'
+      // Brique 86 : un bon de livraison se facture tant qu'aucune facture ne le couvre (les bons d'une
+      // commande livrée en plusieurs fois se facturent chacun) ; une commande livrée en partie se livre encore.
+      : !/^annul/.test(doc.status || '') && doc.type === 'livraison' ? (C.factureDuBon(data, stored || doc) ? '' : 'transform')
+      : resteALivrer ? 'transform'
       : !/^annul/.test(doc.status || '') && convertibles.length && !C.chaineDePieces(data, doc).some(x => convertibles.includes(x.type) && !/^annul/.test(x.status || '')) ? 'transform' : '';
     // 10.14.0 — « Transformer ▾ » a son bouton quand c'est l'étape suivante ; sinon ses entrées vont
     // dans « Plus ▾ », en tête. La barre d'un bon de commande ou d'un bon de livraison portait huit
@@ -3644,7 +3753,7 @@
     // envoyé attend sa réponse, et c'est « Facturer ce devis » qui a la place. Facture et avoir
     // gardent le leur : l'envoi y est le geste de la pièce, émise ou pas.
     const emailDansPlus = (isQ || isExtra) && !envoiSuivant && avecPlus;
-    const convBoutons = convertibles.map(t => `<button data-conv="${t}">${h(C.CONVERSION_LABELS[t] || C.TITLES[t])}</button>`).join('');
+    const convBoutons = convertibles.map(t => `<button data-conv="${t}">${h(t === 'livraison' && resteALivrer ? 'Livrer le reste' : (C.CONVERSION_LABELS[t] || C.TITLES[t]))}</button>`).join('');
     const transformMenu = convertibles.length && !convDansPlus ? `<div class="more"><button class="btn${suiteExtra === 'transform' ? ' btn-primary' : ''}" id="conv-btn">Transformer ▾</button><div class="more-list" id="conv-list" hidden>
         ${convBoutons}
       </div></div>` : '';
@@ -3777,6 +3886,7 @@
             <div class="totals-box" id="totals"></div>
           </div>
           ${bal ? `<div class="panel" id="pay-panel"><h2>Paiements et situation ${info('ed.payments')}</h2><div id="pay-body"></div></div>` : ''}
+          ${suiviCde && suiviCde.bons.length ? panneauLivraisons(stored, suiviCde) : ''}
           ${isContract ? `<div class="panel"><h2>Clauses du contrat ${info('ed.clauses')}</h2>
             <p class="small muted mb">Ces textes s'impriment sur le contrat, numérotés dans l'ordre. Vide un champ pour retirer la clause. Ce sont des formulations courantes, pas un conseil juridique : <em>à faire relire par un juriste ou ton comptable</em> avant la première signature.</p>
             <form id="f-clauses">${C.CLAUSE_LABELS.map(([k, label]) =>
@@ -4761,7 +4871,7 @@
     if ($('#more-btn')) $('#more-btn').onclick = e => { e.stopPropagation(); const l = $('#more-list'); const open = l.hidden; closeMenus(); l.hidden = !open; };
     $$('#more-list button:not(.i)').forEach(b => b.addEventListener('click', () => { $('#more-list').hidden = true; }));
     if ($('#conv-btn')) $('#conv-btn').onclick = e => { e.stopPropagation(); const l = $('#conv-list'); const open = l.hidden; closeMenus(); l.hidden = !open; };
-    $$('#conv-list button, #more-list [data-conv]').forEach(b => b.addEventListener('click', async () => {
+    $$('#conv-list button, #more-list [data-conv], #livrer-reste').forEach(b => b.addEventListener('click', async () => {
       $$('#conv-list, #more-list').forEach(l => { l.hidden = true; });
       // On part de ce qui est enregistré : convertir une saisie non sauvegardée donnerait une pièce fantôme.
       if (dirty && !persist()) return;
@@ -9255,16 +9365,18 @@
     const filtreActif = !!(s.q || s.st || s.year);
     const vide = !mine.length && !filtreActif;
     const aPartir = vide && sourcesAutres(type).length > 0;
+    // Brique 86 : des bons émis ou signés qu'aucune facture ne couvre. Les facturer est alors l'étape suivante.
+    const aFacturer = type === 'livraison' ? C.bonsAFacturer(data) : [];
 
     $('#view').innerHTML = `
       <div class="page-head"><h1>Proforma, bons et contrats</h1>
-        <div class="actions"><button class="btn ${vide ? '' : 'btn-primary'}" id="new">+ ${h(NEW_LABELS[type])}</button></div></div>
+        <div class="actions">${aFacturer.length ? '<button class="btn btn-primary" id="facturer-bons">Facturer des bons…</button>' : ''}<button class="btn ${vide || aFacturer.length ? '' : 'btn-primary'}" id="new">+ ${h(NEW_LABELS[type])}</button></div></div>
       <div class="tabs" id="a-tabs" role="tablist" aria-label="Les autres pièces">${AUTRES_TABS.map(([t, label]) =>
         `<button role="tab" data-tab="${t}" class="${t === type ? 'active' : ''}">${h(label)}${data.documents.some(d => d.type === t) ? ` <span class="tab-n">${data.documents.filter(d => d.type === t).length}</span>` : ''}</button>`).join('')}</div>
       ${vide ? '' : `<p class="small muted mb">${h(tab[2])} ${info('autres.' + type)}</p>`}
       ${filtersBar(`
         <input type="text" id="q" placeholder="Rechercher : n°, client, objet…" value="${h(s.q)}">
-        <select id="st"><option value="">Tous les statuts</option>${C.STATUSES[type].map(x => `<option value="${x}" ${s.st === x ? 'selected' : ''}>${h(optionStatut(x, type))}</option>`).join('')}</select>
+        <select id="st"><option value="">Tous les statuts</option>${(C.DISPLAY_STATUSES[type] || C.STATUSES[type]).map(x => `<option value="${x}" ${s.st === x ? 'selected' : ''}>${h(optionStatut(x, type))}</option>`).join('')}</select>
         ${years.length > 1 ? `<select id="yr"><option value="">Toutes les années</option>${years.map(y => `<option value="${y}" ${s.year === y ? 'selected' : ''}>${y}</option>`).join('')}</select>` : ''}
         ${info('list.filters')}
         <span class="f-note" id="f-note" hidden></span>
@@ -9276,7 +9388,7 @@
       if (typeof sortKey === 'string' && sortKey) { s.sort = toggleSort(s.sort, sortKey, cols); s.page = 1; }
       const list = mine
         .filter(d => !s.year || (d.date || '').startsWith(s.year))
-        .filter(d => !s.st || d.status === s.st)
+        .filter(d => !s.st || effStatus(d) === s.st)
         .filter(d => !s.q || C.correspondRecherche([d.number, clientName(d.clientId), d.subject, d.reference, C.nomsJustificatifs(d)].join(' '), s.q))
         .sort(byNumberDesc);
       const filtered = !!(s.q || s.st || s.year);
@@ -9293,6 +9405,7 @@
     });
     $$('#a-tabs button').forEach(b => b.onclick = () => { autresTab = b.dataset.tab; navigate('#/autres/' + b.dataset.tab); });
     $('#new').onclick = () => navigate('#/doc/new/' + type);
+    if ($('#facturer-bons')) $('#facturer-bons').onclick = () => facturerDesBons();
     if ($('#vide-new')) $('#vide-new').onclick = () => navigate('#/doc/new/' + type);
     // 10.12.0 (H-E30, la famille de H-E29) — l'état vide disait « tu peux en tirer une d'un devis
     // existant, depuis son menu « Transformer » » : le geste était sur une autre pièce, deux écrans
