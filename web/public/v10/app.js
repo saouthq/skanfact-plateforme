@@ -8785,7 +8785,8 @@
             ${valide ? '<button id="rec-annuler" class="danger">Annuler la réception…</button>' : '<button id="rec-del" class="danger">Supprimer</button>'}</div></div>`}
         </div></div>
       <div class="panel"><h2>Ce qui est arrivé ${info('rec.lignes')}</h2>
-        <form id="rec-head" class="grid-3">${dateFieldHtml(lbl('Date de réception', ''), 'date', r.date, { ro: !!ro })}</form>
+        <form id="rec-head" class="grid-3">${dateFieldHtml(lbl('Date de réception', ''), 'date', r.date, { ro: !!ro })}
+          ${C.depotsDe(data).length > 1 ? `<label class="field">${lbl('Dépôt', 'dep.reception')}<select name="depotId" ${ro}>${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === (r.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}</form>
         <div class="scroll-x mt"><table class="list compact rec-lines"><thead><tr><th>Désignation</th><th class="r">Commandé</th><th class="r">Déjà reçu</th><th class="r">Reçu ici</th><th>Unité</th></tr></thead>
           <tbody>${r.lines.map((l, i) => { const x = autres && Number.isInteger(l.ligneCommande) ? autres.lignes[l.ligneCommande] : null; return `<tr>
             <td>${h(l.label || '—')}</td><td class="r num">${x ? pct(x.commandee) : '—'}</td><td class="r num">${x ? pct(x.recue) : '—'}</td>
@@ -8812,6 +8813,8 @@
     const enregistrer = (valider) => {
       const v = formValues($('#rec-head'));
       r.date = v.date || r.date;
+      // Le dépôt où la marchandise entre (brique 94).
+      if (v.depotId) r.depotId = v.depotId;
       if (valider) {
         if (!r.lines.some(l => Number(l.qty) > 0)) { toast('Rien n\'est reçu : saisis au moins une quantité reçue, ou supprime cette réception.', true); return false; }
         r.lines = r.lines.filter(l => Number(l.qty) > 0);
@@ -12075,6 +12078,7 @@
         <div class="actions">
           ${items.length ? `<button class="btn" id="st-csv" data-csv="${h(s.tab)}">Exporter ${h(ST_LABELS[s.tab] || ST_LABELS.etat)}</button>` : ''}
           <button class="btn" id="st-war">Garanties</button>
+          <button class="btn" id="st-depots">Dépôts…</button>
           ${a ? `<button class="btn btn-primary" id="${a[0]}">${a[1]}</button>` : ''}
         </div>`;
     };
@@ -12337,6 +12341,31 @@
       if ($('#st-adj')) $('#st-adj').onclick = () => adjustForm(null, () => draw());
       if ($('#se-add')) $('#se-add').onclick = () => serialIntakeForm(null, () => draw());
       $('#st-war').onclick = () => navigate('#/garanties');
+      // Les dépôts (brique 94) : le principal se renomme ; les autres s'ajoutent. Un dépôt qui a du stock ne se retire pas.
+      if ($('#st-depots')) $('#st-depots').onclick = () => {
+        const lignes = C.depotsDe(data).map(d => ({ ...d }));
+        modal(`<h2>Dépôts ${info('dep.depots')}</h2>
+          <p class="small muted">Là où ta marchandise est rangée. Tant qu'il n'y en a qu'un, SkanFact n'en parle pas.</p>
+          <div id="dep-lignes"></div>
+          <button type="button" class="btn btn-sm mt" id="dep-add">+ Dépôt</button>
+          <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="dep-ok">Enregistrer</button></div>`,
+        (root, fermer) => {
+          const dessiner = () => {
+            $('#dep-lignes', root).innerHTML = lignes.map((d, i) => `<label class="field">${i === 0 ? 'Dépôt principal' : 'Dépôt'}<input type="text" data-dep="${i}" value="${h(d.nom)}" placeholder="Magasin de Sfax"></label>`).join('');
+            $$('[data-dep]', root).forEach(el => { el.oninput = () => { lignes[Number(el.dataset.dep)].nom = el.value; }; });
+          };
+          dessiner();
+          $('#dep-add', root).onclick = () => { lignes.push({ id: C.uid(), nom: '' }); dessiner(); $$('[data-dep]', root).pop().focus(); };
+          $('#dep-ok', root).onclick = () => {
+            const noms = lignes.map(d => String(d.nom || '').trim());
+            if (noms.slice(1).some(n => !n)) return toast('Donne un nom à chaque dépôt (ou n\'ajoute pas celui qui reste vide).', true);
+            if (new Set(noms.map(n => n.toLowerCase())).size !== noms.length) return toast('Deux dépôts portent le même nom : un nom désigne un seul dépôt.', true);
+            data.depotPrincipalNom = noms[0] === 'Dépôt principal' ? '' : noms[0];
+            data.depots = lignes.slice(1).map((d, i) => ({ id: d.id, nom: noms[i + 1] }));
+            save(true); fermer(); toast('Dépôts enregistrés'); render(true);
+          };
+        });
+      };
       if ($('#st-csv')) $('#st-csv').onclick = exportStock;
       if ($('#st-new')) $('#st-new').onclick = () => catalogForm(articleNeuf({ tracked: true }), it => { if (it) render(); }, { creation: true, titre: 'Nouvel article suivi' });
       if ($('#st-pick')) $('#st-pick').onclick = () => navigate('#/catalogue');
@@ -12415,7 +12444,9 @@
       <div class="page-head"><div><h1>${h(item.label)}</h1>
         <div class="small muted">${[item.location, item.unit ? 'unité : ' + item.unit : '', item.tracked ? 'suivi en stock' : 'non suivi'].filter(Boolean).join(' · ')}</div></div>
         <div class="actions">${backButton('#/stock')}<button class="btn" id="edit-item">Modifier l'article</button>
+          ${C.depotsDe(data).length > 1 ? '<button class="btn" id="transfert">Transférer…</button>' : ''}
           <button class="btn btn-primary" id="adj-item">+ Mouvement</button></div></div>
+      ${C.depotsDe(data).length > 1 ? `<p class="small mb" id="art-depots">Par dépôt ${info('dep.depots')} : ${C.stockParDepot(data, item.id).map(x => `<b>${h(x.nom)}</b> ${pct(x.qty)}${st.unit ? ' ' + h(C.uniteAccordee(x.qty, st.unit)) : ''}`).join(' · ')}</p>` : ''}
       ${st.negative ? `<div class="panel" style="border-inline-start:3px solid var(--danger)"><h2 style="color:var(--danger)">Stock négatif</h2>
         <p class="small">D'après les pièces saisies, il en reste <b>${pct(st.qty)}</b> — ce qui est impossible. Il manque une entrée : un achat non saisi, une quantité mal recopiée, ou un stock de départ oublié. Corrige la pièce en cause plutôt que d'ajuster, sinon l'erreur restera dans les chiffres.</p></div>` : ''}
       <div class="stats">
@@ -12430,7 +12461,7 @@
           ${moves.map(m => `<tr>
             <td class="nw">${C.fmtDate(m.date)}</td>
             <td>${h(C.moveSourceLabel(m.source))}${m.note ? `<div class="small muted">${h(m.note)}</div>` : ''}</td>
-            <td class="nw">${m.docId ? `<a href="${m.source === 'achat' ? '#/achat/' : '#/doc/'}${h(m.docId)}">${h(m.ref) || 'voir'}</a>` : (h(m.ref) || '<span class="muted">—</span>')}</td>
+            <td class="nw">${m.docId ? `<a href="${m.source === 'achat' ? '#/achat/' : m.source === 'reception' ? '#/reception/' : '#/doc/'}${h(m.docId)}">${h(m.ref) || 'voir'}</a>` : (h(m.ref) || '<span class="muted">—</span>')}${C.depotsDe(data).length > 1 ? `<div class="small muted" data-depot>${h(C.nomDepot(data, m.depotId))}</div>` : ''}</td>
             <td class="r nw ${m.qty < 0 ? 'warn-text' : 'ok-text'}"><strong>${qteSignee(m.qty)}</strong></td>
             <td class="r nw">${C.money(m.unitApplied, cur)}</td>
             <td class="r nw ${m.qtyAfter < 0 ? 'warn-text' : ''}">${pct(m.qtyAfter)}</td>
@@ -12442,12 +12473,40 @@
     bindBack('#/stock');
     $('#edit-item').onclick = () => catalogForm(item, () => render());
     $('#adj-item').onclick = () => adjustForm(item.id, () => render());
+    // Transférer d'un dépôt à l'autre (brique 94) : deux mouvements, sans coût ; ce que le dépôt n'a pas se refuse.
+    if ($('#transfert')) $('#transfert').onclick = () => {
+      const deps = C.depotsDe(data);
+      const opts = sel => deps.map(d => `<option value="${h(d.id)}" ${d.id === sel ? 'selected' : ''}>${h(d.nom)}</option>`).join('');
+      modal(`<h2>Transférer « ${h(item.label)} »</h2>
+        <form id="tr-form" class="grid-2" onsubmit="return false">
+          <label class="field">De<select name="de">${opts(deps[0].id)}</select></label>
+          <label class="field">Vers<select name="vers">${opts(deps[1].id)}</select></label>
+          <label class="field">Quantité${item.unit ? ` (${h(item.unit)})` : ''}<input type="number" name="qty" step="any" min="0" class="num"></label>
+          ${dateFieldHtml('Date', 'date', C.today())}
+          <label class="field span-2">Note (optionnel)<input type="text" name="note" placeholder="Réassort du magasin"></label>
+        </form>
+        <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="tr-ok">Transférer</button></div>`,
+      (root, fermer) => {
+        $('#tr-ok', root).onclick = () => {
+          const v = formValues($('#tr-form', root));
+          const r = C.transfertStock(data, { id: C.uid(), itemId: item.id, de: v.de, vers: v.vers, qty: v.qty, date: v.date || C.today(), note: String(v.note || '').trim() });
+          if (r.erreur) return toast(r.erreur, true);
+          data.stockAdjustments = data.stockAdjustments || [];
+          r.ajustements.forEach(a => data.stockAdjustments.push(a));
+          save(true); fermer(); toast(`Transféré : ${pct(Number(v.qty))} de ${C.nomDepot(data, v.de)} vers ${C.nomDepot(data, v.vers)}.`); render(true);
+        };
+      });
+    };
     $$('[data-rm]').forEach(b => b.onclick = async () => {
-      if (!await confirmDialog('Supprimer ce mouvement saisi à la main ?')) return;
-      const gone3 = (data.stockAdjustments || []).find(x => x.id === b.dataset.rm);
+      // Un transfert (brique 94) : ses deux mouvements partent ensemble, sinon un dépôt garderait ce que l'autre a rendu.
+      const cible = (data.stockAdjustments || []).find(x => x.id === b.dataset.rm);
+      const paire = cible && cible.transfertId ? (data.stockAdjustments || []).filter(x => x.transfertId === cible.transfertId) : [];
+      if (!await confirmDialog(paire.length > 1 ? 'Supprimer ce transfert ? Ses deux mouvements (la sortie et l\'entrée) partent ensemble.' : 'Supprimer ce mouvement saisi à la main ?')) return;
+      const gone3 = cible;
       if (gone3 && closedBlock(gone3.date, 'Ce mouvement de stock')) return;
-      forget('stockAdjustments', b.dataset.rm, item.label);
-      data.stockAdjustments = data.stockAdjustments.filter(x => x.id !== b.dataset.rm);
+      const ids = paire.length > 1 ? paire.map(x => x.id) : [b.dataset.rm];
+      ids.forEach(id => forget('stockAdjustments', id, item.label));
+      data.stockAdjustments = data.stockAdjustments.filter(x => !ids.includes(x.id));
       save(true); render();
     });
   };

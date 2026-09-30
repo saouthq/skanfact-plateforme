@@ -3323,7 +3323,7 @@
   // À VÉRIFIER avec le comptable : la méthode de valorisation retenue pour tes comptes annuels.
 
   const MOVE_SOURCES = [
-    ['achat', 'Achat'], ['reception', 'Réception'], ['vente', 'Vente'], ['livraison', 'Bon de livraison'],
+    ['achat', 'Achat'], ['reception', 'Réception'], ['transfert', 'Transfert entre dépôts'], ['vente', 'Vente'], ['livraison', 'Bon de livraison'],
     ['avoir', 'Retour sur avoir'], ['depart', 'Stock de départ'],
     ['inventaire', 'Inventaire'], ['casse', 'Casse ou perte'],
     ['consommation', 'Matière utilisée'], ['ajustement', 'Ajustement']
@@ -3483,6 +3483,15 @@
         rang: a.source === 'depart' ? 0 : 1, ts: Number(a.createdAt) || 0 });
     });
 
+    // Le dépôt de chaque mouvement (plateforme, brique 94) : celui de sa pièce, de sa réception ou de son
+    // ajustement ; le stock de départ, celui de l'article ; sinon le dépôt principal.
+    const depotDe = new Map();
+    [data.purchases, data.receptions, data.documents, data.stockAdjustments].forEach(l => (l || []).forEach(x => { if (x && x.id && x.depotId) depotDe.set(x.id, x.depotId); }));
+    out.forEach(m => {
+      const art = m.source === 'depart' && !m.manual ? (data.catalog || []).find(c => c.id === m.itemId) : null;
+      m.depotId = (art ? art.depotInitial : depotDe.get(m.docId || m.id)) || DEPOT_PRINCIPAL;
+    });
+
     // L'ORDRE d'une même journée (rapport QA E-10). Les mouvements du même jour se triaient par
     // IDENTIFIANT — « buy- » < « doc- » < « init- » — donc Achat → Vente → Stock de départ : un stock de
     // départ de 5 à 700, une vente de 2 puis un achat de 3 à 800, saisis dans cet ordre, sortaient la
@@ -3493,6 +3502,36 @@
     // avant les sorties : une sortie ne se valorise pas sur une marchandise qui n'est pas encore là.
     return out.sort((a, b) => (a.date || '').localeCompare(b.date || '')
       || (a.rang - b.rang) || (a.ts - b.ts) || ((b.qty > 0) - (a.qty > 0)) || String(a.id).localeCompare(String(b.id)));
+  }
+
+  // ---------- les dépôts (plateforme, brique 94 ; 14 § 3.2) ----------
+  const DEPOT_PRINCIPAL = 'principal';
+  function depotsDe(data) {
+    return [{ id: DEPOT_PRINCIPAL, nom: String((data && data.depotPrincipalNom) || '').trim() || 'Dépôt principal' },
+      ...((data && data.depots) || []).filter(d => d && d.id && d.id !== DEPOT_PRINCIPAL)];
+  }
+  function nomDepot(data, id) { return (depotsDe(data).find(d => d.id === (id || DEPOT_PRINCIPAL)) || { nom: 'Dépôt inconnu' }).nom; }
+  // Ce qu'il y a d'un article dans chaque dépôt, à une date : la somme de ses mouvements, dépôt par dépôt.
+  function stockParDepot(data, itemId, toIso) {
+    const q = new Map(depotsDe(data).map(d => [d.id, 0]));
+    stockMovements(data, itemId, toIso).forEach(m => q.set(m.depotId, round3((q.get(m.depotId) || 0) + (Number(m.qty) || 0))));
+    return depotsDe(data).map(d => ({ depotId: d.id, nom: d.nom, qty: q.get(d.id) || 0 }))
+      .concat([...q.keys()].filter(k => !depotsDe(data).some(d => d.id === k)).map(k => ({ depotId: k, nom: 'Dépôt inconnu', qty: q.get(k) })));
+  }
+  // Un transfert : deux ajustements, la sortie d'un dépôt et l'entrée dans l'autre, sans coût imposé (la quantité
+  // totale et le coût moyen ne bougent pas). On ne transfère pas ce que le dépôt n'a pas : { erreur } le dit.
+  function transfertStock(data, t) {
+    const qty = round3(Number(t && t.qty) || 0);
+    if (!(qty > 0)) return { erreur: 'Saisis la quantité à transférer.' };
+    if (!t.de || !t.vers || t.de === t.vers) return { erreur: 'Choisis deux dépôts différents : celui d\'où la marchandise part, et celui où elle arrive.' };
+    const dispo = (stockParDepot(data, t.itemId, t.date).find(x => x.depotId === t.de) || { qty: 0 }).qty;
+    if (qty > dispo + 0.0005) return { erreur: `${nomDepot(data, t.de)} n'en a que ${String(dispo).replace('.', ',')} le ${fmtDate(t.date)} : on ne transfère pas ce qui n'y est pas.` };
+    const commun = { date: t.date, itemId: t.itemId, unitCost: '', source: 'transfert', reference: '', createdAt: t.createdAt || Date.now(), transfertId: t.id };
+    return { ajustements: [
+      { ...commun, id: `${t.id}-sortie`, qty: -qty, depotId: t.de, note: `vers ${nomDepot(data, t.vers)}${t.note ? ' · ' + t.note : ''}` },
+      // L'entrée passe un instant APRÈS la sortie : sinon l'historique montrerait un stock total gonflé.
+      { ...commun, id: `${t.id}-entree`, qty, depotId: t.vers, createdAt: commun.createdAt + 1, note: `depuis ${nomDepot(data, t.de)}${t.note ? ' · ' + t.note : ''}` },
+    ] };
   }
 
   // Déroule les mouvements d'un article et tient le coût moyen pondéré à jour.
@@ -11017,7 +11056,7 @@
     depositLines, depositLinesMontant, acompteDit, settlementLines, salesJournal, vatSummary, paymentsJournal, toCsv, migrateData,
     PERIODS, MONTHS_FR, MONTHS_SHORT, monthLabel, deLibelle, addMonths, nextRecurrenceDate, dueRecurrences, catchUpRecurrence, fillTemplate, buildRecurringInvoice,
     reminderLevel, REMINDER_LABELS, daysBetween, overdueInvoices, facturesAVenir, todoList, companyGaps, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
-    CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, decimalsFor, listesPrixApplicables, prixArticlePour, arrondiDevise, prixDuCatalogue, prixCataloguePourQuantite, lirePaliers, paliersEnTexte, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
+    CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, DEPOT_PRINCIPAL, depotsDe, nomDepot, stockParDepot, transfertStock, decimalsFor, listesPrixApplicables, prixArticlePour, arrondiDevise, prixDuCatalogue, prixCataloguePourQuantite, lirePaliers, paliersEnTexte, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
     STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard, encoursClient, depassementEncours,

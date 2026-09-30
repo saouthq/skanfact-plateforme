@@ -5573,6 +5573,45 @@ prouver "une ancienne ligne à un prix choisi que la quantité écrase" web/publ
   " && Number(auto(ancienneQte)) === Number(doc.lines[i].unitPrice)) {" ") {" \
   "$PQW"
 
+# ── Brique 94 : le stock par dépôt, et les transferts (docs/depots.md) ──
+DP1="chaque mouvement appartient au dépôt de sa pièce ; le stock se lit dépôt par dépôt"
+DP2="un transfert ne change ni la quantité totale ni le coût moyen ; on ne transfère pas ce qui n'y est pas"
+DPW="Nadia ouvre un second magasin, y reçoit du ciment, puis en transfère une partie"
+prouver "tous les mouvements rangés au dépôt principal" web/public/v10/core.js \
+  "      m.depotId = (art ? art.depotInitial : depotDe.get(m.docId || m.id)) || DEPOT_PRINCIPAL;" "      m.depotId = DEPOT_PRINCIPAL;" \
+  "$DP1"
+prouver "une réception qui n'entre pas dans son dépôt" web/public/v10/core.js \
+  "    [data.purchases, data.receptions, data.documents, data.stockAdjustments].forEach(" "    [data.purchases, data.documents, data.stockAdjustments].forEach(" \
+  "$DP1"
+prouver "un transfert de ce que le dépôt n'a pas" web/public/v10/core.js \
+  "    if (qty > dispo + 0.0005) return {" "    if (false) return {" \
+  "$DP2"
+prouver "un transfert d'un dépôt vers lui-même" web/public/v10/core.js \
+  "    if (!t.de || !t.vers || t.de === t.vers) return {" "    if (!t.de || !t.vers) return {" \
+  "$DP2"
+prouver "un transfert qui entre à un coût imposé" web/public/v10/core.js \
+  "    const commun = { date: t.date, itemId: t.itemId, unitCost: ''," "    const commun = { date: t.date, itemId: t.itemId, unitCost: 0," \
+  "$DP2"
+prouver "l'entrée d'un transfert rangée avant sa sortie" web/public/v10/core.js \
+  "depotId: t.vers, createdAt: commun.createdAt + 1," "depotId: t.vers," \
+  "$DP2"
+prouver "le dépôt choisi sur la réception oublié" web/public/v10/app.js \
+  "      if (v.depotId) r.depotId = v.depotId;
+" "" \
+  "$DPW"
+prouver "un transfert qui ne s'enregistre pas" web/public/v10/app.js \
+  "          r.ajustements.forEach(a => data.stockAdjustments.push(a));" "" \
+  "$DPW"
+prouver "la moitié d'un transfert supprimée seule" web/public/v10/app.js \
+  "      const ids = paire.length > 1 ? paire.map(x => x.id) : [b.dataset.rm];" "      const ids = [b.dataset.rm];" \
+  "$DPW"
+prouver "la ligne d'une réception qui mène à une page de vente" web/public/v10/app.js \
+  " : m.source === 'reception' ? '#/reception/' : '#/doc/'}" " : '#/doc/'}" \
+  "$DPW"
+prouver "la page de l'article qui tait son stock par dépôt" web/public/v10/app.js \
+  "      \${C.depotsDe(data).length > 1 ? \`<p class=\"small mb\" id=\"art-depots\">" "      \${false ? \`<p class=\"small mb\" id=\"art-depots\">" \
+  "$DPW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

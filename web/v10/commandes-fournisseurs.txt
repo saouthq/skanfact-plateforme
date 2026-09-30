@@ -29,7 +29,7 @@ serveur tient au millime (seule la facture du fournisseur en est une).
 -- avant
     ['achat', 'Achat'], ['vente', 'Vente'], ['livraison', 'Bon de livraison'],
 -- après
-    ['achat', 'Achat'], ['reception', 'Réception'], ['vente', 'Vente'], ['livraison', 'Bon de livraison'],
+    ['achat', 'Achat'], ['reception', 'Réception'], ['transfert', 'Transfert entre dépôts'], ['vente', 'Vente'], ['livraison', 'Bon de livraison'],
 -- fin
 
 == core.js | une réception n'est pas une charge de la période : c'est de la marchandise entrée
@@ -850,7 +850,8 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
             ${valide ? '<button id="rec-annuler" class="danger">Annuler la réception…</button>' : '<button id="rec-del" class="danger">Supprimer</button>'}</div></div>`}
         </div></div>
       <div class="panel"><h2>Ce qui est arrivé ${info('rec.lignes')}</h2>
-        <form id="rec-head" class="grid-3">${dateFieldHtml(lbl('Date de réception', ''), 'date', r.date, { ro: !!ro })}</form>
+        <form id="rec-head" class="grid-3">${dateFieldHtml(lbl('Date de réception', ''), 'date', r.date, { ro: !!ro })}
+          ${C.depotsDe(data).length > 1 ? `<label class="field">${lbl('Dépôt', 'dep.reception')}<select name="depotId" ${ro}>${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === (r.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}</form>
         <div class="scroll-x mt"><table class="list compact rec-lines"><thead><tr><th>Désignation</th><th class="r">Commandé</th><th class="r">Déjà reçu</th><th class="r">Reçu ici</th><th>Unité</th></tr></thead>
           <tbody>${r.lines.map((l, i) => { const x = autres && Number.isInteger(l.ligneCommande) ? autres.lignes[l.ligneCommande] : null; return `<tr>
             <td>${h(l.label || '—')}</td><td class="r num">${x ? pct(x.commandee) : '—'}</td><td class="r num">${x ? pct(x.recue) : '—'}</td>
@@ -877,6 +878,8 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
     const enregistrer = (valider) => {
       const v = formValues($('#rec-head'));
       r.date = v.date || r.date;
+      // Le dépôt où la marchandise entre (brique 94).
+      if (v.depotId) r.depotId = v.depotId;
       if (valider) {
         if (!r.lines.some(l => Number(l.qty) > 0)) { toast('Rien n\'est reçu : saisis au moins une quantité reçue, ou supprime cette réception.', true); return false; }
         r.lines = r.lines.filter(l => Number(l.qty) > 0);

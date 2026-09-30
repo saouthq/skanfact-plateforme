@@ -1,0 +1,190 @@
+Le stock par dépôt, et les transferts entre dépôts (brique 94 ; 14 § 3.2 : « Stock par dépôt, transferts » ;
+docs/depots.md).
+Format : voir sans-paquets.mjs.
+
+Les dépôts (`data.depots`, [{ id, nom }]) s'ajoutent au dépôt principal (`principal`, toujours là, renommable :
+`data.depotPrincipalNom`). Chaque mouvement de stock appartient au dépôt de sa pièce, de sa réception ou de son
+ajustement (sinon au principal). Un transfert, ce sont deux ajustements (`source: 'transfert'`) : la sortie d'un
+dépôt et l'entrée dans l'autre, sans coût imposé : la quantité totale et le coût moyen ne bougent pas. Tant qu'il
+n'y a qu'un dépôt, rien ne change à l'écran.
+
+── Le moteur (core.js) ──
+
+== core.js | chaque mouvement de stock appartient à un dépôt
+-- avant
+    // L'ORDRE d'une même journée (rapport QA E-10).
+-- après
+    // Le dépôt de chaque mouvement (plateforme, brique 94) : celui de sa pièce, de sa réception ou de son
+    // ajustement ; le stock de départ, celui de l'article ; sinon le dépôt principal.
+    const depotDe = new Map();
+    [data.purchases, data.receptions, data.documents, data.stockAdjustments].forEach(l => (l || []).forEach(x => { if (x && x.id && x.depotId) depotDe.set(x.id, x.depotId); }));
+    out.forEach(m => {
+      const art = m.source === 'depart' && !m.manual ? (data.catalog || []).find(c => c.id === m.itemId) : null;
+      m.depotId = (art ? art.depotInitial : depotDe.get(m.docId || m.id)) || DEPOT_PRINCIPAL;
+    });
+
+    // L'ORDRE d'une même journée (rapport QA E-10).
+-- fin
+
+== core.js | les dépôts : le moteur
+-- avant
+  // Déroule les mouvements d'un article et tient le coût moyen pondéré à jour.
+-- après
+  // ---------- les dépôts (plateforme, brique 94 ; 14 § 3.2) ----------
+  const DEPOT_PRINCIPAL = 'principal';
+  function depotsDe(data) {
+    return [{ id: DEPOT_PRINCIPAL, nom: String((data && data.depotPrincipalNom) || '').trim() || 'Dépôt principal' },
+      ...((data && data.depots) || []).filter(d => d && d.id && d.id !== DEPOT_PRINCIPAL)];
+  }
+  function nomDepot(data, id) { return (depotsDe(data).find(d => d.id === (id || DEPOT_PRINCIPAL)) || { nom: 'Dépôt inconnu' }).nom; }
+  // Ce qu'il y a d'un article dans chaque dépôt, à une date : la somme de ses mouvements, dépôt par dépôt.
+  function stockParDepot(data, itemId, toIso) {
+    const q = new Map(depotsDe(data).map(d => [d.id, 0]));
+    stockMovements(data, itemId, toIso).forEach(m => q.set(m.depotId, round3((q.get(m.depotId) || 0) + (Number(m.qty) || 0))));
+    return depotsDe(data).map(d => ({ depotId: d.id, nom: d.nom, qty: q.get(d.id) || 0 }))
+      .concat([...q.keys()].filter(k => !depotsDe(data).some(d => d.id === k)).map(k => ({ depotId: k, nom: 'Dépôt inconnu', qty: q.get(k) })));
+  }
+  // Un transfert : deux ajustements, la sortie d'un dépôt et l'entrée dans l'autre, sans coût imposé (la quantité
+  // totale et le coût moyen ne bougent pas). On ne transfère pas ce que le dépôt n'a pas : { erreur } le dit.
+  function transfertStock(data, t) {
+    const qty = round3(Number(t && t.qty) || 0);
+    if (!(qty > 0)) return { erreur: 'Saisis la quantité à transférer.' };
+    if (!t.de || !t.vers || t.de === t.vers) return { erreur: 'Choisis deux dépôts différents : celui d\'où la marchandise part, et celui où elle arrive.' };
+    const dispo = (stockParDepot(data, t.itemId, t.date).find(x => x.depotId === t.de) || { qty: 0 }).qty;
+    if (qty > dispo + 0.0005) return { erreur: `${nomDepot(data, t.de)} n'en a que ${String(dispo).replace('.', ',')} le ${fmtDate(t.date)} : on ne transfère pas ce qui n'y est pas.` };
+    const commun = { date: t.date, itemId: t.itemId, unitCost: '', source: 'transfert', reference: '', createdAt: t.createdAt || Date.now(), transfertId: t.id };
+    return { ajustements: [
+      { ...commun, id: `${t.id}-sortie`, qty: -qty, depotId: t.de, note: `vers ${nomDepot(data, t.vers)}${t.note ? ' · ' + t.note : ''}` },
+      // L'entrée passe un instant APRÈS la sortie : sinon l'historique montrerait un stock total gonflé.
+      { ...commun, id: `${t.id}-entree`, qty, depotId: t.vers, createdAt: commun.createdAt + 1, note: `depuis ${nomDepot(data, t.de)}${t.note ? ' · ' + t.note : ''}` },
+    ] };
+  }
+
+  // Déroule les mouvements d'un article et tient le coût moyen pondéré à jour.
+-- fin
+
+== core.js | les dépôts sont publics
+-- avant
+normCurrency, decimalsFor,
+-- après
+normCurrency, DEPOT_PRINCIPAL, depotsDe, nomDepot, stockParDepot, transfertStock, decimalsFor,
+-- fin
+
+── Les écrans (app.js) ──
+
+== app.js | les dépôts se gèrent depuis la page Stock
+-- avant
+          <button class="btn" id="st-war">Garanties</button>
+-- après
+          <button class="btn" id="st-war">Garanties</button>
+          <button class="btn" id="st-depots">Dépôts…</button>
+-- fin
+
+== app.js | la fenêtre des dépôts : les nommer, en ajouter
+-- avant
+      $('#st-war').onclick = () => navigate('#/garanties');
+-- après
+      $('#st-war').onclick = () => navigate('#/garanties');
+      // Les dépôts (brique 94) : le principal se renomme ; les autres s'ajoutent. Un dépôt qui a du stock ne se retire pas.
+      if ($('#st-depots')) $('#st-depots').onclick = () => {
+        const lignes = C.depotsDe(data).map(d => ({ ...d }));
+        modal(`<h2>Dépôts ${info('dep.depots')}</h2>
+          <p class="small muted">Là où ta marchandise est rangée. Tant qu'il n'y en a qu'un, SkanFact n'en parle pas.</p>
+          <div id="dep-lignes"></div>
+          <button type="button" class="btn btn-sm mt" id="dep-add">+ Dépôt</button>
+          <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="dep-ok">Enregistrer</button></div>`,
+        (root, fermer) => {
+          const dessiner = () => {
+            $('#dep-lignes', root).innerHTML = lignes.map((d, i) => `<label class="field">${i === 0 ? 'Dépôt principal' : 'Dépôt'}<input type="text" data-dep="${i}" value="${h(d.nom)}" placeholder="Magasin de Sfax"></label>`).join('');
+            $$('[data-dep]', root).forEach(el => { el.oninput = () => { lignes[Number(el.dataset.dep)].nom = el.value; }; });
+          };
+          dessiner();
+          $('#dep-add', root).onclick = () => { lignes.push({ id: C.uid(), nom: '' }); dessiner(); $$('[data-dep]', root).pop().focus(); };
+          $('#dep-ok', root).onclick = () => {
+            const noms = lignes.map(d => String(d.nom || '').trim());
+            if (noms.slice(1).some(n => !n)) return toast('Donne un nom à chaque dépôt (ou n\'ajoute pas celui qui reste vide).', true);
+            if (new Set(noms.map(n => n.toLowerCase())).size !== noms.length) return toast('Deux dépôts portent le même nom : un nom désigne un seul dépôt.', true);
+            data.depotPrincipalNom = noms[0] === 'Dépôt principal' ? '' : noms[0];
+            data.depots = lignes.slice(1).map((d, i) => ({ id: d.id, nom: noms[i + 1] }));
+            save(true); fermer(); toast('Dépôts enregistrés'); render(true);
+          };
+        });
+      };
+-- fin
+
+== app.js | la page d'un article dit son stock par dépôt, et le transfère
+-- avant
+          <button class="btn btn-primary" id="adj-item">+ Mouvement</button></div></div>
+-- après
+          ${C.depotsDe(data).length > 1 ? '<button class="btn" id="transfert">Transférer…</button>' : ''}
+          <button class="btn btn-primary" id="adj-item">+ Mouvement</button></div></div>
+      ${C.depotsDe(data).length > 1 ? `<p class="small mb" id="art-depots">Par dépôt ${info('dep.depots')} : ${C.stockParDepot(data, item.id).map(x => `<b>${h(x.nom)}</b> ${pct(x.qty)}${st.unit ? ' ' + h(C.uniteAccordee(x.qty, st.unit)) : ''}`).join(' · ')}</p>` : ''}
+-- fin
+
+== app.js | transférer d'un dépôt à l'autre
+-- avant
+    $('#adj-item').onclick = () => adjustForm(item.id, () => render());
+-- après
+    $('#adj-item').onclick = () => adjustForm(item.id, () => render());
+    // Transférer d'un dépôt à l'autre (brique 94) : deux mouvements, sans coût ; ce que le dépôt n'a pas se refuse.
+    if ($('#transfert')) $('#transfert').onclick = () => {
+      const deps = C.depotsDe(data);
+      const opts = sel => deps.map(d => `<option value="${h(d.id)}" ${d.id === sel ? 'selected' : ''}>${h(d.nom)}</option>`).join('');
+      modal(`<h2>Transférer « ${h(item.label)} »</h2>
+        <form id="tr-form" class="grid-2" onsubmit="return false">
+          <label class="field">De<select name="de">${opts(deps[0].id)}</select></label>
+          <label class="field">Vers<select name="vers">${opts(deps[1].id)}</select></label>
+          <label class="field">Quantité${item.unit ? ` (${h(item.unit)})` : ''}<input type="number" name="qty" step="any" min="0" class="num"></label>
+          ${dateFieldHtml('Date', 'date', C.today())}
+          <label class="field span-2">Note (optionnel)<input type="text" name="note" placeholder="Réassort du magasin"></label>
+        </form>
+        <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="tr-ok">Transférer</button></div>`,
+      (root, fermer) => {
+        $('#tr-ok', root).onclick = () => {
+          const v = formValues($('#tr-form', root));
+          const r = C.transfertStock(data, { id: C.uid(), itemId: item.id, de: v.de, vers: v.vers, qty: v.qty, date: v.date || C.today(), note: String(v.note || '').trim() });
+          if (r.erreur) return toast(r.erreur, true);
+          data.stockAdjustments = data.stockAdjustments || [];
+          r.ajustements.forEach(a => data.stockAdjustments.push(a));
+          save(true); fermer(); toast(`Transféré : ${pct(Number(v.qty))} de ${C.nomDepot(data, v.de)} vers ${C.nomDepot(data, v.vers)}.`); render(true);
+        };
+      });
+    };
+-- fin
+
+== app.js | l'historique d'un article dit le dépôt de chaque mouvement, et une réception mène à la réception
+-- avant
+            <td class="nw">${m.docId ? `<a href="${m.source === 'achat' ? '#/achat/' : '#/doc/'}${h(m.docId)}">${h(m.ref) || 'voir'}</a>` : (h(m.ref) || '<span class="muted">—</span>')}</td>
+-- après
+            <td class="nw">${m.docId ? `<a href="${m.source === 'achat' ? '#/achat/' : m.source === 'reception' ? '#/reception/' : '#/doc/'}${h(m.docId)}">${h(m.ref) || 'voir'}</a>` : (h(m.ref) || '<span class="muted">—</span>')}${C.depotsDe(data).length > 1 ? `<div class="small muted" data-depot>${h(C.nomDepot(data, m.depotId))}</div>` : ''}</td>
+-- fin
+
+== app.js | un transfert se supprime entier : ses deux mouvements ensemble
+-- avant
+      if (!await confirmDialog('Supprimer ce mouvement saisi à la main ?')) return;
+      const gone3 = (data.stockAdjustments || []).find(x => x.id === b.dataset.rm);
+      if (gone3 && closedBlock(gone3.date, 'Ce mouvement de stock')) return;
+      forget('stockAdjustments', b.dataset.rm, item.label);
+      data.stockAdjustments = data.stockAdjustments.filter(x => x.id !== b.dataset.rm);
+-- après
+      // Un transfert (brique 94) : ses deux mouvements partent ensemble, sinon un dépôt garderait ce que l'autre a rendu.
+      const cible = (data.stockAdjustments || []).find(x => x.id === b.dataset.rm);
+      const paire = cible && cible.transfertId ? (data.stockAdjustments || []).filter(x => x.transfertId === cible.transfertId) : [];
+      if (!await confirmDialog(paire.length > 1 ? 'Supprimer ce transfert ? Ses deux mouvements (la sortie et l\'entrée) partent ensemble.' : 'Supprimer ce mouvement saisi à la main ?')) return;
+      const gone3 = cible;
+      if (gone3 && closedBlock(gone3.date, 'Ce mouvement de stock')) return;
+      const ids = paire.length > 1 ? paire.map(x => x.id) : [b.dataset.rm];
+      ids.forEach(id => forget('stockAdjustments', id, item.label));
+      data.stockAdjustments = data.stockAdjustments.filter(x => !ids.includes(x.id));
+-- fin
+
+── Les bulles (guide.js) ──
+
+== guide.js | les bulles des dépôts
+-- avant
+    'lp.page': { t: 'Listes de prix',
+-- après
+    'dep.depots': { t: 'Dépôts', d: 'Là où ta marchandise est rangée : le magasin, l\'entrepôt, le camion. Chaque entrée et chaque sortie appartient à un dépôt (celui de la réception, de la pièce ou du mouvement) ; « Transférer… » fait passer de la marchandise de l\'un à l\'autre sans changer ni la quantité totale ni son coût moyen.' },
+    'dep.reception': { t: 'Dépôt de la réception', d: 'Là où la marchandise reçue entre en stock.' },
+    'lp.page': { t: 'Listes de prix',
+-- fin
