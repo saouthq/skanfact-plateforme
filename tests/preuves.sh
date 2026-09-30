@@ -3730,7 +3730,7 @@ prouver "une révision d'une autre année qui passe l'essai" $LV \
   "    if (!periodeDuLivre(periode, annee)) { nomme(" "    if (false) { nomme(" \
   "$RQ1"
 prouver "une révision deux fois dans le livre" $LV \
-  "    if (vues.has(periode)) {" "    if (false) {" \
+  "    if (vues.has(periode)) { nomme(motif('reprise.revision_double')); continue; }" "" \
   "$RQ1"
 prouver "une révision illisible reprise en silence" $LV \
   "    if (!lu.success) { nomme(" "    if (!lu.success) { continue; nomme(" \
@@ -3791,4 +3791,122 @@ prouver "la révision absente du rapport à l'écran" web/public/v10/cabinet/app
   "$RE1"
 prouver "les questions absentes du rapport à l'écran" web/public/v10/cabinet/app.js \
   "        <tr><td>Questions au client — dans leur état</td>" "        <tr hidden><td>Questions au client — dans leur état</td>" \
+  "$RE1"
+
+# ── Brique 69 : les déclarations et l'inventaire repris avec le livre v10 (docs/cabinet.md, C59) ──
+RD1="la déclaration reprise avec ses cases, son dépôt, son paiement et son écriture ; l'inventaire avec ses lignes et sa variation ; ni l'une ni l'autre ne se repasse"
+RD2="une déclaration ou un inventaire qui ne se reprendrait pas tel quel est nommé ; la base refait ses contrôles"
+M42=base/migrations/0042_compta_reprise_declarations.sql
+prouver "une déclaration d'une autre année qui passe l'essai" $LV \
+  "{ nomme(motif('reprise.declaration_periode', { annee: String(annee) })); continue; }" "{ continue; }" \
+  "$RD2"
+prouver "une déclaration deux fois dans le livre" $LV \
+  "    if (vues.has(periode)) { nomme(motif('reprise.declaration_double')); continue; }" "" \
+  "$RD2"
+prouver "une case inconnue qui passe l'essai" $LV \
+  "      if (!CASES_DECLARATION.includes(k)) { nomme(motif('reprise.declaration_case', { case: k })); continue; }" "" \
+  "$RD2"
+prouver "une case illisible qui passe l'essai" $LV \
+  "      if (m === null && brute !== null && brute !== undefined && brute !== '') { nomme(" "      if (false) { nomme(" \
+  "$RD2"
+prouver "un jour de dépôt illisible qui passe l'essai" $LV \
+  "    if ((dep && !estJour(dep.le)) || (pay && !estJour(pay))) nomme(motif('reprise.declaration_jour'));" "" \
+  "$RD2"
+prouver "une déclaration payée sans dépôt qui passe l'essai" $LV \
+  "    if (pay && !dep) nomme(" "    if (false) nomme(" \
+  "$RD2"
+prouver "l'écriture absente d'une déclaration qui passe l'essai" $LV \
+  "    if (ecriture && !refs.has(ecriture)) nomme(motif('reprise.declaration_ecriture'));" "" \
+  "$RD2"
+prouver "deux inventaires qui passent l'essai" $LV \
+  "  if (tous.length > 1) nomme(" "  if (false) nomme(" \
+  "$RD2"
+prouver "un inventaire d'une autre année qui passe l'essai" $LV \
+  "  if (!estJour(date) || date.slice(0, 4) !== String(annee)) nomme(" "  if (false) nomme(" \
+  "$RD2"
+prouver "le compte de stock illisible qui passe l'essai" $LV \
+  "  if (!COMPTE.test(compte)) nomme(motif('reprise.inventaire_compte'));" "" \
+  "$RD2"
+prouver "une ligne d'inventaire sans désignation qui passe l'essai" $LV \
+  "    if (!texte(l.libelle, 200).trim() || quantite === null" "    if (quantite === null" \
+  "$RD2"
+prouver "une quantité négative qui passe l'essai" $LV \
+  "|| quantite === null || cout === null || quantite < 0n || cout < 0n) { nomme(" "|| quantite === null || cout === null) { nomme(" \
+  "$RD2"
+prouver "l'écriture absente de l'inventaire qui passe l'essai" $LV \
+  "  if (ecriture && !refs.has(ecriture)) nomme(motif('reprise.inventaire_ecriture'));" "" \
+  "$RD2"
+prouver "les déclarations absentes du rapport" $LV \
+  "    declarations: { total: l.declarations.length," "    declarations: { total: 0," \
+  "$RD1"
+prouver "l'inventaire absent du rapport" $LV \
+  "    inventaire: l.inventaire ? { lignes: l.inventaire.lignes.length } : null," "    inventaire: null," \
+  "$RD1"
+prouver "les déclarations du livre laissées de côté" serveur/cabinet/routes.ts \
+  "      for (const d of lu.declarations) {" "      for (const d of lu.declarations.slice(0, 0)) {" \
+  "$RD1"
+prouver "une déclaration reprise sans son écriture" serveur/cabinet/routes.ts \
+  "payee: d.payee, ecriture: ecritureDe.get(d.ecriture)?.id ?? null," "payee: d.payee, ecriture: null," \
+  "$RD1"
+prouver "l'inventaire du livre laissé de côté" serveur/cabinet/routes.ts \
+  "      if (lu.inventaire) {" "      if (false) {" \
+  "$RD1"
+prouver "un inventaire repris sans sa variation" serveur/cabinet/routes.ts \
+  "          ecriture: ecritureDe.get(inv.ecriture)?.id ?? null," "          ecriture: null," \
+  "$RD1"
+prouver "une déclaration reprise chez un client sur SkanFact" $M42 \
+  "v_ecriture uuid := nullif(p_declaration->>'ecriture', '')::uuid;
+begin
+  if socle.perimetre_cabinet(p_entreprise) is null
+     or not exists (select 1 from socle.entreprise where id = p_entreprise and tenue_par is not null) then
+    perform socle.refus('la reprise d''un livre de la v10 s''écrit dans un dossier que ton cabinet tient');
+  end if;" "v_ecriture uuid := nullif(p_declaration->>'ecriture', '')::uuid;
+begin" \
+  "$RD2"
+prouver "un inventaire repris chez un client sur SkanFact" $M42 \
+  "v_ecriture uuid := nullif(p_inventaire->>'ecriture', '')::uuid;
+begin
+  if socle.perimetre_cabinet(p_entreprise) is null
+     or not exists (select 1 from socle.entreprise where id = p_entreprise and tenue_par is not null) then
+    perform socle.refus('la reprise d''un livre de la v10 s''écrit dans un dossier que ton cabinet tient');
+  end if;" "v_ecriture uuid := nullif(p_inventaire->>'ecriture', '')::uuid;
+begin" \
+  "$RD2"
+prouver "une déclaration liée à une écriture saisie" $M42 \
+  "and e.origine_type = 'reprise_v10') then
+    perform socle.refus('l''écriture liée à une déclaration ou à un inventaire repris n''est pas une écriture reprise de ce dossier');
+  end if;
+  v_id :=" "and true) then
+    perform socle.refus('l''écriture liée à une déclaration ou à un inventaire repris n''est pas une écriture reprise de ce dossier');
+  end if;
+  v_id :=" \
+  "$RD2"
+prouver "un inventaire lié à une écriture saisie" $M42 \
+  "and e.origine_type = 'reprise_v10') then
+    perform socle.refus('l''écriture liée à une déclaration ou à un inventaire repris n''est pas une écriture reprise de ce dossier');
+  end if;
+  v_total :=" "and true) then
+    perform socle.refus('l''écriture liée à une déclaration ou à un inventaire repris n''est pas une écriture reprise de ce dossier');
+  end if;
+  v_total :=" \
+  "$RD2"
+prouver "le dépôt d'une déclaration reprise perdu" $M42 \
+  "    deposee_le = (p_declaration->'deposee'->>'le')::date," "    deposee_le = null," \
+  "$RD1"
+prouver "le jour de préparation d'une déclaration reprise perdu" $M42 \
+  "then to_timestamp((p_declaration->>'preparee')::bigint / 1000.0) else preparee_le end," "then preparee_le else preparee_le end," \
+  "$RD1"
+prouver "une déclaration reprise sans le lien de son écriture" $M42 \
+  "    ecriture = v_ecriture
+   where id = v_id;" "    ecriture = null
+   where id = v_id;" \
+  "$RD1"
+prouver "un inventaire repris sans le lien de sa variation" $M42 \
+  "  update compta.inventaire set ecriture = v_ecriture where" "  update compta.inventaire set ecriture = null where" \
+  "$RD1"
+prouver "les déclarations absentes du rapport à l'écran" web/public/v10/cabinet/app.js \
+  "        <tr><td>Déclarations du mois — avec leur dépôt et leur paiement</td>" "        <tr hidden><td>Déclarations du mois — avec leur dépôt et leur paiement</td>" \
+  "$RE1"
+prouver "l'inventaire absent du rapport à l'écran" web/public/v10/cabinet/app.js \
+  "        <tr><td>Inventaire de stock</td>" "        <tr hidden><td>Inventaire de stock</td>" \
   "$RE1"

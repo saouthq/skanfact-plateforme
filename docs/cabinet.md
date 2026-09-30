@@ -1550,3 +1550,37 @@ chez un client sur SkanFact. À la souris : les deux lignes du rapport.
 **Reste à faire (la reprise)** : la paie du livre (salariés, bulletins) ; les déclarations et
 l'inventaire ; un livre dont le dossier n'existe pas encore ; le bouton « Passer à la plateforme » de la
 v10.
+
+## Brique 69 : les déclarations et l'inventaire repris avec le livre v10 (fait le 30/09/2026)
+
+**C59. Un livre repris garde ses déclarations préparées et son inventaire, reliés à leur écriture**
+(par délégation). La v10 rangeait dans le livre la déclaration de chaque mois (ses cases, ses deux
+pense-bêtes « déposée » et « payée », l'écriture du mois) et l'inventaire de stock de l'exercice (ses
+lignes, l'écriture de variation). Sans eux, le comptable aurait vu des mois « à déclarer » déjà déposés
+et payés, et le bouton de la variation de stock l'aurait invité à la passer une seconde fois.
+- **Chaque déclaration** se pose par le geste ordinaire (`compta.poser_declaration`, qui vérifie qui
+  peut déclarer et refait ses contrôles), puis garde le jour où elle a été préparée, son dépôt (le
+  jour, la référence), son paiement, et l'écriture du mois reprise (0042,
+  `compta.reprendre_declaration_v10`).
+- **L'inventaire** se pose par `compta.poser_inventaire` (quantité en millièmes, coût au millime), puis
+  garde son écriture de variation reprise (`compta.reprendre_inventaire_v10`) : elle ne se repasse pas
+  (« la variation de stock de cet exercice est déjà passée »).
+- L'écriture liée doit être une écriture **reprise** de ce dossier ; seulement dans un dossier que le
+  cabinet de la personne tient.
+- L'essai **nomme** une déclaration hors de l'exercice, deux fois le même mois, une case inconnue ou
+  illisible, un jour de dépôt ou de paiement illisible, un paiement sans dépôt, une écriture absente du
+  livre ; un second inventaire, un inventaire daté hors de l'exercice, un compte de stock illisible, une
+  ligne sans désignation ou à la quantité ou au coût illisible ou négatif, une variation absente du
+  livre. (Un inventaire sans ligne, la base le refuse en le disant.)
+
+Le rapport de l'essai compte les déclarations (déposées) et les lignes de l'inventaire.
+
+**Les tests** : `tests/cabinet/reprise-declarations.test.ts` : la déclaration de mars préparée par
+la v10 (`declarationMensuelle`), son écriture passée, déposée le 15 avril et payée le 20 ; l'inventaire
+du 31 décembre (632,515) et sa variation (132,515), **par la v10** ; repris : les cases au millime, le
+dépôt, le paiement, le jour de préparation, les deux écritures reliées, la variation qui ne se repasse
+pas ; les treize défauts nommés à l'essai ; la base qui refuse une écriture saisie et un client sur
+SkanFact. À la souris : les deux lignes du rapport.
+
+**Reste à faire (la reprise)** : la paie du livre (salariés, bulletins) ; un livre dont le dossier
+n'existe pas encore ; le bouton « Passer à la plateforme » de la v10.

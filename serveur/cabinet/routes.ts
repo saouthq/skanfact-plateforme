@@ -555,6 +555,20 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       for (const r of lu.revisions) {
         await tx.query('select cabinet.poser_revision($1, $2, $3, $4::jsonb, null)', [params.cabinet, corps.dossier, r.periode, JSON.stringify(r.contenu)]);
       }
+      // Les déclarations préparées et l'inventaire, reliés à leur écriture reprise (brique 69, 0042).
+      for (const d of lu.declarations) {
+        await tx.query('select compta.reprendre_declaration_v10($1, $2::jsonb)', [corps.dossier, JSON.stringify({
+          periode: d.periode, cases: Object.fromEntries(Object.entries(d.cases).map(([k, v]) => [k, v === null ? null : Number(v)])),
+          preparee: d.preparee, deposee: d.deposee, payee: d.payee, ecriture: ecritureDe.get(d.ecriture)?.id ?? null,
+        })]);
+      }
+      if (lu.inventaire) {
+        const inv = lu.inventaire;
+        await tx.query('select compta.reprendre_inventaire_v10($1, $2, $3::jsonb)', [corps.dossier, lu.annee, JSON.stringify({
+          date: inv.date, compte: inv.compte, lignes: inv.lignes.map((l) => ({ ref: l.ref, libelle: l.libelle, quantite: Number(l.quantite), cout: Number(l.cout) })),
+          ecriture: ecritureDe.get(inv.ecriture)?.id ?? null,
+        })]);
+      }
       const questions = lu.questions.length ? (await tx.query('select compta.reprendre_questions_v10($1, $2::jsonb) n', [corps.dossier, JSON.stringify(lu.questions.map((q) => ({
         ...q, montant: q.montant.toString(), ecriture: ecritureDe.get(q.ecriture)?.id ?? null,
       })))])).rows[0].n as number : 0;
@@ -565,7 +579,7 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
         .sort((x, y) => (x.compte < y.compte ? -1 : x.compte > y.compte ? 1 : 0));
       const attendue = rapport.balance.map((x) => ({ compte: x.compte, debit: x.debit, credit: x.credit }));
       if (JSON.stringify(tenue) !== JSON.stringify(attendue)) throw new Refus('cabinet.reprise.ecart');
-      return { statut: 201, corps: { ...resultat, releves: lu.releves.length, rapprochees, immobilisations, revisions: lu.revisions.length, questions, empreinte, rapport } };
+      return { statut: 201, corps: { ...resultat, releves: lu.releves.length, rapprochees, immobilisations, revisions: lu.revisions.length, questions, declarations: lu.declarations.length, inventaire: !!lu.inventaire, empreinte, rapport } };
     },
   });
   // Ce qui a changé dans l'équipe (brique 61, 0036) : les cinquante derniers gestes, pour un associé.

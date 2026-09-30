@@ -43,6 +43,8 @@ anomalie. La v10 n'avait pas ce geste : elle recevait des paquets.
         <tr><td>Immobilisations — une fiche par bien, pour toute la vie du dossier</td><td class="r nw">${esc(String(R.immobilisations ? R.immobilisations.total : 0))} (${esc(String(R.immobilisations ? R.immobilisations.liees : 0))} écriture${R.immobilisations && R.immobilisations.liees > 1 ? 's' : ''} de l'année reliée${R.immobilisations && R.immobilisations.liees > 1 ? 's' : ''})</td></tr>
         <tr><td>Révision — le dossier de travail de chaque période</td><td class="r nw">${esc(String(R.revisions ? R.revisions.total : 0))} (${esc(String(R.revisions ? R.revisions.arretees : 0))} arrêtée${R.revisions && R.revisions.arretees > 1 ? 's' : ''})</td></tr>
         <tr><td>Questions au client — dans leur état</td><td class="r nw">${esc(String(R.questions ? R.questions.total : 0))} (${esc(String(R.questions ? R.questions.enAttente : 0))} en attente)</td></tr>
+        <tr><td>Déclarations du mois — avec leur dépôt et leur paiement</td><td class="r nw">${esc(String(R.declarations ? R.declarations.total : 0))} (${esc(String(R.declarations ? R.declarations.deposees : 0))} déposée${R.declarations && R.declarations.deposees > 1 ? 's' : ''})</td></tr>
+        <tr><td>Inventaire de stock</td><td class="r nw">${R.inventaire ? `${esc(String(R.inventaire.lignes))} ligne${R.inventaire.lignes > 1 ? 's' : ''}` : 'aucun'}</td></tr>
         <tr><td>Total des validées (débit = crédit)</td><td class="r nw">${money(Number(R.totaux.debit))}</td></tr>
       </tbody></table>
       ${R.anomalies.length

@@ -65,6 +65,21 @@ export type LivreLu = {
   // La révision de chaque période et les questions au client (brique 68).
   revisions: RevisionReprise[];
   questions: QuestionReprise[];
+  // Les déclarations préparées et l'inventaire de stock, chacun relié à son écriture (brique 69).
+  declarations: DeclarationReprise[];
+  inventaire: InventaireReprise | null;
+};
+
+// Une déclaration du mois préparée dans la v10 (brique 69) : ses cases en millimes (ou vides), ses
+// deux pense-bêtes (déposée, payée), l'écriture du mois qui lui est liée.
+export type DeclarationReprise = {
+  periode: string; cases: Record<string, bigint | null>; preparee: number;
+  deposee: { le: string; reference: string } | null; payee: string | null; ecriture: string;
+};
+// L'inventaire de stock de l'exercice (brique 69) : ses lignes (quantité en millièmes, coût en
+// millimes), et l'écriture de variation qui lui est liée.
+export type InventaireReprise = {
+  date: string; compte: string; lignes: { ref: string; libelle: string; quantite: bigint; cout: bigint }[]; ecriture: string;
 };
 
 // Le dossier de révision d'une période (brique 68), dans la forme que la plateforme garde (0028).
@@ -162,12 +177,12 @@ export function lireLivreV10(o: unknown): LivreLu | null {
   const biens = lireBiens(liste(o.immobilisations), ecritures, annee, anomalies);
   const revisions = lireRevisions(liste(o.revisions), annee, anomalies);
   const questions = lireQuestions(liste(o.questions), ecritures, annee, anomalies);
+  const declarations = lireDeclarations(liste(o.declarations), ecritures, annee, anomalies);
+  const inventaire = lireInventaire(liste(o.inventaires), ecritures, annee, anomalies);
   const autour: Record<string, number> = {
-    declarations: liste(o.declarations).length,
-    inventaires: liste(o.inventaires).length,
     salaries: liste(o.salaries).length, bulletins: liste(o.bulletins).length,
   };
-  return { annee, du, au, clos: ex.clos === true, ecritures, anomalies, autour, lettrages: groupes.size, releves, biens, revisions, questions };
+  return { annee, du, au, clos: ex.clos === true, ecritures, anomalies, autour, lettrages: groupes.size, releves, biens, revisions, questions, declarations, inventaire };
 }
 
 // Un nombre de la v10 à au plus `d` décimales (une durée, un taux), en texte ; null s'il ne se lit pas.
@@ -318,6 +333,8 @@ export function rapportDuLivre(l: LivreLu) {
     ecritures: { total: l.ecritures.length, validees: validees.length, brouillard: l.ecritures.length - validees.length, aNouveaux: l.ecritures.filter((e) => e.journal === 'AN').length },
     journaux, balance, totaux: { debit: total('debit'), credit: total('credit') },
     lettrages: l.lettrages,
+    declarations: { total: l.declarations.length, deposees: l.declarations.filter((d) => d.deposee).length },
+    inventaire: l.inventaire ? { lignes: l.inventaire.lignes.length } : null,
     revisions: { total: l.revisions.length, arretees: l.revisions.filter((r) => r.contenu.faite).length },
     questions: { total: l.questions.length, enAttente: l.questions.filter((q) => q.statut === 'ouverte' || q.statut === 'envoyee').length },
     immobilisations: { total: l.biens.length, liees: l.biens.reduce((n, b) => n + b.liens.length, 0) },
@@ -389,4 +406,68 @@ function lireQuestions(brut: unknown[], ecritures: EcritureReprise[], annee: num
     questions.push(q);
   }
   return questions;
+}
+
+// Les cases de la déclaration du mois : la liste de la v10 et de la base (compta.cases_declaration, 0024).
+const CASES_DECLARATION = ['tvaCollectee', 'tvaDeductible', 'creditReporte', 'netAPayer', 'creditAReporter', 'timbre', 'retenuesOperees',
+  'retenuesSubies', 'irpp', 'aDecaisser', 'tfp', 'foprolos', 'tcl', 'acomptes'];
+
+// Les déclarations préparées du livre (brique 69) : une par mois de l'exercice, ses cases (un montant
+// lisible au millime, ou vide), déposée un jour qui se lit, jamais payée sans être déposée, et
+// l'écriture du mois (si elle est passée) dans le livre. Ce qui ne passe pas est nommé au mois.
+function lireDeclarations(brut: unknown[], ecritures: EcritureReprise[], annee: number, anomalies: Anomalie[]): DeclarationReprise[] {
+  const refs = new Set(ecritures.map((e) => e.refV10));
+  const vues = new Set<string>();
+  const declarations: DeclarationReprise[] = [];
+  for (const x of brut) {
+    if (!estObjet(x)) continue;
+    const periode = texte(x.periode, 7);
+    const nomme = (m: Texte) => anomalies.push({ ecriture: texte(x.id, 200), piece: periode, date: '', motif: m });
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(periode) || periode.slice(0, 4) !== String(annee)) { nomme(motif('reprise.declaration_periode', { annee: String(annee) })); continue; }
+    if (vues.has(periode)) { nomme(motif('reprise.declaration_double')); continue; }
+    vues.add(periode);
+    const cases: Record<string, bigint | null> = {};
+    for (const [k, v] of Object.entries(estObjet(x.cases) ? x.cases : {})) {
+      if (!CASES_DECLARATION.includes(k)) { nomme(motif('reprise.declaration_case', { case: k })); continue; }
+      const brute = estObjet(v) ? v.montant : v;
+      const m = brute === null || brute === undefined || brute === '' ? null : montant(brute);
+      if (m === null && brute !== null && brute !== undefined && brute !== '') { nomme(motif('reprise.declaration_montant', { case: k })); continue; }
+      cases[k] = m;
+    }
+    const dep = estObjet(x.deposee) && texte(x.deposee.le, 10) ? x.deposee : null;
+    const pay = estObjet(x.payee) && texte(x.payee.le, 10) ? texte(x.payee.le, 10) : null;
+    if ((dep && !estJour(dep.le)) || (pay && !estJour(pay))) nomme(motif('reprise.declaration_jour'));
+    if (pay && !dep) nomme(motif('reprise.declaration_payee'));
+    const ecriture = texte(x.ecritureId, 200);
+    if (ecriture && !refs.has(ecriture)) nomme(motif('reprise.declaration_ecriture'));
+    declarations.push({ periode, cases, preparee: instant(x.prepareeLe) ?? 0, deposee: dep ? { le: texte(dep.le, 10), reference: texte(dep.reference, 100) } : null,
+      payee: pay, ecriture: refs.has(ecriture) ? ecriture : '' });
+  }
+  return declarations;
+}
+
+// L'inventaire de stock de l'exercice (brique 69) : un seul, daté dans l'année, un compte de stock,
+// chaque ligne avec sa désignation (un inventaire sans ligne, la base le refuse en le disant), une quantité (trois décimales au plus) et un coût
+// unitaire au millime, jamais négatifs ; l'écriture de variation (si elle est passée) dans le livre.
+function lireInventaire(brut: unknown[], ecritures: EcritureReprise[], annee: number, anomalies: Anomalie[]): InventaireReprise | null {
+  const refs = new Set(ecritures.map((e) => e.refV10));
+  const tous = brut.filter(estObjet);
+  const x = tous[0];
+  if (!x) return null;
+  const date = texte(x.date, 10);
+  const nomme = (m: Texte) => anomalies.push({ ecriture: texte(x.id, 200), piece: String(annee), date, motif: m });
+  if (tous.length > 1) nomme(motif('reprise.inventaire_double'));
+  if (!estJour(date) || date.slice(0, 4) !== String(annee)) nomme(motif('reprise.inventaire_date', { annee: String(annee) }));
+  const compte = String(x.compte ?? '').trim();
+  if (!COMPTE.test(compte)) nomme(motif('reprise.inventaire_compte'));
+  const lignes: InventaireReprise['lignes'] = [];
+  for (const [i, l] of liste(x.lignes).entries()) {
+    if (!estObjet(l)) continue;
+    const quantite = montant(l.quantite), cout = montant(l.cout);
+    if (!texte(l.libelle, 200).trim() || quantite === null || cout === null || quantite < 0n || cout < 0n) { nomme(motif('reprise.inventaire_ligne', { n: String(i + 1) })); continue; }
+    lignes.push({ ref: texte(l.ref, 60), libelle: texte(l.libelle, 200).trim(), quantite, cout });
+  }
+  const ecriture = texte(x.ecritureId, 200);
+  if (ecriture && !refs.has(ecriture)) nomme(motif('reprise.inventaire_ecriture'));
+  return { date, compte, lignes, ecriture: refs.has(ecriture) ? ecriture : '' };
 }
