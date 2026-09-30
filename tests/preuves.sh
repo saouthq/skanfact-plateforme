@@ -3992,7 +3992,7 @@ prouver "un portefeuille à anomalie qu'on peut quand même créer" web/public/v
 HL1="sur mon ordinateur : la copie chiffrée ; sans réseau, l'entreprise se rouvre et se consulte ; le réseau revenu, on recharge ; déconnecté, le poste oublie"
 HL2="sur l'ordinateur d'un autre : rien n'est gardé, et sans réseau l'écran le dit"
 HL4="une page mise à jour, vue en ligne, est celle qui s'ouvre sans réseau"
-HL3="par l'entrée : mon ordinateur garde la session, le poste d'un autre non ; une nouvelle connexion efface les copies de la précédente"
+HL3="par l'entrée : mon ordinateur garde la session, le poste d'un autre non ; la même personne retrouve ce que le poste gardait, une autre le trouve effacé"
 prouver "la clé de l'appareil exportable" web/public/plateforme/poste.js \
   "{ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']" "{ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']" \
   "$HL1"
@@ -4048,8 +4048,13 @@ prouver "la session jamais gardée sur mon ordinateur" web/src/api.ts \
 prouver "la session gardée sur le poste d'un autre" web/src/api.ts \
   "ecrire('skanfact.jeton', garder ? j : null, localStorage);" "ecrire('skanfact.jeton', j, localStorage);" \
   "$HL3"
-prouver "les copies d'une autre session qui survivent à la connexion" web/src/api.ts \
-  "    jeton = j; effacerLePoste();" "    jeton = j;" \
+prouver "les copies d'une autre personne qui survivent à sa connexion" web/src/api.ts \
+  "    if (avant && avant !== id) effacerLePoste();
+" "" \
+  "$HL3"
+prouver "la personne connectée jamais notée par l'entrée" web/src/App.tsx \
+  "      session.personne(r.corps.id);
+" "" \
   "$HL3"
 prouver "la case « poste de quelqu'un d'autre » sans effet" web/src/ecrans/Connexion.tsx \
   "      session.ouvrir(r.corps.jeton, !posteDUnAutre);" "      session.ouvrir(r.corps.jeton, true);" \
@@ -4076,6 +4081,7 @@ prouver "sans réseau, les écrans gardés jamais servis" web/public/sw.js \
 HE1="un client créé sans réseau se garde sur le poste, se montre au rechargement, et part seul au retour du réseau"
 HE2="un client changé sans réseau et ailleurs : la version du serveur gardée, la mienne mise de côté et dite (page ouverte)"
 HE3="rouverte plus tard avec le réseau : ce qui attendait part d'abord ; changé ailleurs, la version du serveur gardée et la mienne mise de côté"
+HE5="la session finie pendant la coupure : se reconnecter, et ce qui attendait part"
 HE4="se déconnecter avec des changements qui attendent : la question d'abord ; « Attendre le réseau » ne perd rien"
 prouver "sans réseau, l'enregistrement refusé au lieu d'être gardé" $PONT \
   "        if (gardableHorsLigne(e)) return await mettreEnAttente(data);
@@ -4127,6 +4133,12 @@ prouver "l'écran qui ne réenregistre pas au retour du réseau" web/public/v10/
 prouver "le bandeau qui tait ce qui attend" web/public/plateforme/poste.js \
   "      : attend ? attendent(enAttente)" "      : false ? attendent(enAttente)" \
   "$HE1"
+
+prouver "une session finie qui efface ce qui attendait le réseau" web/src/api.ts \
+  "    jeton = j;
+    ecrire('skanfact.jeton', j, sessionStorage);" "    jeton = j; effacerLePoste();
+    ecrire('skanfact.jeton', j, sessionStorage);" \
+  "$HE5"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

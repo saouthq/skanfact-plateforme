@@ -19,7 +19,7 @@ import { Porte } from './ecrans/Porte.tsx';
 import { phrase, titre } from './langue.ts';
 
 type Accueil = { ecran: 'connexion' } | { ecran: 'inscription' } | { ecran: 'code'; defi: Defi } | { ecran: 'dedans' };
-type Moi = { codeAConfigurer: boolean; entreprises: { id: string; parCabinet: boolean }[]; cabinets: { id: string }[] };
+type Moi = { id: string; codeAConfigurer: boolean; entreprises: { id: string; parCabinet: boolean }[]; cabinets: { id: string }[] };
 
 const RETENUE = 'skanfact.entreprise';
 const INVITATION = 'skanfact.invitation';
@@ -67,6 +67,7 @@ export function App() {
     try {
       const r = await appeler<Moi>('GET', '/moi');
       if (r.statut === 401) { session.fermer(); setAccueil({ ecran: 'connexion' }); return; }
+      session.personne(r.corps.id);
       setMoi(r.corps);
     } catch (x) {
       // Sans réseau, l'entreprise dont ce poste garde une copie s'ouvre quand même (brique 72).

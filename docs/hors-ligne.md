@@ -17,9 +17,9 @@ d'entrée et ce qu'elles chargent se gardent dès l'installation.
 dans l'onglet seulement** (par délégation). Jusqu'ici la session vivait dans l'onglet : l'application
 refermée demandait de se reconnecter, et ne pouvait donc pas se rouvrir sans réseau. La case « je suis
 sur le poste de quelqu'un d'autre » de l'entrée décide : cochée, rien n'est gardé (03 § 6). Le serveur
-ferme toujours une session inactive (12 heures, 30 minutes sur l'ordinateur d'un autre). **Une nouvelle
-connexion efface ce que le poste gardait de la précédente**, et se déconnecter l'efface aussi, même sans
-réseau.
+ferme toujours une session inactive (12 heures, 30 minutes sur l'ordinateur d'un autre). Se
+déconnecter efface ce que le poste gardait, même sans réseau ; **une autre personne** qui se connecte
+aussi (H8, qui remplace « une nouvelle connexion efface tout »).
 
 **H3. Une copie de l'entreprise, chiffrée, sur « mon ordinateur » seulement** (par délégation). Après
 chaque lecture et chaque enregistrement, le point de contact garde ce que le serveur a (les objets du
@@ -88,3 +88,12 @@ attendent : la question, « Attendre le réseau » ne perd rien, et ça part au 
 **Reste à faire** : le Cabinet hors ligne (les dossiers emportés) ; le stockage persistant demandé
 (04 § 4, À VÉRIFIER) ; la durée des droits hors ligne (04 § 7 : 72 heures) ; la révocation d'un
 appareil qui efface ses données à la reconnexion.
+
+**H8. Ce que le poste garde est à une personne, pas à une session** (par délégation, 30/09/2026 ; défaut
+trouvé en relisant la brique 73). Une coupure de plus de 12 heures ferme la session au serveur : à la
+reconnexion, l'entrée demande de se reconnecter. Si une nouvelle connexion effaçait le poste (ce que
+disait H2), les changements faits hors ligne se perdaient à ce moment précis. Désormais, l'entrée note
+à qui est ce que le poste garde : la même personne, reconnectée, le retrouve et ce qui attendait part ;
+une autre personne qui se connecte sur ce navigateur le trouve effacé. Test : la session finie au
+serveur pendant la coupure, la personne se reconnecte par l'entrée, et son client créé sans réseau
+arrive au serveur ; Amel reconnectée retrouve sa copie, Béchir connecté ensuite la trouve effacée.

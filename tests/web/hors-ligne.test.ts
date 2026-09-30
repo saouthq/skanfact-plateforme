@@ -12,7 +12,8 @@
 //   - une page mise à jour, vue en ligne, est celle qui s'ouvre sans réseau (jamais un écran périmé) ;
 //   - se déconnecter efface la copie et sa clé ; sur l'ordinateur d'un autre, rien n'est gardé ;
 //   - par l'entrée : « mon ordinateur » garde la session dans le navigateur, « le poste de quelqu'un
-//     d'autre » ne la garde que dans l'onglet ; une nouvelle connexion efface les copies de la précédente.
+//     d'autre » ne la garde que dans l'onglet ; la même personne, reconnectée, retrouve ce que le poste
+//     gardait ; une autre personne le trouve effacé.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -241,15 +242,20 @@ describe('l\'application sans réseau, à la souris', () => {
     await p.locator('label.field').filter({ hasText: titre('ecran.connexion.mot_de_passe') }).locator('input').fill('Un-bon-mot-de-passe');
     if (posteDUnAutre) await p.getByText(titre('ecran.connexion.poste_autre')).click();
     await p.getByRole('button', { name: titre('ecran.connexion.bouton'), exact: true }).click();
-    await p.locator('label.field').filter({ hasText: titre('ecran.code.champ') }).locator('input').fill(codeTotp(depuisBase32(qui.secret), Date.now()));
-    await p.getByRole('button', { name: titre('ecran.code.bouton'), exact: true }).click();
+    // Le code, sauf sur un appareil déjà reconnu pour cette personne.
+    const code = p.locator('label.field').filter({ hasText: titre('ecran.code.champ') }).locator('input');
+    await expect.poll(async () => (await code.count()) > 0 || p.url().includes('/v10/'), { timeout: 20_000 }).toBe(true);
+    if (await code.count()) {
+      await code.fill(codeTotp(depuisBase32(qui.secret), Date.now()));
+      await p.getByRole('button', { name: titre('ecran.code.bouton'), exact: true }).click();
+    }
     await p.waitForURL(/\/v10\/\?e=/, { timeout: 20_000 });
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     await plusTard(p);
   };
   const jetons = (p: Page) => p.evaluate(() => [!!sessionStorage.getItem('skanfact.jeton'), !!localStorage.getItem('skanfact.jeton')]);
 
-  it('par l\'entrée : mon ordinateur garde la session, le poste d\'un autre non ; une nouvelle connexion efface les copies de la précédente', async () => {
+  it('par l\'entrée : mon ordinateur garde la session, le poste d\'un autre non ; la même personne retrouve ce que le poste gardait, une autre le trouve effacé', async () => {
     const jetonA = await personne('amel');
     const amel = { email, secret };
     const entA = await entreprise(jetonA);
@@ -264,7 +270,11 @@ describe('l\'application sans réseau, à la souris', () => {
     expect(await jetons(p)).toEqual([true, true]);
     await expect.poll(async () => (await lePoste(p, entA))?.copie, { timeout: 15_000 }).toBe(true);
 
-    // Une autre personne se connecte sur ce navigateur (la session d'Amel a pris fin) : la copie d'Amel s'efface.
+    // La session d'Amel prend fin (12 heures sans rien faire, une coupure) : reconnectée, elle retrouve sa copie.
+    await p.evaluate(() => { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); });
+    await seConnecter(p, amel, false);
+    expect((await lePoste(p, entA))?.copie).toBe(true);
+    // Une autre personne se connecte sur ce navigateur : la copie d'Amel s'efface.
     await p.evaluate(() => { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); });
     await seConnecter(p, bechir, false);
     expect((await lePoste(p, entA))?.copie ?? false).toBe(false);

@@ -8,7 +8,9 @@
 //     côté (dans le dossier, jamais perdue) et dite — la page ouverte (la v10 fusionne) comme rouverte
 //     plus tard (le point de contact fusionne de même) ;
 //   - se déconnecter avec des changements qui attendent : la question d'abord ; « Attendre le réseau »
-//     ne perd rien.
+//     ne perd rien ;
+//   - la session finie pendant la coupure (12 heures sans rien faire) : se reconnecter, et ce qui
+//     attendait part.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -17,6 +19,9 @@ import { chromium, type Browser, type BrowserContext, type Page } from 'playwrig
 import { build } from 'vite';
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
+import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
+import { rendre, t } from '../../textes/index.ts';
+import '../../web/src/textes.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -48,11 +53,13 @@ describe('enregistrer sans réseau, à la souris', () => {
     const texte = await r.text();
     return { statut: r.status, corps: (texte ? JSON.parse(texte) : {}) as Record<string, unknown> };
   };
+  let email = '';
+  let secret = '';
   const personne = async (nom: string) => {
-    const email = `${nom}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    email = `${nom}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom, motDePasse: 'Un-bon-mot-de-passe' });
     const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
-    await api('POST', '/moi/code', jeton, { methode: 'application' });
+    secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', jeton, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '';
     return jeton;
   };
   type Objet = { collection: string; cle: string; revision: number; contenu: Record<string, unknown> & { name?: string } };
@@ -236,5 +243,35 @@ describe('enregistrer sans réseau, à la souris', () => {
     await retablir();
     await c.setOffline(false);
     await expect.poll(() => clients(jeton, ent), { timeout: 20_000 }).toEqual(['Boulangerie du Lac', 'Quincaillerie Nour']);
+  }, 180_000);
+
+  it('la session finie pendant la coupure : se reconnecter, et ce qui attendait part', async () => {
+    const jeton = await personne('patient');
+    const moi = { email, secret };
+    const ent = await entreprise(jeton);
+    const c = await monOrdinateur(jeton);
+    let p = await c.newPage();
+    await pret(p, ent);
+    await couper(c);
+    await nouveauClient(p, 'Épicerie du Retour');
+    await expect.poll(() => enAttente(p), { timeout: 10_000 }).toBe(1);
+    await p.close();
+    // Pendant la coupure, la session a pris fin au serveur (12 heures sans rien faire).
+    await retablir();
+    expect((await api('POST', '/deconnexion', jeton)).statut).toBe(200);
+    await c.setOffline(false);
+    // Rouverte : l'entrée demande de se reconnecter ; la même personne, et ce qui attendait part.
+    p = await c.newPage();
+    await p.goto(`${adresse}/`);
+    const titre = (cle: string) => { const x = rendre(t(cle), 'fr'); return x.charAt(0).toUpperCase() + x.slice(1); };
+    await p.locator('label.field').filter({ hasText: titre('ecran.connexion.email') }).locator('input').fill(moi.email);
+    await p.locator('label.field').filter({ hasText: titre('ecran.connexion.mot_de_passe') }).locator('input').fill('Un-bon-mot-de-passe');
+    await p.getByRole('button', { name: titre('ecran.connexion.bouton'), exact: true }).click();
+    await p.locator('label.field').filter({ hasText: titre('ecran.code.champ') }).locator('input').fill(codeTotp(depuisBase32(moi.secret), Date.now()));
+    await p.getByRole('button', { name: titre('ecran.code.bouton'), exact: true }).click();
+    await p.waitForURL(/\/v10\/\?e=/, { timeout: 20_000 });
+    const nouveau = String(await p.evaluate(() => localStorage.getItem('skanfact.jeton')));
+    await expect.poll(() => clients(nouveau, ent), { timeout: 20_000 }).toEqual(['Boulangerie du Lac', 'Épicerie du Retour']);
+    await expect.poll(() => p.locator('#poste-bandeau').innerText(), { timeout: 15_000 }).toMatch(/^Le réseau est revenu : ton changement fait hors ligne est enregistré\./);
   }, 180_000);
 });

@@ -11,17 +11,27 @@ const lire = (cle: string, ou: Storage) => { try { return ou.getItem(cle); } cat
 const ecrire = (cle: string, v: string | null, ou: Storage) => { try { if (v === null) ou.removeItem(cle); else ou.setItem(cle, v); } catch { /* stockage refusé : la session vit en mémoire */ } };
 
 let jeton: string | null = lire('skanfact.jeton', sessionStorage) ?? lire('skanfact.jeton', localStorage);
-// Ce que le poste garde pour le hors-ligne (plateforme/poste.js) : les copies chiffrées et leur clé.
+// Ce que le poste garde pour le hors-ligne (plateforme/poste.js) : les copies chiffrées, ce qui attend
+// le réseau, et leur clé ; et à qui c'est.
 function effacerLePoste() {
   ecrire('skanfact.hors_ligne', null, localStorage);
+  ecrire('skanfact.poste_de', null, localStorage);
   try { indexedDB.deleteDatabase('skanfact-poste'); } catch { /* rien de gardé */ }
 }
 export const session = {
   jeton: () => jeton,
-  // Une nouvelle connexion repart d'un poste vide : les copies d'une autre session ne se lisent plus.
   ouvrir: (j: string, garder: boolean) => {
-    jeton = j; effacerLePoste();
+    jeton = j;
     ecrire('skanfact.jeton', j, sessionStorage); ecrire('skanfact.jeton', garder ? j : null, localStorage);
+  },
+  // Ce que le poste garde est à UNE personne (brique 73) : elle le retrouve à sa connexion suivante —
+  // une session finie pendant une coupure ne perd pas ce qui attendait le réseau ; une autre personne
+  // qui se connecte sur ce navigateur, avec « mon ordinateur », le trouve effacé.
+  personne: (id: string) => {
+    if (!lire('skanfact.jeton', localStorage)) return;
+    const avant = lire('skanfact.poste_de', localStorage);
+    if (avant && avant !== id) effacerLePoste();
+    ecrire('skanfact.poste_de', id, localStorage);
   },
   fermer: () => { jeton = null; ecrire('skanfact.jeton', null, sessionStorage); ecrire('skanfact.jeton', null, localStorage); },
   // Se déconnecter : la session, et tout ce que le poste gardait.

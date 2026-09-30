@@ -944,7 +944,7 @@
     // Verrouiller ferme la session : on rouvre avec son mot de passe, comme la v10 le promet.
     lock: async () => {
       try { await fetch('/v1/deconnexion', { method: 'POST', headers: { authorization: `Bearer ${jeton}` } }); } catch { /* la session se ferme de toute façon ici */ }
-      try { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.hors_ligne'); } catch { /* rien à retirer */ }
+      try { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.hors_ligne'); localStorage.removeItem('skanfact.poste_de'); } catch { /* rien à retirer */ }
       // Ce que le poste gardait pour le hors-ligne (les copies chiffrées et leur clé) s'efface aussi.
       try { indexedDB.deleteDatabase('skanfact-poste'); } catch { /* rien de gardé */ }
       location.replace('/');

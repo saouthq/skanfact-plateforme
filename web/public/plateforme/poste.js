@@ -83,7 +83,7 @@
   const effacerAttente = async (id) => { await faire('attentes', 'readwrite', (s) => s.delete(id)); };
   // Tout ce que le poste garde : les copies, ce qui attend, la clé, et le souvenir de la dernière entreprise.
   async function effacer() {
-    try { localStorage.removeItem(DERNIERE); } catch { /* rien à retirer */ }
+    try { localStorage.removeItem(DERNIERE); localStorage.removeItem('skanfact.poste_de'); } catch { /* rien à retirer */ }
     await new Promise((ok) => { const r = indexedDB.deleteDatabase(BASE); r.onsuccess = r.onerror = r.onblocked = () => ok(undefined); });
   }
 
