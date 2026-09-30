@@ -166,6 +166,19 @@ export async function jetonDUnAppareilRetire(ctx: Contexte, jeton: string): Prom
   return enTantQue(ctx.pool, null, async (tx) => (await tx.query('select socle.jeton_d_un_appareil_retire($1) r', [sha256(jeton)])).rows[0].r as boolean);
 }
 
+// La quarantaine (brique 74 bis) : ce qu'un appareil retiré avait en attente, remis par son jeton avant
+// qu'il efface tout. Rend le nombre de changements faits par la personne, ou null (rien n'est reçu :
+// jeton qui n'est pas celui d'une session ouverte au retrait, ou entreprise dont elle n'est pas membre).
+export async function mettreEnQuarantaine(ctx: Contexte, jeton: string, entreprise: string, changements: unknown[]): Promise<number | null> {
+  const maintenant = (ctx.maintenant ?? (() => new Date()))();
+  return enTantQue(ctx.pool, null, async (tx) => (await tx.query('select socle.mettre_en_quarantaine($1, $2, $3, $4) n',
+    [sha256(jeton), entreprise, JSON.stringify(changements), maintenant])).rows[0].n as number | null);
+}
+// Ce que cette session d'un appareil retiré a remis : l'entrée le dit à la personne.
+export async function remisParCeJeton(ctx: Contexte, jeton: string): Promise<number> {
+  return enTantQue(ctx.pool, null, async (tx) => (await tx.query('select socle.remis_par_ce_jeton($1) n', [sha256(jeton)])).rows[0].n as number);
+}
+
 export async function deconnecter(ctx: Contexte, qui: Qui): Promise<void> {
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
   await enTantQue(ctx.pool, qui.utilisateur, (tx) => tx.query('update socle.session set fermee_le = $1 where id = $2', [maintenant, qui.session]));

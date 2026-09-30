@@ -574,6 +574,20 @@ export interface BaseDeDonnees {
     code_cabinet: string | null;
     cree_le: Generated<Date>;
   };
+  'socle.quarantaine': {
+    id: Generated<string>;
+    entreprise: string;
+    session: string;
+    appareil: string;
+    appareil_nom: string;
+    utilisateur: string;
+    recue_le: Date;
+    changements: ColumnType<Json, string, string>;
+    decision: string | null;
+    decidee_le: Date | null;
+    decidee_par: string | null;
+    mis_de_cote: ColumnType<Json | null, string | null, string | null>;
+  };
   'socle.regle_entreprise': {
     id: Generated<string>;
     entreprise: string;

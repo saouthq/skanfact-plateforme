@@ -53,7 +53,10 @@ dossier par le code du cabinet (brique 37).
 Un panneau de plus en tête de l'onglet « Données et sécurité » : **« Tes appareils »** (brique 74,
 dessiné par le pont, `dessinerAppareils`) : chaque appareil où la personne s'est connectée, celui-ci
 marqué ; « Retirer… » demande d'abord, puis l'appareil ne peut plus rien ouvrir, et ce qu'il garde
-s'efface à sa prochaine connexion (`docs/hors-ligne.md`, H9).
+s'efface à sa prochaine connexion (`docs/hors-ligne.md`, H9). Au-dessus, quand un appareil retiré a
+remis ce qu'il avait fait hors ligne : **« Remis par un appareil retiré »** (brique 74 bis,
+`dessinerQuarantaine`), pour accepter ou rejeter (H10) ; le bandeau du poste y mène (« Voir », par
+`window.__allerParametres`, posé par une adaptation).
 « Modifier quand même… » et « Marquer annulée… » sur une facture émise ont disparu : le serveur la
 scelle, et un avoir la corrige (un avoir total la solde : « annulée » se déduit).
 
@@ -66,8 +69,8 @@ scelle, et un avoir la corrige (un avoir total la solde : « annulée » se déd
   depuis l'écran.
 - **Hors ligne** : l'application s'installe, s'ouvre et se consulte sans réseau depuis la brique 72,
   garde ce qu'on enregistre pendant une coupure et l'envoie au retour depuis la brique 73, et un
-  appareil retiré efface ce qu'il garde depuis la brique 74 (`docs/hors-ligne.md`) ; reste le Cabinet
-  hors ligne.
+  appareil retiré remet ce qui attendait (74 bis) puis efface ce qu'il garde (74) (`docs/hors-ligne.md`) ;
+  reste le Cabinet hors ligne.
 - **Les gros dossiers** : le dossier se charge en entier ; à mesurer (la règle : toute liste se
   pagine).
 - La version affichée au pied de la barre (« vdev »), le journal des erreurs du serveur

@@ -56,8 +56,16 @@ export async function appeler<T = Record<string, unknown>>(methode: 'GET' | 'POS
   }
   const texte = await r.text();
   const lu = (texte ? JSON.parse(texte) : {}) as Reponse<T>['corps'];
-  // Un appareil retiré (brique 74 ; docs/hors-ligne.md, H9) : ce que le poste garde s'efface ici, avant
-  // toute autre chose, quel que soit l'écran qui a appelé.
-  if (r.status === 401 && lu.effacer) session.quitter();
+  // Un appareil retiré (briques 74 et 74 bis ; docs/hors-ligne.md, H9 et H10), quel que soit l'écran
+  // qui l'apprend : si le poste garde une entreprise, son écran passe d'abord — il remet au serveur ce
+  // qui attendait le réseau, efface tout ce que le poste garde, et revient ici. Sans entreprise gardée,
+  // le poste ne garde rien (la copie et ce qui attend s'écrivent avec elle).
+  if (r.status === 401 && lu.effacer) {
+    const gardee = lire('skanfact.hors_ligne', localStorage);
+    if (gardee && jeton) {
+      location.replace(`/v10/?e=${encodeURIComponent(gardee)}`);
+      return await new Promise<never>(() => { /* la page s'en va */ });
+    }
+  }
   return { statut: r.status, corps: lu };
 }

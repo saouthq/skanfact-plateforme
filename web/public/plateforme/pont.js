@@ -38,12 +38,12 @@
       throw x;
     }
     poste.enLigne();
-    // La session est finie : retour à la connexion, qui dit pourquoi (un appareil retiré y efface ce
-    // qu'il garde : brique 74).
-    if (r.status === 401) { location.replace('/'); throw new Error('Ta session est terminée : reconnecte-toi.'); }
     const texte = await r.text();
     /** @type {any} */
     const lu = texte ? JSON.parse(texte) : {};
+    // La session est finie : retour à la connexion, qui dit pourquoi (un appareil retiré remet d'abord ce
+    // qui attendait le réseau, puis efface ce qu'il garde : briques 74 et 74 bis).
+    if (r.status === 401) { await finDeSession(lu); throw new Error('Ta session est terminée : reconnecte-toi.'); }
     // Le rôle exige le code du téléphone, pas encore en place : l'entrée le fait poser d'abord.
     if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
     if (!r.ok) {
@@ -289,6 +289,40 @@
     return await relire();
   }
 
+  // ── Un appareil retiré (briques 74 et 74 bis ; docs/hors-ligne.md, H9 et H10) ─────────────────
+  // La session est finie (401). Si le serveur dit que cet appareil est retiré (`effacer`), ce qui
+  // attendait le réseau lui est d'abord REMIS (en quarantaine : le propriétaire décidera), puis le poste
+  // oublie tout ; l'entrée le dit. Si la remise ne passe pas (le réseau retombe, le serveur trébuche),
+  // rien ne s'efface : la prochaine connexion réessaiera.
+  /** @type {Promise<void> | null} */ let finEnCours = null;
+  /** @param {any} lu */
+  const finDeSession = (lu) => (finEnCours = finEnCours || (async () => {
+    if (lu && lu.effacer) {
+      if (!(await remettre())) {
+        poste.sansCopie('Cet appareil a été retiré de ton compte. Ce qu\'il avait enregistré sans réseau n\'a pas encore pu être remis au serveur : rien n\'est effacé tant qu\'il ne l\'a pas reçu.');
+        return;
+      }
+      await poste.effacer();
+    }
+    location.replace('/');
+  })());
+  // Remettre ce qui attend, par rapport à ce que le poste avait vu (`vu` : la copie, que la page ait
+  // gardé l'attente ou l'ait relue à l'ouverture) : `true` quand le serveur l'a reçu, ou qu'il n'y avait
+  // rien à remettre.
+  async function remettre() {
+    const attente = await poste.lireAttente(ent).catch(() => null);
+    if (!attente) return true;
+    const changements = changementsDe(attente.contenu.data);
+    if (!changements.length) return true;
+    try {
+      const r = await fetch('/v1/quarantaine', {
+        method: 'POST', headers: { authorization: `Bearer ${jeton}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ entreprise: ent, changements }),
+      });
+      return r.status < 500;
+    } catch { return false; }
+  }
+
   // Sans réseau : la copie du poste, ce qu'on en sait (révisions), et le bandeau qui dit de quand elle est.
   async function lireLaCopie() {
     const c = await poste.lireCopie(ent);
@@ -408,9 +442,16 @@
   /** @type {any} */ (window).skanfact = {
     dessinerMandat,
     dessinerAppareils,
+    dessinerQuarantaine,
+    // Des remises attendent-elles une décision ? (le panneau ne paraît que dans ce cas)
+    quarantaine: () => remises.length,
     loadData: async () => {
       const attente = await poste.lireAttente(ent).catch(() => null);
-      try { return { data: attente ? await rejouer(attente.contenu.data) : await relire(), corruptFile: null }; } catch (e) {
+      try {
+        const data = attente ? await rejouer(attente.contenu.data) : await relire();
+        await chargerRemises();
+        return { data, corruptFile: null };
+      } catch (e) {
         if (!/** @type {any} */ (e).horsLigne) throw e;
         const copie = await lireLaCopie();
         if (!attente) return { data: copie, corruptFile: null };
@@ -598,10 +639,10 @@
       throw x;
     }
     poste.enLigne();
-    if (r.status === 401) { location.replace('/'); throw new Error('Ta session est terminée : reconnecte-toi.'); }
     const texte = await r.text();
     /** @type {any} */
     const lu = texte ? JSON.parse(texte) : {};
+    if (r.status === 401) { await finDeSession(lu); throw new Error('Ta session est terminée : reconnecte-toi.'); }
     if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
     if (!r.ok) throw new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.');
     return lu;
@@ -631,6 +672,88 @@
         }
         bouton.setAttribute('disabled', '');
         try { await appelCompte('DELETE', `/moi/appareils/${encodeURIComponent(String(bouton.dataset.retirer))}`); await dessinerAppareils(el); } catch (x) { bouton.removeAttribute('disabled'); dire(x); }
+      };
+    });
+  }
+  // ── Ce qu'un appareil retiré a remis (brique 74 bis ; docs/hors-ligne.md, H10) ────────────────
+  // À l'ouverture, en ligne : s'il y a des remises à décider, le bandeau le dit, et « Voir » mène au
+  // panneau des Paramètres qui les montre ; le propriétaire (ou un administrateur) accepte ou rejette.
+  /** @type {any[]} */ let remises = [];
+  async function chargerRemises() {
+    try { remises = (await appel('GET', '/quarantaine')).remises || []; } catch { remises = []; }
+    if (!remises.length) return;
+    const n = remises.reduce((t, q) => t + compter(q.changements), 0);
+    const qui = remises.length > 1 ? 'Des appareils retirés ont remis' : 'Un appareil retiré a remis';
+    const quoi = n > 1 ? `${n} changements faits hors ligne : ils attendent` : n === 1 ? 'un changement fait hors ligne : il attend' : 'des réglages changés hors ligne : ils attendent';
+    poste.annoncer(`${qui} ${quoi} ta décision.`, 'Voir', () => {
+      const w = /** @type {any} */ (window);
+      if (typeof w.__allerParametres === 'function') w.__allerParametres('donnees', 'p-quarantaine');
+    });
+  }
+  // Ce qu'est un changement, en clair : « Client « Café des Arts » ajouté ».
+  /** @type {Record<string, string>} */
+  const NOMS = {
+    clients: 'Client', suppliers: 'Fournisseur', catalog: 'Article', documents: 'Pièce', purchases: 'Achat', employees: 'Salarié',
+    payslips: 'Bulletin', projects: 'Projet', assets: 'Immobilisation', movements: 'Mouvement de banque', ecrituresOD: 'Écriture', recurring: 'Facturation récurrente',
+  };
+  /** @param {any} c */
+  const decrire = (c) => {
+    const o = c.contenu || {};
+    const nom = o.name || o.number || o.label || o.designation || o.ref || '';
+    const fait = c.contenu === null ? 'supprimé' : c.revision === null ? 'ajouté' : 'modifié';
+    return `${NOMS[c.collection] || 'Élément'}${nom ? ` « ${nom} »` : ''} ${fait}`;
+  };
+  /** @param {string} iso */
+  const quand = (iso) => { const d = new Date(iso); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} à ${d.getHours()} h ${String(d.getMinutes()).padStart(2, '0')}`; };
+  /** @param {HTMLElement} el */
+  function dessinerQuarantaine(el) {
+    el.innerHTML = `<p class="small muted mb">Un appareil retiré de son compte remet, à sa reconnexion, ce qu'il avait enregistré sans réseau. Rien ne s'applique sans ta décision : accepté, chaque changement s'applique, sauf ce qui a changé depuis ici (la version du serveur est gardée, et on te le dit) ; rejeté, rien ne s'applique. La remise reste gardée au serveur dans les deux cas.</p>
+      ${remises.map((q) => {
+        const faits = q.changements.filter((/** @type {any} */ c) => c.collection !== '_racine');
+        const reglages = q.changements.length - faits.length;
+        return `<div class="remise" data-remise="${esc(q.id)}"><p><strong>Remis par ${esc(q.utilisateur || 'un membre')}, depuis « ${esc(q.appareil)} »</strong>, le ${esc(quand(q.recueLe))}.</p>
+        <ul class="small">${faits.map((/** @type {any} */ c) => `<li>${esc(decrire(c))}</li>`).join('')}${reglages ? `<li>${reglages > 1 ? `${reglages} réglages du dossier` : 'Un réglage du dossier'}</li>` : ''}</ul>
+        <div class="row"><button type="button" class="btn btn-primary btn-sm" data-accepter>Accepter</button> <button type="button" class="btn btn-sm" data-rejeter>Rejeter…</button></div>
+        <p class="small" role="alert"></p></div>`;
+      }).join('')}`;
+    el.querySelectorAll('[data-remise]').forEach((bloc) => {
+      const b = /** @type {HTMLElement} */ (bloc);
+      const id = String(b.dataset.remise);
+      const dire = (/** @type {string} */ x) => { const a = b.querySelector('[role=alert]'); if (a) a.textContent = x; };
+      const boutons = /** @type {HTMLElement[]} */ ([...b.querySelectorAll('button')]);
+      /** @param {boolean} accepter */
+      const decider = async (accepter) => {
+        boutons.forEach((x) => x.setAttribute('disabled', ''));
+        try {
+          const r = await appel('POST', `/quarantaine/${encodeURIComponent(id)}`, { accepter });
+          const remise = remises.find((q) => q.id === id);
+          remises = remises.filter((q) => q.id !== id);
+          /** @param {any} m */
+          const ecarte = (m) => {
+            const c = remise && remise.changements.find((/** @type {any} */ x) => x.collection === m.collection && x.cle === m.cle);
+            return `${c ? decrire(c) : NOMS[m.collection] || 'Élément'} — ${m.raison}`;
+          };
+          const appliques = r.appliques > 1 ? `${r.appliques} changements appliqués` : r.appliques === 1 ? 'Un changement appliqué' : 'Rien d\'appliqué';
+          b.innerHTML = accepter
+            ? `<p><strong>${appliques}.</strong></p>${r.misDeCote.length ? `<p>Mis de côté :</p><ul class="small">${r.misDeCote.map((/** @type {any} */ m) => `<li>${esc(ecarte(m))}</li>`).join('')}</ul>` : ''}
+              <p class="small muted">Recharge pour voir ce qui a été appliqué.</p><button type="button" class="btn btn-primary btn-sm" data-recharger>Recharger</button>`
+            : '<p><strong>Rejeté : rien ne s\'est appliqué.</strong> La remise reste gardée au serveur.</p>';
+          const re = b.querySelector('[data-recharger]');
+          if (re) /** @type {HTMLElement} */ (re).onclick = () => location.reload();
+        } catch (x) { boutons.forEach((y) => y.removeAttribute('disabled')); dire(x instanceof Error ? x.message : String(x)); }
+      };
+      const acc = /** @type {HTMLElement} */ (b.querySelector('[data-accepter]'));
+      const rej = /** @type {HTMLElement} */ (b.querySelector('[data-rejeter]'));
+      acc.onclick = () => { void decider(true); };
+      // Rejeter se demande d'abord : rien de la remise ne s'appliquera.
+      rej.onclick = () => {
+        if (!rej.dataset.confirme) {
+          rej.dataset.confirme = '1';
+          rej.textContent = 'Oui, rejeter';
+          dire('Rien de cette remise ne s\'appliquera. Elle reste gardée au serveur.');
+          return;
+        }
+        void decider(false);
       };
     });
   }

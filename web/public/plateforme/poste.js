@@ -4,8 +4,9 @@
 //   - le service des écrans (/sw.js) : l'application s'installe, et ses écrans s'ouvrent sans réseau ;
 //   - sur « mon ordinateur » (la session gardée sur l'appareil, 03 § 6), une COPIE de chaque
 //     entreprise ouverte, chiffrée par une clé que le navigateur ne laisse jamais sortir (AES-GCM, non
-//     exportable). Jamais sur l'ordinateur d'un autre ; effacée à la déconnexion et à chaque nouvelle
-//     connexion. Limite honnête (04 § 2) : elle protège un disque volé, pas un poste allumé et ouvert ;
+//     exportable). Jamais sur l'ordinateur d'un autre ; effacée à la déconnexion, quand une autre
+//     personne se connecte, et quand l'appareil est retiré (brique 74, après avoir remis ce qui
+//     attendait). Limite honnête (04 § 2) : elle protège un disque volé, pas un poste allumé et ouvert ;
 //   - ce qu'on enregistre sans réseau : gardé, chiffré de même, jusqu'à ce qu'il parte ;
 //   - le bandeau « Hors ligne » : ce qu'on voit, depuis quand, et ce qui attend le réseau.
 (function () {
@@ -176,12 +177,21 @@
     const b = document.getElementById('poste-reessayer');
     if (b) b.onclick = () => location.reload();
   }
+  // Une annonce (brique 74 bis) : ce qui attend une décision, et le bouton qui y mène. Elle ne couvre
+  // jamais ce que le bandeau dit déjà (le réseau, ce qui attend).
+  /** @param {string} texte @param {string} bouton @param {() => void} geste */
+  function annoncer(texte, bouton, geste) {
+    if (bandeau && !bandeau.hidden) return;
+    poser(`<span>${esc(texte)}</span><button type="button" id="poste-annonce">${esc(bouton)}</button>`, true);
+    const b = document.getElementById('poste-annonce');
+    if (b) b.onclick = () => { cacher(); geste(); };
+  }
   window.addEventListener('offline', () => horsLigne());
   window.addEventListener('online', () => enLigne());
 
   /** @type {any} */ (window).SkanPoste = {
     garde, ecrireCopie, lireCopie, ecrireAttente, lireAttente, effacerAttente, effacer,
-    horsLigne, enLigne, sansCopie, attente, envoye, demander,
+    horsLigne, enLigne, sansCopie, attente, envoye, demander, annoncer,
     /** @param {() => void} f */ auRetour: (f) => { quandRevenu = f; },
   };
 })();

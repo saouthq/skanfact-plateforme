@@ -12,7 +12,7 @@ import { enTantQue, type Transaction } from './base.ts';
 import { texteDuRefus } from './erreurs.ts';
 import { cleValable } from './cles.ts';
 import { Limiteur } from './limites.ts';
-import { jetonDUnAppareilRetire, quiEst, type Contexte, type Qui } from './connexion.ts';
+import { jetonDUnAppareilRetire, quiEst, remisParCeJeton, type Contexte, type Qui } from './connexion.ts';
 import { GESTES, GESTES_PERSONNELS } from './porte/gestes.ts';
 import { peut } from './porte/porte.ts';
 import { nomDuChamp, raison } from './validation.ts';
@@ -156,8 +156,13 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
           ? { utilisateur: cle.creePar, session: '', appareil: null, posteDUnAutre: false, codeAConfigurer: false, cle: { id: cle.id, gestes: cle.gestes } }
           : jeton ? await quiEst(ctx, jeton) : null;
         if (!qui) {
-          // Un appareil retiré l'apprend à sa reconnexion : il efface ce qu'il garde (04 § 7, brique 74).
-          if (jeton && !cle && await jetonDUnAppareilRetire(ctx, jeton)) return envoyer(401, { motif: motif('connexion.appareil_retire'), bouton: 'connexion', effacer: true });
+          // Un appareil retiré l'apprend à sa reconnexion : il efface ce qu'il garde (04 § 7, brique 74),
+          // et ce qu'il avait remis en quarantaine se dit (brique 74 bis).
+          if (jeton && !cle && await jetonDUnAppareilRetire(ctx, jeton)) {
+            const remis = await remisParCeJeton(ctx, jeton);
+            const m = remis > 1 ? motif('connexion.appareil_retire_remis', { n: remis }) : remis === 1 ? motif('connexion.appareil_retire_remis_un') : motif('connexion.appareil_retire');
+            return envoyer(401, { motif: m, bouton: 'connexion', effacer: true });
+          }
           return envoyer(401, { motif: motif('commun.connexion_requise'), bouton: 'connexion' });
         }
         // Une clé n'est pas une personne : son compte, ses appareils, ses invitations ne la regardent pas.

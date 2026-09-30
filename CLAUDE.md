@@ -32,11 +32,14 @@
   fichier que la facture) ; les achats : calcul, écriture, imputation d'un acompte, règlements, reste et statut
   (`moteur/achats.ts`) ; la paie : le bulletin, ses écritures et la CNSS du trimestre
   (`moteur/paie.ts`) ; la TVA du mois lue dans les écritures (`moteur/declarations.ts`), égale à celle de la v10 sur cinq ans (deux chemins, un chiffre).
-- **Le hors-ligne** (brique 72, `docs/hors-ligne.md`) : l'application s'installe (`web/public/sw.js`,
-  le manifeste) ; sur « mon ordinateur », la session se garde dans le navigateur et une copie chiffrée
-  de l'entreprise (`web/public/plateforme/poste.js`, clé non exportable) la rouvre sans réseau ;
-  jamais sur l'ordinateur d'un autre. Un test hors ligne coupe le réseau en ARRÊTANT le serveur : le
-  service des écrans passe à côté de la coupure que le navigateur simule.
+- **Le hors-ligne** (briques 72 à 74 bis, `docs/hors-ligne.md`) : l'application s'installe
+  (`web/public/sw.js`, le manifeste) ; sur « mon ordinateur », la session se garde dans le navigateur et
+  une copie chiffrée de l'entreprise (`web/public/plateforme/poste.js`, clé non exportable) la rouvre
+  sans réseau ; ce qu'on y enregistre attend et part seul au retour ; jamais sur l'ordinateur d'un
+  autre. Un appareil retiré (« Tes appareils ») remet ce qui attendait en quarantaine (0044), puis
+  efface tout ; le propriétaire décide. Un test hors ligne coupe le réseau en ARRÊTANT le serveur : le
+  service des écrans passe à côté de la coupure que le navigateur simule (ou on le bloque dans le
+  contexte du navigateur, `serviceWorkers: 'block'`, quand le parcours n'a pas à rouvrir sans réseau).
 - Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,
   un seau par clé dans la mémoire du programme (à partager le jour où il y aura plusieurs programmes).
 - Les avis d'événement signés (`0008`, `serveur/avis.ts`, 28/09/2026) : l'avis naît dans la

@@ -3,6 +3,8 @@
 import { declarerTextes } from '../../textes/index.ts';
 
 declarerTextes({
+  'quarantaine.deja_decidee': 'cette remise a déjà été acceptée ou rejetée : rien n\'a changé',
+  'quarantaine.change_depuis': 'elle a changé depuis sur le serveur : la version du serveur est gardée, celle de l\'appareil reste avec la remise',
   'v10.conflit': 'quelqu\'un d\'autre vient de modifier ce dossier : recharge-le, tes changements ne sont pas perdus tant que la fenêtre reste ouverte',
   'v10.emission_par_le_serveur': 'une facture ou un avoir ne s\'émet qu\'avec le bouton « Émettre » : c\'est le serveur qui lui donne son numéro',
   'v10.avoir_ne_se_modifie_plus': 'l\'avoir {numero} est émis : il ne se modifie plus',

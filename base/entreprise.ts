@@ -93,6 +93,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   'cabinet.revision': { classe: 'hors', raison: 'le dossier de révision appartient au cabinet qui révise' },
   // Le dossier v10 de l'entreprise (0011) : ce que son interface tient, objet par objet.
   'socle.dossier_v10': { classe: 'entreprise' },
+  // Ce qu'un appareil retiré a remis (0044) : à l'entreprise, décidé ou non.
+  'socle.quarantaine': { classe: 'entreprise' },
   // Le code d'un cabinet n'est pas repris : unique sur la plateforme, il reste à son cabinet.
   'socle.organisation': { classe: 'reference', colonnes: ['id', 'type', 'nom', 'cree_le'] },
   // Jamais l'empreinte du mot de passe ni le téléphone vérifié : une personne recréée se reconnecte

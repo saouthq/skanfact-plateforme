@@ -4107,7 +4107,7 @@ prouver "rechargée sans réseau, ce qui attend disparaît de l'écran" $PONT \
   "        return { data: attente.contenu.data, corruptFile: null };" "        return { data: copie, corruptFile: null };" \
   "$HE1"
 prouver "rouverte avec le réseau, ce qui attendait jamais envoyé" $PONT \
-  "      try { return { data: attente ? await rejouer(attente.contenu.data) : await relire(), corruptFile: null }; }" "      try { return { data: await relire(), corruptFile: null }; }" \
+  "        const data = attente ? await rejouer(attente.contenu.data) : await relire();" "        const data = await relire();" \
   "$HE3"
 prouver "rouverte, une pièce changée ailleurs qui écrase la mienne sans la garder" $PONT \
   "        const m = /** @type {any} */ (window).SkanCore.mergeData(data, r.disk);
@@ -4147,8 +4147,7 @@ prouver "une session simplement fermée qui reçoit l'ordre d'effacer" base/migr
   "where s.jeton_empreinte = p_jeton_empreinte and a.revoque_le is not null)" "where s.jeton_empreinte = p_jeton_empreinte)" \
   "$AP1"
 prouver "l'appareil retiré jamais averti" serveur/app.ts \
-  "          if (jeton && !cle && await jetonDUnAppareilRetire(ctx, jeton)) return envoyer(401, { motif: motif('connexion.appareil_retire'), bouton: 'connexion', effacer: true });
-" "" \
+  "          if (jeton && !cle && await jetonDUnAppareilRetire(ctx, jeton)) {" "          if (false) {" \
   "$AP1"
 prouver "l'appareil où l'on est jamais marqué" serveur/routes/socle.ts \
   "celuiCi: a.id === qui.appareil" "celuiCi: false" \
@@ -4156,9 +4155,11 @@ prouver "l'appareil où l'on est jamais marqué" serveur/routes/socle.ts \
 prouver "un appareil retiré que la liste ne dit pas" serveur/routes/socle.ts \
   "retireLe: a.revoque_le ? a.revoque_le.toISOString() : null" "retireLe: null" \
   "$AP1"
-prouver "l'appareil retiré qui garde ce qu'il gardait" web/src/api.ts \
-  "  if (r.status === 401 && lu.effacer) session.quitter();
-" "" \
+prouver "l'appareil retiré qui garde ce qu'il gardait" $PONT \
+  "      await poste.effacer();
+    }
+    location.replace('/');" "    }
+    location.replace('/');" \
   "$AW1"
 prouver "l'entrée qui tait que l'appareil est retiré" web/src/App.tsx \
   "        if (r.corps.effacer) toast(r.corps.motif ?? '', true);
@@ -4177,6 +4178,89 @@ prouver "le panneau « Tes appareils » absent des Paramètres" web/public/v10/a
   "    if (bridge.dessinerAppareils && \$('#appareils-panel')) void bridge.dessinerAppareils(\$('#appareils-panel'));
 " "" \
   "$AW1"
+
+# ── Brique 74 bis : la quarantaine (docs/hors-ligne.md, H10) ──
+AQ1="remis par l'appareil retiré, jamais appliqué d'office ; accepté, ce qui a changé depuis est mis de côté et dit"
+AQ2="rejeter n'applique rien ; une session fermée avant le retrait, ou une entreprise d'un autre, ne remet rien"
+AW2="le portable retiré remet ce qu'il avait fait hors ligne ; accepté, ce qui a changé depuis est mis de côté et dit"
+Q=base/migrations/0044_quarantaine.sql
+prouver "un jeton valable qui remet" $Q \
+  "   where se.jeton_empreinte = p_jeton_empreinte and a.revoque_le is not null and se.fermee_le = a.revoque_le;" "   where se.jeton_empreinte = p_jeton_empreinte;" \
+  "$AQ1"
+prouver "une session fermée avant le retrait qui remet" $Q \
+  " and se.fermee_le = a.revoque_le;" ";" \
+  "$AQ2"
+prouver "une remise dans l'entreprise d'un autre" $Q \
+  "  if not exists (select 1 from socle.membre m where m.utilisateur = s.utilisateur and m.entreprise = p_entreprise) then return null; end if;
+" "" \
+  "$AQ2"
+prouver "une remise renvoyée qui se double" $Q \
+  "  unique (session, entreprise),
+|||
+    on conflict (session, entreprise) do nothing;" "|||;" \
+  "$AQ1"
+prouver "les réglages du dossier comptés comme des changements remis" $Q \
+  " where e->>'collection' is distinct from '_racine'" "" \
+  "$AQ1"
+prouver "une remise réécrite après coup" $Q \
+  "  raise exception 'une remise en quarantaine ne se modifie pas et ne s''efface pas' using errcode = '42501';" "  return new;" \
+  "$AQ1"
+prouver "une remise visible de tous" $Q \
+  "create policy visible on socle.quarantaine using (entreprise in (select socle.mes_entreprises()));" "create policy visible on socle.quarantaine using (true);" \
+  "$AQ2"
+prouver "l'entrée qui tait ce que l'appareil a remis" serveur/app.ts \
+  "            const remis = await remisParCeJeton(ctx, jeton);" "            const remis = 0;" \
+  "$AQ1"
+prouver "accepter qui écrase ce qui a changé depuis" serveur/v10/routes.ts \
+  "            await appliquer(tx, params.entreprise ?? '', qui.utilisateur, [c]);" "            await appliquer(tx, params.entreprise ?? '', qui.utilisateur, [{ ...c, revision: ((l) => (l ? Number(l.revision) : null))((await tx.query('select revision from socle.dossier_v10 where entreprise = \$1 and collection = \$2 and cle = \$3', [params.entreprise, c.collection, c.cle])).rows[0]) }]);" \
+  "$AQ1"
+prouver "un changement refusé qui fait échouer toute la remise" serveur/v10/routes.ts \
+  "            else if (e instanceof Refus || (e as { code?: unknown }).code === '42501') misDeCote.push({ collection: c.collection, cle: c.cle, raison: texteDuRefus(e as Error) });
+" "" \
+  "$AQ1"
+prouver "un changement changé depuis qui fait échouer toute la remise" serveur/v10/routes.ts \
+  "            await tx.query('rollback to savepoint changement');" "            throw e;" \
+  "$AQ1"
+prouver "rejeter qui applique quand même" serveur/v10/routes.ts \
+  "      if (corps.accepter) {" "      if (true) {" \
+  "$AQ2"
+prouver "une remise décidée deux fois" serveur/v10/routes.ts \
+  "      if (q.decision) return { statut: 409, corps: { motif: motif('quarantaine.deja_decidee') } };
+" "" \
+  "$AQ1"
+prouver "l'appareil retiré qui efface sans remettre" $PONT \
+  "      if (!(await remettre())) {" "      if (false) {" \
+  "$AW2"
+prouver "une remise ratée qui efface quand même" $PONT \
+  "n\\'est effacé tant qu\\'il ne l\\'a pas reçu.');
+        return;" "n\\'est effacé tant qu\\'il ne l\\'a pas reçu.');" \
+  "$AW2"
+prouver "un serveur qui trébuche pris pour une remise reçue" $PONT \
+  "      return r.status < 500;" "      return true;" \
+  "$AW2"
+prouver "l'entrée qui efface avant que l'entreprise ne remette" web/src/api.ts \
+  "    if (gardee && jeton) {" "    if (false) {" \
+  "$AW2"
+prouver "le bandeau qui tait les remises à décider" $PONT \
+  "    poste.annoncer(\`\${qui} \${quoi} ta décision.\`, 'Voir', () => {" "    ((..._) => undefined)(\`\${qui} \${quoi} ta décision.\`, 'Voir', () => {" \
+  "$AW2"
+prouver "« Voir » qui ne mène nulle part" web/public/v10/app.js \
+  "  window.__allerParametres = (tab, focus) => allerParametres(tab, focus);
+" "" \
+  "$AW2"
+prouver "le panneau des remises jamais dessiné" web/public/v10/app.js \
+  "    if (bridge.dessinerQuarantaine && \$('#quarantaine-panel')) bridge.dessinerQuarantaine(\$('#quarantaine-panel'));
+" "" \
+  "$AW2"
+prouver "rejeter une remise sans demander" $PONT \
+  "        if (!rej.dataset.confirme) {" "        if (false) {" \
+  "$AW2"
+prouver "accepté, ce qui est mis de côté passé sous silence" $PONT \
+  "\${r.misDeCote.length ? \`<p>Mis de côté :</p>" "\${false ? \`<p>Mis de côté :</p>" \
+  "$AW2"
+prouver "un client ajouté dit modifié" $PONT \
+  "c.revision === null ? 'ajouté' : 'modifié'" "'modifié'" \
+  "$AW2"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

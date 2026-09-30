@@ -106,16 +106,16 @@ l'entrée à la connexion), sa dernière activité, celui où l'on est marqué (
 on s'en déconnecte). « Retirer… » demande d'abord (« « Chrome sur Windows » ne pourra plus rien ouvrir,
 et ce qu'il garde s'effacera à sa prochaine connexion. »), puis « Oui, le retirer » : ses sessions se
 ferment. Quand l'appareil retiré se présente ensuite, le serveur ne dit pas seulement « connecte-toi » :
-il dit **qu'il est retiré, et d'effacer** (`effacer: true`, par l'empreinte du jeton : 0043). L'entrée
-efface alors, avant toute autre chose, ce que le poste garde (la copie, ce qui attendait le réseau,
-leur clé, la session), quel que soit l'écran qui a appelé, et le dit : « Cet appareil a été retiré de
+il dit **qu'il est retiré, et d'effacer** (`effacer: true`, par l'empreinte du jeton : 0043). L'appareil
+efface alors, avant toute autre chose (sauf remettre ce qui attendait le réseau : H10), ce que le poste
+garde (la copie, ce qui attendait, leur clé, la session) : l'écran de l'entreprise le fait, et l'entrée,
+si c'est elle qui l'apprend, y passe d'abord (quel que soit l'écran qui a appelé) ; puis l'entrée le
+dit : « Cet appareil a été retiré de
 ton compte : ce qu'il gardait pour travailler sans réseau est effacé ; reconnecte-toi pour
 continuer. » Une session simplement finie (12 heures sans rien faire) ne reçoit jamais cet ordre : ce
 que le poste garde y reste, pour la même personne (H8). **Limite honnête** : un appareil qui ne se
 reconnecte jamais garde sa copie, chiffrée (H3) ; le retirer ne l'atteint qu'à sa reconnexion.
-**Pas encore** (brique 74 bis) : ce qui attendait le réseau sur l'appareil retiré s'efface avec le
-reste, alors que le cadrage (04 § 7) veut qu'il soit d'abord **reçu et mis en quarantaine**, pour que
-le propriétaire décide (les ventes d'une caisse retirée par erreur, ou ce qu'a fait un voleur).
+Ce qui attendait le réseau n'est pas perdu : il est d'abord remis au serveur, en quarantaine (H10).
 
 **Les tests** : par l'API (`tests/socle/appareils.test.ts`) — la liste ne montre que ses appareils,
 celui-ci marqué, un retiré dit ; le jeton d'un appareil retiré reçoit l'ordre d'effacer, une session
@@ -123,3 +123,40 @@ fermée jamais ; à la souris (`tests/web/appareils.test.ts`) — le bureau voit
 retire le portable après la question ; le portable, rouvert sur son entreprise, se retrouve à
 l'entrée, sans copie ni session, et l'entrée le dit ; le Mac, retiré à son tour et rouvert par
 l'entrée, pareil, puis se reconnecte avec le code et revient comme un appareil neuf, au nom lisible.
+
+## Brique 74 bis : la quarantaine (fait le 30/09/2026)
+
+**H10. Ce qu'un appareil retiré avait fait hors ligne est remis, jamais appliqué d'office ; le
+propriétaire décide** (par délégation ; 04 § 7 : « reçus mais mis en quarantaine, jamais appliqués
+d'office… rien n'est perdu, rien n'est cru sur parole »). Quand le serveur dit à un appareil qu'il est
+retiré, l'écran de l'entreprise remet d'abord au serveur ce qui attendait le réseau (les changements,
+par rapport à ce que le poste avait vu), PUIS efface ce que le poste garde. Si l'application se rouvre
+sur l'entrée, l'entrée passe par l'entreprise gardée pour que cette remise ait lieu. Si la remise ne
+passe pas (le réseau retombe, le serveur trébuche), **rien ne s'efface** : l'écran le dit, et
+« Réessayer » recommence. Le serveur n'accepte une remise que par le jeton d'une session encore
+ouverte au retrait, dans une entreprise dont la personne est membre, une seule fois par session
+(0044) ; l'entrée dit ensuite à l'appareil combien de ses changements sont mis de côté.
+
+Chez l'entreprise : à l'ouverture, le bandeau dit « Un appareil retiré a remis 2 changements faits
+hors ligne : ils attendent ta décision. » ; « Voir » mène à Paramètres → Données et sécurité →
+« Remis par un appareil retiré » : qui, depuis quel appareil, quand, et chaque changement en clair
+(« Client « Café des Arts » ajouté »). **Accepter** applique chaque changement comme s'il arrivait
+maintenant, avec la révision que l'appareil avait vue : ce qui a changé depuis (ou que le serveur
+refuse, une facture émise par exemple) est **mis de côté et dit**, la version du serveur gardée —
+jamais deux versions fusionnées en une troisième. **Rejeter…** demande d'abord, puis n'applique rien.
+Dans les deux cas la remise reste au serveur, décidée, et ne se réécrit jamais. Décident ceux qui
+enregistrent le dossier (propriétaire, administrateur).
+
+**Limite honnête** : seule l'entreprise ouverte (ou gardée pour l'entrée) remet ce qui l'attendait ;
+un poste qui aurait des changements en attente dans deux entreprises à la fois (ce que l'écran ne
+permet pas sans réseau) ne remettrait que ceux de la première.
+
+**Les tests** : par l'API (`tests/socle/quarantaine.test.ts`) — remis, jamais appliqué d'office ; renvoyé,
+rien ne se double ; un jeton valable, une session fermée avant le retrait, une entreprise d'un autre :
+rien ; l'entrée dit le nombre remis ; accepté, c2 et le réglage s'appliquent, c1 changé depuis est mis
+de côté et dit ; décidé une fois ; jamais réécrit ; rejeté, rien ne s'applique ; une autre entreprise ne
+voit rien, même dans la base. À la souris (`tests/web/quarantaine.test.ts`) — le portable perdu, rouvert
+sur l'entrée : une remise qui échoue n'efface rien et le dit ; « Réessayer » remet, efface, et l'entrée
+le dit ; au bureau, le bandeau, « Voir », le panneau, « Rejeter… » qui demande, « Accepter » : le client
+créé arrive, le renommage (changé depuis au bureau) est mis de côté et dit, et l'écran rechargé montre le
+client arrivé.

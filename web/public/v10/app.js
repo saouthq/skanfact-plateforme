@@ -100,6 +100,8 @@
   // porte des renvois internes de la page (`amenerChamp`), qui ouvre l'onglet, amène le panneau et y
   // met le curseur — sans redessiner, donc sans jeter une saisie en cours.
   let amenerDansParametres = null;
+  // (plateforme) Le point de contact mène à un panneau des Paramètres (brique 74 bis).
+  window.__allerParametres = (tab, focus) => allerParametres(tab, focus);
   function allerParametres(tab, focus) {
     if (location.hash === '#/parametres' && amenerDansParametres && $('#pf')) { amenerDansParametres(focus || ''); return; }
     settingsTab = tab || 'societe'; settingsFocus = focus || ''; navigate('#/parametres');
@@ -7523,6 +7525,7 @@
     'p-comptable': { onglet: 'envois', titre: 'Ton comptable', mots: 'comptable email adresse envoyer journaux' },
     'p-modeles': { onglet: 'envois', titre: 'Modèles de messages', mots: 'modele message objet relance rappel email gabarit variables' },
     'p-cabinet': { onglet: 'envois', titre: 'Ton cabinet comptable', mots: 'cabinet comptable expert code confier mandat livres' },
+    'p-quarantaine': { onglet: 'donnees', titre: 'Remis par un appareil retiré', mots: 'appareil retire quarantaine remis hors ligne accepter rejeter changement attente', visible: () => !!(bridge.quarantaine && bridge.quarantaine()) },
     'p-appareils': { onglet: 'donnees', titre: 'Tes appareils', mots: 'appareil ordinateur telephone perdu vole retirer session connexion hors ligne copie', visible: () => !!bridge.dessinerAppareils },
     'p-dossiers': { onglet: 'donnees', titre: 'Dossiers — plusieurs entreprises sur cet ordinateur', mots: 'dossier entreprise changer basculer partager deux postes rejoindre poste ordinateur nom appareil machine' },
     'p-sauvegardes': { onglet: 'donnees', titre: 'Sauvegardes', mots: 'sauvegarde restaurer restauration perdu recuperer export import fichier donnees backup' },
@@ -15222,6 +15225,7 @@
       </section>
 
       <section data-pane="donnees" hidden>
+      ${bridge.quarantaine && bridge.quarantaine() ? `${panneau('p-quarantaine')}<div id="quarantaine-panel"></div></div>` : ''}
       ${bridge.dessinerAppareils ? `${panneau('p-appareils')}<div id="appareils-panel"></div></div>` : ''}
       ${panneau('p-dossiers', info('data.dossiers'))}
         <p class="small muted mb">Chaque dossier est une entreprise : ses clients, ses documents, ses achats, ses sauvegardes. Ils ne se mélangent jamais. Tu passes de l'un à l'autre en un clic, l'application se recharge.</p>
@@ -15533,6 +15537,7 @@
       };
     }
     drawCabinetPair();
+    if (bridge.dessinerQuarantaine && $('#quarantaine-panel')) bridge.dessinerQuarantaine($('#quarantaine-panel'));
     if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));
     drawLicencePanel();
     drawEditeurPanel();
