@@ -14,6 +14,7 @@ import { Refus, texteDuRefus } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { depassementDuServeur, estResponsable } from './accords.ts';
+import { filtrer, mesRoles } from './droits.ts';
 import { appliquer, Conflit, emettreDepuisV10, lireDossier, type Changement } from './dossier.ts';
 import { poserCompte, renvoyer } from './envoi.ts';
 import { demanderPaiement, verifierPaiement } from './paiement.ts';
@@ -35,7 +36,9 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     methode: 'GET', chemin: '/entreprises/:entreprise/dossier-v10', geste: 'socle.dossier.voir',
     traiter: async ({ params, qui }, tx) => {
       if (!tx || !qui) throw new Error('transaction attendue');
-      return { corps: { objets: await lireDossier(tx, params.entreprise ?? '', qui.utilisateur) } };
+      // Chacun n'en lit que ce que ses rôles voient (brique 99), et l'écran sait ce qu'il ne doit ni montrer ni renvoyer.
+      const ent = params.entreprise ?? '';
+      return { corps: filtrer(await mesRoles(tx, ent), await lireDossier(tx, ent, qui.utilisateur)) };
     },
   });
 

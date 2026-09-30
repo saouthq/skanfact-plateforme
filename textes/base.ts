@@ -266,6 +266,9 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'seul un associé du cabinet change son nom', cle: 'base.cabinet.renommer_associe', fr: 'seul un associé du cabinet change son nom' },
   { base: 'le nom du cabinet s\'écrit en un à deux cents caractères', cle: 'base.cabinet.nom_longueur', fr: 'le nom du cabinet s\'écrit en un à deux cents caractères' },
   { base: 'une pièce acceptée par la TTN ne change plus', cle: 'base.ttn.acceptee_figee', fr: 'une pièce acceptée par la TTN ne change plus : sa référence et la facture validée sont définitives' },
+  // La série créée par l'émission (0053, brique 99).
+  { base: 'ton rôle ne permet pas d\'émettre une pièce', cle: 'base.series.emettre_interdit', fr: 'ton rôle ne permet pas d\'émettre une pièce' },
+  { base: 'cette série n\'est pas celle d\'une facture ou d\'un avoir', cle: 'base.series.pas_v10', fr: 'cette série n\'est pas celle d\'une facture ou d\'un avoir' },
   // L'accord d'un responsable (0052, brique 98).
   { base: 'Une demande d\'accord naît en attente.', cle: 'base.accord.nait_en_attente', fr: 'une demande d\'accord naît en attente' },
   { base: 'Une demande d\'accord se fait en son propre nom.', cle: 'base.accord.son_nom', fr: 'une demande d\'accord se fait en son propre nom' },

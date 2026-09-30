@@ -1186,11 +1186,6 @@ prouver "une facture émise refusée parce que la base a rangé ses clés autrem
 prouver "une facture émise qu'on peut effacer" $DV \
   "    if (!apres) throw new Refus(av ? 'v10.avoir_ne_s_efface_pas' : 'v10.emise_ne_s_efface_pas', numero);" "    if (!apres) return;" \
   "une facture émise ne change plus ce qui a été scellé"
-prouver "un commercial qui ouvre tout le dossier" serveur/porte/gestes.ts \
-  "  { code: 'socle.dossier.voir', module: 'socle', horsCle: true, ecrit: false,
-    roles: { proprietaire: P, administrateur: P } }," "  { code: 'socle.dossier.voir', module: 'socle', horsCle: true, ecrit: false,
-    roles: { proprietaire: P, administrateur: P, commercial: P } }," \
-  "les droits : seuls ceux qui voient toute"
 
 # ── Les écrans des ventes : les listes paginées, la facture à l'écran ───────────────────────────
 LI="les factures, la plus récente d'abord, page après page"
@@ -5789,6 +5784,51 @@ prouver "le propriétaire empêché de régler le plafond en base" base/migratio
     if champ = 'creditLimit' then" "     then
     if champ = 'creditLimit' then" \
   "$AC2"
+
+# ── Brique 99 : les droits geste par geste dans le dossier v10 (docs/droits-dossier.md) ──
+DD1="chacun ne lit que sa part, et l'écran sait ce qu'il ne doit ni montrer ni renvoyer"
+DD2="chacun n'écrit que sa part ; un envoi qui touche une partie interdite n'écrit rien et la nomme"
+DD3="la première facture d'une entreprise, émise par un commercial, crée sa série de numéros"
+DDW="Karim, commercial, facture son client sans voir la paie ; un prix du catalogue lui est refusé"
+prouver "le dossier entier lu par chacun" serveur/v10/droits.ts \
+  "  const visibles = objets.filter((o) => permet(roles, regleDe(o.collection, o.cle).voir, false));" "  const visibles = objets;" \
+  "$DD1"
+prouver "la paie rangée avec les ventes" serveur/v10/droits.ts \
+  "  employees: PAIE, payslips: PAIE," "  employees: VENTES, payslips: PAIE," \
+  "$DD1"
+prouver "l'écriture sans contrôle des parties" serveur/v10/dossier.ts \
+  "  if (!options.serveur) verifierEcriture(await mesRoles(tx, entreprise), changements);" "  if (false) verifierEcriture(await mesRoles(tx, entreprise), changements);" \
+  "$DD2"
+prouver "« voir » pris pour « écrire »" serveur/v10/droits.ts \
+  "return a === 'oui' || (!ecrire && a === 'voir');" "return a === 'oui' || a === 'voir';" \
+  "$DD2"
+prouver "une partie sans règle ouverte à tous" serveur/v10/droits.ts \
+  "LISTES[cle] : LISTES[collection]) ?? TOUT;" "LISTES[cle] : LISTES[collection]) ?? TECHNIQUE;" \
+  "$DD2"
+prouver "le catalogue écrit par le commercial" serveur/v10/droits.ts \
+  "  catalog: R('stock.voir', 'ventes.prix.modifier')," "  catalog: R('stock.voir', 'ventes.brouillon.modifier')," \
+  "$DD2"
+prouver "la série qu'un commercial ne crée pas" base/migrations/0053_serie_emission.sql \
+  "     or not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'commercial']::text[]) then" "     or not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur']::text[]) then" \
+  "$DD3"
+prouver "une liste vide sans la règle de sa liste" serveur/v10/droits.ts \
+  "RACINE[cle] ?? LISTES[cle] : LISTES[collection]" "RACINE[cle] : LISTES[collection]" \
+  "$DDW"
+prouver "l'écran qui renvoie ce qu'il ne peut pas écrire" web/public/plateforme/pont.js \
+  "      if (!repart(champ)) continue;" "      if (false) continue;" \
+  "$DDW"
+prouver "une partie non renvoyée prise pour une partie supprimée" web/public/plateforme/pont.js \
+  "        if (!repart(collection === '_racine' ? cle : collection)) continue;" "        if (false) continue;" \
+  "$DDW"
+prouver "la liste de ce qui peut repartir, vide" serveur/v10/droits.ts \
+  "    else ecrivables.add(nom);" "    else lectureSeule.add(nom);" \
+  "$DDW"
+prouver "le prix d'un article accepté à l'écran puis perdu" web/public/v10/app.js \
+  "          if (!peutEcrireDossier('catalog')) return refus(" "          if (false) return refus(" \
+  "$DDW"
+prouver "les paramètres acceptés à l'écran puis perdus" web/public/v10/app.js \
+  "      if (!peutEcrireDossier('company')) { toast(" "      if (false) { toast(" \
+  "$DDW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

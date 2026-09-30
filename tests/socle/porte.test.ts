@@ -28,8 +28,10 @@ const MATRICE: Record<string, string[]> = {
   'socle.abonnement.resilier':    ['✓', '—', '—', '—', '—', '—', '—', '—', '—'],
   'socle.cles_api.gerer':         ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
   'socle.avis.gerer':             ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
-  'socle.dossier.voir':           ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
-  'socle.dossier.modifier':       ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
+  // Le dossier de l'application (brique 99) : chacun l'ouvre, et n'en lit et n'en écrit que sa part.
+  'socle.dossier.voir':           ['✓', '✓', '✓', '✓', '✓', '✓', '✓', '✓', '✓'],
+  'socle.dossier.modifier':       ['✓', '✓', '✓', '✓', '✓', '✓', '✓', '✓', 'v'],
+  'socle.dossier.tout':           ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
 };
 const ORDRE = ['proprietaire', 'administrateur', 'commercial', 'caissier', 'serveur', 'magasinier', 'comptabilite_interne', 'paie', 'lecture'];
 

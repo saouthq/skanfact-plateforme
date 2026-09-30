@@ -128,4 +128,12 @@ declarerTextes({
   'geste.socle.avis.gerer': 'gérer les avis d\'événement',
   'geste.socle.dossier.voir': 'ouvrir le dossier de l\'entreprise dans l\'application',
   'geste.socle.dossier.modifier': 'enregistrer des changements dans le dossier de l\'entreprise',
+  'geste.socle.dossier.tout': 'modifier les parties du dossier réservées à ceux qui voient toute l\'entreprise',
+  'geste.ventes.prix.modifier': 'modifier les prix du catalogue et les listes de prix',
+  'geste.stock.voir': 'voir le stock',
+  'geste.stock.modifier': 'enregistrer des mouvements de stock, des dépôts et des numéros de série',
+  'geste.achats.pieces.modifier': 'enregistrer des achats, des fournisseurs et des commandes fournisseurs',
+  'geste.tresorerie.voir': 'voir les comptes et leurs mouvements',
+  'geste.tresorerie.modifier': 'enregistrer des mouvements de trésorerie',
+  'geste.tresorerie.comptes.modifier': 'créer ou modifier un compte de trésorerie',
 });

@@ -82,8 +82,12 @@
   l'entrée) ; `stockParLot`, `lotConseille`, `lotsAPerimer`, `lotsDeLaPiece`.
 - **L'accord d'un responsable** (brique 98, `docs/accords.md`, `serveur/v10/accords.ts`, `0052`) : le serveur calcule
   le dépassement d'encours avec `core.js` (chargé par `codeDeLEcran`, comme `teif.js`) sur le dossier en base ;
-  `ventes.accord` ; un déclencheur réserve `creditLimit` et `encoursAccord` aux responsables. **Un commercial
-  n'écrit pas encore dans le dossier** (brique 99 à faire : les droits geste par geste).
+  `ventes.accord` ; un déclencheur réserve `creditLimit` et `encoursAccord` aux responsables.
+- **Les droits dans le dossier** (brique 99, `docs/droits-dossier.md`, `serveur/v10/droits.ts`) : chaque partie du
+  dossier a un geste pour la lire et un pour l'écrire ; le GET filtre et rend `droits` (`cachees`, `lectureSeule`,
+  `ecrivables`, `tout`) ; `appliquer` refuse une partie interdite ; `pont.js` ne renvoie que la liste blanche (ni
+  modification ni suppression du reste) ; l'écran refuse avant le geste (`peutEcrireDossier`, `web/v10/droits.txt`).
+  Une nouvelle partie du dossier (une nouvelle liste de la v10) **doit** recevoir sa règle, sinon seuls P et A la voient.
 - Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,
   un seau par clé dans la mémoire du programme (à partager le jour où il y aura plusieurs programmes).
 - Les avis d'événement signés (`0008`, `serveur/avis.ts`, 28/09/2026) : l'avis naît dans la

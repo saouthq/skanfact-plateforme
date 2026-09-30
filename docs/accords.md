@@ -48,10 +48,7 @@ l'encours sans elle, le plafond), qui demande, qui décide, quand, le motif d'un
 
 ## Reste connu (les briques suivantes)
 
-- **Brique 99, les droits geste par geste dans le dossier** : aujourd'hui, un commercial n'écrit rien dans le
-  dossier (le geste « modifier le dossier » est réservé au propriétaire et à l'administrateur), et la première
-  facture d'une entreprise (qui crée sa série de numéros) ne s'émet que par eux. Tant que ce n'est pas fait, le
-  parcours d'un commercial à l'écran n'est pas possible.
+- **Brique 99, les droits geste par geste dans le dossier** : faite (`docs/droits-dossier.md`).
 - **Brique 100, les écrans** : le réglage dans les Paramètres, « Demander l'accord » dans le refus de l'émission,
   la liste des demandes pour le responsable (accorder, refuser), l'état de la demande sur la pièce.
 - Le « code d'un responsable » sur le même poste (la caisse, étape 4) et la notification à distance.

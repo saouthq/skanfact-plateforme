@@ -17,6 +17,7 @@ import { REGLEMENTS_VENTES, tenirReglements } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonSaisi } from '../ventes/pieces.ts';
 import { controlerEncours } from './accords.ts';
+import { mesRoles, verifierEcriture } from './droits.ts';
 import { suivreAchats } from './achats.ts';
 import { suivrePaie } from './paie.ts';
 import { reecrireLesAchats } from '../compta/achats.ts';
@@ -128,6 +129,8 @@ export async function lireDossier(tx: Transaction, entreprise: string, utilisate
 // `serveur` : l'écriture vient du serveur lui-même (la référence de la TTN posée à l'acceptation, brique 83).
 export async function appliquer(tx: Transaction, entreprise: string, utilisateur: string, changements: Changement[], options: { serveur?: boolean } = {}): Promise<{ collection: string; cle: string; revision: number | null }[]> {
   const db = requetes(tx);
+  // Chaque partie s'écrit selon le geste de son module (brique 99) ; le serveur lui-même n'a pas de rôle.
+  if (!options.serveur) verifierEcriture(await mesRoles(tx, entreprise), changements);
   const actuels = new Map<string, { contenu: unknown; revision: number }>();
   const conflits: { collection: string; cle: string }[] = [];
   for (const c of changements) {
@@ -262,9 +265,8 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   // 3. La série de la v10 (« FAC-2026-001 », « AVO-2026-001 ») : créée au premier besoin, comme la
   //    v10 numérotait dès la première pièce.
   const prefixe = SERIE_V10[type] ?? 'FAC';
-  let serie = (await db.selectFrom('socle.serie').select('id').where('entreprise', '=', entreprise).where('prefixe', '=', prefixe)
-    .where('type', '=', type).where('legale', '=', true).where('active', '=', true).executeTakeFirst())?.id;
-  if (!serie) serie = String((await tx.query(`select socle.creer_serie($1, $2, $3, true, null, null) id`, [entreprise, type, prefixe])).rows[0].id);
+  // Créée au premier besoin par l'émission elle-même (brique 99) : un commercial n'a pas à créer la série.
+  const serie = String((await tx.query('select ventes.serie_v10($1, $2, $3) id', [entreprise, type, prefixe])).rows[0].id);
 
   // 4. L'émission : les contrôles, le numéro, les montants en entiers, le maillon.
   const r = await emettre(tx, utilisateur, entreprise, piece, serie);

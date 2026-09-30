@@ -6210,6 +6210,11 @@
     }, null, { garde: false });
   }
 
+  // Ce que la personne peut écrire dans le dossier (plateforme, brique 99) : sans point de contact, tout.
+  function peutEcrireDossier(partie) {
+    const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
+    return !d || !d.ecrivables || d.ecrivables.includes(partie);
+  }
   function catalogForm(item, done, opts) {
     opts = opts || {};
     const neuf = !item || !!opts.creation;
@@ -6372,6 +6377,7 @@
         };
         $('#ok', root).onclick = () => {
           const v = formValues($('#kf', root));
+          if (!peutEcrireDossier('catalog')) return refus('#kf input[name=unitPrice]', 'Ton rôle ne permet pas de modifier le catalogue : ses articles et leurs prix se règlent par le propriétaire ou un administrateur. Rien n\'a été enregistré.');
           if (!v.label.trim()) return refus('#kf input[name=label]', 'La désignation est obligatoire : c\'est elle qui s\'écrit sur la ligne du devis.');
           // Un code désigne UN article : deux fiches au même code, et la caisse vendrait l'une pour l'autre.
           v.code = String(v.code || '').trim();
@@ -16261,6 +16267,7 @@
     };
     $$('#pf [data-num]').forEach(el => el.addEventListener('input', () => { majNumerotation(); markSet(); }));
     const applySettings = () => {
+      if (!peutEcrireDossier('company')) { toast('Ton rôle ne permet pas de modifier les paramètres de l\'entreprise : ils se règlent par le propriétaire ou un administrateur. Rien n\'a été enregistré.', true); return false; }
       // La numérotation d'abord : un refus n'écrit RIEN du reste — le contrôle passe avant
       // l'écriture (6.0.0), et une page à moitié enregistrée ne se relit plus.
       const nums = $$('#pf [data-num]').filter(el => el.value.trim() !== (el.dataset.avant || ''));

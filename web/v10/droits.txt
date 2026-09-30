@@ -1,0 +1,37 @@
+Les droits geste par geste dans le dossier, à l'écran (brique 99 ; 03 § 2.1 ; serveur/v10/droits.ts ; docs/droits-dossier.md).
+Format : voir sans-paquets.mjs.
+
+Le serveur ne donne à chacun que les parties du dossier que ses rôles voient, et le point de contact ne renvoie
+jamais une partie que la personne ne peut pas écrire (`bridge.droitsDossier`). Quand elle essaie d'en modifier
+une (le prix d'un article, la fiche de la société), l'écran le lui refuse AVANT le geste, en disant pourquoi et
+qui peut le faire : jamais un « Enregistré » que rien ne tiendrait.
+
+── Les écrans (app.js) ──
+
+== app.js | ce que la personne peut écrire dans le dossier
+-- avant
+  function catalogForm(item, done, opts) {
+-- après
+  // Ce que la personne peut écrire dans le dossier (plateforme, brique 99) : sans point de contact, tout.
+  function peutEcrireDossier(partie) {
+    const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
+    return !d || !d.ecrivables || d.ecrivables.includes(partie);
+  }
+  function catalogForm(item, done, opts) {
+-- fin
+
+== app.js | un article ne s'enregistre que par qui peut écrire le catalogue
+-- avant
+          if (!v.label.trim()) return refus('#kf input[name=label]'
+-- après
+          if (!peutEcrireDossier('catalog')) return refus('#kf input[name=unitPrice]', 'Ton rôle ne permet pas de modifier le catalogue : ses articles et leurs prix se règlent par le propriétaire ou un administrateur. Rien n\'a été enregistré.');
+          if (!v.label.trim()) return refus('#kf input[name=label]'
+-- fin
+
+== app.js | les paramètres ne s'enregistrent que par qui peut écrire la fiche de la société
+-- avant
+    const applySettings = () => {
+-- après
+    const applySettings = () => {
+      if (!peutEcrireDossier('company')) { toast('Ton rôle ne permet pas de modifier les paramètres de l\'entreprise : ils se règlent par le propriétaire ou un administrateur. Rien n\'a été enregistré.', true); return false; }
+-- fin

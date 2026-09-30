@@ -74,12 +74,16 @@ export const GESTES_SOCLE: Geste[] = [
     roles: { proprietaire: P, administrateur: P } },
   { code: 'socle.abonnement.resilier', module: 'socle', horsCle: true, ecrit: true,
     roles: { proprietaire: P } },
-  // Le dossier que l'interface de la v10 tient en entier (0011, décision de Skander du 28/09/2026) :
-  // tant qu'il n'est pas découpé par module, seuls ceux qui voient TOUTE l'entreprise l'ouvrent. Une
-  // clé de l'API n'y touche pas : les logiciels branchés passent par les routes de chaque module.
+  // Le dossier que l'interface de la v10 tient (0011, décision de Skander du 28/09/2026). Depuis la brique 99, chaque
+  // personne de l'entreprise l'ouvre, et n'en lit et n'en écrit que les parties que ses rôles permettent
+  // (serveur/v10/droits.ts, 03 § 2.1). Une clé de l'API n'y touche pas : les logiciels branchés passent par les
+  // routes de chaque module.
   { code: 'socle.dossier.voir', module: 'socle', horsCle: true, ecrit: false,
-    roles: { proprietaire: P, administrateur: P } },
+    roles: { proprietaire: P, administrateur: P, commercial: P, caissier: P, serveur: P, magasinier: P, comptabilite_interne: P, paie: P, lecture: P } },
   { code: 'socle.dossier.modifier', module: 'socle', horsCle: true, ecrit: true,
+    roles: { proprietaire: P, administrateur: P, commercial: P, caissier: P, serveur: P, magasinier: P, comptabilite_interne: P, paie: P, lecture: V } },
+  // Les parties du dossier sans règle à elles : ceux qui voient toute l'entreprise.
+  { code: 'socle.dossier.tout', module: 'socle', horsCle: true, ecrit: true,
     roles: { proprietaire: P, administrateur: P } },
 ];
 

@@ -91,12 +91,29 @@
     && new Set(v.map((x) => x.id)).size === v.length;
 
   /** @typedef {{ collection: string, cle: string, rang: number | null, json: string }} Morceau */
+  // Les parties du dossier que les rôles de la personne ne lui montrent pas, et celles qu'elle lit sans pouvoir les
+  // écrire (brique 99). Aucune ne repart au serveur : l'écran les retouche à son ouverture (il complète une fiche
+  // d'avant, il range un article), et ce n'est pas la personne qui les change. Quand elle essaie, l'écran le lui
+  // refuse avant le geste (`droitsDossier`).
+  /** @type {Set<string>} */ let cachees = new Set();
+  /** @type {Set<string>} */ let lectureSeule = new Set();
+  // La liste blanche de ce qui peut repartir (null : tout, pour qui voit toute l'entreprise).
+  /** @type {Set<string> | null} */ let ecrivables = null;
+  /** @param {string} champ */
+  const repart = (champ) => !cachees.has(champ) && !lectureSeule.has(champ) && (!ecrivables || ecrivables.has(champ));
+  /** @param {any} d */
+  const poserDroits = (d) => {
+    cachees = new Set((d && d.cachees) || []);
+    lectureSeule = new Set((d && d.lectureSeule) || []);
+    ecrivables = !d || d.tout !== false ? null : new Set(d.ecrivables || []);
+  };
   /** @param {Record<string, unknown>} data @returns {Map<string, Morceau>} */
   function decouper(data) {
     /** @type {Map<string, Morceau>} */
     const m = new Map();
     for (const [champ, brut] of Object.entries(data)) {
       if (brut === undefined || typeof brut === 'function') continue;
+      if (!repart(champ)) continue;
       // Les questions du cabinet vivent dans les livres, au serveur (brique 44 bis) : jamais dans le dossier.
       const v = champ === 'questionsCabinet' ? [] : brut;
       if (COLLECTION.test(champ) && listeAIdentifiants(v)) {
@@ -142,6 +159,8 @@
     for (const [k, avant] of vu) {
       if (!maintenant.has(k)) {
         const [collection = '', cle = ''] = k.split('\u0000');
+        // Une partie qui ne repart pas n'est pas supprimée pour autant : on ne l'a simplement pas renvoyée.
+        if (!repart(collection === '_racine' ? cle : collection)) continue;
         changements.push({ collection, cle, rang: null, revision: avant.revision, contenu: null });
       }
     }
@@ -201,6 +220,7 @@
   // Le dossier tel que le serveur l'a, et ce qu'on en sait désormais (révisions).
   async function relire() {
     const r = await appel('GET', '/dossier-v10');
+    poserDroits(r.droits);
     vu = new Map();
     for (const o of r.objets) vu.set(`${o.collection}\u0000${o.cle}`, { json: JSON.stringify(o.contenu), rang: o.rang, revision: o.revision });
     const data = assembler(r.objets);
@@ -225,7 +245,7 @@
     if (copieAFaire) clearTimeout(copieAFaire);
     copieAFaire = setTimeout(() => {
       copieAFaire = null;
-      poste.ecrireCopie(ent, { objets: objetsVus(), questions: questionsLues }).catch(() => { /* sans copie, le hors-ligne attendra la prochaine */ });
+      poste.ecrireCopie(ent, { objets: objetsVus(), questions: questionsLues, droits: { cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : [], tout: !ecrivables } }).catch(() => { /* sans copie, le hors-ligne attendra la prochaine */ });
     }, 300);
   }
   // ── Enregistrer sans réseau (brique 73 ; docs/hors-ligne.md, H5) ─────────────────────────────
@@ -252,7 +272,7 @@
   /** @param {Record<string, unknown>} data */
   async function mettreEnAttente(data) {
     // La base d'abord : ce que le serveur a déjà reçu (un premier paquet parti avant la coupure).
-    await poste.ecrireCopie(ent, { objets: objetsVus(), questions: questionsLues });
+    await poste.ecrireCopie(ent, { objets: objetsVus(), questions: questionsLues, droits: { cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : [], tout: !ecrivables } });
     await poste.ecrireAttente(ent, { data });
     attenteGardee = true;
     attenteN = compter(changementsDe(data));
@@ -283,6 +303,7 @@
       vu = new Map();
       for (const o of c.contenu.objets) vu.set(`${o.collection}\u0000${o.cle}`, { json: JSON.stringify(o.contenu), rang: o.rang, revision: o.revision });
       questionsLues = c.contenu.questions || [];
+      poserDroits(c.contenu.droits);
       attenteGardee = true;
       attenteN = compter(changementsDe(data));
       /** @type {any} */ let r = await envoyer(data);
@@ -363,6 +384,7 @@
     for (const o of c.contenu.objets) vu.set(`${o.collection}\u0000${o.cle}`, { json: JSON.stringify(o.contenu), rang: o.rang, revision: o.revision });
     const data = assembler(c.contenu.objets);
     data.questionsCabinet = questionsLues = c.contenu.questions || [];
+    poserDroits(c.contenu.droits);
     poste.horsLigne({ copieLe: c.le });
     return data;
   }
@@ -508,6 +530,9 @@
 
     // L'émission d'une facture ou d'un avoir (adaptation de `issue()` dans app.js) : le serveur prend la pièce telle
     // que l'écran la montre, la numérote, la scelle, et vérifie qu'il trouve le même net à payer.
+    // Ce que la personne peut écrire dans le dossier (brique 99) : l'écran refuse avant le geste ce qui ne repartirait pas.
+    droitsDossier: () => ({ cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : null }),
+
     emettre: async (/** @type {any} */ doc, /** @type {any} */ client, /** @type {number} */ netAPayer) => {
       if (enCours) await enCours;
       // Une facture ne s'émet jamais sans réseau (04 § 3.3) : son numéro et son sceau viennent du serveur.

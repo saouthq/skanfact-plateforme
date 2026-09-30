@@ -308,18 +308,18 @@ describe('le dossier v10 tenu par le serveur', () => {
       .rejects.toThrow(/corrige_seulement_avoir/);
   });
 
-  it('les droits : seuls ceux qui voient toute l\'entreprise ouvrent son dossier ; une autre entreprise n\'y lit rien', async () => {
+  it('les droits : une autre entreprise n\'y lit rien ; un commercial n\'y lit et n\'y écrit que sa part (brique 99)', async () => {
     const e = await essai();
     const autre = await essai();
     // Pour qui n'en est pas membre, l'entreprise n'existe pas (03 D3) : 404, pas 403.
     expect((await appeler('GET', `/entreprises/${e.ent}/dossier-v10`, autre.jeton)).statut).toBe(404);
-    // Un commercial de l'entreprise : il émet des factures, mais n'ouvre pas le dossier entier.
+    // Un commercial de l'entreprise : il ouvre le dossier, mais n'écrit pas le catalogue (ses prix sont au responsable).
     const email = `commercial-${Date.now()}@exemple.tn`;
     await appeler('POST', '/inscription', undefined, { email, nom: 'Commercial', motDePasse: 'Un-bon-mot-de-passe' });
     const jc = String((await appeler('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
     const invitation = String((await appeler('POST', `/entreprises/${e.ent}/invitations`, e.jeton, { email, roles: ['commercial'] })).corps.jeton);
     await appeler('POST', '/invitations/accepter', jc, { jeton: invitation });
-    expect((await appeler('GET', `/entreprises/${e.ent}/dossier-v10`, jc)).statut).toBe(403);
+    expect((await appeler('GET', `/entreprises/${e.ent}/dossier-v10`, jc)).statut).toBe(200);
     expect((await appeler('POST', `/entreprises/${e.ent}/dossier-v10`, jc, { changements: [{ collection: 'catalog', cle: 'x', rang: 0, revision: null, contenu: { id: 'x' } }] })).statut).toBe(403);
   });
 });

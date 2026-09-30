@@ -648,4 +648,5 @@ export const ADAPTATIONS = [
   ...lireFichier('depots.txt'),
   ...lireFichier('kits.txt'),
   ...lireFichier('lots.txt'),
+  ...lireFichier('droits.txt'),
 ];
