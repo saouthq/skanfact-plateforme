@@ -333,7 +333,10 @@
     }
     livre.releves = releves;
     livre.declarations = declarations;
-    livre.immobilisations = biens;
+    // Un bien mis en service avant l'exercice y est « reporté » (la v10 le notait à « Ouvrir N+1 ») : sa
+    // valeur arrive par les à-nouveaux, qui ne sont pas une acquisition à créer (C-10 de la v10). Sur la
+    // plateforme, la fiche vaut pour toute la vie de l'entreprise : c'est sa date qui le dit (brique 67).
+    livre.immobilisations = biens.map((/** @type {any} */ b) => (String(b.dateMiseEnService || b.dateAcquisition || '') < livre.exercice.du ? { ...b, reporteDe: Number(annee) - 1 } : b));
     livre.inventaires = inventaire ? [inventaire] : [];
     livre.revisions = revisionsLues;
     livre.questions = questions;

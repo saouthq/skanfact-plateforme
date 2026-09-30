@@ -59,6 +59,23 @@ export type LivreLu = {
   lettrages: number;
   // Les relevés bancaires et leurs rapprochements (brique 66).
   releves: ReleveReprise[];
+  // Les immobilisations et les écritures de l'année qui portent leur dotation ou leur sortie (brique 67).
+  biens: BienReprise[];
+};
+
+// Un bien du livre (brique 67) : sa fiche dans la forme de l'API (montants en texte exact, durée en
+// années), l'écriture d'acquisition dont il est né (`docRef`, à relier à l'écriture reprise), et les
+// écritures de l'exercice qui portent sa dotation ou sa sortie.
+export type FicheBien = {
+  libelle: string; compte: string; compteAmort: string; compteDotation: string; dateAcquisition: string; dateMiseEnService: string;
+  valeur: string; residuelle: string; tva: string; methode: 'lineaire' | 'degressif'; duree: string; tauxDegressif: string | null; bascule: boolean;
+  subvention: { montant: string; compte: string; compteReprise: string } | null;
+  cession: { date: string; prix: string; motif: 'cession' | 'rebut' } | null;
+  origine: { source: string; docId: string; mois: string };
+};
+export type BienReprise = {
+  refV10: string; fiche: FicheBien; docRef: { ecriture: string; rangV10: number } | null;
+  liens: { genre: 'dotation' | 'cession'; ecriture: string }[];
 };
 
 // Lire un livre de la v10. Rend `null` si ce n'est pas un livre du tout (le rapport le dit).
@@ -128,12 +145,75 @@ export function lireLivreV10(o: unknown): LivreLu | null {
     else if (g.solde !== 0n) nomme(motif('reprise.lettre_solde', { lettre, reste: versTexte(g.solde, 3) }));
   }
   const releves = lireReleves(liste(o.releves), ecritures, anomalies);
+  const biens = lireBiens(liste(o.immobilisations), ecritures, annee, anomalies);
   const autour: Record<string, number> = {
-    immobilisations: liste(o.immobilisations).length, declarations: liste(o.declarations).length,
+    declarations: liste(o.declarations).length,
     inventaires: liste(o.inventaires).length, revisions: liste(o.revisions).length, questions: liste(o.questions).length,
     salaries: liste(o.salaries).length, bulletins: liste(o.bulletins).length,
   };
-  return { annee, du, au, clos: ex.clos === true, ecritures, anomalies, autour, lettrages: groupes.size, releves };
+  return { annee, du, au, clos: ex.clos === true, ecritures, anomalies, autour, lettrages: groupes.size, releves, biens };
+}
+
+// Un nombre de la v10 à au plus `d` décimales (une durée, un taux), en texte ; null s'il ne se lit pas.
+const decimal = (v: unknown, d: number) => {
+  const t = typeof v === 'number' && Number.isFinite(v) ? String(v) : '';
+  return new RegExp(`^\\d+(\\.\\d{1,${d}})?$`).test(t) ? t : null;
+};
+
+// Les immobilisations du livre (brique 67), lues pour la fiche de la plateforme (0026) : un libellé,
+// des comptes en chiffres, une date de mise en service, des montants au millime, une durée au centième
+// d'année, un taux dégressif à quatre décimales au plus. Les règles du plan (une résiduelle sous la
+// valeur…) sont celles de la v10 et de la base, qui les refait. Pour l'exercice du livre, l'écriture
+// qui porte la dotation ou la sortie du bien doit être dans le livre, et être l'une ou l'autre.
+function lireBiens(brut: unknown[], ecritures: EcritureReprise[], annee: number, anomalies: Anomalie[]): BienReprise[] {
+  const parRef = new Map(ecritures.map((e) => [e.refV10, e]));
+  const biens: BienReprise[] = [];
+  for (const x of brut) {
+    if (!estObjet(x)) continue;
+    const mes = texte(x.dateMiseEnService, 10) || texte(x.dateAcquisition, 10);
+    const libelle = texte(x.libelle, 200).trim();
+    const nomme = (m: Texte) => anomalies.push({ ecriture: texte(x.id, 200), piece: libelle, date: mes, motif: m });
+    const argent = (v: unknown) => { const m = montant(v); return m === null ? null : versTexte(m, 3); };
+    const sub = estObjet(x.subvention) && Number(x.subvention.montant) ? x.subvention : null;
+    const ces = estObjet(x.cession) && x.cession.date ? x.cession : null;
+    const valeurs = [argent(x.valeur), argent(x.residuelle), argent(x.tva), sub ? argent(sub.montant) : '0', ces ? argent(ces.prix) : '0'];
+    const duree = decimal(x.duree, 2);
+    const taux = x.tauxDegressif === null || x.tauxDegressif === undefined || x.tauxDegressif === '' ? null : decimal(x.tauxDegressif, 4);
+    const comptes = [x.compte, x.compteAmort, x.compteDotation, ...(sub ? [sub.compte, sub.compteReprise] : [])].map((c) => String(c ?? '').trim());
+    if (!libelle) nomme(motif('reprise.immo_libelle'));
+    if (comptes.some((c) => !COMPTE.test(c))) nomme(motif('reprise.immo_compte'));
+    if (!estJour(mes) || (ces && !estJour(ces.date))) nomme(motif('reprise.immo_date'));
+    if (valeurs.some((v) => v === null)) nomme(motif('reprise.immo_montant'));
+    if (duree === null) nomme(motif('reprise.immo_duree'));
+    if (taux === null && x.tauxDegressif !== null && x.tauxDegressif !== undefined && x.tauxDegressif !== '') nomme(motif('reprise.immo_taux'));
+    const [compte = '', compteAmort = '', compteDotation = ''] = comptes;
+    const origine = estObjet(x.origine) ? x.origine : {};
+    const doc = /^(.+)#(\d+)$/.exec(texte(origine.docId, 300));
+    const bien: BienReprise = {
+      refV10: texte(x.id, 200),
+      fiche: {
+        libelle, compte, compteAmort, compteDotation, dateAcquisition: texte(x.dateAcquisition, 10) || mes, dateMiseEnService: mes,
+        valeur: valeurs[0] ?? '0', residuelle: valeurs[1] ?? '0', tva: valeurs[2] ?? '0', methode: x.methode === 'degressif' ? 'degressif' : 'lineaire',
+        duree: duree ?? '0', tauxDegressif: taux, bascule: x.bascule === true,
+        subvention: sub ? { montant: valeurs[3] ?? '0', compte: comptes[3] ?? '', compteReprise: comptes[4] ?? '' } : null,
+        cession: ces ? { date: texte(ces.date, 10), prix: valeurs[4] ?? '0', motif: ces.motif === 'rebut' ? 'rebut' : 'cession' } : null,
+        origine: { source: texte(origine.source, 20) || 'saisie', docId: texte(origine.docId, 100), mois: texte(origine.mois, 7) },
+      },
+      docRef: doc && parRef.has(doc[1] ?? '') ? { ecriture: doc[1] ?? '', rangV10: Number(doc[2]) } : null,
+      liens: [],
+    };
+    for (const l of liste(x.plan)) {
+      if (!estObjet(l) || Number(l.annee) !== annee || !texte(l.ecritureId, 200)) continue;
+      const e = parRef.get(texte(l.ecritureId, 200));
+      if (!e) { nomme(motif('reprise.immo_ecriture', { annee: String(annee) })); continue; }
+      const genre = e.lignes.some((y) => y.compte === compteDotation && y.debit > 0n) ? 'dotation'
+        : e.lignes.some((y) => y.compte === compte && y.credit > 0n) ? 'cession' : null;
+      if (!genre) nomme(motif('reprise.immo_genre', { annee: String(annee), piece: e.piece }));
+      else bien.liens.push({ genre, ecriture: e.refV10 });
+    }
+    biens.push(bien);
+  }
+  return biens;
 }
 
 const NIVEAUX_POSES = ['certain', 'probable', 'a-confirmer'] as const;
@@ -222,6 +302,7 @@ export function rapportDuLivre(l: LivreLu) {
     ecritures: { total: l.ecritures.length, validees: validees.length, brouillard: l.ecritures.length - validees.length, aNouveaux: l.ecritures.filter((e) => e.journal === 'AN').length },
     journaux, balance, totaux: { debit: total('debit'), credit: total('credit') },
     lettrages: l.lettrages,
+    immobilisations: { total: l.biens.length, liees: l.biens.reduce((n, b) => n + b.liens.length, 0) },
     releves: { total: l.releves.length, lignes: l.releves.reduce((n, r) => n + r.lignes.length, 0), rapprochees: l.releves.reduce((n, r) => n + r.lignes.filter((x) => x.face).length, 0) },
     anomalies: l.anomalies, autour: l.autour,
   };

@@ -2654,7 +2654,7 @@ prouver "les dotations écrites par qui ne valide pas, dans la base" $M26 \
   if p_pieces is null" \
   "$IM3"
 prouver "les biens que le livre ne lit pas" $PC \
-  "    livre.immobilisations = biens;" "" \
+  "    livre.immobilisations = biens.map((/** @type {any} */ b) => (String(b.dateMiseEnService" "    livre.immobilisations = [].map((/** @type {any} */ b) => (String(b.dateMiseEnService" \
   "$WI1"
 prouver "les dotations écrites oubliées du plan" $PC \
   "        plan: (x.ecritures || []).map((/** @type {any} */ l) => ({ annee: l.annee, ecritureId: l.ecriture }))," "        plan: []," \
@@ -3637,4 +3637,87 @@ prouver "les écritures reprises sans leur identifiant rendu" $M39 \
   "$RC1"
 prouver "les relevés absents du rapport à l'écran" web/public/v10/cabinet/app.js \
   "        <tr><td>Relevés bancaires — avec leurs rapprochements</td>" "        <tr hidden><td>Relevés bancaires — avec leurs rapprochements</td>" \
+  "$RE1"
+
+# ── Brique 67 : les immobilisations reprises avec le livre v10 (docs/cabinet.md, C57) ──
+RI1="chaque bien est posé une fois, relié à la dotation reprise et à la facture dont il est né ; l'année suivante le retrouve"
+RI2="un bien déjà dans le dossier avec un autre plan : la reprise s'arrête en le disant, rien n'est écrit"
+RI3="un bien qui ne se reprendrait pas tel quel est nommé : sans libellé, un compte, une date, un montant, une durée, un taux illisibles, une écriture absente ou qui n'est pas la sienne"
+RI4="la base refait ses contrôles : une écriture qui n'est pas reprise, un genre inconnu, une dotation reliée deux fois, un dossier qui n'est pas tenu"
+RE2="les immobilisations reprises : le bien reporté ne se propose pas comme une acquisition, celui né de sa facture non plus, leurs dotations sont passées"
+M40=base/migrations/0040_compta_reprise_immobilisations.sql
+prouver "un bien sans libellé qui passe l'essai" $LV \
+  "    if (!libelle) nomme(motif('reprise.immo_libelle'));" "" \
+  "$RI3"
+prouver "un compte de bien illisible qui passe l'essai" $LV \
+  "    if (comptes.some((c) => !COMPTE.test(c))) nomme(motif('reprise.immo_compte'));" "" \
+  "$RI3"
+prouver "une date de bien illisible qui passe l'essai" $LV \
+  "    if (!estJour(mes) || (ces && !estJour(ces.date))) nomme(motif('reprise.immo_date'));" "" \
+  "$RI3"
+prouver "un montant de bien illisible qui passe l'essai" $LV \
+  "    if (valeurs.some((v) => v === null)) nomme(motif('reprise.immo_montant'));" "" \
+  "$RI3"
+prouver "une durée illisible qui passe l'essai" $LV \
+  "    if (duree === null) nomme(motif('reprise.immo_duree'));" "" \
+  "$RI3"
+prouver "un taux dégressif illisible qui passe l'essai" $LV \
+  "    if (taux === null && x.tauxDegressif !== null" "    if (false && x.tauxDegressif !== null" \
+  "$RI3"
+prouver "une dotation vers une écriture absente qui passe l'essai" $LV \
+  "      if (!e) { nomme(motif('reprise.immo_ecriture', { annee: String(annee) })); continue; }" "      if (!e) continue;" \
+  "$RI3"
+prouver "une écriture qui n'est ni la dotation ni la sortie du bien, reliée" $LV \
+  "      if (!genre) nomme(motif('reprise.immo_genre'" "      if (false) nomme(motif('reprise.immo_genre'" \
+  "$RI3"
+prouver "l'écriture d'une autre année reliée au bien reporté" $LV \
+  "      if (!estObjet(l) || Number(l.annee) !== annee || !texte(l.ecritureId, 200)) continue;" "      if (!estObjet(l) || !texte(l.ecritureId, 200)) continue;" \
+  "$RI1"
+prouver "les biens absents du rapport" $LV \
+  "    immobilisations: { total: l.biens.length, liees:" "    immobilisations: { total: 0, liees:" \
+  "$RI1"
+prouver "le bien né d'une écriture qui perd son origine" $LV \
+  "      docRef: doc && parRef.has(doc[1] ?? '') ? {" "      docRef: false ? {" \
+  "$RI1"
+prouver "l'origine d'un bien laissée à l'écriture de la v10" serveur/cabinet/routes.ts \
+  "        const docId = nee && b.docRef ? \`\${nee.id}#\${nee.rangs.indexOf(b.docRef.rangV10)}\` : b.fiche.origine.docId;" "        const docId = nee && b.docRef ? \`\${nee.id}#\${b.docRef.rangV10}\` : b.fiche.origine.docId;" \
+  "$RI1"
+prouver "les dotations reprises laissées sans leur bien" serveur/cabinet/routes.ts \
+  "        const liens = b.liens.map((l) => ({ genre: l.genre, ecriture: ecritureDe.get(l.ecriture)?.id ?? null }));" "        const liens: unknown[] = [];" \
+  "$RI1"
+prouver "un bien retrouvé compté comme créé" serveur/cabinet/routes.ts \
+  "        if (r.cree) immobilisations.creees++; else immobilisations.retrouvees++;" "        immobilisations.creees++;" \
+  "$RI1"
+prouver "les écritures reliées aux biens comptées à zéro" serveur/cabinet/routes.ts \
+  "        immobilisations.liees += r.liees;" "" \
+  "$RI1"
+prouver "une reprise de bien chez un client sur SkanFact" $M40 \
+  "  if socle.perimetre_cabinet(p_entreprise) is null
+     or not exists (select 1 from socle.entreprise where id = p_entreprise and tenue_par is not null) then
+    perform socle.refus('la reprise d''un livre de la v10 s''écrit dans un dossier que ton cabinet tient');
+  end if;" "" \
+  "$RI4"
+prouver "un bien d'une autre année recréé en double" $M40 \
+  "  select * into x from compta.immobilisation i where i.entreprise = p_entreprise and i.fiche->'libelle' = p_fiche->'libelle'" "  select * into x from compta.immobilisation i where false and i.fiche->'libelle' = p_fiche->'libelle'" \
+  "$RI1"
+prouver "un bien retrouvé dont le plan diffère, repris quand même" $M40 \
+  "      if (x.fiche->k) is distinct from (p_fiche->k) then" "      if false then" \
+  "$RI2"
+prouver "une écriture saisie reliée comme une dotation reprise" $M40 \
+  "and e.origine_type = 'reprise_v10' and extract" "and true and extract" \
+  "$RI4"
+prouver "un genre de lien inconnu" $M40 \
+  "    if coalesce(l->>'genre', '') not in ('dotation', 'cession')" "    if false" \
+  "$RI4"
+prouver "une dotation reliée deux fois" $M40 \
+  "    if exists (select 1 from compta.immobilisation_ecriture i where i.immobilisation = v_id" "    if false and exists (select 1 from compta.immobilisation_ecriture i where i.immobilisation = v_id" \
+  "$RI4"
+prouver "un bien posé dit retrouvé" $M40 \
+  "    v_cree := true;" "" \
+  "$RI1"
+prouver "un bien reporté qui se propose comme une acquisition" $PC \
+  "    livre.immobilisations = biens.map((/** @type {any} */ b) => (String(b.dateMiseEnService || b.dateAcquisition || '') < livre.exercice.du ? { ...b, reporteDe: Number(annee) - 1 } : b));" "    livre.immobilisations = biens;" \
+  "$RE2"
+prouver "les biens absents du rapport à l'écran" web/public/v10/cabinet/app.js \
+  "        <tr><td>Immobilisations — une fiche par bien" "        <tr hidden><td>Immobilisations — une fiche par bien" \
   "$RE1"

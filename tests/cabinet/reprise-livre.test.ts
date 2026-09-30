@@ -99,7 +99,8 @@ describe('la reprise d\'un livre du Cabinet v10 : l\'essai à blanc', () => {
       lettrages: 1,
       releves: { total: 1, lignes: 2, rapprochees: 1 },
       anomalies: [],
-      autour: { questions: 2, immobilisations: 0 },
+      immobilisations: { total: 0, liees: 0 },
+      autour: { questions: 2 },
     });
     // Deux chemins, un chiffre : la balance du serveur est celle que la v10 calcule sur le même livre.
     const b = KC.balanceDepuisLignes(KC.lignesDuLivre(L), {});

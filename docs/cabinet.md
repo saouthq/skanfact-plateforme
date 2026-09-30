@@ -1478,3 +1478,43 @@ rapport, puis l'onglet Banque du dossier, où le virement est « Rapproché · a
 
 **Reste à faire (la reprise)** : les immobilisations, la révision et les questions, la paie du livre ;
 un livre dont le dossier n'existe pas encore ; le bouton « Passer à la plateforme » de la v10.
+
+## Brique 67 : les immobilisations reprises avec le livre v10 (fait le 30/09/2026)
+
+**C57. Un livre repris garde ses biens : une fiche par bien pour toute la vie du dossier, ses dotations
+déjà passées reliées** (par délégation). La v10 tenait les biens dans le livre de chaque exercice (un bien
+« reporté » d'une année à l'autre par « Ouvrir N+1 ») ; la plateforme garde **une fiche par bien** pour
+toute la vie de l'entreprise (C28). La reprise les rapproche :
+- chaque bien du livre est lu comme la fiche de la plateforme (libellé, comptes en chiffres, date de mise
+  en service, montants au millime, durée au centième d'année, taux dégressif à quatre décimales) ; ce qui
+  ne se lit pas est **nommé à l'essai**, au bien ;
+- **déjà dans le dossier** (une autre année reprise avant : même libellé, même compte, même mise en
+  service, même valeur), il n'est **pas recréé** ; si son plan d'amortissement diffère, la reprise
+  **s'arrête en le disant** (une dotation déjà écrite serait fausse d'un côté ou de l'autre) ; sinon sa
+  fiche se pose par le geste ordinaire, qui refait ses contrôles (0040, `compta.reprendre_immobilisation_v10`) ;
+- l'écriture **de l'exercice** qui porte sa dotation ou sa sortie (le plan de la v10 la retient) lui est
+  **reliée** : elle ne se repasse pas (« … est déjà passée : la repasser la compterait deux fois »). Elle
+  doit être dans le livre, et être l'une ou l'autre (une ligne au débit du compte de dotation, ou au
+  crédit du compte du bien), sinon l'essai la nomme. Une écriture d'une autre année (celle d'un bien
+  reporté) reste dans son livre ;
+- un bien **né d'une facture** (« à créer » dans la v10) garde son origine, reliée à l'écriture reprise :
+  la facture ne se propose plus comme une acquisition à créer.
+
+**Un défaut corrigé au passage.** Sur la plateforme, un bien mis en service avant l'exercice n'était pas
+dit « reporté » à l'écran de la v10 : ses à-nouveaux se proposaient comme une acquisition « à créer »
+(le défaut C-10 de la v10, revenu par le point de contact). Le point de contact le dit maintenant
+d'après sa date : « repris de 2024 ».
+
+Le rapport de l'essai compte les biens et les écritures de l'année reliées.
+
+**Les tests** : `tests/cabinet/reprise-immobilisations.test.ts` : un four acheté en 2025 (sa fiche née
+de sa facture, derrière une ligne vide de la v10) et un pétrin reporté de 2023, posés et amortis **par la
+v10** ; repris : deux fiches, leurs dotations reliées, l'origine du four sur la facture reprise, une
+dotation qui ne se repasse pas ; 2026 repris ensuite : les deux biens retrouvés, leur dotation de 2026
+reliée, celle de 2025 (citée par le plan) laissée à son livre ; un plan différent, refusé ; les huit
+défauts nommés à l'essai ; la base qui refuse une écriture saisie, un genre inconnu, une dotation
+reliée deux fois, un client sur SkanFact. À la souris : l'onglet Immobilisations du dossier repris
+(« Pétrin — repris de 2024 — écrite », « Four à sole — écrite », rien « à créer »).
+
+**Reste à faire (la reprise)** : la révision et les questions, la paie du livre ; un livre dont le
+dossier n'existe pas encore ; le bouton « Passer à la plateforme » de la v10.

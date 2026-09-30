@@ -40,6 +40,7 @@ anomalie. La v10 n'avait pas ce geste : elle recevait des paquets.
         <tr><td>Écritures au brouillard — elles restent au brouillard</td><td class="r">${esc(String(R.ecritures.brouillard))}</td></tr>
         <tr><td>Lettrages — ils se reprennent avec leur lettre</td><td class="r">${esc(String(R.lettrages || 0))}</td></tr>
         <tr><td>Relevés bancaires — avec leurs rapprochements</td><td class="r nw">${esc(String(R.releves ? R.releves.total : 0))} (${esc(String(R.releves ? R.releves.rapprochees : 0))} ligne${R.releves && R.releves.rapprochees > 1 ? 's' : ''} rapprochée${R.releves && R.releves.rapprochees > 1 ? 's' : ''})</td></tr>
+        <tr><td>Immobilisations — une fiche par bien, pour toute la vie du dossier</td><td class="r nw">${esc(String(R.immobilisations ? R.immobilisations.total : 0))} (${esc(String(R.immobilisations ? R.immobilisations.liees : 0))} écriture${R.immobilisations && R.immobilisations.liees > 1 ? 's' : ''} de l'année reliée${R.immobilisations && R.immobilisations.liees > 1 ? 's' : ''})</td></tr>
         <tr><td>Total des validées (débit = crédit)</td><td class="r nw">${money(Number(R.totaux.debit))}</td></tr>
       </tbody></table>
       ${R.anomalies.length

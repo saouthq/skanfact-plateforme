@@ -53,6 +53,9 @@ describe('reprendre le livre de la v10 d\'un dossier tenu, à la souris', () => 
     lettrer: (l: Livre, compte: string, ids: string[], lettre: string, qui: string, jour: string) => { ok: boolean; lettre?: string };
     ajouterReleve: (l: Livre, r: Record<string, unknown>, qui: string, quand: number) => { ok: boolean; releve?: { id: string } };
     rapprocherAuto: (l: Livre, releve: string, o: Record<string, unknown>) => { ok: boolean };
+    ajouterImmobilisation: (l: Livre, f: Record<string, unknown>, qui: string, quand: number) => { ok: boolean };
+    ecrituresImmobilisations: (l: Livre, annee: number) => (Record<string, unknown> & { immoId: string })[];
+    noterEcritureImmo: (l: Livre, immo: string, annee: number, ecriture: string) => { ok: boolean };
   };
   const livreDe2025 = () => {
     const L = KC.livreVide('D', 2025, {});
@@ -130,6 +133,7 @@ describe('reprendre le livre de la v10 d\'un dossier tenu, à la souris', () => 
     expect(rapport).toMatch(/Écritures au brouillard — elles restent au brouillard\s+1/);
     expect(rapport).toMatch(/Lettrages — ils se reprennent avec leur lettre\s+1/);
     expect(rapport).toMatch(/Relevés bancaires — avec leurs rapprochements\s+1 \(1 ligne rapprochée\)/);
+    expect(rapport).toMatch(/Immobilisations — une fiche par bien, pour toute la vie du dossier\s+0 \(0 écriture de l'année reliée\)/);
     expect(await m.locator('#rv-ok').count()).toBe(1);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-v10-rapport.png') });
     await m.locator('#ok').click();
@@ -160,6 +164,45 @@ describe('reprendre le livre de la v10 d\'un dossier tenu, à la souris', () => 
     await lettresChangees.waitFor({ timeout: 15_000 });
     expect(await lettresChangees.innerText()).toMatch(/A s'appelle maintenant B\. Les lignes restent lettrées ensemble\./);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-v10-lettres.png') });
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+
+  it('les immobilisations reprises : le bien reporté ne se propose pas comme une acquisition, celui né de sa facture non plus, leurs dotations sont passées', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
+    const dossier = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Boulangerie Ennour' })).corps.entreprise);
+    // Le livre de 2025 de la v10 : le pétrin (mis en service en 2023) arrive par les à-nouveaux ; le four
+    // est acheté en mars et sa fiche est née de sa facture ; les deux dotations sont passées.
+    const L = KC.livreVide('D', 2025, {});
+    const poser = (e: Record<string, unknown>) => { const x = KC.ajouterEcriture(L, e, 'Leila', Date.UTC(2025, 11, 30)); expect(KC.validerEcriture(L, x.id, 'Leila', Date.UTC(2025, 11, 31)).ok).toBe(true); return x.id; };
+    poser({ date: '2025-01-01', journal: 'AN', piece: 'AN', libelle: 'À-nouveaux', source: 'an', lignes: [{ compte: '2234', debit: 6000.5 }, { compte: '532', debit: 20000 }, { compte: '101', credit: 26000.5 }] });
+    const acq = poser({ date: '2025-03-01', journal: 'AC', piece: 'FAC-FOUR', libelle: 'Four à sole', lignes: [{ compte: '2234', debit: 12000 }, { compte: '4366', debit: 2280 }, { compte: '401', credit: 14280 }] });
+    const commun = { compte: '2234', compteAmort: '28234', compteDotation: '6811', residuelle: 0, tva: 0, methode: 'lineaire', duree: 5 };
+    expect(KC.ajouterImmobilisation(L, { ...commun, id: 'i-petrin', libelle: 'Pétrin', dateAcquisition: '2023-06-01', dateMiseEnService: '2023-06-01', valeur: 6000.5, reporteDe: 2024 }, 'Leila', 1).ok).toBe(true);
+    expect(KC.ajouterImmobilisation(L, { ...commun, id: 'i-four', libelle: 'Four à sole', dateAcquisition: '2025-03-01', dateMiseEnService: '2025-03-01', valeur: 12000,
+      origine: { source: 'ecriture', docId: `${acq}#0`, mois: '' } }, 'Leila', 2).ok).toBe(true);
+    for (const x of KC.ecrituresImmobilisations(L, 2025)) expect(KC.noterEcritureImmo(L, x.immoId, 2025, poser(x)).ok).toBe(true);
+    const r = await api('POST', `/cabinets/${cabinet}/reprise/livre`, associe, { dossier, livre: JSON.parse(JSON.stringify(L)) });
+    expect(r.statut, JSON.stringify(r.corps)).toBe(201);
+
+    const erreurs: string[] = [];
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
+    p.on('pageerror', (e) => erreurs.push(e.message + ' ' + (e.stack ?? '').split('\n').slice(0, 3).join(' / ')));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${dossier}/comptabilite/immobilisations/2025`);
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(1500);
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
+      await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
+    }
+    await expect.poll(async () => (await p.locator('#view').innerText()).includes('Pétrin'), { timeout: 15_000 }).toBe(true);
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-v10-immobilisations.png'), fullPage: true });
+    const vue = await p.locator('#view').innerText();
+    expect(vue).toMatch(/Pétrin\s+repris de 2024\s+écrite\s+01\/06\/2023/);
+    expect(vue).toMatch(/Four à sole\s+écrite\s+01\/03\/2025/);
+    expect(vue).toMatch(/celles de 2025 sont passées/);
+    // Ni le pétrin (ses à-nouveaux) ni le four (sa facture) ne se proposent comme une acquisition à créer.
+    expect(await p.locator('[data-creer]').count()).toBe(0);
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

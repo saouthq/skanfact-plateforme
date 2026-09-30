@@ -44,7 +44,7 @@ type FicheBase = Omit<Fiche, 'valeur' | 'residuelle' | 'tva' | 'duree' | 'tauxDe
 const exact = (v: string, d: number) => { try { return Number(depuisTexte(v, d)); } catch { return null; } };
 
 // La fiche de l'API → celle de la base, ou le champ qui ne se lit pas.
-function versLaBaseFiche(f: Fiche): { fiche: FicheBase } | ReturnType<typeof champInvalide> {
+export function versLaBaseFiche(f: Fiche): { fiche: FicheBase } | ReturnType<typeof champInvalide> {
   const argent = (v: string, champ: string) => exact(v, 3) ?? champ;
   const valeur = argent(f.valeur, 'fiche.valeur'), residuelle = argent(f.residuelle || '0', 'fiche.residuelle'), tva = argent(f.tva || '0', 'fiche.tva');
   for (const v of [valeur, residuelle, tva]) if (typeof v === 'string') return champInvalide(v, t('compta.champ.montant'));

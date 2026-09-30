@@ -27,4 +27,12 @@ declarerTextes({
   'reprise.releve_face': 'la ligne {n} de ce relevé est rapprochée d\'une ligne d\'écriture qui n\'est pas dans le livre sur le compte {compte}',
   'reprise.releve_face_double': 'la ligne {n} de ce relevé est rapprochée d\'une ligne d\'écriture qui répond déjà d\'une autre ligne de relevé',
   'reprise.releve_boucle': 'ce relevé ne se boucle pas : {debut} au départ, {mouvements} de mouvements, et il annonce {fin}',
+  'reprise.immo_libelle': 'un bien n\'a pas de libellé',
+  'reprise.immo_compte': 'un compte de ce bien (immobilisation, amortissement, dotation, subvention) ne s\'écrit pas en chiffres',
+  'reprise.immo_date': 'la date de mise en service ou de sortie de ce bien ne se lit pas',
+  'reprise.immo_montant': 'un montant de ce bien (valeur, résiduelle, TVA, subvention, prix de sortie) ne se lit pas au millime',
+  'reprise.immo_duree': 'la durée de ce bien ne se lit pas (en années, au centième au plus)',
+  'reprise.immo_taux': 'le taux dégressif de ce bien ne se lit pas (quatre décimales au plus)',
+  'reprise.immo_ecriture': 'la dotation ou la sortie de {annee} de ce bien renvoie à une écriture qui n\'est pas dans le livre',
+  'reprise.immo_genre': 'l\'écriture {piece}, liée à ce bien en {annee}, n\'est ni sa dotation ni sa sortie',
 });

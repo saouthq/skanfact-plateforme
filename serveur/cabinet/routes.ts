@@ -17,6 +17,7 @@ import { motif, t } from '../../textes/index.ts';
 import './textes.ts';
 import { Refus } from '../erreurs.ts';
 import { lireLivreV10, rapportDuLivre } from '../reprise/livre-v10.ts';
+import { versLaBaseFiche } from '../compta/immobilisations.ts';
 
 const uuid = z.string().uuid();
 const PERIMETRES = ['comptabilite', 'declarations', 'saisie_achats', 'paie'] as const;
@@ -547,6 +548,20 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
         }
         if (poses.length) await tx.query('select compta.rapprocher($1, $2, $3::jsonb)', [corps.dossier, releve, JSON.stringify(poses)]);
       }
+      // Les immobilisations (brique 67) : chaque bien posé une fois pour la vie du dossier (ou retrouvé,
+      // s'il vient d'une autre année reprise), relié aux écritures reprises qui portent sa dotation ou sa
+      // sortie ; l'écriture d'acquisition dont il est né devient l'écriture reprise.
+      const immobilisations = { creees: 0, retrouvees: 0, liees: 0 };
+      for (const b of lu.biens) {
+        const nee = b.docRef ? ecritureDe.get(b.docRef.ecriture) : undefined;
+        const docId = nee && b.docRef ? `${nee.id}#${nee.rangs.indexOf(b.docRef.rangV10)}` : b.fiche.origine.docId;
+        const f = versLaBaseFiche({ ...b.fiche, origine: { ...b.fiche.origine, docId } });
+        if ('statut' in f) throw new Error('fiche relue illisible');
+        const liens = b.liens.map((l) => ({ genre: l.genre, ecriture: ecritureDe.get(l.ecriture)?.id ?? null }));
+        const r = (await tx.query('select compta.reprendre_immobilisation_v10($1, $2, $3::jsonb, $4::jsonb) r', [corps.dossier, lu.annee, JSON.stringify(f.fiche), JSON.stringify(liens)])).rows[0].r as { cree: boolean; liees: number };
+        if (r.cree) immobilisations.creees++; else immobilisations.retrouvees++;
+        immobilisations.liees += r.liees;
+      }
       // Deux chemins, un chiffre : la balance que la base tient maintenant est celle du livre.
       const b = (await tx.query(`select l.compte, sum(l.debit)::text debit, sum(l.credit)::text credit from compta.ligne l join compta.ecriture e on e.id = l.ecriture
           where e.entreprise = $1 and e.statut = 'validee' and e.date_ecriture between $2::date and $3::date group by l.compte`, [corps.dossier, lu.du, lu.au])).rows as { compte: string; debit: string; credit: string }[];
@@ -554,7 +569,7 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
         .sort((x, y) => (x.compte < y.compte ? -1 : x.compte > y.compte ? 1 : 0));
       const attendue = rapport.balance.map((x) => ({ compte: x.compte, debit: x.debit, credit: x.credit }));
       if (JSON.stringify(tenue) !== JSON.stringify(attendue)) throw new Refus('cabinet.reprise.ecart');
-      return { statut: 201, corps: { ...resultat, releves: lu.releves.length, rapprochees, empreinte, rapport } };
+      return { statut: 201, corps: { ...resultat, releves: lu.releves.length, rapprochees, immobilisations, empreinte, rapport } };
     },
   });
   // Ce qui a changé dans l'équipe (brique 61, 0036) : les cinquante derniers gestes, pour un associé.
