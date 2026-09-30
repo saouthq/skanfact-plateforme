@@ -5860,6 +5860,24 @@ prouver "l'accueil de qui a demandé muet sur la décision" web/public/v10/app.j
   "new Date(a.decideLe).getTime() > semaine && pieceEncoreBrouillon(a.piece));" "new Date(a.decideLe).getTime() > semaine && !pieceEncoreBrouillon(a.piece));" \
   "$ACW"
 
+# ── Brique 101 : le menu selon le rôle (web/v10/menu-role.txt) ──
+MRW="chacun ne voit dans son menu que les pages de son rôle ; une adresse cachée dit pourquoi"
+prouver "le menu qui propose les pages cachées" web/public/v10/app.js \
+  "    const pages = C.navPages(data).filter(p => !pageCachee(p.id));" "    const pages = C.navPages(data).slice();" \
+  "$MRW"
+prouver "une page cachée ouverte comme les autres" web/public/v10/app.js \
+  "    const dessine = pageCachee(name) ? pageInterdite(name) :" "    const dessine = false ? pageInterdite(name) :" \
+  "$MRW"
+prouver "une page qui lit deux parties, cachée pour une seule" web/public/v10/app.js \
+  "    return !!d && (PARTIES_DES_PAGES[id] || []).some(x => d.cachees.includes(x));" "    return !!d && (PARTIES_DES_PAGES[id] || []).every(x => d.cachees.includes(x));" \
+  "$MRW"
+prouver "la visite proposée d'une page cachée" web/public/v10/app.js \
+  "    if (!pageCachee(name)) appelGuide(name);" "    appelGuide(name);" \
+  "$MRW"
+prouver "la paie rangée hors de ses parties" web/public/v10/app.js \
+  "    paie: ['employees'], salarie: ['employees'], compta: ['ecrituresOD']," "    paie: [], salarie: ['employees'], compta: ['ecrituresOD']," \
+  "$MRW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

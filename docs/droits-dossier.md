@@ -57,13 +57,27 @@ créer une autre série reste au propriétaire et à l'administrateur.
 - `tests/v10/dossier.test.ts` et `tests/socle/porte.test.ts` retournés vers la nouvelle règle.
 - 13 preuves (`tests/preuves.sh`, brique 99).
 
+## Le menu selon le rôle (brique 101, 30/09/2026)
+
+Une page qui lit une partie cachée à la personne (la Paie pour un commercial, les Factures pour la personne chargée
+de la paie) se lisait comme une page vide : « aucun salarié », une phrase rassurante sur un univers qu'on ne voit
+pas. Désormais (`web/v10/menu-role.txt`, par délégation) :
+
+- chaque page déclare les parties du dossier qu'elle lit (`PARTIES_DES_PAGES` : Marges lit les ventes **et** les
+  achats) ; le menu ne propose que celles dont aucune partie n'est cachée ;
+- l'adresse d'une page cachée, ouverte quand même (un lien, la recherche), dit « Ton rôle ne te montre pas cette
+  page », pourquoi, et « Revenir à l'accueil » ; elle ne propose pas sa visite guidée.
+
+Test : `tests/web/menu-role.test.ts` (Karim, commercial ; Leila, la paie). 5 preuves.
+
 ## Reste connu
 
-- **Le menu** montre encore tous les modules : la page Paie d'un commercial est vide, pas cachée.
+- **Une page neuve de la v10** doit déclarer ses parties dans `PARTIES_DES_PAGES`, sinon elle s'ouvre pour tous.
+- L'accueil d'une personne qui ne voit pas les ventes (la paie) montre encore les « premiers pas » du propriétaire.
 - **Les autres éditeurs** : l'écran refuse avant le geste pour le catalogue et les Paramètres ; pour les autres
   parties en lecture seule (une personne de la comptabilité interne qui ouvre une facture en brouillon), le serveur
   n'en reçoit rien, mais l'éditeur ne le dit pas encore : à faire avec le menu par rôle.
 - **Au champ près** : le magasinier devrait écrire un article sans ses prix, la comptabilité interne encaisser un
   règlement sur une facture, le commercial ne supprimer que ses brouillons (03 § 2.1).
 - Le caissier et le magasinier : leurs gestes viendront avec la caisse et le stock complet (étape 4).
-- Les écrans de l'accord d'un responsable (brique 98) : la brique suivante.
+- Les écrans de l'accord d'un responsable : faits (brique 100, `docs/accords.md`).

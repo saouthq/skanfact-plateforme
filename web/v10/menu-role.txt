@@ -1,0 +1,63 @@
+Le menu selon le rôle (brique 101 ; 03 § 2.1 ; serveur/v10/droits.ts ; docs/droits-dossier.md).
+Format : voir sans-paquets.mjs.
+
+Le serveur ne donne à chacun que les parties du dossier que ses rôles voient (brique 99). Une page qui lit une
+partie cachée (la Paie pour un commercial, les Factures pour la personne chargée de la paie) montrait une page
+vide qui se lisait « il n'y a rien » : une phrase rassurante sur un univers qu'on ne voit pas. Le menu ne la
+propose plus, et l'adresse ouverte quand même (un lien, la recherche) dit pourquoi, et le geste qui ramène.
+
+── Les écrans (app.js) ──
+
+== app.js | les pages que le rôle ne montre pas
+-- avant
+  function drawNav() {
+-- après
+  // Les parties du dossier que chaque page lit (plateforme, brique 101) : une page dont une partie est cachée à la
+  // personne ne se propose pas, et ne s'ouvre pas (sans point de contact : toutes s'ouvrent).
+  const PARTIES_DES_PAGES = {
+    devis: ['documents'], factures: ['documents'], relances: ['documents'], autres: ['documents'], doc: ['documents'],
+    caisse: ['documents'], stats: ['documents'], accords: ['documents'], contrats: ['recurring'], contrat: ['recurring'],
+    clients: ['clients'], client: ['clients'], catalogue: ['catalog'], listesprix: ['priceLists'], listeprix: ['priceLists'],
+    achats: ['purchases'], achat: ['purchases'], commandesf: ['supplierOrders'], commandef: ['supplierOrders'], reception: ['receptions'],
+    fournisseurs: ['suppliers'], fournisseur: ['suppliers'], stock: ['stockAdjustments'], article: ['stockAdjustments'], garanties: ['serials'],
+    immos: ['assets'], immo: ['assets'], tresorerie: ['accounts', 'movements'], marges: ['documents', 'purchases'], affaire: ['projects', 'purchases'],
+    paie: ['employees'], salarie: ['employees'], compta: ['ecrituresOD'],
+  };
+  function pageCachee(id) {
+    const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
+    return !!d && (PARTIES_DES_PAGES[id] || []).some(x => d.cachees.includes(x));
+  }
+  // L'adresse d'une page cachée, ouverte quand même : ce qui est refusé, pourquoi, et le geste qui ramène.
+  function pageInterdite(name) {
+    const nom = (C.pageById(name) || {}).titre || PAGE_LABELS[name] || 'Cette page';
+    const titre = nom.charAt(0).toUpperCase() + nom.slice(1);
+    $('#view').innerHTML = `<div class="page-head"><h1>${h(titre)}</h1></div>
+      <div class="panel vide-utile" id="page-interdite"><h2>Ton rôle ne te montre pas cette page</h2>
+        <p class="small">Elle lit une partie de l'entreprise que ton rôle ne te donne pas : c'est le propriétaire qui choisit ce que chacun voit (les ventes pour un commercial, la paie pour la personne qui la fait…). Rien n'a disparu : elle n'est simplement pas dans ton menu.</p>
+        <p class="small">S'il te faut y accéder, demande au propriétaire ou à un administrateur de t'ajouter le rôle qui convient.</p>
+        <div class="inline mt"><button class="btn btn-primary" id="pi-accueil">Revenir à l'accueil</button></div></div>`;
+    $('#pi-accueil').onclick = () => navigate('#/dashboard');
+  }
+  function drawNav() {
+-- fin
+
+== app.js | le menu ne propose que les pages que le rôle montre
+-- avant
+    const pages = C.navPages(data).slice();
+-- après
+    const pages = C.navPages(data).filter(p => !pageCachee(p.id));
+-- fin
+
+== app.js | une page cachée, ouverte quand même, dit pourquoi
+-- avant
+    const dessine = (routes[name] || routes.dashboard)(parts.slice(1));
+-- après
+    const dessine = pageCachee(name) ? pageInterdite(name) : (routes[name] || routes.dashboard)(parts.slice(1));
+-- fin
+
+== app.js | une page cachée ne propose pas sa visite
+-- avant
+    appelGuide(name);                // « première fois sur cette page ? »
+-- après
+    if (!pageCachee(name)) appelGuide(name); // « première fois sur cette page ? »
+-- fin

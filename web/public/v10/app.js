@@ -2063,8 +2063,34 @@
   let repliIci = null;              // { famille, page } : la famille de la page ouverte, repliée à la main
   const CHEVRON_FAMILLE = '<svg class="ng-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
 
+  // Les parties du dossier que chaque page lit (plateforme, brique 101) : une page dont une partie est cachée à la
+  // personne ne se propose pas, et ne s'ouvre pas (sans point de contact : toutes s'ouvrent).
+  const PARTIES_DES_PAGES = {
+    devis: ['documents'], factures: ['documents'], relances: ['documents'], autres: ['documents'], doc: ['documents'],
+    caisse: ['documents'], stats: ['documents'], accords: ['documents'], contrats: ['recurring'], contrat: ['recurring'],
+    clients: ['clients'], client: ['clients'], catalogue: ['catalog'], listesprix: ['priceLists'], listeprix: ['priceLists'],
+    achats: ['purchases'], achat: ['purchases'], commandesf: ['supplierOrders'], commandef: ['supplierOrders'], reception: ['receptions'],
+    fournisseurs: ['suppliers'], fournisseur: ['suppliers'], stock: ['stockAdjustments'], article: ['stockAdjustments'], garanties: ['serials'],
+    immos: ['assets'], immo: ['assets'], tresorerie: ['accounts', 'movements'], marges: ['documents', 'purchases'], affaire: ['projects', 'purchases'],
+    paie: ['employees'], salarie: ['employees'], compta: ['ecrituresOD'],
+  };
+  function pageCachee(id) {
+    const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
+    return !!d && (PARTIES_DES_PAGES[id] || []).some(x => d.cachees.includes(x));
+  }
+  // L'adresse d'une page cachée, ouverte quand même : ce qui est refusé, pourquoi, et le geste qui ramène.
+  function pageInterdite(name) {
+    const nom = (C.pageById(name) || {}).titre || PAGE_LABELS[name] || 'Cette page';
+    const titre = nom.charAt(0).toUpperCase() + nom.slice(1);
+    $('#view').innerHTML = `<div class="page-head"><h1>${h(titre)}</h1></div>
+      <div class="panel vide-utile" id="page-interdite"><h2>Ton rôle ne te montre pas cette page</h2>
+        <p class="small">Elle lit une partie de l'entreprise que ton rôle ne te donne pas : c'est le propriétaire qui choisit ce que chacun voit (les ventes pour un commercial, la paie pour la personne qui la fait…). Rien n'a disparu : elle n'est simplement pas dans ton menu.</p>
+        <p class="small">S'il te faut y accéder, demande au propriétaire ou à un administrateur de t'ajouter le rôle qui convient.</p>
+        <div class="inline mt"><button class="btn btn-primary" id="pi-accueil">Revenir à l'accueil</button></div></div>`;
+    $('#pi-accueil').onclick = () => navigate('#/dashboard');
+  }
   function drawNav() {
-    const pages = C.navPages(data).slice();
+    const pages = C.navPages(data).filter(p => !pageCachee(p.id));
     // La page de l'ÉDITEUR de SkanFact : elle n'existe que sur le poste où vit la clé privée de
     // signature. Elle n'est pas un module (elle ne se coche pas, elle ne dépend pas du dossier).
     if (licence.editeur) pages.push({ ...C.pageById('licences'), famille: 'Éditeur' });
@@ -2557,13 +2583,13 @@
     const grand = $('#pv-full'); if (grand) grand.remove();
     pushHistory(currentHash);        // d'où l'on vient, pour le bouton retour de la page qui s'ouvre
     const pageChange = routeOf(currentHash) !== name || (currentHash || '').split('/')[2] !== parts[1];
-    const dessine = (routes[name] || routes.dashboard)(parts.slice(1));
+    const dessine = pageCachee(name) ? pageInterdite(name) : (routes[name] || routes.dashboard)(parts.slice(1));
     if (pageChange && !keepScroll) marquerEntree(view);
     poserGuideMoi();                 // « Guide-moi » : ce qu'on peut faire sur cette page, et son article (10.14.1)
     bandeauDemo(name);               // « ce ne sont pas tes données » — sur chaque page, en permanence
     bandeauModule(active);           // « cette page n'est pas dans ton menu » — et le bouton pour l'y mettre
     bandeauOffre(active);            // « ce module fait partie de l'offre Entreprise » — lecture libre, création fermée
-    appelGuide(name);                // « première fois sur cette page ? » — accrochée à « Guide-moi » (10.14.1)
+    if (!pageCachee(name)) appelGuide(name); // « première fois sur cette page ? » — accrochée à « Guide-moi » (10.14.1)
     bindDateFields(view);            // champs date posés par la page qui vient d'être dessinée
     bindWithholdingFields(view);     // « Autre taux… » des retenues à la source, même principe
     bindRibFields(view);             // la clé d'un RIB, vérifiée pendant la frappe (10.12.0)
