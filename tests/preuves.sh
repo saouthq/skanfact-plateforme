@@ -5223,6 +5223,141 @@ prouver "les bons de livraison d'une facture émise hors du scellé" serveur/v10
   "'applyStamp', 'bonsLivraison', 'stampFee'" "'applyStamp', 'stampFee'" \
   "$LCS"
 
+# ── Brique 87 : les commandes fournisseurs et leurs réceptions, même partielles (docs/commandes-fournisseurs.md) ──
+CF1="la réception reprend ce qui reste ; reçue en partie, puis reçue ; un brouillon est en préparation, une réception annulée ne compte pas"
+CF2="« soldée » ou « annulée » à la main clôt la commande ; les numéros suivent leur propre série"
+CF3="une réception validée fait entrer la marchandise en stock, au prix de la commande en dinars ; la facture saisie depuis elle, non"
+CF4="une réception validée attend sa facture jusqu'à ce qu'un achat la couvre ; la commande s'imprime pour le fournisseur"
+CFW="Nadia commande à son fournisseur, reçoit en deux fois, puis saisit sa facture depuis les réceptions"
+prouver "la réception suivante qui reprend toute la commande" web/public/v10/core.js \
+  "    const lines = (commande.lines || []).map((l, i) => ({ ...JSON.parse(JSON.stringify(l)), qty: s.lignes[i] ? s.lignes[i].aProposer : 0, ligneCommande: i }))" "    const lines = (commande.lines || []).map((l, i) => ({ ...JSON.parse(JSON.stringify(l)), ligneCommande: i }))" \
+  "$CF1"
+prouver "une réception en brouillon comptée comme reçue" web/public/v10/core.js \
+  "      if (r.status === 'validée') x.recue = round3(x.recue + q);" "      if (r.status === 'validée' || r.status === 'brouillon') x.recue = round3(x.recue + q);" \
+  "$CF1"
+prouver "une réception annulée comptée parmi celles de la commande" web/public/v10/core.js \
+  "    return (data.receptions || []).filter(r => r.orderId === commande.id && !/^annul/.test(r.status || ''))" "    return (data.receptions || []).filter(r => r.orderId === commande.id)" \
+  "$CF1"
+prouver "une commande reçue en partie qui se dit encore envoyée" web/public/v10/core.js \
+  "    return s.recue ? 'reçue' : s.partielle ? 'partielle' : st;" "    return s.recue ? 'reçue' : st;" \
+  "$CF1"
+prouver "« soldée » choisie à la main rouverte par les réceptions" web/public/v10/core.js \
+  "    if (st === 'soldée' || /^annul/.test(st)) return st;" "    if (/^annul/.test(st)) return st;" \
+  "$CF2"
+prouver "le numéro suivant qui ignore les numéros déjà portés" web/public/v10/core.js \
+  "    const n = Math.max(vus.length ? Math.max(...vus) : 0, data.counters[cle] || 0) + 1;" "    const n = (data.counters[cle] || 0) + 1;" \
+  "$CF2"
+prouver "le compteur des commandes et des réceptions oublié" web/public/v10/core.js \
+  "    data.counters[cle] = n;
+" "" \
+  "$CF2"
+prouver "une réception en brouillon qui fait entrer la marchandise en stock" web/public/v10/core.js \
+  "      if (r.status !== 'validée') return;
+" "" \
+  "$CF3"
+prouver "une réception validée qui ne fait rien entrer en stock" web/public/v10/core.js \
+  "    (data.receptions || []).forEach(r => {" "    ([]).forEach(r => {" \
+  "$CF3"
+prouver "une réception en devise entrée en stock au prix en devise" web/public/v10/core.js \
+  "          unitCost: toBase(r, Number(l.unitPrice) || 0, data.company || {})," "          unitCost: Number(l.unitPrice) || 0," \
+  "$CF3"
+prouver "une réception comptée comme une charge du mois" web/public/v10/core.js \
+  "  const SOURCES_HORS_CHARGE = ['achat', 'reception', 'depart'];" "  const SOURCES_HORS_CHARGE = ['achat', 'depart'];" \
+  "$CF3"
+prouver "la facture des réceptions qui fait entrer leur marchandise une seconde fois" web/public/v10/core.js \
+  "        if (l.recue) return;
+" "" \
+  "$CF3"
+prouver "une ligne de commande reçue en deux fois facturée en deux lignes" web/public/v10/core.js \
+  "      if (deja) { deja.qty = round3(deja.qty + ligne.qty); return; }" "" \
+  "$CF3"
+prouver "la facture des réceptions sans la marque « reçue »" web/public/v10/core.js \
+  "deductible: true, recue: true, ...(l.itemId ? { itemId: l.itemId } : {}) };" "deductible: true, ...(l.itemId ? { itemId: l.itemId } : {}) };" \
+  "$CF3"
+prouver "la marchandise suivie des réceptions facturée en charge" web/public/v10/core.js \
+  "        destination: c && c.tracked ? 'stock' : 'charge', deductible: true, recue: true," "        destination: 'charge', deductible: true, recue: true," \
+  "$CF3"
+prouver "une réception facturée encore proposée" web/public/v10/core.js \
+  "    return (data.receptions || []).filter(r => r.status === 'validée' && !couvertes.has(r.id) && (!supplierId || r.supplierId === supplierId));" "    return (data.receptions || []).filter(r => r.status === 'validée' && (!supplierId || r.supplierId === supplierId));" \
+  "$CF4"
+prouver "une réception en brouillon proposée à la facture" web/public/v10/core.js \
+  "    return (data.receptions || []).filter(r => r.status === 'validée' && !couvertes.has(r.id) && (!supplierId || r.supplierId === supplierId));" "    return (data.receptions || []).filter(r => !couvertes.has(r.id) && (!supplierId || r.supplierId === supplierId));" \
+  "$CF4"
+prouver "les réceptions d'un autre fournisseur proposées à la facture" web/public/v10/core.js \
+  "    return (data.receptions || []).filter(r => r.status === 'validée' && !couvertes.has(r.id) && (!supplierId || r.supplierId === supplierId));" "    return (data.receptions || []).filter(r => r.status === 'validée' && !couvertes.has(r.id));" \
+  "$CF4"
+prouver "la commande imprimée adressée comme un devis" web/public/v10/core.js \
+  "\${isSupplierOrder ? L.supplier : isInvoice || isProforma ? L.billedTo" "\${isInvoice || isProforma ? L.billedTo" \
+  "$CF4"
+prouver "la commande imprimée sans la livraison souhaitée" web/public/v10/core.js \
+  "      doc.dueDate ? [L.wantedBy, fmtDate(doc.dueDate)] : null," "      null," \
+  "$CF4"
+prouver "la commande imprimée sans la demande de confirmation" web/public/v10/core.js \
+  "<div class=\"terms\">\${L.supplierOrderNote}</div>" "<div class=\"terms\"></div>" \
+  "$CF4"
+prouver "les commandes fournisseurs absentes du menu" web/public/v10/core.js \
+  "    { id: 'commandesf', titre: 'Commandes fournisseurs', module: 'achats', famille: 'Acheter'," "    { id: 'commandesf-absente', titre: 'Commandes fournisseurs', module: 'achats', famille: 'Acheter'," \
+  "$CFW"
+prouver "une commande qui n'allume pas son entrée du menu" web/public/v10/app.js \
+  "    else if (name === 'commandef' || name === 'reception') active = 'commandesf';
+" "" \
+  "$CFW"
+prouver "les quantités de la commande arrondies comme un montant" web/public/v10/app.js \
+  "data-k=\"qty\" data-i=\"\${i}\" value=\"\${h(l.qty)}\" step=\"any\"" "data-k=\"qty\" data-i=\"\${i}\" value=\"\${h(l.qty)}\" step=\"0.001\"" \
+  "$CFW"
+prouver "les quantités reçues arrondies comme un montant" web/public/v10/app.js \
+  "data-rq=\"\${i}\" value=\"\${h(l.qty)}\" step=\"any\"" "data-rq=\"\${i}\" value=\"\${h(l.qty)}\" step=\"0.001\"" \
+  "$CFW"
+prouver "une commande enregistrée sans numéro" web/public/v10/app.js \
+  "      if (!o.number) o.number = C.numeroSuivant(data, commandesF(), 'BCF', o.date);
+" "" \
+  "$CFW"
+prouver "les lignes d'une commande en préparation encore modifiables" web/public/v10/app.js \
+  "    const figee = !!(suivi && suivi.receptions.length);" "    const figee = recue;" \
+  "$CFW"
+prouver "une réception qui ne se valide pas" web/public/v10/app.js \
+  "        r.status = 'validée';
+" "" \
+  "$CFW"
+prouver "une réception validée sans numéro" web/public/v10/app.js \
+  "        r.number = r.number || C.numeroSuivant(data, receptionsF(), 'BR', r.date);
+" "" \
+  "$CFW"
+prouver "« Recevoir le reste » qui se dit « Recevoir »" web/public/v10/app.js \
+  "\${suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir'}" "Recevoir" \
+  "$CFW"
+prouver "le panneau des réceptions absent de la commande" web/public/v10/app.js \
+  "\${suivi && suivi.receptions.length ? \`<div class=\"panel\" id=\"receptions-panel\">" "\${false ? \`<div class=\"panel\" id=\"receptions-panel\">" \
+  "$CFW"
+prouver "« Saisir la facture du fournisseur » absent d'une réception validée" web/public/v10/app.js \
+  "\${valide && !facturee ? '<button class=\"btn btn-primary\" id=\"rec-facturer\">Saisir la facture du fournisseur</button>' : ''}" "" \
+  "$CFW"
+prouver "la facture tirée de la seule réception affichée" web/public/v10/app.js \
+  "facturerReceptions(C.receptionsAFacturer(data).filter(x => x.orderId === r.orderId || x.id === r.id))" "facturerReceptions(C.receptionsAFacturer(data).filter(x => x.id === r.id))" \
+  "$CFW"
+prouver "la facture des réceptions sans son lien aux réceptions" web/public/v10/app.js \
+  "    p.receptions = recs.map(r => ({ id: r.id, number: r.number || '' }));
+" "" \
+  "$CFW"
+prouver "la copie d'un achat qui couvre encore ses réceptions" web/public/v10/app.js \
+  "    delete copy.receptions;
+" "" \
+  "$CFW"
+prouver "la copie d'un achat dont la marchandise n'entre pas en stock" web/public/v10/app.js \
+  "    copy.lines = (copy.lines || []).map(C.copieLigneAchat);
+" "" \
+  "$CFW"
+prouver "la copie d'une ligne reçue qui garde sa marque" web/public/v10/core.js \
+  "    delete x.recue;
+" "" \
+  "$CF3"
+prouver "le bouton ⧉ qui recopie la marque « reçue »" web/public/v10/app.js \
+  "p.lines.splice(i + 1, 0, C.copieLigneAchat(p.lines[i]))" "p.lines.splice(i + 1, 0, deepCopy(p.lines[i]))" \
+  "$CFW"
+prouver "les lignes reçues d'un achat qui ne le disent pas" web/public/v10/app.js \
+  "\${l.recue ? \`<div class=\"small muted nw\" data-recue" "\${false ? \`<div class=\"small muted nw\" data-recue" \
+  "$CFW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -1,0 +1,661 @@
+Les commandes fournisseurs et leurs réceptions, même partielles (brique 87 ; 14 § 3.2 ; docs/commandes-fournisseurs.md).
+Format : voir sans-paquets.mjs.
+
+La v10 n'avait, côté achats, que les pièces comptables : la facture du fournisseur, la dépense, l'avoir,
+l'acompte. Un grossiste commande pourtant avant de recevoir, et reçoit souvent en plusieurs fois. Ici :
+  - une page « Commandes fournisseurs » (famille « Acheter ») : la commande qu'on passe à un fournisseur
+    (`data.supplierOrders`), imprimée en PDF, et ses réceptions (`data.receptions`) ;
+  - « Recevoir » tire de la commande une réception qui reprend ce qui RESTE à recevoir, chaque ligne
+    rattachée à la sienne ; UNE fonction compte ce qui est reçu (`suiviCommandeFournisseur`) : le statut
+    de la commande (« reçue en partie », « reçue »), son panneau et la réception suivante la lisent ;
+  - une réception VALIDÉE fait entrer la marchandise suivie en stock ; la facture du fournisseur se saisit
+    depuis ses réceptions, et ses lignes reçues n'entrent pas une seconde fois en stock.
+Ni la commande ni la réception n'est une pièce comptable : elles ne vivent pas parmi les achats, que le
+serveur tient au millime (seule la facture du fournisseur en est une).
+
+── Le moteur (core.js) ──
+
+== core.js | la page des commandes fournisseurs, dans la famille « Acheter »
+-- avant
+    { id: 'fournisseurs', titre: 'Fournisseurs', module: 'achats', famille: 'Acheter',
+-- après
+    // Ce qu'on commande à ses fournisseurs, et ce qu'on en reçoit (plateforme, brique 87).
+    { id: 'commandesf', titre: 'Commandes fournisseurs', module: 'achats', famille: 'Acheter',
+      quoi: 'Ce que tu commandes à tes fournisseurs, et ce que tu en as reçu : le reste à recevoir, ligne par ligne.' },
+    { id: 'fournisseurs', titre: 'Fournisseurs', module: 'achats', famille: 'Acheter',
+-- fin
+
+== core.js | une réception est une entrée de stock, comme un achat
+-- avant
+    ['achat', 'Achat'], ['vente', 'Vente'], ['livraison', 'Bon de livraison'],
+-- après
+    ['achat', 'Achat'], ['reception', 'Réception'], ['vente', 'Vente'], ['livraison', 'Bon de livraison'],
+-- fin
+
+== core.js | une réception n'est pas une charge de la période : c'est de la marchandise entrée
+-- avant
+  const SOURCES_HORS_CHARGE = ['achat', 'depart'];
+-- après
+  const SOURCES_HORS_CHARGE = ['achat', 'reception', 'depart'];
+-- fin
+
+== core.js | une ligne d'achat reçue par une réception n'entre pas une seconde fois en stock
+-- avant
+      if (p.kind === 'acompte') return;
+      const sens = p.kind === 'avoir' ? -1 : 1;
+      (p.lines || []).forEach((l, i) => {
+        if (l.destination !== 'stock') return;
+-- après
+      if (p.kind === 'acompte') return;
+      const sens = p.kind === 'avoir' ? -1 : 1;
+      (p.lines || []).forEach((l, i) => {
+        if (l.destination !== 'stock') return;
+        // Une ligne saisie depuis une réception (brique 87) : la marchandise est entrée par la réception.
+        if (l.recue) return;
+-- fin
+
+== core.js | une réception validée fait entrer la marchandise suivie en stock
+-- avant
+    // Sorties : factures émises et bons de livraison. Un devis, une proforma ou un bon de commande ne
+-- après
+    // Entrées : les réceptions VALIDÉES d'une commande fournisseur (brique 87), au prix de la commande,
+    // ramené dans la devise de l'entreprise. Une réception en brouillon n'a rien reçu.
+    (data.receptions || []).forEach(r => {
+      if (r.status !== 'validée') return;
+      if (limit && r.date > limit) return;
+      (r.lines || []).forEach((l, i) => {
+        const c = itemOfLine(l, data);
+        if (!keep(c)) return;
+        const qty = Number(l.qty) || 0;
+        if (!qty) return;
+        out.push({ id: `rec-${r.id}-${i}`, date: r.date, itemId: c.id, label: c.label, qty,
+          unitCost: toBase(r, Number(l.unitPrice) || 0, data.company || {}),
+          source: 'reception', ref: r.number || '', docId: r.id, note: '', rang: 1, ts: Number(r.validatedTs || r.createdAt) || 0 });
+      });
+    });
+
+    // Sorties : factures émises et bons de livraison. Un devis, une proforma ou un bon de commande ne
+-- fin
+
+== core.js | les commandes fournisseurs et leurs réceptions : le moteur
+-- avant
+  // ---------- les commandes livrées en plusieurs fois (plateforme, brique 86 ; 14 § 3.2) ----------
+-- après
+  // ---------- les commandes fournisseurs et leurs réceptions (plateforme, brique 87 ; 14 § 3.2) ----------
+  // La commande qu'on passe à un fournisseur (`data.supplierOrders`) et ses réceptions (`data.receptions`),
+  // le miroir d'une commande client et de ses bons de livraison. Ce ne sont pas des pièces comptables :
+  // elles ne vivent pas parmi les achats (la facture du fournisseur, elle, en est une). Une réception tirée
+  // d'une commande reprend ce qui reste à recevoir, chaque ligne rattachée à la sienne (`ligneCommande`),
+  // et UNE fonction compte ce qui est reçu : le statut de la commande, son panneau et la réception suivante
+  // la lisent. Seule une réception VALIDÉE a reçu ; en brouillon, elle est « en préparation » ; annulée,
+  // elle ne compte pas.
+  const STATUTS_COMMANDE_FOURNISSEUR = ['brouillon', 'envoyée', 'soldée', 'annulée'];
+  // Le numéro suivant d'une liste qui n'est pas une pièce de vente (BCF-2026-001, BR-2026-001) : le plus
+  // grand déjà porté ou le compteur, le plus grand des deux, plus un.
+  function numeroSuivant(data, liste, prefixe, dateIso) {
+    const annee = (dateIso || today()).slice(0, 4);
+    const cle = `${prefixe}-${annee}`;
+    data.counters = data.counters || {};
+    const vus = (liste || []).filter(x => x.number && String(x.number).startsWith(`${prefixe}-${annee}-`)).map(x => parseInt(String(x.number).split('-')[2], 10) || 0);
+    const n = Math.max(vus.length ? Math.max(...vus) : 0, data.counters[cle] || 0) + 1;
+    data.counters[cle] = n;
+    return `${prefixe}-${annee}-${String(n).padStart(3, '0')}`;
+  }
+  function receptionsDeCommande(data, commande) {
+    if (!commande || !commande.id) return [];
+    return (data.receptions || []).filter(r => r.orderId === commande.id && !/^annul/.test(r.status || ''))
+      .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.createdAt || 0) - (b.createdAt || 0));
+  }
+  function suiviCommandeFournisseur(data, commande) {
+    const lignes = ((commande && commande.lines) || []).map((l, i) => ({ i, label: l.label || '', unit: l.unit || '', commandee: round3(Number(l.qty) || 0), recue: 0, enPreparation: 0 }));
+    const receptions = receptionsDeCommande(data, commande);
+    receptions.forEach(r => (r.lines || []).forEach(l => {
+      const x = Number.isInteger(l.ligneCommande) ? lignes[l.ligneCommande] : null;
+      if (!x) return;
+      const q = round3(Number(l.qty) || 0);
+      if (r.status === 'validée') x.recue = round3(x.recue + q);
+      else if (r.status === 'brouillon') x.enPreparation = round3(x.enPreparation + q);
+    }));
+    lignes.forEach(x => {
+      x.reste = round3(Math.max(0, x.commandee - x.recue));
+      x.enPlus = round3(Math.max(0, x.recue - x.commandee));
+      x.aProposer = round3(Math.max(0, x.commandee - x.recue - x.enPreparation));
+    });
+    const utiles = lignes.filter(x => x.commandee > 0);
+    const toutRecu = utiles.length > 0 && utiles.every(x => x.reste <= 0);
+    return {
+      lignes, receptions, brouillons: receptions.filter(r => r.status === 'brouillon'),
+      recue: toutRecu, partielle: !toutRecu && lignes.some(x => x.recue > 0),
+      aProposer: utiles.some(x => x.aProposer > 0)
+    };
+  }
+  // Le statut d'une commande fournisseur : celui qu'on choisit, et, dès qu'elle a reçu quelque chose,
+  // celui que disent ses réceptions (« reçue en partie », « reçue »). « Soldée » choisie à la main clôt une
+  // commande dont le reste ne viendra pas ; « annulée » n'attend plus rien.
+  function statutCommandeFournisseur(data, commande) {
+    const st = (commande && commande.status) || 'brouillon';
+    if (st === 'soldée' || /^annul/.test(st)) return st;
+    const s = suiviCommandeFournisseur(data, commande);
+    return s.recue ? 'reçue' : s.partielle ? 'partielle' : st;
+  }
+  // La réception suivante d'une commande : ce qui reste à recevoir, et rien d'autre. Rien à recevoir : null.
+  function receptionDeCommande(data, commande, todayIso) {
+    const s = suiviCommandeFournisseur(data, commande);
+    const lines = (commande.lines || []).map((l, i) => ({ ...JSON.parse(JSON.stringify(l)), qty: s.lignes[i] ? s.lignes[i].aProposer : 0, ligneCommande: i }))
+      .filter(l => l.qty > 0);
+    if (!lines.length) return null;
+    return { id: uid(), number: '', status: 'brouillon', date: todayIso || today(), supplierId: commande.supplierId || '', orderId: commande.id,
+      orderNumber: commande.number || '', currency: commande.currency || '', exchangeRate: commande.exchangeRate || '', lines, notes: '', createdAt: Date.now() };
+  }
+  // Les réceptions validées qu'aucune facture d'achat ne couvre encore (une facture supprimée les libère).
+  function receptionsAFacturer(data, supplierId) {
+    const couvertes = new Set();
+    (data.purchases || []).forEach(p => (Array.isArray(p.receptions) ? p.receptions : []).forEach(x => couvertes.add(x.id)));
+    return (data.receptions || []).filter(r => r.status === 'validée' && !couvertes.has(r.id) && (!supplierId || r.supplierId === supplierId));
+  }
+  // Les lignes de la facture du fournisseur, depuis ses réceptions validées : chaque ligne de commande en
+  // UNE ligne, sa quantité reçue en tout au prix de la commande (un arrondi, pas un par réception) ; la
+  // destination « stock » pour un article suivi, et la marque `recue` : la réception l'a déjà fait entrer.
+  function lignesAchatDeReceptions(data, receptions) {
+    const parCle = new Map(), out = [];
+    (receptions || []).forEach(r => (r.lines || []).forEach(l => {
+      const c = itemOfLine(l, data);
+      const ligne = { label: l.label || '', qty: round3(Number(l.qty) || 0), unit: l.unit || '', unitPrice: Number(l.unitPrice) || 0, vatRate: Number(l.vatRate) || 0,
+        destination: c && c.tracked ? 'stock' : 'charge', deductible: true, recue: true, ...(l.itemId ? { itemId: l.itemId } : {}) };
+      const cle = Number.isInteger(l.ligneCommande) && r.orderId ? JSON.stringify([r.orderId, l.ligneCommande, ligne.label, ligne.unitPrice, ligne.vatRate]) : '';
+      const deja = cle ? parCle.get(cle) : null;
+      if (deja) { deja.qty = round3(deja.qty + ligne.qty); return; }
+      if (cle) parCle.set(cle, ligne);
+      out.push(ligne);
+    }));
+    return out.filter(l => l.qty > 0);
+  }
+  // La copie d'une ligne d'achat (le bouton ⧉, la copie d'un achat) : aucune réception ne l'a reçue, sa
+  // marchandise entre en stock comme celle de n'importe quelle ligne.
+  function copieLigneAchat(l) {
+    const x = JSON.parse(JSON.stringify(l || {}));
+    delete x.recue;
+    return x;
+  }
+
+  // ---------- les commandes livrées en plusieurs fois (plateforme, brique 86 ; 14 § 3.2) ----------
+-- fin
+
+== core.js | la commande imprimée pour le fournisseur
+-- avant
+    const isOrder = doc.type === 'commande';
+-- après
+    const isOrder = doc.type === 'commande';
+    // La commande qu'on passe à un fournisseur (brique 87) : elle s'imprime comme un bon de commande, pour lui.
+    const isSupplierOrder = doc.type === 'commandeFournisseur';
+-- fin
+
+== core.js | la commande fournisseur imprimée dit sa date et la livraison souhaitée
+-- avant
+    ] : isContract ? [
+-- après
+    ] : isSupplierOrder ? [
+      [L.orderedOn, fmtDate(doc.date)],
+      doc.dueDate ? [L.wantedBy, fmtDate(doc.dueDate)] : null,
+      doc.reference ? [L.reference, doc.reference] : null
+    ] : isContract ? [
+-- fin
+
+== core.js | la commande fournisseur imprimée s'adresse au fournisseur
+-- avant
+${isInvoice || isProforma ? L.billedTo : isCredit || isDelivery || isContract ? L.client : L.preparedFor}
+-- après
+${isSupplierOrder ? L.supplier : isInvoice || isProforma ? L.billedTo : isCredit || isDelivery || isContract ? L.client : L.preparedFor}
+-- fin
+
+== core.js | la commande fournisseur imprimée demande la confirmation du fournisseur
+-- avant
+        ${isDelivery ? `<div class="info"><span class="k">${L.livraison}</span><div class="terms">${L.deliveryNote}</div></div>` : ''}
+-- après
+        ${isDelivery ? `<div class="info"><span class="k">${L.livraison}</span><div class="terms">${L.deliveryNote}</div></div>` : ''}
+        ${isSupplierOrder ? `<div class="info"><span class="k">${L.commandeFournisseur}</span><div class="terms">${L.supplierOrderNote}</div></div>` : ''}
+-- fin
+
+== core.js | les mots de la commande fournisseur imprimée
+-- avant
+from: 'Suite à', deliveryNotes: 'Bons de livraison', deliveryNote1: 'Bon de livraison',
+-- après
+from: 'Suite à', deliveryNotes: 'Bons de livraison', deliveryNote1: 'Bon de livraison',
+      commandeFournisseur: 'Bon de commande', supplier: 'Fournisseur', wantedBy: 'Livraison souhaitée le',
+      supplierOrderNote: 'Merci de nous confirmer cette commande, ses prix et sa date de livraison. Toute livraison est accompagnée de son bon de livraison.',
+-- fin
+
+== core.js | les mots de la commande fournisseur imprimée, en anglais
+-- avant
+from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery note',
+-- après
+from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery note',
+      commandeFournisseur: 'Purchase order', supplier: 'Supplier', wantedBy: 'Delivery requested by',
+      supplierOrderNote: 'Please confirm this order, its prices and its delivery date. Every delivery comes with its delivery note.',
+-- fin
+
+== core.js | le moteur des commandes fournisseurs est public
+-- avant
+    BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
+-- après
+    BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
+    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat,
+-- fin
+
+── Les écrans (app.js) ──
+
+== app.js | le nom des pages des commandes fournisseurs, pour le bouton retour
+-- avant
+    achats: 'Achats et dépenses', achat: 'l\'achat', fournisseurs: 'Fournisseurs', fournisseur: 'la fiche fournisseur',
+-- après
+    achats: 'Achats et dépenses', achat: 'l\'achat', fournisseurs: 'Fournisseurs', fournisseur: 'la fiche fournisseur',
+    commandesf: 'Commandes fournisseurs', commandef: 'la commande fournisseur', reception: 'la réception',
+-- fin
+
+== app.js | l'icône des commandes fournisseurs dans le menu
+-- avant
+    fournisseurs: '<path d="M3 9l2-5h14l2 5"/><path d="M4 9h16v11H4z"/><path d="M9 20v-6h6v6"/>',
+-- après
+    fournisseurs: '<path d="M3 9l2-5h14l2 5"/><path d="M4 9h16v11H4z"/><path d="M9 20v-6h6v6"/>',
+    commandesf: '<path d="M3 7h13v10H3z"/><path d="M16 10h3l2 3v4h-5"/><circle cx="7" cy="18" r="1.5"/><circle cx="17.5" cy="18" r="1.5"/>',
+-- fin
+
+== app.js | une commande ou une réception allume « Commandes fournisseurs » dans le menu
+-- avant
+    else if (name === 'fournisseur') active = 'fournisseurs';
+-- après
+    else if (name === 'fournisseur') active = 'fournisseurs';
+    else if (name === 'commandef' || name === 'reception') active = 'commandesf';
+-- fin
+
+== app.js | la copie d'un achat ne reprend pas les réceptions qu'il couvre
+-- avant
+    const copy = { ...deepCopy(p), id: C.uid(), number: '', date: C.today(), createdAt: Date.now(), payments: [], attachments: [], withholdingCertificate: false, tvaRecuperable: C.assujettiTVA(company()) };
+-- après
+    const copy = { ...deepCopy(p), id: C.uid(), number: '', date: C.today(), createdAt: Date.now(), payments: [], attachments: [], withholdingCertificate: false, tvaRecuperable: C.assujettiTVA(company()) };
+    // Les réceptions qu'un achat couvre sont les siennes (brique 87) : sa copie n'en couvre aucune, et ses
+    // lignes font entrer leur marchandise en stock comme n'importe quel achat.
+    delete copy.receptions;
+    copy.lines = (copy.lines || []).map(C.copieLigneAchat);
+-- fin
+
+== app.js | la facture d'un fournisseur saisie depuis ses réceptions le dit
+-- avant
+      ${bandeauQuestions(p.number)}
+      <div class="buy-editor" data-devise="${h(cur)}">
+-- après
+      ${bandeauQuestions(p.number)}
+      ${Array.isArray(p.receptions) && p.receptions.length ? `<div class="banner info mb" id="b-receptions"><span>Saisie depuis ${p.receptions.length > 1 ? 'les réceptions' : 'la réception'} ${p.receptions.map(x => `<a href="#/reception/${h(x.id)}">${h(x.number || 'sans numéro')}</a>`).join(', ')} : sa marchandise est déjà entrée en stock par ${p.receptions.length > 1 ? 'elles' : 'elle'}, ces lignes ne l'y font pas entrer une seconde fois. ${info('cf.facture')}</span></div>` : ''}
+      <div class="buy-editor" data-devise="${h(cur)}">
+-- fin
+
+== app.js | une ligne d'achat reçue par une réception le dit, sous sa destination
+-- avant
+        <td><select data-k="destination">${C.LINE_DESTINATIONS.map(([v, lab, d]) => `<option value="${v}" ${(l.destination || 'charge') === v ? 'selected' : ''} title="${h(d)}">${lab}</option>`).join('')}</select></td>
+-- après
+        <td><select data-k="destination">${C.LINE_DESTINATIONS.map(([v, lab, d]) => `<option value="${v}" ${(l.destination || 'charge') === v ? 'selected' : ''} title="${h(d)}">${lab}</option>`).join('')}</select>${l.recue ? `<div class="small muted nw" data-recue title="${h('Sa marchandise est entrée en stock par la réception : cette ligne ne l\'y fait pas entrer une seconde fois.')}">reçue par une réception</div>` : ''}</td>
+-- fin
+
+== app.js | une ligne d'achat copiée (⧉) n'a été reçue par aucune réception
+-- avant
+      $$('[data-dup]', body).forEach(b => b.onclick = () => { const i = Number(b.dataset.dup); p.lines.splice(i + 1, 0, deepCopy(p.lines[i])); touch(); drawLines(); });
+-- après
+      // Une ligne copiée n'a été reçue par aucune réception (brique 87) : sa marchandise entre en stock.
+      $$('[data-dup]', body).forEach(b => b.onclick = () => { const i = Number(b.dataset.dup); p.lines.splice(i + 1, 0, C.copieLigneAchat(p.lines[i])); touch(); drawLines(); });
+-- fin
+
+== app.js | les commandes fournisseurs et leurs réceptions : les écrans
+-- avant
+  routes.achats = () => {
+-- après
+  // ---------- les commandes fournisseurs et leurs réceptions (plateforme, brique 87 ; 14 § 3.2) ----------
+  // Ce que tu commandes à tes fournisseurs (`data.supplierOrders`), et ce que tu en reçois
+  // (`data.receptions`). Ni l'une ni l'autre n'est une pièce comptable ; la facture du fournisseur, elle,
+  // en est une : elle se saisit depuis les réceptions validées, qui ont déjà fait entrer la marchandise.
+  const commandesF = () => (data.supplierOrders = data.supplierOrders || []);
+  const receptionsF = () => (data.receptions = data.receptions || []);
+  const commandeFById = id => commandesF().find(o => o.id === id);
+  const receptionById = id => receptionsF().find(r => r.id === id);
+  const MOTS_CF = { brouillon: 'brouillon', envoyée: 'envoyée', partielle: 'reçue en partie', reçue: 'reçue', soldée: 'soldée', annulée: 'annulée', validée: 'validée' };
+  const CLASSE_CF = { brouillon: 'brouillon', envoyée: 'envoyée', partielle: 'partielle', reçue: 'payée', soldée: 'émis', annulée: 'annulée', validée: 'payée' };
+  const badgeCF = st => `<span class="badge ${h(CLASSE_CF[st] || '')}">${h(MOTS_CF[st] || st)}</span>`;
+  const parDateCF = (a, b) => (b.date || '').localeCompare(a.date || '') || (b.number || '').localeCompare(a.number || '', undefined, { numeric: true }) || (b.createdAt || 0) - (a.createdAt || 0);
+  const etatCF = { onglet: 'commandes', commandes: { page: 1 }, receptions: { page: 1 } };
+  const fournisseursCF = () => data.suppliers.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(x => ({
+    v: x.id, label: x.name, sub: [x.contact, x.matricule ? 'MF ' + x.matricule : ''].filter(Boolean).join(' · '), text: `${x.name} ${x.contact || ''} ${x.matricule || ''}` }));
+
+  routes.commandesf = (parts) => {
+    if (parts[0] === 'receptions' || parts[0] === 'commandes') etatCF.onglet = parts[0];
+    const onglet = etatCF.onglet;
+    const cmds = commandesF().slice().sort(parDateCF), recs = receptionsF().slice().sort(parDateCF);
+    const vide = !cmds.length && !recs.length;
+    $('#view').innerHTML = `
+      <div class="page-head"><h1>Commandes fournisseurs ${info('cf.page')}</h1>
+        <div class="actions"><button class="btn ${vide ? '' : 'btn-primary'}" id="cf-new">+ Nouvelle commande</button></div></div>
+      ${vide ? etatVide('Ce que tu commandes à tes fournisseurs', ['La commande part chez le fournisseur en PDF ; chaque livraison se reçoit, et ce qui manque reste à recevoir, ligne par ligne. La marchandise reçue entre en stock.'],
+        [['cf-vide-new', '+ Nouvelle commande', true]]) : `
+      <div class="tabs" id="cf-tabs" role="tablist" aria-label="Commandes et réceptions">
+        <button role="tab" data-tab="commandes" class="${onglet === 'commandes' ? 'active' : ''}">Commandes <span class="tab-n">${cmds.length}</span></button>
+        <button role="tab" data-tab="receptions" class="${onglet === 'receptions' ? 'active' : ''}">Réceptions <span class="tab-n">${recs.length}</span></button>
+      </div>
+      <div id="cf-list"></div>`}`;
+    const nouvelle = () => navigate('#/commandef/new');
+    $('#cf-new').onclick = nouvelle;
+    if ($('#cf-vide-new')) $('#cf-vide-new').onclick = nouvelle;
+    if (vide) return;
+    $$('#cf-tabs button').forEach(b => { b.onclick = () => navigate('#/commandesf/' + b.dataset.tab); });
+    const dessiner = () => {
+      const liste = onglet === 'commandes' ? cmds : recs;
+      const st = etatCF[onglet];
+      const { rows, pg } = paginate(liste, st);
+      $('#cf-list').innerHTML = !liste.length
+        ? `<div class="empty mini">${onglet === 'commandes' ? 'Aucune commande pour l\'instant.' : 'Aucune réception pour l\'instant : une réception se fait depuis sa commande, « Recevoir ».'}</div>`
+        : `<div class="scroll-x"><table class="list"><thead><tr>${onglet === 'commandes'
+            ? '<th>Numéro</th><th>Fournisseur</th><th>Date</th><th>Livraison souhaitée</th><th>Statut</th><th class="r">Total HT</th>'
+            : '<th>Numéro</th><th>Fournisseur</th><th>Commande</th><th>Date</th><th>Statut</th><th class="r">Lignes</th>'}</tr></thead><tbody>
+          ${rows.map(x => onglet === 'commandes'
+            ? `<tr><td class="nw"><a href="#/commandef/${h(x.id)}"><b>${h(x.number || '(brouillon)')}</b></a></td><td>${h(supplierName(x.supplierId))}</td>
+                <td class="nw">${h(C.fmtDate(x.date))}</td><td class="nw">${x.dueDate ? h(C.fmtDate(x.dueDate)) : '—'}</td><td>${badgeCF(C.statutCommandeFournisseur(data, x))}</td>
+                <td class="r num nw">${h(C.money(C.computeTotals(x, company()).netHT, x.currency || company().currency))}</td></tr>`
+            : `<tr><td class="nw"><a href="#/reception/${h(x.id)}"><b>${h(x.number || '(brouillon)')}</b></a></td><td>${h(supplierName(x.supplierId))}</td>
+                <td class="nw">${x.orderId ? `<a href="#/commandef/${h(x.orderId)}">${h(x.orderNumber || '—')}</a>` : '—'}</td><td class="nw">${h(C.fmtDate(x.date))}</td><td>${badgeCF(x.status)}</td>
+                <td class="r num">${(x.lines || []).length}</td></tr>`).join('')}
+          </tbody></table></div>${pagerBar(pg, { noun: onglet === 'commandes' ? 'commande' : 'réception' })}`;
+      bindPager($('#cf-list'), st, dessiner);
+    };
+    dessiner();
+  };
+
+  // Saisir la facture du fournisseur depuis ses réceptions validées : un achat en brouillon, relu puis
+  // enregistré comme un autre ; ses lignes reçues n'entrent pas une seconde fois en stock.
+  function facturerReceptions(recs) {
+    if (!recs.length) return;
+    if (licenceBlock('Créer une pièce', 'achats')) return;
+    const p = newPurchase('facture', recs[0].supplierId);
+    const cmds = Array.from(new Set(recs.map(r => r.orderNumber).filter(Boolean)));
+    p.lines = C.lignesAchatDeReceptions(data, recs);
+    p.receptions = recs.map(r => ({ id: r.id, number: r.number || '' }));
+    p.subject = cmds.length ? `Commande ${cmds.join(', ')}` : '';
+    if (recs[0].currency) { p.currency = recs[0].currency; p.exchangeRate = recs[0].exchangeRate || ''; }
+    achatReprise = { hash: '#/achat/new', p, isNew: true };
+    navigate('#/achat/new');
+    toast('Facture pré-remplie depuis les réceptions : saisis son numéro et vérifie les prix avant d\'enregistrer.');
+  }
+
+  routes.commandef = (parts) => {
+    const isNew = parts[0] === 'new';
+    const stored = isNew ? null : commandeFById(parts[0]);
+    if (!isNew && !stored) return navigate('#/commandesf');
+    const o = stored ? deepCopy(stored) : { id: C.uid(), type: 'commandeFournisseur', number: '', status: 'brouillon', date: C.today(), dueDate: '',
+      supplierId: parts[1] && supplierById(parts[1]) ? parts[1] : '', reference: '', currency: company().currency, exchangeRate: '', discountRate: 0,
+      lines: [{ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19 }], notes: '', createdAt: Date.now() };
+    o.type = 'commandeFournisseur';
+    const suivi = stored ? C.suiviCommandeFournisseur(data, stored) : null;
+    const statut = stored ? C.statutCommandeFournisseur(data, stored) : 'brouillon';
+    const close = stored ? (stored.status === 'soldée' || /^annul/.test(stored.status || '')) : false;
+    const aRecevoir = !!(stored && stored.number && suivi.aProposer && !close);
+    const aFacturer = stored ? C.receptionsAFacturer(data).filter(r => r.orderId === stored.id) : [];
+    const recue = !!(suivi && suivi.receptions.some(r => r.status === 'validée'));
+    // Une commande qui a une réception, même en préparation, ne change plus ses lignes : ses réceptions s'y
+    // rattachent ligne par ligne, par leur rang (retirer une ligne les décalerait toutes).
+    const figee = !!(suivi && suivi.receptions.length);
+    const ro = figee ? 'disabled' : '';
+    let cur = o.currency || company().currency;
+    $('#view').innerHTML = `
+      <div class="page-head">
+        <div><h1>${stored ? `Commande ${h(o.number || '(brouillon)')}` : 'Nouvelle commande fournisseur'} <span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></h1>
+          ${stored ? `<div class="small muted">${h(supplierName(o.supplierId))} · ${badgeCF(statut)}</div>` : ''}</div>
+        <div class="actions">
+          ${backButton('#/commandesf')}
+          ${stored ? '<button class="btn" id="cf-pdf">PDF</button>' : ''}
+          ${aRecevoir ? `<button class="btn btn-primary" id="cf-recevoir">${suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir'}</button>` : ''}
+          ${aFacturer.length ? `<button class="btn ${aRecevoir ? '' : 'btn-primary'}" id="cf-facturer">Saisir la facture du fournisseur</button>` : ''}
+          <button class="btn ${!stored ? 'btn-primary' : ''}" id="save">Enregistrer</button>
+          ${stored ? `<div class="more"><button class="btn" id="more-btn" aria-label="Autres actions">Plus ▾</button><div class="more-list" id="more-list" hidden>
+            <button id="cf-del" class="danger">Supprimer</button></div></div>` : ''}
+        </div></div>
+      <div class="panel"><h2>La commande ${info('cf.head')}</h2>
+        <form id="cf-head" class="grid-3">
+          <div class="field">${lbl('Fournisseur', 'cf.fournisseur')}
+            ${combo({ name: 'supplierId', value: o.supplierId, items: fournisseursCF(), placeholder: '— Choisir un fournisseur —', search: 'Rechercher : nom, contact, MF…', ro: figee })}</div>
+          ${dateFieldHtml(lbl('Date de la commande', ''), 'date', o.date)}
+          ${dateFieldHtml(lbl('Livraison souhaitée le', 'cf.livraison'), 'dueDate', o.dueDate || '', { quick: true })}
+          ${field(lbl('Référence (optionnel)', ''), 'reference', o.reference || '', 'text')}
+          <label class="field">${lbl('Statut', 'cf.statut')}<select name="status">${C.STATUTS_COMMANDE_FOURNISSEUR.map(s => `<option value="${h(s)}" ${s === o.status ? 'selected' : ''}>${h(MOTS_CF[s].charAt(0).toUpperCase() + MOTS_CF[s].slice(1))}</option>`).join('')}</select></label>
+          <label class="field">${lbl('Devise', '')}<select name="currency" ${ro}>${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(C.libelleDevise(c))}</option>`).join('')}</select></label>
+          <label class="field obligatoire" id="cf-rate" ${cur === company().currency ? 'hidden' : ''}>${lbl(`1 <span id="cf-rate-dev">${h(cur)}</span> = ? ${h(company().currency)}`, '')}<input type="number" name="exchangeRate" value="${h(o.exchangeRate || '')}" step="0.0001" min="0" class="num" ${ro}></label>
+        </form>
+      </div>
+      <div class="panel"><h2>Lignes ${info('cf.lignes')}</h2>
+        ${figee ? `<p class="small muted mb" id="cf-figee">${recue ? 'Cette commande a déjà reçu de la marchandise : ses lignes ne changent plus (ses réceptions s\'y rattachent ligne par ligne).'
+          : 'Cette commande a une réception en préparation : ses lignes ne changent plus tant qu\'elle existe (elle s\'y rattache ligne par ligne). Pour les modifier, supprime d\'abord cette réception.'}</p>` : `<div class="catalog-pick"><div id="cf-cat">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher un article…' })}</div>
+          <button class="btn btn-sm" id="cf-add">+ Ligne</button></div>`}
+        <div class="lignes-cadre"><table class="lines-edit buy-lines"><thead><tr><th>Désignation</th><th class="r">Qté</th><th>Unité</th><th class="r">P.U. HT</th><th>TVA</th><th class="r">Total HT</th><th></th></tr></thead>
+          <tbody id="cf-lines"></tbody></table></div>
+        <div class="totals-box" id="cf-totals"></div>
+      </div>
+      ${suivi && suivi.receptions.length ? `<div class="panel" id="receptions-panel"><h2>Réceptions ${info('cf.receptions')}</h2>
+        <div class="scroll-x"><table class="list compact"><thead><tr><th>Désignation</th><th class="r">Commandé</th><th class="r">Reçu</th><th class="r">Reste</th></tr></thead><tbody>
+          ${suivi.lignes.filter(x => x.commandee > 0 || x.recue > 0).map(x => `<tr><td>${h(x.label || '—')}${x.unit ? ` <span class="small muted">(${h(x.unit)})</span>` : ''}</td>
+            <td class="r num">${pct(x.commandee)}</td><td class="r num">${pct(x.recue)}${x.enPreparation ? `<div class="small muted">+ ${pct(x.enPreparation)} en préparation</div>` : ''}</td>
+            <td class="r num">${x.enPlus ? `<span class="warn-text">${pct(x.enPlus)} de plus</span>` : pct(x.reste)}</td></tr>`).join('')}
+        </tbody></table></div>
+        <p class="small mt">${suivi.receptions.length > 1 ? 'Réceptions' : 'Réception'} : ${suivi.receptions.map(r => `<a href="#/reception/${h(r.id)}">${h(r.number || 'réception en brouillon')}</a> <span class="small muted">(${h(MOTS_CF[r.status] || r.status)}${r.date ? ', ' + h(C.fmtDate(r.date)) : ''})</span>`).join(', ')}</p>
+        ${stored.status === 'soldée' && suivi.lignes.some(x => x.reste > 0) ? '<p class="small muted">Soldée à la main : le reste n\'est plus attendu.</p>' : ''}
+      </div>` : ''}
+      <div class="panel"><h2>Notes (imprimées sur la commande)</h2><textarea id="cf-notes" placeholder="Conditions, adresse de livraison, contact sur place…">${h(o.notes || '')}</textarea></div>`;
+
+    let dirty = false;
+    const touch = () => { if (dirty) return; dirty = true; $('#dirty-dot').hidden = false; enregistrerDevientPrincipal(); };
+    const totaux = () => {
+      const t = C.computeTotals(o, company());
+      $('#cf-totals').innerHTML = `<table>
+        <tr><td>Total HT</td><td>${h(C.money(t.netHT, cur))}</td></tr>
+        <tr><td>TVA</td><td>${h(C.money(t.totalVAT, cur))}</td></tr>
+        <tr class="grand"><td>Total TTC</td><td>${h(C.money(t.totalTTC, cur))}</td></tr></table>`;
+      $$('#cf-lines tr').forEach((tr, i) => { const l = o.lines[i]; const c = tr.querySelector('[data-ht]'); if (l && c) c.textContent = C.money(C.round3((Number(l.qty) || 0) * (Number(l.unitPrice) || 0)), cur); });
+    };
+    const dessinerLignes = () => {
+      $('#cf-lines').innerHTML = o.lines.map((l, i) => `<tr>
+        <td><input type="text" data-k="label" data-i="${i}" value="${h(l.label || '')}" placeholder="Désignation" ${ro}></td>
+        <td><input type="number" class="num" data-k="qty" data-i="${i}" value="${h(l.qty)}" step="any" min="0" ${ro}></td>
+        <td><select data-k="unit" data-i="${i}" ${ro}>${unitOptions(l.unit)}</select></td>
+        <td><input type="number" class="num" data-k="unitPrice" data-i="${i}" value="${h(l.unitPrice)}" step="0.001" min="0" ${ro}></td>
+        <td><select data-k="vatRate" data-i="${i}" ${ro}>${C.VAT_RATES.map(v => `<option value="${v}" ${Number(l.vatRate) === v ? 'selected' : ''}>${v} %</option>`).join('')}</select></td>
+        <td class="r num nw" data-ht></td>
+        <td>${figee ? '' : `<button type="button" class="btn btn-ghost btn-sm" data-del="${i}" aria-label="Retirer la ligne ${i + 1}">✕</button>`}</td></tr>`).join('');
+      $$('#cf-lines [data-k]').forEach(el => {
+        el[el.tagName === 'SELECT' ? 'onchange' : 'oninput'] = () => {
+          const l = o.lines[Number(el.dataset.i)];
+          l[el.dataset.k] = ['qty', 'unitPrice', 'vatRate'].includes(el.dataset.k) ? (Number(el.value) || 0) : el.value;
+          touch(); totaux();
+        };
+      });
+      $$('#cf-lines [data-del]').forEach(b => { b.onclick = () => { o.lines.splice(Number(b.dataset.del), 1); touch(); dessinerLignes(); }; });
+      totaux();
+    };
+    dessinerLignes();
+    bindCombo($('[data-combo=supplierId]'), { items: fournisseursCF(), placeholder: '— Choisir un fournisseur —', onPick: v => { o.supplierId = v; touch(); } });
+    if ($('#cf-cat')) bindCombo($('.combo', $('#cf-cat')), {
+      reset: true, placeholder: 'Ajouter depuis le catalogue…',
+      items: data.catalog.slice().sort((a, b) => (a.label || '').localeCompare(b.label || '', 'fr'))
+        .map(c => ({ v: c.id, label: c.label, sub: c.tracked ? 'suivi en stock' : (c.description || ''), text: `${c.label} ${c.description || ''}` })),
+      onPick: id => {
+        const it = data.catalog.find(c => c.id === id); if (!it) return;
+        const vierge = o.lines.length === 1 && !o.lines[0].label && !Number(o.lines[0].unitPrice);
+        const ligne = { label: it.label, description: '', qty: 1, unit: it.unit || '', unitPrice: Number(it.unitCost) || 0, vatRate: C.tauxAchatArticle(it, company()), itemId: it.id };
+        if (vierge) o.lines[0] = ligne; else o.lines.push(ligne);
+        touch(); dessinerLignes();
+      }
+    });
+    if ($('#cf-add')) $('#cf-add').onclick = () => { o.lines.push({ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19 }); touch(); dessinerLignes(); };
+    const tete = $('#cf-head');
+    tete.addEventListener('input', touch);
+    tete.addEventListener('change', e => {
+      touch();
+      if (e.target.name === 'currency') { cur = e.target.value; $('#cf-rate').hidden = cur === company().currency; $('#cf-rate-dev').textContent = cur; o.currency = cur; totaux(); }
+    });
+    $('#cf-notes').oninput = touch;
+    const lire = () => {
+      const v = formValues(tete);
+      Object.assign(o, { supplierId: v.supplierId || '', date: v.date || o.date, dueDate: v.dueDate || '', reference: String(v.reference || '').trim(), status: v.status || 'brouillon',
+        currency: v.currency || cur, exchangeRate: v.currency && v.currency !== company().currency ? (Number(v.exchangeRate) || '') : '', notes: $('#cf-notes').value });
+    };
+    // Enregistrer : le fournisseur et au moins une ligne ; le numéro naît au premier enregistrement.
+    const enregistrer = () => {
+      lire();
+      if (!o.supplierId) { toast('Choisis le fournisseur de la commande : c\'est à lui qu\'elle part.', true); $('[data-combo=supplierId] .combo-btn').focus(); return false; }
+      if (!figee) o.lines = o.lines.filter(l => String(l.label || '').trim() || Number(l.unitPrice));
+      if (!o.lines.some(l => Number(l.qty) > 0)) { toast('Ajoute au moins une ligne à commander, avec sa quantité.', true); if (!o.lines.length) o.lines.push({ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19 }); dessinerLignes(); return false; }
+      if (o.currency !== company().currency && !(Number(o.exchangeRate) > 0)) { toast(`Saisis le taux de change : 1 ${o.currency} = combien de ${company().currency} ?`, true); $('[name=exchangeRate]').focus(); return false; }
+      if (!o.number) o.number = C.numeroSuivant(data, commandesF(), 'BCF', o.date);
+      const i = commandesF().findIndex(x => x.id === o.id);
+      if (i >= 0) commandesF()[i] = deepCopy(o); else commandesF().push(deepCopy(o));
+      save(true);
+      dirty = false;
+      clearGuard(garde);
+      return true;
+    };
+    const garde = { dirty: () => dirty, save: enregistrer, what: 'cette commande' };
+    setGuard(garde);
+    $('#save').onclick = () => {
+      const neuf = !stored;
+      if (!enregistrer()) return;
+      toast(`Commande ${o.number} enregistrée`);
+      if (neuf) remplacerPage('#/commandef/' + o.id); else render(true);
+    };
+    if ($('#cf-pdf')) $('#cf-pdf').onclick = async () => {
+      if (dirty && !enregistrer()) return;
+      const cmd = commandeFById(o.id);
+      const html = C.documentHtml({ ...cmd, type: 'commandeFournisseur' }, supplierById(cmd.supplierId) || {}, company());
+      try { await bridge.exportPdf(html, `${cmd.number}_${String(supplierName(cmd.supplierId)).replace(/[^\w\-àâäéèêëïîôöùûüç ]/gi, '').trim().replace(/\s+/g, '_')}.pdf`); }
+      catch (e) { toast('Export PDF impossible : ' + plainError(e), true); }
+    };
+    if ($('#cf-recevoir')) $('#cf-recevoir').onclick = () => {
+      if (dirty && !enregistrer()) return;
+      const r = C.receptionDeCommande(data, commandeFById(o.id), C.today());
+      if (!r) return toast(`Rien ne reste à recevoir sur ${o.number} : tout est reçu, ou dans une réception en préparation.`);
+      receptionsF().push(r); save(true);
+      navigate('#/reception/' + r.id);
+    };
+    if ($('#cf-facturer')) $('#cf-facturer').onclick = () => { if (dirty && !enregistrer()) return; facturerReceptions(aFacturer); };
+    if ($('#more-btn')) $('#more-btn').onclick = () => { $('#more-list').hidden = !$('#more-list').hidden; };
+    if ($('#cf-del')) $('#cf-del').onclick = async () => {
+      $('#more-list').hidden = true;
+      if (receptionsDeCommandeUI(o.id).length) return toast(`La commande ${o.number} a des réceptions : annule-la plutôt (le statut « Annulée ») ; ses réceptions restent.`, true);
+      if (!await confirmDialog(`Supprimer la commande ${o.number || ''} ?`, 'Supprimer', true)) return;
+      data.supplierOrders = commandesF().filter(x => x.id !== o.id); save(true);
+      dirty = false; clearGuard(garde);
+      navigate('#/commandesf');
+    };
+  };
+  const receptionsDeCommandeUI = id => receptionsF().filter(r => r.orderId === id && !/^annul/.test(r.status || ''));
+
+  routes.reception = (parts) => {
+    const stored = receptionById(parts[0]);
+    if (!stored) return navigate('#/commandesf/receptions');
+    const r = deepCopy(stored);
+    const cmd = commandeFById(r.orderId);
+    const valide = r.status === 'validée', annulee = /^annul/.test(r.status || '');
+    const ro = valide || annulee ? 'disabled' : '';
+    // Ce que la commande attend encore de chaque ligne, sans compter cette réception-ci.
+    const autres = cmd ? C.suiviCommandeFournisseur({ ...data, receptions: receptionsF().filter(x => x.id !== r.id) }, cmd) : null;
+    const facturee = valide && !C.receptionsAFacturer(data).some(x => x.id === r.id);
+    const facture = facturee ? (data.purchases || []).find(p => (p.receptions || []).some(x => x.id === r.id)) : null;
+    $('#view').innerHTML = `
+      <div class="page-head">
+        <div><h1>${r.number ? `Réception ${h(r.number)}` : 'Réception (brouillon)'} <span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></h1>
+          <div class="small muted">${h(supplierName(r.supplierId))}${cmd ? ` · commande <a href="#/commandef/${h(cmd.id)}">${h(cmd.number)}</a>` : ''} · ${badgeCF(r.status)}</div></div>
+        <div class="actions">
+          ${backButton(cmd ? '#/commandef/' + cmd.id : '#/commandesf/receptions')}
+          ${!ro ? '<button class="btn" id="save">Enregistrer</button><button class="btn btn-primary" id="rec-valider">Valider la réception</button>' : ''}
+          ${valide && !facturee ? '<button class="btn btn-primary" id="rec-facturer">Saisir la facture du fournisseur</button>' : ''}
+          ${facture ? `<a class="btn" href="#/achat/${h(facture.id)}">Voir la facture ${h(facture.number || '')}</a>` : ''}
+          ${annulee ? '' : `<div class="more"><button class="btn" id="more-btn" aria-label="Autres actions">Plus ▾</button><div class="more-list" id="more-list" hidden>
+            ${valide ? '<button id="rec-annuler" class="danger">Annuler la réception…</button>' : '<button id="rec-del" class="danger">Supprimer</button>'}</div></div>`}
+        </div></div>
+      <div class="panel"><h2>Ce qui est arrivé ${info('rec.lignes')}</h2>
+        <form id="rec-head" class="grid-3">${dateFieldHtml(lbl('Date de réception', ''), 'date', r.date, { ro: !!ro })}</form>
+        <div class="scroll-x mt"><table class="list compact rec-lines"><thead><tr><th>Désignation</th><th class="r">Commandé</th><th class="r">Déjà reçu</th><th class="r">Reçu ici</th><th>Unité</th></tr></thead>
+          <tbody>${r.lines.map((l, i) => { const x = autres && Number.isInteger(l.ligneCommande) ? autres.lignes[l.ligneCommande] : null; return `<tr>
+            <td>${h(l.label || '—')}</td><td class="r num">${x ? pct(x.commandee) : '—'}</td><td class="r num">${x ? pct(x.recue) : '—'}</td>
+            <td class="r"><input type="number" class="num" data-rq="${i}" value="${h(l.qty)}" step="any" min="0" style="max-width:110px" ${ro} aria-label="Quantité reçue : ${h(l.label || 'ligne ' + (i + 1))}"></td>
+            <td>${h(l.unit || '')}</td></tr>`; }).join('')}</tbody></table></div>
+        <div id="rec-avis" class="mt"></div>
+        <label class="field mt">Notes<textarea id="rec-notes" placeholder="État de la marchandise, numéro du bon de livraison du fournisseur…" ${ro}>${h(r.notes || '')}</textarea></label>
+      </div>`;
+    let dirty = false;
+    const touch = () => { if (dirty) return; dirty = true; $('#dirty-dot').hidden = false; };
+    // Ce qui arrive en plus de la commande se dit AVANT de valider (un avertissement se lit avant le geste).
+    const avis = () => {
+      const trop = autres ? r.lines.map(l => {
+        const x = Number.isInteger(l.ligneCommande) ? autres.lignes[l.ligneCommande] : null;
+        const permis = x ? Math.max(0, x.commandee - x.recue) : null;
+        return x && (Number(l.qty) || 0) > permis + 0.0005 ? `${l.label} : ${pct(C.round3((Number(l.qty) || 0) - permis))} de plus que ce qui reste à recevoir (${pct(C.round3(permis))})` : '';
+      }).filter(Boolean) : [];
+      $('#rec-avis').innerHTML = trop.length ? `<div class="warn-box">${trop.map(h).join('<br>')}. Vérifie avant de valider : ce qui est reçu en plus entre quand même en stock.</div>` : '';
+    };
+    $$('[data-rq]').forEach(el => { el.oninput = () => { r.lines[Number(el.dataset.rq)].qty = Number(el.value) || 0; touch(); avis(); }; });
+    $('#rec-notes').oninput = e => { r.notes = e.target.value; touch(); };
+    $('#rec-head').addEventListener('change', touch);
+    avis();
+    const enregistrer = (valider) => {
+      const v = formValues($('#rec-head'));
+      r.date = v.date || r.date;
+      if (valider) {
+        if (!r.lines.some(l => Number(l.qty) > 0)) { toast('Rien n\'est reçu : saisis au moins une quantité reçue, ou supprime cette réception.', true); return false; }
+        r.lines = r.lines.filter(l => Number(l.qty) > 0);
+        r.status = 'validée';
+        r.number = r.number || C.numeroSuivant(data, receptionsF(), 'BR', r.date);
+        r.validatedTs = Date.now();
+      }
+      const i = receptionsF().findIndex(x => x.id === r.id);
+      if (i >= 0) receptionsF()[i] = deepCopy(r); else receptionsF().push(deepCopy(r));
+      save(true);
+      dirty = false; clearGuard(garde);
+      return true;
+    };
+    const garde = { dirty: () => dirty, save: () => enregistrer(false), what: 'cette réception' };
+    setGuard(garde);
+    if ($('#save')) $('#save').onclick = () => { if (enregistrer(false)) { toast('Réception enregistrée (brouillon) : rien n\'est reçu tant qu\'elle n\'est pas validée.'); render(true); } };
+    if ($('#rec-valider')) $('#rec-valider').onclick = () => { if (enregistrer(true)) { toast(`Réception ${r.number} validée : la marchandise suivie est entrée en stock.`); render(true); } };
+    if ($('#rec-facturer')) $('#rec-facturer').onclick = () => facturerReceptions(C.receptionsAFacturer(data).filter(x => x.orderId === r.orderId || x.id === r.id));
+    if ($('#more-btn')) $('#more-btn').onclick = () => { $('#more-list').hidden = !$('#more-list').hidden; };
+    if ($('#rec-del')) $('#rec-del').onclick = async () => {
+      $('#more-list').hidden = true;
+      if (!await confirmDialog('Supprimer cette réception en brouillon ?', 'Supprimer', true)) return;
+      data.receptions = receptionsF().filter(x => x.id !== r.id); save(true);
+      dirty = false; clearGuard(garde);
+      navigate(cmd ? '#/commandef/' + cmd.id : '#/commandesf/receptions');
+    };
+    if ($('#rec-annuler')) $('#rec-annuler').onclick = async () => {
+      $('#more-list').hidden = true;
+      if (facturee) return toast(`La réception ${r.number} est facturée (${(facture && facture.number) || 'facture du fournisseur'}) : supprime ou corrige d'abord la facture.`, true);
+      if (!await confirmDialog(`Annuler la réception ${r.number} ? Sa marchandise ressort du stock, et la commande attend de nouveau ce qu'elle avait reçu.`, 'Annuler la réception', true)) return;
+      r.status = 'annulée';
+      const i = receptionsF().findIndex(x => x.id === r.id);
+      receptionsF()[i] = deepCopy(r); save(true);
+      render(true);
+    };
+  };
+
+  routes.achats = () => {
+-- fin
+
+── Les bulles (guide.js) ──
+
+== guide.js | les bulles des commandes fournisseurs et des réceptions
+-- avant
+    'ed.livraisons': { t: 'Livraisons', d: 
+-- après
+    'cf.page': { t: 'Commandes fournisseurs', d: 'Ce que tu commandes à tes fournisseurs, et ce que tu en as reçu. La commande part chez le fournisseur en PDF ; quand la marchandise arrive, « Recevoir » en fait une <b>réception</b> qui reprend ce qui reste à recevoir. Une réception <b>validée</b> fait entrer la marchandise suivie en stock. Ce ne sont pas des pièces comptables : la facture du fournisseur, elle, se saisit depuis ses réceptions, dans « Achats ».' },
+    'cf.head': { t: 'La commande', d: 'Le fournisseur, la date, la livraison que tu souhaites, et ta référence si tu en as une. Le numéro (BCF-…) naît au premier enregistrement.' },
+    'cf.fournisseur': { t: 'Fournisseur', d: 'À qui part la commande. Il se choisit parmi tes fournisseurs (page « Fournisseurs »).' },
+    'cf.livraison': { t: 'Livraison souhaitée', d: 'La date à laquelle tu veux être livré : elle s\'imprime sur la commande.' },
+    'cf.statut': { t: 'Statut', d: '« Envoyée » quand la commande est partie chez le fournisseur. Dès qu\'elle reçoit, elle se dit « reçue en partie », puis « reçue ». Si le reste ne viendra jamais, choisis « Soldée » : il n\'est plus attendu. « Annulée » : plus rien n\'est attendu.' },
+    'cf.lignes': { t: 'Lignes', d: 'Ce que tu commandes, à quel prix hors taxes. Un article du catalogue prend son coût d\'achat et, s\'il est suivi en stock, y entrera à la réception. Une fois que la commande a reçu, ses lignes ne changent plus.' },
+    'cf.receptions': { t: 'Réceptions', d: 'Ligne par ligne : ce qui est commandé, ce que les réceptions <b>validées</b> ont reçu, et ce qui reste. Une réception en brouillon est « en préparation ».' },
+    'rec.lignes': { t: 'Ce qui est arrivé', d: 'Saisis ce qui est vraiment arrivé, ligne par ligne. Tant que la réception est en brouillon, rien n\'est reçu ; <b>« Valider la réception »</b> fait entrer la marchandise suivie en stock, et la commande attend le reste.' },
+    'cf.facture': { t: 'Facture depuis les réceptions', d: 'La facture du fournisseur reprend ce que les réceptions ont reçu, au prix de la commande : vérifie les prix et saisis son numéro. Ses lignes reçues n\'entrent pas une seconde fois en stock : la réception l\'a déjà fait.' },
+    'ed.livraisons': { t: 'Livraisons', d: 
+-- fin

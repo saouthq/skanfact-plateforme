@@ -50,6 +50,11 @@
   reprend ce qui reste (lignes rattachées : `ligneCommande`) ; UNE fonction compte ce qui est livré
   (`suiviCommande`, core.js) ; « Facturer des bons… » fait une facture de plusieurs bons, chaque ligne de
   commande en une ligne ; ses bons (`bonsLivraison`) sont scellés par le serveur à l'émission.
+- **Les commandes fournisseurs et leurs réceptions** (brique 87, `docs/commandes-fournisseurs.md`) : dans le
+  dossier (`supplierOrders`, `receptions`), jamais parmi les achats ; « Recevoir » reprend ce qui reste, UNE
+  fonction compte ce qui est reçu (`suiviCommandeFournisseur`) ; une réception VALIDÉE fait entrer le stock
+  au prix de la commande en dinars ; la facture saisie depuis les réceptions marque ses lignes `recue` (le
+  stock n'entre pas deux fois) ; une commande qui a une réception, même en préparation, fige ses lignes.
 - Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,
   un seau par clé dans la mémoire du programme (à partager le jour où il y aura plusieurs programmes).
 - Les avis d'événement signés (`0008`, `serveur/avis.ts`, 28/09/2026) : l'avis naît dans la

@@ -432,6 +432,9 @@
       quoi: 'Les factures qui se répètent toutes seules : abonnement, maintenance, forfait mensuel.' },
     { id: 'achats', titre: 'Achats', module: 'achats', famille: 'Acheter',
       quoi: 'Ce que tu dépenses, pièce par pièce, et la TVA que tu récupères dessus.' },
+    // Ce qu'on commande à ses fournisseurs, et ce qu'on en reçoit (plateforme, brique 87).
+    { id: 'commandesf', titre: 'Commandes fournisseurs', module: 'achats', famille: 'Acheter',
+      quoi: 'Ce que tu commandes à tes fournisseurs, et ce que tu en as reçu : le reste à recevoir, ligne par ligne.' },
     { id: 'fournisseurs', titre: 'Fournisseurs', module: 'achats', famille: 'Acheter',
       quoi: 'Les gens à qui tu achètes, et ce que tu leur dois encore.' },
     { id: 'stock', titre: 'Stock', module: 'stock', famille: 'Acheter' },
@@ -3269,7 +3272,7 @@
   // À VÉRIFIER avec le comptable : la méthode de valorisation retenue pour tes comptes annuels.
 
   const MOVE_SOURCES = [
-    ['achat', 'Achat'], ['vente', 'Vente'], ['livraison', 'Bon de livraison'],
+    ['achat', 'Achat'], ['reception', 'Réception'], ['vente', 'Vente'], ['livraison', 'Bon de livraison'],
     ['avoir', 'Retour sur avoir'], ['depart', 'Stock de départ'],
     ['inventaire', 'Inventaire'], ['casse', 'Casse ou perte'],
     ['consommation', 'Matière utilisée'], ['ajustement', 'Ajustement']
@@ -3287,7 +3290,7 @@
   }
   // Les seuls mouvements qui ne sont PAS une charge de la période : l'achat (c'est de l'argent devenu
   // stock) et le stock de départ (ce qu'on avait avant de commencer à compter).
-  const SOURCES_HORS_CHARGE = ['achat', 'depart'];
+  const SOURCES_HORS_CHARGE = ['achat', 'reception', 'depart'];
   const moveSourceLabel = k => (MOVE_SOURCES.find(m => m[0] === k) || [, k])[1];
 
   // Les articles du catalogue suivis en stock.
@@ -3358,6 +3361,8 @@
       const sens = p.kind === 'avoir' ? -1 : 1;
       (p.lines || []).forEach((l, i) => {
         if (l.destination !== 'stock') return;
+        // Une ligne saisie depuis une réception (brique 87) : la marchandise est entrée par la réception.
+        if (l.recue) return;
         const c = itemOfLine(l, data);
         if (!keep(c)) return;
         if (limit && p.date > limit) return;
@@ -3372,6 +3377,22 @@
           // porte au 607 (10.14.0).
           unitCost: toBase(p, (Number(l.unitPrice) || 0) * (tvaNonDeductible(l, p, data.company) ? 1 + (Number(l.vatRate) || 0) / 100 : 1), data.company || {}),
           source: 'achat', ref: p.number || '', docId: p.id, note: '', rang: 1, ts: Number(p.createdAt) || 0 });
+      });
+    });
+
+    // Entrées : les réceptions VALIDÉES d'une commande fournisseur (brique 87), au prix de la commande,
+    // ramené dans la devise de l'entreprise. Une réception en brouillon n'a rien reçu.
+    (data.receptions || []).forEach(r => {
+      if (r.status !== 'validée') return;
+      if (limit && r.date > limit) return;
+      (r.lines || []).forEach((l, i) => {
+        const c = itemOfLine(l, data);
+        if (!keep(c)) return;
+        const qty = Number(l.qty) || 0;
+        if (!qty) return;
+        out.push({ id: `rec-${r.id}-${i}`, date: r.date, itemId: c.id, label: c.label, qty,
+          unitCost: toBase(r, Number(l.unitPrice) || 0, data.company || {}),
+          source: 'reception', ref: r.number || '', docId: r.id, note: '', rang: 1, ts: Number(r.validatedTs || r.createdAt) || 0 });
       });
     });
 
@@ -7454,6 +7475,103 @@
     return docs.filter(d => vus.has(d.id) && d.id !== doc.id);
   }
 
+  // ---------- les commandes fournisseurs et leurs réceptions (plateforme, brique 87 ; 14 § 3.2) ----------
+  // La commande qu'on passe à un fournisseur (`data.supplierOrders`) et ses réceptions (`data.receptions`),
+  // le miroir d'une commande client et de ses bons de livraison. Ce ne sont pas des pièces comptables :
+  // elles ne vivent pas parmi les achats (la facture du fournisseur, elle, en est une). Une réception tirée
+  // d'une commande reprend ce qui reste à recevoir, chaque ligne rattachée à la sienne (`ligneCommande`),
+  // et UNE fonction compte ce qui est reçu : le statut de la commande, son panneau et la réception suivante
+  // la lisent. Seule une réception VALIDÉE a reçu ; en brouillon, elle est « en préparation » ; annulée,
+  // elle ne compte pas.
+  const STATUTS_COMMANDE_FOURNISSEUR = ['brouillon', 'envoyée', 'soldée', 'annulée'];
+  // Le numéro suivant d'une liste qui n'est pas une pièce de vente (BCF-2026-001, BR-2026-001) : le plus
+  // grand déjà porté ou le compteur, le plus grand des deux, plus un.
+  function numeroSuivant(data, liste, prefixe, dateIso) {
+    const annee = (dateIso || today()).slice(0, 4);
+    const cle = `${prefixe}-${annee}`;
+    data.counters = data.counters || {};
+    const vus = (liste || []).filter(x => x.number && String(x.number).startsWith(`${prefixe}-${annee}-`)).map(x => parseInt(String(x.number).split('-')[2], 10) || 0);
+    const n = Math.max(vus.length ? Math.max(...vus) : 0, data.counters[cle] || 0) + 1;
+    data.counters[cle] = n;
+    return `${prefixe}-${annee}-${String(n).padStart(3, '0')}`;
+  }
+  function receptionsDeCommande(data, commande) {
+    if (!commande || !commande.id) return [];
+    return (data.receptions || []).filter(r => r.orderId === commande.id && !/^annul/.test(r.status || ''))
+      .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.createdAt || 0) - (b.createdAt || 0));
+  }
+  function suiviCommandeFournisseur(data, commande) {
+    const lignes = ((commande && commande.lines) || []).map((l, i) => ({ i, label: l.label || '', unit: l.unit || '', commandee: round3(Number(l.qty) || 0), recue: 0, enPreparation: 0 }));
+    const receptions = receptionsDeCommande(data, commande);
+    receptions.forEach(r => (r.lines || []).forEach(l => {
+      const x = Number.isInteger(l.ligneCommande) ? lignes[l.ligneCommande] : null;
+      if (!x) return;
+      const q = round3(Number(l.qty) || 0);
+      if (r.status === 'validée') x.recue = round3(x.recue + q);
+      else if (r.status === 'brouillon') x.enPreparation = round3(x.enPreparation + q);
+    }));
+    lignes.forEach(x => {
+      x.reste = round3(Math.max(0, x.commandee - x.recue));
+      x.enPlus = round3(Math.max(0, x.recue - x.commandee));
+      x.aProposer = round3(Math.max(0, x.commandee - x.recue - x.enPreparation));
+    });
+    const utiles = lignes.filter(x => x.commandee > 0);
+    const toutRecu = utiles.length > 0 && utiles.every(x => x.reste <= 0);
+    return {
+      lignes, receptions, brouillons: receptions.filter(r => r.status === 'brouillon'),
+      recue: toutRecu, partielle: !toutRecu && lignes.some(x => x.recue > 0),
+      aProposer: utiles.some(x => x.aProposer > 0)
+    };
+  }
+  // Le statut d'une commande fournisseur : celui qu'on choisit, et, dès qu'elle a reçu quelque chose,
+  // celui que disent ses réceptions (« reçue en partie », « reçue »). « Soldée » choisie à la main clôt une
+  // commande dont le reste ne viendra pas ; « annulée » n'attend plus rien.
+  function statutCommandeFournisseur(data, commande) {
+    const st = (commande && commande.status) || 'brouillon';
+    if (st === 'soldée' || /^annul/.test(st)) return st;
+    const s = suiviCommandeFournisseur(data, commande);
+    return s.recue ? 'reçue' : s.partielle ? 'partielle' : st;
+  }
+  // La réception suivante d'une commande : ce qui reste à recevoir, et rien d'autre. Rien à recevoir : null.
+  function receptionDeCommande(data, commande, todayIso) {
+    const s = suiviCommandeFournisseur(data, commande);
+    const lines = (commande.lines || []).map((l, i) => ({ ...JSON.parse(JSON.stringify(l)), qty: s.lignes[i] ? s.lignes[i].aProposer : 0, ligneCommande: i }))
+      .filter(l => l.qty > 0);
+    if (!lines.length) return null;
+    return { id: uid(), number: '', status: 'brouillon', date: todayIso || today(), supplierId: commande.supplierId || '', orderId: commande.id,
+      orderNumber: commande.number || '', currency: commande.currency || '', exchangeRate: commande.exchangeRate || '', lines, notes: '', createdAt: Date.now() };
+  }
+  // Les réceptions validées qu'aucune facture d'achat ne couvre encore (une facture supprimée les libère).
+  function receptionsAFacturer(data, supplierId) {
+    const couvertes = new Set();
+    (data.purchases || []).forEach(p => (Array.isArray(p.receptions) ? p.receptions : []).forEach(x => couvertes.add(x.id)));
+    return (data.receptions || []).filter(r => r.status === 'validée' && !couvertes.has(r.id) && (!supplierId || r.supplierId === supplierId));
+  }
+  // Les lignes de la facture du fournisseur, depuis ses réceptions validées : chaque ligne de commande en
+  // UNE ligne, sa quantité reçue en tout au prix de la commande (un arrondi, pas un par réception) ; la
+  // destination « stock » pour un article suivi, et la marque `recue` : la réception l'a déjà fait entrer.
+  function lignesAchatDeReceptions(data, receptions) {
+    const parCle = new Map(), out = [];
+    (receptions || []).forEach(r => (r.lines || []).forEach(l => {
+      const c = itemOfLine(l, data);
+      const ligne = { label: l.label || '', qty: round3(Number(l.qty) || 0), unit: l.unit || '', unitPrice: Number(l.unitPrice) || 0, vatRate: Number(l.vatRate) || 0,
+        destination: c && c.tracked ? 'stock' : 'charge', deductible: true, recue: true, ...(l.itemId ? { itemId: l.itemId } : {}) };
+      const cle = Number.isInteger(l.ligneCommande) && r.orderId ? JSON.stringify([r.orderId, l.ligneCommande, ligne.label, ligne.unitPrice, ligne.vatRate]) : '';
+      const deja = cle ? parCle.get(cle) : null;
+      if (deja) { deja.qty = round3(deja.qty + ligne.qty); return; }
+      if (cle) parCle.set(cle, ligne);
+      out.push(ligne);
+    }));
+    return out.filter(l => l.qty > 0);
+  }
+  // La copie d'une ligne d'achat (le bouton ⧉, la copie d'un achat) : aucune réception ne l'a reçue, sa
+  // marchandise entre en stock comme celle de n'importe quelle ligne.
+  function copieLigneAchat(l) {
+    const x = JSON.parse(JSON.stringify(l || {}));
+    delete x.recue;
+    return x;
+  }
+
   // ---------- les commandes livrées en plusieurs fois (plateforme, brique 86 ; 14 § 3.2) ----------
   // Un grossiste livre une commande en plusieurs fois : le premier bon emporte ce qui est en stock, le
   // reliquat suit. Chaque ligne d'un bon tiré d'une commande garde le rang de SA ligne de commande
@@ -9218,6 +9336,8 @@
       approve: 'Bon pour accord', approveSub: 'Date, signature et cachet du client', stampSign: 'Cachet et signature', provider: 'Le prestataire', draft: 'Brouillon', paid: 'Payée', cancelled: 'Annulée', mf: 'MF', mfCin: 'MF / CIN', rate: 'Taux',
       proforma: 'Facture proforma', commande: 'Bon de commande', livraison: 'Bon de livraison', contrat: 'Contrat de prestation',
       established: 'Établi le', orderedOn: 'Commandé le', deliveredOn: 'Livré le', signedOn: 'Signé le', from: 'Suite à', deliveryNotes: 'Bons de livraison', deliveryNote1: 'Bon de livraison',
+      commandeFournisseur: 'Bon de commande', supplier: 'Fournisseur', wantedBy: 'Livraison souhaitée le',
+      supplierOrderNote: 'Merci de nous confirmer cette commande, ses prix et sa date de livraison. Toute livraison est accompagnée de son bon de livraison.',
       proformaNote: 'Document sans valeur comptable. Il ne remplace pas une facture et ne donne lieu à aucune déclaration de TVA.',
       orderNote: 'Bon de commande établi d\'après votre demande. Merci de nous le retourner daté et signé pour lancer l\'exécution.',
       deliveryNote: 'Marchandises et prestations livrées au client. À signer à la réception.',
@@ -9235,6 +9355,8 @@
       approve: 'Approved — signature', approveSub: 'Date, signature and stamp of the client', stampSign: 'Stamp and signature', provider: 'Provider', draft: 'Draft', paid: 'Paid', cancelled: 'Cancelled', mf: 'Tax ID', mfCin: 'Tax ID', rate: 'Rate',
       proforma: 'Proforma invoice', commande: 'Purchase order', livraison: 'Delivery note', contrat: 'Service agreement',
       established: 'Issued on', orderedOn: 'Ordered on', deliveredOn: 'Delivered on', signedOn: 'Signed on', from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery note',
+      commandeFournisseur: 'Purchase order', supplier: 'Supplier', wantedBy: 'Delivery requested by',
+      supplierOrderNote: 'Please confirm this order, its prices and its delivery date. Every delivery comes with its delivery note.',
       proformaNote: 'This document has no accounting value. It does not replace an invoice and is not subject to VAT reporting.',
       orderNote: 'Purchase order drawn up from your request. Please return it dated and signed so we can proceed.',
       deliveryNote: 'Goods and services delivered to the client. To be signed on receipt.',
@@ -9257,6 +9379,8 @@
     const isQuote = doc.type === 'devis';
     const isProforma = doc.type === 'proforma';
     const isOrder = doc.type === 'commande';
+    // La commande qu'on passe à un fournisseur (brique 87) : elle s'imprime comme un bon de commande, pour lui.
+    const isSupplierOrder = doc.type === 'commandeFournisseur';
     const isDelivery = doc.type === 'livraison';
     const isContract = doc.type === 'contrat';
     // Le bon de livraison accompagne la marchandise : par défaut il ne porte aucun prix.
@@ -9333,6 +9457,10 @@
     ] : isDelivery ? [
       [L.deliveredOn, fmtDate(doc.date)],
       doc.fromDocNumber ? [L.from, doc.fromDocNumber] : null,
+      doc.reference ? [L.reference, doc.reference] : null
+    ] : isSupplierOrder ? [
+      [L.orderedOn, fmtDate(doc.date)],
+      doc.dueDate ? [L.wantedBy, fmtDate(doc.dueDate)] : null,
       doc.reference ? [L.reference, doc.reference] : null
     ] : isContract ? [
       [L.established, fmtDate(doc.date)],
@@ -9549,7 +9677,7 @@
   <div class="inner">
     <div class="parties">
       <div class="party">
-        <span class="k">${isInvoice || isProforma ? L.billedTo : isCredit || isDelivery || isContract ? L.client : L.preparedFor}</span>
+        <span class="k">${isSupplierOrder ? L.supplier : isInvoice || isProforma ? L.billedTo : isCredit || isDelivery || isContract ? L.client : L.preparedFor}</span>
         <div class="pname">${escapeHtml(cl.name || '')}</div>
         ${cl.address ? `<div class="addr">${nl2br(cl.address)}</div>` : ''}
         ${clientContact ? `<div class="more">${clientContact}</div>` : ''}
@@ -9594,6 +9722,7 @@
         </div>` : ''}` : ''}
         ${isOrder ? `<div class="info"><span class="k">${L.commande}</span><div class="terms">${L.orderNote}</div></div>` : ''}
         ${isDelivery ? `<div class="info"><span class="k">${L.livraison}</span><div class="terms">${L.deliveryNote}</div></div>` : ''}
+        ${isSupplierOrder ? `<div class="info"><span class="k">${L.commandeFournisseur}</span><div class="terms">${L.supplierOrderNote}</div></div>` : ''}
         ${doc.notes ? `<div class="notes">${String(doc.notes).split('\n').map(l => `<div class="n-l">${escapeHtml(l)}</div>`).join('')}</div>` : ''}
       </div>
       ${noPrices ? '' : `<div class="card">
@@ -10726,6 +10855,7 @@
     CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, decimalsFor, arrondiDevise, prixDuCatalogue, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
+    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat,
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
     vatReturn, vatChain, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
     ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, cashMovements, accountBalance, cashPosition, cashForecast, reconciliation,

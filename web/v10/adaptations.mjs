@@ -638,4 +638,6 @@ export const ADAPTATIONS = [
   ...lireFichier('lecture-photo.txt'),
   // ── Les commandes livrées en plusieurs fois, et plusieurs bons de livraison en une facture (brique 86) ──
   ...lireFichier('livraisons.txt'),
+  // ── Les commandes fournisseurs et leurs réceptions, même partielles (brique 87) ──
+  ...lireFichier('commandes-fournisseurs.txt'),
 ];
