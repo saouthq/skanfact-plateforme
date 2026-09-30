@@ -4525,6 +4525,7 @@
     async function issue() {
       if (isIssued()) return false;
       if (!validate()) return false;
+      if (bloqueParEfacture(doc)) return false;
       // Avant `nextNumber` : le compteur est écrit même quand l'enregistrement échoue ensuite. Un
       // garde-fou posé après aurait troué la numérotation à chaque tentative refusée.
       if (closedBlock(doc.date, 'Cette pièce')) return false;
@@ -4565,6 +4566,7 @@
       b.dataset.busy = '1'; b.disabled = true;
       try {
         if (!validate()) return;
+        if (bloqueParEfacture(doc)) return;
         const n = doc.number || peekNumber(doc.type, doc.date);
         const warn = issueWarnings();
         if (!await confirmerEmission(doc, n, warn)) return;
@@ -5148,38 +5150,53 @@
   // SkanFact fabrique le fichier ; il ne le signe pas et ne le dépose pas (le certificat et
   // l'abonnement à la TTN sont ceux de l'entreprise). Ce qui manque se dit AVANT, avec le bouton qui
   // mène à la case — jamais un fichier à moitié juste que la TTN refuserait le jour de l'échéance.
+  // (plateforme) Ce qui empêche le fichier El Fatoora, avec le bouton qui mène à la case : la fenêtre de
+  // « Fichier pour El Fatoora », qui sert aussi AVANT l'émission d'une entreprise soumise (brique 80).
+  function manquesTeif(bloquants, cl, avant) {
+    modal(`<h2>${avant ? 'Avant d\'émettre : la facture électronique' : 'Avant le fichier El Fatoora'}</h2>
+      <p>${avant ? 'Ton entreprise est soumise à la facture électronique : rien n\'est émis, aucun numéro n\'est pris. ' : ''}La facture électronique identifie l'émetteur et le destinataire par leur matricule fiscal
+      complet. ${bloquants.length > 1 ? 'Ces points empêchent' : 'Ce point empêche'} de fabriquer un fichier que la TTN accepterait :</p>
+      <ul class="teif-manques">${bloquants.map((b, i) => `<li><span>${h(b.message)}</span>${/^(societe|client)[:]?/.test(b.cible) && !(b.cible === 'client' && !cl)
+        ? `<button class="btn btn-sm" data-teif-go="${i}">${b.cible.startsWith('societe') ? 'Ouvrir ma fiche' : 'Ouvrir la fiche du client'}</button>` : ''}</li>`).join('')}</ul>
+      <div class="modal-actions"><button class="btn btn-primary" data-close>Fermer</button></div>`,
+      (root, close) => {
+        $('[data-close]', root).onclick = close;
+        $$('[data-teif-go]', root).forEach(btn => { btn.onclick = () => {
+          const b = bloquants[Number(btn.dataset.teifGo)];
+          close();
+          if (b.cible.startsWith('societe')) { allerParametres('societe', 'p-identite:' + (b.cible.split(':')[1] || 'matricule')); return; }
+          clientForm(cl, () => render());
+          const champ = b.cible.split(':')[1];
+          if (champ) setTimeout(() => { const i = $$(`.modal [name=${champ}]`).pop(); if (i) refus(i, b.message); }, 60);
+        }; });
+      });
+  }
+  // Soumise à la facture électronique, une pièce dont le fichier serait refusé ne s'émet pas : c'est dit
+  // avant le numéro (le serveur le refuserait de toute façon).
+  function bloqueParEfacture(doc) {
+    if (!bridge.teifDuServeur || !company().efacture || !window.SkanTeif || !['facture', 'avoir'].includes(doc.type) || C.estTicket(doc)) return false;
+    const cl = clientById(doc.clientId) || null;
+    const ctl = window.SkanTeif.controleTeif(Object.assign({}, doc, { number: doc.number || 'A-EMETTRE', status: 'envoyée' }), cl, company());
+    if (ctl.ok) return false;
+    manquesTeif(ctl.bloquants, cl, true);
+    return true;
+  }
   async function exporterTeif(doc) {
     const T = window.SkanTeif;
     const cl = clientById(doc.clientId);
     const orig = doc.type === 'avoir' && doc.creditOf ? docById(doc.creditOf) : null;
-    const r = T.teifXml(doc, cl, company(), { facture: orig });
-    if (!r.ok) {
-      modal(`<h2>Avant le fichier El Fatoora</h2>
-        <p>La facture électronique identifie l'émetteur et le destinataire par leur matricule fiscal
-        complet. ${r.bloquants.length > 1 ? 'Ces points empêchent' : 'Ce point empêche'} de fabriquer un fichier que la TTN accepterait :</p>
-        <ul class="teif-manques">${r.bloquants.map((b, i) => `<li><span>${h(b.message)}</span>${/^(societe|client)[:]?/.test(b.cible) && !(b.cible === 'client' && !cl)
-          ? `<button class="btn btn-sm" data-teif-go="${i}">${b.cible.startsWith('societe') ? 'Ouvrir ma fiche' : 'Ouvrir la fiche du client'}</button>` : ''}</li>`).join('')}</ul>
-        <div class="modal-actions"><button class="btn btn-primary" data-close>Fermer</button></div>`,
-        (root, close) => {
-          $('[data-close]', root).onclick = close;
-          $$('[data-teif-go]', root).forEach(btn => { btn.onclick = () => {
-            const b = r.bloquants[Number(btn.dataset.teifGo)];
-            close();
-            if (b.cible.startsWith('societe')) { allerParametres('societe', 'p-identite:' + (b.cible.split(':')[1] || 'matricule')); return; }
-            clientForm(cl, () => render());
-            const champ = b.cible.split(':')[1];
-            if (champ) setTimeout(() => { const i = $$(`.modal [name=${champ}]`).pop(); if (i) refus(i, b.message); }, 60);
-          }; });
-        });
-      return;
-    }
+    // (plateforme) Le fichier du serveur, écrit à l'émission : c'est lui qui sera signé et envoyé (brique 80).
+    // Une pièce qui n'en a pas (émise avant, ou d'une entreprise non soumise à la fiche incomplète) : celui de l'écran.
+    const duServeur = bridge.teifDuServeur ? await bridge.teifDuServeur(doc).catch(() => null) : null;
+    const r = duServeur ? { ok: true, xml: duServeur.xml, nom: duServeur.nom, bloquants: [], remarques: T.controleTeif(doc, cl, company()).remarques } : T.teifXml(doc, cl, company(), { facture: orig });
+    if (!r.ok) { manquesTeif(r.bloquants, cl, false); return; }
     // Un fichier fait pour être signé et déposé à la TTN part de l'ordinateur : depuis l'exemple, il
     // porterait une société, des clients et des montants inventés (règle 7.6.0). Le refus passe avant.
     if (await demoBlock('Fabriquer un fichier El Fatoora')) return;
     const chemin = await bridge.saveText(r.nom, r.xml);
     if (!chemin) return;
     modal(`<h2>Le fichier El Fatoora est prêt</h2>
-      <p><b>${h(r.nom)}</b> est enregistré. Il reste deux gestes, faits avec les outils de ton entreprise :</p>
+      <p><b>${h(r.nom)}</b> est ${bridge.teifDuServeur ? 'dans tes Téléchargements' : 'enregistré'}. Il reste deux gestes, faits avec les outils de ton entreprise :</p>
       <ol class="teif-suite">
         <li><b>Le signer</b> avec ta signature électronique (certificat TunTrust, sur clé ou avec DigiGo).</li>
         <li><b>Le déposer</b> sur la plateforme El Fatoora de Tunisie TradeNet. Elle te rend la facture
@@ -5188,10 +5205,10 @@
       ${r.remarques.length ? `<p class="small">À relire : ${r.remarques.map(x => h(x.message)).join(' ')}</p>` : ''}
       <p class="small muted">Le fichier suit le format TEIF ${h(T.VERSION)} publié par la TTN. Qui est tenu à la
       facture électronique, et depuis quand : À VÉRIFIER avec ton comptable.</p>
-      <div class="modal-actions"><button class="btn" id="teif-montrer">Montrer le fichier</button><button class="btn btn-primary" data-close>Fermer</button></div>`,
+      <div class="modal-actions">${bridge.teifDuServeur ? '' : '<button class="btn" id="teif-montrer">Montrer le fichier</button>'}<button class="btn btn-primary" data-close>Fermer</button></div>`,
       (root, close) => {
         $('[data-close]', root).onclick = close;
-        $('#teif-montrer', root).onclick = () => { bridge.showInFolder(chemin); };
+        if ($('#teif-montrer', root)) $('#teif-montrer', root).onclick = () => { bridge.showInFolder(chemin); };
       });
   }
 
@@ -7536,6 +7553,7 @@
     'p-marque': { onglet: 'documents', titre: 'Image de marque (sur tes documents)', mots: 'logo cachet signature couleur accent marque entete image' },
     'p-textes': { onglet: 'documents', titre: 'Textes imprimés sur les documents', mots: 'pied de page footer conditions mentions anglais english' },
     'p-objectifs': { onglet: 'documents', titre: 'Objectifs et statistiques', mots: 'objectif chiffre affaires client endormi dormant statistiques' },
+    'p-efacture': { onglet: 'documents', titre: 'Facture électronique (El Fatoora)', mots: 'facture electronique el fatoora ttn teif xml signature soumis obligation matricule', visible: () => !!bridge.teifDuServeur },
     'p-paiement': { onglet: 'documents', titre: 'Paiement en ligne', mots: 'paiement en ligne konnect carte portefeuille payer client espace lien encaisser', visible: () => !!bridge.dessinerPaiement },
     'p-caisse': { onglet: 'documents', titre: 'Caisse et tickets', mots: 'caisse ticket comptoir imprimante thermique 80 mm 58 mm papier timbre message douchette' },
     'p-envoi': { onglet: 'envois', titre: 'Envoi des emails', mots: 'mail messagerie apple mailto envoyer piece jointe' },
@@ -15147,6 +15165,9 @@
           ${field(lbl(`Objectif de chiffre d'affaires HT par an (${C.normCurrency(c.currency)})`, 'stat.target'), 'revenueTarget', Number(c.revenueTarget) > 0 ? c.revenueTarget : '', 'number', 'step="1" min="0" class="num montant" placeholder="aucun objectif"')}
           ${field(lbl('Un client est « endormi » après (jours)', 'stat.dormant'), 'dormantDays', c.dormantDays || 180, 'number', 'min="1" class="num"')}
         </div></div>
+        ${bridge.teifDuServeur ? `${panneau('p-efacture', info('set.efacture'))}
+          <label class="check"><input type="checkbox" name="efacture" ${c.efacture ? 'checked' : ''}> Mon entreprise est soumise à la facture électronique</label>
+          <p class="small muted mt">SkanFact écrit le fichier TEIF de chaque facture et de chaque avoir à l'émission, avec les montants de la pièce. Soumise, ton entreprise ne peut pas émettre une pièce dont le fichier serait refusé (ton matricule, l'identifiant du client) : SkanFact le dit avant de prendre le numéro, avec le bouton qui corrige. La signature et l'envoi à la TTN viennent ensuite. Qui est soumis, et depuis quand : À VÉRIFIER avec ton comptable (loi de finances 2026, art. 53).</p></div>` : ''}
         ${bridge.dessinerPaiement ? `${panneau('p-paiement')}<div id="paiement-panel"></div></div>` : ''}
         ${panneau('p-caisse')}
           <p class="small muted mb">Ces réglages ne servent qu'aux tickets de la page Caisse : tes devis et tes factures n'en dépendent pas.</p>

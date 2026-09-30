@@ -472,6 +472,7 @@
     ajouterLien,
     sansPieceJointe,
     lienBascule,
+    teifDuServeur,
     // Des remises attendent-elles une décision ? (le panneau ne paraît que dans ce cas)
     quarantaine: () => remises.length,
     loadData: async () => {
@@ -871,6 +872,15 @@
       if (fenetreWhatsApp) { fenetreWhatsApp.close(); fenetreWhatsApp = null; }
       throw x;
     }
+  }
+
+  // ── La facture électronique (brique 80 ; docs/facture-electronique.md) ──────────────────────────
+  // Le fichier TEIF qu'a écrit le serveur à l'émission (celui qui sera signé et envoyé) ; null si la pièce
+  // n'en a pas (émise avant, ou d'une entreprise non soumise dont la fiche ne le permettait pas).
+  /** @param {any} doc @returns {Promise<{ nom: string, xml: string } | null>} */
+  async function teifDuServeur(doc) {
+    try { return await appel('GET', `/dossier-v10/${encodeURIComponent(doc.id)}/teif`); }
+    catch (x) { if (/** @type {any} */ (x).statut === 404) return null; throw x; }
   }
 
   // ── Ce qu'un appareil retiré a remis (brique 74 bis ; docs/hors-ligne.md, H10) ────────────────

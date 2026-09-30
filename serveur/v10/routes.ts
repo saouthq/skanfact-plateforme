@@ -60,6 +60,20 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     });
   }
 
+  // ── La facture électronique (brique 80 ; docs/facture-electronique.md) ────────────────────────────
+  // Le fichier TEIF qu'a écrit le serveur à l'émission (c'est lui qui sera signé et envoyé) : le même,
+  // chaque fois. Une pièce qui n'en a pas (une entreprise non soumise, une fiche incomplète) : 404.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/dossier-v10/:cle/teif', geste: 'ventes.pieces.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const f = (await tx.query(`select e.nom, e.xml, e.empreinte from ventes.efacture e join ventes.piece p on p.id = e.piece
+        where p.entreprise = $1 and p.ref_v10 = $2`, [params.entreprise, params.cle])).rows[0] as { nom: string; xml: string; empreinte: string } | undefined;
+      if (!f) return { statut: 404, corps: { motif: motif('efacture.absent') } };
+      return { corps: f };
+    },
+  });
+
   // ── La quarantaine (brique 74 bis ; docs/hors-ligne.md, H10 ; 04 § 7) ──────────────────────────
   // Un appareil retiré remet ce qui attendait le réseau, par son jeton (qui n'ouvre plus rien d'autre) :
   // reçu, jamais appliqué d'office. Une seule remise par session ; tout un dossier peut y tenir.

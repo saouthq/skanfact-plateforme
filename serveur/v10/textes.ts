@@ -53,5 +53,9 @@ declarerTextes({
   'v10.emise_ne_se_modifie_plus': 'la facture {numero} est émise : elle ne se modifie plus, on la corrige par un avoir',
   'v10.emise_ne_s_efface_pas': 'la facture {numero} est émise : elle ne s\'efface jamais, on la corrige par un avoir',
   'v10.client_manquant': 'cette facture n\'a pas de client : choisis-le avant de l\'émettre',
+  // La facture électronique (brique 80 ; docs/facture-electronique.md).
+  'efacture.manques': 'ton entreprise est soumise à la facture électronique, et le fichier El Fatoora de cette pièce serait refusé : {manques} Rien n\'a été émis, aucun numéro n\'a été pris',
+  'efacture.ecart': 'le fichier El Fatoora ne dirait pas les montants de la pièce ({code} : {fichier} dans le fichier, {serveur} au serveur) : rien n\'a été émis',
+  'efacture.absent': 'cette pièce n\'a pas de fichier El Fatoora écrit par le serveur',
   'v10.ecart_montant': 'le serveur ne trouve pas le même net à payer que l\'écran ({ecran} à l\'écran, {serveur} au serveur) : rien n\'a été émis. Vérifie le timbre et les taux, puis réessaie',
 });

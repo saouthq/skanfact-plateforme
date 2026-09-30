@@ -9,6 +9,7 @@
 //   - tient les règlements d'une facture émise au même état que le dossier (0012, `tenirReglements`).
 // Un nombre non entier arrive en texte exact ({ "~n": "450.5" }) : jamais de nombre à virgule en base.
 
+import { createHash } from 'node:crypto';
 import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { Perimee, Refus } from '../erreurs.ts';
@@ -22,6 +23,7 @@ import { reecrireLaPaie } from '../compta/paie.ts';
 import { planChange } from '../compta/suivre.ts';
 import { ecrireFamilleDeVente, reecrireLesVentes } from '../compta/ventes.ts';
 import { canonique, deviseV10 as devise, enNombreV10, estObjet, lirePaiements, nombreEnTexte, type Json } from './lecture.ts';
+import { commeLaV10, ecartAvecLeServeur, fichierTeif, manquesAvantNumero } from './teif.ts';
 import './textes.ts';
 
 export { enNombreV10, nombreEnTexte };
@@ -189,6 +191,15 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   if (emise(estObjet(stocke?.contenu) ? stocke.contenu : null)) throw new Refus('ventes.deja_emise');
   const client = demande.client;
   if (!client || typeof client.id !== 'string' || client.id !== doc.clientId) throw new Refus('v10.client_manquant');
+  // La facture électronique (brique 80) : la fiche de l'entreprise dit si elle y est soumise. Soumise, une
+  // pièce dont le fichier TEIF serait refusé (un matricule, l'identifiant du client) ne s'émet pas : c'est
+  // dit AVANT le numéro (un numéro pris ne se reprend pas).
+  const societe = commeLaV10((await db.selectFrom('socle.dossier_v10').select('contenu')
+    .where('entreprise', '=', entreprise).where('collection', '=', '_racine').where('cle', '=', 'company').executeTakeFirst())?.contenu ?? {}) as Json;
+  if (societe.efacture === true && !doc.ticket) {
+    const manques = manquesAvantNumero(commeLaV10(doc) as Json, commeLaV10(client) as Json, societe);
+    if (manques.length) throw new Refus('efacture.manques', { valeurs: { manques: manques.map((m) => m.message).join(' ') } });
+  }
 
   // 1. Le client, tel qu'il est aujourd'hui dans le dossier : sa fiche du serveur le suit.
   const fiche = {
@@ -252,6 +263,22 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   // 5. La pièce du dossier devient émise, avec le numéro du serveur.
   // L'instant de l'émission (`issuedTs`), la v10 le pose elle-même juste après, comme avant.
   const contenu = { ...doc, number: r.numero, status: STATUT_EMISE[type], stampFee: enNombreV10(versTexte(r.totaux.timbreBase, 3)) };
+  // 6. Le fichier de la facture électronique, écrit maintenant et gardé (jamais réécrit) ; ses montants
+  //    sont ceux que le serveur vient de sceller, sinon rien n'est émis. Une entreprise non soumise dont
+  //    la fiche ne permet pas le fichier émet quand même : il s'écrira à la main, comme dans la v10.
+  if (!doc.ticket) {
+    const origine = corrige && typeof doc.creditOf === 'string' ? (await db.selectFrom('socle.dossier_v10').select('contenu')
+      .where('entreprise', '=', entreprise).where('collection', '=', 'documents').where('cle', '=', doc.creditOf).executeTakeFirst())?.contenu ?? null : null;
+    const f = fichierTeif(commeLaV10(contenu) as Json, commeLaV10(client) as Json, societe, origine ? commeLaV10(origine) as Json : null);
+    if (f.ok) {
+      const dec = r.devise.decimales;
+      const ecart = ecartAvecLeServeur(f.xml, { ttc: versTexte(r.totaux.totalTTC, dec), tva: versTexte(r.totaux.totalTVA, dec), ht: versTexte(r.totaux.netHT, dec) });
+      if (ecart) throw new Refus('efacture.ecart', { valeurs: ecart });
+      await tx.query(`insert into ventes.efacture (piece, entreprise, nom, xml, empreinte, version, ecrit_le, ecrit_par)
+        values ($1, $2, $3, $4, $5, $6, now(), $7)`, [piece, entreprise, f.nom, f.xml, createHash('sha256').update(f.xml, 'utf8').digest('hex'), f.version, utilisateur]);
+    }
+  }
+
   if (stocke) {
     await db.updateTable('socle.dossier_v10').set({ contenu: JSON.stringify(contenu), revision: BigInt(Number(stocke.revision) + 1), modifie_le: new Date(), modifie_par: utilisateur })
       .where('entreprise', '=', entreprise).where('collection', '=', 'documents').where('cle', '=', cle).execute();

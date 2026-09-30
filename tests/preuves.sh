@@ -4708,6 +4708,53 @@ prouver "le relevé dit joint alors qu'un navigateur ne joint rien" web/public/v
   "close(); toast(att ? messageOuvert(rm, 'le relevé')" "close(); toast(true ? messageOuvert(rm, 'le relevé')" \
   "$EN2"
 
+# ── Brique 80 : la facture électronique, le fichier TEIF écrit par le serveur (docs/facture-electronique.md) ──
+EF1="à l'émission, le fichier TEIF est écrit, passe le schéma, dit les montants scellés, et ne se réécrit jamais"
+EF2="soumise, une pièce dont le fichier serait refusé ne s'émet pas : c'est dit avant le numéro"
+EF3="non soumise, la pièce s'émet quand même ; elle n'a pas de fichier du serveur"
+EFW="soumise, Nadia voit avant le numéro ce qui empêcherait le fichier ; complétée, la facture s'émet et son fichier se télécharge"
+prouver "le fichier El Fatoora jamais écrit à l'émission" serveur/v10/dossier.ts \
+  "    if (f.ok) {" "    if (false) {" \
+  "$EF1"
+prouver "une entreprise soumise qui émet une pièce au fichier refusé" serveur/v10/dossier.ts \
+  "  if (societe.efacture === true && !doc.ticket) {" "  if (false) {" \
+  "$EF2"
+prouver "une entreprise non soumise empêchée d'émettre" serveur/v10/dossier.ts \
+  "  if (societe.efacture === true && !doc.ticket) {" "  if (!doc.ticket) {" \
+  "$EF3"
+prouver "un fichier El Fatoora aux montants faux gardé" serveur/v10/teif.ts \
+  "    if (fichier !== serveur) return { code, fichier: fichier ?? '—', serveur };
+" "" \
+  "$EF1"
+prouver "le fichier El Fatoora réécrit ou effacé par le compte du serveur" base/migrations/0049_efacture.sql \
+  "grant select, insert on ventes.efacture to skanfact_app;" "grant select, insert, update, delete on ventes.efacture to skanfact_app;" \
+  "$EF1"
+prouver "l'avoir écrit sans la date de la facture qu'il corrige" serveur/v10/dossier.ts \
+  "societe, origine ? commeLaV10(origine) as Json : null);" "societe, null);" \
+  "$EF1"
+prouver "un nombre du dossier lu comme un objet par le fichier" serveur/v10/teif.ts \
+  "    if (cles.length === 1 && cles[0] === '~n') return Number((v as { '~n': string })['~n']);
+" "" \
+  "$EF1"
+prouver "« Émettre » d'une entreprise soumise sans le contrôle avant la confirmation" web/public/v10/app.js \
+  "        if (!validate()) return;
+        if (bloqueParEfacture(doc)) return;
+" "        if (!validate()) return;
+" \
+  "$EFW"
+prouver "« Fichier pour El Fatoora » refait par l'écran au lieu du fichier du serveur" web/public/v10/app.js \
+  "    const r = duServeur ? {" "    const r = false ? {" \
+  "$EFW"
+prouver "la fenêtre dit « enregistré » d'un fichier téléchargé" web/public/v10/app.js \
+  "est \${bridge.teifDuServeur ? 'dans tes Téléchargements' : 'enregistré'}" "est \${false ? 'dans tes Téléchargements' : 'enregistré'}" \
+  "$EFW"
+prouver "« Montrer le fichier » proposé dans un navigateur" web/public/v10/app.js \
+  "\${bridge.teifDuServeur ? '' : '<button class=\"btn\" id=\"teif-montrer\">" "\${false ? '' : '<button class=\"btn\" id=\"teif-montrer\">" \
+  "$EFW"
+prouver "le réglage « soumise à la facture électronique » jamais dessiné" web/public/v10/app.js \
+  "\${bridge.teifDuServeur ? \`\${panneau('p-efacture'" "\${false ? \`\${panneau('p-efacture'" \
+  "$EFW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

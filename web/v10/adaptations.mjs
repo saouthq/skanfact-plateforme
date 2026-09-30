@@ -91,6 +91,68 @@ export const ADAPTATIONS = [
     avant: "['carte', 'Carte'], ['autre', 'Autre']];",
     apres: "['carte', 'Carte'], ['en_ligne', 'Paiement en ligne'], ['autre', 'Autre']];",
   },
+  // ── La facture électronique (brique 80 ; docs/facture-electronique.md) : le réglage « soumise », ce qui empêche
+  // le fichier dit avant le numéro, et « Fichier pour El Fatoora » qui télécharge le fichier du serveur.
+  {
+    fichier: "app.js",
+    pourquoi: "le réglage « soumise à la facture électronique » a son entrée (onglet Documents, recherche des réglages), posée quand le point de contact sait lire le fichier du serveur",
+    avant: "    'p-paiement': { onglet: 'documents',",
+    apres: "    'p-efacture': { onglet: 'documents', titre: 'Facture électronique (El Fatoora)', mots: 'facture electronique el fatoora ttn teif xml signature soumis obligation matricule', visible: () => !!bridge.teifDuServeur },\n    'p-paiement': { onglet: 'documents',",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "le panneau « Facture électronique (El Fatoora) » : l'entreprise dit si elle y est soumise (un champ de la fiche) ; il se pose avant celui du paiement en ligne",
+    avant: "        ${bridge.dessinerPaiement ? `${panneau('p-paiement')}",
+    apres: "        ${bridge.teifDuServeur ? `${panneau('p-efacture', info('set.efacture'))}\n          <label class=\"check\"><input type=\"checkbox\" name=\"efacture\" ${c.efacture ? 'checked' : ''}> Mon entreprise est soumise à la facture électronique</label>\n          <p class=\"small muted mt\">SkanFact écrit le fichier TEIF de chaque facture et de chaque avoir à l'émission, avec les montants de la pièce. Soumise, ton entreprise ne peut pas émettre une pièce dont le fichier serait refusé (ton matricule, l'identifiant du client) : SkanFact le dit avant de prendre le numéro, avec le bouton qui corrige. La signature et l'envoi à la TTN viennent ensuite. Qui est soumis, et depuis quand : À VÉRIFIER avec ton comptable (loi de finances 2026, art. 53).</p></div>` : ''}\n        ${bridge.dessinerPaiement ? `${panneau('p-paiement')}",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "la fenêtre qui dit ce qui empêche le fichier El Fatoora sert aussi AVANT l'émission d'une entreprise soumise",
+    avant: "  async function exporterTeif(doc) {\n",
+    apres: "  // (plateforme) Ce qui empêche le fichier El Fatoora, avec le bouton qui mène à la case : la fenêtre de\n  // « Fichier pour El Fatoora », qui sert aussi AVANT l'émission d'une entreprise soumise (brique 80).\n  function manquesTeif(bloquants, cl, avant) {\n    modal(`<h2>${avant ? 'Avant d\\'émettre : la facture électronique' : 'Avant le fichier El Fatoora'}</h2>\n      <p>${avant ? 'Ton entreprise est soumise à la facture électronique : rien n\\'est émis, aucun numéro n\\'est pris. ' : ''}La facture électronique identifie l'émetteur et le destinataire par leur matricule fiscal\n      complet. ${bloquants.length > 1 ? 'Ces points empêchent' : 'Ce point empêche'} de fabriquer un fichier que la TTN accepterait :</p>\n      <ul class=\"teif-manques\">${bloquants.map((b, i) => `<li><span>${h(b.message)}</span>${/^(societe|client)[:]?/.test(b.cible) && !(b.cible === 'client' && !cl)\n        ? `<button class=\"btn btn-sm\" data-teif-go=\"${i}\">${b.cible.startsWith('societe') ? 'Ouvrir ma fiche' : 'Ouvrir la fiche du client'}</button>` : ''}</li>`).join('')}</ul>\n      <div class=\"modal-actions\"><button class=\"btn btn-primary\" data-close>Fermer</button></div>`,\n      (root, close) => {\n        $('[data-close]', root).onclick = close;\n        $$('[data-teif-go]', root).forEach(btn => { btn.onclick = () => {\n          const b = bloquants[Number(btn.dataset.teifGo)];\n          close();\n          if (b.cible.startsWith('societe')) { allerParametres('societe', 'p-identite:' + (b.cible.split(':')[1] || 'matricule')); return; }\n          clientForm(cl, () => render());\n          const champ = b.cible.split(':')[1];\n          if (champ) setTimeout(() => { const i = $$(`.modal [name=${champ}]`).pop(); if (i) refus(i, b.message); }, 60);\n        }; });\n      });\n  }\n  // Soumise à la facture électronique, une pièce dont le fichier serait refusé ne s'émet pas : c'est dit\n  // avant le numéro (le serveur le refuserait de toute façon).\n  function bloqueParEfacture(doc) {\n    if (!bridge.teifDuServeur || !company().efacture || !window.SkanTeif || !['facture', 'avoir'].includes(doc.type) || C.estTicket(doc)) return false;\n    const cl = clientById(doc.clientId) || null;\n    const ctl = window.SkanTeif.controleTeif(Object.assign({}, doc, { number: doc.number || 'A-EMETTRE', status: 'envoyée' }), cl, company());\n    if (ctl.ok) return false;\n    manquesTeif(ctl.bloquants, cl, true);\n    return true;\n  }\n  async function exporterTeif(doc) {\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "« Fichier pour El Fatoora » dit ce qui manque par la même fenêtre",
+    avant: "    if (!r.ok) {\n      modal(`<h2>Avant le fichier El Fatoora</h2>\n        <p>La facture électronique identifie l'émetteur et le destinataire par leur matricule fiscal\n        complet. ${r.bloquants.length > 1 ? 'Ces points empêchent' : 'Ce point empêche'} de fabriquer un fichier que la TTN accepterait :</p>\n        <ul class=\"teif-manques\">${r.bloquants.map((b, i) => `<li><span>${h(b.message)}</span>${/^(societe|client)[:]?/.test(b.cible) && !(b.cible === 'client' && !cl)\n          ? `<button class=\"btn btn-sm\" data-teif-go=\"${i}\">${b.cible.startsWith('societe') ? 'Ouvrir ma fiche' : 'Ouvrir la fiche du client'}</button>` : ''}</li>`).join('')}</ul>\n        <div class=\"modal-actions\"><button class=\"btn btn-primary\" data-close>Fermer</button></div>`,\n        (root, close) => {\n          $('[data-close]', root).onclick = close;\n          $$('[data-teif-go]', root).forEach(btn => { btn.onclick = () => {\n            const b = r.bloquants[Number(btn.dataset.teifGo)];\n            close();\n            if (b.cible.startsWith('societe')) { allerParametres('societe', 'p-identite:' + (b.cible.split(':')[1] || 'matricule')); return; }\n            clientForm(cl, () => render());\n            const champ = b.cible.split(':')[1];\n            if (champ) setTimeout(() => { const i = $$(`.modal [name=${champ}]`).pop(); if (i) refus(i, b.message); }, 60);\n          }; });\n        });\n      return;\n    }\n",
+    apres: "    if (!r.ok) { manquesTeif(r.bloquants, cl, false); return; }\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "« Fichier pour El Fatoora » télécharge le fichier écrit par le serveur à l'émission (celui qui sera signé et envoyé)",
+    avant: "    const r = T.teifXml(doc, cl, company(), { facture: orig });\n",
+    apres: "    // (plateforme) Le fichier du serveur, écrit à l'émission : c'est lui qui sera signé et envoyé (brique 80).\n    // Une pièce qui n'en a pas (émise avant, ou d'une entreprise non soumise à la fiche incomplète) : celui de l'écran.\n    const duServeur = bridge.teifDuServeur ? await bridge.teifDuServeur(doc).catch(() => null) : null;\n    const r = duServeur ? { ok: true, xml: duServeur.xml, nom: duServeur.nom, bloquants: [], remarques: T.controleTeif(doc, cl, company()).remarques } : T.teifXml(doc, cl, company(), { facture: orig });\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "le fichier téléchargé est dans les Téléchargements (un navigateur ne sait pas le montrer dans un dossier)",
+    avant: "      <p><b>${h(r.nom)}</b> est enregistré. Il reste deux gestes, faits avec les outils de ton entreprise :</p>\n",
+    apres: "      <p><b>${h(r.nom)}</b> est ${bridge.teifDuServeur ? 'dans tes Téléchargements' : 'enregistré'}. Il reste deux gestes, faits avec les outils de ton entreprise :</p>\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "pas de bouton « Montrer le fichier » dans un navigateur",
+    avant: "      <div class=\"modal-actions\"><button class=\"btn\" id=\"teif-montrer\">Montrer le fichier</button><button class=\"btn btn-primary\" data-close>Fermer</button></div>`,\n      (root, close) => {\n        $('[data-close]', root).onclick = close;\n        $('#teif-montrer', root).onclick = () => { bridge.showInFolder(chemin); };\n      });\n",
+    apres: "      <div class=\"modal-actions\">${bridge.teifDuServeur ? '' : '<button class=\"btn\" id=\"teif-montrer\">Montrer le fichier</button>'}<button class=\"btn btn-primary\" data-close>Fermer</button></div>`,\n      (root, close) => {\n        $('[data-close]', root).onclick = close;\n        if ($('#teif-montrer', root)) $('#teif-montrer', root).onclick = () => { bridge.showInFolder(chemin); };\n      });\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "« Émettre » : une entreprise soumise voit ce qui empêche le fichier AVANT la confirmation",
+    avant: "        if (!validate()) return;\n        const n = doc.number || peekNumber(doc.type, doc.date);\n",
+    apres: "        if (!validate()) return;\n        if (bloqueParEfacture(doc)) return;\n        const n = doc.number || peekNumber(doc.type, doc.date);\n",
+  },
+  {
+    fichier: "app.js",
+    pourquoi: "toute émission (« Émettre et exporter » aussi) passe par le contrôle de la facture électronique",
+    avant: "      // Avant `nextNumber` : le compteur est écrit même quand l'enregistrement échoue ensuite. Un\n",
+    apres: "      if (bloqueParEfacture(doc)) return false;\n      // Avant `nextNumber` : le compteur est écrit même quand l'enregistrement échoue ensuite. Un\n",
+  },
+  {
+    fichier: "guide.js",
+    pourquoi: "le réglage de la facture électronique a son aide",
+    avant: "    'ed.teif': {",
+    apres: "    'set.efacture': { t: 'Facture électronique (El Fatoora)', d: 'Coche si ton entreprise doit émettre ses factures en électronique (loi de finances 2026, art. 53 : les prestataires de services ; qui exactement, et depuis quand : À VÉRIFIER avec ton comptable). SkanFact écrit le fichier TEIF de chaque facture et de chaque avoir à l\\'émission. Soumise, une pièce dont le fichier serait refusé ne s\\'émet pas, et SkanFact dit pourquoi avant de prendre le numéro. Non soumise, tes pièces s\\'émettent comme avant, et leur fichier s\\'écrit quand ta fiche et celle du client le permettent.' },\n    'ed.teif': {",
+  },
   // ── Les envois (brique 79 ; docs/espace-client.md, E7) : un navigateur ne joint pas de fichier ; l'e-mail et
   // le WhatsApp d'une facture ou d'un avoir émis portent le LIEN de la pièce (créé à l'envoi par le point de
   // contact) ; les phrases qui promettaient un PDF joint disent ce qui part vraiment.

@@ -680,6 +680,16 @@ export interface BaseDeDonnees {
     code_methode: string | null;
     code_secret: string | null;
   };
+  'ventes.efacture': {
+    piece: string;
+    entreprise: string;
+    nom: string;
+    xml: string;
+    empreinte: string;
+    version: string;
+    ecrit_le: Date;
+    ecrit_par: string;
+  };
   'ventes.lien': {
     id: Generated<string>;
     entreprise: string;
