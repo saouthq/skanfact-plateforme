@@ -1650,7 +1650,8 @@ prouver "un plan changé qui ne réécrit pas les achats" serveur/v10/dossier.ts
 # La contrainte des origines est redéfinie à chaque brique (0016, 0017, 0018) : la preuve vise la
 # définition EN VIGUEUR (une preuve qui vise une définition remplacée reste verte : code mort).
 # La contrainte des origines est redéfinie par 0021 : ses preuves visent la définition EN VIGUEUR.
-prouver "la base qui refuse l'origine d'une imputation" base/migrations/0021_compta_saisie.sql \
+# La liste des origines est redéfinie par 0037 (la reprise de la v10) : ces trois preuves visent la dernière.
+prouver "la base qui refuse l'origine d'une imputation" base/migrations/0037_compta_reprise_livre_v10.sql \
   "'achat', 'imputation', 'reglement_fournisseur', 'paie'" "'achat', 'reglement_fournisseur', 'paie'" \
   "$LAC"
 
@@ -1695,7 +1696,7 @@ prouver "la paie réécrite par qui ne la voit pas" $CPA \
 prouver "un plan changé qui ne réécrit pas la paie" serveur/v10/dossier.ts \
   "    await reecrireLaPaie(tx, entreprise);" "" \
   "$PP"
-prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0021_compta_saisie.sql \
+prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0037_compta_reprise_livre_v10.sql \
   "'reglement_fournisseur', 'paie', 'salaires', 'avance'," "'reglement_fournisseur', 'salaires', 'avance'," \
   "$PE"
 
@@ -1892,8 +1893,8 @@ S4="contre-passer et extourner une écriture saisie : le miroir validé, jamais 
 S5="lettrer une facture et son règlement : la somme fait zéro, sinon l'écart est dit ; un brouillard ne se lettre pas ; délettrer"
 S6="les mois du portefeuille disent ce que disent les livres : écritures, brouillards, chiffre d'affaires (deux chemins, un chiffre)"
 W38="le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur"
-prouver "la base qui refuse l'origine d'une écriture saisie" $M21 \
-  "'contre_passation', 'saisie', 'extourne'));" "'contre_passation', 'extourne'));" \
+prouver "la base qui refuse l'origine d'une écriture saisie" base/migrations/0037_compta_reprise_livre_v10.sql \
+  "'contre_passation', 'saisie', 'extourne', 'reprise_v10'));" "'contre_passation', 'extourne', 'reprise_v10'));" \
   "$S1"
 prouver "une saisie déséquilibrée qui entre" $M21 \
   "  if td <> tc then" "  if false then" \
@@ -3720,4 +3721,74 @@ prouver "un bien reporté qui se propose comme une acquisition" $PC \
   "$RE2"
 prouver "les biens absents du rapport à l'écran" web/public/v10/cabinet/app.js \
   "        <tr><td>Immobilisations — une fiche par bien" "        <tr hidden><td>Immobilisations — une fiche par bien" \
+  "$RE1"
+
+# ── Brique 68 : la révision et les questions reprises avec le livre v10 (docs/cabinet.md, C58) ──
+RQ1="une révision ou une question qui ne se reprendrait pas telle quelle est nommée ; la base refait ses contrôles"
+M41=base/migrations/0041_compta_reprise_questions.sql
+prouver "une révision d'une autre année qui passe l'essai" $LV \
+  "    if (!periodeDuLivre(periode, annee)) { nomme(" "    if (false) { nomme(" \
+  "$RQ1"
+prouver "une révision deux fois dans le livre" $LV \
+  "    if (vues.has(periode)) {" "    if (false) {" \
+  "$RQ1"
+prouver "une révision illisible reprise en silence" $LV \
+  "    if (!lu.success) { nomme(" "    if (!lu.success) { continue; nomme(" \
+  "$RQ1"
+prouver "une révision arrêtée reprise ouverte" $LV \
+  "      faite: x.faite === true, faiteLe:" "      faite: false, faiteLe:" \
+  "$RC1"
+prouver "une question d'une autre année qui passe l'essai" $LV \
+  "    if (!periodeDuLivre(q.periode, annee)) nomme(" "    if (false) nomme(" \
+  "$RQ1"
+prouver "une question sans texte qui passe l'essai" $LV \
+  "    if (!q.texte) nomme(" "    if (false) nomme(" \
+  "$RQ1"
+prouver "le compte illisible d'une question qui passe l'essai" $LV \
+  "    if (q.compte && !COMPTE.test(q.compte)) nomme(" "    if (false) nomme(" \
+  "$RQ1"
+prouver "le montant illisible d'une question qui passe l'essai" $LV \
+  "    if (montant(x.montant) === null) nomme(" "    if (false) nomme(" \
+  "$RQ1"
+prouver "l'état inconnu d'une question qui passe l'essai" $LV \
+  "    if (!(STATUTS as readonly string[]).includes(String(x.statut))) nomme(" "    if (false) nomme(" \
+  "$RQ1"
+prouver "une question répondue sans réponse qui passe l'essai" $LV \
+  "    else if ((q.statut === 'repondue') !== (q.reponse !== null) && q.statut !== 'close') nomme(" "    else if (false) nomme(" \
+  "$RQ1"
+prouver "une question envoyée sans envoi qui passe l'essai" $LV \
+  "    else if ((q.statut === 'ouverte') !== (q.envois.length === 0) && q.statut !== 'close') nomme(" "    else if (false) nomme(" \
+  "$RQ1"
+prouver "les révisions absentes du rapport" $LV \
+  "    revisions: { total: l.revisions.length," "    revisions: { total: 0," \
+  "$RL1"
+prouver "les questions absentes du rapport" $LV \
+  "    questions: { total: l.questions.length," "    questions: { total: 0," \
+  "$RL1"
+prouver "les révisions du livre laissées de côté" serveur/cabinet/routes.ts \
+  "      for (const r of lu.revisions) {" "      for (const r of lu.revisions.slice(0, 0)) {" \
+  "$RC1"
+prouver "une question reprise sans sa pièce" serveur/cabinet/routes.ts \
+  "        ...q, montant: q.montant.toString(), ecriture: ecritureDe.get(q.ecriture)?.id ?? null," "        ...q, montant: q.montant.toString(), ecriture: null," \
+  "$RC1"
+prouver "une question reprise chez un client sur SkanFact" $M41 \
+  "  if socle.perimetre_cabinet(p_entreprise) is null
+     or not exists (select 1 from socle.entreprise where id = p_entreprise and tenue_par is not null) then
+    perform socle.refus('la reprise d''un livre de la v10 s''écrit dans un dossier que ton cabinet tient');
+  end if;" "" \
+  "$RQ1"
+prouver "une question reprise en face d'une écriture saisie" $M41 \
+  "and e.entreprise = p_entreprise and e.origine_type = 'reprise_v10') then" "and e.entreprise = p_entreprise) then" \
+  "$RQ1"
+prouver "les envois d'une question reprise perdus" $M41 \
+  "            coalesce((select array_agg(to_timestamp(x::bigint / 1000.0) order by o) from jsonb_array_elements_text(q->'envois') with ordinality t(x, o)), '{}')," "            '{}'," \
+  "$RC1"
+prouver "l'instant de la réponse d'une question reprise perdu" $M41 \
+  "            nullif(q->>'reponse', ''), case when q->>'repondue' is null then null else to_timestamp((q->>'repondue')::bigint / 1000.0) end," "            nullif(q->>'reponse', ''), null," \
+  "$RC1"
+prouver "la révision absente du rapport à l'écran" web/public/v10/cabinet/app.js \
+  "        <tr><td>Révision — le dossier de travail de chaque période</td>" "        <tr hidden><td>Révision — le dossier de travail de chaque période</td>" \
+  "$RE1"
+prouver "les questions absentes du rapport à l'écran" web/public/v10/cabinet/app.js \
+  "        <tr><td>Questions au client — dans leur état</td>" "        <tr hidden><td>Questions au client — dans leur état</td>" \
   "$RE1"

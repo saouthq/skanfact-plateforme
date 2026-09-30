@@ -1518,3 +1518,35 @@ reliée deux fois, un client sur SkanFact. À la souris : l'onglet Immobilisatio
 
 **Reste à faire (la reprise)** : la révision et les questions, la paie du livre ; un livre dont le
 dossier n'existe pas encore ; le bouton « Passer à la plateforme » de la v10.
+
+## Brique 68 : la révision et les questions au client reprises avec le livre v10 (fait le 30/09/2026)
+
+**C58. Un livre repris garde le dossier de travail du cabinet et ses questions au client, dans leur
+état** (par délégation). La v10 rangeait dans le livre la révision de chaque période (les comptes
+signés, les notes de revue, le questionnaire, la révision arrêtée) et les questions posées au client,
+envoyées dans ses paquets, parfois répondues ou fermées. Les perdre, c'était refaire la révision de
+l'année et reposer au client des questions auxquelles il avait déjà répondu.
+- **La révision** de chaque période (l'exercice ou l'un de ses mois) est relue dans la forme exacte que
+  la plateforme garde (le schéma de la route, désormais partagé : `serveur/cabinet/revision.ts`) et
+  posée par le geste ordinaire (`cabinet.poser_revision`, qui vérifie qui révise). Une période hors de
+  l'exercice, deux fois la même, ou un contenu qui n'entre pas (un champ trop long, un texte vide) est
+  **nommé à l'essai**, avec le champ en cause.
+- **Les questions** se reprennent **dans leur état** : ouvertes, envoyées (chaque envoi, son instant),
+  répondues (la réponse du client et son instant), closes ; en face de la pièce où elles sont nées,
+  reliée à l'écriture reprise. La base (0041, `compta.reprendre_questions_v10`) les écrit sous le cabinet
+  qui tient le dossier, et refuse une pièce qui n'est pas une écriture reprise de ce dossier. L'essai
+  nomme une question hors de l'exercice, sans texte, au compte ou au montant illisible, à l'état
+  inconnu, dite répondue sans réponse ou envoyée sans envoi (les règles de la table, 0028). La réponse
+  reste sans auteur sur la plateforme : le client l'avait écrite dans la v10.
+
+Le rapport de l'essai compte les révisions (arrêtées) et les questions (en attente).
+
+**Les tests** : `tests/cabinet/reprise-livre.test.ts` : deux questions posées, envoyées et l'une
+répondue, un compte signé, une note de revue et la révision arrêtée, **par les gestes de la v10** ;
+reprises : les questions dans leur état, leurs dates et la facture en face, la révision telle quelle ;
+les dix défauts nommés à l'essai ; la base qui refuse une question en face d'une écriture saisie, et
+chez un client sur SkanFact. À la souris : les deux lignes du rapport.
+
+**Reste à faire (la reprise)** : la paie du livre (salariés, bulletins) ; les déclarations et
+l'inventaire ; un livre dont le dossier n'existe pas encore ; le bouton « Passer à la plateforme » de la
+v10.

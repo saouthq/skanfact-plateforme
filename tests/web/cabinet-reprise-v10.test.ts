@@ -134,6 +134,8 @@ describe('reprendre le livre de la v10 d\'un dossier tenu, à la souris', () => 
     expect(rapport).toMatch(/Lettrages — ils se reprennent avec leur lettre\s+1/);
     expect(rapport).toMatch(/Relevés bancaires — avec leurs rapprochements\s+1 \(1 ligne rapprochée\)/);
     expect(rapport).toMatch(/Immobilisations — une fiche par bien, pour toute la vie du dossier\s+0 \(0 écriture de l'année reliée\)/);
+    expect(rapport).toMatch(/Révision — le dossier de travail de chaque période\s+0 \(0 arrêtée\)/);
+    expect(rapport).toMatch(/Questions au client — dans leur état\s+0 \(0 en attente\)/);
     expect(await m.locator('#rv-ok').count()).toBe(1);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-v10-rapport.png') });
     await m.locator('#ok').click();

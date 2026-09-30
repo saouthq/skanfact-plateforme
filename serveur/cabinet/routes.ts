@@ -18,6 +18,7 @@ import './textes.ts';
 import { Refus } from '../erreurs.ts';
 import { lireLivreV10, rapportDuLivre } from '../reprise/livre-v10.ts';
 import { versLaBaseFiche } from '../compta/immobilisations.ts';
+import { PERIODE_REVISION, REVISION } from './revision.ts';
 
 const uuid = z.string().uuid();
 const PERIMETRES = ['comptabilite', 'declarations', 'saisie_achats', 'paie'] as const;
@@ -117,19 +118,6 @@ const REGLAGES = z.object({
     id: z.string().trim().min(1).max(40), label: z.string().trim().min(1).max(80), prefixes: z.array(z.string().regex(/^\d{1,12}$/)).min(1).max(50),
   }).strict()).max(30),
 }).partial().strict();
-// Le dossier de révision d'une période (0028), la forme de la v10 (compta.js, revisionVide) : cette
-// liste, et rien d'autre. Les instants en millisecondes ; les noms, ceux de qui a signé.
-const INSTANT = z.number().int().min(0).max(8_640_000_000_000_000);
-const REVISION = z.object({
-  faite: z.boolean(), faiteLe: INSTANT.nullable(), faitePar: texte(200),
-  comptes: z.array(z.object({ compte: z.string().regex(/^\d{1,12}$/), revuLe: INSTANT, revuPar: texte(200), note: texte(2000) }).strict()).max(5000),
-  notes: z.array(z.object({
-    id: z.string().min(1).max(40), texte: z.string().trim().min(1).max(2000), cycle: texte(40), compte: z.string().regex(/^(\d{1,12})?$/),
-    par: texte(200), le: INSTANT, levee: z.boolean(), leveeLe: INSTANT.nullable(), leveePar: texte(200),
-  }).strict()).max(500),
-  questionnaire: z.array(z.object({ id: z.string().min(1).max(40), question: z.string().trim().min(1).max(500), reponse: texte(4000), par: texte(200), le: INSTANT.nullable() }).strict()).max(60),
-}).strict();
-const PERIODE_REVISION = /^\d{4}(-(0[1-9]|1[0-2]))?$/;
 
 const tracer = (tx: Transaction, entreprise: string, geste: string, objet: string, avant: unknown, apres: unknown) =>
   tx.query('select socle.tracer($1, $2, $3, $4, $5, $6)', [entreprise, geste, 'mandat', objet, avant === null ? null : JSON.stringify(avant), apres === null ? null : JSON.stringify(apres)]);
@@ -562,6 +550,14 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
         if (r.cree) immobilisations.creees++; else immobilisations.retrouvees++;
         immobilisations.liees += r.liees;
       }
+      // La révision de chaque période (le dossier de travail du cabinet) et les questions au client, dans
+      // leur état (brique 68) : la révision par le geste ordinaire, les questions par la base (0041).
+      for (const r of lu.revisions) {
+        await tx.query('select cabinet.poser_revision($1, $2, $3, $4::jsonb, null)', [params.cabinet, corps.dossier, r.periode, JSON.stringify(r.contenu)]);
+      }
+      const questions = lu.questions.length ? (await tx.query('select compta.reprendre_questions_v10($1, $2::jsonb) n', [corps.dossier, JSON.stringify(lu.questions.map((q) => ({
+        ...q, montant: q.montant.toString(), ecriture: ecritureDe.get(q.ecriture)?.id ?? null,
+      })))])).rows[0].n as number : 0;
       // Deux chemins, un chiffre : la balance que la base tient maintenant est celle du livre.
       const b = (await tx.query(`select l.compte, sum(l.debit)::text debit, sum(l.credit)::text credit from compta.ligne l join compta.ecriture e on e.id = l.ecriture
           where e.entreprise = $1 and e.statut = 'validee' and e.date_ecriture between $2::date and $3::date group by l.compte`, [corps.dossier, lu.du, lu.au])).rows as { compte: string; debit: string; credit: string }[];
@@ -569,7 +565,7 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
         .sort((x, y) => (x.compte < y.compte ? -1 : x.compte > y.compte ? 1 : 0));
       const attendue = rapport.balance.map((x) => ({ compte: x.compte, debit: x.debit, credit: x.credit }));
       if (JSON.stringify(tenue) !== JSON.stringify(attendue)) throw new Refus('cabinet.reprise.ecart');
-      return { statut: 201, corps: { ...resultat, releves: lu.releves.length, rapprochees, immobilisations, empreinte, rapport } };
+      return { statut: 201, corps: { ...resultat, releves: lu.releves.length, rapprochees, immobilisations, revisions: lu.revisions.length, questions, empreinte, rapport } };
     },
   });
   // Ce qui a changé dans l'équipe (brique 61, 0036) : les cinquante derniers gestes, pour un associé.

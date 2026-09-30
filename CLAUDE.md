@@ -286,6 +286,11 @@
 - Une migration qui **redéfinit** une fonction (`create or replace`) rend l'ancienne définition
   morte : les preuves qui la visaient se réorientent vers la nouvelle (sinon elles restent vertes,
   et `preuves.sh` les dit « non prouvées », comme le 28/09/2026 avec `mes_entreprises`).
+  **De même pour une contrainte** (`drop constraint` / `add constraint`) : le 30/09/2026, 0037 a
+  redéfini la liste des origines d'une écriture, trois preuves visaient encore 0021 et GitHub est
+  resté rouge quatre envois de suite sans qu'on le voie. Une brique qui redéfinit quoi que ce soit :
+  chercher dans `tests/preuves.sh` tout ce qui vise l'ancienne définition, et **rejouer toutes les
+  preuves** (pas seulement les fichiers de la brique) avant d'envoyer.
 - L'argent en **entiers** (`bigint`, millimes ou centimes), les taux et prix unitaires en entiers à
   six décimales (01 R3). Une date de pièce est un `date`, un geste est un `timestamptz` (01 R5).
 
@@ -367,7 +372,8 @@
   des fichiers de tests que la brique touche, en groupes côte à côte (`FICHIERS=motif npm run
   preuves:paralleles` ; chaque groupe a sa propre base de test). Lire le **code de sortie**. GitHub
   refait tout à chaque envoi, les preuves en quatre groupes sur quatre machines (`PARTIE=k/4`, environ
-  15 minutes au lieu de 50) ; une construction rouge ne se contourne jamais.
+  15 minutes au lieu de 50) ; une construction rouge ne se contourne jamais. Après chaque envoi, **regarder
+  le résultat de GitHub** (l'envoi précédent aussi) avant d'en empiler d'autres.
 
 **Sécurité (sans exception)**
 - Dépôt **public** : jamais de secret, de jeton, de mot de passe réel ni de donnée de client. Les

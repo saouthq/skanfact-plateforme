@@ -3037,6 +3037,8 @@
         <tr><td>Lettrages — ils se reprennent avec leur lettre</td><td class="r">${esc(String(R.lettrages || 0))}</td></tr>
         <tr><td>Relevés bancaires — avec leurs rapprochements</td><td class="r nw">${esc(String(R.releves ? R.releves.total : 0))} (${esc(String(R.releves ? R.releves.rapprochees : 0))} ligne${R.releves && R.releves.rapprochees > 1 ? 's' : ''} rapprochée${R.releves && R.releves.rapprochees > 1 ? 's' : ''})</td></tr>
         <tr><td>Immobilisations — une fiche par bien, pour toute la vie du dossier</td><td class="r nw">${esc(String(R.immobilisations ? R.immobilisations.total : 0))} (${esc(String(R.immobilisations ? R.immobilisations.liees : 0))} écriture${R.immobilisations && R.immobilisations.liees > 1 ? 's' : ''} de l'année reliée${R.immobilisations && R.immobilisations.liees > 1 ? 's' : ''})</td></tr>
+        <tr><td>Révision — le dossier de travail de chaque période</td><td class="r nw">${esc(String(R.revisions ? R.revisions.total : 0))} (${esc(String(R.revisions ? R.revisions.arretees : 0))} arrêtée${R.revisions && R.revisions.arretees > 1 ? 's' : ''})</td></tr>
+        <tr><td>Questions au client — dans leur état</td><td class="r nw">${esc(String(R.questions ? R.questions.total : 0))} (${esc(String(R.questions ? R.questions.enAttente : 0))} en attente)</td></tr>
         <tr><td>Total des validées (débit = crédit)</td><td class="r nw">${money(Number(R.totaux.debit))}</td></tr>
       </tbody></table>
       ${R.anomalies.length

@@ -46,6 +46,12 @@ const KC = ecranDeLaPlateforme('compta.js') as {
   lettrer: (l: Livre, compte: string, ids: string[], lettre: string, qui: string, jour: string) => { ok: boolean; lettre?: string; motif?: string };
   ajouterReleve: (l: Livre, r: Record<string, unknown>, qui: string, quand: number) => { ok: boolean; releve?: { id: string }; motif?: string };
   rapprocherAuto: (l: Livre, releve: string, o: Record<string, unknown>) => { ok: boolean; compte: Record<string, number> };
+  ajouterQuestion: (l: Livre, q: Record<string, unknown>, qui: string, quand: number) => { ok: boolean; question?: { id: string } };
+  noterEnvoiQuestions: (l: Livre, ids: string[], quand: number) => { envoyees: number };
+  noterReponsesQuestions: (l: Livre, r: Record<string, unknown>[], quand: number) => { posees: number };
+  signerCompte: (l: Livre, periode: string, compte: string, qui: string, quand: number, o?: Record<string, unknown>) => { ok: boolean };
+  ajouterNoteRevue: (l: Livre, periode: string, n: Record<string, unknown>, qui: string, quand: number) => { ok: boolean };
+  arreterRevision: (l: Livre, periode: string, qui: string, quand: number) => { ok: boolean };
   lignesDuLivre: (l: Livre, o?: Record<string, unknown>) => unknown[];
   balanceDepuisLignes: (lignes: unknown[], ouverture: unknown, libelle?: unknown) => { rows: { account: string; debit: number; credit: number }[] } | { account: string; debit: number; credit: number }[];
 };
@@ -79,7 +85,16 @@ function livreDe2025() {
     lignes: [{ date: '2025-04-02', libelle: 'VIR HOTEL DU LAC', montant: 1191.001, reference: 'VIR-88' }, { date: '2025-04-30', libelle: 'FRAIS TENUE DE COMPTE', montant: -12.5, reference: '' }] }, 'Leila', Date.UTC(2025, 4, 5));
   expect(rel.ok).toBe(true);
   expect(KC.rapprocherAuto(L, rel.releve?.id ?? '', { date: '2025-05-05' }).compte).toMatchObject({ certain: 1, aucun: 1 });
-  L.questions.push({ id: 'q1' }, { id: 'q2' });
+  // Deux questions au client, envoyées ; la première a sa réponse. La révision de l'exercice : un compte
+  // signé, une note de revue, arrêtée.
+  const q1 = KC.ajouterQuestion(L, { periode: '2025-03', compte: '411', ecritureId: fac.id, montant: 1191.001, objet: 'Facture Hôtel du Lac',
+    texte: 'Merci de nous transmettre le bon de commande.', attendu: 'piece' }, 'Leila', Date.UTC(2025, 5, 8)).question?.id ?? '';
+  const q2 = KC.ajouterQuestion(L, { periode: '2025', texte: 'Le stock au 31/12 a-t-il été compté ?', attendu: 'confirmation' }, 'Leila', Date.UTC(2025, 5, 8)).question?.id ?? '';
+  expect(KC.noterEnvoiQuestions(L, [q1, q2], Date.UTC(2025, 5, 10)).envoyees).toBe(2);
+  expect(KC.noterReponsesQuestions(L, [{ id: q1, texte: 'Le bon de commande est joint.', le: Date.UTC(2025, 5, 12) }], Date.UTC(2025, 5, 12)).posees).toBe(1);
+  expect(KC.signerCompte(L, '2025', '532', 'Leila', Date.UTC(2025, 5, 13), { note: 'Rapproché avec le relevé d\'avril' }).ok).toBe(true);
+  expect(KC.ajouterNoteRevue(L, '2025', { texte: 'Vérifier la TVA collectée de mars', cycle: 'ventes' }, 'Leila', Date.UTC(2025, 5, 13)).ok).toBe(true);
+  expect(KC.arreterRevision(L, '2025', 'Leila', Date.UTC(2025, 5, 14)).ok).toBe(true);
   return L;
 }
 
@@ -100,7 +115,8 @@ describe('la reprise d\'un livre du Cabinet v10 : l\'essai à blanc', () => {
       releves: { total: 1, lignes: 2, rapprochees: 1 },
       anomalies: [],
       immobilisations: { total: 0, liees: 0 },
-      autour: { questions: 2 },
+      revisions: { total: 1, arretees: 1 },
+      questions: { total: 2, enAttente: 1 },
     });
     // Deux chemins, un chiffre : la balance du serveur est celle que la v10 calcule sur le même livre.
     const b = KC.balanceDepuisLignes(KC.lignesDuLivre(L), {});
@@ -258,6 +274,21 @@ describe('la reprise d\'un livre du Cabinet v10 : l\'écriture dans un dossier t
     }]);
     const vir = (await admin.query(`select id from compta.ecriture where entreprise = $1 and piece = 'VIR-88'`, [dossier])).rows[0].id;
     expect(rv[0]?.lignes[0]?.rapprochement?.ecriture).toBe(vir);
+    // Les questions au client, dans leur état : envoyées le 10 juin, la première répondue le 12, en face
+    // de la facture reprise ; la révision de l'exercice arrêtée, son compte signé et sa note.
+    expect(r.corps).toMatchObject({ revisions: 1, questions: 2 });
+    const facture = (await admin.query(`select id from compta.ecriture where entreprise = $1 and piece = 'FAC-2025-014'`, [dossier])).rows[0].id;
+    const qs = ((await appeler('GET', `/entreprises/${dossier}/compta/questions?annee=2025`, associe.jeton)).corps.questions as {
+      periode: string; texte: string; statut: string; ecriture: string | null; montant: string; attendu: string; envois: string[]; reponse: string | null; reponduLe: string | null }[])
+      .map((q) => [q.periode, q.statut, q.ecriture, q.montant, q.attendu, q.envois.map((d) => d.slice(0, 10)), q.reponse, q.reponduLe?.slice(0, 10) ?? null])
+      .sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+    expect(qs).toEqual([
+      ['2025', 'envoyee', null, '0.000', 'confirmation', ['2025-06-10'], null, null],
+      ['2025-03', 'repondue', facture, '1191.001', 'piece', ['2025-06-10'], 'Le bon de commande est joint.', '2025-06-12'],
+    ]);
+    const revs = (await appeler('GET', `/cabinets/${cabinet}/revisions/${dossier}?annee=2025`, associe.jeton)).corps.revisions as { periode: string; contenu: { faite: boolean; comptes: { compte: string; note: string }[]; notes: { texte: string }[] } }[];
+    expect(revs.map((x) => [x.periode, x.contenu.faite, x.contenu.comptes.map((c) => [c.compte, c.note]), x.contenu.notes.map((n) => n.texte)])).toEqual([
+      ['2025', true, [['532', 'Rapproché avec le relevé d\'avril']], ['Vérifier la TVA collectée de mars']]]);
     expect(await livres(dossier, associe.jeton)).toEqual([
       ['AN', 'validee', 'AN-2025-000001'], ['FAC-2025-014', 'validee', 'VT-2025-000002'], ['FF-77', 'brouillard', null], ['OD-7', 'validee', 'OD-2025-000004'],
       ['VIR-88', 'validee', 'BQ-2025-000003'],
@@ -317,6 +348,49 @@ describe('la reprise d\'un livre du Cabinet v10 : l\'écriture dans un dossier t
     expect([lt.statut, lt.corps.lettre], JSON.stringify(lt.corps)).toEqual([201, 'D']);
   });
 
+  it('une révision ou une question qui ne se reprendrait pas telle quelle est nommée ; la base refait ses contrôles', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Ennour' })).corps.id);
+    const L = JSON.parse(JSON.stringify(livreDe2025())) as { revisions: Record<string, unknown>[]; questions: Record<string, unknown>[] };
+    const [rev] = L.revisions;
+    const [q] = L.questions;
+    if (!rev || !q) throw new Error('livre incomplet');
+    L.revisions.push({ ...rev, periode: '2024' }, { ...rev }, { ...rev, periode: '2025-02', notes: [{ id: 'n1', texte: '', cycle: '', compte: '', par: 'Leila', le: 1, levee: false, leveeLe: null, leveePar: '' }] });
+    const question = (x: Record<string, unknown>) => ({ ...q, reponse: null, statut: 'ouverte', envois: [], ...x });
+    L.questions.push(question({ piece: 'Q-PERIODE', periode: '2026-01' }), question({ piece: 'Q-TEXTE', texte: '' }), question({ piece: 'Q-COMPTE', compte: '41 1' }),
+      question({ piece: 'Q-MONTANT', montant: 1.2345 }), question({ piece: 'Q-STATUT', statut: 'perdue' }), question({ piece: 'Q-REPONSE', statut: 'repondue' }),
+      question({ piece: 'Q-ENVOIS', statut: 'envoyee' }));
+    const r = await appeler('POST', `/cabinets/${cabinet}/reprise/livre/essai`, associe.jeton, { livre: L });
+    expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+    expect((r.corps.anomalies as { piece: string; motif: string }[]).map((x) => [x.piece, x.motif])).toEqual([
+      ['2024', 'Une révision de ce livre n\'est ni l\'exercice 2025 ni l\'un de ses mois.'],
+      ['2025', 'La révision de cette période est deux fois dans le livre.'],
+      ['2025-02', 'La révision de cette période ne se lit pas telle quelle (notes.0.texte).'],
+      ['Q-PERIODE', 'Une question de ce livre n\'est ni sur l\'exercice 2025 ni sur l\'un de ses mois.'],
+      ['Q-TEXTE', 'Une question n\'a pas de texte.'],
+      ['Q-COMPTE', 'Le compte d\'une question ne s\'écrit pas en chiffres.'],
+      ['Q-MONTANT', 'Le montant d\'une question ne se lit pas au millime.'],
+      ['Q-STATUT', 'L\'état d\'une question n\'est pas connu (ouverte, envoyée, répondue ou close).'],
+      ['Q-REPONSE', 'Une question dite répondue n\'a pas de réponse, ou l\'inverse.'],
+      ['Q-ENVOIS', 'Une question dite envoyée n\'a pas d\'envoi, ou l\'inverse.'],
+    ]);
+    // La base : la pièce d'une question doit être une écriture reprise du dossier ; pas chez un client sur SkanFact.
+    const dossier = String((await appeler('POST', `/cabinets/${cabinet}/dossiers`, associe.jeton, { raisonSociale: 'Boulangerie Ennour' })).corps.entreprise);
+    expect((await appeler('POST', `/cabinets/${cabinet}/reprise/livre`, associe.jeton, { dossier, livre: JSON.parse(JSON.stringify(livreDe2025())) })).statut).toBe(201);
+    const saisie = await appeler('POST', `/entreprises/${dossier}/compta/ecritures`, associe.jeton, {
+      date: '2025-12-31', journal: 'OD', piece: 'OD-9', libelle: 'Écart', lignes: [{ compte: '658', debit: '1,000' }, { compte: '532', credit: '1,000' }] });
+    expect(saisie.statut, JSON.stringify(saisie.corps)).toBe(201);
+    const reprise = String((await admin.query(`select id from compta.ecriture where entreprise = $1 and piece = 'VIR-88'`, [dossier])).rows[0].id);
+    const poser = (ent: string, ecriture: string | null, u = associe.utilisateur) => enTantQue(pool, u, (tx) => tx.query('select compta.reprendre_questions_v10($1, $2::jsonb) n',
+      [ent, JSON.stringify([{ periode: '2025', texte: 'Ce virement ?', attendu: 'explication', statut: 'ouverte', envois: [], ecriture, montant: '0', posee: 0 }])]))
+      .then((x) => Number(x.rows[0].n), (e: Error) => e.message);
+    expect(await poser(dossier, String(saisie.corps.id))).toBe('la pièce d\'une question reprise n\'est pas une écriture reprise de ce dossier');
+    expect(await poser(dossier, reprise)).toBe(1);
+    const client = await personne('client');
+    const ent = String((await appeler('POST', '/entreprises', client.jeton, { raisonSociale: 'Menuiserie Ben Salah' })).corps.id);
+    expect(await poser(ent, null, client.utilisateur)).toBe('la reprise d\'un livre de la v10 s\'écrit dans un dossier que ton cabinet tient');
+  });
+
   it('le relevé d\'une année déjà repris avec une autre : refusé en le disant, rien d\'écrit', async () => {
     const associe = await personne('associe');
     const cabinet = String((await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Ennour' })).corps.id);
@@ -367,7 +441,9 @@ describe('la reprise d\'un livre du Cabinet v10 : l\'écriture dans un dossier t
     const ent = String((await appeler('POST', '/entreprises', client.jeton, { raisonSociale: 'Menuiserie Ben Salah' })).corps.id);
     const mandat = String((await appeler('POST', `/entreprises/${ent}/mandat`, client.jeton, { codeCabinet: String(c.corps.code) })).corps.mandat);
     expect((await appeler('POST', `/cabinets/${cabinet}/mandats/${mandat}/accepter`, associe.jeton)).statut).toBe(200);
-    const surSkanfact = await appeler('POST', `/cabinets/${cabinet}/reprise/livre`, associe.jeton, { dossier: ent, livre: JSON.parse(JSON.stringify(livreDe2025())) });
+    // Un livre sans questions : c'est l'écriture du livre elle-même qui refuse (les questions refusent aussi).
+    const sansQuestions = { ...JSON.parse(JSON.stringify(livreDe2025())), questions: [] };
+    const surSkanfact = await appeler('POST', `/cabinets/${cabinet}/reprise/livre`, associe.jeton, { dossier: ent, livre: sansQuestions });
     expect([surSkanfact.statut, surSkanfact.corps.motif]).toEqual([403, 'La reprise d\'un livre de la v10 s\'écrit dans un dossier que ton cabinet tient.']);
     // Un collaborateur : refusé.
     const collaborateur = await personne('collaborateur');

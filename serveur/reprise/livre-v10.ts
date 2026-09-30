@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import { estJour } from '../v10/lecture.ts';
 import { motif, type Texte } from '../../textes/index.ts';
+import { PERIODE_REVISION, REVISION } from '../cabinet/revision.ts';
 import './textes.ts';
 
 // Les journaux que la plateforme connaît (0015) : un autre ne se reprend pas tel quel.
@@ -61,6 +62,19 @@ export type LivreLu = {
   releves: ReleveReprise[];
   // Les immobilisations et les écritures de l'année qui portent leur dotation ou leur sortie (brique 67).
   biens: BienReprise[];
+  // La révision de chaque période et les questions au client (brique 68).
+  revisions: RevisionReprise[];
+  questions: QuestionReprise[];
+};
+
+// Le dossier de révision d'une période (brique 68), dans la forme que la plateforme garde (0028).
+export type RevisionReprise = { periode: string; contenu: ReturnType<typeof REVISION.parse> };
+// Une question au client (brique 68) : son état tel que la v10 le tenait (ouverte, envoyée, répondue,
+// close), ses envois, sa réponse ; la pièce en face de laquelle elle est née, à relier à l'écriture reprise.
+export type QuestionReprise = {
+  periode: string; cycle: string; compte: string; ecriture: string; piece: string; montant: bigint; objet: string; texte: string;
+  attendu: 'piece' | 'explication' | 'confirmation'; statut: 'ouverte' | 'envoyee' | 'repondue' | 'close';
+  envois: number[]; posee: number; reponse: string | null; repondue: number | null; close: number | null;
 };
 
 // Un bien du livre (brique 67) : sa fiche dans la forme de l'API (montants en texte exact, durée en
@@ -146,12 +160,14 @@ export function lireLivreV10(o: unknown): LivreLu | null {
   }
   const releves = lireReleves(liste(o.releves), ecritures, anomalies);
   const biens = lireBiens(liste(o.immobilisations), ecritures, annee, anomalies);
+  const revisions = lireRevisions(liste(o.revisions), annee, anomalies);
+  const questions = lireQuestions(liste(o.questions), ecritures, annee, anomalies);
   const autour: Record<string, number> = {
     declarations: liste(o.declarations).length,
-    inventaires: liste(o.inventaires).length, revisions: liste(o.revisions).length, questions: liste(o.questions).length,
+    inventaires: liste(o.inventaires).length,
     salaries: liste(o.salaries).length, bulletins: liste(o.bulletins).length,
   };
-  return { annee, du, au, clos: ex.clos === true, ecritures, anomalies, autour, lettrages: groupes.size, releves, biens };
+  return { annee, du, au, clos: ex.clos === true, ecritures, anomalies, autour, lettrages: groupes.size, releves, biens, revisions, questions };
 }
 
 // Un nombre de la v10 à au plus `d` décimales (une durée, un taux), en texte ; null s'il ne se lit pas.
@@ -302,8 +318,75 @@ export function rapportDuLivre(l: LivreLu) {
     ecritures: { total: l.ecritures.length, validees: validees.length, brouillard: l.ecritures.length - validees.length, aNouveaux: l.ecritures.filter((e) => e.journal === 'AN').length },
     journaux, balance, totaux: { debit: total('debit'), credit: total('credit') },
     lettrages: l.lettrages,
+    revisions: { total: l.revisions.length, arretees: l.revisions.filter((r) => r.contenu.faite).length },
+    questions: { total: l.questions.length, enAttente: l.questions.filter((q) => q.statut === 'ouverte' || q.statut === 'envoyee').length },
     immobilisations: { total: l.biens.length, liees: l.biens.reduce((n, b) => n + b.liens.length, 0) },
     releves: { total: l.releves.length, lignes: l.releves.reduce((n, r) => n + r.lignes.length, 0), rapprochees: l.releves.reduce((n, r) => n + r.lignes.filter((x) => x.face).length, 0) },
     anomalies: l.anomalies, autour: l.autour,
   };
+}
+
+// Un instant de la v10 (des millisecondes), ou null.
+const instant = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 8_640_000_000_000_000 ? v : null);
+// Une période de la révision ou d'une question : l'année du livre, ou l'un de ses mois.
+const periodeDuLivre = (p: string, annee: number) => PERIODE_REVISION.test(p) && p.slice(0, 4) === String(annee);
+
+// La révision de chaque période (brique 68) : le dossier de travail du cabinet (comptes signés, notes
+// de revue, questionnaire, révision arrêtée), relu dans la forme exacte que la plateforme garde. Ce qui
+// n'y entre pas (un champ trop long, un instant illisible) est nommé à la période.
+function lireRevisions(brut: unknown[], annee: number, anomalies: Anomalie[]): RevisionReprise[] {
+  const revisions: RevisionReprise[] = [];
+  const vues = new Set<string>();
+  for (const x of brut) {
+    if (!estObjet(x)) continue;
+    const periode = texte(x.periode, 7);
+    const nomme = (m: Texte) => anomalies.push({ ecriture: '', piece: periode, date: '', motif: m });
+    if (!periodeDuLivre(periode, annee)) { nomme(motif('reprise.revision_periode', { annee: String(annee) })); continue; }
+    if (vues.has(periode)) { nomme(motif('reprise.revision_double')); continue; }
+    vues.add(periode);
+    const lu = REVISION.safeParse({
+      faite: x.faite === true, faiteLe: x.faite === true ? instant(x.faiteLe) : null, faitePar: texte(x.faitePar, 1000),
+      comptes: liste(x.comptes).filter(estObjet).map((c) => ({ compte: String(c.compte ?? ''), revuLe: instant(c.revuLe) ?? 0, revuPar: texte(c.revuPar, 1000), note: texte(c.note, 5000) })),
+      notes: liste(x.notes).filter(estObjet).map((n) => ({ id: texte(n.id, 100), texte: texte(n.texte, 5000), cycle: texte(n.cycle, 100), compte: String(n.compte ?? ''),
+        par: texte(n.par, 1000), le: instant(n.le) ?? 0, levee: n.levee === true, leveeLe: n.levee === true ? instant(n.leveeLe) : null, leveePar: texte(n.leveePar, 1000) })),
+      questionnaire: liste(x.questionnaire).filter(estObjet).map((q) => ({ id: texte(q.id, 100), question: texte(q.question, 1000), reponse: texte(q.reponse, 5000), par: texte(q.par, 1000), le: instant(q.le) })),
+    });
+    if (!lu.success) { nomme(motif('reprise.revision_forme', { champ: lu.error.issues[0]?.path.join('.') ?? '' })); continue; }
+    revisions.push({ periode, contenu: lu.data });
+  }
+  return revisions;
+}
+
+const ATTENDUS = ['piece', 'explication', 'confirmation'] as const;
+const STATUTS = ['ouverte', 'envoyee', 'repondue', 'close'] as const;
+
+// Les questions au client (brique 68), telles que la v10 les tenait : leur texte, ce qu'elles
+// attendent, leur état. Une question qui a sa réponse est « répondue » (ou close) ; une question
+// jamais envoyée est « ouverte » (ou close) — les règles de la table (0028). Ce qui ne s'y plie pas
+// est nommé à la pièce de la question.
+function lireQuestions(brut: unknown[], ecritures: EcritureReprise[], annee: number, anomalies: Anomalie[]): QuestionReprise[] {
+  const refs = new Set(ecritures.map((e) => e.refV10));
+  const questions: QuestionReprise[] = [];
+  for (const x of brut) {
+    if (!estObjet(x)) continue;
+    const r = estObjet(x.reponse) ? x.reponse : null;
+    const q: QuestionReprise = {
+      periode: texte(x.periode, 7), cycle: texte(x.cycle, 40), compte: String(x.compte ?? '').trim(), ecriture: refs.has(texte(x.ecritureId, 200)) ? texte(x.ecritureId, 200) : '',
+      piece: texte(x.piece, 200), montant: montant(x.montant) ?? 0n, objet: texte(x.objet, 200).trim(), texte: texte(x.texte, 2000).trim(),
+      attendu: (ATTENDUS as readonly string[]).includes(String(x.attendu)) ? x.attendu as QuestionReprise['attendu'] : 'explication',
+      statut: (STATUTS as readonly string[]).includes(String(x.statut)) ? x.statut as QuestionReprise['statut'] : 'ouverte',
+      envois: liste(x.envois).map(instant).filter((v): v is number => v !== null), posee: instant(x.creeLe) ?? 0,
+      reponse: r && texte(r.texte, 4000).trim() ? texte(r.texte, 4000).trim() : null, repondue: r ? instant(r.le) : null, close: instant(x.closeLe),
+    };
+    const nomme = (m: Texte) => anomalies.push({ ecriture: texte(x.id, 200), piece: q.piece || q.compte || q.periode, date: '', motif: m });
+    if (!periodeDuLivre(q.periode, annee)) nomme(motif('reprise.question_periode', { annee: String(annee) }));
+    if (!q.texte) nomme(motif('reprise.question_texte'));
+    if (q.compte && !COMPTE.test(q.compte)) nomme(motif('reprise.question_compte'));
+    if (montant(x.montant) === null) nomme(motif('reprise.question_montant'));
+    if (!(STATUTS as readonly string[]).includes(String(x.statut))) nomme(motif('reprise.question_statut'));
+    else if ((q.statut === 'repondue') !== (q.reponse !== null) && q.statut !== 'close') nomme(motif('reprise.question_reponse'));
+    else if ((q.statut === 'ouverte') !== (q.envois.length === 0) && q.statut !== 'close') nomme(motif('reprise.question_envois'));
+    questions.push(q);
+  }
+  return questions;
 }
