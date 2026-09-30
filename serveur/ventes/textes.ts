@@ -11,6 +11,23 @@ declarerTextes({
   'geste.ventes.client.modifier': 'créer ou modifier un client',
   'geste.ventes.lien.partager': 'donner à un client le lien de ses pièces, ou le retirer',
 
+  'geste.ventes.paiement.regler': 'brancher ou débrancher le paiement en ligne',
+
+  'paiement.pas_en_ligne': 'cette entreprise ne propose pas le paiement en ligne : écris-lui pour régler autrement',
+  'paiement.devise': 'le paiement en ligne se fait en dinars : cette facture est dans une autre devise, écris à l\'entreprise pour la régler',
+  'paiement.rien_a_payer': 'il ne reste rien à payer sur cette facture',
+  'paiement.prestataire_indisponible': 'le paiement en ligne ne répond pas pour le moment : réessaie dans un instant, ou règle autrement',
+  'paiement.retour_inconnu': 'ce paiement est inconnu : reviens à ton espace par le lien que l\'entreprise t\'a donné',
+  'paiement.description': 'Facture {numero}',
+  'paiement.compte_nom': 'Konnect — paiement en ligne',
+  'paiement.non_enregistre': 'le paiement est reçu, mais il n\'a pas pu s\'ajouter à la facture : ajoute-le à la main',
+  'paiement.konnect_refuse': 'Konnect a refusé la demande (réponse {statut}){message}',
+  'paiement.konnect_illisible': 'Konnect a répondu quelque chose d\'illisible',
+  'paiement.konnect_injoignable': 'Konnect ne répond pas',
+  'paiement.cle_illisible': 'la clé de Konnect ne s\'ouvre plus sur ce serveur : pose-la de nouveau',
+  'paiement.konnect_autre_commande': 'Konnect a confirmé le paiement d\'une autre commande : il n\'est pas enregistré',
+  'paiement.konnect_autre_montant': 'Konnect a confirmé {recu} millimes au lieu de {attendu} : le paiement n\'est pas enregistré',
+
   'espace.lien_invalide': 'ce lien n\'est plus valable : demande un nouveau lien à l\'entreprise qui te l\'a envoyé',
   'espace.piece_non_emise': 'seule une facture ou un avoir émis se partage avec le client : émets la pièce d\'abord',
 

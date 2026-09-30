@@ -26,6 +26,10 @@ button, .bouton { font: inherit; border-radius: 8px; border: 1px solid var(--tra
 button.principal { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 .barre { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .barre .reste { color: var(--doux); }
+.barre .gestes { display: flex; flex-wrap: wrap; gap: 8px; }
+.du .aide { flex-basis: 100%; margin: 0; color: var(--doux); font-size: 14px; }
+.refus-paiement { background: #fdecea; color: var(--retard); border-radius: 8px; padding: 10px 14px; margin: 0 0 12px; }
+button:disabled { opacity: .6; cursor: progress; }
 iframe.piece { width: 100%; border: 1px solid var(--trait); border-radius: 8px; background: #fff; height: 75vh; }
 footer { color: var(--doux); font-size: 13px; margin-top: 24px; }
 /* Sur un téléphone : la liste en cartes, une pièce par carte. */
@@ -38,3 +42,7 @@ footer { color: var(--doux); font-size: 13px; margin-top: 24px; }
   table.pieces td.m { text-align: left; }
   .etiquette { display: inline; color: var(--doux); }
 }
+/* La page de retour d'un paiement en ligne. */
+.retour h1 { font-size: 22px; margin: 0 0 8px; }
+a.bouton { display: inline-block; text-decoration: none; }
+a.bouton.principal { background: var(--accent); border: 1px solid var(--accent); color: #fff; font-weight: 600; border-radius: 8px; padding: 8px 16px; }

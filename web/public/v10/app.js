@@ -7522,6 +7522,7 @@
     'p-marque': { onglet: 'documents', titre: 'Image de marque (sur tes documents)', mots: 'logo cachet signature couleur accent marque entete image' },
     'p-textes': { onglet: 'documents', titre: 'Textes imprimés sur les documents', mots: 'pied de page footer conditions mentions anglais english' },
     'p-objectifs': { onglet: 'documents', titre: 'Objectifs et statistiques', mots: 'objectif chiffre affaires client endormi dormant statistiques' },
+    'p-paiement': { onglet: 'documents', titre: 'Paiement en ligne', mots: 'paiement en ligne konnect carte portefeuille payer client espace lien encaisser', visible: () => !!bridge.dessinerPaiement },
     'p-caisse': { onglet: 'documents', titre: 'Caisse et tickets', mots: 'caisse ticket comptoir imprimante thermique 80 mm 58 mm papier timbre message douchette' },
     'p-envoi': { onglet: 'envois', titre: 'Envoi des emails', mots: 'mail messagerie apple mailto envoyer piece jointe' },
     'p-comptable': { onglet: 'envois', titre: 'Ton comptable', mots: 'comptable email adresse envoyer journaux' },
@@ -15132,6 +15133,7 @@
           ${field(lbl(`Objectif de chiffre d'affaires HT par an (${C.normCurrency(c.currency)})`, 'stat.target'), 'revenueTarget', Number(c.revenueTarget) > 0 ? c.revenueTarget : '', 'number', 'step="1" min="0" class="num montant" placeholder="aucun objectif"')}
           ${field(lbl('Un client est « endormi » après (jours)', 'stat.dormant'), 'dormantDays', c.dormantDays || 180, 'number', 'min="1" class="num"')}
         </div></div>
+        ${bridge.dessinerPaiement ? `${panneau('p-paiement')}<div id="paiement-panel"></div></div>` : ''}
         ${panneau('p-caisse')}
           <p class="small muted mb">Ces réglages ne servent qu'aux tickets de la page Caisse : tes devis et tes factures n'en dépendent pas.</p>
           <div class="grid-2">
@@ -15541,6 +15543,7 @@
     drawCabinetPair();
     if (bridge.dessinerQuarantaine && $('#quarantaine-panel')) bridge.dessinerQuarantaine($('#quarantaine-panel'));
     if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));
+    if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));
     drawLicencePanel();
     drawEditeurPanel();
     drawUpdatePanel();

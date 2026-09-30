@@ -48,8 +48,8 @@ puis chaque pièce, la plus récente d'abord : date, échéance, montant, reste 
 « En retard », « Payée en partie », « Payée », « Annulée ») et ce que la facture a déjà reçu (« Payé : …
 · Avoirs : … »). Sur un téléphone, la liste passe en cartes, et chaque chiffre dit ce qu'il est.
 
-**E6. Rien ne change par l'espace client.** Il se lit et s'imprime ; le paiement en ligne viendra
-(§ 2.2), et il passera par le prestataire.
+**E6. Rien ne change par l'espace client**, sauf le paiement en ligne (brique 78,
+`docs/paiement-en-ligne.md`), qui passe par le prestataire de l'entreprise.
 
 ## Ce qui part vers le client, compté et décidé
 
@@ -76,7 +76,7 @@ le plafond de crédit, la langue et la devise d'un client ; l'identifiant intern
 
 ## Reste à faire (§ 2.1)
 
-- **« Payer en ligne »** (§ 2.2, Konnect) : la brique suivante.
+- ~~« Payer en ligne »~~ : fait à la brique 78 (`docs/paiement-en-ligne.md`).
 - **Les bons de livraison** émis.
 - **Le fichier XML signé** : avec la signature (DigiGo, puis la signature serveur).
 - **Le lien dans l'e-mail et le WhatsApp** qui envoient la pièce ; aujourd'hui, on copie le lien.

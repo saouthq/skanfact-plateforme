@@ -96,6 +96,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   // Ce qu'un appareil retiré a remis (0044) : à l'entreprise, décidé ou non.
   'socle.quarantaine': { classe: 'entreprise' },
   'ventes.lien': { classe: 'hors', raison: 'un lien de l\'espace client est une clé d\'accès : il ne quitte jamais la plateforme, on en redonne un' },
+  'ventes.prestataire': { classe: 'hors', raison: 'la clé du prestataire de paiement est scellée par le coffre de CE serveur : elle se repose après une restauration' },
+  'ventes.paiement_en_ligne': { classe: 'entreprise' },
   // Le code d'un cabinet n'est pas repris : unique sur la plateforme, il reste à son cabinet.
   'socle.organisation': { classe: 'reference', colonnes: ['id', 'type', 'nom', 'cree_le'] },
   // Jamais l'empreinte du mot de passe ni le téléphone vérifié : une personne recréée se reconnecte

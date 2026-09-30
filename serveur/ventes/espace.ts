@@ -53,7 +53,7 @@ type PieceLue = {
   id: string; type: 'facture' | 'avoir'; numero: string; date: string; echeance: string | null; devise: string; decimales: number;
   net: string; avoirs: string[]; reglements: string[]; document: unknown;
 };
-type Lu = { lien: 'piece' | 'compte'; entreprise: unknown; client: unknown; pieces: PieceLue[] };
+type Lu = { lien: 'piece' | 'compte'; entreprise: unknown; client: unknown; paiement: boolean; pieces: PieceLue[] };
 
 // Ce que le lien montre, ou null (lien inconnu ou révoqué). Chaque ouverture est notée (« vue le … »).
 export async function vueEspace(ctx: Contexte, jetonEmpreinte: string) {
@@ -72,6 +72,8 @@ export async function vueEspace(ctx: Contexte, jetonEmpreinte: string) {
       type: p.type, numero: p.numero, date: p.date, echeance: p.echeance, devise: p.devise, net: m(net),
       paye: solde ? m(solde.paye) : null, credite: solde ? m(solde.credite) : null,
       reste: solde ? m(solde.reste) : null, statut: solde ? statutFacture(net, solde, p.echeance ?? undefined, aujourdhui) : null,
+      // « Payer en ligne » (brique 78) : une facture qui doit encore, en dinars, chez une entreprise qui l'accepte.
+      payable: !!solde && solde.reste > 0n && p.devise === 'TND' && lu.paiement === true,
       document: nettoyerPiece(p.document),
     };
   });

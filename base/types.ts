@@ -708,6 +708,23 @@ export interface BaseDeDonnees {
     tva: bigint | null;
     ttc: bigint | null;
   };
+  'ventes.paiement_en_ligne': {
+    id: Generated<string>;
+    entreprise: string;
+    piece: string;
+    prestataire: string;
+    montant: bigint;
+    devise: string;
+    retour_empreinte: string;
+    cree_le: Date;
+    ref: string | null;
+    adresse: string | null;
+    statut: Generated<string>;
+    prouve_le: Date | null;
+    encaisse_le: Date | null;
+    reglement_v10: string | null;
+    motif: ColumnType<Json | null, string | null, string | null>;
+  };
   'ventes.piece': {
     id: Generated<string>;
     entreprise: string;
@@ -747,6 +764,18 @@ export interface BaseDeDonnees {
     revision: Generated<bigint>;
     ref_v10: string | null;
     corrige: string | null;
+  };
+  'ventes.prestataire': {
+    entreprise: string;
+    prestataire: string;
+    portefeuille: string;
+    cle_scellee: string;
+    cle_fin: string;
+    compte_v10: string;
+    pose_le: Date;
+    pose_par: string;
+    dernier_refus: ColumnType<Json | null, string | null, string | null>;
+    dernier_refus_le: Date | null;
   };
   'ventes.reglement': {
     id: Generated<string>;

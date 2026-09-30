@@ -3,12 +3,18 @@
 // avoir par le serveur. Une clé de l'API n'y entre pas (gestes « horsCle ») : un logiciel branché passe par les
 // routes de chaque module.
 
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { motif } from '../../textes/index.ts';
+import { motif, rendre, t } from '../../textes/index.ts';
 import type { Route } from '../app.ts';
+import { versTexte } from '../../moteur/argent.ts';
+import { sceller } from '../coffre.ts';
 import { mettreEnQuarantaine, type Contexte } from '../connexion.ts';
 import { Refus, texteDuRefus } from '../erreurs.ts';
+import { aujourdhuiATunis } from '../reglements.ts';
+import { tracer } from '../trace.ts';
 import { appliquer, Conflit, emettreDepuisV10, lireDossier, type Changement } from './dossier.ts';
+import { demanderPaiement, verifierPaiement } from './paiement.ts';
 
 // Une clé v10 : l'identifiant qu'elle a donné à l'objet, ou le nom d'un champ du dossier.
 const cle = z.string().min(1).max(200);
@@ -126,6 +132,116 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       return { corps: { appliques, misDeCote } };
     },
   });
+
+  // ── Le paiement en ligne (brique 78 ; docs/paiement-en-ligne.md ; 14 § 2.2) ─────────────────────
+  // Les réglages : l'entreprise branche SON compte Konnect (le portefeuille, et la clé de son API,
+  // scellée par le coffre : aucune route ne la rend jamais). Le compte de trésorerie « Konnect » naît
+  // dans le dossier la première fois : les paiements en ligne y arrivent.
+  ajouter({
+    methode: 'PUT', chemin: '/entreprises/:entreprise/paiement-en-ligne', geste: 'ventes.paiement.regler',
+    corps: z.object({ portefeuille: z.string().trim().min(1).max(100), cle: z.string().trim().min(8).max(500) }),
+    traiter: async ({ params, corps, qui }, tx) => {
+      if (!tx || !qui || !ctx.paiement) throw new Error('transaction et paiement attendus');
+      const ent = params.entreprise ?? '';
+      const maintenant = (ctx.maintenant ?? (() => new Date()))();
+      const deja = (await tx.query('select compte_v10 from ventes.prestataire where entreprise = $1', [ent])).rows[0]?.compte_v10 as string | undefined;
+      const existe = deja ? (await tx.query("select 1 from socle.dossier_v10 where entreprise = $1 and collection = 'accounts' and cle = $2", [ent, deja])).rowCount : 0;
+      let compte = existe ? String(deja) : '';
+      if (!compte) {
+        compte = randomUUID();
+        const rang = Number((await tx.query("select coalesce(max(rang), -1) + 1 r from socle.dossier_v10 where entreprise = $1 and collection = 'accounts'", [ent])).rows[0].r);
+        await appliquer(tx, ent, qui.utilisateur, [{ collection: 'accounts', cle: compte, rang, revision: null, contenu: {
+          id: compte, name: rendre(t('paiement.compte_nom'), 'fr'), kind: 'autre', bank: 'Konnect', rib: '', opening: 0,
+          openingDate: aujourdhuiATunis(maintenant), isDefault: false, statementBalance: '', notes: '',
+        } }]);
+      }
+      const cleFin = corps.cle.slice(-4);
+      // (Pas d'« on conflict » : il relirait la clé scellée, que le compte du serveur ne peut pas lire.)
+      const valeurs = [ent, corps.portefeuille, sceller(ctx.paiement.coffre, ent, corps.cle), cleFin, compte, maintenant, qui.utilisateur];
+      const change = await tx.query(`update ventes.prestataire set prestataire = 'konnect', portefeuille = $2, cle_scellee = $3, cle_fin = $4, compte_v10 = $5,
+        pose_le = $6, pose_par = $7, dernier_refus = null, dernier_refus_le = null where entreprise = $1`, valeurs);
+      if (!change.rowCount) {
+        await tx.query(`insert into ventes.prestataire (entreprise, prestataire, portefeuille, cle_scellee, cle_fin, compte_v10, pose_le, pose_par)
+          values ($1, 'konnect', $2, $3, $4, $5, $6, $7)`, valeurs);
+      }
+      await tracer(tx, ent, 'ventes.paiement.regler', { type: 'prestataire', id: null }, null, { prestataire: 'konnect', portefeuille: corps.portefeuille, cleFin });
+      return { corps: { ok: true } };
+    },
+  });
+
+  // Débrancher : plus de « Payer en ligne » ; le compte de trésorerie et les paiements passés restent.
+  ajouter({
+    methode: 'DELETE', chemin: '/entreprises/:entreprise/paiement-en-ligne', geste: 'ventes.paiement.regler',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const r = await tx.query('delete from ventes.prestataire where entreprise = $1', [params.entreprise]);
+      if (!r.rowCount) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
+      await tracer(tx, params.entreprise ?? '', 'ventes.paiement.arreter', { type: 'prestataire', id: null }, null, null);
+      return { corps: { ok: true } };
+    },
+  });
+
+  // Ce qui est branché (jamais la clé : ses derniers caractères), le dernier refus du prestataire, et
+  // les derniers paiements demandés.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/paiement-en-ligne', geste: 'ventes.pieces.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const p = (await tx.query(`select pr.portefeuille, pr.cle_fin, pr.pose_le, u.nom pose_par, pr.dernier_refus, pr.dernier_refus_le
+        from ventes.prestataire pr left join socle.utilisateur u on u.id = pr.pose_par where pr.entreprise = $1`, [params.entreprise])).rows[0] as
+        { portefeuille: string; cle_fin: string; pose_le: Date; pose_par: string | null; dernier_refus: { cle: string; valeurs: Record<string, string> } | null; dernier_refus_le: Date | null } | undefined;
+      const demandes = (await tx.query(`select x.cree_le, p.numero_texte numero, x.montant, dv.decimales, x.devise, x.statut, x.encaisse_le, x.motif
+        from ventes.paiement_en_ligne x join ventes.piece p on p.id = x.piece join socle.devise dv on dv.code = x.devise
+        where x.entreprise = $1 order by x.cree_le desc limit 20`, [params.entreprise])).rows as
+        { cree_le: Date; numero: string; montant: bigint; decimales: number; devise: string; statut: string; encaisse_le: Date | null; motif: { cle: string; valeurs: Record<string, string> } | null }[];
+      const dire = (m: { cle: string; valeurs: Record<string, string> } | null) => (m ? t(m.cle, m.valeurs) : null);
+      return {
+        corps: {
+          branche: p ? { prestataire: 'konnect', portefeuille: p.portefeuille, cleFin: p.cle_fin, poseLe: p.pose_le.toISOString(), posePar: p.pose_par ?? '',
+            dernierRefus: dire(p.dernier_refus), dernierRefusLe: p.dernier_refus_le ? p.dernier_refus_le.toISOString() : null } : null,
+          demandes: demandes.map((d) => ({ demandeLe: d.cree_le.toISOString(), numero: d.numero, montant: versTexte(d.montant, d.decimales), devise: d.devise, statut: d.statut,
+            encaisseLe: d.encaisse_le ? d.encaisse_le.toISOString() : null, motif: dire(d.motif) })),
+        },
+      };
+    },
+  });
+
+  // Le client paie depuis son espace (une route sans session : le lien secret, dans le corps).
+  ajouter({
+    methode: 'POST', chemin: '/espace/payer', geste: 'public',
+    corps: z.object({ jeton: z.string().min(10).max(100), numero: z.string().min(1).max(60) }),
+    traiter: async ({ corps }) => {
+      const r = await demanderPaiement(ctx, corps.jeton, corps.numero);
+      if (!r) return { statut: 404, corps: { motif: motif('espace.lien_invalide') } };
+      if ('refus' in r) return { statut: r.statut, corps: { motif: r.refus } };
+      return { corps: { adresse: r.adresse } };
+    },
+  });
+
+  // La page de retour : où en est CE paiement (le secret de son adresse de retour le prouve). La même
+  // vérification que l'avis du prestataire : si l'avis n'est pas arrivé, c'est elle qui enregistre.
+  ajouter({
+    methode: 'POST', chemin: '/espace/paiement', geste: 'public',
+    corps: z.object({ paiement: z.string().uuid(), s: z.string().min(10).max(100) }),
+    traiter: async ({ corps }) => {
+      const e = await verifierPaiement(ctx, { id: corps.paiement, secret: corps.s });
+      if (!e) return { statut: 404, corps: { motif: motif('paiement.retour_inconnu') } };
+      return { corps: { etat: e.etat, numero: e.numero, montant: e.montant, devise: e.devise } };
+    },
+  });
+
+  // L'avis du prestataire (« va regarder ») : il n'est pas signé, n'importe qui peut l'appeler ; il ne
+  // décide de rien, il déclenche la question au prestataire. Il répond toujours pareil.
+  for (const methode of ['GET', 'POST'] as const) {
+    ajouter({
+      methode, chemin: '/paiements/konnect', geste: 'public',
+      traiter: async ({ query }) => {
+        const ref = typeof query.payment_ref === 'string' ? query.payment_ref.slice(0, 200) : '';
+        if (ref) await verifierPaiement(ctx, { ref });
+        return { corps: { ok: true } };
+      },
+    });
+  }
 
   return routes;
 }

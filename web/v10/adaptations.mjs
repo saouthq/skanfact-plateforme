@@ -68,7 +68,28 @@ export const ADAPTATIONS = [
     fichier: 'app.js',
     pourquoi: 'le point de contact dessine ses panneaux quand les Paramètres s\'ouvrent',
     avant: '    drawCabinetPair();\n    drawLicencePanel();\n',
-    apres: "    drawCabinetPair();\n    if (bridge.dessinerQuarantaine && $('#quarantaine-panel')) bridge.dessinerQuarantaine($('#quarantaine-panel'));\n    if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));\n    drawLicencePanel();\n",
+    apres: "    drawCabinetPair();\n    if (bridge.dessinerQuarantaine && $('#quarantaine-panel')) bridge.dessinerQuarantaine($('#quarantaine-panel'));\n    if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));\n    if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));\n    drawLicencePanel();\n",
+  },
+  // ── Le paiement en ligne (brique 78 ; docs/paiement-en-ligne.md) : son panneau dans l'onglet Documents
+  // (dessiné par le point de contact), et le mode de règlement « Paiement en ligne » (celui que le
+  // serveur pose sur un paiement prouvé par le prestataire).
+  {
+    fichier: 'app.js',
+    pourquoi: 'le panneau « Paiement en ligne » a son entrée (onglet Documents, recherche des réglages), posée seulement quand le point de contact sait le dessiner',
+    avant: "    'p-caisse': { onglet: 'documents',",
+    apres: "    'p-paiement': { onglet: 'documents', titre: 'Paiement en ligne', mots: 'paiement en ligne konnect carte portefeuille payer client espace lien encaisser', visible: () => !!bridge.dessinerPaiement },\n    'p-caisse': { onglet: 'documents',",
+  },
+  {
+    fichier: 'app.js',
+    pourquoi: 'le panneau « Paiement en ligne » se pose avant « Caisse et tickets »',
+    avant: "        ${panneau('p-caisse')}\n",
+    apres: "        ${bridge.dessinerPaiement ? `${panneau('p-paiement')}<div id=\"paiement-panel\"></div></div>` : ''}\n        ${panneau('p-caisse')}\n",
+  },
+  {
+    fichier: 'core.js',
+    pourquoi: 'un paiement reçu en ligne se lit « Paiement en ligne » (le mode que le serveur pose sur un paiement prouvé par le prestataire)',
+    avant: "['carte', 'Carte'], ['autre', 'Autre']];",
+    apres: "['carte', 'Carte'], ['en_ligne', 'Paiement en ligne'], ['autre', 'Autre']];",
   },
   {
     fichier: 'app.js',

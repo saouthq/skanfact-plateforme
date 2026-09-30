@@ -59,7 +59,8 @@
   function releve() {
     const du = vue.totaux.filter((/** @type {any} */ t) => Number(t.du) > 0);
     racine.innerHTML = `${entete()}
-      <section class="carte du">${du.length ? `<span>Tu dois</span> ${du.map((/** @type {any} */ t) => `<strong>${esc(montant(t.du, t.devise))}</strong>`).join(' ')}` : '<strong>Rien à payer</strong><span>Merci !</span>'}</section>
+      <section class="carte du">${du.length ? `<span>Tu dois</span> ${du.map((/** @type {any} */ t) => `<strong>${esc(montant(t.du, t.devise))}</strong>`).join(' ')}` : '<strong>Rien à payer</strong><span>Merci !</span>'}
+        ${vue.pieces.some((/** @type {any} */ p) => p.payable) ? '<p class="aide">Pour payer en ligne, ouvre la facture (« Voir »).</p>' : ''}</section>
       <section class="carte">${vue.pieces.length ? `<table class="pieces"><thead><tr><th>Pièce</th><th>Date</th><th>Échéance</th><th class="m">Montant</th><th class="m">Reste à payer</th><th></th></tr></thead><tbody>
         ${vue.pieces.map((/** @type {any} */ p, /** @type {number} */ i) => `<tr><td><strong>${esc(titre(p))}</strong>${p.statut ? `<div class="statut ${esc(p.statut)}">${esc(/** @type {any} */ (STATUTS)[p.statut] || '')}</div>` : ''}${recu(p) ? `<div class="recu">${recu(p)}</div>` : ''}</td>
           <td>${etiquette('Date')}${esc(C.fmtDate(p.date))}</td><td>${etiquette('Échéance')}${p.echeance ? esc(C.fmtDate(p.echeance)) : '—'}</td>
@@ -71,15 +72,45 @@
     });
   }
 
-  // Une pièce, comme l'entreprise l'imprime ; « Imprimer ou enregistrer en PDF ».
+  // « Payer en ligne » (brique 78 ; docs/paiement-en-ligne.md) : le serveur ouvre le paiement chez le
+  // prestataire de l'entreprise, pour le reste à payer ; le client y paie, puis revient sur la page de
+  // retour (retour.html), qui le ramène ici. Le lien se garde dans l'onglet pour ce retour seulement.
+  /** @param {any} p @param {HTMLButtonElement} b */
+  async function payer(p, b) {
+    const dire = (/** @type {string} */ texte) => {
+      const a = /** @type {HTMLElement} */ (racine.querySelector('.refus-paiement'));
+      a.textContent = texte;
+      a.hidden = false;
+      b.disabled = false;
+    };
+    b.disabled = true;
+    let r;
+    try {
+      r = await fetch('/v1/espace/payer', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jeton, numero: p.numero }) });
+    } catch {
+      dire('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.');
+      return;
+    }
+    const lu = await r.json().catch(() => ({}));
+    if (!r.ok || typeof lu.adresse !== 'string') { dire(typeof lu.motif === 'string' ? lu.motif : 'Le paiement en ligne ne répond pas : réessaie dans un instant.'); return; }
+    try { sessionStorage.setItem('skanfact.espace', jeton); } catch { /* la page de retour proposera de la fermer */ }
+    location.assign(lu.adresse);
+  }
+
+  // Une pièce, comme l'entreprise l'imprime ; « Payer en ligne » si elle doit encore et que l'entreprise
+  // l'accepte (c'est alors l'étape suivante : le bouton principal), « Imprimer ou enregistrer en PDF ».
   /** @param {any} p @param {boolean} retour */
   function piece(p, retour) {
     const tampon = p.statut === 'payee' ? 'Payée' : p.statut === 'annulee' ? 'Annulée' : undefined;
     racine.innerHTML = `${entete()}
       <div class="barre">${retour ? '<button type="button" id="retour">← Toutes tes pièces</button>' : ''}
         <span class="reste">${p.reste === null ? '' : Number(p.reste) > 0 ? `Reste à payer : <strong>${esc(montant(p.reste, p.devise))}</strong>` : 'Rien à payer sur cette pièce'}</span>
-        <button type="button" class="principal" id="imprimer">Imprimer ou enregistrer en PDF</button></div>
+        <span class="gestes">${p.payable ? `<button type="button" class="principal" id="payer">Payer ${esc(montant(p.reste, p.devise))} en ligne</button>` : ''}
+          <button type="button" ${p.payable ? '' : 'class="principal" '}id="imprimer">Imprimer ou enregistrer en PDF</button></span></div>
+      <p class="refus-paiement" role="alert" hidden></p>
       <iframe class="piece" sandbox="allow-same-origin" title="${esc(titre(p))}"></iframe>`;
+    const bp = /** @type {HTMLButtonElement | null} */ (document.getElementById('payer'));
+    if (bp) bp.onclick = () => { void payer(p, bp); };
     const cadre = /** @type {HTMLIFrameElement} */ (racine.querySelector('iframe.piece'));
     const zoom = Math.max(0.3, Math.min(1, Math.floor((cadre.clientWidth - 2) / 794 * 100) / 100));
     cadre.srcdoc = C.documentHtml(p.document, vue.client, vue.entreprise, { preview: true, stampText: tampon, zoom });

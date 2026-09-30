@@ -4355,31 +4355,33 @@ prouver "« Continuer » qui ne mène nulle part" $POSTE \
 EC1="le lien d'une pièce et celui du compte : ses pièces émises seulement, ce qu'il en doit, rien de ce qui reste dans l'entreprise ; retiré, il ne s'ouvre plus"
 EC2="une pièce réduite à ce qu'elle imprime s'imprime exactement comme la pièce entière"
 EC3="le lien d'une facture, puis celui du compte : la pièce comme imprimée, ce qu'il doit, vu, puis retiré"
-prouver "le brouillon montré au client" base/migrations/0046_espace_client.sql \
-  "where p.entreprise = l.entreprise and p.statut = 'emise' and p.type in ('facture', 'avoir')" "where p.entreprise = l.entreprise and p.type in ('facture', 'avoir')" \
+prouver "le brouillon montré au client" base/migrations/0047_paiement_en_ligne.sql \
+  "where l.id = p_lien and p.statut = 'emise' and p.type in ('facture', 'avoir')" "where l.id = p_lien and p.type in ('facture', 'avoir')" \
   "$EC1"
-prouver "les pièces du client d'à côté montrées" base/migrations/0046_espace_client.sql \
+prouver "les pièces du client d'à côté montrées" base/migrations/0047_paiement_en_ligne.sql \
   "join socle.tiers t on t.id = p.tiers and t.ref_v10 = l.client_v10" "join socle.tiers t on t.id = p.tiers" \
   "$EC1"
-prouver "le lien d'une pièce qui montre tout le compte" base/migrations/0046_espace_client.sql \
+prouver "le lien d'une pièce qui montre tout le compte" base/migrations/0047_paiement_en_ligne.sql \
   "
-         and (l.piece_v10 is null or p.ref_v10 = l.piece_v10)" "" \
+     and (l.piece_v10 is null or p.ref_v10 = l.piece_v10)" "" \
   "$EC1"
-prouver "le ticket de caisse montré au client" base/migrations/0046_espace_client.sql \
+prouver "le ticket de caisse montré au client" base/migrations/0047_paiement_en_ligne.sql \
   "
-         and (d.contenu -> 'ticket') is distinct from 'true'::jsonb" "" \
+     and (d.contenu -> 'ticket') is distinct from 'true'::jsonb" "" \
   "$EC1"
-prouver "un lien retiré qui s'ouvre encore" base/migrations/0046_espace_client.sql \
-  "where jeton_empreinte = p_jeton_empreinte and revoque_le is null;" "where jeton_empreinte = p_jeton_empreinte;" \
+prouver "un lien retiré qui s'ouvre encore" base/migrations/0047_paiement_en_ligne.sql \
+  "where jeton_empreinte = p_jeton_empreinte and revoque_le is null
+" "where jeton_empreinte = p_jeton_empreinte
+" \
   "$EC1"
-prouver "l'ouverture d'un lien jamais notée" base/migrations/0046_espace_client.sql \
+prouver "l'ouverture d'un lien jamais notée" base/migrations/0047_paiement_en_ligne.sql \
   "  update ventes.lien set vu_le = p_maintenant, vues = vues + 1 where id = l.id;
 " "" \
   "$EC1"
-prouver "les avoirs d'une facture oubliés par l'espace" base/migrations/0046_espace_client.sql \
+prouver "les avoirs d'une facture oubliés par l'espace" base/migrations/0047_paiement_en_ligne.sql \
   "where a.entreprise = p.entreprise and a.corrige = p.id and a.statut = 'emise'" "where false" \
   "$EC1"
-prouver "les règlements d'une facture oubliés par l'espace" base/migrations/0046_espace_client.sql \
+prouver "les règlements d'une facture oubliés par l'espace" base/migrations/0047_paiement_en_ligne.sql \
   "where r.entreprise = p.entreprise and r.piece = p.id" "where false" \
   "$EC1"
 prouver "le prix de revient d'une ligne envoyé au client" serveur/ventes/espace.ts \
@@ -4488,6 +4490,169 @@ prouver "les avoirs d'une facture tus dans le relevé" web/public/espace/espace.
   "    Number(p.credite) > 0 ? \`Avoirs : \${esc(montant(p.credite, p.devise))}\` : '',
 " "" \
   "$EC3"
+
+# ── Brique 78 : le paiement en ligne (docs/paiement-en-ligne.md) ──
+PA1="le coffre : un scellé ne s'ouvre qu'avec sa clé, pour son entreprise, intact"
+PA2="brancher Konnect : la clé scellée, jamais rendue ni lisible par le serveur ; le compte « Konnect » naît une fois"
+PA3="payer le reste d'une facture : prouvé auprès de Konnect, enregistré une seule fois sur le compte « Konnect »"
+PA4="un refus de Konnect se voit chez l'entreprise ; un « payé » d'un autre montant ne s'enregistre pas ; débranché, plus de paiement"
+PA5="le filet : un paiement dont l'avis s'est perdu, et dont le client n'est pas revenu, s'enregistre quand même ; déjà payé, on ne repaie pas"
+PW="Nadia branche Konnect ; son client paie sa facture en ligne ; le paiement arrive sur la facture"
+prouver "deux clics, deux paiements" base/migrations/0047_paiement_en_ligne.sql \
+  "  if v_ouvert is not null then return jsonb_build_object('id', v_ouvert, 'adresse', v_adresse); end if;
+" "" \
+  "$PA3"
+prouver "une demande échouée redonnée" base/migrations/0047_paiement_en_ligne.sql \
+  "where x.entreprise = v_entreprise and x.piece = v_piece and x.statut = 'initie' and x.montant = p_montant" "where x.entreprise = v_entreprise and x.piece = v_piece and x.montant = p_montant" \
+  "$PA4"
+prouver "une demande redonnée pour un autre montant" base/migrations/0047_paiement_en_ligne.sql \
+  "and x.statut = 'initie' and x.montant = p_montant" "and x.statut = 'initie'" \
+  "$PA4"
+prouver "une demande de plus de 25 minutes redonnée" base/migrations/0047_paiement_en_ligne.sql \
+  "and x.adresse is not null and x.cree_le > p_maintenant - interval '25 minutes'" "and x.adresse is not null" \
+  "$PA5"
+prouver "la demande ouverte chez Konnect jamais notée" base/migrations/0047_paiement_en_ligne.sql \
+  "set ref = p_ref, adresse = p_adresse where id = p_id and statut = 'initie' and ref is null" "set ref = p_ref, adresse = p_adresse where id = p_id and false" \
+  "$PA3"
+prouver "le refus de Konnect tu à l'entreprise" base/migrations/0047_paiement_en_ligne.sql \
+  "  update ventes.prestataire pr set dernier_refus = p_motif, dernier_refus_le = p_maintenant
+    from ventes.paiement_en_ligne x where x.id = p_id and pr.entreprise = x.entreprise;
+" "" \
+  "$PA4"
+prouver "la demande refusée par Konnect restée ouverte" base/migrations/0047_paiement_en_ligne.sql \
+  "set statut = 'echoue', motif = p_motif where id = p_id and statut = 'initie';" "set motif = p_motif where id = p_id and statut = 'initie';" \
+  "$PA4"
+prouver "un « payé » faux qui reste ouvert" base/migrations/0047_paiement_en_ligne.sql \
+  "  update ventes.paiement_en_ligne set statut = 'echoue', motif = p_motif where id = p_id and statut = 'initie'
+\$\$" "  update ventes.paiement_en_ligne set motif = p_motif where id = p_id and statut = 'initie'
+\$\$" \
+  "$PA4"
+prouver "le filet qui passe trop tôt" base/migrations/0047_paiement_en_ligne.sql \
+  "and cree_le between p_maintenant - interval '1 day' and p_maintenant - interval '2 minutes'" "and cree_le between p_maintenant - interval '1 day' and p_maintenant" \
+  "$PA5"
+prouver "le filet qui ne passe jamais" base/migrations/0047_paiement_en_ligne.sql \
+  "     where statut = 'initie' and ref is not null
+" "     where false
+" \
+  "$PA5"
+prouver "la clé scellée lisible par le compte du serveur" base/migrations/0047_paiement_en_ligne.sql \
+  "grant select (entreprise, prestataire, portefeuille, cle_fin, compte_v10, pose_le, pose_par, dernier_refus, dernier_refus_le)
+  on ventes.prestataire to skanfact_app;" "grant select on ventes.prestataire to skanfact_app;" \
+  "$PA2"
+prouver "l'espace qui tait le paiement en ligne" base/migrations/0047_paiement_en_ligne.sql \
+  "'paiement', exists (select 1 from ventes.prestataire pr where pr.entreprise = l.entreprise)," "'paiement', false," \
+  "$PA3"
+prouver "« Payer en ligne » chez une entreprise qui ne l'accepte pas" serveur/ventes/espace.ts \
+  " && lu.paiement === true," "," \
+  "$PA3"
+prouver "« Payer en ligne » proposé en devise" serveur/ventes/espace.ts \
+  " && p.devise === 'TND'" "" \
+  "$PA4"
+prouver "le montant entier demandé au lieu du reste" serveur/v10/paiement.ts \
+  "const reste = soldeFacture(BigInt(a.piece.net), a.piece.avoirs.map(BigInt), a.piece.reglements.map(BigInt)).reste;" "const reste = BigInt(a.piece.net);" \
+  "$PA3"
+prouver "une facture en devise payée en ligne" serveur/v10/paiement.ts \
+  "  if (a.piece.devise !== 'TND') return { refus: motif('paiement.devise'), statut: 409 };
+" "" \
+  "$PA4"
+prouver "une facture soldée payée encore" serveur/v10/paiement.ts \
+  "  if (reste <= 0n) return { refus: motif('paiement.rien_a_payer'), statut: 409 };
+" "" \
+  "$PA3"
+prouver "une demande déjà payée redonnée" serveur/v10/paiement.ts \
+  "    if (e?.etat === 'encaisse') return { refus: motif('paiement.rien_a_payer'), statut: 409 };
+" "" \
+  "$PA5"
+prouver "une demande refusée redonnée telle quelle" serveur/v10/paiement.ts \
+  "    if (e?.etat === 'echoue') return demanderPaiement(ctx, jeton, numero);
+" "" \
+  "$PA4"
+prouver "le paiement déjà enregistré qu'une vérification croisée tente encore (sa page dit « en cours »)" serveur/v10/paiement.ts \
+  "        if (!x || x.statut !== 'initie') return;
+" "" \
+  "$PA5"
+prouver "le paiement posé hors du compte Konnect" serveur/v10/paiement.ts \
+  "accountId: v.compte_v10, note: ''," "accountId: '', note: ''," \
+  "$PA3"
+prouver "l'encaissement en ligne sans sa trace" serveur/v10/paiement.ts \
+  "await tracer(tx, v.entreprise, 'ventes.paiement_en_ligne.encaisser'," "await tracer(tx, v.entreprise, 'ventes.autre'," \
+  "$PA3"
+prouver "un paiement en attente pris pour encaissé" serveur/ventes/konnect.ts \
+  "  if (statut !== 'completed') return { etat: 'attente', statut };
+" "" \
+  "$PA3"
+prouver "un « payé » d'une autre commande enregistré" serveur/ventes/konnect.ts \
+  "  if (String(p.orderId ?? '') !== attendu.commande) return { etat: 'echoue', motif: t('paiement.konnect_autre_commande') };
+" "" \
+  "$PA4"
+prouver "un « payé » d'un autre montant enregistré" serveur/ventes/konnect.ts \
+  "  if (recu !== attendu.montant) return" "  if (false) return" \
+  "$PA4"
+prouver "la page de retour sans son secret" serveur/v10/paiement.ts \
+  "  if (par.secret !== undefined && v.retour_empreinte !== empreinte(par.secret)) return null;
+" "" \
+  "$PA3"
+prouver "une clé illisible qui part quand même chez Konnect" serveur/v10/paiement.ts \
+  "  if (cle === null) {" "  if (false) {" \
+  "$PA2"
+prouver "la clé de Konnect gardée en clair" serveur/v10/routes.ts \
+  "sceller(ctx.paiement.coffre, ent, corps.cle)" "corps.cle" \
+  "$PA2"
+prouver "un compte Konnect de plus à chaque branchement" serveur/v10/routes.ts \
+  "      let compte = existe ? String(deja) : '';" "      let compte = '';" \
+  "$PA2"
+prouver "l'avis de Konnect qui ne déclenche rien" serveur/v10/routes.ts \
+  "        if (ref) await verifierPaiement(ctx, { ref });
+" "" \
+  "$PA4"
+prouver "un scellé ouvert pour une autre entreprise" serveur/coffre.ts \
+  "  c.setAAD(Buffer.from(lie, 'utf8'));
+|||  d.setAAD(Buffer.from(lie, 'utf8'));
+" "|||" \
+  "$PA1"
+prouver "la clé ramassée par les Paramètres de la v10" web/public/plateforme/pont.js \
+  "<input data-champ=\"cle\" type=\"password\"" "<input data-champ=\"cle\" name=\"cle\" type=\"password\"" \
+  "$PW"
+prouver "la frappe de la clé qui propose d'enregistrer les Paramètres" web/public/plateforme/pont.js \
+  "    for (const t of ['input', 'change']) el.addEventListener(t, (ev) => ev.stopPropagation());
+" "" \
+  "$PW"
+prouver "le champ de la clé vide qui ne se montre pas" web/public/plateforme/pont.js \
+  "champ(vide).focus(); return; }" "return; }" \
+  "$PW"
+prouver "arrêter le paiement en ligne sans demander" web/public/plateforme/pont.js \
+  "      if (!arreter.dataset.confirme) {" "      if (false) {" \
+  "$PW"
+prouver "« Payer en ligne » absent de la facture" web/public/espace/espace.js \
+  "\${p.payable ? \`<button type=\"button\" class=\"principal\" id=\"payer\">" "\${false ? \`<button type=\"button\" class=\"principal\" id=\"payer\">" \
+  "$PW"
+prouver "« Pour payer en ligne, ouvre la facture » jamais dit" web/public/espace/espace.js \
+  "\${vue.pieces.some((/** @type {any} */ p) => p.payable) ? '<p class=\"aide\">" "\${false ? '<p class=\"aide\">" \
+  "$PW"
+prouver "le lien de l'espace oublié au retour" web/public/espace/espace.js \
+  "    try { sessionStorage.setItem('skanfact.espace', jeton); } catch { /* la page de retour proposera de la fermer */ }
+" "" \
+  "$PW"
+prouver "« Paiement reçu » jamais dit" web/public/espace/retour.js \
+  "if (lu.etat === 'encaisse') { dire('Paiement reçu'" "if (lu.etat === 'jamais') { dire('Paiement reçu'" \
+  "$PW"
+prouver "le panneau « Paiement en ligne » jamais dessiné" web/public/v10/app.js \
+  "    if (bridge.dessinerPaiement && \$('#paiement-panel')) void bridge.dessinerPaiement(\$('#paiement-panel'));
+" "" \
+  "$PW"
+prouver "le mode « Paiement en ligne » inconnu de la v10" web/public/v10/core.js \
+  "['en_ligne', 'Paiement en ligne'], " "" \
+  "$PW"
+prouver "la production qui démarre avec la clé d'essai du coffre" serveur/principal.ts \
+  "  if (environnement === 'production' && !env.SKANFACT_COFFRE) throw" "  if (Date.now() < 0) throw" \
+  "une configuration fausse l'arrête"
+prouver "une étiquette du coffre tronquée qui passe" serveur/coffre.ts \
+  ", { authTagLength: 16 });" ");" \
+  "$PA1"
+prouver "une clé du coffre qui n'a pas ses 32 octets" serveur/coffre.ts \
+  "  if (cle.length !== 32) throw new CoffreFaux('coffre.cle_32_octets');
+" "" \
+  "une configuration fausse l'arrête"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

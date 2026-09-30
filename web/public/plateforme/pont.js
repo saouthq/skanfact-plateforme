@@ -467,6 +467,7 @@
     dessinerMandat,
     dessinerAppareils,
     dessinerQuarantaine,
+    dessinerPaiement,
     lienClient,
     // Des remises attendent-elles une décision ? (le panneau ne paraît que dans ce cas)
     quarantaine: () => remises.length,
@@ -701,6 +702,68 @@
       };
     });
   }
+  // ── Le paiement en ligne (brique 78 ; docs/paiement-en-ligne.md) ────────────────────────────────
+  // Brancher le compte Konnect de l'entreprise : son portefeuille, et la clé de son API (écrite ici,
+  // scellée par le serveur, jamais relue : seules ses dernières lettres se montrent). Le dernier refus de
+  // Konnect, et les derniers paiements demandés par les clients.
+  /** @type {Record<string, string>} */
+  const ETATS_PAIEMENT = { initie: 'En attente', encaisse: 'Reçu', echoue: 'Pas enregistré' };
+  /** @param {string} texte @param {string} devise */
+  const somme = (texte, devise) => /** @type {any} */ (window).SkanCore.money(Number(texte), devise === 'TND' ? 'DT' : devise);
+  /** @param {HTMLElement} el */
+  async function dessinerPaiement(el) {
+    /** @type {any} */ let lu;
+    try { lu = await appel('GET', '/paiement-en-ligne'); } catch (x) { el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`; return; }
+    const b = lu.branche;
+    el.innerHTML = `<p class="small muted mb">Tes clients paient leurs factures en ligne, par carte ou par portefeuille, depuis le lien que tu leur donnes (« Lien pour le client… » sur une facture). L'argent va directement sur ton compte Konnect : SkanFact ne le touche jamais. Chaque paiement confirmé par Konnect s'ajoute tout seul à sa facture, sur le compte « Konnect — paiement en ligne ».</p>
+      ${b ? `<p id="pl-etat"><strong>Branché</strong> le ${esc(quand(b.poseLe))}${b.posePar ? ` par ${esc(b.posePar)}` : ''} : portefeuille ${esc(b.portefeuille)}, clé qui finit par « ${esc(b.cleFin)} ».</p>
+        ${b.dernierRefus ? `<p class="small" id="pl-refus">Dernier refus de Konnect, le ${esc(quand(b.dernierRefusLe))} : ${esc(b.dernierRefus)}. Vérifie ton portefeuille et ta clé.</p>` : ''}
+        <p><button type="button" class="btn btn-sm" id="pl-changer">Changer la clé…</button> <button type="button" class="btn btn-sm" id="pl-arreter">Arrêter le paiement en ligne…</button></p>`
+      : '<p id="pl-etat">Pas branché : tes clients ne voient pas « Payer en ligne ».</p>'}
+      <div id="pl-form" ${b ? 'hidden' : ''}>
+        <label class="field">Identifiant de ton portefeuille Konnect<input data-champ="portefeuille" autocomplete="off" value="${esc(b ? b.portefeuille : '')}"></label>
+        <label class="field">Clé de l'API Konnect<input data-champ="cle" type="password" autocomplete="off"></label>
+        <p class="small muted">Tu les trouves dans ton espace Konnect. La clé ne se relit plus ici, jamais : seules ses dernières lettres s'affichent.</p>
+        <button type="button" class="btn btn-primary" id="pl-brancher">Brancher</button>
+      </div>
+      <p class="small" role="alert"></p>
+      ${lu.demandes.length ? `<h4 class="small">Derniers paiements demandés</h4><table class="list compact" id="pl-demandes"><tbody>${lu.demandes.map((/** @type {any} */ d) => `<tr>
+        <td>${esc(quand(d.demandeLe))}</td><td>${esc(d.numero)}</td><td class="r">${esc(somme(d.montant, d.devise))}</td>
+        <td>${esc(ETATS_PAIEMENT[d.statut] || d.statut)}${d.encaisseLe ? ` le ${esc(quand(d.encaisseLe))}` : ''}${d.motif ? `<div class="small muted">${esc(d.motif)}</div>` : ''}</td></tr>`).join('')}</tbody></table>` : ''}`;
+    /** @param {unknown} x */
+    const dire = (x) => { const a = el.querySelector('[role=alert]'); if (a) a.textContent = x instanceof Error ? x.message : String(x); };
+    // Le panneau vit DANS le formulaire des Paramètres, qui ramasse chaque champ nommé dans la fiche de
+    // l'entreprise (le dossier que toute l'équipe lit) : ces champs n'ont pas de nom, pas de <form>, et
+    // leurs frappes ne remontent pas (elles ne proposent pas « Enregistrer » les Paramètres). La clé ne
+    // part que vers le serveur, qui la scelle.
+    for (const t of ['input', 'change']) el.addEventListener(t, (ev) => ev.stopPropagation());
+    const form = /** @type {HTMLElement} */ (el.querySelector('#pl-form'));
+    const champ = (/** @type {string} */ nom) => /** @type {HTMLInputElement} */ (form.querySelector(`[data-champ=${nom}]`));
+    const bouton = /** @type {HTMLElement} */ (form.querySelector('#pl-brancher'));
+    bouton.onclick = async () => {
+      const v = { portefeuille: champ('portefeuille').value.trim(), cle: champ('cle').value.trim() };
+      // Un refus dit ce qui manque, et montre le champ.
+      const vide = !v.portefeuille ? 'portefeuille' : !v.cle ? 'cle' : '';
+      if (vide) { dire(vide === 'cle' ? 'Colle la clé de l\'API Konnect.' : 'Donne l\'identifiant de ton portefeuille Konnect.'); champ(vide).focus(); return; }
+      bouton.setAttribute('disabled', '');
+      try { await appel('PUT', '/paiement-en-ligne', v); await dessinerPaiement(el); dire('Branché : tes clients voient « Payer en ligne » sur les factures qu\'ils doivent encore.'); } catch (x) { bouton.removeAttribute('disabled'); dire(x); }
+    };
+    const changer = el.querySelector('#pl-changer');
+    if (changer) /** @type {HTMLElement} */ (changer).onclick = () => { form.hidden = false; champ('cle').focus(); };
+    const arreter = /** @type {HTMLElement | null} */ (el.querySelector('#pl-arreter'));
+    if (arreter) arreter.onclick = async () => {
+      // Arrêter se demande d'abord : les clients ne pourront plus payer en ligne.
+      if (!arreter.dataset.confirme) {
+        arreter.dataset.confirme = '1';
+        arreter.textContent = 'Oui, arrêter le paiement en ligne';
+        dire('Tes clients ne verront plus « Payer en ligne ». Les paiements déjà reçus restent sur leurs factures.');
+        return;
+      }
+      arreter.setAttribute('disabled', '');
+      try { await appel('DELETE', '/paiement-en-ligne'); await dessinerPaiement(el); } catch (x) { arreter.removeAttribute('disabled'); dire(x); }
+    };
+  }
+
   // ── L'espace client (brique 77 ; docs/espace-client.md) ────────────────────────────────────────
   // « Lien pour le client… » sur une pièce émise : les liens déjà donnés (vus ? « Retirer ») ; en créer un
   // vers cette pièce (ou vers tout son compte), à copier dans un message. Le serveur ne garde que

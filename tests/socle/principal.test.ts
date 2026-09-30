@@ -16,7 +16,12 @@ describe('le programme serveur', () => {
   it('une configuration fausse l\'arrête avant qu\'il n\'écoute, et dit laquelle', () => {
     expect(() => lireConfiguration({})).toThrow(ConfigurationFausse);
     expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'essai' })).toThrow(/test.*production/);
-    expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'production' })).toThrow(/fournisseur de SMS/);
+    // La production : jamais la clé d'essai du coffre ; puis, clé donnée, le fournisseur de SMS exigé.
+    const coffre = Buffer.alloc(32, 7).toString('base64');
+    expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'production' })).toThrow(/SKANFACT_COFFRE manque/);
+    expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'production', SKANFACT_COFFRE: coffre })).toThrow(/fournisseur de SMS/);
+    expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_COFFRE: 'trop-courte' })).toThrow(/32 octets/);
+    expect(lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_COFFRE: coffre }).coffre).toEqual(Buffer.alloc(32, 7));
     expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_SMS: 'orange' })).toThrow(/aucun fournisseur/);
     expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_PORT: 'huit' })).toThrow(/port/);
     expect(lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test' })).toMatchObject({ port: 8080, hote: '127.0.0.1', sms: 'aucun', livreurMs: 15_000 });

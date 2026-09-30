@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Le retour d'un paiement en ligne (brique 78 ; docs/paiement-en-ligne.md) : la demande et son secret
+       sont dans le fragment « # », que le navigateur n'envoie jamais. -->
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'">
+  <title>Paiement en ligne</title>
+  <link rel="stylesheet" href="espace.css">
+  <script src="/v10/compta.js"></script>
+  <script src="/v10/core.js"></script>
+  <script src="retour.js" defer></script>
+</head>
+<body>
+  <main id="retour" aria-live="polite"><p class="attente">Vérification de ton paiement…</p></main>
+</body>
+</html>

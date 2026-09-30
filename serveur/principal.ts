@@ -12,6 +12,12 @@
 //   SKANFACT_SMS             « aucun » tant que le fournisseur de SMS tunisien n'est pas choisi
 //                            (03 § 6, 12 : question ouverte) ; le code se reçoit alors par une
 //                            application d'authentification. En production, un fournisseur est exigé.
+//   SKANFACT_ADRESSE         l'adresse publique du serveur (https), où reviennent le client et l'avis
+//                            du prestataire de paiement ; par défaut, celle où il écoute
+//   SKANFACT_KONNECT         l'API de Konnect (https://api.konnect.network/api/v2 par défaut)
+//   SKANFACT_COFFRE          la clé du coffre (32 octets en base64) qui scelle les clés confiées par les
+//                            entreprises (serveur/coffre.ts) ; exigée en production, une clé d'essai
+//                            connue de tous sinon
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,6 +25,7 @@ import { fileURLToPath } from 'node:url';
 import { creerApp } from './app.ts';
 import { envoyerHttps, livrerAvis, type Envoyeur } from './avis.ts';
 import { creerPool } from './base.ts';
+import { CLE_DU_COFFRE_D_ESSAI, cleDuCoffre, CoffreFaux } from './coffre.ts';
 import type { Contexte } from './connexion.ts';
 import { Refus } from './erreurs.ts';
 import { listeDepuisFichier } from './mot-de-passe.ts';
@@ -32,11 +39,13 @@ import { declarerGestesPaie } from './paie/gestes.ts';
 import { routesPaie } from './paie/routes.ts';
 import { declarerGestesVentes } from './ventes/gestes.ts';
 import { routesVentes } from './ventes/routes.ts';
+import { verifierEnAttente } from './v10/paiement.ts';
 import { routesV10 } from './v10/routes.ts';
+import { KONNECT_PAR_DEFAUT } from './ventes/konnect.ts';
 
 export type Configuration = {
   base: string; environnement: 'test' | 'production'; port: number; hote: string; listeVolee: string;
-  sms: 'aucun'; livreurMs: number; web: string;
+  sms: 'aucun'; livreurMs: number; web: string; adresse: string | null; konnect: string; coffre: Buffer; verificationMs: number;
 };
 
 export class ConfigurationFausse extends Error {}
@@ -46,17 +55,30 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   if (!base) throw new ConfigurationFausse('SKANFACT_BASE manque : l\'adresse de la base, avec le compte du serveur');
   const environnement = env.SKANFACT_ENVIRONNEMENT;
   if (environnement !== 'test' && environnement !== 'production') throw new ConfigurationFausse('SKANFACT_ENVIRONNEMENT : « test » ou « production »');
+  // La clé du coffre : celle de la production ne vient que de l'environnement (jamais la clé d'essai).
+  // Contrôlée avant le fournisseur de SMS, pour que la règle se prouve dès aujourd'hui.
+  if (environnement === 'production' && !env.SKANFACT_COFFRE) throw new ConfigurationFausse('SKANFACT_COFFRE manque : la production scelle les clés des entreprises avec SA clé');
+  let coffre: Buffer;
+  try { coffre = env.SKANFACT_COFFRE ? cleDuCoffre(env.SKANFACT_COFFRE) : CLE_DU_COFFRE_D_ESSAI; } catch (e) {
+    if (!(e instanceof CoffreFaux)) throw e;
+    throw new ConfigurationFausse('SKANFACT_COFFRE : la clé du coffre fait 32 octets, écrits en base64 (openssl rand -base64 32)');
+  }
   const sms = env.SKANFACT_SMS ?? 'aucun';
   if (sms !== 'aucun') throw new ConfigurationFausse(`SKANFACT_SMS « ${sms} » : aucun fournisseur de SMS n'est encore branché`);
   if (environnement === 'production') throw new ConfigurationFausse('la production exige un fournisseur de SMS, qui n\'est pas encore choisi (03 § 6)');
   const port = Number(env.SKANFACT_PORT ?? 8080);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new ConfigurationFausse(`SKANFACT_PORT « ${env.SKANFACT_PORT} » n'est pas un port`);
   const ici = path.dirname(fileURLToPath(import.meta.url));
+  const adresse = env.SKANFACT_ADRESSE ? env.SKANFACT_ADRESSE.replace(/\/+$/, '') : null;
+  if (adresse && !/^https?:\/\/[^/]+$/.test(adresse)) throw new ConfigurationFausse(`SKANFACT_ADRESSE « ${adresse} » : une origine (https://nom), sans chemin`);
+  const konnect = (env.SKANFACT_KONNECT ?? KONNECT_PAR_DEFAUT).replace(/\/+$/, '');
+  if (!/^https?:\/\//.test(konnect)) throw new ConfigurationFausse(`SKANFACT_KONNECT « ${konnect} » n'est pas une adresse`);
   return {
     base, environnement, port, hote: env.SKANFACT_HOTE ?? '127.0.0.1', sms,
     listeVolee: env.SKANFACT_LISTE_VOLEE ?? path.join(ici, '../tests/donnees/mots-de-passe-voles.txt'),
     livreurMs: Number(env.SKANFACT_LIVREUR_MS ?? 15_000),
     web: env.SKANFACT_WEB ?? path.join(ici, '../dist/web'),
+    adresse, konnect, coffre, verificationMs: Number(env.SKANFACT_VERIFICATION_MS ?? 60_000),
   };
 }
 
@@ -96,7 +118,9 @@ export function servirLesEcrans(app: ReturnType<typeof creerApp>, dossier: strin
 
 export async function demarrer(c: Configuration, dependances: { envoyer?: Envoyeur } = {}): Promise<{ adresse: string; arreter: () => Promise<void> }> {
   const pool = creerPool(c.base);
-  const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms: smsAucun };
+  // L'adresse publique : réglée, sinon celle où le serveur écoute (connue une fois qu'il écoute).
+  let publique = c.adresse ?? '';
+  const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms: smsAucun, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique } };
   declarerGestesVentes();
   declarerGestesAchats();
   declarerGestesPaie();
@@ -104,6 +128,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx)]);
   servirLesEcrans(app, c.web);
   const adresse = await app.listen({ port: c.port, host: c.hote });
+  if (!publique) publique = adresse;
 
   // Le livreur des avis : un tour à la fois, jamais deux en même temps.
   const envoyer = dependances.envoyer ?? envoyerHttps;
@@ -115,11 +140,23 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
     tour = livrerAvis(pool, envoyer).catch((e: unknown) => { app.log.error(e); }).finally(() => { enCours = false; });
   }, c.livreurMs);
 
+  // Le filet du paiement en ligne (brique 78) : chaque minute, les demandes restées ouvertes se
+  // redemandent au prestataire ; un seul tour à la fois.
+  let verification: Promise<unknown> = Promise.resolve();
+  let verifie = false;
+  const veilleur = setInterval(() => {
+    if (verifie) return;
+    verifie = true;
+    verification = verifierEnAttente(ctx).catch((e: unknown) => { app.log.error(e); }).finally(() => { verifie = false; });
+  }, c.verificationMs);
+
   return {
     adresse,
     arreter: async () => {
       clearInterval(minuterie);
+      clearInterval(veilleur);
       await tour;
+      await verification;
       await app.close();
       await pool.end();
     },

@@ -20,6 +20,9 @@ export type Contexte = {
   listeVolee: ListeVolee;
   sms: EnvoiSms;
   maintenant?: () => Date;
+  // Le paiement en ligne (brique 78) : l'adresse de l'API du prestataire, la clé du coffre du serveur
+  // (serveur/coffre.ts), et l'adresse publique du serveur (où reviennent l'avis et le client).
+  paiement?: { konnect: string; coffre: Buffer; adresse: () => string };
 };
 
 export type Appareil = { id?: string; nom: string; type: 'navigateur' | 'bureau' | 'telephone' };

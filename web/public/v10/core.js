@@ -18,7 +18,7 @@
   // absent de la liste se saisit librement (« Autre taux… ») et rejoint les propositions, comme
   // pour les unités de ligne. Aucun calcul ne lit cette liste — elle ne remplit qu'un menu.
   const WITHHOLDING_RATES = [0, 0.5, 1, 1.5, 2.5, 3, 5, 10, 15, 20, 25];
-  const PAYMENT_METHODS = [['virement', 'Virement'], ['cheque', 'Chèque'], ['especes', 'Espèces'], ['traite', 'Traite'], ['carte', 'Carte'], ['autre', 'Autre']];
+  const PAYMENT_METHODS = [['virement', 'Virement'], ['cheque', 'Chèque'], ['especes', 'Espèces'], ['traite', 'Traite'], ['carte', 'Carte'], ['en_ligne', 'Paiement en ligne'], ['autre', 'Autre']];
   const PREFIX = { devis: 'DEV', facture: 'FAC', avoir: 'AVO', proforma: 'PRO', commande: 'BC', livraison: 'BL', contrat: 'CTR', ticket: 'TIC' };
   const TITLES = { devis: 'Devis', facture: 'Facture', avoir: 'Avoir', proforma: 'Facture proforma', commande: 'Bon de commande', livraison: 'Bon de livraison', contrat: 'Contrat de prestation' };
   // Les quatre types ajoutés en 2.6.0. Aucun n'a de valeur comptable : ils n'entrent ni dans le journal

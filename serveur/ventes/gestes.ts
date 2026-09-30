@@ -24,6 +24,10 @@ export const GESTES_VENTES: Geste[] = [
   // de l'API : c'est une personne qui donne un accès à un tiers.
   { code: 'ventes.lien.partager', module: 'ventes', horsCle: true, ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui' } },
+  // Le paiement en ligne (brique 78) : brancher le compte de l'entreprise chez le prestataire (sa clé),
+  // ou le débrancher. L'argent de l'entreprise : le propriétaire et l'administrateur seulement.
+  { code: 'ventes.paiement.regler', module: 'ventes', horsCle: true, ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui' } },
 ];
 
 let declares = false;
