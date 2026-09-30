@@ -5358,6 +5358,37 @@ prouver "les lignes reçues d'un achat qui ne le disent pas" web/public/v10/app.
   "\${l.recue ? \`<div class=\"small muted nw\" data-recue" "\${false ? \`<div class=\"small muted nw\" data-recue" \
   "$CFW"
 
+# ── Brique 88 : les écarts entre la facture du fournisseur et ses réceptions (docs/commandes-fournisseurs.md) ──
+CF5="la facture se compare à ce qui a été reçu : une quantité, un prix, une ligne oubliée ; la copie d'une ligne ne compte pas"
+prouver "une ligne de facture comparée à la première ligne de commande de son nom" web/public/v10/core.js \
+  "      if (cle) { ligne.origine = { commande: r.orderId, ligne: l.ligneCommande }; parCle.set(cle, ligne); }" "      if (cle) parCle.set(cle, ligne);" \
+  "$CF5"
+prouver "la copie d'une ligne reçue qui garde sa ligne de commande" web/public/v10/core.js \
+  "    delete x.origine;
+" "" \
+  "$CF3"
+prouver "une quantité facturée autre que la quantité reçue passée sous silence" web/public/v10/core.js \
+  "      if (Math.abs(q - a.qty) > 0.0005) out.push(" "      if (false) out.push(" \
+  "$CF5"
+prouver "un prix facturé autre que celui de la commande passé sous silence" web/public/v10/core.js \
+  "      if (memeDevise && Math.abs(pu - a.unitPrice) > 0.0005) out.push(" "      if (false) out.push(" \
+  "$CF5"
+prouver "une ligne reçue oubliée par la facture passée sous silence" web/public/v10/core.js \
+  "      if (!l) { out.push({ ...quoi, genre: 'absente', recu: a.qty }); return; }" "      if (!l) return;" \
+  "$CF5"
+prouver "des prix comparés d'une devise à l'autre" web/public/v10/core.js \
+  "    const memeDevise = (p.currency || base) === (recs[0].currency || base);" "    const memeDevise = true;" \
+  "$CF5"
+prouver "les écarts qui ne se disent pas pendant la saisie" web/public/v10/app.js \
+  "      if (\$('#b-ecarts')) \$('#b-ecarts').innerHTML" "      if (false) \$('#b-ecarts').innerHTML" \
+  "$CFW"
+prouver "la commande qui ne nomme pas la facture de ses réceptions" web/public/v10/app.js \
+  "\${factures.length ? \`<p class=\"small\" id=\"cf-factures\">" "\${false ? \`<p class=\"small\" id=\"cf-factures\">" \
+  "$CFW"
+prouver "la commande qui tait l'écart de sa facture" web/public/v10/app.js \
+  "return \`<a href=\"#/achat/\${h(f.id)}\">\${h(f.number || 'sans numéro')}</a>\${n ?" "return \`<a href=\"#/achat/\${h(f.id)}\">\${h(f.number || 'sans numéro')}</a>\${false ?" \
+  "$CFW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

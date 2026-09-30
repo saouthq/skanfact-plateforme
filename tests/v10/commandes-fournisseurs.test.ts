@@ -27,6 +27,7 @@ type Core = {
   lignesAchatDeReceptions: (data: unknown, receptions: Piece[]) => Ligne[];
   stockMovements: (data: unknown, itemId: string | null) => { qty: number; source: string; ref: string; unitCost: number | null }[];
   copieLigneAchat: (l: Ligne) => Ligne;
+  ecartsAchatReceptions: (data: unknown, p: unknown) => Record<string, unknown>[];
   costOfGoodsSold: (data: unknown, period?: { from?: string; to?: string }) => number;
   documentHtml: (doc: unknown, client: unknown, company: unknown) => string;
 };
@@ -130,5 +131,40 @@ describe('les commandes fournisseurs et leurs réceptions, dans la v10', () => {
     expect(texte).toContain('Fournisseur Ciments de Bizerte');
     expect(texte).toContain('Livraison souhaitée le 08/10/2026');
     expect(texte).toContain('Merci de nous confirmer cette commande, ses prix et sa date de livraison.');
+  });
+
+  it('la facture se compare à ce qui a été reçu : une quantité, un prix, une ligne oubliée ; la copie d\'une ligne ne compte pas', () => {
+    const cf = commande();
+    const data = { company, catalog, purchases: [] as Piece[], supplierOrders: [cf], receptions: [] as Piece[] };
+    data.receptions.push(valider(C.receptionDeCommande(data, cf, '2026-10-03'), 'r1', 'BR-2026-001', [60, 1.25, 1]));
+    data.receptions.push(valider(C.receptionDeCommande(data, cf, '2026-10-06'), 'r2', 'BR-2026-002'));
+    const lignes = C.lignesAchatDeReceptions(data, data.receptions);
+    const achat = (ls: Ligne[], devise = 'DT') => ({ id: 'a1', kind: 'facture', currency: devise, receptions: [{ id: 'r1' }, { id: 'r2' }], lines: ls });
+    // Telle quelle : aucun écart.
+    expect(C.ecartsAchatReceptions(data, achat(lignes))).toEqual([]);
+    // 105 sacs facturés pour 100 reçus, le fer à 2 250,500 au lieu de 2 210,500, le transport oublié ; une
+    // copie de la ligne du ciment (⧉) n'a été reçue par aucune réception : elle ne compte pas.
+    const modifiees = [{ ...lignes[0], qty: 105 }, C.copieLigneAchat(lignes[0] as Ligne), { ...lignes[1], unitPrice: 2250.5 }] as Ligne[];
+    expect(C.ecartsAchatReceptions(data, achat(modifiees))).toEqual([
+      { label: 'Ciment gris 50 kg', unit: 'sac', genre: 'quantite', recu: 100, facture: 105 },
+      { label: 'Fer à béton 12 mm', unit: 't', genre: 'prix', commande: 2210.5, facture: 2250.5 },
+      { label: 'Transport', unit: 'course', genre: 'absente', recu: 1 },
+    ]);
+    // Dans une autre devise que la commande, les prix ne se comparent pas ; les quantités, si.
+    expect(C.ecartsAchatReceptions(data, achat(modifiees, 'EUR')).map((e) => e.genre)).toEqual(['quantite', 'absente']);
+    // Un achat qui ne vient d'aucune réception n'a pas d'écart.
+    expect(C.ecartsAchatReceptions(data, { lines: lignes })).toEqual([]);
+    // Deux lignes de commande du même nom (le même ciment, en promotion pour 20 sacs) : chaque ligne de la
+    // facture se compare à SA ligne de commande, pas à la première qui porte son nom.
+    const cf2 = { ...commande(), id: 'cf2', number: 'BCF-2026-002', lines: [
+      { label: 'Ciment gris 50 kg', qty: 100, unit: 'sac', unitPrice: 17.25, vatRate: 19, itemId: 'ciment' },
+      { label: 'Ciment gris 50 kg', qty: 20, unit: 'sac', unitPrice: 16.9, vatRate: 19, itemId: 'ciment' },
+    ] };
+    const d2 = { company, catalog, purchases: [] as Piece[], supplierOrders: [cf2], receptions: [] as Piece[] };
+    d2.receptions.push(valider(C.receptionDeCommande(d2, cf2, '2026-10-03'), 'r3', 'BR-2026-003'));
+    const [l100, l20] = C.lignesAchatDeReceptions(d2, d2.receptions);
+    expect(C.ecartsAchatReceptions(d2, { receptions: [{ id: 'r3' }], lines: [l20, { ...l100, qty: 90 }] })).toEqual([
+      { label: 'Ciment gris 50 kg', unit: 'sac', genre: 'quantite', recu: 100, facture: 90 },
+    ]);
   });
 });

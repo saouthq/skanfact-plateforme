@@ -7559,7 +7559,8 @@
       const cle = Number.isInteger(l.ligneCommande) && r.orderId ? JSON.stringify([r.orderId, l.ligneCommande, ligne.label, ligne.unitPrice, ligne.vatRate]) : '';
       const deja = cle ? parCle.get(cle) : null;
       if (deja) { deja.qty = round3(deja.qty + ligne.qty); return; }
-      if (cle) parCle.set(cle, ligne);
+      // Sa ligne de commande (brique 88) : la facture se compare à ce qui a été reçu, ligne par ligne.
+      if (cle) { ligne.origine = { commande: r.orderId, ligne: l.ligneCommande }; parCle.set(cle, ligne); }
       out.push(ligne);
     }));
     return out.filter(l => l.qty > 0);
@@ -7569,7 +7570,32 @@
   function copieLigneAchat(l) {
     const x = JSON.parse(JSON.stringify(l || {}));
     delete x.recue;
+    delete x.origine;
     return x;
+  }
+  // Les écarts entre la facture d'un fournisseur et ce que ses réceptions ont reçu (brique 88 ; 14 § 3.2 :
+  // « un écart de quantité ou de prix se signale ») : une quantité facturée qui n'est pas la quantité reçue,
+  // un prix qui n'est pas celui de la commande (seulement dans la même devise), une ligne reçue absente de
+  // la facture. Ce n'est pas un refus : la facture s'enregistre telle que le fournisseur l'a émise.
+  function ecartsAchatReceptions(data, p) {
+    const ids = new Set((Array.isArray(p && p.receptions) ? p.receptions : []).map(x => x.id));
+    const recs = (data.receptions || []).filter(r => ids.has(r.id) && r.status === 'validée');
+    if (!recs.length) return [];
+    const base = (data.company && data.company.currency) || 'DT';
+    const memeDevise = (p.currency || base) === (recs[0].currency || base);
+    const lignes = (p.lines || []).filter(l => l.recue);
+    const out = [];
+    lignesAchatDeReceptions(data, recs).forEach(a => {
+      const l = a.origine ? lignes.find(x => x.origine && x.origine.commande === a.origine.commande && x.origine.ligne === a.origine.ligne)
+        : lignes.find(x => !x.origine && (x.label || '') === a.label);
+      const quoi = { label: a.label, unit: a.unit };
+      if (!l) { out.push({ ...quoi, genre: 'absente', recu: a.qty }); return; }
+      const q = round3(Number(l.qty) || 0);
+      if (Math.abs(q - a.qty) > 0.0005) out.push({ ...quoi, genre: 'quantite', recu: a.qty, facture: q });
+      const pu = Number(l.unitPrice) || 0;
+      if (memeDevise && Math.abs(pu - a.unitPrice) > 0.0005) out.push({ ...quoi, genre: 'prix', commande: a.unitPrice, facture: pu });
+    });
+    return out;
   }
 
   // ---------- les commandes livrées en plusieurs fois (plateforme, brique 86 ; 14 § 3.2) ----------
@@ -10855,7 +10881,7 @@
     CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, decimalsFor, arrondiDevise, prixDuCatalogue, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
-    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat,
+    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions,
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
     vatReturn, vatChain, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
     ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, cashMovements, accountBalance, cashPosition, cashForecast, reconciliation,

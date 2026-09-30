@@ -1,10 +1,10 @@
 # Les commandes fournisseurs et leurs réceptions, même partielles
 
-*30/09/2026, brique 87. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 du
+*30/09/2026, briques 87 et 88. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 du
 dépôt `skanfact` (au lancement : « Côté achats : demande de prix, commande fournisseur, réception (même
 partielle), et la facture rapprochée de la réception (un écart de quantité ou de prix se signale) »).
-Cette brique fait la commande, la réception et la facture saisie depuis les réceptions ; la demande de
-prix et le signal des écarts viennent ensuite. Toutes les décisions sont prises par délégation, le
+La brique 87 fait la commande, la réception et la facture saisie depuis les réceptions ; la brique 88
+signale les écarts ; la demande de prix vient ensuite. Toutes les décisions sont prises par délégation, le
 30/09/2026.*
 
 ## Ce que la v10 faisait
@@ -69,13 +69,23 @@ Chaque ligne reçue le dit sous sa destination : « reçue par une réception »
 (`supplierOrders`, `receptions`), pas parmi les achats que le serveur tient au millime (`achats.piece`).
 Seule la facture du fournisseur en est une, et elle seule passe au livre.
 
+**C9. Les écarts entre la facture et les réceptions se disent** (brique 88, 30/09/2026 ; 14 § 3.2 : « un
+écart de quantité ou de prix se signale »). Chaque ligne de la facture saisie depuis les réceptions garde sa
+ligne de commande (`origine`) ; la facture se compare à ce qui a été reçu (`ecartsAchatReceptions`) : une
+quantité facturée qui n'est pas la quantité reçue (« 105 sac facturés, 100 reçus (5 de plus) »), un prix qui
+n'est pas celui de la commande (seulement dans la même devise), une ligne reçue que la facture oublie. C'est
+dit pendant la saisie, **sous** les lignes (ce qui apparaît ne pousse pas la ligne qu'on tape), et sur la
+commande (« Facture : F-8841 (un écart avec les réceptions) »). **Rien n'est refusé** : la facture
+s'enregistre telle que le fournisseur l'a émise, et l'écart se règle avec lui (un avoir, la livraison du
+reste). Deux lignes de commande du même nom (le même ciment à deux prix) se comparent chacune à la sienne.
+
 ## Ce qui part au serveur
 
 Rien vers un tiers. Deux collections nouvelles du dossier de l'entreprise, sur le serveur de SkanFact :
 `supplierOrders` (la commande : fournisseur, dates, référence, statut, devise et taux, lignes, notes) et
 `receptions` (la réception : commande, fournisseur, date, statut, lignes reçues avec `ligneCommande`,
 notes) ; et deux champs sur un achat, `receptions` (identifiant et numéro de chaque réception couverte) et
-`recue` sur une ligne.
+`recue` et `origine` (la commande et le rang de sa ligne) sur une ligne.
 
 ## Les tests
 
@@ -84,17 +94,19 @@ notes) ; et deux champs sur un achat, `receptions` (identifiant et numéro de ch
   puis « reçue », « soldée » et « annulée » à la main, les deux séries de numéros (et le changement
   d'année), le stock entré par les réceptions validées seules au prix en dinars, la facture qui n'y fait
   pas entrer une seconde fois ses lignes reçues (une ligne ajoutée à la main, si), le coût des sorties nul,
-  la réception couverte qui ne se propose plus, la commande imprimée.
+  la réception couverte qui ne se propose plus, la commande imprimée ; les écarts (une quantité, un prix, une ligne oubliée, une autre devise, deux
+  lignes du même nom, la copie d'une ligne qui ne compte pas).
 - À la souris (`tests/web/commandes-fournisseurs.test.ts`) : la commande créée depuis le catalogue,
   imprimée, reçue en deux fois (ses lignes figées pendant la préparation), le panneau, le stock de la fiche
   article, la facture saisie depuis les deux réceptions et tenue par le serveur (7 311,250 HT), le stock
-  entré une seule fois, sa copie (et la copie d'une ligne) qui y entre, puis la commande au téléphone. Six écrans regardés.
-- 39 preuves (`tests/preuves.sh`, brique 87) : chaque défaut remis fait tomber son test.
+  entré une seule fois, sa copie (et la copie d'une ligne) qui y entre, l'écart dit pendant la saisie (105 sacs pour 100, puis le transport à 65 au lieu de 60) et sur la commande,
+  puis la commande au téléphone. Sept écrans regardés.
+- 48 preuves (`tests/preuves.sh`, briques 87 et 88) : chaque défaut remis fait tomber son test.
 
 ## Reste connu
 
-- **Les écarts** entre la facture et les réceptions (une quantité ou un prix qui diffère) ne se signalent
-  pas encore : c'est la brique suivante, avec la demande de prix.
+- **La demande de prix** (à un ou plusieurs fournisseurs, puis comparer leurs réponses) : la brique suivante.
+- Un écart ne se lit que sur la facture et sur sa commande : la liste des achats ne le montre pas encore.
 - **Le prix du stock** : la marchandise entre au prix de la commande ; si la facture porte un autre prix
   (ou un autre cours de change), la valeur du stock n'est pas reprise. **À VÉRIFIER** avec un comptable :
   valoriser au prix de la facture (et recalculer le coût moyen) ?

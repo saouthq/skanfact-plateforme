@@ -165,7 +165,8 @@ serveur tient au millime (seule la facture du fournisseur en est une).
       const cle = Number.isInteger(l.ligneCommande) && r.orderId ? JSON.stringify([r.orderId, l.ligneCommande, ligne.label, ligne.unitPrice, ligne.vatRate]) : '';
       const deja = cle ? parCle.get(cle) : null;
       if (deja) { deja.qty = round3(deja.qty + ligne.qty); return; }
-      if (cle) parCle.set(cle, ligne);
+      // Sa ligne de commande (brique 88) : la facture se compare à ce qui a été reçu, ligne par ligne.
+      if (cle) { ligne.origine = { commande: r.orderId, ligne: l.ligneCommande }; parCle.set(cle, ligne); }
       out.push(ligne);
     }));
     return out.filter(l => l.qty > 0);
@@ -175,7 +176,32 @@ serveur tient au millime (seule la facture du fournisseur en est une).
   function copieLigneAchat(l) {
     const x = JSON.parse(JSON.stringify(l || {}));
     delete x.recue;
+    delete x.origine;
     return x;
+  }
+  // Les écarts entre la facture d'un fournisseur et ce que ses réceptions ont reçu (brique 88 ; 14 § 3.2 :
+  // « un écart de quantité ou de prix se signale ») : une quantité facturée qui n'est pas la quantité reçue,
+  // un prix qui n'est pas celui de la commande (seulement dans la même devise), une ligne reçue absente de
+  // la facture. Ce n'est pas un refus : la facture s'enregistre telle que le fournisseur l'a émise.
+  function ecartsAchatReceptions(data, p) {
+    const ids = new Set((Array.isArray(p && p.receptions) ? p.receptions : []).map(x => x.id));
+    const recs = (data.receptions || []).filter(r => ids.has(r.id) && r.status === 'validée');
+    if (!recs.length) return [];
+    const base = (data.company && data.company.currency) || 'DT';
+    const memeDevise = (p.currency || base) === (recs[0].currency || base);
+    const lignes = (p.lines || []).filter(l => l.recue);
+    const out = [];
+    lignesAchatDeReceptions(data, recs).forEach(a => {
+      const l = a.origine ? lignes.find(x => x.origine && x.origine.commande === a.origine.commande && x.origine.ligne === a.origine.ligne)
+        : lignes.find(x => !x.origine && (x.label || '') === a.label);
+      const quoi = { label: a.label, unit: a.unit };
+      if (!l) { out.push({ ...quoi, genre: 'absente', recu: a.qty }); return; }
+      const q = round3(Number(l.qty) || 0);
+      if (Math.abs(q - a.qty) > 0.0005) out.push({ ...quoi, genre: 'quantite', recu: a.qty, facture: q });
+      const pu = Number(l.unitPrice) || 0;
+      if (memeDevise && Math.abs(pu - a.unitPrice) > 0.0005) out.push({ ...quoi, genre: 'prix', commande: a.unitPrice, facture: pu });
+    });
+    return out;
   }
 
   // ---------- les commandes livrées en plusieurs fois (plateforme, brique 86 ; 14 § 3.2) ----------
@@ -239,7 +265,7 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
 -- après
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
-    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat,
+    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions,
 -- fin
 
 ── Les écrans (app.js) ──
@@ -304,6 +330,23 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
       $$('[data-dup]', body).forEach(b => b.onclick = () => { const i = Number(b.dataset.dup); p.lines.splice(i + 1, 0, C.copieLigneAchat(p.lines[i])); touch(); drawLines(); });
 -- fin
 
+== app.js | les écarts avec les réceptions se disent sous les lignes de l'achat (brique 88)
+-- avant
+            <div id="b-stock-hint" hidden></div>
+-- après
+            <div id="b-ecarts" class="mt"></div>
+            <div id="b-stock-hint" hidden></div>
+-- fin
+
+== app.js | les écarts avec les réceptions se recalculent à chaque frappe (brique 88)
+-- avant
+      const t = C.purchaseTotals(p, company());
+-- après
+      const t = C.purchaseTotals(p, company());
+      // Sous les lignes : ce qui apparaît ne pousse pas la ligne qu'on est en train de taper.
+      if ($('#b-ecarts')) $('#b-ecarts').innerHTML = ecartsReceptionsHtml(C.ecartsAchatReceptions(data, p), cur);
+-- fin
+
 == app.js | les commandes fournisseurs et leurs réceptions : les écrans
 -- avant
   routes.achats = () => {
@@ -366,6 +409,19 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
     dessiner();
   };
 
+  // Les écarts entre la facture et les réceptions (brique 88), en phrases : ce qui diffère, de combien.
+  function ecartsReceptionsHtml(ecarts, cur) {
+    if (!ecarts.length) return '';
+    const u = e => e.unit ? ' ' + h(e.unit) : '';
+    const phrase = e => e.genre === 'absente'
+      ? `<b>${h(e.label)}</b> : ${pct(e.recu)}${u(e)} reçu${e.recu > 1 ? 's' : ''}, absent de la facture`
+      : e.genre === 'quantite'
+        ? `<b>${h(e.label)}</b> : ${pct(e.facture)}${u(e)} facturé${e.facture > 1 ? 's' : ''}, ${pct(e.recu)} reçu${e.recu > 1 ? 's' : ''} (${pct(C.round3(Math.abs(e.facture - e.recu)))} ${e.facture > e.recu ? 'de plus' : 'de moins'})`
+        : `<b>${h(e.label)}</b> : facturé ${h(C.money(e.facture, cur))}${e.unit ? ' le ' + h(e.unit) : ' l\'unité'}, commandé à ${h(C.money(e.commande, cur))}`;
+    return `<div class="warn-box" id="b-ecarts-box"><b>${ecarts.length > 1 ? ecarts.length + ' écarts' : 'Un écart'} avec les réceptions</b> ${info('cf.ecarts')}<ul class="mt">${ecarts.map(e => `<li>${phrase(e)}</li>`).join('')}</ul>
+      <div class="small">La facture s'enregistre telle que le fournisseur l'a émise : un écart se règle avec lui (un avoir, la livraison du reste).</div></div>`;
+  }
+
   // Saisir la facture du fournisseur depuis ses réceptions validées : un achat en brouillon, relu puis
   // enregistré comme un autre ; ses lignes reçues n'entrent pas une seconde fois en stock.
   function facturerReceptions(recs) {
@@ -395,6 +451,8 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
     const close = stored ? (stored.status === 'soldée' || /^annul/.test(stored.status || '')) : false;
     const aRecevoir = !!(stored && stored.number && suivi.aProposer && !close);
     const aFacturer = stored ? C.receptionsAFacturer(data).filter(r => r.orderId === stored.id) : [];
+    // Les factures du fournisseur qui couvrent ses réceptions (brique 88 : avec leurs écarts).
+    const factures = suivi ? (data.purchases || []).filter(x => (x.receptions || []).some(y => suivi.receptions.some(r => r.id === y.id))) : [];
     const recue = !!(suivi && suivi.receptions.some(r => r.status === 'validée'));
     // Une commande qui a une réception, même en préparation, ne change plus ses lignes : ses réceptions s'y
     // rattachent ligne par ligne, par leur rang (retirer une ligne les décalerait toutes).
@@ -441,6 +499,7 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
             <td class="r num">${x.enPlus ? `<span class="warn-text">${pct(x.enPlus)} de plus</span>` : pct(x.reste)}</td></tr>`).join('')}
         </tbody></table></div>
         <p class="small mt">${suivi.receptions.length > 1 ? 'Réceptions' : 'Réception'} : ${suivi.receptions.map(r => `<a href="#/reception/${h(r.id)}">${h(r.number || 'réception en brouillon')}</a> <span class="small muted">(${h(MOTS_CF[r.status] || r.status)}${r.date ? ', ' + h(C.fmtDate(r.date)) : ''})</span>`).join(', ')}</p>
+        ${factures.length ? `<p class="small" id="cf-factures">${factures.length > 1 ? 'Factures' : 'Facture'} : ${factures.map(f => { const n = C.ecartsAchatReceptions(data, f).length; return `<a href="#/achat/${h(f.id)}">${h(f.number || 'sans numéro')}</a>${n ? ` <span class="warn-text">(${n > 1 ? n + ' écarts' : 'un écart'} avec les réceptions)</span>` : ''}`; }).join(', ')}</p>` : ''}
         ${stored.status === 'soldée' && suivi.lignes.some(x => x.reste > 0) ? '<p class="small muted">Soldée à la main : le reste n\'est plus attendu.</p>' : ''}
       </div>` : ''}
       <div class="panel"><h2>Notes (imprimées sur la commande)</h2><textarea id="cf-notes" placeholder="Conditions, adresse de livraison, contact sur place…">${h(o.notes || '')}</textarea></div>`;
@@ -656,6 +715,7 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
     'cf.lignes': { t: 'Lignes', d: 'Ce que tu commandes, à quel prix hors taxes. Un article du catalogue prend son coût d\'achat et, s\'il est suivi en stock, y entrera à la réception. Une fois que la commande a reçu, ses lignes ne changent plus.' },
     'cf.receptions': { t: 'Réceptions', d: 'Ligne par ligne : ce qui est commandé, ce que les réceptions <b>validées</b> ont reçu, et ce qui reste. Une réception en brouillon est « en préparation ».' },
     'rec.lignes': { t: 'Ce qui est arrivé', d: 'Saisis ce qui est vraiment arrivé, ligne par ligne. Tant que la réception est en brouillon, rien n\'est reçu ; <b>« Valider la réception »</b> fait entrer la marchandise suivie en stock, et la commande attend le reste.' },
+    'cf.ecarts': { t: 'Écarts avec les réceptions', d: 'Ce que la facture du fournisseur dit autrement que ses réceptions : une quantité facturée qui n\'est pas celle reçue, un prix qui n\'est pas celui de la commande, une ligne reçue que la facture oublie. Rien n\'est refusé : la facture s\'enregistre telle qu\'il l\'a émise. L\'écart se règle avec lui : un avoir s\'il a trop facturé, la livraison de ce qui manque.' },
     'cf.facture': { t: 'Facture depuis les réceptions', d: 'La facture du fournisseur reprend ce que les réceptions ont reçu, au prix de la commande : vérifie les prix et saisis son numéro. Ses lignes reçues n\'entrent pas une seconde fois en stock : la réception l\'a déjà fait.' },
     'ed.livraisons': { t: 'Livraisons', d: 
 -- fin

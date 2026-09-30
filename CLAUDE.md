@@ -55,6 +55,8 @@
   fonction compte ce qui est reçu (`suiviCommandeFournisseur`) ; une réception VALIDÉE fait entrer le stock
   au prix de la commande en dinars ; la facture saisie depuis les réceptions marque ses lignes `recue` (le
   stock n'entre pas deux fois) ; une commande qui a une réception, même en préparation, fige ses lignes.
+  Les écarts facture/réceptions (brique 88, `ecartsAchatReceptions`, par la ligne de commande `origine`)
+  se disent sous les lignes et sur la commande ; rien n'est refusé.
 - Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,
   un seau par clé dans la mémoire du programme (à partager le jour où il y aura plusieurs programmes).
 - Les avis d'événement signés (`0008`, `serveur/avis.ts`, 28/09/2026) : l'avis naît dans la

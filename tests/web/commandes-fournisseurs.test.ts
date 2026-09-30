@@ -182,11 +182,23 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await p.locator('#b-lines [data-rm="1"]').click();
     await expect.poll(() => p.locator('#b-lines tr[data-i]').count()).toBe(3);
     expect(await p.locator('#b-lines [data-recue]').count()).toBe(3);
+    // Un écart avec les réceptions se dit pendant la saisie, sous les lignes : 105 sacs facturés pour 100
+    // reçus, puis remis à 100 ; le transport facturé 65 au lieu de 60 (il reste : le fournisseur l'a facturé).
+    expect(await p.locator('#b-ecarts').innerText()).toBe('');
+    const achatLigne = (i: number, k: string) => p.locator(`#b-lines tr[data-i="${i}"] input[data-k=${k}]`);
+    await achatLigne(0, 'qty').fill('105');
+    await expect.poll(async () => net(await p.locator('#b-ecarts').innerText())).toMatch(/^Un écart avec les réceptions i Ciment gris 50 kg : 105 sac facturés, 100 reçus \(5 de plus\) La facture s'enregistre telle que le fournisseur l'a émise/);
+    await achatLigne(0, 'qty').fill('100');
+    await expect.poll(() => p.locator('#b-ecarts').innerText()).toBe('');
+    await achatLigne(2, 'unitPrice').fill('65');
+    await expect.poll(async () => net(await p.locator('#b-ecarts').innerText())).toMatch(/^Un écart avec les réceptions i Transport : facturé 65,000 DT l'unité, commandé à 60,000 DT /);
     await p.locator('#view input[name=number]').fill('F-8841');
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'commandes-fournisseurs-4-facture.png') });
+    await p.locator('#b-ecarts').scrollIntoViewIfNeeded();
+    await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'commandes-fournisseurs-4b-ecart.png') });
     await p.locator('#save').click();
     const auServeur = async () => (await admin.query(`select numero_fournisseur, total_ht from achats.piece where entreprise = $1 and nature = 'facture'`, [ent])).rows;
-    await expect.poll(auServeur, { timeout: 15_000 }).toEqual([{ numero_fournisseur: 'F-8841', total_ht: 7311250n }]);
+    await expect.poll(auServeur, { timeout: 15_000 }).toEqual([{ numero_fournisseur: 'F-8841', total_ht: 7316250n }]);
 
     // 6. Le stock n'est entré qu'une fois (100 sacs, par les réceptions) ; la commande est reçue et facturée.
     const fiche = await stockDe(p, 'ciment');
@@ -219,6 +231,8 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await expect.poll(() => titre(t), { timeout: 20_000 }).toMatch(/^Commande BCF-/);
     await plusTard(t);
     expect(await t.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    // La commande nomme la facture de ses réceptions, et son écart.
+    expect(net(await t.locator('#cf-factures').innerText())).toBe('Facture : F-8841 (un écart avec les réceptions)');
     await t.locator('#receptions-panel').scrollIntoViewIfNeeded();
     await t.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'commandes-fournisseurs-6-telephone.png') });
     await tel.close();

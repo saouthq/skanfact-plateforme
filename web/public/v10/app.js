@@ -8372,6 +8372,19 @@
     dessiner();
   };
 
+  // Les écarts entre la facture et les réceptions (brique 88), en phrases : ce qui diffère, de combien.
+  function ecartsReceptionsHtml(ecarts, cur) {
+    if (!ecarts.length) return '';
+    const u = e => e.unit ? ' ' + h(e.unit) : '';
+    const phrase = e => e.genre === 'absente'
+      ? `<b>${h(e.label)}</b> : ${pct(e.recu)}${u(e)} reçu${e.recu > 1 ? 's' : ''}, absent de la facture`
+      : e.genre === 'quantite'
+        ? `<b>${h(e.label)}</b> : ${pct(e.facture)}${u(e)} facturé${e.facture > 1 ? 's' : ''}, ${pct(e.recu)} reçu${e.recu > 1 ? 's' : ''} (${pct(C.round3(Math.abs(e.facture - e.recu)))} ${e.facture > e.recu ? 'de plus' : 'de moins'})`
+        : `<b>${h(e.label)}</b> : facturé ${h(C.money(e.facture, cur))}${e.unit ? ' le ' + h(e.unit) : ' l\'unité'}, commandé à ${h(C.money(e.commande, cur))}`;
+    return `<div class="warn-box" id="b-ecarts-box"><b>${ecarts.length > 1 ? ecarts.length + ' écarts' : 'Un écart'} avec les réceptions</b> ${info('cf.ecarts')}<ul class="mt">${ecarts.map(e => `<li>${phrase(e)}</li>`).join('')}</ul>
+      <div class="small">La facture s'enregistre telle que le fournisseur l'a émise : un écart se règle avec lui (un avoir, la livraison du reste).</div></div>`;
+  }
+
   // Saisir la facture du fournisseur depuis ses réceptions validées : un achat en brouillon, relu puis
   // enregistré comme un autre ; ses lignes reçues n'entrent pas une seconde fois en stock.
   function facturerReceptions(recs) {
@@ -8401,6 +8414,8 @@
     const close = stored ? (stored.status === 'soldée' || /^annul/.test(stored.status || '')) : false;
     const aRecevoir = !!(stored && stored.number && suivi.aProposer && !close);
     const aFacturer = stored ? C.receptionsAFacturer(data).filter(r => r.orderId === stored.id) : [];
+    // Les factures du fournisseur qui couvrent ses réceptions (brique 88 : avec leurs écarts).
+    const factures = suivi ? (data.purchases || []).filter(x => (x.receptions || []).some(y => suivi.receptions.some(r => r.id === y.id))) : [];
     const recue = !!(suivi && suivi.receptions.some(r => r.status === 'validée'));
     // Une commande qui a une réception, même en préparation, ne change plus ses lignes : ses réceptions s'y
     // rattachent ligne par ligne, par leur rang (retirer une ligne les décalerait toutes).
@@ -8447,6 +8462,7 @@
             <td class="r num">${x.enPlus ? `<span class="warn-text">${pct(x.enPlus)} de plus</span>` : pct(x.reste)}</td></tr>`).join('')}
         </tbody></table></div>
         <p class="small mt">${suivi.receptions.length > 1 ? 'Réceptions' : 'Réception'} : ${suivi.receptions.map(r => `<a href="#/reception/${h(r.id)}">${h(r.number || 'réception en brouillon')}</a> <span class="small muted">(${h(MOTS_CF[r.status] || r.status)}${r.date ? ', ' + h(C.fmtDate(r.date)) : ''})</span>`).join(', ')}</p>
+        ${factures.length ? `<p class="small" id="cf-factures">${factures.length > 1 ? 'Factures' : 'Facture'} : ${factures.map(f => { const n = C.ecartsAchatReceptions(data, f).length; return `<a href="#/achat/${h(f.id)}">${h(f.number || 'sans numéro')}</a>${n ? ` <span class="warn-text">(${n > 1 ? n + ' écarts' : 'un écart'} avec les réceptions)</span>` : ''}`; }).join(', ')}</p>` : ''}
         ${stored.status === 'soldée' && suivi.lignes.some(x => x.reste > 0) ? '<p class="small muted">Soldée à la main : le reste n\'est plus attendu.</p>' : ''}
       </div>` : ''}
       <div class="panel"><h2>Notes (imprimées sur la commande)</h2><textarea id="cf-notes" placeholder="Conditions, adresse de livraison, contact sur place…">${h(o.notes || '')}</textarea></div>`;
@@ -9093,6 +9109,7 @@
               <th style="width:150px">Destination ${info('buy.destination')}</th><th class="nw" style="width:96px">Déduct. ${info('buy.deductible')}</th><th class="r" style="width:118px">Total HT</th><th></th></tr></thead>
               <tbody id="b-lines"></tbody></table>
             <div class="totals-box" id="b-totals"></div>
+            <div id="b-ecarts" class="mt"></div>
             <div id="b-stock-hint" hidden></div>
           </div>
           ${isNew ? '' : `<div class="panel"><h2>Règlements ${info('buy.payments')}</h2><div id="b-pay"></div></div>`}
@@ -9216,6 +9233,8 @@
 
     function refresh() {
       const t = C.purchaseTotals(p, company());
+      // Sous les lignes : ce qui apparaît ne pousse pas la ligne qu'on est en train de taper.
+      if ($('#b-ecarts')) $('#b-ecarts').innerHTML = ecartsReceptionsHtml(C.ecartsAchatReceptions(data, p), cur);
       t.lines.forEach((l, i) => { const c = $(`[data-total="${i}"]`); if (c) c.textContent = C.money(l.ht, null, C.decimalsFor(cur)); });
       // Ce que chaque destination COÛTE (10.14.0) : le HT et la TVA qu'on ne récupère pas, comme les
       // écritures et le résultat la comptent. « Charge 139,000 » sous un carburant à 165,410 disait
