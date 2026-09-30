@@ -240,6 +240,8 @@
     toast(`${C.liste(noms)} ${revenus.length > 1 ? 'reviennent' : 'revient'} dans ton menu : tu viens d'y enregistrer quelque chose.`);
   }
 
+  // (plateforme) Le point de contact relance l'enregistrement au retour du réseau (brique 73).
+  window.__enregistrerMaintenant = () => save(true);
   function save(immediate) {
     try { window.__data = data; } catch (_) {}   // visible depuis les tests de bout en bout
     rappelerModules();

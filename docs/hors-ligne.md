@@ -31,17 +31,13 @@ allumé et ouvert ; la parade, c'est la révocation de l'appareil (à venir). **
 le stockage persistant, que Chromium n'accorde pas à une page non installée.
 
 **H4. Le bandeau dit ce qu'on voit et ce qui attend** (par délégation). Sans réseau : « Hors ligne
-depuis 14 h 32. Tu consultes la copie de ce poste, du 30/09/2026 à 11 h 58. Enregistrer demande le
-réseau : ce que tu changes maintenant ne part pas. » (ou « Ce que tu vois reste à l'écran » si la page
-était ouverte avant la coupure). Le réseau revenu sur une copie : « Recharger ». Sans copie : la raison,
+depuis 14 h 32. Tu consultes la copie de ce poste, du 30/09/2026 à 11 h 58. » (ou « Ce que tu vois
+reste à l'écran » si la page était ouverte avant la coupure), puis ce qui attend (brique 73 : « Un
+changement attend le réseau : gardé sur ce poste, il partira seul à son retour. »). Le réseau revenu sur une copie : « Recharger ». Sans copie : la raison,
 et « Réessayer ». Le menu des entreprises reste ouvert sans réseau (l'entreprise ouverte), pour que
 « Se déconnecter » y soit toujours.
 
-**Ce que la brique ne fait pas encore** : enregistrer sans réseau. Un enregistrement tenté pendant la
-coupure est refusé, et la v10 le dit (« Rien n'a été enregistré », avec « Réessayer ») : rien n'est perdu
-tant que l'onglet reste ouvert. **La brique suivante** : la file d'envoi (04 § 4), qui garde ces
-changements sur le poste et les envoie seule au retour du réseau, et « À reprendre ». Le Cabinet n'a pas
-encore son hors-ligne (04 § 2 : les dossiers qu'on choisit d'emporter).
+Le Cabinet n'a pas encore son hors-ligne (04 § 2 : les dossiers qu'on choisit d'emporter).
 
 **Les tests** (`tests/web/hors-ligne.test.ts`, dans un vrai navigateur ; le réseau se coupe pour de
 vrai — le serveur s'arrête et revient au même port, car le service des écrans passe à côté de la
@@ -52,3 +48,43 @@ se consulte, le bandeau le dit ; l'application refermée se rouvre depuis l'entr
 session ; une page mise à jour vue en ligne est celle qui s'ouvre sans réseau ; sur l'ordinateur d'un
 autre, rien n'est gardé et l'écran le dit ; par l'entrée, la case décide où vit la session, et une
 nouvelle connexion efface les copies de la précédente.
+
+## Brique 73 : enregistrer sans réseau (fait le 30/09/2026)
+
+**H5. Ce qui attend, c'est l'état enregistré, par rapport à la copie** (par délégation). Le cadrage
+(04 § 4) décrit une file de GESTES. Sur la plateforme, l'écran est celui de la v10, qui enregistre
+l'ÉTAT de son dossier : le point de contact envoie ce qui diffère de ce que le serveur a, objet par
+objet, avec la révision qu'il en connaît (01 R15). Sans réseau, sur « mon ordinateur », c'est donc cet
+état qui se garde (chiffré comme la copie), et la copie reste la base : ses révisions disent au
+serveur ce que le poste avait vu. Les garanties du cadrage tiennent : **rien ne se perd** (gardé avant
+que l'écran ne continue, relu si la page se recharge ou se rouvre sans réseau), **rien ne se double**
+(un objet enregistré ne diffère plus de ce que le serveur a), **jamais deux versions d'une même pièce
+fusionnées en une troisième** (ce qui a changé ailleurs revient en conflit, et la v10 fusionne comme
+elle l'a toujours fait : la version du serveur gardée, l'autre mise de côté dans le dossier et dite).
+Sur l'ordinateur d'un autre, rien ne se garde : un enregistrement sans réseau est refusé, et la v10 le
+dit (« Rien n'a été enregistré »).
+
+**H6. Au retour du réseau, ça part seul** (par délégation) : dès que le navigateur retrouve le réseau
+(et toutes les 30 secondes tant que quelque chose attend), l'écran réenregistre ; à l'ouverture avec le
+réseau, ce qui attendait part d'abord, et une pièce changée ailleurs se fusionne de même (le point de
+contact fait ce que la v10 fait). Le bandeau le dit : « Le réseau est revenu : tes 2 changements faits
+hors ligne sont enregistrés. Une pièce avait changé ailleurs : la version du serveur est gardée, la
+tienne est mise de côté, rien n'est perdu. » Il compte ce que la personne a fait (pièces et fiches),
+jamais les réglages du dossier qui changent avec elles.
+
+**H7. Ce qui attend le réseau ne se perd pas sans qu'on le demande** (par délégation) : se déconnecter
+avec des changements qui attendent pose d'abord la question (« Attendre le réseau » ou « Me déconnecter
+quand même ») ; une facture ou un avoir ne s'émet jamais sans réseau (04 § 3.3 : son numéro et son sceau
+viennent du serveur) — l'écran propose de l'enregistrer en brouillon.
+
+**Les tests** (`tests/web/hors-ligne-envoi.test.ts`, à la souris, le serveur arrêté pour de vrai) : un
+client créé sans réseau — aucune fenêtre « Rien n'a été enregistré », le bandeau dit « Un changement
+attend le réseau », gardé chiffré, encore là après un rechargement, parti seul au retour du réseau, et
+rien de doublé à la réouverture ; un client changé sans réseau et ailleurs, la page ouverte (la v10
+dit « Modifications des deux côtés ») comme rouverte plus tard (le bandeau le dit) : la version du
+serveur gardée, la mienne dans ce que le dossier met de côté ; se déconnecter avec des changements qui
+attendent : la question, « Attendre le réseau » ne perd rien, et ça part au retour.
+
+**Reste à faire** : le Cabinet hors ligne (les dossiers emportés) ; le stockage persistant demandé
+(04 § 4, À VÉRIFIER) ; la durée des droits hors ligne (04 § 7 : 72 heures) ; la révocation d'un
+appareil qui efface ses données à la reconnexion.

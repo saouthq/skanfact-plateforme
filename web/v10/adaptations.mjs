@@ -23,6 +23,12 @@ export const ADAPTATIONS = [
   },
   {
     fichier: 'app.js',
+    pourquoi: 'au retour du réseau, le point de contact relance l\'enregistrement de ce qui a été enregistré sans réseau (brique 73, docs/hors-ligne.md)',
+    avant: '  function save(immediate) {\n',
+    apres: '  // (plateforme) Le point de contact relance l\'enregistrement au retour du réseau (brique 73).\n  window.__enregistrerMaintenant = () => save(true);\n  function save(immediate) {\n',
+  },
+  {
+    fichier: 'app.js',
     pourquoi: 'la fin du même objet : le pont de la plateforme se pose par-dessus le repli',
     avant: '    onUpdateEvent: () => {}\n  };\n\n  // ---------- état ----------',
     apres: '    onUpdateEvent: () => {}\n  }, window.skanfact || {});\n\n  // ---------- état ----------',

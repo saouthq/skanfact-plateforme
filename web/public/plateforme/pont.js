@@ -124,9 +124,10 @@
   let enCours = null;
   /** @type {Record<string, unknown> | null} */
   let enAttente = null;
+  // Ce qui a changé dans le dossier par rapport à ce que le serveur a (`vu`) : chaque objet changé,
+  // ajouté ou retiré, avec la révision qu'on lui connaissait.
   /** @param {Record<string, unknown>} data */
-  async function envoyer(data) {
-    await envoyerReponses(data);
+  function changementsDe(data) {
     const maintenant = decouper(data);
     const changements = [];
     for (const [k, m] of maintenant) {
@@ -137,10 +138,18 @@
     }
     for (const [k, avant] of vu) {
       if (!maintenant.has(k)) {
-        const [collection, cle] = k.split('\u0000');
+        const [collection = '', cle = ''] = k.split('\u0000');
         changements.push({ collection, cle, rang: null, revision: avant.revision, contenu: null });
       }
     }
+    return changements;
+  }
+  // Envoyer le dossier : `true` quand le serveur a tout ; `{ conflict, disk }` quand un objet a changé
+  // ailleurs ; `{ horsLigne }` quand le réseau manque et que ce poste a gardé l'enregistrement (brique 73).
+  /** @param {Record<string, unknown>} data */
+  async function envoyer(data) {
+    try { await envoyerReponses(data); } catch (e) { if (gardableHorsLigne(e)) return await mettreEnAttente(data); throw e; }
+    const changements = changementsDe(data);
     if (!changements.length) return true;
     // Par paquets : un premier enregistrement peut porter tout un dossier.
     for (let i = 0; i < changements.length; i += 500) {
@@ -155,6 +164,8 @@
         // Comme dans la v10, la version enregistrée gagne (`syncWrittenAt` plus récent) : ce qui se
         // contredit est mis de côté (`conflictArchive`) et dit, jamais écrit par-dessus le serveur.
         if (/** @type {any} */ (e).statut === 409) return { conflict: true, disk: Object.assign(await relire(), { syncWrittenAt: Date.now() }) };
+        // Le réseau manque : sur « mon ordinateur », l'enregistrement se garde et partira seul.
+        if (gardableHorsLigne(e)) return await mettreEnAttente(data);
         throw e;
       }
       for (const [j, c] of lot.entries()) {
@@ -176,6 +187,8 @@
         let r = true;
         // Après un conflit, la v10 fusionne et renvoie tout : ce qui attendait part avec elle.
         while (enAttente) { const d = enAttente; enAttente = null; r = await envoyer(d); if (r !== true) { enAttente = null; break; } }
+        // Ce qui attendait le réseau est parti avec cet envoi.
+        if (r === true && attenteGardee) await finirAttente(0);
         return r;
       } finally { enCours = null; }
     })();
@@ -212,6 +225,69 @@
       poste.ecrireCopie(ent, { objets: objetsVus(), questions: questionsLues }).catch(() => { /* sans copie, le hors-ligne attendra la prochaine */ });
     }, 300);
   }
+  // ── Enregistrer sans réseau (brique 73 ; docs/hors-ligne.md, H5) ─────────────────────────────
+  // Sur « mon ordinateur », un enregistrement qui ne trouve pas le serveur se GARDE (chiffré) : l'état
+  // du dossier que l'écran a enregistré, qui partira par rapport à la copie (ses révisions disent au
+  // serveur ce que le poste avait vu). Il part seul au retour du réseau, par le chemin ordinaire : ce
+  // qui a changé ailleurs entre-temps revient en conflit, et la v10 fusionne comme toujours (la version
+  // du serveur gardée, l'autre mise de côté et dite). Rien ne se double : un objet enregistré ne
+  // diffère plus de ce que le serveur a.
+  let attenteGardee = false;
+  let attenteN = 0;
+  // Ce que la personne a fait : les pièces et les fiches (les réglages du dossier ne se comptent pas).
+  /** @param {{ collection: string }[]} changements */
+  const compter = (changements) => changements.filter((c) => c.collection !== '_racine').length;
+  /** @param {unknown} e */
+  const gardableHorsLigne = (e) => !!(e && /** @type {any} */ (e).horsLigne) && poste.garde();
+  /** @param {Record<string, unknown>} data */
+  async function mettreEnAttente(data) {
+    // La base d'abord : ce que le serveur a déjà reçu (un premier paquet parti avant la coupure).
+    await poste.ecrireCopie(ent, { objets: objetsVus(), questions: questionsLues });
+    await poste.ecrireAttente(ent, { data });
+    attenteGardee = true;
+    attenteN = compter(changementsDe(data));
+    poste.attente(attenteN);
+    return { horsLigne: true };
+  }
+  /** @param {number} conflits */
+  async function finirAttente(conflits) {
+    const n = attenteN;
+    attenteGardee = false; attenteN = 0;
+    await poste.effacerAttente(ent);
+    poste.envoye(n, conflits);
+  }
+  // Au retour du réseau, et toutes les 30 secondes tant que quelque chose attend : l'écran réenregistre.
+  const relancer = () => {
+    const w = /** @type {any} */ (window);
+    if (attenteGardee && !enCours && w.__data && typeof w.__enregistrerMaintenant === 'function') w.__enregistrerMaintenant();
+  };
+  poste.auRetour(relancer);
+  setInterval(() => { if (navigator.onLine) relancer(); }, 30_000);
+  // À l'ouverture, avec le réseau : ce qui attendait part d'abord, par rapport à la copie ; ce qui
+  // avait changé ailleurs se fusionne comme la v10 le fait (version du serveur gardée, l'autre mise de
+  // côté), puis le dossier se relit.
+  /** @param {Record<string, unknown>} data */
+  async function rejouer(data) {
+    const c = await poste.lireCopie(ent);
+    if (c) {
+      vu = new Map();
+      for (const o of c.contenu.objets) vu.set(`${o.collection}\u0000${o.cle}`, { json: JSON.stringify(o.contenu), rang: o.rang, revision: o.revision });
+      questionsLues = c.contenu.questions || [];
+      attenteGardee = true;
+      attenteN = compter(changementsDe(data));
+      /** @type {any} */ let r = await envoyer(data);
+      if (r && r.horsLigne) { const x = new Error('hors ligne'); /** @type {any} */ (x).horsLigne = true; throw x; }
+      let conflits = 0;
+      if (r !== true) {
+        const m = /** @type {any} */ (window).SkanCore.mergeData(data, r.disk);
+        conflits = m.counts.conflicts || 0;
+        r = await envoyer(m.data);
+      }
+      if (r === true) await finirAttente(conflits);
+    } else await poste.effacerAttente(ent);
+    return await relire();
+  }
+
   // Sans réseau : la copie du poste, ce qu'on en sait (révisions), et le bandeau qui dit de quand elle est.
   async function lireLaCopie() {
     const c = await poste.lireCopie(ent);
@@ -331,9 +407,16 @@
   /** @type {any} */ (window).skanfact = {
     dessinerMandat,
     loadData: async () => {
-      try { return { data: await relire(), corruptFile: null }; } catch (e) {
+      const attente = await poste.lireAttente(ent).catch(() => null);
+      try { return { data: attente ? await rejouer(attente.contenu.data) : await relire(), corruptFile: null }; } catch (e) {
         if (!/** @type {any} */ (e).horsLigne) throw e;
-        return { data: await lireLaCopie(), corruptFile: null };
+        const copie = await lireLaCopie();
+        if (!attente) return { data: copie, corruptFile: null };
+        // Ce qui a été enregistré sans réseau se montre, et attend toujours.
+        attenteGardee = true;
+        attenteN = compter(changementsDe(attente.contenu.data));
+        poste.attente(attenteN);
+        return { data: attente.contenu.data, corruptFile: null };
       }
     },
     saveData: (/** @type {Record<string, unknown>} */ data) => enregistrer(data),
@@ -344,6 +427,10 @@
     // que l'écran la montre, la numérote, la scelle, et vérifie qu'il trouve le même net à payer.
     emettre: async (/** @type {any} */ doc, /** @type {any} */ client, /** @type {number} */ netAPayer) => {
       if (enCours) await enCours;
+      // Une facture ne s'émet jamais sans réseau (04 § 3.3) : son numéro et son sceau viennent du serveur.
+      if (attenteGardee || !navigator.onLine) {
+        throw new Error('Hors ligne : une facture ou un avoir s\'émet par le serveur, qui lui donne son numéro et le scelle. Enregistre-la en brouillon : elle se garde sur ce poste, et tu l\'émettras au retour du réseau.');
+      }
       const decimales = !doc.currency || doc.currency === 'DT' || doc.currency === 'TND' ? 3 : 2;
       const k = `documents\u0000${doc.id}`;
       const avant = vu.get(k);
@@ -396,6 +483,9 @@
     renameDevice: pasEncore('Nommer cet appareil'),
     // Se déconnecter efface aussi ce que le poste garde (la copie chiffrée et sa clé).
     deconnecter: async () => {
+      // Ce qui attend le réseau serait perdu : on le demande d'abord.
+      if (attenteGardee && !(await poste.demander('Des changements faits hors ligne ne sont pas encore partis : te déconnecter maintenant les efface de ce poste.',
+        'Me déconnecter quand même', 'Attendre le réseau'))) return;
       try { await appelCompte('POST', '/deconnexion'); } catch { /* la session se ferme de toute façon ici */ }
       try { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
       await poste.effacer();

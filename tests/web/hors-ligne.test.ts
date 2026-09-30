@@ -19,7 +19,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
 import { build } from 'vite';
-import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { rendre, t } from '../../textes/index.ts';
@@ -44,7 +44,9 @@ describe('l\'application sans réseau, à la souris', () => {
   afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); fs.rmSync(dossier, { recursive: true, force: true }); });
   // Couper le réseau : le navigateur se dit hors ligne, et le serveur s'arrête ; le rétablir, au même port.
   const couper = async (c: BrowserContext) => { await c.setOffline(true); await serveur?.arreter(); serveur = null; };
-  const retablir = async () => { serveur = await demarrer({ ...configuration(), port: Number(new URL(adresse).port) }); };
+  const retablir = async () => { if (!serveur) serveur = await demarrer({ ...configuration(), port: Number(new URL(adresse).port) }); };
+  // Un parcours qui s'arrête en route ne laisse pas le serveur arrêté aux suivants.
+  afterEach(async () => { await retablir(); });
 
   const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
     const r = await fetch(`${adresse}/v1${chemin}`, {
@@ -139,13 +141,13 @@ describe('l\'application sans réseau, à la souris', () => {
     await couper(c);
     // Le réseau vient de tomber, l'écran est déjà ouvert : ce qu'on voit reste, et le bandeau le dit.
     await expect.poll(() => p.locator('#poste-bandeau').innerText(), { timeout: 15_000 })
-      .toMatch(/^Hors ligne depuis \d{1,2} h \d\d\. Ce que tu vois reste à l'écran\. Enregistrer demande le réseau/);
+      .toMatch(/^Hors ligne depuis \d{1,2} h \d\d\. Ce que tu vois reste à l'écran\. Ce que tu enregistres se garde sur ce poste, et partira seul au retour du réseau\.$/);
     await p.reload();
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     await plusTard(p);
     await expect.poll(() => p.locator('#view').innerText(), { timeout: 15_000 }).toMatch(/Boulangerie du Lac/);
     await expect.poll(() => p.locator('#poste-bandeau').innerText())
-      .toMatch(/^Hors ligne depuis \d{1,2} h \d\d\. Tu consultes la copie de ce poste, du \d\d\/\d\d\/\d{4} à \d{1,2} h \d\d\. Enregistrer demande le réseau : ce que tu changes maintenant ne part pas\.$/);
+      .toMatch(/^Hors ligne depuis \d{1,2} h \d\d\. Tu consultes la copie de ce poste, du \d\d\/\d\d\/\d{4} à \d{1,2} h \d\d\. Ce que tu enregistres se garde sur ce poste, et partira seul au retour du réseau\.$/);
     await p.screenshot({ path: path.join(PHOTOS, 'hors-ligne-1-copie.png') });
 
     // L'application refermée se rouvre depuis l'entrée, toujours sans réseau.

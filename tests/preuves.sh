@@ -2847,8 +2847,7 @@ prouver "une question fermée par le cabinet qui s'affiche chez le client" $PE \
   "    const qs = lues.filter((q) => q.statut !== 'close').map((q) => ({" "    const qs = lues.map((q) => ({" \
   "$QC1"
 prouver "la réponse du client qui ne part pas au serveur" $PE \
-  "    await envoyerReponses(data);
-    const maintenant" "    const maintenant" \
+  "    try { await envoyerReponses(data); } catch (e) {" "    try { void 0; } catch (e) {" \
   "$QC1"
 prouver "l'onglet Cabinet qui fabrique encore un paquet" web/public/v10/app.js \
   "      // en direct. L'onglet porte les questions du comptable, et dit à qui le dossier est confié.
@@ -4011,7 +4010,7 @@ prouver "le bandeau qui tait de quand date la copie" web/public/plateforme/poste
 " "" \
   "$HL1"
 prouver "le réseau revenu sans « Recharger »" web/public/plateforme/poste.js \
-  "    if (!copieLue) { if (bandeau) bandeau.hidden = true; return; }" "    if (bandeau) bandeau.hidden = true; return;" \
+  "    if (!copieLue) { cacher(); return; }" "    cacher(); return;" \
   "$HL1"
 prouver "le retour du réseau qu'on n'entend pas" web/public/plateforme/poste.js \
   "  window.addEventListener('online', () => enLigne());
@@ -4022,7 +4021,8 @@ prouver "l'écran vide sans un mot, hors ligne et sans copie" web/public/platefo
   "$HL2"
 prouver "hors ligne, la copie du poste jamais ouverte" $PONT \
   "        if (!/** @type {any} */ (e).horsLigne) throw e;
-        return { data: await lireLaCopie(), corruptFile: null };" "        throw e;" \
+        const copie = await lireLaCopie();" "        throw e;
+        const copie = await lireLaCopie();" \
   "$HL1"
 prouver "la copie jamais écrite après une lecture" $PONT \
   "    questionsLues = data.questionsCabinet;
@@ -4071,6 +4071,62 @@ prouver "sans réseau, les écrans gardés jamais servis" web/public/sw.js \
       if (garde) return garde;
 " "" \
   "$HL1"
+
+# ── Brique 73 : enregistrer sans réseau (docs/hors-ligne.md, H5 à H7) ──
+HE1="un client créé sans réseau se garde sur le poste, se montre au rechargement, et part seul au retour du réseau"
+HE2="un client changé sans réseau et ailleurs : la version du serveur gardée, la mienne mise de côté et dite (page ouverte)"
+HE3="rouverte plus tard avec le réseau : ce qui attendait part d'abord ; changé ailleurs, la version du serveur gardée et la mienne mise de côté"
+HE4="se déconnecter avec des changements qui attendent : la question d'abord ; « Attendre le réseau » ne perd rien"
+prouver "sans réseau, l'enregistrement refusé au lieu d'être gardé" $PONT \
+  "        if (gardableHorsLigne(e)) return await mettreEnAttente(data);
+        throw e;" "        throw e;" \
+  "$HE1"
+prouver "ce qui attend le réseau jamais gardé sur le poste" $PONT \
+  "    await poste.ecrireAttente(ent, { data });
+" "" \
+  "$HE1"
+prouver "ce qui est parti, encore gardé sur le poste" $PONT \
+  "    await poste.effacerAttente(ent);
+    poste.envoye(n, conflits);" "    poste.envoye(n, conflits);" \
+  "$HE1"
+prouver "le retour du réseau qui ne relance rien" $PONT \
+  "  poste.auRetour(relancer);
+" "" \
+  "$HE1"
+prouver "l'envoi réussi qui tait ce qui attendait" $PONT \
+  "        if (r === true && attenteGardee) await finirAttente(0);
+" "" \
+  "$HE1"
+prouver "rechargée sans réseau, ce qui attend disparaît de l'écran" $PONT \
+  "        return { data: attente.contenu.data, corruptFile: null };" "        return { data: copie, corruptFile: null };" \
+  "$HE1"
+prouver "rouverte avec le réseau, ce qui attendait jamais envoyé" $PONT \
+  "      try { return { data: attente ? await rejouer(attente.contenu.data) : await relire(), corruptFile: null }; }" "      try { return { data: await relire(), corruptFile: null }; }" \
+  "$HE3"
+prouver "rouverte, une pièce changée ailleurs qui écrase la mienne sans la garder" $PONT \
+  "        const m = /** @type {any} */ (window).SkanCore.mergeData(data, r.disk);
+        conflits = m.counts.conflicts || 0;
+        r = await envoyer(m.data);" "        r = await envoyer(r.disk);" \
+  "$HE3"
+prouver "rouverte, le conflit passé sous silence" $PONT \
+  "        conflits = m.counts.conflicts || 0;
+" "" \
+  "$HE3"
+prouver "se déconnecter sans demander, des changements en attente" $PONT \
+  "      if (attenteGardee && !(await poste.demander(" "      if (false && !(await poste.demander(" \
+  "$HE4"
+prouver "les réglages du dossier comptés comme des changements" $PONT \
+  "  const compter = (changements) => changements.filter((c) => c.collection !== '_racine').length;" "  const compter = (changements) => changements.length;" \
+  "$HE1"
+prouver "« Attendre le réseau » qui déconnecte quand même" web/public/plateforme/poste.js \
+  "const n = document.getElementById('poste-non'); if (n) n.onclick = () => fin(false);" "const n = document.getElementById('poste-non'); if (n) n.onclick = () => fin(true);" \
+  "$HE4"
+prouver "l'écran qui ne réenregistre pas au retour du réseau" web/public/v10/app.js \
+  "  window.__enregistrerMaintenant = () => save(true);" "  window.__enregistrerMaintenant = () => {};" \
+  "$HE1"
+prouver "le bandeau qui tait ce qui attend" web/public/plateforme/poste.js \
+  "      : attend ? attendent(enAttente)" "      : false ? attendent(enAttente)" \
+  "$HE1"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
