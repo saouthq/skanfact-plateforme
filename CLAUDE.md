@@ -220,6 +220,9 @@
     `comptabilite`) ; la porte refuse alors à l'entreprise en nommant le cabinet, sans liste ni bouton.
   - **La liasse d'un exercice clos** (brique 59, 0034, C49) : `poser_annuel` refuse une année close ;
     l'onglet Liasse le dit avant le geste (`liasse-close.txt`, drapeau `clos` de la liasse, lu au serveur).
+  - **Le dossier v10 vu du cabinet** (brique 60, 0035, C50) : la sécurité par ligne n'ouvre au cabinet
+    que le plan (`accounts`, `clients`, `suppliers`, `_racine` chartAccounts/auxiliaires) et, sous un
+    mandat de paie, la paie. Une nouvelle lecture du dossier v10 pour le cabinet passe par cette liste.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

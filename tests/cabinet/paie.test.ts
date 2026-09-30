@@ -130,6 +130,36 @@ describe('la paie tenue par le cabinet', () => {
     expect(client.filter((o) => ['employees', 'payslips'].includes(o.collection)).map((o) => o.cle).sort()).toEqual(['bul-3', 'sal-1']);
   });
 
+  it('dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout', async () => {
+    const d = await dossier();
+    // Le dossier v10 du client : son plan, un client, une facture, les réglages de sa société, un salarié.
+    const poser = async (collection: string, cle: string, contenu: unknown) => admin.query(
+      `insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, $2, $3, $4)`, [d.ent, collection, cle, JSON.stringify(contenu)]);
+    await admin.query('delete from socle.dossier_v10 where entreprise = $1', [d.ent]);
+    await poser('_racine', 'chartAccounts', []);
+    await poser('_racine', 'company', { name: 'Menuiserie Ben Salah', iban: 'TN59 1000 6035 1835 9847 8831' });
+    await poser('accounts', 'bq1', { id: 'bq1', kind: 'banque' });
+    await poser('clients', 'c1', { id: 'c1', name: 'Hôtel du Lac', email: 'achats@hotel.tn' });
+    await poser('documents', 'f1', { id: 'f1', number: 'FAC-1' });
+    await poser('employees', 'sal-1', { id: 'sal-1', name: 'Amel Trabelsi' });
+    const lu = async (p: Personne) => (await enTantQue(pool, p.utilisateur, (tx) => tx.query('select collection, cle from socle.dossier_v10 where entreprise = $1', [d.ent])))
+      .rows.map((r) => `${r.collection}/${r.cle}`).sort();  // l'ordre de JavaScript : la collation de la base varie d'un poste à l'autre
+    const PLAN = ['_racine/chartAccounts', 'accounts/bq1', 'clients/c1'];
+    // Le mandat de comptabilité : le plan seulement ; ni les pièces, ni la société, ni la paie.
+    expect(await lu(d.associe)).toEqual(PLAN);
+    expect(await lu(d.collaborateur)).toEqual(PLAN);
+    // Rien ne s'écrit hors de ce qu'il lit.
+    await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
+      `update socle.dossier_v10 set contenu = '{"id":"f1","number":"FAC-9"}' where entreprise = $1 and collection = 'documents'`, [d.ent]))).resolves.toMatchObject({ rowCount: 0 });
+    await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
+      `insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'documents', 'f2', '{}')`, [d.ent]))).rejects.toThrow(/row-level security/);
+    // Sous un mandat qui comprend la paie : la paie aussi.
+    expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['comptabilite', 'paie'] })).statut).toBe(200);
+    expect(await lu(d.associe)).toEqual([...PLAN, 'employees/sal-1']);
+    // Le client lit tout.
+    expect(await lu(d.client)).toEqual(['_racine/chartAccounts', '_racine/company', 'accounts/bq1', 'clients/c1', 'documents/f1', 'employees/sal-1']);
+  });
+
   it('qui peut : l\'associé et le collaborateur Paie, le propriétaire ; pas le collaborateur comptable', async () => {
     const d = await dossier();
     expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['comptabilite', 'paie'] })).statut).toBe(200);

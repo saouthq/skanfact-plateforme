@@ -681,9 +681,8 @@ avec une prime, le même net à l'écran et au serveur, l'écriture du mois déj
 
 **Reste connu** :
 - Le fichier CNSS du trimestre (`fichierCnss`) : en ligne depuis la brique 49.
-- La base laisse encore un membre du cabinet lire par une requête directe tout le dossier v10 d'un
-  client dont il a un mandat (les routes, elles, ne l'ouvrent pas) : resserrer sa sécurité par ligne
-  demande de revoir ce que les écritures du serveur y lisent (le plan, les avances). À décider.
+- La base laissait un membre du cabinet lire par une requête directe tout le dossier v10 d'un client :
+  resserré à la brique 60 (C50), au plan et, sous un mandat de paie, à la paie.
 - Les barèmes de paie propres à un dossier (le réglage « paie » de sa fiche au Cabinet v10) : les taux
   par contrat, faits à la brique 55 (C45).
 
@@ -1260,3 +1259,25 @@ refusé avec la phrase, rien de changé ; l'année d'après toujours modifiable 
 taux s'enregistre. À la souris (`tests/web/cabinet-liasse-close.test.ts`) : ouvert, le taux, l'ajout et
 le retrait sont là et l'en-tête dit « ouvert » ; clos, plus rien à changer, les deux badges disent
 « clos », la phrase se lit, le retraitement gardé aussi.
+
+## Brique 60 : le cabinet ne lit du dossier v10 que ce que son mandat demande (fait le 30/09/2026)
+
+**C50. La sécurité par ligne du dossier v10 suit le mandat** (par délégation ; le « À décider » de la
+brique 43). Le dossier v10 (0011) porte tout ce que le SkanFact du client écrit : ses pièces, ses clients
+et leurs coordonnées, les réglages de sa société (son IBAN compris), sa paie. La base l'ouvrait en entier
+à qui voit l'entreprise — un membre du cabinet compris, par une requête directe, quand les routes ne le
+lui ouvraient pas. Désormais (0035), qui ne voit l'entreprise **que par son cabinet** n'en lit — et n'en
+écrit — que ce que le serveur y lit pour lui :
+- le **plan** du client : ses comptes (`accounts`), ses auxiliaires et son plan (`_racine` :
+  `chartAccounts`, `auxiliaires`), ses clients et ses fournisseurs (chaque écriture les contrôle), quel
+  que soit le mandat ;
+- la **paie** (`employees`, `payslips`, `advances`), si le mandat comprend la paie.
+
+Les pièces, les réglages de la société, les documents ne lui sont plus visibles. Les personnes de
+l'entreprise et ses clés de l'API voient tout, comme avant. Les sous-requêtes de la règle ne dépendent
+pas de la ligne : la base les évalue une fois par requête, pas une fois par ligne.
+
+**Les tests** : dans la base (`tests/cabinet/paie.test.ts`) : sous un mandat de comptabilité, l'associé
+et le collaborateur ne lisent que le plan (ni la facture, ni la société, ni le salarié) ; une facture
+ne se modifie ni ne s'ajoute ; sous un mandat qui comprend la paie, le salarié aussi ; le client lit
+tout. Toute la suite du cabinet (la saisie, la paie, les déclarations…) passe avec la règle resserrée.

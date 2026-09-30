@@ -3380,5 +3380,29 @@ prouver "un retraitement qui s'ajoute encore à un exercice clos" web/public/v10
   "      \${liasseClose ? '' : '<div class=\"sous-table\">" "      \${false ? '' : '<div class=\"sous-table\">" \
   "$LC2"
 
+# ── Brique 60 : le cabinet ne lit du dossier v10 que ce que son mandat demande (docs/cabinet.md, C50) ──
+DV1="dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout"
+M35=base/migrations/0035_dossier_v10_cabinet.sql
+prouver "le cabinet qui lit tout le dossier v10" $M35 \
+  "  entreprise in (select socle.mes_entreprises_entieres())
+  or" "  entreprise in (select socle.mes_entreprises())
+  or" \
+  "$DV1"
+prouver "le cabinet qui lit les réglages de la société" $M35 \
+  "(collection = '_racine' and cle in ('chartAccounts', 'auxiliaires'))" "collection = '_racine'" \
+  "$DV1"
+prouver "le cabinet qui ne lit plus les tiers du plan" $M35 \
+  "collection in ('accounts', 'clients', 'suppliers')" "collection in ('accounts', 'suppliers')" \
+  "$DV1"
+prouver "la paie lue sans le mandat de la paie" $M35 \
+  "entreprise in (select socle.mes_entreprises_au_perimetre('paie'))" "entreprise in (select socle.mes_entreprises())" \
+  "$DV1"
+prouver "une entreprise vue par le cabinet comptée entière" $M35 \
+  "  select e from socle.mes_entreprises() e where socle.perimetre_cabinet(e) is null" "  select e from socle.mes_entreprises() e" \
+  "$DV1"
+prouver "toute case du mandat qui ouvre la paie" $M35 \
+  "  select e from socle.mes_entreprises() e where p_case = any(socle.perimetre_cabinet(e))" "  select e from socle.mes_entreprises() e where socle.perimetre_cabinet(e) is not null" \
+  "$DV1"
+
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]
