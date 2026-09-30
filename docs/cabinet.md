@@ -1300,3 +1300,45 @@ une acceptée, un rôle changé, le cabinet renommé, un retrait) relus dans l'o
 ce qui a changé ; le collaborateur et l'associé d'un autre cabinet refusés. À la souris
 (`tests/web/cabinet-equipe-trace.test.ts`) : les quatre phrases de l'associé, dans l'ordre ; pas de liste
 pour le collaborateur.
+
+## Brique 62 : la reprise d'un livre du Cabinet v10, l'essai à blanc (fait le 30/09/2026)
+
+C'est le premier pas de la **reprise du Cabinet v10** (cadrage `08` § 2.4) : ce qui permettra aux
+comptables pilotes de passer sur la plateforme avec leurs vrais dossiers (jalon J3). Le Cabinet v10
+écrit un fichier par dossier et par exercice (`livre-AAAA.json`, chiffré avec le mot de passe du
+cabinet) ; le bouton « Passer à la plateforme » de la v10, qui l'enverra déchiffré, viendra à la fin
+du développement (`08` § 2.1). La plateforme apprend dès maintenant à le **lire**.
+
+**C52. L'essai à blanc lit, contrôle et compte ; il ne crée rien** (par délégation).
+`POST /cabinets/:c/reprise/livre/essai` (un associé ; le corps peut peser 32 Mo : une route peut
+désormais déclarer sa taille, `limiteCorps`) lit le livre (`serveur/reprise/livre-v10.ts`) et rend son
+rapport : l'exercice, les écritures (validées, au brouillard, à-nouveaux), chaque journal (combien, le
+dernier numéro), la **balance des écritures validées** et ses totaux, et ce que le livre porte autour
+(lignes lettrées, relevés, immobilisations, déclarations, inventaires, révisions, questions, salariés,
+bulletins) — compté, repris dans les briques suivantes. Chaque montant se relit **au millime exact** :
+un nombre à plus de trois décimales ne se lit pas, il n'est jamais arrondi. Ce qui ne se reprendrait
+pas tel quel est **nommé, écriture par écriture** : un montant illisible, une date illisible ou hors de
+l'exercice, un journal que la plateforme ne connaît pas (elle a VT, AC, BQ, CA, OD, PAIE, AN), moins
+de deux lignes, un compte qui ne s'écrit pas en chiffres, une écriture déséquilibrée, une validée sans
+numéro ou au numéro déjà pris. Un fichier qui n'est pas un livre se refuse en le disant.
+
+**La règle de numérotation de la reprise (décidée ici, appliquée à la brique suivante)** : la v10
+numérote ses écritures validées sur **une seule suite par livre** ; la plateforme, **par journal et par
+année** (`VT-2025-000014`, brique 35). Une écriture reprise garde **son numéro de la v10** dans la forme
+de la plateforme (`<journal>-<année>-<numéro v10 sur six chiffres>`) : un numéro déjà imprimé, déposé
+ou cité ne change jamais. Chaque journal continue ensuite au plus grand numéro repris plus un. Les
+trous que cela laisse dans un journal sont ceux de la suite unique de la v10 : le rapport de reprise
+les dit, ils ne se comblent pas. **À VÉRIFIER** avec les comptables pilotes.
+
+**Les tests** (`tests/cabinet/reprise-livre.test.ts`) : un livre de 2025 fabriqué **par le moteur de la
+v10** (à-nouveaux, facture et encaissement validés au millime, un achat au brouillard, une ligne
+lettrée, un relevé, deux questions) : tout compté, **la balance égale à celle que la v10 calcule sur le
+même livre**, rien de créé ; le même livre abîmé (un journal inconnu, un millime de déséquilibre, une
+date hors de l'exercice, un numéro en double, un montant à quatre décimales) : chaque défaut nommé à
+son écriture ; un fichier qui n'est pas un livre, refusé ; un collaborateur, refusé ; un livre de
+8 000 écritures (plus de 2 Mo) lu en une fois.
+
+**Reste à faire (la suite de la reprise)** : créer les écritures dans un dossier tenu (avec la règle de
+numérotation ci-dessus, la période validée, la chaîne qui commence à la reprise) ; puis les lettrages,
+les relevés, les immobilisations, la révision et les questions, la paie ; l'écran du Cabinet qui envoie
+le fichier et montre le rapport ; enfin le fichier entier du cabinet (ses dossiers, ses réglages).

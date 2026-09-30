@@ -225,6 +225,10 @@
     mandat de paie, la paie. Une nouvelle lecture du dossier v10 pour le cabinet passe par cette liste.
   - **Ce qui a changé dans l'équipe** (brique 61, 0036, C51) : `socle.trace_de_l_equipe` (un associé) et
     `GET /cabinets/:c/equipe/trace` ; les phrases sont écrites par le point de contact (`phraseDeLEquipe`).
+  - **La reprise du Cabinet v10, l'essai à blanc** (brique 62, C52) : `serveur/reprise/livre-v10.ts` lit un
+    `livre-AAAA.json` (montants au millime exact, anomalies nommées) ; `POST /cabinets/:c/reprise/livre/essai`
+    (un associé, 32 Mo : `limiteCorps` d'une route) rend le rapport sans rien créer. Règle de numérotation
+    de la reprise (C52) : le numéro de la v10 gardé, `<journal>-<année>-<numéro sur six chiffres>`.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

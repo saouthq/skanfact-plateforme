@@ -32,6 +32,9 @@ export type Route<C = unknown> = {
   // La lecture sensible d'UN objet (03 D10) : son type, et le paramètre du chemin qui le nomme. La
   // trace de la lecture dit alors quel objet a été lu, pas seulement qu'on a lu.
   objetLu?: { type: string; param: string };
+  // La taille permise du corps, en octets, quand ce n'est pas celle de Fastify (1 Mo) : un livre d'un
+  // exercice entier se reprend en une fois (brique 62).
+  limiteCorps?: number;
 };
 
 export class RouteSansGeste extends Error {}
@@ -110,6 +113,7 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
     app.route({
       method: r.methode,
       url: VERSION + r.chemin,
+      ...(r.limiteCorps ? { bodyLimit: r.limiteCorps } : {}),
       handler: async (requete, reponse) => {
         const langue = langueDe(requete.headers);
         const envoyer = (statut: number, corps: unknown) => reponse.code(statut).send(rendreTout(corps, langue));

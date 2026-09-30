@@ -3433,5 +3433,50 @@ prouver "la trace de l'équipe absente de l'écran" web/public/v10/cabinet/app.j
   "      \${(equipe.trace || []).length ? \`<p class=\"small mt\"><b>Ce qui a changé dans l'équipe</b>" "      \${false ? \`<p class=\"small mt\"><b>Ce qui a changé dans l'équipe</b>" \
   "$TE2"
 
+# ── Brique 62 : la reprise d'un livre du Cabinet v10, l'essai à blanc (docs/cabinet.md, C52) ──
+RL1="le livre se lit : ce qui passe compté, la balance des validées égale à celle de la v10, rien de créé"
+RL2="ce qui ne se reprendrait pas tel quel est nommé, écriture par écriture ; un fichier qui n'est pas un livre, refusé ; un collaborateur, refusé"
+RL3="un livre de plusieurs mégaoctets se lit en une fois"
+LV=serveur/reprise/livre-v10.ts
+prouver "un gros livre refusé à la porte" serveur/app.ts \
+  "      ...(r.limiteCorps ? { bodyLimit: r.limiteCorps } : {})," "" \
+  "$RL3"
+prouver "un montant à virgule lu à zéro" $LV \
+  "      const debit = montant(l.debit), credit = montant(l.credit);" "      const debit = BigInt(Math.trunc(Number(l.debit) || 0)) * 1000n, credit = BigInt(Math.trunc(Number(l.credit) || 0)) * 1000n;" \
+  "$RL1"
+prouver "un montant trop fin arrondi en silence" $LV \
+  "  try { return depuisTexte(t, 3); } catch { return null; }" "  return BigInt(Math.round(v * 1000));" \
+  "$RL2"
+prouver "la balance qui compte le brouillard" $LV \
+  "  for (const e of validees) {" "  for (const e of l.ecritures) {" \
+  "$RL1"
+prouver "une écriture déséquilibrée qui passe" $LV \
+  "    if (d !== c) nomme(" "    if (false) nomme(" \
+  "$RL2"
+prouver "une date hors de l'exercice qui passe" $LV \
+  "    else if (e.date < du || e.date > au) nomme(" "    else if (false) nomme(" \
+  "$RL2"
+prouver "un journal inconnu qui passe" $LV \
+  "    if (!(JOURNAUX_REPRIS as readonly string[]).includes(e.journal)) nomme(" "    if (false) nomme(" \
+  "$RL2"
+prouver "un numéro en double qui passe" $LV \
+  "      else if (numeros.has(e.numeroV10)) nomme(" "      else if (false) nomme(" \
+  "$RL2"
+prouver "une écriture d'une seule ligne qui passe" $LV \
+  "    if (e.lignes.length < 2) nomme(" "    if (false) nomme(" \
+  "$RL2"
+prouver "le dernier numéro d'un journal oublié" $LV \
+  "if (e.numeroV10 !== null) j.dernierNumero = Math.max(j.dernierNumero ?? 0, e.numeroV10);" "" \
+  "$RL1"
+prouver "les lignes lettrées oubliées par le rapport" $LV \
+  "    lettrages: ecritures.reduce((n, e) => n + e.lignes.filter((l) => l.lettre).length, 0)," "    lettrages: 0," \
+  "$RL1"
+prouver "un fichier quelconque lu comme un livre" $LV \
+  "  if (!estObjet(o) || o.format !== 1 || !estObjet(o.exercice) || !Array.isArray(o.ecritures)) return null;" "  if (!estObjet(o)) return null;" \
+  "$RL2"
+prouver "la reprise ouverte au collaborateur" serveur/cabinet/routes.ts \
+  "      if (!(await tx.query('select socle.suis_associe(\$1) a', [params.cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.associe') } };" "" \
+  "$RL2"
+
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

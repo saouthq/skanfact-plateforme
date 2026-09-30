@@ -6,6 +6,7 @@
 //     mandat (le propriétaire seul, geste socle.cabinet.choisir).
 // Chaque changement d'un mandat se trace chez l'entreprise : elle voit qui a fait quoi (03 § 3.4).
 
+import { lireLivreV10, rapportDuLivre } from '../reprise/livre-v10.ts';
 import { createHash, randomBytes } from 'node:crypto';
 import { sql } from 'kysely';
 import { z } from 'zod';
@@ -480,6 +481,19 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
           invitations: invitations.map((i) => ({ id: i.id, email: i.email, role: i.roles[0], expire: i.expire_le.toISOString() })),
         },
       };
+    },
+  });
+  // L'essai à blanc de la reprise d'un livre du Cabinet v10 (brique 62, C52) : lu, contrôlé, rendu en
+  // rapport ; rien n'est créé. Un associé seulement (la porte du cabinet).
+  ajouter({
+    methode: 'POST', chemin: '/cabinets/:cabinet/reprise/livre/essai', geste: 'compte.cabinet.gerer', limiteCorps: 32 * 1024 * 1024,
+    corps: z.object({ livre: z.unknown() }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      if (!(await tx.query('select socle.suis_associe($1) a', [params.cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.associe') } };
+      const lu = lireLivreV10(corps.livre);
+      if (!lu) return { statut: 400, corps: { motif: motif('cabinet.reprise.pas_un_livre'), champ: 'livre' } };
+      return { corps: rapportDuLivre(lu) };
     },
   });
   // Ce qui a changé dans l'équipe (brique 61, 0036) : les cinquante derniers gestes, pour un associé.
