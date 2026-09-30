@@ -46,10 +46,41 @@ l'encours sans elle, le plafond), qui demande, qui décide, quand, le motif d'un
   demande qu'il ne décide pas, l'entreprise sans le réglage, le plafond et le réglage refusés à un commercial en base.
 - 15 preuves (`tests/preuves.sh`, brique 98).
 
+## Ce que fait la brique 100 (les écrans, 30/09/2026)
+
+`web/v10/accords.txt`, par délégation :
+
+**E1. Le réglage** : Paramètres → Documents → Règles de facturation, « Au-delà de l'encours d'un client : l'accord
+d'un responsable » (oui ou non ; non par défaut). La case est grisée pour qui n'est ni propriétaire ni
+administrateur (le dossier le dit à l'écran : `droits.responsable`), comme l'encours autorisé sur la fiche d'un
+client : l'écran ne propose pas ce que la base refuserait.
+
+**E2. Avant le geste** : l'avertissement de l'encours dit au commercial qu'au-delà une facture demande l'accord (et
+non plus « émets quand même »), ou que l'accord est déjà donné.
+
+**E3. Le refus propose le geste qui débloque** : quand le serveur refuse l'émission (`ventes.accord.demander`), une
+question reprend ses chiffres et propose « Demander l'accord ». La facture reste en brouillon (enregistrée).
+
+**E4. La facture dit où en est sa demande** (bandeau) : en attente, accordée (qui, quand, pour combien), refusée
+(qui, quand, son mot). Le responsable y trouve ses deux gestes : « Accorder », « Refuser… » (avec un mot, facultatif).
+
+**E5. L'accueil le dit** : au responsable, les demandes qui attendent sa décision (en premier sur la page) ; à qui a
+demandé, la décision de la semaine tant que la facture est encore en brouillon, avec « Ouvrir la facture ».
+
+**E6. La page « Demandes d'accord »** (`#/accords`) : celles qui attendent d'abord, puis les 50 dernières décidées ;
+une pièce faite sur un autre poste depuis l'ouverture de celui-ci le dit (« pas encore sur ce poste ») avec
+« Recharger ».
+
+Rien de plus ne part au serveur : la demande envoie la pièce, comme l'émission.
+
+Tests : `tests/web/accords.test.ts` (Nadia règle, Karim demande, Nadia refuse depuis la facture, Karim redemande,
+Nadia accorde depuis la page, Karim émet ; la pièce porte les deux noms), `tests/v10/droits-dossier.test.ts`
+(`responsable`). 9 preuves (`tests/preuves.sh`, brique 100).
+
 ## Reste connu (les briques suivantes)
 
 - **Brique 99, les droits geste par geste dans le dossier** : faite (`docs/droits-dossier.md`).
-- **Brique 100, les écrans** : le réglage dans les Paramètres, « Demander l'accord » dans le refus de l'émission,
-  la liste des demandes pour le responsable (accorder, refuser), l'état de la demande sur la pièce.
+- Les autres postes ne se mettent pas à jour tout seuls : une demande faite ailleurs se voit en rouvrant la page
+  (ou « Recharger »). La notification à distance viendra avec les avis (étape suivante).
 - Le « code d'un responsable » sur le même poste (la caisse, étape 4) et la notification à distance.
 - Les autres seuils de D11 (remise, commande fournisseur, retour).

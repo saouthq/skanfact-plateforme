@@ -324,7 +324,7 @@ export const ADAPTATIONS = [
     fichier: 'app.js',
     pourquoi: 'le serveur émet : il numérote, calcule en entiers, scelle, et vérifie le net à payer que l\'écran montre',
     avant: "      doc.status = isInv ? 'envoyée' : 'émis';\n      // L'INSTANT de l'émission",
-    apres: "      // (plateforme) Le serveur émet : numéro, montants en entiers, maillon de la chaîne ; il refuse si\n      // son net à payer n'est pas celui de l'écran. Un refus se dit, et rien n'est émis.\n      try {\n        Object.assign(doc, await bridge.emettre(deepCopy(doc), deepCopy(clientById(doc.clientId) || null), C.computeTotals(doc, company()).netToPay));\n      } catch (e) { toast(plainError(e), true); return false; }\n      doc.status = isInv ? 'envoyée' : 'émis';\n      // L'INSTANT de l'émission",
+    apres: "      // (plateforme) Le serveur émet : numéro, montants en entiers, maillon de la chaîne ; il refuse si\n      // son net à payer n'est pas celui de l'écran. Un refus se dit, et rien n'est émis.\n      try {\n        Object.assign(doc, await bridge.emettre(deepCopy(doc), deepCopy(clientById(doc.clientId) || null), C.computeTotals(doc, company()).netToPay));\n      } catch (e) {\n        // (brique 100) Au-delà de l'encours sans accord : le refus propose de le demander.\n        if (e && e.bouton === 'ventes.accord.demander' && bridge.demanderAccord) demanderAccordPour(doc, e, persist); else toast(plainError(e), true);\n        return false;\n      }\n      doc.status = isInv ? 'envoyée' : 'émis';\n      // L'INSTANT de l'émission",
   },
   {
     fichier: 'app.js',
@@ -649,4 +649,5 @@ export const ADAPTATIONS = [
   ...lireFichier('kits.txt'),
   ...lireFichier('lots.txt'),
   ...lireFichier('droits.txt'),
+  ...lireFichier('accords.txt'),
 ];

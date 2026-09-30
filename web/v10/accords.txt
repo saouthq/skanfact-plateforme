@@ -1,0 +1,252 @@
+L'accord d'un responsable au-delà de l'encours d'un client, à l'écran (brique 100 ; 03 D11 et § 2.3 ; 14 § 3.2 ;
+serveur/v10/accords.ts ; docs/accords.md).
+Format : voir sans-paquets.mjs.
+
+Quand l'entreprise le demande (Paramètres → Documents, « accord d'un responsable »), une facture qui ferait
+dépasser l'encours autorisé de son client ne s'émet par un commercial qu'avec l'accord du propriétaire ou d'un
+administrateur. Le serveur le refuse en disant ses chiffres ; l'écran propose alors « Demander l'accord ». Le
+responsable voit la demande sur son accueil et sur la facture même, l'accorde ou la refuse (avec un mot) ; la
+personne qui a demandé le voit sur la facture et sur son accueil, et émet une fois l'accord donné. La page
+« Demandes d'accord » (#/accords) les montre toutes, celles qui attendent d'abord.
+
+── Les écrans (app.js) ──
+
+== app.js | l'accord d'un responsable : les demandes, lues au serveur
+-- avant
+  function templateForm(tpl, done) {
+-- après
+  // ── L'accord d'un responsable au-delà de l'encours d'un client (plateforme, brique 100 ; docs/accords.md) ──
+  // Les demandes, telles que le serveur les a dites la dernière fois : la facture et l'accueil les montrent sans
+  // attendre, puis les relisent.
+  let accordsVus = null;
+  const accordsEnLigne = () => !!bridge.accords;
+  // Le propriétaire ou un administrateur : il règle les seuils et décide des accords (sans point de contact : tout).
+  function estResponsable() {
+    const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
+    return !d || d.responsable === true;
+  }
+  async function lireAccords() {
+    accordsVus = await bridge.accords();
+    return accordsVus;
+  }
+  // Un montant du serveur (des millimes, des centimes) dans la devise de l'entreprise.
+  const montantAccord = n => C.money(Number(n) / Math.pow(10, C.decimalsFor(company().currency)), company().currency);
+  // Un instant (la demande, la décision) : le jour et l'heure, là où l'on est.
+  const instantAccord = x => x ? new Date(x).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  // La demande qui compte pour une pièce : celle qui attend, sinon la dernière décidée (le serveur les range ainsi).
+  const accordDe = pieceId => (accordsVus && accordsVus.accords.find(a => a.piece === pieceId)) || null;
+  const pieceEncoreBrouillon = id => { const d = docById(id); return !!d && !(d.number && d.status && d.status !== 'brouillon'); };
+
+  // Le serveur a refusé l'émission faute d'accord : on propose de le demander. La facture reste en brouillon.
+  async function demanderAccordPour(doc, e, persist) {
+    const c = await choiceDialog('Demander l\'accord d\'un responsable ?', `${plainError(e)} Ta facture reste en brouillon ; le propriétaire ou un administrateur voit ta demande sur son accueil, et tu l'émets dès qu'il l'accorde.`,
+      'Demander l\'accord', null, 'Pas maintenant', { id: 'accord-question' });
+    if (c !== 'a') return;
+    if (!persist()) return;
+    try {
+      const r = await bridge.demanderAccord(deepCopy(doc));
+      toast(`Accord demandé${r.responsables && r.responsables.length ? ' à ' + r.responsables.join(', ') : ''} : la facture reste en brouillon, tu l'émettras dès qu'il sera donné.`);
+    } catch (x) { toast(plainError(x), true); return; }
+    try { await lireAccords(); } catch { /* le bandeau se relira à la prochaine ouverture */ }
+    // Une facture neuve prend son adresse (comme « Enregistrer le brouillon ») : la page dit alors où en est la demande.
+    if (location.hash !== '#/doc/' + doc.id) remplacerPage('#/doc/' + doc.id); else render(true);
+  }
+
+  // Décider : accorder tout de suite ; refuser en disant pourquoi (facultatif : la personne le lira).
+  function deciderAccord(id, decision, fini) {
+    const envoyer = async motif => {
+      try {
+        await bridge.deciderAccord(id, decision, motif);
+        toast(decision === 'accorder' ? 'Accordé : la facture peut maintenant être émise.' : 'Refusé : la facture reste en brouillon.');
+      } catch (x) { toast(plainError(x), true); }
+      try { await lireAccords(); } catch { /* la page se relira */ }
+      fini();
+    };
+    if (decision === 'accorder') { envoyer(''); return; }
+    modal(`<h2>Refuser la demande d'accord</h2>
+      <p>La facture reste en brouillon. La personne qui a demandé voit ton refus, et ce que tu écris ici.</p>
+      <label class="field">Pourquoi (facultatif)<textarea id="ac-motif" maxlength="500" placeholder="Par exemple : qu'il règle d'abord la facture de juillet"></textarea></label>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-danger" id="ac-ok">Refuser</button></div>`,
+      (root, close) => {
+        $('[data-close]', root).onclick = close;
+        $('#ac-ok', root).onclick = () => { const m = $('#ac-motif', root).value.trim(); close(); envoyer(m); };
+        $('#ac-motif', root).focus();
+      });
+  }
+  function brancherDecisions(root, fini) {
+    $$('[data-accord-accorder]', root).forEach(b => { b.onclick = () => { b.disabled = true; deciderAccord(b.dataset.accordAccorder, 'accorder', fini); }; });
+    $$('[data-accord-refuser]', root).forEach(b => { b.onclick = () => deciderAccord(b.dataset.accordRefuser, 'refuser', fini); });
+  }
+  const boutonsDecision = a => `<button class="btn btn-sm" data-accord-refuser="${h(a.id)}">Refuser…</button><button class="btn btn-sm" data-accord-accorder="${h(a.id)}">Accorder</button>`;
+
+  // Sur un brouillon de facture : où en est la demande (et, pour le responsable, les deux gestes).
+  function contenuBandeauAccord(pieceId) {
+    const a = accordDe(pieceId);
+    if (!a) return '';
+    const chiffres = `${montantAccord(a.montant)} pour cette facture, ${montantAccord(a.encours)} déjà dus, ${montantAccord(a.plafond)} autorisés`;
+    if (a.statut === 'en_attente' && accordsVus.peutDecider && !a.mienne) {
+      return `<div class="banner info lock-banner"><span><b>${h(a.demandeur)} demande ton accord</b> pour émettre cette facture au-delà de l'encours autorisé du client : ${chiffres}. ${info('doc.encoursAccord')}</span>
+        <span class="lock-go">${boutonsDecision(a)}</span></div>`;
+    }
+    if (a.statut === 'en_attente') {
+      return `<div class="banner info lock-banner"><span><b>Accord demandé</b> le ${h(instantAccord(a.demandeLe))}${a.mienne ? '' : ` par ${h(a.demandeur)}`} (${chiffres}) : en attente du propriétaire ou d'un administrateur. La facture s'émettra une fois l'accord donné. ${info('doc.encoursAccord')}</span></div>`;
+    }
+    if (a.statut === 'accorde') {
+      return `<div class="banner info lock-banner"><span><b>Accordé par ${h(a.decideur)}</b> le ${h(instantAccord(a.decideLe))}, pour ${montantAccord(a.montant)} : la facture peut être émise. Si elle grossit, l'accord est à redemander. ${info('doc.encoursAccord')}</span></div>`;
+    }
+    return `<div class="banner info lock-banner"><span><b>Refusé par ${h(a.decideur)}</b> le ${h(instantAccord(a.decideLe))}${a.motif ? ` : « ${h(a.motif)} »` : ''}. La facture reste en brouillon : fais d'abord régler le client, ou redemande l'accord plus tard. ${info('doc.encoursAccord')}</span></div>`;
+  }
+  function bandeauAccord(doc) {
+    if (!accordsEnLigne() || doc.type !== 'facture') return '';
+    setTimeout(() => {
+      const poser = () => { const el = $('#accord-banner'); if (el && el.dataset.piece === doc.id) { el.innerHTML = contenuBandeauAccord(doc.id); brancherDecisions(el, poser); } };
+      poser();
+      lireAccords().then(poser, () => { /* sans réseau : ce qu'on avait lu reste */ });
+    }, 0);
+    return `<div id="accord-banner" data-piece="${h(doc.id)}">${contenuBandeauAccord(doc.id)}</div>`;
+  }
+
+  // Sur l'accueil : ce qui attend la décision du responsable ; pour qui a demandé, la décision de la semaine.
+  function contenuAccueilAccords() {
+    const l = accordsVus;
+    if (!l) return '';
+    const attente = l.peutDecider ? l.accords.filter(a => a.statut === 'en_attente' && !a.mienne) : [];
+    const nom = a => (clientById(a.client) || {}).name || 'un client';
+    if (attente.length) {
+      const a = attente[0];
+      return `<div class="banner info lock-banner" id="accords-attente"><span><b>${attente.length > 1 ? `${attente.length} demandes d'accord attendent` : 'Une demande d\'accord attend'} ta décision</b> : ${h(a.demandeur)} voudrait émettre une facture de ${montantAccord(a.montant)} pour ${h(nom(a))}, au-delà de son encours autorisé${attente.length > 1 ? ', et d\'autres' : ''}. ${info('doc.encoursAccord')}</span>
+        <span class="lock-go"><button class="btn btn-sm" id="accords-voir">${attente.length > 1 ? 'Voir les demandes' : 'Voir la demande'}</button></span></div>`;
+    }
+    const semaine = Date.now() - 7 * 864e5;
+    const decidee = l.accords.find(a => a.mienne && a.statut !== 'en_attente' && new Date(a.decideLe).getTime() > semaine && pieceEncoreBrouillon(a.piece));
+    if (!decidee) return '';
+    return `<div class="banner info lock-banner" id="accords-decidee"><span>${decidee.statut === 'accorde'
+      ? `<b>${h(decidee.decideur)} a accordé</b> ta facture pour ${h(nom(decidee))} : tu peux l'émettre.`
+      : `<b>${h(decidee.decideur)} a refusé</b> ta facture pour ${h(nom(decidee))}${decidee.motif ? ` : « ${h(decidee.motif)} »` : ''}. Elle reste en brouillon.`}</span>
+      <span class="lock-go"><button class="btn btn-sm" id="accords-ouvrir" data-piece="${h(decidee.piece)}">Ouvrir la facture</button></span></div>`;
+  }
+  function bandeauAccordsAccueil() {
+    if (!accordsEnLigne()) return '';
+    setTimeout(() => {
+      const poser = () => {
+        const el = $('#accords-accueil');
+        if (!el) return;
+        el.innerHTML = contenuAccueilAccords();
+        if ($('#accords-voir', el)) $('#accords-voir', el).onclick = () => navigate('#/accords');
+        if ($('#accords-ouvrir', el)) $('#accords-ouvrir', el).onclick = () => navigate('#/doc/' + $('#accords-ouvrir', el).dataset.piece);
+      };
+      poser();
+      lireAccords().then(poser, () => { /* sans réseau : ce qu'on avait lu reste */ });
+    }, 0);
+    return `<div id="accords-accueil">${contenuAccueilAccords()}</div>`;
+  }
+  function templateForm(tpl, done) {
+-- fin
+
+== app.js | la page des demandes d'accord
+-- avant
+  const garState = { days: 90, page: 1 };
+-- après
+  // Les demandes d'accord (plateforme, brique 100) : celles qui attendent d'abord, puis les dernières décidées.
+  routes.accords = () => {
+    const dessiner = () => {
+      const l = accordsVus;
+      const tete = `<div class="page-head"><h1>Demandes d'accord ${info('doc.encoursAccord')}</h1><div class="actions">${backButton('#/factures')}</div></div>`;
+      if (!l) {
+        $('#view').innerHTML = `${tete}<div class="panel"><p class="small muted">Lecture des demandes…</p></div>`;
+      } else if (!l.accords.length) {
+        $('#view').innerHTML = `${tete}${etatVide('Aucune demande d\'accord', [
+          'Quand l\'entreprise le demande, une facture qui ferait dépasser l\'encours autorisé d\'un client ne s\'émet par un commercial qu\'avec l\'accord du propriétaire ou d\'un administrateur. Les demandes arrivent ici, et sur l\'accueil du responsable.',
+          company().encoursAccord ? 'L\'accord est demandé : rien n\'attend pour l\'instant.' : 'Pour l\'instant, SkanFact avertit seulement : l\'accord se règle dans Paramètres → Documents.',
+        ], !company().encoursAccord && l.peutDecider ? [['ac-regler', 'Régler l\'accord…', true]] : [])}`;
+        if ($('#ac-regler')) $('#ac-regler').onclick = () => allerParametres('documents', 'p-facturation');
+      } else {
+        const lignes = l.accords.map(a => {
+          const d = docById(a.piece);
+          // Une pièce faite sur un autre poste depuis l'ouverture de celui-ci n'y est pas encore : on le dit, et le geste.
+          const piece = d ? `<a href="#/doc/${h(a.piece)}">${h(d.number || 'Brouillon')}</a>`
+            : '<span class="muted small">pas encore sur ce poste</span> <button type="button" class="btn btn-sm" data-recharger-accords>Recharger</button>';
+          const decision = a.statut === 'en_attente'
+            ? (l.peutDecider && !a.mienne ? `<span class="inline">${boutonsDecision(a)}</span>` : '<span class="muted">En attente</span>')
+            : `${a.statut === 'accorde' ? 'Accordée' : '<span class="warn-text">Refusée</span>'} par ${h(a.decideur)} le ${h(instantAccord(a.decideLe))}${a.motif ? `<div class="small muted">« ${h(a.motif)} »</div>` : ''}`;
+          return `<tr data-accord="${h(a.id)}"><td class="nw">${h(instantAccord(a.demandeLe))}</td><td class="nw">${piece}</td><td>${h((clientById(a.client) || {}).name || '—')}</td>
+            <td class="num nw">${montantAccord(a.montant)}</td><td class="num nw">${montantAccord(a.encours)}</td><td class="num nw">${montantAccord(a.plafond)}</td>
+            <td>${h(a.demandeur)}</td><td>${decision}</td></tr>`;
+        }).join('');
+        $('#view').innerHTML = `${tete}<div class="panel">
+          <p class="small muted mb">${l.peutDecider ? 'Accorde ou refuse : un accord couvre le montant demandé ; une facture qui grossit ensuite redemande l\'accord. On ne décide jamais sa propre demande.' : 'Le propriétaire ou un administrateur décide. Une facture accordée s\'émet depuis sa page.'}</p>
+          <div class="scroll-x"><table class="list compact"><thead><tr><th>Demandée le</th><th>Facture</th><th>Client</th><th class="num">Cette facture</th><th class="num">Déjà dus</th><th class="num">Autorisé</th><th>Demandée par</th><th>Décision</th></tr></thead>
+          <tbody>${lignes}</tbody></table></div>
+          ${l.accords.length >= 50 ? '<p class="small muted mt">Les 50 demandes les plus récentes.</p>' : ''}</div>`;
+        brancherDecisions($('#view'), dessiner);
+        $$('[data-recharger-accords]').forEach(b => { b.onclick = () => location.reload(); });
+      }
+      bindBack('#/factures');
+    };
+    dessiner();
+    lireAccords().then(() => { if (routeOf(location.hash) === 'accords') dessiner(); },
+      e => { if (routeOf(location.hash) === 'accords' && !accordsVus) { $('#view .panel').innerHTML = `<p class="small">${h(plainError(e))}</p>`; } });
+  };
+  const garState = { days: 90, page: 1 };
+-- fin
+
+== app.js | le nom de la page des demandes d'accord
+-- avant
+    stock: 'Stock', caisse: 'la Caisse',
+-- après
+    accords: 'Demandes d\'accord',
+    stock: 'Stock', caisse: 'la Caisse',
+-- fin
+
+== app.js | la page des demandes d'accord s'allume sous Factures
+-- avant
+    else if (name === 'salarie') active = 'paie';
+-- après
+    else if (name === 'accords') active = 'factures';
+    else if (name === 'salarie') active = 'paie';
+-- fin
+
+== app.js | l'accueil dit les demandes d'accord, en premier : elles attendent quelqu'un
+-- avant
+      ${pas}
+      ${todoPanel()}
+-- après
+      ${bandeauAccordsAccueil()}
+      ${pas}
+      ${todoPanel()}
+-- fin
+
+== app.js | un brouillon de facture dit où en est sa demande d'accord
+-- avant
+      ${!locked ? '' : isInv && doc.status === 'annulée'
+-- après
+      ${!locked && isInv && !isNew ? bandeauAccord(doc) : ''}
+      ${!locked ? '' : isInv && doc.status === 'annulée'
+-- fin
+
+== app.js | le réglage : au-delà de l'encours, l'accord d'un responsable
+-- avant
+          ${field(lbl('Délai de paiement (jours)', 'doc.paymentDays'), 'paymentTermsDays', c.paymentTermsDays, 'number', 'min="0" class="num"')}
+-- après
+          ${field(lbl('Délai de paiement (jours)', 'doc.paymentDays'), 'paymentTermsDays', c.paymentTermsDays, 'number', 'min="0" class="num"')}
+          ${accordsEnLigne() ? `<label class="check" style="align-self:end"${estResponsable() ? '' : ' title="Réglé par le propriétaire ou un administrateur"'}><input type="checkbox" name="encoursAccord" ${c.encoursAccord ? 'checked' : ''}${estResponsable() ? '' : ' disabled'}> Au-delà de l'encours d'un client : l'accord d'un responsable ${info('doc.encoursAccord')}</label>` : ''}
+-- fin
+
+== app.js | le réglage de l'accord est oui ou non
+-- avant
+      data.company.caisseLargeur = Number(data.company.caisseLargeur) === 58 ? 58 : 80;
+-- après
+      data.company.caisseLargeur = Number(data.company.caisseLargeur) === 58 ? 58 : 80;
+      // L'accord d'un responsable (brique 100) : oui ou non ; « non » est la valeur qui ne change rien (03 D11).
+      data.company.encoursAccord = data.company.encoursAccord === true;
+-- fin
+
+── Les bulles (guide.js) ──
+
+== guide.js | la bulle de l'accord d'un responsable
+-- avant
+    'doc.paymentDays': {
+-- après
+    'doc.encoursAccord': { t: 'Accord d\'un responsable', d: 'Chaque client peut avoir un <b>encours autorisé</b> (sa fiche) : ce qu\'il peut devoir au plus. Sans ce réglage, SkanFact avertit avant d\'émettre une facture qui le dépasse, et la personne décide. Avec lui, un commercial ne l\'émet qu\'avec l\'<b>accord</b> du propriétaire ou d\'un administrateur : il le demande d\'un clic, le responsable accorde ou refuse depuis son accueil ou la page « Demandes d\'accord », et la facture émise garde les deux noms. Le propriétaire et l\'administrateur émettent sans accord.' },
+    'doc.paymentDays': {
+-- fin

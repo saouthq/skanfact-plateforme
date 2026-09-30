@@ -102,9 +102,10 @@ export function filtrer<O extends { collection: string; cle: string }>(roles: st
     else if (!permet(roles, r.ecrire, true)) lectureSeule.add(nom);
     else ecrivables.add(nom);
   }
-  // `ecrivables` : la liste blanche de ce que l'écran peut renvoyer ; `tout` : il peut tout renvoyer.
+  // `ecrivables` : la liste blanche de ce que l'écran peut renvoyer ; `tout` : il peut tout renvoyer ; `responsable` : il
+  // règle les seuils et décide des accords (brique 100 : l'écran grise ce que la base refuserait).
   return { objets: visibles, droits: { cachees: [...cachees].sort(), lectureSeule: [...lectureSeule].sort(), ecrivables: [...ecrivables].sort(),
-    tout: permet(roles, TOUT.ecrire, true) } };
+    tout: permet(roles, TOUT.ecrire, true), responsable: permet(roles, 'ventes.accord.donner', true) } };
 }
 
 // Avant d'écrire : chaque changement doit être permis ; sinon rien n'est écrit, et le refus nomme la partie.

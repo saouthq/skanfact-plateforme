@@ -53,7 +53,7 @@ async function entreprise() {
     if (role === 'paie') await appeler('POST', '/moi/code', p.jeton, { methode: 'application' });
     membres[role] = p;
   }
-  const lire = async (jeton: string) => (await appeler('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps as { objets: Objet[]; droits: { cachees: string[]; lectureSeule: string[]; tout: boolean } };
+  const lire = async (jeton: string) => (await appeler('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps as { objets: Objet[]; droits: { cachees: string[]; lectureSeule: string[]; tout: boolean; responsable: boolean } };
   const envoyer = (jeton: string, changements: unknown[]) => appeler('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements });
   await lire(proprio.jeton);
   expect((await envoyer(proprio.jeton, [
@@ -80,13 +80,15 @@ describe('les droits geste par geste dans le dossier v10', () => {
     const e = await entreprise();
     const tout = await e.lire(e.proprio.jeton);
     expect(parties(tout.objets)).toEqual(expect.arrayContaining(['catalog', 'employees', 'suppliers', '_racine/payrollSettings', '_racine/company']));
-    expect(tout.droits).toMatchObject({ cachees: [], lectureSeule: [], tout: true });
+    expect(tout.droits).toMatchObject({ cachees: [], lectureSeule: [], tout: true, responsable: true });
     const c = await e.lire(e.membres.commercial?.jeton ?? '');
     expect(parties(c.objets)).toEqual(['_racine/company', '_racine/counters', 'catalog']);
     expect(c.droits.cachees).toEqual(expect.arrayContaining(['employees', 'payslips', 'payrollSettings', 'suppliers', 'purchases', 'accounts']));
     expect(c.droits.cachees).not.toContain('documents');
     expect(c.droits.lectureSeule).toEqual(expect.arrayContaining(['catalog', 'company']));
     expect(c.droits.tout).toBe(false);
+    // Le propriétaire décide des accords ; le commercial les demande (brique 100 : l'écran grise ce que la base refuserait).
+    expect(c.droits.responsable).toBe(false);
     const pa = await e.lire(e.membres.paie?.jeton ?? '');
     expect(parties(pa.objets)).toEqual(['_racine/company', '_racine/counters', '_racine/payrollSettings', 'employees']);
     const ci = await e.lire(e.membres.comptabilite_interne?.jeton ?? '');

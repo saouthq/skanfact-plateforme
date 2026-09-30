@@ -99,6 +99,8 @@
   /** @type {Set<string>} */ let lectureSeule = new Set();
   // La liste blanche de ce qui peut repartir (null : tout, pour qui voit toute l'entreprise).
   /** @type {Set<string> | null} */ let ecrivables = null;
+  // Le propriétaire ou un administrateur : il règle les seuils et décide des accords (brique 100).
+  let responsable = false;
   /** @param {string} champ */
   const repart = (champ) => !cachees.has(champ) && !lectureSeule.has(champ) && (!ecrivables || ecrivables.has(champ));
   /** @param {any} d */
@@ -106,6 +108,7 @@
     cachees = new Set((d && d.cachees) || []);
     lectureSeule = new Set((d && d.lectureSeule) || []);
     ecrivables = !d || d.tout !== false ? null : new Set(d.ecrivables || []);
+    responsable = !!(d && d.responsable === true);
   };
   /** @param {Record<string, unknown>} data @returns {Map<string, Morceau>} */
   function decouper(data) {
@@ -245,7 +248,7 @@
     if (copieAFaire) clearTimeout(copieAFaire);
     copieAFaire = setTimeout(() => {
       copieAFaire = null;
-      poste.ecrireCopie(ent, { objets: objetsVus(), questions: questionsLues, droits: { cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : [], tout: !ecrivables } }).catch(() => { /* sans copie, le hors-ligne attendra la prochaine */ });
+      poste.ecrireCopie(ent, { objets: objetsVus(), questions: questionsLues, droits: { cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : [], tout: !ecrivables, responsable } }).catch(() => { /* sans copie, le hors-ligne attendra la prochaine */ });
     }, 300);
   }
   // ── Enregistrer sans réseau (brique 73 ; docs/hors-ligne.md, H5) ─────────────────────────────
@@ -272,7 +275,7 @@
   /** @param {Record<string, unknown>} data */
   async function mettreEnAttente(data) {
     // La base d'abord : ce que le serveur a déjà reçu (un premier paquet parti avant la coupure).
-    await poste.ecrireCopie(ent, { objets: objetsVus(), questions: questionsLues, droits: { cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : [], tout: !ecrivables } });
+    await poste.ecrireCopie(ent, { objets: objetsVus(), questions: questionsLues, droits: { cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : [], tout: !ecrivables, responsable } });
     await poste.ecrireAttente(ent, { data });
     attenteGardee = true;
     attenteN = compter(changementsDe(data));
@@ -531,7 +534,14 @@
     // L'émission d'une facture ou d'un avoir (adaptation de `issue()` dans app.js) : le serveur prend la pièce telle
     // que l'écran la montre, la numérote, la scelle, et vérifie qu'il trouve le même net à payer.
     // Ce que la personne peut écrire dans le dossier (brique 99) : l'écran refuse avant le geste ce qui ne repartirait pas.
-    droitsDossier: () => ({ cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : null }),
+    droitsDossier: () => ({ cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : null, responsable }),
+
+    // L'accord d'un responsable au-delà de l'encours d'un client (brique 100 ; docs/accords.md) : le serveur
+    // recalcule le dépassement, garde la demande, et seul un responsable la décide.
+    demanderAccord: async (/** @type {any} */ doc) => appel('POST', '/dossier-v10/accord', { document: encoder(doc) }),
+    accords: async () => appel('GET', '/accords'),
+    deciderAccord: async (/** @type {string} */ id, /** @type {'accorder' | 'refuser'} */ decision, /** @type {string} */ motif) =>
+      appel('POST', `/accords/${encodeURIComponent(id)}/decider`, motif ? { decision, motif } : { decision }),
 
     emettre: async (/** @type {any} */ doc, /** @type {any} */ client, /** @type {number} */ netAPayer) => {
       if (enCours) await enCours;

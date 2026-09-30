@@ -5830,6 +5830,36 @@ prouver "les paramètres acceptés à l'écran puis perdus" web/public/v10/app.j
   "      if (!peutEcrireDossier('company')) { toast(" "      if (false) { toast(" \
   "$DDW"
 
+# ── Brique 100 : les écrans de l'accord d'un responsable (docs/accords.md) ──
+ACW="Karim demande, Nadia refuse puis accorde, Karim émet"
+prouver "le commercial pris pour un responsable" serveur/v10/droits.ts \
+  "responsable: permet(roles, 'ventes.accord.donner', true) } };" "responsable: true } };" \
+  "$DD1"
+prouver "le responsable que l'écran ne reconnaît pas" web/public/plateforme/pont.js \
+  "    responsable = !!(d && d.responsable === true);" "    responsable = false;" \
+  "$ACW"
+prouver "le réglage de l'accord perdu à l'enregistrement" web/public/v10/app.js \
+  "      data.company.encoursAccord = data.company.encoursAccord === true;" "      data.company.encoursAccord = false;" \
+  "$ACW"
+prouver "l'avertissement qui dit « émets quand même » à qui ne le peut pas" web/public/v10/app.js \
+  "\${isInv && co.encoursAccord && accordsEnLigne() && !estResponsable()" "\${false && co.encoursAccord && accordsEnLigne() && !estResponsable()" \
+  "$ACW"
+prouver "le refus de l'émission qui ne propose pas l'accord" web/public/v10/app.js \
+  "if (e && e.bouton === 'ventes.accord.demander' && bridge.demanderAccord) demanderAccordPour(" "if (false) demanderAccordPour(" \
+  "$ACW"
+prouver "la facture qui ne montre pas ses gestes au responsable" web/public/v10/app.js \
+  "    if (a.statut === 'en_attente' && accordsVus.peutDecider && !a.mienne) {" "    if (false) {" \
+  "$ACW"
+prouver "l'accueil du responsable muet sur ce qui l'attend" web/public/v10/app.js \
+  "l.accords.filter(a => a.statut === 'en_attente' && !a.mienne) : [];" "l.accords.filter(a => a.statut === 'en_attente' && a.mienne) : [];" \
+  "$ACW"
+prouver "la page des demandes sans ses gestes" web/public/v10/app.js \
+  "            ? (l.peutDecider && !a.mienne ? \`<span class=\"inline\">" "            ? (false ? \`<span class=\"inline\">" \
+  "$ACW"
+prouver "l'accueil de qui a demandé muet sur la décision" web/public/v10/app.js \
+  "new Date(a.decideLe).getTime() > semaine && pieceEncoreBrouillon(a.piece));" "new Date(a.decideLe).getTime() > semaine && !pieceEncoreBrouillon(a.piece));" \
+  "$ACW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -82,10 +82,12 @@
   l'entrée) ; `stockParLot`, `lotConseille`, `lotsAPerimer`, `lotsDeLaPiece`.
 - **L'accord d'un responsable** (brique 98, `docs/accords.md`, `serveur/v10/accords.ts`, `0052`) : le serveur calcule
   le dépassement d'encours avec `core.js` (chargé par `codeDeLEcran`, comme `teif.js`) sur le dossier en base ;
-  `ventes.accord` ; un déclencheur réserve `creditLimit` et `encoursAccord` aux responsables.
+  `ventes.accord` ; un déclencheur réserve `creditLimit` et `encoursAccord` aux responsables. Les écrans (brique 100,
+  `web/v10/accords.txt`) : réglage, « Demander l'accord » dans le refus, bandeau de la facture, accueil, `#/accords` ;
+  `droits.responsable` grise à l'écran ce que la base refuserait.
 - **Les droits dans le dossier** (brique 99, `docs/droits-dossier.md`, `serveur/v10/droits.ts`) : chaque partie du
   dossier a un geste pour la lire et un pour l'écrire ; le GET filtre et rend `droits` (`cachees`, `lectureSeule`,
-  `ecrivables`, `tout`) ; `appliquer` refuse une partie interdite ; `pont.js` ne renvoie que la liste blanche (ni
+  `ecrivables`, `tout`, `responsable`) ; `appliquer` refuse une partie interdite ; `pont.js` ne renvoie que la liste blanche (ni
   modification ni suppression du reste) ; l'écran refuse avant le geste (`peutEcrireDossier`, `web/v10/droits.txt`).
   Une nouvelle partie du dossier (une nouvelle liste de la v10) **doit** recevoir sa règle, sinon seuls P et A la voient.
 - Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,
