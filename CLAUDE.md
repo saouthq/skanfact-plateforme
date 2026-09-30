@@ -233,6 +233,8 @@
     → `compta.reprendre_livre_v10` (dossier tenu, exercice vide, numéros v10, chaîne dans leur ordre,
     compteurs, période validée jusqu'à la veille du premier brouillard, empreinte du fichier dans la
     trace) ; la balance relue dans la base doit être celle du livre, sinon tout se défait.
+  - **L'écran de reprise** (brique 64, C54) : « Reprendre son livre de SkanFact Cabinet v10… » sur un dossier
+    tenu sans livre (`reprise-v10.txt`) ; `essaiRepriseV10` (fichier choisi, rapport) puis `repriseV10`.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

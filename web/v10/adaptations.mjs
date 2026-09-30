@@ -356,4 +356,5 @@ export const ADAPTATIONS = [
   ...lireFichier('nom-dossier-tenu.txt'),
   ...lireFichier('liasse-close.txt'),
   ...lireFichier('equipe-trace.txt'),
+  ...lireFichier('reprise-v10.txt'),
 ];

@@ -1375,3 +1375,29 @@ anomalie : refusé, rien d'écrit ; un client sur SkanFact : refusé ; un collab
 **Reste à faire** : les lettrages, relevés, immobilisations, révisions, questions et la paie du livre ;
 un livre dont le dossier n'existe pas encore (le créer depuis le fichier du cabinet) ; l'écran du
 Cabinet qui envoie le fichier et montre le rapport ; le bouton « Passer à la plateforme » de la v10.
+
+## Brique 64 : l'écran de reprise d'un livre v10 (fait le 30/09/2026)
+
+**C54. Le comptable reprend son livre de la v10 depuis le dossier, et lit le rapport avant que rien ne
+s'écrive** (par délégation). Sur un dossier **tenu** qui n'a pas encore de livre, à côté de « Commencer
+le livre », un bouton : **« Reprendre son livre de SkanFact Cabinet v10… »** (adaptation
+`reprise-v10.txt`). Il ouvre la fenêtre du navigateur ; le fichier `livre-AAAA.json` choisi est lu par
+le serveur **sans rien créer** (brique 62) et l'écran montre le rapport : l'exercice, les écritures
+validées (« elles gardent leur numéro de la v10 »), celles au brouillard, le total des validées, ce qui
+n'est pas encore repris (lettrages, relevés…). S'il reste une anomalie, elle est **nommée** (pièce,
+date, raison), il n'y a **pas de bouton pour écrire**, et la phrase dit de la corriger dans la v10 puis
+de choisir de nouveau le fichier. Sinon, **« Reprendre ces écritures »** les écrit (brique 63) et
+l'écran s'ouvre sur le livre repris, à l'onglet Saisie (où attend le brouillard). Le point de contact
+garde le fichier lu entre l'essai et l'écriture : c'est le même qui est essayé puis écrit
+(`essaiRepriseV10`, `repriseV10`).
+
+**Aujourd'hui**, le fichier du livre de la v10 est chiffré sur le poste du cabinet : le bouton « Passer
+à la plateforme » de la v10, qui le sortira déchiffré, viendra à la fin du développement (`08` § 2.1).
+Le geste de la plateforme, lui, est prêt et prouvé.
+
+**Les tests** : à la souris (`tests/web/cabinet-reprise-v10.test.ts`) : un livre de 2025 fabriqué par
+le moteur de la v10, choisi dans la fenêtre du navigateur ; abîmé (un journal inconnu) : l'anomalie
+nommée à sa pièce, aucun bouton pour écrire, rien d'écrit ; le bon : le rapport (3 validées, 1 au
+brouillard), puis les écritures reprises avec leurs numéros (AN-2025-000001, VT-2025-000002,
+BQ-2025-000003), le message « Livre de 2025 repris : 3 écritures validées, 1 au brouillard. », et le
+livre de 2025 ouvert, son brouillard à l'écran.

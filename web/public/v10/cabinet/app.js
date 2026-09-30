@@ -3020,6 +3020,48 @@
   // Reprendre un dossier venu d'ailleurs : exercice, plan, balance d'ouverture. L'écart s'affiche
   // EN DIRECT pendant la saisie — découvrir à l'enregistrement qu'il manque 3 000 DT sur vingt
   // lignes, c'est recommencer ; le voir descendre à zéro pendant qu'on tape, c'est travailler.
+  async function repriseV10Form(root, dossier) {
+    const s = livresState;
+    let lu;
+    try { lu = await api.essaiRepriseV10({ dossierId: dossier.id }); } catch (e) { await infoDialog('Ce livre ne se reprend pas', plainError(e)); return; }
+    if (!lu) return;
+    const R = lu.rapport;
+    const autour = Object.entries(R.autour || {}).filter(([, n]) => n > 0)
+      .map(([k, n]) => `${n} ${({ lettrages: 'ligne(s) lettrée(s)', releves: 'relevé(s)', immobilisations: 'immobilisation(s)', declarations: 'déclaration(s)', inventaires: 'inventaire(s)', revisions: 'révision(s)', questions: 'question(s)', salaries: 'salarié(s)', bulletins: 'bulletin(s)' })[k] || k}`);
+    modal(`<h2>Reprendre le livre de ${esc(String(R.annee))} de ${esc(dossier.name)}</h2>
+      <p class="small muted">Fichier « ${esc(lu.nom)} », lu par le serveur : <b>rien n'est encore écrit</b>.</p>
+      <table class="list compact" id="rv-rapport"><tbody>
+        <tr><td>Exercice</td><td class="r nw">du ${esc(fmtJour(R.du))} au ${esc(fmtJour(R.au))}</td></tr>
+        <tr><td>Écritures validées — elles gardent leur numéro de la v10</td><td class="r">${esc(String(R.ecritures.validees))}</td></tr>
+        <tr><td>Écritures au brouillard — elles restent au brouillard</td><td class="r">${esc(String(R.ecritures.brouillard))}</td></tr>
+        <tr><td>Total des validées (débit = crédit)</td><td class="r nw">${money(Number(R.totaux.debit))}</td></tr>
+      </tbody></table>
+      ${R.anomalies.length
+    ? `<div class="warn-box mt" id="rv-anomalies"><b>${R.anomalies.length > 1 ? `${R.anomalies.length} écritures ne se reprendraient pas telles quelles` : 'Une écriture ne se reprendrait pas telle quelle'}</b> : corrige-${R.anomalies.length > 1 ? 'les' : 'la'} dans la v10, puis choisis de nouveau le fichier. Rien ne s'écrit tant qu'il en reste une.
+        <ul>${R.anomalies.slice(0, 20).map(a => `<li>${esc(a.piece || '(sans pièce)')} du ${esc(fmtJour(a.date))} : ${esc(a.motif)}</li>`).join('')}</ul>${R.anomalies.length > 20 ? `<p class="small">… et ${R.anomalies.length - 20} autres.</p>` : ''}</div>`
+    : '<p class="small ligne-ok mt" id="rv-ok"><span aria-hidden="true">✓</span> Chaque écriture se reprend telle quelle. La période se validera jusqu\'à la veille du premier brouillard.</p>'}
+      ${autour.length ? `<p class="small muted mt" id="rv-autour">Pas encore repris avec les écritures : ${esc(autour.join(', '))}. Ils viendront à leur tour.</p>` : ''}
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button>
+        ${R.anomalies.length ? '' : '<button class="btn btn-primary" id="ok">Reprendre ces écritures</button>'}</div>`,
+    (rootModal, close) => {
+      const ok = $('#ok', rootModal);
+      if (!ok) return;
+      ok.onclick = async () => {
+        ok.disabled = true;
+        try {
+          const r = await api.repriseV10({ dossierId: dossier.id });
+          const annee = String(r.annee);
+          s.annee = annee; s.livre = r.livre; s.livreEtat = 'ouvert'; s.livreCle = dossier.id + '|' + annee; livresConnus.set(dossier.id, true);
+          exerciceConnu(annee);
+          suivreExercice(dossier);
+          close();
+          allerSousOnglet(root, dossier, 'saisie');
+          toast(`Livre de ${annee} repris : ${r.validees} écriture${r.validees > 1 ? 's' : ''} validée${r.validees > 1 ? 's' : ''}, ${r.brouillard} au brouillard.`);
+        } catch (e) { ok.disabled = false; await infoDialog('Reprise impossible', plainError(e)); }
+      };
+    });
+  }
+
   function repriseForm(root, dossier) {
     const s = livresState;
     const annee = s.annee || String(new Date().getFullYear());
@@ -3401,9 +3443,10 @@
           ${dossier.manual ? '' : 'Les pièces qu\'il enregistre dans SkanFact s\'y ajouteront d\'elles-mêmes.'}</div>
         <div class="modal-actions mb">
           <button class="btn btn-primary" id="lv-reprendre">Commencer le livre de ${esc(s.annee)}…</button>
-          ${dossier.manual ? '' : '<button class="btn" id="lv-ecrire">Écrire au client</button>'}
+          ${dossier.manual ? '<button class="btn" id="lv-reprise-v10">Reprendre son livre de SkanFact Cabinet v10…</button>' : '<button class="btn" id="lv-ecrire">Écrire au client</button>'}
         </div>`;
       const b = $('#lv-ecrire', el); if (b) b.onclick = () => writeRelance(K.dossierRow(dossier));
+      const rv = $('#lv-reprise-v10', el); if (rv) rv.onclick = () => repriseV10Form(root, dossier);
       const rp = $('#lv-reprendre', el); if (rp) rp.onclick = () => repriseForm(root, dossier);
       return;
     }

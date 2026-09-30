@@ -1,0 +1,121 @@
+// Reprendre le livre de la v10 d'un dossier tenu, à la souris (brique 64 ; docs/cabinet.md, C54). Le
+// fichier `livre-2025.json` est fabriqué par le moteur de la v10 lui-même, puis choisi dans la fenêtre du
+// navigateur. Ce que le parcours vérifie, écran ET serveur :
+//   - un livre qui a une anomalie : le rapport la nomme, aucun bouton pour écrire, rien d'écrit ;
+//   - le bon livre : le rapport compte ce qui passe ; « Reprendre ces écritures » les écrit avec leurs
+//     numéros de la v10, et l'écran s'ouvre sur le livre de 2025.
+
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { chromium, type Browser } from 'playwright-core';
+import { build } from 'vite';
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
+import { ecranDeLaPlateforme } from '../moteur/v10.ts';
+
+const RACINE = path.join(import.meta.dirname, '../..');
+const PHOTOS = path.join(RACINE, 'dist/photos');
+
+describe('reprendre le livre de la v10 d\'un dossier tenu, à la souris', () => {
+  let navigateur: Browser;
+  let serveur: Awaited<ReturnType<typeof demarrer>>;
+  const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-cab-reprise-v10-'));
+  beforeAll(async () => {
+    await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
+    serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
+    navigateur = await chromium.launch();
+    fs.mkdirSync(PHOTOS, { recursive: true });
+  }, 120_000);
+  afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); fs.rmSync(dossier, { recursive: true, force: true }); });
+
+  const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
+    const r = await fetch(`${serveur.adresse}/v1${chemin}`, {
+      method: methode, headers: { ...(jeton ? { authorization: `Bearer ${jeton}` } : {}), ...(corps === undefined ? {} : { 'content-type': 'application/json' }) },
+      ...(corps === undefined ? {} : { body: JSON.stringify(corps) }),
+    });
+    const texte = await r.text();
+    return { statut: r.status, corps: (texte ? JSON.parse(texte) : {}) as Record<string, unknown> };
+  };
+  const personne = async (nom: string) => {
+    const email = `${nom}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom, motDePasse: 'Un-bon-mot-de-passe' });
+    const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    await api('POST', '/moi/code', jeton, { methode: 'application' });
+    return jeton;
+  };
+
+  type Livre = { ecritures: { id: string; journal: string; lignes: { lettre: string }[] }[] };
+  const KC = ecranDeLaPlateforme('compta.js') as {
+    livreVide: (id: string, annee: number, o: Record<string, unknown>) => Livre;
+    ajouterEcriture: (l: Livre, e: Record<string, unknown>, qui: string, quand: number) => { id: string };
+    validerEcriture: (l: Livre, id: string, qui: string, quand: number) => { ok: boolean };
+  };
+  const livreDe2025 = () => {
+    const L = KC.livreVide('D', 2025, {});
+    const poser = (e: Record<string, unknown>, valider: boolean) => {
+      const x = KC.ajouterEcriture(L, e, 'Leila', Date.UTC(2025, 5, 1));
+      if (valider) expect(KC.validerEcriture(L, x.id, 'Leila', Date.UTC(2025, 5, 2)).ok).toBe(true);
+    };
+    poser({ date: '2025-01-01', journal: 'AN', piece: 'AN', libelle: 'À-nouveaux', source: 'an', lignes: [{ compte: '532', debit: 12500.125 }, { compte: '101', credit: 12500.125 }] }, true);
+    poser({ date: '2025-03-14', journal: 'VT', piece: 'FAC-2025-014', libelle: 'Facture Hôtel du Lac', lignes: [{ compte: '411', tiers: 'Hôtel du Lac', debit: 1191.001 }, { compte: '707', credit: 1000.001 }, { compte: '4367', credit: 191 }] }, true);
+    poser({ date: '2025-04-02', journal: 'BQ', piece: 'VIR-88', libelle: 'Encaissement Hôtel du Lac', lignes: [{ compte: '532', debit: 1191.001 }, { compte: '411', tiers: 'Hôtel du Lac', credit: 1191.001 }] }, true);
+    poser({ date: '2025-05-20', journal: 'AC', piece: 'FF-77', libelle: 'Papeterie', lignes: [{ compte: '6064', debit: 84.034 }, { compte: '4366', debit: 15.966 }, { compte: '401', credit: 100 }] }, false);
+    return L;
+  };
+
+  it('le rapport se lit avant que rien ne s\'écrive ; une anomalie bloque ; le bon livre se reprend avec ses numéros', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
+    const dossier = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Boulangerie Ennour' })).corps.entreprise);
+    const ecritures = async () => ((await api('GET', `/entreprises/${dossier}/compta/ecritures?limite=500`, associe)).corps.ecritures as { piece: string; numero: string | null }[])
+      .map((e) => [e.piece, e.numero]).sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+    const abime = livreDe2025();
+    if (abime.ecritures[3]) abime.ecritures[3].journal = 'BQ2';
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'livres-v10-'));
+    const fichierAbime = path.join(tmp, 'livre-2025.json');
+    fs.writeFileSync(fichierAbime, JSON.stringify(abime));
+    const fichierBon = path.join(tmp, 'livre-2025-bon.json');
+    fs.writeFileSync(fichierBon, JSON.stringify(livreDe2025()));
+
+    const erreurs: string[] = [];
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
+    p.on('pageerror', (e) => erreurs.push(e.message + ' ' + (e.stack ?? '').split('\n').slice(0, 3).join(' / ')));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${dossier}/comptabilite`);
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(800);
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
+      await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
+    }
+    const choisir = async (fichier: string) => {
+      await p.locator('#lv-reprise-v10').waitFor({ timeout: 20_000 });
+      const [fenetre] = await Promise.all([p.waitForEvent('filechooser'), p.locator('#lv-reprise-v10').click()]);
+      await fenetre.setFiles(fichier);
+      await p.locator('#modal-root #rv-rapport').waitFor({ timeout: 15_000 });
+      return p.locator('#modal-root .modal').last();
+    };
+
+    // ── Le livre abîmé : l'anomalie nommée, aucun bouton pour écrire, rien d'écrit ─────────────────
+    let m = await choisir(fichierAbime);
+    expect(await m.locator('#rv-anomalies').innerText()).toMatch(/Une écriture ne se reprendrait pas telle quelle\s:\scorrige-la dans la v10[\s\S]*FF-77 du 20\/05\/2025\s:\sLe journal «\sBQ2\s» n'existe pas sur la plateforme/);
+    expect(await m.locator('#ok').count()).toBe(0);
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-v10-anomalie.png') });
+    await m.locator('[data-close]').click();
+    expect(await ecritures()).toEqual([]);
+
+    // ── Le bon livre : le rapport, puis « Reprendre ces écritures » ─────────────────────────────────
+    m = await choisir(fichierBon);
+    const rapport = await m.locator('#rv-rapport').innerText();
+    expect(rapport).toMatch(/Écritures validées — elles gardent leur numéro de la v10\s+3/);
+    expect(rapport).toMatch(/Écritures au brouillard — elles restent au brouillard\s+1/);
+    expect(await m.locator('#rv-ok').count()).toBe(1);
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-v10-rapport.png') });
+    await m.locator('#ok').click();
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 15_000 }).toBe('Livre de 2025 repris : 3 écritures validées, 1 au brouillard.');
+    expect(await ecritures()).toEqual([['AN', 'AN-2025-000001'], ['FAC-2025-014', 'VT-2025-000002'], ['FF-77', null], ['VIR-88', 'BQ-2025-000003']]);
+    await expect.poll(() => p.locator('#view').innerText(), { timeout: 15_000 }).toMatch(/FF-77/);
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-v10-fait.png') });
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+});

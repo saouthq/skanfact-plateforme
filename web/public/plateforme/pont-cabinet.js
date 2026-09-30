@@ -43,6 +43,9 @@
   // Les écrans du Cabinet se relisent quand elle s'allonge (la déclaration, la révision, la liasse,
   // l'exercice : `revDuLivre`) ; vide, ils gardaient leurs contrôles d'avant une validation.
   let gestesFaits = 0;
+  // Le livre de la v10 choisi pour une reprise, entre l'essai à blanc et l'écriture (brique 64).
+  /** @type {{ dossierId: string, livre: unknown, nom: string } | null} */
+  let repriseEnAttente = null;
 
   // ── L'état du cabinet : le cabinet, son portefeuille, la personne qui travaille ────────────
   /** @type {Map<string, { id: string, name: string, matricule: string, manual: boolean, mandat: string }>} */
@@ -1231,6 +1234,29 @@
       if (!d) throw new Error('Dossier introuvable.');
       await appel('POST', `/cabinets/${cabinetId}/mandats/${d.mandat}/arreter`);
       return construireEtat();
+    },
+    // ── La reprise d'un livre du Cabinet v10 (briques 62 à 64 ; docs/cabinet.md, C54) : le fichier
+    // `livre-AAAA.json` choisi sur l'ordinateur, lu par le serveur sans rien créer (le rapport), puis,
+    // confirmé, écrit dans le dossier tenu. Le fichier lu reste ici entre les deux gestes : c'est le
+    // même qui est essayé puis écrit ──
+    essaiRepriseV10: async (/** @type {any} */ o) => {
+      if (!dossiers.has(o.dossierId)) throw new Error('Dossier introuvable.');
+      const f = await choisirFichier('.json,application/json');
+      if (!f) return null;
+      /** @type {unknown} */ let livre;
+      try { livre = JSON.parse(await f.text()); } catch { throw new Error(`« ${f.name} » ne se lit pas : ce n'est pas un fichier JSON. Choisis le livre d'un exercice (livre-AAAA.json).`); }
+      const rapport = await appel('POST', `/cabinets/${cabinetId}/reprise/livre/essai`, { livre });
+      repriseEnAttente = { dossierId: o.dossierId, livre, nom: f.name };
+      return { nom: f.name, rapport };
+    },
+    repriseV10: async (/** @type {any} */ o) => {
+      const r = repriseEnAttente;
+      if (!r || r.dossierId !== o.dossierId) throw new Error('Choisis d\'abord le fichier du livre : rien n\'a été écrit.');
+      const cree = await appel('POST', `/cabinets/${cabinetId}/reprise/livre`, { dossier: o.dossierId, livre: r.livre });
+      repriseEnAttente = null;
+      const annee = Number(cree.rapport.annee);
+      await exercicesDe(o.dossierId);
+      return { ...cree, annee, livre: await livreDe(o.dossierId, annee) };
     },
     // Une génération à la fois : un second clic attend la première, puis relit la fiche (les mois faits)
     // et ne double rien — la v10, dans son processus principal, les jouait déjà l'une après l'autre.

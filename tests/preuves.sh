@@ -3512,5 +3512,20 @@ prouver "un livre à anomalie envoyé à la base" serveur/cabinet/routes.ts \
   "      if (lu.anomalies.length) return { statut: 400," "      if (false) return { statut: 400," \
   "$RC2"
 
+# ── Brique 64 : l'écran de reprise d'un livre v10 (docs/cabinet.md, C54) ──
+RE1="le rapport se lit avant que rien ne s'écrive ; une anomalie bloque ; le bon livre se reprend avec ses numéros"
+prouver "la reprise de la v10 absente de l'écran" web/public/v10/cabinet/app.js \
+  "\${dossier.manual ? '<button class=\"btn\" id=\"lv-reprise-v10\">" "\${false ? '<button class=\"btn\" id=\"lv-reprise-v10\">" \
+  "$RE1"
+prouver "un livre à anomalie qu'on peut quand même écrire" web/public/v10/cabinet/app.js \
+  "        \${R.anomalies.length ? '' : '<button class=\"btn btn-primary\" id=\"ok\">Reprendre ces écritures</button>'}" "        \${false ? '' : '<button class=\"btn btn-primary\" id=\"ok\">Reprendre ces écritures</button>'}" \
+  "$RE1"
+prouver "le livre choisi oublié entre l'essai et l'écriture" $PC \
+  "      repriseEnAttente = { dossierId: o.dossierId, livre, nom: f.name };" "" \
+  "$RE1"
+prouver "l'écran qui ne rouvre pas le livre repris" $PC \
+  "      return { ...cree, annee, livre: await livreDe(o.dossierId, annee) };" "      return { ...cree, annee, livre: null };" \
+  "$RE1"
+
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]
