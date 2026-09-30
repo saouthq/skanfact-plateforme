@@ -40,6 +40,8 @@ export type LivreLu = {
   ecritures: EcritureReprise[]; anomalies: Anomalie[];
   // Ce que le livre porte en plus des écritures, compté : la reprise de chacun viendra à son tour.
   autour: Record<string, number>;
+  // Les lettrages du livre (une lettre, ses lignes) : repris avec les écritures (brique 65).
+  lettrages: number;
 };
 
 // Lire un livre de la v10. Rend `null` si ce n'est pas un livre du tout (le rapport le dit).
@@ -87,13 +89,33 @@ export function lireLivreV10(o: unknown): LivreLu | null {
     }
     ecritures.push(e);
   }
+  // Les lettrages (brique 65) : chaque lettre relie des lignes d'un seul compte, d'au moins deux
+  // écritures validées, dont la somme est nulle — la règle de la v10 (lettrer) et de la plateforme.
+  const groupes = new Map<string, { comptes: Set<string>; solde: bigint; ecritures: Set<string>; brouillard: boolean; premiere: EcritureReprise }>();
+  for (const e of ecritures) {
+    for (const l of e.lignes) {
+      if (!l.lettre) continue;
+      const g = groupes.get(l.lettre) ?? { comptes: new Set<string>(), solde: 0n, ecritures: new Set<string>(), brouillard: false, premiere: e };
+      g.comptes.add(l.compte); g.solde += l.debit - l.credit; g.ecritures.add(e.refV10);
+      if (e.statut !== 'validee') g.brouillard = true;
+      groupes.set(l.lettre, g);
+    }
+  }
+  for (const [lettre, g] of groupes) {
+    const e = g.premiere;
+    const nomme = (m: Texte) => anomalies.push({ ecriture: e.refV10, piece: e.piece, date: e.date, motif: m });
+    if (!/^[A-Z]{1,5}$/.test(lettre)) nomme(motif('reprise.lettre_forme', { lettre }));
+    else if (g.comptes.size > 1) nomme(motif('reprise.lettre_comptes', { lettre, comptes: [...g.comptes].join(', ') }));
+    else if (g.brouillard) nomme(motif('reprise.lettre_brouillard', { lettre }));
+    else if (g.ecritures.size < 2) nomme(motif('reprise.lettre_seule', { lettre }));
+    else if (g.solde !== 0n) nomme(motif('reprise.lettre_solde', { lettre, reste: versTexte(g.solde, 3) }));
+  }
   const autour: Record<string, number> = {
-    lettrages: ecritures.reduce((n, e) => n + e.lignes.filter((l) => l.lettre).length, 0),
     releves: liste(o.releves).length, immobilisations: liste(o.immobilisations).length, declarations: liste(o.declarations).length,
     inventaires: liste(o.inventaires).length, revisions: liste(o.revisions).length, questions: liste(o.questions).length,
     salaries: liste(o.salaries).length, bulletins: liste(o.bulletins).length,
   };
-  return { annee, du, au, clos: ex.clos === true, ecritures, anomalies, autour };
+  return { annee, du, au, clos: ex.clos === true, ecritures, anomalies, autour, lettrages: groupes.size };
 }
 
 // Le rapport de l'essai à blanc : ce qui passe, compté ; la balance des écritures validées ; ce qui ne
@@ -121,6 +143,6 @@ export function rapportDuLivre(l: LivreLu) {
     annee: l.annee, du: l.du, au: l.au, clos: l.clos,
     ecritures: { total: l.ecritures.length, validees: validees.length, brouillard: l.ecritures.length - validees.length, aNouveaux: l.ecritures.filter((e) => e.journal === 'AN').length },
     journaux, balance, totaux: { debit: total('debit'), credit: total('credit') },
-    anomalies: l.anomalies, autour: l.autour,
+    lettrages: l.lettrages, anomalies: l.anomalies, autour: l.autour,
   };
 }

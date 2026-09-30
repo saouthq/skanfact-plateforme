@@ -512,11 +512,11 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       if (lu.anomalies.length) return { statut: 400, corps: { motif: motif('cabinet.reprise.anomalies', { n: String(lu.anomalies.length) }), rapport } };
       const ecritures = lu.ecritures.map((e) => ({
         date: e.date, journal: e.journal, piece: e.piece, libelle: e.libelle, statut: e.statut, numero: e.numeroV10 === null ? null : String(e.numeroV10),
-        lignes: e.lignes.map((l) => ({ compte: l.compte, libelle: l.libelle, tiers: l.tiers, debit: l.debit.toString(), credit: l.credit.toString() })),
+        lignes: e.lignes.map((l) => ({ compte: l.compte, libelle: l.libelle, tiers: l.tiers, debit: l.debit.toString(), credit: l.credit.toString(), lettre: l.lettre })),
       }));
       const empreinte = createHash('sha256').update(JSON.stringify(corps.livre)).digest('hex');
       const cree = (await tx.query('select compta.reprendre_livre_v10($1, $2, $3, $4, $5::jsonb, $6) r',
-        [corps.dossier, lu.annee, lu.du, lu.au, JSON.stringify(ecritures), empreinte])).rows[0].r as { validees: number; brouillard: number; jusqua: string | null };
+        [corps.dossier, lu.annee, lu.du, lu.au, JSON.stringify(ecritures), empreinte])).rows[0].r as { validees: number; brouillard: number; lettrages: number; lettres: { v10: string; lettre: string }[]; jusqua: string | null };
       // Deux chemins, un chiffre : la balance que la base tient maintenant est celle du livre.
       const b = (await tx.query(`select l.compte, sum(l.debit)::text debit, sum(l.credit)::text credit from compta.ligne l join compta.ecriture e on e.id = l.ecriture
           where e.entreprise = $1 and e.statut = 'validee' and e.date_ecriture between $2::date and $3::date group by l.compte`, [corps.dossier, lu.du, lu.au])).rows as { compte: string; debit: string; credit: string }[];

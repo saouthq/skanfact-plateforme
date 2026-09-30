@@ -1401,3 +1401,39 @@ nommée à sa pièce, aucun bouton pour écrire, rien d'écrit ; le bon : le rap
 brouillard), puis les écritures reprises avec leurs numéros (AN-2025-000001, VT-2025-000002,
 BQ-2025-000003), le message « Livre de 2025 repris : 3 écritures validées, 1 au brouillard. », et le
 livre de 2025 ouvert, son brouillard à l'écran.
+
+## Brique 65 : les lettrages repris avec le livre v10 (fait le 30/09/2026)
+
+**C55. Un livre repris garde ses lettres : une facture payée dans la v10 reste payée** (par
+délégation). Sans elles, chaque facture réglée du livre se serait relue impayée sur la plateforme, et
+le comptable aurait tout relettré à la main. La reprise (0038, qui redéfinit
+`compta.reprendre_livre_v10`) pose chaque lettre du livre avec ses lignes, après les contrôles du
+lettrage à la main (0021) : **un seul compte**, **au moins deux écritures**, **toutes validées**, **une
+somme nulle**, une lettre de une à cinq lettres de A à Z. L'essai à blanc les fait le premier et
+**nomme** la lettre qui ne passerait pas, à la première écriture qui la porte (« La lettre B relie
+plusieurs comptes (101, 707)… », « La lettre C touche une écriture au brouillard… », « … il reste
+13691.126 ») ; la base les refait, lettre par lettre, et refuse le livre entier si une seule manque
+(un livre envoyé sans l'essai ne pose jamais un lettrage faux). La v10 laissait lettrer un brouillard :
+un tel livre ne se reprend pas tant que le brouillard n'est pas validé, ou la lettre retirée, dans la
+v10.
+
+**La lettre garde son nom quand elle est libre dans le dossier.** Chaque livre de la v10 recommence
+ses lettres à A ; sur la plateforme, une lettre est unique dans l'entreprise, toutes années
+confondues. Une lettre déjà prise (une autre année reprise avant) prend **la suivante libre**, sans
+jamais prendre celle d'un autre lettrage du même livre, et **le résultat le dit** : l'écran ouvre « Des
+lettres ont changé : A s'appelle maintenant B », pour qu'un papier qui cite l'ancienne se retrouve.
+Un lettrage posé ensuite à la main continue à la lettre libre suivante. Le rapport de l'essai compte
+les lettrages (« Lettrages — ils se reprennent avec leur lettre ») ; le message final aussi ; la trace
+de la reprise les compte.
+
+**Les tests** : `tests/cabinet/reprise-livre.test.ts` : le livre de 2025 lettré **par le geste de la
+v10** (`lettrer`) : la facture et son encaissement lettrés A sur le 411 dans la base ; les cinq défauts
+nommés à l'essai ; 2026 reprise ensuite (A prise → C, B du même livre gardée), puis un lettrage à la
+main qui prend D ; la base qui refuse chacun des cinq défauts envoyés sans l'essai, chaque cas ne
+manquant qu'à une règle. À la souris (`tests/web/cabinet-reprise-v10.test.ts`) : la ligne des
+lettrages dans le rapport, le message final, et 2026 reprise sur le même dossier : « A s'appelle
+maintenant B ».
+
+**Reste à faire (la reprise)** : les relevés, les immobilisations, la révision et les questions, la
+paie du livre ; un livre dont le dossier n'existe pas encore (le créer depuis le fichier du cabinet) ;
+le bouton « Passer à la plateforme » de la v10.

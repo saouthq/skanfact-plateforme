@@ -50,17 +50,29 @@ describe('reprendre le livre de la v10 d\'un dossier tenu, à la souris', () => 
     livreVide: (id: string, annee: number, o: Record<string, unknown>) => Livre;
     ajouterEcriture: (l: Livre, e: Record<string, unknown>, qui: string, quand: number) => { id: string };
     validerEcriture: (l: Livre, id: string, qui: string, quand: number) => { ok: boolean };
+    lettrer: (l: Livre, compte: string, ids: string[], lettre: string, qui: string, jour: string) => { ok: boolean; lettre?: string };
   };
   const livreDe2025 = () => {
     const L = KC.livreVide('D', 2025, {});
     const poser = (e: Record<string, unknown>, valider: boolean) => {
       const x = KC.ajouterEcriture(L, e, 'Leila', Date.UTC(2025, 5, 1));
       if (valider) expect(KC.validerEcriture(L, x.id, 'Leila', Date.UTC(2025, 5, 2)).ok).toBe(true);
+      return x.id;
     };
     poser({ date: '2025-01-01', journal: 'AN', piece: 'AN', libelle: 'À-nouveaux', source: 'an', lignes: [{ compte: '532', debit: 12500.125 }, { compte: '101', credit: 12500.125 }] }, true);
-    poser({ date: '2025-03-14', journal: 'VT', piece: 'FAC-2025-014', libelle: 'Facture Hôtel du Lac', lignes: [{ compte: '411', tiers: 'Hôtel du Lac', debit: 1191.001 }, { compte: '707', credit: 1000.001 }, { compte: '4367', credit: 191 }] }, true);
-    poser({ date: '2025-04-02', journal: 'BQ', piece: 'VIR-88', libelle: 'Encaissement Hôtel du Lac', lignes: [{ compte: '532', debit: 1191.001 }, { compte: '411', tiers: 'Hôtel du Lac', credit: 1191.001 }] }, true);
+    const fac = poser({ date: '2025-03-14', journal: 'VT', piece: 'FAC-2025-014', libelle: 'Facture Hôtel du Lac', lignes: [{ compte: '411', tiers: 'Hôtel du Lac', debit: 1191.001 }, { compte: '707', credit: 1000.001 }, { compte: '4367', credit: 191 }] }, true);
+    const enc = poser({ date: '2025-04-02', journal: 'BQ', piece: 'VIR-88', libelle: 'Encaissement Hôtel du Lac', lignes: [{ compte: '532', debit: 1191.001 }, { compte: '411', tiers: 'Hôtel du Lac', credit: 1191.001 }] }, true);
     poser({ date: '2025-05-20', journal: 'AC', piece: 'FF-77', libelle: 'Papeterie', lignes: [{ compte: '6064', debit: 84.034 }, { compte: '4366', debit: 15.966 }, { compte: '401', credit: 100 }] }, false);
+    expect(KC.lettrer(L, '411', [fac, enc], '', 'Leila', '2025-06-03').lettre).toBe('A');
+    return L;
+  };
+  // 2026 dans la v10 : ses lettres recommencent à A, que 2025 a déjà prise dans le dossier.
+  const livreDe2026 = () => {
+    const L = KC.livreVide('D', 2026, {});
+    const poser = (e: Record<string, unknown>) => { const x = KC.ajouterEcriture(L, e, 'Leila', Date.UTC(2026, 1, 1)); expect(KC.validerEcriture(L, x.id, 'Leila', Date.UTC(2026, 1, 2)).ok).toBe(true); return x.id; };
+    const f = poser({ date: '2026-01-10', journal: 'VT', piece: 'FAC-2026-001', libelle: 'Facture', lignes: [{ compte: '411', debit: 238 }, { compte: '707', credit: 200 }, { compte: '4367', credit: 38 }] });
+    const r = poser({ date: '2026-01-20', journal: 'BQ', piece: 'VIR-101', libelle: 'Encaissement', lignes: [{ compte: '532', debit: 238 }, { compte: '411', credit: 238 }] });
+    expect(KC.lettrer(L, '411', [f, r], '', 'Leila', '2026-02-03').lettre).toBe('A');
     return L;
   };
 
@@ -77,6 +89,8 @@ describe('reprendre le livre de la v10 d\'un dossier tenu, à la souris', () => 
     fs.writeFileSync(fichierAbime, JSON.stringify(abime));
     const fichierBon = path.join(tmp, 'livre-2025-bon.json');
     fs.writeFileSync(fichierBon, JSON.stringify(livreDe2025()));
+    const fichier2026 = path.join(tmp, 'livre-2026.json');
+    fs.writeFileSync(fichier2026, JSON.stringify(livreDe2026()));
 
     const erreurs: string[] = [];
     const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
@@ -109,13 +123,24 @@ describe('reprendre le livre de la v10 d\'un dossier tenu, à la souris', () => 
     const rapport = await m.locator('#rv-rapport').innerText();
     expect(rapport).toMatch(/Écritures validées — elles gardent leur numéro de la v10\s+3/);
     expect(rapport).toMatch(/Écritures au brouillard — elles restent au brouillard\s+1/);
+    expect(rapport).toMatch(/Lettrages — ils se reprennent avec leur lettre\s+1/);
     expect(await m.locator('#rv-ok').count()).toBe(1);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-v10-rapport.png') });
     await m.locator('#ok').click();
-    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 15_000 }).toBe('Livre de 2025 repris : 3 écritures validées, 1 au brouillard.');
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 15_000 }).toBe('Livre de 2025 repris : 3 écritures validées, 1 au brouillard, 1 lettrage.');
     expect(await ecritures()).toEqual([['AN', 'AN-2025-000001'], ['FAC-2025-014', 'VT-2025-000002'], ['FF-77', null], ['VIR-88', 'BQ-2025-000003']]);
     await expect.poll(() => p.locator('#view').innerText(), { timeout: 15_000 }).toMatch(/FF-77/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-v10-fait.png') });
+
+    // ── 2026, dont la lettre A est déjà prise par 2025 : elle devient B, et l'écran le dit ─────────
+    await expect.poll(async () => (await p.locator('#lv-annee option').allInnerTexts()).includes('2026'), { timeout: 15_000 }).toBe(true);
+    await p.locator('#lv-annee').selectOption('2026');
+    m = await choisir(fichier2026);
+    await m.locator('#ok').click();
+    const lettresChangees = p.locator('#modal-root .modal', { hasText: 'Des lettres ont changé' });
+    await lettresChangees.waitFor({ timeout: 15_000 });
+    expect(await lettresChangees.innerText()).toMatch(/A s'appelle maintenant B\. Les lignes restent lettrées ensemble\./);
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-v10-lettres.png') });
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

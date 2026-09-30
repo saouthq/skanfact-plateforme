@@ -31,13 +31,14 @@ anomalie. La v10 n'avait pas ce geste : elle recevait des paquets.
     if (!lu) return;
     const R = lu.rapport;
     const autour = Object.entries(R.autour || {}).filter(([, n]) => n > 0)
-      .map(([k, n]) => `${n} ${({ lettrages: 'ligne(s) lettrée(s)', releves: 'relevé(s)', immobilisations: 'immobilisation(s)', declarations: 'déclaration(s)', inventaires: 'inventaire(s)', revisions: 'révision(s)', questions: 'question(s)', salaries: 'salarié(s)', bulletins: 'bulletin(s)' })[k] || k}`);
+      .map(([k, n]) => `${n} ${({ releves: 'relevé(s)', immobilisations: 'immobilisation(s)', declarations: 'déclaration(s)', inventaires: 'inventaire(s)', revisions: 'révision(s)', questions: 'question(s)', salaries: 'salarié(s)', bulletins: 'bulletin(s)' })[k] || k}`);
     modal(`<h2>Reprendre le livre de ${esc(String(R.annee))} de ${esc(dossier.name)}</h2>
       <p class="small muted">Fichier « ${esc(lu.nom)} », lu par le serveur : <b>rien n'est encore écrit</b>.</p>
       <table class="list compact" id="rv-rapport"><tbody>
         <tr><td>Exercice</td><td class="r nw">du ${esc(fmtJour(R.du))} au ${esc(fmtJour(R.au))}</td></tr>
         <tr><td>Écritures validées — elles gardent leur numéro de la v10</td><td class="r">${esc(String(R.ecritures.validees))}</td></tr>
         <tr><td>Écritures au brouillard — elles restent au brouillard</td><td class="r">${esc(String(R.ecritures.brouillard))}</td></tr>
+        <tr><td>Lettrages — ils se reprennent avec leur lettre</td><td class="r">${esc(String(R.lettrages || 0))}</td></tr>
         <tr><td>Total des validées (débit = crédit)</td><td class="r nw">${money(Number(R.totaux.debit))}</td></tr>
       </tbody></table>
       ${R.anomalies.length
@@ -60,7 +61,12 @@ anomalie. La v10 n'avait pas ce geste : elle recevait des paquets.
           suivreExercice(dossier);
           close();
           allerSousOnglet(root, dossier, 'saisie');
-          toast(`Livre de ${annee} repris : ${r.validees} écriture${r.validees > 1 ? 's' : ''} validée${r.validees > 1 ? 's' : ''}, ${r.brouillard} au brouillard.`);
+          toast(`Livre de ${annee} repris : ${r.validees} écriture${r.validees > 1 ? 's' : ''} validée${r.validees > 1 ? 's' : ''}, ${r.brouillard} au brouillard, ${r.lettrages} lettrage${r.lettrages > 1 ? 's' : ''}.`);
+          // Une lettre déjà prise dans le dossier (une autre année reprise) a changé : le dire, un
+          // papier qui cite l'ancienne se retrouve ainsi.
+          if (r.lettres && r.lettres.length) {
+            await infoDialog('Des lettres ont changé', `Ces lettres de la v10 étaient déjà prises dans ce dossier : ${r.lettres.map(x => `${x.v10} s'appelle maintenant ${x.lettre}`).join(', ')}. Les lignes restent lettrées ensemble.`);
+          }
         } catch (e) { ok.disabled = false; await infoDialog('Reprise impossible', plainError(e)); }
       };
     });
