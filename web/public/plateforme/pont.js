@@ -38,7 +38,8 @@
       throw x;
     }
     poste.enLigne();
-    // La session est finie : retour à la connexion (ce qui n'est pas enregistré le dit à l'écran d'avant).
+    // La session est finie : retour à la connexion, qui dit pourquoi (un appareil retiré y efface ce
+    // qu'il garde : brique 74).
     if (r.status === 401) { location.replace('/'); throw new Error('Ta session est terminée : reconnecte-toi.'); }
     const texte = await r.text();
     /** @type {any} */
@@ -406,6 +407,7 @@
 
   /** @type {any} */ (window).skanfact = {
     dessinerMandat,
+    dessinerAppareils,
     loadData: async () => {
       const attente = await poste.lireAttente(ent).catch(() => null);
       try { return { data: attente ? await rejouer(attente.contenu.data) : await relire(), corruptFile: null }; } catch (e) {
@@ -603,6 +605,34 @@
     if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
     if (!r.ok) throw new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.');
     return lu;
+  }
+  // ── Tes appareils (brique 74 ; docs/hors-ligne.md, H9) : les voir, en retirer un ────────────
+  /** @param {HTMLElement} el */
+  async function dessinerAppareils(el) {
+    /** @type {any[]} */ let liste;
+    try { liste = (await appelCompte('GET', '/moi/appareils')).appareils; } catch (x) { el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`; return; }
+    el.innerHTML = `<p class="small muted mb">Chaque navigateur ou téléphone où tu t'es connecté. Un appareil perdu, volé ou donné se retire ici : il ne peut plus rien ouvrir, et ce qu'il garde pour travailler sans réseau s'efface à sa prochaine connexion.</p>
+      <table class="list compact" id="appareils-liste"><tbody>${liste.map((a) => `<tr><td><strong>${esc(a.nom)}</strong>${a.celuiCi ? ' <span class="badge">cet appareil</span>' : ''}
+        <div class="small muted">${a.retireLe ? `Retiré le ${esc(jour(a.retireLe))}` : a.derniereActivite ? `Dernière activité le ${esc(jour(a.derniereActivite))}` : ''}</div></td>
+        <td class="r">${a.celuiCi || a.retireLe ? '' : `<button type="button" class="btn btn-sm" data-retirer="${esc(a.id)}">Retirer…</button>`}</td></tr>`).join('')}</tbody></table>
+      <p class="small" role="alert"></p>`;
+    /** @param {unknown} x */
+    const dire = (x) => { const a = el.querySelector('[role=alert]'); if (a) a.textContent = x instanceof Error ? x.message : String(x); };
+    el.querySelectorAll('[data-retirer]').forEach((b) => {
+      const bouton = /** @type {HTMLElement} */ (b);
+      bouton.onclick = async () => {
+        const a = liste.find((x) => x.id === bouton.dataset.retirer);
+        // Retirer se demande d'abord : l'appareil ne pourra plus rien ouvrir.
+        if (!bouton.dataset.confirme) {
+          bouton.dataset.confirme = '1';
+          bouton.textContent = 'Oui, le retirer';
+          dire(`« ${a ? a.nom : ''} » ne pourra plus rien ouvrir, et ce qu'il garde s'effacera à sa prochaine connexion.`);
+          return;
+        }
+        bouton.setAttribute('disabled', '');
+        try { await appelCompte('DELETE', `/moi/appareils/${encodeURIComponent(String(bouton.dataset.retirer))}`); await dessinerAppareils(el); } catch (x) { bouton.removeAttribute('disabled'); dire(x); }
+      };
+    });
   }
   // Ouvrir une entreprise, et s'en souvenir pour la prochaine fois (la même clé que l'entrée).
   /** @param {string} id */

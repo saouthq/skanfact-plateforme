@@ -50,6 +50,10 @@ sauvegardes du disque, copie externe, mot de passe du fichier, lecture par photo
 mises à jour, licence, éditeur, pièces jointes, dépannage.
 Le panneau « Ton cabinet comptable » ne parle plus d'appairage : le propriétaire y confie son
 dossier par le code du cabinet (brique 37).
+Un panneau de plus en tête de l'onglet « Données et sécurité » : **« Tes appareils »** (brique 74,
+dessiné par le pont, `dessinerAppareils`) : chaque appareil où la personne s'est connectée, celui-ci
+marqué ; « Retirer… » demande d'abord, puis l'appareil ne peut plus rien ouvrir, et ce qu'il garde
+s'efface à sa prochaine connexion (`docs/hors-ligne.md`, H9).
 « Modifier quand même… » et « Marquer annulée… » sur une facture émise ont disparu : le serveur la
 scelle, et un avoir la corrige (un avoir total la solde : « annulée » se déduit).
 
@@ -60,9 +64,10 @@ scelle, et un avoir la corrige (un avoir total la solde : « annulée » se déd
 - **Les sauvegardes d'UNE entreprise** vues par la personne (`createBackup`, `listBackups`,
   `peekBackup`, `restoreBackup`) : le serveur sait exporter et restaurer une entreprise, pas encore
   depuis l'écran.
-- **Hors ligne** : l'application s'installe, s'ouvre et se consulte sans réseau depuis la brique 72
-  (`docs/hors-ligne.md`) ; le pont ne garde pas encore les changements faits pendant une coupure (la
-  file d'envoi, brique suivante).
+- **Hors ligne** : l'application s'installe, s'ouvre et se consulte sans réseau depuis la brique 72,
+  garde ce qu'on enregistre pendant une coupure et l'envoie au retour depuis la brique 73, et un
+  appareil retiré efface ce qu'il garde depuis la brique 74 (`docs/hors-ligne.md`) ; reste le Cabinet
+  hors ligne.
 - **Les gros dossiers** : le dossier se charge en entier ; à mesurer (la règle : toute liste se
   pagine).
 - La version affichée au pied de la barre (« vdev »), le journal des erreurs du serveur

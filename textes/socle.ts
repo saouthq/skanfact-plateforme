@@ -9,6 +9,7 @@ declarerTextes({
   'commun.refuse': 'refusé',
   'commun.erreur_serveur': 'une erreur est survenue de notre côté. Elle est notée ; réessaie dans un instant',
   'commun.connexion_requise': 'connecte-toi pour continuer',
+  'connexion.appareil_retire': 'cet appareil a été retiré de ton compte : ce qu\'il gardait pour travailler sans réseau est effacé ; reconnecte-toi pour continuer',
   'commun.code_requis': 'mets d\'abord en place le code sur ton téléphone : ton rôle l\'exige',
   'commun.perimee': 'cette pièce a changé depuis que tu l\'as ouverte : recharge-la avant de la modifier',
   'commun.champ_invalide': 'le champ « {champ} » ne va pas : {raison}',

@@ -27,7 +27,7 @@ dossier et leurs révisions), chiffré en AES-GCM par une clé de l'appareil que
 jamais sortir (`extractable: false`), dans la base du navigateur (`web/public/plateforme/poste.js`).
 Sans réseau, l'entreprise s'ouvre dessus, et l'entrée ouvre d'elle-même la dernière entreprise dont le
 poste a une copie. **Limite honnête** (04 § 2) : le chiffrement protège un disque volé, pas un poste
-allumé et ouvert ; la parade, c'est la révocation de l'appareil (à venir). **À VÉRIFIER** (04 § 11.2) :
+allumé et ouvert ; la parade, c'est de retirer l'appareil (brique 74, H9). **À VÉRIFIER** (04 § 11.2) :
 le stockage persistant, que Chromium n'accorde pas à une page non installée.
 
 **H4. Le bandeau dit ce qu'on voit et ce qui attend** (par délégation). Sans réseau : « Hors ligne
@@ -86,8 +86,7 @@ serveur gardée, la mienne dans ce que le dossier met de côté ; se déconnecte
 attendent : la question, « Attendre le réseau » ne perd rien, et ça part au retour.
 
 **Reste à faire** : le Cabinet hors ligne (les dossiers emportés) ; le stockage persistant demandé
-(04 § 4, À VÉRIFIER) ; la durée des droits hors ligne (04 § 7 : 72 heures) ; la révocation d'un
-appareil qui efface ses données à la reconnexion.
+(04 § 4, À VÉRIFIER) ; la durée des droits hors ligne (04 § 7 : 72 heures).
 
 **H8. Ce que le poste garde est à une personne, pas à une session** (par délégation, 30/09/2026 ; défaut
 trouvé en relisant la brique 73). Une coupure de plus de 12 heures ferme la session au serveur : à la
@@ -97,3 +96,30 @@ disait H2), les changements faits hors ligne se perdaient à ce moment précis. 
 une autre personne qui se connecte sur ce navigateur le trouve effacé. Test : la session finie au
 serveur pendant la coupure, la personne se reconnecte par l'entrée, et son client créé sans réseau
 arrive au serveur ; Amel reconnectée retrouve sa copie, Béchir connecté ensuite la trouve effacée.
+
+## Brique 74 : tes appareils ; l'appareil retiré efface ce qu'il garde (fait le 30/09/2026)
+
+**H9. Un appareil perdu, volé ou donné se retire, et oublie tout à sa reconnexion** (par délégation ;
+04 § 7, 03 § 6). Paramètres → Données et sécurité → « Tes appareils » : chaque navigateur ou
+téléphone où la personne s'est connectée, sous un nom qu'on lit (« Chrome sur Windows », donné par
+l'entrée à la connexion), sa dernière activité, celui où l'on est marqué (il ne se retire pas d'ici :
+on s'en déconnecte). « Retirer… » demande d'abord (« « Chrome sur Windows » ne pourra plus rien ouvrir,
+et ce qu'il garde s'effacera à sa prochaine connexion. »), puis « Oui, le retirer » : ses sessions se
+ferment. Quand l'appareil retiré se présente ensuite, le serveur ne dit pas seulement « connecte-toi » :
+il dit **qu'il est retiré, et d'effacer** (`effacer: true`, par l'empreinte du jeton : 0043). L'entrée
+efface alors, avant toute autre chose, ce que le poste garde (la copie, ce qui attendait le réseau,
+leur clé, la session), quel que soit l'écran qui a appelé, et le dit : « Cet appareil a été retiré de
+ton compte : ce qu'il gardait pour travailler sans réseau est effacé ; reconnecte-toi pour
+continuer. » Une session simplement finie (12 heures sans rien faire) ne reçoit jamais cet ordre : ce
+que le poste garde y reste, pour la même personne (H8). **Limite honnête** : un appareil qui ne se
+reconnecte jamais garde sa copie, chiffrée (H3) ; le retirer ne l'atteint qu'à sa reconnexion.
+**Pas encore** (brique 74 bis) : ce qui attendait le réseau sur l'appareil retiré s'efface avec le
+reste, alors que le cadrage (04 § 7) veut qu'il soit d'abord **reçu et mis en quarantaine**, pour que
+le propriétaire décide (les ventes d'une caisse retirée par erreur, ou ce qu'a fait un voleur).
+
+**Les tests** : par l'API (`tests/socle/appareils.test.ts`) — la liste ne montre que ses appareils,
+celui-ci marqué, un retiré dit ; le jeton d'un appareil retiré reçoit l'ordre d'effacer, une session
+fermée jamais ; à la souris (`tests/web/appareils.test.ts`) — le bureau voit ses trois appareils,
+retire le portable après la question ; le portable, rouvert sur son entreprise, se retrouve à
+l'entrée, sans copie ni session, et l'entrée le dit ; le Mac, retiré à son tour et rouvert par
+l'entrée, pareil, puis se reconnecte avec le code et revient comme un appareil neuf, au nom lisible.

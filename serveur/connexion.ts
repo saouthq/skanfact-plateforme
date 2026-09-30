@@ -161,6 +161,11 @@ export async function quiEst(ctx: Contexte, jeton: string): Promise<Qui | null> 
   return r ? { utilisateur: r.utilisateur, session: r.session, appareil: r.appareil, posteDUnAutre: r.poste_d_un_autre, codeAConfigurer: r.code_a_configurer } : null;
 }
 
+// Ce jeton est-il celui d'un appareil retiré (brique 74) ? L'appareil l'apprend, et efface ce qu'il garde.
+export async function jetonDUnAppareilRetire(ctx: Contexte, jeton: string): Promise<boolean> {
+  return enTantQue(ctx.pool, null, async (tx) => (await tx.query('select socle.jeton_d_un_appareil_retire($1) r', [sha256(jeton)])).rows[0].r as boolean);
+}
+
 export async function deconnecter(ctx: Contexte, qui: Qui): Promise<void> {
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
   await enTantQue(ctx.pool, qui.utilisateur, (tx) => tx.query('update socle.session set fermee_le = $1 where id = $2', [maintenant, qui.session]));

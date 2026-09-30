@@ -7523,6 +7523,7 @@
     'p-comptable': { onglet: 'envois', titre: 'Ton comptable', mots: 'comptable email adresse envoyer journaux' },
     'p-modeles': { onglet: 'envois', titre: 'Modèles de messages', mots: 'modele message objet relance rappel email gabarit variables' },
     'p-cabinet': { onglet: 'envois', titre: 'Ton cabinet comptable', mots: 'cabinet comptable expert code confier mandat livres' },
+    'p-appareils': { onglet: 'donnees', titre: 'Tes appareils', mots: 'appareil ordinateur telephone perdu vole retirer session connexion hors ligne copie', visible: () => !!bridge.dessinerAppareils },
     'p-dossiers': { onglet: 'donnees', titre: 'Dossiers — plusieurs entreprises sur cet ordinateur', mots: 'dossier entreprise changer basculer partager deux postes rejoindre poste ordinateur nom appareil machine' },
     'p-sauvegardes': { onglet: 'donnees', titre: 'Sauvegardes', mots: 'sauvegarde restaurer restauration perdu recuperer export import fichier donnees backup' },
     'p-externe': { onglet: 'donnees', titre: 'Copie externe', mots: 'copie externe icloud onedrive usb disque reseau miroir abri' },
@@ -15221,6 +15222,7 @@
       </section>
 
       <section data-pane="donnees" hidden>
+      ${bridge.dessinerAppareils ? `${panneau('p-appareils')}<div id="appareils-panel"></div></div>` : ''}
       ${panneau('p-dossiers', info('data.dossiers'))}
         <p class="small muted mb">Chaque dossier est une entreprise : ses clients, ses documents, ses achats, ses sauvegardes. Ils ne se mélangent jamais. Tu passes de l'un à l'autre en un clic, l'application se recharge.</p>
         <div id="dossiers-list"></div>
@@ -15531,6 +15533,7 @@
       };
     }
     drawCabinetPair();
+    if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));
     drawLicencePanel();
     drawEditeurPanel();
     drawUpdatePanel();

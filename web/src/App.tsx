@@ -66,7 +66,13 @@ export function App() {
   const charger = useCallback(async () => {
     try {
       const r = await appeler<Moi>('GET', '/moi');
-      if (r.statut === 401) { session.fermer(); setAccueil({ ecran: 'connexion' }); return; }
+      if (r.statut === 401) {
+        // Un appareil retiré (brique 74) : ce que le poste gardait est effacé (api.ts), et l'écran le dit.
+        if (r.corps.effacer) toast(r.corps.motif ?? '', true);
+        session.fermer();
+        setAccueil({ ecran: 'connexion' });
+        return;
+      }
       session.personne(r.corps.id);
       setMoi(r.corps);
     } catch (x) {

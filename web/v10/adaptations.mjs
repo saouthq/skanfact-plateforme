@@ -27,6 +27,26 @@ export const ADAPTATIONS = [
     avant: '  function save(immediate) {\n',
     apres: '  // (plateforme) Le point de contact relance l\'enregistrement au retour du réseau (brique 73).\n  window.__enregistrerMaintenant = () => save(true);\n  function save(immediate) {\n',
   },
+  // ── Tes appareils (brique 74 ; docs/hors-ligne.md, H9) : un panneau des Paramètres, dessiné par le
+  // point de contact (comme « Ton cabinet comptable ») ; la v10 de l'ordinateur ne l'a pas.
+  {
+    fichier: 'app.js',
+    pourquoi: 'le panneau « Tes appareils » a son entrée (onglet Données, recherche des réglages), posée seulement quand le point de contact sait le dessiner',
+    avant: "    'p-dossiers': { onglet: 'donnees',",
+    apres: "    'p-appareils': { onglet: 'donnees', titre: 'Tes appareils', mots: 'appareil ordinateur telephone perdu vole retirer session connexion hors ligne copie', visible: () => !!bridge.dessinerAppareils },\n    'p-dossiers': { onglet: 'donnees',",
+  },
+  {
+    fichier: 'app.js',
+    pourquoi: 'le panneau « Tes appareils » se pose en tête de l\'onglet Données',
+    avant: "      ${panneau('p-dossiers', info('data.dossiers'))}\n",
+    apres: "      ${bridge.dessinerAppareils ? `${panneau('p-appareils')}<div id=\"appareils-panel\"></div></div>` : ''}\n      ${panneau('p-dossiers', info('data.dossiers'))}\n",
+  },
+  {
+    fichier: 'app.js',
+    pourquoi: 'le point de contact dessine « Tes appareils » quand les Paramètres s\'ouvrent',
+    avant: '    drawCabinetPair();\n    drawLicencePanel();\n',
+    apres: "    drawCabinetPair();\n    if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));\n    drawLicencePanel();\n",
+  },
   {
     fichier: 'app.js',
     pourquoi: 'la fin du même objet : le pont de la plateforme se pose par-dessus le repli',

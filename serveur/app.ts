@@ -12,7 +12,7 @@ import { enTantQue, type Transaction } from './base.ts';
 import { texteDuRefus } from './erreurs.ts';
 import { cleValable } from './cles.ts';
 import { Limiteur } from './limites.ts';
-import { quiEst, type Contexte, type Qui } from './connexion.ts';
+import { jetonDUnAppareilRetire, quiEst, type Contexte, type Qui } from './connexion.ts';
 import { GESTES, GESTES_PERSONNELS } from './porte/gestes.ts';
 import { peut } from './porte/porte.ts';
 import { nomDuChamp, raison } from './validation.ts';
@@ -155,7 +155,11 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
         const qui: Qui | null = cle
           ? { utilisateur: cle.creePar, session: '', appareil: null, posteDUnAutre: false, codeAConfigurer: false, cle: { id: cle.id, gestes: cle.gestes } }
           : jeton ? await quiEst(ctx, jeton) : null;
-        if (!qui) return envoyer(401, { motif: motif('commun.connexion_requise'), bouton: 'connexion' });
+        if (!qui) {
+          // Un appareil retiré l'apprend à sa reconnexion : il efface ce qu'il garde (04 § 7, brique 74).
+          if (jeton && !cle && await jetonDUnAppareilRetire(ctx, jeton)) return envoyer(401, { motif: motif('connexion.appareil_retire'), bouton: 'connexion', effacer: true });
+          return envoyer(401, { motif: motif('commun.connexion_requise'), bouton: 'connexion' });
+        }
         // Une clé n'est pas une personne : son compte, ses appareils, ses invitations ne la regardent pas.
         if (qui.cle && !GESTES.has(r.geste)) return envoyer(403, { motif: motif('porte.cle_personnelle'), qui: [], bouton: null });
 

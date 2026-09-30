@@ -4140,6 +4140,44 @@ prouver "une session finie qui efface ce qui attendait le réseau" web/src/api.t
     ecrire('skanfact.jeton', j, sessionStorage);" \
   "$HE5"
 
+# ── Brique 74 : tes appareils ; l'appareil retiré efface ce qu'il garde (docs/hors-ligne.md, H9) ──
+AP1="la liste : les siens seulement, celui-ci marqué ; retiré, il le dit, et son jeton reçoit l'ordre d'effacer"
+AW1="le bureau retire le portable perdu ; le portable, à sa reconnexion, efface ce qu'il gardait, et l'entrée le dit"
+prouver "une session simplement fermée qui reçoit l'ordre d'effacer" base/migrations/0043_appareils_retires.sql \
+  "where s.jeton_empreinte = p_jeton_empreinte and a.revoque_le is not null)" "where s.jeton_empreinte = p_jeton_empreinte)" \
+  "$AP1"
+prouver "l'appareil retiré jamais averti" serveur/app.ts \
+  "          if (jeton && !cle && await jetonDUnAppareilRetire(ctx, jeton)) return envoyer(401, { motif: motif('connexion.appareil_retire'), bouton: 'connexion', effacer: true });
+" "" \
+  "$AP1"
+prouver "l'appareil où l'on est jamais marqué" serveur/routes/socle.ts \
+  "celuiCi: a.id === qui.appareil" "celuiCi: false" \
+  "$AP1"
+prouver "un appareil retiré que la liste ne dit pas" serveur/routes/socle.ts \
+  "retireLe: a.revoque_le ? a.revoque_le.toISOString() : null" "retireLe: null" \
+  "$AP1"
+prouver "l'appareil retiré qui garde ce qu'il gardait" web/src/api.ts \
+  "  if (r.status === 401 && lu.effacer) session.quitter();
+" "" \
+  "$AW1"
+prouver "l'entrée qui tait que l'appareil est retiré" web/src/App.tsx \
+  "        if (r.corps.effacer) toast(r.corps.motif ?? '', true);
+" "" \
+  "$AW1"
+prouver "retirer un appareil sans demander" $PONT \
+  "        if (!bouton.dataset.confirme) {" "        if (false) {" \
+  "$AW1"
+prouver "retirer l'appareil où l'on est" $PONT \
+  "\${a.celuiCi || a.retireLe ? '' :" "\${a.retireLe ? '' :" \
+  "$AW1"
+prouver "le nom d'un appareil illisible (la signature du navigateur)" web/src/ecrans/Connexion.tsx \
+  "appareil: { nom: nomDeCetAppareil(), type: 'navigateur'" "appareil: { nom: navigator.userAgent.slice(0, 80) || 'Navigateur', type: 'navigateur'" \
+  "$AW1"
+prouver "le panneau « Tes appareils » absent des Paramètres" web/public/v10/app.js \
+  "    if (bridge.dessinerAppareils && \$('#appareils-panel')) void bridge.dessinerAppareils(\$('#appareils-panel'));
+" "" \
+  "$AW1"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

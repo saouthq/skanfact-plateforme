@@ -107,6 +107,25 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
     },
   });
 
+  // Ses appareils (brique 74) : chacun, son nom, sa dernière activité, s'il est retiré ; celui qui
+  // demande est marqué. La base ne montre que les siens.
+  ajouter({
+    methode: 'GET', chemin: '/moi/appareils', geste: 'compte.appareils.gerer',
+    traiter: async ({ qui }, tx) => {
+      if (!qui || !tx) throw new Error('session attendue');
+      const r = await tx.query(`select a.id, a.nom, a.type, a.premier_vu, a.revoque_le,
+          (select max(s.derniere_activite) from socle.session s where s.appareil = a.id) derniere_activite
+        from socle.appareil a order by a.revoque_le nulls first, a.premier_vu desc limit 100`);
+      return {
+        corps: {
+          appareils: (r.rows as { id: string; nom: string; type: string; premier_vu: Date; revoque_le: Date | null; derniere_activite: Date | null }[]).map((a) => ({
+            id: a.id, nom: a.nom, type: a.type, premierVu: a.premier_vu.toISOString(), retireLe: a.revoque_le ? a.revoque_le.toISOString() : null,
+            derniereActivite: a.derniere_activite ? a.derniere_activite.toISOString() : null, celuiCi: a.id === qui.appareil,
+          })),
+        },
+      };
+    },
+  });
   ajouter({
     methode: 'DELETE', chemin: '/moi/appareils/:appareil', geste: 'compte.appareils.gerer',
     traiter: async ({ qui, params }) => {

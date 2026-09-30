@@ -12,6 +12,14 @@ export type Defi = { defi: string; methode: 'sms' | 'application'; posteDUnAutre
 type Props = { connecte: () => void; code: (d: Defi) => void; inscription: () => void };
 const rien = () => undefined;
 
+// Le nom de cet appareil, lisible dans « Tes appareils » (brique 74) : « Chrome sur Windows ».
+function nomDeCetAppareil() {
+  const n = navigator.userAgent;
+  const nav = /Edg\//.test(n) ? 'Edge' : /Firefox\//.test(n) ? 'Firefox' : /Chrome\//.test(n) ? 'Chrome' : /Safari\//.test(n) ? 'Safari' : 'Navigateur';
+  const os = /Android/.test(n) ? 'Android' : /iPhone|iPad/.test(n) ? 'iPhone' : /Windows/.test(n) ? 'Windows' : /Mac OS X|Macintosh/.test(n) ? 'Mac' : /Linux/.test(n) ? 'Linux' : '';
+  return os ? `${nav} sur ${os}` : nav;
+}
+
 export function Connexion({ connecte, code, inscription }: Props) {
   const g = useGeste(rien);
   const [email, setEmail] = useState('');
@@ -23,7 +31,7 @@ export function Connexion({ connecte, code, inscription }: Props) {
     let r;
     try {
       r = await appeler<{ etat: string; jeton?: string; defi?: string; methode?: 'sms' | 'application'; appareil?: string | null }>('POST', '/connexion', {
-        email, motDePasse, posteDUnAutre, appareil: { nom: navigator.userAgent.slice(0, 80) || 'Navigateur', type: 'navigateur', ...(appareil ? { id: appareil } : {}) },
+        email, motDePasse, posteDUnAutre, appareil: { nom: nomDeCetAppareil(), type: 'navigateur', ...(appareil ? { id: appareil } : {}) },
       });
     } catch (x) { g.refuser({ texte: phrase(x instanceof ErreurReseau ? 'ecran.erreur_reseau' : 'ecran.erreur_serveur'), champ: null }); return; }
     if (r.corps.etat === 'connecte' && r.corps.jeton) {

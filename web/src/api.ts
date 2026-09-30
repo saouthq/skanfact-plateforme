@@ -5,7 +5,7 @@
 // pas redemander le code pendant 30 jours.
 import { LANGUE } from './langue.ts';
 
-export type Reponse<T = Record<string, unknown>> = { statut: number; corps: T & { motif?: string; champ?: string | null; raison?: string; bouton?: string | null } };
+export type Reponse<T = Record<string, unknown>> = { statut: number; corps: T & { motif?: string; champ?: string | null; raison?: string; bouton?: string | null; effacer?: boolean } };
 
 const lire = (cle: string, ou: Storage) => { try { return ou.getItem(cle); } catch { return null; } };
 const ecrire = (cle: string, v: string | null, ou: Storage) => { try { if (v === null) ou.removeItem(cle); else ou.setItem(cle, v); } catch { /* stockage refusé : la session vit en mémoire */ } };
@@ -55,5 +55,9 @@ export async function appeler<T = Record<string, unknown>>(methode: 'GET' | 'POS
     throw new ErreurReseau();
   }
   const texte = await r.text();
-  return { statut: r.status, corps: (texte ? JSON.parse(texte) : {}) as Reponse<T>['corps'] };
+  const lu = (texte ? JSON.parse(texte) : {}) as Reponse<T>['corps'];
+  // Un appareil retiré (brique 74 ; docs/hors-ligne.md, H9) : ce que le poste garde s'efface ici, avant
+  // toute autre chose, quel que soit l'écran qui a appelé.
+  if (r.status === 401 && lu.effacer) session.quitter();
+  return { statut: r.status, corps: lu };
 }
