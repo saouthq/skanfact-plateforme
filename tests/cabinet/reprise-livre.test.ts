@@ -38,11 +38,14 @@ async function personne(prefixe: string) {
 }
 
 type Livre = { ecritures: { id: string; lignes: { lettre: string }[] }[]; releves: unknown[]; questions: unknown[] };
+const EMPREINTE_AVRIL = 'a1'.repeat(32);
 const KC = ecranDeLaPlateforme('compta.js') as {
   livreVide: (id: string, annee: number, o: Record<string, unknown>) => Livre;
   ajouterEcriture: (l: Livre, e: Record<string, unknown>, qui: string, quand: number) => { id: string };
   validerEcriture: (l: Livre, id: string, qui: string, quand: number) => { ok: boolean; motif?: string };
   lettrer: (l: Livre, compte: string, ids: string[], lettre: string, qui: string, jour: string) => { ok: boolean; lettre?: string; motif?: string };
+  ajouterReleve: (l: Livre, r: Record<string, unknown>, qui: string, quand: number) => { ok: boolean; releve?: { id: string }; motif?: string };
+  rapprocherAuto: (l: Livre, releve: string, o: Record<string, unknown>) => { ok: boolean; compte: Record<string, number> };
   lignesDuLivre: (l: Livre, o?: Record<string, unknown>) => unknown[];
   balanceDepuisLignes: (lignes: unknown[], ouverture: unknown, libelle?: unknown) => { rows: { account: string; debit: number; credit: number }[] } | { account: string; debit: number; credit: number }[];
 };
@@ -57,7 +60,9 @@ afterAll(async () => { await app.close(); await admin.end(); await pool.end(); }
 
 // Un livre de 2025 tel que la v10 l'écrit : des à-nouveaux, une facture et son encaissement validés
 // (montants au millime qui discriminent un arrondi), un achat au brouillard, la facture et son
-// encaissement lettrés « A » sur le 411 (par le geste de la v10 : les lignes du compte, sa lettre).
+// encaissement lettrés « A » sur le 411 (par le geste de la v10 : les lignes du compte, sa lettre), et le
+// relevé d'avril du 532 importé puis rapproché par la v10 : le virement de l'Hôtel du Lac en face de
+// l'encaissement (certain), les frais de tenue de compte sans rien en face.
 function livreDe2025() {
   const L = KC.livreVide('D', 2025, {});
   const poser = (e: Record<string, unknown>, valider: boolean) => {
@@ -70,7 +75,10 @@ function livreDe2025() {
   const enc = poser({ date: '2025-04-02', journal: 'BQ', piece: 'VIR-88', libelle: 'Encaissement Hôtel du Lac', lignes: [{ compte: '532', debit: 1191.001 }, { compte: '411', tiers: 'Hôtel du Lac', credit: 1191.001 }] }, true);
   poser({ date: '2025-05-20', journal: 'AC', piece: 'FF-77', libelle: 'Papeterie', lignes: [{ compte: '6064', debit: 84.034 }, { compte: '4366', debit: 15.966 }, { compte: '401', credit: 100 }] }, false);
   expect(KC.lettrer(L, '411', [fac.id, enc.id], '', 'Leila', '2025-06-03')).toEqual({ ok: true, lettre: 'A' });
-  L.releves.push({ id: 'r1' });
+  const rel = KC.ajouterReleve(L, { compte: '532', banque: 'BIAT', fichier: 'releve-avril.csv', empreinte: EMPREINTE_AVRIL, soldeDebut: 12500.125, soldeFin: 13678.626,
+    lignes: [{ date: '2025-04-02', libelle: 'VIR HOTEL DU LAC', montant: 1191.001, reference: 'VIR-88' }, { date: '2025-04-30', libelle: 'FRAIS TENUE DE COMPTE', montant: -12.5, reference: '' }] }, 'Leila', Date.UTC(2025, 4, 5));
+  expect(rel.ok).toBe(true);
+  expect(KC.rapprocherAuto(L, rel.releve?.id ?? '', { date: '2025-05-05' }).compte).toMatchObject({ certain: 1, aucun: 1 });
   L.questions.push({ id: 'q1' }, { id: 'q2' });
   return L;
 }
@@ -89,8 +97,9 @@ describe('la reprise d\'un livre du Cabinet v10 : l\'essai à blanc', () => {
       journaux: { AN: { ecritures: 1, validees: 1, dernierNumero: 1 }, VT: { ecritures: 1, validees: 1, dernierNumero: 2 }, BQ: { ecritures: 1, validees: 1, dernierNumero: 3 }, AC: { ecritures: 1, validees: 0, dernierNumero: null } },
       totaux: { debit: '14882.127', credit: '14882.127' },
       lettrages: 1,
+      releves: { total: 1, lignes: 2, rapprochees: 1 },
       anomalies: [],
-      autour: { releves: 1, questions: 2, immobilisations: 0 },
+      autour: { questions: 2, immobilisations: 0 },
     });
     // Deux chemins, un chiffre : la balance du serveur est celle que la v10 calcule sur le même livre.
     const b = KC.balanceDepuisLignes(KC.lignesDuLivre(L), {});
@@ -171,6 +180,41 @@ describe('la reprise d\'un livre du Cabinet v10 : l\'essai à blanc', () => {
       ['OD-7', 'La lettre D ne relie qu\'une écriture : un lettrage en relie au moins deux.'],
     ]);
   });
+
+  it('un relevé qui ne se reprendrait pas tel quel est nommé : ne se boucle pas, sans compte, une ligne illisible, deux fois le même fichier, un rapprochement faux ou pris deux fois', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Ennour' })).corps.id);
+    type R = { id: string; compte: string; fichier: string; empreinte: string; soldeDebut: number; soldeFin: number; du: string;
+      lignes: { date: string; montant: number; rapprochement: { niveau: string; ecritureId: string; ligne: number } }[] };
+    const L = JSON.parse(JSON.stringify(livreDe2025())) as { ecritures: { id: string; piece: string }[]; releves: R[] };
+    const [bon] = L.releves;
+    const vt = L.ecritures.find((e) => e.piece === 'FAC-2025-014');
+    if (!bon || !vt) throw new Error('livre incomplet');
+    const copie = (x: Partial<R>): R => ({ ...JSON.parse(JSON.stringify(bon)) as R, ...x });
+    // Le même virement rapproché une seconde fois, et un solde de fin faux d'un millime.
+    L.releves.push(copie({ id: 'r2', fichier: 'releve-avril-bis.csv', empreinte: 'b2'.repeat(32), soldeFin: 13678.627 }));
+    // Sans compte, un solde de départ à quatre décimales ; une ligne aussi (le bouclage ne se juge pas sans elles).
+    L.releves.push(copie({ id: 'r3', compte: '', fichier: 'releve-sans-compte.csv', empreinte: 'c3'.repeat(32), soldeDebut: 0.0001,
+      lignes: [{ date: '2025-05-02', montant: 1.2345, rapprochement: { niveau: 'aucun', ecritureId: '', ligne: -1 } }] }));
+    // Le fichier d'avril une seconde fois ; sa ligne rapprochée du 707 de la facture.
+    L.releves.push(copie({ id: 'r4', fichier: 'releve-avril-copie.csv', soldeDebut: 0, soldeFin: 5,
+      lignes: [{ date: '2025-03-14', montant: 5, rapprochement: { niveau: 'certain', ecritureId: vt.id, ligne: 1 } }] }));
+    // Un relevé sans aucune ligne.
+    L.releves.push(copie({ id: 'r5', fichier: 'releve-vide.csv', empreinte: 'd4'.repeat(32), soldeDebut: 10, soldeFin: 10, lignes: [] }));
+    const r = await appeler('POST', `/cabinets/${cabinet}/reprise/livre/essai`, associe.jeton, { livre: L });
+    expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+    expect(r.corps.releves).toEqual({ total: 5, lignes: 5, rapprochees: 1 });   // la ligne illisible ne compte pas
+    expect((r.corps.anomalies as { piece: string; motif: string }[]).map((x) => [x.piece, x.motif])).toEqual([
+      ['releve-avril-bis.csv', 'La ligne 1 de ce relevé est rapprochée d\'une ligne d\'écriture qui répond déjà d\'une autre ligne de relevé.'],
+      ['releve-avril-bis.csv', 'Ce relevé ne se boucle pas : 12500.125 au départ, 1178.501 de mouvements, et il annonce 13678.627.'],
+      ['releve-sans-compte.csv', 'Un solde de ce relevé ne se lit pas au millime.'],
+      ['releve-sans-compte.csv', 'Ce relevé n\'a pas de compte bancaire qui s\'écrive en chiffres.'],
+      ['releve-sans-compte.csv', 'La ligne 1 de ce relevé n\'a pas de date ou de montant lisible au millime.'],
+      ['releve-avril-copie.csv', 'Ce relevé est deux fois dans le livre (le même fichier).'],
+      ['releve-avril-copie.csv', 'La ligne 1 de ce relevé est rapprochée d\'une ligne d\'écriture qui n\'est pas dans le livre sur le compte 532.'],
+      ['releve-vide.csv', 'Ce relevé ne porte aucune ligne.'],
+    ]);
+  });
 });
 
 describe('la reprise d\'un livre du Cabinet v10 : l\'écriture dans un dossier tenu', () => {
@@ -189,9 +233,30 @@ describe('la reprise d\'un livre du Cabinet v10 : l\'écriture dans un dossier t
     // Une validée APRÈS le brouillard de mai : la période ne se valide que jusqu'à la veille du brouillard.
     livre.ecritures.push({ id: 'e-od', numero: 4, statut: 'validee', date: '2025-07-31', journal: 'OD', piece: 'OD-7', libelle: 'Loyer de juillet',
       lignes: [{ compte: '6132', debit: 850.5, credit: 0 }, { compte: '401', debit: 0, credit: 850.5 }] });
+    // Une ligne vide en tête de l'encaissement (la v10 en garde) : le rapprochement cite la place de la
+    // ligne dans la v10 (la 2e), qui est la 1re écrite. Et un jugement « à confirmer » gardé sur les frais.
+    const ecr = livre.ecritures as { piece: string; lignes: Record<string, unknown>[] }[];
+    ecr.find((e) => e.piece === 'VIR-88')?.lignes.unshift({ compte: '', debit: 0, credit: 0 });
+    const rel = (livre as unknown as { releves: { lignes: { rapprochement: { ligne: number; niveau: string } }[] }[] }).releves[0];
+    if (!rel?.lignes[0] || !rel.lignes[1]) throw new Error('relevé incomplet');
+    rel.lignes[0].rapprochement.ligne += 1;
+    rel.lignes[1].rapprochement.niveau = 'a-confirmer';
     const r = await appeler('POST', `/cabinets/${cabinet}/reprise/livre`, associe.jeton, { dossier, livre });
     expect(r.statut, JSON.stringify(r.corps)).toBe(201);
-    expect(r.corps).toMatchObject({ validees: 4, brouillard: 1, lettrages: 1, lettres: [], jusqua: '2025-05-19' });
+    expect(r.corps).toMatchObject({ validees: 4, brouillard: 1, lettrages: 1, lettres: [], releves: 1, rapprochees: 1, jusqua: '2025-05-19' });
+    expect(r.corps.ids).toBeUndefined();
+    // Le relevé d'avril, tel que la banque de la plateforme le lit : ses soldes, ses lignes, le virement
+    // rapproché de la ligne du 532 de l'encaissement (posé par l'automatique), les frais « à confirmer ».
+    const rv = (await appeler('GET', `/entreprises/${dossier}/compta/releves?annee=2025`, associe.jeton)).corps.releves as {
+      compte: string; banque: string; du: string; au: string; soldeDebut: string; soldeFin: string; fichier: string; empreinte: string;
+      lignes: { rang: number; montant: string; niveau: string; rapprochement: { ecriture: string; rang: number; niveau: string; auto: boolean } | null }[] }[];
+    expect(rv.map(({ lignes, ...x }) => ({ ...x, lignes: lignes.map((l) => ({ ...l, rapprochement: l.rapprochement && { ...l.rapprochement, ecriture: typeof l.rapprochement.ecriture } })) }))).toMatchObject([{
+      compte: '532', banque: 'BIAT', du: '2025-04-02', au: '2025-04-30', soldeDebut: '12500.125', soldeFin: '13678.626', fichier: 'releve-avril.csv', empreinte: EMPREINTE_AVRIL,
+      lignes: [{ rang: 1, montant: '1191.001', niveau: 'aucun', rapprochement: { ecriture: 'string', rang: 1, niveau: 'certain', auto: true } },
+        { rang: 2, montant: '-12.500', niveau: 'a-confirmer', rapprochement: null }],
+    }]);
+    const vir = (await admin.query(`select id from compta.ecriture where entreprise = $1 and piece = 'VIR-88'`, [dossier])).rows[0].id;
+    expect(rv[0]?.lignes[0]?.rapprochement?.ecriture).toBe(vir);
     expect(await livres(dossier, associe.jeton)).toEqual([
       ['AN', 'validee', 'AN-2025-000001'], ['FAC-2025-014', 'validee', 'VT-2025-000002'], ['FF-77', 'brouillard', null], ['OD-7', 'validee', 'OD-2025-000004'],
       ['VIR-88', 'validee', 'BQ-2025-000003'],
@@ -232,9 +297,13 @@ describe('la reprise d\'un livre du Cabinet v10 : l\'écriture dans un dossier t
     const r2 = poser({ date: '2026-01-25', journal: 'BQ', piece: 'VIR-102', libelle: 'Règlement Minoterie', lignes: [{ compte: '401', debit: 500.25 }, { compte: '532', credit: 500.25 }] });
     expect(KC.lettrer(L, '411', [f1, r1], '', 'Leila', '2026-02-03').lettre).toBe('A');
     expect(KC.lettrer(L, '401', [f2, r2], '', 'Leila', '2026-02-03').lettre).toBe('B');
+    // Un relevé sans l'empreinte de son fichier (saisi sans fichier) : il prend celle de son contenu.
+    expect(KC.ajouterReleve(L, { compte: '532', soldeDebut: 0, soldeFin: 238, lignes: [{ date: '2026-01-20', libelle: 'VIR CLIENT', montant: 238 }] }, 'Leila', Date.UTC(2026, 1, 3)).ok).toBe(true);
     const r = await appeler('POST', `/cabinets/${cabinet}/reprise/livre`, associe.jeton, { dossier, livre: JSON.parse(JSON.stringify(L)) });
     expect(r.statut, JSON.stringify(r.corps)).toBe(201);
-    expect(r.corps).toMatchObject({ validees: 4, lettrages: 2, lettres: [{ v10: 'A', lettre: 'C' }] });
+    expect(r.corps).toMatchObject({ validees: 4, lettrages: 2, lettres: [{ v10: 'A', lettre: 'C' }], releves: 1 });
+    const sansEmpreinte = (await appeler('GET', `/entreprises/${dossier}/compta/releves?annee=2026`, associe.jeton)).corps.releves as { empreinte: string }[];
+    expect(sansEmpreinte.map((x) => x.empreinte)).toEqual([expect.stringMatching(/^[0-9a-f]{64}$/)]);
     expect(await lettres(dossier)).toEqual([
       ['A', '411', 'FAC-2025-014'], ['A', '411', 'VIR-88'], ['B', '401', 'FF-201'], ['B', '401', 'VIR-102'], ['C', '411', 'FAC-2026-001'], ['C', '411', 'VIR-101'],
     ]);
@@ -245,6 +314,22 @@ describe('la reprise d\'un livre du Cabinet v10 : l\'écriture dans un dossier t
     expect((await appeler('POST', `/entreprises/${dossier}/compta/ecritures/valider`, associe.jeton, { ids: [f3, r3] })).statut).toBe(200);
     const lt = await appeler('POST', `/entreprises/${dossier}/compta/lettrages`, associe.jeton, { compte: '411', ecritures: [f3, r3] });
     expect([lt.statut, lt.corps.lettre], JSON.stringify(lt.corps)).toEqual([201, 'D']);
+  });
+
+  it('le relevé d\'une année déjà repris avec une autre : refusé en le disant, rien d\'écrit', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Ennour' })).corps.id);
+    const dossier = String((await appeler('POST', `/cabinets/${cabinet}/dossiers`, associe.jeton, { raisonSociale: 'Boulangerie Ennour' })).corps.entreprise);
+    expect((await appeler('POST', `/cabinets/${cabinet}/reprise/livre`, associe.jeton, { dossier, livre: JSON.parse(JSON.stringify(livreDe2025())) })).statut).toBe(201);
+    // Le livre de 2026 de la v10 a importé, lui aussi, le relevé d'avril 2025.
+    const L = KC.livreVide('D', 2026, {});
+    const x = KC.ajouterEcriture(L, { date: '2026-01-10', journal: 'OD', piece: 'OD-1', libelle: 'Loyer', lignes: [{ compte: '6132', debit: 850.5 }, { compte: '401', credit: 850.5 }] }, 'Leila', Date.UTC(2026, 1, 1));
+    expect(KC.validerEcriture(L, x.id, 'Leila', Date.UTC(2026, 1, 2)).ok).toBe(true);
+    expect(KC.ajouterReleve(L, { compte: '532', fichier: 'releve-avril.csv', empreinte: EMPREINTE_AVRIL, soldeDebut: 12500.125, soldeFin: 13678.626,
+      lignes: [{ date: '2025-04-02', libelle: 'VIR HOTEL DU LAC', montant: 1191.001 }, { date: '2025-04-30', libelle: 'FRAIS', montant: -12.5 }] }, 'Leila', Date.UTC(2026, 1, 3)).ok).toBe(true);
+    const r = await appeler('POST', `/cabinets/${cabinet}/reprise/livre`, associe.jeton, { dossier, livre: JSON.parse(JSON.stringify(L)) });
+    expect([r.statut, r.corps.motif]).toMatchObject([403, expect.stringMatching(/^Ce fichier a déjà été importé le \d{2}\/\d{2}\/\d{4} \(02\/04\/2025 → 30\/04\/2025\)\.$/)]);
+    expect((await admin.query(`select count(*)::int n from compta.ecriture where entreprise = $1 and date_ecriture >= '2026-01-01'`, [dossier])).rows[0].n).toBe(0);
   });
 
   it('la base refait les contrôles de chaque lettre : un livre envoyé sans l\'essai ne pose pas un lettrage faux', async () => {
@@ -273,7 +358,7 @@ describe('la reprise d\'un livre du Cabinet v10 : l\'écriture dans un dossier t
     const abime = JSON.parse(JSON.stringify(livreDe2025())) as { ecritures: { journal: string }[] };
     if (abime.ecritures[3]) abime.ecritures[3].journal = 'BQ2';
     const r = await appeler('POST', `/cabinets/${cabinet}/reprise/livre`, associe.jeton, { dossier, livre: abime });
-    expect([r.statut, r.corps.motif]).toEqual([400, 'Des écritures de ce livre ne se reprendraient pas telles quelles (1) : le rapport les nomme, écriture par écriture ; rien n\'a été écrit.']);
+    expect([r.statut, r.corps.motif]).toEqual([400, 'Ce livre ne se reprend pas tel quel : le rapport nomme ce qui l\'empêche (1), un point après l\'autre ; rien n\'a été écrit.']);
     expect(((r.corps.rapport as { anomalies: unknown[] }).anomalies).length).toBe(1);
     expect(await livres(dossier, associe.jeton)).toEqual([]);
     // Un client sur SkanFact : la reprise ne s'écrit pas dans ses livres.

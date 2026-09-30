@@ -5,6 +5,7 @@
 // reprise (08 § 2.1). Chaque montant se relit en millimes exacts ; ce qui ne se reprendrait pas tel quel
 // est nommé, écriture par écriture, avec sa raison — jamais corrigé en silence.
 
+import { createHash } from 'node:crypto';
 import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import { estJour } from '../v10/lecture.ts';
 import { motif, type Texte } from '../../textes/index.ts';
@@ -29,12 +30,26 @@ function montant(v: unknown): bigint | null {
   try { return depuisTexte(t, 3); } catch { return null; }
 }
 
-export type LigneReprise = { compte: string; libelle: string; tiers: string; debit: bigint; credit: bigint; lettre: string };
+// `rangV10` : la place de la ligne dans l'écriture de la v10 (lignes vides comprises) — c'est elle que
+// citent les rapprochements des relevés.
+export type LigneReprise = { compte: string; libelle: string; tiers: string; debit: bigint; credit: bigint; lettre: string; rangV10: number };
 export type EcritureReprise = {
   refV10: string; date: string; journal: string; piece: string; libelle: string; source: string;
   statut: 'brouillard' | 'validee'; numeroV10: number | null; lignes: LigneReprise[];
 };
 export type Anomalie = { ecriture: string; piece: string; date: string; motif: Texte };
+// Un relevé bancaire du livre (brique 66) : ses lignes au sens de la banque (positif : l'argent entre),
+// et pour chacune ce qui lui répond dans le livre (une écriture de la v10 et la place de sa ligne) ou le
+// jugement de l'automatique quand il n'a pas tranché.
+export type LigneReleveReprise = {
+  date: string; libelle: string; reference: string; montant: bigint;
+  face: { ecriture: string; rangV10: number; niveau: 'certain' | 'probable' | 'a-confirmer'; auto: boolean } | null;
+  niveau: 'aucun' | 'probable' | 'a-confirmer';
+};
+export type ReleveReprise = {
+  refV10: string; compte: string; banque: string; fichier: string; empreinte: string; du: string; au: string;
+  soldeDebut: bigint; soldeFin: bigint; lignes: LigneReleveReprise[];
+};
 export type LivreLu = {
   annee: number; du: string; au: string; clos: boolean;
   ecritures: EcritureReprise[]; anomalies: Anomalie[];
@@ -42,6 +57,8 @@ export type LivreLu = {
   autour: Record<string, number>;
   // Les lettrages du livre (une lettre, ses lignes) : repris avec les écritures (brique 65).
   lettrages: number;
+  // Les relevés bancaires et leurs rapprochements (brique 66).
+  releves: ReleveReprise[];
 };
 
 // Lire un livre de la v10. Rend `null` si ce n'est pas un livre du tout (le rapport le dit).
@@ -64,13 +81,13 @@ export function lireLivreV10(o: unknown): LivreLu | null {
     };
     const nomme = (m: Texte) => anomalies.push({ ecriture: e.refV10, piece: e.piece, date: e.date, motif: m });
     let lisible = true, unCote = true;
-    for (const l of liste(x.lignes)) {
+    for (const [rangV10, l] of liste(x.lignes).entries()) {
       if (!estObjet(l)) continue;
       const debit = montant(l.debit), credit = montant(l.credit);
       if (debit === null || credit === null || debit < 0n || credit < 0n) { lisible = false; continue; }
       if (debit === 0n && credit === 0n && !String(l.compte ?? '').trim()) continue;   // une ligne vide
       if ((debit > 0n) === (credit > 0n)) unCote = false;
-      e.lignes.push({ compte: String(l.compte ?? '').trim(), libelle: texte(l.libelle), tiers: texte(l.tiers, 200), debit, credit, lettre: texte(l.lettre, 20) });
+      e.lignes.push({ compte: String(l.compte ?? '').trim(), libelle: texte(l.libelle), tiers: texte(l.tiers, 200), debit, credit, lettre: texte(l.lettre, 20), rangV10 });
     }
     if (!lisible) nomme(motif('reprise.montant'));
     if (!unCote) nomme(motif('reprise.un_cote'));
@@ -110,12 +127,73 @@ export function lireLivreV10(o: unknown): LivreLu | null {
     else if (g.ecritures.size < 2) nomme(motif('reprise.lettre_seule', { lettre }));
     else if (g.solde !== 0n) nomme(motif('reprise.lettre_solde', { lettre, reste: versTexte(g.solde, 3) }));
   }
+  const releves = lireReleves(liste(o.releves), ecritures, anomalies);
   const autour: Record<string, number> = {
-    releves: liste(o.releves).length, immobilisations: liste(o.immobilisations).length, declarations: liste(o.declarations).length,
+    immobilisations: liste(o.immobilisations).length, declarations: liste(o.declarations).length,
     inventaires: liste(o.inventaires).length, revisions: liste(o.revisions).length, questions: liste(o.questions).length,
     salaries: liste(o.salaries).length, bulletins: liste(o.bulletins).length,
   };
-  return { annee, du, au, clos: ex.clos === true, ecritures, anomalies, autour, lettrages: groupes.size };
+  return { annee, du, au, clos: ex.clos === true, ecritures, anomalies, autour, lettrages: groupes.size, releves };
+}
+
+const NIVEAUX_POSES = ['certain', 'probable', 'a-confirmer'] as const;
+const NIVEAUX_JUGES = ['probable', 'a-confirmer'] as const;
+
+// Les relevés bancaires du livre (brique 66), lus comme la banque de la plateforme les importe (0023) :
+// un compte, des lignes lisibles au millime, un relevé qui se BOUCLE (solde de début + mouvements =
+// solde de fin), un fichier qui n'est pas deux fois dans le livre ; et chaque rapprochement vers une
+// ligne d'écriture du livre qui touche le compte du relevé, jamais deux fois la même. Ce qui ne passe
+// pas est nommé au relevé (son fichier, son premier jour).
+function lireReleves(brut: unknown[], ecritures: EcritureReprise[], anomalies: Anomalie[]): ReleveReprise[] {
+  const parRef = new Map(ecritures.map((e) => [e.refV10, e]));
+  const empreintes = new Set<string>();
+  const faces = new Set<string>();
+  const releves: ReleveReprise[] = [];
+  for (const x of brut) {
+    if (!estObjet(x)) continue;
+    const lignesV10 = liste(x.lignes).filter(estObjet);
+    const empreinte = /^[0-9a-f]{64}$/.test(String(x.empreinte ?? '')) ? String(x.empreinte)
+      // Un relevé sans l'empreinte de son fichier : celle de son contenu, pour qu'il ne s'importe pas deux fois.
+      : createHash('sha256').update(JSON.stringify({ compte: x.compte, soldeDebut: x.soldeDebut, soldeFin: x.soldeFin, lignes: lignesV10.map((l) => [l.date, l.libelle, l.montant, l.reference]) })).digest('hex');
+    const r: ReleveReprise = {
+      refV10: texte(x.id, 200), compte: String(x.compte ?? '').trim(), banque: texte(x.banque, 60), fichier: texte(x.fichier, 200), empreinte,
+      du: texte(x.du, 10), au: texte(x.au, 10), soldeDebut: 0n, soldeFin: 0n, lignes: [],
+    };
+    const nomme = (m: Texte) => anomalies.push({ ecriture: r.refV10, piece: r.fichier || r.compte, date: r.du, motif: m });
+    const debut = montant(x.soldeDebut), fin = montant(x.soldeFin);
+    if (debut === null || fin === null) nomme(motif('reprise.releve_solde'));
+    r.soldeDebut = debut ?? 0n; r.soldeFin = fin ?? 0n;
+    if (!COMPTE.test(r.compte)) nomme(motif('reprise.releve_compte'));
+    if (!lignesV10.length) nomme(motif('reprise.releve_vide'));
+    if (empreintes.has(empreinte)) nomme(motif('reprise.releve_double'));
+    empreintes.add(empreinte);
+    for (const [i, l] of lignesV10.entries()) {
+      const m = montant(l.montant);
+      if (m === null || !estJour(l.date)) { nomme(motif('reprise.releve_ligne', { n: String(i + 1) })); continue; }
+      const ligne: LigneReleveReprise = { date: String(l.date), libelle: texte(l.libelle), reference: texte(l.reference, 100), montant: m, face: null, niveau: 'aucun' };
+      const a = estObjet(l.rapprochement) ? l.rapprochement : {};
+      const niveau = String(a.niveau ?? '');
+      const cible = texte(a.ecritureId, 200);
+      if (cible) {
+        const rangV10 = Number(a.ligne);
+        const e = parRef.get(cible);
+        const face = e?.lignes.find((y) => y.rangV10 === rangV10);
+        if (!face || face.compte !== r.compte) nomme(motif('reprise.releve_face', { n: String(i + 1), compte: r.compte }));
+        else if (faces.has(`${cible}#${rangV10}`)) nomme(motif('reprise.releve_face_double', { n: String(i + 1) }));
+        else {
+          faces.add(`${cible}#${rangV10}`);
+          ligne.face = { ecriture: cible, rangV10, niveau: (NIVEAUX_POSES as readonly string[]).includes(niveau) ? niveau as typeof NIVEAUX_POSES[number] : 'certain', auto: a.par === 'auto' };
+        }
+      } else if ((NIVEAUX_JUGES as readonly string[]).includes(niveau)) ligne.niveau = niveau as 'probable' | 'a-confirmer';
+      r.lignes.push(ligne);
+    }
+    const somme = r.lignes.reduce((s, l) => s + l.montant, 0n);
+    if (debut !== null && fin !== null && r.lignes.length === lignesV10.length && debut + somme !== fin) {
+      nomme(motif('reprise.releve_boucle', { debut: versTexte(debut, 3), mouvements: versTexte(somme, 3), fin: versTexte(fin, 3) }));
+    }
+    releves.push(r);
+  }
+  return releves;
 }
 
 // Le rapport de l'essai à blanc : ce qui passe, compté ; la balance des écritures validées ; ce qui ne
@@ -143,6 +221,8 @@ export function rapportDuLivre(l: LivreLu) {
     annee: l.annee, du: l.du, au: l.au, clos: l.clos,
     ecritures: { total: l.ecritures.length, validees: validees.length, brouillard: l.ecritures.length - validees.length, aNouveaux: l.ecritures.filter((e) => e.journal === 'AN').length },
     journaux, balance, totaux: { debit: total('debit'), credit: total('credit') },
-    lettrages: l.lettrages, anomalies: l.anomalies, autour: l.autour,
+    lettrages: l.lettrages,
+    releves: { total: l.releves.length, lignes: l.releves.reduce((n, r) => n + r.lignes.length, 0), rapprochees: l.releves.reduce((n, r) => n + r.lignes.filter((x) => x.face).length, 0) },
+    anomalies: l.anomalies, autour: l.autour,
   };
 }

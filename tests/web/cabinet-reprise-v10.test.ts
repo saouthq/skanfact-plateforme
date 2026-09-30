@@ -51,6 +51,8 @@ describe('reprendre le livre de la v10 d\'un dossier tenu, à la souris', () => 
     ajouterEcriture: (l: Livre, e: Record<string, unknown>, qui: string, quand: number) => { id: string };
     validerEcriture: (l: Livre, id: string, qui: string, quand: number) => { ok: boolean };
     lettrer: (l: Livre, compte: string, ids: string[], lettre: string, qui: string, jour: string) => { ok: boolean; lettre?: string };
+    ajouterReleve: (l: Livre, r: Record<string, unknown>, qui: string, quand: number) => { ok: boolean; releve?: { id: string } };
+    rapprocherAuto: (l: Livre, releve: string, o: Record<string, unknown>) => { ok: boolean };
   };
   const livreDe2025 = () => {
     const L = KC.livreVide('D', 2025, {});
@@ -64,6 +66,9 @@ describe('reprendre le livre de la v10 d\'un dossier tenu, à la souris', () => 
     const enc = poser({ date: '2025-04-02', journal: 'BQ', piece: 'VIR-88', libelle: 'Encaissement Hôtel du Lac', lignes: [{ compte: '532', debit: 1191.001 }, { compte: '411', tiers: 'Hôtel du Lac', credit: 1191.001 }] }, true);
     poser({ date: '2025-05-20', journal: 'AC', piece: 'FF-77', libelle: 'Papeterie', lignes: [{ compte: '6064', debit: 84.034 }, { compte: '4366', debit: 15.966 }, { compte: '401', credit: 100 }] }, false);
     expect(KC.lettrer(L, '411', [fac, enc], '', 'Leila', '2025-06-03').lettre).toBe('A');
+    const rel = KC.ajouterReleve(L, { compte: '532', banque: 'BIAT', fichier: 'releve-avril.csv', empreinte: 'a1'.repeat(32), soldeDebut: 12500.125, soldeFin: 13678.626,
+      lignes: [{ date: '2025-04-02', libelle: 'VIR HOTEL DU LAC', montant: 1191.001, reference: 'VIR-88' }, { date: '2025-04-30', libelle: 'FRAIS TENUE DE COMPTE', montant: -12.5, reference: '' }] }, 'Leila', Date.UTC(2025, 4, 5));
+    expect(KC.rapprocherAuto(L, rel.releve?.id ?? '', { date: '2025-05-05' }).ok).toBe(true);
     return L;
   };
   // 2026 dans la v10 : ses lettres recommencent à A, que 2025 a déjà prise dans le dossier.
@@ -112,7 +117,7 @@ describe('reprendre le livre de la v10 d\'un dossier tenu, à la souris', () => 
 
     // ── Le livre abîmé : l'anomalie nommée, aucun bouton pour écrire, rien d'écrit ─────────────────
     let m = await choisir(fichierAbime);
-    expect(await m.locator('#rv-anomalies').innerText()).toMatch(/Une écriture ne se reprendrait pas telle quelle\s:\scorrige-la dans la v10[\s\S]*FF-77 du 20\/05\/2025\s:\sLe journal «\sBQ2\s» n'existe pas sur la plateforme/);
+    expect(await m.locator('#rv-anomalies').innerText()).toMatch(/Un point empêche la reprise\s:\scorrige-le dans la v10[\s\S]*FF-77 du 20\/05\/2025\s:\sLe journal «\sBQ2\s» n'existe pas sur la plateforme/);
     expect(await m.locator('#ok').count()).toBe(0);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-v10-anomalie.png') });
     await m.locator('[data-close]').click();
@@ -124,13 +129,27 @@ describe('reprendre le livre de la v10 d\'un dossier tenu, à la souris', () => 
     expect(rapport).toMatch(/Écritures validées — elles gardent leur numéro de la v10\s+3/);
     expect(rapport).toMatch(/Écritures au brouillard — elles restent au brouillard\s+1/);
     expect(rapport).toMatch(/Lettrages — ils se reprennent avec leur lettre\s+1/);
+    expect(rapport).toMatch(/Relevés bancaires — avec leurs rapprochements\s+1 \(1 ligne rapprochée\)/);
     expect(await m.locator('#rv-ok').count()).toBe(1);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-v10-rapport.png') });
     await m.locator('#ok').click();
-    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 15_000 }).toBe('Livre de 2025 repris : 3 écritures validées, 1 au brouillard, 1 lettrage.');
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 15_000 }).toBe('Livre de 2025 repris : 3 écritures validées, 1 au brouillard, 1 lettrage, 1 relevé.');
     expect(await ecritures()).toEqual([['AN', 'AN-2025-000001'], ['FAC-2025-014', 'VT-2025-000002'], ['FF-77', null], ['VIR-88', 'BQ-2025-000003']]);
     await expect.poll(() => p.locator('#view').innerText(), { timeout: 15_000 }).toMatch(/FF-77/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-v10-fait.png') });
+    // Le relevé repris se lit dans la banque du dossier, avec son rapprochement.
+    await p.goto('about:blank');
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${dossier}/comptabilite/banque/2025`);
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(1500);
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
+      await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
+    }
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-v10-banque.png') });
+    const releve = await p.locator('#view').innerText();
+    expect(releve).toMatch(/532 · 02\/04\/2025 → 30\/04\/2025 · BIAT/);
+    expect(releve).toMatch(/VIR HOTEL DU LAC\s+VIR-88\s+1\s191,001\sDT\s+Rapproché\s+auto\s+BQ VIR-88/);
+    expect(releve).toMatch(/FRAIS TENUE DE COMPTE\s+[−-]12,500\sDT\s+Sans réponse/);
 
     // ── 2026, dont la lettre A est déjà prise par 2025 : elle devient B, et l'écran le dit ─────────
     await expect.poll(async () => (await p.locator('#lv-annee option').allInnerTexts()).includes('2026'), { timeout: 15_000 }).toBe(true);

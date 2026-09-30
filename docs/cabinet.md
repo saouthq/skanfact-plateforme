@@ -1437,3 +1437,44 @@ maintenant B ».
 **Reste à faire (la reprise)** : les relevés, les immobilisations, la révision et les questions, la
 paie du livre ; un livre dont le dossier n'existe pas encore (le créer depuis le fichier du cabinet) ;
 le bouton « Passer à la plateforme » de la v10.
+
+## Brique 66 : les relevés et leurs rapprochements repris avec le livre v10 (fait le 30/09/2026)
+
+**C56. Un livre repris garde ses relevés bancaires et ce que le comptable y avait rapproché** (par
+délégation). Sans eux, le travail de banque de toute l'année était à refaire : réimporter chaque
+relevé, repointer chaque ligne. Le lecteur du livre lit maintenant ses relevés : le compte, la banque,
+le fichier et son empreinte, les deux soldes, chaque ligne au sens de la banque (au millime exact), et
+pour chacune ce qui lui répond dans le livre — l'écriture de la v10 et **la place de sa ligne** — ou le
+jugement de l'automatique quand il n'avait pas tranché (« probable », « à confirmer »).
+
+L'essai à blanc **nomme** ce qui ne passerait pas, au relevé (son fichier) : un solde ou une ligne
+illisible au millime, un relevé sans compte, sans ligne, deux fois le même fichier dans le livre, qui
+**ne se boucle pas** (solde de départ + mouvements ≠ solde annoncé), une ligne rapprochée d'une ligne
+d'écriture absente du livre ou qui ne touche pas le compte du relevé, ou d'une ligne d'écriture qui
+répond déjà d'une autre ligne. À l'écriture, chaque relevé passe par **les gestes de la banque**
+(`compta.importer_releve`, `compta.rapprocher`, 0023), dans la même transaction que les écritures :
+ils refont leurs contrôles. Pour relier un rapprochement, la reprise rend désormais l'identifiant de
+chaque écriture écrite, dans l'ordre du livre (0039), et la place de la ligne dans la v10 (lignes vides
+comprises) est ramenée à celle de la ligne écrite. Le rapprochement garde son niveau (« certain »…) et
+qui l'a posé (l'automatique ou la main).
+
+**Un relevé sans empreinte** (saisi sans fichier) prend celle de son contenu : le même ne s'importera
+pas deux fois. **Le même fichier repris avec deux années** (un relevé à cheval sur deux exercices, importé
+dans les deux livres de la v10) : la seconde reprise est refusée par la banque, en le disant (« Ce
+fichier a déjà été importé le … ») ; rien n'est écrit. **À VÉRIFIER** avec les pilotes : combien de
+relevés sont à cheval sur deux années.
+
+L'écran du rapport compte les relevés et leurs lignes rapprochées ; le message final aussi. Le cadre
+des anomalies ne dit plus « écritures » (une anomalie peut venir d'une lettre ou d'un relevé) :
+« Un point empêche la reprise ». La phrase du serveur de même.
+
+**Les tests** : `tests/cabinet/reprise-livre.test.ts` : le relevé d'avril importé puis rapproché **par
+la v10** (`ajouterReleve`, `rapprocherAuto`) ; repris, relu par la banque de la plateforme : ses soldes,
+le virement rapproché de la ligne du 532 de l'encaissement (« certain », par l'automatique) malgré une
+ligne vide devant elle dans la v10, les frais « à confirmer » ; les neuf défauts nommés à l'essai ; un
+relevé sans empreinte ; le même fichier dans deux années. À la souris : la ligne des relevés au
+rapport, puis l'onglet Banque du dossier, où le virement est « Rapproché · auto » en face de
+« BQ VIR-88 » et les frais « Sans réponse ».
+
+**Reste à faire (la reprise)** : les immobilisations, la révision et les questions, la paie du livre ;
+un livre dont le dossier n'existe pas encore ; le bouton « Passer à la plateforme » de la v10.

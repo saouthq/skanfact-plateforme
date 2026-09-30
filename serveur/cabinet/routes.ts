@@ -516,7 +516,37 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       }));
       const empreinte = createHash('sha256').update(JSON.stringify(corps.livre)).digest('hex');
       const cree = (await tx.query('select compta.reprendre_livre_v10($1, $2, $3, $4, $5::jsonb, $6) r',
-        [corps.dossier, lu.annee, lu.du, lu.au, JSON.stringify(ecritures), empreinte])).rows[0].r as { validees: number; brouillard: number; lettrages: number; lettres: { v10: string; lettre: string }[]; jusqua: string | null };
+        [corps.dossier, lu.annee, lu.du, lu.au, JSON.stringify(ecritures), empreinte])).rows[0].r as { validees: number; brouillard: number; lettrages: number; lettres: { v10: string; lettre: string }[]; jusqua: string | null; ids: string[] };
+      // Les relevés (brique 66) : importés par les gestes de la banque, qui refont leurs contrôles ; chaque
+      // rapprochement relié à la ligne d'écriture reprise (son écriture, sa place parmi les lignes écrites).
+      const { ids, ...resultat } = cree;
+      const ecritureDe = new Map(lu.ecritures.map((e, i) => [e.refV10, { id: ids[i] ?? '', rangs: e.lignes.map((l) => l.rangV10) }]));
+      let rapprochees = 0;
+      const lignesEcrites = new Map<string, string>();
+      if (lu.releves.some((r) => r.lignes.some((l) => l.face))) {
+        for (const x of (await tx.query('select id, ecriture, rang from compta.ligne where ecriture = any($1::uuid[])', [ids])).rows as { id: string; ecriture: string; rang: number }[]) {
+          lignesEcrites.set(`${x.ecriture}#${x.rang}`, x.id);
+        }
+      }
+      for (const r of lu.releves) {
+        const releve = (await tx.query('select compta.importer_releve($1, $2, $3::jsonb) id', [corps.dossier, lu.annee, JSON.stringify({
+          compte: r.compte, banque: r.banque, fichier: r.fichier, empreinte: r.empreinte, soldeDebut: r.soldeDebut.toString(), soldeFin: r.soldeFin.toString(),
+          lignes: r.lignes.map((l) => ({ date: l.date, libelle: l.libelle, reference: l.reference, montant: l.montant.toString() })),
+        })])).rows[0].id as string;
+        const lignes = (await tx.query('select id, rang from compta.releve_ligne where releve = $1', [releve])).rows as { id: string; rang: number }[];
+        const ligneDuReleve = new Map(lignes.map((x) => [Number(x.rang), x.id]));
+        const poses: { ligne: string; ecritureLigne: string | null; niveau: string; auto: boolean }[] = [];
+        for (const [i, l] of r.lignes.entries()) {
+          const ligne = ligneDuReleve.get(i + 1) ?? '';
+          if (l.face) {
+            const e = ecritureDe.get(l.face.ecriture);
+            const rang = e ? e.rangs.indexOf(l.face.rangV10) + 1 : 0;
+            poses.push({ ligne, ecritureLigne: lignesEcrites.get(`${e?.id}#${rang}`) ?? null, niveau: l.face.niveau, auto: l.face.auto });
+            rapprochees++;
+          } else if (l.niveau !== 'aucun') poses.push({ ligne, ecritureLigne: null, niveau: l.niveau, auto: true });
+        }
+        if (poses.length) await tx.query('select compta.rapprocher($1, $2, $3::jsonb)', [corps.dossier, releve, JSON.stringify(poses)]);
+      }
       // Deux chemins, un chiffre : la balance que la base tient maintenant est celle du livre.
       const b = (await tx.query(`select l.compte, sum(l.debit)::text debit, sum(l.credit)::text credit from compta.ligne l join compta.ecriture e on e.id = l.ecriture
           where e.entreprise = $1 and e.statut = 'validee' and e.date_ecriture between $2::date and $3::date group by l.compte`, [corps.dossier, lu.du, lu.au])).rows as { compte: string; debit: string; credit: string }[];
@@ -524,7 +554,7 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
         .sort((x, y) => (x.compte < y.compte ? -1 : x.compte > y.compte ? 1 : 0));
       const attendue = rapport.balance.map((x) => ({ compte: x.compte, debit: x.debit, credit: x.credit }));
       if (JSON.stringify(tenue) !== JSON.stringify(attendue)) throw new Refus('cabinet.reprise.ecart');
-      return { statut: 201, corps: { ...cree, empreinte, rapport } };
+      return { statut: 201, corps: { ...resultat, releves: lu.releves.length, rapprochees, empreinte, rapport } };
     },
   });
   // Ce qui a changé dans l'équipe (brique 61, 0036) : les cinquante derniers gestes, pour un associé.

@@ -3469,7 +3469,7 @@ prouver "le dernier numéro d'un journal oublié" $LV \
   "if (e.numeroV10 !== null) j.dernierNumero = Math.max(j.dernierNumero ?? 0, e.numeroV10);" "" \
   "$RL1"
 prouver "les lettrages oubliés par le rapport" $LV \
-  "    lettrages: l.lettrages, anomalies: l.anomalies, autour: l.autour," "    lettrages: 0, anomalies: l.anomalies, autour: l.autour," \
+  "    lettrages: l.lettrages," "    lettrages: 0," \
   "$RL1"
 prouver "un fichier quelconque lu comme un livre" $LV \
   "  if (!estObjet(o) || o.format !== 1 || !estObjet(o.exercice) || !Array.isArray(o.ecritures)) return null;" "  if (!estObjet(o)) return null;" \
@@ -3486,27 +3486,28 @@ prouver "la reprise ouverte au collaborateur" serveur/cabinet/routes.ts \
 # ── Brique 63 : la reprise d'un livre du Cabinet v10 dans un dossier tenu (docs/cabinet.md, C53) ──
 RC1="les écritures s'écrivent avec leur numéro de la v10 ; la période se valide jusqu'au dernier jour tout validé ; chaque journal continue ; une seconde reprise, refusée"
 RC2="un livre qui a une anomalie ne s'écrit pas ; un client sur SkanFact ne reçoit pas de reprise ; un collaborateur non plus"
-# compta.reprendre_livre_v10 est redéfinie par 0038 (les lettrages) : ses preuves visent la dernière.
-M38=base/migrations/0038_compta_reprise_lettrages.sql
-prouver "une reprise écrite chez un client sur SkanFact" $M38 \
+# compta.reprendre_livre_v10 est redéfinie par 0038 (les lettrages) puis 0039 (les identifiants rendus
+# pour les relevés) : ses preuves visent la dernière.
+M39=base/migrations/0039_compta_reprise_releves.sql
+prouver "une reprise écrite chez un client sur SkanFact" $M39 \
   "     or not exists (select 1 from socle.entreprise where id = p_entreprise and tenue_par is not null) then" "     or false then" \
   "$RC2"
-prouver "une reprise mêlée à un livre commencé" $M38 \
+prouver "une reprise mêlée à un livre commencé" $M39 \
   "  if exists (select 1 from compta.ecriture where entreprise = p_entreprise and date_ecriture between p_du and p_au) then" "  if false then" \
   "$RC1"
-prouver "un numéro de la v10 renuméroté" $M38 \
+prouver "un numéro de la v10 renuméroté" $M39 \
   "    v_numero := e.journal || '-' || p_annee || '-' || lpad(e.numero::text, 6, '0');" "    v_numero := e.journal || '-' || p_annee || '-' || lpad('1', 6, '0');" \
   "$RC1"
-prouver "la chaîne scellée dans le désordre" $M38 \
+prouver "la chaîne scellée dans le désordre" $M39 \
   "from unnest(v_ids, v_nums, v_jnx) r(id, numero, journal) order by r.numero loop" "from unnest(v_ids, v_nums, v_jnx) r(id, numero, journal) order by r.numero desc loop" \
   "$RC1"
-prouver "un journal qui repart à un" $M38 \
+prouver "un journal qui repart à un" $M39 \
   "    insert into compta.compteur (entreprise, journal, annee, dernier) values (p_entreprise, e.journal, p_annee, e.dernier)" "    insert into compta.compteur (entreprise, journal, annee, dernier) values (p_entreprise, e.journal, p_annee, 1)" \
   "$RC1"
-prouver "la période validée par-dessus un brouillard" $M38 \
+prouver "la période validée par-dessus un brouillard" $M39 \
   "else least(v_derniere_validee, v_premier_brouillard - 1) end;" "else v_derniere_validee end;" \
   "$RC1"
-prouver "une reprise sans l'empreinte de son fichier" $M38 \
+prouver "une reprise sans l'empreinte de son fichier" $M39 \
   "  perform socle.tracer(p_entreprise, 'compta.reprise.livre_v10', 'exercice', null, null," "  perform socle.tracer(p_entreprise, 'compta.reprise.livre_v10_oubliee', 'exercice', null, null," \
   "$RC1"
 prouver "un livre à anomalie envoyé à la base" serveur/cabinet/routes.ts \
@@ -3547,28 +3548,28 @@ prouver "une lettre qui ne se solde pas et passe l'essai" $LV \
 prouver "les lettres du livre laissées à la porte" serveur/cabinet/routes.ts \
   "credit: l.credit.toString(), lettre: l.lettre }))," "credit: l.credit.toString() }))," \
   "$RC1"
-prouver "les lignes d'une lettre reprise oubliées" $M38 \
+prouver "les lignes d'une lettre reprise oubliées" $M39 \
   "    insert into compta.ligne_lettree (ligne, lettrage, entreprise) select u.ligne, v_lettrage, p_entreprise from unnest(g.lignes) u(ligne);" "" \
   "$RC1"
-prouver "une lettre déjà prise dans le dossier, reprise telle quelle" $M38 \
+prouver "une lettre déjà prise dans le dossier, reprise telle quelle" $M39 \
   "    if exists (select 1 from compta.lettrage lt where lt.entreprise = p_entreprise and lt.lettre = v_lettre) then" "    if false then" \
   "$RC3"
-prouver "une lettre renommée sur une lettre du même livre" $M38 \
+prouver "une lettre renommée sur une lettre du même livre" $M39 \
   " and not (v_lettre = any (v_llettres));" ";" \
   "$RC3"
-prouver "une lettre renommée sans le dire" $M38 \
+prouver "une lettre renommée sans le dire" $M39 \
   "      v_renommees := v_renommees || jsonb_build_object('v10', g.lettre, 'lettre', v_lettre);" "" \
   "$RC3"
-prouver "une lettre sur deux comptes posée par la base" $M38 \
+prouver "une lettre sur deux comptes posée par la base" $M39 \
   "    if g.nc <> 1 or g.lettre" "    if false or g.lettre" \
   "$RC4"
-prouver "une lettre sur un brouillard posée par la base" $M38 \
+prouver "une lettre sur un brouillard posée par la base" $M39 \
   "where l.id = any (g.lignes) and w.statut <> 'validee')" "where l.id = any (g.lignes) and false)" \
   "$RC4"
-prouver "une lettre d'une seule écriture posée par la base" $M38 \
+prouver "une lettre d'une seule écriture posée par la base" $M39 \
   "from compta.ligne l where l.id = any (g.lignes)) < 2" "from compta.ligne l where l.id = any (g.lignes)) < 1" \
   "$RC4"
-prouver "une lettre qui ne se solde pas posée par la base" $M38 \
+prouver "une lettre qui ne se solde pas posée par la base" $M39 \
   "(select sum(l.debit - l.credit) from compta.ligne l where l.id = any (g.lignes)) <> 0 then" "(select sum(l.debit - l.credit) from compta.ligne l where l.id = any (g.lignes)) is null then" \
   "$RC4"
 prouver "les lettrages absents du rapport à l'écran" web/public/v10/cabinet/app.js \
@@ -3583,3 +3584,57 @@ prouver "l'écran qui ne rouvre pas le livre repris" $PC \
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]
+
+# ── Brique 66 : les relevés et leurs rapprochements repris avec le livre v10 (docs/cabinet.md, C56) ──
+RL5="un relevé qui ne se reprendrait pas tel quel est nommé : ne se boucle pas, sans compte, une ligne illisible, deux fois le même fichier, un rapprochement faux ou pris deux fois"
+prouver "un solde de relevé illisible qui passe l'essai" $LV \
+  "    if (debut === null || fin === null) nomme(motif('reprise.releve_solde'));" "" \
+  "$RL5"
+prouver "un relevé sans compte qui passe l'essai" $LV \
+  "    if (!COMPTE.test(r.compte)) nomme(motif('reprise.releve_compte'));" "" \
+  "$RL5"
+prouver "un relevé vide qui passe l'essai" $LV \
+  "    if (!lignesV10.length) nomme(motif('reprise.releve_vide'));" "" \
+  "$RL5"
+prouver "le même relevé deux fois dans le livre" $LV \
+  "    if (empreintes.has(empreinte)) nomme(motif('reprise.releve_double'));" "" \
+  "$RL5"
+prouver "une ligne de relevé illisible qui passe l'essai" $LV \
+  "      if (m === null || !estJour(l.date)) { nomme(" "      if (!estJour(l.date)) { nomme(" \
+  "$RL5"
+prouver "un rapprochement vers une autre ligne que celle du compte" $LV \
+  "        if (!face || face.compte !== r.compte) nomme(" "        if (!face) nomme(" \
+  "$RL5"
+prouver "une ligne d'écriture qui répond de deux lignes de relevé" $LV \
+  "        else if (faces.has(\`\${cible}#\${rangV10}\`)) nomme(" "        else if (false) nomme(" \
+  "$RL5"
+prouver "un relevé qui ne se boucle pas et passe l'essai" $LV \
+  "r.lignes.length === lignesV10.length && debut + somme !== fin) {" "r.lignes.length === lignesV10.length && false) {" \
+  "$RL5"
+prouver "un relevé sans empreinte envoyé tel quel" $LV \
+  "    const empreinte = /^[0-9a-f]{64}\$/.test(String(x.empreinte ?? '')) ? String(x.empreinte)" "    const empreinte = true ? String(x.empreinte ?? '')" \
+  "$RC3"
+prouver "les relevés du livre laissés de côté" serveur/cabinet/routes.ts \
+  "      for (const r of lu.releves) {" "      for (const r of lu.releves.slice(0, 0)) {" \
+  "$RC1"
+prouver "un rapprochement relié à la place de la v10 et non à la ligne écrite" serveur/cabinet/routes.ts \
+  "            const rang = e ? e.rangs.indexOf(l.face.rangV10) + 1 : 0;" "            const rang = e ? l.face.rangV10 + 1 : 0;" \
+  "$RC1"
+prouver "le niveau d'un rapprochement repris perdu" serveur/cabinet/routes.ts \
+  "ecritureLigne: lignesEcrites.get(\`\${e?.id}#\${rang}\`) ?? null, niveau: l.face.niveau, auto: l.face.auto });" "ecritureLigne: lignesEcrites.get(\`\${e?.id}#\${rang}\`) ?? null, niveau: 'probable', auto: false });" \
+  "$RC1"
+prouver "le jugement « à confirmer » d'une ligne perdu" serveur/cabinet/routes.ts \
+  "          } else if (l.niveau !== 'aucun') poses.push(" "          } else if (false) poses.push(" \
+  "$RC1"
+prouver "les rapprochements repris comptés à zéro" serveur/cabinet/routes.ts \
+  "            rapprochees++;" "" \
+  "$RC1"
+prouver "les identifiants internes rendus au navigateur" serveur/cabinet/routes.ts \
+  "      return { statut: 201, corps: { ...resultat, releves:" "      return { statut: 201, corps: { ...cree, releves:" \
+  "$RC1"
+prouver "les écritures reprises sans leur identifiant rendu" $M39 \
+  "    v_toutes := v_toutes || v_id;" "" \
+  "$RC1"
+prouver "les relevés absents du rapport à l'écran" web/public/v10/cabinet/app.js \
+  "        <tr><td>Relevés bancaires — avec leurs rapprochements</td>" "        <tr hidden><td>Relevés bancaires — avec leurs rapprochements</td>" \
+  "$RE1"
