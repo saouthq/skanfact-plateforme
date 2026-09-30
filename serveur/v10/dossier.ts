@@ -47,9 +47,14 @@ const SCELLE = ['type', 'number', 'date', 'clientId', 'currency', 'exchangeRate'
 const STATUT_EMISE: Record<string, string> = { facture: 'envoyée', avoir: 'émis' };
 const emise = (d: Json | null) => !!d && typeof d.number === 'string' && d.number !== '' && d.status !== 'brouillon';
 
-function verifierPiece(avant: Json | null, apres: Json | null) {
+function verifierPiece(avant: Json | null, apres: Json | null, serveur: boolean) {
   const type = String((apres ?? avant)?.type ?? '');
   if (!PIECES_LEGALES.includes(type)) return;
+  // La référence de la TTN et son code QR (brique 83) : seul le serveur les pose, quand la TTN accepte la
+  // pièce ; personne ne les écrit ni ne les change depuis un écran (une référence inventée s'imprimerait).
+  if (!serveur && apres && canonique(avant?.ttn) !== canonique(apres.ttn)) {
+    throw new Refus('v10.ttn_par_le_serveur', { valeurs: { numero: String(avant?.number ?? apres.number ?? '') } });
+  }
   if (emise(avant)) {
     const numero = { valeurs: { numero: String(avant?.number ?? '') } };
     const av = type === 'avoir';
@@ -117,7 +122,8 @@ export async function lireDossier(tx: Transaction, entreprise: string, utilisate
 }
 
 // ── Enregistrer des changements ─────────────────────────────────────────────────────────────────
-export async function appliquer(tx: Transaction, entreprise: string, utilisateur: string, changements: Changement[]): Promise<{ collection: string; cle: string; revision: number | null }[]> {
+// `serveur` : l'écriture vient du serveur lui-même (la référence de la TTN posée à l'acceptation, brique 83).
+export async function appliquer(tx: Transaction, entreprise: string, utilisateur: string, changements: Changement[], options: { serveur?: boolean } = {}): Promise<{ collection: string; cle: string; revision: number | null }[]> {
   const db = requetes(tx);
   const actuels = new Map<string, { contenu: unknown; revision: number }>();
   const conflits: { collection: string; cle: string }[] = [];
@@ -133,7 +139,7 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   for (const c of changements) {
     const a = actuels.get(`${c.collection}/${c.cle}`);
     if (c.collection === 'documents') {
-      verifierPiece(estObjet(a?.contenu) ? a.contenu : null, estObjet(c.contenu) ? c.contenu : null);
+      verifierPiece(estObjet(a?.contenu) ? a.contenu : null, estObjet(c.contenu) ? c.contenu : null, options.serveur === true);
       await suivreReglements(tx, entreprise, utilisateur, c.cle, estObjet(c.contenu) ? c.contenu : null);
     }
     if (c.contenu === null) {

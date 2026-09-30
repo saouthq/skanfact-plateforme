@@ -14,6 +14,7 @@ import { CoffreFaux, ouvrir, sceller } from '../coffre.ts';
 import type { Contexte } from '../connexion.ts';
 import { Refus } from '../erreurs.ts';
 import { tracer } from '../trace.ts';
+import { appliquer } from './dossier.ts';
 import { champ, consulter, deposer, type Compte, type Depot } from './ttn.ts';
 import './textes.ts';
 
@@ -111,7 +112,7 @@ function verdict(depot: Depot, e: Pris): Issue {
   return { quoi: 'deposee', depot, essais: e.statut === 'deposee' ? e.essais + 1 : 0, apres: attente(e.statut === 'deposee' ? e.essais : 0) };
 }
 
-async function noter(tx: Transaction, d: Du, e: Pris, issue: Issue, maintenant: Date): Promise<void> {
+async function noter(tx: Transaction, d: Du & { proprietaire: string }, e: Pris, issue: Issue, maintenant: Date): Promise<void> {
   const objet = { type: 'piece', id: d.piece };
   switch (issue.quoi) {
     case 'attendre':
@@ -132,12 +133,24 @@ async function noter(tx: Transaction, d: Du, e: Pris, issue: Issue, maintenant: 
           reference = $4, qr = $5, xml_valide = $6, motif = null, bail = null where piece = $1`,
         [d.piece, maintenant, issue.depot.idTtn, issue.depot.reference, issue.depot.qr, issue.depot.xmlValide]);
       await tracer(tx, d.entreprise, 'ventes.facture.envoyer', objet, null, { etape: 'acceptee', numero: e.numero, reference: issue.depot.reference });
+      await poserLaReference(tx, d, issue.depot, maintenant);
       return;
     case 'refusee':
       await tx.query(`update ventes.envoi_ttn set statut = 'refusee', motif = $2, bail = null where piece = $1`, [d.piece, enJson(issue.motif)]);
       await tracer(tx, d.entreprise, 'ventes.facture.envoyer', objet, null, { etape: 'refusee', numero: e.numero, motif: issue.motif.cle });
       return;
   }
+}
+
+// Acceptée, la pièce du dossier porte sa référence et le contenu de son code QR (brique 83) : elle s'imprime
+// avec, à l'écran comme dans l'espace client. Seul le serveur les écrit (serveur/v10/dossier.ts).
+async function poserLaReference(tx: Transaction, d: Du & { proprietaire: string }, depot: Depot, maintenant: Date): Promise<void> {
+  const x = (await tx.query(`select dv.contenu, dv.revision, dv.rang, p.ref_v10 from ventes.piece p
+      join socle.dossier_v10 dv on dv.entreprise = p.entreprise and dv.collection = 'documents' and dv.cle = p.ref_v10 where p.id = $1`, [d.piece])).rows[0] as
+    { contenu: Record<string, unknown>; revision: string; rang: number | null; ref_v10: string } | undefined;
+  if (!x) return;
+  await appliquer(tx, d.entreprise, d.proprietaire, [{ collection: 'documents', cle: x.ref_v10, rang: x.rang, revision: Number(x.revision),
+    contenu: { ...x.contenu, ttn: { reference: depot.reference, qr: depot.qr, le: maintenant.toISOString() } } }], { serveur: true });
 }
 
 // Le compte El Fatoora de l'entreprise : posé (ou changé), les pièces retenues repartent aussitôt.

@@ -1,6 +1,6 @@
 # La facture électronique (El Fatoora)
 
-*30/09/2026, briques 80 à 82. Le cadrage fait foi : `docs/cadrage/05-obligations-legales.md` § 3.1 et 3.8, et
+*30/09/2026, briques 80 à 83. Le cadrage fait foi : `docs/cadrage/05-obligations-legales.md` § 3.1 et 3.8, et
 `VISION-ARCHITECTURE.md` § 5, du dépôt `skanfact`. Ce document dit ce qui en est fait ; les décisions sont
 prises par délégation, le 30/09/2026.*
 
@@ -131,6 +131,24 @@ code QR dans `RefTtnVal`, qui est dans le schéma TEIF 1.8.8). Les noms exacts, 
 forme des accusés et le moment où la TTN traite une pièce sont **À VÉRIFIER** avec l'accès de test ;
 `serveur/v10/ttn.ts` est le seul fichier à reprendre.
 
+## Ce que fait la brique 83 : la référence et le code QR sur la pièce
+
+**Q1. La pièce porte sa référence.** Quand la TTN accepte une pièce, le serveur pose sur la pièce du dossier
+sa référence et le contenu de son code QR (`ttn` : ce que la TTN a rendu dans `RefTtnVal`, rien
+d'inventé). **Seul le serveur les écrit** : un écran qui les invente, les change ou les retire est refusé,
+et le dit (une référence inventée s'imprimerait). Une pièce acceptée pendant que la page était ouverte le
+dit dans la fenêtre du fichier, avec « Recharger ».
+
+**Q2. Elle s'imprime avec.** Le gabarit de la v10 (`core.js`) imprime, sous le règlement, un bloc
+« Facture électronique » : le code QR et « Validée par la TTN (El Fatoora), référence … » — à l'écran, en
+PDF, et dans l'espace client (la référence et le contenu du QR rejoignent la liste comptée de ce qui part
+vers le client : `docs/espace-client.md`). Le QR se dessine dans le navigateur (le moteur a un point
+d'extension déclaré, `qrImage`, que la page branche : `web/public/plateforme/qr.js`), avec une
+bibliothèque éprouvée (qrcode-generator, MIT) recopiée telle quelle dans `web/public/tiers/` ; un test la
+compare octet pour octet à la version épinglée du paquet. La place, la taille et les mentions exactes que
+la TTN attend sur la pièce, et l'encodage du QR s'il portait autre chose que de l'ASCII : **À VÉRIFIER**
+avec elle.
+
 ## Comment c'est vérifié
 
 - `tests/v10/efacture.test.ts` : le fichier passe le schéma officiel (`xmllint`, sur la forme XSD 1.0 du
@@ -154,15 +172,18 @@ forme des accusés et le moment où la TTN traite une pièce sont **À VÉRIFIER
   d'essai n'envoie rien ; le mot de passe ne se lit pas.
 - `tests/web/ttn.test.ts` : le parcours de Nadia, à la souris : la pièce qui attend et son bouton, le compte
   posé (le curseur dans la case, sans proposer d'enregistrer les Paramètres), puis la facture validée
-  téléchargée telle que le serveur la garde, avec sa référence. Quatre écrans.
+  téléchargée telle que le serveur la garde, avec sa référence ; puis la pièce imprimée (l'aperçu, et
+  l'espace client) porte la référence et un code QR qu'un **lecteur de QR** (jsQR) relit : il dit exactement
+  ce que la TTN a rendu. Six écrans.
+- `tests/v10/espace-client.test.ts` : une pièce réduite à ce qu'elle imprime (la référence et le QR
+  compris) s'imprime exactement comme la pièce entière.
 
 ## Reste à faire (`05` § 3.1 et 3.2 ; vision § 5)
 
 - **La signature**, suite : signer plusieurs pièces d'un coup depuis la liste (le serveur le sait déjà), la
   clé USB par l'agent local, puis la signature par le serveur après homologation ANCE. Brancher le vrai
   DigiGo quand l'adhésion est là (S7).
-- **La référence de la TTN et son code QR imprimés sur la pièce**, et montrés dans l'espace client ; l'état
-  de l'envoi dans la liste des factures.
+- L'état de l'envoi à la TTN dans la liste des factures.
 - Brancher la vraie TTN quand l'accès de test est là (T7) ; l'archivage dix ans de la facture validée (`05`
   § 3.8 : elle est gardée ; la durée et l'effacement au bout, à écrire).
 - « Tes premiers pas » : l'adhésion à El Fatoora expliquée pas à pas, avec le lien.

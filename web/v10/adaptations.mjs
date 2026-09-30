@@ -10,10 +10,10 @@ import { SANS_PAQUETS, lireFichier } from './sans-paquets.mjs';
 
 export const ADAPTATIONS = [
   {
-    fichier: 'index.html',
-    pourquoi: 'le point de contact avec le serveur se charge avant tout le reste (précédé du poste, qui garde la copie pour le hors-ligne, brique 72), et la mise en page du téléphone après la feuille de style de la v10 ; l\'application s\'installe (son manifeste)',
-    avant: '  <link rel="stylesheet" href="style.css">\n',
-    apres: '  <link rel="stylesheet" href="style.css">\n  <link rel="manifest" href="/manifest.webmanifest">\n  <link rel="stylesheet" href="../plateforme/telephone.css">\n  <script src="../plateforme/poste.js"></script>\n  <script src="../plateforme/pont.js"></script>\n  <script src="../plateforme/telephone.js"></script>\n',
+    fichier: "index.html",
+    pourquoi: "le point de contact avec le serveur se charge avant tout le reste (précédé du poste, qui garde la copie pour le hors-ligne, brique 72), et la mise en page du téléphone après la feuille de style de la v10 ; l'application s'installe (son manifeste) ; le dessin des codes QR (brique 83) se charge avec lui",
+    avant: "  <link rel=\"stylesheet\" href=\"style.css\">\n",
+    apres: "  <link rel=\"stylesheet\" href=\"style.css\">\n  <link rel=\"manifest\" href=\"/manifest.webmanifest\">\n  <link rel=\"stylesheet\" href=\"../plateforme/telephone.css\">\n  <script src=\"../tiers/qrcode.js\"></script>\n  <script src=\"../plateforme/qr.js\"></script>\n  <script src=\"../plateforme/poste.js\"></script>\n  <script src=\"../plateforme/pont.js\"></script>\n  <script src=\"../plateforme/telephone.js\"></script>\n",
   },
   {
     fichier: 'app.js',
@@ -172,6 +172,19 @@ export const ADAPTATIONS = [
     pourquoi: "la fenêtre du fichier : signée sur la plateforme, l'état de son envoi à la TTN (dessiné par le point de contact, brique 82) à la place des gestes ; sinon, où se signe une pièce, et que SkanFact la déposera",
     avant: "      <ol class=\"teif-suite\">\n        <li><b>Le signer</b> avec ta signature électronique (certificat TunTrust, sur clé ou avec DigiGo).</li>\n        <li><b>Le déposer</b> sur la plateforme El Fatoora de Tunisie TradeNet. Elle te rend la facture\n        validée, avec sa référence et son code QR : c'est elle qui fait foi, garde-la.</li>\n      </ol>\n",
     apres: "      ${duServeur && duServeur.signe && bridge.ttnDansLaFenetre ? '<div id=\"teif-ttn\"></div>' : `<ol class=\"teif-suite\">\n        <li><b>Le signer</b> ${bridge.signerPiece ? 'avec « Signer (DigiGo)… », dans le menu « Plus » de la pièce (ou avec ta clé TunTrust)' : 'avec ta signature électronique (certificat TunTrust, sur clé ou avec DigiGo)'}.</li>\n        ${bridge.ttnDansLaFenetre ? '<li><b>Le déposer</b> : une fois signé, SkanFact le dépose lui-même à la TTN, et te dit ce qu\\'elle en fait.</li>' : `<li><b>Le déposer</b> sur la plateforme El Fatoora de Tunisie TradeNet. Elle te rend la facture\n        validée, avec sa référence et son code QR : c'est elle qui fait foi, garde-la.</li>`}\n      </ol>`}\n",
+  },
+  // ── La référence de la TTN et son code QR sur la pièce imprimée (brique 83 ; docs/facture-electronique.md).
+  {
+    fichier: "core.js",
+    pourquoi: "la pièce imprimée d'une facture ou d'un avoir accepté par la TTN porte sa référence et son code QR (posés par le serveur, brique 83) ; le QR se dessine par le point d'extension `qrImage`, que la page branche",
+    avant: "        ${exoRS ? `<div class=\"info\"><span class=\"k\">${L.withholding}</span><div class=\"terms\">${L.exoRS(escapeHtml(exoRS.numero || ''), fmtDate(exoRS.au))}</div></div>` : ''}\n",
+    apres: "        ${exoRS ? `<div class=\"info\"><span class=\"k\">${L.withholding}</span><div class=\"terms\">${L.exoRS(escapeHtml(exoRS.numero || ''), fmtDate(exoRS.au))}</div></div>` : ''}\n        ${doc.ttn && doc.ttn.reference ? `<div class=\"info ttn\"><span class=\"k\">${lang === 'en' ? 'E-invoice' : 'Facture électronique'}</span><div style=\"display:flex;gap:3mm;align-items:center;margin-top:1mm\">${doc.ttn.qr && typeof api.qrImage === 'function' ? api.qrImage(doc.ttn.qr) : ''}<div class=\"terms\">${lang === 'en' ? 'Validated by TTN (El Fatoora)' : 'Validée par la TTN (El Fatoora)'}<br>${lang === 'en' ? 'Reference' : 'Référence'} <b>${escapeHtml(doc.ttn.reference)}</b></div></div></div>` : ''}\n",
+  },
+  {
+    fichier: "core.js",
+    pourquoi: "le point d'extension qui dessine un code QR (brique 83) : déclaré ici, vide ; la page de la plateforme et l'espace client le branchent",
+    avant: "    planImport, appliquerImport, lireFichierTexte\n  };\n",
+    apres: "    planImport, appliquerImport, lireFichierTexte,\n    // (plateforme) Dessiner un code QR : `qrImage(texte)` rend un <svg>. Vide ici ; la page le branche (brique 83).\n    qrImage: null\n  };\n",
   },
   // ── Les envois (brique 79 ; docs/espace-client.md, E7) : un navigateur ne joint pas de fichier ; l'e-mail et
   // le WhatsApp d'une facture ou d'un avoir émis portent le LIEN de la pièce (créé à l'envoi par le point de

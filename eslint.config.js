@@ -5,7 +5,9 @@ import globals from 'globals';
 export default tseslint.config(
   // Le code de la v10 repris TEL QUEL (web/public/v10) n'est pas le nôtre à reformuler : il se
   // vérifie par ses empreintes (PROVENANCE.json), et ses adaptations sont écrites dans web/v10.
-  { ignores: ['node_modules/**', 'banc/v10/**', 'dist/**', 'web/public/v10/**'] },
+  // Le code d'un tiers recopié tel quel (web/public/tiers : le dessin des codes QR, brique 83) : un test le
+  // compare octet pour octet à la version épinglée du paquet npm, il ne se reformule pas.
+  { ignores: ['node_modules/**', 'banc/v10/**', 'dist/**', 'web/public/v10/**', 'web/public/tiers/**'] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {

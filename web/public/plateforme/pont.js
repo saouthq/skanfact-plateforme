@@ -482,6 +482,9 @@
     // Des remises attendent-elles une décision ? (le panneau ne paraît que dans ce cas)
     quarantaine: () => remises.length,
     loadData: async () => {
+      // Le code QR de la TTN sur la pièce imprimée (brique 83) : le moteur est là, on le branche.
+      const qr = /** @type {any} */ (window).SkanQr;
+      if (qr) qr.brancher();
       const attente = await poste.lireAttente(ent).catch(() => null);
       try {
         const data = attente ? await rejouer(attente.contenu.data) : await relire();
@@ -1076,7 +1079,11 @@
     if (f.essai) { el.innerHTML = '<p id="ttn-piece">Entreprise d\'essai : cette pièce ne part jamais à la TTN.</p>'; return; }
     if (!x) { el.innerHTML = '<p id="ttn-piece">Cette pièce n\'est pas en route vers la TTN (signée avant que l\'envoi n\'existe).</p>'; return; }
     if (x.statut === 'acceptee') {
-      el.innerHTML = `<p id="ttn-piece"><strong>Acceptée par la TTN</strong> le ${esc(quand(x.accepteLe))}, référence <strong>${esc(x.reference)}</strong>. Le fichier que tu viens de télécharger est la facture validée par la TTN : c'est elle qui fait foi, garde-la.</p>`;
+      // Acceptée pendant que la page était ouverte : sa copie ne porte pas encore la référence (brique 83).
+      el.innerHTML = `<p id="ttn-piece"><strong>Acceptée par la TTN</strong> le ${esc(quand(x.accepteLe))}, référence <strong>${esc(x.reference)}</strong>. Le fichier que tu viens de télécharger est la facture validée par la TTN : c'est elle qui fait foi, garde-la.</p>
+        ${doc.ttn ? '' : '<p class="small" id="ttn-recharger">La pièce imprimée porte désormais sa référence et son code QR : recharge la page pour les voir. <button type="button" class="btn btn-sm" data-recharger>Recharger</button></p>'}`;
+      const re = /** @type {HTMLElement | null} */ (el.querySelector('[data-recharger]'));
+      if (re) re.onclick = () => location.reload();
       return;
     }
     if (x.statut === 'deposee') {

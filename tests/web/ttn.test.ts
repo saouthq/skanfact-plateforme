@@ -7,13 +7,16 @@
 //     la case) ;
 //   - le compte se pose sans proposer d'enregistrer les Paramètres, et le mot de passe ne revient jamais ;
 //   - acceptée, « Fichier pour El Fatoora » donne EXACTEMENT la facture validée par la TTN, et dit sa référence ;
-//   - un seul dépôt.
+//   - un seul dépôt ;
+//   - la pièce imprimée (l'aperçu, et l'espace client) porte la référence de la TTN et un code QR qui, relu
+//     par un lecteur de QR, dit EXACTEMENT ce que la TTN a rendu (brique 83).
 
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import pg from 'pg';
-import { chromium, type Browser, type Page } from 'playwright-core';
+import * as jsqr from 'jsqr';
+import { chromium, type Browser, type Frame, type Page } from 'playwright-core';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
@@ -60,10 +63,32 @@ describe('l\'envoi à la TTN, à la souris', () => {
     }
   };
   const net = (t: string) => t.replace(/\s+/g, ' ').trim();
+  // Relire le code QR d'une pièce affichée, comme un téléphone le lirait : l'image dessinée, puis un lecteur de QR.
+  const lireQr = async (cadre: Frame) => {
+    const pixels = await cadre.evaluate(async () => {
+      const svg = document.querySelector('svg.ttn-qr');
+      if (!svg) return null;
+      const img = new Image();
+      img.src = `data:image/svg+xml;base64,${btoa(new XMLSerializer().serializeToString(svg))}`;
+      await img.decode();
+      const c = document.createElement('canvas');
+      c.width = 400; c.height = 400;
+      const g = c.getContext('2d');
+      if (!g) return null;
+      g.fillStyle = '#fff'; g.fillRect(0, 0, 400, 400); g.drawImage(img, 0, 0, 400, 400);
+      return Array.from(g.getImageData(0, 0, 400, 400).data);
+    });
+    return pixels ? jsqr.default.default(Uint8ClampedArray.from(pixels), 400, 400)?.data ?? null : null;
+  };
+  const cadreDe = async (p: Page, selecteur: string) => {
+    const f = await (await p.locator(selecteur).elementHandle())?.contentFrame();
+    if (!f) throw new Error(`pas de cadre : ${selecteur}`);
+    return f;
+  };
   const enc = (v: unknown): unknown => (typeof v === 'number' && !Number.isInteger(v) ? { '~n': String(v) }
     : Array.isArray(v) ? v.map(enc) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, enc(x)])) : v);
 
-  it('la pièce signée attend le compte El Fatoora ; Nadia le pose depuis la fenêtre ; acceptée, la facture validée se télécharge', async () => {
+  it('la pièce signée attend le compte El Fatoora ; Nadia le pose depuis la fenêtre ; acceptée, la facture validée se télécharge, et la pièce imprimée porte sa référence et son code QR, jusque dans l\'espace client', async () => {
     const email = `nadia-ttn-${Date.now()}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Nadia', motDePasse: 'Un-bon-mot-de-passe' });
     const premier = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Premier', type: 'navigateur' } })).corps.jeton);
@@ -168,6 +193,33 @@ describe('l\'envoi à la TTN, à la souris', () => {
       .toMatch(new RegExp(`^Acceptée par la TTN le \\d\\d/\\d\\d/\\d{4} à \\d+ h \\d\\d, référence ${valide.reference}\\. Le fichier que tu viens de télécharger est la facture validée par la TTN : c'est elle qui fait foi, garde-la\\.$`));
     await nadia.screenshot({ path: path.join(PHOTOS, 'ttn-4-acceptee.png') });
     expect(ttn.deposesDe('FAC-2026-001')).toBe(1);
+
+    // La pièce imprimée (son aperçu) porte la référence de la TTN et son code QR ; relu, le QR dit exactement ce
+    // que la TTN a rendu.
+    const qrAttendu = String((await admin.query('select qr from ventes.envoi_ttn where entreprise = $1', [ent])).rows[0].qr);
+    // Acceptée pendant que la page était ouverte : la fenêtre dit de recharger pour voir la pièce imprimée à jour.
+    expect(net(await f.fenetre.locator('#ttn-recharger').innerText())).toBe('La pièce imprimée porte désormais sa référence et son code QR : recharge la page pour les voir. Recharger');
+    await f.fenetre.getByRole('button', { name: 'Recharger', exact: true }).click();
+    await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^Facture FAC-2026-001/);
+    await plusTard(nadia);
+    const apercu = await cadreDe(nadia, '#preview');
+    await expect.poll(async () => net(await apercu.locator('.info.ttn .terms').innerText().catch(() => '')), { timeout: 10_000 })
+      .toBe(`Validée par la TTN (El Fatoora) Référence ${valide.reference}`);
+    expect(await apercu.locator('.info.ttn .k').textContent()).toBe('Facture électronique');
+    expect(await lireQr(apercu)).toBe(qrAttendu);
+    await nadia.screenshot({ path: path.join(PHOTOS, 'ttn-5-piece.png') });
+
+    // L'espace client : la même pièce, la même référence, le même code QR.
+    const lien = await api('POST', `/entreprises/${ent}/espace/liens`, jeton, { client: menuiserie.cle, piece: 'f1' });
+    const espace = await cn.newPage();
+    espace.on('pageerror', (e) => erreurs.push(e.message));
+    await espace.goto(`${serveur.adresse}${String(lien.corps.adresse)}`);
+    const piece = await cadreDe(espace, 'iframe.piece');
+    await expect.poll(async () => net(await piece.locator('.info.ttn .terms').innerText().catch(() => '')), { timeout: 10_000 })
+      .toBe(`Validée par la TTN (El Fatoora) Référence ${valide.reference}`);
+    expect(await piece.locator('.info.ttn .k').textContent()).toBe('Facture électronique');
+    expect(await lireQr(piece)).toBe(qrAttendu);
+    await espace.screenshot({ path: path.join(PHOTOS, 'ttn-6-espace.png') });
     expect(erreurs).toEqual([]);
     await cn.close();
   }, 180_000);

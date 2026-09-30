@@ -4388,8 +4388,8 @@ prouver "le prix de revient d'une ligne envoyé au client" serveur/ventes/espace
   "'unitPrice', 'vatRate', 'noDiscount'] as const;" "'unitPrice', 'vatRate', 'noDiscount', 'unitCost'] as const;" \
   "$EC1"
 prouver "les paiements envoyés au client" serveur/ventes/espace.ts \
-  "'withholdingRate', 'lines',
-] as const;" "'withholdingRate', 'lines', 'payments',
+  "'withholdingRate', 'lines', 'ttn',
+] as const;" "'withholdingRate', 'lines', 'ttn', 'payments',
 ] as const;" \
   "$EC1"
 prouver "la fiche société entière envoyée au client" serveur/ventes/espace.ts \
@@ -4844,7 +4844,7 @@ prouver "la fenêtre d'une pièce signée qui propose encore d'envoyer un code" 
 TT1="une pièce signée part d'elle-même, une seule fois ; acceptée, sa référence, son code QR et la facture validée se gardent"
 TT2="jamais deux dépôts : ni quand la réponse se perd, ni quand deux tours se croisent ; une panne se réessaie plus tard"
 TT3="un refus se dit, et la pièce se renvoie ; un compte refusé se dit à l'entreprise ; une entreprise d'essai n'envoie rien"
-TTW="la pièce signée attend le compte El Fatoora ; Nadia le pose depuis la fenêtre ; acceptée, la facture validée se télécharge"
+TTW="la pièce signée attend le compte El Fatoora ; Nadia le pose depuis la fenêtre ; acceptée, la facture validée se télécharge, et la pièce imprimée porte sa référence et son code QR, jusque dans l'espace client"
 prouver "une pièce signée qui ne part pas d'elle-même" serveur/v10/signature.ts \
   "  await mettreEnRoute(tx, entreprise, utilisateur, faits.map((f) => f.piece), maintenant);
 " "" \
@@ -4918,6 +4918,42 @@ prouver "la fenêtre du fichier qui tait où en est l'envoi à la TTN" web/publi
   "        if (bridge.ttnDansLaFenetre && \$('#teif-ttn', root)) bridge.ttnDansLaFenetre(\$('#teif-ttn', root), doc, duServeur, close);
 " "" \
   "$TTW"
+
+# ── Brique 83 : la référence de la TTN et son code QR sur la pièce imprimée (docs/facture-electronique.md) ──
+QRE="une pièce réduite à ce qu'elle imprime s'imprime exactement comme la pièce entière"
+QRT="le dessin des codes QR est celui du paquet épinglé, octet pour octet"
+prouver "une référence de la TTN inventée depuis un écran" serveur/v10/dossier.ts \
+  "  if (!serveur && apres && canonique(avant?.ttn) !== canonique(apres.ttn)) {" "  if (false) {" \
+  "$TT1"
+prouver "la pièce acceptée par la TTN sans sa référence au dossier" serveur/v10/envoi.ts \
+  "      await poserLaReference(tx, d, issue.depot, maintenant);
+" "" \
+  "$TT1"
+prouver "la référence de la TTN refusée au serveur lui-même" serveur/v10/envoi.ts \
+  "le: maintenant.toISOString() } } }], { serveur: true });" "le: maintenant.toISOString() } } }]);" \
+  "$TT1"
+prouver "la pièce imprimée sans la référence de la TTN" web/public/v10/core.js \
+  "\${doc.ttn && doc.ttn.reference ? \`<div class=\"info ttn\">" "\${false ? \`<div class=\"info ttn\">" \
+  "$TTW"
+prouver "le code QR de la TTN jamais dessiné sur la pièce" web/public/v10/core.js \
+  "\${doc.ttn.qr && typeof api.qrImage === 'function' ? api.qrImage(doc.ttn.qr) : ''}" "\${''}" \
+  "$TTW"
+prouver "le dessin des QR branché nulle part dans l'application" web/public/plateforme/pont.js \
+  "      if (qr) qr.brancher();
+" "" \
+  "$TTW"
+prouver "« Recharger » jamais proposé après une acceptation pendant que la page était ouverte" web/public/plateforme/pont.js \
+  "\${doc.ttn ? '' : '<p class=\"small\" id=\"ttn-recharger\">" "\${true ? '' : '<p class=\"small\" id=\"ttn-recharger\">" \
+  "$TTW"
+prouver "la référence de la TTN qui ne part pas dans l'espace client" serveur/ventes/espace.ts \
+  "'withholdingRate', 'lines', 'ttn'," "'withholdingRate', 'lines'," \
+  "$QRE"
+prouver "le contenu du code QR qui ne part pas dans l'espace client" serveur/ventes/espace.ts \
+  "ttn: ['reference', 'qr'] }" "ttn: ['reference'] }" \
+  "$QRE"
+prouver "le code du dessin des QR retouché à la main" web/public/tiers/qrcode.js \
+  "var qrcode = function() {" "var qrcode = function() { // retouché" \
+  "$QRT"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

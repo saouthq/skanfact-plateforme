@@ -26,11 +26,12 @@ export const CHAMPS_CLIENT = ['name', 'matricule', 'address', 'email', 'phone', 
 export const CHAMPS_PIECE = [
   'type', 'number', 'date', 'dueDate', 'status', 'lang', 'currency', 'exchangeRate', 'subject', 'reference', 'notes',
   'deposit', 'settles', 'fromQuoteNumber', 'creditOfNumber', 'creditReason', 'regimeTva', 'exonerationRS',
-  'discountRate', 'applyStamp', 'stampFee', 'withholdingRate', 'lines',
+  'discountRate', 'applyStamp', 'stampFee', 'withholdingRate', 'lines', 'ttn',
 ] as const;
 export const CHAMPS_LIGNE = ['label', 'description', 'qty', 'unit', 'unitPrice', 'vatRate', 'noDiscount'] as const;
-// Ce qu'une pièce imprime de l'acompte, du solde d'un devis et de l'exonération de retenue figée.
-export const SOUS_CHAMPS = { deposit: ['percent', 'montant', 'quoteNumber'], settles: ['quoteNumber'], exonerationRS: ['numero', 'au'] } as const;
+// Ce qu'une pièce imprime de l'acompte, du solde d'un devis, de l'exonération de retenue figée, et de la
+// facture électronique acceptée par la TTN (sa référence et le contenu de son code QR, brique 83).
+export const SOUS_CHAMPS = { deposit: ['percent', 'montant', 'quoteNumber'], settles: ['quoteNumber'], exonerationRS: ['numero', 'au'], ttn: ['reference', 'qr'] } as const;
 
 type Objet = Record<string, unknown>;
 const objet = (o: unknown): o is Objet => !!o && typeof o === 'object' && !Array.isArray(o);

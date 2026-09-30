@@ -9421,6 +9421,7 @@
           ${paymentTerms ? `<div class="terms">${nl2br(paymentTerms)}</div>` : ''}
         </div>` : ''}
         ${exoRS ? `<div class="info"><span class="k">${L.withholding}</span><div class="terms">${L.exoRS(escapeHtml(exoRS.numero || ''), fmtDate(exoRS.au))}</div></div>` : ''}
+        ${doc.ttn && doc.ttn.reference ? `<div class="info ttn"><span class="k">${lang === 'en' ? 'E-invoice' : 'Facture électronique'}</span><div style="display:flex;gap:3mm;align-items:center;margin-top:1mm">${doc.ttn.qr && typeof api.qrImage === 'function' ? api.qrImage(doc.ttn.qr) : ''}<div class="terms">${lang === 'en' ? 'Validated by TTN (El Fatoora)' : 'Validée par la TTN (El Fatoora)'}<br>${lang === 'en' ? 'Reference' : 'Référence'} <b>${escapeHtml(doc.ttn.reference)}</b></div></div></div>` : ''}
         ${isCredit ? `
         <div class="info"><span class="k">${L.avoir}</span>
           ${doc.creditOfNumber ? L.creditText(escapeHtml(doc.creditOfNumber), estLiberal(company) ? (lang === 'en' ? 'fee note' : 'la note d\'honoraires') : '') : L.creditFreeText}${doc.creditReason ? ' — ' + escapeHtml(doc.creditReason) : ''}.
@@ -10603,7 +10604,9 @@
     clientPourVente, chargeHistorique, facturesAAnnoncer,
     // L'import depuis un tableur, et le modèle vierge d'une fiche (10.14.0)
     clientVierge, articleVierge, IMPORT_CHAMPS, champDeEntete, decouperTableau, separateurTableau, uniteImport,
-    planImport, appliquerImport, lireFichierTexte
+    planImport, appliquerImport, lireFichierTexte,
+    // (plateforme) Dessiner un code QR : `qrImage(texte)` rend un <svg>. Vide ici ; la page le branche (brique 83).
+    qrImage: null
   };
   // Les calculs qui LISENT beaucoup ouvrent leur propre lot : appelés d'un test, de la palette ou du
   // processus principal, ils profitent des index sans que l'appelant y pense. Aucun ne modifie les

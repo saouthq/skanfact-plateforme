@@ -80,7 +80,7 @@ des listes le fait échouer (vérifié champ par champ le 30/09/2026).
 
 | De | Ce qui part |
 |---|---|
-| La pièce | type, numéro, date, échéance, état, langue, devise et cours, objet, référence, notes, acompte (pourcentage ou montant, numéro du devis), solde d'un devis (son numéro), devis d'origine (son numéro), facture corrigée et motif (avoir), régime de TVA et exonération de retenue figés à l'émission, remise, timbre, retenue, lignes |
+| La pièce | type, numéro, date, échéance, état, langue, devise et cours, objet, référence, notes, acompte (pourcentage ou montant, numéro du devis), solde d'un devis (son numéro), devis d'origine (son numéro), facture corrigée et motif (avoir), régime de TVA et exonération de retenue figés à l'émission, remise, timbre, retenue, lignes ; la référence de la TTN et le contenu de son code QR d'une facture électronique acceptée (brique 83, décidé le 30/09/2026 par délégation : ils s'impriment sur la pièce) |
 | Une ligne | désignation, description, quantité, unité, prix unitaire, taux de TVA, « hors remise » |
 | La fiche société | nom, matricule, RC, capital, adresse, téléphone, e-mail, site, RIB, banque, logo, pied de page, slogan, cachet, timbre, couleurs, devise, langue, conditions de paiement (français, anglais), métier (qui fait dire « note d'honoraires »), régime de TVA |
 | La fiche client | nom, matricule, adresse, e-mail, téléphone, contact |

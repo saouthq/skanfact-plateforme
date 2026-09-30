@@ -213,7 +213,7 @@ describe('l\'espace client', () => {
   // l'entreprise imprime) et sur la pièce réduite (ce que le client reçoit). Chaque champ imprimé est
   // présent, avec une valeur qui se voit : un champ oublié dans les listes fermées change le document.
   it('une pièce réduite à ce qu\'elle imprime s\'imprime exactement comme la pièce entière', () => {
-    const C = ecranDeLaPlateforme('core.js') as { documentHtml: (d: unknown, c: unknown, s: unknown, o: unknown) => string };
+    const C = ecranDeLaPlateforme('core.js') as { documentHtml: (d: unknown, c: unknown, s: unknown, o: unknown) => string; qrImage: ((texte: string) => string) | null };
     const societe = {
       name: 'Atelier Ben Salah', matricule: '1234567/A/M/000', rc: 'B0123452026', capital: '20000', address: '12 rue de Marseille\n1000 Tunis',
       phone: '+216 71 000 000', email: 'contact@atelier.tn', website: 'atelier.tn', rib: '08 000 0001234567890 12', bank: 'Banque de Tunisie',
@@ -237,7 +237,9 @@ describe('l\'espace client', () => {
     ];
     const facture = { ...secrets, type: 'facture', number: 'FAC-2026-012', date: '2026-10-01', dueDate: '2026-10-31', status: 'envoyée', lang: 'fr', currency: 'DT', exchangeRate: '',
       subject: 'Mobilier du salon', reference: 'BC-4471', notes: 'Livraison comprise\nGarantie deux ans', lines: lignes, discountRate: 10, applyStamp: true, stampFee: 1,
-      withholdingRate: 1.5, regimeTva: 'reel', exonerationRS: null, deposit: { percent: 30, quoteId: 'q1', quoteNumber: 'DEV-2026-004' } };
+      withholdingRate: 1.5, regimeTva: 'reel', exonerationRS: null, deposit: { percent: 30, quoteId: 'q1', quoteNumber: 'DEV-2026-004' },
+      // Acceptée par la TTN (brique 83) : sa référence et son code QR s'impriment ; l'heure de l'acceptation, non.
+      ttn: { reference: 'TTN260000000042', qr: 'https://elfatoora.tn/verif?ref=TTN260000000042', le: '2026-10-02T09:15:00.000Z' } };
     const pieces = [
       facture,
       // En euros, en anglais, à réception, le solde d'un devis, une exonération de retenue figée.
@@ -251,6 +253,8 @@ describe('l\'espace client', () => {
         creditReason: 'Une table rendue', reference: 'RET-8', notes: 'Remboursé par virement', lines: [{ ...lignes[0], vatRate: 0 }], discountRate: 0, applyStamp: true, stampFee: 1, withholdingRate: 0 },
     ];
     let compares = 0;
+    // Le code QR se dessine par le point d'extension du moteur : ici, un dessin qui écrit ce qu'il reçoit.
+    C.qrImage = (texte: string) => `<svg data-qr="${texte}"></svg>`;
     for (const s of [societe, { ...societe, activity: 'juridique' }]) {
       for (const p of pieces) {
         for (const o of [{ preview: true, zoom: 0.8 }, { stampText: 'Payée' }, {}]) {
@@ -260,6 +264,9 @@ describe('l\'espace client', () => {
       }
     }
     expect(compares).toBe(30);
+    expect(C.documentHtml(facture, client, societe, {})).toContain('<svg data-qr="https://elfatoora.tn/verif?ref=TTN260000000042"></svg>');
+    C.qrImage = null;
+    expect(nettoyerPiece(facture).ttn).toEqual({ reference: 'TTN260000000042', qr: 'https://elfatoora.tn/verif?ref=TTN260000000042' });
     // Et ce qui reste dans l'entreprise n'est plus là.
     for (const cle of Object.keys(secrets)) expect(nettoyerPiece(facture)).not.toHaveProperty(cle);
     expect(nettoyerPiece(facture).deposit).toEqual({ percent: 30, quoteNumber: 'DEV-2026-004' });

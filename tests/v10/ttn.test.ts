@@ -118,7 +118,7 @@ afterAll(async () => { await app.close(); await digigo.fermer(); await ttn.ferme
 
 describe('l\'envoi à la TTN', () => {
   it('une pièce signée part d\'elle-même, une seule fois ; acceptée, sa référence, son code QR et la facture validée se gardent', async () => {
-    const e = await entreprise(['f1', 'f2']);
+    const e = await entreprise(['f1', 'f2', 'f3']);
     expect(await e.signer(['f1', 'f2'])).toEqual(['FAC-2026-001', 'FAC-2026-002']);
     // Signées : en route. Sans compte El Fatoora, rien ne part, et c'est dit.
     expect(await e.envoi('f1')).toMatchObject({ statut: 'a_envoyer' });
@@ -160,6 +160,22 @@ describe('l\'envoi à la TTN', () => {
       .rejects.toMatchObject({ code: '42501', message: 'une pièce acceptée par la TTN ne change plus' });
     await expect(pool.query('select mot_de_passe_scelle from ventes.ttn_compte')).rejects.toMatchObject({ code: '42501' });
     expect((await e.renvoyer('f1')).corps.motif).toBe('Seule une pièce refusée par la TTN se renvoie ; la pièce FAC-2026-001 ne l\'est pas.');
+
+    // La pièce du dossier porte sa référence et le contenu de son code QR (elle s'imprime avec, brique 83) ; seul le
+    // serveur les écrit : ni changées sur une pièce acceptée, ni inventées sur une autre.
+    const objets = async () => (await appeler('GET', `/entreprises/${e.ent}/dossier-v10`, e.jeton)).corps.objets as Objet[];
+    const p1 = (await objets()).find((o) => o.collection === 'documents' && o.cle === 'f1');
+    expect(p1?.contenu.ttn).toEqual({ reference: x?.reference, qr: x?.qr, le: expect.stringMatching(/^2026-10-01T09:02:00/) });
+    const ecrire = (o: Objet | undefined, ttnEcrit: unknown) => appeler('POST', `/entreprises/${e.ent}/dossier-v10`, e.jeton,
+      { changements: [{ collection: 'documents', cle: o?.cle, rang: o?.rang, revision: o?.revision, contenu: { ...o?.contenu, ttn: ttnEcrit } }] });
+    expect(await ecrire(p1, { reference: 'TTN-INVENTEE', qr: 'x' })).toMatchObject({ statut: 403,
+      corps: { motif: 'La référence de la TTN de la pièce FAC-2026-001 ne s\'écrit que par le serveur, quand la TTN l\'accepte : rien n\'a été enregistré.' } });
+    expect(await ecrire(p1, undefined)).toMatchObject({ statut: 403 });
+    const p3 = (await objets()).find((o) => o.collection === 'documents' && o.cle === 'f3');
+    expect(p3?.contenu.ttn).toBeUndefined();
+    expect(await ecrire(p3, { reference: 'TTN-INVENTEE', qr: 'x' })).toMatchObject({ statut: 403 });
+    // Une pièce acceptée garde sa référence quand elle vit sa vie (un règlement s'y ajoute).
+    expect((await ecrire(p1, p1?.contenu.ttn)).statut).toBe(200);
   });
 
   it('jamais deux dépôts : ni quand la réponse se perd, ni quand deux tours se croisent ; une panne se réessaie plus tard', async () => {
