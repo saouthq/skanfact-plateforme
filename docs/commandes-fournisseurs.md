@@ -1,10 +1,10 @@
 # Les commandes fournisseurs et leurs réceptions, même partielles
 
-*30/09/2026, briques 87 et 88. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 du
+*30/09/2026, briques 87, 88 et 89. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 du
 dépôt `skanfact` (au lancement : « Côté achats : demande de prix, commande fournisseur, réception (même
 partielle), et la facture rapprochée de la réception (un écart de quantité ou de prix se signale) »).
 La brique 87 fait la commande, la réception et la facture saisie depuis les réceptions ; la brique 88
-signale les écarts ; la demande de prix vient ensuite. Toutes les décisions sont prises par délégation, le
+signale les écarts ; la brique 89 fait la demande de prix, à un ou plusieurs fournisseurs. Toutes les décisions sont prises par délégation, le
 30/09/2026.*
 
 ## Ce que la v10 faisait
@@ -79,6 +79,19 @@ commande (« Facture : F-8841 (un écart avec les réceptions) »). **Rien n'est
 s'enregistre telle que le fournisseur l'a émise, et l'écart se règle avec lui (un avoir, la livraison du
 reste). Deux lignes de commande du même nom (le même ciment à deux prix) se comparent chacune à la sienne.
 
+**C10. La demande de prix** (brique 89, 30/09/2026). « + Demande de prix » : le même écran qu'une commande,
+au statut « Demande de prix » ; elle prend son numéro dans la même série (BCF-…, comme Odoo : la demande
+devient la commande sans changer de numéro) et s'imprime **« Demande de prix », sans aucun prix**, « Demandé
+le … », avec « Merci de nous indiquer vos prix unitaires hors taxes et votre délai de livraison ». Elle ne
+reçoit rien. « Demander aussi à… » crée la même demande chez un autre fournisseur (les mêmes lignes, **sans
+prix** ; un fournisseur déjà sollicité n'est pas proposé) ; elles partagent un groupe. On saisit sur chacune
+les prix que son fournisseur a répondus ; le panneau « Les réponses des fournisseurs » les compare ligne par
+ligne, **ramenés en dinars** (le moins cher en gras ; une ligne sans prix est « sans réponse » et ne gagne pas),
+puis le total hors taxes des demandes **complètes** (le moins cher en gras, son bouton est le principal).
+« Commander chez … » fait de sa demande la commande (« envoyée ») et **écarte** les autres (« annulée ») ;
+commander sans le prix du fournisseur est refusé, et le refus nomme les lignes à compléter. Une demande seule
+a son bouton « Commander ». Les titres de l'écran disent « la demande » tant qu'elle en est une.
+
 ## Ce qui part au serveur
 
 Rien vers un tiers. Deux collections nouvelles du dossier de l'entreprise, sur le serveur de SkanFact :
@@ -95,17 +108,25 @@ notes) ; et deux champs sur un achat, `receptions` (identifiant et numéro de ch
   d'année), le stock entré par les réceptions validées seules au prix en dinars, la facture qui n'y fait
   pas entrer une seconde fois ses lignes reçues (une ligne ajoutée à la main, si), le coût des sorties nul,
   la réception couverte qui ne se propose plus, la commande imprimée ; les écarts (une quantité, un prix, une ligne oubliée, une autre devise, deux
-  lignes du même nom, la copie d'une ligne qui ne compte pas).
+  lignes du même nom, la copie d'une ligne qui ne compte pas) ; la demande de prix (le groupe, la comparaison en dinars, la
+  demande incomplète qui ne gagne pas, l'imprimé sans prix).
 - À la souris (`tests/web/commandes-fournisseurs.test.ts`) : la commande créée depuis le catalogue,
   imprimée, reçue en deux fois (ses lignes figées pendant la préparation), le panneau, le stock de la fiche
   article, la facture saisie depuis les deux réceptions et tenue par le serveur (7 311,250 HT), le stock
   entré une seule fois, sa copie (et la copie d'une ligne) qui y entre, l'écart dit pendant la saisie (105 sacs pour 100, puis le transport à 65 au lieu de 60) et sur la commande,
   puis la commande au téléphone. Sept écrans regardés.
-- 48 preuves (`tests/preuves.sh`, briques 87 et 88) : chaque défaut remis fait tomber son test.
+- La demande de prix à la souris (`tests/web/demandes-prix.test.ts`) : créée, imprimée sans prix, envoyée
+  aussi à un second fournisseur, le refus de commander sans prix, la comparaison (17,250 contre 16,900),
+  « Commander chez Béton du Nord », l'autre demande écartée ; puis la comparaison au téléphone. Quatre écrans
+  regardés.
+- 66 preuves (`tests/preuves.sh`, briques 87 à 89) : chaque défaut remis fait tomber son test.
 
 ## Reste connu
 
-- **La demande de prix** (à un ou plusieurs fournisseurs, puis comparer leurs réponses) : la brique suivante.
+- La comparaison ne tient compte que des prix : ni le délai de livraison répondu, ni les conditions de
+  paiement (ils peuvent s'écrire dans les notes de chaque demande). Une réponse en devise se compare au cours
+  saisi sur sa demande.
+- Une demande ne part pas d'elle-même chez le fournisseur : on l'imprime (PDF) et on la lui envoie.
 - Un écart ne se lit que sur la facture et sur sa commande : la liste des achats ne le montre pas encore.
 - **Le prix du stock** : la marchandise entre au prix de la commande ; si la facture porte un autre prix
   (ou un autre cours de change), la valeur du stock n'est pas reprise. **À VÉRIFIER** avec un comptable :

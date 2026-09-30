@@ -7483,7 +7483,8 @@
   // et UNE fonction compte ce qui est reçu : le statut de la commande, son panneau et la réception suivante
   // la lisent. Seule une réception VALIDÉE a reçu ; en brouillon, elle est « en préparation » ; annulée,
   // elle ne compte pas.
-  const STATUTS_COMMANDE_FOURNISSEUR = ['brouillon', 'envoyée', 'soldée', 'annulée'];
+  // « demande » : une demande de prix (brique 89), avant de commander ; elle ne reçoit rien.
+  const STATUTS_COMMANDE_FOURNISSEUR = ['demande', 'brouillon', 'envoyée', 'soldée', 'annulée'];
   // Le numéro suivant d'une liste qui n'est pas une pièce de vente (BCF-2026-001, BR-2026-001) : le plus
   // grand déjà porté ou le compteur, le plus grand des deux, plus un.
   function numeroSuivant(data, liste, prefixe, dateIso) {
@@ -7596,6 +7597,33 @@
       if (memeDevise && Math.abs(pu - a.unitPrice) > 0.0005) out.push({ ...quoi, genre: 'prix', commande: a.unitPrice, facture: pu });
     });
     return out;
+  }
+  // Une demande de prix envoyée à plusieurs fournisseurs (brique 89) : ses copies partagent un groupe (l'identifiant
+  // de la première). Seules les demandes encore ouvertes comptent : une demande commandée ou écartée n'en est plus une.
+  function demandesDuGroupe(data, d) {
+    const g = d && (d.groupe || d.id);
+    return (data.supplierOrders || []).filter(x => x.status === 'demande' && (x.groupe || x.id) === g);
+  }
+  // Comparer les réponses : ligne par ligne, le prix de chaque fournisseur ramené en dinars (une ligne sans prix
+  // est sans réponse : elle ne gagne pas), et le total hors taxes de chaque demande entièrement répondue.
+  function comparerDemandes(data, d) {
+    const co = data.company || {};
+    const ds = demandesDuGroupe(data, d);
+    const n = Math.max(0, ...ds.map(x => (x.lines || []).length));
+    const lignes = [];
+    for (let i = 0; i < n; i++) {
+      const ref = ds.map(x => (x.lines || [])[i]).find(Boolean) || {};
+      const prix = ds.map(x => { const l = (x.lines || [])[i]; const pu = l ? Number(l.unitPrice) || 0 : 0; return pu > 0 ? toBase(x, pu, co) : null; });
+      const vus = prix.filter(v => v !== null);
+      const min = vus.length ? Math.min(...vus) : null;
+      lignes.push({ label: ref.label || '', qty: Number(ref.qty) || 0, unit: ref.unit || '', prix, meilleur: min === null ? -1 : prix.indexOf(min) });
+    }
+    const totaux = ds.map(x => ({ id: x.id, supplierId: x.supplierId || '', number: x.number || '',
+      complete: (x.lines || []).length > 0 && (x.lines || []).every(l => (Number(l.unitPrice) || 0) > 0),
+      totalHT: toBase(x, computeTotals(x, co).netHT, co) }));
+    const completes = totaux.filter(t => t.complete);
+    const moinsCher = completes.length ? completes.reduce((a, b) => (b.totalHT < a.totalHT ? b : a)).id : null;
+    return { demandes: ds, lignes, totaux, moinsCher };
   }
 
   // ---------- les commandes livrées en plusieurs fois (plateforme, brique 86 ; 14 § 3.2) ----------
@@ -9363,6 +9391,8 @@
       proforma: 'Facture proforma', commande: 'Bon de commande', livraison: 'Bon de livraison', contrat: 'Contrat de prestation',
       established: 'Établi le', orderedOn: 'Commandé le', deliveredOn: 'Livré le', signedOn: 'Signé le', from: 'Suite à', deliveryNotes: 'Bons de livraison', deliveryNote1: 'Bon de livraison',
       commandeFournisseur: 'Bon de commande', supplier: 'Fournisseur', wantedBy: 'Livraison souhaitée le',
+      demandePrix: 'Demande de prix', askedOn: 'Demandé le',
+      demandePrixNote: 'Merci de nous indiquer vos prix unitaires hors taxes et votre délai de livraison pour ces articles.',
       supplierOrderNote: 'Merci de nous confirmer cette commande, ses prix et sa date de livraison. Toute livraison est accompagnée de son bon de livraison.',
       proformaNote: 'Document sans valeur comptable. Il ne remplace pas une facture et ne donne lieu à aucune déclaration de TVA.',
       orderNote: 'Bon de commande établi d\'après votre demande. Merci de nous le retourner daté et signé pour lancer l\'exécution.',
@@ -9382,6 +9412,8 @@
       proforma: 'Proforma invoice', commande: 'Purchase order', livraison: 'Delivery note', contrat: 'Service agreement',
       established: 'Issued on', orderedOn: 'Ordered on', deliveredOn: 'Delivered on', signedOn: 'Signed on', from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery note',
       commandeFournisseur: 'Purchase order', supplier: 'Supplier', wantedBy: 'Delivery requested by',
+      demandePrix: 'Request for quotation', askedOn: 'Requested on',
+      demandePrixNote: 'Please send us your unit prices excluding tax and your delivery lead time for these items.',
       supplierOrderNote: 'Please confirm this order, its prices and its delivery date. Every delivery comes with its delivery note.',
       proformaNote: 'This document has no accounting value. It does not replace an invoice and is not subject to VAT reporting.',
       orderNote: 'Purchase order drawn up from your request. Please return it dated and signed so we can proceed.',
@@ -9407,15 +9439,17 @@
     const isOrder = doc.type === 'commande';
     // La commande qu'on passe à un fournisseur (brique 87) : elle s'imprime comme un bon de commande, pour lui.
     const isSupplierOrder = doc.type === 'commandeFournisseur';
+    // Une demande de prix (brique 89) : les mêmes lignes, sans prix ; c'est au fournisseur de les donner.
+    const isDemandePrix = isSupplierOrder && doc.status === 'demande';
     const isDelivery = doc.type === 'livraison';
     const isContract = doc.type === 'contrat';
     // Le bon de livraison accompagne la marchandise : par défaut il ne porte aucun prix.
-    const noPrices = isDelivery && doc.hidePrices !== false;
+    const noPrices = (isDelivery && doc.hidePrices !== false) || isDemandePrix;
     const clauses = isContract ? { ...DEFAULT_CLAUSES, ...(doc.clauses || {}) } : null;
     // Le titre imprimé. Pour une profession libérale, « Facture » devient « Note d'honoraires » —
     // même pièce, même numéro, même valeur comptable, le nom que le client attend.
     const title = (doc.type === 'facture' && estLiberal(company))
-      ? docLabel('facture', company, lang) : (L[doc.type] || 'Document');
+      ? docLabel('facture', company, lang) : isDemandePrix ? L.demandePrix : (L[doc.type] || 'Document');
     const cl = client || {};
     const ink = company.primaryColor || '#1b2430';
     const accent = company.accentColor || '#0f9d8f';
@@ -9485,7 +9519,7 @@
       doc.fromDocNumber ? [L.from, doc.fromDocNumber] : null,
       doc.reference ? [L.reference, doc.reference] : null
     ] : isSupplierOrder ? [
-      [L.orderedOn, fmtDate(doc.date)],
+      [isDemandePrix ? L.askedOn : L.orderedOn, fmtDate(doc.date)],
       doc.dueDate ? [L.wantedBy, fmtDate(doc.dueDate)] : null,
       doc.reference ? [L.reference, doc.reference] : null
     ] : isContract ? [
@@ -9748,7 +9782,7 @@
         </div>` : ''}` : ''}
         ${isOrder ? `<div class="info"><span class="k">${L.commande}</span><div class="terms">${L.orderNote}</div></div>` : ''}
         ${isDelivery ? `<div class="info"><span class="k">${L.livraison}</span><div class="terms">${L.deliveryNote}</div></div>` : ''}
-        ${isSupplierOrder ? `<div class="info"><span class="k">${L.commandeFournisseur}</span><div class="terms">${L.supplierOrderNote}</div></div>` : ''}
+        ${isSupplierOrder ? `<div class="info"><span class="k">${isDemandePrix ? L.demandePrix : L.commandeFournisseur}</span><div class="terms">${isDemandePrix ? L.demandePrixNote : L.supplierOrderNote}</div></div>` : ''}
         ${doc.notes ? `<div class="notes">${String(doc.notes).split('\n').map(l => `<div class="n-l">${escapeHtml(l)}</div>`).join('')}</div>` : ''}
       </div>
       ${noPrices ? '' : `<div class="card">
@@ -10881,7 +10915,7 @@
     CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, decimalsFor, arrondiDevise, prixDuCatalogue, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
-    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions,
+    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes,
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
     vatReturn, vatChain, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
     ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, cashMovements, accountBalance, cashPosition, cashForecast, reconciliation,

@@ -5293,7 +5293,7 @@ prouver "la commande imprimée sans la livraison souhaitée" web/public/v10/core
   "      doc.dueDate ? [L.wantedBy, fmtDate(doc.dueDate)] : null," "      null," \
   "$CF4"
 prouver "la commande imprimée sans la demande de confirmation" web/public/v10/core.js \
-  "<div class=\"terms\">\${L.supplierOrderNote}</div>" "<div class=\"terms\"></div>" \
+  "\${isDemandePrix ? L.demandePrixNote : L.supplierOrderNote}" "\${isDemandePrix ? L.demandePrixNote : ''}" \
   "$CF4"
 prouver "les commandes fournisseurs absentes du menu" web/public/v10/core.js \
   "    { id: 'commandesf', titre: 'Commandes fournisseurs', module: 'achats', famille: 'Acheter'," "    { id: 'commandesf-absente', titre: 'Commandes fournisseurs', module: 'achats', famille: 'Acheter'," \
@@ -5388,6 +5388,64 @@ prouver "la commande qui ne nomme pas la facture de ses réceptions" web/public/
 prouver "la commande qui tait l'écart de sa facture" web/public/v10/app.js \
   "return \`<a href=\"#/achat/\${h(f.id)}\">\${h(f.number || 'sans numéro')}</a>\${n ?" "return \`<a href=\"#/achat/\${h(f.id)}\">\${h(f.number || 'sans numéro')}</a>\${false ?" \
   "$CFW"
+
+# ── Brique 89 : la demande de prix, à un ou plusieurs fournisseurs (docs/commandes-fournisseurs.md) ──
+CF6="une demande de prix envoyée à trois fournisseurs se compare ligne à ligne, en dinars ; elle s'imprime sans prix"
+CFD="Nadia demande ses prix à deux fournisseurs, compare leurs réponses, puis commande chez le moins cher"
+prouver "la demande de prix absente des statuts" web/public/v10/core.js \
+  "  const STATUTS_COMMANDE_FOURNISSEUR = ['demande', 'brouillon', 'envoyée', 'soldée', 'annulée'];" "  const STATUTS_COMMANDE_FOURNISSEUR = ['brouillon', 'envoyée', 'soldée', 'annulée'];" \
+  "$CFD"
+prouver "une demande commandée encore comparée" web/public/v10/core.js \
+  "    return (data.supplierOrders || []).filter(x => x.status === 'demande' && (x.groupe || x.id) === g);" "    return (data.supplierOrders || []).filter(x => (x.groupe || x.id) === g);" \
+  "$CF6"
+prouver "des prix en devise comparés sans être ramenés en dinars" web/public/v10/core.js \
+  "return pu > 0 ? toBase(x, pu, co) : null; });" "return pu > 0 ? pu : null; });" \
+  "$CF6"
+prouver "une demande sans toutes ses réponses qui peut gagner" web/public/v10/core.js \
+  "      complete: (x.lines || []).length > 0 && (x.lines || []).every(l => (Number(l.unitPrice) || 0) > 0)," "      complete: true," \
+  "$CF6"
+prouver "une demande de prix imprimée avec des prix" web/public/v10/core.js \
+  "    const noPrices = (isDelivery && doc.hidePrices !== false) || isDemandePrix;" "    const noPrices = isDelivery && doc.hidePrices !== false;" \
+  "$CF6"
+prouver "une demande de prix imprimée comme un bon de commande" web/public/v10/core.js \
+  ": isDemandePrix ? L.demandePrix : (L[doc.type] || 'Document');" ": (L[doc.type] || 'Document');" \
+  "$CF6"
+prouver "une demande de prix « commandée le »" web/public/v10/core.js \
+  "      [isDemandePrix ? L.askedOn : L.orderedOn, fmtDate(doc.date)]," "      [L.orderedOn, fmtDate(doc.date)]," \
+  "$CF6"
+prouver "une demande de prix qui demande de confirmer la commande" web/public/v10/core.js \
+  "\${isDemandePrix ? L.demandePrixNote : L.supplierOrderNote}" "\${L.supplierOrderNote}" \
+  "$CF6"
+prouver "« + Demande de prix » qui crée une commande" web/public/v10/app.js \
+  "status: parts[1] === 'demande' ? 'demande' : 'brouillon', date: C.today()" "status: 'brouillon', date: C.today()" \
+  "$CFD"
+prouver "une demande de prix qu'on peut recevoir" web/public/v10/app.js \
+  "suivi.aProposer && !close && !demande);" "suivi.aProposer && !close);" \
+  "$CFD"
+prouver "une demande de prix qui se dit commande" web/public/v10/app.js \
+  "\${demande ? 'Demande de prix' : 'Commande'}" "Commande" \
+  "$CFD"
+prouver "les titres d'une demande de prix qui parlent de commande" web/public/v10/app.js \
+  "    const quoi = o.status === 'demande' ? 'demande' : 'commande';" "    const quoi = 'commande';" \
+  "$CFD"
+prouver "« Demander aussi à… » qui propose un fournisseur déjà sollicité" web/public/v10/app.js \
+  "      const pris = new Set(C.demandesDuGroupe(data, src).map(x => x.supplierId));" "      const pris = new Set();" \
+  "$CFD"
+prouver "la demande copiée avec les prix de l'autre fournisseur" web/public/v10/app.js \
+  "lines: (src.lines || []).map(l => ({ ...deepCopy(l), unitPrice: 0 })) };" "lines: deepCopy(src.lines || []) };" \
+  "$CFD"
+prouver "une demande commandée sans le prix du fournisseur" web/public/v10/app.js \
+  "      if (sansPrix.length) return toast(" "      if (false) return toast(" \
+  "$CFD"
+prouver "les autres demandes gardées après la commande" web/public/v10/app.js \
+  "      autres.forEach(x => { x.status = 'annulée'; x.nonRetenue = true; });" "" \
+  "$CFD"
+prouver "le prix le moins cher d'une ligne qui ne se lit pas" web/public/v10/app.js \
+  ": j === l.meilleur ? \`<b>" ": false ? \`<b>" \
+  "$CFD"
+prouver "« Commander chez… » le moins cher qui n'est pas le bouton principal" web/public/v10/app.js \
+  "\${t.id === groupe.moinsCher ? 'btn-primary' : ''}\" data-commander" "\" data-commander" \
+  "$CFD"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

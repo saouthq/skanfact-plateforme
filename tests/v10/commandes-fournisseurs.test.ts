@@ -28,6 +28,8 @@ type Core = {
   stockMovements: (data: unknown, itemId: string | null) => { qty: number; source: string; ref: string; unitCost: number | null }[];
   copieLigneAchat: (l: Ligne) => Ligne;
   ecartsAchatReceptions: (data: unknown, p: unknown) => Record<string, unknown>[];
+  demandesDuGroupe: (data: unknown, d: Piece) => Piece[];
+  comparerDemandes: (data: unknown, d: Piece) => { demandes: Piece[]; lignes: { label: string; prix: (number | null)[]; meilleur: number }[]; totaux: { id: string; complete: boolean; totalHT: number }[]; moinsCher: string | null };
   costOfGoodsSold: (data: unknown, period?: { from?: string; to?: string }) => number;
   documentHtml: (doc: unknown, client: unknown, company: unknown) => string;
 };
@@ -166,5 +168,36 @@ describe('les commandes fournisseurs et leurs réceptions, dans la v10', () => {
     expect(C.ecartsAchatReceptions(d2, { receptions: [{ id: 'r3' }], lines: [l20, { ...l100, qty: 90 }] })).toEqual([
       { label: 'Ciment gris 50 kg', unit: 'sac', genre: 'quantite', recu: 100, facture: 90 },
     ]);
+  });
+
+  it('une demande de prix envoyée à trois fournisseurs se compare ligne à ligne, en dinars ; elle s\'imprime sans prix', () => {
+    const lignes = (ciment: number, fer: number) => [
+      { label: 'Ciment gris 50 kg', qty: 100, unit: 'sac', unitPrice: ciment, vatRate: 19, itemId: 'ciment' },
+      { label: 'Fer à béton 12 mm', qty: 2.5, unit: 't', unitPrice: fer, vatRate: 19, itemId: 'fer' },
+    ];
+    const d1: Piece = { id: 'd1', type: 'commandeFournisseur', number: 'BCF-2026-004', status: 'demande', date: '2026-10-01', supplierId: 's1', currency: 'DT', lines: lignes(17.25, 2210.5), groupe: 'd1' };
+    const d2: Piece = { ...d1, id: 'd2', number: 'BCF-2026-005', supplierId: 's2', lines: lignes(16.9, 2240) };
+    // En euros : 5,1 € × 3,3715 = 17,19465, soit 17,195 DT le sac. Le fer n'a pas encore de réponse ici.
+    const d3: Piece = { ...d1, id: 'd3', number: 'BCF-2026-006', supplierId: 's3', currency: 'EUR', exchangeRate: 3.3715, lines: lignes(5.1, 0) };
+    const autre: Piece = { ...d1, id: 'x', number: 'BCF-2026-007', groupe: 'x' };
+    const commandee: Piece = { ...d1, id: 'd0', status: 'envoyée' };
+    const data = { company, catalog, purchases: [], receptions: [], supplierOrders: [d1, d2, d3, autre, commandee] };
+    expect(C.demandesDuGroupe(data, d2).map((d) => d.id)).toEqual(['d1', 'd2', 'd3']);
+    const c = C.comparerDemandes(data, d3);
+    expect(c.lignes.map((l) => [l.label, l.prix, l.meilleur])).toEqual([
+      ['Ciment gris 50 kg', [17.25, 16.9, 17.195], 1],
+      ['Fer à béton 12 mm', [2210.5, 2240, null], 0],
+    ]);
+    // Le total de chaque demande : 7 251,250 et 7 290,000 ; la demande en euros (510 € = 1 719,465 DT), incomplète, ne gagne pas.
+    expect(c.totaux.map((t) => [t.id, t.complete, t.totalHT])).toEqual([['d1', true, 7251.25], ['d2', true, 7290], ['d3', false, 1719.465]]);
+    expect(c.moinsCher).toBe('d1');
+    // Imprimée : « Demande de prix », sans prix, avec la demande de les donner.
+    const texte = C.documentHtml(d2, { name: 'Béton du Nord' }, company).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    expect(texte).toContain('Demande de prix');
+    expect(texte).toContain('Demandé le 01/10/2026');
+    expect(texte).toContain('Merci de nous indiquer vos prix unitaires hors taxes et votre délai de livraison pour ces articles.');
+    expect(texte).not.toMatch(/16,900|2 240,000|Total/);
+    expect(texte).not.toContain('Bon de commande');
+    expect(C.documentHtml(commandee, { name: 'Ciments de Bizerte' }, company).replace(/<[^>]+>/g, ' ')).toMatch(/17,250/);
   });
 });

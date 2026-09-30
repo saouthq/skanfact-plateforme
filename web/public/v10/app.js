@@ -8322,8 +8322,8 @@
   const receptionsF = () => (data.receptions = data.receptions || []);
   const commandeFById = id => commandesF().find(o => o.id === id);
   const receptionById = id => receptionsF().find(r => r.id === id);
-  const MOTS_CF = { brouillon: 'brouillon', envoyée: 'envoyée', partielle: 'reçue en partie', reçue: 'reçue', soldée: 'soldée', annulée: 'annulée', validée: 'validée' };
-  const CLASSE_CF = { brouillon: 'brouillon', envoyée: 'envoyée', partielle: 'partielle', reçue: 'payée', soldée: 'émis', annulée: 'annulée', validée: 'payée' };
+  const MOTS_CF = { demande: 'demande de prix', brouillon: 'brouillon', envoyée: 'envoyée', partielle: 'reçue en partie', reçue: 'reçue', soldée: 'soldée', annulée: 'annulée', validée: 'validée' };
+  const CLASSE_CF = { demande: 'brouillon', brouillon: 'brouillon', envoyée: 'envoyée', partielle: 'partielle', reçue: 'payée', soldée: 'émis', annulée: 'annulée', validée: 'payée' };
   const badgeCF = st => `<span class="badge ${h(CLASSE_CF[st] || '')}">${h(MOTS_CF[st] || st)}</span>`;
   const parDateCF = (a, b) => (b.date || '').localeCompare(a.date || '') || (b.number || '').localeCompare(a.number || '', undefined, { numeric: true }) || (b.createdAt || 0) - (a.createdAt || 0);
   const etatCF = { onglet: 'commandes', commandes: { page: 1 }, receptions: { page: 1 } };
@@ -8337,7 +8337,7 @@
     const vide = !cmds.length && !recs.length;
     $('#view').innerHTML = `
       <div class="page-head"><h1>Commandes fournisseurs ${info('cf.page')}</h1>
-        <div class="actions"><button class="btn ${vide ? '' : 'btn-primary'}" id="cf-new">+ Nouvelle commande</button></div></div>
+        <div class="actions"><button class="btn" id="cf-new-demande">+ Demande de prix</button><button class="btn ${vide ? '' : 'btn-primary'}" id="cf-new">+ Nouvelle commande</button></div></div>
       ${vide ? etatVide('Ce que tu commandes à tes fournisseurs', ['La commande part chez le fournisseur en PDF ; chaque livraison se reçoit, et ce qui manque reste à recevoir, ligne par ligne. La marchandise reçue entre en stock.'],
         [['cf-vide-new', '+ Nouvelle commande', true]]) : `
       <div class="tabs" id="cf-tabs" role="tablist" aria-label="Commandes et réceptions">
@@ -8346,6 +8346,7 @@
       </div>
       <div id="cf-list"></div>`}`;
     const nouvelle = () => navigate('#/commandef/new');
+    $('#cf-new-demande').onclick = () => navigate('#/commandef/new/demande');
     $('#cf-new').onclick = nouvelle;
     if ($('#cf-vide-new')) $('#cf-vide-new').onclick = nouvelle;
     if (vide) return;
@@ -8405,14 +8406,17 @@
     const isNew = parts[0] === 'new';
     const stored = isNew ? null : commandeFById(parts[0]);
     if (!isNew && !stored) return navigate('#/commandesf');
-    const o = stored ? deepCopy(stored) : { id: C.uid(), type: 'commandeFournisseur', number: '', status: 'brouillon', date: C.today(), dueDate: '',
+    const o = stored ? deepCopy(stored) : { id: C.uid(), type: 'commandeFournisseur', number: '', status: parts[1] === 'demande' ? 'demande' : 'brouillon', date: C.today(), dueDate: '',
       supplierId: parts[1] && supplierById(parts[1]) ? parts[1] : '', reference: '', currency: company().currency, exchangeRate: '', discountRate: 0,
       lines: [{ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19 }], notes: '', createdAt: Date.now() };
     o.type = 'commandeFournisseur';
     const suivi = stored ? C.suiviCommandeFournisseur(data, stored) : null;
     const statut = stored ? C.statutCommandeFournisseur(data, stored) : 'brouillon';
     const close = stored ? (stored.status === 'soldée' || /^annul/.test(stored.status || '')) : false;
-    const aRecevoir = !!(stored && stored.number && suivi.aProposer && !close);
+    // Une demande de prix (brique 89) ne reçoit rien : elle se compare, puis se commande.
+    const demande = !!(stored && stored.status === 'demande');
+    const groupe = demande ? C.comparerDemandes(data, stored) : null;
+    const aRecevoir = !!(stored && stored.number && suivi.aProposer && !close && !demande);
     const aFacturer = stored ? C.receptionsAFacturer(data).filter(r => r.orderId === stored.id) : [];
     // Les factures du fournisseur qui couvrent ses réceptions (brique 88 : avec leurs écarts).
     const factures = suivi ? (data.purchases || []).filter(x => (x.receptions || []).some(y => suivi.receptions.some(r => r.id === y.id))) : [];
@@ -8422,24 +8426,27 @@
     const figee = !!(suivi && suivi.receptions.length);
     const ro = figee ? 'disabled' : '';
     let cur = o.currency || company().currency;
+    // Une demande de prix se nomme comme telle, jusque dans ses titres (brique 89).
+    const quoi = o.status === 'demande' ? 'demande' : 'commande';
     $('#view').innerHTML = `
       <div class="page-head">
-        <div><h1>${stored ? `Commande ${h(o.number || '(brouillon)')}` : 'Nouvelle commande fournisseur'} <span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></h1>
+        <div><h1>${stored ? `${demande ? 'Demande de prix' : 'Commande'} ${h(o.number || '(brouillon)')}` : o.status === 'demande' ? 'Nouvelle demande de prix' : 'Nouvelle commande fournisseur'} <span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></h1>
           ${stored ? `<div class="small muted">${h(supplierName(o.supplierId))} · ${badgeCF(statut)}</div>` : ''}</div>
         <div class="actions">
           ${backButton('#/commandesf')}
           ${stored ? '<button class="btn" id="cf-pdf">PDF</button>' : ''}
+          ${demande ? `<button class="btn" id="cf-aussi">Demander aussi à…</button>${groupe.demandes.length < 2 ? '<button class="btn btn-primary" id="cf-commander">Commander</button>' : ''}` : ''}
           ${aRecevoir ? `<button class="btn btn-primary" id="cf-recevoir">${suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir'}</button>` : ''}
           ${aFacturer.length ? `<button class="btn ${aRecevoir ? '' : 'btn-primary'}" id="cf-facturer">Saisir la facture du fournisseur</button>` : ''}
           <button class="btn ${!stored ? 'btn-primary' : ''}" id="save">Enregistrer</button>
           ${stored ? `<div class="more"><button class="btn" id="more-btn" aria-label="Autres actions">Plus ▾</button><div class="more-list" id="more-list" hidden>
             <button id="cf-del" class="danger">Supprimer</button></div></div>` : ''}
         </div></div>
-      <div class="panel"><h2>La commande ${info('cf.head')}</h2>
+      <div class="panel"><h2>La ${quoi} ${info('cf.head')}</h2>
         <form id="cf-head" class="grid-3">
           <div class="field">${lbl('Fournisseur', 'cf.fournisseur')}
             ${combo({ name: 'supplierId', value: o.supplierId, items: fournisseursCF(), placeholder: '— Choisir un fournisseur —', search: 'Rechercher : nom, contact, MF…', ro: figee })}</div>
-          ${dateFieldHtml(lbl('Date de la commande', ''), 'date', o.date)}
+          ${dateFieldHtml(lbl(`Date de la ${quoi}`, ''), 'date', o.date)}
           ${dateFieldHtml(lbl('Livraison souhaitée le', 'cf.livraison'), 'dueDate', o.dueDate || '', { quick: true })}
           ${field(lbl('Référence (optionnel)', ''), 'reference', o.reference || '', 'text')}
           <label class="field">${lbl('Statut', 'cf.statut')}<select name="status">${C.STATUTS_COMMANDE_FOURNISSEUR.map(s => `<option value="${h(s)}" ${s === o.status ? 'selected' : ''}>${h(MOTS_CF[s].charAt(0).toUpperCase() + MOTS_CF[s].slice(1))}</option>`).join('')}</select></label>
@@ -8465,7 +8472,14 @@
         ${factures.length ? `<p class="small" id="cf-factures">${factures.length > 1 ? 'Factures' : 'Facture'} : ${factures.map(f => { const n = C.ecartsAchatReceptions(data, f).length; return `<a href="#/achat/${h(f.id)}">${h(f.number || 'sans numéro')}</a>${n ? ` <span class="warn-text">(${n > 1 ? n + ' écarts' : 'un écart'} avec les réceptions)</span>` : ''}`; }).join(', ')}</p>` : ''}
         ${stored.status === 'soldée' && suivi.lignes.some(x => x.reste > 0) ? '<p class="small muted">Soldée à la main : le reste n\'est plus attendu.</p>' : ''}
       </div>` : ''}
-      <div class="panel"><h2>Notes (imprimées sur la commande)</h2><textarea id="cf-notes" placeholder="Conditions, adresse de livraison, contact sur place…">${h(o.notes || '')}</textarea></div>`;
+      ${groupe && groupe.demandes.length > 1 ? `<div class="panel" id="cf-comparer"><h2>Les réponses des fournisseurs ${info('cf.comparer')}</h2>
+        <div class="scroll-x"><table class="list compact"><thead><tr><th>Désignation</th><th class="r">Qté</th>${groupe.demandes.map(d => `<th class="r">${d.id === o.id ? h(supplierName(d.supplierId)) : `<a href="#/commandef/${h(d.id)}">${h(supplierName(d.supplierId))}</a>`}</th>`).join('')}</tr></thead><tbody>
+          ${groupe.lignes.map(l => `<tr><td>${h(l.label || '—')}</td><td class="r num">${pct(l.qty)}${l.unit ? ` <span class="small muted">${h(l.unit)}</span>` : ''}</td>${l.prix.map((v, j) => `<td class="r num nw">${v === null ? '<span class="muted">sans réponse</span>' : j === l.meilleur ? `<b>${h(C.money(v, company().currency))}</b>` : h(C.money(v, company().currency))}</td>`).join('')}</tr>`).join('')}
+          <tr><td colspan="2"><b>Total HT</b></td>${groupe.totaux.map(t => `<td class="r num nw">${!t.complete ? '<span class="muted">incomplète</span>' : t.id === groupe.moinsCher ? `<b>${h(C.money(t.totalHT, company().currency))}</b>` : h(C.money(t.totalHT, company().currency))}</td>`).join('')}</tr>
+          <tr><td colspan="2"></td>${groupe.totaux.map(t => `<td class="r"><button class="btn btn-sm ${t.id === groupe.moinsCher ? 'btn-primary' : ''}" data-commander="${h(t.id)}">Commander chez ${h(supplierName(t.supplierId))}</button></td>`).join('')}</tr>
+        </tbody></table></div>
+        <p class="small muted mt">Prix hors taxes enregistrés, ramenés en ${h(company().currency)} ; le moins cher de chaque ligne est en gras. Commander chez l'un écarte les autres demandes.</p></div>` : ''}
+      <div class="panel"><h2>Notes (imprimées sur la ${quoi})</h2><textarea id="cf-notes" placeholder="Conditions, adresse de livraison, contact sur place…">${h(o.notes || '')}</textarea></div>`;
 
     let dirty = false;
     const touch = () => { if (dirty) return; dirty = true; $('#dirty-dot').hidden = false; enregistrerDevientPrincipal(); };
@@ -8561,6 +8575,44 @@
       navigate('#/reception/' + r.id);
     };
     if ($('#cf-facturer')) $('#cf-facturer').onclick = () => { if (dirty && !enregistrer()) return; facturerReceptions(aFacturer); };
+    // Commander une demande de prix (brique 89) : elle devient la commande, avec les prix du fournisseur ; les
+    // autres demandes du groupe sont écartées. Une ligne sans prix refuse : une commande part avec ses prix.
+    const commanderDemande = (id) => {
+      if (dirty && !enregistrer()) return;
+      const d = commandeFById(id); if (!d) return;
+      const sansPrix = (d.lines || []).filter(l => Number(l.qty) > 0 && !(Number(l.unitPrice) > 0));
+      if (sansPrix.length) return toast(`Saisis d'abord le prix que ${supplierName(d.supplierId)} t'a répondu pour ${sansPrix.map(l => l.label || 'une ligne').join(', ')} : une commande part avec ses prix.`, true);
+      const autres = C.demandesDuGroupe(data, d).filter(x => x.id !== d.id);
+      d.status = 'envoyée';
+      autres.forEach(x => { x.status = 'annulée'; x.nonRetenue = true; });
+      save(true); dirty = false; clearGuard(garde);
+      toast(`${d.number} devient la commande chez ${supplierName(d.supplierId)}${autres.length ? ` ; ${autres.length > 1 ? autres.length + ' autres demandes sont écartées' : 'l\'autre demande est écartée'}` : ''}. Envoie-la-lui (PDF).`);
+      if (d.id === o.id) render(true); else navigate('#/commandef/' + d.id);
+    };
+    if ($('#cf-commander')) $('#cf-commander').onclick = () => commanderDemande(o.id);
+    $$('[data-commander]').forEach(b => { b.onclick = () => commanderDemande(b.dataset.commander); });
+    // La même demande chez un autre fournisseur : les mêmes lignes, sans prix ; elles partagent un groupe.
+    if ($('#cf-aussi')) $('#cf-aussi').onclick = () => {
+      if (dirty && !enregistrer()) return;
+      const src = commandeFById(o.id);
+      const pris = new Set(C.demandesDuGroupe(data, src).map(x => x.supplierId));
+      const choix = data.suppliers.filter(x => !pris.has(x.id)).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+      if (!choix.length) return toast('Tous tes fournisseurs ont déjà cette demande. Ajoute un fournisseur (page « Fournisseurs ») pour la lui envoyer.', true);
+      modal(`<h2>Demander aussi à…</h2>
+        <p class="small muted">La même demande (les mêmes lignes, sans prix) part chez un autre fournisseur ; ses réponses se comparent sur chaque demande.</p>
+        <label class="field">Fournisseur<select id="aussi-f">${choix.map(x => `<option value="${h(x.id)}">${h(x.name)}</option>`).join('')}</select></label>
+        <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="aussi-ok">Créer la demande</button></div>`,
+      (root, fermer) => {
+        $('#aussi-ok', root).onclick = () => {
+          const f = $('#aussi-f', root).value;
+          src.groupe = src.groupe || src.id;
+          const copie = { ...deepCopy(src), id: C.uid(), supplierId: f, number: C.numeroSuivant(data, commandesF(), 'BCF', C.today()), date: C.today(), reference: '',
+            createdAt: Date.now(), groupe: src.groupe, lines: (src.lines || []).map(l => ({ ...deepCopy(l), unitPrice: 0 })) };
+          commandesF().push(copie); save(true); fermer();
+          navigate('#/commandef/' + copie.id);
+        };
+      });
+    };
     if ($('#more-btn')) $('#more-btn').onclick = () => { $('#more-list').hidden = !$('#more-list').hidden; };
     if ($('#cf-del')) $('#cf-del').onclick = async () => {
       $('#more-list').hidden = true;
