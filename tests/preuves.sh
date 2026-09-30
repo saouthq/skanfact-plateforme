@@ -5480,6 +5480,38 @@ prouver "la liste qui ne marque pas la réception à facturer" web/public/v10/ap
   "\${aFacturerR.has(x.id) ? ' <span" "\${false ? ' <span" \
   "$AFW"
 
+# ── Brique 91 : l'encours autorisé d'un client (docs/encours.md) ──
+EN1="l'encours : les factures non réglées en dinars, plus les bons livrés à facturer ; ni brouillon ni autre client"
+EN2="une pièce qui ferait dépasser le plafond se dit avec ses chiffres ; sous le plafond, rien ; les bons déjà comptés ne comptent pas deux fois"
+ENW="Nadia plafonne l'encours de son client, puis émet quand même la facture qui le dépasse, prévenue avant"
+prouver "une facture en brouillon comptée dans l'encours" web/public/v10/core.js \
+  "d.clientId === clientId && d.type === 'facture' && d.status !== 'brouillon' && d.status !== 'annulée')" "d.clientId === clientId && d.type === 'facture' && d.status !== 'annulée')" \
+  "$EN1"
+prouver "l'encours d'une facture en devise compté sans cours" web/public/v10/core.js \
+  "return s + (r > 0.0005 ? toBase(d, r, co) : 0); }, 0));" "return s + (r > 0.0005 ? r : 0); }, 0));" \
+  "$EN1"
+prouver "les bons livrés comptés hors taxes dans l'encours" web/public/v10/core.js \
+  "    const livre = round3(bons.reduce((s, b) => s + toBase(b, computeTotals(b, co).totalTTC, co), 0));" "    const livre = round3(bons.reduce((s, b) => s + toBase(b, computeTotals(b, co).netHT, co), 0));" \
+  "$EN1"
+prouver "la facture d'un bon qui le compte deux fois" web/public/v10/core.js \
+  ".filter(b => siens.has(b.id) || b.id === doc.id)" ".filter(b => false)" \
+  "$EN2"
+prouver "un client sans plafond averti" web/public/v10/core.js \
+  "    if (!plafond || !doc.clientId) return null;" "    if (!doc.clientId) return null;" \
+  "$EN2"
+prouver "une pièce sous le plafond annoncée comme un dépassement" web/public/v10/core.js \
+  "    return apres > plafond + 0.0005 ? {" "    return true ? {" \
+  "$EN2"
+prouver "émettre au-delà de l'encours sans le dire" web/public/v10/app.js \
+  "      if (enc) w.push(" "      if (false) w.push(" \
+  "$ENW"
+prouver "l'encours autorisé absent de la fiche du client" web/public/v10/app.js \
+  "<input type=\"number\" name=\"creditLimit\"" "<input type=\"number\" name=\"creditLimitAbsent\"" \
+  "$ENW"
+prouver "la page du client qui tait son encours" web/public/v10/app.js \
+  "      \${Number(c.creditLimit) > 0 ? (() => { const e = C.encoursClient(" "      \${false ? (() => { const e = C.encoursClient(" \
+  "$ENW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

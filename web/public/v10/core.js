@@ -7604,6 +7604,30 @@
     const t = todayIso || today();
     return (data.supplierOrders || []).filter(o => o.dueDate && o.dueDate < t && ['envoyée', 'partielle'].includes(statutCommandeFournisseur(data, o)));
   }
+  // L'encours d'un client (brique 91 ; 14 § 3.2) : ce qu'il doit (le reste à payer de ses factures émises) et ce
+  // qui lui est livré sans être facturé (ses bons à facturer, toutes taxes comprises), en dinars.
+  function encoursClient(data, clientId, company) {
+    const co = company || data.company || {};
+    const du = round3((data.documents || []).filter(d => d.clientId === clientId && d.type === 'facture' && d.status !== 'brouillon' && d.status !== 'annulée')
+      .reduce((s, d) => { const r = invoiceBalance(d, data, co).remaining; return s + (r > 0.0005 ? toBase(d, r, co) : 0); }, 0));
+    const bons = bonsAFacturer(data).filter(b => b.clientId === clientId);
+    const livre = round3(bons.reduce((s, b) => s + toBase(b, computeTotals(b, co).totalTTC, co), 0));
+    return { du, livre, total: round3(du + livre), bons };
+  }
+  // Ce qu'une pièce à émettre ferait de l'encours de son client, s'il a un encours autorisé (`creditLimit`, en
+  // dinars) : null sous le plafond. Une facture de bons déjà comptés comme livrés ne les compte pas deux fois.
+  function depassementEncours(data, doc, company) {
+    const co = company || data.company || {};
+    const c = (data.clients || []).find(x => x.id === doc.clientId);
+    const plafond = Number(c && c.creditLimit) || 0;
+    if (!plafond || !doc.clientId) return null;
+    const e = encoursClient(data, doc.clientId, co);
+    const siens = new Set([...(Array.isArray(doc.bonsLivraison) ? doc.bonsLivraison.map(b => b.id) : []), doc.fromDocId].filter(Boolean));
+    const dejaComptes = round3(e.bons.filter(b => siens.has(b.id) || b.id === doc.id).reduce((s, b) => s + toBase(b, computeTotals(b, co).totalTTC, co), 0));
+    const piece = toBase(doc, doc.type === 'livraison' ? computeTotals(doc, co).totalTTC : computeTotals(doc, co).netToPay, co);
+    const apres = round3(e.total - dejaComptes + piece);
+    return apres > plafond + 0.0005 ? { plafond, encours: round3(e.total - dejaComptes), piece, apres, depasse: round3(apres - plafond) } : null;
+  }
   // Une demande de prix envoyée à plusieurs fournisseurs (brique 89) : ses copies partagent un groupe (l'identifiant
   // de la première). Seules les demandes encore ouvertes comptent : une demande commandée ou écartée n'en est plus une.
   function demandesDuGroupe(data, d) {
@@ -10945,7 +10969,7 @@
     CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, decimalsFor, arrondiDevise, prixDuCatalogue, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
-    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard,
+    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard, encoursClient, depassementEncours,
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
     vatReturn, vatChain, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
     ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, cashMovements, accountBalance, cashPosition, cashForecast, reconciliation,

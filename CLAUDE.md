@@ -61,6 +61,9 @@
   chez d'autres fournisseurs partagent un `groupe` ; `comparerDemandes` les compare en dinars.
   « À faire » (brique 90) : bons à facturer, réceptions sans facture, commandes en retard, comptés par les
   fonctions des listes qu'ils ouvrent.
+- **L'encours autorisé** (brique 91, `docs/encours.md`) : `creditLimit` sur la fiche du client ;
+  `encoursClient` (factures non réglées + bons livrés à facturer, en dinars) ; au-delà, la fenêtre d'émission
+  le dit avant, avec les chiffres ; la personne décide.
 - Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,
   un seau par clé dans la mémoire du programme (à partager le jour où il y aura plusieurs programmes).
 - Les avis d'événement signés (`0008`, `serveur/avis.ts`, 28/09/2026) : l'avis naît dans la

@@ -4514,6 +4514,9 @@
     function issueWarnings() {
       const w = [];
       const co = company();
+      // L'encours autorisé du client (brique 91 ; 14 § 3.2) : dit AVANT d'émettre, avec ses chiffres ; la personne décide.
+      const enc = isInv || doc.type === 'livraison' ? C.depassementEncours(data, doc, co) : null;
+      if (enc) w.push(`${(clientById(doc.clientId) || {}).name || 'Ce client'} dépasserait son encours autorisé de ${C.money(enc.depasse, co.currency)} : il doit déjà ${C.money(enc.encours, co.currency)} (factures non réglées et bons livrés à facturer), cette pièce en ajoute ${C.money(enc.piece, co.currency)}, pour ${C.money(enc.plafond, co.currency)} autorisés. Fais-le régler avant, ou émets quand même.`);
       if (!(co.name || '').trim() || !(co.matricule || '').trim()) w.push('Ta fiche société est incomplète (raison sociale ou matricule fiscal) : le document ne sera pas conforme. Paramètres → Mon entreprise.');
       // Le RIB ne se réclame que si on attend un virement (7.22.0, même règle que `companyGaps`).
       // Un restaurant ou un salon encaissent sur place : leur répéter à chaque facture qu'il manque
@@ -5337,6 +5340,7 @@
         ${field(lbl('Matricule fiscal / CIN', 'co.matricule'), 'matricule', c.matricule)}
         <label class="field">${lbl('Retenue à la source appliquée par ce client', 'ed.withholding')}${withholdingSelect('withholdingRate', c.withholdingRate, { vide: `Par défaut (${pct(company().defaultWithholdingRate || 0)} %)` })}</label>
         <label class="check"><input type="checkbox" name="stampExempt" ${c.stampExempt ? 'checked' : ''}> Exonéré de timbre fiscal ${info('client.stampExempt')}</label>
+        <label class="field">${lbl(`Encours autorisé (${h(company().currency)})`, 'cl.encours')}<input type="number" name="creditLimit" value="${h(c.creditLimit || '')}" step="0.001" min="0" class="num" placeholder="Sans plafond"></label>
         ${field(lbl('Téléphone', 'cl.phone'), 'phone', c.phone)}
         ${field(lbl('Email', 'cl.email'), 'email', c.email, 'email')}
         <label class="field">${lbl('Langue des documents', 'cl.lang')}<select name="lang"><option value="" ${!c.lang ? 'selected' : ''}>Par défaut</option><option value="fr" ${c.lang === 'fr' ? 'selected' : ''}>Français</option><option value="en" ${c.lang === 'en' ? 'selected' : ''}>English</option></select></label>
@@ -5353,7 +5357,7 @@
           // `refus()` amène le champ à l'écran, y met le curseur et le marque (7.0.0). Un toast seul
           // oblige à relire tout le formulaire — et la fenêtre peut avoir défilé.
           if (!v.name.trim()) return refus('#cf input[name=name]', 'Le nom est obligatoire : c\'est lui qui apparaît sur chaque document.');
-          Object.assign(c, v, { withholdingRate: v.withholdingRate === '' ? '' : Number(v.withholdingRate) });
+          Object.assign(c, v, { withholdingRate: v.withholdingRate === '' ? '' : Number(v.withholdingRate), creditLimit: Number(v.creditLimit) > 0 ? Number(v.creditLimit) : 0 });
           if (!client) data.clients.push(c);
           save(true); close(); if (done) done(c);
         };
@@ -5801,6 +5805,8 @@
         <div class="stat"><div class="lbl">Délai moyen de paiement ${info('dash.delay')}</div><div class="val">${sum.delay == null ? '—' : sum.delay + ' j'}</div><div class="sub">annoncé : ${delaiAnnonce ? pl(delaiAnnonce, 'jour') : 'à réception'}</div></div>
         <div class="stat"><div class="lbl">Devis acceptés ${info('dash.conversion')}</div><div class="val">${sum.conversion == null ? '—' : sum.conversion + ' %'}</div><div class="sub">${sum.quoteCount} devis, ${openQuotes.length} sans réponse</div></div>
       </div>
+      ${Number(c.creditLimit) > 0 ? (() => { const e = C.encoursClient(data, c.id, company()); const trop = e.total > Number(c.creditLimit) + 0.0005;
+        return `<p class="small ${trop ? 'warn-text' : 'muted'} mb" id="cl-encours">Encours ${info('cl.encours')} : <b>${C.money(e.total, company().currency)}</b> sur ${C.money(Number(c.creditLimit), company().currency)} autorisés${e.livre > 0.0005 ? `, dont ${C.money(e.livre, company().currency)} livrés à facturer` : ''}${trop ? ` : <b>dépassé de ${C.money(C.round3(e.total - Number(c.creditLimit)), company().currency)}</b>` : ''}.</p>`; })() : ''}
       <div class="grid-2">
           <div class="panel"><h2>Coordonnées</h2>
             <div class="kv">
