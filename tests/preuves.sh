@@ -5,9 +5,10 @@
 #
 #   PG_ADMIN=postgres://… bash tests/preuves.sh
 #
-# Pendant le travail, on peut restreindre (avant un envoi, et sur GitHub, toutes) :
+# Pendant le travail, on peut restreindre (sur GitHub, toutes, à chaque envoi) :
 #   SEULES=motif    les preuves dont le NOM y répond ;
-#   FICHIERS=motif  les preuves dont le test visé vit dans un fichier dont le chemin y répond.
+#   FICHIERS=motif  les preuves dont le test visé vit dans un fichier dont le chemin y répond ;
+#   NOMS=fichier    les preuves dont le nom est une ligne de ce fichier (tests/preuves-nouvelles.sh).
 # PARTIE=k/n : le k-ième groupe sur n (une preuve sur n, à partir de la k-ième) ; chaque groupe a sa
 # propre base de test, et les n groupes tournent côte à côte (tests/preuves-paralleles.sh, et n
 # machines sur GitHub). Un groupe qui ne prouve pas tout échoue, comme le lot entier.
@@ -29,6 +30,7 @@ prouver() { # défaut, fichier, avant, après, test qui doit tomber
   rang=$((rang+1))
   if [ $(( (rang - 1) % groupes )) -ne $((groupe - 1)) ]; then return 0; fi
   if [ -n "${SEULES:-}" ] && ! [[ "$nom" =~ $SEULES ]]; then return 0; fi
+  if [ -n "${NOMS:-}" ] && ! grep -Fxq -- "$nom" "$NOMS"; then return 0; fi
   if [ -n "${FICHIERS:-}" ] && ! python3 - "$ICI/tests" "$attendu" "$FICHIERS" <<'PYF'
 import sys, pathlib, re
 racine, titre, motif = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -39,7 +41,8 @@ sys.exit(1)
 PYF
   then return 0; fi
   local copie; copie="$(mktemp -d)"
-  (cd "$ICI" && tar --exclude=node_modules --exclude=.git -cf - .) | (cd "$copie" && tar -xf -)
+  # Sans dist/ : les photos des tests d'écran (18 Mo), qu'aucun test ne lit.
+  (cd "$ICI" && tar --exclude=node_modules --exclude=.git --exclude=./dist -cf - .) | (cd "$copie" && tar -xf -)
   ln -s "$ICI/node_modules" "$copie/node_modules"
   # Plusieurs retouches à la fois : fichiers, avants et après séparés par « ||| ».
   python3 - "$copie" "$fichier" "$avant" "$apres" <<'EOF'
@@ -79,7 +82,11 @@ tombes = [t['title'] for f in r['testResults'] for t in f['assertionResults'] if
 sys.exit(0 if any(sys.argv[2] in t for t in tombes) else 1)
 EOF
   then echo "PROUVÉE       $nom → « $attendu » tombe"; ok=$((ok+1))
-  else echo "NON PROUVÉE   $nom → « $attendu » reste vert"; ko=$((ko+1)); fi
+  else
+    echo "NON PROUVÉE   $nom → « $attendu » reste vert"; ko=$((ko+1))
+    # Sur GitHub, une annotation aussi : tests/verdict-github.sh la lit sans le journal complet.
+    if [ -n "${GITHUB_ACTIONS:-}" ]; then m="$nom → « $attendu » reste vert"; echo "::error title=Preuve non prouvée::${m//%/%25}"; fi
+  fi
   rm -rf "$copie"
 }
 
@@ -2904,7 +2911,7 @@ EQ1="l'associé invite par l'adresse ; la personne rejoint avec cette adresse ; 
 EQ2="seul un associé invite, change un rôle, retire ; personne ne change son propre rôle ni ne se retire ; une invitation annulée ne vaut plus"
 WE1="inviter par l'adresse, rejoindre par le lien, confier un dossier, changer le rôle, retirer"
 M30=base/migrations/0030_cabinet_equipe.sql
-prouver "une invitation acceptée par une autre adresse" $M30 \
+prouver "une invitation au cabinet acceptée par une autre adresse" $M30 \
   "  if lower(v_email) <> i.email then" "  if false then" \
   "$EQ1"
 prouver "une invitation au cabinet qui donne un autre rôle" $M30 \
@@ -3583,9 +3590,6 @@ prouver "l'écran qui ne rouvre pas le livre repris" $PC \
   "      return { ...cree, annee, livre: await livreDe(o.dossierId, annee) };" "      return { ...cree, annee, livre: null };" \
   "$RE1"
 
-echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
-[ "$ko" -eq 0 ]
-
 # ── Brique 66 : les relevés et leurs rapprochements repris avec le livre v10 (docs/cabinet.md, C56) ──
 RL5="un relevé qui ne se reprendrait pas tel quel est nommé : ne se boucle pas, sans compte, une ligne illisible, deux fois le même fichier, un rapprochement faux ou pris deux fois"
 prouver "un solde de relevé illisible qui passe l'essai" $LV \
@@ -3606,7 +3610,7 @@ prouver "une ligne de relevé illisible qui passe l'essai" $LV \
 prouver "un rapprochement vers une autre ligne que celle du compte" $LV \
   "        if (!face || face.compte !== r.compte) nomme(" "        if (!face) nomme(" \
   "$RL5"
-prouver "une ligne d'écriture qui répond de deux lignes de relevé" $LV \
+prouver "une ligne d'écriture reprise qui répond de deux lignes de relevé" $LV \
   "        else if (faces.has(\`\${cible}#\${rangV10}\`)) nomme(" "        else if (false) nomme(" \
   "$RL5"
 prouver "un relevé qui ne se boucle pas et passe l'essai" $LV \
@@ -3983,3 +3987,9 @@ prouver "la reprise du portefeuille absente de la page vide" web/public/v10/cabi
 prouver "un portefeuille à anomalie qu'on peut quand même créer" web/public/v10/cabinet/app.js \
   "        \${n || !k ? '' : \`<button class=\"btn btn-primary\" id=\"ok\">Créer" "        \${!k ? '' : \`<button class=\"btn btn-primary\" id=\"ok\">Créer" \
   "$RW1"
+
+# Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
+# après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
+# preuves des briques 66 à 70 étaient après lui).
+echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
+[ "$ko" -eq 0 ]

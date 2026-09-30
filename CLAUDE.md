@@ -288,9 +288,10 @@
   et `preuves.sh` les dit « non prouvées », comme le 28/09/2026 avec `mes_entreprises`).
   **De même pour une contrainte** (`drop constraint` / `add constraint`) : le 30/09/2026, 0037 a
   redéfini la liste des origines d'une écriture, trois preuves visaient encore 0021 et GitHub est
-  resté rouge quatre envois de suite sans qu'on le voie. Une brique qui redéfinit quoi que ce soit :
-  chercher dans `tests/preuves.sh` tout ce qui vise l'ancienne définition, et **rejouer toutes les
-  preuves** (pas seulement les fichiers de la brique) avant d'envoyer.
+  resté rouge quatre envois de suite sans qu'on le voie. Depuis, le **contrôle éclair**
+  (`npm run preuves:eclair`, une seconde) nomme toute preuve qui vise une fonction, une règle, un
+  déclencheur, un index ou une contrainte qu'une migration plus récente remplace : la réorienter
+  vers la définition en vigueur.
 - L'argent en **entiers** (`bigint`, millimes ou centimes), les taux et prix unitaires en entiers à
   six décimales (01 R3). Une date de pièce est un `date`, un geste est un `timestamptz` (01 R5).
 
@@ -367,13 +368,19 @@
 **Les tests**
 - Contre un **vrai PostgreSQL** (`PG_ADMIN`), jamais contre une imitation.
 - **Chaque test se prouve** : `tests/preuves.sh` remet le défaut et vérifie que le test tombe. Un test
-  nouveau vient avec sa ligne dans ce script.
-- Avant tout envoi : `npm run verifier` (types, lint 0 erreur 0 avertissement, tests) et les preuves
-  des fichiers de tests que la brique touche, en groupes côte à côte (`FICHIERS=motif npm run
-  preuves:paralleles` ; chaque groupe a sa propre base de test). Lire le **code de sortie**. GitHub
-  refait tout à chaque envoi, les preuves en quatre groupes sur quatre machines (`PARTIE=k/4`, environ
-  15 minutes au lieu de 50) ; une construction rouge ne se contourne jamais. Après chaque envoi, **regarder
-  le résultat de GitHub** (l'envoi précédent aussi) avant d'en empiler d'autres.
+  nouveau vient avec sa ligne dans ce script, **avant le bilan** (ses deux dernières lignes : une
+  preuve écrite après lui ne fait pas échouer le lot — c'est arrivé aux briques 66 à 70, trouvé le
+  30/09/2026 ; le contrôle éclair le refuse). On ne retire jamais une preuve pour aller plus vite.
+- **Vérifier ciblé, GitHub vérifie tout** (décision de Skander, 30/09/2026 : avancer et livrer plus
+  par jour). Pendant le travail et avant un envoi : `npm run verifier:brique` (une minute ou deux) —
+  types, lint (0 erreur, 0 avertissement), contrôle éclair des preuves, les tests des fichiers de
+  test changés depuis `origin/main` (et ceux qu'on ajoute : `-- tests/x.test.ts`), puis les preuves
+  **nouvelles ou changées** (`npm run preuves:nouvelles`). Lire le **code de sortie**. Tous les
+  tests et toutes les preuves tournent sur GitHub à chaque envoi (preuves en quatre groupes sur quatre
+  machines, `PARTIE=k/4`). **Avant chaque envoi, lire le verdict du précédent** (`npm run verdict`,
+  qui nomme le test ou la preuve qui tombe) : une construction rouge se répare d'abord, jamais on ne
+  la contourne ni n'empile par-dessus. Une brique qui touche au socle de tout (le serveur, la
+  connexion, la sécurité par ligne) ajoute les fichiers de test concernés à `verifier:brique`.
 
 **Sécurité (sans exception)**
 - Dépôt **public** : jamais de secret, de jeton, de mot de passe réel ni de donnée de client. Les
@@ -395,6 +402,10 @@
 | `npm run verifier` | Types, lint, tests (il faut `PG_ADMIN`) |
 | `npm run preuves` | Chaque défaut remis dans une copie, chaque test doit tomber (`SEULES`, `FICHIERS`, `PARTIE=k/n`) |
 | `npm run preuves:paralleles` | Les mêmes, en `GROUPES` groupes côte à côte (4 par défaut) |
+| `npm run verifier:brique` | La vérification ciblée d'une brique (types, lint, contrôle éclair, tests changés, preuves nouvelles) |
+| `npm run preuves:nouvelles` | Les seules preuves nouvelles ou changées depuis `origin/main` (`BASE`, `GROUPES`, `NOMS`) |
+| `npm run preuves:eclair` | Le contrôle éclair des preuves, sans rien lancer (`DETAIL=1` pour le détail) |
+| `npm run verdict` | Le verdict de GitHub sur le dernier envoi (ou `-- <commit>`) : 0 vert, 1 rouge, 3 pas fini |
 | `npm run migrer` | Applique les migrations sur la base de `PG_ADMIN` |
 | `npm run entreprise -- exporter <id> <fichier>` / `restaurer <fichier>` | Exporte une entreprise, ou la restaure là où elle n'est pas (`PG_ADMIN`) |
 | `npm run types:base` | Réécrit `base/types.ts` à partir des migrations (base jetable sur `PG_ADMIN`) |

@@ -81,6 +81,15 @@ jobs:
         env:
           PARTIE: ${{ matrix.groupe }}/4
 
+  # Le contrôle éclair (quelques secondes) : chaque preuve vise un endroit qui existe une fois, pas une
+  # définition qu'une migration plus récente remplace ; le bilan reste à la fin de tests/preuves.sh.
+  preuves-eclair:
+    name: Preuves (contrôle éclair)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: bash tests/verif-preuves.sh
+
   secrets:
     name: Aucun secret dans le dépôt
     runs-on: ubuntu-latest
