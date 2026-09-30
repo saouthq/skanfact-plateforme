@@ -149,7 +149,7 @@
   // ailleurs ; `{ horsLigne }` quand le réseau manque et que ce poste a gardé l'enregistrement (brique 73).
   /** @param {Record<string, unknown>} data */
   async function envoyer(data) {
-    try { await envoyerReponses(data); } catch (e) { if (gardableHorsLigne(e)) return await mettreEnAttente(data); throw e; }
+    try { await envoyerReponses(data); } catch (e) { if (gardableHorsLigne(e)) return await mettreEnAttente(data); throw refusHorsLigne(e); }
     const changements = changementsDe(data);
     if (!changements.length) return true;
     // Par paquets : un premier enregistrement peut porter tout un dossier.
@@ -167,7 +167,7 @@
         if (/** @type {any} */ (e).statut === 409) return { conflict: true, disk: Object.assign(await relire(), { syncWrittenAt: Date.now() }) };
         // Le réseau manque : sur « mon ordinateur », l'enregistrement se garde et partira seul.
         if (gardableHorsLigne(e)) return await mettreEnAttente(data);
-        throw e;
+        throw refusHorsLigne(e);
       }
       for (const [j, c] of lot.entries()) {
         const k = `${c.collection}\u0000${c.cle}`;
@@ -239,7 +239,14 @@
   /** @param {{ collection: string }[]} changements */
   const compter = (changements) => changements.filter((c) => c.collection !== '_racine').length;
   /** @param {unknown} e */
-  const gardableHorsLigne = (e) => !!(e && /** @type {any} */ (e).horsLigne) && poste.garde();
+  const gardableHorsLigne = (e) => !!(e && /** @type {any} */ (e).horsLigne) && poste.garde() && !poste.limite();
+  // Sans réseau, sur un poste qui ne peut pas garder (brique 75 : pas de stockage persistant, ou plus
+  // de 72 heures sans le serveur) : le refus dit pourquoi, et reste un refus « hors ligne ».
+  /** @param {unknown} e */
+  const refusHorsLigne = (e) => {
+    const l = e && /** @type {any} */ (e).horsLigne && poste.garde() ? poste.limite() : null;
+    return l ? Object.assign(new Error(l), { horsLigne: true }) : e;
+  };
   /** @param {Record<string, unknown>} data */
   async function mettreEnAttente(data) {
     // La base d'abord : ce que le serveur a déjà reçu (un premier paquet parti avant la coupure).

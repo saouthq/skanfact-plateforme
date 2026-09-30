@@ -32,11 +32,12 @@
   fichier que la facture) ; les achats : calcul, écriture, imputation d'un acompte, règlements, reste et statut
   (`moteur/achats.ts`) ; la paie : le bulletin, ses écritures et la CNSS du trimestre
   (`moteur/paie.ts`) ; la TVA du mois lue dans les écritures (`moteur/declarations.ts`), égale à celle de la v10 sur cinq ans (deux chemins, un chiffre).
-- **Le hors-ligne** (briques 72 à 74 bis, `docs/hors-ligne.md`) : l'application s'installe
+- **Le hors-ligne** (briques 72 à 75, `docs/hors-ligne.md`) : l'application s'installe
   (`web/public/sw.js`, le manifeste) ; sur « mon ordinateur », la session se garde dans le navigateur et
   une copie chiffrée de l'entreprise (`web/public/plateforme/poste.js`, clé non exportable) la rouvre
-  sans réseau ; ce qu'on y enregistre attend et part seul au retour ; jamais sur l'ordinateur d'un
-  autre. Un appareil retiré (« Tes appareils ») remet ce qui attendait en quarantaine (0044), puis
+  sans réseau ; ce qu'on y enregistre attend et part seul au retour — si le navigateur promet de garder
+  (stockage persistant : les tests le jouent en « application installée ») et moins de 72 heures après
+  le dernier contact avec le serveur ; jamais sur l'ordinateur d'un autre. Un appareil retiré (« Tes appareils ») remet ce qui attendait en quarantaine (0044), puis
   efface tout ; le propriétaire décide. Un test hors ligne coupe le réseau en ARRÊTANT le serveur : le
   service des écrans passe à côté de la coupure que le navigateur simule (ou on le bloque dans le
   contexte du navigateur, `serviceWorkers: 'block'`, quand le parcours n'a pas à rouvrir sans réseau).

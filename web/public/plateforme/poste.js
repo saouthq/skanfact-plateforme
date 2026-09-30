@@ -7,7 +7,8 @@
 //     exportable). Jamais sur l'ordinateur d'un autre ; effacée à la déconnexion, quand une autre
 //     personne se connecte, et quand l'appareil est retiré (brique 74, après avoir remis ce qui
 //     attendait). Limite honnête (04 § 2) : elle protège un disque volé, pas un poste allumé et ouvert ;
-//   - ce qu'on enregistre sans réseau : gardé, chiffré de même, jusqu'à ce qu'il parte ;
+//   - ce qu'on enregistre sans réseau : gardé, chiffré de même, jusqu'à ce qu'il parte — si le
+//     navigateur promet de garder (stockage persistant) et depuis moins de 72 heures (brique 75) ;
 //   - le bandeau « Hors ligne » : ce qu'on voit, depuis quand, et ce qui attend le réseau.
 (function () {
   'use strict';
@@ -88,6 +89,32 @@
     await new Promise((ok) => { const r = indexedDB.deleteDatabase(BASE); r.onsuccess = r.onerror = r.onblocked = () => ok(undefined); });
   }
 
+  // ── Les limites du hors-ligne (brique 75 ; docs/hors-ligne.md, H11 et H12) ────────────────────
+  // Le stockage persistant (04 § 4) : sans lui, le navigateur peut vider ce que le poste garde
+  // (Safari après sept jours sans visite, Chromium quand le disque se remplit). Demandé sur « mon
+  // ordinateur » ; refusé, le poste garde sa copie pour qu'on consulte, mais n'enregistre rien sans
+  // réseau : on ne promet pas de garder ce qui peut disparaître.
+  /** @type {boolean | null} */ let persistant = null;
+  if (garde() && navigator.storage && navigator.storage.persist) {
+    navigator.storage.persisted().then((p) => p || navigator.storage.persist()).then((p) => { persistant = p; }, () => { persistant = false; });
+  }
+  // Les droits gardés hors ligne (04 § 7, 03 D8) : 72 heures depuis le dernier contact avec le
+  // serveur. Au-delà, on consulte, et ce qui attend partira ; rien de neuf ne s'enregistre.
+  const CONTACT = 'skanfact.dernier_contact';
+  const DROITS_MS = 72 * 3600 * 1000;
+  const PERSISTANT = 'Ce navigateur peut vider ce que ce poste garde : sans réseau, tu consultes, mais rien ne s\'enregistre. Pour enregistrer sans réseau, installe l\'application (menu du navigateur, « Installer SkanFact »).';
+  const DROITS = 'Plus de 72 heures sans contact avec le serveur : rien de neuf ne s\'enregistre sur ce poste tant qu\'il n\'a pas revu tes droits ; tu consultes.';
+  // Ce qui empêche d'enregistrer sans réseau sur « mon ordinateur », ou null (l'ordinateur d'un
+  // autre, lui, ne garde jamais rien : c'est dit ailleurs).
+  /** @returns {string | null} */
+  function limite() {
+    if (!garde()) return null;
+    if (persistant !== true) return PERSISTANT;
+    let c = 0;
+    try { c = Number(localStorage.getItem(CONTACT)) || 0; } catch { /* sans mémoire : pas de limite de durée */ }
+    return c && Date.now() - c > DROITS_MS ? DROITS : null;
+  }
+
   // ── Le bandeau ────────────────────────────────────────────────────────────────────────────
   const style = document.createElement('style');
   style.textContent = `#poste-bandeau { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; display: flex; gap: 12px; align-items: center;
@@ -130,9 +157,10 @@
     if (o.copieLe) copieLue = o.copieLe;
     if (horsLigneDepuis === null) horsLigneDepuis = Date.now();
     const vu = copieLue ? `Tu consultes la copie de ce poste, du ${jour(copieLue)} à ${heure(copieLue)}.` : 'Ce que tu vois reste à l\'écran.';
+    const l = limite();
     const suite = !garde() ? 'Enregistrer demande le réseau : sur l\'ordinateur d\'un autre, rien n\'est gardé sur le poste.'
-      : attend ? attendent(enAttente)
-        : 'Ce que tu enregistres se garde sur ce poste, et partira seul au retour du réseau.';
+      : attend ? `${attendent(enAttente)}${l ? ` ${l}` : ''}`
+        : l || 'Ce que tu enregistres se garde sur ce poste, et partira seul au retour du réseau.';
     poser(`<span><strong>Hors ligne depuis ${heure(horsLigneDepuis)}.</strong> ${vu} ${suite}</span>`);
   }
   // Le nombre de changements gardés sur le poste, que le bandeau dit tant que le réseau manque.
@@ -141,7 +169,12 @@
   // Le réseau est revenu : ce qui attendait part (le point de contact s'en charge, `auRetour`). Si
   // l'écran montre la copie du poste, un bouton recharge ce que le serveur a.
   /** @type {(() => void) | null} */ let quandRevenu = null;
-  function enLigne() {
+  // `serveur` : le serveur a répondu (le point de contact l'appelle ainsi) ; sinon, le navigateur dit
+  // seulement que le réseau revient — un portail d'hôtel, un serveur en panne : ce n'est pas un contact.
+  /** @param {boolean} [serveur] */
+  function enLigne(serveur = true) {
+    // Le serveur a répondu : les droits gardés hors ligne repartent pour 72 heures (04 § 7).
+    if (serveur) try { localStorage.setItem(CONTACT, String(Date.now())); } catch { /* sans mémoire : pas de limite de durée */ }
     if (horsLigneDepuis === null) return;
     horsLigneDepuis = null;
     if (quandRevenu) quandRevenu();
@@ -187,11 +220,11 @@
     if (b) b.onclick = () => { cacher(); geste(); };
   }
   window.addEventListener('offline', () => horsLigne());
-  window.addEventListener('online', () => enLigne());
+  window.addEventListener('online', () => enLigne(false));
 
   /** @type {any} */ (window).SkanPoste = {
     garde, ecrireCopie, lireCopie, ecrireAttente, lireAttente, effacerAttente, effacer,
-    horsLigne, enLigne, sansCopie, attente, envoye, demander, annoncer,
+    horsLigne, enLigne, sansCopie, attente, envoye, demander, annoncer, limite,
     /** @param {() => void} f */ auRetour: (f) => { quandRevenu = f; },
   };
 })();

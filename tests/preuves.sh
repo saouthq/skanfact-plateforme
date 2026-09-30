@@ -4013,7 +4013,7 @@ prouver "le réseau revenu sans « Recharger »" web/public/plateforme/poste.js 
   "    if (!copieLue) { cacher(); return; }" "    cacher(); return;" \
   "$HL1"
 prouver "le retour du réseau qu'on n'entend pas" web/public/plateforme/poste.js \
-  "  window.addEventListener('online', () => enLigne());
+  "  window.addEventListener('online', () => enLigne(false));
 " "" \
   "$HL1"
 prouver "l'écran vide sans un mot, hors ligne et sans copie" web/public/plateforme/poste.js \
@@ -4085,7 +4085,7 @@ HE5="la session finie pendant la coupure : se reconnecter, et ce qui attendait p
 HE4="se déconnecter avec des changements qui attendent : la question d'abord ; « Attendre le réseau » ne perd rien"
 prouver "sans réseau, l'enregistrement refusé au lieu d'être gardé" $PONT \
   "        if (gardableHorsLigne(e)) return await mettreEnAttente(data);
-        throw e;" "        throw e;" \
+        throw refusHorsLigne(e);" "        throw refusHorsLigne(e);" \
   "$HE1"
 prouver "ce qui attend le réseau jamais gardé sur le poste" $PONT \
   "    await poste.ecrireAttente(ent, { data });
@@ -4131,7 +4131,7 @@ prouver "l'écran qui ne réenregistre pas au retour du réseau" web/public/v10/
   "  window.__enregistrerMaintenant = () => save(true);" "  window.__enregistrerMaintenant = () => {};" \
   "$HE1"
 prouver "le bandeau qui tait ce qui attend" web/public/plateforme/poste.js \
-  "      : attend ? attendent(enAttente)" "      : false ? attendent(enAttente)" \
+  "      : attend ? \`\${attendent(enAttente)}\${l ? \` \${l}\` : ''}\`" "      : false ? \`\${attendent(enAttente)}\${l ? \` \${l}\` : ''}\`" \
   "$HE1"
 
 prouver "une session finie qui efface ce qui attendait le réseau" web/src/api.ts \
@@ -4261,6 +4261,46 @@ prouver "accepté, ce qui est mis de côté passé sous silence" $PONT \
 prouver "un client ajouté dit modifié" $PONT \
   "c.revision === null ? 'ajouté' : 'modifié'" "'modifié'" \
   "$AW2"
+
+# ── Brique 75 : les limites du hors-ligne (docs/hors-ligne.md, H11 et H12) ──
+HP1="un navigateur qui ne promet pas de garder : sans réseau, on consulte, rien ne s'enregistre, et l'écran dit pourquoi"
+HP2="plus de 72 heures sans le serveur : ce qui attendait partira, mais rien de neuf ne s'enregistre ; à 71 heures, si"
+POSTE=web/public/plateforme/poste.js
+prouver "un navigateur qui peut tout vider, et le poste qui enregistre quand même" $POSTE \
+  "    if (persistant !== true) return PERSISTANT;
+" "" \
+  "$HP1"
+prouver "l'application qui ne demande jamais à garder" $POSTE \
+  "navigator.storage.persisted().then((p) => p || navigator.storage.persist())" "navigator.storage.persisted()" \
+  "$HP2"
+prouver "plus de 72 heures sans le serveur, et le poste qui enregistre quand même" $POSTE \
+  "    return c && Date.now() - c > DROITS_MS ? DROITS : null;" "    return null;" \
+  "$HP2"
+prouver "72 heures comptées trop large" $POSTE \
+  "  const DROITS_MS = 72 * 3600 * 1000;" "  const DROITS_MS = 73 * 3600 * 1000;" \
+  "$HP2"
+prouver "72 heures comptées trop court" $POSTE \
+  "  const DROITS_MS = 72 * 3600 * 1000;" "  const DROITS_MS = 70 * 3600 * 1000;" \
+  "$HP2"
+prouver "le dernier contact jamais noté" $POSTE \
+  "    if (serveur) try { localStorage.setItem(CONTACT, String(Date.now())); } catch { /* sans mémoire : pas de limite de durée */ }
+" "" \
+  "$HP2"
+prouver "le réseau revenu sans le serveur pris pour un contact" $POSTE \
+  "    if (serveur) try { localStorage.setItem(CONTACT, String(Date.now())); }" "    try { localStorage.setItem(CONTACT, String(Date.now())); }" \
+  "$HP2"
+prouver "le bandeau qui promet de garder ce qui peut disparaître" $POSTE \
+  "        : l || 'Ce que tu enregistres se garde sur ce poste, et partira seul au retour du réseau.';" "        : 'Ce que tu enregistres se garde sur ce poste, et partira seul au retour du réseau.';" \
+  "$HP1"
+prouver "le bandeau qui tait la limite des 72 heures quand quelque chose attend" $POSTE \
+  "      : attend ? \`\${attendent(enAttente)}\${l ? \` \${l}\` : ''}\`" "      : attend ? attendent(enAttente)" \
+  "$HP2"
+prouver "hors limite, l'enregistrement gardé quand même" $PONT \
+  "  const gardableHorsLigne = (e) => !!(e && /** @type {any} */ (e).horsLigne) && poste.garde() && !poste.limite();" "  const gardableHorsLigne = (e) => !!(e && /** @type {any} */ (e).horsLigne) && poste.garde();" \
+  "$HP1"
+prouver "le refus hors limite qui ne dit pas pourquoi" $PONT \
+  "    return l ? Object.assign(new Error(l), { horsLigne: true }) : e;" "    return e;" \
+  "$HP1"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

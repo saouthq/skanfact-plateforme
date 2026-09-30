@@ -103,8 +103,13 @@ describe('enregistrer sans réseau, à la souris', () => {
     await plusTard(p);
   };
   // « Mon ordinateur » : la session gardée dans le navigateur, posée une fois.
+  // L'application installée : le navigateur promet de garder ce que le poste garde (04 § 4, brique 75).
+  const installee = (c: BrowserContext) => c.addInitScript(() => {
+    if (navigator.storage) Object.assign(navigator.storage, { persist: async () => true, persisted: async () => true });
+  });
   const monOrdinateur = async (jeton: string) => {
     const c = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await installee(c);
     await c.addInitScript((j) => {
       if (!location.protocol.startsWith('http') || localStorage.getItem('test.pose')) return;
       localStorage.setItem('test.pose', '1');

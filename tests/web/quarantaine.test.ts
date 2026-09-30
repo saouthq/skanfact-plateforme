@@ -84,6 +84,10 @@ describe('la quarantaine, à la souris', () => {
     // écrans : la page reste ouverte pendant la coupure, et le parcours doit pouvoir faire échouer une
     // remise, ce que le navigateur ne permet pas derrière lui.)
     const cp = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', serviceWorkers: 'block' });
+    // L'application installée : le navigateur promet de garder ce que le poste garde (04 § 4, brique 75).
+    await cp.addInitScript(() => {
+      if (navigator.storage) Object.assign(navigator.storage, { persist: async () => true, persisted: async () => true });
+    });
     await cp.addInitScript((j) => { if (location.protocol.startsWith('http') && !localStorage.getItem('test.pose')) { localStorage.setItem('test.pose', '1'); localStorage.setItem('skanfact.jeton', j); } }, portableJeton);
     let p = await cp.newPage();
     await ouvrir(p, `${adresse}/v10/?e=${ent}#/clients`);

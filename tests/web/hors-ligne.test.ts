@@ -104,8 +104,13 @@ describe('l\'application sans réseau, à la souris', () => {
     await p.waitForTimeout(600);
     await plusTard(p);
   };
+  // L'application installée : le navigateur promet de garder ce que le poste garde (04 § 4, brique 75).
+  const installee = (c: BrowserContext) => c.addInitScript(() => {
+    if (navigator.storage) Object.assign(navigator.storage, { persist: async () => true, persisted: async () => true });
+  });
   const contexte = async (jeton: string, ouGarder: 'localStorage' | 'sessionStorage'): Promise<BrowserContext> => {
     const c = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await installee(c);
     // Comme l'entrée après la connexion : sur « mon ordinateur », la session gardée dans le navigateur ;
     // posée une fois (se déconnecter la retire, et elle ne doit pas revenir).
     await c.addInitScript(([j, ou]) => {

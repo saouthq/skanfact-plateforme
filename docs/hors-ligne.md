@@ -85,8 +85,8 @@ dit « Modifications des deux côtés ») comme rouverte plus tard (le bandeau l
 serveur gardée, la mienne dans ce que le dossier met de côté ; se déconnecter avec des changements qui
 attendent : la question, « Attendre le réseau » ne perd rien, et ça part au retour.
 
-**Reste à faire** : le Cabinet hors ligne (les dossiers emportés) ; le stockage persistant demandé
-(04 § 4, À VÉRIFIER) ; la durée des droits hors ligne (04 § 7 : 72 heures).
+**Reste à faire** : le Cabinet hors ligne (les dossiers emportés). (Le stockage persistant et la durée
+des droits hors ligne : brique 75, H11 et H12.)
 
 **H8. Ce que le poste garde est à une personne, pas à une session** (par délégation, 30/09/2026 ; défaut
 trouvé en relisant la brique 73). Une coupure de plus de 12 heures ferme la session au serveur : à la
@@ -160,3 +160,36 @@ sur l'entrée : une remise qui échoue n'efface rien et le dit ; « Réessayer �
 le dit ; au bureau, le bandeau, « Voir », le panneau, « Rejeter… » qui demande, « Accepter » : le client
 créé arrive, le renommage (changé depuis au bureau) est mis de côté et dit, et l'écran rechargé montre le
 client arrivé.
+
+
+## Brique 75 : les limites du hors-ligne (fait le 30/09/2026)
+
+**H11. On n'enregistre sans réseau que si le navigateur promet de garder** (par délégation ; 04 § 4 :
+« si le navigateur le refuse, l'écran le dit, et le hors-ligne est limité à la consultation »). Le
+navigateur peut vider ce qu'un site garde (Safari après sept jours sans visite, Chromium quand le
+disque se remplit) : sur « mon ordinateur », le poste lui demande le **stockage persistant**. Accordé
+(l'application installée, en général), on enregistre sans réseau comme avant. Refusé, le poste garde
+sa copie pour qu'on **consulte**, mais **rien ne s'enregistre** sans réseau : on ne promet pas de
+garder ce qui peut disparaître. Le bandeau le dit dès la coupure (« Ce navigateur peut vider ce que
+ce poste garde : sans réseau, tu consultes, mais rien ne s'enregistre. Pour enregistrer sans réseau,
+installe l'application (menu du navigateur, « Installer SkanFact »). »), et la fenêtre « Rien n'a été
+enregistré » répète pourquoi. **À VÉRIFIER** (04 § 11.2) : ce que chaque navigateur accorde (Chromium
+ne l'accorde pas à une page non installée et peu visitée ; Safari et Firefox restent à mesurer) ; le
+nom exact du geste d'installation dans chaque navigateur.
+
+**H12. Les droits gardés hors ligne valent 72 heures** (par délégation ; 04 § 7, 03 D8). Le poste
+note le dernier contact avec le serveur (une réponse, pas le simple retour du réseau : un portail
+d'hôtel ou un serveur en panne n'en sont pas). Plus de 72 heures après, **rien de neuf ne
+s'enregistre** sans réseau, le temps que le serveur revoie les droits ; on consulte, et ce qui
+attendait **partira** au retour. Le bandeau et la fenêtre le disent (« Plus de 72 heures sans contact
+avec le serveur : rien de neuf ne s'enregistre sur ce poste tant qu'il n'a pas revu tes droits ; tu
+consultes. »). Le serveur revenu, le compte repart. (La caisse aura 7 jours, avec la caisse.)
+
+**Les tests** (`tests/web/hors-ligne-limites.test.ts`, à la souris, le serveur arrêté pour de vrai) :
+un navigateur qui ne promet pas de garder — le bandeau le dit, un client créé sans réseau est refusé
+et la fenêtre dit pourquoi, rien n'attend sur le poste, et la copie se consulte encore après un
+rechargement ; l'application qui demande à garder (un premier lancement) — accordé, elle enregistre ;
+à 71 heures on enregistre encore, à 72 heures et 5 minutes non, et le bandeau dit à la fois ce qui
+attend et la limite ; le réseau revenu sans le serveur ne remet pas le compte à zéro ; le serveur
+revenu, ce qui attendait part (avec ce qui était resté à l'écran), et le compte repart. Les parcours
+hors ligne des briques 72 à 74 bis jouent l'application installée (le stockage persistant accordé).
