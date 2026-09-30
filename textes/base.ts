@@ -94,6 +94,7 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'ce mandat n\'attend pas d\'être accepté', cle: 'base.cabinet.pas_propose', fr: 'ce mandat n\'attend pas d\'être accepté' },
   { base: 'seuls le propriétaire de l\'entreprise et un associé du cabinet arrêtent un mandat', cle: 'base.cabinet.arreter_qui', fr: 'seuls le propriétaire de l\'entreprise et un associé du cabinet arrêtent un mandat' },
   { base: 'ce mandat est déjà arrêté', cle: 'base.cabinet.deja_arrete', fr: 'ce mandat est déjà arrêté' },
+  { base: 'ce dossier, que ton cabinet tient, a %s dans ses livres : le retirer les rendrait introuvables pour tout le monde. Archive-le plutôt (sa fiche, « Dossier archivé ») : il sort des listes sans rien perdre', cle: 'base.cabinet.retirer_tenu', fr: 'ce dossier, que ton cabinet tient, a {ecritures} dans ses livres : le retirer les rendrait introuvables pour tout le monde. Archive-le plutôt (sa fiche, « Dossier archivé ») : il sort des listes sans rien perdre', valeurs: ['ecritures'] },
   { base: 'seul le propriétaire de l\'entreprise change le périmètre de son cabinet', cle: 'base.cabinet.perimetre_proprietaire', fr: 'seul le propriétaire de l\'entreprise change le périmètre de son cabinet' },
   { base: 'seul un associé du cabinet crée un dossier', cle: 'base.cabinet.dossier_associe', fr: 'seul un associé du cabinet crée un dossier' },
   { base: 'seul un associé du cabinet confie un dossier', cle: 'base.cabinet.confier_associe', fr: 'seul un associé du cabinet confie un dossier' },

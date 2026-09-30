@@ -1757,6 +1757,7 @@ prouver "un commercial qui valide" serveur/compta/gestes.ts \
 
 # ── Le cabinet côté serveur (0019, brique 36) ───────────────────────────────────────────────────
 M19=base/migrations/0019_cabinet.sql
+M32=base/migrations/0032_cabinet_retirer_dossier.sql
 CM="le propriétaire choisit son cabinet par son code"
 CT="le dossier tenu : l'associé le crée"
 CJ="le cabinet ne fait jamais chez son client ce qui est au client"
@@ -1787,7 +1788,7 @@ prouver "deux cabinets à la fois" $M19 \
 prouver "un mandat accepté par un collaborateur" $M19 \
   "  if not found or not socle.suis_associe(d.cabinet) then perform socle.refus('seul un associé du cabinet accepte un dossier'); end if;" "  if not found then perform socle.refus('seul un associé du cabinet accepte un dossier'); end if;" \
   "$CM"
-prouver "un mandat arrêté qui laisse le cabinet voir" $M19 \
+prouver "un mandat arrêté qui laisse le cabinet voir" $M32 \
   "  update socle.mandat set statut = 'termine', fin = greatest(current_date, debut) where id = p_mandat;" "" \
   "$CM"
 prouver "un périmètre changé par le cabinet" $M19 \
@@ -3260,6 +3261,31 @@ prouver "les taux par contrat jamais envoyés" $PC \
 prouver "le taux trop fin refusé loin de sa case" web/public/v10/cabinet/app.js \
   "          if (Math.round(n * 1e4) / 1e4 !== n) return refus(i, " "          if (false) return refus(i, " \
   "$TR2"
+
+# ── Brique 56 : retirer un dossier du portefeuille (docs/cabinet.md, C46) ──
+RD1="retirer un dossier : un dossier tenu sans écriture sort du portefeuille ; avec une écriture, refusé ; un client sur SkanFact garde ses livres"
+RD2="un dossier tenu sans écriture sort du portefeuille ; celui qui a des écritures reste, et le refus dit d'archiver"
+prouver "un dossier tenu retiré avec ses livres" $M32 \
+  "  if exists (select 1 from socle.entreprise e where e.id = d.entreprise and e.tenue_par = d.cabinet) then" "  if false then" \
+  "$RD1"
+prouver "un dossier tenu retiré avec une seule écriture" $M32 \
+  "    if n > 0 then" "    if n > 1 then" \
+  "$RD1"
+prouver "retirer un dossier qui ne fait rien" $PC \
+  '      await appel('"'"'POST'"'"', `/cabinets/${cabinetId}/mandats/${d.mandat}/arreter`);' "" \
+  "$RD2"
+prouver "le mandat d'un dossier oublié par l'écran" $PC \
+  "manual: !!d.tenu, mandat: d.mandat });" "manual: !!d.tenu, mandat: '' });" \
+  "$RD2"
+prouver "le bouton qui dit encore Supprimer" web/public/v10/cabinet/app.js \
+  'id="del">Retirer du portefeuille…' 'id="del">Supprimer…' \
+  "$RD2"
+prouver "la confirmation qui dit encore Supprimer" web/public/v10/cabinet/app.js \
+  "            'RETIRER', 'Retirer');" "            'RETIRER');" \
+  "$RD2"
+prouver "la confirmation qui tait la règle du dossier tenu" web/public/v10/cabinet/app.js \
+  "Tu tiens ce dossier pour un client hors SkanFact : il ne se retire que" "Tu tiens ce dossier pour un client hors SkanFact : il se retire même" \
+  "$RD2"
 
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

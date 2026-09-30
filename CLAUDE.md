@@ -211,6 +211,8 @@
   - **Les taux de paie par contrat** (brique 55, C45) : `paie.regimesContrat` dans la fiche (taux en texte
     décimal, quatre décimales au plus, jamais le CDI) ; `savePaie` normalise par `normaliserRegimes` ; la
     paie et `saveBulletin` du point de contact calculent avec eux (`paieDuDossier`).
+  - **Retirer un dossier** (brique 56, 0032, C46) : `deleteDossier` = arrêter le mandat ; `arreter_mandat`
+    refuse un dossier tenu qui a une écriture (le refus dit d'archiver). Rien ne s'efface.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première

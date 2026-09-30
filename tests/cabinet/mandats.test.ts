@@ -195,6 +195,34 @@ describe('le cabinet et ses mandats', () => {
     expect((await appeler('POST', `/cabinets/${cab.id}/mandats/${mandat}/arreter`, autre.associe.jeton)).statut).toBe(404);
     expect((await livres(cl.ent, autre.associe)).statut).toBe(404);
   });
+
+  it('retirer un dossier : un dossier tenu sans écriture sort du portefeuille ; avec une écriture, refusé ; un client sur SkanFact garde ses livres', async () => {
+    const cab = await cabinet();
+    const cree = async (nom: string) => String((await appeler('POST', `/cabinets/${cab.id}/dossiers`, cab.associe.jeton, { raisonSociale: nom })).corps.entreprise);
+    const vide = await cree('Créé par erreur'), tenu = await cree('Boulangerie Ennour');
+    const e = await appeler('POST', `/entreprises/${tenu}/compta/ecritures`, cab.associe.jeton, {
+      date: '2026-03-20', journal: 'OD', piece: 'OD-1', libelle: 'Loyer', lignes: [{ compte: '6132', debit: '850,500' }, { compte: '401', credit: '850,500' }] });
+    expect(e.statut, JSON.stringify(e.corps)).toBe(201);
+    const mandatDe = async (ent: string) => (await portefeuille(cab.id, cab.associe)).find((d) => d.entreprise === ent)?.mandat ?? '';
+    // Le dossier tenu qui a des écritures : refusé, et le refus dit d'archiver ; rien ne bouge.
+    const refus = await appeler('POST', `/cabinets/${cab.id}/mandats/${await mandatDe(tenu)}/arreter`, cab.associe.jeton);
+    expect(refus.statut, JSON.stringify(refus.corps)).toBe(403);
+    expect(String(refus.corps.motif)).toMatch(/a 1 écriture dans ses livres.*Archive-le/);
+    expect((await livres(tenu, cab.associe)).statut).toBe(200);
+    // Le dossier tenu sans écriture : il sort du portefeuille.
+    expect((await appeler('POST', `/cabinets/${cab.id}/mandats/${await mandatDe(vide)}/arreter`, cab.associe.jeton)).statut).toBe(200);
+    expect((await portefeuille(cab.id, cab.associe)).map((d) => d.entreprise)).toEqual([tenu]);
+    // Un client sur SkanFact : son mandat s'arrête ; il garde ses livres, le cabinet ne les voit plus.
+    const cl = await client();
+    const mandat = String((await appeler('POST', `/entreprises/${cl.ent}/mandat`, cl.jeton, { codeCabinet: cab.code })).corps.mandat);
+    await appeler('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, cab.associe.jeton);
+    expect((await appeler('POST', `/entreprises/${cl.ent}/compta/ecritures`, cab.associe.jeton, {
+      date: '2026-03-20', journal: 'OD', piece: 'OD-1', libelle: 'Loyer', lignes: [{ compte: '6132', debit: '850,500' }, { compte: '401', credit: '850,500' }] })).statut).toBe(201);
+    expect((await appeler('POST', `/cabinets/${cab.id}/mandats/${mandat}/arreter`, cab.associe.jeton)).statut).toBe(200);
+    expect((await livres(cl.ent, cab.associe)).statut).toBe(404);
+    const siens = (await livres(cl.ent, cl)).corps.ecritures as { piece: string }[];
+    expect(siens.map((x) => x.piece)).toContain('OD-1');
+  });
 });
 
 // Brique 37 : ce que les écrans du Cabinet lisent et écrivent au serveur.

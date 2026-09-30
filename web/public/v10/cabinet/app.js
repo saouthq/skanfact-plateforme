@@ -8615,7 +8615,7 @@
          ? `<p class="muted small mt">Le matricule vient des paquets de ce client : c'est lui qui identifie le dossier, il ne se modifie plus ici.</p>`
          : ''}
        <div class="modal-actions">
-         <button class="btn btn-danger" id="del">Supprimer…</button>
+         <button class="btn btn-danger" id="del">Retirer du portefeuille…</button>
          <span class="grow"></span>
          <button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (layer, close) => {
@@ -8624,17 +8624,16 @@
         if (opts && opts.focus) { const c = $(opts.focus, layer); if (c) { c.focus(); c.select(); } }
         $('#no', layer).onclick = close;
         $('#del', layer).onclick = async () => {
-          const n = (dossier.packs || []).length;
-          const ok = await confirmTyped('Supprimer ce dossier ?',
-            `<p>Le dossier <strong>${esc(dossier.name)}</strong> et ${n > 1 ? `ses ${pl(n, 'paquet')}` : n ? 'son paquet' : 'son historique'} seront <strong>effacés de ce poste</strong>.
-             ${n ? 'Les pièces comptables que ce client t\'a envoyées seront supprimées du disque.' : ''}</p>
-             <p class="muted small">Une sauvegarde est prise juste avant, ses livres compris. Si le client est simplement parti, préfère <strong>l'archivage</strong> : il disparaît des listes sans rien perdre.</p>
-             ${backupInfo && backupInfo.external && backupInfo.external.dir ? '<p class="muted small">La copie externe n\'est pas touchée : une sauvegarde qui efface ce que tu effaces n\'en est plus une. Si le client demande l\'effacement de ses pièces, supprime-les aussi là-bas.</p>' : ''}`,
-            'SUPPRIMER');
+          const ok = await confirmTyped('Retirer ce dossier du portefeuille ?',
+            `<p>Le dossier <strong>${esc(dossier.name)}</strong> sort de ton portefeuille : ni toi ni ton équipe ne le verrez plus.</p>
+             <p class="muted small">${dossier.manual
+    ? 'Tu tiens ce dossier pour un client hors SkanFact : il ne se retire que s\'il n\'a aucune écriture (un dossier créé par erreur). Si le client est simplement parti, préfère <strong>l\'archivage</strong> : il disparaît des listes sans rien perdre.'
+    : 'Rien ne s\'efface : ses livres sont ceux de ton client, qui les garde. Pour que ton cabinet le reprenne, il faudra qu\'il te propose à nouveau le mandat.'}</p>`,
+            'RETIRER', 'Retirer');
           if (!ok) return;
           try {
             S = await api.deleteDossier(dossier.id);
-            close(); location.hash = '#/dossiers'; render(); toast('Dossier supprimé.'); refreshBackupInfo();
+            close(); location.hash = '#/dossiers'; render(); toast('Dossier retiré du portefeuille.');
           } catch (e) { toast(plainError(e), 'error'); }
         };
         $('#ok', layer).onclick = async () => {

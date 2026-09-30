@@ -1152,3 +1152,33 @@ inconnu, le CDI, un contrat inconnu, un champ de plus : refusés. À la souris
 du CIVP enregistrés dans la fiche, dits par le panneau ; un salarié en CIVP et son bulletin de mars, dont
 le barème gardé au serveur est celui du CIVP (CNSS employeur 0, solidarité 0,5, sans IRPP ; la CNSS
 salarié, celle du barème général).
+
+## Brique 56 : retirer un dossier du portefeuille (fait le 30/09/2026)
+
+**C46. Retirer un dossier, c'est arrêter son mandat ; rien ne s'efface** (par délégation). Le Cabinet v10
+effaçait un dossier « de ce poste », ses paquets compris, après une sauvegarde. Sur la plateforme, le
+geste « Supprimer… » de la fiche d'un dossier était « pas encore en ligne ». Désormais le bouton dit
+**« Retirer du portefeuille… »** et arrête le mandat du cabinet (0019, `arreter_mandat`), après une
+confirmation tapée (« RETIRER ») :
+- un client sur SkanFact garde tout : ses livres sont les siens ; le cabinet ne les voit plus, et le
+  reprendre demande que le client lui propose de nouveau le mandat ;
+- un dossier **tenu** par le cabinet (un client hors SkanFact) n'a personne d'autre que lui : arrêter son
+  mandat rendrait ses livres introuvables pour tout le monde. S'il a la moindre écriture, la base le
+  refuse (0032) et le refus dit d'archiver (la fiche, « Dossier archivé » : il sort des listes sans rien
+  perdre) ; un dossier tenu sans écriture (créé par erreur) se retire. **À VÉRIFIER** : la durée légale
+  de conservation d'une comptabilité (dix ans, à confirmer) — c'est elle qui interdit l'effacement.
+
+Seul un associé retire un dossier (la règle de l'arrêt d'un mandat) ; la confirmation dit, selon le
+dossier, ce qui arrivera.
+
+**Les tests** : par l'API (`tests/cabinet/mandats.test.ts`) : le dossier tenu avec une écriture refusé
+(le refus nomme le nombre d'écritures et dit d'archiver), ses livres toujours lisibles ; le dossier tenu
+vide retiré du portefeuille ; un client sur SkanFact retiré, qui lit toujours ses écritures quand le
+cabinet ne les lit plus. À la souris (`tests/web/cabinet-retirer.test.ts`) : le bouton et la confirmation
+disent « Retirer » et la règle du dossier tenu ; le refus lu à l'écran, le dossier toujours au
+portefeuille ; le dossier vide retiré, absent de la liste.
+
+**Reste connu** :
+- Un dossier tenu qui a des écritures ne se retire jamais : le jour où le client hors SkanFact repart
+  avec sa comptabilité, il faudra l'exporter pour lui (l'export d'une entreprise existe, brique 9 ; son
+  chemin depuis le Cabinet reste à écrire).

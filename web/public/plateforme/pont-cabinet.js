@@ -45,7 +45,7 @@
   let gestesFaits = 0;
 
   // ── L'état du cabinet : le cabinet, son portefeuille, la personne qui travaille ────────────
-  /** @type {Map<string, { id: string, name: string, matricule: string, manual: boolean }>} */
+  /** @type {Map<string, { id: string, name: string, matricule: string, manual: boolean, mandat: string }>} */
   const dossiers = new Map();
   // Les réglages du cabinet (0023) : les banques et les mots retenus, et leur révision.
   /** @type {{ contenu: Record<string, any>, revision: number | null }} */
@@ -83,7 +83,7 @@
     proposes = (porte.dossiers || []).filter((/** @type {any} */ d) => d.statut === 'propose');
     dossiers.clear();
     const liste = (porte.dossiers || []).filter((/** @type {any} */ d) => d.statut === 'actif').map((/** @type {any} */ d) => {
-      dossiers.set(d.entreprise, { id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu });
+      dossiers.set(d.entreprise, { id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu, mandat: d.mandat });
       // Un dossier tenu est le « dossier créé à la main » de la v10 : un client hors SkanFact.
       const fiche = fiches.get(d.entreprise);
       return K.migrateDossier({ ...(fiche ? depuisFiche(fiche.contenu) : {}), id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu,
@@ -1203,6 +1203,15 @@
       const regimes = KC.normaliserRegimes(regimesContrat || {});
       const f = fiches.get(id);
       await poserFiche(id, { ...(f ? depuisFiche(f.contenu) : {}), paie: { regimesContrat: regimes } }, f ? f.revision : null);
+      return construireEtat();
+    },
+    // ── Retirer un dossier du portefeuille (brique 56 ; docs/cabinet.md, C46) : arrêter son mandat. Rien
+    // ne s'efface : le client sur SkanFact garde ses livres ; un dossier tenu qui a des écritures ne se
+    // retire pas (le serveur le refuse, et dit d'archiver) ──
+    deleteDossier: async (/** @type {string} */ id) => {
+      const d = dossiers.get(id);
+      if (!d) throw new Error('Dossier introuvable.');
+      await appel('POST', `/cabinets/${cabinetId}/mandats/${d.mandat}/arreter`);
       return construireEtat();
     },
     // Une génération à la fois : un second clic attend la première, puis relit la fiche (les mois faits)
