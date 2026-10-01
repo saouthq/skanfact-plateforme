@@ -47,7 +47,7 @@ const sha256 = (t: string) => createHash('sha256').update(t, 'utf8').digest('hex
 const DUREE_DEFI = '10 minutes';
 const MOTIF_REFUS = () => motif('connexion.refusee');
 
-function attenteLisible(jusqua: Date, maintenant: Date): Texte {
+export function attenteLisible(jusqua: Date, maintenant: Date): Texte {
   const minutes = Math.max(1, Math.ceil((jusqua.getTime() - maintenant.getTime()) / 60_000));
   return motif(minutes > 1 ? 'connexion.trop_essais' : 'connexion.trop_essais_une', { minutes });
 }
@@ -164,6 +164,8 @@ export type Qui = {
   // Une clé de l'API qui agit (03 § 8) : `utilisateur` est alors celui qui l'a créée (les pièces
   // portent son nom), mais la transaction est ouverte au nom de la CLÉ, jamais au sien.
   cle?: { id: string; gestes: string[] } | undefined;
+  // Une session ouverte par un code de caisse (brique 123) : elle ne sert qu'à cette entreprise.
+  caisseDe?: string | null | undefined;
 };
 
 // Qui est derrière ce jeton ? `null` si la session est fermée, trop longtemps inactive, ou si son
@@ -171,7 +173,7 @@ export type Qui = {
 export async function quiEst(ctx: Contexte, jeton: string): Promise<Qui | null> {
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
   const r = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.qui_est($1, $2)', [sha256(jeton), maintenant])).rows[0]);
-  return r ? { utilisateur: r.utilisateur, session: r.session, appareil: r.appareil, posteDUnAutre: r.poste_d_un_autre, codeAConfigurer: r.code_a_configurer } : null;
+  return r ? { utilisateur: r.utilisateur, session: r.session, appareil: r.appareil, posteDUnAutre: r.poste_d_un_autre, codeAConfigurer: r.code_a_configurer, caisseDe: r.caisse_de } : null;
 }
 
 // Ce jeton est-il celui d'un appareil retiré (brique 74) ? L'appareil l'apprend, et efface ce qu'il garde.

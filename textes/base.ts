@@ -284,6 +284,9 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'Un brouillon se supprime par son auteur, le propriétaire ou un administrateur.', cle: 'base.dossier.supprimer_le_sien', fr: 'un brouillon se supprime par son auteur, le propriétaire ou un administrateur' },
   // La session de caisse (0057, brique 116).
   { base: 'Une session de caisse fermée ne change plus.', cle: 'base.caisse.session_figee', fr: 'une session de caisse fermée ne change plus : son Z est fait' },
+  // Changer de caissier (0062, brique 123).
+  { base: 'Seul un caissier pose son code de caisse.', cle: 'base.caisse.code_caissier', fr: 'seul un caissier (qui n\'est ni propriétaire, ni administrateur, ni paie) pose un code de caisse : quatre chiffres n\'ouvrent jamais ces droits' },
+  { base: 'Ce poste ne change pas de caissier.', cle: 'base.caisse.relais', fr: 'ce poste ne change pas de caissier : il faut l\'appareil qui tient la caisse, et un caissier qui a posé son code' },
   // L'accord au-delà d'une commande fournisseur (0055, brique 114).
   { base: 'Le montant d\'une commande fournisseur permis sans accord se règle par le propriétaire ou un administrateur.', cle: 'base.accord.commande', fr: 'le montant d\'une commande fournisseur permis sans accord se règle par le propriétaire ou un administrateur' },
 ];

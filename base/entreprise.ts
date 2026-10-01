@@ -118,6 +118,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   'caisse.ticket': { classe: 'entreprise' },
   // Les alertes de caisse (brique 120) : ce que le serveur a constaté sur les tickets d'un poste, sans rien corriger.
   'caisse.alerte': { classe: 'entreprise' },
+  // Les codes de caisse (brique 123) : une empreinte de secret personnel, comme un mot de passe ; chacun repose le sien.
+  'caisse.code': { classe: 'hors', raison: 'un code de caisse est un secret personnel, gardé en empreinte : chaque caissier repose le sien après une restauration' },
   // Le code d'un cabinet n'est pas repris : unique sur la plateforme, il reste à son cabinet.
   'socle.organisation': { classe: 'reference', colonnes: ['id', 'type', 'nom', 'cree_le'] },
   // Jamais l'empreinte du mot de passe ni le téléphone vérifié : une personne recréée se reconnecte

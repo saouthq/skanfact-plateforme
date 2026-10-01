@@ -301,6 +301,13 @@
       poste.ecrireCopie(ent, contenuDeLaCopie()).catch(() => { /* sans copie, le hors-ligne attendra la prochaine */ });
     }, 300);
   }
+  // Un ticket encaissé est un fait : la copie le garde AVANT que l'écran ne le dise (défaut trouvé le 01/10/2026 : une
+  // page rouverte sans réseau dans les 300 ms oubliait le dernier ticket en ligne, jusqu'au retour du réseau).
+  async function garderLaCopieMaintenant() {
+    if (!poste.garde()) return;
+    if (copieAFaire) { clearTimeout(copieAFaire); copieAFaire = null; }
+    await poste.ecrireCopie(ent, contenuDeLaCopie()).catch(() => { /* sans copie, le hors-ligne attendra la prochaine */ });
+  }
   // ── Enregistrer sans réseau (brique 73 ; docs/hors-ligne.md, H5) ─────────────────────────────
   // Sur « mon ordinateur », un enregistrement qui ne trouve pas le serveur se GARDE (chiffré) : l'état
   // du dossier que l'écran a enregistré, qui partira par rapport à la copie (ses révisions disent au
@@ -742,7 +749,7 @@
         retenirNumerotation(r.caisse);
         vu.set(k, { json: JSON.stringify(r.contenu), rang, revision: r.revision });
         base.set(k, r.revision);
-        garderLaCopie();
+        await garderLaCopieMaintenant();
         return decoder(r.contenu);
       } catch (e) {
         if (!(/** @type {any} */ (e).horsLigne)) throw e;
@@ -775,6 +782,23 @@
     },
     ouvrirCaisse: async (/** @type {string} */ fond) => { const r = await appel('POST', '/caisse/ouvrir', { fond }); retenirNumerotation(r.numerotation); return r; },
     fermerCaisse: async (/** @type {string} */ compte) => appel('POST', '/caisse/fermer', { compte }),
+    // Changer de caissier (brique 123 ; docs/caisse.md, R1 à R5) : chacun pose son code à 4 chiffres ; sur le poste de la
+    // caisse, le suivant le tape et prend la main. Ce qui attend le réseau part d'abord : sinon, il partirait sous son nom.
+    caissiers: async () => (await appel('GET', '/caisse/caissiers')).caissiers,
+    poserCodeCaisse: async (/** @type {string} */ code) => appel('PUT', '/caisse/mon-code', { code }),
+    relayerCaisse: async (/** @type {string} */ utilisateur, /** @type {string} */ code) => {
+      if (fileTickets.length) await remettreTickets();
+      if (fileTickets.length || attenteGardee || enCours) {
+        throw new Error('Ce poste a encore des ventes ou des changements à envoyer au serveur : ils partent sous le nom de qui les a faits. Change de caissier quand le bandeau dit qu\'ils sont enregistrés.');
+      }
+      const r = await appel('POST', '/caisse/relais', { utilisateur, code });
+      // Le jeton du suivant remplace celui du poste, là où il était gardé ; la page se relit ensuite avec lui. La copie du
+      // précédent ne lui sert pas : elle porte sa personne (le « profil » de la relecture), et le serveur renvoie tout.
+      try {
+        if (localStorage.getItem('skanfact.jeton')) localStorage.setItem('skanfact.jeton', r.jeton); else sessionStorage.setItem('skanfact.jeton', r.jeton);
+      } catch { /* stockage refusé : la session ne tiendrait pas au rechargement */ }
+      return r;
+    },
 
     // ── Les entreprises (les « dossiers » de la v10) ──────────────────────────────────────────
     // Un dossier de la v10 était un fichier sur l'ordinateur ; ici, c'est une entreprise du compte.
@@ -783,6 +807,11 @@
     listDossiers: async () => {
       let moi;
       try { moi = await appelCompte('GET', '/moi'); } catch (e) {
+        // Une session ouverte par un code de caisse (brique 123) ne sert qu'à cette caisse : l'entreprise ouverte seulement.
+        if (/** @type {any} */ (e).bouton === 'session_de_caisse') {
+          const nom = String((((/** @type {any} */ (window).__data) || {}).company || {}).name || '');
+          return { dossiers: [{ id: ent, name: nom, shared: false, dir: 'Session de caisse' }], current: ent, device: { name: '' }, retires: [] };
+        }
         if (!/** @type {any} */ (e).horsLigne) throw e;
         // Sans réseau : l'entreprise ouverte seulement (les autres se listent en ligne) ; le menu garde
         // « Se déconnecter », qui efface la copie du poste même sans réseau.
@@ -971,7 +1000,8 @@
     const lu = texte ? JSON.parse(texte) : {};
     if (r.status === 401) { await finDeSession(lu); throw new Error('Ta session est terminée : reconnecte-toi.'); }
     if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
-    if (!r.ok) throw new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.');
+    // Le bouton qui débloque voyage avec le refus (brique 123 : « session_de_caisse »).
+    if (!r.ok) throw Object.assign(new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.'), { bouton: typeof lu.bouton === 'string' ? lu.bouton : null });
     return lu;
   }
   // ── Tes appareils (brique 74 ; docs/hors-ligne.md, H9) : les voir, en retirer un ────────────

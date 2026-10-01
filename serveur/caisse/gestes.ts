@@ -16,6 +16,12 @@ export const GESTES_CAISSE: Geste[] = [
     roles: { proprietaire: 'oui', administrateur: 'oui', caissier: 'oui' } },
   { code: 'caisse.session.fermer', module: 'caisse', horsCle: true, ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', caissier: 'oui' } },
+  // Changer de caissier (brique 123 ; 03 § 6) : sur le poste qui tient la caisse, un caissier prend la main avec son code
+  // à 4 chiffres. Le geste est celui de qui tient le poste ; le code, celui de qui prend la main (et lui seul le pose).
+  { code: 'caisse.relais', module: 'caisse', horsCle: true, ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', caissier: 'oui' } },
+  { code: 'caisse.code.poser', module: 'caisse', horsCle: true, ecrit: true,
+    roles: { caissier: 'oui' } },
   // Voir la caisse, sa session et ses Z (03 § 2.1 : la comptabilité interne et la lecture voient).
   { code: 'caisse.voir', module: 'caisse', ecrit: false,
     roles: { proprietaire: 'oui', administrateur: 'oui', caissier: 'oui', comptabilite_interne: 'voir', lecture: 'voir' } },

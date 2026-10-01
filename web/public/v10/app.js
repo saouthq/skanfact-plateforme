@@ -12311,10 +12311,14 @@
     } else if (!ss.ici) {
       el.innerHTML = `<div class="banner warn lock-banner" id="cs-ailleurs"><span><b>La caisse est ouverte sur un autre appareil</b> (« ${h(ss.appareil)} », par ${h(ss.qui)}, depuis le ${h(heureCaisse(ss.ouverteLe))}) : une caisse n'est tenue que par un appareil à la fois. Ferme-la là-bas pour l'ouvrir ici. ${info('cs.session')}</span></div>`;
     } else {
-      el.innerHTML = `<div class="banner info lock-banner" id="cs-ouverte"><span><b>Caisse ouverte</b> par ${h(ss.qui)} le ${h(heureCaisse(ss.ouverteLe))}, fond de caisse ${h(argentCaisse(ss.fond))}. ${info('cs.session')}</span>
+      el.innerHTML = `<div class="banner info lock-banner" id="cs-ouverte"><span><b>Caisse ouverte</b> par ${h(ss.qui)} le ${h(heureCaisse(ss.ouverteLe))}, fond de caisse ${h(argentCaisse(ss.fond))}.${caisseEtat.moi ? ` À la caisse : <b id="cs-moi">${h(caisseEtat.moi)}</b>.` : ''} ${info('cs.session')}</span>
         <span class="lock-go"><button class="btn btn-sm" id="cs-fermer">Fermer la caisse (Z)…</button></span></div>`;
       $('#cs-fermer').onclick = fermerCaisse;
     }
+    // (brique 123) Changer de caissier sur le poste de la caisse ; chaque caissier pose son code, d'où qu'il soit.
+    el.insertAdjacentHTML('beforeend', relaisCaisse());
+    if ($('#cs-relais')) $('#cs-relais').onclick = changerDeCaissier;
+    if ($('#cs-mon-code')) $('#cs-mon-code').onclick = monCodeDeCaisse;
     // (brique 120) Les alertes de caisse, pour le propriétaire et l'administrateur : ce que le serveur a constaté sur les
     // tickets d'un poste, sans rien corriger.
     if ((caisseEtat.alertes || []).length) el.insertAdjacentHTML('beforeend', alertesCaisse(caisseEtat.alertes));
@@ -12352,6 +12356,65 @@
   function alertesCaisse(alertes) {
     return `<div class="banner warn" id="cs-alertes"><span><b>${alertes.length > 1 ? `${alertes.length} alertes de caisse` : 'Une alerte de caisse'}.</b> SkanFact n'a rien corrigé : chaque ticket est enregistré tel qu'il est arrivé. ${info('cs.alertes')}
       <ul class="cs-alertes">${alertes.map(a => `<li>${(PHRASES_ALERTE[a.nature] || (() => h(a.nature)))(a)} <span class="muted">(${h(heureCaisse(a.le))})</span></li>`).join('')}</ul></span></div>`;
+  }
+  // (brique 123) Changer de caissier : sur l'appareil de la caisse, le suivant choisit son nom et tape son code de caisse ;
+  // la caisse reste ouverte sur ce poste, et les tickets suivants portent son nom. Chaque caissier pose son code lui-même.
+  function relaisCaisse() {
+    const d = bridge.droitsDossier ? bridge.droitsDossier() : {};
+    const boutons = [caisseEtat.posteDeCaisse ? '<button class="btn btn-sm" id="cs-relais">Changer de caissier…</button>' : '',
+      d.caisse && !d.responsable ? '<button class="btn btn-sm" id="cs-mon-code">Mon code de caisse…</button>' : ''].filter(Boolean);
+    return boutons.length ? `<div class="actions mb" id="cs-relais-actions">${boutons.join('')} ${info('cs.relais')}</div>` : '';
+  }
+  async function changerDeCaissier() {
+    let liste;
+    try { liste = (await bridge.caissiers()).filter(c => !c.moi); } catch (e) { toast(plainError(e), true); return; }
+    modal(`<h2>Changer de caissier</h2>
+      <p>La caisse reste ouverte sur ce poste, avec son tiroir : les tickets suivants porteront le nom de qui prend la main. Choisis ton nom, puis tape ton code de caisse.</p>
+      ${liste.length ? `<div class="field" id="cs-caissiers" role="radiogroup" aria-label="Qui prend la caisse">${liste.map((c, i) => `<label class="check"><input type="radio" name="cs-caissier" value="${h(c.id)}"${i === 0 && liste.length === 1 ? ' checked' : ''}> <span>${h(c.nom)}</span></label>`).join('')}</div>
+        <label class="field">Ton code de caisse (4 chiffres)<input type="password" inputmode="numeric" maxlength="4" autocomplete="off" class="num" id="cs-code"></label>`
+        : '<p class="small warn-text" id="cs-aucun">Aucun autre caissier n\'a encore posé son code de caisse : chacun le pose depuis la page Caisse, avec « Mon code de caisse… », connecté avec son mot de passe.</p>'}
+      <p class="small warn-text" role="alert" id="cs-relais-refus"></p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button>${liste.length ? '<button class="btn btn-primary" id="cs-prendre">Prendre la caisse</button>' : ''}</div>`,
+      (root, close) => {
+        $('[data-close]', root).onclick = close;
+        if (!liste.length) return;
+        const refus = t => { $('#cs-relais-refus', root).textContent = t; };
+        $('#cs-prendre', root).onclick = async () => {
+          const choisi = $('input[name="cs-caissier"]:checked', root);
+          const code = $('#cs-code', root);
+          if (!choisi) { refus('Choisis d\'abord ton nom dans la liste.'); return; }
+          if (!/^[0-9]{4}$/.test(code.value)) { refus('Le code de caisse a 4 chiffres.'); code.focus(); return; }
+          const b = $('#cs-prendre', root); b.disabled = true;
+          try {
+            await bridge.relayerCaisse(choisi.value, code.value);
+            // Le poste est maintenant à la personne qui a pris la main : tout se relit avec ses droits.
+            location.reload();
+          } catch (e) { b.disabled = false; code.value = ''; refus(plainError(e)); code.focus(); }
+        };
+        const code = $('#cs-code', root);
+        code.onkeydown = ev => { if (ev.key === 'Enter') $('#cs-prendre', root).click(); };
+        ($('input[name="cs-caissier"]:checked', root) ? code : $('input[name="cs-caissier"]', root)).focus();
+      });
+  }
+  function monCodeDeCaisse() {
+    modal(`<h2>Mon code de caisse</h2>
+      <p>Quatre chiffres, à toi seul. Sur le poste de la caisse, « Changer de caissier… », ton nom, ton code : la caisse est à toi, sans mot de passe. Ne le donne à personne : les tickets que tu encaisses portent ton nom.</p>
+      <label class="field">Nouveau code (4 chiffres)<input type="password" inputmode="numeric" maxlength="4" autocomplete="off" class="num" id="cs-nouveau"></label>
+      <label class="field">Le même, encore une fois<input type="password" inputmode="numeric" maxlength="4" autocomplete="off" class="num" id="cs-nouveau-bis"></label>
+      <p class="small warn-text" role="alert" id="cs-code-refus"></p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="cs-code-ok">Enregistrer mon code</button></div>`,
+      (root, close) => {
+        $('[data-close]', root).onclick = close;
+        const refus = (t, champ) => { $('#cs-code-refus', root).textContent = t; champ.focus(); };
+        $('#cs-code-ok', root).onclick = async () => {
+          const a = $('#cs-nouveau', root), b = $('#cs-nouveau-bis', root);
+          if (!/^[0-9]{4}$/.test(a.value)) { refus('Le code de caisse a 4 chiffres, ni plus ni moins.', a); return; }
+          if (a.value !== b.value) { refus('Les deux codes ne sont pas les mêmes : retape-le.', b); return; }
+          try { await bridge.poserCodeCaisse(a.value); close(); toast('Ton code de caisse est enregistré.'); }
+          catch (e) { a.value = ''; b.value = ''; refus(plainError(e), a); }
+        };
+        $('#cs-nouveau', root).focus();
+      });
   }
   // Fermer : compter le tiroir sans voir ce qu'il devrait contenir ; le serveur dit l'attendu et l'écart, et fige le Z.
   function fermerCaisse() {

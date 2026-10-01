@@ -83,6 +83,10 @@ describe('la caisse sans réseau, à la souris', () => {
     await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Caisse ouverte par Nadia/);
     await vendre('Lait demi-écrémé');
     await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-001 encaissé`);
+    // Un ticket encaissé est un fait : la copie du poste l'a déjà quand l'écran le dit (une page rouverte sans réseau
+    // dans la seconde le montre encore).
+    expect(await p.evaluate(async (e) => JSON.stringify((await (window as unknown as { SkanPoste: { lireCopie: (id: string) => Promise<{ contenu: unknown } | null> } })
+      .SkanPoste.lireCopie(e))?.contenu ?? null).includes('TIC-'), ent)).toBe(true);
 
     // Le réseau tombe : un lait et une huile, numérotés par le poste.
     await cx.setOffline(true);
@@ -115,6 +119,17 @@ describe('la caisse sans réseau, à la souris', () => {
     await vendre('Lait demi-écrémé');
     await expect.poll(toast, { timeout: 10_000 }).toBe('Plus de 7 jours sans contact avec le serveur : la caisse n\'encaisse plus sans réseau. Une connexion, même courte, la débloque. Rien n\'a été vendu.');
     await p.evaluate(() => localStorage.setItem('skanfact.dernier_contact', String(Date.now())));
+
+    // Le réseau revient, mais les tickets ne passent pas encore : on ne change pas de caissier, sinon ils partiraient sous
+    // le nom du suivant (brique 123).
+    await p.route('**/dossier-v10/ticket', (route) => route.abort());
+    await cx.setOffline(false);
+    const relais = await p.evaluate(async () => {
+      try { await (window as unknown as { skanfact: { relayerCaisse: (u: string, c: string) => Promise<unknown> } }).skanfact.relayerCaisse('00000000-0000-4000-8000-000000000000', '4827'); return 'relayé'; } catch (e) { return (e as Error).message; }
+    });
+    expect(relais).toBe('Ce poste a encore des ventes ou des changements à envoyer au serveur : ils partent sous le nom de qui les a faits. Change de caissier quand le bandeau dit qu\'ils sont enregistrés.');
+    await p.unroute('**/dossier-v10/ticket');
+    await cx.setOffline(true);
 
     // Le réseau revient : les deux tickets partent seuls, dans l'ordre, sous les numéros imprimés ; aucune alerte.
     await cx.setOffline(false);

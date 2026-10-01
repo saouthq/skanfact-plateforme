@@ -5,15 +5,18 @@
 // compte les espèces du tiroir, dit ce qu'il devait contenir (le fond, plus les espèces encaissées pendant la session)
 // et l'écart, et fige le Z, calculé par le serveur sur ses propres tickets. À VÉRIFIER avec le cahier des charges NACEF.
 
+import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
+import { attenteLisible } from '../connexion.ts';
 import { Refus } from '../erreurs.ts';
+import { correspond, empreinte } from '../mot-de-passe.ts';
 import { tracer } from '../trace.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { PREMIERE } from './chaine.ts';
-import { rendre, t } from '../../textes/index.ts';
+import { motif, rendre, t } from '../../textes/index.ts';
 import './textes.ts';
 
 const montant = z.string().trim().min(1).max(30);
@@ -72,6 +75,14 @@ export async function etatDeNumerotation(tx: Transaction, entreprise: string) {
   return { session: s.id, serie: { format: serie.format, prefixe: serie.prefixe, remise: serie.remise }, prochain: { numero: prochain.numero, periode: prochain.periode }, chaine };
 }
 
+// Un code de caisse : 4 chiffres, ni répétés (0000, 1111…) ni qui se suivent (1234, 9876…), les premiers qu'on essaie.
+export function codeTropSimple(code: string): boolean {
+  const c = [...code].map(Number);
+  const pas = c.slice(1).map((v, i) => v - (c[i] as number));
+  return pas.every((p) => p === 0) || pas.every((p) => p === 1) || pas.every((p) => p === -1);
+}
+const sha256 = (texte: string) => createHash('sha256').update(texte, 'utf8').digest('hex');
+
 export function routesCaisse(): Route<never>[] {
   const routes: Route<never>[] = [];
   const ajouter = <C>(r: Route<C>) => { routes.push(r as unknown as Route<never>); };
@@ -90,7 +101,10 @@ export function routesCaisse(): Route<never>[] {
       const responsable = Boolean((await tx.query(`select socle.mes_roles($1) && array['proprietaire', 'administrateur'] r`, [ent])).rows[0]?.r);
       const alertes = responsable ? (await tx.query(`select nature, numero_poste "numeroPoste", numero_serie "numeroSerie", detail, cree_le "le"
         from caisse.alerte where entreprise = $1 order by cree_le desc limit 50`, [ent])).rows : [];
-      return { corps: { devise, decimales,
+      // Changer de caissier (brique 123) : cet appareil est-il celui de la caisse (même fermée), et qui est au poste.
+      const posteDeCaisse = qui.appareil ? Boolean((await tx.query('select 1 from caisse.caisse where entreprise = $1 and active and appareil = $2', [ent, qui.appareil])).rowCount) : false;
+      const moi = String((await tx.query('select nom from socle.utilisateur where id = socle.moi()')).rows[0]?.nom ?? '');
+      return { corps: { devise, decimales, posteDeCaisse, moi,
         session: s ? { id: s.id, fond: versTexte(BigInt(s.fond), decimales), ouverteLe: s.ouverte_le, qui: s.qui, appareil: s.appareil_nom, ici: s.appareil === qui.appareil } : null,
         dernierZ: dernier ? { ...(dernier.z as object), fermeeLe: dernier.fermee_le } : null,
         numerotation: s && s.appareil === qui.appareil ? await etatDeNumerotation(tx, ent) : null, alertes } };
@@ -152,6 +166,64 @@ export function routesCaisse(): Route<never>[] {
         [s.id, compte.toString(), z0.attendu.toString(), (compte - z0.attendu).toString(), JSON.stringify(z)]);
       await tracer(tx, ent, 'caisse.session.fermer', { type: 'session_caisse', id: s.id }, null, { compte: z.compte, attendu: z.attendu, ecart: z.ecart, nombre: z.nombre });
       return { corps: { z } };
+    },
+  });
+
+  // ── Changer de caissier (brique 123 ; 03 § 6 ; docs/caisse.md, R1 à R5) ──────────────────────────────────────────
+  // Poser son code de caisse : la personne elle-même, caissier de l'entreprise. Il se garde en empreinte.
+  ajouter({
+    methode: 'PUT', chemin: '/entreprises/:entreprise/caisse/mon-code', geste: 'caisse.code.poser',
+    corps: z.object({ code: z.string().trim().max(20) }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const ent = params.entreprise ?? '';
+      if (!/^[0-9]{4}$/.test(corps.code)) throw new Refus('caisse.code_forme');
+      if (codeTropSimple(corps.code)) throw new Refus('caisse.code_trop_simple', { valeurs: { code: corps.code } });
+      await tx.query('select caisse.poser_code($1, $2)', [ent, await empreinte(corps.code)]);
+      await tracer(tx, ent, 'caisse.code.poser', { type: 'code_caisse', id: null }, null, null);
+      return { corps: { ok: true } };
+    },
+  });
+
+  // Les caissiers qui peuvent prendre la caisse sur ce poste : ceux qui ont posé leur code.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/caisse/caissiers', geste: 'caisse.relais',
+    traiter: async ({ params, qui }, tx) => {
+      if (!tx || !qui) throw new Error('transaction attendue');
+      const caissiers = (await tx.query('select utilisateur id, nom from caisse.caissiers($1)', [params.entreprise ?? ''])).rows as { id: string; nom: string }[];
+      return { corps: { caissiers: caissiers.map((c) => ({ ...c, moi: c.id === qui.utilisateur })) } };
+    },
+  });
+
+  // Le relais : sur l'appareil qui tient la caisse, un caissier tape son code ; la session du poste se ferme, la sienne
+  // s'ouvre sur le même appareil (la caisse ne change pas de poste), fermée à cette entreprise. Une erreur compte : après
+  // 5, une attente qui s'allonge, jamais un blocage. L'erreur s'écrit, la réponse n'est donc pas une exception.
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/caisse/relais', geste: 'caisse.relais',
+    corps: z.object({ utilisateur: z.uuid(), code: z.string().trim().max(20) }),
+    traiter: async ({ params, corps, qui }, tx) => {
+      if (!tx || !qui) throw new Error('transaction attendue');
+      const ent = params.entreprise ?? '';
+      const poste = qui.appareil && !qui.posteDUnAutre
+        ? (await tx.query('select 1 from caisse.caisse where entreprise = $1 and active and appareil = $2', [ent, qui.appareil])).rowCount : 0;
+      if (!poste) throw new Refus('caisse.relais_pas_ce_poste');
+      const maintenant = new Date();
+      const cle = `caisse:${ent}:${corps.utilisateur}`;
+      const attente = (await tx.query('select socle.attente_connexion($1, $2) a', [cle, maintenant])).rows[0].a as Date | null;
+      if (attente) return { statut: 403, corps: { motif: attenteLisible(attente, maintenant), qui: [], bouton: null } };
+      const e = (await tx.query('select caisse.code_pour_relais($1, $2, $3) e', [ent, corps.utilisateur, qui.appareil])).rows[0].e as string | null;
+      if (!e) throw new Refus('caisse.relais_sans_code');
+      if (!/^[0-9]{4}$/.test(corps.code) || !await correspond(e, corps.code)) {
+        const a = (await tx.query('select socle.noter_erreur($1, $2) a', [cle, maintenant])).rows[0].a as Date | null;
+        const moi = String((await tx.query('select nom from socle.utilisateur where id = socle.moi()')).rows[0]?.nom ?? '');
+        return { statut: 403, corps: { motif: a ? attenteLisible(a, maintenant) : motif('caisse.relais_code_faux', { qui: moi }), qui: [], bouton: null } };
+      }
+      await tx.query('select socle.effacer_erreurs($1)', [cle]);
+      const nom = String((await tx.query('select nom from socle.utilisateur where id = $1', [corps.utilisateur])).rows[0]?.nom ?? '');
+      const jeton = randomBytes(32).toString('base64url');
+      const session = String((await tx.query('select caisse.relayer($1, $2, $3, $4, $5) s', [ent, corps.utilisateur, qui.session, sha256(jeton), maintenant])).rows[0].s);
+      await tracer(tx, ent, 'caisse.relais', { type: 'session', id: session }, null, { vers: nom });
+      return { corps: { jeton, nom } };
     },
   });
   return routes;

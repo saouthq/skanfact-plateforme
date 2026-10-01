@@ -20,5 +20,12 @@ declarerTextes({
   'caisse.fermer_ailleurs': 'la caisse se ferme sur l\'appareil qui la tient ({appareil}), ou par le propriétaire ou un administrateur',
   'caisse.session_inconnue': 'la session de caisse de ce ticket n\'existe pas dans cette entreprise : rien n\'a été enregistré',
   'caisse.pas_ce_poste': 'ce ticket a été encaissé sur la caisse d\'un autre appareil : seul l\'appareil qui la tenait le remet. Rien n\'a été enregistré',
+  'geste.caisse.relais': 'changer de caissier sur le poste de la caisse',
+  'geste.caisse.code.poser': 'poser son code de caisse (4 chiffres)',
+  'caisse.code_forme': 'le code de caisse a 4 chiffres, ni plus ni moins : rien n\'a été changé',
+  'caisse.code_trop_simple': 'le code {code} se devine trop vite (chiffres répétés ou qui se suivent) : choisis-en un autre. Rien n\'a été changé',
+  'caisse.relais_pas_ce_poste': 'on ne change de caissier que sur l\'appareil qui tient la caisse, sur « mon ordinateur » : rien n\'a changé',
+  'caisse.relais_sans_code': 'cette personne ne prend pas la caisse par un code : elle doit être caissier (sans être propriétaire, administrateur ni paie) et avoir posé son code de caisse. Rien n\'a changé',
+  'caisse.relais_code_faux': 'ce code ne correspond pas : la caisse reste à {qui}',
   'caisse.montant_illisible': 'le montant « {valeur} » ne se lit pas : tape-le comme 150 ou 150,500',
 });

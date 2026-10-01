@@ -114,6 +114,12 @@ export interface BaseDeDonnees {
     active: Generated<boolean>;
     cree_le: Generated<Date>;
   };
+  'caisse.code': {
+    entreprise: string;
+    utilisateur: string;
+    empreinte: string;
+    pose_le: Generated<Date>;
+  };
   'caisse.session': {
     id: Generated<string>;
     entreprise: string;
@@ -693,6 +699,7 @@ export interface BaseDeDonnees {
     code_a_configurer: Generated<boolean>;
     fermee_le: Date | null;
     ip: string | null;
+    caisse_de: string | null;
   };
   'socle.tentative': {
     cle: string;

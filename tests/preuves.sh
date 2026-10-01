@@ -174,7 +174,7 @@ prouver "un code valable une heure" $S \
 prouver "un code de secours qui sert deux fois" $C \
   "where c.utilisateur = p_utilisateur and c.utilise_le is null" "where c.utilisateur = p_utilisateur" \
   "un code de secours remplace le code, une seule fois"
-prouver "un appareil révoqué qui garde ses sessions" "$C|||$C" \
+prouver "un appareil révoqué qui garde ses sessions" "base/migrations/0062_relais_caissier.sql|||$C" \
   "     and not exists (select 1 from socle.appareil a where a.id = s.appareil and a.revoque_le is not null)|||  update socle.session set fermee_le = p_maintenant where appareil = p_appareil and fermee_le is null;" \
   "|||" \
   "un appareil révoqué perd ses sessions"
@@ -6346,7 +6346,7 @@ prouver "une marque de l'avenir acceptée" serveur/v10/routes.ts \
   " && BigInt(depuis) <= BigInt(marque)" "" \
   "$RL"
 prouver "une copie d'une autre base complétée quand même" serveur/v10/routes.ts \
-  "      const profil = \`\${base}/\${[...roles].sort().join(',')}\`;" "      const profil = [...roles].sort().join(',');" \
+  "      const profil = \`\${base}/\${qui.utilisateur}/\${[...roles].sort().join(',')}\`;" "      const profil = \`00000000-0000-0000-0000-000000000000/\${qui.utilisateur}/\${[...roles].sort().join(',')}\`;" \
   "$RL"
 prouver "un numéro d'une autre base dans une différence" serveur/v10/dossier.ts \
   "and xid >= \$2::xid8 and xid < \$3::xid8\`" "and xid >= \$2::xid8 and \$3::text is not null\`" \
@@ -6481,6 +6481,57 @@ prouver "le bilan dessiné avant la session lue, jamais redit" web/public/v10/ap
   "    if (\$('#cs-tiroir') && dernierBilan) \$('#cs-tiroir').innerHTML = sousTiroir(dernierBilan.b, dernierBilan.cur);
 " "" \
   "$CW"
+
+# ── Changer de caissier (brique 123, 01/10/2026 ; docs/caisse.md, R1 à R5) ──
+CR="Leila prend la caisse de Sami avec son code ; sa session ne sert qu'à la caisse ; un code faux attend, sans bloquer"
+CRW="Leila pose son code, puis prend la caisse de Sami ; ses tickets portent son nom"
+prouver "une session de caisse qui ouvre le compte de la personne" serveur/app.ts \
+  "          if (!GESTES.has(r.geste) && r.geste !== 'compte.deconnecter') return envoyer(403, { motif: motif('porte.session_de_caisse'), qui: [], bouton: 'session_de_caisse' });
+" "" \
+  "$CR"
+prouver "une session de caisse qui ouvre une autre entreprise de la personne" serveur/app.ts \
+  "          if (GESTES.has(r.geste) && params.entreprise !== qui.caisseDe) return envoyer(404, { motif: motif('commun.introuvable') });
+" "" \
+  "$CR"
+prouver "le relais qui ouvre une session pour tout le compte" base/migrations/0062_relais_caissier.sql \
+  "interval '12 hours', p_entreprise)" "interval '12 hours', null)" \
+  "$CR"
+prouver "le relais qui laisse la session du précédent ouverte" base/migrations/0062_relais_caissier.sql \
+  "  update socle.session set fermee_le = p_maintenant where id = p_session;
+" "" \
+  "$CR"
+prouver "un administrateur qui prend la caisse par quatre chiffres" base/migrations/0062_relais_caissier.sql \
+  " and not (m.roles && array['proprietaire', 'administrateur', 'paie']::text[]))" ")" \
+  "$CR"
+prouver "le relais depuis un autre appareil que celui de la caisse" serveur/caisse/routes.ts \
+  "      if (!poste) throw new Refus('caisse.relais_pas_ce_poste');
+" "" \
+  "$CR"
+prouver "un code faux qui passe" serveur/caisse/routes.ts \
+  "!/^[0-9]{4}\$/.test(corps.code) || !await correspond(e, corps.code)" "!/^[0-9]{4}\$/.test(corps.code)" \
+  "$CR"
+prouver "cinq codes faux, et le sixième essai n'attend pas" serveur/caisse/routes.ts \
+  "      if (attente) return { statut: 403, corps: { motif: attenteLisible(attente, maintenant), qui: [], bouton: null } };
+" "" \
+  "$CR"
+prouver "un code qui descend (9876) accepté" serveur/caisse/routes.ts \
+  " || pas.every((p) => p === -1)" "" \
+  "$CR"
+prouver "la relecture par différence qui rend au suivant ce que le précédent lisait" serveur/v10/routes.ts \
+  "      const profil = \`\${base}/\${qui.utilisateur}/\${[...roles].sort().join(',')}\`;" "      const profil = \`\${base}/\${[...roles].sort().join(',')}\`;" \
+  "$CR"
+prouver "« Changer de caissier » sur un appareil qui ne tient pas la caisse" serveur/caisse/routes.ts \
+  "const posteDeCaisse = qui.appareil ? Boolean(" "const posteDeCaisse = qui.appareil ? true || Boolean(" \
+  "$CRW"
+prouver "le relais qui laisse partir les tickets en attente sous le nom du suivant" web/public/plateforme/pont.js \
+  "      if (fileTickets.length || attenteGardee || enCours) {" "      if (false) {" \
+  "$CHW"
+
+prouver "le ticket en ligne que la copie du poste n'a pas encore quand l'écran le dit" web/public/plateforme/pont.js \
+  "        await garderLaCopieMaintenant();
+        return decoder(r.contenu);" "        garderLaCopie();
+        return decoder(r.contenu);" \
+  "$CHW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

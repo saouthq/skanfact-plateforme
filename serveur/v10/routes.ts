@@ -43,9 +43,11 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       const ent = params.entreprise ?? '';
       const roles = await mesRoles(tx, ent);
       // Relire par différence (brique 119) : le poste qui a sa copie donne la marque de sa dernière lecture et ce qu'elle
-      // supposait (cette base, ces rôles) ; si rien de cela n'a changé, seul ce qui a changé depuis repart. Sinon, tout.
+      // supposait (cette base, cette personne, ces rôles) ; si rien de cela n'a changé, seul ce qui a changé depuis repart.
+      // Sinon, tout. La personne en fait partie (brique 123) : au changement de caissier, le poste ne garde pas ce que
+      // le précédent voyait (ses tickets, les pièces qu'il n'a pas faites).
       const { marque, avenir, base } = await marqueDeLecture(tx);
-      const profil = `${base}/${[...roles].sort().join(',')}`;
+      const profil = `${base}/${qui.utilisateur}/${[...roles].sort().join(',')}`;
       // Les pièces qu'un autre a faites (brique 117) : l'écran dit, avant le geste, qu'il ne les supprime pas. Seulement
       // pour qui n'est ni propriétaire ni administrateur (eux suppriment tout brouillon).
       const responsable = roles.some((r) => r === 'proprietaire' || r === 'administrateur');

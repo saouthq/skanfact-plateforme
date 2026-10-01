@@ -189,6 +189,12 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
         }
         // Une clé n'est pas une personne : son compte, ses appareils, ses invitations ne la regardent pas.
         if (qui.cle && !GESTES.has(r.geste)) return envoyer(403, { motif: motif('porte.cle_personnelle'), qui: [], bouton: null });
+        // Une session ouverte par un code de caisse (brique 123) ne sert qu'à SA caisse : ni le compte (sauf se
+        // déconnecter), ni une autre entreprise de la personne. Quatre chiffres n'ouvrent rien d'autre.
+        if (qui.caisseDe) {
+          if (!GESTES.has(r.geste) && r.geste !== 'compte.deconnecter') return envoyer(403, { motif: motif('porte.session_de_caisse'), qui: [], bouton: 'session_de_caisse' });
+          if (GESTES.has(r.geste) && params.entreprise !== qui.caisseDe) return envoyer(404, { motif: motif('commun.introuvable') });
+        }
 
         try {
           // La transaction est ouverte au nom de la personne, ou au nom de la CLÉ (jamais de celui

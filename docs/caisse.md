@@ -139,6 +139,40 @@ lente, le bilan dessiné avant l'état de la caisse se redit à son arrivée.
 Test : `tests/web/caissier.test.ts` (pendant la session, à l'écran et sur la bande ; après le Z ; la réponse ralentie).
 4 preuves.
 
+## Ce que fait la brique 123 : changer de caissier (01/10/2026, par délégation ; `03` § 6)
+
+À la relève, le caissier suivant prend la caisse **sans mot de passe**, avec son code à 4 chiffres, sur le poste qui la
+tient : la session de caisse continue (même tiroir, même Z), et ses tickets portent son nom.
+
+- **R1. Chacun pose son code.** « Mon code de caisse… » (page Caisse), connecté avec son mot de passe, d'où il veut :
+  4 chiffres, tapés deux fois ; ni répétés (0000), ni qui se suivent (1234, 9876). Gardé en empreinte (Argon2id), comme
+  un mot de passe ; personne ne le lit. Il ne part pas avec l'export d'une entreprise : chacun le repose.
+- **R2. Seulement un caissier.** Un membre qui a le rôle Caissier et **aucun** rôle de l'entreprise qui exige le code du
+  téléphone (propriétaire, administrateur, paie) : quatre chiffres n'ouvrent jamais ces droits. Un administrateur, même
+  caissier, se connecte avec son mot de passe et son code.
+- **R3. Seulement sur le poste de la caisse.** L'appareil qui tient (ou a tenu) une caisse de l'entreprise, pas retiré,
+  dans une session de « mon ordinateur ». « Changer de caissier… » n'apparaît que là ; la liste ne montre que ceux qui ont
+  posé leur code. **Décidé** : le poste n'a pas à être « reconnu 30 jours » (un caissier sans code de téléphone n'a jamais
+  d'appareil reconnu) ; c'est l'appareil de la caisse qui compte.
+- **R4. Une session fermée à la caisse.** Le relais ferme la session du poste et en ouvre une pour le suivant, sur le
+  **même appareil**, qui ne sert qu'à **cette** entreprise : ni le compte (sauf se déconnecter), ni ses autres entreprises.
+  Le poste relit tout le dossier (la copie du précédent porte sa personne : il ne voit pas ses tickets). Ce qui attend le
+  réseau sur le poste part **avant** : sinon il partirait sous le nom du suivant (le relais est refusé tant qu'il attend).
+- **R5. Un code faux le dit** (« la caisse reste à Sami ») ; après 5 erreurs pour la même personne, une attente qui
+  s'allonge (1, 5, 15, 60 minutes), que même le bon code respecte ; jamais un blocage. La trace dit qui a passé la caisse
+  à qui. **À VÉRIFIER** : prévenir le titulaire après 5 erreurs (03 § 6) ; le SMS n'est pas encore branché.
+
+Tests : `tests/v10/caisse-relais.test.ts` (les codes refusés, l'administrateur sans code, le poste qui n'est pas la
+caisse, le code faux, le relais, les tickets à leur auteur, la session qui n'ouvre ni le compte ni l'autre entreprise,
+le retour à Sami, l'attente, la trace) ; `tests/web/caisse-relais.test.ts` (Leila pose son code sur son téléphone, prend
+la caisse de Sami au comptoir ; trois écrans regardés) ; `tests/web/caisse-hors-ligne.test.ts` (le relais refusé tant
+que des tickets attendent). 12 preuves (et 4 reciblées).
+
+**Défaut trouvé le même jour** (le rouge intermittent de GitHub sur `tests/web/caisse-hors-ligne.test.ts`) : après un
+ticket en ligne, la copie du poste ne s'écrivait que 300 ms plus tard ; une page rouverte sans réseau dans ce délai
+oubliait ce ticket jusqu'au retour du réseau. Un ticket est un fait : la copie le garde maintenant **avant** que l'écran
+ne le dise (le test le vérifie aussitôt le ticket encaissé). 1 preuve.
+
 ## Ce qui part au serveur
 
 Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, reçu, rendu, paiement, client facultatif)
@@ -160,7 +194,7 @@ Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, r
 - Plusieurs caisses dans une entreprise (chacune sa série) ; le Z imprimé sur l'imprimante de tickets ; l'écriture
   comptable par session (`01` § 10, **À VÉRIFIER** avec un comptable : par session ou par jour).
 - Hors ligne : fait (brique 120, plus haut).
-- Le caissier à l'écran : fait (brique 121). **Changer de caissier** avec le code à 4 chiffres (`03` § 6) : à faire.
+- Le caissier à l'écran : fait (brique 121). Changer de caissier avec le code à 4 chiffres : fait (brique 123).
 - Le tiroir du bilan du jour : fait (brique 122, plus haut).
 - **Le retour** avec le code d'un responsable (03 § 2.1), la facture demandée pour un ticket, l'écriture par session.
 - **L'agent local** (étape 4) : imprimante de tickets, tiroir, douchette.

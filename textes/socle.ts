@@ -63,6 +63,7 @@ declarerTextes({
   'perimetre.paie': 'la paie',
   'porte.cle_refuse': 'cette clé de l\'API ne permet pas {de:geste}',
   'porte.cle_personnelle': 'une clé de l\'API n\'agit pas pour une personne : ce geste lui est fermé',
+  'porte.session_de_caisse': 'cette session a été ouverte par un code de caisse : elle ne sert qu\'à la caisse. Pour ton compte, déconnecte-toi et reconnecte-toi avec ton mot de passe',
   'api.trop_d_appels': 'trop d\'appels avec cette clé : réessaie dans {secondes} secondes',
   'api.trop_d_appels_une': 'trop d\'appels avec cette clé : réessaie dans une seconde',
 
