@@ -41,7 +41,9 @@ describe('la remise à la caisse, à l\'écran', () => {
   const annee = new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }).slice(0, 4);
   const plusTard = async (p: Page) => { for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click().catch(() => undefined); };
   const ouvrir = async (jeton: string, ent: string) => {
-    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    // Le navigateur d'un commerçant est à l'heure de Tunis, comme le serveur : entre 23 h et minuit (UTC), un navigateur
+    // à l'heure UTC daterait la caisse de la veille (CI rouge du 01/10/2026 sur 6bf2b1b).
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
     const p = await cx.newPage();
     const erreurs: string[] = [];

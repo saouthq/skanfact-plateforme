@@ -69,7 +69,9 @@ describe('le caissier à l\'écran', () => {
     const inv = String((await api('POST', `/entreprises/${ent}/invitations`, nadia, { email: emailSami, roles: ['caissier'] })).corps.jeton);
     expect((await api('POST', '/invitations/accepter', sami, { jeton: inv })).statut).toBe(200);
 
-    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    // Le navigateur d'un commerçant est à l'heure de Tunis, comme le serveur : entre 23 h et minuit (UTC), un navigateur
+    // à l'heure UTC daterait la caisse de la veille (CI rouge du 01/10/2026 sur 6bf2b1b).
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, sami);
     const p = await cx.newPage();
     const erreurs: string[] = [];
