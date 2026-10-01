@@ -33,6 +33,7 @@ declarerTextes({
   'caisse.ouverte_ailleurs_retour': 'la caisse est ouverte sur un autre appareil ({appareil}, par {qui}) : l\'argent rendu sort de son tiroir, le retour se fait là-bas. Rien n\'a été rendu',
   'caisse.retour_pas_un_ticket': 'un retour se fait sur un ticket de caisse encaissé, ligne à ligne : rien n\'a été rendu',
   'caisse.retour_ligne': 'une ligne rendue n\'est pas une ligne du ticket {numero} (le même article, au même prix) : rien n\'a été rendu',
+  'caisse.retour_remise': 'l\'avoir d\'un retour garde la remise du ticket {numero} ({taux} %) et ne rend pas son timbre : rien n\'a été rendu',
   'caisse.retour_trop': 'on ne rend pas plus de « {article} » que le ticket {numero} n\'en a vendu, retours déjà faits compris : rien n\'a été rendu',
   'caisse.retour_mode': 'l\'argent se rend en espèces, par carte ou par chèque : rien n\'a été rendu',
   'caisse.retour_paiement': 'l\'argent rendu doit être le montant de l\'avoir ({net}), aujourd\'hui : rien n\'a été rendu',

@@ -80,6 +80,10 @@ export function routeRetour(sessionOuverte: (tx: Transaction, entreprise: string
       const lignesTicket = Array.isArray(tk.contenu.lines) ? tk.contenu.lines as Json[] : [];
       const lignes = Array.isArray(av.lines) ? av.lines as Json[] : [];
       if (av.type !== 'avoir' || av.creditOf !== corps.ticket || !lignes.length) throw new Refus('caisse.retour_pas_un_ticket');
+      // L'avoir garde la remise du ticket (sinon il rendrait plus que le client n'a payé) et ne rend pas le timbre.
+      if (!meme(av.discountRate ?? 0, tk.contenu.discountRate ?? 0) || av.applyStamp) {
+        throw new Refus('caisse.retour_remise', { valeurs: { numero, taux: nombreEnTexte(tk.contenu.discountRate ?? 0) } });
+      }
       // Ce qui a déjà été rendu sur ce ticket, ligne par ligne.
       const deja = new Map<number, bigint>();
       for (const r of (await tx.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'documents'

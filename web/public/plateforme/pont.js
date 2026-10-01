@@ -814,10 +814,13 @@
         throw new Error('Ce poste a encore des ventes ou des changements à envoyer au serveur : ils partent sous le nom de qui les a faits. Change de caissier quand le bandeau dit qu\'ils sont enregistrés.');
       }
       const r = await appel('POST', '/caisse/relais', { utilisateur, code });
-      // Le jeton du suivant remplace celui du poste, là où il était gardé ; la page se relit ensuite avec lui. La copie du
+      // Le jeton du suivant remplace celui du poste, là où il était gardé : dans la session (lue en premier), et dans la
+      // mémoire du navigateur si le poste l'y gardait (vu à la main le 01/10/2026 : remplacé là seulement, la page relisait
+      // l'ancien jeton, fermé par le relais, et retombait sur la connexion). La page se relit ensuite avec lui. La copie du
       // précédent ne lui sert pas : elle porte sa personne (le « profil » de la relecture), et le serveur renvoie tout.
       try {
-        if (localStorage.getItem('skanfact.jeton')) localStorage.setItem('skanfact.jeton', r.jeton); else sessionStorage.setItem('skanfact.jeton', r.jeton);
+        sessionStorage.setItem('skanfact.jeton', r.jeton);
+        if (localStorage.getItem('skanfact.jeton')) localStorage.setItem('skanfact.jeton', r.jeton);
       } catch { /* stockage refusé : la session ne tiendrait pas au rechargement */ }
       return r;
     },

@@ -6668,6 +6668,30 @@ prouver "le code du responsable qu'il faut d'abord cliquer" web/public/v10/app.j
   "          if (n) \$('#rd-code', root).focus();" "          if (false) \$('#rd-code', root).focus();" \
   "$CMW"
 
+# Vu à l'écran le 01/10/2026 (le retour d'un ticket remisé) : 1,284 DT rendus pour 1,156 payés.
+prouver "le retour d'un ticket remisé qui rend le prix plein (serveur)" serveur/caisse/retour.ts \
+  "      if (!meme(av.discountRate ?? 0, tk.contenu.discountRate ?? 0) || av.applyStamp) {" "      if (av.applyStamp) {" \
+  "$CM"
+prouver "le retour qui rend aussi le timbre (serveur)" serveur/caisse/retour.ts \
+  "      if (!meme(av.discountRate ?? 0, tk.contenu.discountRate ?? 0) || av.applyStamp) {" "      if (!meme(av.discountRate ?? 0, tk.contenu.discountRate ?? 0)) {" \
+  "$CM"
+prouver "l'avoir d'un retour qui oublie la remise du ticket (écran)" web/public/v10/core.js \
+  "lines: lignes, discountRate: Number(ticket.discountRate) || 0, applyStamp: false" "lines: lignes, discountRate: 0, applyStamp: false" \
+  "$CMW"
+prouver "l'annonce du retour qui oublie la remise du ticket" web/public/v10/app.js \
+  "lines: lignes, discountRate: Number(doc.discountRate) || 0, applyStamp: false, currency: doc.currency" "lines: lignes, applyStamp: false, currency: doc.currency" \
+  "$CMW"
+
+# Vu à la main le 01/10/2026 : « Prendre la caisse » renvoyait la caisse à la connexion (l'ancien jeton relu).
+prouver "le jeton du caissier suivant gardé dans la mémoire seulement, pas dans la session" web/public/plateforme/pont.js \
+  "        sessionStorage.setItem('skanfact.jeton', r.jeton);
+        if (localStorage.getItem('skanfact.jeton'))" "        if (localStorage.getItem('skanfact.jeton'))" \
+  "$CRW"
+prouver "le jeton du caissier suivant gardé dans la session seulement" web/public/plateforme/pont.js \
+  "        if (localStorage.getItem('skanfact.jeton')) localStorage.setItem('skanfact.jeton', r.jeton);
+" "" \
+  "$CRW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

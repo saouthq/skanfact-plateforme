@@ -2,7 +2,8 @@
 // pains de 10 % : la ligne de remise se lit, le total suit ; une remise de 120 % ne s'encaisse pas, et le dit. Au-delà du
 // plafond (0 % par défaut), « Encaisser » demande d'abord le code d'un responsable présent : tant qu'aucun n'a posé le
 // sien, la fenêtre le dit et « Approuver » reste gris ; ensuite un code faux ne vend rien, celui de Nadia, si, et le
-// ticket imprimé dit sa remise. Puis Nadia règle 15 % dans Paramètres → Caisse : Sami remise 10 % sans code.
+// ticket imprimé dit sa remise ; un pain rapporté rend ce qui a été payé. Puis Nadia règle 15 % dans Paramètres → Caisse :
+// Sami remise 10 % sans code.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -129,7 +130,14 @@ describe('la remise à la caisse, à l\'écran', () => {
     await p.locator('#cs-liste [data-tk]', { hasText: `TIC-${annee}-001` }).click();
     await expect.poll(async () => net(await p.frameLocator('#modal-root iframe.cs-apercu').locator('body').innerText().catch(() => '')), { timeout: 10_000 })
       .toMatch(/Pain de mie 3 × 1,284 DT 3,852 DT Remise 10 % − 0,385 DT Total HT 3,240 DT TVA 7 % sur 3,240 DT 0,227 DT TOTAL TTC 3,467 DT/);
-    await p.locator('#modal-root [data-close]').click();
+    // Un pain rapporté : on rend ce que le client a payé, remise comprise (1,156), pas le prix plein (1,284).
+    await p.locator('#modal-root #tk-rendre').click();
+    await p.locator('#modal-root [data-rd]').first().fill('1');
+    await expect.poll(async () => net(await p.locator('#modal-root #rd-annonce').innerText()), { timeout: 5_000 }).toBe('À rendre au client : 1,156 DT.');
+    await expect.poll(() => p.locator('#modal-root #rd-code').count(), { timeout: 10_000 }).toBe(1);
+    await p.locator('#modal-root #rd-code').fill('1357');
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(toast, { timeout: 10_000 }).toBe(`Avoir AVO-${annee}-001 : 1,156 DT rendus.`);
     await p.locator('#cs-tabs [data-tab=vendre]').click();
 
     // Nadia règle 15 % sans code, dans Paramètres → Caisse.

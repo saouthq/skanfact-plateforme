@@ -10659,7 +10659,7 @@
       id: uid(), type: 'avoir', number: nextNumber(data, 'avoir', jour), status: 'émis', date: jour, dueDate: '',
       clientId: ticket.clientId || '', subject: `Retour sur le ticket ${ticket.number}`, reference: '',
       creditOf: ticket.id, creditOfNumber: ticket.number, creditReason: String(o.motif || '').trim(),
-      lines: lignes, discountRate: 0, applyStamp: false, stampFee: 0, regimeTva: ticket.regimeTva || regimeOf(co).id,
+      lines: lignes, discountRate: Number(ticket.discountRate) || 0, applyStamp: false, stampFee: 0, regimeTva: ticket.regimeTva || regimeOf(co).id,
       notes: '', withholdingRate: 0, lang: 'fr', currency: ticket.currency || co.currency, exchangeRate: '',
       payments: [], createdAt: maintenant, issuedTs: maintenant
     };

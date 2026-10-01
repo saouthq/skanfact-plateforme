@@ -80,6 +80,20 @@ ne se vend pas (le code ne se vérifie qu'en ligne).
         <tr><td>Total HT</td><td class="r">${m(t.netHT)}</td></tr>
 -- fin
 
+== core.js | le retour d'un article garde la remise du ticket (sinon il rendrait plus que le client n'a payé)
+-- avant
+      lines: lignes, discountRate: 0, applyStamp: false, stampFee: 0, regimeTva: ticket.regimeTva || regimeOf(co).id,
+-- après
+      lines: lignes, discountRate: Number(ticket.discountRate) || 0, applyStamp: false, stampFee: 0, regimeTva: ticket.regimeTva || regimeOf(co).id,
+-- fin
+
+== app.js | l'annonce du retour compte la remise du ticket, comme l'avoir qu'elle annonce
+-- avant
+        const t = C.computeTotals({ type: 'avoir', lines: lignes, applyStamp: false, currency: doc.currency }, company());
+-- après
+        const t = C.computeTotals({ type: 'avoir', lines: lignes, discountRate: Number(doc.discountRate) || 0, applyStamp: false, currency: doc.currency }, company());
+-- fin
+
 ── Le ticket en cours (app.js) ──
 
 == app.js | le ticket en cours se compte avec sa remise

@@ -40,8 +40,13 @@ describe('changer de caissier, à l\'écran', () => {
   // Une personne connectée sur un appareil, et la page Caisse ouverte dans son navigateur.
   const ouvrir = async (jeton: string, ent: string) => {
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
-    // Le jeton du départ, une seule fois : au changement de caissier, la page garde celui qu'elle a reçu.
-    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    // Le jeton du départ, une seule fois, gardé comme la connexion le garde sur SON appareil : dans la session ET dans la
+    // mémoire du navigateur (web/src/api.ts). Au changement de caissier, la page garde celui qu'elle a reçu — aux deux
+    // endroits (vu à la main le 01/10/2026 : seul le second était remplacé, et la caisse retombait sur la connexion).
+    await cx.addInitScript((j) => {
+      if (!location.protocol.startsWith('http') || sessionStorage.getItem('skanfact.jeton') || localStorage.getItem('skanfact.jeton')) return;
+      sessionStorage.setItem('skanfact.jeton', j); localStorage.setItem('skanfact.jeton', j);
+    }, jeton);
     const p = await cx.newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
@@ -133,6 +138,11 @@ describe('changer de caissier, à l\'écran', () => {
     await plusTard(p);
     // Le jeton de Sami ne sert plus.
     expect((await api('GET', `/entreprises/${ent}/caisse`, sami)).statut).toBe(401);
+    // La caisse rouverte dans un nouvel onglet (comme le lendemain matin) : toujours Leila, jamais la page de connexion.
+    const rouverte = await comptoir.cx.newPage();
+    await allerALaCaisse(rouverte, ent);
+    await expect.poll(async () => net(await rouverte.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 20_000 }).toMatch(/À la caisse : Leila\./);
+    await rouverte.close();
 
     // Leila vend un lait : le ticket suivant de la même caisse, à son nom ; elle ne voit pas l'huile de Sami.
     await p.locator('#cs-articles .cs-art', { hasText: 'Lait demi-écrémé' }).click();

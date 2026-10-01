@@ -64,6 +64,8 @@ describe('la remise à la caisse', () => {
     expect((await appeler('POST', '/invitations/accepter', sami.jeton, { jeton: inv })).statut).toBe(200);
     await appeler('GET', `/entreprises/${ent}/dossier-v10`, nadia.jeton);
     const ids = Object.fromEntries(((await appeler('GET', `/entreprises/${ent}/equipe`, nadia.jeton)).corps.membres as { utilisateur: string; nom: string }[]).map((m) => [m.nom, m.utilisateur]));
+    expect((await appeler('POST', `/entreprises/${ent}/dossier-v10`, nadia.jeton, { changements: [{ collection: 'accounts', cle: 'k-caisse', rang: 0, revision: null,
+      contenu: { id: 'k-caisse', name: 'Caisse', kind: 'caisse', bank: '', rib: '', opening: 0, openingDate: '2026-01-01', isDefault: false, statementBalance: '', notes: '' } }] })).statut).toBe(200);
     expect((await appeler('PUT', `/entreprises/${ent}/caisse/code-responsable`, nadia.jeton, { code: '1357' })).statut).toBe(200);
     expect((await appeler('POST', `/entreprises/${ent}/caisse/ouvrir`, sami.jeton, { fond: '20' })).statut).toBe(200);
     const vendre = (demande: Record<string, unknown>) => appeler('POST', `/entreprises/${ent}/dossier-v10/ticket`, sami.jeton, demande);
@@ -78,6 +80,17 @@ describe('la remise à la caisse', () => {
     expect(motif(await vendre({ ...dix, responsable: { utilisateur: ids.Sami, code: '1357' } }))).toContain('cette personne n\'approuve pas à la caisse');
     const t1 = await vendre({ ...dix, responsable: { utilisateur: ids.Nadia, code: '1357' } });
     expect(t1.corps).toMatchObject({ numero: `TIC-${annee}-002`, contenu: { remiseCaisse: { taux: '10', approuvePar: 'Nadia' } } });
+    // Un pain rapporté : l'avoir garde la remise du ticket (1,156 rendus, pas 1,284) et ne rend pas de timbre.
+    const rendre = (id: string, remise: number, net: string, timbre = false) => appeler('POST', `/entreprises/${ent}/dossier-v10/rendre`, sami.jeton, {
+      ticket: 't1', rang: null, netAPayer: net, responsable: { utilisateur: ids.Nadia, code: '1357' },
+      avoir: { ...ticket(id, remise, net), type: 'avoir', ticket: undefined, creditOf: 't1', creditReason: 'Pain rassis', applyStamp: timbre, stampFee: timbre ? 1 : 0,
+        lines: [{ itemId: 'pain', label: 'Pain de mie', unit: 'u', qty: 1, unitPrice: { '~n': '1.2' }, vatRate: 7, ligneTicket: 0 }], payments: [], caisse: undefined },
+      paiement: { id: `p-${id}`, date: aujourdhui, amount: { '~n': `-${net}` }, method: 'especes', accountId: 'k-caisse', reference: '', note: 'Rendu sur le ticket' },
+    });
+    const refusRemise = `l'avoir d'un retour garde la remise du ticket TIC-${annee}-002 (10 %) et ne rend pas son timbre : rien n'a été rendu`;
+    expect(motif(await rendre('a1', 0, '1.284'))).toBe(refusRemise);
+    expect(motif(await rendre('a1', 10, '2.156', true))).toBe(refusRemise);
+    expect((await rendre('a1', 10, '1.156')).corps).toMatchObject({ numero: `AVO-${annee}-001` });
 
     // Le plafond se règle par Nadia (15 %), jamais par Sami ; en dessous, plus de code.
     const fiche = async (jeton: string, plafond: number) => {

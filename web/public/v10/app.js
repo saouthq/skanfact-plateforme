@@ -12305,7 +12305,7 @@
       const annonce = () => {
         const q = qtes();
         const lignes = reste.filter(r => q[r.i] > 0).map(r => ({ ...doc.lines[r.i], qty: q[r.i] }));
-        const t = C.computeTotals({ type: 'avoir', lines: lignes, applyStamp: false, currency: doc.currency }, company());
+        const t = C.computeTotals({ type: 'avoir', lines: lignes, discountRate: Number(doc.discountRate) || 0, applyStamp: false, currency: doc.currency }, company());
         $('#rd-annonce', root).innerHTML = lignes.length
           ? `À rendre au client : <b>${C.money(t.netToPay, cur)}</b>.`
           : '<span class="muted">Indique la quantité rendue sur la ligne de l\'article.</span>';

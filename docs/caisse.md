@@ -241,6 +241,18 @@ ligne de remise, en apparaissant, poussait « Encaisser » de 20 px ; (6) le cha
 (7) le texte de « Mon code de responsable » ne parlait que du retour. Tous corrigés, chacun avec sa preuve. Noté, sans
 défaut : un poste qui ne tient pas la caisse montre le panier, mais « Encaisser » y est gris et dit pourquoi.
 
+**Deuxième passage à la main (01/10/2026), sur les briques 123 et 124** — deux défauts sérieux, que les tests verts ne
+voyaient pas : (8) **le retour d'un article d'un ticket remisé rendait le prix plein** (1,284 DT rendus pour 1,156
+payés) : l'avoir du retour ne gardait pas la remise du ticket, et le serveur ne le vérifiait pas. Corrigé des deux
+côtés : l'écran (l'annonce « À rendre au client » et l'avoir) garde la remise du ticket, et le serveur refuse un avoir de
+retour qui ne la garde pas, ou qui rendrait le timbre (`caisse.retour_remise`). (9) **« Prendre la caisse » renvoyait la
+caisse à la page de connexion** sur un vrai poste : la connexion garde le jeton à deux endroits du navigateur (la session,
+lue en premier, et la mémoire du poste) ; le relais ne remplaçait que le second, la page relisait l'ancien jeton (fermé
+par le relais). Corrigé : remplacé aux deux endroits ; le test d'écran garde maintenant le jeton comme une vraie
+connexion, et rouvre la caisse dans un nouvel onglet. Vu aussi, à reprendre : la bulle « Première fois sur cette page ? »
+recouvre la fin du bandeau orange de la caisse. **À VÉRIFIER** (avec un comptable) : un ticket rendu en plusieurs fois
+peut s'écarter d'un millime de ce qui a été payé, par l'arrondi de la TVA de chaque avoir (comme la v10).
+
 ## Ce qui part au serveur
 
 Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, reçu, rendu, paiement, client facultatif)
