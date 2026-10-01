@@ -12500,12 +12500,25 @@
         $('#cs-compte', root).focus();
       });
   }
+  // (plateforme, brique 126) Les Z passés, les plus récents d'abord, 20 par page (« Plus de Z… » lit la suivante).
+  async function dessinerLesZ(el, avant, deja) {
+    let r;
+    try { r = await bridge.listeZ(avant); } catch (e) { el.innerHTML = `<h2>Les Z</h2><p class="small warn-text">${h(plainError(e))}</p>`; return; }
+    const tous = (deja || []).concat(r.z);
+    el.innerHTML = `<h2>Les Z</h2>${tous.length ? `<div class="scroll-x"><table class="list compact" id="cs-z-liste"><thead><tr><th>Fermée le</th><th>Ouverte par</th><th>Fermée par</th><th class="r">Tickets</th><th class="r">Ventes TTC</th><th class="r">Écart</th></tr></thead><tbody>
+      ${tous.map((z, i) => `<tr class="clickable" data-z="${i}"><td class="nw">${h(heureCaisse(z.fermeeLe))}</td><td>${h(z.ouvertePar)}</td><td>${h(z.fermePar)}</td>
+        <td class="r">${z.nombre}</td><td class="r nw">${h(argentCaisse(z.total))}</td><td class="r nw${Number(z.ecart) ? ' warn-text' : ''}">${h(argentCaisse(z.ecart))}</td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="small muted">Aucun Z pour l\'instant : le premier s\'écrit à la fermeture de la caisse.</p>'}
+      ${r.suite ? '<button type="button" class="btn btn-sm mt" id="cs-z-plus">Plus de Z…</button>' : ''}`;
+    $$('[data-z]', el).forEach(tr => { tr.onclick = () => montrerZ(tous[Number(tr.dataset.z)]); });
+    if ($('#cs-z-plus', el)) $('#cs-z-plus', el).onclick = () => dessinerLesZ(el, r.suite, tous);
+  }
   const MODES_Z = { especes: 'Espèces', carte: 'Carte', cheque: 'Chèque' };
   function montrerZ(z) {
     const ligne = (l, v, cls) => `<tr${cls ? ` class="${cls}"` : ''}><td>${l}</td><td class="r num nw">${v}</td></tr>`;
     const ecart = Number(z.ecart);
     modal(`<h2>Z de caisse</h2>
-      <p class="small muted">Ouverte par ${h(z.ouvertePar)} le ${h(heureCaisse(z.ouverteLe))} sur « ${h(z.appareil)} » ; ${z.nombre ? `${z.nombre} ticket${z.nombre > 1 ? 's' : ''}, du ${h(z.premier)} au ${h(z.dernier)}` : 'aucun ticket'}.</p>
+      <p class="small muted" id="cs-z-qui">Ouverte par ${h(z.ouvertePar)} le ${h(heureCaisse(z.ouverteLe))} sur « ${h(z.appareil)} »${z.fermePar ? `, fermée par ${h(z.fermePar)} le ${h(heureCaisse(z.fermeeLe))}` : ''} ; ${z.nombre ? `${z.nombre} ticket${z.nombre > 1 ? 's' : ''}, du ${h(z.premier)} au ${h(z.dernier)}` : 'aucun ticket'}.</p>
       <table class="list compact" id="cs-z-table"><tbody>
         ${ligne('Ventes TTC', h(argentCaisse(z.total)))}${ligne('dont TVA', h(argentCaisse(z.tva)))}
         ${Object.entries(z.parMode).map(([k, v]) => ligne(h(MODES_Z[k] || k), h(argentCaisse(v)))).join('')}
@@ -12515,8 +12528,11 @@
         ${ligne('<b>Écart</b>', `<b>${h(argentCaisse(z.ecart))}</b>`, ecart ? 'warn-text' : '')}
       </tbody></table>
       <p class="small ${ecart ? 'warn-text' : 'muted'}">${ecart < 0 ? 'Il manque de l\'argent dans le tiroir.' : ecart > 0 ? 'Il y a plus d\'argent que prévu dans le tiroir.' : 'Le tiroir tombe juste.'} Le Z est figé : il garde ces chiffres.</p>
-      <div class="modal-actions"><button class="btn btn-primary" id="cs-z-ok">Terminé</button></div>`,
-      (root, close) => { $('#cs-z-ok', root).onclick = () => { close(); vers('#/caisse')(); }; });
+      <div class="modal-actions"><button class="btn" id="cs-z-imprimer">Imprimer le Z</button><button class="btn btn-primary" id="cs-z-ok">Terminé</button></div>`,
+      (root, close) => {
+        $('#cs-z-ok', root).onclick = () => { close(); vers('#/caisse')(); };
+        $('#cs-z-imprimer', root).onclick = () => Promise.resolve(bridge.imprimerTicket(C.zHtml(z, company()), company().caisseLargeur)).catch(e => toast(plainError(e), true));
+      });
   }
   routes.caisse = () => {
     const s = caisseState;
@@ -12747,7 +12763,9 @@
                 <td class="r nw">${C.money(tt.netToPay, cur)}</td></tr>`;
             }).join('')}
           </tbody></table></div>` : `<p class="small muted">Aucun ticket ce jour-là. ${s.jour === C.today() ? '<button type="button" class="btn btn-sm btn-primary" id="cs-aller-vendre">Ouvrir la caisse</button>' : ''}</p>`}
-        </div>`;
+        </div>
+        ${bridge.listeZ ? '<div class="panel" id="cs-les-z"><h2>Les Z</h2><p class="small muted">Lecture des Z…</p></div>' : ''}`;
+      if ($('#cs-les-z')) void dessinerLesZ($('#cs-les-z'));
       bindDateFields($('#cs-body'));
       const j = $('#cs-body [name=csJour]');
       if (j) j.addEventListener('change', () => { if (j.value) { s.jour = j.value; drawTickets(); } });

@@ -670,4 +670,5 @@ export const ADAPTATIONS = [
   ...lireFichier('caisse-session.txt'),
   ...lireFichier('caisse-retour.txt'),
   ...lireFichier('caisse-remise.txt'),
+  ...lireFichier('caisse-z.txt'),
 ];

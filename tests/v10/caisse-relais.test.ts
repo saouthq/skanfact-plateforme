@@ -130,6 +130,12 @@ describe('changer de caissier', () => {
     expect((await appeler('GET', `/entreprises/${epicerie}/caisse`, leilaCaisse)).statut).toBe(404);
     expect((await appeler('GET', `/entreprises/${epicerie}/caisse`, leila.jeton)).statut).toBe(200);
 
+    // Leila ferme la caisse et la rouvre sur ce poste : le poste garde son nom (vu à la main le 01/10/2026 : « — », car
+    // l'appareil est celui de Sami, et Leila ne lit pas les appareils d'une autre personne).
+    expect((await appeler('POST', `/entreprises/${ent}/caisse/fermer`, leilaCaisse, { compte: '50' })).statut).toBe(200);
+    expect((await appeler('POST', `/entreprises/${ent}/caisse/ouvrir`, leilaCaisse, { fond: '50' })).statut).toBe(200);
+    expect((await appeler('GET', `/entreprises/${ent}/caisse`, leilaCaisse)).corps.session).toMatchObject({ qui: 'Leila', appareil: 'Caisse du comptoir' });
+
     // Sami reprend la main avec son code (depuis la session de Leila).
     const repris = await relais(leilaCaisse, ids.Sami, '5190');
     expect(repris.corps).toMatchObject({ nom: 'Sami' });

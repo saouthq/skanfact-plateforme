@@ -785,6 +785,8 @@
     },
     ouvrirCaisse: async (/** @type {string} */ fond) => { const r = await appel('POST', '/caisse/ouvrir', { fond }); retenirNumerotation(r.numerotation); return r; },
     fermerCaisse: async (/** @type {string} */ compte) => appel('POST', '/caisse/fermer', { compte }),
+    // Les Z passés (brique 126), par pages : `avant`, la `suite` de la page précédente.
+    listeZ: async (/** @type {string | undefined} */ avant) => appel('GET', `/caisse/z${avant ? `?avant=${encodeURIComponent(avant)}` : ''}`),
     // Le retour à la caisse (brique 124 ; docs/caisse.md, T1 à T5) : le serveur numérote l'avoir, rend l'argent sur le
     // ticket et le compte au Z ; un caissier y joint le code d'un responsable présent. Il faut le réseau.
     responsables: async () => (await appel('GET', '/caisse/responsables')).responsables,

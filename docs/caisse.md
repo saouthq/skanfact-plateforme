@@ -253,6 +253,27 @@ connexion, et rouvre la caisse dans un nouvel onglet. Vu aussi, à reprendre : l
 recouvre la fin du bandeau orange de la caisse. **À VÉRIFIER** (avec un comptable) : un ticket rendu en plusieurs fois
 peut s'écarter d'un millime de ce qui a été payé, par l'arrondi de la TVA de chaque avoir (comme la v10).
 
+## Ce que fait la brique 126 : le Z imprimé et relu (01/10/2026, par délégation)
+
+Vu à la main : le Z se lisait une fois, à la fermeture, puis disparaissait ; il ne disait ni qui avait fermé la caisse ni
+quand, et ne s'imprimait pas.
+
+- **Z1. Le Z dit qui a fermé la caisse, et quand** (`fermePar`, `fermeeLe`, figés avec lui).
+- **Z2. « Imprimer le Z »** : la même bande que le ticket et le bilan du jour (80 ou 58 mm, `zHtml`), avec les seuls
+  chiffres que le serveur a figés à la fermeture (rien ne se recompte sur le poste).
+- **Z3. Les Z passés**, dans « Tickets et bilan du jour », les plus récents d'abord, 20 par page (« Plus de Z… ») ; chacun
+  se rouvre et se réimprime. **Décidé** : le propriétaire et l'administrateur lisent tous les Z ; un autre membre, ceux
+  des sessions qu'il a ouvertes.
+
+Vu aussi à la main, et corrigé : une caissière qui a pris la caisse avec son code (brique 123) puis la rouvre sur le même
+poste l'ouvrait sous le nom « — » (elle ne lit pas les appareils d'une autre personne) ; le poste garde maintenant le nom
+que la caisse lui connaît. **À VÉRIFIER** (avec un comptable, et le cahier des charges des caisses) : les mentions
+obligatoires d'un Z imprimé, et combien de temps il se garde.
+
+Tests : `tests/v10/caisse-z.test.ts` (21 sessions : qui ferme, l'ordre, les pages, un curseur illisible, qui lit quoi),
+`tests/web/caisse-z.test.ts` (la fermeture, la bande imprimée lue, la liste, « Plus de Z… », un Z rouvert) ;
+`tests/v10/caisse-relais.test.ts` (le nom du poste rouvert). 15 preuves.
+
 ## Ce qui part au serveur
 
 Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, reçu, rendu, paiement, client facultatif)

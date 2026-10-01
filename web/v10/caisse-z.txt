@@ -1,0 +1,122 @@
+Le Z imprimé et relu (brique 126 ; 03 § 2.1 « Caisse » ; serveur/caisse/routes.ts ; docs/caisse.md, Z1 à Z3).
+Format : voir sans-paquets.mjs.
+
+Le Z dit qui a fermé la caisse, et quand ; il s'imprime sur la bande de la caisse (la même que le ticket et le bilan du
+jour), avec les seuls chiffres que le serveur a figés à la fermeture ; et les Z passés se relisent (et se réimpriment)
+dans « Tickets et bilan du jour », par pages. Le propriétaire et l'administrateur lisent tous les Z ; un caissier, ceux
+des sessions qu'il a ouvertes.
+
+── Le moteur (core.js) ──
+
+== core.js | le Z imprimé : la bande de la caisse, avec ce que le Z a figé (rien n'est recompté)
+-- avant
+  function bilanCaisseHtml(bilan, company) {
+-- après
+  // (plateforme, brique 126) Le Z imprimé : la même bande que le ticket et le bilan (80 ou 58 mm). Ses chiffres sont
+  // ceux que le serveur a figés à la fermeture, en texte : rien ne se recompte ici.
+  function zHtml(z, company) {
+    const co = company || {};
+    const m = v => money(Number(v), co.currency);
+    const largeur = Number(co.caisseLargeur) === 58 ? 58 : 80;
+    const quand = x => (x ? new Date(x).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
+    const MODES = { especes: 'Espèces', carte: 'Carte', cheque: 'Chèque' };
+    const ligne = (l, v, cls) => `<tr${cls ? ` class="${cls}"` : ''}><td>${l}</td><td class="r">${v}</td></tr>`;
+    return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Z de caisse ${escapeHtml(quand(z.fermeeLe))}</title><style>
+      @page { size: ${largeur}mm auto; margin: 0; }
+      html, body { margin: 0; background: #fff; color: #000; }
+      body { width: ${largeur}mm; padding: 4mm 3.5mm 6mm; font: 11px/1.4 "Helvetica Neue", Arial, sans-serif; }
+      .c { text-align: center; } .co { font-weight: 700; font-size: 14px; }
+      hr { border: 0; border-top: 1px dashed #000; margin: 2.5mm 0; }
+      table { width: 100%; border-collapse: collapse; } td.r { text-align: right; white-space: nowrap; }
+      .tot td { font-weight: 700; font-size: 13px; }
+    </style></head><body>
+      <div class="c co">${escapeHtml(co.name || '')}</div>
+      <div class="c"><b>Z de caisse</b></div>
+      <div>Ouverte le ${escapeHtml(quand(z.ouverteLe))} par ${escapeHtml(z.ouvertePar || '')}</div>
+      <div>Fermée le ${escapeHtml(quand(z.fermeeLe))} par ${escapeHtml(z.fermePar || '')}</div>
+      <div>Poste : ${escapeHtml(z.appareil || '')}</div>
+      <hr>
+      <table>
+        ${ligne('Tickets', z.nombre ? `${z.nombre} (${escapeHtml(z.premier || '')} à ${escapeHtml(z.dernier || '')})` : '0')}
+        ${ligne('Dont TVA', m(z.tva))}
+        ${ligne('Ventes TTC', m(z.total), 'tot')}
+      </table>
+      <hr>
+      <table>
+        ${Object.entries(z.parMode || {}).map(([k, v]) => ligne(MODES[k] || escapeHtml(k), m(v))).join('')}
+        ${Object.entries(z.rendu || {}).map(([k, v]) => ligne(`Rendu (${(MODES[k] || escapeHtml(k)).toLowerCase()})`, `− ${m(v)}`)).join('')}
+      </table>
+      <hr>
+      <table>
+        ${ligne('Fond de caisse', m(z.fond))}
+        ${ligne('Le tiroir devait contenir', m(z.attendu), 'tot')}
+        ${ligne('Espèces comptées', m(z.compte))}
+        ${ligne('Écart', m(z.ecart), 'tot')}
+      </table>
+      <hr>
+      <div class="c">Le Z est figé : il garde ces chiffres.</div>
+    </body></html>`;
+  }
+  function bilanCaisseHtml(bilan, company) {
+-- fin
+
+== core.js | le Z imprimé se donne à l'écran
+-- avant
+    CLIENT_COMPTOIR, MODES_CAISSE, estTicket, serieDe, titreDePiece, normCode, articleParCode, comptesDeCaisse, compteDuMode, ligneDePanier, totauxDuPanier, motifEncaissement, MOTIF_SANS_BANQUE, ticketDeCaisse, bilanCaisse, heureDuTicket, resteARendre, remboursementDeTicket, ticketHtml, bilanCaisseHtml,
+-- après
+    CLIENT_COMPTOIR, MODES_CAISSE, estTicket, serieDe, titreDePiece, normCode, articleParCode, comptesDeCaisse, compteDuMode, ligneDePanier, totauxDuPanier, motifEncaissement, MOTIF_SANS_BANQUE, ticketDeCaisse, bilanCaisse, heureDuTicket, resteARendre, remboursementDeTicket, ticketHtml, bilanCaisseHtml, zHtml,
+-- fin
+
+── Le Z à l'écran (app.js) ──
+
+== app.js | le Z dit qui a fermé la caisse, et quand
+-- avant
+      <p class="small muted">Ouverte par ${h(z.ouvertePar)} le ${h(heureCaisse(z.ouverteLe))} sur « ${h(z.appareil)} » ;
+-- après
+      <p class="small muted" id="cs-z-qui">Ouverte par ${h(z.ouvertePar)} le ${h(heureCaisse(z.ouverteLe))} sur « ${h(z.appareil)} »${z.fermePar ? `, fermée par ${h(z.fermePar)} le ${h(heureCaisse(z.fermeeLe))}` : ''} ;
+-- fin
+
+== app.js | le Z s'imprime sur la bande de la caisse
+-- avant
+      <div class="modal-actions"><button class="btn btn-primary" id="cs-z-ok">Terminé</button></div>`,
+      (root, close) => { $('#cs-z-ok', root).onclick = () => { close(); vers('#/caisse')(); }; });
+-- après
+      <div class="modal-actions"><button class="btn" id="cs-z-imprimer">Imprimer le Z</button><button class="btn btn-primary" id="cs-z-ok">Terminé</button></div>`,
+      (root, close) => {
+        $('#cs-z-ok', root).onclick = () => { close(); vers('#/caisse')(); };
+        $('#cs-z-imprimer', root).onclick = () => Promise.resolve(bridge.imprimerTicket(C.zHtml(z, company()), company().caisseLargeur)).catch(e => toast(plainError(e), true));
+      });
+-- fin
+
+== app.js | les Z passés : la liste, par pages ; chacun se rouvre (et se réimprime)
+-- avant
+  const MODES_Z = { especes: 'Espèces', carte: 'Carte', cheque: 'Chèque' };
+-- après
+  // (plateforme, brique 126) Les Z passés, les plus récents d'abord, 20 par page (« Plus de Z… » lit la suivante).
+  async function dessinerLesZ(el, avant, deja) {
+    let r;
+    try { r = await bridge.listeZ(avant); } catch (e) { el.innerHTML = `<h2>Les Z</h2><p class="small warn-text">${h(plainError(e))}</p>`; return; }
+    const tous = (deja || []).concat(r.z);
+    el.innerHTML = `<h2>Les Z</h2>${tous.length ? `<div class="scroll-x"><table class="list compact" id="cs-z-liste"><thead><tr><th>Fermée le</th><th>Ouverte par</th><th>Fermée par</th><th class="r">Tickets</th><th class="r">Ventes TTC</th><th class="r">Écart</th></tr></thead><tbody>
+      ${tous.map((z, i) => `<tr class="clickable" data-z="${i}"><td class="nw">${h(heureCaisse(z.fermeeLe))}</td><td>${h(z.ouvertePar)}</td><td>${h(z.fermePar)}</td>
+        <td class="r">${z.nombre}</td><td class="r nw">${h(argentCaisse(z.total))}</td><td class="r nw${Number(z.ecart) ? ' warn-text' : ''}">${h(argentCaisse(z.ecart))}</td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="small muted">Aucun Z pour l\'instant : le premier s\'écrit à la fermeture de la caisse.</p>'}
+      ${r.suite ? '<button type="button" class="btn btn-sm mt" id="cs-z-plus">Plus de Z…</button>' : ''}`;
+    $$('[data-z]', el).forEach(tr => { tr.onclick = () => montrerZ(tous[Number(tr.dataset.z)]); });
+    if ($('#cs-z-plus', el)) $('#cs-z-plus', el).onclick = () => dessinerLesZ(el, r.suite, tous);
+  }
+  const MODES_Z = { especes: 'Espèces', carte: 'Carte', cheque: 'Chèque' };
+-- fin
+
+== app.js | « Tickets et bilan du jour » : les Z passés, sous les tickets
+-- avant
+          </tbody></table></div>` : `<p class="small muted">Aucun ticket ce jour-là. ${s.jour === C.today() ? '<button type="button" class="btn btn-sm btn-primary" id="cs-aller-vendre">Ouvrir la caisse</button>' : ''}</p>`}
+        </div>`;
+      bindDateFields($('#cs-body'));
+-- après
+          </tbody></table></div>` : `<p class="small muted">Aucun ticket ce jour-là. ${s.jour === C.today() ? '<button type="button" class="btn btn-sm btn-primary" id="cs-aller-vendre">Ouvrir la caisse</button>' : ''}</p>`}
+        </div>
+        ${bridge.listeZ ? '<div class="panel" id="cs-les-z"><h2>Les Z</h2><p class="small muted">Lecture des Z…</p></div>' : ''}`;
+      if ($('#cs-les-z')) void dessinerLesZ($('#cs-les-z'));
+      bindDateFields($('#cs-body'));
+-- fin

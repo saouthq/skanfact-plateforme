@@ -6692,6 +6692,58 @@ prouver "le jeton du caissier suivant gardé dans la session seulement" web/publ
 " "" \
   "$CRW"
 
+# ── Le Z imprimé et relu (brique 126, 01/10/2026 ; docs/caisse.md, Z1 à Z3) ──
+CZ="le Z dit qui l'a fermé ; les Z se lisent par pages, tous pour la propriétaire, les siens pour un caissier"
+CZW="Sami ferme la caisse : le Z dit qu'il l'a fermée, s'imprime, et se relit parmi les Z passés"
+prouver "le Z qui ne dit pas qui l'a fermé" serveur/caisse/routes.ts \
+  "ouverteLe: s.ouverte_le, ouvertePar: s.qui, appareil: s.appareil_nom, fermeeLe, fermePar };" "ouverteLe: s.ouverte_le, ouvertePar: s.qui, appareil: s.appareil_nom };" \
+  "$CZ"
+prouver "les Z de toute l'entreprise lus par un caissier" serveur/caisse/routes.ts \
+  "and (\$3 or s.ouverte_par = socle.moi())" "and (true or s.ouverte_par = socle.moi())" \
+  "$CZ"
+prouver "les Z lus les plus anciens d'abord" serveur/caisse/routes.ts \
+  "         order by s.fermee_le desc limit" "         order by s.fermee_le asc limit" \
+  "$CZ"
+prouver "la page suivante des Z qui relit la première" serveur/caisse/routes.ts \
+  "(\$2::timestamptz is null or s.fermee_le < \$2)" "(true or s.fermee_le < \$2)" \
+  "$CZ"
+prouver "les Z sans page suivante" serveur/caisse/routes.ts \
+  "        suite: lignes.length > PAGE_Z ?" "        suite: false ?" \
+  "$CZ"
+prouver "un curseur de Z illisible qui casse la lecture" serveur/caisse/routes.ts \
+  "      const avant = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z\$/.test(query.avant ?? '') ? query.avant : null;" "      const avant = query.avant ?? null;" \
+  "$CZ"
+prouver "le Z à l'écran qui ne dit pas qui l'a fermé" web/public/v10/app.js \
+  "\${z.fermePar ? \`, fermée par \${h(z.fermePar)} le \${h(heureCaisse(z.fermeeLe))}\` : ''}" "" \
+  "$CZW"
+prouver "« Imprimer le Z » qui n'imprime rien" web/public/v10/app.js \
+  "\$('#cs-z-imprimer', root).onclick = () => Promise.resolve(" "\$('#cs-z-imprimer', root).onclick = () => false && Promise.resolve(" \
+  "$CZW"
+prouver "le Z imprimé sans qui l'a fermé" web/public/v10/core.js \
+  "      <div>Fermée le \${escapeHtml(quand(z.fermeeLe))} par \${escapeHtml(z.fermePar || '')}</div>
+" "" \
+  "$CZW"
+prouver "le Z imprimé sans ce que le tiroir devait contenir" web/public/v10/core.js \
+  "        \${ligne('Le tiroir devait contenir', m(z.attendu), 'tot')}
+" "" \
+  "$CZW"
+prouver "les Z passés absents de « Tickets et bilan du jour »" web/public/v10/app.js \
+  "      if (\$('#cs-les-z')) void dessinerLesZ(\$('#cs-les-z'));" "" \
+  "$CZW"
+prouver "« Plus de Z… » absent quand il en reste" web/public/v10/app.js \
+  "\${r.suite ? '<button type=\"button\" class=\"btn btn-sm mt\" id=\"cs-z-plus\">Plus de Z…</button>' : ''}" "" \
+  "$CZW"
+prouver "« Plus de Z… » qui remplace la page lue au lieu de l'allonger" web/public/v10/app.js \
+  "    const tous = (deja || []).concat(r.z);" "    const tous = r.z;" \
+  "$CZW"
+prouver "un Z passé qui ne se rouvre pas" web/public/v10/app.js \
+  "    \$\$('[data-z]', el).forEach(tr => { tr.onclick = () => montrerZ(tous[Number(tr.dataset.z)]); });" "" \
+  "$CZW"
+
+prouver "le poste de la caisse rouvert par une caissière relais, sans son nom" serveur/caisse/routes.ts \
+  "        (select appareil_nom from caisse.session where entreprise = \$2 and appareil = \$1 order by ouverte_le desc limit 1), '—') nom\`" "        null, '—') nom\`" \
+  "$CR"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -93,6 +93,8 @@ function verifierFormeDuCode(code: string) {
   if (!/^[0-9]{4}$/.test(code)) throw new Refus('caisse.code_forme');
   if (codeTropSimple(code)) throw new Refus('caisse.code_trop_simple', { valeurs: { code } });
 }
+// Une page de Z (brique 126).
+const PAGE_Z = 20;
 const sha256 = (texte: string) => createHash('sha256').update(texte, 'utf8').digest('hex');
 
 export function routesCaisse(): Route<never>[] {
@@ -143,7 +145,10 @@ export function routesCaisse(): Route<never>[] {
         caisse = String((await tx.query(`insert into caisse.caisse (entreprise, nom) values ($1, $2) returning id`, [ent, rendre(t('caisse.nom_par_defaut'), 'fr')])).rows[0].id);
       }
       await tx.query(`update caisse.caisse set appareil = $2 where id = $1`, [caisse, qui.appareil]);
-      const nom = String((await tx.query(`select nom from socle.appareil where id = $1`, [qui.appareil])).rows[0]?.nom ?? '—');
+      // Le nom du poste : l'appareil, si la personne le lit (le sien) ; sinon celui que la caisse lui connaît déjà (une
+      // caissière qui a pris la caisse avec son code ne lit pas les appareils d'une autre personne, brique 123).
+      const nom = String((await tx.query(`select coalesce((select nom from socle.appareil where id = $1),
+        (select appareil_nom from caisse.session where entreprise = $2 and appareil = $1 order by ouverte_le desc limit 1), '—') nom`, [qui.appareil, ent])).rows[0].nom);
       const id = String((await tx.query(`insert into caisse.session (entreprise, caisse, appareil, appareil_nom, ouverte_par, fond) values ($1, $2, $3, $4, socle.moi(), $5) returning id`,
         [ent, caisse, qui.appareil, nom, fond.toString()])).rows[0].id);
       // La série des tickets existe dès l'ouverture (brique 120) : le poste connaît sa forme avant le premier ticket.
@@ -170,15 +175,39 @@ export function routesCaisse(): Route<never>[] {
       const fond = BigInt(s.fond);
       const z0 = await calculerZ(tx, s.id, fond);
       const texte = (n: bigint) => versTexte(n, decimales);
+      // (Brique 126) Le Z dit aussi qui l'a fermé, et quand : relu ou imprimé plus tard, il se suffit.
+      const fermeeLe = new Date();
+      const fermePar = String((await tx.query('select nom from socle.utilisateur where id = socle.moi()')).rows[0]?.nom ?? '');
       const z = { devise, nombre: z0.nombre, premier: z0.premier, dernier: z0.dernier, total: texte(z0.total), tva: texte(z0.tva),
         parMode: Object.fromEntries(Object.entries(z0.parMode).map(([k, v]) => [k, texte(v)])),
         rendu: Object.fromEntries(Object.entries(z0.rendu).map(([k, v]) => [k, texte(v)])), retours: z0.retours,
         fond: texte(fond), attendu: texte(z0.attendu), compte: texte(compte), ecart: texte(compte - z0.attendu),
-        ouverteLe: s.ouverte_le, ouvertePar: s.qui, appareil: s.appareil_nom };
-      await tx.query(`update caisse.session set fermee_par = socle.moi(), fermee_le = now(), compte = $2, attendu = $3, ecart = $4, z = $5 where id = $1`,
-        [s.id, compte.toString(), z0.attendu.toString(), (compte - z0.attendu).toString(), JSON.stringify(z)]);
+        ouverteLe: s.ouverte_le, ouvertePar: s.qui, appareil: s.appareil_nom, fermeeLe, fermePar };
+      await tx.query(`update caisse.session set fermee_par = socle.moi(), fermee_le = $6, compte = $2, attendu = $3, ecart = $4, z = $5 where id = $1`,
+        [s.id, compte.toString(), z0.attendu.toString(), (compte - z0.attendu).toString(), JSON.stringify(z), fermeeLe]);
       await tracer(tx, ent, 'caisse.session.fermer', { type: 'session_caisse', id: s.id }, null, { compte: z.compte, attendu: z.attendu, ecart: z.ecart, nombre: z.nombre });
       return { corps: { z } };
+    },
+  });
+
+  // Les Z passés (brique 126 ; docs/caisse.md, Z1 à Z3), les plus récents d'abord, par pages de 20 (`avant` : l'instant de
+  // fermeture du dernier Z lu). Le propriétaire et l'administrateur les lisent tous ; un autre membre, ceux des sessions
+  // qu'il a ouvertes.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/caisse/z', geste: 'caisse.voir',
+    traiter: async ({ params, query }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const ent = params.entreprise ?? '';
+      // L'instant de fermeture du dernier Z lu ; illisible, on repart du début.
+      const avant = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(query.avant ?? '') ? query.avant : null;
+      const responsable = Boolean((await tx.query(`select socle.mes_roles($1) && array['proprietaire', 'administrateur'] r`, [ent])).rows[0]?.r);
+      const lignes = (await tx.query(`select s.z, s.fermee_le, u.nom ferme_par from caisse.session s join socle.utilisateur u on u.id = s.fermee_par
+         where s.entreprise = $1 and s.fermee_le is not null and ($2::timestamptz is null or s.fermee_le < $2)
+           and ($3 or s.ouverte_par = socle.moi())
+         order by s.fermee_le desc limit ${PAGE_Z + 1}`, [ent, avant, responsable])).rows as { z: Record<string, unknown>; fermee_le: Date; ferme_par: string }[];
+      const page = lignes.slice(0, PAGE_Z);
+      return { corps: { z: page.map((l) => ({ ...l.z, fermeeLe: l.fermee_le, fermePar: l.ferme_par })),
+        suite: lignes.length > PAGE_Z ? page[page.length - 1]?.fermee_le.toISOString() ?? null : null } };
     },
   });
 

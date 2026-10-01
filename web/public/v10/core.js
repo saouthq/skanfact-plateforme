@@ -10732,6 +10732,51 @@
     </body></html>`;
   }
   // Le bilan de la journée, sur la même bande de papier : ce que le tiroir doit contenir.
+  // (plateforme, brique 126) Le Z imprimé : la même bande que le ticket et le bilan (80 ou 58 mm). Ses chiffres sont
+  // ceux que le serveur a figés à la fermeture, en texte : rien ne se recompte ici.
+  function zHtml(z, company) {
+    const co = company || {};
+    const m = v => money(Number(v), co.currency);
+    const largeur = Number(co.caisseLargeur) === 58 ? 58 : 80;
+    const quand = x => (x ? new Date(x).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
+    const MODES = { especes: 'Espèces', carte: 'Carte', cheque: 'Chèque' };
+    const ligne = (l, v, cls) => `<tr${cls ? ` class="${cls}"` : ''}><td>${l}</td><td class="r">${v}</td></tr>`;
+    return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Z de caisse ${escapeHtml(quand(z.fermeeLe))}</title><style>
+      @page { size: ${largeur}mm auto; margin: 0; }
+      html, body { margin: 0; background: #fff; color: #000; }
+      body { width: ${largeur}mm; padding: 4mm 3.5mm 6mm; font: 11px/1.4 "Helvetica Neue", Arial, sans-serif; }
+      .c { text-align: center; } .co { font-weight: 700; font-size: 14px; }
+      hr { border: 0; border-top: 1px dashed #000; margin: 2.5mm 0; }
+      table { width: 100%; border-collapse: collapse; } td.r { text-align: right; white-space: nowrap; }
+      .tot td { font-weight: 700; font-size: 13px; }
+    </style></head><body>
+      <div class="c co">${escapeHtml(co.name || '')}</div>
+      <div class="c"><b>Z de caisse</b></div>
+      <div>Ouverte le ${escapeHtml(quand(z.ouverteLe))} par ${escapeHtml(z.ouvertePar || '')}</div>
+      <div>Fermée le ${escapeHtml(quand(z.fermeeLe))} par ${escapeHtml(z.fermePar || '')}</div>
+      <div>Poste : ${escapeHtml(z.appareil || '')}</div>
+      <hr>
+      <table>
+        ${ligne('Tickets', z.nombre ? `${z.nombre} (${escapeHtml(z.premier || '')} à ${escapeHtml(z.dernier || '')})` : '0')}
+        ${ligne('Dont TVA', m(z.tva))}
+        ${ligne('Ventes TTC', m(z.total), 'tot')}
+      </table>
+      <hr>
+      <table>
+        ${Object.entries(z.parMode || {}).map(([k, v]) => ligne(MODES[k] || escapeHtml(k), m(v))).join('')}
+        ${Object.entries(z.rendu || {}).map(([k, v]) => ligne(`Rendu (${(MODES[k] || escapeHtml(k)).toLowerCase()})`, `− ${m(v)}`)).join('')}
+      </table>
+      <hr>
+      <table>
+        ${ligne('Fond de caisse', m(z.fond))}
+        ${ligne('Le tiroir devait contenir', m(z.attendu), 'tot')}
+        ${ligne('Espèces comptées', m(z.compte))}
+        ${ligne('Écart', m(z.ecart), 'tot')}
+      </table>
+      <hr>
+      <div class="c">Le Z est figé : il garde ces chiffres.</div>
+    </body></html>`;
+  }
   function bilanCaisseHtml(bilan, company) {
     const co = company || {};
     const cur = co.currency;
@@ -11170,7 +11215,7 @@
 
   const api = {
     enLot, duLot,
-    CLIENT_COMPTOIR, MODES_CAISSE, estTicket, serieDe, titreDePiece, normCode, articleParCode, comptesDeCaisse, compteDuMode, ligneDePanier, totauxDuPanier, motifEncaissement, MOTIF_SANS_BANQUE, ticketDeCaisse, bilanCaisse, heureDuTicket, resteARendre, remboursementDeTicket, ticketHtml, bilanCaisseHtml,
+    CLIENT_COMPTOIR, MODES_CAISSE, estTicket, serieDe, titreDePiece, normCode, articleParCode, comptesDeCaisse, compteDuMode, ligneDePanier, totauxDuPanier, motifEncaissement, MOTIF_SANS_BANQUE, ticketDeCaisse, bilanCaisse, heureDuTicket, resteARendre, remboursementDeTicket, ticketHtml, bilanCaisseHtml, zHtml,
     VAT_RATES, WITHHOLDING_RATES, PAYMENT_METHODS, PREFIX, TITLES, DEFAULT_DATA, DEFAULT_COMPANY, ACTIVITIES, STATUSES, STATUT_ENVOI, DISPLAY_STATUSES, STATUS_LABELS,
     REGIMES, regimeOf, regimeSuggere, tfpSuggere, assujettiTVA, mentionTVA, estLiberal, docLabel, ribAttendu,
     DOC_FILTRES, docFiltre,
