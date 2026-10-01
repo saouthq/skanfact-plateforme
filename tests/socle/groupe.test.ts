@@ -87,4 +87,13 @@ describe('le tableau de bord du groupe', () => {
       expect(solde('411', -1).toFixed(3)).toBe(s?.chiffres?.aEncaisser);
     }
   });
+
+  // Une réponse de l'API ne se garde dans aucun cache (brique 113 bis) : un dossier d'hier ne se resert pas pour celui
+  // d'aujourd'hui, et des données comptables ne restent pas sur le disque.
+  it('une réponse de l\'API dit « ne me garde pas »', async () => {
+    const p = await personne('Lina');
+    const r = await app.inject({ method: 'GET', url: `${VERSION}/moi/groupe`, headers: { authorization: `Bearer ${p.jeton}` } });
+    expect(r.statusCode).toBe(200);
+    expect(r.headers['cache-control']).toBe('no-store');
+  });
 });

@@ -6101,6 +6101,10 @@ prouver "le groupe absent du menu des entreprises" web/public/v10/app.js \
   "\${bridge.groupe && autres.length ? " "\${false ? " \
   "$GW"
 
+prouver "une réponse de l'API gardée dans le cache du navigateur" serveur/app.ts \
+  "if (requete.url.startsWith(VERSION)) reponse.header('cache-control', 'no-store');" "if (requete.url.startsWith(VERSION)) void reponse;" \
+  "une réponse de l'API dit"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

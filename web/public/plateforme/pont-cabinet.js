@@ -27,7 +27,7 @@
     if (corps !== undefined) entetes['content-type'] = 'application/json';
     let r;
     try {
-      r = await fetch(`/v1${chemin}`, { method: methode, headers: entetes, ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
+      r = await fetch(`/v1${chemin}`, { method: methode, headers: entetes, cache: 'no-store', ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
     } catch (e) {
       throw new Error('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e });
     }

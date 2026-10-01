@@ -29,7 +29,7 @@
     if (corps !== undefined) entetes['content-type'] = 'application/json';
     let r;
     try {
-      r = await fetch(`/v1/entreprises/${ent}${chemin}`, { method: methode, headers: entetes, ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
+      r = await fetch(`/v1/entreprises/${ent}${chemin}`, { method: methode, headers: entetes, cache: 'no-store', ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
     } catch (e) {
       // Le réseau manque (brique 72) : le bandeau le dit, et la copie du poste prend le relais.
       poste.horsLigne();
@@ -768,7 +768,7 @@
     if (corps !== undefined) entetes['content-type'] = 'application/json';
     let r;
     try {
-      r = await fetch(`/v1${chemin}`, { method: methode, headers: entetes, ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
+      r = await fetch(`/v1${chemin}`, { method: methode, headers: entetes, cache: 'no-store', ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
     } catch (e) {
       poste.horsLigne();
       const x = new Error('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e });

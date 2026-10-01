@@ -105,6 +105,11 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
   // décimal (versTexte), jamais en unités brutes.
   app.setReplySerializer((corps) => JSON.stringify(corps, (_cle, v: unknown) => (typeof v === 'bigint' ? v.toString() : v)));
 
+  // Une réponse de l'API ne se garde dans aucun cache (brique 113 bis) : ni le navigateur ni un intermédiaire ne doit
+  // la resservir (un dossier d'hier montré pour celui d'aujourd'hui), ni la laisser sur le disque (des données
+  // comptables : 05 § 5, INPDP).
+  app.addHook('onSend', async (requete, reponse) => { if (requete.url.startsWith(VERSION)) reponse.header('cache-control', 'no-store'); });
+
   // La documentation de l'API, écrite depuis les routes elles-mêmes : jamais en retard sur elles.
   const doc = documentation(routes);
   app.get(`${VERSION}/documentation`, async () => doc);
