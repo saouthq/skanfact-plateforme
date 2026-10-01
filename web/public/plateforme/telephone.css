@@ -70,4 +70,9 @@
   table.lines-edit.buy-lines { display: block; overflow-x: auto; }
   table.lines-edit.buy-lines td input, table.lines-edit.buy-lines td select { min-width: 72px; }
   table.lines-edit.buy-lines td:first-child input { min-width: 170px; }
+
+  /* « Tes premiers pas » (accueil) : les boutons d'une étape passent SOUS son texte. À côté, ils lui
+     laissaient 32 points : un mot par ligne (brique 105). */
+  .pp-list li { grid-template-columns: 26px minmax(0, 1fr); }
+  .pp-list li .pp-go { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; }
 }

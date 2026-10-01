@@ -49,6 +49,16 @@ function problemes(cibles: boolean): string[] {
       if (r.height < 44 || r.width < 44) pb.push(`cible de ${Math.round(r.width)}×${Math.round(r.height)} : ${el.outerHTML.slice(0, 90)}`);
     }
   }
+  // Au téléphone, une phrase écrasée dans une colonne trop étroite (un mot par ligne, brique 105 : « Tes premiers
+  // pas » à côté de leurs boutons) : un bloc de texte de plus de 60 lettres qui tient dans moins de 140 points.
+  if (cibles) {
+    for (const el of document.querySelectorAll<HTMLElement>('#view p, #view li, #view .small, #view span')) {
+      if (!visible(el) || el.closest('[hidden], .combo-pop, #info-pop, table, .preview, svg')) continue;
+      const texte = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+      const r = el.getBoundingClientRect();
+      if (texte.length > 60 && r.width < 140 && getComputedStyle(el).display !== 'inline') pb.push(`texte écrasé en ${Math.round(r.width)} points : « ${texte.slice(0, 50)}… »`);
+    }
+  }
   for (const el of document.querySelectorAll<HTMLElement>('body *')) {
     if (!visible(el)) continue;
     const cs = getComputedStyle(el);
@@ -129,7 +139,7 @@ describe('l\'instrument de rendu des écrans', () => {
     for (const e of ENTREE) {
       for (const largeur of [390, 1440]) {
         for (const langue of ['fr', 'factice'] as Langue[]) {
-          const contexte = await navigateur.newContext({ viewport: { width: largeur, height: 844 }, deviceScaleFactor: 1, locale: 'fr-FR' });
+          const contexte = await navigateur.newContext({ viewport: { width: largeur, height: 844 }, deviceScaleFactor: 1, locale: 'fr-FR', isMobile: largeur < 760, hasTouch: largeur < 760 });
           const page = await contexte.newPage();
           const d = e.etape ? await personne(e.etape) : null;
           if (d) await page.addInitScript((j) => sessionStorage.setItem('skanfact.jeton', j), d.jeton);
@@ -164,6 +174,8 @@ describe('l\'instrument de rendu des écrans', () => {
     // Photographier une facture d'achat se fait au téléphone (14 § 2.6 ; brique 84).
     { nom: 'achat-nouveau', hash: '#/achat/new', titre: /^Nouvelle facture d'achat/ },
     { nom: 'parametres', hash: '#/parametres', titre: /^Paramètres/ },
+    // Le responsable décide d'un accord depuis son téléphone (brique 100).
+    { nom: 'accords', hash: '#/accords', titre: /^Demandes d'accord/ },
   ];
 
   it('les pages du quotidien de la v10, sur un téléphone et un ordinateur : aucune ne défile de côté, rien ne sort de l\'écran, et au doigt tout se touche', async () => {
@@ -171,7 +183,7 @@ describe('l\'instrument de rendu des écrans', () => {
     const faux: string[] = [];
     let vus = 0;
     for (const largeur of [390, 1440]) {
-      const contexte = await navigateur.newContext({ viewport: { width: largeur, height: 844 }, deviceScaleFactor: 1, locale: 'fr-FR' });
+      const contexte = await navigateur.newContext({ viewport: { width: largeur, height: 844 }, deviceScaleFactor: 1, locale: 'fr-FR', isMobile: largeur < 760, hasTouch: largeur < 760 });
       await contexte.addInitScript((j) => sessionStorage.setItem('skanfact.jeton', j), d.jeton);
       const page = await contexte.newPage();
       const erreurs: string[] = [];

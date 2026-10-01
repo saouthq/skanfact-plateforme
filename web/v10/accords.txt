@@ -56,6 +56,8 @@ personne qui a demandé le voit sur la facture et sur son accueil, et émet une 
   // attendre, puis les relisent.
   let accordsVus = null;
   const accordsEnLigne = () => !!bridge.accords;
+  // L'entreprise demande-t-elle un accord (au-delà de l'encours, ou d'une remise) ?
+  const accordRegle = () => company().encoursAccord === true || Number(company().remiseAccordAuDela) > 0;
   // Le propriétaire ou un administrateur : il règle les seuils et décide des accords (sans point de contact : tout).
   function estResponsable() {
     const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
@@ -203,9 +205,9 @@ personne qui a demandé le voit sur la facture et sur son accueil, et émet une 
         $('#view').innerHTML = `${tete}<div class="panel"><p class="small muted">Lecture des demandes…</p></div>`;
       } else if (!l.accords.length) {
         $('#view').innerHTML = `${tete}${etatVide('Aucune demande d\'accord', [
-          'Quand l\'entreprise le demande, une facture qui ferait dépasser l\'encours autorisé d\'un client ne s\'émet par un commercial qu\'avec l\'accord du propriétaire ou d\'un administrateur. Les demandes arrivent ici, et sur l\'accueil du responsable.',
-          company().encoursAccord ? 'L\'accord est demandé : rien n\'attend pour l\'instant.' : 'Pour l\'instant, SkanFact avertit seulement : l\'accord se règle dans Paramètres → Documents.',
-        ], !company().encoursAccord && l.peutDecider ? [['ac-regler', 'Régler l\'accord…', true]] : [])}`;
+          'Quand l\'entreprise le demande, une facture qui ferait dépasser l\'encours autorisé d\'un client, ou dont la remise dépasse celle permise, ne s\'émet par un commercial qu\'avec l\'accord du propriétaire ou d\'un administrateur. Les demandes arrivent ici, et sur l\'accueil du responsable.',
+          accordRegle() ? 'L\'accord est demandé : rien n\'attend pour l\'instant.' : 'Pour l\'instant, SkanFact avertit seulement : l\'accord se règle dans Paramètres → Documents.',
+        ], !accordRegle() && l.peutDecider ? [['ac-regler', 'Régler l\'accord…', true]] : [])}`;
         if ($('#ac-regler')) $('#ac-regler').onclick = () => allerParametres('documents', 'p-facturation');
       } else {
         const lignes = l.accords.map(a => {

@@ -5970,6 +5970,17 @@ prouver "l'écran qui ne voit que la remise globale" web/public/v10/app.js \
   "      const tauxRemise = effective.taux;" "      const tauxRemise = Number(doc.discountRate) || 0;" \
   "$ARW"
 
+# ── Brique 105 : le téléphone pour de vrai (web/v10/telephone.txt) ──
+TEL="les pages du quotidien de la v10, sur un téléphone et un ordinateur : aucune ne défile de côté, rien ne sort de l'écran, et au doigt tout se touche"
+prouver "la page qui ne dit pas sa largeur au téléphone" web/public/v10/index.html \
+  '  <meta name="viewport" content="width=device-width, initial-scale=1">
+' "" \
+  "$TEL"
+prouver "les premiers pas écrasés à côté de leurs boutons" web/public/plateforme/telephone.css \
+  "  .pp-list li { grid-template-columns: 26px minmax(0, 1fr); }
+  .pp-list li .pp-go { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; }" "" \
+  "$TEL"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

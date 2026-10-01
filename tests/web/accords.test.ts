@@ -202,14 +202,15 @@ describe('l\'accord d\'un responsable, à la souris', () => {
   it('Nadia règle la remise permise ; Karim remise au-delà, demande, Nadia accorde depuis la facture, Karim émet', async () => {
     const { jeton, ent, karim } = await magasin();
     const erreurs: string[] = [];
-    const ouvrir = async (j: string): Promise<[BrowserContext, Page]> => {
-      const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    // Nadia décide depuis son téléphone (390 points de large) ; Karim travaille à l'ordinateur.
+    const ouvrir = async (j: string, telephone = false): Promise<[BrowserContext, Page]> => {
+      const cx = await navigateur.newContext({ viewport: telephone ? { width: 390, height: 844 } : { width: 1440, height: 900 }, locale: 'fr-FR', ...(telephone ? { isMobile: true, hasTouch: true } : {}) });
       await cx.addInitScript((x) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', x); }, j);
       const pg1 = await cx.newPage();
       pg1.on('pageerror', (e) => erreurs.push(e.message));
       return [cx, pg1];
     };
-    const [cn, n] = await ouvrir(jeton);
+    const [cn, n] = await ouvrir(jeton, true);
     const [ck, k] = await ouvrir(karim);
 
     // 1. Nadia : 10 % de remise permis sans accord.

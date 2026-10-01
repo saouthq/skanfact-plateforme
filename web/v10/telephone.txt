@@ -1,0 +1,25 @@
+Le téléphone pour de vrai (brique 105 ; 14 § 2.6 ; 09, jalon J2 : « refait sur un ordinateur et sur un téléphone »).
+Format : voir sans-paquets.mjs.
+
+La v10 était une application de bureau : sa page ne disait pas au navigateur sa largeur (`<meta name="viewport">`).
+Sur un vrai téléphone, le navigateur l'affichait alors comme un écran d'ordinateur de 980 points, réduit au tiers :
+la mise en page du téléphone (`telephone.css`, sous 760 points) ne s'appliquait jamais. L'instrument de rendu
+simulait une fenêtre étroite, pas un téléphone ; il simule maintenant un vrai téléphone (`isMobile`).
+
+── Les pages (index.html) ──
+
+== index.html | la page dit sa largeur au téléphone
+-- avant
+  <title>SkanFact</title>
+-- après
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkanFact</title>
+-- fin
+
+== cabinet/index.html | la page du Cabinet dit sa largeur au téléphone
+-- avant
+  <title>SkanFact Cabinet</title>
+-- après
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkanFact Cabinet</title>
+-- fin
