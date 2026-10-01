@@ -1141,6 +1141,25 @@
     return arrondiDevise(cur)(n / rateOf(doc, co));
   }
 
+  // La remise que fait vraiment une pièce (plateforme, brique 104 ; 03 D11 « une remise ») : la remise globale, ou
+  // plus quand le prix d'une ligne est baissé sous celui que SkanFact proposerait à ce client (sa liste de prix, le
+  // palier de sa quantité, converti dans la devise de la pièce). La plus forte, en %, à deux décimales, et la ligne
+  // qui la fait ('' : la remise globale). Une ligne sans article du catalogue, ou hors remise, ne compte pas.
+  function remiseEffective(data, doc, company) {
+    const globale = Number(doc && doc.discountRate) || 0;
+    let plus = { taux: Math.round(globale * 100) / 100, ligne: '' };
+    for (const l of (doc && doc.lines) || []) {
+      const item = (data.catalog || []).find(x => x.id === l.itemId);
+      if (!item || l.noDiscount) continue;
+      const ref = Number(prixDuCatalogue(prixArticlePour(data, item, doc.clientId, doc.date, l.qty).prix, doc, company));
+      if (!(ref > 0)) continue;
+      const net = (Number(l.unitPrice) || 0) * (1 - globale / 100);
+      const taux = Math.round((1 - net / ref) * 10000) / 100;
+      if (taux > plus.taux) plus = { taux, ligne: String(l.label || item.label || '') };
+    }
+    return plus;
+  }
+
   // L'ÉCART DE CHANGE (10.14.0). Un avoir, un avoir fournisseur ou un acompte rattaché à une pièce
   // de la MÊME devise étrangère, mais à un autre taux : le tiers doit (ou se voit devoir) ce qu'il
   // doit dans SA devise — la facture de 1 000 € moins l'avoir de 300 € — donc son compte se règle au
@@ -11191,6 +11210,7 @@
     serialList, availableSerials, clientFleet, warrantiesEnding, serialGap, serialGaps,
     mergeData, trackDeletion, MERGE_LISTS, LIST_LABELS, LIST_PLURIELS, compteListe, piecesLiees,
     purchaseTotals, purchaseBalance, retenueDesReglements, retenueAOperer, retenueChrono, regularisationsRetenueAchats, retenueSubie, retenueASubir, regularisationsRetenueVentes, retenuesDeLaPeriode, attestationsARecevoir, purchaseStatus, achatDoublon, facturesDuDevis, payablesList, purchaseJournal, purchaseSummary, supplierSummary, withholdingsToIssue, attestationsRS, exonerationRS, derniereAttestationRS, tauxRetenueFournisseur, etatExonerationRS, exonerationsAFaire, noteExonerationRS, masqueDate, appliquerAttestationRS, mentionExonerationRS, supplierPayments,
+    remiseEffective,
     periodBounds, issuedIn, salesTotals, revenueByMonth, topItems, clientMovement, AGING_BUCKETS, agedReceivables, releveClient, releveHtml, mailReleve, payerRanking, quoteFunnel, objectiveProgress,
     amountToWords, intToWords, intToWordsEn, documentHtml, fitToPage, paginate, pageCount,
     MODULES, PAGES, moduleById, pageById, pageTitle, moduleCount, moduleCounts, modulesRevenus, moduleOn, moduleWhy, navPages, familleNavOuverte, FAMILLES_OUVERTES_AU_DEBUT,

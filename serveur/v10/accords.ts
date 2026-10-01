@@ -19,6 +19,7 @@ type Core = {
   depassementEncours: (data: Json, doc: Json, company: Json) => Depassement | null;
   decimalsFor: (devise: string) => number;
   computeTotals: (doc: Json, company: Json) => { discount: number; discountRate: number };
+  remiseEffective: (data: Json, doc: Json, company: Json) => { taux: number; ligne: string };
 };
 const C = () => codeDeLEcran<Core>('core.js');
 
@@ -90,20 +91,31 @@ const pourcent = (n: number) => `${new Intl.NumberFormat('fr-FR', { maximumFract
 // La remise de cette pièce au-delà du seuil : taux et seuil en centièmes de pour cent, montant de la remise en
 // unités entières de sa devise ; null sans seuil, ou en dessous.
 export async function remiseDuServeur(tx: Transaction, entreprise: string, doc: Json) {
-  const brut = (await tx.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'company'`,
+  const brutSociete = (await tx.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'company'`,
     [entreprise])).rows[0]?.contenu;
-  const societe = (commeLaV10(brut ?? {}) ?? {}) as Json;
-  const seuil = Math.round(Number(societe.remiseAccordAuDela) * 100);
+  const seuil = Math.round(Number(((commeLaV10(brutSociete ?? {}) ?? {}) as Json).remiseAccordAuDela) * 100);
   if (!(seuil > 0)) return null;
+  // La remise effective (brique 104) : le même code que l'écran, sur le catalogue, les listes de prix et le client en
+  // base ; un prix de ligne baissé sous celui du client compte comme une remise.
+  const lignes = (await tx.query(`select collection, cle, contenu from socle.dossier_v10
+    where entreprise = $1 and (collection in ('clients', 'catalog', 'priceLists') or (collection = '_racine' and cle = 'company'))
+    order by collection, rang, cle`, [entreprise])).rows as { collection: string; cle: string; contenu: unknown }[];
+  const brut: Json = { clients: [], catalog: [], priceLists: [] };
+  for (const l of lignes) {
+    const c = commeLaV10(l.contenu);
+    if (l.collection === '_racine') brut[l.cle] = c;
+    else (brut[l.collection] as unknown[]).push(c);
+  }
+  const data = C().migrateData(brut);
+  const societe = (data.company ?? {}) as Json;
   const piece = commeLaV10(doc) as Json;
-  const taux = Math.round(Number(piece.discountRate) * 100);
+  const effective = C().remiseEffective(data, piece, societe);
+  const taux = Math.round(effective.taux * 100);
   if (!(taux > seuil)) return null;
   const devise = String(piece.currency || societe.currency || 'DT');
   const facteur = 10 ** C().decimalsFor(devise);
-  const clients = (await tx.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'clients' and cle = $2`,
-    [entreprise, String(doc.clientId ?? '')])).rows[0]?.contenu;
-  return { taux, seuil, montant: Math.round(C().computeTotals(piece, societe).discount * facteur),
-    client: String(((commeLaV10(clients ?? {}) ?? {}) as Json).name ?? '') };
+  const client = ((data.clients as Json[]) ?? []).find((c) => c.id === doc.clientId) ?? {};
+  return { taux, seuil, ligne: effective.ligne, montant: Math.round(C().computeTotals(piece, societe).discount * facteur), client: String(client.name ?? '') };
 }
 
 // L'accord qui couvre cette remise : la dernière décision prise sur la remise de la pièce, si c'est un accord pour
@@ -127,8 +139,8 @@ export async function controlerRemise(tx: Transaction, entreprise: string, cle: 
   if (!r) return null;
   const accord = await accordRemiseDeLaPiece(tx, entreprise, cle, r.taux);
   if (accord) return accord;
-  throw new Refus('ventes.remise_accord', {
-    valeurs: { client: r.client || '—', taux: pourcent(r.taux), seuil: pourcent(r.seuil) },
+  throw new Refus(r.ligne ? 'ventes.remise_ligne_accord' : 'ventes.remise_accord', {
+    valeurs: { client: r.client || '—', taux: pourcent(r.taux), seuil: pourcent(r.seuil), ligne: r.ligne },
     bouton: 'ventes.accord.demander',
   });
 }

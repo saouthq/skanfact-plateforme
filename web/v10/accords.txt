@@ -9,6 +9,42 @@ responsable voit la demande sur son accueil et sur la facture même, l'accorde o
 personne qui a demandé le voit sur la facture et sur son accueil, et émet une fois l'accord donné. La page
 « Demandes d'accord » (#/accords) les montre toutes, celles qui attendent d'abord.
 
+── Le moteur (core.js) ──
+
+== core.js | la remise que fait vraiment une pièce (brique 104)
+-- avant
+  // L'ÉCART DE CHANGE (10.14.0). Un avoir, un avoir fournisseur ou un acompte rattaché à une pièce
+-- après
+  // La remise que fait vraiment une pièce (plateforme, brique 104 ; 03 D11 « une remise ») : la remise globale, ou
+  // plus quand le prix d'une ligne est baissé sous celui que SkanFact proposerait à ce client (sa liste de prix, le
+  // palier de sa quantité, converti dans la devise de la pièce). La plus forte, en %, à deux décimales, et la ligne
+  // qui la fait ('' : la remise globale). Une ligne sans article du catalogue, ou hors remise, ne compte pas.
+  function remiseEffective(data, doc, company) {
+    const globale = Number(doc && doc.discountRate) || 0;
+    let plus = { taux: Math.round(globale * 100) / 100, ligne: '' };
+    for (const l of (doc && doc.lines) || []) {
+      const item = (data.catalog || []).find(x => x.id === l.itemId);
+      if (!item || l.noDiscount) continue;
+      const ref = Number(prixDuCatalogue(prixArticlePour(data, item, doc.clientId, doc.date, l.qty).prix, doc, company));
+      if (!(ref > 0)) continue;
+      const net = (Number(l.unitPrice) || 0) * (1 - globale / 100);
+      const taux = Math.round((1 - net / ref) * 10000) / 100;
+      if (taux > plus.taux) plus = { taux, ligne: String(l.label || item.label || '') };
+    }
+    return plus;
+  }
+
+  // L'ÉCART DE CHANGE (10.14.0). Un avoir, un avoir fournisseur ou un acompte rattaché à une pièce
+-- fin
+
+== core.js | la remise effective est publique
+-- avant
+    periodBounds, issuedIn, salesTotals,
+-- après
+    remiseEffective,
+    periodBounds, issuedIn, salesTotals,
+-- fin
+
 ── Les écrans (app.js) ──
 
 == app.js | l'accord d'un responsable : les demandes, lues au serveur
@@ -274,12 +310,14 @@ personne qui a demandé le voit sur la facture et sur son accueil, et émet une 
 -- après
       // La remise au-delà de celle permise sans accord (brique 103) : dite AVANT, à qui devra demander l'accord.
       const seuilRemise = Number(co.remiseAccordAuDela) || 0;
-      const tauxRemise = Number(doc.discountRate) || 0;
+      // La remise effective (brique 104) : un prix de ligne baissé sous celui du client compte aussi.
+      const effective = C.remiseEffective(data, doc, co);
+      const tauxRemise = effective.taux;
       if (isInv && accordsEnLigne() && !estResponsable() && seuilRemise > 0 && tauxRemise > seuilRemise) {
         const ar = accordDe(doc.id, 'remise');
         w.push(ar && ar.statut === 'accorde' && Number(ar.taux) >= Math.round(tauxRemise * 100)
           ? `${ar.decideur} a accordé cette remise de ${pct(tauxRemise)} % : tu peux l'émettre.`
-          : `La remise de ${pct(tauxRemise)} % dépasse les ${pct(seuilRemise)} % permis sans accord : en l'émettant, tu pourras demander l'accord du propriétaire ou d'un administrateur.`);
+          : `${effective.ligne ? `« ${effective.ligne} » est vendu ${pct(tauxRemise)} % sous son prix, au-delà des` : `La remise de ${pct(tauxRemise)} % dépasse les`} ${pct(seuilRemise)} % permis sans accord : en l'émettant, tu pourras demander l'accord du propriétaire ou d'un administrateur.`);
       }
       if (!(co.name || '').trim() || !(co.matricule || '').trim()) w.push('Ta fiche société est incomplète
 -- fin

@@ -5942,6 +5942,34 @@ prouver "une demande de remise lue comme une demande d'encours" web/public/v10/a
   "    const remise = a.geste === 'remise';" "    const remise = false;" \
   "$ARW"
 
+# ── Brique 104 : un prix baissé sous celui du client compte comme une remise (docs/accords.md) ──
+RE1="un prix baissé sous celui du client compte comme une remise ; sa liste et son palier sont sa référence"
+RE2="une pièce en euros compare au prix du catalogue converti à son taux"
+prouver "une ligne hors remise comptée comme remisée" web/public/v10/core.js \
+  "      if (!item || l.noDiscount) continue;" "      if (!item) continue;" \
+  "$RE1"
+prouver "le prix du catalogue pris pour celui du client" web/public/v10/core.js \
+  "prixArticlePour(data, item, doc.clientId, doc.date, l.qty).prix, doc, company));" "item.unitPrice, doc, company));" \
+  "$RE1"
+prouver "le prix en dinars comparé à un prix en euros" web/public/v10/core.js \
+  "      const ref = Number(prixDuCatalogue(prixArticlePour(data, item, doc.clientId, doc.date, l.qty).prix, doc, company));" "      const ref = Number(prixArticlePour(data, item, doc.clientId, doc.date, l.qty).prix);" \
+  "$RE2"
+prouver "la remise globale oubliée sur un prix baissé" web/public/v10/core.js \
+  "      const net = (Number(l.unitPrice) || 0) * (1 - globale / 100);" "      const net = (Number(l.unitPrice) || 0);" \
+  "$RE1"
+prouver "le serveur qui ne voit que la remise globale" serveur/v10/accords.ts \
+  "  const taux = Math.round(effective.taux * 100);" "  const taux = Math.round(Number(piece.discountRate) * 100);" \
+  "$AR1"
+prouver "le serveur qui ignore les listes de prix" serveur/v10/accords.ts \
+  "collection in ('clients', 'catalog', 'priceLists')" "collection in ('clients', 'catalog')" \
+  "$AR1"
+prouver "le refus qui ne nomme pas la ligne baissée" serveur/v10/accords.ts \
+  "  throw new Refus(r.ligne ? 'ventes.remise_ligne_accord' : 'ventes.remise_accord', {" "  throw new Refus('ventes.remise_accord', {" \
+  "$AR1"
+prouver "l'écran qui ne voit que la remise globale" web/public/v10/app.js \
+  "      const tauxRemise = effective.taux;" "      const tauxRemise = Number(doc.discountRate) || 0;" \
+  "$ARW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -269,6 +269,31 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     await k.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'accords-8-remise-emise.png') });
     const emise = ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { cle: string; contenu: Record<string, unknown> }[]).find((o) => o.cle === pieceId)?.contenu;
     expect(emise?.accordRemise).toMatchObject({ demandePar: 'Karim', accordePar: 'Nadia', taux: 15 });
+
+    // 5. Un prix baissé sous le catalogue est une remise aussi (brique 104) : l'avertissement le dit, par la ligne.
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [{ collection: 'catalog', cle: 'ciment', rang: 0, revision: null,
+      contenu: { id: 'ciment', label: 'Ciment gris 50 kg', unit: 'sac', unitPrice: 25, vatRate: 19 } }] })).statut).toBe(200);
+    await k.evaluate(() => { location.hash = '#/doc/new/facture'; });
+    await k.reload();
+    await expect.poll(() => titre(k), { timeout: 20_000 }).toMatch(/^Nouvelle facture|^Facture/);
+    await plusTard(k);
+    await k.locator('[data-combo=clientId] .combo-btn').click();
+    await k.locator('[data-combo=clientId] .combo-q').fill('Walima');
+    await k.locator('[data-combo=clientId] .combo-list [role=option]').first().click();
+    await k.locator('#cat-pick .combo-btn').click();
+    await k.locator('#cat-pick .combo-q').fill('Ciment');
+    await k.locator('#cat-pick .combo-list [role=option]').first().click();
+    await expect.poll(async () => k.locator('[data-k=unitPrice]').count(), { timeout: 5_000 }).toBeGreaterThan(0);
+    const prix = k.locator('[data-k=unitPrice]');
+    const n0 = await prix.count();
+    await prix.nth(n0 - 1).fill('20');
+    await k.locator('[data-k=qty]').nth(n0 - 1).fill('12');
+    await k.locator('input[name=applyStamp]').uncheck();
+    await k.locator('#save').click();
+    await expect.poll(() => toast(k), { timeout: 10_000 }).toBe('Brouillon enregistré');
+    await k.locator('#issue').click();
+    await expect.poll(() => k.locator('#modal-root #ok').count(), { timeout: 10_000 }).toBe(1);
+    expect(net(await k.locator('#modal-root').innerText())).toContain('« Ciment gris 50 kg » est vendu 20 % sous son prix, au-delà des 10 % permis sans accord : en l\'émettant, tu pourras demander l\'accord du propriétaire ou d\'un administrateur.');
     expect(erreurs).toEqual([]);
     await cn.close(); await ck.close();
   }, 180_000);

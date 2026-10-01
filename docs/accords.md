@@ -99,9 +99,16 @@ disent « une remise de 15 % (10 % permis sans accord) » à côté des demandes
 Tests : `tests/v10/accords.test.ts` (la remise), `tests/web/accords.test.ts` (Nadia règle, Karim demande, Nadia accorde
 depuis la facture, Karim émet). 12 preuves.
 
+**R5. Un prix baissé est une remise aussi** (brique 104, 01/10/2026) : la remise d'une pièce est la plus forte de sa
+remise globale et de ce que chaque ligne d'un article du catalogue fait sous le prix que SkanFact proposerait à ce
+client (sa liste de prix, le palier de sa quantité, converti dans la devise de la pièce), remise globale comprise
+(`remiseEffective` de `core.js`, le même code au serveur). Sinon le seuil se contournait en baissant le prix. Le refus
+nomme la ligne : « « Ciment gris 50 kg » est vendu 20 % sous son prix, au-delà des 10 % permis sans accord ». Tests :
+`tests/v10/remise-effective.test.ts` (palier, liste, euros, remise combinée, ligne hors remise), les deux tests
+d'accord. 8 preuves.
+
 ## Reste connu (les briques suivantes)
 
-- Un prix de ligne baissé sous celui du catalogue est aussi une remise : il n'est pas encore compté (D11).
 - Les autres seuils de D11 : la commande fournisseur, le retour.
 
 - **Brique 99, les droits geste par geste dans le dossier** : faite (`docs/droits-dossier.md`).

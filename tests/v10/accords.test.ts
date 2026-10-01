@@ -197,6 +197,17 @@ describe('l\'accord d\'un responsable au-delà de l\'encours', () => {
     // Au seuil même, pas d'accord à demander ; et la base ne laisse pas réécrire le taux d'une demande.
     await m.brouillon(proprio.jeton, remisee('r2', 10));
     expect((await emettre(commercial.jeton, remisee('r2', 10), '321.300')).statut).toBe(200);
+    // Un prix de ligne baissé sous celui du client est une remise aussi (brique 104) : 20 au lieu de 25, c'est 20 %.
+    expect((await m.envoyer(proprio.jeton, [{ collection: 'catalog', cle: 'ciment', rang: 0, revision: null,
+      contenu: { id: 'ciment', label: 'Ciment gris 50 kg', unit: 'sac', unitPrice: 25, vatRate: 19 } }])).statut).toBe(200);
+    const baissee = (id: string) => ({ ...facture(id), clientId: 'c2', lines: [{ label: 'Ciment gris 50 kg', description: '', qty: 12, unit: 'sac', unitPrice: 20, vatRate: 19, itemId: 'ciment' }] });
+    await m.brouillon(proprio.jeton, baissee('r5'));
+    const sous = await emettre(commercial.jeton, baissee('r5'), '285.600');
+    expect(String(sous.corps.motif).replace(/\s+/g, ' ')).toBe('Café El Walima : « Ciment gris 50 kg » est vendu 20 % sous son prix, au-delà des 10 % permis sans accord : il faut l\'accord du propriétaire ou d\'un administrateur. Demande-le ; la facture s\'émettra une fois l\'accord donné.');
+    // Mais le prix de sa liste (21) est la référence du client : 20, c'est 4,76 % sous elle, permis sans accord.
+    expect((await m.envoyer(proprio.jeton, [{ collection: 'priceLists', cle: 'lp1', rang: 0, revision: null,
+      contenu: { id: 'lp1', nom: 'Cafés', clientIds: ['c2'], lignes: [{ itemId: 'ciment', prix: 21 }] } }])).statut).toBe(200);
+    expect((await emettre(commercial.jeton, baissee('r5'), '285.600')).statut).toBe(200);
     const d3 = await appeler('POST', `/entreprises/${ent}/dossier-v10/accord`, commercial.jeton, { document: remisee('r3', 25) });
     await expect(enTantQue(pool, proprio.id, (tx) => tx.query(`update ventes.accord set taux = 1600 where id = $1`, [d3.corps.id])))
       .rejects.toMatchObject({ code: '42501', message: 'Une demande d\'accord ne se réécrit pas : on en fait une autre.' });

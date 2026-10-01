@@ -4587,12 +4587,14 @@
         : 'Fais-le régler avant, ou émets quand même.'}`);
       // La remise au-delà de celle permise sans accord (brique 103) : dite AVANT, à qui devra demander l'accord.
       const seuilRemise = Number(co.remiseAccordAuDela) || 0;
-      const tauxRemise = Number(doc.discountRate) || 0;
+      // La remise effective (brique 104) : un prix de ligne baissé sous celui du client compte aussi.
+      const effective = C.remiseEffective(data, doc, co);
+      const tauxRemise = effective.taux;
       if (isInv && accordsEnLigne() && !estResponsable() && seuilRemise > 0 && tauxRemise > seuilRemise) {
         const ar = accordDe(doc.id, 'remise');
         w.push(ar && ar.statut === 'accorde' && Number(ar.taux) >= Math.round(tauxRemise * 100)
           ? `${ar.decideur} a accordé cette remise de ${pct(tauxRemise)} % : tu peux l'émettre.`
-          : `La remise de ${pct(tauxRemise)} % dépasse les ${pct(seuilRemise)} % permis sans accord : en l'émettant, tu pourras demander l'accord du propriétaire ou d'un administrateur.`);
+          : `${effective.ligne ? `« ${effective.ligne} » est vendu ${pct(tauxRemise)} % sous son prix, au-delà des` : `La remise de ${pct(tauxRemise)} % dépasse les`} ${pct(seuilRemise)} % permis sans accord : en l'émettant, tu pourras demander l'accord du propriétaire ou d'un administrateur.`);
       }
       if (!(co.name || '').trim() || !(co.matricule || '').trim()) w.push('Ta fiche société est incomplète (raison sociale ou matricule fiscal) : le document ne sera pas conforme. Paramètres → Mon entreprise.');
       // Le RIB ne se réclame que si on attend un virement (7.22.0, même règle que `companyGaps`).
