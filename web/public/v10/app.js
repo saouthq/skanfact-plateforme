@@ -12282,7 +12282,11 @@
   }
   async function dessinerSession() {
     try { caisseEtat = await bridge.caisse(); } catch (e) {
-      if ($('#cs-session')) $('#cs-session').innerHTML = `<div class="banner warn"><span>${h(plainError(e))}</span></div>`;
+      // (brique 120) Sans réseau, le poste qui tient la caisse encaisse quand même : il le dit, avec le prochain numéro.
+      const hl = e && e.horsLigne && bridge.caisseSansReseau ? bridge.caisseSansReseau() : null;
+      if ($('#cs-session')) $('#cs-session').innerHTML = hl
+        ? `<div class="banner info lock-banner" id="cs-hors-ligne"><span><b>Sans réseau.</b> Cette caisse encaisse quand même : ses tickets se numérotent sur ce poste (le prochain : ${h(hl.prochain)}), se gardent chiffrés, et partiront au serveur, dans l'ordre, au retour du réseau. ${info('cs.horsLigne')}</span></div>`
+        : `<div class="banner warn"><span>${h(plainError(e))}</span></div>`;
       return;
     }
     const el = $('#cs-session');
@@ -12307,9 +12311,24 @@
         <span class="lock-go"><button class="btn btn-sm" id="cs-fermer">Fermer la caisse (Z)…</button></span></div>`;
       $('#cs-fermer').onclick = fermerCaisse;
     }
+    // (brique 120) Les alertes de caisse, pour le propriétaire et l'administrateur : ce que le serveur a constaté sur les
+    // tickets d'un poste, sans rien corriger.
+    if ((caisseEtat.alertes || []).length) el.insertAdjacentHTML('beforeend', alertesCaisse(caisseEtat.alertes));
     // « Encaisser » suit l'état lu (la page a pu se dessiner avant la réponse).
     const mm = motifSession();
     if (mm && $('#cs-motif')) { $('#cs-motif').textContent = mm; $('#cs-encaisser').disabled = true; }
+  }
+  // (brique 120) Les tickets gardés sans réseau sont partis : la page Caisse redit l'état de sa session.
+  window.addEventListener('skanfact-tickets-remis', () => { if ($('#cs-session')) dessinerSession(); });
+  const PHRASES_ALERTE = {
+    numero: a => `Le ticket imprimé ${h(a.numeroPoste)} est enregistré sous le numéro ${h(a.numeroSerie)} : les deux numéros diffèrent.`,
+    chaine: a => `Le ticket ${h(a.numeroSerie)} ne suit pas le ticket précédent de cette caisse : la chaîne des tickets est cassée (un ticket manque ou a été remplacé).`,
+    empreinte: a => `Le ticket ${h(a.numeroSerie)} ne correspond pas à ce que le poste avait scellé : il a pu être modifié entre la vente et son envoi.`,
+    apres_fermeture: a => `Le ticket ${h(a.numeroSerie)} est arrivé après le Z de sa session : ce Z ne le compte pas.`,
+  };
+  function alertesCaisse(alertes) {
+    return `<div class="banner warn" id="cs-alertes"><span><b>${alertes.length > 1 ? `${alertes.length} alertes de caisse` : 'Une alerte de caisse'}.</b> SkanFact n'a rien corrigé : chaque ticket est enregistré tel qu'il est arrivé. ${info('cs.alertes')}
+      <ul class="cs-alertes">${alertes.map(a => `<li>${(PHRASES_ALERTE[a.nature] || (() => h(a.nature)))(a)} <span class="muted">(${h(heureCaisse(a.le))})</span></li>`).join('')}</ul></span></div>`;
   }
   // Fermer : compter le tiroir sans voir ce qu'il devrait contenir ; le serveur dit l'attendu et l'écart, et fige le Z.
   function fermerCaisse() {
@@ -12504,7 +12523,7 @@
             data.documents.push(e);
             s.panier = []; s.recu = ''; s.clientId = ''; s.dernierId = e.id;
             const rendu = e.caisse && e.caisse.rendu ? ` — à rendre ${C.money(e.caisse.rendu, cur)}` : '';
-            toast(`Ticket ${e.number} encaissé${rendu}`);
+            toast(`Ticket ${e.number} encaissé${e.caisseHorsLigne ? ' sans réseau (il partira au serveur au retour du réseau)' : ''}${rendu}`);
           }, x => toast(plainError(x), true)).finally(() => { delete b.dataset.busy; drawTicket(); scan(); });
           return;
         }

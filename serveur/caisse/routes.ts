@@ -11,6 +11,8 @@ import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
 import { Refus } from '../erreurs.ts';
 import { tracer } from '../trace.ts';
+import { aujourdhuiATunis } from '../reglements.ts';
+import { PREMIERE } from './chaine.ts';
 import { rendre, t } from '../../textes/index.ts';
 import './textes.ts';
 
@@ -54,6 +56,22 @@ async function calculerZ(tx: Transaction, session: string, fond: bigint) {
   return { nombre: tot.nombre, premier: tot.premier, dernier: tot.dernier, total: BigInt(tot.total), tva: BigInt(tot.tva), parMode, attendu: fond + especes };
 }
 
+// Ce que le poste qui tient la caisse doit savoir pour numéroter et chaîner sans réseau (brique 120 ; docs/caisse.md,
+// H1 et H2) : la session, la forme de la série des tickets, le prochain numéro (et la période de sa remise à zéro), et
+// la dernière empreinte de la chaîne de la session.
+export async function etatDeNumerotation(tx: Transaction, entreprise: string) {
+  const s = await sessionOuverte(tx, entreprise);
+  const serie = (await tx.query(`select id, format, prefixe, remise from socle.serie where entreprise = $1 and type = 'facture' and prefixe = 'TIC'
+    and legale and active order by cree_le limit 1`, [entreprise])).rows[0] as { id: string; format: string; prefixe: string; remise: string } | undefined;
+  if (!s || !serie) return null;
+  const jour = aujourdhuiATunis();
+  const prochain = (await tx.query(`select numero::int numero, socle.periode_de($2, $3::date) periode from socle.prochain_numero($1, $3::date)`, [serie.id, serie.remise, jour])).rows[0] as
+    { numero: number; periode: number };
+  const chaine = String((await tx.query(`select empreinte_poste from caisse.ticket where session = $1 and empreinte_poste is not null
+    order by cree_le desc, piece desc limit 1`, [s.id])).rows[0]?.empreinte_poste ?? PREMIERE);
+  return { session: s.id, serie: { format: serie.format, prefixe: serie.prefixe, remise: serie.remise }, prochain: { numero: prochain.numero, periode: prochain.periode }, chaine };
+}
+
 export function routesCaisse(): Route<never>[] {
   const routes: Route<never>[] = [];
   const ajouter = <C>(r: Route<C>) => { routes.push(r as unknown as Route<never>); };
@@ -68,9 +86,14 @@ export function routesCaisse(): Route<never>[] {
       const s = await sessionOuverte(tx, ent);
       const dernier = (await tx.query(`select z, fermee_le from caisse.session where entreprise = $1 and fermee_le is not null order by fermee_le desc limit 1`, [ent])).rows[0] as
         { z: unknown; fermee_le: Date } | undefined;
+      // Les alertes de caisse (brique 120) : pour le propriétaire et l'administrateur, les plus récentes d'abord.
+      const responsable = Boolean((await tx.query(`select socle.mes_roles($1) && array['proprietaire', 'administrateur'] r`, [ent])).rows[0]?.r);
+      const alertes = responsable ? (await tx.query(`select nature, numero_poste "numeroPoste", numero_serie "numeroSerie", detail, cree_le "le"
+        from caisse.alerte where entreprise = $1 order by cree_le desc limit 50`, [ent])).rows : [];
       return { corps: { devise, decimales,
         session: s ? { id: s.id, fond: versTexte(BigInt(s.fond), decimales), ouverteLe: s.ouverte_le, qui: s.qui, appareil: s.appareil_nom, ici: s.appareil === qui.appareil } : null,
-        dernierZ: dernier ? { ...(dernier.z as object), fermeeLe: dernier.fermee_le } : null } };
+        dernierZ: dernier ? { ...(dernier.z as object), fermeeLe: dernier.fermee_le } : null,
+        numerotation: s && s.appareil === qui.appareil ? await etatDeNumerotation(tx, ent) : null, alertes } };
     },
   });
 
@@ -97,8 +120,10 @@ export function routesCaisse(): Route<never>[] {
       const nom = String((await tx.query(`select nom from socle.appareil where id = $1`, [qui.appareil])).rows[0]?.nom ?? '—');
       const id = String((await tx.query(`insert into caisse.session (entreprise, caisse, appareil, appareil_nom, ouverte_par, fond) values ($1, $2, $3, $4, socle.moi(), $5) returning id`,
         [ent, caisse, qui.appareil, nom, fond.toString()])).rows[0].id);
+      // La série des tickets existe dès l'ouverture (brique 120) : le poste connaît sa forme avant le premier ticket.
+      await tx.query(`select ventes.serie_v10($1, 'facture', 'TIC')`, [ent]);
       await tracer(tx, ent, 'caisse.session.ouvrir', { type: 'session_caisse', id }, null, { fond: versTexte(fond, decimales) });
-      return { corps: { id, fond: versTexte(fond, decimales) } };
+      return { corps: { id, fond: versTexte(fond, decimales), numerotation: await etatDeNumerotation(tx, ent) } };
     },
   });
 

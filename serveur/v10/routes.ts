@@ -17,7 +17,8 @@ import { accordRemiseDeLaPiece, commandeDuServeur, depassementDuServeur, estResp
 import { filtrer, mesRoles } from './droits.ts';
 import { appliquer, Conflit, emettreDepuisV10, lireDepuis, lireDossier, marqueDeLecture, PARTIES_A_AUTEUR, type Changement } from './dossier.ts';
 import { nombreEnTexte } from './lecture.ts';
-import { sessionOuverte } from '../caisse/routes.ts';
+import { etatDeNumerotation, sessionOuverte } from '../caisse/routes.ts';
+import { empreinteDuPoste, PREMIERE, ticketDuPoste } from '../caisse/chaine.ts';
 import { poserCompte, renvoyer } from './envoi.ts';
 import { demanderPaiement, verifierPaiement } from './paiement.ts';
 import { demanderSignature, signerAvecLeCode } from './signature.ts';
@@ -88,9 +89,15 @@ export function routesV10(ctx: Contexte): Route<never>[] {
   // Encaisser : le serveur numérote le ticket dans SA série (TIC), le scelle comme une facture (montants en entiers,
   // maillon du journal), puis enregistre son paiement dans le même geste. Un ticket est payé en entier à
   // l'encaissement : sinon rien n'est vendu, et aucun numéro n'est pris (tout s'annule).
+  // La caisse sans réseau (brique 120 ; docs/caisse.md, H1 à H4) : le poste dit ce qu'il a fait (la session, le numéro
+  // qu'il a imprimé, sa chaîne, l'heure au comptoir, sans réseau ou non). Le serveur émet comme toujours, puis compare :
+  // un écart n'est jamais corrigé, il devient une alerte.
+  const hex64 = z.string().regex(/^[0-9a-f]{64}$/);
+  const poste = z.object({ session: z.string().uuid(), numero: z.string().min(1).max(60), precedente: hex64, empreinte: hex64,
+    encaisseLe: z.string().datetime({ offset: true }), horsLigne: z.boolean() });
   ajouter({
     methode: 'POST', chemin: '/entreprises/:entreprise/dossier-v10/ticket', geste: 'caisse.ticket.encaisser',
-    corps: z.object({ document: z.record(z.string(), contenu), rang: z.number().int().min(0).nullable(), netAPayer: z.string().regex(/^\d+(\.\d+)?$/) }),
+    corps: z.object({ document: z.record(z.string(), contenu), rang: z.number().int().min(0).nullable(), netAPayer: z.string().regex(/^\d+(\.\d+)?$/), poste: poste.optional() }),
     traiter: async ({ params, corps, qui }, tx) => {
       if (!tx || !qui) throw new Error('transaction attendue');
       const ent = params.entreprise ?? '';
@@ -101,22 +108,58 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       const paye = paiements.reduce((s, p) => s + depuisTexte(nombreEnTexte(p.amount), dec), 0n);
       if (paye !== depuisTexte(corps.netAPayer, dec)) throw new Refus('caisse.paiement_manquant', { valeurs: { paye: versTexte(paye, dec), total: corps.netAPayer } });
       // La caisse ouverte sur CET appareil (brique 116) : un ticket ne s'encaisse que là (une caisse, un appareil).
-      const session = await sessionOuverte(tx, ent);
-      if (!session) throw new Refus('caisse.fermee', { bouton: 'caisse.session.ouvrir' });
-      if (session.appareil !== qui.appareil) throw new Refus('caisse.ouverte_ailleurs', { valeurs: { appareil: session.appareil_nom, qui: session.qui } });
+      // Un ticket encaissé sans réseau revient dans SA session, même fermée entre-temps (dit en alerte).
+      // Un poste en ligne qui croit tenir une session déjà finie (fermée d'ailleurs, puis rouverte) : sa numérotation est
+      // périmée, il la réapprend avec la réponse ; rien à comparer.
+      const ouverte = await sessionOuverte(tx, ent);
+      const p = corps.poste && (corps.poste.horsLigne || corps.poste.session === ouverte?.id) ? corps.poste : undefined;
+      // Envoyé deux fois (la réponse perdue en route, 04 § 4), un ticket ne compte qu'une fois : le même ticket du même
+      // poste rend ce qu'il a déjà rendu.
+      if (p) {
+        const deja = (await tx.query(`select d.contenu, d.revision, vp.numero_texte from caisse.ticket t join ventes.piece vp on vp.id = t.piece
+            join socle.dossier_v10 d on d.entreprise = vp.entreprise and d.collection = 'documents' and d.cle = vp.ref_v10
+           where t.entreprise = $1 and vp.ref_v10 = $2 and t.empreinte_poste = $3`, [ent, String(doc.id ?? ''), p.empreinte])).rows[0];
+        if (deja) return { corps: { contenu: deja.contenu, revision: Number(deja.revision), numero: deja.numero_texte, caisse: await etatDeNumerotation(tx, ent) } };
+      }
+      let session: { id: string; ferme: boolean };
+      if (p?.horsLigne) {
+        const s = (await tx.query(`select id, appareil, fermee_le from caisse.session where id = $1 and entreprise = $2`, [p.session, ent])).rows[0] as
+          { id: string; appareil: string; fermee_le: Date | null } | undefined;
+        if (!s) throw new Refus('caisse.session_inconnue');
+        if (s.appareil !== qui.appareil) throw new Refus('caisse.pas_ce_poste');
+        session = { id: s.id, ferme: s.fermee_le !== null };
+      } else {
+        const s = ouverte;
+        if (!s) throw new Refus('caisse.fermee', { bouton: 'caisse.session.ouvrir' });
+        if (s.appareil !== qui.appareil) throw new Refus('caisse.ouverte_ailleurs', { valeurs: { appareil: s.appareil_nom, qui: s.qui } });
+        session = { id: s.id, ferme: false };
+      }
       // Le client, s'il y en a un, est celui du dossier (jamais celui de l'écran).
       let client: Record<string, unknown> | null = null;
       if (typeof doc.clientId === 'string' && doc.clientId) {
         client = (await tx.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'clients' and cle = $2`, [ent, doc.clientId])).rows[0]?.contenu ?? null;
         if (!client) throw new Refus('caisse.client_inconnu');
       }
+      // La dernière empreinte de la session (avant ce ticket) : la précédente attendue.
+      const derniere = String((await tx.query(`select empreinte_poste from caisse.ticket where session = $1 and empreinte_poste is not null
+        order by cree_le desc, piece desc limit 1`, [session.id])).rows[0]?.empreinte_poste ?? PREMIERE);
       const r = await emettreDepuisV10(tx, ent, qui.utilisateur, { document: { ...doc, payments: [] }, client, revision: null, rang: corps.rang, netAPayer: corps.netAPayer }, 'facture', { ticket: true });
       const cle = String(doc.id);
-      await tx.query(`insert into caisse.ticket (piece, entreprise, session)
-        select id, entreprise, $3 from ventes.piece where entreprise = $1 and ref_v10 = $2`, [ent, cle, session.id]);
-      const avecPaiement = { ...r.contenu, payments: paiements };
+      const piece = String((await tx.query(`insert into caisse.ticket (piece, entreprise, session, numero_poste, precedente, empreinte_poste, encaisse_le, hors_ligne)
+        select id, entreprise, $3, $4, $5, $6, $7, $8 from ventes.piece where entreprise = $1 and ref_v10 = $2 returning piece`,
+      [ent, cle, session.id, p?.numero ?? null, p?.precedente ?? null, p?.empreinte ?? null, p?.encaisseLe ?? null, p?.horsLigne === true])).rows[0].piece);
+      // Ce que le serveur constate, sans rien corriger.
+      if (p) {
+        const alerter = (nature: string, detail: Record<string, unknown> = {}) => tx.query(`insert into caisse.alerte (entreprise, session, piece, nature, numero_poste, numero_serie, detail)
+          values ($1, $2, $3, $4, $5, $6, $7)`, [ent, session.id, piece, nature, p.numero, r.numero, JSON.stringify(detail)]);
+        if (p.numero !== r.numero) await alerter('numero');
+        if (p.precedente !== derniere) await alerter('chaine', { attendue: derniere, recue: p.precedente });
+        if (empreinteDuPoste(p.precedente, ticketDuPoste(doc, corps.netAPayer, p.numero, p.encaisseLe)) !== p.empreinte) await alerter('empreinte');
+        if (session.ferme) await alerter('apres_fermeture');
+      }
+      const avecPaiement = { ...r.contenu, payments: paiements, ...(p ? { numeroPoste: p.numero } : {}) };
       const [ecrit] = await appliquer(tx, ent, qui.utilisateur, [{ collection: 'documents', cle, rang: corps.rang, revision: r.revision, contenu: avecPaiement }], { serveur: true });
-      return { corps: { contenu: avecPaiement, revision: ecrit?.revision ?? r.revision, numero: r.numero } };
+      return { corps: { contenu: avecPaiement, revision: ecrit?.revision ?? r.revision, numero: r.numero, caisse: await etatDeNumerotation(tx, ent) } };
     },
   });
 

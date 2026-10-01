@@ -122,6 +122,18 @@
     try { c = Number(localStorage.getItem(CONTACT)) || 0; } catch { /* sans mémoire : pas de limite de durée */ }
     return c && Date.now() - c > DROITS_MS ? DROITS : null;
   }
+  // Le poste qui tient la caisse (brique 120 ; 04 § 7) : 7 jours sans le serveur au plus pour encaisser sans réseau
+  // (À VÉRIFIER avec le cahier NACEF). Au-delà, la caisse s'arrête d'encaisser, et le dit.
+  const CAISSE_MS = 7 * 24 * 3600 * 1000;
+  const CAISSE = 'Plus de 7 jours sans contact avec le serveur : la caisse n\'encaisse plus sans réseau. Une connexion, même courte, la débloque. Rien n\'a été vendu.';
+  /** @returns {string | null} */
+  function limiteCaisse() {
+    if (!garde()) return null;
+    if (persistant !== true) return PERSISTANT;
+    let c = 0;
+    try { c = Number(localStorage.getItem(CONTACT)) || 0; } catch { /* sans mémoire : pas de limite de durée */ }
+    return c && Date.now() - c > CAISSE_MS ? CAISSE : null;
+  }
 
   // ── Le bandeau ────────────────────────────────────────────────────────────────────────────
   const style = document.createElement('style');
@@ -239,7 +251,7 @@
 
   /** @type {any} */ (window).SkanPoste = {
     garde, ecrireCopie, lireCopie, ecrireAttente, lireAttente, effacerAttente, effacer, effacerEntreprise, conclure,
-    horsLigne, enLigne, sansCopie, attente, envoye, demander, annoncer, limite,
+    horsLigne, enLigne, sansCopie, attente, envoye, demander, annoncer, limite, limiteCaisse,
     /** @param {() => void} f */ auRetour: (f) => { quandRevenu = f; },
   };
 })();

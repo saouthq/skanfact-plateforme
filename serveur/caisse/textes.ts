@@ -18,5 +18,7 @@ declarerTextes({
   'caisse.sans_appareil': 'la caisse s\'ouvre depuis un appareil connecté (un navigateur, l\'application) : rien n\'a été ouvert',
   'caisse.pas_ouverte': 'la caisse n\'est pas ouverte : il n\'y a rien à fermer',
   'caisse.fermer_ailleurs': 'la caisse se ferme sur l\'appareil qui la tient ({appareil}), ou par le propriétaire ou un administrateur',
+  'caisse.session_inconnue': 'la session de caisse de ce ticket n\'existe pas dans cette entreprise : rien n\'a été enregistré',
+  'caisse.pas_ce_poste': 'ce ticket a été encaissé sur la caisse d\'un autre appareil : seul l\'appareil qui la tenait le remet. Rien n\'a été enregistré',
   'caisse.montant_illisible': 'le montant « {valeur} » ne se lit pas : tape-le comme 150 ou 150,500',
 });

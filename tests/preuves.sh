@@ -4019,8 +4019,8 @@ prouver "l'écran vide sans un mot, hors ligne et sans copie" web/public/platefo
   "$HL2"
 prouver "hors ligne, la copie du poste jamais ouverte" $PONT \
   "        if (!/** @type {any} */ (e).horsLigne) throw e;
-        const copie = await lireLaCopie();" "        throw e;
-        const copie = await lireLaCopie();" \
+        const copie = avecTicketsEnAttente(await lireLaCopie());" "        throw e;
+        const copie = avecTicketsEnAttente(await lireLaCopie());" \
   "$HL1"
 prouver "la copie jamais écrite après une lecture" $PONT \
   "    questionsLues = data.questionsCabinet;
@@ -4105,7 +4105,7 @@ prouver "rechargée sans réseau, ce qui attend disparaît de l'écran" $PONT \
   "        return { data: attente.contenu.data, corruptFile: null };" "        return { data: copie, corruptFile: null };" \
   "$HE1"
 prouver "rouverte avec le réseau, ce qui attendait jamais envoyé" $PONT \
-  "        const data = attente ? await rejouer(attente.contenu.data) : await relire();" "        const data = await relire();" \
+  "        const data = avecTicketsEnAttente(attente ? await rejouer(attente.contenu.data) : await relire());" "        const data = avecTicketsEnAttente(await relire());" \
   "$HE3"
 prouver "rouverte, une pièce changée ailleurs qui écrase la mienne sans la garder" $PONT \
   "        const m = /** @type {any} */ (window).SkanCore.mergeData(data, r.disk);
@@ -4267,7 +4267,11 @@ HP2="plus de 72 heures sans le serveur : ce qui attendait partira, mais rien de 
 POSTE=web/public/plateforme/poste.js
 prouver "un navigateur qui peut tout vider, et le poste qui enregistre quand même" $POSTE \
   "    if (persistant !== true) return PERSISTANT;
-" "" \
+    let c = 0;
+    try { c = Number(localStorage.getItem(CONTACT)) || 0; } catch { /* sans mémoire : pas de limite de durée */ }
+    return c && Date.now() - c > DROITS_MS" "    let c = 0;
+    try { c = Number(localStorage.getItem(CONTACT)) || 0; } catch { /* sans mémoire : pas de limite de durée */ }
+    return c && Date.now() - c > DROITS_MS" \
   "$HP1"
 prouver "l'application qui ne demande jamais à garder" $POSTE \
   "navigator.storage.persisted().then((p) => p || navigator.storage.persist())" "navigator.storage.persisted()" \
@@ -6177,7 +6181,7 @@ prouver "un ticket émis par la route des factures" serveur/v10/dossier.ts \
   "  if (ticket !== (doc.ticket === true)) throw" "  if (ticket && doc.ticket !== true) throw" \
   "$TK"
 prouver "un ticket encaissé sans son paiement" serveur/v10/routes.ts \
-  "      const avecPaiement = { ...r.contenu, payments: paiements };" "      const avecPaiement = { ...r.contenu, payments: [] };" \
+  "      const avecPaiement = { ...r.contenu, payments: paiements," "      const avecPaiement = { ...r.contenu, payments: []," \
   "$TK"
 prouver "un passant vendu sans le client du comptoir" serveur/v10/dossier.ts \
   "  const comptoir = ticket && !doc.clientId;" "  const comptoir = false;" \
@@ -6196,16 +6200,16 @@ prouver "le numéro du poste gardé au lieu de celui du serveur" web/public/v10/
 CS="fermée rien ne s'encaisse ; ouverte sur un appareil, lui seul la tient"
 CSW="Nadia encaisse deux tickets : le serveur les numérote dans leur série, et le bilan les compte"
 prouver "un ticket encaissé caisse fermée" serveur/v10/routes.ts \
-  "      if (!session) throw new Refus('caisse.fermee', { bouton: 'caisse.session.ouvrir' });" "" \
+  "        if (!s) throw new Refus('caisse.fermee', { bouton: 'caisse.session.ouvrir' });" "" \
   "$CS"
 prouver "un ticket encaissé depuis un autre appareil" serveur/v10/routes.ts \
-  "      if (session.appareil !== qui.appareil) throw" "      if (false) throw" \
+  "        if (s.appareil !== qui.appareil) throw new Refus('caisse.ouverte_ailleurs'" "        if (false) throw new Refus('caisse.ouverte_ailleurs'" \
   "$CS"
 prouver "une caisse ouverte deux fois" serveur/caisse/routes.ts \
   "      if (deja) {" "      if (false) {" \
   "$CS"
-prouver "un ticket hors de sa session" serveur/v10/routes.ts \
-  "      await tx.query(\`insert into caisse.ticket (piece, entreprise, session)" "      if (false) await tx.query(\`insert into caisse.ticket (piece, entreprise, session)" \
+prouver "un ticket hors de sa session" serveur/caisse/routes.ts \
+  "from caisse.ticket t join ventes.piece p on p.id = t.piece where t.session = \$1\`, [session])).rows[0] as" "from caisse.ticket t join ventes.piece p on p.id = t.piece where t.entreprise = (select entreprise from caisse.session where id = \$1)\`, [session])).rows[0] as" \
   "$CS"
 prouver "un tiroir attendu sans son fond" serveur/caisse/routes.ts \
   "attendu: fond + especes };" "attendu: especes };" \
@@ -6363,6 +6367,74 @@ prouver "le poste qui ne demande jamais la différence" web/public/plateforme/po
 prouver "la copie qui oublie sa marque" web/public/plateforme/pont.js \
   "marque: marqueLue, profil: profilLu," "" \
   "$RLW"
+
+# ── La caisse sans réseau (brique 120, 01/10/2026 ; docs/caisse.md, H1 à H4) ──
+CHS="le poste numérote et chaîne ; au retour, ses tickets s'émettent dans l'ordre ; un écart devient une alerte, jamais une correction"
+CHW="sans réseau, le poste numérote et garde ; au retour, les tickets partent dans l'ordre, sous les mêmes numéros"
+prouver "un numéro imprimé différent de la série, tu" serveur/v10/routes.ts \
+  "        if (p.numero !== r.numero) await alerter('numero');" "" \
+  "$CHS"
+prouver "une chaîne de tickets cassée, tue" serveur/v10/routes.ts \
+  "        if (p.precedente !== derniere) await alerter('chaine', { attendue: derniere, recue: p.precedente });" "" \
+  "$CHS"
+prouver "une empreinte de ticket qui ne se recalcule pas, tue" serveur/v10/routes.ts \
+  "        if (empreinteDuPoste(p.precedente, ticketDuPoste(doc, corps.netAPayer, p.numero, p.encaisseLe)) !== p.empreinte) await alerter('empreinte');" "" \
+  "$CHS"
+prouver "un ticket arrivé après le Z, tu" serveur/v10/routes.ts \
+  "        if (session.ferme) await alerter('apres_fermeture');" "" \
+  "$CHS"
+prouver "un ticket envoyé deux fois, compté deux fois" serveur/v10/routes.ts \
+  "        if (deja) return { corps:" "        if (false) return { corps:" \
+  "$CHS"
+prouver "les tickets d'une caisse remis par un autre appareil" serveur/v10/routes.ts \
+  "        if (s.appareil !== qui.appareil) throw new Refus('caisse.pas_ce_poste');" "" \
+  "$CHS"
+prouver "un ticket sans réseau refusé parce que sa session est fermée" serveur/v10/routes.ts \
+  "      if (p?.horsLigne) {" "      if (false) {" \
+  "$CHS"
+prouver "les alertes de caisse montrées au caissier" serveur/caisse/routes.ts \
+  "const alertes = responsable ? (await" "const alertes = true ? (await" \
+  "$CHS"
+prouver "le poste qui ne connaît pas la fin de sa chaîne" serveur/caisse/routes.ts \
+  "    order by cree_le desc, piece desc limit 1\`, [s.id])).rows[0]?.empreinte_poste ?? PREMIERE);" "    order by cree_le desc, piece desc limit 1\`, [s.id])).rows[0]?.aucune ?? PREMIERE);" \
+  "$CHS"
+prouver "la série des tickets inconnue du poste avant le premier ticket" serveur/caisse/routes.ts \
+  "      await tx.query(\`select ventes.serie_v10(\$1, 'facture', 'TIC')\`, [ent]);
+" "" \
+  "$CHS"
+prouver "le numéro écrit autrement que la série (serveur)" serveur/caisse/chaine.ts \
+  "  const chiffres = String(numero).padStart(largeur, '0');" "  const chiffres = String(numero);" \
+  "$CHS"
+prouver "le numéro écrit autrement que la série (poste)" web/public/plateforme/pont.js \
+  "replace(/\\{N(:[1-9])?\\}/, String(n).padStart(largeur, '0'));" "replace(/\\{N(:[1-9])?\\}/, String(n));" \
+  "$CHW"
+prouver "un ticket écrit autrement par le poste et par le serveur" web/public/plateforme/pont.js \
+  "lignes: doc.lines ?? [], netAPayer: net," "lignes: doc.lines ?? [], netAPayer: Number(net)," \
+  "$CHW"
+prouver "les tickets remis dans le désordre" web/public/plateforme/pont.js \
+  "        const t = fileTickets[0];" "        const t = fileTickets[fileTickets.length - 1];" \
+  "$CHW"
+prouver "la caisse qui encaisse sans réseau au-delà de 7 jours" web/public/plateforme/pont.js \
+  "            : poste.limiteCaisse();" "            : null;" \
+  "$CHW"
+prouver "un ticket sans réseau qui repart avec le dossier" web/public/plateforme/pont.js \
+  "      if (m.collection === 'documents' && m.json.includes('\"caisseHorsLigne\":true')) continue;
+" "" \
+  "$CHW"
+prouver "les tickets qui attendent absents de la page rouverte" web/public/plateforme/pont.js \
+  "    for (const t of fileTickets) if (!ids.has(t.document.id)) data.documents.push(" "    for (const t of []) if (!ids.has(t.document.id)) data.documents.push(" \
+  "$CHW"
+prouver "la page Caisse muette sans réseau" web/public/v10/app.js \
+  "const hl = e && e.horsLigne && bridge.caisseSansReseau ? bridge.caisseSansReseau() : null;" "const hl = null;" \
+  "$CHW"
+prouver "la page Caisse qui dit encore « Sans réseau » au retour" web/public/v10/app.js \
+  "  window.addEventListener('skanfact-tickets-remis', () => { if (\$('#cs-session')) dessinerSession(); });
+" "" \
+  "$CHW"
+prouver "les alertes de caisse jamais montrées" web/public/v10/app.js \
+  "    if ((caisseEtat.alertes || []).length) el.insertAdjacentHTML('beforeend', alertesCaisse(caisseEtat.alertes));
+" "" \
+  "$CHW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

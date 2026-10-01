@@ -458,7 +458,7 @@ export const ADAPTATIONS = [
       + "            data.documents.push(e);\n"
       + "            s.panier = []; s.recu = ''; s.clientId = ''; s.dernierId = e.id;\n"
       + "            const rendu = e.caisse && e.caisse.rendu ? ` — à rendre ${C.money(e.caisse.rendu, cur)}` : '';\n"
-      + "            toast(`Ticket ${e.number} encaissé${rendu}`);\n"
+      + "            toast(`Ticket ${e.number} encaissé${e.caisseHorsLigne ? ' sans réseau (il partira au serveur au retour du réseau)' : ''}${rendu}`);\n"
       + "          }, x => toast(plainError(x), true)).finally(() => { delete b.dataset.busy; drawTicket(); scan(); });\n"
       + "          return;\n"
       + "        }\n",

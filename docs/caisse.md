@@ -72,6 +72,48 @@ ne ferme pas d'ailleurs ; le Z de la seconde session qui ne compte que ses ticke
 « Encaisser » éteint et sa phrase ; ouverte avec 100 DT ; deux tickets ; fermée avec 123 DT comptés : écart −0,265 ;
 quatre écrans regardés). 13 preuves.
 
+## Ce que fait la brique 120 : la caisse sans réseau (01/10/2026, par délégation ; `04` § 3.1)
+
+**H1. Le poste numérote.** La caisse est tenue par un seul appareil (S1) : lui seul prend les numéros de sa série. À
+chaque contact, le serveur lui donne le prochain numéro et la forme de la série (« {P}-{AAAA}-{N:3} ») ; sans réseau, le
+poste continue la série lui-même (au changement d'année, une série remise à zéro chaque année repart à 1).
+
+**H2. Le poste chaîne.** Chaque ticket encaissé sans réseau porte l'empreinte du précédent :
+`empreinte = sha256(précédente || sha256(ticket))`, le ticket écrit sous une forme unique (ses clés dans l'ordre). La
+première « précédente » d'une session est celle que le serveur a donnée à son ouverture.
+
+**H3. Ce qui se garde.** Le ticket encaissé sans réseau se garde **chiffré** sur le poste (comme un enregistrement sans
+réseau, H5 de `docs/hors-ligne.md`), dans l'ordre ; l'écran dit son numéro et « sans réseau » ; il part seul, **dans
+l'ordre**, au retour du réseau. Seulement sur « mon ordinateur » (sur l'ordinateur d'un autre, rien ne se garde : la
+caisse refuse sans réseau, en le disant). **7 jours au plus** sans le serveur (**À VÉRIFIER** avec le cahier NACEF) :
+au-delà, la caisse refuse d'encaisser sans réseau, en le disant.
+
+**H4. Le serveur vérifie, il ne corrige pas.** Au retour, chaque ticket est émis par le serveur comme en ligne (série,
+montants en entiers, maillon du journal du serveur, paiement). Le serveur compare ce que le poste a fait : le numéro
+imprimé et celui de la série, la précédente et la dernière empreinte connue de la session, l'empreinte recalculée. Un
+écart n'est **jamais corrigé en silence** : le ticket est enregistré, et une **alerte** de caisse le dit (numéro
+imprimé, numéro de la série, ce qui ne va pas), visible du propriétaire et de l'administrateur. Un ticket arrivé après
+la fermeture de sa session (fermée d'ailleurs par un responsable) est enregistré dans sa session et dit en alerte.
+**À VÉRIFIER** avec le cahier NACEF : ce que la loi exige quand le numéro imprimé et celui de la série diffèrent.
+
+**H5. Une fois seulement.** Un ticket renvoyé (la réponse perdue en route) rend ce qu'il a déjà rendu : le même ticket
+du même poste ne s'émet pas deux fois. Seul l'appareil qui tenait la caisse remet ses tickets.
+
+**H6. L'écran.** « Encaisser » sans réseau dit le numéro imprimé et « sans réseau (il partira au serveur au retour du
+réseau) » ; la page Caisse dit « Sans réseau » et le prochain numéro ; rechargée sans réseau, elle montre les tickets
+qui attendent ; le bandeau compte ce qui attend (les changements du dossier et les tickets). Au retour, les tickets
+partent seuls, dans l'ordre, avant le dossier ; la page redit l'état de la caisse. Les **alertes de caisse** se lisent
+en haut de la page Caisse, pour le propriétaire et l'administrateur, chacune en une phrase (« Le ticket imprimé
+TIC-2026-009 est enregistré sous le numéro TIC-2026-005 : les deux numéros diffèrent. »).
+
+Tests : `tests/v10/caisse-hors-ligne.test.ts` (la numérotation apprise à l'ouverture ; un ticket en ligne, deux sans
+réseau remis dans l'ordre ; le même renvoyé ; un autre appareil refusé ; chaîne cassée, numéro sauté, empreinte qui ne
+se recalcule pas, ticket après le Z : chacun son alerte ; le caissier ne voit pas les alertes),
+`tests/web/caisse-hors-ligne.test.ts` (Nadia encaisse en ligne, puis deux tickets sans réseau ; la page rechargée sans
+réseau les montre ; un enregistrement du dossier pendant la coupure ne les emporte pas ; plus de 7 jours sans le
+serveur, la caisse refuse ; au retour, 002 et 003 partent sous les mêmes numéros, sans alerte ; une chaîne cassée se lit
+dans les alertes). 27 preuves (dont 7 reciblées).
+
 ## Ce qui part au serveur
 
 Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, reçu, rendu, paiement, client facultatif)
@@ -92,8 +134,7 @@ Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, r
 
 - Plusieurs caisses dans une entreprise (chacune sa série) ; le Z imprimé sur l'imprimante de tickets ; l'écriture
   comptable par session (`01` § 10, **À VÉRIFIER** avec un comptable : par session ou par jour).
-- **Hors ligne** (`04` § 3.1) : tickets numérotés **sur le poste**, chaînés (empreinte du précédent), remontés dans
-  l'ordre ; un trou ou une chaîne cassée est une alerte, jamais une correction silencieuse ; 7 jours au plus.
+- Hors ligne : fait (brique 120, plus haut).
 - **Le caissier à l'écran** : sa page Caisse et ses tickets du jour (aujourd'hui il encaisse par le serveur, mais la
   page suit encore la règle des pièces de vente, qu'il ne voit pas) ; changer de caissier avec le code à 4 chiffres.
 - **Le retour** avec le code d'un responsable (03 § 2.1), la facture demandée pour un ticket, l'écriture par session.

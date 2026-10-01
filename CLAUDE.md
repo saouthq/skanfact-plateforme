@@ -146,7 +146,11 @@
     le même geste ; un passant est « Vente au comptoir ». Le cahier des charges NACEF reste **À VÉRIFIER** (pas encore
     lu). La session (brique 116, `0057`, `serveur/caisse/routes.ts`) : ouverte avec le fond sur UN appareil, qui seul
     encaisse ; fermée en comptant le tiroir (sans voir l'attendu), le serveur fige le Z (attendu = fond + espèces de
-    la session, écart) ; un Z ne change plus en base. Le hors ligne chaîné vient ensuite.
+    la session, écart) ; un Z ne change plus en base. **Sans réseau** (brique 120, `0060`, `serveur/caisse/chaine.ts`) :
+    le poste qui tient la caisse numérote (forme de la série apprise du serveur) et chaîne
+    (`sha256(précédente || sha256(ticket))`, la même formule dans `pont.js`), garde ses tickets chiffrés, les remet dans
+    l'ordre avant le dossier ; le serveur compare et ne corrige jamais : `caisse.alerte` (numero, chaine, empreinte,
+    apres_fermeture), vue du propriétaire ; 7 jours au plus sans le serveur.
   - **Supprimer un brouillon : les siens** (brique 117, `0058`, `docs/droits-dossier.md`) : chaque objet du dossier
     retient son auteur (`cree_par`) ; une pièce, une commande fournisseur ou une réception ne se supprime que par son
     auteur, P ou A (sans auteur connu : P ou A) ; le serveur, la base et l'écran (avant la question, par `autrui`) le

@@ -95,6 +95,17 @@ export interface BaseDeDonnees {
     modifie_par: string | null;
     modifie_le: Generated<Date>;
   };
+  'caisse.alerte': {
+    id: Generated<string>;
+    entreprise: string;
+    session: string;
+    piece: string | null;
+    nature: string;
+    numero_poste: string | null;
+    numero_serie: string | null;
+    detail: ColumnType<Json, string | undefined, string>;
+    cree_le: Generated<Date>;
+  };
   'caisse.caisse': {
     id: Generated<string>;
     entreprise: string;
@@ -124,6 +135,11 @@ export interface BaseDeDonnees {
     entreprise: string;
     session: string;
     cree_le: Generated<Date>;
+    numero_poste: string | null;
+    precedente: string | null;
+    empreinte_poste: string | null;
+    encaisse_le: Date | null;
+    hors_ligne: Generated<boolean>;
   };
   'compta.annuel': {
     entreprise: string;

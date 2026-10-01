@@ -172,6 +172,8 @@
     const maintenant = decouper(data);
     const changements = [];
     for (const [k, m] of maintenant) {
+      // Un ticket encaissé sans réseau part par la file des tickets, jamais avec le dossier (brique 120).
+      if (m.collection === 'documents' && m.json.includes('"caisseHorsLigne":true')) continue;
       const avant = vu.get(k);
       // La page a la version du serveur : elle l'a désormais (une fusion la lui a donnée).
       if (avant && avant.json === m.json) base.set(k, avant.revision);
@@ -324,7 +326,7 @@
     await poste.ecrireAttente(ent, { data });
     attenteGardee = true;
     attenteN = compter(changementsDe(data));
-    poste.attente(attenteN);
+    annoncerAttente();
     return { horsLigne: true };
   }
   /** @param {number} conflits */
@@ -334,10 +336,102 @@
     await poste.effacerAttente(ent);
     poste.envoye(n, conflits);
   }
-  // Au retour du réseau, et toutes les 30 secondes tant que quelque chose attend : l'écran réenregistre.
+  // ── La caisse sans réseau (brique 120 ; docs/caisse.md, H1 à H4) ────────────────────────────────────────────
+  // Le poste qui tient la caisse sait, depuis son dernier contact, la forme de la série, le prochain numéro et la fin de
+  // sa chaîne (`numerotation`, gardée sur « mon ordinateur » seulement : des numéros et une empreinte, rien d'autre).
+  // Sans réseau, il numérote et chaîne lui-même ; ses tickets attendent chiffrés, dans l'ordre (`fileTickets`).
+  // La même formule que serveur/caisse/chaine.ts : elles ne divergent pas.
+  const CLE_NUMEROTATION = `skanfact.caisse.${ent}`;
+  /** @type {any} */ let numerotation = null;
+  try { numerotation = poste.garde() ? JSON.parse(localStorage.getItem(CLE_NUMEROTATION) || 'null') : null; } catch { numerotation = null; }
+  /** @param {any} n */
+  function retenirNumerotation(n) {
+    numerotation = n || null;
+    try { if (numerotation && poste.garde()) localStorage.setItem(CLE_NUMEROTATION, JSON.stringify(numerotation)); else localStorage.removeItem(CLE_NUMEROTATION); } catch { /* sans mémoire : pas de caisse sans réseau */ }
+  }
+  /** @param {unknown} v @returns {unknown} */
+  const trier = (v) => (Array.isArray(v) ? v.map(trier) : v && typeof v === 'object'
+    ? Object.fromEntries(Object.keys(v).sort().map((c) => [c, trier(/** @type {any} */ (v)[c])])) : v);
+  /** @param {string} t */
+  const sha256 = async (t) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)))].map((o) => o.toString(16).padStart(2, '0')).join('');
+  /** @param {any} doc @param {string} net @param {string} numero @param {string} encaisseLe */
+  const ticketDuPoste = (doc, net, numero, encaisseLe) => ({ numero, encaisseLe, date: doc.date ?? null, client: doc.clientId || '', lignes: doc.lines ?? [], netAPayer: net,
+    paiements: (Array.isArray(doc.payments) ? doc.payments : []).map((/** @type {any} */ p) => ({ mode: p.method ?? null, montant: p.amount ?? null })) });
+  /** @param {string} format @param {string} prefixe @param {number} annee @param {number} n */
+  const formaterNumero = (format, prefixe, annee, n) => {
+    const largeur = Number((/\{N:([1-9])\}/.exec(format) || [])[1] || 1);
+    return format.replaceAll('{P}', prefixe).replaceAll('{AAAA}', String(annee)).replace(/\{N(:[1-9])?\}/, String(n).padStart(largeur, '0'));
+  };
+  // Le ticket que le poste fait : son numéro (une série remise à zéro chaque année repart à 1 au changement d'année), et
+  // son maillon : empreinte = sha256(précédente || sha256(ticket)).
+  /** @param {any} document @param {string} net */
+  async function faireTicket(document, net) {
+    const n = numerotation;
+    const annee = Number(String(document.date || '').slice(0, 4)) || new Date().getFullYear();
+    const numero = n.serie.remise === 'annuelle' && n.prochain.periode !== annee ? 1 : n.prochain.numero;
+    const texte = formaterNumero(n.serie.format, n.serie.prefixe, annee, numero);
+    const encaisseLe = new Date().toISOString();
+    const empreinte = await sha256(n.chaine + await sha256(JSON.stringify(trier(ticketDuPoste(document, net, texte, encaisseLe)))));
+    return { poste: { session: n.session, numero: texte, precedente: n.chaine, empreinte, encaisseLe, horsLigne: false },
+      etat: { ...n, prochain: { numero: numero + 1, periode: n.serie.remise === 'annuelle' ? annee : n.prochain.periode } } };
+  }
+  /** @type {any[]} */ let fileTickets = [];
+  const CLE_FILE = `${ent}#tickets`;
+  const ecrireFileTickets = async () => { if (fileTickets.length) await poste.ecrireAttente(CLE_FILE, { tickets: fileTickets }); else await poste.effacerAttente(CLE_FILE); };
+  const lireFileTickets = async () => { const f = await poste.lireAttente(CLE_FILE).catch(() => null); fileTickets = f && Array.isArray(f.contenu.tickets) ? f.contenu.tickets : []; };
+  // Ce qui attend le réseau : les changements du dossier et les tickets.
+  const annoncerAttente = () => poste.attente(attenteN + fileTickets.length);
+  // Les tickets qui attendent se montrent à l'écran (la page s'ouvre sur la copie du serveur, qui ne les a pas encore).
+  /** @param {any} data */
+  function avecTicketsEnAttente(data) {
+    if (!data || !Array.isArray(data.documents) || !fileTickets.length) return data;
+    const ids = new Set(data.documents.map((/** @type {any} */ d) => d.id));
+    for (const t of fileTickets) if (!ids.has(t.document.id)) data.documents.push(decoder({ ...t.document, number: t.poste.numero, numeroPoste: t.poste.numero, status: 'envoyée', caisseHorsLigne: true }));
+    return data;
+  }
+  // Remettre les tickets, dans l'ordre, un par un ; chacun remplace à l'écran celui que le poste montrait. Un refus du
+  // serveur (autre que le réseau) arrête la remise et se dit : le ticket reste gardé, rien n'est perdu.
+  /** @type {Promise<number> | null} */ let remise = null;
+  function remettreTickets() {
+    if (remise) return remise;
+    remise = (async () => {
+      let n = 0;
+      /** @type {any} */ let dernier = null;
+      while (fileTickets.length) {
+        const t = fileTickets[0];
+        try { dernier = await appel('POST', '/dossier-v10/ticket', t); } catch (e) {
+          if (!(/** @type {any} */ (e).horsLigne)) poste.annoncer(`Le ticket ${t.poste.numero}, encaissé sans réseau, n'a pas pu être remis : ${/** @type {any} */ (e).message || e}. Il reste gardé sur ce poste.`, 'Réessayer', () => { void remettreTickets(); });
+          break;
+        }
+        const k = `documents\u0000${t.document.id}`;
+        vu.set(k, { json: JSON.stringify(dernier.contenu), rang: t.rang, revision: dernier.revision });
+        base.set(k, dernier.revision);
+        const L = /** @type {any} */ (window).__data && /** @type {any} */ (window).__data.documents;
+        if (Array.isArray(L)) { const i = L.findIndex((/** @type {any} */ d) => d.id === t.document.id); if (i >= 0) L[i] = decoder(dernier.contenu); }
+        fileTickets.shift();
+        await ecrireFileTickets();
+        n++;
+      }
+      // Tout est remis : l'état du serveur fait foi pour la suite.
+      if (!fileTickets.length && dernier) retenirNumerotation(dernier.caisse);
+      if (n) {
+        garderLaCopie();
+        // Tout est parti (et rien d'autre n'attend) : le bandeau le dit ; sinon, il compte ce qui attend encore.
+        if (!fileTickets.length && !attenteGardee) poste.envoye(n); else annoncerAttente();
+        // La page Caisse redit son état (elle disait « Sans réseau »).
+        window.dispatchEvent(new Event('skanfact-tickets-remis'));
+      }
+      return n;
+    })().finally(() => { remise = null; });
+    return remise;
+  }
+  // Au retour du réseau, et toutes les 30 secondes tant que quelque chose attend : les tickets d'abord, dans l'ordre,
+  // puis l'écran réenregistre.
   const relancer = () => {
     const w = /** @type {any} */ (window);
-    if (attenteGardee && !enCours && w.__data && typeof w.__enregistrerMaintenant === 'function') w.__enregistrerMaintenant();
+    void (fileTickets.length ? remettreTickets() : Promise.resolve(0)).then(() => {
+      if (!fileTickets.length && attenteGardee && !enCours && w.__data && typeof w.__enregistrerMaintenant === 'function') w.__enregistrerMaintenant();
+    });
   };
   poste.auRetour(relancer);
   setInterval(() => { if (navigator.onLine) relancer(); }, 30_000);
@@ -559,8 +653,12 @@
       const qr = /** @type {any} */ (window).SkanQr;
       if (qr) qr.brancher();
       const attente = await poste.lireAttente(ent).catch(() => null);
+      await lireFileTickets();
       try {
-        const data = attente ? await rejouer(attente.contenu.data) : await relire();
+        // Les tickets encaissés sans réseau partent d'abord, dans l'ordre ; ceux qui attendent encore se montrent.
+        if (fileTickets.length) await remettreTickets();
+        const data = avecTicketsEnAttente(attente ? await rejouer(attente.contenu.data) : await relire());
+        if (fileTickets.length) annoncerAttente();
         // La page reçoit ce dossier : elle a chacun de ses objets (brique 112).
         adopter();
         await chargerRemises();
@@ -568,12 +666,13 @@
       } catch (e) {
         if (/** @type {any} */ (e).statut === 404) return await plusOuverte();
         if (!/** @type {any} */ (e).horsLigne) throw e;
-        const copie = await lireLaCopie();
+        const copie = avecTicketsEnAttente(await lireLaCopie());
+        if (fileTickets.length) annoncerAttente();
         if (!attente) return { data: copie, corruptFile: null };
         // Ce qui a été enregistré sans réseau se montre, et attend toujours.
         attenteGardee = true;
         attenteN = compter(changementsDe(attente.contenu.data));
-        poste.attente(attenteN);
+        annoncerAttente();
         return { data: attente.contenu.data, corruptFile: null };
       }
     },
@@ -620,28 +719,58 @@
     },
 
     // Le ticket de caisse (brique 115 ; docs/caisse.md) : numéroté dans sa série (TIC) et scellé par le serveur, payé
-    // dans le même geste. Pas encore sans réseau : la caisse hors ligne (tickets numérotés sur le poste) vient ensuite.
+    // dans le même geste. Sans réseau (brique 120, H1 à H4) : le poste qui tient la caisse le numérote et le chaîne
+    // lui-même, le garde chiffré, et le remet dans l'ordre au retour du réseau.
     encaisser: async (/** @type {any} */ doc, /** @type {number} */ netAPayer) => {
       if (enCours) await enCours;
-      if (attenteGardee || !navigator.onLine) {
-        throw new Error('Hors ligne : la caisse n\'encaisse pas encore sans réseau dans la version en ligne de SkanFact : rien n\'a été vendu. Réessaie au retour du réseau.');
-      }
       const decimales = !doc.currency || doc.currency === 'DT' || doc.currency === 'TND' ? 3 : 2;
+      const net = Number(netAPayer).toFixed(decimales);
       const k = `documents\u0000${doc.id}`;
       const liste = /** @type {any} */ (window).__data && /** @type {any} */ (window).__data.documents;
       const rang = Array.isArray(liste) ? liste.length : null;
-      const r = await appel('POST', '/dossier-v10/ticket', { document: encoder(doc), rang, netAPayer: Number(netAPayer).toFixed(decimales) });
-      vu.set(k, { json: JSON.stringify(r.contenu), rang, revision: r.revision });
-      base.set(k, r.revision);
-      garderLaCopie();
-      return decoder(r.contenu);
+      // Le document tel qu'il part (et tel que le serveur le lira) : c'est lui que la chaîne retient.
+      const document = JSON.parse(JSON.stringify(encoder(doc)));
+      // Des tickets attendent encore le réseau : celui-ci part après eux, jamais avant.
+      if (fileTickets.length) await remettreTickets();
+      const fait = numerotation ? await faireTicket(document, net) : null;
+      try {
+        if (fileTickets.length) throw Object.assign(new Error('hors ligne'), { horsLigne: true });
+        const r = await appel('POST', '/dossier-v10/ticket', { document, rang, netAPayer: net, ...(fait ? { poste: fait.poste } : {}) });
+        retenirNumerotation(r.caisse);
+        vu.set(k, { json: JSON.stringify(r.contenu), rang, revision: r.revision });
+        base.set(k, r.revision);
+        garderLaCopie();
+        return decoder(r.contenu);
+      } catch (e) {
+        if (!(/** @type {any} */ (e).horsLigne)) throw e;
+        // Sans réseau : sur « mon ordinateur », sur le poste qui tient la caisse, et 7 jours au plus sans le serveur.
+        const refus = !poste.garde() ? 'Sans réseau, la caisse n\'encaisse que sur « mon ordinateur » (la session gardée sur cet appareil) : rien n\'a été vendu. Réessaie au retour du réseau.'
+          : !fait ? 'Sans réseau, la caisse n\'encaisse que sur l\'appareil qui la tient, ouverte avant la coupure : rien n\'a été vendu. Réessaie au retour du réseau.'
+            : poste.limiteCaisse();
+        if (refus || !fait) throw new Error(refus || String(e), { cause: e });
+        const p = { ...fait.poste, horsLigne: true };
+        fileTickets.push({ document, rang, netAPayer: net, poste: p });
+        await ecrireFileTickets();
+        retenirNumerotation({ ...fait.etat, chaine: p.empreinte });
+        annoncerAttente();
+        // L'écran montre le ticket, avec le numéro que le poste a imprimé ; il ne repart pas avec le dossier (il part
+        // par la file des tickets).
+        return decoder({ ...document, number: p.numero, numeroPoste: p.numero, status: 'envoyée', caisseHorsLigne: true });
+      }
     },
 
     // La session de caisse (brique 116) : son état, l'ouvrir avec le fond de caisse, la fermer en comptant le tiroir.
     // L'auteur d'une pièce faite par un autre (brique 117), sinon null : l'écran refuse de la supprimer avant le geste.
     auteurAutre: (/** @type {string} */ collection, /** @type {string} */ id) => (`${collection}/${id}` in autrui ? autrui[`${collection}/${id}`] ?? '' : null),
-    caisse: async () => appel('GET', '/caisse'),
-    ouvrirCaisse: async (/** @type {string} */ fond) => appel('POST', '/caisse/ouvrir', { fond }),
+    caisse: async () => { const r = await appel('GET', '/caisse'); retenirNumerotation(r.numerotation); return r; },
+    // Sans réseau, ce poste tient-il la caisse ? Le prochain numéro qu'il donnera, ou null (brique 120).
+    caisseSansReseau: () => {
+      if (!numerotation || !poste.garde()) return null;
+      const annee = Number(new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }).slice(0, 4));
+      const n = numerotation.serie.remise === 'annuelle' && numerotation.prochain.periode !== annee ? 1 : numerotation.prochain.numero;
+      return { prochain: formaterNumero(numerotation.serie.format, numerotation.serie.prefixe, annee, n) };
+    },
+    ouvrirCaisse: async (/** @type {string} */ fond) => { const r = await appel('POST', '/caisse/ouvrir', { fond }); retenirNumerotation(r.numerotation); return r; },
     fermerCaisse: async (/** @type {string} */ compte) => appel('POST', '/caisse/fermer', { compte }),
 
     // ── Les entreprises (les « dossiers » de la v10) ──────────────────────────────────────────
