@@ -1,0 +1,92 @@
+Les factures périodiques émises seules (brique 129 ; serveur/v10/contrats.ts ; docs/api-situation.md, S7).
+Format : voir sans-paquets.mjs.
+
+Un contrat récurrent peut être « émis seul » : à sa date, SkanFact (le serveur) fabrique la facture comme « Générer les
+brouillons » la fabrique, puis l'émet, avec son numéro ; l'abonnement mensuel d'une boutique en ligne, d'abord. Seuls
+le propriétaire et l'administrateur font ce choix (il engage l'entreprise) ; la case est grisée pour les autres. Un tel
+contrat ne propose plus de brouillon à générer ; sa fiche dit qu'il est émis seul, et dit pourquoi une émission a été
+refusée (le serveur la retente au tour suivant, une fois le contrat corrigé).
+
+── Le moteur (core.js) ──
+
+== core.js | un contrat émis seul ne propose pas de brouillon : le serveur émet sa facture
+-- avant
+    return (data.recurring || []).filter(r => r.active !== false && r.nextDate && r.nextDate <= t);
+-- après
+    // (plateforme, brique 129) Un contrat émis seul ne propose pas de brouillon : le serveur émet sa facture à sa date.
+    return (data.recurring || []).filter(r => r.active !== false && !r.emettreSeul && r.nextDate && r.nextDate <= t);
+-- fin
+
+── Le formulaire du contrat (app.js) ──
+
+== app.js | la case « émise seule », grisée pour qui n'est ni propriétaire ni administrateur
+-- avant
+        <label class="check span-3"><input type="checkbox" name="active" ${r.active !== false ? 'checked' : ''}> <span>Contrat actif (les factures sont proposées à la date prévue) ${info('contrat.actif')}</span></label>
+-- après
+        <label class="check span-3"><input type="checkbox" name="active" ${r.active !== false ? 'checked' : ''}> <span>Contrat actif (les factures sont proposées à la date prévue) ${info('contrat.actif')}</span></label>
+        ${bridge.droitsDossier ? `<label class="check span-3"><input type="checkbox" name="emettreSeul" ${r.emettreSeul ? 'checked' : ''} ${bridge.droitsDossier().responsable ? '' : 'disabled'}> <span>Émise seule : SkanFact émet chaque facture à sa date, avec son numéro, sans brouillon à relire${bridge.droitsDossier().responsable ? '' : ' (choix du propriétaire ou d\'un administrateur)'} ${info('contrat.seul')}</span></label>` : ''}
+-- fin
+
+== app.js | un contrat corrigé se retente au tour suivant du serveur
+-- avant
+          Object.assign(r, v, { day: Math.min(31, Math.max(1, Number(v.day) || 1)), withholdingRate: Number(v.withholdingRate) || 0, discountRate: Number(v.discountRate) || 0,
+            currency: cur, exchangeRate: enDevise() ? Number(v.exchangeRate) : '' });
+-- après
+          Object.assign(r, v, { day: Math.min(31, Math.max(1, Number(v.day) || 1)), withholdingRate: Number(v.withholdingRate) || 0, discountRate: Number(v.discountRate) || 0,
+            currency: cur, exchangeRate: enDevise() ? Number(v.exchangeRate) : '' });
+          // (plateforme, brique 129) Corrigé, un contrat refusé par le serveur se retente au tour suivant, pas demain.
+          delete r.refusServeur;
+-- fin
+
+── La fiche du contrat (app.js) ──
+
+== app.js | un contrat émis seul n'a rien « à générer »
+-- avant
+    const isDue = active && r.nextDate <= C.today();
+    const period = (C.PERIODS.find(p => p[0] === r.every) || [])[1] || '';
+-- après
+    const isDue = active && !r.emettreSeul && r.nextDate <= C.today();
+    const period = (C.PERIODS.find(p => p[0] === r.every) || [])[1] || '';
+-- fin
+
+== app.js | la fiche dit qu'il est émis seul, et pourquoi une émission a été refusée
+-- avant
+      ${isDue ? `<div class="banner">Une facture est à générer pour le ${C.fmtDate(r.nextDate)}<button class="btn" id="c-gen2">Générer le brouillon</button></div>` : ''}
+-- après
+      ${r.emettreSeul && active ? `<div class="banner info" id="c-seul">Émise seule : SkanFact émet chaque facture à sa date, avec son numéro. La prochaine : le ${C.fmtDate(r.nextDate)}.</div>` : ''}
+      ${r.refusServeur ? `<div class="banner warn" id="c-refus">La facture du ${C.fmtDate(r.refusServeur.echeance)} n'a pas pu être émise : ${h(r.refusServeur.motif)} Corrige le contrat (Modifier) : SkanFact la retente dans l'heure.</div>` : ''}
+      ${isDue ? `<div class="banner">Une facture est à générer pour le ${C.fmtDate(r.nextDate)}<button class="btn" id="c-gen2">Générer le brouillon</button></div>` : ''}
+-- fin
+
+── La bulle (guide.js) ──
+
+== guide.js | la bulle de « émise seule »
+-- avant
+    'contrat.actif': {
+-- après
+    'contrat.seul': { t: 'Émise seule', d: 'Cochée, <b>SkanFact émet lui-même</b> chaque facture du contrat à sa date (vers 1 h près), avec son numéro, comme si tu avais cliqué « Émettre » : pas de brouillon à relire. Pour un abonnement dont le montant ne change pas. Une émission impossible (un client supprimé, une fiche incomplète) est dite ici, et se retente. Seuls le propriétaire et un administrateur la cochent. La signature et l\'envoi à la TTN restent à faire par toi.' },
+    'contrat.actif': {
+-- fin
+
+── La liste des contrats (app.js) ──
+
+== app.js | la liste dit « émise seule » au lieu de « à générer »
+-- avant
+      { key: 'next', label: 'Prochaine facture', asc: true, val: r => r.nextDate || '', get: r => { const isDue = r.active !== false && r.nextDate <= C.today(); return `${C.fmtDate(r.nextDate)}${isDue ? ' <span class="level l2">à générer</span>' : ''}${r.lastIssued ? `<div class="small muted">dernière : ${C.fmtDate(r.lastIssued)}</div>` : ''}`; } },
+-- après
+      { key: 'next', label: 'Prochaine facture', asc: true, val: r => r.nextDate || '', get: r => { const isDue = r.active !== false && r.nextDate <= C.today(); return `${C.fmtDate(r.nextDate)}${r.emettreSeul && r.active !== false ? ' <span class="level" data-seul>émise seule</span>' : isDue ? ' <span class="level l2">à générer</span>' : ''}${r.lastIssued ? `<div class="small muted">dernière : ${C.fmtDate(r.lastIssued)}</div>` : ''}`; } },
+-- fin
+
+== app.js | le filtre « à générer » laisse les contrats émis seuls au serveur
+-- avant
+        .filter(r => !s.st || (s.st === 'due' ? (r.active !== false && r.nextDate <= C.today()) : (s.st === 'actif') === (r.active !== false)))
+-- après
+        .filter(r => !s.st || (s.st === 'due' ? (r.active !== false && !r.emettreSeul && r.nextDate <= C.today()) : (s.st === 'actif') === (r.active !== false)))
+-- fin
+
+== app.js | la page vide ne promet plus que rien n'est émis à ta place
+-- avant
+               'Rien n\'est envoyé à ta place : un brouillon t\'attend, c\'est tout.',
+-- après
+               'Rien n\'est émis à ta place : un brouillon t\'attend. Sauf si tu le demandes : un contrat « Émise seule » voit SkanFact émettre ses factures à leur date.',
+-- fin

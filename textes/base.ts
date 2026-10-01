@@ -291,6 +291,8 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'Seul un responsable pose un code de responsable.', cle: 'base.caisse.code_responsable', fr: 'seul le propriétaire ou un administrateur pose un code de responsable' },
   // La remise à la caisse (0064, brique 125).
   { base: 'Le plafond de remise de la caisse se règle par le propriétaire ou un administrateur.', cle: 'base.caisse.plafond', fr: 'le plafond de remise de la caisse se règle par le propriétaire ou un administrateur' },
+  // Les factures périodiques émises seules (0065, brique 129).
+  { base: 'Une facture émise seule engage l\'entreprise : ce choix se fait par le propriétaire ou un administrateur.', cle: 'base.contrat.seul', fr: 'une facture émise seule engage l\'entreprise : ce choix se fait par le propriétaire ou un administrateur' },
   // L'accord au-delà d'une commande fournisseur (0055, brique 114).
   { base: 'Le montant d\'une commande fournisseur permis sans accord se règle par le propriétaire ou un administrateur.', cle: 'base.accord.commande', fr: 'le montant d\'une commande fournisseur permis sans accord se règle par le propriétaire ou un administrateur' },
 ];

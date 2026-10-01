@@ -2056,7 +2056,8 @@
 
   function dueRecurrences(data, todayIso) {
     const t = todayIso || today();
-    return (data.recurring || []).filter(r => r.active !== false && r.nextDate && r.nextDate <= t);
+    // (plateforme, brique 129) Un contrat émis seul ne propose pas de brouillon : le serveur émet sa facture à sa date.
+    return (data.recurring || []).filter(r => r.active !== false && !r.emettreSeul && r.nextDate && r.nextDate <= t);
   }
 
   // Reprise d'un contrat suspendu : première échéance à partir d'aujourd'hui (les mois suspendus ne sont pas facturés).

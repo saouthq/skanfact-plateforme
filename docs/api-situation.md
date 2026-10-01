@@ -6,8 +6,8 @@ faut par l'API. La liste vient de la session qui construit SkanEcom (P1 : lister
 situation en un appel, le retrouver par son matricule, des événements « règlement enregistré » et « facture réglée »,
 un lien vers l'écran de SkanFact ; P2 : les factures périodiques). Elle servira à toute console partenaire.*
 
-La brique 127 fait les **lectures** (S1 à S5), la brique 128 les **événements** (S6) ; les factures périodiques :
-brique 129.
+La brique 127 fait les **lectures** (S1 à S5), la brique 128 les **événements** (S6), la brique 129 les **factures
+périodiques émises seules** (S7).
 
 ## Comment la console lit
 
@@ -115,15 +115,45 @@ récent) ou `"avoir"` (un avoir qui la solde ; `date` : le jour de l'avoir).
 Un règlement retiré qui fait de nouveau devoir la facture n'a pas (encore) d'événement : la console relit la
 situation (S3) si elle en a besoin. **À VÉRIFIER** avec la session SkanEcom : en a-t-elle besoin ?
 
+## S7. Les factures périodiques émises seules (brique 129)
+
+Un contrat de **Facturation récurrente** (l'écran de la v10 : client, période mensuelle, trimestrielle ou annuelle, jour
+du mois, lignes, objet avec `{mois}` et `{annee}`) peut être **« Émise seule »** : à sa date, SkanFact fabrique la
+facture comme « Générer les brouillons » la fabrique, puis **l'émet lui-même**, avec le numéro de sa série, au nom du
+propriétaire. La console reçoit `facture.emise` (puis `reglement.enregistre` et `facture.reglee` quand elle est payée).
+
+- **Qui** : seuls le propriétaire et l'administrateur cochent ou décochent « Émise seule » (refusé jusque dans la base
+  pour les autres ; la case est grisée pour eux). Émettre engage l'entreprise : un numéro légal ne se reprend pas.
+- **Quand** : le serveur fait son tour au démarrage, puis **chaque heure**. Une période manquée (le serveur arrêté) se
+  rattrape, une facture par période, **12 au plus par tour** (comme la v10). Le « 31 du mois » devient le dernier jour
+  d'un mois plus court, puis revient au 31.
+- **Jamais deux fois** : l'identifiant de la facture dit son contrat et sa date (`contrat-<contrat>-<date>`) ; un
+  second tour, ou une date de contrat remise en arrière, ne la refait pas.
+- **Un refus** (un client supprimé, une fiche incomplète pour la facture électronique…) n'émet rien : la fiche du
+  contrat dit pourquoi (« La facture du … n'a pas pu être émise : … »). Corrigé (« Modifier »), le contrat se retente au
+  tour suivant ; sinon, le lendemain.
+- **Ce qui reste à une personne** : la signature et l'envoi à la TTN, comme pour toute facture.
+- Un contrat émis seul ne propose plus de brouillon (ni dans sa fiche, ni dans le compteur du menu).
+
+**À VÉRIFIER** (avec le comptable et l'avocat) : qu'une facture puisse être émise sans qu'une personne la relise ; le
+délai pour la signer et la déposer à la TTN quand l'entreprise y est soumise ; la date d'une facture rattrapée (celle de
+sa période, comme la v10, ou celle du jour de l'émission).
+
+**Pour SkanEcom** : un contrat par boutique abonnée, dans l'entreprise qui facture (SkanEcom), « Émise seule ». La
+création des contrats par l'API (sans passer par l'écran) n'est pas encore là : une brique suivante, si la console en
+a besoin.
+
 ## Les preuves
 
-`tests/v10/api-situation.test.ts`, `tests/web/lien-ecran.test.ts` et `tests/v10/api-evenements.test.ts`, et 51 défauts
-réintroduits (`tests/preuves.sh`, « Brique 127 ») : le matricule
+`tests/v10/api-situation.test.ts`, `tests/web/lien-ecran.test.ts`, `tests/v10/api-evenements.test.ts`,
+`tests/v10/contrats-seuls.test.ts` et `tests/web/contrats-seuls.test.ts`, et 82 défauts réintroduits (`tests/preuves.sh`, « Brique 127 ») : le matricule
 cherché ou rangé avec ses espaces ou ses minuscules, les factures réglées gardées, un brouillon chiffré compté, la page
 qui déborde ou relit le même lot, les euros additionnés aux dinars, une facture échue le jour de son échéance, le retard
 compté depuis la mauvaise facture, le dernier règlement d'un autre client ou le plus ancien, un lien d'écran inventé,
 le lien oublié pendant la connexion ou suivi vers l'entreprise d'un autre, un ticket annoncé, une facture réglée deux
-fois ou datée du plus ancien règlement, un avoir qui solde sans avis…
+fois ou datée du plus ancien règlement, un avoir qui solde sans avis, un contrat ordinaire ou suspendu émis, treize
+périodes d'un coup, une facture refaite, un trimestre avancé d'un mois, le 31 septembre, un commercial qui coche
+« Émise seule », un serveur redémarré qui attend une heure…
 
 ## Vu à la main (01/10/2026)
 

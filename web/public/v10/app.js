@@ -7301,6 +7301,7 @@
         <label class="field obligatoire" id="rf-rate" ${enDevise() ? '' : 'hidden'}><span class="fl"><span id="rf-rate-lbl">1 ${h(cur)} = ? ${h(co0.currency)}</span> ${info('contrat.taux')}</span><input type="number" name="exchangeRate" value="${h(r.exchangeRate || '')}" step="0.0001" min="0" class="num" placeholder="ex. 3,4"></label>
         <label class="field span-3">${lbl('Notes sur la facture', 'ed.notes')}<textarea name="notes" rows="2">${h(r.notes || '')}</textarea></label>
         <label class="check span-3"><input type="checkbox" name="active" ${r.active !== false ? 'checked' : ''}> <span>Contrat actif (les factures sont proposées à la date prévue) ${info('contrat.actif')}</span></label>
+        ${bridge.droitsDossier ? `<label class="check span-3"><input type="checkbox" name="emettreSeul" ${r.emettreSeul ? 'checked' : ''} ${bridge.droitsDossier().responsable ? '' : 'disabled'}> <span>Émise seule : SkanFact émet chaque facture à sa date, avec son numéro, sans brouillon à relire${bridge.droitsDossier().responsable ? '' : ' (choix du propriétaire ou d\'un administrateur)'} ${info('contrat.seul')}</span></label>` : ''}
       </form>
       <table class="mini" data-devise="${h(cur)}"><thead><tr><th>Désignation</th><th class="r" style="width:58px">Qté</th><th style="width:104px">Unité ${info('ed.unit')}</th><th class="r" style="width:96px">P.U. HT <span id="rl-cur">(${h(cur)})</span></th><th style="width:88px">TVA</th><th></th></tr></thead><tbody id="rl"></tbody></table>
       <div class="inline mt"><button type="button" class="btn btn-sm" id="rl-add">+ Ligne</button><span class="small muted" id="rl-total"></span></div>
@@ -7403,6 +7404,8 @@
           if (enDevise() && !(Number(v.exchangeRate) > 0)) return refus(txTaux, `Indique le taux de change : combien vaut 1 ${cur} en ${co0.currency} ? Chaque facture du contrat le reprendra — tu pourras l'ajuster sur la facture.`);
           Object.assign(r, v, { day: Math.min(31, Math.max(1, Number(v.day) || 1)), withholdingRate: Number(v.withholdingRate) || 0, discountRate: Number(v.discountRate) || 0,
             currency: cur, exchangeRate: enDevise() ? Number(v.exchangeRate) : '' });
+          // (plateforme, brique 129) Corrigé, un contrat refusé par le serveur se retente au tour suivant, pas demain.
+          delete r.refusServeur;
           const idx = data.recurring.findIndex(x => x.id === r.id);
           if (idx >= 0) data.recurring[idx] = r; else data.recurring.push(r);
           save(true); close(); if (done) done(r);
@@ -7473,7 +7476,7 @@
     const next = C.buildRecurringInvoice(r, r.nextDate, co, clientById(r.clientId));   // la facture que le contrat produira
     const t = C.computeTotals(next, co);
     const active = r.active !== false;
-    const isDue = active && r.nextDate <= C.today();
+    const isDue = active && !r.emettreSeul && r.nextDate <= C.today();
     const period = (C.PERIODS.find(p => p[0] === r.every) || [])[1] || '';
     const subj = C.fillTemplate(r.subject, { mois: C.monthLabel(r.nextDate), annee: (r.nextDate || '').slice(0, 4) });
 
@@ -7494,6 +7497,8 @@
             <button id="c-del" class="danger">Supprimer le contrat</button>
           </div></div>
         </div></div>
+      ${r.emettreSeul && active ? `<div class="banner info" id="c-seul">Émise seule : SkanFact émet chaque facture à sa date, avec son numéro. La prochaine : le ${C.fmtDate(r.nextDate)}.</div>` : ''}
+      ${r.refusServeur ? `<div class="banner warn" id="c-refus">La facture du ${C.fmtDate(r.refusServeur.echeance)} n'a pas pu être émise : ${h(r.refusServeur.motif)} Corrige le contrat (Modifier) : SkanFact la retente dans l'heure.</div>` : ''}
       ${isDue ? `<div class="banner">Une facture est à générer pour le ${C.fmtDate(r.nextDate)}<button class="btn" id="c-gen2">Générer le brouillon</button></div>` : ''}
       ${!active ? `<div class="banner info">Contrat suspendu : aucune facture n'est générée tant qu'il n'est pas repris.</div>` : ''}
       <div class="stats">
@@ -7589,7 +7594,7 @@
       { key: 'client', label: 'Client', asc: true, val: r => clientName(r.clientId).toLowerCase(), get: r => `<strong>${h(clientName(r.clientId))}</strong>` },
       { key: 'subject', label: 'Objet', asc: true, val: r => (r.subject || '').toLowerCase(), get: r => { const subj = C.fillTemplate(r.subject, { mois: C.monthLabel(r.nextDate) }); return `${h(subj)}${subj !== r.subject ? `<div class="small muted">${h(r.subject)}</div>` : ''}`; } },
       { key: 'every', label: 'Période', asc: true, nw: true, val: r => r.every || '', get: r => (C.PERIODS.find(p => p[0] === r.every) || [])[1] || '' },
-      { key: 'next', label: 'Prochaine facture', asc: true, val: r => r.nextDate || '', get: r => { const isDue = r.active !== false && r.nextDate <= C.today(); return `${C.fmtDate(r.nextDate)}${isDue ? ' <span class="level l2">à générer</span>' : ''}${r.lastIssued ? `<div class="small muted">dernière : ${C.fmtDate(r.lastIssued)}</div>` : ''}`; } },
+      { key: 'next', label: 'Prochaine facture', asc: true, val: r => r.nextDate || '', get: r => { const isDue = r.active !== false && r.nextDate <= C.today(); return `${C.fmtDate(r.nextDate)}${r.emettreSeul && r.active !== false ? ' <span class="level" data-seul>émise seule</span>' : isDue ? ' <span class="level l2">à générer</span>' : ''}${r.lastIssued ? `<div class="small muted">dernière : ${C.fmtDate(r.lastIssued)}</div>` : ''}`; } },
       { key: 'ht', label: 'HT / facture', r: true, val: htBase, get: r => C.money(htOf(r), curOf(r)) },
       { key: 'state', label: 'État', asc: true, val: r => r.active !== false ? 'actif' : 'suspendu', get: r => r.active !== false ? '<span class="badge envoyée">actif</span>' : '<span class="badge">suspendu</span>' }
     ];
@@ -7599,7 +7604,7 @@
       const due = C.dueRecurrences(data);
       const all = data.recurring.slice();
       const kept = applySort(all
-        .filter(r => !s.st || (s.st === 'due' ? (r.active !== false && r.nextDate <= C.today()) : (s.st === 'actif') === (r.active !== false)))
+        .filter(r => !s.st || (s.st === 'due' ? (r.active !== false && !r.emettreSeul && r.nextDate <= C.today()) : (s.st === 'actif') === (r.active !== false)))
         .filter(r => !s.q || C.correspondRecherche(`${clientName(r.clientId)} ${r.subject || ''}`, s.q)), cols, s.sort);
       const { rows: page, pg } = paginate(kept, s);
       const filtered = !!(s.q || s.st);
@@ -7627,7 +7632,7 @@
           : filtered ? '<div class="empty">Aucun contrat ne correspond à ces filtres.</div>'
           : etatVide('Les factures qui se répètent toutes seules',
               ['Un abonnement, une maintenance, un forfait mensuel : tu le décris une fois — client, lignes, périodicité — et SkanFact prépare le <b>brouillon de facture</b> à chaque échéance. Tu n\'as plus qu\'à le relire et l\'émettre.',
-               'Rien n\'est envoyé à ta place : un brouillon t\'attend, c\'est tout.',
+               'Rien n\'est émis à ta place : un brouillon t\'attend. Sauf si tu le demandes : un contrat « Émise seule » voit SkanFact émettre ses factures à leur date.',
                'À ne pas confondre avec le <b>contrat que ton client signe</b>, qui est dans « Proforma, bons et contrats ».'],
               // « Partir d'une facture existante » ne se propose que s'il EXISTE une facture : sur
               // une entreprise neuve, le bouton acceptait le clic pour répondre par un message

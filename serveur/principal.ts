@@ -32,6 +32,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { creerApp } from './app.ts';
+import { emettreLesContrats } from './v10/contrats.ts';
 import { envoyerHttps, livrerAvis, type Envoyeur } from './avis.ts';
 import { creerPool } from './base.ts';
 import { CLE_DU_COFFRE_D_ESSAI, cleDuCoffre, CoffreFaux } from './coffre.ts';
@@ -63,7 +64,7 @@ export type Configuration = {
   base: string; environnement: 'test' | 'production'; port: number; hote: string; listeVolee: string;
   sms: 'aucun'; livreurMs: number; web: string; adresse: string | null; konnect: string; coffre: Buffer; verificationMs: number;
   digigo: { base: string; cle: string } | null;
-  ttn: string | null; ttnMs: number;
+  ttn: string | null; ttnMs: number; contratsMs: number;
   lectures: number;
 };
 
@@ -106,7 +107,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     web: env.SKANFACT_WEB ?? path.join(ici, '../dist/web'),
     adresse, konnect, coffre, verificationMs: Number(env.SKANFACT_VERIFICATION_MS ?? 60_000),
     digigo: digigo ? { base: digigo, cle: env.SKANFACT_DIGIGO_CLE ?? '' } : null,
-    ttn, ttnMs: Number(env.SKANFACT_TTN_MS ?? 60_000),
+    ttn, ttnMs: Number(env.SKANFACT_TTN_MS ?? 60_000), contratsMs: Number(env.SKANFACT_CONTRATS_MS ?? 3_600_000),
     lectures,
   };
 }
@@ -203,15 +204,29 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
     tournee = envoyerALaTtn(ctx).catch((e: unknown) => { app.log.error(e); }).finally(() => { enTournee = false; });
   }, c.ttnMs);
 
+  // Les factures périodiques émises seules (brique 129) : au démarrage (un serveur redémarré plus souvent qu'une fois
+  // l'heure ne les oublierait pas), puis chaque heure, les contrats dus ; un seul tour à la fois.
+  let echeancier: Promise<unknown> = Promise.resolve();
+  let enEcheances = false;
+  const tourDesContrats = () => {
+    if (enEcheances) return;
+    enEcheances = true;
+    echeancier = emettreLesContrats(ctx).catch((e: unknown) => { app.log.error(e); }).finally(() => { enEcheances = false; });
+  };
+  tourDesContrats();
+  const contrats = setInterval(tourDesContrats, c.contratsMs);
+
   return {
     adresse,
     arreter: async () => {
       clearInterval(minuterie);
       clearInterval(veilleur);
       clearInterval(facteur);
+      clearInterval(contrats);
       await tour;
       await verification;
       await tournee;
+      await echeancier;
       await app.close();
       await pool.end();
     },

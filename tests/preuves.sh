@@ -1178,7 +1178,7 @@ prouver "une facture émise par l'interface, sans le serveur" $DV \
   "  if (emise(apres) || (apres && typeof apres.number === 'string' && apres.number !== '')) throw new Refus('v10.emission_par_le_serveur');" "" \
   "une facture ou un avoir ne devient émis que par le serveur"
 prouver "une émission dont le net à payer diffère de l'écran" $DV \
-  "  if (serveur !== demande.netAPayer) throw" "  if (Date.now() < 0) throw" \
+  "  if (demande.netAPayer !== null && serveur !== demande.netAPayer) throw" "  if (Date.now() < 0) throw" \
   "l'émission : le numéro du serveur"
 prouver "les lignes d'une facture émise encore modifiables" $DV \
   "'exchangeRate', 'lines', 'discountRate'" "'exchangeRate', 'discountRate'" \
@@ -6914,6 +6914,121 @@ prouver "une facture annoncée sans le lien de son écran" serveur/ventes/annonc
 prouver "un abonnement à « facture réglée » refusé" serveur/avis.ts \
   "export const EVENEMENTS = ['facture.emise', 'reglement.enregistre', 'facture.reglee'] as const;" "export const EVENEMENTS = ['facture.emise', 'reglement.enregistre'] as const;" \
   "$EV"
+
+# Brique 129 : les factures périodiques émises seules (docs/api-situation.md, S7).
+CS="le serveur émet les factures dues des contrats émis seuls, rattrape les périodes, n'émet rien deux fois, note un refus"
+CSW="la propriétaire coche « Émise seule » ; la fiche le dit, ne propose plus de brouillon, et dit un refus ; la case est grisée pour le commercial"
+prouver "un contrat ordinaire lu par le tour des contrats émis seuls" base/migrations/0065_contrats_seuls.sql \
+  "     and d.contenu ->> 'emettreSeul' = 'true'
+" "" \
+  "$CS"
+prouver "un contrat suspendu lu par le tour des contrats émis seuls" base/migrations/0065_contrats_seuls.sql \
+  "     and coalesce(d.contenu ->> 'active', 'true') <> 'false'
+" "" \
+  "$CS"
+prouver "un contrat à la date mal écrite lu par le tour" base/migrations/0065_contrats_seuls.sql \
+  "     and d.contenu ->> 'nextDate' ~ '^\\d{4}-\\d{2}-\\d{2}\$'
+" "" \
+  "$CS"
+prouver "un contrat dû aujourd'hui attendu demain" base/migrations/0065_contrats_seuls.sql \
+  "     and d.contenu ->> 'nextDate' <= p_jour::text" "     and d.contenu ->> 'nextDate' < p_jour::text" \
+  "$CS"
+prouver "un contrat refusé retenté à chaque tour du même jour" base/migrations/0065_contrats_seuls.sql \
+  "     and coalesce(d.contenu -> 'refusServeur' ->> 'le', '') <> p_jour::text
+" "" \
+  "$CS"
+prouver "un commercial qui fait d'un contrat un contrat émis seul" base/migrations/0065_contrats_seuls.sql \
+  "     and not (socle.mes_roles(new.entreprise) && array['proprietaire', 'administrateur']) then
+    raise exception 'Une facture émise seule" "     and false then
+    raise exception 'Une facture émise seule" \
+  "$CS"
+prouver "un commercial empêché de modifier un contrat déjà émis seul" base/migrations/0065_contrats_seuls.sql \
+  "  if apres is distinct from avant and socle.moi() is not null" "  if apres and socle.moi() is not null" \
+  "$CS"
+prouver "un contrat ordinaire émis s'il est appelé" serveur/v10/contrats.ts \
+  "  if (!ligne || ligne.contenu.emettreSeul !== true || ligne.contenu.active === false) return 0;" "  if (!ligne || ligne.contenu.active === false) return 0;" \
+  "$CS"
+prouver "un contrat suspendu émis s'il est appelé" serveur/v10/contrats.ts \
+  "  if (!ligne || ligne.contenu.emettreSeul !== true || ligne.contenu.active === false) return 0;" "  if (!ligne || ligne.contenu.emettreSeul !== true) return 0;" \
+  "$CS"
+prouver "plus de douze périodes rattrapées d'un coup" serveur/v10/contrats.ts \
+  "periodes < 12)" "periodes < 13)" \
+  "$CS"
+prouver "une facture déjà émise refaite quand la date du contrat recule" serveur/v10/contrats.ts \
+  "    if (!(await lire(tx, entreprise, 'documents', id))) {" "    if (true) {" \
+  "$CS"
+prouver "un contrat réparé qui garde son refus" serveur/v10/contrats.ts \
+  "  delete rec.refusServeur;
+" "" \
+  "$CS"
+prouver "un contrat trimestriel avancé d'un mois" serveur/v10/contrats.ts \
+  "every === 'quarter' ? 3 : 1" "every === 'quarter' ? 1 : 1" \
+  "$CS"
+prouver "un contrat annuel avancé d'un mois" serveur/v10/contrats.ts \
+  "every === 'year' ? 12 :" "every === 'year' ? 1 :" \
+  "$CS"
+prouver "le 31 d'un mois de trente jours" serveur/v10/contrats.ts \
+  "const j = Math.min(Math.max(1, Number(jour) || Number(iso.slice(8, 10))), dernier);" "const j = Math.max(1, Number(jour) || Number(iso.slice(8, 10)));" \
+  "$CS"
+prouver "le délai de paiement de l'entreprise ignoré" serveur/v10/contrats.ts \
+  "? Math.round(Number(societe.paymentTermsDays)) : 30;" "? 30 : 30;" \
+  "$CS"
+prouver "le timbre posé pour un client exonéré" serveur/v10/contrats.ts \
+  "applyStamp: !(client && client.stampExempt)" "applyStamp: true" \
+  "$CS"
+prouver "l'objet d'une facture périodique sans son mois" serveur/v10/contrats.ts \
+  "subject: remplir(rec.subject, v)" "subject: rec.subject" \
+  "$CS"
+prouver "la description d'une ligne sans son mois" serveur/v10/contrats.ts \
+  "description: remplir(l.description ?? '', v)" "description: l.description ?? ''" \
+  "$CS"
+prouver "les notes d'une facture périodique sans leur année" serveur/v10/contrats.ts \
+  "notes: remplir(rec.notes ?? '', v)" "notes: rec.notes ?? ''" \
+  "$CS"
+prouver "un refus noté sans sa raison" serveur/v10/contrats.ts \
+  "const motif = e instanceof Refus ? e.message :" "const motif = false ? e.message :" \
+  "$CS"
+prouver "un refus noté sans son jour" serveur/v10/contrats.ts \
+  "refusServeur: { le: jour," "refusServeur: { le: ''," \
+  "$CS"
+prouver "une facture du serveur comparée à un écran qui n'existe pas" serveur/v10/dossier.ts \
+  "  if (demande.netAPayer !== null && serveur !== demande.netAPayer) throw" "  if (serveur !== demande.netAPayer) throw" \
+  "$CS"
+prouver "un contrat émis seul compté à générer dans le menu" web/public/v10/core.js \
+  "r.active !== false && !r.emettreSeul && r.nextDate && r.nextDate <= t);" "r.active !== false && r.nextDate && r.nextDate <= t);" \
+  "$CSW"
+prouver "un contrat émis seul qui propose son brouillon" web/public/v10/app.js \
+  "    const isDue = active && !r.emettreSeul && r.nextDate <= C.today();" "    const isDue = active && r.nextDate <= C.today();" \
+  "$CSW"
+prouver "la fiche d'un contrat émis seul qui ne le dit pas" web/public/v10/app.js \
+  "      \${r.emettreSeul && active ? \`<div class=\"banner info\" id=\"c-seul\">" "      \${false ? \`<div class=\"banner info\" id=\"c-seul\">" \
+  "$CSW"
+prouver "la fiche d'un contrat refusé qui ne dit pas pourquoi" web/public/v10/app.js \
+  "      \${r.refusServeur ? \`<div class=\"banner warn\" id=\"c-refus\">" "      \${false ? \`<div class=\"banner warn\" id=\"c-refus\">" \
+  "$CSW"
+prouver "un contrat corrigé qui attend demain" web/public/v10/app.js \
+  "          delete r.refusServeur;
+" "" \
+  "$CSW"
+prouver "la case « émise seule » ouverte au commercial" web/public/v10/app.js \
+  "\${bridge.droitsDossier().responsable ? '' : 'disabled'}>" "\${''}>" \
+  "$CSW"
+prouver "le serveur qui ne fait jamais son tour des contrats" serveur/principal.ts \
+  "  const contrats = setInterval(tourDesContrats, c.contratsMs);" "  const contrats = setInterval(() => undefined, c.contratsMs);" \
+  "$CSW"
+prouver "un serveur redémarré qui attend une heure son premier tour" serveur/principal.ts \
+  "  tourDesContrats();
+" "" \
+  "$CSW"
+prouver "la liste qui dit « à générer » d'un contrat émis seul" web/public/v10/app.js \
+  "\${r.emettreSeul && r.active !== false ? ' <span class=\"level\" data-seul>émise seule</span>' : isDue ?" "\${isDue ?" \
+  "$CSW"
+prouver "le filtre « À générer » qui montre les contrats émis seuls" web/public/v10/app.js \
+  "(r.active !== false && !r.emettreSeul && r.nextDate <= C.today()) : (s.st === 'actif')" "(r.active !== false && r.nextDate <= C.today()) : (s.st === 'actif')" \
+  "$CSW"
+prouver "la page vide qui promet que rien n'est jamais émis à ta place" web/public/v10/app.js \
+  "               'Rien n\\'est émis à ta place : un brouillon t\\'attend. Sauf si tu le demandes : un contrat « Émise seule » voit SkanFact émettre ses factures à leur date.'," "               'Rien n\\'est envoyé à ta place : un brouillon t\\'attend, c\\'est tout.'," \
+  "$CSW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

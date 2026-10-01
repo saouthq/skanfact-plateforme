@@ -246,7 +246,8 @@ const decimal = (v: unknown, dec: number) => { const t = nombreEnTexte(v); depui
 // `ticket` (brique 115) : un ticket de caisse, par sa route à lui ; il a sa série (TIC) et peut se vendre à un passant
 // (le client « Vente au comptoir »). Une facture marquée ticket ne passe pas par la route des factures, ni l'inverse.
 export async function emettreDepuisV10(tx: Transaction, entreprise: string, utilisateur: string,
-  demande: { document: Json; client: Json | null; revision: number | null; rang: number | null; netAPayer: string }, type: 'facture' | 'avoir' = 'facture',
+  // `netAPayer` : celui que l'écran a montré ; `null` pour une pièce que le serveur fait seul (brique 129).
+  demande: { document: Json; client: Json | null; revision: number | null; rang: number | null; netAPayer: string | null }, type: 'facture' | 'avoir' = 'facture',
   options: { ticket?: boolean; retour?: boolean } = {}) {
   const db = requetes(tx);
   const doc = demande.document;
@@ -341,7 +342,7 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   // Deux chemins, un chiffre : le net à payer que l'écran de la v10 a montré doit être celui que le
   // serveur scelle. Sinon rien n'est émis (et aucun numéro n'est pris : tout s'annule).
   const serveur = versTexte(r.totaux.netAPayer, r.devise.decimales);
-  if (serveur !== demande.netAPayer) throw new Refus('v10.ecart_montant', { valeurs: { ecran: demande.netAPayer, serveur } });
+  if (demande.netAPayer !== null && serveur !== demande.netAPayer) throw new Refus('v10.ecart_montant', { valeurs: { ecran: demande.netAPayer, serveur } });
 
   // 5. La pièce du dossier devient émise, avec le numéro du serveur.
   // L'instant de l'émission (`issuedTs`), la v10 le pose elle-même juste après, comme avant.
