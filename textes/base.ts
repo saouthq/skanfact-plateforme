@@ -287,6 +287,8 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   // Changer de caissier (0062, brique 123).
   { base: 'Seul un caissier pose son code de caisse.', cle: 'base.caisse.code_caissier', fr: 'seul un caissier (qui n\'est ni propriétaire, ni administrateur, ni paie) pose un code de caisse : quatre chiffres n\'ouvrent jamais ces droits' },
   { base: 'Ce poste ne change pas de caissier.', cle: 'base.caisse.relais', fr: 'ce poste ne change pas de caissier : il faut l\'appareil qui tient la caisse, et un caissier qui a posé son code' },
+  // Le retour à la caisse (0063, brique 124).
+  { base: 'Seul un responsable pose un code de responsable.', cle: 'base.caisse.code_responsable', fr: 'seul le propriétaire ou un administrateur pose un code de responsable' },
   // L'accord au-delà d'une commande fournisseur (0055, brique 114).
   { base: 'Le montant d\'une commande fournisseur permis sans accord se règle par le propriétaire ou un administrateur.', cle: 'base.accord.commande', fr: 'le montant d\'une commande fournisseur permis sans accord se règle par le propriétaire ou un administrateur' },
 ];

@@ -173,6 +173,38 @@ ticket en ligne, la copie du poste ne s'écrivait que 300 ms plus tard ; une pag
 oubliait ce ticket jusqu'au retour du réseau. Un ticket est un fait : la copie le garde maintenant **avant** que l'écran
 ne le dise (le test le vérifie aussitôt le ticket encaissé). 1 preuve.
 
+## Ce que fait la brique 124 : le retour, avec le code d'un responsable (01/10/2026, par délégation ; `03` § 2.1)
+
+Une cliente rapporte un article : sur l'aperçu du ticket, « Rendre un article… » ; un avoir s'établit sur le ticket (un
+ticket encaissé ne s'annule jamais, `01` R6), et l'argent rendu sort du tiroir.
+
+- **T1. Le code de responsable.** Le propriétaire et l'administrateur posent **leur** code (« Mon code de responsable… »,
+  page Caisse) : 4 chiffres, les mêmes règles que le code de caisse, gardé en empreinte. **Décidé** : c'est un code à
+  part du code de caisse (brique 123) : il **n'ouvre aucune session**, il approuve un geste, sur l'appareil de la caisse.
+  Un caissier n'en a jamais. Qui perd son rôle de responsable n'approuve plus, même avec son code.
+- **T2. Le caissier rend avec un responsable présent.** Il choisit le responsable dans la liste (ceux qui ont posé leur
+  code) ; le responsable tape son code sur le même poste. Un code faux ne rend rien ; après 5, une attente, jamais un
+  blocage. Le propriétaire et l'administrateur rendent eux-mêmes, sans code. L'avoir porte les deux noms (`retourCaisse`).
+- **T3. Le serveur ne croit pas l'écran.** Chaque ligne rendue est une ligne du ticket (même article, même prix, même
+  TVA) ; jamais plus que ce qui reste à rendre (le vendu moins les retours déjà faits) ; l'argent rendu est le net de
+  l'avoir qu'il scelle lui-même, ce jour, vers un compte du dossier.
+- **T4. L'avoir est numéroté par le serveur** dans la série des avoirs (AVO). **Décidé** : le caissier prend cette série
+  pour ce geste seulement (`caisse.serie_retour`) ; la route des avoirs garde son geste (il n'émet pas d'autre avoir).
+  Le retour d'un ticket « au comptoir » (sans client) se fait sur la même fiche « Vente au comptoir ». Pas de fichier
+  TEIF pour un avoir de caisse, comme pour le ticket (**À VÉRIFIER** avec la loi de la facture électronique).
+- **T5. Le tiroir.** Le retour se fait sur l'appareil qui tient la caisse ouverte (l'argent sort de **son** tiroir) ; il
+  est rangé dans la session (`caisse.retour`). Le Z dit l'argent rendu par mode, et le tiroir attendu le retire. Un
+  caissier voit les retours faits sur ses tickets (sinon sa page lui proposerait de rendre deux fois).
+  **À VÉRIFIER** : rendre un ticket d'un autre caissier (la recherche d'un ticket par son numéro) ; la remise au-delà
+  du plafond et le tiroir ouvert sans vente, avec le même code (`03` § 2.1).
+
+Tests : `tests/v10/caisse-retour.test.ts` (les codes, le caissier sans responsable, le code faux, plus que vendu, un
+autre prix, un autre montant, un autre appareil, AVO-…-001 aux deux noms, AVO-…-002, plus rien à rendre, l'attente, le
+responsable qui ne l'est plus, le Z, ce que voit le caissier) ; `tests/web/caisse-retour.test.ts` (Nadia pose son code
+à son bureau ; Sami rend un pain au comptoir avec elle, un code faux d'abord ; le bilan, la page rouverte, le Z ; trois
+écrans regardés). 16 preuves (et 4 reciblées). Défaut trouvé en chemin : « Mon code de caisse… » recevait l'événement du clic, pris
+pour « responsable » : le caissier posait un code de responsable (refusé). 1 preuve.
+
 ## Ce qui part au serveur
 
 Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, reçu, rendu, paiement, client facultatif)
@@ -196,5 +228,5 @@ Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, r
 - Hors ligne : fait (brique 120, plus haut).
 - Le caissier à l'écran : fait (brique 121). Changer de caissier avec le code à 4 chiffres : fait (brique 123).
 - Le tiroir du bilan du jour : fait (brique 122, plus haut).
-- **Le retour** avec le code d'un responsable (03 § 2.1), la facture demandée pour un ticket, l'écriture par session.
+- Le retour avec le code d'un responsable : fait (brique 124). La facture demandée pour un ticket, l'écriture par session.
 - **L'agent local** (étape 4) : imprimante de tickets, tiroir, douchette.

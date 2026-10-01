@@ -782,6 +782,25 @@
     },
     ouvrirCaisse: async (/** @type {string} */ fond) => { const r = await appel('POST', '/caisse/ouvrir', { fond }); retenirNumerotation(r.numerotation); return r; },
     fermerCaisse: async (/** @type {string} */ compte) => appel('POST', '/caisse/fermer', { compte }),
+    // Le retour à la caisse (brique 124 ; docs/caisse.md, T1 à T5) : le serveur numérote l'avoir, rend l'argent sur le
+    // ticket et le compte au Z ; un caissier y joint le code d'un responsable présent. Il faut le réseau.
+    responsables: async () => (await appel('GET', '/caisse/responsables')).responsables,
+    poserCodeResponsable: async (/** @type {string} */ code) => appel('PUT', '/caisse/code-responsable', { code }),
+    rendreTicket: async (/** @type {any} */ ticket, /** @type {any} */ avoir, /** @type {any} */ paiement, /** @type {number} */ montant, /** @type {any} */ responsable) => {
+      if (enCours) await enCours;
+      const decimales = !avoir.currency || avoir.currency === 'DT' || avoir.currency === 'TND' ? 3 : 2;
+      const liste = /** @type {any} */ (window).__data && /** @type {any} */ (window).__data.documents;
+      const rang = Array.isArray(liste) ? liste.length : null;
+      const r = await appel('POST', '/dossier-v10/rendre', { ticket: ticket.id, avoir: encoder(avoir), rang,
+        netAPayer: Number(montant).toFixed(decimales), paiement: encoder(paiement), ...(responsable ? { responsable } : {}) });
+      for (const [cle, x] of [[ticket.id, r.ticket], [avoir.id, r.avoir]]) {
+        const k = `documents\u0000${cle}`;
+        vu.set(k, { json: JSON.stringify(x.contenu), rang: cle === avoir.id ? rang : vu.get(k)?.rang ?? null, revision: x.revision });
+        base.set(k, x.revision);
+      }
+      await garderLaCopieMaintenant();
+      return { avoir: decoder(r.avoir.contenu), ticket: decoder(r.ticket.contenu), numero: r.numero };
+    },
     // Changer de caissier (brique 123 ; docs/caisse.md, R1 à R5) : chacun pose son code à 4 chiffres ; sur le poste de la
     // caisse, le suivant le tape et prend la main. Ce qui attend le réseau part d'abord : sinon, il partirait sous son nom.
     caissiers: async () => (await appel('GET', '/caisse/caissiers')).caissiers,

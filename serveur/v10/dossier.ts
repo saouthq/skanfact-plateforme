@@ -242,7 +242,7 @@ const decimal = (v: unknown, dec: number) => { const t = nombreEnTexte(v); depui
 // (le client « Vente au comptoir »). Une facture marquée ticket ne passe pas par la route des factures, ni l'inverse.
 export async function emettreDepuisV10(tx: Transaction, entreprise: string, utilisateur: string,
   demande: { document: Json; client: Json | null; revision: number | null; rang: number | null; netAPayer: string }, type: 'facture' | 'avoir' = 'facture',
-  options: { ticket?: boolean } = {}) {
+  options: { ticket?: boolean; retour?: boolean } = {}) {
   const db = requetes(tx);
   const doc = demande.document;
   const cle = String(doc.id ?? '');
@@ -255,8 +255,10 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
     .where('entreprise', '=', entreprise).where('collection', '=', 'documents').where('cle', '=', cle).forUpdate().executeTakeFirst();
   if ((stocke ? Number(stocke.revision) : null) !== demande.revision) throw new Conflit([{ collection: 'documents', cle }]);
   if (emise(estObjet(stocke?.contenu) ? stocke.contenu : null)) throw new Refus('ventes.deja_emise');
-  // Un ticket sans client se vend « au comptoir » : une fiche à part, la même pour tous les passants.
-  const comptoir = ticket && !doc.clientId;
+  // Un ticket sans client se vend « au comptoir » : une fiche à part, la même pour tous les passants. Le retour d'un tel
+  // ticket (brique 124) aussi.
+  const retour = options.retour === true && type === 'avoir';
+  const comptoir = (ticket || retour) && !doc.clientId;
   const client: Json | null = comptoir ? { id: '__comptoir', name: rendre(t('caisse.comptoir'), 'fr') } : demande.client;
   if (!client || typeof client.id !== 'string' || (!comptoir && client.id !== doc.clientId)) throw new Refus('v10.client_manquant');
   // La facture électronique (brique 80) : la fiche de l'entreprise dit si elle y est soumise. Soumise, une
@@ -264,7 +266,7 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   // dit AVANT le numéro (un numéro pris ne se reprend pas).
   const societe = commeLaV10((await db.selectFrom('socle.dossier_v10').select('contenu')
     .where('entreprise', '=', entreprise).where('collection', '=', '_racine').where('cle', '=', 'company').executeTakeFirst())?.contenu ?? {}) as Json;
-  if (societe.efacture === true && !doc.ticket) {
+  if (societe.efacture === true && !doc.ticket && !retour) {
     const manques = manquesAvantNumero(commeLaV10(doc) as Json, commeLaV10(client) as Json, societe);
     if (manques.length) throw new Refus('efacture.manques', { valeurs: { manques: manques.map((m) => m.message).join(' ') } });
   }
@@ -325,7 +327,9 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   //    v10 numérotait dès la première pièce.
   const prefixe = ticket ? 'TIC' : SERIE_V10[type] ?? 'FAC';
   // Créée au premier besoin par l'émission elle-même (brique 99) : un commercial n'a pas à créer la série.
-  const serie = String((await tx.query('select ventes.serie_v10($1, $2, $3) id', [entreprise, type, prefixe])).rows[0].id);
+  // Le retour à la caisse (brique 124) : la série des avoirs, que le caissier prend aussi pour ce geste-là.
+  const serie = retour ? String((await tx.query('select caisse.serie_retour($1) id', [entreprise])).rows[0].id)
+    : String((await tx.query('select ventes.serie_v10($1, $2, $3) id', [entreprise, type, prefixe])).rows[0].id);
 
   // 4. L'émission : les contrôles, le numéro, les montants en entiers, le maillon.
   const r = await emettre(tx, utilisateur, entreprise, piece, serie);
@@ -342,7 +346,7 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   // 6. Le fichier de la facture électronique, écrit maintenant et gardé (jamais réécrit) ; ses montants
   //    sont ceux que le serveur vient de sceller, sinon rien n'est émis. Une entreprise non soumise dont
   //    la fiche ne permet pas le fichier émet quand même : il s'écrira à la main, comme dans la v10.
-  if (!doc.ticket) {
+  if (!doc.ticket && !retour) {
     const origine = corrige && typeof doc.creditOf === 'string' ? (await db.selectFrom('socle.dossier_v10').select('contenu')
       .where('entreprise', '=', entreprise).where('collection', '=', 'documents').where('cle', '=', doc.creditOf).executeTakeFirst())?.contenu ?? null : null;
     const f = fichierTeif(commeLaV10(contenu) as Json, commeLaV10(client) as Json, societe, origine ? commeLaV10(origine) as Json : null);

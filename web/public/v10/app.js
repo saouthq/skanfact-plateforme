@@ -12225,6 +12225,40 @@
   }
   // Rendre un article : on choisit quoi (jamais plus que ce qui reste à rendre), comment on rend
   // l'argent, et le montant se lit AVANT de valider (9.4.2).
+  // (plateforme, brique 124) Qui approuve le retour : les responsables qui ont posé leur code de responsable.
+  async function dessinerResponsable(el) {
+    let liste;
+    try { liste = await bridge.responsables(); } catch (e) { el.innerHTML = `<p class="small warn-text">${h(plainError(e))}</p>`; return; }
+    el.innerHTML = liste.length
+      ? `<label class="field">${lbl('Responsable présent', 'cs.responsable')}<select id="rd-resp"><option value="">Choisis…</option>${liste.map(x => `<option value="${h(x.id)}">${h(x.nom)}</option>`).join('')}</select></label>
+        <label class="field">Son code de responsable<input type="password" inputmode="numeric" maxlength="4" autocomplete="off" class="num" id="rd-code"></label>`
+      : '<p class="small warn-text" id="rd-sans-responsable">Un retour se fait avec le code d\'un responsable présent, et aucun n\'a encore posé le sien : le propriétaire ou un administrateur le pose depuis la page Caisse, avec « Mon code de responsable… ».</p>';
+  }
+  async function rendreParLeServeur(doc, r, root, close) {
+    const b = $('#ok', root);
+    let responsable;
+    if ($('#rd-responsable', root)) {
+      const qui = $('#rd-resp', root), code = $('#rd-code', root);
+      if (!qui) return refus($('[data-rd]', root), 'Un retour se fait avec le code d\'un responsable présent : aucun n\'a encore posé le sien.');
+      if (!qui.value) return refus(qui, 'Choisis le responsable présent : c\'est lui qui tape son code.');
+      if (!/^[0-9]{4}$/.test(code.value)) return refus(code, 'Le code de responsable a 4 chiffres.');
+      responsable = { utilisateur: qui.value, code: code.value };
+    }
+    b.disabled = true;
+    try {
+      const x = await bridge.rendreTicket(doc, Object.assign({}, r.avoir, { number: '' }), r.paiement, r.montant, responsable);
+      data.documents.push(x.avoir);
+      const i = data.documents.findIndex(d => d.id === doc.id);
+      if (i >= 0) data.documents[i] = x.ticket;
+      close();
+      toast(`Avoir ${x.numero} : ${C.money(r.montant, company().currency)} rendus.`);
+      vers('#/caisse')();
+    } catch (e) {
+      b.disabled = false;
+      if ($('#rd-code', root)) $('#rd-code', root).value = '';
+      refus($('#rd-code', root) || $('[data-rd]', root), plainError(e));
+    }
+  }
   function rendreForm(doc) {
     const reste = C.resteARendre(data, doc).filter(r => r.reste > 0);
     const cur = company().currency;
@@ -12239,6 +12273,7 @@
         <label class="field">${lbl('Rendu en', 'cs.modeRendu')}<select name="mode">${C.MODES_CAISSE.map(([k, l]) => `<option value="${k}" ${k === modeOrig ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <label class="field">${lbl('Motif', 'cs.motif')}<input type="text" name="motif" placeholder="Article défectueux, échange…"></label>
       </form>
+      ${bridge.rendreTicket && !(bridge.droitsDossier ? bridge.droitsDossier() : {}).responsable ? '<div class="grid-2 mt" id="rd-responsable"></div>' : ''}
       <p class="annonce-stable" id="rd-annonce"></p>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok" disabled style="min-width:14em;justify-content:center">Rembourser</button></div>`,
     (root, close) => {
@@ -12256,14 +12291,16 @@
         $('#ok', root).disabled = !lignes.length;
       };
       root.addEventListener('input', annonce); annonce();
+      if ($('#rd-responsable', root)) dessinerResponsable($('#rd-responsable', root));
       $('#ok', root).onclick = () => {
         const v = formValues($('#rdf', root));
         if (closedBlock(C.today(), 'Ce remboursement')) return;
         if (licenceBlock('Émettre un avoir sur un ticket', 'caisse')) return;
-        if (bridge.emettre) { toast('Le retour d\'un ticket n\'est pas encore dans la version en ligne de SkanFact : rien n\'a été rendu.', true); return; }
         const r = C.remboursementDeTicket(data, company(), doc, qtes(), { mode: v.mode, motif: v.motif });
         // Le refus montre la case qui le règle : le mode quand c'est le compte qui manque, sinon la quantité.
         if (!r.ok) return refus(C.compteDuMode(data, v.mode) ? $('[data-rd]', root) : $('[name=mode]', root), r.motif);
+        // (plateforme, brique 124) Le serveur numérote l'avoir et rend l'argent : le numéro pris sur ce poste ne sert pas.
+        if (bridge.rendreTicket) { void rendreParLeServeur(doc, r, root, close); return; }
         data.documents.push(r.avoir);
         doc.payments = (doc.payments || []).concat([r.paiement]);
         save(true); close();
@@ -12318,7 +12355,9 @@
     // (brique 123) Changer de caissier sur le poste de la caisse ; chaque caissier pose son code, d'où qu'il soit.
     el.insertAdjacentHTML('beforeend', relaisCaisse());
     if ($('#cs-relais')) $('#cs-relais').onclick = changerDeCaissier;
-    if ($('#cs-mon-code')) $('#cs-mon-code').onclick = monCodeDeCaisse;
+    // (Sans l'événement du clic, que la fenêtre lirait comme « responsable ».)
+    if ($('#cs-mon-code')) $('#cs-mon-code').onclick = () => monCodeDeCaisse(false);
+    if ($('#cs-code-responsable')) $('#cs-code-responsable').onclick = () => monCodeDeCaisse(true);
     // (brique 120) Les alertes de caisse, pour le propriétaire et l'administrateur : ce que le serveur a constaté sur les
     // tickets d'un poste, sans rien corriger.
     if ((caisseEtat.alertes || []).length) el.insertAdjacentHTML('beforeend', alertesCaisse(caisseEtat.alertes));
@@ -12362,7 +12401,8 @@
   function relaisCaisse() {
     const d = bridge.droitsDossier ? bridge.droitsDossier() : {};
     const boutons = [caisseEtat.posteDeCaisse ? '<button class="btn btn-sm" id="cs-relais">Changer de caissier…</button>' : '',
-      d.caisse && !d.responsable ? '<button class="btn btn-sm" id="cs-mon-code">Mon code de caisse…</button>' : ''].filter(Boolean);
+      d.caisse && !d.responsable ? '<button class="btn btn-sm" id="cs-mon-code">Mon code de caisse…</button>' : '',
+      d.responsable && bridge.poserCodeResponsable ? '<button class="btn btn-sm" id="cs-code-responsable">Mon code de responsable…</button>' : ''].filter(Boolean);
     return boutons.length ? `<div class="actions mb" id="cs-relais-actions">${boutons.join('')} ${info('cs.relais')}</div>` : '';
   }
   async function changerDeCaissier() {
@@ -12396,9 +12436,10 @@
         ($('input[name="cs-caissier"]:checked', root) ? code : $('input[name="cs-caissier"]', root)).focus();
       });
   }
-  function monCodeDeCaisse() {
-    modal(`<h2>Mon code de caisse</h2>
-      <p>Quatre chiffres, à toi seul. Sur le poste de la caisse, « Changer de caissier… », ton nom, ton code : la caisse est à toi, sans mot de passe. Ne le donne à personne : les tickets que tu encaisses portent ton nom.</p>
+  function monCodeDeCaisse(responsable) {
+    modal(`<h2>${responsable ? 'Mon code de responsable' : 'Mon code de caisse'}</h2>
+      <p>${responsable ? 'Quatre chiffres, à toi seul. À la caisse, un retour se fait avec le code d\'un responsable présent : tu le tapes sur le poste de la caisse, et l\'avoir porte ton nom. Il n\'ouvre rien d\'autre. Ne le donne à personne.'
+        : 'Quatre chiffres, à toi seul. Sur le poste de la caisse, « Changer de caissier… », ton nom, ton code : la caisse est à toi, sans mot de passe. Ne le donne à personne : les tickets que tu encaisses portent ton nom.'}</p>
       <label class="field">Nouveau code (4 chiffres)<input type="password" inputmode="numeric" maxlength="4" autocomplete="off" class="num" id="cs-nouveau"></label>
       <label class="field">Le même, encore une fois<input type="password" inputmode="numeric" maxlength="4" autocomplete="off" class="num" id="cs-nouveau-bis"></label>
       <p class="small warn-text" role="alert" id="cs-code-refus"></p>
@@ -12410,7 +12451,7 @@
           const a = $('#cs-nouveau', root), b = $('#cs-nouveau-bis', root);
           if (!/^[0-9]{4}$/.test(a.value)) { refus('Le code de caisse a 4 chiffres, ni plus ni moins.', a); return; }
           if (a.value !== b.value) { refus('Les deux codes ne sont pas les mêmes : retape-le.', b); return; }
-          try { await bridge.poserCodeCaisse(a.value); close(); toast('Ton code de caisse est enregistré.'); }
+          try { await (responsable ? bridge.poserCodeResponsable(a.value) : bridge.poserCodeCaisse(a.value)); close(); toast(responsable ? 'Ton code de responsable est enregistré.' : 'Ton code de caisse est enregistré.'); }
           catch (e) { a.value = ''; b.value = ''; refus(plainError(e), a); }
         };
         $('#cs-nouveau', root).focus();
@@ -12443,6 +12484,7 @@
       <table class="list compact" id="cs-z-table"><tbody>
         ${ligne('Ventes TTC', h(argentCaisse(z.total)))}${ligne('dont TVA', h(argentCaisse(z.tva)))}
         ${Object.entries(z.parMode).map(([k, v]) => ligne(h(MODES_Z[k] || k), h(argentCaisse(v)))).join('')}
+        ${Object.entries(z.rendu || {}).map(([k, v]) => ligne(`Rendu (${h((MODES_Z[k] || k).toLowerCase())})`, `− ${h(argentCaisse(v))}`)).join('')}
         ${ligne('Fond de caisse', h(argentCaisse(z.fond)))}${ligne('<b>Le tiroir devait contenir</b>', `<b>${h(argentCaisse(z.attendu))}</b>`)}
         ${ligne('Espèces comptées', h(argentCaisse(z.compte)))}
         ${ligne('<b>Écart</b>', `<b>${h(argentCaisse(z.ecart))}</b>`, ecart ? 'warn-text' : '')}

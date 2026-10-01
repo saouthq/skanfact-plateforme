@@ -4719,10 +4719,10 @@ prouver "le fichier El Fatoora jamais écrit à l'émission" serveur/v10/dossier
   "    if (f.ok) {" "    if (false) {" \
   "$EF1"
 prouver "une entreprise soumise qui émet une pièce au fichier refusé" serveur/v10/dossier.ts \
-  "  if (societe.efacture === true && !doc.ticket) {" "  if (false) {" \
+  "  if (societe.efacture === true && !doc.ticket && !retour) {" "  if (false) {" \
   "$EF2"
 prouver "une entreprise non soumise empêchée d'émettre" serveur/v10/dossier.ts \
-  "  if (societe.efacture === true && !doc.ticket) {" "  if (!doc.ticket) {" \
+  "  if (societe.efacture === true && !doc.ticket && !retour) {" "  if (!doc.ticket && !retour) {" \
   "$EF3"
 prouver "un fichier El Fatoora aux montants faux gardé" serveur/v10/teif.ts \
   "    if (fichier !== serveur) return { code, fichier: fichier ?? '—', serveur };
@@ -6184,7 +6184,7 @@ prouver "un ticket encaissé sans son paiement" serveur/v10/routes.ts \
   "      const avecPaiement = { ...r.contenu, payments: paiements," "      const avecPaiement = { ...r.contenu, payments: []," \
   "$TK"
 prouver "un passant vendu sans le client du comptoir" serveur/v10/dossier.ts \
-  "  const comptoir = ticket && !doc.clientId;" "  const comptoir = false;" \
+  "  const comptoir = (ticket || retour) && !doc.clientId;" "  const comptoir = retour && !doc.clientId;" \
   "$TK"
 prouver "la caisse qui refuse encore d'encaisser en ligne" web/public/v10/app.js \
   "        if (bridge.encaisser) {" "        if (bridge.emettre) { toast('La caisse n\\'est pas encore dans la version en ligne de SkanFact : rien n\\'a été vendu.', true); return; }
@@ -6442,7 +6442,7 @@ prouver "le caissier qui ne retrouve pas ses tickets" serveur/v10/droits.ts \
   "  return [...visibles, ...tous.filter((o) => o.collection === 'documents' && siens.has(o.cle))];" "  return visibles;" \
   "$CW"
 prouver "le caissier qui lit les tickets des autres" serveur/v10/droits.ts \
-  "and cree_par = \$2 and contenu ->> 'ticket' = 'true'\`" "and \$2::uuid is not null and contenu ->> 'ticket' = 'true'\`" \
+  "      and cree_par = \$2 and contenu ->> 'ticket' = 'true')" "      and \$2::uuid is not null and contenu ->> 'ticket' = 'true')" \
   "$CW"
 prouver "la page Caisse absente du menu du caissier" web/public/v10/app.js \
   "    if (d && id === 'caisse' && d.caisse) return false;
@@ -6532,6 +6532,64 @@ prouver "le ticket en ligne que la copie du poste n'a pas encore quand l'écran 
         return decoder(r.contenu);" "        garderLaCopie();
         return decoder(r.contenu);" \
   "$CHW"
+
+# ── Le retour à la caisse, avec le code d'un responsable (brique 124, 01/10/2026 ; docs/caisse.md, T1 à T5) ──
+CT="Sami rend un pain avec le code de Nadia ; jamais plus que vendu ; le Z compte l'argent rendu"
+CTW="Sami rend un pain avec le code de Nadia ; le bilan et le Z comptent l'argent rendu"
+prouver "un caissier qui rend sans le code d'un responsable" serveur/caisse/retour.ts \
+  "      if (!roles.some((r) => r === 'proprietaire' || r === 'administrateur')) {" "      if (false) {" \
+  "$CT"
+prouver "un code de responsable faux qui passe" serveur/caisse/retour.ts \
+  "!/^[0-9]{4}\$/.test(rsp.code) || !await correspond(e, rsp.code)" "!/^[0-9]{4}\$/.test(rsp.code)" \
+  "$CT"
+prouver "cinq codes de responsable faux, et le sixième n'attend pas" serveur/caisse/retour.ts \
+  "        if (attente) return { statut: 403, corps: { motif: attenteLisible(attente, maintenant), qui: [], bouton: null } };
+" "" \
+  "$CT"
+prouver "rendre plus que le ticket n'a vendu" serveur/caisse/retour.ts \
+  "        if ((deja.get(i) ?? 0n) + (dansCetAvoir.get(i) ?? 0n) > quantite(t.qty)) {" "        if (false) {" \
+  "$CT"
+prouver "rendre un article à un autre prix que celui du ticket" serveur/caisse/retour.ts \
+  " || !meme(l.unitPrice, t.unitPrice)" "" \
+  "$CT"
+prouver "l'argent rendu qui n'est pas le net de l'avoir" serveur/caisse/retour.ts \
+  "if (rendu !== net || p.date" "if (p.date" \
+  "$CT"
+prouver "rendre depuis un autre appareil que celui qui tient la caisse" serveur/caisse/retour.ts \
+  "      if (s.appareil !== qui.appareil) throw new Refus('caisse.ouverte_ailleurs_retour'" "      if (false) throw new Refus('caisse.ouverte_ailleurs_retour'" \
+  "$CT"
+prouver "l'avoir du retour qui ne porte pas le nom du responsable" serveur/caisse/retour.ts \
+  "retourCaisse: { faitPar, ...(approuvePar ? { approuvePar: approuvePar.nom } : {}) }" "retourCaisse: { faitPar }" \
+  "$CT"
+prouver "un ancien administrateur qui approuve encore à la caisse" base/migrations/0063_retour_caisse.sql \
+  "                    and m.roles && array['proprietaire', 'administrateur']::text[])" "                    )" \
+  "$CT"
+prouver "le Z qui compte l'argent rendu avec les encaissements" serveur/caisse/routes.ts \
+  "    where t.session = \$1 and r.montant > 0 group by r.mode" "    where t.session = \$1 group by r.mode" \
+  "$CT"
+prouver "le Z qui oublie l'argent rendu dans le tiroir" serveur/caisse/routes.ts \
+  "  const especes = (parMode.especes ?? 0n) - (rendu.especes ?? 0n);" "  const especes = parMode.especes ?? 0n;" \
+  "$CT"
+prouver "le retour d'un ticket au comptoir, sans client, refusé" serveur/v10/dossier.ts \
+  "  const comptoir = (ticket || retour) && !doc.clientId;" "  const comptoir = ticket && !doc.clientId;" \
+  "$CT"
+prouver "le caissier qui ne voit pas les retours faits sur ses tickets" serveur/v10/droits.ts \
+  "      and contenu ->> 'creditOf' in (select cle from tickets)\`" "      and false\`" \
+  "$CT"
+prouver "le retour à l'écran qui ne passe pas par le serveur" web/public/v10/app.js \
+  "        if (bridge.rendreTicket) { void rendreParLeServeur(doc, r, root, close); return; }
+" "" \
+  "$CTW"
+prouver "« Mon code de responsable » absent pour la propriétaire" web/public/v10/app.js \
+  "      d.responsable && bridge.poserCodeResponsable ? '<button" "      false ? '<button" \
+  "$CTW"
+prouver "le Z à l'écran qui ne dit pas l'argent rendu" web/public/v10/app.js \
+  '${Object.entries(z.rendu || {}).map(' '${Object.entries({}).map(' \
+  "$CTW"
+
+prouver "« Mon code de caisse » qui pose un code de responsable (l'événement du clic pris pour un drapeau)" web/public/v10/app.js \
+  "\$('#cs-mon-code').onclick = () => monCodeDeCaisse(false);" "\$('#cs-mon-code').onclick = monCodeDeCaisse;" \
+  "$CRW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

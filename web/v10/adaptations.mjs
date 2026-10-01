@@ -674,4 +674,5 @@ export const ADAPTATIONS = [
   ...lireFichier('accueil-role.txt'),
   ...lireFichier('groupe.txt'),
   ...lireFichier('caisse-session.txt'),
+  ...lireFichier('caisse-retour.txt'),
 ];

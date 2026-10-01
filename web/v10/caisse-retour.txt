@@ -1,0 +1,142 @@
+Le retour à la caisse (brique 124 ; 03 § 2.1 « Caisse » ; serveur/caisse/retour.ts ; docs/caisse.md, T1 à T5).
+Format : voir sans-paquets.mjs.
+
+« Rendre un article… » (l'aperçu d'un ticket) passe par le serveur : il numérote l'avoir, rend l'argent sur le ticket et
+le compte au Z de la session. Qui n'est ni propriétaire ni administrateur choisit le responsable présent, qui tape SON
+code de responsable sur le même poste ; l'avoir porte les deux noms. Le propriétaire et l'administrateur posent leur
+code avec « Mon code de responsable… », sur la page Caisse. Le Z dit l'argent rendu.
+
+── Les écrans (app.js) ──
+
+== app.js | le retour : le responsable présent et son code, sous le mode et le motif
+-- avant
+        <label class="field">${lbl('Motif', 'cs.motif')}<input type="text" name="motif" placeholder="Article défectueux, échange…"></label>
+      </form>
+-- après
+        <label class="field">${lbl('Motif', 'cs.motif')}<input type="text" name="motif" placeholder="Article défectueux, échange…"></label>
+      </form>
+      ${bridge.rendreTicket && !(bridge.droitsDossier ? bridge.droitsDossier() : {}).responsable ? '<div class="grid-2 mt" id="rd-responsable"></div>' : ''}
+-- fin
+
+== app.js | le retour : la liste des responsables se lit à l'ouverture
+-- avant
+      root.addEventListener('input', annonce); annonce();
+      $('#ok', root).onclick = () => {
+        const v = formValues($('#rdf', root));
+-- après
+      root.addEventListener('input', annonce); annonce();
+      if ($('#rd-responsable', root)) dessinerResponsable($('#rd-responsable', root));
+      $('#ok', root).onclick = () => {
+        const v = formValues($('#rdf', root));
+-- fin
+
+== app.js | le retour passe par le serveur (plus de « pas encore dans la version en ligne »)
+-- avant
+        if (bridge.emettre) { toast('Le retour d\'un ticket n\'est pas encore dans la version en ligne de SkanFact : rien n\'a été rendu.', true); return; }
+        const r = C.remboursementDeTicket(data, company(), doc, qtes(), { mode: v.mode, motif: v.motif });
+        // Le refus montre la case qui le règle : le mode quand c'est le compte qui manque, sinon la quantité.
+        if (!r.ok) return refus(C.compteDuMode(data, v.mode) ? $('[data-rd]', root) : $('[name=mode]', root), r.motif);
+-- après
+        const r = C.remboursementDeTicket(data, company(), doc, qtes(), { mode: v.mode, motif: v.motif });
+        // Le refus montre la case qui le règle : le mode quand c'est le compte qui manque, sinon la quantité.
+        if (!r.ok) return refus(C.compteDuMode(data, v.mode) ? $('[data-rd]', root) : $('[name=mode]', root), r.motif);
+        // (plateforme, brique 124) Le serveur numérote l'avoir et rend l'argent : le numéro pris sur ce poste ne sert pas.
+        if (bridge.rendreTicket) { void rendreParLeServeur(doc, r, root, close); return; }
+-- fin
+
+== app.js | le retour par le serveur : le responsable présent, son code, puis l'avoir du serveur
+-- avant
+  function rendreForm(doc) {
+-- après
+  // (plateforme, brique 124) Qui approuve le retour : les responsables qui ont posé leur code de responsable.
+  async function dessinerResponsable(el) {
+    let liste;
+    try { liste = await bridge.responsables(); } catch (e) { el.innerHTML = `<p class="small warn-text">${h(plainError(e))}</p>`; return; }
+    el.innerHTML = liste.length
+      ? `<label class="field">${lbl('Responsable présent', 'cs.responsable')}<select id="rd-resp"><option value="">Choisis…</option>${liste.map(x => `<option value="${h(x.id)}">${h(x.nom)}</option>`).join('')}</select></label>
+        <label class="field">Son code de responsable<input type="password" inputmode="numeric" maxlength="4" autocomplete="off" class="num" id="rd-code"></label>`
+      : '<p class="small warn-text" id="rd-sans-responsable">Un retour se fait avec le code d\'un responsable présent, et aucun n\'a encore posé le sien : le propriétaire ou un administrateur le pose depuis la page Caisse, avec « Mon code de responsable… ».</p>';
+  }
+  async function rendreParLeServeur(doc, r, root, close) {
+    const b = $('#ok', root);
+    let responsable;
+    if ($('#rd-responsable', root)) {
+      const qui = $('#rd-resp', root), code = $('#rd-code', root);
+      if (!qui) return refus($('[data-rd]', root), 'Un retour se fait avec le code d\'un responsable présent : aucun n\'a encore posé le sien.');
+      if (!qui.value) return refus(qui, 'Choisis le responsable présent : c\'est lui qui tape son code.');
+      if (!/^[0-9]{4}$/.test(code.value)) return refus(code, 'Le code de responsable a 4 chiffres.');
+      responsable = { utilisateur: qui.value, code: code.value };
+    }
+    b.disabled = true;
+    try {
+      const x = await bridge.rendreTicket(doc, Object.assign({}, r.avoir, { number: '' }), r.paiement, r.montant, responsable);
+      data.documents.push(x.avoir);
+      const i = data.documents.findIndex(d => d.id === doc.id);
+      if (i >= 0) data.documents[i] = x.ticket;
+      close();
+      toast(`Avoir ${x.numero} : ${C.money(r.montant, company().currency)} rendus.`);
+      vers('#/caisse')();
+    } catch (e) {
+      b.disabled = false;
+      if ($('#rd-code', root)) $('#rd-code', root).value = '';
+      refus($('#rd-code', root) || $('[data-rd]', root), plainError(e));
+    }
+  }
+  function rendreForm(doc) {
+-- fin
+
+── La page Caisse (app.js) ──
+
+== app.js | « Mon code de responsable… » pour le propriétaire et l'administrateur
+-- avant
+      d.caisse && !d.responsable ? '<button class="btn btn-sm" id="cs-mon-code">Mon code de caisse…</button>' : ''].filter(Boolean);
+-- après
+      d.caisse && !d.responsable ? '<button class="btn btn-sm" id="cs-mon-code">Mon code de caisse…</button>' : '',
+      d.responsable && bridge.poserCodeResponsable ? '<button class="btn btn-sm" id="cs-code-responsable">Mon code de responsable…</button>' : ''].filter(Boolean);
+-- fin
+
+== app.js | le bouton du code de responsable s'ouvre
+-- avant
+    if ($('#cs-mon-code')) $('#cs-mon-code').onclick = monCodeDeCaisse;
+-- après
+    // (Sans l'événement du clic, que la fenêtre lirait comme « responsable ».)
+    if ($('#cs-mon-code')) $('#cs-mon-code').onclick = () => monCodeDeCaisse(false);
+    if ($('#cs-code-responsable')) $('#cs-code-responsable').onclick = () => monCodeDeCaisse(true);
+-- fin
+
+== app.js | le même écran pose le code de caisse ou le code de responsable
+-- avant
+  function monCodeDeCaisse() {
+    modal(`<h2>Mon code de caisse</h2>
+      <p>Quatre chiffres, à toi seul. Sur le poste de la caisse, « Changer de caissier… », ton nom, ton code : la caisse est à toi, sans mot de passe. Ne le donne à personne : les tickets que tu encaisses portent ton nom.</p>
+-- après
+  function monCodeDeCaisse(responsable) {
+    modal(`<h2>${responsable ? 'Mon code de responsable' : 'Mon code de caisse'}</h2>
+      <p>${responsable ? 'Quatre chiffres, à toi seul. À la caisse, un retour se fait avec le code d\'un responsable présent : tu le tapes sur le poste de la caisse, et l\'avoir porte ton nom. Il n\'ouvre rien d\'autre. Ne le donne à personne.'
+        : 'Quatre chiffres, à toi seul. Sur le poste de la caisse, « Changer de caissier… », ton nom, ton code : la caisse est à toi, sans mot de passe. Ne le donne à personne : les tickets que tu encaisses portent ton nom.'}</p>
+-- fin
+
+== app.js | le code de responsable s'enregistre par sa route
+-- avant
+          try { await bridge.poserCodeCaisse(a.value); close(); toast('Ton code de caisse est enregistré.'); }
+-- après
+          try { await (responsable ? bridge.poserCodeResponsable(a.value) : bridge.poserCodeCaisse(a.value)); close(); toast(responsable ? 'Ton code de responsable est enregistré.' : 'Ton code de caisse est enregistré.'); }
+-- fin
+
+== app.js | le Z dit l'argent rendu
+-- avant
+        ${Object.entries(z.parMode).map(([k, v]) => ligne(h(MODES_Z[k] || k), h(argentCaisse(v)))).join('')}
+-- après
+        ${Object.entries(z.parMode).map(([k, v]) => ligne(h(MODES_Z[k] || k), h(argentCaisse(v)))).join('')}
+        ${Object.entries(z.rendu || {}).map(([k, v]) => ligne(`Rendu (${h((MODES_Z[k] || k).toLowerCase())})`, `− ${h(argentCaisse(v))}`)).join('')}
+-- fin
+
+── L'aide (guide.js) ──
+
+== guide.js | la bulle du responsable présent
+-- avant
+    'cs.mode': {
+-- après
+    'cs.responsable': { t: 'Le responsable présent', d: 'Un retour rend de l\'argent : il se fait avec l\'accord d\'un <b>responsable présent</b> (le propriétaire ou un administrateur), qui tape <b>son</b> code de responsable sur le poste de la caisse. L\'avoir porte les deux noms. Ce code se pose une fois, depuis la page Caisse, avec « Mon code de responsable… » ; il n\'ouvre rien d\'autre.' },
+    'cs.mode': {
+-- fin

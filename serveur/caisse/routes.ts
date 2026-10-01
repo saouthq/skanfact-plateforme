@@ -16,6 +16,7 @@ import { correspond, empreinte } from '../mot-de-passe.ts';
 import { tracer } from '../trace.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { PREMIERE } from './chaine.ts';
+import { routeRetour } from './retour.ts';
 import { motif, rendre, t } from '../../textes/index.ts';
 import './textes.ts';
 
@@ -46,17 +47,23 @@ export async function sessionOuverte(tx: Transaction, entreprise: string) {
     { id: string; caisse: string; appareil: string; fond: string; ouverte_le: Date; qui: string; appareil_nom: string } | undefined;
 }
 
-// Le Z d'une session : ses tickets, leurs totaux et leurs paiements par mode, comptés par le serveur.
+// Le Z d'une session : ses tickets, leurs totaux et leurs paiements par mode, comptés par le serveur. Ses retours
+// (brique 124) : l'argent rendu, par mode, sorti du tiroir ; l'argent rendu sur un ticket (un règlement négatif) ne se
+// compte pas avec ses encaissements, mais dans la session du retour.
 async function calculerZ(tx: Transaction, session: string, fond: bigint) {
   const tot = (await tx.query(`select count(*)::int nombre, coalesce(sum(p.net_a_payer), 0)::text total, coalesce(sum(p.total_tva), 0)::text tva,
       min(p.numero_texte) premier, max(p.numero_texte) dernier
     from caisse.ticket t join ventes.piece p on p.id = t.piece where t.session = $1`, [session])).rows[0] as
     { nombre: number; total: string; tva: string; premier: string | null; dernier: string | null };
   const modes = (await tx.query(`select r.mode, sum(r.montant)::text montant from caisse.ticket t join ventes.reglement r on r.piece = t.piece
-    where t.session = $1 group by r.mode order by r.mode`, [session])).rows as { mode: string; montant: string }[];
+    where t.session = $1 and r.montant > 0 group by r.mode order by r.mode`, [session])).rows as { mode: string; montant: string }[];
   const parMode = Object.fromEntries(modes.map((m) => [m.mode, BigInt(m.montant)])) as Record<string, bigint>;
-  const especes = parMode.especes ?? 0n;
-  return { nombre: tot.nombre, premier: tot.premier, dernier: tot.dernier, total: BigInt(tot.total), tva: BigInt(tot.tva), parMode, attendu: fond + especes };
+  const rendus = (await tx.query(`select mode, sum(montant)::text montant, count(*)::int nombre from caisse.retour where session = $1 group by mode order by mode`, [session])).rows as
+    { mode: string; montant: string; nombre: number }[];
+  const rendu = Object.fromEntries(rendus.map((m) => [m.mode, BigInt(m.montant)])) as Record<string, bigint>;
+  const especes = (parMode.especes ?? 0n) - (rendu.especes ?? 0n);
+  return { nombre: tot.nombre, premier: tot.premier, dernier: tot.dernier, total: BigInt(tot.total), tva: BigInt(tot.tva), parMode, rendu,
+    retours: rendus.reduce((n, m) => n + m.nombre, 0), attendu: fond + especes };
 }
 
 // Ce que le poste qui tient la caisse doit savoir pour numéroter et chaîner sans réseau (brique 120 ; docs/caisse.md,
@@ -80,6 +87,11 @@ export function codeTropSimple(code: string): boolean {
   const c = [...code].map(Number);
   const pas = c.slice(1).map((v, i) => v - (c[i] as number));
   return pas.every((p) => p === 0) || pas.every((p) => p === 1) || pas.every((p) => p === -1);
+}
+// Un code de caisse ou de responsable : 4 chiffres, pas les premiers qu'on essaie.
+function verifierFormeDuCode(code: string) {
+  if (!/^[0-9]{4}$/.test(code)) throw new Refus('caisse.code_forme');
+  if (codeTropSimple(code)) throw new Refus('caisse.code_trop_simple', { valeurs: { code } });
 }
 const sha256 = (texte: string) => createHash('sha256').update(texte, 'utf8').digest('hex');
 
@@ -160,6 +172,7 @@ export function routesCaisse(): Route<never>[] {
       const texte = (n: bigint) => versTexte(n, decimales);
       const z = { devise, nombre: z0.nombre, premier: z0.premier, dernier: z0.dernier, total: texte(z0.total), tva: texte(z0.tva),
         parMode: Object.fromEntries(Object.entries(z0.parMode).map(([k, v]) => [k, texte(v)])),
+        rendu: Object.fromEntries(Object.entries(z0.rendu).map(([k, v]) => [k, texte(v)])), retours: z0.retours,
         fond: texte(fond), attendu: texte(z0.attendu), compte: texte(compte), ecart: texte(compte - z0.attendu),
         ouverteLe: s.ouverte_le, ouvertePar: s.qui, appareil: s.appareil_nom };
       await tx.query(`update caisse.session set fermee_par = socle.moi(), fermee_le = now(), compte = $2, attendu = $3, ecart = $4, z = $5 where id = $1`,
@@ -177,8 +190,7 @@ export function routesCaisse(): Route<never>[] {
     traiter: async ({ params, corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const ent = params.entreprise ?? '';
-      if (!/^[0-9]{4}$/.test(corps.code)) throw new Refus('caisse.code_forme');
-      if (codeTropSimple(corps.code)) throw new Refus('caisse.code_trop_simple', { valeurs: { code: corps.code } });
+      verifierFormeDuCode(corps.code);
       await tx.query('select caisse.poser_code($1, $2)', [ent, await empreinte(corps.code)]);
       await tracer(tx, ent, 'caisse.code.poser', { type: 'code_caisse', id: null }, null, null);
       return { corps: { ok: true } };
@@ -226,5 +238,30 @@ export function routesCaisse(): Route<never>[] {
       return { corps: { jeton, nom } };
     },
   });
+
+  // ── Le retour, avec le code d'un responsable (brique 124 ; 03 § 2.1 ; docs/caisse.md, T1 à T5) ─────────────────
+  // Poser son code de responsable : le propriétaire ou un administrateur, lui-même. Il n'ouvre aucune session : il
+  // approuve un geste, sur l'appareil de la caisse.
+  ajouter({
+    methode: 'PUT', chemin: '/entreprises/:entreprise/caisse/code-responsable', geste: 'caisse.code_responsable.poser',
+    corps: z.object({ code: z.string().trim().max(20) }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const ent = params.entreprise ?? '';
+      verifierFormeDuCode(corps.code);
+      await tx.query('select caisse.poser_code_responsable($1, $2)', [ent, await empreinte(corps.code)]);
+      await tracer(tx, ent, 'caisse.code_responsable.poser', { type: 'code_responsable', id: null }, null, null);
+      return { corps: { ok: true } };
+    },
+  });
+  // Les responsables qui approuvent à la caisse : ceux qui ont posé leur code.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/caisse/responsables', geste: 'caisse.ticket.rendre',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      return { corps: { responsables: (await tx.query('select utilisateur id, nom from caisse.responsables($1)', [params.entreprise ?? ''])).rows } };
+    },
+  });
+  routes.push(routeRetour(sessionOuverte));
   return routes;
 }

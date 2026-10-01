@@ -129,7 +129,12 @@ export function verifierEcriture(roles: string[], changements: { collection: str
 export async function avecSesTickets<O extends { collection: string; cle: string; contenu: unknown }>(tx: Transaction, entreprise: string,
   utilisateur: string, roles: string[], tous: O[], visibles: O[]): Promise<O[]> {
   if (permet(roles, 'ventes.pieces.voir', false) || !permet(roles, 'caisse.ticket.encaisser', true)) return visibles;
-  const siens = new Set((await tx.query(`select cle from socle.dossier_v10 where entreprise = $1 and collection = 'documents'
-    and cree_par = $2 and contenu ->> 'ticket' = 'true'`, [entreprise, utilisateur])).rows.map((r) => String(r.cle)));
+  // Ses tickets, et les retours faits sur eux à la caisse (brique 124) : sans eux, la page lui proposerait de rendre
+  // ce qui l'a déjà été.
+  const siens = new Set((await tx.query(`with tickets as (select cle from socle.dossier_v10 where entreprise = $1 and collection = 'documents'
+      and cree_par = $2 and contenu ->> 'ticket' = 'true')
+    select cle from tickets
+    union select cle from socle.dossier_v10 where entreprise = $1 and collection = 'documents' and contenu ? 'retourCaisse'
+      and contenu ->> 'creditOf' in (select cle from tickets)`, [entreprise, utilisateur])).rows.map((r) => String(r.cle)));
   return [...visibles, ...tous.filter((o) => o.collection === 'documents' && siens.has(o.cle))];
 }

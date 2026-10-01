@@ -120,6 +120,23 @@ export interface BaseDeDonnees {
     empreinte: string;
     pose_le: Generated<Date>;
   };
+  'caisse.code_responsable': {
+    entreprise: string;
+    utilisateur: string;
+    empreinte: string;
+    pose_le: Generated<Date>;
+  };
+  'caisse.retour': {
+    piece: string;
+    entreprise: string;
+    session: string;
+    ticket: string;
+    montant: bigint;
+    mode: string;
+    fait_par: string;
+    approuve_par: string | null;
+    cree_le: Generated<Date>;
+  };
   'caisse.session': {
     id: Generated<string>;
     entreprise: string;
