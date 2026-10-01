@@ -165,9 +165,10 @@ describe('la paie tenue par le cabinet', () => {
     expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['comptabilite', 'paie'] })).statut).toBe(200);
     expect((await ecrire(d.ent, d.collaborateur, [objet('employees', SALARIE)])).statut).toBe(403);
     expect((await appeler('GET', `/entreprises/${d.ent}/paie/dossier`, d.collaborateur.jeton)).statut).toBe(403);
-    // Même par le chemin d'enregistrement, sans la porte : la base refuse la paie à qui ne la fait pas.
+    // Même par le chemin d'enregistrement, sans la porte ni le contrôle des parties (brique 99, sauté comme pour
+    // le serveur) : la base elle-même refuse la paie à qui ne la fait pas.
     await expect(enTantQue(pool, d.collaborateur.utilisateur, (tx) => appliquer(tx, d.ent, d.collaborateur.utilisateur,
-      [objet('employees', SALARIE), objet('payslips', bulletin(4))] as Changement[]))).rejects.toThrow();
+      [objet('employees', SALARIE), objet('payslips', bulletin(4))] as Changement[], { serveur: true }))).rejects.toThrow();
     expect(Number((await admin.query('select count(*) n from paie.bulletin where entreprise = $1', [d.ent])).rows[0].n)).toBe(0);
     const p = await personne('paie');
     const id = String((await admin.query(`insert into socle.membre (utilisateur, organisation, roles) values ($1, $2, $3) returning id`, [p.utilisateur, d.cabinet, ['paie']])).rows[0].id);
