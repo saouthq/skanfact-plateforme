@@ -7129,7 +7129,7 @@ prouver "le timbre oublié dans le total attendu" serveur/v10/boutique.ts \
   "      const timbre = corps.timbre ? 1000n : 0n;" "      const timbre = 0n;" \
   "$BQ"
 prouver "le timbre posé sur une commande qui n'en veut pas" serveur/v10/boutique.ts \
-  "applyStamp: corps.timbre," "applyStamp: true," \
+  "discountRate: 0, applyStamp: corps.timbre, withholdingRate: 0," "discountRate: 0, applyStamp: true, withholdingRate: 0," \
   "$BQ"
 prouver "le paiement d'une commande enregistré deux fois" serveur/v10/boutique.ts \
   "  if (paiements.some((x) => x.id === id)) return;
@@ -7150,6 +7150,79 @@ prouver "une clé qui prend la série des tickets" base/migrations/0066_serie_pa
 prouver "une clé sans geste d'émission qui prend la série" base/migrations/0066_serie_par_cle.sql \
   " and k.gestes && array['ventes.facture.emettre', 'ventes.boutique.facturer']))) then" "))) then" \
   "$BQ"
+
+# Brique 132 : le retour d'une commande en ligne (un avoir, et l'argent rendu).
+BR="un retour est un avoir de la facture, l'argent rendu un règlement négatif, une seule fois, jamais plus que la commande"
+prouver "un retour renvoyé qui fait un second avoir" serveur/v10/boutique.ts \
+  "      if (await resultatDuRetour(tx, ent, reference, corps.id, true)) {" "      if (false) {" \
+  "$BR"
+prouver "un retour renvoyé qui n'ajoute jamais l'argent rendu" serveur/v10/boutique.ts \
+  "        await rembourser(tx, ent, qui.utilisateur, reference, corps.id, corps.date, corps.remboursement);" "        void 0;" \
+  "$BR"
+prouver "l'argent d'un retour rendu deux fois" serveur/v10/boutique.ts \
+  "  if (await requetes(tx).selectFrom('ventes.reglement').select('id').where('entreprise', '=', entreprise).where('ref_v10', '=', pid).executeTakeFirst()) return;" "  if (false) return;" \
+  "$BR"
+prouver "rendre plus que ce que le client a payé en trop" serveur/v10/boutique.ts \
+  "  if (voulu > -reste) throw" "  if (false) throw" \
+  "$BR"
+prouver "l'argent rendu compté comme un paiement" serveur/v10/boutique.ts \
+  "montant: \`-\${r.montant}\`" "montant: r.montant" \
+  "$BR"
+prouver "un retour plus grand que ce qui reste de la commande" serveur/v10/boutique.ts \
+  "      if (net > possible) throw" "      if (false) throw" \
+  "$BR"
+prouver "un retour qui oublie les avoirs déjà émis" serveur/v10/boutique.ts \
+  "const possible = (facture.net_a_payer ?? 0n) - credite;" "const possible = (facture.net_a_payer ?? 0n);" \
+  "$BR"
+prouver "toute la commande rendue après une partie" serveur/v10/boutique.ts \
+  "        if (avoirs.length) return { statut: 409," "        if (false) return { statut: 409," \
+  "$BR"
+prouver "le timbre rendu sans avoir été payé" serveur/v10/boutique.ts \
+  "      if (corps.timbre && (!(facture.timbre ?? 0n) ||" "      if (corps.timbre && (false ||" \
+  "$BR"
+prouver "le timbre rendu deux fois" serveur/v10/boutique.ts \
+  "|| avoirs.some((a) => (a.timbre ?? 0n) > 0n))) throw" "|| false)) throw" \
+  "$BR"
+prouver "toute la commande comparée sans son timbre" serveur/v10/boutique.ts \
+  "(corps.timbre ? 0n : facture.timbre ?? 0n), 3);" "(corps.timbre ? facture.timbre ?? 0n : 0n), 3);" \
+  "$BR"
+prouver "le timbre oublié dans le total attendu d'un retour" serveur/v10/boutique.ts \
+  "attendu = versTexte(l.ttcTotal + (corps.timbre ? facture.timbre ?? 0n : 0n), 3);" "attendu = versTexte(l.ttcTotal, 3);" \
+  "$BR"
+prouver "un retour au total faux émis quand même" serveur/v10/boutique.ts \
+  "      if (attendu !== null && attendu !== versTexte(net, 3)) throw" "      if (false) throw" \
+  "$BR"
+prouver "le timbre d'un retour jamais porté sur l'avoir" serveur/v10/boutique.ts \
+  "}), 'fr'), reference, lines: lignes, discountRate: 0, applyStamp: corps.timbre," "}), 'fr'), reference, lines: lignes, discountRate: 0, applyStamp: false," \
+  "$BR"
+prouver "un article rendu jamais relié au catalogue" serveur/v10/boutique.ts \
+  "const l = lignesDeFacture(corps.lignes, await catalogueParCode(tx, ent));" "const l = lignesDeFacture(corps.lignes, new Map());" \
+  "$BR"
+prouver "un retour d'une commande inconnue accepté" serveur/v10/boutique.ts \
+  "      if (!facture) return { statut: 404," "      if (false) return { statut: 404," \
+  "$BR"
+prouver "un montant de zéro accepté" serveur/v10/boutique.ts \
+  "const montant = decimal(3).refine((x) => depuisTexte(x, 3) > 0n," "const montant = decimal(3).refine(() => true," \
+  "$BR"
+prouver "l'argent rendu jamais dit dans la réponse" serveur/v10/boutique.ts \
+  "rembourse: versTexte(-rendu, 3)" "rembourse: versTexte(0n, 3)" \
+  "$BR"
+prouver "l'argent rendu d'un retour pris pour celui d'un autre" serveur/v10/boutique.ts \
+  "/retour:\${id}\`).slice(0, 24)}\`;" "/retour:\`).slice(0, 24)}\`;" \
+  "$BR"
+prouver "l'avoir d'un retour pris pour celui d'un autre" serveur/v10/boutique.ts \
+  "\`ret-\${empreinte(\`\${reference}/\${id}\`).slice(0, 24)}\`;" "\`ret-\${empreinte(\`\${reference}\`).slice(0, 24)}\`;" \
+  "$BR"
+
+prouver "un avoir de retour sans le numéro de sa facture" serveur/v10/boutique.ts \
+  "creditOfNumber: facture.numero_texte," "creditOfNumber: ''," \
+  "$BR"
+prouver "le motif d'un retour perdu" serveur/v10/boutique.ts \
+  "creditReason: corps.motif ?? ''," "creditReason: ''," \
+  "$BR"
+prouver "un retour neuf qui se dit « déjà fait »" serveur/v10/boutique.ts \
+  "return { reference: ref, client, facture, retour: { id, deja," "return { reference: ref, client, facture, deja: true, retour: { id, deja," \
+  "$BR"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

@@ -65,9 +65,41 @@ de la boutique devient une facture dans le SkanFact **du commerçant**.*
 → la commande, avec son reste. Le même `id` envoyé deux fois ne compte qu'une fois. Modes : `carte`, `en_ligne`,
 `especes`, `virement`, `cheque`, `autre`.
 
+## B4. Un retour, une commande annulée, l'argent rendu
+
+*Brique 132, 01/10/2026.*
+
+`POST /v1/entreprises/:e/commandes-en-ligne/:reference/retours`
+
+```json
+{ "id": "retour-1", "date": "2026-10-04", "motif": "Taille", "timbre": false,
+  "lignes": [ { "designation": "Collier argent", "code": "COL925", "quantite": "1", "prixUnitaireTTC": "29.900", "tauxTva": "19" } ],
+  "remboursement": { "mode": "en_ligne", "montant": "29.900", "reference": "KONNECT-R-9" } }
+```
+
+→ 201 `{ reference, client, facture: { …, reste }, retour: { id, deja, avoir: { id, numero, date, montant, ecran }, rembourse } }`.
+
+- **Un retour est un avoir** de la facture de la commande (série AVO, numéro du serveur), au client de la commande. Les
+  lignes rendues se donnent comme celles d'une commande (TTC au millime, ou HT) ; un article reconnu à son `code`
+  **revient au stock**. Sans `lignes`, c'est **toute la commande**, telle qu'elle a été facturée (seulement si rien
+  n'en est encore rendu : sinon 409, il faut dire les lignes).
+- Le `motif` est celui de l'avoir (« Motif de l'avoir » à l'écran) ; l'avoir porte le numéro de la facture qu'il
+  corrige, et son document le dit (« Cet avoir vient en déduction de la facture FAC-… »).
+- **Une commande refusée à la livraison** (jamais payée) : un retour de toute la commande avec `"timbre": true`, sans
+  remboursement ; la facture est soldée.
+- **Le timbre** (`timbre`, obligatoire) : la boutique dit si le retour le rend. Il ne se rend que si la facture en a
+  un, et une seule fois. **À VÉRIFIER** avec un comptable : rendre le timbre fiscal par un avoir.
+- **L'argent rendu** (`remboursement`, facultatif) s'enregistre sur la facture, comme dans l'application : un règlement
+  **négatif** (l'encaissement s'inverse dans les écritures). Jamais plus que ce que le client a payé au-delà de ce qu'il
+  doit, sinon rien n'est enregistré (403).
+- **Renvoyé** : le même `id` rend le même avoir (200, `deja: true`) ; s'il arrive avec un `remboursement` qui n'avait
+  pas encore été fait (l'argent rendu plus tard), celui-ci s'ajoute, une seule fois.
+- **Deux chemins, un chiffre** : le total de l'avoir doit être celui du retour (`totalAttendu`, ou la somme des TTC
+  plus le timbre). Un retour plus grand que ce qui reste de la commande à rendre est refusé. Dans les deux cas rien
+  n'est émis, et aucun numéro n'est pris.
+
 ## À venir
 
-- Le **remboursement** et l'annulation d'une commande (un avoir, et l'argent rendu).
 - Les **remises** (un code promo) : aujourd'hui, elles se portent dans le prix des lignes.
 - « Connecter ma boutique » sans copier de clé.
 - **À VÉRIFIER** : une facture à un particulier sans matricule, quand l'entreprise est soumise à la facture
@@ -75,8 +107,10 @@ de la boutique devient une facture dans le SkanFact **du commerçant**.*
 
 ## Les preuves
 
-`tests/v10/boutique.test.ts`, et 22 défauts réintroduits (`tests/preuves.sh`, « Brique 131 ») : une commande renvoyée
-qui ferait une seconde facture, un client créé à chaque commande ou reconnu sans sa référence, un TTC jamais redonné, le
+`tests/v10/boutique.test.ts` et `tests/v10/boutique-retours.test.ts`, et 45 défauts réintroduits (`tests/preuves.sh`,
+« Brique 131 » et « Brique 132 ») : une commande renvoyée qui ferait une seconde facture, un client créé à chaque commande ou reconnu sans sa référence, un TTC jamais redonné, le
 millime perdu, un total faux facturé quand même, le timbre oublié ou imposé, un paiement compté deux fois, un article
 jamais relié au catalogue, une clé sans geste d'émission, ou qui prendrait la série des tickets (une clé révoquée ou
-expirée, elle, ne voit déjà plus l'entreprise)…
+expirée, elle, ne voit déjà plus l'entreprise), un retour qui ferait un second avoir ou rendrait l'argent deux fois,
+plus que la commande ou plus que ce qui a été payé, le timbre rendu sans avoir été payé ou deux fois, un article
+rendu qui ne revient pas au stock…

@@ -26,7 +26,9 @@ const MILLION = 1_000_000n;
 const decimal = (decimales: number) => z.string().regex(new RegExp(`^\\d{1,12}(\\.\\d{1,${decimales}})?$`));
 const jour = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const MODES = ['carte', 'en_ligne', 'especes', 'virement', 'cheque', 'autre'] as const;
-const paiement = z.object({ id: z.string().trim().min(1).max(60), mode: z.enum(MODES), montant: decimal(3), date: jour, reference: z.string().max(200).optional() });
+// Un montant d'argent qui bouge : jamais zéro.
+const montant = decimal(3).refine((x) => depuisTexte(x, 3) > 0n, { message: 'boutique.montant_nul' });
+const paiement = z.object({ id: z.string().trim().min(1).max(60), mode: z.enum(MODES), montant, date: jour, reference: z.string().max(200).optional() });
 const ligne = z.object({
   designation: z.string().trim().min(1).max(300), code: z.string().trim().max(60).optional(), quantite: decimal(3), tauxTva: decimal(4),
   prixUnitaireTTC: decimal(3).optional(), prixUnitaire: decimal(6).optional(),
@@ -44,10 +46,23 @@ const commande = z.object({
   totalAttendu: decimal(3).optional(),
 });
 type Commande = z.infer<typeof commande>;
+// Un retour (brique 132) : toute la commande (sans lignes) ou les lignes rendues ; l'argent rendu, s'il l'est.
+const retour = z.object({
+  id: z.string().trim().min(1).max(60),
+  date: jour,
+  motif: z.string().trim().max(300).optional(),
+  lignes: z.array(ligne).min(1).max(200).optional(),
+  timbre: z.boolean(),
+  remboursement: z.object({ mode: z.enum(MODES), montant, reference: z.string().max(200).optional() }).optional(),
+  totalAttendu: decimal(3).optional(),
+});
 
 const empreinte = (texte: string) => createHash('sha256').update(texte, 'utf8').digest('hex');
 // La clé de la facture d'une commande, et celle de son client, dans le dossier : la même commande, la même facture.
 export const cleDeCommande = (reference: string) => `cmd-${empreinte(reference).slice(0, 24)}`;
+export const cleDuRetour = (reference: string, id: string) => `ret-${empreinte(`${reference}/${id}`).slice(0, 24)}`;
+// L'argent rendu pour un retour : un règlement négatif de la facture (comme la v10), une seule fois.
+const cleDuRemboursement = (reference: string, id: string) => `cmd-pay-${empreinte(`${cleDeCommande(reference)}/retour:${id}`).slice(0, 24)}`;
 const cleDuClient = (c: Commande['client']) => `boutique-${empreinte(c.ref ? `ref:${c.ref}` : c.email ? `email:${c.email.toLowerCase()}` : `nom:${c.nom}`).slice(0, 24)}`;
 
 // Le HT (en millimes) qui redonne ce TTC avec la TVA de la ligne arrondie au millime, ou le plus grand qui reste
@@ -106,16 +121,53 @@ async function resultat(tx: Transaction, entreprise: string, reference: string, 
   };
 }
 
-// Un paiement de la commande s'ajoute à sa facture (une seule fois : son identifiant le dit).
-async function ajouterPaiement(tx: Transaction, entreprise: string, utilisateur: string, cle: string, p: z.infer<typeof paiement>) {
+// Un paiement de la commande s'ajoute à sa facture (une seule fois : son identifiant le dit). Un montant négatif est de
+// l'argent rendu au client.
+async function ajouterPaiement(tx: Transaction, entreprise: string, utilisateur: string, cle: string, id: string,
+  p: { date: string; montant: string; mode: string; reference?: string | undefined }, note: string) {
   const doc = await lire(tx, entreprise, 'documents', cle);
   if (!doc) return;
-  const id = `cmd-pay-${empreinte(`${cle}/${p.id}`).slice(0, 24)}`;
   const paiements = Array.isArray(doc.contenu.payments) ? doc.contenu.payments as Json[] : [];
   if (paiements.some((x) => x.id === id)) return;
   await appliquer(tx, entreprise, utilisateur, [{ collection: 'documents', cle, rang: doc.rang, revision: Number(doc.revision), contenu: {
-    ...doc.contenu, payments: [...paiements, { id, date: p.date, amount: enNombreV10(p.montant), method: p.mode, reference: p.reference ?? '', accountId: '', note: rendre(t('boutique.note_paiement'), 'fr') }],
+    ...doc.contenu, payments: [...paiements, { id, date: p.date, amount: enNombreV10(p.montant), method: p.mode, reference: p.reference ?? '', accountId: '', note }],
   } }], { serveur: true });
+}
+const idDuPaiement = (cle: string, id: string) => `cmd-pay-${empreinte(`${cle}/${id}`).slice(0, 24)}`;
+
+// Les articles du catalogue, par leur code (comme la douchette de la caisse).
+async function catalogueParCode(tx: Transaction, entreprise: string) {
+  return new Map((await tx.query(`select cle, upper(regexp_replace(contenu->>'code', '[[:space:]]', '', 'g')) code from socle.dossier_v10
+    where entreprise = $1 and collection = 'catalog' and coalesce(contenu->>'code', '') <> ''`, [entreprise])).rows.map((r) => [r.code as string, r.cle as string]));
+}
+
+// Ce que l'API rend d'un retour : la commande, et l'avoir du retour avec l'argent rendu.
+async function resultatDuRetour(tx: Transaction, entreprise: string, reference: string, id: string, deja: boolean) {
+  const commande = await resultat(tx, entreprise, reference, true);
+  const cle = cleDuRetour(reference, id);
+  const a = await requetes(tx).selectFrom('ventes.piece').select(['id', 'numero_texte', 'date_piece', 'net_a_payer'])
+    .where('entreprise', '=', entreprise).where('ref_v10', '=', cle).executeTakeFirst();
+  if (!commande || !a) return null;
+  // (Le `deja` de la commande ne se répète pas : celui du retour dit si le retour est neuf.)
+  const { reference: ref, client, facture } = commande;
+  const rendu = (await requetes(tx).selectFrom('ventes.reglement').select('montant')
+    .where('entreprise', '=', entreprise).where('ref_v10', '=', cleDuRemboursement(reference, id)).executeTakeFirst())?.montant ?? 0n;
+  return { reference: ref, client, facture, retour: { id, deja,
+    avoir: { id: a.id, numero: a.numero_texte, date: a.date_piece, montant: versTexte(a.net_a_payer ?? 0n, 3), ecran: lienEcran(entreprise, 'doc', cle) },
+    rembourse: versTexte(-rendu, 3) } };
+}
+
+// L'argent rendu pour un retour : jamais plus que ce que le client a payé au-delà de ce qu'il doit.
+async function rembourser(tx: Transaction, entreprise: string, utilisateur: string, reference: string, id: string, date: string,
+  r: z.infer<typeof retour>['remboursement']) {
+  if (!r) return;
+  const pid = cleDuRemboursement(reference, id);
+  if (await requetes(tx).selectFrom('ventes.reglement').select('id').where('entreprise', '=', entreprise).where('ref_v10', '=', pid).executeTakeFirst()) return;
+  const reste = depuisTexte((await resultat(tx, entreprise, reference, true))?.facture.reste ?? '0', 3);
+  const voulu = depuisTexte(r.montant, 3);
+  if (voulu > -reste) throw new Refus('boutique.rembourse_trop', { valeurs: { possible: versTexte(reste < 0n ? -reste : 0n, 3), montant: r.montant } });
+  await ajouterPaiement(tx, entreprise, utilisateur, cleDeCommande(reference), pid, { date, montant: `-${r.montant}`, mode: r.mode, reference: r.reference },
+    rendre(t('boutique.note_remboursement'), 'fr'));
 }
 
 export function routesBoutique(): Route<never>[] {
@@ -143,10 +195,7 @@ export function routesBoutique(): Route<never>[] {
         await appliquer(tx, ent, qui.utilisateur, [{ collection: 'clients', cle: clientCle, rang: Number(n), revision: null, contenu: client }], { serveur: true });
       }
 
-      // Les articles du catalogue, par leur code (comme la douchette de la caisse).
-      const catalogue = new Map((await tx.query(`select cle, upper(regexp_replace(contenu->>'code', '[[:space:]]', '', 'g')) code from socle.dossier_v10
-        where entreprise = $1 and collection = 'catalog' and coalesce(contenu->>'code', '') <> ''`, [ent])).rows.map((r) => [r.code as string, r.cle as string]));
-      const { lignes, ttcTotal } = lignesDeFacture(corps.lignes, catalogue);
+      const { lignes, ttcTotal } = lignesDeFacture(corps.lignes, await catalogueParCode(tx, ent));
       const cle = cleDeCommande(corps.reference);
       const doc = {
         id: cle, type: 'facture', number: '', status: 'brouillon', date: corps.date, dueDate: corps.date, clientId: clientCle, subject: `Commande ${corps.reference}`,
@@ -161,7 +210,7 @@ export function routesBoutique(): Route<never>[] {
       const timbre = corps.timbre ? 1000n : 0n;
       const attendu = corps.totalAttendu ?? (ttcTotal !== null ? versTexte(ttcTotal + timbre, 3) : null);
       if (attendu !== null && attendu !== net) throw new Refus('boutique.ecart', { valeurs: { attendu, serveur: net } });
-      if (corps.paiement) await ajouterPaiement(tx, ent, qui.utilisateur, cle, corps.paiement);
+      if (corps.paiement) await ajouterPaiement(tx, ent, qui.utilisateur, cle, idDuPaiement(cle, corps.paiement.id), corps.paiement, rendre(t('boutique.note_paiement'), 'fr'));
       return { statut: 201, corps: await resultat(tx, ent, corps.reference, false) };
     },
   });
@@ -182,8 +231,69 @@ export function routesBoutique(): Route<never>[] {
       if (!tx || !qui) throw new Error('transaction attendue');
       const ent = params.entreprise ?? '';
       if (!(await resultat(tx, ent, params.reference ?? '', true))) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
-      await ajouterPaiement(tx, ent, qui.utilisateur, cleDeCommande(params.reference ?? ''), corps);
+      const cle = cleDeCommande(params.reference ?? '');
+      await ajouterPaiement(tx, ent, qui.utilisateur, cle, idDuPaiement(cle, corps.id), corps, rendre(t('boutique.note_paiement'), 'fr'));
       return { corps: await resultat(tx, ent, params.reference ?? '', true) };
+    },
+  });
+  // Un retour (brique 132) : un AVOIR de la facture de la commande, et l'argent rendu s'il l'est.
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/commandes-en-ligne/:reference/retours', geste: 'ventes.boutique.facturer', corps: retour,
+    traiter: async ({ params, corps, qui }, tx) => {
+      if (!tx || !qui) throw new Error('transaction attendue');
+      const ent = params.entreprise ?? '';
+      const reference = params.reference ?? '';
+      const db = requetes(tx);
+      const facture = await db.selectFrom('ventes.piece').select(['id', 'numero_texte', 'net_a_payer', 'timbre'])
+        .where('entreprise', '=', ent).where('ref_v10', '=', cleDeCommande(reference)).executeTakeFirst();
+      if (!facture) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
+      // Déjà fait (la boutique a renvoyé le retour) : le même avoir ; l'argent rendu, s'il ne l'était pas encore.
+      if (await resultatDuRetour(tx, ent, reference, corps.id, true)) {
+        await rembourser(tx, ent, qui.utilisateur, reference, corps.id, corps.date, corps.remboursement);
+        return { corps: await resultatDuRetour(tx, ent, reference, corps.id, true) };
+      }
+
+      // Ce qui est déjà rendu de cette commande (ses avoirs émis), et son timbre.
+      const avoirs = await db.selectFrom('ventes.piece').select(['net_a_payer', 'timbre'])
+        .where('entreprise', '=', ent).where('corrige', '=', facture.id).execute();
+      const credite = avoirs.reduce((x, a) => x + (a.net_a_payer ?? 0n), 0n);
+      // Le timbre ne se rend qu'une fois, et seulement s'il a été payé (À VÉRIFIER : rendre le timbre d'une facture).
+      if (corps.timbre && (!(facture.timbre ?? 0n) || avoirs.some((a) => (a.timbre ?? 0n) > 0n))) throw new Refus('boutique.retour_timbre');
+
+      const doc = (await lire(tx, ent, 'documents', cleDeCommande(reference)))?.contenu;
+      const client = doc && typeof doc.clientId === 'string' ? (await lire(tx, ent, 'clients', doc.clientId))?.contenu : undefined;
+      if (!doc || !client) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
+      // Toute la commande : ses lignes, telles qu'elles ont été facturées ; seulement si rien n'en est encore rendu.
+      let lignes: Json[];
+      let attendu: string | null = corps.totalAttendu ?? null;
+      if (!corps.lignes) {
+        if (avoirs.length) return { statut: 409, corps: { motif: motif('boutique.retour_lignes') } };
+        lignes = structuredClone(Array.isArray(doc.lines) ? doc.lines as Json[] : []);
+        attendu ??= versTexte((facture.net_a_payer ?? 0n) - (corps.timbre ? 0n : facture.timbre ?? 0n), 3);
+      } else {
+        const l = lignesDeFacture(corps.lignes, await catalogueParCode(tx, ent));
+        lignes = l.lignes;
+        if (attendu === null && l.ttcTotal !== null) attendu = versTexte(l.ttcTotal + (corps.timbre ? facture.timbre ?? 0n : 0n), 3);
+      }
+
+      const cle = cleDuRetour(reference, corps.id);
+      const avoir = {
+        id: cle, type: 'avoir', number: '', status: 'brouillon', date: corps.date, dueDate: corps.date, clientId: doc.clientId, creditOf: cleDeCommande(reference),
+        // Le numéro de la facture et le motif, là où l'écran et le document les lisent.
+        creditOfNumber: facture.numero_texte, creditReason: corps.motif ?? '',
+        subject: rendre(t('boutique.objet_retour', { retour: corps.id, reference }), 'fr'), reference, lines: lignes, discountRate: 0, applyStamp: corps.timbre,
+        withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [],
+        boutique: { reference, retour: corps.id }, createdAt: Date.now(),
+      };
+      await appliquer(tx, ent, qui.utilisateur, [{ collection: 'documents', cle, rang: null, revision: null, contenu: avoir }], { serveur: true });
+      await emettreDepuisV10(tx, ent, qui.utilisateur, { document: avoir, client, revision: 1, rang: null, netAPayer: null }, 'avoir');
+      const net = depuisTexte((await resultatDuRetour(tx, ent, reference, corps.id, false))?.retour.avoir.montant ?? '0', 3);
+      // Deux chemins, un chiffre ; et jamais plus que ce qui reste de la commande à rendre. Sinon rien n'est émis.
+      if (attendu !== null && attendu !== versTexte(net, 3)) throw new Refus('boutique.ecart_retour', { valeurs: { attendu, serveur: versTexte(net, 3) } });
+      const possible = (facture.net_a_payer ?? 0n) - credite;
+      if (net > possible) throw new Refus('boutique.retour_trop', { valeurs: { retour: versTexte(net, 3), possible: versTexte(possible, 3) } });
+      await rembourser(tx, ent, qui.utilisateur, reference, corps.id, corps.date, corps.remboursement);
+      return { statut: 201, corps: await resultatDuRetour(tx, ent, reference, corps.id, false) };
     },
   });
   return routes;
