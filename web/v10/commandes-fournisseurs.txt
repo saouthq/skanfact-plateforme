@@ -397,7 +397,7 @@ ${isSupplierOrder ? L.supplier : isInvoice || isProforma ? L.billedTo : isCredit
       // L'encours autorisé du client (brique 91 ; 14 § 3.2) : dit AVANT d'émettre, avec ses chiffres ; la personne décide.
       const enc = isInv || doc.type === 'livraison' ? C.depassementEncours(data, doc, co) : null;
       if (enc) w.push(`${(clientById(doc.clientId) || {}).name || 'Ce client'} dépasserait son encours autorisé de ${C.money(enc.depasse, co.currency)} : il doit déjà ${C.money(enc.encours, co.currency)} (factures non réglées et bons livrés à facturer), cette pièce en ajoute ${C.money(enc.piece, co.currency)}, pour ${C.money(enc.plafond, co.currency)} autorisés. ${isInv && co.encoursAccord && accordsEnLigne() && !estResponsable()
-        ? ((accordDe(doc.id) || {}).statut === 'accorde' ? `${accordDe(doc.id).decideur} l'a accordé : tu peux l'émettre.` : 'Au-delà, une facture demande l\'accord du propriétaire ou d\'un administrateur : en l\'émettant, tu pourras le lui demander.')
+        ? ((accordDe(doc.id, 'encours') || {}).statut === 'accorde' ? `${accordDe(doc.id, 'encours').decideur} l'a accordé : tu peux l'émettre.` : 'Au-delà, une facture demande l\'accord du propriétaire ou d\'un administrateur : en l\'émettant, tu pourras le lui demander.')
         : 'Fais-le régler avant, ou émets quand même.'}`);
 -- fin
 

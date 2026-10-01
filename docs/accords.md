@@ -77,10 +77,34 @@ Tests : `tests/web/accords.test.ts` (Nadia règle, Karim demande, Nadia refuse d
 Nadia accorde depuis la page, Karim émet ; la pièce porte les deux noms), `tests/v10/droits-dossier.test.ts`
 (`responsable`). 9 preuves (`tests/preuves.sh`, brique 100).
 
+## Ce que fait la brique 103 : l'accord au-delà d'une remise (01/10/2026)
+
+D11 (`03`) : « une remise, une vente au-delà de l'encours d'un client, une commande fournisseur, un retour ». Par
+délégation :
+
+**R1. Le réglage** : Paramètres → Documents, « Remise permise sans accord (%) » ; vide, pas de seuil (la valeur qui ne
+change rien). La base le réserve au propriétaire et à l'administrateur (`0054`, comme l'encours autorisé).
+
+**R2. Le serveur lit le seuil en base** et compare la remise globale de la facture (`discountRate`) ; au-delà, sans
+accord, un commercial n'émet pas : « Café El Walima : la remise de 15 % dépasse les 10 % permis sans accord… », avec
+le même geste qui débloque. Au seuil même, rien à demander. Le propriétaire et l'administrateur remisent sans accord.
+
+**R3. La demande porte sur la remise** (`ventes.accord`, geste `remise`, taux et seuil en centièmes de pour cent,
+figés comme le reste de la demande) ; un accord couvre **ce taux**, pas plus. Une facture qui dépasse à la fois la
+remise et l'encours demande la remise d'abord, puis l'encours. La pièce émise porte `accordRemise` (les deux noms).
+
+**R4. Les écrans** : l'avertissement le dit avant d'émettre ; la facture, l'accueil et la page « Demandes d'accord »
+disent « une remise de 15 % (10 % permis sans accord) » à côté des demandes d'encours.
+
+Tests : `tests/v10/accords.test.ts` (la remise), `tests/web/accords.test.ts` (Nadia règle, Karim demande, Nadia accorde
+depuis la facture, Karim émet). 12 preuves.
+
 ## Reste connu (les briques suivantes)
+
+- Un prix de ligne baissé sous celui du catalogue est aussi une remise : il n'est pas encore compté (D11).
+- Les autres seuils de D11 : la commande fournisseur, le retour.
 
 - **Brique 99, les droits geste par geste dans le dossier** : faite (`docs/droits-dossier.md`).
 - Les autres postes ne se mettent pas à jour tout seuls : une demande faite ailleurs se voit en rouvrant la page
   (ou « Recharger »). La notification à distance viendra avec les avis (étape suivante).
 - Le « code d'un responsable » sur le même poste (la caisse, étape 4) et la notification à distance.
-- Les autres seuils de D11 (remise, commande fournisseur, retour).

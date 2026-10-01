@@ -688,13 +688,15 @@ export interface BaseDeDonnees {
     client_v10: string;
     montant: bigint;
     encours: bigint;
-    plafond: bigint;
+    plafond: bigint | null;
     demande_par: string;
     demande_le: Generated<Date>;
     statut: Generated<string>;
     decide_par: string | null;
     decide_le: Date | null;
     motif: string | null;
+    taux: number | null;
+    seuil: number | null;
   };
   'ventes.efacture': {
     piece: string;

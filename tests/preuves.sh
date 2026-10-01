@@ -5753,7 +5753,7 @@ prouver "un refus pris pour un accord" serveur/v10/accords.ts \
   "  if (!r || r.statut !== 'accorde' || Number(r.montant) < montant) return null;" "  if (!r || Number(r.montant) < montant) return null;" \
   "$AC1"
 prouver "la pièce émise qui tait les deux noms" serveur/v10/dossier.ts \
-  "    ...(accord ? { accordEncours: accord } : {}) };" "    ...({}) };" \
+  "    ...(accord ? { accordEncours: accord } : {}), ...(accordRemise" "    ...({}), ...(accordRemise" \
   "$AC1"
 prouver "une demande en double pour le même montant" serveur/v10/routes.ts \
   "and statut = 'en_attente' and montant = \$3" "and statut = 'en_attente' and montant = \$3 and false" \
@@ -5904,6 +5904,43 @@ prouver "la fiche client « supprimée » à l'écran, gardée au serveur" web/p
 prouver "l'achat accepté à l'écran puis perdu" web/public/v10/app.js \
   "      if (enLecture('purchases')) return refus('[data-combo=supplierId] .combo-btn', refusLecture('purchases'));" "      if (false) return refus('[data-combo=supplierId] .combo-btn', refusLecture('purchases'));" \
   "$LSW"
+
+# ── Brique 103 : l'accord au-delà d'une remise (docs/accords.md) ──
+AR1="au-delà de la remise permise, le commercial demande l'accord ; il couvre ce taux, pas plus ; seul un responsable règle le seuil"
+ARW="Nadia règle la remise permise ; Karim remise au-delà, demande, Nadia accorde depuis la facture, Karim émet"
+prouver "l'émission qui ne regarde pas la remise" serveur/v10/dossier.ts \
+  "  const accordRemise = type === 'facture' ? await controlerRemise(tx, entreprise, cle, doc) : null;" "  const accordRemise = null;" \
+  "$AR1"
+prouver "la remise au seuil même qui demande l'accord" serveur/v10/accords.ts \
+  "  if (!(taux > seuil)) return null;" "  if (!(taux >= seuil)) return null;" \
+  "$AR1"
+prouver "un accord de remise qui couvre un taux plus fort" serveur/v10/accords.ts \
+  "  if (!r || r.statut !== 'accorde' || Number(r.taux) < taux) return null;" "  if (!r || r.statut !== 'accorde') return null;" \
+  "$AR1"
+prouver "le propriétaire arrêté par la remise" serveur/v10/accords.ts \
+  "  if (responsable) return null;" "  if (false) return null;" \
+  "$AR1"
+prouver "une demande de remise en double" serveur/v10/routes.ts \
+  "and statut = 'en_attente' and geste = 'remise' and taux = \$3" "and statut = 'en_attente' and geste = 'remise' and taux = \$3 and false" \
+  "$AR1"
+prouver "le seuil de remise changé par un commercial en base" base/migrations/0054_accord_remise.sql \
+  "  if not (new.collection = '_racine' and new.cle = 'company') then return new; end if;" "  if true then return new; end if;" \
+  "$AR1"
+prouver "le taux d'une demande réécrit en base" base/migrations/0054_accord_remise.sql \
+  "  if (new.taux, new.seuil) is distinct from (old.taux, old.seuil) then" "  if false then" \
+  "$AR1"
+prouver "la remise au-delà qui ne se dit pas avant" web/public/v10/app.js \
+  "      if (isInv && accordsEnLigne() && !estResponsable() && seuilRemise > 0 && tauxRemise > seuilRemise) {" "      if (false) {" \
+  "$ARW"
+prouver "le seuil de remise qui ne se règle pas à l'écran" web/public/v10/app.js \
+  "          \${accordsEnLigne() ? field(lbl('Remise permise sans accord (%)'" "          \${false ? field(lbl('Remise permise sans accord (%)'" \
+  "$ARW"
+prouver "le seuil de remise perdu à l'enregistrement" web/public/v10/app.js \
+  "      data.company.remiseAccordAuDela = Math.min(100, Math.max(0, Number(data.company.remiseAccordAuDela) || 0));" "      data.company.remiseAccordAuDela = 0;" \
+  "$ARW"
+prouver "une demande de remise lue comme une demande d'encours" web/public/v10/app.js \
+  "    const remise = a.geste === 'remise';" "    const remise = false;" \
+  "$ARW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

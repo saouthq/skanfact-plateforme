@@ -16,7 +16,7 @@ import { Perimee, Refus } from '../erreurs.ts';
 import { REGLEMENTS_VENTES, tenirReglements } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonSaisi } from '../ventes/pieces.ts';
-import { controlerEncours } from './accords.ts';
+import { controlerEncours, controlerRemise } from './accords.ts';
 import { mesRoles, verifierEcriture } from './droits.ts';
 import { suivreAchats } from './achats.ts';
 import { suivrePaie } from './paie.ts';
@@ -215,6 +215,8 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
 
   // L'encours autorisé du client (brique 98 ; 03 D11) : au-delà, une facture ne s'émet qu'avec l'accord d'un
   // responsable, quand l'entreprise le demande. Dit AVANT le numéro.
+  // La remise au-delà du seuil de l'entreprise (brique 103) : de même, l'accord d'un responsable.
+  const accordRemise = type === 'facture' ? await controlerRemise(tx, entreprise, cle, doc) : null;
   const accord = type === 'facture' ? await controlerEncours(tx, entreprise, cle, doc) : null;
 
   // 1. Le client, tel qu'il est aujourd'hui dans le dossier : sa fiche du serveur le suit.
@@ -279,7 +281,7 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   // L'instant de l'émission (`issuedTs`), la v10 le pose elle-même juste après, comme avant.
   const contenu = { ...doc, number: r.numero, status: STATUT_EMISE[type], stampFee: enNombreV10(versTexte(r.totaux.timbreBase, 3)),
     // La pièce émise avec un accord porte les deux noms (03 D11).
-    ...(accord ? { accordEncours: accord } : {}) };
+    ...(accord ? { accordEncours: accord } : {}), ...(accordRemise ? { accordRemise } : {}) };
   // 6. Le fichier de la facture électronique, écrit maintenant et gardé (jamais réécrit) ; ses montants
   //    sont ceux que le serveur vient de sceller, sinon rien n'est émis. Une entreprise non soumise dont
   //    la fiche ne permet pas le fichier émet quand même : il s'écrira à la main, comme dans la v10.

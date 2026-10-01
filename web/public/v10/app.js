@@ -4583,8 +4583,17 @@
       // L'encours autorisé du client (brique 91 ; 14 § 3.2) : dit AVANT d'émettre, avec ses chiffres ; la personne décide.
       const enc = isInv || doc.type === 'livraison' ? C.depassementEncours(data, doc, co) : null;
       if (enc) w.push(`${(clientById(doc.clientId) || {}).name || 'Ce client'} dépasserait son encours autorisé de ${C.money(enc.depasse, co.currency)} : il doit déjà ${C.money(enc.encours, co.currency)} (factures non réglées et bons livrés à facturer), cette pièce en ajoute ${C.money(enc.piece, co.currency)}, pour ${C.money(enc.plafond, co.currency)} autorisés. ${isInv && co.encoursAccord && accordsEnLigne() && !estResponsable()
-        ? ((accordDe(doc.id) || {}).statut === 'accorde' ? `${accordDe(doc.id).decideur} l'a accordé : tu peux l'émettre.` : 'Au-delà, une facture demande l\'accord du propriétaire ou d\'un administrateur : en l\'émettant, tu pourras le lui demander.')
+        ? ((accordDe(doc.id, 'encours') || {}).statut === 'accorde' ? `${accordDe(doc.id, 'encours').decideur} l'a accordé : tu peux l'émettre.` : 'Au-delà, une facture demande l\'accord du propriétaire ou d\'un administrateur : en l\'émettant, tu pourras le lui demander.')
         : 'Fais-le régler avant, ou émets quand même.'}`);
+      // La remise au-delà de celle permise sans accord (brique 103) : dite AVANT, à qui devra demander l'accord.
+      const seuilRemise = Number(co.remiseAccordAuDela) || 0;
+      const tauxRemise = Number(doc.discountRate) || 0;
+      if (isInv && accordsEnLigne() && !estResponsable() && seuilRemise > 0 && tauxRemise > seuilRemise) {
+        const ar = accordDe(doc.id, 'remise');
+        w.push(ar && ar.statut === 'accorde' && Number(ar.taux) >= Math.round(tauxRemise * 100)
+          ? `${ar.decideur} a accordé cette remise de ${pct(tauxRemise)} % : tu peux l'émettre.`
+          : `La remise de ${pct(tauxRemise)} % dépasse les ${pct(seuilRemise)} % permis sans accord : en l'émettant, tu pourras demander l'accord du propriétaire ou d'un administrateur.`);
+      }
       if (!(co.name || '').trim() || !(co.matricule || '').trim()) w.push('Ta fiche société est incomplète (raison sociale ou matricule fiscal) : le document ne sera pas conforme. Paramètres → Mon entreprise.');
       // Le RIB ne se réclame que si on attend un virement (7.22.0, même règle que `companyGaps`).
       // Un restaurant ou un salon encaissent sur place : leur répéter à chaque facture qu'il manque
@@ -6498,7 +6507,13 @@
   // Un instant (la demande, la décision) : le jour et l'heure, là où l'on est.
   const instantAccord = x => x ? new Date(x).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
   // La demande qui compte pour une pièce : celle qui attend, sinon la dernière décidée (le serveur les range ainsi).
-  const accordDe = pieceId => (accordsVus && accordsVus.accords.find(a => a.piece === pieceId)) || null;
+  // Une pièce peut avoir deux demandes : l'encours, la remise (brique 103) ; `geste` choisit, sans lui la première.
+  const accordDe = (pieceId, geste) => (accordsVus && accordsVus.accords.find(a => a.piece === pieceId && (!geste || (a.geste || 'encours') === geste))) || null;
+  const tauxAccord = n => `${(Number(n) / 100).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} %`;
+  // Ce que porte une demande, en mots : les chiffres de l'encours, ou ceux de la remise.
+  const chiffresAccord = a => a.geste === 'remise'
+    ? `une remise de ${tauxAccord(a.taux)} (${tauxAccord(a.seuil)} permis sans accord)`
+    : `${montantAccord(a.montant)} pour cette facture, ${montantAccord(a.encours)} déjà dus, ${montantAccord(a.plafond)} autorisés`;
   const pieceEncoreBrouillon = id => { const d = docById(id); return !!d && !(d.number && d.status && d.status !== 'brouillon'); };
 
   // Le serveur a refusé l'émission faute d'accord : on propose de le demander. La facture reste en brouillon.
@@ -6545,20 +6560,25 @@
 
   // Sur un brouillon de facture : où en est la demande (et, pour le responsable, les deux gestes).
   function contenuBandeauAccord(pieceId) {
-    const a = accordDe(pieceId);
+    return ['remise', 'encours'].map(g => bandeauUnAccord(accordDe(pieceId, g))).join('');
+  }
+  function bandeauUnAccord(a) {
     if (!a) return '';
-    const chiffres = `${montantAccord(a.montant)} pour cette facture, ${montantAccord(a.encours)} déjà dus, ${montantAccord(a.plafond)} autorisés`;
+    const chiffres = chiffresAccord(a);
+    const remise = a.geste === 'remise';
     if (a.statut === 'en_attente' && accordsVus.peutDecider && !a.mienne) {
-      return `<div class="banner info lock-banner"><span><b>${h(a.demandeur)} demande ton accord</b> pour émettre cette facture au-delà de l'encours autorisé du client : ${chiffres}. ${info('doc.encoursAccord')}</span>
+      return `<div class="banner info lock-banner"><span><b>${h(a.demandeur)} demande ton accord</b> pour émettre cette facture ${remise ? `avec ${chiffres}` : `au-delà de l'encours autorisé du client : ${chiffres}`}. ${info('doc.encoursAccord')}</span>
         <span class="lock-go">${boutonsDecision(a)}</span></div>`;
     }
     if (a.statut === 'en_attente') {
       return `<div class="banner info lock-banner"><span><b>Accord demandé</b> le ${h(instantAccord(a.demandeLe))}${a.mienne ? '' : ` par ${h(a.demandeur)}`} (${chiffres}) : en attente du propriétaire ou d'un administrateur. La facture s'émettra une fois l'accord donné. ${info('doc.encoursAccord')}</span></div>`;
     }
     if (a.statut === 'accorde') {
-      return `<div class="banner info lock-banner"><span><b>Accordé par ${h(a.decideur)}</b> le ${h(instantAccord(a.decideLe))}, pour ${montantAccord(a.montant)} : la facture peut être émise. Si elle grossit, l'accord est à redemander. ${info('doc.encoursAccord')}</span></div>`;
+      return remise
+        ? `<div class="banner info lock-banner"><span><b>Remise accordée par ${h(a.decideur)}</b> le ${h(instantAccord(a.decideLe))}, jusqu'à ${tauxAccord(a.taux)} : la facture peut être émise. Une remise plus forte est à redemander. ${info('doc.encoursAccord')}</span></div>`
+        : `<div class="banner info lock-banner"><span><b>Accordé par ${h(a.decideur)}</b> le ${h(instantAccord(a.decideLe))}, pour ${montantAccord(a.montant)} : la facture peut être émise. Si elle grossit, l'accord est à redemander. ${info('doc.encoursAccord')}</span></div>`;
     }
-    return `<div class="banner info lock-banner"><span><b>Refusé par ${h(a.decideur)}</b> le ${h(instantAccord(a.decideLe))}${a.motif ? ` : « ${h(a.motif)} »` : ''}. La facture reste en brouillon : fais d'abord régler le client, ou redemande l'accord plus tard. ${info('doc.encoursAccord')}</span></div>`;
+    return `<div class="banner info lock-banner"><span><b>${remise ? 'Remise refusée' : 'Refusé'} par ${h(a.decideur)}</b> le ${h(instantAccord(a.decideLe))}${a.motif ? ` : « ${h(a.motif)} »` : ''}. La facture reste en brouillon : ${remise ? 'baisse la remise' : 'fais d\'abord régler le client'}, ou redemande l'accord plus tard. ${info('doc.encoursAccord')}</span></div>`;
   }
   function bandeauAccord(doc) {
     if (!accordsEnLigne() || doc.type !== 'facture') return '';
@@ -6578,15 +6598,15 @@
     const nom = a => (clientById(a.client) || {}).name || 'un client';
     if (attente.length) {
       const a = attente[0];
-      return `<div class="banner info lock-banner" id="accords-attente"><span><b>${attente.length > 1 ? `${attente.length} demandes d'accord attendent` : 'Une demande d\'accord attend'} ta décision</b> : ${h(a.demandeur)} voudrait émettre une facture de ${montantAccord(a.montant)} pour ${h(nom(a))}, au-delà de son encours autorisé${attente.length > 1 ? ', et d\'autres' : ''}. ${info('doc.encoursAccord')}</span>
+      return `<div class="banner info lock-banner" id="accords-attente"><span><b>${attente.length > 1 ? `${attente.length} demandes d'accord attendent` : 'Une demande d\'accord attend'} ta décision</b> : ${h(a.demandeur)} voudrait ${a.geste === 'remise' ? `accorder une remise de ${tauxAccord(a.taux)} à ${h(nom(a))} (${tauxAccord(a.seuil)} permis sans accord)` : `émettre une facture de ${montantAccord(a.montant)} pour ${h(nom(a))}, au-delà de son encours autorisé`}${attente.length > 1 ? ', et d\'autres' : ''}. ${info('doc.encoursAccord')}</span>
         <span class="lock-go"><button class="btn btn-sm" id="accords-voir">${attente.length > 1 ? 'Voir les demandes' : 'Voir la demande'}</button></span></div>`;
     }
     const semaine = Date.now() - 7 * 864e5;
     const decidee = l.accords.find(a => a.mienne && a.statut !== 'en_attente' && new Date(a.decideLe).getTime() > semaine && pieceEncoreBrouillon(a.piece));
     if (!decidee) return '';
     return `<div class="banner info lock-banner" id="accords-decidee"><span>${decidee.statut === 'accorde'
-      ? `<b>${h(decidee.decideur)} a accordé</b> ta facture pour ${h(nom(decidee))} : tu peux l'émettre.`
-      : `<b>${h(decidee.decideur)} a refusé</b> ta facture pour ${h(nom(decidee))}${decidee.motif ? ` : « ${h(decidee.motif)} »` : ''}. Elle reste en brouillon.`}</span>
+      ? `<b>${h(decidee.decideur)} a accordé</b> ta ${decidee.geste === 'remise' ? 'remise' : 'facture'} pour ${h(nom(decidee))} : tu peux l'émettre.`
+      : `<b>${h(decidee.decideur)} a refusé</b> ta ${decidee.geste === 'remise' ? 'remise' : 'facture'} pour ${h(nom(decidee))}${decidee.motif ? ` : « ${h(decidee.motif)} »` : ''}. Elle reste en brouillon.`}</span>
       <span class="lock-go"><button class="btn btn-sm" id="accords-ouvrir" data-piece="${h(decidee.piece)}">Ouvrir la facture</button></span></div>`;
   }
   function bandeauAccordsAccueil() {
@@ -13107,7 +13127,9 @@
             ? (l.peutDecider && !a.mienne ? `<span class="inline">${boutonsDecision(a)}</span>` : '<span class="muted">En attente</span>')
             : `${a.statut === 'accorde' ? 'Accordée' : '<span class="warn-text">Refusée</span>'} par ${h(a.decideur)} le ${h(instantAccord(a.decideLe))}${a.motif ? `<div class="small muted">« ${h(a.motif)} »</div>` : ''}`;
           return `<tr data-accord="${h(a.id)}"><td class="nw">${h(instantAccord(a.demandeLe))}</td><td class="nw">${piece}</td><td>${h((clientById(a.client) || {}).name || '—')}</td>
-            <td class="num nw">${montantAccord(a.montant)}</td><td class="num nw">${montantAccord(a.encours)}</td><td class="num nw">${montantAccord(a.plafond)}</td>
+            ${a.geste === 'remise'
+              ? `<td class="num nw">remise ${tauxAccord(a.taux)}</td><td class="num nw">—</td><td class="num nw">${tauxAccord(a.seuil)} sans accord</td>`
+              : `<td class="num nw">${montantAccord(a.montant)}</td><td class="num nw">${montantAccord(a.encours)}</td><td class="num nw">${montantAccord(a.plafond)}</td>`}
             <td>${h(a.demandeur)}</td><td>${decision}</td></tr>`;
         }).join('');
         $('#view').innerHTML = `${tete}<div class="panel">
@@ -16178,6 +16200,7 @@
           ${field(lbl('Validité des devis (jours)', 'doc.quoteValidity'), 'quoteValidityDays', c.quoteValidityDays, 'number', 'min="0" class="num"')}
           ${field(lbl('Délai de paiement (jours)', 'doc.paymentDays'), 'paymentTermsDays', c.paymentTermsDays, 'number', 'min="0" class="num"')}
           ${accordsEnLigne() ? `<label class="check" style="align-self:end"${estResponsable() ? '' : ' title="Réglé par le propriétaire ou un administrateur"'}><input type="checkbox" name="encoursAccord" ${c.encoursAccord ? 'checked' : ''}${estResponsable() ? '' : ' disabled'}> Au-delà de l'encours d'un client : l'accord d'un responsable ${info('doc.encoursAccord')}</label>` : ''}
+          ${accordsEnLigne() ? field(lbl('Remise permise sans accord (%)', 'doc.remiseAccord'), 'remiseAccordAuDela', Number(c.remiseAccordAuDela) > 0 ? c.remiseAccordAuDela : '', 'number', `step="0.01" min="0" max="100" class="num" placeholder="aucun seuil"${estResponsable() ? '' : ' disabled title="Réglé par le propriétaire ou un administrateur"'}`) : ''}
           <label class="field">${lbl('Retenue à la source par défaut', 'doc.withholdingDefault')}${withholdingSelect('defaultWithholdingRate', c.defaultWithholdingRate)}</label>
           ${/* 10.12.0 — « 0 » affiché dans le champ se lisait « un seuil de zéro dinar », c'est-à-dire
                toutes les factures : c'est l'inverse de ce qu'il veut dire (aucun seuil, 9.1.1). Le champ
@@ -16535,6 +16558,8 @@
       data.company.caisseLargeur = Number(data.company.caisseLargeur) === 58 ? 58 : 80;
       // L'accord d'un responsable (brique 100) : oui ou non ; « non » est la valeur qui ne change rien (03 D11).
       data.company.encoursAccord = data.company.encoursAccord === true;
+      // La remise permise sans accord (brique 103) : vide ou zéro, pas de seuil ; jamais plus de 100 %.
+      data.company.remiseAccordAuDela = Math.min(100, Math.max(0, Number(data.company.remiseAccordAuDela) || 0));
       save(true); applyTheme(); $('#brand-company').textContent = data.company.name || 'Ton entreprise';
       accorderNomDossier();     // le dossier porte le nom de la société, pas « Mon entreprise »
       // La licence est attachée au matricule fiscal : une fiche société modifiée se revérifie.

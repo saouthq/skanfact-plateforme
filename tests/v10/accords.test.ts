@@ -155,4 +155,50 @@ describe('l\'accord d\'un responsable au-delà de l\'encours', () => {
     expect((await libre.emettre(libre.commercial.jeton, facture('f3'), '357.000')).statut).toBe(200);
     expect((await appeler('POST', `/entreprises/${libre.ent}/dossier-v10/accord`, libre.commercial.jeton, { document: facture('f4') })).statut).toBe(403);
   });
+
+  // La remise au-delà d'un seuil (brique 103 ; 03 D11 : « une remise »).
+  it('au-delà de la remise permise, le commercial demande l\'accord ; il couvre ce taux, pas plus ; seul un responsable règle le seuil', async () => {
+    const m = await magasin(false);
+    const { ent, proprio, commercial } = m;
+    const ecrire = (qui: string, champ: Record<string, unknown>) => enTantQue(pool, qui, (tx) => tx.query(
+      `update socle.dossier_v10 set contenu = contenu || $2::jsonb where entreprise = $1 and collection = '_racine' and cle = 'company'`, [ent, JSON.stringify(champ)]));
+    // Le seuil se règle par un responsable, jusque dans la base.
+    await expect(ecrire(commercial.id, { remiseAccordAuDela: 50 })).rejects.toMatchObject({ code: '42501', message: 'La remise permise sans accord se règle par le propriétaire ou un administrateur.' });
+    await ecrire(proprio.id, { remiseAccordAuDela: 10 });
+    // Café El Walima, sans plafond d'encours : 12 sacs à 25, remise de 15 % (300 HT, 45 de remise, 303,450 TTC).
+    const c2 = (await m.lire()).find((o) => o.collection === 'clients' && o.cle === 'c2')?.contenu ?? null;
+    const remisee = (id: string, taux: number) => ({ ...facture(id), clientId: 'c2', discountRate: taux });
+    const emettre = async (jeton: string, doc: Record<string, unknown>, net: string) => {
+      const avant = (await m.lire()).find((o) => o.collection === 'documents' && o.cle === doc.id);
+      return appeler('POST', `/entreprises/${ent}/dossier-v10/emettre`, jeton, { document: doc, client: c2, revision: avant?.revision ?? null, rang: 1, netAPayer: net });
+    };
+    await m.brouillon(proprio.jeton, remisee('r1', 15));
+    const refus = await emettre(commercial.jeton, remisee('r1', 15), '303.450');
+    expect(refus.statut).toBe(403);
+    expect(String(refus.corps.motif).replace(/\s+/g, ' ')).toBe('Café El Walima : la remise de 15 % dépasse les 10 % permis sans accord : il faut l\'accord du propriétaire ou d\'un administrateur. Demande-le ; la facture s\'émettra une fois l\'accord donné.');
+    expect(refus.corps.bouton).toBe('ventes.accord.demander');
+    // La demande porte sur la remise, avec les chiffres du serveur ; redemander ne la double pas.
+    const d = await appeler('POST', `/entreprises/${ent}/dossier-v10/accord`, commercial.jeton, { document: remisee('r1', 15) });
+    expect(d.corps).toMatchObject({ statut: 'en_attente', geste: 'remise' });
+    expect((await appeler('POST', `/entreprises/${ent}/dossier-v10/accord`, commercial.jeton, { document: remisee('r1', 15) })).corps.id).toBe(d.corps.id);
+    const liste = (await appeler('GET', `/entreprises/${ent}/accords`, proprio.jeton)).corps.accords as Record<string, unknown>[];
+    expect(liste.map((a) => [a.geste, a.taux, a.seuil, a.montant, a.plafond])).toEqual([['remise', 1500, 1000, 45000, null]]);
+    expect((await appeler('POST', `/entreprises/${ent}/accords/${String(d.corps.id)}/decider`, proprio.jeton, { decision: 'accorder' })).corps.statut).toBe('accorde');
+    // Accordé pour 15 % : pas pour 20 %.
+    await m.brouillon(proprio.jeton, remisee('r1', 20));
+    expect((await emettre(commercial.jeton, remisee('r1', 20), '285.600')).statut).toBe(403);
+    await m.brouillon(proprio.jeton, remisee('r1', 15));
+    const ok = await emettre(commercial.jeton, remisee('r1', 15), '303.450');
+    expect(ok.statut).toBe(200);
+    expect((ok.corps.contenu as Record<string, unknown>).accordRemise).toMatchObject({ demandePar: commercial.nom, accordePar: proprio.nom, taux: 15 });
+    // Le propriétaire remise au-delà sans accord.
+    await m.brouillon(proprio.jeton, remisee('r4', 30));
+    expect((await emettre(proprio.jeton, remisee('r4', 30), '249.900')).statut).toBe(200);
+    // Au seuil même, pas d'accord à demander ; et la base ne laisse pas réécrire le taux d'une demande.
+    await m.brouillon(proprio.jeton, remisee('r2', 10));
+    expect((await emettre(commercial.jeton, remisee('r2', 10), '321.300')).statut).toBe(200);
+    const d3 = await appeler('POST', `/entreprises/${ent}/dossier-v10/accord`, commercial.jeton, { document: remisee('r3', 25) });
+    await expect(enTantQue(pool, proprio.id, (tx) => tx.query(`update ventes.accord set taux = 1600 where id = $1`, [d3.corps.id])))
+      .rejects.toMatchObject({ code: '42501', message: 'Une demande d\'accord ne se réécrit pas : on en fait une autre.' });
+  });
 });

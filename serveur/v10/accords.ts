@@ -18,6 +18,7 @@ type Core = {
   migrateData: (d: Json) => Json;
   depassementEncours: (data: Json, doc: Json, company: Json) => Depassement | null;
   decimalsFor: (devise: string) => number;
+  computeTotals: (doc: Json, company: Json) => { discount: number; discountRate: number };
 };
 const C = () => codeDeLEcran<Core>('core.js');
 
@@ -59,7 +60,7 @@ export function montantLisible(n: number, decimales: number, devise: string): st
 export async function accordDeLaPiece(tx: Transaction, entreprise: string, piece: string, montant: number) {
   const r = (await tx.query(`select a.statut, a.montant, a.decide_le, d.nom demandeur, x.nom decideur
       from ventes.accord a join socle.utilisateur d on d.id = a.demande_par left join socle.utilisateur x on x.id = a.decide_par
-     where a.entreprise = $1 and a.piece_v10 = $2 and a.statut <> 'en_attente'
+     where a.entreprise = $1 and a.piece_v10 = $2 and a.statut <> 'en_attente' and a.geste = 'encours'
      order by a.decide_le desc limit 1`, [entreprise, piece])).rows[0] as
     { statut: string; montant: string; decide_le: Date; demandeur: string; decideur: string } | undefined;
   if (!r || r.statut !== 'accorde' || Number(r.montant) < montant) return null;
@@ -76,6 +77,58 @@ export async function controlerEncours(tx: Transaction, entreprise: string, cle:
   const m = (n: number) => montantLisible(n, d.decimales, d.devise);
   throw new Refus('ventes.encours_accord', {
     valeurs: { client: d.client || '—', depasse: m(d.depasse), encours: m(d.encours), piece: m(d.piece), plafond: m(d.plafond) },
+    bouton: 'ventes.accord.demander',
+  });
+}
+
+// ── La remise au-delà d'un seuil (brique 103 ; 03 D11 : « une remise ») ─────────────────────────────────────────
+// L'entreprise règle la remise permise sans accord (`remiseAccordAuDela`, en %, sur sa fiche ; vide : pas de seuil,
+// la valeur qui ne change rien). Une facture dont la remise globale la dépasse ne s'émet, par qui n'est ni
+// propriétaire ni administrateur, qu'avec l'accord de l'un d'eux. Le seuil est lu en base, jamais sur l'écran.
+const pourcent = (n: number) => `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(n / 100)} %`;
+
+// La remise de cette pièce au-delà du seuil : taux et seuil en centièmes de pour cent, montant de la remise en
+// unités entières de sa devise ; null sans seuil, ou en dessous.
+export async function remiseDuServeur(tx: Transaction, entreprise: string, doc: Json) {
+  const brut = (await tx.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'company'`,
+    [entreprise])).rows[0]?.contenu;
+  const societe = (commeLaV10(brut ?? {}) ?? {}) as Json;
+  const seuil = Math.round(Number(societe.remiseAccordAuDela) * 100);
+  if (!(seuil > 0)) return null;
+  const piece = commeLaV10(doc) as Json;
+  const taux = Math.round(Number(piece.discountRate) * 100);
+  if (!(taux > seuil)) return null;
+  const devise = String(piece.currency || societe.currency || 'DT');
+  const facteur = 10 ** C().decimalsFor(devise);
+  const clients = (await tx.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'clients' and cle = $2`,
+    [entreprise, String(doc.clientId ?? '')])).rows[0]?.contenu;
+  return { taux, seuil, montant: Math.round(C().computeTotals(piece, societe).discount * facteur),
+    client: String(((commeLaV10(clients ?? {}) ?? {}) as Json).name ?? '') };
+}
+
+// L'accord qui couvre cette remise : la dernière décision prise sur la remise de la pièce, si c'est un accord pour
+// au moins ce taux.
+export async function accordRemiseDeLaPiece(tx: Transaction, entreprise: string, piece: string, taux: number) {
+  const r = (await tx.query(`select a.statut, a.taux, a.decide_le, d.nom demandeur, x.nom decideur
+      from ventes.accord a join socle.utilisateur d on d.id = a.demande_par left join socle.utilisateur x on x.id = a.decide_par
+     where a.entreprise = $1 and a.piece_v10 = $2 and a.statut <> 'en_attente' and a.geste = 'remise'
+     order by a.decide_le desc limit 1`, [entreprise, piece])).rows[0] as
+    { statut: string; taux: number; decide_le: Date; demandeur: string; decideur: string } | undefined;
+  if (!r || r.statut !== 'accorde' || Number(r.taux) < taux) return null;
+  return { demandePar: r.demandeur, accordePar: r.decideur, le: r.decide_le.toISOString(), taux: Number(r.taux) / 100 };
+}
+
+// À l'émission d'une facture : sans accord, la remise au-delà du seuil se refuse en disant ses chiffres.
+export async function controlerRemise(tx: Transaction, entreprise: string, cle: string, doc: Json) {
+  // Le propriétaire et l'administrateur remisent sans accord.
+  const responsable = await estResponsable(tx, entreprise);
+  if (responsable) return null;
+  const r = await remiseDuServeur(tx, entreprise, doc);
+  if (!r) return null;
+  const accord = await accordRemiseDeLaPiece(tx, entreprise, cle, r.taux);
+  if (accord) return accord;
+  throw new Refus('ventes.remise_accord', {
+    valeurs: { client: r.client || '—', taux: pourcent(r.taux), seuil: pourcent(r.seuil) },
     bouton: 'ventes.accord.demander',
   });
 }

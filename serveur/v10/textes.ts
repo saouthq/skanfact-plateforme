@@ -53,6 +53,7 @@ declarerTextes({
   'v10.emise_ne_se_modifie_plus': 'la facture {numero} est émise : elle ne se modifie plus, on la corrige par un avoir',
   'v10.emise_ne_s_efface_pas': 'la facture {numero} est émise : elle ne s\'efface jamais, on la corrige par un avoir',
   'ventes.encours_accord': '{client} dépasserait son encours autorisé de {depasse} ({encours} déjà dus, {piece} pour cette facture, {plafond} autorisés) : il faut l\'accord du propriétaire ou d\'un administrateur. Demande-le ; la facture s\'émettra une fois l\'accord donné',
+  'ventes.remise_accord': '{client} : la remise de {taux} dépasse les {seuil} permis sans accord : il faut l\'accord du propriétaire ou d\'un administrateur. Demande-le ; la facture s\'émettra une fois l\'accord donné',
   'ventes.accord_inutile': 'cette facture reste dans l\'encours autorisé de son client : elle s\'émet sans accord',
   'ventes.accord_deja_decide': 'cette demande a déjà été décidée : rien n\'a changé',
   'ventes.accord_le_sien': 'on ne décide pas sa propre demande : un autre responsable accorde ou refuse',

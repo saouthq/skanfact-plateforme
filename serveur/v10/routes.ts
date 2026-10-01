@@ -13,7 +13,7 @@ import { mettreEnQuarantaine, type Contexte } from '../connexion.ts';
 import { Refus, texteDuRefus } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { tracer } from '../trace.ts';
-import { depassementDuServeur, estResponsable } from './accords.ts';
+import { accordRemiseDeLaPiece, depassementDuServeur, estResponsable, remiseDuServeur } from './accords.ts';
 import { filtrer, mesRoles } from './droits.ts';
 import { appliquer, Conflit, emettreDepuisV10, lireDossier, type Changement } from './dossier.ts';
 import { poserCompte, renvoyer } from './envoi.ts';
@@ -77,15 +77,24 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       const doc = corps.document as Record<string, unknown>;
       const piece = String(doc.id ?? '');
       if (!piece || doc.type !== 'facture' || typeof doc.clientId !== 'string' || !doc.clientId) throw new Refus('ventes.seule_facture');
+      const qui = async () => (await tx.query(`select u.nom from socle.membre m join socle.utilisateur u on u.id = m.utilisateur
+        where m.entreprise = $1 and m.actif and m.roles && array['proprietaire', 'administrateur'] order by u.nom`, [ent])).rows.map((x) => String(x.nom));
+      // La remise d'abord (brique 103), comme à l'émission : au-delà du seuil et sans accord, c'est elle qu'on demande.
+      const rem = await remiseDuServeur(tx, ent, doc);
+      if (rem && !(await accordRemiseDeLaPiece(tx, ent, piece, rem.taux))) {
+        const dejaR = (await tx.query(`select id from ventes.accord where entreprise = $1 and piece_v10 = $2 and statut = 'en_attente' and geste = 'remise' and taux = $3
+          order by demande_le desc limit 1`, [ent, piece, rem.taux])).rows[0] as { id: string } | undefined;
+        const idR = dejaR?.id ?? String((await tx.query(`insert into ventes.accord (entreprise, geste, piece_v10, client_v10, montant, encours, taux, seuil, demande_par)
+          values ($1, 'remise', $2, $3, $4, 0, $5, $6, socle.moi()) returning id`, [ent, piece, doc.clientId, Math.max(1, rem.montant), rem.taux, rem.seuil])).rows[0].id);
+        return { corps: { id: idR, statut: 'en_attente', geste: 'remise', responsables: await qui() } };
+      }
       const d = await depassementDuServeur(tx, ent, doc);
       if (!d) throw new Refus('ventes.accord_inutile');
-      const deja = (await tx.query(`select id from ventes.accord where entreprise = $1 and piece_v10 = $2 and statut = 'en_attente' and montant = $3
+      const deja = (await tx.query(`select id from ventes.accord where entreprise = $1 and piece_v10 = $2 and statut = 'en_attente' and montant = $3 and geste = 'encours'
         order by demande_le desc limit 1`, [ent, piece, d.piece])).rows[0] as { id: string } | undefined;
       const id = deja?.id ?? String((await tx.query(`insert into ventes.accord (entreprise, geste, piece_v10, client_v10, montant, encours, plafond, demande_par)
         values ($1, 'encours', $2, $3, $4, $5, $6, socle.moi()) returning id`, [ent, piece, doc.clientId, d.piece, d.encours, d.plafond])).rows[0].id);
-      const qui = (await tx.query(`select u.nom from socle.membre m join socle.utilisateur u on u.id = m.utilisateur
-        where m.entreprise = $1 and m.actif and m.roles && array['proprietaire', 'administrateur'] order by u.nom`, [ent])).rows.map((x) => String(x.nom));
-      return { corps: { id, statut: 'en_attente', responsables: qui } };
+      return { corps: { id, statut: 'en_attente', geste: 'encours', responsables: await qui() } };
     },
   });
   // Les demandes : celles qui attendent, puis les dernières décidées ; `peutDecider` dit si la personne en décide.
@@ -94,12 +103,13 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     traiter: async ({ params }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const ent = params.entreprise ?? '';
-      const lignes = (await tx.query(`select a.id, a.piece_v10, a.client_v10, a.montant, a.encours, a.plafond, a.statut, a.motif, a.demande_le, a.decide_le,
+      const lignes = (await tx.query(`select a.id, a.geste, a.taux, a.seuil, a.piece_v10, a.client_v10, a.montant, a.encours, a.plafond, a.statut, a.motif, a.demande_le, a.decide_le,
           d.nom demandeur, x.nom decideur, (a.demande_par = socle.moi()) mienne
         from ventes.accord a join socle.utilisateur d on d.id = a.demande_par left join socle.utilisateur x on x.id = a.decide_par
         where a.entreprise = $1 order by (a.statut = 'en_attente') desc, coalesce(a.decide_le, a.demande_le) desc limit 50`, [ent])).rows;
       return { corps: { peutDecider: await estResponsable(tx, ent), accords: lignes.map((l) => ({
-        id: l.id, piece: l.piece_v10, client: l.client_v10, montant: Number(l.montant), encours: Number(l.encours), plafond: Number(l.plafond),
+        id: l.id, geste: l.geste, taux: l.taux === null ? null : Number(l.taux), seuil: l.seuil === null ? null : Number(l.seuil),
+        piece: l.piece_v10, client: l.client_v10, montant: Number(l.montant), encours: Number(l.encours), plafond: l.plafond === null ? null : Number(l.plafond),
         statut: l.statut, motif: l.motif, demandeLe: l.demande_le, decideLe: l.decide_le, demandeur: l.demandeur, decideur: l.decideur, mienne: l.mienne })) } };
     },
   });

@@ -1,4 +1,5 @@
-// L'accord d'un responsable au-delà de l'encours, à la souris et à deux (brique 100 ; docs/accords.md) :
+// L'accord d'un responsable au-delà de l'encours (brique 100) et d'une remise (brique 103), à la souris et à deux
+// (docs/accords.md) :
 //   - Nadia, propriétaire, règle l'accord dans les Paramètres ;
 //   - Karim, commercial, veut émettre une facture qui ferait dépasser l'encours de Chantier Ennasr : l'avertissement
 //     le dit avant, le serveur refuse, l'écran propose « Demander l'accord », et la facture dit où en est la demande ;
@@ -52,7 +53,8 @@ describe('l\'accord d\'un responsable, à la souris', () => {
   const bandeau = async (p: Page) => net(await p.locator('#accord-banner').innerText().catch(() => ''));
   const aujourdhui = new Date().toISOString().slice(0, 10);
 
-  it('Karim demande, Nadia refuse puis accorde, Karim émet', async () => {
+  // Nadia, propriétaire (avec son code), son magasin, et Karim, commercial.
+  const magasin = async () => {
     // Nadia, propriétaire (avec son code), et son magasin : Chantier Ennasr a 1 000 DT autorisés et doit déjà 799,680 DT livrés.
     const email = `nadia-accords-${Date.now()}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Nadia', motDePasse: 'Un-bon-mot-de-passe' });
@@ -80,6 +82,11 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     const invitation = String((await api('POST', `/entreprises/${ent}/invitations`, jeton, { email: karimEmail, roles: ['commercial'] })).corps.jeton);
     expect((await api('POST', '/invitations/accepter', karim, { jeton: invitation })).statut).toBe(200);
 
+    return { jeton, ent, karim };
+  };
+
+  it('Karim demande, Nadia refuse puis accorde, Karim émet', async () => {
+    const { jeton, ent, karim } = await magasin();
     const erreurs: string[] = [];
     const ouvrir = async (j: string): Promise<[BrowserContext, Page]> => {
       const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
@@ -188,6 +195,80 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     const emise = ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { cle: string; contenu: Record<string, unknown> }[]).find((o) => o.cle === pieceId)?.contenu;
     expect(emise?.accordEncours).toMatchObject({ demandePar: 'Karim', accordePar: 'Nadia' });
 
+    expect(erreurs).toEqual([]);
+    await cn.close(); await ck.close();
+  }, 180_000);
+  // La remise au-delà d'un seuil (brique 103).
+  it('Nadia règle la remise permise ; Karim remise au-delà, demande, Nadia accorde depuis la facture, Karim émet', async () => {
+    const { jeton, ent, karim } = await magasin();
+    const erreurs: string[] = [];
+    const ouvrir = async (j: string): Promise<[BrowserContext, Page]> => {
+      const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+      await cx.addInitScript((x) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', x); }, j);
+      const pg1 = await cx.newPage();
+      pg1.on('pageerror', (e) => erreurs.push(e.message));
+      return [cx, pg1];
+    };
+    const [cn, n] = await ouvrir(jeton);
+    const [ck, k] = await ouvrir(karim);
+
+    // 1. Nadia : 10 % de remise permis sans accord.
+    await n.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
+    await expect.poll(() => n.locator('#pf input[name=name]').count(), { timeout: 20_000 }).toBe(1);
+    await plusTard(n);
+    await n.locator('#set-tabs button[data-tab=documents]').click();
+    await n.locator('#pf input[name=remiseAccordAuDela]').fill('10');
+    await n.locator('#save-bar #save').click();
+    await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { cle: string; contenu: Record<string, unknown> }[])
+      .find((o) => o.cle === 'company')?.contenu.remiseAccordAuDela, { timeout: 10_000 }).toBe(10);
+
+    // 2. Karim : une facture pour Café El Walima, remise de 15 %. L'avertissement le dit, le serveur refuse, il demande.
+    await k.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/new/facture`);
+    await expect.poll(() => titre(k), { timeout: 20_000 }).toMatch(/^Nouvelle facture|^Facture/);
+    await plusTard(k);
+    await k.locator('[data-combo=clientId] .combo-btn').click();
+    await k.locator('[data-combo=clientId] .combo-q').fill('Walima');
+    await k.locator('[data-combo=clientId] .combo-list [role=option]').first().click();
+    await k.locator('[data-k=label]').first().fill('Ciment gris 50 kg');
+    await k.locator('[data-k=qty]').first().fill('12');
+    await k.locator('[data-k=unitPrice]').first().fill('25');
+    await k.locator('input[name=discountRate]').fill('15');
+    await k.locator('input[name=applyStamp]').uncheck();
+    await k.locator('#save').click();
+    await expect.poll(() => toast(k), { timeout: 10_000 }).toBe('Brouillon enregistré');
+    const emettre = async () => {
+      await k.locator('#issue').click();
+      await expect.poll(() => k.locator('#modal-root #ok').count(), { timeout: 10_000 }).toBe(1);
+      const avertissement = net(await k.locator('#modal-root').innerText());
+      await k.locator('#modal-root #ok').click();
+      return avertissement;
+    };
+    expect(await emettre()).toContain('La remise de 15 % dépasse les 10 % permis sans accord : en l\'émettant, tu pourras demander l\'accord du propriétaire ou d\'un administrateur.');
+    await expect.poll(() => k.locator('#modal-root #accord-question').count(), { timeout: 10_000 }).toBe(1);
+    expect(net(await k.locator('#modal-root').innerText())).toContain('Café El Walima : la remise de 15 % dépasse les 10 % permis sans accord');
+    await k.locator('#modal-root #a').click();
+    await expect.poll(() => bandeau(k), { timeout: 10_000 }).toMatch(/^Accord demandé le .* \(une remise de 15 % \(10 % permis sans accord\)\) : en attente/);
+    const pieceId = decodeURIComponent(k.url().split('#/doc/')[1] ?? '');
+
+    // 3. Nadia ouvre la facture et accorde.
+    await n.evaluate((x) => { location.hash = x; }, `#/doc/${pieceId}`);
+    await n.reload();
+    await expect.poll(() => titre(n), { timeout: 20_000 }).toMatch(/^Facture/);
+    await plusTard(n);
+    await expect.poll(() => bandeau(n), { timeout: 10_000 }).toMatch(/^Karim demande ton accord pour émettre cette facture avec une remise de 15 % \(10 % permis sans accord\)\./);
+    await n.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'accords-7-remise-demandee.png') });
+    await n.locator('#accord-banner [data-accord-accorder]').click();
+    await expect.poll(() => bandeau(n), { timeout: 10_000 }).toMatch(/^Remise accordée par Nadia le .*, jusqu'à 15 % : la facture peut être émise\./);
+
+    // 4. Karim émet : l'avertissement le dit accordé ; la pièce porte les deux noms.
+    await k.reload();
+    await expect.poll(() => bandeau(k), { timeout: 20_000 }).toMatch(/^Remise accordée par Nadia/);
+    await plusTard(k);
+    expect(await emettre()).toContain('Nadia a accordé cette remise de 15 % : tu peux l\'émettre.');
+    await expect.poll(() => titre(k), { timeout: 20_000 }).toMatch(/^Facture FAC-\d{4}-002/);
+    await k.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'accords-8-remise-emise.png') });
+    const emise = ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { cle: string; contenu: Record<string, unknown> }[]).find((o) => o.cle === pieceId)?.contenu;
+    expect(emise?.accordRemise).toMatchObject({ demandePar: 'Karim', accordePar: 'Nadia', taux: 15 });
     expect(erreurs).toEqual([]);
     await cn.close(); await ck.close();
   }, 180_000);

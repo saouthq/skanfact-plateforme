@@ -85,6 +85,8 @@
   `ventes.accord` ; un déclencheur réserve `creditLimit` et `encoursAccord` aux responsables. Les écrans (brique 100,
   `web/v10/accords.txt`) : réglage, « Demander l'accord » dans le refus, bandeau de la facture, accueil, `#/accords` ;
   `droits.responsable` grise à l'écran ce que la base refuserait.
+  La remise (brique 103, `0054`) : `remiseAccordAuDela` (%) sur la fiche ; geste `remise` (taux, seuil en centièmes de
+  %) ; `controlerRemise` avant `controlerEncours` ; la pièce émise porte `accordRemise`.
 - **Les droits dans le dossier** (brique 99, `docs/droits-dossier.md`, `serveur/v10/droits.ts`) : chaque partie du
   dossier a un geste pour la lire et un pour l'écrire ; le GET filtre et rend `droits` (`cachees`, `lectureSeule`,
   `ecrivables`, `tout`, `responsable`) ; `appliquer` refuse une partie interdite ; `pont.js` ne renvoie que la liste blanche (ni
