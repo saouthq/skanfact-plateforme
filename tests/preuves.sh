@@ -6465,9 +6465,12 @@ prouver "le poste qui oublie qu'il tient une caisse" web/public/plateforme/pont.
 
 # ── Un seul tiroir, compté à l'aveugle (brique 122, 01/10/2026 ; docs/caisse.md) ──
 prouver "le bilan qui dit le tiroir pendant la session (le compte n'est plus à l'aveugle)" web/public/v10/app.js \
-  "      if (caisseEtat.session) return 'Le tiroir se compte à la fermeture (Z), sans voir ce qu\\'il devrait contenir.';
+  "      if (!caisseEtat || caisseEtat.session) return 'Le tiroir se compte à la fermeture (Z), sans voir ce qu\\'il devrait contenir.';
 " "" \
   "$CW"
+prouver "sans réseau, le bilan qui redit le tiroir au poste qui tient la caisse" web/public/v10/app.js \
+  "(caisseEtat || (bridge.caisseSansReseau && bridge.caisseSansReseau()))" "caisseEtat" \
+  "$CHW"
 prouver "le bilan après le Z qui ne dit pas le même tiroir que le Z" web/public/v10/app.js \
   "      if (z && jourTunis(z.fermeeLe) === b.jour) return" "      if (false) return" \
   "$CW"

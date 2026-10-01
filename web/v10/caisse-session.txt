@@ -104,13 +104,14 @@ dit ensuite l'attendu, l'écart, et fige le Z, qui s'affiche.
   // (brique 122) Le tiroir se compte sans voir ce qu'il devrait contenir (le Z, brique 116) : tant que la session du jour
   // est ouverte, ni la page ni le bilan imprimé ne le disent ; après le Z du jour, la page redit ses chiffres (ceux du
   // serveur : le fond plus les espèces de la session). Un autre jour, ou sans point de contact : comme la v10.
-  const caisseDuJour = jour => !!(bridge.caisse && caisseEtat && jour === C.today());
+  const caisseDuJour = jour => !!(bridge.caisse && jour === C.today() && (caisseEtat || (bridge.caisseSansReseau && bridge.caisseSansReseau())));
   const jourTunis = x => new Date(x).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
   let dernierBilan = null;
   function sousTiroir(b, cur) {
     dernierBilan = { b, cur };
     if (caisseDuJour(b.jour)) {
-      if (caisseEtat.session) return 'Le tiroir se compte à la fermeture (Z), sans voir ce qu\'il devrait contenir.';
+      // Sans réseau, le poste qui tient la caisse : sa session est ouverte.
+      if (!caisseEtat || caisseEtat.session) return 'Le tiroir se compte à la fermeture (Z), sans voir ce qu\'il devrait contenir.';
       const z = caisseEtat.dernierZ;
       if (z && jourTunis(z.fermeeLe) === b.jour) return `Au Z, le tiroir devait contenir <b>${h(argentCaisse(z.attendu))}</b> ; compté : ${h(argentCaisse(z.compte))}.`;
     }

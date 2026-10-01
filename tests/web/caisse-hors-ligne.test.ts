@@ -103,7 +103,9 @@ describe('la caisse sans réseau, à la souris', () => {
     await p.waitForTimeout(800);
     expect(net(await p.locator('#poste-bandeau').innerText())).toMatch(/2 changements/);
     await p.locator('#cs-tabs [data-tab=tickets]').click();
-    await expect.poll(async () => net(await p.locator('#cs-body .stat').first().innerText()), { timeout: 10_000 }).toContain('3 tickets');
+    await expect.poll(async () => net(await p.locator('#cs-body').innerText()), { timeout: 10_000 }).toMatch(new RegExp(`3 tickets.*TIC-${annee}-003.*TIC-${annee}-002.*TIC-${annee}-001`));
+    // Sans réseau aussi, la session est ouverte : le bilan ne dit pas ce que le tiroir devrait contenir.
+    expect(net(await p.locator('#cs-tiroir').innerText())).toBe('Le tiroir se compte à la fermeture (Z), sans voir ce qu\'il devrait contenir.');
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'caisse-hl-1-sans-reseau.png') });
     // Le serveur n'a encore que le premier.
     expect(await tickets()).toEqual([[`TIC-${annee}-001`, `TIC-${annee}-001`, false]]);
