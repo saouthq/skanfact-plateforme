@@ -107,7 +107,9 @@ describe('les avis d\'événement', () => {
 
     recus.length = 0;
     reponse = 200;
-    const t = new Date('2026-10-01T10:00:00Z');
+    // Un instant à venir, jamais une date écrite en dur : un avis posé « maintenant » ne serait plus dû le lendemain
+    // de cette date (défaut trouvé le 01/10/2026 à 10 h 30).
+    const t = new Date(Date.now() + 60_000);
     expect(await livrerAvis(pool, destinataire, t)).toEqual({ livres: 1, echecs: 0 });
     const e = recus[0] as Envoi;
     expect(e.url).toBe('https://boutique.exemple.tn/avis');
@@ -128,7 +130,7 @@ describe('les avis d\'événement', () => {
     await facture(proprio.jeton, A);
     reponse = 500;
     recus.length = 0;
-    let t = new Date('2026-10-02T08:00:00Z');
+    let t = new Date(Date.now() + 86_400_000);
     const plus = (ms: number) => new Date(t.getTime() + ms);
     expect(await livrerAvis(pool, destinataire, t)).toEqual({ livres: 0, echecs: 1 });
     const ligne = async () => (await admin.query(`select essais, prochain_essai, abandonne_le, dernier_statut, derniere_erreur from socle.avis

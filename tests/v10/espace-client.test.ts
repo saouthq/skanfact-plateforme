@@ -15,6 +15,8 @@ import type { FastifyInstance } from 'fastify';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { creerApp, VERSION } from '../../serveur/app.ts';
+import { declarerGestesCaisse } from '../../serveur/caisse/gestes.ts';
+import { routesCaisse } from '../../serveur/caisse/routes.ts';
 import { creerPool } from '../../serveur/base.ts';
 import type { Contexte } from '../../serveur/connexion.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
@@ -68,7 +70,8 @@ beforeAll(async () => {
   await admin.query(`insert into socle.regle_fiscale (code, valeur, debut, source)
     select 'timbre.facture', '1000', '2000-01-01', 'Règle d''essai des tests' where not exists (select 1 from socle.regle_fiscale where code = 'timbre.facture')`);
   declarerGestesVentes();
-  app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesV10(ctx)]);
+  declarerGestesCaisse();
+  app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesV10(ctx)]);
   await app.ready();
 });
 afterAll(async () => { await app.close(); await admin.end(); await pool.end(); });
@@ -101,7 +104,11 @@ describe('l\'espace client', () => {
     await emettre(avoir('a1', menuiserie.cle, 'f1'), 'emettre-avoir', '536.095', 1);
     await emettre(brouillon('f2', atelier.cle), 'emettre', '1073.190', 2);
     await e.envoyer([{ collection: 'documents', cle: 'f3', rang: 3, revision: null, contenu: brouillon('f3', menuiserie.cle) }]);
-    await emettre({ ...brouillon('f4', menuiserie.cle), ticket: true }, 'emettre', '1073.190', 4);
+    // f4 s'encaisse à la caisse, ouverte sur l'appareil de Nadia (briques 115-116), payé en entier.
+    expect((await appeler('POST', `/entreprises/${e.ent}/caisse/ouvrir`, e.jeton, { fond: '0' })).statut).toBe(200);
+    const paye = [{ id: 'p4', date: '2026-10-01', amount: { '~n': '1073.19' }, method: 'especes', accountId: '', reference: '', note: 'Encaissé en caisse' }];
+    expect((await appeler('POST', `/entreprises/${e.ent}/dossier-v10/ticket`, e.jeton,
+      { document: { ...brouillon('f4', menuiserie.cle), ticket: true, status: 'envoyée', payments: paye }, rang: 4, netAPayer: '1073.190' })).statut).toBe(200);
     // Le brouillon f3, s'il était aussi une pièce du serveur (pas encore émise) : il reste un brouillon.
     const tiers = String((await admin.query('select id from socle.tiers where entreprise = $1 and ref_v10 = $2', [e.ent, menuiserie.cle])).rows[0].id);
     const aEmettre = await appeler('POST', `/entreprises/${e.ent}/ventes`, e.jeton, { type: 'facture', tiers, datePiece: '2026-10-02',
