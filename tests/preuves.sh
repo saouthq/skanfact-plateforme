@@ -6045,6 +6045,22 @@ prouver "un écran du Cabinet pensé pour un ordinateur qui ne le dit pas au té
 " "" \
   "$CTEL"
 
+# ── Brique 111 : l'accueil selon le rôle (web/v10/accueil-role.txt ; tests/web/menu-role.test.ts) ──
+MR="chacun ne voit dans son menu que les pages de son rôle"
+prouver "la mise en place de l'entreprise proposée à un membre qui ne la tient pas" web/public/v10/app.js \
+  "    if (!estResponsable()) return accueilDuRole();
+" "" \
+  "$MR"
+prouver "« + Nouvelle facture » sur l'accueil de qui ne peut pas écrire une pièce" web/public/v10/app.js \
+  "\${peutEcrireDossier('documents') ? \`<button class=\"btn\" id=\"new-devis\">" "\${true ? \`<button class=\"btn\" id=\"new-devis\">" \
+  "$MR"
+prouver "« À faire » qui mène à une page que le rôle ne montre pas" web/public/v10/app.js \
+  "todoMeneACache(x.id) ? '' :" "false ? '' :" \
+  "$MR"
+prouver "l'accueil de la paie sans bouton principal" web/public/v10/app.js \
+  "    const vert = !peutEcrireDossier('documents');" "    const vert = false;" \
+  "$MR"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

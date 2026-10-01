@@ -82,6 +82,19 @@ et rien n'arrivait au serveur. Désormais (`web/v10/lecture-seule.txt`, par dél
 
 Test : `tests/web/lecture-seule.test.ts` (Samia, comptabilité interne ; Omar, lecture). 5 preuves.
 
+## L'accueil selon le rôle (brique 111, 01/10/2026)
+
+L'accueil de la v10 s'adresse à qui tient l'entreprise. Leila (paie) y voyait « + Nouveau devis », « + Nouvelle
+facture », la bienvenue et « Tes premiers pas » (compléter la fiche société, créer un client) : des boutons que rien
+ne tient pour elle. Maintenant (`web/v10/accueil-role.txt`) :
+- les deux boutons de pièce ne paraissent qu'à qui peut écrire les pièces de vente ;
+- la bienvenue et les premiers pas (mettre l'entreprise en place) sont pour le propriétaire et les administrateurs ;
+- les autres membres trouvent « Ton accès à … » : les pages de leur menu, chacune d'un clic (la première en vert
+  quand l'en-tête n'a pas de bouton principal) ;
+- une ligne « À faire » qui mènerait à une page que le rôle ne montre pas reste dite, sans bouton (l'échéance de
+  la CNSS, dont le calendrier vit dans la Comptabilité, pour la paie).
+Test : `tests/web/menu-role.test.ts` (Karim, commercial ; Leila, paie), 4 preuves.
+
 ## Reste connu
 
 - Faits ensuite (brique 102 bis) : supprimer une pièce de vente, une fiche client, fournisseur ou salarié, un achat ;

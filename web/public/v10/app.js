@@ -2744,7 +2744,20 @@
   // posée à la fin de l'assistant se fermerait d'un Échap sans avoir été lue, et bloquerait l'écran
   // qu'elle présente. Il se tait quand la découverte est faite, ou quand on a dit « Non merci ».
   const accueilVisible = () => { const et = visitesEtat(); return !et.faites.decouvrir && !et.accueilVu; };
+  // (plateforme, brique 111) Ce qu'un membre de l'équipe trouve sur l'accueil à la place de la mise en place de
+  // l'entreprise (le travail du propriétaire et des administrateurs) : les pages que son rôle lui ouvre, celles du
+  // menu (déjà filtré par le rôle, brique 101). Le premier bouton est vert quand l'en-tête n'en a pas.
+  function accueilDuRole() {
+    const pages = $$('nav a[data-route]').map(a => [a.dataset.route, Array.from(a.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim()])
+      .filter(([r, l]) => r && r !== 'dashboard' && l);
+    if (!pages.length) return '';
+    const vert = !peutEcrireDossier('documents');
+    return `<section class="panel" id="accueil-role"><h2>Ton accès à ${h(company().name || 'l\'entreprise')}</h2>
+      <p class="small muted">Ton rôle t'ouvre ${pages.length > 1 ? 'ces pages' : 'cette page'}. Le propriétaire ou un administrateur met l'entreprise en place (sa fiche, ses réglages) et règle les rôles de l'équipe.</p>
+      <div class="inline mt">${pages.map(([r, l], i) => `<a class="btn${vert && i === 0 ? ' btn-primary' : ''}" href="#/${h(r)}">${h(l)}</a>`).join('')}</div></section>`;
+  }
   function premiersPas() {
+    if (!estResponsable()) return accueilDuRole();
     const p = lesPas();
     if (!p.demarrage) return '';
     const suivante = p.suivante;
@@ -2943,8 +2956,8 @@
     $('#view').innerHTML = `
       <div class="page-head"><h1>Accueil</h1>
         <div class="actions">
-          <button class="btn" id="new-devis">+ Nouveau devis</button>
-          <button class="btn ${pasEnCours ? '' : 'btn-primary'}" id="new-facture">+ Nouvelle facture</button>
+          ${peutEcrireDossier('documents') ? `<button class="btn" id="new-devis">+ Nouveau devis</button>
+          <button class="btn ${pasEnCours ? '' : 'btn-primary'}" id="new-facture">+ Nouvelle facture</button>` : ''}
         </div></div>
       ${bandeauAccordsAccueil()}
       ${pas}
@@ -2984,8 +2997,8 @@
         <div class="inline mt"><button class="btn btn-primary" id="start-devis">+ Créer ton premier devis</button>
           <button class="btn btn-ghost" id="start-demo">Voir un exemple rempli</button></div>
       </div>`}`;
-    $('#new-devis').onclick = () => navigate('#/doc/new/devis');
-    $('#new-facture').onclick = () => navigate('#/doc/new/facture');
+    if ($('#new-devis')) $('#new-devis').onclick = () => navigate('#/doc/new/devis');
+    if ($('#new-facture')) $('#new-facture').onclick = () => navigate('#/doc/new/facture');
     // Sur une installation neuve, « Aucun document » ne proposait rien (audit) : on montre le chemin.
     if ($('#start-client')) $('#start-client').onclick = () => clientForm(null, () => navigate('#/clients'));
     if ($('#start-devis')) $('#start-devis').onclick = () => navigate('#/doc/new/devis');
@@ -7776,10 +7789,14 @@
   // que l'état (onglet, filtre) vient d'être modifié juste au-dessus. C'était le cas de « Voir les
   // factures » depuis Comptabilité → Cabinet, qui vise l'onglet Ventes de la même page : rien ne se
   // passait. Même piège que `goBack` et son cas « on y est déjà » (2.4.0).
-  const vers = (hash, avant) => () => {
+  // (plateforme, brique 111) L'action retient la page où elle mène (`vers`) : « À faire » ne propose pas un bouton
+  // vers une page que le rôle de la personne ne lui montre pas (« Voir le calendrier » menait la paie à la
+  // Comptabilité, qui lui dit « Ton rôle ne te montre pas cette page »). La tâche reste dite ; le bouton se tait.
+  const vers = (hash, avant) => Object.assign(() => {
     if (avant) avant();
     if (location.hash === hash) render(); else navigate(hash);
-  };
+  }, { vers: hash });
+  const todoMeneACache = id => { const a = TODO_ACTIONS[id]; return !!(a && a.run && a.run.vers && pageCachee(routeOf(a.run.vers))); };
   // Poser un filtre sur une liste, en ENTIER. Chaque action recopiait à la main les cinq réglages à
   // remettre, et « Facturer » en oubliait un : `yearTouched`. Sans lui, la liste d'arrivée se
   // re-filtre toute seule sur l'année en cours et cache précisément les pièces que la ligne venait
@@ -7998,7 +8015,7 @@
       <ul id="todo-list" ${open ? '' : 'hidden'}>${items.map((x, i) => `<li class="lvl-${x.level}" ${i >= TODO_VISIBLE && !todoTout ? 'hidden' : ''}>
         <span class="td-dot"></span>
         <span class="td-txt"><strong>${h(x.label)}</strong><span class="small muted">${h(x.detail || '')}</span></span>
-        <button class="btn btn-sm" data-todo="${x.id}">${h((TODO_ACTIONS[x.id] || {}).label || 'Voir')}</button>
+        ${todoMeneACache(x.id) ? '' : `<button class="btn btn-sm" data-todo="${x.id}">${h((TODO_ACTIONS[x.id] || {}).label || 'Voir')}</button>`}
       </li>`).join('')}</ul>
       ${items.length > TODO_VISIBLE && !todoTout ? `<button class="btn btn-sm btn-ghost todo-more" id="todo-more" ${open ? '' : 'hidden'}>Voir les ${items.length - TODO_VISIBLE} autres</button>` : ''}
       </div>`;

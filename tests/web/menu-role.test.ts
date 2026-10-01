@@ -104,6 +104,13 @@ describe('le menu selon le rôle, à la souris', () => {
     await k.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'menu-role-1-commercial.png') });
     await k.locator('#pi-accueil').click();
     await expect.poll(() => titre(k), { timeout: 10_000 }).toBe('Accueil');
+    // Son accueil (brique 111) : ses pièces, oui ; la mise en place de l'entreprise (le travail du propriétaire), non ;
+    // ses pages, d'un clic. Le vert reste à « + Nouvelle facture » (un seul bouton principal).
+    await expect.poll(() => k.locator('#accueil-role').count(), { timeout: 10_000 }).toBe(1);
+    expect(await k.locator('#new-facture').count()).toBe(1);
+    expect(net(await k.locator('#view').innerText())).not.toMatch(/Prends ta gestion en main|Tes premiers pas/);
+    expect(await k.locator('#accueil-role a[href="#/factures"]').count()).toBe(1);
+    expect(await k.locator('#accueil-role a.btn-primary').count()).toBe(0);
 
     // 2. Leila, la paie.
     const l = await ouvrir(leila.jeton, '#/paie');
@@ -116,6 +123,19 @@ describe('le menu selon le rôle, à la souris', () => {
     await l.evaluate(() => { location.hash = '#/factures'; });
     await expect.poll(() => l.locator('#page-interdite').count(), { timeout: 10_000 }).toBe(1);
     expect(net(await l.locator('#view').innerText())).not.toContain('Chantier Ennasr');
+    // Son accueil (brique 111) : ni devis ni facture à créer, ni mise en place de l'entreprise ; la Paie, d'un clic.
+    await l.evaluate(() => { location.hash = '#/dashboard'; });
+    await expect.poll(() => l.locator('#accueil-role').count(), { timeout: 10_000 }).toBe(1);
+    expect(await l.locator('#new-devis, #new-facture').count()).toBe(0);
+    expect(net(await l.locator('#view').innerText())).not.toMatch(/Prends ta gestion en main|Tes premiers pas/);
+    // « À faire » lui dit l'échéance de la CNSS ; mais pas de bouton vers le calendrier de la Comptabilité, page que
+    // son rôle ne lui montre pas (brique 111).
+    expect(net(await l.locator('#todo-list').innerText())).toMatch(/échéance fiscale/);
+    expect(await l.getByRole('button', { name: 'Voir le calendrier', exact: true }).count()).toBe(0);
+    expect(await l.getByRole('button', { name: 'Voir les bulletins', exact: true }).count()).toBe(1);
+    await l.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'menu-role-3-accueil-paie.png') });
+    await l.locator('#accueil-role a.btn-primary', { hasText: 'Paie' }).click();
+    await expect.poll(() => titre(l), { timeout: 10_000 }).toBe('Paie');
 
     expect(erreurs).toEqual([]);
     await k.context().close(); await l.context().close();
