@@ -93,6 +93,10 @@ export const CLASSEMENT: Record<string, Classe> = {
   'cabinet.revision': { classe: 'hors', raison: 'le dossier de révision appartient au cabinet qui révise' },
   // Le dossier v10 de l'entreprise (0011) : ce que son interface tient, objet par objet.
   'socle.dossier_v10': { classe: 'entreprise' },
+  // Les traces de ce qui a été retiré du dossier (0059) : elles servent la relecture par différence des postes ; un poste
+  // d'une entreprise restaurée relit tout.
+  'socle.instance': { classe: 'hors', raison: 'l\'identité de la base, propre à chaque base' },
+  'socle.dossier_v10_retire': { classe: 'hors', raison: 'les traces de retrait servent la relecture des postes ; après une restauration, un poste relit tout' },
   // Ce qu'un appareil retiré a remis (0044) : à l'entreprise, décidé ou non.
   'socle.quarantaine': { classe: 'entreprise' },
   'ventes.lien': { classe: 'hors', raison: 'un lien de l\'espace client est une clé d\'accès : il ne quitte jamais la plateforme, on en redonne un' },

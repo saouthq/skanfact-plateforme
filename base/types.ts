@@ -491,6 +491,14 @@ export interface BaseDeDonnees {
     modifie_le: Generated<Date>;
     modifie_par: string | null;
     cree_par: string | null;
+    xid: Generated<string>;
+  };
+  'socle.dossier_v10_retire': {
+    entreprise: string;
+    collection: string;
+    cle: string;
+    xid: Generated<string>;
+    retire_le: Generated<Date>;
   };
   'socle.entreprise': {
     id: Generated<string>;
@@ -520,6 +528,10 @@ export interface BaseDeDonnees {
     appareil: string;
     utilisateur: string;
     dernier_ordre: Generated<bigint>;
+  };
+  'socle.instance': {
+    id: Generated<string>;
+    cree_le: Generated<Date>;
   };
   'socle.invitation': {
     id: Generated<string>;

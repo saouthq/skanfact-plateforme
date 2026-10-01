@@ -155,7 +155,9 @@
     mesure (1 Mbit/s, 300 ms : première ouverture ≤ 1 300 Ko et < 15 s, suivante ≤ 30 Ko et < 2 s), mesurés par
     `tests/web/leger.test.ts` derrière un fil bridé (`tests/lien-lent.ts`). Compression (brotli/gzip, au-delà de 1 Ko),
     empreinte de chaque fichier dans la page (`?v=`, gardé un an ; `serveur/ecrans.ts`), scripts annoncés en tête ;
-    **`/v10/…` n'est pas l'API** (`deLApi` dans `serveur/app.ts`). Reste S4 : le dossier relu par différence.
+    **`/v10/…` n'est pas l'API** (`deLApi` dans `serveur/app.ts`). S4 (brique 119, `0059`) : le dossier se relit par
+    différence sur « mon ordinateur » (`?depuis=<xmin>&profil=<base/rôles>` ; `xid` par objet, traces de retrait) ;
+    jamais une marque prise après la lecture (une écriture en cours serait perdue).
   - **Le tableau de bord du groupe** (brique 113, `docs/groupe.md`) : depuis le menu des entreprises, les sociétés de
     la personne côte à côte, avec les chiffres de leurs livres (70, 411, 401, classe 5) et un total par devise ; une
     société sans les livres pour son rôle est nommée sans chiffres. La consolidation vient en vague 4.

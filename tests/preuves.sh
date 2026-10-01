@@ -6319,6 +6319,51 @@ prouver "la page qui installe jamais gardée pour le hors-ligne" web/public/sw.j
   "      if (!pasPourMoi(u)) pages.add(u.pathname);" "" \
   "$LG12"
 
+# ── Relire le dossier par différence (brique 119, 01/10/2026 ; docs/leger.md, S4) ──
+RL="seul ce qui a changé repart, et ce qui a été retiré ; une écriture en cours n'est jamais perdue ; sinon tout repart"
+RLW="rouvrir ne fait repartir que ce qui a changé, et l'écran le montre"
+prouver "la marque prise après les écritures en cours (une écriture perdue)" serveur/v10/dossier.ts \
+  "select pg_snapshot_xmin(s)::text marque" "select pg_snapshot_xmax(s)::text marque" \
+  "$RL"
+prouver "un objet retiré que la différence ne dit pas" base/migrations/0059_relecture.sql \
+  "  insert into socle.dossier_v10_retire (entreprise, collection, cle) values (old.entreprise, old.collection, old.cle)
+    on conflict (entreprise, collection, cle) do update set xid = pg_current_xact_id(), retire_le = now();" "  null;" \
+  "$RL"
+prouver "un objet recréé encore dit retiré" base/migrations/0059_relecture.sql \
+  "  delete from socle.dossier_v10_retire where entreprise = new.entreprise and collection = new.collection and cle = new.cle;" "  null;" \
+  "$RL"
+prouver "un objet modifié qui ne repart pas" base/migrations/0059_relecture.sql \
+  "  new.xid := pg_current_xact_id();" "  null;" \
+  "$RL"
+prouver "une copie faite avec d'autres rôles complétée quand même" serveur/v10/routes.ts \
+  "query.profil === profil && " "" \
+  "$RL"
+prouver "une marque de l'avenir acceptée" serveur/v10/routes.ts \
+  " && BigInt(depuis) <= BigInt(marque)" "" \
+  "$RL"
+prouver "une copie d'une autre base complétée quand même" serveur/v10/routes.ts \
+  "      const profil = \`\${base}/\${[...roles].sort().join(',')}\`;" "      const profil = [...roles].sort().join(',');" \
+  "$RL"
+prouver "un numéro d'une autre base dans une différence" serveur/v10/dossier.ts \
+  "and xid >= \$2::xid8 and xid < \$3::xid8\`" "and xid >= \$2::xid8 and \$3::text is not null\`" \
+  "$RL"
+prouver "la différence qui montre ce que le rôle ne voit pas" serveur/v10/routes.ts \
+  "{ corps: { ...filtrer(roles, d.objets), retires" "{ corps: { ...filtrer(roles, d.objets), objets: d.objets, retires" \
+  "$RL"
+prouver "les retraits d'une partie cachée dits au rôle" serveur/v10/routes.ts \
+  "retires: filtrer(roles, d.retires).objets" "retires: d.retires" \
+  "$RL"
+prouver "un client retiré qui reste à l'écran" web/public/plateforme/pont.js \
+  "      for (const x of r.retires || []) tous.delete(\`\${x.collection}\\u0000\${x.cle}\`);
+" "" \
+  "$RLW"
+prouver "le poste qui ne demande jamais la différence" web/public/plateforme/pont.js \
+  "    const depuis = copie && copie.marque && copie.profil ?" "    const depuis = false ?" \
+  "$RLW"
+prouver "la copie qui oublie sa marque" web/public/plateforme/pont.js \
+  "marque: marqueLue, profil: profilLu," "" \
+  "$RLW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

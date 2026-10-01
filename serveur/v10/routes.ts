@@ -15,7 +15,7 @@ import { aujourdhuiATunis } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { accordRemiseDeLaPiece, commandeDuServeur, depassementDuServeur, estResponsable, remiseDuServeur } from './accords.ts';
 import { filtrer, mesRoles } from './droits.ts';
-import { appliquer, Conflit, emettreDepuisV10, lireDossier, PARTIES_A_AUTEUR, type Changement } from './dossier.ts';
+import { appliquer, Conflit, emettreDepuisV10, lireDepuis, lireDossier, marqueDeLecture, PARTIES_A_AUTEUR, type Changement } from './dossier.ts';
 import { nombreEnTexte } from './lecture.ts';
 import { sessionOuverte } from '../caisse/routes.ts';
 import { poserCompte, renvoyer } from './envoi.ts';
@@ -36,18 +36,27 @@ export function routesV10(ctx: Contexte): Route<never>[] {
 
   ajouter({
     methode: 'GET', chemin: '/entreprises/:entreprise/dossier-v10', geste: 'socle.dossier.voir',
-    traiter: async ({ params, qui }, tx) => {
+    traiter: async ({ params, query, qui }, tx) => {
       if (!tx || !qui) throw new Error('transaction attendue');
       // Chacun n'en lit que ce que ses rôles voient (brique 99), et l'écran sait ce qu'il ne doit ni montrer ni renvoyer.
       const ent = params.entreprise ?? '';
       const roles = await mesRoles(tx, ent);
+      // Relire par différence (brique 119) : le poste qui a sa copie donne la marque de sa dernière lecture et ce qu'elle
+      // supposait (cette base, ces rôles) ; si rien de cela n'a changé, seul ce qui a changé depuis repart. Sinon, tout.
+      const { marque, avenir, base } = await marqueDeLecture(tx);
+      const profil = `${base}/${[...roles].sort().join(',')}`;
       // Les pièces qu'un autre a faites (brique 117) : l'écran dit, avant le geste, qu'il ne les supprime pas. Seulement
       // pour qui n'est ni propriétaire ni administrateur (eux suppriment tout brouillon).
       const responsable = roles.some((r) => r === 'proprietaire' || r === 'administrateur');
       const autrui = responsable ? {} : Object.fromEntries((await tx.query(`select d.collection || '/' || d.cle k, coalesce(u.nom, '') nom from socle.dossier_v10 d
           left join socle.utilisateur u on u.id = d.cree_par
          where d.entreprise = $1 and d.collection = any($2) and d.cree_par is distinct from $3`, [ent, PARTIES_A_AUTEUR, qui.utilisateur])).rows.map((r) => [r.k, r.nom]));
-      return { corps: { ...filtrer(roles, await lireDossier(tx, ent, qui.utilisateur)), autrui } };
+      const depuis = query.depuis ?? '';
+      if (/^\d{1,20}$/.test(depuis) && query.profil === profil && BigInt(depuis) <= BigInt(marque)) {
+        const d = await lireDepuis(tx, ent, depuis, avenir);
+        return { corps: { ...filtrer(roles, d.objets), retires: filtrer(roles, d.retires).objets, partiel: true, marque, profil, autrui } };
+      }
+      return { corps: { ...filtrer(roles, await lireDossier(tx, ent, qui.utilisateur)), marque, profil, autrui } };
     },
   });
 

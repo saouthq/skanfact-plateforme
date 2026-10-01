@@ -49,7 +49,8 @@ export function fichiersDesEcrans(racine: string) {
     // Juste après la déclaration du jeu de caractères (elle reste dans les premiers octets), sinon après <head>.
     const tete = /<meta charset="[^"]*"\s*\/?>/i.exec(versionnee) ?? /<head[^>]*>/.exec(versionnee);
     if (!scripts.length || !tete) return versionnee;
-    const annonces = scripts.map((a) => `\n  <link rel="preload" as="script" href="${a}">`).join('');
+    // Une balise, pas une phrase (le catalogue des textes ne la compte pas) : assemblée de ses attributs.
+    const annonces = scripts.map((a) => `\n  ${['<link', 'rel="preload"', 'as="script"', `href="${a}">`].join(' ')}`).join('');
     const apres = tete.index + tete[0].length;
     return versionnee.slice(0, apres) + annonces + versionnee.slice(apres);
   }

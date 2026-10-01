@@ -14,7 +14,7 @@ connexions du navigateur.
 | **S1** première ouverture de l'entreprise, rien de gardé | ≤ 1 300 Ko par le fil, utilisable en moins de 15 s | 10 727 Ko, 87 s | **1 242 Ko, 12,1 s** (copie pour le hors-ligne comprise : 1 244 Ko) |
 | **S2** ouverture suivante | ≤ 30 Ko par le fil, utilisable en moins de 2 s | 4 199 Ko, 43 s | **4 Ko, 1,8 s** |
 | **S3** tout envoi de plus de 1 Ko compressé | écrans et réponses de l'API | rien de compressé | brotli, sinon gzip |
-| **S4** le dossier ne se relit que pour ce qui a changé | brique suivante | tout le dossier à chaque ouverture | (à faire) |
+| **S4** le dossier ne se relit que pour ce qui a changé | sur « mon ordinateur » | tout le dossier à chaque ouverture | **fait** (brique 119) : 1 500 pièces, 695 Ko en entier, **1,2 Ko** après une pièce de plus (avant compression) |
 
 Mesuré par `tests/web/leger.test.ts` : un vrai navigateur (profil sur le disque), derrière un relais qui bride le fil
 (`tests/lien-lent.ts` : chaque paquet retardé d'un demi aller-retour, un seul débit partagé par toutes les connexions),
@@ -51,9 +51,10 @@ compte les octets reçus et le temps jusqu'à l'écran utilisable. Les chiffres 
 
 ## Ce qui reste (et pourquoi)
 
-- **S4, le dossier** : à chaque ouverture, tout le dossier de l'entreprise repart du serveur (petit pour une entreprise
-  neuve, plusieurs Mo pour cinq ans d'activité, avant compression). Brique suivante : le poste garde sa copie (il le
-  fait déjà, chiffrée, sur « mon ordinateur ») et ne demande que ce qui a changé depuis.
+- **S4 sur l'ordinateur d'un autre** : sans copie gardée (la session ne vit que dans l'onglet), tout le dossier repart à
+  chaque ouverture (compressé). Voulu : rien ne reste sur un poste partagé.
+- **Les traces de retrait** (`socle.dossier_v10_retire`) ne se purgent pas encore ; à purger après un délai (un poste
+  dont la marque est plus ancienne relirait alors tout), quand leur volume le demandera.
 - **Le Cabinet** ne s'installe pas encore pour s'ouvrir sans réseau (il n'enregistre pas le service des écrans) ; il
   profite de la compression et des empreintes.
 - **HTTP/2** : en production, derrière HTTPS, le serveur parlera HTTP/2 (plusieurs fichiers sur une seule connexion) ;
@@ -62,9 +63,33 @@ compte les octets reçus et le temps jusqu'à l'écran utilisable. Les chiffres 
 - **Les visites guidées** (`guide.js`, `visite.js`, `visites.js` : environ 200 Ko compressés) pourraient ne se charger
   qu'à la demande ; pas nécessaire pour tenir les seuils, à reconsidérer si un écran neuf les fait dépasser.
 
+## Ce que fait la brique 119 : relire le dossier par différence (S4, 01/10/2026)
+
+- **R1. La marque d'une lecture** est le « xmin » de son instantané : la plus petite transaction encore en cours.
+  Chaque objet du dossier porte la transaction qui l'a écrit en dernier (`xid`, 0059). La lecture suivante redemande
+  ce qu'une transaction au moins aussi récente a écrit : une écriture encore en cours pendant une lecture a un numéro
+  au moins égal à la marque, elle repart la fois suivante, **jamais perdue** (un numéro de séquence ne le garantirait
+  pas : il se prend avant le « commit », dans le désordre). Relire deux fois un objet ne coûte que lui.
+- **R2. Ce qui a été retiré** laisse une trace (`socle.dossier_v10_retire`, écrite par la base elle-même) ; un objet
+  recréé efface sa trace.
+- **R3. La différence ne complète que la copie qu'elle peut compléter** : la lecture rend son « profil » (l'identité de
+  la base, `socle.instance`, et les rôles) ; une autre base (une entreprise restaurée ailleurs), d'autres rôles, une
+  marque « de l'avenir » : tout repart. Un numéro « de l'avenir » (une entreprise restaurée garde les numéros de sa base
+  d'origine, pour se ré-exporter à l'identique) n'entre pas dans une différence.
+- **R4. Ce qu'un rôle ne voit pas** ne repart pas plus par différence : ni ses objets, ni ses retraits.
+- **R5. Le poste** (`pont.js`, « mon ordinateur ») garde la marque et le profil dans sa copie chiffrée ; à l'ouverture,
+  il demande `?depuis=…&profil=…`, applique les retraits puis les objets à sa copie, et l'écran s'ouvre dessus.
+- Ce qui part au serveur : la marque et le profil que le serveur a lui-même donnés ; rien de plus.
+
 ## Les tests
 
 `tests/web/leger.test.ts` : S3 (compression des écrans et de l'API, un petit envoi tel quel, l'empreinte et sa
 garde d'un an, la revalidation à vide, l'annonce des scripts) ; S1 et S2 sur la connexion lente, et ce que le poste
 garde dès la première visite (l'entreprise, pas le Cabinet). 15 preuves (`tests/preuves.sh`, brique 118), dont les
 trois du hors-ligne reciblées.
+
+Brique 119 : `tests/v10/relecture.test.ts` (rien de changé, rien ne repart ; un client noté, retiré, recréé ; l'écriture
+en cours pendant une lecture, rendue à la suivante ; une autre base, une marque de l'avenir ; Karim, commercial, qui ne
+reçoit ni la paie ni ses retraits ; un numéro d'une autre base ; 1 500 pièces : 695 Ko en entier, 1,2 Ko de différence),
+`tests/web/relecture.test.ts` (sur « mon ordinateur », un client ajouté et un autre retiré d'un autre poste : rouvrir ne
+fait repartir qu'eux, et l'écran les montre). 13 preuves.

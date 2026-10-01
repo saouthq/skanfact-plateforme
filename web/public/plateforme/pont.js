@@ -243,13 +243,32 @@
   }
 
   // Le dossier tel que le serveur l'a, et ce qu'on en sait désormais (révisions).
+  // Relire par différence (brique 119 ; docs/leger.md, S4) : sur « mon ordinateur », la copie du poste porte la marque de
+  // sa dernière lecture ; le serveur ne renvoie que ce qui a changé depuis (et ce qui a été retiré), que la copie reçoit.
+  // Sans copie, ou quand le serveur ne peut pas compléter cette copie-là (une autre base, d'autres rôles), tout repart.
+  /** @type {string} */ let marqueLue = '';
+  /** @type {string} */ let profilLu = '';
   async function relire() {
-    const r = await appel('GET', '/dossier-v10');
+    const copie = poste.garde() ? (await poste.lireCopie(ent).catch(() => null))?.contenu : null;
+    const depuis = copie && copie.marque && copie.profil ? `?depuis=${encodeURIComponent(copie.marque)}&profil=${encodeURIComponent(copie.profil)}` : '';
+    const r = await appel('GET', `/dossier-v10${depuis}`);
     poserDroits(r.droits);
     autrui = r.autrui || {};
+    /** @type {any[]} */
+    let objets = r.objets;
+    if (r.partiel && copie) {
+      /** @type {Map<string, any>} */
+      const tous = new Map(copie.objets.map((/** @type {any} */ o) => [`${o.collection}\u0000${o.cle}`, o]));
+      for (const x of r.retires || []) tous.delete(`${x.collection}\u0000${x.cle}`);
+      for (const o of r.objets) tous.set(`${o.collection}\u0000${o.cle}`, o);
+      // Dans l'ordre que le serveur rendrait : la racine, puis chaque liste par rang.
+      objets = [...tous.values()].sort((a, b) => (a.collection === '_racine' ? 0 : 1) - (b.collection === '_racine' ? 0 : 1)
+        || (a.collection < b.collection ? -1 : a.collection > b.collection ? 1 : 0) || (a.rang ?? 0) - (b.rang ?? 0) || (a.cle < b.cle ? -1 : a.cle > b.cle ? 1 : 0));
+    }
+    marqueLue = r.marque || ''; profilLu = r.profil || '';
     vu = new Map();
-    for (const o of r.objets) vu.set(`${o.collection}\u0000${o.cle}`, { json: JSON.stringify(o.contenu), rang: o.rang, revision: o.revision });
-    const data = assembler(r.objets);
+    for (const o of objets) vu.set(`${o.collection}\u0000${o.cle}`, { json: JSON.stringify(o.contenu), rang: o.rang, revision: o.revision });
+    const data = assembler(objets);
     data.questionsCabinet = await questionsDuCabinet();
     questionsLues = data.questionsCabinet;
     garderLaCopie();
@@ -266,12 +285,15 @@
     const [collection = '', cle = ''] = k.split('\u0000');
     return { collection, cle, rang: v.rang, revision: v.revision, contenu: JSON.parse(v.json) };
   }).sort((a, b) => (a.collection < b.collection ? -1 : a.collection > b.collection ? 1 : (a.rang ?? 0) - (b.rang ?? 0)));
+  // La copie : les objets et leurs révisions, les questions, les droits, et la marque de la lecture qu'elle reflète.
+  const contenuDeLaCopie = () => ({ objets: objetsVus(), questions: questionsLues, marque: marqueLue, profil: profilLu,
+    droits: { cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : [], tout: !ecrivables, responsable } });
   function garderLaCopie() {
     if (!poste.garde()) return;
     if (copieAFaire) clearTimeout(copieAFaire);
     copieAFaire = setTimeout(() => {
       copieAFaire = null;
-      poste.ecrireCopie(ent, { objets: objetsVus(), questions: questionsLues, droits: { cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : [], tout: !ecrivables, responsable } }).catch(() => { /* sans copie, le hors-ligne attendra la prochaine */ });
+      poste.ecrireCopie(ent, contenuDeLaCopie()).catch(() => { /* sans copie, le hors-ligne attendra la prochaine */ });
     }, 300);
   }
   // ── Enregistrer sans réseau (brique 73 ; docs/hors-ligne.md, H5) ─────────────────────────────
@@ -298,7 +320,7 @@
   /** @param {Record<string, unknown>} data */
   async function mettreEnAttente(data) {
     // La base d'abord : ce que le serveur a déjà reçu (un premier paquet parti avant la coupure).
-    await poste.ecrireCopie(ent, { objets: objetsVus(), questions: questionsLues, droits: { cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : [], tout: !ecrivables, responsable } });
+    await poste.ecrireCopie(ent, contenuDeLaCopie());
     await poste.ecrireAttente(ent, { data });
     attenteGardee = true;
     attenteN = compter(changementsDe(data));

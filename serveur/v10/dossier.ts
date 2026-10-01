@@ -131,6 +131,26 @@ export async function lireDossier(tx: Transaction, entreprise: string, utilisate
   return lignes.map((l) => ({ collection: l.collection, cle: l.cle, rang: l.rang, contenu: l.contenu, revision: Number(l.revision) }));
 }
 
+// ── Relire par différence (brique 119 ; 0059 ; docs/leger.md, S4) ───────────────────────────────────────────────
+// La marque d'une lecture : la plus petite transaction encore en cours (« xmin ») ; la base : l'identité de cette base.
+// Prise AVANT de lire : ce qui s'écrit pendant la lecture a un numéro au moins égal, et sera relu la fois suivante.
+export async function marqueDeLecture(tx: Transaction): Promise<{ marque: string; avenir: string; base: string }> {
+  const r = (await tx.query(`select pg_snapshot_xmin(s)::text marque, pg_snapshot_xmax(s)::text avenir, (select id from socle.instance limit 1)::text base
+    from pg_current_snapshot() s`)).rows[0];
+  return { marque: String(r.marque), avenir: String(r.avenir), base: String(r.base) };
+}
+// Ce qui a changé depuis une marque : les objets écrits par une transaction au moins aussi récente, et ce qui a été
+// retiré. Un numéro « de l'avenir » (une entreprise restaurée d'une autre base) n'entre pas dans une différence : le
+// poste l'a reçu à sa lecture entière.
+export async function lireDepuis(tx: Transaction, entreprise: string, depuis: string, avenir: string) {
+  const objets = (await tx.query(`select collection, cle, rang, contenu, revision from socle.dossier_v10
+     where entreprise = $1 and xid >= $2::xid8 and xid < $3::xid8`, [entreprise, depuis, avenir])).rows
+    .map((l) => ({ collection: String(l.collection), cle: String(l.cle), rang: l.rang === null ? null : Number(l.rang), contenu: l.contenu as unknown, revision: Number(l.revision) }));
+  const retires = (await tx.query(`select collection, cle from socle.dossier_v10_retire where entreprise = $1 and xid >= $2::xid8`, [entreprise, depuis])).rows
+    .map((l) => ({ collection: String(l.collection), cle: String(l.cle) }));
+  return { objets, retires };
+}
+
 // ── Enregistrer des changements ─────────────────────────────────────────────────────────────────
 // `serveur` : l'écriture vient du serveur lui-même (la référence de la TTN posée à l'acceptation, brique 83).
 export async function appliquer(tx: Transaction, entreprise: string, utilisateur: string, changements: Changement[], options: { serveur?: boolean } = {}): Promise<{ collection: string; cle: string; revision: number | null }[]> {

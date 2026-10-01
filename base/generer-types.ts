@@ -24,6 +24,8 @@ const TYPES: Record<string, string> = {
   character: 'string',
   'character varying': 'string',
   inet: 'string',
+  // Un numéro de transaction (brique 119, la marque d'une relecture) : lu et rendu en texte.
+  xid8: 'string',
   smallint: 'number',
   integer: 'number',
   bigint: 'bigint',
