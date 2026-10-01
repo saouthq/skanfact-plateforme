@@ -4066,11 +4066,11 @@ prouver "le menu fermé sans réseau (plus de « Se déconnecter »)" $PONT \
         // Sans réseau : l'entreprise ouverte seulement" \
   "$HL1"
 prouver "les écrans jamais gardés pour le hors-ligne" web/public/sw.js \
-  "      if (r.ok) await (await caches.open(CACHE)).put(cle, r.clone());
+  "        await c.put(cle, r.clone());
 " "" \
   "$HL4"
 prouver "sans réseau, les écrans gardés jamais servis" web/public/sw.js \
-  "      const garde = (await caches.match(cle)) || (e.request.mode === 'navigate' ? await caches.match('/') : undefined);
+  "      const garde = (await caches.match(cle)) || (navigation ? await caches.match('/') : undefined);
       if (garde) return garde;
 " "" \
   "$HL1"
@@ -6101,7 +6101,7 @@ prouver "le groupe absent du menu des entreprises" web/public/v10/app.js \
   "$GW"
 
 prouver "une réponse de l'API gardée dans le cache du navigateur" serveur/app.ts \
-  "if (requete.url.startsWith(VERSION)) reponse.header('cache-control', 'no-store');" "if (requete.url.startsWith(VERSION)) void reponse;" \
+  "if (deLApi(requete.url)) reponse.header('cache-control', 'no-store');" "if (deLApi(requete.url)) void reponse;" \
   "une réponse de l'API dit"
 
 # ── Brique 114 : l'accord au-delà d'une commande fournisseur (docs/accords.md) ──
@@ -6272,6 +6272,52 @@ prouver "l'écran qui n'apprend pas qui a fait les pièces" web/public/plateform
 prouver "« Supprimer » qui pose la question sur le brouillon d'un autre" web/public/v10/app.js \
   "      if (auteurAutre('documents', doc.id) !== null) { toast(refusAuteur(auteurAutre('documents', doc.id), doc.number || 'Ce brouillon'), true); return; }" "" \
   "$BAW"
+
+# ── Léger sur une connexion lente (brique 118, 01/10/2026 ; docs/leger.md) ──
+LG3="S3 : les écrans et les réponses de l'API partent compressés ; un petit envoi, tel quel ; un écran à empreinte se garde"
+LG12="S1 et S2 : la première ouverture et la suivante, sur une connexion lente"
+prouver "les écrans de la v10 pris pour l'API (jamais gardés)" serveur/app.ts \
+  "const deLApi = (url: string) => url === VERSION || url.startsWith(\`\${VERSION}/\`) || url.startsWith(\`\${VERSION}?\`);" "const deLApi = (url: string) => url.startsWith(VERSION);" \
+  "$LG3"
+prouver "une réponse de l'API jamais compressée" serveur/app.ts \
+  "    reponse.header('content-encoding', encodage).removeHeader('content-length');
+    return compresser(brut, encodage);" "    return corps;" \
+  "$LG3"
+prouver "un petit envoi compressé quand même" serveur/app.ts \
+  "brut.length > SEUIL_COMPRESSION ? choisirEncodage" "brut.length > 0 ? choisirEncodage" \
+  "$LG3"
+prouver "gzip choisi quand le navigateur connaît brotli" serveur/compression.ts \
+  "  if (permis.has('br')) return 'br';
+" "" \
+  "$LG3"
+prouver "les écrans envoyés sans compression" serveur/principal.ts \
+  "    if (encodage) return reponse.header('content-encoding', encodage).send(ecrans.compresse(f, encodage));
+" "" \
+  "$LG3"
+prouver "une page sans l'empreinte de ses fichiers" serveur/ecrans.ts \
+  "      return \`\${attribut}=\"\${adresse}?v=\${lire(cible).empreinte}\"\`;" "      return tout;" \
+  "$LG3"
+prouver "un fichier à empreinte qui ne se garde pas" serveur/principal.ts \
+  " || new URL(requete.url, 'http://x').searchParams.get('v') === f.empreinte;" ";" \
+  "$LG3"
+prouver "un fichier inchangé renvoyé entier" serveur/principal.ts \
+  "    if (dejaGarde(requete.headers['if-none-match'], etag)) return reponse.code(304).send();
+" "" \
+  "$LG3"
+prouver "les scripts demandés un par un" serveur/ecrans.ts \
+  "    return versionnee.slice(0, apres) + annonces + versionnee.slice(apres);" "    return versionnee;" \
+  "$LG3"
+prouver "les écrans d'entrée jamais gardés à l'installation" web/public/sw.js \
+  "  await c.put(page, r);
+  await ranger(c, page, html);
+" "" \
+  "$HL1"
+prouver "le Cabinet gardé chez qui ne l'ouvre jamais" web/public/sw.js \
+  "const ENTREES = ['/'];" "const ENTREES = ['/', '/v10/cabinet/'];" \
+  "$LG12"
+prouver "la page qui installe jamais gardée pour le hors-ligne" web/public/sw.js \
+  "      if (!pasPourMoi(u)) pages.add(u.pathname);" "" \
+  "$LG12"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

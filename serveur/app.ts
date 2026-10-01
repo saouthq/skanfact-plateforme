@@ -13,6 +13,7 @@ import { texteDuRefus } from './erreurs.ts';
 import { cleValable } from './cles.ts';
 import { Limiteur } from './limites.ts';
 import { jetonDUnAppareilRetire, quiEst, remisParCeJeton, type Contexte, type Qui } from './connexion.ts';
+import { choisirEncodage, compresser, compressible, SEUIL_COMPRESSION } from './compression.ts';
 import { GESTES, GESTES_PERSONNELS } from './porte/gestes.ts';
 import { peut } from './porte/porte.ts';
 import { nomDuChamp, raison } from './validation.ts';
@@ -108,7 +109,23 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
   // Une réponse de l'API ne se garde dans aucun cache (brique 113 bis) : ni le navigateur ni un intermédiaire ne doit
   // la resservir (un dossier d'hier montré pour celui d'aujourd'hui), ni la laisser sur le disque (des données
   // comptables : 05 § 5, INPDP).
-  app.addHook('onSend', async (requete, reponse) => { if (requete.url.startsWith(VERSION)) reponse.header('cache-control', 'no-store'); });
+  // « /v1 » seul ou « /v1/… », jamais « /v10/… » : les écrans de la v10 ne sont pas l'API (défaut trouvé le 01/10/2026,
+  // brique 118 : ils partaient « no-store », et chaque ouverture les retéléchargeait entiers).
+  const deLApi = (url: string) => url === VERSION || url.startsWith(`${VERSION}/`) || url.startsWith(`${VERSION}?`);
+  app.addHook('onSend', async (requete, reponse) => { if (deLApi(requete.url)) reponse.header('cache-control', 'no-store'); });
+  // Une réponse de l'API de plus de 1 Ko part compressée quand le navigateur l'accepte (brique 118 ; docs/leger.md, S3) :
+  // un dossier en JSON pèse quatre fois moins sur une connexion lente.
+  app.addHook('onSend', async (requete, reponse, corps) => {
+    if (!deLApi(requete.url) || reponse.getHeader('content-encoding')) return corps;
+    if (typeof corps !== 'string' && !Buffer.isBuffer(corps)) return corps;
+    if (!compressible(String(reponse.getHeader('content-type') ?? ''))) return corps;
+    reponse.header('vary', 'accept-encoding');
+    const brut = Buffer.isBuffer(corps) ? corps : Buffer.from(corps);
+    const encodage = brut.length > SEUIL_COMPRESSION ? choisirEncodage(requete.headers['accept-encoding']) : null;
+    if (!encodage) return corps;
+    reponse.header('content-encoding', encodage).removeHeader('content-length');
+    return compresser(brut, encodage);
+  });
 
   // La documentation de l'API, écrite depuis les routes elles-mêmes : jamais en retard sur elles.
   const doc = documentation(routes);

@@ -36,6 +36,8 @@ import { envoyerHttps, livrerAvis, type Envoyeur } from './avis.ts';
 import { creerPool } from './base.ts';
 import { CLE_DU_COFFRE_D_ESSAI, cleDuCoffre, CoffreFaux } from './coffre.ts';
 import type { Contexte } from './connexion.ts';
+import { choisirEncodage, compressible, SEUIL_COMPRESSION } from './compression.ts';
+import { dejaGarde, fichiersDesEcrans } from './ecrans.ts';
 import { Refus } from './erreurs.ts';
 import { listeDepuisFichier } from './mot-de-passe.ts';
 import { routesSocle } from './routes/socle.ts';
@@ -127,6 +129,7 @@ const POLITIQUE = "default-src 'self'; script-src 'self'; style-src 'self' 'unsa
 export function servirLesEcrans(app: ReturnType<typeof creerApp>, dossier: string) {
   const racine = path.resolve(dossier);
   if (!fs.existsSync(path.join(racine, 'index.html'))) return;
+  const ecrans = fichiersDesEcrans(racine);
   app.get('/*', async (requete, reponse) => {
     const chemin = decodeURIComponent(new URL(requete.url, 'http://x').pathname);
     if (chemin.startsWith('/v1/') || chemin === '/v1') return reponse.code(404).send({});
@@ -136,10 +139,20 @@ export function servirLesEcrans(app: ReturnType<typeof creerApp>, dossier: strin
     // l'entrée de l'application.
     if (fs.existsSync(fichier) && fs.statSync(fichier).isDirectory()) fichier = path.join(fichier, 'index.html');
     if (!fs.existsSync(fichier)) fichier = path.join(racine, 'index.html');
-    reponse.header('content-type', TYPES[path.extname(fichier)] ?? 'application/octet-stream')
+    // Léger sur une connexion lente (brique 118 ; docs/leger.md) : un fichier demandé avec son empreinte (« ?v= ») ne
+    // change jamais et se garde un an ; sans elle, il se revalide (304 s'il n'a pas changé) ; il part compressé.
+    const f = ecrans.lire(fichier);
+    const type = TYPES[path.extname(fichier)] ?? 'application/octet-stream';
+    const etag = `"${f.empreinte}"`;
+    const immuable = fichier.includes(`${path.sep}assets${path.sep}`) || new URL(requete.url, 'http://x').searchParams.get('v') === f.empreinte;
+    reponse.header('content-type', type)
       .header('content-security-policy', POLITIQUE).header('x-content-type-options', 'nosniff').header('referrer-policy', 'no-referrer')
-      .header('cache-control', fichier.includes(`${path.sep}assets${path.sep}`) ? 'public, max-age=31536000, immutable' : 'no-cache');
-    return reponse.send(fs.readFileSync(fichier));
+      .header('cache-control', immuable ? 'public, max-age=31536000, immutable' : 'no-cache')
+      .header('etag', etag).header('vary', 'accept-encoding');
+    if (dejaGarde(requete.headers['if-none-match'], etag)) return reponse.code(304).send();
+    const encodage = f.contenu.length > SEUIL_COMPRESSION && compressible(type) ? choisirEncodage(requete.headers['accept-encoding']) : null;
+    if (encodage) return reponse.header('content-encoding', encodage).send(ecrans.compresse(f, encodage));
+    return reponse.send(f.contenu);
   });
 }
 

@@ -10,8 +10,10 @@ ce qui en est fait, décision par décision.*
 (`web/public/manifest.webmanifest`, ses icônes dans `web/public/icones/`) et un service des écrans
 (`web/public/sw.js`) : il garde les **écrans** (pages, scripts, styles, icônes), **jamais les données**
 — l'API (`/v1`) ne passe jamais par lui. Réseau d'abord : en ligne, la dernière version (gardée au
-passage, pour qu'un écran périmé ne s'ouvre jamais sans réseau) ; sans réseau, celle gardée. Les pages
-d'entrée et ce qu'elles chargent se gardent dès l'installation.
+passage, pour qu'un écran périmé ne s'ouvre jamais sans réseau) ; sans réseau, celle gardée. L'entrée (« / »), la
+page qui installe (l'entreprise ; jamais le Cabinet chez qui ne l'ouvre pas) et ce qu'elles chargent se gardent dès
+l'installation, sans rien retélécharger (brique 118, `docs/leger.md` : les fichiers portent leur empreinte et le
+navigateur les garde).
 
 **H2. Sur « mon ordinateur », la session se garde dans le navigateur ; sur l'ordinateur d'un autre,
 dans l'onglet seulement** (par délégation). Jusqu'ici la session vivait dans l'onglet : l'application

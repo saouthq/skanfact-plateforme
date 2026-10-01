@@ -151,6 +151,11 @@
     retient son auteur (`cree_par`) ; une pièce, une commande fournisseur ou une réception ne se supprime que par son
     auteur, P ou A (sans auteur connu : P ou A) ; le serveur, la base et l'écran (avant la question, par `autrui`) le
     disent avec la même phrase.
+  - **Léger sur une connexion lente** (brique 118, `docs/leger.md`, demandé par Skander) : seuils écrits avant la
+    mesure (1 Mbit/s, 300 ms : première ouverture ≤ 1 300 Ko et < 15 s, suivante ≤ 30 Ko et < 2 s), mesurés par
+    `tests/web/leger.test.ts` derrière un fil bridé (`tests/lien-lent.ts`). Compression (brotli/gzip, au-delà de 1 Ko),
+    empreinte de chaque fichier dans la page (`?v=`, gardé un an ; `serveur/ecrans.ts`), scripts annoncés en tête ;
+    **`/v10/…` n'est pas l'API** (`deLApi` dans `serveur/app.ts`). Reste S4 : le dossier relu par différence.
   - **Le tableau de bord du groupe** (brique 113, `docs/groupe.md`) : depuis le menu des entreprises, les sociétés de
     la personne côte à côte, avec les chiffres de leurs livres (70, 411, 401, classe 5) et un total par devise ; une
     société sans les livres pour son rôle est nommée sans chiffres. La consolidation vient en vague 4.
