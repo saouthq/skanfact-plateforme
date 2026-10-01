@@ -92,6 +92,8 @@
   Une nouvelle partie du dossier (une nouvelle liste de la v10) **doit** recevoir sa règle, sinon seuls P et A la voient.
   Le menu selon le rôle (brique 101, `web/v10/menu-role.txt`) : une page déclare ses parties (`PARTIES_DES_PAGES`) ;
   cachée, elle quitte le menu et son adresse dit pourquoi. Une nouvelle page **doit** y déclarer les siennes.
+  Les pages en lecture seule (brique 102, `web/v10/lecture-seule.txt`) : bandeau, et un geste qui modifierait une
+  partie en lecture refuse avant (`enLecture`, `refusLecture`) : jamais un « Enregistré » que le serveur n'a pas reçu.
 - Les limites d'appels par clé (`serveur/limites.ts`, 28/09/2026) : 600 par minute, rafales de 60,
   un seau par clé dans la mémoire du programme (à partager le jour où il y aura plusieurs programmes).
 - Les avis d'événement signés (`0008`, `serveur/avis.ts`, 28/09/2026) : l'avis naît dans la

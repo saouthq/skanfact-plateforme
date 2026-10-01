@@ -2584,6 +2584,7 @@
     pushHistory(currentHash);        // d'où l'on vient, pour le bouton retour de la page qui s'ouvre
     const pageChange = routeOf(currentHash) !== name || (currentHash || '').split('/')[2] !== parts[1];
     const dessine = pageCachee(name) ? pageInterdite(name) : (routes[name] || routes.dashboard)(parts.slice(1));
+    if (!pageCachee(name)) { if (dessine && typeof dessine.then === 'function') dessine.then(() => bandeauLecture(name), () => {}); else bandeauLecture(name); }
     if (pageChange && !keepScroll) marquerEntree(view);
     poserGuideMoi();                 // « Guide-moi » : ce qu'on peut faire sur cette page, et son article (10.14.1)
     bandeauDemo(name);               // « ce ne sont pas tes données » — sur chaque page, en permanence
@@ -4675,6 +4676,7 @@
       return true;
     }
     function persist() {
+      if (enLecture('documents')) return refus('#save', refusLecture('documents'));
       if (!validate()) return false;
       // L'ancienne date compte autant que la nouvelle : déplacer une pièce hors d'un mois clos
       // contournerait la clôture aussi sûrement que d'en créer une dedans.
@@ -4760,6 +4762,7 @@
       if (b.dataset.busy || isIssued()) return;
       b.dataset.busy = '1'; b.disabled = true;
       try {
+        if (enLecture('documents')) { refus('#issue', refusLecture('documents')); return; }
         if (!validate()) return;
         if (bloqueParEfacture(doc)) return;
         const n = doc.number || peekNumber(doc.type, doc.date);
@@ -5245,6 +5248,7 @@
         }, modeleCompte());
         $('#ok', root).onclick = async () => {
         const v = formValues($('#pf2', root));
+        if (enLecture('documents')) return refus($('[name=amount]', root), refusLecture('documents'));
         if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');
         if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus($('[name=amount]', root), `Un montant en ${cur} se compte à ${C.decimalsFor(cur)} décimales au plus.`);
         if (!v.date) return refus($('[name=date]', root), 'Date obligatoire.');
@@ -5410,6 +5414,20 @@
       });
   }
 
+  // Les parties qu'une personne lit sans pouvoir les écrire (plateforme, brique 102) : le geste est refusé AVANT,
+  // en le disant ; jamais un « Enregistré » que le serveur n'aura pas reçu.
+  const NOMS_EN_LECTURE = { documents: 'les pièces de vente', clients: 'les fiches clients', suppliers: 'les fiches fournisseurs',
+    employees: 'les salariés', stockAdjustments: 'les mouvements de stock', purchases: 'les achats', catalog: 'le catalogue' };
+  const enLecture = partie => !peutEcrireDossier(partie);
+  const refusLecture = partie => `Ton rôle te laisse lire ${NOMS_EN_LECTURE[partie] || 'cette partie de l\'entreprise'}, pas les modifier : rien n'a été enregistré. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.`;
+  // Le bandeau d'une page dont la partie principale se lit seulement : dit avant le premier geste.
+  function bandeauLecture(name) {
+    const p = (PARTIES_DES_PAGES[name] || [])[0];
+    if (!p || !bridge.droitsDossier || !enLecture(p) || $('#bandeau-lecture')) return;
+    const tete = $('#view .page-head');
+    if (!tete) return;
+    tete.insertAdjacentHTML('afterend', `<div class="banner info lock-banner" id="bandeau-lecture"><span><b>Lecture seule.</b> Ton rôle te laisse lire ${h(NOMS_EN_LECTURE[p] || 'cette page')}, pas les modifier : un geste qui les changerait sera refusé, en le disant.</span></div>`);
+  }
   function clientForm(client, done, preset) {
     const c = client || C.clientVierge(preset);
     modal(`<h2>${client ? 'Modifier le client' : 'Nouveau client'}</h2>
@@ -5433,6 +5451,7 @@
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => {
         $('#ok', root).onclick = () => {
+          if (enLecture('clients')) return refus('#cf input[name=name]', refusLecture('clients'));
           const v = formValues($('#cf', root));
           // `refus()` amène le champ à l'écran, y met le curseur et le marque (7.0.0). Un toast seul
           // oblige à relire tout le formulaire — et la fenêtre peut avoir défilé.
@@ -8481,6 +8500,7 @@
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => {
         $('#ok', root).onclick = () => {
+          if (enLecture('suppliers')) return refus('#sf input[name=name]', refusLecture('suppliers'));
           const v = formValues($('#sf', root));
           if (!v.name.trim()) return refus('#sf input[name=name]', 'Le nom est obligatoire : c\'est lui qui apparaît sur chaque achat.');
           const exos = lireAttestationRS(s, v, root);
@@ -10725,6 +10745,7 @@
         // Ouverte pour UNE case (celle que le fichier CNSS du trimestre réclame), elle y met le curseur.
         if (opts && opts.focus) { const c = $(`[name=${opts.focus}]`, root); if (c) c.focus(); }
         $('#ok', root).onclick = () => {
+          if (enLecture('employees')) return refus('#ef input[name=name]', refusLecture('employees'));
           const v = formValues($('#ef', root));
           if (!v.name.trim()) return refus('#ef input[name=name]', 'Le nom du salarié est obligatoire : il figure sur chaque bulletin.');
           if (!(Number(v.grossSalary) > 0)) return refus($('[name=grossSalary]', root), 'Le salaire brut doit être supérieur à zéro.');
@@ -11956,6 +11977,7 @@
         };
         $('#adf', root).oninput = $('#adf', root).onchange = hint; hint();
         $('#ok', root).onclick = () => {
+          if (enLecture('stockAdjustments')) return refus($('[name=itemId]', root), refusLecture('stockAdjustments'));
           const v = formValues($('#adf', root));
           if (!v.itemId) return refus($('[name=itemId]', root), 'Choisis un article.');
           const qte = C.qteMouvement(v.source, v.qty);

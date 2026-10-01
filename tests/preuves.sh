@@ -1278,9 +1278,11 @@ prouver "« Marquer annulée… » encore proposé" $V10A \
   "$PX"
 prouver "un paiement trop précis découvert seulement à l'enregistrement" $V10A \
   "        const v = formValues(\$('#pf2', root));
+        if (enLecture('documents')) return refus(\$('[name=amount]', root), refusLecture('documents'));
         if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Montant invalide.');
         if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus(\$('[name=amount]', root), \`Un montant en \${cur} se compte à \${C.decimalsFor(cur)} décimales au plus.\`);
 " "        const v = formValues(\$('#pf2', root));
+        if (enLecture('documents')) return refus(\$('[name=amount]', root), refusLecture('documents'));
         if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Montant invalide.');
 " \
   "$PX"
@@ -5877,6 +5879,24 @@ prouver "la visite proposée d'une page cachée" web/public/v10/app.js \
 prouver "la paie rangée hors de ses parties" web/public/v10/app.js \
   "    paie: ['employees'], salarie: ['employees'], compta: ['ecrituresOD']," "    paie: [], salarie: ['employees'], compta: ['ecrituresOD']," \
   "$MRW"
+
+# ── Brique 102 : les pages en lecture seule (web/v10/lecture-seule.txt) ──
+LSW="Samia lit les factures sans les modifier ; Omar lit les clients sans en créer"
+prouver "la page en lecture qui ne le dit pas" web/public/v10/app.js \
+  "    if (!pageCachee(name)) { if (dessine && typeof dessine.then === 'function')" "    if (false) { if (dessine && typeof dessine.then === 'function')" \
+  "$LSW"
+prouver "le paiement accepté à l'écran puis perdu" web/public/v10/app.js \
+  "        if (enLecture('documents')) return refus(\$('[name=amount]', root), refusLecture('documents'));" "        if (false) return refus(\$('[name=amount]', root), refusLecture('documents'));" \
+  "$LSW"
+prouver "le brouillon « enregistré » que le serveur ne reçoit pas" web/public/v10/app.js \
+  "      if (enLecture('documents')) return refus('#save', refusLecture('documents'));" "      if (false) return refus('#save', refusLecture('documents'));" \
+  "$LSW"
+prouver "la fiche client acceptée à l'écran puis perdue" web/public/v10/app.js \
+  "          if (enLecture('clients')) return refus('#cf input[name=name]', refusLecture('clients'));" "          if (false) return refus('#cf input[name=name]', refusLecture('clients'));" \
+  "$LSW"
+prouver "la lecture seule prise pour l'écriture" web/public/v10/app.js \
+  "  const enLecture = partie => !peutEcrireDossier(partie);" "  const enLecture = partie => false;" \
+  "$LSW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

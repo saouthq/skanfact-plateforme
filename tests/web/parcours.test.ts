@@ -455,14 +455,15 @@ describe('le parcours, à la souris', () => {
     // Deux chemins, un chiffre : ce que l'écran a calculé est ce que le serveur recalcule.
     const ecran = await p.evaluate(() => {
       const w = window as unknown as { __data: { payslips: { year: number; month: number; computed: { net: number; employerCost: number } }[] } };
-      return w.__data.payslips.map((b) => ({ periode: `${b.year}-${b.month}`, net: b.computed.net.toFixed(3), cout: b.computed.employerCost.toFixed(3) })).sort((a, b) => a.periode.localeCompare(b.periode));
+      return w.__data.payslips.map((b) => ({ cle: b.year * 100 + b.month, periode: `${b.year}-${b.month}`, net: b.computed.net.toFixed(3), cout: b.computed.employerCost.toFixed(3) })).sort((a, b) => a.cle - b.cle).map(({ periode, net, cout }) => ({ periode, net, cout }));
     });
     const serveur = [];
     for (const b of await auServeur()) {
       const lu = await qui.api('GET', `/entreprises/${qui.essai}/paie/bulletins/${String(b.id)}`, qui.jeton) as { annee: number; mois: number; montants: { net: string; coutEmployeur: string } };
-      serveur.push({ periode: `${lu.annee}-${lu.mois}`, net: lu.montants.net, cout: lu.montants.coutEmployeur });
+      serveur.push({ cle: lu.annee * 100 + lu.mois, periode: `${lu.annee}-${lu.mois}`, net: lu.montants.net, cout: lu.montants.coutEmployeur });
     }
-    expect(serveur).toEqual(ecran);
+    // Dans l'ordre des mois (le 1er octobre, « 2026-10 » se rangeait en texte avant « 2026-9 »).
+    expect(serveur.sort((a, b) => a.cle - b.cle).map(({ periode, net, cout }) => ({ periode, net, cout }))).toEqual(ecran);
     expect(ecran[0]).toMatchObject({ net: '1120.270' });
     expect(qui.erreurs).toEqual([]);
   }, 120_000);

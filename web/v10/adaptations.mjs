@@ -413,7 +413,7 @@ export const ADAPTATIONS = [
     fichier: 'app.js',
     pourquoi: 'un paiement plus précis que sa devise se refuse sur son champ',
     avant: "        const v = formValues($('#pf2', root));\n        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');\n",
-    apres: "        const v = formValues($('#pf2', root));\n        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');\n        if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus($('[name=amount]', root), `Un montant en ${cur} se compte à ${C.decimalsFor(cur)} décimales au plus.`);\n",
+    apres: "        const v = formValues($('#pf2', root));\n        if (enLecture('documents')) return refus($('[name=amount]', root), refusLecture('documents'));\n        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');\n        if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus($('[name=amount]', root), `Un montant en ${cur} se compte à ${C.decimalsFor(cur)} décimales au plus.`);\n",
   },
   // ── Les achats tenus par le serveur (brique 30, docs/achats.md) ──
   // Le serveur tient chaque achat et ses règlements en entiers dans l'unité de la devise de la pièce :
@@ -651,4 +651,5 @@ export const ADAPTATIONS = [
   ...lireFichier('droits.txt'),
   ...lireFichier('accords.txt'),
   ...lireFichier('menu-role.txt'),
+  ...lireFichier('lecture-seule.txt'),
 ];

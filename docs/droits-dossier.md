@@ -70,8 +70,24 @@ pas. Désormais (`web/v10/menu-role.txt`, par délégation) :
 
 Test : `tests/web/menu-role.test.ts` (Karim, commercial ; Leila, la paie). 5 preuves.
 
+## Les pages en lecture seule (brique 102, 01/10/2026)
+
+Une personne qui lit une partie sans pouvoir l'écrire (la comptabilité interne lit les factures et les clients ; la
+lecture lit tout) voyait « Brouillon enregistré », « Paiement enregistré » : le point de contact ne renvoyait rien,
+et rien n'arrivait au serveur. Désormais (`web/v10/lecture-seule.txt`, par délégation) :
+
+- la page dont la partie principale se lit seulement le dit avant le premier geste (bandeau « Lecture seule ») ;
+- les gestes qui modifieraient refusent en le disant, rien n'étant enregistré : enregistrer ou émettre une pièce de
+  vente, un paiement sur une facture, une fiche client, fournisseur ou salarié, un mouvement de stock.
+
+Test : `tests/web/lecture-seule.test.ts` (Samia, comptabilité interne ; Omar, lecture). 5 preuves.
+
 ## Reste connu
 
+- Les autres gestes d'écriture (supprimer une pièce ou une fiche, un achat, un contrat récurrent…) : le serveur n'en
+  reçoit rien, l'écran ne le dit pas encore ; même garde à poser (`enLecture`, `refusLecture`).
+- **TEJ** (attestations de retenue, `05` § 3.3) : le cahier des charges officiel (TEJ-CCT-RS-V2.0) est publié sur
+  jibaya.tn, inaccessible depuis la session de travail : le format reste **À VÉRIFIER** avant d'écrire le fichier.
 - **Une page neuve de la v10** doit déclarer ses parties dans `PARTIES_DES_PAGES`, sinon elle s'ouvre pour tous.
 - L'accueil d'une personne qui ne voit pas les ventes (la paie) montre encore les « premiers pas » du propriétaire.
 - **Les autres éditeurs** : l'écran refuse avant le geste pour le catalogue et les Paramètres ; pour les autres

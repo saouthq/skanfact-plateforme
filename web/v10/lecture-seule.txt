@@ -1,0 +1,99 @@
+Les pages en lecture seule (brique 102 ; 03 § 2.1 ; serveur/v10/droits.ts ; docs/droits-dossier.md).
+Format : voir sans-paquets.mjs.
+
+Une personne peut lire une partie du dossier sans pouvoir l'écrire (la comptabilité interne lit les factures et
+les clients ; la lecture lit tout). Le point de contact ne renvoie jamais ce qu'elle ne peut pas écrire (brique
+99) : sans garde, l'écran disait « Brouillon enregistré », « Paiement enregistré », et rien n'arrivait au serveur,
+une phrase que rien ne tient. La page le dit maintenant avant le geste (bandeau « Lecture seule »), et le geste
+qui modifierait est refusé en le disant, rien n'étant enregistré.
+
+── Les écrans (app.js) ──
+
+== app.js | ce que la personne lit sans pouvoir l'écrire
+-- avant
+  function clientForm(client, done, preset) {
+-- après
+  // Les parties qu'une personne lit sans pouvoir les écrire (plateforme, brique 102) : le geste est refusé AVANT,
+  // en le disant ; jamais un « Enregistré » que le serveur n'aura pas reçu.
+  const NOMS_EN_LECTURE = { documents: 'les pièces de vente', clients: 'les fiches clients', suppliers: 'les fiches fournisseurs',
+    employees: 'les salariés', stockAdjustments: 'les mouvements de stock', purchases: 'les achats', catalog: 'le catalogue' };
+  const enLecture = partie => !peutEcrireDossier(partie);
+  const refusLecture = partie => `Ton rôle te laisse lire ${NOMS_EN_LECTURE[partie] || 'cette partie de l\'entreprise'}, pas les modifier : rien n'a été enregistré. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.`;
+  // Le bandeau d'une page dont la partie principale se lit seulement : dit avant le premier geste.
+  function bandeauLecture(name) {
+    const p = (PARTIES_DES_PAGES[name] || [])[0];
+    if (!p || !bridge.droitsDossier || !enLecture(p) || $('#bandeau-lecture')) return;
+    const tete = $('#view .page-head');
+    if (!tete) return;
+    tete.insertAdjacentHTML('afterend', `<div class="banner info lock-banner" id="bandeau-lecture"><span><b>Lecture seule.</b> Ton rôle te laisse lire ${h(NOMS_EN_LECTURE[p] || 'cette page')}, pas les modifier : un geste qui les changerait sera refusé, en le disant.</span></div>`);
+  }
+  function clientForm(client, done, preset) {
+-- fin
+
+== app.js | une page en lecture seule le dit avant le geste
+-- avant
+    if (pageChange && !keepScroll) marquerEntree(view);
+-- après
+    if (!pageCachee(name)) { if (dessine && typeof dessine.then === 'function') dessine.then(() => bandeauLecture(name), () => {}); else bandeauLecture(name); }
+    if (pageChange && !keepScroll) marquerEntree(view);
+-- fin
+
+== app.js | une pièce de vente ne s'enregistre que par qui peut écrire les pièces
+-- avant
+    function persist() {
+      if (!validate()) return false;
+      // L'ancienne date compte autant que la nouvelle
+-- après
+    function persist() {
+      if (enLecture('documents')) return refus('#save', refusLecture('documents'));
+      if (!validate()) return false;
+      // L'ancienne date compte autant que la nouvelle
+-- fin
+
+== app.js | une pièce ne s'émet que par qui peut écrire les pièces
+-- avant
+        if (!validate()) return;
+        if (bloqueParEfacture(doc)) return;
+-- après
+        if (enLecture('documents')) { refus('#issue', refusLecture('documents')); return; }
+        if (!validate()) return;
+        if (bloqueParEfacture(doc)) return;
+-- fin
+
+== app.js | une fiche client ne s'enregistre que par qui peut écrire les clients
+-- avant
+          const v = formValues($('#cf', root));
+-- après
+          if (enLecture('clients')) return refus('#cf input[name=name]', refusLecture('clients'));
+          const v = formValues($('#cf', root));
+-- fin
+
+== app.js | une fiche fournisseur ne s'enregistre que par qui peut écrire les fournisseurs
+-- avant
+          const v = formValues($('#sf', root));
+          if (!v.name.trim()) return refus('#sf input[name=name]', 'Le nom est obligatoire : c\'est lui qui apparaît sur chaque achat.');
+-- après
+          if (enLecture('suppliers')) return refus('#sf input[name=name]', refusLecture('suppliers'));
+          const v = formValues($('#sf', root));
+          if (!v.name.trim()) return refus('#sf input[name=name]', 'Le nom est obligatoire : c\'est lui qui apparaît sur chaque achat.');
+-- fin
+
+== app.js | une fiche de salarié ne s'enregistre que par qui peut écrire la paie
+-- avant
+          const v = formValues($('#ef', root));
+          if (!v.name.trim()) return refus('#ef input[name=name]', 'Le nom du salarié est obligatoire
+-- après
+          if (enLecture('employees')) return refus('#ef input[name=name]', refusLecture('employees'));
+          const v = formValues($('#ef', root));
+          if (!v.name.trim()) return refus('#ef input[name=name]', 'Le nom du salarié est obligatoire
+-- fin
+
+== app.js | un mouvement de stock ne s'enregistre que par qui peut écrire le stock
+-- avant
+          const v = formValues($('#adf', root));
+          if (!v.itemId) return refus($('[name=itemId]', root), 'Choisis un article.');
+-- après
+          if (enLecture('stockAdjustments')) return refus($('[name=itemId]', root), refusLecture('stockAdjustments'));
+          const v = formValues($('#adf', root));
+          if (!v.itemId) return refus($('[name=itemId]', root), 'Choisis un article.');
+-- fin
