@@ -38,6 +38,13 @@ export async function poserMouchard(admin: { query: (q: string) => Promise<unkno
   await admin.query('drop trigger if exists mouchard on socle.dossier_v10');
   await admin.query('create trigger mouchard after delete on socle.dossier_v10 for each row execute function public.mouchard()');
 }
+// Le mouchard retiré après le test : les garde-fous de la base (tests/socle) recensent chaque table, et celle-ci
+// n'appartient pas au produit.
+export async function retirerMouchard(admin: { query: (q: string) => Promise<unknown> }): Promise<void> {
+  await admin.query('drop trigger if exists mouchard on socle.dossier_v10');
+  await admin.query('drop function if exists public.mouchard()');
+  await admin.query('drop table if exists public.mouchard_suppr');
+}
 export async function recitObjet(admin: { query: (q: string, v: unknown[]) => Promise<{ rows: Record<string, unknown>[] }> }, entreprise: string, collection: string, cle?: string): Promise<string> {
   const la = (await admin.query('select cle from socle.dossier_v10 where entreprise = $1 and collection = $2' + (cle ? ' and cle = $3' : ''), cle ? [entreprise, collection, cle] : [entreprise, collection])).rows.length;
   const parti = (await admin.query(`select m.cle, to_char(m.instant, 'HH24:MI:SS.MS') quand, coalesce(u.nom, 'personne') qui from public.mouchard_suppr m left join socle.utilisateur u on u.id = m.par

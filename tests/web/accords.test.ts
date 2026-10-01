@@ -16,7 +16,7 @@ import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
-import { cliquer, poserMouchard, recitObjet } from '../cliquer.ts';
+import { cliquer, poserMouchard, recitObjet, retirerMouchard } from '../cliquer.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -34,7 +34,7 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     navigateur = await chromium.launch();
     fs.mkdirSync(PHOTOS, { recursive: true });
   }, 120_000);
-  afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); await admin.end(); fs.rmSync(dossier, { recursive: true, force: true }); });
+  afterAll(async () => { await retirerMouchard(admin).catch(() => undefined); await navigateur?.close(); await serveur?.arreter(); await admin.end(); fs.rmSync(dossier, { recursive: true, force: true }); });
 
   const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
     const r = await fetch(`${serveur.adresse}/v1${chemin}`, {
@@ -285,7 +285,9 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     await k.locator('[data-combo=clientId] .combo-list [role=option]').first().click();
     await k.locator('#cat-pick .combo-btn').click();
     await k.locator('#cat-pick .combo-q').fill('Ciment');
-    await cliquer(k.locator('#cat-pick .combo-list [role=option]').first(), '#cat-pick', 15_000, () => recitObjet(admin, ent, 'catalog', 'ciment'));
+    await cliquer(k.locator('#cat-pick .combo-list [role=option]').first(), '#cat-pick', 15_000, async () => `${await recitObjet(admin, ent, 'catalog', 'ciment')} ; le serveur envoie à Karim ${
+      ((await api('GET', `/entreprises/${ent}/dossier-v10`, karim)).corps.objets as { collection: string }[] | undefined)?.filter((o) => o.collection === 'catalog').length ?? '?'} article(s) ; sa page : ${
+      await k.evaluate(() => { const w = window as unknown as { __data?: { catalog?: unknown[] }; skanfact?: { droitsDossier?: () => unknown } }; return JSON.stringify({ catalogue: w.__data?.catalog?.length ?? null, droits: w.skanfact?.droitsDossier?.(), poste: (document.querySelector('#poste-bandeau') as HTMLElement | null)?.innerText ?? '' }); })}`);
     await expect.poll(async () => k.locator('[data-k=unitPrice]').count(), { timeout: 5_000 }).toBeGreaterThan(0);
     const prix = k.locator('[data-k=unitPrice]');
     const n0 = await prix.count();

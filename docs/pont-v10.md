@@ -72,6 +72,24 @@ remis ce qu'il avait fait hors ligne : **« Remis par un appareil retiré »** (
 « Modifier quand même… » et « Marquer annulée… » sur une facture émise ont disparu : le serveur la
 scelle, et un avoir la corrige (un avoir total la solde : « annulée » se déduit).
 
+## 4 bis. Deux postes sur le même dossier (brique 112, 01/10/2026)
+
+Le point de contact garde ce que le serveur a de chaque objet (`vu`) et l'envoie avec sa révision ; le serveur
+refuse un objet changé ailleurs (409), le point de contact relit le dossier et le rend à la v10, qui fusionne
+(`mergeData`) puis réenregistre. Le défaut : la relecture remplaçait `vu` AVANT que la page ait fusionné. Un
+enregistrement parti entre les deux (les données d'avant le conflit) se comparait au `vu` neuf :
+- il **supprimait** ce qu'un autre poste venait de créer (la page ne l'avait jamais eu) ;
+- il **écrasait** ce qu'un autre poste venait de changer (avec la révision du serveur : pas de conflit).
+Vu en CI (un poste lent) : l'article posé par un autre disparaissait (`tests/web/accords.test.ts`), le compte Konnect
+créé par le serveur aussi (`tests/web/jalon-j2.test.ts`) ; reproduit pas à pas, sans minutage, par
+`tests/web/enregistrement-concurrent.test.ts`.
+
+La règle : le point de contact retient la révision de chaque objet **telle que la page l'a eue** (`base`), et c'est
+elle qui part. Elle naît quand la page reçoit le dossier (ouverture, copie du poste, reprise de ce qui attendait), et
+suit chaque envoi réussi et chaque pièce émise ; un objet que la page a à l'identique du serveur (une fusion le lui a
+donné) prend la révision du serveur. Un objet que la page n'a jamais eu ne se supprime pas ; un objet changé ailleurs
+part avec la révision d'avant, et le serveur le refuse : conflit, fusion, rien d'écrasé.
+
 ## 5. Reste à faire (connu, écrit ici pour ne pas l'oublier)
 
 - **Les PDF** : `exportPdfSilent` et `exportPdfMany` ne font rien ; un envoi par mail ou WhatsApp

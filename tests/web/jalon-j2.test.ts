@@ -21,7 +21,7 @@ import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
-import { cliquer, poserMouchard, recitObjet } from '../cliquer.ts';
+import { cliquer, poserMouchard, recitObjet, retirerMouchard } from '../cliquer.ts';
 import { digigoSimule } from '../digigo-simule.ts';
 import { konnectSimule } from '../konnect-simule.ts';
 import { ttnSimulee } from '../ttn-simule.ts';
@@ -53,7 +53,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     navigateur = await chromium.launch();
     fs.mkdirSync(PHOTOS, { recursive: true });
   }, 120_000);
-  afterAll(async () => {
+  afterAll(async () => { await retirerMouchard(admin).catch(() => undefined);
     await navigateur?.close(); await serveur?.arreter(); await digigo?.fermer(); await ttn?.fermer(); await konnect?.fermer();
     await admin.end(); fs.rmSync(dossier, { recursive: true, force: true });
   });

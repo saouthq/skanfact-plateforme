@@ -129,6 +129,10 @@
     (`panneauxAbsents`) ; « Voir un exemple » ouvre l'entreprise d'essai, jamais des pièces
     inventées dans une vraie. L'inventaire des ~240 fonctions du pont (entreprise et Cabinet) et
     leur état : `docs/pont-v10.md`.
+    Deux postes sur le même dossier (brique 112, `docs/pont-v10.md` § 4 bis) : chaque objet part avec la
+    révision que la PAGE a eue (`base`), pas avec la dernière lecture du serveur : un objet qu'elle n'a jamais
+    eu ne se supprime pas, un objet changé ailleurs fait un conflit au lieu d'être écrasé (vu en CI : le compte
+    Konnect créé par le serveur supprimé par la page ; `tests/web/enregistrement-concurrent.test.ts`).
   - **L'avoir et les règlements** (brique 29, `docs/avoirs-reglements.md`) : l'avoir s'émet par
     le serveur (série AVO, lié à sa facture, `ventes.piece.corrige`, route et geste à lui) ; les
     paiements d'une facture émise sont vérifiés et tenus par le serveur (`ventes.reglement`, 0012,

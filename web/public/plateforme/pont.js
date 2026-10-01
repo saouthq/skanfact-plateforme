@@ -141,6 +141,16 @@
   // Ce que le serveur a de chaque objet : son contenu (tel qu'envoyé) et sa révision.
   /** @type {Map<string, { json: string, rang: number | null, revision: number }>} */
   let vu = new Map();
+  // La révision de chaque objet telle que la PAGE l'a eue (brique 112). `vu` suit le serveur : après un conflit, le
+  // point de contact le relit, avant que la page ait fusionné. Un enregistrement parti entre les deux (ses données
+  // d'avant) se comparait à ce `vu` neuf : il supprimait ce qu'un autre poste venait de créer (la page ne l'avait
+  // jamais eu), et écrasait ce qu'il venait de changer (avec la révision du serveur, sans conflit). Il part
+  // maintenant de ce que la page a eu : un objet qu'elle n'a jamais eu ne se supprime pas, et un objet changé
+  // ailleurs fait un conflit (le serveur le refuse), que la page fusionne.
+  /** @type {Map<string, number>} */
+  let base = new Map();
+  // La page reçoit ces données-là (une ouverture, une copie) : elle a désormais chaque objet de `vu`.
+  const adopter = () => { base = new Map([...vu].map(([k, v]) => [k, v.revision])); };
 
   // ── Enregistrer : un seul envoi à la fois ; le suivant part avec le dernier état du dossier ──
   /** @type {Promise<unknown> | null} */
@@ -155,16 +165,20 @@
     const changements = [];
     for (const [k, m] of maintenant) {
       const avant = vu.get(k);
+      // La page a la version du serveur : elle l'a désormais (une fusion la lui a donnée).
+      if (avant && avant.json === m.json) base.set(k, avant.revision);
       if (!avant || avant.json !== m.json || avant.rang !== m.rang) {
-        changements.push({ collection: m.collection, cle: m.cle, rang: m.rang, revision: avant ? avant.revision : null, contenu: JSON.parse(m.json) });
+        changements.push({ collection: m.collection, cle: m.cle, rang: m.rang, revision: base.has(k) ? base.get(k) ?? null : null, contenu: JSON.parse(m.json) });
       }
     }
-    for (const [k, avant] of vu) {
+    for (const [k] of vu) {
       if (!maintenant.has(k)) {
         const [collection = '', cle = ''] = k.split('\u0000');
         // Une partie qui ne repart pas n'est pas supprimée pour autant : on ne l'a simplement pas renvoyée.
         if (!repart(collection === '_racine' ? cle : collection)) continue;
-        changements.push({ collection, cle, rang: null, revision: avant.revision, contenu: null });
+        // Un objet que la page n'a jamais eu (un autre poste vient de le créer) ne se supprime pas : elle ne l'a pas retiré.
+        if (!base.has(k)) continue;
+        changements.push({ collection, cle, rang: null, revision: base.get(k) ?? null, contenu: null });
       }
     }
     return changements;
@@ -196,7 +210,7 @@
       for (const [j, c] of lot.entries()) {
         const k = `${c.collection}\u0000${c.cle}`;
         const rev = r.revisions[j] && r.revisions[j].revision;
-        if (c.contenu === null) vu.delete(k); else vu.set(k, { json: JSON.stringify(c.contenu), rang: c.rang, revision: rev });
+        if (c.contenu === null) { vu.delete(k); base.delete(k); } else { vu.set(k, { json: JSON.stringify(c.contenu), rang: c.rang, revision: rev }); base.set(k, rev); }
       }
     }
     garderLaCopie();
@@ -305,6 +319,8 @@
     if (c) {
       vu = new Map();
       for (const o of c.contenu.objets) vu.set(`${o.collection}\u0000${o.cle}`, { json: JSON.stringify(o.contenu), rang: o.rang, revision: o.revision });
+      // Ce qui attendait a été fait sur la copie : la page l'avait.
+      adopter();
       questionsLues = c.contenu.questions || [];
       poserDroits(c.contenu.droits);
       attenteGardee = true;
@@ -385,6 +401,7 @@
     }
     vu = new Map();
     for (const o of c.contenu.objets) vu.set(`${o.collection}\u0000${o.cle}`, { json: JSON.stringify(o.contenu), rang: o.rang, revision: o.revision });
+    adopter();
     const data = assembler(c.contenu.objets);
     data.questionsCabinet = questionsLues = c.contenu.questions || [];
     poserDroits(c.contenu.droits);
@@ -513,6 +530,8 @@
       const attente = await poste.lireAttente(ent).catch(() => null);
       try {
         const data = attente ? await rejouer(attente.contenu.data) : await relire();
+        // La page reçoit ce dossier : elle a chacun de ses objets (brique 112).
+        adopter();
         await chargerRemises();
         return { data, corruptFile: null };
       } catch (e) {
@@ -562,6 +581,7 @@
         rang: avant ? avant.rang : rang, netAPayer: Number(netAPayer).toFixed(decimales),
       });
       vu.set(k, { json: JSON.stringify(r.contenu), rang: avant ? avant.rang : rang, revision: r.revision });
+      base.set(k, r.revision);
       garderLaCopie();
       return decoder(r.contenu);
     },

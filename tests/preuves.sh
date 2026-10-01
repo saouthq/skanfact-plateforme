@@ -6061,6 +6061,27 @@ prouver "l'accueil de la paie sans bouton principal" web/public/v10/app.js \
   "    const vert = !peutEcrireDossier('documents');" "    const vert = false;" \
   "$MR"
 
+# ── Brique 112 : deux postes sur le même dossier (web/public/plateforme/pont.js ; tests/web/enregistrement-concurrent.test.ts) ──
+EC="un enregistrement parti avant la fusion ne supprime pas"
+prouver "un objet créé par un autre poste supprimé par une page qui ne l'a jamais eu" web/public/plateforme/pont.js \
+  "        if (!base.has(k)) continue;
+" "" \
+  "$EC"
+prouver "un objet changé par un autre poste écrasé avec la révision du serveur" web/public/plateforme/pont.js \
+  "revision: base.has(k) ? base.get(k) ?? null : null, contenu: JSON.parse(m.json)" "revision: avant ? avant.revision : null, contenu: JSON.parse(m.json)" \
+  "$EC"
+prouver "ce que la fusion a donné à la page, qu'elle ne peut plus supprimer" web/public/plateforme/pont.js \
+  "      if (avant && avant.json === m.json) base.set(k, avant.revision);
+" "" \
+  "$EC"
+prouver "un objet enregistré qui garde sa révision d'avant (le suivant fait un conflit)" web/public/plateforme/pont.js \
+  "vu.set(k, { json: JSON.stringify(c.contenu), rang: c.rang, revision: rev }); base.set(k, rev); }" "vu.set(k, { json: JSON.stringify(c.contenu), rang: c.rang, revision: rev }); }" \
+  "$EC"
+prouver "le dossier ouvert sans que la page l'ait (rien ne se supprime plus)" web/public/plateforme/pont.js \
+  "        adopter();
+        await chargerRemises();" "        await chargerRemises();" \
+  "$EC"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
