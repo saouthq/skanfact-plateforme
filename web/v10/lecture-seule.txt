@@ -19,6 +19,10 @@ qui modifierait est refusé en le disant, rien n'étant enregistré.
     employees: 'les salariés', stockAdjustments: 'les mouvements de stock', purchases: 'les achats', catalog: 'le catalogue' };
   const enLecture = partie => !peutEcrireDossier(partie);
   const refusLecture = (partie, fait) => `Ton rôle te laisse lire ${NOMS_EN_LECTURE[partie] || 'cette partie de l\'entreprise'}, pas les modifier : rien n'a été ${fait || 'enregistré'}. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.`;
+  // Un brouillon fait par un autre (brique 117 ; 03 § 1) : seul son auteur, le propriétaire ou un administrateur le
+  // supprime. Le serveur dit l'auteur de chaque pièce qu'un autre a faite ; le geste se refuse AVANT, en le disant.
+  const auteurAutre = (partie, id) => (bridge.auteurAutre ? bridge.auteurAutre(partie, id) : null);
+  const refusAuteur = (auteur, quoi) => `${quoi} a été fait par ${auteur || 'quelqu\'un d\'autre'} : seul son auteur, le propriétaire ou un administrateur le supprime. Rien n'a été supprimé.`;
   // Le bandeau d'une page dont la partie principale se lit seulement : dit avant le premier geste.
   function bandeauLecture(name) {
     const p = (PARTIES_DES_PAGES[name] || [])[0];
@@ -105,6 +109,7 @@ qui modifierait est refusé en le disant, rien n'étant enregistré.
 -- après
     if ($('#del')) $('#del').onclick = async () => {
       if (enLecture('documents')) { toast(refusLecture('documents', 'supprimé'), true); return; }
+      if (auteurAutre('documents', doc.id) !== null) { toast(refusAuteur(auteurAutre('documents', doc.id), doc.number || 'Ce brouillon'), true); return; }
       // Une suppression qui laisse des liens morts doit au moins les nommer
 -- fin
 

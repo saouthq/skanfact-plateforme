@@ -108,6 +108,30 @@ Test : `tests/web/menu-role.test.ts` (Karim, commercial ; Leila, paie), 4 preuve
   parties en lecture seule (une personne de la comptabilité interne qui ouvre une facture en brouillon), le serveur
   n'en reçoit rien, mais l'éditeur ne le dit pas encore : à faire avec le menu par rôle.
 - **Au champ près** : le magasinier devrait écrire un article sans ses prix, la comptabilité interne encaisser un
-  règlement sur une facture, le commercial ne supprimer que ses brouillons (03 § 2.1).
+  règlement sur une facture (03 § 2.1). Le commercial qui ne supprime que ses brouillons : fait (brique 117, plus bas).
 - Le caissier et le magasinier : leurs gestes viendront avec la caisse et le stock complet (étape 4).
 - Les écrans de l'accord d'un responsable : faits (brique 100, `docs/accords.md`).
+
+## Supprimer un brouillon : les siens (brique 117, 01/10/2026)
+
+03 § 1 : « Supprimer un brouillon (jamais une pièce émise) : P, A ; C, M, I, Pa : les siens ».
+
+- **Chaque objet du dossier retient qui l'a créé** (`0058`, `socle.dossier_v10.cree_par`), aux trois endroits où le
+  serveur en crée un (l'amorce, `appliquer`, `emettreDepuisV10`).
+- **Une pièce de vente, une commande fournisseur ou une réception** ne se supprime que par **son auteur**, le
+  **propriétaire** ou un **administrateur**. Le refus nomme l'auteur : « Ce brouillon a été fait par Karim : seul son
+  auteur, le propriétaire ou un administrateur le supprime. Rien n'a été supprimé. » (`v10.supprimer_le_sien`).
+- **Une pièce d'avant la règle** (sans auteur connu) : seul un responsable la supprime (la valeur par défaut qui ne
+  donne rien de plus ; `v10.supprimer_sans_auteur`).
+- **La base refuse aussi** (le déclencheur `socle.dossier_v10_supprimer_le_sien`), même en écrivant par-dessus les
+  routes ; sans personne connectée (une restauration), la règle ne s'applique pas.
+- **L'écran le dit avant le geste** : la lecture du dossier porte `autrui` (« collection/clé » → le nom de l'auteur des
+  pièces qu'un AUTRE a faites, vide pour un responsable) ; « Supprimer » d'un devis, d'une facture en brouillon, d'une
+  commande fournisseur ou d'une réception se refuse alors avant la question, avec la même phrase (`auteurAutre`,
+  `refusAuteur`, `web/v10/lecture-seule.txt`, `web/v10/commandes-fournisseurs.txt`).
+- Ce qui part au serveur : rien de plus. Ce qui en revient : pour chaque pièce faite par un autre, le nom de son
+  auteur, un membre de la même entreprise.
+
+Tests : `tests/v10/brouillon-auteur.test.ts` (Karim et Lina, commerciaux ; Nadia, propriétaire ; la pièce sans
+auteur ; le refus de la base), `tests/web/brouillon-auteur.test.ts` (Lina refusée avant la question, nommant Karim ;
+son propre devis supprimé). 7 preuves.

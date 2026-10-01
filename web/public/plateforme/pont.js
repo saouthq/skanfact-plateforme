@@ -154,6 +154,9 @@
   // ailleurs fait un conflit (le serveur le refuse), que la page fusionne.
   /** @type {Map<string, number>} */
   let base = new Map();
+  // Les pièces qu'un autre a faites (brique 117) : « collection/clé » → le nom de son auteur ('' si inconnu).
+  /** @type {Record<string, string>} */
+  let autrui = {};
   // La page reçoit ces données-là (une ouverture, une copie) : elle a désormais chaque objet de `vu`.
   const adopter = () => { base = new Map([...vu].map(([k, v]) => [k, v.revision])); };
 
@@ -243,6 +246,7 @@
   async function relire() {
     const r = await appel('GET', '/dossier-v10');
     poserDroits(r.droits);
+    autrui = r.autrui || {};
     vu = new Map();
     for (const o of r.objets) vu.set(`${o.collection}\u0000${o.cle}`, { json: JSON.stringify(o.contenu), rang: o.rang, revision: o.revision });
     const data = assembler(r.objets);
@@ -612,6 +616,8 @@
     },
 
     // La session de caisse (brique 116) : son état, l'ouvrir avec le fond de caisse, la fermer en comptant le tiroir.
+    // L'auteur d'une pièce faite par un autre (brique 117), sinon null : l'écran refuse de la supprimer avant le geste.
+    auteurAutre: (/** @type {string} */ collection, /** @type {string} */ id) => (`${collection}/${id}` in autrui ? autrui[`${collection}/${id}`] ?? '' : null),
     caisse: async () => appel('GET', '/caisse'),
     ouvrirCaisse: async (/** @type {string} */ fond) => appel('POST', '/caisse/ouvrir', { fond }),
     fermerCaisse: async (/** @type {string} */ compte) => appel('POST', '/caisse/fermer', { compte }),

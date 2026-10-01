@@ -6248,6 +6248,31 @@ prouver "une liste vide de la racine qui recouvre ses objets" web/public/platefo
       if (!Array.isArray(data[o.collection])) data[o.collection] = [];" \
   "une liste vide restée à la racine, reçue après ses objets, ne les efface pas"
 
+# ── Supprimer un brouillon : les siens (brique 117, 01/10/2026 ; docs/droits-dossier.md) ──
+BA="un commercial ne supprime que ses brouillons ; la propriétaire, tous ; une pièce sans auteur connu, un responsable seulement"
+BAW="Lina ne supprime pas le devis de Karim, et le sien oui"
+prouver "le brouillon d'un autre supprimé sans dire son auteur" serveur/v10/dossier.ts \
+  "  if (!options.serveur) await verifierAuteurs(tx, entreprise, utilisateur, changements, actuels);" "" \
+  "$BA"
+prouver "le propriétaire qui ne supprime pas le brouillon d'un commercial" serveur/v10/dossier.ts \
+  "  if ((await tx.query(\`select socle.mes_roles(\$1) && array['proprietaire', 'administrateur'] r\`, [entreprise])).rows[0]?.r) return;" "" \
+  "$BA"
+prouver "l'auteur oublié à la création d'une pièce" serveur/v10/dossier.ts \
+  "rang: c.rang, contenu: JSON.stringify(c.contenu), modifie_par: utilisateur, cree_par: utilisateur })" "rang: c.rang, contenu: JSON.stringify(c.contenu), modifie_par: utilisateur })" \
+  "$BA"
+prouver "la base qui laisse supprimer le brouillon d'un autre" base/migrations/0058_auteur.sql \
+  "     and old.cree_par is distinct from socle.moi()" "     and false" \
+  "$BA"
+prouver "l'écran qui croit siennes les pièces de Lina" serveur/v10/routes.ts \
+  "and d.cree_par is distinct from \$3\`" "and \$3::uuid is not null\`" \
+  "$BA"
+prouver "l'écran qui n'apprend pas qui a fait les pièces" web/public/plateforme/pont.js \
+  "    autrui = r.autrui || {};" "" \
+  "$BAW"
+prouver "« Supprimer » qui pose la question sur le brouillon d'un autre" web/public/v10/app.js \
+  "      if (auteurAutre('documents', doc.id) !== null) { toast(refusAuteur(auteurAutre('documents', doc.id), doc.number || 'Ce brouillon'), true); return; }" "" \
+  "$BAW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

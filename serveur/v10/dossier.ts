@@ -113,7 +113,7 @@ async function amorcer(tx: Transaction, entreprise: string, utilisateur: string)
     })),
   ];
   for (const [i, o] of objets.entries()) {
-    await db.insertInto('socle.dossier_v10').values({ entreprise, collection: o.collection, cle: o.cle, rang: o.collection === '_racine' ? null : i - 1, contenu: JSON.stringify(o.contenu), modifie_par: utilisateur }).execute();
+    await db.insertInto('socle.dossier_v10').values({ entreprise, collection: o.collection, cle: o.cle, rang: o.collection === '_racine' ? null : i - 1, contenu: JSON.stringify(o.contenu), modifie_par: utilisateur, cree_par: utilisateur }).execute();
   }
   // Un client amorcé est le même que sa fiche du serveur : son identifiant v10 est le sien.
   for (const t of tiers) await db.updateTable('socle.tiers').set({ ref_v10: t.id }).where('id', '=', t.id).execute();
@@ -137,16 +137,18 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   const db = requetes(tx);
   // Chaque partie s'écrit selon le geste de son module (brique 99) ; le serveur lui-même n'a pas de rôle.
   if (!options.serveur) verifierEcriture(await mesRoles(tx, entreprise), changements);
-  const actuels = new Map<string, { contenu: unknown; revision: number }>();
+  const actuels = new Map<string, { contenu: unknown; revision: number; creePar: string | null }>();
   const conflits: { collection: string; cle: string }[] = [];
   for (const c of changements) {
-    const a = await db.selectFrom('socle.dossier_v10').select(['contenu', 'revision'])
+    const a = await db.selectFrom('socle.dossier_v10').select(['contenu', 'revision', 'cree_par'])
       .where('entreprise', '=', entreprise).where('collection', '=', c.collection).where('cle', '=', c.cle).forUpdate().executeTakeFirst();
     if ((a ? Number(a.revision) : null) !== c.revision) conflits.push({ collection: c.collection, cle: c.cle });
-    if (a) actuels.set(`${c.collection}/${c.cle}`, { contenu: a.contenu, revision: Number(a.revision) });
+    if (a) actuels.set(`${c.collection}/${c.cle}`, { contenu: a.contenu, revision: Number(a.revision), creePar: a.cree_par });
   }
   // Rien n'est écrit tant qu'un seul objet a changé ailleurs : on ne mélange jamais deux versions.
   if (conflits.length) throw new Conflit(conflits);
+  // Supprimer un brouillon : les siens (brique 117 ; 03 § 1). Dit avec le nom de l'auteur, avant que la base ne le refuse.
+  if (!options.serveur) await verifierAuteurs(tx, entreprise, utilisateur, changements, actuels);
   // Une commande fournisseur qui part au-delà du seuil de l'entreprise : l'accord d'un responsable (brique 114).
   if (!options.serveur) {
     await controlerCommandes(tx, entreprise, changements.map((c) => ({ collection: c.collection, cle: c.cle, avant: actuels.get(`${c.collection}/${c.cle}`)?.contenu ?? null, apres: c.contenu })));
@@ -166,7 +168,7 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
         .where('entreprise', '=', entreprise).where('collection', '=', c.collection).where('cle', '=', c.cle).execute();
       resultat.push({ collection: c.collection, cle: c.cle, revision: a.revision + 1 });
     } else {
-      await db.insertInto('socle.dossier_v10').values({ entreprise, collection: c.collection, cle: c.cle, rang: c.rang, contenu: JSON.stringify(c.contenu), modifie_par: utilisateur }).execute();
+      await db.insertInto('socle.dossier_v10').values({ entreprise, collection: c.collection, cle: c.cle, rang: c.rang, contenu: JSON.stringify(c.contenu), modifie_par: utilisateur, cree_par: utilisateur }).execute();
       resultat.push({ collection: c.collection, cle: c.cle, revision: 1 });
     }
     // Une pièce qui change, ou qui disparaît, laisse sa trace ; le reste du dossier se relit par ses révisions.
@@ -187,6 +189,23 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
     await reecrireLaPaie(tx, entreprise);
   }
   return resultat;
+}
+
+// ── Supprimer un brouillon : les siens (brique 117 ; 03 § 1 ; 0058) ─────────────────────────────────────────
+// Une pièce de vente, une commande fournisseur ou une réception ne se supprime que par son auteur, le propriétaire ou
+// un administrateur. Un objet sans auteur connu (d'avant cette règle) : seul un responsable le supprime.
+export const PARTIES_A_AUTEUR = ['documents', 'supplierOrders', 'receptions'];
+async function verifierAuteurs(tx: Transaction, entreprise: string, utilisateur: string, changements: Changement[],
+  actuels: Map<string, { contenu: unknown; creePar: string | null }>) {
+  const suppressions = changements.filter((c) => c.contenu === null && PARTIES_A_AUTEUR.includes(c.collection))
+    .map((c) => ({ c, a: actuels.get(`${c.collection}/${c.cle}`) })).filter((x) => x.a && x.a.creePar !== utilisateur);
+  if (!suppressions.length) return;
+  if ((await tx.query(`select socle.mes_roles($1) && array['proprietaire', 'administrateur'] r`, [entreprise])).rows[0]?.r) return;
+  const { a } = suppressions[0] as { a: { contenu: unknown; creePar: string | null } };
+  const auteur = a.creePar ? String((await tx.query('select nom from socle.utilisateur where id = $1', [a.creePar])).rows[0]?.nom ?? '') : '';
+  const contenu = estObjet(a.contenu) ? a.contenu : {};
+  const numero = typeof contenu.number === 'string' && contenu.number ? contenu.number : '';
+  throw new Refus(auteur ? 'v10.supprimer_le_sien' : 'v10.supprimer_sans_auteur', { valeurs: { piece: numero || rendre(t('v10.ce_brouillon'), 'fr'), auteur } });
 }
 
 // ── Émettre une facture ou un avoir du dossier ──────────────────────────────────────────────────
@@ -320,7 +339,7 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
     await db.updateTable('socle.dossier_v10').set({ contenu: JSON.stringify(contenu), revision: BigInt(Number(stocke.revision) + 1), modifie_le: new Date(), modifie_par: utilisateur })
       .where('entreprise', '=', entreprise).where('collection', '=', 'documents').where('cle', '=', cle).execute();
   } else {
-    await db.insertInto('socle.dossier_v10').values({ entreprise, collection: 'documents', cle, rang: demande.rang, contenu: JSON.stringify(contenu), modifie_par: utilisateur }).execute();
+    await db.insertInto('socle.dossier_v10').values({ entreprise, collection: 'documents', cle, rang: demande.rang, contenu: JSON.stringify(contenu), modifie_par: utilisateur, cree_par: utilisateur }).execute();
   }
   return { contenu, revision: stocke ? Number(stocke.revision) + 1 : 1, numero: r.numero };
 }

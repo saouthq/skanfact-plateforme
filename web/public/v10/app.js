@@ -4852,6 +4852,7 @@
     };
     if ($('#del')) $('#del').onclick = async () => {
       if (enLecture('documents')) { toast(refusLecture('documents', 'supprimé'), true); return; }
+      if (auteurAutre('documents', doc.id) !== null) { toast(refusAuteur(auteurAutre('documents', doc.id), doc.number || 'Ce brouillon'), true); return; }
       // Une suppression qui laisse des liens morts doit au moins les nommer : une facture qui
       // annonce « établie à partir du devis DEV-2026-012 » et dont le lien mène au tableau de bord
       // est un mystère qu'on n'élucide plus six mois après.
@@ -5457,6 +5458,10 @@
     employees: 'les salariés', stockAdjustments: 'les mouvements de stock', purchases: 'les achats', catalog: 'le catalogue' };
   const enLecture = partie => !peutEcrireDossier(partie);
   const refusLecture = (partie, fait) => `Ton rôle te laisse lire ${NOMS_EN_LECTURE[partie] || 'cette partie de l\'entreprise'}, pas les modifier : rien n'a été ${fait || 'enregistré'}. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.`;
+  // Un brouillon fait par un autre (brique 117 ; 03 § 1) : seul son auteur, le propriétaire ou un administrateur le
+  // supprime. Le serveur dit l'auteur de chaque pièce qu'un autre a faite ; le geste se refuse AVANT, en le disant.
+  const auteurAutre = (partie, id) => (bridge.auteurAutre ? bridge.auteurAutre(partie, id) : null);
+  const refusAuteur = (auteur, quoi) => `${quoi} a été fait par ${auteur || 'quelqu\'un d\'autre'} : seul son auteur, le propriétaire ou un administrateur le supprime. Rien n'a été supprimé.`;
   // Le bandeau d'une page dont la partie principale se lit seulement : dit avant le premier geste.
   function bandeauLecture(name) {
     const p = (PARTIES_DES_PAGES[name] || [])[0];
@@ -9176,6 +9181,8 @@
     if ($('#cf-del')) $('#cf-del').onclick = async () => {
       $('#more-list').hidden = true;
       if (receptionsDeCommandeUI(o.id).length) return toast(`La commande ${o.number} a des réceptions : annule-la plutôt (le statut « Annulée ») ; ses réceptions restent.`, true);
+      // (brique 117) Une commande faite par un autre : son auteur, le propriétaire ou un administrateur la supprime.
+      if (auteurAutre('supplierOrders', o.id) !== null) return toast(refusAuteur(auteurAutre('supplierOrders', o.id), `La commande ${o.number || ''}`.trim()), true);
       if (!await confirmDialog(`Supprimer la commande ${o.number || ''} ?`, 'Supprimer', true)) return;
       data.supplierOrders = commandesF().filter(x => x.id !== o.id); save(true);
       dirty = false; clearGuard(garde);
@@ -9259,6 +9266,7 @@
     if ($('#more-btn')) $('#more-btn').onclick = () => { $('#more-list').hidden = !$('#more-list').hidden; };
     if ($('#rec-del')) $('#rec-del').onclick = async () => {
       $('#more-list').hidden = true;
+      if (auteurAutre('receptions', r.id) !== null) return toast(refusAuteur(auteurAutre('receptions', r.id), 'Cette réception'), true);
       if (!await confirmDialog('Supprimer cette réception en brouillon ?', 'Supprimer', true)) return;
       data.receptions = receptionsF().filter(x => x.id !== r.id); save(true);
       dirty = false; clearGuard(garde);

@@ -15,7 +15,7 @@ import { aujourdhuiATunis } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { accordRemiseDeLaPiece, commandeDuServeur, depassementDuServeur, estResponsable, remiseDuServeur } from './accords.ts';
 import { filtrer, mesRoles } from './droits.ts';
-import { appliquer, Conflit, emettreDepuisV10, lireDossier, type Changement } from './dossier.ts';
+import { appliquer, Conflit, emettreDepuisV10, lireDossier, PARTIES_A_AUTEUR, type Changement } from './dossier.ts';
 import { nombreEnTexte } from './lecture.ts';
 import { sessionOuverte } from '../caisse/routes.ts';
 import { poserCompte, renvoyer } from './envoi.ts';
@@ -40,7 +40,14 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       if (!tx || !qui) throw new Error('transaction attendue');
       // Chacun n'en lit que ce que ses rôles voient (brique 99), et l'écran sait ce qu'il ne doit ni montrer ni renvoyer.
       const ent = params.entreprise ?? '';
-      return { corps: filtrer(await mesRoles(tx, ent), await lireDossier(tx, ent, qui.utilisateur)) };
+      const roles = await mesRoles(tx, ent);
+      // Les pièces qu'un autre a faites (brique 117) : l'écran dit, avant le geste, qu'il ne les supprime pas. Seulement
+      // pour qui n'est ni propriétaire ni administrateur (eux suppriment tout brouillon).
+      const responsable = roles.some((r) => r === 'proprietaire' || r === 'administrateur');
+      const autrui = responsable ? {} : Object.fromEntries((await tx.query(`select d.collection || '/' || d.cle k, coalesce(u.nom, '') nom from socle.dossier_v10 d
+          left join socle.utilisateur u on u.id = d.cree_par
+         where d.entreprise = $1 and d.collection = any($2) and d.cree_par is distinct from $3`, [ent, PARTIES_A_AUTEUR, qui.utilisateur])).rows.map((r) => [r.k, r.nom]));
+      return { corps: { ...filtrer(roles, await lireDossier(tx, ent, qui.utilisateur)), autrui } };
     },
   });
 

@@ -147,6 +147,10 @@
     lu). La session (brique 116, `0057`, `serveur/caisse/routes.ts`) : ouverte avec le fond sur UN appareil, qui seul
     encaisse ; fermée en comptant le tiroir (sans voir l'attendu), le serveur fige le Z (attendu = fond + espèces de
     la session, écart) ; un Z ne change plus en base. Le hors ligne chaîné vient ensuite.
+  - **Supprimer un brouillon : les siens** (brique 117, `0058`, `docs/droits-dossier.md`) : chaque objet du dossier
+    retient son auteur (`cree_par`) ; une pièce, une commande fournisseur ou une réception ne se supprime que par son
+    auteur, P ou A (sans auteur connu : P ou A) ; le serveur, la base et l'écran (avant la question, par `autrui`) le
+    disent avec la même phrase.
   - **Le tableau de bord du groupe** (brique 113, `docs/groupe.md`) : depuis le menu des entreprises, les sociétés de
     la personne côte à côte, avec les chiffres de leurs livres (70, 411, 401, classe 5) et un total par devise ; une
     société sans les livres pour son rôle est nommée sans chiffres. La consolidation vient en vague 4.

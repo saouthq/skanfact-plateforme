@@ -95,6 +95,36 @@ export interface BaseDeDonnees {
     modifie_par: string | null;
     modifie_le: Generated<Date>;
   };
+  'caisse.caisse': {
+    id: Generated<string>;
+    entreprise: string;
+    nom: string;
+    appareil: string | null;
+    active: Generated<boolean>;
+    cree_le: Generated<Date>;
+  };
+  'caisse.session': {
+    id: Generated<string>;
+    entreprise: string;
+    caisse: string;
+    appareil: string;
+    appareil_nom: string;
+    ouverte_par: string;
+    ouverte_le: Generated<Date>;
+    fond: bigint;
+    fermee_par: string | null;
+    fermee_le: Date | null;
+    compte: bigint | null;
+    attendu: bigint | null;
+    ecart: bigint | null;
+    z: ColumnType<Json | null, string | null, string | null>;
+  };
+  'caisse.ticket': {
+    piece: string;
+    entreprise: string;
+    session: string;
+    cree_le: Generated<Date>;
+  };
   'compta.annuel': {
     entreprise: string;
     annee: number;
@@ -460,6 +490,7 @@ export interface BaseDeDonnees {
     revision: Generated<bigint>;
     modifie_le: Generated<Date>;
     modifie_par: string | null;
+    cree_par: string | null;
   };
   'socle.entreprise': {
     id: Generated<string>;

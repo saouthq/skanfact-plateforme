@@ -839,6 +839,8 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
     if ($('#cf-del')) $('#cf-del').onclick = async () => {
       $('#more-list').hidden = true;
       if (receptionsDeCommandeUI(o.id).length) return toast(`La commande ${o.number} a des réceptions : annule-la plutôt (le statut « Annulée ») ; ses réceptions restent.`, true);
+      // (brique 117) Une commande faite par un autre : son auteur, le propriétaire ou un administrateur la supprime.
+      if (auteurAutre('supplierOrders', o.id) !== null) return toast(refusAuteur(auteurAutre('supplierOrders', o.id), `La commande ${o.number || ''}`.trim()), true);
       if (!await confirmDialog(`Supprimer la commande ${o.number || ''} ?`, 'Supprimer', true)) return;
       data.supplierOrders = commandesF().filter(x => x.id !== o.id); save(true);
       dirty = false; clearGuard(garde);
@@ -922,6 +924,7 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
     if ($('#more-btn')) $('#more-btn').onclick = () => { $('#more-list').hidden = !$('#more-list').hidden; };
     if ($('#rec-del')) $('#rec-del').onclick = async () => {
       $('#more-list').hidden = true;
+      if (auteurAutre('receptions', r.id) !== null) return toast(refusAuteur(auteurAutre('receptions', r.id), 'Cette réception'), true);
       if (!await confirmDialog('Supprimer cette réception en brouillon ?', 'Supprimer', true)) return;
       data.receptions = receptionsF().filter(x => x.id !== r.id); save(true);
       dirty = false; clearGuard(garde);
