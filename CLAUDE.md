@@ -307,6 +307,11 @@
     un texte écrasé (plus de 60 lettres dans moins de 140 points). Depuis la brique 106 il passe 16 pages du
     quotidien, sur une entreprise qui a des données (une facture émise, un devis, un achat, un salarié) :
     sur des pages vides, il ne mesurait aucun tableau.
+  - **Le parcours du jalon J2** (brique 107, `tests/web/jalon-j2.test.ts`) : une entreprise, d'un bout à l'autre, à la
+    souris, contre TTN, DigiGo et Konnect simulés : fiche et comptes, devis facturé, facture signée, acceptée par la
+    TTN, payée en ligne par le client (au téléphone) ; achat lu en photo, réglé depuis la banque ; TVA du mois de
+    l'écran égale aux livres du serveur ; une coupure du réseau ; la facture relue au téléphone. C'est la répétition
+    générale : le jalon lui-même attend les accès de test réels (El Fatoora, DigiGo).
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première
     fois) : les seuls écrans écrits pour la plateforme, en React (`web/src`), à l'habillage de la
     v10 ; leurs phrases viennent du catalogue. Le jeton de session vit dans l'onglet

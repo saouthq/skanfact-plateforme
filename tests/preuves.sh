@@ -5989,6 +5989,13 @@ prouver "le nom d'un client trop petit pour le doigt" web/public/plateforme/tele
   "  #view a.name { display: inline-flex; align-items: center; min-height: 44px; }" "" \
   "$TEL"
 
+# ── Brique 107 : le parcours du jalon J2, d'un bout à l'autre (tests/web/jalon-j2.test.ts) ──
+J2B="acheter, la banque, la déclaration du mois, une coupure du réseau, et le téléphone"
+prouver "la facture du mois qui déborde au téléphone" web/public/v10/index.html \
+  '  <meta name="viewport" content="width=device-width, initial-scale=1">
+' "" \
+  "$J2B"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
