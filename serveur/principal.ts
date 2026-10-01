@@ -58,6 +58,7 @@ import { routesVentes } from './ventes/routes.ts';
 import { envoyerALaTtn } from './v10/envoi.ts';
 import { verifierEnAttente } from './v10/paiement.ts';
 import { routesV10 } from './v10/routes.ts';
+import { lirePartenaires, routesPartenaires, type Partenaire } from './partenaires.ts';
 import { KONNECT_PAR_DEFAUT } from './ventes/konnect.ts';
 
 export type Configuration = {
@@ -66,6 +67,7 @@ export type Configuration = {
   digigo: { base: string; cle: string } | null;
   ttn: string | null; ttnMs: number; contratsMs: number;
   lectures: number;
+  partenaires: Partenaire[];
 };
 
 export class ConfigurationFausse extends Error {}
@@ -100,6 +102,10 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   if (ttn && !/^https?:\/\//.test(ttn)) throw new ConfigurationFausse(`SKANFACT_TTN « ${ttn} » n'est pas une adresse`);
   const lectures = Number(env.SKANFACT_LECTURES ?? 2);
   if (!Number.isInteger(lectures) || lectures < 1 || lectures > 32) throw new ConfigurationFausse(`SKANFACT_LECTURES « ${env.SKANFACT_LECTURES} » : un nombre de lectures à la fois, de 1 à 32`);
+  let partenaires: Partenaire[];
+  try { partenaires = lirePartenaires(env.SKANFACT_PARTENAIRES); } catch {
+    throw new ConfigurationFausse('SKANFACT_PARTENAIRES : la liste des partenaires en JSON (code, nom, retours https, empreinteSecret, gestes)');
+  }
   return {
     base, environnement, port, hote: env.SKANFACT_HOTE ?? '127.0.0.1', sms,
     listeVolee: env.SKANFACT_LISTE_VOLEE ?? path.join(ici, '../tests/donnees/mots-de-passe-voles.txt'),
@@ -108,7 +114,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     adresse, konnect, coffre, verificationMs: Number(env.SKANFACT_VERIFICATION_MS ?? 60_000),
     digigo: digigo ? { base: digigo, cle: env.SKANFACT_DIGIGO_CLE ?? '' } : null,
     ttn, ttnMs: Number(env.SKANFACT_TTN_MS ?? 60_000), contratsMs: Number(env.SKANFACT_CONTRATS_MS ?? 3_600_000),
-    lectures,
+    lectures, partenaires,
   };
 }
 
@@ -163,13 +169,13 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   let publique = c.adresse ?? '';
   const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms: smsAucun, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique },
     ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}), ttn: { adresse: c.ttn, coffre: c.coffre },
-    lecteur: await lecteurDuServeur({ simultanees: c.lectures }) };
+    lecteur: await lecteurDuServeur({ simultanees: c.lectures }), partenaires: { liste: c.partenaires, cle: c.coffre } };
   declarerGestesVentes();
   declarerGestesCaisse();
   declarerGestesAchats();
   declarerGestesPaie();
   declarerGestesCompta();
-  const app = creerApp(ctx, [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx)]);
+  const app = creerApp(ctx, [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx)]);
   servirLesEcrans(app, c.web);
   const adresse = await app.listen({ port: c.port, host: c.hote });
   if (!publique) publique = adresse;

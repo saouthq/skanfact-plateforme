@@ -7224,6 +7224,89 @@ prouver "un retour neuf qui se dit « déjà fait »" serveur/v10/boutique.ts \
   "return { reference: ref, client, facture, retour: { id, deja," "return { reference: ref, client, facture, deja: true, retour: { id, deja," \
   "$BR"
 
+# Brique 133 : « Connecter ma boutique » (un partenaire déclaré, un code échangé contre la clé).
+BP="autoriser, échanger le code une fois contre la clé ; rien pour un inconnu, un faux secret, un code usé, expiré ou révoqué"
+BW="se connecter, choisir son entreprise, autoriser : SkanEcom reçoit le code et l'échange ; refuser ne donne rien"
+BS="sans entreprise : la page la fait créer, puis autoriser"
+prouver "une adresse de retour non déclarée suivie" serveur/partenaires.ts \
+  "&& p.retours.includes(retour.split('?')[0] ?? '');" "&& true;" \
+  "$BP"
+prouver "une ancre acceptée dans l'adresse de retour" serveur/partenaires.ts \
+  "=> !retour.includes('#') && p.retours" "=> p.retours" \
+  "$BP"
+prouver "la page qui montre une demande vers une adresse non déclarée" serveur/partenaires.ts \
+  "      if (!retourPermis(p, String(query.retour ?? ''))) return" "      if (false) return" \
+  "$BP"
+prouver "une autorisation vers une adresse non déclarée" serveur/partenaires.ts \
+  "      if (!retourPermis(p, corps.retour)) return" "      if (false) return" \
+  "$BP"
+prouver "un faux secret de partenaire accepté" serveur/partenaires.ts \
+  "      if (!memeEmpreinte(sha256(secret), p.empreinteSecret)) return" "      if (false) return" \
+  "$BP"
+prouver "la clé qui se lit dans le code" serveur/partenaires.ts \
+  "const cleDuCode = (cle: Buffer, code: string) => PREFIXE_CLE + createHmac('sha256', cle).update(\`skanfact.partenaire:\${code}\`, 'utf8').digest('base64url');" "const cleDuCode = (cle: Buffer, code: string) => PREFIXE_CLE + code;" \
+  "$BP"
+prouver "une clé d'autorisation qui vaut une heure" serveur/partenaires.ts \
+  "const CODE_MS = 10 * 60_000;" "const CODE_MS = 60 * 60_000;" \
+  "$BP"
+prouver "une clé échangée qui vaut deux ans" serveur/partenaires.ts \
+  "const CLE_JOURS = 365;" "const CLE_JOURS = 730;" \
+  "$BP"
+prouver "un code échangé pour un autre partenaire" base/migrations/0067_autorisation_partenaire.sql \
+  "where a.partenaire = p_partenaire and a.code_empreinte = p_empreinte" "where a.code_empreinte = p_empreinte" \
+  "$BP"
+prouver "un code échangé deux fois" base/migrations/0067_autorisation_partenaire.sql \
+  "or v.echangee_le is not null or" "or" \
+  "$BP"
+prouver "un code expiré échangé" base/migrations/0067_autorisation_partenaire.sql \
+  "or v.expire_le <= now() then return;" "then return;" \
+  "$BP"
+prouver "une clé révoquée qui revit à l'échange" base/migrations/0067_autorisation_partenaire.sql \
+  "where k.id = v.cle_api and k.revoquee_le is null;" "where k.id = v.cle_api;" \
+  "$BP"
+prouver "l'échange qui laisse la clé à dix minutes" base/migrations/0067_autorisation_partenaire.sql \
+  "update socle.cle_api k set expire_le = p_expire_le" "update socle.cle_api k set expire_le = k.expire_le" \
+  "$BP"
+prouver "un commercial qui autorise un partenaire en base" base/migrations/0067_autorisation_partenaire.sql \
+  "  if not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur']) then
+    perform socle.refus('ton rôle ne permet pas de gérer les clés de l''API');
+  end if;
+  if not exists" "  if not exists" \
+  "$BP"
+prouver "une autorisation pour la clé d'une autre entreprise" base/migrations/0067_autorisation_partenaire.sql \
+  "k.id = p_cle and k.entreprise = p_entreprise and" "k.id = p_cle and" \
+  "$BP"
+prouver "l'autorisation sans trace" base/migrations/0067_autorisation_partenaire.sql \
+  "  perform socle.tracer(p_entreprise, 'socle.partenaire.autoriser', 'cle_api', p_cle, null, jsonb_build_object('partenaire', p_partenaire));" "  null;" \
+  "$BP"
+prouver "l'échange sans trace" base/migrations/0067_autorisation_partenaire.sql \
+  "  perform socle.tracer(v.entreprise, 'socle.partenaire.echanger', 'cle_api', v.cle_api, null, jsonb_build_object('partenaire', p_partenaire, 'expire_le', p_expire_le));" "  null;" \
+  "$BP"
+prouver "la page qui propose l'entreprise d'essai" web/src/ecrans/Connecter.tsx \
+  "liste.filter((e) => !e.essai && e.roles.some" "liste.filter((e) => e.roles.some" \
+  "$BW"
+prouver "la page qui propose une entreprise où l'on n'est que commercial" web/src/ecrans/Connecter.tsx \
+  "e.roles.some((r) => r === 'proprietaire' || r === 'administrateur'));" "true);" \
+  "$BW"
+prouver "la demande de connexion jamais oubliée en partant" web/src/App.tsx \
+  "partir={(adresse) => { connexionDemandee.oublier(); location.assign(adresse); }}" "partir={(adresse) => { location.assign(adresse); }}" \
+  "$BW"
+prouver "l'entreprise ouverte par-dessus la page Connecter" web/src/App.tsx \
+  "|| invitation.lire() || demandeConnexion) return;" "|| invitation.lire()) return;" \
+  "$BW"
+prouver "la demande de connexion perdue à la connexion" web/src/App.tsx \
+  "if (location.pathname === '/connecter') {" "if (location.pathname === '/jamais') {" \
+  "$BW"
+prouver "la connexion qui ne dit pas qui attend" web/src/App.tsx \
+  "inscription={vers({ ecran: 'inscription' })} sous={attend} />" "inscription={vers({ ecran: 'inscription' })} />" \
+  "$BW"
+prouver "refuser qui ne dit pas le refus" web/src/ecrans/Connecter.tsx \
+  "const suite = new URLSearchParams({ erreur: 'refusee', etat: demande.etat });" "const suite = new URLSearchParams({ etat: demande.etat });" \
+  "$BW"
+prouver "la page qui ne fait pas créer l'entreprise" web/src/ecrans/Connecter.tsx \
+  "    if (r.statut === 201) { setChoisie(r.corps.id); creee(); } else" "    if (r.statut === 201) { setChoisie(r.corps.id); } else" \
+  "$BS"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -18,7 +18,9 @@ const sha256 = (t: string) => createHash('sha256').update(t, 'utf8').digest('hex
 
 export type CleQuiAgit = { id: string; entreprise: string; gestes: string[] };
 
-export async function creerCle(tx: Transaction, qui: Qui, entreprise: string, demande: { nom: string; gestes: string[]; expireLe: Date }, maintenant = new Date()) {
+// `secret` : la clé elle-même, quand elle est dérivée d'un code de partenaire (serveur/partenaires.ts) ; sinon tirée au
+// hasard.
+export async function creerCle(tx: Transaction, qui: Qui, entreprise: string, demande: { nom: string; gestes: string[]; expireLe: Date; secret?: string }, maintenant = new Date()) {
   const gestes = [...new Set(demande.gestes)].sort();
   for (const code of gestes) {
     const g = GESTES.get(code);
@@ -30,7 +32,7 @@ export async function creerCle(tx: Transaction, qui: Qui, entreprise: string, de
   }
   const jours = (demande.expireLe.getTime() - maintenant.getTime()) / 86_400_000;
   if (jours <= 0 || jours > DUREE_MAX_JOURS) throw new Refus('cles.expiration', { valeurs: { jours: DUREE_MAX_JOURS } });
-  const cle = PREFIXE_CLE + randomBytes(32).toString('base64url');
+  const cle = demande.secret ?? PREFIXE_CLE + randomBytes(32).toString('base64url');
   const prefixe = cle.slice(0, PREFIXE_CLE.length + 6);
   const id = (await tx.query('select socle.creer_cle_api($1, $2, $3, $4, $5, $6) id',
     [entreprise, demande.nom, prefixe, sha256(cle), gestes, demande.expireLe])).rows[0].id as string;

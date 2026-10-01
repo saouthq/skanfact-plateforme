@@ -4,14 +4,40 @@
 tiennent leur facturation et leur comptabilité dans SkanFact. SkanEcom ne refait ni l'un ni l'autre : chaque commande
 de la boutique devient une facture dans le SkanFact **du commerçant**.*
 
-## Comment le commerçant branche sa boutique
+## B0. « Connecter ma boutique » : le commerçant relie sa boutique en un clic
 
-1. Il a son entreprise dans SkanFact (il peut ne jamais l'avoir ouverte à l'écran : son dossier naît à la première
-   commande, avec sa fiche).
-2. Dans SkanFact, le propriétaire (ou un administrateur) crée une **clé de l'API** avec les gestes
-   `ventes.boutique.facturer` et `ventes.pieces.voir`, et la colle dans la console de sa boutique SkanEcom. La clé ne
-   voit que son entreprise, ne signe rien et n'envoie rien à la TTN.
-3. Une page « Connecter ma boutique » qui évite le copier-coller : une brique suivante.
+*Brique 133, 01/10/2026 (décision de Skander : SkanEcom relié à SkanFact dès maintenant).*
+
+Le commerçant ne copie aucune clé. Comme « Se connecter avec… » :
+
+1. Dans sa console, SkanEcom envoie le commerçant sur
+   `https://<SkanFact>/connecter?partenaire=skanecom&retour=<adresse de retour>&etat=<valeur au hasard>`.
+2. Le commerçant se connecte à SkanFact (ou crée son compte, puis son entreprise : la page le guide). La page
+   « Relier SkanEcom à SkanFact » dit ce que SkanEcom pourra faire ; il choisit son entreprise (seulement celles dont il
+   est propriétaire ou administrateur, jamais une entreprise d'essai) et clique **Autoriser**.
+3. Il revient sur l'adresse de retour de SkanEcom avec `?code=…&etat=…` (ou `?erreur=refusee&etat=…` s'il a refusé).
+   SkanEcom vérifie que `etat` est bien celui qu'il a envoyé.
+4. Le serveur de SkanEcom échange le code, **dans les dix minutes, une seule fois** :
+   `POST /v1/partenaires/skanecom/echanger`, en-tête `Authorization: Bearer <secret de SkanEcom>`, corps `{ "code": "…" }`
+   → `{ cle, entreprise, nom, gestes, expireLe }`. La clé vaut **un an** ; ensuite, le commerçant reclique « Connecter ».
+5. SkanEcom garde la clé (chiffrée chez lui) et l'identifiant de l'entreprise : c'est avec eux qu'il appelle B1 à B4.
+
+Ce que SkanFact garantit :
+
+- **Un partenaire déclaré** seulement, dans la configuration du serveur (`SKANFACT_PARTENAIRES`, JSON) : son code, son
+  nom, ses adresses de retour (https, exactes), l'**empreinte** (SHA-256) de son secret — jamais le secret —, et les
+  gestes de sa clé (pour SkanEcom : `ventes.boutique.facturer`, `ventes.pieces.voir`). Une adresse de retour non
+  déclarée n'est jamais suivie : la page dit que la demande n'est pas valable.
+- **Le code n'est pas la clé** : la clé se calcule à partir du code avec une clé que seul le serveur connaît, et la base
+  ne garde que des empreintes. Quelqu'un qui lit le code dans un historique n'en fait rien sans le secret de SkanEcom.
+- Avant l'échange, la clé ne vaut que **dix minutes** : un code jamais échangé laisse une clé qui expire seule. Une clé
+  révoquée entre-temps ne revit pas.
+- **Ce qui part chez SkanEcom, compté** : la clé, l'identifiant et le nom de l'entreprise, les gestes de la clé, sa date
+  de fin. Rien d'autre.
+- L'autorisation (par qui) et l'échange se tracent dans le journal de l'entreprise.
+
+À venir (brique 134) : l'écran « Services connectés », où le commerçant voit SkanEcom et **coupe l'accès** en un clic
+(aujourd'hui, seule l'API des clés le permet).
 
 ## B1. Une commande devient une facture
 
@@ -101,16 +127,17 @@ de la boutique devient une facture dans le SkanFact **du commerçant**.*
 ## À venir
 
 - Les **remises** (un code promo) : aujourd'hui, elles se portent dans le prix des lignes.
-- « Connecter ma boutique » sans copier de clé.
+- L'écran « Services connectés » (voir et couper l'accès d'un partenaire).
 - **À VÉRIFIER** : une facture à un particulier sans matricule, quand l'entreprise est soumise à la facture
   électronique (le serveur refuse aujourd'hui une pièce dont le fichier TEIF serait refusé).
 
 ## Les preuves
 
-`tests/v10/boutique.test.ts` et `tests/v10/boutique-retours.test.ts`, et 45 défauts réintroduits (`tests/preuves.sh`,
-« Brique 131 » et « Brique 132 ») : une commande renvoyée qui ferait une seconde facture, un client créé à chaque commande ou reconnu sans sa référence, un TTC jamais redonné, le
+`tests/v10/boutique.test.ts`, `tests/v10/boutique-retours.test.ts`, `tests/socle/partenaires.test.ts` et
+`tests/web/connecter.test.ts`, et 70 défauts réintroduits (`tests/preuves.sh`, « Brique 131 » à « Brique 133 ») : une commande renvoyée qui ferait une seconde facture, un client créé à chaque commande ou reconnu sans sa référence, un TTC jamais redonné, le
 millime perdu, un total faux facturé quand même, le timbre oublié ou imposé, un paiement compté deux fois, un article
 jamais relié au catalogue, une clé sans geste d'émission, ou qui prendrait la série des tickets (une clé révoquée ou
 expirée, elle, ne voit déjà plus l'entreprise), un retour qui ferait un second avoir ou rendrait l'argent deux fois,
 plus que la commande ou plus que ce qui a été payé, le timbre rendu sans avoir été payé ou deux fois, un article
-rendu qui ne revient pas au stock…
+rendu qui ne revient pas au stock, une adresse de retour non déclarée suivie, un faux secret accepté, un code
+échangé deux fois, expiré ou pour un autre partenaire, une clé qui se lit dans le code…

@@ -11,6 +11,7 @@ import type pg from 'pg';
 import type { Lecteur } from './achats/lecteur.ts';
 import { enTantQue } from './base.ts';
 import { correspond, empreinte, verifierPolitique, verifierPourRien, type ListeVolee } from './mot-de-passe.ts';
+import type { Partenaire } from './partenaires.ts';
 import { adresseTotp, nouveauSecret, verifierTotp } from './totp.ts';
 import { motif, rendre, t, type Texte } from '../textes/index.ts';
 
@@ -27,6 +28,8 @@ export type Contexte = {
   // La signature de la facture électronique (brique 81) : l'API DigiGo de TunTrust, et la clé de SkanFact
   // comme « entité d'intégration » (de l'environnement du serveur, jamais du dépôt).
   efacture?: { digigo: string; cleDigigo: string };
+  // Les partenaires déclarés (brique 133 ; serveur/partenaires.ts), et la clé qui dérive leurs clés de leurs codes.
+  partenaires?: { liste: Partenaire[]; cle: Buffer };
   // L'envoi à la TTN (brique 82) : l'adresse du service El Fatoora (null : pas branché sur ce serveur), et
   // la clé du coffre qui scelle le mot de passe El Fatoora de chaque entreprise.
   ttn?: { adresse: string | null; coffre: Buffer };

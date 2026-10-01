@@ -9,7 +9,8 @@ import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
 
 export type Defi = { defi: string; methode: 'sms' | 'application'; posteDUnAutre: boolean };
-type Props = { connecte: () => void; code: (d: Defi) => void; inscription: () => void };
+// `sous` : la phrase sous le titre, quand un partenaire a envoyé la personne ici (brique 133).
+type Props = { connecte: () => void; code: (d: Defi) => void; inscription: () => void; sous?: string | null };
 const rien = () => undefined;
 
 // Le nom de cet appareil, lisible dans « Tes appareils » (brique 74) : « Chrome sur Windows ».
@@ -20,7 +21,7 @@ function nomDeCetAppareil() {
   return os ? `${nav} sur ${os}` : nav;
 }
 
-export function Connexion({ connecte, code, inscription }: Props) {
+export function Connexion({ connecte, code, inscription, sous }: Props) {
   const g = useGeste(rien);
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
@@ -47,7 +48,7 @@ export function Connexion({ connecte, code, inscription }: Props) {
   });
 
   return (
-    <Carte titre={titre('ecran.connexion.titre')} sous={phrase('ecran.accueil.sous')} onSubmit={() => { void envoyer(); }}
+    <Carte titre={titre('ecran.connexion.titre')} sous={sous ?? phrase('ecran.accueil.sous')} onSubmit={() => { void envoyer(); }}
       pied={<>
         <Bouton discret onClick={inscription}>{titre('ecran.connexion.creer_compte')}</Bouton>
         <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.connexion.bouton')}</Bouton>

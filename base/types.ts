@@ -454,6 +454,17 @@ export interface BaseDeDonnees {
     lecture: Generated<boolean>;
     cle_api: string | null;
   };
+  'socle.autorisation_partenaire': {
+    id: Generated<string>;
+    entreprise: string;
+    partenaire: string;
+    cle_api: string;
+    code_empreinte: string;
+    cree_par: string;
+    cree_le: Generated<Date>;
+    expire_le: Date;
+    echangee_le: Date | null;
+  };
   'socle.avis': {
     id: Generated<string>;
     entreprise: string;

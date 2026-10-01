@@ -12,7 +12,7 @@ import { phrase, titre } from '../langue.ts';
 
 const rien = () => undefined;
 
-export function Inscription({ cree, connexion }: { cree: (email: string) => void; connexion: () => void }) {
+export function Inscription({ cree, connexion, sous }: { cree: (email: string) => void; connexion: () => void; sous?: string | null }) {
   const g = useGeste(rien);
   const [email, setEmail] = useState('');
   const [nom, setNom] = useState('');
@@ -28,7 +28,7 @@ export function Inscription({ cree, connexion }: { cree: (email: string) => void
   });
 
   return (
-    <Carte titre={titre('ecran.inscription.titre')} sous={phrase('ecran.accueil.sous')} onSubmit={() => { void envoyer(); }}
+    <Carte titre={titre('ecran.inscription.titre')} sous={sous ?? phrase('ecran.accueil.sous')} onSubmit={() => { void envoyer(); }}
       pied={<>
         <Bouton discret onClick={connexion}>{titre('ecran.inscription.deja')}</Bouton>
         <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.inscription.bouton')}</Bouton>

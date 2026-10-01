@@ -73,6 +73,12 @@ declarerTextes({
   'doc.jeton': 'le jeton d\'une session (après connexion), ou une clé de l\'API (skf_…)',
 
   // ── Les clés de l'API (03 § 8) ──────────────────────────────────────────────────────────────
+  // « Connecter ma boutique » (brique 133 ; serveur/partenaires.ts).
+  'partenaire.inconnu': 'ce service n\'est pas un partenaire connu de SkanFact : rien n\'est autorisé',
+  'partenaire.retour_refuse': 'l\'adresse de retour n\'est pas celle que {partenaire} a déclarée : par prudence, rien n\'est autorisé',
+  'partenaire.secret_refuse': 'le secret du partenaire est faux',
+  'partenaire.code_refuse': 'ce code ne vaut rien : il a déjà servi, il a expiré (il vaut dix minutes), ou il n\'a pas été donné à ce partenaire',
+  'partenaire.nom_cle': '{partenaire} (connexion)',
   'cles.geste_inconnu': 'geste inconnu : {geste}',
   'cles.geste_ferme': 'le geste {geste} ne se donne jamais à une clé de l\'API',
   'cles.geste_non_permis': 'tu ne peux pas donner à une clé le geste {geste} : ton rôle ne le permet pas',

@@ -13,13 +13,14 @@ import { Bouton } from './composants/Bouton.tsx';
 import { Carte } from './composants/Carte.tsx';
 import { Code } from './ecrans/Code.tsx';
 import { CodeRequis } from './ecrans/CodeRequis.tsx';
+import { Connecter, type DemandeConnexion, type EntrepriseDeMoi } from './ecrans/Connecter.tsx';
 import { Connexion, type Defi } from './ecrans/Connexion.tsx';
 import { Inscription } from './ecrans/Inscription.tsx';
 import { Porte } from './ecrans/Porte.tsx';
 import { phrase, titre } from './langue.ts';
 
 type Accueil = { ecran: 'connexion' } | { ecran: 'inscription' } | { ecran: 'code'; defi: Defi } | { ecran: 'dedans' };
-type Moi = { id: string; codeAConfigurer: boolean; entreprises: { id: string; parCabinet: boolean }[]; cabinets: { id: string }[] };
+type Moi = { id: string; codeAConfigurer: boolean; entreprises: EntrepriseDeMoi[]; cabinets: { id: string }[] };
 
 const RETENUE = 'skanfact.entreprise';
 const INVITATION = 'skanfact.invitation';
@@ -33,6 +34,19 @@ const INVITATION = 'skanfact.invitation';
     history.replaceState(null, '', `${location.pathname}${q.size ? `?${q}` : ''}`);
   }
 }
+// Une demande de connexion d'un partenaire (`/connecter?partenaire=…&retour=…&etat=…`, brique 133) : gardée dans l'onglet
+// le temps de se connecter (ou de créer son compte, puis son entreprise), retirée de l'adresse.
+const CONNEXION = 'skanfact.connecter';
+if (location.pathname === '/connecter') {
+  const q = new URLSearchParams(location.search);
+  const d: DemandeConnexion = { partenaire: q.get('partenaire') ?? '', retour: q.get('retour') ?? '', etat: q.get('etat') ?? '' };
+  try { sessionStorage.setItem(CONNEXION, JSON.stringify(d)); } catch { /* sans stockage : la demande ne survit pas à la connexion */ }
+  history.replaceState(null, '', '/');
+}
+const connexionDemandee = {
+  lire: (): DemandeConnexion | null => { try { const t = sessionStorage.getItem(CONNEXION); return t ? JSON.parse(t) as DemandeConnexion : null; } catch { return null; } },
+  oublier: () => { try { sessionStorage.removeItem(CONNEXION); } catch { /* rien à oublier */ } },
+};
 // L'adresse demandée avant la connexion (brique 127) : seulement une entreprise de la personne, dans la v10.
 const DESTINATION = 'skanfact.destination';
 function destination(siennes: { id: string }[]): { adresse: string; entreprise: string } | null {
@@ -63,6 +77,14 @@ export function ouvrirCabinet(id: string) {
 export function App() {
   const [accueil, setAccueil] = useState<Accueil>(session.jeton() ? { ecran: 'dedans' } : { ecran: 'connexion' });
   const [moi, setMoi] = useState<Moi | null>(null);
+  const [demandeConnexion, setDemandeConnexion] = useState<DemandeConnexion | null>(connexionDemandee.lire);
+  // Envoyée par un partenaire : la connexion (et la création du compte) disent qui attend, et pourquoi.
+  const [attend, setAttend] = useState<string | null>(null);
+  useEffect(() => {
+    if (!demandeConnexion) return;
+    void appeler<{ nom: string }>('GET', `/partenaires/${encodeURIComponent(demandeConnexion.partenaire)}?retour=${encodeURIComponent(demandeConnexion.retour)}`)
+      .then((r) => { if (r.statut === 200) setAttend(phrase('ecran.connecter.connexion_sous', { partenaire: r.corps.nom })); }).catch(() => undefined);
+  }, [demandeConnexion]);
 
   const sortir = useCallback(async () => {
     await appeler('POST', '/deconnexion').catch(() => undefined);
@@ -116,7 +138,7 @@ export function App() {
   // Une entreprise ou un cabinet existe et le code est en place : l'application v10 s'ouvre.
   const miennes = moi ? moi.entreprises.filter((x) => !x.parCabinet) : [];
   useEffect(() => {
-    if (!moi || moi.codeAConfigurer || refusInvitation !== null || invitation.lire()) return;
+    if (!moi || moi.codeAConfigurer || refusInvitation !== null || invitation.lire() || demandeConnexion) return;
     let retenue: string | null = null;
     try { retenue = localStorage.getItem(RETENUE); } catch { /* pas de mémoire : la première */ }
     const siennes = moi.entreprises.filter((x) => !x.parCabinet);
@@ -127,20 +149,25 @@ export function App() {
     if (cabinet) ouvrirCabinet(cabinet.id);
     else if (e) ouvrirEntreprise(e.id);
     else if (moi.cabinets[0]) ouvrirCabinet(moi.cabinets[0].id);
-  }, [moi, refusInvitation]);
+  }, [moi, refusInvitation, demandeConnexion]);
 
   const vers = (e: Accueil) => () => setAccueil(e);
+  const finirConnexion = () => { connexionDemandee.oublier(); setDemandeConnexion(null); };
   let ecran = null;
   switch (accueil.ecran) {
-    case 'inscription': ecran = <Inscription cree={vers({ ecran: 'connexion' })} connexion={vers({ ecran: 'connexion' })} />; break;
+    case 'inscription': ecran = <Inscription cree={vers({ ecran: 'connexion' })} connexion={vers({ ecran: 'connexion' })} sous={attend} />; break;
     case 'code': ecran = <Code defi={accueil.defi} connecte={vers({ ecran: 'dedans' })} retour={vers({ ecran: 'connexion' })} />; break;
-    case 'connexion': ecran = <Connexion connecte={vers({ ecran: 'dedans' })} code={(defi) => setAccueil({ ecran: 'code', defi })} inscription={vers({ ecran: 'inscription' })} />; break;
+    case 'connexion': ecran = <Connexion connecte={vers({ ecran: 'dedans' })} code={(defi) => setAccueil({ ecran: 'code', defi })} inscription={vers({ ecran: 'inscription' })} sous={attend} />; break;
     default:
       if (refusInvitation) {
         ecran = <Carte titre={titre('ecran.invitation.titre')} pied={<Bouton principal onClick={() => setRefusInvitation(null)}>{titre('ecran.invitation.continuer')}</Bouton>}>
           <p role="alert">{refusInvitation}</p></Carte>;
       } else if (refusInvitation !== null) ecran = null;
       else if (moi?.codeAConfigurer) ecran = <CodeRequis pose={() => { void charger(); }} deconnecte={() => { void sortir(); }} />;
+      // Un partenaire attend l'accord : la page « Connecter » passe avant l'entreprise (ou la porte).
+      else if (moi && demandeConnexion) {
+        ecran = <Connecter demande={demandeConnexion} entreprises={moi.entreprises} creee={() => { void charger(); }} partir={(adresse) => { connexionDemandee.oublier(); location.assign(adresse); }} fini={finirConnexion} deconnecte={() => { void sortir(); }} />;
+      }
       // L'entreprise créée, on relit le compte : son rôle peut exiger le code du téléphone d'abord.
       else if (moi && miennes.length === 0 && moi.cabinets.length === 0) {
         ecran = <Porte creee={(id) => { retenir(id); void charger(); }} cabinetCree={(id) => { retenir(id); void charger(); }} deconnecte={() => { void sortir(); }} />;
