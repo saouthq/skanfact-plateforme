@@ -505,6 +505,8 @@
   qui nomme le test ou la preuve qui tombe) : une construction rouge se répare d'abord, jamais on ne
   la contourne ni n'empile par-dessus. Une brique qui touche au socle de tout (le serveur, la
   connexion, la sécurité par ligne) ajoute les fichiers de test concernés à `verifier:brique`.
+  **Une brique qui ajoute une migration passe aussi `tests/socle`** (les garde-fous de la base : sécurité par ligne
+  forcée, portes dérobées fermées au public, phrases au catalogue) : deux rouges du 01/10/2026 venaient de là.
   **Reconfirmé par Skander le 01/10/2026** (« les tests prennent beaucoup de temps ») : jamais de relance
   complète sur le poste, sauf un changement qui touche tout ; jamais attendre GitHub les bras croisés.
 
