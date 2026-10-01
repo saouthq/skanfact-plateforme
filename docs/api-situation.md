@@ -6,7 +6,8 @@ faut par l'API. La liste vient de la session qui construit SkanEcom (P1 : lister
 situation en un appel, le retrouver par son matricule, des événements « règlement enregistré » et « facture réglée »,
 un lien vers l'écran de SkanFact ; P2 : les factures périodiques). Elle servira à toute console partenaire.*
 
-Cette brique fait les **lectures** (S1 à S5). Les deux événements : brique 128 ; les factures périodiques : brique 129.
+La brique 127 fait les **lectures** (S1 à S5), la brique 128 les **événements** (S6) ; les factures périodiques :
+brique 129.
 
 ## Comment la console lit
 
@@ -85,13 +86,44 @@ l'entreprise du lien, qui devient celle qui s'ouvre la fois suivante. Le lien d'
 mène à son accueil habituel (`tests/web/lien-ecran.test.ts`). Seules les pièces et les fiches nées des écrans en ont
 un ; les autres : `null`.
 
+## S6. Les événements : « règlement enregistré » et « facture réglée » (brique 128)
+
+La console s'abonne une fois (`POST /v1/entreprises/:e/avis-abonnements`, une personne, pas une clé :
+`{ "url": "https://…", "evenements": ["reglement.enregistre", "facture.reglee"] }`), garde le secret montré une seule
+fois, et reçoit chaque avis signé (`skanfact-signature: t=…,v1=…`, comme `facture.emise`). Un avis naît dans la
+transaction du fait : ce qui est refusé n'annonce rien ; un échec de livraison se renvoie (1 min, 5 min, 30 min…).
+
+**`reglement.enregistre`** : chaque règlement **nouveau** d'une facture, d'où qu'il vienne (l'écran, le paiement en
+ligne) ; un règlement modifié, ou renvoyé tel quel, n'en refait pas. Pas pour un ticket de caisse (payé dans son
+geste).
+
+```json
+{ "id": "…", "date": "2026-09-20", "montant": "300.000", "mode": "virement", "reference": "VIR 17", "devise": "TND",
+  "facture": { "id": "…", "numero": "FAC-2026-001", "ecran": "/v10/?e=…#/doc/…" },
+  "client": { "id": "…", "raisonSociale": "Menuiserie du Lac" }, "reste": "773.190" }
+```
+
+**`facture.reglee`** : une facture qui devait encore quelque chose et ne doit plus rien, **une seule fois** (un
+trop-perçu ensuite ne la re-règle pas). `par` dit comment : `"reglement"` (`date` : le jour du règlement le plus
+récent) ou `"avoir"` (un avoir qui la solde ; `date` : le jour de l'avoir).
+
+```json
+{ "id": "…", "numero": "FAC-2026-001", "ecran": "/v10/?e=…#/doc/…", "client": { "id": "…", "raisonSociale": "…" },
+  "devise": "TND", "netAPayer": "1073.190", "date": "2026-09-20", "par": "reglement" }
+```
+
+Un règlement retiré qui fait de nouveau devoir la facture n'a pas (encore) d'événement : la console relit la
+situation (S3) si elle en a besoin. **À VÉRIFIER** avec la session SkanEcom : en a-t-elle besoin ?
+
 ## Les preuves
 
-`tests/v10/api-situation.test.ts` et `tests/web/lien-ecran.test.ts`, et 39 défauts réintroduits (`tests/preuves.sh`, « Brique 127 ») : le matricule
+`tests/v10/api-situation.test.ts`, `tests/web/lien-ecran.test.ts` et `tests/v10/api-evenements.test.ts`, et 51 défauts
+réintroduits (`tests/preuves.sh`, « Brique 127 ») : le matricule
 cherché ou rangé avec ses espaces ou ses minuscules, les factures réglées gardées, un brouillon chiffré compté, la page
 qui déborde ou relit le même lot, les euros additionnés aux dinars, une facture échue le jour de son échéance, le retard
 compté depuis la mauvaise facture, le dernier règlement d'un autre client ou le plus ancien, un lien d'écran inventé,
-le lien oublié pendant la connexion ou suivi vers l'entreprise d'un autre…
+le lien oublié pendant la connexion ou suivi vers l'entreprise d'un autre, un ticket annoncé, une facture réglée deux
+fois ou datée du plus ancien règlement, un avoir qui solde sans avis…
 
 ## Vu à la main (01/10/2026)
 

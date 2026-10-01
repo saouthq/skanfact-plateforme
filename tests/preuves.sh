@@ -6873,6 +6873,48 @@ prouver "le lien d'écran qui colle à toutes les visites suivantes" web/src/App
   "d = sessionStorage.getItem(DESTINATION); sessionStorage.removeItem(DESTINATION);" "d = sessionStorage.getItem(DESTINATION);" \
   "$LE"
 
+# Brique 128 : les avis des règlements (docs/api-situation.md, S6).
+EV="chaque règlement nouveau, puis la facture réglée une seule fois ; par un avoir aussi ; jamais pour un ticket"
+prouver "aucun avis pour un règlement nouveau" serveur/reglements.ts \
+  "      nouveaux.push({ id, saisi: r });
+" "" \
+  "$EV"
+prouver "un ticket de caisse annoncé comme un règlement" serveur/v10/dossier.ts \
+  "  const ticket = apres.ticket === true;" "  const ticket = false;" \
+  "$EV"
+prouver "les règlements de l'écran jamais annoncés" serveur/v10/dossier.ts \
+  "  if (!ticket) await annoncerReglements(tx, entreprise, piece.id, avant, nouveaux);
+" "" \
+  "$EV"
+prouver "une facture déjà réglée annoncée réglée à chaque règlement de plus" serveur/ventes/annonces.ts \
+  "  if (avant > 0n && f.reste <= 0n) {" "  if (f.reste <= 0n) {" \
+  "$EV"
+prouver "une facture soldée au millime jamais annoncée réglée" serveur/ventes/annonces.ts \
+  "  if (avant > 0n && f.reste <= 0n) {" "  if (avant > 0n && f.reste < 0n) {" \
+  "$EV"
+prouver "la facture soldée par un avoir datée du dernier règlement" serveur/ventes/annonces.ts \
+  "    const date = par?.date ?? (await" "    const date = (await" \
+  "$EV"
+prouver "la facture réglée datée du plus ancien règlement" serveur/ventes/annonces.ts \
+  "eb.fn.max('date_reglement')" "eb.fn.min('date_reglement')" \
+  "$EV"
+prouver "un avoir qui solde annoncé comme un règlement" serveur/ventes/annonces.ts \
+  "par: par?.par ?? 'reglement' });" "par: 'reglement' });" \
+  "$EV"
+prouver "un règlement annoncé avec le reste d'avant lui" serveur/ventes/annonces.ts \
+  "reference: r.saisi.reference, devise: f.devise, facture, client, reste: m(f.reste)," "reference: r.saisi.reference, devise: f.devise, facture, client, reste: m(avant)," \
+  "$EV"
+prouver "un avoir qui solde sans avis" serveur/ventes/pieces.ts \
+  "  if (avantAvoir !== null && p.corrige) await annoncerReglements(tx, entreprise, p.corrige, avantAvoir, [], { par: 'avoir', date: p.date_piece });
+" "" \
+  "$EV"
+prouver "une facture annoncée sans le lien de son écran" serveur/ventes/annonces.ts \
+  "  const facture = { id: f.id, numero: f.numero_texte, ecran: lienEcran(entreprise, 'doc', f.ref_v10) };" "  const facture = { id: f.id, numero: f.numero_texte, ecran: null };" \
+  "$EV"
+prouver "un abonnement à « facture réglée » refusé" serveur/avis.ts \
+  "export const EVENEMENTS = ['facture.emise', 'reglement.enregistre', 'facture.reglee'] as const;" "export const EVENEMENTS = ['facture.emise', 'reglement.enregistre'] as const;" \
+  "$EV"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

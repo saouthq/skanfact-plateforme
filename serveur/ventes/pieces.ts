@@ -11,6 +11,7 @@ import { depuisTexte, versTexte, type Devise } from '../../moteur/argent.ts';
 import { calculerPiece, timbreApplique, type Piece, type TotauxPiece, type TypePiece } from '../../moteur/piece.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { Introuvable, Perimee, Refus } from '../erreurs.ts';
+import { annoncerReglements, resteAvant } from './annonces.ts';
 import { emettreAvis } from '../avis.ts';
 import { sceller } from '../journal.ts';
 import { prendreNumero } from '../numeros.ts';
@@ -223,6 +224,8 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
   const client = await db.selectFrom('socle.tiers').select(['raison_sociale', 'identifiant', 'type_identifiant', 'adresse', 'pays'])
     .where('id', '=', p.tiers).executeTakeFirstOrThrow();
 
+  // Ce que doit la facture qu'un avoir corrige, avant lui : s'il la solde, c'est annoncé (brique 128).
+  const avantAvoir = p.type === 'avoir' && p.corrige ? await resteAvant(tx, entreprise, p.corrige) : null;
   // 2. Le numéro, les montants, la copie figée, le maillon.
   const numero = await prendreNumero(tx, serie, p.date_piece);
   const copie = {
@@ -262,6 +265,7 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
       retenue: versTexte(t.retenue, d), netAPayer: versTexte(t.netAPayer, d),
     });
   }
+  if (avantAvoir !== null && p.corrige) await annoncerReglements(tx, entreprise, p.corrige, avantAvoir, [], { par: 'avoir', date: p.date_piece });
   // Ses écritures (brique 32) : la famille de la facture se réécrit, dans la même transaction.
   await ecrireFamilleDeVente(tx, entreprise, p.type === 'avoir' ? (p.corrige ?? id) : id);
   return { numero: numero.texte, totaux: t, devise: calcul.devise, empreinte: maillon.empreinte };

@@ -16,6 +16,7 @@ import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { Perimee, Refus } from '../erreurs.ts';
 import { REGLEMENTS_VENTES, tenirReglements } from '../reglements.ts';
+import { annoncerReglements, resteAvant } from '../ventes/annonces.ts';
 import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonSaisi } from '../ventes/pieces.ts';
 import { controlerCommandes, controlerEncours, controlerRemise } from './accords.ts';
@@ -90,7 +91,11 @@ async function suivreReglements(tx: Transaction, entreprise: string, utilisateur
   const piece = await db.selectFrom('ventes.piece').select(['id', 'devise']).where('entreprise', '=', entreprise).where('ref_v10', '=', cle).where('statut', '=', 'emise').executeTakeFirst();
   if (!piece) throw new Error(`facture émise du dossier sans sa pièce au serveur : ${cle}`);
   const { decimales } = await db.selectFrom('socle.devise').select('decimales').where('code', '=', piece.devise).executeTakeFirstOrThrow();
-  await tenirReglements(tx, REGLEMENTS_VENTES, entreprise, utilisateur, piece.id, lirePaiements(apres.payments, String(apres.number ?? ''), decimales, piece.devise));
+  // Les avis des règlements (brique 128) : pas pour un ticket de caisse, payé dans son geste.
+  const ticket = apres.ticket === true;
+  const avant = ticket ? 0n : await resteAvant(tx, entreprise, piece.id);
+  const nouveaux = await tenirReglements(tx, REGLEMENTS_VENTES, entreprise, utilisateur, piece.id, lirePaiements(apres.payments, String(apres.number ?? ''), decimales, piece.devise));
+  if (!ticket) await annoncerReglements(tx, entreprise, piece.id, avant, nouveaux);
   // Les écritures de sa famille (brique 32) : ses encaissements, et ses avoirs qui en dépendent.
   await ecrireFamilleDeVente(tx, entreprise, piece.id);
 }

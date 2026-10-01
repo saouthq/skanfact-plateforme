@@ -24,7 +24,9 @@ const champs = (r: ReglementSaisi) => ({
 });
 const pourTrace = (r: { date: string; montant: bigint; mode: string }) => ({ date: r.date, montant: r.montant.toString(), mode: r.mode });
 
-export async function tenirReglements(tx: Transaction, cote: CoteReglements, entreprise: string, utilisateur: string, piece: string, voulus: ReglementSaisi[]): Promise<void> {
+// Rend les règlements NOUVEAUX (ceux qui n'existaient pas), pour qui doit les annoncer.
+export async function tenirReglements(tx: Transaction, cote: CoteReglements, entreprise: string, utilisateur: string, piece: string, voulus: ReglementSaisi[]) {
+  const nouveaux: { id: string; saisi: ReglementSaisi }[] = [];
   const db = requetes(tx);
   const table = cote.table as 'ventes.reglement';   // les deux tables ont les mêmes colonnes
   const actuels = await db.selectFrom(table).selectAll().where('entreprise', '=', entreprise).where('piece', '=', piece).execute();
@@ -41,6 +43,7 @@ export async function tenirReglements(tx: Transaction, cote: CoteReglements, ent
       const { id } = await db.insertInto(table).values({ entreprise, piece, ref_v10: r.ref, ...champs(r), cree_par: utilisateur })
         .returning('id').executeTakeFirstOrThrow();
       await tracer(tx, entreprise, `${cote.trace}.enregistrer`, { type: 'reglement', id }, null, pourTrace(r));
+      nouveaux.push({ id, saisi: r });
       continue;
     }
     const avant = { date: a.date_reglement, montant: a.montant, cours: a.cours, mode: a.mode, compte: a.compte, reference: a.reference, note: a.note, rang: a.rang };
@@ -60,6 +63,7 @@ export async function tenirReglements(tx: Transaction, cote: CoteReglements, ent
     await db.deleteFrom(table).where('id', '=', a.id).execute();
     await tracer(tx, entreprise, `${cote.trace}.supprimer`, { type: 'reglement', id: a.id }, pourTrace({ date: a.date_reglement, montant: a.montant, mode: a.mode }), null);
   }
+  return nouveaux;
 }
 
 // Le jour du calendrier à Tunis (une échéance se compare à un jour, jamais à un instant).

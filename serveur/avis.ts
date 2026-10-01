@@ -11,7 +11,8 @@ import { isIP } from 'node:net';
 import type { Pool } from 'pg';
 import type { Transaction } from './base.ts';
 
-export const EVENEMENTS = ['facture.emise'] as const;
+// (Brique 128) Les règlements d'une facture : chacun, et la facture qui ne doit plus rien (docs/api-situation.md, S6).
+export const EVENEMENTS = ['facture.emise', 'reglement.enregistre', 'facture.reglee'] as const;
 export type Evenement = (typeof EVENEMENTS)[number];
 
 export function nouveauSecret(): string {
