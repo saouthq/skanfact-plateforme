@@ -4815,6 +4815,7 @@
       if (isNew) remplacerPage('#/doc/' + doc.id); else render();
     };
     if ($('#del')) $('#del').onclick = async () => {
+      if (enLecture('documents')) { toast(refusLecture('documents', 'supprimé'), true); return; }
       // Une suppression qui laisse des liens morts doit au moins les nommer : une facture qui
       // annonce « établie à partir du devis DEV-2026-012 » et dont le lien mène au tableau de bord
       // est un mystère qu'on n'élucide plus six mois après.
@@ -5419,7 +5420,7 @@
   const NOMS_EN_LECTURE = { documents: 'les pièces de vente', clients: 'les fiches clients', suppliers: 'les fiches fournisseurs',
     employees: 'les salariés', stockAdjustments: 'les mouvements de stock', purchases: 'les achats', catalog: 'le catalogue' };
   const enLecture = partie => !peutEcrireDossier(partie);
-  const refusLecture = partie => `Ton rôle te laisse lire ${NOMS_EN_LECTURE[partie] || 'cette partie de l\'entreprise'}, pas les modifier : rien n'a été enregistré. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.`;
+  const refusLecture = (partie, fait) => `Ton rôle te laisse lire ${NOMS_EN_LECTURE[partie] || 'cette partie de l\'entreprise'}, pas les modifier : rien n'a été ${fait || 'enregistré'}. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.`;
   // Le bandeau d'une page dont la partie principale se lit seulement : dit avant le premier geste.
   function bandeauLecture(name) {
     const p = (PARTIES_DES_PAGES[name] || [])[0];
@@ -5461,6 +5462,7 @@
           save(true); close(); if (done) done(c);
         };
         if ($('#del-client', root)) $('#del-client', root).onclick = async () => {
+          if (enLecture('clients')) { toast(refusLecture('clients', 'supprimé'), true); return; }
           const n = data.documents.filter(d => d.clientId === c.id).length;
           if (n) return toast(`Impossible : ${pl(n, 'document')} ${n > 1 ? 'sont liés' : 'est lié'} à ce client. Un client qui a une histoire ne se supprime pas.`, true);
           if (!await confirmDialog(`Supprimer ${c.name} ?`)) return;
@@ -8516,6 +8518,7 @@
           save(true); close(); if (done) done(s);
         };
         if ($('#del-sup', root)) $('#del-sup', root).onclick = async () => {
+          if (enLecture('suppliers')) { toast(refusLecture('suppliers', 'supprimé'), true); return; }
           const n = data.purchases.filter(p => p.supplierId === s.id).length;
           if (n) return toast(`Impossible : ${pl(n, 'achat')} ${n > 1 ? 'sont liés' : 'est lié'} à ce fournisseur. Un fournisseur qui a une histoire ne se supprime pas.`, true);
           if (!await confirmDialog(`Supprimer ${s.name} ?`)) return;
@@ -10079,6 +10082,7 @@
     }
 
     function validate() {
+      if (enLecture('purchases')) return refus('[data-combo=supplierId] .combo-btn', refusLecture('purchases'));
       if (!p.supplierId) return refus('[data-combo=supplierId] .combo-btn', 'Choisis un fournisseur.');
       if (!p.date) return refus('[name=date]', 'La date de la pièce est obligatoire.');
       // Le taux de change d'un achat (10.1.0) : même règle que sur un document de vente depuis la
@@ -10146,6 +10150,7 @@
     $$('#more-list button:not(.i)').forEach(b => b.addEventListener('click', () => { $('#more-list').hidden = true; }));
     if ($('#dup')) $('#dup').onclick = () => { untouch(); duplicatePurchase(purchaseById(p.id)); };
     if ($('#del')) $('#del').onclick = async () => {
+      if (enLecture('purchases')) { toast(refusLecture('purchases', 'supprimé'), true); return; }
       if (bridge.emettre && data.purchases.some(x => x.achatLie === p.id)) { toast('Un avoir ou un acompte est rattaché à cet achat : détache-le (ou supprime-le) d\'abord. Rien n\'a été supprimé.', true); return; }
       if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ? Les règlements enregistrés seront perdus.`)) return;
       if (closedBlock(p.date, 'Cet achat')) return;
@@ -10760,6 +10765,7 @@
           save(true); close(); if (done) done(e);
         };
         if ($('#del-emp', root)) $('#del-emp', root).onclick = async () => {
+          if (enLecture('employees')) { toast(refusLecture('employees', 'supprimé'), true); return; }
           const n = data.payslips.filter(p => p.employeeId === e.id).length;
           if (n) return toast(`${pl(n, 'bulletin')} ${n > 1 ? 'existent' : 'existe'} pour ${e.name} : on ne supprime pas un salarié payé. Renseigne sa date de sortie.`, true);
           if (!await confirmDialog(`Supprimer ${e.name} ?`)) return;

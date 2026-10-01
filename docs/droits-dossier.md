@@ -84,8 +84,9 @@ Test : `tests/web/lecture-seule.test.ts` (Samia, comptabilité interne ; Omar, l
 
 ## Reste connu
 
-- Les autres gestes d'écriture (supprimer une pièce ou une fiche, un achat, un contrat récurrent…) : le serveur n'en
-  reçoit rien, l'écran ne le dit pas encore ; même garde à poser (`enLecture`, `refusLecture`).
+- Faits ensuite (brique 102 bis) : supprimer une pièce de vente, une fiche client, fournisseur ou salarié, un achat ;
+  enregistrer un achat. Restent les gestes plus rares (un contrat récurrent, un modèle, une affaire…) : même garde à
+  poser (`enLecture`, `refusLecture`).
 - **TEJ** (attestations de retenue, `05` § 3.3) : le cahier des charges officiel (TEJ-CCT-RS-V2.0) est publié sur
   jibaya.tn, inaccessible depuis la session de travail : le format reste **À VÉRIFIER** avant d'écrire le fichier.
 - **Une page neuve de la v10** doit déclarer ses parties dans `PARTIES_DES_PAGES`, sinon elle s'ouvre pour tous.

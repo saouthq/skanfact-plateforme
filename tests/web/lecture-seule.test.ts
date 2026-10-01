@@ -1,7 +1,7 @@
 // Les pages en lecture seule, à la souris (brique 102 ; 03 § 2.1 ; web/v10/lecture-seule.txt) :
 //   - Samia, comptabilité interne, lit les factures : la page le dit (« Lecture seule ») ; enregistrer un paiement
 //     sur une facture lui est refusé en le disant, et rien n'arrive au serveur ;
-//   - Omar, en lecture, lit les clients : créer un client lui est refusé de même.
+//   - Omar, en lecture, lit les clients et les achats : créer un client ou un achat lui est refusé de même.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -133,6 +133,25 @@ describe('les pages en lecture seule, à la souris', () => {
     await o.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'lecture-2-client-refuse.png') });
     await o.waitForTimeout(1000);
     expect((await lire()).filter((x) => x.collection === 'clients').map((x) => x.contenu.name)).toEqual(['Chantier Ennasr']);
+    // Ni la supprimer (brique 102 bis) : sa fiche, « Modifier la fiche », « Supprimer ».
+    await o.locator('#modal-root').getByRole('button', { name: 'Annuler', exact: true }).click();
+    const abandonne = o.locator('#modal-root').getByRole('button', { name: 'Abandonner la saisie', exact: true });
+    if (await abandonne.count()) await abandonne.click();
+    await o.evaluate(() => { location.hash = '#/client/c1'; });
+    await o.locator('[data-rowmenu="CL:c1"]').first().click();
+    await o.getByRole('menuitem').filter({ hasText: 'Modifier la fiche' }).click();
+    await o.locator('#modal-root #del-client').click();
+    await expect.poll(() => toast(o), { timeout: 10_000 }).toBe('Ton rôle te laisse lire les fiches clients, pas les modifier : rien n\'a été supprimé. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.');
+    // Un achat non plus (brique 102 bis) : « Enregistrer » le refuse avant de demander le fournisseur.
+    await o.locator('#modal-root').getByRole('button', { name: 'Annuler', exact: true }).click();
+    const abandon = o.locator('#modal-root').getByRole('button', { name: 'Abandonner la saisie', exact: true });
+    if (await abandon.count()) await abandon.click();
+    await o.evaluate(() => { location.hash = '#/achat/new'; });
+    await expect.poll(() => o.locator('#save').count(), { timeout: 10_000 }).toBe(1);
+    await plusTard(o);
+    expect(await bandeau(o)).toMatch(/^Lecture seule\. Ton rôle te laisse lire les achats/);
+    await o.locator('#save').click();
+    await expect.poll(() => toast(o), { timeout: 10_000 }).toBe('Ton rôle te laisse lire les achats, pas les modifier : rien n\'a été enregistré. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.');
 
     expect(erreurs).toEqual([]);
     await s.context().close(); await o.context().close();

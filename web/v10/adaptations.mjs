@@ -437,7 +437,7 @@ export const ADAPTATIONS = [
     fichier: 'app.js',
     pourquoi: 'un achat auquel un avoir ou un acompte est rattaché ne se supprime pas : on le détache d\'abord',
     avant: "    if ($('#del')) $('#del').onclick = async () => {\n      if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ? Les règlements enregistrés seront perdus.`)) return;\n",
-    apres: "    if ($('#del')) $('#del').onclick = async () => {\n      if (bridge.emettre && data.purchases.some(x => x.achatLie === p.id)) { toast('Un avoir ou un acompte est rattaché à cet achat : détache-le (ou supprime-le) d\\'abord. Rien n\\'a été supprimé.', true); return; }\n      if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ? Les règlements enregistrés seront perdus.`)) return;\n",
+    apres: "    if ($('#del')) $('#del').onclick = async () => {\n      if (enLecture('purchases')) { toast(refusLecture('purchases', 'supprimé'), true); return; }\n      if (bridge.emettre && data.purchases.some(x => x.achatLie === p.id)) { toast('Un avoir ou un acompte est rattaché à cet achat : détache-le (ou supprime-le) d\\'abord. Rien n\\'a été supprimé.', true); return; }\n      if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ? Les règlements enregistrés seront perdus.`)) return;\n",
   },
   // ── La caisse n'est pas encore en ligne (étape 4) ──
   // Un ticket est une facture numérotée sur l'ordinateur : le serveur la refuserait, et l'écran finirait

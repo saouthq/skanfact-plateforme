@@ -5898,6 +5898,13 @@ prouver "la lecture seule prise pour l'écriture" web/public/v10/app.js \
   "  const enLecture = partie => !peutEcrireDossier(partie);" "  const enLecture = partie => false;" \
   "$LSW"
 
+prouver "la fiche client « supprimée » à l'écran, gardée au serveur" web/public/v10/app.js \
+  "          if (enLecture('clients')) { toast(refusLecture('clients', 'supprimé'), true); return; }" "          if (false) { toast(refusLecture('clients', 'supprimé'), true); return; }" \
+  "$LSW"
+prouver "l'achat accepté à l'écran puis perdu" web/public/v10/app.js \
+  "      if (enLecture('purchases')) return refus('[data-combo=supplierId] .combo-btn', refusLecture('purchases'));" "      if (false) return refus('[data-combo=supplierId] .combo-btn', refusLecture('purchases'));" \
+  "$LSW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

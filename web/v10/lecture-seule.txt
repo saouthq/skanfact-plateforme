@@ -18,7 +18,7 @@ qui modifierait est refusé en le disant, rien n'étant enregistré.
   const NOMS_EN_LECTURE = { documents: 'les pièces de vente', clients: 'les fiches clients', suppliers: 'les fiches fournisseurs',
     employees: 'les salariés', stockAdjustments: 'les mouvements de stock', purchases: 'les achats', catalog: 'le catalogue' };
   const enLecture = partie => !peutEcrireDossier(partie);
-  const refusLecture = partie => `Ton rôle te laisse lire ${NOMS_EN_LECTURE[partie] || 'cette partie de l\'entreprise'}, pas les modifier : rien n'a été enregistré. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.`;
+  const refusLecture = (partie, fait) => `Ton rôle te laisse lire ${NOMS_EN_LECTURE[partie] || 'cette partie de l\'entreprise'}, pas les modifier : rien n'a été ${fait || 'enregistré'}. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.`;
   // Le bandeau d'une page dont la partie principale se lit seulement : dit avant le premier geste.
   function bandeauLecture(name) {
     const p = (PARTIES_DES_PAGES[name] || [])[0];
@@ -96,4 +96,46 @@ qui modifierait est refusé en le disant, rien n'étant enregistré.
           if (enLecture('stockAdjustments')) return refus($('[name=itemId]', root), refusLecture('stockAdjustments'));
           const v = formValues($('#adf', root));
           if (!v.itemId) return refus($('[name=itemId]', root), 'Choisis un article.');
+-- fin
+
+== app.js | une pièce de vente ne se supprime que par qui peut écrire les pièces (brique 102 bis)
+-- avant
+    if ($('#del')) $('#del').onclick = async () => {
+      // Une suppression qui laisse des liens morts doit au moins les nommer
+-- après
+    if ($('#del')) $('#del').onclick = async () => {
+      if (enLecture('documents')) { toast(refusLecture('documents', 'supprimé'), true); return; }
+      // Une suppression qui laisse des liens morts doit au moins les nommer
+-- fin
+
+== app.js | une fiche client ne se supprime que par qui peut écrire les clients (brique 102 bis)
+-- avant
+        if ($('#del-client', root)) $('#del-client', root).onclick = async () => {
+-- après
+        if ($('#del-client', root)) $('#del-client', root).onclick = async () => {
+          if (enLecture('clients')) { toast(refusLecture('clients', 'supprimé'), true); return; }
+-- fin
+
+== app.js | une fiche fournisseur ne se supprime que par qui peut écrire les fournisseurs (brique 102 bis)
+-- avant
+        if ($('#del-sup', root)) $('#del-sup', root).onclick = async () => {
+-- après
+        if ($('#del-sup', root)) $('#del-sup', root).onclick = async () => {
+          if (enLecture('suppliers')) { toast(refusLecture('suppliers', 'supprimé'), true); return; }
+-- fin
+
+== app.js | une fiche de salarié ne se supprime que par qui peut écrire la paie (brique 102 bis)
+-- avant
+        if ($('#del-emp', root)) $('#del-emp', root).onclick = async () => {
+-- après
+        if ($('#del-emp', root)) $('#del-emp', root).onclick = async () => {
+          if (enLecture('employees')) { toast(refusLecture('employees', 'supprimé'), true); return; }
+-- fin
+
+== app.js | un achat ne s'enregistre que par qui peut écrire les achats (brique 102 bis)
+-- avant
+      if (!p.supplierId) return refus('[data-combo=supplierId] .combo-btn', 'Choisis un fournisseur.');
+-- après
+      if (enLecture('purchases')) return refus('[data-combo=supplierId] .combo-btn', refusLecture('purchases'));
+      if (!p.supplierId) return refus('[data-combo=supplierId] .combo-btn', 'Choisis un fournisseur.');
 -- fin
