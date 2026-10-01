@@ -101,6 +101,17 @@ describe('le caissier à l\'écran', () => {
     await expect.poll(async () => net(await p.locator('#cs-body').innerText()), { timeout: 10_000 }).toContain(`TIC-${annee}-002`);
     expect(net(await p.locator('#cs-body').innerText())).not.toContain(`TIC-${annee}-001`);
     expect(net(await p.locator('#cs-body .stat').first().innerText())).toContain('1 ticket');
+    // La session est ouverte : le bilan ne dit pas ce que le tiroir devrait contenir (il se compte à l'aveugle au Z).
+    await expect.poll(async () => net(await p.locator('#cs-tiroir').innerText()), { timeout: 10_000 })
+      .toBe('Le tiroir se compte à la fermeture (Z), sans voir ce qu\'il devrait contenir.');
+    // Le bilan imprimé non plus.
+    // (La bande s'imprime par une fenêtre du navigateur : on la lit au lieu de l'imprimer.)
+    await p.evaluate(() => { const w = window as unknown as { __imprime?: string; open: unknown };
+      w.open = () => ({ document: { write: (html: string) => { w.__imprime = html; }, close: () => undefined }, print: () => undefined }); });
+    await p.locator('#cs-bilan-print').click();
+    const imprime = await p.evaluate(() => (window as unknown as { __imprime?: string }).__imprime ?? '');
+    expect(imprime).toContain('Espèces du jour');
+    expect(imprime).not.toContain('Le tiroir doit contenir');
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'caissier-1-ses-tickets.png') });
     // Rechargée, la page garde son ticket (il vient du serveur).
     await p.reload();
@@ -114,6 +125,19 @@ describe('le caissier à l\'écran', () => {
     await p.locator('#modal-root #cs-z').click();
     await expect.poll(async () => net(await p.locator('#modal-root #cs-z-table').innerText().catch(() => '')), { timeout: 10_000 }).toContain('Écart 0,000 DT');
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'caissier-2-z.png') });
+    // Après le Z, le bilan du jour redit ses chiffres : les mêmes que le Z (le fond de la session, pas le solde du compte).
+    await p.locator('#modal-root #cs-z-ok').click();
+    await p.locator('#cs-tabs [data-tab=tickets]').click();
+    await expect.poll(async () => net(await p.locator('#cs-tiroir').innerText().catch(() => '')), { timeout: 10_000 })
+      .toBe('Au Z, le tiroir devait contenir 44,875 DT ; compté : 44,875 DT.');
+    await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'caissier-3-bilan-apres-z.png') });
+    // Sur une connexion lente, le bilan se dessine avant que l'état de la caisse n'arrive : il se redit ensuite.
+    await p.route('**/v1/entreprises/*/caisse', async (route) => { await new Promise((ok) => setTimeout(ok, 1_500)); await route.continue(); });
+    await p.reload();
+    await p.locator('#cs-tabs [data-tab=tickets]').click();
+    await expect.poll(async () => net(await p.locator('#cs-tiroir').innerText().catch(() => '')), { timeout: 15_000 })
+      .toBe('Au Z, le tiroir devait contenir 44,875 DT ; compté : 44,875 DT.');
+    await p.unroute('**/v1/entreprises/*/caisse');
     await cx.close();
     expect(erreurs).toEqual([]);
   }, 180_000);

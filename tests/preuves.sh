@@ -6463,6 +6463,22 @@ prouver "le poste qui oublie qu'il tient une caisse" web/public/plateforme/pont.
 " "" \
   "$CW"
 
+# ── Un seul tiroir, compté à l'aveugle (brique 122, 01/10/2026 ; docs/caisse.md) ──
+prouver "le bilan qui dit le tiroir pendant la session (le compte n'est plus à l'aveugle)" web/public/v10/app.js \
+  "      if (caisseEtat.session) return 'Le tiroir se compte à la fermeture (Z), sans voir ce qu\\'il devrait contenir.';
+" "" \
+  "$CW"
+prouver "le bilan après le Z qui ne dit pas le même tiroir que le Z" web/public/v10/app.js \
+  "      if (z && jourTunis(z.fermeeLe) === b.jour) return" "      if (false) return" \
+  "$CW"
+prouver "le bilan imprimé qui dit le tiroir pendant la session" web/public/v10/app.js \
+  "C.bilanCaisseHtml(bilanAImprimer(C.bilanCaisse(data, company(), s.jour)), company())" "C.bilanCaisseHtml(C.bilanCaisse(data, company(), s.jour), company())" \
+  "$CW"
+prouver "le bilan dessiné avant la session lue, jamais redit" web/public/v10/app.js \
+  "    if (\$('#cs-tiroir') && dernierBilan) \$('#cs-tiroir').innerHTML = sousTiroir(dernierBilan.b, dernierBilan.cur);
+" "" \
+  "$CW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

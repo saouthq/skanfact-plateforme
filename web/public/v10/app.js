@@ -12318,10 +12318,28 @@
     // (brique 120) Les alertes de caisse, pour le propriétaire et l'administrateur : ce que le serveur a constaté sur les
     // tickets d'un poste, sans rien corriger.
     if ((caisseEtat.alertes || []).length) el.insertAdjacentHTML('beforeend', alertesCaisse(caisseEtat.alertes));
+    // (brique 122) Le bilan dessiné avant la réponse redit le tiroir selon la session lue.
+    if ($('#cs-tiroir') && dernierBilan) $('#cs-tiroir').innerHTML = sousTiroir(dernierBilan.b, dernierBilan.cur);
     // « Encaisser » suit l'état lu (la page a pu se dessiner avant la réponse).
     const mm = motifSession();
     if (mm && $('#cs-motif')) { $('#cs-motif').textContent = mm; $('#cs-encaisser').disabled = true; }
   }
+  // (brique 122) Le tiroir se compte sans voir ce qu'il devrait contenir (le Z, brique 116) : tant que la session du jour
+  // est ouverte, ni la page ni le bilan imprimé ne le disent ; après le Z du jour, la page redit ses chiffres (ceux du
+  // serveur : le fond plus les espèces de la session). Un autre jour, ou sans point de contact : comme la v10.
+  const caisseDuJour = jour => !!(bridge.caisse && caisseEtat && jour === C.today());
+  const jourTunis = x => new Date(x).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
+  let dernierBilan = null;
+  function sousTiroir(b, cur) {
+    dernierBilan = { b, cur };
+    if (caisseDuJour(b.jour)) {
+      if (caisseEtat.session) return 'Le tiroir se compte à la fermeture (Z), sans voir ce qu\'il devrait contenir.';
+      const z = caisseEtat.dernierZ;
+      if (z && jourTunis(z.fermeeLe) === b.jour) return `Au Z, le tiroir devait contenir <b>${h(argentCaisse(z.attendu))}</b> ; compté : ${h(argentCaisse(z.compte))}.`;
+    }
+    return b.tiroir != null ? `Le tiroir doit contenir <b>${C.money(b.tiroir, cur)}</b> ce soir, fond de caisse compris` : 'aucun compte de caisse';
+  }
+  const bilanAImprimer = b => (caisseDuJour(b.jour) ? Object.assign({}, b, { tiroir: null }) : b);
   // (brique 120) Les tickets gardés sans réseau sont partis : la page Caisse redit l'état de sa session.
   window.addEventListener('skanfact-tickets-remis', () => { if ($('#cs-session')) dessinerSession(); });
   const PHRASES_ALERTE = {
@@ -12566,7 +12584,7 @@
         <div class="filters">${dateFieldHtml(lbl('Jour', 'cs.jour'), 'csJour', s.jour, {})}</div>
         <div class="stats">
           <div class="stat"><div class="lbl">Ventes TTC ${info('cs.bilan')}</div><div class="val">${C.money(b.total, cur)}</div><div class="sub">${pl(b.nombre, 'ticket')}${b.nombre ? ' · dont TVA ' + C.money(b.tva, cur) : ''}${b.rembourse ? ' · rendu aux clients : ' + C.money(b.rembourse, cur) : ''}</div></div>
-          <div class="stat"><div class="lbl">Espèces du jour</div><div class="val">${C.money(b.parMode.especes, cur)}</div><div class="sub">${b.tiroir != null ? `Le tiroir doit contenir <b>${C.money(b.tiroir, cur)}</b> ce soir, fond de caisse compris` : 'aucun compte de caisse'}</div></div>
+          <div class="stat"><div class="lbl">Espèces du jour</div><div class="val">${C.money(b.parMode.especes, cur)}</div><div class="sub"><span id="cs-tiroir">${sousTiroir(b, cur)}</span></div></div>
           <div class="stat"><div class="lbl">Carte</div><div class="val">${C.money(b.parMode.carte, cur)}</div><div class="sub">${b.parMode.carte < 0 ? 'rendu aux clients par carte' : 'versé par ta banque'}</div></div>
           <div class="stat"><div class="lbl">Chèques</div><div class="val">${C.money(b.parMode.cheque, cur)}</div><div class="sub">${b.parMode.cheque < 0 ? 'rendu aux clients par chèque' : 'à remettre en banque'}</div></div>
         </div>
@@ -12590,7 +12608,7 @@
       $$('#cs-liste [data-tk]').forEach(tr => { tr.onclick = () => { const d = data.documents.find(x => x.id === tr.dataset.tk); if (d) ticketApercu(d); }; });
       if ($('#cs-aller-vendre')) $('#cs-aller-vendre').onclick = () => { s.tab = 'vendre'; vers('#/caisse')(); };
       if ($('#cs-bilan-print')) $('#cs-bilan-print').onclick = () => {
-        Promise.resolve(bridge.imprimerTicket(C.bilanCaisseHtml(C.bilanCaisse(data, company(), s.jour), company()), company().caisseLargeur))
+        Promise.resolve(bridge.imprimerTicket(C.bilanCaisseHtml(bilanAImprimer(C.bilanCaisse(data, company(), s.jour)), company()), company().caisseLargeur))
           .catch(e => toast(plainError(e), true));
       };
     };

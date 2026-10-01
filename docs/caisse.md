@@ -127,6 +127,18 @@ la carte à la banque ; ni les mouvements ni la page Trésorerie.
 Test : `tests/web/caissier.test.ts` (Sami, caissier : la Caisse dans son menu, pas les Factures ; il ouvre, vend une
 huile, voit son ticket et pas celui de Nadia, même après rechargement ; il ferme, écart nul). 7 preuves (et 2 reciblées).
 
+## Ce que fait la brique 122 : un seul tiroir, compté à l'aveugle (01/10/2026, par délégation)
+
+**Constaté** : le bilan du jour (de la v10) disait « le tiroir doit contenir » avec le solde du compte de caisse (son
+solde d'ouverture compris), le Z avec le fond de la session : deux chiffres pour la même chose ; et il le disait
+pendant la session, alors que le Z se compte **sans voir** ce que le tiroir devrait contenir (S3).
+**Décidé** : tant que la session du jour est ouverte, ni la page ni le bilan imprimé ne disent ce que le tiroir devrait
+contenir (« Le tiroir se compte à la fermeture (Z), sans voir ce qu'il devrait contenir. ») ; après le Z du jour, la page
+redit **les chiffres du Z** (attendu, compté) ; un autre jour, ou sans point de contact : comme la v10. Sur une connexion
+lente, le bilan dessiné avant l'état de la caisse se redit à son arrivée.
+Test : `tests/web/caissier.test.ts` (pendant la session, à l'écran et sur la bande ; après le Z ; la réponse ralentie).
+4 preuves.
+
 ## Ce qui part au serveur
 
 Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, reçu, rendu, paiement, client facultatif)
@@ -149,7 +161,6 @@ Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, r
   comptable par session (`01` § 10, **À VÉRIFIER** avec un comptable : par session ou par jour).
 - Hors ligne : fait (brique 120, plus haut).
 - Le caissier à l'écran : fait (brique 121). **Changer de caissier** avec le code à 4 chiffres (`03` § 6) : à faire.
-- **Le bilan du jour** dit « le tiroir doit contenir » avec le solde du compte de caisse, le Z avec le fond de la
-  session : deux chiffres pour la même chose (brique 122).
+- Le tiroir du bilan du jour : fait (brique 122, plus haut).
 - **Le retour** avec le code d'un responsable (03 § 2.1), la facture demandée pour un ticket, l'écriture par session.
 - **L'agent local** (étape 4) : imprimante de tickets, tiroir, douchette.
