@@ -167,7 +167,9 @@ describe('l\'instrument de rendu des écrans', () => {
   }, 400_000);
 
   // Les pages du quotidien de la v10 (14 § 2.6), sur l'entreprise d'essai, avec une facture émise.
-  const PAGES: { nom: string; hash: string; titre: RegExp }[] = [
+  // `ordinateur` : une page pensée pour un grand écran (14 § 2.6), qui le dit au téléphone (brique 109). `tablette` :
+  // une page faite pour la tablette (la caisse sur le comptoir, 14 § 2.6), mesurée aussi à sa largeur.
+  const PAGES: { nom: string; hash: string; titre: RegExp; ordinateur?: true; tablette?: true }[] = [
     { nom: 'accueil', hash: '#/dashboard', titre: /./ },
     { nom: 'factures', hash: '#/factures', titre: /^Factures/ },
     { nom: 'facture-nouvelle', hash: '#/doc/new/facture', titre: /^Nouvelle facture/ },
@@ -185,9 +187,11 @@ describe('l\'instrument de rendu des écrans', () => {
     { nom: 'fournisseurs', hash: '#/fournisseurs', titre: /^Fournisseurs/ },
     { nom: 'stock', hash: '#/stock', titre: /^Stock/ },
     { nom: 'tresorerie', hash: '#/tresorerie', titre: /^Trésorerie/ },
-    { nom: 'paie', hash: '#/paie', titre: /^Paie/ },
-    { nom: 'compta', hash: '#/compta', titre: /^Comptabilit/ },
+    { nom: 'paie', hash: '#/paie', titre: /^Paie/, ordinateur: true },
+    { nom: 'compta', hash: '#/compta', titre: /^Comptabilit/, ordinateur: true },
+    { nom: 'caisse', hash: '#/caisse', titre: /^Caisse/, tablette: true },
   ];
+  const TABLETTE = 820;
 
   it('les pages du quotidien de la v10, sur un téléphone et un ordinateur : aucune ne défile de côté, rien ne sort de l\'écran, et au doigt tout se touche', async () => {
     const d = await personne('prete');
@@ -211,15 +215,17 @@ describe('l\'instrument de rendu des écrans', () => {
     expect(String((emise.contenu as Record<string, unknown> | undefined)?.number ?? emise.motif)).toMatch(/^FAC-/);
     const faux: string[] = [];
     let vus = 0;
-    for (const largeur of [390, 1440]) {
-      const contexte = await navigateur.newContext({ viewport: { width: largeur, height: 844 }, deviceScaleFactor: 1, locale: 'fr-FR', isMobile: largeur < 760, hasTouch: largeur < 760 });
+    for (const largeur of [390, TABLETTE, 1440]) {
+      // Le téléphone et la tablette se touchent du doigt ; l'ordinateur se mène à la souris.
+      const doigt = largeur <= TABLETTE;
+      const contexte = await navigateur.newContext({ viewport: { width: largeur, height: largeur === TABLETTE ? 1180 : 844 }, deviceScaleFactor: 1, locale: 'fr-FR', isMobile: doigt, hasTouch: doigt });
       await contexte.addInitScript((j) => sessionStorage.setItem('skanfact.jeton', j), d.jeton);
       const page = await contexte.newPage();
       const erreurs: string[] = [];
       page.on('pageerror', (x) => erreurs.push(x.message));
       await page.goto(`${serveur.adresse}/v10/?e=${d.ent}`);
       await page.locator('#view h1').first().waitFor({ timeout: 15_000 });
-      for (const pg2 of PAGES) {
+      for (const pg2 of PAGES.filter((x) => largeur !== TABLETTE || x.tablette)) {
         await page.evaluate((h) => { location.hash = h; }, pg2.hash);
         const nom = `v10-${pg2.nom}-${largeur}`;
         try {
@@ -231,7 +237,10 @@ describe('l\'instrument de rendu des écrans', () => {
         // Les fenêtres de bienvenue se ferment comme une personne le ferait.
         for (let i = 0; i < 3 && await page.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await page.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
         await page.waitForTimeout(300);
-        faux.push(...(await page.evaluate(problemes, [largeur < 760, largeur] as [boolean, number])).map((x) => `${nom} : ${x}`));
+        faux.push(...(await page.evaluate(problemes, [doigt, largeur] as [boolean, number])).map((x) => `${nom} : ${x}`));
+        // Une page pensée pour un ordinateur le dit au téléphone, et seulement là (brique 109).
+        const avis = await page.locator('#bandeau-ordinateur').count();
+        if (avis !== (pg2.ordinateur && largeur < 760 ? 1 : 0)) faux.push(`${nom} : ${avis ? 'dit « pensée pour un ordinateur » sans l\'être' : 'ne dit pas qu\'elle est pensée pour un ordinateur'}`);
         await page.screenshot({ path: path.join(PHOTOS, `${nom}.png`), fullPage: true });
         vus++;
       }
@@ -239,6 +248,6 @@ describe('l\'instrument de rendu des écrans', () => {
       await contexte.close();
     }
     expect(faux).toEqual([]);
-    expect(vus).toBe(PAGES.length * 2);
+    expect(vus).toBe(PAGES.length * 2 + PAGES.filter((x) => x.tablette).length);
   }, 400_000);
 });

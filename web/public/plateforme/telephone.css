@@ -9,7 +9,11 @@
    - tout se touche du doigt (44 points au moins) ; les bulles « i » gardent leur dessin de 15 points,
      au centre d'une cible de 44 ;
    - l'éditeur et l'aperçu passent l'un sous l'autre ; un tableau trop large défile dans son cadre,
-     jamais la page ; une fenêtre prend la largeur de l'écran. */
+     jamais la page ; une fenêtre prend la largeur de l'écran.
+
+   Au doigt, quelle que soit la largeur (brique 109) : la caisse se tient sur une tablette, posée sur le
+   comptoir (14 § 2.6), plus large que 760 points ; elle garde la mise en page de l'ordinateur, mais tout s'y
+   touche du doigt. La taille du doigt suit donc l'écran tactile (`pointer: coarse`), pas la largeur. */
 
 .menu-tel { display: none; }
 
@@ -24,12 +28,6 @@
   .sidebar.menu-ouvert > nav { display: flex; max-height: 60vh; overflow-y: auto; }
   .sidebar.menu-ouvert > .nav-search { margin-block: 8px; }
   main { --main-haut: 16px; padding: var(--main-haut) 14px 40px; overflow-y: visible; }
-
-  .btn, nav a, .sidebar-foot .foot-link, .dos-menu button, button.nav-group, .nav-search { min-height: 44px; }
-  input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea { min-height: 44px; font-size: 16px; }
-  .check { min-height: 44px; }
-  button.i { width: 44px; height: 44px; flex-basis: 44px; margin: -14px -12px; background: radial-gradient(circle, var(--ink-soft) 7px, transparent 7.5px); }
-  button.i:hover, button.i:focus-visible { background: radial-gradient(circle, var(--primary-soft-2) 7px, transparent 7.5px); }
 
   .page-head { flex-direction: column; align-items: stretch; }
   .page-head h1 { font-size: 21px; }
@@ -48,12 +46,6 @@
   .setup-porte .sp-choix { grid-template-columns: minmax(0, 1fr); }
   .setup-foot { flex-wrap: wrap; }
 
-  /* Ce que la v10 dessinait pour la souris, à la taille du doigt. */
-  .combo-btn, .tabs button, .somm-chip, .row-menu-btn, .pp-guide, .collapse-h { min-height: 44px; }
-  .help-link, .link-add { display: inline-flex; align-items: center; min-height: 44px; }
-  .d-btn { width: 44px; height: 44px; inset-inline-end: 0; }
-  .datefield .d-txt { padding-inline-end: 46px; }
-  td.line-tools .btn { min-width: 44px; }
   .page-head .actions, .catalog-pick, .inline { flex-wrap: wrap; }
 
   /* Les lignes d'une pièce : la désignation sur toute la largeur, les chiffres en dessous sur deux
@@ -75,9 +67,28 @@
      laissaient 32 points : un mot par ligne (brique 105). */
   .pp-list li { grid-template-columns: 26px minmax(0, 1fr); }
   .pp-list li .pp-go { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; }
+}
+
+/* La taille du doigt : au téléphone, et sur tout écran qu'on touche (une tablette au comptoir). */
+@media (max-width: 760px), (pointer: coarse) {
+  .btn, nav a, .sidebar-foot .foot-link, .dos-menu button, button.nav-group, .nav-search { min-height: 44px; }
+  input:not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea { min-height: 44px; font-size: 16px; }
+  .check { min-height: 44px; }
+  button.i { width: 44px; height: 44px; flex-basis: 44px; margin: -14px -12px; background: radial-gradient(circle, var(--ink-soft) 7px, transparent 7.5px); }
+  button.i:hover, button.i:focus-visible { background: radial-gradient(circle, var(--primary-soft-2) 7px, transparent 7.5px); }
+
+  /* Ce que la v10 dessinait pour la souris, à la taille du doigt. */
+  .combo-btn, .tabs button, .somm-chip, .row-menu-btn, .pp-guide, .collapse-h { min-height: 44px; }
+  .help-link, .link-add { display: inline-flex; align-items: center; min-height: 44px; }
+  .d-btn { width: 44px; height: 44px; inset-inline-end: 0; }
+  .datefield .d-txt { padding-inline-end: 46px; }
+  td.line-tools .btn { min-width: 44px; }
 
   /* Ce que seules des données dessinent (brique 106 : l'instrument mesurait des pages vides) : les en-têtes de
      colonne qui trient, et le nom d'un client dans une liste de l'accueil, à la taille du doigt. */
   th.sortable-h { height: 44px; }
   #view a.name { display: inline-flex; align-items: center; min-height: 44px; }
+
+  /* La caisse : le mode de paiement se choisit du doigt (brique 109). */
+  .cs-mode { min-height: 44px; }
 }

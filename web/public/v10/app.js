@@ -2522,6 +2522,15 @@
   // même page (un enregistrement, un filtre qui réécrit la vue) rejouerait l'entrée — la page
   // clignoterait sans qu'on en ait quitté aucune.
   let entreeFin = 0;
+  // Les pages pensées pour un ordinateur (plateforme, brique 109 ; 14 § 2.6) : au téléphone, elles le disent sous
+  // leur titre. La largeur est celle où la mise en page du téléphone prend la main (telephone.css).
+  const PAGES_ORDINATEUR = ['compta', 'paie', 'salarie', 'immos', 'immo', 'stats', 'marges'];
+  function bandeauOrdinateur(name) {
+    if (!PAGES_ORDINATEUR.includes(name) || !window.matchMedia('(max-width: 760px)').matches || $('#bandeau-ordinateur')) return;
+    const tete = $('#view .page-head');
+    if (!tete) return;
+    tete.insertAdjacentHTML('afterend', '<div class="banner info" id="bandeau-ordinateur"><span><b>Pensée pour un ordinateur.</b> Sur un téléphone, cette page se lit, mais ses tableaux et sa saisie y sont à l\'étroit : pour saisir, préfère un grand écran.</span></div>');
+  }
   function marquerEntree(view) {
     view.classList.remove('entree');
     void view.offsetWidth;
@@ -2586,6 +2595,7 @@
     const dessine = pageCachee(name) ? pageInterdite(name) : (routes[name] || routes.dashboard)(parts.slice(1));
     if (!pageCachee(name)) { if (dessine && typeof dessine.then === 'function') dessine.then(() => bandeauLecture(name), () => {}); else bandeauLecture(name); }
     if (pageChange && !keepScroll) marquerEntree(view);
+    if (!pageCachee(name)) Promise.resolve(dessine).then(() => bandeauOrdinateur(name), () => {});
     poserGuideMoi();                 // « Guide-moi » : ce qu'on peut faire sur cette page, et son article (10.14.1)
     bandeauDemo(name);               // « ce ne sont pas tes données » — sur chaque page, en permanence
     bandeauModule(active);           // « cette page n'est pas dans ton menu » — et le bouton pour l'y mettre

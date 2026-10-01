@@ -6002,6 +6002,22 @@ prouver "un achat né sans sa devise, compté au poste suivant comme un changeme
 " "" \
   "$J2B"
 
+# ── Brique 109 : la tablette au doigt, et les pages pensées pour un ordinateur qui le disent (web/v10/petit-ecran.txt) ──
+prouver "le mode de paiement de la caisse trop petit pour un doigt" web/public/plateforme/telephone.css \
+  "  .cs-mode { min-height: 44px; }
+" "" \
+  "$TEL"
+prouver "la taille du doigt réservée aux écrans étroits : la caisse sur tablette se mène à la souris" web/public/plateforme/telephone.css \
+  "@media (max-width: 760px), (pointer: coarse) {" "@media (max-width: 760px) {" \
+  "$TEL"
+prouver "une page pensée pour un ordinateur qui ne le dit pas au téléphone" web/public/v10/app.js \
+  "    if (!pageCachee(name)) Promise.resolve(dessine).then(() => bandeauOrdinateur(name), () => {});
+" "" \
+  "$TEL"
+prouver "l'avis « pensée pour un ordinateur » posé aussi sur un ordinateur" web/public/v10/app.js \
+  "!window.matchMedia('(max-width: 760px)').matches || " "" \
+  "$TEL"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -309,7 +309,11 @@
     sur des pages vides, il ne mesurait aucun tableau. Il mesure contre la largeur de l'écran, pas `innerWidth` :
     un vrai téléphone dézoome une page trop large, `innerWidth` grandit avec elle, et deux preuves de débordement
     ne tombaient plus (vu par la CI, brique 108). Un clic qui échoue dans un test dit ce qui était sous le doigt
-    (`tests/cliquer.ts`) : la CI ne montre pas son écran.
+    (`tests/cliquer.ts`) : la CI ne montre pas son écran. Depuis la brique 109, il mesure aussi la caisse sur une
+    tablette (820 points, au doigt) : la taille du doigt suit l'écran tactile (`pointer: coarse`), pas la largeur
+    (`telephone.css` a deux blocs : la mise en page sous 760 points, la taille du doigt au téléphone ET sur tout
+    écran tactile). Les pages pensées pour un ordinateur (comptabilité, paie, salarié, immobilisations,
+    statistiques, marges : 14 § 2.6) le disent sous leur titre au téléphone (`web/v10/petit-ecran.txt`).
   - **Le parcours du jalon J2** (brique 107, `tests/web/jalon-j2.test.ts`) : une entreprise, d'un bout à l'autre, à la
     souris, contre TTN, DigiGo et Konnect simulés : fiche et comptes, devis facturé, facture signée, acceptée par la
     TTN, payée en ligne par le client (au téléphone) ; achat lu en photo, réglé depuis la banque ; TVA du mois de

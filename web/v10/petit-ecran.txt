@@ -1,0 +1,35 @@
+Les pages pensées pour un ordinateur le disent au téléphone (brique 109 ; 14 § 2.6 : « Utilisables mais pensés
+pour l'ordinateur : la saisie comptable, la révision, la liasse, la paie complète. Sur un petit écran, ils le
+disent. »).
+Format : voir sans-paquets.mjs.
+
+Les écrans du quotidien (vendre, encaisser, photographier, l'accueil) sont pensés pour le téléphone ; la
+comptabilité, la paie, les immobilisations, les statistiques et les marges restent pensées pour un grand écran.
+Au téléphone (sous 760 points, la largeur où `telephone.css` prend la main), elles le disent sous leur titre, au
+lieu de laisser croire qu'un tableau à l'étroit est le mieux qu'on puisse faire.
+
+── Les écrans (app.js) ──
+
+== app.js | les pages pensées pour un ordinateur
+-- avant
+  function marquerEntree(view) {
+-- après
+  // Les pages pensées pour un ordinateur (plateforme, brique 109 ; 14 § 2.6) : au téléphone, elles le disent sous
+  // leur titre. La largeur est celle où la mise en page du téléphone prend la main (telephone.css).
+  const PAGES_ORDINATEUR = ['compta', 'paie', 'salarie', 'immos', 'immo', 'stats', 'marges'];
+  function bandeauOrdinateur(name) {
+    if (!PAGES_ORDINATEUR.includes(name) || !window.matchMedia('(max-width: 760px)').matches || $('#bandeau-ordinateur')) return;
+    const tete = $('#view .page-head');
+    if (!tete) return;
+    tete.insertAdjacentHTML('afterend', '<div class="banner info" id="bandeau-ordinateur"><span><b>Pensée pour un ordinateur.</b> Sur un téléphone, cette page se lit, mais ses tableaux et sa saisie y sont à l\'étroit : pour saisir, préfère un grand écran.</span></div>');
+  }
+  function marquerEntree(view) {
+-- fin
+
+== app.js | une page pensée pour un ordinateur le dit au téléphone, une fois dessinée
+-- avant
+    poserGuideMoi();                 // « Guide-moi » : ce qu'on peut faire sur cette page, et son article (10.14.1)
+-- après
+    if (!pageCachee(name)) Promise.resolve(dessine).then(() => bandeauOrdinateur(name), () => {});
+    poserGuideMoi();                 // « Guide-moi » : ce qu'on peut faire sur cette page, et son article (10.14.1)
+-- fin
