@@ -28,9 +28,16 @@ describe('la reprise du code v10', () => {
 
   it('la reprise vient de la v10 publiée, et chaque adaptation écrite est dans le code repris', () => {
     expect(provenance).toMatchObject({ depot: 'saouthq/skanfact', branche: 'beta', adaptations: ADAPTATIONS.length });
-    for (const a of ADAPTATIONS) {
-      const texte = fs.readFileSync(path.join(V10, a.fichier), 'utf8');
-      expect({ pourquoi: a.pourquoi, trouve: texte.includes(a.apres) }).toEqual({ pourquoi: a.pourquoi, trouve: true });
-    }
+    // Une adaptation laisse sa trace, ou une adaptation PLUS RÉCENTE du même fichier l'a réécrite exprès : son « avant »
+    // est pris dans le texte de la première, ou le contient tout entier (une adaptation ne s'applique qu'à un texte
+    // trouvé une seule fois) ; la plus récente, elle, est vérifiée à son tour (brique 125 : la remise réécrit
+    // l'« Encaisser » de la brique 115 et le motif de la brique 116).
+    const trouve = (a: (typeof ADAPTATIONS)[number], i: number): boolean => {
+      if (fs.readFileSync(path.join(V10, a.fichier), 'utf8').includes(a.apres)) return true;
+      return ADAPTATIONS.some((b, j) => j > i && b.fichier === a.fichier && (a.apres.includes(b.avant) || b.avant.includes(a.apres)));
+    };
+    ADAPTATIONS.forEach((a, i) => {
+      expect({ pourquoi: a.pourquoi, trouve: trouve(a, i) }).toEqual({ pourquoi: a.pourquoi, trouve: true });
+    });
   });
 });

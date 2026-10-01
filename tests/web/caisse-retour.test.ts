@@ -100,8 +100,9 @@ describe('le retour à la caisse, à l\'écran', () => {
     await p.locator('#modal-root #tk-rendre').click();
     await p.locator('#modal-root [data-rd]').first().fill('1');
     await expect.poll(async () => net(await p.locator('#modal-root #rd-annonce').innerText()), { timeout: 5_000 }).toBe('À rendre au client : 1,284 DT.');
-    await expect.poll(() => p.locator('#modal-root #rd-resp option').count(), { timeout: 10_000 }).toBe(2);
-    await p.locator('#modal-root #rd-resp').selectOption({ label: 'Nadia' });
+    // Nadia, seule responsable, est déjà choisie.
+    await expect.poll(() => p.locator('#modal-root #rd-resp option').count(), { timeout: 10_000 }).toBe(1);
+    expect(await p.locator('#modal-root #rd-resp option:checked').innerText()).toBe('Nadia');
     // Un code faux : rien n'est rendu, et la fenêtre reste ouverte.
     await p.locator('#modal-root #rd-code').fill('1358');
     await p.locator('#modal-root #ok').click();

@@ -10528,15 +10528,20 @@
   }
   // Le panier, calculé par `computeTotals` — la même fonction que la facture : un total annoncé au
   // comptoir et un total déclaré ne peuvent pas diverger (règle 6.8.1).
+  // (plateforme, brique 125) La remise du ticket : un pourcentage tapé (« 10 », « 7,5 ») ; vide, aucune.
+  const tauxRemise = v => (v === '' || v == null ? 0 : Number(String(v).replace(',', '.').trim()));
+  // La remise en TTC, comme les lignes du ticket : les lignes, moins elle, font le total avant timbre. La même pour le
+  // panier à l'écran et pour le ticket imprimé (deux écrans, un chiffre).
+  const remiseTtc = t => round3(t.lines.reduce((s, l) => s + l.ttc, 0) - t.netHT - t.totalVAT);
   function totauxDuPanier(lignes, company, opts) {
     const o = opts || {};
     const co = company || {};
-    const doc = { type: 'facture', ticket: true, lines: lignes || [], discountRate: 0,
+    const doc = { type: 'facture', ticket: true, lines: lignes || [], discountRate: tauxRemise(o.remise),
       applyStamp: !!co.caisseTimbre, stampFee: co.caisseTimbre ? (Number(co.stampFee) || 0) : 0, currency: co.currency };
     const t = computeTotals(doc, co);
     const recu = montantTape(o.recu);
     const rendu = recu == null || !isFinite(recu) ? null : round3(recu - t.netToPay);
-    return { ...t, recu, rendu, manque: rendu != null && rendu < 0 ? round3(-rendu) : 0 };
+    return { ...t, remiseTtc: remiseTtc(t), recu, rendu, manque: rendu != null && rendu < 0 ? round3(-rendu) : 0 };
   }
   // Ce qui empêche d'encaisser — la MÊME fonction pour le bouton éteint et pour le refus (9.4.5).
   const MOTIF_SANS_BANQUE = 'Aucun compte bancaire : la carte et le chèque arrivent sur ta banque, pas dans le tiroir. Crée ton compte bancaire, ou encaisse en espèces.';
@@ -10549,12 +10554,14 @@
     // toujours un prix oublié au catalogue (l'assistant en propose un sans prix), jamais un cadeau.
     const sansPrix = ls.find(l => !(Number(l.unitPrice) > 0));
     if (sansPrix) return `« ${String(sansPrix.label || 'Article').trim()} » n'a pas de prix : fixe-le au catalogue, puis rajoute-le.`;
+    const r = tauxRemise(o.remise);
+    if (!(r >= 0 && r <= 100)) return 'La remise est un pourcentage entre 0 et 100 : tape-la comme 10 ou 7,5.';
     const mode = o.mode || 'especes';
     if (!MODES_CAISSE.some(m => m[0] === mode)) return 'Choisis le mode de paiement.';
     if (mode === 'especes' && !comptesDeCaisse(data).especes) return 'Aucun compte de caisse : crée-le pour que les espèces aillent dans le tiroir, pas à la banque.';
     if (mode !== 'especes' && !comptesDeCaisse(data).banque) return MOTIF_SANS_BANQUE;
     if (mode === 'especes' && o.recu !== '' && o.recu != null) {
-      const t = totauxDuPanier(ls, company, { recu: o.recu });
+      const t = totauxDuPanier(ls, company, { recu: o.recu, remise: o.remise });
       if (!isFinite(t.recu)) return 'Le montant reçu n\'est pas un nombre : tape-le comme 50 ou 50,500.';
       if (t.manque > 0) return `Il manque ${money(t.manque, (company || {}).currency)} : le montant reçu est plus petit que le total.`;
     }
@@ -10570,11 +10577,11 @@
     const ls = (lignes || []).filter(l => (Number(l.qty) || 0) > 0).map(l => ({
       itemId: l.itemId || '', label: String(l.label || '').trim() || 'Article', unit: l.unit || '',
       qty: Number(l.qty) || 0, unitPrice: Number(l.unitPrice) || 0, vatRate: Number(l.vatRate) || 0 }));
-    const t = totauxDuPanier(ls, co, { recu: o.recu });
+    const t = totauxDuPanier(ls, co, { recu: o.recu, remise: o.remise });
     const maintenant = o.maintenant || Date.now();
     const doc = {
       id: uid(), type: 'facture', ticket: true, number: nextNumber(data, 'ticket', jour), date: jour, dueDate: jour,
-      clientId: o.clientId || '', subject: '', reference: '', lines: ls, discountRate: 0,
+      clientId: o.clientId || '', subject: '', reference: '', lines: ls, discountRate: tauxRemise(o.remise) || 0,
       applyStamp: !!co.caisseTimbre, stampFee: co.caisseTimbre ? (Number(co.stampFee) || 0) : 0,
       regimeTva: regimeOf(co).id, status: 'envoyée', notes: '', withholdingRate: 0,
       lang: 'fr', currency: co.currency, exchangeRate: '', createdAt: maintenant, issuedTs: maintenant,
@@ -10709,6 +10716,7 @@
       <table>${t.lines.map(l => `<tr><td>${escapeHtml(l.label)}<div class="q">${escapeHtml(String(l.qty).replace('.', ','))} × ${m(l.qty ? round3(l.ttc / l.qty) : 0)}</div></td><td class="r">${m(l.ttc)}</td></tr>`).join('')}</table>
       <hr>
       <table>
+        ${t.discount ? `<tr><td>Remise ${escapeHtml(String(t.discountRate).replace('.', ','))} %</td><td class="r">− ${m(remiseTtc(t))}</td></tr>` : ''}
         <tr><td>Total HT</td><td class="r">${m(t.netHT)}</td></tr>
         ${tva.map(r => `<tr><td>TVA ${r} % sur ${m(t.vatByRate[r].base)}</td><td class="r">${m(t.vatByRate[r].vat)}</td></tr>`).join('')}
         ${t.stamp ? `<tr><td>Timbre fiscal</td><td class="r">${m(t.stamp)}</td></tr>` : ''}

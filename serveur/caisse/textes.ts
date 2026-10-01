@@ -40,5 +40,8 @@ declarerTextes({
   'caisse.retour_sans_responsable': 'un retour se fait avec le code d\'un responsable présent (le propriétaire ou un administrateur) : rien n\'a été rendu',
   'caisse.retour_responsable_inconnu': 'cette personne n\'approuve pas à la caisse : elle doit être propriétaire ou administrateur et avoir posé son code de responsable, et le retour se fait sur l\'appareil de la caisse. Rien n\'a été rendu',
   'caisse.retour_code_faux': 'ce code de responsable ne correspond pas : rien n\'a été rendu',
+  'caisse.remise_sans_responsable': 'une remise de {taux} % dépasse ce que la caisse permet sans accord ({plafond} %) : il faut le code d\'un responsable présent (le propriétaire ou un administrateur). Rien n\'a été vendu',
+  'caisse.remise_responsable_inconnu': 'cette personne n\'approuve pas à la caisse : elle doit être propriétaire ou administrateur et avoir posé son code de responsable, et la vente se fait sur l\'appareil de la caisse. Rien n\'a été vendu',
+  'caisse.remise_code_faux': 'ce code de responsable ne correspond pas : rien n\'a été vendu',
   'caisse.montant_illisible': 'le montant « {valeur} » ne se lit pas : tape-le comme 150 ou 150,500',
 });

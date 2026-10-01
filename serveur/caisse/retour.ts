@@ -33,6 +33,29 @@ async function piece(tx: Transaction, entreprise: string, cle: string) {
     { contenu: Json; revision: string; rang: number | null } | undefined;
 }
 
+// Les mots d'un refus du code de responsable, selon le geste (un retour, une remise).
+export type MotsDuCode = { sans: string; inconnu: string; faux: string; valeurs?: Record<string, string> };
+const RETOUR: MotsDuCode = { sans: 'caisse.retour_sans_responsable', inconnu: 'caisse.retour_responsable_inconnu', faux: 'caisse.retour_code_faux' };
+
+// Le code d'un responsable présent, tapé sur l'appareil de la caisse (brique 124) : il approuve un geste, il n'ouvre rien.
+// Un code faux compte (5, puis une attente) : la réponse n'est alors pas une exception, pour que l'erreur s'écrive.
+export async function codeDuResponsable(tx: Transaction, entreprise: string, rsp: { utilisateur: string; code: string } | undefined, appareil: string | null, mots: MotsDuCode):
+  Promise<{ approuvePar: { id: string; nom: string } } | { reponse: { statut: number; corps: unknown } }> {
+  if (!rsp) throw new Refus(mots.sans, { bouton: 'caisse.responsable', ...(mots.valeurs ? { valeurs: mots.valeurs } : {}) });
+  const maintenant = new Date();
+  const cle = `responsable:${entreprise}:${rsp.utilisateur}`;
+  const attente = (await tx.query('select socle.attente_connexion($1, $2) a', [cle, maintenant])).rows[0].a as Date | null;
+  if (attente) return { reponse: { statut: 403, corps: { motif: attenteLisible(attente, maintenant), qui: [], bouton: null } } };
+  const e = (await tx.query('select caisse.code_responsable_pour($1, $2, $3) e', [entreprise, rsp.utilisateur, appareil])).rows[0].e as string | null;
+  if (!e) throw new Refus(mots.inconnu);
+  if (!/^[0-9]{4}$/.test(rsp.code) || !await correspond(e, rsp.code)) {
+    const a = (await tx.query('select socle.noter_erreur($1, $2) a', [cle, maintenant])).rows[0].a as Date | null;
+    return { reponse: { statut: 403, corps: { motif: a ? attenteLisible(a, maintenant) : motif(mots.faux), qui: [], bouton: null } } };
+  }
+  await tx.query('select socle.effacer_erreurs($1)', [cle]);
+  return { approuvePar: { id: rsp.utilisateur, nom: String((await tx.query('select nom from socle.utilisateur where id = $1', [rsp.utilisateur])).rows[0]?.nom ?? '') } };
+}
+
 export function routeRetour(sessionOuverte: (tx: Transaction, entreprise: string) => Promise<{ id: string; appareil: string; appareil_nom: string; qui: string } | undefined>): Route<never> {
   const route: Route<{ ticket: string; avoir: Record<string, unknown>; rang: number | null; netAPayer: string; paiement: Record<string, unknown>; responsable?: { utilisateur: string; code: string } | undefined }> = {
     methode: 'POST', chemin: '/entreprises/:entreprise/dossier-v10/rendre', geste: 'caisse.ticket.rendre',
@@ -96,21 +119,9 @@ export function routeRetour(sessionOuverte: (tx: Transaction, entreprise: string
       const roles = await mesRoles(tx, ent);
       let approuvePar: { id: string; nom: string } | null = null;
       if (!roles.some((r) => r === 'proprietaire' || r === 'administrateur')) {
-        const rsp = corps.responsable;
-        if (!rsp) throw new Refus('caisse.retour_sans_responsable', { bouton: 'caisse.responsable' });
-        const maintenant = new Date();
-        const cle = `responsable:${ent}:${rsp.utilisateur}`;
-        const attente = (await tx.query('select socle.attente_connexion($1, $2) a', [cle, maintenant])).rows[0].a as Date | null;
-        if (attente) return { statut: 403, corps: { motif: attenteLisible(attente, maintenant), qui: [], bouton: null } };
-        const e = (await tx.query('select caisse.code_responsable_pour($1, $2, $3) e', [ent, rsp.utilisateur, qui.appareil])).rows[0].e as string | null;
-        if (!e) throw new Refus('caisse.retour_responsable_inconnu');
-        if (!/^[0-9]{4}$/.test(rsp.code) || !await correspond(e, rsp.code)) {
-          // L'erreur compte : la réponse n'est pas une exception (rien d'autre n'a été écrit).
-          const a = (await tx.query('select socle.noter_erreur($1, $2) a', [cle, maintenant])).rows[0].a as Date | null;
-          return { statut: 403, corps: { motif: a ? attenteLisible(a, maintenant) : motif('caisse.retour_code_faux'), qui: [], bouton: null } };
-        }
-        await tx.query('select socle.effacer_erreurs($1)', [cle]);
-        approuvePar = { id: rsp.utilisateur, nom: String((await tx.query('select nom from socle.utilisateur where id = $1', [rsp.utilisateur])).rows[0]?.nom ?? '') };
+        const v = await codeDuResponsable(tx, ent, corps.responsable, qui.appareil, RETOUR);
+        if ('reponse' in v) return v.reponse;
+        approuvePar = v.approuvePar;
       }
       const faitPar = String((await tx.query('select nom from socle.utilisateur where id = socle.moi()')).rows[0]?.nom ?? '');
 

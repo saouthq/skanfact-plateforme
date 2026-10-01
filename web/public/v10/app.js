@@ -12226,13 +12226,37 @@
   // Rendre un article : on choisit quoi (jamais plus que ce qui reste à rendre), comment on rend
   // l'argent, et le montant se lit AVANT de valider (9.4.2).
   // (plateforme, brique 124) Qui approuve le retour : les responsables qui ont posé leur code de responsable.
-  async function dessinerResponsable(el) {
+  // `quoi` nomme le geste dans la phrase qui dit qu'aucun responsable n'a de code ; rend le nombre de responsables.
+  // Un seul responsable : il est déjà choisi, on tape son code.
+  async function dessinerResponsable(el, quoi = 'Un retour') {
     let liste;
-    try { liste = await bridge.responsables(); } catch (e) { el.innerHTML = `<p class="small warn-text">${h(plainError(e))}</p>`; return; }
+    try { liste = await bridge.responsables(); } catch (e) { el.innerHTML = `<p class="small warn-text" style="grid-column:1/-1">${h(plainError(e))}</p>`; return 0; }
     el.innerHTML = liste.length
-      ? `<label class="field">${lbl('Responsable présent', 'cs.responsable')}<select id="rd-resp"><option value="">Choisis…</option>${liste.map(x => `<option value="${h(x.id)}">${h(x.nom)}</option>`).join('')}</select></label>
+      ? `<label class="field">${lbl('Responsable présent', 'cs.responsable')}<select id="rd-resp">${liste.length > 1 ? '<option value="">Choisis…</option>' : ''}${liste.map(x => `<option value="${h(x.id)}">${h(x.nom)}</option>`).join('')}</select></label>
         <label class="field">Son code de responsable<input type="password" inputmode="numeric" maxlength="4" autocomplete="off" class="num" id="rd-code"></label>`
-      : '<p class="small warn-text" id="rd-sans-responsable">Un retour se fait avec le code d\'un responsable présent, et aucun n\'a encore posé le sien : le propriétaire ou un administrateur le pose depuis la page Caisse, avec « Mon code de responsable… ».</p>';
+      : `<p class="small warn-text" id="rd-sans-responsable" style="grid-column:1/-1">${h(quoi)} se fait avec le code d'un responsable présent, et aucun n'a encore posé le sien : le propriétaire ou un administrateur le pose depuis la page Caisse, avec « Mon code de responsable… ».</p>`;
+    return liste.length;
+  }
+  // (plateforme, brique 125) Demander le code d'un responsable présent avant un geste ; `ok` reçoit { utilisateur, code }.
+  function demanderResponsable(titre, texte, ok) {
+    modal(`<h2>${h(titre)}</h2><p>${h(texte)}</p><div class="grid-2 mt" id="rd-responsable"></div>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="rs-ok" disabled>Approuver</button></div>`,
+      (root, close) => {
+        // « Approuver » attend la liste ; sans responsable qui a posé son code, il reste gris et la phrase dit pourquoi.
+        // Sinon le curseur attend dans la case du code : le responsable n'a qu'à taper.
+        void dessinerResponsable($('#rd-responsable', root), 'Une remise au-delà de celle permise sans code').then(n => {
+          $('#rs-ok', root).disabled = !n;
+          if (n) $('#rd-code', root).focus();
+        });
+        $('[data-close]', root).onclick = close;
+        $('#rs-ok', root).onclick = () => {
+          const qui = $('#rd-resp', root), code = $('#rd-code', root);
+          if (!qui.value) return refus(qui, 'Choisis le responsable présent : c\'est lui qui tape son code.');
+          if (!/^[0-9]{4}$/.test(code.value)) return refus(code, 'Le code de responsable a 4 chiffres.');
+          close();
+          ok({ utilisateur: qui.value, code: code.value });
+        };
+      });
   }
   async function rendreParLeServeur(doc, r, root, close) {
     const b = $('#ok', root);
@@ -12391,6 +12415,7 @@
     chaine: a => `Le ticket ${h(a.numeroSerie)} ne suit pas le ticket précédent de cette caisse : la chaîne des tickets est cassée (un ticket manque ou a été remplacé).`,
     empreinte: a => `Le ticket ${h(a.numeroSerie)} ne correspond pas à ce que le poste avait scellé : il a pu être modifié entre la vente et son envoi.`,
     apres_fermeture: a => `Le ticket ${h(a.numeroSerie)} est arrivé après le Z de sa session : ce Z ne le compte pas.`,
+    remise: a => `Le ticket ${h(a.numeroSerie)} a été remisé de ${h((a.detail || {}).taux || '?')} % sans réseau, au-delà du plafond de la caisse (${h((a.detail || {}).plafond || '0')} %), sans le code d'un responsable.`,
   };
   function alertesCaisse(alertes) {
     return `<div class="banner warn" id="cs-alertes"><span><b>${alertes.length > 1 ? `${alertes.length} alertes de caisse` : 'Une alerte de caisse'}.</b> SkanFact n'a rien corrigé : chaque ticket est enregistré tel qu'il est arrivé. ${info('cs.alertes')}
@@ -12438,7 +12463,7 @@
   }
   function monCodeDeCaisse(responsable) {
     modal(`<h2>${responsable ? 'Mon code de responsable' : 'Mon code de caisse'}</h2>
-      <p>${responsable ? 'Quatre chiffres, à toi seul. À la caisse, un retour se fait avec le code d\'un responsable présent : tu le tapes sur le poste de la caisse, et l\'avoir porte ton nom. Il n\'ouvre rien d\'autre. Ne le donne à personne.'
+      <p>${responsable ? 'Quatre chiffres, à toi seul. À la caisse, un retour, ou une remise au-delà de celle permise sans code, se fait avec le code d\'un responsable présent : tu le tapes sur le poste de la caisse, et l\'avoir ou le ticket porte ton nom. Il n\'ouvre rien d\'autre. Ne le donne à personne.'
         : 'Quatre chiffres, à toi seul. Sur le poste de la caisse, « Changer de caissier… », ton nom, ton code : la caisse est à toi, sans mot de passe. Ne le donne à personne : les tickets que tu encaisses portent ton nom.'}</p>
       <label class="field">Nouveau code (4 chiffres)<input type="password" inputmode="numeric" maxlength="4" autocomplete="off" class="num" id="cs-nouveau"></label>
       <label class="field">Le même, encore une fois<input type="password" inputmode="numeric" maxlength="4" autocomplete="off" class="num" id="cs-nouveau-bis"></label>
@@ -12568,8 +12593,8 @@
         drawTicket();
       };
       const drawTicket = () => {
-        const t = C.totauxDuPanier(s.panier, company(), { recu: s.mode === 'especes' ? s.recu : '' });
-        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.mode === 'especes' ? s.recu : '' });
+        const t = C.totauxDuPanier(s.panier, company(), { recu: s.mode === 'especes' ? s.recu : '', remise: s.remise });
+        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.mode === 'especes' ? s.recu : '', remise: s.remise });
         const dernier = s.dernierId ? data.documents.find(d => d.id === s.dernierId) : null;
         $('#cs-ticket').innerHTML = `<h2>Ticket en cours ${info('cs.ticket')}</h2>
           <div class="cs-zone" id="cs-zone">${s.panier.length ? `<table class="list compact cs-lignes"><thead><tr><th>Article</th><th class="r" style="width:96px">Qté</th><th class="r">Total TTC</th><th></th></tr></thead><tbody>
@@ -12579,6 +12604,7 @@
               <td class="r"><button type="button" class="btn btn-sm btn-ghost" data-ret="${i}" aria-label="Retirer ${h(l.label)}">Retirer</button></td></tr>`).join('')}
           </tbody></table>` : '<p class="small muted cs-vide">Scanne un article, ou clique-le à gauche : il s\'ajoute ici.</p>'}</div>
           <div class="cs-totaux">
+            ${bridge.encaisser ? `<div id="cs-ligne-remise"${t.discount ? '' : ' style="visibility:hidden" aria-hidden="true"'}><span>Remise ${h(String(s.remise || '0').replace('.', ','))} %</span><span>− ${C.money(t.remiseTtc, cur)}</span></div>` : ''}
             <div><span>Total HT</span><span>${C.money(t.netHT, cur)}</span></div>
             <div><span>TVA</span><span>${C.money(t.totalVAT, cur)}</span></div>
             ${t.stamp ? `<div><span>Timbre fiscal</span><span>${C.money(t.stamp, cur)}</span></div>` : ''}
@@ -12594,6 +12620,7 @@
             // dit ce qui est vrai de ce mode plutôt que de laisser un trou.
             : `<p class="small muted cs-sans-recu">${s.mode === 'carte' ? 'Réglé par carte : rien à rendre, l\'argent arrive sur ta banque.' : 'Réglé par chèque : rien à rendre, le chèque se remet ensuite en banque.'}</p>`}
           </div>
+          ${bridge.encaisser ? `<label class="field cs-remise" style="margin-top:10px">${lbl('Remise (%)', 'cs.remise')}<input type="text" inputmode="decimal" class="num" id="cs-remise" value="${h(s.remise || '')}" placeholder="0"></label>` : ''}
           <div class="field cs-client">${lbl('Client (facultatif)', 'cs.client')}<div id="cs-cl">${combo({ name: 'csClient', value: s.clientId, items: [], placeholder: 'Vente au comptoir', search: 'Rechercher un client…' })}</div></div>
           <p class="small muted cs-motif" id="cs-motif">${motif ? h(motif) : ''}${motif === C.MOTIF_SANS_BANQUE ? ' <button type="button" class="btn btn-sm" id="cs-creer-banque">Créer mon compte bancaire</button>' : ''}</p>
           <div class="cs-go">
@@ -12614,13 +12641,14 @@
         // le bouton suivent la frappe — redessiner le ticket ferait perdre le curseur (7.17.0).
         if (recu) recu.oninput = () => {
           s.recu = recu.value;
-          const tt = C.totauxDuPanier(s.panier, company(), { recu: s.recu });
+          const tt = C.totauxDuPanier(s.panier, company(), { recu: s.recu, remise: s.remise });
           $('#cs-rendu').textContent = tt.rendu != null && tt.rendu >= 0 ? C.money(tt.rendu, cur) : '—';
-          const m = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.recu });
+          const m = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.recu, remise: s.remise });
           $('#cs-motif').textContent = m;
           $('#cs-encaisser').disabled = !!m;
         };
-        if ($('#cs-vider')) $('#cs-vider').onclick = () => { s.panier = []; s.recu = ''; drawTicket(); scan(); };
+        if ($('#cs-remise')) $('#cs-remise').onchange = () => { s.remise = $('#cs-remise').value.trim(); drawTicket(); };
+        if ($('#cs-vider')) $('#cs-vider').onclick = () => { s.panier = []; s.recu = ''; s.remise = ''; drawTicket(); scan(); };
         // Le refus « aucun compte bancaire » porte le geste qui le règle (7.0.0) : le compte se crée
         // par-dessus la caisse, et le panier attend.
         if ($('#cs-creer-banque')) $('#cs-creer-banque').onclick = () => accountForm(null, () => drawTicket(), modeleCompte());
@@ -12636,20 +12664,32 @@
         const b = $('#cs-encaisser');
         if (!b || b.disabled || b.dataset.busy) return;
         const recu = s.mode === 'especes' ? s.recu : '';
-        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu });
+        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu, remise: s.remise });
         if (motif) { toast(motif, true); return; }
         // Avant le numéro : un refus après `nextNumber` trouerait la série des tickets (6.0.0).
         if (closedBlock(C.today(), 'Ce ticket')) return;
         if (licenceBlock('Émettre un ticket de caisse', 'caisse')) return;
         if (bridge.encaisser) {
+          // (brique 125) Une remise au-delà du plafond de la caisse : le code d'un responsable présent, demandé avant.
+          const remise = Number(String(s.remise || '0').replace(',', '.')) || 0;
+          const plafond = Number(company().remiseCaisseAuDela) || 0;
+          const responsable = (bridge.droitsDossier ? bridge.droitsDossier() : {}).responsable;
+          if (remise > plafond && !responsable && !b.dataset.code) {
+            demanderResponsable(`Remise de ${String(remise).replace('.', ',')} %`,
+              `Au-delà de ${String(plafond).replace('.', ',')} %, une remise se fait avec l'accord d'un responsable présent, qui tape son code sur ce poste. Le ticket portera son nom.`,
+              code => { b.dataset.code = JSON.stringify(code); encaisser(); });
+            return;
+          }
+          const code = b.dataset.code ? JSON.parse(b.dataset.code) : null;
+          delete b.dataset.code;
           b.dataset.busy = '1';
           // Le numéro vient du serveur : celui que le moteur vient de prendre sur ce poste se rend.
           const compteurs = JSON.stringify(data.counters || {});
-          const t = C.ticketDeCaisse(data, company(), s.panier, { mode: s.mode, recu: recu === '' ? null : recu, clientId: s.clientId });
+          const t = C.ticketDeCaisse(data, company(), s.panier, { mode: s.mode, recu: recu === '' ? null : recu, clientId: s.clientId, remise: s.remise });
           data.counters = JSON.parse(compteurs); t.number = '';
-          bridge.encaisser(t, C.computeTotals(t, company()).netToPay).then(e => {
+          bridge.encaisser(t, C.computeTotals(t, company()).netToPay, code ? { responsable: code } : undefined).then(e => {
             data.documents.push(e);
-            s.panier = []; s.recu = ''; s.clientId = ''; s.dernierId = e.id;
+            s.panier = []; s.recu = ''; s.clientId = ''; s.remise = ''; s.dernierId = e.id;
             const rendu = e.caisse && e.caisse.rendu ? ` — à rendre ${C.money(e.caisse.rendu, cur)}` : '';
             toast(`Ticket ${e.number} encaissé${e.caisseHorsLigne ? ' sans réseau (il partira au serveur au retour du réseau)' : ''}${rendu}`);
           }, x => toast(plainError(x), true)).finally(() => { delete b.dataset.busy; drawTicket(); scan(); });
@@ -16682,6 +16722,7 @@
           <div class="grid-2">
             <label class="field">${lbl('Largeur du papier', 'cs.largeur')}<select name="caisseLargeur"><option value="80" ${Number(c.caisseLargeur) !== 58 ? 'selected' : ''}>80 mm (le plus courant)</option><option value="58" ${Number(c.caisseLargeur) === 58 ? 'selected' : ''}>58 mm</option></select></label>
             <label class="check" style="align-self:end"><input type="checkbox" name="caisseTimbre" ${c.caisseTimbre ? 'checked' : ''}> Timbre fiscal sur chaque ticket ${info('cs.timbre')}</label>
+            ${bridge.encaisser ? field(lbl('Remise permise sans code à la caisse (%)', 'cs.plafond'), 'remiseCaisseAuDela', Number(c.remiseCaisseAuDela) > 0 ? c.remiseCaisseAuDela : '', 'number', `step="0.01" min="0" max="100" class="num" placeholder="0"${estResponsable() ? '' : ' disabled title="Réglé par le propriétaire ou un administrateur"'}`) : ''}
             <label class="field span-2">${lbl('Message en bas du ticket', 'cs.pied')}<textarea name="caissePied" rows="2" placeholder="Merci de votre visite.">${h(c.caissePied || '')}</textarea></label>
           </div></div>
         </section>
@@ -16972,6 +17013,8 @@
       // « aucun » : les deux retombent sur 0, la valeur qui ne fait rien.
       data.company.withholdingThreshold = Math.max(0, Number(data.company.withholdingThreshold) || 0);
       data.company.caisseLargeur = Number(data.company.caisseLargeur) === 58 ? 58 : 80;
+      // (brique 125) Le plafond de remise de la caisse : vide, 0 % (toute remise demande un responsable).
+      data.company.remiseCaisseAuDela = Math.min(100, Math.max(0, Number(data.company.remiseCaisseAuDela) || 0));
       // L'accord d'un responsable (brique 100) : oui ou non ; « non » est la valeur qui ne change rien (03 D11).
       data.company.encoursAccord = data.company.encoursAccord === true;
       // La remise permise sans accord (brique 103) : vide ou zéro, pas de seuil ; jamais plus de 100 %.

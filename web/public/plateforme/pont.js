@@ -731,7 +731,10 @@
     // Le ticket de caisse (brique 115 ; docs/caisse.md) : numéroté dans sa série (TIC) et scellé par le serveur, payé
     // dans le même geste. Sans réseau (brique 120, H1 à H4) : le poste qui tient la caisse le numérote et le chaîne
     // lui-même, le garde chiffré, et le remet dans l'ordre au retour du réseau.
-    encaisser: async (/** @type {any} */ doc, /** @type {number} */ netAPayer) => {
+    encaisser: async (/** @type {any} */ doc, /** @type {number} */ netAPayer, /** @type {any} */ options) => {
+      // (brique 125) Une remise au-delà du plafond : le code d'un responsable, que seul le serveur vérifie (sans réseau, la
+      // liste des responsables ne se lit pas : la page ne l'envoie jamais ; un ticket remisé sans code devient une alerte).
+      const responsable = options && options.responsable ? options.responsable : null;
       if (enCours) await enCours;
       const decimales = !doc.currency || doc.currency === 'DT' || doc.currency === 'TND' ? 3 : 2;
       const net = Number(netAPayer).toFixed(decimales);
@@ -745,7 +748,7 @@
       const fait = numerotation ? await faireTicket(document, net) : null;
       try {
         if (fileTickets.length) throw Object.assign(new Error('hors ligne'), { horsLigne: true });
-        const r = await appel('POST', '/dossier-v10/ticket', { document, rang, netAPayer: net, ...(fait ? { poste: fait.poste } : {}) });
+        const r = await appel('POST', '/dossier-v10/ticket', { document, rang, netAPayer: net, ...(fait ? { poste: fait.poste } : {}), ...(responsable ? { responsable } : {}) });
         retenirNumerotation(r.caisse);
         vu.set(k, { json: JSON.stringify(r.contenu), rang, revision: r.revision });
         base.set(k, r.revision);

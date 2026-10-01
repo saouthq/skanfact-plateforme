@@ -1,0 +1,244 @@
+La remise à la caisse (brique 125 ; 03 § 2.1 « Caisse » ; serveur/caisse/remise.ts ; docs/caisse.md, M1 à M4).
+Format : voir sans-paquets.mjs.
+
+Le ticket en cours a une remise (%), comptée par le moteur (le même calcul que celui des factures). Au-delà du plafond
+de la caisse (Paramètres → Caisse ; 0 % par défaut), un caissier encaisse avec le code d'un responsable présent : la
+page le demande AVANT d'encaisser. Le propriétaire et l'administrateur remisent sans code. Sans réseau, une telle remise
+ne se vend pas (le code ne se vérifie qu'en ligne).
+
+── Le moteur (core.js) ──
+
+== core.js | les totaux du panier comptent la remise
+-- avant
+    const doc = { type: 'facture', ticket: true, lines: lignes || [], discountRate: 0,
+-- après
+    const doc = { type: 'facture', ticket: true, lines: lignes || [], discountRate: tauxRemise(o.remise),
+-- fin
+
+== core.js | une remise se lit en %, 0 si vide
+-- avant
+  function totauxDuPanier(lignes, company, opts) {
+-- après
+  // (plateforme, brique 125) La remise du ticket : un pourcentage tapé (« 10 », « 7,5 ») ; vide, aucune.
+  const tauxRemise = v => (v === '' || v == null ? 0 : Number(String(v).replace(',', '.').trim()));
+  // La remise en TTC, comme les lignes du ticket : les lignes, moins elle, font le total avant timbre. La même pour le
+  // panier à l'écran et pour le ticket imprimé (deux écrans, un chiffre).
+  const remiseTtc = t => round3(t.lines.reduce((s, l) => s + l.ttc, 0) - t.netHT - t.totalVAT);
+  function totauxDuPanier(lignes, company, opts) {
+-- fin
+
+== core.js | les totaux du panier disent la remise en TTC
+-- avant
+    return { ...t, recu, rendu, manque: rendu != null && rendu < 0 ? round3(-rendu) : 0 };
+  }
+  // Ce qui empêche d'encaisser
+-- après
+    return { ...t, remiseTtc: remiseTtc(t), recu, rendu, manque: rendu != null && rendu < 0 ? round3(-rendu) : 0 };
+  }
+  // Ce qui empêche d'encaisser
+-- fin
+
+== core.js | une remise illisible ou hors de 0 à 100 ne s'encaisse pas, et le dit
+-- avant
+    const mode = o.mode || 'especes';
+    if (!MODES_CAISSE.some(m => m[0] === mode)) return 'Choisis le mode de paiement.';
+-- après
+    const r = tauxRemise(o.remise);
+    if (!(r >= 0 && r <= 100)) return 'La remise est un pourcentage entre 0 et 100 : tape-la comme 10 ou 7,5.';
+    const mode = o.mode || 'especes';
+    if (!MODES_CAISSE.some(m => m[0] === mode)) return 'Choisis le mode de paiement.';
+-- fin
+
+== core.js | le reçu se compare au total remisé
+-- avant
+      const t = totauxDuPanier(ls, company, { recu: o.recu });
+-- après
+      const t = totauxDuPanier(ls, company, { recu: o.recu, remise: o.remise });
+-- fin
+
+== core.js | le ticket porte sa remise
+-- avant
+    const t = totauxDuPanier(ls, co, { recu: o.recu });
+    const maintenant = o.maintenant || Date.now();
+-- après
+    const t = totauxDuPanier(ls, co, { recu: o.recu, remise: o.remise });
+    const maintenant = o.maintenant || Date.now();
+-- fin
+
+== core.js | le ticket porte sa remise (le champ)
+-- avant
+      clientId: o.clientId || '', subject: '', reference: '', lines: ls, discountRate: 0,
+-- après
+      clientId: o.clientId || '', subject: '', reference: '', lines: ls, discountRate: tauxRemise(o.remise) || 0,
+-- fin
+
+== core.js | le ticket imprimé dit sa remise, en TTC comme ses lignes
+-- avant
+        <tr><td>Total HT</td><td class="r">${m(t.netHT)}</td></tr>
+-- après
+        ${t.discount ? `<tr><td>Remise ${escapeHtml(String(t.discountRate).replace('.', ','))} %</td><td class="r">− ${m(remiseTtc(t))}</td></tr>` : ''}
+        <tr><td>Total HT</td><td class="r">${m(t.netHT)}</td></tr>
+-- fin
+
+── Le ticket en cours (app.js) ──
+
+== app.js | le ticket en cours se compte avec sa remise
+-- avant
+        const t = C.totauxDuPanier(s.panier, company(), { recu: s.mode === 'especes' ? s.recu : '' });
+        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.mode === 'especes' ? s.recu : '' });
+-- après
+        const t = C.totauxDuPanier(s.panier, company(), { recu: s.mode === 'especes' ? s.recu : '', remise: s.remise });
+        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.mode === 'especes' ? s.recu : '', remise: s.remise });
+-- fin
+
+== app.js | la remise se lit dans les totaux (sa place est gardée sans remise : « Encaisser » ne bouge pas quand elle apparaît)
+-- avant
+            <div><span>Total HT</span><span>${C.money(t.netHT, cur)}</span></div>
+            <div><span>TVA</span><span>${C.money(t.totalVAT, cur)}</span></div>
+-- après
+            ${bridge.encaisser ? `<div id="cs-ligne-remise"${t.discount ? '' : ' style="visibility:hidden" aria-hidden="true"'}><span>Remise ${h(String(s.remise || '0').replace('.', ','))} %</span><span>− ${C.money(t.remiseTtc, cur)}</span></div>` : ''}
+            <div><span>Total HT</span><span>${C.money(t.netHT, cur)}</span></div>
+            <div><span>TVA</span><span>${C.money(t.totalVAT, cur)}</span></div>
+-- fin
+
+== app.js | le champ de la remise, à côté du client
+-- avant
+          <div class="field cs-client">${lbl('Client (facultatif)', 'cs.client')}
+-- après
+          ${bridge.encaisser ? `<label class="field cs-remise" style="margin-top:10px">${lbl('Remise (%)', 'cs.remise')}<input type="text" inputmode="decimal" class="num" id="cs-remise" value="${h(s.remise || '')}" placeholder="0"></label>` : ''}
+          <div class="field cs-client">${lbl('Client (facultatif)', 'cs.client')}
+-- fin
+
+== app.js | la remise se tape, et le ticket se recompte
+-- avant
+        if ($('#cs-vider')) $('#cs-vider').onclick = () => { s.panier = []; s.recu = ''; drawTicket(); scan(); };
+-- après
+        if ($('#cs-remise')) $('#cs-remise').onchange = () => { s.remise = $('#cs-remise').value.trim(); drawTicket(); };
+        if ($('#cs-vider')) $('#cs-vider').onclick = () => { s.panier = []; s.recu = ''; s.remise = ''; drawTicket(); scan(); };
+-- fin
+
+== app.js | le reçu se compare au total remisé, pendant la frappe
+-- avant
+          const tt = C.totauxDuPanier(s.panier, company(), { recu: s.recu });
+-- après
+          const tt = C.totauxDuPanier(s.panier, company(), { recu: s.recu, remise: s.remise });
+-- fin
+
+== app.js | le motif pendant la frappe compte la remise
+-- avant
+          const m = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.recu });
+-- après
+          const m = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.recu, remise: s.remise });
+-- fin
+
+== app.js | « Encaisser » compte la remise
+-- avant
+        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu });
+        if (motif) { toast(motif, true); return; }
+-- après
+        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu, remise: s.remise });
+        if (motif) { toast(motif, true); return; }
+-- fin
+
+== app.js | au-delà du plafond, le code d'un responsable présent, AVANT le geste
+-- avant
+        if (bridge.encaisser) {
+          b.dataset.busy = '1';
+          // Le numéro vient du serveur : celui que le moteur vient de prendre sur ce poste se rend.
+          const compteurs = JSON.stringify(data.counters || {});
+          const t = C.ticketDeCaisse(data, company(), s.panier, { mode: s.mode, recu: recu === '' ? null : recu, clientId: s.clientId });
+          data.counters = JSON.parse(compteurs); t.number = '';
+          bridge.encaisser(t, C.computeTotals(t, company()).netToPay).then(e => {
+            data.documents.push(e);
+            s.panier = []; s.recu = ''; s.clientId = ''; s.dernierId = e.id;
+-- après
+        if (bridge.encaisser) {
+          // (brique 125) Une remise au-delà du plafond de la caisse : le code d'un responsable présent, demandé avant.
+          const remise = Number(String(s.remise || '0').replace(',', '.')) || 0;
+          const plafond = Number(company().remiseCaisseAuDela) || 0;
+          const responsable = (bridge.droitsDossier ? bridge.droitsDossier() : {}).responsable;
+          if (remise > plafond && !responsable && !b.dataset.code) {
+            demanderResponsable(`Remise de ${String(remise).replace('.', ',')} %`,
+              `Au-delà de ${String(plafond).replace('.', ',')} %, une remise se fait avec l'accord d'un responsable présent, qui tape son code sur ce poste. Le ticket portera son nom.`,
+              code => { b.dataset.code = JSON.stringify(code); encaisser(); });
+            return;
+          }
+          const code = b.dataset.code ? JSON.parse(b.dataset.code) : null;
+          delete b.dataset.code;
+          b.dataset.busy = '1';
+          // Le numéro vient du serveur : celui que le moteur vient de prendre sur ce poste se rend.
+          const compteurs = JSON.stringify(data.counters || {});
+          const t = C.ticketDeCaisse(data, company(), s.panier, { mode: s.mode, recu: recu === '' ? null : recu, clientId: s.clientId, remise: s.remise });
+          data.counters = JSON.parse(compteurs); t.number = '';
+          bridge.encaisser(t, C.computeTotals(t, company()).netToPay, code ? { responsable: code } : undefined).then(e => {
+            data.documents.push(e);
+            s.panier = []; s.recu = ''; s.clientId = ''; s.remise = ''; s.dernierId = e.id;
+-- fin
+
+== app.js | le responsable présent tape son code (une fenêtre, réutilisée)
+-- avant
+  async function rendreParLeServeur(doc, r, root, close) {
+-- après
+  // (plateforme, brique 125) Demander le code d'un responsable présent avant un geste ; `ok` reçoit { utilisateur, code }.
+  function demanderResponsable(titre, texte, ok) {
+    modal(`<h2>${h(titre)}</h2><p>${h(texte)}</p><div class="grid-2 mt" id="rd-responsable"></div>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="rs-ok" disabled>Approuver</button></div>`,
+      (root, close) => {
+        // « Approuver » attend la liste ; sans responsable qui a posé son code, il reste gris et la phrase dit pourquoi.
+        // Sinon le curseur attend dans la case du code : le responsable n'a qu'à taper.
+        void dessinerResponsable($('#rd-responsable', root), 'Une remise au-delà de celle permise sans code').then(n => {
+          $('#rs-ok', root).disabled = !n;
+          if (n) $('#rd-code', root).focus();
+        });
+        $('[data-close]', root).onclick = close;
+        $('#rs-ok', root).onclick = () => {
+          const qui = $('#rd-resp', root), code = $('#rd-code', root);
+          if (!qui.value) return refus(qui, 'Choisis le responsable présent : c\'est lui qui tape son code.');
+          if (!/^[0-9]{4}$/.test(code.value)) return refus(code, 'Le code de responsable a 4 chiffres.');
+          close();
+          ok({ utilisateur: qui.value, code: code.value });
+        };
+      });
+  }
+  async function rendreParLeServeur(doc, r, root, close) {
+-- fin
+
+── Paramètres → Caisse (app.js) ──
+
+== app.js | le plafond de remise de la caisse, réglé par un responsable
+-- avant
+            <label class="check" style="align-self:end"><input type="checkbox" name="caisseTimbre" ${c.caisseTimbre ? 'checked' : ''}> Timbre fiscal sur chaque ticket ${info('cs.timbre')}</label>
+-- après
+            <label class="check" style="align-self:end"><input type="checkbox" name="caisseTimbre" ${c.caisseTimbre ? 'checked' : ''}> Timbre fiscal sur chaque ticket ${info('cs.timbre')}</label>
+            ${bridge.encaisser ? field(lbl('Remise permise sans code à la caisse (%)', 'cs.plafond'), 'remiseCaisseAuDela', Number(c.remiseCaisseAuDela) > 0 ? c.remiseCaisseAuDela : '', 'number', `step="0.01" min="0" max="100" class="num" placeholder="0"${estResponsable() ? '' : ' disabled title="Réglé par le propriétaire ou un administrateur"'}`) : ''}
+-- fin
+
+== app.js | le plafond se garde entre 0 et 100
+-- avant
+      data.company.caisseLargeur = Number(data.company.caisseLargeur) === 58 ? 58 : 80;
+-- après
+      data.company.caisseLargeur = Number(data.company.caisseLargeur) === 58 ? 58 : 80;
+      // (brique 125) Le plafond de remise de la caisse : vide, 0 % (toute remise demande un responsable).
+      data.company.remiseCaisseAuDela = Math.min(100, Math.max(0, Number(data.company.remiseCaisseAuDela) || 0));
+-- fin
+
+── L'alerte sans réseau (app.js) ──
+
+== app.js | l'alerte d'une remise encaissée sans réseau, sans responsable
+-- avant
+    apres_fermeture: a => `Le ticket ${h(a.numeroSerie)} est arrivé après le Z de sa session : ce Z ne le compte pas.`,
+-- après
+    apres_fermeture: a => `Le ticket ${h(a.numeroSerie)} est arrivé après le Z de sa session : ce Z ne le compte pas.`,
+    remise: a => `Le ticket ${h(a.numeroSerie)} a été remisé de ${h((a.detail || {}).taux || '?')} % sans réseau, au-delà du plafond de la caisse (${h((a.detail || {}).plafond || '0')} %), sans le code d'un responsable.`,
+-- fin
+
+── L'aide (guide.js) ──
+
+== guide.js | les bulles de la remise
+-- avant
+    'cs.mode': {
+-- après
+    'cs.remise': { t: 'La remise', d: 'Une remise sur tout le ticket, en %. Au-delà de la remise permise sans code (Paramètres → Caisse ; 0 % si rien n\'est réglé), elle se fait avec le <b>code d\'un responsable présent</b>, demandé avant d\'encaisser ; le ticket porte son nom. Le propriétaire et l\'administrateur remisent sans code. Sans réseau, une telle remise ne se fait pas : le code ne se vérifie qu\'en ligne.' },
+    'cs.plafond': { t: 'Remise permise sans code', d: 'La remise qu\'un caissier fait seul à la caisse, en %. Au-delà, il lui faut le code d\'un responsable présent. Vide : 0 %, toute remise le demande. Réglée par le propriétaire ou un administrateur.' },
+    'cs.mode': {
+-- fin

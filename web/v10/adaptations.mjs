@@ -441,8 +441,8 @@ export const ADAPTATIONS = [
   },
   // ── La caisse en ligne (brique 115, docs/caisse.md) ──
   // Un ticket est une facture numérotée sur l'ordinateur : le serveur la refuserait. Sur la plateforme, « Encaisser »
-  // passe par le serveur, qui numérote le ticket dans SA série (TIC), le scelle et enregistre son paiement. Le retour
-  // d'un ticket n'est pas encore en ligne : il se refuse avec sa phrase, avant de rien rendre.
+  // passe par le serveur, qui numérote le ticket dans SA série (TIC), le scelle et enregistre son paiement. (Le retour
+  // d'un ticket passe par le serveur depuis la brique 124 : caisse-retour.txt.)
   {
     fichier: 'app.js',
     pourquoi: '« Encaisser » passe par le serveur : numéro, sceau et paiement',
@@ -462,12 +462,6 @@ export const ADAPTATIONS = [
       + "          }, x => toast(plainError(x), true)).finally(() => { delete b.dataset.busy; drawTicket(); scan(); });\n"
       + "          return;\n"
       + "        }\n",
-  },
-  {
-    fichier: 'app.js',
-    pourquoi: 'le retour d\'un ticket se refuse avec sa phrase (pas encore en ligne)',
-    avant: "        if (licenceBlock('Émettre un avoir sur un ticket', 'caisse')) return;\n",
-    apres: "        if (licenceBlock('Émettre un avoir sur un ticket', 'caisse')) return;\n        if (bridge.emettre) { toast('Le retour d\\'un ticket n\\'est pas encore dans la version en ligne de SkanFact : rien n\\'a été rendu.', true); return; }\n",
   },
   // ── La paie par le serveur (brique 31, docs/paie.md) ──
   // Un bulletin de la v10 ne gardait qu'une partie de ce qui l'a calculé : six taux et le régime du
@@ -675,4 +669,5 @@ export const ADAPTATIONS = [
   ...lireFichier('groupe.txt'),
   ...lireFichier('caisse-session.txt'),
   ...lireFichier('caisse-retour.txt'),
+  ...lireFichier('caisse-remise.txt'),
 ];

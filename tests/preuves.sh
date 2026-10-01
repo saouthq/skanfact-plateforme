@@ -1150,6 +1150,9 @@ prouver "un fichier de la v10 retouché à la main" web/public/v10/listes.js \
 prouver "une adaptation écrite qui n'a pas été reprise" web/v10/adaptations.mjs \
   "const canUnlock = !bridge.emettre && locked" "const canUnlock = !bridge.emettre &&  locked" \
   "chaque adaptation écrite est dans le code repris"
+prouver "la réécriture voulue d'une adaptation par une plus récente, comptée comme une perte" tests/v10/provenance.test.ts \
+  "j > i && b.fichier === a.fichier" "j > i && b.fichier === a.fichier && false" \
+  "chaque adaptation écrite est dans le code repris"
 prouver "le dossier v10 servi comme l'entrée (la page se recharge sans fin)" serveur/principal.ts \
   "    if (fs.existsSync(fichier) && fs.statSync(fichier).isDirectory()) fichier = path.join(fichier, 'index.html');" "" \
   "$PA"
@@ -6191,8 +6194,8 @@ prouver "la caisse qui refuse encore d'encaisser en ligne" web/public/v10/app.js
         if (bridge.encaisser) {" \
   "$TKW"
 prouver "le numéro du poste gardé au lieu de celui du serveur" web/public/v10/app.js \
-  "          bridge.encaisser(t, C.computeTotals(t, company()).netToPay).then(e => {
-            data.documents.push(e);" "          bridge.encaisser(t, C.computeTotals(t, company()).netToPay).then(e => {
+  "          bridge.encaisser(t, C.computeTotals(t, company()).netToPay, code ? { responsable: code } : undefined).then(e => {
+            data.documents.push(e);" "          bridge.encaisser(t, C.computeTotals(t, company()).netToPay, code ? { responsable: code } : undefined).then(e => {
             e.number = 'TIC-0000-999'; data.documents.push(e);" \
   "$TKW"
 
@@ -6230,7 +6233,7 @@ prouver "un fond tapé avec une virgule illisible" serveur/caisse/routes.ts \
   "  const v = valeur.replace(/\\s/g, '').replace(',', '.');" "  const v = valeur.replace(/\\s/g, '');" \
   "$CS"
 prouver "la caisse fermée qui laisse encaisser à l'écran" web/public/v10/app.js \
-  "        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.mode === 'especes' ? s.recu : '' });" "        const motif = C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.mode === 'especes' ? s.recu : '' });" \
+  "        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.mode === 'especes' ? s.recu : '', remise: s.remise });" "        const motif = C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.mode === 'especes' ? s.recu : '', remise: s.remise });" \
   "$CSW"
 prouver "la page Caisse muette sur sa session" web/public/v10/app.js \
   "    if (bridge.caisse) dessinerSession();" "" \
@@ -6543,7 +6546,7 @@ prouver "un code de responsable faux qui passe" serveur/caisse/retour.ts \
   "!/^[0-9]{4}\$/.test(rsp.code) || !await correspond(e, rsp.code)" "!/^[0-9]{4}\$/.test(rsp.code)" \
   "$CT"
 prouver "cinq codes de responsable faux, et le sixième n'attend pas" serveur/caisse/retour.ts \
-  "        if (attente) return { statut: 403, corps: { motif: attenteLisible(attente, maintenant), qui: [], bouton: null } };
+  "  if (attente) return { reponse: { statut: 403, corps: { motif: attenteLisible(attente, maintenant), qui: [], bouton: null } } };
 " "" \
   "$CT"
 prouver "rendre plus que le ticket n'a vendu" serveur/caisse/retour.ts \
@@ -6590,6 +6593,80 @@ prouver "le Z à l'écran qui ne dit pas l'argent rendu" web/public/v10/app.js \
 prouver "« Mon code de caisse » qui pose un code de responsable (l'événement du clic pris pour un drapeau)" web/public/v10/app.js \
   "\$('#cs-mon-code').onclick = () => monCodeDeCaisse(false);" "\$('#cs-mon-code').onclick = monCodeDeCaisse;" \
   "$CRW"
+
+# ── La remise à la caisse (brique 125, 01/10/2026 ; docs/caisse.md, M1 à M4) ──
+CM="au-delà du plafond (0 % par défaut), le code d'un responsable ; en dessous, rien ; sans réseau, une alerte"
+CMW="Sami remise 10 % avec le code de Nadia ; sous le plafond qu'elle règle, sans code"
+prouver "une remise sous le plafond qui demande quand même un code" serveur/caisse/remise.ts \
+  "  if (taux <= plafond) return null;" "  if (true) return null;" \
+  "$CM"
+prouver "le plafond par défaut qui laisse toute remise sans code" serveur/caisse/remise.ts \
+  "fiche === '' ? 0n : centiemes(fiche)" "fiche === '' ? 10000n : centiemes(fiche)" \
+  "$CM"
+prouver "un caissier qui remise au-delà du plafond sans responsable" serveur/v10/routes.ts \
+  "      if (remise && !(await estResponsable(tx, ent))) {" "      if (false) {" \
+  "$CM"
+prouver "le ticket remisé qui ne porte pas le nom du responsable" serveur/v10/routes.ts \
+  "{ ...doc, payments: [], ...(remiseCaisse ? { remiseCaisse } : {}) }" "{ ...doc, payments: [] }" \
+  "$CM"
+prouver "le ticket remisé sans réseau qui ne s'enregistre pas" serveur/v10/routes.ts \
+  "        if (p?.horsLigne) remiseSansAccord = true;
+        else {" "        {" \
+  "$CM"
+prouver "le ticket remisé sans réseau, sans code, qui ne se dit pas" serveur/v10/routes.ts \
+  "        if (remiseSansAccord && remise) await alerter('remise', remise);
+" "" \
+  "$CM"
+prouver "le plafond de la caisse changé par un caissier en base" base/migrations/0064_remise_caisse.sql \
+  "  if apres is distinct from avant and socle.moi() is not null" "  if false and apres is distinct from avant and socle.moi() is not null" \
+  "$CM"
+prouver "le panier qui ne compte pas sa remise" web/public/v10/core.js \
+  "discountRate: tauxRemise(o.remise)," "discountRate: 0," \
+  "$CMW"
+prouver "une remise de 120 % qui s'encaisse" web/public/v10/core.js \
+  "    if (!(r >= 0 && r <= 100)) return 'La remise est un pourcentage entre 0 et 100 : tape-la comme 10 ou 7,5.';
+" "" \
+  "$CMW"
+prouver "le ticket qui part sans sa remise" web/public/v10/core.js \
+  "discountRate: tauxRemise(o.remise) || 0," "discountRate: 0," \
+  "$CMW"
+prouver "« Encaisser » qui ne demande pas le code avant le geste" web/public/v10/app.js \
+  "          if (remise > plafond && !responsable && !b.dataset.code) {" "          if (false) {" \
+  "$CMW"
+prouver "le code du responsable qui ne part pas avec le ticket" web/public/plateforme/pont.js \
+  "...(fait ? { poste: fait.poste } : {}), ...(responsable ? { responsable } : {}) });" "...(fait ? { poste: fait.poste } : {}) });" \
+  "$CMW"
+prouver "le plafond de la caisse absent des Paramètres" web/public/v10/app.js \
+  "            \${bridge.encaisser ? field(lbl('Remise permise sans code à la caisse (%)'" "            \${false ? field(lbl('Remise permise sans code à la caisse (%)'" \
+  "$CMW"
+
+# Vu à l'écran le 01/10/2026 (passage à la main) : le ticket imprimé sans sa remise, la fenêtre du responsable qui
+# parlait d'un retour, le choix d'un responsable seul, la ligne de remise qui poussait « Encaisser ».
+prouver "le ticket imprimé qui ne dit pas sa remise" web/public/v10/core.js \
+  "        \${t.discount ? \`<tr><td>Remise \${escapeHtml(String(t.discountRate).replace('.', ','))} %</td>" "        \${false ? \`<tr><td>Remise \${escapeHtml(String(t.discountRate).replace('.', ','))} %</td>" \
+  "$CMW"
+prouver "la ligne de remise qui pousse « Encaisser » en apparaissant" web/public/v10/app.js \
+  "' style=\"visibility:hidden\" aria-hidden=\"true\"'" "' style=\"display:none\"'" \
+  "$CMW"
+prouver "le champ de la remise collé à celui du reçu" web/public/v10/app.js \
+  '<label class="field cs-remise" style="margin-top:10px">' '<label class="field cs-remise">' \
+  "$CMW"
+prouver "« Approuver » qu'on clique sans aucun responsable" web/public/v10/app.js \
+  "\$('#rs-ok', root).disabled = !n;" "\$('#rs-ok', root).disabled = false;" \
+  "$CMW"
+prouver "la fenêtre d'une remise qui parle d'un retour" web/public/v10/app.js \
+  ", 'Une remise au-delà de celle permise sans code').then(" ").then(" \
+  "$CMW"
+prouver "un responsable seul qu'il faut encore choisir" web/public/v10/app.js \
+  "\${liste.length > 1 ? '<option value=\"\">Choisis…</option>' : ''}" "<option value=\"\">Choisis…</option>" \
+  "$CTW"
+
+prouver "la remise du panier en HT à côté de lignes en TTC" web/public/v10/app.js \
+  "<span>− \${C.money(t.remiseTtc, cur)}</span>" "<span>− \${C.money(t.discount, cur)}</span>" \
+  "$CMW"
+prouver "le code du responsable qu'il faut d'abord cliquer" web/public/v10/app.js \
+  "          if (n) \$('#rd-code', root).focus();" "          if (false) \$('#rd-code', root).focus();" \
+  "$CMW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

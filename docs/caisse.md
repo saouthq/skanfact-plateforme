@@ -205,6 +205,42 @@ responsable qui ne l'est plus, le Z, ce que voit le caissier) ; `tests/web/caiss
 écrans regardés). 16 preuves (et 4 reciblées). Défaut trouvé en chemin : « Mon code de caisse… » recevait l'événement du clic, pris
 pour « responsable » : le caissier posait un code de responsable (refusé). 1 preuve.
 
+## Ce que fait la brique 125 : la remise à la caisse (01/10/2026, par délégation ; `03` § 2.1)
+
+La caisse de la v10 n'avait pas de remise : le ticket en cours a maintenant un champ « Remise (%) », sur tout le ticket,
+compté par le moteur comme la remise d'une facture. Elle se lit **en TTC, comme les lignes du ticket** (les lignes, moins
+elle, font le total avant timbre), avec la même fonction à l'écran et sur le ticket imprimé (`remiseTtc`).
+
+- **M1. Le plafond de la caisse.** « Remise permise sans code à la caisse (%) », dans Paramètres → Caisse, réglé par le
+  propriétaire ou un administrateur, jusque dans la base (0064). **Décidé** (`03` § 2.1) : **vide, il vaut 0 %** —
+  toute remise d'un caissier demande alors un responsable. Le propriétaire et l'administrateur remisent sans code.
+- **M2. Au-delà, le code d'un responsable présent, demandé AVANT le geste** : « Encaisser » ouvre la fenêtre « Remise de
+  10 % » (le responsable, son code) ; le serveur vérifie (le même code de responsable que le retour, brique 124 ; 5
+  erreurs, une attente) ; un code faux ne vend rien, le panier attend. Le ticket porte le taux et le nom du responsable
+  (`remiseCaisse`).
+- **M3. Le serveur lit la remise sur le ticket**, jamais ce que l'écran en dit ; une remise illisible compte comme la
+  plus forte. Une remise hors de 0 à 100 % ne s'encaisse pas, et le motif le dit avant le geste.
+- **M4. Sans réseau**, le code ne se vérifie pas (la liste des responsables ne se lit même pas) : un ticket remisé au-delà
+  qui arrive sans code s'enregistre (c'est un fait), et l'écart devient une **alerte de caisse** pour le propriétaire.
+  **À VÉRIFIER** : une remise par ligne (aujourd'hui sur tout le ticket) ; les listes de prix et les prix du client à la
+  caisse (`remiseEffective` des factures, brique 104).
+
+Tests : `tests/v10/caisse-remise.test.ts` (sans remise, 10 % sans code, code faux, code d'un caissier, le bon code ; Nadia
+règle 15 %, pas Sami, ni par l'écran ni en base ; 10 % sans code, 20 % non ; sans réseau, l'alerte) ;
+`tests/web/caisse-remise.test.ts` (120 % refusé avant le geste ; 10 % lu dans les totaux sans que « Encaisser » bouge ;
+aucun responsable : la fenêtre le dit, « Approuver » gris ; Nadia, seule, déjà choisie, le curseur dans son code ; un
+code faux, le bon ; le ticket imprimé dit sa remise ; Nadia règle 15 % dans les Paramètres ; 10 % sans code). 21
+preuves (et 3 reciblées).
+
+**Vu à l'écran, à la main (01/10/2026)** — le premier passage « comme un humain » (`scripts/humain/`, ci-dessous), que
+les tests verts n'avaient pas vu : (1) le ticket **imprimé** n'avait pas de ligne de remise (lignes 3,852, total 3,467 :
+le client ne pouvait pas refaire le compte) ; (2) le panier disait la remise en HT (− 0,240) quand le ticket la disait en
+TTC (− 0,257) : deux chiffres pour la même chose ; (3) sans responsable, la fenêtre de la remise parlait d'« un retour »,
+tassée dans une colonne, et « Approuver » restait cliquable ; (4) un seul responsable restait à « Choisis… » ; (5) la
+ligne de remise, en apparaissant, poussait « Encaisser » de 20 px ; (6) le champ de la remise collait à celui du reçu ;
+(7) le texte de « Mon code de responsable » ne parlait que du retour. Tous corrigés, chacun avec sa preuve. Noté, sans
+défaut : un poste qui ne tient pas la caisse montre le panier, mais « Encaisser » y est gris et dit pourquoi.
+
 ## Ce qui part au serveur
 
 Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, reçu, rendu, paiement, client facultatif)

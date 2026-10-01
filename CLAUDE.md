@@ -509,6 +509,17 @@
   forcée, portes dérobées fermées au public, phrases au catalogue) : deux rouges du 01/10/2026 venaient de là.
   **Reconfirmé par Skander le 01/10/2026** (« les tests prennent beaucoup de temps ») : jamais de relance
   complète sur le poste, sauf un changement qui touche tout ; jamais attendre GitHub les bras croisés.
+- **Tester comme un humain, à l'écran** (demandé par Skander le 01/10/2026 : « comme un vrai humain, et voir l'écran
+  comme un vrai humain ») : chaque brique qui touche un écran se joue aussi **à la souris et au clavier sur un écran
+  virtuel**, en lisant les captures, avant d'être annoncée ou envoyée. `PG_ADMIN=… scripts/humain/lancer.sh` (écran
+  1440×900, base neuve, serveur sur le port 8090, Chromium ouvert) ; `node scripts/humain/exemple-caisse.ts
+  http://127.0.0.1:8090` (une boulangerie : Nadia propriétaire, Sami et Leila caissiers ; les comptes dans
+  `/tmp/skanfact-humain-plateforme/comptes.txt`, jamais dans le dépôt ; `node scripts/humain/code.ts` donne le code du
+  téléphone de Nadia) ; puis `scripts/humain/ecran.sh capture | clic X Y | taper … | touche … | defiler …` (de vrais
+  événements du système : un bouton recouvert ne reçoit pas le clic). Après un changement d'écran : reconstruire
+  (`npx vite build --config web/vite.config.ts --outDir /tmp/skanfact-humain-plateforme/web`) et recharger.
+  Le premier passage (brique 125) a trouvé sept défauts que les tests verts ne voyaient pas (`docs/caisse.md`) :
+  chaque défaut vu à l'écran devient une assertion et sa preuve.
 
 **Sécurité (sans exception)**
 - Dépôt **public** : jamais de secret, de jeton, de mot de passe réel ni de donnée de client. Les

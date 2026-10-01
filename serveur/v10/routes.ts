@@ -19,6 +19,8 @@ import { appliquer, Conflit, emettreDepuisV10, lireDepuis, lireDossier, marqueDe
 import { nombreEnTexte } from './lecture.ts';
 import { etatDeNumerotation, sessionOuverte } from '../caisse/routes.ts';
 import { empreinteDuPoste, PREMIERE, ticketDuPoste } from '../caisse/chaine.ts';
+import { remiseAuDelaDuPlafond } from '../caisse/remise.ts';
+import { codeDuResponsable } from '../caisse/retour.ts';
 import { poserCompte, renvoyer } from './envoi.ts';
 import { demanderPaiement, verifierPaiement } from './paiement.ts';
 import { demanderSignature, signerAvecLeCode } from './signature.ts';
@@ -102,7 +104,8 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     encaisseLe: z.string().datetime({ offset: true }), horsLigne: z.boolean() });
   ajouter({
     methode: 'POST', chemin: '/entreprises/:entreprise/dossier-v10/ticket', geste: 'caisse.ticket.encaisser',
-    corps: z.object({ document: z.record(z.string(), contenu), rang: z.number().int().min(0).nullable(), netAPayer: z.string().regex(/^\d+(\.\d+)?$/), poste: poste.optional() }),
+    corps: z.object({ document: z.record(z.string(), contenu), rang: z.number().int().min(0).nullable(), netAPayer: z.string().regex(/^\d+(\.\d+)?$/), poste: poste.optional(),
+      responsable: z.object({ utilisateur: z.uuid(), code: z.string().trim().max(20) }).optional() }),
     traiter: async ({ params, corps, qui }, tx) => {
       if (!tx || !qui) throw new Error('transaction attendue');
       const ent = params.entreprise ?? '';
@@ -139,6 +142,21 @@ export function routesV10(ctx: Contexte): Route<never>[] {
         if (s.appareil !== qui.appareil) throw new Refus('caisse.ouverte_ailleurs', { valeurs: { appareil: s.appareil_nom, qui: s.qui } });
         session = { id: s.id, ferme: false };
       }
+      // La remise à la caisse (brique 125 ; docs/caisse.md, M1 à M4) : au-delà du plafond de l'entreprise (0 % par défaut),
+      // le code d'un responsable présent, sauf pour un responsable lui-même. Sans réseau, le code ne se vérifie pas : le
+      // ticket s'enregistre (c'est un fait), et l'écart se dit en alerte.
+      const remise = await remiseAuDelaDuPlafond(tx, ent, doc);
+      let remiseCaisse: { taux: string; approuvePar: string } | null = null;
+      let remiseSansAccord = false;
+      if (remise && !(await estResponsable(tx, ent))) {
+        if (p?.horsLigne) remiseSansAccord = true;
+        else {
+          const v = await codeDuResponsable(tx, ent, corps.responsable, qui.appareil,
+            { sans: 'caisse.remise_sans_responsable', inconnu: 'caisse.remise_responsable_inconnu', faux: 'caisse.remise_code_faux', valeurs: remise });
+          if ('reponse' in v) return v.reponse;
+          remiseCaisse = { taux: remise.taux, approuvePar: v.approuvePar.nom };
+        }
+      }
       // Le client, s'il y en a un, est celui du dossier (jamais celui de l'écran).
       let client: Record<string, unknown> | null = null;
       if (typeof doc.clientId === 'string' && doc.clientId) {
@@ -148,7 +166,7 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       // La dernière empreinte de la session (avant ce ticket) : la précédente attendue.
       const derniere = String((await tx.query(`select empreinte_poste from caisse.ticket where session = $1 and empreinte_poste is not null
         order by cree_le desc, piece desc limit 1`, [session.id])).rows[0]?.empreinte_poste ?? PREMIERE);
-      const r = await emettreDepuisV10(tx, ent, qui.utilisateur, { document: { ...doc, payments: [] }, client, revision: null, rang: corps.rang, netAPayer: corps.netAPayer }, 'facture', { ticket: true });
+      const r = await emettreDepuisV10(tx, ent, qui.utilisateur, { document: { ...doc, payments: [], ...(remiseCaisse ? { remiseCaisse } : {}) }, client, revision: null, rang: corps.rang, netAPayer: corps.netAPayer }, 'facture', { ticket: true });
       const cle = String(doc.id);
       const piece = String((await tx.query(`insert into caisse.ticket (piece, entreprise, session, numero_poste, precedente, empreinte_poste, encaisse_le, hors_ligne)
         select id, entreprise, $3, $4, $5, $6, $7, $8 from ventes.piece where entreprise = $1 and ref_v10 = $2 returning piece`,
@@ -161,6 +179,7 @@ export function routesV10(ctx: Contexte): Route<never>[] {
         if (p.precedente !== derniere) await alerter('chaine', { attendue: derniere, recue: p.precedente });
         if (empreinteDuPoste(p.precedente, ticketDuPoste(doc, corps.netAPayer, p.numero, p.encaisseLe)) !== p.empreinte) await alerter('empreinte');
         if (session.ferme) await alerter('apres_fermeture');
+        if (remiseSansAccord && remise) await alerter('remise', remise);
       }
       const avecPaiement = { ...r.contenu, payments: paiements, ...(p ? { numeroPoste: p.numero } : {}) };
       const [ecrit] = await appliquer(tx, ent, qui.utilisateur, [{ collection: 'documents', cle, rang: corps.rang, revision: r.revision, contenu: avecPaiement }], { serveur: true });
