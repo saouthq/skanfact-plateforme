@@ -16,7 +16,7 @@ import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
-import { cliquer } from '../cliquer.ts';
+import { cliquer, poserMouchard, recitObjet } from '../cliquer.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -28,6 +28,7 @@ describe('l\'accord d\'un responsable, à la souris', () => {
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-accords-'));
   beforeAll(async () => {
     await admin.connect();
+    await poserMouchard(admin);
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
     navigateur = await chromium.launch();
@@ -284,7 +285,7 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     await k.locator('[data-combo=clientId] .combo-list [role=option]').first().click();
     await k.locator('#cat-pick .combo-btn').click();
     await k.locator('#cat-pick .combo-q').fill('Ciment');
-    await cliquer(k.locator('#cat-pick .combo-list [role=option]').first(), '#cat-pick');
+    await cliquer(k.locator('#cat-pick .combo-list [role=option]').first(), '#cat-pick', 15_000, () => recitObjet(admin, ent, 'catalog', 'ciment'));
     await expect.poll(async () => k.locator('[data-k=unitPrice]').count(), { timeout: 5_000 }).toBeGreaterThan(0);
     const prix = k.locator('[data-k=unitPrice]');
     const n0 = await prix.count();

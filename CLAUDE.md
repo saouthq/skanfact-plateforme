@@ -313,7 +313,10 @@
     tablette (820 points, au doigt) : la taille du doigt suit l'écran tactile (`pointer: coarse`), pas la largeur
     (`telephone.css` a deux blocs : la mise en page sous 760 points, la taille du doigt au téléphone ET sur tout
     écran tactile). Les pages pensées pour un ordinateur (comptabilité, paie, salarié, immobilisations,
-    statistiques, marges : 14 § 2.6) le disent sous leur titre au téléphone (`web/v10/petit-ecran.txt`).
+    statistiques, marges : 14 § 2.6) le disent sous leur titre au téléphone (`web/v10/petit-ecran.txt`). Le
+    Cabinet aussi, depuis la brique 110 (`web/v10/cabinet-telephone.txt`) : sa page ne chargeait pas la mise en
+    page du téléphone ; elle la charge, et `tests/web/cabinet-telephone.test.ts` le passe au même instrument
+    (`tests/instrument-rendu.ts`, partagé). Un lien DANS une phrase est exempté de la taille du doigt (WCAG 2.5.8).
   - **Le parcours du jalon J2** (brique 107, `tests/web/jalon-j2.test.ts`) : une entreprise, d'un bout à l'autre, à la
     souris, contre TTN, DigiGo et Konnect simulés : fiche et comptes, devis facturé, facture signée, acceptée par la
     TTN, payée en ligne par le client (au téléphone) ; achat lu en photo, réglé depuis la banque ; TVA du mois de

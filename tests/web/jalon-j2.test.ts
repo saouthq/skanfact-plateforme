@@ -21,7 +21,7 @@ import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
-import { cliquer } from '../cliquer.ts';
+import { cliquer, poserMouchard, recitObjet } from '../cliquer.ts';
 import { digigoSimule } from '../digigo-simule.ts';
 import { konnectSimule } from '../konnect-simule.ts';
 import { ttnSimulee } from '../ttn-simule.ts';
@@ -41,6 +41,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-j2-'));
   beforeAll(async () => {
     await admin.connect();
+    await poserMouchard(admin);
     await admin.query(`insert into socle.regle_fiscale (code, valeur, debut, source)
       select 'timbre.facture', '1000', '2000-01-01', 'Règle d''essai des tests' where not exists (select 1 from socle.regle_fiscale where code = 'timbre.facture')`);
     digigo = await digigoSimule();
@@ -244,7 +245,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
 
     // 2. La banque : le compte courant ouvert, puis l'achat réglé depuis lui.
     await aller('#/tresorerie');
-    await cliquer(nadia.locator('#new-acc'));
+    await cliquer(nadia.locator('#new-acc'), '', 15_000, () => recitObjet(admin, m.ent, 'accounts'));
     await nadia.locator('#af input[name=name]').fill('BIAT — compte courant');
     await nadia.locator('#af [name=opening]').fill('5000');
     await nadia.locator('#modal-root #ok').click();

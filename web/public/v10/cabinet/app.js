@@ -1555,6 +1555,24 @@
     entreeFin = setTimeout(() => view.classList.remove('entree'), 320);
   }
 
+  // Les écrans pensés pour un ordinateur (plateforme, brique 110 ; 14 § 2.6) : un dossier (sa saisie, sa révision,
+  // sa liasse, sa paie), les écritures, la production. Au téléphone (sous 760 points, la largeur où telephone.css
+  // prend la main), ils le disent sous leur titre. Ces écrans se dessinent souvent en deux temps (le serveur
+  // répond) : l'avis se pose quand l'en-tête paraît, et se repose si l'écran se redessine.
+  const ECRANS_ORDINATEUR = ['dossier', 'production', 'ecritures'];
+  let obsOrdinateur = null;
+  function bandeauOrdinateur(route) {
+    if (obsOrdinateur) { obsOrdinateur.disconnect(); obsOrdinateur = null; }
+    if (!ECRANS_ORDINATEUR.includes(route) || !window.matchMedia('(max-width: 760px)').matches) return;
+    const poser = () => {
+      if ($('#bandeau-ordinateur')) return;
+      const tete = $('#view .page-head');
+      if (tete) tete.insertAdjacentHTML('afterend', '<div class="banner info" id="bandeau-ordinateur"><span><b>Pensé pour un ordinateur.</b> Sur un téléphone, cet écran se lit, mais ses tableaux et sa saisie y sont à l\'étroit : pour saisir, préfère un grand écran.</span></div>');
+    };
+    obsOrdinateur = new MutationObserver(poser);
+    obsOrdinateur.observe($('#view'), { childList: true, subtree: true });
+    poser();
+  }
   function render() {
     const hash = location.hash.replace(/^#\//, '') || 'dossiers';
     const [route, arg] = hash.split('/');
@@ -1610,6 +1628,7 @@
     bandeauDemo();
     // « Guide-moi » dans l'en-tête de chaque écran (10.14.1, S-03) ; une page asynchrone le reçoit par
     // l'observateur, quand elle pose son en-tête.
+    bandeauOrdinateur(route);
     poserGuideMoi();
     // La première fois sur un écran, sa visite se propose — accrochée à « Guide-moi » (10.14.1).
     appelGuide();

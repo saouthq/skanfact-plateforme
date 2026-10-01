@@ -67,6 +67,11 @@
      laissaient 32 points : un mot par ligne (brique 105). */
   .pp-list li { grid-template-columns: 26px minmax(0, 1fr); }
   .pp-list li .pp-go { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; }
+
+  /* Le Cabinet (brique 110) : les quatre compteurs du portefeuille sur deux rangées (en une seule, « 2 clie… ») ;
+     les douze mois d'un dossier sur trois rangées de quatre (sur deux de six, « hors mission » débordait). */
+  .stats.rangee { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 /* La taille du doigt : au téléphone, et sur tout écran qu'on touche (une tablette au comptoir). */
@@ -91,4 +96,9 @@
 
   /* La caisse : le mode de paiement se choisit du doigt (brique 109). */
   .cs-mode { min-height: 44px; }
+
+  /* Le Cabinet (brique 110) : ce que fait le comptable dans un dossier (consulter, saisir, déclarer), et ce qui
+     manque à une fiche (« email à renseigner »), du doigt. */
+  .c-groupes button { min-height: 44px; }
+  .lien-manque { display: inline-flex; align-items: center; min-height: 44px; }
 }

@@ -7,7 +7,8 @@
   'use strict';
   function poser() {
     const barre = document.querySelector('.sidebar');
-    const tete = document.querySelector('.sidebar .brand-wrap');
+    // L'en-tête de la barre : celui de l'entreprise (`.brand-wrap`), ou la marque du Cabinet (brique 110).
+    const tete = document.querySelector('.sidebar .brand-wrap') || document.querySelector('.sidebar > .brand');
     if (!barre || !tete || tete.querySelector('.menu-tel')) return;
     const b = document.createElement('button');
     b.type = 'button';

@@ -1,0 +1,56 @@
+Le Cabinet au téléphone (brique 110 ; 14 § 2.6 : « Utilisables mais pensés pour l'ordinateur : la saisie
+comptable, la révision, la liasse, la paie complète. Sur un petit écran, ils le disent. »).
+Format : voir sans-paquets.mjs.
+
+La page du Cabinet ne chargeait pas la mise en page du téléphone (`telephone.css`, `telephone.js`) : sur un
+téléphone, sa barre latérale gardait sa largeur d'ordinateur et poussait la page hors de l'écran. Elle les charge
+maintenant, comme celle de l'entreprise ; et les écrans pensés pour un ordinateur (un dossier : sa saisie, sa
+révision, sa liasse, sa paie ; les écritures ; la production) le disent sous leur titre.
+
+── La page (cabinet/index.html) ──
+
+== cabinet/index.html | la mise en page du téléphone, la même que celle de l'entreprise
+-- avant
+</head>
+-- après
+  <link rel="stylesheet" href="../../plateforme/telephone.css">
+  <script src="../../plateforme/telephone.js"></script>
+</head>
+-- fin
+
+── Les écrans (cabinet/app.js) ──
+
+== cabinet/app.js | les écrans du Cabinet pensés pour un ordinateur
+-- avant
+  function render() {
+-- après
+  // Les écrans pensés pour un ordinateur (plateforme, brique 110 ; 14 § 2.6) : un dossier (sa saisie, sa révision,
+  // sa liasse, sa paie), les écritures, la production. Au téléphone (sous 760 points, la largeur où telephone.css
+  // prend la main), ils le disent sous leur titre. Ces écrans se dessinent souvent en deux temps (le serveur
+  // répond) : l'avis se pose quand l'en-tête paraît, et se repose si l'écran se redessine.
+  const ECRANS_ORDINATEUR = ['dossier', 'production', 'ecritures'];
+  let obsOrdinateur = null;
+  function bandeauOrdinateur(route) {
+    if (obsOrdinateur) { obsOrdinateur.disconnect(); obsOrdinateur = null; }
+    if (!ECRANS_ORDINATEUR.includes(route) || !window.matchMedia('(max-width: 760px)').matches) return;
+    const poser = () => {
+      if ($('#bandeau-ordinateur')) return;
+      const tete = $('#view .page-head');
+      if (tete) tete.insertAdjacentHTML('afterend', '<div class="banner info" id="bandeau-ordinateur"><span><b>Pensé pour un ordinateur.</b> Sur un téléphone, cet écran se lit, mais ses tableaux et sa saisie y sont à l\'étroit : pour saisir, préfère un grand écran.</span></div>');
+    };
+    obsOrdinateur = new MutationObserver(poser);
+    obsOrdinateur.observe($('#view'), { childList: true, subtree: true });
+    poser();
+  }
+  function render() {
+-- fin
+
+== cabinet/app.js | un écran du Cabinet pensé pour un ordinateur le dit au téléphone
+-- avant
+    poserGuideMoi();
+    // La première fois sur un écran, sa visite se propose — accrochée à « Guide-moi » (10.14.1).
+-- après
+    bandeauOrdinateur(route);
+    poserGuideMoi();
+    // La première fois sur un écran, sa visite se propose — accrochée à « Guide-moi » (10.14.1).
+-- fin

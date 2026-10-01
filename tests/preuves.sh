@@ -6018,6 +6018,33 @@ prouver "l'avis « pensée pour un ordinateur » posé aussi sur un ordinateur" 
   "!window.matchMedia('(max-width: 760px)').matches || " "" \
   "$TEL"
 
+# ── Brique 110 : le Cabinet au téléphone (web/v10/cabinet-telephone.txt ; tests/web/cabinet-telephone.test.ts) ──
+CTEL="les pages du Cabinet, sur un téléphone et un ordinateur"
+prouver "le Cabinet sans la mise en page du téléphone" web/public/v10/cabinet/index.html \
+  '  <link rel="stylesheet" href="../../plateforme/telephone.css">
+' "" \
+  "$CTEL"
+prouver "les compteurs du portefeuille écrasés sur une rangée au téléphone" web/public/plateforme/telephone.css \
+  "  .stats.rangee { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+" "" \
+  "$CTEL"
+prouver "les mois d'un dossier sur deux rangées de six au téléphone" web/public/plateforme/telephone.css \
+  "  .mgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+" "" \
+  "$CTEL"
+prouver "les gestes d'un dossier (consulter, saisir, déclarer) trop petits pour un doigt" web/public/plateforme/telephone.css \
+  "  .c-groupes button { min-height: 44px; }
+" "" \
+  "$CTEL"
+prouver "« email à renseigner » trop petit pour un doigt" web/public/plateforme/telephone.css \
+  "  .lien-manque { display: inline-flex; align-items: center; min-height: 44px; }
+" "" \
+  "$CTEL"
+prouver "un écran du Cabinet pensé pour un ordinateur qui ne le dit pas au téléphone" web/public/v10/cabinet/app.js \
+  "    bandeauOrdinateur(route);
+" "" \
+  "$CTEL"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
