@@ -82,6 +82,10 @@ describe('relire le dossier par différence', () => {
     const l5 = await lire(nadia.jeton, l4);
     expect(cles(l5)).toEqual(['clients/c1']);
     expect(l5.retires).toEqual([]);
+    // Un poste qui avait lu AVANT le retrait, et revient après la recréation : l'objet repart, jamais dit retiré.
+    const l5bis = await lire(nadia.jeton, l3);
+    expect(cles(l5bis)).toEqual(['clients/c1']);
+    expect(l5bis.retires).toEqual([]);
 
     // Une écriture encore en cours pendant la lecture : la lecture ne la voit pas, la suivante la rend.
     await admin.query('begin');
