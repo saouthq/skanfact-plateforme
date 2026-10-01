@@ -9310,6 +9310,9 @@
       // Récupérer la TVA suit le régime DU JOUR DE LA PIÈCE (10.14.0) : un forfaitaire la paie et ne
       // la déduit jamais ; la pièce le retient, un changement de régime ne la réécrit pas.
       tvaRecuperable: C.assujettiTVA(company()),
+      // La devise de la société, au taux de 1 (plateforme, brique 108) : le chargement la poserait de toute façon
+      // (`migrateData`), et ce retouchage partait du poste suivant comme un changement de la personne.
+      currency: company().currency || 'TND', exchangeRate: 1,
       payments: [], attachments: [], createdAt: Date.now()
     };
   }

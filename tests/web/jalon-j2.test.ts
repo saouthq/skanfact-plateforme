@@ -21,6 +21,7 @@ import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
+import { cliquer } from '../cliquer.ts';
 import { digigoSimule } from '../digigo-simule.ts';
 import { konnectSimule } from '../konnect-simule.ts';
 import { ttnSimulee } from '../ttn-simule.ts';
@@ -243,7 +244,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
 
     // 2. La banque : le compte courant ouvert, puis l'achat réglé depuis lui.
     await aller('#/tresorerie');
-    await nadia.locator('#new-acc').click();
+    await cliquer(nadia.locator('#new-acc'));
     await nadia.locator('#af input[name=name]').fill('BIAT — compte courant');
     await nadia.locator('#af [name=opening]').fill('5000');
     await nadia.locator('#modal-root #ok').click();
@@ -277,7 +278,8 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     await nadia.screenshot({ path: path.join(PHOTOS, 'j2-5-tva-du-mois.png') });
 
     // 4. Une coupure du réseau, sur l'ordinateur de Nadia (la copie gardée) : un client noté sans réseau part seul
-    //    à son retour.
+    //    à son retour, et s'annonce seul : l'achat fait plus tôt sur l'autre poste ne compte pas pour un changement
+    //    de plus (brique 108).
     const co = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
     await co.addInitScript(() => { if (navigator.storage) Object.assign(navigator.storage, { persist: async () => true, persisted: async () => true }); });
     await co.addInitScript((j) => {
@@ -296,7 +298,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     await poste.locator('#new').click();
     await poste.locator('#cf input[name=name]').fill('Ébénisterie Hors Réseau');
     await poste.locator('#modal-root #ok').click();
-    await expect.poll(async () => net(await poste.locator('#poste-bandeau').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/(Un changement attend|\d+ changements attendent) le réseau/);
+    await expect.poll(async () => net(await poste.locator('#poste-bandeau').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/Un changement attend le réseau/);
     await poste.screenshot({ path: path.join(PHOTOS, 'j2-6-coupure.png') });
     expect((await objets()).filter((o) => o.collection === 'clients').map((o) => o.contenu.name)).not.toContain('Ébénisterie Hors Réseau');
     await co.setOffline(false);

@@ -5996,6 +5996,12 @@ prouver "la facture du mois qui déborde au téléphone" web/public/v10/index.ht
 ' "" \
   "$J2B"
 
+# ── Brique 108 : le compte juste des changements en attente (web/v10/compte-hors-ligne.txt) ──
+prouver "un achat né sans sa devise, compté au poste suivant comme un changement de plus" web/public/v10/app.js \
+  "      currency: company().currency || 'TND', exchangeRate: 1,
+" "" \
+  "$J2B"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

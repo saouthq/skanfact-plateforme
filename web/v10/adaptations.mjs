@@ -653,4 +653,5 @@ export const ADAPTATIONS = [
   ...lireFichier('menu-role.txt'),
   ...lireFichier('lecture-seule.txt'),
   ...lireFichier('telephone.txt'),
+  ...lireFichier('compte-hors-ligne.txt'),
 ];

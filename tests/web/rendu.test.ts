@@ -28,10 +28,11 @@ const PHOTOS = path.join(RACINE, 'dist/photos');
 const titre = (cle: string, langue: Langue) => { const s = rendre(t(cle), langue); const i = s.search(/\p{L}/u); return s.slice(0, i) + s.charAt(i).toUpperCase() + s.slice(i + 1); };
 
 // Ce que l'instrument cherche dans la page ouverte. `cibles` : les cibles de 44 points ne s'exigent
-// qu'au doigt (le téléphone) sur les pages de la v10, dessinées pour la souris sur un ordinateur.
-function problemes(cibles: boolean): string[] {
+// qu'au doigt (le téléphone) sur les pages de la v10, dessinées pour la souris sur un ordinateur. `W` : la
+// largeur de l'écran. Pas `innerWidth` : un vrai téléphone dézoome une page trop large pour la faire tenir, et
+// `innerWidth` grandit avec elle ; mesurée contre lui, une page qui déborde ne débordait jamais (brique 108).
+function problemes([cibles, W]: [boolean, number]): string[] {
   const pb: string[] = [];
-  const W = window.innerWidth;
   if (document.documentElement.scrollWidth > W) pb.push(`la page déborde : ${document.documentElement.scrollWidth} points pour ${W}`);
   // Un élément dans un cadre qui défile de côté, ce cadre étant lui-même dans l'écran (la fonction tourne
   // dans la page : ce qu'elle emploie vit en elle).
@@ -153,7 +154,7 @@ describe('l\'instrument de rendu des écrans', () => {
             await contexte.close();
             continue;
           }
-          faux.push(...(await page.evaluate(problemes, largeur < 760)).map((x) => `${nom} : ${x}`));
+          faux.push(...(await page.evaluate(problemes, [largeur < 760, largeur] as [boolean, number])).map((x) => `${nom} : ${x}`));
           if (langue === 'factice') faux.push(...(await page.evaluate(horsCatalogue)).map((x) => `${nom} : hors catalogue : ${x}`));
           await page.screenshot({ path: path.join(PHOTOS, `${nom}.png`), fullPage: true });
           vus++;
@@ -230,7 +231,7 @@ describe('l\'instrument de rendu des écrans', () => {
         // Les fenêtres de bienvenue se ferment comme une personne le ferait.
         for (let i = 0; i < 3 && await page.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await page.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
         await page.waitForTimeout(300);
-        faux.push(...(await page.evaluate(problemes, largeur < 760)).map((x) => `${nom} : ${x}`));
+        faux.push(...(await page.evaluate(problemes, [largeur < 760, largeur] as [boolean, number])).map((x) => `${nom} : ${x}`));
         await page.screenshot({ path: path.join(PHOTOS, `${nom}.png`), fullPage: true });
         vus++;
       }

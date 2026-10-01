@@ -215,3 +215,19 @@ entreprise, crée un client sans réseau ; Nadia le retire ; son portable rouvre
 qui échoue n'efface rien, « Réessayer » remet, la copie et l'attente de l'épicerie s'effacent (celle de
 son entreprise reste), l'entrée ne la rouvrira plus sans réseau, et « Continuer » ouvre son entreprise ;
 Nadia voit la remise.
+
+## Brique 108 : le compte juste des changements en attente (fait le 01/10/2026)
+
+Sans réseau, le bandeau dit combien de changements attendent. Le parcours du jalon J2 a montré « 2 changements
+attendent le réseau » pour un seul client noté hors ligne. Le second était un achat fait plus tôt, sur l'autre
+poste : la v10 crée un achat sans sa devise et la lui pose au chargement suivant (`migrateData`, 10.1.0 : la
+devise de la société, au taux de 1). Sur le poste qui rouvrait le dossier, ce retouchage partait avec le premier
+enregistrement et se comptait comme un geste de la personne : une phrase affichée que rien ne tient.
+
+Un achat naît maintenant avec sa devise, comme le chargement la lui aurait posée (`web/v10/compte-hors-ligne.txt`) :
+rien ne change d'un millime, il n'y a plus rien à retoucher, et le bandeau dit « Un changement attend le réseau ».
+Le parcours J2 l'exige mot pour mot ; sa preuve retire la devise à la naissance de l'achat, et le parcours tombe.
+
+Un filtre plus large (ne pas compter une fiche qui n'a fait que changer de place dans sa liste) a été essayé puis
+retiré : il ne faisait rien tomber, donc rien ne le justifiait. D'autres retouchages du chargement pourraient
+exister sur d'autres objets anciens : chacun se corrige à la naissance de l'objet, quand un parcours le montre.

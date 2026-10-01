@@ -1,0 +1,21 @@
+Le compte juste des changements en attente (brique 108 ; 04 § 4.5 ; docs/hors-ligne.md).
+Format : voir sans-paquets.mjs.
+
+Sans réseau, le bandeau dit combien de changements attendent : un client noté hors ligne doit s'annoncer « Un
+changement attend le réseau », pas deux. Le second venait d'un achat fait plus tôt sur un autre poste : la v10
+crée un achat sans sa devise, et la lui pose au chargement suivant (`migrateData`, 10.1.0 : la devise de la
+société, au taux de 1). Sur le poste qui rouvre le dossier, ce retouchage partait avec le premier enregistrement,
+et se comptait comme un geste de la personne. Un achat naît maintenant avec sa devise, comme le chargement la
+lui aurait posée : rien ne change d'un millime, et il n'y a plus rien à retoucher.
+
+── Les écrans (app.js) ──
+
+== app.js | un achat naît avec sa devise, comme le chargement la lui poserait
+-- avant
+      tvaRecuperable: C.assujettiTVA(company()),
+-- après
+      tvaRecuperable: C.assujettiTVA(company()),
+      // La devise de la société, au taux de 1 (plateforme, brique 108) : le chargement la poserait de toute façon
+      // (`migrateData`), et ce retouchage partait du poste suivant comme un changement de la personne.
+      currency: company().currency || 'TND', exchangeRate: 1,
+-- fin

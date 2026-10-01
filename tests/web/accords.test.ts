@@ -16,6 +16,7 @@ import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
+import { cliquer } from '../cliquer.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -283,7 +284,7 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     await k.locator('[data-combo=clientId] .combo-list [role=option]').first().click();
     await k.locator('#cat-pick .combo-btn').click();
     await k.locator('#cat-pick .combo-q').fill('Ciment');
-    await k.locator('#cat-pick .combo-list [role=option]').first().click();
+    await cliquer(k.locator('#cat-pick .combo-list [role=option]').first(), '#cat-pick');
     await expect.poll(async () => k.locator('[data-k=unitPrice]').count(), { timeout: 5_000 }).toBeGreaterThan(0);
     const prix = k.locator('[data-k=unitPrice]');
     const n0 = await prix.count();
