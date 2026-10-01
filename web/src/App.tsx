@@ -33,6 +33,14 @@ const INVITATION = 'skanfact.invitation';
     history.replaceState(null, '', `${location.pathname}${q.size ? `?${q}` : ''}`);
   }
 }
+// L'adresse demandée avant la connexion (brique 127) : seulement une entreprise de la personne, dans la v10.
+const DESTINATION = 'skanfact.destination';
+function destination(siennes: { id: string }[]): { adresse: string; entreprise: string } | null {
+  let d: string | null = null;
+  try { d = sessionStorage.getItem(DESTINATION); sessionStorage.removeItem(DESTINATION); } catch { /* sans stockage : l'accueil */ }
+  const e = d ? /^\/v10\/\?e=([0-9a-f-]{36})(#\/.*)?$/.exec(d)?.[1] : undefined;
+  return d && e && siennes.some((x) => x.id === e) ? { adresse: d, entreprise: e } : null;
+}
 const invitation = {
   lire: () => { try { return sessionStorage.getItem(INVITATION); } catch { return null; } },
   oublier: () => { try { sessionStorage.removeItem(INVITATION); } catch { /* rien à oublier */ } },
@@ -112,6 +120,8 @@ export function App() {
     let retenue: string | null = null;
     try { retenue = localStorage.getItem(RETENUE); } catch { /* pas de mémoire : la première */ }
     const siennes = moi.entreprises.filter((x) => !x.parCabinet);
+    const demandee = destination(siennes);
+    if (demandee) { retenir(demandee.entreprise); location.assign(demandee.adresse); return; }
     const cabinet = moi.cabinets.find((x) => x.id === retenue);
     const e = siennes.find((x) => x.id === retenue) ?? siennes[0];
     if (cabinet) ouvrirCabinet(cabinet.id);

@@ -14,6 +14,7 @@ import type { Contexte } from '../connexion.ts';
 import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, lirePiece, modifierBrouillon, supprimerBrouillon, type BrouillonSaisi } from './pieces.ts';
 import { soldesDeFactures } from './reglements.ts';
+import { lienEcran, situationClient } from './situation.ts';
 import { payableEnLigne, vueEspace } from './espace.ts';
 import { motif, t } from '../../textes/index.ts';
 
@@ -94,12 +95,16 @@ export function routesVentes(ctx: Contexte): Route<never>[] {
       // Par ordre alphabétique ; la page suivante commence après le dernier client vu.
       const n = limite(query);
       const apres = depuisCurseur(query.apres, /^.+$/s);
-      const clients = await requetes(tx).selectFrom('socle.tiers').select(['id', 'raison_sociale', 'nature', 'identifiant', 'pays', 'devise'])
+      // (Brique 127) Retrouver un client par son matricule (ou son identifiant) : les espaces et la casse ne comptent pas.
+      const identifiant = query.identifiant ? query.identifiant.replace(/\s+/g, '').toUpperCase() : null;
+      const lignes = await requetes(tx).selectFrom('socle.tiers').select(['id', 'raison_sociale', 'nature', 'identifiant', 'pays', 'devise', 'ref_v10'])
         .where('entreprise', '=', params.entreprise ?? '').where(sql<boolean>`'client' = any(roles)`)
+        .$if(identifiant !== null, (q) => q.where(sql<boolean>`upper(regexp_replace(identifiant, '[[:space:]]', '', 'g')) = ${identifiant}`))
         .$if(apres !== null, (q) => q.where(sql<boolean>`(raison_sociale, id) > (${apres?.[0]}, ${apres?.[1]}::uuid)`))
         .orderBy('raison_sociale').orderBy('id').limit(n).execute();
-      const dernier = clients.at(-1);
-      return { corps: { clients, suite: clients.length === n && dernier ? versCurseur(dernier.raison_sociale, dernier.id) : null } };
+      const dernier = lignes.at(-1);
+      const clients = lignes.map(({ ref_v10, ...c }) => ({ ...c, ecran: lienEcran(params.entreprise ?? '', 'client', ref_v10) }));
+      return { corps: { clients, suite: lignes.length === n && dernier ? versCurseur(dernier.raison_sociale, dernier.id) : null } };
     },
   });
 
@@ -111,39 +116,84 @@ export function routesVentes(ctx: Contexte): Route<never>[] {
     methode: 'GET', chemin: '/entreprises/:entreprise/ventes', geste: 'ventes.pieces.voir',
     traiter: async ({ params, query }, tx) => {
       if (!tx) throw new Error('transaction attendue');
+      const ent = params.entreprise ?? '';
       const type = z.enum(TYPES_PIECE).safeParse(query.type ?? 'facture');
       if (!type.success) return { statut: 400, corps: { motif: motif('commun.champ_invalide', { champ: 'type', raison: t('champ.choix', { valeurs: TYPES_PIECE.join(', ') }) }), champ: 'type' } };
+      // (Brique 127) Les pièces d'un client ; et, pour les factures, celles qui restent à payer (`aPayer=1`).
+      const client = query.client ?? null;
+      if (client !== null && !idValide(client)) return { statut: 400, corps: { motif: motif('commun.champ_invalide', { champ: 'client', raison: t('champ.identifiant') }), champ: 'client' } };
+      const aPayer = query.aPayer === '1';
+      if (aPayer && type.data !== 'facture') return { statut: 400, corps: { motif: motif('commun.champ_invalide', { champ: 'aPayer', raison: t('champ.choix', { valeurs: 'type=facture' }) }), champ: 'aPayer' } };
       const n = limite(query);
-      const avant = depuisCurseur(query.avant, /^\d{4}-\d{2}-\d{2}$/);
-      const lignes = await requetes(tx).selectFrom('ventes.piece as p')
+      const lire = (avant: [string, string] | null, combien: number) => requetes(tx).selectFrom('ventes.piece as p')
         .innerJoin('socle.tiers as t', 't.id', 'p.tiers').innerJoin('socle.devise as d', 'd.code', 'p.devise')
-        .select(['p.id', 'p.type', 'p.statut', 'p.numero_texte', 'p.date_piece', 'p.objet', 'p.devise', 'd.symbole', 'd.decimales', 'p.net_a_payer'])
+        .select(['p.id', 'p.type', 'p.statut', 'p.numero_texte', 'p.date_piece', 'p.echeance', 'p.objet', 'p.devise', 'd.symbole', 'd.decimales', 'p.net_a_payer', 'p.ref_v10', 'p.tiers'])
         .select(sql<string>`coalesce(p.copie->'client'->>'raisonSociale', t.raison_sociale)`.as('client'))
-        .where('p.entreprise', '=', params.entreprise ?? '').where('p.type', '=', type.data)
+        .where('p.entreprise', '=', ent).where('p.type', '=', type.data)
+        .$if(client !== null, (q) => q.where('p.tiers', '=', client ?? ''))
         .$if(avant !== null, (q) => q.where(sql<boolean>`(p.date_piece, p.id) < (${avant?.[0]}::date, ${avant?.[1]}::uuid)`))
-        .orderBy('p.date_piece', 'desc').orderBy('p.id', 'desc').limit(n).execute();
-      const dernier = lignes.at(-1);
+        .orderBy('p.date_piece', 'desc').orderBy('p.id', 'desc').limit(combien).execute();
       // Ce qui reste à encaisser sur une facture émise : ses règlements et ses avoirs retranchés, par la
       // même fonction que la lecture d'une facture (serveur/ventes/reglements.ts).
-      const soldes = await soldesDeFactures(tx, params.entreprise ?? '', lignes.filter((l) => l.type === 'facture' && l.statut === 'emise' && l.net_a_payer !== null)
+      const restes = async (ls: Awaited<ReturnType<typeof lire>>) => soldesDeFactures(tx, ent, ls.filter((l) => l.type === 'facture' && l.statut === 'emise' && l.net_a_payer !== null)
         .map((l) => ({ id: l.id, net: l.net_a_payer ?? 0n })));
-      // Le compte de toute la liste, pour dire « 1–25 sur 443 » et le nombre de pages, comme la v10.
-      const { total } = await requetes(tx).selectFrom('ventes.piece').select((eb) => eb.fn.countAll<string>().as('total'))
-        .where('entreprise', '=', params.entreprise ?? '').where('type', '=', type.data).executeTakeFirstOrThrow();
+      let lignes: Awaited<ReturnType<typeof lire>>;
+      let soldes: Awaited<ReturnType<typeof restes>>;
+      let plein: boolean;
+      if (!aPayer) {
+        lignes = await lire(depuisCurseur(query.avant, /^\d{4}-\d{2}-\d{2}$/), n);
+        soldes = await restes(lignes);
+        plein = lignes.length === n;
+      } else {
+        // Celles qui doivent encore : lues par lots de la taille de la page, gardées tant qu'elle n'est pas pleine.
+        lignes = []; soldes = new Map(); plein = false;
+        let avant = depuisCurseur(query.avant, /^\d{4}-\d{2}-\d{2}$/);
+        for (;;) {
+          const lot = await lire(avant, n);
+          const s = await restes(lot);
+          for (const l of lot) {
+            if ((s.get(l.id)?.reste ?? 0n) <= 0n) continue;
+            lignes.push(l); soldes.set(l.id, s.get(l.id) as NonNullable<ReturnType<typeof s.get>>);
+            if (lignes.length === n) break;
+          }
+          if (lignes.length === n) { plein = true; break; }
+          const fin = lot.at(-1);
+          if (lot.length < n || !fin) break;
+          avant = [fin.date_piece, fin.id];
+        }
+      }
+      const dernier = lignes.at(-1);
+      // Le compte de toute la liste, pour dire « 1–25 sur 443 » et le nombre de pages, comme la v10 ; pas pour
+      // celles qui restent à payer (il faudrait toutes les relire).
+      const total = aPayer ? null : Number((await requetes(tx).selectFrom('ventes.piece').select((eb) => eb.fn.countAll<string>().as('total'))
+        .where('entreprise', '=', ent).where('type', '=', type.data).$if(client !== null, (q) => q.where('tiers', '=', client ?? '')).executeTakeFirstOrThrow()).total);
       return {
         corps: {
           lignes: lignes.map((l) => {
             const net = l.net_a_payer === null ? null : versTexte(l.net_a_payer, l.decimales);
             return {
-              id: l.id, type: l.type, statut: l.statut, numero: l.numero_texte, datePiece: l.date_piece, client: l.client, objet: l.objet,
-              devise: l.devise, symbole: l.symbole, netAPayer: net,
+              id: l.id, type: l.type, statut: l.statut, numero: l.numero_texte, datePiece: l.date_piece, echeance: l.echeance, client: l.client, clientId: l.tiers,
+              objet: l.objet, devise: l.devise, symbole: l.symbole, netAPayer: net,
               reste: soldes.has(l.id) ? versTexte(soldes.get(l.id)?.reste ?? 0n, l.decimales) : net,
+              ecran: lienEcran(ent, 'doc', l.ref_v10),
             };
           }),
-          suite: lignes.length === n && dernier ? versCurseur(dernier.date_piece, dernier.id) : null,
-          total: Number(total),
+          suite: plein && dernier ? versCurseur(dernier.date_piece, dernier.id) : null,
+          total,
         },
       };
+    },
+  });
+
+  // La situation d'un client en un appel (brique 127 ; docs/api-situation.md) : reste dû, dont échu, retard, dernier
+  // règlement ; pour la console d'un partenaire qui lit la facturation de SkanFact.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/clients/:client/situation', geste: 'ventes.pieces.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      if (!idValide(params.client)) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
+      const s = await situationClient(tx, params.entreprise ?? '', params.client ?? '');
+      return s ? { corps: s } : { statut: 404, corps: { motif: motif('commun.introuvable') } };
     },
   });
 

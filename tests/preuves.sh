@@ -1202,7 +1202,7 @@ prouver "une liste de factures dans le désordre" serveur/ventes/routes.ts \
   ".orderBy('p.date_piece', 'desc').orderBy('p.id', 'desc')" ".orderBy('p.id', 'asc')" \
   "$LI"
 prouver "une dernière page qui annonce une suite" serveur/ventes/routes.ts \
-  "suite: lignes.length === n && dernier ? versCurseur(dernier.date_piece, dernier.id) : null," "suite: dernier ? versCurseur(dernier.date_piece, dernier.id) : null," \
+  "        plein = lignes.length === n;" "        plein = true;" \
   "$LI"
 prouver "une page de clients qui oublie l'identifiant (deux du même nom)" serveur/ventes/routes.ts \
   '(raison_sociale, id) > (${apres?.[0]}, ${apres?.[1]}::uuid)' 'raison_sociale > ${apres?.[0]}' \
@@ -6743,6 +6743,135 @@ prouver "un Z passé qui ne se rouvre pas" web/public/v10/app.js \
 prouver "le poste de la caisse rouvert par une caissière relais, sans son nom" serveur/caisse/routes.ts \
   "        (select appareil_nom from caisse.session where entreprise = \$2 and appareil = \$1 order by ouverte_le desc limit 1), '—') nom\`" "        null, '—') nom\`" \
   "$CR"
+
+# Brique 127 : ce que la console d'un partenaire lit de la facturation (docs/api-situation.md, S1 à S5).
+SIT="les factures à payer, la situation, le client retrouvé par son matricule, les liens des écrans"
+prouver "un matricule cherché avec ses espaces" serveur/ventes/routes.ts \
+  "query.identifiant.replace(/\\s+/g, '').toUpperCase()" "query.identifiant.toUpperCase()" \
+  "$SIT"
+prouver "un matricule cherché en minuscules" serveur/ventes/routes.ts \
+  ".replace(/\\s+/g, '').toUpperCase() : null" ".replace(/\\s+/g, '') : null" \
+  "$SIT"
+prouver "un matricule rangé avec ses espaces" serveur/ventes/routes.ts \
+  "upper(regexp_replace(identifiant, '[[:space:]]', '', 'g'))" "upper(identifiant)" \
+  "$SIT"
+prouver "un matricule rangé en minuscules" serveur/ventes/routes.ts \
+  "upper(regexp_replace(identifiant, '[[:space:]]', '', 'g'))" "regexp_replace(identifiant, '[[:space:]]', '', 'g')" \
+  "$SIT"
+prouver "le matricule cherché ignoré" serveur/ventes/routes.ts \
+  "        .\$if(identifiant !== null, (q) => q.where(sql<boolean>\`upper(regexp_replace(identifiant, '[[:space:]]', '', 'g')) = \${identifiant}\`))
+" "" \
+  "$SIT"
+prouver "un client sans le lien de son écran" serveur/ventes/routes.ts \
+  "ecran: lienEcran(params.entreprise ?? '', 'client', ref_v10)" "ecran: null" \
+  "$SIT"
+prouver "un client mal écrit qui fait tomber la liste des pièces" serveur/ventes/routes.ts \
+  "      if (client !== null && !idValide(client)) return" "      if (client !== null && false) return" \
+  "$SIT"
+prouver "« à payer » accepté sur des devis" serveur/ventes/routes.ts \
+  "      if (aPayer && type.data !== 'facture') return" "      if (false) return" \
+  "$SIT"
+prouver "« à payer » qui garde les factures réglées" serveur/ventes/routes.ts \
+  "            if ((s.get(l.id)?.reste ?? 0n) <= 0n) continue;
+" "" \
+  "$SIT"
+prouver "« à payer » qui déborde de la page" serveur/ventes/routes.ts \
+  "            if (lignes.length === n) break;
+" "" \
+  "$SIT"
+prouver "« à payer » qui relit le même lot" serveur/ventes/routes.ts \
+  "          avant = [fin.date_piece, fin.id];" "" \
+  "$SIT"
+prouver "« à payer » sans page suivante" serveur/ventes/routes.ts \
+  "          if (lignes.length === n) { plein = true; break; }" "          if (lignes.length === n) break;" \
+  "$SIT"
+prouver "un brouillon chiffré compté à payer" serveur/ventes/routes.ts \
+  "ls.filter((l) => l.type === 'facture' && l.statut === 'emise' && l.net_a_payer !== null)" "ls.filter((l) => l.type === 'facture' && l.net_a_payer !== null)" \
+  "$SIT"
+prouver "un nombre annoncé pour « à payer » sans les avoir comptées" serveur/ventes/routes.ts \
+  "const total = aPayer ? null : Number(" "const total = Number(" \
+  "$SIT"
+prouver "le nombre des pièces d'un client qui compte celles des autres" serveur/ventes/routes.ts \
+  ".where('type', '=', type.data).\$if(client !== null, (q) => q.where('tiers', '=', client ?? '')).executeTakeFirstOrThrow()" ".where('type', '=', type.data).executeTakeFirstOrThrow()" \
+  "$SIT"
+prouver "les pièces d'un client mêlées à celles des autres" serveur/ventes/routes.ts \
+  "        .\$if(client !== null, (q) => q.where('p.tiers', '=', client ?? ''))
+" "" \
+  "$SIT"
+prouver "une facture listée sans son échéance" serveur/ventes/routes.ts \
+  "echeance: l.echeance, " "" \
+  "$SIT"
+prouver "une facture listée sans son client" serveur/ventes/routes.ts \
+  "clientId: l.tiers," "" \
+  "$SIT"
+prouver "une facture listée sans le lien de son écran" serveur/ventes/routes.ts \
+  "              ecran: lienEcran(ent, 'doc', l.ref_v10),
+" "" \
+  "$SIT"
+prouver "une situation demandée pour un identifiant mal écrit qui fait tomber le serveur" serveur/ventes/routes.ts \
+  "      if (!idValide(params.client)) return { statut: 404" "      if (false) return { statut: 404" \
+  "$SIT"
+prouver "la situation d'un fournisseur" serveur/ventes/situation.ts \
+  ".where('id', '=', client).where(sql<boolean>\`'client' = any(roles)\`).executeTakeFirst()" ".where('id', '=', client).executeTakeFirst()" \
+  "$SIT"
+prouver "la situation qui compte un brouillon" serveur/ventes/situation.ts \
+  ".where('p.type', '=', 'facture').where('p.statut', '=', 'emise')" ".where('p.type', '=', 'facture')" \
+  "$SIT"
+prouver "la situation qui compte les factures d'un autre client" serveur/ventes/situation.ts \
+  ".where('p.entreprise', '=', entreprise).where('p.tiers', '=', client).where('p.type', '=', 'facture')" ".where('p.entreprise', '=', entreprise).where('p.type', '=', 'facture')" \
+  "$SIT"
+prouver "la situation qui compte une facture réglée" serveur/ventes/situation.ts \
+  "    if (reste <= 0n) continue;
+" "" \
+  "$SIT"
+prouver "les euros additionnés aux dinars" serveur/ventes/situation.ts \
+  "    parDevise.set(f.devise, d);" "    parDevise.set('TND', d);" \
+  "$SIT"
+prouver "une facture échue le jour même de son échéance" serveur/ventes/situation.ts \
+  "f.echeance && f.echeance < aujourdhui" "f.echeance && f.echeance <= aujourdhui" \
+  "$SIT"
+prouver "le retard compté depuis la dernière échue" serveur/ventes/situation.ts \
+  "      if (!retard) retard =" "      retard =" \
+  "$SIT"
+prouver "les échéances lues dans le désordre" serveur/ventes/situation.ts \
+  "    .orderBy('p.echeance').execute();" "    .execute();" \
+  "$SIT"
+prouver "le retard compté à l'envers" serveur/ventes/situation.ts \
+  "joursEntre(f.echeance, aujourdhui)" "joursEntre(aujourdhui, f.echeance)" \
+  "$SIT"
+prouver "le retard sans le lien de son écran" serveur/ventes/situation.ts \
+  "ecran: lienEcran(entreprise, 'doc', f.ref_v10) };" "ecran: null };" \
+  "$SIT"
+prouver "le plus vieux règlement donné pour le dernier" serveur/ventes/situation.ts \
+  ".orderBy('r.date_reglement', 'desc')" ".orderBy('r.date_reglement', 'asc')" \
+  "$SIT"
+prouver "deux règlements du même jour : le premier saisi donné pour le dernier" serveur/ventes/situation.ts \
+  ".orderBy('r.id', 'desc')" ".orderBy('r.id', 'asc')" \
+  "$SIT"
+prouver "le dernier règlement d'un autre client" serveur/ventes/situation.ts \
+  ".where('r.entreprise', '=', entreprise).where('p.tiers', '=', client)" ".where('r.entreprise', '=', entreprise)" \
+  "$SIT"
+prouver "un lien d'écran inventé pour ce qui n'est pas né des écrans" serveur/ventes/situation.ts \
+  "(ref ? \`/v10/?e=\${entreprise}#/\${vue}/\${ref}\` : null)" "\`/v10/?e=\${entreprise}#/\${vue}/\${ref}\`" \
+  "$SIT"
+prouver "le lien de l'écran sans l'entreprise" serveur/ventes/situation.ts \
+  "\`/v10/?e=\${entreprise}#/\${vue}/\${ref}\` : null" "\`/v10/#/\${vue}/\${ref}\` : null" \
+  "$SIT"
+
+LE="la connexion ramène à la facture du lien, dans son entreprise ; le lien d'une autre entreprise mène à l'accueil habituel"
+prouver "le lien d'écran oublié avant la connexion" web/public/plateforme/pont.js \
+  "    if (!jeton && ent) try { sessionStorage.setItem('skanfact.destination', location.pathname + location.search + location.hash); } catch { /* sans stockage : l'accueil */ }
+" "" \
+  "$LE"
+prouver "le lien d'écran suivi vers l'entreprise d'un autre" web/src/App.tsx \
+  "return d && e && siennes.some((x) => x.id === e) ? { adresse: d, entreprise: e } : null;" "return d && e ? { adresse: d, entreprise: e } : null;" \
+  "$LE"
+prouver "le lien d'écran suivi sans retenir son entreprise" web/src/App.tsx \
+  "    if (demandee) { retenir(demandee.entreprise); location.assign(demandee.adresse); return; }" "    if (demandee) { location.assign(demandee.adresse); return; }" \
+  "$LE"
+prouver "le lien d'écran qui colle à toutes les visites suivantes" web/src/App.tsx \
+  "d = sessionStorage.getItem(DESTINATION); sessionStorage.removeItem(DESTINATION);" "d = sessionStorage.getItem(DESTINATION);" \
+  "$LE"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

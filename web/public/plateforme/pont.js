@@ -19,8 +19,12 @@
   try { jeton = sessionStorage.getItem('skanfact.jeton') || localStorage.getItem('skanfact.jeton'); } catch { /* stockage refusé : pas de session */ }
   /** @type {any} */ const poste = /** @type {any} */ (window).SkanPoste;
   const ent = new URLSearchParams(location.search).get('e');
-  // Sans session ou sans entreprise, retour à la connexion.
-  if (!jeton || !ent || !/^[0-9a-f-]{36}$/.test(ent)) { location.replace('/'); return; }
+  // Sans session ou sans entreprise, retour à la connexion. Sans session, l'adresse demandée (le lien d'une facture
+  // venu d'une console partenaire, brique 127) se garde dans l'onglet : la connexion y ramène.
+  if (!jeton || !ent || !/^[0-9a-f-]{36}$/.test(ent)) {
+    if (!jeton && ent) try { sessionStorage.setItem('skanfact.destination', location.pathname + location.search + location.hash); } catch { /* sans stockage : l'accueil */ }
+    location.replace('/'); return;
+  }
 
   /** @param {string} methode @param {string} chemin @param {unknown} [corps] */
   async function appel(methode, chemin, corps) {
