@@ -75,4 +75,9 @@
      laissaient 32 points : un mot par ligne (brique 105). */
   .pp-list li { grid-template-columns: 26px minmax(0, 1fr); }
   .pp-list li .pp-go { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; }
+
+  /* Ce que seules des données dessinent (brique 106 : l'instrument mesurait des pages vides) : les en-têtes de
+     colonne qui trient, et le nom d'un client dans une liste de l'accueil, à la taille du doigt. */
+  th.sortable-h { height: 44px; }
+  #view a.name { display: inline-flex; align-items: center; min-height: 44px; }
 }

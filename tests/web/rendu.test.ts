@@ -176,10 +176,38 @@ describe('l\'instrument de rendu des écrans', () => {
     { nom: 'parametres', hash: '#/parametres', titre: /^Paramètres/ },
     // Le responsable décide d'un accord depuis son téléphone (brique 100).
     { nom: 'accords', hash: '#/accords', titre: /^Demandes d'accord/ },
+    // Les autres pages du quotidien (brique 106 ; 14 § 2.6) : vendre, encaisser, acheter, suivre.
+    { nom: 'devis', hash: '#/devis', titre: /^Devis/ },
+    { nom: 'relances', hash: '#/relances', titre: /^Relances/ },
+    { nom: 'catalogue', hash: '#/catalogue', titre: /^(Catalogue|Prestations|Articles)/ },
+    { nom: 'achats', hash: '#/achats', titre: /^Achats/ },
+    { nom: 'fournisseurs', hash: '#/fournisseurs', titre: /^Fournisseurs/ },
+    { nom: 'stock', hash: '#/stock', titre: /^Stock/ },
+    { nom: 'tresorerie', hash: '#/tresorerie', titre: /^Trésorerie/ },
+    { nom: 'paie', hash: '#/paie', titre: /^Paie/ },
+    { nom: 'compta', hash: '#/compta', titre: /^Comptabilit/ },
   ];
 
   it('les pages du quotidien de la v10, sur un téléphone et un ordinateur : aucune ne défile de côté, rien ne sort de l\'écran, et au doigt tout se touche', async () => {
     const d = await personne('prete');
+    // Des données qui dessinent les tableaux (brique 106) : sur une entreprise vide, chaque page montre son état
+    // vide, et l'instrument ne mesure aucun tableau. Une facture émise, un devis, un achat, un salarié, un article.
+    const aujourdhui = new Date().toISOString().slice(0, 10);
+    await api('GET', `/entreprises/${d.ent}/dossier-v10`, d.jeton);
+    const client = { id: 'c-rendu', name: 'Société Méditerranéenne de Matériaux de Construction', address: 'Zone industrielle, Sfax', matricule: '1234567A/M/A/000' };
+    const ligne = { label: 'Ciment gris 50 kg — livraison sur chantier', description: '', qty: 12, unit: 'sac', unitPrice: 25, vatRate: 19, itemId: 'ciment' };
+    const ecrit = await api('POST', `/entreprises/${d.ent}/dossier-v10`, d.jeton, { changements: [
+      { collection: 'clients', cle: client.id, rang: 9, revision: null, contenu: client },
+      { collection: 'catalog', cle: 'ciment', rang: 0, revision: null, contenu: { id: 'ciment', label: 'Ciment gris 50 kg', unit: 'sac', unitPrice: 25, vatRate: 19, tracked: true, initialQty: 100 } },
+      { collection: 'documents', cle: 'dv1', rang: 0, revision: null, contenu: { id: 'dv1', type: 'devis', number: 'DEV-2026-001', status: 'envoyé', date: aujourdhui, clientId: client.id, createdAt: 1, lines: [ligne], discountRate: 0, withholdingRate: 0, payments: [] } },
+      { collection: 'suppliers', cle: 's1', rang: 0, revision: null, contenu: { id: 's1', name: 'Les Ciments de Bizerte' } },
+      { collection: 'purchases', cle: 'p1', rang: 0, revision: null, contenu: { id: 'p1', kind: 'facture', number: 'CB-2026-0457', supplierId: 's1', date: aujourdhui, createdAt: 1, lines: [{ ...ligne, unitPrice: 18, destination: 'stock' }], payments: [] } },
+      { collection: 'employees', cle: 'e1', rang: 0, revision: null, contenu: { id: 'e1', name: 'Sami Trabelsi', firstName: 'Sami', lastName: 'Trabelsi', grossSalary: 1450, hireDate: '2025-01-15' } },
+    ] });
+    expect(ecrit.objets ?? ecrit.revisions ?? ecrit).toBeTruthy();
+    const emise = await api('POST', `/entreprises/${d.ent}/dossier-v10/emettre`, d.jeton, { document: { id: 'f-rendu', type: 'facture', number: '', status: 'brouillon', date: aujourdhui, clientId: client.id, createdAt: 2,
+      lines: [ligne], discountRate: 0, withholdingRate: 0, applyStamp: false, currency: 'DT', payments: [] }, client, revision: null, rang: 1, netAPayer: '357.000' });
+    expect(String((emise.contenu as Record<string, unknown> | undefined)?.number ?? emise.motif)).toMatch(/^FAC-/);
     const faux: string[] = [];
     let vus = 0;
     for (const largeur of [390, 1440]) {

@@ -304,7 +304,9 @@
     les deux pages de la v10 disent leur largeur (`<meta name="viewport">`, `web/v10/telephone.txt`) : sans elle,
     un vrai téléphone les affichait comme un ordinateur réduit, et l'instrument de rendu (qui ne simulait
     qu'une fenêtre étroite) ne le voyait pas. Il simule maintenant un vrai téléphone (`isMobile`), et repère
-    un texte écrasé (plus de 60 lettres dans moins de 140 points).
+    un texte écrasé (plus de 60 lettres dans moins de 140 points). Depuis la brique 106 il passe 16 pages du
+    quotidien, sur une entreprise qui a des données (une facture émise, un devis, un achat, un salarié) :
+    sur des pages vides, il ne mesurait aucun tableau.
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première
     fois) : les seuls écrans écrits pour la plateforme, en React (`web/src`), à l'habillage de la
     v10 ; leurs phrases viennent du catalogue. Le jeton de session vit dans l'onglet
