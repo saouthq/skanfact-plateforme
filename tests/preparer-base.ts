@@ -33,7 +33,10 @@ export default async function preparer(projet: TestProject) {
   const c = new pg.Client({ connectionString: admin });
   await c.connect();
   await c.query(`drop database if exists ${BASE} with (force)`);
-  await c.query(`create database ${BASE}`);
+  // Une langue qui ignore la ponctuation en rangeant (« _racine » après « accounts »), comme la base « en_US » de
+  // GitHub et de bien des serveurs : un code qui dépendrait de l'ordre de la base tombe ici aussi, pas seulement là-bas
+  // (le compte Konnect supprimé du jalon J2, vu le 01/10/2026, ne se voyait pas avec la langue « C » d'ici).
+  await c.query(`create database ${BASE} template template0 locale_provider icu icu_locale 'en-US-u-ka-shifted'`);
   const mdp = randomBytes(18).toString('base64url');
   await c.query(`do $$ begin
       if exists (select from pg_roles where rolname = '${COMPTE}') then execute 'drop owned by ${COMPTE}'; execute 'drop role ${COMPTE}'; end if;

@@ -10,13 +10,14 @@
 // Un nombre non entier arrive en texte exact ({ "~n": "450.5" }) : jamais de nombre à virgule en base.
 
 import { createHash } from 'node:crypto';
+import { sql } from 'kysely';
 import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { Perimee, Refus } from '../erreurs.ts';
 import { REGLEMENTS_VENTES, tenirReglements } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonSaisi } from '../ventes/pieces.ts';
-import { controlerEncours, controlerRemise } from './accords.ts';
+import { controlerCommandes, controlerEncours, controlerRemise } from './accords.ts';
 import { mesRoles, verifierEcriture } from './droits.ts';
 import { suivreAchats } from './achats.ts';
 import { suivrePaie } from './paie.ts';
@@ -117,9 +118,13 @@ async function amorcer(tx: Transaction, entreprise: string, utilisateur: string)
   for (const t of tiers) await db.updateTable('socle.tiers').set({ ref_v10: t.id }).where('id', '=', t.id).execute();
 }
 
+// Les champs de la racine d'abord, puis les listes, dans un ordre qui ne dépend pas de la langue de la base : une
+// base en « en_US » ignore le « _ » et rangeait « _racine » après « accounts » ou « catalog » ; la liste vide qu'un
+// écran avait enregistrée là (`_racine/accounts` = []) passait alors après les objets de la liste, et la page ne les
+// voyait plus (puis les supprimait en enregistrant : le compte Konnect du jalon J2).
 export async function lireDossier(tx: Transaction, entreprise: string, utilisateur: string): Promise<Objet[]> {
   const lire = () => requetes(tx).selectFrom('socle.dossier_v10').select(['collection', 'cle', 'rang', 'contenu', 'revision'])
-    .where('entreprise', '=', entreprise).orderBy('collection').orderBy('rang').orderBy('cle').execute();
+    .where('entreprise', '=', entreprise).orderBy(sql`collection <> '_racine'`).orderBy(sql`collection collate "C"`).orderBy('rang').orderBy(sql`cle collate "C"`).execute();
   let lignes = await lire();
   if (!lignes.length) { await amorcer(tx, entreprise, utilisateur); lignes = await lire(); }
   return lignes.map((l) => ({ collection: l.collection, cle: l.cle, rang: l.rang, contenu: l.contenu, revision: Number(l.revision) }));
@@ -141,6 +146,10 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   }
   // Rien n'est écrit tant qu'un seul objet a changé ailleurs : on ne mélange jamais deux versions.
   if (conflits.length) throw new Conflit(conflits);
+  // Une commande fournisseur qui part au-delà du seuil de l'entreprise : l'accord d'un responsable (brique 114).
+  if (!options.serveur) {
+    await controlerCommandes(tx, entreprise, changements.map((c) => ({ collection: c.collection, cle: c.cle, avant: actuels.get(`${c.collection}/${c.cle}`)?.contenu ?? null, apres: c.contenu })));
+  }
   const resultat: { collection: string; cle: string; revision: number | null }[] = [];
   for (const c of changements) {
     const a = actuels.get(`${c.collection}/${c.cle}`);

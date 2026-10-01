@@ -87,6 +87,9 @@
   `droits.responsable` grise à l'écran ce que la base refuserait.
   La remise (brique 103, `0054`) : `remiseAccordAuDela` (%) sur la fiche ; geste `remise` (taux, seuil en centièmes de
   %) ; `controlerRemise` avant `controlerEncours` ; la pièce émise porte `accordRemise`.
+  La commande fournisseur (brique 114, `0055`) : `commandeAccordAuDela` (HT, devise de l'entreprise) ; geste `commande`
+  (`client_v10` = le fournisseur, `plafond` = le seuil) ; `controlerCommandes` dans `appliquer` refuse « envoyée »
+  au-delà sans accord (une commande déjà partie qui ne grossit pas passe) ; `montantCommandeFournisseur` de `core.js`.
 - **Les droits dans le dossier** (brique 99, `docs/droits-dossier.md`, `serveur/v10/droits.ts`) : chaque partie du
   dossier a un geste pour la lire et un pour l'écrire ; le GET filtre et rend `droits` (`cachees`, `lectureSeule`,
   `ecrivables`, `tout`, `responsable`) ; `appliquer` refuse une partie interdite ; `pont.js` ne renvoie que la liste blanche (ni
@@ -133,6 +136,10 @@
     révision que la PAGE a eue (`base`), pas avec la dernière lecture du serveur : un objet qu'elle n'a jamais
     eu ne se supprime pas, un objet changé ailleurs fait un conflit au lieu d'être écrasé (vu en CI : le compte
     Konnect créé par le serveur supprimé par la page ; `tests/web/enregistrement-concurrent.test.ts`).
+    **L'ordre du dossier reçu** (01/10/2026, § 4 ter) : la vraie cause des rouges vus seulement en CI était la langue
+    de la base (« en_US » range « _racine » après « accounts ») : une liste vide restée à la racine recouvrait ses
+    objets. Le serveur rend la racine d'abord (rangée en « C »), `assembler` pose la racine d'abord, et la base des
+    tests range comme « en_US » (ICU `en-US-u-ka-shifted`, `tests/preparer-base.ts`). Jamais d'ordre de base supposé.
   - **Le tableau de bord du groupe** (brique 113, `docs/groupe.md`) : depuis le menu des entreprises, les sociétés de
     la personne côte à côte, avec les chiffres de leurs livres (70, 411, 401, classe 5) et un total par devise ; une
     société sans les livres pour son rôle est nommée sans chiffres. La consolidation vient en vague 4.

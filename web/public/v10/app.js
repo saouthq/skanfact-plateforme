@@ -6520,8 +6520,8 @@
   // attendre, puis les relisent.
   let accordsVus = null;
   const accordsEnLigne = () => !!bridge.accords;
-  // L'entreprise demande-t-elle un accord (au-delà de l'encours, ou d'une remise) ?
-  const accordRegle = () => company().encoursAccord === true || Number(company().remiseAccordAuDela) > 0;
+  // L'entreprise demande-t-elle un accord (au-delà de l'encours, d'une remise, ou d'une commande fournisseur) ?
+  const accordRegle = () => company().encoursAccord === true || Number(company().remiseAccordAuDela) > 0 || Number(company().commandeAccordAuDela) > 0;
   // Le propriétaire ou un administrateur : il règle les seuils et décide des accords (sans point de contact : tout).
   function estResponsable() {
     const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
@@ -6539,11 +6539,21 @@
   // Une pièce peut avoir deux demandes : l'encours, la remise (brique 103) ; `geste` choisit, sans lui la première.
   const accordDe = (pieceId, geste) => (accordsVus && accordsVus.accords.find(a => a.piece === pieceId && (!geste || (a.geste || 'encours') === geste))) || null;
   const tauxAccord = n => `${(Number(n) / 100).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} %`;
-  // Ce que porte une demande, en mots : les chiffres de l'encours, ou ceux de la remise.
+  // Ce que porte une demande, en mots : les chiffres de l'encours, de la remise, ou de la commande fournisseur.
   const chiffresAccord = a => a.geste === 'remise'
     ? `une remise de ${tauxAccord(a.taux)} (${tauxAccord(a.seuil)} permis sans accord)`
-    : `${montantAccord(a.montant)} pour cette facture, ${montantAccord(a.encours)} déjà dus, ${montantAccord(a.plafond)} autorisés`;
-  const pieceEncoreBrouillon = id => { const d = docById(id); return !!d && !(d.number && d.status && d.status !== 'brouillon'); };
+    : a.geste === 'commande'
+      ? `${montantAccord(a.montant)} hors taxes, ${montantAccord(a.plafond)} permis sans accord`
+      : `${montantAccord(a.montant)} pour cette facture, ${montantAccord(a.encours)} déjà dus, ${montantAccord(a.plafond)} autorisés`;
+  // Une pièce qui attend encore sa décision : une facture en brouillon, une commande fournisseur pas encore partie.
+  const pieceEncoreBrouillon = (id, geste) => {
+    if (geste === 'commande') { const o = (data.supplierOrders || []).find(x => x.id === id); return !!o && o.status !== 'envoyée'; }
+    const d = docById(id); return !!d && !(d.number && d.status && d.status !== 'brouillon');
+  };
+  // Le tiers d'une demande : le client d'une facture, le fournisseur d'une commande.
+  const tiersAccord = a => (a.geste === 'commande' ? (data.suppliers || []).find(x => x.id === a.client) : clientById(a.client)) || null;
+  // Où s'ouvre la pièce d'une demande.
+  const lienAccord = a => (a.geste === 'commande' ? '#/commandef/' : '#/doc/') + a.piece;
 
   // Le serveur a refusé l'émission faute d'accord : on propose de le demander. La facture reste en brouillon.
   async function demanderAccordPour(doc, e, persist) {
@@ -6562,17 +6572,19 @@
 
   // Décider : accorder tout de suite ; refuser en disant pourquoi (facultatif : la personne le lira).
   function deciderAccord(id, decision, fini) {
+    // Une commande fournisseur (brique 114) part ; une facture s'émet.
+    const cmd = !!(accordsVus && accordsVus.accords.some(x => x.id === id && x.geste === 'commande'));
     const envoyer = async motif => {
       try {
         await bridge.deciderAccord(id, decision, motif);
-        toast(decision === 'accorder' ? 'Accordé : la facture peut maintenant être émise.' : 'Refusé : la facture reste en brouillon.');
+        toast(decision === 'accorder' ? (cmd ? 'Accordé : la commande peut maintenant partir.' : 'Accordé : la facture peut maintenant être émise.') : (cmd ? 'Refusé : la commande ne part pas.' : 'Refusé : la facture reste en brouillon.'));
       } catch (x) { toast(plainError(x), true); }
       try { await lireAccords(); } catch { /* la page se relira */ }
       fini();
     };
     if (decision === 'accorder') { envoyer(''); return; }
     modal(`<h2>Refuser la demande d'accord</h2>
-      <p>La facture reste en brouillon. La personne qui a demandé voit ton refus, et ce que tu écris ici.</p>
+      <p>${cmd ? 'La commande ne part pas.' : 'La facture reste en brouillon.'} La personne qui a demandé voit ton refus, et ce que tu écris ici.</p>
       <label class="field">Pourquoi (facultatif)<textarea id="ac-motif" maxlength="500" placeholder="Par exemple : qu'il règle d'abord la facture de juillet"></textarea></label>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-danger" id="ac-ok">Refuser</button></div>`,
       (root, close) => {
@@ -6624,19 +6636,21 @@
     const l = accordsVus;
     if (!l) return '';
     const attente = l.peutDecider ? l.accords.filter(a => a.statut === 'en_attente' && !a.mienne) : [];
-    const nom = a => (clientById(a.client) || {}).name || 'un client';
+    const nom = a => (tiersAccord(a) || {}).name || (a.geste === 'commande' ? 'un fournisseur' : 'un client');
     if (attente.length) {
       const a = attente[0];
-      return `<div class="banner info lock-banner" id="accords-attente"><span><b>${attente.length > 1 ? `${attente.length} demandes d'accord attendent` : 'Une demande d\'accord attend'} ta décision</b> : ${h(a.demandeur)} voudrait ${a.geste === 'remise' ? `accorder une remise de ${tauxAccord(a.taux)} à ${h(nom(a))} (${tauxAccord(a.seuil)} permis sans accord)` : `émettre une facture de ${montantAccord(a.montant)} pour ${h(nom(a))}, au-delà de son encours autorisé`}${attente.length > 1 ? ', et d\'autres' : ''}. ${info('doc.encoursAccord')}</span>
+      return `<div class="banner info lock-banner" id="accords-attente"><span><b>${attente.length > 1 ? `${attente.length} demandes d'accord attendent` : 'Une demande d\'accord attend'} ta décision</b> : ${h(a.demandeur)} voudrait ${a.geste === 'remise' ? `accorder une remise de ${tauxAccord(a.taux)} à ${h(nom(a))} (${tauxAccord(a.seuil)} permis sans accord)` : a.geste === 'commande' ? `envoyer à ${h(nom(a))} une commande de ${montantAccord(a.montant)} hors taxes (${montantAccord(a.plafond)} permis sans accord)` : `émettre une facture de ${montantAccord(a.montant)} pour ${h(nom(a))}, au-delà de son encours autorisé`}${attente.length > 1 ? ', et d\'autres' : ''}. ${info('doc.encoursAccord')}</span>
         <span class="lock-go"><button class="btn btn-sm" id="accords-voir">${attente.length > 1 ? 'Voir les demandes' : 'Voir la demande'}</button></span></div>`;
     }
     const semaine = Date.now() - 7 * 864e5;
-    const decidee = l.accords.find(a => a.mienne && a.statut !== 'en_attente' && new Date(a.decideLe).getTime() > semaine && pieceEncoreBrouillon(a.piece));
+    const decidee = l.accords.find(a => a.mienne && a.statut !== 'en_attente' && new Date(a.decideLe).getTime() > semaine && pieceEncoreBrouillon(a.piece, a.geste));
     if (!decidee) return '';
+    const cmd = decidee.geste === 'commande';
+    const quoi = cmd ? `commande chez ${h(nom(decidee))}` : `${decidee.geste === 'remise' ? 'remise' : 'facture'} pour ${h(nom(decidee))}`;
     return `<div class="banner info lock-banner" id="accords-decidee"><span>${decidee.statut === 'accorde'
-      ? `<b>${h(decidee.decideur)} a accordé</b> ta ${decidee.geste === 'remise' ? 'remise' : 'facture'} pour ${h(nom(decidee))} : tu peux l'émettre.`
-      : `<b>${h(decidee.decideur)} a refusé</b> ta ${decidee.geste === 'remise' ? 'remise' : 'facture'} pour ${h(nom(decidee))}${decidee.motif ? ` : « ${h(decidee.motif)} »` : ''}. Elle reste en brouillon.`}</span>
-      <span class="lock-go"><button class="btn btn-sm" id="accords-ouvrir" data-piece="${h(decidee.piece)}">Ouvrir la facture</button></span></div>`;
+      ? `<b>${h(decidee.decideur)} a accordé</b> ta ${quoi} : tu peux ${cmd ? 'l\'envoyer' : 'l\'émettre'}.`
+      : `<b>${h(decidee.decideur)} a refusé</b> ta ${quoi}${decidee.motif ? ` : « ${h(decidee.motif)} »` : ''}. Elle reste en brouillon.`}</span>
+      <span class="lock-go"><button class="btn btn-sm" id="accords-ouvrir" data-lien="${h(lienAccord(decidee))}">${cmd ? 'Ouvrir la commande' : 'Ouvrir la facture'}</button></span></div>`;
   }
   function bandeauAccordsAccueil() {
     if (!accordsEnLigne()) return '';
@@ -6646,12 +6660,84 @@
         if (!el) return;
         el.innerHTML = contenuAccueilAccords();
         if ($('#accords-voir', el)) $('#accords-voir', el).onclick = () => navigate('#/accords');
-        if ($('#accords-ouvrir', el)) $('#accords-ouvrir', el).onclick = () => navigate('#/doc/' + $('#accords-ouvrir', el).dataset.piece);
+        if ($('#accords-ouvrir', el)) $('#accords-ouvrir', el).onclick = () => navigate($('#accords-ouvrir', el).dataset.lien);
       };
       poser();
       lireAccords().then(poser, () => { /* sans réseau : ce qu'on avait lu reste */ });
     }, 0);
     return `<div id="accords-accueil">${contenuAccueilAccords()}</div>`;
+  }
+
+  // ── La commande fournisseur au-delà du montant permis sans accord (plateforme, brique 114 ; 03 D11) ──
+  // La même règle que le serveur (`controlerCommandes`) : le propriétaire et l'administrateur commandent sans accord ;
+  // une commande déjà partie qui ne grossit pas passe ; sinon, au-delà du seuil, il faut un accord pour au moins ce
+  // montant. Ses chiffres (dans la devise de l'entreprise), ou null.
+  function commandeSansAccord(o, avant) {
+    if (!accordsEnLigne() || estResponsable() || !o || o.status !== 'envoyée') return null;
+    const seuil = Number(company().commandeAccordAuDela) || 0;
+    const montant = C.montantCommandeFournisseur(o, company());
+    if (!(seuil > 0) || !(montant > seuil)) return null;
+    if (avant && avant.status === 'envoyée' && montant <= C.montantCommandeFournisseur(avant, company())) return null;
+    const a = accordDe(o.id, 'commande');
+    const entier = Math.round(montant * Math.pow(10, C.decimalsFor(company().currency)));
+    if (a && a.statut === 'accorde' && Number(a.montant) >= entier) return null;
+    return { montant, seuil };
+  }
+  // La commande ne part pas encore : on propose de demander l'accord (elle reste enregistrée telle qu'elle était).
+  async function proposerAccordCommande(o, besoin, apres) {
+    const dev = company().currency;
+    const c = await choiceDialog('Demander l\'accord d\'un responsable ?', `La commande ${o.number || ''} fait ${C.money(besoin.montant, dev)} hors taxes, au-delà des ${C.money(besoin.seuil, dev)} permis sans accord : elle ne part pas encore. Le propriétaire ou un administrateur voit ta demande sur son accueil ; tu l'envoies dès qu'il l'accorde.`,
+      'Demander l\'accord', null, 'Pas maintenant', { id: 'accord-question' });
+    if (c !== 'a') return;
+    try {
+      const r = await bridge.demanderAccordCommande(deepCopy(o));
+      toast(`Accord demandé${r.responsables && r.responsables.length ? ' à ' + r.responsables.join(', ') : ''} : la commande partira dès qu'il sera donné.`);
+    } catch (x) { toast(plainError(x), true); return; }
+    try { await lireAccords(); } catch { /* le bandeau se relira à la prochaine ouverture */ }
+    apres();
+  }
+  // Sur une commande : où en est sa demande (et, pour le responsable, les deux gestes).
+  function contenuBandeauCommande(id) {
+    const a = accordDe(id, 'commande');
+    if (!a) return '';
+    const chiffres = chiffresAccord(a);
+    const o = (data.supplierOrders || []).find(x => x.id === id) || {};
+    if (a.statut === 'en_attente' && !a.mienne && accordsVus.peutDecider) {
+      return `<div class="banner info lock-banner"><span><b>${h(a.demandeur)} demande ton accord</b> pour envoyer cette commande : ${chiffres}. ${info('doc.commandeAccord')}</span>
+        <span class="lock-go">${boutonsDecision(a)}</span></div>`;
+    }
+    if (a.statut === 'en_attente') {
+      return `<div class="banner info lock-banner"><span><b>Accord demandé</b> le ${h(instantAccord(a.demandeLe))}${a.mienne ? '' : ` par ${h(a.demandeur)}`} (${chiffres}) : en attente du propriétaire ou d'un administrateur. La commande partira une fois l'accord donné. ${info('doc.commandeAccord')}</span></div>`;
+    }
+    if (a.statut === 'accorde') {
+      return `<div class="banner info lock-banner"><span><b>Accordée par ${h(a.decideur)}</b> le ${h(instantAccord(a.decideLe))}, pour ${montantAccord(a.montant)} hors taxes : ${o.status === 'envoyée' ? 'la commande est partie.' : 'la commande peut partir.'} Si elle grossit, l'accord est à redemander. ${info('doc.commandeAccord')}</span>
+        ${o.status === 'envoyée' ? '' : '<span class="lock-go"><button class="btn btn-sm" id="cf-envoyer">Marquer envoyée</button></span>'}</div>`;
+    }
+    return `<div class="banner info lock-banner"><span><b>Refusée par ${h(a.decideur)}</b> le ${h(instantAccord(a.decideLe))}${a.motif ? ` : « ${h(a.motif)} »` : ''}. La commande ne part pas : réduis-la, ou redemande l'accord plus tard. ${info('doc.commandeAccord')}</span></div>`;
+  }
+  // `envoyer` : le geste de la page, quand l'accord est donné (le statut « Envoyée », puis Enregistrer) ; `relu` : la
+  // page redit ce qui dépend des demandes (l'avertissement sous les totaux) une fois qu'elles sont lues.
+  function bandeauAccordCommande(o, envoyer, relu) {
+    if (!accordsEnLigne()) return '';
+    setTimeout(() => {
+      const poser = () => {
+        const el = $('#accord-banner');
+        if (!el || el.dataset.piece !== o.id) return;
+        el.innerHTML = contenuBandeauCommande(o.id);
+        brancherDecisions(el, poser);
+        if ($('#cf-envoyer', el)) $('#cf-envoyer', el).onclick = envoyer;
+        relu();
+      };
+      poser();
+      lireAccords().then(poser, () => { /* sans réseau : ce qu'on avait lu reste */ });
+    }, 0);
+    return `<div id="accord-banner" data-piece="${h(o.id)}">${contenuBandeauCommande(o.id)}</div>`;
+  }
+  // Avant le geste : la commande dépasse le montant permis sans accord (sans accord qui la couvre).
+  function avisAccordCommande(o, avant) {
+    if (!o || o.status === 'demande') return '';
+    const b = commandeSansAccord({ ...o, status: 'envoyée' }, avant);
+    return b ? `<p class="small warn-text mt" id="cf-accord-avis">Cette commande fait ${h(C.money(b.montant, company().currency))} hors taxes, au-delà des ${h(C.money(b.seuil, company().currency))} permis sans accord : elle ne part (« Envoyée ») qu'avec l'accord du propriétaire ou d'un administrateur. En l'enregistrant, tu pourras le demander. ${info('doc.commandeAccord')}</p>` : '';
   }
   function templateForm(tpl, done) {
     const t = deepCopy(tpl);
@@ -8901,6 +8987,7 @@
           ${stored ? `<div class="more"><button class="btn" id="more-btn" aria-label="Autres actions">Plus ▾</button><div class="more-list" id="more-list" hidden>
             <button id="cf-del" class="danger">Supprimer</button></div></div>` : ''}
         </div></div>
+      ${stored ? bandeauAccordCommande(stored, () => { $('[name=status]', $('#cf-head')).value = 'envoyée'; $('#save').click(); }, () => totaux()) : ''}
       <div class="panel"><h2>La ${quoi} ${info('cf.head')}</h2>
         <form id="cf-head" class="grid-3">
           <div class="field">${lbl('Fournisseur', 'cf.fournisseur')}
@@ -8920,6 +9007,7 @@
         <div class="lignes-cadre"><table class="lines-edit buy-lines"><thead><tr><th>Désignation</th><th class="r">Qté</th><th>Unité</th><th class="r">P.U. HT</th><th>TVA</th><th class="r">Total HT</th><th></th></tr></thead>
           <tbody id="cf-lines"></tbody></table></div>
         <div class="totals-box" id="cf-totals"></div>
+        <div id="cf-accord"></div>
       </div>
       ${suivi && suivi.receptions.length ? `<div class="panel" id="receptions-panel"><h2>Réceptions ${info('cf.receptions')}</h2>
         <div class="scroll-x"><table class="list compact"><thead><tr><th>Désignation</th><th class="r">Commandé</th><th class="r">Reçu</th><th class="r">Reste</th></tr></thead><tbody>
@@ -8949,6 +9037,8 @@
         <tr><td>TVA</td><td>${h(C.money(t.totalVAT, cur))}</td></tr>
         <tr class="grand"><td>Total TTC</td><td>${h(C.money(t.totalTTC, cur))}</td></tr></table>`;
       $$('#cf-lines tr').forEach((tr, i) => { const l = o.lines[i]; const c = tr.querySelector('[data-ht]'); if (l && c) c.textContent = C.money(C.round3((Number(l.qty) || 0) * (Number(l.unitPrice) || 0)), cur); });
+      // Au-delà du montant permis sans accord, la page le dit avant le geste (brique 114).
+      $('#cf-accord').innerHTML = avisAccordCommande(o, stored);
     };
     const dessinerLignes = () => {
       $('#cf-lines').innerHTML = o.lines.map((l, i) => `<tr>
@@ -8989,6 +9079,8 @@
     tete.addEventListener('change', e => {
       touch();
       if (e.target.name === 'currency') { cur = e.target.value; $('#cf-rate').hidden = cur === company().currency; $('#cf-rate-dev').textContent = cur; o.currency = cur; totaux(); }
+      if (e.target.name === 'status') { o.status = e.target.value; totaux(); }
+      if (e.target.name === 'exchangeRate') { o.exchangeRate = Number(e.target.value) || ''; totaux(); }
     });
     $('#cf-notes').oninput = touch;
     const lire = () => {
@@ -9004,9 +9096,14 @@
       if (!o.lines.some(l => Number(l.qty) > 0)) { toast('Ajoute au moins une ligne à commander, avec sa quantité.', true); if (!o.lines.length) o.lines.push({ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19 }); dessinerLignes(); return false; }
       if (o.currency !== company().currency && !(Number(o.exchangeRate) > 0)) { toast(`Saisis le taux de change : 1 ${o.currency} = combien de ${company().currency} ?`, true); $('[name=exchangeRate]').focus(); return false; }
       if (!o.number) o.number = C.numeroSuivant(data, commandesF(), 'BCF', o.date);
+      // Au-delà du montant permis sans accord, elle ne part pas : elle s'enregistre telle qu'elle était, et la page
+      // propose de demander l'accord (brique 114 ; le serveur refuserait de l'envoyer).
+      const besoin = commandeSansAccord(o, stored);
+      if (besoin) o.status = stored && stored.status !== 'envoyée' ? stored.status : 'brouillon';
       const i = commandesF().findIndex(x => x.id === o.id);
       if (i >= 0) commandesF()[i] = deepCopy(o); else commandesF().push(deepCopy(o));
       save(true);
+      if (besoin) setTimeout(() => proposerAccordCommande({ ...commandeFById(o.id), status: 'envoyée' }, besoin, () => render(true)), 0);
       dirty = false;
       clearGuard(garde);
       return true;
@@ -9041,6 +9138,9 @@
       const d = commandeFById(id); if (!d) return;
       const sansPrix = (d.lines || []).filter(l => Number(l.qty) > 0 && !(Number(l.unitPrice) > 0));
       if (sansPrix.length) return toast(`Saisis d'abord le prix que ${supplierName(d.supplierId)} t'a répondu pour ${sansPrix.map(l => l.label || 'une ligne').join(', ')} : une commande part avec ses prix.`, true);
+      // Au-delà du montant permis sans accord, la demande ne devient pas encore la commande (brique 114).
+      const besoin = commandeSansAccord({ ...d, status: 'envoyée' }, d);
+      if (besoin) return proposerAccordCommande({ ...d, status: 'envoyée' }, besoin, () => render(true));
       const autres = C.demandesDuGroupe(data, d).filter(x => x.id !== d.id);
       d.status = 'envoyée';
       autres.forEach(x => { x.status = 'annulée'; x.nonRetenue = true; });
@@ -13149,28 +13249,30 @@
         $('#view').innerHTML = `${tete}<div class="panel"><p class="small muted">Lecture des demandes…</p></div>`;
       } else if (!l.accords.length) {
         $('#view').innerHTML = `${tete}${etatVide('Aucune demande d\'accord', [
-          'Quand l\'entreprise le demande, une facture qui ferait dépasser l\'encours autorisé d\'un client, ou dont la remise dépasse celle permise, ne s\'émet par un commercial qu\'avec l\'accord du propriétaire ou d\'un administrateur. Les demandes arrivent ici, et sur l\'accueil du responsable.',
+          'Quand l\'entreprise le demande, une facture qui ferait dépasser l\'encours autorisé d\'un client, ou dont la remise dépasse celle permise, ne s\'émet par un commercial qu\'avec l\'accord du propriétaire ou d\'un administrateur ; de même une commande fournisseur au-delà du montant permis ne part qu\'avec son accord. Les demandes arrivent ici, et sur l\'accueil du responsable.',
           accordRegle() ? 'L\'accord est demandé : rien n\'attend pour l\'instant.' : 'Pour l\'instant, SkanFact avertit seulement : l\'accord se règle dans Paramètres → Documents.',
         ], !accordRegle() && l.peutDecider ? [['ac-regler', 'Régler l\'accord…', true]] : [])}`;
         if ($('#ac-regler')) $('#ac-regler').onclick = () => allerParametres('documents', 'p-facturation');
       } else {
         const lignes = l.accords.map(a => {
-          const d = docById(a.piece);
+          const d = a.geste === 'commande' ? (data.supplierOrders || []).find(x => x.id === a.piece) : docById(a.piece);
           // Une pièce faite sur un autre poste depuis l'ouverture de celui-ci n'y est pas encore : on le dit, et le geste.
-          const piece = d ? `<a href="#/doc/${h(a.piece)}">${h(d.number || 'Brouillon')}</a>`
+          const piece = d ? `<a href="${h(lienAccord(a))}">${h(d.number || 'Brouillon')}</a>`
             : '<span class="muted small">pas encore sur ce poste</span> <button type="button" class="btn btn-sm" data-recharger-accords>Recharger</button>';
           const decision = a.statut === 'en_attente'
             ? (l.peutDecider && !a.mienne ? `<span class="inline">${boutonsDecision(a)}</span>` : '<span class="muted">En attente</span>')
             : `${a.statut === 'accorde' ? 'Accordée' : '<span class="warn-text">Refusée</span>'} par ${h(a.decideur)} le ${h(instantAccord(a.decideLe))}${a.motif ? `<div class="small muted">« ${h(a.motif)} »</div>` : ''}`;
-          return `<tr data-accord="${h(a.id)}"><td class="nw">${h(instantAccord(a.demandeLe))}</td><td class="nw">${piece}</td><td>${h((clientById(a.client) || {}).name || '—')}</td>
+          return `<tr data-accord="${h(a.id)}"><td class="nw">${h(instantAccord(a.demandeLe))}</td><td class="nw">${piece}</td><td>${h((tiersAccord(a) || {}).name || '—')}</td>
             ${a.geste === 'remise'
               ? `<td class="num nw">remise ${tauxAccord(a.taux)}</td><td class="num nw">—</td><td class="num nw">${tauxAccord(a.seuil)} sans accord</td>`
+              : a.geste === 'commande'
+              ? `<td class="num nw">${montantAccord(a.montant)} HT</td><td class="num nw">—</td><td class="num nw">${montantAccord(a.plafond)} sans accord</td>`
               : `<td class="num nw">${montantAccord(a.montant)}</td><td class="num nw">${montantAccord(a.encours)}</td><td class="num nw">${montantAccord(a.plafond)}</td>`}
             <td>${h(a.demandeur)}</td><td>${decision}</td></tr>`;
         }).join('');
         $('#view').innerHTML = `${tete}<div class="panel">
           <p class="small muted mb">${l.peutDecider ? 'Accorde ou refuse : un accord couvre le montant demandé ; une facture qui grossit ensuite redemande l\'accord. On ne décide jamais sa propre demande.' : 'Le propriétaire ou un administrateur décide. Une facture accordée s\'émet depuis sa page.'}</p>
-          <div class="scroll-x"><table class="list compact"><thead><tr><th>Demandée le</th><th>Facture</th><th>Client</th><th class="num">Cette facture</th><th class="num">Déjà dus</th><th class="num">Autorisé</th><th>Demandée par</th><th>Décision</th></tr></thead>
+          <div class="scroll-x"><table class="list compact"><thead><tr><th>Demandée le</th><th>Pièce</th><th>Client ou fournisseur</th><th class="num">Montant</th><th class="num">Déjà dus</th><th class="num">Autorisé</th><th>Demandée par</th><th>Décision</th></tr></thead>
           <tbody>${lignes}</tbody></table></div>
           ${l.accords.length >= 50 ? '<p class="small muted mt">Les 50 demandes les plus récentes.</p>' : ''}</div>`;
         brancherDecisions($('#view'), dessiner);
@@ -16266,6 +16368,7 @@
           ${field(lbl('Validité des devis (jours)', 'doc.quoteValidity'), 'quoteValidityDays', c.quoteValidityDays, 'number', 'min="0" class="num"')}
           ${field(lbl('Délai de paiement (jours)', 'doc.paymentDays'), 'paymentTermsDays', c.paymentTermsDays, 'number', 'min="0" class="num"')}
           ${accordsEnLigne() ? `<label class="check" style="align-self:end"${estResponsable() ? '' : ' title="Réglé par le propriétaire ou un administrateur"'}><input type="checkbox" name="encoursAccord" ${c.encoursAccord ? 'checked' : ''}${estResponsable() ? '' : ' disabled'}> Au-delà de l'encours d'un client : l'accord d'un responsable ${info('doc.encoursAccord')}</label>` : ''}
+          ${accordsEnLigne() ? field(lbl(`Commande fournisseur permise sans accord (HT, ${h(c.currency || 'DT')})`, 'doc.commandeAccord'), 'commandeAccordAuDela', Number(c.commandeAccordAuDela) > 0 ? c.commandeAccordAuDela : '', 'number', `step="0.001" min="0" class="num" placeholder="aucun seuil"${estResponsable() ? '' : ' disabled title="Réglé par le propriétaire ou un administrateur"'}`) : ''}
           ${accordsEnLigne() ? field(lbl('Remise permise sans accord (%)', 'doc.remiseAccord'), 'remiseAccordAuDela', Number(c.remiseAccordAuDela) > 0 ? c.remiseAccordAuDela : '', 'number', `step="0.01" min="0" max="100" class="num" placeholder="aucun seuil"${estResponsable() ? '' : ' disabled title="Réglé par le propriétaire ou un administrateur"'}`) : ''}
           <label class="field">${lbl('Retenue à la source par défaut', 'doc.withholdingDefault')}${withholdingSelect('defaultWithholdingRate', c.defaultWithholdingRate)}</label>
           ${/* 10.12.0 — « 0 » affiché dans le champ se lisait « un seuil de zéro dinar », c'est-à-dire
@@ -16626,6 +16729,8 @@
       data.company.encoursAccord = data.company.encoursAccord === true;
       // La remise permise sans accord (brique 103) : vide ou zéro, pas de seuil ; jamais plus de 100 %.
       data.company.remiseAccordAuDela = Math.min(100, Math.max(0, Number(data.company.remiseAccordAuDela) || 0));
+      // Le montant d'une commande fournisseur permis sans accord (brique 114) : vide ou zéro, pas de seuil.
+      data.company.commandeAccordAuDela = Math.max(0, Number(data.company.commandeAccordAuDela) || 0);
       save(true); applyTheme(); $('#brand-company').textContent = data.company.name || 'Ton entreprise';
       accorderNomDossier();     // le dossier porte le nom de la société, pas « Mon entreprise »
       // La licence est attachée au matricule fiscal : une fiche société modifiée se revérifie.

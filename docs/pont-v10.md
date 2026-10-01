@@ -90,6 +90,28 @@ suit chaque envoi réussi et chaque pièce émise ; un objet que la page a à l'
 donné) prend la révision du serveur. Un objet que la page n'a jamais eu ne se supprime pas ; un objet changé ailleurs
 part avec la révision d'avant, et le serveur le refuse : conflit, fusion, rien d'écrasé.
 
+## 4 ter. L'ordre du dossier reçu (01/10/2026)
+
+La vraie cause des trois rouges vus seulement chez GitHub (l'article invisible de `tests/web/accords.test.ts`, le compte
+Konnect supprimé du jalon J2, la suppression qui ne partait pas de `tests/web/enregistrement-concurrent.test.ts`) : la
+**langue de la base**. Une liste vide s'enregistre à la racine (`_racine/accounts` = []) ; quand un objet y entre par
+un autre chemin (le serveur crée le compte Konnect, un test pose un article), la liste vide reste. Le serveur rendait
+le dossier rangé par `collection` : avec la langue « C » d'ici, « _racine » vient avant « accounts » ; avec « en_US »
+(la base de GitHub, et de bien des serveurs), la ponctuation est ignorée et « _racine » vient **après** « accounts » et
+« catalog ». La liste vide arrivait après ses objets et les recouvrait : la page ne les voyait pas, et son
+enregistrement suivant les supprimait (le point de contact, lui, les avait dans `vu`).
+
+La règle, des deux côtés :
+- le serveur rend la racine d'abord, puis les listes, rangées en « C » (`lireDossier`) : un ordre qui ne dépend pas
+  de la base ;
+- le point de contact assemble la racine d'abord, quel que soit l'ordre reçu : une liste vide ne recouvre jamais les
+  objets de sa liste ;
+- la base des tests range désormais comme « en_US » (ICU, la ponctuation ignorée : `tests/preparer-base.ts`) : ce qui
+  dépendrait de l'ordre de la base tombe ici aussi.
+
+Tests : `tests/v10/ordre-dossier.test.ts` (la racine d'abord), `tests/web/ordre-dossier.test.ts` (la réponse remise
+exprès dans le pire ordre : la page voit le compte et l'article, et son enregistrement ne supprime rien).
+
 ## 5. Reste à faire (connu, écrit ici pour ne pas l'oublier)
 
 - **Les PDF** : `exportPdfSilent` et `exportPdfMany` ne font rien ; un envoi par mail ou WhatsApp

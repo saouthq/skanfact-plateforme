@@ -139,6 +139,11 @@ serveur tient au millime (seule la facture du fournisseur en est une).
     const s = suiviCommandeFournisseur(data, commande);
     return s.recue ? 'reçue' : s.partielle ? 'partielle' : st;
   }
+  // Le montant d'une commande pour l'accord d'un responsable (brique 114 ; 03 D11) : son total hors taxes, ramené
+  // dans la devise de l'entreprise. Le serveur compare le même chiffre, avec ce code, au seuil de l'entreprise.
+  function montantCommandeFournisseur(commande, company) {
+    return toBase(commande, computeTotals(commande, company).netHT, company);
+  }
   // La réception suivante d'une commande : ce qui reste à recevoir, et rien d'autre. Rien à recevoir : null.
   function receptionDeCommande(data, commande, todayIso) {
     const s = suiviCommandeFournisseur(data, commande);
@@ -428,7 +433,7 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
 -- après
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
-    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard, encoursClient, depassementEncours,
+    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard, montantCommandeFournisseur, encoursClient, depassementEncours,
 -- fin
 
 ── Les écrans (app.js) ──
@@ -645,6 +650,7 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
           ${stored ? `<div class="more"><button class="btn" id="more-btn" aria-label="Autres actions">Plus ▾</button><div class="more-list" id="more-list" hidden>
             <button id="cf-del" class="danger">Supprimer</button></div></div>` : ''}
         </div></div>
+      ${stored ? bandeauAccordCommande(stored, () => { $('[name=status]', $('#cf-head')).value = 'envoyée'; $('#save').click(); }, () => totaux()) : ''}
       <div class="panel"><h2>La ${quoi} ${info('cf.head')}</h2>
         <form id="cf-head" class="grid-3">
           <div class="field">${lbl('Fournisseur', 'cf.fournisseur')}
@@ -664,6 +670,7 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
         <div class="lignes-cadre"><table class="lines-edit buy-lines"><thead><tr><th>Désignation</th><th class="r">Qté</th><th>Unité</th><th class="r">P.U. HT</th><th>TVA</th><th class="r">Total HT</th><th></th></tr></thead>
           <tbody id="cf-lines"></tbody></table></div>
         <div class="totals-box" id="cf-totals"></div>
+        <div id="cf-accord"></div>
       </div>
       ${suivi && suivi.receptions.length ? `<div class="panel" id="receptions-panel"><h2>Réceptions ${info('cf.receptions')}</h2>
         <div class="scroll-x"><table class="list compact"><thead><tr><th>Désignation</th><th class="r">Commandé</th><th class="r">Reçu</th><th class="r">Reste</th></tr></thead><tbody>
@@ -693,6 +700,8 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
         <tr><td>TVA</td><td>${h(C.money(t.totalVAT, cur))}</td></tr>
         <tr class="grand"><td>Total TTC</td><td>${h(C.money(t.totalTTC, cur))}</td></tr></table>`;
       $$('#cf-lines tr').forEach((tr, i) => { const l = o.lines[i]; const c = tr.querySelector('[data-ht]'); if (l && c) c.textContent = C.money(C.round3((Number(l.qty) || 0) * (Number(l.unitPrice) || 0)), cur); });
+      // Au-delà du montant permis sans accord, la page le dit avant le geste (brique 114).
+      $('#cf-accord').innerHTML = avisAccordCommande(o, stored);
     };
     const dessinerLignes = () => {
       $('#cf-lines').innerHTML = o.lines.map((l, i) => `<tr>
@@ -733,6 +742,8 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
     tete.addEventListener('change', e => {
       touch();
       if (e.target.name === 'currency') { cur = e.target.value; $('#cf-rate').hidden = cur === company().currency; $('#cf-rate-dev').textContent = cur; o.currency = cur; totaux(); }
+      if (e.target.name === 'status') { o.status = e.target.value; totaux(); }
+      if (e.target.name === 'exchangeRate') { o.exchangeRate = Number(e.target.value) || ''; totaux(); }
     });
     $('#cf-notes').oninput = touch;
     const lire = () => {
@@ -748,9 +759,14 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
       if (!o.lines.some(l => Number(l.qty) > 0)) { toast('Ajoute au moins une ligne à commander, avec sa quantité.', true); if (!o.lines.length) o.lines.push({ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19 }); dessinerLignes(); return false; }
       if (o.currency !== company().currency && !(Number(o.exchangeRate) > 0)) { toast(`Saisis le taux de change : 1 ${o.currency} = combien de ${company().currency} ?`, true); $('[name=exchangeRate]').focus(); return false; }
       if (!o.number) o.number = C.numeroSuivant(data, commandesF(), 'BCF', o.date);
+      // Au-delà du montant permis sans accord, elle ne part pas : elle s'enregistre telle qu'elle était, et la page
+      // propose de demander l'accord (brique 114 ; le serveur refuserait de l'envoyer).
+      const besoin = commandeSansAccord(o, stored);
+      if (besoin) o.status = stored && stored.status !== 'envoyée' ? stored.status : 'brouillon';
       const i = commandesF().findIndex(x => x.id === o.id);
       if (i >= 0) commandesF()[i] = deepCopy(o); else commandesF().push(deepCopy(o));
       save(true);
+      if (besoin) setTimeout(() => proposerAccordCommande({ ...commandeFById(o.id), status: 'envoyée' }, besoin, () => render(true)), 0);
       dirty = false;
       clearGuard(garde);
       return true;
@@ -785,6 +801,9 @@ from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery not
       const d = commandeFById(id); if (!d) return;
       const sansPrix = (d.lines || []).filter(l => Number(l.qty) > 0 && !(Number(l.unitPrice) > 0));
       if (sansPrix.length) return toast(`Saisis d'abord le prix que ${supplierName(d.supplierId)} t'a répondu pour ${sansPrix.map(l => l.label || 'une ligne').join(', ')} : une commande part avec ses prix.`, true);
+      // Au-delà du montant permis sans accord, la demande ne devient pas encore la commande (brique 114).
+      const besoin = commandeSansAccord({ ...d, status: 'envoyée' }, d);
+      if (besoin) return proposerAccordCommande({ ...d, status: 'envoyée' }, besoin, () => render(true));
       const autres = C.demandesDuGroupe(data, d).filter(x => x.id !== d.id);
       d.status = 'envoyée';
       autres.forEach(x => { x.status = 'annulée'; x.nonRetenue = true; });

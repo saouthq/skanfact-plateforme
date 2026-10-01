@@ -103,7 +103,7 @@ Test : `tests/web/menu-role.test.ts` (Karim, commercial ; Leila, paie), 4 preuve
 - **TEJ** (attestations de retenue, `05` § 3.3) : le cahier des charges officiel (TEJ-CCT-RS-V2.0) est publié sur
   jibaya.tn, inaccessible depuis la session de travail : le format reste **À VÉRIFIER** avant d'écrire le fichier.
 - **Une page neuve de la v10** doit déclarer ses parties dans `PARTIES_DES_PAGES`, sinon elle s'ouvre pour tous.
-- L'accueil d'une personne qui ne voit pas les ventes (la paie) montre encore les « premiers pas » du propriétaire.
+- L'accueil d'une personne qui ne voit pas les ventes : fait (brique 111, l'accueil selon le rôle).
 - **Les autres éditeurs** : l'écran refuse avant le geste pour le catalogue et les Paramètres ; pour les autres
   parties en lecture seule (une personne de la comptabilité interne qui ouvre une facture en brouillon), le serveur
   n'en reçoit rien, mais l'éditeur ne le dit pas encore : à faire avec le menu par rôle.

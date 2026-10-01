@@ -280,6 +280,8 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'L\'accord au-delà de l\'encours se règle par le propriétaire ou un administrateur.', cle: 'base.accord.reglage', fr: 'l\'accord au-delà de l\'encours se règle par le propriétaire ou un administrateur' },
   // L'accord au-delà d'une remise (0054, brique 103).
   { base: 'La remise permise sans accord se règle par le propriétaire ou un administrateur.', cle: 'base.accord.remise', fr: 'la remise permise sans accord se règle par le propriétaire ou un administrateur' },
+  // L'accord au-delà d'une commande fournisseur (0055, brique 114).
+  { base: 'Le montant d\'une commande fournisseur permis sans accord se règle par le propriétaire ou un administrateur.', cle: 'base.accord.commande', fr: 'le montant d\'une commande fournisseur permis sans accord se règle par le propriétaire ou un administrateur' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

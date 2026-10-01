@@ -5859,7 +5859,7 @@ prouver "la page des demandes sans ses gestes" web/public/v10/app.js \
   "            ? (l.peutDecider && !a.mienne ? \`<span class=\"inline\">" "            ? (false ? \`<span class=\"inline\">" \
   "$ACW"
 prouver "l'accueil de qui a demandé muet sur la décision" web/public/v10/app.js \
-  "new Date(a.decideLe).getTime() > semaine && pieceEncoreBrouillon(a.piece));" "new Date(a.decideLe).getTime() > semaine && !pieceEncoreBrouillon(a.piece));" \
+  "new Date(a.decideLe).getTime() > semaine && pieceEncoreBrouillon(a.piece, a.geste));" "new Date(a.decideLe).getTime() > semaine && !pieceEncoreBrouillon(a.piece, a.geste));" \
   "$ACW"
 
 # ── Brique 101 : le menu selon le rôle (web/v10/menu-role.txt) ──
@@ -6104,6 +6104,63 @@ prouver "le groupe absent du menu des entreprises" web/public/v10/app.js \
 prouver "une réponse de l'API gardée dans le cache du navigateur" serveur/app.ts \
   "if (requete.url.startsWith(VERSION)) reponse.header('cache-control', 'no-store');" "if (requete.url.startsWith(VERSION)) void reponse;" \
   "une réponse de l'API dit"
+
+# ── Brique 114 : l'accord au-delà d'une commande fournisseur (docs/accords.md) ──
+KC1="au-delà du montant permis, la comptable demande l'accord ; refusé, la commande ne part pas"
+KC2="une commande en devise se compte à son taux"
+KCW="Ines demande, Nadia accorde depuis son accueil, Ines envoie la commande"
+prouver "une commande envoyée au-delà du seuil sans accord" serveur/v10/dossier.ts \
+  "    await controlerCommandes(tx, entreprise," "    if (false) await controlerCommandes(tx, entreprise," \
+  "$KC1"
+prouver "un accord de commande qui couvre un montant plus grand" serveur/v10/accords.ts \
+  "  if (r?.statut !== 'accorde' || Number(r.montant) < montant) return null;" "  if (r?.statut !== 'accorde') return null;" \
+  "$KC1"
+prouver "une commande déjà partie bloquée par le seuil venu après" serveur/v10/accords.ts \
+  "    if (envoyee(l.avant) && d.montant <= d.montantDe(l.avant as Json)) continue;" "" \
+  "$KC1"
+prouver "une commande grossie qui garde son ancien accord" serveur/v10/accords.ts \
+  "    if (envoyee(l.avant) && d.montant <= d.montantDe(l.avant as Json)) continue;" "    if (envoyee(l.avant)) continue;" \
+  "$KC1"
+prouver "une demande de commande en double" serveur/v10/routes.ts \
+  "and montant = \$3 and statut = 'en_attente' and geste = 'commande'" "and montant = \$3 and statut = 'en_attente' and geste = 'commande' and false" \
+  "$KC1"
+prouver "le seuil de commande changé par la comptable en base" base/migrations/0055_accord_commande.sql \
+  "  apres := new.contenu -> 'commandeAccordAuDela';" "  return new;" \
+  "$KC1"
+prouver "une commande en devise comptée sans son taux" web/public/v10/core.js \
+  "    return toBase(commande, computeTotals(commande, company).netHT, company);" "    return computeTotals(commande, company).netHT;" \
+  "$KC2"
+prouver "le propriétaire arrêté par le seuil de commande" serveur/v10/accords.ts \
+  "  if (!parties.length || await estResponsable(tx, entreprise)) return;" "  if (!parties.length) return;" \
+  "$KC2"
+prouver "le seuil de commande qui ne se règle pas à l'écran" web/public/v10/app.js \
+  "          \${accordsEnLigne() ? field(lbl(\`Commande fournisseur permise sans accord" "          \${false ? field(lbl(\`Commande fournisseur permise sans accord" \
+  "$KCW"
+prouver "une commande au-delà qui part sans proposer l'accord" web/public/v10/app.js \
+  "      if (besoin) o.status = stored && stored.status !== 'envoyée' ? stored.status : 'brouillon';" "      if (false) o.status = 'brouillon';" \
+  "$KCW"
+prouver "une commande au-delà qui ne se dit pas avant" web/public/v10/app.js \
+  "    return b ? \`<p class=\"small warn-text mt\" id=\"cf-accord-avis\">" "    return false ? \`<p class=\"small warn-text mt\" id=\"cf-accord-avis\">" \
+  "$KCW"
+prouver "l'avertissement qui reste après l'accord" web/public/v10/app.js \
+  "        relu();" "" \
+  "$KCW"
+prouver "une demande de commande lue comme une demande d'encours sur l'accueil" web/public/v10/app.js \
+  ": a.geste === 'commande' ? \`envoyer à" ": false ? \`envoyer à" \
+  "$KCW"
+
+# ── L'ordre du dossier reçu (01/10/2026 ; docs/pont-v10.md § 4 ter) ──
+prouver "le dossier rendu dans l'ordre de la langue de la base" serveur/v10/dossier.ts \
+  ".orderBy(sql\`collection <> '_racine'\`).orderBy(sql\`collection collate \"C\"\`)" ".orderBy('collection')" \
+  "la racine d'abord, puis les listes, quelle que soit la langue de la base"
+prouver "une liste vide de la racine qui recouvre ses objets" web/public/plateforme/pont.js \
+  "    for (const o of objets) if (o.collection === '_racine') data[o.cle] = decoder(o.contenu);
+    for (const o of objets) {
+      if (o.collection === '_racine') continue;
+      if (!Array.isArray(data[o.collection])) data[o.collection] = [];" "    for (const o of objets) {
+      if (o.collection === '_racine') { data[o.cle] = decoder(o.contenu); continue; }
+      if (!Array.isArray(data[o.collection])) data[o.collection] = [];" \
+  "une liste vide restée à la racine, reçue après ses objets, ne les efface pas"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

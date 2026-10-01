@@ -13,7 +13,7 @@ import { mettreEnQuarantaine, type Contexte } from '../connexion.ts';
 import { Refus, texteDuRefus } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { tracer } from '../trace.ts';
-import { accordRemiseDeLaPiece, depassementDuServeur, estResponsable, remiseDuServeur } from './accords.ts';
+import { accordRemiseDeLaPiece, commandeDuServeur, depassementDuServeur, estResponsable, remiseDuServeur } from './accords.ts';
 import { filtrer, mesRoles } from './droits.ts';
 import { appliquer, Conflit, emettreDepuisV10, lireDossier, type Changement } from './dossier.ts';
 import { poserCompte, renvoyer } from './envoi.ts';
@@ -95,6 +95,28 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       const id = deja?.id ?? String((await tx.query(`insert into ventes.accord (entreprise, geste, piece_v10, client_v10, montant, encours, plafond, demande_par)
         values ($1, 'encours', $2, $3, $4, $5, $6, socle.moi()) returning id`, [ent, piece, doc.clientId, d.piece, d.encours, d.plafond])).rows[0].id);
       return { corps: { id, statut: 'en_attente', geste: 'encours', responsables: await qui() } };
+    },
+  });
+  // La commande fournisseur au-delà du seuil (brique 114) : qui écrit les commandes demande l'accord. Le serveur
+  // recalcule le montant (jamais celui de l'écran) ; l'enregistrement le vérifiera de nouveau quand elle partira.
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/dossier-v10/accord-commande', geste: 'achats.pieces.modifier',
+    corps: z.object({ commande: z.record(z.string(), contenu) }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const ent = params.entreprise ?? '';
+      const o = corps.commande as Record<string, unknown>;
+      const piece = String(o.id ?? '');
+      if (!piece || typeof o.supplierId !== 'string' || !o.supplierId) throw new Refus('achats.seule_commande');
+      const d = await commandeDuServeur(tx, ent, o);
+      if (!d) throw new Refus('achats.accord_inutile');
+      const deja = (await tx.query(`select id from ventes.accord where entreprise = $1 and piece_v10 = $2 and montant = $3 and statut = 'en_attente' and geste = 'commande'
+        order by demande_le desc limit 1`, [ent, piece, d.montant])).rows[0] as { id: string } | undefined;
+      const id = deja?.id ?? String((await tx.query(`insert into ventes.accord (entreprise, geste, piece_v10, client_v10, montant, encours, plafond, demande_par)
+        values ($1, 'commande', $2, $3, $4, 0, $5, socle.moi()) returning id`, [ent, piece, o.supplierId, d.montant, d.seuil])).rows[0].id);
+      const responsables = (await tx.query(`select u.nom from socle.membre m join socle.utilisateur u on u.id = m.utilisateur
+        where m.entreprise = $1 and m.actif and m.roles && array['proprietaire', 'administrateur'] order by u.nom`, [ent])).rows.map((x) => String(x.nom));
+      return { corps: { id, statut: 'en_attente', geste: 'commande', responsables } };
     },
   });
   // Les demandes : celles qui attendent, puis les dernières décidées ; `peutDecider` dit si la personne en décide.

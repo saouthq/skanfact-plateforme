@@ -20,6 +20,7 @@ type Core = {
   decimalsFor: (devise: string) => number;
   computeTotals: (doc: Json, company: Json) => { discount: number; discountRate: number };
   remiseEffective: (data: Json, doc: Json, company: Json) => { taux: number; ligne: string };
+  montantCommandeFournisseur: (commande: Json, company: Json) => number;
 };
 const C = () => codeDeLEcran<Core>('core.js');
 
@@ -143,4 +144,71 @@ export async function controlerRemise(tx: Transaction, entreprise: string, cle: 
     valeurs: { client: r.client || '—', taux: pourcent(r.taux), seuil: pourcent(r.seuil), ligne: r.ligne },
     bouton: 'ventes.accord.demander',
   });
+}
+
+// ── La commande fournisseur au-delà d'un seuil (brique 114 ; 03 D11 : « une commande fournisseur ») ──────────────
+// L'entreprise règle le montant permis sans accord (`commandeAccordAuDela`, hors taxes, dans sa devise, sur sa fiche ;
+// vide : pas de seuil). Une commande qui le dépasse ne part (« envoyée ») que par le propriétaire, un administrateur,
+// ou avec l'accord de l'un d'eux. Le seuil est lu en base ; le montant se calcule avec LE MÊME code que l'écran
+// (`montantCommandeFournisseur` de core.js : le total hors taxes, ramené dans la devise de l'entreprise).
+async function lireDuDossier(tx: Transaction, entreprise: string, collections: string[]) {
+  const lignes = (await tx.query(`select collection, cle, contenu from socle.dossier_v10
+    where entreprise = $1 and (collection = any($2) or (collection = '_racine' and cle = 'company'))
+    order by collection, rang, cle`, [entreprise, collections])).rows as { collection: string; cle: string; contenu: unknown }[];
+  const brut: Json = Object.fromEntries(collections.map((c) => [c, []]));
+  for (const l of lignes) {
+    const c = commeLaV10(l.contenu);
+    if (l.collection === '_racine') brut[l.cle] = c;
+    else (brut[l.collection] as unknown[]).push(c);
+  }
+  return C().migrateData(brut);
+}
+
+// Le montant de cette commande au-delà du seuil (en unités entières de la devise de l'entreprise) ; null sans
+// seuil, ou dessous.
+export async function commandeDuServeur(tx: Transaction, entreprise: string, commande: Json) {
+  const data = await lireDuDossier(tx, entreprise, ['suppliers']);
+  const societe = (data.company ?? {}) as Json;
+  const devise = String(societe.currency ?? 'DT');
+  const decimales = C().decimalsFor(devise);
+  const facteur = 10 ** decimales;
+  const seuil = Math.round(Number(societe.commandeAccordAuDela) * facteur);
+  if (!(seuil > 0)) return null;
+  const montant = (o: Json) => Math.round(C().montantCommandeFournisseur(commeLaV10(o) as Json, societe) * facteur);
+  const m = montant(commande);
+  if (!(m > seuil)) return null;
+  const fournisseur = ((data.suppliers as Json[]) ?? []).find((s) => s.id === commande.supplierId) ?? {};
+  return { montant: m, seuil, decimales, devise, fournisseur: String(fournisseur.name ?? ''), montantDe: montant };
+}
+
+// L'accord qui couvre cette commande : la dernière décision prise sur elle, si c'est un accord pour au moins ce montant.
+export async function accordCommandeDeLaPiece(tx: Transaction, entreprise: string, piece: string, montant: number) {
+  const r = (await tx.query(`select a.statut, a.montant, a.decide_le, d.nom demandeur, x.nom decideur
+      from ventes.accord a join socle.utilisateur d on d.id = a.demande_par left join socle.utilisateur x on x.id = a.decide_par
+     where a.entreprise = $1 and a.piece_v10 = $2 and a.statut <> 'en_attente' and a.geste = 'commande'
+     order by a.decide_le desc limit 1`, [entreprise, piece])).rows[0] as
+    { statut: string; montant: string; decide_le: Date; demandeur: string; decideur: string } | undefined;
+  if (r?.statut !== 'accorde' || Number(r.montant) < montant) return null;
+  return { demandePar: r.demandeur, accordePar: r.decideur, le: r.decide_le.toISOString() };
+}
+
+// À l'enregistrement du dossier : une commande qui part (« envoyée ») au-delà du seuil, sans accord, se refuse en
+// disant ses chiffres. Une commande déjà partie qui ne grossit pas passe (elle est partie avant le seuil, ou avec
+// son accord) ; qui grossit redemande l'accord.
+export async function controlerCommandes(tx: Transaction, entreprise: string, lus: { collection: string; cle: string; avant: unknown; apres: unknown }[]) {
+  const envoyee = (x: unknown) => Boolean(x) && typeof x === 'object' && (commeLaV10(x) as Json).status === 'envoyée';
+  const parties = lus.filter((l) => l.collection === 'supplierOrders' && envoyee(l.apres));
+  if (!parties.length || await estResponsable(tx, entreprise)) return;
+  for (const l of parties) {
+    const apres = commeLaV10(l.apres) as Json;
+    const d = await commandeDuServeur(tx, entreprise, apres);
+    if (!d) continue;
+    if (envoyee(l.avant) && d.montant <= d.montantDe(l.avant as Json)) continue;
+    if (await accordCommandeDeLaPiece(tx, entreprise, l.cle, d.montant)) continue;
+    const m = (n: number) => montantLisible(n, d.decimales, d.devise);
+    throw new Refus('achats.commande_accord', {
+      valeurs: { numero: String(apres.number || '—'), fournisseur: d.fournisseur || '—', montant: m(d.montant), seuil: m(d.seuil) },
+      bouton: 'achats.accord.demander',
+    });
+  }
 }

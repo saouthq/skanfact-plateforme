@@ -107,9 +107,48 @@ nomme la ligne : « « Ciment gris 50 kg » est vendu 20 % sous son prix, au-del
 `tests/v10/remise-effective.test.ts` (palier, liste, euros, remise combinée, ligne hors remise), les deux tests
 d'accord. 8 preuves.
 
+## Ce que fait la brique 114 : l'accord au-delà d'une commande fournisseur (01/10/2026)
+
+D11 (`03`) : « … une commande fournisseur … ». Par délégation :
+
+**K1. Le réglage** : Paramètres → Documents, « Commande fournisseur permise sans accord (HT, DT) » : un montant hors
+taxes, dans la devise de l'entreprise (`commandeAccordAuDela`) ; vide, pas de seuil (la valeur qui ne change rien). La
+base le réserve au propriétaire et à l'administrateur (`0055`, comme la remise et l'encours).
+
+**K2. Ce qui compte** : le total hors taxes de la commande, **ramené dans la devise de l'entreprise** à son taux
+(`montantCommandeFournisseur` de `core.js`, le même code au serveur et à l'écran) : 300 € à 3,4 font 1 020 DT.
+
+**K3. Le geste qui engage, c'est « Envoyée »** : une commande en brouillon ou une demande de prix ne demande rien.
+Au-delà du seuil, sans accord, qui n'est ni propriétaire ni administrateur (la comptable interne, qui écrit les
+commandes) ne l'envoie pas : le serveur refuse l'enregistrement (« La commande BCF-… chez Béton du Nord fait 1 025,750
+DT hors taxes, au-delà des 1 000,000 DT permis sans accord… »), avec le geste qui débloque. Une commande déjà partie
+qui ne grossit pas se modifie encore (partie avant le seuil, ou avec son accord) ; qui grossit redemande l'accord.
+
+**K4. La demande** (`POST …/dossier-v10/accord-commande`, geste `achats.pieces.modifier`) : le serveur recalcule le
+montant (jamais celui de l'écran) et garde la demande (`ventes.accord`, geste `commande` : `client_v10` est la clé du
+fournisseur, `plafond` le montant permis ce jour-là, figé comme le reste). Redemander le même montant ne la double pas.
+L'accord couvre **ce montant**.
+
+**K5. Les écrans** : sous les totaux, la page le dit avant le geste (« Cette commande fait … au-delà des … permis sans
+accord ») ; « Envoyée » puis Enregistrer : la commande s'enregistre telle qu'elle était (brouillon) et une question
+propose « Demander l'accord » ; de même « Commander chez … » depuis une demande de prix. La commande dit où en est sa
+demande (bandeau : en attente ; pour le responsable, « Accorder », « Refuser… » ; accordée, « Marquer envoyée » ;
+refusée, son mot). L'accueil du responsable et la page « Demandes d'accord » la montrent à côté des factures (« Ines
+voudrait envoyer à Béton du Nord une commande de … »), avec le lien vers la commande.
+
+Ce qui part au serveur : la commande (comme son enregistrement) ; la demande garde sa clé, celle du fournisseur, son
+montant et le seuil.
+
+Tests : `tests/v10/accord-commande.test.ts` (sans seuil rien ne change ; le seuil réservé en base ; la commande partie
+avant le seuil ; le refus et ses chiffres ; la demande sans doublon ; refusée puis accordée ; grossie ; en euros à son
+taux ; sous le seuil ; le propriétaire), `tests/web/accord-commande.test.ts` (Nadia règle, Ines demande, Nadia accorde
+depuis son accueil et la commande, Ines envoie ; quatre écrans regardés). 13 preuves.
+
 ## Reste connu (les briques suivantes)
 
-- Les autres seuils de D11 : la commande fournisseur, le retour.
+- **Le retour** (D11) : un avoir ne s'émet aujourd'hui que par le propriétaire ou l'administrateur (`ventes.avoir.emettre`,
+  03 § 2.1 : le commercial le prépare) ; plus strict qu'un seuil. Le retour à la caisse (le caissier) viendra avec la
+  caisse et le « code d'un responsable » (étape 4).
 
 - **Brique 99, les droits geste par geste dans le dossier** : faite (`docs/droits-dossier.md`).
 - Les autres postes ne se mettent pas à jour tout seuls : une demande faite ailleurs se voit en rouvrant la page

@@ -131,9 +131,14 @@
   function assembler(objets) {
     /** @type {Record<string, any>} */
     const data = {};
+    // La racine d'abord, quel que soit l'ordre reçu : une liste vide restée à la racine (`_racine/accounts` = [],
+    // écrite quand la liste était vide) ne recouvre jamais les objets de la liste. Arrivée après eux (une base qui
+    // range « _racine » après « accounts »), elle les effaçait de la page, qui les supprimait ensuite en enregistrant.
+    for (const o of objets) if (o.collection === '_racine') data[o.cle] = decoder(o.contenu);
     for (const o of objets) {
-      if (o.collection === '_racine') data[o.cle] = decoder(o.contenu);
-      else (data[o.collection] = data[o.collection] || []).push(decoder(o.contenu));
+      if (o.collection === '_racine') continue;
+      if (!Array.isArray(data[o.collection])) data[o.collection] = [];
+      data[o.collection].push(decoder(o.contenu));
     }
     return data;
   }
@@ -558,6 +563,8 @@
     // L'accord d'un responsable au-delà de l'encours d'un client (brique 100 ; docs/accords.md) : le serveur
     // recalcule le dépassement, garde la demande, et seul un responsable la décide.
     demanderAccord: async (/** @type {any} */ doc) => appel('POST', '/dossier-v10/accord', { document: encoder(doc) }),
+    // La commande fournisseur au-delà du montant permis sans accord (brique 114).
+    demanderAccordCommande: async (/** @type {any} */ commande) => appel('POST', '/dossier-v10/accord-commande', { commande: encoder(commande) }),
     accords: async () => appel('GET', '/accords'),
     deciderAccord: async (/** @type {string} */ id, /** @type {'accorder' | 'refuser'} */ decision, /** @type {string} */ motif) =>
       appel('POST', `/accords/${encodeURIComponent(id)}/decider`, motif ? { decision, motif } : { decision }),
