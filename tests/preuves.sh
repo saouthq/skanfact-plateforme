@@ -7030,6 +7030,54 @@ prouver "la page vide qui promet que rien n'est jamais émis à ta place" web/pu
   "               'Rien n\\'est émis à ta place : un brouillon t\\'attend. Sauf si tu le demandes : un contrat « Émise seule » voit SkanFact émettre ses factures à leur date.'," "               'Rien n\\'est envoyé à ta place : un brouillon t\\'attend, c\\'est tout.'," \
   "$CSW"
 
+# Brique 130 : les contrats d'abonnement par l'API (docs/api-situation.md, S8).
+AC="une clé crée, lit, modifie, suspend et reprend un contrat ; émis seul, ses factures partent par le serveur"
+prouver "le dossier rempli par l'API sans la fiche de l'entreprise" serveur/v10/dossier.ts \
+  "  if (!un) await amorcer(tx, entreprise, utilisateur);" "  if (!un && false) await amorcer(tx, entreprise, utilisateur);" \
+  "$AC"
+prouver "un client de l'API qui entre deux fois dans le dossier" serveur/v10/dossier.ts \
+  "  if (t.ref_v10) return t.ref_v10;
+" "" \
+  "$AC"
+prouver "un fournisseur pris pour un client par l'API" serveur/v10/dossier.ts \
+  "    .where('entreprise', '=', entreprise).where('id', '=', tiers).where(sql<boolean>\`'client' = any(roles)\`).executeTakeFirst();
+  if (!t) return null;" "    .where('entreprise', '=', entreprise).where('id', '=', tiers).executeTakeFirst();
+  if (!t) return null;" \
+  "$AC"
+prouver "un client entré dans le dossier sans que sa fiche le sache" serveur/v10/dossier.ts \
+  "  await db.updateTable('socle.tiers').set({ ref_v10: t.id }).where('id', '=', t.id).execute();
+  return t.id;" "  return t.id;" \
+  "$AC"
+prouver "un contrat de l'API jamais émis seul" serveur/v10/api-contrats.ts \
+  "notes: c.notes ?? '', emettreSeul: c.emettreSeul === true," "notes: c.notes ?? '', emettreSeul: false," \
+  "$AC"
+prouver "le jour d'un contrat de l'API oublié" serveur/v10/api-contrats.ts \
+  "day: c.jour ?? Number(c.prochaine.slice(8, 10))," "day: c.jour ?? 1," \
+  "$AC"
+prouver "un contrat annuel de l'API facturé chaque mois" serveur/v10/api-contrats.ts \
+  "const PERIODES = { mois: 'month', trimestre: 'quarter', annee: 'year' } as const;" "const PERIODES = { mois: 'month', trimestre: 'quarter', annee: 'month' } as const;" \
+  "$AC"
+prouver "un contrat lu sans son client" serveur/v10/api-contrats.ts \
+  "id: cle, client: tiers?.id ?? null," "id: cle, client: null," \
+  "$AC"
+prouver "un contrat modifié par l'API qui garde son refus" serveur/v10/api-contrats.ts \
+  "      delete contenu.refusServeur;
+" "" \
+  "$AC"
+prouver "un contrat modifié par l'API qui oublie ce qui a été facturé" serveur/v10/api-contrats.ts \
+  "      const contenu: Json = { ...l.contenu, ...enV10(corps, clientId) };" "      const contenu: Json = { id: params.contrat, active: true, ...enV10(corps, clientId) };" \
+  "$AC"
+prouver "un contrat repris qui rattrape les échéances de sa suspension" serveur/v10/api-contrats.ts \
+  "          for (let i = 0; d < auj && i < 240; i++) d = echeanceSuivante(d, contenu.every, contenu.day);
+" "" \
+  "$AC"
+prouver "les contrats d'un client mêlés à ceux des autres" serveur/v10/api-contrats.ts \
+  "if (client === null || l.contenu.clientId === client)" "if (true)" \
+  "$AC"
+prouver "un contrat suspendu qui reste actif" serveur/v10/api-contrats.ts \
+  "const contenu: Json = { ...l.contenu, active: geste === 'reprendre' };" "const contenu: Json = { ...l.contenu, active: true };" \
+  "$AC"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

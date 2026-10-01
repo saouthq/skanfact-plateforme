@@ -21,6 +21,7 @@ import { etatDeNumerotation, sessionOuverte } from '../caisse/routes.ts';
 import { empreinteDuPoste, PREMIERE, ticketDuPoste } from '../caisse/chaine.ts';
 import { remiseAuDelaDuPlafond } from '../caisse/remise.ts';
 import { codeDuResponsable } from '../caisse/retour.ts';
+import { routesContrats } from './api-contrats.ts';
 import { poserCompte, renvoyer } from './envoi.ts';
 import { demanderPaiement, verifierPaiement } from './paiement.ts';
 import { demanderSignature, signerAvecLeCode } from './signature.ts';
@@ -567,5 +568,6 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     });
   }
 
+  routes.push(...routesContrats());
   return routes;
 }

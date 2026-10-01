@@ -109,6 +109,7 @@ declarerTextes({
   'v10.supprimer_sans_auteur': '{piece} date d\'avant que SkanFact retienne qui fait chaque pièce : seul le propriétaire ou un administrateur le supprime. Rien n\'a été supprimé',
   'v10.ce_brouillon': 'ce brouillon',
   'v10.ticket_par_la_caisse': 'un ticket de caisse s\'encaisse depuis la caisse, avec sa série : rien n\'a été émis',
+  'contrat.client_inconnu': 'ce n\'est pas un client de cette entreprise (lis ses clients avec GET …/clients)',
   'v10.client_manquant': 'cette facture n\'a pas de client : choisis-le avant de l\'émettre',
   'v10.ttn_par_le_serveur': 'la référence de la TTN de la pièce {numero} ne s\'écrit que par le serveur, quand la TTN l\'accepte : rien n\'a été enregistré',
   // La facture électronique (brique 80 ; docs/facture-electronique.md).

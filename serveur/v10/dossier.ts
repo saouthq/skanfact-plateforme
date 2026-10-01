@@ -124,6 +124,32 @@ async function amorcer(tx: Transaction, entreprise: string, utilisateur: string)
   for (const t of tiers) await db.updateTable('socle.tiers').set({ ref_v10: t.id }).where('id', '=', t.id).execute();
 }
 
+// Le dossier d'une entreprise que l'API remplit avant que personne ne l'ait ouvert à l'écran (brique 130) : il naît
+// d'abord, comme à la première lecture (sinon la fiche de l'entreprise n'y serait jamais).
+export async function dossierPret(tx: Transaction, entreprise: string, utilisateur: string) {
+  const un = await requetes(tx).selectFrom('socle.dossier_v10').select('cle').where('entreprise', '=', entreprise).limit(1).executeTakeFirst();
+  if (!un) await amorcer(tx, entreprise, utilisateur);
+}
+
+// Le client du dossier (sa clé dans la v10) d'une fiche du serveur, créée par l'API (brique 130) : il entre dans le
+// dossier la première fois, avec l'identifiant de sa fiche, comme un client amorcé. `null` : pas un client d'ici.
+export async function clientDuDossier(tx: Transaction, entreprise: string, utilisateur: string, tiers: string): Promise<string | null> {
+  const db = requetes(tx);
+  const t = await db.selectFrom('socle.tiers').select(['id', 'raison_sociale', 'identifiant', 'adresse', 'email', 'telephone', 'devise', 'ref_v10'])
+    .where('entreprise', '=', entreprise).where('id', '=', tiers).where(sql<boolean>`'client' = any(roles)`).executeTakeFirst();
+  if (!t) return null;
+  if (t.ref_v10) return t.ref_v10;
+  await dossierPret(tx, entreprise, utilisateur);
+  const { n } = await db.selectFrom('socle.dossier_v10').select((eb) => eb.fn.countAll<string>().as('n'))
+    .where('entreprise', '=', entreprise).where('collection', '=', 'clients').executeTakeFirstOrThrow();
+  await appliquer(tx, entreprise, utilisateur, [{ collection: 'clients', cle: t.id, rang: Number(n), revision: null, contenu: {
+    id: t.id, name: t.raison_sociale, matricule: t.identifiant ?? '', address: t.adresse ?? '', email: t.email ?? '', phone: t.telephone ?? '',
+    currency: t.devise === 'TND' ? '' : t.devise,
+  } }], { serveur: true });
+  await db.updateTable('socle.tiers').set({ ref_v10: t.id }).where('id', '=', t.id).execute();
+  return t.id;
+}
+
 // Les champs de la racine d'abord, puis les listes, dans un ordre qui ne dépend pas de la langue de la base : une
 // base en « en_US » ignore le « _ » et rangeait « _racine » après « accounts » ou « catalog » ; la liste vide qu'un
 // écran avait enregistrée là (`_racine/accounts` = []) passait alors après les objets de la liste, et la page ne les

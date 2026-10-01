@@ -7,7 +7,7 @@ situation en un appel, le retrouver par son matricule, des événements « règl
 un lien vers l'écran de SkanFact ; P2 : les factures périodiques). Elle servira à toute console partenaire.*
 
 La brique 127 fait les **lectures** (S1 à S5), la brique 128 les **événements** (S6), la brique 129 les **factures
-périodiques émises seules** (S7).
+périodiques émises seules** (S7), la brique 130 les **contrats par l'API** (S8).
 
 ## Comment la console lit
 
@@ -139,9 +139,31 @@ propriétaire. La console reçoit `facture.emise` (puis `reglement.enregistre` e
 délai pour la signer et la déposer à la TTN quand l'entreprise y est soumise ; la date d'une facture rattrapée (celle de
 sa période, comme la v10, ou celle du jour de l'émission).
 
-**Pour SkanEcom** : un contrat par boutique abonnée, dans l'entreprise qui facture (SkanEcom), « Émise seule ». La
-création des contrats par l'API (sans passer par l'écran) n'est pas encore là : une brique suivante, si la console en
-a besoin.
+**Pour SkanEcom** : un contrat par boutique abonnée, dans l'entreprise qui facture (SkanEcom), « Émise seule », créé
+par l'API (S8).
+
+## S8. Les contrats d'abonnement par l'API (brique 130)
+
+La console crée l'abonnement d'une boutique sans passer par l'écran ; c'est le même contrat que celui de
+« Facturation récurrente » (l'écran le montre et le modifie). Geste **`ventes.contrat.modifier`** (propriétaire,
+administrateur, commercial ; une clé peut l'avoir).
+
+- **Créer** : `POST /v1/entreprises/:e/contrats`
+  `{ "client": "<id d'un client>", "objet": "Abonnement — {mois}", "periode": "mois" | "trimestre" | "annee",
+  "jour": 5, "prochaine": "2026-10-05", "lignes": [{ "designation": "Hébergement", "quantite": "1",
+  "prixUnitaire": "89.5", "tauxTva": "19", "unite": "mois" }], "remise": "0", "retenue": "0", "notes": "…",
+  "emettreSeul": true }` → 201. Le client est une fiche du serveur (`POST …/clients`) ; il entre dans le dossier à son
+  premier contrat (une seule fois). `jour` vaut par défaut le jour de `prochaine`. Les prix sont **HT**, en texte.
+- **Lire** : `GET /v1/entreprises/:e/contrats` (ou `?client=<id>`) → `{ contrats: [...] }`, chacun avec `id`,
+  `client`, `objet`, `periode`, `jour`, `prochaine`, `derniere` (la dernière facture émise), `actif`, `emettreSeul`,
+  `refus` (pourquoi la dernière émission a échoué, ou `null`), `lignes`, `ecran`.
+- **Modifier** : `PUT /v1/entreprises/:e/contrats/:id` (le même corps) : ce qui a été facturé reste ; un refus noté
+  s'efface (le serveur retente au tour suivant).
+- **Suspendre / reprendre** : `POST …/contrats/:id/suspendre`, `POST …/contrats/:id/reprendre`. Repris, le contrat ne
+  facture pas les échéances passées pendant la suspension (comme le bouton de l'écran).
+- **Émise seule** (`emettreSeul: true`) : seulement si la clé a été créée par le propriétaire ou un administrateur
+  (refusé jusque dans la base sinon).
+- Une entreprise que personne n'a encore ouverte à l'écran : son dossier naît au premier contrat, avec sa fiche.
 
 ## Les preuves
 
