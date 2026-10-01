@@ -105,6 +105,7 @@ declarerTextes({
   'v10.partie.auxiliaires': 'les comptes auxiliaires',
   'v10.partie.autre': 'cette partie du dossier',
   'v10.partie_interdite': 'ton rôle ne permet pas d\'enregistrer {partie} dans le dossier de l\'entreprise : rien n\'a été enregistré. Demande au propriétaire ou à un administrateur',
+  'v10.ticket_par_la_caisse': 'un ticket de caisse s\'encaisse depuis la caisse, avec sa série : rien n\'a été émis',
   'v10.client_manquant': 'cette facture n\'a pas de client : choisis-le avant de l\'émettre',
   'v10.ttn_par_le_serveur': 'la référence de la TTN de la pièce {numero} ne s\'écrit que par le serveur, quand la TTN l\'accepte : rien n\'a été enregistré',
   // La facture électronique (brique 80 ; docs/facture-electronique.md).

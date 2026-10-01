@@ -11,6 +11,7 @@ import { Refus } from '../erreurs.ts';
 import type { Transaction } from '../base.ts';
 import { declarerGestes, GESTES, type Acces, type Geste } from '../porte/gestes.ts';
 import { declarerGestesAchats } from '../achats/gestes.ts';
+import { declarerGestesCaisse } from '../caisse/gestes.ts';
 import { declarerGestesCompta } from '../compta/gestes.ts';
 import { declarerGestesPaie } from '../paie/gestes.ts';
 import { declarerGestesVentes } from '../ventes/gestes.ts';
@@ -38,7 +39,7 @@ export const GESTES_DU_DOSSIER: Geste[] = [
 ];
 declarerGestes(GESTES_DU_DOSSIER);
 // Les règles s'appuient sur les gestes des modules : ils sont déclarés ici aussi (une seule fois chacun).
-declarerGestesVentes(); declarerGestesAchats(); declarerGestesPaie(); declarerGestesCompta();
+declarerGestesVentes(); declarerGestesCaisse(); declarerGestesAchats(); declarerGestesPaie(); declarerGestesCompta();
 
 type Regle = { voir: string; ecrire: string };
 const R = (voir: string, ecrire: string): Regle => ({ voir, ecrire });

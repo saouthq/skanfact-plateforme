@@ -12248,7 +12248,7 @@
         const v = formValues($('#rdf', root));
         if (closedBlock(C.today(), 'Ce remboursement')) return;
         if (licenceBlock('Émettre un avoir sur un ticket', 'caisse')) return;
-        if (bridge.emettre) { toast('La caisse n\'est pas encore dans la version en ligne de SkanFact : rien n\'a été rendu.', true); return; }
+        if (bridge.emettre) { toast('Le retour d\'un ticket n\'est pas encore dans la version en ligne de SkanFact : rien n\'a été rendu.', true); return; }
         const r = C.remboursementDeTicket(data, company(), doc, qtes(), { mode: v.mode, motif: v.motif });
         // Le refus montre la case qui le règle : le mode quand c'est le compte qui manque, sinon la quantité.
         if (!r.ok) return refus(C.compteDuMode(data, v.mode) ? $('[data-rd]', root) : $('[name=mode]', root), r.motif);
@@ -12407,7 +12407,20 @@
         // Avant le numéro : un refus après `nextNumber` trouerait la série des tickets (6.0.0).
         if (closedBlock(C.today(), 'Ce ticket')) return;
         if (licenceBlock('Émettre un ticket de caisse', 'caisse')) return;
-        if (bridge.emettre) { toast('La caisse n\'est pas encore dans la version en ligne de SkanFact : rien n\'a été vendu.', true); return; }
+        if (bridge.encaisser) {
+          b.dataset.busy = '1';
+          // Le numéro vient du serveur : celui que le moteur vient de prendre sur ce poste se rend.
+          const compteurs = JSON.stringify(data.counters || {});
+          const t = C.ticketDeCaisse(data, company(), s.panier, { mode: s.mode, recu: recu === '' ? null : recu, clientId: s.clientId });
+          data.counters = JSON.parse(compteurs); t.number = '';
+          bridge.encaisser(t, C.computeTotals(t, company()).netToPay).then(e => {
+            data.documents.push(e);
+            s.panier = []; s.recu = ''; s.clientId = ''; s.dernierId = e.id;
+            const rendu = e.caisse && e.caisse.rendu ? ` — à rendre ${C.money(e.caisse.rendu, cur)}` : '';
+            toast(`Ticket ${e.number} encaissé${rendu}`);
+          }, x => toast(plainError(x), true)).finally(() => { delete b.dataset.busy; drawTicket(); scan(); });
+          return;
+        }
         b.dataset.busy = '1';
         const t = C.ticketDeCaisse(data, company(), s.panier, { mode: s.mode, recu: recu === '' ? null : recu, clientId: s.clientId });
         data.documents.push(t);

@@ -140,6 +140,11 @@
     de la base (« en_US » range « _racine » après « accounts ») : une liste vide restée à la racine recouvrait ses
     objets. Le serveur rend la racine d'abord (rangée en « C »), `assembler` pose la racine d'abord, et la base des
     tests range comme « en_US » (ICU `en-US-u-ka-shifted`, `tests/preparer-base.ts`). Jamais d'ordre de base supposé.
+  - **La caisse** (brique 115, `docs/caisse.md`, commencée le 01/10/2026 sur décision de Skander) : « Encaisser »
+    passe par `POST …/dossier-v10/ticket` (geste `caisse.ticket.encaisser` : P, A, caissier) ; le serveur numérote dans
+    la série TIC (`0056`), scelle comme une facture (`emettreDepuisV10(…, { ticket: true })`) et tient le paiement dans
+    le même geste ; un passant est « Vente au comptoir ». Le cahier des charges NACEF reste **À VÉRIFIER** (pas encore
+    lu) : la session, l'appareil unique, le hors ligne chaîné et le Z viennent ensuite.
   - **Le tableau de bord du groupe** (brique 113, `docs/groupe.md`) : depuis le menu des entreprises, les sociétés de
     la personne côte à côte, avec les chiffres de leurs livres (70, 411, 401, classe 5) et un total par devise ; une
     société sans les livres pour son rôle est nommée sans chiffres. La consolidation vient en vague 4.
@@ -483,6 +488,8 @@
   qui nomme le test ou la preuve qui tombe) : une construction rouge se répare d'abord, jamais on ne
   la contourne ni n'empile par-dessus. Une brique qui touche au socle de tout (le serveur, la
   connexion, la sécurité par ligne) ajoute les fichiers de test concernés à `verifier:brique`.
+  **Reconfirmé par Skander le 01/10/2026** (« les tests prennent beaucoup de temps ») : jamais de relance
+  complète sur le poste, sauf un changement qui touche tout ; jamais attendre GitHub les bras croisés.
 
 **Sécurité (sans exception)**
 - Dépôt **public** : jamais de secret, de jeton, de mot de passe réel ni de donnée de client. Les

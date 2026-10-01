@@ -1287,9 +1287,8 @@ prouver "un paiement trop précis découvert seulement à l'enregistrement" $V10
 " \
   "$PX"
 prouver "la caisse qui vend sans le serveur" $V10A \
-  "        if (bridge.emettre) { toast('La caisse n\\'est pas encore dans la version en ligne de SkanFact : rien n\\'a été vendu.', true); return; }
-" "" \
-  "la caisse n'est pas encore en ligne"
+  "        if (bridge.encaisser) {" "        if (false) {" \
+  "la caisse est en ligne"
 
 # ── Les achats tenus par le serveur (0013, brique 30) ───────────────────────────────────────────
 VA=serveur/v10/achats.ts
@@ -5738,7 +5737,7 @@ prouver "le lot du départ perdu à l'enregistrement" web/public/v10/app.js \
 AC1="sans accord le commercial n'émet pas au-delà ; refusé, il attend ; accordé pour ce montant, il émet, et la pièce porte les deux noms"
 AC2="le propriétaire émet au-delà sans accord ; sans le réglage, le commercial aussi ; seul un responsable règle les seuils"
 prouver "l'émission qui ne regarde pas l'encours" serveur/v10/dossier.ts \
-  "  const accord = type === 'facture' ? await controlerEncours(tx, entreprise, cle, doc) : null;" "  const accord = null;" \
+  "  const accord = type === 'facture' && !ticket ? await controlerEncours(tx, entreprise, cle, doc) : null;" "  const accord = null;" \
   "$AC1"
 prouver "le propriétaire arrêté comme un commercial" serveur/v10/accords.ts \
   "  if (await estResponsable(tx, entreprise)) return null;" "  if (false) return null;" \
@@ -5810,8 +5809,8 @@ prouver "une partie sans règle ouverte à tous" serveur/v10/droits.ts \
 prouver "le catalogue écrit par le commercial" serveur/v10/droits.ts \
   "  catalog: R('stock.voir', 'ventes.prix.modifier')," "  catalog: R('stock.voir', 'ventes.brouillon.modifier')," \
   "$DD2"
-prouver "la série qu'un commercial ne crée pas" base/migrations/0053_serie_emission.sql \
-  "     or not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'commercial']::text[]) then" "     or not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur']::text[]) then" \
+prouver "la série qu'un commercial ne crée pas" base/migrations/0056_ticket.sql \
+  "                                                  else array['proprietaire', 'administrateur', 'commercial'] end)::text[]) then" "                                                  else array['proprietaire', 'administrateur'] end)::text[]) then" \
   "$DD3"
 prouver "une liste vide sans la règle de sa liste" serveur/v10/droits.ts \
   "RACINE[cle] ?? LISTES[cle] : LISTES[collection]" "RACINE[cle] : LISTES[collection]" \
@@ -5909,7 +5908,7 @@ prouver "l'achat accepté à l'écran puis perdu" web/public/v10/app.js \
 AR1="au-delà de la remise permise, le commercial demande l'accord ; il couvre ce taux, pas plus ; seul un responsable règle le seuil"
 ARW="Nadia règle la remise permise ; Karim remise au-delà, demande, Nadia accorde depuis la facture, Karim émet"
 prouver "l'émission qui ne regarde pas la remise" serveur/v10/dossier.ts \
-  "  const accordRemise = type === 'facture' ? await controlerRemise(tx, entreprise, cle, doc) : null;" "  const accordRemise = null;" \
+  "  const accordRemise = type === 'facture' && !ticket ? await controlerRemise(tx, entreprise, cle, doc) : null;" "  const accordRemise = null;" \
   "$AR1"
 prouver "la remise au seuil même qui demande l'accord" serveur/v10/accords.ts \
   "  if (!(taux > seuil)) return null;" "  if (!(taux >= seuil)) return null;" \
@@ -6148,6 +6147,46 @@ prouver "l'avertissement qui reste après l'accord" web/public/v10/app.js \
 prouver "une demande de commande lue comme une demande d'encours sur l'accueil" web/public/v10/app.js \
   ": a.geste === 'commande' ? \`envoyer à" ": false ? \`envoyer à" \
   "$KCW"
+
+# ── Brique 115 : le ticket de caisse encaissé en ligne (docs/caisse.md) ──
+TK="le caissier encaisse dans la série des tickets, payé en entier ; le commercial non ; la série des factures ne perd rien"
+TKW="Nadia encaisse deux tickets : le serveur les numérote dans leur série, et le bilan les compte"
+prouver "la série des tickets que le caissier ne crée pas" base/migrations/0056_ticket.sql \
+  "case when p_prefixe = 'TIC' then array['proprietaire', 'administrateur', 'caissier']" "case when p_prefixe = 'TIC' then array['proprietaire', 'administrateur']" \
+  "$TK"
+prouver "le caissier qui n'encaisse pas" serveur/caisse/gestes.ts \
+  "    roles: { proprietaire: 'oui', administrateur: 'oui', caissier: 'oui' } }," "    roles: { proprietaire: 'oui', administrateur: 'oui' } }," \
+  "$TK"
+prouver "le commercial qui encaisse" serveur/caisse/gestes.ts \
+  "    roles: { proprietaire: 'oui', administrateur: 'oui', caissier: 'oui' } }," "    roles: { proprietaire: 'oui', administrateur: 'oui', caissier: 'oui', commercial: 'oui' } }," \
+  "$TK"
+prouver "un ticket encaissé sans être payé en entier" serveur/v10/routes.ts \
+  "      if (paye !== depuisTexte(corps.netAPayer, dec)) throw" "      if (false) throw" \
+  "$TK"
+prouver "un ticket numéroté dans la série des factures" serveur/v10/dossier.ts \
+  "  const prefixe = ticket ? 'TIC' : SERIE_V10[type] ?? 'FAC';" "  const prefixe = SERIE_V10[type] ?? 'FAC';" \
+  "$TK"
+prouver "une facture de l'API numérotée dans la série des tickets" serveur/ventes/pieces.ts \
+  "    .\$if(serieVoulue === undefined, (q) => q.where('prefixe', '<>', 'TIC'))" "" \
+  "$TK"
+prouver "un ticket émis par la route des factures" serveur/v10/dossier.ts \
+  "  if (ticket !== (doc.ticket === true)) throw" "  if (ticket && doc.ticket !== true) throw" \
+  "$TK"
+prouver "un ticket encaissé sans son paiement" serveur/v10/routes.ts \
+  "      const avecPaiement = { ...r.contenu, payments: paiements };" "      const avecPaiement = { ...r.contenu, payments: [] };" \
+  "$TK"
+prouver "un passant vendu sans le client du comptoir" serveur/v10/dossier.ts \
+  "  const comptoir = ticket && !doc.clientId;" "  const comptoir = false;" \
+  "$TK"
+prouver "la caisse qui refuse encore d'encaisser en ligne" web/public/v10/app.js \
+  "        if (bridge.encaisser) {" "        if (bridge.emettre) { toast('La caisse n\\'est pas encore dans la version en ligne de SkanFact : rien n\\'a été vendu.', true); return; }
+        if (bridge.encaisser) {" \
+  "$TKW"
+prouver "le numéro du poste gardé au lieu de celui du serveur" web/public/v10/app.js \
+  "          bridge.encaisser(t, C.computeTotals(t, company()).netToPay).then(e => {
+            data.documents.push(e);" "          bridge.encaisser(t, C.computeTotals(t, company()).netToPay).then(e => {
+            e.number = 'TIC-0000-999'; data.documents.push(e);" \
+  "$TKW"
 
 # ── L'ordre du dossier reçu (01/10/2026 ; docs/pont-v10.md § 4 ter) ──
 prouver "le dossier rendu dans l'ordre de la langue de la base" serveur/v10/dossier.ts \

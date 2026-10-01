@@ -593,6 +593,24 @@
       return decoder(r.contenu);
     },
 
+    // Le ticket de caisse (brique 115 ; docs/caisse.md) : numéroté dans sa série (TIC) et scellé par le serveur, payé
+    // dans le même geste. Pas encore sans réseau : la caisse hors ligne (tickets numérotés sur le poste) vient ensuite.
+    encaisser: async (/** @type {any} */ doc, /** @type {number} */ netAPayer) => {
+      if (enCours) await enCours;
+      if (attenteGardee || !navigator.onLine) {
+        throw new Error('Hors ligne : la caisse n\'encaisse pas encore sans réseau dans la version en ligne de SkanFact : rien n\'a été vendu. Réessaie au retour du réseau.');
+      }
+      const decimales = !doc.currency || doc.currency === 'DT' || doc.currency === 'TND' ? 3 : 2;
+      const k = `documents\u0000${doc.id}`;
+      const liste = /** @type {any} */ (window).__data && /** @type {any} */ (window).__data.documents;
+      const rang = Array.isArray(liste) ? liste.length : null;
+      const r = await appel('POST', '/dossier-v10/ticket', { document: encoder(doc), rang, netAPayer: Number(netAPayer).toFixed(decimales) });
+      vu.set(k, { json: JSON.stringify(r.contenu), rang, revision: r.revision });
+      base.set(k, r.revision);
+      garderLaCopie();
+      return decoder(r.contenu);
+    },
+
     // ── Les entreprises (les « dossiers » de la v10) ──────────────────────────────────────────
     // Un dossier de la v10 était un fichier sur l'ordinateur ; ici, c'est une entreprise du compte.
     // Le tableau de bord du groupe (brique 113) : les sociétés de la personne, leurs chiffres lus dans leurs livres.

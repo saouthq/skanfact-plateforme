@@ -468,7 +468,9 @@ describe('le parcours, à la souris', () => {
     expect(qui.erreurs).toEqual([]);
   }, 120_000);
 
-  it('la caisse n\'est pas encore en ligne : « Encaisser » le dit, et rien n\'est vendu ni écrit', async () => {
+  // La caisse en ligne (brique 115) : avant elle, « Encaisser » se refusait avec sa phrase ; le ticket part maintenant au
+  // serveur, qui le numérote dans sa série et le garde (l'entreprise d'essai comprise).
+  it('la caisse est en ligne : « Encaisser » vend un pain, numéroté par le serveur, et le ticket est au serveur', async () => {
     const qui = await inscrite('Walid Chaabane');
     // Un compte de caisse et un article au prix connu : tout ce que la caisse de la v10 demande (le
     // dossier est d'abord lu, comme l'écran le fait : c'est la première lecture qui l'amorce).
@@ -482,9 +484,10 @@ describe('le parcours, à la souris', () => {
     await plusTard(p);
     await p.locator('#cs-articles [data-art]').first().click();
     await p.locator('#cs-encaisser').click();
-    await expect.poll(() => p.locator('#toast').innerText()).toContain('La caisse n\'est pas encore dans la version en ligne de SkanFact : rien n\'a été vendu.');
-    await p.screenshot({ path: path.join(PHOTOS, 'caisse-refus.png') });
-    expect((await admin.query(`select count(*)::int n from socle.dossier_v10 where entreprise = $1 and collection = 'documents'`, [qui.essai])).rows[0].n).toBe(0);
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/^Ticket TIC-\d{4}-001 encaissé/);
+    await p.screenshot({ path: path.join(PHOTOS, 'caisse-essai.png') });
+    expect((await admin.query(`select contenu->>'number' n from socle.dossier_v10 where entreprise = $1 and collection = 'documents'`, [qui.essai])).rows.map((r) => r.n))
+      .toEqual([expect.stringMatching(/^TIC-\d{4}-001$/)]);
     expect(await p.getByText('Rien n\'a été enregistré').count()).toBe(0);
     expect(qui.erreurs).toEqual([]);
   }, 120_000);

@@ -211,10 +211,12 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
   if (calcul.timbreManquant) {
     throw new Refus('ventes.timbre_manquant', { valeurs: { date: p.date_piece } });
   }
-  // Chaque pièce se numérote dans une série de SON type : un avoir ne prend jamais un numéro de facture.
+  // Chaque pièce se numérote dans une série de SON type : un avoir ne prend jamais un numéro de facture. Sans série
+  // voulue, jamais celle des tickets (brique 115) : une facture ne prend pas un numéro de ticket.
   const serie = (await db.selectFrom('socle.serie').select('id')
     .where('entreprise', '=', entreprise).where('type', '=', p.type).where('legale', '=', true).where('active', '=', true)
     .$if(serieVoulue !== undefined, (q) => q.where('id', '=', serieVoulue ?? ''))
+    .$if(serieVoulue === undefined, (q) => q.where('prefixe', '<>', 'TIC'))
     .orderBy('cree_le').limit(1).executeTakeFirst())?.id;
   if (!serie) throw new Refus('ventes.sans_serie', { bouton: 'socle.reglages_fiscaux.modifier' });
   const societe = await db.selectFrom('socle.entreprise').select(['raison_sociale', 'matricule_fiscal']).where('id', '=', entreprise).executeTakeFirstOrThrow();

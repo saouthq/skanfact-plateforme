@@ -41,6 +41,7 @@ import { listeDepuisFichier } from './mot-de-passe.ts';
 import { routesSocle } from './routes/socle.ts';
 import { routesGroupe } from './groupe.ts';
 import { declarerGestesAchats } from './achats/gestes.ts';
+import { declarerGestesCaisse } from './caisse/gestes.ts';
 import { lecteurDuServeur } from './achats/lecteur.ts';
 import { routesAchats } from './achats/routes.ts';
 import { declarerGestesCompta } from './compta/gestes.ts';
@@ -149,6 +150,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
     ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}), ttn: { adresse: c.ttn, coffre: c.coffre },
     lecteur: await lecteurDuServeur({ simultanees: c.lectures }) };
   declarerGestesVentes();
+  declarerGestesCaisse();
   declarerGestesAchats();
   declarerGestesPaie();
   declarerGestesCompta();

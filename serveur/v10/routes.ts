@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { motif, rendre, t } from '../../textes/index.ts';
 import type { Route } from '../app.ts';
-import { versTexte } from '../../moteur/argent.ts';
+import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import { sceller } from '../coffre.ts';
 import { mettreEnQuarantaine, type Contexte } from '../connexion.ts';
 import { Refus, texteDuRefus } from '../erreurs.ts';
@@ -16,6 +16,7 @@ import { tracer } from '../trace.ts';
 import { accordRemiseDeLaPiece, commandeDuServeur, depassementDuServeur, estResponsable, remiseDuServeur } from './accords.ts';
 import { filtrer, mesRoles } from './droits.ts';
 import { appliquer, Conflit, emettreDepuisV10, lireDossier, type Changement } from './dossier.ts';
+import { nombreEnTexte } from './lecture.ts';
 import { poserCompte, renvoyer } from './envoi.ts';
 import { demanderPaiement, verifierPaiement } from './paiement.ts';
 import { demanderSignature, signerAvecLeCode } from './signature.ts';
@@ -65,6 +66,36 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       },
     });
   }
+
+  // ── Le ticket de caisse (brique 115 ; docs/caisse.md) ───────────────────────────────────────────
+  // Encaisser : le serveur numérote le ticket dans SA série (TIC), le scelle comme une facture (montants en entiers,
+  // maillon du journal), puis enregistre son paiement dans le même geste. Un ticket est payé en entier à
+  // l'encaissement : sinon rien n'est vendu, et aucun numéro n'est pris (tout s'annule).
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/dossier-v10/ticket', geste: 'caisse.ticket.encaisser',
+    corps: z.object({ document: z.record(z.string(), contenu), rang: z.number().int().min(0).nullable(), netAPayer: z.string().regex(/^\d+(\.\d+)?$/) }),
+    traiter: async ({ params, corps, qui }, tx) => {
+      if (!tx || !qui) throw new Error('transaction attendue');
+      const ent = params.entreprise ?? '';
+      const doc = corps.document as Record<string, unknown>;
+      const paiements = Array.isArray(doc.payments) ? doc.payments as Record<string, unknown>[] : [];
+      // Le paiement fait le total, au millime (le reçu et le rendu restent sur le ticket, `caisse`).
+      const dec = (corps.netAPayer.split('.')[1] ?? '').length;
+      const paye = paiements.reduce((s, p) => s + depuisTexte(nombreEnTexte(p.amount), dec), 0n);
+      if (paye !== depuisTexte(corps.netAPayer, dec)) throw new Refus('caisse.paiement_manquant', { valeurs: { paye: versTexte(paye, dec), total: corps.netAPayer } });
+      // Le client, s'il y en a un, est celui du dossier (jamais celui de l'écran).
+      let client: Record<string, unknown> | null = null;
+      if (typeof doc.clientId === 'string' && doc.clientId) {
+        client = (await tx.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'clients' and cle = $2`, [ent, doc.clientId])).rows[0]?.contenu ?? null;
+        if (!client) throw new Refus('caisse.client_inconnu');
+      }
+      const r = await emettreDepuisV10(tx, ent, qui.utilisateur, { document: { ...doc, payments: [] }, client, revision: null, rang: corps.rang, netAPayer: corps.netAPayer }, 'facture', { ticket: true });
+      const cle = String(doc.id);
+      const avecPaiement = { ...r.contenu, payments: paiements };
+      const [ecrit] = await appliquer(tx, ent, qui.utilisateur, [{ collection: 'documents', cle, rang: corps.rang, revision: r.revision, contenu: avecPaiement }], { serveur: true });
+      return { corps: { contenu: avecPaiement, revision: ecrit?.revision ?? r.revision, numero: r.numero } };
+    },
+  });
 
   // ── L'accord d'un responsable au-delà de l'encours (brique 98 ; docs/accords.md) ──────────────────────
   // Demander : le serveur recalcule le dépassement (jamais celui de l'écran) et garde la demande, en attente.

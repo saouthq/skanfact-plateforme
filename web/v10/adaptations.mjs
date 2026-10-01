@@ -439,20 +439,35 @@ export const ADAPTATIONS = [
     avant: "    if ($('#del')) $('#del').onclick = async () => {\n      if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ? Les règlements enregistrés seront perdus.`)) return;\n",
     apres: "    if ($('#del')) $('#del').onclick = async () => {\n      if (enLecture('purchases')) { toast(refusLecture('purchases', 'supprimé'), true); return; }\n      if (bridge.emettre && data.purchases.some(x => x.achatLie === p.id)) { toast('Un avoir ou un acompte est rattaché à cet achat : détache-le (ou supprime-le) d\\'abord. Rien n\\'a été supprimé.', true); return; }\n      if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ? Les règlements enregistrés seront perdus.`)) return;\n",
   },
-  // ── La caisse n'est pas encore en ligne (étape 4) ──
-  // Un ticket est une facture numérotée sur l'ordinateur : le serveur la refuserait, et l'écran finirait
-  // sur « Rien n'a été enregistré ». Le geste se refuse avec sa phrase, avant de rien vendre.
+  // ── La caisse en ligne (brique 115, docs/caisse.md) ──
+  // Un ticket est une facture numérotée sur l'ordinateur : le serveur la refuserait. Sur la plateforme, « Encaisser »
+  // passe par le serveur, qui numérote le ticket dans SA série (TIC), le scelle et enregistre son paiement. Le retour
+  // d'un ticket n'est pas encore en ligne : il se refuse avec sa phrase, avant de rien rendre.
   {
     fichier: 'app.js',
-    pourquoi: '« Encaisser » se refuse avec sa phrase : la caisse arrive avec l\'étape 4',
+    pourquoi: '« Encaisser » passe par le serveur : numéro, sceau et paiement',
     avant: "        if (licenceBlock('Émettre un ticket de caisse', 'caisse')) return;\n",
-    apres: "        if (licenceBlock('Émettre un ticket de caisse', 'caisse')) return;\n        if (bridge.emettre) { toast('La caisse n\\'est pas encore dans la version en ligne de SkanFact : rien n\\'a été vendu.', true); return; }\n",
+    apres: "        if (licenceBlock('Émettre un ticket de caisse', 'caisse')) return;\n"
+      + "        if (bridge.encaisser) {\n"
+      + "          b.dataset.busy = '1';\n"
+      + "          // Le numéro vient du serveur : celui que le moteur vient de prendre sur ce poste se rend.\n"
+      + "          const compteurs = JSON.stringify(data.counters || {});\n"
+      + "          const t = C.ticketDeCaisse(data, company(), s.panier, { mode: s.mode, recu: recu === '' ? null : recu, clientId: s.clientId });\n"
+      + "          data.counters = JSON.parse(compteurs); t.number = '';\n"
+      + "          bridge.encaisser(t, C.computeTotals(t, company()).netToPay).then(e => {\n"
+      + "            data.documents.push(e);\n"
+      + "            s.panier = []; s.recu = ''; s.clientId = ''; s.dernierId = e.id;\n"
+      + "            const rendu = e.caisse && e.caisse.rendu ? ` — à rendre ${C.money(e.caisse.rendu, cur)}` : '';\n"
+      + "            toast(`Ticket ${e.number} encaissé${rendu}`);\n"
+      + "          }, x => toast(plainError(x), true)).finally(() => { delete b.dataset.busy; drawTicket(); scan(); });\n"
+      + "          return;\n"
+      + "        }\n",
   },
   {
     fichier: 'app.js',
-    pourquoi: 'le retour d\'un ticket se refuse de même',
+    pourquoi: 'le retour d\'un ticket se refuse avec sa phrase (pas encore en ligne)',
     avant: "        if (licenceBlock('Émettre un avoir sur un ticket', 'caisse')) return;\n",
-    apres: "        if (licenceBlock('Émettre un avoir sur un ticket', 'caisse')) return;\n        if (bridge.emettre) { toast('La caisse n\\'est pas encore dans la version en ligne de SkanFact : rien n\\'a été rendu.', true); return; }\n",
+    apres: "        if (licenceBlock('Émettre un avoir sur un ticket', 'caisse')) return;\n        if (bridge.emettre) { toast('Le retour d\\'un ticket n\\'est pas encore dans la version en ligne de SkanFact : rien n\\'a été rendu.', true); return; }\n",
   },
   // ── La paie par le serveur (brique 31, docs/paie.md) ──
   // Un bulletin de la v10 ne gardait qu'une partie de ce qui l'a calculé : six taux et le régime du

@@ -11,6 +11,7 @@
 
 import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
+import { rendre, t } from '../../textes/index.ts';
 import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { Perimee, Refus } from '../erreurs.ts';
@@ -198,20 +199,27 @@ const decimal = (v: unknown, dec: number) => { const t = nombreEnTexte(v); depui
 
 // `type` : la pièce que la route émet (chacune a son geste : un commercial émet une facture, pas un
 // avoir, 03 § 2.1). Une pièce d'un autre type ne passe pas par cette route.
+// `ticket` (brique 115) : un ticket de caisse, par sa route à lui ; il a sa série (TIC) et peut se vendre à un passant
+// (le client « Vente au comptoir »). Une facture marquée ticket ne passe pas par la route des factures, ni l'inverse.
 export async function emettreDepuisV10(tx: Transaction, entreprise: string, utilisateur: string,
-  demande: { document: Json; client: Json | null; revision: number | null; rang: number | null; netAPayer: string }, type: 'facture' | 'avoir' = 'facture') {
+  demande: { document: Json; client: Json | null; revision: number | null; rang: number | null; netAPayer: string }, type: 'facture' | 'avoir' = 'facture',
+  options: { ticket?: boolean } = {}) {
   const db = requetes(tx);
   const doc = demande.document;
   const cle = String(doc.id ?? '');
   if (!cle || doc.type !== type) throw new Refus('ventes.seule_facture');
+  const ticket = options.ticket === true;
+  if (ticket !== (doc.ticket === true)) throw new Refus(ticket ? 'caisse.pas_un_ticket' : 'v10.ticket_par_la_caisse');
   // Un paiement ne se saisit qu'une fois la facture émise.
   if (Array.isArray(doc.payments) && doc.payments.length) throw new Refus('v10.reglement_sur_brouillon');
   const stocke = await db.selectFrom('socle.dossier_v10').select(['contenu', 'revision'])
     .where('entreprise', '=', entreprise).where('collection', '=', 'documents').where('cle', '=', cle).forUpdate().executeTakeFirst();
   if ((stocke ? Number(stocke.revision) : null) !== demande.revision) throw new Conflit([{ collection: 'documents', cle }]);
   if (emise(estObjet(stocke?.contenu) ? stocke.contenu : null)) throw new Refus('ventes.deja_emise');
-  const client = demande.client;
-  if (!client || typeof client.id !== 'string' || client.id !== doc.clientId) throw new Refus('v10.client_manquant');
+  // Un ticket sans client se vend « au comptoir » : une fiche à part, la même pour tous les passants.
+  const comptoir = ticket && !doc.clientId;
+  const client: Json | null = comptoir ? { id: '__comptoir', name: rendre(t('caisse.comptoir'), 'fr') } : demande.client;
+  if (!client || typeof client.id !== 'string' || (!comptoir && client.id !== doc.clientId)) throw new Refus('v10.client_manquant');
   // La facture électronique (brique 80) : la fiche de l'entreprise dit si elle y est soumise. Soumise, une
   // pièce dont le fichier TEIF serait refusé (un matricule, l'identifiant du client) ne s'émet pas : c'est
   // dit AVANT le numéro (un numéro pris ne se reprend pas).
@@ -225,8 +233,9 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   // L'encours autorisé du client (brique 98 ; 03 D11) : au-delà, une facture ne s'émet qu'avec l'accord d'un
   // responsable, quand l'entreprise le demande. Dit AVANT le numéro.
   // La remise au-delà du seuil de l'entreprise (brique 103) : de même, l'accord d'un responsable.
-  const accordRemise = type === 'facture' ? await controlerRemise(tx, entreprise, cle, doc) : null;
-  const accord = type === 'facture' ? await controlerEncours(tx, entreprise, cle, doc) : null;
+  // (Un ticket est payé dans le geste : pas d'encours ; sa remise relève de la caisse, 03 § 2.1.)
+  const accordRemise = type === 'facture' && !ticket ? await controlerRemise(tx, entreprise, cle, doc) : null;
+  const accord = type === 'facture' && !ticket ? await controlerEncours(tx, entreprise, cle, doc) : null;
 
   // 1. Le client, tel qu'il est aujourd'hui dans le dossier : sa fiche du serveur le suit.
   const fiche = {
@@ -275,7 +284,7 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
 
   // 3. La série de la v10 (« FAC-2026-001 », « AVO-2026-001 ») : créée au premier besoin, comme la
   //    v10 numérotait dès la première pièce.
-  const prefixe = SERIE_V10[type] ?? 'FAC';
+  const prefixe = ticket ? 'TIC' : SERIE_V10[type] ?? 'FAC';
   // Créée au premier besoin par l'émission elle-même (brique 99) : un commercial n'a pas à créer la série.
   const serie = String((await tx.query('select ventes.serie_v10($1, $2, $3) id', [entreprise, type, prefixe])).rows[0].id);
 
