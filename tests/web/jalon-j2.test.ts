@@ -82,6 +82,9 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
   const erreurs: string[] = [];
   let cn: BrowserContext;
   let nadia: Page;
+  // Les étapes datées (heure de la base) : le récit d'un clic impossible les donne, pour situer une suppression.
+  const carnet: string[] = [];
+  const noter = async (etape: string) => { carnet.push(`${etape} ${String((await admin.query("select to_char(clock_timestamp(), 'HH24:MI:SS.MS') t")).rows[0]?.t)}`); };
   const aller = async (hash: string) => { await nadia.evaluate((x) => { location.hash = x; }, hash); await plusTard(nadia); };
 
   it('vendre : la fiche et les comptes posés, un devis facturé, la facture signée, acceptée par la TTN, payée en ligne par le client', async () => {
@@ -99,6 +102,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     nadia = await cn.newPage();
     nadia.on('pageerror', (e) => erreurs.push(e.message));
 
+    await noter('A1');
     // 1. La fiche : matricule, adresse, soumise à la facture électronique.
     await nadia.goto(`${serveur.adresse}/v10/?e=${m.ent}#/parametres`);
     await expect.poll(() => nadia.locator('#pf input[name=name]').count(), { timeout: 20_000 }).toBe(1);
@@ -128,6 +132,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     await expect.poll(async () => net(await pl.locator('#pl-etat').innerText()), { timeout: 15_000 }).toMatch(/^Branché le /);
     await nadia.screenshot({ path: path.join(PHOTOS, 'j2-1-reglages.png') });
 
+    await noter('A2');
     // 2. Le client.
     await aller('#/clients');
     await nadia.locator('#new').click();
@@ -137,6 +142,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     await nadia.locator('#modal-root #ok').click();
     await expect.poll(async () => (await objets()).filter((o) => o.collection === 'clients').map((o) => o.contenu.name), { timeout: 10_000 }).toContain('Menuiserie El Amel');
 
+    await noter('A3');
     // 3. Un devis, puis « Facturer ce devis » ; la facture émise.
     await aller('#/doc/new/devis');
     await expect.poll(() => titre(nadia), { timeout: 10_000 }).toMatch(/^Nouveau devis/);
@@ -168,6 +174,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     expect([f?.number, f?.status]).toEqual([expect.stringMatching(/^FAC-\d{4}-001$/), 'envoyée']);
     await nadia.screenshot({ path: path.join(PHOTOS, 'j2-2-facture.png') });
 
+    await noter('A4');
     // 4. Signée avec le code reçu par le signataire.
     await nadia.locator('#more-btn').click();
     await nadia.getByRole('button', { name: 'Signer (DigiGo)…', exact: true }).click();
@@ -180,12 +187,14 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     await expect.poll(async () => net(await fen.locator('#sg-fait').innerText()), { timeout: 10_000 }).toMatch(/^La pièce FAC-\d{4}-001 est signée par Nadia Ben Salah/);
     await fen.getByRole('button', { name: 'Fermer', exact: true }).click().catch(() => nadia.keyboard.press('Escape'));
 
+    await noter('A5');
     // 5. Déposée, puis acceptée par la TTN (le facteur repasse : avancé ici, il attendrait une minute).
     const envoi = async () => (await api('GET', `/entreprises/${m.ent}/dossier-v10/${encodeURIComponent(m.facture)}/teif`, m.jeton)).corps.envoi as { statut: string } | null;
     await expect.poll(async () => (await envoi())?.statut, { timeout: 15_000 }).toBe('deposee');
     await admin.query(`update ventes.envoi_ttn set prochain_essai = now() where entreprise = $1`, [m.ent]);
     await expect.poll(async () => (await envoi())?.statut, { timeout: 15_000 }).toBe('acceptee');
 
+    await noter('A6');
     // 6. Le lien de son espace donné au client ; il paie la facture en ligne.
     await nadia.reload();
     await expect.poll(() => titre(nadia), { timeout: 20_000 }).toMatch(/^Facture FAC-\d{4}-001/);
@@ -220,6 +229,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
   }, 240_000);
   it('acheter, la banque, la déclaration du mois, une coupure du réseau, et le téléphone', async () => {
     expect(m.facture, 'la première moitié du parcours a joué').not.toBe('');
+    await noter('B1');
     // 1. Le fournisseur, puis sa facture photographiée et lue ; enregistrée, elle tombe au millime sur la pièce.
     await aller('#/fournisseurs');
     await nadia.locator('#new').click();
@@ -243,9 +253,10 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
       { timeout: 15_000 }).toEqual([['FV-2026-0412', '332.222']]);
     await nadia.screenshot({ path: path.join(PHOTOS, 'j2-4-achat-lu.png') });
 
+    await noter('B2');
     // 2. La banque : le compte courant ouvert, puis l'achat réglé depuis lui.
     await aller('#/tresorerie');
-    await cliquer(nadia.locator('#new-acc'), '', 15_000, () => recitObjet(admin, m.ent, 'accounts'));
+    await cliquer(nadia.locator('#new-acc'), '', 15_000, async () => `${await recitObjet(admin, m.ent, 'accounts')} ; étapes : ${carnet.join(', ')}`);
     await nadia.locator('#af input[name=name]').fill('BIAT — compte courant');
     await nadia.locator('#af [name=opening]').fill('5000');
     await nadia.locator('#modal-root #ok').click();
@@ -261,6 +272,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     await expect.poll(async () => ((await objets()).find((o) => o.cle === achat)?.contenu.payments as Record<string, unknown>[] | undefined)?.map((p) => [p.accountId, p.amount, p.reference]),
       { timeout: 10_000 }).toEqual([[biat, { '~n': '332.222' }, 'VIR-0458']]);
 
+    await noter('B3');
     // 3. La déclaration du mois : la TVA que l'écran dit est celle des livres du serveur.
     const mois = new Date().toISOString().slice(0, 7);
     const fin = new Date(Date.UTC(Number(mois.slice(0, 4)), Number(mois.slice(5, 7)), 0)).toISOString().slice(0, 10);
@@ -278,6 +290,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     expect(ecran).toContain(lisible(Math.round((collectee - deductible) * 1000) / 1000));
     await nadia.screenshot({ path: path.join(PHOTOS, 'j2-5-tva-du-mois.png') });
 
+    await noter('B4');
     // 4. Une coupure du réseau, sur l'ordinateur de Nadia (la copie gardée) : un client noté sans réseau part seul
     //    à son retour, et s'annonce seul : l'achat fait plus tôt sur l'autre poste ne compte pas pour un changement
     //    de plus (brique 108).
@@ -307,6 +320,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     await expect.poll(async () => net(await poste.locator('#poste-bandeau').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^Le réseau est revenu/);
     await co.close();
 
+    await noter('B5');
     // 5. Au téléphone : la facture du mois se relit, payée, sans que rien ne déborde.
     const ct = await navigateur.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'fr-FR' });
     await ct.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, m.jeton);

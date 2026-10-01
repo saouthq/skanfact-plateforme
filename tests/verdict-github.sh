@@ -29,7 +29,7 @@ for r in runs:
         rouge = True
         for a in api(f"check-runs/{r['id']}/annotations?per_page=50"):
             if a.get('annotation_level') == 'failure':
-                print('    ·', ' '.join(((a.get('title') or '') + ' — ' + (a.get('message') or '')).split())[:900])
+                print('    ·', ' '.join(((a.get('title') or '') + ' — ' + (a.get('message') or '')).split())[:3000])
 if rouge: print('ROUGE : à réparer avant tout nouvel envoi.'); sys.exit(1)
 if attente or not runs: print('Pas encore fini.' if runs else 'Pas encore commencé.'); sys.exit(3)
 print('Tout est vert.')
