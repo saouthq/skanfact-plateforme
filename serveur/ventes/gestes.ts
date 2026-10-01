@@ -25,6 +25,9 @@ export const GESTES_VENTES: Geste[] = [
   // Les contrats de facturation récurrente (brique 130) : créés, modifiés, suspendus, par une personne ou une clé.
   { code: 'ventes.contrat.modifier', module: 'ventes', ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui' } },
+  // Les commandes d'une boutique en ligne facturées dans SkanFact (brique 131) : par une clé, d'abord.
+  { code: 'ventes.boutique.facturer', module: 'ventes', ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui' } },
   { code: 'ventes.client.modifier', module: 'ventes', ecrit: true,
     roles: { proprietaire: 'oui', administrateur: 'oui', commercial: 'oui', lecture: 'voir' } },
   // L'espace client (brique 77) : un lien secret vers les pièces émises d'un client. Jamais pour une clé

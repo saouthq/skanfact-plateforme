@@ -5816,8 +5816,8 @@ prouver "une partie sans règle ouverte à tous" serveur/v10/droits.ts \
 prouver "le catalogue écrit par le commercial" serveur/v10/droits.ts \
   "  catalog: R('stock.voir', 'ventes.prix.modifier')," "  catalog: R('stock.voir', 'ventes.brouillon.modifier')," \
   "$DD2"
-prouver "la série qu'un commercial ne crée pas" base/migrations/0056_ticket.sql \
-  "                                                  else array['proprietaire', 'administrateur', 'commercial'] end)::text[]) then" "                                                  else array['proprietaire', 'administrateur'] end)::text[]) then" \
+prouver "la série qu'un commercial ne crée pas" base/migrations/0066_serie_par_cle.sql \
+  "                                                  else array['proprietaire', 'administrateur', 'commercial'] end)::text[]" "                                                  else array['proprietaire', 'administrateur'] end)::text[]" \
   "$DD3"
 prouver "une liste vide sans la règle de sa liste" serveur/v10/droits.ts \
   "RACINE[cle] ?? LISTES[cle] : LISTES[collection]" "RACINE[cle] : LISTES[collection]" \
@@ -6158,7 +6158,7 @@ prouver "une demande de commande lue comme une demande d'encours sur l'accueil" 
 # ── Brique 115 : le ticket de caisse encaissé en ligne (docs/caisse.md) ──
 TK="le caissier encaisse dans la série des tickets, payé en entier ; le commercial non ; la série des factures ne perd rien"
 TKW="Nadia encaisse deux tickets : le serveur les numérote dans leur série, et le bilan les compte"
-prouver "la série des tickets que le caissier ne crée pas" base/migrations/0056_ticket.sql \
+prouver "la série des tickets que le caissier ne crée pas" base/migrations/0066_serie_par_cle.sql \
   "case when p_prefixe = 'TIC' then array['proprietaire', 'administrateur', 'caissier']" "case when p_prefixe = 'TIC' then array['proprietaire', 'administrateur']" \
   "$TK"
 prouver "le caissier qui n'encaisse pas" serveur/caisse/gestes.ts \
@@ -7077,6 +7077,79 @@ prouver "les contrats d'un client mêlés à ceux des autres" serveur/v10/api-co
 prouver "un contrat suspendu qui reste actif" serveur/v10/api-contrats.ts \
   "const contenu: Json = { ...l.contenu, active: geste === 'reprendre' };" "const contenu: Json = { ...l.contenu, active: true };" \
   "$AC"
+
+# Brique 131 : les commandes d'une boutique en ligne, facturées dans SkanFact (docs/boutique.md).
+BQ="une commande devient une facture payée, au millime, une seule fois ; ses écritures suivent"
+prouver "une commande renvoyée qui fait une seconde facture" serveur/v10/boutique.ts \
+  "      if (deja) return { corps: deja };
+" "" \
+  "$BQ"
+prouver "le dossier d'une boutique sans la fiche de l'entreprise" serveur/v10/boutique.ts \
+  "      await dossierPret(tx, ent, qui.utilisateur);
+" "" \
+  "$BQ"
+prouver "un client de boutique créé à chaque commande" serveur/v10/boutique.ts \
+  "      if (!client) {" "      if (true) {" \
+  "$BQ"
+prouver "un client de boutique reconnu sans sa référence" serveur/v10/boutique.ts \
+  "empreinte(c.ref ? \`ref:\${c.ref}\` : c.email ?" "empreinte(c.email ?" \
+  "$BQ"
+prouver "un client de boutique dont la casse de l'e-mail change tout" serveur/v10/boutique.ts \
+  "\`email:\${c.email.toLowerCase()}\`" "\`email:\${c.email}\`" \
+  "$BQ"
+prouver "un client de boutique sans son téléphone" serveur/v10/boutique.ts \
+  "          phone: corps.client.telephone ?? '', currency: '' };" "          phone: '', currency: '' };" \
+  "$BQ"
+prouver "un prix TTC qui ne redonne jamais son TTC" serveur/v10/boutique.ts \
+  "    if (avecTva(h) === ttc) return { ht: h, manque: 0n };
+" "" \
+  "$BQ"
+prouver "le millime qui manque perdu" serveur/v10/boutique.ts \
+  "  if (arrondi > 0n) v10.push(" "  if (false) v10.push(" \
+  "$BQ"
+prouver "une quantité que le prix HT ne redonne pas, facturée quand même" serveur/v10/boutique.ts \
+  "    if (diviserArrondi(q3 * p6, MILLION) !== ht) throw new Refus(" "    if (false) throw new Refus(" \
+  "$BQ"
+prouver "un article de la boutique jamais relié au catalogue" serveur/v10/boutique.ts \
+  ", ...(article ? { itemId: article } : {}) };" " };" \
+  "$BQ"
+prouver "un code d'article de la boutique lu avec sa casse" serveur/v10/boutique.ts \
+  "    const code = (l.code ?? '').replace(/\\s+/g, '').toUpperCase();" "    const code = (l.code ?? '').replace(/\\s+/g, '');" \
+  "$BQ"
+prouver "un code d'article du catalogue lu avec ses espaces" serveur/v10/boutique.ts \
+  "upper(regexp_replace(contenu->>'code', '[[:space:]]', '', 'g')) code" "upper(contenu->>'code') code" \
+  "$BQ"
+prouver "une ligne au prix HT comptée comme un TTC" serveur/v10/boutique.ts \
+  "{ ttcTotal = null; return" "{ return" \
+  "$BQ"
+prouver "un total de commande qui ne tombe pas juste, facturé quand même" serveur/v10/boutique.ts \
+  "      if (attendu !== null && attendu !== net) throw" "      if (false) throw" \
+  "$BQ"
+prouver "le timbre oublié dans le total attendu" serveur/v10/boutique.ts \
+  "      const timbre = corps.timbre ? 1000n : 0n;" "      const timbre = 0n;" \
+  "$BQ"
+prouver "le timbre posé sur une commande qui n'en veut pas" serveur/v10/boutique.ts \
+  "applyStamp: corps.timbre," "applyStamp: true," \
+  "$BQ"
+prouver "le paiement d'une commande enregistré deux fois" serveur/v10/boutique.ts \
+  "  if (paiements.some((x) => x.id === id)) return;
+" "" \
+  "$BQ"
+prouver "une commande payée facturée sans son paiement" serveur/v10/boutique.ts \
+  "      if (corps.paiement) await ajouterPaiement(" "      if (false) await ajouterPaiement(" \
+  "$BQ"
+prouver "un paiement pour une commande inconnue accepté" serveur/v10/boutique.ts \
+  "      if (!(await resultat(tx, ent, params.reference ?? '', true))) return { statut: 404," "      if (false) return { statut: 404," \
+  "$BQ"
+prouver "une clé qui ne prend jamais la série des factures" base/migrations/0066_serie_par_cle.sql \
+  "             or (p_prefixe <> 'TIC' and exists (" "             or (false and exists (" \
+  "$BQ"
+prouver "une clé qui prend la série des tickets" base/migrations/0066_serie_par_cle.sql \
+  "             or (p_prefixe <> 'TIC' and exists (" "             or (true and exists (" \
+  "$BQ"
+prouver "une clé sans geste d'émission qui prend la série" base/migrations/0066_serie_par_cle.sql \
+  " and k.gestes && array['ventes.facture.emettre', 'ventes.boutique.facturer']))) then" "))) then" \
+  "$BQ"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
