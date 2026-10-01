@@ -1759,7 +1759,7 @@
     tresorerie: 'Trésorerie', stats: 'Statistiques', compta: 'Comptabilité', parametres: 'Paramètres', aide: 'Aide', doc: 'le document', licences: 'Licences',
     achats: 'Achats et dépenses', achat: 'l\'achat', fournisseurs: 'Fournisseurs', fournisseur: 'la fiche fournisseur',
     commandesf: 'Commandes fournisseurs', commandef: 'la commande fournisseur', reception: 'la réception',
-    marges: 'Marges', affaire: 'l\'affaire', immos: 'Immobilisations', immo: 'l\'immobilisation',
+    marges: 'Marges', affaire: 'l\'affaire', immos: 'Immobilisations', immo: 'l\'immobilisation', groupe: 'Le groupe',
     accords: 'Demandes d\'accord',
     stock: 'Stock', caisse: 'la Caisse', article: 'l\'article', garanties: 'Garanties', paie: 'Paie', salarie: 'la fiche du salarié',
     modules: 'Tous les modules'
@@ -1939,6 +1939,7 @@
         ${autres.map(d => `<button type="button" data-dos="${h(d.id)}" title="${h(d.name)}">
           <span class="dm-mark"></span><span class="dm-nom">${h(d.name)}</span>${d.shared ? '<span class="dm-tag">partagé</span>' : ''}</button>`).join('')}` : ''}
       <hr>
+      ${bridge.groupe && autres.length ? '<button type="button" id="dm-groupe" title="Les chiffres de tes sociétés, côte à côte"><span class="dm-mark">Σ</span><span class="dm-nom">Le groupe</span></button>' : ''}
       <button type="button" id="dm-new" title="Créer un second dossier, pour une autre entreprise"><span class="dm-mark">+</span><span class="dm-nom">Nouvelle entreprise…</span></button>
       <button type="button" id="dm-sortir" title="Fermer ta session sur cet appareil"><span class="dm-mark">⏻</span><span class="dm-nom">Se déconnecter</span></button>
       <button type="button" id="dm-manage" title="Renommer, retirer de la liste, voir où vivent les fichiers"><span class="dm-mark">⚙</span><span class="dm-nom">Gérer les dossiers…</span></button>`;
@@ -1955,6 +1956,7 @@
       try { await bridge.switchDossier(b.dataset.dos); } catch (e) { toast(plainError(e), true); }
     });
     $('#dm-new', m).onclick = () => { fermerDossiers(); nouvelleEntreprise(); };
+    if ($('#dm-groupe', m)) $('#dm-groupe', m).onclick = () => { fermerDossiers(); navigate('#/groupe'); };
     if ($('#dm-share', m)) $('#dm-share', m).onclick = () => { fermerDossiers(); partagerDossier(); };
     // Le geste inverse se nomme comme il s'appelle DANS CE MENU — et seulement s'il y est : un dossier
     // déjà partagé n'y propose pas « Partager cette entreprise ». Lu AVANT de fermer : fermer vide le menu.
@@ -14228,6 +14230,36 @@
   // et qui sont mes clients.
   const statsState = { kind: 'annee', year: C.today().slice(0, 4), n: String(Number(C.today().slice(5, 7))) };
 
+  // (plateforme, brique 113) Le groupe : les sociétés de la personne, leurs chiffres lus dans leurs livres au serveur.
+  routes.groupe = async () => {
+    const tete = `<div class="page-head"><h1>Le groupe ${info('groupe.page')}</h1><div class="actions">${backButton('#/dashboard')}</div></div>`;
+    if (!bridge.groupe) { $('#view').innerHTML = `${tete}<div class="panel"><p class="small muted">Le groupe se lit en ligne, au serveur.</p></div>`; return; }
+    $('#view').innerHTML = `${tete}<div class="panel"><p class="small muted">Lecture des chiffres de tes sociétés…</p></div>`;
+    let r;
+    try { r = await bridge.groupe(); } catch (e) {
+      $('#view').innerHTML = `${tete}<div class="panel"><p>${h(plainError(e))}</p><button class="btn" id="gr-reessayer">Réessayer</button></div>`;
+      $('#gr-reessayer').onclick = () => render(true);
+      return;
+    }
+    const argent = (v, devise) => C.money(Number(v), devise === 'TND' ? 'DT' : devise);
+    const COLONNES = [['caMois', 'CA du mois (HT)'], ['caExercice', 'CA de l\'exercice (HT)'], ['aEncaisser', 'À encaisser'], ['aPayer', 'À payer'], ['tresorerie', 'Trésorerie']];
+    const ligne = s => s.chiffres
+      ? `<tr><td><button type="button" class="link-add" data-groupe-ouvrir="${h(s.id)}" title="Ouvrir ${h(s.raisonSociale)}">${h(s.raisonSociale)}</button></td>${COLONNES.map(([k]) => `<td class="r nw">${h(argent(s.chiffres[k], s.devise))}</td>`).join('')}</tr>`
+      : `<tr><td><button type="button" class="link-add" data-groupe-ouvrir="${h(s.id)}" title="Ouvrir ${h(s.raisonSociale)}">${h(s.raisonSociale)}</button></td><td colspan="${COLONNES.length}" class="small muted">${h(s.motif || '')}</td></tr>`;
+    const total = t => `<tr class="total-row"><td><strong>Total du groupe${r.totaux.length > 1 ? ` (${h(t.devise === 'TND' ? 'DT' : t.devise)})` : ''}</strong></td>${COLONNES.map(([k]) => `<td class="r nw"><strong>${h(argent(t.chiffres[k], t.devise))}</strong></td>`).join('')}</tr>`;
+    $('#view').innerHTML = `${tete}
+      <div class="panel" id="groupe-tableau"><h2>Tes sociétés, au ${h(C.fmtDate(r.jour))}</h2>
+        <table class="list"><thead><tr><th>Société</th>${COLONNES.map(([, l]) => `<th class="r">${h(l)}</th>`).join('')}</tr></thead>
+          <tbody>${r.societes.map(ligne).join('')}</tbody>
+          <tfoot>${r.totaux.map(total).join('')}</tfoot></table>
+        <p class="small muted mt">Les chiffres viennent des livres de chaque société : le chiffre d'affaires hors taxes (comptes 70), ce que les clients doivent encore (411), ce qui reste à payer aux fournisseurs (401), la banque et la caisse (classe 5). Deux devises ne s'additionnent pas : chacune a son total.</p>
+      </div>`;
+    $$('[data-groupe-ouvrir]').forEach(b => b.onclick = async () => {
+      if (!await leaveOk()) return;
+      toast('Ouverture de la société…');
+      try { await bridge.switchDossier(b.dataset.groupeOuvrir); } catch (e) { toast(plainError(e), true); }
+    });
+  };
   routes.stats = () => {
     const cur = company().currency;
     const years = Array.from(new Set(data.documents.map(d => (d.date || '').slice(0, 4)).filter(Boolean)

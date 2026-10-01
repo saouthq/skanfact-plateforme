@@ -6,6 +6,8 @@ import { declarerTextes } from './textes.ts';
 declarerTextes({
   // ── Le serveur ──────────────────────────────────────────────────────────────────────────────
   'commun.introuvable': 'introuvable',
+  // Le tableau de bord du groupe (brique 113, serveur/groupe.ts).
+  'groupe.sans_chiffres': 'ton rôle dans cette société ne te montre pas ses livres : ses chiffres n\'y sont pas',
   'commun.refuse': 'refusé',
   'commun.erreur_serveur': 'une erreur est survenue de notre côté. Elle est notée ; réessaie dans un instant',
   'commun.connexion_requise': 'connecte-toi pour continuer',

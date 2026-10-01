@@ -133,6 +133,9 @@
     révision que la PAGE a eue (`base`), pas avec la dernière lecture du serveur : un objet qu'elle n'a jamais
     eu ne se supprime pas, un objet changé ailleurs fait un conflit au lieu d'être écrasé (vu en CI : le compte
     Konnect créé par le serveur supprimé par la page ; `tests/web/enregistrement-concurrent.test.ts`).
+  - **Le tableau de bord du groupe** (brique 113, `docs/groupe.md`) : depuis le menu des entreprises, les sociétés de
+    la personne côte à côte, avec les chiffres de leurs livres (70, 411, 401, classe 5) et un total par devise ; une
+    société sans les livres pour son rôle est nommée sans chiffres. La consolidation vient en vague 4.
   - **L'avoir et les règlements** (brique 29, `docs/avoirs-reglements.md`) : l'avoir s'émet par
     le serveur (série AVO, lié à sa facture, `ventes.piece.corrige`, route et geste à lui) ; les
     paiements d'une facture émise sont vérifiés et tenus par le serveur (`ventes.reglement`, 0012,

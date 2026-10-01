@@ -1,0 +1,80 @@
+Le tableau de bord du groupe (brique 113 ; 14 § 3.6 ; 13, cible n° 6 ; serveur/groupe.ts).
+Format : voir sans-paquets.mjs.
+
+Qui tient plusieurs sociétés les voit côte à côte, depuis le menu des entreprises (« Le groupe ») : pour chacune, le
+chiffre d'affaires du mois et de l'exercice, ce que les clients doivent, ce qui reste à payer aux fournisseurs, la
+trésorerie ; puis le total, devise par devise (on n'additionne jamais deux devises). Les chiffres viennent des livres
+de chaque société, au serveur : ceux de sa balance. Une société dont le rôle de la personne ne montre pas les livres
+est nommée, sans ses chiffres, et dit pourquoi. Chaque ligne ouvre sa société.
+
+── Les écrans (app.js) ──
+
+== app.js | le menu des entreprises mène au groupe, dès deux sociétés
+-- avant
+      <button type="button" id="dm-new" title="Créer un second dossier, pour une autre entreprise">
+-- après
+      ${bridge.groupe && autres.length ? '<button type="button" id="dm-groupe" title="Les chiffres de tes sociétés, côte à côte"><span class="dm-mark">Σ</span><span class="dm-nom">Le groupe</span></button>' : ''}
+      <button type="button" id="dm-new" title="Créer un second dossier, pour une autre entreprise">
+-- fin
+
+== app.js | « Le groupe » ouvre sa page
+-- avant
+    $('#dm-new', m).onclick = () => { fermerDossiers(); nouvelleEntreprise(); };
+-- après
+    $('#dm-new', m).onclick = () => { fermerDossiers(); nouvelleEntreprise(); };
+    if ($('#dm-groupe', m)) $('#dm-groupe', m).onclick = () => { fermerDossiers(); navigate('#/groupe'); };
+-- fin
+
+== app.js | le nom de la page du groupe
+-- avant
+    marges: 'Marges', affaire: 'l\'affaire', immos: 'Immobilisations', immo: 'l\'immobilisation',
+-- après
+    marges: 'Marges', affaire: 'l\'affaire', immos: 'Immobilisations', immo: 'l\'immobilisation', groupe: 'Le groupe',
+-- fin
+
+== app.js | la page du groupe
+-- avant
+  routes.stats = () => {
+-- après
+  // (plateforme, brique 113) Le groupe : les sociétés de la personne, leurs chiffres lus dans leurs livres au serveur.
+  routes.groupe = async () => {
+    const tete = `<div class="page-head"><h1>Le groupe ${info('groupe.page')}</h1><div class="actions">${backButton('#/dashboard')}</div></div>`;
+    if (!bridge.groupe) { $('#view').innerHTML = `${tete}<div class="panel"><p class="small muted">Le groupe se lit en ligne, au serveur.</p></div>`; return; }
+    $('#view').innerHTML = `${tete}<div class="panel"><p class="small muted">Lecture des chiffres de tes sociétés…</p></div>`;
+    let r;
+    try { r = await bridge.groupe(); } catch (e) {
+      $('#view').innerHTML = `${tete}<div class="panel"><p>${h(plainError(e))}</p><button class="btn" id="gr-reessayer">Réessayer</button></div>`;
+      $('#gr-reessayer').onclick = () => render(true);
+      return;
+    }
+    const argent = (v, devise) => C.money(Number(v), devise === 'TND' ? 'DT' : devise);
+    const COLONNES = [['caMois', 'CA du mois (HT)'], ['caExercice', 'CA de l\'exercice (HT)'], ['aEncaisser', 'À encaisser'], ['aPayer', 'À payer'], ['tresorerie', 'Trésorerie']];
+    const ligne = s => s.chiffres
+      ? `<tr><td><button type="button" class="link-add" data-groupe-ouvrir="${h(s.id)}" title="Ouvrir ${h(s.raisonSociale)}">${h(s.raisonSociale)}</button></td>${COLONNES.map(([k]) => `<td class="r nw">${h(argent(s.chiffres[k], s.devise))}</td>`).join('')}</tr>`
+      : `<tr><td><button type="button" class="link-add" data-groupe-ouvrir="${h(s.id)}" title="Ouvrir ${h(s.raisonSociale)}">${h(s.raisonSociale)}</button></td><td colspan="${COLONNES.length}" class="small muted">${h(s.motif || '')}</td></tr>`;
+    const total = t => `<tr class="total-row"><td><strong>Total du groupe${r.totaux.length > 1 ? ` (${h(t.devise === 'TND' ? 'DT' : t.devise)})` : ''}</strong></td>${COLONNES.map(([k]) => `<td class="r nw"><strong>${h(argent(t.chiffres[k], t.devise))}</strong></td>`).join('')}</tr>`;
+    $('#view').innerHTML = `${tete}
+      <div class="panel" id="groupe-tableau"><h2>Tes sociétés, au ${h(C.fmtDate(r.jour))}</h2>
+        <table class="list"><thead><tr><th>Société</th>${COLONNES.map(([, l]) => `<th class="r">${h(l)}</th>`).join('')}</tr></thead>
+          <tbody>${r.societes.map(ligne).join('')}</tbody>
+          <tfoot>${r.totaux.map(total).join('')}</tfoot></table>
+        <p class="small muted mt">Les chiffres viennent des livres de chaque société : le chiffre d'affaires hors taxes (comptes 70), ce que les clients doivent encore (411), ce qui reste à payer aux fournisseurs (401), la banque et la caisse (classe 5). Deux devises ne s'additionnent pas : chacune a son total.</p>
+      </div>`;
+    $$('[data-groupe-ouvrir]').forEach(b => b.onclick = async () => {
+      if (!await leaveOk()) return;
+      toast('Ouverture de la société…');
+      try { await bridge.switchDossier(b.dataset.groupeOuvrir); } catch (e) { toast(plainError(e), true); }
+    });
+  };
+  routes.stats = () => {
+-- fin
+
+── L'aide (guide.js) ──
+
+== guide.js | la bulle de la page du groupe
+-- avant
+    'stat.aging': { t: 'Âge des impayés',
+-- après
+    'groupe.page': { t: 'Le groupe', d: 'Tes sociétés côte à côte, avec les chiffres de leurs livres au serveur : le chiffre d\'affaires hors taxes du mois et de l\'exercice, ce que les clients doivent encore, ce qui reste à payer aux fournisseurs, la banque et la caisse. Le total additionne les sociétés d\'une même devise. Une société dont ton rôle ne montre pas les livres est nommée sans ses chiffres. Chaque nom ouvre sa société.' },
+    'stat.aging': { t: 'Âge des impayés',
+-- fin

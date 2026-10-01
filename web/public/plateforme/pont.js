@@ -588,6 +588,8 @@
 
     // ── Les entreprises (les « dossiers » de la v10) ──────────────────────────────────────────
     // Un dossier de la v10 était un fichier sur l'ordinateur ; ici, c'est une entreprise du compte.
+    // Le tableau de bord du groupe (brique 113) : les sociétés de la personne, leurs chiffres lus dans leurs livres.
+    groupe: async () => appelCompte('GET', '/moi/groupe'),
     listDossiers: async () => {
       let moi;
       try { moi = await appelCompte('GET', '/moi'); } catch (e) {

@@ -6082,6 +6082,25 @@ prouver "le dossier ouvert sans que la page l'ait (rien ne se supprime plus)" we
         await chargerRemises();" "        await chargerRemises();" \
   "$EC"
 
+# ── Brique 113 : le tableau de bord du groupe (serveur/groupe.ts ; web/v10/groupe.txt) ──
+GS="les sociétés de la personne, leurs chiffres tirés de leurs livres"
+GW="« Le groupe » montre les sociétés côte à côte"
+prouver "le chiffre d'affaires du groupe lu à l'envers (débit moins crédit)" serveur/groupe.ts \
+  "and e.date_ecriture >= \${mois}::date then l.credit - l.debit end" "and e.date_ecriture >= \${mois}::date then l.debit - l.credit end" \
+  "$GS"
+prouver "les chiffres d'une société montrés à qui n'en voit pas les livres" serveur/groupe.ts \
+  "        if (!d.ok) {" "        if (!d.ok && false) {" \
+  "$GS"
+prouver "une entreprise d'essai comptée dans le groupe" serveur/groupe.ts \
+  "         where not e.essai and socle.perimetre_cabinet(e.id) is null" "         where socle.perimetre_cabinet(e.id) is null" \
+  "$GS"
+prouver "le total du groupe qui ne garde que la dernière société" serveur/groupe.ts \
+  "t.somme[k] += brut[k];" "t.somme[k] = brut[k];" \
+  "$GS"
+prouver "le groupe absent du menu des entreprises" web/public/v10/app.js \
+  "\${bridge.groupe && autres.length ? " "\${false ? " \
+  "$GW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

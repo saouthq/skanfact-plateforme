@@ -657,4 +657,5 @@ export const ADAPTATIONS = [
   ...lireFichier('petit-ecran.txt'),
   ...lireFichier('cabinet-telephone.txt'),
   ...lireFichier('accueil-role.txt'),
+  ...lireFichier('groupe.txt'),
 ];
