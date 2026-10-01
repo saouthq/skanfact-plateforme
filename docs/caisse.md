@@ -114,6 +114,19 @@ réseau les montre ; un enregistrement du dossier pendant la coupure ne les empo
 serveur, la caisse refuse ; au retour, 002 et 003 partent sous les mêmes numéros, sans alerte ; une chaîne cassée se lit
 dans les alertes). 27 preuves (dont 7 reciblées).
 
+## Ce que fait la brique 121 : le caissier à l'écran (01/10/2026, par délégation ; `03` § 2.1 « Caisse »)
+
+**K1. Sa page.** Le caissier ne lit pas les pièces de vente (factures, devis) ; son menu propose quand même la page
+**Caisse** (la lecture des droits dit qu'il tient une caisse : `droits.caisse`), sans le bandeau « Lecture seule » :
+il vend par la route des tickets.
+**K2. Ses tickets** (« voir les sessions : la sienne ») : la lecture du dossier lui rend les tickets qu'il a encaissés,
+jamais ceux d'un autre ni les factures ; « Tickets et bilan du jour » les compte.
+**K3. La liste des comptes** : il la lit (`tresorerie.comptes.voir`), pour que les espèces aillent au compte de caisse et
+la carte à la banque ; ni les mouvements ni la page Trésorerie.
+
+Test : `tests/web/caissier.test.ts` (Sami, caissier : la Caisse dans son menu, pas les Factures ; il ouvre, vend une
+huile, voit son ticket et pas celui de Nadia, même après rechargement ; il ferme, écart nul). 7 preuves (et 2 reciblées).
+
 ## Ce qui part au serveur
 
 Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, reçu, rendu, paiement, client facultatif)
@@ -135,7 +148,8 @@ Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, r
 - Plusieurs caisses dans une entreprise (chacune sa série) ; le Z imprimé sur l'imprimante de tickets ; l'écriture
   comptable par session (`01` § 10, **À VÉRIFIER** avec un comptable : par session ou par jour).
 - Hors ligne : fait (brique 120, plus haut).
-- **Le caissier à l'écran** : sa page Caisse et ses tickets du jour (aujourd'hui il encaisse par le serveur, mais la
-  page suit encore la règle des pièces de vente, qu'il ne voit pas) ; changer de caissier avec le code à 4 chiffres.
+- Le caissier à l'écran : fait (brique 121). **Changer de caissier** avec le code à 4 chiffres (`03` § 6) : à faire.
+- **Le bilan du jour** dit « le tiroir doit contenir » avec le solde du compte de caisse, le Z avec le fond de la
+  session : deux chiffres pour la même chose (brique 122).
 - **Le retour** avec le code d'un responsable (03 § 2.1), la facture demandée pour un ticket, l'écriture par session.
 - **L'agent local** (étape 4) : imprimante de tickets, tiroir, douchette.

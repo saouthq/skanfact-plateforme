@@ -2078,6 +2078,8 @@
   };
   function pageCachee(id) {
     const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
+    // (brique 121) Le caissier tient la caisse sans lire les pièces de vente : la page Caisse lui montre ses tickets.
+    if (d && id === 'caisse' && d.caisse) return false;
     return !!d && (PARTIES_DES_PAGES[id] || []).some(x => d.cachees.includes(x));
   }
   // L'adresse d'une page cachée, ouverte quand même : ce qui est refusé, pourquoi, et le geste qui ramène.
@@ -5466,6 +5468,8 @@
   function bandeauLecture(name) {
     const p = (PARTIES_DES_PAGES[name] || [])[0];
     if (!p || !bridge.droitsDossier || !enLecture(p) || $('#bandeau-lecture')) return;
+    // (brique 121) La caisse vend par sa route à elle : qui la tient n'y est jamais « en lecture seule ».
+    if (name === 'caisse' && (bridge.droitsDossier() || {}).caisse) return;
     const tete = $('#view .page-head');
     if (!tete) return;
     tete.insertAdjacentHTML('afterend', `<div class="banner info lock-banner" id="bandeau-lecture"><span><b>Lecture seule.</b> Ton rôle te laisse lire ${h(NOMS_EN_LECTURE[p] || 'cette page')}, pas les modifier : un geste qui les changerait sera refusé, en le disant.</span></div>`);

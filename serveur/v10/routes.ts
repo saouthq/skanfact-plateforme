@@ -14,7 +14,7 @@ import { Refus, texteDuRefus } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { accordRemiseDeLaPiece, commandeDuServeur, depassementDuServeur, estResponsable, remiseDuServeur } from './accords.ts';
-import { filtrer, mesRoles } from './droits.ts';
+import { avecSesTickets, filtrer, mesRoles } from './droits.ts';
 import { appliquer, Conflit, emettreDepuisV10, lireDepuis, lireDossier, marqueDeLecture, PARTIES_A_AUTEUR, type Changement } from './dossier.ts';
 import { nombreEnTexte } from './lecture.ts';
 import { etatDeNumerotation, sessionOuverte } from '../caisse/routes.ts';
@@ -55,9 +55,12 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       const depuis = query.depuis ?? '';
       if (/^\d{1,20}$/.test(depuis) && query.profil === profil && BigInt(depuis) <= BigInt(marque)) {
         const d = await lireDepuis(tx, ent, depuis, avenir);
-        return { corps: { ...filtrer(roles, d.objets), retires: filtrer(roles, d.retires).objets, partiel: true, marque, profil, autrui } };
+        const f = filtrer(roles, d.objets);
+        return { corps: { ...f, objets: await avecSesTickets(tx, ent, qui.utilisateur, roles, d.objets, f.objets), retires: filtrer(roles, d.retires).objets, partiel: true, marque, profil, autrui } };
       }
-      return { corps: { ...filtrer(roles, await lireDossier(tx, ent, qui.utilisateur)), marque, profil, autrui } };
+      const tous = await lireDossier(tx, ent, qui.utilisateur);
+      const f = filtrer(roles, tous);
+      return { corps: { ...f, objets: await avecSesTickets(tx, ent, qui.utilisateur, roles, tous, f.objets), marque, profil, autrui } };
     },
   });
 

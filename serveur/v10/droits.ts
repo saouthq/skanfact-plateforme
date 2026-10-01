@@ -32,6 +32,10 @@ export const GESTES_DU_DOSSIER: Geste[] = [
     roles: { proprietaire: P, administrateur: P, comptabilite_interne: P } },
   { code: 'tresorerie.voir', module: 'tresorerie', horsCle: true, ecrit: false,
     roles: { proprietaire: P, administrateur: P, comptabilite_interne: P, lecture: V } },
+  // La liste des comptes (brique 121) : le caissier la lit, pour que les espèces aillent au compte de caisse et la carte
+  // à la banque ; il ne lit ni les mouvements ni la page Trésorerie.
+  { code: 'tresorerie.comptes.voir', module: 'tresorerie', horsCle: true, ecrit: false,
+    roles: { proprietaire: P, administrateur: P, comptabilite_interne: P, lecture: V, caissier: V } },
   { code: 'tresorerie.modifier', module: 'tresorerie', horsCle: true, ecrit: true,
     roles: { proprietaire: P, administrateur: P, comptabilite_interne: P } },
   { code: 'tresorerie.comptes.modifier', module: 'tresorerie', horsCle: true, ecrit: true,
@@ -58,7 +62,7 @@ export const LISTES: Record<string, Regle> = {
   clients: R('ventes.pieces.voir', 'ventes.client.modifier'),
   catalog: R('stock.voir', 'ventes.prix.modifier'), priceLists: R('ventes.pieces.voir', 'ventes.prix.modifier'),
   suppliers: ACHATS, purchases: ACHATS, supplierOrders: ACHATS, receptions: ACHATS,
-  accounts: R('tresorerie.voir', 'tresorerie.comptes.modifier'), movements: R('tresorerie.voir', 'tresorerie.modifier'),
+  accounts: R('tresorerie.comptes.voir', 'tresorerie.comptes.modifier'), movements: R('tresorerie.voir', 'tresorerie.modifier'),
   stockAdjustments: STOCK, serials: STOCK, depots: STOCK,
   employees: PAIE, payslips: PAIE, leaves: PAIE, advances: PAIE, socialFilings: PAIE,
   assets: COMPTA, ecrituresOD: COMPTA, fiscalFilings: COMPTA, clotures: COMPTA, fiscalDeadlines: COMPTA,
@@ -106,7 +110,9 @@ export function filtrer<O extends { collection: string; cle: string }>(roles: st
   // `ecrivables` : la liste blanche de ce que l'écran peut renvoyer ; `tout` : il peut tout renvoyer ; `responsable` : il
   // règle les seuils et décide des accords (brique 100 : l'écran grise ce que la base refuserait).
   return { objets: visibles, droits: { cachees: [...cachees].sort(), lectureSeule: [...lectureSeule].sort(), ecrivables: [...ecrivables].sort(),
-    tout: permet(roles, TOUT.ecrire, true), responsable: permet(roles, 'ventes.accord.donner', true) } };
+    tout: permet(roles, TOUT.ecrire, true), responsable: permet(roles, 'ventes.accord.donner', true),
+    // Il tient une caisse (brique 121) : la page Caisse s'ouvre, même sans lire les pièces de vente.
+    caisse: permet(roles, 'caisse.ticket.encaisser', true) } };
 }
 
 // Avant d'écrire : chaque changement doit être permis ; sinon rien n'est écrit, et le refus nomme la partie.
@@ -116,4 +122,14 @@ export function verifierEcriture(roles: string[], changements: { collection: str
       throw new Refus('v10.partie_interdite', { valeurs: { partie: partie(c.collection, c.cle) } });
     }
   }
+}
+
+// Le caissier (brique 121 ; 03 § 2.1, « voir les sessions : la sienne ») : il ne lit pas les pièces de vente, mais ses
+// propres tickets, ceux qu'il a encaissés. Pour qui lit les pièces de vente, rien ne change.
+export async function avecSesTickets<O extends { collection: string; cle: string; contenu: unknown }>(tx: Transaction, entreprise: string,
+  utilisateur: string, roles: string[], tous: O[], visibles: O[]): Promise<O[]> {
+  if (permet(roles, 'ventes.pieces.voir', false) || !permet(roles, 'caisse.ticket.encaisser', true)) return visibles;
+  const siens = new Set((await tx.query(`select cle from socle.dossier_v10 where entreprise = $1 and collection = 'documents'
+    and cree_par = $2 and contenu ->> 'ticket' = 'true'`, [entreprise, utilisateur])).rows.map((r) => String(r.cle)));
+  return [...visibles, ...tous.filter((o) => o.collection === 'documents' && siens.has(o.cle))];
 }

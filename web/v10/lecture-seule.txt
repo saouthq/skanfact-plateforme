@@ -27,6 +27,8 @@ qui modifierait est refusé en le disant, rien n'étant enregistré.
   function bandeauLecture(name) {
     const p = (PARTIES_DES_PAGES[name] || [])[0];
     if (!p || !bridge.droitsDossier || !enLecture(p) || $('#bandeau-lecture')) return;
+    // (brique 121) La caisse vend par sa route à elle : qui la tient n'y est jamais « en lecture seule ».
+    if (name === 'caisse' && (bridge.droitsDossier() || {}).caisse) return;
     const tete = $('#view .page-head');
     if (!tete) return;
     tete.insertAdjacentHTML('afterend', `<div class="banner info lock-banner" id="bandeau-lecture"><span><b>Lecture seule.</b> Ton rôle te laisse lire ${h(NOMS_EN_LECTURE[p] || 'cette page')}, pas les modifier : un geste qui les changerait sera refusé, en le disant.</span></div>`);

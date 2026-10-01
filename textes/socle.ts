@@ -136,6 +136,7 @@ declarerTextes({
   'geste.stock.modifier': 'enregistrer des mouvements de stock, des dépôts et des numéros de série',
   'geste.achats.pieces.modifier': 'enregistrer des achats, des fournisseurs et des commandes fournisseurs',
   'geste.tresorerie.voir': 'voir les comptes et leurs mouvements',
+  'geste.tresorerie.comptes.voir': 'voir la liste des comptes (où vont les espèces, où va la carte)',
   'geste.tresorerie.modifier': 'enregistrer des mouvements de trésorerie',
   'geste.tresorerie.comptes.modifier': 'créer ou modifier un compte de trésorerie',
 });

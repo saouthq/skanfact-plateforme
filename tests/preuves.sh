@@ -5838,7 +5838,7 @@ prouver "les paramètres acceptés à l'écran puis perdus" web/public/v10/app.j
 # ── Brique 100 : les écrans de l'accord d'un responsable (docs/accords.md) ──
 ACW="Karim demande, Nadia refuse puis accorde, Karim émet"
 prouver "le commercial pris pour un responsable" serveur/v10/droits.ts \
-  "responsable: permet(roles, 'ventes.accord.donner', true) } };" "responsable: true } };" \
+  "responsable: permet(roles, 'ventes.accord.donner', true)," "responsable: true," \
   "$DD1"
 prouver "le responsable que l'écran ne reconnaît pas" web/public/plateforme/pont.js \
   "    responsable = !!(d && d.responsable === true);" "    responsable = false;" \
@@ -6352,7 +6352,7 @@ prouver "un numéro d'une autre base dans une différence" serveur/v10/dossier.t
   "and xid >= \$2::xid8 and xid < \$3::xid8\`" "and xid >= \$2::xid8 and \$3::text is not null\`" \
   "$RL"
 prouver "la différence qui montre ce que le rôle ne voit pas" serveur/v10/routes.ts \
-  "{ corps: { ...filtrer(roles, d.objets), retires" "{ corps: { ...filtrer(roles, d.objets), objets: d.objets, retires" \
+  "        const f = filtrer(roles, d.objets);" "        const f = { ...filtrer(roles, d.objets), objets: d.objets };" \
   "$RL"
 prouver "les retraits d'une partie cachée dits au rôle" serveur/v10/routes.ts \
   "retires: filtrer(roles, d.retires).objets" "retires: d.retires" \
@@ -6435,6 +6435,33 @@ prouver "les alertes de caisse jamais montrées" web/public/v10/app.js \
   "    if ((caisseEtat.alertes || []).length) el.insertAdjacentHTML('beforeend', alertesCaisse(caisseEtat.alertes));
 " "" \
   "$CHW"
+
+# ── Le caissier à l'écran (brique 121, 01/10/2026 ; docs/caisse.md) ──
+CW="Sami ouvre la caisse, vend, voit son ticket et pas ceux de Nadia, et ferme la caisse"
+prouver "le caissier qui ne retrouve pas ses tickets" serveur/v10/droits.ts \
+  "  return [...visibles, ...tous.filter((o) => o.collection === 'documents' && siens.has(o.cle))];" "  return visibles;" \
+  "$CW"
+prouver "le caissier qui lit les tickets des autres" serveur/v10/droits.ts \
+  "and cree_par = \$2 and contenu ->> 'ticket' = 'true'\`" "and \$2::uuid is not null and contenu ->> 'ticket' = 'true'\`" \
+  "$CW"
+prouver "la page Caisse absente du menu du caissier" web/public/v10/app.js \
+  "    if (d && id === 'caisse' && d.caisse) return false;
+" "" \
+  "$CW"
+prouver "le serveur qui ne dit pas qui tient une caisse" serveur/v10/droits.ts \
+  "    caisse: permet(roles, 'caisse.ticket.encaisser', true) } };" "    caisse: false } };" \
+  "$CW"
+prouver "le caissier qui ne sait pas où vont les espèces" serveur/v10/droits.ts \
+  "  accounts: R('tresorerie.comptes.voir', 'tresorerie.comptes.modifier')," "  accounts: R('tresorerie.voir', 'tresorerie.comptes.modifier')," \
+  "$CW"
+prouver "la caisse dite « en lecture seule » à qui la tient" web/public/v10/app.js \
+  "    if (name === 'caisse' && (bridge.droitsDossier() || {}).caisse) return;
+" "" \
+  "$CW"
+prouver "le poste qui oublie qu'il tient une caisse" web/public/plateforme/pont.js \
+  "    tientCaisse = !!(d && d.caisse === true);
+" "" \
+  "$CW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

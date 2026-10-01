@@ -25,6 +25,8 @@ propose plus, et l'adresse ouverte quand même (un lien, la recherche) dit pourq
   };
   function pageCachee(id) {
     const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
+    // (brique 121) Le caissier tient la caisse sans lire les pièces de vente : la page Caisse lui montre ses tickets.
+    if (d && id === 'caisse' && d.caisse) return false;
     return !!d && (PARTIES_DES_PAGES[id] || []).some(x => d.cachees.includes(x));
   }
   // L'adresse d'une page cachée, ouverte quand même : ce qui est refusé, pourquoi, et le geste qui ramène.
