@@ -17,6 +17,7 @@ import { accordRemiseDeLaPiece, commandeDuServeur, depassementDuServeur, estResp
 import { filtrer, mesRoles } from './droits.ts';
 import { appliquer, Conflit, emettreDepuisV10, lireDossier, type Changement } from './dossier.ts';
 import { nombreEnTexte } from './lecture.ts';
+import { sessionOuverte } from '../caisse/routes.ts';
 import { poserCompte, renvoyer } from './envoi.ts';
 import { demanderPaiement, verifierPaiement } from './paiement.ts';
 import { demanderSignature, signerAvecLeCode } from './signature.ts';
@@ -83,6 +84,10 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       const dec = (corps.netAPayer.split('.')[1] ?? '').length;
       const paye = paiements.reduce((s, p) => s + depuisTexte(nombreEnTexte(p.amount), dec), 0n);
       if (paye !== depuisTexte(corps.netAPayer, dec)) throw new Refus('caisse.paiement_manquant', { valeurs: { paye: versTexte(paye, dec), total: corps.netAPayer } });
+      // La caisse ouverte sur CET appareil (brique 116) : un ticket ne s'encaisse que là (une caisse, un appareil).
+      const session = await sessionOuverte(tx, ent);
+      if (!session) throw new Refus('caisse.fermee', { bouton: 'caisse.session.ouvrir' });
+      if (session.appareil !== qui.appareil) throw new Refus('caisse.ouverte_ailleurs', { valeurs: { appareil: session.appareil_nom, qui: session.qui } });
       // Le client, s'il y en a un, est celui du dossier (jamais celui de l'écran).
       let client: Record<string, unknown> | null = null;
       if (typeof doc.clientId === 'string' && doc.clientId) {
@@ -91,6 +96,8 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       }
       const r = await emettreDepuisV10(tx, ent, qui.utilisateur, { document: { ...doc, payments: [] }, client, revision: null, rang: corps.rang, netAPayer: corps.netAPayer }, 'facture', { ticket: true });
       const cle = String(doc.id);
+      await tx.query(`insert into caisse.ticket (piece, entreprise, session)
+        select id, entreprise, $3 from ventes.piece where entreprise = $1 and ref_v10 = $2`, [ent, cle, session.id]);
       const avecPaiement = { ...r.contenu, payments: paiements };
       const [ecrit] = await appliquer(tx, ent, qui.utilisateur, [{ collection: 'documents', cle, rang: corps.rang, revision: r.revision, contenu: avecPaiement }], { serveur: true });
       return { corps: { contenu: avecPaiement, revision: ecrit?.revision ?? r.revision, numero: r.numero } };

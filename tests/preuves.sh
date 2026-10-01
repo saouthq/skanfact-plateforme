@@ -6155,10 +6155,14 @@ prouver "la série des tickets que le caissier ne crée pas" base/migrations/005
   "case when p_prefixe = 'TIC' then array['proprietaire', 'administrateur', 'caissier']" "case when p_prefixe = 'TIC' then array['proprietaire', 'administrateur']" \
   "$TK"
 prouver "le caissier qui n'encaisse pas" serveur/caisse/gestes.ts \
-  "    roles: { proprietaire: 'oui', administrateur: 'oui', caissier: 'oui' } }," "    roles: { proprietaire: 'oui', administrateur: 'oui' } }," \
+  "  { code: 'caisse.ticket.encaisser', module: 'caisse', horsCle: true, ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', caissier: 'oui' } }," "  { code: 'caisse.ticket.encaisser', module: 'caisse', horsCle: true, ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui' } }," \
   "$TK"
 prouver "le commercial qui encaisse" serveur/caisse/gestes.ts \
-  "    roles: { proprietaire: 'oui', administrateur: 'oui', caissier: 'oui' } }," "    roles: { proprietaire: 'oui', administrateur: 'oui', caissier: 'oui', commercial: 'oui' } }," \
+  "  { code: 'caisse.ticket.encaisser', module: 'caisse', horsCle: true, ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', caissier: 'oui' } }," "  { code: 'caisse.ticket.encaisser', module: 'caisse', horsCle: true, ecrit: true,
+    roles: { proprietaire: 'oui', administrateur: 'oui', caissier: 'oui', commercial: 'oui' } }," \
   "$TK"
 prouver "un ticket encaissé sans être payé en entier" serveur/v10/routes.ts \
   "      if (paye !== depuisTexte(corps.netAPayer, dec)) throw" "      if (false) throw" \
@@ -6187,6 +6191,49 @@ prouver "le numéro du poste gardé au lieu de celui du serveur" web/public/v10/
             data.documents.push(e);" "          bridge.encaisser(t, C.computeTotals(t, company()).netToPay).then(e => {
             e.number = 'TIC-0000-999'; data.documents.push(e);" \
   "$TKW"
+
+# ── Brique 116 : la session de caisse, son appareil et son Z (docs/caisse.md) ──
+CS="fermée rien ne s'encaisse ; ouverte sur un appareil, lui seul la tient"
+CSW="Nadia encaisse deux tickets : le serveur les numérote dans leur série, et le bilan les compte"
+prouver "un ticket encaissé caisse fermée" serveur/v10/routes.ts \
+  "      if (!session) throw new Refus('caisse.fermee', { bouton: 'caisse.session.ouvrir' });" "" \
+  "$CS"
+prouver "un ticket encaissé depuis un autre appareil" serveur/v10/routes.ts \
+  "      if (session.appareil !== qui.appareil) throw" "      if (false) throw" \
+  "$CS"
+prouver "une caisse ouverte deux fois" serveur/caisse/routes.ts \
+  "      if (deja) {" "      if (false) {" \
+  "$CS"
+prouver "un ticket hors de sa session" serveur/v10/routes.ts \
+  "      await tx.query(\`insert into caisse.ticket (piece, entreprise, session)" "      if (false) await tx.query(\`insert into caisse.ticket (piece, entreprise, session)" \
+  "$CS"
+prouver "un tiroir attendu sans son fond" serveur/caisse/routes.ts \
+  "attendu: fond + especes };" "attendu: especes };" \
+  "$CS"
+prouver "un Z qui compte les tickets des autres sessions" serveur/caisse/routes.ts \
+  "    from caisse.ticket t join ventes.piece p on p.id = t.piece where t.session = \$1\`, [session])).rows[0] as" "    from caisse.ticket t join ventes.piece p on p.id = t.piece where \$1::uuid is not null\`, [session])).rows[0] as" \
+  "$CS"
+prouver "un écart compté à l'envers" serveur/caisse/routes.ts \
+  "ecart: texte(compte - z0.attendu)," "ecart: texte(z0.attendu - compte)," \
+  "$CS"
+prouver "un Z réécrit en base" base/migrations/0057_caisse.sql \
+  "  if old.fermee_le is not null then" "  if false then" \
+  "$CS"
+prouver "une caisse fermée par un caissier sur un autre appareil" serveur/caisse/routes.ts \
+  "      if (s.appareil !== qui.appareil && !responsable) throw" "      if (false) throw" \
+  "$CS"
+prouver "un fond tapé avec une virgule illisible" serveur/caisse/routes.ts \
+  "  const v = valeur.replace(/\\s/g, '').replace(',', '.');" "  const v = valeur.replace(/\\s/g, '');" \
+  "$CS"
+prouver "la caisse fermée qui laisse encaisser à l'écran" web/public/v10/app.js \
+  "        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.mode === 'especes' ? s.recu : '' });" "        const motif = C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.mode === 'especes' ? s.recu : '' });" \
+  "$CSW"
+prouver "la page Caisse muette sur sa session" web/public/v10/app.js \
+  "    if (bridge.caisse) dessinerSession();" "" \
+  "$CSW"
+prouver "le Z qui montre le fond au lieu de l'attendu" web/public/v10/app.js \
+  "\`<b>\${h(argentCaisse(z.attendu))}</b>\`" "\`<b>\${h(argentCaisse(z.fond))}</b>\`" \
+  "$CSW"
 
 # ── L'ordre du dossier reçu (01/10/2026 ; docs/pont-v10.md § 4 ter) ──
 prouver "le dossier rendu dans l'ordre de la langue de la base" serveur/v10/dossier.ts \

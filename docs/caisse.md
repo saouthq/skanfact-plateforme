@@ -40,6 +40,38 @@ prend la fiche du client **du dossier** (jamais celle de l'écran).
 encaissé — à rendre 1,610 DT ») ; le bilan du jour et la liste des tickets lisent les tickets du serveur. Sans réseau,
 l'encaissement se refuse avec sa phrase (la caisse hors ligne vient ensuite).
 
+## Ce que fait la brique 116 : la session, son appareil, le Z (01/10/2026)
+
+**S1. Une caisse, un appareil.** La caisse s'**ouvre** (`POST …/caisse/ouvrir`, geste `caisse.session.ouvrir` : P, A,
+caissier) sur l'appareil connecté, avec le **fond de caisse** (les espèces déjà dans le tiroir). Elle est alors tenue
+par **cet appareil seul** jusqu'à sa fermeture : personne ne la rouvre, et aucun ticket ne s'encaisse d'un autre appareil
+(« ouverte sur un autre appareil (Caisse du comptoir, par Sami) : ferme-la là-bas »). Changer d'appareil se fait après
+la fermeture. La caisse (« Caisse 1 ») naît à la première ouverture. Le nom de l'appareil est gardé dans la session :
+les autres membres ne lisent pas les appareils d'une personne.
+
+**S2. Caisse fermée, rien ne s'encaisse** : le refus dit pourquoi et porte le geste qui débloque. À l'écran, un bandeau
+en haut de la page Caisse dit l'état (fermée : le fond et « Ouvrir la caisse » ; ouverte ici : qui, depuis quand, le
+fond, « Fermer la caisse (Z)… » ; ouverte ailleurs : lequel, par qui), et « Encaisser » s'éteint avec la même phrase
+**avant** le geste.
+
+**S3. Fermer, c'est compter** (`POST …/caisse/fermer`, geste `caisse.session.fermer`) : on tape les espèces comptées
+**sans voir** ce que le tiroir devrait contenir ; le serveur calcule l'**attendu** (le fond, plus les espèces encaissées
+pendant la session) et l'**écart**, et fige le **Z** sur ses propres tickets de la session : leur nombre, du premier au
+dernier numéro, le total TTC, la TVA, les paiements par mode, le fond, l'attendu, le compté, l'écart, qui, où, quand.
+Sur l'appareil qui tient la caisse, ou par le propriétaire ou un administrateur depuis ailleurs.
+
+**S4. Un Z ne change plus** (0057, `caisse.session_figee`) : une session fermée est un fait, même en écrivant en base.
+
+**S5. Les tables** (`caisse.caisse`, `caisse.session`, `caisse.ticket` : le ticket et sa session) partent avec
+l'entreprise à l'export.
+
+Tests : `tests/v10/caisse-session.test.ts` (fermée ; ouverte par Sami sur la caisse du comptoir ; ni seconde ouverture
+ni ticket depuis le bureau de Nadia ; le montant illisible ; deux tickets, espèces et carte ; le Z au millime :
+attendu 158,890, compté 157,500, écart −1,390 ; le Z figé en base ; la réouverture sur un autre appareil ; le caissier qui
+ne ferme pas d'ailleurs ; le Z de la seconde session qui ne compte que ses tickets), `tests/web/caisse.test.ts` (fermée,
+« Encaisser » éteint et sa phrase ; ouverte avec 100 DT ; deux tickets ; fermée avec 123 DT comptés : écart −0,265 ;
+quatre écrans regardés). 13 preuves.
+
 ## Ce qui part au serveur
 
 Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, reçu, rendu, paiement, client facultatif)
@@ -58,8 +90,8 @@ Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, r
 
 ## La suite (les briques suivantes)
 
-- **La caisse et son appareil** (`01` § 10) : une caisse nommée, tenue par **un seul appareil à la fois**, sa série à
-  elle ; la **session** (ouverture avec le fond de caisse, fermeture avec le comptage et l'écart, le **Z**).
+- Plusieurs caisses dans une entreprise (chacune sa série) ; le Z imprimé sur l'imprimante de tickets ; l'écriture
+  comptable par session (`01` § 10, **À VÉRIFIER** avec un comptable : par session ou par jour).
 - **Hors ligne** (`04` § 3.1) : tickets numérotés **sur le poste**, chaînés (empreinte du précédent), remontés dans
   l'ordre ; un trou ou une chaîne cassée est une alerte, jamais une correction silencieuse ; 7 jours au plus.
 - **Le caissier à l'écran** : sa page Caisse et ses tickets du jour (aujourd'hui il encaisse par le serveur, mais la

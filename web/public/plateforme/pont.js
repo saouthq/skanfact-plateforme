@@ -611,6 +611,11 @@
       return decoder(r.contenu);
     },
 
+    // La session de caisse (brique 116) : son état, l'ouvrir avec le fond de caisse, la fermer en comptant le tiroir.
+    caisse: async () => appel('GET', '/caisse'),
+    ouvrirCaisse: async (/** @type {string} */ fond) => appel('POST', '/caisse/ouvrir', { fond }),
+    fermerCaisse: async (/** @type {string} */ compte) => appel('POST', '/caisse/fermer', { compte }),
+
     // ── Les entreprises (les « dossiers » de la v10) ──────────────────────────────────────────
     // Un dossier de la v10 était un fichier sur l'ordinateur ; ici, c'est une entreprise du compte.
     // Le tableau de bord du groupe (brique 113) : les sociétés de la personne, leurs chiffres lus dans leurs livres.

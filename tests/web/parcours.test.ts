@@ -479,6 +479,8 @@ describe('le parcours, à la souris', () => {
       { collection: 'accounts', cle: 'cai', rang: 0, revision: null, contenu: { id: 'cai', name: 'Caisse du magasin', kind: 'caisse' } },
       { collection: 'catalog', cle: 'art1', rang: 0, revision: null, contenu: { id: 'art1', label: 'Pain de campagne', unitPrice: { '~n': '0.25' }, vatRate: 0 } },
     ] });
+    // La caisse s'ouvre sur cet appareil, avec son fond (brique 116).
+    expect((await qui.api('POST', `/entreprises/${qui.essai}/caisse/ouvrir`, qui.jeton, { fond: '50' })).fond).toBe('50.000');
     const p = await qui.ouvrir(qui.essai, '#/caisse');
     await p.locator('#view h1').filter({ hasText: /Caisse/ }).first().waitFor();
     await plusTard(p);

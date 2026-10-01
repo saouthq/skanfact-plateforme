@@ -673,4 +673,5 @@ export const ADAPTATIONS = [
   ...lireFichier('cabinet-telephone.txt'),
   ...lireFichier('accueil-role.txt'),
   ...lireFichier('groupe.txt'),
+  ...lireFichier('caisse-session.txt'),
 ];

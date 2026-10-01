@@ -18,6 +18,7 @@ import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { routesSocle } from '../../serveur/routes/socle.ts';
 import { routesV10 } from '../../serveur/v10/routes.ts';
 import { declarerGestesVentes } from '../../serveur/ventes/gestes.ts';
+import { routesCaisse } from '../../serveur/caisse/routes.ts';
 import { routesVentes } from '../../serveur/ventes/routes.ts';
 
 const pool = creerPool(inject('pgApp'));
@@ -52,7 +53,7 @@ const ticket = (id: string, lignes: { label: string; qty: number; pu: string; tv
 beforeAll(async () => {
   declarerGestesVentes();
   declarerGestesCaisse();
-  app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesV10(ctx)]);
+  app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesV10(ctx)]);
   await app.ready();
 });
 afterAll(async () => { await app.close(); await pool.end(); });
@@ -77,6 +78,8 @@ describe('le ticket de caisse encaissé en ligne', () => {
       { collection: 'accounts', cle: 'k-caisse', rang: 0, revision: null, contenu: { id: 'k-caisse', name: 'Caisse', kind: 'caisse', opening: 100, openingDate: aujourdhui } },
       { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Café El Walima', address: 'Sfax' } },
     ] })).statut).toBe(200);
+    // La caisse s'ouvre sur l'appareil de Sami (brique 116) : il y encaisse.
+    expect((await appeler('POST', `/entreprises/${ent}/caisse/ouvrir`, sami.jeton, { fond: '100' })).statut).toBe(200);
     const encaisser = (jeton: string, doc: Record<string, unknown>, net: string) =>
       appeler('POST', `/entreprises/${ent}/dossier-v10/ticket`, jeton, { document: doc, rang: 0, netAPayer: net });
 

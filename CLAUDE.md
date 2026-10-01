@@ -144,7 +144,9 @@
     passe par `POST …/dossier-v10/ticket` (geste `caisse.ticket.encaisser` : P, A, caissier) ; le serveur numérote dans
     la série TIC (`0056`), scelle comme une facture (`emettreDepuisV10(…, { ticket: true })`) et tient le paiement dans
     le même geste ; un passant est « Vente au comptoir ». Le cahier des charges NACEF reste **À VÉRIFIER** (pas encore
-    lu) : la session, l'appareil unique, le hors ligne chaîné et le Z viennent ensuite.
+    lu). La session (brique 116, `0057`, `serveur/caisse/routes.ts`) : ouverte avec le fond sur UN appareil, qui seul
+    encaisse ; fermée en comptant le tiroir (sans voir l'attendu), le serveur fige le Z (attendu = fond + espèces de
+    la session, écart) ; un Z ne change plus en base. Le hors ligne chaîné vient ensuite.
   - **Le tableau de bord du groupe** (brique 113, `docs/groupe.md`) : depuis le menu des entreprises, les sociétés de
     la personne côte à côte, avec les chiffres de leurs livres (70, 411, 401, classe 5) et un total par devise ; une
     société sans les livres pour son rôle est nommée sans chiffres. La consolidation vient en vague 4.

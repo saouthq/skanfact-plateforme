@@ -40,6 +40,7 @@ import { Refus } from './erreurs.ts';
 import { listeDepuisFichier } from './mot-de-passe.ts';
 import { routesSocle } from './routes/socle.ts';
 import { routesGroupe } from './groupe.ts';
+import { routesCaisse } from './caisse/routes.ts';
 import { declarerGestesAchats } from './achats/gestes.ts';
 import { declarerGestesCaisse } from './caisse/gestes.ts';
 import { lecteurDuServeur } from './achats/lecteur.ts';
@@ -154,7 +155,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   declarerGestesAchats();
   declarerGestesPaie();
   declarerGestesCompta();
-  const app = creerApp(ctx, [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx)]);
+  const app = creerApp(ctx, [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx)]);
   servirLesEcrans(app, c.web);
   const adresse = await app.listen({ port: c.port, host: c.hote });
   if (!publique) publique = adresse;

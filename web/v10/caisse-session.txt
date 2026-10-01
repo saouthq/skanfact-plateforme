@@ -1,0 +1,141 @@
+La session de caisse (brique 116 ; 01 § 10 ; 03 § 2.1 « Caisse » ; 04 § 3.1 ; serveur/caisse/routes.ts ; docs/caisse.md).
+Format : voir sans-paquets.mjs.
+
+Une caisse n'est tenue que par UN appareil à la fois. La page Caisse dit son état en haut : fermée (le fond de caisse
+et « Ouvrir la caisse »), ouverte ici (qui, depuis quand, le fond, et « Fermer la caisse (Z)… »), ou ouverte sur un autre
+appareil (lequel, par qui : on la ferme là-bas). Tant qu'elle n'est pas ouverte ici, « Encaisser » s'éteint et dit
+pourquoi (avant le geste). Fermer : on compte les espèces du tiroir, sans voir ce qu'il devrait contenir ; le serveur
+dit ensuite l'attendu, l'écart, et fige le Z, qui s'affiche.
+
+── Les écrans (app.js) ──
+
+== app.js | la page Caisse dit l'état de sa session, en haut
+-- avant
+        <div class="actions" id="cs-actions"></div></div>
+-- après
+        <div class="actions" id="cs-actions"></div></div>
+      ${bridge.caisse ? '<div id="cs-session"></div>' : ''}
+-- fin
+
+== app.js | la session se lit à chaque ouverture de la page Caisse
+-- avant
+    $$('#cs-tabs [data-tab]').forEach(b => { b.onclick = () => { s.tab = b.dataset.tab; vers('#/caisse')(); }; });
+-- après
+    $$('#cs-tabs [data-tab]').forEach(b => { b.onclick = () => { s.tab = b.dataset.tab; vers('#/caisse')(); }; });
+    if (bridge.caisse) dessinerSession();
+-- fin
+
+== app.js | « Encaisser » s'éteint tant que la caisse n'est pas ouverte ici, et dit pourquoi
+-- avant
+          const m = C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.recu });
+-- après
+          const m = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.recu });
+-- fin
+
+== app.js | le ticket en cours se dessine avec le motif de la session
+-- avant
+        const motif = C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.mode === 'especes' ? s.recu : '' });
+-- après
+        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.mode === 'especes' ? s.recu : '' });
+-- fin
+
+== app.js | « Encaisser » refuse avec le motif de la session (la touche Entrée comprise)
+-- avant
+        const motif = C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu });
+-- après
+        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu });
+-- fin
+
+== app.js | la session de caisse : l'ouvrir, la fermer, le Z
+-- avant
+  routes.caisse = () => {
+-- après
+  // (plateforme, brique 116) La session de caisse, telle que le serveur l'a dite la dernière fois.
+  let caisseEtat = null;
+  const argentCaisse = v => C.money(Number(v), caisseEtat && caisseEtat.devise !== 'TND' ? caisseEtat.devise : 'DT');
+  const heureCaisse = x => new Date(x).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  // Ce qui empêche d'encaisser du côté de la session (la même règle que le serveur) ; vide si rien.
+  function motifSession() {
+    if (!bridge.caisse || !caisseEtat) return '';
+    if (!caisseEtat.session) return 'La caisse est fermée : ouvre-la en haut de la page, avec ton fond de caisse.';
+    if (!caisseEtat.session.ici) return `La caisse est ouverte sur un autre appareil (« ${caisseEtat.session.appareil} ») : une caisse n'est tenue que par un appareil à la fois.`;
+    return '';
+  }
+  async function dessinerSession() {
+    try { caisseEtat = await bridge.caisse(); } catch (e) {
+      if ($('#cs-session')) $('#cs-session').innerHTML = `<div class="banner warn"><span>${h(plainError(e))}</span></div>`;
+      return;
+    }
+    const el = $('#cs-session');
+    if (!el) return;
+    const ss = caisseEtat.session;
+    if (!ss) {
+      el.innerHTML = `<div class="banner warn lock-banner" id="cs-fermee"><span><b>La caisse est fermée.</b> Ouvre-la sur cet appareil avec le fond de caisse (les espèces déjà dans le tiroir) : elle encaisse ensuite ici, et seulement ici, jusqu'à sa fermeture. ${info('cs.session')}</span>
+        <span class="lock-go"><label class="field">Fond de caisse (${h(caisseEtat.devise === 'TND' ? 'DT' : caisseEtat.devise)})<input type="text" inputmode="decimal" class="num" id="cs-fond" placeholder="0"></label>
+        <button class="btn btn-primary" id="cs-ouvrir">Ouvrir la caisse</button></span></div>`;
+      $('#cs-ouvrir').onclick = async () => {
+        const b = $('#cs-ouvrir'); b.disabled = true;
+        try {
+          const r = await bridge.ouvrirCaisse($('#cs-fond').value.trim() || '0');
+          toast(`Caisse ouverte, fond de caisse ${argentCaisse(r.fond)}`);
+          vers('#/caisse')();
+        } catch (e) { b.disabled = false; toast(plainError(e), true); $('#cs-fond').focus(); }
+      };
+    } else if (!ss.ici) {
+      el.innerHTML = `<div class="banner warn lock-banner" id="cs-ailleurs"><span><b>La caisse est ouverte sur un autre appareil</b> (« ${h(ss.appareil)} », par ${h(ss.qui)}, depuis le ${h(heureCaisse(ss.ouverteLe))}) : une caisse n'est tenue que par un appareil à la fois. Ferme-la là-bas pour l'ouvrir ici. ${info('cs.session')}</span></div>`;
+    } else {
+      el.innerHTML = `<div class="banner info lock-banner" id="cs-ouverte"><span><b>Caisse ouverte</b> par ${h(ss.qui)} le ${h(heureCaisse(ss.ouverteLe))}, fond de caisse ${h(argentCaisse(ss.fond))}. ${info('cs.session')}</span>
+        <span class="lock-go"><button class="btn btn-sm" id="cs-fermer">Fermer la caisse (Z)…</button></span></div>`;
+      $('#cs-fermer').onclick = fermerCaisse;
+    }
+    // « Encaisser » suit l'état lu (la page a pu se dessiner avant la réponse).
+    const mm = motifSession();
+    if (mm && $('#cs-motif')) { $('#cs-motif').textContent = mm; $('#cs-encaisser').disabled = true; }
+  }
+  // Fermer : compter le tiroir sans voir ce qu'il devrait contenir ; le serveur dit l'attendu et l'écart, et fige le Z.
+  function fermerCaisse() {
+    modal(`<h2>Fermer la caisse</h2>
+      <p>Compte les espèces du tiroir, fond de caisse compris, et tape le total. SkanFact dit ensuite ce que le tiroir devait contenir et l'écart. Le Z est alors figé : il ne change plus.</p>
+      <label class="field">Espèces comptées (${h(caisseEtat.devise === 'TND' ? 'DT' : caisseEtat.devise)})<input type="text" inputmode="decimal" class="num" id="cs-compte"></label>
+      <p class="small warn-text" role="alert" id="cs-compte-refus"></p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="cs-z">Fermer et faire le Z</button></div>`,
+      (root, close) => {
+        $('[data-close]', root).onclick = close;
+        $('#cs-z', root).onclick = async () => {
+          const champ = $('#cs-compte', root);
+          if (!champ.value.trim()) { $('#cs-compte-refus', root).textContent = 'Tape le total des espèces comptées (0 si le tiroir est vide).'; champ.focus(); return; }
+          try { const r = await bridge.fermerCaisse(champ.value.trim()); close(); montrerZ(r.z); }
+          catch (e) { $('#cs-compte-refus', root).textContent = plainError(e); champ.focus(); }
+        };
+        $('#cs-compte', root).focus();
+      });
+  }
+  const MODES_Z = { especes: 'Espèces', carte: 'Carte', cheque: 'Chèque' };
+  function montrerZ(z) {
+    const ligne = (l, v, cls) => `<tr${cls ? ` class="${cls}"` : ''}><td>${l}</td><td class="r num nw">${v}</td></tr>`;
+    const ecart = Number(z.ecart);
+    modal(`<h2>Z de caisse</h2>
+      <p class="small muted">Ouverte par ${h(z.ouvertePar)} le ${h(heureCaisse(z.ouverteLe))} sur « ${h(z.appareil)} » ; ${z.nombre ? `${z.nombre} ticket${z.nombre > 1 ? 's' : ''}, du ${h(z.premier)} au ${h(z.dernier)}` : 'aucun ticket'}.</p>
+      <table class="list compact" id="cs-z-table"><tbody>
+        ${ligne('Ventes TTC', h(argentCaisse(z.total)))}${ligne('dont TVA', h(argentCaisse(z.tva)))}
+        ${Object.entries(z.parMode).map(([k, v]) => ligne(h(MODES_Z[k] || k), h(argentCaisse(v)))).join('')}
+        ${ligne('Fond de caisse', h(argentCaisse(z.fond)))}${ligne('<b>Le tiroir devait contenir</b>', `<b>${h(argentCaisse(z.attendu))}</b>`)}
+        ${ligne('Espèces comptées', h(argentCaisse(z.compte)))}
+        ${ligne('<b>Écart</b>', `<b>${h(argentCaisse(z.ecart))}</b>`, ecart ? 'warn-text' : '')}
+      </tbody></table>
+      <p class="small ${ecart ? 'warn-text' : 'muted'}">${ecart < 0 ? 'Il manque de l\'argent dans le tiroir.' : ecart > 0 ? 'Il y a plus d\'argent que prévu dans le tiroir.' : 'Le tiroir tombe juste.'} Le Z est figé : il garde ces chiffres.</p>
+      <div class="modal-actions"><button class="btn btn-primary" id="cs-z-ok">Terminé</button></div>`,
+      (root, close) => { $('#cs-z-ok', root).onclick = () => { close(); vers('#/caisse')(); }; });
+  }
+  routes.caisse = () => {
+-- fin
+
+── L'aide (guide.js) ──
+
+== guide.js | la bulle de la session de caisse
+-- avant
+    'cs.mode': {
+-- après
+    'cs.session': { t: 'La session de caisse', d: 'Le matin, on ouvre la caisse avec le <b>fond de caisse</b> (les espèces déjà dans le tiroir). Elle se tient alors sur <b>cet appareil seulement</b> : une caisse n\'est jamais tenue par deux appareils à la fois. Le soir, « Fermer la caisse (Z) » : on compte les espèces du tiroir, SkanFact dit ce qu\'il devait contenir (le fond plus les espèces encaissées) et l\'écart, et fige le <b>Z</b>, le rapport de la journée. Pour encaisser sur un autre appareil, on ferme d\'abord celui-ci.' },
+    'cs.mode': {
+-- fin

@@ -108,6 +108,10 @@ export const CLASSEMENT: Record<string, Classe> = {
   'ventes.envoi_ttn': { classe: 'entreprise' },
   // Les demandes d'accord d'un responsable (brique 98) : leur trace part avec l'entreprise.
   'ventes.accord': { classe: 'entreprise' },
+  // La caisse, ses sessions (leur Z) et ses tickets (brique 116) : des faits de l'entreprise.
+  'caisse.caisse': { classe: 'entreprise' },
+  'caisse.session': { classe: 'entreprise' },
+  'caisse.ticket': { classe: 'entreprise' },
   // Le code d'un cabinet n'est pas repris : unique sur la plateforme, il reste à son cabinet.
   'socle.organisation': { classe: 'reference', colonnes: ['id', 'type', 'nom', 'cree_le'] },
   // Jamais l'empreinte du mot de passe ni le téléphone vérifié : une personne recréée se reconnecte

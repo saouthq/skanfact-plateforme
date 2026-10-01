@@ -280,6 +280,8 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'L\'accord au-delà de l\'encours se règle par le propriétaire ou un administrateur.', cle: 'base.accord.reglage', fr: 'l\'accord au-delà de l\'encours se règle par le propriétaire ou un administrateur' },
   // L'accord au-delà d'une remise (0054, brique 103).
   { base: 'La remise permise sans accord se règle par le propriétaire ou un administrateur.', cle: 'base.accord.remise', fr: 'la remise permise sans accord se règle par le propriétaire ou un administrateur' },
+  // La session de caisse (0057, brique 116).
+  { base: 'Une session de caisse fermée ne change plus.', cle: 'base.caisse.session_figee', fr: 'une session de caisse fermée ne change plus : son Z est fait' },
   // L'accord au-delà d'une commande fournisseur (0055, brique 114).
   { base: 'Le montant d\'une commande fournisseur permis sans accord se règle par le propriétaire ou un administrateur.', cle: 'base.accord.commande', fr: 'le montant d\'une commande fournisseur permis sans accord se règle par le propriétaire ou un administrateur' },
 ];
