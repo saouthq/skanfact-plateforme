@@ -54,21 +54,21 @@ export const ADAPTATIONS = [
   // comptable ») ; la v10 de l'ordinateur ne les a pas.
   {
     fichier: 'app.js',
-    pourquoi: 'les panneaux « Tes appareils » et « Remis par un appareil retiré » ont leur entrée (onglet Données, recherche des réglages), posée seulement quand le point de contact sait les dessiner (et, pour le second, qu\'une remise attend)',
+    pourquoi: 'les panneaux « Tes appareils », « Services connectés » (brique 134) et « Remis par un appareil retiré » ont leur entrée (onglet Données, recherche des réglages), posée seulement quand le point de contact sait les dessiner (et, pour le second, qu\'une remise attend)',
     avant: "    'p-dossiers': { onglet: 'donnees',",
-    apres: "    'p-quarantaine': { onglet: 'donnees', titre: 'Remis par un appareil retiré', mots: 'appareil retire quarantaine remis hors ligne accepter rejeter changement attente', visible: () => !!(bridge.quarantaine && bridge.quarantaine()) },\n    'p-appareils': { onglet: 'donnees', titre: 'Tes appareils', mots: 'appareil ordinateur telephone perdu vole retirer session connexion hors ligne copie', visible: () => !!bridge.dessinerAppareils },\n    'p-dossiers': { onglet: 'donnees',",
+    apres: "    'p-quarantaine': { onglet: 'donnees', titre: 'Remis par un appareil retiré', mots: 'appareil retire quarantaine remis hors ligne accepter rejeter changement attente', visible: () => !!(bridge.quarantaine && bridge.quarantaine()) },\n    'p-appareils': { onglet: 'donnees', titre: 'Tes appareils', mots: 'appareil ordinateur telephone perdu vole retirer session connexion hors ligne copie', visible: () => !!bridge.dessinerAppareils },\n    'p-services': { onglet: 'donnees', titre: 'Services connectés', mots: 'service connecte boutique skanecom cle api partenaire couper acces relier', visible: () => !!bridge.dessinerServices },\n    'p-dossiers': { onglet: 'donnees',",
   },
   {
     fichier: 'app.js',
     pourquoi: 'les panneaux « Remis par un appareil retiré » (s\'il y a une remise à décider) et « Tes appareils » se posent en tête de l\'onglet Données',
     avant: "      ${panneau('p-dossiers', info('data.dossiers'))}\n",
-    apres: "      ${bridge.quarantaine && bridge.quarantaine() ? `${panneau('p-quarantaine')}<div id=\"quarantaine-panel\"></div></div>` : ''}\n      ${bridge.dessinerAppareils ? `${panneau('p-appareils')}<div id=\"appareils-panel\"></div></div>` : ''}\n      ${panneau('p-dossiers', info('data.dossiers'))}\n",
+    apres: "      ${bridge.quarantaine && bridge.quarantaine() ? `${panneau('p-quarantaine')}<div id=\"quarantaine-panel\"></div></div>` : ''}\n      ${bridge.dessinerAppareils ? `${panneau('p-appareils')}<div id=\"appareils-panel\"></div></div>` : ''}\n      ${bridge.dessinerServices ? `${panneau('p-services')}<div id=\"services-panel\"></div></div>` : ''}\n      ${panneau('p-dossiers', info('data.dossiers'))}\n",
   },
   {
     fichier: "app.js",
     pourquoi: "le point de contact dessine ses panneaux quand les Paramètres s'ouvrent",
     avant: "    drawCabinetPair();\n    drawLicencePanel();\n",
-    apres: "    drawCabinetPair();\n    if (bridge.dessinerQuarantaine && $('#quarantaine-panel')) bridge.dessinerQuarantaine($('#quarantaine-panel'));\n    if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));\n    if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));\n    if (bridge.dessinerSignataire && $('#signataire-panel')) void bridge.dessinerSignataire($('#signataire-panel'));\n    if (bridge.dessinerTtn && $('#ttn-panel')) void bridge.dessinerTtn($('#ttn-panel'));\n    drawLicencePanel();\n",
+    apres: "    drawCabinetPair();\n    if (bridge.dessinerQuarantaine && $('#quarantaine-panel')) bridge.dessinerQuarantaine($('#quarantaine-panel'));\n    if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));\n    if (bridge.dessinerServices && $('#services-panel')) void bridge.dessinerServices($('#services-panel'));\n    if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));\n    if (bridge.dessinerSignataire && $('#signataire-panel')) void bridge.dessinerSignataire($('#signataire-panel'));\n    if (bridge.dessinerTtn && $('#ttn-panel')) void bridge.dessinerTtn($('#ttn-panel'));\n    drawLicencePanel();\n",
   },
   // ── Le paiement en ligne (brique 78 ; docs/paiement-en-ligne.md) : son panneau dans l'onglet Documents
   // (dessiné par le point de contact), et le mode de règlement « Paiement en ligne » (celui que le

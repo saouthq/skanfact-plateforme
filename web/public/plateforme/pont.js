@@ -592,6 +592,9 @@
   const esc = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   /** @param {string} iso */
   const jour = (iso) => { const [a, m, j] = String(iso).slice(0, 10).split('-'); return `${j}/${m}/${a}`; };
+  // Le jour d'un instant, à Tunis (un instant n'est pas un jour : à 0 h 30 à Tunis, il est encore la veille en UTC).
+  /** @param {string} iso */
+  const jourATunis = (iso) => new Date(iso).toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis', day: '2-digit', month: '2-digit', year: 'numeric' });
   /** @type {[string, string, string][]} */
   const PERIMETRES = [['comptabilite', 'La comptabilité', 'ses écritures, la validation des mois, la balance'],
     ['declarations', 'Les déclarations', 'TVA, retenues à la source'],
@@ -651,6 +654,7 @@
     dessinerAppareils,
     dessinerQuarantaine,
     dessinerPaiement,
+    dessinerServices,
     lienClient,
     ajouterLien,
     sansPieceJointe,
@@ -1042,7 +1046,7 @@
     try { liste = (await appelCompte('GET', '/moi/appareils')).appareils; } catch (x) { el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`; return; }
     el.innerHTML = `<p class="small muted mb">Chaque navigateur ou téléphone où tu t'es connecté. Un appareil perdu, volé ou donné se retire ici : il ne peut plus rien ouvrir, et ce qu'il garde pour travailler sans réseau s'efface à sa prochaine connexion.</p>
       <table class="list compact" id="appareils-liste"><tbody>${liste.map((a) => `<tr><td><strong>${esc(a.nom)}</strong>${a.celuiCi ? ' <span class="badge">cet appareil</span>' : ''}
-        <div class="small muted">${a.retireLe ? `Retiré le ${esc(jour(a.retireLe))}` : a.derniereActivite ? `Dernière activité le ${esc(jour(a.derniereActivite))}` : ''}</div></td>
+        <div class="small muted">${a.retireLe ? `Retiré le ${esc(jourATunis(a.retireLe))}` : a.derniereActivite ? `Dernière activité le ${esc(jourATunis(a.derniereActivite))}` : ''}</div></td>
         <td class="r">${a.celuiCi || a.retireLe ? '' : `<button type="button" class="btn btn-sm" data-retirer="${esc(a.id)}">Retirer…</button>`}</td></tr>`).join('')}</tbody></table>
       <p class="small" role="alert"></p>`;
     /** @param {unknown} x */
@@ -1060,6 +1064,43 @@
         }
         bouton.setAttribute('disabled', '');
         try { await appelCompte('DELETE', `/moi/appareils/${encodeURIComponent(String(bouton.dataset.retirer))}`); await dessinerAppareils(el); } catch (x) { bouton.removeAttribute('disabled'); dire(x); }
+      };
+    });
+  }
+  // ── Services connectés (brique 134 ; docs/boutique.md, B0) : les services qui agissent pour l'entreprise avec une
+  // clé de l'API (une boutique SkanEcom reliée, un outil branché), ce qu'ils peuvent faire, et « Couper l'accès ».
+  // Une clé coupée ou expirée ne se montre plus : elle ne peut plus rien.
+  /** @param {HTMLElement} el */
+  async function dessinerServices(el) {
+    /** @type {any[]} */ let cles;
+    try { cles = (await appel('GET', '/cles-api')).cles; } catch (x) { el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`; return; }
+    const actives = cles.filter((k) => !k.revoquee_le && Date.parse(k.expire_le) > Date.now());
+    el.innerHTML = `<p class="small muted mb">Les services qui agissent pour ton entreprise : une boutique SkanEcom que tu as reliée, un outil que tu as branché. Couper l'accès l'arrête tout de suite : le service ne peut plus rien faire ici, et ce qu'il a déjà fait reste (factures, paiements).</p>
+      ${actives.length ? `<table class="list compact" id="services-liste"><tbody>${actives.map((k) => `<tr><td><strong>${esc(k.nom)}</strong>
+        <div class="small">Peut : ${esc(k.peut.join(' ; '))}.</div>
+        <div class="small muted">Relié le ${esc(jourATunis(k.cree_le))}, jusqu'au ${esc(jourATunis(k.expire_le))}${k.derniere_utilisation ? ` ; dernière action le ${esc(quand(k.derniere_utilisation))}` : ' ; aucune action encore'}.</div></td>
+        <td class="r"><button type="button" class="btn btn-sm" data-couper="${esc(k.id)}">Couper l'accès…</button></td></tr>`).join('')}</tbody></table>`
+      : '<p id="services-aucun">Aucun service n\'agit pour ton entreprise.</p>'}
+      <p class="small" role="alert"></p>`;
+    /** @param {unknown} x */
+    const dire = (x) => { const a = el.querySelector('[role=alert]'); if (a) a.textContent = x instanceof Error ? x.message : String(x); };
+    el.querySelectorAll('[data-couper]').forEach((b) => {
+      const bouton = /** @type {HTMLElement} */ (b);
+      bouton.onclick = async () => {
+        const k = actives.find((x) => x.id === bouton.dataset.couper);
+        // Couper se demande d'abord : le service s'arrête tout de suite.
+        if (!bouton.dataset.confirme) {
+          bouton.dataset.confirme = '1';
+          bouton.textContent = 'Oui, couper l\'accès';
+          dire(`« ${k ? k.nom : ''} » ne pourra plus rien faire pour ton entreprise. Pour le relier de nouveau, il faudra le reconnecter depuis le service.`);
+          return;
+        }
+        bouton.setAttribute('disabled', '');
+        try {
+          await appel('DELETE', `/cles-api/${encodeURIComponent(String(bouton.dataset.couper))}`);
+          await dessinerServices(el);
+          dire(`« ${k ? k.nom : ''} » n'a plus accès à ton entreprise.`);
+        } catch (x) { bouton.removeAttribute('disabled'); dire(x); }
       };
     });
   }
@@ -1490,8 +1531,15 @@
     const fait = c.contenu === null ? 'supprimé' : c.revision === null ? 'ajouté' : 'modifié';
     return `${NOMS[c.collection] || 'Élément'}${nom ? ` « ${nom} »` : ''} ${fait}`;
   };
+  // À l'heure de Tunis, comme le serveur compte les jours : un navigateur réglé ailleurs dirait la veille, et une action
+  // « avant » le jour où le service a été relié (vu à l'écran, 02/10/2026).
+  const HEURE_DE_TUNIS = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Africa/Tunis', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   /** @param {string} iso */
-  const quand = (iso) => { const d = new Date(iso); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} à ${d.getHours()} h ${String(d.getMinutes()).padStart(2, '0')}`; };
+  const quand = (iso) => {
+    /** @type {Record<string, string>} */ const p = {};
+    for (const x of HEURE_DE_TUNIS.formatToParts(new Date(iso))) p[x.type] = x.value;
+    return `${p.day}/${p.month}/${p.year} à ${Number(p.hour)} h ${p.minute}`;
+  };
   /** @param {HTMLElement} el */
   function dessinerQuarantaine(el) {
     el.innerHTML = `<p class="small muted mb">Un appareil retiré de son compte remet, à sa reconnexion, ce qu'il avait enregistré sans réseau. Rien ne s'applique sans ta décision : accepté, chaque changement s'applique, sauf ce qui a changé depuis ici (la version du serveur est gardée, et on te le dit) ; rejeté, rien ne s'applique. La remise reste gardée au serveur dans les deux cas.</p>

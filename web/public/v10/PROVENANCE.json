@@ -1,11 +1,11 @@
 {
   "depot": "saouthq/skanfact",
   "branche": "beta",
-  "commit": "d3aca2b",
+  "commit": "c88970b",
   "reprisLe": "2026-10-01",
   "adaptations": 550,
   "fichiers": {
-    "app.js": "be68613b4ba593613b66060e6030611c6bc62edbe4722a9620837b88f896778c",
+    "app.js": "0d3f774f3216e8841b552abd8b830de51f4578aa214feb8dbadf9aecbba247d5",
     "cabinet/app.js": "a918173bddb2a56a5d706d44250996e3ffb17aeb3fc72e4626c29b36df156f32",
     "cabinet/cabcore.js": "84cd43912cd60b911fe88574c87908bab34110c28bfa6c0a3da050fd3811af73",
     "cabinet/cabguide.js": "eed3abc1f9de8d877096b9f2d45f52c29d63fca97b5018ac9c4fa221808c754a",

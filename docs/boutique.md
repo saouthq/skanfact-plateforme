@@ -36,8 +36,11 @@ Ce que SkanFact garantit :
   de fin. Rien d'autre.
 - L'autorisation (par qui) et l'échange se tracent dans le journal de l'entreprise.
 
-À venir (brique 134) : l'écran « Services connectés », où le commerçant voit SkanEcom et **coupe l'accès** en un clic
-(aujourd'hui, seule l'API des clés le permet).
+**Services connectés** (brique 134) : dans SkanFact, Paramètres → Données et sécurité, le commerçant voit chaque service
+qui agit pour son entreprise (« SkanEcom (connexion) »), ce qu'il peut faire en mots, depuis quand et jusqu'à quand, et
+sa dernière action. « Couper l'accès… » demande d'abord, puis coupe : la clé ne vaut plus rien tout de suite (SkanEcom
+reçoit 401), et ce qui a déjà été fait reste. Une clé coupée ou expirée ne s'y montre plus. Les jours s'y disent à
+l'heure de Tunis, même depuis un navigateur réglé ailleurs.
 
 ## B1. Une commande devient une facture
 
@@ -127,14 +130,14 @@ Ce que SkanFact garantit :
 ## À venir
 
 - Les **remises** (un code promo) : aujourd'hui, elles se portent dans le prix des lignes.
-- L'écran « Services connectés » (voir et couper l'accès d'un partenaire).
 - **À VÉRIFIER** : une facture à un particulier sans matricule, quand l'entreprise est soumise à la facture
   électronique (le serveur refuse aujourd'hui une pièce dont le fichier TEIF serait refusé).
 
 ## Les preuves
 
 `tests/v10/boutique.test.ts`, `tests/v10/boutique-retours.test.ts`, `tests/socle/partenaires.test.ts` et
-`tests/web/connecter.test.ts`, et 70 défauts réintroduits (`tests/preuves.sh`, « Brique 131 » à « Brique 133 ») : une commande renvoyée qui ferait une seconde facture, un client créé à chaque commande ou reconnu sans sa référence, un TTC jamais redonné, le
+`tests/web/connecter.test.ts`, `tests/web/services-connectes.test.ts`, et 79 défauts réintroduits (`tests/preuves.sh`,
+« Brique 131 » à « Brique 134 ») : une commande renvoyée qui ferait une seconde facture, un client créé à chaque commande ou reconnu sans sa référence, un TTC jamais redonné, le
 millime perdu, un total faux facturé quand même, le timbre oublié ou imposé, un paiement compté deux fois, un article
 jamais relié au catalogue, une clé sans geste d'émission, ou qui prendrait la série des tickets (une clé révoquée ou
 expirée, elle, ne voit déjà plus l'entreprise), un retour qui ferait un second avoir ou rendrait l'argent deux fois,

@@ -12,7 +12,7 @@ import { regle } from '../regles.ts';
 import { requetes } from '../base.ts';
 import { creerCle } from '../cles.ts';
 import { EVENEMENTS, nouveauSecret } from '../avis.ts';
-import { motif } from '../../textes/index.ts';
+import { motif, t } from '../../textes/index.ts';
 
 const uuid = z.string().uuid();
 const jour = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'champ.jour');
@@ -367,7 +367,8 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       const cles = await requetes(tx).selectFrom('socle.cle_api')
         .select(['id', 'nom', 'prefixe', 'gestes', 'cree_par', 'cree_le', 'expire_le', 'revoquee_le', 'derniere_utilisation'])
         .where('entreprise', '=', params.entreprise ?? '').orderBy('cree_le', 'desc').orderBy('id').limit(LIMITE_MAX).execute();
-      return { corps: { cles } };
+      // Ce que chaque clé peut faire, en mots (« Services connectés », brique 134).
+      return { corps: { cles: cles.map((k) => ({ ...k, peut: k.gestes.map((g) => t(`geste.${g}`)) })) } };
     },
   });
 

@@ -4167,7 +4167,11 @@ prouver "l'entrée qui tait que l'appareil est retiré" web/src/App.tsx \
 " "" \
   "$AW1"
 prouver "retirer un appareil sans demander" $PONT \
-  "        if (!bouton.dataset.confirme) {" "        if (false) {" \
+  "        if (!bouton.dataset.confirme) {
+          bouton.dataset.confirme = '1';
+          bouton.textContent = 'Oui, le retirer';" "        if (false) {
+          bouton.dataset.confirme = '1';
+          bouton.textContent = 'Oui, le retirer';" \
   "$AW1"
 prouver "retirer l'appareil où l'on est" $PONT \
   "\${a.celuiCi || a.retireLe ? '' :" "\${a.retireLe ? '' :" \
@@ -7306,6 +7310,42 @@ prouver "refuser qui ne dit pas le refus" web/src/ecrans/Connecter.tsx \
 prouver "la page qui ne fait pas créer l'entreprise" web/src/ecrans/Connecter.tsx \
   "    if (r.statut === 201) { setChoisie(r.corps.id); creee(); } else" "    if (r.statut === 201) { setChoisie(r.corps.id); } else" \
   "$BS"
+
+# Brique 134 : « Services connectés » (voir et couper l'accès d'un partenaire).
+BSC="la boutique reliée se voit avec ce qu'elle peut faire ; « Couper l'accès » demande, puis coupe, et la clé ne vaut plus rien"
+prouver "le panneau Services connectés jamais posé" web/public/v10/app.js \
+  "\${bridge.dessinerServices ? \`\${panneau('p-services')}<div id=\"services-panel\"></div></div>\` : ''}" "" \
+  "$BSC"
+prouver "le panneau Services connectés jamais dessiné" web/public/v10/app.js \
+  "    if (bridge.dessinerServices && \$('#services-panel')) void bridge.dessinerServices(\$('#services-panel'));
+" "" \
+  "$BSC"
+prouver "une clé coupée montrée dans Services connectés" web/public/plateforme/pont.js \
+  "cles.filter((k) => !k.revoquee_le && Date.parse(k.expire_le) > Date.now())" "cles.filter((k) => Date.parse(k.expire_le) > Date.now())" \
+  "$BSC"
+prouver "une clé expirée montrée dans Services connectés" web/public/plateforme/pont.js \
+  "cles.filter((k) => !k.revoquee_le && Date.parse(k.expire_le) > Date.now())" "cles.filter((k) => !k.revoquee_le)" \
+  "$BSC"
+prouver "couper l'accès sans le demander" web/public/plateforme/pont.js \
+  "il faudra le reconnecter depuis le service.\`);
+          return;" "il faudra le reconnecter depuis le service.\`);" \
+  "$BSC"
+prouver "l'accès jamais coupé" web/public/plateforme/pont.js \
+  "          await appel('DELETE', \`/cles-api/\${encodeURIComponent(String(bouton.dataset.couper))}\`);
+" "" \
+  "$BSC"
+prouver "ce qu'une clé peut faire jamais dit en mots" serveur/routes/socle.ts \
+  "peut: k.gestes.map((g) => t(\`geste.\${g}\`))" "peut: k.gestes" \
+  "$BSC"
+prouver "les jours dits à l'heure du navigateur, pas de Tunis" web/public/plateforme/pont.js \
+  "toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis', day:" "toLocaleDateString('fr-FR', { day:" \
+  "$BSC"
+prouver "l'heure d'une action dite à l'heure du navigateur, pas de Tunis" web/public/plateforme/pont.js \
+  "{ timeZone: 'Africa/Tunis', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit'," "{ day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit'," \
+  "$BSC"
+prouver "Tes appareils qui datent en UTC" web/public/plateforme/pont.js \
+  "\`Dernière activité le \${esc(jourATunis(a.derniereActivite))}\`" "\`Dernière activité le \${esc(jour(a.derniereActivite))}\`" \
+  "$BSC"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
