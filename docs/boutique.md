@@ -129,7 +129,11 @@ l'heure de Tunis, même depuis un navigateur réglé ailleurs.
 
 ## À venir
 
-- Les **remises** (un code promo) : aujourd'hui, elles se portent dans le prix des lignes.
+- Les **remises** et les codes promo : la boutique envoie chaque ligne **au prix réellement payé** (remise déjà
+  déduite) ; une remise sur toute la commande se répartit sur ses lignes (au millime, la dernière ligne prend le
+  reste), et `totalAttendu` reste ce que le client a payé. Une ligne « Remise » négative n'est pas acceptée : une
+  facture ne porte pas de ligne de prix négatif. Une remise affichée à part sur la facture : à décider avec Skander
+  si les commerçants la demandent.
 - **À VÉRIFIER** : une facture à un particulier sans matricule, quand l'entreprise est soumise à la facture
   électronique (le serveur refuse aujourd'hui une pièce dont le fichier TEIF serait refusé).
 
