@@ -27,6 +27,14 @@ Le commerçant ne copie aucune clé. Comme « Se connecter avec… » :
 console définitive s'ajoutera à `retours` quand elle existera), empreinte du secret `6297c73b…40ce0a`, gestes
 `ventes.boutique.facturer` et `ventes.pieces.voir`. Le secret lui-même n'est connu que de SkanEcom.
 
+**Essayer de bout en bout sur un poste** (02/10/2026) : un serveur d'**essai** (`SKANFACT_ENVIRONNEMENT=test`) admet
+aussi une adresse de retour sur la machine elle-même, en http (`localhost`, `*.localhost`, `127.0.0.1`), pour relier
+la console de SkanEcom lancée à côté ; la production, jamais (https seulement). Sur le poste : SkanFact avec
+`SKANFACT_PARTENAIRES` qui déclare `http://console.localhost:4200/skanfact/retour` et l'empreinte d'un secret d'essai,
+la console de SkanEcom avec `SKANFACT_URL=http://127.0.0.1:8090` et ce secret. Joué le 02/10/2026 avec les deux vrais
+programmes : connecter, facturer à la livraison, voir la facture, couper l'accès, reconnecter (la facture en attente
+part seule).
+
 Ce que SkanFact garantit :
 
 - **Un partenaire déclaré** seulement : dans `serveur/partenaires.json` (le dépôt), ou `SKANFACT_PARTENAIRES` (JSON) qui le

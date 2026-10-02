@@ -20,18 +20,22 @@ import { creerCle, PREFIXE_CLE } from './cles.ts';
 import type { Contexte } from './connexion.ts';
 
 export type Partenaire = { code: string; nom: string; retours: string[]; empreinteSecret: string; gestes: string[] };
-const declare = z.object({
+const HTTPS = /^https:\/\/[^\s?#]+$/;
+// Le poste lui-même (localhost, *.localhost, 127.0.0.1), en http : la console d'un partenaire qui tourne sur la même
+// machine que SkanFact, pour l'essayer de bout en bout. Jamais en production.
+const POSTE = /^http:\/\/(?:localhost|[a-z0-9-]+\.localhost|127\.0\.0\.1)(?::\d{1,5})?\/[^\s?#]*$/;
+const declare = (essai: boolean) => z.object({
   code: z.string().regex(/^[a-z0-9-]{2,40}$/),
   nom: z.string().trim().min(1).max(100),
   // Les adresses où le commerçant revient : https, sans paramètres (le partenaire ajoute les siens à l'appel).
-  retours: z.array(z.string().regex(/^https:\/\/[^\s?#]+$/)).min(1).max(10),
+  retours: z.array(z.string().refine((r) => HTTPS.test(r) || (essai && POSTE.test(r)))).min(1).max(10),
   // L'empreinte (SHA-256) du secret du partenaire : le secret lui-même n'est jamais dans la configuration.
   empreinteSecret: z.string().regex(/^[0-9a-f]{64}$/),
   gestes: z.array(z.string().min(3).max(100)).min(1).max(30),
 });
-// SKANFACT_PARTENAIRES : la liste en JSON (vide sans elle).
-export function lirePartenaires(texte: string | undefined): Partenaire[] {
-  return texte ? z.array(declare).parse(JSON.parse(texte)) : [];
+// SKANFACT_PARTENAIRES : la liste en JSON (vide sans elle). `essai` : un serveur d'essai admet aussi le poste en http.
+export function lirePartenaires(texte: string | undefined, { essai = false } = {}): Partenaire[] {
+  return texte ? z.array(declare(essai)).parse(JSON.parse(texte)) : [];
 }
 
 const CODE_MS = 10 * 60_000;

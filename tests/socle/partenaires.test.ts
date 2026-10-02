@@ -168,4 +168,18 @@ describe('connecter une boutique (un partenaire déclaré)', () => {
     expect(lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_PARTENAIRES: JSON.stringify([{ code: 'skanecom', nom: 'SkanEcom', retours: [RETOUR],
       empreinteSecret: sha256(SECRET), gestes: ['ventes.pieces.voir'] }]) }).partenaires).toHaveLength(1);
   });
+
+  it('un serveur d\'essai admet un retour sur le poste en http (la console du partenaire lancée à côté) ; la production, jamais', () => {
+    const avec = (retours: string[]) => JSON.stringify([{ code: 'skanecom', nom: 'SkanEcom', retours, empreinteSecret: sha256(SECRET), gestes: ['ventes.pieces.voir'] }]);
+    const poste = ['http://console.localhost:4200/skanfact/retour', 'http://localhost:4200/r', 'http://127.0.0.1:4200/r'];
+    expect(lirePartenaires(avec(poste), { essai: true })[0]?.retours).toEqual(poste);
+    expect(lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_PARTENAIRES: avec(poste) }).partenaires).toHaveLength(1);
+    // Hors essai (la production) : https seulement, même pour le poste.
+    for (const r of poste) expect(() => lirePartenaires(avec([r]))).toThrow();
+    // Une autre machine en http, ou un nom qui se fait passer pour le poste : jamais, même à l'essai.
+    for (const r of ['http://non-chiffre.exemple.tn/r', 'http://localhost.exemple.tn/r', 'http://console.localhost.exemple.tn/r', 'http://127.0.0.1.exemple.tn/r',
+      'http://localhost:4200/r?a=1', 'http://user@localhost/r']) {
+      expect(() => lirePartenaires(avec([r]), { essai: true }), r).toThrow();
+    }
+  });
 });

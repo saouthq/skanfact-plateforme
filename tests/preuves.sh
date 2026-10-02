@@ -7341,8 +7341,25 @@ prouver "les jours dits à l'heure du navigateur, pas de Tunis" web/public/plate
   "toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis', day:" "toLocaleDateString('fr-FR', { day:" \
   "$BSC"
 prouver "SkanEcom jamais déclaré par défaut" serveur/principal.ts \
-  "lirePartenaires(env.SKANFACT_PARTENAIRES ?? fs.readFileSync(path.join(ici, 'partenaires.json'), 'utf8'))" "lirePartenaires(env.SKANFACT_PARTENAIRES)" \
+  "lirePartenaires(env.SKANFACT_PARTENAIRES ?? fs.readFileSync(path.join(ici, 'partenaires.json'), 'utf8'), { essai" "lirePartenaires(env.SKANFACT_PARTENAIRES, { essai" \
   "SkanEcom est déclaré dans le dépôt : son adresse de retour, l'empreinte de son secret, ses gestes"
+# Essayer SkanEcom de bout en bout sur le poste : un serveur d'essai admet un retour en http sur la machine elle-même.
+BPP="un serveur d'essai admet un retour sur le poste en http (la console du partenaire lancée à côté) ; la production, jamais"
+prouver "le serveur d'essai ne dit pas qu'il est d'essai" serveur/principal.ts \
+  "'utf8'), { essai: environnement === 'test' })" "'utf8'))" \
+  "$BPP"
+prouver "un retour sur le poste refusé même à l'essai" serveur/partenaires.ts \
+  'HTTPS.test(r) || (essai && POSTE.test(r))' 'HTTPS.test(r)' \
+  "$BPP"
+prouver "un retour sur le poste admis hors essai" serveur/partenaires.ts \
+  'HTTPS.test(r) || (essai && POSTE.test(r))' 'HTTPS.test(r) || POSTE.test(r)' \
+  "$BPP"
+prouver "un nom qui se fait passer pour le poste admis" serveur/partenaires.ts \
+  '(?::\d{1,5})?\/[^\s?#]*$/' '[^\s?#]*$/' \
+  "$BPP"
+prouver "un retour du poste avec ses paramètres admis" serveur/partenaires.ts \
+  '(?::\d{1,5})?\/[^\s?#]*$/' '(?::\d{1,5})?\/\S*$/' \
+  "$BPP"
 prouver "l'heure d'une action dite à l'heure du navigateur, pas de Tunis" web/public/plateforme/pont.js \
   "{ timeZone: 'Africa/Tunis', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit'," "{ day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit'," \
   "$BSC"

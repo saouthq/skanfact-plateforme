@@ -104,8 +104,8 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   if (!Number.isInteger(lectures) || lectures < 1 || lectures > 32) throw new ConfigurationFausse(`SKANFACT_LECTURES « ${env.SKANFACT_LECTURES} » : un nombre de lectures à la fois, de 1 à 32`);
   let partenaires: Partenaire[];
   // Les partenaires déclarés (brique 133) : ceux du dépôt (serveur/partenaires.json : des adresses et des empreintes,
-  // rien de secret), sauf si l'environnement en donne d'autres.
-  try { partenaires = lirePartenaires(env.SKANFACT_PARTENAIRES ?? fs.readFileSync(path.join(ici, 'partenaires.json'), 'utf8')); } catch {
+  // rien de secret), sauf si l'environnement en donne d'autres. Un serveur d'essai admet aussi un retour sur le poste.
+  try { partenaires = lirePartenaires(env.SKANFACT_PARTENAIRES ?? fs.readFileSync(path.join(ici, 'partenaires.json'), 'utf8'), { essai: environnement === 'test' }); } catch {
     throw new ConfigurationFausse('SKANFACT_PARTENAIRES : la liste des partenaires en JSON (code, nom, retours https, empreinteSecret, gestes)');
   }
   return {
