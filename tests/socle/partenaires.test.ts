@@ -153,6 +153,12 @@ describe('connecter une boutique (un partenaire déclaré)', () => {
     await expect(autoriserEnBase(await idDe(yasmine.jeton), autre, cleA)).rejects.toThrow(/clé introuvable/);
   });
 
+  it('SkanEcom est déclaré dans le dépôt : son adresse de retour, l\'empreinte de son secret, ses gestes', () => {
+    expect(lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test' }).partenaires).toEqual([{ code: 'skanecom', nom: 'SkanEcom',
+      retours: ['https://skanecom-apercu-console.skanbenamor10.workers.dev/skanfact/retour'],
+      empreinteSecret: '6297c73b7de892fa800ea9d07abafba5c0799b1a0f8e5513989a643b6740ce0a', gestes: ['ventes.boutique.facturer', 'ventes.pieces.voir'] }]);
+  });
+
   it('la liste des partenaires se lit de l\'environnement, et une liste fausse arrête le serveur', () => {
     expect(lirePartenaires(undefined)).toEqual([]);
     expect(() => lirePartenaires(JSON.stringify([{ code: 'x1', nom: 'X', retours: ['http://non-chiffre.exemple.tn/r'], empreinteSecret: sha256('s'), gestes: ['ventes.pieces.voir'] }]))).toThrow();

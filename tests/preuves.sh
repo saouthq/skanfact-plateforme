@@ -7340,6 +7340,9 @@ prouver "ce qu'une clé peut faire jamais dit en mots" serveur/routes/socle.ts \
 prouver "les jours dits à l'heure du navigateur, pas de Tunis" web/public/plateforme/pont.js \
   "toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis', day:" "toLocaleDateString('fr-FR', { day:" \
   "$BSC"
+prouver "SkanEcom jamais déclaré par défaut" serveur/principal.ts \
+  "lirePartenaires(env.SKANFACT_PARTENAIRES ?? fs.readFileSync(path.join(ici, 'partenaires.json'), 'utf8'))" "lirePartenaires(env.SKANFACT_PARTENAIRES)" \
+  "SkanEcom est déclaré dans le dépôt : son adresse de retour, l'empreinte de son secret, ses gestes"
 prouver "l'heure d'une action dite à l'heure du navigateur, pas de Tunis" web/public/plateforme/pont.js \
   "{ timeZone: 'Africa/Tunis', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit'," "{ day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit'," \
   "$BSC"

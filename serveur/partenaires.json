@@ -1,0 +1,9 @@
+[
+  {
+    "code": "skanecom",
+    "nom": "SkanEcom",
+    "retours": ["https://skanecom-apercu-console.skanbenamor10.workers.dev/skanfact/retour"],
+    "empreinteSecret": "6297c73b7de892fa800ea9d07abafba5c0799b1a0f8e5513989a643b6740ce0a",
+    "gestes": ["ventes.boutique.facturer", "ventes.pieces.voir"]
+  }
+]

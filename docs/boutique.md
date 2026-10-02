@@ -22,9 +22,15 @@ Le commerçant ne copie aucune clé. Comme « Se connecter avec… » :
    → `{ cle, entreprise, nom, gestes, expireLe }`. La clé vaut **un an** ; ensuite, le commerçant reclique « Connecter ».
 5. SkanEcom garde la clé (chiffrée chez lui) et l'identifiant de l'entreprise : c'est avec eux qu'il appelle B1 à B4.
 
+**SkanEcom est déclaré** (02/10/2026, valeurs données par la session SkanEcom) : retour
+`https://skanecom-apercu-console.skanbenamor10.workers.dev/skanfact/retour` (la console d'aperçu ; l'adresse de la
+console définitive s'ajoutera à `retours` quand elle existera), empreinte du secret `6297c73b…40ce0a`, gestes
+`ventes.boutique.facturer` et `ventes.pieces.voir`. Le secret lui-même n'est connu que de SkanEcom.
+
 Ce que SkanFact garantit :
 
-- **Un partenaire déclaré** seulement, dans la configuration du serveur (`SKANFACT_PARTENAIRES`, JSON) : son code, son
+- **Un partenaire déclaré** seulement : dans `serveur/partenaires.json` (le dépôt), ou `SKANFACT_PARTENAIRES` (JSON) qui le
+  remplace : son code, son
   nom, ses adresses de retour (https, exactes), l'**empreinte** (SHA-256) de son secret — jamais le secret —, et les
   gestes de sa clé (pour SkanEcom : `ventes.boutique.facturer`, `ventes.pieces.voir`). Une adresse de retour non
   déclarée n'est jamais suivie : la page dit que la demande n'est pas valable.
