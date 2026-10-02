@@ -21,6 +21,12 @@ Le commerçant ne copie aucune clé. Comme « Se connecter avec… » :
    `POST /v1/partenaires/skanecom/echanger`, en-tête `Authorization: Bearer <secret de SkanEcom>`, corps `{ "code": "…" }`
    → `{ cle, entreprise, nom, gestes, expireLe }`. La clé vaut **un an** ; ensuite, le commerçant reclique « Connecter ».
 5. SkanEcom garde la clé (chiffrée chez lui) et l'identifiant de l'entreprise : c'est avec eux qu'il appelle B1 à B4.
+6. **« Déconnecter » dans SkanEcom** (brique 135, 02/10/2026) : avant d'oublier la clé, le serveur de SkanEcom la fait
+   couper ici : `POST /v1/partenaires/skanecom/deconnecter`, en-tête `Authorization: Bearer <secret de SkanEcom>`, corps
+   `{ "cle": "skf_…" }` → `200 { coupee: true }`. Redemander donne la même réponse (une réponse perdue se renvoie sans
+   risque) ; `404` : cette clé n'a pas été remise à SkanEcom par une connexion (rien n'est coupé) ; `401` : secret faux.
+   Sans ce geste, la clé oubliée restait valable un an dans SkanFact (essai du 02/10/2026). La coupure se trace dans
+   le journal de l'entreprise.
 
 **SkanEcom est déclaré** (02/10/2026, valeurs données par la session SkanEcom) : retour
 `https://skanecom-apercu-console.skanbenamor10.workers.dev/skanfact/retour` (la console d'aperçu ; l'adresse de la

@@ -7245,7 +7245,7 @@ prouver "une autorisation vers une adresse non déclarée" serveur/partenaires.t
   "      if (!retourPermis(p, corps.retour)) return" "      if (false) return" \
   "$BP"
 prouver "un faux secret de partenaire accepté" serveur/partenaires.ts \
-  "      if (!memeEmpreinte(sha256(secret), p.empreinteSecret)) return" "      if (false) return" \
+  "const secretJuste = (p: Partenaire, entete: string | undefined) => memeEmpreinte(" "const secretJuste = (p: Partenaire, entete: string | undefined) => true || memeEmpreinte(" \
   "$BP"
 prouver "la clé qui se lit dans le code" serveur/partenaires.ts \
   "const cleDuCode = (cle: Buffer, code: string) => PREFIXE_CLE + createHmac('sha256', cle).update(\`skanfact.partenaire:\${code}\`, 'utf8').digest('base64url');" "const cleDuCode = (cle: Buffer, code: string) => PREFIXE_CLE + code;" \
@@ -7343,6 +7343,33 @@ prouver "les jours dits à l'heure du navigateur, pas de Tunis" web/public/plate
 prouver "SkanEcom jamais déclaré par défaut" serveur/principal.ts \
   "lirePartenaires(env.SKANFACT_PARTENAIRES ?? fs.readFileSync(path.join(ici, 'partenaires.json'), 'utf8'), { essai" "lirePartenaires(env.SKANFACT_PARTENAIRES, { essai" \
   "SkanEcom est déclaré dans le dépôt : son adresse de retour, l'empreinte de son secret, ses gestes"
+# Brique 135 : « Déconnecter » chez le partenaire coupe la clé dans SkanFact.
+BDP="« Déconnecter » chez le partenaire coupe la clé ici : son secret et la clé, une clé qu'il a reçue, redemander sans risque"
+prouver "déconnecter ne coupe rien" base/migrations/0068_deconnecter_partenaire.sql \
+  "    update socle.cle_api set revoquee_le = now() where id = v_cle;
+" "" \
+  "$BDP"
+prouver "déconnecter sans le secret du partenaire" serveur/partenaires.ts \
+  "      if (!secretJuste(p, requete.headers.authorization)) return secretRefuse;
+      const id = await" "      const id = await" \
+  "$BDP"
+prouver "un autre partenaire coupe la clé de SkanEcom" base/migrations/0068_deconnecter_partenaire.sql \
+  "where a.partenaire = p_partenaire and k.empreinte = p_empreinte_cle" "where k.empreinte = p_empreinte_cle" \
+  "$BDP"
+prouver "le partenaire coupe une clé faite à la main" base/migrations/0068_deconnecter_partenaire.sql \
+  "    from socle.autorisation_partenaire a join socle.cle_api k on k.id = a.cle_api
+   where a.partenaire = p_partenaire and k.empreinte = p_empreinte_cle" "    from socle.cle_api k
+   where k.empreinte = p_empreinte_cle" \
+  "$BDP"
+prouver "redemander la déconnexion est refusé" base/migrations/0068_deconnecter_partenaire.sql \
+  "  if v_cle is null then return null; end if;" "  if v_cle is null or v_revoquee is not null then return null; end if;" \
+  "$BDP"
+prouver "la déconnexion sans trace" base/migrations/0068_deconnecter_partenaire.sql \
+  "    perform socle.tracer(v_entreprise, 'socle.partenaire.deconnecter'" "    perform 1 where false and socle.tracer(v_entreprise, 'socle.partenaire.deconnecter'" \
+  "$BDP"
+prouver "une trace à chaque redemande" base/migrations/0068_deconnecter_partenaire.sql \
+  "  if v_revoquee is null then" "  if true then" \
+  "$BDP"
 # Essayer SkanEcom de bout en bout sur le poste : un serveur d'essai admet un retour en http sur la machine elle-même.
 BPP="un serveur d'essai admet un retour sur le poste en http (la console du partenaire lancée à côté) ; la production, jamais"
 prouver "le serveur d'essai ne dit pas qu'il est d'essai" serveur/principal.ts \

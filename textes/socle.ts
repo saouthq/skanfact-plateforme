@@ -79,6 +79,7 @@ declarerTextes({
   'partenaire.secret_refuse': 'le secret du partenaire est faux',
   'partenaire.code_refuse': 'ce code ne vaut rien : il a déjà servi, il a expiré (il vaut dix minutes), ou il n\'a pas été donné à ce partenaire',
   'partenaire.nom_cle': '{partenaire} (connexion)',
+  'partenaire.cle_inconnue': 'cette clé n\'a pas été remise à {partenaire} par une connexion : rien n\'est coupé',
   'cles.geste_inconnu': 'geste inconnu : {geste}',
   'cles.geste_ferme': 'le geste {geste} ne se donne jamais à une clé de l\'API',
   'cles.geste_non_permis': 'tu ne peux pas donner à une clé le geste {geste} : ton rôle ne le permet pas',

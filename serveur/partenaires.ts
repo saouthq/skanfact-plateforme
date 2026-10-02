@@ -46,6 +46,9 @@ const cleDuCode = (cle: Buffer, code: string) => PREFIXE_CLE + createHmac('sha25
 // Une adresse de retour déclarée (ses paramètres à part ; jamais d'ancre).
 const retourPermis = (p: Partenaire, retour: string) => !retour.includes('#') && p.retours.includes(retour.split('?')[0] ?? '');
 const memeEmpreinte = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+// Le serveur du partenaire se présente avec son secret (en-tête Authorization: Bearer …), reconnu à son empreinte.
+const secretJuste = (p: Partenaire, entete: string | undefined) => memeEmpreinte(sha256(/^Bearer (.+)$/.exec(entete ?? '')?.[1] ?? ''), p.empreinteSecret);
+const secretRefuse = { statut: 401, corps: { motif: motif('partenaire.secret_refuse') } };
 
 export function routesPartenaires(ctx: Contexte): Route<never>[] {
   const routes: Route<never>[] = [];
@@ -92,13 +95,27 @@ export function routesPartenaires(ctx: Contexte): Route<never>[] {
     traiter: async ({ params, corps, requete }) => {
       const p = trouver(params.partenaire);
       if (!p || !ctx.partenaires) return inconnu;
-      const secret = /^Bearer (.+)$/.exec(requete.headers.authorization ?? '')?.[1] ?? '';
-      if (!memeEmpreinte(sha256(secret), p.empreinteSecret)) return { statut: 401, corps: { motif: motif('partenaire.secret_refuse') } };
+      if (!secretJuste(p, requete.headers.authorization)) return secretRefuse;
       const expireLe = new Date(maintenant().getTime() + CLE_JOURS * 86_400_000);
       const r = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.echanger_autorisation($1, $2, $3)',
         [p.code, sha256(corps.code), expireLe])).rows[0] as { cle_api: string; entreprise: string; nom: string; gestes: string[] } | undefined);
       if (!r) return { statut: 400, corps: { motif: motif('partenaire.code_refuse') } };
       return { corps: { cle: cleDuCode(ctx.partenaires.cle, corps.code), entreprise: r.entreprise, nom: r.nom, gestes: r.gestes, expireLe: expireLe.toISOString() } };
+    },
+  });
+
+  // « Déconnecter » chez le partenaire (brique 135) : son secret, et la clé qu'il oublie, coupée ici aussi. Redemander
+  // ne fait rien de plus (même réponse) ; une clé que ce partenaire n'a pas reçue n'est jamais touchée.
+  ajouter({
+    methode: 'POST', chemin: '/partenaires/:partenaire/deconnecter', geste: 'public',
+    corps: z.object({ cle: z.string().min(20).max(200) }),
+    traiter: async ({ params, corps, requete }) => {
+      const p = trouver(params.partenaire);
+      if (!p) return inconnu;
+      if (!secretJuste(p, requete.headers.authorization)) return secretRefuse;
+      const id = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select socle.deconnecter_partenaire($1, $2) id', [p.code, sha256(corps.cle)])).rows[0]?.id as string | null);
+      if (!id) return { statut: 404, corps: { motif: motif('partenaire.cle_inconnue', { partenaire: p.nom }) } };
+      return { corps: { coupee: true } };
     },
   });
   return routes;

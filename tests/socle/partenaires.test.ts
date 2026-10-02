@@ -153,6 +153,44 @@ describe('connecter une boutique (un partenaire déclaré)', () => {
     await expect(autoriserEnBase(await idDe(yasmine.jeton), autre, cleA)).rejects.toThrow(/clé introuvable/);
   });
 
+  it('« Déconnecter » chez le partenaire coupe la clé ici : son secret et la clé, une clé qu\'il a reçue, redemander sans risque', async () => {
+    const nadia = await personne('nadia');
+    const ent = String((await appeler('POST', '/entreprises', nadia.jeton, { raisonSociale: 'Nadia Déco' })).corps.id);
+    const relier = async () => {
+      const a = await appeler('POST', `/entreprises/${ent}/partenaires/skanecom/autoriser`, nadia.jeton, { retour: RETOUR, etat: 'x' });
+      const r = await app.inject({ method: 'POST', url: `${VERSION}/partenaires/skanecom/echanger`, headers: { authorization: `Bearer ${SECRET}` }, payload: { code: codeDe(String(a.corps.adresse)) } });
+      return String(r.json().cle);
+    };
+    const ancienne = await relier();
+    const nouvelle = await relier();
+    const deconnecter = (secret: string, cle: string, partenaire = 'skanecom') => app.inject({ method: 'POST', url: `${VERSION}/partenaires/${partenaire}/deconnecter`,
+      headers: { authorization: `Bearer ${secret}` }, payload: { cle } }).then((r) => ({ statut: r.statusCode, corps: r.json() as Record<string, unknown> }));
+    const marche = async (cle: string) => (await appeler('GET', `/entreprises/${ent}/commandes-en-ligne/SK-404`, cle)).statut;
+    expect(await marche(ancienne)).toBe(404);
+
+    // Le secret du partenaire d'abord ; un autre partenaire ne coupe pas la clé de SkanEcom.
+    expect(await deconnecter('mauvais-secret', ancienne)).toMatchObject({ statut: 401, corps: { motif: 'Le secret du partenaire est faux.' } });
+    expect(await deconnecter('autre-secret', ancienne, 'autre')).toMatchObject({ statut: 404,
+      corps: { motif: 'Cette clé n\'a pas été remise à Autre service par une connexion : rien n\'est coupé.' } });
+    expect((await deconnecter(SECRET, ancienne, 'pirate')).statut).toBe(404);
+    // Une clé faite à la main par la propriétaire n'est pas à SkanEcom : il ne la coupe pas.
+    const main = String((await appeler('POST', `/entreprises/${ent}/cles-api`, nadia.jeton, { nom: 'Mon outil', gestes: ['ventes.pieces.voir'],
+      expireLe: new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10) })).corps.cle);
+    expect((await deconnecter(SECRET, main)).statut).toBe(404);
+    expect(await marche(main)).toBe(404);
+    expect(await marche(ancienne)).toBe(404);
+
+    // La bonne clé : coupée ici ; la nouvelle connexion continue.
+    expect(await deconnecter(SECRET, ancienne)).toEqual({ statut: 200, corps: { coupee: true } });
+    expect(await marche(ancienne)).toBe(401);
+    expect(await marche(nouvelle)).toBe(404);
+    // Redemander (une réponse perdue en route) : même réponse, rien de plus.
+    expect(await deconnecter(SECRET, ancienne)).toEqual({ statut: 200, corps: { coupee: true } });
+    const trace = (await admin.query(`select geste, utilisateur is not null par_quelqu_un, apres->>'partenaire' partenaire from socle.audit
+      where entreprise = $1 and geste = 'socle.partenaire.deconnecter'`, [ent])).rows;
+    expect(trace).toEqual([{ geste: 'socle.partenaire.deconnecter', par_quelqu_un: false, partenaire: 'skanecom' }]);
+  });
+
   it('SkanEcom est déclaré dans le dépôt : son adresse de retour, l\'empreinte de son secret, ses gestes', () => {
     expect(lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test' }).partenaires).toEqual([{ code: 'skanecom', nom: 'SkanEcom',
       retours: ['https://skanecom-apercu-console.skanbenamor10.workers.dev/skanfact/retour'],
