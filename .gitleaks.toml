@@ -1,0 +1,11 @@
+# La recherche de secrets (job « Aucun secret dans le dépôt ») : les règles par défaut de gitleaks, plus une exception
+# étroite. Un partenaire déclaré (serveur/partenaires.json, docs/boutique.md B0) est reconnu à l'EMPREINTE SHA-256 de
+# son secret : 64 chiffres hexadécimaux, publics par construction (on ne retrouve pas le secret depuis l'empreinte).
+# Seule la valeur d'une clé « empreinteSecret » est admise ; tout le reste est cherché comme avant.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Empreintes SHA-256 des secrets des partenaires déclarés (publiques, jamais le secret)"
+regexTarget = "line"
+regexes = ['''empreinteSecret["']?\s*:\s*["'][0-9a-f]{64}["']''']
