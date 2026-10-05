@@ -19,7 +19,7 @@ import { Inscription } from './ecrans/Inscription.tsx';
 import { Porte } from './ecrans/Porte.tsx';
 import { phrase, titre } from './langue.ts';
 
-type Accueil = { ecran: 'connexion' } | { ecran: 'inscription' } | { ecran: 'code'; defi: Defi } | { ecran: 'dedans' };
+type Accueil = { ecran: 'connexion'; email?: string } | { ecran: 'inscription' } | { ecran: 'code'; defi: Defi } | { ecran: 'dedans' };
 type Moi = { id: string; codeAConfigurer: boolean; entreprises: EntrepriseDeMoi[]; cabinets: { id: string }[] };
 
 const RETENUE = 'skanfact.entreprise';
@@ -155,9 +155,9 @@ export function App() {
   const finirConnexion = () => { connexionDemandee.oublier(); setDemandeConnexion(null); };
   let ecran = null;
   switch (accueil.ecran) {
-    case 'inscription': ecran = <Inscription cree={vers({ ecran: 'connexion' })} connexion={vers({ ecran: 'connexion' })} sous={attend} />; break;
+    case 'inscription': ecran = <Inscription connecte={vers({ ecran: 'dedans' })} aConnecter={(email) => setAccueil({ ecran: 'connexion', email })} connexion={vers({ ecran: 'connexion' })} sous={attend} />; break;
     case 'code': ecran = <Code defi={accueil.defi} connecte={vers({ ecran: 'dedans' })} retour={vers({ ecran: 'connexion' })} />; break;
-    case 'connexion': ecran = <Connexion connecte={vers({ ecran: 'dedans' })} code={(defi) => setAccueil({ ecran: 'code', defi })} inscription={vers({ ecran: 'inscription' })} sous={attend} />; break;
+    case 'connexion': ecran = <Connexion connecte={vers({ ecran: 'dedans' })} code={(defi) => setAccueil({ ecran: 'code', defi })} inscription={vers({ ecran: 'inscription' })} sous={attend} {...(accueil.email ? { email: accueil.email } : {})} />; break;
     default:
       if (refusInvitation) {
         ecran = <Carte titre={titre('ecran.invitation.titre')} pied={<Bouton principal onClick={() => setRefusInvitation(null)}>{titre('ecran.invitation.continuer')}</Bouton>}>

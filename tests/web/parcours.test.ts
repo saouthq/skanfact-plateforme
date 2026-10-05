@@ -1,10 +1,10 @@
 // Le parcours joué comme une personne (règle du projet : rien ne s'annonce avant d'avoir été refait à
 // la souris et vu à l'écran), de bout en bout : créer son compte (un mot de passe trop court se
-// refuse sur son champ), se tromper de mot de passe, se connecter, choisir la découverte sur la porte,
+// refuse sur son champ) et s'y retrouver connecté, choisir la découverte sur la porte,
 // poser le code du téléphone ; puis, dans l'application v10 servie par la plateforme : une facture
 // pour un client créé depuis l'éditeur, émise par le serveur (le numéro de sa série, le même net à
 // payer à l'écran et au serveur), retrouvée après rechargement ; se déconnecter par le menu du haut,
-// et revenir d'un autre appareil avec le code à six chiffres. Chaque bouton est trouvé par ce qu'il
+// et revenir d'un autre appareil (un mauvais mot de passe d'abord) avec le code à six chiffres. Chaque bouton est trouvé par ce qu'il
 // dit, jamais par son rang.
 
 import fs from 'node:fs';
@@ -79,14 +79,7 @@ describe('le parcours, à la souris', () => {
     await champ(p, 'ecran.connexion.mot_de_passe').fill('Un-bon-mot-de-passe');
     await bouton(p, 'ecran.inscription.bouton').click();
 
-    // Se tromper de mot de passe, puis se connecter.
-    await ecran(p, 'ecran.connexion.titre');
-    await champ(p, 'ecran.connexion.email').fill(email);
-    await champ(p, 'ecran.connexion.mot_de_passe').fill('pas-le-bon-mot');
-    await bouton(p, 'ecran.connexion.bouton').click();
-    await expect.poll(() => p.getByRole('alert').first().innerText()).toBe(phrase('connexion.refusee'));
-    await champ(p, 'ecran.connexion.mot_de_passe').fill('Un-bon-mot-de-passe');
-    await bouton(p, 'ecran.connexion.bouton').click();
+    // Le compte créé, on est connecté tout de suite : rien à retaper (vu le 05/10/2026 sur le vrai serveur).
 
     // La porte : la découverte ; le rôle de propriétaire exige alors le code du téléphone, d'abord.
     await ecran(p, 'ecran.porte.titre');
@@ -180,7 +173,11 @@ describe('le parcours, à la souris', () => {
     const q = await (await navigateur.newContext({ viewport: { width: 390, height: 844 }, locale: 'fr-FR' })).newPage();
     q.on('pageerror', (e) => erreurs.push(e.message + ' @ ' + q.url()));
     await q.goto(serveur.adresse);
+    // Se tromper de mot de passe, puis le bon.
     await champ(q, 'ecran.connexion.email').fill(email);
+    await champ(q, 'ecran.connexion.mot_de_passe').fill('pas-le-bon-mot');
+    await bouton(q, 'ecran.connexion.bouton').click();
+    await expect.poll(() => q.getByRole('alert').first().innerText()).toBe(phrase('connexion.refusee'));
     await champ(q, 'ecran.connexion.mot_de_passe').fill('Un-bon-mot-de-passe');
     await bouton(q, 'ecran.connexion.bouton').click();
     await ecran(q, 'ecran.code.titre');

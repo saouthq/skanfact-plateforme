@@ -7864,6 +7864,11 @@ prouver "une commande qui ne s'arrête jamais" exploitation/acces.ts \
   "setTimeout(() => { depasse = true; p.kill('SIGKILL'); }, delai * 1000);" "setTimeout(() => undefined, delai * 1000);" \
   "$AC3"
 
+# Le compte créé, connecté tout de suite (vu sur le vrai serveur le 05/10/2026 : l'adresse était à retaper).
+prouver "le compte créé, mais l'adresse et le mot de passe à retaper" web/src/ecrans/Inscription.tsx \
+  "      if (c.corps.etat === 'connecte' && c.corps.jeton) {" "      if (false && c.corps.etat === 'connecte' && c.corps.jeton) {" \
+  "$CEP"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

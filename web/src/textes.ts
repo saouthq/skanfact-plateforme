@@ -32,6 +32,7 @@ declarerTextes({
   'ecran.inscription.bouton': 'créer mon compte',
   'ecran.inscription.deja': 'j\'ai déjà un compte',
   'ecran.inscription.faite': 'ton compte est créé : connecte-toi',
+  'ecran.inscription.faite_dedans': 'ton compte est créé : bienvenue dans SkanFact',
 
   'ecran.code.titre': 'le code de ton téléphone',
   'ecran.code.application': 'ouvre ton application d\'authentification et tape le code de SkanFact',

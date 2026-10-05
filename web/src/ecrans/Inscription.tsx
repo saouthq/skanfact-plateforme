@@ -1,18 +1,21 @@
 // Créer son compte, dans la carte d'accueil de la v10 : l'adresse, le nom, le mot de passe (sa
-// longueur minimale dite AVANT le geste, dans sa bulle).
+// longueur minimale dite AVANT le geste, dans sa bulle). Le compte créé, la personne est connectée tout de suite
+// (vu le 05/10/2026 en essayant le vrai serveur : on revenait à la connexion, l'adresse à retaper) ; si la connexion
+// ne se fait pas, l'écran de connexion s'ouvre avec l'adresse déjà remplie.
 import { useState } from 'react';
 import { LONGUEUR_MINIMALE } from '../../../commun/compte.ts';
-import { appeler, ErreurReseau } from '../api.ts';
+import { appeler, ErreurReseau, session } from '../api.ts';
 import { Bouton } from '../composants/Bouton.tsx';
 import { Carte } from '../composants/Carte.tsx';
 import { Champ } from '../composants/Champ.tsx';
 import { toast } from '../composants/Toast.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
+import { nomDeCetAppareil } from './Connexion.tsx';
 
 const rien = () => undefined;
 
-export function Inscription({ cree, connexion, sous }: { cree: (email: string) => void; connexion: () => void; sous?: string | null }) {
+export function Inscription({ connecte, aConnecter, connexion, sous }: { connecte: () => void; aConnecter: (email: string) => void; connexion: () => void; sous?: string | null }) {
   const g = useGeste(rien);
   const [email, setEmail] = useState('');
   const [nom, setNom] = useState('');
@@ -24,7 +27,23 @@ export function Inscription({ cree, connexion, sous }: { cree: (email: string) =
       g.refuser({ texte: phrase(x instanceof ErreurReseau ? 'ecran.erreur_reseau' : 'ecran.erreur_serveur'), champ: null });
       return;
     }
-    if (r.statut === 201) { toast(phrase('ecran.inscription.faite')); cree(email); } else g.refuser(refusDe(r));
+    if (r.statut !== 201) { g.refuser(refusDe(r)); return; }
+    // Le compte existe : on se connecte avec ce qu'on vient de taper (un compte neuf n'a encore aucun rôle qui exige le
+    // code du téléphone).
+    try {
+      const c = await appeler<{ etat: string; jeton?: string; appareil?: string | null }>('POST', '/connexion', {
+        email, motDePasse, posteDUnAutre: false, appareil: { nom: nomDeCetAppareil(), type: 'navigateur' },
+      });
+      if (c.corps.etat === 'connecte' && c.corps.jeton) {
+        session.ouvrir(c.corps.jeton, true);
+        session.retenirAppareil(c.corps.appareil ?? null);
+        toast(phrase('ecran.inscription.faite_dedans'));
+        connecte();
+        return;
+      }
+    } catch { /* la connexion se fera à la main */ }
+    toast(phrase('ecran.inscription.faite'));
+    aConnecter(email);
   });
 
   return (

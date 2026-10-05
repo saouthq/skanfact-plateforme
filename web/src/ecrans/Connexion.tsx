@@ -10,20 +10,21 @@ import { phrase, titre } from '../langue.ts';
 
 export type Defi = { defi: string; methode: 'sms' | 'application'; posteDUnAutre: boolean };
 // `sous` : la phrase sous le titre, quand un partenaire a envoyé la personne ici (brique 133).
-type Props = { connecte: () => void; code: (d: Defi) => void; inscription: () => void; sous?: string | null };
+// `email` : l'adresse déjà connue (un compte qu'on vient de créer), pour ne pas la retaper.
+type Props = { connecte: () => void; code: (d: Defi) => void; inscription: () => void; sous?: string | null; email?: string };
 const rien = () => undefined;
 
 // Le nom de cet appareil, lisible dans « Tes appareils » (brique 74) : « Chrome sur Windows ».
-function nomDeCetAppareil() {
+export function nomDeCetAppareil() {
   const n = navigator.userAgent;
   const nav = /Edg\//.test(n) ? 'Edge' : /Firefox\//.test(n) ? 'Firefox' : /Chrome\//.test(n) ? 'Chrome' : /Safari\//.test(n) ? 'Safari' : 'Navigateur';
   const os = /Android/.test(n) ? 'Android' : /iPhone|iPad/.test(n) ? 'iPhone' : /Windows/.test(n) ? 'Windows' : /Mac OS X|Macintosh/.test(n) ? 'Mac' : /Linux/.test(n) ? 'Linux' : '';
   return os ? `${nav} sur ${os}` : nav;
 }
 
-export function Connexion({ connecte, code, inscription, sous }: Props) {
+export function Connexion({ connecte, code, inscription, sous, email: connu }: Props) {
   const g = useGeste(rien);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(connu ?? '');
   const [motDePasse, setMotDePasse] = useState('');
   const [posteDUnAutre, setPosteDUnAutre] = useState(false);
 
