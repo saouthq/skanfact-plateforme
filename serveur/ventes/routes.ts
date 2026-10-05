@@ -8,7 +8,7 @@ import { sql } from 'kysely';
 import { z } from 'zod';
 import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import type { Route } from '../app.ts';
-import { requetes } from '../base.ts';
+import { enTantQue, requetes } from '../base.ts';
 import { cleDeVerification } from '../validation.ts';
 import type { Contexte } from '../connexion.ts';
 import { tracer } from '../trace.ts';
@@ -321,6 +321,19 @@ export function routesVentes(ctx: Contexte): Route<never>[] {
       const vue = await vueEspace(ctx, empreinte(corps.jeton));
       if (!vue) return { statut: 404, corps: { motif: motif('espace.lien_invalide') } };
       return { corps: vue };
+    },
+  });
+
+  // La facture que la TTN a validée, par le lien (brique 141 ; docs/espace-client.md, E8) : c'est elle qui fait foi.
+  ajouter({
+    methode: 'POST', chemin: '/espace/efacture', geste: 'public',
+    corps: z.object({ jeton: z.string().min(10).max(100), type: z.enum(['facture', 'avoir']), numero: z.string().min(1).max(100) }),
+    traiter: async ({ corps }) => {
+      const f = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select ventes.espace_efacture($1, $2, $3) f',
+        [empreinte(corps.jeton), corps.type, corps.numero])).rows[0].f as { nom: string; xml: string } | { lien: false } | null);
+      if (!f) return { statut: 404, corps: { motif: motif('espace.efacture_absente') } };
+      if ('lien' in f) return { statut: 404, corps: { motif: motif('espace.lien_invalide') } };
+      return { corps: f };
     },
   });
 

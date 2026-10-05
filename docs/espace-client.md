@@ -69,6 +69,17 @@ d'un clic. Un devis, un bon ou un brouillon partent sans rien de joint, et la fe
 Safari (iPhone, Mac) : le message s'ouvre après la création du lien (une attente du serveur) ; Safari peut
 demander d'autoriser l'ouverture de la messagerie.
 
+**E8. La facture électronique validée par la TTN** (brique 141, 05/10/2026, par délégation). Sur une facture ou
+un avoir que la TTN a acceptés, la page du client propose « Facture électronique (XML) » à côté de « Imprimer » :
+le fichier que la TTN a rendu (le fichier signé, avec sa référence et sa signature), **celui qui fait foi**, tel que
+le serveur le garde, octet pour octet, sous son nom (`…_ttn.xml`). C'est la base qui choisit (0069,
+`ventes.espace_efacture`) : une pièce de ce lien seulement (la même règle que le reste de l'espace), et seulement
+acceptée par la TTN ; une pièce signée mais pas encore acceptée n'a pas de fichier à donner (le fichier signé n'est
+pas encore la facture). Un lien retiré entre-temps le dit (« Ce lien n'est plus valable… ») ; une coupure du réseau
+aussi, et le bouton se reclique. Vérifié par `tests/v10/ttn.test.ts` (la pièce acceptée, une signée pas acceptée,
+une autre sorte de pièce, une pièce hors du lien, un lien retiré) et `tests/web/ttn.test.ts` (le fichier téléchargé
+est celui du serveur ; la coupure ; le lien retiré).
+
 ## Ce qui part vers le client, compté et décidé
 
 Des **listes fermées** (`serveur/ventes/espace.ts`), tirées de ce que lit le gabarit d'impression pour
@@ -85,6 +96,7 @@ des listes le fait échouer (vérifié champ par champ le 30/09/2026).
 | La fiche société | nom, matricule, RC, capital, adresse, téléphone, e-mail, site, RIB, banque, logo, pied de page, slogan, cachet, timbre, couleurs, devise, langue, conditions de paiement (français, anglais), métier (qui fait dire « note d'honoraires »), régime de TVA |
 | La fiche client | nom, matricule, adresse, e-mail, téléphone, contact |
 | Le serveur | pour chaque facture : montant, payé, avoirs, reste, état ; le total dû par devise |
+| La facture électronique (E8) | sur demande, pour une pièce acceptée par la TTN : la facture validée par la TTN, entière (ce qu'elle contient est la pièce elle-même : l'entreprise, le client, les lignes, les montants, la signature du signataire et celle de la TTN), et son nom ; décidé le 05/10/2026 par délégation : c'est la facture officielle, adressée à ce client |
 
 **Restent dans l'entreprise**, entre autres : le prix de revient et l'article d'une ligne ; **les
 paiements eux-mêmes** (dates, modes, comptes, notes : seul leur total part) ; les e-mails envoyés, les
@@ -96,7 +108,7 @@ le plafond de crédit, la langue et la devise d'un client ; l'identifiant intern
 
 - ~~« Payer en ligne »~~ : fait à la brique 78 (`docs/paiement-en-ligne.md`).
 - **Les bons de livraison** émis.
-- **Le fichier XML signé** : avec la signature (DigiGo, puis la signature serveur).
+- ~~Le fichier XML signé~~ : la facture validée par la TTN, à la brique 141 (E8).
 - ~~Le lien dans l'e-mail et le WhatsApp~~ : fait à la brique 79 (E7).
 - **Le relevé de compte envoyé par e-mail** : il part sans le relevé (le message le dit) ; le lien du compte
   y aurait sa place, mais il montre le compte d'aujourd'hui, pas celui de la date du relevé.

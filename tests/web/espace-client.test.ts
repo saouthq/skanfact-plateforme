@@ -129,6 +129,8 @@ describe('l\'espace client, à la souris', () => {
     expect(net(await client.evaluate(() => (document.querySelector('iframe.piece') as HTMLIFrameElement).contentDocument?.body.textContent ?? ''))).toBe(net(imprime));
     expect(await client.locator('header.societe h1').innerText()).toMatch(/^Entreprise d'essai de Nadia/);
     await client.screenshot({ path: path.join(PHOTOS, 'espace-2-piece.png') });
+    // Pas acceptée par la TTN (l'entreprise n'est pas soumise) : pas de facture électronique à télécharger.
+    expect(await client.locator('#efacture').count()).toBe(0);
     // « Imprimer ou enregistrer en PDF » : la pièce mise en page comme la v10 la met pour son PDF, et
     // l'impression demandée (le navigateur ne la refuse pas).
     await client.getByRole('button', { name: 'Imprimer ou enregistrer en PDF', exact: true }).click();

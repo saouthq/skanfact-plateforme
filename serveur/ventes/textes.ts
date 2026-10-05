@@ -36,6 +36,7 @@ declarerTextes({
 
   'espace.lien_invalide': 'ce lien n\'est plus valable : demande un nouveau lien à l\'entreprise qui te l\'a envoyé',
   'espace.piece_non_emise': 'seule une facture ou un avoir émis se partage avec le client : émets la pièce d\'abord',
+  'espace.efacture_absente': 'cette pièce n\'a pas (encore) de facture électronique validée par la TTN',
 
   'ventes.devise_inconnue': 'la devise {devise} n\'est pas connue',
   'ventes.emise_ne_se_modifie_plus': 'une pièce émise ne se modifie plus : on la corrige par un avoir',

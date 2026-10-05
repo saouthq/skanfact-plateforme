@@ -7346,6 +7346,65 @@ prouver "les jours dits à l'heure du navigateur, pas de Tunis" web/public/plate
 prouver "SkanEcom jamais déclaré par défaut" serveur/principal.ts \
   "lirePartenaires(env.SKANFACT_PARTENAIRES ?? fs.readFileSync(path.join(ici, 'partenaires.json'), 'utf8'), { essai" "lirePartenaires(env.SKANFACT_PARTENAIRES, { essai" \
   "SkanEcom est déclaré dans le dépôt : son adresse de retour, l'empreinte de son secret, ses gestes"
+# Brique 141 : la facture validée par la TTN dans l'espace client (docs/espace-client.md, E8).
+EE="le client télécharge par son lien la facture que la TTN a validée, et seulement elle (brique 141)"
+EP="la pièce signée attend le compte El Fatoora ; Nadia le pose depuis la fenêtre ; acceptée, la facture validée se télécharge, et la pièce imprimée porte sa référence et son code QR, jusque dans l'espace client"
+EV="le lien d'une facture, puis celui du compte : la pièce comme imprimée, ce qu'il doit, vu, puis retiré"
+prouver "une pièce signée mais pas acceptée se télécharge" base/migrations/0069_espace_efacture.sql \
+  "           where x.piece = v_piece and x.statut = 'acceptee');" "           where x.piece = v_piece);" \
+  "$EE"
+prouver "un avoir et une facture de même numéro confondus" base/migrations/0069_espace_efacture.sql \
+  "   where x ->> 'type' = p_type and x ->> 'numero' = p_numero;" "   where x ->> 'numero' = p_numero;" \
+  "$EE"
+prouver "une pièce hors du lien se télécharge" base/migrations/0069_espace_efacture.sql \
+  "  select (x ->> 'id')::uuid into v_piece from jsonb_array_elements(ventes.pieces_du_lien(l.id)) x
+   where x ->> 'type' = p_type and x ->> 'numero' = p_numero;" "  select p.id into v_piece from ventes.piece p where p.entreprise = l.entreprise and p.type = p_type and p.numero_texte = p_numero;" \
+  "$EE"
+prouver "un lien retiré télécharge encore" base/migrations/0069_espace_efacture.sql \
+  "  l := ventes.lien_valable(p_jeton_empreinte);" "  select * into l from ventes.lien where jeton_empreinte = p_jeton_empreinte;" \
+  "$EE"
+prouver "le fichier signé au lieu de la facture validée" base/migrations/0069_espace_efacture.sql \
+  "'_ttn.xml'), 'xml', x.xml_valide)" "'_ttn.xml'), 'xml', (select g.xml from ventes.efacture_signee g where g.piece = x.piece))" \
+  "$EE"
+prouver "la facture validée sous le nom du fichier écrit" base/migrations/0069_espace_efacture.sql \
+  "jsonb_build_object('nom', regexp_replace(e.nom, '\.xml\$', '_ttn.xml'), 'xml'" "jsonb_build_object('nom', e.nom, 'xml'" \
+  "$EE"
+prouver "rien à télécharger répond comme un fichier" serveur/ventes/routes.ts \
+  "      if (!f) return { statut: 404, corps: { motif: motif('espace.efacture_absente') } };
+      if ('lien' in f)" "      if (f && 'lien' in f)" \
+  "$EE"
+prouver "un lien retiré dit qu'il n'y a pas de fichier" serveur/ventes/routes.ts \
+  "      if ('lien' in f) return { statut: 404, corps: { motif: motif('espace.lien_invalide') } };
+" "" \
+  "$EE"
+prouver "le bouton pour une pièce que la TTN n'a pas validée" web/public/espace/espace.js \
+  "\${p.document.ttn ? '<button type=\"button\" id=\"efacture\"" "\${true ? '<button type=\"button\" id=\"efacture\"" \
+  "$EV"
+prouver "le bouton de la facture électronique ne fait rien" web/public/espace/espace.js \
+  "    if (be) be.onclick = () => { void telechargerEfacture(p, be); };" "    if (be) be.onclick = () => {};" \
+  "$EP"
+prouver "la facture électronique téléchargée sans son nom" web/public/espace/espace.js \
+  "    a.download = lu.nom;" "    a.download = '';" \
+  "$EP"
+prouver "un refus du serveur téléchargé comme un fichier" web/public/espace/espace.js \
+  "    if (!r.ok) { dire(typeof lu.motif === 'string' ? lu.motif : 'Le fichier ne vient pas : réessaie dans un instant.'); return; }
+    b.disabled = false;" "    b.disabled = false;" \
+  "$EP"
+prouver "une coupure du réseau sans un mot" web/public/espace/espace.js \
+  "      r = await fetch('/v1/espace/efacture', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jeton, type: p.type, numero: p.numero }) });
+    } catch {
+      dire('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.');
+      return;
+    }" "      r = await fetch('/v1/espace/efacture', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jeton, type: p.type, numero: p.numero }) });
+    } catch {
+      return;
+    }" \
+  "$EP"
+prouver "le bouton reste éteint après le téléchargement" web/public/espace/espace.js \
+  "    b.disabled = false;
+    const a = document.createElement('a');" "    const a = document.createElement('a');" \
+  "$EP"
+
 # Brique 140 : signer plusieurs pièces d'un coup depuis la liste (docs/facture-electronique.md, M).
 SL="les pièces qui attendent leur signature, pour qui peut signer, et un seul code pour plusieurs (brique 140)"
 SW="« Signer les 3 pièces en attente… » : un seul code les signe toutes, sans rien pousser à l'écran (brique 140)"

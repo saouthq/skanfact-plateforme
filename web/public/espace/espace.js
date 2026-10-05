@@ -97,6 +97,33 @@
     location.assign(lu.adresse);
   }
 
+  // La facture électronique que la TTN a validée (brique 141 ; docs/espace-client.md, E8) : c'est elle qui fait
+  // foi. Le fichier vient du serveur, tel qu'il le garde, et s'enregistre sur l'appareil du client.
+  /** @param {any} p @param {HTMLButtonElement} b */
+  async function telechargerEfacture(p, b) {
+    const dire = (/** @type {string} */ texte) => {
+      const a = /** @type {HTMLElement} */ (racine.querySelector('.refus-paiement'));
+      a.textContent = texte;
+      a.hidden = false;
+      b.disabled = false;
+    };
+    b.disabled = true;
+    let r;
+    try {
+      r = await fetch('/v1/espace/efacture', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jeton, type: p.type, numero: p.numero }) });
+    } catch {
+      dire('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.');
+      return;
+    }
+    const lu = await r.json().catch(() => ({}));
+    if (!r.ok) { dire(typeof lu.motif === 'string' ? lu.motif : 'Le fichier ne vient pas : réessaie dans un instant.'); return; }
+    b.disabled = false;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([lu.xml], { type: 'application/xml' }));
+    a.download = lu.nom;
+    a.click();
+  }
+
   // Une pièce, comme l'entreprise l'imprime ; « Payer en ligne » si elle doit encore et que l'entreprise
   // l'accepte (c'est alors l'étape suivante : le bouton principal), « Imprimer ou enregistrer en PDF ».
   /** @param {any} p @param {boolean} retour */
@@ -106,11 +133,14 @@
       <div class="barre">${retour ? '<button type="button" id="retour">← Toutes tes pièces</button>' : ''}
         <span class="reste">${p.reste === null ? '' : Number(p.reste) > 0 ? `Reste à payer : <strong>${esc(montant(p.reste, p.devise))}</strong>` : 'Rien à payer sur cette pièce'}</span>
         <span class="gestes">${p.payable ? `<button type="button" class="principal" id="payer">Payer ${esc(montant(p.reste, p.devise))} en ligne</button>` : ''}
-          <button type="button" ${p.payable ? '' : 'class="principal" '}id="imprimer">Imprimer ou enregistrer en PDF</button></span></div>
+          <button type="button" ${p.payable ? '' : 'class="principal" '}id="imprimer">Imprimer ou enregistrer en PDF</button>
+          ${p.document.ttn ? '<button type="button" id="efacture" title="La facture validée par la TTN (El Fatoora) : c\'est elle qui fait foi.">Facture électronique (XML)</button>' : ''}</span></div>
       <p class="refus-paiement" role="alert" hidden></p>
       <iframe class="piece" sandbox="allow-same-origin" title="${esc(titre(p))}"></iframe>`;
     const bp = /** @type {HTMLButtonElement | null} */ (document.getElementById('payer'));
     if (bp) bp.onclick = () => { void payer(p, bp); };
+    const be = /** @type {HTMLButtonElement | null} */ (document.getElementById('efacture'));
+    if (be) be.onclick = () => { void telechargerEfacture(p, be); };
     const cadre = /** @type {HTMLIFrameElement} */ (racine.querySelector('iframe.piece'));
     const zoom = Math.max(0.3, Math.min(1, Math.floor((cadre.clientWidth - 2) / 794 * 100) / 100));
     cadre.srcdoc = C.documentHtml(p.document, vue.client, vue.entreprise, { preview: true, stampText: tampon, zoom });

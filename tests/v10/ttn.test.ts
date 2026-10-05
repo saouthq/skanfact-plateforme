@@ -37,7 +37,7 @@ const avancer = (minutes: number) => { horloge = new Date(horloge.getTime() + mi
 let ctx: Contexte;
 
 type Reponse = { statut: number; corps: Record<string, unknown> };
-async function appeler(methode: 'GET' | 'POST' | 'PUT', url: string, jeton?: string, corps?: unknown): Promise<Reponse> {
+async function appeler(methode: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, jeton?: string, corps?: unknown): Promise<Reponse> {
   const r = await app.inject({ method: methode, url: VERSION + url, headers: jeton ? { authorization: `Bearer ${jeton}` } : {}, ...(corps === undefined ? {} : { payload: corps as Record<string, unknown> }) });
   return { statut: r.statusCode, corps: r.json() };
 }
@@ -86,7 +86,7 @@ async function entreprise(pieces: string[], essai = false) {
   await remplir(ent, pieces);
   await appeler('PUT', `/entreprises/${ent}/efacture/signataire`, jeton, { identifiant: '09876543' });
   return {
-    jeton, ent,
+    jeton, ent, client: menuiserie.cle,
     // Des factures émises dans l'autre entreprise de la même personne (son entreprise d'essai).
     dansLEssai: (cles: string[]) => remplir(modele, cles),
     // Signer des pièces avec le code reçu par la signataire.
@@ -344,5 +344,34 @@ describe('l\'envoi à la TTN', () => {
     const beaucoup = await entreprise(Array.from({ length: 101 }, (_, i) => `g${i}`));
     const lu = (await appeler('GET', `/entreprises/${beaucoup.ent}/efacture/a-signer`, beaucoup.jeton)).corps as { total: number; pieces: { numero: string }[] };
     expect([lu.total, lu.pieces.length, lu.pieces[0]?.numero, lu.pieces[99]?.numero]).toEqual([101, 100, 'FAC-2026-001', 'FAC-2026-100']);
+  });
+
+  it('le client télécharge par son lien la facture que la TTN a validée, et seulement elle (brique 141)', async () => {
+    const e = await entreprise(['f1', 'f2']);
+    await e.compte('nadia-el-fatoora', 'Mot-de-passe-TTN-7');
+    await e.signer(['f1']);
+    await envoyerALaTtn(ctx);
+    avancer(2);
+    await envoyerALaTtn(ctx);
+    const valide = String((await e.envoi('f1'))?.xml_valide);
+    expect(valide).toContain('<ReferenceTTN');
+    // FAC-2026-002 signée, en route, pas encore acceptée.
+    await e.signer(['f2']);
+    const lien = async (piece?: string) => String((await appeler('POST', `/entreprises/${e.ent}/espace/liens`, e.jeton, { client: e.client, ...(piece ? { piece } : {}) })).corps.jeton);
+    const compte = await lien();
+    const efacture = (jeton: string, type: string, numero: string) => appeler('POST', '/espace/efacture', undefined, { jeton, type, numero });
+    // Acceptée : la facture validée, telle que le serveur la garde, sous son nom.
+    expect(await efacture(compte, 'facture', 'FAC-2026-001')).toEqual({ statut: 200, corps: { nom: 'TEIF_7654321BAM000_FAC-2026-001_ttn.xml', xml: valide } });
+    // Signée mais pas encore acceptée, une autre sorte de pièce, une pièce hors du lien : rien.
+    const rien = { statut: 404, corps: { motif: 'Cette pièce n\'a pas (encore) de facture électronique validée par la TTN.' } };
+    expect(await efacture(compte, 'facture', 'FAC-2026-002')).toEqual(rien);
+    expect(await efacture(compte, 'avoir', 'FAC-2026-001')).toEqual(rien);
+    const seule2 = await lien('f2');
+    expect(await efacture(seule2, 'facture', 'FAC-2026-001')).toEqual(rien);
+    expect((await efacture(await lien('f1'), 'facture', 'FAC-2026-001')).statut).toBe(200);
+    // Un lien retiré n'ouvre plus rien.
+    const id = String((await admin.query(`select id from ventes.lien where entreprise = $1 and piece_v10 is null`, [e.ent])).rows[0].id);
+    expect((await appeler('DELETE', `/entreprises/${e.ent}/espace/liens/${id}`, e.jeton)).statut).toBe(200);
+    expect(await efacture(compte, 'facture', 'FAC-2026-001')).toEqual({ statut: 404, corps: { motif: 'Ce lien n\'est plus valable : demande un nouveau lien à l\'entreprise qui te l\'a envoyé.' } });
   });
 });

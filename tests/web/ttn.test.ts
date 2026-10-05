@@ -9,7 +9,8 @@
 //   - acceptée, « Fichier pour El Fatoora » donne EXACTEMENT la facture validée par la TTN, et dit sa référence ;
 //   - un seul dépôt ;
 //   - la pièce imprimée (l'aperçu, et l'espace client) porte la référence de la TTN et un code QR qui, relu
-//     par un lecteur de QR, dit EXACTEMENT ce que la TTN a rendu (brique 83).
+//     par un lecteur de QR, dit EXACTEMENT ce que la TTN a rendu (brique 83) ; le client y télécharge la facture
+//     validée, octet pour octet (brique 141).
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -220,6 +221,27 @@ describe('l\'envoi à la TTN, à la souris', () => {
     expect(await piece.locator('.info.ttn .k').textContent()).toBe('Facture électronique');
     expect(await lireQr(piece)).toBe(qrAttendu);
     await espace.screenshot({ path: path.join(PHOTOS, 'ttn-6-espace.png') });
+    // Le client télécharge la facture validée par la TTN, celle qui fait foi (brique 141), telle que le serveur la garde.
+    // Le réseau tombe d'abord : c'est dit, et le bouton se reclique.
+    const bouton = espace.getByRole('button', { name: 'Facture électronique (XML)', exact: true });
+    const alerte = espace.locator('.refus-paiement');
+    await espace.route('**/v1/espace/efacture', (r) => r.abort('internetdisconnected'), { times: 1 });
+    await bouton.click();
+    await expect.poll(() => alerte.innerText()).toBe('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.');
+    const recue = espace.waitForEvent('download');
+    await bouton.click();
+    const fichier = await recue;
+    expect(fichier.suggestedFilename()).toBe('TEIF_7654321BAM000_FAC-2026-001_ttn.xml');
+    expect(fs.readFileSync(await fichier.path(), 'utf8')).toBe(valide.xml_valide);
+    expect(await bouton.isEnabled()).toBe(true);
+    // Le lien retiré entre-temps : la page le dit, et rien ne se télécharge.
+    const id = String((await admin.query(`select id from ventes.lien where entreprise = $1 and piece_v10 = 'f1'`, [ent])).rows[0].id);
+    expect((await api('DELETE', `/entreprises/${ent}/espace/liens/${id}`, jeton)).statut).toBe(200);
+    let telecharge = false;
+    espace.on('download', () => { telecharge = true; });
+    await bouton.click();
+    await expect.poll(() => alerte.innerText()).toBe('Ce lien n\'est plus valable : demande un nouveau lien à l\'entreprise qui te l\'a envoyé.');
+    expect(telecharge).toBe(false);
     expect(erreurs).toEqual([]);
     await cn.close();
   }, 180_000);
