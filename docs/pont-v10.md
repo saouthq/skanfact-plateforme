@@ -132,6 +132,22 @@ décimal, il le chargera.
 Test : `tests/web/virgule.test.ts`, dans un navigateur lancé en anglais : « 2,5 » sacs à « 12,250 » tapés au clavier,
 « 1 250,500 » collé d'un tableur et « 2.075,250 » d'un relevé ; la facture et le serveur comptent ces nombres-là.
 
+## 4 quinquies. Les dates des champs du navigateur (05/10/2026)
+
+Même cause, vue sur la péremption d'un article : un champ `type=date` s'affiche et se tape dans la langue du
+**navigateur** ; réglé en anglais, « mm/dd/yyyy », où le 05/10 se lit le 10 mai. La v10 n'en a que quelques-uns (la
+péremption du départ d'un article, celle d'un lot sur une ligne d'achat ; dans le Cabinet, les bornes d'un rapport, la
+date d'un mouvement de banque, les dates d'un abonnement) : toutes ses autres dates sont déjà des champs texte
+JJ/MM/AAAA. `web/public/plateforme/dates.js`, chargé dans les pages de l'entreprise ET du Cabinet, fait de chaque champ
+`type=date` un champ texte JJ/MM/AAAA, quelle que soit la langue ; sa valeur, lue ou posée par le code de la v10, reste
+le jour ISO (AAAA-MM-JJ), comme celle du champ du navigateur. Le jour se lit toujours d'abord (« 5/10/26 »,
+« 05102026 ») ; un jour ISO collé tel quel se lit aussi ; un jour qui n'existe pas (31/02) vaut '' et le champ le dit en
+quittant la saisie (bordure, bulle). Aucun écran de la v10 n'est touché.
+
+Test : `tests/web/dates.test.ts` (navigateur en anglais : la péremption enregistrée s'affiche 05/11/2026, une date
+impossible se voit, « 31122027 » devient 31/12/2027 et le serveur garde 2027-12-31) ; `tests/web/cabinet-abonnements.test.ts`
+(la date d'un abonnement du Cabinet, JJ/MM/AAAA).
+
 ## 5. Reste à faire (connu, écrit ici pour ne pas l'oublier)
 
 - **Les PDF** : `exportPdfSilent` et `exportPdfMany` ne font rien ; un envoi par mail ou WhatsApp

@@ -1,0 +1,129 @@
+Le comptoir, après le parcours de la caisse sur le serveur d'essai (05/10/2026 ; docs/caisse.md, S1 ter et Z4).
+Format : voir sans-paquets.mjs.
+
+Un commerçant connaît le prix de son étiquette, TVA comprise : la fiche d'un article se remplit aussi par son prix TTC,
+et donne le HT qui y retombe exactement (4,200 HT donnait 4,998 en caisse, jamais les 5,000 de l'étiquette). Sa phrase
+de marge ne parle plus de « prestation » à qui vend des marchandises. Le bilan du jour dit les retours et le net du jour
+(« Ventes TTC » restait brut après un retour) ; le Z les cite (voir caisse-session.txt et caisse-z.txt).
+
+── La fiche d'un article : le prix TTC (app.js, guide.js) ──
+
+== app.js | la fiche d'un article se remplit aussi par son prix TTC, celui de l'étiquette
+-- avant
+        ${field(lbl(`Prix unitaire HT (${h(company().currency || 'DT')})`, 'cat.price'), 'unitPrice', it.unitPrice, 'number', 'step="0.001" min="0" class="num"')}
+-- après
+        ${field(lbl(`Prix unitaire HT (${h(company().currency || 'DT')})`, 'cat.price'), 'unitPrice', it.unitPrice, 'number', 'step="0.001" min="0" class="num"')}
+        ${/* (plateforme) Le prix TTC, celui de l'étiquette : tapé, il donne le HT qui y retombe exactement ; le HT tapé, il
+           se calcule ici. Sans nom : il ne s'enregistre pas sur l'article, que son HT et sa TVA disent déjà. */''}
+        <label class="field">${lbl(`Prix TTC (${h(company().currency || 'DT')})`, 'cat.priceTtc')}<input type="number" id="cat-ttc" step="0.001" min="0" class="num" value=""></label>
+-- fin
+
+== app.js | le prix TTC suit le HT, et le HT suit le TTC tapé ; celui tapé en dernier tient quand la TVA change
+-- avant
+        $('#kf', root).oninput = hint; hint();
+-- après
+        $('#kf', root).oninput = hint; hint();
+        // (plateforme) Le TTC se calcule comme la tuile de la caisse (`ligneDePanier`, `computeTotals`) : la fiche et la
+        // caisse disent le même prix. Le TTC tapé donne le HT par le calculateur (« Prix TTC visé ») ; quand la TVA change,
+        // le prix tapé en dernier tient (le prix de l'étiquette ne bouge pas parce qu'on corrige la TVA).
+        const champHt = $('input[name=unitPrice]', root), champTtc = $('#cat-ttc', root), champTva = $('select[name=vatRate]', root);
+        let tapeTtc = false;
+        const majTtc = () => {
+          const ht = Number(champHt.value) || 0;
+          champTtc.value = ht > 0 ? String(C.computeTotals({ type: 'facture', applyStamp: false, lines: [C.ligneDePanier({ unitPrice: ht, vatRate: Number(champTva.value) || 0 }, company())] }, company()).totalTTC) : '';
+        };
+        const majHt = dire => {
+          const r = C.calculPrix({ mode: 'ttc', valeur: champTtc.value, tva: C.ligneDePanier({ vatRate: Number(champTva.value) || 0 }, company()).vatRate, decimales: C.decimalsFor(company().currency) });
+          if (!r.ok) return;
+          champHt.value = String(r.ht);
+          hint();
+          if (dire && !r.exact) toast(`Aucun prix HT ne donne exactement ${C.money(Number(champTtc.value), company().currency)} TTC à ${pct(r.tva)} % : le plus proche donne ${C.money(r.ttc, company().currency)}.`);
+        };
+        majTtc();
+        champTtc.addEventListener('input', () => { tapeTtc = true; majHt(false); });
+        champTtc.addEventListener('change', () => { if (tapeTtc) majHt(true); });
+        $('#kf', root).addEventListener('input', e => { if (e.target === champHt || e.target === e.currentTarget) { tapeTtc = false; majTtc(); } });
+        champTva.addEventListener('change', () => { if (tapeTtc && champTtc.value !== '') majHt(true); else majTtc(); });
+-- fin
+
+== app.js | la phrase de marge ne parle plus de « prestation » à qui vend des marchandises
+-- avant
+          if (!pa) { el.innerHTML = '<span class="small muted">Sans coût de revient, la marge de cette prestation ne sera pas calculable.</span>'; return; }
+-- après
+          if (!pa) { el.innerHTML = '<span class="small muted">Sans coût de revient, la marge ne pourra pas se calculer.</span>'; return; }
+-- fin
+
+== guide.js | la bulle du prix TTC de la fiche
+-- avant
+    'cat.price': { t: 'Prix unitaire HT', d: 'Le prix proposé quand tu ajoutes cette prestation à un devis ou une facture — hors TVA, dans la devise de ton entreprise. Il reste modifiable sur chaque pièce ; changer ce prix ici ne touche aucune pièce déjà faite.' },
+-- après
+    'cat.price': { t: 'Prix unitaire HT', d: 'Le prix proposé quand tu ajoutes cette prestation à un devis ou une facture — hors TVA, dans la devise de ton entreprise. Il reste modifiable sur chaque pièce ; changer ce prix ici ne touche aucune pièce déjà faite.' },
+    'cat.priceTtc': { t: 'Prix TTC', d: 'Le prix que le client paie, TVA comprise : celui de l\'étiquette, et de la caisse. Tape-le ici, SkanFact calcule le prix HT qui y retombe exactement ; tape le prix HT, et le TTC se calcule ici. Si tu changes la TVA, le prix que tu as tapé en dernier ne bouge pas.' },
+-- fin
+
+── Le bilan du jour : les retours et le net (core.js, app.js, guide.js) ──
+
+== core.js | le bilan du jour compte les retours du jour (les avoirs sur des tickets) et dit le net
+-- avant
+    return { jour: j, nombre: tickets.length, total: round3(total), tva: round3(tva), articles: round3(articles),
+      parMode, rembourse, especes: parMode.especes, tiroir, tickets };
+-- après
+    // (plateforme) Les retours du jour : les avoirs émis ce jour-là sur des tickets (un retour compte au jour du retour,
+    // comme l'argent rendu). Le bilan dit les ventes, ces retours, et le NET du jour.
+    const idsTickets = new Set(docs.filter(estTicket).map(d => d.id));
+    const avoirs = docs.filter(d => d.type === 'avoir' && d.date === j && d.status !== 'brouillon' && idsTickets.has(d.creditOf));
+    let retoursTtc = 0, retoursTva = 0;
+    avoirs.forEach(a => { const t = computeTotals(a, company); retoursTtc += t.netToPay; retoursTva += t.totalVAT; });
+    return { jour: j, nombre: tickets.length, total: round3(total), tva: round3(tva), articles: round3(articles),
+      parMode, rembourse, especes: parMode.especes, tiroir, tickets,
+      retours: avoirs.length, retoursTtc: round3(retoursTtc), avoirs: avoirs.map(a => a.number || ''),
+      net: round3(round3(total) - round3(retoursTtc)), tvaNette: round3(round3(tva) - round3(retoursTva)) };
+-- fin
+
+== core.js | le bilan imprimé cite les retours du jour et dit le net
+-- avant
+        <tr class="tot"><td>Ventes TTC</td><td class="r">${m(bilan.total)}</td></tr>
+      </table>
+-- après
+        <tr class="tot"><td>Ventes TTC</td><td class="r">${m(bilan.total)}</td></tr>
+        ${bilan.retours ? `<tr><td>Retours (${escapeHtml(bilan.avoirs.join(', '))})</td><td class="r">− ${m(bilan.retoursTtc)}</td></tr><tr class="tot"><td>Net du jour</td><td class="r">${m(bilan.net)}</td></tr>` : ''}
+      </table>
+-- fin
+
+== app.js | le bilan du jour dit le net quand il y a eu des retours, et lesquels
+-- avant
+          <div class="stat"><div class="lbl">Ventes TTC ${info('cs.bilan')}</div><div class="val">${C.money(b.total, cur)}</div><div class="sub">${pl(b.nombre, 'ticket')}${b.nombre ? ' · dont TVA ' + C.money(b.tva, cur) : ''}${b.rembourse ? ' · rendu aux clients : ' + C.money(b.rembourse, cur) : ''}</div></div>
+-- après
+          <div class="stat" id="cs-ventes"><div class="lbl">${b.retours ? 'Ventes du jour, retours déduits' : 'Ventes TTC'} ${info('cs.bilan')}</div><div class="val">${C.money(b.retours ? b.net : b.total, cur)}</div><div class="sub">${b.retours
+            ? `${C.money(b.total, cur)} vendus en ${pl(b.nombre, 'ticket')} − ${C.money(b.retoursTtc, cur)} en ${pl(b.retours, 'retour')} (${h(b.avoirs.join(', '))})`
+            : `${pl(b.nombre, 'ticket')}${b.nombre ? ' · dont TVA ' + C.money(b.tva, cur) : ''}${b.rembourse ? ' · rendu aux clients : ' + C.money(b.rembourse, cur) : ''}`}</div></div>
+-- fin
+
+== guide.js | la bulle du bilan du jour parle des retours
+-- avant
+    'cs.bilan': { t: 'Le bilan du jour', d: 'Ce que la caisse a vendu ce jour-là, et comment on t\'a payé. La carte « Espèces » est ce que le tiroir doit contenir EN PLUS du fond de caisse : compte-le le soir, un écart se voit tout de suite. Les remboursements du jour sont déjà retirés.' },
+-- après
+    'cs.bilan': { t: 'Le bilan du jour', d: 'Ce que la caisse a vendu ce jour-là, et comment on t\'a payé. Un retour (l\'avoir fait sur un ticket) compte au jour du retour : la carte dit alors les ventes, les retours, et le <b>net du jour</b>. La carte « Espèces » est ce que le tiroir doit contenir EN PLUS du fond de caisse : compte-le le soir, un écart se voit tout de suite. Les remboursements du jour sont déjà retirés.' },
+-- fin
+
+── Le Z cite ses retours (app.js, core.js ; serveur/caisse/routes.ts) ──
+
+Le serveur fige avec le Z les avoirs de la session (leur numéro, le ticket qu'ils reprennent, l'argent rendu), leur
+total et le net des ventes. Un Z figé avant n'a pas ces chiffres : il se lit comme avant.
+
+== app.js | le Z à l'écran cite les retours de la session et dit le net des ventes
+-- avant
+        ${ligne('Ventes TTC', h(argentCaisse(z.total)))}${ligne('dont TVA', h(argentCaisse(z.tva)))}
+-- après
+        ${ligne('Ventes TTC', h(argentCaisse(z.total)))}${ligne('dont TVA', h(argentCaisse(z.tva)))}
+        ${(z.avoirs || []).length ? ligne(`Retours : ${z.avoirs.map(a => `${h(a.numero)} (ticket ${h(a.ticket)})`).join(', ')}`, `− ${h(argentCaisse(z.retoursTtc))}`)
+          + ligne('<b>Net des ventes</b>', `<b>${h(argentCaisse(z.net))}</b>`) : ''}
+-- fin
+
+== core.js | le Z imprimé cite les retours de la session et dit le net des ventes
+-- avant
+        ${ligne('Ventes TTC', m(z.total), 'tot')}
+-- après
+        ${ligne('Ventes TTC', m(z.total), 'tot')}
+        ${(z.avoirs || []).length ? ligne(`Retours : ${z.avoirs.map(a => escapeHtml(a.numero)).join(', ')}`, `− ${m(z.retoursTtc)}`) + ligne('Net des ventes', m(z.net), 'tot') : ''}
+-- fin

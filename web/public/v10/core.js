@@ -10619,8 +10619,16 @@
     // seules espèces du jour ne disent pas ce qu'on doit compter en fermant.
     const caisseId = comptesDeCaisse(data).especes;
     const tiroir = caisseId ? accountBalance(data, company, caisseId, j).balance : null;
+    // (plateforme) Les retours du jour : les avoirs émis ce jour-là sur des tickets (un retour compte au jour du retour,
+    // comme l'argent rendu). Le bilan dit les ventes, ces retours, et le NET du jour.
+    const idsTickets = new Set(docs.filter(estTicket).map(d => d.id));
+    const avoirs = docs.filter(d => d.type === 'avoir' && d.date === j && d.status !== 'brouillon' && idsTickets.has(d.creditOf));
+    let retoursTtc = 0, retoursTva = 0;
+    avoirs.forEach(a => { const t = computeTotals(a, company); retoursTtc += t.netToPay; retoursTva += t.totalVAT; });
     return { jour: j, nombre: tickets.length, total: round3(total), tva: round3(tva), articles: round3(articles),
-      parMode, rembourse, especes: parMode.especes, tiroir, tickets };
+      parMode, rembourse, especes: parMode.especes, tiroir, tickets,
+      retours: avoirs.length, retoursTtc: round3(retoursTtc), avoirs: avoirs.map(a => a.number || ''),
+      net: round3(round3(total) - round3(retoursTtc)), tvaNette: round3(round3(tva) - round3(retoursTva)) };
   }
   // Ce qu'un ticket peut encore rendre, article par article : ce qui a été vendu, moins ce que ses
   // avoirs ont déjà repris. On ne rend pas deux fois le même stylo.
@@ -10761,6 +10769,7 @@
         ${ligne('Tickets', z.nombre ? `${z.nombre} (${escapeHtml(z.premier || '')} à ${escapeHtml(z.dernier || '')})` : '0')}
         ${ligne('Dont TVA', m(z.tva))}
         ${ligne('Ventes TTC', m(z.total), 'tot')}
+        ${(z.avoirs || []).length ? ligne(`Retours : ${z.avoirs.map(a => escapeHtml(a.numero)).join(', ')}`, `− ${m(z.retoursTtc)}`) + ligne('Net des ventes', m(z.net), 'tot') : ''}
       </table>
       <hr>
       <table>
@@ -10800,6 +10809,7 @@
         <tr><td>Articles vendus</td><td class="r">${String(bilan.articles).replace('.', ',')}</td></tr>
         <tr><td>Dont TVA</td><td class="r">${m(bilan.tva)}</td></tr>
         <tr class="tot"><td>Ventes TTC</td><td class="r">${m(bilan.total)}</td></tr>
+        ${bilan.retours ? `<tr><td>Retours (${escapeHtml(bilan.avoirs.join(', '))})</td><td class="r">− ${m(bilan.retoursTtc)}</td></tr><tr class="tot"><td>Net du jour</td><td class="r">${m(bilan.net)}</td></tr>` : ''}
       </table>
       <hr>
       <table>${MODES_CAISSE.map(([k, l]) => `<tr><td>${l}</td><td class="r">${m(bilan.parMode[k] || 0)}</td></tr>`).join('')}

@@ -279,6 +279,31 @@ Tests : `tests/v10/caisse-z.test.ts` (21 sessions : qui ferme, l'ordre, les page
 `tests/web/caisse-z.test.ts` (la fermeture, la bande imprimée lue, la liste, « Plus de Z… », un Z rouvert) ;
 `tests/v10/caisse-relais.test.ts` (le nom du poste rouvert). 15 preuves.
 
+## Le comptoir, après le parcours sur le serveur d'essai (05/10/2026)
+
+Le parcours complet de la caisse, à la main, sur `app.skanfact.tn` (méthode par lot) a relevé vingt défauts. Ceux qui ne
+dépendent pas du dessin de l'écran sont corrigés ici (`web/v10/comptoir.txt`, `web/public/plateforme/dates.js`) ; les
+autres viennent avec la nouvelle caisse tactile (maquette validée par Skander le 05/10/2026, lot suivant).
+
+- **S1 ter. Le prix de l'étiquette.** Un commerçant connaît le prix TTC de son étiquette : 4,200 HT tapé arrivait à
+  4,998 DT en caisse, jamais aux 5,000 voulus. La fiche d'un article a maintenant un champ « Prix TTC » à côté du HT :
+  tapé, il donne le HT qui y retombe exactement (le calculateur de la v10, « Prix TTC visé », en millimes entiers) ; le
+  HT tapé, le TTC se calcule comme la tuile de la caisse (`ligneDePanier`, `computeTotals`). Quand la TVA change, le
+  prix tapé en dernier tient. Un TTC qu'aucun HT n'atteint (5,001 à 19 %) donne le plus proche, et la fiche le dit. Le
+  TTC ne s'enregistre pas sur l'article : son HT et sa TVA le disent déjà (rien de plus ne part au serveur). La phrase
+  de marge ne parle plus de « prestation ».
+- **B1. Le bilan du jour dit le net.** Un retour (un avoir sur un ticket) compte au jour du retour ; la carte devient
+  « Ventes du jour, retours déduits », avec les ventes, les retours et leurs avoirs ; le bilan imprimé aussi.
+- **Z4. Le Z cite ses retours.** Le serveur fige avec le Z les avoirs de la session (numéro, ticket repris, argent
+  rendu), leur total, le net des ventes et sa TVA ; l'écran et la bande imprimée les disent. Un Z figé avant n'a pas ces
+  chiffres : il se lit comme avant.
+- **Les dates** des champs du navigateur s'écrivent JJ/MM/AAAA quelle que soit sa langue (`docs/pont-v10.md`,
+  § 4 quinquies).
+
+Tests : `tests/web/caisse-premier-article.test.ts` (le prix TTC, dans un navigateur en anglais),
+`tests/web/caisse-retour.test.ts` (le bilan, le bilan imprimé, le Z et sa bande), `tests/v10/caisse-retour.test.ts` (le
+Z figé : ses avoirs, son net), `tests/web/dates.test.ts`, `tests/web/cabinet-abonnements.test.ts`. 25 preuves.
+
 ## Ce qui part au serveur
 
 Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, reçu, rendu, paiement, client facultatif)

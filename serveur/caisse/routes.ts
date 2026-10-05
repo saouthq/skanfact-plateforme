@@ -62,8 +62,18 @@ async function calculerZ(tx: Transaction, session: string, fond: bigint) {
     { mode: string; montant: string; nombre: number }[];
   const rendu = Object.fromEntries(rendus.map((m) => [m.mode, BigInt(m.montant)])) as Record<string, bigint>;
   const especes = (parMode.especes ?? 0n) - (rendu.especes ?? 0n);
+  // Les retours de la session, nommés (vu sur le serveur d'essai le 05/10/2026 : le Z ne citait pas l'avoir du retour) :
+  // chaque avoir, le ticket qu'il reprend et l'argent rendu (le net de l'avoir, vérifié au retour) ; le net des ventes
+  // en déduit leur total, et leur TVA.
+  const avoirs = (await tx.query(`select a.numero_texte numero, t.numero_texte ticket, r.montant::text montant, coalesce(a.total_tva, 0)::text tva
+    from caisse.retour r join ventes.piece a on a.id = r.piece join ventes.piece t on t.id = r.ticket
+    where r.session = $1 order by r.cree_le, a.numero_texte`, [session])).rows as { numero: string; ticket: string; montant: string; tva: string }[];
+  const retoursTtc = avoirs.reduce((s, a) => s + BigInt(a.montant), 0n);
+  const retoursTva = avoirs.reduce((s, a) => s + BigInt(a.tva), 0n);
   return { nombre: tot.nombre, premier: tot.premier, dernier: tot.dernier, total: BigInt(tot.total), tva: BigInt(tot.tva), parMode, rendu,
-    retours: rendus.reduce((n, m) => n + m.nombre, 0), attendu: fond + especes };
+    retours: rendus.reduce((n, m) => n + m.nombre, 0), attendu: fond + especes,
+    avoirs: avoirs.map((a) => ({ numero: a.numero, ticket: a.ticket, montant: BigInt(a.montant) })), retoursTtc,
+    net: BigInt(tot.total) - retoursTtc, tvaNette: BigInt(tot.tva) - retoursTva };
 }
 
 // Ce que le poste qui tient la caisse doit savoir pour numéroter et chaîner sans réseau (brique 120 ; docs/caisse.md,
@@ -181,6 +191,8 @@ export function routesCaisse(): Route<never>[] {
       const z = { devise, nombre: z0.nombre, premier: z0.premier, dernier: z0.dernier, total: texte(z0.total), tva: texte(z0.tva),
         parMode: Object.fromEntries(Object.entries(z0.parMode).map(([k, v]) => [k, texte(v)])),
         rendu: Object.fromEntries(Object.entries(z0.rendu).map(([k, v]) => [k, texte(v)])), retours: z0.retours,
+        avoirs: z0.avoirs.map((a) => ({ numero: a.numero, ticket: a.ticket, montant: texte(a.montant) })),
+        retoursTtc: texte(z0.retoursTtc), net: texte(z0.net), tvaNette: texte(z0.tvaNette),
         fond: texte(fond), attendu: texte(z0.attendu), compte: texte(compte), ecart: texte(compte - z0.attendu),
         ouverteLe: s.ouverte_le, ouvertePar: s.qui, appareil: s.appareil_nom, fermeeLe, fermePar };
       await tx.query(`update caisse.session set fermee_par = socle.moi(), fermee_le = $6, compte = $2, attendu = $3, ecart = $4, z = $5 where id = $1`,

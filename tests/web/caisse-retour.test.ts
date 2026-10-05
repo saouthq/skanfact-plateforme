@@ -116,21 +116,37 @@ describe('le retour à la caisse, à l\'écran', () => {
     await expect.poll(toast, { timeout: 10_000 }).toBe(`Avoir AVO-${annee}-001 : 1,284 DT rendus.`);
     await plusTard(p);
     await p.locator('#cs-tabs [data-tab=tickets]').click();
-    await expect.poll(async () => net(await p.locator('#cs-body .stat').first().innerText()), { timeout: 10_000 }).toContain('rendu aux clients : 1,284 DT');
+    // Le bilan du jour dit le net, et le retour qui le fait (vu sur le serveur d'essai le 05/10/2026 : « Ventes TTC »
+    // restait brut après un retour).
+    const ventes = p.locator('#cs-ventes');
+    const bilan = async () => `${net((await ventes.locator('.lbl').textContent().catch(() => '')) ?? '')} | ${net(await ventes.locator('.val').innerText().catch(() => ''))} | ${net(await ventes.locator('.sub').innerText().catch(() => ''))}`;
+    const attendu = `Ventes du jour, retours déduits i | 2,568 DT | 3,852 DT vendus en 1 ticket − 1,284 DT en 1 retour (AVO-${annee}-001)`;
+    await expect.poll(bilan, { timeout: 10_000 }).toBe(attendu);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'retour-2-bilan.png') });
     // Rouverte, la page a toujours le retour (Sami voit les retours faits sur ses tickets).
     await p.reload();
     await plusTard(p);
     await p.locator('#cs-tabs [data-tab=tickets]').click();
-    await expect.poll(async () => net(await p.locator('#cs-body .stat').first().innerText()), { timeout: 15_000 }).toContain('rendu aux clients : 1,284 DT');
+    await expect.poll(bilan, { timeout: 15_000 }).toBe(attendu);
+    // Le bilan imprimé le dit aussi. (La bande s'imprime par une fenêtre du navigateur : on la lit.)
+    const lireBande = async (bouton: string) => {
+      await p.evaluate(() => { const w = window as unknown as { __imprime?: string; open: unknown };
+        w.__imprime = ''; w.open = () => ({ document: { write: (html: string) => { w.__imprime = html; }, close: () => undefined }, print: () => undefined }); });
+      await p.locator(bouton).click();
+      await expect.poll(() => p.evaluate(() => (window as unknown as { __imprime?: string }).__imprime ?? ''), { timeout: 5_000 }).not.toBe('');
+      return net((await p.evaluate(() => (window as unknown as { __imprime?: string }).__imprime ?? '')).replace(/<[^>]+>/g, ' '));
+    };
+    expect(await lireBande('#cs-bilan-print')).toContain(`Ventes TTC 3,852 DT Retours (AVO-${annee}-001) − 1,284 DT Net du jour 2,568 DT`);
 
-    // Le soir, le Z : 20 + 3,852 encaissés − 1,284 rendus = 22,568 dans le tiroir.
+    // Le soir, le Z : 20 + 3,852 encaissés − 1,284 rendus = 22,568 dans le tiroir. Il cite le retour et dit le net.
     await p.locator('#cs-fermer').click();
     await p.locator('#modal-root #cs-compte').fill('22.568');
     await p.locator('#modal-root #cs-z').click();
     await expect.poll(async () => net(await p.locator('#modal-root #cs-z-table').innerText().catch(() => '')), { timeout: 10_000 }).toContain('Rendu (espèces) − 1,284 DT');
+    expect(net(await p.locator('#modal-root #cs-z-table').innerText())).toContain(`Retours : AVO-${annee}-001 (ticket TIC-${annee}-001) − 1,284 DT Net des ventes 2,568 DT`);
     expect(net(await p.locator('#modal-root #cs-z-table').innerText())).toContain('Écart 0,000 DT');
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'retour-3-z.png') });
+    expect(await lireBande('#modal-root #cs-z-imprimer')).toContain(`Ventes TTC 3,852 DT Retours : AVO-${annee}-001 − 1,284 DT Net des ventes 2,568 DT`);
     await comptoir.cx.close();
     expect(comptoir.erreurs).toEqual([]);
   }, 180_000);

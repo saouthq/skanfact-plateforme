@@ -130,9 +130,12 @@ describe('le retour à la caisse', () => {
     expect(motif(await rendre(sami.jeton, avecCode(retour('a3', 1, '1.284'), ids.Nadia, '1357')))).toContain('on ne rend pas plus de « Pain de mie »');
 
 
-    // Le Z : 50 de fond, 3,852 encaissés, 3,852 rendus en espèces : le tiroir doit contenir 50.
+    // Le Z : 50 de fond, 3,852 encaissés, 3,852 rendus en espèces : le tiroir doit contenir 50. Il cite ses deux avoirs
+    // (vu sur le serveur d'essai le 05/10/2026 : il ne les nommait pas) et le net des ventes : rien, ici.
     const z = (await appeler('POST', `/entreprises/${ent}/caisse/fermer`, sami.jeton, { compte: '50' })).corps.z;
-    expect(z).toMatchObject({ nombre: 1, parMode: { especes: '3.852' }, rendu: { especes: '3.852' }, retours: 2, attendu: '50.000', ecart: '0.000' });
+    expect(z).toMatchObject({ nombre: 1, parMode: { especes: '3.852' }, rendu: { especes: '3.852' }, retours: 2, attendu: '50.000', ecart: '0.000',
+      avoirs: [{ numero: `AVO-${annee}-001`, ticket: `TIC-${annee}-001`, montant: '1.284' }, { numero: `AVO-${annee}-002`, ticket: `TIC-${annee}-001`, montant: '2.568' }],
+      retoursTtc: '3.852', net: '0.000', tvaNette: '0.000' });
     // Karim n'est plus administrateur : il n'approuve plus à la caisse, même avec son code.
     const karimMembre = ((await appeler('GET', `/entreprises/${ent}/equipe`, nadia.jeton)).corps.membres as { id: string; nom: string }[]).find((m) => m.nom === 'Karim')?.id;
     expect((await appeler('PUT', `/entreprises/${ent}/membres/${karimMembre}/roles`, nadia.jeton, { roles: ['commercial'] })).statut).toBe(200);

@@ -12,6 +12,9 @@ set -euo pipefail
 RACINE=$(cd "$(dirname "$0")/../.." && pwd)
 TRAVAIL=/tmp/skanfact-humain-plateforme
 PORT=${SKANFACT_HUMAIN_PORT:-8090}
+# La langue du navigateur : le français d'un commerçant tunisien, ou une autre pour voir ce qu'elle change (en-US : les
+# nombres et les dates des champs du navigateur s'y écrivent à l'américaine).
+LANGUE=${SKANFACT_LANGUE:-fr-FR}
 export DISPLAY=${SKANFACT_ECRAN:-:99}
 [ -n "${PG_ADMIN:-}" ] || { echo "PG_ADMIN manque : l adresse d un compte d administration PostgreSQL" >&2; exit 2; }
 mkdir -p "$TRAVAIL"
@@ -45,7 +48,7 @@ curl -s "http://127.0.0.1:$PORT/v1/documentation" >/dev/null || { echo "Le serve
 
 # Le navigateur, en vraie fenêtre sur l'écran virtuel, plein écran comme sur un portable.
 NAV=${SKANFACT_NAVIGATEUR:-$(ls -d /opt/pw-browsers/chromium-*/chrome-linux/chrome 2>/dev/null | head -1)}
-nohup "$NAV" --no-sandbox --no-first-run --no-default-browser-check --disable-features=Translate --lang=fr-FR \
+nohup "$NAV" --no-sandbox --no-first-run --no-default-browser-check --disable-features=Translate --lang="$LANGUE" \
   --user-data-dir="$TRAVAIL/profil" --window-position=0,0 --window-size=1440,900 --remote-debugging-port=9224 \
   "http://127.0.0.1:$PORT/" >"$TRAVAIL/navigateur.log" 2>&1 &
 echo $! > "$TRAVAIL/navigateur.pid"

@@ -6337,6 +6337,9 @@
            l'Unité, qui occupaient chacune une rangée à moitié vide — on la lisait comme une remarque
            sur la TVA (10.12.0, parcours d'une menuiserie). Les prix disent leur unité (9.4.8). */''}
         ${field(lbl(`Prix unitaire HT (${h(company().currency || 'DT')})`, 'cat.price'), 'unitPrice', it.unitPrice, 'number', 'step="0.001" min="0" class="num"')}
+        ${/* (plateforme) Le prix TTC, celui de l'étiquette : tapé, il donne le HT qui y retombe exactement ; le HT tapé, il
+           se calcule ici. Sans nom : il ne s'enregistre pas sur l'article, que son HT et sa TVA disent déjà. */''}
+        <label class="field">${lbl(`Prix TTC (${h(company().currency || 'DT')})`, 'cat.priceTtc')}<input type="number" id="cat-ttc" step="0.001" min="0" class="num" value=""></label>
         <label class="field">${lbl(`Prix par quantité (${h(company().currency || 'DT')})`, 'cat.paliers')}<input type="text" name="paliers" id="cat-paliers" value="${h(C.paliersEnTexte(it.paliers))}" placeholder="10 : 20,500 ; 100 : 19"></label>
         ${field(lbl(`Coût de revient HT (${h(company().currency || 'DT')})`, 'cat.cost'), 'unitCost', it.unitCost || 0, 'number', 'step="0.001" min="0" class="num"')}
         ${/* Le calculateur vit À CÔTÉ de la phrase de marge (H6) : c'est là qu'on lit qu'un prix ne va
@@ -6434,7 +6437,7 @@
           const v = formValues($('#kf', root));
           const pv = Number(v.unitPrice) || 0, pa = Number(v.unitCost) || 0;
           const el = $('#marge-hint', root);
-          if (!pa) { el.innerHTML = '<span class="small muted">Sans coût de revient, la marge de cette prestation ne sera pas calculable.</span>'; return; }
+          if (!pa) { el.innerHTML = '<span class="small muted">Sans coût de revient, la marge ne pourra pas se calculer.</span>'; return; }
           // Un prix de vente à 0 n'est pas une vente à perte : c'est un prix pas encore fixé. Une
           // planche achetée pour fabriquer une porte ne se revend pas telle quelle, et l'article créé
           // depuis un achat arrive avec son coût et sans prix — il criait « tu vends à perte » en orange
@@ -6444,6 +6447,27 @@
           el.innerHTML = `<span class="small ${m <= 0 ? 'warn-text' : 'ok-text'}">Marge : <strong>${C.money(m, company().currency)}</strong> par unité, soit ${pct(r)} %${m <= 0 ? ' — tu vends à perte.' : ''}</span>`;
         };
         $('#kf', root).oninput = hint; hint();
+        // (plateforme) Le TTC se calcule comme la tuile de la caisse (`ligneDePanier`, `computeTotals`) : la fiche et la
+        // caisse disent le même prix. Le TTC tapé donne le HT par le calculateur (« Prix TTC visé ») ; quand la TVA change,
+        // le prix tapé en dernier tient (le prix de l'étiquette ne bouge pas parce qu'on corrige la TVA).
+        const champHt = $('input[name=unitPrice]', root), champTtc = $('#cat-ttc', root), champTva = $('select[name=vatRate]', root);
+        let tapeTtc = false;
+        const majTtc = () => {
+          const ht = Number(champHt.value) || 0;
+          champTtc.value = ht > 0 ? String(C.computeTotals({ type: 'facture', applyStamp: false, lines: [C.ligneDePanier({ unitPrice: ht, vatRate: Number(champTva.value) || 0 }, company())] }, company()).totalTTC) : '';
+        };
+        const majHt = dire => {
+          const r = C.calculPrix({ mode: 'ttc', valeur: champTtc.value, tva: C.ligneDePanier({ vatRate: Number(champTva.value) || 0 }, company()).vatRate, decimales: C.decimalsFor(company().currency) });
+          if (!r.ok) return;
+          champHt.value = String(r.ht);
+          hint();
+          if (dire && !r.exact) toast(`Aucun prix HT ne donne exactement ${C.money(Number(champTtc.value), company().currency)} TTC à ${pct(r.tva)} % : le plus proche donne ${C.money(r.ttc, company().currency)}.`);
+        };
+        majTtc();
+        champTtc.addEventListener('input', () => { tapeTtc = true; majHt(false); });
+        champTtc.addEventListener('change', () => { if (tapeTtc) majHt(true); });
+        $('#kf', root).addEventListener('input', e => { if (e.target === champHt || e.target === e.currentTarget) { tapeTtc = false; majTtc(); } });
+        champTva.addEventListener('change', () => { if (tapeTtc && champTtc.value !== '') majHt(true); else majTtc(); });
         // Suivre par lot implique de suivre le stock (brique 97), comme le numéro de série : la case se coche.
         $('input[name=parLot]', root).onchange = e => {
           const cs = $('input[name=tracked]', root);
@@ -12537,6 +12561,8 @@
       <p class="small muted" id="cs-z-qui">Ouverte par ${h(z.ouvertePar)} le ${h(heureCaisse(z.ouverteLe))} sur « ${h(z.appareil)} »${z.fermePar ? `, fermée par ${h(z.fermePar)} le ${h(heureCaisse(z.fermeeLe))}` : ''} ; ${z.nombre ? `${z.nombre} ticket${z.nombre > 1 ? 's' : ''}, du ${h(z.premier)} au ${h(z.dernier)}` : 'aucun ticket'}.</p>
       <table class="list compact" id="cs-z-table"><tbody>
         ${ligne('Ventes TTC', h(argentCaisse(z.total)))}${ligne('dont TVA', h(argentCaisse(z.tva)))}
+        ${(z.avoirs || []).length ? ligne(`Retours : ${z.avoirs.map(a => `${h(a.numero)} (ticket ${h(a.ticket)})`).join(', ')}`, `− ${h(argentCaisse(z.retoursTtc))}`)
+          + ligne('<b>Net des ventes</b>', `<b>${h(argentCaisse(z.net))}</b>`) : ''}
         ${Object.entries(z.parMode).map(([k, v]) => ligne(h(MODES_Z[k] || k), h(argentCaisse(v)))).join('')}
         ${Object.entries(z.rendu || {}).map(([k, v]) => ligne(`Rendu (${h((MODES_Z[k] || k).toLowerCase())})`, `− ${h(argentCaisse(v))}`)).join('')}
         ${ligne('Fond de caisse', h(argentCaisse(z.fond)))}${ligne('<b>Le tiroir devait contenir</b>', `<b>${h(argentCaisse(z.attendu))}</b>`)}
@@ -12766,7 +12792,9 @@
       $('#cs-body').innerHTML = `
         <div class="filters">${dateFieldHtml(lbl('Jour', 'cs.jour'), 'csJour', s.jour, {})}</div>
         <div class="stats">
-          <div class="stat"><div class="lbl">Ventes TTC ${info('cs.bilan')}</div><div class="val">${C.money(b.total, cur)}</div><div class="sub">${pl(b.nombre, 'ticket')}${b.nombre ? ' · dont TVA ' + C.money(b.tva, cur) : ''}${b.rembourse ? ' · rendu aux clients : ' + C.money(b.rembourse, cur) : ''}</div></div>
+          <div class="stat" id="cs-ventes"><div class="lbl">${b.retours ? 'Ventes du jour, retours déduits' : 'Ventes TTC'} ${info('cs.bilan')}</div><div class="val">${C.money(b.retours ? b.net : b.total, cur)}</div><div class="sub">${b.retours
+            ? `${C.money(b.total, cur)} vendus en ${pl(b.nombre, 'ticket')} − ${C.money(b.retoursTtc, cur)} en ${pl(b.retours, 'retour')} (${h(b.avoirs.join(', '))})`
+            : `${pl(b.nombre, 'ticket')}${b.nombre ? ' · dont TVA ' + C.money(b.tva, cur) : ''}${b.rembourse ? ' · rendu aux clients : ' + C.money(b.rembourse, cur) : ''}`}</div></div>
           <div class="stat"><div class="lbl">Espèces du jour</div><div class="val">${C.money(b.parMode.especes, cur)}</div><div class="sub"><span id="cs-tiroir">${sousTiroir(b, cur)}</span></div></div>
           <div class="stat"><div class="lbl">Carte</div><div class="val">${C.money(b.parMode.carte, cur)}</div><div class="sub">${b.parMode.carte < 0 ? 'rendu aux clients par carte' : 'versé par ta banque'}</div></div>
           <div class="stat"><div class="lbl">Chèques</div><div class="val">${C.money(b.parMode.cheque, cur)}</div><div class="sub">${b.parMode.cheque < 0 ? 'rendu aux clients par chèque' : 'à remettre en banque'}</div></div>

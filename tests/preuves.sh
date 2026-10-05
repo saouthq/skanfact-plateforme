@@ -6220,7 +6220,7 @@ prouver "un ticket hors de sa session" serveur/caisse/routes.ts \
   "from caisse.ticket t join ventes.piece p on p.id = t.piece where t.session = \$1\`, [session])).rows[0] as" "from caisse.ticket t join ventes.piece p on p.id = t.piece where t.entreprise = (select entreprise from caisse.session where id = \$1)\`, [session])).rows[0] as" \
   "$CS"
 prouver "un tiroir attendu sans son fond" serveur/caisse/routes.ts \
-  "attendu: fond + especes };" "attendu: especes };" \
+  "attendu: fond + especes," "attendu: especes," \
   "$CS"
 prouver "un Z qui compte les tickets des autres sessions" serveur/caisse/routes.ts \
   "    from caisse.ticket t join ventes.piece p on p.id = t.piece where t.session = \$1\`, [session])).rows[0] as" "    from caisse.ticket t join ventes.piece p on p.id = t.piece where \$1::uuid is not null\`, [session])).rows[0] as" \
@@ -7963,6 +7963,92 @@ prouver "la caisse qui ouvre une « Nouvelle prestation »" web/public/v10/app.j
 prouver "le prix d'un article tapé avec la virgule, avalé" web/public/v10/index.html \
   '  <script src="../plateforme/virgule.js"></script>' "" \
   "$CPA"
+
+# Le comptoir après le parcours de la caisse sur le vrai serveur (05/10/2026 ; web/v10/comptoir.txt, dates.js).
+# Les dates JJ/MM/AAAA quelle que soit la langue du navigateur (la péremption s'affichait « mm/dd/yyyy »).
+DAT="la péremption s'affiche et se tape JJ/MM/AAAA ; une date impossible se voit ; le jour enregistré est le bon"
+prouver "les dates du navigateur laissées à la langue du navigateur" web/public/v10/index.html \
+  '  <script src="../plateforme/dates.js"></script>' "" \
+  "$DAT"
+prouver "un champ de date du navigateur que la correction ne regarde pas" web/public/plateforme/dates.js \
+  "if (noeud.nodeType !== 1) return;" "return;" \
+  "$DAT"
+prouver "le mois lu avant le jour" web/public/plateforme/dates.js \
+  "const j = Number(m[1]), mo = Number(m[2])," "const j = Number(m[2]), mo = Number(m[1])," \
+  "$DAT"
+prouver "une date impossible qui ne se voit pas" web/public/plateforme/dates.js \
+  "const faux = Boolean(tape) && !lu;" "const faux = false;" \
+  "$DAT"
+prouver "le code de l'écran qui lit le jour affiché au lieu du jour ISO" web/public/plateforme/dates.js \
+  "get() { return versIso(natif.get.call(this)); }," "get() { return natif.get.call(this); }," \
+  "$DAT"
+prouver "le jour enregistré affiché à l'envers" web/public/plateforme/dates.js \
+  "natif.set.call(el, versJour(iso));" "natif.set.call(el, iso);" \
+  "$DAT"
+prouver "le jour tapé sans barres laissé tel quel" web/public/plateforme/dates.js \
+  "      if (lu) natif.set.call(el, versJour(lu));" "" \
+  "$DAT"
+CAB="un abonnement créé, ses mois dus générés au brouillard une seule fois, puis suspendu"
+prouver "les dates du Cabinet laissées à la langue du navigateur" web/public/v10/cabinet/index.html \
+  '  <script src="../../plateforme/dates.js"></script>' "" \
+  "$CAB"
+
+# Le prix de l'étiquette, TTC (4,200 HT arrivait à 4,998 en caisse, jamais aux 5,000 de l'étiquette) ; la marge sans
+# « prestation ».
+TTC="le prix TTC de l'étiquette donne le HT ; la TVA changée ne bouge pas l'étiquette ; la caisse affiche 5,000 DT"
+prouver "le TTC tapé recopié comme HT" web/public/v10/app.js \
+  "          champHt.value = String(r.ht);" "          champHt.value = String(r.ttc);" \
+  "$TTC"
+prouver "le prix de l'étiquette qui bouge quand la TVA change" web/public/v10/app.js \
+  "champTva.addEventListener('change', () => { if (tapeTtc && champTtc.value !== '') majHt(true); else majTtc(); });" "champTva.addEventListener('change', () => { majTtc(); });" \
+  "$TTC"
+prouver "un prix TTC inatteignable arrondi sans un mot" web/public/v10/app.js \
+  "if (dire && !r.exact) toast(" "if (false) toast(" \
+  "$TTC"
+prouver "le TTC qui ne suit pas le HT tapé" web/public/v10/app.js \
+  "champTtc.value = ht > 0 ? String(" "champTtc.value = ht < 0 ? String(" \
+  "$TTC"
+prouver "le prix TTC enregistré sur l'article, en plus de son HT et de sa TVA" web/public/v10/app.js \
+  '<input type="number" id="cat-ttc"' '<input type="number" name="prixTtc" id="cat-ttc"' \
+  "$TTC"
+prouver "la marge d'une « prestation » chez qui vend des marchandises" web/public/v10/app.js \
+  "la marge ne pourra pas se calculer." "la marge de cette prestation ne sera pas calculable." \
+  "$TTC"
+
+# Le bilan du jour et le Z disent les retours et le net (« Ventes TTC » restait brut ; le Z ne citait pas l'avoir).
+prouver "le net du jour qui ne déduit pas les retours" web/public/v10/core.js \
+  "net: round3(round3(total) - round3(retoursTtc))," "net: round3(total)," \
+  "$CTW"
+prouver "les retours du jour que le bilan ne compte pas" web/public/v10/core.js \
+  "const avoirs = docs.filter(d => d.type === 'avoir' && d.date === j && d.status !== 'brouillon' && idsTickets.has(d.creditOf));" "const avoirs = [];" \
+  "$CTW"
+prouver "le bilan qui annonce des ventes brutes après un retour" web/public/v10/app.js \
+  "\${C.money(b.retours ? b.net : b.total, cur)}" "\${C.money(b.total, cur)}" \
+  "$CTW"
+prouver "le bilan qui ne dit pas que les retours sont déduits" web/public/v10/app.js \
+  "\${b.retours ? 'Ventes du jour, retours déduits' : 'Ventes TTC'}" "\${'Ventes TTC'}" \
+  "$CTW"
+prouver "le bilan imprimé sans ses retours" web/public/v10/core.js \
+  "\${bilan.retours ? \`<tr><td>Retours (" "\${false ? \`<tr><td>Retours (" \
+  "$CTW"
+prouver "le Z à l'écran qui ne cite pas ses retours" web/public/v10/app.js \
+  "\${(z.avoirs || []).length ? ligne(\`Retours : \${z.avoirs.map(a => \`\${h(a.numero)}" "\${false ? ligne(\`Retours : \${z.avoirs.map(a => \`\${h(a.numero)}" \
+  "$CTW"
+prouver "le Z imprimé qui ne cite pas ses retours" web/public/v10/core.js \
+  "\${(z.avoirs || []).length ? ligne(\`Retours : \${z.avoirs.map(a => escapeHtml(a.numero))" "\${false ? ligne(\`Retours : \${z.avoirs.map(a => escapeHtml(a.numero))" \
+  "$CTW"
+prouver "le Z figé sans ses avoirs" serveur/caisse/routes.ts \
+  "        avoirs: z0.avoirs.map((a) => ({ numero: a.numero, ticket: a.ticket, montant: texte(a.montant) }))," "        avoirs: []," \
+  "$CT"
+prouver "le net des ventes du Z qui ne déduit pas les retours" serveur/caisse/routes.ts \
+  "net: BigInt(tot.total) - retoursTtc," "net: BigInt(tot.total)," \
+  "$CT"
+prouver "la TVA nette du Z qui garde celle des retours" serveur/caisse/routes.ts \
+  "tvaNette: BigInt(tot.tva) - retoursTva" "tvaNette: BigInt(tot.tva)" \
+  "$CT"
+prouver "les avoirs du Z dans le désordre" serveur/caisse/routes.ts \
+  "where r.session = \$1 order by r.cree_le, a.numero_texte" "where r.session = \$1 order by a.numero_texte desc" \
+  "$CT"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

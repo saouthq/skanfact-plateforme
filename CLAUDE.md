@@ -533,10 +533,15 @@
   téléphone de Nadia) ; puis `scripts/humain/ecran.sh capture | clic X Y | taper … | touche … | defiler …` (de vrais
   événements du système : un bouton recouvert ne reçoit pas le clic). Après un changement d'écran : reconstruire
   (`npx vite build --config web/vite.config.ts --outDir /tmp/skanfact-humain-plateforme/web`) et recharger.
-  **La méthode** (Skander, 05/10/2026) : raisonner comme un commerçant ou un comptable tunisien qui découvre l'écran ;
-  **regarder → voir un problème → le corriger tout de suite → revoir à l'écran → avancer**, jamais « tout capturer puis
-  tout corriger ». D'abord sur la machine de travail (une correction se voit en secondes), puis sur le serveur d'essai
-  (`https://app.skanfact.tn`, joignable depuis la session), avec des comptes nommés « essai ».
+  **La méthode, PAR LOT** (Skander, 05/10/2026, précisée le même jour : « fais le parcours de chaque lot en entier et
+  après corrige par lot, c'est mieux que point par point ; commit à chaque lot, comme ça on avance vite ») : raisonner
+  comme un commerçant ou un comptable tunisien qui découvre l'écran. Un lot = un domaine parcouru de bout en bout (la
+  facture, la caisse, les achats, le téléphone…). **1. Faire tout le parcours du lot soi-même**, à la souris, en notant
+  chaque problème vu (sans s'arrêter pour corriger) ; **2. corriger tout le lot** ; **3. écrire les tests et leurs
+  preuves** une fois le parcours corrigé revu à l'écran ; **4. un seul envoi pour le lot**, puis revoir sur le serveur
+  d'essai. Seule exception : un défaut qui bloque la suite du parcours (on ne peut pas aller plus loin) se répare tout
+  de suite. D'abord sur la machine de travail, puis sur le serveur d'essai (`https://app.skanfact.tn`, joignable depuis
+  la session), avec des comptes nommés « essai ».
   Le premier passage (brique 125) a trouvé sept défauts que les tests verts ne voyaient pas (`docs/caisse.md`) :
   chaque défaut vu à l'écran devient une assertion et sa preuve.
 

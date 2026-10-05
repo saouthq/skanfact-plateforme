@@ -84,7 +84,10 @@ describe('les abonnements d\'un dossier, à la souris', () => {
     await aller(`#/dossier/${garage}/comptabilite/saisie/2026`);
     await ouvrir('#ab-new', '#ab-nom');
     await fenetre.locator('#ab-nom').fill('Loyer du local');
-    await fenetre.locator('#ab-depuis').fill('2026-01-05');
+    // Une date du Cabinet s'écrit JJ/MM/AAAA, quelle que soit la langue du navigateur (05/10/2026 : le champ du
+    // navigateur la montrait à l'américaine) ; tapée « 05012026 », elle se lit le 5 janvier.
+    expect(await fenetre.locator('#ab-depuis').getAttribute('placeholder')).toBe('JJ/MM/AAAA');
+    await fenetre.locator('#ab-depuis').fill('05012026');
     await fenetre.locator('#ab-montant').fill('850,500');
     await fenetre.locator('#ab-piece').fill('LOYER');
     await fenetre.locator('#ab-libelle').fill('Loyer du local');
