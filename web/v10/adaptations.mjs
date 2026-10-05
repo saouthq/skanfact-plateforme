@@ -11,9 +11,9 @@ import { SANS_PAQUETS, lireFichier } from './sans-paquets.mjs';
 export const ADAPTATIONS = [
   {
     fichier: "index.html",
-    pourquoi: "le point de contact avec le serveur se charge avant tout le reste (précédé du poste, qui garde la copie pour le hors-ligne, brique 72), et la mise en page du téléphone après la feuille de style de la v10 ; l'application s'installe (son manifeste) ; le dessin des codes QR (brique 83) se charge avec lui",
+    pourquoi: "le point de contact avec le serveur se charge avant tout le reste (précédé du poste, qui garde la copie pour le hors-ligne, brique 72), et la mise en page du téléphone après la feuille de style de la v10 ; l'application s'installe (son manifeste) ; le dessin des codes QR (brique 83) se charge avec lui ; la virgule est la décimale des champs de nombre, quelle que soit la langue du navigateur (ce que la v10 de bureau obtenait par `--lang=fr-FR`)",
     avant: "  <link rel=\"stylesheet\" href=\"style.css\">\n",
-    apres: "  <link rel=\"stylesheet\" href=\"style.css\">\n  <link rel=\"manifest\" href=\"/manifest.webmanifest\">\n  <link rel=\"stylesheet\" href=\"../plateforme/telephone.css\">\n  <script src=\"../tiers/qrcode.js\"></script>\n  <script src=\"../plateforme/qr.js\"></script>\n  <script src=\"../plateforme/poste.js\"></script>\n  <script src=\"../plateforme/tableur.js\"></script>\n  <script src=\"../plateforme/pont.js\"></script>\n  <script src=\"../plateforme/telephone.js\"></script>\n",
+    apres: "  <link rel=\"stylesheet\" href=\"style.css\">\n  <link rel=\"manifest\" href=\"/manifest.webmanifest\">\n  <link rel=\"stylesheet\" href=\"../plateforme/telephone.css\">\n  <script src=\"../tiers/qrcode.js\"></script>\n  <script src=\"../plateforme/qr.js\"></script>\n  <script src=\"../plateforme/virgule.js\"></script>\n  <script src=\"../plateforme/poste.js\"></script>\n  <script src=\"../plateforme/tableur.js\"></script>\n  <script src=\"../plateforme/pont.js\"></script>\n  <script src=\"../plateforme/telephone.js\"></script>\n",
   },
   {
     fichier: 'app.js',

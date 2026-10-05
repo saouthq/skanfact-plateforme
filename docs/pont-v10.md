@@ -112,6 +112,26 @@ La règle, des deux côtés :
 Tests : `tests/v10/ordre-dossier.test.ts` (la racine d'abord), `tests/web/ordre-dossier.test.ts` (la réponse remise
 exprès dans le pire ordre : la page voit le compte et l'article, et son enregistrement ne supprime rien).
 
+## 4 quater. La virgule des champs de nombre (05/10/2026)
+
+Vu sur le serveur d'essai, en tapant une facture au clavier comme un commerçant : « 38,475 » tapé dans un prix devenait
+**38 475**, et la facture 320 497,750 DT au lieu de 320,497 DT. Un champ `type=number` lit ce qu'on y tape dans la
+langue du **navigateur**, pas dans celle de la page (`<html lang="fr">` n'y change rien) : réglé en anglais ou en
+arabe, la virgule y est un séparateur de milliers, avalé sans un mot. La v10 l'avait déjà rencontré (10.12.0, H-E28)
+et l'avait réglé en imposant le français à tout le programme de bureau (`--lang=fr-FR`) ; dans un navigateur, la page
+ne choisit pas sa langue, et la plateforme avait perdu cette garantie.
+
+Elle revient par `web/public/plateforme/virgule.js`, chargé avant tout le reste dans la page de l'entreprise : ce qu'on
+tape ou colle dans un champ de nombre y passe d'abord ; la (dernière) virgule devient le point décimal, que tous les
+navigateurs lisent pareil, et les points d'avant elle, qui séparaient les milliers (« 1.250,500 »), s'en vont ; le
+point tapé sans virgule reste tel quel (« 1.250 » = un dinar deux cent cinquante, comme sur une étiquette). Aucun
+écran de la v10 n'est touché. Le Cabinet ne le charge pas : ses champs de nombre sont tous entiers (jours, enfants,
+mois), et ses montants sont des champs de texte qui lisent déjà la virgule eux-mêmes ; s'il gagne un champ de nombre
+décimal, il le chargera.
+
+Test : `tests/web/virgule.test.ts`, dans un navigateur lancé en anglais : « 2,5 » sacs à « 12,250 » tapés au clavier,
+« 1 250,500 » collé d'un tableur et « 2.075,250 » d'un relevé ; la facture et le serveur comptent ces nombres-là.
+
 ## 5. Reste à faire (connu, écrit ici pour ne pas l'oublier)
 
 - **Les PDF** : `exportPdfSilent` et `exportPdfMany` ne font rien ; un envoi par mail ou WhatsApp

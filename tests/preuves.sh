@@ -7306,7 +7306,7 @@ prouver "la demande de connexion perdue à la connexion" web/src/App.tsx \
   "if (location.pathname === '/connecter') {" "if (location.pathname === '/jamais') {" \
   "$BW"
 prouver "la connexion qui ne dit pas qui attend" web/src/App.tsx \
-  "inscription={vers({ ecran: 'inscription' })} sous={attend} />" "inscription={vers({ ecran: 'inscription' })} />" \
+  "inscription={vers({ ecran: 'inscription' })} sous={attend}" "inscription={vers({ ecran: 'inscription' })}" \
   "$BW"
 prouver "refuser qui ne dit pas le refus" web/src/ecrans/Connecter.tsx \
   "const suite = new URLSearchParams({ erreur: 'refusee', etat: demande.etat });" "const suite = new URLSearchParams({ etat: demande.etat });" \
@@ -7868,6 +7868,28 @@ prouver "une commande qui ne s'arrête jamais" exploitation/acces.ts \
 prouver "le compte créé, mais l'adresse et le mot de passe à retaper" web/src/ecrans/Inscription.tsx \
   "      if (c.corps.etat === 'connecte' && c.corps.jeton) {" "      if (false && c.corps.etat === 'connecte' && c.corps.jeton) {" \
   "$CEP"
+
+# La virgule est la décimale, quelle que soit la langue du navigateur (web/public/plateforme/virgule.js ; vu sur le vrai
+# serveur le 05/10/2026 : « 38,475 » tapé dans un prix devenait 38 475).
+VIR="« 2,5 » sacs à « 12,250 » tapés, « 1 250,500 » et « 2.075,250 » collés : la facture et le serveur les comptent tels quels"
+prouver "la virgule d'un prix avalée par un navigateur réglé en anglais" web/public/v10/index.html \
+  '  <script src="../plateforme/virgule.js"></script>' "" \
+  "$VIR"
+prouver "la virgule jetée au lieu de devenir le point décimal" web/public/plateforme/virgule.js \
+  "replace(/[.,]/g, '') + '.' + texte.slice(i + 1));" "replace(/[.,]/g, '') + texte.slice(i + 1));" \
+  "$VIR"
+prouver "les champs de nombre que la correction ne regarde pas" web/public/plateforme/virgule.js \
+  "el.type !== 'number') return;" "el.type !== 'text') return;" \
+  "$VIR"
+prouver "un nombre sans virgule réécrit quand même" web/public/plateforme/virgule.js \
+  "    if (i < 0) return;" "" \
+  "$VIR"
+prouver "la virgule tapée gardée en plus du point" web/public/plateforme/virgule.js \
+  "    e.preventDefault();" "" \
+  "$VIR"
+prouver "le point des milliers d'un nombre collé pris pour une décimale" web/public/plateforme/virgule.js \
+  ".replace(/[.,]/g, '') + '.'" " + '.'" \
+  "$VIR"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
