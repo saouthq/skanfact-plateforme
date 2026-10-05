@@ -14,6 +14,12 @@
 
 export type ReglageLimites = { capacite: number; parSeconde: number; maintenant?: () => number };
 export const LIMITES_PAR_DEFAUT: ReglageLimites = { capacite: 60, parSeconde: 10 };
+// Les routes sans session (connexion, inscription, l'espace client, le paiement en ligne…), par ADRESSE de l'appelant
+// (brique 142 ; décidé le 05/10/2026 par délégation) : 60 appels d'un coup, puis un par seconde. Assez pour une
+// équipe entière qui se connecte le matin derrière la même box ; trop peu pour essayer des mots de passe ou des liens
+// à la chaîne. Les avis de Konnect et les appels d'un partenaire y passent aussi : ils sont rares (un par paiement,
+// un par connexion), et l'avis de Konnect n'est pas signé (n'importe qui peut l'appeler).
+export const LIMITES_PAR_ADRESSE: ReglageLimites = { capacite: 60, parSeconde: 1 };
 
 export type Verdict = { permis: true; restants: number } | { permis: false; restants: 0; attendreSecondes: number };
 

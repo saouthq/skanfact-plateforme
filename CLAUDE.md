@@ -374,6 +374,13 @@
   trois clients d'exemple, essai pour toujours ; depuis `0011`, ses factures suivent la série
   « FAC » de la v10 (l'écran de la v10 annonce ce préfixe). À respecter plus tard : jamais facturée
   par l'abonnement, jamais transmise à la TTN, « ESSAI » sur chaque document.
+- **La mise en ligne** (briques 142-143, `docs/mise-en-ligne.md`, 05/10/2026) : le serveur d'essai est un VPS OVH en
+  France (données inventées seulement), à `app.skanfact.tn`. **Personne ne s'y connecte** : il suit `main` tout seul
+  (`exploitation/suivre.ts`, toutes les deux minutes) et installe la plus récente version que GitHub a vérifiée en
+  vert ; un réglage du serveur passe par une tâche d'entretien (`exploitation/taches/NNNN-nom.sh`, une fois chacune).
+  Son état se lit à `https://app.skanfact.tn/etat.json`. Donc **un `main` rouge n'arrive jamais sur le serveur**, et
+  les migrations poussées s'appliquent à sa base. Les routes sans session sont limitées par adresse
+  (`LIMITES_PAR_ADRESSE`) ; derrière le frontal, `SKANFACT_PROXY=1`.
 - **Ouvert** : les gestes « À reprendre » encore ouverts sont comptés dans l'export mais pas
   restaurés (à revoir avec la file, étape 2) ; la remise en place d'une entreprise **par-dessus**
   son état abîmé (06 § 4.4) n'existe pas encore : on ne restaure que là où elle n'est pas.

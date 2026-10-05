@@ -997,7 +997,8 @@ prouver "les limites d'appels qui ne s'appliquent pas" serveur/app.ts \
   "        if (cle) {" "        if (cle && false) {" \
   "au-delà de sa rafale, une clé reçoit 429"
 prouver "un refus sans l'attente à respecter" serveur/app.ts \
-  "            reponse.header('retry-after', String(v.attendreSecondes));" "" \
+  "            reponse.header('retry-after', String(v.attendreSecondes));
+            return envoyer(429, { motif: v.attendreSecondes === 1 ? motif('api." "            return envoyer(429, { motif: v.attendreSecondes === 1 ? motif('api." \
   "au-delà de sa rafale, une clé reçoit 429"
 
 # ── Les avis d'événement (0008, serveur/avis.ts) ────────────────────────────────────────────────
@@ -7677,6 +7678,75 @@ prouver "l'heure d'une action dite à l'heure du navigateur, pas de Tunis" web/p
 prouver "Tes appareils qui datent en UTC" web/public/plateforme/pont.js \
   "\`Dernière activité le \${esc(jourATunis(a.derniereActivite))}\`" "\`Dernière activité le \${esc(jour(a.derniereActivite))}\`" \
   "$BSC"
+
+# ── Brique 142 : la limite d'appels par adresse sur les routes sans session (docs/mise-en-ligne.md, A) ──
+LA1="une rafale passe, puis « trop d'appels » avec l'attente ; la seconde d'après, un appel repasse ; chaque adresse a son seau"
+LA2="sans frontal déclaré, l'adresse écrite dans un en-tête ne compte pas ; derrière le frontal, c'est celle qu'il a vue"
+LA3="la machine elle-même (ses outils, ses tests) n'est pas limitée"
+LA4="les chiffres : 60 appels d'un coup, puis un par seconde ; le nombre de relais se règle, de 0 à 5"
+LA5="le programme serveur, derrière un frontal déclaré : 60 demandes d'un visiteur passent, la suivante attend ; un autre visiteur passe"
+prouver "les routes sans session jamais limitées" serveur/app.ts \
+  "          if (v && !v.permis) {" "          if (false && v && !v.permis) {" \
+  "$LA1"
+prouver "le refus sans l'attente dans retry-after" serveur/app.ts \
+  "            reponse.header('retry-after', String(v.attendreSecondes));
+            return envoyer(429, { motif: v.attendreSecondes === 1 ? motif('porte." "            return envoyer(429, { motif: v.attendreSecondes === 1 ? motif('porte." \
+  "$LA1"
+prouver "un seul seau pour toutes les adresses" serveur/app.ts \
+  "limiteurPublic.appel(requete.ip)" "limiteurPublic.appel('tous')" \
+  "$LA1"
+prouver "une seconde d'attente dite « 1 secondes »" serveur/app.ts \
+  "v.attendreSecondes === 1 ? motif('porte.trop_de_demandes_une') : " "" \
+  "$LA1"
+prouver "la machine limitée comme un visiteur" serveur/app.ts \
+  "MACHINE.has(requete.ip) ? null : limiteurPublic.appel(requete.ip)" "limiteurPublic.appel(requete.ip)" \
+  "$LA3"
+prouver "l'adresse écrite par le visiteur crue sans frontal déclaré" serveur/app.ts \
+  "rang < relais" "true" \
+  "$LA2"
+prouver "le frontal déclaré jamais cru" serveur/app.ts \
+  "rang < relais" "false" \
+  "$LA2"
+prouver "les chiffres de la limite par adresse changés" serveur/limites.ts \
+  "LIMITES_PAR_ADRESSE: ReglageLimites = { capacite: 60, parSeconde: 1 }" "LIMITES_PAR_ADRESSE: ReglageLimites = { capacite: 60, parSeconde: 10 }" \
+  "$LA4"
+prouver "le serveur limité par autre chose que la limite par adresse" serveur/app.ts \
+  "options.limiteurPublic ?? new Limiteur(LIMITES_PAR_ADRESSE)" "options.limiteurPublic ?? new Limiteur({ capacite: 1000, parSeconde: 1 })" \
+  "$LA5"
+prouver "le programme serveur oublie le frontal déclaré" serveur/principal.ts \
+  ", { proxy: c.proxy });" ");" \
+  "$LA5"
+prouver "la production démarre sans dire ses relais" serveur/principal.ts \
+  "  if (environnement === 'production' && env.SKANFACT_PROXY === undefined) throw" "  if (false) throw" \
+  "$LA4"
+prouver "un nombre de relais hors de 0 à 5 accepté" serveur/principal.ts \
+  "!Number.isInteger(proxy) || proxy < 0 || proxy > 5" "proxy < 0" \
+  "$LA4"
+
+# ── Brique 143 : le suiveur installe la plus récente version vérifiée en vert (docs/mise-en-ligne.md, B) ──
+SV1="verte : tous ses contrôles finis, aucun en échec, et tous là ; un seul rouge la refuse ; un pas fini la fait attendre"
+SV2="la plus récente qui est verte ; rien si celle qui tourne l'est déjà, ou si aucune plus récente ne l'est"
+prouver "un contrôle sauté compté comme un échec" exploitation/suivre.ts \
+  "['success', 'skipped', 'neutral']" "['success']" \
+  "$SV1"
+prouver "un contrôle annulé compté comme réussi" exploitation/suivre.ts \
+  "['success', 'skipped', 'neutral']" "['success', 'skipped', 'neutral', 'cancelled']" \
+  "$SV1"
+prouver "un contrôle pas fini compté comme un échec" exploitation/suivre.ts \
+  "c.status === 'completed' && !['success'" "!['success'" \
+  "$SV1"
+prouver "une version installée avant que tous ses contrôles soient partis" exploitation/suivre.ts \
+  "controles.length < minimum || " "" \
+  "$SV1"
+prouver "une version installée avant que ses contrôles soient finis" exploitation/suivre.ts \
+  " || controles.some((c) => c.status !== 'completed')) return 'en_cours';" ") return 'en_cours';" \
+  "$SV1"
+prouver "une version plus ancienne que celle qui tourne installée" exploitation/suivre.ts \
+  "    if (v === enService) return null;" "" \
+  "$SV2"
+prouver "la plus ancienne verte installée, pas la plus récente" exploitation/suivre.ts \
+  "  for (const v of versions) {" "  for (const v of [...versions].reverse()) {" \
+  "$SV2"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

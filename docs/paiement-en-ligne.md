@@ -81,7 +81,7 @@ ligne » quand elle se règle en ligne (`docs/espace-client.md`, E7).
 
 ## Reste à faire
 
-- Une limite d'appels par adresse sur les routes publiques (l'avis, le retour, l'espace) : avec le
-  frontal, avant la mise en ligne.
+- ~~Une limite d'appels par adresse sur les routes publiques~~ : faite à la brique 142
+  (`docs/mise-en-ligne.md`, A).
 - Flouci (vague 2), ClicToPay et e-Dinar (vague 4) : le même point de branchement.
 - La rotation de la clé du coffre (resceller les clés des entreprises).

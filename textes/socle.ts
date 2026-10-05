@@ -66,6 +66,8 @@ declarerTextes({
   'porte.session_de_caisse': 'cette session a été ouverte par un code de caisse : elle ne sert qu\'à la caisse. Pour ton compte, déconnecte-toi et reconnecte-toi avec ton mot de passe',
   'api.trop_d_appels': 'trop d\'appels avec cette clé : réessaie dans {secondes} secondes',
   'api.trop_d_appels_une': 'trop d\'appels avec cette clé : réessaie dans une seconde',
+  'porte.trop_de_demandes': 'trop de demandes depuis ta connexion : réessaie dans {secondes} secondes',
+  'porte.trop_de_demandes_une': 'trop de demandes depuis ta connexion : réessaie dans une seconde',
 
   // ── La documentation de l'API ───────────────────────────────────────────────────────────────
   'doc.public': 'sans connexion',

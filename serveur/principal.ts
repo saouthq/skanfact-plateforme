@@ -68,6 +68,9 @@ export type Configuration = {
   ttn: string | null; ttnMs: number; contratsMs: number;
   lectures: number;
   partenaires: Partenaire[];
+  // Combien de relais de confiance (le frontal) se tiennent devant le serveur (brique 142) : 0, le serveur est
+  // appelé en direct.
+  proxy: number;
 };
 
 export class ConfigurationFausse extends Error {}
@@ -85,6 +88,9 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     if (!(e instanceof CoffreFaux)) throw e;
     throw new ConfigurationFausse('SKANFACT_COFFRE : la clé du coffre fait 32 octets, écrits en base64 (openssl rand -base64 32)');
   }
+  // En production, le nombre de relais se dit toujours (même 0) : oublié derrière le frontal, chaque visiteur aurait
+  // l'adresse de la machine, que la limite par adresse ne compte pas (brique 142).
+  if (environnement === 'production' && env.SKANFACT_PROXY === undefined) throw new ConfigurationFausse('SKANFACT_PROXY manque : combien de relais de confiance (le frontal) se tiennent devant le serveur, 0 s\'il n\'y en a pas');
   const sms = env.SKANFACT_SMS ?? 'aucun';
   if (sms !== 'aucun') throw new ConfigurationFausse(`SKANFACT_SMS « ${sms} » : aucun fournisseur de SMS n'est encore branché`);
   if (environnement === 'production') throw new ConfigurationFausse('la production exige un fournisseur de SMS, qui n\'est pas encore choisi (03 § 6)');
@@ -102,6 +108,8 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   if (ttn && !/^https?:\/\//.test(ttn)) throw new ConfigurationFausse(`SKANFACT_TTN « ${ttn} » n'est pas une adresse`);
   const lectures = Number(env.SKANFACT_LECTURES ?? 2);
   if (!Number.isInteger(lectures) || lectures < 1 || lectures > 32) throw new ConfigurationFausse(`SKANFACT_LECTURES « ${env.SKANFACT_LECTURES} » : un nombre de lectures à la fois, de 1 à 32`);
+  const proxy = Number(env.SKANFACT_PROXY ?? 0);
+  if (!Number.isInteger(proxy) || proxy < 0 || proxy > 5) throw new ConfigurationFausse(`SKANFACT_PROXY « ${env.SKANFACT_PROXY} » : le nombre de relais de confiance devant le serveur, de 0 à 5`);
   let partenaires: Partenaire[];
   // Les partenaires déclarés (brique 133) : ceux du dépôt (serveur/partenaires.json : des adresses et des empreintes,
   // rien de secret), sauf si l'environnement en donne d'autres. Un serveur d'essai admet aussi un retour sur le poste.
@@ -116,7 +124,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     adresse, konnect, coffre, verificationMs: Number(env.SKANFACT_VERIFICATION_MS ?? 60_000),
     digigo: digigo ? { base: digigo, cle: env.SKANFACT_DIGIGO_CLE ?? '' } : null,
     ttn, ttnMs: Number(env.SKANFACT_TTN_MS ?? 60_000), contratsMs: Number(env.SKANFACT_CONTRATS_MS ?? 3_600_000),
-    lectures, partenaires,
+    lectures, partenaires, proxy,
   };
 }
 
@@ -177,7 +185,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   declarerGestesAchats();
   declarerGestesPaie();
   declarerGestesCompta();
-  const app = creerApp(ctx, [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx)]);
+  const app = creerApp(ctx, [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx)], { proxy: c.proxy });
   servirLesEcrans(app, c.web);
   const adresse = await app.listen({ port: c.port, host: c.hote });
   if (!publique) publique = adresse;

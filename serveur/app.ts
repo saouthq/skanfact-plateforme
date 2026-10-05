@@ -5,13 +5,13 @@
 //   - le travail se fait dans `enTantQue`, au nom de la personne connectée ;
 //   - un refus dit ce qui est refusé, pourquoi, et le bouton qui débloque (motif, qui, bouton).
 
-import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest, type FastifyServerOptions } from 'fastify';
 import { z, type ZodType } from 'zod';
 import { langueDe, motif, rendre, rendreTout, t, type Langue } from '../textes/index.ts';
 import { enTantQue, type Transaction } from './base.ts';
 import { texteDuRefus } from './erreurs.ts';
 import { cleValable } from './cles.ts';
-import { Limiteur } from './limites.ts';
+import { Limiteur, LIMITES_PAR_ADRESSE } from './limites.ts';
 import { jetonDUnAppareilRetire, quiEst, remisParCeJeton, type Contexte, type Qui } from './connexion.ts';
 import { choisirEncodage, compresser, compressible, SEUIL_COMPRESSION } from './compression.ts';
 import { GESTES, GESTES_PERSONNELS } from './porte/gestes.ts';
@@ -95,12 +95,22 @@ export function documentation(routes: Route<never>[]) {
   };
 }
 
-export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limiteur?: Limiteur } = {}): FastifyInstance {
+// Les adresses de la machine elle-même.
+const MACHINE = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+
+// `proxy` : combien de relais de confiance (le frontal) se tiennent devant le serveur. L'adresse de l'appelant se lit
+// alors dans ce qu'ils ajoutent (X-Forwarded-For) ; sans relais déclaré, elle ne s'y lit jamais : n'importe qui
+// pourrait y écrire l'adresse de son choix, et passer la limite par adresse.
+export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limiteur?: Limiteur; limiteurPublic?: Limiteur; proxy?: number } = {}): FastifyInstance {
   // Le démarrage échoue AVANT d'écouter si une seule route est mal déclarée.
   for (const r of routes) verifierDeclaration(r);
 
-  const app = Fastify({ logger: false });
+  // (Les `proxy` premiers relais en partant du serveur sont de confiance ; l'adresse lue est celle d'avant eux.)
+  const relais = options.proxy ?? 0;
+  const reglages: FastifyServerOptions = { logger: false, trustProxy: (_adresse: string, rang: number) => rang < relais };
+  const app = Fastify(reglages);
   const limiteur = options.limiteur ?? new Limiteur();
+  const limiteurPublic = options.limiteurPublic ?? new Limiteur(LIMITES_PAR_ADRESSE);
   // Un entier de 64 bits (un rang, un compteur) sort en texte : un nombre JSON au-delà de 2^53
   // perdrait ses derniers chiffres chez celui qui le lit. L'argent, lui, sort toujours en texte
   // décimal (versTexte), jamais en unités brutes.
@@ -156,6 +166,14 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
         const query = requete.query as Record<string, string>;
 
         if (r.geste === 'public') {
+          // La limite par adresse (brique 142), avant tout travail : un appel refusé ne coûte rien. La machine elle-même
+          // n'est pas limitée (ses outils, ses tests) : derrière le frontal déclaré, l'adresse lue est celle du visiteur,
+          // jamais celle de la machine.
+          const v = MACHINE.has(requete.ip) ? null : limiteurPublic.appel(requete.ip);
+          if (v && !v.permis) {
+            reponse.header('retry-after', String(v.attendreSecondes));
+            return envoyer(429, { motif: v.attendreSecondes === 1 ? motif('porte.trop_de_demandes_une') : motif('porte.trop_de_demandes', { secondes: v.attendreSecondes }), attendreSecondes: v.attendreSecondes });
+          }
           try {
             const res = await r.traiter({ corps: corps as never, params, query, qui: null, requete }, null);
             return envoyer(res.statut ?? 200, res.corps);

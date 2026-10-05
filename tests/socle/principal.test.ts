@@ -19,7 +19,7 @@ describe('le programme serveur', () => {
     // La production : jamais la clé d'essai du coffre ; puis, clé donnée, le fournisseur de SMS exigé.
     const coffre = Buffer.alloc(32, 7).toString('base64');
     expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'production' })).toThrow(/SKANFACT_COFFRE manque/);
-    expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'production', SKANFACT_COFFRE: coffre })).toThrow(/fournisseur de SMS/);
+    expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'production', SKANFACT_COFFRE: coffre, SKANFACT_PROXY: '1' })).toThrow(/fournisseur de SMS/);
     expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_COFFRE: 'trop-courte' })).toThrow(/32 octets/);
     expect(lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_COFFRE: coffre }).coffre).toEqual(Buffer.alloc(32, 7));
     expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_SMS: 'orange' })).toThrow(/aucun fournisseur/);

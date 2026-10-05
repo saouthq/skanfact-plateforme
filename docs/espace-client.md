@@ -112,5 +112,5 @@ le plafond de crédit, la langue et la devise d'un client ; l'identifiant intern
 - ~~Le lien dans l'e-mail et le WhatsApp~~ : fait à la brique 79 (E7).
 - **Le relevé de compte envoyé par e-mail** : il part sans le relevé (le message le dit) ; le lien du compte
   y aurait sa place, mais il montre le compte d'aujourd'hui, pas celui de la date du relevé.
-- **Une limite d'appels par adresse** sur les routes publiques (celle-ci comme l'entrée) : à poser avec
-  le frontal, avant la mise en ligne.
+- ~~Une limite d'appels par adresse sur les routes publiques~~ : faite à la brique 142
+  (`docs/mise-en-ligne.md`, A).
