@@ -111,12 +111,18 @@ jobs:
           PARTIE: ${{ matrix.groupe }}/6
 
   # Le contrôle éclair (quelques secondes) : chaque preuve vise un endroit qui existe une fois, pas une
-  # définition qu'une migration plus récente remplace ; le bilan reste à la fin de tests/preuves.sh.
+  # définition qu'une migration plus récente remplace ; le bilan reste à la fin de tests/preuves.sh ; un défaut
+  # posé dans un écran n'en casse pas la syntaxe (il lit l'écran avec le lecteur de la construction : d'où npm ci).
   preuves-eclair:
     name: Preuves (contrôle éclair)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
       - run: bash tests/verif-preuves.sh
 
   secrets:

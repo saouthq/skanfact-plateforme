@@ -87,7 +87,7 @@ for (let i = 0; i + 5 <= brut.length; i += 5) {
   }
 }
 EOF
-) || exit 2
+) || { echo "La syntaxe des écrans n'a pas pu être lue (les dépendances sont-elles installées ? npm ci)." >&2; exit 2; }
 python3 - "$ICI" "$liste" "$syntaxe" ${DETAIL:+detail} <<'EOF'
 import json, pathlib, re, sys
 from collections import Counter
