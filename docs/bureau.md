@@ -65,6 +65,32 @@ serveur : une imprimante est celle de ce comptoir.
 Code : `bureau/coque/principal.ts`, `bureau/coque/preload.cjs`. Test : `tests/bureau/coque.test.ts` (la vraie coque,
 une page « SkanFact » et une page étrangère, une fausse imprimante réseau).
 
-**À faire ensuite** : brancher la caisse de la v10 sur l'agent (le ticket part sans fenêtre d'impression, le tiroir
-s'ouvre sur un paiement en espèces, le réglage de l'imprimante dans les Paramètres) ; l'application **signée**
-(certificats Apple et Microsoft, `06` § 10) et ses mises à jour ; la clé USB de signature (PKCS#11).
+## C. La caisse imprime par l'agent (brique 138)
+
+Dans l'application de bureau seulement (dans un navigateur, la caisse reste celle de la v10, sans panneau) :
+
+**C1. À l'encaissement**, le ticket sort tout seul à l'imprimante du comptoir ; **payé en espèces, il ouvre le
+tiroir** ; par carte ou par chèque, non. L'image est le dessin de la v10 (`ticketHtml`), à la largeur du rouleau réglée
+dans « Caisse et tickets » (80 ou 58 mm). Sans imprimante réglée sur ce poste, l'encaissement ne tente rien et ne se
+plaint de rien (le ticket reste à l'écran, avec « Imprimer »).
+
+**C2. « Imprimer »** un ticket déjà encaissé le ressort par l'agent, **sans** ouvrir le tiroir ; sans imprimante
+réglée, c'est la fenêtre d'impression, comme avant.
+
+**C3. Un échec se dit en clair** : « Ticket encaissé, mais pas imprimé : l'imprimante de tickets ne répond pas :
+vérifie qu'elle est allumée et branchée, et son adresse (Paramètres → Documents → Imprimante de tickets). » Le ticket,
+lui, est encaissé : l'impression ne bloque jamais la vente.
+
+**C4. Le panneau « Imprimante de tickets »** (Paramètres → Documents, avant « Caisse et tickets ») : le branchement
+(réseau : adresse et port ; ou un port de ce poste), « Enregistrer » (une adresse oubliée est refusée, le champ est
+montré), « Imprimer un essai » (à la largeur du rouleau de l'entreprise, lue au moment du geste), « Ouvrir le
+tiroir », « Ne plus imprimer depuis ce poste ». Ce réglage est celui du **poste** : ses frappes ne proposent pas
+d'« Enregistrer » les Paramètres de l'entreprise (défaut trouvé à l'écran, le 05/10/2026, et corrigé).
+
+Code : `web/public/plateforme/pont.js` (le point de contact), `web/v10/bureau.txt` (les adaptations de la v10). Test :
+`tests/bureau/caisse-bureau.test.ts` (la vraie coque sur le vrai serveur ; l'image du ticket reçu se garde dans
+`dist/photos` pour être regardée : regardée le 05/10/2026, le ticket est celui de l'écran, accents et montants compris).
+
+**À faire ensuite** : l'application **signée** (certificats Apple et Microsoft, `06` § 10) et ses mises à jour ; la
+clé USB de signature (PKCS#11) ; la douchette se branche comme un clavier et marche déjà (le champ de la caisse a le
+curseur).

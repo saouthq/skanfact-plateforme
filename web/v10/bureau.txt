@@ -1,0 +1,58 @@
+L'application de bureau : la caisse imprime par l'agent local (brique 138 ; web/public/plateforme/pont.js ; docs/bureau.md, C).
+Format : voir sans-paquets.mjs.
+
+Dans l'application de bureau, le point de contact sait imprimer par l'agent local : le ticket encaissé sort tout seul à
+l'imprimante de tickets du comptoir, et le tiroir s'ouvre quand le client paie en espèces ; le panneau « Imprimante de
+tickets » règle l'imprimante de CE poste. Dans un navigateur, le point de contact ne sait rien de tout cela : la caisse
+reste celle de la v10.
+
+── Le panneau (app.js) ──
+
+== app.js | le point de contact lit la fiche de l'entreprise au moment du geste (la largeur du rouleau pour l'essai d'impression)
+-- avant
+  const company = () => data.company;
+-- après
+  const company = () => data.company;
+  // (plateforme, brique 138) Le point de contact lit la fiche de l'entreprise telle qu'elle est maintenant.
+  window.__societe = () => company();
+-- fin
+
+== app.js | le panneau « Imprimante de tickets » a son entrée (onglet Documents, recherche des réglages), seulement dans l'application de bureau
+-- avant
+    'p-caisse': { onglet: 'documents', titre: 'Caisse et tickets', mots: 'caisse ticket comptoir imprimante thermique 80 mm 58 mm papier timbre message douchette' },
+-- après
+    'p-caisse': { onglet: 'documents', titre: 'Caisse et tickets', mots: 'caisse ticket comptoir imprimante thermique 80 mm 58 mm papier timbre message douchette' },
+    'p-imprimante': { onglet: 'documents', titre: 'Imprimante de tickets', mots: 'imprimante ticket thermique tiroir caisse reseau port usb essai bureau', visible: () => !!bridge.dessinerImprimante },
+-- fin
+
+== app.js | le panneau « Imprimante de tickets » se pose avant « Caisse et tickets »
+-- avant
+        ${panneau('p-caisse')}
+-- après
+        ${bridge.dessinerImprimante ? `${panneau('p-imprimante')}<div id="imprimante-panel"></div></div>` : ''}
+        ${panneau('p-caisse')}
+-- fin
+
+== app.js | le point de contact dessine le panneau quand les Paramètres s'ouvrent
+-- avant
+    if (bridge.dessinerTtn && $('#ttn-panel')) void bridge.dessinerTtn($('#ttn-panel'));
+-- après
+    if (bridge.dessinerTtn && $('#ttn-panel')) void bridge.dessinerTtn($('#ttn-panel'));
+    if (bridge.dessinerImprimante && $('#imprimante-panel')) void bridge.dessinerImprimante($('#imprimante-panel'));
+-- fin
+
+── L'encaissement (app.js) ──
+
+== app.js | le ticket encaissé sort tout seul à l'imprimante du comptoir ; des espèces ouvrent le tiroir
+-- avant
+          bridge.encaisser(t, C.computeTotals(t, company()).netToPay, code ? { responsable: code } : undefined).then(e => {
+            data.documents.push(e);
+-- après
+          bridge.encaisser(t, C.computeTotals(t, company()).netToPay, code ? { responsable: code } : undefined).then(e => {
+            data.documents.push(e);
+            // (plateforme, brique 138) L'application de bureau imprime le ticket encaissé, et ouvre le tiroir pour des espèces.
+            if (bridge.ticketEncaisse) {
+              Promise.resolve(bridge.ticketEncaisse(C.ticketHtml(e, company(), { clientName: e.clientId ? clientName(e.clientId) : '', exemple: C.estDemo(data) }),
+                company().caisseLargeur, !!(e.caisse && e.caisse.mode === 'especes'))).then(r => { if (r && !r.ok && r.raison) toast(r.raison, true); }, x => toast(plainError(x), true));
+            }
+-- fin

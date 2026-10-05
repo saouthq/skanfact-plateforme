@@ -501,6 +501,8 @@
   const clientById = id => data.clients.find(c => c.id === id) || null;
   const docById = id => data.documents.find(d => d.id === id) || null;
   const company = () => data.company;
+  // (plateforme, brique 138) Le point de contact lit la fiche de l'entreprise telle qu'elle est maintenant.
+  window.__societe = () => company();
   const clientName = id => (clientById(id) || {}).name || '—';
   const effStatus = doc => C.effectiveStatus(doc, data, data.company);
   const balance = doc => C.invoiceBalance(doc, data, data.company);
@@ -8226,6 +8228,7 @@
     'p-efacture': { onglet: 'documents', titre: 'Facture électronique (El Fatoora)', mots: 'facture electronique el fatoora ttn teif xml signature soumis obligation matricule', visible: () => !!bridge.teifDuServeur },
     'p-paiement': { onglet: 'documents', titre: 'Paiement en ligne', mots: 'paiement en ligne konnect carte portefeuille payer client espace lien encaisser', visible: () => !!bridge.dessinerPaiement },
     'p-caisse': { onglet: 'documents', titre: 'Caisse et tickets', mots: 'caisse ticket comptoir imprimante thermique 80 mm 58 mm papier timbre message douchette' },
+    'p-imprimante': { onglet: 'documents', titre: 'Imprimante de tickets', mots: 'imprimante ticket thermique tiroir caisse reseau port usb essai bureau', visible: () => !!bridge.dessinerImprimante },
     'p-envoi': { onglet: 'envois', titre: 'Envoi des emails', mots: 'mail messagerie apple mailto envoyer piece jointe' },
     'p-comptable': { onglet: 'envois', titre: 'Ton comptable', mots: 'comptable email adresse envoyer journaux' },
     'p-modeles': { onglet: 'envois', titre: 'Modèles de messages', mots: 'modele message objet relance rappel email gabarit variables' },
@@ -12711,6 +12714,11 @@
           data.counters = JSON.parse(compteurs); t.number = '';
           bridge.encaisser(t, C.computeTotals(t, company()).netToPay, code ? { responsable: code } : undefined).then(e => {
             data.documents.push(e);
+            // (plateforme, brique 138) L'application de bureau imprime le ticket encaissé, et ouvre le tiroir pour des espèces.
+            if (bridge.ticketEncaisse) {
+              Promise.resolve(bridge.ticketEncaisse(C.ticketHtml(e, company(), { clientName: e.clientId ? clientName(e.clientId) : '', exemple: C.estDemo(data) }),
+                company().caisseLargeur, !!(e.caisse && e.caisse.mode === 'especes'))).then(r => { if (r && !r.ok && r.raison) toast(r.raison, true); }, x => toast(plainError(x), true));
+            }
             s.panier = []; s.recu = ''; s.clientId = ''; s.remise = ''; s.dernierId = e.id;
             const rendu = e.caisse && e.caisse.rendu ? ` — à rendre ${C.money(e.caisse.rendu, cur)}` : '';
             toast(`Ticket ${e.number} encaissé${e.caisseHorsLigne ? ' sans réseau (il partira au serveur au retour du réseau)' : ''}${rendu}`);
@@ -16741,6 +16749,7 @@
           <label class="check"><input type="checkbox" name="efacture" ${c.efacture ? 'checked' : ''}> Mon entreprise est soumise à la facture électronique</label>
           <p class="small muted mt">SkanFact écrit le fichier TEIF de chaque facture et de chaque avoir à l'émission, avec les montants de la pièce. Soumise, ton entreprise ne peut pas émettre une pièce dont le fichier serait refusé (ton matricule, l'identifiant du client) : SkanFact le dit avant de prendre le numéro, avec le bouton qui corrige. Chaque pièce émise se signe ensuite avec DigiGo (« Signer (DigiGo)… », dans son menu « Plus ») ; signée, elle part d'elle-même à la TTN, avec le compte El Fatoora de l'entreprise. Qui est soumis, et depuis quand : À VÉRIFIER avec ton comptable (loi de finances 2026, art. 53).</p>${bridge.dessinerSignataire ? '<div id="signataire-panel"></div>' : ''}${bridge.dessinerTtn ? '<div id="ttn-panel"></div>' : ''}</div>` : ''}
         ${bridge.dessinerPaiement ? `${panneau('p-paiement')}<div id="paiement-panel"></div></div>` : ''}
+        ${bridge.dessinerImprimante ? `${panneau('p-imprimante')}<div id="imprimante-panel"></div></div>` : ''}
         ${panneau('p-caisse')}
           <p class="small muted mb">Ces réglages ne servent qu'aux tickets de la page Caisse : tes devis et tes factures n'en dépendent pas.</p>
           <div class="grid-2">
@@ -17157,6 +17166,7 @@
     if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));
     if (bridge.dessinerSignataire && $('#signataire-panel')) void bridge.dessinerSignataire($('#signataire-panel'));
     if (bridge.dessinerTtn && $('#ttn-panel')) void bridge.dessinerTtn($('#ttn-panel'));
+    if (bridge.dessinerImprimante && $('#imprimante-panel')) void bridge.dessinerImprimante($('#imprimante-panel'));
     drawLicencePanel();
     drawEditeurPanel();
     drawUpdatePanel();

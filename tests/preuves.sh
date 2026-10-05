@@ -7346,6 +7346,47 @@ prouver "les jours dits à l'heure du navigateur, pas de Tunis" web/public/plate
 prouver "SkanEcom jamais déclaré par défaut" serveur/principal.ts \
   "lirePartenaires(env.SKANFACT_PARTENAIRES ?? fs.readFileSync(path.join(ici, 'partenaires.json'), 'utf8'), { essai" "lirePartenaires(env.SKANFACT_PARTENAIRES, { essai" \
   "SkanEcom est déclaré dans le dépôt : son adresse de retour, l'empreinte de son secret, ses gestes"
+# Brique 138 : la caisse imprime par l'agent local (docs/bureau.md, C).
+TB="Nadia règle l'imprimante de son comptoir, encaisse en espèces (ticket et tiroir) puis par carte (ticket seul)"
+prouver "le tiroir s'ouvre pour un ticket payé par carte" web/public/v10/app.js \
+  "company().caisseLargeur, !!(e.caisse && e.caisse.mode === 'especes')))" "company().caisseLargeur, true))" \
+  "$TB"
+prouver "le ticket encaissé ne sort pas tout seul" web/public/v10/app.js \
+  "            if (bridge.ticketEncaisse) {" "            if (bridge.ticketEncaisse && false) {" \
+  "$TB"
+prouver "réimprimer un ticket ouvre le tiroir" web/public/plateforme/pont.js \
+  "const r = await bureau.imprimerTicket(html, rouleau(largeur), { tiroir: false });" "const r = await bureau.imprimerTicket(html, rouleau(largeur), { tiroir: true });" \
+  "$TB"
+prouver "sans imprimante, chaque encaissement se plaint" web/public/plateforme/pont.js \
+  "    if (!(await bureau.imprimante())) return { ok: true };
+" "" \
+  "$TB"
+prouver "l'échec d'impression dit un code au lieu d'une phrase" web/public/plateforme/pont.js \
+  "{ ok: false, raison: \`Ticket encaissé, mais pas imprimé : \${phraseImprimante(r.raison)}.\` }" "{ ok: false, raison: r.raison }" \
+  "$TB"
+prouver "le réglage de l'imprimante propose d'enregistrer les Paramètres" web/public/plateforme/pont.js \
+  "      for (const t of ['input', 'change']) el.addEventListener(t, (ev) => ev.stopPropagation());
+    }
+    /** @param {string} s */
+    const champ = (s) => /** @type {HTMLInputElement} */ (el.querySelector(s));" "    }
+    /** @param {string} s */
+    const champ = (s) => /** @type {HTMLInputElement} */ (el.querySelector(s));" \
+  "$TB"
+prouver "l'imprimante proposée dans un navigateur" web/public/plateforme/pont.js \
+  "...(/** @type {any} */ (window).skanfactBureau ? { dessinerImprimante, imprimerTicket: imprimerParAgent, ticketEncaisse } : {})," "...({ dessinerImprimante, imprimerTicket: imprimerParAgent, ticketEncaisse })," \
+  "$TB"
+prouver "l'essai ignore la largeur du rouleau" web/public/plateforme/pont.js \
+  "const largeurCaisse = () => rouleau((/** @type {any} */ (window).__societe?.() ?? {}).caisseLargeur);" "const largeurCaisse = () => 80;" \
+  "$TB"
+prouver "une adresse oubliée ne montre pas son champ" web/public/plateforme/pont.js \
+  "        champ(r.branchement === 'port' ? '#imp-chemin' : (r.hote ? '#imp-port' : '#imp-hote')).focus();
+" "" \
+  "$TB"
+prouver "le panneau de l'imprimante jamais posé" web/public/v10/app.js \
+  "        \${bridge.dessinerImprimante ? \`\${panneau('p-imprimante')}<div id=\"imprimante-panel\"></div></div>\` : ''}
+" "" \
+  "$TB"
+
 # Brique 137 : la coque de bureau (docs/bureau.md, B).
 CI="la page de SkanFact imprime un ticket entier, à la largeur du rouleau, puis la coupe et le tiroir quand on le demande"
 CA="la fenêtre reste chez SkanFact ; une page d'ailleurs n'obtient rien de l'agent"

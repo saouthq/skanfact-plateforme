@@ -655,6 +655,8 @@
     dessinerQuarantaine,
     dessinerPaiement,
     dessinerServices,
+    // L'application de bureau (brique 138) : l'impression par l'agent local, seulement quand il est là.
+    ...(/** @type {any} */ (window).skanfactBureau ? { dessinerImprimante, imprimerTicket: imprimerParAgent, ticketEncaisse } : {}),
     lienClient,
     ajouterLien,
     sansPieceJointe,
@@ -1102,6 +1104,118 @@
           dire(`« ${k ? k.nom : ''} » n'a plus accès à ton entreprise.`);
         } catch (x) { bouton.removeAttribute('disabled'); dire(x); }
       };
+    });
+  }
+  // ── L'application de bureau (brique 138 ; docs/bureau.md, C) : avec l'agent local, le ticket part droit à
+  // l'imprimante de tickets, sans fenêtre d'impression ; un ticket payé en espèces ouvre le tiroir. Dans un
+  // navigateur (pas d'agent), rien ne change. Un échec se dit en clair, avec ce qu'il faut vérifier.
+  const bureau = /** @type {any} */ (window).skanfactBureau;
+  const VERS_REGLAGE = 'Paramètres → Documents → Imprimante de tickets';
+  /** @type {Record<string, string>} */
+  const RAISONS_IMPRIMANTE = {
+    injoignable: `l'imprimante de tickets ne répond pas : vérifie qu'elle est allumée et branchée, et son adresse (${VERS_REGLAGE})`,
+    trop_lente: 'l\'imprimante de tickets n\'a pas pris le ticket : vérifie le papier et le capot, puis réessaie',
+    chemin_inconnu: `le port de l'imprimante de tickets n'existe pas sur ce poste : vérifie son câble et le port réglé (${VERS_REGLAGE})`,
+    refusee: `ce poste ne peut pas écrire sur le port de l'imprimante de tickets : vérifie le port réglé (${VERS_REGLAGE})`,
+    sans_imprimante: `aucune imprimante de tickets n'est réglée sur ce poste (${VERS_REGLAGE})`,
+  };
+  /** @param {string} r */
+  const phraseImprimante = (r) => RAISONS_IMPRIMANTE[r] ?? 'l\'imprimante de tickets n\'a pas répondu comme prévu : réessaie';
+  /** @param {unknown} l */
+  const rouleau = (l) => (Number(l) === 58 ? 58 : 80);
+  // La largeur du rouleau : le réglage « Caisse et tickets » de l'entreprise, lu au moment du geste.
+  const largeurCaisse = () => rouleau((/** @type {any} */ (window).__societe?.() ?? {}).caisseLargeur);
+  // « Imprimer » un ticket déjà encaissé : par l'agent ; sans imprimante réglée, la fenêtre d'impression, comme avant.
+  /** @param {string} html @param {unknown} largeur */
+  async function imprimerParAgent(html, largeur) {
+    const r = await bureau.imprimerTicket(html, rouleau(largeur), { tiroir: false });
+    if (r.ok) return { ok: true };
+    if (r.raison !== 'sans_imprimante') return { ok: false, raison: phraseImprimante(r.raison) };
+    const w = window.open('', '_blank');
+    if (!w) return { ok: false, raison: phraseImprimante('sans_imprimante') };
+    w.document.write(html); w.document.close(); w.print();
+    return { ok: true };
+  }
+  // Un ticket vient d'être encaissé : il sort tout seul, et le tiroir s'ouvre pour des espèces. Sans imprimante
+  // réglée sur ce poste, rien (le ticket reste à l'écran, avec « Imprimer »).
+  /** @param {string} html @param {unknown} largeur @param {boolean} especes */
+  async function ticketEncaisse(html, largeur, especes) {
+    if (!(await bureau.imprimante())) return { ok: true };
+    const r = await bureau.imprimerTicket(html, rouleau(largeur), { tiroir: especes === true });
+    return r.ok ? { ok: true } : { ok: false, raison: `Ticket encaissé, mais pas imprimé : ${phraseImprimante(r.raison)}.` };
+  }
+  /** @param {number} l */
+  const ticketDEssai = (l) => `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>@page { size: ${l}mm auto; margin: 0 }
+    html, body { margin: 0; background: #fff; color: #000 } body { width: ${l}mm; padding: 4mm 3.5mm 6mm; box-sizing: border-box;
+    font: 12px/1.45 Arial, sans-serif; text-align: center } b { font-size: 16px }</style></head><body>
+    <b>SkanFact</b><br>Essai d'impression<br>le ${esc(quand(new Date().toISOString()))}
+    <br><br>Rouleau de ${l} mm.<br>Si ce ticket se lit en entier, de bord à bord, l'imprimante est bien réglée.</body></html>`;
+  // Le panneau « Imprimante de tickets » : le réglage de CE poste (il reste sur le poste, jamais sur le serveur).
+  /** @param {HTMLElement} el */
+  async function dessinerImprimante(el) {
+    const reglee = await bureau.imprimante();
+    const parPort = reglee && reglee.branchement === 'port';
+    el.innerHTML = `<p class="small muted mb">L'imprimante de tickets de ce comptoir : le ticket encaissé sort tout seul, et le tiroir-caisse (branché sur l'imprimante) s'ouvre quand le client paie en espèces. Ce réglage reste sur ce poste.</p>
+      <div class="grid-2">
+        <label class="field">Branchement<select id="imp-branchement"><option value="reseau">Par le réseau (adresse IP de l'imprimante)</option><option value="port"${parPort ? ' selected' : ''}>Par un port de ce poste (câble USB)</option></select></label>
+        <label class="field" id="imp-champ-hote"${parPort ? ' hidden' : ''}>Adresse de l'imprimante<input type="text" id="imp-hote" placeholder="192.168.1.50" value="${esc(reglee && reglee.hote ? reglee.hote : '')}"></label>
+        <label class="field" id="imp-champ-port"${parPort ? ' hidden' : ''}>Port réseau<input type="text" inputmode="numeric" id="imp-port" value="${esc(String(reglee && reglee.port ? reglee.port : 9100))}"></label>
+        <label class="field" id="imp-champ-chemin"${parPort ? '' : ' hidden'}>Port de ce poste<input type="text" id="imp-chemin" placeholder="/dev/usb/lp0" value="${esc(reglee && reglee.chemin ? reglee.chemin : '')}"></label>
+      </div>
+      <div class="row gap">
+        <button type="button" class="btn btn-primary" id="imp-enregistrer">Enregistrer</button>
+        <button type="button" class="btn" id="imp-essai">Imprimer un essai</button>
+        <button type="button" class="btn" id="imp-tiroir">Ouvrir le tiroir</button>
+        ${reglee ? '<button type="button" class="btn btn-sm" id="imp-oublier">Ne plus imprimer depuis ce poste</button>' : ''}
+      </div>
+      <p class="small" role="alert">${reglee ? '' : 'Aucune imprimante de tickets n\'est réglée sur ce poste : les tickets s\'impriment par la fenêtre d\'impression.'}</p>`;
+    // Ce réglage est celui du poste, pas des Paramètres de l'entreprise : ses frappes ne remontent pas (elles ne
+    // proposent pas « Enregistrer » les Paramètres, et n'empêchent pas d'en sortir).
+    if (!el.dataset.horsReglages) {
+      el.dataset.horsReglages = '1';
+      for (const t of ['input', 'change']) el.addEventListener(t, (ev) => ev.stopPropagation());
+    }
+    /** @param {string} s */
+    const champ = (s) => /** @type {HTMLInputElement} */ (el.querySelector(s));
+    /** @param {string} x */
+    const dire = (x) => { const a = el.querySelector('[role=alert]'); if (a) a.textContent = x; };
+    const branchement = champ('#imp-branchement');
+    branchement.onchange = () => {
+      const port = branchement.value === 'port';
+      for (const s of ['#imp-champ-hote', '#imp-champ-port']) /** @type {HTMLElement} */ (el.querySelector(s)).hidden = port;
+      /** @type {HTMLElement} */ (el.querySelector('#imp-champ-chemin')).hidden = !port;
+    };
+    /** @param {string} s @param {() => Promise<void>} f */
+    const geste = (s, f) => {
+      const b = /** @type {HTMLButtonElement | null} */ (el.querySelector(s));
+      if (b) b.onclick = async () => { b.disabled = true; try { await f(); } finally { b.disabled = false; } };
+    };
+    geste('#imp-enregistrer', async () => {
+      const r = branchement.value === 'port'
+        ? { branchement: 'port', chemin: champ('#imp-chemin').value.trim() }
+        : { branchement: 'reseau', hote: champ('#imp-hote').value.trim(), port: Number(champ('#imp-port').value.trim() || 9100) };
+      const res = await bureau.reglerImprimante(r);
+      if (!res.ok) {
+        champ(r.branchement === 'port' ? '#imp-chemin' : (r.hote ? '#imp-port' : '#imp-hote')).focus();
+        dire(r.branchement === 'port' ? 'Le port de ce poste manque : écris le chemin de l\'imprimante (par exemple /dev/usb/lp0).'
+          : 'L\'adresse de l\'imprimante manque, ou le port réseau n\'est pas un nombre de 1 à 65535.');
+        return;
+      }
+      await dessinerImprimante(el);
+      dire('Imprimante enregistrée sur ce poste. Imprime un essai pour vérifier qu\'elle répond.');
+    });
+    geste('#imp-essai', async () => {
+      const l = largeurCaisse();
+      const r = await bureau.imprimerTicket(ticketDEssai(l), l, { tiroir: false });
+      dire(r.ok ? `L'essai est parti à l'imprimante (rouleau de ${l} mm) : s'il est sorti entier, de bord à bord, c'est réglé.` : `L'essai n'est pas parti : ${phraseImprimante(r.raison)}.`);
+    });
+    geste('#imp-tiroir', async () => {
+      const r = await bureau.ouvrirTiroir();
+      dire(r.ok ? 'L\'impulsion du tiroir est partie à l\'imprimante.' : `Le tiroir n'a pas reçu l'impulsion : ${phraseImprimante(r.raison)}.`);
+    });
+    geste('#imp-oublier', async () => {
+      await bureau.reglerImprimante(null);
+      await dessinerImprimante(el);
     });
   }
   // ── Le paiement en ligne (brique 78 ; docs/paiement-en-ligne.md) ────────────────────────────────

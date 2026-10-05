@@ -35,7 +35,8 @@ const serveur = async (pages: Record<string, string>) => {
 };
 const imprimante = async () => {
   const recus: Buffer[][] = [];
-  const s = net.createServer((c) => { const r: Buffer[] = []; recus.push(r); c.on('data', (d) => r.push(d)); });
+  // Un envoi compte quand l'agent a fini de l'envoyer (connexion fermée).
+  const s = net.createServer((c) => { const r: Buffer[] = []; c.on('data', (d) => r.push(d)); c.on('end', () => recus.push(r)); });
   await new Promise<void>((ok) => s.listen(0, '127.0.0.1', ok));
   return { port: (s.address() as net.AddressInfo).port, envoi: (i: number) => Buffer.concat(recus[i] ?? []), combien: () => recus.length, fermer: () => s.close() };
 };
