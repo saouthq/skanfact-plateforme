@@ -17,6 +17,7 @@ import { build } from 'vite';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
+import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -150,7 +151,10 @@ describe('le Cabinet, à la souris', () => {
     await p.getByRole('button', { name: 'Créer mon cabinet', exact: true }).click();
     // L'associé supervise des livres : le code du téléphone d'abord.
     await p.getByRole('button', { name: 'Mettre en place le code', exact: true }).click();
-    await p.getByRole('button', { name: 'J\'ai noté mes codes', exact: true }).click();
+    // Le téléphone de Nadia donne le code de la clé affichée (brique 145 : le premier code se vérifie avant de partir).
+    const cle = (await p.locator('.code-cle').innerText()).replace(/\s/g, '');
+    await p.locator('label.field').filter({ hasText: 'Le code que montre l\'application' }).locator('input').fill(codeTotp(depuisBase32(cle), Date.now()));
+    await p.getByRole('button', { name: 'Vérifier et continuer', exact: true }).click();
     await p.waitForURL(/\/v10\/cabinet\/\?c=[0-9a-f-]{36}/, { timeout: 15_000 });
     const cabinet = new URL(p.url()).searchParams.get('c');
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
