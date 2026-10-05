@@ -129,8 +129,9 @@
     serveur (numéro de la série FAC, net à payer vérifié au millime de l'écran, pièce scellée).
     Ce qui n'existe pas encore en ligne se refuse avec sa phrase (`pasEncore`) ; les panneaux des
     Paramètres sans objet (sauvegardes du disque, mot de passe du fichier, licence…) sont cachés
-    (`panneauxAbsents`) ; « Voir un exemple » ouvre l'entreprise d'essai, jamais des pièces
-    inventées dans une vraie. L'inventaire des ~240 fonctions du pont (entreprise et Cabinet) et
+    (`panneauxAbsents`), et les visites de « Guide-moi » sans objet en ligne aussi (`visitesAbsentes`) ; « Voir un
+    exemple » ouvre l'entreprise d'essai, que le serveur remplit une fois de l'exemple de cinq ans de la v10 (ses
+    factures émises par lui ; `docs/exemple.md`), jamais des pièces inventées dans une vraie. L'inventaire des ~240 fonctions du pont (entreprise et Cabinet) et
     leur état : `docs/pont-v10.md`.
     Deux postes sur le même dossier (brique 112, `docs/pont-v10.md` § 4 bis) : chaque objet part avec la
     révision que la PAGE a eue (`base`), pas avec la dernière lecture du serveur : un objet qu'elle n'a jamais
@@ -377,7 +378,8 @@
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se
     regardent.
 - L'entreprise d'essai des développeurs (`0009`, 28/09/2026, par délégation) : une par personne,
-  trois clients d'exemple, essai pour toujours ; depuis `0011`, ses factures suivent la série
+  trois clients d'exemple, essai pour toujours ; « Commencer la découverte » la remplit de l'exemple de cinq ans
+  (05/10/2026, `docs/exemple.md` : une fois, jamais si elle a déjà ses propres pièces) ; depuis `0011`, ses factures suivent la série
   « FAC » de la v10 (l'écran de la v10 annonce ce préfixe). À respecter plus tard : jamais facturée
   par l'abonnement, jamais transmise à la TTN, « ESSAI » sur chaque document.
 - **La mise en ligne** (briques 142-143, `docs/mise-en-ligne.md`, 05/10/2026) : le serveur d'essai est un VPS OVH en

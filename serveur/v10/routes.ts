@@ -16,6 +16,7 @@ import { tracer } from '../trace.ts';
 import { accordRemiseDeLaPiece, commandeDuServeur, depassementDuServeur, estResponsable, remiseDuServeur } from './accords.ts';
 import { avecSesTickets, filtrer, mesRoles } from './droits.ts';
 import { appliquer, Conflit, emettreDepuisV10, lireDepuis, lireDossier, marqueDeLecture, PARTIES_A_AUTEUR, type Changement } from './dossier.ts';
+import { verserExemple } from './exemple.ts';
 import { nombreEnTexte } from './lecture.ts';
 import { etatDeNumerotation, sessionOuverte } from '../caisse/routes.ts';
 import { empreinteDuPoste, PREMIERE, ticketDuPoste } from '../caisse/chaine.ts';
@@ -76,6 +77,16 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     traiter: async ({ params, corps, qui }, tx) => {
       if (!tx || !qui) throw new Error('transaction attendue');
       return { corps: { revisions: await appliquer(tx, params.entreprise ?? '', qui.utilisateur, corps.changements as Changement[]) } };
+    },
+  });
+
+  // L'exemple de la v10, versé par le serveur dans l'entreprise d'essai, une fois (retour de Skander, 05/10/2026 ;
+  // serveur/v10/exemple.ts) : « Voir un exemple rempli » et la découverte y mènent.
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/exemple', geste: 'socle.dossier.modifier',
+    traiter: async ({ params, qui }, tx) => {
+      if (!tx || !qui) throw new Error('transaction attendue');
+      return { corps: await verserExemple(tx, params.entreprise ?? '', qui.utilisateur, aujourdhuiATunis()) };
     },
   });
 

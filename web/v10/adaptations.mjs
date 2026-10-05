@@ -392,12 +392,33 @@ export const ADAPTATIONS = [
   // La v10 remplaçait les données du dossier par un jeu d'exemple, après une sauvegarde sur le disque,
   // et « Quitter l'exemple » les rendait. Sur le serveur, il n'y a pas cette sauvegarde : quitter
   // l'exemple effacerait tout, et des pièces inventées entreraient dans une vraie entreprise.
-  // L'exemple de la plateforme est l'entreprise d'essai, à part : le pont y mène.
+  // L'exemple de la plateforme est l'entreprise d'essai, à part : le pont y mène, et le serveur la remplit du jeu de
+  // la v10 la première fois (retour de Skander, 05/10/2026 : elle n'avait que trois clients ; exemple.txt). Une attente
+  // dit ce qui se passe pendant ce temps (une minute). `visite` : la visite à lancer une fois l'exemple là.
   {
     fichier: 'app.js',
-    pourquoi: '« Voir un exemple » ouvre l\'entreprise d\'essai, au lieu d\'écrire des pièces inventées dans l\'entreprise ouverte',
+    pourquoi: '« Voir un exemple » ouvre l\'entreprise d\'essai, remplie de l\'exemple par le serveur, au lieu d\'écrire des pièces inventées dans l\'entreprise ouverte',
     avant: "  async function loadDemo() {\n",
-    apres: "  async function loadDemo() {\n    if (bridge.exemple) {\n      try { const r = await bridge.exemple(); if (r && r.motif) await infoDialog('L\\'exemple', r.motif); }\n      catch (e) { toast(plainError(e), true); }\n      return false;\n    }\n",
+    apres: [
+      "  function attenteExemple() {",
+      "    let fermer = () => {};",
+      "    modal(`<h2>L'exemple se prépare</h2>",
+      "      <p>Cinq ans d'une entreprise inventée : ses clients, ses devis, des centaines de factures émises et numérotées par le serveur, leurs règlements, les achats, la paie.</p>",
+      "      <p class=\"small muted attente-exemple\" role=\"status\"><span class=\"attente-roue\" aria-hidden=\"true\"></span>Compte une minute : la page s'ouvre toute seule sur l'exemple. Laisse-la ouverte.</p>`, (root, close) => { fermer = close; });",
+      "    return () => fermer();",
+      "  }",
+      "  async function loadDemo(visite) {",
+      "    if (bridge.exemple) {",
+      "      let fin = null;",
+      "      try {",
+      "        const r = await bridge.exemple({ visite: typeof visite === 'string' ? visite : '', attendre: () => (fin = attenteExemple()) });",
+      "        if (r && r.motif) await infoDialog('L\\'exemple', r.motif);",
+      "        return !!(r && r.pret);",
+      "      } catch (e) { if (fin) fin(); toast(plainError(e), true); }",
+      "      return false;",
+      "    }",
+      "",
+    ].join('\n'),
   },
   // ── Les panneaux sans objet sur la plateforme ──
   // Le pont les cache (sauvegardes du disque, copie externe, mot de passe du fichier, licence, mises à
@@ -691,4 +712,6 @@ export const ADAPTATIONS = [
   ...lireFichier('caisse-tactile.txt'),
   // ── Le lot achats (05/10/2026 ; le parcours d'un commerçant, docs/achats.md) ──
   ...lireFichier('achats-lot.txt'),
+  // ── L'exemple rempli et « Faire une facture » (retour de Skander, 05/10/2026 ; docs/exemple.md) ──
+  ...lireFichier('exemple.txt'),
 ];

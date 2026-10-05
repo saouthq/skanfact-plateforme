@@ -1,7 +1,7 @@
 // Le parcours joué comme une personne (règle du projet : rien ne s'annonce avant d'avoir été refait à
 // la souris et vu à l'écran), de bout en bout : créer son compte (un mot de passe trop court se
-// refuse sur son champ) et s'y retrouver connecté, choisir la découverte sur la porte,
-// poser le code du téléphone ; puis, dans l'application v10 servie par la plateforme : une facture
+// refuse sur son champ) et s'y retrouver connecté, commencer avec son entreprise sur la porte (la découverte
+// sur l'exemple a son parcours : tests/web/exemple.test.ts), poser le code du téléphone ; puis, dans l'application v10 servie par la plateforme : une facture
 // pour un client créé depuis l'éditeur, émise par le serveur (le numéro de sa série, le même net à
 // payer à l'écran et au serveur), retrouvée après rechargement ; se déconnecter par le menu du haut,
 // et revenir d'un autre appareil (un mauvais mot de passe d'abord) avec le code à six chiffres. Chaque bouton est trouvé par ce qu'il
@@ -83,9 +83,13 @@ describe('le parcours, à la souris', () => {
 
     // Le compte créé, on est connecté tout de suite : rien à retaper (vu le 05/10/2026 sur le vrai serveur).
 
-    // La porte : la découverte ; le rôle de propriétaire exige alors le code du téléphone, d'abord.
+    // La porte : « Commencer avec mon entreprise » ; le rôle de propriétaire exige alors le code du téléphone, d'abord.
     await ecran(p, 'ecran.porte.titre');
-    await bouton(p, 'ecran.porte.essai_bouton').click();
+    await bouton(p, 'ecran.porte.demarrer_titre').click();
+    await ecran(p, 'ecran.porte.entreprise_titre');
+    await champ(p, 'ecran.porte.raison').fill('Épicerie Sami Gharbi');
+    await champ(p, 'ecran.porte.matricule').fill('1234567A/A/M/000');
+    await bouton(p, 'ecran.porte.creer').click();
     await ecran(p, 'ecran.code_requis.titre');
     await bouton(p, 'ecran.code_requis.bouton').click();
     await ecran(p, 'ecran.code_pose.titre');
@@ -119,7 +123,7 @@ describe('le parcours, à la souris', () => {
     await champCode.fill(codeTotp(depuisBase32(secret), Date.now()));
     await bouton(p, 'ecran.code_pose.bouton').click();
 
-    // L'application v10 de l'entreprise d'essai s'ouvre.
+    // L'application v10 de l'entreprise s'ouvre.
     await p.waitForURL(/\/v10\/\?e=[0-9a-f-]{36}/, { timeout: 15_000 });
     const ent = new URL(p.url()).searchParams.get('e') ?? '';
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
@@ -260,7 +264,8 @@ describe('le parcours, à la souris', () => {
     expect(qui.erreurs).toEqual([]);
   }, 120_000);
 
-  it('dans une vraie entreprise : l\'exemple mène à l\'entreprise d\'essai sans rien écrire, les réglages de l\'ordinateur n\'apparaissent pas, un fichier exporté se télécharge', async () => {
+  // « Ouvrir l'exemple » depuis une vraie entreprise (l'entreprise d'essai, sans rien écrire ici) : tests/web/exemple.test.ts.
+  it('dans une vraie entreprise : les réglages de l\'ordinateur n\'apparaissent pas, ni leurs puces, et un fichier exporté se télécharge', async () => {
     const qui = await inscrite('Mourad Trabelsi');
     const vraie = String((await qui.api('POST', '/entreprises', qui.jeton, { raisonSociale: 'Atelier Mourad SARL' })).id);
     const p = await qui.ouvrir(vraie, '#/parametres');
@@ -268,17 +273,16 @@ describe('le parcours, à la souris', () => {
     const [fichier] = await Promise.all([p.waitForEvent('download'), p.evaluate(() => (window as unknown as { skanfact: { saveText: (n: string, c: string) => Promise<string> } }).skanfact.saveText('journal-ventes-2026.csv', 'a;b\n1;2'))]);
     expect(fichier.suggestedFilename()).toBe('journal-ventes-2026.csv');
     expect(fs.readFileSync(await fichier.path(), 'utf8')).toBe('a;b\n1;2');
-    const avant = (await admin.query('select count(*)::int n from socle.dossier_v10 where entreprise = $1', [vraie])).rows[0].n;
-    // Données et sécurité : ni sauvegardes du disque, ni mot de passe du fichier, ni « Tout effacer ».
+    // Données et sécurité : ni sauvegardes du disque, ni mot de passe du fichier, ni « Tout effacer » — ni leurs puces
+    // dans le sommaire de l'onglet (elles menaient à un panneau caché, vu le 05/10/2026).
     await p.getByText('Données et sécurité', { exact: true }).click();
     await expect.poll(() => p.locator('#p-exemple').isVisible()).toBe(true);
-    for (const id of ['p-sauvegardes', 'p-externe', 'p-motdepasse', 'p-danger', 'p-dossiers']) expect(await p.locator(`#${id}`).isVisible()).toBe(false);
+    for (const id of ['p-sauvegardes', 'p-externe', 'p-motdepasse', 'p-danger', 'p-dossiers']) {
+      expect(await p.locator(`#${id}`).isVisible()).toBe(false);
+      expect(await p.locator(`#set-somm [data-somm="${id}"]`).isVisible()).toBe(false);
+    }
+    expect(await p.locator('#set-somm [data-somm="p-exemple"]').isVisible()).toBe(true);
     await p.screenshot({ path: path.join(PHOTOS, 'reglages-donnees.png') });
-    // « Charger l'exemple » ouvre l'entreprise d'essai, et n'a rien écrit dans la vraie.
-    await p.locator('#load-demo').click();
-    await p.waitForURL(new RegExp(`/v10/\\?e=${qui.essai}`), { timeout: 15_000 });
-    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
-    expect((await admin.query('select count(*)::int n from socle.dossier_v10 where entreprise = $1', [vraie])).rows[0].n).toBe(avant);
     expect(qui.erreurs).toEqual([]);
   }, 120_000);
 

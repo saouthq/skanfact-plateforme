@@ -1,0 +1,296 @@
+L'exemple rempli, et « Faire une facture » pas à pas (retour de Skander, 05/10/2026 ; docs/exemple.md). Format : voir
+sans-paquets.mjs.
+
+Skander, sur un compte neuf : « le jeu d'exemple ne marche pas, il me dit tu es déjà dans l'exemple mais il n'y a rien
+dessus afin de faire la visite guidée, et l'assistant de remplissage ne guide pas pour une facture, il le fait pour un
+devis ». L'exemple de la plateforme est l'entreprise d'essai (jamais une pièce inventée dans une vraie entreprise) ; elle
+n'avait que trois clients, et la découverte, marquée « exemple », refusait de démarrer sans le jeu de la v10. Le serveur la
+remplit maintenant de ce jeu, une fois (serveur/v10/exemple.ts), et la visite demandée démarre dessus. Le chargement de
+l'exemple (`loadDemo`, adapté dans adaptations.mjs) passe par le point de contact ; ici, le reste du chemin.
+
+── Une visite demandée, lancée une fois le dossier chargé (app.js) ──
+
+== app.js | la visite demandée avant d'arriver ici démarre une fois le dossier chargé (l'exemple d'abord, s'il le faut)
+-- avant
+    if (decouvrirDabord) decouvrirDepuisLaPorte();
+-- après
+    if (decouvrirDabord) decouvrirDepuisLaPorte();
+    // (plateforme) La visite demandée avant d'arriver ici — la porte « Découvrir », « Voir un exemple » d'une autre
+    // entreprise, « Quitter l'exemple » — démarre une fois le dossier chargé : la découverte verse d'abord l'exemple s'il
+    // manque (`lancerVisite`, puis `loadDemo`). « exemple » : l'exemple seul, sans visite.
+    if (bridge.visiteDemandee) {
+      const demandee = bridge.visiteDemandee();
+      if (demandee === 'exemple') { if (!C.estDemo(data)) loadDemo(); }
+      else if (demandee) { const v = visiteParId(demandee); if (v) lancerVisite(v); }
+    }
+-- fin
+
+== app.js | une visite sur l'exemple, ou dans la vraie entreprise, emporte son nom jusqu'à la page qui s'ouvre
+-- avant
+    if (p.exemple && !C.estDemo(data) && !await loadDemo()) return;
+    if (p.reel && C.estDemo(data) && !await demoSortie()) return;
+-- après
+    if (p.exemple && !C.estDemo(data) && !await loadDemo(p.id)) return;
+    if (p.reel && C.estDemo(data) && !await demoSortie(p.id)) return;
+-- fin
+
+== app.js | « Découvrir » de la porte de la v10 demande la découverte avec l'exemple
+-- avant
+    if (await loadDemo()) { lancerVisite(visiteParId('decouvrir')); return; }
+-- après
+    if (await loadDemo('decouvrir')) { lancerVisite(visiteParId('decouvrir')); return; }
+-- fin
+
+── L'exemple ne se refait pas, et le quitter ouvre la vraie entreprise (app.js) ──
+
+== app.js | l'exemple de la plateforme ne se refait jamais à l'écran : ses factures sont émises par le serveur
+-- avant
+  async function rafraichirExemple() {
+    if (!data || !C.estDemo(data)) return;
+-- après
+  async function rafraichirExemple() {
+    if (!data || !C.estDemo(data)) return;
+    // (plateforme) L'exemple est l'entreprise d'essai, versé une fois par le serveur, ses factures émises et chaînées :
+    // le refaire ici, c'était réécrire des pièces émises (le serveur l'aurait refusé), et perdre ce qu'on y a essayé.
+    if (bridge.exemple) return;
+-- fin
+
+== app.js | « Quitter l'exemple » ouvre ta vraie entreprise ; sans elle encore, on la crée ici
+-- avant
+  async function demoSortie() {
+    let avant = null;
+-- après
+  async function demoSortie(visite) {
+    // (plateforme) L'exemple vit dans l'entreprise d'essai, à part : le quitter ouvre ta vraie entreprise, et rien ne
+    // s'efface (la v10 remettait une sauvegarde du disque, ou effaçait l'exemple). Sans vraie entreprise encore, on la
+    // crée ici, par son nom, et elle s'ouvre vide ; la visite demandée (« Démarrer dans ma vraie entreprise ») y démarre.
+    if (bridge.quitterExemple) {
+      try {
+        const r = await bridge.quitterExemple({ visite: typeof visite === 'string' ? visite : '' });
+        if (r && r.aCreer) {
+          promptDialog('Ta vraie entreprise', 'Sa raison sociale, telle qu\'elle s\'imprimera sur tes factures', '', async v => {
+            const x = await bridge.addDossier({ name: v, visite: typeof visite === 'string' ? visite : '' });
+            if (!x || !x.ok) toast((x && x.error) || 'L\'entreprise n\'a pas été créée : réessaie.', true);
+          }, 'text', { champ: 'Raison sociale', ok: 'Créer et ouvrir' });
+        }
+      } catch (e) { toast(plainError(e), true); }
+      return false;
+    }
+    let avant = null;
+-- fin
+
+== app.js | « Passer à ma vraie entreprise », à la fin de la découverte, emporte « Tes premiers pas » jusqu'à la page qui s'ouvre
+-- avant
+      if (await demoSortie()) lancerVisite(visiteParId('premiers-pas'));
+-- après
+      if (await demoSortie('premiers-pas')) lancerVisite(visiteParId('premiers-pas'));
+-- fin
+
+== app.js | le bandeau de l'exemple dit ce que fait « Quitter l'exemple » en ligne
+-- avant
+title="Tes données d'avant l'exemple reviennent ; s'il n'y en avait pas, tu repars d'une entreprise vide">Quitter l'exemple</button>
+-- après
+title="${bridge.quitterExemple ? 'Ta vraie entreprise s\'ouvre ; l\'exemple reste ici, dans ton entreprise d\'essai' : 'Tes données d\'avant l\'exemple reviennent ; s\'il n\'y en avait pas, tu repars d\'une entreprise vide'}">Quitter l'exemple</button>
+-- fin
+
+── Les visites (visites.js) ──
+
+== visites.js | l'étape des pièces jointes se saute quand le panneau n'est pas là (la version en ligne ne les garde pas encore)
+-- avant
+        { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes',
+-- après
+        { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes', facultatif: true,
+-- fin
+
+== visites.js | la fin de la découverte ne parle pas de licence : en ligne, sans abonnement réglé, on garde la lecture et l'export (docs/cadrage/00, « Payer mon abonnement »)
+-- avant
+Tout ce que tu y saisis t\'appartient — pendant l\'essai et après, licence ou pas, tu gardes la lecture, l\'impression, l\'export et l\'envoi à ton comptable.</p>',
+-- après
+Tout ce que tu y saisis t\'appartient — pendant l\'essai et après, abonnement réglé ou pas, tu gardes la lecture, l\'impression et l\'export.</p>',
+-- fin
+
+== visites.js | « Faire une facture », pas à pas, comme « Faire un devis »
+-- avant
+    visite({
+      // La pièce OUVERTE d'abord (un devis, une facture ou un avoir émis), sinon un devis (10.14.1).
+      id: 'envoyer',
+-- après
+    visite({
+      // (plateforme) Faire une facture sans devis, pas à pas (retour de Skander, 05/10/2026 : « l'assistant ne guide pas
+      // pour une facture, il le fait pour un devis »). La v10 n'avait que « Faire un devis », puis « Transformer un devis en
+      // facture » et « Émettre une facture », qui demandent une pièce déjà là : depuis « + Nouvelle facture », rien. Elle
+      // finit sur le brouillon enregistré : émettre prend un numéro qui ne se reprend pas, c'est le geste de la visite
+      // « Émettre une facture », proposée à la suite. Dans l'éditeur, seulement sur une facture NEUVE.
+      id: 'premiere-facture', theme: 'ventes', type: 'faire', duree: '5 min', page: '#/factures', pages: ['factures', 'dashboard', 'doc'],
+      surLaPage: cle => cle !== 'doc' || /^#\/doc\/new\/facture/.test(hash()),
+      titre: 'Faire une facture',
+      resume: 'Du client à l\'aperçu : les lignes, les prix, la TVA, la retenue, le timbre, et le brouillon enregistré, prêt à émettre.',
+      mots: ['facture', 'facturer', 'faire une facture', 'nouvelle facture', 'premiere facture'],
+      suite: ['emettre', 'envoyer'],
+      // Une facture de plus dans tes pièces : sans « Enregistrer le brouillon », elle n'existe nulle part.
+      mesure: () => nbType('facture'), preuve: n0 => nbType('facture') > n0,
+      echec: 'La facture n\'a pas été enregistrée : sans « Enregistrer le brouillon », elle n\'existe nulle part.',
+      bravo: 'Ta facture est prête',
+      conclusion: 'Elle est enregistrée en brouillon : tu peux encore tout y changer. Quand elle est juste, <b>« Émettre la facture »</b> lui donne son numéro définitif — la visite « Émettre une facture » te montre ce geste.',
+      etapes: [
+        { page: '#/factures', cible: ['.vide-utile .btn-primary', '.page-head #new'], cote: 'dessous', faire: 'clic',
+          si: () => !/^#\/doc\/new\/facture/.test(hash()),
+          titre: 'Nouvelle facture', texte: 'Une facture réclame le paiement de ce que tu as vendu ou fait. Elle naît en brouillon : tu la relis avant de l\'émettre.',
+          action: 'Clique sur {bouton}.', fait: () => /^#\/doc\/new\/facture/.test(hash()), essai: { clic: true } },
+        { cible: combo('clientId'), cote: 'droite', faire: 'valeur', bouton: 'C\'est fait',
+          titre: 'Choisis le client', texte: 'Clique dans la liste, tape les premières lettres de son nom, et choisis-le. S\'il n\'existe pas encore, « + Nouveau client » en bas de la liste le crée sans quitter la facture.',
+          action: 'Choisis ton client dans la liste.', fait: () => !!valeur('input[name="clientId"]'), essai: { combo: 1 } },
+        etapeTaux('#rate-field'),
+        { cible: '#view .datefield:has(input[name="date"]) .d-txt', cote: 'dessous', titre: 'La date de la facture',
+          texte: 'Aujourd\'hui, proposée d\'office. Elle s\'imprime sur la facture, et c\'est elle qui range la facture dans le mois de ta déclaration de TVA. Pour une facture d\'un autre mois, <em>À VÉRIFIER avec ton comptable</em>.' },
+        { cible: '#view .datefield:has(input[name="dueDate"]) .d-txt', cote: 'dessous', titre: 'L\'échéance',
+          texte: 'Le jour où ton client doit avoir payé : la date de la facture plus le délai de ses conditions, ou celui de tes Paramètres. Passé ce jour, la facture paraît dans « Relances ».' },
+        { cible: 'input[name="subject"]', cote: 'dessous', faire: 'valeur',
+          titre: 'L\'objet', texte: 'Une ligne qui dit ce que la facture règle : ton client la lira en premier.',
+          action: 'Écris l\'objet de la facture, puis clique sur <b>« C\'est fait »</b>.', essai: { taper: 'Réfection de la vitrine' } },
+        { cible: '#view input[name="reference"]', cote: 'dessous', titre: 'Sa référence',
+          texte: 'Le numéro de commande ou de marché que ton client t\'a donné (« BC 118 »), s\'il en a un. Beaucoup de sociétés et d\'administrations ne paient pas une facture qui ne le rappelle pas.' },
+        { cible: combo('projectId'), cote: 'droite', si: () => !!$(combo('projectId')), titre: 'L\'affaire',
+          texte: 'Facultatif : rattache cette facture à un chantier, pour comparer plus tard ce qu\'il a rapporté à ce qu\'il a coûté. Une vente simple n\'en a pas besoin.' },
+        { cible: '#view select[name="lang"]', cote: 'dessous', titre: 'La langue',
+          texte: 'Français ou anglais : tout le document change, jusqu\'au montant écrit en toutes lettres. Elle suit le client choisi.' },
+        { cible: '#view select[name="currency"]', cote: 'dessous', titre: 'La devise',
+          texte: 'Elle suit le client, elle aussi. Une autre devise que le dinar demande son taux de change, pour que ta comptabilité compte juste.' },
+        Object.assign(etapeTaux('#rate-field'), {
+          texte: 'Cette facture est maintenant dans une autre devise que le dinar. Le taux dit combien vaut <b>une unité</b> de cette devise en dinars : c\'est lui qui convertit la facture dans ta comptabilité et ta TVA. <b>Il est obligatoire.</b>',
+          si: () => !!$('#rate-field:not([hidden])') && !(Number(String(valeur('#rate-field input[name="exchangeRate"]') || '').replace(',', '.')) > 0)
+        }),
+        { cible: '#view .status-cell', cote: 'dessous', titre: 'Un brouillon, sans numéro',
+          texte: 'La facture naît <b>brouillon</b> : elle n\'a pas encore de numéro, et tu peux tout y changer. Le numéro lui est donné à l\'émission, dans l\'ordre, sans trou ; ensuite elle ne se modifie plus (une erreur se corrige par un avoir).' },
+        { cible: '#view input[name="discountRate"]', cote: 'dessous', titre: 'Une remise',
+          texte: 'Un pourcentage retiré du total hors taxe, avant la TVA. Elle s\'affiche en clair sur la facture. Pour une remise sur une seule ligne, baisse plutôt son prix.' },
+        { cible: '#view select[name="withholdingRate"]', cote: 'dessous', titre: 'La retenue à la source',
+          texte: 'Certains clients — les sociétés, l\'État — gardent une part de ta facture et la versent au fisc à ta place : tu ne reçois que le net, et ils te remettent une attestation. Si ce client le fait, choisis son taux ; sinon, « Aucune ». <b>À VÉRIFIER</b> avec ton comptable.' },
+        { cible: '#view label.check:has(input[name="applyStamp"])', cote: 'dessous', titre: 'Le timbre fiscal',
+          texte: 'Chaque facture porte un timbre fiscal, ajouté au total et compté à part dans ta déclaration. Un client exonéré (exportateur, secteur public…) le voit retiré d\'office. <b>À VÉRIFIER</b> avec ton comptable.' },
+        { cible: ['#cat-pick .combo-btn', '#add-line'], cote: 'dessus', titre: 'Ajouter une ligne', eclairer: '#lines tr:first-child input[data-k="label"]',
+          texte: '« Ajouter depuis le catalogue » reprend une prestation ou un article déjà décrit, avec son prix. « + Ligne vide » en crée une à la main. Tu peux aussi taper directement dans la désignation (la case éclairée plus bas) : SkanFact te propose ce qui ressemble dans ton catalogue.' },
+        { cible: '#lines tr:first-child input[data-k="label"]', cote: 'dessous', faire: 'valeur',
+          titre: 'La désignation', texte: 'Ce que tu factures, en quelques mots. « + description » sous la case ajoute une phrase plus longue.',
+          action: 'Écris la désignation de la première ligne.', essai: { taper: 'Pose de vitrage' } },
+        { cible: '#lines tr:first-child input[data-k="qty"]', cote: 'dessous', faire: 'valeur',
+          titre: 'La quantité', texte: 'Des heures, des pièces, un forfait : l\'unité se choisit juste à côté.',
+          action: 'Indique la quantité.', fait: () => Number(valeur('#lines tr:first-child input[data-k="qty"]')) > 0, essai: { taper: '2' } },
+        { cible: '#lines tr:first-child select[data-k="unit"]', cote: 'dessous', titre: 'L\'unité',
+          texte: 'Elle s\'imprime à côté de la quantité : heure, jour, pièce, forfait, mètre carré… Un article du catalogue apporte la sienne. « Autre… », en bas de la liste, en ajoute une qui y restera.' },
+        { cible: '#lines tr:first-child input[data-k="unitPrice"]', cote: 'dessous', faire: 'valeur',
+          titre: 'Le prix unitaire hors taxe', texte: 'Le prix d\'une unité, <b>hors TVA</b>. La TVA, le timbre et le total se calculent tout seuls.',
+          action: 'Tape le prix unitaire HT.', fait: () => Number(valeur('#lines tr:first-child input[data-k="unitPrice"]')) > 0, essai: { taper: '350' } },
+        { cible: '#lines tr:first-child select[data-k="vatRate"]', cote: 'dessous', titre: 'La TVA de la ligne',
+          texte: 'Le taux vient de l\'article du catalogue, sinon de tes Paramètres. Chaque ligne a le sien : une prestation exonérée reste à 0 % à côté des autres. En cas de doute sur un taux, À VÉRIFIER avec ton comptable.' },
+        { cible: '#totals', cote: 'gauche', titre: 'Les totaux',
+          texte: 'Hors taxe, TVA, timbre, total, et le <b>net à payer</b> (la retenue déduite) : tout suit ce que tu tapes, ligne par ligne. Rien à calculer.' },
+        { cible: '#notes', cote: 'dessus', titre: 'Les notes',
+          texte: 'Un texte libre <b>imprimé</b> sur la facture : conditions de paiement, RIB à rappeler, remerciement. Les phrases que tu réutilises s\'enregistrent en « textes prédéfinis » dans le Catalogue.' },
+        { cible: ['#view .preview', '#pv-toggle'], cote: 'gauche', titre: 'L\'aperçu',
+          texte: 'À droite, la facture <b>telle que ton client la recevra</b>, mise à jour à chaque frappe. Le repère « 1 page » dit combien de feuilles elle fera une fois imprimée, et « Agrandir » l\'ouvre en grand pour la relire.' },
+        { cible: '#save', cote: 'dessous', faire: 'clic',
+          titre: 'Enregistrer le brouillon', texte: 'La facture est gardée, sans numéro : tu peux encore tout y changer. « Émettre la facture », juste à côté, lui donnera son numéro définitif — ce n\'est pas le geste de cette visite.',
+          action: 'Clique sur <b>« Enregistrer le brouillon »</b>.', fait: () => /^#\/doc\/(?!new)/.test(hash()), essai: { clic: true } }
+      ]
+    });
+
+    visite({
+      // La pièce OUVERTE d'abord (un devis, une facture ou un avoir émis), sinon un devis (10.14.1).
+      id: 'envoyer',
+-- fin
+
+── La découverte dit ce qui est vrai en ligne (visites.js) ──
+
+Joué en entier sur l'exemple versé (05/10/2026) : quarante-six bulles, une seule perdue (« Les mises à jour », dont le
+panneau n'existe pas en ligne), et cinq qui décrivaient l'application de bureau : l'exemple qui « rend tes données »,
+le paquet du comptable, ses réponses « dans le paquet du mois », sa clôture par fichier, la copie vers une clé USB.
+
+== visites.js | « Quitter l'exemple » ouvre ta vraie entreprise : l'exemple vit à part
+-- avant
+texte: 'Ce bandeau reste en haut de chaque page tant que l\'exemple est chargé. <b>« Quitter l\'exemple »</b> te rend tes vraies données — elles ont été mises de côté.' },
+-- après
+texte: 'Ce bandeau reste en haut de chaque page de l\'exemple. <b>« Quitter l\'exemple »</b> ouvre ta vraie entreprise : l\'exemple vit à part, dans ton entreprise d\'essai, et rien de ce que tu y fais ne la touche.' },
+-- fin
+
+== visites.js | plus de paquet : ton cabinet tient tes livres ici même
+-- avant
+        { page: '#/compta', avant: onglet('#c-tabs', 'cabinet'), cible: '#view .panel', cote: 'dessus', titre: 'Le paquet du comptable',
+          texte: 'Chaque mois, un fichier : tes journaux, tes pièces et tes justificatifs, chiffré pour ton cabinet. <b>Zéro ressaisie</b> de son côté.' },
+-- après
+        { page: '#/compta', avant: onglet('#c-tabs', 'cabinet'), cible: '#p-cabinet-mandat', cote: 'dessus', titre: 'Ton cabinet comptable',
+          texte: 'Ton comptable tient tes livres <b>ici même</b> : il lit tes écritures à jour, et valide tes mois. Rien à lui envoyer : tu lui confies ton entreprise une fois, avec le code de son cabinet, et c\'est tout.' },
+-- fin
+
+== visites.js | ses questions : il lit ta réponse dès que tu l'enregistres
+-- avant
+texte: 'Quand ton comptable a une question, elle arrive ici <b>et sur la pièce qu\'elle vise</b>. Tu réponds en une phrase ; ta réponse repart dans le paquet du mois.' },
+-- après
+texte: 'Quand ton comptable a une question, elle arrive ici <b>et sur la pièce qu\'elle vise</b>. Tu réponds en une phrase ; il la lit dès que tu l\'enregistres.' },
+-- fin
+
+== visites.js | plus de clôture par fichier à reprendre : le panneau n'est pas en ligne (pont.js), la bulle non plus
+-- avant
+        { page: '#/compta', avant: onglet('#c-tabs', 'clotures'), cible: '#p-cloture-cabinet', cote: 'dessus', titre: 'Sa clôture',
+          texte: 'En fin d\'exercice, il t\'envoie sa clôture : ses à-nouveaux officiels et tes états financiers. Ton bilan et le sien disent alors la même chose.' },
+-- après
+-- fin
+
+== visites.js | tes données vivent sur le serveur ; ce qui se règle ici, ce sont tes appareils
+-- avant
+        { page: '#/parametres', avant: onglet('#set-tabs', 'donnees'), cible: ['#ext-choose', '#view .panel'], cote: 'dessous', titre: 'Tes données à l\'abri',
+          texte: 'SkanFact sauvegarde chaque jour. Mais la <b>copie automatique</b> vers une clé USB, iCloud ou OneDrive est l\'étape que tout le monde saute — et la seule dont l\'absence coûte tout.' },
+-- après
+        { page: '#/parametres', avant: onglet('#set-tabs', 'donnees'), cible: '#p-appareils', cote: 'dessous', titre: 'Tes données à l\'abri',
+          texte: 'Tes données vivent sur le serveur SkanFact, sauvegardé chaque nuit : rien à copier de ton côté. Ce qui se règle ici, ce sont <b>tes appareils</b> : un téléphone perdu ou un ordinateur donné se retire d\'un clic, et il ne peut plus rien ouvrir.' },
+-- fin
+
+== visites.js | les mises à jour se font sur le serveur ; la version en service se lit au pied du menu
+-- avant
+        { page: '#/parametres', avant: onglet('#set-tabs', 'app'), cible: '#p-maj', cote: 'dessus', titre: 'Les mises à jour',
+          texte: 'SkanFact se met à jour tout seul, en arrière-plan, et <b>n\'installe rien sans ton accord</b> : une fenêtre te propose de redémarrer quand une version est prête. Tes données ne bougent pas.' },
+-- après
+        { page: '#/parametres', cible: '#app-version', cote: 'droite', titre: 'Les mises à jour',
+          texte: 'SkanFact se met à jour tout seul, sur le serveur : <b>rien à installer</b> de ton côté, et tes données ne bougent pas. La version en service s\'écrit ici, au pied du menu : c\'est elle que tu donnes si tu signales un problème.' },
+-- fin
+
+── Le panneau de l'exemple, dans les Paramètres (app.js, guide.js) ──
+
+== app.js | « Charger l'exemple » ouvre l'entreprise d'essai, sans rien remplacer
+-- avant
+          <div><b>Charger le jeu d'exemple</b>
+            <div class="small muted">Remplace tes données par cinq ans d'activité fictive, pour cliquer partout sans rien casser.
+            Une sauvegarde est prise avant, ta fiche société est conservée, et le bandeau de l'exemple te rendra tes données d'un clic.</div></div>
+          <button class="btn" id="load-demo">Charger l'exemple</button>
+-- après
+          <div><b>${bridge.exemple ? 'Ouvrir l\'exemple' : 'Charger le jeu d\'exemple'}</b>
+            <div class="small muted">${bridge.exemple
+              ? 'Ton entreprise d\'essai, remplie de cinq ans d\'activité inventée, pour cliquer partout sans rien risquer. Elle vit à part : rien de ce que tu y fais ne touche cette entreprise, et rien n\'est remplacé ici.'
+              : 'Remplace tes données par cinq ans d\'activité fictive, pour cliquer partout sans rien casser. Une sauvegarde est prise avant, ta fiche société est conservée, et le bandeau de l\'exemple te rendra tes données d\'un clic.'}</div></div>
+          <button class="btn" id="load-demo">${bridge.exemple ? 'Ouvrir l\'exemple' : 'Charger l\'exemple'}</button>
+-- fin
+
+== guide.js | la bulle de l'exemple dit ce qu'il est en ligne
+-- avant
+    'data.demo': { t: 'Jeu de démonstration', d: 'Remplace tes données par cinq ans d\'activité fictive : clients, devis, factures, achats, salariés, relances, contrats. Parfait pour explorer sans rien casser. Tes paramètres société sont conservés et une sauvegarde est prise avant.' },
+-- après
+    'data.demo': { t: 'L\'exemple', d: 'Ton entreprise d\'essai, remplie de cinq ans d\'activité inventée : clients, devis, factures, achats, salariés, relances, contrats. Parfait pour explorer sans rien casser. Elle vit à part, et le reste pour toujours : rien de ce que tu y fais ne touche une vraie entreprise. Ses factures sont émises et numérotées par le serveur, comme les tiennes.' },
+-- fin
+
+── « Guide-moi » en ligne : seulement ce qui s'y fait (app.js) ──
+
+Vu en refaisant la découverte le 05/10/2026 : neuf visites attendaient un panneau que la version en ligne ne montre pas
+(les sauvegardes, la copie de sécurité, les mises à jour, la licence, les dossiers partagés, la clôture reçue en fichier,
+le justificatif joint, le journal de dépannage), et finissaient sur « Je suis perdu ». La liste vit au point de contact
+(`visitesAbsentes`), comme celle du Cabinet.
+
+== app.js | « Guide-moi » ne propose pas une visite sans objet en ligne, ni celle d'un geste pas encore en ligne
+-- avant
+    chiffre: () => !!security.encrypted
+  }));
+  const visiteParId = id => visites().find(v => v.id === id) || null;
+-- après
+    chiffre: () => !!security.encrypted
+  }).filter(v => !(bridge.visitesAbsentes || []).includes(v.id)));
+  const visiteParId = id => visites().find(v => v.id === id) || null;
+-- fin

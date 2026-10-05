@@ -913,7 +913,7 @@
       mots: ['visite', 'decouvrir', 'commencer', 'exemple', 'tour', 'debutant', 'interface'],
       suite: ['page-dashboard', 'premier-devis'],
       bravo: 'Tu as fait le tour !',
-      conclusion: '<p>Tu as vu chaque partie de SkanFact, remplie. Retiens : <b>le menu</b> à gauche, <kbd>Ctrl</kbd> <kbd>K</kbd> pour tout trouver, et <b>« Me guider »</b> en bas à gauche — chaque page y a sa visite, bouton par bouton.</p><p>Quand tu es prêt, passe à ta vraie entreprise : je te guiderai pour chaque premier geste. Tout ce que tu y saisis t\'appartient — pendant l\'essai et après, licence ou pas, tu gardes la lecture, l\'impression, l\'export et l\'envoi à ton comptable.</p>',
+      conclusion: '<p>Tu as vu chaque partie de SkanFact, remplie. Retiens : <b>le menu</b> à gauche, <kbd>Ctrl</kbd> <kbd>K</kbd> pour tout trouver, et <b>« Me guider »</b> en bas à gauche — chaque page y a sa visite, bouton par bouton.</p><p>Quand tu es prêt, passe à ta vraie entreprise : je te guiderai pour chaque premier geste. Tout ce que tu y saisis t\'appartient — pendant l\'essai et après, abonnement réglé ou pas, tu gardes la lecture, l\'impression et l\'export.</p>',
       actions: () => ctx.estDemo() ? [
         { id: 'passer-au-reel', label: 'Passer à ma vraie entreprise', principal: true },
         { id: 'rester', label: 'Continuer à explorer l\'exemple', detail: 'Le bandeau te ramène à tes données quand tu veux' }
@@ -923,7 +923,7 @@
         { chapitre: 'Bienvenue', couleur: 'commencer', page: '#/dashboard', titre: 'Bienvenue dans l\'exemple',
           texte: '<p>Voici <b>une entreprise fictive qui a cinq ans</b> : des centaines de factures, des clients, des achats, deux salariés. Tout est inventé, rien ne part : tu peux cliquer partout.</p><p>Je te fais faire le tour, chapitre par chapitre — le compte est écrit en haut de cette bulle. <b>« Passer au chapitre suivant »</b> saute ce qui ne te concerne pas, et la croix met en pause : tu reprendras plus tard depuis « Me guider ».</p>' },
         { page: '#/dashboard', cible: '.demo-banner', cote: 'dessous', titre: 'Tu es dans un bac à sable',
-          texte: 'Ce bandeau reste en haut de chaque page tant que l\'exemple est chargé. <b>« Quitter l\'exemple »</b> te rend tes vraies données — elles ont été mises de côté.' },
+          texte: 'Ce bandeau reste en haut de chaque page de l\'exemple. <b>« Quitter l\'exemple »</b> ouvre ta vraie entreprise : l\'exemple vit à part, dans ton entreprise d\'essai, et rien de ce que tu y fais ne la touche.' },
         { page: '#/dashboard', cible: 'nav#nav', cote: 'droite', titre: 'Le menu',
           texte: 'Tout SkanFact est rangé ici, en trois familles : <b>Vendre</b>, <b>Acheter</b> et <b>Piloter</b>. Un titre de famille se déplie et se replie d\'un clic. Le chiffre à côté d\'une page dit ce qui y attend.' },
         { page: '#/dashboard', cible: '#nav-search', cote: 'droite', titre: 'Tout trouver',
@@ -1003,19 +1003,18 @@
           texte: 'La TVA collectée sur tes ventes, moins celle que tu récupères : <b>le chiffre que tu recopies sur ta déclaration</b>. Tout se déduit de tes pièces.' },
         { page: '#/compta', avant: onglet('#c-tabs', 'clotures'), cible: '#view .panel', cote: 'dessus', titre: 'Clôturer un mois',
           texte: 'Une fois le mois déclaré, tu le <b>clôtures</b> : plus aucune pièce de ce mois ne peut changer. C\'est ce qui rend tes déclarations définitives.' },
-        { page: '#/compta', avant: onglet('#c-tabs', 'cabinet'), cible: '#view .panel', cote: 'dessus', titre: 'Le paquet du comptable',
-          texte: 'Chaque mois, un fichier : tes journaux, tes pièces et tes justificatifs, chiffré pour ton cabinet. <b>Zéro ressaisie</b> de son côté.' },
+        { page: '#/compta', avant: onglet('#c-tabs', 'cabinet'), cible: '#p-cabinet-mandat', cote: 'dessus', titre: 'Ton cabinet comptable',
+          texte: 'Ton comptable tient tes livres <b>ici même</b> : il lit tes écritures à jour, et valide tes mois. Rien à lui envoyer : tu lui confies ton entreprise une fois, avec le code de son cabinet, et c\'est tout.' },
         { page: '#/compta', avant: onglet('#c-tabs', 'cabinet'), cible: '#p-questions', cote: 'dessus', titre: 'Ses questions',
-          texte: 'Quand ton comptable a une question, elle arrive ici <b>et sur la pièce qu\'elle vise</b>. Tu réponds en une phrase ; ta réponse repart dans le paquet du mois.' },
-        { page: '#/compta', avant: onglet('#c-tabs', 'clotures'), cible: '#p-cloture-cabinet', cote: 'dessus', titre: 'Sa clôture',
-          texte: 'En fin d\'exercice, il t\'envoie sa clôture : ses à-nouveaux officiels et tes états financiers. Ton bilan et le sien disent alors la même chose.' },
+          texte: 'Quand ton comptable a une question, elle arrive ici <b>et sur la pièce qu\'elle vise</b>. Tu réponds en une phrase ; il la lit dès que tu l\'enregistres.' },
+
         // — Réglages
         { chapitre: 'Réglages et sécurité', couleur: 'piloter', page: '#/parametres', avant: onglet('#set-tabs', 'societe'), cible: '#view .panel', cote: 'dessus', titre: 'Ta fiche société',
           texte: 'Raison sociale, matricule fiscal, adresse, RIB, logo : <b>tout ce qui s\'imprime</b> en haut de tes documents.' },
-        { page: '#/parametres', avant: onglet('#set-tabs', 'donnees'), cible: ['#ext-choose', '#view .panel'], cote: 'dessous', titre: 'Tes données à l\'abri',
-          texte: 'SkanFact sauvegarde chaque jour. Mais la <b>copie automatique</b> vers une clé USB, iCloud ou OneDrive est l\'étape que tout le monde saute — et la seule dont l\'absence coûte tout.' },
-        { page: '#/parametres', avant: onglet('#set-tabs', 'app'), cible: '#p-maj', cote: 'dessus', titre: 'Les mises à jour',
-          texte: 'SkanFact se met à jour tout seul, en arrière-plan, et <b>n\'installe rien sans ton accord</b> : une fenêtre te propose de redémarrer quand une version est prête. Tes données ne bougent pas.' },
+        { page: '#/parametres', avant: onglet('#set-tabs', 'donnees'), cible: '#p-appareils', cote: 'dessous', titre: 'Tes données à l\'abri',
+          texte: 'Tes données vivent sur le serveur SkanFact, sauvegardé chaque nuit : rien à copier de ton côté. Ce qui se règle ici, ce sont <b>tes appareils</b> : un téléphone perdu ou un ordinateur donné se retire d\'un clic, et il ne peut plus rien ouvrir.' },
+        { page: '#/parametres', cible: '#app-version', cote: 'droite', titre: 'Les mises à jour',
+          texte: 'SkanFact se met à jour tout seul, sur le serveur : <b>rien à installer</b> de ton côté, et tes données ne bougent pas. La version en service s\'écrit ici, au pied du menu : c\'est elle que tu donnes si tu signales un problème.' },
         // « Guide-moi » (10.14.1, S-03) : l'assistant à portée de main, au même endroit sur chaque page.
         { chapitre: 'Pour la suite', couleur: 'commencer', page: '#/dashboard', cible: '#guide-moi', cote: 'dessous', titre: 'Guide-moi, sur chaque page',
           texte: 'En haut de chaque page, <b>« Guide-moi »</b> liste tout ce qu\'on peut y faire : la visite de la page, chaque geste montré <b>pas à pas sur ton vrai écran</b>, et l\'article qui l\'explique. Il est toujours au même endroit : c\'est là qu\'il faut cliquer quand tu ne sais plus.' },
@@ -1238,7 +1237,7 @@
           texte: 'Le taux vient de la prestation du catalogue, sinon de tes Paramètres. Chaque ligne a le sien : une prestation exonérée reste à 0 % à côté des autres. En cas de doute sur un taux, À VÉRIFIER avec ton comptable.' },
         { cible: '#totals', cote: 'gauche', titre: 'Les totaux', texte: 'Hors taxe, TVA, total : tout suit ce que tu tapes, ligne par ligne. Rien à calculer. Dessous, la <b>marge estimée</b> retire le coût de revient de chaque ligne (celui de ton catalogue) : c\'est pour toi, elle ne s\'imprime pas.' },
         // 10.14.1 — les deux panneaux sous les lignes, que la visite laissait seuls (vu au guide).
-        { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes',
+        { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes', facultatif: true,
           texte: 'Le bon de commande du client, une photo du chantier, le devis signé scanné : « + Joindre un fichier… » les range avec ce devis. Le fichier est <b>copié</b> à côté de tes données, et la pièce porte un 📎 dans les listes. Rien ne s\'imprime sur le devis.' },
         { cible: '#notes', cote: 'dessus', titre: 'Les notes',
           texte: 'Un texte libre <b>imprimé</b> sur le devis : délai d\'intervention, matériel non compris, conditions particulières. Les phrases que tu réutilises s\'enregistrent en « textes prédéfinis » dans le Catalogue, pour les insérer en un clic.' },
@@ -1246,6 +1245,86 @@
         { cible: '#save', cote: 'dessous', faire: 'clic',
           titre: 'Enregistrer', texte: 'Le devis reçoit son numéro. Tu pourras encore le modifier tant qu\'il n\'est pas accepté.',
           action: 'Clique sur <b>« Enregistrer »</b>.', fait: () => /^#\/doc\/(?!new)/.test(hash()), essai: { clic: true } }
+      ]
+    });
+
+    visite({
+      // (plateforme) Faire une facture sans devis, pas à pas (retour de Skander, 05/10/2026 : « l'assistant ne guide pas
+      // pour une facture, il le fait pour un devis »). La v10 n'avait que « Faire un devis », puis « Transformer un devis en
+      // facture » et « Émettre une facture », qui demandent une pièce déjà là : depuis « + Nouvelle facture », rien. Elle
+      // finit sur le brouillon enregistré : émettre prend un numéro qui ne se reprend pas, c'est le geste de la visite
+      // « Émettre une facture », proposée à la suite. Dans l'éditeur, seulement sur une facture NEUVE.
+      id: 'premiere-facture', theme: 'ventes', type: 'faire', duree: '5 min', page: '#/factures', pages: ['factures', 'dashboard', 'doc'],
+      surLaPage: cle => cle !== 'doc' || /^#\/doc\/new\/facture/.test(hash()),
+      titre: 'Faire une facture',
+      resume: 'Du client à l\'aperçu : les lignes, les prix, la TVA, la retenue, le timbre, et le brouillon enregistré, prêt à émettre.',
+      mots: ['facture', 'facturer', 'faire une facture', 'nouvelle facture', 'premiere facture'],
+      suite: ['emettre', 'envoyer'],
+      // Une facture de plus dans tes pièces : sans « Enregistrer le brouillon », elle n'existe nulle part.
+      mesure: () => nbType('facture'), preuve: n0 => nbType('facture') > n0,
+      echec: 'La facture n\'a pas été enregistrée : sans « Enregistrer le brouillon », elle n\'existe nulle part.',
+      bravo: 'Ta facture est prête',
+      conclusion: 'Elle est enregistrée en brouillon : tu peux encore tout y changer. Quand elle est juste, <b>« Émettre la facture »</b> lui donne son numéro définitif — la visite « Émettre une facture » te montre ce geste.',
+      etapes: [
+        { page: '#/factures', cible: ['.vide-utile .btn-primary', '.page-head #new'], cote: 'dessous', faire: 'clic',
+          si: () => !/^#\/doc\/new\/facture/.test(hash()),
+          titre: 'Nouvelle facture', texte: 'Une facture réclame le paiement de ce que tu as vendu ou fait. Elle naît en brouillon : tu la relis avant de l\'émettre.',
+          action: 'Clique sur {bouton}.', fait: () => /^#\/doc\/new\/facture/.test(hash()), essai: { clic: true } },
+        { cible: combo('clientId'), cote: 'droite', faire: 'valeur', bouton: 'C\'est fait',
+          titre: 'Choisis le client', texte: 'Clique dans la liste, tape les premières lettres de son nom, et choisis-le. S\'il n\'existe pas encore, « + Nouveau client » en bas de la liste le crée sans quitter la facture.',
+          action: 'Choisis ton client dans la liste.', fait: () => !!valeur('input[name="clientId"]'), essai: { combo: 1 } },
+        etapeTaux('#rate-field'),
+        { cible: '#view .datefield:has(input[name="date"]) .d-txt', cote: 'dessous', titre: 'La date de la facture',
+          texte: 'Aujourd\'hui, proposée d\'office. Elle s\'imprime sur la facture, et c\'est elle qui range la facture dans le mois de ta déclaration de TVA. Pour une facture d\'un autre mois, <em>À VÉRIFIER avec ton comptable</em>.' },
+        { cible: '#view .datefield:has(input[name="dueDate"]) .d-txt', cote: 'dessous', titre: 'L\'échéance',
+          texte: 'Le jour où ton client doit avoir payé : la date de la facture plus le délai de ses conditions, ou celui de tes Paramètres. Passé ce jour, la facture paraît dans « Relances ».' },
+        { cible: 'input[name="subject"]', cote: 'dessous', faire: 'valeur',
+          titre: 'L\'objet', texte: 'Une ligne qui dit ce que la facture règle : ton client la lira en premier.',
+          action: 'Écris l\'objet de la facture, puis clique sur <b>« C\'est fait »</b>.', essai: { taper: 'Réfection de la vitrine' } },
+        { cible: '#view input[name="reference"]', cote: 'dessous', titre: 'Sa référence',
+          texte: 'Le numéro de commande ou de marché que ton client t\'a donné (« BC 118 »), s\'il en a un. Beaucoup de sociétés et d\'administrations ne paient pas une facture qui ne le rappelle pas.' },
+        { cible: combo('projectId'), cote: 'droite', si: () => !!$(combo('projectId')), titre: 'L\'affaire',
+          texte: 'Facultatif : rattache cette facture à un chantier, pour comparer plus tard ce qu\'il a rapporté à ce qu\'il a coûté. Une vente simple n\'en a pas besoin.' },
+        { cible: '#view select[name="lang"]', cote: 'dessous', titre: 'La langue',
+          texte: 'Français ou anglais : tout le document change, jusqu\'au montant écrit en toutes lettres. Elle suit le client choisi.' },
+        { cible: '#view select[name="currency"]', cote: 'dessous', titre: 'La devise',
+          texte: 'Elle suit le client, elle aussi. Une autre devise que le dinar demande son taux de change, pour que ta comptabilité compte juste.' },
+        Object.assign(etapeTaux('#rate-field'), {
+          texte: 'Cette facture est maintenant dans une autre devise que le dinar. Le taux dit combien vaut <b>une unité</b> de cette devise en dinars : c\'est lui qui convertit la facture dans ta comptabilité et ta TVA. <b>Il est obligatoire.</b>',
+          si: () => !!$('#rate-field:not([hidden])') && !(Number(String(valeur('#rate-field input[name="exchangeRate"]') || '').replace(',', '.')) > 0)
+        }),
+        { cible: '#view .status-cell', cote: 'dessous', titre: 'Un brouillon, sans numéro',
+          texte: 'La facture naît <b>brouillon</b> : elle n\'a pas encore de numéro, et tu peux tout y changer. Le numéro lui est donné à l\'émission, dans l\'ordre, sans trou ; ensuite elle ne se modifie plus (une erreur se corrige par un avoir).' },
+        { cible: '#view input[name="discountRate"]', cote: 'dessous', titre: 'Une remise',
+          texte: 'Un pourcentage retiré du total hors taxe, avant la TVA. Elle s\'affiche en clair sur la facture. Pour une remise sur une seule ligne, baisse plutôt son prix.' },
+        { cible: '#view select[name="withholdingRate"]', cote: 'dessous', titre: 'La retenue à la source',
+          texte: 'Certains clients — les sociétés, l\'État — gardent une part de ta facture et la versent au fisc à ta place : tu ne reçois que le net, et ils te remettent une attestation. Si ce client le fait, choisis son taux ; sinon, « Aucune ». <b>À VÉRIFIER</b> avec ton comptable.' },
+        { cible: '#view label.check:has(input[name="applyStamp"])', cote: 'dessous', titre: 'Le timbre fiscal',
+          texte: 'Chaque facture porte un timbre fiscal, ajouté au total et compté à part dans ta déclaration. Un client exonéré (exportateur, secteur public…) le voit retiré d\'office. <b>À VÉRIFIER</b> avec ton comptable.' },
+        { cible: ['#cat-pick .combo-btn', '#add-line'], cote: 'dessus', titre: 'Ajouter une ligne', eclairer: '#lines tr:first-child input[data-k="label"]',
+          texte: '« Ajouter depuis le catalogue » reprend une prestation ou un article déjà décrit, avec son prix. « + Ligne vide » en crée une à la main. Tu peux aussi taper directement dans la désignation (la case éclairée plus bas) : SkanFact te propose ce qui ressemble dans ton catalogue.' },
+        { cible: '#lines tr:first-child input[data-k="label"]', cote: 'dessous', faire: 'valeur',
+          titre: 'La désignation', texte: 'Ce que tu factures, en quelques mots. « + description » sous la case ajoute une phrase plus longue.',
+          action: 'Écris la désignation de la première ligne.', essai: { taper: 'Pose de vitrage' } },
+        { cible: '#lines tr:first-child input[data-k="qty"]', cote: 'dessous', faire: 'valeur',
+          titre: 'La quantité', texte: 'Des heures, des pièces, un forfait : l\'unité se choisit juste à côté.',
+          action: 'Indique la quantité.', fait: () => Number(valeur('#lines tr:first-child input[data-k="qty"]')) > 0, essai: { taper: '2' } },
+        { cible: '#lines tr:first-child select[data-k="unit"]', cote: 'dessous', titre: 'L\'unité',
+          texte: 'Elle s\'imprime à côté de la quantité : heure, jour, pièce, forfait, mètre carré… Un article du catalogue apporte la sienne. « Autre… », en bas de la liste, en ajoute une qui y restera.' },
+        { cible: '#lines tr:first-child input[data-k="unitPrice"]', cote: 'dessous', faire: 'valeur',
+          titre: 'Le prix unitaire hors taxe', texte: 'Le prix d\'une unité, <b>hors TVA</b>. La TVA, le timbre et le total se calculent tout seuls.',
+          action: 'Tape le prix unitaire HT.', fait: () => Number(valeur('#lines tr:first-child input[data-k="unitPrice"]')) > 0, essai: { taper: '350' } },
+        { cible: '#lines tr:first-child select[data-k="vatRate"]', cote: 'dessous', titre: 'La TVA de la ligne',
+          texte: 'Le taux vient de l\'article du catalogue, sinon de tes Paramètres. Chaque ligne a le sien : une prestation exonérée reste à 0 % à côté des autres. En cas de doute sur un taux, À VÉRIFIER avec ton comptable.' },
+        { cible: '#totals', cote: 'gauche', titre: 'Les totaux',
+          texte: 'Hors taxe, TVA, timbre, total, et le <b>net à payer</b> (la retenue déduite) : tout suit ce que tu tapes, ligne par ligne. Rien à calculer.' },
+        { cible: '#notes', cote: 'dessus', titre: 'Les notes',
+          texte: 'Un texte libre <b>imprimé</b> sur la facture : conditions de paiement, RIB à rappeler, remerciement. Les phrases que tu réutilises s\'enregistrent en « textes prédéfinis » dans le Catalogue.' },
+        { cible: ['#view .preview', '#pv-toggle'], cote: 'gauche', titre: 'L\'aperçu',
+          texte: 'À droite, la facture <b>telle que ton client la recevra</b>, mise à jour à chaque frappe. Le repère « 1 page » dit combien de feuilles elle fera une fois imprimée, et « Agrandir » l\'ouvre en grand pour la relire.' },
+        { cible: '#save', cote: 'dessous', faire: 'clic',
+          titre: 'Enregistrer le brouillon', texte: 'La facture est gardée, sans numéro : tu peux encore tout y changer. « Émettre la facture », juste à côté, lui donnera son numéro définitif — ce n\'est pas le geste de cette visite.',
+          action: 'Clique sur <b>« Enregistrer le brouillon »</b>.', fait: () => /^#\/doc\/(?!new)/.test(hash()), essai: { clic: true } }
       ]
     });
 

@@ -2340,6 +2340,9 @@
 
   async function rafraichirExemple() {
     if (!data || !C.estDemo(data)) return;
+    // (plateforme) L'exemple est l'entreprise d'essai, versé une fois par le serveur, ses factures émises et chaînées :
+    // le refaire ici, c'était réécrire des pièces émises (le serveur l'aurait refusé), et perdre ce qu'on y a essayé.
+    if (bridge.exemple) return;
     const v = await versionInstallee();
     const raison = C.exemplePerime(data.exemple, v, C.today().slice(0, 7));
     if (!raison) return;                 // sans numéro de version non plus : on ne décide rien
@@ -2373,7 +2376,7 @@
     return { court, html: `<span class="db-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6.2L4.8 18a2 2 0 0 0 1.7 3h11a2 2 0 0 0 1.7-3L14 9.2V3"/><path d="M7.5 15h9"/></svg></span>
       <span class="db-txt"${court ? ` title="Tu explores une entreprise d'exemple : cinq ans d'activité inventée. Clique, ouvre, modifie — rien de ce que tu fais ici ne compte."` : ''}>${texte}</span>
       <span class="db-actions">${enVisite ? '' : `<button class="btn btn-sm" id="demo-visite">${decouverteEnPause() ? 'Reprendre la visite' : 'Visite guidée'}</button>`}
-      <button class="btn btn-sm" id="demo-out" title="Tes données d'avant l'exemple reviennent ; s'il n'y en avait pas, tu repars d'une entreprise vide">Quitter l'exemple</button></span>` };
+      <button class="btn btn-sm" id="demo-out" title="${bridge.quitterExemple ? 'Ta vraie entreprise s\'ouvre ; l\'exemple reste ici, dans ton entreprise d\'essai' : 'Tes données d\'avant l\'exemple reviennent ; s\'il n\'y en avait pas, tu repars d\'une entreprise vide'}">Quitter l'exemple</button></span>` };
   }
 
   function bandeauDemo(route) {
@@ -2396,10 +2399,21 @@
   // toast qui nommait l'onglet où chercher. C'est le contraire d'un exemple.
   // Rend `true` quand l'exemple est chargé, `false` quand on a renoncé : la visite guidée de
   // découverte (10.14.0) ne se lance que sur un exemple réellement là.
-  async function loadDemo() {
+  function attenteExemple() {
+    let fermer = () => {};
+    modal(`<h2>L'exemple se prépare</h2>
+      <p>Cinq ans d'une entreprise inventée : ses clients, ses devis, des centaines de factures émises et numérotées par le serveur, leurs règlements, les achats, la paie.</p>
+      <p class="small muted attente-exemple" role="status"><span class="attente-roue" aria-hidden="true"></span>Compte une minute : la page s'ouvre toute seule sur l'exemple. Laisse-la ouverte.</p>`, (root, close) => { fermer = close; });
+    return () => fermer();
+  }
+  async function loadDemo(visite) {
     if (bridge.exemple) {
-      try { const r = await bridge.exemple(); if (r && r.motif) await infoDialog('L\'exemple', r.motif); }
-      catch (e) { toast(plainError(e), true); }
+      let fin = null;
+      try {
+        const r = await bridge.exemple({ visite: typeof visite === 'string' ? visite : '', attendre: () => (fin = attenteExemple()) });
+        if (r && r.motif) await infoDialog('L\'exemple', r.motif);
+        return !!(r && r.pret);
+      } catch (e) { if (fin) fin(); toast(plainError(e), true); }
       return false;
     }
     // `hasData` ne regardait que les documents et les clients : DEUX listes sur vingt. L'assistant
@@ -2448,7 +2462,22 @@
   // La sortie de l'exemple. Deux chemins, et l'app dit lequel elle propose :
   //   — une sauvegarde « avant-demo » existe (on avait des données) → on les remet ;
   //   — sinon (on a chargé l'exemple sur une installation neuve) → on repart à vide.
-  async function demoSortie() {
+  async function demoSortie(visite) {
+    // (plateforme) L'exemple vit dans l'entreprise d'essai, à part : le quitter ouvre ta vraie entreprise, et rien ne
+    // s'efface (la v10 remettait une sauvegarde du disque, ou effaçait l'exemple). Sans vraie entreprise encore, on la
+    // crée ici, par son nom, et elle s'ouvre vide ; la visite demandée (« Démarrer dans ma vraie entreprise ») y démarre.
+    if (bridge.quitterExemple) {
+      try {
+        const r = await bridge.quitterExemple({ visite: typeof visite === 'string' ? visite : '' });
+        if (r && r.aCreer) {
+          promptDialog('Ta vraie entreprise', 'Sa raison sociale, telle qu\'elle s\'imprimera sur tes factures', '', async v => {
+            const x = await bridge.addDossier({ name: v, visite: typeof visite === 'string' ? visite : '' });
+            if (!x || !x.ok) toast((x && x.error) || 'L\'entreprise n\'a pas été créée : réessaie.', true);
+          }, 'text', { champ: 'Raison sociale', ok: 'Créer et ouvrir' });
+        }
+      } catch (e) { toast(plainError(e), true); }
+      return false;
+    }
     let avant = null;
     try {
       // La plus récente : recharger l'exemple deux fois crée deux « avant-demo ».
@@ -17597,10 +17626,11 @@
            prenait le bouton écarlate d'à côté pour en sortir, et on perdait tout. -->
       ${panneau('p-exemple', info('data.demo'))}
         <div class="dz-row">
-          <div><b>Charger le jeu d'exemple</b>
-            <div class="small muted">Remplace tes données par cinq ans d'activité fictive, pour cliquer partout sans rien casser.
-            Une sauvegarde est prise avant, ta fiche société est conservée, et le bandeau de l'exemple te rendra tes données d'un clic.</div></div>
-          <button class="btn" id="load-demo">Charger l'exemple</button>
+          <div><b>${bridge.exemple ? 'Ouvrir l\'exemple' : 'Charger le jeu d\'exemple'}</b>
+            <div class="small muted">${bridge.exemple
+              ? 'Ton entreprise d\'essai, remplie de cinq ans d\'activité inventée, pour cliquer partout sans rien risquer. Elle vit à part : rien de ce que tu y fais ne touche cette entreprise, et rien n\'est remplacé ici.'
+              : 'Remplace tes données par cinq ans d\'activité fictive, pour cliquer partout sans rien casser. Une sauvegarde est prise avant, ta fiche société est conservée, et le bandeau de l\'exemple te rendra tes données d\'un clic.'}</div></div>
+          <button class="btn" id="load-demo">${bridge.exemple ? 'Ouvrir l\'exemple' : 'Charger l\'exemple'}</button>
         </div>
       </div>
       ${panneau('p-danger')}
@@ -18394,7 +18424,7 @@
     data: () => data, premier: premierObjet, estDemo: () => C.estDemo(data), editeur: () => !!licence.editeur, Visite, G,
     // Les données sont-elles déjà chiffrées ? La visite du mot de passe n'a alors plus rien à faire.
     chiffre: () => !!security.encrypted
-  }));
+  }).filter(v => !(bridge.visitesAbsentes || []).includes(v.id)));
   const visiteParId = id => visites().find(v => v.id === id) || null;
   // Les visites qui concernent CE poste : celle des licences n'existe que chez l'éditeur.
   const visitesVisibles = () => visites().filter(v => typeof v.visible !== 'function' || v.visible());
@@ -18504,8 +18534,8 @@
     // La découverte se fait sur l'EXEMPLE : elle le charge d'abord (avec sa question et sa
     // sauvegarde), et « Démarrer dans ma vraie entreprise » en sort d'abord. Une visite qui dirait
     // « tu es dans l'exemple » sur de vraies données, ou l'inverse, mentirait dès sa première bulle.
-    if (p.exemple && !C.estDemo(data) && !await loadDemo()) return;
-    if (p.reel && C.estDemo(data) && !await demoSortie()) return;
+    if (p.exemple && !C.estDemo(data) && !await loadDemo(p.id)) return;
+    if (p.reel && C.estDemo(data) && !await demoSortie(p.id)) return;
     // La proposition « Première fois sur cette page ? » n'a plus d'objet pendant une visite.
     fermerAppelGuide();
     Visite.lancer(p, depart || 0);
@@ -18546,7 +18576,7 @@
   // découverte — le moment où l'on a vu, et où l'on veut faire pour de vrai.
   async function actionDeVisite(id) {
     if (id === 'passer-au-reel') {
-      if (await demoSortie()) lancerVisite(visiteParId('premiers-pas'));
+      if (await demoSortie('premiers-pas')) lancerVisite(visiteParId('premiers-pas'));
     } else if (id === 'rester') {
       toast('Bonne exploration ! « Quitter l\'exemple », en haut de chaque page, te rend tes données.');
     }
@@ -21107,7 +21137,7 @@
   // l'assistant reprend là où la porte l'a laissé : personne ne reste devant un accueil vide sans
   // savoir par quoi commencer.
   async function decouvrirDepuisLaPorte() {
-    if (await loadDemo()) { lancerVisite(visiteParId('decouvrir')); return; }
+    if (await loadDemo('decouvrir')) { lancerVisite(visiteParId('decouvrir')); return; }
     if (await reprendreAssistant()) render();
   }
   // L'assistant que la porte a laissé EN ATTENTE, repris là où il s'était arrêté (« Ton entreprise ») :
@@ -21307,6 +21337,14 @@
     if (!location.hash) location.hash = '#/dashboard';
     render();
     if (decouvrirDabord) decouvrirDepuisLaPorte();
+    // (plateforme) La visite demandée avant d'arriver ici — la porte « Découvrir », « Voir un exemple » d'une autre
+    // entreprise, « Quitter l'exemple » — démarre une fois le dossier chargé : la découverte verse d'abord l'exemple s'il
+    // manque (`lancerVisite`, puis `loadDemo`). « exemple » : l'exemple seul, sans visite.
+    if (bridge.visiteDemandee) {
+      const demandee = bridge.visiteDemandee();
+      if (demandee === 'exemple') { if (!C.estDemo(data)) loadDemo(); }
+      else if (demandee) { const v = visiteParId(demandee); if (v) lancerVisite(v); }
+    }
     if (loaded && loaded.corruptFile) {
       modal(`<h2>Fichier de données illisible</h2>
         <p>Le fichier de données n'a pas pu être lu. Il n'a pas été effacé : il a été renommé en<br><code>${h(loaded.corruptFile.split(/[\\/]/).pop())}</code>.</p>

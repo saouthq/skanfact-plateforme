@@ -43,7 +43,7 @@ function charger() {
   bac.self = bac;
   vm.createContext(bac);
   for (const f of ['plateforme/pont.js', 'v10/visite.js', 'v10/visites.js']) vm.runInContext(fs.readFileSync(path.join(PUBLIC, f), 'utf8'), bac, { filename: f });
-  const pont = bac.skanfact as { panneauxAbsents: string[]; piecesJointes?: boolean };
+  const pont = bac.skanfact as { panneauxAbsents: string[]; piecesJointes?: boolean; visitesAbsentes?: string[] };
   const visites = (bac.SkanVisites as { parcours: (ctx: unknown) => Visite[] }).parcours({
     data: () => ({}), premier: () => null, estDemo: () => false, editeur: () => false, Visite: bac.Visite, G: { INFO: {} }, chiffre: () => false,
   });
@@ -80,5 +80,36 @@ describe('les visites de l\'entreprise, en ligne', () => {
     // Le test mesure : l'étape du justificatif est lue, et elle vise bien un élément absent.
     expect(visees.map((e) => e.titre)).toContain('Le justificatif d\'abord');
     expect(visees.filter((e) => !e.facultatif).map((e) => e.titre)).toEqual([]);
+  });
+
+  // Retour de Skander (05/10/2026 ; docs/exemple.md) : en refaisant la découverte en ligne, neuf visites attendaient un
+  // panneau absent (les sauvegardes, les mises à jour, la licence…). « Guide-moi » ne propose pas celles que le point de
+  // contact nomme (`visitesAbsentes`, adaptation de `visites`) ; toutes les autres vont au bout.
+  it('une visite que « Guide-moi » propose en ligne n\'attend jamais un élément que la version en ligne ne montre pas', () => {
+    const retirees = new Set(pont.visitesAbsentes ?? []);
+    // Chaque visite retirée existe : une liste qui nomme une visite disparue ne retire rien.
+    expect([...retirees].filter((id) => !visites.some((v) => v.id === id))).toEqual([]);
+    const enAttente = (v: Visite) => (v.etapes ?? []).filter((e) => surUnAbsent(e) && !e.facultatif).map((e) => `${v.id} : ${e.titre}`);
+    expect(visites.filter((v) => !retirees.has(v.id)).flatMap(enAttente)).toEqual([]);
+    // Le test mesure : sans la liste, des visites attendraient un panneau absent.
+    expect(visites.filter((v) => retirees.has(v.id)).flatMap(enAttente).length).toBeGreaterThan(0);
+  });
+
+  // La découverte, jouée en entier sur l'exemple versé (05/10/2026), décrivait l'application de bureau en cinq bulles :
+  // l'exemple qui « rend tes données », le paquet du comptable, ses réponses « dans le paquet du mois », sa clôture par
+  // fichier, la copie vers une clé USB — et sa fin parlait de licence.
+  it('la découverte proposée en ligne ne décrit pas l\'application de bureau', () => {
+    const decouvrir = visites.find((v) => v.id === 'decouvrir');
+    const phrases: string[] = [];
+    const lire = (o: unknown, vus = new Set<unknown>()) => {
+      if (typeof o === 'string') { if (/\s/.test(o)) phrases.push(o.replace(/<[^>]+>/g, '')); return; }
+      if (!o || typeof o !== 'object' || vus.has(o)) return;
+      vus.add(o);
+      for (const v of Object.values(o)) lire(v, vus);
+    };
+    lire(decouvrir);
+    // Le test mesure : la découverte est lue, bulle par bulle.
+    expect(phrases.length).toBeGreaterThan(40);
+    expect(phrases.filter((t) => /paquet|clé USB|iCloud|OneDrive|licence|fichier de clôture|t'envoie sa clôture|rend tes (vraies )?données|mises de côté/i.test(t))).toEqual([]);
   });
 });

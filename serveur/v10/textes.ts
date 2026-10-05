@@ -5,6 +5,10 @@ import { declarerTextes } from '../../textes/index.ts';
 declarerTextes({
   'quarantaine.deja_decidee': 'cette remise a déjà été acceptée ou rejetée : rien n\'a changé',
   'quarantaine.change_depuis': 'elle a changé depuis sur le serveur : la version du serveur est gardée, celle de l\'appareil reste avec la remise',
+  // L'exemple de la v10, versé dans l'entreprise d'essai (serveur/v10/exemple.ts ; retour de Skander, 05/10/2026).
+  'exemple.vraie_entreprise': 'l\'exemple ne se verse que dans ton entreprise d\'essai : jamais une pièce inventée dans une vraie entreprise. Rien n\'a été fait',
+  'exemple.motif_timbre': 'Le timbre de l\'exemple, dans l\'entreprise d\'essai',
+  'exemple.essai_deja_utilisee': 'ton entreprise d\'essai a déjà tes propres pièces : l\'exemple ne s\'y ajoute pas, ses numéros suivraient les tiens et ses relances parleraient de tes clients. Tes essais restent là. Rien n\'a été fait',
   'v10.conflit': 'quelqu\'un d\'autre vient de modifier ce dossier : recharge-le, tes changements ne sont pas perdus tant que la fenêtre reste ouverte',
   'v10.emission_par_le_serveur': 'une facture ou un avoir ne s\'émet qu\'avec le bouton « Émettre » : c\'est le serveur qui lui donne son numéro',
   'v10.avoir_ne_se_modifie_plus': 'l\'avoir {numero} est émis : il ne se modifie plus',

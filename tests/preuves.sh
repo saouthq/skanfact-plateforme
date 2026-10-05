@@ -1143,9 +1143,8 @@ prouver "un conflit tranché contre le serveur (l'onglet en retard écrase)" $PO
   "disk: Object.assign(await relire(), { syncWrittenAt: Date.now() }) };" "disk: await relire() };" \
   "$CO"
 prouver "l'exemple écrit dans la vraie entreprise" $PONT \
-  "      ouvrirEntreprise(essai ? essai.id : (await appelCompte('POST', '/entreprises-essai')).id);
-      return {};" "      return { motif: 'x' };" \
-  "$VR"
+  "      if (!essai || essai.id !== ent) {" "      if (!essai) {" \
+  "depuis une vraie entreprise, l'exemple ouvre l'entreprise d'essai : rien ne se verse ici"
 prouver "« Tout effacer » laissé sur la plateforme" $PONT \
   "'p-ocr', 'p-danger', 'p-maj'" "'p-ocr', 'p-maj'" \
   "$VR"
@@ -8301,6 +8300,130 @@ prouver "la référence d'une commande sans sa bulle « i »" web/public/v10/app
 prouver "la désignation d'une commande écrasée par les autres colonnes" web/public/v10/app.js \
   "<th class=\"r\" style=\"width:76px\">Qté</th><th style=\"width:136px\">Unité</th><th class=\"r\" style=\"width:124px\">" "<th class=\"r\">Qté</th><th>Unité</th><th class=\"r\">" \
   "$ACW1"
+
+# ── L'exemple rempli, et « Faire une facture » pas à pas (retour de Skander, 05/10/2026 ; serveur/v10/exemple.ts,
+# web/v10/exemple.txt, pont.js, Porte.tsx ; docs/exemple.md) ──
+EXS1="l'entreprise d'essai reçoit le jeu entier, ses factures émises par le serveur au millime de la v10, une seule fois"
+EXS2="jamais dans une vraie entreprise, ni dans une entreprise d'essai qui a ses propres pièces, ni chez un autre ; un refus n'écrit rien"
+EXW="Skander, sur un compte neuf : l'exemple se remplit, la découverte va au bout, puis sa vraie entreprise et sa première facture, guidée jusqu'au brouillon"
+POE2="l'entreprise d'essai déjà remplie ne se remplit pas deux fois"
+POE3="encore vide, le serveur la remplit derrière une fenêtre d'attente, puis la page se rouvre sur la visite demandée ; un conflit se redemande une fois"
+POE4="un refus se lit en entier, la fenêtre d'attente se ferme, et rien ne se rouvre"
+POE5="quitter l'exemple sans vraie entreprise : son nom d'abord ; la visite part avec l'entreprise créée, jamais avant"
+VEL="une visite que « Guide-moi » propose en ligne n'attend jamais un élément que la version en ligne ne montre pas"
+VELT="la découverte proposée en ligne ne décrit pas l'application de bureau"
+EXV=serveur/v10/exemple.ts
+prouver "l'exemple versé dans une vraie entreprise" $EXV \
+  "  if (!e?.essai) throw new Refus('exemple.vraie_entreprise');
+" "" \
+  "$EXS2"
+prouver "l'exemple mêlé aux pièces d'une entreprise d'essai déjà essayée" $EXV \
+  "  if (objets.some((o) => PIECES.includes(o.collection))) throw new Refus('exemple.essai_deja_utilisee');
+" "" \
+  "$EXS2"
+prouver "l'exemple versé une seconde fois" $EXV \
+  "  if (objets.some((o) => o.collection === '_racine' && o.cle === 'demo' && o.contenu === true)) return { deja: true, pieces: 0 };
+" "" \
+  "$EXS1"
+prouver "les factures de l'exemple écrites au dossier sans être émises par le serveur" $EXV \
+  "if (champ === 'documents' && (o.type === 'facture' || o.type === 'avoir') && o.status !== 'brouillon') { legales.push(o); continue; }" "if (false) { legales.push(o); continue; }" \
+  "$EXS1"
+prouver "le timbre des années de l'exemple d'avant la règle commune oublié" $EXV \
+  "    await tx.query('select socle.poser_regle_entreprise(\$1, \$2, \$3, \$4, \$5, \$6)', [entreprise, 'timbre.facture', JSON.stringify(timbre), premier, veille, rendre(t('exemple.motif_timbre'), 'fr')]);
+" "" \
+  "$EXS1"
+prouver "les règlements des factures de l'exemple perdus" $EXV \
+  "    if (paiements.length) reglements.push(" "    if (false) reglements.push(" \
+  "$EXS1"
+prouver "une visite laissée en attente par une entreprise d'essai qui n'a pas pu se créer" $PONT \
+  "        const id = essai ? essai.id : (await appelCompte('POST', '/entreprises-essai')).id;
+        visiteApres(visite || 'exemple');" "        visiteApres(visite || 'exemple');
+        const id = essai ? essai.id : (await appelCompte('POST', '/entreprises-essai')).id;" \
+  "sans entreprise d'essai encore, elle se crée puis s'ouvre ; une création refusée ne laisse aucune visite en attente"
+prouver "l'exemple déjà rempli qu'on redemande au serveur" $PONT \
+  "      if ((/** @type {any} */ (window).__data || {}).demo === true) return { pret: true };
+" "" \
+  "$POE2"
+prouver "un conflit avec l'enregistrement de départ de la page qui fait échouer l'exemple" $PONT \
+  "            if (tentative >= 2 || /** @type {any} */ (e).statut !== 409) throw e;" "            throw e;" \
+  "$POE3"
+prouver "la fenêtre d'attente de l'exemple qui reste ouverte après un refus" $PONT \
+  "        if (typeof fin === 'function') fin();
+" "" \
+  "$POE4"
+prouver "une visite laissée en attente par la fenêtre du nom fermée sans créer" $PONT \
+  "      if (!vraie) return { aCreer: true };
+      if (o && typeof o.visite === 'string' && o.visite) visiteApres(o.visite);" "      if (o && typeof o.visite === 'string' && o.visite) visiteApres(o.visite);
+      if (!vraie) return { aCreer: true };" \
+  "$POE5"
+prouver "l'entreprise créée en quittant l'exemple, ouverte sans sa visite" $PONT \
+  "      if (o && typeof o.visite === 'string' && o.visite) visiteApres(o.visite);
+      ouvrirEntreprise(r.id);" "      ouvrirEntreprise(r.id);" \
+  "$POE5"
+prouver "la visite demandée oubliée au changement de page" $PONT \
+  "    try { sessionStorage.setItem(VISITE_APRES, id); } catch { /* sans stockage : l'exemple s'ouvre, sans sa visite */ }" "    void id;" \
+  "$POE3"
+prouver "« Guide-moi » qui propose en ligne de revenir à une sauvegarde" $PONT \
+  "  const VISITES_SANS_OBJET = ['sauvegarde', 'restaurer'," "  const VISITES_SANS_OBJET = ['sauvegarde'," \
+  "$VEL"
+prouver "les puces des Paramètres qui mènent à un panneau absent" $PONT \
+  "PANNEAUX_ABSENTS.flatMap((id) => [\`#\${id}\`, \`[data-somm=\"\${id}\"]\`, \`[data-go=\"\${id}\"]\`])" "PANNEAUX_ABSENTS.flatMap((id) => [\`#\${id}\`])" \
+  "$VR"
+prouver "« Commencer la découverte » qui ouvre une entreprise d'essai vide" web/src/ecrans/Porte.tsx \
+  "    try { sessionStorage.setItem('skanfact.visite', 'decouvrir'); } catch { /* sans stockage : l'entreprise d'essai s'ouvre, sans la découverte */ }
+" "" \
+  "$EXW"
+prouver "l'exemple chargé à l'écran au lieu d'être versé par le serveur" web/public/v10/app.js \
+  "  async function loadDemo(visite) {
+    if (bridge.exemple) {" "  async function loadDemo(visite) {
+    if (false) {" \
+  "$EXW"
+prouver "l'exemple qui se prépare sans le dire" web/public/v10/app.js \
+  "attendre: () => (fin = attenteExemple())" "attendre: () => null" \
+  "$EXW"
+prouver "la visite demandée jamais lancée une fois la page chargée" web/public/v10/app.js \
+  "      else if (demandee) { const v = visiteParId(demandee); if (v) lancerVisite(v); }" "      else if (demandee) { void demandee; }" \
+  "$EXW"
+prouver "« Passer à ma vraie entreprise » qui oublie les premiers pas" web/public/v10/app.js \
+  "      if (await demoSortie('premiers-pas')) lancerVisite(visiteParId('premiers-pas'));" "      if (await demoSortie()) lancerVisite(visiteParId('premiers-pas'));" \
+  "$EXW"
+prouver "l'entreprise créée depuis l'exemple sans la visite demandée" web/public/v10/app.js \
+  "const x = await bridge.addDossier({ name: v, visite: typeof visite === 'string' ? visite : '' });" "const x = await bridge.addDossier({ name: v });" \
+  "$EXW"
+prouver "« Quitter l'exemple » qui fait comme sur l'ordinateur" web/public/v10/app.js \
+  "    if (bridge.quitterExemple) {" "    if (false) {" \
+  "$EXW"
+prouver "« Me guider » qui propose en ligne les visites sans objet" web/public/v10/app.js \
+  "  }).filter(v => !(bridge.visitesAbsentes || []).includes(v.id)));" "  }));" \
+  "$EXW"
+prouver "« Guide-moi » d'une nouvelle facture sans « Faire une facture »" web/public/v10/visites.js \
+  "      surLaPage: cle => cle !== 'doc' || /^#\\/doc\\/new\\/facture/.test(hash())," "      surLaPage: () => false," \
+  "$EXW"
+prouver "l'étape des pièces jointes du devis qui attend un panneau absent" web/public/v10/visites.js \
+  "        { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes', facultatif: true," "        { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes'," \
+  "$VEL"
+prouver "la découverte qui attend le panneau des mises à jour" web/public/v10/visites.js \
+  "        { page: '#/parametres', cible: '#app-version', cote: 'droite', titre: 'Les mises à jour'," "        { page: '#/parametres', cible: '#p-maj', cote: 'droite', titre: 'Les mises à jour'," \
+  "$VEL"
+prouver "la découverte qui attend la copie vers une clé" web/public/v10/visites.js \
+  "cible: '#p-appareils', cote: 'dessous', titre: 'Tes données à l\\'abri'," "cible: '#p-externe', cote: 'dessous', titre: 'Tes données à l\\'abri'," \
+  "$VEL"
+prouver "la découverte qui attend la clôture reçue en fichier" web/public/v10/visites.js \
+  "        { page: '#/parametres', avant: onglet('#set-tabs', 'donnees'), cible: '#p-appareils'" "        { page: '#/compta', avant: onglet('#c-tabs', 'clotures'), cible: '#p-cloture-cabinet', cote: 'dessus', titre: 'Sa clôture', texte: 'x' },
+        { page: '#/parametres', avant: onglet('#set-tabs', 'donnees'), cible: '#p-appareils'" \
+  "$VEL"
+prouver "la fin de la découverte qui parle de licence" web/public/v10/visites.js \
+  "abonnement réglé ou pas, tu gardes la lecture, l\\'impression et l\\'export." "licence ou pas, tu gardes la lecture, l\\'impression, l\\'export et l\\'envoi à ton comptable." \
+  "$VELT"
+prouver "la découverte qui décrit le paquet du comptable" web/public/v10/visites.js \
+  "Rien à lui envoyer : tu lui confies ton entreprise une fois" "Chaque mois, un paquet : tu lui confies ton entreprise une fois" \
+  "$VELT"
+prouver "l'exemple qui « rend tes vraies données » en ligne" web/public/v10/visites.js \
+  "<b>« Quitter l\\'exemple »</b> ouvre ta vraie entreprise : l\\'exemple vit à part" "<b>« Quitter l\\'exemple »</b> te rend tes vraies données — elles ont été mises de côté : l\\'exemple vit à part" \
+  "$VELT"
+prouver "la réponse au comptable qui part « dans le paquet du mois »" web/public/v10/visites.js \
+  "Tu réponds en une phrase ; il la lit dès que tu l\\'enregistres." "Tu réponds en une phrase ; ta réponse repart dans le paquet du mois." \
+  "$VELT"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

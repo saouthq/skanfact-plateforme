@@ -1,7 +1,7 @@
 // La porte de la v10 (« Bienvenue dans SkanFact », 10.14.0) pour qui n'a encore aucune entreprise :
 // deux façons de commencer, la recommandée en avant et UN seul bouton vert. Découvrir : une
-// entreprise d'essai, déjà garnie de clients d'exemple, qui reste une entreprise d'essai pour
-// toujours. Commencer : la question de la v10 « Ton entreprise », réduite à ce que le serveur prend
+// entreprise d'essai, remplie de l'exemple de cinq ans de la v10, qui reste une entreprise d'essai pour
+// toujours, et la visite de découverte sur elle. Commencer : la question de la v10 « Ton entreprise », réduite à ce que le serveur prend
 // aujourd'hui (la raison sociale et le matricule fiscal). Un cabinet comptable : son nom, et le
 // Cabinet v10 s'ouvre sur ses dossiers (brique 37 ; docs/cabinet.md).
 import { useState } from 'react';
@@ -19,10 +19,15 @@ export function Porte({ creee, cabinetCree, deconnecte }: { creee: (ent: string)
   const [nomCabinet, setNomCabinet] = useState('');
   const [matricule, setMatricule] = useState('');
 
+  // Découvrir : l'entreprise d'essai, puis la découverte de la v10 sur elle — le serveur la remplit de l'exemple d'abord
+  // (retour de Skander, 05/10/2026 : elle n'avait que trois clients, et la visite n'avait rien à montrer). La visite
+  // voyage jusqu'à la page de l'entreprise (web/public/plateforme/pont.js, `visiteDemandee`).
   const essai = () => g.geste(async () => {
     const r = await g.api<{ id: string }>('POST', '/entreprises-essai');
     if (!r) return;
-    if (r.statut === 201) creee(r.corps.id); else g.refuser(refusDe(r));
+    if (r.statut !== 201) { g.refuser(refusDe(r)); return; }
+    try { sessionStorage.setItem('skanfact.visite', 'decouvrir'); } catch { /* sans stockage : l'entreprise d'essai s'ouvre, sans la découverte */ }
+    creee(r.corps.id);
   });
   const creer = () => g.geste(async () => {
     const r = await g.api<{ id: string }>('POST', '/entreprises', { raisonSociale: raison.trim(), ...(matricule.trim() ? { matriculeFiscal: matricule.trim() } : {}) });

@@ -577,14 +577,24 @@
     }
   }
 
-  // Les panneaux des Paramètres sans objet sur la plateforme (voir `panneauxAbsents`).
+  // Les panneaux des Paramètres sans objet sur la plateforme (voir `panneauxAbsents`), avec leur puce du sommaire et leur
+  // résultat de recherche (reglages.js lit l'écran : un panneau caché y restait, et sa puce ne menait nulle part — vu
+  // dans Données et sécurité le 05/10/2026 : « Dossiers », « Sauvegardes », « Copie externe », « Mot de passe »…).
   // `p-pj` (les pièces jointes d'une pièce) reviendra quand le serveur gardera les fichiers ;
   // `p-depannage` (le journal de l'ordinateur, le signalement) quand le serveur tiendra le sien.
-  const PANNEAUX_ABSENTS = ['p-dossiers', 'p-sauvegardes', 'p-externe', 'p-motdepasse', 'p-ocr', 'p-danger', 'p-maj', 'p-licence', 'p-editeur', 'p-pj', 'p-depannage'];
+  // « La clôture de ton comptable » attendait un fichier .skanclose : le cabinet clôt l'exercice ici même (brique 45).
+  const PANNEAUX_ABSENTS = ['p-dossiers', 'p-sauvegardes', 'p-externe', 'p-motdepasse', 'p-ocr', 'p-danger', 'p-maj', 'p-licence', 'p-editeur', 'p-pj', 'p-depannage', 'p-cloture-cabinet'];
   const style = document.createElement('style');
-  style.textContent = `${PANNEAUX_ABSENTS.map((id) => `#${id}`).join(', ')} { display: none !important; }
+  style.textContent = `${PANNEAUX_ABSENTS.flatMap((id) => [`#${id}`, `[data-somm="${id}"]`, `[data-go="${id}"]`]).join(', ')} { display: none !important; }
     .ttn-etat { display: block; min-height: 1.4em; }`;
   document.head.appendChild(style);
+  // Les visites guidées que « Guide-moi » ne propose pas (adaptation de `visites`, web/v10/exemple.txt) : celles dont
+  // le sujet n'existe pas en ligne (les fichiers et les sauvegardes de l'ordinateur, sa copie de sécurité, les mises à
+  // jour, la licence, un dossier partagé entre deux ordinateurs, la clôture du comptable reçue en fichier), et celles
+  // d'un geste pas encore en ligne, qui reviennent avec leur brique (le justificatif joint, le signalement avec le
+  // journal de l'ordinateur).
+  const VISITES_SANS_OBJET = ['sauvegarde', 'restaurer', 'fichiers', 'mise-a-jour', 'licence', 'partager', 'recevoir-cloture'];
+  const VISITES_PAS_ENCORE = ['justificatif', 'signaler'];
 
   // ── Ton cabinet comptable (brique 37 ; docs/cabinet.md) ─────────────────────────────────────
   // Plus d'appairage ni de paquets : le propriétaire confie son dossier à son cabinet en tapant le
@@ -868,10 +878,12 @@
       };
     },
     switchDossier: async (/** @type {string} */ id) => { ouvrirEntreprise(id); return { ok: true }; },
-    addDossier: async (/** @type {{ name?: string }} */ o) => {
+    // `visite` : celle qui démarre dans l'entreprise créée (« Passer à ma vraie entreprise », à la fin de la découverte).
+    addDossier: async (/** @type {{ name?: string, visite?: string }} */ o) => {
       const nom = String((o && o.name) || '').trim();
       if (!nom) return { ok: false, error: 'Donne un nom à cette entreprise.' };
       const r = await appelCompte('POST', '/entreprises', { raisonSociale: nom });
+      if (o && typeof o.visite === 'string' && o.visite) visiteApres(o.visite);
       ouvrirEntreprise(r.id);
       return { ok: true };
     },
@@ -1013,15 +1025,62 @@
     // Les panneaux des Paramètres qui parlent de l'ordinateur (fichiers, copies, mot de passe du
     // fichier, licence, mises à jour) : ils n'ont pas d'objet ici. La palette (Ctrl K) les tait aussi.
     panneauxAbsents: PANNEAUX_ABSENTS,
+    visitesAbsentes: [...VISITES_SANS_OBJET, ...VISITES_PAS_ENCORE],
 
     // L'exemple rempli de la v10 remplaçait les données du dossier par des pièces inventées. Sur la
     // plateforme, l'exemple est l'entreprise d'essai, à part : jamais une pièce inventée dans une
-    // vraie entreprise (adaptation de `loadDemo`).
-    exemple: async () => {
+    // vraie entreprise (adaptation de `loadDemo`). La première fois, le serveur la remplit du jeu de la v10
+    // (cinq ans, ses factures émises par lui : serveur/v10/exemple.ts ; retour de Skander, 05/10/2026 : « il me dit
+    // tu es déjà dans l'exemple mais il n'y a rien dessus »). `o.visite` : la visite à lancer une fois l'exemple là
+    // (la découverte) ; `o.attendre()` montre l'attente et rend de quoi la fermer.
+    // Rend { pret } quand l'exemple est l'entreprise ouverte ; sinon la page part vers lui, ou se recharge remplie.
+    exemple: async (/** @type {any} */ o) => {
+      const visite = o && typeof o.visite === 'string' ? o.visite : '';
       const moi = await appelCompte('GET', '/moi');
       const essai = moi.entreprises.find((/** @type {any} */ e) => e.essai && !e.parCabinet);
-      if (essai && essai.id === ent) return { motif: 'Tu es dans ton entreprise d\'essai : c\'est elle, l\'exemple. Tout ce que tu y fais reste ici, et ne touche jamais une vraie entreprise.' };
-      ouvrirEntreprise(essai ? essai.id : (await appelCompte('POST', '/entreprises-essai')).id);
+      if (!essai || essai.id !== ent) {
+        // La visite ne se note qu'une fois l'entreprise d'essai là : une création refusée ne laisse rien en attente.
+        const id = essai ? essai.id : (await appelCompte('POST', '/entreprises-essai')).id;
+        visiteApres(visite || 'exemple');
+        ouvrirEntreprise(id);
+        return {};
+      }
+      if ((/** @type {any} */ (window).__data || {}).demo === true) return { pret: true };
+      const fin = o && typeof o.attendre === 'function' ? o.attendre() : null;
+      try {
+        // Ce que la page enregistrait (ses réglages de départ, à l'ouverture) part d'abord ; un enregistrement qui croise
+        // quand même le versement le fait refuser (un conflit) : on le redemande une fois, rien n'ayant été écrit.
+        for (let tentative = 0; ; tentative++) {
+          while (enCours) await enCours.catch(() => undefined);
+          try { await appelCompte('POST', `/entreprises/${encodeURIComponent(ent)}/exemple`); break; } catch (e) {
+            if (tentative >= 2 || /** @type {any} */ (e).statut !== 409) throw e;
+            await new Promise((r) => setTimeout(r, 800));
+          }
+        }
+      } catch (e) {
+        if (typeof fin === 'function') fin();
+        // Hors ligne, l'écran le dit comme ailleurs ; un refus (une entreprise d'essai déjà utilisée) se lit en entier.
+        if (/** @type {any} */ (e).horsLigne) throw e;
+        return { motif: e instanceof Error ? e.message : String(e) };
+      }
+      visiteApres(visite || 'exemple');
+      location.reload();
+      return {};
+    },
+    // La visite demandée avant d'arriver ici (la porte, « Voir un exemple » d'une autre entreprise, « Quitter l'exemple »),
+    // lue une fois : l'écran la lance une fois le dossier chargé. « exemple » : l'exemple, sans visite.
+    visiteDemandee: () => {
+      try { const v = sessionStorage.getItem(VISITE_APRES); sessionStorage.removeItem(VISITE_APRES); return v; } catch { return null; }
+    },
+    // Quitter l'exemple : ta vraie entreprise s'ouvre (l'exemple reste dans l'entreprise d'essai, rien ne s'efface).
+    // Sans vraie entreprise encore : { aCreer }, et l'écran demande son nom (`addDossier`, qui emporte la visite : une
+    // fenêtre fermée sans créer ne laisse pas une visite en attente pour la page suivante).
+    quitterExemple: async (/** @type {any} */ o) => {
+      const moi = await appelCompte('GET', '/moi');
+      const vraie = moi.entreprises.find((/** @type {any} */ e) => !e.essai && !e.parCabinet);
+      if (!vraie) return { aCreer: true };
+      if (o && typeof o.visite === 'string' && o.visite) visiteApres(o.visite);
+      ouvrirEntreprise(vraie.id);
       return {};
     },
   };
@@ -1048,7 +1107,7 @@
     if (r.status === 401) { await finDeSession(lu); throw new Error('Ta session est terminée : reconnecte-toi.'); }
     if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
     // Le bouton qui débloque voyage avec le refus (brique 123 : « session_de_caisse »).
-    if (!r.ok) throw Object.assign(new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.'), { bouton: typeof lu.bouton === 'string' ? lu.bouton : null });
+    if (!r.ok) throw Object.assign(new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.'), { bouton: typeof lu.bouton === 'string' ? lu.bouton : null, statut: r.status });
     return lu;
   }
   // ── Tes appareils (brique 74 ; docs/hors-ligne.md, H9) : les voir, en retirer un ────────────
@@ -1798,6 +1857,12 @@
         void decider(false);
       };
     });
+  }
+  // La visite à lancer à la prochaine ouverture d'une page de l'entreprise (`visiteDemandee`) : le temps d'un onglet.
+  const VISITE_APRES = 'skanfact.visite';
+  /** @param {string} id */
+  function visiteApres(id) {
+    try { sessionStorage.setItem(VISITE_APRES, id); } catch { /* sans stockage : l'exemple s'ouvre, sans sa visite */ }
   }
   // Ouvrir une entreprise, et s'en souvenir pour la prochaine fois (la même clé que l'entrée).
   /** @param {string} id */
