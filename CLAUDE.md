@@ -507,8 +507,9 @@
   types, lint (0 erreur, 0 avertissement), contrôle éclair des preuves, les tests des fichiers de
   test changés depuis `origin/main` (et ceux qu'on ajoute : `-- tests/x.test.ts`), puis les preuves
   **nouvelles ou changées** (`npm run preuves:nouvelles`). Lire le **code de sortie**. Tous les
-  tests et toutes les preuves tournent sur GitHub à chaque envoi (preuves en quatre groupes sur quatre
-  machines, `PARTIE=k/4`). **Avant chaque envoi, lire le verdict du précédent** (`npm run verdict`,
+  tests et toutes les preuves tournent sur GitHub à chaque envoi (depuis le 05/10/2026, décidé par Skander
+  pour ne plus attendre une heure : tests en deux moitiés par Node, preuves en quatorze groupes sur quatorze
+  machines, `PARTIE=k/14` ; 20 machines à la fois, ce que GitHub prête à un dépôt public). **Avant chaque envoi, lire le verdict du précédent** (`npm run verdict`,
   qui nomme le test ou la preuve qui tombe) : une construction rouge se répare d'abord, jamais on ne
   la contourne ni n'empile par-dessus. Une brique qui touche au socle de tout (le serveur, la
   connexion, la sécurité par ligne) ajoute les fichiers de test concernés à `verifier:brique`.

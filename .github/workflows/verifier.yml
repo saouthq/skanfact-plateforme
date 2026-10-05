@@ -11,13 +11,16 @@ permissions:
   contents: read
 
 jobs:
+  # Les tests, sur deux Node, chacun en deux moitiés sur deux machines (décidé par Skander le 05/10/2026 : une
+  # modification doit arriver sur le serveur sans attendre une heure) : tous les tests, en deux fois moins de temps.
   verifier:
-    name: Tests (Node ${{ matrix.node }})
+    name: Tests (Node ${{ matrix.node }}, moitié ${{ matrix.moitie }}/2)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         node: [22, 24]
+        moitie: [1, 2]
     services:
       postgres:
         image: postgres:16
@@ -53,18 +56,20 @@ jobs:
       - name: Lint (0 erreur, 0 avertissement)
         run: npm run lint
       - name: Tests
-        run: npm test
+        run: npm test -- --shard=${{ matrix.moitie }}/2
 
-  # Les preuves par réintroduction, en quatre groupes sur quatre machines qui tournent en même temps
-  # (une preuve sur quatre chacune) : toutes les preuves, en un quart du temps. Un seul groupe qui ne
-  # prouve pas tout fait échouer la vérification.
+  # Les preuves par réintroduction, en quatorze groupes sur quatorze machines qui tournent en même temps
+  # (une preuve sur quatorze chacune) : toutes les preuves, en un quatorzième du temps (quatre groupes
+  # jusqu'au 05/10/2026 : 70 à 80 minutes ; décidé par Skander). Quatre machines de tests, quatorze de
+  # preuves, l'éclair et les secrets : 20, ce que GitHub prête à la fois à un dépôt public. Un seul groupe
+  # qui ne prouve pas tout fait échouer la vérification.
   preuves:
-    name: Preuves (groupe ${{ matrix.groupe }}/4)
+    name: Preuves (groupe ${{ matrix.groupe }}/14)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        groupe: [1, 2, 3, 4]
+        groupe: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
     services:
       postgres:
         image: postgres:16
@@ -96,7 +101,7 @@ jobs:
       - name: Preuves (chaque test tombe quand on remet son défaut)
         run: npm run preuves
         env:
-          PARTIE: ${{ matrix.groupe }}/4
+          PARTIE: ${{ matrix.groupe }}/14
 
   # Le contrôle éclair (quelques secondes) : chaque preuve vise un endroit qui existe une fois, pas une
   # définition qu'une migration plus récente remplace ; le bilan reste à la fin de tests/preuves.sh.

@@ -7826,6 +7826,12 @@ prouver "un code QR qui ne dit pas l'adresse" web/src/ecrans/CodeRequis.tsx \
   "  q.addData(adresse);" "  q.addData(adresse.replace('SkanFact', 'Skan'));" \
   "$CEP"
 
+# Le suiveur ne descend jamais sous lui-même (brique 143, complétée le 05/10/2026).
+SV3="jamais une version d'avant le suiveur : un serveur neuf attend plutôt qu'une version vérifiée le porte"
+prouver "une version d'avant le suiveur installée" exploitation/suivre.ts \
+  "    if (!installable(v)) continue;" "" \
+  "$SV3"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
