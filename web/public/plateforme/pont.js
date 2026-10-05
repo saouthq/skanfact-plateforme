@@ -582,7 +582,8 @@
   // `p-depannage` (le journal de l'ordinateur, le signalement) quand le serveur tiendra le sien.
   const PANNEAUX_ABSENTS = ['p-dossiers', 'p-sauvegardes', 'p-externe', 'p-motdepasse', 'p-ocr', 'p-danger', 'p-maj', 'p-licence', 'p-editeur', 'p-pj', 'p-depannage'];
   const style = document.createElement('style');
-  style.textContent = `${PANNEAUX_ABSENTS.map((id) => `#${id}`).join(', ')} { display: none !important; }`;
+  style.textContent = `${PANNEAUX_ABSENTS.map((id) => `#${id}`).join(', ')} { display: none !important; }
+    .ttn-etat { display: block; min-height: 1.4em; }`;
   document.head.appendChild(style);
 
   // ── Ton cabinet comptable (brique 37 ; docs/cabinet.md) ─────────────────────────────────────
@@ -666,6 +667,7 @@
     signerPiece,
     dessinerTtn,
     ttnDansLaFenetre,
+    etatsTtn: remplirEtats,
     // Des remises attendent-elles une décision ? (le panneau ne paraît que dans ce cas)
     quarantaine: () => remises.length,
     loadData: async () => {
@@ -1502,6 +1504,7 @@
       };
       /** @param {any} r @param {boolean} [deja] */
       const fini = (r, deja) => {
+        etatsConnus.delete(doc.id);
         etape.innerHTML = `<p id="sg-fait">La pièce <strong>${esc(r.signees.join(', '))}</strong> est ${deja ? 'déjà ' : ''}signée${r.titulaire ? ` par ${esc(r.titulaire)}` : ''}, le ${esc(quand(r.signeLe))}. Elle part d'elle-même à la TTN : « Fichier pour El Fatoora » dit où elle en est.</p>
           <div class="inline"><button type="button" class="btn btn-primary" id="sg-telecharger">Télécharger le fichier signé</button></div>`;
         $r('#sg-telecharger').onclick = () => { close(); telecharger(); };
@@ -1600,6 +1603,7 @@
         b.setAttribute('disabled', '');
         try {
           await appel('POST', `/efacture/envois/${encodeURIComponent(doc.id)}/renvoyer`);
+          etatsConnus.delete(doc.id);
           el.innerHTML = '<p id="ttn-piece"><strong>Elle repart à la TTN</strong> : SkanFact la dépose tout seul, et te dira ce qu\'elle en fait.</p>';
         } catch (e) {
           b.removeAttribute('disabled');
@@ -1616,6 +1620,55 @@
     const b = /** @type {HTMLElement | null} */ (el.querySelector('#ttn-vers-compte'));
     if (b) b.onclick = vers;
   }
+
+  // ── L'état El Fatoora dans la liste (brique 139 ; docs/facture-electronique.md, L) ───────────────
+  // Sous le statut de chaque facture ou avoir émis, la liste garde une place (`.ttn-etat`) ; on la remplit
+  // ici, en un appel pour toutes les places de la page (jamais un par ligne). Une liste redessinée à chaque
+  // frappe ne redemande rien de ce qu'on sait depuis moins de 20 secondes.
+  /** @type {Record<string, [string, boolean]>} */
+  const MOTS_TTN = {
+    a_signer: ['à signer', false], signee: ['signée, pas envoyée', false], a_envoyer: ['en route', false], retenue: ['retenue', true],
+    deposee: ['déposée, en attente', false], acceptee: ['acceptée', false], refusee: ['refusée', true],
+  };
+  /** @type {Map<string, { e: any, le: number }>} */
+  const etatsConnus = new Map();
+  /** @type {Set<string>} */
+  const etatsDemandes = new Set();
+  /** @param {HTMLElement} el @param {any} e */
+  const poserEtat = (el, e) => {
+    el.dataset.rempli = '1';
+    const m = e && MOTS_TTN[e.etat];
+    if (!m) return;
+    const titre = e.reference ? `Référence de la TTN : ${e.reference}` : e.motif ? phrase(e.motif) : 'Le détail : « Fichier pour El Fatoora », dans le menu de la pièce.';
+    el.innerHTML = `<span class="small ${m[1] ? 'warn-text' : 'muted'}" title="${esc(titre)}">El Fatoora : ${m[0]}</span>`;
+  };
+  let etatsPrevus = false;
+  async function remplirEtats() {
+    etatsPrevus = false;
+    const places = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.ttn-etat:not([data-rempli])')]);
+    const manquent = new Set();
+    for (const el of places) {
+      const id = String(el.dataset.ttn);
+      const c = etatsConnus.get(id);
+      if (c && Date.now() - c.le < 20_000) poserEtat(el, c.e);
+      else if (!etatsDemandes.has(id)) manquent.add(id);
+    }
+    const ids = [...manquent];
+    for (let i = 0; i < ids.length; i += 100) {
+      const lot = ids.slice(i, i + 100);
+      lot.forEach((id) => etatsDemandes.add(id));
+      try {
+        const r = await appel('GET', `/efacture/etats?cles=${lot.map(encodeURIComponent).join(',')}`);
+        for (const id of lot) etatsConnus.set(id, { e: r.etats[id] || null, le: Date.now() });
+      } catch { /* sans réseau, la place reste vide : la liste se redessinera */ } finally { lot.forEach((id) => etatsDemandes.delete(id)); }
+      for (const el of /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.ttn-etat:not([data-rempli])')])) {
+        const c = etatsConnus.get(String(el.dataset.ttn));
+        if (c) poserEtat(el, c.e);
+      }
+    }
+  }
+  new MutationObserver(() => { if (!etatsPrevus && document.querySelector('.ttn-etat:not([data-rempli])')) { etatsPrevus = true; setTimeout(() => void remplirEtats(), 0); } })
+    .observe(document.documentElement, { childList: true, subtree: true });
 
   // ── Ce qu'un appareil retiré a remis (brique 74 bis ; docs/hors-ligne.md, H10) ────────────────
   // À l'ouverture, en ligne : s'il y a des remises à décider, le bandeau le dit, et « Voir » mène au

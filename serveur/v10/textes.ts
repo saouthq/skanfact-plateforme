@@ -129,6 +129,7 @@ declarerTextes({
   'efacture.manques': 'ton entreprise est soumise à la facture électronique, et le fichier El Fatoora de cette pièce serait refusé : {manques} Rien n\'a été émis, aucun numéro n\'a été pris',
   'efacture.ecart': 'le fichier El Fatoora ne dirait pas les montants de la pièce ({code} : {fichier} dans le fichier, {serveur} au serveur) : rien n\'a été émis',
   'efacture.absent': 'cette pièce n\'a pas de fichier El Fatoora écrit par le serveur',
+  'efacture.etats_trop': 'pas plus de 100 pièces à la fois',
   // La signature DigiGo (brique 81).
   'efacture.signature_indisponible': 'la signature DigiGo n\'est pas encore branchée sur ce serveur : rien n\'a été signé',
   'efacture.sans_signataire': 'personne n\'est désigné pour signer : pose l\'identifiant DigiGo du signataire dans Paramètres → Documents',

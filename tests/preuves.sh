@@ -7346,6 +7346,60 @@ prouver "les jours dits à l'heure du navigateur, pas de Tunis" web/public/plate
 prouver "SkanEcom jamais déclaré par défaut" serveur/principal.ts \
   "lirePartenaires(env.SKANFACT_PARTENAIRES ?? fs.readFileSync(path.join(ici, 'partenaires.json'), 'utf8'), { essai" "lirePartenaires(env.SKANFACT_PARTENAIRES, { essai" \
   "SkanEcom est déclaré dans le dépôt : son adresse de retour, l'empreinte de son secret, ses gestes"
+# Brique 139 : l'état El Fatoora dans la liste des factures (docs/facture-electronique.md, L).
+EL="la liste lit où en est chaque pièce, en un appel pour toute la page (brique 139)"
+EW="chaque facture émise dit où en est son fichier El Fatoora, en un appel pour la page, sans rien pousser"
+prouver "une pièce refusée dite retenue" serveur/v10/routes.ts \
+  "x.statut === 'a_envoyer' && x.motif ? 'retenue' : x.statut" "x.motif ? 'retenue' : x.statut" \
+  "$EL"
+prouver "une pièce retenue dite en route" serveur/v10/routes.ts \
+  "x.statut === 'a_envoyer' && x.motif ? 'retenue' : x.statut" "x.statut" \
+  "$EL"
+prouver "une pièce signée qui ne part pas dite à signer" serveur/v10/routes.ts \
+  "!x.signe ? 'a_signer' : !x.statut ? 'signee'" "!x.statut ? 'a_signer'" \
+  "$EL"
+prouver "la liste lit les pièces d'une autre entreprise de la même personne" serveur/v10/routes.ts \
+  "        where p.entreprise = \$1 and p.ref_v10 = any(\$2)\`, [params.entreprise, cles])" "        where \$1::uuid is not null and p.ref_v10 = any(\$2)\`, [params.entreprise, cles])" \
+  "$EL"
+prouver "les états d'autant de pièces qu'on veut" serveur/v10/routes.ts \
+  "if (cles.length > 100) return" "if (cles.length > 1000) return" \
+  "$EL"
+prouver "la ligne grandit quand l'état arrive" web/public/plateforme/pont.js \
+  ".ttn-etat { display: block; min-height: 1.4em; }" ".ttn-etat { display: block; }" \
+  "$EW"
+prouver "un appel par ligne" web/public/plateforme/pont.js \
+  "    for (let i = 0; i < ids.length; i += 100) {
+      const lot = ids.slice(i, i + 100);" "    for (let i = 0; i < ids.length; i += 1) {
+      const lot = ids.slice(i, i + 1);" \
+  "$EW"
+prouver "chaque frappe redemande les états" web/public/plateforme/pont.js \
+  "if (c && Date.now() - c.le < 20_000) poserEtat(el, c.e);" "if (false) poserEtat(el, c.e);" \
+  "$EW"
+prouver "la liste d'une entreprise non soumise montre l'état" web/public/v10/app.js \
+  "bridge.etatsTtn && company().efacture === true && (d.type" "bridge.etatsTtn && (d.type" \
+  "$EW"
+prouver "la raison d'une pièce retenue tue" web/public/plateforme/pont.js \
+  ": e.motif ? phrase(e.motif) :" ":" \
+  "$EW"
+prouver "une pièce refusée sans couleur d'alerte" web/public/plateforme/pont.js \
+  "<span class=\"small \${m[1] ? 'warn-text' : 'muted'}\"" "<span class=\"small muted\"" \
+  "$EW"
+prouver "signée depuis sa fenêtre, la liste la dit encore à signer" web/public/plateforme/pont.js \
+  "      const fini = (r, deja) => {
+        etatsConnus.delete(doc.id);" "      const fini = (r, deja) => {" \
+  "$EW"
+prouver "renvoyée depuis sa fenêtre, la liste la dit encore refusée" web/public/plateforme/pont.js \
+  "renvoyer\`);
+          etatsConnus.delete(doc.id);" "renvoyer\`);" \
+  "$EW"
+prouver "une coupure du réseau casse la page" web/public/plateforme/pont.js \
+  "      } catch { /* sans réseau, la place reste vide : la liste se redessinera */ } finally {" "      } finally {" \
+  "$EW"
+prouver "les places jamais remplies" web/public/plateforme/pont.js \
+  "    etatsTtn: remplirEtats,
+" "" \
+  "$EW"
+
 # Brique 138 : la caisse imprime par l'agent local (docs/bureau.md, C).
 TB="Nadia règle l'imprimante de son comptoir, encaisse en espèces (ticket et tiroir) puis par carte (ticket seul)"
 prouver "le tiroir s'ouvre pour un ticket payé par carte" web/public/v10/app.js \

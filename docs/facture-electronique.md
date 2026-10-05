@@ -149,6 +149,30 @@ compare octet pour octet à la version épinglée du paquet. La place, la taille
 la TTN attend sur la pièce, et l'encodage du QR s'il portait autre chose que de l'ASCII : **À VÉRIFIER**
 avec elle.
 
+## Ce que fait la brique 139 : l'état de chaque pièce dans la liste
+
+*Décisions prises par délégation le 05/10/2026.*
+
+**L1. La liste dit où en est chaque pièce.** Dans une entreprise soumise à la facture électronique, sous le
+statut de chaque facture et de chaque avoir émis, une ligne discrète : « El Fatoora : à signer », « en route »,
+« retenue », « déposée, en attente », « acceptée », « refusée » (ou « signée, pas envoyée » : une pièce signée
+avant que l'envoi n'existe, ou d'une entreprise d'essai). **Retenue** et **refusée** sont en couleur d'alerte :
+elles demandent un geste. Au survol, la raison (le compte El Fatoora absent, le message de la TTN) ou la
+référence de la TTN ; le détail et le bouton qui débloque restent dans « Fichier pour El Fatoora ». Une
+entreprise qui n'est pas soumise n'en voit rien (ses pièces ne se signent que si elle le choisit).
+
+**L2. Un appel pour toute la page.** Le point de contact demande au serveur l'état de toutes les pièces
+affichées en une fois (`GET …/efacture/etats?cles=…`, 100 au plus : une page de la liste en a 50), jamais une
+par ligne. La liste se redessine à chaque frappe dans la recherche : ce qu'on sait depuis moins de 20 secondes
+ne se redemande pas ; une pièce signée ou renvoyée depuis sa fenêtre, si (la liste la dit aussitôt « en
+route »). Le serveur ne répond que pour les pièces de l'entreprise ouverte, même quand la même personne en a
+une autre où une pièce porte la même clé.
+
+**L3. Rien ne bouge sous le curseur.** La place de la ligne est gardée avant que l'état n'arrive : la ligne
+ne grandit pas quand il arrive.
+
+**L4. Sans réseau,** la place reste vide, sans erreur ; la liste redessinée redemande.
+
 ## Comment c'est vérifié
 
 - `tests/v10/efacture.test.ts` : le fichier passe le schéma officiel (`xmllint`, sur la forme XSD 1.0 du
@@ -175,6 +199,15 @@ avec elle.
   téléchargée telle que le serveur la garde, avec sa référence ; puis la pièce imprimée (l'aperçu, et
   l'espace client) porte la référence et un code QR qu'un **lecteur de QR** (jsQR) relit : il dit exactement
   ce que la TTN a rendu. Six écrans.
+- `tests/v10/ttn.test.ts` (brique 139) : l'état de chaque pièce, en un appel, à chaque étape (à signer,
+  retenue et pourquoi, en route, déposée, acceptée et sa référence, refusée et pourquoi, signée sans partir) ;
+  une pièce inconnue n'est pas dans la réponse ; la même clé dans une autre entreprise de la même personne ne
+  se mêle pas ; pas plus de 100 pièces à la fois.
+- `tests/web/ttn-liste.test.ts` : la liste de Nadia, à la souris : les états sous le statut, leur raison au
+  survol, la couleur d'alerte ; un seul appel pour la page, aucun de plus en tapant dans la recherche ; la
+  ligne qui ne grandit pas quand l'état arrive ; une coupure du réseau sans erreur ; une pièce signée puis une
+  pièce renvoyée depuis leur fenêtre, aussitôt dites « en route » dans la liste ; rien dans une entreprise qui
+  n'est pas soumise. Deux écrans, regardés le 05/10/2026.
 - `tests/v10/espace-client.test.ts` : une pièce réduite à ce qu'elle imprime (la référence et le QR
   compris) s'imprime exactement comme la pièce entière.
 
@@ -183,7 +216,6 @@ avec elle.
 - **La signature**, suite : signer plusieurs pièces d'un coup depuis la liste (le serveur le sait déjà), la
   clé USB par l'agent local, puis la signature par le serveur après homologation ANCE. Brancher le vrai
   DigiGo quand l'adhésion est là (S7).
-- L'état de l'envoi à la TTN dans la liste des factures.
 - Brancher la vraie TTN quand l'accès de test est là (T7) ; l'archivage dix ans de la facture validée (`05`
   § 3.8 : elle est gardée ; la durée et l'effacement au bout, à écrire).
 - « Tes premiers pas » : l'adhésion à El Fatoora expliquée pas à pas, avec le lien.

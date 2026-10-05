@@ -673,4 +673,5 @@ export const ADAPTATIONS = [
   ...lireFichier('caisse-z.txt'),
   ...lireFichier('contrats-seuls.txt'),
   ...lireFichier('bureau.txt'),
+  ...lireFichier('efacture-liste.txt'),
 ];

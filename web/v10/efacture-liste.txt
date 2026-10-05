@@ -1,0 +1,13 @@
+L'état El Fatoora dans la liste des factures (brique 139 ; web/public/plateforme/pont.js ; docs/facture-electronique.md, L).
+Format : voir sans-paquets.mjs.
+
+Sous le statut d'une facture ou d'un avoir émis d'une entreprise soumise à la facture électronique, la liste dit où en
+est son fichier El Fatoora (à signer, en route, déposé, accepté, refusé…) : le point de contact le demande au serveur,
+en un appel pour toute la page.
+
+== app.js | la colonne « Statut » garde une place pour l'état El Fatoora d'une pièce émise ; le point de contact la remplit
+-- avant
+      { key: 'status', label: 'Statut', val: d => effStatus(d), get: d => statusBadge(d) },
+-- après
+      { key: 'status', label: 'Statut', val: d => effStatus(d), get: d => `${statusBadge(d)}${bridge.etatsTtn && company().efacture === true && (d.type === 'facture' || d.type === 'avoir') && d.number && !d.ticket ? `<span class="ttn-etat" data-ttn="${h(d.id)}"></span>` : ''}` },
+-- fin

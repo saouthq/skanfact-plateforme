@@ -300,6 +300,28 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // Où en est chaque pièce d'une page de la liste (brique 139) : en un appel, jamais un par ligne. Une pièce
+  // sans fichier El Fatoora n'est pas dans la réponse : la liste n'en dit rien.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/efacture/etats', geste: 'ventes.pieces.voir',
+    traiter: async ({ params, query }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const cles = String(query.cles ?? '').split(',').filter(Boolean);
+      if (cles.length > 100) return { statut: 400, corps: { motif: motif('commun.champ_invalide', { champ: 'cles', raison: t('efacture.etats_trop') }), champ: 'cles' } };
+      const r = (await tx.query(`select p.ref_v10 cle, (g.piece is not null) signe, x.statut, x.reference, x.motif
+          from ventes.efacture e join ventes.piece p on p.id = e.piece left join ventes.efacture_signee g on g.piece = e.piece
+          left join ventes.envoi_ttn x on x.piece = e.piece
+        where p.entreprise = $1 and p.ref_v10 = any($2)`, [params.entreprise, cles])).rows as
+        { cle: string; signe: boolean; statut: string | null; reference: string | null; motif: { cle: string; valeurs: Record<string, string> } | null }[];
+      const etat = (x: (typeof r)[number]) => !x.signe ? 'a_signer' : !x.statut ? 'signee' : x.statut === 'a_envoyer' && x.motif ? 'retenue' : x.statut;
+      return {
+        corps: {
+          etats: Object.fromEntries(r.map((x) => [x.cle, { etat: etat(x), reference: x.reference, motif: x.motif ? t(x.motif.cle, x.motif.valeurs) : null }])),
+        },
+      };
+    },
+  });
+
   // ── La signature DigiGo (brique 81 ; docs/facture-electronique.md) ─────────────────────────────────
   // Qui signe pour l'entreprise : son identifiant DigiGo (le propriétaire ou un administrateur le pose).
   ajouter({

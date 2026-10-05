@@ -60,29 +60,35 @@ async function entreprise(pieces: string[], essai = false) {
   const fiche = deModele.find((x) => x.collection === '_racine' && x.cle === 'company');
   if (!menuiserie || !fiche) throw new Error('entreprise d\'essai incomplète');
   const ent = essai ? modele : String((await appeler('POST', '/entreprises', jeton, { raisonSociale: `Atelier Nadia ${n}` })).corps.id);
-  const ici = essai ? deModele : await objetsDe(ent);
-  const societe = ici.find((x) => x.collection === '_racine' && x.cle === 'company');
-  const deja = ici.find((x) => x.collection === 'clients' && x.cle === menuiserie.cle);
   const client = { ...menuiserie.contenu, matricule: '1234567A/A/M/000' };
-  const r = await appeler('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
-    { collection: '_racine', cle: 'company', rang: null, revision: societe?.revision ?? null, contenu: { ...fiche.contenu, ...societe?.contenu, matricule: '7654321B/A/M/000', efacture: true } },
-    { collection: 'clients', cle: menuiserie.cle, rang: deja?.rang ?? 0, revision: deja?.revision ?? null, contenu: client },
-  ] });
-  if (r.statut !== 200) throw new Error(`dossier refusé : ${JSON.stringify(r.corps)}`);
-  for (const [k, id] of pieces.entries()) {
-    const d: Record<string, unknown> = {
-      id, type: 'facture', number: '', date: '2026-10-01', dueDate: '2026-10-31', clientId: menuiserie.cle, subject: 'Mobilier', status: 'brouillon',
-      lines: [{ label: 'Table en chêne massif', description: '', qty: 2 + k, unit: '', unitPrice: 450.5, vatRate: 19 }],
-      discountRate: 0, applyStamp: true, withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [], stampFee: 1,
-    };
-    await appeler('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [{ collection: 'documents', cle: id, rang: 100 + k, revision: null, contenu: enc(d) }] });
-    const e = await appeler('POST', `/entreprises/${ent}/dossier-v10/emettre`, jeton, { document: enc(d), client, revision: 1, rang: 100 + k,
-      netAPayer: v10.computeTotals(d as DocV10, { currency: 'DT', stampFee: 1 }).netToPay.toFixed(3) });
-    if (e.statut !== 200) throw new Error(`émission refusée : ${JSON.stringify(e.corps)}`);
-  }
+  // Une entreprise de la personne, soumise, avec des factures émises.
+  const remplir = async (cible: string, cles: string[]) => {
+    const ici = cible === modele ? deModele : await objetsDe(cible);
+    const societe = ici.find((x) => x.collection === '_racine' && x.cle === 'company');
+    const deja = ici.find((x) => x.collection === 'clients' && x.cle === menuiserie.cle);
+    const r = await appeler('POST', `/entreprises/${cible}/dossier-v10`, jeton, { changements: [
+      { collection: '_racine', cle: 'company', rang: null, revision: societe?.revision ?? null, contenu: { ...fiche.contenu, ...societe?.contenu, matricule: '7654321B/A/M/000', efacture: true } },
+      { collection: 'clients', cle: menuiserie.cle, rang: deja?.rang ?? 0, revision: deja?.revision ?? null, contenu: client },
+    ] });
+    if (r.statut !== 200) throw new Error(`dossier refusé : ${JSON.stringify(r.corps)}`);
+    for (const [k, id] of cles.entries()) {
+      const d: Record<string, unknown> = {
+        id, type: 'facture', number: '', date: '2026-10-01', dueDate: '2026-10-31', clientId: menuiserie.cle, subject: 'Mobilier', status: 'brouillon',
+        lines: [{ label: 'Table en chêne massif', description: '', qty: 2 + k, unit: '', unitPrice: 450.5, vatRate: 19 }],
+        discountRate: 0, applyStamp: true, withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [], stampFee: 1,
+      };
+      await appeler('POST', `/entreprises/${cible}/dossier-v10`, jeton, { changements: [{ collection: 'documents', cle: id, rang: 100 + k, revision: null, contenu: enc(d) }] });
+      const e = await appeler('POST', `/entreprises/${cible}/dossier-v10/emettre`, jeton, { document: enc(d), client, revision: 1, rang: 100 + k,
+        netAPayer: v10.computeTotals(d as DocV10, { currency: 'DT', stampFee: 1 }).netToPay.toFixed(3) });
+      if (e.statut !== 200) throw new Error(`émission refusée : ${JSON.stringify(e.corps)}`);
+    }
+  };
+  await remplir(ent, pieces);
   await appeler('PUT', `/entreprises/${ent}/efacture/signataire`, jeton, { identifiant: '09876543' });
   return {
     jeton, ent,
+    // Des factures émises dans l'autre entreprise de la même personne (son entreprise d'essai).
+    dansLEssai: (cles: string[]) => remplir(modele, cles),
     // Signer des pièces avec le code reçu par la signataire.
     signer: async (cles: string[]) => {
       const d = await appeler('POST', `/entreprises/${ent}/efacture/signatures`, jeton, { pieces: cles });
@@ -94,6 +100,7 @@ async function entreprise(pieces: string[], essai = false) {
     ttn: async () => (await appeler('GET', `/entreprises/${ent}/efacture/ttn`, jeton)).corps,
     teif: async (cle: string) => (await appeler('GET', `/entreprises/${ent}/dossier-v10/${cle}/teif`, jeton)).corps,
     renvoyer: (cle: string) => appeler('POST', `/entreprises/${ent}/efacture/envois/${cle}/renvoyer`, jeton),
+    etats: (cles: string[]) => appeler('GET', `/entreprises/${ent}/efacture/etats?cles=${cles.join(',')}`, jeton),
     envoi: async (cle: string) => (await admin.query(`select x.* from ventes.envoi_ttn x join ventes.piece p on p.id = x.piece where p.entreprise = $1 and p.ref_v10 = $2`, [ent, cle])).rows[0] as
       Record<string, unknown> | undefined,
   };
@@ -272,5 +279,49 @@ describe('l\'envoi à la TTN', () => {
     await essai.signer(['f1']);
     expect(await essai.envoi('f1')).toBeUndefined();
     expect(await essai.teif('f1')).toMatchObject({ signe: true, essai: true, envoi: null });
+  });
+
+  it('la liste lit où en est chaque pièce, en un appel pour toute la page (brique 139)', async () => {
+    const e = await entreprise(['f1', 'f2', 'f3', 'f4']);
+    const etats = async (cles: string[]) => (await e.etats(cles)).corps.etats as Record<string, unknown>;
+    // Émise, pas signée : à signer. Signée sans compte El Fatoora : retenue, et pourquoi.
+    await e.signer(['f2']);
+    await envoyerALaTtn(ctx);
+    expect(await etats(['f1', 'f2'])).toEqual({
+      f1: { etat: 'a_signer', reference: null, motif: null },
+      f2: { etat: 'retenue', reference: null, motif: 'le compte El Fatoora de l\'entreprise n\'est pas posé : branche-le dans Paramètres → Documents, et la pièce partira' },
+    });
+    // Le compte posé : en route ; puis déposée ; puis acceptée, avec sa référence.
+    await e.compte('nadia-el-fatoora', 'Mot-de-passe-TTN-7');
+    expect((await etats(['f2'])).f2).toEqual({ etat: 'a_envoyer', reference: null, motif: null });
+    await envoyerALaTtn(ctx);
+    expect((await etats(['f2'])).f2).toMatchObject({ etat: 'deposee' });
+    avancer(2);
+    await envoyerALaTtn(ctx);
+    const reference = String((await e.envoi('f2'))?.reference);
+    // Refusée : pourquoi. Une pièce inconnue (ou d'ailleurs) n'est pas dans la réponse : la liste n'en dit rien.
+    await e.signer(['f3']);
+    ttn.reglage.fauteAuDepot = 'Signature du fournisseur invalide';
+    await envoyerALaTtn(ctx);
+    await e.signer(['f4']);
+    expect(await etats(['f1', 'f2', 'f3', 'f4', 'inconnue'])).toEqual({
+      f1: { etat: 'a_signer', reference: null, motif: null },
+      f2: { etat: 'acceptee', reference: expect.stringMatching(/^TTN26\d{10}$/), motif: null },
+      f3: { etat: 'refusee', reference: null, motif: 'la TTN a refusé la pièce au dépôt : « Signature du fournisseur invalide »' },
+      f4: { etat: 'a_envoyer', reference: null, motif: null },
+    });
+    expect(reference).toMatch(/^TTN26/);
+    // La même personne a une autre entreprise, où une pièce porte la même clé : chacune ne dit que les siennes.
+    await e.dansLEssai(['f2']);
+    expect((await etats(['f2'])).f2).toMatchObject({ etat: 'acceptee' });
+    // Une entreprise d'essai : signée, sa pièce ne part pas ; elle ne lit pas les pièces d'une autre.
+    const essai = await entreprise(['f1'], true);
+    await essai.signer(['f1']);
+    expect((await essai.etats(['f1', 'f2'])).corps.etats).toEqual({ f1: { etat: 'signee', reference: null, motif: null } });
+    // Pas plus de 100 pièces à la fois (une page de la liste en a 50).
+    const trop = await e.etats(Array.from({ length: 101 }, (_, i) => `p${i}`));
+    expect(trop).toMatchObject({ statut: 400, corps: { champ: 'cles' } });
+    expect(String(trop.corps.motif)).toContain('pas plus de 100 pièces à la fois');
+    expect(Object.keys((await e.etats(Array.from({ length: 99 }, (_, i) => `p${i}`).concat('f1'))).corps.etats as object)).toEqual(['f1']);
   });
 });
