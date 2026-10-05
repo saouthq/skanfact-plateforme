@@ -58,18 +58,17 @@ jobs:
       - name: Tests
         run: npm test -- --shard=${{ matrix.moitie }}/2
 
-  # Les preuves par réintroduction, en quatorze groupes sur quatorze machines qui tournent en même temps
-  # (une preuve sur quatorze chacune) : toutes les preuves, en un quatorzième du temps (quatre groupes
-  # jusqu'au 05/10/2026 : 70 à 80 minutes ; décidé par Skander). Quatre machines de tests, quatorze de
-  # preuves, l'éclair et les secrets : 20, ce que GitHub prête à la fois à un dépôt public. Un seul groupe
-  # qui ne prouve pas tout fait échouer la vérification.
+  # Les preuves par réintroduction de CE changement (décidé par Skander le 05/10/2026 : en développement, une
+  # modification arrive sur le serveur d'essai en une dizaine de minutes, pas en une heure) : les preuves nouvelles
+  # ou changées, et celles dont le fichier visé a changé depuis la version d'avant (tests/preuves-du-changement.sh),
+  # sur six machines. TOUTES les preuves tournent chaque nuit et avant la production (preuves-completes.yml).
   preuves:
-    name: Preuves (groupe ${{ matrix.groupe }}/14)
+    name: Preuves du changement (${{ matrix.groupe }}/6)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        groupe: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        groupe: [1, 2, 3, 4, 5, 6]
     services:
       postgres:
         image: postgres:16
@@ -83,6 +82,15 @@ jobs:
       PG_ADMIN: postgres://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Les preuves concernées
+        env:
+          AVANT: ${{ github.event.before || github.event.pull_request.base.sha }}
+        run: |
+          # Un premier envoi de branche n'a pas de « version d'avant » : on prend le commit parent.
+          if [ -z "$AVANT" ] || ! git cat-file -e "$AVANT^{commit}" 2>/dev/null; then AVANT=$(git rev-parse HEAD~1); fi
+          BASE="$AVANT" bash tests/preuves-du-changement.sh "$RUNNER_TEMP/noms.txt"
       - uses: actions/setup-node@v5
         with:
           node-version: 24
@@ -90,18 +98,17 @@ jobs:
       - run: npm ci
       - name: Le navigateur des tests des écrans
         run: npx playwright-core install --with-deps chromium
-      # La coque de bureau (brique 137, tests/bureau/coque.test.ts) : le programme Electron, et un écran virtuel (Xvfb)
-      # qu'elle démarre elle-même ; sans écran, Electron ne dessine pas le ticket.
       - name: Electron (la coque de bureau)
         run: node node_modules/electron/install.js
       # Sans xmllint (ou sans Tesseract et Poppler), les tests de la facture électronique (ou de la lecture
       # des factures d'achat) tomberaient pour une autre raison que le défaut remis : la preuve ne prouverait rien.
-      - name: xmllint, Tesseract, Poppler et Xvfb (la facture électronique, la lecture des factures d'achat, la coque de bureau)
+      - name: xmllint, Tesseract, Poppler et Xvfb
         run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb
       - name: Preuves (chaque test tombe quand on remet son défaut)
         run: npm run preuves
         env:
-          PARTIE: ${{ matrix.groupe }}/14
+          NOMS: ${{ runner.temp }}/noms.txt
+          PARTIE: ${{ matrix.groupe }}/6
 
   # Le contrôle éclair (quelques secondes) : chaque preuve vise un endroit qui existe une fois, pas une
   # définition qu'une migration plus récente remplace ; le bilan reste à la fin de tests/preuves.sh.

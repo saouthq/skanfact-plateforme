@@ -1,0 +1,50 @@
+# TOUTES les preuves par réintroduction (décidé par Skander le 05/10/2026) : chaque nuit à 1 h 30 à Tunis, et sur
+# demande avant un passage en production. Chaque envoi ne rejoue que les preuves de son changement (verifier.yml).
+# Une nuit rouge se répare d'abord, le matin, avant tout autre travail.
+name: Toutes les preuves
+
+on:
+  schedule:
+    - cron: '30 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Quatorze groupes sur quatorze machines côte à côte (une preuve sur quatorze chacune).
+  preuves:
+    name: Toutes les preuves (groupe ${{ matrix.groupe }}/14)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        groupe: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PG_ADMIN: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Le navigateur des tests des écrans
+        run: npx playwright-core install --with-deps chromium
+      - name: Electron (la coque de bureau)
+        run: node node_modules/electron/install.js
+      - name: xmllint, Tesseract, Poppler et Xvfb
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb
+      - name: Preuves (chaque test tombe quand on remet son défaut)
+        run: npm run preuves
+        env:
+          PARTIE: ${{ matrix.groupe }}/14

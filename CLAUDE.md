@@ -508,8 +508,10 @@
   test changés depuis `origin/main` (et ceux qu'on ajoute : `-- tests/x.test.ts`), puis les preuves
   **nouvelles ou changées** (`npm run preuves:nouvelles`). Lire le **code de sortie**. Tous les
   tests et toutes les preuves tournent sur GitHub à chaque envoi (depuis le 05/10/2026, décidé par Skander
-  pour ne plus attendre une heure : tests en deux moitiés par Node, preuves en quatorze groupes sur quatorze
-  machines, `PARTIE=k/14` ; 20 machines à la fois, ce que GitHub prête à un dépôt public). **Avant chaque envoi, lire le verdict du précédent** (`npm run verdict`,
+  pour ne plus attendre une heure : à chaque envoi, les tests en deux moitiés par Node et les **preuves du
+  changement** — nouvelles, changées, ou dont le fichier visé a changé, `tests/preuves-du-changement.sh` — sur six
+  machines, une dizaine de minutes ; **toutes** les preuves chaque nuit à 1 h 30 de Tunis et avant la production,
+  `preuves-completes.yml`, quatorze groupes, `PARTIE=k/14`. Une nuit rouge se répare d'abord, le matin). **Avant chaque envoi, lire le verdict du précédent** (`npm run verdict`,
   qui nomme le test ou la preuve qui tombe) : une construction rouge se répare d'abord, jamais on ne
   la contourne ni n'empile par-dessus. Une brique qui touche au socle de tout (le serveur, la
   connexion, la sécurité par ligne) ajoute les fichiers de test concernés à `verifier:brique`.
