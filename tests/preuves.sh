@@ -7724,22 +7724,16 @@ prouver "un nombre de relais hors de 0 à 5 accepté" serveur/principal.ts \
   "$LA4"
 
 # ── Brique 143 : le suiveur installe la plus récente version vérifiée en vert (docs/mise-en-ligne.md, B) ──
-SV1="verte : tous ses contrôles finis, aucun en échec, et tous là ; un seul rouge la refuse ; un pas fini la fait attendre"
+SV1="d'un seul appel, chaque version : verte si sa vérification a réussi, rouge si elle a échoué, en attente si elle tourne ; la plus récente compte"
 SV2="la plus récente qui est verte ; rien si celle qui tourne l'est déjà, ou si aucune plus récente ne l'est"
-prouver "un contrôle sauté compté comme un échec" exploitation/suivre.ts \
-  "['success', 'skipped', 'neutral']" "['success']" \
+prouver "une vérification qui tourne prise pour réussie" exploitation/suivre.ts \
+  "p.status !== 'completed' ? 'en_cours' : " "" \
   "$SV1"
-prouver "un contrôle annulé compté comme réussi" exploitation/suivre.ts \
-  "['success', 'skipped', 'neutral']" "['success', 'skipped', 'neutral', 'cancelled']" \
+prouver "une vérification annulée prise pour réussie" exploitation/suivre.ts \
+  "p.conclusion === 'success' ? 'vert' : 'rouge'" "p.conclusion !== 'failure' ? 'vert' : 'rouge'" \
   "$SV1"
-prouver "un contrôle pas fini compté comme un échec" exploitation/suivre.ts \
-  "c.status === 'completed' && !['success'" "!['success'" \
-  "$SV1"
-prouver "une version installée avant que tous ses contrôles soient partis" exploitation/suivre.ts \
-  "controles.length < minimum || " "" \
-  "$SV1"
-prouver "une version installée avant que ses contrôles soient finis" exploitation/suivre.ts \
-  " || controles.some((c) => c.status !== 'completed')) return 'en_cours';" ") return 'en_cours';" \
+prouver "la plus ancienne vérification d'une version qui compte" exploitation/suivre.ts \
+  "    if (verdicts.has(p.head_sha)) continue;" "" \
   "$SV1"
 prouver "une version plus ancienne que celle qui tourne installée" exploitation/suivre.ts \
   "    if (v === enService) return null;" "" \
