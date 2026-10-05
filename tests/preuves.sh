@@ -6335,6 +6335,43 @@ prouver "la page qui installe jamais gardée pour le hors-ligne" web/public/sw.j
   "      if (!pasPourMoi(u)) pages.add(u.pathname);" "" \
   "$LG12"
 
+# ── Les écrans sans leurs commentaires (L6, 05/10/2026 ; docs/leger.md) ──
+LG6A="L6 : un commentaire part, rien d'autre : ni deux mots collés, ni une ligne déplacée, ni ce qui lui ressemble dans une chaîne"
+LG6B="L6 : nos écrans partent sans un commentaire, et c'est le même programme que le dépôt, ligne pour ligne"
+prouver "les écrans envoyés avec leurs commentaires" web/vite.config.ts \
+  "    writeBundle(sortie) { if (sortie.dir) allegerLesEcrans(sortie.dir); }," "    writeBundle() {}," \
+  "$LG6B"
+prouver "la première ouverture avec les commentaires, au-delà du seuil" web/vite.config.ts \
+  "    writeBundle(sortie) { if (sortie.dir) allegerLesEcrans(sortie.dir); }," "    writeBundle() {}," \
+  "$LG12"
+prouver "un bloc de commentaire qui déplace les lignes (et change un « return »)" web/alleger.ts \
+  "morceaux.push(lignes ? '\n'.repeat(lignes) : finDeLigne ? '' : ' ');" "morceaux.push(finDeLigne ? '' : ' ');" \
+  "$LG6A"
+prouver "deux mots collés là où était un commentaire" web/alleger.ts \
+  "finDeLigne ? '' : ' '" "''" \
+  "$LG6A"
+prouver "un « /* » dans une chaîne de style pris pour un commentaire" web/alleger.ts \
+  "} else if (c === '\"' || c === '\\'') {" "} else if (false) {" \
+  "$LG6A"
+prouver "une adresse de style sans guillemets coupée à son « /* »" web/alleger.ts \
+  "} else if (/^url\(\s*[^\s\"')]/i.test(code.slice(i, i + 64)) && !/[\w-]/.test(code[i - 1] ?? '')) {" "} else if (false) {" \
+  "$LG6A"
+prouver "un caractère échappé du style pris pour un début de commentaire" web/alleger.ts \
+  "    if (c === '\\\\') {" "    if (false) {" \
+  "$LG6A"
+prouver "un script illisible envoyé quand même" web/alleger.ts \
+  "if (lu.errors.length) throw" "if (lu.errors.length < 0) throw" \
+  "$LG6A"
+prouver "le code d'un tiers privé de sa licence" web/alleger.ts \
+  "export const DOSSIERS_ALLEGES = ['v10', 'plateforme', 'espace'];" "export const DOSSIERS_ALLEGES = ['v10', 'plateforme', 'espace', 'tiers'];" \
+  "$LG6B"
+prouver "un écran réécrit en passant (=== devenu ==)" web/alleger.ts \
+  "    morceaux.push(code.slice(pos, c.start).replace(/[ \t]+\$/, ''));" "    morceaux.push(code.slice(pos, c.start).replace(/[ \t]+\$/, '').replace('===', '=='));" \
+  "$LG6B"
+prouver "une feuille de style qui perd l'accolade posée avant un commentaire" web/alleger.ts \
+  "  return sans(code, trouves);" "  return sans(code.replace(/\}(?=[ \t]*\/\*)/g, ' '), trouves);" \
+  "$LG6B"
+
 # ── Relire le dossier par différence (brique 119, 01/10/2026 ; docs/leger.md, S4) ──
 RL="seul ce qui a changé repart, et ce qui a été retiré ; une écriture en cours n'est jamais perdue ; sinon tout repart"
 RLW="rouvrir ne fait repartir que ce qui a changé, et l'écran le montre"

@@ -5,19 +5,40 @@
 //   S1  première ouverture de l'entreprise (rien de gardé) : au plus 1 300 Ko par le fil, utilisable en moins de 15 s ;
 //   S2  ouverture suivante : au plus 30 Ko par le fil, utilisable en moins de 2 s ;
 //   S3  tout envoi de plus de 1 Ko (écrans et réponses de l'API) compressé quand le navigateur l'accepte.
+// Le 05/10/2026, S1 mesurait 1 302 Ko (l'exemple rempli et la facture guidée) : le plan a changé, pas le seuil. L6, nos
+// écrans partent sans leurs commentaires, et rien d'autre (web/alleger.ts).
 
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import vm from 'node:vm';
+import { transform } from 'lightningcss';
 import { chromium, type Browser, type Page } from 'playwright-core';
+import { parseSync } from 'rolldown/utils';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
+import { DOSSIERS_ALLEGES, scriptSansCommentaires, styleSansCommentaires } from '../../web/alleger.ts';
 import { lienLent } from '../lien-lent.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const KO = 1024;
+
+// Deux arbres de syntaxe identiques, positions mises à part : le chemin du premier écart, sinon null.
+const POSITIONS = new Set(['start', 'end', 'range', 'loc']);
+function ecart(a: unknown, b: unknown, chemin = 'programme'): string | null {
+  if (Object.is(a, b)) return null;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null || Array.isArray(a) !== Array.isArray(b)) return chemin;
+  if (a instanceof RegExp || b instanceof RegExp) return String(a) === String(b) ? null : chemin;
+  const cles = Object.keys(a).filter((k) => !POSITIONS.has(k));
+  if (cles.join() !== Object.keys(b).filter((k) => !POSITIONS.has(k)).join()) return `${chemin} (clés)`;
+  for (const k of cles) {
+    const d = ecart((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k], `${chemin}.${k}`);
+    if (d) return d;
+  }
+  return null;
+}
 
 describe('léger sur une connexion lente', () => {
   let navigateur: Browser;
@@ -85,6 +106,93 @@ describe('léger sur une connexion lente', () => {
     const petit = await entetes(`/v1/entreprises/${ent}/dossier-v10`, 'gzip, deflate, br', auth);
     expect(petit).toMatchObject({ statut: 200, encodage: null, cache: 'no-store' });
     expect(petit.taille).toBeLessThanOrEqual(1024);
+  });
+
+  it('L6 : un commentaire part, rien d\'autre : ni deux mots collés, ni une ligne déplacée, ni ce qui lui ressemble dans une chaîne', () => {
+    // Un script, joué avant et après : il doit rendre la même chose. Ce qui ressemble à un commentaire dans une chaîne,
+    // une expression régulière ou un gabarit en reste ; « typeof/* */u » ne devient pas « typeofu » ; un « return »
+    // suivi d'un bloc de deux lignes rend toujours « undefined ».
+    const script = [
+      '/* en-tête */ \'use strict\';',
+      'const u = "http://exemple.tn/*pas un commentaire*/"; // la fin de la ligne',
+      'const r = /\\/\\*.*?\\*\\//g, t = typeof/* collé */u;',
+      'const g = `a // b ${u /* dans le gabarit */} c`, s = `fin   ` /* après le gabarit */;',
+      'function f() {',
+      '  return /* un saut',
+      '  de ligne */ 1;',
+      '}',
+      'resultat = { u, r: r.source, t, g, s, f: f() };',
+    ].join('\n');
+    const jouer = (code: string) => { const ctx = { resultat: null as unknown }; vm.runInNewContext(code, ctx); return ctx.resultat; };
+    const allege = scriptSansCommentaires('essai.js', script);
+    // Le test mesure : l'essai a bien ses pièges.
+    expect(jouer(script)).toEqual({ u: 'http://exemple.tn/*pas un commentaire*/', r: '\\/\\*.*?\\*\\/', t: 'string',
+      g: 'a // b http://exemple.tn/*pas un commentaire*/ c', s: 'fin   ', f: undefined });
+    expect(jouer(allege)).toEqual(jouer(script));
+    expect(parseSync('essai.js', allege).comments).toEqual([]);
+    expect(allege.split('\n').length).toBe(script.split('\n').length);
+    // Un script que l'analyseur ne sait pas lire arrête la construction : il ne part pas à moitié.
+    expect(() => scriptSansCommentaires('casse.js', 'const = 1; /* reste */')).toThrow(/casse\.js/);
+    // Une feuille de style : une chaîne, une adresse sans guillemets et un caractère échappé gardent leur « /* ».
+    const style = [
+      '/* en-tête */',
+      '.a::before { content: "/* pas un commentaire */"; } /* fin de ligne */',
+      '.b { background: url(fond/*etoile*/.png); }',
+      '.c { --motif: a\\/*b; }',
+      '/* un bloc',
+      'sur deux lignes */',
+      '.d { color: red; }',
+    ].join('\n');
+    expect(styleSansCommentaires(style)).toBe([
+      '',
+      '.a::before { content: "/* pas un commentaire */"; }',
+      '.b { background: url(fond/*etoile*/.png); }',
+      '.c { --motif: a\\/*b; }',
+      '',
+      '',
+      '.d { color: red; }',
+    ].join('\n'));
+  });
+
+  it('L6 : nos écrans partent sans un commentaire, et c\'est le même programme que le dépôt, ligne pour ligne', () => {
+    const depot = path.join(RACINE, 'web/public');
+    const fichiers: string[] = [];
+    const parcourir = (d: string) => {
+      for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+        const p = path.join(d, e.name);
+        if (e.isDirectory()) parcourir(p);
+        else if (/\.(js|css)$/.test(e.name)) fichiers.push(path.relative(depot, p));
+      }
+    };
+    for (const d of DOSSIERS_ALLEGES) parcourir(path.join(depot, d));
+    // Le test mesure : l'entreprise, le Cabinet, le point de contact et l'espace client en sont.
+    expect(fichiers).toEqual(expect.arrayContaining(['v10/app.js', 'v10/core.js', 'v10/style.css', 'v10/cabinet/app.js', 'plateforme/pont.js', 'espace/espace.js']));
+    let avant = 0;
+    let apres = 0;
+    for (const f of fichiers) {
+      const source = fs.readFileSync(path.join(depot, f), 'utf8');
+      const envoye = fs.readFileSync(path.join(dossier, f), 'utf8');
+      avant += source.length;
+      apres += envoye.length;
+      // Chaque ligne à sa place : une erreur signalée depuis un poste pointe la ligne du dépôt.
+      expect(envoye.split('\n').length, f).toBe(source.split('\n').length);
+      if (f.endsWith('.js')) {
+        // Relu par l'analyseur : plus un commentaire, et le même arbre que le dépôt, nœud pour nœud.
+        const lu = parseSync(f, envoye);
+        expect(lu.errors, f).toEqual([]);
+        expect(lu.comments, f).toEqual([]);
+        expect(ecart(parseSync(f, source).program, lu.program), f).toBeNull();
+      } else {
+        // Relue par un autre analyseur (lightningcss), la feuille dit la même chose ; hors des chaînes, plus un « /* ».
+        const forme = (code: string) => transform({ filename: f, code: Buffer.from(code), minify: true }).code.toString();
+        expect(forme(envoye), f).toBe(forme(source));
+        expect(envoye.replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, '""'), f).not.toContain('/*');
+      }
+    }
+    // Le gain, avant compression : plus d'un cinquième.
+    expect(apres).toBeLessThan(avant * 0.8);
+    // Le code d'un tiers part tel quel, avec sa licence.
+    expect(fs.readFileSync(path.join(dossier, 'tiers/qrcode.js')).equals(fs.readFileSync(path.join(depot, 'tiers/qrcode.js')))).toBe(true);
   });
 
   it('S1 et S2 : la première ouverture et la suivante, sur une connexion lente', async () => {

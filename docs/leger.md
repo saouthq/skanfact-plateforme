@@ -11,7 +11,7 @@ connexions du navigateur.
 
 | | Seuil | Avant (mesuré) | Après (mesuré) |
 |---|---|---|---|
-| **S1** première ouverture de l'entreprise, rien de gardé | ≤ 1 300 Ko par le fil, utilisable en moins de 15 s | 10 727 Ko, 87 s | **1 242 Ko, 12,1 s** (copie pour le hors-ligne comprise : 1 244 Ko) |
+| **S1** première ouverture de l'entreprise, rien de gardé | ≤ 1 300 Ko par le fil, utilisable en moins de 15 s | 10 727 Ko, 87 s | **947 Ko, 9,9 s** (copie pour le hors-ligne comprise : 949 Ko ; 05/10/2026, après L6. Le 01/10 : 1 242 Ko, 12,1 s ; le 05/10 avant L6 : 1 302 Ko) |
 | **S2** ouverture suivante | ≤ 30 Ko par le fil, utilisable en moins de 2 s | 4 199 Ko, 43 s | **4 Ko, 1,8 s** |
 | **S3** tout envoi de plus de 1 Ko compressé | écrans et réponses de l'API | rien de compressé | brotli, sinon gzip |
 | **S4** le dossier ne se relit que pour ce qui a changé | sur « mon ordinateur » | tout le dossier à chaque ouverture | **fait** (brique 119) : 1 500 pièces, 695 Ko en entier, **1,2 Ko** après une pièce de plus (avant compression) |
@@ -49,6 +49,36 @@ compte les octets reçus et le temps jusqu'à l'écran utilisable. Les chiffres 
   (rien ne repart) ; l'ancienne version d'un fichier s'efface de sa copie.
 - **L5. Les écrans de la v10 ne sont pas l'API** : ils se gardent ; les réponses de l'API, jamais (`no-store`).
 
+## L6 : les écrans partent sans leurs commentaires (05/10/2026)
+
+Le 05/10/2026, GitHub a mesuré S1 à **1 302 Ko** pour un seuil de 1 300 : l'exemple rempli et la visite « Faire une
+facture » avaient fait grossir les écrans (1 244 Ko le 01/10). Une mesure qui dépasse change le plan, pas le seuil.
+Trois leviers pesés, mesurés sur les fichiers du jour :
+
+| Levier | Gain sur S1 | Ce qu'il coûte |
+|---|---|---|
+| Brotli 11 au lieu de 9 | environ 80 Ko | 7 s de calcul pour compresser les écrans (à chaque démarrage du programme, ou à chaque construction) |
+| Les visites guidées à la demande | environ 110 Ko (`visite.js`, `visites.js` ; `guide.js` porte aussi les bulles « i » de chaque champ, il reste) | réécrire la façon dont la v10 lance ses visites et dessine « Guide-moi » sur chaque page |
+| **Les écrans sans leurs commentaires** | **environ 355 Ko** | rien de réécrit ; 0,6 s de plus à la construction (37 fichiers, 6,0 Mo → 4,5 Mo avant compression) |
+
+Retenu : le troisième. Le code de la v10 et de la plateforme est écrit pour être relu : compressé, plus d'un tiers de
+son poids est fait de commentaires en français, dont le navigateur n'a que faire.
+
+- **Comment** (`web/alleger.ts`, branché sur la construction par `web/vite.config.ts`) : Vite copie `public/` tel
+  quel, puis chaque script et chaque feuille de style de nos écrans (`v10`, `plateforme`, `espace`) perd ses
+  commentaires, **et rien d'autre** : ni code réécrit, ni noms raccourcis. Les commentaires d'un script, c'est
+  l'analyseur que Vite embarque qui les trouve (oxc, par rolldown) : un « // » dans une chaîne, un gabarit ou une
+  expression régulière n'en est pas un. Ceux d'une feuille de style, une lecture qui saute les chaînes, les adresses
+  sans guillemets et les caractères échappés.
+- **Chaque ligne reste à sa place** : un commentaire de plusieurs lignes laisse autant de lignes vides ; une erreur
+  signalée depuis un poste pointe donc la ligne du dépôt (et, en JavaScript, un « return » suivi d'un tel commentaire
+  rend toujours « undefined »). Un commentaire au milieu d'une ligne laisse une espace : deux mots ne se collent pas.
+- **Un script que l'analyseur ne sait pas lire arrête la construction** : il ne part pas à moitié.
+- **Le code d'un tiers** (`tiers/`, le dessin des codes QR) part tel quel, avec sa licence ; les pages HTML aussi
+  (petites, refaites à chaque demande).
+- **Mesuré** : S1 **947 Ko en 9,9 s** (949 Ko avec la copie gardée pour le hors-ligne) ; S2 inchangé (4 Ko, 1,8 s).
+  Les deux autres leviers restent en réserve.
+
 ## Ce qui reste (et pourquoi)
 
 - **S4 sur l'ordinateur d'un autre** : sans copie gardée (la session ne vit que dans l'onglet), tout le dossier repart à
@@ -59,9 +89,11 @@ compte les octets reçus et le temps jusqu'à l'écran utilisable. Les chiffres 
   profite de la compression et des empreintes.
 - **HTTP/2** : en production, derrière HTTPS, le serveur parlera HTTP/2 (plusieurs fichiers sur une seule connexion) ;
   la mesure se fait en HTTP/1.1, le cas le plus lent.
-- **Brotli 11 à la construction** : environ 8 % de moins encore ; quand on préparera la mise en production.
-- **Les visites guidées** (`guide.js`, `visite.js`, `visites.js` : environ 200 Ko compressés) pourraient ne se charger
-  qu'à la demande ; pas nécessaire pour tenir les seuils, à reconsidérer si un écran neuf les fait dépasser.
+- **Brotli 11 à la construction** : environ 8 % de moins encore (mesuré avant L6 : 80 Ko de S1, pour 7 s de calcul) ;
+  quand on préparera la mise en production.
+- **Les visites guidées** (`visite.js`, `visites.js` : environ 80 Ko compressés après L6 ; `guide.js` porte aussi les
+  bulles « i » de chaque champ) pourraient ne se charger qu'à la demande ; pas nécessaire pour tenir les seuils, à
+  reconsidérer si un écran neuf les fait dépasser.
 
 ## Ce que fait la brique 119 : relire le dossier par différence (S4, 01/10/2026)
 
@@ -87,6 +119,14 @@ compte les octets reçus et le temps jusqu'à l'écran utilisable. Les chiffres 
 garde d'un an, la revalidation à vide, l'annonce des scripts) ; S1 et S2 sur la connexion lente, et ce que le poste
 garde dès la première visite (l'entreprise, pas le Cabinet). 15 preuves (`tests/preuves.sh`, brique 118), dont les
 trois du hors-ligne reciblées.
+
+L6 (05/10/2026), dans le même fichier : un commentaire part, rien d'autre (un script joué avant et après rend la même
+chose : ce qui ressemble à un commentaire dans une chaîne, une expression régulière ou un gabarit en reste, « typeof/* */u »
+ne colle pas ses deux mots, un « return » suivi d'un bloc de deux lignes rend toujours « undefined » ; une feuille de
+style et ses pièges ; un script illisible arrête la construction) ; nos écrans construits n'ont plus un commentaire,
+chaque ligne à sa place, le même arbre de syntaxe que le dépôt nœud pour nœud, la même feuille de style relue par un
+autre analyseur (lightningcss), et le code d'un tiers intact. 11 preuves (`tests/preuves.sh`, « Les écrans sans leurs
+commentaires »).
 
 Brique 119 : `tests/v10/relecture.test.ts` (rien de changé, rien ne repart ; un client noté, retiré, recréé ; l'écriture
 en cours pendant une lecture, rendue à la suivante ; une autre base, une marque de l'avenir ; Karim, commercial, qui ne

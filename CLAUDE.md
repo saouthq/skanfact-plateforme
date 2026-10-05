@@ -120,7 +120,10 @@
   `tests/v10/provenance.test.ts` refuse toute retouche à la main. La copie s'est faite une fois ;
   la plateforme est désormais la seule maison des écrans (une correction urgente de la v10 en
   entretien se reporte à la main, par une nouvelle reprise ou une adaptation). Aucun lien vivant
-  avec le dépôt `skanfact`.
+  avec le dépôt `skanfact`. **À la construction**, nos scripts et nos styles (`v10`, `plateforme`, `espace`) perdent leurs
+  commentaires et rien d'autre, chaque ligne à sa place (`web/alleger.ts`, 05/10/2026, `docs/leger.md` L6 : la
+  première ouverture dépassait son seuil) ; un test relit l'arbre de syntaxe de chaque écran construit contre le
+  dépôt. Une erreur signalée depuis un poste pointe donc la ligne du dépôt.
   - **Le pont** (`web/public/plateforme/pont.js`) remplace ce que la v10 demandait à l'ordinateur
     (`window.skanfact`) : le dossier vient du serveur et y repart objet par objet
     (`serveur/v10/`, table `socle.dossier_v10`, 0011), avec sa révision ; un objet changé ailleurs
