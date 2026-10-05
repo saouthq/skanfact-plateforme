@@ -210,7 +210,8 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
   const calcul = await calculer(tx, p, lignes);
   const t = calcul.totaux;
   if (calcul.timbreManquant) {
-    throw new Refus('ventes.timbre_manquant', { valeurs: { date: p.date_piece } });
+    // Le jour comme on l'écrit (« 05/10/2026 »), pas comme la base le range.
+    throw new Refus('ventes.timbre_manquant', { valeurs: { date: p.date_piece.split('-').reverse().join('/') } });
   }
   // Chaque pièce se numérote dans une série de SON type : un avoir ne prend jamais un numéro de facture. Sans série
   // voulue, jamais celle des tickets (brique 115) : une facture ne prend pas un numéro de ticket.

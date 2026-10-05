@@ -203,6 +203,30 @@ la session ne laisse passer que https). L'accès passe donc par le web :
 Code : `exploitation/acces.ts`, `exploitation/acces-cles.json`, `scripts/serveur.ts`. Test :
 `tests/exploitation/acces.test.ts` (8 preuves).
 
+## G. Les règles de droit communes (05/10/2026)
+
+Vu sur le serveur d'essai, en émettant une facture comme un commerçant : « le timbre fiscal n'est pas renseigné au
+05/10/2026 : la facture ne s'émet pas sans lui ». Aucune facture ne pouvait s'émettre. Les règles de droit (timbre,
+taux, barèmes) sont des **données datées**, jamais du code (01 R12) ; les tests posent leurs propres règles d'essai,
+et rien ne les posait sur un vrai serveur.
+
+- **Le registre** : `base/regles-communes.json`, dans le dépôt, chaque règle avec sa valeur, son premier jour, sa
+  dernière date s'il y en a une, et sa **source**. Pour l'instant une seule : le timbre d'une facture, 1 dinar depuis
+  le 01/01/2023 (loi de finances pour 2023, **À VÉRIFIER** avec un comptable : le texte, l'article et la date d'effet).
+- **La pose** : `node base/regles-communes.ts`, à chaque installation (`exploitation/suivre.ts`, après les
+  migrations), et une fois tout de suite par la tâche d'entretien 0005. Ce qui manque se pose ; une règle déjà posée
+  avec une autre valeur, une autre source ou une autre fin **arrête l'installation** (une règle ne se réécrit pas :
+  une loi de finances ajoute une ligne au registre et ferme la date de fin de celle qu'elle remplace) ; un lot refusé
+  n'écrit rien.
+- **Le garde-fou** : un test vérifie que chaque règle que le serveur lit (`regle(tx, …, 'code')`) est au registre et
+  en vigueur aujourd'hui. Une règle nouvelle lue par le code sans entrée au registre fait tomber le test.
+- **Ouvert** : marquer une règle « vérifiée » (qui, quand) une fois qu'un comptable l'a confirmée. La table a ces
+  colonnes, mais une règle posée ne se modifie plus (seule sa date de fin se ferme) : à prévoir avec la console de
+  l'éditeur.
+
+Le refus dit désormais la date comme on l'écrit (« 05/10/2026 », plus « 2026-10-05 »). Test :
+`tests/socle/regles-communes.test.ts` (6 preuves avec celle de la date).
+
 ## Reste à faire avant les testeurs
 
 - ~~Une fiche pour les testeurs~~ : `docs/testeurs.md` (05/10/2026).

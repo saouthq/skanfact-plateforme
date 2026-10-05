@@ -7891,6 +7891,29 @@ prouver "le point des milliers d'un nombre collé pris pour une décimale" web/p
   ".replace(/[.,]/g, '') + '.'" " + '.'" \
   "$VIR"
 
+# Le registre des règles communes (base/regles-communes.ts ; vu sur le vrai serveur le 05/10/2026 : aucune facture ne
+# s'émettait, « le timbre fiscal n'est pas renseigné »).
+RC1="chaque règle que le serveur lit est au registre, en vigueur aujourd'hui et avec sa source"
+RC2="une règle déjà posée ne se réécrit pas ; une loi nouvelle ferme l'ancienne et pose la suivante ; un lot refusé n'écrit rien"
+prouver "le timbre absent du registre des règles" base/regles-communes.json \
+  '"code": "timbre.facture",' '"code": "timbre.ailleurs",' \
+  "$RC1"
+prouver "une règle réécrite par une installation" base/regles-communes.ts \
+  "      if (!deja.meme_valeur || deja.source !== r.source) throw" "      if (false) throw" \
+  "$RC2"
+prouver "la source d'une règle changée sans un mot" base/regles-communes.ts \
+  "if (!deja.meme_valeur || deja.source !== r.source) throw" "if (!deja.meme_valeur) throw" \
+  "$RC2"
+prouver "un lot de règles refusé qui écrit à moitié" base/regles-communes.ts \
+  "    await client.query('rollback');" "    await client.query('commit');" \
+  "$RC2"
+prouver "la date de fin d'une règle qui change encore" base/regles-communes.ts \
+  "      } else if ((r.fin ?? null) !== deja.fin) {" "      } else if (false) {" \
+  "$RC2"
+prouver "la date du timbre manquant écrite comme la base la range" serveur/ventes/pieces.ts \
+  "date: p.date_piece.split('-').reverse().join('/') }" "date: p.date_piece }" \
+  "le contrôle passe avant le numéro : un refus ne troue jamais la série"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

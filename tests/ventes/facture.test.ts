@@ -127,7 +127,7 @@ describe('la facture, du brouillon à l\'émission', () => {
     const lu = (await appeler('GET', `/entreprises/${e.ent}/ventes/${sansTimbre}`, e.proprio.jeton)).corps;
     expect(lu.avertissement).toMatch(/timbre fiscal n'est pas renseigné/);
     const refus = await appeler('POST', `/entreprises/${e.ent}/ventes/${sansTimbre}/emettre`, e.proprio.jeton);
-    expect(refus).toMatchObject({ statut: 403, corps: { motif: 'Le timbre fiscal n\'est pas renseigné au 1999-12-31 : la facture ne s\'émet pas sans lui.' } });
+    expect(refus).toMatchObject({ statut: 403, corps: { motif: 'Le timbre fiscal n\'est pas renseigné au 31/12/1999 : la facture ne s\'émet pas sans lui.' } });
     expect((await admin.query('select count(*) n from socle.compteur where serie = $1', [e.serie])).rows[0].n).toBe(0n);
     const bon = await brouillon(e, FACTURE(e.client, '2026-10-02'));
     expect((await appeler('POST', `/entreprises/${e.ent}/ventes/${bon}/emettre`, e.proprio.jeton)).corps.numero).toBe('FAC-2026-001');
