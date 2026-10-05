@@ -528,6 +528,10 @@
   téléphone de Nadia) ; puis `scripts/humain/ecran.sh capture | clic X Y | taper … | touche … | defiler …` (de vrais
   événements du système : un bouton recouvert ne reçoit pas le clic). Après un changement d'écran : reconstruire
   (`npx vite build --config web/vite.config.ts --outDir /tmp/skanfact-humain-plateforme/web`) et recharger.
+  **La méthode** (Skander, 05/10/2026) : raisonner comme un commerçant ou un comptable tunisien qui découvre l'écran ;
+  **regarder → voir un problème → le corriger tout de suite → revoir à l'écran → avancer**, jamais « tout capturer puis
+  tout corriger ». D'abord sur la machine de travail (une correction se voit en secondes), puis sur le serveur d'essai
+  (`https://app.skanfact.tn`, joignable depuis la session), avec des comptes nommés « essai ».
   Le premier passage (brique 125) a trouvé sept défauts que les tests verts ne voyaient pas (`docs/caisse.md`) :
   chaque défaut vu à l'écran devient une assertion et sa preuve.
 

@@ -6,8 +6,13 @@ sauvegardes). Décisions prises par délégation de Skander, le 05/10/2026, sauf
 
 ## Où on en est (05/10/2026)
 
-Aucun serveur n'est encore en ligne : la plateforme tourne sur la machine de travail. Le nom de domaine
-**skanfact.tn** (chez OVH) existe ; l'application vivra à **app.skanfact.tn** (une sous-adresse, sans achat).
+**Le serveur d'essai est installé** (05/10/2026, 13 h 15 UTC) : un VPS OVH en France, Ubuntu 24.04, installé par
+Skander d'une seule ligne collée dans le Terminal (B5). L'application vit à **app.skanfact.tn** : une entrée `A` dans
+la zone DNS de **skanfact.tn**, qui est chez **Cloudflare** (pas chez OVH, où le domaine est enregistré), en « DNS
+only » (nuage gris) : derrière le relais de Cloudflare, le frontal ne pourrait pas obtenir seul son certificat, et
+chaque visiteur aurait l'adresse de Cloudflare (la limite par adresse, A, les bloquerait tous ensemble). La session de
+Claude joint `app.skanfact.tn` (domaine autorisé dans les réglages réseau de son environnement, par Skander) : elle lit
+l'état du serveur et y joue les parcours comme un utilisateur.
 Deux temps, décidés par Skander le 05/10/2026 (`06` § 13) :
 
 1. **Le serveur d'essai** : un VPS chez OVH, en France (VPS-2 : 4 cœurs, 8 Go, 75 Go), **avec des données
@@ -54,8 +59,12 @@ Code : `serveur/limites.ts`, `serveur/app.ts`, `serveur/principal.ts` (`SKANFACT
 lui est fermée, vérifié le 05/10/2026), et aucun mot de passe ne lui est transmis. Le serveur va donc chercher
 lui-même la version à installer : toutes les deux minutes, le **suiveur** (`exploitation/suivre.ts`, minuteur
 `skanfact-suivre`) regarde la branche `main` du dépôt public, et installe la plus récente version que GitHub a
-**vérifiée en vert** (tous ses contrôles finis, aucun rouge, au moins les 8 de `verifier.yml`), jamais une plus
-ancienne que celle qui tourne. C'est la pratique des grandes plateformes (« GitOps » : le serveur tire la version
+**vérifiée en vert** (le dernier passage de sa vérification, `verifier.yml`, réussi), jamais une plus ancienne que
+celle qui tourne, ni une d'avant le suiveur lui-même (sans `exploitation/suivre.ts` : installée, elle ne saurait plus se
+mettre à jour ; un serveur neuf, quand la dernière version n'est pas encore vérifiée, attend plutôt). Les verdicts se
+lisent **en un seul appel par tour** (les derniers passages de la vérification de la branche) : GitHub limite à 60 par
+heure les appels sans compte, et un appel par version toutes les deux minutes les épuisait (vu à la première
+installation, le 05/10/2026). C'est la pratique des grandes plateformes (« GitOps » : le serveur tire la version
 vérifiée) : personne ne retouche un serveur à la main ; tout passe par le dépôt, tracé et vérifié. La main sur le
 serveur, c'est donc la main sur le dépôt : **la double vérification du compte GitHub de Skander** en est la clé.
 
@@ -147,6 +156,21 @@ Conseil aux testeurs : une adresse e-mail inventée suffit (rien n'y est jamais 
 
 Code : `web/src/ecrans/CodeRequis.tsx`, `serveur/routes/socle.ts`, `serveur/connexion.ts` (`essayerCode`),
 `base/migrations/0070_essayer_code.sql`. Tests : `tests/socle/code-essai.test.ts`, `tests/web/parcours.test.ts`.
+
+## E. Deux vitesses de vérification (décidé par Skander le 05/10/2026)
+
+« Pour le développement, j'ai envie de raccourcir le temps des tests ; c'est peut-être bien pour la prod, mais pas pour
+le dev. » Toutes les preuves à chaque envoi prenaient 70 à 80 minutes avant qu'une version arrive sur le serveur.
+Désormais :
+
+- **À chaque envoi** (`verifier.yml`, une dizaine de minutes) : les types, le lint et tous les tests (deux Node, chacun
+  en deux moitiés sur deux machines), et **les preuves du changement** (`tests/preuves-du-changement.sh` : les preuves
+  nouvelles ou changées, et celles dont le fichier visé a changé depuis la version d'avant), sur six machines. Vert :
+  le serveur d'essai l'installe.
+- **Chaque nuit à 1 h 30 de Tunis, et sur demande avant la production** (`preuves-completes.yml`) : **toutes** les
+  preuves, sur quatorze machines. Une nuit rouge se répare d'abord, le matin.
+- Les serveurs des pilotes et de la production n'installeront qu'une version passée par toutes les preuves (à régler le
+  jour où ils existent).
 
 ## Reste à faire avant les testeurs
 
