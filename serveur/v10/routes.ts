@@ -322,6 +322,20 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // Les pièces qui attendent d'être signées (brique 140) : les 100 premières (une demande de signature n'en
+  // prend pas plus), et combien en tout.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/efacture/a-signer', geste: 'ventes.facture.signer',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const r = (await tx.query(`select p.ref_v10 cle, p.numero_texte numero, count(*) over () total
+          from ventes.efacture e join ventes.piece p on p.id = e.piece left join ventes.efacture_signee g on g.piece = e.piece
+        where p.entreprise = $1 and p.statut = 'emise' and g.piece is null order by e.ecrit_le limit 100`, [params.entreprise])).rows as
+        { cle: string; numero: string; total: string }[];
+      return { corps: { pieces: r.map((x) => ({ cle: x.cle, numero: x.numero })), total: Number(r[0]?.total ?? 0) } };
+    },
+  });
+
   // ── La signature DigiGo (brique 81 ; docs/facture-electronique.md) ─────────────────────────────────
   // Qui signe pour l'entreprise : son identifiant DigiGo (le propriétaire ou un administrateur le pose).
   ajouter({

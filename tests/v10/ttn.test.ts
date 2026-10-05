@@ -324,4 +324,25 @@ describe('l\'envoi à la TTN', () => {
     expect(String(trop.corps.motif)).toContain('pas plus de 100 pièces à la fois');
     expect(Object.keys((await e.etats(Array.from({ length: 99 }, (_, i) => `p${i}`).concat('f1'))).corps.etats as object)).toEqual(['f1']);
   });
+
+  it('les pièces qui attendent leur signature, pour qui peut signer, et un seul code pour plusieurs (brique 140)', { timeout: 120_000 }, async () => {
+    const e = await entreprise(['f1', 'f2', 'f3']);
+    const aSigner = async (jeton = e.jeton) => appeler('GET', `/entreprises/${e.ent}/efacture/a-signer`, jeton);
+    expect((await aSigner()).corps).toEqual({ total: 3, pieces: [{ cle: 'f1', numero: 'FAC-2026-001' }, { cle: 'f2', numero: 'FAC-2026-002' }, { cle: 'f3', numero: 'FAC-2026-003' }] });
+    // Un seul code signe les deux pièces ; il n'en reste qu'une à signer.
+    expect(await e.signer(['f1', 'f3'])).toEqual(['FAC-2026-001', 'FAC-2026-003']);
+    expect((await aSigner()).corps).toEqual({ total: 1, pieces: [{ cle: 'f2', numero: 'FAC-2026-002' }] });
+    // Un commercial ne signe pas : la liste ne lui propose rien (le serveur refuse).
+    const email = `ttn-commercial-${Date.now()}@exemple.tn`;
+    await appeler('POST', '/inscription', undefined, { email, nom: 'Karim', motDePasse: 'Un-bon-mot-de-passe' });
+    const karim = String((await appeler('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    const inv = String((await appeler('POST', `/entreprises/${e.ent}/invitations`, e.jeton, { email, roles: ['commercial'] })).corps.jeton);
+    await appeler('POST', '/invitations/accepter', karim, { jeton: inv });
+    expect((await aSigner(karim)).statut).toBe(403);
+    // Plus de 100 pièces en attente : les 100 premières (une demande de signature n'en prend pas plus), dans l'ordre
+    // où elles ont été émises, et le compte de toutes.
+    const beaucoup = await entreprise(Array.from({ length: 101 }, (_, i) => `g${i}`));
+    const lu = (await appeler('GET', `/entreprises/${beaucoup.ent}/efacture/a-signer`, beaucoup.jeton)).corps as { total: number; pieces: { numero: string }[] };
+    expect([lu.total, lu.pieces.length, lu.pieces[0]?.numero, lu.pieces[99]?.numero]).toEqual([101, 100, 'FAC-2026-001', 'FAC-2026-100']);
+  });
 });

@@ -173,6 +173,25 @@ ne grandit pas quand il arrive.
 
 **L4. Sans réseau,** la place reste vide, sans erreur ; la liste redessinée redemande.
 
+## Ce que fait la brique 140 : signer plusieurs pièces d'un coup
+
+*Décisions prises par délégation le 05/10/2026.*
+
+**M1. Le bouton.** Dans la liste des factures d'une entreprise soumise, juste à côté du titre : « Signer les
+3 pièces en attente… » (« Signer la pièce en attente… » quand il n'y en a qu'une). Il ne paraît que s'il y a
+des pièces émises dont le fichier n'est pas signé, et seulement pour qui a le droit de signer (le
+propriétaire, un administrateur) : un commercial ne le voit pas. Il se pose dans une place gardée : ni le
+titre ni « + Nouvelle facture » ne bougent quand il paraît. Il n'est pas sur la liste des devis.
+
+**M2. Un seul code pour toutes.** La fenêtre nomme les pièces qu'elle signe ; « Envoyer le code au
+signataire (3 pièces) » fait une seule demande à DigiGo, et le code reçu par le signataire les signe toutes
+(tout ou rien : S3). Signées, elles partent d'elles-mêmes à la
+TTN, et la liste se redessine : plus de bouton, et chacune dit « en route ».
+
+**M3. 100 au plus.** Une demande de signature prend 100 pièces au plus : au-delà, le bouton le dit
+(« Signer les 100 premières pièces en attente (sur 150)… »), signe les plus anciennes d'abord, puis se
+repropose pour les suivantes.
+
 ## Comment c'est vérifié
 
 - `tests/v10/efacture.test.ts` : le fichier passe le schéma officiel (`xmllint`, sur la forme XSD 1.0 du
@@ -208,13 +227,19 @@ ne grandit pas quand il arrive.
   ligne qui ne grandit pas quand l'état arrive ; une coupure du réseau sans erreur ; une pièce signée puis une
   pièce renvoyée depuis leur fenêtre, aussitôt dites « en route » dans la liste ; rien dans une entreprise qui
   n'est pas soumise. Deux écrans, regardés le 05/10/2026.
+- `tests/v10/ttn.test.ts` (brique 140) : les pièces en attente, dans l'ordre de leur émission, et leur
+  nombre ; un seul code en signe deux ; un commercial ne les lit pas ; 101 en attente : les 100 premières, et
+  101 en tout.
+- `tests/web/ttn-liste.test.ts` (brique 140) : le bouton à côté du titre sans rien déplacer, la fenêtre qui
+  nomme les trois pièces, un seul code, une seule demande, la liste redessinée ; ce que dit le bouton pour une
+  pièce et pour plus de 100 ; pas de bouton sur les devis, ni pour Karim (commercial), ni dans une entreprise
+  qui n'est pas soumise. Trois écrans, regardés le 05/10/2026.
 - `tests/v10/espace-client.test.ts` : une pièce réduite à ce qu'elle imprime (la référence et le QR
   compris) s'imprime exactement comme la pièce entière.
 
 ## Reste à faire (`05` § 3.1 et 3.2 ; vision § 5)
 
-- **La signature**, suite : signer plusieurs pièces d'un coup depuis la liste (le serveur le sait déjà), la
-  clé USB par l'agent local, puis la signature par le serveur après homologation ANCE. Brancher le vrai
+- **La signature**, suite : la clé USB par l'agent local, puis la signature par le serveur après homologation ANCE. Brancher le vrai
   DigiGo quand l'adhésion est là (S7).
 - Brancher la vraie TTN quand l'accès de test est là (T7) ; l'archivage dix ans de la facture validée (`05`
   § 3.8 : elle est gardée ; la durée et l'effacement au bout, à écrire).

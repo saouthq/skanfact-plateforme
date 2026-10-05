@@ -3550,7 +3550,7 @@
     // émise et pas encore payée), comme deux fois le même choix.
     const FILTRES_REGROUPES = isQ ? {} : { 'émis': 'Toutes les pièces émises', 'à encaisser': 'À encaisser' };
     $('#view').innerHTML = `
-      <div class="page-head"><h1>${isQ ? 'Devis' : 'Factures'}</h1>
+      <div class="page-head"><h1>${isQ ? 'Devis' : 'Factures'}</h1>${!isQ && bridge.dessinerASigner && company().efacture === true ? '<span id="sg-a-signer" style="margin-right:auto"></span>' : ''}
         <div class="actions">${isQ || !data.documents.some(d => d.type === 'facture' && d.status !== 'brouillon' && d.number) ? '' : '<button class="btn" id="new-avoir">+ Avoir</button>'}<button class="btn ${mine.length ? 'btn-primary' : ''}" id="new">+ ${isQ ? 'Nouveau devis' : 'Nouvelle facture'}</button></div></div>
       ${filtersBar(`
         <input type="text" id="q" placeholder="Rechercher : n°, client, objet…" value="${h(s.q)}">
@@ -3573,6 +3573,7 @@
     if ($('#vide-demo')) $('#vide-demo').onclick = loadDemo;
     $('#new').onclick = () => navigate('#/doc/new/' + type);
     if ($('#new-avoir')) $('#new-avoir').onclick = () => navigate('#/doc/new/avoir');
+    if ($('#sg-a-signer')) void bridge.dessinerASigner($('#sg-a-signer'), modal, () => render(true));
     if ($('#q')) $('#q').oninput = e => { s.q = e.target.value.toLowerCase(); s.page = 1; draw(); };
     if ($('#st')) $('#st').onchange = e => { s.st = e.target.value; s.page = 1; draw(); };
     if ($('#yr')) $('#yr').onchange = e => { s.year = e.target.value; s.yearAuto = false; s.yearTouched = true; s.page = 1; draw(); };

@@ -62,7 +62,8 @@ describe('l\'état El Fatoora dans la liste des factures', () => {
   const enc = (v: unknown): unknown => (typeof v === 'number' && !Number.isInteger(v) ? { '~n': String(v) }
     : Array.isArray(v) ? v.map(enc) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, enc(x)])) : v);
 
-  it('chaque facture émise dit où en est son fichier El Fatoora, en un appel pour la page, sans rien pousser', async () => {
+  // L'entreprise de Nadia, soumise, avec trois factures émises et sa signataire désignée.
+  const atelier = async () => {
     const email = `nadia-ttn-liste-${Date.now()}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Nadia', motDePasse: 'Un-bon-mot-de-passe' });
     const premier = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Premier', type: 'navigateur' } })).corps.jeton);
@@ -100,6 +101,11 @@ describe('l\'état El Fatoora dans la liste des factures', () => {
       expect((await api('POST', `/entreprises/${ent}/efacture/signatures/${String(demande.corps.id)}/code`, jeton, { code: String(digigo.codeDe('09876543')) })).statut).toBe(200);
     };
     const envoi = async (cle: string) => (await api('GET', `/entreprises/${ent}/dossier-v10/${cle}/teif`, jeton)).corps.envoi as { statut: string; motifCle: string | null } | null;
+    return { jeton, ent, objets, signer, envoi };
+  };
+
+  it('chaque facture émise dit où en est son fichier El Fatoora, en un appel pour la page, sans rien pousser', async () => {
+    const { jeton, ent, objets, signer, envoi } = await atelier();
     // FAC-2026-002 signée ; le facteur est passé : sans compte, elle est retenue.
     await signer('f2');
     await expect.poll(async () => (await envoi('f2'))?.motifCle, { timeout: 10_000 }).toBe('ttn.sans_compte');
@@ -219,6 +225,106 @@ describe('l\'état El Fatoora dans la liste des factures', () => {
     expect(await nadia.locator('.ttn-etat').count()).toBe(0);
     expect(demandes.length).toBe(avantNonSoumise);
     expect(erreurs).toEqual([]);
+    await cn.close();
+  }, 180_000);
+
+  it('« Signer les 3 pièces en attente… » : un seul code les signe toutes, sans rien pousser à l\'écran (brique 140)', async () => {
+    const { jeton, ent } = await atelier();
+    const cn = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await cn.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const nadia = await cn.newPage();
+    const erreurs: string[] = [];
+    nadia.on('pageerror', (e) => erreurs.push(e.message));
+    // La demande des pièces en attente est retenue : on mesure le titre et le bouton principal avant le bouton.
+    let lacher: () => void = () => {};
+    const retenue = new Promise<void>((ok) => { lacher = ok; });
+    let premiere = true;
+    await nadia.route('**/efacture/a-signer', async (route: Route) => {
+      if (premiere) { premiere = false; await retenue; }
+      await route.continue();
+    });
+    await nadia.goto(`${serveur.adresse}/v10/?e=${ent}#/factures`);
+    await expect.poll(() => nadia.locator('tr[data-id="f3"]').count(), { timeout: 20_000 }).toBe(1);
+    await plusTard(nadia);
+    const ou = () => nadia.evaluate(() => [document.querySelector('#view h1'), document.getElementById('new')].map((x) => { const b = x?.getBoundingClientRect(); return b ? [b.left, b.top] : null; }));
+    const avant = await ou();
+    lacher();
+    const bouton = nadia.getByRole('button', { name: 'Signer les 3 pièces en attente…', exact: true });
+    await expect.poll(() => bouton.count(), { timeout: 10_000 }).toBe(1);
+    // Il paraît juste à côté du titre ; ni le titre ni le bouton principal n'ont bougé.
+    expect(await ou()).toEqual(avant);
+    const ecart = await nadia.evaluate(() => (document.getElementById('sg-lot')?.getBoundingClientRect().left ?? 0) - (document.querySelector('#view h1')?.getBoundingClientRect().right ?? 0));
+    expect(ecart).toBeGreaterThan(0);
+    expect(ecart).toBeLessThan(40);
+    await nadia.screenshot({ path: path.join(PHOTOS, 'ttn-lot-1.png') });
+    await bouton.click();
+    const fenetre = nadia.locator('#modal-root .modal').last();
+    await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Signer 3 pièces avec DigiGo');
+    expect(net(await fenetre.locator('p.small').first().innerText())).toBe('Les fichiers El Fatoora de FAC-2026-001, FAC-2026-002, FAC-2026-003, écrits par SkanFact à l\'émission, sont signés par DigiGo (TunTrust) avec le certificat de ton signataire. Un code arrive sur SON téléphone : c\'est lui qui te le donne, et ce seul code les signe toutes.');
+    await fenetre.getByRole('button', { name: 'Envoyer le code au signataire (3 pièces)', exact: true }).click();
+    await fenetre.getByLabel('Code reçu par le signataire').waitFor();
+    await fenetre.getByLabel('Code reçu par le signataire').fill(String(digigo.codeDe('09876543')));
+    await fenetre.getByRole('button', { name: 'Signer', exact: true }).click();
+    await expect.poll(async () => net(await fenetre.locator('#sg-fait').innerText().catch(() => '')), { timeout: 10_000 })
+      .toMatch(/^Les pièces FAC-2026-001, FAC-2026-002, FAC-2026-003 sont signées par Nadia Ben Salah, le \d\d\/\d\d\/\d{4} à \d+ h \d\d\. Elles partent d'elles-mêmes à la TTN : la liste dit où chacune en est\.$/);
+    await nadia.screenshot({ path: path.join(PHOTOS, 'ttn-lot-2.png') });
+    // Un seul code, une seule demande, pour les trois.
+    expect((await admin.query(`select count(*)::int n, sum(cardinality(pieces))::int p from ventes.signature_demande where entreprise = $1`, [ent])).rows[0]).toEqual({ n: 1, p: 3 });
+    await fenetre.getByRole('button', { name: 'Fermer', exact: true }).click();
+    // La liste redessinée : plus de bouton, et aucune n'est plus « à signer ».
+    await expect.poll(() => nadia.locator('#sg-lot').count(), { timeout: 10_000 }).toBe(0);
+    for (const cle of ['f1', 'f2', 'f3']) {
+      await expect.poll(async () => net(await nadia.locator(`tr[data-id="${cle}"] .ttn-etat`).innerText()), { timeout: 10_000 }).toMatch(/^El Fatoora : (en route|retenue)$/);
+    }
+    await nadia.screenshot({ path: path.join(PHOTOS, 'ttn-lot-3.png') });
+
+    // Le bouton dit ce qu'il signera : une seule pièce ; ou les 100 premières quand il y en a plus (une demande n'en
+    // prend pas plus). (Ce que dit le serveur est remplacé ici, pour ne pas émettre 150 factures.)
+    const dire = async (corps: unknown) => {
+      await nadia.unroute('**/efacture/a-signer');
+      await nadia.route('**/efacture/a-signer', (route: Route) => route.fulfill({ json: corps }));
+      await nadia.reload();
+      await expect.poll(() => nadia.locator('#sg-lot').count(), { timeout: 20_000 }).toBe(1);
+      return net(await nadia.locator('#sg-lot').innerText());
+    };
+    expect(await dire({ total: 1, pieces: [{ cle: 'f1', numero: 'FAC-2026-001' }] })).toBe('Signer la pièce en attente…');
+    expect(await dire({ total: 150, pieces: Array.from({ length: 100 }, (_, i) => ({ cle: `g${i}`, numero: `FAC-2026-${String(i + 1).padStart(3, '0')}` })) }))
+      .toBe('Signer les 100 premières pièces en attente (sur 150)…');
+    // Pas sur la liste des devis.
+    await nadia.evaluate(() => { location.hash = '#/devis'; });
+    await expect.poll(() => nadia.locator('#view h1').first().innerText()).toBe('Devis');
+    await nadia.waitForTimeout(300);
+    expect(await nadia.locator('#sg-lot').count()).toBe(0);
+
+    // Karim, commercial, ne signe pas : sa liste ne propose rien, sans erreur.
+    const email = `karim-ttn-lot-${Date.now()}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Karim', motDePasse: 'Un-bon-mot-de-passe' });
+    const karim = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    const inv = String((await api('POST', `/entreprises/${ent}/invitations`, jeton, { email, roles: ['commercial'] })).corps.jeton);
+    expect((await api('POST', '/invitations/accepter', karim, { jeton: inv })).statut).toBe(200);
+    const ck = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await ck.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, karim);
+    const k = await ck.newPage();
+    k.on('pageerror', (e) => erreurs.push(e.message));
+    const demandes: number[] = [];
+    k.on('response', (r) => { if (r.url().includes('/efacture/a-signer')) demandes.push(r.status()); });
+    await k.goto(`${serveur.adresse}/v10/?e=${ent}#/factures`);
+    await expect.poll(() => k.locator('tr[data-id="f3"]').count(), { timeout: 20_000 }).toBe(1);
+    await expect.poll(() => demandes, { timeout: 10_000 }).toEqual([403]);
+    expect(await k.locator('#sg-lot').count()).toBe(0);
+    // Une entreprise qui n'est pas soumise : pas de bouton.
+    const fiche = ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; cle: string; revision: number; contenu: Record<string, unknown> }[])
+      .find((o) => o.collection === '_racine' && o.cle === 'company');
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: '_racine', cle: 'company', rang: null, revision: fiche?.revision ?? null, contenu: { ...fiche?.contenu, efacture: false } }] })).statut).toBe(200);
+    // (Le même document, rechargé : la fiche de l'entreprise se relit.)
+    await nadia.goto(`${serveur.adresse}/v10/?e=${ent}#/factures`);
+    await nadia.reload();
+    await expect.poll(() => nadia.locator('tr[data-id="f3"]').count(), { timeout: 20_000 }).toBe(1);
+    await nadia.waitForTimeout(300);
+    expect(await nadia.locator('#sg-lot').count()).toBe(0);
+    expect(erreurs).toEqual([]);
+    await ck.close();
     await cn.close();
   }, 180_000);
 });

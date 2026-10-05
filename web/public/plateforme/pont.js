@@ -665,6 +665,7 @@
     teifDuServeur,
     dessinerSignataire,
     signerPiece,
+    dessinerASigner,
     dessinerTtn,
     ttnDansLaFenetre,
     etatsTtn: remplirEtats,
@@ -1438,9 +1439,15 @@
   // à DigiGo ; un code arrive sur le téléphone du signataire, et ce code tapé signe le fichier. Le code se
   // demande d'un geste (jamais en ouvrant la fenêtre : un SMS partirait à chaque fois).
   /** @param {any} doc @param {any} modal @param {() => void} telecharger */
-  function signerPiece(doc, modal, telecharger) {
-    modal(`<h2>Signer ${esc(doc.number)} avec DigiGo</h2>
-      <p class="small">Le fichier El Fatoora de cette pièce, écrit par SkanFact à l'émission, est signé par DigiGo (TunTrust) avec le certificat de ton signataire. Un code arrive sur SON téléphone : c'est lui qui te le donne.</p>
+  function signerPiece(doc, modal, telecharger) { signerPieces([doc], modal, telecharger, () => {}); }
+  // Plusieurs pièces d'un coup (brique 140) : un seul code pour toutes.
+  /** @param {{ id: string, number: string }[]} docs @param {any} modal @param {(() => void) | null} telecharger @param {() => void} apres */
+  function signerPieces(docs, modal, telecharger, apres) {
+    // (Jamais vide : une pièce, ou celles qui attendent.)
+    const doc = /** @type {{ id: string, number: string }} */ (docs[0]);
+    const une = docs.length === 1;
+    modal(`<h2>${une ? `Signer ${esc(doc.number)} avec DigiGo` : `Signer ${docs.length} pièces avec DigiGo`}</h2>
+      <p class="small">${une ? 'Le fichier El Fatoora de cette pièce, écrit par SkanFact à l\'émission, est signé' : `Les fichiers El Fatoora de ${esc(docs.map((d) => d.number).join(', '))}, écrits par SkanFact à l'émission, sont signés`} par DigiGo (TunTrust) avec le certificat de ton signataire. Un code arrive sur SON téléphone : c'est lui qui te le donne${une ? '' : ', et ce seul code les signe toutes'}.</p>
       <div id="sg-etape"></div>
       <div class="modal-actions"><button class="btn" data-close>Fermer</button></div>`, (/** @type {HTMLElement} */ root, /** @type {() => void} */ close) => {
       const $r = (/** @type {string} */ q) => /** @type {HTMLElement} */ (root.querySelector(q));
@@ -1456,7 +1463,7 @@
           b.setAttribute('disabled', '');
           dire('');
           try {
-            const d = await appel('POST', '/efacture/signatures', { pieces: [doc.id] });
+            const d = await appel('POST', '/efacture/signatures', { pieces: docs.map((x) => x.id) });
             saisir(d.id, d.titulaire);
           } catch (x) {
             b.removeAttribute('disabled');
@@ -1504,11 +1511,21 @@
       };
       /** @param {any} r @param {boolean} [deja] */
       const fini = (r, deja) => {
-        etatsConnus.delete(doc.id);
-        etape.innerHTML = `<p id="sg-fait">La pièce <strong>${esc(r.signees.join(', '))}</strong> est ${deja ? 'déjà ' : ''}signée${r.titulaire ? ` par ${esc(r.titulaire)}` : ''}, le ${esc(quand(r.signeLe))}. Elle part d'elle-même à la TTN : « Fichier pour El Fatoora » dit où elle en est.</p>
+        for (const x of docs) etatsConnus.delete(x.id);
+        const qui = `${r.titulaire ? ` par ${esc(r.titulaire)}` : ''}, le ${esc(quand(r.signeLe))}`;
+        if (!telecharger) {
+          etape.innerHTML = `<p id="sg-fait">${r.signees.length > 1 ? `Les pièces <strong>${esc(r.signees.join(', '))}</strong> sont signées${qui}. Elles partent d'elles-mêmes à la TTN : la liste dit où chacune en est.`
+            : `La pièce <strong>${esc(r.signees.join(', '))}</strong> est signée${qui}. Elle part d'elle-même à la TTN : la liste dit où elle en est.`}</p>`;
+          apres();
+          return;
+        }
+        etape.innerHTML = `<p id="sg-fait">La pièce <strong>${esc(r.signees.join(', '))}</strong> est ${deja ? 'déjà ' : ''}signée${qui}. Elle part d'elle-même à la TTN : « Fichier pour El Fatoora » dit où elle en est.</p>
           <div class="inline"><button type="button" class="btn btn-primary" id="sg-telecharger">Télécharger le fichier signé</button></div>`;
-        $r('#sg-telecharger').onclick = () => { close(); telecharger(); };
+        const t = telecharger;
+        $r('#sg-telecharger').onclick = () => { close(); t(); };
       };
+      // Plusieurs pièces : elles viennent de la liste de celles qui attendent ; le code se demande d'un geste.
+      if (!une) { demander(`Envoyer le code au signataire (${docs.length} pièces)`); return; }
       // Déjà signée : la fenêtre le dit d'emblée (aucun code ne partirait pour rien).
       etape.innerHTML = '<p class="small muted">Un instant…</p>';
       teifDuServeur(doc).catch(() => null).then((f) => {
@@ -1516,6 +1533,22 @@
         else demander('Envoyer le code au signataire');
       });
     });
+  }
+
+  // « Signer les N pièces en attente… », à côté du titre de la liste des factures (brique 140) : il paraît
+  // quand des pièces émises attendent leur signature, et seulement pour qui a le droit de signer. Il se pose
+  // dans une place gardée à côté du titre : rien d'autre ne bouge quand il paraît.
+  /** @param {HTMLElement} el @param {any} modal @param {() => void} redessiner */
+  async function dessinerASigner(el, modal, redessiner) {
+    /** @type {any} */ let lu;
+    try { lu = await appel('GET', '/efacture/a-signer'); } catch { return; }
+    if (!lu.total || !el.isConnected) return;
+    // Une demande de signature en prend 100 au plus : le bouton dit ce qu'il signera vraiment.
+    const n = lu.pieces.length;
+    el.innerHTML = `<button type="button" class="btn btn-sm" id="sg-lot">${lu.total > n ? `Signer les ${n} premières pièces en attente (sur ${lu.total})…`
+      : lu.total > 1 ? `Signer les ${lu.total} pièces en attente…` : 'Signer la pièce en attente…'}</button>`;
+    /** @type {HTMLElement} */ (el.querySelector('#sg-lot')).onclick = () =>
+      signerPieces(lu.pieces.map((/** @type {any} */ p) => ({ id: p.cle, number: p.numero })), modal, null, redessiner);
   }
 
   // ── L'envoi à la TTN (brique 82 ; docs/facture-electronique.md) ──────────────────────────────────

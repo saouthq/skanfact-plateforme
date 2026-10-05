@@ -7346,6 +7346,60 @@ prouver "les jours dits à l'heure du navigateur, pas de Tunis" web/public/plate
 prouver "SkanEcom jamais déclaré par défaut" serveur/principal.ts \
   "lirePartenaires(env.SKANFACT_PARTENAIRES ?? fs.readFileSync(path.join(ici, 'partenaires.json'), 'utf8'), { essai" "lirePartenaires(env.SKANFACT_PARTENAIRES, { essai" \
   "SkanEcom est déclaré dans le dépôt : son adresse de retour, l'empreinte de son secret, ses gestes"
+# Brique 140 : signer plusieurs pièces d'un coup depuis la liste (docs/facture-electronique.md, M).
+SL="les pièces qui attendent leur signature, pour qui peut signer, et un seul code pour plusieurs (brique 140)"
+SW="« Signer les 3 pièces en attente… » : un seul code les signe toutes, sans rien pousser à l'écran (brique 140)"
+prouver "un commercial voit les pièces à signer" serveur/v10/routes.ts \
+  "chemin: '/entreprises/:entreprise/efacture/a-signer', geste: 'ventes.facture.signer'," "chemin: '/entreprises/:entreprise/efacture/a-signer', geste: 'ventes.pieces.voir'," \
+  "$SL"
+prouver "une pièce signée encore proposée" serveur/v10/routes.ts \
+  "and p.statut = 'emise' and g.piece is null order by e.ecrit_le limit 100" "and p.statut = 'emise' order by e.ecrit_le limit 100" \
+  "$SL"
+prouver "les plus récentes proposées d'abord" serveur/v10/routes.ts \
+  "and g.piece is null order by e.ecrit_le limit 100" "and g.piece is null order by e.ecrit_le desc limit 100" \
+  "$SL"
+prouver "plus de 100 pièces dans une demande" serveur/v10/routes.ts \
+  "and g.piece is null order by e.ecrit_le limit 100" "and g.piece is null order by e.ecrit_le limit 1000" \
+  "$SL"
+prouver "le compte limité aux pièces proposées" serveur/v10/routes.ts \
+  "select p.ref_v10 cle, p.numero_texte numero, count(*) over () total" "select p.ref_v10 cle, p.numero_texte numero, 1 total" \
+  "$SL"
+prouver "un code demandé par pièce" web/public/plateforme/pont.js \
+  "{ pieces: docs.map((x) => x.id) }" "{ pieces: [doc.id] }" \
+  "$SW"
+prouver "le bouton loin du titre" web/public/v10/app.js \
+  "<span id=\"sg-a-signer\" style=\"margin-right:auto\"></span>" "<span id=\"sg-a-signer\"></span>" \
+  "$SW"
+prouver "le bouton sur la liste des devis" web/public/v10/app.js \
+  "\${!isQ && bridge.dessinerASigner && company().efacture === true ?" "\${bridge.dessinerASigner && company().efacture === true ?" \
+  "$SW"
+prouver "le bouton dans une entreprise non soumise" web/public/v10/app.js \
+  "\${!isQ && bridge.dessinerASigner && company().efacture === true ?" "\${!isQ && bridge.dessinerASigner ?" \
+  "$SW"
+prouver "le bouton jamais posé" web/public/v10/app.js \
+  "    if (\$('#sg-a-signer')) void bridge.dessinerASigner(" "    if (false) void bridge.dessinerASigner(" \
+  "$SW"
+prouver "le refus d'un commercial casse la page" web/public/plateforme/pont.js \
+  "    try { lu = await appel('GET', '/efacture/a-signer'); } catch { return; }" "    lu = await appel('GET', '/efacture/a-signer');" \
+  "$SW"
+prouver "signées, la liste garde son bouton" web/public/plateforme/pont.js \
+  "          apres();
+" "" \
+  "$SW"
+prouver "le bouton promet plus qu'une demande ne signe" web/public/plateforme/pont.js \
+  "\${lu.total > n ? \`Signer les \${n} premières pièces en attente (sur \${lu.total})…\`
+      : lu.total > 1" "\${lu.total > 1" \
+  "$SW"
+prouver "« Signer les 1 pièces »" web/public/plateforme/pont.js \
+  ": lu.total > 1 ? \`Signer les \${lu.total} pièces en attente…\` : 'Signer la pièce en attente…'}" ": \`Signer les \${lu.total} pièces en attente…\`}" \
+  "$SW"
+prouver "la fenêtre ne dit pas quelles pièces elle signe" web/public/plateforme/pont.js \
+  "\`Les fichiers El Fatoora de \${esc(docs.map((d) => d.number).join(', '))}, écrits" "\`Les fichiers El Fatoora, écrits" \
+  "$SW"
+prouver "signées, la fenêtre propose de télécharger un seul fichier" web/public/plateforme/pont.js \
+  "        if (!telecharger) {" "        if (false) {" \
+  "$SW"
+
 # Brique 139 : l'état El Fatoora dans la liste des factures (docs/facture-electronique.md, L).
 EL="la liste lit où en est chaque pièce, en un appel pour toute la page (brique 139)"
 EW="chaque facture émise dit où en est son fichier El Fatoora, en un appel pour la page, sans rien pousser"
@@ -7386,7 +7440,7 @@ prouver "une pièce refusée sans couleur d'alerte" web/public/plateforme/pont.j
   "$EW"
 prouver "signée depuis sa fenêtre, la liste la dit encore à signer" web/public/plateforme/pont.js \
   "      const fini = (r, deja) => {
-        etatsConnus.delete(doc.id);" "      const fini = (r, deja) => {" \
+        for (const x of docs) etatsConnus.delete(x.id);" "      const fini = (r, deja) => {" \
   "$EW"
 prouver "renvoyée depuis sa fenêtre, la liste la dit encore refusée" web/public/plateforme/pont.js \
   "renvoyer\`);
