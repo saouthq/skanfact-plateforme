@@ -174,4 +174,4 @@ Désormais :
 
 ## Reste à faire avant les testeurs
 
-- Une fiche pour les testeurs.
+- ~~Une fiche pour les testeurs~~ : `docs/testeurs.md` (05/10/2026).
