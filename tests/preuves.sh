@@ -7346,6 +7346,45 @@ prouver "les jours dits à l'heure du navigateur, pas de Tunis" web/public/plate
 prouver "SkanEcom jamais déclaré par défaut" serveur/principal.ts \
   "lirePartenaires(env.SKANFACT_PARTENAIRES ?? fs.readFileSync(path.join(ici, 'partenaires.json'), 'utf8'), { essai" "lirePartenaires(env.SKANFACT_PARTENAIRES, { essai" \
   "SkanEcom est déclaré dans le dépôt : son adresse de retour, l'empreinte de son secret, ses gestes"
+# Brique 137 : la coque de bureau (docs/bureau.md, B).
+CI="la page de SkanFact imprime un ticket entier, à la largeur du rouleau, puis la coupe et le tiroir quand on le demande"
+CA="la fenêtre reste chez SkanFact ; une page d'ailleurs n'obtient rien de l'agent"
+prouver "l'agent obéit à une page d'ailleurs" bureau/coque/principal.ts \
+  "if (e.senderFrame?.origin !== ORIGINE) throw" "if (e.senderFrame?.origin === 'jamais') throw" \
+  "$CA"
+prouver "la coque suit un lien vers ailleurs" bureau/coque/principal.ts \
+  "{ e.preventDefault(); dehors(url); }" "{ dehors(url); }" \
+  "$CA"
+prouver "la coque ouvre une fenêtre vers ailleurs" bureau/coque/principal.ts \
+  "if (url === 'about:blank' || new URL(url, ADRESSE).origin === ORIGINE) return { action: 'allow' };" "return { action: 'allow' };" \
+  "$CA"
+prouver "la coque accorde les permissions" bureau/coque/principal.ts \
+  "setPermissionRequestHandler((_w, _p, rappel) => rappel(false))" "setPermissionRequestHandler((_w, _p, rappel) => rappel(true))" \
+  "$CA"
+prouver "la fenêtre du ticket charge ce qu'on lui montre" bureau/coque/principal.ts \
+  "rappel({ cancel: !d.url.startsWith('data:') })" "rappel({ cancel: false })" \
+  "$CI"
+prouver "le ticket coupé à la hauteur de la fenêtre" bureau/coque/principal.ts \
+  "    w.setContentSize(points, hauteur);
+" "" \
+  "$CI"
+prouver "le ticket dessiné sans l'agrandir au rouleau" bureau/coque/principal.ts \
+  "const zoom = points / ((rouleau * 96) / 25.4);" "const zoom = 1;" \
+  "$CI"
+prouver "le tiroir s'ouvre sans qu'on le demande, par le passage" bureau/coque/preload.cjs \
+  "tiroir: Boolean(options && options.tiroir)" "tiroir: true" \
+  "$CI"
+prouver "sans imprimante, la page croit le ticket imprimé" bureau/coque/principal.ts \
+  "  if (!imprimante) return { ok: false, raison: 'sans_imprimante' };
+  try {
+    await envoyer(imprimante, ticket(" "  if (!imprimante) return { ok: true };
+  try {
+    await envoyer(imprimante, ticket(" \
+  "$CI"
+prouver "un réglage d'imprimante faux accepté" bureau/coque/principal.ts \
+  "const p = reglage.nullable().safeParse(r);" "const p = z.any().safeParse(r);" \
+  "$CI"
+
 # Brique 136 : l'agent local, l'imprimante de tickets et le tiroir (docs/bureau.md, A).
 AR="le raster au point près : une ligne noire, puis les deux bords ; une largeur qui ne tombe pas sur 8 se complète de blanc"
 AB="par bandes de 128 lignes : une longue bande de papier ne déborde pas la mémoire des petites imprimantes"

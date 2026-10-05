@@ -35,3 +35,36 @@ Windows avec leurs pilotes. Un modèle qui ne suit pas aura son réglage, pas un
 
 Code : `bureau/agent/escpos.ts`, `bureau/agent/imprimante.ts`. Tests : `tests/bureau/agent.test.ts` (sans matériel :
 une fausse imprimante réseau reçoit les octets, une éteinte et une qui ne lit rien disent leur échec).
+
+## B. La coque de bureau (brique 137)
+
+**B1. La même application.** La coque est une fenêtre Electron (la version de la v10) qui charge SkanFact à son
+adresse (`SKANFACT_ADRESSE` sur un poste d'essai ; sinon l'adresse du service, **À VÉRIFIER** : le nom de domaine
+n'est pas encore pris). Rien n'est recopié : le bureau n'est jamais en retard sur le web. Lancer :
+`npm run bureau` (avec `SKANFACT_ADRESSE=http://127.0.0.1:8090` pour le serveur d'essai).
+
+**B2. L'agent ne parle qu'à SkanFact.** La page reçoit `window.skanfactBureau` avec quatre gestes, et rien d'autre :
+`imprimerTicket(html, largeur, { tiroir })`, `ouvrirTiroir()`, `imprimante()`, `reglerImprimante(r)`. Le processus
+principal **refuse** chaque geste qui ne vient pas de l'origine exacte de SkanFact (une page d'ailleurs chargée dans
+la fenêtre n'obtient rien, et l'imprimante ne reçoit rien). La réponse dit toujours ce qui s'est passé :
+`{ ok: true }`, ou `{ ok: false, raison }` (`sans_imprimante`, `injoignable`, `trop_lente`, `chemin_inconnu`,
+`refusee`, `reglage_faux`).
+
+**B3. La fenêtre reste chez SkanFact.** Un lien vers ailleurs s'ouvre dans le navigateur du poste, pas dans la coque ;
+une fenêtre vers ailleurs ne s'ouvre pas (la fenêtre vierge que la v10 ouvre pour imprimer reste permise). Aucune
+permission (caméra, micro, position, notifications) n'est accordée sans qu'une brique le décide.
+
+**B4. La photo du ticket.** Une fenêtre cachée, à la largeur du rouleau en points, dessine le HTML du ticket agrandi
+pour que sa largeur en millimètres fasse la largeur imprimable ; elle prend la hauteur du ticket entier (un long
+ticket n'est jamais coupé à la hauteur de l'écran) et ne charge **rien d'autre** que ce dessin. Sans écran, Electron
+ne dessine pas : le test démarre son propre écran virtuel (Xvfb), la CI l'installe.
+
+**B5. Les réglages du poste** (l'imprimante) vivent dans le dossier de l'application (`bureau.json`), jamais sur le
+serveur : une imprimante est celle de ce comptoir.
+
+Code : `bureau/coque/principal.ts`, `bureau/coque/preload.cjs`. Test : `tests/bureau/coque.test.ts` (la vraie coque,
+une page « SkanFact » et une page étrangère, une fausse imprimante réseau).
+
+**À faire ensuite** : brancher la caisse de la v10 sur l'agent (le ticket part sans fenêtre d'impression, le tiroir
+s'ouvre sur un paiement en espèces, le réglage de l'imprimante dans les Paramètres) ; l'application **signée**
+(certificats Apple et Microsoft, `06` § 10) et ses mises à jour ; la clé USB de signature (PKCS#11).

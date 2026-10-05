@@ -25,7 +25,8 @@
     "web": "vite build --config web/vite.config.ts",
     "web:dev": "vite --config web/vite.config.ts",
     "reprendre-v10": "node web/v10/reprendre.mjs",
-    "banc:lecture": "node banc/lecture/mesurer.ts"
+    "banc:lecture": "node banc/lecture/mesurer.ts",
+    "bureau": "electron bureau/coque/principal.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -35,6 +36,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
+    "electron": "44.5.1",
     "eslint": "10.11.0",
     "globals": "17.12.0",
     "jsqr": "1.4.0",

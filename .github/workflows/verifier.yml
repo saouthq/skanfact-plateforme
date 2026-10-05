@@ -39,11 +39,15 @@ jobs:
       - run: npm ci
       - name: Le navigateur des tests des écrans
         run: npx playwright-core install --with-deps chromium
+      # La coque de bureau (brique 137, tests/bureau/coque.test.ts) : le programme Electron, et un écran virtuel (Xvfb)
+      # qu'elle démarre elle-même ; sans écran, Electron ne dessine pas le ticket.
+      - name: Electron (la coque de bureau)
+        run: node node_modules/electron/install.js
       # xmllint relit chaque fichier El Fatoora contre le schéma de la TTN (tests/v10/efacture.test.ts) ;
       # sans lui, le test tombe (il ne saute jamais le schéma). Tesseract (avec le français) et Poppler
       # lisent les factures d'achat en photo ou en PDF (brique 84, tests/achats) : les mêmes que sur le serveur.
-      - name: xmllint, Tesseract et Poppler (la facture électronique, la lecture des factures d'achat)
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils
+      - name: xmllint, Tesseract, Poppler et Xvfb (la facture électronique, la lecture des factures d'achat, la coque de bureau)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb
       - name: Types
         run: npm run types
       - name: Lint (0 erreur, 0 avertissement)
@@ -81,10 +85,14 @@ jobs:
       - run: npm ci
       - name: Le navigateur des tests des écrans
         run: npx playwright-core install --with-deps chromium
+      # La coque de bureau (brique 137, tests/bureau/coque.test.ts) : le programme Electron, et un écran virtuel (Xvfb)
+      # qu'elle démarre elle-même ; sans écran, Electron ne dessine pas le ticket.
+      - name: Electron (la coque de bureau)
+        run: node node_modules/electron/install.js
       # Sans xmllint (ou sans Tesseract et Poppler), les tests de la facture électronique (ou de la lecture
       # des factures d'achat) tomberaient pour une autre raison que le défaut remis : la preuve ne prouverait rien.
-      - name: xmllint, Tesseract et Poppler (la facture électronique, la lecture des factures d'achat)
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils
+      - name: xmllint, Tesseract, Poppler et Xvfb (la facture électronique, la lecture des factures d'achat, la coque de bureau)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb
       - name: Preuves (chaque test tombe quand on remet son défaut)
         run: npm run preuves
         env:

@@ -24,4 +24,7 @@ export default tseslint.config(
   { files: ['web/src/**', 'web/public/plateforme/**', 'web/public/espace/**'], languageOptions: { globals: { ...globals.browser } } },
   // Le service des écrans (brique 72) tourne à part, dans le navigateur, sans page.
   { files: ['web/public/sw.js'], languageOptions: { globals: { ...globals.serviceworker } } },
+  // Le passage de la coque de bureau (brique 137) : CommonJS, dans la page.
+  { files: ['bureau/coque/*.cjs'], languageOptions: { sourceType: 'commonjs', globals: { ...globals.browser, ...globals.commonjs } },
+    rules: { '@typescript-eslint/no-require-imports': 'off' } },
 );
