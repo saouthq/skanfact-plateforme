@@ -511,9 +511,11 @@
   pour ne plus attendre une heure : à chaque envoi, les tests en deux moitiés par Node et les **preuves du
   changement** — nouvelles, changées, ou dont le fichier visé a changé, `tests/preuves-du-changement.sh` — sur six
   machines, une dizaine de minutes ; **toutes** les preuves chaque nuit à 1 h 30 de Tunis et avant la production,
-  `preuves-completes.yml`, quatorze groupes, `PARTIE=k/14`. Une nuit rouge se répare d'abord, le matin). **Avant chaque envoi, lire le verdict du précédent** (`npm run verdict`,
-  qui nomme le test ou la preuve qui tombe) : une construction rouge se répare d'abord, jamais on ne
-  la contourne ni n'empile par-dessus. Une brique qui touche au socle de tout (le serveur, la
+  `preuves-completes.yml`, quatorze groupes, `PARTIE=k/14`. Une nuit rouge se répare d'abord, le matin). **Le serveur d'essai n'attend pas GitHub** (Skander, 05/10/2026) : il installe chaque
+  envoi dans les deux minutes ; c'est donc **avant** d'envoyer que tout se vérifie ici (`verifier:brique`, et le
+  parcours à l'écran). GitHub vérifie en arrière-plan : **lire son verdict** (`npm run verdict`, qui nomme le test ou
+  la preuve qui tombe) dès qu'il arrive, et un rouge se répare aussitôt, avant le travail suivant ; jamais on ne le
+  contourne. Une brique qui touche au socle de tout (le serveur, la
   connexion, la sécurité par ligne) ajoute les fichiers de test concernés à `verifier:brique`.
   **Une brique qui ajoute une migration passe aussi `tests/socle`** (les garde-fous de la base : sécurité par ligne
   forcée, portes dérobées fermées au public, phrases au catalogue) : deux rouges du 01/10/2026 venaient de là.

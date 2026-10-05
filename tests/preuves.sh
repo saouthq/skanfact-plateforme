@@ -7826,6 +7826,15 @@ prouver "une version d'avant le suiveur installée" exploitation/suivre.ts \
   "    if (!installable(v)) continue;" "" \
   "$SV3"
 
+# Le serveur d'essai n'attend plus GitHub (décidé par Skander le 05/10/2026) ; la production l'attend toujours.
+SV4="le serveur d'essai (« aucune ») prend la plus récente dès qu'elle est envoyée ; sinon, seulement une version verte"
+prouver "le serveur d'essai qui attend quand même GitHub" exploitation/suivre.ts \
+  "  if (verification === 'aucune') return async () => 'vert';" "" \
+  "$SV4"
+prouver "la production qui n'attend plus GitHub" exploitation/suivre.ts \
+  "  if (verification === 'aucune') return async () => 'vert';" "  if (verification !== 'github') return async () => 'vert';" \
+  "$SV4"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

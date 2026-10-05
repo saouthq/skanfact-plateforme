@@ -172,6 +172,16 @@ Désormais :
 - Les serveurs des pilotes et de la production n'installeront qu'une version passée par toutes les preuves (à régler le
   jour où ils existent).
 
+**E2. Le serveur d'essai n'attend plus GitHub** (Skander, le même jour : « ça m'énerve que GitHub teste ; on pourrait
+pas tester nous-mêmes et éviter la vérification de GitHub pendant le dev ? »). `SKANFACT_VERIFICATION=aucune` dans
+`/etc/skanfact/suivre.env` (posé par l'installation, et par la tâche d'entretien 0003 sur un serveur **d'essai**
+seulement) : le suiveur installe la plus récente version **dès qu'elle est envoyée**, sans même interroger GitHub.
+Claude la teste avant l'envoi (types, lint, tests et preuves de ce qu'il a touché, parcours à l'écran) ; GitHub la
+vérifie quand même en arrière-plan, et un rouge se répare aussitôt. Ce qui protège encore le serveur d'essai : une
+version qui ne démarre pas revient d'elle-même à celle d'avant (B2) ; jamais une version plus ancienne que celle qui
+tourne, ni une d'avant le suiveur. Toute autre valeur que `aucune` attend GitHub : un serveur aux vraies données
+l'attendra toujours.
+
 ## Reste à faire avant les testeurs
 
 - ~~Une fiche pour les testeurs~~ : `docs/testeurs.md` (05/10/2026).
