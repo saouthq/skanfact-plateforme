@@ -7346,6 +7346,40 @@ prouver "les jours dits à l'heure du navigateur, pas de Tunis" web/public/plate
 prouver "SkanEcom jamais déclaré par défaut" serveur/principal.ts \
   "lirePartenaires(env.SKANFACT_PARTENAIRES ?? fs.readFileSync(path.join(ici, 'partenaires.json'), 'utf8'), { essai" "lirePartenaires(env.SKANFACT_PARTENAIRES, { essai" \
   "SkanEcom est déclaré dans le dépôt : son adresse de retour, l'empreinte de son secret, ses gestes"
+# Brique 136 : l'agent local, l'imprimante de tickets et le tiroir (docs/bureau.md, A).
+AR="le raster au point près : une ligne noire, puis les deux bords ; une largeur qui ne tombe pas sur 8 se complète de blanc"
+AB="par bandes de 128 lignes : une longue bande de papier ne déborde pas la mémoire des petites imprimantes"
+AT="le ticket : remise à zéro, l'image, la coupe ; le tiroir seulement si on le demande"
+AG="une capture d'écran (BGRA) ramenée au rouleau : 80 mm = 576 points, 58 mm = 384 ; le transparent est du papier"
+AE="éteinte, trop lente, ou un chemin inconnu : l'échec dit lequel"
+prouver "le point de gauche dans le bit faible" bureau/agent/escpos.ts \
+  "(0x80 >> (x & 7))" "(0x01 << (x & 7))" \
+  "$AR"
+prouver "le seuil compté noir" bureau/agent/escpos.ts \
+  "(gris[(y0 + y) * largeur + x] ?? 255) < seuil" "(gris[(y0 + y) * largeur + x] ?? 255) <= seuil" \
+  "$AR"
+prouver "une seule bande pour tout le ticket" bureau/agent/escpos.ts \
+  "const BANDE = 128;" "const BANDE = 1_000_000;" \
+  "$AB"
+prouver "le tiroir s'ouvre à chaque ticket" bureau/agent/escpos.ts \
+  "...(tiroir ? [TIROIR] : [])" "TIROIR" \
+  "$AT"
+prouver "l'impulsion du tiroir trop courte" bureau/agent/escpos.ts \
+  "Uint8Array.of(ESC, 0x70, 0x00, 0x19, 0xfa)" "Uint8Array.of(ESC, 0x70, 0x00, 0x01, 0xfa)" \
+  "$AT"
+prouver "le transparent imprimé noir" bureau/agent/escpos.ts \
+  "Math.round((l * a + 255 * (255 - a)) / 255)" "Math.round(l)" \
+  "$AG"
+prouver "le ticket annoncé imprimé sans attendre l'imprimante" bureau/agent/imprimante.ts \
+  "s.on('connect', () => s.end(Buffer.from(octets), () => finir()));" "s.on('connect', () => { s.write(Buffer.from(octets)); finir(); });" \
+  "$AE"
+prouver "une imprimante éteinte dite trop lente" bureau/agent/imprimante.ts \
+  "finir(new ImpressionImpossible('injoignable'" "finir(new ImpressionImpossible('trop_lente'" \
+  "$AE"
+prouver "un chemin inconnu dit refusé" bureau/agent/imprimante.ts \
+  "code === 'ENOENT' ? 'chemin_inconnu' : 'refusee'" "'refusee'" \
+  "$AE"
+
 # Brique 135 : « Déconnecter » chez le partenaire coupe la clé dans SkanFact.
 BDP="« Déconnecter » chez le partenaire coupe la clé ici : son secret et la clé, une clé qu'il a reçue, redemander sans risque"
 prouver "déconnecter ne coupe rien" base/migrations/0068_deconnecter_partenaire.sql \
