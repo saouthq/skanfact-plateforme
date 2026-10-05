@@ -148,8 +148,11 @@ Test : `tests/web/virgule.test.ts`, dans un navigateur lancé en anglais : « 2,
   pagine).
 - ~~La version affichée au pied de la barre (« vdev »)~~ : faite le 05/10/2026, vue sur le serveur d'essai. Le serveur
   écrit dans chaque page la version du code qui la sert, le jour de l'envoi et le début de son empreinte
-  (« v2026.10.05 · a42f308 », `serveur/ecrans.ts`), et `updateVersion` la lit : c'est ce qu'un testeur recopie quand il
-  signale un problème. L'année d'abord : les nouveautés de la v10 (10.x) ne se montrent pas. Restent le journal des
-  erreurs du serveur (`supportInfo`, `supportErreur`) et l'historique des nouveautés (`changelog`).
+  (« v2026.10.05 · a42f308 », `serveur/ecrans.ts`, lue dans git au démarrage, ou donnée par `SKANFACT_VERSION`), et
+  `updateVersion` la lit : c'est ce qu'un testeur recopie quand il signale un problème. Les nouveautés de la v10
+  décrivent l'application de bureau : la plateforme ne les montre jamais (`sansNouveautesV10` ; vu le même jour, la
+  carte « Nouveau dans SkanFact 10.15.0 » s'ouvrait chez qui avait retenu « vdev »). Les tests donnent leur version au
+  serveur : les preuves tournent dans une copie sans git. Restent le journal des erreurs du serveur (`supportInfo`,
+  `supportErreur`) et l'historique des nouveautés de la plateforme (`changelog`).
 - **Le Cabinet** : repris à la brique 37 (`docs/cabinet.md`) ; ses gestes arrivent brique par
   brique (38 à 46).

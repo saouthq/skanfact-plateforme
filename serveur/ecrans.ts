@@ -67,7 +67,7 @@ export function fichiersDesEcrans(racine: string, version = 'dev') {
     if (!tete) return versionnee;
     // Des balises, pas des phrases (le catalogue des textes ne les compte pas) : assemblées de leurs attributs.
     const annonces = scripts.map((a) => `\n  ${['<link', 'rel="preload"', 'as="script"', `href="${a}">`].join(' ')}`).join('');
-    const marque = `\n  ${['<meta', 'name="skanfact-version"', `content="${version.replace(/[&<>"]/g, '')}">`].join(' ')}`;
+    const marque = `\n  ${['<meta', 'name="skanfact-code"', `content="${version.replace(/[&<>"]/g, '')}">`].join(' ')}`;
     const apres = tete.index + tete[0].length;
     return versionnee.slice(0, apres) + marque + annonces + versionnee.slice(apres);
   }

@@ -7921,12 +7921,19 @@ prouver "la version du menu qui reste « vdev »" web/public/plateforme/pont.js 
 prouver "la page servie sans la version de son code" serveur/ecrans.ts \
   "return versionnee.slice(0, apres) + marque + annonces" "return versionnee.slice(0, apres) + annonces" \
   "$CEP"
-prouver "le serveur qui ne lit pas la version de son code" serveur/principal.ts \
-  "fichiersDesEcrans(racine, versionDuCode())" "fichiersDesEcrans(racine)" \
+prouver "le serveur qui ne sert pas la version de son code" serveur/principal.ts \
+  "  servirLesEcrans(app, c.web, c.version);" "  servirLesEcrans(app, c.web);" \
   "$CEP"
+prouver "la version donnée par l'environnement ignorée" serveur/principal.ts \
+  "version: env.SKANFACT_VERSION ?? versionDuCode()," "version: versionDuCode()," \
+  "$CEP"
+VDC="le jour de l'envoi (l'année d'abord) et le début de son empreinte ; « dev » sans dépôt"
 prouver "la version écrite comme un jour de la base" serveur/ecrans.ts \
   "jour.replaceAll('-', '.')" "jour" \
-  "$CEP"
+  "$VDC"
+prouver "la version sans l'empreinte de l'envoi" serveur/ecrans.ts \
+  ' · ${court}`' '`' \
+  "$VDC"
 
 # Le fond de caisse proposé à l'ouverture : ce que le tiroir contient déjà (vu sur le vrai serveur le 05/10/2026 : la
 # caisse créée avec 50 DT s'ouvrait à 0).
@@ -7937,6 +7944,16 @@ prouver "la caisse qui s'ouvre à 0 alors que le tiroir a son fond" web/public/v
 prouver "le fond proposé qui ne lit pas le compte de caisse" web/public/v10/app.js \
   "const dansLeTiroir = idCaisse ? C.accountBalance(data, company(), idCaisse, C.today()).balance : 0;" "const dansLeTiroir = 0;" \
   "$CZF"
+
+# Les nouveautés de la v10 (l'application de bureau) jamais montrées sur la plateforme (vu sur le vrai serveur le
+# 05/10/2026 : « Nouveau dans SkanFact 10.15.0 » chez qui avait retenu « vdev »).
+NV10="un navigateur qui avait retenu « vdev » voit la version du code, et aucune nouveauté de la v10"
+prouver "les nouveautés de l'application de bureau montrées en ligne" web/public/v10/app.js \
+  "typeof Nouveautes !== 'undefined' && !bridge.sansNouveautesV10 && Nouveautes.presenter({" "typeof Nouveautes !== 'undefined' && Nouveautes.presenter({" \
+  "$NV10"
+prouver "le point de contact qui laisse passer les nouveautés de la v10" web/public/plateforme/pont.js \
+  "    sansNouveautesV10: true," "    sansNouveautesV10: false," \
+  "$NV10"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

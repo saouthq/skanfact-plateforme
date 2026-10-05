@@ -17,6 +17,12 @@ export const ADAPTATIONS = [
   },
   {
     fichier: 'app.js',
+    pourquoi: 'les nouveautés de la v10 sont celles de l\'application de bureau : la plateforme ne les montre pas (vu sur le serveur d\'essai le 05/10/2026 : « Nouveau dans SkanFact 10.15.0 » s\'ouvrait chez qui avait retenu la version « dev »)',
+    avant: "      const presentee = typeof Nouveautes !== 'undefined' && Nouveautes.presenter({",
+    apres: "      const presentee = typeof Nouveautes !== 'undefined' && !bridge.sansNouveautesV10 && Nouveautes.presenter({",
+  },
+  {
+    fichier: 'app.js',
     pourquoi: 'le repli « navigateur » de la v10 reste le socle du point de contact ; le pont de la plateforme n\'en remplace que ce qu\'il fait autrement (les données viennent du serveur)',
     avant: '  const bridge = window.skanfact || {\n    _mem: null,',
     apres: '  const bridge = Object.assign({\n    _mem: null,',

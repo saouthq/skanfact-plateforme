@@ -20595,7 +20595,7 @@
       // Les nouveautés de la version, dites en phrases de tous les jours, au premier lancement (10.14.1,
       // S-06). Une installation neuve n'a rien qui change ; l'écran doit être libre (ni fenêtre, ni
       // assistant, ni visite) — la carte attend son tour, elle ne passe jamais par-dessus une question.
-      const presentee = typeof Nouveautes !== 'undefined' && Nouveautes.presenter({
+      const presentee = typeof Nouveautes !== 'undefined' && !bridge.sansNouveautesV10 && Nouveautes.presenter({
         app: 'entreprise', nomApp: 'SkanFact', version: v.version,
         installationNeuve: premierLancement || (!data.company.name && !(data.documents || []).length && !(data.clients || []).length),
         peutMontrer: () => !$('.modal-bg') && !$('#setup') && !(typeof Visite !== 'undefined' && Visite.enCours())

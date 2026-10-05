@@ -17,13 +17,14 @@ import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { LONGUEUR_MINIMALE } from '../../commun/compte.ts';
 import { motif, rendre, t } from '../../textes/index.ts';
 import '../../web/src/textes.ts';
-import { versionDuCode } from '../../serveur/ecrans.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import * as jsqr from 'jsqr';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
+// La version que le serveur des tests annonce (donnée, pas lue dans git : les preuves tournent dans une copie sans lui).
+const VERSION = '2026.10.05 · 0a1b2c3';
 const titre = (cle: string, v: Record<string, string> = {}) => { const s = rendre(t(cle, v), 'fr'); return s.charAt(0).toUpperCase() + s.slice(1); };
 const phrase = (cle: string, v = {}) => rendre(motif(cle, v), 'fr');
 
@@ -37,7 +38,7 @@ describe('le parcours, à la souris', () => {
     await admin.query(`insert into socle.regle_fiscale (code, valeur, debut, source)
       select 'timbre.facture', '1000', '2000-01-01', 'Règle d''essai des tests' where not exists (select 1 from socle.regle_fiscale where code = 'timbre.facture')`);
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
-    serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
+    serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_VERSION: VERSION }), port: 0, web: dossier, livreurMs: 60_000 });
     navigateur = await chromium.launch();
     fs.mkdirSync(PHOTOS, { recursive: true });
   }, 120_000);
@@ -125,8 +126,7 @@ describe('le parcours, à la souris', () => {
     await plusTard(p);
     // Au pied du menu, la version du code qui tourne (le jour de l'envoi et son empreinte), jamais « vdev » : c'est ce
     // qu'un testeur recopie quand il signale un problème (vu sur le serveur d'essai le 05/10/2026).
-    await expect.poll(() => p.locator('#app-version').innerText()).toBe(`v${versionDuCode()}`);
-    expect(versionDuCode()).toMatch(/^20\d\d\.\d\d\.\d\d · [0-9a-f]{7,}$/);
+    await expect.poll(() => p.locator('#app-version').innerText()).toBe(`v${VERSION}`);
     await p.screenshot({ path: path.join(PHOTOS, 'parcours-1-accueil.png') });
 
     // Une facture, dans l'éditeur de la v10 : le client se crée depuis l'éditeur, et revient choisi.

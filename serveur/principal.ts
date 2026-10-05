@@ -71,6 +71,9 @@ export type Configuration = {
   // Combien de relais de confiance (le frontal) se tiennent devant le serveur (brique 142) : 0, le serveur est
   // appelé en direct.
   proxy: number;
+  // La version du code, écrite dans chaque page et au pied du menu (serveur/ecrans.ts) : lue dans le dépôt, sauf si
+  // l'environnement la donne (SKANFACT_VERSION).
+  version: string;
 };
 
 export class ConfigurationFausse extends Error {}
@@ -124,7 +127,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     adresse, konnect, coffre, verificationMs: Number(env.SKANFACT_VERIFICATION_MS ?? 60_000),
     digigo: digigo ? { base: digigo, cle: env.SKANFACT_DIGIGO_CLE ?? '' } : null,
     ttn, ttnMs: Number(env.SKANFACT_TTN_MS ?? 60_000), contratsMs: Number(env.SKANFACT_CONTRATS_MS ?? 3_600_000),
-    lectures, partenaires, proxy,
+    lectures, partenaires, proxy, version: env.SKANFACT_VERSION ?? versionDuCode(),
   };
 }
 
@@ -143,10 +146,10 @@ const TYPES: Record<string, string> = {
 // propre politique le permet).
 const POLITIQUE = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' data: blob:; "
   + "frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'";
-export function servirLesEcrans(app: ReturnType<typeof creerApp>, dossier: string) {
+export function servirLesEcrans(app: ReturnType<typeof creerApp>, dossier: string, version = 'dev') {
   const racine = path.resolve(dossier);
   if (!fs.existsSync(path.join(racine, 'index.html'))) return;
-  const ecrans = fichiersDesEcrans(racine, versionDuCode());
+  const ecrans = fichiersDesEcrans(racine, version);
   app.get('/*', async (requete, reponse) => {
     const chemin = decodeURIComponent(new URL(requete.url, 'http://x').pathname);
     if (chemin.startsWith('/v1/') || chemin === '/v1') return reponse.code(404).send({});
@@ -186,7 +189,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   declarerGestesPaie();
   declarerGestesCompta();
   const app = creerApp(ctx, [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx)], { proxy: c.proxy });
-  servirLesEcrans(app, c.web);
+  servirLesEcrans(app, c.web, c.version);
   const adresse = await app.listen({ port: c.port, host: c.hote });
   if (!publique) publique = adresse;
 
