@@ -20,11 +20,13 @@ const ESSAI = '00000000-0000-4000-8000-0000000000e5';
 const VRAIE = '00000000-0000-4000-8000-0000000000a1';
 const NEUVE = '00000000-0000-4000-8000-0000000000b2';
 
-type Reponse = { statut: number; corps?: unknown };
+// `texte` : une réponse qui ne vient pas du serveur (un relais, le frontal), telle quelle.
+type Reponse = { statut: number; corps?: unknown; texte?: string };
 type Pont = {
   exemple: (o: { visite?: string; attendre?: () => unknown }) => Promise<Record<string, unknown>>;
   quitterExemple: (o: { visite?: string }) => Promise<Record<string, unknown>>;
   addDossier: (o: { name?: string; visite?: string }) => Promise<Record<string, unknown>>;
+  accords: () => Promise<unknown>;
 };
 
 // Le point de contact chargé dans l'entreprise `ent`, devant un serveur qui répond par `routes` (« GET /v1/moi ») ; ce
@@ -55,7 +57,7 @@ function charger(ent: string, routes: Record<string, (corps: unknown) => Reponse
       const corps = init?.body ? JSON.parse(init.body) : undefined;
       appels.push({ cle, corps });
       const r = route(corps);
-      return Promise.resolve({ status: r.statut, ok: r.statut >= 200 && r.statut < 300, text: async () => JSON.stringify(r.corps ?? {}) });
+      return Promise.resolve({ status: r.statut, ok: r.statut >= 200 && r.statut < 300, text: async () => r.texte ?? JSON.stringify(r.corps ?? {}) });
     },
   };
   bac.window = bac;
@@ -105,6 +107,43 @@ describe('l\'exemple et la vraie entreprise, au point de contact', () => {
     expect(fenetres).toBe(1);
     expect(t.etat.recharges).toBe(1);
     expect(t.stockage.get('skanfact.visite')).toBe('decouvrir');
+  });
+
+  // Vu sur le serveur d'essai le 05/10/2026 : le versement prend une minute, un relais a coupé la réponse
+  // (« upstream request timeout »), et la fenêtre a montré « Unexpected token 'u'… is not valid JSON ». Le serveur, lui,
+  // avait tout versé.
+  it('une réponse coupée en route : la page redemande, le serveur a fini, et elle s\'ouvre sur la visite ; jamais le texte du relais', async () => {
+    let n = 0;
+    const t = charger(ESSAI, { ...moi({ id: ESSAI, essai: true }), [`POST /v1/entreprises/${ESSAI}/exemple`]: () => (++n === 1
+      ? { statut: 504, texte: 'upstream request timeout' }
+      : { statut: 200, corps: { deja: true, pieces: 0 } }) });
+    expect(await t.pont.exemple({ visite: 'decouvrir', attendre: () => () => undefined })).toEqual({});
+    expect(versements(t.appels)).toHaveLength(2);
+    expect(t.etat.recharges).toBe(1);
+    expect(t.stockage.get('skanfact.visite')).toBe('decouvrir');
+  });
+
+  it('coupée à chaque fois : une phrase qui dit quoi faire, la fenêtre d\'attente fermée, rien ne se rouvre', async () => {
+    const t = charger(ESSAI, { ...moi({ id: ESSAI, essai: true }), [`POST /v1/entreprises/${ESSAI}/exemple`]: () => ({ statut: 502, texte: '<html><body>502 Bad Gateway</body></html>' }) });
+    let fermee = 0;
+    expect(await t.pont.exemple({ visite: 'decouvrir', attendre: () => () => { fermee++; } }))
+      .toEqual({ motif: 'La connexion au serveur a coupé avant la fin : rouvre la page dans une minute ; si l\'exemple n\'y est pas, recommence.' });
+    expect(versements(t.appels)).toHaveLength(5);
+    expect(fermee).toBe(1);
+    expect(t.etat.recharges).toBe(0);
+    expect(t.stockage.has('skanfact.visite')).toBe(false);
+  }, 20_000);
+
+  it('une réponse qui ne vient pas du serveur ne s\'affiche jamais telle quelle, par l\'entreprise comme par le compte', async () => {
+    const coupe = 'Le serveur n\'a pas répondu à temps : réessaie dans un instant.';
+    for (const reponse of [{ statut: 504, texte: 'upstream request timeout' }, { statut: 200, texte: '<html>Portail du réseau</html>' }, { statut: 502, texte: '' }]) {
+      const t = charger(ESSAI, { 'GET /v1/moi': () => reponse, [`GET /v1/entreprises/${ESSAI}/accords`]: () => reponse });
+      await expect(t.pont.accords()).rejects.toThrow(coupe);
+      await expect(t.pont.quitterExemple({ visite: '' })).rejects.toThrow(coupe);
+    }
+    // Un refus du serveur, lui, garde sa phrase.
+    const refus = charger(ESSAI, { [`GET /v1/entreprises/${ESSAI}/accords`]: () => ({ statut: 403, corps: { motif: 'Ton rôle ne permet pas de voir les demandes d\'accord.' } }) });
+    await expect(refus.pont.accords()).rejects.toThrow('Ton rôle ne permet pas de voir les demandes d\'accord.');
   });
 
   it('un refus se lit en entier, la fenêtre d\'attente se ferme, et rien ne se rouvre', async () => {

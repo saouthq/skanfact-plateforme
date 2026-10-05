@@ -19,6 +19,17 @@
   // L'écran écrit « v » devant : « v10 · en ligne ».
   const VERSION = '10 · en ligne';
   const PAS_EN_LIGNE = 'Pas encore dans la version en ligne de SkanFact Cabinet : rien n\'a été fait.';
+  // Une réponse qui ne vient pas du serveur (vu le 05/10/2026, côté entreprise : un relais qui coupe une demande trop
+  // longue ; ou la page d'erreur du frontal pendant une installation) : jamais son texte brut à l'écran, la phrase de
+  // plateforme/pont.js. Un 502, 503 ou 504 vide aussi : le serveur n'a pas répondu.
+  const COUPE = 'Le serveur n\'a pas répondu à temps : réessaie dans un instant.';
+  /** @param {Response} r @param {string} texte @returns {any} */
+  function lire(r, texte) {
+    try { if (!texte) throw new SyntaxError('vide'); return JSON.parse(texte); } catch {
+      if (!texte && ![502, 503, 504].includes(r.status)) return {};
+      throw new Error(COUPE);
+    }
+  }
 
   /** @param {string} methode @param {string} chemin @param {unknown} [corps] */
   async function appel(methode, chemin, corps) {
@@ -32,9 +43,8 @@
       throw new Error('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e });
     }
     if (r.status === 401) { location.replace('/'); throw new Error('Ta session est terminée : reconnecte-toi.'); }
-    const texte = await r.text();
     /** @type {any} */
-    const lu = texte ? JSON.parse(texte) : {};
+    const lu = lire(r, await r.text());
     if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
     if (!r.ok) throw new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.');
     if (methode !== 'GET') gestesFaits++;

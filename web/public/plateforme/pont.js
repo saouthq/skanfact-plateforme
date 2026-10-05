@@ -26,6 +26,19 @@
     location.replace('/'); return;
   }
 
+  // Une réponse qui ne vient pas du serveur (vu le 05/10/2026 : « Unexpected token 'u', "upstream r"… is not valid
+  // JSON ») : un relais qui coupe une demande trop longue, une page d'erreur du frontal pendant une installation. Jamais
+  // son texte brut à l'écran : une phrase, et `coupe`, que celui qui appelle peut redemander. Un 502, 503 ou 504 vide
+  // aussi : le serveur n'a pas répondu.
+  const COUPE = 'Le serveur n\'a pas répondu à temps : réessaie dans un instant.';
+  /** @param {Response} r @param {string} texte @returns {any} */
+  function lire(r, texte) {
+    try { if (!texte) throw new SyntaxError('vide'); return JSON.parse(texte); } catch {
+      if (!texte && ![502, 503, 504].includes(r.status)) return {};
+      throw Object.assign(new Error(COUPE), { statut: r.status, coupe: true, bouton: null });
+    }
+  }
+
   /** @param {string} methode @param {string} chemin @param {unknown} [corps] */
   async function appel(methode, chemin, corps) {
     /** @type {Record<string, string>} */
@@ -42,9 +55,8 @@
       throw x;
     }
     poste.enLigne();
-    const texte = await r.text();
     /** @type {any} */
-    const lu = texte ? JSON.parse(texte) : {};
+    const lu = lire(r, await r.text());
     // La session est finie : retour à la connexion, qui dit pourquoi (un appareil retiré remet d'abord ce
     // qui attendait le réseau, puis efface ce qu'il garde : briques 74 et 74 bis).
     if (r.status === 401) { await finDeSession(lu); throw new Error('Ta session est terminée : reconnecte-toi.'); }
@@ -1050,10 +1062,15 @@
       try {
         // Ce que la page enregistrait (ses réglages de départ, à l'ouverture) part d'abord ; un enregistrement qui croise
         // quand même le versement le fait refuser (un conflit) : on le redemande une fois, rien n'ayant été écrit.
-        for (let tentative = 0; ; tentative++) {
+        // Le versement prend une minute : un relais peut couper la réponse avant (vu le 05/10/2026). Le serveur, lui, va au
+        // bout ; la même demande attend la fin du versement, puis le trouve fait. Jusqu'à quatre fois.
+        for (let conflits = 0, coupes = 0; ;) {
           while (enCours) await enCours.catch(() => undefined);
           try { await appelCompte('POST', `/entreprises/${encodeURIComponent(ent)}/exemple`); break; } catch (e) {
-            if (tentative >= 2 || /** @type {any} */ (e).statut !== 409) throw e;
+            const x = /** @type {any} */ (e);
+            if ((x.coupe || x.horsLigne) && ++coupes <= 4) { await new Promise((r) => setTimeout(r, 1500)); continue; }
+            if (x.coupe) throw Object.assign(new Error('La connexion au serveur a coupé avant la fin : rouvre la page dans une minute ; si l\'exemple n\'y est pas, recommence.'), { coupe: true });
+            if (++conflits > 2 || x.statut !== 409) throw e;
             await new Promise((r) => setTimeout(r, 800));
           }
         }
@@ -1101,9 +1118,8 @@
       throw x;
     }
     poste.enLigne();
-    const texte = await r.text();
     /** @type {any} */
-    const lu = texte ? JSON.parse(texte) : {};
+    const lu = lire(r, await r.text());
     if (r.status === 401) { await finDeSession(lu); throw new Error('Ta session est terminée : reconnecte-toi.'); }
     if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
     // Le bouton qui débloque voyage avec le refus (brique 123 : « session_de_caisse »).

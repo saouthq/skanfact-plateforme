@@ -10,11 +10,11 @@ deviennent ceux de l'entreprise au serveur (serveur/v10/identite.ts, 0071).
 
 ── La pièce imprimée (core.js) ──
 
-== core.js | une fiche société sans matricule n'imprime plus « MF » suivi de rien, ni une ligne vide quand l'adresse manque
+== core.js | une fiche société sans matricule n'imprime plus « MF » suivi de rien, ni une ligne vide quand l'adresse manque ; un matricule s'imprime sous sa forme lisible (« 1234567 a / a / m / 000 » tapé : 1234567A/A/M/000)
 -- avant
         <div class="addr">${nl2br(company.address)}<br>${L.mf} ${escapeHtml(company.matricule)}${contact ? '<br>' + contact : ''}</div>
 -- après
-        <div class="addr">${[company.address ? nl2br(company.address) : '', String(company.matricule || '').trim() ? `${L.mf} ${escapeHtml(company.matricule)}` : '', contact].filter(Boolean).join('<br>')}</div>
+        <div class="addr">${[company.address ? nl2br(company.address) : '', String(company.matricule || '').trim() ? `${L.mf} ${escapeHtml(matriculeLisible(company.matricule))}` : '', contact].filter(Boolean).join('<br>')}</div>
 -- fin
 
 == core.js | le tampon (« Brouillon », « Payée », « Annulée », « Exemple ») devient grand, pâle, en travers du milieu de la première page, et s'imprime comme une encre (un texte noir reste noir) : il se voit sans rien cacher (posé à 62 mm du haut, il couvrait l'objet de la pièce)
@@ -36,9 +36,13 @@ deviennent ceux de l'entreprise au serveur (serveur/v10/identite.ts, 0071).
   function companyGaps(company) {
 -- après
   // (plateforme) La forme d'un matricule fiscal tunisien, telle que le serveur la porte à l'entreprise (lot facture,
-  // 05/10/2026 ; serveur/v10/identite.ts) : sept chiffres, la lettre-clé, le code TVA, la catégorie et l'établissement ;
-  // les séparateurs n'y comptent pas (1234567A/A/M/000 comme 1234567 a a m 000).
-  function matriculeBienForme(v) { return /^[0-9]{7}[A-Z]{3}[0-9]{3}$/.test(String(v == null ? '' : v).toUpperCase().replace(/[\s/.\-_]/g, '')); }
+  // 05/10/2026 ; serveur/v10/identite.ts) : sept chiffres, la lettre-clé (jamais I, O ni U : la règle du fichier El
+  // Fatoora, teif.js), le code TVA, la catégorie et l'établissement ; les séparateurs n'y comptent pas (1234567A/A/M/000
+  // comme 1234567 a a m 000). `matriculeLisible` l'écrit sous sa forme lisible ; ce qui n'en est pas un reste tel quel.
+  const MF_FORME = /^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/;
+  const mfCompact = (v) => String(v == null ? '' : v).toUpperCase().replace(/[\s/.\-_]/g, '');
+  function matriculeBienForme(v) { return MF_FORME.test(mfCompact(v)); }
+  function matriculeLisible(v) { const c = mfCompact(v); return MF_FORME.test(c) ? `${c.slice(0, 8)}/${c[8]}/${c[9]}/${c.slice(10)}` : String(v == null ? '' : v).trim(); }
   function companyGaps(company) {
 -- fin
 
@@ -47,14 +51,14 @@ deviennent ceux de l'entreprise au serveur (serveur/v10/identite.ts, 0071).
     if (!(c.matricule || '').trim()) out.push('le matricule fiscal');
 -- après
     if (!(c.matricule || '').trim()) out.push('le matricule fiscal');
-    else if (!matriculeBienForme(c.matricule)) out.push('un matricule fiscal valide (sept chiffres, une lettre, puis code TVA, catégorie et établissement : 1234567A/A/M/000)');
+    else if (!matriculeBienForme(c.matricule)) out.push('un matricule fiscal valide (sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement : 1234567A/A/M/000)');
 -- fin
 
-== core.js | la forme du matricule se lit aussi depuis les écrans (la fenêtre « Compléter ma fiche »)
+== core.js | la forme du matricule, et sa forme lisible, se lisent aussi depuis les écrans (la fenêtre « Compléter ma fiche »)
 -- avant
     reminderLevel, REMINDER_LABELS, daysBetween, overdueInvoices, facturesAVenir, todoList, companyGaps, verifRib, documentHistory,
 -- après
-    reminderLevel, REMINDER_LABELS, daysBetween, overdueInvoices, facturesAVenir, todoList, companyGaps, matriculeBienForme, verifRib, documentHistory,
+    reminderLevel, REMINDER_LABELS, daysBetween, overdueInvoices, facturesAVenir, todoList, companyGaps, matriculeBienForme, matriculeLisible, verifRib, documentHistory,
 -- fin
 
 ── Émettre (app.js) ──
@@ -89,7 +93,7 @@ deviennent ceux de l'entreprise au serveur (serveur/v10/identite.ts, 0071).
       // la pièce (lot facture, 05/10/2026). La même règle que la fiche (`companyGaps`) et que le serveur (identite.ts).
       if (!(co.name || '').trim()) w.push('Ta raison sociale manque : c\'est le nom qui s\'imprime en haut de la pièce.');
       if (!(co.matricule || '').trim()) w.push('Ton matricule fiscal manque : il est obligatoire sur une facture en Tunisie, et s\'imprime en haut de la pièce.');
-      else if (!C.matriculeBienForme(co.matricule)) w.push(`Ton matricule fiscal « ${co.matricule.trim()} » n'a pas la bonne forme : sept chiffres, une lettre, puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur ta carte d'identification fiscale.`);
+      else if (!C.matriculeBienForme(co.matricule)) w.push(`Ton matricule fiscal « ${co.matricule.trim()} » n'a pas la bonne forme : sept chiffres, une lettre (jamais I, O ni U), puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur ta carte d'identification fiscale.`);
 -- fin
 
 == app.js | (suite) les avertissements de la fenêtre d'émission se relisent après « Compléter ma fiche… », et le bouton se renomme avec eux
@@ -173,10 +177,10 @@ deviennent ceux de l'entreprise au serveur (serveur/v10/identite.ts, 0071).
         $('#ok', root).onclick = async () => {
           const v = formValues($('#cf', root));
           if (manqueNom && !String(v.name || '').trim()) return refuser('name', 'Écris ta raison sociale : c\'est le nom qui s\'imprime en haut de chaque pièce.');
-          if (manqueMf && !C.matriculeBienForme(v.matricule)) return refuser('matricule', `« ${String(v.matricule || '').trim()} » n'a pas la forme d'un matricule fiscal : sept chiffres, une lettre, puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur ta carte d'identification fiscale.`);
+          if (manqueMf && !C.matriculeBienForme(v.matricule)) return refuser('matricule', `« ${String(v.matricule || '').trim()} » n'a pas la forme d'un matricule fiscal : sept chiffres, une lettre (jamais I, O ni U), puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur ta carte d'identification fiscale.`);
           const avant = { name: co.name, matricule: co.matricule, bank: co.bank, rib: co.rib };
           if (manqueNom) co.name = String(v.name).trim();
-          if (manqueMf) co.matricule = String(v.matricule).trim();
+          if (manqueMf) co.matricule = C.matriculeLisible(v.matricule);
           if (manqueRib) { co.bank = String(v.bank || '').trim(); co.rib = String(v.rib || '').trim(); }
           const b = $('#ok', root);
           b.disabled = true;
@@ -259,4 +263,116 @@ deviennent ceux de l'entreprise au serveur (serveur/v10/identite.ts, 0071).
 c'est une retenue subie de ${C.MONTHS_FR[Number(d0.slice(5, 7)) - 1]} ${d0.slice(0, 4)}, qu'il doit te justifier par une attestation.`
 -- après
 c'est une retenue subie ${/^[aeiou]/i.test(C.MONTHS_FR[Number(d0.slice(5, 7)) - 1]) ? 'd\'' : 'de '}${C.MONTHS_FR[Number(d0.slice(5, 7)) - 1]} ${d0.slice(0, 4)}, qu'il doit te justifier par une attestation.`
+-- fin
+
+== core.js | le matricule du client s'imprime aussi sous sa forme lisible (quand c'en est un : une carte d'identité ou un identifiant étranger reste tel quel)
+-- avant
+cl.matricule ? L.mfCin + ' ' + escapeHtml(cl.matricule) : ''
+-- après
+cl.matricule ? L.mfCin + ' ' + escapeHtml(matriculeLisible(cl.matricule)) : ''
+-- fin
+
+── Le matricule sous sa forme lisible, sur chaque pièce imprimée (core.js) ──
+
+Vu sur le serveur d'essai (E2) : la pièce imprimait le matricule tel qu'il avait été tapé (« 1357913 b / a / m / 000 »),
+en tête comme au pied. Chaque pièce l'imprime désormais sous la forme que le serveur garde ; ce qui n'est pas un
+matricule (une carte d'identité, un identifiant étranger) reste tel quel.
+
+== core.js | le pied de la pièce
+-- avant
+company.matricule ? (lang === 'en' ? 'Tax ID ' : 'Matricule fiscal ') + company.matricule : ''
+-- après
+company.matricule ? (lang === 'en' ? 'Tax ID ' : 'Matricule fiscal ') + matriculeLisible(company.matricule) : ''
+-- fin
+
+== core.js | le ticket de caisse
+-- avant
+${co.matricule ? '<br>MF ' + escapeHtml(co.matricule) : ''}
+-- après
+${co.matricule ? '<br>MF ' + escapeHtml(matriculeLisible(co.matricule)) : ''}
+-- fin
+
+== core.js | le bulletin de paie : son en-tête
+-- avant
+      <div class="co-name">${escapeHtml(company.name || '')}</div>
+      <div class="co-sub">${escapeHtml(company.address || '').replace(/\n/g, '<br>')}
+        ${company.matricule ? `<br>MF : ${escapeHtml(company.matricule)}` : ''}
+-- après
+      <div class="co-name">${escapeHtml(company.name || '')}</div>
+      <div class="co-sub">${escapeHtml(company.address || '').replace(/\n/g, '<br>')}
+        ${company.matricule ? `<br>MF : ${escapeHtml(matriculeLisible(company.matricule))}` : ''}
+-- fin
+
+== core.js | (suite) son pied
+-- avant
+${company.matricule ? ' — MF ' + escapeHtml(company.matricule) : ''} · Bulletin de
+-- après
+${company.matricule ? ' — MF ' + escapeHtml(matriculeLisible(company.matricule)) : ''} · Bulletin de
+-- fin
+
+== core.js | l'attestation, le certificat de travail et le solde de tout compte : leur en-tête
+-- avant
+    <div><div class="co-name">${escapeHtml(company.name || '')}</div>
+      <div class="co-sub">${escapeHtml(company.address || '').replace(/\n/g, '<br>')}
+        ${company.matricule ? `<br>MF : ${escapeHtml(company.matricule)}` : ''}
+-- après
+    <div><div class="co-name">${escapeHtml(company.name || '')}</div>
+      <div class="co-sub">${escapeHtml(company.address || '').replace(/\n/g, '<br>')}
+        ${company.matricule ? `<br>MF : ${escapeHtml(matriculeLisible(company.matricule))}` : ''}
+-- fin
+
+== core.js | (suite) le texte de l'attestation (« atteste… »)
+-- avant
+${company.matricule ? `, matricule fiscal ${escapeHtml(company.matricule)}` : ''}, atteste par la présente que :
+-- après
+${company.matricule ? `, matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : ''}, atteste par la présente que :
+-- fin
+
+== core.js | (suite) le texte de le certificat (« certifie… »)
+-- avant
+${company.matricule ? `, matricule fiscal ${escapeHtml(company.matricule)}` : ''}, certifie que :
+-- après
+${company.matricule ? `, matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : ''}, certifie que :
+-- fin
+
+== core.js | (suite) le texte de le solde de tout compte (« d'une part »)
+-- avant
+${company.matricule ? `, matricule fiscal ${escapeHtml(company.matricule)}` : ''}, d'une part,
+-- après
+${company.matricule ? `, matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : ''}, d'une part,
+-- fin
+
+== core.js | (suite) leur pied
+-- avant
+${company.matricule ? ' — MF ' + escapeHtml(company.matricule) : ''}</div>
+-- après
+${company.matricule ? ' — MF ' + escapeHtml(matriculeLisible(company.matricule)) : ''}</div>
+-- fin
+
+== core.js | le relevé de compte d'un client : l'entreprise, en tête
+-- avant
+${company.matricule ? `<br>${W.mf} : ${escapeHtml(company.matricule)}` : ''}</div></div>
+-- après
+${company.matricule ? `<br>${W.mf} : ${escapeHtml(matriculeLisible(company.matricule))}` : ''}</div></div>
+-- fin
+
+== core.js | (suite) le client
+-- avant
+${c.matricule ? `<br>${W.mf} : ${escapeHtml(c.matricule)}` : ''}
+-- après
+${c.matricule ? `<br>${W.mf} : ${escapeHtml(matriculeLisible(c.matricule))}` : ''}
+-- fin
+
+== core.js | (suite) le pied
+-- avant
+${company.matricule ? ` — ${W.mf} ` + escapeHtml(company.matricule) : ''}</div>
+-- après
+${company.matricule ? ` — ${W.mf} ` + escapeHtml(matriculeLisible(company.matricule)) : ''}</div>
+-- fin
+
+== core.js | la page de garde du paquet du mois
+-- avant
+${company.matricule ? 'Matricule fiscal ' + esc(company.matricule) + ' · ' : ''}
+-- après
+${company.matricule ? 'Matricule fiscal ' + esc(matriculeLisible(company.matricule)) + ' · ' : ''}
 -- fin

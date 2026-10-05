@@ -4100,7 +4100,7 @@
     <div>
       <div class="co-name">${escapeHtml(company.name || '')}</div>
       <div class="co-sub">${escapeHtml(company.address || '').replace(/\n/g, '<br>')}
-        ${company.matricule ? `<br>MF : ${escapeHtml(company.matricule)}` : ''}
+        ${company.matricule ? `<br>MF : ${escapeHtml(matriculeLisible(company.matricule))}` : ''}
         ${company.cnss ? `<br>CNSS : ${escapeHtml(company.cnss)}` : ''}</div>
     </div>
     <div class="title"><h1>Bulletin de paie</h1><div class="per">${escapeHtml(label)}</div>
@@ -4171,7 +4171,7 @@
     <div class="s">Le salarié — reçu pour solde du mois</div>
   </div>
 
-  <div class="foot">${escapeHtml(company.name || '')}${company.matricule ? ' — MF ' + escapeHtml(company.matricule) : ''} · Bulletin de ${escapeHtml(label)} · ${escapeHtml(emp.name || '')}</div>
+  <div class="foot">${escapeHtml(company.name || '')}${company.matricule ? ' — MF ' + escapeHtml(matriculeLisible(company.matricule)) : ''} · Bulletin de ${escapeHtml(label)} · ${escapeHtml(emp.name || '')}</div>
 </div></body></html>`;
   }
 
@@ -4337,19 +4337,19 @@
 
     const body = {
       attestation: `
-        <p>Je soussigné${company.managerName ? `, <b>${escapeHtml(company.managerName)}</b>,` : ''} agissant en qualité de représentant légal de la société <b>${escapeHtml(company.name || '')}</b>${company.matricule ? `, matricule fiscal ${escapeHtml(company.matricule)}` : ''}, atteste par la présente que :</p>
+        <p>Je soussigné${company.managerName ? `, <b>${escapeHtml(company.managerName)}</b>,` : ''} agissant en qualité de représentant légal de la société <b>${escapeHtml(company.name || '')}</b>${company.matricule ? `, matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : ''}, atteste par la présente que :</p>
         <p class="who"><b>${escapeHtml(e.name || '')}</b>${e.cin ? `, titulaire de la carte d'identité nationale n° ${escapeHtml(e.cin)}` : ''}${e.cnss ? `, immatriculé${e.gender === 'f' ? 'e' : ''} à la CNSS sous le n° ${escapeHtml(e.cnss)}` : ''},</p>
         <p>fait partie du personnel de notre société depuis le <b>${fmtDate(e.hireDate)}</b>, en qualité de <b>${escapeHtml(e.position || '—')}</b>, dans le cadre d'un <b>${escapeHtml(contractLabel(e.contract || 'cdi').split(' —')[0])}</b>.</p>
         ${opts.withSalary ? `<p>Son salaire brut mensuel s'élève à <b>${fmt(e.grossSalary)} ${escapeHtml(cur)}</b>.</p>` : ''}
         <p>Cette attestation lui est délivrée pour servir et valoir ce que de droit.</p>`,
       certificat: `
-        <p>Je soussigné${company.managerName ? `, <b>${escapeHtml(company.managerName)}</b>,` : ''} agissant en qualité de représentant légal de la société <b>${escapeHtml(company.name || '')}</b>${company.matricule ? `, matricule fiscal ${escapeHtml(company.matricule)}` : ''}, certifie que :</p>
+        <p>Je soussigné${company.managerName ? `, <b>${escapeHtml(company.managerName)}</b>,` : ''} agissant en qualité de représentant légal de la société <b>${escapeHtml(company.name || '')}</b>${company.matricule ? `, matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : ''}, certifie que :</p>
         <p class="who"><b>${escapeHtml(e.name || '')}</b>${e.cin ? `, titulaire de la carte d'identité nationale n° ${escapeHtml(e.cin)}` : ''},</p>
         <p>a été employé${e.gender === 'f' ? 'e' : ''} au sein de notre société du <b>${fmtDate(e.hireDate)}</b> au <b>${fmtDate(e.endDate || t)}</b>, en qualité de <b>${escapeHtml(e.position || '—')}</b>.</p>
         <p>L'intéressé${e.gender === 'f' ? 'e' : ''} est libre de tout engagement envers notre société à compter de cette date.</p>
         <p>Le présent certificat lui est délivré pour servir et valoir ce que de droit.</p>`,
       solde: `
-        <p>Entre la société <b>${escapeHtml(company.name || '')}</b>${company.matricule ? `, matricule fiscal ${escapeHtml(company.matricule)}` : ''}, d'une part,</p>
+        <p>Entre la société <b>${escapeHtml(company.name || '')}</b>${company.matricule ? `, matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : ''}, d'une part,</p>
         <p>et <b>${escapeHtml(e.name || '')}</b>${e.cin ? `, CIN n° ${escapeHtml(e.cin)}` : ''}, employé${e.gender === 'f' ? 'e' : ''} du ${fmtDate(e.hireDate)} au <b>${fmtDate(e.endDate || t)}</b> en qualité de ${escapeHtml(e.position || '—')}, d'autre part.</p>
         <p>Il a été arrêté le solde de tout compte suivant :</p>
         <table class="sum">
@@ -4389,7 +4389,7 @@
   <div class="head">
     <div><div class="co-name">${escapeHtml(company.name || '')}</div>
       <div class="co-sub">${escapeHtml(company.address || '').replace(/\n/g, '<br>')}
-        ${company.matricule ? `<br>MF : ${escapeHtml(company.matricule)}` : ''}
+        ${company.matricule ? `<br>MF : ${escapeHtml(matriculeLisible(company.matricule))}` : ''}
         ${company.cnss ? `<br>CNSS : ${escapeHtml(company.cnss)}` : ''}</div></div>
     <div class="co-sub" style="text-align:right">${company.phone ? escapeHtml(company.phone) + '<br>' : ''}${company.email ? escapeHtml(company.email) : ''}</div>
   </div>
@@ -4400,7 +4400,7 @@
     ${kind === 'solde' ? '<div class="s">Le salarié — lu et approuvé, bon pour solde de tout compte</div>' : '<div></div>'}
     <div class="s">Pour la société${company.managerName ? '<br>' + escapeHtml(company.managerName) : ''}</div>
   </div>
-  <div class="foot">${escapeHtml(company.name || '')}${company.matricule ? ' — MF ' + escapeHtml(company.matricule) : ''}</div>
+  <div class="foot">${escapeHtml(company.name || '')}${company.matricule ? ' — MF ' + escapeHtml(matriculeLisible(company.matricule)) : ''}</div>
 </div></body></html>`;
   }
 
@@ -6311,7 +6311,7 @@
       .foot { margin-top: 10mm; font-size: 8.5pt; color: #5c6875; border-top: 0.4pt solid #e3e8ee; padding-top: 2.5mm; }
     </style></head><body>
       <h1>${esc(company.name || 'Entreprise')} — ${esc(p.label)}</h1>
-      <p class="sub">${company.matricule ? 'Matricule fiscal ' + esc(company.matricule) + ' · ' : ''}du ${fmtDate(p.from)} au ${fmtDate(p.to)}
+      <p class="sub">${company.matricule ? 'Matricule fiscal ' + esc(matriculeLisible(company.matricule)) + ' · ' : ''}du ${fmtDate(p.from)} au ${fmtDate(p.to)}
         &nbsp; <span class="tag ${plan.definitive ? 'def' : 'prov'}">${plan.definitive ? 'DÉFINITIF — mois clôturé' : 'PROVISOIRE — mois non clôturé'}</span></p>
 
       ${plan.definitive ? '' : '<p style="background:#fbf1e0;padding:3mm;border-radius:2mm;font-size:9.5pt;margin:0 0 5mm"><b>Ce dossier peut encore changer.</b> Le mois n\'a pas été clôturé dans SkanFact : des pièces peuvent encore y être ajoutées ou modifiées. Un envoi définitif suivra une fois le mois clôturé.</p>'}
@@ -8333,12 +8333,12 @@
   <div class="head">
     <div><div class="co-name">${escapeHtml(company.name || '')}</div>
       <div class="co-sub">${escapeHtml(company.address || '').replace(/\n/g, '<br>')}
-        ${company.matricule ? `<br>${W.mf} : ${escapeHtml(company.matricule)}` : ''}</div></div>
+        ${company.matricule ? `<br>${W.mf} : ${escapeHtml(matriculeLisible(company.matricule))}` : ''}</div></div>
     <div class="co-sub" style="text-align:end">${company.phone ? escapeHtml(company.phone) + '<br>' : ''}${company.email ? escapeHtml(company.email) : ''}</div>
   </div>
   <h1>${W.titre}</h1>
   <p class="asof">${W.asof} ${dt(r.date)}${opts.stampText ? ' — ' + escapeHtml(opts.stampText) : ''}</p>
-  <div class="who"><b>${escapeHtml(c.name || '')}</b>${c.matricule ? `<br>${W.mf} : ${escapeHtml(c.matricule)}` : ''}
+  <div class="who"><b>${escapeHtml(c.name || '')}</b>${c.matricule ? `<br>${W.mf} : ${escapeHtml(matriculeLisible(c.matricule))}` : ''}
     ${c.address ? '<br>' + escapeHtml(c.address).replace(/\n/g, '<br>') : ''}</div>
   ${r.lignes.length ? `<table class="l">
     <thead><tr><th>${W.date}</th><th>${W.piece}</th><th>${W.objet}</th><th>${W.echeance}</th><th class="n">${W.montant}</th><th class="n">${W.regle}</th><th class="n">${W.reste}</th></tr></thead>
@@ -8361,7 +8361,7 @@
     : `<p>${W.solde}</p>`}
   ${r.total > 0.0005 && company.rib ? `<p class="pay">${W.virement} <b>${escapeHtml(company.rib)}</b>${company.bank ? ' — ' + escapeHtml(company.bank) : ''}</p>` : ''}
   <p class="pay">${W.rappel}</p>
-  <div class="foot">${escapeHtml(company.name || '')}${company.matricule ? ` — ${W.mf} ` + escapeHtml(company.matricule) : ''}</div>
+  <div class="foot">${escapeHtml(company.name || '')}${company.matricule ? ` — ${W.mf} ` + escapeHtml(matriculeLisible(company.matricule)) : ''}</div>
 </div></body></html>`;
   }
 
@@ -9105,15 +9105,19 @@
 
   // Ce qui manque à la fiche société pour que les documents soient complets.
   // (plateforme) La forme d'un matricule fiscal tunisien, telle que le serveur la porte à l'entreprise (lot facture,
-  // 05/10/2026 ; serveur/v10/identite.ts) : sept chiffres, la lettre-clé, le code TVA, la catégorie et l'établissement ;
-  // les séparateurs n'y comptent pas (1234567A/A/M/000 comme 1234567 a a m 000).
-  function matriculeBienForme(v) { return /^[0-9]{7}[A-Z]{3}[0-9]{3}$/.test(String(v == null ? '' : v).toUpperCase().replace(/[\s/.\-_]/g, '')); }
+  // 05/10/2026 ; serveur/v10/identite.ts) : sept chiffres, la lettre-clé (jamais I, O ni U : la règle du fichier El
+  // Fatoora, teif.js), le code TVA, la catégorie et l'établissement ; les séparateurs n'y comptent pas (1234567A/A/M/000
+  // comme 1234567 a a m 000). `matriculeLisible` l'écrit sous sa forme lisible ; ce qui n'en est pas un reste tel quel.
+  const MF_FORME = /^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/;
+  const mfCompact = (v) => String(v == null ? '' : v).toUpperCase().replace(/[\s/.\-_]/g, '');
+  function matriculeBienForme(v) { return MF_FORME.test(mfCompact(v)); }
+  function matriculeLisible(v) { const c = mfCompact(v); return MF_FORME.test(c) ? `${c.slice(0, 8)}/${c[8]}/${c[9]}/${c.slice(10)}` : String(v == null ? '' : v).trim(); }
   function companyGaps(company) {
     const c = company || {};
     const out = [];
     if (!(c.name || '').trim()) out.push('la raison sociale');
     if (!(c.matricule || '').trim()) out.push('le matricule fiscal');
-    else if (!matriculeBienForme(c.matricule)) out.push('un matricule fiscal valide (sept chiffres, une lettre, puis code TVA, catégorie et établissement : 1234567A/A/M/000)');
+    else if (!matriculeBienForme(c.matricule)) out.push('un matricule fiscal valide (sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement : 1234567A/A/M/000)');
     // Le RIB ne manque que si on attend un virement (7.22.0). Voir `ribAttendu` : un commerce, un
     // restaurant ou un salon encaissent sur place.
     if (ribAttendu(c) && !(c.rib || '').trim()) out.push('le RIB');
@@ -9832,9 +9836,9 @@
       : `<tr><td>${L.vat}</td><td class="r num">${fmt(t.totalVAT)}</td></tr>`;
 
     const contact = [company.phone, company.email, company.website].filter(Boolean).map(escapeHtml).join('<br>');
-    const clientContact = [cl.contact ? escapeHtml(cl.contact) : '', cl.matricule ? L.mfCin + ' ' + escapeHtml(cl.matricule) : '', cl.phone ? escapeHtml(cl.phone) : '', cl.email ? escapeHtml(cl.email) : ''].filter(Boolean).join('<br>');
+    const clientContact = [cl.contact ? escapeHtml(cl.contact) : '', cl.matricule ? L.mfCin + ' ' + escapeHtml(matriculeLisible(cl.matricule)) : '', cl.phone ? escapeHtml(cl.phone) : '', cl.email ? escapeHtml(cl.email) : ''].filter(Boolean).join('<br>');
     // Pied de page légal : le texte libre s'il est rempli, sinon composé du nom et du matricule
-    const footerBase = company.footer || [company.name, company.matricule ? (lang === 'en' ? 'Tax ID ' : 'Matricule fiscal ') + company.matricule : ''].filter(Boolean).join(' — ');
+    const footerBase = company.footer || [company.name, company.matricule ? (lang === 'en' ? 'Tax ID ' : 'Matricule fiscal ') + matriculeLisible(company.matricule) : ''].filter(Boolean).join(' — ');
     const legal = [footerBase, company.rc ? 'RC ' + company.rc : '', company.capital ? (lang === 'en' ? 'Share capital ' : 'Capital ') + capitalAffiche(company.capital, company.currency, lang) : ''].filter(Boolean).join(' — ');
     const grandLabel = isInvoice || isProforma ? L.netToPay : isCredit ? L.creditAmount : L.totalTTC;
     const grandValue = isQuote || isOrder || isContract ? t.totalTTC : t.netToPay;
@@ -10013,7 +10017,7 @@
         ${company.logo ? `<img class="logo" src="${company.logo}" alt="">` : ''}
         <div class="name">${escapeHtml(company.name)}</div>
         ${company.tagline ? `<div class="tag">${escapeHtml(company.tagline)}</div>` : ''}
-        <div class="addr">${[company.address ? nl2br(company.address) : '', String(company.matricule || '').trim() ? `${L.mf} ${escapeHtml(company.matricule)}` : '', contact].filter(Boolean).join('<br>')}</div>
+        <div class="addr">${[company.address ? nl2br(company.address) : '', String(company.matricule || '').trim() ? `${L.mf} ${escapeHtml(matriculeLisible(company.matricule))}` : '', contact].filter(Boolean).join('<br>')}</div>
       </div>
       <div class="title">
         <div class="kind">${title}</div>
@@ -10728,7 +10732,7 @@
     </style></head><body>
       ${o.exemple ? '<div class="exemple">EXEMPLE — pas un vrai ticket</div>' : ''}
       <div class="c co">${escapeHtml(co.name || '')}</div>
-      <div class="c muted">${escapeHtml(co.address || '').replace(/\n/g, '<br>')}${co.phone ? '<br>Tél. ' + escapeHtml(co.phone) : ''}${co.matricule ? '<br>MF ' + escapeHtml(co.matricule) : ''}</div>
+      <div class="c muted">${escapeHtml(co.address || '').replace(/\n/g, '<br>')}${co.phone ? '<br>Tél. ' + escapeHtml(co.phone) : ''}${co.matricule ? '<br>MF ' + escapeHtml(matriculeLisible(co.matricule)) : ''}</div>
       <hr>
       <table><tr><td><b>Ticket ${escapeHtml(d.number || '')}</b></td><td class="r">${escapeHtml(fmtDate(d.date))}${heureDuTicket(d) ? ' ' + heureDuTicket(d) : ''}</td></tr></table>
       ${cl ? `<div>Client : ${escapeHtml(cl)}</div>` : ''}
@@ -11264,7 +11268,7 @@
     estRemboursementAchat, avoirRembourse, aRattacherAchat, nextNumber, isLocked, isIssued, computeTotals, creditsFor, invoiceBalance, estRemboursement, titreQuestion, gesteQuestion, dateDernierReglement, motifVerrou, delaisContradictoires, effectiveStatus,
     depositLines, depositLinesMontant, acompteDit, settlementLines, salesJournal, vatSummary, paymentsJournal, toCsv, migrateData,
     PERIODS, MONTHS_FR, MONTHS_SHORT, monthLabel, deLibelle, addMonths, nextRecurrenceDate, dueRecurrences, catchUpRecurrence, fillTemplate, buildRecurringInvoice,
-    reminderLevel, REMINDER_LABELS, daysBetween, overdueInvoices, facturesAVenir, todoList, companyGaps, matriculeBienForme, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
+    reminderLevel, REMINDER_LABELS, daysBetween, overdueInvoices, facturesAVenir, todoList, companyGaps, matriculeBienForme, matriculeLisible, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
     CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, DEPOT_PRINCIPAL, depotsDe, nomDepot, stockParDepot, transfertStock, decimalsFor, listesPrixApplicables, prixArticlePour, arrondiDevise, prixDuCatalogue, prixCataloguePourQuantite, lirePaliers, paliersEnTexte, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,

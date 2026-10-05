@@ -55,7 +55,10 @@ export async function appeler<T = Record<string, unknown>>(methode: 'GET' | 'POS
     throw new ErreurReseau();
   }
   const texte = await r.text();
-  const lu = (texte ? JSON.parse(texte) : {}) as Reponse<T>['corps'];
+  // Une réponse qui ne vient pas du serveur (un relais qui coupe une demande trop longue, la page d'erreur du frontal
+  // pendant une installation : vu le 05/10/2026) se dit comme un serveur qui ne répond pas, jamais par son texte brut.
+  let lu: Reponse<T>['corps'];
+  try { lu = (texte ? JSON.parse(texte) : {}) as Reponse<T>['corps']; } catch { throw new ErreurReseau(); }
   // Un appareil retiré (briques 74 et 74 bis ; docs/hors-ligne.md, H9 et H10), quel que soit l'écran
   // qui l'apprend : si le poste garde une entreprise, son écran passe d'abord — il remet au serveur ce
   // qui attendait le réseau, efface tout ce que le poste garde, et revient ici. Sans entreprise gardée,

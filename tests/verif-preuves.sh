@@ -6,7 +6,12 @@
 #     n'est pas remplacé par une migration plus récente : la preuve viserait du code mort et le test
 #     resterait vert (mes_entreprises le 28/09/2026, la liste des origines le 29/09/2026) ;
 #   - le test qui doit tomber vit dans un fichier de tests/ (sinon toute la suite tourne pour elle) ;
-#   - son nom est unique (tests/preuves-nouvelles.sh choisit les preuves par leur nom).
+#   - son nom est unique (tests/preuves-nouvelles.sh choisit les preuves par leur nom) ;
+#   - posé dans un script des écrans (web/public), le défaut n'en casse pas la syntaxe : un écran
+#     illisible fait tomber la page entière, et le test avec, quoi qu'il regarde ; depuis que la
+#     construction lit chaque écran (web/alleger.ts), elle refuse le fichier et le test ne tourne même
+#     plus (deux preuves le 05/10/2026). Ailleurs (serveur), un fichier illisible empêche le test de
+#     tourner : sa preuve reste verte, ce qui se voit déjà.
 # Et le bilan reste les deux dernières lignes du fichier : une preuve écrite après lui tourne, mais
 # son échec ne fait pas échouer le lot (défaut trouvé le 30/09/2026, briques 66 à 70).
 #
@@ -14,11 +19,77 @@
 #   DETAIL=1 bash tests/verif-preuves.sh     (et les défauts posés dans une migration hors définition)
 set -u
 ICI="$(cd "$(dirname "$0")/.." && pwd)"
-liste="$(mktemp)"
-trap 'rm -f "$liste"' EXIT
+liste="$(mktemp)"; syntaxe="$(mktemp)"
+trap 'rm -f "$liste" "$syntaxe"' EXIT
 (cd "$ICI" && bash tests/lister-preuves.sh tests/preuves.sh) > "$liste" || exit 2
-python3 - "$ICI" "$liste" ${DETAIL:+detail} <<'EOF'
-import pathlib, re, sys
+# La syntaxe des écrans, lue comme le navigateur la lit (V8, sans rien exécuter) : une ligne JSON [nom, détail]
+# par défaut qui la casse. Pour aller vite, seule la plus petite fonction qui contient le défaut est relue (une
+# déclaration telle quelle, une expression entre parenthèses), si elle se lit seule avant lui ; sinon une plus
+# grande, et au pire le fichier entier.
+(cd "$ICI" && node --input-type=module - "$liste" > "$syntaxe" <<'EOF'
+import fs from 'node:fs';
+import vm from 'node:vm';
+import { parseSync } from 'rolldown/utils';
+const brut = fs.readFileSync(process.argv[2], 'utf8').split('\0').slice(0, -1);
+const lus = new Map();
+const lire = (f) => { if (!lus.has(f)) lus.set(f, fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null); return lus.get(f); };
+const illisible = (code) => { try { new vm.Script(code); return null; } catch (e) { return e instanceof SyntaxError ? e.message : null; } };
+const morceaux = new Map();
+function morceauxDe(f) {
+  if (!morceaux.has(f)) {
+    const code = lire(f), liste = [];
+    const visiter = (n) => {
+      if (Array.isArray(n)) { for (const x of n) if (x) visiter(x); return; }
+      if (n.type === 'FunctionDeclaration') liste.push([n.start, n.end, false]);
+      else if (n.type === 'FunctionExpression' || n.type === 'ArrowFunctionExpression') liste.push([n.start, n.end, true]);
+      for (const k in n) if (n[k] && typeof n[k] === 'object') visiter(n[k]);
+    };
+    const lu = parseSync(f, code);
+    if (!lu.errors.length) visiter(lu.program);
+    liste.sort((a, b) => (a[1] - a[0]) - (b[1] - b[0]));
+    morceaux.set(f, [...liste, [0, code.length, false]]);
+  }
+  return morceaux.get(f);
+}
+const propres = new Map();
+// Le message si le défaut (avant → après, posé une fois dans f) casse la syntaxe de f, sinon null.
+function casse(f, avant, apres) {
+  const code = lire(f), debut = code.indexOf(avant), fin = debut + avant.length;
+  for (const [a, b, parentheses] of morceauxDe(f)) {
+    if (a > debut || b < fin) continue;
+    const juger = (t) => illisible(parentheses ? `(${t}\n)` : t);
+    const cle = `${f} ${a} ${b}`;
+    if (!propres.has(cle)) propres.set(cle, juger(code.slice(a, b)) === null);
+    if (propres.get(cle)) return juger(code.slice(a, debut) + apres + code.slice(fin, b));
+  }
+  return null;   // un écran qui ne se lit pas déjà (un module, par exemple) n'est pas jugé ici
+}
+for (let i = 0; i + 5 <= brut.length; i += 5) {
+  const [nom, fichier, avant, apres] = brut.slice(i, i + 4);
+  const avants = avant.split('|||'), apress = apres.split('|||');
+  const fichiers = fichier.split('|||').length === 1 ? avants.map(() => fichier) : fichier.split('|||');
+  // Un motif absent ou en double, une retouche dépareillée : dits plus bas, la preuve n'est pas lue ici.
+  if (fichiers.length !== avants.length || avants.length !== apress.length) continue;
+  const copies = new Map();
+  const posees = avants.every((a, k) => {
+    const s = copies.has(fichiers[k]) ? copies.get(fichiers[k]) : lire(fichiers[k]);
+    if (s == null || !a || s.split(a).length !== 2) return false;
+    copies.set(fichiers[k], s.replace(a, () => apress[k]));
+    return true;
+  });
+  if (!posees) continue;
+  for (const [f, copie] of copies) {
+    if (!/^web\/public\/.*\.js$/.test(f)) continue;
+    const k = fichiers.indexOf(f);
+    // Retouché plusieurs fois par la même preuve : le fichier entier.
+    const e = fichiers.lastIndexOf(f) === k ? casse(f, avants[k], apress[k]) : illisible(lire(f)) === null && illisible(copie);
+    if (e) console.log(JSON.stringify([nom, `${f} : ${e}`]));
+  }
+}
+EOF
+) || exit 2
+python3 - "$ICI" "$liste" "$syntaxe" ${DETAIL:+detail} <<'EOF'
+import json, pathlib, re, sys
 from collections import Counter
 
 racine = pathlib.Path(sys.argv[1])
@@ -27,6 +98,10 @@ preuves = [tuple(x.decode('utf-8') for x in brut[i:i + 5]) for i in range(0, len
 fautes = []
 def faute(genre, nom, detail): fautes.append(f'{genre:<22} {nom} → {detail}')
 def court(t): t = ' '.join(t.split()); return t if len(t) <= 90 else t[:87] + '…'
+
+for ligne in open(sys.argv[3], encoding='utf-8').read().splitlines():
+    nom, detail = json.loads(ligne)
+    faute('SYNTAXE CASSÉE', nom, f'{detail} (le défaut ne prouverait rien : la page entière tombe)')
 
 # Le bilan, à la fin.
 lignes = [l for l in (racine / 'tests/preuves.sh').read_text(encoding='utf-8').splitlines() if l.strip()]
@@ -207,7 +282,7 @@ for nom, fichier, avant, apres_, attendu in preuves:
             apres = [m for m in MIGRATIONS if m.name > pathlib.Path(f).name]
             trouves = objets(origine, pos, origine.index(a) + len(a))
             en_migration += 1; situes += bool(trouves)
-            if not trouves and len(sys.argv) > 3: print(f'hors définition       {nom} → {f} : « {court(a)} »')
+            if not trouves and len(sys.argv) > 4: print(f'hors définition       {nom} → {f} : « {court(a)} »')
             for genre, objet, extra in trouves:
                 cle = (f, genre, objet, extra)
                 if cle not in deja: deja[cle] = remplacee(genre, objet, extra, apres)

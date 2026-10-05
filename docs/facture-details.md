@@ -73,7 +73,49 @@ sa fiche et refait une facture.
   jointe, le PDF s'enregistre à part ; l'application de bureau garde ses phrases) ; l'espace client écrit « Reste à
   payer : 128,373 DT · Payé : 100,000 DT » (et les avoirs).
 
+## Vérifié sur le serveur d'essai (05/10/2026)
+
+Le lot installé sur app.skanfact.tn (données fictives), le parcours refait à la souris : l'exemple versé puis la visite,
+« Faire une facture », la sortie vers une vraie entreprise, les avertissements précis, « Compléter ma fiche… », la
+facture émise avec son RIB. Trois défauts de plus, corrigés dans l'envoi suivant :
+
+- **E1. Une réponse qui ne vient pas du serveur s'affichait telle quelle.** Le versement de l'exemple prend une minute ;
+  un relais sur le chemin (celui de notre poste de travail ; demain le proxy d'une entreprise, un opérateur mobile)
+  a coupé la demande et renvoyé « upstream request timeout ». La page l'a lu comme du JSON et a affiché « Unexpected
+  token 'u', "upstream r"… is not valid JSON ». Maintenant, aux trois portes (l'entreprise, `plateforme/pont.js` ; le
+  Cabinet, `plateforme/pont-cabinet.js` ; les écrans d'entrée, `web/src/api.ts`), une réponse qui n'est pas du serveur
+  (un texte, une page HTML, un 502, 503 ou 504 vide) se dit « Le serveur n'a pas répondu à temps : réessaie dans un
+  instant. » (aux écrans d'entrée : « le serveur ne répond pas »), jamais par son texte. L'exemple, lui, redemande
+  (jusqu'à quatre fois, une seconde et demie d'écart) : le serveur va au bout du versement, la demande suivante attend
+  sa fin puis le trouve fait, et la page s'ouvre sur la visite ; coupé à chaque fois, il le dit : « La connexion au
+  serveur a coupé avant la fin : rouvre la page dans une minute ; si l'exemple n'y est pas, recommence. »
+- **E2. Le matricule s'imprimait tel qu'il avait été tapé** (« 1357913 b / a / m / 000 »), en tête de la facture comme
+  au pied. Chaque pièce imprimée l'écrit désormais sous la forme que le serveur garde (1357913B/A/M/000) : la facture,
+  le devis et l'avoir (en tête, au pied, et le matricule du client), le ticket de caisse, le bulletin de paie,
+  l'attestation et le certificat de travail, le solde de tout compte, le relevé de compte, la page de garde du paquet.
+  Ce qui n'est pas un matricule (une carte d'identité, un identifiant étranger) reste tel quel. La fenêtre « Compléter
+  ma fiche » enregistre aussi la forme lisible.
+- **E3. La lettre-clé I, O ou U passait à l'écran et au serveur**, puis le fichier El Fatoora la refusait (la règle de
+  `teif.js`). L'écran (`core.js`), le serveur (`serveur/v10/identite.ts`) et le fichier disent maintenant la même chose,
+  et les messages le disent : « sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et
+  établissement ».
+
+Et le rouge de GitHub sur cet envoi : deux preuves anciennes (la ligne lue sous les champs d'une facture photographiée,
+la case du lien d'un e-mail) posaient un défaut qui cassait la syntaxe de l'écran ; elles « prouvaient » en faisant
+tomber la page entière. Depuis que la construction lit chaque écran (L6, `web/alleger.ts`), elle refuse le fichier et
+le test ne tourne plus : la preuve restait verte. Les deux sont réécrites en vrais défauts, et le contrôle éclair
+(`tests/verif-preuves.sh`) refuse désormais toute preuve dont le défaut casse la syntaxe d'un écran (« SYNTAXE
+CASSÉE ») : il relit, comme le navigateur, la plus petite fonction qui contient le défaut (cinq secondes pour les
+2 363 preuves).
+
 ## Ce qui reste (À FAIRE)
+
+- **E4. La même règle à toutes les entrées du matricule** (vu en corrigeant E3) : la porte (« Créer mon entreprise »,
+  `POST /entreprises`), le dossier tenu d'un cabinet (création et correction) et la reprise d'un portefeuille acceptent
+  encore la lettre-clé I, O ou U, et gardent le matricule tel qu'il est écrit, avec ou sans barres. Or l'unicité (un
+  matricule, une seule entreprise active : D6) compare les textes : 1234567AAM000 et 1234567A/A/M/000 peuvent coexister.
+  À faire au lot suivant : la forme lisible du serveur (`matriculeCanonique`) aux trois entrées, et les matricules déjà
+  gardés remis sous cette forme.
 
 - **Un devis envoyé part sans pièce jointe** : il n'a pas de lien dans l'espace client (seules les factures et les
   avoirs émis en ont). À faire avec la brique « les devis dans l'espace client » (déjà proposée à Skander).
@@ -95,16 +137,24 @@ sa fiche et refait une facture.
   un matricule mal formé ne se porte pas ; celui d'une autre entreprise se refuse en le disant, et rien n'est écrit ;
   l'entreprise d'essai garde les siens.
 - `tests/v10/matricule.test.ts` : l'écran (`matriculeBienForme`) et le serveur (`matriculeCanonique`) disent la même
-  chose de seize matricules écrits comme on les recopie ; la fiche nomme un matricule mal formé comme un matricule
-  absent.
+  chose de dix-neuf matricules écrits comme on les recopie (dont la lettre-clé I, O ou U), et les écrivent pareil sous
+  leur forme lisible ; la fiche nomme un matricule mal formé comme un matricule absent ; chaque pièce imprimée (facture,
+  ticket, bulletin, attestation, certificat, solde de tout compte, relevé, page de garde du paquet) porte les
+  matricules sous leur forme lisible, nulle part tels qu'ils ont été tapés (E2).
+- `tests/v10/pont-exemple.test.ts` et `tests/v10/reponse-coupee.test.ts` (E1) : une réponse coupée en route, l'exemple
+  redemande et s'ouvre sur la visite ; coupée à chaque fois, une phrase qui dit quoi faire ; aux trois portes, une
+  réponse qui ne vient pas du serveur (504 « upstream request timeout », une page HTML, un 503 vide) ne s'affiche
+  jamais telle quelle, et un vrai refus garde sa phrase.
 - `tests/v10/dossier.test.ts` : une facture émise avec la retenue en texte reste la même une fois relue en nombre (ses
   règlements s'enregistrent), un autre taux non.
 - `tests/web/facture-details.test.ts` (à la souris) : Samia, sans matricule ni RIB : l'aperçu sans « MF » et le tampon
   qui ne couvre ni l'en-tête, ni le client et l'objet (pâle, multiplié) ; les avertissements et « Compléter ma fiche… » ; un matricule mal formé, puis
   celui d'une autre entreprise, refusés sous leur champ sans rien écrire ; la fiche complétée, la fenêtre qui se relit ;
-  la facture émise avec son matricule et son RIB, son taux en nombre ; « d'août », « d'octobre » ; le menu ; l'espace
-  client ; un refus du serveur qui reste à l'écran. Photos : `dist/photos/facture-details-*.png`.
-- Les preuves de `tests/preuves.sh`, section « Le lot facture » : chaque correction, défaut remis, fait tomber son test.
+  la facture émise avec son matricule (tapé « 1357913 b a m 000 », imprimé 1357913B/A/M/000 en tête et au pied, gardé
+  ainsi dans la fiche) et son RIB, son taux en nombre ; « d'août », « d'octobre » ; le menu ; l'espace client ; un refus
+  du serveur qui reste à l'écran. Photos : `dist/photos/facture-details-*.png`.
+- Les preuves de `tests/preuves.sh`, sections « Le lot facture » et « Vu sur le serveur d'essai après le lot facture » :
+  chaque correction, défaut remis, fait tomber son test.
 - **Les tests partagent une base** : depuis D6, un matricule n'y est celui que d'une entreprise à la fois. Un test qui
   donne un matricule à son entreprise en prend un à lui ; celui que lui impose ce qu'il rejoue (celui de Nadia, imprimé
   sur les factures photographiées et connu de la TTN simulée ; celui de la quincaillerie) se reprend d'abord à

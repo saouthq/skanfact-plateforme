@@ -41,6 +41,11 @@ pour une facture, il le fait pour un devis ».
 - Le dossier se lit verrouillé pendant le versement : un enregistrement de la page parti au même moment attend la fin
   au lieu de le faire échouer. Défense en plus : la page attend son propre enregistrement en cours avant de demander,
   et redemande une fois après un conflit.
+- **Une réponse coupée en route** (vu sur le serveur d'essai le 05/10/2026 : un relais a coupé la demande d'une minute
+  et l'écran a montré « Unexpected token 'u'… is not valid JSON ») : le serveur, lui, va au bout du versement. La page
+  redemande, jusqu'à quatre fois : la demande suivante attend la fin du versement (le dossier est verrouillé), le trouve
+  fait, et la page s'ouvre sur la visite. Coupée à chaque fois, elle le dit : « La connexion au serveur a coupé avant
+  la fin : rouvre la page dans une minute ; si l'exemple n'y est pas, recommence. » (docs/facture-details.md, E1).
 
 ### À l'écran (`web/v10/exemple.txt`, `pont.js`, `Porte.tsx`)
 

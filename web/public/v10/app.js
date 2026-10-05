@@ -1206,10 +1206,10 @@
         $('#ok', root).onclick = async () => {
           const v = formValues($('#cf', root));
           if (manqueNom && !String(v.name || '').trim()) return refuser('name', 'Écris ta raison sociale : c\'est le nom qui s\'imprime en haut de chaque pièce.');
-          if (manqueMf && !C.matriculeBienForme(v.matricule)) return refuser('matricule', `« ${String(v.matricule || '').trim()} » n'a pas la forme d'un matricule fiscal : sept chiffres, une lettre, puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur ta carte d'identification fiscale.`);
+          if (manqueMf && !C.matriculeBienForme(v.matricule)) return refuser('matricule', `« ${String(v.matricule || '').trim()} » n'a pas la forme d'un matricule fiscal : sept chiffres, une lettre (jamais I, O ni U), puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur ta carte d'identification fiscale.`);
           const avant = { name: co.name, matricule: co.matricule, bank: co.bank, rib: co.rib };
           if (manqueNom) co.name = String(v.name).trim();
-          if (manqueMf) co.matricule = String(v.matricule).trim();
+          if (manqueMf) co.matricule = C.matriculeLisible(v.matricule);
           if (manqueRib) { co.bank = String(v.bank || '').trim(); co.rib = String(v.rib || '').trim(); }
           const b = $('#ok', root);
           b.disabled = true;
@@ -4759,7 +4759,7 @@
       // la pièce (lot facture, 05/10/2026). La même règle que la fiche (`companyGaps`) et que le serveur (identite.ts).
       if (!(co.name || '').trim()) w.push('Ta raison sociale manque : c\'est le nom qui s\'imprime en haut de la pièce.');
       if (!(co.matricule || '').trim()) w.push('Ton matricule fiscal manque : il est obligatoire sur une facture en Tunisie, et s\'imprime en haut de la pièce.');
-      else if (!C.matriculeBienForme(co.matricule)) w.push(`Ton matricule fiscal « ${co.matricule.trim()} » n'a pas la bonne forme : sept chiffres, une lettre, puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur ta carte d'identification fiscale.`);
+      else if (!C.matriculeBienForme(co.matricule)) w.push(`Ton matricule fiscal « ${co.matricule.trim()} » n'a pas la bonne forme : sept chiffres, une lettre (jamais I, O ni U), puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur ta carte d'identification fiscale.`);
       // Le RIB ne se réclame que si on attend un virement (7.22.0, même règle que `companyGaps`).
       // Un restaurant ou un salon encaissent sur place : leur répéter à chaque facture qu'il manque
       // un RIB, c'est un avertissement qu'ils ne peuvent pas satisfaire — et on cesse de lire les

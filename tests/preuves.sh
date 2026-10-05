@@ -4698,8 +4698,7 @@ prouver "« régler en ligne » promis sans que le serveur le dise" web/public/p
   "r.payable ? \`Pour voir \${piece} et la régler en ligne\`" "true ? \`Pour voir \${piece} et la régler en ligne\`" \
   "$EN2"
 prouver "la case du lien décochée qui ne rend pas la phrase du modèle" web/public/plateforme/pont.js \
-  "      if (!c.checked && ta.value === avec) ta.value = sans;
-" "" \
+  "      if (!c.checked && ta.value === avec) ta.value = sans;" "      if (false) ta.value = sans;" \
   "$EN2"
 prouver "WhatsApp ouvert après l'attente du serveur (hors du geste)" web/public/plateforme/pont.js \
   "    if (canal === 'whatsapp') fenetreWhatsApp = window.open('', '_blank');
@@ -5102,7 +5101,7 @@ prouver "un taux non lu devenu une TVA à 0 %" web/public/v10/core.js \
   "      vatRate: l.vatRate != null && l.vatRate !== '' && VAT_RATES.includes(ocrNumber(l.vatRate))" "      vatRate: VAT_RATES.includes(ocrNumber(l.vatRate))" \
   "$LV1"
 prouver "la ligne lue jamais montrée sous les champs" web/public/v10/app.js \
-  "    const ici = (html, k) => { const s = luIci(k);" "    const ici = (html) => html; void ((html, k) => { const s = luIci(k);" \
+  "    const ici = (html, k) => { const s = luIci(k);" "    const ici = (html, k) => { const s = luIci(k) && '';" \
   "$LW1"
 prouver "le recomptage du serveur jamais montré" web/public/plateforme/pont.js \
   "{ remarques: r.remarques || [], ou: r.ou || {}, moteur: r.moteur }" "{ ou: r.ou || {}, moteur: r.moteur }" \
@@ -8382,7 +8381,7 @@ prouver "l'exemple déjà rempli qu'on redemande au serveur" $PONT \
 " "" \
   "$POE2"
 prouver "un conflit avec l'enregistrement de départ de la page qui fait échouer l'exemple" $PONT \
-  "            if (tentative >= 2 || /** @type {any} */ (e).statut !== 409) throw e;" "            throw e;" \
+  "            if (++conflits > 2 || x.statut !== 409) throw e;" "            throw e;" \
   "$POE3"
 prouver "la fenêtre d'attente de l'exemple qui reste ouverte après un refus" $PONT \
   "        if (typeof fin === 'function') fin();
@@ -8468,7 +8467,7 @@ IDS1='le nom et le matricule écrits dans la fiche deviennent ceux de l'\''entre
 IDS2='un matricule mal formé ne se porte pas ; celui d'\''une autre entreprise se refuse en le disant, et rien n'\''est écrit'
 IDS3='l'\''entreprise d'\''essai garde son nom et son matricule, quoi qu'\''écrive sa fiche'
 DOSR='une facture émise avec la retenue en texte reste la même une fois relue en nombre : ses règlements s'\''enregistrent ; un autre taux, non'
-MAT1='l'\''écran et le serveur disent la même chose de chaque matricule écrit, et le serveur le garde sous sa forme lisible'
+MAT1='l'\''écran et le serveur disent la même chose de chaque matricule écrit, et l'\''écrivent pareil sous sa forme lisible'
 MAT2='la fiche société nomme un matricule mal formé comme un matricule absent, et laisse en paix un matricule juste'
 FDW='Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
 prouver 'la fiche qui ne porte pas son identité à l'\''entreprise' serveur/v10/dossier.ts \
@@ -8494,13 +8493,13 @@ prouver 'tous les taux de retenue d'\''une pièce scellée tenus pour égaux' se
   'return Number.isFinite(n) && n !== 0 ? String(n) : '\''0'\'';' 'return '\''0'\'';' \
   "$DOSR"
 prouver 'l'\''écran qui laisse passer un matricule que le serveur ne porte pas' web/public/v10/core.js \
-  'function matriculeBienForme(v) { return /^[0-9]{7}[A-Z]{3}[0-9]{3}$/' 'function matriculeBienForme(v) { return /^[0-9]{7}[A-Z]{1,3}[0-9]{0,3}$/' \
+  '  const MF_FORME = /^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/;' '  const MF_FORME = /^[0-9]{7}[A-Z]{1,3}[0-9]{0,3}$/;' \
   "$MAT1"
 prouver 'un matricule mal formé que la fiche ne nomme pas' web/public/v10/core.js \
   '    else if (!matriculeBienForme(c.matricule)) out.push('\''un matricule fiscal valide' '    else if (false) out.push('\''un matricule fiscal valide' \
   "$MAT2"
 prouver '« MF » imprimé sans matricule' web/public/v10/core.js \
-  'String(company.matricule || '\'''\'').trim() ? `${L.mf} ${escapeHtml(company.matricule)}` : '\'''\''' '`${L.mf} ${escapeHtml(company.matricule)}`' \
+  'String(company.matricule || '\'''\'').trim() ? `${L.mf} ${escapeHtml(matriculeLisible(company.matricule))}` : '\'''\''' '`${L.mf} ${escapeHtml(matriculeLisible(company.matricule))}`' \
   "$FDW"
 prouver 'le tampon posé sur l'\''objet de la pièce' web/public/v10/core.js \
   '.stamp { position: absolute; left: 50%; top: 150mm; transform: translate(-50%, -50%) rotate(-24deg);' '.stamp { position: absolute; top: 62mm; right: 24mm; transform: rotate(-12deg);' \
@@ -8544,6 +8543,103 @@ prouver 'l'\''espace du client sans ce qui a déjà été payé' web/public/espa
 prouver 'le refus du serveur à l'\''émission dans un bandeau de trois secondes' web/public/v10/app.js \
   '          infoDialog(doc.type === '\''avoir'\'' ? '\''L\'\''avoir n\'\''est pas émis'\''' '          toast(motif, true) || void (doc.type === '\''avoir'\'' ? '\''L\'\''avoir n\'\''est pas émis'\''' \
   "$FDW"
+
+# ── Vu sur le serveur d'essai après le lot facture (05/10/2026 ; docs/facture-details.md, E1 à E3) ──
+# E1 : une réponse qui ne vient pas du serveur (un relais qui coupe une demande longue, le frontal), aux trois portes ;
+# E2 : le matricule imprimé tel qu'il a été tapé, sur chaque pièce ; E3 : la lettre-clé I, O ou U. (Les deux preuves
+# qui « prouvaient » en cassant la syntaxe d'un écran sont réécrites à leur place ; tests/verif-preuves.sh le contrôle.)
+CPE1='une réponse coupée en route : la page redemande, le serveur a fini, et elle s'\''ouvre sur la visite ; jamais le texte du relais'
+CPE2='coupée à chaque fois : une phrase qui dit quoi faire, la fenêtre d'\''attente fermée, rien ne se rouvre'
+CPE3='une réponse qui ne vient pas du serveur ne s'\''affiche jamais telle quelle, par l'\''entreprise comme par le compte'
+CPE4='au Cabinet : « le serveur n'\''a pas répondu », jamais le texte du relais ; un vrai refus garde sa phrase'
+CPE5='aux écrans d'\''entrée : un serveur qui ne répond pas (ErreurReseau), jamais l'\''erreur du lecteur ; un vrai refus rendu tel quel'
+MAT3='chaque pièce imprimée porte les matricules sous leur forme lisible, en tête comme au pied ; une carte d'\''identité, telle quelle'
+prouver 'la réponse d'\''un relais lue comme du JSON par l'\''entreprise (l'\''erreur du lecteur à l'\''écran)' web/public/plateforme/pont.js \
+  '    try { if (!texte) throw new SyntaxError('\''vide'\''); return JSON.parse(texte); } catch {' '    try { return JSON.parse(texte || '\''{}'\''); } catch (e) { throw e;' \
+  "$CPE3"
+prouver 'une réponse vide d'\''un relais (502, 503, 504) prise pour celle du serveur, côté entreprise' web/public/plateforme/pont.js \
+  'if (!texte && ![502, 503, 504].includes(r.status)) return {};' 'if (!texte) return {};' \
+  "$CPE3"
+prouver 'l'\''exemple abandonné à la première coupure' web/public/plateforme/pont.js \
+  '            if ((x.coupe || x.horsLigne) && ++coupes <= 4)' '            if (false)' \
+  "$CPE1"
+prouver 'une coupure répétée qui dit « réessaie » sans dire quoi faire de l'\''exemple' web/public/plateforme/pont.js \
+  '            if (x.coupe) throw Object.assign(new Error('\''La connexion au serveur a coupé avant la fin' '            if (false) throw Object.assign(new Error('\''La connexion au serveur a coupé avant la fin' \
+  "$CPE2"
+prouver 'le Cabinet qui lit la réponse d'\''un relais comme du JSON' web/public/plateforme/pont-cabinet.js \
+  '    const lu = lire(r, await r.text());' '    const texte = await r.text(); const lu = texte ? JSON.parse(texte) : {};' \
+  "$CPE4"
+prouver 'une réponse vide d'\''un relais prise pour celle du serveur, au Cabinet' web/public/plateforme/pont-cabinet.js \
+  'if (!texte && ![502, 503, 504].includes(r.status)) return {};' 'if (!texte) return {};' \
+  "$CPE4"
+prouver 'les écrans d'\''entrée qui lisent la réponse d'\''un relais comme du JSON' web/src/api.ts \
+  '  try { lu = (texte ? JSON.parse(texte) : {}) as Reponse<T>['\''corps'\'']; } catch { throw new ErreurReseau(); }' '  lu = (texte ? JSON.parse(texte) : {}) as Reponse<T>['\''corps'\''];' \
+  "$CPE5"
+prouver 'l'\''en-tête de la pièce qui imprime le matricule tel que tapé' web/public/v10/core.js \
+  '`${L.mf} ${escapeHtml(matriculeLisible(company.matricule))}`' '`${L.mf} ${escapeHtml(company.matricule)}`' \
+  "$MAT3"
+prouver 'le pied de la pièce qui imprime le matricule tel que tapé' web/public/v10/core.js \
+  ''\''Matricule fiscal '\'') + matriculeLisible(company.matricule)' ''\''Matricule fiscal '\'') + company.matricule' \
+  "$MAT3"
+prouver 'la pièce qui imprime le matricule du client tel que tapé' web/public/v10/core.js \
+  'L.mfCin + '\'' '\'' + escapeHtml(matriculeLisible(cl.matricule))' 'L.mfCin + '\'' '\'' + escapeHtml(cl.matricule)' \
+  "$MAT3"
+prouver 'le ticket de caisse qui imprime le matricule tel que tapé' web/public/v10/core.js \
+  ''\''<br>MF '\'' + escapeHtml(matriculeLisible(co.matricule))' ''\''<br>MF '\'' + escapeHtml(co.matricule)' \
+  "$MAT3"
+prouver 'l'\''en-tête du bulletin de paie qui imprime le matricule tel que tapé' web/public/v10/core.js \
+  '      <div class="co-name">${escapeHtml(company.name || '\'''\'')}</div>
+      <div class="co-sub">${escapeHtml(company.address || '\'''\'').replace(/\n/g, '\''<br>'\'')}
+        ${company.matricule ? `<br>MF : ${escapeHtml(matriculeLisible(company.matricule))}`' '      <div class="co-name">${escapeHtml(company.name || '\'''\'')}</div>
+      <div class="co-sub">${escapeHtml(company.address || '\'''\'').replace(/\n/g, '\''<br>'\'')}
+        ${company.matricule ? `<br>MF : ${escapeHtml(company.matricule)}`' \
+  "$MAT3"
+prouver 'le pied du bulletin de paie qui imprime le matricule tel que tapé' web/public/v10/core.js \
+  ''\'' — MF '\'' + escapeHtml(matriculeLisible(company.matricule)) : '\'''\''} · Bulletin de' ''\'' — MF '\'' + escapeHtml(company.matricule) : '\'''\''} · Bulletin de' \
+  "$MAT3"
+prouver 'l'\''en-tête des documents du personnel qui imprime le matricule tel que tapé' web/public/v10/core.js \
+  '    <div><div class="co-name">${escapeHtml(company.name || '\'''\'')}</div>
+      <div class="co-sub">${escapeHtml(company.address || '\'''\'').replace(/\n/g, '\''<br>'\'')}
+        ${company.matricule ? `<br>MF : ${escapeHtml(matriculeLisible(company.matricule))}`' '    <div><div class="co-name">${escapeHtml(company.name || '\'''\'')}</div>
+      <div class="co-sub">${escapeHtml(company.address || '\'''\'').replace(/\n/g, '\''<br>'\'')}
+        ${company.matricule ? `<br>MF : ${escapeHtml(company.matricule)}`' \
+  "$MAT3"
+prouver 'l'\''attestation de travail qui écrit le matricule tel que tapé' web/public/v10/core.js \
+  ', matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : '\'''\''}, atteste' ', matricule fiscal ${escapeHtml(company.matricule)}` : '\'''\''}, atteste' \
+  "$MAT3"
+prouver 'le certificat de travail qui écrit le matricule tel que tapé' web/public/v10/core.js \
+  ', matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : '\'''\''}, certifie' ', matricule fiscal ${escapeHtml(company.matricule)}` : '\'''\''}, certifie' \
+  "$MAT3"
+prouver 'le solde de tout compte qui écrit le matricule tel que tapé' web/public/v10/core.js \
+  ', matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : '\'''\''}, d'\''une part' ', matricule fiscal ${escapeHtml(company.matricule)}` : '\'''\''}, d'\''une part' \
+  "$MAT3"
+prouver 'le pied des documents du personnel qui imprime le matricule tel que tapé' web/public/v10/core.js \
+  ''\'' — MF '\'' + escapeHtml(matriculeLisible(company.matricule)) : '\'''\''}</div>' ''\'' — MF '\'' + escapeHtml(company.matricule) : '\'''\''}</div>' \
+  "$MAT3"
+prouver 'l'\''en-tête du relevé de compte qui imprime le matricule tel que tapé' web/public/v10/core.js \
+  '${W.mf} : ${escapeHtml(matriculeLisible(company.matricule))}` : '\'''\''}</div></div>' '${W.mf} : ${escapeHtml(company.matricule)}` : '\'''\''}</div></div>' \
+  "$MAT3"
+prouver 'le relevé de compte qui imprime le matricule du client tel que tapé' web/public/v10/core.js \
+  '${W.mf} : ${escapeHtml(matriculeLisible(c.matricule))}' '${W.mf} : ${escapeHtml(c.matricule)}' \
+  "$MAT3"
+prouver 'le pied du relevé de compte qui imprime le matricule tel que tapé' web/public/v10/core.js \
+  '` — ${W.mf} ` + escapeHtml(matriculeLisible(company.matricule))' '` — ${W.mf} ` + escapeHtml(company.matricule)' \
+  "$MAT3"
+prouver 'la page de garde du paquet qui imprime le matricule tel que tapé' web/public/v10/core.js \
+  'esc(matriculeLisible(company.matricule))' 'esc(company.matricule)' \
+  "$MAT3"
+prouver 'la fiche complétée qui garde le matricule tel que tapé' web/public/v10/app.js \
+  'if (manqueMf) co.matricule = C.matriculeLisible(v.matricule);' 'if (manqueMf) co.matricule = v.matricule;' \
+  "$FDW"
+prouver 'la lettre-clé I, O ou U acceptée à l'\''écran' web/public/v10/core.js \
+  'const MF_FORME = /^[0-9]{7}[A-HJ-NP-TV-Z]' 'const MF_FORME = /^[0-9]{7}[A-Z]' \
+  "$MAT1"
+prouver 'la lettre-clé I, O ou U portée à l'\''entreprise par le serveur' serveur/v10/identite.ts \
+  '/^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c)' '/^[0-9]{7}[A-Z][A-Z]{2}[0-9]{3}$/.test(c)' \
+  "$MAT1"
+prouver 'la fiche qui ne dit pas que la lettre-clé n'\''est jamais I, O ni U' web/public/v10/core.js \
+  'sept chiffres, une lettre autre que I, O ou U, puis code TVA' 'sept chiffres, une lettre, puis code TVA' \
+  "$MAT2"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

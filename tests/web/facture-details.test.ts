@@ -144,9 +144,10 @@ describe('le lot facture, à l\'écran', () => {
     expect((await surLeServeur()).find((o) => o.collection === '_racine' && o.cle === 'company')?.contenu.matricule ?? '').toBe('');
     // Et la page non plus ne le garde pas : son prochain enregistrement ne repartirait pas avec lui.
     expect(await p.evaluate(() => (window as unknown as { __data: { company: { matricule?: string } } }).__data.company.matricule ?? '')).toBe('');
-    // Le sien (à ce fichier seul : les tests partagent une base, tests/matricule-libre.ts), la banque et le RIB : la
-    // fenêtre d'émission se relit.
-    await fiche.locator('#cf [name=matricule]').fill('1357913B/A/M/000');
+    // Le sien (à ce fichier seul : les tests partagent une base, tests/matricule-libre.ts), recopié de sa carte comme on
+    // le fait (vu sur le serveur d'essai, E2 : la pièce l'imprimait ainsi), la banque et le RIB : la fenêtre d'émission se
+    // relit.
+    await fiche.locator('#cf [name=matricule]').fill('1357913 b a m 000');
     await fiche.locator('#cf [name=bank]').fill('Banque de Tunisie');
     await fiche.locator('#cf [name=rib]').fill('08100012345678901269');
     await fiche.locator('#ok').click();
@@ -154,11 +155,15 @@ describe('le lot facture, à l\'écran', () => {
     expect(await avert()).toBe('');
     expect(net(await p.locator('#modal-root #ok').innerText())).toBe('Émettre');
     expect((await admin.query('select matricule_fiscal from socle.entreprise where id = $1', [ent])).rows[0].matricule_fiscal).toBe('1357913B/A/M/000');
+    // La fiche le garde sous la même forme lisible que l'entreprise.
+    expect((await surLeServeur()).find((o) => o.collection === '_racine' && o.cle === 'company')?.contenu.matricule).toBe('1357913B/A/M/000');
 
-    // 4. Émise : son matricule et son RIB s'impriment ; la retenue est partie en nombre.
+    // 4. Émise : son matricule (sous sa forme lisible, en tête et au pied) et son RIB s'impriment ; la retenue est partie
+    // en nombre.
     await p.locator('#modal-root #ok').click();
     await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toBe('Facture FAC-2026-001');
     await expect.poll(() => apercu.locator('.brand').innerText().then(net).catch(() => '')).toBe('Pâtisserie Les Délices de Sfax MF 1357913B/A/M/000');
+    expect(net(await apercu.locator('.footer').innerText())).toContain('Matricule fiscal 1357913B/A/M/000');
     expect(net(await apercu.locator('.after').innerText())).toContain('08100012345678901269');
     const f1 = (await surLeServeur()).find((o) => o.collection === 'documents' && o.contenu.number === 'FAC-2026-001');
     expect(f1?.contenu.withholdingRate).toBe(1);
