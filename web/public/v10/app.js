@@ -12577,7 +12577,7 @@
         $('#cs-body').innerHTML = etatVide('Ce que tu vends au comptoir', [
           'La caisse vend les articles de ton <b>Catalogue</b> : chacun avec son prix et, pour la douchette, son <b>code-barres</b>.',
           'Crée ton premier article — il arrive tout de suite dans la caisse.'], [['cs-new-art', '+ Nouvel article', true]]);
-        $('#cs-new-art').onclick = () => catalogForm(null, () => vers('#/caisse')());
+        $('#cs-new-art').onclick = () => catalogForm(null, () => vers('#/caisse')(), { titre: 'Nouvel article' });
         return;
       }
       $('#cs-actions').innerHTML = '';

@@ -7955,6 +7955,15 @@ prouver "le point de contact qui laisse passer les nouveautés de la v10" web/pu
   "    sansNouveautesV10: true," "    sansNouveautesV10: false," \
   "$NV10"
 
+# Le premier article créé depuis une caisse vide (vu sur le vrai serveur le 05/10/2026 : « Nouvelle prestation »).
+CPA="« + Nouvel article » ouvre « Nouvel article » ; tapé « 12,500 » HT, il arrive dans la caisse à 14,875 DT"
+prouver "la caisse qui ouvre une « Nouvelle prestation »" web/public/v10/app.js \
+  "catalogForm(null, () => vers('#/caisse')(), { titre: 'Nouvel article' });" "catalogForm(null, () => vers('#/caisse')());" \
+  "$CPA"
+prouver "le prix d'un article tapé avec la virgule, avalé" web/public/v10/index.html \
+  '  <script src="../plateforme/virgule.js"></script>' "" \
+  "$CPA"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

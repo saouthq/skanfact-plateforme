@@ -17,6 +17,12 @@ export const ADAPTATIONS = [
   },
   {
     fichier: 'app.js',
+    pourquoi: 'à la caisse, « + Nouvel article » ouvre « Nouvel article » : la fiche disait « Nouvelle prestation » à un commerçant qui vend des marchandises (vu sur le serveur d\'essai le 05/10/2026)',
+    avant: "        $('#cs-new-art').onclick = () => catalogForm(null, () => vers('#/caisse')());",
+    apres: "        $('#cs-new-art').onclick = () => catalogForm(null, () => vers('#/caisse')(), { titre: 'Nouvel article' });",
+  },
+  {
+    fichier: 'app.js',
     pourquoi: 'les nouveautés de la v10 sont celles de l\'application de bureau : la plateforme ne les montre pas (vu sur le serveur d\'essai le 05/10/2026 : « Nouveau dans SkanFact 10.15.0 » s\'ouvrait chez qui avait retenu la version « dev »)',
     avant: "      const presentee = typeof Nouveautes !== 'undefined' && Nouveautes.presenter({",
     apres: "      const presentee = typeof Nouveautes !== 'undefined' && !bridge.sansNouveautesV10 && Nouveautes.presenter({",
