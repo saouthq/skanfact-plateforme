@@ -47,7 +47,7 @@ describe('le Z imprimé et relu, à l\'écran', () => {
     const ent = String((await api('POST', '/entreprises', nadia, { raisonSociale: 'Boulangerie Ben Youssef' })).corps.id);
     await api('GET', `/entreprises/${ent}/dossier-v10`, nadia);
     expect((await api('POST', `/entreprises/${ent}/dossier-v10`, nadia, { changements: [
-      { collection: 'accounts', cle: 'k-caisse', rang: 0, revision: null, contenu: { id: 'k-caisse', name: 'Caisse', kind: 'caisse', bank: '', rib: '', opening: 0, openingDate: '2026-01-01', isDefault: false, statementBalance: '', notes: '' } },
+      { collection: 'accounts', cle: 'k-caisse', rang: 0, revision: null, contenu: { id: 'k-caisse', name: 'Caisse', kind: 'caisse', bank: '', rib: '', opening: 30, openingDate: '2026-01-01', isDefault: false, statementBalance: '', notes: '' } },
       { collection: 'catalog', cle: 'pain', rang: 0, revision: null, contenu: { id: 'pain', label: 'Pain de mie', unit: 'u', unitPrice: { '~n': '1.2' }, vatRate: 7 } },
     ] })).statut).toBe(200);
     const emailSami = `sami-z-${Date.now()}@exemple.tn`;
@@ -69,7 +69,9 @@ describe('le Z imprimé et relu, à l\'écran', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/caisse`);
     await expect.poll(() => p.locator('#cs-articles .cs-art').count(), { timeout: 20_000 }).toBe(1);
     await plusTard(p);
-    await p.locator('#cs-fond').fill('30');
+    // Le fond proposé est ce que le tiroir contient déjà : le solde du compte de caisse (30 DT au départ), pas 0 (vu sur
+    // le serveur d'essai le 05/10/2026) ; Sami le garde et ouvre.
+    await expect.poll(() => p.locator('#cs-fond').inputValue()).toBe('30,000');
     await p.locator('#cs-ouvrir').click();
     await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Caisse ouverte par Sami/);
     await p.locator('#cs-articles .cs-art', { hasText: 'Pain de mie' }).click();

@@ -7928,6 +7928,16 @@ prouver "la version écrite comme un jour de la base" serveur/ecrans.ts \
   "jour.replaceAll('-', '.')" "jour" \
   "$CEP"
 
+# Le fond de caisse proposé à l'ouverture : ce que le tiroir contient déjà (vu sur le vrai serveur le 05/10/2026 : la
+# caisse créée avec 50 DT s'ouvrait à 0).
+CZF="Sami ferme la caisse : le Z dit qu'il l'a fermée, s'imprime, et se relit parmi les Z passés"
+prouver "la caisse qui s'ouvre à 0 alors que le tiroir a son fond" web/public/v10/app.js \
+  'id="cs-fond" placeholder="0" value="${h(fondPropose)}"' 'id="cs-fond" placeholder="0"' \
+  "$CZF"
+prouver "le fond proposé qui ne lit pas le compte de caisse" web/public/v10/app.js \
+  "const dansLeTiroir = idCaisse ? C.accountBalance(data, company(), idCaisse, C.today()).balance : 0;" "const dansLeTiroir = 0;" \
+  "$CZF"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

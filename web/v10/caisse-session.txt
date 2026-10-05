@@ -74,8 +74,14 @@ dit ensuite l'attendu, l'écart, et fige le Z, qui s'affiche.
     if (!el) return;
     const ss = caisseEtat.session;
     if (!ss) {
+      // Ce que le tiroir contient déjà, proposé (vu sur le serveur d'essai le 05/10/2026 : la caisse créée avec 50 DT
+      // s'ouvrait à 0, et le Z du soir aurait annoncé 50 DT de trop) : le solde du compte de caisse aujourd'hui, par la
+      // même fonction que la Trésorerie et le bilan du jour. Se recompte et se corrige si le tiroir dit autre chose.
+      const idCaisse = C.comptesDeCaisse(data).especes;
+      const dansLeTiroir = idCaisse ? C.accountBalance(data, company(), idCaisse, C.today()).balance : 0;
+      const fondPropose = dansLeTiroir > 0 ? dansLeTiroir.toFixed(caisseEtat.decimales ?? 3).replace('.', ',') : '';
       el.innerHTML = `<div class="banner warn lock-banner" id="cs-fermee"><span><b>La caisse est fermée.</b> Ouvre-la sur cet appareil avec le fond de caisse (les espèces déjà dans le tiroir) : elle encaisse ensuite ici, et seulement ici, jusqu'à sa fermeture. ${info('cs.session')}</span>
-        <span class="lock-go"><label class="field">Fond de caisse (${h(caisseEtat.devise === 'TND' ? 'DT' : caisseEtat.devise)})<input type="text" inputmode="decimal" class="num" id="cs-fond" placeholder="0"></label>
+        <span class="lock-go"><label class="field">Fond de caisse (${h(caisseEtat.devise === 'TND' ? 'DT' : caisseEtat.devise)})<input type="text" inputmode="decimal" class="num" id="cs-fond" placeholder="0" value="${h(fondPropose)}"></label>
         <button class="btn btn-primary" id="cs-ouvrir">Ouvrir la caisse</button></span></div>`;
       $('#cs-ouvrir').onclick = async () => {
         const b = $('#cs-ouvrir'); b.disabled = true;

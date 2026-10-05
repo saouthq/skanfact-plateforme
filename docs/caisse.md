@@ -49,6 +49,11 @@ par **cet appareil seul** jusqu'à sa fermeture : personne ne la rouvre, et aucu
 la fermeture. La caisse (« Caisse 1 ») naît à la première ouverture. Le nom de l'appareil est gardé dans la session :
 les autres membres ne lisent pas les appareils d'une personne.
 
+**S1 bis. Le fond proposé** (05/10/2026, vu sur le serveur d'essai : la caisse créée avec 50 DT s'ouvrait à 0, et le Z
+du soir aurait annoncé 50 DT de trop). Le champ du fond de caisse propose ce que le tiroir contient déjà : le solde du
+compte de caisse ce jour-là, par la même fonction que la Trésorerie et le bilan du jour (fond de départ, jours
+précédents, dépôts en banque compris). La caissière recompte et corrige si le tiroir dit autre chose.
+
 **S2. Caisse fermée, rien ne s'encaisse** : le refus dit pourquoi et porte le geste qui débloque. À l'écran, un bandeau
 en haut de la page Caisse dit l'état (fermée : le fond et « Ouvrir la caisse » ; ouverte ici : qui, depuis quand, le
 fond, « Fermer la caisse (Z)… » ; ouverte ailleurs : lequel, par qui), et « Encaisser » s'éteint avec la même phrase
