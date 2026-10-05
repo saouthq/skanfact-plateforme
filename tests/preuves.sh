@@ -7157,6 +7157,9 @@ prouver "une clé sans geste d'émission qui prend la série" base/migrations/00
 
 # Brique 132 : le retour d'une commande en ligne (un avoir, et l'argent rendu).
 BR="un retour est un avoir de la facture, l'argent rendu un règlement négatif, une seule fois, jamais plus que la commande"
+prouver "l'objet d'un avoir de retour montre l'identifiant brut du partenaire" serveur/v10/textes.ts \
+  "'boutique.objet_retour': 'Retour de la commande {reference}'," "'boutique.objet_retour': 'Retour de la commande {reference} ({retour})'," \
+  "$BR"
 prouver "un retour renvoyé qui fait un second avoir" serveur/v10/boutique.ts \
   "      if (await resultatDuRetour(tx, ent, reference, corps.id, true)) {" "      if (false) {" \
   "$BR"

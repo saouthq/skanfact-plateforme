@@ -281,7 +281,7 @@ export function routesBoutique(): Route<never>[] {
         id: cle, type: 'avoir', number: '', status: 'brouillon', date: corps.date, dueDate: corps.date, clientId: doc.clientId, creditOf: cleDeCommande(reference),
         // Le numéro de la facture et le motif, là où l'écran et le document les lisent.
         creditOfNumber: facture.numero_texte, creditReason: corps.motif ?? '',
-        subject: rendre(t('boutique.objet_retour', { retour: corps.id, reference }), 'fr'), reference, lines: lignes, discountRate: 0, applyStamp: corps.timbre,
+        subject: rendre(t('boutique.objet_retour', { reference }), 'fr'), reference, lines: lignes, discountRate: 0, applyStamp: corps.timbre,
         withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [],
         boutique: { reference, retour: corps.id }, createdAt: Date.now(),
       };

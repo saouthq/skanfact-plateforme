@@ -114,7 +114,7 @@ declarerTextes({
   'boutique.note_paiement': 'Boutique en ligne',
   'boutique.ligne_arrondi': 'Arrondi',
   'boutique.note_remboursement': 'Remboursement d\'un retour de la boutique en ligne',
-  'boutique.objet_retour': 'Retour de la commande {reference} ({retour})',
+  'boutique.objet_retour': 'Retour de la commande {reference}',
   'boutique.retour_trop': 'ce retour ferait {retour} alors qu\'il ne reste que {possible} de la commande à rendre : rien n\'a été enregistré',
   'boutique.rembourse_trop': 'le client n\'a payé que {possible} de plus que ce qu\'il doit : on ne lui rend pas {montant}. Rien n\'a été enregistré',
   'boutique.retour_lignes': 'une partie de cette commande est déjà rendue : envoie les lignes de ce retour (toute la commande ne se rend plus d\'un coup)',

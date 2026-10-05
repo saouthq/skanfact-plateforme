@@ -81,7 +81,7 @@ describe('le retour d\'une commande en ligne', () => {
     expect(r1.corps.deja).toBeUndefined();
     const doc = (await admin.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'documents' and cle = $2`, [ent, cleDuRetour('SK-2001', 'ret-1')])).rows[0].contenu;
     expect(doc).toMatchObject({ type: 'avoir', status: 'émis', number: 'AVO-2026-001', creditOf: cleDeCommande('SK-2001'), creditOfNumber: 'FAC-2026-001', creditReason: 'Taille',
-      subject: 'Retour de la commande SK-2001 (ret-1)', applyStamp: false,
+      subject: 'Retour de la commande SK-2001', applyStamp: false,
       lines: [{ label: 'Collier argent', itemId: 'art-collier', qty: 1, vatRate: 19 }] });
     // L'argent rendu : un règlement négatif sur la facture (comme la v10), et ses écritures (D client / C banque).
     const facture = (await admin.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'documents' and cle = $2`, [ent, cleDeCommande('SK-2001')])).rows[0].contenu;
