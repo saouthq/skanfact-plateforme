@@ -182,6 +182,27 @@ version qui ne démarre pas revient d'elle-même à celle d'avant (B2) ; jamais 
 tourne, ni une d'avant le suiveur. Toute autre valeur que `aucune` attend GitHub : un serveur aux vraies données
 l'attendra toujours.
 
+## F. L'accès de Claude au serveur (demandé par Skander le 05/10/2026)
+
+« Je voulais te donner l'accès au serveur, comme ça c'est plus rapide ; je ne veux pas attendre ! » La session de Claude
+ne sort que par le web : SSH est impossible depuis elle, même avec un mot de passe (essayé le 05/10/2026 : le relais de
+la session ne laisse passer que https). L'accès passe donc par le web :
+
+- **Le service `skanfact-acces`** (`exploitation/acces.ts`, en root, sur 127.0.0.1:8081 ; le frontal lui passe
+  `https://app.skanfact.tn/acces/…`) exécute une commande et rend sa sortie, ses erreurs et son code.
+- **Seulement signée** par une clé déclarée dans `exploitation/acces-cles.json` (des clés **publiques** : rien de
+  secret). La clé privée ne vit que dans la session de Claude (`~/.skanfact-acces/`, hors de tout dépôt). Une demande
+  vaut deux minutes autour de son heure et porte un nombre tiré au hasard, jamais accepté deux fois : recopiée, elle ne
+  sert plus. Une clé se retire en la marquant `retiree` dans le dépôt (le service relit la liste à chaque demande) ; une
+  session nouvelle se donne une clé nouvelle de la même façon.
+- **Tout se trace** : chaque commande acceptée s'écrit dans `/var/lib/skanfact/acces.log` (l'heure, la clé, la
+  commande, son code).
+- Côté Claude : `scripts/serveur.sh 'commande'` (signe, envoie, affiche).
+- Posé par la tâche d'entretien 0004 (et par l'installation, pour un serveur neuf).
+
+Code : `exploitation/acces.ts`, `exploitation/acces-cles.json`, `scripts/serveur.ts`. Test :
+`tests/exploitation/acces.test.ts` (8 preuves).
+
 ## Reste à faire avant les testeurs
 
 - ~~Une fiche pour les testeurs~~ : `docs/testeurs.md` (05/10/2026).

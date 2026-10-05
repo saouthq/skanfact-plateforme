@@ -7835,6 +7835,35 @@ prouver "la production qui n'attend plus GitHub" exploitation/suivre.ts \
   "  if (verification === 'aucune') return async () => 'vert';" "  if (verification !== 'github') return async () => 'vert';" \
   "$SV4"
 
+# ── L'accès de Claude au serveur (exploitation/acces.ts ; docs/mise-en-ligne.md, F ; demandé par Skander le 05/10/2026) ──
+AC1="acceptée seulement bien signée, par une clé déclarée et non retirée, à l'heure, et jamais vue ; refusée sinon, avec sa raison"
+AC2="la commande signée s'exécute et rend sa sortie, ses erreurs et son code, puis s'écrit au journal ; recopiée ou sans signature, elle est refusée sans s'exécuter"
+AC3="une commande trop longue est arrêtée à son délai ; la santé du service se lit sans clé"
+prouver "une commande exécutée sans vérifier sa signature" exploitation/acces.ts \
+  "  if (!bonne) return { ok: false, statut: 401, raison: 'signature fausse' };" "" \
+  "$AC1"
+prouver "une clé retirée qui ouvre encore le serveur" exploitation/acces.ts \
+  "c.id === d.cle && !c.retiree" "c.id === d.cle" \
+  "$AC1"
+prouver "une demande vieille ou datée du futur acceptée" exploitation/acces.ts \
+  "  if (!Number.isFinite(t) || Math.abs(maintenant - t) > FENETRE_MS) return" "  if (!Number.isFinite(t)) return" \
+  "$AC1"
+prouver "une demande recopiée acceptée" exploitation/acces.ts \
+  "  if (dejaVus.has(d.nonce)) return { ok: false, statut: 409, raison: 'demande déjà reçue' };" "" \
+  "$AC1"
+prouver "un nombre trop court pour être tiré au hasard accepté" exploitation/acces.ts \
+  " || d.nonce.length < 16) {" ") {" \
+  "$AC1"
+prouver "le service qui oublie les demandes déjà reçues" exploitation/acces.ts \
+  "      vus.set(v.demande.nonce, t + 2 * FENETRE_MS);" "" \
+  "$AC2"
+prouver "les commandes de Claude absentes du journal du serveur" exploitation/acces.ts \
+  "        if (r.journal) {" "        if (false && r.journal) {" \
+  "$AC2"
+prouver "une commande qui ne s'arrête jamais" exploitation/acces.ts \
+  "setTimeout(() => { depasse = true; p.kill('SIGKILL'); }, delai * 1000);" "setTimeout(() => undefined, delai * 1000);" \
+  "$AC3"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

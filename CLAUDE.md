@@ -378,7 +378,10 @@
   France (données inventées seulement), à `app.skanfact.tn`. **Personne ne s'y connecte** : il suit `main` tout seul
   (`exploitation/suivre.ts`, toutes les deux minutes) et installe la plus récente version que GitHub a vérifiée en
   vert ; un réglage du serveur passe par une tâche d'entretien (`exploitation/taches/NNNN-nom.sh`, une fois chacune).
-  Son état se lit à `https://app.skanfact.tn/etat.json`. Donc **un `main` rouge n'arrive jamais sur le serveur**, et
+  Son état se lit à `https://app.skanfact.tn/etat.json`. **Claude a la main dessus** (Skander, 05/10/2026) :
+  `scripts/serveur.sh 'commande'` l'exécute en root sur le serveur, signée par la clé de la session
+  (`~/.skanfact-acces/`, hors dépôt ; une session neuve se donne une clé neuve, déclarée dans
+  `exploitation/acces-cles.json`, l'ancienne marquée `retiree`) ; `docs/mise-en-ligne.md`, F. Donc **un `main` rouge n'arrive jamais sur le serveur**, et
   les migrations poussées s'appliquent à sa base. Les routes sans session sont limitées par adresse
   (`LIMITES_PAR_ADRESSE`) ; derrière le frontal, `SKANFACT_PROXY=1`.
 - **Ouvert** : les gestes « À reprendre » encore ouverts sont comptés dans l'export mais pas
