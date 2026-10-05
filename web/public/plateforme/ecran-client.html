@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Écran du client — SkanFact</title>
+  <!-- L'écran tourné vers le client (la caisse tactile, 05/10/2026 ; docs/caisse.md) : une seconde fenêtre du poste de la
+       caisse, glissée sur l'écran du client, en plein écran. Elle montre le ticket en cours, ce qu'il paie et sa monnaie,
+       tels que la caisse les lui dit (plateforme/ecran-client.js) ; elle ne lit rien au serveur. -->
+  <style>
+    :root { color-scheme: dark; }
+    html, body { margin: 0; height: 100%; }
+    body { background: #0e1726; color: #ffffff; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-variant-numeric: tabular-nums;
+      display: flex; flex-direction: column; overflow: hidden; }
+    header { flex: 0 0 auto; min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 32px; border-bottom: 1px solid #22304a; }
+    header b { font-size: 26px; font-weight: 750; }
+    header span { font-size: 16px; color: #aab4c3; }
+    main { flex: 1 1 auto; min-height: 0; display: flex; }
+    .lignes { flex: 1 1 auto; min-width: 0; padding: 16px 32px; display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; overflow: hidden; }
+    .ligne { display: flex; align-items: baseline; gap: 16px; padding: 12px 0; border-bottom: 1px solid #1c2840; font-size: 24px; }
+    .ligne:last-child { border-bottom: 0; }
+    .ligne .q { width: 72px; flex-shrink: 0; font-weight: 700; color: #5fd3c4; }
+    .ligne .n { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+    .ligne .t { font-weight: 700; white-space: nowrap; }
+    .ligne.remise { color: #aab4c3; font-size: 20px; }
+    .total { width: 38%; max-width: 440px; flex-shrink: 0; box-sizing: border-box; padding: 32px; background: #0b7a6f; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+    .total span { font-size: 22px; font-weight: 600; }
+    .total b { font-size: clamp(32px, 6vw, 84px); font-weight: 800; letter-spacing: -2px; line-height: 1.05; white-space: nowrap; }
+    .total small { font-size: 18px; color: #e9f7f5; }
+    .centre { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 14px; padding: 24px; }
+    .centre .grand { font-size: clamp(32px, 5vw, 48px); font-weight: 800; letter-spacing: -.5px; }
+    .centre .moyen { font-size: 22px; color: #aab4c3; }
+    .centre .montant { font-size: clamp(56px, 10vw, 110px); font-weight: 800; letter-spacing: -3px; line-height: 1; }
+    .ok { width: 72px; height: 72px; flex-shrink: 0; border-radius: 50%; background: #0b7a6f; display: grid; place-items: center; }
+    footer { flex: 0 0 auto; min-height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 32px; border-top: 1px solid #22304a;
+      font-size: 16px; color: #aab4c3; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <header><b id="ec-societe">SkanFact</b><span id="ec-etat"></span></header>
+  <main id="ec-corps"></main>
+  <footer><span>Prix toutes taxes comprises</span><span id="ec-pied"></span></footer>
+  <script src="ecran-client.js"></script>
+</body>
+</html>

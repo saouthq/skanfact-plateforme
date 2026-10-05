@@ -60,7 +60,8 @@ describe('changer de caissier, à l\'écran', () => {
     await plusTard(p);
     await expect.poll(() => p.locator('#nav a[data-route="caisse"]').count(), { timeout: 10_000 }).toBe(1);
     await p.locator('#nav a[data-route="caisse"]').click();
-    await expect.poll(() => p.locator('#cs-articles .cs-art').count(), { timeout: 20_000 }).toBe(2);
+    // L'état de la caisse, lu au serveur, se dit dans la barre du haut.
+    await expect.poll(() => p.locator('#cs-puce, #cs-ouverte').count(), { timeout: 20_000 }).toBe(1);
   };
 
   it('Leila pose son code, puis prend la caisse de Sami ; ses tickets portent son nom', async () => {
@@ -88,9 +89,11 @@ describe('changer de caissier, à l\'écran', () => {
     const sami = await caissier('Sami', 'Caisse du comptoir');
     const leila = await caissier('Leila', 'Téléphone de Leila');
 
-    // Leila, sur son téléphone : « Mon code de caisse… ». Deux codes différents, puis un code trop simple, puis le sien.
+    // Leila, sur son téléphone : « Mon code de caisse… », dans le menu de la caisse. Deux codes différents, puis un code
+    // trop simple, puis le sien.
     const telephone = await ouvrir(leila, ent);
     const t = telephone.p;
+    await t.locator('#cs-menu-bouton').click();
     await t.locator('#cs-mon-code').click();
     const refusCode = async () => net(await t.locator('#modal-root #cs-code-refus').innerText());
     await t.locator('#modal-root #cs-nouveau').fill('4827');
@@ -107,7 +110,7 @@ describe('changer de caissier, à l\'écran', () => {
     await t.locator('#modal-root #cs-code-ok').click();
     await expect.poll(async () => net(await t.locator('#toast').innerText().catch(() => '')), { timeout: 10_000 }).toBe('Ton code de caisse est enregistré.');
     // Son téléphone ne tient pas la caisse : il ne change pas de caissier.
-    expect(await t.locator('#cs-relais').count()).toBe(0);
+    expect(await t.locator('#cs-relais, #cs-relais-menu').count()).toBe(0);
     await telephone.cx.close();
     expect(telephone.erreurs).toEqual([]);
 
@@ -117,13 +120,18 @@ describe('changer de caissier, à l\'écran', () => {
     await expect.poll(async () => net(await p.locator('#cs-fermee').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^La caisse est fermée\./);
     await p.locator('#cs-fond').fill('30');
     await p.locator('#cs-ouvrir').click();
-    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Caisse ouverte par Sami .*À la caisse : Sami\./);
+    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Ouverte par Sami /);
+    const auPoste = async (page: Page) => net(await page.locator('#cs-moi').innerText().catch(() => ''));
+    expect(await auPoste(p)).toBe('Sami');
     await p.locator('#cs-articles .cs-art', { hasText: 'Huile d\'olive' }).click();
     await p.locator('#cs-encaisser').click();
+    await p.locator('#cs-valider').click();
     const toast = async () => net(await p.locator('#toast').innerText().catch(() => ''));
     await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-001 encaissé`);
+    await p.locator('#cs-nouvelle').click();
 
-    // La relève : « Changer de caissier… ». Leila est la seule autre à avoir posé son code ; un code faux la laisse à Sami.
+    // La relève : son nom, en haut (« Changer de caissier »). Leila est la seule autre à avoir posé son code ; un code
+    // faux la laisse à Sami.
     await p.locator('#cs-relais').click();
     await expect.poll(async () => net(await p.locator('#modal-root #cs-caissiers').innerText().catch(() => '')), { timeout: 10_000 }).toBe('Leila');
     expect(await p.locator('#modal-root input[name="cs-caissier"]:checked').count()).toBe(1);
@@ -134,19 +142,21 @@ describe('changer de caissier, à l\'écran', () => {
     // Le bon code : la page se relit au nom de Leila ; la caisse reste ouverte, ouverte par Sami.
     await p.locator('#modal-root #cs-code').fill('4827');
     await p.locator('#modal-root #cs-code').press('Enter');
-    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 20_000 }).toMatch(/^Caisse ouverte par Sami .*À la caisse : Leila\./);
+    await expect.poll(() => auPoste(p), { timeout: 20_000 }).toBe('Leila');
+    expect(net(await p.locator('#cs-ouverte').innerText())).toMatch(/^Ouverte par Sami /);
     await plusTard(p);
     // Le jeton de Sami ne sert plus.
     expect((await api('GET', `/entreprises/${ent}/caisse`, sami)).statut).toBe(401);
     // La caisse rouverte dans un nouvel onglet (comme le lendemain matin) : toujours Leila, jamais la page de connexion.
     const rouverte = await comptoir.cx.newPage();
     await allerALaCaisse(rouverte, ent);
-    await expect.poll(async () => net(await rouverte.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 20_000 }).toMatch(/À la caisse : Leila\./);
+    await expect.poll(() => auPoste(rouverte), { timeout: 20_000 }).toBe('Leila');
     await rouverte.close();
 
     // Leila vend un lait : le ticket suivant de la même caisse, à son nom ; elle ne voit pas l'huile de Sami.
     await p.locator('#cs-articles .cs-art', { hasText: 'Lait demi-écrémé' }).click();
     await p.locator('#cs-encaisser').click();
+    await p.locator('#cs-valider').click();
     await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-002 encaissé`);
     await plusTard(p);
     await p.locator('#cs-tabs [data-tab=tickets]').click();

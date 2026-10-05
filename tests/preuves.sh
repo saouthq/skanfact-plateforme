@@ -44,8 +44,10 @@ PYF
   # Sans dist/ : les photos des tests d'écran (18 Mo), qu'aucun test ne lit.
   (cd "$ICI" && tar --exclude=node_modules --exclude=.git --exclude=./dist -cf - .) | (cd "$copie" && tar -xf -)
   ln -s "$ICI/node_modules" "$copie/node_modules"
-  # Plusieurs retouches à la fois : fichiers, avants et après séparés par « ||| ».
-  python3 - "$copie" "$fichier" "$avant" "$apres" <<'EOF'
+  # Plusieurs retouches à la fois : fichiers, avants et après séparés par « ||| ». Un défaut qui ne se pose pas (son
+  # motif absent de la copie) ne prouve rien : la preuve échoue, sans jouer le test (vu le 05/10/2026 : une copie prise
+  # pendant une reconstruction des écrans, le test tombé pour une autre raison, compté « prouvée »).
+  if ! python3 - "$copie" "$fichier" "$avant" "$apres" <<'EOF'
 import sys
 racine, fichiers, avants, apres = sys.argv[1:5]
 fichiers, avants, apres = fichiers.split('|||'), avants.split('|||'), apres.split('|||')
@@ -56,6 +58,11 @@ for f, a, b in zip(fichiers, avants, apres):
     assert s.count(a) == 1, f"motif introuvable ou multiple dans {p} : {a!r}"
     open(p, 'w', encoding='utf-8').write(s.replace(a, b))
 EOF
+  then
+    echo "NON PROUVÉE   $nom → le défaut ne se pose pas dans la copie"; ko=$((ko+1))
+    if [ -n "${GITHUB_ACTIONS:-}" ]; then m="$nom → le défaut ne se pose pas"; echo "::error title=Preuve non prouvée::${m//%/%25}"; fi
+    rm -rf "$copie"; return 0
+  fi
   # Seuls les fichiers qui contiennent le titre visé sont rejoués (ses apostrophes y sont échappées) :
   # TOUS ceux qui le contiennent, car deux fichiers peuvent porter la même phrase (ne rejouer que le
   # premier a laissé verts des défauts que l'autre attrapait) ; s'il n'est trouvé nulle part, toute
@@ -1291,7 +1298,7 @@ prouver "un paiement trop précis découvert seulement à l'enregistrement" $V10
 " \
   "$PX"
 prouver "la caisse qui vend sans le serveur" $V10A \
-  "        if (bridge.encaisser) {" "        if (false) {" \
+  "      if (bridge.encaisser) {" "      if (false) {" \
   "la caisse est en ligne"
 
 # ── Les achats tenus par le serveur (0013, brique 30) ───────────────────────────────────────────
@@ -6014,10 +6021,6 @@ prouver "un achat né sans sa devise, compté au poste suivant comme un changeme
   "$J2B"
 
 # ── Brique 109 : la tablette au doigt, et les pages pensées pour un ordinateur qui le disent (web/v10/petit-ecran.txt) ──
-prouver "le mode de paiement de la caisse trop petit pour un doigt" web/public/plateforme/telephone.css \
-  "  .cs-mode { min-height: 44px; }
-" "" \
-  "$TEL"
 prouver "la taille du doigt réservée aux écrans étroits : la caisse sur tablette se mène à la souris" web/public/plateforme/telephone.css \
   "@media (max-width: 760px), (pointer: coarse) {" "@media (max-width: 760px) {" \
   "$TEL"
@@ -6195,13 +6198,13 @@ prouver "un passant vendu sans le client du comptoir" serveur/v10/dossier.ts \
   "  const comptoir = (ticket || retour) && !doc.clientId;" "  const comptoir = retour && !doc.clientId;" \
   "$TK"
 prouver "la caisse qui refuse encore d'encaisser en ligne" web/public/v10/app.js \
-  "        if (bridge.encaisser) {" "        if (bridge.emettre) { toast('La caisse n\\'est pas encore dans la version en ligne de SkanFact : rien n\\'a été vendu.', true); return; }
-        if (bridge.encaisser) {" \
+  "      if (bridge.encaisser) {" "      if (bridge.emettre) { toast('La caisse n\\'est pas encore dans la version en ligne de SkanFact : rien n\\'a été vendu.', true); return; }
+      if (bridge.encaisser) {" \
   "$TKW"
 prouver "le numéro du poste gardé au lieu de celui du serveur" web/public/v10/app.js \
-  "          bridge.encaisser(t, C.computeTotals(t, company()).netToPay, code ? { responsable: code } : undefined).then(e => {
-            data.documents.push(e);" "          bridge.encaisser(t, C.computeTotals(t, company()).netToPay, code ? { responsable: code } : undefined).then(e => {
-            e.number = 'TIC-0000-999'; data.documents.push(e);" \
+  "        bridge.encaisser(t, C.computeTotals(t, company()).netToPay, code ? { responsable: code } : undefined).then(e => {
+          data.documents.push(e);" "        bridge.encaisser(t, C.computeTotals(t, company()).netToPay, code ? { responsable: code } : undefined).then(e => {
+          e.number = 'TIC-0000-999'; data.documents.push(e);" \
   "$TKW"
 
 # ── Brique 116 : la session de caisse, son appareil et son Z (docs/caisse.md) ──
@@ -6237,8 +6240,10 @@ prouver "une caisse fermée par un caissier sur un autre appareil" serveur/caiss
 prouver "un fond tapé avec une virgule illisible" serveur/caisse/routes.ts \
   "  const v = valeur.replace(/\\s/g, '').replace(',', '.');" "  const v = valeur.replace(/\\s/g, '');" \
   "$CS"
+# (La caisse tactile, 05/10/2026) Fermée, l'écran de vente laisse la place à la carte « La caisse est fermée » : rien ne
+# s'y vend, elle s'ouvre d'abord.
 prouver "la caisse fermée qui laisse encaisser à l'écran" web/public/v10/app.js \
-  "        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.mode === 'especes' ? s.recu : '', remise: s.remise });" "        const motif = C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.mode === 'especes' ? s.recu : '', remise: s.remise });" \
+  "      if (caisseEtat && (!ss || !ss.ici)) { s.ecran = 'vente'; return drawFermee(); }" "      if (false) { s.ecran = 'vente'; return drawFermee(); }" \
   "$CSW"
 prouver "la page Caisse muette sur sa session" web/public/v10/app.js \
   "    if (bridge.caisse) dessinerSession();" "" \
@@ -6636,7 +6641,7 @@ prouver "le ticket qui part sans sa remise" web/public/v10/core.js \
   "discountRate: tauxRemise(o.remise) || 0," "discountRate: 0," \
   "$CMW"
 prouver "« Encaisser » qui ne demande pas le code avant le geste" web/public/v10/app.js \
-  "          if (remise > plafond && !responsable && !b.dataset.code) {" "          if (false) {" \
+  "        if (remise > plafond && !responsable && !b.dataset.code) {" "        if (false) {" \
   "$CMW"
 prouver "le code du responsable qui ne part pas avec le ticket" web/public/plateforme/pont.js \
   "...(fait ? { poste: fait.poste } : {}), ...(responsable ? { responsable } : {}) });" "...(fait ? { poste: fait.poste } : {}) });" \
@@ -6652,9 +6657,6 @@ prouver "le ticket imprimé qui ne dit pas sa remise" web/public/v10/core.js \
   "$CMW"
 prouver "la ligne de remise qui pousse « Encaisser » en apparaissant" web/public/v10/app.js \
   "' style=\"visibility:hidden\" aria-hidden=\"true\"'" "' style=\"display:none\"'" \
-  "$CMW"
-prouver "le champ de la remise collé à celui du reçu" web/public/v10/app.js \
-  '<label class="field cs-remise" style="margin-top:10px">' '<label class="field cs-remise">' \
   "$CMW"
 prouver "« Approuver » qu'on clique sans aucun responsable" web/public/v10/app.js \
   "\$('#rs-ok', root).disabled = !n;" "\$('#rs-ok', root).disabled = false;" \
@@ -7520,7 +7522,7 @@ prouver "le tiroir s'ouvre pour un ticket payé par carte" web/public/v10/app.js
   "company().caisseLargeur, !!(e.caisse && e.caisse.mode === 'especes')))" "company().caisseLargeur, true))" \
   "$TB"
 prouver "le ticket encaissé ne sort pas tout seul" web/public/v10/app.js \
-  "            if (bridge.ticketEncaisse) {" "            if (bridge.ticketEncaisse && false) {" \
+  "          if (bridge.ticketEncaisse) {" "          if (bridge.ticketEncaisse && false) {" \
   "$TB"
 prouver "réimprimer un ticket ouvre le tiroir" web/public/plateforme/pont.js \
   "const r = await bureau.imprimerTicket(html, rouleau(largeur), { tiroir: false });" "const r = await bureau.imprimerTicket(html, rouleau(largeur), { tiroir: true });" \
@@ -8049,6 +8051,98 @@ prouver "la TVA nette du Z qui garde celle des retours" serveur/caisse/routes.ts
 prouver "les avoirs du Z dans le désordre" serveur/caisse/routes.ts \
   "where r.session = \$1 order by r.cree_le, a.numero_texte" "where r.session = \$1 order by a.numero_texte desc" \
   "$CT"
+
+# ── La caisse tactile (05/10/2026 ; maquette validée par Skander ; web/v10/caisse-tactile.txt, caisse.css ; docs/caisse.md) ──
+TAC="au comptoir : familles, douchette, article libre, attente, annulation, écran du client, monnaie ; le soir, le comptage billet par billet"
+TACT="au téléphone : le ticket se replie sous les tuiles, et le tiroir se compte par un pavé dans une fenêtre"
+TACZ="un détail qui fait le total se garde dans le Z ; un détail faux est refusé, rien n'est fermé"
+TEL="les pages du quotidien de la v10, sur un téléphone et un ordinateur : aucune ne défile de côté, rien ne sort de l'écran, et au doigt tout se touche"
+TB="Nadia règle l'imprimante de son comptoir, encaisse en espèces (ticket et tiroir) puis par carte (ticket seul)"
+prouver "les familles du Catalogue absentes de la caisse" web/public/v10/app.js \
+  "const familles = [...new Set(articles.map(a => String(a.famille || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));" "const familles = [];" \
+  "$TAC"
+prouver "la douchette qui n'ajoute pas l'article scanné" web/public/v10/app.js \
+  "        if (liste.length === 1) { scanIn.value = ''; s.q = ''; ajouter(liste[0]); drawFamilles(); drawArticles(); }" "        if (false) { scanIn.value = ''; s.q = ''; ajouter(liste[0]); drawFamilles(); drawArticles(); }" \
+  "$TAC"
+prouver "l'article libre au prix arrondi sans un mot" web/public/v10/app.js \
+  "            if (!r.exact) toast(\`Aucun prix HT ne donne exactement" "            if (false) toast(\`Aucun prix HT ne donne exactement" \
+  "$TAC"
+prouver "la vente mise en attente, perdue" web/public/v10/app.js \
+  "        s.attente = (s.attente || []).concat([{ panier: s.panier, remise: s.remise, clientId: s.clientId, le: Date.now() }]);" "        s.attente = s.attente || [];" \
+  "$TAC"
+prouver "la vente reprise qui efface le ticket en cours" web/public/v10/app.js \
+  "            if (s.panier.length) l.push({ panier: s.panier, remise: s.remise, clientId: s.clientId, le: Date.now() });
+" "" \
+  "$TAC"
+prouver "le ticket annulé sans retour en arrière" web/public/v10/app.js \
+  "          toastUndo('Ticket annulé.', () => { Object.assign(s, avant); drawTicket(); drawArticles(); });" "          toast('Ticket annulé.');" \
+  "$TAC"
+prouver "l'écran du client qui, ouvert, ne sait pas ce que la caisse montre" web/public/v10/app.js \
+  "canalClient.onmessage = m => { if (m.data && m.data.demande && pourLeClient) canalClient.postMessage(pourLeClient); };" "canalClient.onmessage = null;" \
+  "$TAC"
+prouver "l'écran du client qui ne suit pas le paiement" web/public/v10/app.js \
+  "      ecranClient('paiement', { recu:" "      ecranClient('vente', { recu:" \
+  "$TAC"
+prouver "un montant tapé après un billet, ajouté au billet" web/public/v10/app.js \
+  "          let v = s.recuNeuf ? '' : s.recu || '';" "          let v = s.recu || '';" \
+  "$TAC"
+prouver "la douchette perdue sur l'écran de la monnaie" web/public/v10/app.js \
+  "    if (\$('#cs-rendu-ecran') && \$('#cs-nouvelle')) \$('#cs-nouvelle').click();
+" "" \
+  "$TAC"
+prouver "le comptage du tiroir qui ne part pas au serveur" web/public/plateforme/pont.js \
+  "...(comptage && comptage.length ? { comptage } : {})" "...({})" \
+  "$TAC"
+prouver "le Z à l'écran sans le détail du comptage" web/public/v10/app.js \
+  "        \${(z.comptage || []).map(x => ligne(" "        \${([]).map(x => ligne(" \
+  "$TAC"
+prouver "le Z imprimé sans le détail du comptage" web/public/v10/core.js \
+  "\${(z.comptage || []).map(x => ligne(\`&nbsp;&nbsp;" "\${([]).map(x => ligne(\`&nbsp;&nbsp;" \
+  "$TAC"
+prouver "une coupure comptée que le lecteur d'écran ne dit pas" web/public/v10/app.js \
+  "          b.setAttribute('aria-label', \`\${libelle(i)} : \${n}\`);
+" "" \
+  "$TAC"
+prouver "un détail du comptage faux, accepté" serveur/caisse/routes.ts \
+  "      if (comptage.length && somme !== compte) {" "      if (false) {" \
+  "$TACZ"
+prouver "le détail du comptage oublié par le Z" serveur/caisse/routes.ts \
+  "        ...(comptage.length ? { comptage: comptage.map((c) => ({ valeur: texte(c.valeur), nombre: c.nombre, total: texte(c.total) })) } : {}),
+" "" \
+  "$TACZ"
+prouver "le refus du comptage qui écrit les montants à l'anglaise" serveur/caisse/routes.ts \
+  "somme: versTexte(somme, decimales).replace('.', ',')" "somme: versTexte(somme, decimales)" \
+  "$TACZ"
+prouver "le comptage au téléphone sans pavé à portée" web/public/v10/app.js \
+  "        if (!window.matchMedia('(max-width: 920px)').matches) return;" "        return;" \
+  "$TACT"
+prouver "le nombre de billets qui accepte une virgule" web/public/v10/app.js \
+  "PAVE.map(k => (o.entier && k === ',' ? '<span aria-hidden=\"true\"></span>' : touche(k)))" "PAVE.map(touche)" \
+  "$TACT"
+prouver "le ticket replié du téléphone qui garde ses boutons" web/public/plateforme/caisse.css \
+  ".ct-ticket:not(.ouvert) .ct-pas, " "" \
+  "$TACT"
+prouver "les lignes repliées sans leur quantité" web/public/plateforme/caisse.css \
+  "  .ct-ticket:not(.ouvert) .ct-q { display: inline; }
+" "" \
+  "$TACT"
+prouver "la barre du comptage sur trois lignes au téléphone" web/public/plateforme/caisse.css \
+  "  .ct-tete:has(#cs-revenir-vente) .ct-nom { display: none; }
+" "" \
+  "$TACT"
+prouver "le mode de paiement de la caisse trop petit pour un doigt" web/public/plateforme/caisse.css \
+  ".ct-corps .ct-mode { height: 64px; min-height: 64px;" ".ct-corps .ct-mode { height: 30px; min-height: 0;" \
+  "$TACT"
+prouver "le « + » de l'article libre trop étroit pour un doigt au téléphone" web/public/plateforme/caisse.css \
+  "min-height: 44px; min-width: 44px; padding: 0 14px;" "min-height: 44px; padding: 0 14px;" \
+  "$TEL"
+prouver "la barre de la caisse sous le bandeau du poste" web/public/plateforme/caisse.css \
+  "height: calc(100vh - var(--poste-bandeau-h, 0px)); margin-top: var(--poste-bandeau-h, 0px);" "height: 100vh; margin-top: 0;" \
+  "$CHW"
+prouver "la caisse revenue d'une autre page, encore sur la monnaie de la vente d'avant" web/public/v10/app.js \
+  "    if (s.ecran === 'rendu' && !\$('#cs-body')) s.ecran = 'vente';
+" "" \
+  "$TB"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

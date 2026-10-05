@@ -83,7 +83,7 @@ describe('le caissier à l\'écran', () => {
     await expect.poll(() => p.locator('#nav a[data-route="caisse"]').count(), { timeout: 10_000 }).toBe(1);
     expect(await p.locator('#nav a[data-route="factures"]').count()).toBe(0);
     await p.locator('#nav a[data-route="caisse"]').click();
-    await expect.poll(() => p.locator('#cs-articles .cs-art').count(), { timeout: 20_000 }).toBe(2);
+    await expect.poll(() => p.locator('#cs-puce, #cs-ouverte').count(), { timeout: 20_000 }).toBe(1);
     // Il vend : la page ne lui dit pas « Lecture seule ».
     expect(await p.locator('#bandeau-lecture').count()).toBe(0);
     const toast = async () => net(await p.locator('#toast').innerText().catch(() => ''));
@@ -92,9 +92,10 @@ describe('le caissier à l\'écran', () => {
     await expect.poll(async () => net(await p.locator('#cs-fermee').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^La caisse est fermée\./);
     await p.locator('#cs-fond').fill('30');
     await p.locator('#cs-ouvrir').click();
-    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Caisse ouverte par Sami/);
+    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Ouverte par Sami/);
     await p.locator('#cs-articles .cs-art', { hasText: 'Huile d\'olive' }).click();
     await p.locator('#cs-encaisser').click();
+    await p.locator('#cs-valider').click();
     await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-002 encaissé`);
 
     // Ses tickets du jour : le sien, pas celui de Nadia.
@@ -122,9 +123,11 @@ describe('le caissier à l\'écran', () => {
     expect(net(await p.locator('#cs-body').innerText())).not.toContain(`TIC-${annee}-001`);
 
     // Le soir, il ferme : 30 + 14,875 = 44,875 attendus.
+    await p.locator('#cs-menu-bouton').click();
     await p.locator('#cs-fermer').click();
-    await p.locator('#modal-root #cs-compte').fill('44.875');
-    await p.locator('#modal-root #cs-z').click();
+    await p.locator('#cs-tape summary').click();
+    await p.locator('#cs-compte').fill('44.875');
+    await p.locator('#cs-z').click();
     await expect.poll(async () => net(await p.locator('#modal-root #cs-z-table').innerText().catch(() => '')), { timeout: 10_000 }).toContain('Écart 0,000 DT');
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'caissier-2-z.png') });
     // Après le Z, le bilan du jour redit ses chiffres : les mêmes que le Z (le fond de la session, pas le solde du compte).

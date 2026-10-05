@@ -47,7 +47,8 @@ describe('le retour à la caisse, à l\'écran', () => {
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/caisse`);
-    await expect.poll(() => p.locator('#cs-articles .cs-art').count(), { timeout: 20_000 }).toBe(1);
+    // L'état de la caisse, lu au serveur, se dit dans la barre du haut.
+    await expect.poll(() => p.locator('#cs-puce, #cs-ouverte').count(), { timeout: 20_000 }).toBe(1);
     await plusTard(p);
     return { cx, p, erreurs };
   };
@@ -71,9 +72,10 @@ describe('le retour à la caisse, à l\'écran', () => {
     const inv = String((await api('POST', `/entreprises/${ent}/invitations`, nadia, { email: emailSami, roles: ['caissier'] })).corps.jeton);
     expect((await api('POST', '/invitations/accepter', sami, { jeton: inv })).statut).toBe(200);
 
-    // Nadia, à son bureau : « Mon code de responsable… ». Un caissier n'a pas ce bouton.
+    // Nadia, à son bureau : « Mon code de responsable… », dans le menu de la caisse. Un caissier n'a pas ce geste.
     const bureau = await ouvrir(nadia, ent);
     const b = bureau.p;
+    await b.locator('#cs-menu-bouton').click();
     await b.locator('#cs-code-responsable').click();
     await b.locator('#modal-root #cs-nouveau').fill('1357');
     await b.locator('#modal-root #cs-nouveau-bis').fill('1357');
@@ -89,9 +91,10 @@ describe('le retour à la caisse, à l\'écran', () => {
     await expect.poll(async () => net(await p.locator('#cs-fermee').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^La caisse est fermée\./);
     await p.locator('#cs-fond').fill('20');
     await p.locator('#cs-ouvrir').click();
-    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Caisse ouverte par Sami/);
+    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Ouverte par Sami/);
     for (let i = 0; i < 3; i++) await p.locator('#cs-articles .cs-art', { hasText: 'Pain de mie' }).click();
     await p.locator('#cs-encaisser').click();
+    await p.locator('#cs-valider').click();
     const toast = async () => net(await p.locator('#toast').innerText().catch(() => ''));
     await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-001 encaissé`);
 
@@ -139,9 +142,11 @@ describe('le retour à la caisse, à l\'écran', () => {
     expect(await lireBande('#cs-bilan-print')).toContain(`Ventes TTC 3,852 DT Retours (AVO-${annee}-001) − 1,284 DT Net du jour 2,568 DT`);
 
     // Le soir, le Z : 20 + 3,852 encaissés − 1,284 rendus = 22,568 dans le tiroir. Il cite le retour et dit le net.
+    await p.locator('#cs-menu-bouton').click();
     await p.locator('#cs-fermer').click();
-    await p.locator('#modal-root #cs-compte').fill('22.568');
-    await p.locator('#modal-root #cs-z').click();
+    await p.locator('#cs-tape summary').click();
+    await p.locator('#cs-compte').fill('22.568');
+    await p.locator('#cs-z').click();
     await expect.poll(async () => net(await p.locator('#modal-root #cs-z-table').innerText().catch(() => '')), { timeout: 10_000 }).toContain('Rendu (espèces) − 1,284 DT');
     expect(net(await p.locator('#modal-root #cs-z-table').innerText())).toContain(`Retours : AVO-${annee}-001 (ticket TIC-${annee}-001) − 1,284 DT Net des ventes 2,568 DT`);
     expect(net(await p.locator('#modal-root #cs-z-table').innerText())).toContain('Écart 0,000 DT');

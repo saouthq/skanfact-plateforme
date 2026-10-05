@@ -2556,6 +2556,9 @@
     fermerAppelGuide();
     appelEnAttente = '';
     surveillerGuideMoi();
+    // (plateforme, 05/10/2026) La caisse tactile prend tout l'écran : la barre de gauche s'efface (caisse.css). Une page
+    // que le rôle ne voit pas garde la barre, pour en sortir.
+    document.body.classList.toggle('mode-caisse', name === 'caisse' && !pageCachee(name));
     let active = name;
     if (name === 'doc') {
       const type = parts[1] === 'new' ? parts[2] : (docById(parts[1]) || {}).type;
@@ -6332,7 +6335,9 @@
       <form id="kf" class="grid-2">
         <label class="field span-2 obligatoire">${lbl('Désignation', 'cat.catalog')}<input type="text" name="label" value="${h(it.label)}"></label>
         <label class="field span-2">${lbl('Description', 'cat.description')}<textarea name="description">${h(it.description || '')}</textarea></label>
-        <label class="field span-2">${lbl('Code-barres ou référence', 'cat.code')}<input type="text" name="code" id="cat-code" value="${h(it.code || '')}" autocomplete="off" spellcheck="false" placeholder="Scanne l'étiquette, ou tape la référence"></label>
+        <label class="field">${lbl('Code-barres ou référence', 'cat.code')}<input type="text" name="code" id="cat-code" value="${h(it.code || '')}" autocomplete="off" spellcheck="false" placeholder="Scanne l'étiquette, ou tape la référence"></label>
+        ${/* (plateforme, 05/10/2026) La famille : les onglets de la caisse tactile ; celles déjà données sont proposées. */''}
+        <label class="field">${lbl('Famille', 'cat.famille')}<input type="text" name="famille" id="cat-famille" value="${h(it.famille || '')}" list="cat-familles" autocomplete="off" placeholder="Pain, Boissons, Épicerie…"><datalist id="cat-familles">${[...new Set((data.catalog || []).map(c => String(c.famille || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr')).map(f => `<option value="${h(f)}">`).join('')}</datalist></label>
         ${/* La phrase de marge parle des deux prix : elle vit SOUS eux. Elle tombait entre la TVA et
            l'Unité, qui occupaient chacune une rangée à moitié vide — on la lisait comme une remarque
            sur la TVA (10.12.0, parcours d'une menuiserie). Les prix disent leur unité (9.4.8). */''}
@@ -6510,6 +6515,7 @@
           if (!v.label.trim()) return refus('#kf input[name=label]', 'La désignation est obligatoire : c\'est elle qui s\'écrit sur la ligne du devis.');
           // Un code désigne UN article : deux fiches au même code, et la caisse vendrait l'une pour l'autre.
           v.code = String(v.code || '').trim();
+          v.famille = String(v.famille || '').trim();
           const meme = v.code && data.catalog.find(c => c.id !== it.id && C.normCode(c.code) === C.normCode(v.code));
           if (meme) return refus('#cat-code', `Ce code est déjà celui de « ${meme.label} » : un code désigne un seul article, sinon la caisse vendrait l'un pour l'autre.`);
           // Le prix par quantité (brique 92) : lu, trié ; un palier illisible se refuse en disant lequel.
@@ -12370,12 +12376,49 @@
 
   // (plateforme, brique 116) La session de caisse, telle que le serveur l'a dite la dernière fois.
   let caisseEtat = null;
+  // (05/10/2026) La caisse tactile : l'écran de vente, redessiné quand la session lue au serveur change ce qu'il montre.
+  let caisseRedessiner = null;
+  // L'écran tourné vers le client (plateforme/ecran-client.html) : une seconde fenêtre du poste, sur l'écran du client,
+  // qui montre le ticket en cours, ce qu'il paie et sa monnaie. Elle ne lit rien au serveur : la caisse lui dit ce qu'elle
+  // montre par un canal du navigateur, sur ce poste seulement.
+  let canalClient = null, pourLeClient = null;
+  function ecranClient(etat, extra) {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const s = caisseState, cur = company().currency;
+    const t = C.totauxDuPanier(s.panier, company(), { recu: '', remise: s.remise });
+    pourLeClient = Object.assign({ etat, societe: company().name || '', pied: company().caissePied || '',
+      lignes: s.panier.map((l, i) => ({ nom: l.label, qte: pct(l.qty), total: C.money((t.lines[i] || {}).ttc || 0, cur) })),
+      remise: t.discount ? `− ${C.money(t.remiseTtc, cur)}` : '', total: C.money(t.netToPay, cur) }, extra || {});
+    try {
+      if (!canalClient) {
+        canalClient = new BroadcastChannel(`skanfact-ecran-client:${new URLSearchParams(location.search).get('e') || ''}`);
+        // L'écran du client qui s'ouvre demande ce que la caisse montre.
+        canalClient.onmessage = m => { if (m.data && m.data.demande && pourLeClient) canalClient.postMessage(pourLeClient); };
+      }
+      canalClient.postMessage(pourLeClient);
+    } catch (_) { /* sans canal, pas d'écran du client */ }
+  }
+  function ouvrirEcranClient() {
+    const w = window.open(`../plateforme/ecran-client.html?e=${encodeURIComponent(new URLSearchParams(location.search).get('e') || '')}`, 'skanfact-ecran-client', 'popup,width=1024,height=600');
+    if (!w) toast('Le navigateur a bloqué la fenêtre de l\'écran du client : autorise les fenêtres de SkanFact, puis réessaie.', true);
+    else toast('L\'écran du client est ouvert : glisse sa fenêtre sur l\'écran tourné vers le client, et mets-la en plein écran (F11).');
+  }
+  // La douchette tape comme un clavier : à la caisse, une frappe qui n'arrive dans aucun champ (le doigt vient de toucher
+  // une tuile, ou l'écran montre encore la monnaie de la vente d'avant) va au champ du haut — on scanne sans viser.
+  document.addEventListener('keydown', e => {
+    if (!document.body.classList.contains('mode-caisse') || e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return;
+    const t = e.target;
+    if (t && t.closest && t.closest('input, textarea, select, [contenteditable="true"], .modal-bg')) return;
+    if ($('#modal-root') && $('#modal-root').children.length) return;
+    if ($('#cs-rendu-ecran') && $('#cs-nouvelle')) $('#cs-nouvelle').click();
+    if ($('#cs-scan')) $('#cs-scan').focus();
+  }, true);
   const argentCaisse = v => C.money(Number(v), caisseEtat && caisseEtat.devise !== 'TND' ? caisseEtat.devise : 'DT');
   const heureCaisse = x => new Date(x).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   // Ce qui empêche d'encaisser du côté de la session (la même règle que le serveur) ; vide si rien.
   function motifSession() {
     if (!bridge.caisse || !caisseEtat) return '';
-    if (!caisseEtat.session) return 'La caisse est fermée : ouvre-la en haut de la page, avec ton fond de caisse.';
+    if (!caisseEtat.session) return 'La caisse est fermée : ouvre-la avec ton fond de caisse.';
     if (!caisseEtat.session.ici) return `La caisse est ouverte sur un autre appareil (« ${caisseEtat.session.appareil} ») : une caisse n'est tenue que par un appareil à la fois.`;
     return '';
   }
@@ -12386,50 +12429,27 @@
       if ($('#cs-session')) $('#cs-session').innerHTML = hl
         ? `<div class="banner info lock-banner" id="cs-hors-ligne"><span><b>Sans réseau.</b> Cette caisse encaisse quand même : ses tickets se numérotent sur ce poste (le prochain : ${h(hl.prochain)}), se gardent chiffrés, et partiront au serveur, dans l'ordre, au retour du réseau. ${info('cs.horsLigne')}</span></div>`
         : `<div class="banner warn"><span>${h(plainError(e))}</span></div>`;
+      if ($('#cs-etat')) $('#cs-etat').innerHTML = hl ? '<span class="ct-puce hors-ligne">Sans réseau : la caisse encaisse sur ce poste</span>' : '';
       return;
     }
     const el = $('#cs-session');
     if (!el) return;
     const ss = caisseEtat.session;
-    if (!ss) {
-      // Ce que le tiroir contient déjà, proposé (vu sur le serveur d'essai le 05/10/2026 : la caisse créée avec 50 DT
-      // s'ouvrait à 0, et le Z du soir aurait annoncé 50 DT de trop) : le solde du compte de caisse aujourd'hui, par la
-      // même fonction que la Trésorerie et le bilan du jour. Se recompte et se corrige si le tiroir dit autre chose.
-      const idCaisse = C.comptesDeCaisse(data).especes;
-      const dansLeTiroir = idCaisse ? C.accountBalance(data, company(), idCaisse, C.today()).balance : 0;
-      const fondPropose = dansLeTiroir > 0 ? dansLeTiroir.toFixed(caisseEtat.decimales ?? 3).replace('.', ',') : '';
-      el.innerHTML = `<div class="banner warn lock-banner" id="cs-fermee"><span><b>La caisse est fermée.</b> Ouvre-la sur cet appareil avec le fond de caisse (les espèces déjà dans le tiroir) : elle encaisse ensuite ici, et seulement ici, jusqu'à sa fermeture. ${info('cs.session')}</span>
-        <span class="lock-go"><label class="field">Fond de caisse (${h(caisseEtat.devise === 'TND' ? 'DT' : caisseEtat.devise)})<input type="text" inputmode="decimal" class="num" id="cs-fond" placeholder="0" value="${h(fondPropose)}"></label>
-        <button class="btn btn-primary" id="cs-ouvrir">Ouvrir la caisse</button></span></div>`;
-      $('#cs-ouvrir').onclick = async () => {
-        const b = $('#cs-ouvrir'); b.disabled = true;
-        try {
-          const r = await bridge.ouvrirCaisse($('#cs-fond').value.trim() || '0');
-          toast(`Caisse ouverte, fond de caisse ${argentCaisse(r.fond)}`);
-          vers('#/caisse')();
-        } catch (e) { b.disabled = false; toast(plainError(e), true); $('#cs-fond').focus(); }
-      };
-    } else if (!ss.ici) {
-      el.innerHTML = `<div class="banner warn lock-banner" id="cs-ailleurs"><span><b>La caisse est ouverte sur un autre appareil</b> (« ${h(ss.appareil)} », par ${h(ss.qui)}, depuis le ${h(heureCaisse(ss.ouverteLe))}) : une caisse n'est tenue que par un appareil à la fois. Ferme-la là-bas pour l'ouvrir ici. ${info('cs.session')}</span></div>`;
-    } else {
-      el.innerHTML = `<div class="banner info lock-banner" id="cs-ouverte"><span><b>Caisse ouverte</b> par ${h(ss.qui)} le ${h(heureCaisse(ss.ouverteLe))}, fond de caisse ${h(argentCaisse(ss.fond))}.${caisseEtat.moi ? ` À la caisse : <b id="cs-moi">${h(caisseEtat.moi)}</b>.` : ''} ${info('cs.session')}</span>
-        <span class="lock-go"><button class="btn btn-sm" id="cs-fermer">Fermer la caisse (Z)…</button></span></div>`;
-      $('#cs-fermer').onclick = fermerCaisse;
-    }
-    // (brique 123) Changer de caissier sur le poste de la caisse ; chaque caissier pose son code, d'où qu'il soit.
-    el.insertAdjacentHTML('beforeend', relaisCaisse());
-    if ($('#cs-relais')) $('#cs-relais').onclick = changerDeCaissier;
-    // (Sans l'événement du clic, que la fenêtre lirait comme « responsable ».)
-    if ($('#cs-mon-code')) $('#cs-mon-code').onclick = () => monCodeDeCaisse(false);
-    if ($('#cs-code-responsable')) $('#cs-code-responsable').onclick = () => monCodeDeCaisse(true);
+    // (05/10/2026) L'état de la caisse se lit dans la barre du haut ; fermée ou tenue ailleurs, l'écran de vente le dit en
+    // grand, et l'ouvre.
+    $('#cs-etat').innerHTML = !ss ? '<span class="ct-puce fermee" id="cs-puce">Caisse fermée</span>'
+      : !ss.ici ? `<span class="ct-puce ailleurs" id="cs-puce">Ouverte sur « ${h(ss.appareil)} »</span>`
+      : `<span class="ct-puce ouverte" id="cs-ouverte" title="Fond de caisse : les espèces du tiroir à l'ouverture">Ouverte par ${h(ss.qui)} le ${h(heureCaisse(ss.ouverteLe))} · fond ${h(argentCaisse(ss.fond))}</span>`;
+    el.innerHTML = '';
+    // (brique 123) Qui est au poste, et les gestes de la session (fermer, son code…).
+    gestesCaisse();
     // (brique 120) Les alertes de caisse, pour le propriétaire et l'administrateur : ce que le serveur a constaté sur les
     // tickets d'un poste, sans rien corriger.
     if ((caisseEtat.alertes || []).length) el.insertAdjacentHTML('beforeend', alertesCaisse(caisseEtat.alertes));
     // (brique 122) Le bilan dessiné avant la réponse redit le tiroir selon la session lue.
     if ($('#cs-tiroir') && dernierBilan) $('#cs-tiroir').innerHTML = sousTiroir(dernierBilan.b, dernierBilan.cur);
-    // « Encaisser » suit l'état lu (la page a pu se dessiner avant la réponse).
-    const mm = motifSession();
-    if (mm && $('#cs-motif')) { $('#cs-motif').textContent = mm; $('#cs-encaisser').disabled = true; }
+    // L'écran de vente suit l'état lu (la page a pu se dessiner avant la réponse).
+    if (caisseRedessiner) caisseRedessiner();
   }
   // (brique 122) Le tiroir se compte sans voir ce qu'il devrait contenir (le Z, brique 116) : tant que la session du jour
   // est ouverte, ni la page ni le bilan imprimé ne le disent ; après le Z du jour, la page redit ses chiffres (ceux du
@@ -12463,13 +12483,41 @@
   }
   // (brique 123) Changer de caissier : sur l'appareil de la caisse, le suivant choisit son nom et tape son code de caisse ;
   // la caisse reste ouverte sur ce poste, et les tickets suivants portent son nom. Chaque caissier pose son code lui-même.
-  function relaisCaisse() {
+  // (05/10/2026) Qui est au poste se lit dans la barre du haut (sur le poste de la caisse, toucher son nom passe la main) ;
+  // les gestes plus rares — fermer la caisse, son code, l'écran du client, quitter la caisse — sont dans le menu « ⋯ ».
+  const initialeDe = nom => (String(nom || '').trim()[0] || '?').toUpperCase();
+  function gestesCaisse() {
+    if (!$('#cs-menu')) return;
     const d = bridge.droitsDossier ? bridge.droitsDossier() : {};
-    const boutons = [caisseEtat.posteDeCaisse ? '<button class="btn btn-sm" id="cs-relais">Changer de caissier…</button>' : '',
-      d.caisse && !d.responsable ? '<button class="btn btn-sm" id="cs-mon-code">Mon code de caisse…</button>' : '',
-      d.responsable && bridge.poserCodeResponsable ? '<button class="btn btn-sm" id="cs-code-responsable">Mon code de responsable…</button>' : ''].filter(Boolean);
-    return boutons.length ? `<div class="actions mb" id="cs-relais-actions">${boutons.join('')} ${info('cs.relais')}</div>` : '';
+    const e = caisseEtat || {};
+    const ss = e.session;
+    $('#cs-gestes').innerHTML = e.posteDeCaisse
+      ? `<button type="button" class="ct-bouton ct-caissier" id="cs-relais" aria-label="${h(e.moi || 'Le caissier')} est au poste : changer de caissier"><span class="ct-avatar" aria-hidden="true">${h(initialeDe(e.moi))}</span><span id="cs-moi">${h(e.moi || 'Changer de caissier')}</span><span aria-hidden="true" class="ct-chevron">⌄</span></button>`
+      : e.moi ? `<span class="ct-caissier"><span class="ct-avatar" aria-hidden="true">${h(initialeDe(e.moi))}</span><span id="cs-moi">${h(e.moi)}</span></span>` : '';
+    $('#cs-menu').innerHTML = [
+      ss && ss.ici ? '<button type="button" role="menuitem" id="cs-fermer">Fermer la caisse (Z)…</button>' : '',
+      e.posteDeCaisse ? '<button type="button" role="menuitem" id="cs-relais-menu">Changer de caissier…</button>' : '',
+      d.caisse && !d.responsable ? '<button type="button" role="menuitem" id="cs-mon-code">Mon code de caisse…</button>' : '',
+      d.responsable && bridge.poserCodeResponsable ? '<button type="button" role="menuitem" id="cs-code-responsable">Mon code de responsable…</button>' : '',
+      typeof BroadcastChannel !== 'undefined' ? '<button type="button" role="menuitem" id="cs-ecran-client">Ouvrir l\'écran du client</button>' : '',
+      '<hr>', '<button type="button" role="menuitem" id="cs-quitter">Quitter la caisse</button>'].filter(Boolean).join('');
+    if ($('#cs-fermer')) $('#cs-fermer').onclick = fermerCaisse;
+    if ($('#cs-relais')) $('#cs-relais').onclick = changerDeCaissier;
+    if ($('#cs-relais-menu')) $('#cs-relais-menu').onclick = changerDeCaissier;
+    // (Sans l'événement du clic, que la fenêtre lirait comme « responsable ».)
+    if ($('#cs-mon-code')) $('#cs-mon-code').onclick = () => monCodeDeCaisse(false);
+    if ($('#cs-code-responsable')) $('#cs-code-responsable').onclick = () => monCodeDeCaisse(true);
+    if ($('#cs-ecran-client')) $('#cs-ecran-client').onclick = ouvrirEcranClient;
+    $('#cs-quitter').onclick = () => { location.hash = '#/dashboard'; };
   }
+  function fermerMenuCaisse() {
+    const m = $('#cs-menu');
+    if (!m || m.hidden) return;
+    m.hidden = true;
+    if ($('#cs-menu-bouton')) $('#cs-menu-bouton').setAttribute('aria-expanded', 'false');
+  }
+  // Un clic ailleurs referme le menu de la caisse.
+  document.addEventListener('click', e => { if (!e.target.closest || !e.target.closest('.ct-menu')) fermerMenuCaisse(); });
   async function changerDeCaissier() {
     let liste;
     try { liste = (await bridge.caissiers()).filter(c => !c.moi); } catch (e) { toast(plainError(e), true); return; }
@@ -12523,22 +12571,10 @@
       });
   }
   // Fermer : compter le tiroir sans voir ce qu'il devrait contenir ; le serveur dit l'attendu et l'écart, et fige le Z.
+  // (05/10/2026) Le comptage se fait sur l'écran de la caisse, billet par billet et pièce par pièce, ou le total tapé.
   function fermerCaisse() {
-    modal(`<h2>Fermer la caisse</h2>
-      <p>Compte les espèces du tiroir, fond de caisse compris, et tape le total. SkanFact dit ensuite ce que le tiroir devait contenir et l'écart. Le Z est alors figé : il ne change plus.</p>
-      <label class="field">Espèces comptées (${h(caisseEtat.devise === 'TND' ? 'DT' : caisseEtat.devise)})<input type="text" inputmode="decimal" class="num" id="cs-compte"></label>
-      <p class="small warn-text" role="alert" id="cs-compte-refus"></p>
-      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="cs-z">Fermer et faire le Z</button></div>`,
-      (root, close) => {
-        $('[data-close]', root).onclick = close;
-        $('#cs-z', root).onclick = async () => {
-          const champ = $('#cs-compte', root);
-          if (!champ.value.trim()) { $('#cs-compte-refus', root).textContent = 'Tape le total des espèces comptées (0 si le tiroir est vide).'; champ.focus(); return; }
-          try { const r = await bridge.fermerCaisse(champ.value.trim()); close(); montrerZ(r.z); }
-          catch (e) { $('#cs-compte-refus', root).textContent = plainError(e); champ.focus(); }
-        };
-        $('#cs-compte', root).focus();
-      });
+    caisseState.tab = 'vendre'; caisseState.ecran = 'fermeture';
+    vers('#/caisse')();
   }
   // (plateforme, brique 126) Les Z passés, les plus récents d'abord, 20 par page (« Plus de Z… » lit la suivante).
   async function dessinerLesZ(el, avant, deja) {
@@ -12567,6 +12603,7 @@
         ${Object.entries(z.rendu || {}).map(([k, v]) => ligne(`Rendu (${h((MODES_Z[k] || k).toLowerCase())})`, `− ${h(argentCaisse(v))}`)).join('')}
         ${ligne('Fond de caisse', h(argentCaisse(z.fond)))}${ligne('<b>Le tiroir devait contenir</b>', `<b>${h(argentCaisse(z.attendu))}</b>`)}
         ${ligne('Espèces comptées', h(argentCaisse(z.compte)))}
+        ${(z.comptage || []).map(x => ligne(`<span class="small muted">${x.nombre} × ${Number(x.valeur) >= 1 ? `${Number(x.valeur)} DT` : `${Math.round(Number(x.valeur) * 1000)} millimes`}</span>`, `<span class="small muted">${h(argentCaisse(x.total))}</span>`)).join('')}
         ${ligne('<b>Écart</b>', `<b>${h(argentCaisse(z.ecart))}</b>`, ecart ? 'warn-text' : '')}
       </tbody></table>
       <p class="small ${ecart ? 'warn-text' : 'muted'}">${ecart < 0 ? 'Il manque de l\'argent dans le tiroir.' : ecart > 0 ? 'Il y a plus d\'argent que prévu dans le tiroir.' : 'Le tiroir tombe juste.'} Le Z est figé : il garde ces chiffres.</p>
@@ -12583,53 +12620,160 @@
     const comptes = C.comptesDeCaisse(data);
     const articles = (data.catalog || []).slice().sort((a, b) => String(a.label || '').localeCompare(String(b.label || ''), 'fr'));
     const ttcDe = it => C.computeTotals({ type: 'facture', applyStamp: false, lines: [C.ligneDePanier(it, company())] }, company()).totalTTC;
+    // (05/10/2026) La caisse tactile prend tout l'écran (`body.mode-caisse`, posé par le routeur) : une barre du haut — la
+    // sortie, la caisse, son état, ses deux onglets, qui est au poste, le menu des gestes plus rares — puis l'écran du
+    // moment. L'en-tête reste celui de la page : « Guide-moi » et les bandeaux s'y posent comme ailleurs.
+    const ONGLETS_CAISSE = { vendre: 'Vendre', tickets: 'Tickets du jour' };
+    // Revenir à la caisse depuis une autre page : la monnaie de la dernière vente a été rendue, la vente reprend.
+    if (s.ecran === 'rendu' && !$('#cs-body')) s.ecran = 'vente';
     $('#view').innerHTML = `
-      <div class="page-head"><h1>Caisse</h1>
-        <div class="actions" id="cs-actions"></div></div>
+      <header class="page-head ct-tete">
+        <a class="ct-sortie" href="#/dashboard" aria-label="Quitter la caisse : revenir à SkanFact" title="Quitter la caisse"><span aria-hidden="true">‹</span><span class="ct-marque" aria-hidden="true">SF</span></a>
+        <span class="ct-nom"><h1>Caisse</h1><small>${h(company().name || '')}</small></span>
+        <span class="ct-etat" id="cs-etat"></span>
+        <div class="ct-onglets" id="cs-tabs" role="tablist" aria-label="La caisse">${CAISSE_TABS.map(([id, label]) =>
+          `<button type="button" role="tab" aria-selected="${id === s.tab}" data-tab="${id}" class="${id === s.tab ? 'active' : ''}">${id === 'tickets' ? 'Tickets<span class="ct-long"> du jour</span>' : h(ONGLETS_CAISSE[id] || label)}</button>`).join('')}</div>
+        <span class="ct-espace"></span>
+        <div class="actions ct-gestes" id="cs-actions"></div>
+        <div class="ct-gestes" id="cs-gestes"></div>
+        <div class="ct-menu"><button type="button" class="ct-bouton" id="cs-menu-bouton" aria-haspopup="menu" aria-expanded="false" aria-controls="cs-menu" aria-label="Plus de gestes : fermer la caisse, ton code, l'écran client, quitter">⋯</button>
+          <div class="ct-menu-liste" id="cs-menu" role="menu" hidden></div></div>
+      </header>
       ${bridge.caisse ? '<div id="cs-session"></div>' : ''}
-      ${comptes.especes ? '' : `<div class="banner warn"><span>Aucun compte de caisse : sans lui, les espèces encaissées iraient sur ton compte bancaire, et le soir SkanFact ne saurait pas ce que le tiroir doit contenir.</span>
-        <button class="btn btn-sm btn-primary" id="cs-creer">Créer la caisse</button></div>`}
-      <div class="tabs" id="cs-tabs" role="tablist" aria-label="La caisse">${CAISSE_TABS.map(([id, label]) =>
-        `<button role="tab" data-tab="${id}" class="${id === s.tab ? 'active' : ''}">${label}</button>`).join('')}</div>
-      <div id="cs-body"></div>`;
-    if ($('#cs-creer')) $('#cs-creer').onclick = () => creerCaisse(() => vers('#/caisse')());
+      <div class="ct-corps${s.tab === 'tickets' ? ' ct-defile' : ''}" id="cs-body"></div>`;
+    $('#cs-menu-bouton').onclick = e => {
+      e.stopPropagation();
+      const m = $('#cs-menu');
+      m.hidden = !m.hidden;
+      $('#cs-menu-bouton').setAttribute('aria-expanded', String(!m.hidden));
+      if (!m.hidden && $('button', m)) $('button', m).focus();
+    };
+    $('#cs-menu').addEventListener('click', e => { if (e.target.closest('button')) fermerMenuCaisse(); });
+    $('#cs-menu').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); fermerMenuCaisse(); $('#cs-menu-bouton').focus(); } });
+    gestesCaisse();
     $$('#cs-tabs [data-tab]').forEach(b => { b.onclick = () => { s.tab = b.dataset.tab; vers('#/caisse')(); }; });
     if (bridge.caisse) dessinerSession();
 
-    // ---- Vendre ----
+    // ---- Vendre : la caisse tactile (05/10/2026 ; maquette validée par Skander ; docs/caisse.md, « La caisse tactile ») ----
+    // L'écran du comptoir, au doigt : les articles à gauche (la douchette toujours prête, les familles, les tuiles), le
+    // ticket à droite, « Encaisser » toujours visible ; puis le paiement (le mode, ce que le client donne, la monnaie
+    // calculée pendant la frappe) ; puis la monnaie à rendre, en grand ; le soir, le comptage du tiroir. Le panier survit
+    // à un changement de page, et il ne vit qu'en mémoire : un ticket n'existe qu'une fois encaissé. Caisse fermée (ou
+    // tenue ailleurs) : on l'ouvre d'abord.
+    const ICONES = {
+      scan: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 5v14M6 5v14M10 5v14M13 5v14M17 5v14M21 5v14"/></svg>',
+      client: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+      pause: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>',
+      horloge: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+      ok: '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>',
+      imprimante: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg>',
+    };
+    const PAVE = ['7', '8', '9', '4', '5', '6', '1', '2', '3', ',', '0', '⌫'];
+    const touche = k => `<button type="button" data-touche="${k}" aria-label="${k === '⌫' ? 'Effacer le dernier chiffre' : k === ',' ? 'Virgule' : k === 'suivant' ? 'Coupure suivante' : k}">${k === 'suivant' ? 'Suivant' : k}</button>`;
+    // La couleur d'une tuile suit sa famille (ou son nom) : la même à chaque fois, sans réglage.
+    const teinte = t => { let x = 0; for (const c of String(t || '')) x = (x * 31 + c.charCodeAt(0)) % 360; return x; };
+    const initiales = l => String(l || '').replace(/\(.*?\)/g, ' ').split(/\s+/).filter(w => /[\p{L}\p{N}]/u.test(w)).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '•';
+    const nbArticles = () => C.round3(s.panier.reduce((x, l) => x + (Number(l.qty) || 0), 0));
+    // Un pavé de chiffres dans une fenêtre (une quantité, une remise) : `ok` reçoit le texte tapé (virgule décimale).
+    // `o.entier` : un nombre de pièces, sans virgule (sa place reste vide, le pavé garde sa forme).
+    const pave = (titre, valeur, o, ok) => {
+      modal(`<h2>${h(titre)}</h2>${o.aide ? `<p class="small">${h(o.aide)}</p>` : ''}
+        <div class="ct-fenetre-pave"><input type="text" inputmode="none" class="num ct-affiche" id="pv-valeur" value="${h(String(valeur || '').replace('.', ','))}" autocomplete="off" aria-label="${h(titre)}">
+        <div class="ct-pave">${PAVE.map(k => (o.entier && k === ',' ? '<span aria-hidden="true"></span>' : touche(k))).join('')}</div></div>
+        <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="pv-ok">${h(o.bouton || 'Valider')}</button></div>`,
+      (root, close) => {
+        const champ = $('#pv-valeur', root);
+        // Le premier chiffre touché remplace la valeur proposée ; les suivants s'y ajoutent.
+        let neuf = true;
+        $$('[data-touche]', root).forEach(b => { b.onclick = () => {
+          const k = b.dataset.touche;
+          let v = neuf ? '' : champ.value;
+          if (k === '⌫') v = champ.value.slice(0, -1);
+          else if (k === ',') { if (!v.includes(',')) v = (v || '0') + ','; }
+          else v += k;
+          neuf = false; champ.value = v;
+        }; });
+        champ.oninput = () => { neuf = false; };
+        $('[data-close]', root).onclick = close;
+        $('#pv-ok', root).onclick = () => { close(); ok(champ.value.trim()); };
+        champ.select();
+      }, null, { garde: false });
+    };
+    // Ce que l'écran de vente montre selon la session lue au serveur : fermée, tenue ailleurs, ou la vente.
+    const vueDeSession = () => (caisseEtat && !caisseEtat.session ? 'fermee' : caisseEtat && !caisseEtat.session.ici ? 'ailleurs' : 'vente');
     const drawVendre = () => {
+      if (!s.ecran) s.ecran = 'vente';
+      // Un nouvel écran (paiement, monnaie, comptage) se montre par le haut : sur téléphone, la page défile.
+      if (s.ecran !== s.ecranVu) { s.ecranVu = s.ecran; window.scrollTo(0, 0); }
+      $('#cs-actions').innerHTML = '';
+      $('#cs-body').className = 'ct-corps';
+      s.vueDessinee = vueDeSession();
+      // Sans article, rien ne se vend : le premier se crée ici, la caisse ouverte ou non.
       if (!articles.length) {
-        $('#cs-actions').innerHTML = '';
+        $('#cs-body').className = 'ct-corps ct-defile';
         $('#cs-body').innerHTML = etatVide('Ce que tu vends au comptoir', [
           'La caisse vend les articles de ton <b>Catalogue</b> : chacun avec son prix et, pour la douchette, son <b>code-barres</b>.',
           'Crée ton premier article — il arrive tout de suite dans la caisse.'], [['cs-new-art', '+ Nouvel article', true]]);
         $('#cs-new-art').onclick = () => catalogForm(null, () => vers('#/caisse')(), { titre: 'Nouvel article' });
+        ecranClient('repos');
         return;
       }
-      $('#cs-actions').innerHTML = '';
-      $('#cs-body').innerHTML = `<div class="caisse">
-        <div class="panel">
-          <label class="field cs-scan">${lbl('Scanne un code-barres, ou cherche un article', 'cs.scan')}
-            <input type="text" id="cs-scan" autocomplete="off" spellcheck="false" placeholder="Code-barres, référence ou nom de l'article" value="${h(s.q)}"></label>
-          <div class="cs-articles" id="cs-articles" role="list"></div>
-        </div>
-        <div class="panel cs-droite" id="cs-ticket"></div>
+      const ss = caisseEtat ? caisseEtat.session : undefined;
+      // Fermée, ou tenue sur un autre appareil : rien ne se vend ici ; l'écran le dit, et l'ouvre.
+      if (caisseEtat && (!ss || !ss.ici)) { s.ecran = 'vente'; return drawFermee(); }
+      if (s.ecran === 'fermeture') return drawFermeture();
+      if (s.ecran === 'paiement' && s.panier.length) return drawPaiement();
+      if (s.ecran === 'rendu') return drawRendu();
+      s.ecran = 'vente';
+      $('#cs-body').innerHTML = `<div class="ct-vente">
+        <section class="ct-articles" aria-label="Les articles">
+          <div class="ct-cherche">
+            <label class="ct-scan">${ICONES.scan}<input type="text" id="cs-scan" autocomplete="off" spellcheck="false" placeholder="Scanne un code-barres, ou cherche un article" value="${h(s.q)}" aria-label="Scanne un code-barres, ou cherche un article"><span class="ct-pret">Douchette prête</span></label>
+            <button type="button" class="ct-bouton" id="cs-libre">+ <span>Article libre</span></button>
+          </div>
+          <div class="ct-familles" id="cs-familles" role="tablist" aria-label="Familles d'articles"></div>
+          <div class="cs-articles ct-tuiles" id="cs-articles" role="list"></div>
+        </section>
+        <section class="ct-ticket" id="cs-ticket" aria-label="Le ticket en cours"></section>
       </div>`;
+      // Les familles : celles que le Catalogue donne à ses articles ; « Favoris », les plus vendus en caisse ces 60 derniers
+      // jours (15 au plus) ; « Tout ». Sans famille ni vente, pas d'onglets : la caisse montre tout.
+      const depuis = C.addDays(C.today(), -60);
+      const vendus = {};
+      data.documents.forEach(d => { if (C.estTicket(d) && d.date >= depuis) (d.lines || []).forEach(l => { if (l.itemId) vendus[l.itemId] = (vendus[l.itemId] || 0) + (Number(l.qty) || 0); }); });
+      const favoris = articles.filter(a => vendus[a.id] > 0).sort((a, b) => vendus[b.id] - vendus[a.id]).slice(0, 15);
+      const familles = [...new Set(articles.map(a => String(a.famille || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+      const onglets = [...(favoris.length ? [['fav', 'Favoris']] : []), ['tout', 'Tout'], ...familles.map(f => [`f:${f}`, f])];
+      if (!onglets.some(o => o[0] === s.famille)) s.famille = onglets[0][0];
+      const drawFamilles = () => {
+        $('#cs-familles').innerHTML = onglets.length > 1 ? onglets.map(([k, l]) => `<button type="button" role="tab" data-famille="${h(k)}" aria-selected="${s.famille === k && !s.q.trim()}">${h(l)}</button>`).join('') : '';
+        $$('#cs-familles [data-famille]').forEach(b => { b.onclick = () => { s.famille = b.dataset.famille; s.q = ''; $('#cs-scan').value = ''; drawFamilles(); drawArticles(); }; });
+      };
       const drawArticles = () => {
         const q = s.q.trim();
-        const liste = q ? articles.filter(a => C.correspondRecherche(`${a.label} ${a.code || ''} ${a.description || ''}`, q)) : articles;
+        const liste = q ? articles.filter(a => C.correspondRecherche(`${a.label} ${a.code || ''} ${a.description || ''} ${a.famille || ''}`, q))
+          : s.famille === 'fav' ? favoris : s.famille.startsWith('f:') ? articles.filter(a => String(a.famille || '').trim() === s.famille.slice(2)) : articles;
         const vus = liste.slice(0, 60);
+        const dansPanier = {};
+        s.panier.forEach(l => { if (l.itemId) dansPanier[l.itemId] = C.round3((dansPanier[l.itemId] || 0) + (Number(l.qty) || 0)); });
         $('#cs-articles').innerHTML = vus.length
           ? vus.map(a => {
             const st = a.tracked ? C.stockOf(data, a.id) : null;
-            return `<button type="button" class="cs-art" data-art="${h(a.id)}" role="listitem">
-              <span class="cs-art-nom">${h(a.label)}</span>
-              ${Number(a.unitPrice) > 0 ? `<span class="cs-art-prix">${C.money(ttcDe(a), cur)}</span>` : '<span class="cs-art-prix warn-text">prix à fixer</span>'}
-              ${st ? `<span class="cs-art-stock ${st.qty <= 0 ? 'warn-text' : ''}">${st.qty <= 0 ? 'rupture' : 'en stock : ' + pct(st.qty)}</span>` : ''}
+            const n = dansPanier[a.id] || 0;
+            const prix = Number(a.unitPrice) > 0 ? C.money(ttcDe(a), cur) : '';
+            // Le stock d'une tuile : « Rupture », « Reste 2 » sous le seuil d'alerte de l'article (3 sans seuil), sinon le stock.
+            const bas = st && st.qty > 0 && st.qty <= (Number(a.minStock) || 3);
+            const stock = !st ? '' : st.qty <= 0 ? '<span class="cs-art-stock rupture">Rupture</span>' : `<span class="cs-art-stock${bas ? ' bas' : ''}">${bas ? 'Reste' : 'Stock'} ${pct(st.qty)}</span>`;
+            return `<button type="button" class="cs-art${n ? ' dans' : ''}" data-art="${h(a.id)}" role="listitem" aria-label="${h(a.label)}, ${prix ? h(prix) : 'prix à fixer'}${n ? `, ${pct(n)} dans le ticket` : ''}">
+              <span class="cs-art-tete"><span class="ct-pastille" style="--teinte:${teinte(a.famille || a.label)}" aria-hidden="true">${h(initiales(a.label))}</span><span class="cs-art-nom">${h(a.label)}</span></span>
+              <span class="cs-art-pied">${prix ? `<span class="cs-art-prix">${prix}</span>` : '<span class="cs-art-prix warn-text">prix à fixer</span>'}${stock}</span>
+              ${n ? `<span class="ct-badge" aria-hidden="true">${pct(n)}</span>` : ''}
             </button>`;
           }).join('') + (liste.length > vus.length ? `<p class="small muted cs-plus">${liste.length - vus.length} autres articles : précise la recherche.</p>` : '')
           : `<p class="small muted">Aucun article ne correspond à « ${h(q)} ». <button type="button" class="btn btn-sm" id="cs-creer-art">+ Créer cet article</button></p>`;
-        $$('#cs-articles [data-art]').forEach(b => { b.onclick = () => { ajouter(articles.find(a => a.id === b.dataset.art)); }; });
+        // À la souris, le curseur revient au champ du haut après chaque tuile (la douchette reste prête) ; au doigt, non :
+        // le clavier de l'écran s'ouvrirait. Une frappe de la douchette y arrive quand même (voir `caisseClavier`).
+        $$('#cs-articles [data-art]').forEach(b => { b.onclick = () => { ajouter(articles.find(a => a.id === b.dataset.art)); if (window.matchMedia('(pointer: fine)').matches) scan(); }; });
         if ($('#cs-creer-art')) $('#cs-creer-art').onclick = () => {
           const code = C.normCode(q) && /\d{4,}/.test(q) ? q : '';
           catalogForm(articleNeuf(code ? { code } : { label: q }), it => { if (it) { s.q = ''; ajouter(it); vers('#/caisse')(); } });
@@ -12649,128 +12793,181 @@
         else s.panier.push(C.ligneDePanier(it, company()));
         s.vise = deja ? s.panier.indexOf(deja) : s.panier.length - 1;
         drawTicket();
+        drawArticles();
+      };
+      const changerQte = (i, q) => {
+        if (!s.panier[i]) return;
+        if (!(q > 0)) s.panier.splice(i, 1); else { s.panier[i].qty = C.round3(q); s.vise = i; }
+        drawTicket(); drawArticles();
+      };
+      // Ce qui empêche d'aller au paiement : la session, puis le panier. Sans compte de caisse, la carte et le chèque
+      // restent possibles : le paiement le dit pour les espèces.
+      const motifDuPanier = () => {
+        const m = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: 'especes', recu: '', remise: s.remise });
+        return m && !C.comptesDeCaisse(data).especes && !motifSession() && !C.motifEncaissement(data, company(), s.panier, { mode: 'carte', recu: '', remise: s.remise }) ? '' : m;
       };
       const drawTicket = () => {
-        const t = C.totauxDuPanier(s.panier, company(), { recu: s.mode === 'especes' ? s.recu : '', remise: s.remise });
-        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.mode === 'especes' ? s.recu : '', remise: s.remise });
-        const dernier = s.dernierId ? data.documents.find(d => d.id === s.dernierId) : null;
-        $('#cs-ticket').innerHTML = `<h2>Ticket en cours ${info('cs.ticket')}</h2>
-          <div class="cs-zone" id="cs-zone">${s.panier.length ? `<table class="list compact cs-lignes"><thead><tr><th>Article</th><th class="r" style="width:96px">Qté</th><th class="r">Total TTC</th><th></th></tr></thead><tbody>
-            ${s.panier.map((l, i) => `<tr><td>${h(l.label)}</td>
-              <td class="r"><input type="number" class="num" data-qte="${i}" min="0" step="1" value="${h(String(l.qty))}" aria-label="Quantité : ${h(l.label)}"></td>
-              <td class="r nw">${C.money(t.lines[i] ? t.lines[i].ttc : 0, cur)}</td>
-              <td class="r"><button type="button" class="btn btn-sm btn-ghost" data-ret="${i}" aria-label="Retirer ${h(l.label)}">Retirer</button></td></tr>`).join('')}
-          </tbody></table>` : '<p class="small muted cs-vide">Scanne un article, ou clique-le à gauche : il s\'ajoute ici.</p>'}</div>
-          <div class="cs-totaux">
-            ${bridge.encaisser ? `<div id="cs-ligne-remise"${t.discount ? '' : ' style="visibility:hidden" aria-hidden="true"'}><span>Remise ${h(String(s.remise || '0').replace('.', ','))} %</span><span>− ${C.money(t.remiseTtc, cur)}</span></div>` : ''}
-            <div><span>Total HT</span><span>${C.money(t.netHT, cur)}</span></div>
-            <div><span>TVA</span><span>${C.money(t.totalVAT, cur)}</span></div>
-            ${t.stamp ? `<div><span>Timbre fiscal</span><span>${C.money(t.stamp, cur)}</span></div>` : ''}
-            <div class="cs-total"><span>Total TTC</span><span>${C.money(t.netToPay, cur)}</span></div>
+        const t = C.totauxDuPanier(s.panier, company(), { recu: '', remise: s.remise });
+        const motif = motifDuPanier();
+        const attente = s.attente || [];
+        const client = s.clientId ? clientName(s.clientId) : '';
+        // Au téléphone (caisse.css), le ticket se tient replié en bas de l'écran, sous les tuiles ; « Tout voir » le déplie.
+        $('#cs-ticket').classList.toggle('ouvert', !!s.ticketOuvert);
+        $('#cs-ticket').innerHTML = `<button type="button" class="ct-tirer" id="cs-ticket-tirer" aria-expanded="${!!s.ticketOuvert}"><b>Ticket · ${h(pl(nbArticles(), 'article'))}</b><span>${s.ticketOuvert ? 'Replier' : 'Tout voir'}</span></button>
+          <div class="ct-ticket-tete">
+            <button type="button" class="ct-client" id="cs-client-bouton">${ICONES.client}<span><small>Client</small><b>${h(client || 'Vente au comptoir')}</b></span><span aria-hidden="true" class="ct-chevron">›</span></button>
+            <button type="button" class="ct-bouton carre" id="cs-attente" aria-label="Mettre la vente en attente" ${s.panier.length ? '' : 'disabled'}>${ICONES.pause}</button>
+            ${/* L'horloge garde sa place, vide ou non : en apparaissant, elle aurait poussé « pause » sous le doigt. */''}
+            <button type="button" class="ct-bouton carre ct-horloge" id="cs-reprendre" ${attente.length ? `aria-label="${h(pl(attente.length, 'vente'))} en attente : en reprendre une"` : 'style="visibility:hidden" aria-hidden="true" tabindex="-1"'}>${ICONES.horloge}<span class="ct-nb" aria-hidden="true">${attente.length || 0}</span></button>
           </div>
-          <div class="cs-modes" role="radiogroup" aria-label="Mode de paiement">${C.MODES_CAISSE.map(([k, l]) =>
-            `<button type="button" role="radio" aria-checked="${s.mode === k}" class="cs-mode${s.mode === k ? ' on' : ''}" data-mode="${k}">${l}</button>`).join('')}
-            ${info('cs.mode')}</div>
-          <div class="cs-recu">${s.mode === 'especes' ? `
-            <label class="field">${lbl(`Reçu du client (${h(C.normCurrency(cur))})`, 'cs.recu')}<input type="text" inputmode="decimal" class="num" id="cs-recu" value="${h(s.recu)}" placeholder="facultatif"></label>
-            <div class="cs-rendre"><span class="small muted">À rendre</span><strong id="cs-rendu">${t.rendu != null && t.rendu >= 0 ? C.money(t.rendu, cur) : '—'}</strong></div>`
-            // La place du reçu reste en carte et en chèque (H-E1 : « Encaisser » ne bouge pas), et elle
-            // dit ce qui est vrai de ce mode plutôt que de laisser un trou.
-            : `<p class="small muted cs-sans-recu">${s.mode === 'carte' ? 'Réglé par carte : rien à rendre, l\'argent arrive sur ta banque.' : 'Réglé par chèque : rien à rendre, le chèque se remet ensuite en banque.'}</p>`}
-          </div>
-          ${bridge.encaisser ? `<label class="field cs-remise" style="margin-top:10px">${lbl('Remise (%)', 'cs.remise')}<input type="text" inputmode="decimal" class="num" id="cs-remise" value="${h(s.remise || '')}" placeholder="0"></label>` : ''}
-          <div class="field cs-client">${lbl('Client (facultatif)', 'cs.client')}<div id="cs-cl">${combo({ name: 'csClient', value: s.clientId, items: [], placeholder: 'Vente au comptoir', search: 'Rechercher un client…' })}</div></div>
-          <p class="small muted cs-motif" id="cs-motif">${motif ? h(motif) : ''}${motif === C.MOTIF_SANS_BANQUE ? ' <button type="button" class="btn btn-sm" id="cs-creer-banque">Créer mon compte bancaire</button>' : ''}</p>
-          <div class="cs-go">
-            <button class="btn btn-primary cs-encaisser" id="cs-encaisser" ${motif ? 'disabled' : ''}>Encaisser ${s.panier.length ? C.money(t.netToPay, cur) : ''}</button>
-            <span class="small muted">${clavierLocal('<kbd>⌘</kbd> + <kbd>↵</kbd>')}</span>
-            ${s.panier.length ? '<button type="button" class="btn btn-sm" id="cs-vider">Vider le panier</button>' : ''}
-          </div>
-          ${dernier ? `<div class="cs-dernier small">Dernier ticket : <b>${h(dernier.number)}</b> · ${C.money(C.computeTotals(dernier, company()).netToPay, cur)}${dernier.caisse && dernier.caisse.rendu ? ` · à rendre ${C.money(dernier.caisse.rendu, cur)}` : ''}
-            <button type="button" class="btn btn-sm" id="cs-print-last">Imprimer le ticket</button></div>` : ''}`;
-        bindCombo($('#cs-cl [data-combo]'), { items: [{ v: '', label: 'Vente au comptoir', vide: true }].concat(clientItems()), placeholder: 'Vente au comptoir', onPick: v => { s.clientId = v || ''; } });
-        $$('[data-qte]', $('#cs-ticket')).forEach(inp => {
-          inp.onchange = () => { const i = Number(inp.dataset.qte); const q = Number(inp.value); if (!(q > 0)) s.panier.splice(i, 1); else s.panier[i].qty = q; drawTicket(); };
+          <div class="cs-zone ct-lignes" id="cs-zone">${s.panier.length ? s.panier.map((l, i) => {
+            const tl = t.lines[i] || { ttc: 0 };
+            const unite = Number(l.qty) ? C.round3(tl.ttc / Number(l.qty)) : 0;
+            return `<div class="ct-ligne" data-ligne="${i}">
+              <div class="ct-ligne-nom"><b><span class="ct-q">${pct(l.qty)} × </span>${h(l.label)}</b><small>${C.money(unite, cur)} l'unité</small></div>
+              <div class="ct-pas"><button type="button" data-moins="${i}" aria-label="Un ${h(l.label)} de moins">−</button><button type="button" class="ct-qte" data-qte="${i}" aria-label="Quantité de ${h(l.label)} : ${pct(l.qty)}, à toucher pour la taper">${pct(l.qty)}</button><button type="button" data-plus="${i}" aria-label="Un ${h(l.label)} de plus">+</button></div>
+              <b class="ct-ligne-total">${C.money(tl.ttc, cur)}</b></div>`;
+          }).join('') : `<div class="ct-vide">${ICONES.scan}<b>Le ticket est vide</b><span>Scanne un article, ou touche-le à gauche : il s'ajoute ici.</span></div>`}</div>
+          <div class="ct-ticket-pied">
+            <div class="ct-gestes-ticket">
+              <button type="button" class="ct-bouton" id="cs-remise-bouton" ${s.panier.length ? '' : 'disabled'}>${s.remise ? `Remise ${h(String(s.remise).replace('.', ','))} %` : '% Remise'}</button>
+              <button type="button" class="ct-bouton danger" id="cs-vider" ${s.panier.length ? '' : 'disabled'}>Annuler le ticket</button>
+            </div>
+            <div class="ct-sous" id="cs-ligne-remise"${t.discount ? '' : ' style="visibility:hidden" aria-hidden="true"'}><span>Remise ${h(String(s.remise || '0').replace('.', ','))} %</span><span>− ${C.money(t.remiseTtc, cur)}</span></div>
+            <div class="ct-sous"><span>${h(pl(nbArticles(), 'article'))}</span><span>dont TVA ${C.money(t.totalVAT, cur)}${t.stamp ? ` · timbre ${C.money(t.stamp, cur)}` : ''}</span></div>
+            <div class="ct-total"><span>Total ${info('cs.ticket')}</span><b id="cs-total">${C.money(t.netToPay, cur)}</b></div>
+            <p class="cs-motif" id="cs-motif">${s.panier.length && motif ? h(motif) : ''}</p>
+            <button type="button" class="ct-principal cs-encaisser" id="cs-encaisser" ${motif ? 'disabled' : ''}>Encaisser ${s.panier.length ? C.money(t.netToPay, cur) : ''}</button>
+          </div>`;
+        $('#cs-ticket-tirer').onclick = () => { s.ticketOuvert = !s.ticketOuvert; drawTicket(); };
+        $('#cs-client-bouton').onclick = choisirClient;
+        $('#cs-attente').onclick = mettreEnAttente;
+        if (attente.length) $('#cs-reprendre').onclick = reprendreAttente;
+        $$('[data-moins]', $('#cs-ticket')).forEach(b => { b.onclick = () => { const i = Number(b.dataset.moins); changerQte(i, C.round3((Number(s.panier[i].qty) || 0) - 1)); }; });
+        $$('[data-plus]', $('#cs-ticket')).forEach(b => { b.onclick = () => { const i = Number(b.dataset.plus); changerQte(i, C.round3((Number(s.panier[i].qty) || 0) + 1)); }; });
+        $$('[data-qte]', $('#cs-ticket')).forEach(b => { b.onclick = () => {
+          const i = Number(b.dataset.qte), l = s.panier[i];
+          pave(`Quantité : ${l.label}`, l.qty, { aide: '0 retire la ligne du ticket.' }, v => {
+            const q = Number(String(v || '0').replace(/\s/g, '').replace(',', '.'));
+            if (!isFinite(q) || q < 0) { toast('Une quantité s\'écrit comme 3 ou 2,5.', true); return; }
+            changerQte(i, q);
+          });
+        }; });
+        $('#cs-remise-bouton').onclick = () => pave('Remise sur le ticket (%)', s.remise, { aide: 'Un pourcentage du ticket entier : 10, ou 7,5. Vide ou 0 : aucune remise.' }, v => {
+          s.remise = v === '0' ? '' : v; drawTicket();
         });
-        $$('[data-ret]', $('#cs-ticket')).forEach(b => { b.onclick = () => { s.panier.splice(Number(b.dataset.ret), 1); drawTicket(); scan(); }; });
-        $$('[data-mode]', $('#cs-ticket')).forEach(b => { b.onclick = () => { s.mode = b.dataset.mode; drawTicket(); }; });
-        const recu = $('#cs-recu');
-        // Le montant reçu se tape pendant que le client tend son billet : seules la monnaie à rendre et
-        // le bouton suivent la frappe — redessiner le ticket ferait perdre le curseur (7.17.0).
-        if (recu) recu.oninput = () => {
-          s.recu = recu.value;
-          const tt = C.totauxDuPanier(s.panier, company(), { recu: s.recu, remise: s.remise });
-          $('#cs-rendu').textContent = tt.rendu != null && tt.rendu >= 0 ? C.money(tt.rendu, cur) : '—';
-          const m = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu: s.recu, remise: s.remise });
-          $('#cs-motif').textContent = m;
-          $('#cs-encaisser').disabled = !!m;
+        // Annuler le ticket se répare : « Annuler » sur le bandeau remet le panier tel qu'il était.
+        $('#cs-vider').onclick = () => {
+          const avant = { panier: s.panier.slice(), remise: s.remise, clientId: s.clientId };
+          s.panier = []; s.remise = ''; s.clientId = '';
+          drawTicket(); drawArticles(); scan();
+          toastUndo('Ticket annulé.', () => { Object.assign(s, avant); drawTicket(); drawArticles(); });
         };
-        if ($('#cs-remise')) $('#cs-remise').onchange = () => { s.remise = $('#cs-remise').value.trim(); drawTicket(); };
-        if ($('#cs-vider')) $('#cs-vider').onclick = () => { s.panier = []; s.recu = ''; s.remise = ''; drawTicket(); scan(); };
-        // Le refus « aucun compte bancaire » porte le geste qui le règle (7.0.0) : le compte se crée
-        // par-dessus la caisse, et le panier attend.
-        if ($('#cs-creer-banque')) $('#cs-creer-banque').onclick = () => accountForm(null, () => drawTicket(), modeleCompte());
-        $('#cs-encaisser').onclick = encaisser;
-        if ($('#cs-print-last')) $('#cs-print-last').onclick = () => imprimerTicketDe(dernier);
+        $('#cs-encaisser').onclick = versPaiement;
         // La ligne qu'on vient de scanner reste sous les yeux, même au-delà de ce que la zone montre.
-        const z = $('#cs-zone'), tr = s.vise != null && z ? $$('tbody tr', z)[s.vise] : null;
+        const z = $('#cs-zone'), tr = s.vise != null && z ? $$('.ct-ligne', z)[s.vise] : null;
         if (tr) { const bas = tr.offsetTop + tr.offsetHeight; if (bas > z.scrollTop + z.clientHeight) z.scrollTop = bas - z.clientHeight; }
         s.vise = null;
+        ecranClient(s.panier.length ? 'vente' : 'repos');
       };
-      const scan = () => { const i = $('#cs-scan'); if (i) i.focus(); };
-      const encaisser = () => {
-        const b = $('#cs-encaisser');
-        if (!b || b.disabled || b.dataset.busy) return;
-        const recu = s.mode === 'especes' ? s.recu : '';
-        const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu, remise: s.remise });
+      // Le client : une liste à toucher, avec sa recherche ; « Vente au comptoir » en tête.
+      const choisirClient = () => {
+        modal(`<h2>Le client</h2><p class="small">Facultatif : le ticket porte son nom. Sans client, c'est une vente au comptoir. ${info('cs.client')}</p>
+          <input type="search" id="cs-cl-q" placeholder="Rechercher un client…" autocomplete="off" aria-label="Rechercher un client">
+          <div class="ct-clients" id="cs-cl-liste" role="listbox" aria-label="Les clients"></div>
+          <div class="modal-actions"><button class="btn" data-close>Fermer</button></div>`,
+        (root, close) => {
+          const tous = [{ v: '', label: 'Vente au comptoir', text: '' }].concat(clientItems());
+          const dessiner = () => {
+            const q = $('#cs-cl-q', root).value.trim();
+            const vus = tous.filter(c => !q || (c.v && C.correspondRecherche(c.text || c.label, q))).slice(0, 40);
+            $('#cs-cl-liste', root).innerHTML = vus.length ? vus.map(c => `<button type="button" role="option" aria-selected="${c.v === (s.clientId || '')}" data-client="${h(c.v)}"><b>${h(c.label)}</b>${c.sub ? `<small>${h(c.sub)}</small>` : ''}</button>`).join('')
+              : `<p class="small muted">Aucun client ne correspond à « ${h(q)} ».</p>`;
+            $$('[data-client]', root).forEach(b => { b.onclick = () => { s.clientId = b.dataset.client; close(); drawTicket(); }; });
+          };
+          $('#cs-cl-q', root).oninput = dessiner;
+          dessiner();
+          $('[data-close]', root).onclick = close;
+        }, null, { garde: false });
+      };
+      // Une vente mise en attente (le client est allé chercher un article) : elle reste en mémoire sur ce poste, comme le
+      // panier, jamais au serveur — un panier n'est pas une pièce.
+      const mettreEnAttente = () => {
+        if (!s.panier.length) return;
+        s.attente = (s.attente || []).concat([{ panier: s.panier, remise: s.remise, clientId: s.clientId, le: Date.now() }]);
+        s.panier = []; s.remise = ''; s.clientId = '';
+        drawTicket(); drawArticles(); scan();
+        toast('Vente mise en attente : le bouton de l\'horloge la reprend.');
+      };
+      const reprendreAttente = () => {
+        const liste = s.attente || [];
+        modal(`<h2>Les ventes en attente</h2>
+          <div class="ct-attentes">${liste.map((a, i) => {
+            const t = C.totauxDuPanier(a.panier || [], company(), { recu: '', remise: a.remise });
+            const n = C.round3((a.panier || []).reduce((x, l) => x + (Number(l.qty) || 0), 0));
+            const noms = (a.panier || []).map(l => l.label);
+            return `<div class="ct-attente"><span><b>${h(noms.slice(0, 2).join(', '))}${noms.length > 2 ? ` et ${noms.length - 2} autre${noms.length > 3 ? 's' : ''}` : ''}</b><br><small>${h(new Date(a.le).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }))} · ${h(pl(n, 'article'))} · ${C.money(t.netToPay, cur)}${a.clientId ? ` · ${h(clientName(a.clientId))}` : ''}</small></span>
+              <button type="button" class="btn" data-oublier="${i}">Abandonner</button><button type="button" class="btn btn-primary" data-reprendre="${i}">Reprendre</button></div>`;
+          }).join('')}</div>
+          ${s.panier.length ? '<p class="small muted">Le ticket en cours passe en attente à sa place.</p>' : ''}
+          <div class="modal-actions"><button class="btn" data-close>Fermer</button></div>`,
+        (root, close) => {
+          $('[data-close]', root).onclick = close;
+          $$('[data-reprendre]', root).forEach(b => { b.onclick = () => {
+            const l = (s.attente || []).slice(); const [a] = l.splice(Number(b.dataset.reprendre), 1);
+            if (s.panier.length) l.push({ panier: s.panier, remise: s.remise, clientId: s.clientId, le: Date.now() });
+            s.attente = l;
+            s.panier = a.panier || []; s.remise = a.remise || ''; s.clientId = a.clientId || '';
+            close(); drawTicket(); drawArticles();
+          }; });
+          $$('[data-oublier]', root).forEach(b => { b.onclick = () => {
+            const avant = (s.attente || []).slice();
+            const l = avant.slice(); l.splice(Number(b.dataset.oublier), 1); s.attente = l;
+            close(); drawTicket();
+            toastUndo('Vente en attente abandonnée.', () => { s.attente = avant; drawTicket(); });
+          }; });
+        }, null, { garde: false });
+      };
+      // Un article hors du Catalogue (une réparation, un article sans fiche) : son nom, son prix TTC, sa TVA. Il part sur
+      // le ticket comme une ligne libre ; il ne crée rien au Catalogue et ne sort rien du stock.
+      const articleLibre = () => {
+        const assujetti = C.assujettiTVA(company());
+        modal(`<h2>Article libre</h2>
+          <form id="al" class="grid-2">
+            <label class="field span-2">${lbl('Désignation', 'cs.libre')}<input type="text" name="label" placeholder="Article divers" autocomplete="off"></label>
+            <label class="field obligatoire"><span>Prix TTC (${h(C.normCurrency(cur))})</span><input type="text" inputmode="decimal" class="num" name="ttc" autocomplete="off"></label>
+            <label class="field"${assujetti ? '' : ' hidden'}>TVA<select name="tva">${C.VAT_RATES.map(r => `<option value="${r}" ${r === 19 ? 'selected' : ''}>${r}%</option>`).join('')}</select></label>
+          </form>
+          <p class="small warn-text" role="alert" id="al-refus"></p>
+          <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="al-ok">Ajouter au ticket</button></div>`,
+        (root, close) => {
+          $('#al-ok', root).onclick = () => {
+            const v = formValues($('#al', root));
+            const taux = C.ligneDePanier({ vatRate: Number(v.tva) || 0 }, company()).vatRate;
+            // Le HT qui retombe exactement sur le prix TTC tapé, comme la fiche d'un article.
+            const r = C.calculPrix({ mode: 'ttc', valeur: v.ttc, tva: taux, decimales: C.decimalsFor(cur) });
+            if (!r.ok) { $('#al-refus', root).textContent = 'Tape le prix TTC, comme 12 ou 12,500.'; $('[name=ttc]', root).focus(); return; }
+            // Un prix TTC qu'aucun HT n'atteint à ce taux (4,500 à 19 %) : le plus proche, et la caisse le dit, comme la fiche.
+            if (!r.exact) toast(`Aucun prix HT ne donne exactement ${C.money(Number(String(v.ttc).replace(/\s/g, '').replace(',', '.')), cur)} TTC à ${pct(r.tva)} % : le plus proche donne ${C.money(r.ttc, cur)}.`);
+            s.panier.push({ itemId: '', label: String(v.label || '').trim() || 'Article divers', unit: '', qty: 1, unitPrice: r.ht, vatRate: taux });
+            s.vise = s.panier.length - 1;
+            close(); drawTicket(); drawArticles();
+          };
+        });
+      };
+      const versPaiement = () => {
+        const motif = motifDuPanier();
         if (motif) { toast(motif, true); return; }
-        // Avant le numéro : un refus après `nextNumber` trouerait la série des tickets (6.0.0).
-        if (closedBlock(C.today(), 'Ce ticket')) return;
-        if (licenceBlock('Émettre un ticket de caisse', 'caisse')) return;
-        if (bridge.encaisser) {
-          // (brique 125) Une remise au-delà du plafond de la caisse : le code d'un responsable présent, demandé avant.
-          const remise = Number(String(s.remise || '0').replace(',', '.')) || 0;
-          const plafond = Number(company().remiseCaisseAuDela) || 0;
-          const responsable = (bridge.droitsDossier ? bridge.droitsDossier() : {}).responsable;
-          if (remise > plafond && !responsable && !b.dataset.code) {
-            demanderResponsable(`Remise de ${String(remise).replace('.', ',')} %`,
-              `Au-delà de ${String(plafond).replace('.', ',')} %, une remise se fait avec l'accord d'un responsable présent, qui tape son code sur ce poste. Le ticket portera son nom.`,
-              code => { b.dataset.code = JSON.stringify(code); encaisser(); });
-            return;
-          }
-          const code = b.dataset.code ? JSON.parse(b.dataset.code) : null;
-          delete b.dataset.code;
-          b.dataset.busy = '1';
-          // Le numéro vient du serveur : celui que le moteur vient de prendre sur ce poste se rend.
-          const compteurs = JSON.stringify(data.counters || {});
-          const t = C.ticketDeCaisse(data, company(), s.panier, { mode: s.mode, recu: recu === '' ? null : recu, clientId: s.clientId, remise: s.remise });
-          data.counters = JSON.parse(compteurs); t.number = '';
-          bridge.encaisser(t, C.computeTotals(t, company()).netToPay, code ? { responsable: code } : undefined).then(e => {
-            data.documents.push(e);
-            // (plateforme, brique 138) L'application de bureau imprime le ticket encaissé, et ouvre le tiroir pour des espèces.
-            if (bridge.ticketEncaisse) {
-              Promise.resolve(bridge.ticketEncaisse(C.ticketHtml(e, company(), { clientName: e.clientId ? clientName(e.clientId) : '', exemple: C.estDemo(data) }),
-                company().caisseLargeur, !!(e.caisse && e.caisse.mode === 'especes'))).then(r => { if (r && !r.ok && r.raison) toast(r.raison, true); }, x => toast(plainError(x), true));
-            }
-            s.panier = []; s.recu = ''; s.clientId = ''; s.remise = ''; s.dernierId = e.id;
-            const rendu = e.caisse && e.caisse.rendu ? ` — à rendre ${C.money(e.caisse.rendu, cur)}` : '';
-            toast(`Ticket ${e.number} encaissé${e.caisseHorsLigne ? ' sans réseau (il partira au serveur au retour du réseau)' : ''}${rendu}`);
-          }, x => toast(plainError(x), true)).finally(() => { delete b.dataset.busy; drawTicket(); scan(); });
-          return;
-        }
-        b.dataset.busy = '1';
-        const t = C.ticketDeCaisse(data, company(), s.panier, { mode: s.mode, recu: recu === '' ? null : recu, clientId: s.clientId });
-        data.documents.push(t);
-        save(true);
-        s.panier = []; s.recu = ''; s.clientId = ''; s.dernierId = t.id;
-        const rendu = t.caisse && t.caisse.rendu ? ` — à rendre ${C.money(t.caisse.rendu, cur)}` : '';
-        toast(`Ticket ${t.number} encaissé${rendu}`);
-        drawTicket(); scan();
+        // Chaque vente commence en espèces : la précédente payée par carte ne décide pas de celle-ci (vu sur le serveur
+        // d'essai le 05/10/2026 : la vente suivante restait sur « Carte », et le tiroir ne serait pas tombé juste).
+        s.mode = 'especes'; s.recu = ''; s.ecran = 'paiement';
+        drawVendre();
       };
+      $('#cs-libre').onclick = articleLibre;
       const scanIn = $('#cs-scan');
-      scanIn.oninput = () => { s.q = scanIn.value; drawArticles(); };
+      scanIn.oninput = () => { s.q = scanIn.value; drawFamilles(); drawArticles(); };
       scanIn.onkeydown = e => {
-        if (e.key === 'Escape' && scanIn.value) { e.preventDefault(); e.stopPropagation(); scanIn.value = ''; s.q = ''; drawArticles(); return; }
+        if (e.key === 'Escape' && scanIn.value) { e.preventDefault(); e.stopPropagation(); scanIn.value = ''; s.q = ''; drawFamilles(); drawArticles(); return; }
         if (e.key !== 'Enter' || e.ctrlKey || e.metaKey) return;
         e.preventDefault();
         const q = scanIn.value.trim();
@@ -12779,10 +12976,347 @@
         // résultats : la liste reste filtrée, on choisit d'un clic.
         const parCode = C.articleParCode(data, q);
         const liste = parCode ? [parCode] : articles.filter(a => C.correspondRecherche(`${a.label} ${a.code || ''}`, q));
-        if (liste.length === 1) { ajouter(liste[0]); scanIn.value = ''; s.q = ''; drawArticles(); }
+        if (liste.length === 1) { scanIn.value = ''; s.q = ''; ajouter(liste[0]); drawFamilles(); drawArticles(); }
         else if (!liste.length) toast(`Aucun article ne porte le code « ${q} ».`, true);
       };
-      drawArticles(); drawTicket(); scan();
+      drawFamilles(); drawArticles(); drawTicket();
+      if (window.matchMedia('(pointer: fine)').matches) scan();
+    };
+    // ---- Encaisser : le mode, ce que le client donne, la monnaie ----
+    const drawPaiement = () => {
+      const t = C.totauxDuPanier(s.panier, company(), { recu: '', remise: s.remise });
+      const dec = C.decimalsFor(cur);
+      const remiseDuRecap = t.discount ? C.money(t.remiseTtc, cur) : '';
+      $('#cs-body').innerHTML = `<div class="ct-paiement" id="cs-paiement">
+        <section class="ct-recap" aria-label="Le ticket à encaisser">
+          <div class="ct-recap-tete"><b>Le ticket</b><small>${h(pl(nbArticles(), 'article'))}</small></div>
+          <div class="ct-recap-lignes">${s.panier.map((l, i) => `<div class="ct-recap-ligne"><span><b>${pct(l.qty)} ×</b> ${h(l.label)}</span><b>${C.money((t.lines[i] || {}).ttc || 0, cur)}</b></div>`).join('')}</div>
+          <div class="ct-recap-pied">
+            ${remiseDuRecap ? `<small><span>Remise ${h(String(s.remise).replace('.', ','))} %</span><span>− ${remiseDuRecap}</span></small>` : ''}
+            <small><span>Total HT ${C.money(t.netHT, cur)}</span><span>TVA ${C.money(t.totalVAT, cur)}</span></small>
+            <button type="button" class="ct-bouton" id="cs-revenir">‹ Revenir au ticket</button>
+          </div>
+        </section>
+        <section class="ct-payer" aria-label="Encaisser">
+          <div class="ct-payer-defile">
+          <div class="ct-apayer"><span>À payer</span><b id="cs-a-payer">${C.money(t.netToPay, cur)}</b></div>
+          <div class="ct-modes cs-modes" role="radiogroup" aria-label="Mode de paiement">${C.MODES_CAISSE.map(([k, l]) =>
+            `<button type="button" role="radio" aria-checked="${s.mode === k}" class="cs-mode ct-mode${s.mode === k ? ' on' : ''}" data-mode="${k}">${l}</button>`).join('')}</div>
+          ${s.mode === 'especes' ? `<div class="ct-especes">
+            <div class="ct-especes-gauche">
+              <div class="ct-montants">
+                <label class="ct-recu"><span>Reçu du client</span><input type="text" inputmode="none" class="num" id="cs-recu" value="${h(s.recu)}" placeholder="facultatif" autocomplete="off" aria-label="Reçu du client (${h(C.normCurrency(cur))})"></label>
+                <div class="ct-rendre rien" id="cs-rendre-boite" aria-live="polite"><span id="cs-rendre-libelle">À rendre</span><b id="cs-rendu">—</b></div>
+              </div>
+              <div class="ct-billets" id="cs-billets"></div>
+              <p class="ct-aide">Touche le billet que le client donne, ou tape le montant.${bridge.ticketEncaisse ? ' Le tiroir s\'ouvre à la validation.' : ''} ${info('cs.recu')}</p>
+            </div>
+            <div class="ct-pave" id="cs-pave">${PAVE.map(touche).join('')}</div>
+          </div>` : `<div class="ct-autre"><div><b>${s.mode === 'carte' ? 'Paiement par carte' : 'Paiement par chèque'}</b>
+            <p>${s.mode === 'carte' ? 'Passe la carte sur le terminal de paiement, puis valide ici quand il a accepté. Rien à rendre : l\'argent arrive sur ta banque.' : 'Le chèque se remet ensuite en banque : il ne va pas dans le tiroir. Rien à rendre.'}</p></div></div>`}
+          <p class="cs-motif" id="cs-motif"></p>
+          </div>
+          <button type="button" class="ct-principal" id="cs-valider">Valider</button>
+        </section>
+      </div>`;
+      // Les billets proposés : le montant exact, puis les sommes rondes au-dessus du total (par 5, 10, 20, 50, 100, 200).
+      if ($('#cs-billets')) {
+        const net = t.netToPay;
+        const ronds = [...new Set([5, 10, 20, 50, 100, 200].map(p => Math.ceil((net + 1e-9) / p) * p))].filter(v => v > net).slice(0, 4);
+        $('#cs-billets').innerHTML = [`<button type="button" data-billet="${net.toFixed(dec)}">Montant exact</button>`]
+          .concat(ronds.map(v => `<button type="button" data-billet="${v}">${v} ${h(C.normCurrency(cur))}</button>`)).join('');
+        // Après un billet touché, le pavé tape un nouveau montant (il ne s'ajoute pas au billet).
+        $$('#cs-billets [data-billet]').forEach(b => { b.onclick = () => { s.recu = String(b.dataset.billet).replace('.', ','); s.recuNeuf = true; $('#cs-recu').value = s.recu; majPaiement(); }; });
+        $$('#cs-pave [data-touche]').forEach(b => { b.onclick = () => {
+          const k = b.dataset.touche;
+          let v = s.recuNeuf ? '' : s.recu || '';
+          s.recuNeuf = false;
+          if (k === '⌫') v = v.slice(0, -1);
+          else if (k === ',') { if (!v.includes(',')) v = (v || '0') + ','; }
+          else if (!v.includes(',') || v.length - v.indexOf(',') <= dec) v += k;
+          s.recu = v; $('#cs-recu').value = v; majPaiement();
+        }; });
+        // Le montant reçu se tape aussi au clavier : seules la monnaie et le bouton suivent la frappe (7.17.0).
+        $('#cs-recu').oninput = () => { s.recu = $('#cs-recu').value; s.recuNeuf = false; majPaiement(); };
+        $('#cs-recu').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); encaisser(); } };
+      }
+      $$('#cs-paiement [data-mode]').forEach(b => { b.onclick = () => { s.mode = b.dataset.mode; if (s.mode !== 'especes') s.recu = ''; drawPaiement(); }; });
+      $('#cs-revenir').onclick = () => { s.ecran = 'vente'; drawVendre(); scan(); };
+      $('#cs-valider').onclick = encaisser;
+      majPaiement();
+      if ($('#cs-recu') && window.matchMedia('(pointer: fine)').matches) $('#cs-recu').focus();
+    };
+    const majPaiement = () => {
+      const recu = s.mode === 'especes' ? s.recu : '';
+      const t = C.totauxDuPanier(s.panier, company(), { recu, remise: s.remise });
+      const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu, remise: s.remise });
+      if ($('#cs-rendu')) {
+        const lu = t.recu != null && isFinite(t.recu);
+        const manque = lu && t.rendu < 0;
+        $('#cs-rendre-boite').className = `ct-rendre${!lu ? ' rien' : manque ? ' manque' : ''}`;
+        $('#cs-rendre-libelle').textContent = manque ? 'Il manque' : 'À rendre';
+        $('#cs-rendu').textContent = lu ? C.money(Math.abs(t.rendu), cur) : '—';
+      }
+      // Le refus d'un compte qui manque porte le geste qui le règle (7.0.0) : le compte se crée par-dessus la caisse, et
+      // le paiement attend.
+      const sansCaisse = motif && s.mode === 'especes' && !C.comptesDeCaisse(data).especes;
+      $('#cs-motif').innerHTML = motif ? `${h(motif)}${motif === C.MOTIF_SANS_BANQUE ? ' <button type="button" class="btn btn-sm" id="cs-creer-banque">Créer mon compte bancaire</button>'
+        : sansCaisse ? ' <button type="button" class="btn btn-sm" id="cs-creer-caisse">Créer la caisse</button>' : ''}` : '';
+      if ($('#cs-creer-banque')) $('#cs-creer-banque').onclick = () => accountForm(null, () => drawPaiement(), modeleCompte());
+      if ($('#cs-creer-caisse')) $('#cs-creer-caisse').onclick = () => creerCaisse(() => drawPaiement());
+      const b = $('#cs-valider');
+      b.disabled = !!motif;
+      b.textContent = motif ? (t.manque > 0 ? `Il manque ${C.money(t.manque, cur)}` : 'Valider')
+        : t.rendu > 0 ? `Valider · rendre ${C.money(t.rendu, cur)}` : `Valider ${C.money(t.netToPay, cur)}`;
+      ecranClient('paiement', { recu: s.mode === 'especes' && t.recu != null && isFinite(t.recu) ? C.money(t.recu, cur) : '', rendu: t.rendu > 0 ? C.money(t.rendu, cur) : '' });
+    };
+    // ---- La monnaie à rendre, en grand ----
+    const drawRendu = () => {
+      const d = s.dernierId ? data.documents.find(x => x.id === s.dernierId) : null;
+      if (!d) { s.ecran = 'vente'; drawVendre(); return; }
+      const ca = d.caisse || {};
+      const tt = C.computeTotals(d, company());
+      const especes = ca.mode === 'especes';
+      const rendu = especes && Number(ca.rendu) > 0 ? Number(ca.rendu) : 0;
+      const modeNom = (C.MODES_CAISSE.find(m => m[0] === ca.mode) || [0, ''])[1];
+      // En espèces avec le montant reçu : la monnaie à rendre (0 si le compte est juste). Sinon (le montant reçu non tapé,
+      // la carte, le chèque) : ce qui a été payé — un « 0,000 » en grand ne dirait rien.
+      const monnaie = especes && ca.recu != null;
+      $('#cs-body').innerHTML = `<div class="ct-rendu" id="cs-rendu-ecran"><div class="ct-rendu-contenu">
+        <span class="ct-ok">${ICONES.ok}</span>
+        <p class="ct-rendu-titre">${rendu ? 'Rendre au client' : monnaie ? 'Le compte est juste : rien à rendre' : especes ? 'Encaissé en espèces' : `Payé par ${h(modeNom.toLowerCase())} : rien à rendre`}</p>
+        ${monnaie ? `<b class="ct-rendu-montant" id="cs-a-rendre">${C.money(rendu, cur)}</b>` : `<b class="ct-rendu-montant" id="cs-paye">${C.money(tt.netToPay, cur)}</b>`}
+        <p class="ct-rendu-detail">Ticket ${h(d.number)}${d.caisseHorsLigne ? ' (sans réseau : il partira au serveur au retour du réseau)' : ''} · ${especes && ca.recu != null ? `${C.money(ca.recu, cur)} reçus en espèces sur ${C.money(tt.netToPay, cur)}` : `${h(modeNom)} · ${C.money(tt.netToPay, cur)}`}</p>
+        <div class="ct-rendu-gestes">
+          <button type="button" class="ct-bouton" id="cs-print-last">${ICONES.imprimante} ${bridge.ticketEncaisse ? 'Réimprimer le ticket' : 'Imprimer le ticket'}</button>
+          <button type="button" class="ct-bouton" id="cs-voir-ticket">Voir le ticket</button>
+        </div>
+        <button type="button" class="ct-principal" id="cs-nouvelle">Nouvelle vente</button>
+        <p class="ct-aide">Scanner l'article suivant commence aussi la vente suivante.</p>
+      </div></div>`;
+      $('#cs-print-last').onclick = () => imprimerTicketDe(d);
+      $('#cs-voir-ticket').onclick = () => ticketApercu(d);
+      $('#cs-nouvelle').onclick = () => { s.ecran = 'vente'; drawVendre(); scan(); };
+      $('#cs-nouvelle').focus();
+      ecranClient('merci', { total: C.money(tt.netToPay, cur), recu: especes && ca.recu != null ? C.money(ca.recu, cur) : '', rendu: rendu ? C.money(rendu, cur) : '', numero: d.number, mode: modeNom });
+    };
+    const scan = () => { const i = $('#cs-scan'); if (i) i.focus(); };
+    const encaisser = () => {
+      const b = $('#cs-valider');
+      if (!b || b.disabled || b.dataset.busy) return;
+      const recu = s.mode === 'especes' ? s.recu : '';
+      const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu, remise: s.remise });
+      if (motif) { toast(motif, true); return; }
+      // Avant le numéro : un refus après `nextNumber` trouerait la série des tickets (6.0.0).
+      if (closedBlock(C.today(), 'Ce ticket')) return;
+      if (licenceBlock('Émettre un ticket de caisse', 'caisse')) return;
+      if (bridge.encaisser) {
+        // (brique 125) Une remise au-delà du plafond de la caisse : le code d'un responsable présent, demandé avant.
+        const remise = Number(String(s.remise || '0').replace(',', '.')) || 0;
+        const plafond = Number(company().remiseCaisseAuDela) || 0;
+        const responsable = (bridge.droitsDossier ? bridge.droitsDossier() : {}).responsable;
+        if (remise > plafond && !responsable && !b.dataset.code) {
+          demanderResponsable(`Remise de ${String(remise).replace('.', ',')} %`,
+            `Au-delà de ${String(plafond).replace('.', ',')} %, une remise se fait avec l'accord d'un responsable présent, qui tape son code sur ce poste. Le ticket portera son nom.`,
+            code => { b.dataset.code = JSON.stringify(code); encaisser(); });
+          return;
+        }
+        const code = b.dataset.code ? JSON.parse(b.dataset.code) : null;
+        delete b.dataset.code;
+        b.dataset.busy = '1'; b.disabled = true;
+        // Le numéro vient du serveur : celui que le moteur vient de prendre sur ce poste se rend.
+        const compteurs = JSON.stringify(data.counters || {});
+        const t = C.ticketDeCaisse(data, company(), s.panier, { mode: s.mode, recu: recu === '' ? null : recu, clientId: s.clientId, remise: s.remise });
+        data.counters = JSON.parse(compteurs); t.number = '';
+        bridge.encaisser(t, C.computeTotals(t, company()).netToPay, code ? { responsable: code } : undefined).then(e => {
+          data.documents.push(e);
+          // (plateforme, brique 138) L'application de bureau imprime le ticket encaissé, et ouvre le tiroir pour des espèces.
+          if (bridge.ticketEncaisse) {
+            Promise.resolve(bridge.ticketEncaisse(C.ticketHtml(e, company(), { clientName: e.clientId ? clientName(e.clientId) : '', exemple: C.estDemo(data) }),
+              company().caisseLargeur, !!(e.caisse && e.caisse.mode === 'especes'))).then(r => { if (r && !r.ok && r.raison) toast(r.raison, true); }, x => toast(plainError(x), true));
+          }
+          s.panier = []; s.recu = ''; s.clientId = ''; s.remise = ''; s.dernierId = e.id;
+          // La monnaie s'affiche en grand ; la vente suivante recommence en espèces.
+          s.ecran = 'rendu'; s.mode = 'especes';
+          const rendu = e.caisse && e.caisse.rendu ? ` — à rendre ${C.money(e.caisse.rendu, cur)}` : '';
+          toast(`Ticket ${e.number} encaissé${e.caisseHorsLigne ? ' sans réseau (il partira au serveur au retour du réseau)' : ''}${rendu}`);
+        }, x => toast(plainError(x), true)).finally(() => { delete b.dataset.busy; drawVendre(); });
+        return;
+      }
+      b.dataset.busy = '1';
+      const t = C.ticketDeCaisse(data, company(), s.panier, { mode: s.mode, recu: recu === '' ? null : recu, clientId: s.clientId });
+      data.documents.push(t);
+      save(true);
+      s.panier = []; s.recu = ''; s.clientId = ''; s.dernierId = t.id; s.ecran = 'rendu'; s.mode = 'especes';
+      const rendu = t.caisse && t.caisse.rendu ? ` — à rendre ${C.money(t.caisse.rendu, cur)}` : '';
+      toast(`Ticket ${t.number} encaissé${rendu}`);
+      drawVendre();
+    };
+    // La caisse fermée (ou tenue sur un autre appareil) : on l'ouvre ici, avec le fond de caisse.
+    const drawFermee = () => {
+      const ss = caisseEtat.session;
+      ecranClient('repos');
+      if (ss && !ss.ici) {
+        $('#cs-body').innerHTML = `<div class="ct-fermee"><div class="ct-fermee-carte" id="cs-ailleurs"><h2>La caisse est ouverte sur un autre appareil.</h2>
+          <p>« ${h(ss.appareil)} », par ${h(ss.qui)}, depuis le ${h(heureCaisse(ss.ouverteLe))} : une caisse n'est tenue que par un appareil à la fois. Ferme-la là-bas pour l'ouvrir ici. ${info('cs.session')}</p></div></div>`;
+        return;
+      }
+      if (!comptes.especes) {
+        $('#cs-body').innerHTML = `<div class="ct-fermee"><div class="ct-fermee-carte" id="cs-sans-caisse"><h2>D'abord, la caisse.</h2>
+          <p>Les espèces encaissées au comptoir vont dans le compte de caisse, pas à la banque : c'est ce qui permet à SkanFact de dire, le soir, combien le tiroir doit contenir.</p>
+          <button type="button" class="ct-principal" id="cs-creer">Créer la caisse</button></div></div>`;
+        $('#cs-creer').onclick = () => creerCaisse(() => vers('#/caisse')());
+        return;
+      }
+      // Ce que le tiroir contient déjà, proposé (vu sur le serveur d'essai le 05/10/2026 : la caisse créée avec 50 DT
+      // s'ouvrait à 0, et le Z du soir aurait annoncé 50 DT de trop) : le solde du compte de caisse aujourd'hui, par la
+      // même fonction que la Trésorerie et le bilan du jour. Se recompte et se corrige si le tiroir dit autre chose.
+      const idCaisse = C.comptesDeCaisse(data).especes;
+      const dansLeTiroir = idCaisse ? C.accountBalance(data, company(), idCaisse, C.today()).balance : 0;
+      const fondPropose = dansLeTiroir > 0 ? dansLeTiroir.toFixed(caisseEtat.decimales ?? 3).replace('.', ',') : '';
+      $('#cs-body').innerHTML = `<div class="ct-fermee"><div class="ct-fermee-carte" id="cs-fermee"><h2>La caisse est fermée.</h2>
+        <p>Ouvre-la sur cet appareil avec le fond de caisse (les espèces déjà dans le tiroir) : elle encaisse ensuite ici, et seulement ici, jusqu'à sa fermeture. ${info('cs.session')}</p>
+        <label class="field">Fond de caisse (${h(caisseEtat.devise === 'TND' ? 'DT' : caisseEtat.devise)})<input type="text" inputmode="decimal" class="num" id="cs-fond" placeholder="0" value="${h(fondPropose)}"></label>
+        <button type="button" class="ct-principal" id="cs-ouvrir">Ouvrir la caisse</button></div></div>`;
+      $('#cs-ouvrir').onclick = async () => {
+        const b = $('#cs-ouvrir'); b.disabled = true;
+        try {
+          const r = await bridge.ouvrirCaisse($('#cs-fond').value.trim() || '0');
+          toast(`Caisse ouverte, fond de caisse ${argentCaisse(r.fond)}`);
+          vers('#/caisse')();
+        } catch (e) { b.disabled = false; toast(plainError(e), true); $('#cs-fond').focus(); }
+      };
+      $('#cs-fond').onkeydown = e => { if (e.key === 'Enter') $('#cs-ouvrir').click(); };
+    };
+    // ---- Le soir : compter le tiroir (le comptage à l'aveugle, brique 122 ; maquette « Fermeture », 05/10/2026) ----
+    // Billet par billet, pièce par pièce : toucher une coupure, taper combien il y en a ; le total se fait tout seul, en
+    // millimes entiers. Ou taper le total compté. Ce que le tiroir devait contenir ne se voit qu'au Z, après le geste : le
+    // Z le dit, avec l'écart, et garde le détail du comptage. Les coupures du dinar qui ont cours : À VÉRIFIER (Banque
+    // centrale de Tunisie). Une autre devise que le dinar : le total tapé seulement.
+    const COUPURES = [[50000, 'billet'], [20000, 'billet'], [10000, 'billet'], [5000, 'piece'], [2000, 'piece'], [1000, 'piece'],
+      [500, 'piece'], [200, 'piece'], [100, 'piece'], [50, 'piece'], [20, 'piece'], [10, 'piece']];
+    const drawFermeture = () => {
+      ecranClient('repos');
+      const dinars = C.normCurrency(cur) === 'DT';
+      const coupures = dinars ? COUPURES : [];
+      if (!s.comptage) s.comptage = { actif: 0, frais: true, nombres: {}, tape: '' };
+      const c = s.comptage;
+      const nom = v => (v >= 1000 ? String(v / 1000) : String(v));
+      const unite = v => (v > 1000 ? 'dinars' : v === 1000 ? 'dinar' : 'millimes');
+      const totalCoupures = () => coupures.reduce((x, [v], i) => x + v * (Number(c.nombres[i]) || 0), 0);
+      const libelle = i => `${coupures[i][1] === 'billet' ? 'Billets' : 'Pièces'} de ${nom(coupures[i][0])} ${unite(coupures[i][0])}`;
+      const rangee = ([v, sorte], i) => {
+        const n = Number(c.nombres[i]) || 0;
+        return `<button type="button" class="ct-coupure" data-coupure="${i}" aria-pressed="${c.actif === i}" aria-label="${libelle(i)} : ${n}">
+          <span class="ct-forme ${sorte}"><b>${nom(v)}</b><small>${unite(v)}</small></span>
+          <span class="ct-coupure-sorte">${sorte === 'billet' ? 'billets' : 'pièces'}</span>
+          <span class="ct-coupure-nombre" data-nombre="${i}">${n}</span>
+          <span class="ct-coupure-total" data-sous-total="${i}">${C.money(v * n / 1000, '', 3)}</span></button>`;
+      };
+      $('#cs-body').innerHTML = `<div class="ct-fermeture" id="cs-fermeture">
+        <section class="ct-coupures" aria-label="Compter le tiroir">
+          <div class="ct-titre"><h2>Compte le tiroir</h2><span>${dinars ? 'Touche une coupure, puis tape combien il y en a.' : 'Compte les espèces du tiroir, fond de caisse compris.'}</span></div>
+          ${dinars ? `<div class="ct-coupures-grille">
+            <div><span class="ct-sur">Billets et pièces en dinars</span>${coupures.slice(0, 6).map((x, i) => rangee(x, i)).join('')}</div>
+            <div><span class="ct-sur">Pièces en millimes</span>${coupures.slice(6).map((x, i) => rangee(x, i + 6)).join('')}</div>
+          </div>` : ''}
+        </section>
+        <section class="ct-compte" aria-label="Le compte du tiroir">
+          <div class="ct-compte-defile">
+          <div class="ct-compte-total"><span>Total compté</span><b id="cs-compte-total"></b><small id="cs-compte-detail"></small></div>
+          ${dinars ? `<div class="ct-active" id="cs-active"><span id="cs-active-nom"></span><b id="cs-active-nombre"></b></div>
+          <div class="ct-pave" id="cs-pave-compte">${['7', '8', '9', '4', '5', '6', '1', '2', '3', '⌫', '0', 'suivant'].map(touche).join('')}</div>` : ''}
+          <details class="ct-tape" id="cs-tape"${dinars ? '' : ' open'}><summary>${dinars ? 'Taper le total compté à la place' : 'Le total compté'}</summary>
+            <label class="field">Espèces comptées (${h(C.normCurrency(cur))})<input type="text" inputmode="decimal" class="num" id="cs-compte" value="${h(c.tape)}" autocomplete="off"></label></details>
+          <p class="ct-aide">Ce que le tiroir devait contenir reste caché pendant que tu comptes : le Z le dit, avec l'écart. ${info('cs.comptage')}</p>
+          <p class="cs-motif" role="alert" id="cs-compte-refus"></p>
+          </div>
+          <button type="button" class="ct-principal" id="cs-z">Fermer la caisse et faire le Z</button>
+        </section></div>`;
+      $('#cs-actions').innerHTML = '<button type="button" class="ct-bouton" id="cs-revenir-vente" aria-label="Revenir à la vente">‹ <span class="ct-long">Revenir à la vente</span><span class="ct-court">Vente</span></button>';
+      const champ = $('#cs-compte');
+      // Le total : celui tapé s'il y en a un, sinon celui des coupures.
+      const maj = () => {
+        const tape = champ.value.trim();
+        const tot = totalCoupures();
+        const billets = coupures.reduce((x, [v, sorte], i) => x + (sorte === 'billet' ? v * (Number(c.nombres[i]) || 0) : 0), 0);
+        const lu = tape ? Number(tape.replace(/\s/g, '').replace(',', '.')) : null;
+        $('#cs-compte-total').textContent = tape ? (isFinite(lu) ? C.money(lu, cur) : '—') : C.money(tot / 1000, cur);
+        $('#cs-compte-detail').textContent = tape ? 'Le total tapé compte : les coupures ne comptent pas.'
+          : dinars ? `Billets ${C.money(billets / 1000, cur)} · pièces ${C.money((tot - billets) / 1000, cur)}` : '';
+        $$('[data-coupure]').forEach(b => {
+          const i = Number(b.dataset.coupure), n = Number(c.nombres[i]) || 0;
+          b.setAttribute('aria-pressed', String(c.actif === i));
+          b.setAttribute('aria-label', `${libelle(i)} : ${n}`);
+          $(`[data-nombre="${i}"]`).textContent = String(n);
+          $(`[data-sous-total="${i}"]`).textContent = C.money(coupures[i][0] * n / 1000, '', 3);
+        });
+        if ($('#cs-active')) {
+          $('#cs-active-nom').textContent = libelle(c.actif);
+          $('#cs-active-nombre').textContent = String(Number(c.nombres[c.actif]) || 0);
+        }
+      };
+      // Une coupure touchée : le premier chiffre tapé remplace son nombre, les suivants s'y ajoutent.
+      const choisir = i => { c.actif = i; c.frais = true; maj(); };
+      const taper = k => {
+        if (k === 'suivant') { choisir((c.actif + 1) % coupures.length); return; }
+        // Compter au détail efface le total tapé.
+        if (champ.value) { champ.value = ''; c.tape = ''; }
+        const n = Number(c.nombres[c.actif]) || 0;
+        if (k === '⌫') c.nombres[c.actif] = Math.floor(n / 10);
+        else c.nombres[c.actif] = c.frais ? Number(k) : Math.min(99999, n * 10 + Number(k));
+        c.frais = false;
+        maj();
+      };
+      $$('[data-coupure]').forEach(b => { b.onclick = () => {
+        const i = Number(b.dataset.coupure);
+        choisir(i);
+        // Sur un écran étroit (tablette debout, téléphone), le pavé du comptage serait loin sous la liste : la coupure
+        // touchée demande son nombre dans une fenêtre (caisse.css cache alors le pavé de la colonne).
+        if (!window.matchMedia('(max-width: 920px)').matches) return;
+        pave(libelle(i), String(Number(c.nombres[i]) || ''), { entier: true, aide: 'Combien y en a-t-il dans le tiroir ?', bouton: 'Compter' }, t => {
+          if (champ.value) { champ.value = ''; c.tape = ''; }
+          c.nombres[i] = Math.min(99999, Math.floor(Number(t.replace(/\s/g, '').replace(',', '.')) || 0));
+          maj();
+        });
+      }; });
+      $$('#cs-pave-compte [data-touche]').forEach(b => { b.onclick = () => taper(b.dataset.touche); });
+      champ.oninput = () => { c.tape = champ.value; maj(); };
+      // Au clavier aussi : les chiffres comptent la coupure choisie, Entrée passe à la suivante.
+      $('#cs-fermeture').onkeydown = e => {
+        if (!dinars || e.target === champ || e.ctrlKey || e.metaKey || e.altKey) return;
+        if (/^[0-9]$/.test(e.key)) { e.preventDefault(); taper(e.key); }
+        else if (e.key === 'Backspace') { e.preventDefault(); taper('⌫'); }
+        else if (e.key === 'Enter' && e.target.closest('[data-coupure], #cs-pave-compte')) { e.preventDefault(); taper('suivant'); }
+      };
+      $('#cs-revenir-vente').onclick = () => { s.ecran = 'vente'; drawVendre(); };
+      $('#cs-z').onclick = async () => {
+        const b = $('#cs-z');
+        if (b.disabled) return;
+        const refus = t => { $('#cs-compte-refus').textContent = t; };
+        const tape = champ.value.trim();
+        const tot = totalCoupures();
+        if (!tape && !dinars) { refus('Tape le total des espèces comptées (0 si le tiroir est vide).'); champ.focus(); return; }
+        // Rien de compté : un tiroir vide se dit, il ne se suppose pas.
+        if (!tape && !tot && !await confirmDialog('Le tiroir est vide ?\nRien n\'est compté : la caisse se fermera avec 0 compté, et le Z dira l\'écart avec ce qu\'il devait contenir.', 'Fermer avec un tiroir vide')) return;
+        const compte = tape || (tot / 1000).toFixed(3);
+        const comptage = tape ? [] : coupures.map(([v], i) => ({ valeur: (v / 1000).toFixed(3), nombre: Number(c.nombres[i]) || 0 })).filter(x => x.nombre > 0);
+        b.disabled = true; refus('');
+        try {
+          const r = await bridge.fermerCaisse(compte, comptage);
+          s.comptage = null; s.ecran = 'vente';
+          montrerZ(r.z);
+        } catch (e) { b.disabled = false; refus(plainError(e)); }
+      };
+      maj();
+    };
+    // L'écran de vente suit la session lue au serveur (la page a pu se dessiner avant sa réponse) : il se redessine si elle
+    // change ce qu'il montre (fermée, tenue ailleurs, la vente) ; sinon seul « Encaisser » suit.
+    caisseRedessiner = () => {
+      if (s.tab !== 'vendre' || !location.hash.startsWith('#/caisse') || !$('#cs-body')) return;
+      if (vueDeSession() !== s.vueDessinee) { drawVendre(); return; }
+      const mm = motifSession();
+      if (mm && $('#cs-motif') && $('#cs-encaisser')) { $('#cs-motif').textContent = mm; $('#cs-encaisser').disabled = true; }
     };
 
     // ---- Tickets et bilan du jour ----

@@ -168,6 +168,9 @@ describe('l\'instrument de rendu des écrans', () => {
     const emise = await api('POST', `/entreprises/${d.ent}/dossier-v10/emettre`, d.jeton, { document: { id: 'f-rendu', type: 'facture', number: '', status: 'brouillon', date: aujourdhui, clientId: client.id, createdAt: 2,
       lines: [ligne], discountRate: 0, withholdingRate: 0, applyStamp: false, currency: 'DT', payments: [] }, client, revision: null, rang: 1, netAPayer: '357.000' });
     expect(String((emise.contenu as Record<string, unknown> | undefined)?.number ?? emise.motif)).toMatch(/^FAC-/);
+    // La caisse ouverte sur cet appareil : l'instrument mesure l'écran de vente (ses tuiles, son ticket), pas la carte
+    // « La caisse est fermée ».
+    expect((await api('POST', `/entreprises/${d.ent}/caisse/ouvrir`, d.jeton, { fond: '0' })).fond).toBe('0.000');
     const faux: string[] = [];
     let vus = 0;
     for (const largeur of [390, TABLETTE, 1440]) {

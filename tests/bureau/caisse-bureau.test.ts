@@ -150,15 +150,16 @@ describe('la caisse dans l\'application de bureau', () => {
 
     // 2. La caisse : ouverte avec 100 DT ; trois laits en espèces, 10 DT reçus.
     await page.goto(`${serveur.adresse}/v10/?e=${ent}#/caisse`);
-    await expect.poll(() => page.locator('#cs-articles .cs-art').count(), { timeout: 20_000 }).toBe(1);
+    await expect.poll(() => page.locator('#cs-fond').count(), { timeout: 20_000 }).toBe(1);
     await plusTard();
     await page.locator('#cs-fond').fill('100');
     await page.locator('#cs-ouvrir').click();
     await expect.poll(toast, { timeout: 10_000 }).toBe('Caisse ouverte, fond de caisse 100,000 DT');
     const lait = page.locator('#cs-articles .cs-art', { hasText: 'Lait demi-écrémé' });
     for (let i = 0; i < 3; i++) await lait.click();
-    await page.locator('#cs-recu').fill('10');
     await page.locator('#cs-encaisser').click();
+    await page.locator('#cs-recu').fill('10');
+    await page.locator('#cs-valider').click();
     await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-001 encaissé — à rendre 1,610 DT`);
     // Le ticket sort tout seul, et le tiroir s'ouvre (des espèces).
     await expect.poll(() => papier.combien(), { timeout: 15_000 }).toBe(3);
@@ -172,9 +173,11 @@ describe('la caisse dans l\'application de bureau', () => {
     fs.writeFileSync(path.join(PHOTOS, 'bureau-ticket-especes.pbm'), enPbm(image));
 
     // 3. Par carte : le ticket sort, le tiroir reste fermé.
+    await page.locator('#cs-nouvelle').click();
     await lait.click();
-    await page.locator('#cs-ticket [data-mode=carte]').click();
     await page.locator('#cs-encaisser').click();
+    await page.locator('#cs-paiement [data-mode=carte]').click();
+    await page.locator('#cs-valider').click();
     await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-002 encaissé`);
     await expect.poll(() => papier.combien(), { timeout: 15_000 }).toBe(4);
     const carte = papier.envoi(3);
@@ -188,8 +191,10 @@ describe('la caisse dans l\'application de bureau', () => {
 
     // 5. L'imprimante éteinte : le ticket est encaissé quand même, et la phrase dit quoi vérifier.
     fs.writeFileSync(path.join(donnees, 'bureau.json'), JSON.stringify({ imprimante: { branchement: 'reseau', hote: '127.0.0.1', port: 1 } }));
+    await page.locator('#cs-nouvelle').click();
     await lait.click();
     await page.locator('#cs-encaisser').click();
+    await page.locator('#cs-valider').click();
     await expect.poll(toast, { timeout: 15_000 }).toBe('Ticket encaissé, mais pas imprimé : l\'imprimante de tickets ne répond pas : vérifie qu\'elle est allumée et branchée, et son adresse (Paramètres → Documents → Imprimante de tickets).');
     expect(papier.combien()).toBe(5);
     await page.screenshot({ path: path.join(PHOTOS, 'bureau-2-eteinte.png') });
@@ -201,11 +206,13 @@ describe('la caisse dans l\'application de bureau', () => {
     await page.getByRole('tab', { name: 'Documents', exact: true }).click();
     await panneau.getByRole('button', { name: 'Ne plus imprimer depuis ce poste', exact: true }).click();
     await expect.poll(dit).toBe('Aucune imprimante de tickets n\'est réglée sur ce poste : les tickets s\'impriment par la fenêtre d\'impression.');
+    // (Revenue d'une autre page, la caisse reprend la vente : la monnaie de la dernière a été rendue.)
     await page.goto(`${serveur.adresse}/v10/?e=${ent}#/caisse`);
     await expect.poll(() => page.locator('#cs-articles .cs-art').count(), { timeout: 20_000 }).toBe(1);
     await plusTard();
     await lait.click();
     await page.locator('#cs-encaisser').click();
+    await page.locator('#cs-valider').click();
     await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-004 encaissé`);
     await page.waitForTimeout(1500);
     expect(await toast()).toBe(`Ticket TIC-${annee}-004 encaissé`);

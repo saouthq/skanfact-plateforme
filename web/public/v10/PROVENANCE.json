@@ -1,11 +1,11 @@
 {
   "depot": "saouthq/skanfact",
   "branche": "beta",
-  "commit": "ae8f9f4",
+  "commit": "328508b",
   "reprisLe": "2026-10-05",
-  "adaptations": 570,
+  "adaptations": 588,
   "fichiers": {
-    "app.js": "01f1119ead75467a82362a854d62bf8dd485882ccac1f3fd8568f65fb741296e",
+    "app.js": "24517a554e522ca2d55878da94e795cc2a5325a206624bac2613236c015cf6d2",
     "cabinet/app.js": "a918173bddb2a56a5d706d44250996e3ffb17aeb3fc72e4626c29b36df156f32",
     "cabinet/cabcore.js": "84cd43912cd60b911fe88574c87908bab34110c28bfa6c0a3da050fd3811af73",
     "cabinet/cabguide.js": "eed3abc1f9de8d877096b9f2d45f52c29d63fca97b5018ac9c4fa221808c754a",
@@ -13,10 +13,10 @@
     "cabinet/cabvisites.js": "113f61c0db25da2b146568ea43415297f330937f0723f9be6e462d6076d9451f",
     "cabinet/index.html": "80c7c1565e9a1de34759a60c77a2f393a8a825f95724cccca51386a39884dfa1",
     "compta.js": "a1228cbab17b53cd0aa40454d782cabff3165a599788a9a6053f49fcf0368668",
-    "core.js": "6dbbed172a5dd663083185148235c706b74b2398345bcebcd1a899011278f545",
+    "core.js": "914d64b520e3e748754b9953108559b3810eb96968fb67b1ab030e6d66b48437",
     "demo.js": "7831c54cb6ce833e60421c7f837510c3d722efdb94139db2e369ccb3b5fcc18a",
-    "guide.js": "3525b0cb31412759ddf8b82af4137031f15018fb9e6a88f41852ad64d52644da",
-    "index.html": "19e55a7540b78e171f19ce06134f00d672e28bf304b9eb33020d0ff80faa9d1b",
+    "guide.js": "74558e5527084642efd3fc8bba4ca093471128554b49e456c7deb5eaa25113e3",
+    "index.html": "3ae89ea7899e59b2e6cf646f33b1f8a28158afcb700600bc4a5ada124e2a858c",
     "listes.js": "90b0298f6d69676294ce3d0df34358618b92eab7072de4f5f6a07b035aef9cfa",
     "majui.js": "4e510979f9abb6e59386af4463d30fe25c6ac44ec04395294506d68d7b02ef7d",
     "nouveautes.js": "71de9bce8598a3bd2df435d873eee02a7c64aa4d7273c3ac90c64cddc4b86225",
@@ -27,6 +27,6 @@
     "style.css": "50186b8a6e2727addc9b34602e3e235fabdb206fa62ebd975cfa5f2c6a7fd012",
     "teif.js": "87e7870460227508739bac49cf77e13c4435c2e7c1ddbaf99f4a9f31679b45d4",
     "visite.js": "e2251e94b8ad0d3ea182d9ddff317e84bc71c4e552af4f613cc6040c0c925358",
-    "visites.js": "1fb39ce0ad3002baf05f801dfd2c3d480b5885cac685cd6f117c0614436f3734"
+    "visites.js": "a0fd0398202eaf8d818971bb1ce0619f9bac3fcf1e4e992deb242cf097f29cb2"
   }
 }

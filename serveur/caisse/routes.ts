@@ -168,15 +168,26 @@ export function routesCaisse(): Route<never>[] {
     },
   });
 
-  // Fermer : compter les espèces du tiroir ; le serveur dit ce qu'il devait contenir, l'écart, et fige le Z.
+  // Fermer : compter les espèces du tiroir ; le serveur dit ce qu'il devait contenir, l'écart, et fige le Z. Le détail du
+  // comptage (la caisse tactile, 05/10/2026 : combien de billets et de pièces de chaque coupure) est facultatif ; donné, il
+  // doit tomber sur le total compté, et le Z le garde.
   ajouter({
     methode: 'POST', chemin: '/entreprises/:entreprise/caisse/fermer', geste: 'caisse.session.fermer',
-    corps: z.object({ compte: montant }),
+    corps: z.object({ compte: montant, comptage: z.array(z.object({ valeur: montant, nombre: z.number().int().min(1).max(99_999) })).max(30).optional() }),
     traiter: async ({ params, corps, qui }, tx) => {
       if (!tx || !qui) throw new Error('transaction attendue');
       const ent = params.entreprise ?? '';
       const { devise, decimales } = await deviseDe(tx, ent);
       const compte = lireMontant(corps.compte, decimales);
+      const comptage = (corps.comptage ?? []).map((c) => {
+        const valeur = lireMontant(c.valeur, decimales);
+        return { valeur, nombre: c.nombre, total: valeur * BigInt(c.nombre) };
+      });
+      const somme = comptage.reduce((x, c) => x + c.total, 0n);
+      if (comptage.length && somme !== compte) {
+        // (Les montants s'y lisent comme à l'écran : 73,700.)
+        throw new Refus('caisse.comptage_faux', { valeurs: { somme: versTexte(somme, decimales).replace('.', ','), compte: versTexte(compte, decimales).replace('.', ',') } });
+      }
       const s = await sessionOuverte(tx, ent);
       if (!s) throw new Refus('caisse.pas_ouverte');
       const responsable = Boolean((await tx.query(`select socle.mes_roles($1) && array['proprietaire', 'administrateur'] r`, [ent])).rows[0]?.r);
@@ -194,6 +205,7 @@ export function routesCaisse(): Route<never>[] {
         avoirs: z0.avoirs.map((a) => ({ numero: a.numero, ticket: a.ticket, montant: texte(a.montant) })),
         retoursTtc: texte(z0.retoursTtc), net: texte(z0.net), tvaNette: texte(z0.tvaNette),
         fond: texte(fond), attendu: texte(z0.attendu), compte: texte(compte), ecart: texte(compte - z0.attendu),
+        ...(comptage.length ? { comptage: comptage.map((c) => ({ valeur: texte(c.valeur), nombre: c.nombre, total: texte(c.total) })) } : {}),
         ouverteLe: s.ouverte_le, ouvertePar: s.qui, appareil: s.appareil_nom, fermeeLe, fermePar };
       await tx.query(`update caisse.session set fermee_par = socle.moi(), fermee_le = $6, compte = $2, attendu = $3, ecart = $4, z = $5 where id = $1`,
         [s.id, compte.toString(), z0.attendu.toString(), (compte - z0.attendu).toString(), JSON.stringify(z), fermeeLe]);

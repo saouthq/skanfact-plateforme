@@ -49,7 +49,8 @@ describe('la remise à la caisse, à l\'écran', () => {
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/caisse`);
-    await expect.poll(() => p.locator('#cs-articles .cs-art').count(), { timeout: 20_000 }).toBe(1);
+    // L'état de la caisse, lu au serveur, se dit dans la barre du haut.
+    await expect.poll(() => p.locator('#cs-puce, #cs-ouverte').count(), { timeout: 20_000 }).toBe(1);
     await plusTard(p);
     return { cx, p, erreurs };
   };
@@ -79,35 +80,40 @@ describe('la remise à la caisse, à l\'écran', () => {
     await expect.poll(async () => net(await p.locator('#cs-fermee').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^La caisse est fermée\./);
     await p.locator('#cs-fond').fill('20');
     await p.locator('#cs-ouvrir').click();
-    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Caisse ouverte par Sami/);
+    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Ouverte par Sami/);
     for (let i = 0; i < 3; i++) await p.locator('#cs-articles .cs-art', { hasText: 'Pain de mie' }).click();
-    const totaux = async () => net(await p.locator('#cs-ticket .cs-totaux').innerText());
     const toast = async () => net(await p.locator('#toast').innerText().catch(() => ''));
+    // La remise se tape au pavé, dans sa fenêtre (« % Remise »).
+    const remise = async (taux: string) => {
+      await p.locator('#cs-remise-bouton').click();
+      await p.locator('#modal-root #pv-valeur').fill(taux);
+      await p.locator('#modal-root #pv-ok').click();
+    };
+    const pied = async () => [net(await p.locator('#cs-ligne-remise').innerText()), net(await p.locator('#cs-ticket .ct-sous').nth(1).innerText()), net(await p.locator('#cs-total').innerText())].join(' | ');
     // Sans remise, la place de sa ligne est gardée : « Encaisser » ne bougera pas quand elle apparaîtra.
+    expect(await p.locator('#cs-ligne-remise').getAttribute('aria-hidden')).toBe('true');
     const avant = await p.locator('#cs-encaisser').boundingBox();
     // 120 % : refusé avant le geste, et dit.
-    await p.locator('#cs-remise').fill('120');
-    await p.locator('#cs-remise').press('Tab');
+    await remise('120');
     await expect.poll(async () => net(await p.locator('#cs-motif').innerText()), { timeout: 5_000 }).toBe('La remise est un pourcentage entre 0 et 100 : tape-la comme 10 ou 7,5.');
     expect(await p.locator('#cs-encaisser').isDisabled()).toBe(true);
-    // 10 % : la remise se lit en TTC, comme les lignes (3,852 − 0,385 = 3,467 TTC ; 3,240 HT), « Encaisser » n'a pas bougé.
-    // Le champ de la remise ne colle pas à celui du reçu.
-    const recu = await p.locator('#cs-ticket .cs-recu').boundingBox(), champ = await p.locator('#cs-ticket .cs-remise').boundingBox();
-    expect((champ?.y ?? 0) - ((recu?.y ?? 0) + (recu?.height ?? 0))).toBeGreaterThanOrEqual(8);
-    await p.locator('#cs-remise').fill('10');
-    await p.locator('#cs-remise').press('Tab');
-    await expect.poll(totaux, { timeout: 5_000 }).toMatch(/^Remise 10 % − 0,385 DT Total HT 3,240 DT TVA 0,227 DT Total TTC 3,467 DT$/);
+    // 10 % : la remise se lit en TTC, comme les lignes (3,852 − 0,385 = 3,467 TTC, dont 0,227 de TVA), « Encaisser » n'a
+    // pas bougé.
+    await remise('10');
+    await expect.poll(pied, { timeout: 5_000 }).toBe('Remise 10 % − 0,385 DT | 3 articles dont TVA 0,227 DT | 3,467 DT');
     expect((await p.locator('#cs-encaisser').boundingBox())?.y).toBe(avant?.y);
-    // « Encaisser » : au-delà de 0 %, le code d'un responsable présent, demandé AVANT. Aucun n'a posé le sien : la
-    // fenêtre le dit, « Approuver » reste gris.
+    expect(net(await p.locator('#cs-remise-bouton').innerText())).toBe('Remise 10 %');
+    // « Encaisser », puis « Valider » : au-delà de 0 %, le code d'un responsable présent, demandé AVANT que le ticket
+    // naisse. Aucun n'a posé le sien : la fenêtre le dit, « Approuver » reste gris.
     await p.locator('#cs-encaisser').click();
+    await p.locator('#cs-valider').click();
     await expect.poll(async () => net(await p.locator('#modal-root #rd-sans-responsable').innerText().catch(() => '')), { timeout: 10_000 })
       .toBe('Une remise au-delà de celle permise sans code se fait avec le code d\'un responsable présent, et aucun n\'a encore posé le sien : le propriétaire ou un administrateur le pose depuis la page Caisse, avec « Mon code de responsable… ».');
     expect(await p.locator('#modal-root #rs-ok').isDisabled()).toBe(true);
     await p.locator('#modal-root [data-close]').click();
     // Nadia pose son code : seule responsable, elle est déjà choisie.
     expect((await api('PUT', `/entreprises/${ent}/caisse/code-responsable`, nadia, { code: '1357' })).statut).toBe(200);
-    await p.locator('#cs-encaisser').click();
+    await p.locator('#cs-valider').click();
     await expect.poll(() => p.locator('#modal-root #rd-resp option').count(), { timeout: 10_000 }).toBe(1);
     expect(net(await p.locator('#modal-root h2').innerText())).toBe('Remise de 10 %');
     expect(await p.locator('#modal-root #rd-resp option:checked').innerText()).toBe('Nadia');
@@ -117,8 +123,8 @@ describe('la remise à la caisse, à l\'écran', () => {
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'remise-1-responsable.png') });
     await p.locator('#modal-root #rs-ok').click();
     await expect.poll(toast, { timeout: 10_000 }).toBe('Ce code de responsable ne correspond pas : rien n\'a été vendu.');
-    // Le panier attend ; avec le bon code, le ticket part.
-    await p.locator('#cs-encaisser').click();
+    // Le paiement attend ; avec le bon code, le ticket part.
+    await p.locator('#cs-valider').click();
     await expect.poll(() => p.locator('#modal-root #rd-resp option').count(), { timeout: 10_000 }).toBe(1);
     await p.locator('#modal-root #rd-code').fill('1357');
     await p.locator('#modal-root #rs-ok').click();
@@ -161,9 +167,9 @@ describe('la remise à la caisse, à l\'écran', () => {
     await expect.poll(() => p.locator('#cs-articles .cs-art').count(), { timeout: 20_000 }).toBe(1);
     await plusTard(p);
     await p.locator('#cs-articles .cs-art', { hasText: 'Pain de mie' }).click();
-    await p.locator('#cs-remise').fill('10');
-    await p.locator('#cs-remise').press('Tab');
+    await remise('10');
     await p.locator('#cs-encaisser').click();
+    await p.locator('#cs-valider').click();
     await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-002 encaissé`);
     expect(await p.locator('#modal-root #rd-resp').count()).toBe(0);
     await comptoir.cx.close();

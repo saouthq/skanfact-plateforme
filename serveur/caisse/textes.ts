@@ -17,6 +17,7 @@ declarerTextes({
   'caisse.deja_ouverte': 'la caisse est déjà ouverte ({appareil}, par {qui}, depuis {depuis}) : on la ferme avant de la rouvrir',
   'caisse.sans_appareil': 'la caisse s\'ouvre depuis un appareil connecté (un navigateur, l\'application) : rien n\'a été ouvert',
   'caisse.pas_ouverte': 'la caisse n\'est pas ouverte : il n\'y a rien à fermer',
+  'caisse.comptage_faux': 'le détail du comptage fait {somme}, pas les {compte} comptés : recompte le tiroir. La caisse reste ouverte',
   'caisse.fermer_ailleurs': 'la caisse se ferme sur l\'appareil qui la tient ({appareil}), ou par le propriétaire ou un administrateur',
   'caisse.session_inconnue': 'la session de caisse de ce ticket n\'existe pas dans cette entreprise : rien n\'a été enregistré',
   'caisse.pas_ce_poste': 'ce ticket a été encaissé sur la caisse d\'un autre appareil : seul l\'appareil qui la tenait le remet. Rien n\'a été enregistré',

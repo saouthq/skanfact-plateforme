@@ -304,10 +304,85 @@ Tests : `tests/web/caisse-premier-article.test.ts` (le prix TTC, dans un navigat
 `tests/web/caisse-retour.test.ts` (le bilan, le bilan imprimé, le Z et sa bande), `tests/v10/caisse-retour.test.ts` (le
 Z figé : ses avoirs, son net), `tests/web/dates.test.ts`, `tests/web/cabinet-abonnements.test.ts`. 25 preuves.
 
+## La caisse tactile (05/10/2026 ; maquette validée par Skander)
+
+Demande de Skander (05/10/2026) : la caisse sera installée sur un écran de caisse tactile ; la refaire en vrai designer
+d'interface, et l'adapter (Slate n'a pas de caisse, seulement des réservations : elle se construit ici). Maquette validée
+le 05/10/2026 (« oui je valide »). Le code : `web/v10/caisse-tactile.txt` (les écrans, par-dessus ceux de la v10),
+`web/public/plateforme/caisse.css`, `web/public/plateforme/ecran-client.html` et `ecran-client.js`.
+
+- **Tout l'écran.** La page Caisse prend l'écran entier (la barre de gauche s'efface : `body.mode-caisse`). Une barre en
+  haut : la sortie, la caisse, l'état de sa session, les onglets « Vendre » et « Tickets du jour », qui est au poste (le
+  toucher passe la main, brique 123), « Guide-moi », et le menu « ⋯ » des gestes plus rares (fermer la caisse, son
+  code, l'écran du client, quitter). Puis l'écran du moment. Tout se touche au doigt : 44 px au moins (l'instrument
+  `tests/web/rendu.test.ts` mesure l'écran de vente au téléphone, à la tablette et à l'ordinateur).
+- **Fermée, elle s'ouvre d'abord.** Fermée, ou tenue sur un autre appareil, l'écran de vente laisse la place à une
+  carte : « La caisse est fermée. », le fond de caisse proposé, « Ouvrir la caisse ». Aucun panier ne commence sur une
+  caisse fermée.
+- **Vendre.** À gauche, la douchette toujours prête (le champ du haut ; une frappe qui n'arrive dans aucun champ y va),
+  « + Article libre », les familles du Catalogue en onglets (« Favoris » : les 15 articles les plus vendus en caisse
+  ces 60 derniers jours ; « Tout »), puis les tuiles (initiales colorées selon la famille, prix TTC, stock, nombre déjà
+  dans le ticket). À droite, le ticket : le client (une liste à toucher), mettre la vente en attente et la reprendre
+  (l'horloge dit combien attendent), les lignes avec − / quantité / +, « % Remise » (au pavé), « Annuler le ticket »
+  (qui se répare : « Annuler » sur le bandeau), le total et « Encaisser ».
+- **L'article libre** : une désignation, un prix TTC, une TVA ; le HT qui y retombe exactement, sinon le plus proche, et
+  la caisse le dit. Il ne crée rien au Catalogue et ne sort rien du stock.
+- **Les ventes en attente** restent en mémoire sur ce poste, comme le panier : un panier n'est pas une pièce, rien ne
+  part au serveur.
+- **Encaisser** ouvre un écran à part : à payer, en grand ; le mode (Espèces, Carte, Chèque) ; le reçu (les billets
+  proposés : le montant exact et les sommes rondes au-dessus ; le pavé ; un chiffre tapé après un billet le remplace) ;
+  « À rendre » ou « Il manque », pendant la frappe. « Valider » dit ce qu'il fait (« Valider · rendre 2,702 DT »). Un
+  compte qui manque se crée de là (la banque pour la carte, la caisse pour les espèces).
+- **La monnaie**, en grand, avec le ticket, « Imprimer », « Voir » et « Nouvelle vente » ; scanner l'article suivant
+  commence aussi la vente suivante. Revenir à la caisse depuis une autre page reprend la vente.
+- **L'écran du client** (menu « ⋯ ») : une seconde fenêtre du poste, à glisser sur l'écran tourné vers le client et à
+  mettre en plein écran. Il montre la bienvenue, le ticket en cours (les 8 dernières lignes, le total), le paiement (à
+  payer, reçu, monnaie), puis « Merci » avec la monnaie. Il ne lit rien au serveur : la caisse lui parle par un canal du
+  navigateur propre à l'entreprise, sur ce poste seulement.
+- **Le soir, le comptage** (menu « ⋯ », « Fermer la caisse (Z)… ») : billet par billet, pièce par pièce (toucher une
+  coupure, taper combien il y en a ; « Suivant ») ; le total se fait tout seul, billets et pièces à part ; ou « Taper
+  le total compté à la place ». Toujours à l'aveugle : ce que le tiroir devait contenir ne se voit qu'au Z (brique 122).
+  Le détail part au serveur avec le total ; il doit y tomber au millime, sinon il est refusé (`caisse.comptage_faux`) et
+  la caisse reste ouverte ; le Z le garde (une ligne par coupure, à l'écran et sur la bande). Un tiroir vide se confirme.
+  Les coupures retenues : billets de 50, 20 et 10 dinars ; pièces de 5, 2 et 1 dinars, de 500, 200, 100, 50, 20 et
+  10 millimes — **À VÉRIFIER** auprès de la Banque centrale de Tunisie (le billet de 5 dinars a-t-il encore cours ? la
+  pièce de 5 millimes ?). Dans une autre devise que le dinar : le total tapé seulement.
+- **Tablette et téléphone.** Sur une tablette debout, le nom d'un article prend sa ligne dans le ticket ; le paiement
+  devient une colonne, « Revenir au ticket » en haut ; le comptage, une colonne qui défile, et une coupure touchée
+  demande son nombre dans une fenêtre (le pavé de la colonne serait loin sous la liste). Au téléphone, la page défile ;
+  le ticket se tient replié en bas de l'écran (ses lignes en bref, son total, « Encaisser ») et « Tout voir » le
+  déplie ; « Valider » reste à portée du pouce.
+- **Sans réseau**, le bandeau du poste se tient en haut de la fenêtre : la caisse se pousse dessous, et sa barre reste
+  touchable (vu au test de la caisse sans réseau).
+- **La famille d'un article** : un champ de sa fiche (« Famille », avec les familles déjà données) ; elle part au
+  serveur avec l'article, dans le dossier v10 (un champ de plus, décidé avec la maquette le 05/10/2026).
+
+**Reporté, et pourquoi** (05/10/2026) :
+- **Le paiement mixte** (une part en espèces, une part par carte) et **le crédit client** (« sur le compte du
+  client ») : un ticket porte aujourd'hui un seul paiement, et le serveur le vérifie ; les deux changent ce que le
+  serveur accepte d'un ticket (et le crédit, son écriture comptable). Un lot à part.
+- **Le motif d'un écart** (dans la maquette) : le comptage restant à l'aveugle, l'écart ne se connaît qu'au Z, une fois
+  figé ; son motif (« erreur de monnaie », « retrait non noté »…) se posera sur le Z figé, comme une note datée et
+  signée de qui l'écrit. Le serveur doit l'accepter : le lot suivant de la caisse.
+- **Le bouton « Ouvrir le tiroir »** sans vente : un tiroir ouvert sans vente doit laisser une trace (qui, quand) —
+  **À DÉCIDER** avec Skander avant de l'ajouter. L'application de bureau ouvre déjà le tiroir à un encaissement en
+  espèces (brique 138).
+- **Le fond de caisse dans la comptabilité** : le fond tapé à l'ouverture et l'écart du Z ne s'écrivent pas au compte de
+  caisse ; à l'ouverture, la caisse propose le solde de ce compte (brique 122), qui peut donc différer du tiroir compté
+  au dernier Z. Écrire le fond (ou un écart d'ouverture) et l'écart du Z (une charge ou un produit) : **À DÉCIDER** avec
+  Skander et un comptable.
+
+Tests : `tests/web/caisse-tactile.test.ts` (au comptoir et au téléphone), `tests/v10/caisse-z.test.ts` (le comptage
+gardé, le comptage faux refusé), et les tests d'écran de la caisse retournés vers le nouvel écran (`caisse`, `caisse-z`,
+`caisse-retour`, `caisse-remise`, `caisse-relais`, `caissier`, `caisse-hors-ligne`, `caisse-premier-article`,
+`parcours`, `rendu`, `bureau/caisse-bureau`). 26 preuves nouvelles, 6 recalées sur le code déplacé ; et l'outil des
+preuves ne compte plus « prouvée » une preuve dont le défaut n'a pas pu se poser (`tests/preuves.sh`).
+
 ## Ce qui part au serveur
 
 Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, reçu, rendu, paiement, client facultatif)
-: rien de plus.
+: rien de plus. À la fermeture, avec le total compté, le détail du comptage s'il est donné (chaque coupure et son
+nombre, 05/10/2026). Avec un article du Catalogue, sa famille (05/10/2026).
 
 ## Les tests
 

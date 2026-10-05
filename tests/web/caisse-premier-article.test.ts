@@ -44,6 +44,8 @@ describe('le premier article de la caisse', () => {
     const jeton = String((await api('POST', '/connexion/code', undefined, { defi: r.corps.defi, code: codeTotp(depuisBase32(secret), Date.now()) })).corps.jeton);
     const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Quincaillerie El Amen' })).corps.id);
     await api('GET', `/entreprises/${ent}/dossier-v10`, jeton);
+    // La caisse ouverte sur ce poste (la caisse tactile : fermée, elle ne montre pas ses articles, elle s'ouvre d'abord).
+    expect((await api('POST', `/entreprises/${ent}/caisse/ouvrir`, jeton, { fond: '0' })).statut).toBe(200);
 
     const cn = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'en-US' });
     await cn.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
@@ -78,6 +80,8 @@ describe('le premier article de la caisse', () => {
     const jeton = String((await api('POST', '/connexion/code', undefined, { defi: r.corps.defi, code: codeTotp(depuisBase32(secret), Date.now()) })).corps.jeton);
     const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Quincaillerie El Amen' })).corps.id);
     await api('GET', `/entreprises/${ent}/dossier-v10`, jeton);
+    // La caisse ouverte sur ce poste (la caisse tactile : fermée, elle ne montre pas ses articles, elle s'ouvre d'abord).
+    expect((await api('POST', `/entreprises/${ent}/caisse/ouvrir`, jeton, { fond: '0' })).statut).toBe(200);
 
     const cn = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'en-US' });
     await cn.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);

@@ -51,7 +51,7 @@ Cabinet a son propre point de contact (`pont-cabinet.js`), décrit dans `docs/ca
 
 Pièces jointes (le panneau est caché), la clé d'un service de lecture à l'étranger (la lecture des factures
 se fait sur le serveur de SkanFact : brique 84), paquet et réponses du
-cabinet, **la caisse** (« Encaisser » et le retour d'un ticket, jusqu'à l'étape 4), abonnement, import d'un fichier qui remplace tout, nommer l'appareil, retirer une
+cabinet, abonnement, import d'un fichier qui remplace tout, nommer l'appareil, retirer une
 entreprise de la liste. Le refus dit ce qui n'existe pas encore et que **rien n'a été fait**.
 
 ## 4. Caché : sans objet sur la plateforme

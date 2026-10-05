@@ -10781,6 +10781,7 @@
         ${ligne('Fond de caisse', m(z.fond))}
         ${ligne('Le tiroir devait contenir', m(z.attendu), 'tot')}
         ${ligne('Espèces comptées', m(z.compte))}
+        ${(z.comptage || []).map(x => ligne(`&nbsp;&nbsp;${Number(x.nombre)} × ${Number(x.valeur) >= 1 ? `${Number(x.valeur)} DT` : `${Math.round(Number(x.valeur) * 1000)} millimes`}`, m(x.total))).join('')}
         ${ligne('Écart', m(z.ecart), 'tot')}
       </table>
       <hr>

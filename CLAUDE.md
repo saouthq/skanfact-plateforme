@@ -150,7 +150,13 @@
     le poste qui tient la caisse numérote (forme de la série apprise du serveur) et chaîne
     (`sha256(précédente || sha256(ticket))`, la même formule dans `pont.js`), garde ses tickets chiffrés, les remet dans
     l'ordre avant le dossier ; le serveur compare et ne corrige jamais : `caisse.alerte` (numero, chaine, empreinte,
-    apres_fermeture), vue du propriétaire ; 7 jours au plus sans le serveur.
+    apres_fermeture), vue du propriétaire ; 7 jours au plus sans le serveur. **La caisse tactile** (05/10/2026,
+    maquette validée par Skander ; `web/v10/caisse-tactile.txt`, `plateforme/caisse.css`, `plateforme/ecran-client.*`) :
+    tout l'écran (`body.mode-caisse`, posé par `render`) ; fermée, elle s'ouvre d'abord (`drawFermee`) ; vendre,
+    encaisser, la monnaie et le comptage sont des écrans (`caisseState.ecran`), le panier et les ventes en attente
+    vivent en mémoire ; le comptage part avec le total (`comptage` : [{valeur, nombre}], qui doit y tomber au millime,
+    sinon `caisse.comptage_faux`) et le Z le garde ; l'écran du client écoute `BroadcastChannel('skanfact-ecran-client:<e>')`
+    et ne lit rien au serveur. En dessous de 920 px, une coupure touchée demande son nombre dans une fenêtre.
   - **Supprimer un brouillon : les siens** (brique 117, `0058`, `docs/droits-dossier.md`) : chaque objet du dossier
     retient son auteur (`cree_par`) ; une pièce, une commande fournisseur ou une réception ne se supprime que par son
     auteur, P ou A (sans auteur connu : P ou A) ; le serveur, la base et l'écran (avant la question, par `autrui`) le

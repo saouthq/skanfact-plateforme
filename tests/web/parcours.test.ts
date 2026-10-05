@@ -515,6 +515,7 @@ describe('le parcours, à la souris', () => {
     await plusTard(p);
     await p.locator('#cs-articles [data-art]').first().click();
     await p.locator('#cs-encaisser').click();
+    await p.locator('#cs-valider').click();
     await expect.poll(() => p.locator('#toast').innerText()).toMatch(/^Ticket TIC-\d{4}-001 encaissé/);
     await p.screenshot({ path: path.join(PHOTOS, 'caisse-essai.png') });
     expect((await admin.query(`select contenu->>'number' n from socle.dossier_v10 where entreprise = $1 and collection = 'documents'`, [qui.essai])).rows.map((r) => r.n))

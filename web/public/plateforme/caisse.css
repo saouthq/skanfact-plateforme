@@ -1,0 +1,396 @@
+/* La caisse tactile (05/10/2026 ; maquette validée par Skander le même jour ; docs/caisse.md, « La caisse tactile »).
+   Un écran de caisse courant : tactile, en paysage, 1366 × 768 le plus souvent (1440 × 900 aussi), une douchette, parfois
+   un écran tourné vers le client. Tout se touche du doigt (44 points au moins, 56 à 76 pour les gestes du comptoir) ;
+   « Encaisser » ne quitte jamais l'écran ; ce qui apparaît (une remise, un motif) a sa place gardée et ne pousse rien
+   sous le doigt. Chargée après la feuille de style de la v10 et celle du téléphone : elle ne touche que la page Caisse
+   (`body.mode-caisse`, posé par le routeur), qui prend tout l'écran — la barre de gauche s'efface, la caisse a sa
+   sortie (« ‹ SF ») et son menu. */
+
+body.mode-caisse {
+  --ct-encre: #0e1726; --ct-texte2: #3d4757; --ct-discret: #5a6578; --ct-fond: #f3f5f8; --ct-carte: #ffffff; --ct-pied: #fafbfc;
+  --ct-trait: #e2e7ef; --ct-trait-fort: #d5dce6; --ct-ligne: #eef1f5; --ct-vert: var(--primary); --ct-vert-fonce: #075e55;
+  --ct-vert-doux: #e3f3f1; --ct-halo: #cdebe7; --ct-ambre: #8a4b00; --ct-ambre-doux: #fff4db; --ct-ambre-trait: #f2c46d;
+  --ct-rouge: #b42318; --ct-rouge-trait: #f0c6c1; --ct-billet: #eef1f5; --ct-piece: #fdf0dc; --ct-piece-trait: #b98a3e;
+}
+body.dark.mode-caisse {
+  --ct-encre: var(--text); --ct-texte2: #c3cbd6; --ct-discret: var(--muted); --ct-fond: var(--bg); --ct-carte: var(--panel); --ct-pied: var(--panel);
+  --ct-trait: var(--border); --ct-trait-fort: var(--line); --ct-ligne: var(--border); --ct-vert-fonce: #5fd3c4; --ct-vert-doux: var(--primary-soft);
+  --ct-halo: var(--primary-soft-2); --ct-ambre: #f0b26a; --ct-ambre-doux: var(--warning-soft); --ct-ambre-trait: #7a5a2a; --ct-rouge: #ef6b64;
+  --ct-rouge-trait: #5a2a2a; --ct-billet: #232b36; --ct-piece: #3a2c1c; --ct-piece-trait: #8a6a3e;
+}
+body.mode-caisse .sidebar { display: none !important; }
+/* Le bandeau du poste (sans réseau, ce qui attend : plateforme/poste.js) se tient en haut de la fenêtre : la caisse se
+   pousse dessous de sa hauteur (--poste-bandeau-h), sa barre reste touchable. */
+body.mode-caisse main#view {
+  display: flex; flex-direction: column; height: calc(100vh - var(--poste-bandeau-h, 0px)); margin-top: var(--poste-bandeau-h, 0px); padding: 0;
+  overflow: hidden; background: var(--ct-fond); color: var(--ct-encre); font-variant-numeric: tabular-nums;
+}
+/* Ce qui se pose au-dessus de la page (le bandeau de l'exemple, un bandeau de module) garde sa place, la caisse prend le reste. */
+body.mode-caisse main#view > .banner { margin: 8px 16px 0; flex: 0 0 auto; }
+
+/* ── La barre du haut ── */
+.ct-tete.page-head { flex: 0 0 auto; height: 60px; min-height: 60px; margin: 0; display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center;
+  justify-content: flex-start; gap: 12px; padding: 0 16px; background: var(--ct-carte); border-bottom: 1px solid var(--ct-trait); }
+.ct-sortie { flex-shrink: 0; height: 44px; min-width: 44px; display: inline-flex; align-items: center; gap: 4px; padding: 0 4px 0 2px; border-radius: 12px;
+  color: var(--ct-discret); font-size: 22px; font-weight: 600; text-decoration: none; }
+.ct-sortie:hover, .ct-sortie:focus-visible { background: var(--ct-fond); }
+.ct-marque { width: 38px; height: 38px; border-radius: 11px; background: var(--ct-vert); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 15px; }
+.ct-nom { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; max-width: 200px; }
+.ct-tete .ct-nom h1 { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: 0; }
+.ct-nom small { font-size: 12px; color: var(--ct-discret); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ct-etat { min-width: 0; display: inline-flex; }
+.ct-etat:empty { display: none; }
+.ct-puce { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 420px; }
+.ct-puce::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.ct-puce.ouverte { background: var(--ct-vert-doux); color: var(--ct-vert-fonce); }
+.ct-puce.fermee, .ct-puce.ailleurs, .ct-puce.hors-ligne { background: var(--ct-ambre-doux); color: var(--ct-ambre); }
+.ct-onglets { display: inline-flex; padding: 3px; gap: 3px; border-radius: 12px; background: var(--ct-fond); border: 1px solid var(--ct-trait); flex-shrink: 0; }
+.ct-onglets button { font: inherit; font-size: 15px; font-weight: 600; height: 44px; padding: 0 16px; border: 0; border-radius: 9px; background: transparent;
+  color: var(--ct-texte2); cursor: pointer; white-space: nowrap; }
+.ct-onglets button.active { background: var(--ct-carte); color: var(--ct-encre); box-shadow: 0 1px 3px rgba(14, 23, 38, .12); }
+.ct-espace { flex: 1 1 auto; }
+.ct-gestes { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.ct-gestes:empty { display: none; }
+.ct-tete .guide-moi span { display: none; }
+.ct-tete .guide-moi { min-width: 44px; min-height: 44px; justify-content: center; }
+.ct-court { display: none; }
+.ct-bouton { font: inherit; font-size: 15px; font-weight: 600; min-height: 44px; min-width: 44px; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border-radius: 12px; border: 1px solid var(--ct-trait-fort); background: var(--ct-carte); color: var(--ct-encre); cursor: pointer; white-space: nowrap; }
+.ct-bouton:disabled { opacity: .45; cursor: default; }
+.ct-bouton.carre { width: 52px; padding: 0; flex-shrink: 0; }
+.ct-bouton.danger { color: var(--ct-rouge); border-color: var(--ct-rouge-trait); }
+.ct-caissier { display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 0 14px 0 6px; font-size: 15px; font-weight: 600; }
+span.ct-caissier { padding-inline-end: 4px; }
+.ct-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--ct-encre); color: var(--ct-carte); display: grid; place-items: center; font-size: 13px; font-weight: 700; }
+.ct-chevron { color: var(--ct-discret); }
+.ct-menu { position: relative; flex-shrink: 0; }
+.ct-menu > .ct-bouton { width: 44px; padding: 0; font-size: 20px; letter-spacing: 1px; }
+.ct-menu-liste { position: absolute; inset-inline-end: 0; top: 50px; z-index: 300; min-width: 280px; padding: 6px; background: var(--ct-carte); border: 1px solid var(--ct-trait);
+  border-radius: 14px; box-shadow: 0 12px 32px rgba(14, 23, 38, .18); display: flex; flex-direction: column; }
+.ct-menu-liste[hidden] { display: none; }
+.ct-menu-liste button { font: inherit; font-size: 15px; text-align: start; min-height: 48px; padding: 0 14px; border: 0; border-radius: 10px; background: transparent;
+  color: var(--ct-encre); cursor: pointer; }
+.ct-menu-liste button:hover, .ct-menu-liste button:focus-visible { background: var(--ct-fond); }
+.ct-menu-liste hr { border: 0; border-top: 1px solid var(--ct-trait); margin: 4px 6px; }
+
+#cs-session { flex: 0 0 auto; padding: 10px 16px 0; }
+#cs-session:empty { display: none; }
+#cs-session .banner { margin: 0 0 8px; }
+.ct-corps { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.ct-corps.ct-defile { overflow-y: auto; padding: 16px; }
+.ct-corps .cs-motif { min-height: 1.4em; margin: 0; font-size: 13px; color: var(--ct-ambre); }
+
+/* ── La caisse fermée ── */
+.ct-fermee { flex: 1 1 auto; display: grid; place-items: center; padding: 24px 16px; overflow-y: auto; }
+.ct-fermee-carte { width: min(560px, 100%); background: var(--ct-carte); border: 1px solid var(--ct-trait); border-radius: 20px; padding: 28px; display: flex; flex-direction: column;
+  gap: 16px; box-shadow: 0 10px 30px rgba(14, 23, 38, .08); box-sizing: border-box; }
+.ct-fermee-carte h2 { margin: 0; font-size: 24px; }
+.ct-fermee-carte p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--ct-texte2); }
+.ct-fermee-carte .field input { font-size: 22px; height: 56px; text-align: end; }
+.ct-fermee-carte .ct-principal { width: 100%; }
+
+/* ── Vendre ── */
+.ct-vente { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 440px; }
+.ct-articles { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 0; }
+.ct-cherche { display: flex; gap: 12px; }
+.ct-scan { flex: 1 1 auto; min-width: 0; height: 58px; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--ct-carte); border: 2px solid var(--ct-vert);
+  border-radius: 14px; box-sizing: border-box; }
+.ct-scan svg { flex-shrink: 0; color: var(--ct-vert); }
+/* Le champ de la douchette et celui du reçu se fondent dans leur cadre, en sombre aussi (la règle des champs du thème
+   sombre pèse cinq sélecteurs : l'identifiant passe devant). */
+body.dark #cs-scan, body.dark #cs-scan:focus, body.dark #cs-recu, body.dark #cs-recu:focus { background: transparent; }
+.ct-scan input, body.dark .ct-scan input { flex: 1 1 auto; min-width: 0; min-height: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 18px; color: var(--ct-encre);
+  padding: 0; box-shadow: none; height: 40px; }
+.ct-pret { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ct-vert-fonce); white-space: nowrap; }
+.ct-pret::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--ct-vert); }
+.ct-cherche > .ct-bouton { height: 58px; padding: 0 18px; border-radius: 14px; font-size: 16px; }
+.ct-familles { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; padding-bottom: 2px; }
+.ct-familles:empty { display: none; }
+.ct-familles button { flex-shrink: 0; font: inherit; font-size: 16px; font-weight: 600; height: 48px; padding: 0 20px; border-radius: 999px; border: 1px solid var(--ct-trait-fort);
+  background: var(--ct-carte); color: var(--ct-encre); cursor: pointer; white-space: nowrap; }
+.ct-familles button[aria-selected="true"] { background: var(--ct-encre); border-color: var(--ct-encre); color: var(--ct-carte); }
+.ct-tuiles { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 0; padding: 10px 10px 16px 2px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-auto-rows: 122px; gap: 12px; align-content: start; }
+.ct-tuiles .cs-art { position: relative; min-height: 0; height: 122px; margin: 0; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; align-items: stretch;
+  gap: 6px; text-align: start; font: inherit; color: var(--ct-encre); background: var(--ct-carte); border: 2px solid var(--ct-trait); border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(14, 23, 38, .05); cursor: pointer; }
+.ct-tuiles .cs-art.dans { border-color: var(--ct-vert); box-shadow: 0 2px 10px rgba(11, 122, 111, .14); }
+/* Le nom ne passe pas sous la pastille du nombre. */
+.ct-tuiles .cs-art.dans .cs-art-nom { padding-inline-end: 18px; }
+.ct-tuiles .cs-art:active { transform: scale(.98); }
+.cs-art-tete { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.ct-pastille { flex-shrink: 0; width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; font-size: 13px; font-weight: 800;
+  background: hsl(var(--teinte, 175) 70% 93%); color: hsl(var(--teinte, 175) 75% 26%); }
+body.dark .ct-pastille { background: hsl(var(--teinte, 175) 35% 22%); color: hsl(var(--teinte, 175) 70% 78%); }
+.ct-tuiles .cs-art-nom { font-weight: 600; font-size: 15px; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow-wrap: anywhere; }
+.cs-art-pied { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+.ct-tuiles .cs-art-prix { margin: 0; color: var(--ct-encre); font-weight: 750; font-size: 19px; letter-spacing: -.2px; white-space: nowrap; }
+.ct-tuiles .cs-art-stock { font-size: 13px; color: var(--ct-discret); white-space: nowrap; }
+.ct-tuiles .cs-art-stock.bas { color: var(--ct-ambre); font-weight: 700; }
+.ct-tuiles .cs-art-stock.rupture { color: var(--ct-ambre); background: var(--ct-ambre-doux); font-weight: 700; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+.ct-badge { position: absolute; top: -9px; inset-inline-end: -9px; min-width: 32px; height: 32px; padding: 0 8px; border-radius: 999px; background: var(--ct-vert); color: #fff;
+  border: 3px solid var(--ct-fond); font-weight: 700; font-size: 15px; display: grid; place-items: center; box-sizing: border-box; }
+.ct-tuiles .cs-plus, .ct-tuiles > p { grid-column: 1 / -1; margin: 0; }
+
+/* Le ticket, à droite */
+.ct-ticket { min-height: 0; display: flex; flex-direction: column; background: var(--ct-carte); border-inline-start: 1px solid var(--ct-trait); }
+.ct-ticket-tete { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--ct-trait); }
+.ct-client { flex: 1 1 auto; min-width: 0; height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--ct-trait-fort);
+  background: var(--ct-carte); font: inherit; color: var(--ct-encre); text-align: start; cursor: pointer; }
+.ct-client > svg { flex-shrink: 0; color: var(--ct-discret); }
+.ct-client > span:not(.ct-chevron) { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+.ct-client small { font-size: 12px; color: var(--ct-discret); }
+.ct-client b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Les ventes en attente : l'horloge, et leur nombre en pastille. */
+.ct-horloge { position: relative; }
+.ct-horloge .ct-nb { position: absolute; top: -7px; inset-inline-end: -7px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--ct-vert);
+  color: #fff; font-size: 12px; font-weight: 800; display: grid; place-items: center; box-sizing: border-box; }
+.ct-ticket-tete .ct-bouton { height: 52px; }
+.ct-lignes { flex: 1 1 auto; min-height: 0; height: auto; overflow-y: auto; padding: 4px 16px; border-radius: 0; }
+.ct-ligne { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--ct-ligne); }
+.ct-ligne-nom { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+/* Le nom d'un article se lit en entier : sur deux lignes s'il le faut (au-delà, il se coupe). */
+.ct-ligne-nom b { font-weight: 600; font-size: 16px; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow-wrap: anywhere; }
+.ct-ligne-nom small { font-size: 13px; color: var(--ct-discret); margin-top: 2px; }
+/* La quantité devant le nom : seulement dans le ticket replié du téléphone (ailleurs, « − 2 + » la dit). */
+.ct-q { display: none; }
+.ct-pas { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.ct-pas button { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 12px; border: 1px solid var(--ct-trait-fort); background: var(--ct-carte);
+  color: var(--ct-encre); font: inherit; font-size: 22px; font-weight: 600; cursor: pointer; padding: 0; }
+.ct-pas .ct-qte { width: 46px; border-color: transparent; background: transparent; font-size: 19px; font-weight: 700; }
+.ct-ligne-total { flex: 0 0 92px; text-align: end; font-weight: 700; font-size: 17px; white-space: nowrap; }
+.ct-vide { height: 100%; min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--ct-discret); text-align: center; }
+.ct-vide b { font-size: 17px; color: var(--ct-texte2); }
+.ct-ticket-pied { padding: 12px 16px 16px; border-top: 1px solid var(--ct-trait); background: var(--ct-pied); display: flex; flex-direction: column; gap: 8px; }
+.ct-gestes-ticket { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ct-gestes-ticket .ct-bouton { height: 48px; }
+.ct-sous { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; color: var(--ct-discret); }
+.ct-total { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ct-total span { font-size: 18px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.ct-total b { font-size: 40px; font-weight: 800; letter-spacing: -.8px; white-space: nowrap; }
+.ct-principal { font: inherit; font-size: 23px; font-weight: 700; min-height: 74px; padding: 0 20px; border: 0; border-radius: 16px; background: var(--ct-vert); color: #fff;
+  box-shadow: 0 4px 14px rgba(11, 122, 111, .28); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; white-space: nowrap; }
+.ct-principal:disabled { background: var(--ct-trait); color: var(--ct-discret); box-shadow: none; cursor: default; }
+
+/* ── Encaisser ── */
+.ct-paiement { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 400px minmax(0, 1fr); }
+.ct-recap { min-height: 0; display: flex; flex-direction: column; background: var(--ct-carte); border-inline-end: 1px solid var(--ct-trait); }
+.ct-recap-tete { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-bottom: 1px solid var(--ct-trait); font-size: 17px; }
+.ct-recap-tete small { font-size: 14px; color: var(--ct-discret); }
+.ct-recap-lignes { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 16px; }
+.ct-recap-ligne { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--ct-ligne); font-size: 15px; }
+.ct-recap-ligne span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct-recap-pied { padding: 16px; border-top: 1px solid var(--ct-trait); display: flex; flex-direction: column; gap: 12px; background: var(--ct-pied); }
+.ct-recap-pied small { font-size: 14px; color: var(--ct-discret); display: flex; justify-content: space-between; gap: 8px; }
+.ct-recap-pied .ct-bouton { height: 52px; }
+.ct-payer { min-width: 0; min-height: 0; padding: 18px 24px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+.ct-payer-defile { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.ct-payer > .ct-principal { flex: 0 0 auto; }
+.ct-apayer { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ct-apayer span { font-size: 18px; font-weight: 600; color: var(--ct-texte2); }
+.ct-apayer b { font-size: 46px; font-weight: 800; letter-spacing: -1px; white-space: nowrap; }
+.ct-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.ct-corps .ct-mode { height: 64px; min-height: 64px; border-radius: 14px; font: inherit; font-size: 17px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  gap: 10px; cursor: pointer; background: var(--ct-carte); color: var(--ct-encre); border: 2px solid var(--ct-trait-fort); padding: 0; }
+.ct-corps .ct-mode::before { content: ''; width: 14px; height: 14px; border-radius: 50%; border: 2px solid #9aa6b8; box-sizing: border-box; }
+.ct-corps .ct-mode.on { background: var(--ct-vert-doux); color: var(--ct-vert-fonce); border-color: var(--ct-vert); }
+.ct-corps .ct-mode.on::before { border: 0; background: var(--ct-vert); box-shadow: 0 0 0 4px var(--ct-halo); }
+.ct-especes { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+.ct-especes-gauche { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.ct-montants { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ct-recu, .ct-rendre { padding: 10px 14px; border-radius: 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; margin: 0; }
+.ct-recu { background: var(--ct-carte); border: 2px solid var(--ct-encre); cursor: text; }
+.ct-recu span, .ct-rendre span { font-size: 14px; font-weight: 600; }
+.ct-recu span { color: var(--ct-discret); }
+.ct-recu input, body.dark .ct-recu input { border: 0; outline: 0; background: transparent; font: inherit; font-size: 34px; font-weight: 800; text-align: end; color: var(--ct-encre);
+  padding: 0; height: 44px; min-height: 44px; width: 100%; box-shadow: none; }
+.ct-recu input::placeholder { font-size: 18px; font-weight: 600; color: var(--ct-discret); }
+.ct-rendre { background: var(--ct-vert); color: #fff; border: 2px solid var(--ct-vert); }
+.ct-rendre b { font-size: 34px; font-weight: 800; text-align: end; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 44px; }
+.ct-rendre.manque { background: var(--ct-ambre-doux); color: var(--ct-ambre); border-color: var(--ct-ambre-trait); }
+.ct-rendre.rien { background: var(--ct-fond); color: var(--ct-discret); border-color: var(--ct-trait); }
+.ct-billets { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.ct-billets button { height: 56px; border-radius: 12px; border: 1px solid var(--ct-trait-fort); background: var(--ct-carte); font: inherit; font-size: 16px; font-weight: 700;
+  color: var(--ct-encre); cursor: pointer; padding: 0 8px; line-height: 1.15; }
+.ct-pave { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-content: start; }
+.ct-pave button { height: 60px; border-radius: 12px; border: 1px solid var(--ct-trait-fort); background: var(--ct-carte); font: inherit; font-size: 24px; font-weight: 700;
+  color: var(--ct-encre); cursor: pointer; padding: 0; }
+.ct-pave button[data-touche="suivant"] { font-size: 16px; color: var(--ct-vert-fonce); }
+.ct-autre { flex: 1 1 auto; display: grid; place-items: center; text-align: center; }
+.ct-autre div { max-width: 520px; display: flex; flex-direction: column; gap: 8px; }
+.ct-autre b { font-size: 22px; }
+.ct-autre p { margin: 0; font-size: 16px; line-height: 1.5; color: var(--ct-texte2); }
+.ct-aide { margin: 0; font-size: 14px; color: var(--ct-discret); line-height: 1.4; }
+
+/* ── La monnaie ── */
+.ct-rendu { flex: 1 1 auto; display: grid; place-items: center; background: var(--ct-carte); padding: 16px; overflow-y: auto; }
+.ct-rendu-contenu { width: min(760px, 100%); display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+.ct-ok { width: 72px; height: 72px; border-radius: 50%; background: var(--ct-vert-doux); color: var(--ct-vert); display: grid; place-items: center; }
+.ct-rendu-titre { margin: 0; font-size: 22px; font-weight: 600; color: var(--ct-texte2); }
+.ct-rendu-montant { font-size: 110px; font-weight: 800; letter-spacing: -3px; line-height: 1; white-space: nowrap; }
+.ct-rendu-detail { margin: 0; font-size: 16px; color: var(--ct-discret); }
+.ct-rendu-gestes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; margin-top: 4px; }
+.ct-rendu-gestes .ct-bouton { height: 60px; font-size: 17px; }
+.ct-rendu .ct-principal { width: 100%; min-height: 76px; font-size: 24px; }
+
+/* ── Le soir : compter le tiroir ── */
+.ct-fermeture { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 460px; }
+.ct-coupures { min-width: 0; min-height: 0; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.ct-titre { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+.ct-titre h2 { margin: 0; font-size: 26px; letter-spacing: -.3px; }
+.ct-titre span { font-size: 15px; color: var(--ct-discret); }
+.ct-coupures-grille { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+.ct-coupures-grille > div { display: flex; flex-direction: column; gap: 10px; }
+.ct-sur { font-size: 13px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--ct-discret); }
+.ct-coupure { height: 64px; display: flex; align-items: center; gap: 14px; padding: 0 16px 0 9px; border-radius: 14px; background: var(--ct-carte); font: inherit; color: var(--ct-encre);
+  cursor: pointer; border: 2px solid var(--ct-trait); text-align: start; }
+.ct-coupure[aria-pressed="true"] { border-color: var(--ct-vert); box-shadow: 0 0 0 4px var(--ct-halo); }
+.ct-forme { width: 84px; height: 44px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.05; box-sizing: border-box; }
+.ct-forme b { font-size: 17px; font-weight: 800; }
+.ct-forme small { font-size: 10px; font-weight: 600; color: var(--ct-texte2); }
+.ct-forme.billet { border-radius: 6px; background: var(--ct-billet); border: 2px solid var(--ct-texte2); box-shadow: inset 0 0 0 3px var(--ct-carte); }
+.ct-forme.piece { border-radius: 999px; background: var(--ct-piece); border: 2px solid var(--ct-piece-trait); }
+.ct-coupure-sorte { flex: 1 1 auto; min-width: 0; font-size: 14px; color: var(--ct-discret); }
+.ct-coupure-nombre { min-width: 72px; height: 44px; padding: 0 10px; border-radius: 10px; display: grid; place-items: center; font-size: 22px; font-weight: 750; background: var(--ct-fond);
+  box-sizing: border-box; }
+.ct-coupure[aria-pressed="true"] .ct-coupure-nombre { background: var(--ct-vert-doux); color: var(--ct-vert-fonce); box-shadow: inset 0 0 0 2px var(--ct-vert); }
+.ct-coupure-total { min-width: 92px; text-align: end; font-size: 18px; font-weight: 700; white-space: nowrap; }
+.ct-compte { min-height: 0; overflow: hidden; background: var(--ct-carte); border-inline-start: 1px solid var(--ct-trait); padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+.ct-compte-defile { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.ct-compte > .ct-principal { flex: 0 0 auto; }
+.ct-compte-total { display: flex; flex-direction: column; gap: 2px; }
+.ct-compte-total span { font-size: 15px; font-weight: 600; color: var(--ct-texte2); }
+.ct-compte-total b { font-size: 44px; font-weight: 800; letter-spacing: -1px; line-height: 1.1; white-space: nowrap; }
+.ct-compte-total small { font-size: 14px; color: var(--ct-discret); min-height: 1.4em; }
+.ct-active { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 14px; border-radius: 12px; background: var(--ct-vert-doux);
+  color: var(--ct-vert-fonce); font-size: 15px; font-weight: 600; }
+.ct-active b { font-size: 22px; }
+.ct-tape { font-size: 14px; color: var(--ct-texte2); }
+.ct-tape summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 8px; list-style: none; color: var(--ct-vert-fonce); font-weight: 600; }
+.ct-tape summary::-webkit-details-marker { display: none; }
+.ct-tape summary::before { content: '›'; width: 12px; font-size: 22px; line-height: 1; text-align: center; transition: transform .15s; }
+.ct-tape[open] summary::before { transform: rotate(90deg); }
+
+/* ── Un pavé dans une fenêtre (une quantité, une remise) ; les ventes en attente ── */
+.ct-fenetre-pave .ct-pave { margin-top: 12px; }
+.ct-fenetre-pave .ct-affiche { width: 100%; font-size: 30px; font-weight: 800; text-align: end; height: 60px; }
+.ct-attentes { display: flex; flex-direction: column; gap: 8px; }
+.ct-attente { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ct-attente > span { flex: 1 1 200px; }
+
+/* Le client du ticket : une liste à toucher. */
+.ct-clients { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; margin-top: 10px; }
+.ct-clients button { min-height: 52px; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 2px; padding: 6px 14px; border-radius: 12px;
+  border: 1px solid var(--ct-trait-fort); background: var(--ct-carte); font: inherit; font-size: 16px; color: var(--ct-encre); text-align: start; cursor: pointer; }
+.ct-clients button small { font-size: 13px; color: var(--ct-discret); }
+.ct-clients button[aria-selected="true"] { border-color: var(--ct-vert); background: var(--ct-vert-doux); }
+#cs-cl-q { width: 100%; }
+
+/* ── Une tablette en portrait, un petit portable ── */
+@media (max-width: 1100px) {
+  .ct-vente { grid-template-columns: minmax(0, 1fr) 380px; }
+  .ct-paiement { grid-template-columns: 320px minmax(0, 1fr); }
+  .ct-especes { grid-template-columns: minmax(0, 1fr) 240px; }
+  .ct-fermeture { grid-template-columns: minmax(0, 1fr) 380px; }
+  .ct-coupures-grille { grid-template-columns: minmax(0, 1fr); }
+  .ct-tete.page-head { height: auto; min-height: 60px; flex-wrap: wrap; padding: 8px 12px; row-gap: 8px; }
+  .ct-nom small { display: none; }
+  .ct-etat { order: 9; flex: 1 1 100%; }
+  .ct-puce { max-width: 100%; }
+  .ct-pret { display: none; }
+  .ct-client > svg { display: none; }
+  #cs-revenir-vente .ct-long { display: none; }
+  #cs-revenir-vente .ct-court { display: inline; }
+}
+/* Le ticket plus étroit qu'en grand : le nom de l'article prend sa ligne, les boutons et le total passent dessous. */
+@media (max-width: 1100px) and (min-width: 761px) {
+  .ct-ligne { flex-wrap: wrap; row-gap: 4px; }
+  .ct-ligne-nom { flex: 1 1 100%; }
+  .ct-pas { margin-inline-end: auto; }
+}
+@media (max-width: 920px) {
+  .ct-vente { grid-template-columns: minmax(0, 1fr) 340px; }
+  .ct-paiement { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  /* Le récapitulatif devient une barre en haut : « Revenir au ticket » à gauche, les totaux à droite. */
+  .ct-recap { border: 0; border-bottom: 1px solid var(--ct-trait); }
+  .ct-recap-tete, .ct-recap-lignes { display: none; }
+  .ct-recap-pied { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; column-gap: 16px; row-gap: 4px; padding: 8px 24px; border-top: 0; }
+  .ct-recap-pied .ct-bouton { order: -1; height: 44px; margin-inline-end: auto; }
+  .ct-recap-pied small { justify-content: flex-end; gap: 12px; }
+  .ct-especes { grid-template-columns: minmax(0, 1fr); }
+  /* Le comptage sur une colonne qui défile : les coupures (sur deux colonnes), puis le total et le Z, toujours visible. */
+  .ct-fermeture { display: block; overflow-y: auto; }
+  .ct-coupures, .ct-compte, .ct-compte-defile { overflow: visible; }
+  .ct-coupures-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ct-compte { border-inline-start: 0; border-top: 1px solid var(--ct-trait); }
+  .ct-compte > .ct-principal { position: sticky; bottom: 8px; z-index: 5; }
+  /* Le pavé du comptage vient dans une fenêtre, au toucher d'une coupure : sous la liste, il serait trop loin. */
+  #cs-active, #cs-pave-compte { display: none; }
+}
+/* ── Le téléphone (maquette « Téléphone ») : la page défile, le ticket se tient replié en bas de l'écran ── */
+.ct-tirer { display: none; }
+@media (max-width: 760px) {
+  body.mode-caisse main#view { height: auto; min-height: calc(100vh - var(--poste-bandeau-h, 0px)); overflow: visible; }
+  .ct-tete.page-head { position: sticky; top: var(--poste-bandeau-h, 0px); z-index: 50; padding: 8px 10px; gap: 8px; }
+  .ct-sortie { order: 1; } .ct-nom { order: 2; } .ct-espace { order: 3; } #cs-actions { order: 4; } #cs-gestes { order: 5; } .ct-menu { order: 6; }
+  .ct-onglets { order: 7; flex: 1 1 100%; }
+  .ct-onglets button { flex: 1 1 0; padding: 0 10px; font-size: 15px; }
+  .ct-long { display: none; }
+  .ct-court { display: inline; }
+  /* Au comptage, « ‹ Vente » prend la place du titre : la barre tient sur une ligne. */
+  .ct-tete:has(#cs-revenir-vente) .ct-nom { display: none; }
+  .ct-etat { order: 8; }
+  .ct-puce.ouverte { display: none; }
+  .ct-gestes .ct-caissier > span:not(.ct-avatar) { display: none; }
+  .ct-gestes .ct-caissier { padding: 0 6px; }
+  .ct-vente { display: flex; flex-direction: column; flex: 1 1 auto; }
+  .ct-articles { padding: 12px 12px 0; flex: 1 1 auto; }
+  .ct-scan { height: 50px; }
+  .ct-pret, .ct-cherche > .ct-bouton span { display: none; }
+  .ct-cherche > .ct-bouton { height: 50px; padding: 0 14px; }
+  .ct-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 96px; overflow: visible; padding: 10px 0 16px; }
+  .ct-tuiles .cs-art { height: 96px; padding: 10px 12px; }
+  .ct-pastille { display: none; }
+  /* Le ticket, replié : son titre, ses lignes en bref, son total et « Encaisser » ; « Tout voir » le déplie. */
+  .ct-ticket { position: sticky; bottom: 0; z-index: 40; border: 0; border-radius: 20px 20px 0 0; box-shadow: 0 -6px 24px rgba(14, 23, 38, .12); max-height: 85vh; overflow-y: auto; }
+  .ct-tirer { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 52px; padding: 10px 16px 0; border: 0; background: transparent; font: inherit;
+    color: var(--ct-encre); cursor: pointer; flex-shrink: 0; }
+  .ct-tirer::before { content: ''; position: absolute; left: calc(50% - 20px); top: 6px; width: 40px; height: 5px; border-radius: 999px; background: var(--ct-trait-fort); }
+  .ct-tirer b { font-size: 17px; }
+  .ct-tirer span { font-size: 15px; font-weight: 600; color: var(--ct-vert-fonce); }
+  .ct-ticket:not(.ouvert) .ct-ticket-tete, .ct-ticket:not(.ouvert) .ct-gestes-ticket, .ct-ticket:not(.ouvert) .ct-pas, .ct-ticket:not(.ouvert) .ct-vide,
+  .ct-ticket:not(.ouvert) .ct-ligne-nom small { display: none; }
+  .ct-ticket:not(.ouvert) .ct-lignes { max-height: 96px; }
+  .ct-ticket:not(.ouvert) .ct-ligne { padding: 4px 0; border: 0; }
+  .ct-ticket:not(.ouvert) .ct-ligne-nom b { font-size: 15px; }
+  .ct-ticket:not(.ouvert) .ct-q { display: inline; }
+  .ct-ticket:not(.ouvert) .ct-ligne-total { font-size: 15px; }
+  #cs-ligne-remise[aria-hidden="true"] { display: none; }
+  .ct-ticket-tete { padding: 8px 12px; }
+  .ct-lignes { padding: 0 16px; flex: 0 1 auto; }
+  .ct-ligne { padding: 6px 0; }
+  .ct-ticket-pied { padding: 8px 16px 12px; border-top: 0; }
+  .ct-total b { font-size: 28px; }
+  .ct-principal { min-height: 60px; font-size: 20px; }
+  .ct-paiement { display: flex; flex-direction: column; }
+  .ct-fermeture { overflow: visible; }
+  .ct-coupures-grille { grid-template-columns: minmax(0, 1fr); }
+  .ct-payer { padding: 12px; overflow: visible; }
+  .ct-payer-defile { overflow: visible; }
+  .ct-especes { display: flex; flex-direction: column; align-items: stretch; }
+  .ct-pave button { height: 54px; }
+  .ct-payer > .ct-principal { position: sticky; bottom: 8px; z-index: 5; }
+  .ct-recap-pied { padding: 8px 12px; }
+  .ct-recap-pied small { flex-direction: column; align-items: flex-end; gap: 0; }
+  .ct-apayer b { font-size: 34px; }
+  .ct-rendu-montant { font-size: 72px; }
+  .ct-rendu-gestes { grid-template-columns: minmax(0, 1fr); }
+  .ct-coupures, .ct-compte { padding: 12px; }
+  .ct-coupure { gap: 10px; padding-inline-end: 10px; }
+  .ct-coupure-sorte { display: none; }
+  .ct-coupure-total { min-width: 0; flex: 1 1 auto; }
+  .ct-fermee-carte { padding: 20px 16px; }
+}

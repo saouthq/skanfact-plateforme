@@ -143,6 +143,9 @@
     #poste-bandeau button { font: inherit; padding: 2px 10px; border-radius: 6px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; }`;
   document.head.appendChild(style);
   /** @type {HTMLElement | null} */ let bandeau = null;
+  // Sa hauteur, pour les pages qui tiennent tout l'écran (la caisse tactile, caisse.css) : elles se poussent dessous, et
+  // leur barre du haut reste à portée du doigt (vu au test de la caisse sans réseau, 05/10/2026).
+  const hauteur = () => document.documentElement.style.setProperty('--poste-bandeau-h', `${bandeau && !bandeau.hidden ? bandeau.offsetHeight : 0}px`);
   const heure = (/** @type {number} */ t) => { const d = new Date(t); return `${d.getHours()} h ${String(d.getMinutes()).padStart(2, '0')}`; };
   const jour = (/** @type {number} */ t) => { const d = new Date(t); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`; };
   const esc = (/** @type {string} */ x) => x.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -153,12 +156,14 @@
       bandeau.id = 'poste-bandeau';
       bandeau.setAttribute('role', 'status');
       (document.body || document.documentElement).appendChild(bandeau);
+      if (typeof ResizeObserver !== 'undefined') new ResizeObserver(hauteur).observe(bandeau);
     }
     bandeau.className = revenu ? 'revenu' : '';
     bandeau.innerHTML = html;
     bandeau.hidden = false;
+    hauteur();
   }
-  const cacher = () => { if (bandeau) bandeau.hidden = true; };
+  const cacher = () => { if (bandeau) { bandeau.hidden = true; hauteur(); } };
   // Un bouton du bandeau qui recharge la page (ce que le serveur a).
   const recharger = () => { const b = document.getElementById('poste-recharger'); if (b) b.onclick = () => location.reload(); };
 

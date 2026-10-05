@@ -797,7 +797,9 @@
       return { prochain: formaterNumero(numerotation.serie.format, numerotation.serie.prefixe, annee, n) };
     },
     ouvrirCaisse: async (/** @type {string} */ fond) => { const r = await appel('POST', '/caisse/ouvrir', { fond }); retenirNumerotation(r.numerotation); return r; },
-    fermerCaisse: async (/** @type {string} */ compte) => appel('POST', '/caisse/fermer', { compte }),
+    // Le détail du comptage (la caisse tactile, 05/10/2026) : combien de chaque coupure, s'il a été compté au détail ; le Z le garde.
+    fermerCaisse: async (/** @type {string} */ compte, /** @type {{ valeur: string, nombre: number }[] | undefined} */ comptage) =>
+      appel('POST', '/caisse/fermer', { compte, ...(comptage && comptage.length ? { comptage } : {}) }),
     // Les Z passés (brique 126), par pages : `avant`, la `suite` de la page précédente.
     listeZ: async (/** @type {string | undefined} */ avant) => appel('GET', `/caisse/z${avant ? `?avant=${encodeURIComponent(avant)}` : ''}`),
     // Le retour à la caisse (brique 124 ; docs/caisse.md, T1 à T5) : le serveur numérote l'avoir, rend l'argent sur le

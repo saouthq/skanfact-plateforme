@@ -68,19 +68,22 @@ describe('la caisse sans réseau, à la souris', () => {
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/caisse`);
-    await expect.poll(() => p.locator('#cs-articles .cs-art').count(), { timeout: 20_000 }).toBe(2);
+    await expect.poll(() => p.locator('#cs-puce, #cs-ouverte').count(), { timeout: 20_000 }).toBe(1);
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click().catch(() => undefined);
     const toast = async () => net(await p.locator('#toast').innerText().catch(() => ''));
+    // Une vente : l'article, « Encaisser », « Valider » (après la précédente, « Nouvelle vente » ramène aux articles).
     const vendre = async (article: string) => {
+      if (await p.locator('#cs-nouvelle').count()) await p.locator('#cs-nouvelle').click();
       await p.locator('#cs-articles .cs-art', { hasText: article }).click();
       await p.locator('#cs-encaisser').click();
+      await p.locator('#cs-valider').click();
     };
 
     // La caisse s'ouvre ; un lait en ligne : le serveur le numérote.
     await expect.poll(async () => net(await p.locator('#cs-fermee').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^La caisse est fermée\./);
     await p.locator('#cs-fond').fill('20');
     await p.locator('#cs-ouvrir').click();
-    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Caisse ouverte par Nadia/);
+    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Ouverte par Nadia/);
     await vendre('Lait demi-écrémé');
     await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-001 encaissé`);
     // Un ticket encaissé est un fait : la copie du poste l'a déjà quand l'écran le dit (une page rouverte sans réseau
@@ -141,12 +144,12 @@ describe('la caisse sans réseau, à la souris', () => {
     await p.waitForTimeout(1_500);
     expect(await tickets()).toEqual(remis);
     // La page Caisse ne dit plus « Sans réseau » : la caisse est ouverte, en ligne.
-    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Caisse ouverte par Nadia/);
+    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Ouverte par Nadia/);
     expect(await p.locator('#cs-hors-ligne').count()).toBe(0);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'caisse-hl-2-remis.png') });
     // Rouverte, la page a ses trois tickets, et le suivant prend le 004.
     await p.reload();
-    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^Caisse ouverte par Nadia/);
+    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^Ouverte par Nadia/);
     await vendre('Lait demi-écrémé');
     await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-004 encaissé`);
 

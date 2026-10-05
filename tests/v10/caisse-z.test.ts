@@ -81,3 +81,33 @@ describe('le Z relu', () => {
     expect(await lire(leila.jeton)).toEqual({ z: [], suite: null });
   });
 });
+
+// Le comptage du tiroir, coupure par coupure (la caisse tactile, 05/10/2026 ; docs/caisse.md, « La caisse tactile ») :
+// facultatif ; donné, il tombe sur le total compté, au millime, et le Z le garde ; un détail qui n'y tombe pas est refusé,
+// et la caisse reste ouverte.
+describe('le comptage du tiroir', () => {
+  it('un détail qui fait le total se garde dans le Z ; un détail faux est refusé, rien n\'est fermé', async () => {
+    const nadia = await personne('Nadia', 'Caisse du comptoir');
+    const ent = String((await appeler('POST', '/entreprises', nadia.jeton, { raisonSociale: 'Épicerie Ben Youssef' })).corps.id);
+    await appeler('POST', '/moi/code', nadia.jeton, { methode: 'application' });
+    expect((await appeler('POST', `/entreprises/${ent}/caisse/ouvrir`, nadia.jeton, { fond: '73.27' })).statut).toBe(200);
+    // 3 × 20 + 1 × 10 + 7 × 0,5 + 2 × 0,1 font 73,700 : pas les 73,270 annoncés (un 0,5 lu pour un 0,05, sept fois).
+    const faux = await appeler('POST', `/entreprises/${ent}/caisse/fermer`, nadia.jeton, { compte: '73,27',
+      comptage: [{ valeur: '20', nombre: 3 }, { valeur: '10', nombre: 1 }, { valeur: '0,5', nombre: 7 }, { valeur: '0.1', nombre: 2 }] });
+    expect(faux.statut).toBe(403);
+    expect(faux.corps.motif).toBe('Le détail du comptage fait 73,700, pas les 73,270 comptés : recompte le tiroir. La caisse reste ouverte.');
+    expect(((await appeler('GET', `/entreprises/${ent}/caisse`, nadia.jeton)).corps.session as { fond: string } | null)?.fond).toBe('73.270');
+    // Les sept pièces étaient de 50 millimes : 60 + 10 + 0,350 + 0,200 = 70,550 ; le total tapé et le détail tombent
+    // ensemble, au millime. Le Z garde le détail, ligne par ligne, et dit l'écart (70,550 − 73,270).
+    const z = (await appeler('POST', `/entreprises/${ent}/caisse/fermer`, nadia.jeton, { compte: '70.55',
+      comptage: [{ valeur: '20', nombre: 3 }, { valeur: '10', nombre: 1 }, { valeur: '0.05', nombre: 7 }, { valeur: '0,1', nombre: 2 }] })).corps.z as Record<string, unknown>;
+    expect(z).toMatchObject({ compte: '70.550', attendu: '73.270', ecart: '-2.720', comptage: [
+      { valeur: '20.000', nombre: 3, total: '60.000' }, { valeur: '10.000', nombre: 1, total: '10.000' },
+      { valeur: '0.050', nombre: 7, total: '0.350' }, { valeur: '0.100', nombre: 2, total: '0.200' }] });
+    // Relu parmi les Z passés : le même détail.
+    expect(((await appeler('GET', `/entreprises/${ent}/caisse/z`, nadia.jeton)).corps.z as Record<string, unknown>[])[0]?.comptage).toEqual(z.comptage);
+    // Sans détail (le total tapé seulement), le Z n'en invente pas.
+    expect((await appeler('POST', `/entreprises/${ent}/caisse/ouvrir`, nadia.jeton, { fond: '10' })).statut).toBe(200);
+    expect(Object.keys((await appeler('POST', `/entreprises/${ent}/caisse/fermer`, nadia.jeton, { compte: '10' })).corps.z as object)).not.toContain('comptage');
+  });
+});
