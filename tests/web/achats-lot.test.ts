@@ -287,6 +287,12 @@ describe('le lot achats, à l\'écran', () => {
     expect(large).toBeLessThanOrEqual(visible + 1);
     const reste = await p.locator('#sup-docs thead th').filter({ hasText: 'Reste' }).boundingBox();
     expect(reste && reste.x + reste.width <= 1366).toBe(true);
+    // Sous 1620 px, la liste prend toute la largeur et les coordonnées passent dessous (ecrans.css) : ce qui se lit dans
+    // la page quelle que soit la largeur des lettres. Sur GitHub, une police plus étroite faisait tenir la liste à côté
+    // des coordonnées, et la mesure seule du « Reste » ne voyait plus rien (05/10/2026).
+    const panneau = (h: string) => p.locator('#view .dash-grid > .panel').filter({ has: p.getByRole('heading', { name: h, exact: true }) }).boundingBox();
+    const [liste, coordonnees] = [await panneau('Achats chez ce fournisseur'), await panneau('Coordonnées')];
+    expect(liste && coordonnees && coordonnees.y >= liste.y + liste.height - 1 && liste.width > coordonnees.width - 1).toBe(true);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'achats-lot-3-fiche-fournisseur.png') });
 
     expect(erreurs).toEqual([]);

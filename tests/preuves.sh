@@ -8245,7 +8245,7 @@ prouver "la page de clôture qui ne dit pas qu'on ne peut pas joindre" web/publi
   "$ACW1"
 prouver "l'étape du justificatif qui attend un bouton absent" web/public/v10/visites.js \
   "titre: 'Le justificatif d\\'abord', facultatif: true," "titre: 'Le justificatif d\\'abord'," \
-  "$ACW1"
+  "dans « Saisir une facture d'achat », l'étape du justificatif, absent en ligne, est facultative"
 prouver "l'objet d'un avoir qui invite à dire ce qu'on a acheté" web/public/v10/app.js \
   "        if (objet) objet.placeholder = inviteObjet(p.kind);
 " "" \
@@ -8269,7 +8269,7 @@ prouver "l'échéance qui reste vide après une lecture" web/public/v10/app.js \
   "      if (!p.dueDate && p.date && p.kind !== 'depense' && p.kind !== 'avoir') p.dueDate = C.addDays(p.date, delaiAchat(p.supplierId));
 " "" \
   "$ACW1"
-prouver "la fiche du fournisseur qui défile de côté à 1366 px" web/public/plateforme/ecrans.css \
+prouver "la fiche du fournisseur à 1366 px : la liste à côté des coordonnées, ses montants coupés" web/public/plateforme/ecrans.css \
   "  .dash-grid:has(#sup-docs) { grid-template-columns: 1fr; }
 " "" \
   "$ACW1"

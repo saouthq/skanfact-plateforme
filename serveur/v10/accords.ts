@@ -10,6 +10,7 @@
 import { Refus } from '../erreurs.ts';
 import type { Transaction } from '../base.ts';
 import { commeLaV10, codeDeLEcran } from './teif.ts';
+import { rendre, t } from '../../textes/index.ts';
 import './textes.ts';
 
 type Json = Record<string, unknown>;
@@ -230,7 +231,7 @@ export async function controlerReceptions(tx: Transaction, entreprise: string, l
     const statut = champ(commande, 'status');
     if (statut !== 'brouillon' && statut !== 'demande') continue;
     throw new Refus('achats.reception_commande_non_partie', {
-      valeurs: { numero: champ(commande, 'number') || '—', etat: statut === 'demande' ? 'une demande de prix' : 'en brouillon' },
+      valeurs: { numero: champ(commande, 'number') || '—', etat: rendre(t(statut === 'demande' ? 'achats.etat_demande' : 'achats.etat_brouillon'), 'fr') },
     });
   }
 }

@@ -57,6 +57,8 @@ declarerTextes({
   'ventes.remise_ligne_accord': '{client} : « {ligne} » est vendu {taux} sous son prix, au-delà des {seuil} permis sans accord : il faut l\'accord du propriétaire ou d\'un administrateur. Demande-le ; la facture s\'émettra une fois l\'accord donné',
   'achats.commande_accord': 'la commande {numero} chez {fournisseur} fait {montant} hors taxes, au-delà des {seuil} permis sans accord : elle part avec l\'accord du propriétaire ou d\'un administrateur. Enregistre-la en brouillon et demande l\'accord ; elle partira une fois l\'accord donné',
   'achats.accord_inutile': 'cette commande reste sous le montant permis sans accord : elle part sans accord',
+  'achats.etat_demande': 'une demande de prix',
+  'achats.etat_brouillon': 'en brouillon',
   'achats.reception_commande_non_partie': 'la commande {numero} est {etat} : une commande ne reçoit rien tant qu\'elle n\'est pas partie. Passe-la « Envoyée » (avec l\'accord qu\'il lui faut au-delà du montant permis), puis valide la réception. Rien n\'a été enregistré',
   'achats.seule_commande': 'seule une commande fournisseur, avec son fournisseur, demande cet accord',
   'ventes.accord_inutile': 'cette facture reste dans l\'encours autorisé de son client : elle s\'émet sans accord',
