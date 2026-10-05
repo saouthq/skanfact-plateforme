@@ -157,7 +157,8 @@ describe('l\'état El Fatoora dans la liste des factures', () => {
     expect((await api('PUT', `/entreprises/${ent}/efacture/ttn`, jeton, { identifiant: 'nadia-el-fatoora', motDePasse: 'Mot-de-passe-TTN-7' })).statut).toBe(200);
     // (Déposée, puis acceptée au tour suivant, avancé ici ; une machine lente peut la voir déjà acceptée.)
     await expect.poll(async () => (await envoi('f2'))?.statut, { timeout: 10_000 }).toMatch(/^(deposee|acceptee)$/);
-    await admin.query(`update ventes.envoi_ttn set prochain_essai = now() where entreprise = $1`, [ent]);
+    // (Une pièce déjà acceptée ne se touche plus : la base le refuse.)
+    await admin.query(`update ventes.envoi_ttn set prochain_essai = now() where entreprise = $1 and statut <> 'acceptee'`, [ent]);
     await expect.poll(async () => (await envoi('f2'))?.statut, { timeout: 10_000 }).toBe('acceptee');
     ttn.reglage.fauteAuDepot = 'Signature du fournisseur invalide';
     try {
