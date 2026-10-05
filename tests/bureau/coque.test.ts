@@ -13,6 +13,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { _electron, type ElectronApplication, type Page } from 'playwright-core';
+import { fermerCoque } from './fermer.ts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { COUPE, INIT, TIROIR } from '../../bureau/agent/escpos.ts';
 
@@ -56,11 +57,12 @@ describe('la coque de bureau', () => {
     skanfact = await serveur({ '/': `<title>SkanFact</title><p>la caisse</p><a id="dehors" href="${ailleurs.adresse}/">un lien</a>` });
     papier = await imprimante();
     app = await _electron.launch({ executablePath: electron, args: ['--no-sandbox', '--disable-gpu', path.join(RACINE, 'bureau/coque/principal.ts')],
-      env: { ...process.env, DISPLAY: e.display, SKANFACT_ADRESSE: skanfact.adresse, SKANFACT_BUREAU_DONNEES: donnees } });
+      // (Le « navigateur du poste » d'un lien vers ailleurs : une commande qui ne fait rien, pas un vrai navigateur.)
+      env: { ...process.env, DISPLAY: e.display, SKANFACT_ADRESSE: skanfact.adresse, SKANFACT_BUREAU_DONNEES: donnees, BROWSER: 'true' } });
     page = await app.firstWindow();
     await page.waitForLoadState();
   }, 120_000);
-  afterAll(async () => { await app?.close(); skanfact?.fermer(); ailleurs?.fermer(); papier?.fermer(); e?.fermer(); });
+  afterAll(async () => { await fermerCoque(app); skanfact?.fermer(); ailleurs?.fermer(); papier?.fermer(); e?.fermer(); }, 60_000);
 
   // Un ticket de 80 mm plus haut que l'écran : du texte, et une barre noire tout en bas.
   const ticketHtml = (largeur: number) => `<!doctype html><html><head><meta charset="utf-8"><style>@page { size: ${largeur}mm auto; margin: 0 }

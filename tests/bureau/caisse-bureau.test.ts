@@ -15,6 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { _electron, chromium, type ElectronApplication, type Page } from 'playwright-core';
 import { build } from 'vite';
+import { fermerCoque } from './fermer.ts';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { COUPE, INIT, TIROIR } from '../../bureau/agent/escpos.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
@@ -78,7 +79,7 @@ describe('la caisse dans l\'application de bureau', () => {
     await page.waitForLoadState();
     fs.mkdirSync(PHOTOS, { recursive: true });
   }, 180_000);
-  afterAll(async () => { await app?.close(); await serveur?.arreter(); papier?.fermer(); e?.fermer(); fs.rmSync(dossier, { recursive: true, force: true }); });
+  afterAll(async () => { await fermerCoque(app); await serveur?.arreter(); papier?.fermer(); e?.fermer(); fs.rmSync(dossier, { recursive: true, force: true }); }, 60_000);
 
   const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
     const r = await fetch(`${serveur.adresse}/v1${chemin}`, {
