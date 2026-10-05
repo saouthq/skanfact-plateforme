@@ -119,7 +119,35 @@ remet par son export (`base/entreprise.ts`), pas par la sauvegarde entière.
 Code : `exploitation/sauvegarder.sh`, `exploitation/taches/0001-sauvegardes.sh`, `exploitation/suivre.ts` (l'état).
 Test : `tests/exploitation/sauvegarder.test.ts`.
 
+## D. Le parcours sans SMS ni e-mail (brique 145)
+
+**D1. Essayé comme un testeur**, le 05/10/2026, à l'écran, sur un serveur réglé comme celui d'essai (aucun fournisseur
+de SMS, aucun envoi d'e-mail) : créer son compte, se connecter, choisir la découverte. Le rôle de propriétaire exige
+alors le code du téléphone (03 § 6), par une **application d'authentification** (Google Authenticator, Microsoft
+Authenticator…), puisque le SMS n'est pas encore en service. Rien d'autre n'a besoin d'un SMS ni d'un e-mail : une
+invitation se transmet par son lien (WhatsApp, par exemple).
+
+**D2. Le défaut trouvé** : l'écran ne montrait qu'une adresse `otpauth://…`, que personne ne sait ajouter à la main dans
+son application. Le testeur restait bloqué. Désormais :
+- un **code QR** à scanner avec l'application ;
+- la **clé en clair**, par groupes de quatre, pour qui la tape à la main ;
+- le lien « déjà sur ton téléphone ? ouvrir dans l'application », pour qui s'inscrit depuis son téléphone ;
+- les codes de secours, avec ce qu'ils font (chacun remplace une fois le code du téléphone) ;
+- **le premier code essayé avant de partir** (`POST /v1/moi/code/essayer`) : un code faux est refusé sur son champ,
+  avec la raison qui aide (« vérifie que tu as bien ajouté SkanFact… et que l'heure de ton téléphone est réglée
+  automatiquement ») ; l'essai ne change rien. Le serveur lit le secret par `socle.mon_secret_d_application()`
+  (migration `0070`) : celui de la personne connectée, seulement d'une application, jamais rendu à l'écran.
+
+Revu à l'écran : le code QR relu comme par un téléphone (sur la capture) donne la clé affichée ; un faux code refusé ;
+le bon code ouvre l'application.
+
+**D3. Pas de « mot de passe oublié »** sans envoi d'e-mail. Sur le serveur d'essai, un testeur qui l'oublie recrée un
+compte (les données sont inventées). Le « mot de passe oublié » vient avec le fournisseur d'e-mails, avant les pilotes.
+Conseil aux testeurs : une adresse e-mail inventée suffit (rien n'y est jamais envoyé).
+
+Code : `web/src/ecrans/CodeRequis.tsx`, `serveur/routes/socle.ts`, `serveur/connexion.ts` (`essayerCode`),
+`base/migrations/0070_essayer_code.sql`. Tests : `tests/socle/code-essai.test.ts`, `tests/web/parcours.test.ts`.
+
 ## Reste à faire avant les testeurs
 
-- Vérifier le parcours sans SMS et sans e-mail (la connexion par l'application de code).
 - Une fiche pour les testeurs.

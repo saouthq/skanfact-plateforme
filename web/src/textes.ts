@@ -45,9 +45,15 @@ declarerTextes({
   'ecran.code_requis.aide': 'ton rôle l\'exige : sans ce code, personne ne peut agir à ta place, même avec ton mot de passe',
   'ecran.code_requis.bouton': 'mettre en place le code',
   'ecran.code_pose.titre': 'ajoute SkanFact à ton application d\'authentification',
-  'ecran.code_pose.application': 'dans ton application, ajoute un compte avec cette adresse',
-  'ecran.code_pose.secours': 'tes codes de secours, à garder à part : ils ne se montreront plus',
-  'ecran.code_pose.bouton': 'j\'ai noté mes codes',
+  'ecran.code_pose.application': 'une application gratuite sur ton téléphone, comme Google Authenticator ou Microsoft Authenticator : elle te donnera un code à chaque connexion',
+  'ecran.code_pose.qr': 'le code QR à scanner avec ton application d\'authentification',
+  'ecran.code_pose.scanner': 'dans l\'application, choisis « ajouter un compte », puis scanne ce code QR',
+  'ecran.code_pose.cle': 'ou tape à la main cette clé',
+  'ecran.code_pose.ouvrir': 'déjà sur ton téléphone ? ouvrir dans l\'application',
+  'ecran.code_pose.secours': 'tes codes de secours, à garder à part (une photo, un papier) : chacun remplace une fois le code du téléphone, et ils ne se montreront plus',
+  'ecran.code_pose.essai': 'le code que montre l\'application',
+  'ecran.code_pose.essai_aide': 'six chiffres, qui changent toutes les 30 secondes : on vérifie que ton téléphone donne le bon avant de continuer',
+  'ecran.code_pose.bouton': 'vérifier et continuer',
 
   // La porte de la v10 (10.14.0), pour qui n'a encore aucune entreprise.
   'ecran.connecter.titre': 'relier {partenaire} à SkanFact',

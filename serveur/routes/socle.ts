@@ -6,13 +6,14 @@ import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
-import { connecter, deconnecter, inscrire, mettreEnPlaceCode, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
+import { connecter, deconnecter, essayerCode, inscrire, mettreEnPlaceCode, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
 import { prochainNumero } from '../numeros.ts';
 import { regle } from '../regles.ts';
 import { requetes } from '../base.ts';
 import { creerCle } from '../cles.ts';
 import { EVENEMENTS, nouveauSecret } from '../avis.ts';
 import { motif, t } from '../../textes/index.ts';
+import { Refus } from '../erreurs.ts';
 
 const uuid = z.string().uuid();
 const jour = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'champ.jour');
@@ -103,7 +104,19 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
     traiter: async ({ qui, corps }) => {
       if (!qui) throw new Error('session attendue');
       const r = await mettreEnPlaceCode(ctx, qui, corps.methode);
-      return { corps: { codesDeSecours: r.codesDeSecours, adresseApplication: r.adresseApplication } };
+      // La clé seule (brique 145) : pour qui l'ajoute à la main dans son application, sans scanner le code QR.
+      return { corps: { codesDeSecours: r.codesDeSecours, adresseApplication: r.adresseApplication, cle: r.secret } };
+    },
+  });
+  // Le premier code de l'application qu'on vient d'ajouter (brique 145) : avant de quitter l'écran, la personne vérifie
+  // que son téléphone donne le bon code. Rien ne change.
+  ajouter({
+    methode: 'POST', chemin: '/moi/code/essayer', geste: 'compte.code.configurer',
+    corps: z.object({ code: z.string().max(20) }),
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      if (!await essayerCode(ctx, qui, corps.code)) throw new Refus('compte.code_essai_faux');
+      return { corps: { bon: true } };
     },
   });
 

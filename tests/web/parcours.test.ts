@@ -19,6 +19,7 @@ import { motif, rendre, t } from '../../textes/index.ts';
 import '../../web/src/textes.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
+import * as jsqr from 'jsqr';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -93,8 +94,34 @@ describe('le parcours, à la souris', () => {
     await ecran(p, 'ecran.code_requis.titre');
     await bouton(p, 'ecran.code_requis.bouton').click();
     await ecran(p, 'ecran.code_pose.titre');
-    const secret = /secret=([A-Z2-7]+)/.exec(await p.locator('code').innerText())?.[1] ?? '';
-    expect(secret).not.toBe('');
+    // Le téléphone scanne le code QR (brique 145) : l'image dessinée, relue par un lecteur de QR.
+    const pixels = await p.getByRole('img', { name: phrase('ecran.code_pose.qr') }).evaluate(async (el) => {
+      const img = new Image();
+      img.src = `data:image/svg+xml;base64,${btoa(new XMLSerializer().serializeToString(el.querySelector('svg') as SVGElement))}`;
+      await img.decode();
+      const c = document.createElement('canvas');
+      c.width = 400; c.height = 400;
+      const g = c.getContext('2d') as CanvasRenderingContext2D;
+      g.fillStyle = '#fff'; g.fillRect(0, 0, 400, 400); g.drawImage(img, 0, 0, 400, 400);
+      return Array.from(g.getImageData(0, 0, 400, 400).data);
+    });
+    const lu = jsqr.default.default(Uint8ClampedArray.from(pixels), 400, 400)?.data ?? '';
+    expect(lu).toMatch(new RegExp(`^otpauth://totp/SkanFact%3A${encodeURIComponent(email).replace(/\./g, '\\.')}\\?secret=[A-Z2-7]+&issuer=SkanFact&digits=6&period=30$`));
+    const secret = new URL(lu).searchParams.get('secret') ?? '';
+    // La clé écrite en clair est la même, par groupes de quatre (pour qui la tape à la main) ; le lien ouvre l'application.
+    expect((await p.locator('.code-cle').innerText()).replace(/\s/g, '')).toBe(secret);
+    expect(await p.getByRole('link', { name: titre('ecran.code_pose.ouvrir') }).getAttribute('href')).toBe(lu);
+    // Un code faux ne laisse pas partir : le refus le dit, sur son champ.
+    const champCode = champ(p, 'ecran.code_pose.essai');
+    const juste = codeTotp(depuisBase32(secret), Date.now());
+    await champCode.fill(juste === '000000' ? '111111' : '000000');
+    await bouton(p, 'ecran.code_pose.bouton').click();
+    await expect.poll(() => p.getByRole('alert').first().innerText()).toBe(phrase('compte.code_essai_faux'));
+    expect(await champCode.evaluate((e) => e === document.activeElement)).toBe(true);
+    await ecran(p, 'ecran.code_pose.titre');
+    await p.screenshot({ path: path.join(PHOTOS, 'parcours-0-code-qr.png') });
+    // Le code que montre le téléphone : on continue.
+    await champCode.fill(codeTotp(depuisBase32(secret), Date.now()));
     await bouton(p, 'ecran.code_pose.bouton').click();
 
     // L'application v10 de l'entreprise d'essai s'ouvre.

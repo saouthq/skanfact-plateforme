@@ -46,6 +46,7 @@ declarerTextes({
   'connexion.sms': 'Ton code SkanFact : {code}',
   'connexion.code_perime': 'ce code n\'est plus valable : recommence la connexion',
   'connexion.code_faux': 'ce code ne correspond pas',
+  'compte.code_essai_faux': 'ce code ne correspond pas : vérifie que tu as bien ajouté SkanFact dans ton application, et que l\'heure de ton téléphone est réglée automatiquement',
   'mot_de_passe.trop_court': 'ton mot de passe doit faire au moins {min} caractères',
   'mot_de_passe.vole': 'ce mot de passe figure dans une liste de mots de passe déjà volés : choisis-en un autre',
 

@@ -7794,6 +7794,38 @@ prouver "le fichier examiné jeté quand l'essai échoue" exploitation/sauvegard
   '[ "$MODE" = essayer ] || rm -f "$f"' 'rm -f "$f"' \
   "$SA3"
 
+# ── Brique 145 : le code QR du téléphone, et le premier code essayé (docs/mise-en-ligne.md, D) ──
+CE1="la clé seule est celle de l'adresse du code QR ; le premier code juste passe, un faux est refusé avec sa raison ; l'essai ne change rien"
+CE2="sans application posée, aucun code ne passe ; le code d'un autre non plus"
+CEP="du compte à la facture émise par le serveur, retrouvée après rechargement, puis le retour d'un autre appareil"
+prouver "n'importe quel code accepté à l'essai" serveur/routes/socle.ts \
+  "      if (!await essayerCode(ctx, qui, corps.code)) throw new Refus('compte.code_essai_faux');" "" \
+  "$CE1"
+prouver "la clé seule jamais rendue" serveur/routes/socle.ts \
+  'adresseApplication: r.adresseApplication, cle: r.secret }' 'adresseApplication: r.adresseApplication }' \
+  "$CE1"
+prouver "le code tapé avec son espace refusé" serveur/connexion.ts \
+  "verifierTotp(secret, code.replace(/\s/g, ''), " "verifierTotp(secret, code, " \
+  "$CE1"
+prouver "le secret d'un code par SMS pris pour celui d'une application" base/migrations/0070_essayer_code.sql \
+  "where u.id = socle.moi() and u.code_methode = 'application'" "where u.id = socle.moi()" \
+  "$CE2"
+prouver "l'écran qui laisse partir sans essayer le code" web/src/ecrans/CodeRequis.tsx \
+  "    const r = await g.api('POST', '/moi/code/essayer', { code: essai });" "    pose(); return; const r = await g.api('POST', '/moi/code/essayer', { code: essai });" \
+  "$CEP"
+prouver "le code faux refusé sans montrer son champ" web/src/ecrans/CodeRequis.tsx \
+  "else g.refuser({ ...refusDe(r), champ: 'code' });" "else g.refuser(refusDe(r));" \
+  "$CEP"
+prouver "la clé en clair qui n'est pas celle du code QR" web/src/ecrans/CodeRequis.tsx \
+  '{parQuatre(codes.cle)}' '{parQuatre(codes.cle.slice(1))}' \
+  "$CEP"
+prouver "le lien qui n'ouvre pas l'application" web/src/ecrans/CodeRequis.tsx \
+  'href={codes.adresse}' 'href="#"' \
+  "$CEP"
+prouver "un code QR qui ne dit pas l'adresse" web/src/ecrans/CodeRequis.tsx \
+  "  q.addData(adresse);" "  q.addData(adresse.replace('SkanFact', 'Skan'));" \
+  "$CEP"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -225,6 +225,15 @@ export async function mettreEnPlaceCode(ctx: Contexte, qui: Qui, methode: 'sms' 
   return { codesDeSecours: codes, adresseApplication: secret ? adresseTotp(secret, email) : null, secret };
 }
 
+// Essayer le premier code de l'application qu'on vient d'ajouter (brique 145) : rien ne change, on dit seulement si
+// le code tapé correspond au secret posé. Sans application posée, aucun code ne correspond.
+export async function essayerCode(ctx: Contexte, qui: Qui, code: string): Promise<boolean> {
+  const maintenant = (ctx.maintenant ?? (() => new Date()))();
+  const secret = await enTantQue(ctx.pool, qui.utilisateur, async (tx) =>
+    (await tx.query('select socle.mon_secret_d_application() s')).rows[0]?.s as string | null);
+  return !!secret && verifierTotp(secret, code.replace(/\s/g, ''), maintenant.getTime());
+}
+
 export async function revoquerAppareil(ctx: Contexte, qui: Qui, appareil: string): Promise<boolean> {
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
   return enTantQue(ctx.pool, qui.utilisateur, async (tx) => (await tx.query('select socle.revoquer_appareil($1, $2) ok', [appareil, maintenant])).rows[0].ok);

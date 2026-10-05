@@ -49,5 +49,12 @@ h1.setup-t { margin: 0; }
 /* Le code du téléphone (la v10 n'en avait pas) : l'adresse à ajouter dans l'application, qui se
    coupe n'importe où plutôt que de déborder, et les dix codes de secours, en deux colonnes. */
 .adresse-code { display: block; overflow-x: auto; word-break: break-all; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--ink-soft); font-size: 12.5px; }
+.code-qr { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 12px; }
+.code-qr-image { flex: none; width: 168px; height: 168px; background: #fff; border-radius: var(--radius-sm); }
+.code-qr-image svg { display: block; width: 100%; height: 100%; }
+.code-qr-etapes { flex: 1 1 220px; min-width: 0; }
+.code-qr-etapes p { margin: 0 0 10px; }
+.codes-secours + .grid-2 { margin-top: 16px; }
+.code-cle { display: inline-block; margin-top: 4px; padding: 6px 10px; border-radius: 6px; background: var(--ink-soft); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; letter-spacing: .04em; word-break: break-all; user-select: all; }
 .codes-secours { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
 .codes-secours li { padding: 4px 8px; border-radius: 6px; background: var(--ink-soft); }
