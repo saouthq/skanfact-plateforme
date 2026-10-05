@@ -90,8 +90,36 @@ base.
 Code : `exploitation/installer.sh`, `exploitation/suivre.sh`, `exploitation/suivre.ts`. Test :
 `tests/exploitation/suivre.test.ts` (la règle : quelle version installer).
 
+## C. La sauvegarde de la nuit (brique 144)
+
+**C1. Chaque nuit à 3 h 30 (heure de Tunis)**, la base entière part dans un fichier (`pg_dump`, compressé), dans
+`/var/lib/skanfact/sauvegardes` (lisible par le compte de la base seulement).
+
+**C2. Chaque sauvegarde est restaurée** dans une base à part, comptée (toutes ses lignes, ses migrations), puis cette
+base est jetée : une sauvegarde qu'on n'a jamais restaurée n'est pas une sauvegarde. Le résultat se lit dans l'état du
+serveur (`/etat.json`, champ `sauvegarde` : quand, réussie ou non, combien de lignes). **Un échec, à n'importe quelle
+étape, s'y dit** : jamais le « réussi » de la veille.
+
+**C3. Les 14 dernières restent.** Les plus anciennes ne s'en vont qu'**après** une restauration réussie : une nuit
+ratée n'efface jamais les bonnes d'avant.
+
+**C4. Posée par la première tâche d'entretien** (`exploitation/taches/0001-sauvegardes.sh`), qui fait aussi une
+première sauvegarde tout de suite : c'est la première fois que Claude règle le serveur par une tâche. Essayée le
+05/10/2026 dans l'Ubuntu simulé : la tâche jouée après l'installation, la sauvegarde restaurée et comptée (69
+migrations), le minuteur réglé pour la nuit, l'état montré par le frontal.
+
+**C5. Ce qu'elle ne fait pas encore** : la copie **hors de la machine**. Sur le serveur d'essai (données inventées), un
+disque perdu ne perd rien qui compte. Pour les pilotes et le lancement, la copie part chaque nuit vers le second centre
+de données tunisien (`06` § 2.3), avant la première donnée réelle d'un client.
+
+**Remettre une sauvegarde** (une seule fois par incident, par une tâche d'entretien écrite pour lui) : arrêter le service
+`skanfact`, `pg_restore --clean --if-exists -d skanfact <fichier>` en compte `postgres`, relancer. Une entreprise seule se
+remet par son export (`base/entreprise.ts`), pas par la sauvegarde entière.
+
+Code : `exploitation/sauvegarder.sh`, `exploitation/taches/0001-sauvegardes.sh`, `exploitation/suivre.ts` (l'état).
+Test : `tests/exploitation/sauvegarder.test.ts`.
+
 ## Reste à faire avant les testeurs
 
-- Les sauvegardes automatiques de la base sur le serveur d'essai, et une restauration essayée.
 - Vérifier le parcours sans SMS et sans e-mail (la connexion par l'application de code).
 - Une fiche pour les testeurs.

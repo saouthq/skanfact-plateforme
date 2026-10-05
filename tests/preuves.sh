@@ -7748,6 +7748,52 @@ prouver "la plus ancienne verte installée, pas la plus récente" exploitation/s
   "  for (const v of versions) {" "  for (const v of [...versions].reverse()) {" \
   "$SV2"
 
+# ── Brique 144 : la sauvegarde de la nuit, restaurée à part et comptée (docs/mise-en-ligne.md, C) ──
+SA1="la base entière dans un fichier, restaurée à part et comptée, puis jetée ; les 14 dernières restent, rien d'autre ne bouge"
+SA2="une restauration qui échoue se dit, et ce soir-là rien ne s'efface"
+SA3="un fichier abîmé ne se restaure pas : « essayer » le dit"
+SA4="un échec imprévu (la base introuvable) se dit aussi, jamais le « réussi » de la veille, et ne laisse pas de fichier"
+prouver "les vieilles sauvegardes rangées avant d'avoir essayé la nouvelle" exploitation/sauvegarder.sh \
+  'essayer
+# Ranger|||do rm -f "$DOSSIER/$vieux"; done' '# Ranger|||do rm -f "$DOSSIER/$vieux"; done
+essayer' \
+  "$SA2"
+prouver "une sauvegarde de moins que promis" exploitation/sauvegarder.sh \
+  'tail -n +$((GARDER + 1))' 'tail -n +$((GARDER))' \
+  "$SA1"
+prouver "les sauvegardes d'une autre base rangées avec" exploitation/sauvegarder.sh \
+  '-name "$BASE-*.dump"' '-name "*.dump"' \
+  "$SA1"
+prouver "la sauvegarde jamais restaurée" exploitation/sauvegarder.sh \
+  'pg_restore --exit-on-error -d "$ESSAI" "$f" 2>&1' 'true' \
+  "$SA1"
+prouver "une restauration ratée dite réussie" exploitation/sauvegarder.sh \
+  'ecrire false "la restauration a échoué' 'ecrire true "la restauration a échoué' \
+  "$SA2"
+prouver "la base restaurée laissée là" exploitation/sauvegarder.sh \
+  '  requete postgres "drop database if exists \"$ESSAI\" with (force)" >/dev/null
+  ecrire true' '  ecrire true' \
+  "$SA1"
+prouver "la base restaurée laissée là après un échec" exploitation/sauvegarder.sh \
+  '    requete postgres "drop database if exists \"$ESSAI\" with (force)" >/dev/null
+    ecrire false' '    ecrire false' \
+  "$SA3"
+prouver "les lignes restaurées pas comptées" exploitation/sauvegarder.sh \
+  '"$lignes" "$migrations"' '"0" "$migrations"' \
+  "$SA1"
+prouver "les migrations restaurées pas comptées" exploitation/sauvegarder.sh \
+  'MIGRATIONS="select count(*) from socle.migration"' 'MIGRATIONS="select 0"' \
+  "$SA1"
+prouver "un échec imprévu tu (le réussi de la veille reste)" exploitation/sauvegarder.sh \
+  "trap 'ecrire false" ": 'ecrire false" \
+  "$SA4"
+prouver "le fichier à moitié écrit laissé là" exploitation/sauvegarder.sh \
+  '[ "$MODE" = essayer ] || rm -f "$f"'"' ERR" "true' ERR" \
+  "$SA4"
+prouver "le fichier examiné jeté quand l'essai échoue" exploitation/sauvegarder.sh \
+  '[ "$MODE" = essayer ] || rm -f "$f"' 'rm -f "$f"' \
+  "$SA3"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
