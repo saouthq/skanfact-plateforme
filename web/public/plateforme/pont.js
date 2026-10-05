@@ -1000,6 +1000,9 @@
     achatOublier: pasEncore('L\'abonnement'),
     pontExporterBase: pasEncore('L\'export de la base de l\'éditeur'),
     updateCanaux: async () => null,
+    // La version au pied du menu : celle que le serveur a écrite dans la page (le jour de l'envoi et le début de son
+    // empreinte, serveur/ecrans.ts), la même que le code qui tourne ; sans elle, « dev » comme la v10 dans un navigateur.
+    updateVersion: async () => ({ version: document.querySelector('meta[name="skanfact-version"]')?.getAttribute('content') || 'dev', packaged: false, platform: 'web', macSigned: false }),
     // Les données vivent sur le serveur, plus sur l'ordinateur : l'étape « Mettre tes données à l'abri »
     // de la v10 (une copie vers iCloud ou une clé) est faite d'elle-même.
     externalBackupInfo: async () => ({ dir: 'Serveur SkanFact', partage: false }),

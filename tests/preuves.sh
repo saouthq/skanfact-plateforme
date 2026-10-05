@@ -6317,7 +6317,7 @@ prouver "un fichier inchangé renvoyé entier" serveur/principal.ts \
 " "" \
   "$LG3"
 prouver "les scripts demandés un par un" serveur/ecrans.ts \
-  "    return versionnee.slice(0, apres) + annonces + versionnee.slice(apres);" "    return versionnee;" \
+  "    return versionnee.slice(0, apres) + marque + annonces + versionnee.slice(apres);" "    return versionnee.slice(0, apres) + marque + versionnee.slice(apres);" \
   "$LG3"
 prouver "les écrans d'entrée jamais gardés à l'installation" web/public/sw.js \
   "  await c.put(page, r);
@@ -7913,6 +7913,20 @@ prouver "la date de fin d'une règle qui change encore" base/regles-communes.ts 
 prouver "la date du timbre manquant écrite comme la base la range" serveur/ventes/pieces.ts \
   "date: p.date_piece.split('-').reverse().join('/') }" "date: p.date_piece }" \
   "le contrôle passe avant le numéro : un refus ne troue jamais la série"
+
+# La version au pied du menu (serveur/ecrans.ts, plateforme/pont.js ; vu sur le vrai serveur le 05/10/2026 : « vdev »).
+prouver "la version du menu qui reste « vdev »" web/public/plateforme/pont.js \
+  "    updateVersion: async () => ({ version: document.querySelector" "    updateVersionOubliee: async () => ({ version: document.querySelector" \
+  "$CEP"
+prouver "la page servie sans la version de son code" serveur/ecrans.ts \
+  "return versionnee.slice(0, apres) + marque + annonces" "return versionnee.slice(0, apres) + annonces" \
+  "$CEP"
+prouver "le serveur qui ne lit pas la version de son code" serveur/principal.ts \
+  "fichiersDesEcrans(racine, versionDuCode())" "fichiersDesEcrans(racine)" \
+  "$CEP"
+prouver "la version écrite comme un jour de la base" serveur/ecrans.ts \
+  "jour.replaceAll('-', '.')" "jour" \
+  "$CEP"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

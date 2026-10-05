@@ -4,7 +4,10 @@
 //   - une page HTML porte, sur chaque fichier qu'elle charge, son empreinte (« app.js?v=3f9c… ») : l'adresse change
 //     quand le fichier change, et seulement alors ; à cette adresse, le navigateur le garde un an sans redemander ;
 //   - le fichier part compressé (brotli, sinon gzip), compressé une fois puis gardé.
-// Une page HTML se refait à chaque demande (elle est petite) : elle suit toujours les empreintes du jour.
+// Une page HTML se refait à chaque demande (elle est petite) : elle suit toujours les empreintes du jour, et porte la
+// version du code qui la sert.
+
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,7 +17,20 @@ type Fichier = { mtime: number; taille: number; contenu: Buffer; empreinte: stri
 
 const empreinte = (b: Buffer) => createHash('sha256').update(b).digest('hex').slice(0, 16);
 
-export function fichiersDesEcrans(racine: string) {
+// La version du code qui sert les écrans : le jour de son envoi et le début de son empreinte (« 2026.10.05 · a42f308 »),
+// lue une fois dans le dépôt. Elle s'écrit au pied du menu (05/10/2026 : on y lisait « vdev ») : c'est ce qu'un
+// testeur recopie quand il signale un problème. L'année d'abord : les nouveautés de la v10 (10.x) ne la dépassent
+// jamais, et ne se montrent pas. Sans dépôt lisible, « dev ».
+export function versionDuCode(dossier = import.meta.dirname): string {
+  try {
+    const [jour, court] = execFileSync('git', ['-C', dossier, 'log', '-1', '--format=%cs %h'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim().split(' ');
+    return jour && court ? `${jour.replaceAll('-', '.')} · ${court}` : 'dev';
+  } catch {
+    return 'dev';
+  }
+}
+
+export function fichiersDesEcrans(racine: string, version = 'dev') {
   const memoire = new Map<string, Fichier>();
 
   function lire(fichier: string): Fichier {
@@ -48,11 +64,12 @@ export function fichiersDesEcrans(racine: string) {
     const scripts = [...versionnee.matchAll(/<script src="([^"]+\?v=[0-9a-f]+)"><\/script>/g)].map((m) => m[1]);
     // Juste après la déclaration du jeu de caractères (elle reste dans les premiers octets), sinon après <head>.
     const tete = /<meta charset="[^"]*"\s*\/?>/i.exec(versionnee) ?? /<head[^>]*>/.exec(versionnee);
-    if (!scripts.length || !tete) return versionnee;
-    // Une balise, pas une phrase (le catalogue des textes ne la compte pas) : assemblée de ses attributs.
+    if (!tete) return versionnee;
+    // Des balises, pas des phrases (le catalogue des textes ne les compte pas) : assemblées de leurs attributs.
     const annonces = scripts.map((a) => `\n  ${['<link', 'rel="preload"', 'as="script"', `href="${a}">`].join(' ')}`).join('');
+    const marque = `\n  ${['<meta', 'name="skanfact-version"', `content="${version.replace(/[&<>"]/g, '')}">`].join(' ')}`;
     const apres = tete.index + tete[0].length;
-    return versionnee.slice(0, apres) + annonces + versionnee.slice(apres);
+    return versionnee.slice(0, apres) + marque + annonces + versionnee.slice(apres);
   }
 
   // Le contenu compressé, fait une fois (une page HTML : à chaque fois, elle est petite).

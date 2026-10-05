@@ -17,6 +17,7 @@ import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { LONGUEUR_MINIMALE } from '../../commun/compte.ts';
 import { motif, rendre, t } from '../../textes/index.ts';
 import '../../web/src/textes.ts';
+import { versionDuCode } from '../../serveur/ecrans.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import * as jsqr from 'jsqr';
@@ -122,6 +123,10 @@ describe('le parcours, à la souris', () => {
     const ent = new URL(p.url()).searchParams.get('e') ?? '';
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await plusTard(p);
+    // Au pied du menu, la version du code qui tourne (le jour de l'envoi et son empreinte), jamais « vdev » : c'est ce
+    // qu'un testeur recopie quand il signale un problème (vu sur le serveur d'essai le 05/10/2026).
+    await expect.poll(() => p.locator('#app-version').innerText()).toBe(`v${versionDuCode()}`);
+    expect(versionDuCode()).toMatch(/^20\d\d\.\d\d\.\d\d · [0-9a-f]{7,}$/);
     await p.screenshot({ path: path.join(PHOTOS, 'parcours-1-accueil.png') });
 
     // Une facture, dans l'éditeur de la v10 : le client se crée depuis l'éditeur, et revient choisi.

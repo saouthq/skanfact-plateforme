@@ -38,7 +38,7 @@ import { creerPool } from './base.ts';
 import { CLE_DU_COFFRE_D_ESSAI, cleDuCoffre, CoffreFaux } from './coffre.ts';
 import type { Contexte } from './connexion.ts';
 import { choisirEncodage, compressible, SEUIL_COMPRESSION } from './compression.ts';
-import { dejaGarde, fichiersDesEcrans } from './ecrans.ts';
+import { dejaGarde, fichiersDesEcrans, versionDuCode } from './ecrans.ts';
 import { Refus } from './erreurs.ts';
 import { listeDepuisFichier } from './mot-de-passe.ts';
 import { routesSocle } from './routes/socle.ts';
@@ -146,7 +146,7 @@ const POLITIQUE = "default-src 'self'; script-src 'self'; style-src 'self' 'unsa
 export function servirLesEcrans(app: ReturnType<typeof creerApp>, dossier: string) {
   const racine = path.resolve(dossier);
   if (!fs.existsSync(path.join(racine, 'index.html'))) return;
-  const ecrans = fichiersDesEcrans(racine);
+  const ecrans = fichiersDesEcrans(racine, versionDuCode());
   app.get('/*', async (requete, reponse) => {
     const chemin = decodeURIComponent(new URL(requete.url, 'http://x').pathname);
     if (chemin.startsWith('/v1/') || chemin === '/v1') return reponse.code(404).send({});

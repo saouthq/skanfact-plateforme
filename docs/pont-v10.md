@@ -146,7 +146,10 @@ Test : `tests/web/virgule.test.ts`, dans un navigateur lancé en anglais : « 2,
   reste le Cabinet hors ligne.
 - **Les gros dossiers** : le dossier se charge en entier ; à mesurer (la règle : toute liste se
   pagine).
-- La version affichée au pied de la barre (« vdev »), le journal des erreurs du serveur
-  (`supportInfo`, `supportErreur`), l'historique des nouveautés (`changelog`).
+- ~~La version affichée au pied de la barre (« vdev »)~~ : faite le 05/10/2026, vue sur le serveur d'essai. Le serveur
+  écrit dans chaque page la version du code qui la sert, le jour de l'envoi et le début de son empreinte
+  (« v2026.10.05 · a42f308 », `serveur/ecrans.ts`), et `updateVersion` la lit : c'est ce qu'un testeur recopie quand il
+  signale un problème. L'année d'abord : les nouveautés de la v10 (10.x) ne se montrent pas. Restent le journal des
+  erreurs du serveur (`supportInfo`, `supportErreur`) et l'historique des nouveautés (`changelog`).
 - **Le Cabinet** : repris à la brique 37 (`docs/cabinet.md`) ; ses gestes arrivent brique par
   brique (38 à 46).
