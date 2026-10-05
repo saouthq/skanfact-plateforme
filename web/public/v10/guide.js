@@ -139,6 +139,8 @@
     'cf.head': { t: 'La commande', d: 'Le fournisseur, la date, la livraison que tu souhaites, et ta référence si tu en as une. Le numéro (BCF-…) naît au premier enregistrement.' },
     'cf.fournisseur': { t: 'Fournisseur', d: 'À qui part la commande. Il se choisit parmi tes fournisseurs (page « Fournisseurs »).' },
     'cf.livraison': { t: 'Livraison souhaitée', d: 'La date à laquelle tu veux être livré : elle s\'imprime sur la commande.' },
+    'cf.date': { t: 'Date', d: 'Le jour où la commande (ou la demande de prix) part chez le fournisseur. Elle s\'imprime sur le bon ; le numéro (BCF-…) naît au premier enregistrement.' },
+    'cf.reference': { t: 'Référence', d: 'Ta référence à toi, si tu en as une : un chantier, un client, le numéro du devis du fournisseur. Elle s\'imprime sur la commande ; laisse vide si elle n\'apporte rien.' },
     'cf.statut': { t: 'Statut', d: '« Demande de prix » : tu demandes ses prix au fournisseur (elle s\'imprime sans prix). « Envoyée » quand la commande est partie chez le fournisseur. Dès qu\'elle reçoit, elle se dit « reçue en partie », puis « reçue ». Si le reste ne viendra jamais, choisis « Soldée » : il n\'est plus attendu. « Annulée » : plus rien n\'est attendu.' },
     'cf.lignes': { t: 'Lignes', d: 'Ce que tu commandes, à quel prix hors taxes. Un article du catalogue prend son coût d\'achat et, s\'il est suivi en stock, y entrera à la réception. Une fois que la commande a reçu, ses lignes ne changent plus.' },
     'cf.receptions': { t: 'Réceptions', d: 'Ligne par ligne : ce qui est commandé, ce que les réceptions <b>validées</b> ont reçu, et ce qui reste. Une réception en brouillon est « en préparation ».' },

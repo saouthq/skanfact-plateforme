@@ -1300,6 +1300,14 @@
     const draw = dansUnLot(() => {
       // Accents et majuscules ignorés (10.12.0) : « hotel » trouve « Hôtel Dar El Marsa SARL ».
       shown = el._items.filter(x => C.correspondRecherche(x.text || x.label || '', q.value));
+      // (plateforme, lot achats du 05/10/2026) Ce dont le NOM commence par la frappe vient d'abord (le rang de la palette,
+      // `rangRecherche`) ; à rang égal, l'ordre de la liste. « Mati » puis Entrée choisissait « Formation » (forMATIon).
+      // Un mot tapé en entier passe avant un mot qui le contient : « 118 » choisit F-2026-118, pas FA-2026/1187.
+      if (q.value.trim()) {
+        const frappe = C.plier(q.value).trim();
+        const entier = x => C.plier(x.label || '').split(/[^\p{L}\p{N}]+/u).includes(frappe) ? 0.5 : 0;
+        shown = shown.map((x, k) => ({ x, k, r: C.rangRecherche(x.label || '', q.value) + entier(x) })).sort((a, b) => b.r - a.r || a.k - b.k).map(a => a.x);
+      }
       sel = Math.max(0, Math.min(sel, shown.length - 1));
       list.innerHTML = shown.length ? shown.map((x, i) => `<div class="combo-it${i === sel ? ' sel' : ''}${x.v === el._value ? ' cur' : ''}" data-i="${i}" role="option" aria-selected="${i === sel}">
           <span class="ci-main">${h(x.label)}${x.sub ? `<span class="ci-sub">${h(x.sub)}</span>` : ''}</span>
@@ -1574,9 +1582,13 @@
   // ---------- unité d'une ligne ----------
   const UNIT_OTHER = '__autre__';
   function unitOptions(value, extras) {
-    const list = C.LINE_UNITS.concat((extras || []).map(u => [u, u]));
+    // (plateforme, lot achats) Une ligne enregistrée avec « __autre__ » (le défaut des commandes fournisseurs, corrigé) se
+    // relit sans unité, plutôt qu'avec ce mot de machine. « Autre… » porte `data-libre` : la liste le garde pendant une
+    // recherche, avec ce qu'on a tapé (listes.js).
+    if (value === UNIT_OTHER) value = '';
+    const list = C.LINE_UNITS.concat((extras || []).map(u => [u, u]).filter(([u]) => u !== UNIT_OTHER));
     if (value && !list.some(x => x[0] === value)) list.push([value, value]);
-    return `<option value="">—</option>${list.map(([v, l]) => `<option value="${h(v)}" ${v === value ? 'selected' : ''}>${h(l)}</option>`).join('')}<option value="${UNIT_OTHER}">Autre…</option>`;
+    return `<option value="">—</option>${list.map(([v, l]) => `<option value="${h(v)}" ${v === value ? 'selected' : ''}>${h(l)}</option>`).join('')}<option value="${UNIT_OTHER}" data-libre>Autre…</option>`;
   }
   // « Autre… » ouvre une saisie libre ; l'unité tapée rejoint la liste puisqu'elle est alors dans les données.
   function bindUnitSelect(sel, get, set) {
@@ -1584,7 +1596,10 @@
       if (sel.value !== UNIT_OTHER) return set(sel.value);
       const prev = get() || '';
       sel.value = prev; set(prev);
-      promptDialog('Unité personnalisée', 'Unité (ex : rouleau, palette, ml)', '', v => {
+      // (plateforme, lot achats) Ce qu'on a tapé dans la recherche de la liste arrive dans la saisie (« Autre : « sac » »).
+      const saisi = sel.dataset.saisie || '';
+      delete sel.dataset.saisie;
+      promptDialog('Unité personnalisée', 'Unité (ex : rouleau, palette, ml)', saisi, v => {
         const u = v.trim();
         sel.innerHTML = unitOptions(u, []);
         sel.value = u; set(u);
@@ -1843,12 +1858,20 @@
   // Bouton retour d'une sous-page. `fallback` sert quand on y est arrivé directement (lien, démarrage).
   function backButton(fallback, skip) {
     const cible = backTarget(fallback, skip);
-    return `<button class="btn btn-back" id="back" title="Revenir à ${h(pageLabel(cible, true))}">← ${h(pageLabel(cible))}</button>`;
+    return `<button class="btn btn-back" id="back" data-retour="${h(fallback || '')}" data-saut="${h(skip || '')}" title="Revenir à ${h(pageLabel(cible, true))}">← ${h(pageLabel(cible))}</button>`;
   }
   function bindBack(fallback, skip) {
     const b = $('#back');
     if (b) b.onclick = () => go(() => goBack(fallback, skip));
   }
+  // (plateforme, lot achats du 05/10/2026) Un bouton retour que sa page n'a pas branché (`bindBack`) répond quand même, avec
+  // ce que `backButton` a dessiné : ceux de la commande fournisseur, de la réception, d'une liste de prix et du groupe ne
+  // faisaient rien (deux clics, la page restait). Un bouton branché garde son geste.
+  document.addEventListener('click', e => {
+    const b = e.target && e.target.closest ? e.target.closest('#back') : null;
+    if (!b || b.onclick || !b.hasAttribute('data-retour')) return;
+    go(() => goBack(b.dataset.retour || undefined, b.dataset.saut || undefined));
+  });
 
   // ---------- la barre latérale (7.0.0) ----------
   // Les icônes vivaient dans index.html à côté de leur lien. Maintenant que les liens sont dessinés
@@ -9009,6 +9032,9 @@
     const close = stored ? (stored.status === 'soldée' || /^annul/.test(stored.status || '')) : false;
     // Une demande de prix (brique 89) ne reçoit rien : elle se compare, puis se commande.
     const demande = !!(stored && stored.status === 'demande');
+    // (plateforme, lot achats) Une demande de prix sans aucun prix répondu : l'étape suivante est de l'envoyer (PDF) ;
+    // « Commander » le devient quand les prix du fournisseur sont saisis.
+    const demandeSansPrix = demande && !(stored.lines || []).some(l => Number(l.unitPrice) > 0);
     const groupe = demande ? C.comparerDemandes(data, stored) : null;
     const aRecevoir = !!(stored && stored.number && suivi.aProposer && !close && !demande);
     const aFacturer = stored ? C.receptionsAFacturer(data).filter(r => r.orderId === stored.id) : [];
@@ -9028,8 +9054,8 @@
           ${stored ? `<div class="small muted">${h(supplierName(o.supplierId))} · ${badgeCF(statut)}</div>` : ''}</div>
         <div class="actions">
           ${backButton('#/commandesf')}
-          ${stored ? '<button class="btn" id="cf-pdf">PDF</button>' : ''}
-          ${demande ? `<button class="btn" id="cf-aussi">Demander aussi à…</button>${groupe.demandes.length < 2 ? '<button class="btn btn-primary" id="cf-commander">Commander</button>' : ''}` : ''}
+          ${stored ? `<button class="btn ${demandeSansPrix ? 'btn-primary' : ''}" id="cf-pdf">PDF</button>` : ''}
+          ${demande ? `<button class="btn" id="cf-aussi">Demander aussi à…</button>${groupe.demandes.length < 2 ? `<button class="btn ${demandeSansPrix ? '' : 'btn-primary'}" id="cf-commander">Commander</button>` : ''}` : ''}
           ${aRecevoir ? `<button class="btn btn-primary" id="cf-recevoir">${suivi.receptions.length ? 'Recevoir le reste' : 'Recevoir'}</button>` : ''}
           ${aFacturer.length ? `<button class="btn ${aRecevoir ? '' : 'btn-primary'}" id="cf-facturer">Saisir la facture du fournisseur</button>` : ''}
           <button class="btn ${!stored ? 'btn-primary' : ''}" id="save">Enregistrer</button>
@@ -9041,10 +9067,10 @@
         <form id="cf-head" class="grid-3">
           <div class="field">${lbl('Fournisseur', 'cf.fournisseur')}
             ${combo({ name: 'supplierId', value: o.supplierId, items: fournisseursCF(), placeholder: '— Choisir un fournisseur —', search: 'Rechercher : nom, contact, MF…', ro: figee })}</div>
-          ${dateFieldHtml(lbl(`Date de la ${quoi}`, ''), 'date', o.date)}
+          ${dateFieldHtml(lbl(`Date de la ${quoi}`, 'cf.date'), 'date', o.date)}
           ${dateFieldHtml(lbl('Livraison souhaitée le', 'cf.livraison'), 'dueDate', o.dueDate || '', { quick: true })}
-          ${field(lbl('Référence (optionnel)', ''), 'reference', o.reference || '', 'text')}
-          <label class="field">${lbl('Statut', 'cf.statut')}<select name="status">${C.STATUTS_COMMANDE_FOURNISSEUR.map(s => `<option value="${h(s)}" ${s === o.status ? 'selected' : ''}>${h(MOTS_CF[s].charAt(0).toUpperCase() + MOTS_CF[s].slice(1))}</option>`).join('')}</select></label>
+          ${field(lbl('Référence (optionnel)', 'cf.reference'), 'reference', o.reference || '', 'text')}
+          <label class="field">${lbl('Statut', 'cf.statut')}<select name="status">${C.STATUTS_COMMANDE_FOURNISSEUR.filter(s => !recue || s === o.status || !['demande', 'brouillon'].includes(s)).map(s => `<option value="${h(s)}" ${s === o.status ? 'selected' : ''}>${h(MOTS_CF[s].charAt(0).toUpperCase() + MOTS_CF[s].slice(1))}</option>`).join('')}</select></label>
           <label class="field">${lbl('Devise', '')}<select name="currency" ${ro}>${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(C.libelleDevise(c))}</option>`).join('')}</select></label>
           <label class="field obligatoire" id="cf-rate" ${cur === company().currency ? 'hidden' : ''}>${lbl(`1 <span id="cf-rate-dev">${h(cur)}</span> = ? ${h(company().currency)}`, '')}<input type="number" name="exchangeRate" value="${h(o.exchangeRate || '')}" step="0.0001" min="0" class="num" ${ro}></label>
         </form>
@@ -9053,7 +9079,7 @@
         ${figee ? `<p class="small muted mb" id="cf-figee">${recue ? 'Cette commande a déjà reçu de la marchandise : ses lignes ne changent plus (ses réceptions s\'y rattachent ligne par ligne).'
           : 'Cette commande a une réception en préparation : ses lignes ne changent plus tant qu\'elle existe (elle s\'y rattache ligne par ligne). Pour les modifier, supprime d\'abord cette réception.'}</p>` : `<div class="catalog-pick"><div id="cf-cat">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher un article…' })}</div>
           <button class="btn btn-sm" id="cf-add">+ Ligne</button></div>`}
-        <div class="lignes-cadre"><table class="lines-edit buy-lines"><thead><tr><th>Désignation</th><th class="r">Qté</th><th>Unité</th><th class="r">P.U. HT</th><th>TVA</th><th class="r">Total HT</th><th></th></tr></thead>
+        <div class="lignes-cadre"><table class="lines-edit buy-lines"><thead><tr><th>Désignation</th><th class="r" style="width:76px">Qté</th><th style="width:136px">Unité</th><th class="r" style="width:124px">${quoi === 'demande' ? 'Prix répondu HT' : 'P.U. HT'}</th><th style="width:84px">TVA</th><th class="r" style="width:140px">Total HT</th><th style="width:44px"></th></tr></thead>
           <tbody id="cf-lines"></tbody></table></div>
         <div class="totals-box" id="cf-totals"></div>
         <div id="cf-accord"></div>
@@ -9080,6 +9106,14 @@
     let dirty = false;
     const touch = () => { if (dirty) return; dirty = true; $('#dirty-dot').hidden = false; enregistrerDevientPrincipal(); };
     const totaux = () => {
+      // (plateforme, lot achats) Une demande de prix sans prix ne montre pas un « Total TTC 0,000 » : elle part sans prix, et
+      // les prix se saisissent à la réponse du fournisseur.
+      if (o.status === 'demande' && !o.lines.some(l => Number(l.unitPrice) > 0)) {
+        $('#cf-totals').innerHTML = '<p class="small muted" id="cf-sans-prix">Les prix se saisissent quand le fournisseur répond : la demande part sans prix (PDF).</p>';
+        $$('#cf-lines [data-ht]').forEach(c => { c.textContent = ''; });
+        $('#cf-accord').innerHTML = '';
+        return;
+      }
       const t = C.computeTotals(o, company());
       $('#cf-totals').innerHTML = `<table>
         <tr><td>Total HT</td><td>${h(C.money(t.netHT, cur))}</td></tr>
@@ -9089,11 +9123,14 @@
       // Au-delà du montant permis sans accord, la page le dit avant le geste (brique 114).
       $('#cf-accord').innerHTML = avisAccordCommande(o, stored);
     };
+    // (plateforme, lot achats) Les unités déjà employées (catalogue, pièces de vente, commandes fournisseurs) restent
+    // proposées ; « Autre… » n'en est pas une.
+    const unitesCommande = () => C.usedUnits(data, commandesF().concat([o]).flatMap(c => (c.lines || []).map(l => l.unit))).filter(u => u !== UNIT_OTHER);
     const dessinerLignes = () => {
       $('#cf-lines').innerHTML = o.lines.map((l, i) => `<tr>
         <td><input type="text" data-k="label" data-i="${i}" value="${h(l.label || '')}" placeholder="Désignation" ${ro}></td>
         <td><input type="number" class="num" data-k="qty" data-i="${i}" value="${h(l.qty)}" step="any" min="0" ${ro}></td>
-        <td><select data-k="unit" data-i="${i}" ${ro}>${unitOptions(l.unit)}</select></td>
+        <td><select data-k="unit" data-i="${i}" ${ro}>${unitOptions(l.unit, unitesCommande())}</select></td>
         <td><input type="number" class="num" data-k="unitPrice" data-i="${i}" value="${h(l.unitPrice)}" step="0.001" min="0" ${ro}></td>
         <td><select data-k="vatRate" data-i="${i}" ${ro}>${C.VAT_RATES.map(v => `<option value="${v}" ${Number(l.vatRate) === v ? 'selected' : ''}>${v} %</option>`).join('')}</select></td>
         <td class="r num nw" data-ht></td>
@@ -9106,6 +9143,16 @@
         };
       });
       $$('#cf-lines [data-del]').forEach(b => { b.onclick = () => { o.lines.splice(Number(b.dataset.del), 1); touch(); dessinerLignes(); }; });
+      // (plateforme, lot achats du 05/10/2026) « Autre… » ouvre la saisie libre, comme sur une facture : rien ne s'ouvrait, et
+      // la ligne gardait « __autre__ », imprimé tel quel sur le bon de commande (« 40 __autre__ »). L'unité tapée rejoint
+      // la liste des autres lignes.
+      $$('#cf-lines select[data-k=unit]').forEach(sel => bindUnitSelect(sel, () => (o.lines[Number(sel.dataset.i)] || {}).unit, u => {
+        const l = o.lines[Number(sel.dataset.i)];
+        if (!l || l.unit === u) return;
+        const neuve = !!u && !C.LINE_UNITS.some(x => x[0] === u) && !unitesCommande().includes(u);
+        l.unit = u; touch();
+        if (neuve) dessinerLignes();
+      }));
       totaux();
     };
     dessinerLignes();
@@ -9162,7 +9209,7 @@
     $('#save').onclick = () => {
       const neuf = !stored;
       if (!enregistrer()) return;
-      toast(`Commande ${o.number} enregistrée`);
+      toast(`${o.status === 'demande' ? 'Demande de prix' : 'Commande'} ${o.number} enregistrée`);
       if (neuf) remplacerPage('#/commandef/' + o.id); else render(true);
     };
     if ($('#cf-pdf')) $('#cf-pdf').onclick = async () => {
@@ -9174,8 +9221,18 @@
     };
     if ($('#cf-recevoir')) $('#cf-recevoir').onclick = () => {
       if (dirty && !enregistrer()) return;
-      const r = C.receptionDeCommande(data, commandeFById(o.id), C.today());
+      const cmdR = commandeFById(o.id);
+      const r = C.receptionDeCommande(data, cmdR, C.today());
       if (!r) return toast(`Rien ne reste à recevoir sur ${o.number} : tout est reçu, ou dans une réception en préparation.`);
+      // (plateforme, lot achats du 05/10/2026) Une commande qui reçoit est partie : en brouillon, elle passe « envoyée » au
+      // même geste, avec l'accord qu'il lui faut au-delà du montant permis (brique 114 ; le serveur refuse une réception
+      // validée sur une commande qui n'est pas partie). Le statut restait « Brouillon » sous la pastille « reçue en partie »,
+      // et une commande au-delà du seuil se recevait sans accord.
+      if (cmdR.status === 'brouillon') {
+        const besoin = commandeSansAccord({ ...cmdR, status: 'envoyée' }, cmdR);
+        if (besoin) return proposerAccordCommande({ ...cmdR, status: 'envoyée' }, besoin, () => render(true));
+        cmdR.status = 'envoyée';
+      }
       receptionsF().push(r); save(true);
       navigate('#/reception/' + r.id);
     };
@@ -9233,6 +9290,24 @@
       navigate('#/commandesf');
     };
   };
+  // (plateforme, lot achats du 05/10/2026) Ce qu'une réception validée a fait entrer en stock, compté sur les mouvements
+  // eux-mêmes (`stockMovements`, la fonction de la page Stock) : « la marchandise suivie est entrée en stock » se disait
+  // même quand aucune ligne n'était un article suivi. Une phrase que rien ne tient est un défaut.
+  function phraseStockReception(r) {
+    const entres = C.stockMovements(data).filter(m => m.source === 'reception' && m.docId === r.id).length;
+    const lignes = (r.lines || []).filter(l => Number(l.qty) > 0).length;
+    if (!entres) return 'aucune de ses lignes n\'est un article suivi en stock, donc le stock ne bouge pas. Pour suivre un article, coche « Suivi en stock » sur sa fiche, dans le Catalogue.';
+    if (entres >= lignes) return entres > 1 ? `ses ${entres} lignes sont entrées en stock.` : 'sa ligne est entrée en stock.';
+    return `${entres} de ses ${lignes} lignes ${entres > 1 ? 'sont entrées' : 'est entrée'} en stock ; les autres ne sont pas des articles suivis.`;
+  }
+  // Le bandeau d'une facture saisie depuis ses réceptions : la même règle.
+  function phraseReceptionsAchat(receptions) {
+    const ids = new Set(receptions.map(x => x.id));
+    const elles = receptions.length > 1 ? 'elles' : 'elle';
+    return C.stockMovements(data).some(m => m.source === 'reception' && ids.has(m.docId))
+      ? `sa marchandise suivie est déjà entrée en stock par ${elles}, ces lignes ne l'y font pas entrer une seconde fois`
+      : `aucune de ses lignes n'est un article suivi en stock : ni ${elles} ni cette facture ne font bouger le stock`;
+  }
   const receptionsDeCommandeUI = id => receptionsF().filter(r => r.orderId === id && !/^annul/.test(r.status || ''));
 
   routes.reception = (parts) => {
@@ -9305,7 +9380,7 @@
     const garde = { dirty: () => dirty, save: () => enregistrer(false), what: 'cette réception' };
     setGuard(garde);
     if ($('#save')) $('#save').onclick = () => { if (enregistrer(false)) { toast('Réception enregistrée (brouillon) : rien n\'est reçu tant qu\'elle n\'est pas validée.'); render(true); } };
-    if ($('#rec-valider')) $('#rec-valider').onclick = () => { if (enregistrer(true)) { toast(`Réception ${r.number} validée : la marchandise suivie est entrée en stock.`); render(true); } };
+    if ($('#rec-valider')) $('#rec-valider').onclick = () => { if (enregistrer(true)) { toast(`Réception ${r.number} validée : ${phraseStockReception(r)}`); render(true); } };
     if ($('#rec-facturer')) $('#rec-facturer').onclick = () => facturerReceptions(C.receptionsAFacturer(data).filter(x => x.orderId === r.orderId || x.id === r.id));
     if ($('#more-btn')) $('#more-btn').onclick = () => { $('#more-list').hidden = !$('#more-list').hidden; };
     if ($('#rec-del')) $('#rec-del').onclick = async () => {
@@ -9389,7 +9464,7 @@
       ${filtersBar(`
         <input type="text" id="q" placeholder="Rechercher : n°, fournisseur, objet…" value="${h(s.q)}">
         <select id="kind"><option value="">Tout</option>${C.PURCHASE_KINDS.map(([v, , pluriel]) => `<option value="${v}" ${s.kind === v ? 'selected' : ''}>${pluriel}</option>`).join('')}</select>
-        <select id="st"><option value="">Tous les statuts</option>${C.PURCHASE_STATUSES.map(x => `<option value="${x}" ${s.st === x ? 'selected' : ''}>${h(optionStatut(x))}</option>`).join('')}<option value="${A_RATTACHER}" ${s.st === A_RATTACHER ? 'selected' : ''}>À rattacher (avoir ou acompte)</option><option value="${SANS_JUSTIF}" ${s.st === SANS_JUSTIF ? 'selected' : ''}>Sans justificatif</option></select>
+        <select id="st"><option value="">Tous les statuts</option>${C.PURCHASE_STATUSES.map(x => `<option value="${x}" ${s.st === x ? 'selected' : ''}>${h(optionStatut(x))}</option>`).join('')}<option value="${A_RATTACHER}" ${s.st === A_RATTACHER ? 'selected' : ''}>À rattacher (avoir ou acompte)</option>${bridge.piecesJointes === false && s.st !== SANS_JUSTIF ? '' : `<option value="${SANS_JUSTIF}" ${s.st === SANS_JUSTIF ? 'selected' : ''}>Sans justificatif</option>`}</select>
         ${cats.length > 1 ? `<select id="cat"><option value="">Toutes les catégories</option>${cats.map(c => `<option value="${h(c)}" ${s.cat === c ? 'selected' : ''}>${h(c)}</option>`).join('')}</select>` : ''}
         ${years.length > 1 ? `<select id="yr"><option value="">Toutes les années</option>${years.map(y => `<option value="${y}" ${s.year === y ? 'selected' : ''}>${y}</option>`).join('')}</select>` : ''}
         ${info('list.filters')}
@@ -9572,7 +9647,7 @@
           }
           const note = avecExo ? C.noteExonerationRS(supRs, d0, p.withholdingRate) : null;
           $('#spf-rs', root).innerHTML = (part > 0.0005
-            ? `Ce règlement retient <b>${C.money(part, cur)}</b> de retenue à la source : tu la reverses à l'État avec la déclaration de ${C.MONTHS_FR[Number(d0.slice(5, 7)) - 1]} ${d0.slice(0, 4)}, et tu en remets l'attestation au fournisseur.`
+            ? `Ce règlement retient <b>${C.money(part, cur)}</b> de retenue à la source : tu la reverses à l'État avec la déclaration ${C.deLibelle(C.MONTHS_FR[Number(d0.slice(5, 7)) - 1] + ' ' + d0.slice(0, 4))}, et tu en remets l'attestation au fournisseur ; elle s'établit sur TEJ, la plateforme du ministère des Finances. <em>À VÉRIFIER avec ton comptable.</em>`
             : '') + (note ? ` <span class="${note.ton === 'warn' ? 'warn-text' : 'muted'}">${h(note.texte)}</span>` : '');
         };
         $('#spf', root).addEventListener('input', annoncer);
@@ -9687,6 +9762,10 @@
     // facultatif — un avoir peut arriver avant la facture suivante, un acompte avant la commande —
     // et tant qu'il manque, « À faire » le rappelle.
     const natureLabel = k => (C.PURCHASE_KINDS.find(x => x[0] === k) || C.PURCHASE_KINDS[0])[1];
+    // (plateforme, lot achats) L'objet d'un avoir dit ce qu'il corrige ; celui d'un acompte, ce qu'il paie d'avance.
+    const inviteObjet = k => k === 'avoir' ? 'Ce que l\'avoir corrige : retour, remise, erreur de prix…'
+      : k === 'acompte' ? 'Ce que l\'acompte paie d\'avance : la commande, le chantier…'
+        : 'Ce que tu as acheté, et pour quel client ou quel chantier';
     const lieItems = supId => data.purchases
       .filter(x => x.id !== p.id && !C.PURCHASE_LIES.includes(x.kind) && (!supId || x.supplierId === supId))
       .sort((a2, b2) => (b2.date || '').localeCompare(a2.date || ''))
@@ -9721,7 +9800,8 @@
           ${backButton('#/achats')}
           ${!isNew && C.purchaseBalance(stored, company(), data).remaining > 0.0005 ? '<button class="btn btn-primary" id="pay">Enregistrer un règlement</button>' : ''}
           ${!isNew && C.purchaseBalance(stored, company(), data).remaining < -0.0005 ? '<button class="btn btn-primary" id="recu">Remboursement reçu…</button>' : ''}
-          <button class="btn" id="attach-top">Joindre un justificatif…</button>${info('ed.attachments')}
+          ${/* (plateforme, lot achats) Sans pièces jointes en ligne, le bouton refusait toujours : il se cache. */''}
+          ${bridge.piecesJointes === false ? '' : `<button class="btn" id="attach-top">Joindre un justificatif…</button>${info('ed.attachments')}`}
           ${/* Une pièce déjà saisie ne se relit pas par-dessus : la lecture la remplacerait. */''}
           ${clos || !isNew ? '' : `<button class="btn" id="teif-lire">Lire une e-facture…</button>${info('buy.teif')}`}
           <button class="btn" id="photo" hidden>Lire une photo…</button>${info('ocr.photo')}
@@ -9741,7 +9821,7 @@
           <button class="btn btn-sm" id="buy-clos-go">Voir les clôtures</button>
         </span></div>`}
       ${bandeauQuestions(p.number)}
-      ${Array.isArray(p.receptions) && p.receptions.length ? `<div class="banner info mb" id="b-receptions"><span>Saisie depuis ${p.receptions.length > 1 ? 'les réceptions' : 'la réception'} ${p.receptions.map(x => `<a href="#/reception/${h(x.id)}">${h(x.number || 'sans numéro')}</a>`).join(', ')} : sa marchandise est déjà entrée en stock par ${p.receptions.length > 1 ? 'elles' : 'elle'}, ces lignes ne l'y font pas entrer une seconde fois. ${info('cf.facture')}</span></div>` : ''}
+      ${Array.isArray(p.receptions) && p.receptions.length ? `<div class="banner info mb" id="b-receptions"><span>Saisie depuis ${p.receptions.length > 1 ? 'les réceptions' : 'la réception'} ${p.receptions.map(x => `<a href="#/reception/${h(x.id)}">${h(x.number || 'sans numéro')}</a>`).join(', ')} : ${phraseReceptionsAchat(p.receptions)}. ${info('cf.facture')}</span></div>` : ''}
       <div class="buy-editor" data-devise="${h(cur)}">
         <div>
           <div class="panel"><h2>La pièce du fournisseur ${info('buy.head')}</h2>
@@ -9760,7 +9840,7 @@
               <div class="field">${lbl('Catégorie de charge', 'buy.category')}
                 ${combo({ name: 'category', value: p.category || '', items: cats.map(c => ({ v: c, label: c })), placeholder: '— Choisir une catégorie —', search: 'Rechercher une catégorie…', add: clos ? null : '+ Nouvelle catégorie', ro: clos })}
               </div>
-              <label class="field span-2">${lbl('Objet', 'buy.subject')}<input type="text" name="subject" value="${h(p.subject || '')}" placeholder="Ce que tu as acheté, et pour quel client ou quel chantier"></label>
+              <label class="field span-2">${lbl('Objet', 'buy.subject')}<input type="text" name="subject" value="${h(p.subject || '')}" placeholder="${h(inviteObjet(p.kind))}"></label>
               <div class="field">${lbl('Affaire (optionnel)', 'buy.project')}
                 ${combo({ name: 'projectId', value: p.projectId || '', items: projectItems(''), placeholder: '— Aucune affaire —', search: 'Rechercher une affaire…', add: clos ? null : '+ Nouvelle affaire', ro: clos })}
               </div>
@@ -9791,14 +9871,19 @@
           <div class="panel"><h2>Notes internes</h2>
             <textarea id="b-notes" placeholder="Ce qu'il faut se rappeler sur cet achat">${h(p.notes || '')}</textarea>
           </div>
+          ${/* (plateforme, lot achats) La saisie finit en bas (lignes, totaux) et « Enregistrer » n'était qu'en haut : la barre
+               des Paramètres suit la saisie quand une modification attend et que le bouton du haut n'est plus à l'écran. */''}
+          ${clos ? '' : '<div class="save-bar" id="b-save-bar" hidden><span>Modifications non enregistrées</span><button class="btn btn-primary" id="b-save-bas">Enregistrer</button></div>'}
         </div>
       </div>`;
 
     // --- garde-fou
     let dirty = false;
-    const touch = () => { if (dirty) return; dirty = true; const el = $('#dirty-dot'); if (el) el.hidden = false; enregistrerDevientPrincipal(); reportDirty(); };
-    const untouch = () => { dirty = false; const el = $('#dirty-dot'); if (el) el.hidden = true; reportDirty(); };
-    setGuard({ dirty: () => dirty, what: isDep ? 'cette dépense' : 'cette facture d\'achat',
+    // (plateforme, lot achats) La barre « Enregistrer » du bas suit la saisie (`majBarre`, branchée plus bas).
+    let majBarre = () => {};
+    const touch = () => { if (dirty) return; dirty = true; const el = $('#dirty-dot'); if (el) el.hidden = false; majBarre(); enregistrerDevientPrincipal(); reportDirty(); };
+    const untouch = () => { dirty = false; const el = $('#dirty-dot'); if (el) el.hidden = true; majBarre(); reportDirty(); };
+    setGuard({ dirty: () => dirty, get what() { return p.kind === 'depense' ? 'cette dépense' : p.kind === 'avoir' ? 'cet avoir' : p.kind === 'acompte' ? 'cet acompte' : 'cette facture d\'achat'; },
       save: async () => { if (!validate() || !await doublonOk()) return false; const ok = persist(); if (ok) untouch(); return ok; },
       // Quitter une pièce NEUVE sans l'enregistrer : les fichiers déjà copiés pour elle n'appartiennent
       // à personne, on les retire. L'original de l'utilisateur, lui, ne bouge jamais.
@@ -10013,6 +10098,14 @@
     // L'échéance que l'application a posée — la date plus le délai du fournisseur (10.14.1, le jumeau
     // de l'éditeur de document) : elle suit la date et le fournisseur tant qu'on n'y a pas touché.
     let dueAuto = echeanceAuto(p.date, p.dueDate, delaiAchat(p.supplierId));
+    // (plateforme, lot achats) Un avoir n'a pas d'échéance de paiement : le champ se cache pour lui (l'achat neuf la laissait
+    // déjà vide).
+    const montrerEcheance = () => {
+      const champ = $('[name=dueDate]', head);
+      const bloc = champ && champ.closest('.field');
+      if (bloc) bloc.hidden = p.kind === 'avoir';
+    };
+    montrerEcheance();
     head.oninput = head.onchange = (e) => {
       Object.assign(p, formValues(head));
       p.fees = Number(p.fees) || 0;
@@ -10047,11 +10140,29 @@
         const lf = $('#b-lie-field', head);
         const lie = C.PURCHASE_LIES.includes(p.kind);
         if (lf) lf.hidden = !lie;
+        if (p.kind === 'avoir' && p.dueDate) { p.dueDate = ''; dueAuto = ''; poserDateField(head, 'dueDate', ''); }
+        montrerEcheance();
+        const objet = $('[name=subject]', head);
+        if (objet) objet.placeholder = inviteObjet(p.kind);
         if (!lie && p.achatLie) { p.achatLie = ''; lieCombo.setValue(''); }
       }
       // Rattaché à une autre pièce, l'avoir ou l'acompte prend SA règle de TVA (10.14.0).
       if (e && e.target && e.target.name === 'achatLie') {
         const vise = purchaseById(p.achatLie);
+        // (plateforme, lot achats du 05/10/2026) Un avoir neuf rattaché depuis la liste reprend ce que reprend l'avoir créé
+        // depuis la facture (« Saisir un avoir sur cette pièce ») : sa devise, sa catégorie, ses lignes, son affaire, sa
+        // retenue — tant qu'aucune ligne n'est saisie. Rien n'en était repris : on retapait tout.
+        if (vise && isNew && p.kind === 'avoir' && !(p.lines || []).some(l => String(l.label || '').trim() || Number(l.unitPrice))) {
+          Object.assign(p, { currency: vise.currency || company().currency, exchangeRate: vise.exchangeRate || 1, category: p.category || vise.category || '',
+            tvaRecuperable: C.tvaRecuperable(vise, company()), projectId: p.projectId || vise.projectId || '',
+            withholdingRate: vise.withholdingRate == null ? p.withholdingRate : vise.withholdingRate,
+            subject: p.subject || 'Avoir sur ' + (vise.number || vise.subject || 'la facture'),
+            lines: deepCopy(vise.lines || []).map(l => ({ ...l })) });
+          if (!p.lines.length) p.lines = [{ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19, destination: 'charge', deductible: true }];
+          achatReprise = { hash: location.hash, p, isNew };
+          render(true);
+          return;
+        }
         const regle = vise ? C.tvaRecuperable(vise, company()) : C.assujettiTVA(company());
         if (regle !== C.tvaRecuperable(p, company())) {
           p.tvaRecuperable = regle; drawLines();
@@ -10097,12 +10208,26 @@
       onAdd: saisi => promptDialog('Nouvelle catégorie de charge', 'Nom de la catégorie', saisi, name => {
         const v = (name || '').trim(); if (!v) return;
         if (!C.expenseCategories(data).includes(v)) { data.expenseCategories.push(v); save(true); }
-        const el = $('[data-combo=category]', head);
-        bindCombo(el, { items: C.expenseCategories(data).map(c => ({ v: c, label: c })), placeholder: '— Choisir une catégorie —' }).setValue(v);
+        // (plateforme, lot achats) La liste reçoit la catégorie neuve et le champ la montre : relier une seconde fois une liste
+        // déjà reliée ne faisait rien (`bindCombo` rend la main), et le champ restait sur « — Choisir une catégorie — ».
+        $('[data-combo=category]', head).setItems(C.expenseCategories(data).map(c => ({ v: c, label: c })), v);
         p.category = v; touch();
       }, 'text', { info: 'buy.category' })
     });
     $('#b-notes').oninput = e => { p.notes = e.target.value; touch(); };
+    if ($('#b-save-bas')) $('#b-save-bas').onclick = () => { const b = $('#save'); if (b) b.click(); };
+    // La barre ne paraît que si une modification attend ET que « Enregistrer », en haut, n'est plus à l'écran : un seul
+    // bouton principal en vue (U-11).
+    if ($('#b-save-bar') && $('#save') && typeof IntersectionObserver === 'function') {
+      let hautEnVue = true;
+      majBarre = () => { const b = $('#b-save-bar'); if (b) b.hidden = !(dirty && !hautEnVue); };
+      const io = new IntersectionObserver(es => {
+        if (!document.body.contains(es[0].target)) { io.disconnect(); return; }
+        hautEnVue = es.some(x => x.isIntersecting); majBarre();
+      });
+      io.observe($('#save'));
+    } else majBarre = () => { const b = $('#b-save-bar'); if (b) b.hidden = !dirty; };
+    majBarre();
     // Crochet de démonstration : ouvrir la fenêtre de vérification sur une lecture simulée, sans aucun
     // appel réseau. Sert aux captures d'écran et à l'audit ; inoffensif, il ne fait qu'afficher.
     // Depuis la 8.5.1 il passe par le VRAI chemin de validation (`appliquerLecture`) : c'est ce qui
@@ -10132,7 +10257,7 @@
       return true;
     };
     brancherQuestions();
-    $('#attach-top').onclick = async () => {
+    if ($('#attach-top')) $('#attach-top').onclick = async () => {
       try { await joindre(await bridge.addAttachments(p.id)); }
       catch (e) { toast(plainError(e), true); }
     };
@@ -10157,6 +10282,9 @@
     const appliquerLecture = async (values, file, quoi) => {
       Object.assign(p, values.head);
       p.lines = values.lines;
+      // (plateforme, lot achats) L'échéance que la pièce ne dit pas se calcule comme pour un achat neuf : la date plus le délai
+      // du fournisseur (souvent celui qu'on vient de créer depuis la lecture). Elle restait vide.
+      if (!p.dueDate && p.date && p.kind !== 'depense' && p.kind !== 'avoir') p.dueDate = C.addDays(p.date, delaiAchat(p.supplierId));
       const jointe = bridge.piecesJointes === false ? false : await joindreFichier(file);
       achatReprise = { hash: location.hash, p, isNew };
       render(true);
@@ -16407,7 +16535,7 @@
       const closed = C.closedUntil(data);
       const months = C.closableMonths(data, C.today());
       const next = months[0] || null;
-      const checks = next ? C.closureChecks(data, company(), next.from, next.to, { reserves: licence.reserves || [] }) : [];
+      const checks = next ? C.closureChecks(data, company(), next.from, next.to, { reserves: licence.reserves || [], sansPiecesJointes: bridge.piecesJointes === false }) : [];
       const log = C.closureLog(data);
       const blocking = checks.filter(c => c.level === 'danger');
 
@@ -16590,7 +16718,7 @@
             // pour ce qui bloque vraiment ; le reste se dit en clair, sans alarme.
             const points = () => {
               const to = $('select[name=m]', root).value;
-              const tous = C.closureChecks(data, company(), next.from, to, { reserves: licence.reserves || [] });
+              const tous = C.closureChecks(data, company(), next.from, to, { reserves: licence.reserves || [], sansPiecesJointes: bridge.piecesJointes === false });
               const dangers = tous.filter(c => c.level === 'danger');
               $('#ct-points', root).innerHTML = tous.length
                 ? `<p class="${dangers.length ? 'warn-box' : ''}">${pl(tous.length, 'point')} à regarder du ${C.fmtDate(next.from)} au ${C.fmtDate(to)} : ${tous.map(c => h(c.label)).join(', ')}. Tu peux clôturer quand même.</p>`
@@ -18544,6 +18672,11 @@
     const placer = () => {
       const r = bouton.getBoundingClientRect();
       if (!r.width || !document.body.contains(bouton)) { fermer(); return; }
+      // (plateforme, lot achats du 05/10/2026) Dans le coin bas droit de l'écran, plus sous le bouton : posée sous
+      // « Guide-moi », elle couvrait le premier champ de la page (le fournisseur d'un achat, le texte d'une page vide), et le
+      // clic donné pour écrire tombait sur elle. Le bouton s'allume tant qu'elle est là : elle dit toujours où se trouve la
+      // visite. La caisse tactile garde la place d'avant (ses tuiles et son ticket remplissent l'écran).
+      if (!document.body.classList.contains('mode-caisse')) { el.classList.add('ga-coin'); bouton.classList.add('guide-moi-signale'); return; }
       const w = el.offsetWidth;
       const gauche = Math.max(12, Math.min(window.innerWidth - w - 12, r.right - w));
       el.style.top = Math.round(r.bottom + 10) + 'px';
@@ -18557,6 +18690,7 @@
     const defile = () => { if (!scroller || Math.abs(scroller.scrollTop - depart) > 4) fermer(); };
     function fermer() {
       el.remove();
+      bouton.classList.remove('guide-moi-signale');
       document.removeEventListener('mousedown', dehors, true);
       document.removeEventListener('keydown', clavier, true);
       window.removeEventListener('resize', placer);

@@ -245,3 +245,98 @@ appris par fournisseur (la lecture d'une deuxième facture du même fournisseur 
   l'écran et le parcours va jusqu'à l'achat pré-rempli. Photos dans `dist/photos/lecture-*.png`.
 - `tests/web/rendu.test.ts` : l'écran d'achat, au téléphone et à l'ordinateur.
 - 44 preuves (`tests/preuves.sh`, brique 84) : chaque défaut remis fait tomber son test.
+
+## Le parcours du 05/10/2026 : un commerçant à la souris, puis le lot corrigé
+
+La méthode de Skander (05/10/2026) : faire soi-même le parcours entier d'un domaine, comme un commerçant tunisien,
+noter chaque défaut, puis corriger le lot d'un seul envoi, avec ses tests et ses preuves. Nadia (Boulangerie Ben
+Youssef), sur son portable (1366 × 768) : le fournisseur, la facture d'achat, la TVA, la retenue, le règlement, la
+commande puis la réception en deux fois, la facture depuis les réceptions, l'avoir, la photo d'une facture, la demande
+de prix. Trente et un constats (A1 à A31). Le code : `web/v10/achats-lot.txt` (les écrans), `web/public/plateforme/ecrans.css`
+(une feuille chargée après les autres, pour ce qui se corrige à toutes les largeurs), `serveur/v10/accords.ts` (la règle
+de la réception).
+
+**Corrigé dans le lot :**
+
+- **Le bouton retour mort** (A17) : dessiné mais jamais branché sur quatre pages (commande fournisseur, réception, liste
+  de prix, groupe). Un bouton retour que sa page n'a pas branché répond maintenant, avec ce qu'il affiche ; un bouton
+  branché garde son geste.
+- **L'unité « Autre… » d'une commande** (A13, A12) : rien ne s'ouvrait, la ligne gardait « __autre__ », imprimé tel quel
+  sur le bon de commande (« 40 __autre__ »). « Autre… » ouvre la saisie libre comme sur une facture ; pendant une
+  recherche, il reste proposé avec ce qu'on a tapé (« Autre : « ballot » »), et la saisie arrive préremplie ; une unité
+  tapée rejoint la liste des autres lignes ; une ligne d'avant enregistrée avec « __autre__ » se relit sans unité.
+- **La recherche des listes** (A19) : ce qui commence par la frappe vient d'abord, puis ce dont un mot commence par
+  elle, puis le reste ; un mot tapé en entier passe devant un mot qui le contient (« 118 » choisit FA-2026/118, pas
+  FA-2026/1187). « Mati » puis Entrée choisissait « Formation ».
+- **La catégorie créée depuis un achat** (A5) : elle était retenue, mais le champ restait sur « — Choisir une catégorie
+  — ». Elle paraît maintenant dans le champ et dans la liste. Et **« Achats de matières premières »** rejoint les
+  catégories de départ (A4) : celle d'une boulangerie, d'un restaurant, d'un atelier. Une catégorie classe la dépense,
+  elle ne choisit aucun compte (le rattachement comptable : **À VÉRIFIER** avec un comptable).
+- **Ce qu'une réception fait entrer en stock** (A16, A16 bis) : « la marchandise suivie est entrée en stock » se disait
+  même quand rien n'était suivi. Le message et le bandeau de la facture comptent maintenant sur les mouvements de stock
+  eux-mêmes (la fonction de la page Stock) : rien (« le stock ne bouge pas », et comment suivre un article), une ligne,
+  ou une partie des lignes.
+- **Une commande en brouillon qui reçoit** (A18) : « Recevoir » la fait partir (« envoyée ») au même geste, avec
+  l'accord qu'il lui faut au-delà du montant permis (brique 114) ; une commande qui a reçu ne se remet plus en
+  brouillon ni en demande de prix. **Et le serveur le tient, quoi que l'écran envoie** : une réception ne se valide pas
+  sur une commande en brouillon ni sur une demande de prix, pour personne, propriétaire compris ; le refus dit la
+  commande et le geste qui débloque, et rien n'est enregistré. La commande qui part dans le même envoi que sa réception
+  (le geste « Recevoir ») reçoit.
+- **L'invitation « Première fois sur cette page ? »** (A1, A2, A27) : posée sous « Guide-moi », elle couvrait le premier
+  champ de la page (le fournisseur d'un achat, le texte d'une page vide, les colonnes d'une liste), et le clic donné pour
+  écrire tombait sur elle. Elle se pose dans le coin bas droit de l'écran (au téléphone, en bas, toute la largeur), et
+  « Guide-moi » s'allume tant qu'elle est là. La caisse tactile garde la place d'avant (ses tuiles et son ticket
+  remplissent l'écran).
+- **La fiche d'un fournisseur à 1366 px** (A28) : la page défilait de côté et « Coordonnées » sortait de l'écran, coupée.
+  Une colonne de la grille ne grandit plus avec son contenu ; en dessous de 1620 px d'écran, la liste de ses achats
+  prend toute la largeur (le net à payer et le reste sont ses dernières colonnes) et les coordonnées passent dessous.
+  L'instrument des écrans (`tests/web/rendu.test.ts`) passe désormais par une fiche fournisseur et une fiche client
+  remplies.
+- **Le règlement** (A7, A9) : « la déclaration d'août » (l'élision), et la phrase dit où s'établit l'attestation de
+  retenue qu'on remet au fournisseur : sur TEJ, la plateforme du ministère des Finances (**À VÉRIFIER** avec un
+  comptable). SkanFact ne l'établit pas : une phrase qui promettait sans dire où.
+- **« Joindre un justificatif »** (A26) : visible partout, il refusait toujours (« pas encore dans la version en ligne »).
+  Il se cache, et avec lui ce qui réclamait un justificatif qu'on ne peut pas joindre : le contrôle de clôture
+  « n achats sans justificatif », le filtre « Sans justificatif », l'étape de la visite « Saisir une facture d'achat »
+  (elle se saute, la visite passe au fournisseur). Ils reviendront avec la brique « pièces jointes en ligne »
+  (proposée à Skander).
+- **L'avoir d'un fournisseur** (A20, A21) : son objet invite à dire ce qu'il corrige ; il n'a pas d'échéance de paiement
+  (le champ se cache) ; rattaché depuis la liste, il reprend la facture qu'il corrige (devise, catégorie, lignes,
+  affaire, retenue), tant qu'aucune ligne n'est saisie ; « Tu as modifié cet avoir sans enregistrer » le nomme.
+- **Une facture lue en photo sans échéance** (A25) : l'échéance se calcule comme pour un achat neuf, avec le délai du
+  fournisseur.
+- **« Enregistrer » d'un long achat** (A6) : une barre « Modifications non enregistrées · Enregistrer » suit la saisie en
+  bas de la page, quand une modification attend et que le bouton du haut n'est plus à l'écran (un seul bouton principal
+  en vue).
+- **La commande fournisseur** (A10, A11, A14) : la désignation prend la place que laissent les autres colonnes, qui
+  gardent leur largeur quand le total grandit ; la date et la référence portent leur bulle « i ».
+- **La demande de prix** (A29 à A31) : sans prix, pas de « Total TTC 0,000 » (une phrase dit que les prix se saisissent
+  à la réponse du fournisseur) ; la colonne dit « Prix répondu HT » ; l'étape suivante (le bouton principal) est
+  d'envoyer la demande (PDF), et « Commander » le devient quand les prix sont là ; le message nomme la demande de prix.
+
+**Pas corrigé ici, et pourquoi :**
+
+- A3 (« 0.000 » avec un point dans un champ de nombre) : le navigateur de l'environnement de test était en anglais ;
+  en français, il écrit « 0,000 ». Rien à corriger.
+- A8 (le chèque à échéance, courant chez les fournisseurs) et A22 (saisir le TTC d'une dépense : STEG, SONEDE, un
+  ticket) : deux propositions à Skander, pas des défauts.
+- A15 (« MF » vide sous le nom de l'entreprise, sur le bon de commande comme sur les factures) : le lot « détails des
+  factures », qui le règle pour toutes les pièces.
+- A23 (l'échéance vide d'une dépense) : voulu (un ticket est payé sur le moment).
+- A24 (le téléphone et l'adresse lus sur la photo, pas repris dans la fiche créée ; un point final parasite dans une
+  désignation) : à faire avec la lecture des factures.
+- Un avoir créé depuis une facture d'achat reprend ses lignes avec leur marque « reçue » (comportement de la v10) : à
+  regarder avec le lot des réceptions.
+
+**Ce qui le prouve :**
+
+- `tests/web/achats-lot.test.ts` : le parcours de Nadia, à 1366 px (la commande, l'unité « ballot », la réception en
+  deux fois, la facture depuis les réceptions, la catégorie, « Enregistrer » en bas, le règlement d'août, l'avoir, la
+  photo, la liste des achats et sa visite, la clôture, la fiche du fournisseur), et la demande de prix (avec une commande
+  d'avant enregistrée avec « __autre__ »). Les données discriminent : 500 sacs à 0,095 ; 12 sacs à 38,750 (7 %) ;
+  45 jours chez le fournisseur d'emballages (le délai par défaut est 30) ; « Mati » avec une catégorie à soi rangée en
+  dernier ; deux factures FA-2026/118 et FA-2026/1187.
+- `tests/v10/reception-commande.test.ts` : la règle du serveur (brouillon, demande de prix, envoi commun, commande
+  partie).
+- `tests/web/rendu.test.ts` : la fiche fournisseur et la fiche client, au téléphone et à l'ordinateur.
+- 47 preuves (`tests/preuves.sh`, « Le lot achats ») : chaque défaut remis fait tomber son test.

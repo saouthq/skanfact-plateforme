@@ -212,3 +212,25 @@ export async function controlerCommandes(tx: Transaction, entreprise: string, lu
     });
   }
 }
+
+// Une réception qui se valide suppose une commande partie (lot achats, 05/10/2026 ; docs/achats.md) : une commande en
+// brouillon, ou une demande de prix, ne reçoit rien. Sans ce contrôle, une commande au-delà du montant permis se recevait
+// sans accord : l'écran la laissait en brouillon, et rien ne passait par `controlerCommandes`. L'état de la commande se
+// lit dans le même envoi s'il la change (l'écran la passe « envoyée » au geste « Recevoir »), sinon en base. Pour tous,
+// propriétaire compris : c'est l'ordre des choses, pas un droit.
+export async function controlerReceptions(tx: Transaction, entreprise: string, lus: { collection: string; cle: string; avant: unknown; apres: unknown }[]) {
+  const champ = (x: unknown, k: string) => (x && typeof x === 'object' ? String((commeLaV10(x) as Json)[k] ?? '') : '');
+  const validees = lus.filter((l) => l.collection === 'receptions' && champ(l.apres, 'status') === 'validée' && champ(l.avant, 'status') !== 'validée');
+  for (const l of validees) {
+    const id = champ(l.apres, 'orderId');
+    if (!id) continue;
+    const dansLEnvoi = lus.find((x) => x.collection === 'supplierOrders' && x.cle === id);
+    const commande = dansLEnvoi ? dansLEnvoi.apres : (await tx.query(`select contenu from socle.dossier_v10
+      where entreprise = $1 and collection = 'supplierOrders' and cle = $2`, [entreprise, id])).rows[0]?.contenu;
+    const statut = champ(commande, 'status');
+    if (statut !== 'brouillon' && statut !== 'demande') continue;
+    throw new Refus('achats.reception_commande_non_partie', {
+      valeurs: { numero: champ(commande, 'number') || '—', etat: statut === 'demande' ? 'une demande de prix' : 'en brouillon' },
+    });
+  }
+}

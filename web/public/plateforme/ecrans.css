@@ -1,0 +1,23 @@
+/* Les écrans de la v10 sur la plateforme : ce qui se corrige à toutes les largeurs (lot achats, 05/10/2026 ;
+   docs/achats.md). telephone.css ne change rien au-dessus de 760 px, caisse.css ne vaut que pour la caisse : le reste
+   vit ici. Chargée après elles (index.html, par achats-lot.txt). */
+
+/* La fiche d'un fournisseur, à 1366 px, défilait de côté : la liste de ses achats imposait sa largeur à la colonne de
+   gauche (une colonne de grille grandit avec son contenu), et « Coordonnées » sortait de l'écran, coupée. Une colonne ne
+   grandit plus avec son contenu ; la liste défile dans son panneau. */
+.dash-grid > * { min-width: 0; }
+#sup-docs { overflow-x: auto; }
+/* Ses achats demandent 820 px (le net à payer et le reste sont les dernières colonnes) : en dessous de 1620 px d'écran,
+   la liste prend toute la largeur et les coordonnées passent dessous, plutôt que de cacher les montants à droite. */
+@media (max-width: 1620px) {
+  .dash-grid:has(#sup-docs) { grid-template-columns: 1fr; }
+}
+
+/* L'invitation « Première fois sur cette page ? » se pose dans le coin bas droit (achats-lot.txt) : sous « Guide-moi »,
+   elle couvrait le premier champ de la page. « Guide-moi » s'allume tant qu'elle est là. */
+.guide-appel.ga-coin { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+.guide-appel.ga-coin .ga-fleche { display: none; }
+#guide-moi.guide-moi-signale { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 40%, transparent); }
+@media (max-width: 760px) {
+  .guide-appel.ga-coin { left: 12px; right: 12px; width: auto; }
+}

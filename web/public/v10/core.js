@@ -2221,7 +2221,9 @@
   // Catégories de charges de départ. Modifiables et extensibles par l'utilisateur (data.expenseCategories).
   // Le rattachement comptable exact relève du plan comptable tunisien — À VÉRIFIER avec le comptable.
   const DEFAULT_EXPENSE_CATEGORIES = [
-    'Achats de marchandises', 'Sous-traitance', 'Fournitures de bureau', 'Petit équipement',
+    // (plateforme, lot achats) La catégorie d'une boulangerie, d'un restaurant, d'un atelier. Une catégorie classe la dépense ;
+    // elle ne choisit aucun compte (le rattachement comptable : À VÉRIFIER avec ton comptable).
+    'Achats de marchandises', 'Achats de matières premières', 'Sous-traitance', 'Fournitures de bureau', 'Petit équipement',
     'Loyer et charges locatives', 'Électricité, eau, gaz', 'Téléphone et internet',
     'Carburant et déplacements', 'Entretien et réparations', 'Assurances',
     'Honoraires (comptable, avocat)', 'Publicité et communication', 'Frais bancaires',
@@ -5849,7 +5851,8 @@
     add('brouillons', 'danger', `${plFr(drafts.length, 'facture')} en brouillon dans la période`,
       'Un brouillon n\'a pas de numéro et n\'entre dans aucun journal. Émets-le ou change sa date avant de clôturer, sinon il restera invisible pour ton comptable.', drafts.length);
 
-    const noProof = (data.purchases || []).filter(p => inRange(p.date) && sansJustificatif(p));
+    // (plateforme, lot achats) Sans pièces jointes en ligne, « n achats sans justificatif » ne se règle pas : le contrôle se tait.
+    const noProof = opts && opts.sansPiecesJointes ? [] : (data.purchases || []).filter(p => inRange(p.date) && sansJustificatif(p));
     add('justificatifs', 'warn', `${plFr(noProof.length, 'achat')} sans justificatif`,
       'Sans la pièce jointe, ton comptable ne peut pas récupérer la TVA de ces achats.', noProof.length, { du: from, au: to });
 

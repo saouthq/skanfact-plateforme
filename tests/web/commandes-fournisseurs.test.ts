@@ -170,7 +170,9 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await p.locator('#rec-facturer').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Nouvelle facture/);
     await plusTard(p);
-    expect(net(await p.locator('#b-receptions').innerText())).toMatch(/^Saisie depuis les réceptions BR-\d{4}-001, BR-\d{4}-002 : sa marchandise est déjà entrée en stock par elles/);
+    // Le ciment et le fer sont suivis en stock : leur marchandise est entrée par les réceptions (lot achats, 05/10/2026 :
+    // la phrase se dit d'après les mouvements de stock, et seulement s'il y en a).
+    expect(net(await p.locator('#b-receptions').innerText())).toMatch(/^Saisie depuis les réceptions BR-\d{4}-001, BR-\d{4}-002 : sa marchandise suivie est déjà entrée en stock par elles/);
     const lignesAchat = await p.locator('#b-lines tr').evaluateAll((trs) => trs.map((tr) => [
       (tr.querySelector('[data-k=label]') as HTMLInputElement | null)?.value ?? '', (tr.querySelector('[data-k=qty]') as HTMLInputElement | null)?.value ?? '']).filter((x) => x[0]));
     expect(lignesAchat).toEqual([['Ciment gris 50 kg', '100'], ['Fer à béton 12 mm', '2.5'], ['Transport', '1']]);

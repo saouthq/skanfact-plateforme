@@ -1,0 +1,633 @@
+Le lot achats, après le parcours d'un commerçant tunisien à la souris (05/10/2026 ; docs/achats.md, « Le parcours du
+05/10/2026 »). Format : voir sans-paquets.mjs.
+
+Ce que le parcours a trouvé, et ce qui se corrige ici : un bouton retour mort sur quatre pages (A17) ; l'unité « Autre… »
+d'une commande fournisseur enregistrée telle quelle, « __autre__ », jusque sur le bon imprimé (A13) ; la recherche des
+listes qui perd « Autre… » et range « Formation » avant « Matières premières » quand on tape « Mati » (A12, A19) ; la
+catégorie créée depuis un achat que le champ ne montrait pas (A5) ; « la marchandise suivie est entrée en stock » dit
+même quand rien n'est suivi (A16) ; une commande en brouillon qui reçoit, et le seuil d'accord contourné (A18) ;
+l'invitation « Première fois sur cette page ? » posée sur le premier champ de la page (A1, A2, A27) ; la fiche d'un
+fournisseur qui défile de côté à 1366 px (A28, dans ecrans.css) ; « Joindre un justificatif » qui refuse toujours sur
+la version en ligne (A26) ; la demande de prix qui affiche un total à zéro et propose « Commander » avant l'envoi (A29 à
+A31) ; et des détails : élision du mois, bulles « i », largeur des colonnes, échéance après une lecture, avoir rattaché
+qui ne reprend rien, « Enregistrer » qui n'était qu'en haut d'un long achat.
+
+── Le bouton retour (app.js) ──
+
+== app.js | un bouton retour que sa page n'a pas branché répond quand même (commande fournisseur, réception, liste de prix, groupe)
+-- avant
+  function backButton(fallback, skip) {
+    const cible = backTarget(fallback, skip);
+    return `<button class="btn btn-back" id="back" title="Revenir à ${h(pageLabel(cible, true))}">← ${h(pageLabel(cible))}</button>`;
+  }
+  function bindBack(fallback, skip) {
+    const b = $('#back');
+    if (b) b.onclick = () => go(() => goBack(fallback, skip));
+  }
+-- après
+  function backButton(fallback, skip) {
+    const cible = backTarget(fallback, skip);
+    return `<button class="btn btn-back" id="back" data-retour="${h(fallback || '')}" data-saut="${h(skip || '')}" title="Revenir à ${h(pageLabel(cible, true))}">← ${h(pageLabel(cible))}</button>`;
+  }
+  function bindBack(fallback, skip) {
+    const b = $('#back');
+    if (b) b.onclick = () => go(() => goBack(fallback, skip));
+  }
+  // (plateforme, lot achats du 05/10/2026) Un bouton retour que sa page n'a pas branché (`bindBack`) répond quand même, avec
+  // ce que `backButton` a dessiné : ceux de la commande fournisseur, de la réception, d'une liste de prix et du groupe ne
+  // faisaient rien (deux clics, la page restait). Un bouton branché garde son geste.
+  document.addEventListener('click', e => {
+    const b = e.target && e.target.closest ? e.target.closest('#back') : null;
+    if (!b || b.onclick || !b.hasAttribute('data-retour')) return;
+    go(() => goBack(b.dataset.retour || undefined, b.dataset.saut || undefined));
+  });
+-- fin
+
+── Les unités, et « Autre… » (app.js, listes.js) ──
+
+== app.js | « Autre… » se marque comme saisie libre, et une ligne enregistrée avec « __autre__ » se relit sans unité
+-- avant
+  function unitOptions(value, extras) {
+    const list = C.LINE_UNITS.concat((extras || []).map(u => [u, u]));
+    if (value && !list.some(x => x[0] === value)) list.push([value, value]);
+    return `<option value="">—</option>${list.map(([v, l]) => `<option value="${h(v)}" ${v === value ? 'selected' : ''}>${h(l)}</option>`).join('')}<option value="${UNIT_OTHER}">Autre…</option>`;
+  }
+-- après
+  function unitOptions(value, extras) {
+    // (plateforme, lot achats) Une ligne enregistrée avec « __autre__ » (le défaut des commandes fournisseurs, corrigé) se
+    // relit sans unité, plutôt qu'avec ce mot de machine. « Autre… » porte `data-libre` : la liste le garde pendant une
+    // recherche, avec ce qu'on a tapé (listes.js).
+    if (value === UNIT_OTHER) value = '';
+    const list = C.LINE_UNITS.concat((extras || []).map(u => [u, u]).filter(([u]) => u !== UNIT_OTHER));
+    if (value && !list.some(x => x[0] === value)) list.push([value, value]);
+    return `<option value="">—</option>${list.map(([v, l]) => `<option value="${h(v)}" ${v === value ? 'selected' : ''}>${h(l)}</option>`).join('')}<option value="${UNIT_OTHER}" data-libre>Autre…</option>`;
+  }
+-- fin
+
+== app.js | la saisie libre d'une unité arrive préremplie de ce qu'on a tapé dans la recherche
+-- avant
+      promptDialog('Unité personnalisée', 'Unité (ex : rouleau, palette, ml)', '', v => {
+-- après
+      // (plateforme, lot achats) Ce qu'on a tapé dans la recherche de la liste arrive dans la saisie (« Autre : « sac » »).
+      const saisi = sel.dataset.saisie || '';
+      delete sel.dataset.saisie;
+      promptDialog('Unité personnalisée', 'Unité (ex : rouleau, palette, ml)', saisi, v => {
+-- fin
+
+== listes.js | une option `data-libre` (« Autre… ») se reconnaît
+-- avant
+    const opt = (o, grpOff) => { if (!o.hidden) out.push({ opt: o, label: o.label || o.textContent.trim(), off: o.disabled || grpOff }); };
+-- après
+    const opt = (o, grpOff) => { if (!o.hidden) out.push({ opt: o, label: o.label || o.textContent.trim(), off: o.disabled || grpOff, libre: o.hasAttribute('data-libre') }); };
+-- fin
+
+== listes.js | la recherche range ce qui commence par la frappe d'abord, et garde « Autre… » avec ce qu'on a tapé
+-- avant
+    const dessiner = () => {
+      const t = norm((saisie ? cible.value : (q ? q.value : '')).trim());
+      montrees = []; let html = '', groupe = null, groupeMis = false;
+      lignes.forEach(x => {
+        if (x.groupe != null) { groupe = x.groupe; groupeMis = false; return; }
+        // Un champ libre de comptes se cherche par le DÉBUT du numéro (« 61 » ne propose pas 261) ;
+        // un mot se cherche partout dans le libellé.
+        if (t && (saisie ? !(norm(x.valeur).startsWith(t) || (/\D/.test(t) && norm(x.label).includes(t))) : !norm(x.label).includes(t))) return;
+        if (groupe && !groupeMis) { html += `<div class="lm-groupe">${h(groupe)}</div>`; groupeMis = true; }
+        const n = montrees.length; montrees.push(x);
+        const cur = !saisie && x.opt === courante();
+        html += `<div class="combo-it${x.off ? ' off' : ''}${cur ? ' cur' : ''}" data-i="${n}" role="option" aria-selected="false"${x.off ? ' aria-disabled="true"' : ''}><span class="ci-main">${h(x.label)}</span></div>`;
+      });
+-- après
+    const dessiner = () => {
+      const frappe = (saisie ? cible.value : (q ? q.value : '')).trim();
+      const t = norm(frappe);
+      montrees = []; let html = '', groupe = null, groupeMis = false;
+      // (plateforme, lot achats du 05/10/2026) Pendant une recherche, ce qui COMMENCE par la frappe vient d'abord, puis ce
+      // dont chaque mot commence un mot, puis le reste (le rang de la recherche de l'application, `rangRecherche`) :
+      // « Mati » puis Entrée choisissait « Formation » avant « Matières premières ». Une liste en groupes garde son ordre.
+      // « Autre… » (une option `data-libre`) reste proposé, en dernier, avec ce qu'on a tapé : chercher « sac » dans les
+      // unités ne laissait que « Aucun résultat ».
+      // Un mot tapé en entier passe avant un mot qui le contient (« kg » avant « kgs »).
+      const rang = l => {
+        const n = norm(l);
+        const debuts = n.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+        const entier = debuts.includes(t) ? 0.5 : 0;
+        if (n.startsWith(t)) return 3 + entier;
+        return (t.split(/\s+/).filter(Boolean).every(m => debuts.some(d => d.startsWith(m))) ? 2 : 1) + entier;
+      };
+      const vues = t && !saisie && !lignes.some(x => x.groupe != null)
+        ? lignes.filter(x => !x.libre).map((x, k) => ({ x, k, r: rang(x.label) })).sort((a, b) => b.r - a.r || a.k - b.k).map(a => a.x).concat(lignes.filter(x => x.libre))
+        : lignes;
+      vues.forEach(x => {
+        if (x.groupe != null) { groupe = x.groupe; groupeMis = false; return; }
+        // Un champ libre de comptes se cherche par le DÉBUT du numéro (« 61 » ne propose pas 261) ;
+        // un mot se cherche partout dans le libellé.
+        if (t && !x.libre && (saisie ? !(norm(x.valeur).startsWith(t) || (/\D/.test(t) && norm(x.label).includes(t))) : !norm(x.label).includes(t))) return;
+        if (groupe && !groupeMis) { html += `<div class="lm-groupe">${h(groupe)}</div>`; groupeMis = true; }
+        const n = montrees.length; montrees.push(x);
+        const cur = !saisie && x.opt === courante();
+        const libelle = x.libre && frappe ? `Autre : « ${frappe} »` : x.label;
+        html += `<div class="combo-it${x.off ? ' off' : ''}${cur ? ' cur' : ''}" data-i="${n}" role="option" aria-selected="false"${x.off ? ' aria-disabled="true"' : ''}><span class="ci-main">${h(libelle)}</span></div>`;
+      });
+-- fin
+
+== listes.js | « Autre… » choisi pendant une recherche emporte la frappe
+-- avant
+      const avant = cible.value;
+      x.opt.selected = true;
+-- après
+      const avant = cible.value;
+      // (plateforme, lot achats) « Autre… » choisi pendant une recherche : la frappe part avec lui, la saisie libre arrive
+      // préremplie (`bindUnitSelect`, app.js).
+      if (x.libre) { const f = q ? q.value.trim() : ''; if (f) cible.dataset.saisie = f; else delete cible.dataset.saisie; }
+      x.opt.selected = true;
+-- fin
+
+── La recherche des listes de l'application (app.js) ──
+
+== app.js | dans une liste de choix, ce dont le nom commence par la frappe vient d'abord
+-- avant
+      shown = el._items.filter(x => C.correspondRecherche(x.text || x.label || '', q.value));
+-- après
+      shown = el._items.filter(x => C.correspondRecherche(x.text || x.label || '', q.value));
+      // (plateforme, lot achats du 05/10/2026) Ce dont le NOM commence par la frappe vient d'abord (le rang de la palette,
+      // `rangRecherche`) ; à rang égal, l'ordre de la liste. « Mati » puis Entrée choisissait « Formation » (forMATIon).
+      // Un mot tapé en entier passe avant un mot qui le contient : « 118 » choisit F-2026-118, pas FA-2026/1187.
+      if (q.value.trim()) {
+        const frappe = C.plier(q.value).trim();
+        const entier = x => C.plier(x.label || '').split(/[^\p{L}\p{N}]+/u).includes(frappe) ? 0.5 : 0;
+        shown = shown.map((x, k) => ({ x, k, r: C.rangRecherche(x.label || '', q.value) + entier(x) })).sort((a, b) => b.r - a.r || a.k - b.k).map(a => a.x);
+      }
+-- fin
+
+── La commande fournisseur et la demande de prix (app.js, guide.js) ──
+
+== app.js | une demande de prix sans aucun prix répondu s'envoie d'abord
+-- avant
+    const demande = !!(stored && stored.status === 'demande');
+-- après
+    const demande = !!(stored && stored.status === 'demande');
+    // (plateforme, lot achats) Une demande de prix sans aucun prix répondu : l'étape suivante est de l'envoyer (PDF) ;
+    // « Commander » le devient quand les prix du fournisseur sont saisis.
+    const demandeSansPrix = demande && !(stored.lines || []).some(l => Number(l.unitPrice) > 0);
+-- fin
+
+== app.js | le bouton principal d'une demande sans prix est le PDF
+-- avant
+          ${stored ? '<button class="btn" id="cf-pdf">PDF</button>' : ''}
+          ${demande ? `<button class="btn" id="cf-aussi">Demander aussi à…</button>${groupe.demandes.length < 2 ? '<button class="btn btn-primary" id="cf-commander">Commander</button>' : ''}` : ''}
+-- après
+          ${stored ? `<button class="btn ${demandeSansPrix ? 'btn-primary' : ''}" id="cf-pdf">PDF</button>` : ''}
+          ${demande ? `<button class="btn" id="cf-aussi">Demander aussi à…</button>${groupe.demandes.length < 2 ? `<button class="btn ${demandeSansPrix ? '' : 'btn-primary'}" id="cf-commander">Commander</button>` : ''}` : ''}
+-- fin
+
+== app.js | la date de la commande porte sa bulle « i »
+-- avant
+          ${dateFieldHtml(lbl(`Date de la ${quoi}`, ''), 'date', o.date)}
+-- après
+          ${dateFieldHtml(lbl(`Date de la ${quoi}`, 'cf.date'), 'date', o.date)}
+-- fin
+
+== app.js | la référence de la commande porte sa bulle « i »
+-- avant
+          ${field(lbl('Référence (optionnel)', ''), 'reference', o.reference || '', 'text')}
+-- après
+          ${field(lbl('Référence (optionnel)', 'cf.reference'), 'reference', o.reference || '', 'text')}
+-- fin
+
+== app.js | une commande qui a reçu ne se remet pas en brouillon ni en demande de prix
+-- avant
+<select name="status">${C.STATUTS_COMMANDE_FOURNISSEUR.map(s =>
+-- après
+<select name="status">${C.STATUTS_COMMANDE_FOURNISSEUR.filter(s => !recue || s === o.status || !['demande', 'brouillon'].includes(s)).map(s =>
+-- fin
+
+== app.js | les colonnes des lignes d'une commande gardent leur largeur ; la désignation prend le reste
+-- avant
+<th>Désignation</th><th class="r">Qté</th><th>Unité</th><th class="r">P.U. HT</th><th>TVA</th><th class="r">Total HT</th><th></th>
+-- après
+<th>Désignation</th><th class="r" style="width:76px">Qté</th><th style="width:136px">Unité</th><th class="r" style="width:124px">${quoi === 'demande' ? 'Prix répondu HT' : 'P.U. HT'}</th><th style="width:84px">TVA</th><th class="r" style="width:140px">Total HT</th><th style="width:44px"></th>
+-- fin
+
+== app.js | une demande de prix sans prix ne montre pas un total à zéro
+-- avant
+      const t = C.computeTotals(o, company());
+-- après
+      // (plateforme, lot achats) Une demande de prix sans prix ne montre pas un « Total TTC 0,000 » : elle part sans prix, et
+      // les prix se saisissent à la réponse du fournisseur.
+      if (o.status === 'demande' && !o.lines.some(l => Number(l.unitPrice) > 0)) {
+        $('#cf-totals').innerHTML = '<p class="small muted" id="cf-sans-prix">Les prix se saisissent quand le fournisseur répond : la demande part sans prix (PDF).</p>';
+        $$('#cf-lines [data-ht]').forEach(c => { c.textContent = ''; });
+        $('#cf-accord').innerHTML = '';
+        return;
+      }
+      const t = C.computeTotals(o, company());
+-- fin
+
+== app.js | les unités déjà employées restent proposées sur une commande
+-- avant
+    const dessinerLignes = () => {
+      $('#cf-lines').innerHTML = o.lines.map((l, i) => `<tr>
+-- après
+    // (plateforme, lot achats) Les unités déjà employées (catalogue, pièces de vente, commandes fournisseurs) restent
+    // proposées ; « Autre… » n'en est pas une.
+    const unitesCommande = () => C.usedUnits(data, commandesF().concat([o]).flatMap(c => (c.lines || []).map(l => l.unit))).filter(u => u !== UNIT_OTHER);
+    const dessinerLignes = () => {
+      $('#cf-lines').innerHTML = o.lines.map((l, i) => `<tr>
+-- fin
+
+== app.js | la liste des unités d'une ligne de commande
+-- avant
+        <td><select data-k="unit" data-i="${i}" ${ro}>${unitOptions(l.unit)}</select></td>
+-- après
+        <td><select data-k="unit" data-i="${i}" ${ro}>${unitOptions(l.unit, unitesCommande())}</select></td>
+-- fin
+
+== app.js | « Autre… » ouvre la saisie libre sur une commande, comme sur une facture
+-- avant
+      $$('#cf-lines [data-del]').forEach(b => { b.onclick = () => { o.lines.splice(Number(b.dataset.del), 1); touch(); dessinerLignes(); }; });
+-- après
+      $$('#cf-lines [data-del]').forEach(b => { b.onclick = () => { o.lines.splice(Number(b.dataset.del), 1); touch(); dessinerLignes(); }; });
+      // (plateforme, lot achats du 05/10/2026) « Autre… » ouvre la saisie libre, comme sur une facture : rien ne s'ouvrait, et
+      // la ligne gardait « __autre__ », imprimé tel quel sur le bon de commande (« 40 __autre__ »). L'unité tapée rejoint
+      // la liste des autres lignes.
+      $$('#cf-lines select[data-k=unit]').forEach(sel => bindUnitSelect(sel, () => (o.lines[Number(sel.dataset.i)] || {}).unit, u => {
+        const l = o.lines[Number(sel.dataset.i)];
+        if (!l || l.unit === u) return;
+        const neuve = !!u && !C.LINE_UNITS.some(x => x[0] === u) && !unitesCommande().includes(u);
+        l.unit = u; touch();
+        if (neuve) dessinerLignes();
+      }));
+-- fin
+
+== app.js | le message d'une demande de prix enregistrée la nomme
+-- avant
+      toast(`Commande ${o.number} enregistrée`);
+-- après
+      toast(`${o.status === 'demande' ? 'Demande de prix' : 'Commande'} ${o.number} enregistrée`);
+-- fin
+
+== app.js | une commande en brouillon qui reçoit passe « envoyée », avec l'accord qu'il lui faut
+-- avant
+      const r = C.receptionDeCommande(data, commandeFById(o.id), C.today());
+      if (!r) return toast(`Rien ne reste à recevoir sur ${o.number} : tout est reçu, ou dans une réception en préparation.`);
+-- après
+      const cmdR = commandeFById(o.id);
+      const r = C.receptionDeCommande(data, cmdR, C.today());
+      if (!r) return toast(`Rien ne reste à recevoir sur ${o.number} : tout est reçu, ou dans une réception en préparation.`);
+      // (plateforme, lot achats du 05/10/2026) Une commande qui reçoit est partie : en brouillon, elle passe « envoyée » au
+      // même geste, avec l'accord qu'il lui faut au-delà du montant permis (brique 114 ; le serveur refuse une réception
+      // validée sur une commande qui n'est pas partie). Le statut restait « Brouillon » sous la pastille « reçue en partie »,
+      // et une commande au-delà du seuil se recevait sans accord.
+      if (cmdR.status === 'brouillon') {
+        const besoin = commandeSansAccord({ ...cmdR, status: 'envoyée' }, cmdR);
+        if (besoin) return proposerAccordCommande({ ...cmdR, status: 'envoyée' }, besoin, () => render(true));
+        cmdR.status = 'envoyée';
+      }
+-- fin
+
+── La réception : ce qui est entré en stock, compté (app.js) ──
+
+== app.js | ce qu'une réception a fait entrer en stock se compte sur les mouvements eux-mêmes
+-- avant
+  const receptionsDeCommandeUI = id =>
+-- après
+  // (plateforme, lot achats du 05/10/2026) Ce qu'une réception validée a fait entrer en stock, compté sur les mouvements
+  // eux-mêmes (`stockMovements`, la fonction de la page Stock) : « la marchandise suivie est entrée en stock » se disait
+  // même quand aucune ligne n'était un article suivi. Une phrase que rien ne tient est un défaut.
+  function phraseStockReception(r) {
+    const entres = C.stockMovements(data).filter(m => m.source === 'reception' && m.docId === r.id).length;
+    const lignes = (r.lines || []).filter(l => Number(l.qty) > 0).length;
+    if (!entres) return 'aucune de ses lignes n\'est un article suivi en stock, donc le stock ne bouge pas. Pour suivre un article, coche « Suivi en stock » sur sa fiche, dans le Catalogue.';
+    if (entres >= lignes) return entres > 1 ? `ses ${entres} lignes sont entrées en stock.` : 'sa ligne est entrée en stock.';
+    return `${entres} de ses ${lignes} lignes ${entres > 1 ? 'sont entrées' : 'est entrée'} en stock ; les autres ne sont pas des articles suivis.`;
+  }
+  // Le bandeau d'une facture saisie depuis ses réceptions : la même règle.
+  function phraseReceptionsAchat(receptions) {
+    const ids = new Set(receptions.map(x => x.id));
+    const elles = receptions.length > 1 ? 'elles' : 'elle';
+    return C.stockMovements(data).some(m => m.source === 'reception' && ids.has(m.docId))
+      ? `sa marchandise suivie est déjà entrée en stock par ${elles}, ces lignes ne l'y font pas entrer une seconde fois`
+      : `aucune de ses lignes n'est un article suivi en stock : ni ${elles} ni cette facture ne font bouger le stock`;
+  }
+  const receptionsDeCommandeUI = id =>
+-- fin
+
+== app.js | le message d'une réception validée dit ce qui est entré en stock
+-- avant
+toast(`Réception ${r.number} validée : la marchandise suivie est entrée en stock.`);
+-- après
+toast(`Réception ${r.number} validée : ${phraseStockReception(r)}`);
+-- fin
+
+── La facture d'achat (app.js) ──
+
+== app.js | le règlement nomme le mois avec son élision, et dit où s'établit l'attestation de retenue
+-- avant
+avec la déclaration de ${C.MONTHS_FR[Number(d0.slice(5, 7)) - 1]} ${d0.slice(0, 4)}, et tu en remets l'attestation au fournisseur.
+-- après
+avec la déclaration ${C.deLibelle(C.MONTHS_FR[Number(d0.slice(5, 7)) - 1] + ' ' + d0.slice(0, 4))}, et tu en remets l'attestation au fournisseur ; elle s'établit sur TEJ, la plateforme du ministère des Finances. <em>À VÉRIFIER avec ton comptable.</em>
+-- fin
+
+== app.js | le bandeau d'une facture saisie depuis ses réceptions dit ce qui est vraiment entré en stock
+-- avant
+sa marchandise est déjà entrée en stock par ${p.receptions.length > 1 ? 'elles' : 'elle'}, ces lignes ne l'y font pas entrer une seconde fois.
+-- après
+${phraseReceptionsAchat(p.receptions)}.
+-- fin
+
+== app.js | « Joindre un justificatif » se cache tant que la version en ligne ne garde pas les fichiers
+-- avant
+          <button class="btn" id="attach-top">Joindre un justificatif…</button>${info('ed.attachments')}
+-- après
+          ${/* (plateforme, lot achats) Sans pièces jointes en ligne, le bouton refusait toujours : il se cache. */''}
+          ${bridge.piecesJointes === false ? '' : `<button class="btn" id="attach-top">Joindre un justificatif…</button>${info('ed.attachments')}`}
+-- fin
+
+== app.js | l'invite de l'objet suit la nature de la pièce : un avoir ne dit pas « ce que tu as acheté »
+-- avant
+<input type="text" name="subject" value="${h(p.subject || '')}" placeholder="Ce que tu as acheté, et pour quel client ou quel chantier">
+-- après
+<input type="text" name="subject" value="${h(p.subject || '')}" placeholder="${h(inviteObjet(p.kind))}">
+-- fin
+
+== app.js | l'invite de l'objet, par nature de pièce
+-- avant
+    const natureLabel = k => (C.PURCHASE_KINDS.find(x => x[0] === k) || C.PURCHASE_KINDS[0])[1];
+-- après
+    const natureLabel = k => (C.PURCHASE_KINDS.find(x => x[0] === k) || C.PURCHASE_KINDS[0])[1];
+    // (plateforme, lot achats) L'objet d'un avoir dit ce qu'il corrige ; celui d'un acompte, ce qu'il paie d'avance.
+    const inviteObjet = k => k === 'avoir' ? 'Ce que l\'avoir corrige : retour, remise, erreur de prix…'
+      : k === 'acompte' ? 'Ce que l\'acompte paie d\'avance : la commande, le chantier…'
+        : 'Ce que tu as acheté, et pour quel client ou quel chantier';
+-- fin
+
+== app.js | « Enregistrer » suit la saisie jusqu'en bas d'un long achat
+-- avant
+            <textarea id="b-notes" placeholder="Ce qu'il faut se rappeler sur cet achat">${h(p.notes || '')}</textarea>
+          </div>
+-- après
+            <textarea id="b-notes" placeholder="Ce qu'il faut se rappeler sur cet achat">${h(p.notes || '')}</textarea>
+          </div>
+          ${/* (plateforme, lot achats) La saisie finit en bas (lignes, totaux) et « Enregistrer » n'était qu'en haut : la barre
+               des Paramètres suit la saisie quand une modification attend et que le bouton du haut n'est plus à l'écran. */''}
+          ${clos ? '' : '<div class="save-bar" id="b-save-bar" hidden><span>Modifications non enregistrées</span><button class="btn btn-primary" id="b-save-bas">Enregistrer</button></div>'}
+-- fin
+
+== app.js | la barre du bas paraît avec la première modification
+-- avant
+    const touch = () => { if (dirty) return; dirty = true; const el = $('#dirty-dot'); if (el) el.hidden = false; enregistrerDevientPrincipal(); reportDirty(); };
+-- après
+    // (plateforme, lot achats) La barre « Enregistrer » du bas suit la saisie (`majBarre`, branchée plus bas).
+    let majBarre = () => {};
+    const touch = () => { if (dirty) return; dirty = true; const el = $('#dirty-dot'); if (el) el.hidden = false; majBarre(); enregistrerDevientPrincipal(); reportDirty(); };
+-- fin
+
+== app.js | et s'en va une fois enregistré
+-- avant
+    const untouch = () => { dirty = false; const el = $('#dirty-dot'); if (el) el.hidden = true; reportDirty(); };
+-- après
+    const untouch = () => { dirty = false; const el = $('#dirty-dot'); if (el) el.hidden = true; majBarre(); reportDirty(); };
+-- fin
+
+== app.js | un avoir n'a pas d'échéance de paiement : le champ se cache pour lui
+-- avant
+    let dueAuto = echeanceAuto(p.date, p.dueDate, delaiAchat(p.supplierId));
+-- après
+    let dueAuto = echeanceAuto(p.date, p.dueDate, delaiAchat(p.supplierId));
+    // (plateforme, lot achats) Un avoir n'a pas d'échéance de paiement : le champ se cache pour lui (l'achat neuf la laissait
+    // déjà vide).
+    const montrerEcheance = () => {
+      const champ = $('[name=dueDate]', head);
+      const bloc = champ && champ.closest('.field');
+      if (bloc) bloc.hidden = p.kind === 'avoir';
+    };
+    montrerEcheance();
+-- fin
+
+== app.js | passer en avoir vide l'échéance et la cache
+-- avant
+        if (lf) lf.hidden = !lie;
+-- après
+        if (lf) lf.hidden = !lie;
+        if (p.kind === 'avoir' && p.dueDate) { p.dueDate = ''; dueAuto = ''; poserDateField(head, 'dueDate', ''); }
+        montrerEcheance();
+        const objet = $('[name=subject]', head);
+        if (objet) objet.placeholder = inviteObjet(p.kind);
+-- fin
+
+== app.js | un avoir neuf rattaché depuis la liste reprend la pièce qu'il corrige
+-- avant
+      if (e && e.target && e.target.name === 'achatLie') {
+        const vise = purchaseById(p.achatLie);
+-- après
+      if (e && e.target && e.target.name === 'achatLie') {
+        const vise = purchaseById(p.achatLie);
+        // (plateforme, lot achats du 05/10/2026) Un avoir neuf rattaché depuis la liste reprend ce que reprend l'avoir créé
+        // depuis la facture (« Saisir un avoir sur cette pièce ») : sa devise, sa catégorie, ses lignes, son affaire, sa
+        // retenue — tant qu'aucune ligne n'est saisie. Rien n'en était repris : on retapait tout.
+        if (vise && isNew && p.kind === 'avoir' && !(p.lines || []).some(l => String(l.label || '').trim() || Number(l.unitPrice))) {
+          Object.assign(p, { currency: vise.currency || company().currency, exchangeRate: vise.exchangeRate || 1, category: p.category || vise.category || '',
+            tvaRecuperable: C.tvaRecuperable(vise, company()), projectId: p.projectId || vise.projectId || '',
+            withholdingRate: vise.withholdingRate == null ? p.withholdingRate : vise.withholdingRate,
+            subject: p.subject || 'Avoir sur ' + (vise.number || vise.subject || 'la facture'),
+            lines: deepCopy(vise.lines || []).map(l => ({ ...l })) });
+          if (!p.lines.length) p.lines = [{ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19, destination: 'charge', deductible: true }];
+          achatReprise = { hash: location.hash, p, isNew };
+          render(true);
+          return;
+        }
+-- fin
+
+== app.js | « Modifications non enregistrées » nomme la pièce telle qu'elle est (un avoir, un acompte)
+-- avant
+what: isDep ? 'cette dépense' : 'cette facture d\'achat',
+-- après
+get what() { return p.kind === 'depense' ? 'cette dépense' : p.kind === 'avoir' ? 'cet avoir' : p.kind === 'acompte' ? 'cet acompte' : 'cette facture d\'achat'; },
+-- fin
+
+== app.js | la catégorie créée depuis un achat paraît dans le champ et dans la liste
+-- avant
+        const el = $('[data-combo=category]', head);
+        bindCombo(el, { items: C.expenseCategories(data).map(c => ({ v: c, label: c })), placeholder: '— Choisir une catégorie —' }).setValue(v);
+-- après
+        // (plateforme, lot achats) La liste reçoit la catégorie neuve et le champ la montre : relier une seconde fois une liste
+        // déjà reliée ne faisait rien (`bindCombo` rend la main), et le champ restait sur « — Choisir une catégorie — ».
+        $('[data-combo=category]', head).setItems(C.expenseCategories(data).map(c => ({ v: c, label: c })), v);
+-- fin
+
+== app.js | le bouton de la barre du bas enregistre comme celui du haut
+-- avant
+    $('#b-notes').oninput = e => { p.notes = e.target.value; touch(); };
+-- après
+    $('#b-notes').oninput = e => { p.notes = e.target.value; touch(); };
+    if ($('#b-save-bas')) $('#b-save-bas').onclick = () => { const b = $('#save'); if (b) b.click(); };
+    // La barre ne paraît que si une modification attend ET que « Enregistrer », en haut, n'est plus à l'écran : un seul
+    // bouton principal en vue (U-11).
+    if ($('#b-save-bar') && $('#save') && typeof IntersectionObserver === 'function') {
+      let hautEnVue = true;
+      majBarre = () => { const b = $('#b-save-bar'); if (b) b.hidden = !(dirty && !hautEnVue); };
+      const io = new IntersectionObserver(es => {
+        if (!document.body.contains(es[0].target)) { io.disconnect(); return; }
+        hautEnVue = es.some(x => x.isIntersecting); majBarre();
+      });
+      io.observe($('#save'));
+    } else majBarre = () => { const b = $('#b-save-bar'); if (b) b.hidden = !dirty; };
+    majBarre();
+-- fin
+
+== app.js | sans le bouton, rien à brancher
+-- avant
+    $('#attach-top').onclick = async () => {
+-- après
+    if ($('#attach-top')) $('#attach-top').onclick = async () => {
+-- fin
+
+== app.js | une lecture qui ne dit pas l'échéance la calcule comme un achat neuf
+-- avant
+    const appliquerLecture = async (values, file, quoi) => {
+      Object.assign(p, values.head);
+      p.lines = values.lines;
+-- après
+    const appliquerLecture = async (values, file, quoi) => {
+      Object.assign(p, values.head);
+      p.lines = values.lines;
+      // (plateforme, lot achats) L'échéance que la pièce ne dit pas se calcule comme pour un achat neuf : la date plus le délai
+      // du fournisseur (souvent celui qu'on vient de créer depuis la lecture). Elle restait vide.
+      if (!p.dueDate && p.date && p.kind !== 'depense' && p.kind !== 'avoir') p.dueDate = C.addDays(p.date, delaiAchat(p.supplierId));
+-- fin
+
+── Les justificatifs, tant que la version en ligne ne garde pas les fichiers (app.js, core.js) ──
+
+== app.js | la clôture ne réclame pas un justificatif qu'on ne peut pas joindre
+-- avant
+C.closureChecks(data, company(), next.from, next.to, { reserves: licence.reserves || [] })
+-- après
+C.closureChecks(data, company(), next.from, next.to, { reserves: licence.reserves || [], sansPiecesJointes: bridge.piecesJointes === false })
+-- fin
+
+== app.js | la clôture jusqu'à un mois choisi non plus
+-- avant
+C.closureChecks(data, company(), next.from, to, { reserves: licence.reserves || [] })
+-- après
+C.closureChecks(data, company(), next.from, to, { reserves: licence.reserves || [], sansPiecesJointes: bridge.piecesJointes === false })
+-- fin
+
+== app.js | le filtre « Sans justificatif » se cache aussi
+-- avant
+<option value="${SANS_JUSTIF}" ${s.st === SANS_JUSTIF ? 'selected' : ''}>Sans justificatif</option>
+-- après
+${bridge.piecesJointes === false && s.st !== SANS_JUSTIF ? '' : `<option value="${SANS_JUSTIF}" ${s.st === SANS_JUSTIF ? 'selected' : ''}>Sans justificatif</option>`}
+-- fin
+
+== core.js | sans pièces jointes, le contrôle « achats sans justificatif » se tait
+-- avant
+    const noProof = (data.purchases || []).filter(p => inRange(p.date) && sansJustificatif(p));
+-- après
+    // (plateforme, lot achats) Sans pièces jointes en ligne, « n achats sans justificatif » ne se règle pas : le contrôle se tait.
+    const noProof = opts && opts.sansPiecesJointes ? [] : (data.purchases || []).filter(p => inRange(p.date) && sansJustificatif(p));
+-- fin
+
+── Les catégories de charge (core.js) ──
+
+== core.js | « Achats de matières premières » parmi les catégories de départ
+-- avant
+    'Achats de marchandises', 'Sous-traitance', 'Fournitures de bureau', 'Petit équipement',
+-- après
+    // (plateforme, lot achats) La catégorie d'une boulangerie, d'un restaurant, d'un atelier. Une catégorie classe la dépense ;
+    // elle ne choisit aucun compte (le rattachement comptable : À VÉRIFIER avec ton comptable).
+    'Achats de marchandises', 'Achats de matières premières', 'Sous-traitance', 'Fournitures de bureau', 'Petit équipement',
+-- fin
+
+── L'invitation « Première fois sur cette page ? » (app.js, ecrans.css) ──
+
+== app.js | l'invitation se pose dans le coin bas droit, et « Guide-moi » s'allume tant qu'elle est là
+-- avant
+    const placer = () => {
+      const r = bouton.getBoundingClientRect();
+      if (!r.width || !document.body.contains(bouton)) { fermer(); return; }
+      const w = el.offsetWidth;
+-- après
+    const placer = () => {
+      const r = bouton.getBoundingClientRect();
+      if (!r.width || !document.body.contains(bouton)) { fermer(); return; }
+      // (plateforme, lot achats du 05/10/2026) Dans le coin bas droit de l'écran, plus sous le bouton : posée sous
+      // « Guide-moi », elle couvrait le premier champ de la page (le fournisseur d'un achat, le texte d'une page vide), et le
+      // clic donné pour écrire tombait sur elle. Le bouton s'allume tant qu'elle est là : elle dit toujours où se trouve la
+      // visite. La caisse tactile garde la place d'avant (ses tuiles et son ticket remplissent l'écran).
+      if (!document.body.classList.contains('mode-caisse')) { el.classList.add('ga-coin'); bouton.classList.add('guide-moi-signale'); return; }
+      const w = el.offsetWidth;
+-- fin
+
+== app.js | « Guide-moi » s'éteint quand l'invitation s'en va
+-- avant
+    function fermer() {
+      el.remove();
+-- après
+    function fermer() {
+      el.remove();
+      bouton.classList.remove('guide-moi-signale');
+-- fin
+
+== index.html | la feuille des réglages d'écran de la plateforme, après celle de la caisse
+-- avant
+  <link rel="stylesheet" href="../plateforme/caisse.css">
+
+-- après
+  <link rel="stylesheet" href="../plateforme/caisse.css">
+  <link rel="stylesheet" href="../plateforme/ecrans.css">
+
+-- fin
+
+── Les visites et les bulles parlent de ce que la version en ligne fait (visites.js) ──
+
+Tant que la version en ligne ne garde pas les fichiers, « Joindre un justificatif » est caché (plus haut) : la visite
+« Saisir une facture d'achat » attendait une étape sur ce bouton, et serait restée en suspens. Quand les pièces jointes
+viendront en ligne (une brique proposée à Skander), ces phrases reviendront avec elles.
+
+== visites.js | la page d'un achat se résume sans le justificatif
+-- avant
+    achat: { titre: "Une facture d'achat", resume: "Le fournisseur, les lignes, la TVA récupérable, le justificatif.", fiche: 'achat',
+      texte: "<p>Une facture d'achat ou une dépense : le fournisseur, ce que tu as acheté ligne par ligne (et où ça va : charge, stock ou immobilisation), la TVA que tu récupères, et le <b>justificatif</b>.</p>" },
+-- après
+    achat: { titre: "Une facture d'achat", resume: "Le fournisseur, les lignes, la TVA récupérable.", fiche: 'achat',
+      texte: "<p>Une facture d'achat ou une dépense : le fournisseur, ce que tu as acheté ligne par ligne (et où ça va : charge, stock ou immobilisation), et la TVA que tu récupères. « Lire une photo… » remplit la pièce depuis la photo de la facture du fournisseur.</p>" },
+-- fin
+
+== visites.js | la bulle de « + Facture d'achat » sans le justificatif
+-- avant
+  b('#new', "Saisis une facture fournisseur : ses lignes, sa TVA, son justificatif.", { route: 'achats' });
+-- après
+  b('#new', "Saisis une facture fournisseur : ses lignes et sa TVA.", { route: 'achats' });
+-- fin
+
+== visites.js | la découverte des achats dit ce que la photo fait en ligne
+-- avant
+Dans les deux, tu joins la photo du justificatif <b>avant</b> de saisir.
+-- après
+Dans les deux, <b>« Lire une photo… »</b> remplit la pièce depuis la photo de la facture du fournisseur.
+-- fin
+
+== visites.js | la visite « Saisir une facture d'achat » commence par le fournisseur
+-- avant
+      resume: 'Le justificatif d\'abord, puis le fournisseur, les lignes, la TVA récupérable.',
+-- après
+      resume: 'Le fournisseur, les lignes, la TVA récupérable.',
+-- fin
+
+== visites.js | l'étape du justificatif se saute quand le bouton n'est pas là
+-- avant
+        { cible: '#attach-top', cote: 'dessous', titre: 'Le justificatif d\'abord',
+-- après
+        { cible: '#attach-top', cote: 'dessous', titre: 'Le justificatif d\'abord', facultatif: true,
+-- fin
+
+── Les bulles « i » (guide.js) ──
+
+== guide.js | la date et la référence d'une commande fournisseur
+-- avant
+    'cf.livraison': { t: 'Livraison souhaitée', d: 'La date à laquelle tu veux être livré : elle s\'imprime sur la commande.' },
+-- après
+    'cf.livraison': { t: 'Livraison souhaitée', d: 'La date à laquelle tu veux être livré : elle s\'imprime sur la commande.' },
+    'cf.date': { t: 'Date', d: 'Le jour où la commande (ou la demande de prix) part chez le fournisseur. Elle s\'imprime sur le bon ; le numéro (BCF-…) naît au premier enregistrement.' },
+    'cf.reference': { t: 'Référence', d: 'Ta référence à toi, si tu en as une : un chantier, un client, le numéro du devis du fournisseur. Elle s\'imprime sur la commande ; laisse vide si elle n\'apporte rien.' },
+-- fin

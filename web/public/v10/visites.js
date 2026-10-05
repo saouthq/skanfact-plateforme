@@ -135,8 +135,8 @@
       texte: "<p>La fiche d'un contrat : la prochaine facture qu'il fabriquera, et toutes celles qu'il a déjà préparées.</p>" },
     fournisseur: { titre: "La fiche d'un fournisseur", resume: "Ses achats, et ce que tu lui dois.", fiche: 'fournisseur',
       texte: "<p>La fiche d'un fournisseur : ses factures, ce que tu lui dois encore, et ses conditions.</p>" },
-    achat: { titre: "Une facture d'achat", resume: "Le fournisseur, les lignes, la TVA récupérable, le justificatif.", fiche: 'achat',
-      texte: "<p>Une facture d'achat ou une dépense : le fournisseur, ce que tu as acheté ligne par ligne (et où ça va : charge, stock ou immobilisation), la TVA que tu récupères, et le <b>justificatif</b>.</p>" },
+    achat: { titre: "Une facture d'achat", resume: "Le fournisseur, les lignes, la TVA récupérable.", fiche: 'achat',
+      texte: "<p>Une facture d'achat ou une dépense : le fournisseur, ce que tu as acheté ligne par ligne (et où ça va : charge, stock ou immobilisation), et la TVA que tu récupères. « Lire une photo… » remplit la pièce depuis la photo de la facture du fournisseur.</p>" },
     affaire: { titre: "Une affaire", resume: "Un chantier ou un projet, et ce qu'il te rapporte vraiment.", fiche: 'affaire',
       texte: "<p>Une affaire rassemble les ventes et les achats d'un même chantier : c'est là que tu vois ce qu'il te rapporte <b>vraiment</b>.</p>" },
     salarie: { titre: "La fiche d'un salarié", resume: "Son contrat, ses bulletins, ses congés, ses avances.", fiche: 'salarie',
@@ -273,7 +273,7 @@
   b('#new', "Décris une prestation ou un article avec son prix : tes devis le reprendront d'un clic.", { route: 'catalogue' });
   b('#new', "Un nouveau contrat : le client, les lignes, la fréquence, et le jour de facturation.", { route: 'contrats' });
   b('#new', "Ouvre la fiche d'un nouveau fournisseur.", { route: 'fournisseurs' });
-  b('#new', "Saisis une facture fournisseur : ses lignes, sa TVA, son justificatif.", { route: 'achats' });
+  b('#new', "Saisis une facture fournisseur : ses lignes et sa TVA.", { route: 'achats' });
   b('#new', "Une nouvelle pièce de cet onglet (proforma, bon, contrat). Tu peux aussi la tirer d'un devis : « Transformer » dans le devis.", { route: 'autres' });
   b('#new-avoir', "Un avoir corrige une facture émise (remise, retour, erreur) : on ne supprime jamais une facture, on l'annule par un avoir.");
   b('#kind', "Ne garder qu'une sorte de pièce (factures, avoirs, dépenses…).", { nom: 'Sorte de pièce' });
@@ -971,7 +971,7 @@
         { chapitre: 'Acheter', couleur: 'acheter', page: '#/achats', cible: ['#list-wrap table.list', '#view table.list'], zone: ['#list-wrap table.list', '#view table.list'], cote: 'dessus', titre: 'Achats et dépenses',
           texte: 'Tout ce que tu paies. C\'est d\'ici que vient <b>la TVA que tu récupères</b> : un achat oublié, c\'est de la TVA payée deux fois.' },
         { page: '#/achats', cible: '#view .page-head .actions', cote: 'dessous', titre: 'Deux façons de saisir',
-          texte: '<b>« + Facture d\'achat »</b> pour une facture en bonne et due forme ; <b>« + Dépense »</b> pour le quotidien (carburant, fournitures). Dans les deux, tu joins la photo du justificatif <b>avant</b> de saisir.' },
+          texte: '<b>« + Facture d\'achat »</b> pour une facture en bonne et due forme ; <b>« + Dépense »</b> pour le quotidien (carburant, fournitures). Dans les deux, <b>« Lire une photo… »</b> remplit la pièce depuis la photo de la facture du fournisseur.' },
         { page: fiche('achat'), cible: '#b-lines, #view table', cote: 'dessus', titre: 'Où va chaque ligne',
           texte: 'Pour chaque ligne, sa <b>destination</b> : une charge du mois, du stock (à revendre), ou une immobilisation (gardée des années). C\'est ce qui rend ton résultat juste.' },
         { page: '#/fournisseurs', cible: '#view table.list, #view .panel', cote: 'dessous', titre: 'Les fournisseurs',
@@ -1504,7 +1504,7 @@
     visite({
       id: 'achat', theme: 'achats', type: 'faire', duree: '3 min', page: '#/achats', pages: ['achats', 'fournisseurs', 'fournisseur'],
       titre: 'Saisir une facture d\'achat',
-      resume: 'Le justificatif d\'abord, puis le fournisseur, les lignes, la TVA récupérable.',
+      resume: 'Le fournisseur, les lignes, la TVA récupérable.',
       mots: ['achat', 'facture fournisseur', 'depense', 'tva deductible', 'justificatif'],
       suite: ['regler'],
       // Un achat de plus : sans « Enregistrer », il ne compte nulle part (10.14.1).
@@ -1516,7 +1516,7 @@
         { page: '#/achats', cible: ['.vide-utile .btn-primary', '.page-head #new'], cote: 'dessous', faire: 'clic',
           titre: 'Nouvelle facture d\'achat', texte: 'Pour une dépense du quotidien (carburant, fournitures), « + Dépense » est plus court.',
           action: 'Clique sur {bouton}.', fait: () => /^#\/achat\//.test(hash()), essai: { clic: true } },
-        { cible: '#attach-top', cote: 'dessous', titre: 'Le justificatif d\'abord',
+        { cible: '#attach-top', cote: 'dessous', titre: 'Le justificatif d\'abord', facultatif: true,
           texte: 'Joins la photo ou le PDF de la facture <b>avant</b> de saisir : tu recopies en la regardant, et ton comptable l\'aura.' },
         { cible: combo('supplierId'), cote: 'droite', faire: 'valeur', bouton: 'C\'est fait',
           titre: 'Le fournisseur', texte: 'Choisis-le dans la liste. Nouveau ? « + Nouveau fournisseur » en bas de la liste.',

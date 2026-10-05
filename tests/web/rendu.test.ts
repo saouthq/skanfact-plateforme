@@ -140,6 +140,10 @@ describe('l\'instrument de rendu des écrans', () => {
     { nom: 'catalogue', hash: '#/catalogue', titre: /^(Catalogue|Prestations|Articles)/ },
     { nom: 'achats', hash: '#/achats', titre: /^Achats/ },
     { nom: 'fournisseurs', hash: '#/fournisseurs', titre: /^Fournisseurs/ },
+    // Une fiche remplie, pas seulement la liste (lot achats, 05/10/2026) : la fiche d'un fournisseur défilait de côté à
+    // 1366 et 1440 px, sa liste d'achats imposant sa largeur à la colonne de gauche, et l'instrument ne l'ouvrait pas.
+    { nom: 'fournisseur', hash: '#/fournisseur/s1', titre: /^Les Ciments de Bizerte/ },
+    { nom: 'client', hash: '#/client/c-rendu', titre: /^Société Méditerranéenne/ },
     { nom: 'stock', hash: '#/stock', titre: /^Stock/ },
     { nom: 'tresorerie', hash: '#/tresorerie', titre: /^Trésorerie/ },
     { nom: 'paie', hash: '#/paie', titre: /^Paie/, ordinateur: true },

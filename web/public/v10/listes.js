@@ -52,7 +52,7 @@
   // éteinte se montre, grisée, et ne se choisit pas — comme dans la liste native.
   function lignesDuSelect(sel) {
     const out = [];
-    const opt = (o, grpOff) => { if (!o.hidden) out.push({ opt: o, label: o.label || o.textContent.trim(), off: o.disabled || grpOff }); };
+    const opt = (o, grpOff) => { if (!o.hidden) out.push({ opt: o, label: o.label || o.textContent.trim(), off: o.disabled || grpOff, libre: o.hasAttribute('data-libre') }); };
     Array.from(sel.children).forEach(c => {
       if (c.tagName === 'OPTGROUP') { out.push({ groupe: c.label }); Array.from(c.children).forEach(o => opt(o, c.disabled)); }
       else if (c.tagName === 'OPTION') opt(c, false);
@@ -115,17 +115,35 @@
       const c = list.querySelector('.combo-it.sel'); if (c) c.scrollIntoView({ block: 'nearest' });
     };
     const dessiner = () => {
-      const t = norm((saisie ? cible.value : (q ? q.value : '')).trim());
+      const frappe = (saisie ? cible.value : (q ? q.value : '')).trim();
+      const t = norm(frappe);
       montrees = []; let html = '', groupe = null, groupeMis = false;
-      lignes.forEach(x => {
+      // (plateforme, lot achats du 05/10/2026) Pendant une recherche, ce qui COMMENCE par la frappe vient d'abord, puis ce
+      // dont chaque mot commence un mot, puis le reste (le rang de la recherche de l'application, `rangRecherche`) :
+      // « Mati » puis Entrée choisissait « Formation » avant « Matières premières ». Une liste en groupes garde son ordre.
+      // « Autre… » (une option `data-libre`) reste proposé, en dernier, avec ce qu'on a tapé : chercher « sac » dans les
+      // unités ne laissait que « Aucun résultat ».
+      // Un mot tapé en entier passe avant un mot qui le contient (« kg » avant « kgs »).
+      const rang = l => {
+        const n = norm(l);
+        const debuts = n.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+        const entier = debuts.includes(t) ? 0.5 : 0;
+        if (n.startsWith(t)) return 3 + entier;
+        return (t.split(/\s+/).filter(Boolean).every(m => debuts.some(d => d.startsWith(m))) ? 2 : 1) + entier;
+      };
+      const vues = t && !saisie && !lignes.some(x => x.groupe != null)
+        ? lignes.filter(x => !x.libre).map((x, k) => ({ x, k, r: rang(x.label) })).sort((a, b) => b.r - a.r || a.k - b.k).map(a => a.x).concat(lignes.filter(x => x.libre))
+        : lignes;
+      vues.forEach(x => {
         if (x.groupe != null) { groupe = x.groupe; groupeMis = false; return; }
         // Un champ libre de comptes se cherche par le DÉBUT du numéro (« 61 » ne propose pas 261) ;
         // un mot se cherche partout dans le libellé.
-        if (t && (saisie ? !(norm(x.valeur).startsWith(t) || (/\D/.test(t) && norm(x.label).includes(t))) : !norm(x.label).includes(t))) return;
+        if (t && !x.libre && (saisie ? !(norm(x.valeur).startsWith(t) || (/\D/.test(t) && norm(x.label).includes(t))) : !norm(x.label).includes(t))) return;
         if (groupe && !groupeMis) { html += `<div class="lm-groupe">${h(groupe)}</div>`; groupeMis = true; }
         const n = montrees.length; montrees.push(x);
         const cur = !saisie && x.opt === courante();
-        html += `<div class="combo-it${x.off ? ' off' : ''}${cur ? ' cur' : ''}" data-i="${n}" role="option" aria-selected="false"${x.off ? ' aria-disabled="true"' : ''}><span class="ci-main">${h(x.label)}</span></div>`;
+        const libelle = x.libre && frappe ? `Autre : « ${frappe} »` : x.label;
+        html += `<div class="combo-it${x.off ? ' off' : ''}${cur ? ' cur' : ''}" data-i="${n}" role="option" aria-selected="false"${x.off ? ' aria-disabled="true"' : ''}><span class="ci-main">${h(libelle)}</span></div>`;
       });
       // Une liste de propositions qui n'a rien à proposer se tait ; une liste de choix le dit.
       if (!montrees.length && saisie) { pop.hidden = true; return; }
@@ -152,6 +170,9 @@
         return;
       }
       const avant = cible.value;
+      // (plateforme, lot achats) « Autre… » choisi pendant une recherche : la frappe part avec lui, la saisie libre arrive
+      // préremplie (`bindUnitSelect`, app.js).
+      if (x.libre) { const f = q ? q.value.trim() : ''; if (f) cible.dataset.saisie = f; else delete cible.dataset.saisie; }
       x.opt.selected = true;
       close();
       cible.focus({ preventScroll: true });

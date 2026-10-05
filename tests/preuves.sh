@@ -8144,6 +8144,164 @@ prouver "la caisse revenue d'une autre page, encore sur la monnaie de la vente d
 " "" \
   "$TB"
 
+# ── Le lot achats (05/10/2026 ; le parcours d'un commerçant à la souris ; web/v10/achats-lot.txt, ecrans.css ; docs/achats.md) ──
+ACW1="Nadia commande, reçoit en deux fois, saisit et règle la facture, en tire un avoir, lit une facture en photo"
+ACW2="une demande de prix sans prix s'envoie d'abord ; le retour d'une liste de prix répond"
+ACS1="une commande en brouillon ou une demande de prix ne reçoit rien, propriétaire compris ; partie, ou partant avec sa réception, elle reçoit"
+prouver "le bouton retour de la réception qui ne répond pas" web/public/v10/app.js \
+  "    go(() => goBack(b.dataset.retour || undefined, b.dataset.saut || undefined));
+" "" \
+  "$ACW1"
+prouver "l'unité « Autre… » d'une commande qui n'ouvre pas la saisie libre" web/public/v10/app.js \
+  "      \$\$('#cf-lines select[data-k=unit]').forEach(sel => bindUnitSelect(" "      [].forEach(sel => bindUnitSelect(" \
+  "$ACW1"
+prouver "« Autre… » perdu pendant une recherche dans une liste" web/public/v10/listes.js \
+  ".concat(lignes.filter(x => x.libre))" "" \
+  "$ACW1"
+prouver "la recherche d'une liste qui range « demi-journée » avant « mois »" web/public/v10/listes.js \
+  ".map((x, k) => ({ x, k, r: rang(x.label) })).sort((a, b) => b.r - a.r || a.k - b.k).map(a => a.x)" "" \
+  "$ACW1"
+prouver "la saisie libre d'une unité qui arrive vide" web/public/v10/app.js \
+  "promptDialog('Unité personnalisée', 'Unité (ex : rouleau, palette, ml)', saisi, v => {" "promptDialog('Unité personnalisée', 'Unité (ex : rouleau, palette, ml)', '', v => {" \
+  "$ACW1"
+prouver "« Autre : … » choisi sans emporter la frappe" web/public/v10/listes.js \
+  "      if (x.libre) { const f = q ? q.value.trim() : ''; if (f) cible.dataset.saisie = f; else delete cible.dataset.saisie; }
+" "" \
+  "$ACW1"
+prouver "une ligne relue avec « __autre__ » pour unité" web/public/v10/app.js \
+  "    if (value === UNIT_OTHER) value = '';
+" "" \
+  "$ACW2"
+prouver "les unités déjà employées absentes d'une ligne de commande" web/public/v10/app.js \
+  "\${unitOptions(l.unit, unitesCommande())}" "\${unitOptions(l.unit)}" \
+  "$ACW1"
+prouver "« Mati » qui propose d'abord ce qui le contient" web/public/v10/app.js \
+  "        shown = shown.map((x, k) => ({ x, k, r: C.rangRecherche(x.label || '', q.value) + entier(x) })).sort((a, b) => b.r - a.r || a.k - b.k).map(a => a.x);
+" "" \
+  "$ACW1"
+prouver "« 118 » qui choisit FA-2026/1187" web/public/v10/app.js \
+  "C.rangRecherche(x.label || '', q.value) + entier(x)" "C.rangRecherche(x.label || '', q.value)" \
+  "$ACW1"
+prouver "la catégorie créée qui ne paraît pas dans le champ" web/public/v10/app.js \
+  "        \$('[data-combo=category]', head).setItems(C.expenseCategories(data).map(c => ({ v: c, label: c })), v);" "        bindCombo(\$('[data-combo=category]', head), { items: C.expenseCategories(data).map(c => ({ v: c, label: c })), placeholder: '— Choisir une catégorie —' }).setValue(v);" \
+  "$ACW1"
+prouver "« Achats de matières premières » absente des catégories" web/public/v10/core.js \
+  "'Achats de marchandises', 'Achats de matières premières', 'Sous-traitance'" "'Achats de marchandises', 'Sous-traitance'" \
+  "$ACW1"
+prouver "la réception qui dit la marchandise entrée en stock quand rien n'est suivi" web/public/v10/app.js \
+  "toast(\`Réception \${r.number} validée : \${phraseStockReception(r)}\`)" "toast(\`Réception \${r.number} validée : la marchandise suivie est entrée en stock.\`)" \
+  "$ACW1"
+prouver "le bandeau de la facture qui affirme la marchandise entrée sans la compter" web/public/v10/app.js \
+  "\${phraseReceptionsAchat(p.receptions)}." "sa marchandise est déjà entrée en stock par \${p.receptions.length > 1 ? 'elles' : 'elle'}, ces lignes ne l'y font pas entrer une seconde fois." \
+  "$ACW1"
+prouver "« Recevoir » qui laisse la commande en brouillon" web/public/v10/app.js \
+  "        cmdR.status = 'envoyée';
+" "" \
+  "$ACW1"
+prouver "une commande qui a reçu, remise en brouillon" web/public/v10/app.js \
+  ".filter(s => !recue || s === o.status || !['demande', 'brouillon'].includes(s))" "" \
+  "$ACW1"
+prouver "le serveur qui valide une réception sur une commande pas partie" serveur/v10/dossier.ts \
+  "    await controlerReceptions(tx, entreprise, lus);
+" "" \
+  "$ACS1"
+prouver "une réception validée sur une demande de prix" serveur/v10/accords.ts \
+  "    if (statut !== 'brouillon' && statut !== 'demande') continue;" "    if (statut !== 'brouillon') continue;" \
+  "$ACS1"
+prouver "« Recevoir » refusé : la commande qui part dans le même envoi n'est pas lue" serveur/v10/accords.ts \
+  "    const dansLEnvoi = lus.find((x) => x.collection === 'supplierOrders' && x.cle === id);" "    const dansLEnvoi = undefined as { apres: unknown } | undefined;" \
+  "$ACS1"
+prouver "l'invitation posée sur le premier champ de la page" web/public/v10/app.js \
+  "      if (!document.body.classList.contains('mode-caisse')) { el.classList.add('ga-coin'); bouton.classList.add('guide-moi-signale'); return; }
+" "" \
+  "$ACW1"
+prouver "l'invitation qui ne va pas dans le coin" web/public/plateforme/ecrans.css \
+  ".guide-appel.ga-coin { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }" "" \
+  "$ACW1"
+prouver "« Guide-moi » qui reste allumé quand l'invitation s'en va" web/public/v10/app.js \
+  "      bouton.classList.remove('guide-moi-signale');
+" "" \
+  "$ACW1"
+prouver "« la déclaration de août »" web/public/v10/app.js \
+  "avec la déclaration \${C.deLibelle(C.MONTHS_FR[Number(d0.slice(5, 7)) - 1] + ' ' + d0.slice(0, 4))}, et tu" "avec la déclaration de \${C.MONTHS_FR[Number(d0.slice(5, 7)) - 1]} \${d0.slice(0, 4)}, et tu" \
+  "$ACW1"
+prouver "l'attestation de retenue sans dire où elle s'établit" web/public/v10/app.js \
+  "au fournisseur ; elle s'établit sur TEJ, la plateforme du ministère des Finances. <em>À VÉRIFIER avec ton comptable.</em>" "au fournisseur." \
+  "$ACW1"
+prouver "« Joindre un justificatif » proposé en ligne, où il refuse toujours" web/public/v10/app.js \
+  "\${bridge.piecesJointes === false ? '' : \`<button class=\"btn\" id=\"attach-top\">" "\${false ? '' : \`<button class=\"btn\" id=\"attach-top\">" \
+  "$ACW1"
+prouver "le bouton du justificatif absent, branché quand même" web/public/v10/app.js \
+  "    if (\$('#attach-top')) \$('#attach-top').onclick = async () => {" "    \$('#attach-top').onclick = async () => {" \
+  "$ACW1"
+prouver "le filtre « Sans justificatif » proposé en ligne" web/public/v10/app.js \
+  "\${bridge.piecesJointes === false && s.st !== SANS_JUSTIF ? '' :" "\${false ? '' :" \
+  "$ACW1"
+prouver "la clôture qui réclame des justificatifs qu'on ne peut pas joindre" web/public/v10/core.js \
+  "const noProof = opts && opts.sansPiecesJointes ? [] : (data.purchases" "const noProof = (data.purchases" \
+  "$ACW1"
+prouver "la page de clôture qui ne dit pas qu'on ne peut pas joindre" web/public/v10/app.js \
+  "const checks = next ? C.closureChecks(data, company(), next.from, next.to, { reserves: licence.reserves || [], sansPiecesJointes: bridge.piecesJointes === false }) : [];" "const checks = next ? C.closureChecks(data, company(), next.from, next.to, { reserves: licence.reserves || [] }) : [];" \
+  "$ACW1"
+prouver "l'étape du justificatif qui attend un bouton absent" web/public/v10/visites.js \
+  "titre: 'Le justificatif d\\'abord', facultatif: true," "titre: 'Le justificatif d\\'abord'," \
+  "$ACW1"
+prouver "l'objet d'un avoir qui invite à dire ce qu'on a acheté" web/public/v10/app.js \
+  "        if (objet) objet.placeholder = inviteObjet(p.kind);
+" "" \
+  "$ACW1"
+prouver "l'échéance d'un avoir" web/public/v10/app.js \
+  "      if (bloc) bloc.hidden = p.kind === 'avoir';" "      if (bloc) bloc.hidden = false;" \
+  "$ACW1"
+prouver "l'avoir rattaché depuis la liste qui ne reprend rien" web/public/v10/app.js \
+  "        if (vise && isNew && p.kind === 'avoir' && !(p.lines || []).some(" "        if (false && vise && isNew && p.kind === 'avoir' && !(p.lines || []).some(" \
+  "$ACW1"
+prouver "« Tu as modifié cette facture d'achat » dit d'un avoir" web/public/v10/app.js \
+  "p.kind === 'avoir' ? 'cet avoir' : p.kind === 'acompte' ? 'cet acompte'" "p.kind === 'avoir' ? 'cette dépense' : p.kind === 'acompte' ? 'cet acompte'" \
+  "$ACW1"
+prouver "« Enregistrer » qu'en haut d'un long achat" web/public/v10/app.js \
+  "\${clos ? '' : '<div class=\"save-bar\" id=\"b-save-bar\" hidden>" "\${true ? '' : '<div class=\"save-bar\" id=\"b-save-bar\" hidden>" \
+  "$ACW1"
+prouver "deux « Enregistrer » principaux à l'écran" web/public/v10/app.js \
+  "majBarre = () => { const b = \$('#b-save-bar'); if (b) b.hidden = !(dirty && !hautEnVue); };" "majBarre = () => { const b = \$('#b-save-bar'); if (b) b.hidden = !dirty; };" \
+  "$ACW1"
+prouver "l'échéance qui reste vide après une lecture" web/public/v10/app.js \
+  "      if (!p.dueDate && p.date && p.kind !== 'depense' && p.kind !== 'avoir') p.dueDate = C.addDays(p.date, delaiAchat(p.supplierId));
+" "" \
+  "$ACW1"
+prouver "la fiche du fournisseur qui défile de côté à 1366 px" web/public/plateforme/ecrans.css \
+  "  .dash-grid:has(#sup-docs) { grid-template-columns: 1fr; }
+" "" \
+  "$ACW1"
+prouver "la feuille des réglages d'écran de la plateforme oubliée" web/public/v10/index.html \
+  "  <link rel=\"stylesheet\" href=\"../plateforme/ecrans.css\">
+" "" \
+  "$ACW1"
+prouver "la demande de prix qui affiche un total à zéro" web/public/v10/app.js \
+  "      if (o.status === 'demande' && !o.lines.some(l => Number(l.unitPrice) > 0)) {" "      if (false) {" \
+  "$ACW2"
+prouver "« Commander » en bouton principal avant l'envoi de la demande" web/public/v10/app.js \
+  "<button class=\"btn \${demandeSansPrix ? '' : 'btn-primary'}\" id=\"cf-commander\">" "<button class=\"btn btn-primary\" id=\"cf-commander\">" \
+  "$ACW2"
+prouver "le PDF d'une demande sans prix qui n'est pas l'étape suivante" web/public/v10/app.js \
+  "<button class=\"btn \${demandeSansPrix ? 'btn-primary' : ''}\" id=\"cf-pdf\">" "<button class=\"btn\" id=\"cf-pdf\">" \
+  "$ACW2"
+prouver "« Commande … enregistrée » dit d'une demande de prix" web/public/v10/app.js \
+  "toast(\`\${o.status === 'demande' ? 'Demande de prix' : 'Commande'} \${o.number} enregistrée\`);" "toast(\`Commande \${o.number} enregistrée\`);" \
+  "$ACW2"
+prouver "la colonne des prix d'une demande qui dit « P.U. HT »" web/public/v10/app.js \
+  "\${quoi === 'demande' ? 'Prix répondu HT' : 'P.U. HT'}" "P.U. HT" \
+  "$ACW2"
+prouver "la date d'une commande sans sa bulle « i »" web/public/v10/guide.js \
+  "    'cf.date': { t: 'Date'," "    'cf.date-retiree': { t: 'Date'," \
+  "$ACW1"
+prouver "la référence d'une commande sans sa bulle « i »" web/public/v10/app.js \
+  "lbl('Référence (optionnel)', 'cf.reference')" "lbl('Référence (optionnel)', '')" \
+  "$ACW1"
+prouver "la désignation d'une commande écrasée par les autres colonnes" web/public/v10/app.js \
+  "<th class=\"r\" style=\"width:76px\">Qté</th><th style=\"width:136px\">Unité</th><th class=\"r\" style=\"width:124px\">" "<th class=\"r\">Qté</th><th>Unité</th><th class=\"r\">" \
+  "$ACW1"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -19,7 +19,7 @@ import { REGLEMENTS_VENTES, tenirReglements } from '../reglements.ts';
 import { annoncerReglements, resteAvant } from '../ventes/annonces.ts';
 import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonSaisi } from '../ventes/pieces.ts';
-import { controlerCommandes, controlerEncours, controlerRemise } from './accords.ts';
+import { controlerCommandes, controlerEncours, controlerReceptions, controlerRemise } from './accords.ts';
 import { mesRoles, verifierEcriture } from './droits.ts';
 import { suivreAchats } from './achats.ts';
 import { suivrePaie } from './paie.ts';
@@ -201,8 +201,11 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   // Supprimer un brouillon : les siens (brique 117 ; 03 § 1). Dit avec le nom de l'auteur, avant que la base ne le refuse.
   if (!options.serveur) await verifierAuteurs(tx, entreprise, utilisateur, changements, actuels);
   // Une commande fournisseur qui part au-delà du seuil de l'entreprise : l'accord d'un responsable (brique 114).
+  // Une réception validée sur une commande qui n'est pas partie : refusée (lot achats, 05/10/2026).
   if (!options.serveur) {
-    await controlerCommandes(tx, entreprise, changements.map((c) => ({ collection: c.collection, cle: c.cle, avant: actuels.get(`${c.collection}/${c.cle}`)?.contenu ?? null, apres: c.contenu })));
+    const lus = changements.map((c) => ({ collection: c.collection, cle: c.cle, avant: actuels.get(`${c.collection}/${c.cle}`)?.contenu ?? null, apres: c.contenu }));
+    await controlerCommandes(tx, entreprise, lus);
+    await controlerReceptions(tx, entreprise, lus);
   }
   const resultat: { collection: string; cle: string; revision: number | null }[] = [];
   for (const c of changements) {

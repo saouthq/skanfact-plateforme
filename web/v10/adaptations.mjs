@@ -689,4 +689,6 @@ export const ADAPTATIONS = [
   ...lireFichier('comptoir.txt'),
   // ── La caisse tactile (05/10/2026 ; maquette validée par Skander) ──
   ...lireFichier('caisse-tactile.txt'),
+  // ── Le lot achats (05/10/2026 ; le parcours d'un commerçant, docs/achats.md) ──
+  ...lireFichier('achats-lot.txt'),
 ];
