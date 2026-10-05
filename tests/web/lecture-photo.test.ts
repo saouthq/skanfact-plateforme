@@ -18,6 +18,7 @@ import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
+import { libererMatricule } from '../matricule-libre.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -64,6 +65,9 @@ describe('la lecture d\'une facture d\'achat en photo, à la souris', () => {
     const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Atelier Nadia' })).corps.id);
     type Objet = { collection: string; cle: string; revision: number; contenu: Record<string, unknown> };
     const fiche = ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as Objet[]).find((o) => o.collection === '_racine' && o.cle === 'company');
+    // Le matricule de Nadia, imprimé sur la facture photographiée : repris à l'entreprise d'un test précédent (une
+    // entreprise à la fois : tests/matricule-libre.ts).
+    await libererMatricule(inject('pgAdmin'), '7654321B/A/M/000');
     const ok = await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
       { collection: '_racine', cle: 'company', rang: null, revision: fiche?.revision ?? null, contenu: { ...fiche?.contenu, name: 'Atelier Nadia', matricule: '7654321B/A/M/000' } },
       { collection: 'suppliers', cle: 'quincaillerie', rang: 0, revision: null, contenu: { id: 'quincaillerie', name: 'Quincaillerie Ben Salem', matricule: '1234567A/B/M/000' } },

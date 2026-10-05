@@ -23,6 +23,7 @@ import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { digigoSimule } from '../digigo-simule.ts';
+import { libererMatricule } from '../matricule-libre.ts';
 import { v10, type DocV10 } from '../moteur/v10.ts';
 import { ttnSimulee } from '../ttn-simule.ts';
 
@@ -109,6 +110,9 @@ describe('l\'envoi à la TTN, à la souris', () => {
     const ici = await objets(ent);
     const societe = ici.find((o) => o.collection === '_racine' && o.cle === 'company');
     const client = { ...menuiserie.contenu, matricule: '1234567A/A/M/000' };
+    // Le matricule de Nadia, que la TTN simulée connaît : repris à l'entreprise d'un test précédent (une entreprise
+    // à la fois : tests/matricule-libre.ts).
+    await libererMatricule(inject('pgAdmin'), '7654321B/A/M/000');
     await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
       { collection: '_racine', cle: 'company', rang: null, revision: societe?.revision ?? null, contenu: { ...fiche.contenu, ...societe?.contenu, name: 'Atelier Nadia', matricule: '7654321B/A/M/000', efacture: true } },
       { collection: 'clients', cle: menuiserie.cle, rang: 0, revision: null, contenu: client },

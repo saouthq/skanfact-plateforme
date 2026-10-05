@@ -23,6 +23,7 @@ import { routesV10 } from '../../serveur/v10/routes.ts';
 import { declarerGestesVentes } from '../../serveur/ventes/gestes.ts';
 import { routesVentes } from '../../serveur/ventes/routes.ts';
 import { digigoSimule } from '../digigo-simule.ts';
+import { libererMatricule } from '../matricule-libre.ts';
 import { v10, type DocV10 } from '../moteur/v10.ts';
 import { ttnSimulee } from '../ttn-simule.ts';
 
@@ -66,6 +67,9 @@ async function entreprise(pieces: string[], essai = false) {
     const ici = cible === modele ? deModele : await objetsDe(cible);
     const societe = ici.find((x) => x.collection === '_racine' && x.cle === 'company');
     const deja = ici.find((x) => x.collection === 'clients' && x.cle === menuiserie.cle);
+    // Le matricule de Nadia, que la TTN simulée connaît : une vraie entreprise le reprend à celle d'un test précédent
+    // (une entreprise à la fois : tests/matricule-libre.ts) ; l'entreprise d'essai garde le sien.
+    if (cible !== modele) await libererMatricule(inject('pgAdmin'), '7654321B/A/M/000');
     const r = await appeler('POST', `/entreprises/${cible}/dossier-v10`, jeton, { changements: [
       { collection: '_racine', cle: 'company', rang: null, revision: societe?.revision ?? null, contenu: { ...fiche.contenu, ...societe?.contenu, matricule: '7654321B/A/M/000', efacture: true } },
       { collection: 'clients', cle: menuiserie.cle, rang: deja?.rang ?? 0, revision: deja?.revision ?? null, contenu: client },

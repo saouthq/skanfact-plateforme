@@ -130,6 +130,8 @@
     revient à la v10 comme un conflit (`{ conflict, disk }`) qu'elle fusionne et dit, la version du
     serveur gagnant ; jamais un nombre à virgule (`{ "~n": "450.5" }`). Une facture s'émet par le
     serveur (numéro de la série FAC, net à payer vérifié au millime de l'écran, pièce scellée).
+    La raison sociale et le matricule de la fiche société deviennent ceux de l'entreprise (`serveur/v10/identite.ts`,
+    `0071`, lot facture du 05/10/2026, `docs/facture-details.md` D6 ; jamais l'entreprise d'essai ni un dossier tenu).
     Ce qui n'existe pas encore en ligne se refuse avec sa phrase (`pasEncore`) ; les panneaux des
     Paramètres sans objet (sauvegardes du disque, mot de passe du fichier, licence…) sont cachés
     (`panneauxAbsents`), et les visites de « Guide-moi » sans objet en ligne aussi (`visitesAbsentes`) ; « Voir un

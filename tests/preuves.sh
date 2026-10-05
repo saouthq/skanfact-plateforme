@@ -1191,7 +1191,7 @@ prouver "les lignes d'une facture émise encore modifiables" $DV \
   "'exchangeRate', 'lines', 'discountRate'" "'exchangeRate', 'discountRate'" \
   "une facture émise ne change plus ce qui a été scellé"
 prouver "une facture émise refusée parce que la base a rangé ses clés autrement" $DV \
-  "      if (canonique(avant?.[champ]) !== canonique(apres[champ])) throw" "      if (JSON.stringify(avant?.[champ]) !== JSON.stringify(apres[champ])) throw" \
+  "(champ === 'withholdingRate' ? tauxRelu(v) : canonique(v));" "(champ === 'withholdingRate' ? tauxRelu(v) : JSON.stringify(v));" \
   "une facture émise ne change plus ce qui a été scellé"
 prouver "une facture émise qu'on peut effacer" $DV \
   "    if (!apres) throw new Refus(av ? 'v10.avoir_ne_s_efface_pas' : 'v10.emise_ne_s_efface_pas', numero);" "    if (!apres) return;" \
@@ -8461,6 +8461,89 @@ prouver "l'exemple qui « rend tes vraies données » en ligne" web/public/v10/v
 prouver "la réponse au comptable qui part « dans le paquet du mois »" web/public/v10/visites.js \
   "Tu réponds en une phrase ; il la lit dès que tu l\\'enregistres." "Tu réponds en une phrase ; ta réponse repart dans le paquet du mois." \
   "$VELT"
+
+# ── Le lot facture (05/10/2026 ; le parcours d'un commerçant, docs/facture-details.md ; web/v10/facture-details.txt,
+# serveur/v10/identite.ts, 0071, serveur/v10/dossier.ts) ──
+IDS1='le nom et le matricule écrits dans la fiche deviennent ceux de l'\''entreprise, sous leur forme lisible ; la trace le dit, et la facture suivante les fige'
+IDS2='un matricule mal formé ne se porte pas ; celui d'\''une autre entreprise se refuse en le disant, et rien n'\''est écrit'
+IDS3='l'\''entreprise d'\''essai garde son nom et son matricule, quoi qu'\''écrive sa fiche'
+DOSR='une facture émise avec la retenue en texte reste la même une fois relue en nombre : ses règlements s'\''enregistrent ; un autre taux, non'
+MAT1='l'\''écran et le serveur disent la même chose de chaque matricule écrit, et le serveur le garde sous sa forme lisible'
+MAT2='la fiche société nomme un matricule mal formé comme un matricule absent, et laisse en paix un matricule juste'
+FDW='Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
+prouver 'la fiche qui ne porte pas son identité à l'\''entreprise' serveur/v10/dossier.ts \
+  '  await suivreIdentite(tx, entreprise, lus);
+' '' \
+  "$IDS1"
+prouver 'le matricule porté tel qu'\''il est écrit' serveur/v10/identite.ts \
+  '? `${c.slice(0, 8)}/${c[8]}/${c[9]}/${c.slice(10)}` : undefined' '? c : undefined' \
+  "$IDS1"
+prouver 'un matricule mal formé qui efface celui de l'\''entreprise' serveur/v10/identite.ts \
+  '  if (!c) return null;' '  if (!c || !/^[0-9]{7}[A-Z]{3}[0-9]{3}$/.test(c)) return null;' \
+  "$IDS2"
+prouver 'le matricule d'\''une autre entreprise porté sans refus' base/migrations/0071_identite_suit_la_fiche.sql \
+  '  if p_matricule is not null and exists (select 1 from socle.entreprise x where x.active and x.matricule_fiscal = p_matricule and x.id <> p_entreprise) then' '  if false then' \
+  "$IDS2"
+prouver 'l'\''entreprise d'\''essai renommée par la fiche de son exemple' base/migrations/0071_identite_suit_la_fiche.sql \
+  'if not found or e.essai or e.tenue_par is not null then return null; end if;' 'if not found or e.tenue_par is not null then return null; end if;' \
+  "$IDS3"
+prouver 'la retenue relue en nombre, prise pour un changement de la pièce scellée' serveur/v10/dossier.ts \
+  'const scellee = (champ: string, v: unknown) => (champ === '\''withholdingRate'\'' ? tauxRelu(v) : canonique(v));' 'const scellee = (_champ: string, v: unknown) => canonique(v);' \
+  "$DOSR"
+prouver 'tous les taux de retenue d'\''une pièce scellée tenus pour égaux' serveur/v10/dossier.ts \
+  'return Number.isFinite(n) && n !== 0 ? String(n) : '\''0'\'';' 'return '\''0'\'';' \
+  "$DOSR"
+prouver 'l'\''écran qui laisse passer un matricule que le serveur ne porte pas' web/public/v10/core.js \
+  'function matriculeBienForme(v) { return /^[0-9]{7}[A-Z]{3}[0-9]{3}$/' 'function matriculeBienForme(v) { return /^[0-9]{7}[A-Z]{1,3}[0-9]{0,3}$/' \
+  "$MAT1"
+prouver 'un matricule mal formé que la fiche ne nomme pas' web/public/v10/core.js \
+  '    else if (!matriculeBienForme(c.matricule)) out.push('\''un matricule fiscal valide' '    else if (false) out.push('\''un matricule fiscal valide' \
+  "$MAT2"
+prouver '« MF » imprimé sans matricule' web/public/v10/core.js \
+  'String(company.matricule || '\'''\'').trim() ? `${L.mf} ${escapeHtml(company.matricule)}` : '\'''\''' '`${L.mf} ${escapeHtml(company.matricule)}`' \
+  "$FDW"
+prouver 'le tampon posé sur l'\''objet de la pièce' web/public/v10/core.js \
+  '.stamp { position: absolute; left: 50%; top: 150mm; transform: translate(-50%, -50%) rotate(-24deg);' '.stamp { position: absolute; top: 62mm; right: 24mm; transform: rotate(-12deg);' \
+  "$FDW"
+prouver 'le tampon opaque, qui cache ce qu'\''il couvre' web/public/v10/core.js \
+  'opacity: .16; mix-blend-mode: multiply;' 'opacity: .45;' \
+  "$FDW"
+prouver 'l'\''avertissement d'\''émission qui ne nomme pas ce qui manque' web/public/v10/app.js \
+  'Ton matricule fiscal manque : il est obligatoire sur une facture en Tunisie' 'Ta fiche société est incomplète (raison sociale ou matricule fiscal) : il est obligatoire sur une facture en Tunisie' \
+  "$FDW"
+prouver 'la fenêtre d'\''émission sans le geste qui complète la fiche' web/public/v10/app.js \
+  'id="em-fiche">Compléter ma fiche…</button>' 'id="em-fiche" hidden>Compléter ma fiche…</button>' \
+  "$FDW"
+prouver 'la fenêtre d'\''émission qui ne se relit pas après la fiche' web/public/v10/app.js \
+  '              $('\''#em-avert'\'', root).innerHTML = avertir(l);
+' '' \
+  "$FDW"
+prouver 'un matricule mal formé qui part au serveur' web/public/v10/app.js \
+  'if (manqueMf && !C.matriculeBienForme(v.matricule)) return refuser(' 'if (false) return refuser(' \
+  "$FDW"
+prouver 'la fiche qui garde le matricule que le serveur a refusé' web/public/v10/app.js \
+  '            Object.assign(co, avant);
+' '' \
+  "$FDW"
+prouver 'la retenue émise en texte, telle que la liste l'\''écrit' web/public/v10/app.js \
+  '      doc.withholdingRate = Number(doc.withholdingRate) || 0;
+' '' \
+  "$FDW"
+prouver '« une retenue subie de août »' web/public/v10/app.js \
+  'c'\''est une retenue subie ${/^[aeiou]/i.test(' 'c'\''est une retenue subie ${/^$/i.test(' \
+  "$FDW"
+prouver 'le menu qui promet un PDF joint au message' web/public/v10/app.js \
+  'hint: !bridge.ajouterLien ? '\''Le PDF est joint au message'\'' :' 'hint: true ? '\''Le PDF est joint au message'\'' :' \
+  "$FDW"
+prouver '« Ouvrir » qui propose de modifier une pièce émise' web/public/v10/app.js \
+  'hint: !emiseIci ? '\''Voir la pièce et la modifier'\'' :' 'hint: true ? '\''Voir la pièce et la modifier'\'' :' \
+  "$FDW"
+prouver 'l'\''espace du client sans ce qui a déjà été payé' web/public/espace/espace.js \
+  '${recu(p) ? `<span class="recu"> · ${recu(p)}</span>` : '\'''\''}' '' \
+  "$FDW"
+prouver 'le refus du serveur à l'\''émission dans un bandeau de trois secondes' web/public/v10/app.js \
+  '          infoDialog(doc.type === '\''avoir'\'' ? '\''L\'\''avoir n\'\''est pas émis'\''' '          toast(motif, true) || void (doc.type === '\''avoir'\'' ? '\''L\'\''avoir n\'\''est pas émis'\''' \
+  "$FDW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

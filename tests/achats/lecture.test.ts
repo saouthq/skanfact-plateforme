@@ -23,6 +23,7 @@ import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { routesSocle } from '../../serveur/routes/socle.ts';
 import { routesV10 } from '../../serveur/v10/routes.ts';
 import { declarerGestesVentes } from '../../serveur/ventes/gestes.ts';
+import { libererMatricule } from '../matricule-libre.ts';
 
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 const pool = creerPool(inject('pgApp'));
@@ -59,6 +60,9 @@ async function atelier() {
   const ent = String((await appeler('POST', '/entreprises', nadia.jeton, { raisonSociale: 'Atelier Nadia' })).corps.id);
   const fiche = ((await appeler('GET', `/entreprises/${ent}/dossier-v10`, nadia.jeton)).corps.objets as { collection: string; cle: string; contenu: Record<string, unknown>; revision: number }[])
     .find((x) => x.collection === '_racine' && x.cle === 'company');
+  // Le matricule de Nadia, imprimé sur les factures lues : repris à l'entreprise d'un test précédent (une entreprise
+  // à la fois : tests/matricule-libre.ts).
+  await libererMatricule(inject('pgAdmin'), '7654321B/A/M/000');
   await appeler('POST', `/entreprises/${ent}/dossier-v10`, nadia.jeton, { changements: [
     { collection: '_racine', cle: 'company', rang: null, revision: fiche?.revision ?? null, contenu: { ...fiche?.contenu, matricule: '7654321B/A/M/000' } }] });
   return { ...nadia, ent, lire: (nom: string, contenu: string, jeton = nadia.jeton) => appeler('POST', `/entreprises/${ent}/achats/lecture`, jeton, { nom, contenu }) };
@@ -109,6 +113,7 @@ describe('la lecture d\'une facture d\'achat par le serveur', () => {
     const a = await atelier();
     const fiche = ((await appeler('GET', `/entreprises/${a.ent}/dossier-v10`, a.jeton)).corps.objets as { collection: string; cle: string; contenu: Record<string, unknown>; revision: number }[])
       .find((x) => x.collection === '_racine' && x.cle === 'company');
+    await libererMatricule(inject('pgAdmin'), '1234567A/B/M/000');
     await appeler('POST', `/entreprises/${a.ent}/dossier-v10`, a.jeton, { changements: [
       { collection: '_racine', cle: 'company', rang: null, revision: fiche?.revision ?? null, contenu: { ...fiche?.contenu, matricule: '1234567A/B/M/000' } }] });
     const r = await a.lire('FV-2026-0412.pdf', piece('quincaillerie.pdf'));

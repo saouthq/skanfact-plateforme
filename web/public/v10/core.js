@@ -9104,11 +9104,16 @@
   }
 
   // Ce qui manque à la fiche société pour que les documents soient complets.
+  // (plateforme) La forme d'un matricule fiscal tunisien, telle que le serveur la porte à l'entreprise (lot facture,
+  // 05/10/2026 ; serveur/v10/identite.ts) : sept chiffres, la lettre-clé, le code TVA, la catégorie et l'établissement ;
+  // les séparateurs n'y comptent pas (1234567A/A/M/000 comme 1234567 a a m 000).
+  function matriculeBienForme(v) { return /^[0-9]{7}[A-Z]{3}[0-9]{3}$/.test(String(v == null ? '' : v).toUpperCase().replace(/[\s/.\-_]/g, '')); }
   function companyGaps(company) {
     const c = company || {};
     const out = [];
     if (!(c.name || '').trim()) out.push('la raison sociale');
     if (!(c.matricule || '').trim()) out.push('le matricule fiscal');
+    else if (!matriculeBienForme(c.matricule)) out.push('un matricule fiscal valide (sept chiffres, une lettre, puis code TVA, catégorie et établissement : 1234567A/A/M/000)');
     // Le RIB ne manque que si on attend un virement (7.22.0). Voir `ribAttendu` : un commerce, un
     // restaurant ou un salon encaissent sur place.
     if (ribAttendu(c) && !(c.rib || '').trim()) out.push('le RIB');
@@ -9930,8 +9935,11 @@
   .sign .s small { display: block; color: #9aa3ae; font-size: 8pt; margin-top: .6mm; }
   .sign .s img { position: absolute; right: 3mm; top: 1.5mm; max-height: 12mm; max-width: 34mm; }
 
-  .stamp { position: absolute; top: 62mm; right: 24mm; transform: rotate(-12deg); border: .8mm solid ${accent}; color: ${accent}; border-radius: 2mm; padding: 1.5mm 5mm; font-size: 18pt; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; opacity: .45; z-index: 2; }
-  .stamp.draft { border-color: #9aa3ae; color: #9aa3ae; }
+  /* (plateforme) Le tampon comme une encre (lot facture, 05/10/2026) : pâle, en travers du milieu de la page, il se
+     multiplie avec ce qu'il couvre — un texte noir reste noir, le blanc prend sa couleur. Rien ne passe dessous. */
+  .page { isolation: isolate; }
+  .stamp { position: absolute; left: 50%; top: 150mm; transform: translate(-50%, -50%) rotate(-24deg); border: 1.4mm solid ${accent}; color: ${accent}; border-radius: 4mm; padding: 2mm 9mm; font-size: 52pt; font-weight: 800; letter-spacing: 3mm; text-transform: uppercase; white-space: nowrap; opacity: .16; mix-blend-mode: multiply; pointer-events: none; z-index: 2; }
+  .stamp.draft { border-color: #6b7684; color: #6b7684; }
 
   .footer { position: absolute; left: 18mm; right: 18mm; bottom: 7mm; font-size: 7.6pt; color: #9aa3ae; display: flex; justify-content: space-between; gap: 6mm; border-top: .2mm solid #eceff3; padding-top: 2.5mm; }
   .footer .f-left { white-space: pre-line; }
@@ -10005,7 +10013,7 @@
         ${company.logo ? `<img class="logo" src="${company.logo}" alt="">` : ''}
         <div class="name">${escapeHtml(company.name)}</div>
         ${company.tagline ? `<div class="tag">${escapeHtml(company.tagline)}</div>` : ''}
-        <div class="addr">${nl2br(company.address)}<br>${L.mf} ${escapeHtml(company.matricule)}${contact ? '<br>' + contact : ''}</div>
+        <div class="addr">${[company.address ? nl2br(company.address) : '', String(company.matricule || '').trim() ? `${L.mf} ${escapeHtml(company.matricule)}` : '', contact].filter(Boolean).join('<br>')}</div>
       </div>
       <div class="title">
         <div class="kind">${title}</div>
@@ -11256,7 +11264,7 @@
     estRemboursementAchat, avoirRembourse, aRattacherAchat, nextNumber, isLocked, isIssued, computeTotals, creditsFor, invoiceBalance, estRemboursement, titreQuestion, gesteQuestion, dateDernierReglement, motifVerrou, delaisContradictoires, effectiveStatus,
     depositLines, depositLinesMontant, acompteDit, settlementLines, salesJournal, vatSummary, paymentsJournal, toCsv, migrateData,
     PERIODS, MONTHS_FR, MONTHS_SHORT, monthLabel, deLibelle, addMonths, nextRecurrenceDate, dueRecurrences, catchUpRecurrence, fillTemplate, buildRecurringInvoice,
-    reminderLevel, REMINDER_LABELS, daysBetween, overdueInvoices, facturesAVenir, todoList, companyGaps, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
+    reminderLevel, REMINDER_LABELS, daysBetween, overdueInvoices, facturesAVenir, todoList, companyGaps, matriculeBienForme, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
     CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, DEPOT_PRINCIPAL, depotsDe, nomDepot, stockParDepot, transfertStock, decimalsFor, listesPrixApplicables, prixArticlePour, arrondiDevise, prixDuCatalogue, prixCataloguePourQuantite, lirePaliers, paliersEnTexte, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,

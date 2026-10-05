@@ -24,6 +24,7 @@ import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { cliquer, poserMouchard, recitObjet, retirerMouchard } from '../cliquer.ts';
 import { digigoSimule } from '../digigo-simule.ts';
 import { konnectSimule } from '../konnect-simule.ts';
+import { libererMatricule } from '../matricule-libre.ts';
 import { ttnSimulee } from '../ttn-simule.ts';
 
 const PHOTO = path.join(import.meta.dirname, '../donnees/lecture/quincaillerie-photo.jpg');
@@ -107,6 +108,9 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     await nadia.goto(`${serveur.adresse}/v10/?e=${m.ent}#/parametres`);
     await expect.poll(() => nadia.locator('#pf input[name=name]').count(), { timeout: 20_000 }).toBe(1);
     await plusTard(nadia);
+    // Son matricule, que la TTN simulée connaît : repris à l'entreprise d'un test précédent (une entreprise à la fois :
+    // tests/matricule-libre.ts).
+    await libererMatricule(inject('pgAdmin'), '7654321B/A/M/000');
     await nadia.locator('#pf input[name=matricule]').fill('7654321B/A/M/000');
     await nadia.locator('#pf [name=address]').fill('12 rue de l\'Artisanat, Ben Arous');
     await nadia.locator('#save-bar #save').click();

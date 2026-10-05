@@ -126,12 +126,14 @@
 
   // Une pièce, comme l'entreprise l'imprime ; « Payer en ligne » si elle doit encore et que l'entreprise
   // l'accepte (c'est alors l'étape suivante : le bouton principal), « Imprimer ou enregistrer en PDF ».
+  // Sous le reste à payer, ce que la facture a déjà reçu (lot facture, 05/10/2026) : « Reste à payer 109,578 DT » sous une
+  // facture imprimée à 327,586 DT ne se comprenait pas sans le paiement et l'avoir qui l'expliquent.
   /** @param {any} p @param {boolean} retour */
   function piece(p, retour) {
     const tampon = p.statut === 'payee' ? 'Payée' : p.statut === 'annulee' ? 'Annulée' : undefined;
     racine.innerHTML = `${entete()}
       <div class="barre">${retour ? '<button type="button" id="retour">← Toutes tes pièces</button>' : ''}
-        <span class="reste">${p.reste === null ? '' : Number(p.reste) > 0 ? `Reste à payer : <strong>${esc(montant(p.reste, p.devise))}</strong>` : 'Rien à payer sur cette pièce'}</span>
+        <span class="reste">${p.reste === null ? '' : Number(p.reste) > 0 ? `Reste à payer : <strong>${esc(montant(p.reste, p.devise))}</strong>` : 'Rien à payer sur cette pièce'}${recu(p) ? `<span class="recu"> · ${recu(p)}</span>` : ''}</span>
         <span class="gestes">${p.payable ? `<button type="button" class="principal" id="payer">Payer ${esc(montant(p.reste, p.devise))} en ligne</button>` : ''}
           <button type="button" ${p.payable ? '' : 'class="principal" '}id="imprimer">Imprimer ou enregistrer en PDF</button>
           ${p.document.ttn ? '<button type="button" id="efacture" title="La facture validée par la TTN (El Fatoora) : c\'est elle qui fait foi.">Facture électronique (XML)</button>' : ''}</span></div>

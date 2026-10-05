@@ -51,7 +51,9 @@ describe('la page Écritures, à la souris', () => {
     const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
     const client = async (raisonSociale: string, matriculeFiscal?: string) =>
       String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale, ...(matriculeFiscal ? { matriculeFiscal } : {}) })).corps.entreprise);
-    const cafe = await client('Café des Arts', '7654321B/A/M/000');
+    // Un matricule à ce fichier seul : les tests partagent une base, et un matricule n'est celui que d'une entreprise
+    // (tests/matricule-libre.ts).
+    const cafe = await client('Café des Arts', '2468024B/A/M/000');
     const garage = await client('Garage du Port');
     await client('Librairie Sans Rien');
     const saisir = async (ent: string, date: string, piece: string, lignes: [string, string, string][]) =>
@@ -85,8 +87,8 @@ describe('la page Écritures, à la souris', () => {
     const lignes = fs.readFileSync(await fichier.path(), 'utf8').replace(/^\uFEFF/, '').trim().split('\r\n');
     expect(lignes).toEqual([
       'Client;Matricule;Mois;N°;Date;Journal;Pièce;Compte;Tiers;Libellé;Débit;Crédit;Lettrage;État',
-      'Café des Arts;7654321B/A/M/000;2026-03;1;12/03/2026;OD;OD-1;6226;;Pièce OD-1;250,500;0,000;;validée',
-      'Café des Arts;7654321B/A/M/000;2026-03;1;12/03/2026;OD;OD-1;401;;Pièce OD-1;0,000;250,500;;validée',
+      'Café des Arts;2468024B/A/M/000;2026-03;1;12/03/2026;OD;OD-1;6226;;Pièce OD-1;250,500;0,000;;validée',
+      'Café des Arts;2468024B/A/M/000;2026-03;1;12/03/2026;OD;OD-1;401;;Pièce OD-1;0,000;250,500;;validée',
       'Garage du Port;;2026-03;;20/03/2026;OD;OD-7;6061;;Pièce OD-7;85,125;0,000;;brouillard',
       'Garage du Port;;2026-03;;20/03/2026;OD;OD-7;401;;Pièce OD-7;0,000;85,125;;brouillard',
     ]);
@@ -101,9 +103,9 @@ describe('la page Écritures, à la souris', () => {
     expect(deux.suggestedFilename()).toBe('ecritures-Cabinet-Ennour-2026-03_2026-04.csv');
     const parMois = fs.readFileSync(await deux.path(), 'utf8').replace(/^\uFEFF/, '').trim().split('\r\n').slice(1).map((l) => l.split(';').slice(0, 3).concat(l.split(';')[6] ?? '').join(';'));
     expect(parMois).toEqual([
-      'Café des Arts;7654321B/A/M/000;2026-03;OD-1', 'Café des Arts;7654321B/A/M/000;2026-03;OD-1',
+      'Café des Arts;2468024B/A/M/000;2026-03;OD-1', 'Café des Arts;2468024B/A/M/000;2026-03;OD-1',
       'Garage du Port;;2026-03;OD-7', 'Garage du Port;;2026-03;OD-7',
-      'Café des Arts;7654321B/A/M/000;2026-04;OD-2', 'Café des Arts;7654321B/A/M/000;2026-04;OD-2',
+      'Café des Arts;2468024B/A/M/000;2026-04;OD-2', 'Café des Arts;2468024B/A/M/000;2026-04;OD-2',
     ]);
     await p.locator('#modal-root .modal').first().getByRole('button', { name: 'Fermer' }).click();
 

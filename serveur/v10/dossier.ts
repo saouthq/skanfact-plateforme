@@ -22,6 +22,7 @@ import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonS
 import { controlerCommandes, controlerEncours, controlerReceptions, controlerRemise } from './accords.ts';
 import { mesRoles, verifierEcriture } from './droits.ts';
 import { suivreAchats } from './achats.ts';
+import { suivreIdentite } from './identite.ts';
 import { suivrePaie } from './paie.ts';
 import { reecrireLesAchats } from '../compta/achats.ts';
 import { reecrireLaPaie } from '../compta/paie.ts';
@@ -53,6 +54,14 @@ const SCELLE = ['type', 'number', 'date', 'clientId', 'currency', 'exchangeRate'
 // Le statut d'une pièce émise, tel que la v10 l'écrit (STATUSES de core.js).
 const STATUT_EMISE: Record<string, string> = { facture: 'envoyée', avoir: 'émis' };
 const emise = (d: Json | null) => !!d && typeof d.number === 'string' && d.number !== '' && d.status !== 'brouillon';
+// Un champ scellé se compare tel que la v10 le relit (lot facture, 05/10/2026). Elle relit le taux de retenue en nombre à
+// chaque chargement (`migrateData` : Number(x) || 0) : une facture émise avec « 1 » (le choix d'une liste de l'écran,
+// en texte) revenait avec 1, et le serveur refusait ensuite TOUT enregistrement du dossier (« elle ne se modifie plus »).
+const tauxRelu = (v: unknown) => {
+  const n = Number(estObjet(v) && typeof v['~n'] === 'string' ? v['~n'] : v);
+  return Number.isFinite(n) && n !== 0 ? String(n) : '0';
+};
+const scellee = (champ: string, v: unknown) => (champ === 'withholdingRate' ? tauxRelu(v) : canonique(v));
 
 function verifierPiece(avant: Json | null, apres: Json | null, serveur: boolean) {
   const type = String((apres ?? avant)?.type ?? '');
@@ -67,7 +76,7 @@ function verifierPiece(avant: Json | null, apres: Json | null, serveur: boolean)
     const av = type === 'avoir';
     if (!apres) throw new Refus(av ? 'v10.avoir_ne_s_efface_pas' : 'v10.emise_ne_s_efface_pas', numero);
     for (const champ of SCELLE) {
-      if (canonique(avant?.[champ]) !== canonique(apres[champ])) throw new Refus(av ? 'v10.avoir_ne_se_modifie_plus' : 'v10.emise_ne_se_modifie_plus', numero);
+      if (scellee(champ, avant?.[champ]) !== scellee(champ, apres[champ])) throw new Refus(av ? 'v10.avoir_ne_se_modifie_plus' : 'v10.emise_ne_se_modifie_plus', numero);
     }
     if (apres.status === 'annulée') throw new Refus('v10.annulee', numero);
     if (apres.status !== STATUT_EMISE[type]) throw new Refus(av ? 'v10.avoir_ne_se_modifie_plus' : 'v10.emise_ne_se_modifie_plus', numero);
@@ -236,6 +245,8 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   const lus = changements.map((c) => ({ collection: c.collection, cle: c.cle, avant: actuels.get(`${c.collection}/${c.cle}`)?.contenu ?? null, apres: c.contenu }));
   await suivreAchats(tx, entreprise, utilisateur, lus);
   await suivrePaie(tx, entreprise, utilisateur, lus);
+  // La raison sociale et le matricule de la fiche société sont ceux de l'entreprise (lot facture, 0071).
+  await suivreIdentite(tx, entreprise, lus);
   // Le plan comptable changé (comptes, auxiliaires, trésorerie) : tout le brouillard le suit (D3).
   if (await planChange(tx, entreprise, lus)) {
     await reecrireLesVentes(tx, entreprise);

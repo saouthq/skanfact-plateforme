@@ -168,6 +168,30 @@ describe('le dossier v10 tenu par le serveur', () => {
       .toBe('La facture FAC-2026-001 est émise : elle ne s\'annule pas, on la corrige par un avoir (un avoir total la solde).');
   });
 
+  // Lot facture (05/10/2026 ; docs/facture-details.md, D7) : une facture émise avec la retenue choisie dans la liste de
+  // l'écran (« 1 », en texte) revient en nombre à chaque chargement de la page (`migrateData` de la v10 : Number(x) || 0) ;
+  // le serveur y voyait un champ scellé changé et refusait TOUT enregistrement suivant du dossier, la fiche société comprise.
+  it('une facture émise avec la retenue en texte reste la même une fois relue en nombre : ses règlements s\'enregistrent ; un autre taux, non', async () => {
+    const e = await essai();
+    const client = (await e.lire()).find((o) => o.collection === 'clients');
+    if (!client) throw new Error('client d\'exemple absent');
+    // 901,000 + TVA 19 % (171,190) + timbre 1,000 = 1 073,190 ; retenue 1 % de 1 072,190 (hors timbre) = 10,722 → 1 062,468.
+    const doc = { ...brouillon('f1', client.cle), withholdingRate: '1' };
+    await e.envoyer([{ collection: 'documents', cle: 'f1', rang: 0, revision: null, contenu: doc }]);
+    const r = await appeler('POST', `/entreprises/${e.ent}/dossier-v10/emettre`, e.jeton, { document: doc, client: client.contenu, revision: 1, rang: 0, netAPayer: '1062.468' });
+    expect(r.statut).toBe(200);
+    const emise = r.corps.contenu as Record<string, unknown>;
+    expect(emise.withholdingRate).toBe('1');
+    // Relue par la page : le taux en nombre, et un premier règlement.
+    const relue = { ...emise, withholdingRate: 1, payments: [{ id: 'p1', date: '2026-10-05', amount: 200 }] };
+    expect((await e.envoyer([{ collection: 'documents', cle: 'f1', rang: 0, revision: Number(r.corps.revision), contenu: relue }])).statut).toBe(200);
+    expect((await e.lire()).find((o) => o.cle === 'f1')?.contenu).toMatchObject({ withholdingRate: 1, payments: [{ id: 'p1' }] });
+    // Un autre taux reste un changement de ce qui a été scellé.
+    const f1 = (await e.lire()).find((o) => o.cle === 'f1') as Objet;
+    expect((await e.envoyer([{ collection: 'documents', cle: 'f1', rang: 0, revision: f1.revision, contenu: { ...f1.contenu, withholdingRate: { '~n': '1.5' } } }])).corps.motif)
+      .toBe('La facture FAC-2026-001 est émise : elle ne se modifie plus, on la corrige par un avoir.');
+  });
+
   // Une facture émise par le serveur, telle que le parcours de l'interface la laisse.
   async function factureEmise(e: Awaited<ReturnType<typeof essai>>, cle: string, doc: Record<string, unknown>, netAPayer: string) {
     const client = (await e.lire()).find((o) => o.collection === 'clients' && o.cle === doc.clientId);

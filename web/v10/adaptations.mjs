@@ -714,4 +714,6 @@ export const ADAPTATIONS = [
   ...lireFichier('achats-lot.txt'),
   // ── L'exemple rempli et « Faire une facture » (retour de Skander, 05/10/2026 ; docs/exemple.md) ──
   ...lireFichier('exemple.txt'),
+  // ── Le lot facture (05/10/2026 ; le parcours d'un commerçant, docs/facture-details.md) ──
+  ...lireFichier('facture-details.txt'),
 ];

@@ -1120,6 +1120,12 @@
     // ailleurs — avant, la question serait abstraite ; après, la suite ne se touche plus.
     const annee = String(doc.date || C.today()).slice(0, 4);
     const premiere = !doc.number && C.premiereNumerotation(data, doc.type, annee);
+    // (plateforme) La fiche société incomplète se complète ICI (lot facture, 05/10/2026) : « Compléter ma fiche… » ouvre
+    // ses seuls champs qui manquent à la pièce (le RIB, pour une facture qui attend un virement), puis les avertissements
+    // se relisent (`opts.avertir`) et le bouton principal avec eux.
+    const manquesFiche = () => (opts && opts.avertir ? C.companyGaps(company()).filter(g => !isAv || !/RIB/.test(g)) : []);
+    const avertir = l => l.length ? `<div class="warn-box mb">${l.map(w => `<div>⚠ ${h(w)}</div>`).join('')}${manquesFiche().length ? '<div class="mt"><button type="button" class="btn btn-sm" id="em-fiche">Compléter ma fiche…</button></div>' : ''}</div>` : '';
+    const libelleOk = l => `${l.length ? 'Émettre quand même' : 'Émettre'}${exporter ? ' et exporter' : ''}`;
     return new Promise(resolve => {
       let settled = false;
       const finish = (close, v) => { settled = true; close(); resolve(v); };
@@ -1138,10 +1144,20 @@
         </div>
         <p class="small">Le numéro devient définitif et ${isAv ? 'l\'avoir' : laPiece()} ne se modifie plus.${isAv ? '' : ' Pour corriger après coup, on fait un avoir.'}${exporter ? ` « Exporter le brouillon » donne un PDF marqué « Brouillon », sans numéro : ${isAv ? 'l\'avoir' : laPiece()} reste modifiable.` : ''}</p>
         ${surplus ? `<div class="warn-box mb">${numerosInsecables(surplus)}</div>` : ''}
-        ${avertissements.length ? `<div class="warn-box mb">${avertissements.map(w => `<div>⚠ ${h(w)}</div>`).join('')}</div>` : ''}
-        <div class="modal-actions"><button class="btn" data-close>Annuler</button>${exporter ? '<button class="btn" id="em-brouillon">Exporter le brouillon</button>' : ''}<button class="btn btn-primary" id="ok">${avertissements.length ? 'Émettre quand même' : 'Émettre'}${exporter ? ' et exporter' : ''}</button></div>`,
+        <div id="em-avert">${avertir(avertissements)}</div>
+        <div class="modal-actions"><button class="btn" data-close>Annuler</button>${exporter ? '<button class="btn" id="em-brouillon">Exporter le brouillon</button>' : ''}<button class="btn btn-primary" id="ok">${libelleOk(avertissements)}</button></div>`,
         (root, close) => {
           $('#ok', root).onclick = () => finish(close, exporter ? 'emettre' : true); $('[data-close]', root).onclick = () => finish(close, false);
+          const brancherFiche = () => {
+            const b = $('#em-fiche', root);
+            if (b) b.onclick = () => completerFicheForm(!isAv, () => {
+              const l = opts.avertir();
+              $('#em-avert', root).innerHTML = avertir(l);
+              $('#ok', root).textContent = libelleOk(l);
+              brancherFiche();
+            });
+          };
+          brancherFiche();
           if (exporter) $('#em-brouillon', root).onclick = () => finish(close, 'brouillon');
           // Le numéro annoncé se RECALCULE après le réglage, par la même fonction que l'émission
           // (`peekNumber`) : le titre et la ligne ne peuvent pas annoncer un autre numéro que celui
@@ -1155,6 +1171,60 @@
         },
         () => { if (!settled) resolve(false); });
     });
+  }
+
+  // (plateforme) « Compléter ma fiche… », depuis la fenêtre d'émission (lot facture, 05/10/2026) : les seuls champs de la
+  // fiche société qui manquent à la pièce, sans la quitter. Le matricule se lit avant de partir, à la forme que le serveur
+  // porte à l'entreprise ; un refus du serveur (un matricule déjà porté par une autre entreprise) se lit dans la fenêtre,
+  // et la fiche reprend ce qu'elle avait. Le reste de la fiche vit dans Paramètres → Mon entreprise.
+  function completerFicheForm(pourFacture, done) {
+    const co = company();
+    const manqueNom = !(co.name || '').trim();
+    const manqueMf = !(co.matricule || '').trim() || !C.matriculeBienForme(co.matricule);
+    const manqueRib = pourFacture && C.ribAttendu(co) && (!(co.rib || '').trim() || !C.verifRib(co.rib).ok);
+    modal(`<h2>Compléter ta fiche société</h2>
+      <p class="small muted">Ce qui s'imprime en haut de chaque pièce${manqueRib ? ', et dans son bloc « Règlement » : c\'est là que ton client lit où virer' : ''}. Le reste de ta fiche se règle dans Paramètres → Mon entreprise.</p>
+      <form id="cf" class="grid-2">
+        ${manqueNom ? field(lbl('Raison sociale', 'co.name'), 'name', co.name || '', 'text', 'autocomplete="organization"') : ''}
+        ${manqueMf ? field(lbl('Matricule fiscal', 'co.matricule'), 'matricule', co.matricule || '', 'text', 'placeholder="1234567A/A/M/000" autocomplete="off" spellcheck="false"') : ''}
+        ${manqueRib ? `${field(lbl('Banque', 'pay.bank'), 'bank', co.bank || '')}${ribField('RIB', co.rib)}` : ''}
+      </form>
+      <div class="warn-box mb" id="cf-refus" role="alert" hidden></div>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
+      (root, close) => {
+        const refuser = (champ, texte) => {
+          const p = $('#cf-refus', root);
+          p.textContent = texte; p.hidden = false;
+          const el = champ ? $(`[name=${champ}]`, root) : null;
+          if (!el) return;
+          // Le champ en faute se marque comme partout (`refus`) ; le rouge et la phrase partent dès qu'on y retouche.
+          const marque = el.closest('.field') || el;
+          marque.classList.add('champ-faute');
+          el.addEventListener('input', () => { marque.classList.remove('champ-faute'); $('#cf-refus', root).hidden = true; }, { once: true });
+          el.focus();
+        };
+        $('#ok', root).onclick = async () => {
+          const v = formValues($('#cf', root));
+          if (manqueNom && !String(v.name || '').trim()) return refuser('name', 'Écris ta raison sociale : c\'est le nom qui s\'imprime en haut de chaque pièce.');
+          if (manqueMf && !C.matriculeBienForme(v.matricule)) return refuser('matricule', `« ${String(v.matricule || '').trim()} » n'a pas la forme d'un matricule fiscal : sept chiffres, une lettre, puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur ta carte d'identification fiscale.`);
+          const avant = { name: co.name, matricule: co.matricule, bank: co.bank, rib: co.rib };
+          if (manqueNom) co.name = String(v.name).trim();
+          if (manqueMf) co.matricule = String(v.matricule).trim();
+          if (manqueRib) { co.bank = String(v.bank || '').trim(); co.rib = String(v.rib || '').trim(); }
+          const b = $('#ok', root);
+          b.disabled = true;
+          try {
+            const r = await bridge.saveData(data);
+            if (r && r.conflict) await resolveConflict(r);
+          } catch (e) {
+            Object.assign(co, avant);
+            b.disabled = false;
+            return refuser(manqueMf ? 'matricule' : null, plainError(e));
+          }
+          close();
+          done();
+        };
+      });
   }
 
   // Continuer une numérotation commencée ailleurs (10.14.0) : on demande le numéro qu'on a sous les
@@ -3466,10 +3536,14 @@
     // d'actions par racine (9.4.8), et deux tables sur la même racine se mangent.
     bindRowMenus(anchor ? $(anchor) : document, id => {
       const d = docById(id); if (!d) return [];
-      const a = [{ icon: 'ouvrir', label: 'Ouvrir', hint: 'Voir la pièce et la modifier', run: () => navigate('#/doc/' + id) },
+      // (plateforme) Chaque ligne dit ce que fait son geste ici (lot facture, 05/10/2026) : la même règle que les fenêtres
+      // d'envoi (`sendByEmail`, `sendByWhatsApp`) pour le lien de la pièce.
+      const emiseIci = C.isLocked(d);
+      const avecLien = !!bridge.ajouterLien && emiseIci && d.status !== 'annulée' && !C.estTicket(d);
+      const a = [{ icon: 'ouvrir', label: 'Ouvrir', hint: !emiseIci ? 'Voir la pièce et la modifier' : d.type === 'facture' ? 'Voir la facture émise et ses paiements' : 'Voir la pièce émise', run: () => navigate('#/doc/' + id) },
                  { icon: 'pdf', label: 'Exporter en PDF', hint: 'Le document tel que ton client le recevra', run: () => exportPdf(d) }];
-      if (d.number) a.push({ icon: 'email', label: 'Envoyer par email', hint: 'Le PDF est joint au message', run: () => sendByEmail(d) },
-        { icon: 'message', label: 'Envoyer par WhatsApp', hint: 'Le message s\'ouvre dans WhatsApp ; le PDF est prêt à glisser', run: () => sendByWhatsApp(d) });
+      if (d.number) a.push({ icon: 'email', label: 'Envoyer par email', hint: !bridge.ajouterLien ? 'Le PDF est joint au message' : avecLien ? 'Le message porte le lien de la pièce' : 'Le message part sans pièce jointe : le PDF s\'enregistre à part', run: () => sendByEmail(d) },
+        { icon: 'message', label: 'Envoyer par WhatsApp', hint: !bridge.ajouterLien ? 'Le message s\'ouvre dans WhatsApp ; le PDF est prêt à glisser' : avecLien ? 'Le message s\'ouvre dans WhatsApp, avec le lien de la pièce' : 'Le message s\'ouvre dans WhatsApp ; le PDF s\'enregistre à part', run: () => sendByWhatsApp(d) });
       // `restOf` vit dans `docColumns` : ici on repasse par `balance`, la même source.
       const reste = d.type === 'facture' && d.status !== 'brouillon' ? balance(d).remaining : 0;
       if (d.type === 'facture' && d.status !== 'annulée' && reste > 0.0005)
@@ -4681,7 +4755,11 @@
           ? `${ar.decideur} a accordé cette remise de ${pct(tauxRemise)} % : tu peux l'émettre.`
           : `${effective.ligne ? `« ${effective.ligne} » est vendu ${pct(tauxRemise)} % sous son prix, au-delà des` : `La remise de ${pct(tauxRemise)} % dépasse les`} ${pct(seuilRemise)} % permis sans accord : en l'émettant, tu pourras demander l'accord du propriétaire ou d'un administrateur.`);
       }
-      if (!(co.name || '').trim() || !(co.matricule || '').trim()) w.push('Ta fiche société est incomplète (raison sociale ou matricule fiscal) : le document ne sera pas conforme. Paramètres → Mon entreprise.');
+      // (plateforme) Ce qui manque se NOMME, et « Compléter ma fiche… », sous les avertissements, le règle sans quitter
+      // la pièce (lot facture, 05/10/2026). La même règle que la fiche (`companyGaps`) et que le serveur (identite.ts).
+      if (!(co.name || '').trim()) w.push('Ta raison sociale manque : c\'est le nom qui s\'imprime en haut de la pièce.');
+      if (!(co.matricule || '').trim()) w.push('Ton matricule fiscal manque : il est obligatoire sur une facture en Tunisie, et s\'imprime en haut de la pièce.');
+      else if (!C.matriculeBienForme(co.matricule)) w.push(`Ton matricule fiscal « ${co.matricule.trim()} » n'a pas la bonne forme : sept chiffres, une lettre, puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur ta carte d'identification fiscale.`);
       // Le RIB ne se réclame que si on attend un virement (7.22.0, même règle que `companyGaps`).
       // Un restaurant ou un salon encaissent sur place : leur répéter à chaque facture qu'il manque
       // un RIB, c'est un avertissement qu'ils ne peuvent pas satisfaire — et on cesse de lire les
@@ -4825,6 +4903,10 @@
       if (doc.stampFee === undefined || doc.stampFee === null || doc.stampFee === '') doc.stampFee = Number(company().stampFee) || 0;
       // Le régime de TVA aussi (10.14.1, MR-06) : il décide de la colonne TVA et de la mention légale.
       doc.regimeTva = C.regimeOf(company()).id;
+      // (plateforme) Le taux de retenue part en nombre, tel que la v10 le relit à chaque chargement (`migrateData`) :
+      // émis en texte (« 1 », le choix de la liste), il revenait autre, et le serveur refusait tout enregistrement
+      // suivant (lot facture, 05/10/2026 ; le serveur compare aussi ce taux tel que la v10 le relit).
+      doc.withholdingRate = Number(doc.withholdingRate) || 0;
       // La mention d'exonération de retenue aussi (10.15.0, H7) : renouveler ou retirer l'attestation
       // ne réécrit pas une facture déjà envoyée. `null` dit « émise sans mention ».
       if (doc.type === 'facture') { const libre = Object.assign({}, doc); delete libre.exonerationRS; doc.exonerationRS = C.mentionExonerationRS(libre, company()); }
@@ -4834,7 +4916,13 @@
         Object.assign(doc, await bridge.emettre(deepCopy(doc), deepCopy(clientById(doc.clientId) || null), C.computeTotals(doc, company()).netToPay));
       } catch (e) {
         // (brique 100) Au-delà de l'encours sans accord : le refus propose de le demander.
-        if (e && e.bouton === 'ventes.accord.demander' && bridge.demanderAccord) demanderAccordPour(doc, e, persist); else toast(plainError(e), true);
+        if (e && e.bouton === 'ventes.accord.demander' && bridge.demanderAccord) demanderAccordPour(doc, e, persist);
+        else {
+          // Le motif du serveur dit souvent déjà que rien n'a été émis : on ne le répète pas.
+          const motif = plainError(e);
+          const reste = `${/n'a été émis|aucun numéro/i.test(motif) ? '' : 'Rien n\'a été émis : '}${doc.type === 'avoir' ? 'il reste' : 'elle reste'} en brouillon, sans numéro.`;
+          infoDialog(doc.type === 'avoir' ? 'L\'avoir n\'est pas émis' : `${laPiece().charAt(0).toUpperCase()}${laPiece().slice(1)} n'est pas émise`, `${motif}\n\n${reste.charAt(0).toUpperCase()}${reste.slice(1)}`);
+        }
         return false;
       }
       doc.status = isInv ? 'envoyée' : 'émis';
@@ -4863,7 +4951,7 @@
         if (bloqueParEfacture(doc)) return;
         const n = doc.number || peekNumber(doc.type, doc.date);
         const warn = issueWarnings();
-        if (!await confirmerEmission(doc, n, warn)) return;
+        if (!await confirmerEmission(doc, n, warn, { avertir: issueWarnings })) return;
         if (await issue()) { if (isNew) remplacerPage('#/doc/' + doc.id); else render(); }
       } finally {
         // On relit le bouton : la page a pu se redessiner pendant l'attente, et la poignée d'avant
@@ -4884,7 +4972,7 @@
         // Émettre en exportant passe par le MÊME récapitulatif que « Émettre » (10.14.0) : cette boîte-ci
         // émettait sans lui, donc sans les avertissements d'émission et sans l'offre de continuer une
         // numérotation commencée ailleurs. Une porte d'émission, pas deux.
-        const c = await confirmerEmission(doc, n, issueWarnings(), { exporter: true });
+        const c = await confirmerEmission(doc, n, issueWarnings(), { exporter: true, avertir: issueWarnings });
         if (!c) return;
         if (c === 'emettre') { if (!(await issue())) return; }
         else if (!persist()) return;   // sans ce refus, on exportait un document qui n'a pas été écrit
@@ -5333,7 +5421,7 @@
             const part = C.retenueSubie(essai, data, company()).parts.__essai || 0;
             const d0 = v.date || C.today();
             $('#pf-rs', root).innerHTML = part > 0.0005
-              ? `En payant, le client garde <b>${C.money(part, cur)}</b> de retenue à la source pour l'État : c'est une retenue subie de ${C.MONTHS_FR[Number(d0.slice(5, 7)) - 1]} ${d0.slice(0, 4)}, qu'il doit te justifier par une attestation.`
+              ? `En payant, le client garde <b>${C.money(part, cur)}</b> de retenue à la source pour l'État : c'est une retenue subie ${/^[aeiou]/i.test(C.MONTHS_FR[Number(d0.slice(5, 7)) - 1]) ? 'd\'' : 'de '}${C.MONTHS_FR[Number(d0.slice(5, 7)) - 1]} ${d0.slice(0, 4)}, qu'il doit te justifier par une attestation.`
               : '';
           };
           $('#pf2', root).addEventListener('input', annoncer);

@@ -123,7 +123,10 @@ describe('l\'espace client, à la souris', () => {
     client.on('pageerror', (e) => erreursClient.push(e.message));
     client.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') erreursClient.push(`${m.text()} ${m.location().url}`); });
     await client.goto(lienPiece);
-    await expect.poll(() => client.locator('.barre .reste').innerText(), { timeout: 15_000 }).toMatch(/^Reste à payer : 337,095\sDT$/);
+    // Ce qu'il en doit encore, ce qu'il a déjà payé et l'avoir qui la corrige (lot facture, 05/10/2026 ;
+    // docs/facture-details.md) : 337,095 + 200,000 + 536,095 = 1 073,190, la facture.
+    await expect.poll(() => client.locator('.barre .reste').innerText(), { timeout: 15_000 })
+      .toMatch(/^Reste à payer : 337,095\sDT\s·\sPayé : 200,000\sDT\s·\sAvoirs : 536,095\sDT$/);
     const cadre = client.frameLocator('iframe.piece');
     await expect.poll(() => cadre.locator('body').innerText(), { timeout: 15_000 }).toContain('FAC-2026-001');
     expect(net(await client.evaluate(() => (document.querySelector('iframe.piece') as HTMLIFrameElement).contentDocument?.body.textContent ?? ''))).toBe(net(imprime));
