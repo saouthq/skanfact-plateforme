@@ -723,4 +723,6 @@ export const ADAPTATIONS = [
   ...lireFichier('devis-par-son-lien.txt'),
   ...lireFichier('prix-ttc.txt'),
   ...lireFichier('caisse-sans-compte.txt'),
+  // ── Le lot débutant (1) (06/10/2026 ; un commerçant qui débute, à la souris, docs/debutant.md) ──
+  ...lireFichier('debutant.txt'),
 ];

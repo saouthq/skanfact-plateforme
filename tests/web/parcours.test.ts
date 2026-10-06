@@ -205,6 +205,9 @@ describe('le parcours, à la souris', () => {
     await champ(q, 'ecran.connexion.mot_de_passe').fill('Un-bon-mot-de-passe');
     await bouton(q, 'ecran.connexion.bouton').click();
     await ecran(q, 'ecran.code.titre');
+    // Le curseur attend dans la case du code, et le téléphone perdu se dit à l'écran (pas seulement dans la bulle « i »).
+    await expect.poll(() => champ(q, 'ecran.code.champ').evaluate((i) => i === document.activeElement)).toBe(true);
+    expect(await q.locator('#code-perdu').innerText()).toBe(phrase('ecran.code.perdu'));
     await champ(q, 'ecran.code.champ').fill('000000');
     await bouton(q, 'ecran.code.bouton').click();
     await expect.poll(() => q.getByRole('alert').first().innerText()).toBe(phrase('connexion.code_faux'));

@@ -166,6 +166,8 @@ describe('l\'envoi à la TTN, à la souris', () => {
     expect(await aLEcran()).toBe(true);
     expect(await identifiant.evaluate((i) => i === document.activeElement)).toBe(true);
     expect(net(await panneau.locator('#ttn-etat').innerText())).toBe('Pas branché : les pièces signées attendent de partir à la TTN.');
+    // Le navigateur n'y pose pas le mot de passe SkanFact enregistré (« off » ne l'en empêche pas).
+    expect(await panneau.getByLabel('Mot de passe El Fatoora').getAttribute('autocomplete')).toBe('new-password');
     await nadia.screenshot({ path: path.join(PHOTOS, 'ttn-2-reglage.png') });
 
     // Le compte posé (le champ ne propose pas d'enregistrer les Paramètres ; le mot de passe ne revient jamais).

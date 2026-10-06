@@ -887,7 +887,12 @@
     const bulletins = () => (data().payslips || []).length;
     // Les Paramètres sont enregistrés quand leur barre « Modifications non enregistrées » a disparu.
     const parametresEnregistres = () => { const b = $('#save-bar'); return !(b && !b.hidden); };
-    const ficheComplete = () => { const c = data().company || {}; return ['name', 'matricule', 'address'].every(k => String(c[k] || '').trim()); };
+    // (plateforme, lot débutant) Un matricule de quatre chiffres ou un RIB à la clé fausse finissaient sur « Ta fiche est à jour ».
+    const ficheComplete = () => {
+      const c = data().company || {}, K = window.SkanCore;
+      return ['name', 'matricule', 'address'].every(k => String(c[k] || '').trim())
+        && K.matriculeBienForme(c.matricule) && !(String(c.rib || '').trim() && !K.verifRib(c.rib).ok);
+    };
     // Le nombre de paquets à l'entrée de l'étape « Fabriquer » : sa preuve est un paquet DE PLUS.
     let paquetsAvant = 0;
     // L'onglet se clique quand la page qui le porte est DESSINÉE (`Visite.ouvrirOnglet`, 10.14.0) :
@@ -1061,7 +1066,7 @@
       // La fiche est à jour quand ce qui s'imprime y est ET qu'elle est enregistrée — jugé à la fin : une
       // fiche déjà complète en arrivant est déjà à jour, sans rien retaper (10.14.1).
       preuve: () => ficheComplete() && parametresEnregistres(),
-      echec: 'Ta fiche n\'est pas encore complète, ou pas encore enregistrée : il y faut ta raison sociale, ton matricule fiscal et ton adresse, puis « Enregistrer » dans la barre en bas de l\'écran.',
+      echec: 'Ta fiche n\'est pas encore complète, ou pas encore enregistrée : il y faut ta raison sociale, ton matricule fiscal complet (1234567A/A/M/000), ton adresse et, si tu le donnes, un RIB juste, puis « Enregistrer » dans la barre en bas de l\'écran.',
       bravo: 'Ta fiche est à jour',
       conclusion: 'Tout ce que tu viens de saisir s\'imprime en haut de tes devis et factures. Tu peux le changer à tout moment.',
       etapes: [

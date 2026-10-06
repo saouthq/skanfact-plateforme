@@ -1,0 +1,240 @@
+Le lot débutant (1) : ce qu'un commerçant qui débute a trouvé faux ou introuvable sur le serveur d'essai, le 06/10/2026
+(parcours complet à la souris, 191 captures ; docs/debutant.md). Format : voir sans-paquets.mjs.
+
+== reglages.js | les réglages sans objet en ligne ne se comptent ni ne se trouvent : « 4 réglages sur 28 » ne montrait rien
+-- avant
+      if (!index) index = indexer(corps);
+-- après
+      if (!index) index = indexer(corps).filter(p => !(opts.exclus || []).includes(p.id));
+-- fin
+
+== app.js | la recherche des Paramètres reçoit la liste des panneaux absents de la plateforme
+-- avant
+      ongletCourant: () => settingsTab,
+      pluriel: pl,
+-- après
+      ongletCourant: () => settingsTab,
+      // (plateforme) Les panneaux sans objet en ligne (cachés) ne se comptent ni ne se trouvent.
+      exclus: bridge.panneauxAbsents || [],
+      pluriel: pl,
+-- fin
+
+== app.js | la case de recherche ne donne plus en exemple un réglage absent en ligne (la sauvegarde est celle du serveur)
+-- avant
+          <input type="search" id="set-q" placeholder="Chercher un réglage : timbre, sauvegarde…" autocomplete="off" spellcheck="false">
+-- après
+          <input type="search" id="set-q" placeholder="Chercher un réglage : timbre, logo…" autocomplete="off" spellcheck="false">
+-- fin
+
+== app.js | le bandeau « Il manque… » des Paramètres vit dans une zone qui se redessine
+-- avant
+          ${manques.length ? `<div class="set-manque mb"><b>Il manque ${pl(manques.length, 'information')} :</b> ${h(manques.join(', '))}.
+            <div class="small mt">Ces informations s'impriment sur chaque document. Tant qu'elles manquent, SkanFact prévient avant chaque émission.</div></div>` : ''}
+-- après
+          <div id="set-manque-zone">${bandeauManques(manques)}</div>
+-- fin
+
+== app.js | le bandeau se dessine par une seule fonction : à l'ouverture, et après « Enregistrer »
+-- avant
+    const manques = C.companyGaps(c);
+    $('#view').innerHTML = `<div class="page-head"><h1>Paramètres</h1>
+-- après
+    const manques = C.companyGaps(c);
+    // (plateforme, lot débutant) Il restait affiché après « Enregistrer » une fiche complète, jusqu'au rechargement.
+    const bandeauManques = m => m.length ? `<div class="set-manque mb"><b>Il manque ${pl(m.length, 'information')} :</b> ${h(m.join(', '))}.
+            <div class="small mt">Ces informations s'impriment sur chaque document. Tant qu'elles manquent, SkanFact prévient avant chaque émission.</div></div>` : '';
+    $('#view').innerHTML = `<div class="page-head"><h1>Paramètres</h1>
+-- fin
+
+== app.js | « Enregistrer » redessine le bandeau d'après la fiche enregistrée
+-- avant
+      setDirty = false; $('#save-bar').hidden = true;
+      dessinerAchatsHorsRegime();
+      return true;
+-- après
+      setDirty = false; $('#save-bar').hidden = true;
+      if ($('#set-manque-zone')) $('#set-manque-zone').innerHTML = bandeauManques(C.companyGaps(company()));
+      dessinerAchatsHorsRegime();
+      return true;
+-- fin
+
+== visites.js | « Ta fiche est à jour » n'est vrai qu'avec un matricule bien formé et un RIB juste (s'il est donné)
+-- avant
+    const ficheComplete = () => { const c = data().company || {}; return ['name', 'matricule', 'address'].every(k => String(c[k] || '').trim()); };
+-- après
+    // (plateforme, lot débutant) Un matricule de quatre chiffres ou un RIB à la clé fausse finissaient sur « Ta fiche est à jour ».
+    const ficheComplete = () => {
+      const c = data().company || {}, K = window.SkanCore;
+      return ['name', 'matricule', 'address'].every(k => String(c[k] || '').trim())
+        && K.matriculeBienForme(c.matricule) && !(String(c.rib || '').trim() && !K.verifRib(c.rib).ok);
+    };
+-- fin
+
+== visites.js | l'échec de la visite dit qu'il faut un matricule complet
+-- avant
+      echec: 'Ta fiche n\'est pas encore complète, ou pas encore enregistrée : il y faut ta raison sociale, ton matricule fiscal et ton adresse, puis « Enregistrer » dans la barre en bas de l\'écran.',
+-- après
+      echec: 'Ta fiche n\'est pas encore complète, ou pas encore enregistrée : il y faut ta raison sociale, ton matricule fiscal complet (1234567A/A/M/000), ton adresse et, si tu le donnes, un RIB juste, puis « Enregistrer » dans la barre en bas de l\'écran.',
+-- fin
+
+== app.js | une ligne lue sur une facture d'achat qui porte le nom d'un article suivi du catalogue entre en stock
+-- avant
+      p.lines = values.lines;
+-- après
+      p.lines = values.lines;
+      // (plateforme, lot débutant) « Clavier USB » lu sur la facture restait en « Charge » : le stock ne bougeait pas.
+      const nomArticle = x => String(x || '').trim().toLowerCase();
+      p.lines.forEach(l => {
+        if (l.itemId || l.destination === 'stock') return;
+        const it = (data.catalog || []).find(c => c.tracked && nomArticle(c.label) && nomArticle(c.label) === nomArticle(l.label));
+        if (it) Object.assign(l, { itemId: it.id, destination: 'stock' });
+      });
+-- fin
+
+== core.js | les mouvements d'un même jour se lisent dans l'ordre où ils ont eu lieu (« Stock après » ne saute plus)
+-- avant
+    Object.keys(byItem).forEach(id => byItem[id].forEach(r => all.push(r)));
+    return all.filter(r => inPeriod(r.date, period && period.from, period && period.to))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '') || String(b.id).localeCompare(String(a.id)));
+-- après
+    // (plateforme, lot débutant) À date égale, l'ordre du calcul (celui de « Stock après ») : un tri par identifiant
+    // rangeait le stock de départ au-dessus des ventes, et la colonne lisait 10, 18, 16, 20, 15.
+    const rang = new Map();
+    Object.keys(byItem).forEach(id => byItem[id].forEach((r, i) => { all.push(r); rang.set(r, i); }));
+    return all.filter(r => inPeriod(r.date, period && period.from, period && period.to))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (rang.get(b) - rang.get(a)) || String(b.id).localeCompare(String(a.id)));
+-- fin
+
+== app.js | « Préparer » une déclaration de TVA ouvre le mois qu'elle déclare (celui d'avant l'échéance)
+-- avant
+      tva: () => { comptaState.tab = 'tva'; draw(); $$('#c-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === 'tva')); },
+-- après
+      tva: echeance => {
+        // (plateforme, lot débutant) L'échéance du 28/10 déclare septembre ; « Préparer » ouvrait octobre.
+        if (echeance) {
+          const y = Number(echeance.slice(0, 4)), m = Number(echeance.slice(5, 7));
+          comptaState.year = String(m === 1 ? y - 1 : y); comptaState.month = String(m === 1 ? 12 : m - 1).padStart(2, '0');
+          if ($('#c-year')) $('#c-year').value = comptaState.year;
+          if ($('#c-month')) $('#c-month').value = comptaState.month;
+        }
+        comptaState.tab = 'tva'; draw(); $$('#c-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === 'tva'));
+      },
+-- fin
+
+== app.js | le bouton « Préparer » porte la date de l'échéance
+-- avant
+              <td class="actions">${FISCAL_VERS[x.id] ? `<button class="btn btn-sm btn-ghost" data-fvers="${h(x.id)}">Préparer</button>` : ''}
+-- après
+              <td class="actions">${FISCAL_VERS[x.id] ? `<button class="btn btn-sm btn-ghost" data-fvers="${h(x.id)}" data-fdate="${h(x.date)}">Préparer</button>` : ''}
+-- fin
+
+== app.js | « Préparer » transmet la date
+-- avant
+      $$('[data-fvers]').forEach(b => b.onclick = () => FISCAL_VERS[b.dataset.fvers]());
+-- après
+      $$('[data-fvers]').forEach(b => b.onclick = () => FISCAL_VERS[b.dataset.fvers](b.dataset.fdate));
+-- fin
+
+== app.js | un avoir émis qui laisse de l'argent à rendre porte le geste du remboursement (il ne vivait que sur la facture)
+-- avant
+          ${locked && isInv && doc.status !== 'annulée' && bal && bal.remaining > 0.0005 ? `<button class="btn btn-primary" id="pay">Enregistrer un paiement</button>` : ''}
+-- après
+          ${locked && isInv && doc.status !== 'annulée' && bal && bal.remaining > 0.0005 ? `<button class="btn btn-primary" id="pay">Enregistrer un paiement</button>` : ''}
+          ${/* (plateforme, lot débutant) La fenêtre d'émission disait « 35,000 DT à rendre… par un remboursement » ; l'avoir émis
+               n'offrait rien, et « Rembourser » attendait tout en bas de la facture. */''}${(() => {
+            const fi = locked && isAv && doc.creditOf ? docById(doc.creditOf) : null;
+            const bf = fi && fi.status !== 'annulée' ? balance(fi) : null;
+            return bf && bf.remaining < -0.0005 ? `<button class="btn ${envoiSuivant ? '' : 'btn-primary'}" id="rembourser-avoir" data-facture="${h(fi.id)}">Rembourser ${C.money(-bf.remaining, cur)} au client…</button>` : '';
+          })()}
+-- fin
+
+== app.js | « Rembourser » de l'avoir ouvre le remboursement de sa facture
+-- avant
+    if ($('#pay')) $('#pay').onclick = () => paymentForm(docById(doc.id), () => render());
+-- après
+    if ($('#pay')) $('#pay').onclick = () => paymentForm(docById(doc.id), () => render());
+    if ($('#rembourser-avoir')) $('#rembourser-avoir').onclick = () => paymentForm(docById($('#rembourser-avoir').dataset.facture), () => render(), null, true);
+-- fin
+
+== app.js | un e-mail ne marque la pièce « envoyée » que sur « Je l'ai envoyé » ; le message se copie si rien ne s'ouvre
+-- avant
+          const corps = lien && v.lien ? await bridge.ajouterLien(doc, 'email', v.body, (doc.lang || client.lang || company().defaultLang) === 'en', C.estLiberal(company())) : v.body;
+          const r = await bridge.composeMail({ to: v.to, subject: v.subject, body: corps, attachment, mode: modeEnvoi() });
+          if (!client.email) { client.email = v.to; }
+          const stored = docById(doc.id) || doc;
+          stored.emails = stored.emails || []; stored.emails.push({ date: C.today(), to: v.to, subject: v.subject, kind });
+          if (passe && stored.status === 'brouillon') { stored.status = envoi; if (doc !== stored) doc.status = envoi; }
+          if (afterSend) afterSend(stored);
+          save(true); close();
+          toast(corps !== v.body ? 'Message ouvert dans ta messagerie, avec le lien de la pièce' : messageOuvert(r, attachment ? 'le PDF' : null));
+          render();
+-- après
+          const corps = lien && v.lien ? await bridge.ajouterLien(doc, 'email', v.body, (doc.lang || client.lang || company().defaultLang) === 'en', C.estLiberal(company())) : v.body;
+          await bridge.composeMail({ to: v.to, subject: v.subject, body: corps, attachment, mode: modeEnvoi() });
+          // (plateforme, lot débutant) Un lien de messagerie ne dit pas si une messagerie s'est ouverte : sur un poste sans
+          // logiciel de messagerie (Gmail dans le navigateur), rien ne s'ouvrait, et la pièce passait pourtant « envoyée ».
+          // Le message se copie, et l'envoi ne se note que sur « Je l'ai envoyé ».
+          $('.modal', root).innerHTML = `<h2>Le message est-il parti ?</h2>
+            <p>Ta messagerie a dû s'ouvrir avec le message prêt : relis-le et clique sur Envoyer. <b>Si rien ne s'est ouvert</b> (Gmail ou Outlook dans le navigateur), copie l'objet et le message, et colle-les dans un nouvel e-mail à <b>${h(v.to)}</b>.</p>
+            <div class="inline mt"><button class="btn" id="mf-copier-adresse">Copier l'adresse</button><button class="btn" id="mf-copier">Copier l'objet et le message</button></div>
+            <p class="small muted mt">SkanFact ne voit pas ta messagerie : dis-lui quand le message est parti.${passe ? ' La pièce passera alors « envoyée ».' : ''}</p>
+            <div class="modal-actions"><button class="btn" id="mf-pas-envoye">Pas encore</button><button class="btn btn-primary" id="mf-envoye">Je l'ai envoyé</button></div>`;
+          $('#mf-copier-adresse', root).onclick = () => copierTexte(v.to, 'Adresse copiée');
+          $('#mf-copier', root).onclick = () => copierTexte(`${v.subject}\n\n${corps}`, 'Objet et message copiés : colle-les dans un nouvel e-mail');
+          $('#mf-pas-envoye', root).onclick = () => { close(); toast('Rien n\'est noté : la pièce n\'est pas marquée envoyée.'); };
+          $('#mf-envoye', root).onclick = () => {
+            if (!client.email) { client.email = v.to; }
+            const stored = docById(doc.id) || doc;
+            stored.emails = stored.emails || []; stored.emails.push({ date: C.today(), to: v.to, subject: v.subject, kind });
+            if (passe && stored.status === 'brouillon') { stored.status = envoi; if (doc !== stored) doc.status = envoi; }
+            if (afterSend) afterSend(stored);
+            save(true); close();
+            toast(`Envoi noté sur ${stored.number || 'la pièce'}.`);
+            render();
+          };
+-- fin
+
+== app.js | une dépense dit qu'elle se saisit par ce qu'on a payé
+-- avant
+          ? { titre: 'Nouvelle dépense', numero: 'Référence du justificatif', invite: 'Ticket, reçu…', lignes: 'Saisis au moins le total hors taxes et son taux de TVA : c\'est ce qui permet de récupérer la TVA.' }
+-- après
+          ? { titre: 'Nouvelle dépense', numero: 'Référence du justificatif', invite: 'Ticket, reçu…', lignes: 'Tape ce que tu as payé dans « Montant payé (TTC) » et choisis son taux de TVA : SkanFact en déduit le hors taxes.' }
+-- fin
+
+== app.js | une dépense se saisit par son montant payé TTC : le hors taxes s'en déduit
+-- avant
+              <span class="small muted" id="b-lignes-hint">${h(motsDePiece(p.kind).lignes)}</span></div>`}
+-- après
+              <span class="small muted" id="b-lignes-hint">${h(motsDePiece(p.kind).lignes)}</span></div>`}
+            ${/* (plateforme, lot débutant) Une dépense ne demandait qu'un « P.U. HT » : le débutant y tapait les 85,400 DT payés à la
+                 STEG, et SkanFact affichait 101,626 DT à payer et 16,226 DT de TVA à récupérer qui n'existaient pas. */''}${isDep && !clos ? `<div class="inline mt" id="b-ttc-zone"><label class="field" style="max-width:240px">Montant payé (TTC)<input type="number" id="b-ttc" class="num" step="0.001" min="0" placeholder="ce que dit le ticket"></label>
+              <span class="small muted" id="b-ttc-note">Pour une dépense d'une seule ligne : SkanFact calcule le hors taxes et la TVA d'après le taux choisi.</span></div>` : ''}
+-- fin
+
+== app.js | le montant payé pose le hors taxes de la ligne, au millime, et se recalcule quand le taux change
+-- avant
+    if ($('#add-line')) $('#add-line').onclick = () => { p.lines.push({ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19, destination: 'charge', deductible: true }); touch(); drawLines(); $$('input[data-k=label]', body).pop().focus(); };
+-- après
+    if ($('#add-line')) $('#add-line').onclick = () => { p.lines.push({ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19, destination: 'charge', deductible: true }); touch(); drawLines(); $$('input[data-k=label]', body).pop().focus(); };
+    // (plateforme, lot débutant) Le hors taxes d'une dépense à partir de ce qu'on a payé : celui dont le total, calculé par
+    // le moteur des achats (la TVA arrondie au millime), tombe sur le montant payé ; à défaut, le plus proche, et la note le dit.
+    const appliquerTtc = () => {
+      const champ = $('#b-ttc'), note = $('#b-ttc-note');
+      if (!champ || champ.value === '') return;
+      if (p.lines.length !== 1) { note.textContent = 'Plusieurs lignes : saisis le hors taxes de chacune.'; return; }
+      const voulu = C.round3(Number(champ.value) || 0), l = p.lines[0], frais = Number(p.fees) || 0, taux = Number(l.vatRate) || 0;
+      const total = ht => C.purchaseTotals({ ...p, lines: [{ ...l, qty: 1, unitPrice: ht }] }, company()).totalTTC;
+      const base = C.round3((voulu - frais) / (1 + taux / 100));
+      let ht = base;
+      for (const d of [0, -1, 1, -2, 2, -3, 3]) { const x = C.round3(base + d / 1000); if (C.round3(total(x)) === voulu) { ht = x; break; } }
+      Object.assign(l, { qty: 1, unitPrice: Math.max(0, ht) });
+      const obtenu = C.round3(total(l.unitPrice));
+      note.textContent = obtenu === voulu ? `Hors taxes : ${C.money(l.unitPrice, cur)} ; TVA à ${taux} % : ${C.money(C.round3(obtenu - l.unitPrice - frais), cur)}.`
+        : `Avec ${taux} % de TVA, le total tombe sur ${C.money(obtenu, cur)}, au millime près : vérifie le taux sur ton ticket.`;
+      touch(); drawLines();
+    };
+    if ($('#b-ttc')) $('#b-ttc').addEventListener('input', appliquerTtc);
+    body.addEventListener('change', e => { if (e.target.matches('select[data-k=vatRate]')) appliquerTtc(); });
+    // Un hors taxes tapé à la main reprend la main : le montant payé s'efface (il ne dirait plus vrai).
+    body.addEventListener('input', e => { if (e.target.matches('input[data-k=unitPrice]') && $('#b-ttc')) { $('#b-ttc').value = ''; $('#b-ttc-note').textContent = 'Pour une dépense d\'une seule ligne : SkanFact calcule le hors taxes et la TVA d\'après le taux choisi.'; } });
+-- fin

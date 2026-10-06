@@ -162,7 +162,7 @@
       if (corps) corps.hidden = !!brut;
       res.hidden = !brut;
       if (!brut) return;
-      if (!index) index = indexer(corps);
+      if (!index) index = indexer(corps).filter(p => !(opts.exclus || []).includes(p.id));
       const mots = motsDe(brut).map(sansAccents);
       const bruts = motsDe(brut);
       const trouves = index

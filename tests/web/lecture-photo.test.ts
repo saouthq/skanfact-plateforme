@@ -71,6 +71,8 @@ describe('la lecture d\'une facture d\'achat en photo, à la souris', () => {
     const ok = await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
       { collection: '_racine', cle: 'company', rang: null, revision: fiche?.revision ?? null, contenu: { ...fiche?.contenu, name: 'Atelier Nadia', matricule: '7654321B/A/M/000' } },
       { collection: 'suppliers', cle: 'quincaillerie', rang: 0, revision: null, contenu: { id: 'quincaillerie', name: 'Quincaillerie Ben Salem', matricule: '1234567A/B/M/000' } },
+      // La colle est un article suivi en stock : la ligne lue qui porte son nom y entre (parcours débutant, 06/10/2026).
+      { collection: 'catalog', cle: 'colle', rang: 0, revision: null, contenu: { id: 'colle', label: 'Colle à bois 5 kg', unit: 'u', unitPrice: { '~n': '89' }, unitCost: { '~n': '68.9' }, vatRate: 19, tracked: true } },
     ] });
     expect(ok.statut, JSON.stringify(ok.corps)).toBe(200);
     return { jeton, ent };
@@ -139,6 +141,8 @@ describe('la lecture d\'une facture d\'achat en photo, à la souris', () => {
     expect(await p.evaluate(() => (window as unknown as { rouges: string[] }).rouges)).toEqual([]);
     await expect.poll(async () => (await p.locator('input[data-k=label]').evaluateAll((xs) => xs.map((x) => (x as HTMLInputElement).value))).join(' | '))
       .toBe('Vis inox 6x40 (boîte de 200) | Colle à bois 5 kg | Livraison');
+    // La colle, article suivi du catalogue, entre en stock ; le reste demeure une charge.
+    expect(await p.locator('select[data-k=destination]').evaluateAll((xs) => xs.map((x) => (x as HTMLSelectElement).value))).toEqual(['charge', 'stock', 'charge']);
     await p.screenshot({ path: path.join(PHOTOS, 'lecture-3-achat-prerempli.png') });
     await p.locator('#save').click();
 

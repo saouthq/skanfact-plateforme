@@ -34,10 +34,13 @@ function Cadre({ libelle, aide, rouge, obligatoire, classe, children }: Commun &
 type PropsChamp = Commun & {
   valeur: string; changer: (v: string) => void; type?: 'text' | 'email' | 'password' | 'date';
   autoComplete?: string; inputMode?: 'numeric' | 'decimal' | 'text' | 'email'; placeholder?: string; propositions?: string[]; nom?: string;
+  // Le curseur y attend dès l'ouverture de l'écran (le code du téléphone : on n'a rien d'autre à y faire).
+  premier?: boolean;
 };
 
-export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode, placeholder, propositions, nom, faute = false, n, ...cadre }: PropsChamp) {
+export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode, placeholder, propositions, nom, premier = false, faute = false, n, ...cadre }: PropsChamp) {
   const f = useFaute<HTMLInputElement>(faute, n);
+  useEffect(() => { if (premier) f.ref.current?.focus(); }, [premier, f.ref]);
   const liste = propositions?.length ? `${nom ?? cadre.libelle}-propositions`.replace(/\s+/g, '-') : undefined;
   return (
     <Cadre {...cadre} rouge={f.rouge}>

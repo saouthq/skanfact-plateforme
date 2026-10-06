@@ -31,7 +31,9 @@ export function Code({ defi, connecte, retour }: { defi: Defi; connecte: () => v
         <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.code.bouton')}</Bouton>
       </>}>
       <div className="grid-2">
-        <Champ classe="span-2" libelle={titre('ecran.code.champ')} aide={phrase('ecran.code.champ_aide')} valeur={code} changer={setCode} autoComplete="one-time-code" inputMode="numeric" {...g.sur('code')} />
+        <Champ classe="span-2" libelle={titre('ecran.code.champ')} aide={phrase('ecran.code.champ_aide')} valeur={code} changer={setCode} autoComplete="one-time-code" inputMode="numeric" premier {...g.sur('code')} />
+        {/* Le téléphone perdu se dit à l'écran, pas seulement dans la bulle « i » (parcours débutant, 06/10/2026). */}
+        <p className="small muted span-2" id="code-perdu">{phrase('ecran.code.perdu')}</p>
       </div>
     </Carte>
   );

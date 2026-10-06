@@ -96,6 +96,8 @@ describe('le paiement en ligne, à la souris', () => {
     await panneau.getByRole('button', { name: 'Brancher', exact: true }).click();
     await expect.poll(async () => net(await panneau.getByRole('alert').innerText())).toBe('Colle la clé de l\'API Konnect.');
     expect(await nadia.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.champ)).toBe('cle');
+    // Le navigateur n'y pose pas le mot de passe SkanFact enregistré (« off » ne l'en empêche pas).
+    expect(await panneau.getByLabel('Clé de l\'API Konnect').getAttribute('autocomplete')).toBe('new-password');
     await panneau.getByLabel('Clé de l\'API Konnect').fill('sk_test_nadia-cle-secrete-b3f2');
     // La clé n'est pas un réglage de la fiche : taper ne propose pas d'enregistrer les Paramètres.
     expect(await nadia.locator('#save-bar').isHidden()).toBe(true);

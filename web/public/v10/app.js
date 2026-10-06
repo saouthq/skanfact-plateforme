@@ -3999,6 +3999,12 @@
           ${avecPlus ? '<button class="btn tel-seul" id="wa-tel">WhatsApp</button>' : ''}
           <button class="btn${suiteExtra === 'pdf' ? ' btn-primary' : ''}" id="pdf">PDF</button>
           ${locked && isInv && doc.status !== 'annulée' && bal && bal.remaining > 0.0005 ? `<button class="btn btn-primary" id="pay">Enregistrer un paiement</button>` : ''}
+          ${/* (plateforme, lot débutant) La fenêtre d'émission disait « 35,000 DT à rendre… par un remboursement » ; l'avoir émis
+               n'offrait rien, et « Rembourser » attendait tout en bas de la facture. */''}${(() => {
+            const fi = locked && isAv && doc.creditOf ? docById(doc.creditOf) : null;
+            const bf = fi && fi.status !== 'annulée' ? balance(fi) : null;
+            return bf && bf.remaining < -0.0005 ? `<button class="btn ${envoiSuivant ? '' : 'btn-primary'}" id="rembourser-avoir" data-facture="${h(fi.id)}">Rembourser ${C.money(-bf.remaining, cur)} au client…</button>` : '';
+          })()}
           ${facturerMenu}${transformMenu}
           ${!figee ? `<button class="btn ${(isNew && (isQ || isExtra)) || suiteExtra === 'save' ? 'btn-primary' : ''}" id="save">Enregistrer${isQ || isExtra ? '' : ' le brouillon'}</button>` : ''}
           ${!figee && (isInv || isAv) ? `<button class="btn btn-primary" id="issue">${isInv ? 'Émettre ' + laPiece() : 'Émettre l\'avoir'}</button> ${info('ed.issue')}` : ''}
@@ -5117,6 +5123,7 @@
     if ($('#settle2')) $('#settle2').onclick = () => $('#settle') ? $('#settle').click() : null;
     if ($('#settle')) $('#settle').onclick = () => facturerSolde(doc);
     if ($('#pay')) $('#pay').onclick = () => paymentForm(docById(doc.id), () => render());
+    if ($('#rembourser-avoir')) $('#rembourser-avoir').onclick = () => paymentForm(docById($('#rembourser-avoir').dataset.facture), () => render(), null, true);
     if ($('#credit')) $('#credit').onclick = () => navigate('#/doc/new/avoir/' + doc.id);
     // Les deux mêmes sorties, portées cette fois par le bandeau plutôt que cachées dans « Plus ▾ » :
     // quelqu'un qui vient de comprendre pourquoi il ne peut rien taper doit trouver la suite là où il
@@ -7377,15 +7384,28 @@
           let attachment = null;
           if (v.attach) attachment = await bridge.exportPdfSilent(C.documentHtml(telle, client, company(), { stampText: stampFor(telle) }), docFileName(telle));
           const corps = lien && v.lien ? await bridge.ajouterLien(doc, 'email', v.body, (doc.lang || client.lang || company().defaultLang) === 'en', C.estLiberal(company())) : v.body;
-          const r = await bridge.composeMail({ to: v.to, subject: v.subject, body: corps, attachment, mode: modeEnvoi() });
-          if (!client.email) { client.email = v.to; }
-          const stored = docById(doc.id) || doc;
-          stored.emails = stored.emails || []; stored.emails.push({ date: C.today(), to: v.to, subject: v.subject, kind });
-          if (passe && stored.status === 'brouillon') { stored.status = envoi; if (doc !== stored) doc.status = envoi; }
-          if (afterSend) afterSend(stored);
-          save(true); close();
-          toast(corps !== v.body ? 'Message ouvert dans ta messagerie, avec le lien de la pièce' : messageOuvert(r, attachment ? 'le PDF' : null));
-          render();
+          await bridge.composeMail({ to: v.to, subject: v.subject, body: corps, attachment, mode: modeEnvoi() });
+          // (plateforme, lot débutant) Un lien de messagerie ne dit pas si une messagerie s'est ouverte : sur un poste sans
+          // logiciel de messagerie (Gmail dans le navigateur), rien ne s'ouvrait, et la pièce passait pourtant « envoyée ».
+          // Le message se copie, et l'envoi ne se note que sur « Je l'ai envoyé ».
+          $('.modal', root).innerHTML = `<h2>Le message est-il parti ?</h2>
+            <p>Ta messagerie a dû s'ouvrir avec le message prêt : relis-le et clique sur Envoyer. <b>Si rien ne s'est ouvert</b> (Gmail ou Outlook dans le navigateur), copie l'objet et le message, et colle-les dans un nouvel e-mail à <b>${h(v.to)}</b>.</p>
+            <div class="inline mt"><button class="btn" id="mf-copier-adresse">Copier l'adresse</button><button class="btn" id="mf-copier">Copier l'objet et le message</button></div>
+            <p class="small muted mt">SkanFact ne voit pas ta messagerie : dis-lui quand le message est parti.${passe ? ' La pièce passera alors « envoyée ».' : ''}</p>
+            <div class="modal-actions"><button class="btn" id="mf-pas-envoye">Pas encore</button><button class="btn btn-primary" id="mf-envoye">Je l'ai envoyé</button></div>`;
+          $('#mf-copier-adresse', root).onclick = () => copierTexte(v.to, 'Adresse copiée');
+          $('#mf-copier', root).onclick = () => copierTexte(`${v.subject}\n\n${corps}`, 'Objet et message copiés : colle-les dans un nouvel e-mail');
+          $('#mf-pas-envoye', root).onclick = () => { close(); toast('Rien n\'est noté : la pièce n\'est pas marquée envoyée.'); };
+          $('#mf-envoye', root).onclick = () => {
+            if (!client.email) { client.email = v.to; }
+            const stored = docById(doc.id) || doc;
+            stored.emails = stored.emails || []; stored.emails.push({ date: C.today(), to: v.to, subject: v.subject, kind });
+            if (passe && stored.status === 'brouillon') { stored.status = envoi; if (doc !== stored) doc.status = envoi; }
+            if (afterSend) afterSend(stored);
+            save(true); close();
+            toast(`Envoi noté sur ${stored.number || 'la pièce'}.`);
+            render();
+          };
         } catch (e) { b.disabled = false; b.textContent = 'Ouvrir dans la messagerie'; toast(plainError(e), true); }
       }; });
   }
@@ -9882,7 +9902,7 @@
       : kind === 'acompte'
         ? { titre: 'Nouvel acompte versé', numero: 'Référence de l\'acompte', invite: 'Facture d\'acompte, reçu, virement…', lignes: 'Saisis au moins le total hors taxes et son taux de TVA : c\'est ce qui permet de récupérer la TVA de l\'acompte.' }
         : kind === 'depense'
-          ? { titre: 'Nouvelle dépense', numero: 'Référence du justificatif', invite: 'Ticket, reçu…', lignes: 'Saisis au moins le total hors taxes et son taux de TVA : c\'est ce qui permet de récupérer la TVA.' }
+          ? { titre: 'Nouvelle dépense', numero: 'Référence du justificatif', invite: 'Ticket, reçu…', lignes: 'Tape ce que tu as payé dans « Montant payé (TTC) » et choisis son taux de TVA : SkanFact en déduit le hors taxes.' }
           : { titre: 'Nouvelle facture d\'achat', numero: 'Numéro de la facture', invite: 'Celui écrit sur la facture du fournisseur', lignes: 'Saisis au moins le total hors taxes et son taux de TVA : c\'est ce qui permet de récupérer la TVA.' };
     // Au forfait ou exonéré, la TVA d'un achat ne se récupère pas (10.14.0) : la phrase qui promettait
     // de la récupérer se lisait au-dessus d'une case « Déduct. » éteinte.
@@ -9997,6 +10017,9 @@
             ${clos ? '' : `<div class="catalog-pick"><div id="b-cat">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher une prestation…' })}</div>
               <button class="btn btn-sm" id="add-line">+ Ligne</button>
               <span class="small muted" id="b-lignes-hint">${h(motsDePiece(p.kind).lignes)}</span></div>`}
+            ${/* (plateforme, lot débutant) Une dépense ne demandait qu'un « P.U. HT » : le débutant y tapait les 85,400 DT payés à la
+                 STEG, et SkanFact affichait 101,626 DT à payer et 16,226 DT de TVA à récupérer qui n'existaient pas. */''}${isDep && !clos ? `<div class="inline mt" id="b-ttc-zone"><label class="field" style="max-width:240px">Montant payé (TTC)<input type="number" id="b-ttc" class="num" step="0.001" min="0" placeholder="ce que dit le ticket"></label>
+              <span class="small muted" id="b-ttc-note">Pour une dépense d'une seule ligne : SkanFact calcule le hors taxes et la TVA d'après le taux choisi.</span></div>` : ''}
             ${!clos && horsRegime() ? `<div class="banner info mt" id="b-regle"><span id="b-regle-txt">${h(phraseRegle())}</span><button class="btn btn-sm" id="b-regle-ok">${C.assujettiTVA(company()) ? 'Récupérer sa TVA' : 'Ne plus récupérer sa TVA'}</button></div>` : ''}
             <table class="lines-edit buy-lines"><thead><tr><th>Désignation</th><th class="r" style="width:62px">Qté</th><th class="r" style="width:92px">P.U. HT</th><th style="width:76px">TVA</th>
               <th style="width:150px">Destination ${info('buy.destination')}</th><th class="nw" style="width:96px">Déduct. ${info('buy.deductible')}</th><th class="r" style="width:118px">Total HT</th><th></th></tr></thead>
@@ -10107,6 +10130,27 @@
       refresh();
     }
     if ($('#add-line')) $('#add-line').onclick = () => { p.lines.push({ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19, destination: 'charge', deductible: true }); touch(); drawLines(); $$('input[data-k=label]', body).pop().focus(); };
+    // (plateforme, lot débutant) Le hors taxes d'une dépense à partir de ce qu'on a payé : celui dont le total, calculé par
+    // le moteur des achats (la TVA arrondie au millime), tombe sur le montant payé ; à défaut, le plus proche, et la note le dit.
+    const appliquerTtc = () => {
+      const champ = $('#b-ttc'), note = $('#b-ttc-note');
+      if (!champ || champ.value === '') return;
+      if (p.lines.length !== 1) { note.textContent = 'Plusieurs lignes : saisis le hors taxes de chacune.'; return; }
+      const voulu = C.round3(Number(champ.value) || 0), l = p.lines[0], frais = Number(p.fees) || 0, taux = Number(l.vatRate) || 0;
+      const total = ht => C.purchaseTotals({ ...p, lines: [{ ...l, qty: 1, unitPrice: ht }] }, company()).totalTTC;
+      const base = C.round3((voulu - frais) / (1 + taux / 100));
+      let ht = base;
+      for (const d of [0, -1, 1, -2, 2, -3, 3]) { const x = C.round3(base + d / 1000); if (C.round3(total(x)) === voulu) { ht = x; break; } }
+      Object.assign(l, { qty: 1, unitPrice: Math.max(0, ht) });
+      const obtenu = C.round3(total(l.unitPrice));
+      note.textContent = obtenu === voulu ? `Hors taxes : ${C.money(l.unitPrice, cur)} ; TVA à ${taux} % : ${C.money(C.round3(obtenu - l.unitPrice - frais), cur)}.`
+        : `Avec ${taux} % de TVA, le total tombe sur ${C.money(obtenu, cur)}, au millime près : vérifie le taux sur ton ticket.`;
+      touch(); drawLines();
+    };
+    if ($('#b-ttc')) $('#b-ttc').addEventListener('input', appliquerTtc);
+    body.addEventListener('change', e => { if (e.target.matches('select[data-k=vatRate]')) appliquerTtc(); });
+    // Un hors taxes tapé à la main reprend la main : le montant payé s'efface (il ne dirait plus vrai).
+    body.addEventListener('input', e => { if (e.target.matches('input[data-k=unitPrice]') && $('#b-ttc')) { $('#b-ttc').value = ''; $('#b-ttc-note').textContent = 'Pour une dépense d\'une seule ligne : SkanFact calcule le hors taxes et la TVA d\'après le taux choisi.'; } });
     // Appliquer le régime du jour à une pièce saisie sous un autre : la phrase reste à sa place (elle
     // dit ce qui vient de changer) — une ligne qui disparaît sous le clic ferait remonter la page.
     if ($('#b-regle-ok')) $('#b-regle-ok').onclick = () => {
@@ -10425,6 +10469,13 @@
     const appliquerLecture = async (values, file, quoi) => {
       Object.assign(p, values.head);
       p.lines = values.lines;
+      // (plateforme, lot débutant) « Clavier USB » lu sur la facture restait en « Charge » : le stock ne bougeait pas.
+      const nomArticle = x => String(x || '').trim().toLowerCase();
+      p.lines.forEach(l => {
+        if (l.itemId || l.destination === 'stock') return;
+        const it = (data.catalog || []).find(c => c.tracked && nomArticle(c.label) && nomArticle(c.label) === nomArticle(l.label));
+        if (it) Object.assign(l, { itemId: it.id, destination: 'stock' });
+      });
       // (plateforme, lot achats) L'échéance que la pièce ne dit pas se calcule comme pour un achat neuf : la date plus le délai
       // du fournisseur (souvent celui qu'on vient de créer depuis la lecture). Elle restait vide.
       if (!p.dueDate && p.date && p.kind !== 'depense' && p.kind !== 'avoir') p.dueDate = C.addDays(p.date, delaiAchat(p.supplierId));
@@ -17236,7 +17287,16 @@
     // Là où se PRÉPARE chaque échéance. Une règle sans écran ne porte pas de bouton : mieux vaut
     // rien qu'un bouton qui mène au hasard.
     const FISCAL_VERS = {
-      tva: () => { comptaState.tab = 'tva'; draw(); $$('#c-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === 'tva')); },
+      tva: echeance => {
+        // (plateforme, lot débutant) L'échéance du 28/10 déclare septembre ; « Préparer » ouvrait octobre.
+        if (echeance) {
+          const y = Number(echeance.slice(0, 4)), m = Number(echeance.slice(5, 7));
+          comptaState.year = String(m === 1 ? y - 1 : y); comptaState.month = String(m === 1 ? 12 : m - 1).padStart(2, '0');
+          if ($('#c-year')) $('#c-year').value = comptaState.year;
+          if ($('#c-month')) $('#c-month').value = comptaState.month;
+        }
+        comptaState.tab = 'tva'; draw(); $$('#c-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === 'tva'));
+      },
       cnss: () => { paieState.tab = 'declarations'; navigate('#/paie'); },
       employeur: () => { paieState.tab = 'declarations'; navigate('#/paie'); }
     };
@@ -17267,7 +17327,7 @@
           ${up.length ? `<table class="list compact"><thead><tr><th>Échéance</th><th>Date</th><th class="r">Dans</th><th></th></tr></thead><tbody>
             ${up.map(x => `<tr class="${x.retard || (x.days <= 7 && !x.enCours) ? 'row-warn' : ''}"><td><strong>${h(x.label)}</strong>${x.note ? `<div class="small muted">${h(x.note)}</div>` : ''}${x.enCours ? `<div class="small muted">Déposable après le ${C.fmtDate(x.fin)}, une fois la période terminée.</div>` : ''}${x.retard ? `<div class="small">${x.id === 'cnss' ? 'Cotisations du trimestre' : 'Retenues de l\'année'} : ${C.money(x.amount, company().currency)}. Pas encore marquée déposée : si tu l'as déjà fait, marque-la ; sinon, dépose-la au plus vite.</div>` : ''}</td>
               <td class="nw">${C.fmtDate(x.date)}</td><td class="r nw">${x.retard ? `<span class="badge retard">en retard de ${pl(-x.days, 'jour')}</span>` : x.days === 0 ? "aujourd'hui" : x.days + ' j'}</td>
-              <td class="actions">${FISCAL_VERS[x.id] ? `<button class="btn btn-sm btn-ghost" data-fvers="${h(x.id)}">Préparer</button>` : ''}<button class="btn btn-sm" data-fdone="${h(x.filingId)}" data-fsoc="${h(x.socialId || '')}" data-flab="${h(x.label)}"${x.enCours ? ` disabled title="${h(attente(x))}"` : ''}>Marquer déposée</button></td></tr>`).join('')}
+              <td class="actions">${FISCAL_VERS[x.id] ? `<button class="btn btn-sm btn-ghost" data-fvers="${h(x.id)}" data-fdate="${h(x.date)}">Préparer</button>` : ''}<button class="btn btn-sm" data-fdone="${h(x.filingId)}" data-fsoc="${h(x.socialId || '')}" data-flab="${h(x.label)}"${x.enCours ? ` disabled title="${h(attente(x))}"` : ''}>Marquer déposée</button></td></tr>`).join('')}
           </tbody></table>` : '<div class="empty">Aucune échéance activée. Active celles qui te concernent ci-dessous.</div>'}
           <p class="small muted mt"><em>À VÉRIFIER avec ton comptable :</em> les dates limites, la périodicité et les déclarations qui te concernent dépendent de ta forme juridique, de ton régime fiscal et de la présence de salariés. Ce calendrier est un pense-bête que tu règles toi-même, pas une source officielle.</p>
         </div>
@@ -17317,7 +17377,7 @@
         toast(`${b.dataset.flab} n'est plus marquée déposée`);
       });
       // Et chaque échéance mène à l'écran où on la prépare : la TVA du mois, les déclarations de paie.
-      $$('[data-fvers]').forEach(b => b.onclick = () => FISCAL_VERS[b.dataset.fvers]());
+      $$('[data-fvers]').forEach(b => b.onclick = () => FISCAL_VERS[b.dataset.fvers](b.dataset.fdate));
       $$('[data-active]').forEach(c => c.onchange = () => { setRule(c.dataset.active, { active: c.checked }); draw(); });
       $$('[data-day]').forEach(i => i.onchange = () => { setRule(i.dataset.day, { day: Math.min(31, Math.max(1, Number(i.value) || 28)) }); draw(); });
     }
@@ -17471,9 +17531,12 @@
     const TABS = SETTINGS_TABS;
     if (!TABS.some(t => t[0] === settingsTab)) settingsTab = 'societe';
     const manques = C.companyGaps(c);
+    // (plateforme, lot débutant) Il restait affiché après « Enregistrer » une fiche complète, jusqu'au rechargement.
+    const bandeauManques = m => m.length ? `<div class="set-manque mb"><b>Il manque ${pl(m.length, 'information')} :</b> ${h(m.join(', '))}.
+            <div class="small mt">Ces informations s'impriment sur chaque document. Tant qu'elles manquent, SkanFact prévient avant chaque émission.</div></div>` : '';
     $('#view').innerHTML = `<div class="page-head"><h1>Paramètres</h1>
         <div class="actions set-search">
-          <input type="search" id="set-q" placeholder="Chercher un réglage : timbre, sauvegarde…" autocomplete="off" spellcheck="false">
+          <input type="search" id="set-q" placeholder="Chercher un réglage : timbre, logo…" autocomplete="off" spellcheck="false">
         </div></div>
       <div id="set-res" class="set-res" hidden></div>
       <div id="set-corps">
@@ -17484,8 +17547,7 @@
         ${panneau('p-identite')}
           <p class="small muted mb">Ces informations s'impriment en haut de chaque devis et facture. Le matricule fiscal est obligatoire sur une facture.
           <button type="button" class="btn btn-sm btn-ghost" id="redo-setup-2">Revoir l'assistant de démarrage…</button></p>
-          ${manques.length ? `<div class="set-manque mb"><b>Il manque ${pl(manques.length, 'information')} :</b> ${h(manques.join(', '))}.
-            <div class="small mt">Ces informations s'impriment sur chaque document. Tant qu'elles manquent, SkanFact prévient avant chaque émission.</div></div>` : ''}
+          <div id="set-manque-zone">${bandeauManques(manques)}</div>
           <div class="grid-2">
           ${field(lbl('Raison sociale', 'co.name'), 'name', c.name)}
           ${field(lbl('Matricule fiscal', 'co.matricule'), 'matricule', c.matricule, 'text', 'placeholder="1234567X/A/M/000"')}
@@ -17786,6 +17848,8 @@
       nomOnglet: pane => (SETTINGS_TABS.find(t => t[0] === pane) || [pane, pane])[1],
       ouvrirOnglet: pane => showTab(pane),
       ongletCourant: () => settingsTab,
+      // (plateforme) Les panneaux sans objet en ligne (cachés) ne se comptent ni ne se trouvent.
+      exclus: bridge.panneauxAbsents || [],
       pluriel: pl,
       rienTrouve: (mots, phrase) => `<div class="empty"><p>${phrase} Ou regarde dans l'Aide, qui explique à quoi
         sert chaque réglage.</p>
@@ -17905,6 +17969,7 @@
       // La licence est attachée au matricule fiscal : une fiche société modifiée se revérifie.
       rafraichirLicence().then(() => { drawLicencePanel(); redessinerBarre(); });
       setDirty = false; $('#save-bar').hidden = true;
+      if ($('#set-manque-zone')) $('#set-manque-zone').innerHTML = bandeauManques(C.companyGaps(company()));
       dessinerAchatsHorsRegime();
       return true;
     };

@@ -3724,9 +3724,12 @@
     const byItem = {};
     trackedItems(data).forEach(c => { byItem[c.id] = runningStock(stockMovements(data, c.id)).rows; });
     const all = [];
-    Object.keys(byItem).forEach(id => byItem[id].forEach(r => all.push(r)));
+    // (plateforme, lot débutant) À date égale, l'ordre du calcul (celui de « Stock après ») : un tri par identifiant
+    // rangeait le stock de départ au-dessus des ventes, et la colonne lisait 10, 18, 16, 20, 15.
+    const rang = new Map();
+    Object.keys(byItem).forEach(id => byItem[id].forEach((r, i) => { all.push(r); rang.set(r, i); }));
     return all.filter(r => inPeriod(r.date, period && period.from, period && period.to))
-      .sort((a, b) => (b.date || '').localeCompare(a.date || '') || String(b.id).localeCompare(String(a.id)));
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (rang.get(b) - rang.get(a)) || String(b.id).localeCompare(String(a.id)));
   }
 
   // Ce qu'un inventaire physique révèle : l'écart entre ce que dit l'application et ce qu'on a compté.

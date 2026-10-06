@@ -1360,7 +1360,7 @@
       : '<p id="pl-etat">Pas branché : tes clients ne voient pas « Payer en ligne ».</p>'}
       <div id="pl-form" ${b ? 'hidden' : ''}>
         <label class="field">Identifiant de ton portefeuille Konnect<input data-champ="portefeuille" autocomplete="off" value="${esc(b ? b.portefeuille : '')}"></label>
-        <label class="field">Clé de l'API Konnect<input data-champ="cle" type="password" autocomplete="off"></label>
+        <label class="field">Clé de l'API Konnect<input data-champ="cle" type="password" autocomplete="new-password" data-lpignore="true" data-1p-ignore></label>
         <p class="small muted">Tu les trouves dans ton espace Konnect. La clé ne se relit plus ici, jamais : seules ses dernières lettres s'affichent.</p>
         <button type="button" class="btn btn-primary" id="pl-brancher">Brancher</button>
       </div>
@@ -1683,6 +1683,8 @@
   const phrase = (x) => `${x.charAt(0).toUpperCase()}${x.slice(1)}.`;
   // Venu de « Brancher le compte El Fatoora » : le curseur attend dans la case de l'identifiant.
   let amenerTtn = false;
+  // Le mot de passe El Fatoora (et la clé Konnect) sont « new-password » : Chrome ignore « off » sur un mot
+  // de passe et y posait celui de SkanFact, que le débutant aurait envoyé à « Brancher » (06/10/2026).
   /** @param {HTMLElement} el */
   async function dessinerTtn(el) {
     /** @type {any} */ let lu;
@@ -1696,7 +1698,7 @@
       ${lu.branche ? '' : '<p class="small" id="ttn-debranche">L\'envoi à la TTN n\'est pas encore branché sur ce serveur : tu peux déjà poser ton compte, les pièces partiront dès qu\'il le sera.</p>'}
       <div id="ttn-form" ${c && !c.dernierRefus ? 'hidden' : ''}>
         <label class="field">Identifiant de ton compte El Fatoora<input data-champ="identifiant" autocomplete="off" value="${esc(c ? c.identifiant : '')}"></label>
-        <label class="field">Mot de passe El Fatoora<input data-champ="motDePasse" type="password" autocomplete="off"></label>
+        <label class="field">Mot de passe El Fatoora<input data-champ="motDePasse" type="password" autocomplete="new-password" data-lpignore="true" data-1p-ignore></label>
         <p class="small muted">Ceux que la TTN t'a donnés à l'adhésion à El Fatoora. Le mot de passe est scellé par le serveur : il ne se relit plus ici, jamais.</p>
         <button type="button" class="btn btn-primary" id="ttn-brancher">Brancher</button>
       </div>

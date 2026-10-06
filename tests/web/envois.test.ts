@@ -139,7 +139,16 @@ describe('les envois, à la souris', () => {
     const corps = mail.searchParams.get('body') ?? '';
     const lienMail = new RegExp(`\\n\\nPour voir la facture en ligne : (${echappe(serveur.adresse)}/espace/#[A-Za-z0-9_-]{32})\\n\\nCordialement,\\n`).exec(corps)?.[1];
     expect(lienMail, corps).toBeTruthy();
-    await expect.poll(async () => net(await nadia.locator('#toast').innerText())).toBe('Message ouvert dans ta messagerie, avec le lien de la pièce');
+    // Rien ne se note avant que Nadia le dise : un lien de messagerie ne dit pas si une messagerie s'est ouverte (parcours
+    // débutant, 06/10/2026 : sans logiciel de messagerie, rien ne s'ouvrait et la pièce passait « envoyée »).
+    const confirmer = nadia.locator('#modal-root .modal').last();
+    await expect.poll(() => confirmer.locator('h2').innerText()).toBe('Le message est-il parti ?');
+    expect(await confirmer.getByRole('button', { name: 'Copier l\'objet et le message', exact: true }).isVisible()).toBe(true);
+    const envoisNotes = () => nadia.evaluate(() => (window as unknown as { __data: { documents: { id: string; emails?: unknown[] }[] } }).__data.documents.find((d) => d.id === 'f1')?.emails?.length ?? 0);
+    expect(await envoisNotes()).toBe(0);
+    await confirmer.getByRole('button', { name: 'Je l\'ai envoyé', exact: true }).click();
+    await expect.poll(async () => net(await nadia.locator('#toast').innerText())).toBe('Envoi noté sur FAC-2026-001.');
+    expect(await envoisNotes()).toBe(1);
 
     // Le client ouvre le lien du message : sa facture, et ce qu'il en doit.
     const cc = await navigateur.newContext({ viewport: { width: 1280, height: 900 }, locale: 'fr-FR' });

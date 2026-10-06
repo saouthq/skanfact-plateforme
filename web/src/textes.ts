@@ -39,6 +39,7 @@ declarerTextes({
   'ecran.code.sms': 'nous venons de t\'envoyer un code par SMS',
   'ecran.code.champ': 'code',
   'ecran.code.champ_aide': 'six chiffres, ou l\'un de tes codes de secours',
+  'ecran.code.perdu': 'téléphone perdu ou changé ? Tape à la place l\'un des codes de secours que SkanFact t\'a donnés en mettant le code en place',
   'ecran.code.bouton': 'valider le code',
   'ecran.code.retour': 'retour à la connexion',
 

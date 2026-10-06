@@ -1,11 +1,11 @@
 {
   "depot": "saouthq/skanfact",
   "branche": "beta",
-  "commit": "e81bece",
+  "commit": "bfd373e",
   "reprisLe": "2026-10-06",
-  "adaptations": 715,
+  "adaptations": 734,
   "fichiers": {
-    "app.js": "9f3716775bf274ef4ff7ad44ed619829bb75acbdfc0cbb3a5ed950592dbd90d0",
+    "app.js": "be9ab563c47b3c888e6f9140d1f97cba0971f6752d3cb727f4f8e763de3e9e6a",
     "cabinet/app.js": "787abb927aa9b686608163904a26fefe98c439b581fa3779c06d63d464a9877b",
     "cabinet/cabcore.js": "84cd43912cd60b911fe88574c87908bab34110c28bfa6c0a3da050fd3811af73",
     "cabinet/cabguide.js": "eed3abc1f9de8d877096b9f2d45f52c29d63fca97b5018ac9c4fa221808c754a",
@@ -13,7 +13,7 @@
     "cabinet/cabvisites.js": "113f61c0db25da2b146568ea43415297f330937f0723f9be6e462d6076d9451f",
     "cabinet/index.html": "80c7c1565e9a1de34759a60c77a2f393a8a825f95724cccca51386a39884dfa1",
     "compta.js": "a1228cbab17b53cd0aa40454d782cabff3165a599788a9a6053f49fcf0368668",
-    "core.js": "d92058ac7c2a86740c61c9c2b54669c94f1dc3779b7196408a75d7714aaecf4f",
+    "core.js": "34d43cd7c738baf06f789237941a317eae05574efbfd21ba703ec4da53fdd796",
     "demo.js": "7831c54cb6ce833e60421c7f837510c3d722efdb94139db2e369ccb3b5fcc18a",
     "guide.js": "06c70b70116e193382cc8c3565b2ed2e6e6ebe2ddb32f2c88ddc26e871200408",
     "index.html": "b435e2083dd0aef38a6458b36a3a14a310c6029dbf9f0ecc02ac39edca7b21de",
@@ -22,11 +22,11 @@
     "nouveautes.js": "71de9bce8598a3bd2df435d873eee02a7c64aa4d7273c3ac90c64cddc4b86225",
     "onboarding.js": "4c3b3a43c9becbfa9b637174383cdf9d7214963debc24d84ea3bcf22f915c53a",
     "placement.js": "2db5b35f4ea8674909daa6587f289ab09e0b95620c62434910e946b28a39d77e",
-    "reglages.js": "86f0b35f86e58c37a7c2e63524f452dd2f8bbb12a16667f2225e84d6502fcc8e",
+    "reglages.js": "6bf274073f5ec91c6b2af6923b5f8c5669d55f9b983f59a74c4127dfe1f780b6",
     "rowmenu.js": "9ce5fb1062efcca4890e4e0b93e0ae33feb6cfdd09a76e6a1484d2eadba5d146",
     "style.css": "50186b8a6e2727addc9b34602e3e235fabdb206fa62ebd975cfa5f2c6a7fd012",
     "teif.js": "87e7870460227508739bac49cf77e13c4435c2e7c1ddbaf99f4a9f31679b45d4",
     "visite.js": "e2251e94b8ad0d3ea182d9ddff317e84bc71c4e552af4f613cc6040c0c925358",
-    "visites.js": "06990dee8900dd3cc610685e0623ee3a25c2e4e3bcfe827209827d3d7e6de295"
+    "visites.js": "5b55705b380eeb3454d2c0f685d30ac9fc7626e5b15dd7046cf86f3e0f8bdca1"
   }
 }

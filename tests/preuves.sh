@@ -8963,6 +8963,62 @@ prouver "« Enregistrer » caché sous le bas d'une fenêtre, à la tablette" we
   "  .modal > .modal-actions:last-child { position: sticky; bottom: -26px;" "  .modal > .modal-actions:last-child { position: static; bottom: -26px;" \
   "$KW1"
 
+# Le lot débutant (1) (06/10/2026) : un commerçant qui débute, à la souris, sur app.skanfact.tn (docs/debutant.md).
+KD1="Paramètres : la recherche ne compte que ce qu'elle montre ; le bandeau se redessine ; « Ta fiche est à jour » exige un matricule complet"
+KD2="Stock : à date égale, les mouvements se lisent dans l'ordre où ils ont eu lieu ; Comptabilité : « Préparer » ouvre le mois déclaré"
+KD3="Dépense : elle se saisit par ce qu'on a payé ; le hors taxes s'en déduit au millime, et suit le taux"
+KD4="Avoir : émis sur une facture payée, il porte « Rembourser … au client », qui enregistre le remboursement sur la facture"
+KDT="la pièce signée attend le compte El Fatoora ; Nadia le pose depuis la fenêtre ; acceptée, la facture validée se télécharge, et la pièce imprimée porte sa référence et son code QR, jusque dans l'espace client"
+KDK="Nadia branche Konnect ; son client paie sa facture en ligne ; le paiement arrive sur la facture"
+KDP="du compte à la facture émise par le serveur, retrouvée après rechargement, puis le retour d'un autre appareil"
+KDE="la facture part avec son lien, par e-mail puis par WhatsApp ; le devis aussi ; le relevé part sans rien de joint"
+KDL="Nadia photographie la facture : la fenêtre montre ce qui a été lu, où, et le total recompté ; enregistré, l'achat tombe au millime sur la pièce"
+prouver "le mot de passe de SkanFact posé par Chrome dans celui d'El Fatoora" web/public/plateforme/pont.js \
+  '<input data-champ="motDePasse" type="password" autocomplete="new-password"' '<input data-champ="motDePasse" type="password" autocomplete="off"' \
+  "$KDT"
+prouver "le mot de passe de SkanFact posé par Chrome dans la clé Konnect" web/public/plateforme/pont.js \
+  '<input data-champ="cle" type="password" autocomplete="new-password"' '<input data-champ="cle" type="password" autocomplete="off"' \
+  "$KDK"
+prouver "la recherche des réglages compte des panneaux absents" web/public/v10/app.js \
+  "      exclus: bridge.panneauxAbsents || []," "      exclus: []," \
+  "$KD1"
+prouver "le bandeau « Il manque » qui ne se redessine pas à l'enregistrement" web/public/v10/app.js \
+  "      if (\$('#set-manque-zone')) \$('#set-manque-zone').innerHTML = bandeauManques(C.companyGaps(company()));" "      if (false) \$('#set-manque-zone').innerHTML = bandeauManques(C.companyGaps(company()));" \
+  "$KD1"
+prouver "« Ta fiche est à jour » avec un matricule incomplet" web/public/v10/visites.js \
+  "        && K.matriculeBienForme(c.matricule) && !(String(c.rib" "        && !(String(c.rib" \
+  "$KD1"
+prouver "le stock de départ rangé au-dessus de la casse du même jour" web/public/v10/core.js \
+  "|| (rang.get(b) - rang.get(a)) || String(b.id)" "|| String(b.id)" \
+  "$KD2"
+prouver "« Préparer » la TVA ouvre le mois de l'échéance" web/public/v10/app.js \
+  "comptaState.year = String(m === 1 ? y - 1 : y); comptaState.month = String(m === 1 ? 12 : m - 1).padStart(2, '0');" "comptaState.year = String(y); comptaState.month = String(m).padStart(2, '0');" \
+  "$KD2"
+prouver "le montant payé d'une dépense sans effet" web/public/v10/app.js \
+  "    if (\$('#b-ttc')) \$('#b-ttc').addEventListener('input', appliquerTtc);" "    if (false) \$('#b-ttc').addEventListener('input', appliquerTtc);" \
+  "$KD3"
+prouver "le hors taxes d'une dépense qui ne suit pas le taux choisi" web/public/v10/app.js \
+  "if (e.target.matches('select[data-k=vatRate]')) appliquerTtc();" "if (false) appliquerTtc();" \
+  "$KD3"
+prouver "le montant payé qui reste affiché sous un hors taxes tapé à la main" web/public/v10/app.js \
+  "if (e.target.matches('input[data-k=unitPrice]') && \$('#b-ttc')) { \$('#b-ttc').value = '';" "if (false) { \$('#b-ttc').value = '';" \
+  "$KD3"
+prouver "l'avoir d'une facture payée sans « Rembourser … au client »" web/public/v10/app.js \
+  "            return bf && bf.remaining < -0.0005 ? \`<button" "            return false ? \`<button" \
+  "$KD4"
+prouver "l'e-mail noté « envoyé » sans que personne ne le dise" web/public/v10/app.js \
+  "          \$('#mf-envoye', root).onclick = () => {|||          \$('#mf-copier-adresse', root).onclick = " "          const envoye = () => {|||          setTimeout(() => envoye()); \$('#mf-copier-adresse', root).onclick = " \
+  "$KDE"
+prouver "une ligne lue d'un article suivi qui part en charge, pas au stock" web/public/v10/app.js \
+  "        if (it) Object.assign(l, { itemId: it.id, destination: 'stock' });" "        if (false) Object.assign(l, { itemId: it.id, destination: 'stock' });" \
+  "$KDL"
+prouver "le code du téléphone qu'il faut cliquer avant de taper" web/src/composants/Champ.tsx \
+  "  useEffect(() => { if (premier) f.ref.current?.focus(); }, [premier, f.ref]);" "  useEffect(() => { if (premier && false) f.ref.current?.focus(); }, [premier, f.ref]);" \
+  "$KDP"
+prouver "le téléphone perdu caché dans la bulle « i »" web/src/ecrans/Code.tsx \
+  '        <p className="small muted span-2" id="code-perdu">{phrase('"'"'ecran.code.perdu'"'"')}</p>' "" \
+  "$KDP"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
