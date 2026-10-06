@@ -8,7 +8,9 @@
 //     gardent pour elles ; et une pièce ainsi réduite s'imprime EXACTEMENT comme la pièce entière ;
 //   - un ticket de caisse n'est pas de l'espace client ;
 //   - chaque ouverture se compte (« vue le … ») ; un lien retiré ne s'ouvre plus ;
-//   - le lien qu'un envoi porte dit par où il part, et « se règle en ligne » selon la règle de l'espace.
+//   - le lien qu'un envoi porte dit par où il part, et « se règle en ligne » selon la règle de l'espace ;
+//   - un devis de CE client se partage envoyé (en brouillon, seulement par un envoi), et l'espace le montre à part
+//     des factures, jamais en brouillon : il ne compte pas dans ce que le client doit.
 
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
@@ -118,7 +120,7 @@ describe('l\'espace client', () => {
     // Donner un lien : pour un client du dossier, et une pièce émise de CE client.
     const donner = (corps: unknown) => appeler('POST', `/entreprises/${e.ent}/espace/liens`, e.jeton, corps);
     expect((await donner({ client: 'inconnu' })).statut).toBe(404);
-    expect(await donner({ client: menuiserie.cle, piece: 'f3' })).toMatchObject({ statut: 409, corps: { motif: 'Seule une facture ou un avoir émis se partage avec le client : émets la pièce d\'abord.' } });
+    expect(await donner({ client: menuiserie.cle, piece: 'f3' })).toMatchObject({ statut: 409, corps: { motif: 'Seuls une facture ou un avoir émis, et un devis envoyé, se partagent avec le client : émets ou envoie la pièce d\'abord.' } });
     expect((await donner({ client: menuiserie.cle, piece: 'f2' })).statut).toBe(409);
     expect((await donner({ client: menuiserie.cle, piece: 'f4' })).statut).toBe(409);
     const dePiece = await donner({ client: menuiserie.cle, piece: 'f1' });
@@ -216,6 +218,63 @@ describe('l\'espace client', () => {
     expect(traces).toEqual(['email', 'whatsapp', 'email', 'email', null, 'email']);
   });
 
+  // Le devis par son lien (06/10/2026) : un devis envoyé par WhatsApp disait « ci-joint » sans rien de joint.
+  it('le devis par son lien : un devis envoyé de CE client, à part des factures, jamais en brouillon ; il ne compte pas dans ce que le client doit', async () => {
+    const e = await essai();
+    const objets = await e.lire();
+    const clients = objets.filter((o) => o.collection === 'clients');
+    const menuiserie = clients.find((c) => String(c.contenu.name).startsWith('Menuiserie'));
+    const atelier = clients.find((c) => String(c.contenu.name).startsWith('Atelier'));
+    if (!menuiserie || !atelier) throw new Error('clients d\'exemple absents');
+    const societe = objets.find((o) => o.collection === '_racine' && o.cle === 'company');
+    await e.envoyer([{ collection: '_racine', cle: 'company', rang: null, revision: societe?.revision ?? null, contenu: { ...societe?.contenu, quoteTerms: 'Bon pour accord, daté et signé' } }]);
+    const devis = (id: string, numero: string, clientId: string, status: string, dueDate: string) => ({
+      id, type: 'devis', number: numero, date: '2026-10-01', dueDate, clientId, status, subject: 'Cuisine équipée',
+      lines: [{ label: 'Plan de travail en granit', description: '', qty: 3, unit: 'm', unitPrice: { '~n': '312.75' }, unitCost: 180, itemId: 'art-9', vatRate: 19 }],
+      discountRate: 0, applyStamp: true, withholdingRate: 0, currency: 'DT', exchangeRate: '', projectId: 'affaire-secrete', emails: [{ a: 'x@y.tn' }], createdAt: 1790000000000,
+    });
+    await e.envoyer([
+      { collection: 'documents', cle: 'd1', rang: 0, revision: null, contenu: devis('d1', 'DEV-2026-001', menuiserie.cle, 'envoyé', '2099-12-31') },
+      { collection: 'documents', cle: 'd2', rang: 1, revision: null, contenu: devis('d2', 'DEV-2026-002', menuiserie.cle, 'brouillon', '2099-12-31') },
+      { collection: 'documents', cle: 'd3', rang: 2, revision: null, contenu: devis('d3', 'DEV-2026-003', atelier.cle, 'envoyé', '2099-12-31') },
+      { collection: 'documents', cle: 'd4', rang: 3, revision: null, contenu: devis('d4', 'DEV-2026-004', menuiserie.cle, 'accepté', '2020-01-31') },
+      { collection: 'documents', cle: 'd5', rang: 4, revision: null, contenu: devis('d5', 'DEV-2026-005', menuiserie.cle, 'envoyé', '2020-01-31') },
+    ]);
+    const donner = (corps: unknown) => appeler('POST', `/entreprises/${e.ent}/espace/liens`, e.jeton, corps);
+    const ouvrir = async (jeton: unknown) => (await appeler('POST', '/espace', undefined, { jeton })).corps as {
+      lien: string; pieces: unknown[]; totaux: unknown[]; entreprise: Record<string, unknown>;
+      devis: { numero: string; date: string | null; validite: string | null; statut: string; document: Record<string, unknown> }[];
+    };
+    // Le devis d'un autre client, un devis inconnu, et un brouillon donné hors d'un envoi : refusés.
+    expect((await donner({ client: menuiserie.cle, piece: 'd3' })).statut).toBe(409);
+    expect((await donner({ client: menuiserie.cle, piece: 'd9' })).statut).toBe(409);
+    expect((await donner({ client: menuiserie.cle, piece: 'd2' })).statut).toBe(409);
+    // Le lien d'un devis envoyé : lui seul, à part des factures ; rien à payer, rien de dû.
+    const d1 = await donner({ client: menuiserie.cle, piece: 'd1', canal: 'whatsapp' });
+    expect(d1).toMatchObject({ statut: 201, corps: { payable: false } });
+    const vue = await ouvrir(d1.corps.jeton);
+    expect([vue.lien, vue.pieces, vue.totaux]).toEqual(['piece', [], []]);
+    expect(vue.devis.map((d) => [d.numero, d.date, d.validite, d.statut])).toEqual([['DEV-2026-001', '2026-10-01', '2099-12-31', 'en_attente']]);
+    // Ne part que ce qu'un devis imprime (le prix de revient, l'article, l'affaire, les e-mails restent).
+    expect(Object.keys(vue.devis[0]?.document ?? {}).sort()).toEqual(['applyStamp', 'currency', 'date', 'discountRate', 'dueDate', 'exchangeRate', 'lines', 'number', 'status', 'subject', 'type', 'withholdingRate']);
+    expect(Object.keys((vue.devis[0]?.document.lines as Record<string, unknown>[])[0] ?? {}).sort()).toEqual(['description', 'label', 'qty', 'unit', 'unitPrice', 'vatRate']);
+    // Ses conditions (« Pour accepter ce devis… ») partent avec la fiche société.
+    expect(vue.entreprise).toMatchObject({ quoteTerms: 'Bon pour accord, daté et signé' });
+    // Un brouillon, par un envoi : le lien se donne (l'envoi le fait passer à « envoyé »), mais l'espace ne le
+    // montre qu'envoyé.
+    const d2 = await donner({ client: menuiserie.cle, piece: 'd2', canal: 'email' });
+    expect(d2.statut).toBe(201);
+    expect((await ouvrir(d2.corps.jeton)).devis).toEqual([]);
+    const d2lu = (await e.lire()).find((o) => o.collection === 'documents' && o.cle === 'd2');
+    if (!d2lu) throw new Error('devis absent');
+    await e.envoyer([{ collection: 'documents', cle: 'd2', rang: 1, revision: d2lu.revision, contenu: { ...d2lu.contenu, status: 'envoyé' } }]);
+    expect((await ouvrir(d2.corps.jeton)).devis.map((d) => d.numero)).toEqual(['DEV-2026-002']);
+    // Le lien du compte : ses devis envoyés (jamais celui de l'Atelier), chacun avec son état ; rien de dû.
+    const compte = await ouvrir((await donner({ client: menuiserie.cle })).corps.jeton);
+    expect(compte.devis.map((d) => [d.numero, d.statut]).sort()).toEqual([['DEV-2026-001', 'en_attente'], ['DEV-2026-002', 'en_attente'], ['DEV-2026-004', 'accepte'], ['DEV-2026-005', 'expire']]);
+    expect(compte.totaux).toEqual([]);
+  });
+
   // Deux chemins, un document : le gabarit d'impression de la v10, sur la pièce entière (ce que
   // l'entreprise imprime) et sur la pièce réduite (ce que le client reçoit). Chaque champ imprimé est
   // présent, avec une valeur qui se voit : un champ oublié dans les listes fermées change le document.
@@ -227,6 +286,7 @@ describe('l\'espace client', () => {
       logo: 'data:image/png;base64,iVBORw0KGgo=', footer: 'Merci de votre confiance', tagline: 'Mobilier sur mesure', stampImage: 'data:image/png;base64,AAAA',
       stampFee: 1.2, primaryColor: '#123456', accentColor: '#b3541e', currency: 'DT', defaultLang: 'en', paymentTerms: 'Paiement à 30 jours',
       paymentTermsEn: 'Payment within 30 days', activity: 'artisanat', taxRegime: 'forfaitaire',
+      quoteTerms: 'Bon pour accord, daté et signé', quoteTermsEn: 'Approved, dated and signed',
       // Ce que la fiche garde pour elle.
       accountantEmail: 'comptable@cabinet.tn', revenueTarget: 500000, counters: { 'facture-2026': 12 }, exonerationsRS: [{ id: 'x', numero: 'EXO-9', du: '2026-01-01', au: '2026-12-31' }],
     };
@@ -258,6 +318,11 @@ describe('l\'espace client', () => {
       { ...facture, deposit: undefined, fromQuoteNumber: 'DEV-2026-006' },
       { ...secrets, type: 'avoir', number: 'AVO-2026-003', date: '2026-10-10', status: 'émis', lang: 'fr', currency: 'DT', exchangeRate: '', creditOfNumber: 'FAC-2026-012',
         creditReason: 'Une table rendue', reference: 'RET-8', notes: 'Remboursé par virement', lines: [{ ...lignes[0], vatRate: 0 }], discountRate: 0, applyStamp: true, stampFee: 1, withholdingRate: 0 },
+      // Un devis (le devis par son lien), en français et en anglais : sa validité et les conditions de la société.
+      { ...secrets, type: 'devis', number: 'DEV-2026-004', date: '2026-10-01', dueDate: '2026-10-31', status: 'envoyé', lang: 'fr', currency: 'DT', exchangeRate: '',
+        subject: 'Cuisine équipée', reference: 'RFQ-12', notes: 'Pose comprise', lines: lignes, discountRate: 5, applyStamp: true, stampFee: 1, withholdingRate: 0 },
+      { ...secrets, type: 'devis', number: 'DEV-2026-005', date: '2026-10-01', dueDate: '2026-10-31', status: 'accepté', lang: 'en', currency: 'EUR', exchangeRate: 3.35,
+        subject: 'Kitchen', lines: lignes, discountRate: 0, applyStamp: false, withholdingRate: 0 },
     ];
     let compares = 0;
     // Le code QR se dessine par le point d'extension du moteur : ici, un dessin qui écrit ce qu'il reçoit.
@@ -270,7 +335,7 @@ describe('l\'espace client', () => {
         }
       }
     }
-    expect(compares).toBe(30);
+    expect(compares).toBe(42);
     expect(C.documentHtml(facture, client, societe, {})).toContain('<svg data-qr="https://elfatoora.tn/verif?ref=TTN260000000042"></svg>');
     C.qrImage = null;
     expect(nettoyerPiece(facture).ttn).toEqual({ reference: 'TTN260000000042', qr: 'https://elfatoora.tn/verif?ref=TTN260000000042' });

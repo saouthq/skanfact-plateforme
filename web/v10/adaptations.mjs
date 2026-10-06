@@ -720,4 +720,5 @@ export const ADAPTATIONS = [
   ...lireFichier('matricule-refus.txt'),
   // ── Le lot téléphone (06/10/2026 ; le parcours d'un commerçant au téléphone et sur la tablette, docs/telephone.md) ──
   ...lireFichier('telephone-commercant.txt'),
+  ...lireFichier('devis-par-son-lien.txt'),
 ];

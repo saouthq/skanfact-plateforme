@@ -63,7 +63,7 @@ dinars, chez une entreprise qui a branché son prestataire). La phrase « Veuill
 modèles devient « Voici » (rien n'est joint) ; décocher le lien la rend, tant que le message n'a pas été
 retouché. Chaque envoi crée son propre lien : la base ne garde que l'empreinte d'un lien, elle ne peut pas
 redonner le précédent ; un message ouvert puis abandonné laisse donc un lien jamais vu, que l'on retire
-d'un clic. Un devis, un bon ou un brouillon partent sans rien de joint, et la fenêtre le dit (« le bouton
+d'un clic. Un bon ou un brouillon partent sans rien de joint (un devis, avec son lien depuis le 06/10/2026 : E9), et la fenêtre le dit (« le bouton
 « PDF » l'enregistre ; joins-le ensuite au message » ; « joins-le », un geste du téléphone comme de l'ordinateur, depuis le lot téléphone du 06/10/2026). Paramètres → Envois ne propose plus « Mail
 (Apple) avec le PDF joint » : un navigateur n'ouvre que la messagerie de l'appareil. **À VÉRIFIER** sur
 Safari (iPhone, Mac) : le message s'ouvre après la création du lien (une attente du serveur) ; Safari peut
@@ -80,6 +80,25 @@ aussi, et le bouton se reclique. Vérifié par `tests/v10/ttn.test.ts` (la pièc
 une autre sorte de pièce, une pièce hors du lien, un lien retiré) et `tests/web/ttn.test.ts` (le fichier téléchargé
 est celui du serveur ; la coupure ; le lien retiré).
 
+**E9. Le devis par son lien** (lot du 06/10/2026, par délégation ; vu au téléphone : un devis envoyé par WhatsApp
+disait « Veuillez trouver ci-joint notre devis » sans rien de joint, et au téléphone il n'y a pas de PDF à glisser). Un
+devis part maintenant avec son lien, par e-mail et par WhatsApp, comme une facture : « Voici notre devis… », puis « Pour
+voir le devis en ligne : … » (jamais « et le régler » : un devis ne se paie pas). « Lien pour le client… » se propose sur un
+devis envoyé. Un devis n'est pas une pièce légale (ni numéro du serveur, ni sceau) : il ne vit que dans le dossier, et le
+client le voit **tel qu'il est aujourd'hui**. C'est la base qui choisit (0073, `ventes.devis_du_lien`) : un devis de CE
+client, jamais en brouillon, jamais supprimé ; le lien d'un devis montre lui seul, le lien du compte tous ses devis
+envoyés. Le serveur donne le lien d'un devis envoyé ; d'un devis encore en brouillon, seulement par un envoi (l'e-mail ou
+le WhatsApp qui le fait passer à « envoyé » juste après) ; s'il est resté en brouillon, la page le dit (« Cette pièce
+n'est pas encore envoyée ») sans rien montrer. La page du client range les devis **à part des factures** (« Tes
+devis ») : ils ne comptent jamais dans « Tu dois ». Chacun dit son état, avec la règle de la v10 : « En attente de ta
+réponse » (et sa validité), « Accepté », « Refusé », « Expiré » (envoyé, et sa validité passée) ; son montant est le total
+TTC que la v10 imprime (la même fonction). Pour l'accepter, le devis dit comment (ses conditions) : rien ne change par
+l'espace (E6). Et la fiche société que lit la page du client est complétée de ses valeurs par défaut par la même fonction
+que la v10 (`migrateData`) : sans elle, une entreprise qui n'a jamais retouché ses conditions (de devis, de paiement)
+les imprime, et son client ne les lisait pas. **Reste** : « Accepter ce devis » en ligne (un geste qui change quelque
+chose depuis l'espace : à décider) ; un devis sans date de validité (créé par l'API ou repris) imprime « valable
+jusqu'au . » (la v10 ne laisse pas vider ce champ à l'écran).
+
 ## Ce qui part vers le client, compté et décidé
 
 Des **listes fermées** (`serveur/ventes/espace.ts`), tirées de ce que lit le gabarit d'impression pour
@@ -93,16 +112,17 @@ des listes le fait échouer (vérifié champ par champ le 30/09/2026).
 |---|---|
 | La pièce | type, numéro, date, échéance, état, langue, devise et cours, objet, référence, notes, acompte (pourcentage ou montant, numéro du devis), solde d'un devis (son numéro), devis d'origine (son numéro), facture corrigée et motif (avoir), régime de TVA et exonération de retenue figés à l'émission, remise, timbre, retenue, lignes ; la référence de la TTN et le contenu de son code QR d'une facture électronique acceptée (brique 83, décidé le 30/09/2026 par délégation : ils s'impriment sur la pièce) |
 | Une ligne | désignation, description, quantité, unité, prix unitaire, taux de TVA, « hors remise » |
-| La fiche société | nom, matricule, RC, capital, adresse, téléphone, e-mail, site, RIB, banque, logo, pied de page, slogan, cachet, timbre, couleurs, devise, langue, conditions de paiement (français, anglais), métier (qui fait dire « note d'honoraires »), régime de TVA |
+| La fiche société | nom, matricule, RC, capital, adresse, téléphone, e-mail, site, RIB, banque, logo, pied de page, slogan, cachet, timbre, couleurs, devise, langue, conditions de paiement (français, anglais), métier (qui fait dire « note d'honoraires »), régime de TVA ; les conditions d'un devis (français, anglais : « Pour accepter ce devis… », décidé le 06/10/2026 par délégation, E9) |
 | La fiche client | nom, matricule, adresse, e-mail, téléphone, contact |
-| Le serveur | pour chaque facture : montant, payé, avoirs, reste, état ; le total dû par devise |
+| Le serveur | pour chaque facture : montant, payé, avoirs, reste, état ; le total dû par devise ; pour chaque devis : son numéro, sa date, sa validité et son état (E9) |
+| Un devis (E9) | les mêmes champs qu'une pièce (la liste ci-dessus) : un devis envoyé, de ce client |
 | La facture électronique (E8) | sur demande, pour une pièce acceptée par la TTN : la facture validée par la TTN, entière (ce qu'elle contient est la pièce elle-même : l'entreprise, le client, les lignes, les montants, la signature du signataire et celle de la TTN), et son nom ; décidé le 05/10/2026 par délégation : c'est la facture officielle, adressée à ce client |
 
 **Restent dans l'entreprise**, entre autres : le prix de revient et l'article d'une ligne ; **les
 paiements eux-mêmes** (dates, modes, comptes, notes : seul leur total part) ; les e-mails envoyés, les
 relances, les pièces jointes, l'affaire, la caisse, l'abonnement ; l'adresse du comptable, l'objectif de
-chiffre d'affaires, les compteurs, les attestations d'exonération, les conditions des devis ; les notes,
-le plafond de crédit, la langue et la devise d'un client ; l'identifiant interne d'un client.
+chiffre d'affaires, les compteurs, les attestations d'exonération ; les notes,
+le plafond de crédit, la langue et la devise d'un client ; l'identifiant interne d'un client ; un devis en brouillon.
 
 ## Reste à faire (§ 2.1)
 
@@ -110,6 +130,7 @@ le plafond de crédit, la langue et la devise d'un client ; l'identifiant intern
 - **Les bons de livraison** émis.
 - ~~Le fichier XML signé~~ : la facture validée par la TTN, à la brique 141 (E8).
 - ~~Le lien dans l'e-mail et le WhatsApp~~ : fait à la brique 79 (E7).
+- ~~Le devis par son lien~~ : fait le 06/10/2026 (E9).
 - **Le relevé de compte envoyé par e-mail** : il part sans le relevé (le message le dit) ; le lien du compte
   y aurait sa place, mais il montre le compte d'aujourd'hui, pas celui de la date du relevé.
 - ~~Une limite d'appels par adresse sur les routes publiques~~ : faite à la brique 142

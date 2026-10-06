@@ -4391,7 +4391,7 @@ prouver "un lien retiré qui s'ouvre encore" base/migrations/0047_paiement_en_li
 " "where jeton_empreinte = p_jeton_empreinte
 " \
   "$EC1"
-prouver "l'ouverture d'un lien jamais notée" base/migrations/0047_paiement_en_ligne.sql \
+prouver "l'ouverture d'un lien jamais notée" base/migrations/0073_devis_par_son_lien.sql \
   "  update ventes.lien set vu_le = p_maintenant, vues = vues + 1 where id = l.id;
 " "" \
   "$EC1"
@@ -4487,8 +4487,7 @@ prouver "« Tu dois » qui tait ce qui est dû" web/public/espace/espace.js \
   "const du = vue.totaux.filter((/** @type {any} */ t) => Number(t.du) > 0);" "const du = vue.totaux.filter(() => false);" \
   "$EC3"
 prouver "le lien d'une pièce qui ouvre la liste" web/public/espace/espace.js \
-  "    if (vue.lien === 'piece' && vue.pieces[0]) piece(vue.pieces[0], false);
-    else releve();" "    releve();" \
+  "    if (vue.lien === 'piece' && vue.pieces[0]) piece(vue.pieces[0], false);" "    if (false) piece(vue.pieces[0], false);" \
   "$EC3"
 prouver "l'impression refusée par le navigateur" web/public/espace/espace.js \
   "f.setAttribute('sandbox', 'allow-same-origin allow-modals');" "f.setAttribute('sandbox', 'allow-same-origin');" \
@@ -4556,7 +4555,7 @@ prouver "la clé scellée lisible par le compte du serveur" base/migrations/0047
   "grant select (entreprise, prestataire, portefeuille, cle_fin, compte_v10, pose_le, pose_par, dernier_refus, dernier_refus_le)
   on ventes.prestataire to skanfact_app;" "grant select on ventes.prestataire to skanfact_app;" \
   "$PA2"
-prouver "l'espace qui tait le paiement en ligne" base/migrations/0047_paiement_en_ligne.sql \
+prouver "l'espace qui tait le paiement en ligne" base/migrations/0073_devis_par_son_lien.sql \
   "'paiement', exists (select 1 from ventes.prestataire pr where pr.entreprise = l.entreprise)," "'paiement', false," \
   "$PA3"
 prouver "« Payer en ligne » chez une entreprise qui ne l'accepte pas" serveur/ventes/espace.ts \
@@ -4673,7 +4672,7 @@ prouver "une clé du coffre qui n'a pas ses 32 octets" serveur/coffre.ts \
 
 # ── Brique 79 : les envois portent le lien de la pièce (docs/espace-client.md, E7) ──
 EN1="le lien qu'un envoi porte : il dit par où il part, et ne promet le paiement en ligne qu'à une facture qui se paie en ligne"
-EN2="la facture part avec son lien, par e-mail puis par WhatsApp ; le devis et le relevé partent sans rien de joint"
+EN2="la facture part avec son lien, par e-mail puis par WhatsApp ; le devis aussi ; le relevé part sans rien de joint"
 prouver "le canal d'un lien jamais noté" serveur/ventes/routes.ts \
   "maintenant(), corps.canal ?? null])).rows[0].id);" "maintenant(), null])).rows[0].id);" \
   "$EN1"
@@ -6002,7 +6001,8 @@ prouver "les premiers pas écrasés à côté de leurs boutons" web/public/plate
 
 # ── Brique 106 : toutes les pages du quotidien au vrai téléphone (tests/web/rendu.test.ts) ──
 prouver "les en-têtes de colonne trop petits pour le doigt" web/public/plateforme/telephone.css \
-  "  th.sortable-h { height: 44px; }" "" \
+  "  th.sortable-h { height: 44px; }
+|||gap: 4px; height: 44px; padding: 0 14px;" "|||gap: 4px; padding: 0 14px;" \
   "$TEL"
 prouver "le nom d'un client trop petit pour le doigt" web/public/plateforme/telephone.css \
   "  #view a.name { display: inline-flex; align-items: center; min-height: 44px; }" "" \
@@ -8778,7 +8778,7 @@ TL3='une pièce au téléphone : l'\''étape suivante en tête, « WhatsApp » �
 TL4='les lignes d'\''un achat et d'\''une photo relue au téléphone : la désignation, puis prix, TVA et total dans l'\''écran'
 TL5='la première émission au téléphone : « Je facturais déjà » tient dans sa fenêtre ; « Ctrl K » ne se montre qu'\''à l'\''ordinateur ; « ta seule pièce »'
 TL6='la caisse sur la tablette (1 180 × 820) et sur un écran de 1 024 × 768 : rien n'\''est tranché, le comptage tient'
-ENV9='la facture part avec son lien, par e-mail puis par WhatsApp ; le devis et le relevé partent sans rien de joint'
+ENV9='la facture part avec son lien, par e-mail puis par WhatsApp ; le devis aussi ; le relevé part sans rien de joint'
 prouver "les listes du téléphone restées des tableaux trop larges" web/public/plateforme/telephone.js \
   "poser(table, 'data-cartes', 'oui');" "poser(table, 'data-cartes', '');" \
   "$TL1"
@@ -8856,6 +8856,71 @@ prouver "le comptage de 1 024 × 768 sous « Fermer la caisse »" web/public/pla
 prouver "« glisse-le » : un geste qu'un téléphone ne fait pas" web/public/v10/app.js \
   "« Exporter en PDF » l\\'enregistre ; joins-le ensuite au message." "« Exporter en PDF » l\\'enregistre ; glisse-le ensuite dans le message." \
   "$ENV9"
+
+# ── Le devis par son lien (06/10/2026 ; docs/espace-client.md, E9) ──
+DV1='le devis par son lien : un devis envoyé de CE client, à part des factures, jamais en brouillon ; il ne compte pas dans ce que le client doit'
+DV2='une pièce réduite à ce qu'\''elle imprime s'\''imprime exactement comme la pièce entière'
+DV3='la facture part avec son lien, par e-mail puis par WhatsApp ; le devis aussi ; le relevé part sans rien de joint'
+prouver "l'espace qui montre le devis d'un autre client" base/migrations/0073_devis_par_son_lien.sql \
+  "     and d.contenu ->> 'clientId' = l.client_v10
+" "" \
+  "$DV1"
+prouver "l'espace qui montre un devis en brouillon" base/migrations/0073_devis_par_son_lien.sql \
+  "     and coalesce(d.contenu ->> 'status', 'brouillon') <> 'brouillon'
+" "" \
+  "$DV1"
+prouver "le lien d'un devis qui montre tous les devis du client" base/migrations/0073_devis_par_son_lien.sql \
+  "     and (l.piece_v10 is null or d.cle = l.piece_v10)
+" "" \
+  "$DV1"
+prouver "l'espace qui ne rend pas les devis" base/migrations/0073_devis_par_son_lien.sql \
+  "    'devis', ventes.devis_du_lien(l.id));" "    'devis', '[]'::jsonb);" \
+  "$DV1"
+prouver "le lien donné pour le devis d'un autre client" serveur/ventes/routes.ts \
+  "and contenu ->> 'clientId' = \$3\`," "and \$3::text is not null\`," \
+  "$DV1"
+prouver "le lien d'un devis en brouillon donné hors d'un envoi" serveur/ventes/routes.ts \
+  "=== 'brouillon' && !corps.canal))" "=== 'brouillon' && false))" \
+  "$DV1"
+prouver "un devis expiré qui se dit en attente" serveur/ventes/espace.ts \
+  "  return typeof d.dueDate === 'string' && d.dueDate !== '' && d.dueDate < aujourdhui ? 'expire' : 'en_attente';" "  return 'en_attente';" \
+  "$DV1"
+prouver "le devis entier qui part au client (prix de revient, affaire, e-mails)" serveur/ventes/espace.ts \
+  "statut: etatDevis(doc, aujourdhui), document: nettoyerPiece(d.document) };" "statut: etatDevis(doc, aujourdhui), document: d.document };" \
+  "$DV1"
+prouver "les conditions d'un devis qui ne partent pas" serveur/ventes/espace.ts \
+  "  'quoteTerms', 'quoteTermsEn',
+" "" \
+  "$DV2"
+prouver "l'e-mail d'un devis sans son lien" web/public/v10/app.js \
+  "créé à l'envoi par le point de contact (brique 79) ; un devis aussi (le devis par son lien).
+    const lien = !!bridge.ajouterLien && (C.isLocked(doc) || doc.type === 'devis')" "créé à l'envoi par le point de contact (brique 79) ; un devis aussi (le devis par son lien).
+    const lien = !!bridge.ajouterLien && (C.isLocked(doc))" \
+  "$DV3"
+prouver "le WhatsApp d'un devis sans son lien" web/public/v10/app.js \
+  "d'un devis aussi (le devis par son lien).
+    const lien = !!bridge.ajouterLien && (C.isLocked(doc) || doc.type === 'devis')" "d'un devis aussi (le devis par son lien).
+    const lien = !!bridge.ajouterLien && (C.isLocked(doc))" \
+  "$DV3"
+prouver "la fenêtre d'un devis qui promet « ce qu'il en doit »" web/public/v10/app.js \
+  "et ton client y voit la pièce telle que tu l\\'imprimes' + (doc.type === 'devis' ? '.' : ', et ce qu\\'il en doit.') : 'Le message s" "et ton client y voit la pièce telle que tu l\\'imprimes, et ce qu\\'il en doit.' : 'Le message s" \
+  "$DV3"
+prouver "« Lien pour le client… » absent d'un devis envoyé" web/public/v10/app.js \
+  "((locked && (isInv || isAv)) || (doc.type === 'devis' && doc.status !== 'brouillon'))" "(locked && (isInv || isAv))" \
+  "$DV3"
+prouver "« Pour voir la facture en ligne » sous un devis" web/public/plateforme/pont.js \
+  "(devis ? 'le devis' : avoir ?" "(avoir ?" \
+  "$DV3"
+prouver "le client qui lit un devis sans les conditions par défaut" web/public/espace/espace.js \
+  "entreprise: C.migrateData({ company: decoder(lu.entreprise) }).company," "entreprise: decoder(lu.entreprise)," \
+  "$DV3"
+prouver "le lien d'un devis qui s'ouvre sur un relevé vide" web/public/espace/espace.js \
+  "    else if (vue.lien === 'piece' && vue.devis[0]) devis(vue.devis[0], false);
+" "" \
+  "$DV3"
+prouver "le relevé du compte sans ses devis" web/public/espace/espace.js \
+  "\${vue.devis.length ? \`<h2 class=\"titre-devis\">" "\${false ? \`<h2 class=\"titre-devis\">" \
+  "$DV3"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

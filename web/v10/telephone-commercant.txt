@@ -44,11 +44,13 @@ plateforme/telephone.css et plateforme/caisse.css ; ici, ce que l'écran doit po
 
 == app.js | la barre d'un achat : chaque bulle reste avec son bouton, et celle de « Lire une photo… » se cache avec lui quand le serveur ne lit pas
 -- avant
+          ${/* (plateforme, lot achats) Sans pièces jointes en ligne, le bouton refusait toujours : il se cache. */''}
           ${bridge.piecesJointes === false ? '' : `<button class="btn" id="attach-top">Joindre un justificatif…</button>${info('ed.attachments')}`}
           ${/* Une pièce déjà saisie ne se relit pas par-dessus : la lecture la remplacerait. */''}
           ${clos || !isNew ? '' : `<button class="btn" id="teif-lire">Lire une e-facture…</button>${info('buy.teif')}`}
           <button class="btn" id="photo" hidden>Lire une photo…</button>${info('ocr.photo')}
 -- après
+          ${/* (plateforme, lot achats) Sans pièces jointes en ligne, le bouton refusait toujours : il se cache. */''}
           ${bridge.piecesJointes === false ? '' : `<span class="colle-bouton"><button class="btn" id="attach-top">Joindre un justificatif…</button>${info('ed.attachments')}</span>`}
           ${/* Une pièce déjà saisie ne se relit pas par-dessus : la lecture la remplacerait. */''}
           ${clos || !isNew ? '' : `<span class="colle-bouton"><button class="btn" id="teif-lire">Lire une e-facture…</button>${info('buy.teif')}</span>`}

@@ -3563,7 +3563,7 @@
       // (plateforme) Chaque ligne dit ce que fait son geste ici (lot facture, 05/10/2026) : la même règle que les fenêtres
       // d'envoi (`sendByEmail`, `sendByWhatsApp`) pour le lien de la pièce.
       const emiseIci = C.isLocked(d);
-      const avecLien = !!bridge.ajouterLien && emiseIci && d.status !== 'annulée' && !C.estTicket(d);
+      const avecLien = !!bridge.ajouterLien && (emiseIci || d.type === 'devis') && d.status !== 'annulée' && !C.estTicket(d);
       const a = [{ icon: 'ouvrir', label: 'Ouvrir', hint: !emiseIci ? 'Voir la pièce et la modifier' : d.type === 'facture' ? 'Voir la facture émise et ses paiements' : 'Voir la pièce émise', run: () => navigate('#/doc/' + id) },
                  { icon: 'pdf', label: 'Exporter en PDF', hint: 'Le document tel que ton client le recevra', run: () => exportPdf(d) }];
       if (d.number) a.push({ icon: 'email', label: 'Envoyer par email', hint: !bridge.ajouterLien ? 'Le PDF est joint au message' : avecLien ? 'Le message porte le lien de la pièce' : 'Le message part sans pièce jointe : le PDF s\'enregistre à part', run: () => sendByEmail(d) },
@@ -4005,7 +4005,7 @@
           ${avecPlus ? `<div class="more"><button class="btn" id="more-btn" aria-label="Autres actions">Plus ▾</button><div class="more-list" id="more-list" hidden>
             ${emailDansPlus ? `<button id="email">Envoyer par email…</button>` : ''}
             <div class="ml-ligne"><button id="wa">Envoyer par WhatsApp…</button>${info('wa.envoi')}</div>
-            ${locked && (isInv || isAv) && doc.status !== 'annulée' && !C.estTicket(doc) && bridge.lienClient ? '<button id="lien-client">Lien pour le client…</button>' : ''}
+            ${((locked && (isInv || isAv)) || (doc.type === 'devis' && doc.status !== 'brouillon')) && doc.status !== 'annulée' && !C.estTicket(doc) && bridge.lienClient ? '<button id="lien-client">Lien pour le client…</button>' : ''}
             ${convDansPlus ? `<div class="ml-titre">Transformer en…</div>${convBoutons}<div class="ml-sep"></div>` : ''}
             ${!isAv ? `<button id="dup">Dupliquer</button><button id="as-template">Enregistrer comme modèle…</button>` : ''}
             ${hasSerials ? `<button id="serials">Numéros de série livrés…</button>` : ''}
@@ -7348,8 +7348,8 @@
     kind = kind || doc.type;
     const m = C.emailFor(kind, doc, client, company(), extra, data);
     // (plateforme) Un navigateur ne joint pas de fichier : une facture ou un avoir émis part avec son LIEN,
-    // créé à l'envoi par le point de contact (brique 79).
-    const lien = !!bridge.ajouterLien && C.isLocked(doc) && doc.status !== 'annulée' && !C.estTicket(doc);
+    // créé à l'envoi par le point de contact (brique 79) ; un devis aussi (le devis par son lien).
+    const lien = !!bridge.ajouterLien && (C.isLocked(doc) || doc.type === 'devis') && doc.status !== 'annulée' && !C.estTicket(doc);
     const corpsOrigine = m.body;
     if (lien) m.body = bridge.sansPieceJointe(m.body);
     const mtitle = kind === 'relanceDevis' ? 'Relancer le devis ' + h(doc.number)
@@ -7362,7 +7362,7 @@
         <label class="field span-2">${lbl('Objet', 'mail.objet')}<input type="text" name="subject" value="${h(m.subject)}"></label>
         <label class="field span-2">${lbl('Message', 'mail.message')}<textarea name="body" rows="9">${h(m.body)}</textarea></label>
       </form>
-      <p class="small muted" id="mf-envoi">${lien ? 'Le message s\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. Un navigateur ne joint pas de fichier : le lien de la pièce s\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\'imprimes, et ce qu\'il en doit.' : 'Le message s\'ouvre dans ta messagerie, sans pièce jointe : un navigateur ne sait pas en joindre. Pour envoyer le PDF, le bouton « PDF » de la pièce l\'enregistre (« Enregistrer au format PDF ») ; joins-le ensuite au message.'} Modèles d'email : Paramètres → Envois.</p>
+      <p class="small muted" id="mf-envoi">${lien ? 'Le message s\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. Un navigateur ne joint pas de fichier : le lien de la pièce s\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\'imprimes' + (doc.type === 'devis' ? '.' : ', et ce qu\'il en doit.') : 'Le message s\'ouvre dans ta messagerie, sans pièce jointe : un navigateur ne sait pas en joindre. Pour envoyer le PDF, le bouton « PDF » de la pièce l\'enregistre (« Enregistrer au format PDF ») ; joins-le ensuite au message.'} Modèles d'email : Paramètres → Envois.</p>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Ouvrir dans la messagerie</button></div>`,
       (root, close) => { if (lien) bridge.lienBascule(root, m.body, corpsOrigine); $('#ok', root).onclick = async () => {
         const v = formValues($('#mf', root));
@@ -7405,8 +7405,8 @@
     if (!client) return toast('Choisis un client.', true);
     kind = kind || doc.type;
     const m = C.emailFor(kind, doc, client, company(), extra, data);
-    // (plateforme) Le lien de la pièce au lieu du PDF à glisser (brique 79).
-    const lien = !!bridge.ajouterLien && C.isLocked(doc) && doc.status !== 'annulée' && !C.estTicket(doc);
+    // (plateforme) Le lien de la pièce au lieu du PDF à glisser (brique 79) ; d'un devis aussi (le devis par son lien).
+    const lien = !!bridge.ajouterLien && (C.isLocked(doc) || doc.type === 'devis') && doc.status !== 'annulée' && !C.estTicket(doc);
     const corpsOrigine = m.body;
     if (lien) m.body = bridge.sansPieceJointe(m.body);
     const titre = kind === 'relanceDevis' ? 'Relancer le devis ' + h(doc.number) + ' par WhatsApp'
@@ -7419,7 +7419,7 @@
         <p class="small muted span-2 annonce-stable" id="wf-num"></p>
         <label class="field span-2">${lbl('Message', 'wa.message')}<textarea name="body" rows="9">${h(m.body)}</textarea></label>
       </form>
-      <p class="small muted">WhatsApp s'ouvre sur la conversation, le message déjà écrit. ${lien ? 'Un lien WhatsApp ne porte pas de fichier : le lien de la pièce s\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\'imprimes, et ce qu\'il en doit.' : 'Un lien WhatsApp ne porte pas de fichier : pour envoyer le PDF, le bouton « PDF » de la pièce l\'enregistre (« Enregistrer au format PDF ») ; joins-le ensuite à la conversation.'} Le texte vient du modèle d'email (Paramètres → Envois).</p>
+      <p class="small muted">WhatsApp s'ouvre sur la conversation, le message déjà écrit. ${lien ? 'Un lien WhatsApp ne porte pas de fichier : le lien de la pièce s\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\'imprimes' + (doc.type === 'devis' ? '.' : ', et ce qu\'il en doit.') : 'Un lien WhatsApp ne porte pas de fichier : pour envoyer le PDF, le bouton « PDF » de la pièce l\'enregistre (« Enregistrer au format PDF ») ; joins-le ensuite à la conversation.'} Le texte vient du modèle d'email (Paramètres → Envois).</p>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Ouvrir WhatsApp</button></div>`,
       (root, close) => {
         if (lien) bridge.lienBascule(root, m.body, corpsOrigine);

@@ -21,6 +21,8 @@ table.pieces tr:last-child td { border-bottom: 0; }
 .etiquette { display: none; }
 .statut { font-size: 13px; color: var(--doux); }
 .statut.en_retard { color: var(--retard); font-weight: 600; }
+.statut.accepte { color: var(--accent); font-weight: 600; }
+h2.titre-devis { font-size: 16px; margin: 24px 0 8px; }
 .recu { font-size: 13px; color: var(--doux); }
 button, .bouton { font: inherit; border-radius: 8px; border: 1px solid var(--trait); background: var(--carte); color: var(--texte); padding: 6px 14px; cursor: pointer; }
 button.principal { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }

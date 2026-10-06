@@ -261,7 +261,15 @@ export function routesVentes(ctx: Contexte): Route<never>[] {
           join socle.dossier_v10 d on d.entreprise = p.entreprise and d.collection = 'documents' and d.cle = p.ref_v10
           where p.entreprise = $1 and p.ref_v10 = $2 and t.ref_v10 = $3 and p.statut = 'emise' and p.type in ('facture', 'avoir')
             and (d.contenu -> 'ticket') is distinct from 'true'::jsonb`, [ent, corps.piece, corps.client])).rows[0];
-        if (!piece) return { statut: 409, corps: { motif: motif('espace.piece_non_emise') } };
+        // Un devis de CE client (le devis par son lien, 06/10/2026) : il ne vit que dans le dossier. Envoyé, il se
+        // partage ; en brouillon, seulement par un envoi (l'e-mail ou le WhatsApp qui le fait passer à « envoyé »,
+        // juste après) : l'espace, lui, ne montre jamais un devis en brouillon.
+        if (!piece) {
+          const devis = (await tx.query(`select contenu ->> 'status' statut from socle.dossier_v10
+            where entreprise = $1 and collection = 'documents' and cle = $2 and contenu ->> 'type' = 'devis' and contenu ->> 'clientId' = $3`,
+          [ent, corps.piece, corps.client])).rows[0] as { statut: string | null } | undefined;
+          if (!devis || ((devis.statut ?? 'brouillon') === 'brouillon' && !corps.canal)) return { statut: 409, corps: { motif: motif('espace.piece_non_emise') } };
+        }
       }
       const jeton = randomBytes(24).toString('base64url');
       const id = String((await tx.query(`insert into ventes.lien (entreprise, client_v10, piece_v10, jeton_empreinte, cree_par, cree_le, canal)

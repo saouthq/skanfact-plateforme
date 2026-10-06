@@ -1403,13 +1403,13 @@
   }
 
   // ── L'espace client (brique 77 ; docs/espace-client.md) ────────────────────────────────────────
-  // « Lien pour le client… » sur une pièce émise : les liens déjà donnés (vus ? « Retirer ») ; en créer un
+  // « Lien pour le client… » sur une pièce émise ou un devis envoyé : les liens déjà donnés (vus ? « Retirer ») ; en créer un
   // vers cette pièce (ou vers tout son compte), à copier dans un message. Le serveur ne garde que
   // l'empreinte d'un lien : il se montre une fois, à sa création.
   /** @param {any} doc @param {any} modal */
   function lienClient(doc, modal) {
     modal(`<h2>Lien pour le client</h2>
-      <p class="small">Ton client ouvre ce lien sans rien installer : il voit la pièce telle que tu l'imprimes, et ce qu'il en doit. Il ne peut rien y changer. Garde-le pour lui : qui a le lien voit la pièce.</p>
+      <p class="small">Ton client ouvre ce lien sans rien installer : il voit la pièce telle que tu l'imprimes${doc.type === 'devis' ? '' : ', et ce qu\'il en doit'}. Il ne peut rien y changer. Garde-le pour lui : qui a le lien voit la pièce.</p>
       <div id="lc-lien"><button type="button" class="btn btn-primary" id="lc-piece">Créer le lien de cette pièce</button></div>
       <p><button type="button" class="btn btn-sm" id="lc-compte">Plutôt le lien de son compte (toutes ses pièces, et ce qu'il doit)</button></p>
       <h3 class="small">Liens déjà donnés</h3><div id="lc-liste" class="small"></div>
@@ -1492,8 +1492,10 @@
       const r = await appel('POST', '/espace/liens', { client: doc.clientId, piece: doc.id, canal });
       const adresse = `${location.origin}${r.adresse}`;
       const avoir = doc.type === 'avoir';
-      const piece = en ? (avoir ? 'the credit note' : liberal ? 'the fee note' : 'the invoice')
-        : (avoir ? 'l\'avoir' : liberal ? 'la note d\'honoraires' : 'la facture');
+      // Un devis aussi part avec son lien (le devis par son lien, 06/10/2026) ; il ne se règle pas en ligne.
+      const devis = doc.type === 'devis';
+      const piece = en ? (devis ? 'the quote' : avoir ? 'the credit note' : liberal ? 'the fee note' : 'the invoice')
+        : (devis ? 'le devis' : avoir ? 'l\'avoir' : liberal ? 'la note d\'honoraires' : 'la facture');
       const phrase = en ? `${r.payable ? `To view and pay ${piece} online` : `To view ${piece} online`}: ${adresse}`
         : `${r.payable ? `Pour voir ${piece} et la régler en ligne` : `Pour voir ${piece} en ligne`} : ${adresse}`;
       // Avant la formule de politesse (le dernier paragraphe : « Cordialement,\n<société> »).

@@ -6,7 +6,8 @@
 //   - la case « Ajouter le lien de la pièce » (cochée) ; décochée, le message retrouve sa phrase ;
 //   - le message ouvert (le « mailto », l'adresse de WhatsApp) porte un lien qui s'ouvre sur la facture ;
 //   - « Lien pour le client… » dit par où chaque lien est parti ;
-//   - un devis et un relevé partent sans rien de joint, et la fenêtre le dit (jamais « le PDF s'affiche ») ;
+//   - un devis part aussi avec son lien (le devis par son lien, 06/10/2026), et son client l'ouvre ;
+//   - un relevé part sans rien de joint, et le message le dit (jamais « le PDF s'affiche ») ;
 //   - sur un Mac, aucune question « Mail ou une autre messagerie » ; une fenêtre ne s'ouvre que pendant le geste ;
 //   - Paramètres → Envois ne propose plus « Mail (Apple) avec le PDF joint ».
 
@@ -62,7 +63,7 @@ describe('les envois, à la souris', () => {
     return p.locator('#modal-root .modal').last();
   };
 
-  it('la facture part avec son lien, par e-mail puis par WhatsApp ; le devis et le relevé partent sans rien de joint', async () => {
+  it('la facture part avec son lien, par e-mail puis par WhatsApp ; le devis aussi ; le relevé part sans rien de joint', async () => {
     const email = `nadia-envois-${Date.now()}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Nadia', motDePasse: 'Un-bon-mot-de-passe' });
     const premier = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Premier', type: 'navigateur' } })).corps.jeton);
@@ -82,7 +83,7 @@ describe('les envois, à la souris', () => {
     };
     await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
       { collection: 'documents', cle: 'f1', rang: 0, revision: null, contenu: doc },
-      { collection: 'documents', cle: 'd1', rang: 1, revision: null, contenu: { ...doc, id: 'd1', type: 'devis' } },
+      { collection: 'documents', cle: 'd1', rang: 1, revision: null, contenu: { ...doc, id: 'd1', type: 'devis', number: 'DEV-2026-001', dueDate: '2099-12-31' } },
     ] });
     expect((await api('POST', `/entreprises/${ent}/dossier-v10/emettre`, jeton, { document: doc, client: menuiserie.contenu, revision: 1, rang: 0, netAPayer: '1073.190' })).statut).toBe(200);
 
@@ -176,22 +177,55 @@ describe('les envois, à la souris', () => {
     await nadia.screenshot({ path: path.join(PHOTOS, 'envois-3-liens.png') });
     await nadia.locator('#modal-root .modal').last().getByRole('button', { name: 'Fermer', exact: true }).click();
 
-    // Le devis : rien ne se joint dans un navigateur, et la fenêtre le dit (sans case de lien) ; son
-    // WhatsApp s'ouvre pendant le geste, sans lien.
+    // Le devis (le devis par son lien) : il part avec son lien, comme la facture ; « ci-joint » devient « Voici », et la
+    // fenêtre ne promet pas « ce qu'il en doit » (un devis ne se doit pas). Encore en brouillon, son envoi le fait
+    // passer à « envoyé » : son client l'ouvre alors, à part de ses factures.
     await nadia.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/d1`);
     await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^Devis/);
     await plusTard(nadia);
     const devis = await envoi(nadia, /^(Email|Envoyer par email…)$/);
-    expect(await devis.getByLabel(/Ajouter le lien/).count()).toBe(0);
-    expect(await devis.getByLabel(/Joindre le PDF/).count()).toBe(0);
-    expect(net(await devis.locator('#mf-envoi').innerText())).toBe('Le message s\'ouvre dans ta messagerie, sans pièce jointe : un navigateur ne sait pas en joindre. Pour envoyer le PDF, le bouton « PDF » de la pièce l\'enregistre (« Enregistrer au format PDF ») ; joins-le ensuite au message. Modèles d\'email : Paramètres → Envois.');
+    expect(await devis.getByLabel(/Ajouter le lien de la pièce/).isChecked()).toBe(true);
+    expect(await devis.locator('textarea[name=body]').inputValue()).toMatch(/^Bonjour,\n\nVoici notre devis DEV-2026-001/);
+    expect(net(await devis.locator('#mf-envoi').innerText())).toBe('Le message s\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. Un navigateur ne joint pas de fichier : le lien de la pièce s\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\'imprimes. Modèles d\'email : Paramètres → Envois.');
     await nadia.screenshot({ path: path.join(PHOTOS, 'envois-4-devis.png') });
     await devis.getByRole('button', { name: 'Annuler', exact: true }).click();
-    const waDevis = await envoi(nadia, /^Envoyer par WhatsApp…$/);
-    expect(await waDevis.getByLabel(/Ajouter le lien/).count()).toBe(0);
+    const waDevis = await envoi(nadia, /^(WhatsApp|Envoyer par WhatsApp…)$/);
+    expect(await waDevis.getByLabel(/Ajouter le lien de la pièce/).isChecked()).toBe(true);
     await waDevis.getByRole('button', { name: 'Ouvrir WhatsApp', exact: true }).click();
-    await expect.poll(async () => (await ouverts(nadia)).slice(3), { timeout: 15_000 }).toEqual(['fenêtre:', expect.stringMatching(/^https:\/\/wa\.me\/216\d{8}\?text=Bonjour/)]);
-    expect((await ouverts(nadia)).join('\n')).not.toContain('/espace/#');
+    await expect.poll(async () => (await ouverts(nadia)).length, { timeout: 15_000 }).toBe(5);
+    const texteDevis = new URL((await ouverts(nadia))[4] ?? '').searchParams.get('text') ?? '';
+    expect(texteDevis).toMatch(/^Bonjour,\n\nVoici notre devis DEV-2026-001/);
+    const lienDevis = new RegExp(`\\n\\nPour voir le devis en ligne : (${echappe(serveur.adresse)}/espace/#[A-Za-z0-9_-]{32})\\n\\nCordialement,\\n`).exec(texteDevis)?.[1];
+    expect(lienDevis, texteDevis).toBeTruthy();
+    // Une fiche société qui n'a jamais porté ses conditions de devis (créée ailleurs que par l'écran, ou avant elles) :
+    // Nadia imprime celles que la v10 y met par défaut, et son client doit lire les mêmes.
+    const fiche = ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as Objet[]).find((o) => o.collection === '_racine' && o.cle === 'company');
+    if (!fiche) throw new Error('fiche société absente');
+    const sansConditions = Object.fromEntries(Object.entries(fiche.contenu).filter(([k]) => k !== 'quoteTerms' && k !== 'quoteTermsEn'));
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [{ collection: '_racine', cle: 'company', rang: null, revision: fiche.revision, contenu: sansConditions }] })).statut).toBe(200);
+    // Son client l'ouvre : le devis comme Nadia l'imprime, son état, son montant ; rien à payer.
+    const clientDevis = await cc.newPage();
+    await clientDevis.goto(lienDevis ?? '');
+    await expect.poll(() => clientDevis.frameLocator('iframe.piece').locator('body').innerText(), { timeout: 15_000 }).toContain('DEV-2026-001');
+    // Ses conditions, comme Nadia les imprime : celles de sa fiche, ou à défaut celles que la v10 y met.
+    expect(net(await clientDevis.frameLocator('iframe.piece').locator('body').innerText())).toContain('Pour accepter ce devis, retournez-le daté et signé avec la mention « Bon pour accord ».');
+    await expect.poll(() => clientDevis.locator('.barre .reste').innerText()).toMatch(/^En attente de ta réponse · valable jusqu'au 31\/12\/2099 · 1\s072,190\sDT$/);
+    expect(await clientDevis.locator('#payer').count()).toBe(0);
+    await clientDevis.screenshot({ path: path.join(PHOTOS, 'envois-5-devis-client.png') });
+    // Le lien de son compte : ses devis à part de ses factures ; « Tu dois » ne compte que la facture.
+    const duCompte = await api('POST', `/entreprises/${ent}/espace/liens`, jeton, { client: menuiserie.cle });
+    const compte = await cc.newPage();
+    await compte.goto(`${serveur.adresse}${String(duCompte.corps.adresse)}`);
+    await expect.poll(() => compte.locator('.du').innerText(), { timeout: 15_000 }).toMatch(/^Tu dois\s+1\s073,190\sDT/);
+    await expect.poll(() => compte.locator('h2.titre-devis + .carte tbody tr').allInnerTexts()).toEqual([expect.stringMatching(/^Devis DEV-2026-001\s+En attente de ta réponse\s+01\/10\/2026\s+31\/12\/2099\s+1\s072,190\sDT\s+Voir$/)]);
+    await compte.locator('[data-devis="0"]').click();
+    await expect.poll(() => compte.frameLocator('iframe.piece').locator('body').innerText(), { timeout: 15_000 }).toContain('DEV-2026-001');
+    // « Lien pour le client… » sur le devis envoyé : le lien de son compte, et celui du devis, parti par WhatsApp.
+    await nadia.locator('#more-btn').click();
+    await nadia.getByRole('button', { name: 'Lien pour le client…', exact: true }).click();
+    await expect.poll(() => nadia.locator('#modal-root .modal').last().locator('#lc-liste').innerText(), { timeout: 15_000 })
+      .toMatch(/^Son compte, donné le .* par Nadia\s*Vu le .*\s*Retirer\s*Cette pièce, envoyé par WhatsApp le .* par Nadia\s*Vu le .*\s*Retirer$/);
+    await nadia.locator('#modal-root .modal').last().getByRole('button', { name: 'Fermer', exact: true }).click();
 
     // Le relevé de compte : il ne se joint pas, et le message ouvert le dit.
     await nadia.goto(`${serveur.adresse}/v10/?e=${ent}#/client/${menuiserie.cle}`);

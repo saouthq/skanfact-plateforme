@@ -35,7 +35,7 @@ declarerTextes({
   'paiement.konnect_autre_montant': 'Konnect a confirmé {recu} millimes au lieu de {attendu} : le paiement n\'est pas enregistré',
 
   'espace.lien_invalide': 'ce lien n\'est plus valable : demande un nouveau lien à l\'entreprise qui te l\'a envoyé',
-  'espace.piece_non_emise': 'seule une facture ou un avoir émis se partage avec le client : émets la pièce d\'abord',
+  'espace.piece_non_emise': 'seuls une facture ou un avoir émis, et un devis envoyé, se partagent avec le client : émets ou envoie la pièce d\'abord',
   'espace.efacture_absente': 'cette pièce n\'a pas (encore) de facture électronique validée par la TTN',
 
   'ventes.devise_inconnue': 'la devise {devise} n\'est pas connue',

@@ -21,6 +21,8 @@ export const CHAMPS_SOCIETE = [
   'name', 'matricule', 'rc', 'capital', 'address', 'phone', 'email', 'website', 'rib', 'bank', 'logo', 'footer', 'tagline',
   'stampImage', 'stampFee', 'primaryColor', 'accentColor', 'currency', 'defaultLang', 'paymentTerms', 'paymentTermsEn',
   'activity', 'taxRegime',
+  // Les conditions d'un devis (« Pour accepter ce devis… ») : il les imprime (le devis par son lien, 06/10/2026).
+  'quoteTerms', 'quoteTermsEn',
 ] as const;
 export const CHAMPS_CLIENT = ['name', 'matricule', 'address', 'email', 'phone', 'contact'] as const;
 export const CHAMPS_PIECE = [
@@ -54,7 +56,17 @@ type PieceLue = {
   id: string; type: 'facture' | 'avoir'; numero: string; date: string; echeance: string | null; devise: string; decimales: number;
   net: string; avoirs: string[]; reglements: string[]; document: unknown;
 };
-type Lu = { lien: 'piece' | 'compte'; entreprise: unknown; client: unknown; paiement: boolean; pieces: PieceLue[] };
+type DevisLu = { id: string; numero: string | null; document: unknown };
+type Lu = { lien: 'piece' | 'compte'; entreprise: unknown; client: unknown; paiement: boolean; pieces: PieceLue[]; devis: DevisLu[] };
+
+// L'état d'un devis tel que le client le lit : la règle de la v10 (`effectiveStatus`) — un devis envoyé dont la
+// date de validité est passée sans réponse est expiré.
+export function etatDevis(document: unknown, aujourdhui: string): 'en_attente' | 'expire' | 'accepte' | 'refuse' {
+  const d = objet(document) ? document : {};
+  if (d.status === 'accepté') return 'accepte';
+  if (d.status === 'refusé') return 'refuse';
+  return typeof d.dueDate === 'string' && d.dueDate !== '' && d.dueDate < aujourdhui ? 'expire' : 'en_attente';
+}
 
 // « Payer en ligne » (brique 78) : une facture qui doit encore, en dinars, chez une entreprise qui l'accepte.
 // UNE définition : l'espace du client, et la phrase du lien qu'un envoi lui porte (brique 79).
@@ -92,5 +104,11 @@ export async function vueEspace(ctx: Contexte, jetonEmpreinte: string) {
     dus.set(p.devise, { du: d.du + reste, decimales: d.decimales });
   }
   const totaux = [...dus].map(([devise, d]) => ({ devise, du: versTexte(d.du, d.decimales) }));
-  return { lien: lu.lien, entreprise: nettoyerSociete(lu.entreprise), client: nettoyerClient(lu.client), pieces, totaux };
+  // Les devis (le devis par son lien) : à part des factures, ils ne comptent jamais dans ce que le client doit.
+  const devis = (lu.devis ?? []).map((d) => {
+    const doc = objet(d.document) ? d.document : {};
+    return { numero: d.numero ?? '', date: typeof doc.date === 'string' ? doc.date : null, validite: typeof doc.dueDate === 'string' && doc.dueDate ? doc.dueDate : null,
+      statut: etatDevis(doc, aujourdhui), document: nettoyerPiece(d.document) };
+  });
+  return { lien: lu.lien, entreprise: nettoyerSociete(lu.entreprise), client: nettoyerClient(lu.client), pieces, devis, totaux };
 }

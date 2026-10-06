@@ -1,0 +1,51 @@
+Le devis par son lien (06/10/2026) : un devis envoyé par WhatsApp disait « Veuillez trouver ci-joint notre devis » sans
+rien de joint (au téléphone, il n'y a pas de PDF à glisser). Il part maintenant avec son lien, comme une facture ;
+l'espace client le montre (docs/espace-client.md, E9). Format : voir sans-paquets.mjs.
+
+== app.js | l'e-mail d'un devis porte son lien, comme celui d'une facture émise
+-- avant
+    // (plateforme) Un navigateur ne joint pas de fichier : une facture ou un avoir émis part avec son LIEN,
+    // créé à l'envoi par le point de contact (brique 79).
+    const lien = !!bridge.ajouterLien && C.isLocked(doc) && doc.status !== 'annulée' && !C.estTicket(doc);
+-- après
+    // (plateforme) Un navigateur ne joint pas de fichier : une facture ou un avoir émis part avec son LIEN,
+    // créé à l'envoi par le point de contact (brique 79) ; un devis aussi (le devis par son lien).
+    const lien = !!bridge.ajouterLien && (C.isLocked(doc) || doc.type === 'devis') && doc.status !== 'annulée' && !C.estTicket(doc);
+-- fin
+
+== app.js | le WhatsApp d'un devis porte son lien
+-- avant
+    // (plateforme) Le lien de la pièce au lieu du PDF à glisser (brique 79).
+    const lien = !!bridge.ajouterLien && C.isLocked(doc) && doc.status !== 'annulée' && !C.estTicket(doc);
+-- après
+    // (plateforme) Le lien de la pièce au lieu du PDF à glisser (brique 79) ; d'un devis aussi (le devis par son lien).
+    const lien = !!bridge.ajouterLien && (C.isLocked(doc) || doc.type === 'devis') && doc.status !== 'annulée' && !C.estTicket(doc);
+-- fin
+
+== app.js | la fenêtre de l'e-mail ne promet « ce qu'il en doit » qu'à une facture ou un avoir : un devis ne se doit pas
+-- avant
+et ton client y voit la pièce telle que tu l\'imprimes, et ce qu\'il en doit.' : 'Le message s
+-- après
+et ton client y voit la pièce telle que tu l\'imprimes' + (doc.type === 'devis' ? '.' : ', et ce qu\'il en doit.') : 'Le message s
+-- fin
+
+== app.js | la fenêtre du WhatsApp, de même
+-- avant
+et ton client y voit la pièce telle que tu l\'imprimes, et ce qu\'il en doit.' : 'Un lien WhatsApp
+-- après
+et ton client y voit la pièce telle que tu l\'imprimes' + (doc.type === 'devis' ? '.' : ', et ce qu\'il en doit.') : 'Un lien WhatsApp
+-- fin
+
+== app.js | la liste des devis dit, comme la fenêtre, que le message porte le lien
+-- avant
+      const avecLien = !!bridge.ajouterLien && emiseIci && d.status !== 'annulée' && !C.estTicket(d);
+-- après
+      const avecLien = !!bridge.ajouterLien && (emiseIci || d.type === 'devis') && d.status !== 'annulée' && !C.estTicket(d);
+-- fin
+
+== app.js | « Lien pour le client… » sur un devis envoyé (un brouillon n'a rien à montrer)
+-- avant
+            ${locked && (isInv || isAv) && doc.status !== 'annulée' && !C.estTicket(doc) && bridge.lienClient ? '<button id="lien-client">Lien pour le client…</button>' : ''}
+-- après
+            ${((locked && (isInv || isAv)) || (doc.type === 'devis' && doc.status !== 'brouillon')) && doc.status !== 'annulée' && !C.estTicket(doc) && bridge.lienClient ? '<button id="lien-client">Lien pour le client…</button>' : ''}
+-- fin

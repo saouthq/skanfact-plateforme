@@ -2,7 +2,7 @@
 // L'espace client (brique 77 ; docs/espace-client.md ; 14 § 2.1). Le client d'une entreprise ouvre le
 // lien qu'elle lui a donné, et voit, sans rien installer, ses pièces émises — chacune exactement comme
 // l'entreprise l'imprime (le gabarit de la v10, `SkanCore.documentHtml`) — et ce qu'il en doit (le
-// chiffre du serveur). Rien ne change d'ici. Le lien secret vit dans le fragment « # » de l'adresse :
+// chiffre du serveur), puis ses devis envoyés (le devis par son lien, 06/10/2026), qui ne comptent pas dans ce qu'il doit. Rien ne change d'ici. Le lien secret vit dans le fragment « # » de l'adresse :
 // le navigateur ne l'envoie jamais, et il part au serveur dans le corps d'une requête.
 (function () {
   'use strict';
@@ -31,6 +31,8 @@
   }
 
   const STATUTS = { a_payer: 'À payer', en_retard: 'En retard', partielle: 'Payée en partie', payee: 'Payée', annulee: 'Annulée' };
+  // L'état d'un devis (le serveur le dit, avec la règle de la v10 : envoyé et sa validité passée, il est expiré).
+  const ETATS_DEVIS = { en_attente: 'En attente de ta réponse', accepte: 'Accepté', refuse: 'Refusé', expire: 'Expiré' };
   /** @type {any} */ let vue = null;
   // La devise telle que la pièce l'écrit (le dinar s'écrit « DT » sur les pièces).
   const devise = (/** @type {string} */ d) => (d === 'TND' ? 'DT' : d);
@@ -66,9 +68,17 @@
           <td>${etiquette('Date')}${esc(C.fmtDate(p.date))}</td><td>${etiquette('Échéance')}${p.echeance ? esc(C.fmtDate(p.echeance)) : '—'}</td>
           <td class="m">${etiquette('Montant')}${esc(montant(p.net, p.devise))}</td><td class="m">${etiquette('Reste à payer')}${p.reste === null ? '—' : esc(montant(p.reste, p.devise))}</td>
           <td><button type="button" data-voir="${i}">Voir</button></td></tr>`).join('')}</tbody></table>` : '<p>Aucune pièce émise pour le moment.</p>'}</section>
-      <footer>Cette page montre les pièces que ${esc(vue.entreprise.name)} t'a émises. Pour une question, écris-lui directement.</footer>`;
+      ${vue.devis.length ? `<h2 class="titre-devis">Tes devis</h2><section class="carte"><table class="pieces"><thead><tr><th>Devis</th><th>Date</th><th>Valable jusqu'au</th><th class="m">Montant</th><th></th></tr></thead><tbody>
+        ${vue.devis.map((/** @type {any} */ d, /** @type {number} */ i) => `<tr><td><strong>${esc(titre(d))}</strong><div class="statut ${esc(d.statut)}">${esc(/** @type {any} */ (ETATS_DEVIS)[d.statut] || '')}</div></td>
+          <td>${etiquette('Date')}${d.date ? esc(C.fmtDate(d.date)) : '—'}</td><td>${etiquette('Valable jusqu\'au')}${d.validite ? esc(C.fmtDate(d.validite)) : '—'}</td>
+          <td class="m">${etiquette('Montant')}${esc(montantDevis(d))}</td>
+          <td><button type="button" data-devis="${i}">Voir</button></td></tr>`).join('')}</tbody></table></section>` : ''}
+      <footer>Cette page montre les pièces que ${esc(vue.entreprise.name)} t'a émises${vue.devis.length ? ', et ses devis' : ''}. Pour une question, écris-lui directement.</footer>`;
     racine.querySelectorAll('[data-voir]').forEach((b) => {
       /** @type {HTMLElement} */ (b).onclick = () => piece(vue.pieces[Number(/** @type {HTMLElement} */ (b).dataset.voir)], true);
+    });
+    racine.querySelectorAll('[data-devis]').forEach((b) => {
+      /** @type {HTMLElement} */ (b).onclick = () => devis(vue.devis[Number(/** @type {HTMLElement} */ (b).dataset.devis)], true);
     });
   }
 
@@ -148,22 +158,49 @@
     cadre.srcdoc = C.documentHtml(p.document, vue.client, vue.entreprise, { preview: true, stampText: tampon, zoom });
     const r = document.getElementById('retour');
     if (r) r.onclick = releve;
-    /** @type {HTMLElement} */ (document.getElementById('imprimer')).onclick = () => {
-      // Une page à part, mise en page comme la v10 le fait pour son PDF (resserrée, puis en vraies pages).
-      // La pièce n'exécute rien (« sandbox ») : elle s'affiche, et s'imprime (« allow-modals »).
-      const f = document.createElement('iframe');
-      f.setAttribute('sandbox', 'allow-same-origin allow-modals');
-      f.className = 'impression';
-      f.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-9999px';
-      f.onload = () => {
-        const d = f.contentDocument;
-        if (d) { try { C.fitToPage(d); C.paginate(d); } catch { /* la page s'imprime telle quelle */ } }
-        f.contentWindow?.print();
-        setTimeout(() => f.remove(), 60_000);
-      };
-      f.srcdoc = C.documentHtml(p.document, vue.client, vue.entreprise, { stampText: tampon });
-      document.body.appendChild(f);
+    /** @type {HTMLElement} */ (document.getElementById('imprimer')).onclick = () => imprimer(p.document, tampon);
+  }
+
+  // « Imprimer ou enregistrer en PDF » : une page à part, mise en page comme la v10 le fait pour son PDF
+  // (resserrée, puis en vraies pages). La pièce n'exécute rien (« sandbox ») : elle s'affiche, et s'imprime
+  // (« allow-modals »).
+  /** @param {any} documentV10 @param {string | undefined} tampon */
+  function imprimer(documentV10, tampon) {
+    const f = document.createElement('iframe');
+    f.setAttribute('sandbox', 'allow-same-origin allow-modals');
+    f.className = 'impression';
+    f.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-9999px';
+    f.onload = () => {
+      const d = f.contentDocument;
+      if (d) { try { C.fitToPage(d); C.paginate(d); } catch { /* la page s'imprime telle quelle */ } }
+      f.contentWindow?.print();
+      setTimeout(() => f.remove(), 60_000);
     };
+    f.srcdoc = C.documentHtml(documentV10, vue.client, vue.entreprise, { stampText: tampon });
+    document.body.appendChild(f);
+  }
+
+  // Le montant d'un devis : son total TTC, calculé comme la v10 l'imprime (le même gabarit, la même fonction).
+  /** @param {any} d */
+  const montantDevis = (d) => C.money(C.computeTotals(d.document, vue.entreprise).totalTTC, d.document.currency || vue.entreprise.currency);
+
+  // Un devis, comme l'entreprise l'imprime : son état, puis « Imprimer ou enregistrer en PDF ». Pour l'accepter,
+  // le devis dit comment (ses conditions) : rien ne change d'ici.
+  /** @param {any} d @param {boolean} retour */
+  function devis(d, retour) {
+    const etat = d.statut === 'en_attente' ? `${ETATS_DEVIS.en_attente}${d.validite ? ` · valable jusqu'au ${esc(C.fmtDate(d.validite))}` : ''}`
+      : d.statut === 'expire' && d.validite ? `Expiré le ${esc(C.fmtDate(d.validite))}` : esc(/** @type {any} */ (ETATS_DEVIS)[d.statut] || '');
+    racine.innerHTML = `${entete()}
+      <div class="barre">${retour ? '<button type="button" id="retour">← Toutes tes pièces</button>' : ''}
+        <span class="reste">${etat} · <strong>${esc(montantDevis(d))}</strong></span>
+        <span class="gestes"><button type="button" class="principal" id="imprimer">Imprimer ou enregistrer en PDF</button></span></div>
+      <iframe class="piece" sandbox="allow-same-origin" title="${esc(titre(d))}"></iframe>`;
+    const cadre = /** @type {HTMLIFrameElement} */ (racine.querySelector('iframe.piece'));
+    const zoom = Math.max(0.3, Math.min(1, Math.floor((cadre.clientWidth - 2) / 794 * 100) / 100));
+    cadre.srcdoc = C.documentHtml(d.document, vue.client, vue.entreprise, { preview: true, zoom });
+    const r = document.getElementById('retour');
+    if (r) r.onclick = releve;
+    /** @type {HTMLElement} */ (document.getElementById('imprimer')).onclick = () => imprimer(d.document, undefined);
   }
 
   async function ouvrir() {
@@ -177,9 +214,16 @@
     }
     const lu = await r.json().catch(() => ({}));
     if (!r.ok) { refus('Ce lien ne s\'ouvre pas.', ` ${typeof lu.motif === 'string' ? lu.motif : 'Réessaie dans un instant.'}`, r.status >= 500); return; }
-    vue = { ...lu, entreprise: decoder(lu.entreprise), client: decoder(lu.client), pieces: lu.pieces.map((/** @type {any} */ p) => ({ ...p, document: decoder(p.document) })) };
+    // La fiche société telle que l'entreprise l'imprime : complétée de ses valeurs par défaut (les conditions d'un
+    // devis, de paiement…) par la même fonction que la v10 (`migrateData`), sinon le client lirait une pièce sans elles.
+    vue = { ...lu, entreprise: C.migrateData({ company: decoder(lu.entreprise) }).company, client: decoder(lu.client),
+      pieces: lu.pieces.map((/** @type {any} */ p) => ({ ...p, document: decoder(p.document) })),
+      devis: (lu.devis || []).map((/** @type {any} */ d) => ({ ...d, document: decoder(d.document) })) };
     document.title = `${vue.entreprise.name} — espace client`;
     if (vue.lien === 'piece' && vue.pieces[0]) piece(vue.pieces[0], false);
+    else if (vue.lien === 'piece' && vue.devis[0]) devis(vue.devis[0], false);
+    // Le lien d'un devis encore en brouillon (l'envoi n'est pas allé jusqu'au bout) : il le dit, sans rien montrer.
+    else if (vue.lien === 'piece') refus('Cette pièce n\'est pas encore envoyée.', ` Demande-la à ${vue.entreprise.name || 'l\'entreprise qui t\'a envoyé ce lien'}.`);
     else releve();
   }
   void ouvrir();
