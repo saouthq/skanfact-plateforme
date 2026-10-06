@@ -703,6 +703,15 @@ export interface BaseDeDonnees {
     verifiee_le: string | null;
     cree_le: Generated<Date>;
   };
+  'socle.reinitialisation': {
+    id: Generated<string>;
+    utilisateur: string;
+    jeton_empreinte: string;
+    cree_le: Date;
+    expire_le: Date;
+    erreurs: Generated<number>;
+    utilise_le: Date | null;
+  };
   'socle.serie': {
     id: Generated<string>;
     entreprise: string;

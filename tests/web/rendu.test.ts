@@ -78,15 +78,17 @@ describe('l\'instrument de rendu des écrans', () => {
     return { jeton, ent };
   }
 
-  type Ecran = { nom: string; titre: string; etape: Etape | null; ouvrir?: (p: Page, langue: Langue) => Promise<void> };
+  type Ecran = { nom: string; titre: string; etape: Etape | null; adresse?: string; ouvrir?: (p: Page, langue: Langue) => Promise<void> };
   const ENTREE: Ecran[] = [
     { nom: 'connexion', titre: 'ecran.connexion.titre', etape: null },
     { nom: 'inscription', titre: 'ecran.inscription.titre', etape: null, ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.connexion.creer_compte', l) }).click(); } },
     { nom: 'porte', titre: 'ecran.porte.titre', etape: 'vide' },
-    { nom: 'porte-entreprise', titre: 'ecran.porte.entreprise_titre', etape: 'vide', ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.porte.demarrer_titre', l), exact: true }).click(); } },
+    { nom: 'porte-entreprise', titre: 'ecran.porte.entreprise_titre', etape: 'vide', ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.porte.demarrer_bouton', l), exact: true }).click(); } },
     { nom: 'porte-cabinet', titre: 'ecran.porte.cabinet_titre', etape: 'vide', ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.porte.cabinet_lien', l), exact: true }).click(); } },
     { nom: 'code-requis', titre: 'ecran.code_requis.titre', etape: 'code_requis' },
     { nom: 'code-pose', titre: 'ecran.code_pose.titre', etape: 'code_requis', ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.code_requis.bouton', l) }).click(); } },
+    // Le lot entrée (06/10/2026) : le lien du mot de passe oublié, une fois servi (ou faux), dit qu'il ne vaut plus rien.
+    { nom: 'lien-perime', titre: 'ecran.nouveau.perime_titre', etape: null, adresse: '?reinitialiser=un-lien-qui-ne-vaut-rien' },
   ];
 
   it('les écrans de l\'entrée, sur un téléphone et un ordinateur, en français et en langue factice : rien ne déborde, rien n\'est coupé, tout se touche du doigt, tout vient du catalogue', async () => {
@@ -99,7 +101,8 @@ describe('l\'instrument de rendu des écrans', () => {
           const page = await contexte.newPage();
           const d = e.etape ? await personne(e.etape) : null;
           if (d) await page.addInitScript((j) => sessionStorage.setItem('skanfact.jeton', j), d.jeton);
-          await page.goto(`${serveur.adresse}/${langue === 'factice' ? '?langue=factice' : ''}`);
+          const q = [e.adresse?.slice(1), langue === 'factice' ? 'langue=factice' : ''].filter(Boolean).join('&');
+          await page.goto(`${serveur.adresse}/${q ? `?${q}` : ''}`);
           if (e.ouvrir) await e.ouvrir(page, langue);
           const nom = `${e.nom}-${largeur}-${langue}`;
           try {

@@ -9,12 +9,8 @@
 
 import { motif } from '../textes/index.ts';
 
-// Vide : null ; mal formé : undefined.
-export function matriculeCanonique(v: unknown): string | null | undefined {
-  const c = String(v ?? '').toUpperCase().replace(/[\s/.\-_]/g, '');
-  if (!c) return null;
-  return /^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c) ? `${c.slice(0, 8)}/${c[8]}/${c[9]}/${c.slice(10)}` : undefined;
-}
+// La règle elle-même vit dans commun/matricule.ts : l'écran de la porte la dit pendant la frappe (lot entrée).
+export { matriculeCanonique } from '../commun/matricule.ts';
 
 // Un matricule mal formé se refuse sur son champ, en disant ce qu'il faut pour en être un (il partait tel quel, et la
 // base répondait par une erreur du serveur : E4).

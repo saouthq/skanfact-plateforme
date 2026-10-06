@@ -48,6 +48,12 @@ declarerTextes({
   'connexion.sms': 'Ton code SkanFact : {code}',
   'connexion.code_perime': 'ce code n\'est plus valable : recommence la connexion',
   'connexion.code_faux': 'ce code ne correspond pas',
+  // Le mot de passe oublié (lot entrée, 06/10/2026 ; migration 0075).
+  'connexion.oubli_indisponible': 'l\'envoi des e-mails n\'est pas encore en service sur ce serveur',
+  'connexion.oubli_lien_perime': 'ce lien n\'est plus valable (il sert une fois, pendant 30 minutes) : demande-en un nouveau',
+  'connexion.oubli_code_manque': 'ton compte est protégé par le code du téléphone : tape-le aussi (ou un code de secours)',
+  'connexion.oubli_objet': 'Ton nouveau mot de passe SkanFact',
+  'connexion.oubli_texte': 'Bonjour,\n\nQuelqu\'un, sans doute toi, a demandé à changer le mot de passe de ton compte SkanFact. Pour en choisir un nouveau, ouvre ce lien dans les {minutes} minutes :\n\n{lien}\n\nSi ce n\'est pas toi, ne fais rien : ton mot de passe reste le même.\n\nSkanFact',
   'compte.code_essai_faux': 'ce code ne correspond pas : vérifie que tu as bien ajouté SkanFact dans ton application, et que l\'heure de ton téléphone est réglée automatiquement',
   'mot_de_passe.trop_court': 'ton mot de passe doit faire au moins {min} caractères',
   'mot_de_passe.vole': 'ce mot de passe figure dans une liste de mots de passe déjà volés : choisis-en un autre',

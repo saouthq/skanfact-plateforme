@@ -85,7 +85,7 @@ describe('le parcours, à la souris', () => {
 
     // La porte : « Commencer avec mon entreprise » ; le rôle de propriétaire exige alors le code du téléphone, d'abord.
     await ecran(p, 'ecran.porte.titre');
-    await bouton(p, 'ecran.porte.demarrer_titre').click();
+    await bouton(p, 'ecran.porte.demarrer_bouton').click();
     await ecran(p, 'ecran.porte.entreprise_titre');
     await champ(p, 'ecran.porte.raison').fill('Épicerie Sami Gharbi');
     // Un O pour la lettre-clé : refusé sur son champ, en disant pourquoi (E4 : la porte disait « le serveur a rencontré
@@ -125,9 +125,17 @@ describe('le parcours, à la souris', () => {
     // La clé écrite en clair est la même, par groupes de quatre (pour qui la tape à la main) ; le lien ouvre l'application.
     expect((await p.locator('.code-cle').innerText()).replace(/\s/g, '')).toBe(secret);
     expect(await p.getByRole('link', { name: titre('ecran.code_pose.ouvrir') }).getAttribute('href')).toBe(lu);
-    // Un code faux ne laisse pas partir : le refus le dit, sur son champ.
+    // Les codes de secours ne se montreront plus : sans « Je les ai mis de côté », l'écran ne part pas, le dit, et
+    // montre la case (lot entrée).
     const champCode = champ(p, 'ecran.code_pose.essai');
     const juste = codeTotp(depuisBase32(secret), Date.now());
+    await champCode.fill(juste);
+    await bouton(p, 'ecran.code_pose.bouton').click();
+    await expect.poll(() => p.getByRole('alert').first().innerText()).toBe(phrase('ecran.code_pose.garde_avant'));
+    expect(await p.getByRole('checkbox', { name: titre('ecran.code_pose.garde') }).evaluate((e) => e === document.activeElement)).toBe(true);
+    await ecran(p, 'ecran.code_pose.titre');
+    await p.getByRole('checkbox', { name: titre('ecran.code_pose.garde') }).check();
+    // Un code faux ne laisse pas partir : le refus le dit, sur son champ.
     await champCode.fill(juste === '000000' ? '111111' : '000000');
     await bouton(p, 'ecran.code_pose.bouton').click();
     await expect.poll(() => p.getByRole('alert').first().innerText()).toBe(phrase('compte.code_essai_faux'));
@@ -205,9 +213,15 @@ describe('le parcours, à la souris', () => {
     await champ(q, 'ecran.connexion.mot_de_passe').fill('Un-bon-mot-de-passe');
     await bouton(q, 'ecran.connexion.bouton').click();
     await ecran(q, 'ecran.code.titre');
-    // Le curseur attend dans la case du code, et le téléphone perdu se dit à l'écran (pas seulement dans la bulle « i »).
+    // Le curseur attend dans la case du code, et le téléphone perdu se dit à l'écran (pas seulement dans la bulle « i ») :
+    // « Utiliser un code de secours » fait attendre un code de secours (lot entrée), et revient au code du téléphone.
     await expect.poll(() => champ(q, 'ecran.code.champ').evaluate((i) => i === document.activeElement)).toBe(true);
-    expect(await q.locator('#code-perdu').innerText()).toBe(phrase('ecran.code.perdu'));
+    expect(await q.locator('#code-perdu').innerText()).toBe(titre('ecran.code.utiliser_secours'));
+    await q.locator('#code-perdu').click();
+    await ecran(q, 'ecran.code.titre_secours');
+    await expect.poll(() => champ(q, 'ecran.code.champ_secours').evaluate((i) => i === document.activeElement)).toBe(true);
+    await q.locator('#code-perdu').click();
+    await ecran(q, 'ecran.code.titre');
     await champ(q, 'ecran.code.champ').fill('000000');
     await bouton(q, 'ecran.code.bouton').click();
     await expect.poll(() => q.getByRole('alert').first().innerText()).toBe(phrase('connexion.code_faux'));

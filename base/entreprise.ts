@@ -142,6 +142,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'socle.code_secours': { classe: 'hors', raison: 'un secret de connexion ne quitte jamais la plateforme' },
   'socle.defi_connexion': { classe: 'hors', raison: 'un secret de connexion ne quitte jamais la plateforme' },
   'socle.tentative': { classe: 'hors', raison: 'le journal technique des connexions n\'appartient pas à l\'entreprise' },
+  'socle.reinitialisation': { classe: 'hors', raison: 'un lien de mot de passe oublié est un secret de connexion' },
   'socle.file_appareil': { classe: 'hors', raison: 'l\'ordre des gestes d\'un appareil appartient à l\'appareil' },
   // À REVOIR avec la file (étape 2) : les gestes « À reprendre » encore ouverts sont comptés dans
   // l'en-tête et annoncés, mais pas restaurés.

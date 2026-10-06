@@ -154,6 +154,7 @@ describe('le Cabinet, à la souris', () => {
     // Le téléphone de Nadia donne le code de la clé affichée (brique 145 : le premier code se vérifie avant de partir).
     const cle = (await p.locator('.code-cle').innerText()).replace(/\s/g, '');
     await p.locator('label.field').filter({ hasText: 'Le code que montre l\'application' }).locator('input').fill(codeTotp(depuisBase32(cle), Date.now()));
+    await p.getByText('Je les ai mis de côté', { exact: true }).click();
     await p.getByRole('button', { name: 'Vérifier et continuer', exact: true }).click();
     await p.waitForURL(/\/v10\/cabinet\/\?c=[0-9a-f-]{36}/, { timeout: 15_000 });
     const cabinet = new URL(p.url()).searchParams.get('c');
@@ -181,7 +182,7 @@ describe('le Cabinet, à la souris', () => {
     for (const absent of ['Boîte de réception', 'Sauvegardes', 'AES-256', 'clé de secours', 'Changer le mot de passe']) expect(reglages).not.toContain(absent);
     await p.locator('#s-lock').click();
     await p.locator('#modal-root #ok').click();
-    await p.getByRole('heading', { level: 1, name: 'Se connecter à SkanFact' }).waitFor({ timeout: 15_000 });
+    await p.getByRole('heading', { level: 1, name: 'Bon retour' }).waitFor({ timeout: 15_000 });
     expect((await api('GET', '/moi', jeton)).statut).toBe(401);
     expect(erreurs).toEqual([]);
   }, 120_000);

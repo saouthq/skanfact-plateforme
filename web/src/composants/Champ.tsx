@@ -3,6 +3,7 @@
 // rouge (`champ-faute`), pendant que le message dit pourquoi en bas de l'écran ; le rouge s'efface
 // dès qu'on le touche — le laisser serait accuser quelqu'un qui a déjà corrigé.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { titre } from '../langue.ts';
 import { Libelle } from './Info.tsx';
 
 // Le refus d'un champ : `n` change à chaque refus, même quand le champ est le même.
@@ -36,19 +37,37 @@ type PropsChamp = Commun & {
   autoComplete?: string; inputMode?: 'numeric' | 'decimal' | 'text' | 'email'; placeholder?: string; propositions?: string[]; nom?: string;
   // Le curseur y attend dès l'ouverture de l'écran (le code du téléphone : on n'a rien d'autre à y faire).
   premier?: boolean;
+  // Un mot de passe qu'on peut afficher (« Afficher » / « Cacher », lot entrée) ; ce qui se lit sous la saisie (l'aide
+  // qui suit la frappe : la jauge du mot de passe, la forme du matricule).
+  revelable?: boolean; dessous?: ReactNode; maxLength?: number;
 };
 
-export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode, placeholder, propositions, nom, premier = false, faute = false, n, ...cadre }: PropsChamp) {
+export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode, placeholder, propositions, nom, premier = false, revelable = false, dessous, maxLength, faute = false, n, ...cadre }: PropsChamp) {
   const f = useFaute<HTMLInputElement>(faute, n);
+  const [vu, setVu] = useState(false);
   useEffect(() => { if (premier) f.ref.current?.focus(); }, [premier, f.ref]);
   const liste = propositions?.length ? `${nom ?? cadre.libelle}-propositions`.replace(/\s+/g, '-') : undefined;
-  return (
+  const champ = (
     <Cadre {...cadre} rouge={f.rouge}>
-      <input ref={f.ref} type={type} value={valeur} onChange={(e) => { f.effacer(); changer(e.target.value); }}
-        aria-invalid={f.rouge || undefined} {...(nom ? { name: nom } : {})} {...(placeholder ? { placeholder } : {})}
+      <input ref={f.ref} type={revelable && vu ? 'text' : type} value={valeur} onChange={(e) => { f.effacer(); changer(e.target.value); }}
+        aria-invalid={f.rouge || undefined} {...(nom ? { name: nom } : {})} {...(placeholder ? { placeholder } : {})} {...(maxLength ? { maxLength } : {})}
         {...(autoComplete ? { autoComplete } : {})} {...(inputMode ? { inputMode } : {})} {...(liste ? { list: liste } : {})} />
       {liste ? <datalist id={liste}>{propositions?.map((p) => <option key={p} value={p} />)}</datalist> : null}
     </Cadre>
+  );
+  if (!revelable && !dessous) return champ;
+  // Le bouton « Afficher » vit à côté du libellé, jamais dedans : un libellé ne porte qu'une saisie.
+  return (
+    <div className={['ent-champ', cadre.classe ?? ''].filter(Boolean).join(' ')}>
+      {revelable ? (
+        <div className="ent-oeil-zone">
+          {champ}
+          <button type="button" className="ent-oeil" aria-pressed={vu} aria-label={titre(vu ? 'ecran.champ.cacher_mdp' : 'ecran.champ.afficher_mdp')}
+            onClick={() => { setVu(!vu); f.ref.current?.focus(); }}>{titre(vu ? 'ecran.champ.cacher' : 'ecran.champ.afficher')}</button>
+        </div>
+      ) : champ}
+      {dessous}
+    </div>
   );
 }
 

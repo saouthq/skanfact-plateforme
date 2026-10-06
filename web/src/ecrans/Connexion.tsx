@@ -1,18 +1,22 @@
-// Se connecter, dans la carte d'accueil de la v10 : l'adresse, le mot de passe, et si le rôle
-// l'exige, le code du téléphone ensuite. Un refus se dit en bas de l'écran et montre son champ.
-import { useState } from 'react';
+// Se connecter (lot entrée, 06/10/2026 ; docs/entree.md) : la vitrine de SkanFact à gauche, et à droite l'adresse, le
+// mot de passe (qu'on peut afficher) et, si le rôle l'exige, le code du téléphone ensuite. « Mot de passe oublié ? » ne
+// se propose que si le serveur sait envoyer l'e-mail ; « Créer mon compte » est un vrai bouton (c'était un petit lien
+// gris que le débutant ne voyait pas). Un refus se dit en bas de l'écran et montre son champ.
+import { useEffect, useState } from 'react';
 import { appeler, ErreurReseau, session } from '../api.ts';
 import { Bouton } from '../composants/Bouton.tsx';
-import { Carte } from '../composants/Carte.tsx';
 import { Case, Champ } from '../composants/Champ.tsx';
+import { Dessin, PageDouble, VitrineConnexion } from '../composants/Entree.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
 
 export type Defi = { defi: string; methode: 'sms' | 'application'; posteDUnAutre: boolean };
 // `sous` : la phrase sous le titre, quand un partenaire a envoyé la personne ici (brique 133).
 // `email` : l'adresse déjà connue (un compte qu'on vient de créer), pour ne pas la retaper.
-type Props = { connecte: () => void; code: (d: Defi) => void; inscription: () => void; sous?: string | null; email?: string };
+type Props = { connecte: () => void; code: (d: Defi) => void; inscription: () => void; oubli: (email: string) => void; sous?: string | null; email?: string };
 const rien = () => undefined;
+// Le contact de SkanFact, sur son site.
+export const AIDE = 'https://skanfact.tn/contact.html';
 
 // Le nom de cet appareil, lisible dans « Tes appareils » (brique 74) : « Chrome sur Windows ».
 export function nomDeCetAppareil() {
@@ -22,8 +26,18 @@ export function nomDeCetAppareil() {
   return os ? `${nav} sur ${os}` : nav;
 }
 
-export function Connexion({ connecte, code, inscription, sous, email: connu }: Props) {
+// Ce que ce serveur sait faire à l'entrée (le mot de passe oublié : seulement avec un relais d'e-mails).
+export function useOptions() {
+  const [oubli, setOubli] = useState(false);
+  useEffect(() => {
+    void appeler<{ motDePasseOublie: boolean }>('GET', '/connexion/options').then((r) => { if (r.statut === 200) setOubli(r.corps.motDePasseOublie); }).catch(() => undefined);
+  }, []);
+  return { oubli };
+}
+
+export function Connexion({ connecte, code, inscription, oubli, sous, email: connu }: Props) {
   const g = useGeste(rien);
+  const options = useOptions();
   const [email, setEmail] = useState(connu ?? '');
   const [motDePasse, setMotDePasse] = useState('');
   const [posteDUnAutre, setPosteDUnAutre] = useState(false);
@@ -49,17 +63,20 @@ export function Connexion({ connecte, code, inscription, sous, email: connu }: P
   });
 
   return (
-    <Carte titre={titre('ecran.connexion.titre')} sous={sous ?? phrase('ecran.accueil.sous')} onSubmit={() => { void envoyer(); }}
-      pied={<>
-        <Bouton discret onClick={inscription}>{titre('ecran.connexion.creer_compte')}</Bouton>
-        <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.connexion.bouton')}</Bouton>
-      </>}>
-      <div className="grid-2">
-        <Champ classe="span-2" libelle={titre('ecran.connexion.email')} aide={phrase('ecran.connexion.email_aide')} valeur={email} changer={setEmail} type="email" autoComplete="username" inputMode="email" {...g.sur('email')} />
-        <Champ classe="span-2" libelle={titre('ecran.connexion.mot_de_passe')} aide={phrase('ecran.connexion.mot_de_passe_aide')} valeur={motDePasse} changer={setMotDePasse} type="password" autoComplete="current-password" {...g.sur('motDePasse')} />
+    <PageDouble vitrine={<VitrineConnexion />}
+      haut={<><span className="vide" /><a className="ent-lien" href={AIDE} target="_blank" rel="noopener noreferrer">{titre('ecran.connexion.aide')}</a></>}
+      bas={<span className="sur"><Dessin id="cadenas" />{phrase('ecran.connexion.chiffree')}</span>}>
+      <form noValidate className="ent-formulaire" onSubmit={(e) => { e.preventDefault(); void envoyer(); }}>
+        <div className="ent-entete"><h1>{titre('ecran.connexion.titre')}</h1><p>{sous ?? phrase('ecran.connexion.sous')}</p></div>
+        <Champ libelle={titre('ecran.connexion.email')} aide={phrase('ecran.connexion.email_aide')} valeur={email} changer={setEmail} type="email" autoComplete="username" inputMode="email" {...g.sur('email')} />
+        <Champ libelle={titre('ecran.connexion.mot_de_passe')} aide={phrase('ecran.connexion.mot_de_passe_aide')} valeur={motDePasse} changer={setMotDePasse} type="password" autoComplete="current-password" revelable {...g.sur('motDePasse')} />
+        {options.oubli ? <div className="ent-sous-champ"><button type="button" className="ent-lien" onClick={() => oubli(email)}>{titre('ecran.connexion.oublie')}</button></div> : null}
         {/* Ce que la case change se lit dans son « i », avant le geste : rien n'apparaît sous le curseur. */}
-        <div className="span-2"><Case libelle={titre('ecran.connexion.poste_autre')} aide={phrase('ecran.connexion.poste_autre_aide')} coche={posteDUnAutre} changer={setPosteDUnAutre} /></div>
-      </div>
-    </Carte>
+        <Case libelle={titre('ecran.connexion.poste_autre')} aide={phrase('ecran.connexion.poste_autre_aide')} coche={posteDUnAutre} changer={setPosteDUnAutre} />
+        <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.connexion.bouton')}<Dessin id="fleche" /></Bouton>
+        <div className="ent-separe">{titre('ecran.connexion.premiere_fois')}</div>
+        <Bouton onClick={inscription}>{titre('ecran.connexion.creer_compte')}</Bouton>
+      </form>
+    </PageDouble>
   );
 }

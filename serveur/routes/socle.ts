@@ -6,7 +6,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
-import { connecter, deconnecter, essayerCode, inscrire, mettreEnPlaceCode, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
+import { connecter, deconnecter, demanderReinitialisation, essayerCode, inscrire, lireReinitialisation, mettreEnPlaceCode, reinitialiser, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
 import { prochainNumero } from '../numeros.ts';
 import { regle } from '../regles.ts';
 import { requetes } from '../base.ts';
@@ -74,6 +74,33 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
     traiter: async ({ corps, requete }) => {
       const r = await validerCode(ctx, { ...corps, ip: requete.ip });
       return { statut: r.etat === 'connecte' ? 200 : r.etat === 'attendre' ? 429 : 401, corps: r };
+    },
+  });
+
+  // Ce que l'entrée peut proposer sur ce serveur (lot entrée, 06/10/2026) : le mot de passe oublié, seulement si un
+  // relais d'e-mails est branché (l'écran ne propose pas ce qu'il ne peut pas faire).
+  ajouter({
+    methode: 'GET', chemin: '/connexion/options', geste: 'public',
+    traiter: async () => ({ corps: { motDePasseOublie: !!ctx.courriel } }),
+  });
+
+  // Le mot de passe oublié (lot entrée ; migration 0075) : la demande répond la même chose qu'un compte réponde ou non.
+  ajouter({
+    methode: 'POST', chemin: '/mot-de-passe/oubli', geste: 'public',
+    corps: z.object({ email: z.string().min(1).max(200) }),
+    traiter: async ({ corps }) => { await demanderReinitialisation(ctx, corps.email); return { statut: 202, corps: { ok: true } }; },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/mot-de-passe/lien', geste: 'public',
+    corps: z.object({ jeton: z.string().min(1).max(100) }),
+    traiter: async ({ corps }) => ({ corps: await lireReinitialisation(ctx, corps.jeton) }),
+  });
+  ajouter({
+    methode: 'POST', chemin: '/mot-de-passe/nouveau', geste: 'public',
+    corps: z.object({ jeton: z.string().min(1).max(100), motDePasse: z.string().max(200), code: z.string().max(20).optional() }),
+    traiter: async ({ corps }) => {
+      const r = await reinitialiser(ctx, corps);
+      return r.ok ? { corps: { ok: true } } : { statut: 400, corps: { motif: r.motif, champ: r.champ } };
     },
   });
 

@@ -5,6 +5,11 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import './plateforme.css';
+// L'habit de l'entrée (lot entrée, 06/10/2026) et ses deux polices, servies par le serveur lui-même.
+import '@fontsource-variable/bricolage-grotesque/wght.css';
+import '@fontsource-variable/instrument-sans/wght.css';
+import '@fontsource/ibm-plex-mono/500.css';
+import './entree.css';
 
 // Le thème sombre de la v10 (`body.dark`) suit celui du système, tant qu'aucun réglage ne le fixe.
 const sombre = window.matchMedia('(prefers-color-scheme: dark)');

@@ -1110,8 +1110,8 @@ TEL=web/public/plateforme/telephone.css
 prouver "une phrase écrite en dur dans un écran de l'entrée" web/src/ecrans/Porte.tsx \
   "onClick={() => { void essai(); }}>{titre('ecran.porte.essai_bouton')}</Bouton>" "onClick={() => { void essai(); }}>Commencer la découverte</Bouton>" \
   "$RE"
-prouver "un bouton de l'entrée trop petit pour un doigt" web/src/plateforme.css \
-  "  .btn, nav a, .sidebar-foot .foot-link, .dos-menu button, button.nav-group { min-height: 44px; }" "" \
+prouver "un bouton de l'entrée trop petit pour un doigt" web/src/entree.css \
+  "  min-height: 50px; height: auto; padding: 10px 18px;" "  min-height: 30px; height: 30px; padding: 0 18px;" \
   "$RE"
 prouver "les lignes d'une facture plus larges que le téléphone (la grille de la v10)" $TEL \
   '    grid-template-columns: repeat(3, minmax(0, 1fr));|||    grid-template-areas: "lab lab lab" "qte unite pu" "tva total total" "outils outils outils";' \
@@ -3336,7 +3336,7 @@ prouver "un dossier renommé sans trace" $CR \
 prouver "le nom d'un dossier tenu que l'écran n'envoie pas" $PC \
   '        await appel('"'"'PUT'"'"', `/cabinets/${cabinetId}/dossiers/${id}`, { raisonSociale: nom, matriculeFiscal: matricule });' "" \
   "$NT2"
-prouver "un matricule à points envoyé tel quel" serveur/matricule.ts \
+prouver "un matricule à points envoyé tel quel" commun/matricule.ts \
   '.toUpperCase().replace(/[\s/.\-_]/g, '\'''\'');' '.toUpperCase().replace(/[\s/]/g, '\'''\'');' \
   "$NT2"
 prouver "le nom d'un client sur SkanFact qui s'écrit" web/public/v10/cabinet/app.js \
@@ -3952,7 +3952,7 @@ prouver "un matricule illisible qui passe l'essai" $CV \
 prouver "un matricule en double dans le fichier qui passe l'essai" $CV \
   "    else if (lu && matricules.has(lu)) nomme(" "    else if (false) nomme(" \
   "$RP2"
-prouver "un matricule à points de la v10 refusé" serveur/matricule.ts \
+prouver "un matricule à points de la v10 refusé" commun/matricule.ts \
   '.toUpperCase().replace(/[\s/.\-_]/g, '\'''\'');' '.toUpperCase().replace(/[\s/]/g, '\'''\'');' \
   "$RP1"
 prouver "des honoraires illisibles qui passent l'essai" $CV \
@@ -8477,10 +8477,10 @@ prouver 'la fiche qui ne porte pas son identité à l'\''entreprise' serveur/v10
   '  await suivreIdentite(tx, entreprise, lus);
 ' '' \
   "$IDS1"
-prouver 'le matricule porté tel qu'\''il est écrit' serveur/matricule.ts \
+prouver 'le matricule porté tel qu'\''il est écrit' commun/matricule.ts \
   '? `${c.slice(0, 8)}/${c[8]}/${c[9]}/${c.slice(10)}` : undefined' '? c : undefined' \
   "$IDS1"
-prouver 'un matricule mal formé qui efface celui de l'\''entreprise' serveur/matricule.ts \
+prouver 'un matricule mal formé qui efface celui de l'\''entreprise' commun/matricule.ts \
   '  if (!c) return null;' '  if (!c || !/^[0-9]{7}[A-Z]{3}[0-9]{3}$/.test(c)) return null;' \
   "$IDS2"
 prouver 'le matricule d'\''une autre entreprise porté sans refus' base/migrations/0071_identite_suit_la_fiche.sql \
@@ -8640,7 +8640,7 @@ prouver 'la fiche complétée qui garde le matricule tel que tapé' web/public/v
 prouver 'la lettre-clé I, O ou U acceptée à l'\''écran' web/public/v10/core.js \
   'const MF_FORME = /^[0-9]{7}[A-HJ-NP-TV-Z]' 'const MF_FORME = /^[0-9]{7}[A-Z]' \
   "$MAT1"
-prouver 'la lettre-clé I, O ou U portée à l'\''entreprise par le serveur' serveur/matricule.ts \
+prouver 'la lettre-clé I, O ou U portée à l'\''entreprise par le serveur' commun/matricule.ts \
   '/^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c)' '/^[0-9]{7}[A-Z][A-Z]{2}[0-9]{3}$/.test(c)' \
   "$MAT1"
 prouver 'la fiche qui ne dit pas que la lettre-clé n'\''est jamais I, O ni U' web/public/v10/core.js \
@@ -8666,7 +8666,7 @@ prouver 'la porte qui laisse passer un matricule mal formé' serveur/routes/socl
 prouver 'le refus du matricule sans son champ' serveur/matricule.ts \
   ', champ } };' ' } };' \
   "$POR1"
-prouver 'la lettre-clé I, O ou U acceptée à la porte' serveur/matricule.ts \
+prouver 'la lettre-clé I, O ou U acceptée à la porte' commun/matricule.ts \
   '/^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c)' '/^[0-9]{7}[A-Z][A-Z]{2}[0-9]{3}$/.test(c)' \
   "$POR1"
 prouver 'la porte qui répond « erreur du serveur » à un matricule déjà pris' base/migrations/0072_matricule_a_la_porte.sql \
@@ -8681,13 +8681,13 @@ prouver 'le même matricule sans barres qui passe la porte une seconde fois' ser
 prouver 'le dossier tenu qui garde le matricule tel qu'\''il est écrit' serveur/cabinet/routes.ts \
   '[params.cabinet, corps.raisonSociale, matricule])).rows[0].id as string;' '[params.cabinet, corps.raisonSociale, corps.matriculeFiscal ?? null])).rows[0].id as string;' \
   "$NT1"
-prouver 'la lettre-clé I, O ou U acceptée au dossier tenu' serveur/matricule.ts \
+prouver 'la lettre-clé I, O ou U acceptée au dossier tenu' commun/matricule.ts \
   '/^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c)' '/^[0-9]{7}[A-Z][A-Z]{2}[0-9]{3}$/.test(c)' \
   "$NT1"
 prouver 'deux écritures du même matricule qui passent la reprise' serveur/reprise/cabinet-v10.ts \
   '    if (matricule) matricules.add(matricule);' '    if (matricule) matricules.add(d.matricule);' \
   "$RP2"
-prouver 'la lettre-clé I, O ou U acceptée à la reprise' serveur/matricule.ts \
+prouver 'la lettre-clé I, O ou U acceptée à la reprise' commun/matricule.ts \
   '/^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c)' '/^[0-9]{7}[A-Z][A-Z]{2}[0-9]{3}$/.test(c)' \
   "$RP2"
 prouver 'la liste collée qui laisse passer la lettre-clé O' web/public/plateforme/pont-cabinet.js \
@@ -9016,8 +9016,81 @@ prouver "le code du téléphone qu'il faut cliquer avant de taper" web/src/compo
   "  useEffect(() => { if (premier) f.ref.current?.focus(); }, [premier, f.ref]);" "  useEffect(() => { if (premier && false) f.ref.current?.focus(); }, [premier, f.ref]);" \
   "$KDP"
 prouver "le téléphone perdu caché dans la bulle « i »" web/src/ecrans/Code.tsx \
-  '        <p className="small muted span-2" id="code-perdu">{phrase('"'"'ecran.code.perdu'"'"')}</p>' "" \
+  '<button type="button" id="code-perdu"' '<button type="button" id="code-cache"' \
   "$KDP"
+
+# Le lot entrée (06/10/2026) : l'entrée refaite d'après les maquettes, et le mot de passe oublié (docs/entree.md).
+KE1="sans relais d'e-mails, l'entrée ne le propose pas, et la demande se refuse en le disant"
+KE2="la même réponse qu'un compte existe ou non ; le lien part à l'adresse du compte, avec lui seul ; trois demandes par heure au plus"
+KE3="sans code du téléphone : le lien choisit un nouveau mot de passe (la règle des mots de passe tient), une fois, 30 minutes ; les sessions ouvertes se ferment"
+KE4="avec le code du téléphone, le lien seul ne suffit pas : il faut le code, ou un code de secours (une fois) ; cinq codes faux, et le lien ne vaut plus rien"
+KEW1="mot de passe oublié : proposé seulement si l'e-mail peut partir ; le lien reçu choisit un nouveau mot de passe, qui ouvre ensuite le compte"
+KEW2="créer son compte : la jauge dit pendant la frappe ce qui manque, « Afficher » montre le mot de passe"
+KEW3="ton entreprise : la forme du matricule se dit pendant la frappe, et le haut de la facture se dessine avec ce qui est tapé"
+KEW4="la sécurité : l'entreprise créée se dit ; les codes de secours se copient et se téléchargent ; l'ouverture coche ce qui est fait"
+prouver "le mot de passe oublié proposé sans relais d'e-mails (serveur)" serveur/routes/socle.ts \
+  "traiter: async () => ({ corps: { motDePasseOublie: !!ctx.courriel } })," "traiter: async () => ({ corps: { motDePasseOublie: true } })," \
+  "$KE1"
+prouver "la demande du mot de passe oublié qui dit si l'adresse a un compte" serveur/connexion.ts \
+  "  if (!a) return;" "  if (!a) throw new Refus('connexion.oubli_indisponible');" \
+  "$KE2"
+prouver "le mot de passe oublié demandé sans limite" base/migrations/0075_mot_de_passe_oublie.sql \
+  "r.cree_le > p_maintenant - interval '1 hour') >= 3 then return; end if;" "r.cree_le > p_maintenant - interval '1 hour') >= 300 then return; end if;" \
+  "$KE2"
+prouver "le lien du mot de passe oublié qui ne périme pas" base/migrations/0075_mot_de_passe_oublie.sql \
+  "values (v_id, p_empreinte, p_maintenant, p_maintenant + p_duree);" "values (v_id, p_empreinte, p_maintenant, p_maintenant + interval '1 day');" \
+  "$KE3"
+prouver "les sessions ouvertes qui survivent au nouveau mot de passe" base/migrations/0075_mot_de_passe_oublie.sql \
+  "  update socle.session set fermee_le = p_maintenant where utilisateur = v_utilisateur and fermee_le is null;" "" \
+  "$KE3"
+prouver "la règle des mots de passe oubliée au mot de passe oublié" serveur/connexion.ts \
+  "  if (!politique.ok) return { ok: false, motif: politique.motif, champ: 'motDePasse' };" "" \
+  "$KE3"
+prouver "le lien seul qui suffit à un compte protégé par le code du téléphone" serveur/connexion.ts \
+  "  if (lu.code_methode === 'sms' || lu.code_methode === 'application') {" "  if (false) {" \
+  "$KE4"
+prouver "les codes faux sans effet sur le lien du mot de passe oublié" serveur/connexion.ts \
+  "      await enTantQue(ctx.pool, null, (tx) => tx.query('select socle.reinitialisation_erreur(\$1)', [e]));" "" \
+  "$KE4"
+prouver "un code de secours qui sert deux fois au mot de passe oublié" serveur/connexion.ts \
+  "    if (secours && !(await tx.query('select socle.consommer_code_secours(\$1, \$2) ok', [secours, maintenant])).rows[0].ok) return false;" "" \
+  "$KE4"
+prouver "« Mot de passe oublié ? » proposé sans relais d'e-mails" web/src/ecrans/Connexion.tsx \
+  "{options.oubli ? <div className=\"ent-sous-champ\">" "{true ? <div className=\"ent-sous-champ\">" \
+  "$KEW1"
+prouver "le jeton du mot de passe oublié qui reste dans l'adresse" web/src/App.tsx \
+  "  q.delete('reinitialiser');" "" \
+  "$KEW1"
+prouver "la jauge du mot de passe qui ne suit pas la frappe" web/src/ecrans/Inscription.tsx \
+  "  const n = [...motDePasse].length;" "  const n = [...motDePasse].length * 0;" \
+  "$KEW2"
+prouver "« Afficher » qui ne montre pas le mot de passe" web/src/composants/Champ.tsx \
+  "type={revelable && vu ? 'text' : type}" "type={type}" \
+  "$KEW2"
+prouver "le matricule sans sa suite, qui ne dit pas ce qui manque" web/src/ecrans/Porte.tsx \
+  "  if (matriculeSansSuite(m)) return { texte: phrase('ecran.porte.mf_debut'), classe: ' alerte' };" "" \
+  "$KEW3"
+prouver "le haut de la facture qui ne suit pas la raison sociale" web/src/ecrans/Porte.tsx \
+  "{raison.trim() ? <strong data-donnee>{raison.trim()}</strong>" "{false ? <strong data-donnee>{raison.trim()}</strong>" \
+  "$KEW3"
+prouver "l'entreprise créée, que l'écran de la sécurité tait" web/src/ecrans/CodeRequis.tsx \
+  "bandeau={entreprise ? titre('ecran.code_requis.creee', { nom: entreprise }) : undefined}" "bandeau={undefined}" \
+  "$KEW4"
+prouver "les codes de secours copiés à moitié" web/src/ecrans/CodeRequis.tsx \
+  "void copier(codes.secours.join('\n')," "void copier(codes.secours.slice(5).join('\n')," \
+  "$KEW4"
+prouver "les codes de secours téléchargés sous un nom quelconque" web/src/ecrans/CodeRequis.tsx \
+  "  lien.download = 'skanfact-codes-de-secours.txt';" "  lien.download = 'codes.txt';" \
+  "$KEW4"
+prouver "l'ouverture qui tait la protection du compte" web/src/ecrans/Ouverture.tsx \
+  "...(ouvrir.protege ? ['ecran.ouverture.protege'] : [])" "...([])" \
+  "$KEW4"
+prouver "l'écran qui part sans les codes de secours mis de côté" web/src/ecrans/CodeRequis.tsx \
+  "    if (!garde) { toast(" "    if (false) { toast(" \
+  "$PARC"
+prouver "le téléphone perdu qui ne fait pas taper un code de secours" web/src/ecrans/Code.tsx \
+  "onClick={() => { setSecours(!secours); setCode(''); }}" "onClick={() => { setCode(''); }}" \
+  "$PARC"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

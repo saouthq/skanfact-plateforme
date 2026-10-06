@@ -1,9 +1,13 @@
-// Le code du téléphone, après le mot de passe, dans la carte d'accueil de la v10.
+// Le code du téléphone, après le mot de passe (lot entrée, 06/10/2026 ; docs/entree.md) : une grande case où le curseur
+// attend, et sous elle « Téléphone perdu ou changé ? », qui fait taper un code de secours à la place (le serveur prend
+// l'un ou l'autre dans la même case ; l'écran dit seulement lequel il attend). Vu au parcours débutant : rien ne parlait
+// du téléphone perdu, sauf dans la bulle « i ».
 import { useState } from 'react';
 import { appeler, ErreurReseau, session } from '../api.ts';
 import { Bouton } from '../composants/Bouton.tsx';
 import { Carte } from '../composants/Carte.tsx';
 import { Champ } from '../composants/Champ.tsx';
+import { Dessin } from '../composants/Entree.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
 import type { Defi } from './Connexion.tsx';
@@ -13,6 +17,7 @@ const rien = () => undefined;
 export function Code({ defi, connecte, retour }: { defi: Defi; connecte: () => void; retour: () => void }) {
   const g = useGeste(rien);
   const [code, setCode] = useState('');
+  const [secours, setSecours] = useState(false);
 
   const envoyer = () => g.geste(async () => {
     let r;
@@ -25,16 +30,18 @@ export function Code({ defi, connecte, retour }: { defi: Defi; connecte: () => v
   });
 
   return (
-    <Carte titre={titre('ecran.code.titre')} sous={phrase(defi.methode === 'sms' ? 'ecran.code.sms' : 'ecran.code.application')} onSubmit={() => { void envoyer(); }}
-      pied={<>
-        <Bouton discret onClick={retour}>{titre('ecran.code.retour')}</Bouton>
-        <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.code.bouton')}</Bouton>
+    <Carte icone={secours ? 'cle' : 'telephone'} titre={titre(secours ? 'ecran.code.titre_secours' : 'ecran.code.titre')}
+      sous={phrase(secours ? 'ecran.code.sous_secours' : defi.methode === 'sms' ? 'ecran.code.sms' : 'ecran.code.application')}
+      droite={<button type="button" className="ent-lien" onClick={retour}><Dessin id="retour" />{titre('ecran.code.retour')}</button>}
+      onSubmit={() => { void envoyer(); }}
+      pied={<Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.code.bouton')}</Bouton>}
+      aide={<>
+        <b>{titre(secours ? 'ecran.code.retrouve' : 'ecran.code.perdu')}</b>
+        <button type="button" id="code-perdu" className="ent-lien" onClick={() => { setSecours(!secours); setCode(''); }}>{titre(secours ? 'ecran.code.utiliser_telephone' : 'ecran.code.utiliser_secours')}</button>
       </>}>
-      <div className="grid-2">
-        <Champ classe="span-2" libelle={titre('ecran.code.champ')} aide={phrase('ecran.code.champ_aide')} valeur={code} changer={setCode} autoComplete="one-time-code" inputMode="numeric" premier {...g.sur('code')} />
-        {/* Le téléphone perdu se dit à l'écran, pas seulement dans la bulle « i » (parcours débutant, 06/10/2026). */}
-        <p className="small muted span-2" id="code-perdu">{phrase('ecran.code.perdu')}</p>
-      </div>
+      <Champ key={secours ? 'secours' : 'telephone'} classe={`ent-code${secours ? ' secours' : ''}`} libelle={titre(secours ? 'ecran.code.champ_secours' : 'ecran.code.champ')}
+        aide={phrase('ecran.code.champ_aide')} valeur={code} changer={setCode} autoComplete="one-time-code" inputMode={secours ? 'text' : 'numeric'} premier
+        dessous={<span className="ent-aide">{phrase(secours ? 'ecran.code.secours_aide' : 'ecran.code.change')}</span>} {...g.sur('code')} />
     </Carte>
   );
 }

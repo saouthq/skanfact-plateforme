@@ -32,6 +32,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { creerApp } from './app.ts';
+import { courrielSmtp, type EnvoiCourriel } from './courriel.ts';
 import { emettreLesContrats } from './v10/contrats.ts';
 import { envoyerHttps, livrerAvis, type Envoyeur } from './avis.ts';
 import { creerPool } from './base.ts';
@@ -71,6 +72,9 @@ export type Configuration = {
   // Combien de relais de confiance (le frontal) se tiennent devant le serveur (brique 142) : 0, le serveur est
   // appelé en direct.
   proxy: number;
+  // L'envoi des e-mails (lot entrée, 06/10/2026 ; serveur/courriel.ts) : le relais SMTP et l'adresse d'expédition ;
+  // null, aucun e-mail ne part (et le mot de passe oublié ne se propose pas).
+  courriel: { smtp: string; de: string } | null;
   // La version du code, écrite dans chaque page et au pied du menu (serveur/ecrans.ts) : lue dans le dépôt, sauf si
   // l'environnement la donne (SKANFACT_VERSION).
   version: string;
@@ -113,6 +117,10 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   if (!Number.isInteger(lectures) || lectures < 1 || lectures > 32) throw new ConfigurationFausse(`SKANFACT_LECTURES « ${env.SKANFACT_LECTURES} » : un nombre de lectures à la fois, de 1 à 32`);
   const proxy = Number(env.SKANFACT_PROXY ?? 0);
   if (!Number.isInteger(proxy) || proxy < 0 || proxy > 5) throw new ConfigurationFausse(`SKANFACT_PROXY « ${env.SKANFACT_PROXY} » : le nombre de relais de confiance devant le serveur, de 0 à 5`);
+  const smtp = env.SKANFACT_SMTP ?? null;
+  if (smtp && !/^smtps?:\/\/[^/]+$/.test(smtp)) throw new ConfigurationFausse('SKANFACT_SMTP : l\'adresse du relais, smtp://utilisateur:mot-de-passe@hote:587 (ou smtps://…:465)');
+  const de = env.SKANFACT_COURRIEL_DE ?? null;
+  if (smtp && !(de && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(de))) throw new ConfigurationFausse('SKANFACT_COURRIEL_DE : l\'adresse d\'où partent les e-mails (par exemple ne-pas-repondre@skanfact.tn)');
   let partenaires: Partenaire[];
   // Les partenaires déclarés (brique 133) : ceux du dépôt (serveur/partenaires.json : des adresses et des empreintes,
   // rien de secret), sauf si l'environnement en donne d'autres. Un serveur d'essai admet aussi un retour sur le poste.
@@ -128,6 +136,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     digigo: digigo ? { base: digigo, cle: env.SKANFACT_DIGIGO_CLE ?? '' } : null,
     ttn, ttnMs: Number(env.SKANFACT_TTN_MS ?? 60_000), contratsMs: Number(env.SKANFACT_CONTRATS_MS ?? 3_600_000),
     lectures, partenaires, proxy, version: env.SKANFACT_VERSION ?? versionDuCode(),
+    courriel: smtp && de ? { smtp, de } : null,
   };
 }
 
@@ -176,13 +185,16 @@ export function servirLesEcrans(app: ReturnType<typeof creerApp>, dossier: strin
   });
 }
 
-export async function demarrer(c: Configuration, dependances: { envoyer?: Envoyeur } = {}): Promise<{ adresse: string; arreter: () => Promise<void> }> {
+export async function demarrer(c: Configuration, dependances: { envoyer?: Envoyeur; courriel?: EnvoiCourriel } = {}): Promise<{ adresse: string; arreter: () => Promise<void> }> {
   const pool = creerPool(c.base);
   // L'adresse publique : réglée, sinon celle où le serveur écoute (connue une fois qu'il écoute).
   let publique = c.adresse ?? '';
   const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms: smsAucun, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique },
     ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}), ttn: { adresse: c.ttn, coffre: c.coffre },
     lecteur: await lecteurDuServeur({ simultanees: c.lectures }), partenaires: { liste: c.partenaires, cle: c.coffre } };
+  // Le relais des e-mails (un essai en donne un autre, qui garde ce qu'il reçoit) ; sans lui, aucun e-mail ne part.
+  const envoiCourriel = dependances.courriel ?? (c.courriel ? courrielSmtp(c.courriel.smtp, c.courriel.de) : null);
+  if (envoiCourriel) ctx.courriel = { envoi: envoiCourriel, adresse: () => publique };
   declarerGestesVentes();
   declarerGestesCaisse();
   declarerGestesAchats();

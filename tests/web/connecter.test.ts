@@ -95,7 +95,7 @@ describe('connecter une boutique, à l\'écran', () => {
     await p.goto(demande(`${RETOUR}?boutique=12`, 'etat-1'));
     expect(new URL(p.url()).pathname).toBe('/');
     // La connexion dit qui attend, et pourquoi.
-    await expect.poll(async () => p.locator('.setup-s').innerText(), { timeout: 15_000 }).toBe(rendre(motif('ecran.connecter.connexion_sous', { partenaire: 'SkanEcom' }), 'fr'));
+    await expect.poll(async () => p.locator('.ent-entete p').innerText(), { timeout: 15_000 }).toBe(rendre(motif('ecran.connecter.connexion_sous', { partenaire: 'SkanEcom' }), 'fr'));
     await seConnecter(p, nadia);
     await p.getByRole('heading', { level: 1, name: titre('ecran.connecter.titre', { partenaire: 'SkanEcom' }) }).waitFor({ timeout: 15_000 });
     await expect.poll(async () => p.locator('.connecter-gestes li').allInnerTexts()).toEqual([rendre(t('geste.ventes.boutique.facturer'), 'fr'), rendre(t('geste.ventes.pieces.voir'), 'fr')]);
@@ -150,7 +150,7 @@ describe('connecter une boutique, à l\'écran', () => {
     await champ(p, 'ecran.porte.raison').fill('Sami Déco');
     await bouton(p, 'ecran.connecter.creer').click();
     await bouton(p, 'ecran.connecter.autoriser').waitFor({ timeout: 15_000 });
-    expect(await p.locator('.setup-body').innerText()).toContain('Sami Déco');
+    expect(await p.locator('.ent-carte').innerText()).toContain('Sami Déco');
     await bouton(p, 'ecran.connecter.autoriser').click();
     await p.waitForURL(/^https:\/\/boutique\.exemple\.tn\//, { timeout: 15_000 });
     expect(await echanger(new URL(p.url()).searchParams.get('code') ?? '')).toMatchObject({ statut: 200, corps: { nom: 'Sami Déco' } });

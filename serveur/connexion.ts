@@ -9,7 +9,9 @@
 import { createHash, randomBytes, randomInt } from 'node:crypto';
 import type pg from 'pg';
 import type { Lecteur } from './achats/lecteur.ts';
+import type { EnvoiCourriel } from './courriel.ts';
 import { enTantQue } from './base.ts';
+import { Refus } from './erreurs.ts';
 import { correspond, empreinte, verifierPolitique, verifierPourRien, type ListeVolee } from './mot-de-passe.ts';
 import type { Partenaire } from './partenaires.ts';
 import { adresseTotp, nouveauSecret, verifierTotp } from './totp.ts';
@@ -36,6 +38,9 @@ export type Contexte = {
   // La lecture des factures d'achat (brique 84) : le moteur de ce serveur (Tesseract et Poppler), et sa
   // file ; absent ou non disponible, la lecture n'est pas branchée (et l'écran le dit).
   lecteur?: Lecteur;
+  // L'envoi des e-mails (lot entrée ; serveur/courriel.ts) et l'adresse publique où mènent ses liens ; absent, aucun
+  // e-mail ne part.
+  courriel?: { envoi: EnvoiCourriel; adresse: () => string };
 };
 
 export type Appareil = { id?: string; nom: string; type: 'navigateur' | 'bureau' | 'telephone' };
@@ -237,4 +242,76 @@ export async function essayerCode(ctx: Contexte, qui: Qui, code: string): Promis
 export async function revoquerAppareil(ctx: Contexte, qui: Qui, appareil: string): Promise<boolean> {
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
   return enTantQue(ctx.pool, qui.utilisateur, async (tx) => (await tx.query('select socle.revoquer_appareil($1, $2) ok', [appareil, maintenant])).rows[0].ok);
+}
+
+// ── Le mot de passe oublié (lot entrée, 06/10/2026 ; migration 0075, docs/entree.md) ─────────────────────────────────
+const DUREE_REINITIALISATION_MINUTES = 30;
+
+// Une demande : si un compte répond à l'adresse, son lien part par e-mail. La réponse est la même dans tous les cas (on
+// ne dit jamais si une adresse a un compte), et elle n'attend pas l'e-mail : le temps de réponse ne le dirait pas non
+// plus. Sans relais d'e-mails, la demande se refuse : l'écran ne la propose d'ailleurs pas.
+export async function demanderReinitialisation(ctx: Contexte, email: string): Promise<void> {
+  const courriel = ctx.courriel;
+  if (!courriel) throw new Refus('connexion.oubli_indisponible');
+  const maintenant = (ctx.maintenant ?? (() => new Date()))();
+  const jeton = randomBytes(32).toString('base64url');
+  const a = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.demander_reinitialisation($1, $2, $3, $4)',
+    [email, sha256(jeton), maintenant, `${DUREE_REINITIALISATION_MINUTES} minutes`])).rows[0] as { a_email: string } | undefined);
+  if (!a) return;
+  // Le français : l'anglais viendra avec son catalogue (vague 4).
+  const langue = 'fr';
+  const lien = `${courriel.adresse()}/?reinitialiser=${jeton}`;
+  void courriel.envoi.envoyer({
+    a: a.a_email,
+    objet: rendre(t('connexion.oubli_objet'), langue),
+    texte: rendre(t('connexion.oubli_texte', { lien, minutes: DUREE_REINITIALISATION_MINUTES }), langue),
+  }).catch((e: unknown) => { console.error(`l'e-mail du mot de passe oublié n'est pas parti : ${String(e)}`); });
+}
+
+// Ce lien vaut-il encore, et faut-il aussi le code du téléphone ?
+export async function lireReinitialisation(ctx: Contexte, jeton: string): Promise<{ valable: boolean; code: boolean }> {
+  const maintenant = (ctx.maintenant ?? (() => new Date()))();
+  const r = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.lire_reinitialisation($1, $2)', [sha256(jeton), maintenant])).rows[0]);
+  return r ? { valable: true, code: r.code_methode === 'sms' || r.code_methode === 'application' } : { valable: false, code: false };
+}
+
+export type ResultatReinitialisation = { ok: true } | { ok: false; motif: Texte; champ: 'jeton' | 'code' | 'motDePasse' };
+
+// Le nouveau mot de passe. Le lien seul ne suffit pas à un compte qui a le code du téléphone : il faut aussi ce code,
+// ou un code de secours (sinon, qui lit la boîte de la personne prendrait son compte). Cinq codes faux, et le lien ne
+// vaut plus rien.
+export async function reinitialiser(ctx: Contexte, demande: { jeton: string; motDePasse: string; code?: string | undefined }): Promise<ResultatReinitialisation> {
+  const maintenant = (ctx.maintenant ?? (() => new Date()))();
+  const e = sha256(demande.jeton);
+  const lu = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.lire_reinitialisation($1, $2)', [e, maintenant])).rows[0]);
+  if (!lu) return { ok: false, motif: motif('connexion.oubli_lien_perime'), champ: 'jeton' };
+
+  let secours: string | null = null;
+  if (lu.code_methode === 'sms' || lu.code_methode === 'application') {
+    const saisi = (demande.code ?? '').replace(/\s/g, '');
+    if (!saisi) return { ok: false, motif: motif('connexion.oubli_code_manque'), champ: 'code' };
+    let bon: boolean;
+    if (/^[0-9]{6}$/.test(saisi)) bon = lu.code_methode === 'application' && verifierTotp(lu.code_secret ?? '', saisi, maintenant.getTime());
+    else {
+      const empreinteSecours = sha256(saisi.toUpperCase().replace(/-/g, ''));
+      const restants = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.codes_secours_restants($1)', [lu.utilisateur])).rows);
+      secours = restants.find((r) => r.empreinte === empreinteSecours)?.id ?? null;
+      bon = secours !== null;
+    }
+    if (!bon) {
+      await enTantQue(ctx.pool, null, (tx) => tx.query('select socle.reinitialisation_erreur($1)', [e]));
+      return { ok: false, motif: motif('connexion.code_faux'), champ: 'code' };
+    }
+  }
+
+  const politique = verifierPolitique(demande.motDePasse, ctx.listeVolee);
+  if (!politique.ok) return { ok: false, motif: politique.motif, champ: 'motDePasse' };
+  const nouvelle = await empreinte(demande.motDePasse);
+  const fait = await enTantQue(ctx.pool, null, async (tx) => {
+    if (secours && !(await tx.query('select socle.consommer_code_secours($1, $2) ok', [secours, maintenant])).rows[0].ok) return false;
+    const ok = (await tx.query('select socle.conclure_reinitialisation($1, $2, $3) ok', [e, nouvelle, maintenant])).rows[0].ok as boolean;
+    if (ok) await tx.query('select socle.effacer_erreurs($1)', [lu.email]);
+    return ok;
+  });
+  return fait ? { ok: true } : { ok: false, motif: motif('connexion.oubli_lien_perime'), champ: 'jeton' };
 }
