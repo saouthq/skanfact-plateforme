@@ -1,0 +1,88 @@
+Le lot téléphone (06/10/2026) : le parcours d'un commerçant tunisien, au téléphone et sur la tablette de la caisse, sur
+le serveur d'essai (docs/telephone.md). Format : voir sans-paquets.mjs. La mise en page vit dans
+plateforme/telephone.css et plateforme/caisse.css ; ici, ce que l'écran doit porter pour elle.
+
+── Les écrans (app.js) ──
+
+== app.js | au téléphone, « WhatsApp » se montre à côté d'« Email » : il n'était que dans « Plus ▾ », et c'est par WhatsApp qu'on envoie un devis en Tunisie
+-- avant
+          ${!isNew && !emailDansPlus ? `<button class="btn ${envoiSuivant ? 'btn-primary' : ''}" id="email">Email</button>` : ''}
+-- après
+          ${!isNew && !emailDansPlus ? `<button class="btn ${envoiSuivant ? 'btn-primary' : ''}" id="email">Email</button>` : ''}
+          ${avecPlus ? '<button class="btn tel-seul" id="wa-tel">WhatsApp</button>' : ''}
+-- fin
+
+== app.js | le bouton « WhatsApp » du téléphone envoie exactement comme celui de « Plus ▾ »
+-- avant
+    if ($('#wa')) $('#wa').onclick = envoyerPar(sendByWhatsApp, 'Envoyer par WhatsApp');
+-- après
+    if ($('#wa')) $('#wa').onclick = envoyerPar(sendByWhatsApp, 'Envoyer par WhatsApp');
+    if ($('#wa-tel')) $('#wa-tel').onclick = envoyerPar(sendByWhatsApp, 'Envoyer par WhatsApp');
+-- fin
+
+== app.js | « Facturer ce devis », sa bulle et son « ▾ » restent ensemble quand la barre passe à la ligne
+-- avant
+        ? `<button class="btn btn-primary" id="convert">Facturer ce devis</button>${info('ed.convert')}
+           <div class="more"><button class="btn" id="bill-btn" aria-label="Autres façons de facturer">▾</button>
+             <div class="more-list" id="bill-list" hidden>${autresChemins}</div></div>`
+-- après
+        ? `<div class="colle-bouton"><button class="btn btn-primary" id="convert">Facturer ce devis</button>${info('ed.convert')}
+           <div class="more"><button class="btn" id="bill-btn" aria-label="Autres façons de facturer">▾</button>
+             <div class="more-list" id="bill-list" hidden>${autresChemins}</div></div></div>`
+-- fin
+
+== app.js | « Facture de solde », sa bulle et son « ▾ » restent ensemble quand la barre passe à la ligne
+-- avant
+        ? `<button class="btn btn-primary" id="settle2">Facture de solde</button>${info('ed.settle')}
+           <div class="more"><button class="btn" id="bill-btn" aria-label="Autres façons de facturer">▾</button>
+             <div class="more-list" id="bill-list" hidden>${autresChemins}</div></div>`
+-- après
+        ? `<div class="colle-bouton"><button class="btn btn-primary" id="settle2">Facture de solde</button>${info('ed.settle')}
+           <div class="more"><button class="btn" id="bill-btn" aria-label="Autres façons de facturer">▾</button>
+             <div class="more-list" id="bill-list" hidden>${autresChemins}</div></div></div>`
+-- fin
+
+== app.js | la barre d'un achat : chaque bulle reste avec son bouton, et celle de « Lire une photo… » se cache avec lui quand le serveur ne lit pas
+-- avant
+          ${bridge.piecesJointes === false ? '' : `<button class="btn" id="attach-top">Joindre un justificatif…</button>${info('ed.attachments')}`}
+          ${/* Une pièce déjà saisie ne se relit pas par-dessus : la lecture la remplacerait. */''}
+          ${clos || !isNew ? '' : `<button class="btn" id="teif-lire">Lire une e-facture…</button>${info('buy.teif')}`}
+          <button class="btn" id="photo" hidden>Lire une photo…</button>${info('ocr.photo')}
+-- après
+          ${bridge.piecesJointes === false ? '' : `<span class="colle-bouton"><button class="btn" id="attach-top">Joindre un justificatif…</button>${info('ed.attachments')}</span>`}
+          ${/* Une pièce déjà saisie ne se relit pas par-dessus : la lecture la remplacerait. */''}
+          ${clos || !isNew ? '' : `<span class="colle-bouton"><button class="btn" id="teif-lire">Lire une e-facture…</button>${info('buy.teif')}</span>`}
+          <span class="colle-bouton"><button class="btn" id="photo" hidden>Lire une photo…</button>${info('ocr.photo')}</span>
+-- fin
+
+== app.js | au téléphone, le bandeau d'une pièce émise garde sa phrase, sa bulle et ses gestes ; le pourquoi (dans la bulle) se replie
+-- avant
+        <span><b>Cette pièce est émise : elle ne se modifie plus.</b> C'est la règle qui rend une
+-- après
+        <span><b>Cette pièce est émise : elle ne se modifie plus.</b> <span class="tel-detail">C'est la règle qui rend une
+-- fin
+
+== app.js | (la fin de ce qui se replie au téléphone)
+-- avant
+          : 'Tu peux la lire, l\'imprimer, l\'envoyer et l\'exporter : seule la modification est fermée.'}
+        ${info('ed.locked')}</span>
+-- après
+          : 'Tu peux la lire, l\'imprimer, l\'envoyer et l\'exporter : seule la modification est fermée.'}</span>
+        ${info('ed.locked')}</span>
+-- fin
+
+== app.js | « Documents récents » se dit au singulier et sans redite (« les 1 dernières pièces sur 1 »)
+-- avant
+<span class="small muted">— les ${recent.length} dernières pièces sur ${pieces.length}</span>
+-- après
+<span class="small muted">— ${recent.length === pieces.length ? (pieces.length === 1 ? 'ta seule pièce' : `tes ${pieces.length} pièces`) : recent.length === 1 ? `la dernière pièce sur ${pieces.length}` : `les ${recent.length} dernières pièces sur ${pieces.length}`}</span>
+-- fin
+
+── La caisse (tablette) ──
+
+== app.js | la pastille de la caisse ouverte se raccourcit quand la barre manque de place (« fond 53,400 D » était coupé à 1 180 points) : « Ouverte · fond … »
+-- avant
+      : `<span class="ct-puce ouverte" id="cs-ouverte" title="Fond de caisse : les espèces du tiroir à l'ouverture">Ouverte par ${h(ss.qui)} le ${h(heureCaisse(ss.ouverteLe))} · fond ${h(argentCaisse(ss.fond))}</span>`;
+-- après
+      : `<span class="ct-puce ouverte" id="cs-ouverte" title="Ouverte par ${h(ss.qui)} le ${h(heureCaisse(ss.ouverteLe))}. Fond de caisse : les espèces du tiroir à l'ouverture"><span class="ct-puce-texte">Ouverte<span class="ct-puce-qui"> par ${h(ss.qui)} le ${h(heureCaisse(ss.ouverteLe))}</span> · fond ${h(argentCaisse(ss.fond))}</span></span>`;
+-- fin

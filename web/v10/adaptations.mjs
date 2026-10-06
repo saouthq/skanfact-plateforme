@@ -217,7 +217,7 @@ export const ADAPTATIONS = [
     fichier: "app.js",
     pourquoi: "la fenêtre de l'e-mail dit ce qui part vraiment : le lien de la pièce, ou rien de joint",
     avant: "      <p class=\"small muted\" id=\"mf-envoi\">${envoiParMail() ? 'Le message s\\'ouvre dans Mail avec le PDF joint : tu le relis et tu cliques sur Envoyer.' : `Le message s'ouvre dans ta messagerie ; le PDF s'affiche dans ${EXPLORATEUR}, pour que tu le glisses dans le message.`} Modèles d'email : Paramètres → Envois.</p>\n",
-    apres: "      <p class=\"small muted\" id=\"mf-envoi\">${lien ? 'Le message s\\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. Un navigateur ne joint pas de fichier : le lien de la pièce s\\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\\'imprimes, et ce qu\\'il en doit.' : 'Le message s\\'ouvre dans ta messagerie, sans pièce jointe : un navigateur ne sait pas en joindre. Pour envoyer le PDF, le bouton « PDF » de la pièce l\\'enregistre (« Enregistrer au format PDF ») ; glisse-le ensuite dans le message.'} Modèles d'email : Paramètres → Envois.</p>\n",
+    apres: "      <p class=\"small muted\" id=\"mf-envoi\">${lien ? 'Le message s\\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. Un navigateur ne joint pas de fichier : le lien de la pièce s\\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\\'imprimes, et ce qu\\'il en doit.' : 'Le message s\\'ouvre dans ta messagerie, sans pièce jointe : un navigateur ne sait pas en joindre. Pour envoyer le PDF, le bouton « PDF » de la pièce l\\'enregistre (« Enregistrer au format PDF ») ; joins-le ensuite au message.'} Modèles d'email : Paramètres → Envois.</p>\n",
   },
   {
     fichier: "app.js",
@@ -253,7 +253,7 @@ export const ADAPTATIONS = [
     fichier: "app.js",
     pourquoi: "la fenêtre du WhatsApp dit ce qui part vraiment",
     avant: "      <p class=\"small muted\">WhatsApp s'ouvre sur la conversation, le message déjà écrit. Un lien ne peut pas y joindre de fichier : le PDF s'affiche dans ${EXPLORATEUR}, glisse-le dans la conversation. Le texte vient du modèle d'email (Paramètres → Envois).</p>\n",
-    apres: "      <p class=\"small muted\">WhatsApp s'ouvre sur la conversation, le message déjà écrit. ${lien ? 'Un lien WhatsApp ne porte pas de fichier : le lien de la pièce s\\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\\'imprimes, et ce qu\\'il en doit.' : 'Un lien WhatsApp ne porte pas de fichier : pour envoyer le PDF, le bouton « PDF » de la pièce l\\'enregistre (« Enregistrer au format PDF ») ; glisse-le ensuite dans la conversation.'} Le texte vient du modèle d'email (Paramètres → Envois).</p>\n",
+    apres: "      <p class=\"small muted\">WhatsApp s'ouvre sur la conversation, le message déjà écrit. ${lien ? 'Un lien WhatsApp ne porte pas de fichier : le lien de la pièce s\\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\\'imprimes, et ce qu\\'il en doit.' : 'Un lien WhatsApp ne porte pas de fichier : pour envoyer le PDF, le bouton « PDF » de la pièce l\\'enregistre (« Enregistrer au format PDF ») ; joins-le ensuite à la conversation.'} Le texte vient du modèle d'email (Paramètres → Envois).</p>\n",
   },
   {
     fichier: "app.js",
@@ -289,7 +289,7 @@ export const ADAPTATIONS = [
     fichier: "app.js",
     pourquoi: "le relevé envoyé ne prétend pas être joint (un navigateur ne joint pas de fichier)",
     avant: "            close(); toast(messageOuvert(rm, 'le relevé'));\n",
-    apres: "            close(); toast(att ? messageOuvert(rm, 'le relevé') : 'Message ouvert dans ta messagerie, sans le relevé : un navigateur ne sait pas le joindre. « Exporter en PDF » l\\'enregistre ; glisse-le ensuite dans le message.');\n",
+    apres: "            close(); toast(att ? messageOuvert(rm, 'le relevé') : 'Message ouvert dans ta messagerie, sans le relevé : un navigateur ne sait pas le joindre. « Exporter en PDF » l\\'enregistre ; joins-le ensuite au message.');\n",
   },
   {
     fichier: "guide.js",
@@ -718,4 +718,6 @@ export const ADAPTATIONS = [
   ...lireFichier('facture-details.txt'),
   // ── Le refus d'un matricule montre sa case, et n'en bloque pas d'autres (06/10/2026 ; docs/facture-details.md, E5) ──
   ...lireFichier('matricule-refus.txt'),
+  // ── Le lot téléphone (06/10/2026 ; le parcours d'un commerçant au téléphone et sur la tablette, docs/telephone.md) ──
+  ...lireFichier('telephone-commercant.txt'),
 ];

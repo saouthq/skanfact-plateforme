@@ -5123,13 +5123,15 @@ prouver "un échec de lecture qui propose de joindre la photo, sans pièces join
 prouver "la ligne lue coupée sur un téléphone" web/public/v10/app.js \
   "style=\"display:block;margin-top:3px;overflow-wrap:anywhere\"" "style=\"display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\"" \
   "$LW2"
+# Lot téléphone (06/10/2026) : les lignes de l'écran d'achat sont une grille au téléphone ; le cadre qui défile ne sert
+# plus qu'aux autres tableaux de lignes d'achat. Le défaut d'avant (la page qui déborde) revient sans l'un ni l'autre.
 prouver "les lignes d'un achat qui débordent du téléphone" web/public/plateforme/telephone.css \
   "  table.lines-edit.buy-lines { display: block; overflow-x: auto; }
-" "" \
+|||  @supports selector(:has(*)) {" "|||  @supports not selector(:has(*)) {" \
   "$RV"
 prouver "les cases d'un achat trop petites pour un doigt" web/public/plateforme/telephone.css \
   "  table.lines-edit.buy-lines td input, table.lines-edit.buy-lines td select { min-width: 72px; }
-" "" \
+|||  @supports selector(:has(*)) {" "|||  @supports not selector(:has(*)) {" \
   "$RV"
 
 # ── Brique 85 : les classeurs Excel lus en ligne, par un lecteur partagé (docs/pont-v10.md) ──
@@ -8265,7 +8267,7 @@ prouver "l'attestation de retenue sans dire où elle s'établit" web/public/v10/
   "au fournisseur ; elle s'établit sur TEJ, la plateforme du ministère des Finances. <em>À VÉRIFIER avec ton comptable.</em>" "au fournisseur." \
   "$ACW1"
 prouver "« Joindre un justificatif » proposé en ligne, où il refuse toujours" web/public/v10/app.js \
-  "\${bridge.piecesJointes === false ? '' : \`<button class=\"btn\" id=\"attach-top\">" "\${false ? '' : \`<button class=\"btn\" id=\"attach-top\">" \
+  "\${bridge.piecesJointes === false ? '' : \`<span class=\"colle-bouton\"><button class=\"btn\" id=\"attach-top\">" "\${false ? '' : \`<span class=\"colle-bouton\"><button class=\"btn\" id=\"attach-top\">" \
   "$ACW1"
 prouver "le bouton du justificatif absent, branché quand même" web/public/v10/app.js \
   "    if (\$('#attach-top')) \$('#attach-top').onclick = async () => {" "    \$('#attach-top').onclick = async () => {" \
@@ -8768,6 +8770,92 @@ prouver '« Compléter ma fiche » qui se ferme sur un matricule refusé' web/pu
   "            if (r && r.matriculeRefuse) { b.disabled = false; return refuser('matricule', r.matriculeRefuse.motif); }
 " '' \
   "$FD15"
+
+# ── Le lot téléphone (06/10/2026 ; le parcours d'un commerçant au téléphone, la caisse sur la tablette ; docs/telephone.md) ──
+TL1='les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'\''ordinateur, un tableau'
+TL2='une fenêtre longue garde ses boutons au bas de l'\''écran ; « Plus ▾ » s'\''ouvre au bas de l'\''écran, sur toute sa largeur'
+TL3='une pièce au téléphone : l'\''étape suivante en tête, « WhatsApp » à côté d'\''« Email », chaque bulle avec son bouton ; le bandeau d'\''une pièce émise tient'
+TL4='les lignes d'\''un achat et d'\''une photo relue au téléphone : la désignation, puis prix, TVA et total dans l'\''écran'
+TL5='la première émission au téléphone : « Je facturais déjà » tient dans sa fenêtre ; « Ctrl K » ne se montre qu'\''à l'\''ordinateur ; « ta seule pièce »'
+TL6='la caisse sur la tablette (1 180 × 820) et sur un écran de 1 024 × 768 : rien n'\''est tranché, le comptage tient'
+ENV9='la facture part avec son lien, par e-mail puis par WhatsApp ; le devis et le relevé partent sans rien de joint'
+prouver "les listes du téléphone restées des tableaux trop larges" web/public/plateforme/telephone.js \
+  "poser(table, 'data-cartes', 'oui');" "poser(table, 'data-cartes', '');" \
+  "$TL1"
+prouver "les cases d'une carte sans le titre de leur colonne" web/public/plateforme/telephone.js \
+  "poser(td, 'data-label', nomme ? '' : titre);" "poser(td, 'data-label', '');" \
+  "$TL1"
+prouver "une liste redessinée qui perd ses cartes" web/public/plateforme/telephone.js \
+  "prevu = requestAnimationFrame(passer); }).observe(" "prevu = 0; }).observe(" \
+  "$TL1"
+prouver "« Actions » qui sort de sa carte" web/public/plateforme/telephone.css \
+  "inset-inline-end: 8px; width: auto; }" "inset-inline-end: 8px; }" \
+  "$TL1"
+prouver "« Enregistrer » au bout d'une fenêtre longue" web/public/plateforme/telephone.css \
+  ".modal > .modal-actions:last-child { position: sticky; bottom: -18px;" ".modal > .modal-actions:last-child { bottom: -18px;" \
+  "$TL2"
+prouver "« Plus ▾ » accroché à son bouton, hors de l'écran" web/public/plateforme/telephone.css \
+  ".more-list { position: fixed; inset: auto 8px" ".more-list { inset: auto 8px" \
+  "$TL2"
+prouver "l'étape suivante perdue au milieu de la barre" web/public/plateforme/telephone.css \
+  "{ order: -1; flex-basis: 100%; }" "{ }" \
+  "$TL3"
+prouver "« WhatsApp » caché dans « Plus » au téléphone" web/public/v10/app.js \
+  "\${avecPlus ? '<button class=\"btn tel-seul\" id=\"wa-tel\">WhatsApp</button>' : ''}" "" \
+  "$TL3"
+prouver "le « WhatsApp » du téléphone qui ne se montre pas" web/public/plateforme/telephone.css \
+  "  .tel-seul { display: inline-flex; }" "" \
+  "$TL3"
+prouver "le « WhatsApp » du téléphone qui n'envoie rien" web/public/v10/app.js \
+  "    if (\$('#wa-tel')) \$('#wa-tel').onclick = envoyerPar(sendByWhatsApp, 'Envoyer par WhatsApp');
+" "" \
+  "$TL3"
+prouver "le « WhatsApp » du téléphone montré à l'ordinateur" web/public/plateforme/telephone.css \
+  ".tel-seul { display: none; }" "" \
+  "$TL3"
+prouver "la bulle d'un filtre seule sur sa ligne" web/public/plateforme/telephone.css \
+  "  .filters > :has(+ button.i) { flex-basis: calc(100% - 56px); }" "" \
+  "$TL3"
+prouver "la bulle d'un bouton caché qui reste" web/public/plateforme/telephone.css \
+  ".colle-bouton:has(> .btn[hidden]) { display: none; }" "" \
+  "$TL3"
+prouver "« Facturer ce devis » séparé de sa bulle" web/public/v10/app.js \
+  "<div class=\"colle-bouton\"><button class=\"btn btn-primary\" id=\"convert\">Facturer ce devis</button>\${info('ed.convert')}
+           <div class=\"more\"><button class=\"btn\" id=\"bill-btn\" aria-label=\"Autres façons de facturer\">▾</button>
+             <div class=\"more-list\" id=\"bill-list\" hidden>\${autresChemins}</div></div></div>\`" "<button class=\"btn btn-primary\" id=\"convert\">Facturer ce devis</button>\${info('ed.convert')}
+           <div class=\"more\"><button class=\"btn\" id=\"bill-btn\" aria-label=\"Autres façons de facturer\">▾</button>
+             <div class=\"more-list\" id=\"bill-list\" hidden>\${autresChemins}</div></div>\`" \
+  "$TL3"
+prouver "le bandeau d'une pièce émise sur la moitié du téléphone" web/public/plateforme/telephone.css \
+  "  .lock-banner .tel-detail { display: none; }" "" \
+  "$TL3"
+prouver "les lignes d'un achat et d'une photo relue cachées à droite au téléphone" web/public/plateforme/telephone.css \
+  "  @supports selector(:has(*)) {" "  @supports not selector(:has(*)) {" \
+  "$TL4"
+prouver "« Je facturais déjà » qui sort de sa fenêtre" web/public/plateforme/telephone.css \
+  "  .modal .btn { white-space: normal; text-align: start; }" "" \
+  "$TL5"
+prouver "« Ctrl K » montré au doigt" web/public/plateforme/telephone.css \
+  "  #nav-search-k { display: none; }" "" \
+  "$TL5"
+prouver "« les 1 dernières pièces sur 1 »" web/public/v10/app.js \
+  "'ta seule pièce'" "'les 1 dernières pièces sur 1'" \
+  "$TL5"
+prouver "la pastille de la caisse tranchée à 1 180 points" web/public/plateforme/caisse.css \
+  "  .ct-puce-qui, .ct-nom small { display: none; }" "  .ct-nom small { display: none; }" \
+  "$TL6"
+prouver "la pastille de la caisse sans forme courte" web/public/v10/app.js \
+  "Ouverte<span class=\"ct-puce-qui\"> par \${h(ss.qui)} le \${h(heureCaisse(ss.ouverteLe))}</span> · fond" "Ouverte par \${h(ss.qui)} le \${h(heureCaisse(ss.ouverteLe))} · fond" \
+  "$TL6"
+prouver "« billets » tranché par la case du nombre" web/public/plateforme/caisse.css \
+  "@container (max-width: 400px) { .ct-coupure-sorte { display: none; } }" "" \
+  "$TL6"
+prouver "le comptage de 1 024 × 768 sous « Fermer la caisse »" web/public/plateforme/caisse.css \
+  "@media (min-width: 921px) and (max-height: 820px) {" "@media (min-width: 921px) and (max-height: 1px) {" \
+  "$TL6"
+prouver "« glisse-le » : un geste qu'un téléphone ne fait pas" web/public/v10/app.js \
+  "« Exporter en PDF » l\\'enregistre ; joins-le ensuite au message." "« Exporter en PDF » l\\'enregistre ; glisse-le ensuite dans le message." \
+  "$ENV9"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

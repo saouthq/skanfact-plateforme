@@ -194,13 +194,15 @@ describe('une commande livrée en deux fois, et ses bons facturés en une factur
     expect(erreurs).toEqual([]);
     await cn.close();
 
-    // 7. Au téléphone : le panneau de la commande tient dans la largeur (son tableau défile dans son cadre).
+    // 7. Au téléphone : le panneau de la commande tient dans la largeur ; son tableau devient des cartes (lot téléphone,
+    // 06/10/2026), chaque quantité sous le titre de sa colonne.
     const tel = await navigateur.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, locale: 'fr-FR' });
     await tel.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
     const t = await tel.newPage();
     await t.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/bc1`);
     const panneauTel = t.locator('#livraisons-panel');
-    await expect.poll(async () => net(await panneauTel.innerText()), { timeout: 20_000 }).toMatch(/^Livraisons i DÉSIGNATION COMMANDÉ LIVRÉ RESTE Ciment gris 50 kg \(sac\) 100 100 0 /);
+    await expect.poll(async () => net(await panneauTel.innerText()), { timeout: 20_000 }).toMatch(/^Livraisons i Ciment gris 50 kg \(sac\) 100 100 0 /);
+    expect(await panneauTel.locator('table.list[data-cartes] > tbody > tr:first-child > td').evaluateAll((tds) => tds.map((td) => td.getAttribute('data-label') ?? td.getAttribute('data-tel')))).toEqual(['titre', 'Commandé', 'Livré', 'Reste']);
     await plusTard(t);
     await panneauTel.scrollIntoViewIfNeeded();
     expect(await t.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

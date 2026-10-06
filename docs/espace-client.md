@@ -64,7 +64,7 @@ modèles devient « Voici » (rien n'est joint) ; décocher le lien la rend, tan
 retouché. Chaque envoi crée son propre lien : la base ne garde que l'empreinte d'un lien, elle ne peut pas
 redonner le précédent ; un message ouvert puis abandonné laisse donc un lien jamais vu, que l'on retire
 d'un clic. Un devis, un bon ou un brouillon partent sans rien de joint, et la fenêtre le dit (« le bouton
-« PDF » l'enregistre ; glisse-le ensuite dans le message »). Paramètres → Envois ne propose plus « Mail
+« PDF » l'enregistre ; joins-le ensuite au message » ; « joins-le », un geste du téléphone comme de l'ordinateur, depuis le lot téléphone du 06/10/2026). Paramètres → Envois ne propose plus « Mail
 (Apple) avec le PDF joint » : un navigateur n'ouvre que la messagerie de l'appareil. **À VÉRIFIER** sur
 Safari (iPhone, Mac) : le message s'ouvre après la création du lien (une attente du serveur) ; Safari peut
 demander d'autoriser l'ouverture de la messagerie.

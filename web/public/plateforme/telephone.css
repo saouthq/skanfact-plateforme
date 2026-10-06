@@ -16,6 +16,8 @@
    touche du doigt. La taille du doigt suit donc l'écran tactile (`pointer: coarse`), pas la largeur. */
 
 .menu-tel { display: none; }
+/* Ce qui ne se montre qu'au téléphone (« WhatsApp » à côté d'« Email » sur une pièce : lot téléphone, 06/10/2026). */
+.tel-seul { display: none; }
 
 @media (max-width: 760px) {
   #app { flex-direction: column; height: auto; min-height: 100%; }
@@ -36,7 +38,9 @@
   .span-2 { grid-column: auto; }
   .editor .preview { position: static; height: auto; min-height: 420px; }
   .filters > * { flex: 1 1 100%; }
-  table.list { display: block; overflow-x: auto; }
+  /* Un tableau de trois colonnes ou moins tient, ou défile dans son cadre ; une liste plus large devient des cartes
+     (plus bas, « Les listes en cartes »). */
+  table.list:not([data-cartes]) { display: block; overflow-x: auto; }
   .modal-bg { padding: 8px; align-items: flex-start; }
   .modal { width: 100%; max-width: 100%; padding: 18px 16px; }
   .banner { flex-wrap: wrap; }
@@ -57,8 +61,8 @@
   }
   table.lignes-doc td.line-tools { text-align: start; }
 
-  /* Les lignes d'un achat (l'écran d'achat, et la relecture d'une facture lue en photo : brique 84, la
-     photo se prend au téléphone) : le tableau défile dans son cadre, jamais la page. */
+  /* Les lignes d'un achat ailleurs (une commande, une demande de prix) : le tableau défile dans son cadre, jamais la
+     page. Celles de l'écran d'achat et de la relecture d'une photo se rangent comme les lignes d'une pièce (plus bas). */
   table.lines-edit.buy-lines { display: block; overflow-x: auto; }
   table.lines-edit.buy-lines td input, table.lines-edit.buy-lines td select { min-width: 72px; }
   table.lines-edit.buy-lines td:first-child input { min-width: 170px; }
@@ -102,3 +106,103 @@
   .c-groupes button { min-height: 44px; }
   .lien-manque { display: inline-flex; align-items: center; min-height: 44px; }
 }
+
+/* ── Le lot téléphone (06/10/2026) : le parcours d'un commerçant, au téléphone, sur le serveur d'essai ──
+   Chaque règle ci-dessous répond à ce qu'on y a vu ; leur liste et leurs tests : docs/telephone.md. */
+@media (max-width: 760px) {
+  /* Les listes en cartes (telephone.js écrit les titres). Une ligne = une carte : ce qui la nomme en haut, puis chaque
+     case sous le titre de sa colonne, sur deux colonnes ; « Actions » en haut à droite. Les titres qui trient restent,
+     en pastilles sur une rangée qui défile au-dessus des cartes. */
+  table.list[data-cartes] { display: block; overflow: visible; background: none; border: 0; border-radius: 0; box-shadow: none; }
+  table.list[data-cartes] > thead { display: block; }
+  table.list[data-cartes] > thead > tr { display: flex; gap: 6px; margin-bottom: 10px; overflow-x: auto; scrollbar-width: none; }
+  table.list[data-cartes] > thead > tr:not(:last-child), table.list[data-cartes] > thead th:not(.sortable-h) { display: none; }
+  table.list[data-cartes] > thead th.sortable-h { position: static; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; height: 44px; padding: 0 14px; white-space: nowrap;
+    border: 1px solid var(--border); border-radius: 999px; background: var(--panel); letter-spacing: .4px; }
+  table.list[data-cartes] > tbody, table.list[data-cartes] > tfoot { display: flex; flex-direction: column; gap: 10px; }
+  table.list[data-cartes] > tfoot { margin-top: 10px; }
+  table.list[data-cartes] > tbody > tr, table.list[data-cartes] > tfoot > tr { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px;
+    padding: 14px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+  table.list[data-cartes] > tfoot > tr { background: var(--bg); box-shadow: none; }
+  table.list[data-cartes] > * > tr > td, table.list[data-cartes] > tbody > tr > th { display: block; min-width: 0; padding: 0; border: 0; background: none; text-align: start; font-size: 14px; }
+  table.list[data-cartes] > * > tr > td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .6px;
+    text-transform: uppercase; color: var(--muted); }
+  table.list[data-cartes] > * > tr > [data-tel="titre"], table.list[data-cartes] > * > tr > td[colspan] { grid-column: 1 / -1; font-size: 15px; }
+  table.list[data-cartes] > * > tr > [data-tel="vide"] { display: none; }
+  table.list[data-cartes] > * > tr > td.row-actions { position: absolute; top: 8px; inset-inline-end: 8px; width: auto; }
+  table.list[data-cartes] > * > tr:has(> td.row-actions:not([data-tel="vide"])) > [data-tel="titre"] { min-height: 44px; padding-inline-end: 118px; display: flex; flex-direction: column; justify-content: center; }
+  table.list[data-cartes] tr.clickable:hover td { background: none; }
+  table.list[data-cartes] tr.total-row td { background: none; }
+
+  /* Une fenêtre longue (un client, un fournisseur, ce que SkanFact a lu) : ses boutons restent au bas de l'écran pendant
+     qu'on la parcourt. « Enregistrer » était au bout de la fenêtre, à 1 161 points sur un écran de 844. */
+  .modal > .modal-actions:last-child { position: sticky; bottom: -18px; z-index: 6; flex-wrap: wrap; margin: 16px -16px -18px; padding: 10px 16px 14px;
+    background: var(--panel); border-top: 1px solid var(--border); }
+  /* Les boutons se partagent la rangée ; la légende « * obligatoire » passe au-dessus, en petit. */
+  .modal > .modal-actions:last-child > .btn { flex: 1 1 auto; justify-content: center; text-align: center; }
+  .modal > .modal-actions:last-child > .oblig-note { flex: 1 1 100%; order: -1; margin: 0; font-size: 11.5px; }
+  /* Un bouton d'une fenêtre passe à la ligne plutôt que de sortir de l'écran (« Je facturais déjà : continuer ma
+     numérotation » à l'émission). */
+  .modal .btn { white-space: normal; text-align: start; }
+
+  /* « Plus ▾ » (et « Facturer ▾ », « Transformer ▾ ») s'ouvre au bas de l'écran, sur toute sa largeur : accroché à son
+     bouton, il sortait de l'écran par la gauche quand le bouton était à gauche. */
+  .more-list { position: fixed; inset: auto 8px calc(8px + env(safe-area-inset-bottom, 0px)) 8px; top: auto; min-width: 0; max-height: 72vh; overflow-y: auto;
+    z-index: 450; padding: 8px; border-radius: 16px; box-shadow: 0 -10px 40px rgba(20, 40, 60, .28); }
+  .more-list button { min-height: 44px; font-size: 15px; }
+
+  /* La barre d'actions d'une page : chaque rangée se remplit (plus de bouton seul au bord d'une rangée vide), et une
+     bulle « i » part avec son bouton. */
+  .page-head .actions > :is(.btn, .more, .colle-bouton, .pv-cmd) { flex: 1 1 auto; }
+  .page-head .actions > .more { display: flex; }
+  .page-head .actions > .more > .btn, .page-head .actions > .pv-cmd > .btn, .colle-bouton > .btn { flex: 1 1 auto; justify-content: center; }
+  .page-head .actions > .btn { justify-content: center; }
+  /* L'étape suivante (le bouton principal) passe en tête, sur toute la largeur, sous le pouce. */
+  .page-head .actions > :is(.btn-primary, .colle-bouton:has(> .btn-primary)) { order: -1; flex-basis: 100%; }
+  /* « ▾ » (les autres façons de facturer) reste collé à son bouton, à sa taille ; l'aperçu perd son trait de séparation. */
+  .colle-bouton > .more { flex: 0 0 auto; }
+  .page-head .actions > .pv-cmd { border: 0; padding: 0; margin: 0; }
+  /* Sous les filtres d'une liste, la bulle se range à côté de la case qui la précède, au lieu d'une ligne à elle. */
+  .filters > :has(+ button.i) { flex-basis: calc(100% - 56px); }
+  .filters > button.i { flex: 0 0 44px; margin: 0; }
+
+  /* Les lignes d'un achat et celles d'une photo relue : la désignation sur toute la largeur, les chiffres en dessous,
+     comme les lignes d'une pièce. Le prix, la TVA et le total étaient cachés à droite du tableau. */
+  /* Seulement là où le navigateur comprend « :has » : ailleurs, le tableau défile (la règle d'avant). */
+  @supports selector(:has(*)) {
+    table.buy-lines:has(> #b-lines), table.buy-lines:has(> #orf-lines) { display: block; overflow: visible; }
+    table.buy-lines:has(> #b-lines) > :is(thead, tbody), table.buy-lines:has(> #orf-lines) > :is(thead, tbody) { display: block; }
+    table.buy-lines:has(> #b-lines) tr, table.buy-lines:has(> #orf-lines) tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 4px; align-items: start; }
+    table.buy-lines:has(> #b-lines) tr { grid-template-areas: "lab lab lab" "qte pu tva" "dest dest ded" "total total outils"; }
+    table.buy-lines:has(> #orf-lines) tr { grid-template-areas: "lab lab lab" "qte pu tva" "total total outils"; }
+    table.buy-lines:has(> #b-lines) :is(th, td), table.buy-lines:has(> #orf-lines) :is(th, td) { display: block; width: auto !important; min-width: 0; }
+    table.buy-lines:has(> #b-lines) :is(th, td) :is(input, select), table.buy-lines:has(> #orf-lines) :is(th, td) :is(input, select) { min-width: 0; width: 100%; }
+    table.buy-lines:has(> #b-lines) tr > :nth-child(1), table.buy-lines:has(> #orf-lines) tr > :nth-child(1) { grid-area: lab; }
+    table.buy-lines:has(> #b-lines) tr > :nth-child(2), table.buy-lines:has(> #orf-lines) tr > :nth-child(2) { grid-area: qte; }
+    table.buy-lines:has(> #b-lines) tr > :nth-child(3), table.buy-lines:has(> #orf-lines) tr > :nth-child(3) { grid-area: pu; }
+    table.buy-lines:has(> #b-lines) tr > :nth-child(4), table.buy-lines:has(> #orf-lines) tr > :nth-child(4) { grid-area: tva; }
+    table.buy-lines:has(> #b-lines) tr > :nth-child(5) { grid-area: dest; }
+    table.buy-lines:has(> #b-lines) tr > :nth-child(6) { grid-area: ded; }
+    table.buy-lines:has(> #b-lines) tr > :nth-child(7), table.buy-lines:has(> #orf-lines) tr > :nth-child(5) { grid-area: total; }
+    table.buy-lines:has(> #b-lines) tr > :nth-child(8), table.buy-lines:has(> #orf-lines) tr > :nth-child(6) { grid-area: outils; text-align: end; }
+    table.buy-lines:has(> #b-lines) tbody tr + tr, table.buy-lines:has(> #orf-lines) tbody tr + tr { border-top: 1px solid var(--ink-soft); padding-top: 6px; }
+    table.buy-lines:has(> #b-lines) tr + tr td, table.buy-lines:has(> #orf-lines) tr + tr td { border-top: 0; }
+  }
+
+  /* Une pièce émise : la phrase qui le dit, sa bulle et ses gestes ; le pourquoi est dans la bulle. Le bandeau prenait
+     la moitié de l'écran. */
+  .lock-banner .tel-detail { display: none; }
+  .lock-banner > span:first-child:has(> .tel-detail) { display: flex; align-items: flex-start; gap: 8px; }
+  .lock-banner > span:first-child:has(> .tel-detail) > b { flex: 1 1 auto; }
+  .tel-seul { display: inline-flex; }
+}
+
+/* Au doigt : un raccourci de clavier ne se montre pas (« Ctrl K » dans la recherche du menu). */
+@media (pointer: coarse), (max-width: 760px) {
+  #nav-search-k { display: none; }
+}
+
+/* Partout : une bulle « i » part avec son bouton (une barre qui passe à la ligne ne laisse plus une bulle seule), et la
+   bulle d'un bouton caché se cache avec lui (« Lire une photo… » quand le serveur ne lit pas). */
+.colle-bouton { display: inline-flex; align-items: center; gap: 2px; }
+.colle-bouton:has(> .btn[hidden]) { display: none; }

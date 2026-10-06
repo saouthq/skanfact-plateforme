@@ -184,7 +184,7 @@ describe('les envois, à la souris', () => {
     const devis = await envoi(nadia, /^(Email|Envoyer par email…)$/);
     expect(await devis.getByLabel(/Ajouter le lien/).count()).toBe(0);
     expect(await devis.getByLabel(/Joindre le PDF/).count()).toBe(0);
-    expect(net(await devis.locator('#mf-envoi').innerText())).toBe('Le message s\'ouvre dans ta messagerie, sans pièce jointe : un navigateur ne sait pas en joindre. Pour envoyer le PDF, le bouton « PDF » de la pièce l\'enregistre (« Enregistrer au format PDF ») ; glisse-le ensuite dans le message. Modèles d\'email : Paramètres → Envois.');
+    expect(net(await devis.locator('#mf-envoi').innerText())).toBe('Le message s\'ouvre dans ta messagerie, sans pièce jointe : un navigateur ne sait pas en joindre. Pour envoyer le PDF, le bouton « PDF » de la pièce l\'enregistre (« Enregistrer au format PDF ») ; joins-le ensuite au message. Modèles d\'email : Paramètres → Envois.');
     await nadia.screenshot({ path: path.join(PHOTOS, 'envois-4-devis.png') });
     await devis.getByRole('button', { name: 'Annuler', exact: true }).click();
     const waDevis = await envoi(nadia, /^Envoyer par WhatsApp…$/);
@@ -201,7 +201,7 @@ describe('les envois, à la souris', () => {
     await nadia.getByRole('menuitem', { name: /^Relevé de compte…/ }).first().click();
     await nadia.locator('#modal-root .modal').last().getByRole('button', { name: 'Envoyer au client…', exact: true }).click();
     await expect.poll(async () => net(await nadia.locator('#toast').innerText()), { timeout: 15_000 })
-      .toBe('Message ouvert dans ta messagerie, sans le relevé : un navigateur ne sait pas le joindre. « Exporter en PDF » l\'enregistre ; glisse-le ensuite dans le message.');
+      .toBe('Message ouvert dans ta messagerie, sans le relevé : un navigateur ne sait pas le joindre. « Exporter en PDF » l\'enregistre ; joins-le ensuite au message.');
 
     // Paramètres → Envois : ce que fait un navigateur, rien à choisir (même sur un Mac).
     await nadia.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);

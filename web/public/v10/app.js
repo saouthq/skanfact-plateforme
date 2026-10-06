@@ -3142,7 +3142,7 @@
           ${top.length ? `<ul class="rank">${top.map(x => `<li><a class="name" href="${x.clientId ? '#/client/' + h(x.clientId) : '#/caisse'}" title="${x.clientId ? 'Ouvrir la fiche de ' + h(x.name) : 'Ouvrir la caisse'}">${h(x.name)}</a><span class="bar"><i style="width:${largeurRang(x.ht, topMax)}%"></i></span><span class="amt">${C.money(x.ht, cur)}</span></li>`).join('')}</ul>` : '<p class="small muted">Aucune facture émise cette année. Ton premier devis accepté la remplira.</p>'}
         </div>
       </div>`}
-      ${!recent.length ? '' : `<div class="panel"><h2>Documents récents <span class="small muted">— les ${recent.length} dernières pièces sur ${pieces.length}</span></h2>${docTable(recent, { noFoot: true })}
+      ${!recent.length ? '' : `<div class="panel"><h2>Documents récents <span class="small muted">— ${recent.length === pieces.length ? (pieces.length === 1 ? 'ta seule pièce' : `tes ${pieces.length} pièces`) : recent.length === 1 ? `la dernière pièce sur ${pieces.length}` : `les ${recent.length} dernières pièces sur ${pieces.length}`}</span></h2>${docTable(recent, { noFoot: true })}
         <div class="inline mt"><a class="btn btn-sm" href="#/factures">Toutes les factures</a><a class="btn btn-sm" href="#/devis">Tous les devis</a></div></div>`}
       ${/* « Et maintenant » redisait la suite À CÔTÉ des premiers pas, et pas la même : « + Créer ton
          premier devis » en vert sous « Remplir le catalogue » en vert. Deux panneaux qui se
@@ -3914,14 +3914,14 @@
       && (isQ || doc.type === 'proforma' || doc.type === 'contrat');
     const facturerMenu = !isNew && isQ
       ? (devisFacturable
-        ? `<button class="btn btn-primary" id="convert">Facturer ce devis</button>${info('ed.convert')}
+        ? `<div class="colle-bouton"><button class="btn btn-primary" id="convert">Facturer ce devis</button>${info('ed.convert')}
            <div class="more"><button class="btn" id="bill-btn" aria-label="Autres façons de facturer">▾</button>
-             <div class="more-list" id="bill-list" hidden>${autresChemins}</div></div>`
+             <div class="more-list" id="bill-list" hidden>${autresChemins}</div></div></div>`
         // Un acompte est émis : le geste suivant est le SOLDE, pas une facture de plus.
         : soldable
-        ? `<button class="btn btn-primary" id="settle2">Facture de solde</button>${info('ed.settle')}
+        ? `<div class="colle-bouton"><button class="btn btn-primary" id="settle2">Facture de solde</button>${info('ed.settle')}
            <div class="more"><button class="btn" id="bill-btn" aria-label="Autres façons de facturer">▾</button>
-             <div class="more-list" id="bill-list" hidden>${autresChemins}</div></div>`
+             <div class="more-list" id="bill-list" hidden>${autresChemins}</div></div></div>`
         // Un acompte attend en brouillon : le geste suivant est de l'ÉMETTRE.
         : brouillonsAcompte.length
         ? `<button class="btn btn-primary" id="voir-acompte">Ouvrir l'acompte en brouillon</button>
@@ -3996,6 +3996,7 @@
             <button class="btn btn-sm" id="pv-big" title="Voir le document en grand (${TOUCHES_APERCU})">Agrandir</button>
           </div>
           ${!isNew && !emailDansPlus ? `<button class="btn ${envoiSuivant ? 'btn-primary' : ''}" id="email">Email</button>` : ''}
+          ${avecPlus ? '<button class="btn tel-seul" id="wa-tel">WhatsApp</button>' : ''}
           <button class="btn${suiteExtra === 'pdf' ? ' btn-primary' : ''}" id="pdf">PDF</button>
           ${locked && isInv && doc.status !== 'annulée' && bal && bal.remaining > 0.0005 ? `<button class="btn btn-primary" id="pay">Enregistrer un paiement</button>` : ''}
           ${facturerMenu}${transformMenu}
@@ -4022,7 +4023,7 @@
         numérotation, et plus rien n'est dû : elle ne compte ni dans le chiffre d'affaires, ni dans la
         TVA, ni dans ce qui part chez ton comptable. ${info('ed.annulee')}</span>
         <span class="lock-go"><button class="btn btn-sm" id="lock-uncancel">Rétablir la facture</button></span></div>` : `<div class="banner info lock-banner">
-        <span><b>Cette pièce est émise : elle ne se modifie plus.</b> C'est la règle qui rend une
+        <span><b>Cette pièce est émise : elle ne se modifie plus.</b> <span class="tel-detail">C'est la règle qui rend une
         numérotation crédible — un numéro attribué ne doit jamais désigner deux contenus différents.
         ${isInv && doc.status !== 'annulée'
           ? (verrou.annulee
@@ -4030,7 +4031,7 @@
             // « Corriger par un avoir… » en vert, c'était inviter à un avoir de trop (10.12.0).
             ? 'Ses avoirs l\'annulent en entier : il n\'y a plus rien à corriger, et toutes les pièces restent dans la numérotation.'
             : 'Pour corriger, on fabrique un avoir : il annule tout ou partie de celle-ci, et les deux pièces restent.')
-          : 'Tu peux la lire, l\'imprimer, l\'envoyer et l\'exporter : seule la modification est fermée.'}
+          : 'Tu peux la lire, l\'imprimer, l\'envoyer et l\'exporter : seule la modification est fermée.'}</span>
         ${info('ed.locked')}</span>
         <span class="lock-go">
           ${isInv && doc.status !== 'annulée' && !verrou.annulee
@@ -5160,6 +5161,7 @@
     };
     if ($('#email')) $('#email').onclick = envoyerPar(sendByEmail, 'Envoyer un email');
     if ($('#wa')) $('#wa').onclick = envoyerPar(sendByWhatsApp, 'Envoyer par WhatsApp');
+    if ($('#wa-tel')) $('#wa-tel').onclick = envoyerPar(sendByWhatsApp, 'Envoyer par WhatsApp');
     if ($('#lien-client')) $('#lien-client').onclick = () => bridge.lienClient(docById(doc.id) || doc, modal);
     if ($('#as-template')) $('#as-template').onclick = () => saveAsTemplate(doc);
     if ($('#teif')) $('#teif').onclick = () => exporterTeif(docById(doc.id) || doc);
@@ -5551,7 +5553,7 @@
             const att = await bridge.exportPdfSilent(html(), nom());
             const r = releve();
             const rm = await bridge.composeMail({ to: c.email || '', mode: modeEnvoi(), attachment: att, ...C.mailReleve(r, company()) });
-            close(); toast(att ? messageOuvert(rm, 'le relevé') : 'Message ouvert dans ta messagerie, sans le relevé : un navigateur ne sait pas le joindre. « Exporter en PDF » l\'enregistre ; glisse-le ensuite dans le message.');
+            close(); toast(att ? messageOuvert(rm, 'le relevé') : 'Message ouvert dans ta messagerie, sans le relevé : un navigateur ne sait pas le joindre. « Exporter en PDF » l\'enregistre ; joins-le ensuite au message.');
           } catch (e) { b.disabled = false; b.textContent = 'Envoyer au client…'; toast(plainError(e), true); }
         };
       });
@@ -7360,7 +7362,7 @@
         <label class="field span-2">${lbl('Objet', 'mail.objet')}<input type="text" name="subject" value="${h(m.subject)}"></label>
         <label class="field span-2">${lbl('Message', 'mail.message')}<textarea name="body" rows="9">${h(m.body)}</textarea></label>
       </form>
-      <p class="small muted" id="mf-envoi">${lien ? 'Le message s\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. Un navigateur ne joint pas de fichier : le lien de la pièce s\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\'imprimes, et ce qu\'il en doit.' : 'Le message s\'ouvre dans ta messagerie, sans pièce jointe : un navigateur ne sait pas en joindre. Pour envoyer le PDF, le bouton « PDF » de la pièce l\'enregistre (« Enregistrer au format PDF ») ; glisse-le ensuite dans le message.'} Modèles d'email : Paramètres → Envois.</p>
+      <p class="small muted" id="mf-envoi">${lien ? 'Le message s\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. Un navigateur ne joint pas de fichier : le lien de la pièce s\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\'imprimes, et ce qu\'il en doit.' : 'Le message s\'ouvre dans ta messagerie, sans pièce jointe : un navigateur ne sait pas en joindre. Pour envoyer le PDF, le bouton « PDF » de la pièce l\'enregistre (« Enregistrer au format PDF ») ; joins-le ensuite au message.'} Modèles d'email : Paramètres → Envois.</p>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Ouvrir dans la messagerie</button></div>`,
       (root, close) => { if (lien) bridge.lienBascule(root, m.body, corpsOrigine); $('#ok', root).onclick = async () => {
         const v = formValues($('#mf', root));
@@ -7417,7 +7419,7 @@
         <p class="small muted span-2 annonce-stable" id="wf-num"></p>
         <label class="field span-2">${lbl('Message', 'wa.message')}<textarea name="body" rows="9">${h(m.body)}</textarea></label>
       </form>
-      <p class="small muted">WhatsApp s'ouvre sur la conversation, le message déjà écrit. ${lien ? 'Un lien WhatsApp ne porte pas de fichier : le lien de la pièce s\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\'imprimes, et ce qu\'il en doit.' : 'Un lien WhatsApp ne porte pas de fichier : pour envoyer le PDF, le bouton « PDF » de la pièce l\'enregistre (« Enregistrer au format PDF ») ; glisse-le ensuite dans la conversation.'} Le texte vient du modèle d'email (Paramètres → Envois).</p>
+      <p class="small muted">WhatsApp s'ouvre sur la conversation, le message déjà écrit. ${lien ? 'Un lien WhatsApp ne porte pas de fichier : le lien de la pièce s\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\'imprimes, et ce qu\'il en doit.' : 'Un lien WhatsApp ne porte pas de fichier : pour envoyer le PDF, le bouton « PDF » de la pièce l\'enregistre (« Enregistrer au format PDF ») ; joins-le ensuite à la conversation.'} Le texte vient du modèle d'email (Paramètres → Envois).</p>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Ouvrir WhatsApp</button></div>`,
       (root, close) => {
         if (lien) bridge.lienBascule(root, m.body, corpsOrigine);
@@ -9942,10 +9944,10 @@
           ${!isNew && C.purchaseBalance(stored, company(), data).remaining > 0.0005 ? '<button class="btn btn-primary" id="pay">Enregistrer un règlement</button>' : ''}
           ${!isNew && C.purchaseBalance(stored, company(), data).remaining < -0.0005 ? '<button class="btn btn-primary" id="recu">Remboursement reçu…</button>' : ''}
           ${/* (plateforme, lot achats) Sans pièces jointes en ligne, le bouton refusait toujours : il se cache. */''}
-          ${bridge.piecesJointes === false ? '' : `<button class="btn" id="attach-top">Joindre un justificatif…</button>${info('ed.attachments')}`}
+          ${bridge.piecesJointes === false ? '' : `<span class="colle-bouton"><button class="btn" id="attach-top">Joindre un justificatif…</button>${info('ed.attachments')}</span>`}
           ${/* Une pièce déjà saisie ne se relit pas par-dessus : la lecture la remplacerait. */''}
-          ${clos || !isNew ? '' : `<button class="btn" id="teif-lire">Lire une e-facture…</button>${info('buy.teif')}`}
-          <button class="btn" id="photo" hidden>Lire une photo…</button>${info('ocr.photo')}
+          ${clos || !isNew ? '' : `<span class="colle-bouton"><button class="btn" id="teif-lire">Lire une e-facture…</button>${info('buy.teif')}</span>`}
+          <span class="colle-bouton"><button class="btn" id="photo" hidden>Lire une photo…</button>${info('ocr.photo')}</span>
           ${clos ? '' : `<button class="btn ${isNew ? 'btn-primary' : ''}" id="save">Enregistrer</button>`}
           ${isNew ? '' : `<div class="more"><button class="btn" id="more-btn">Plus ▾</button><div class="more-list" id="more-list" hidden>
             <button id="dup">Dupliquer</button>
@@ -12708,7 +12710,7 @@
     // grand, et l'ouvre.
     $('#cs-etat').innerHTML = !ss ? '<span class="ct-puce fermee" id="cs-puce">Caisse fermée</span>'
       : !ss.ici ? `<span class="ct-puce ailleurs" id="cs-puce">Ouverte sur « ${h(ss.appareil)} »</span>`
-      : `<span class="ct-puce ouverte" id="cs-ouverte" title="Fond de caisse : les espèces du tiroir à l'ouverture">Ouverte par ${h(ss.qui)} le ${h(heureCaisse(ss.ouverteLe))} · fond ${h(argentCaisse(ss.fond))}</span>`;
+      : `<span class="ct-puce ouverte" id="cs-ouverte" title="Ouverte par ${h(ss.qui)} le ${h(heureCaisse(ss.ouverteLe))}. Fond de caisse : les espèces du tiroir à l'ouverture"><span class="ct-puce-texte">Ouverte<span class="ct-puce-qui"> par ${h(ss.qui)} le ${h(heureCaisse(ss.ouverteLe))}</span> · fond ${h(argentCaisse(ss.fond))}</span></span>`;
     el.innerHTML = '';
     // (brique 123) Qui est au poste, et les gestes de la session (fermer, son code…).
     gestesCaisse();
