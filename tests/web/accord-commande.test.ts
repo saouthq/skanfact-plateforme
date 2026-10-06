@@ -117,7 +117,8 @@ describe('l\'accord au-delà d\'une commande fournisseur, à la souris', () => {
     await expect.poll(() => i.locator('#modal-root #accord-question').count(), { timeout: 10_000 }).toBe(1);
     expect(net(await i.locator('#modal-root').innerText())).toContain('La commande BCF-');
     expect(net(await i.locator('#modal-root').innerText())).toContain('fait 1 025,750 DT hors taxes, au-delà des 1 000,000 DT permis sans accord : elle ne part pas encore.');
-    expect((await commandeDuServeur())?.status).toBe('brouillon');
+    // L'enregistrement part au serveur en arrière-plan : on attend qu'il y soit (vu en CI le 06/10/2026, sous Node 22 : lu trop tôt).
+    await expect.poll(async () => (await commandeDuServeur())?.status, { timeout: 10_000 }).toBe('brouillon');
     await i.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'accord-commande-2-demander.png') });
     await i.locator('#modal-root #a').click();
     await expect.poll(() => toast(i), { timeout: 10_000 }).toBe('Accord demandé à Nadia : la commande partira dès qu\'il sera donné.');
