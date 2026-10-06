@@ -132,7 +132,8 @@ export function routeRetour(sessionOuverte: (tx: Transaction, entreprise: string
       // L'avoir, numéroté et scellé par le serveur ; il porte les deux noms.
       const clientId = typeof tk.contenu.clientId === 'string' ? tk.contenu.clientId : '';
       const client = clientId ? ((await tx.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'clients' and cle = $2`, [ent, clientId])).rows[0]?.contenu ?? null) : null;
-      const document = { ...av, clientId, payments: [], retourCaisse: { faitPar, ...(approuvePar ? { approuvePar: approuvePar.nom } : {}) } };
+      // L'avoir se calcule comme son ticket (prix d'étiquette ou HT), quoi que l'écran envoie.
+      const document = { ...av, prixTtc: tk.contenu.prixTtc === true ? true : undefined, clientId, payments: [], retourCaisse: { faitPar, ...(approuvePar ? { approuvePar: approuvePar.nom } : {}) } };
       const r = await emettreDepuisV10(tx, ent, qui.utilisateur, { document, client, revision: null, rang: corps.rang, netAPayer: corps.netAPayer }, 'avoir', { retour: true });
 
       // Le retour dans sa session : le Z le compte.

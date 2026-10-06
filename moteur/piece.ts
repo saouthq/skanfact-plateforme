@@ -33,6 +33,9 @@ export type Piece = {
   // Le timbre d'une facture s'applique d'office ; sur un avoir ou une proforma, il se demande.
   appliquerTimbre?: boolean;
   tauxRetenue?: bigint;     // à six décimales
+  // Au comptoir, le prix d'étiquette fait foi (lot caisse 3, 06/10/2026) : une pièce « prix TTC » (un ticket de caisse,
+  // et l'avoir de son retour) se calcule TTC d'abord. Sinon 2 × 1,200 DT faisaient 2,399 DT (le HT gardé au millime).
+  prixTtc?: boolean;
 };
 
 export type LigneCalculee = LignePiece & { ht: bigint; tva: bigint; ttc: bigint };
@@ -64,6 +67,7 @@ export function timbreApplique(p: Piece): boolean {
 const RETENUE_POSSIBLE: TypePiece[] = ['facture', 'avoir', 'proforma'];
 
 export function calculerPiece(p: Piece): TotauxPiece {
+  if (p.prixTtc) return calculerPieceTtc(p);
   const s = echelle(p.devise);
   // HT d'une ligne : quantité (÷ 1 000) × prix (÷ 1 000 000), dans l'unité de la devise.
   const lignes: LigneCalculee[] = p.lignes.map((l) => {
@@ -87,7 +91,47 @@ export function calculerPiece(p: Piece): TotauxPiece {
     tvaParTaux.set(l.tauxTva, t);
   }
   const totalTVA = [...tvaParTaux.values()].reduce((t, v) => t + v.tva, 0n);
+  return finir(p, s, { lignes, totalHT, remise, netHT, tvaParTaux, totalTVA });
+}
 
+// La pièce « prix TTC » (porté de `computeTotals`, core.js, la même règle) : le TTC d'une ligne est la quantité × le prix
+// unitaire TTC (le HT unitaire × (1 + taux), arrondi comme il s'affiche) ; la remise porte sur le TTC ; par taux, la TVA
+// est extraite du TTC (TTC × t / (1 + t)) et le HT en est la différence. À VÉRIFIER avec un comptable : la TVA d'un
+// ticket extraite du TTC, comme le fait le commerce de détail.
+function calculerPieceTtc(p: Piece): TotauxPiece {
+  const s = echelle(p.devise);
+  const lignes: LigneCalculee[] = p.lignes.map((l) => {
+    const unitaireTtc = diviserArrondi(l.prixUnitaire * s * (MILLION + l.tauxTva), MILLION * MILLION);
+    const ttc = diviserArrondi(l.quantite * unitaireTtc, MILLE);
+    const tva = diviserArrondi(ttc * l.tauxTva, MILLION + l.tauxTva);
+    return { ...l, ht: ttc - tva, tva, ttc };
+  });
+  // Le HT avant remise s'extrait par taux, comme le net : ligne à ligne, l'arrondi inventait une remise d'un millime sur
+  // un ticket sans remise.
+  const brutParTaux = new Map<bigint, bigint>();
+  for (const l of lignes) brutParTaux.set(l.tauxTva, (brutParTaux.get(l.tauxTva) ?? 0n) + l.ttc);
+  const totalHT = [...brutParTaux].reduce((t, [taux, ttc]) => t + ttc - diviserArrondi(ttc * taux, MILLION + taux), 0n);
+  const remisable = lignes.filter((l) => !l.sansRemise).reduce((t, l) => t + l.ttc, 0n);
+  const remiseTtc = auTaux(remisable, p.tauxRemise ?? 0n);
+  // Le TTC remisé de chaque taux (la remise répartie au prorata, ligne à ligne, comme la v10), puis sa TVA et sa base.
+  const ttcParTaux = new Map<bigint, bigint>();
+  for (const l of lignes) {
+    const ttc = l.sansRemise || remisable <= 0n ? l.ttc : diviserArrondi(l.ttc * (remisable - remiseTtc), remisable);
+    ttcParTaux.set(l.tauxTva, (ttcParTaux.get(l.tauxTva) ?? 0n) + ttc);
+  }
+  const tvaParTaux = new Map<bigint, { base: bigint; tva: bigint }>();
+  for (const [taux, ttc] of ttcParTaux) {
+    const tva = diviserArrondi(ttc * taux, MILLION + taux);
+    tvaParTaux.set(taux, { base: ttc - tva, tva });
+  }
+  const totalTVA = [...tvaParTaux.values()].reduce((t, v) => t + v.tva, 0n);
+  const netHT = [...tvaParTaux.values()].reduce((t, v) => t + v.base, 0n);
+  return finir(p, s, { lignes, totalHT, remise: totalHT - netHT, netHT, tvaParTaux, totalTVA });
+}
+
+type Corps = Pick<TotauxPiece, 'lignes' | 'totalHT' | 'remise' | 'netHT' | 'tvaParTaux' | 'totalTVA'>;
+function finir(p: Piece, s: bigint, c: Corps): TotauxPiece {
+  const { netHT, totalTVA } = c;
   // Le timbre est en dinars : sur une pièce en devise, il se convertit au cours de la pièce.
   const applique = timbreApplique(p);
   const timbre = !applique ? 0n
@@ -98,7 +142,7 @@ export function calculerPiece(p: Piece): TotauxPiece {
   const tauxRetenue = RETENUE_POSSIBLE.includes(p.type) ? (p.tauxRetenue ?? 0n) : 0n;
   const retenue = auTaux(netHT + totalTVA, tauxRetenue);
   return {
-    lignes, totalHT, remise, netHT, tvaParTaux, totalTVA, timbre,
+    ...c, timbre,
     timbreBase: applique ? p.timbre : 0n,
     totalTTC, retenue, netAPayer: totalTTC - retenue,
   };

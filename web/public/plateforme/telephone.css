@@ -206,3 +206,11 @@
    bulle d'un bouton caché se cache avec lui (« Lire une photo… » quand le serveur ne lit pas). */
 .colle-bouton { display: inline-flex; align-items: center; gap: 2px; }
 .colle-bouton:has(> .btn[hidden]) { display: none; }
+
+/* ── Le lot caisse (3) (06/10/2026) : la tablette du comptoir, sur le serveur d'essai ──
+   À 1 180 × 820, la fiche d'un nouvel article cachait « Enregistrer » sous le bas de sa fenêtre : sur un écran qu'on
+   touche, les boutons d'une fenêtre restent au bas pendant qu'on la parcourt, comme au téléphone (docs/caisse.md). */
+@media (pointer: coarse) and (min-width: 761px) {
+  .modal > .modal-actions:last-child { position: sticky; bottom: -26px; z-index: 6; flex-wrap: wrap; margin: 20px -28px -26px; padding: 12px 28px 16px;
+    background: var(--panel); border-top: 1px solid var(--border); }
+}

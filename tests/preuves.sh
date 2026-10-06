@@ -485,7 +485,7 @@ prouver "un nombre tronqué en silence" $MA \
   "  if (fraction.replace(/0+\$/, '').length > decimales) throw" "  if (false) throw" \
   "un nombre écrit se lit exactement"
 prouver "la remise portée sur la déduction d'acompte" $MP \
-  "const remisable = lignes.filter((l) => !l.sansRemise)" "const remisable = lignes.filter(() => true)" \
+  "const remisable = lignes.filter((l) => !l.sansRemise).reduce((t, l) => t + l.ht, 0n);" "const remisable = lignes.filter(() => true).reduce((t, l) => t + l.ht, 0n);" \
   "la remise globale ne porte pas sur la déduction d'un acompte"
 prouver "la TVA calculée avant la remise" $MP \
   "    const base = l.sansRemise || remisable <= 0n ? l.ht : diviserArrondi(l.ht * (remisable - remise), remisable);" "    const base = l.ht;" \
@@ -1244,7 +1244,7 @@ prouver "un avoir émis par la route de la facture (celle du commercial)" $DV \
   "  if (!cle || doc.type !== type) throw new Refus('ventes.seule_facture');" "  if (!cle) throw new Refus('ventes.seule_facture');" \
   "$AV"
 prouver "un avoir émis qui change de facture" $DV \
-  "'stampFee', 'creditOf', 'creditReason'];" "'stampFee', 'creditReason'];" \
+  "'stampFee', 'creditOf', 'creditReason', 'prixTtc'];" "'stampFee', 'creditReason', 'prixTtc'];" \
   "$AV"
 prouver "la facture corrigée hors du scellé de l'avoir" serveur/ventes/pieces.ts \
   "    ...(p.type === 'avoir' ? { corrige: p.corrige } : {})," "" \
@@ -8921,6 +8921,47 @@ prouver "le lien d'un devis qui s'ouvre sur un relevé vide" web/public/espace/e
 prouver "le relevé du compte sans ses devis" web/public/espace/espace.js \
   "\${vue.devis.length ? \`<h2 class=\"titre-devis\">" "\${false ? \`<h2 class=\"titre-devis\">" \
   "$DV3"
+
+# ── Le lot caisse (3) (06/10/2026) : le prix d'étiquette fait foi (K5), « Créer la caisse » sous le refus (K1), les
+#    boutons d'une fenêtre au bas de la tablette (K4) ; docs/caisse.md.
+KB1='20 000 tickets « prix TTC » tirés au hasard (remises, taux, quantités) tombent sur le même millime dans les deux moteurs'
+KB2="un ticket « prix TTC » : quantité × prix d'étiquette, au millime, quel que soit le prix et la quantité ; HT + TVA = TTC"
+KT1="au comptoir, le prix d'étiquette fait foi : 2 biscuits à 1,200 font 2,400, et leur retour rend 2,400"
+KW1="à la tablette du comptoir : 2 biscuits à 1,200 font 2,400 ; « Créer la caisse » sous le refus ; « Enregistrer » au bas d'une longue fenêtre"
+prouver "le ticket calculé HT d'abord, à l'écran" web/public/v10/core.js \
+  "    const prixTtc = doc.prixTtc === true;" "    const prixTtc = false;" \
+  "$KB2"
+prouver "le ticket calculé HT d'abord, au serveur" moteur/piece.ts \
+  "  if (p.prixTtc) return calculerPieceTtc(p);
+" "" \
+  "$KB2"
+prouver "le panier de la caisse au HT d'abord (2 × 1,200 = 2,399)" web/public/v10/core.js \
+  "    const doc = { type: 'facture', ticket: true, prixTtc: true, lines: lignes || []," "    const doc = { type: 'facture', ticket: true, lines: lignes || []," \
+  "$KW1"
+prouver "le ticket encaissé sans son drapeau « prix TTC »" web/public/v10/core.js \
+  "      id: uid(), type: 'facture', ticket: true, prixTtc: true, number: nextNumber(data, 'ticket', jour)," "      id: uid(), type: 'facture', ticket: true, number: nextNumber(data, 'ticket', jour)," \
+  "$KW1"
+prouver "l'avoir d'un retour qui ne suit pas son ticket « prix TTC »" serveur/caisse/retour.ts \
+  "const document = { ...av, prixTtc: tk.contenu.prixTtc === true ? true : undefined, clientId," "const document = { ...av, clientId," \
+  "$KT1"
+prouver "une facture qui se calcule TTC d'abord parce que l'écran le dit" serveur/v10/dossier.ts \
+  "    ...((ticket || retour) && doc.prixTtc === true ? { prixTtc: true } : {})," "    ...(doc.prixTtc === true ? { prixTtc: true } : {})," \
+  "$KT1"
+prouver "le drapeau « prix TTC » perdu au serveur" serveur/ventes/pieces.ts \
+  "prix_ttc: b.prixTtc === true," "prix_ttc: false," \
+  "$KT1"
+prouver "une remise d'un millime inventée sur un ticket sans remise (écran)" web/public/v10/core.js \
+  "    const totalHT = prixTtc ? rd(Object.keys(brutParTaux)" "    const totalHT = false ? rd(Object.keys(brutParTaux)" \
+  "$KB1"
+prouver "une remise d'un millime inventée sur un ticket sans remise (serveur)" moteur/piece.ts \
+  "  const totalHT = [...brutParTaux].reduce((t, [taux, ttc]) => t + ttc - diviserArrondi(ttc * taux, MILLION + taux), 0n);" "  const totalHT = lignes.reduce((t, l) => t + l.ht, 0n);" \
+  "$KB1"
+prouver "« Aucun compte de caisse » sous le ticket, sans le bouton qui la crée" web/public/v10/app.js \
+  "\${s.panier.length && motif && sansCompte ? ' <button" "\${false ? ' <button" \
+  "$KW1"
+prouver "« Enregistrer » caché sous le bas d'une fenêtre, à la tablette" web/public/plateforme/telephone.css \
+  "  .modal > .modal-actions:last-child { position: sticky; bottom: -26px;" "  .modal > .modal-actions:last-child { position: static; bottom: -26px;" \
+  "$KW1"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

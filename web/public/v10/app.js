@@ -13080,6 +13080,9 @@
       const drawTicket = () => {
         const t = C.totauxDuPanier(s.panier, company(), { recu: '', remise: s.remise });
         const motif = motifDuPanier();
+        // Le panier est bon, la caisse ouverte : seul le compte manque (la carte, elle, bute sur la banque absente).
+        const sansCompte = !motifSession() && !C.comptesDeCaisse(data).especes
+          && C.motifEncaissement(data, company(), s.panier, { mode: 'carte', recu: '', remise: s.remise }) === C.MOTIF_SANS_BANQUE;
         const attente = s.attente || [];
         const client = s.clientId ? clientName(s.clientId) : '';
         // Au téléphone (caisse.css), le ticket se tient replié en bas de l'écran, sous les tuiles ; « Tout voir » le déplie.
@@ -13107,7 +13110,7 @@
             <div class="ct-sous" id="cs-ligne-remise"${t.discount ? '' : ' style="visibility:hidden" aria-hidden="true"'}><span>Remise ${h(String(s.remise || '0').replace('.', ','))} %</span><span>− ${C.money(t.remiseTtc, cur)}</span></div>
             <div class="ct-sous"><span>${h(pl(nbArticles(), 'article'))}</span><span>dont TVA ${C.money(t.totalVAT, cur)}${t.stamp ? ` · timbre ${C.money(t.stamp, cur)}` : ''}</span></div>
             <div class="ct-total"><span>Total ${info('cs.ticket')}</span><b id="cs-total">${C.money(t.netToPay, cur)}</b></div>
-            <p class="cs-motif" id="cs-motif">${s.panier.length && motif ? h(motif) : ''}</p>
+            <p class="cs-motif" id="cs-motif">${s.panier.length && motif ? h(motif) : ''}${s.panier.length && motif && sansCompte ? ' <button type="button" class="btn btn-sm" id="cs-creer-caisse">Créer la caisse</button>' : ''}</p>
             <button type="button" class="ct-principal cs-encaisser" id="cs-encaisser" ${motif ? 'disabled' : ''}>Encaisser ${s.panier.length ? C.money(t.netToPay, cur) : ''}</button>
           </div>`;
         $('#cs-ticket-tirer').onclick = () => { s.ticketOuvert = !s.ticketOuvert; drawTicket(); };
@@ -13135,6 +13138,7 @@
           toastUndo('Ticket annulé.', () => { Object.assign(s, avant); drawTicket(); drawArticles(); });
         };
         $('#cs-encaisser').onclick = versPaiement;
+        if ($('#cs-creer-caisse')) $('#cs-creer-caisse').onclick = () => creerCaisse(() => drawTicket());
         // La ligne qu'on vient de scanner reste sous les yeux, même au-delà de ce que la zone montre.
         const z = $('#cs-zone'), tr = s.vise != null && z ? $$('.ct-ligne', z)[s.vise] : null;
         if (tr) { const bas = tr.offsetTop + tr.offsetHeight; if (bas > z.scrollTop + z.clientHeight) z.scrollTop = bas - z.clientHeight; }

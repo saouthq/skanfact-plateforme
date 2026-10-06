@@ -1,0 +1,31 @@
+Le refus d'« Encaisser » porte le geste qui le règle (lot caisse 3, 06/10/2026 ; docs/caisse.md). Vu sur le serveur
+d'essai, à la tablette : une entreprise neuve, sans caisse ni banque, voyait « Encaisser » grisé et « Aucun compte de
+caisse : crée-le… » sous le ticket, sans rien pour le créer (seul l'écran du paiement avait le bouton, et on n'y
+arrivait pas). Format : voir sans-paquets.mjs.
+
+== app.js | sous le ticket, le refus « aucun compte de caisse » porte « Créer la caisse », comme celui du paiement
+-- avant
+            <p class="cs-motif" id="cs-motif">${s.panier.length && motif ? h(motif) : ''}</p>
+-- après
+            <p class="cs-motif" id="cs-motif">${s.panier.length && motif ? h(motif) : ''}${s.panier.length && motif && sansCompte ? ' <button type="button" class="btn btn-sm" id="cs-creer-caisse">Créer la caisse</button>' : ''}</p>
+-- fin
+
+== app.js | le refus vient du compte qui manque (ni caisse ni banque), pas du panier ni de la session
+-- avant
+        const motif = motifDuPanier();
+        const attente = s.attente || [];
+-- après
+        const motif = motifDuPanier();
+        // Le panier est bon, la caisse ouverte : seul le compte manque (la carte, elle, bute sur la banque absente).
+        const sansCompte = !motifSession() && !C.comptesDeCaisse(data).especes
+          && C.motifEncaissement(data, company(), s.panier, { mode: 'carte', recu: '', remise: s.remise }) === C.MOTIF_SANS_BANQUE;
+        const attente = s.attente || [];
+-- fin
+
+== app.js | « Créer la caisse » ouvre sa fenêtre par-dessus la vente ; créée, « Encaisser » revient
+-- avant
+        $('#cs-encaisser').onclick = versPaiement;
+-- après
+        $('#cs-encaisser').onclick = versPaiement;
+        if ($('#cs-creer-caisse')) $('#cs-creer-caisse').onclick = () => creerCaisse(() => drawTicket());
+-- fin

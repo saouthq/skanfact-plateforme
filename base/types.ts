@@ -914,6 +914,7 @@ export interface BaseDeDonnees {
     revision: Generated<bigint>;
     ref_v10: string | null;
     corrige: string | null;
+    prix_ttc: Generated<boolean>;
   };
   'ventes.prestataire': {
     entreprise: string;

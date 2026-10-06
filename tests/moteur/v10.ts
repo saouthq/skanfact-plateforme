@@ -13,6 +13,7 @@ export type LigneV10 = { qty?: number | string; unitPrice?: number | string; vat
 export type DocV10 = {
   id?: string; type: string; currency?: string; exchangeRate?: number | string; lines?: LigneV10[];
   discountRate?: number | string; withholdingRate?: number | string; applyStamp?: boolean; stampFee?: number | string;
+  prixTtc?: boolean;
 };
 export type ResultatV10 = {
   lines: { ht: number; vat: number; ttc: number }[]; totalHT: number; discount: number; netHT: number;
@@ -74,6 +75,7 @@ export function convertir(d: DocV10, societe: Societe): Piece | string {
   return {
     type: d.type as TypePiece, devise, cours, lignes, tauxRemise, tauxRetenue, timbre,
     ...(d.applyStamp === undefined ? {} : { appliquerTimbre: d.applyStamp }),
+    ...(d.prixTtc ? { prixTtc: true } : {}),
   };
 }
 

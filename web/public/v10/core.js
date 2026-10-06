@@ -1503,29 +1503,55 @@
     // « partielle » et en retard pour 0,004 €, et la facture imprimée ne s'additionnait pas
     // (HT + TVA + timbre ≠ net). Le PDF a toujours dit le vrai montant ; le calcul le rejoint.
     const rd = arrondiDevise(doc.currency || (company || {}).currency);
+    // (plateforme, lot caisse 3) Au comptoir, le prix d'étiquette fait foi : une pièce « prix TTC » (le ticket, et l'avoir
+    // de son retour) a pour ligne la quantité × le prix unitaire TTC (le HT × (1 + taux), arrondi comme il s'affiche) ;
+    // la remise porte sur le TTC ; par taux, la TVA s'extrait du TTC et le HT en est la différence. La même règle que le
+    // serveur (calculerPieceTtc). À VÉRIFIER avec un comptable : la TVA d'un ticket extraite du TTC.
+    const prixTtc = doc.prixTtc === true;
     const lines = (doc.lines || []).map(l => {
       const qty = Number(l.qty) || 0;
       const unit = Number(l.unitPrice) || 0;
       const rate = Number(l.vatRate) || 0;
+      if (prixTtc) {
+        const ttc = rd(qty * rd(unit * (1 + rate / 100)));
+        const vat = rd(ttc * rate / (100 + rate));
+        return { ...l, qty, unitPrice: unit, vatRate: rate, ht: rd(ttc - vat), vat, ttc, noDiscount: !!l.noDiscount };
+      }
       const ht = rd(qty * unit);
       const vat = rd(ht * rate / 100);
       return { ...l, qty, unitPrice: unit, vatRate: rate, ht, vat, ttc: rd(ht + vat), noDiscount: !!l.noDiscount };
     });
-    const totalHT = rd(lines.reduce((s, l) => s + l.ht, 0));
+    // Une pièce « prix TTC » : le HT avant remise s'extrait par taux, comme le net (ligne à ligne, l'arrondi inventait une
+    // remise d'un millime sur un ticket sans remise, vu sur l'écran du client le 06/10/2026).
+    const brutParTaux = {};
+    if (prixTtc) lines.forEach(l => { brutParTaux[l.vatRate] = rd((brutParTaux[l.vatRate] || 0) + l.ttc); });
+    const totalHT = prixTtc ? rd(Object.keys(brutParTaux).reduce((s, k) => s + brutParTaux[k] - rd(brutParTaux[k] * Number(k) / (100 + Number(k))), 0))
+      : rd(lines.reduce((s, l) => s + l.ht, 0));
     const discountRate = Number(doc.discountRate) || 0;
     // La remise globale ne porte pas sur les lignes « noDiscount » (déduction d'un acompte déjà facturé).
-    const discountable = rd(lines.filter(l => !l.noDiscount).reduce((s, l) => s + l.ht, 0));
-    const discount = rd(discountable * discountRate / 100);
-    const netHT = rd(totalHT - discount);
+    const discountable = rd(lines.filter(l => !l.noDiscount).reduce((s, l) => s + (prixTtc ? l.ttc : l.ht), 0));
+    const remiseCalculee = rd(discountable * discountRate / 100);
     // TVA par taux, appliquée après remise globale (remise répartie proportionnellement)
-    const factor = discountable > 0 ? (discountable - discount) / discountable : 1;
+    const factor = discountable > 0 ? (discountable - remiseCalculee) / discountable : 1;
     const vatByRate = {};
-    lines.forEach(l => {
-      const base = rd(l.noDiscount ? l.ht : l.ht * factor);
-      vatByRate[l.vatRate] = vatByRate[l.vatRate] || { base: 0, vat: 0 };
-      vatByRate[l.vatRate].base = rd(vatByRate[l.vatRate].base + base);
-      vatByRate[l.vatRate].vat = rd(vatByRate[l.vatRate].vat + base * l.vatRate / 100);
-    });
+    if (prixTtc) {
+      const ttcParTaux = {};
+      // Une seule division (comme le serveur) : un facteur en virgule flottante perdait un millime sur des millions.
+      lines.forEach(l => { ttcParTaux[l.vatRate] = rd((ttcParTaux[l.vatRate] || 0) + rd(l.noDiscount || discountable <= 0 ? l.ttc : l.ttc * (discountable - remiseCalculee) / discountable)); });
+      Object.keys(ttcParTaux).forEach(k => {
+        const rate = Number(k), vat = rd(ttcParTaux[k] * rate / (100 + rate));
+        vatByRate[k] = { base: rd(ttcParTaux[k] - vat), vat };
+      });
+    } else {
+      lines.forEach(l => {
+        const base = rd(l.noDiscount ? l.ht : l.ht * factor);
+        vatByRate[l.vatRate] = vatByRate[l.vatRate] || { base: 0, vat: 0 };
+        vatByRate[l.vatRate].base = rd(vatByRate[l.vatRate].base + base);
+        vatByRate[l.vatRate].vat = rd(vatByRate[l.vatRate].vat + base * l.vatRate / 100);
+      });
+    }
+    const netHT = prixTtc ? rd(Object.values(vatByRate).reduce((s, v) => s + v.base, 0)) : rd(totalHT - remiseCalculee);
+    const discount = prixTtc ? rd(totalHT - netHT) : remiseCalculee;
     const totalVAT = rd(Object.values(vatByRate).reduce((s, v) => s + v.vat, 0));
     // Timbre : d'office sur la facture, jamais sur un devis ou un bon. Sur l'avoir et la proforma il se
     // demande explicitement — une proforma n'est pas une facture, elle ne déclenche pas le droit de timbre.
@@ -10552,7 +10578,7 @@
   function totauxDuPanier(lignes, company, opts) {
     const o = opts || {};
     const co = company || {};
-    const doc = { type: 'facture', ticket: true, lines: lignes || [], discountRate: tauxRemise(o.remise),
+    const doc = { type: 'facture', ticket: true, prixTtc: true, lines: lignes || [], discountRate: tauxRemise(o.remise),
       applyStamp: !!co.caisseTimbre, stampFee: co.caisseTimbre ? (Number(co.stampFee) || 0) : 0, currency: co.currency };
     const t = computeTotals(doc, co);
     const recu = montantTape(o.recu);
@@ -10596,7 +10622,7 @@
     const t = totauxDuPanier(ls, co, { recu: o.recu, remise: o.remise });
     const maintenant = o.maintenant || Date.now();
     const doc = {
-      id: uid(), type: 'facture', ticket: true, number: nextNumber(data, 'ticket', jour), date: jour, dueDate: jour,
+      id: uid(), type: 'facture', ticket: true, prixTtc: true, number: nextNumber(data, 'ticket', jour), date: jour, dueDate: jour,
       clientId: o.clientId || '', subject: '', reference: '', lines: ls, discountRate: tauxRemise(o.remise) || 0,
       applyStamp: !!co.caisseTimbre, stampFee: co.caisseTimbre ? (Number(co.stampFee) || 0) : 0,
       regimeTva: regimeOf(co).id, status: 'envoyée', notes: '', withholdingRate: 0,
@@ -10683,6 +10709,7 @@
       id: uid(), type: 'avoir', number: nextNumber(data, 'avoir', jour), status: 'émis', date: jour, dueDate: '',
       clientId: ticket.clientId || '', subject: `Retour sur le ticket ${ticket.number}`, reference: '',
       creditOf: ticket.id, creditOfNumber: ticket.number, creditReason: String(o.motif || '').trim(),
+      ...(ticket.prixTtc === true ? { prixTtc: true } : {}),
       lines: lignes, discountRate: Number(ticket.discountRate) || 0, applyStamp: false, stampFee: 0, regimeTva: ticket.regimeTva || regimeOf(co).id,
       notes: '', withholdingRate: 0, lang: 'fr', currency: ticket.currency || co.currency, exchangeRate: '',
       payments: [], createdAt: maintenant, issuedTs: maintenant

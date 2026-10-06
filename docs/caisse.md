@@ -378,11 +378,50 @@ gardé, le comptage faux refusé), et les tests d'écran de la caisse retournés
 `parcours`, `rendu`, `bureau/caisse-bureau`). 26 preuves nouvelles, 6 recalées sur le code déplacé ; et l'outil des
 preuves ne compte plus « prouvée » une preuve dont le défaut n'a pas pu se poser (`tests/preuves.sh`).
 
+## Le prix d'étiquette fait foi (lot caisse 3, 06/10/2026, par délégation)
+
+Vu sur le serveur d'essai, à la tablette (1 180 × 820) : deux paquets de biscuits étiquetés 1,200 DT faisaient
+**2,399 DT**. La fiche d'un article garde le HT au millime (1,008) ; la v10 calculait la ligne HT d'abord (2 × 1,008 =
+2,016), puis la TVA (0,383) : 2,399. La caisse disait « Rendre 2,601 DT » (aucun caissier ne rend un millime) et le Z
+trouvait un écart de 0,001. Mesuré sur 39 960 ventes (prix de 0,100 à 50 DT, 1 à 20 unités, TVA 7 et 19 %) : 84 % des
+ventes de plus d'une unité tombaient faux ; un HT gardé à 6 décimales en laissait encore 11 %. **La v10 en service a le
+même défaut** (à reporter à Skander).
+
+**La règle (K5)** : une pièce « prix TTC » se calcule **TTC d'abord**. Le ticket de la caisse l'est toujours ; l'avoir
+d'un retour l'est quand son ticket l'est (le serveur le décide, pas l'écran) ; une facture, jamais.
+
+- TTC d'une ligne = quantité × prix unitaire TTC (le HT × (1 + taux), arrondi au millime : le prix affiché).
+- La remise porte sur le TTC, répartie au prorata des lignes.
+- Par taux : TVA = TTC × t / (1 + t), HT = TTC − TVA. Le HT avant remise s'extrait de même, par taux (ligne à ligne,
+  l'arrondi inventait une « remise » d'un millime sur un ticket sans remise : vu sur l'écran du client).
+- Les deux moteurs (`computeTotals` de la v10, adaptation `web/v10/prix-ttc.txt` ; `calculerPieceTtc` du serveur,
+  `moteur/piece.ts`) suivent la même règle ; le banc `tests/moteur/banc-v10.test.ts` les compare sur 20 000 tickets.
+- Le drapeau se garde avec la pièce : `ventes.piece.prix_ttc` (migration 0074), scellé avec elle quand il est vrai.
+  Les tickets d'avant (sans drapeau) gardent leur calcul.
+- **À VÉRIFIER avec un comptable** : la TVA d'un ticket extraite du TTC (la méthode du commerce de détail).
+
+**Le refus qui porte son geste (K1)** : une entreprise neuve, sans caisse ni banque, voyait « Encaisser » grisé et
+« Aucun compte de caisse… » sous le ticket, sans rien pour le créer. Le refus porte maintenant « Créer la caisse »
+(adaptation `web/v10/caisse-sans-compte.txt`) ; créée, « Encaisser » revient.
+
+**La tablette (K4)** : sur un écran qu'on touche et plus large qu'un téléphone, les boutons d'une longue fenêtre (la
+fiche d'un nouvel article) restent au bas pendant qu'on la parcourt (`web/public/plateforme/telephone.css`).
+
+Restent en propositions (pas ce lot) : le paiement mixte et le crédit d'un client (K6) ; la facture d'un ticket, sans
+compter la vente deux fois (K8, À VÉRIFIER) ; le motif d'un écart au Z (K9) ; l'arrondi de caisse aux 10 millimes
+(À VÉRIFIER : Banque centrale de Tunisie) ; « 0.000 » avec un point dans la fiche d'un article (K3).
+
+Tests : `tests/moteur/banc-v10.test.ts` (20 000 tickets, et 10 760 prix d'étiquette × quantités), `tests/v10/ticket.test.ts`
+(2 × 1,200 = 2,400 scellé, l'écran qui dirait 2,399 refusé, le ticket d'avant et la facture inchangés, le retour qui
+rend 2,400), `tests/web/caisse-tactile.test.ts` (à la tablette : 2,400, rendre 2,600, « Créer la caisse », la fiche).
+13 preuves (`tests/preuves.sh`, lot caisse 3).
+
 ## Ce qui part au serveur
 
 Le ticket tel que la caisse de la v10 le faisait déjà (lignes, totaux, mode, reçu, rendu, paiement, client facultatif)
 : rien de plus. À la fermeture, avec le total compté, le détail du comptage s'il est donné (chaque coupure et son
-nombre, 05/10/2026). Avec un article du Catalogue, sa famille (05/10/2026).
+nombre, 05/10/2026). Avec un article du Catalogue, sa famille (05/10/2026). Le drapeau « prix TTC » du ticket et de l'avoir
+de son retour (un oui ou un non, la règle de calcul ; lot caisse 3, 06/10/2026).
 
 ## Les tests
 
@@ -390,8 +429,8 @@ nombre, 05/10/2026). Avec un article du Catalogue, sa famille (05/10/2026).
   ne prend aucun numéro, le commercial refusé, le passant « au comptoir » et le client, les règlements au millime, aucun
   fichier TEIF, le ticket refusé par la route des factures, la facture de l'API qui ne prend pas la série des tickets,
   la première facture en FAC-…-001.
-- `tests/web/caisse.test.ts` : Nadia encaisse trois laits (10 DT reçus, 1,610 DT à rendre) puis une huile ; le bilan
-  du jour (23,265 DT, deux tickets), toujours là après rechargement. Deux écrans regardés.
+- `tests/web/caisse.test.ts` : Nadia encaisse trois laits (10 DT reçus, 1,609 DT à rendre : 3 × 2,797, le prix
+  d'étiquette) puis une huile ; le bilan du jour (23,266 DT, deux tickets), toujours là après rechargement. Deux écrans regardés.
 - `tests/web/parcours.test.ts` : retourné vers la nouvelle règle (la caisse est en ligne, l'entreprise d'essai comprise).
 - 12 preuves (`tests/preuves.sh`, brique 115).
 

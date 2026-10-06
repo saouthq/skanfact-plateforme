@@ -33,6 +33,8 @@ export type BrouillonSaisi = {
   appliquerTimbre?: boolean | undefined; objet?: string | undefined; notes?: string | undefined;
   // La facture qu'un avoir corrige (0012) : seul un avoir en a une.
   corrige?: string | undefined;
+  // Une pièce « prix TTC » (le ticket de caisse et l'avoir de son retour, lot caisse 3) : le prix d'étiquette fait foi.
+  prixTtc?: boolean | undefined;
   lignes: LigneSaisie[];
 };
 // Les décimales de chaque nombre saisi (01 R3).
@@ -43,7 +45,7 @@ type LignePieceLue = Pick<Selectable<BaseDeDonnees['ventes.ligne']>,
   'rang' | 'designation' | 'description' | 'quantite' | 'prix_unitaire' | 'taux_tva' | 'sans_remise' | 'ht' | 'tva' | 'ttc'>;
 export type PieceLue = {
   id: string; entreprise: string; type: TypePiece; statut: string; tiers: string; date_piece: string; echeance: string | null;
-  corrige: string | null;
+  corrige: string | null; prix_ttc: boolean;
   devise: string; cours: bigint | null; taux_remise: bigint; taux_retenue: bigint; appliquer_timbre: boolean | null;
   objet: string | null; notes: string | null; serie: string | null; numero_texte: string | null; revision: number;
   totaux: Record<string, bigint> | null; tva_par_taux: Record<string, { base: string; tva: string }> | null;
@@ -74,7 +76,7 @@ export async function lirePieceBrute(tx: Transaction, entreprise: string, id: st
   }
   return {
     id: r.id, entreprise: r.entreprise, type: r.type as TypePiece, statut: r.statut, tiers: r.tiers, date_piece: r.date_piece, echeance: r.echeance,
-    corrige: r.corrige,
+    corrige: r.corrige, prix_ttc: r.prix_ttc,
     devise: r.devise, cours: r.cours, taux_remise: r.taux_remise, taux_retenue: r.taux_retenue,
     appliquer_timbre: r.appliquer_timbre, objet: r.objet, notes: r.notes, serie: r.serie, numero_texte: r.numero_texte,
     revision: Number(r.revision), totaux,
@@ -96,7 +98,7 @@ function valeurs(b: BrouillonSaisi) {
     taux_remise: b.tauxRemise === undefined ? 0n : depuisTexte(b.tauxRemise, DECIMALES.taux),
     taux_retenue: b.tauxRetenue === undefined ? 0n : depuisTexte(b.tauxRetenue, DECIMALES.taux),
     appliquer_timbre: b.appliquerTimbre ?? null, objet: b.objet ?? null, notes: b.notes ?? null,
-    corrige: b.corrige ?? null,
+    corrige: b.corrige ?? null, prix_ttc: b.prixTtc === true,
   };
 }
 
@@ -149,6 +151,7 @@ async function calculer(tx: Transaction, p: PieceLue, lignes: LignePieceLue[]): 
   const piece: Piece = {
     type: p.type, devise, cours: p.cours ?? undefined, tauxRemise: p.taux_remise, tauxRetenue: p.taux_retenue,
     ...(p.appliquer_timbre === null ? {} : { appliquerTimbre: p.appliquer_timbre }),
+    ...(p.prix_ttc ? { prixTtc: true } : {}),
     timbre: 0n,
     lignes: lignes.map((l) => ({ quantite: l.quantite, prixUnitaire: l.prix_unitaire, tauxTva: l.taux_tva, ...(l.sans_remise ? { sansRemise: true } : {}) })),
   };
@@ -175,6 +178,8 @@ export function contenuScelle(p: PieceLue, lignes: LignePieceLue[]) {
     // La facture qu'un avoir corrige, scellée avec lui. Pour un avoir seulement : l'empreinte des
     // factures déjà émises ne change pas.
     ...(p.type === 'avoir' ? { corrige: p.corrige } : {}),
+    // Sa façon de se calculer (lot caisse 3), pour une pièce « prix TTC » seulement : l'empreinte des autres ne change pas.
+    ...(p.prix_ttc ? { prixTtc: true } : {}),
   };
 }
 

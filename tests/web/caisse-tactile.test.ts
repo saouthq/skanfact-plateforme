@@ -3,7 +3,9 @@
 // n'atteint, une vente mise en attente et reprise, un ticket annulé puis rendu ; l'écran du client suit le ticket, le
 // paiement et la monnaie ; la douchette, sur l'écran de la monnaie, commence la vente suivante. Le soir, elle compte le
 // tiroir billet par billet : le Z garde le détail et dit l'écart au millime. Au téléphone : le ticket replié sous les
-// tuiles, et le comptage par un pavé dans une fenêtre.
+// tuiles, et le comptage par un pavé dans une fenêtre. À la tablette du comptoir (lot caisse 3) : le prix d'étiquette
+// fait foi (2 × 1,200 = 2,400), le refus « aucun compte de caisse » porte « Créer la caisse », et une longue fenêtre
+// garde « Enregistrer » au bas de l'écran.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -255,6 +257,58 @@ describe('la caisse tactile, à l\'écran', () => {
     expect((menu?.y ?? 0) + (menu?.height ?? 0)).toBeLessThanOrEqual(onglets?.y ?? 0);
     expect(barre?.height).toBeLessThan(130);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'tactile-6-telephone-comptage.png') });
+    await cx.close();
+    expect(erreurs).toEqual([]);
+  }, 120_000);
+
+  it('à la tablette du comptoir : 2 biscuits à 1,200 font 2,400 ; « Créer la caisse » sous le refus ; « Enregistrer » au bas d\'une longue fenêtre', async () => {
+    // Une supérette neuve : ni caisse ni banque, un article dont l'étiquette dit 1,200 TTC (le HT gardé : 1,008).
+    const { jeton, ent } = await epicerie();
+    const objets = (await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; cle: string; revision: number }[];
+    const rev = (cle: string) => objets.find((o) => o.collection === 'accounts' && o.cle === cle)?.revision ?? null;
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'accounts', cle: 'k-caisse', rang: null, revision: rev('k-caisse'), contenu: null },
+      { collection: 'accounts', cle: 'k-banque', rang: null, revision: rev('k-banque'), contenu: null },
+      { collection: 'catalog', cle: 'bisc', rang: 3, revision: null, contenu: { id: 'bisc', label: 'Biscuits Saïd', famille: 'Épicerie', unit: 'u', unitPrice: { '~n': '1.008' }, vatRate: 19 } },
+    ] })).statut).toBe(200);
+    expect((await api('POST', `/entreprises/${ent}/caisse/ouvrir`, jeton, { fond: '50' })).statut).toBe(200);
+    const { cx, p, erreurs } = await ouvrirPage(jeton, ent, { largeur: 1180, hauteur: 820, doigt: true });
+    const biscuits = p.locator('#cs-articles .cs-art', { hasText: 'Biscuits Saïd' });
+    await biscuits.click();
+    await biscuits.click();
+
+    // Le prix d'étiquette fait foi : 2 × 1,200 = 2,400 (et non 2,399, le HT × 2 puis la TVA).
+    expect(net(await p.locator('#cs-zone .ct-ligne').innerText())).toBe('Biscuits Saïd 1,200 DT l\'unité − 2 + 2,400 DT');
+    expect(await texte(p, '#cs-total')).toBe('2,400 DT');
+    // Sans compte de caisse ni banque, « Encaisser » attend ; le refus porte le bouton qui le lève.
+    expect(await p.locator('#cs-encaisser').isDisabled()).toBe(true);
+    expect(await texte(p, '#cs-motif')).toBe('Aucun compte de caisse : crée-le pour que les espèces aillent dans le tiroir, pas à la banque. Créer la caisse');
+    await p.locator('#cs-motif #cs-creer-caisse').click();
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.locator('#cs-encaisser').isDisabled()).toBe(false);
+    expect(await texte(p, '#cs-motif')).toBe('');
+
+    // Payé avec un billet de 5 : rendre 2,600, et le serveur scelle le ticket à 2,400.
+    await p.locator('#cs-encaisser').click();
+    await p.locator('#cs-billets [data-billet="5"]').click();
+    await expect.poll(() => texte(p, '#cs-valider')).toBe('Valider · rendre 2,600 DT');
+    await p.locator('#cs-valider').click();
+    await expect.poll(() => texte(p, '#toast'), { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-001 encaissé — à rendre 2,600 DT`);
+    const tickets = (await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; contenu: Record<string, unknown> }[];
+    expect(tickets.find((o) => o.collection === 'documents' && o.contenu.number === `TIC-${annee}-001`)?.contenu).toMatchObject({ prixTtc: true });
+    await p.locator('#cs-nouvelle').click();
+
+    // La fiche d'un nouvel article, plus haute que l'écran : « Enregistrer » reste au bas, à portée du doigt.
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/catalogue`);
+    await plusTard(p);
+    await p.locator('#new').click();
+    const fiche = p.locator('#modal-root .modal');
+    await fiche.waitFor();
+    expect(await fiche.evaluate((m) => m.scrollHeight > m.clientHeight)).toBe(true);
+    const enregistrer = await fiche.getByRole('button', { name: 'Enregistrer', exact: true }).boundingBox();
+    const boite = await fiche.boundingBox();
+    expect((enregistrer?.y ?? 9999) + (enregistrer?.height ?? 0)).toBeLessThanOrEqual((boite?.y ?? 0) + (boite?.height ?? 0));
+    await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'tactile-7-tablette-fiche.png') });
     await cx.close();
     expect(erreurs).toEqual([]);
   }, 120_000);

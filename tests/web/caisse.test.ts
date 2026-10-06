@@ -1,5 +1,5 @@
 // La caisse en ligne, à la souris (brique 115 ; la caisse tactile du 05/10/2026 ; docs/caisse.md). Nadia tient son
-// épicerie : elle ouvre la caisse, choisit trois laits et encaisse en espèces (10 DT reçus, 1,610 DT à rendre) ; le
+// épicerie : elle ouvre la caisse, choisit trois laits et encaisse en espèces (10 DT reçus, 1,609 DT à rendre : 3 × 2,797, le prix d'étiquette) ; le
 // serveur donne le numéro TIC-AAAA-001, scelle le ticket et enregistre son paiement ; puis une huile, TIC-AAAA-002 ; le
 // bilan du jour les compte tous les deux ; le soir, elle compte le tiroir et fait le Z.
 
@@ -76,21 +76,21 @@ describe('la caisse en ligne, à la souris', () => {
     await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Ouverte par Nadia le \d\d\/\d\d \d\d:\d\d · fond 100,000 DT$/);
     await expect.poll(() => p.locator('#cs-articles .cs-art').count(), { timeout: 10_000 }).toBe(2);
 
-    // 1. Trois laits ; « Encaisser » ; 10 DT reçus : 8,390 DT, 1,610 DT à rendre ; la monnaie se dit en grand.
+    // 1. Trois laits ; « Encaisser » ; 10 DT reçus : 8,391 DT (3 × 2,797), 1,609 DT à rendre ; la monnaie se dit en grand.
     const lait = p.locator('#cs-articles .cs-art', { hasText: 'Lait demi-écrémé' });
     for (let i = 0; i < 3; i++) await lait.click();
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'caisse-1-panier.png') });
     await p.locator('#cs-encaisser').click();
     await p.locator('#cs-recu').fill('10');
-    await expect.poll(async () => net(await p.locator('#cs-rendu').innerText())).toBe('1,610 DT');
-    expect(net(await p.locator('#cs-valider').innerText())).toBe('Valider · rendre 1,610 DT');
+    await expect.poll(async () => net(await p.locator('#cs-rendu').innerText())).toBe('1,609 DT');
+    expect(net(await p.locator('#cs-valider').innerText())).toBe('Valider · rendre 1,609 DT');
     await p.locator('#cs-valider').click();
-    await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-001 encaissé — à rendre 1,610 DT`);
-    expect(net(await p.locator('#cs-a-rendre').innerText())).toBe('1,610 DT');
+    await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-001 encaissé — à rendre 1,609 DT`);
+    expect(net(await p.locator('#cs-a-rendre').innerText())).toBe('1,609 DT');
     await p.locator('#cs-nouvelle').click();
     // Au serveur : le ticket, son numéro, son paiement.
     await expect.poll(async () => (await tickets()).map((t) => [t.number, (t.payments as Record<string, unknown>[]).map((x) => x.amount)]), { timeout: 10_000 })
-      .toEqual([[`TIC-${annee}-001`, [{ '~n': '8.39' }]]]);
+      .toEqual([[`TIC-${annee}-001`, [{ '~n': '8.391' }]]]);
 
     // 2. Une huile, le compte juste (rien de tapé) : le numéro suivant.
     await p.locator('#cs-articles .cs-art', { hasText: 'Huile d\'olive' }).click();
@@ -99,18 +99,18 @@ describe('la caisse en ligne, à la souris', () => {
     await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-002 encaissé`);
     await p.locator('#cs-nouvelle').click();
 
-    // 3. Le bilan du jour : deux tickets, 23,265 DT (8,390 + 14,875).
+    // 3. Le bilan du jour : deux tickets, 23,266 DT (8,391 + 14,875).
     await p.locator('#cs-tabs [data-tab=tickets]').click();
-    await expect.poll(async () => net(await p.locator('#cs-body .stat').first().innerText()), { timeout: 10_000 }).toContain('23,265 DT');
+    await expect.poll(async () => net(await p.locator('#cs-body .stat').first().innerText()), { timeout: 10_000 }).toContain('23,266 DT');
     expect(net(await p.locator('#cs-body .stat').first().innerText())).toContain('2 tickets');
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'caisse-2-bilan.png') });
     // Rouverte, la page a toujours ses deux tickets (ils sont au serveur, pas seulement sur l'écran).
     await p.reload();
     await p.locator('#cs-tabs [data-tab=tickets]').click();
-    await expect.poll(async () => net(await p.locator('#cs-body .stat').first().innerText()), { timeout: 15_000 }).toContain('23,265 DT');
+    await expect.poll(async () => net(await p.locator('#cs-body .stat').first().innerText()), { timeout: 15_000 }).toContain('23,266 DT');
 
     // 4. Le soir : Nadia ferme la caisse (le menu ⋯) ; elle tape le total compté, 123 DT ; le tiroir devait contenir
-    // 100 + 8,390 + 14,875 = 123,265.
+    // 100 + 8,391 + 14,875 = 123,266.
     await p.locator('#cs-tabs [data-tab=vendre]').click();
     await p.locator('#cs-menu-bouton').click();
     await p.locator('#cs-fermer').click();
@@ -119,7 +119,7 @@ describe('la caisse en ligne, à la souris', () => {
     await p.locator('#cs-z').click();
     const zTable = p.locator('#modal-root #cs-z-table');
     await expect.poll(async () => net(await zTable.innerText().catch(() => '')), { timeout: 10_000 })
-      .toBe('Ventes TTC 23,265 DT dont TVA 3,715 DT Espèces 23,265 DT Fond de caisse 100,000 DT Le tiroir devait contenir 123,265 DT Espèces comptées 123,000 DT Écart − 0,265 DT');
+      .toBe('Ventes TTC 23,266 DT dont TVA 3,715 DT Espèces 23,266 DT Fond de caisse 100,000 DT Le tiroir devait contenir 123,266 DT Espèces comptées 123,000 DT Écart − 0,266 DT');
     expect(net(await p.locator('#modal-root').innerText())).toContain(`2 tickets, du TIC-${annee}-001 au TIC-${annee}-002`);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'caisse-3-z.png') });
     await p.locator('#modal-root #cs-z-ok').click();

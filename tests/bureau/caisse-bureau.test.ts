@@ -160,7 +160,8 @@ describe('la caisse dans l\'application de bureau', () => {
     await page.locator('#cs-encaisser').click();
     await page.locator('#cs-recu').fill('10');
     await page.locator('#cs-valider').click();
-    await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-001 encaissé — à rendre 1,610 DT`);
+    // 3 laits affichés 2,797 DT : 8,391 DT, le prix d'étiquette fait foi (lot caisse 3).
+    await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-001 encaissé — à rendre 1,609 DT`);
     // Le ticket sort tout seul, et le tiroir s'ouvre (des espèces).
     await expect.poll(() => papier.combien(), { timeout: 15_000 }).toBe(3);
     const especes = papier.envoi(2);

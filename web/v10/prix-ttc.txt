@@ -1,0 +1,108 @@
+Au comptoir, le prix d'étiquette fait foi (lot caisse 3, 06/10/2026 ; docs/caisse.md). Vu sur le serveur d'essai : deux
+paquets de biscuits à 1,200 DT faisaient 2,399 DT (le HT gardé au millime, 1,008, × 2 = 2,016, TVA 0,383), la caisse
+disait « Rendre 2,601 DT » et le Z un écart de 0,001. Mesuré : 84 % des ventes de plus d'une unité d'un article à prix
+TTC tombaient faux. Une pièce « prix TTC » (le ticket, et l'avoir de son retour) se calcule TTC d'abord, comme le moteur
+du serveur (moteur/piece.ts, calculerPieceTtc). Format : voir sans-paquets.mjs.
+
+== core.js | une pièce « prix TTC » se calcule TTC d'abord : la ligne est la quantité × le prix d'étiquette, la TVA s'extrait du TTC par taux
+-- avant
+    const rd = arrondiDevise(doc.currency || (company || {}).currency);
+    const lines = (doc.lines || []).map(l => {
+      const qty = Number(l.qty) || 0;
+      const unit = Number(l.unitPrice) || 0;
+      const rate = Number(l.vatRate) || 0;
+      const ht = rd(qty * unit);
+      const vat = rd(ht * rate / 100);
+      return { ...l, qty, unitPrice: unit, vatRate: rate, ht, vat, ttc: rd(ht + vat), noDiscount: !!l.noDiscount };
+    });
+    const totalHT = rd(lines.reduce((s, l) => s + l.ht, 0));
+    const discountRate = Number(doc.discountRate) || 0;
+    // La remise globale ne porte pas sur les lignes « noDiscount » (déduction d'un acompte déjà facturé).
+    const discountable = rd(lines.filter(l => !l.noDiscount).reduce((s, l) => s + l.ht, 0));
+    const discount = rd(discountable * discountRate / 100);
+    const netHT = rd(totalHT - discount);
+    // TVA par taux, appliquée après remise globale (remise répartie proportionnellement)
+    const factor = discountable > 0 ? (discountable - discount) / discountable : 1;
+    const vatByRate = {};
+    lines.forEach(l => {
+      const base = rd(l.noDiscount ? l.ht : l.ht * factor);
+      vatByRate[l.vatRate] = vatByRate[l.vatRate] || { base: 0, vat: 0 };
+      vatByRate[l.vatRate].base = rd(vatByRate[l.vatRate].base + base);
+      vatByRate[l.vatRate].vat = rd(vatByRate[l.vatRate].vat + base * l.vatRate / 100);
+    });
+    const totalVAT = rd(Object.values(vatByRate).reduce((s, v) => s + v.vat, 0));
+-- après
+    const rd = arrondiDevise(doc.currency || (company || {}).currency);
+    // (plateforme, lot caisse 3) Au comptoir, le prix d'étiquette fait foi : une pièce « prix TTC » (le ticket, et l'avoir
+    // de son retour) a pour ligne la quantité × le prix unitaire TTC (le HT × (1 + taux), arrondi comme il s'affiche) ;
+    // la remise porte sur le TTC ; par taux, la TVA s'extrait du TTC et le HT en est la différence. La même règle que le
+    // serveur (calculerPieceTtc). À VÉRIFIER avec un comptable : la TVA d'un ticket extraite du TTC.
+    const prixTtc = doc.prixTtc === true;
+    const lines = (doc.lines || []).map(l => {
+      const qty = Number(l.qty) || 0;
+      const unit = Number(l.unitPrice) || 0;
+      const rate = Number(l.vatRate) || 0;
+      if (prixTtc) {
+        const ttc = rd(qty * rd(unit * (1 + rate / 100)));
+        const vat = rd(ttc * rate / (100 + rate));
+        return { ...l, qty, unitPrice: unit, vatRate: rate, ht: rd(ttc - vat), vat, ttc, noDiscount: !!l.noDiscount };
+      }
+      const ht = rd(qty * unit);
+      const vat = rd(ht * rate / 100);
+      return { ...l, qty, unitPrice: unit, vatRate: rate, ht, vat, ttc: rd(ht + vat), noDiscount: !!l.noDiscount };
+    });
+    // Une pièce « prix TTC » : le HT avant remise s'extrait par taux, comme le net (ligne à ligne, l'arrondi inventait une
+    // remise d'un millime sur un ticket sans remise, vu sur l'écran du client le 06/10/2026).
+    const brutParTaux = {};
+    if (prixTtc) lines.forEach(l => { brutParTaux[l.vatRate] = rd((brutParTaux[l.vatRate] || 0) + l.ttc); });
+    const totalHT = prixTtc ? rd(Object.keys(brutParTaux).reduce((s, k) => s + brutParTaux[k] - rd(brutParTaux[k] * Number(k) / (100 + Number(k))), 0))
+      : rd(lines.reduce((s, l) => s + l.ht, 0));
+    const discountRate = Number(doc.discountRate) || 0;
+    // La remise globale ne porte pas sur les lignes « noDiscount » (déduction d'un acompte déjà facturé).
+    const discountable = rd(lines.filter(l => !l.noDiscount).reduce((s, l) => s + (prixTtc ? l.ttc : l.ht), 0));
+    const remiseCalculee = rd(discountable * discountRate / 100);
+    // TVA par taux, appliquée après remise globale (remise répartie proportionnellement)
+    const factor = discountable > 0 ? (discountable - remiseCalculee) / discountable : 1;
+    const vatByRate = {};
+    if (prixTtc) {
+      const ttcParTaux = {};
+      // Une seule division (comme le serveur) : un facteur en virgule flottante perdait un millime sur des millions.
+      lines.forEach(l => { ttcParTaux[l.vatRate] = rd((ttcParTaux[l.vatRate] || 0) + rd(l.noDiscount || discountable <= 0 ? l.ttc : l.ttc * (discountable - remiseCalculee) / discountable)); });
+      Object.keys(ttcParTaux).forEach(k => {
+        const rate = Number(k), vat = rd(ttcParTaux[k] * rate / (100 + rate));
+        vatByRate[k] = { base: rd(ttcParTaux[k] - vat), vat };
+      });
+    } else {
+      lines.forEach(l => {
+        const base = rd(l.noDiscount ? l.ht : l.ht * factor);
+        vatByRate[l.vatRate] = vatByRate[l.vatRate] || { base: 0, vat: 0 };
+        vatByRate[l.vatRate].base = rd(vatByRate[l.vatRate].base + base);
+        vatByRate[l.vatRate].vat = rd(vatByRate[l.vatRate].vat + base * l.vatRate / 100);
+      });
+    }
+    const netHT = prixTtc ? rd(Object.values(vatByRate).reduce((s, v) => s + v.base, 0)) : rd(totalHT - remiseCalculee);
+    const discount = prixTtc ? rd(totalHT - netHT) : remiseCalculee;
+    const totalVAT = rd(Object.values(vatByRate).reduce((s, v) => s + v.vat, 0));
+-- fin
+
+== core.js | le panier de la caisse se calcule au prix d'étiquette
+-- avant
+    const doc = { type: 'facture', ticket: true, lines: lignes || [], discountRate: tauxRemise(o.remise),
+-- après
+    const doc = { type: 'facture', ticket: true, prixTtc: true, lines: lignes || [], discountRate: tauxRemise(o.remise),
+-- fin
+
+== core.js | le ticket encaissé aussi (et le serveur le scelle ainsi)
+-- avant
+      id: uid(), type: 'facture', ticket: true, number: nextNumber(data, 'ticket', jour), date: jour, dueDate: jour,
+-- après
+      id: uid(), type: 'facture', ticket: true, prixTtc: true, number: nextNumber(data, 'ticket', jour), date: jour, dueDate: jour,
+-- fin
+
+== core.js | l'avoir d'un retour se calcule comme son ticket : rendre deux paquets à 1,200 rend 2,400
+-- avant
+      lines: lignes, discountRate: Number(ticket.discountRate) || 0, applyStamp: false, stampFee: 0, regimeTva: ticket.regimeTva || regimeOf(co).id,
+-- après
+      ...(ticket.prixTtc === true ? { prixTtc: true } : {}),
+      lines: lignes, discountRate: Number(ticket.discountRate) || 0, applyStamp: false, stampFee: 0, regimeTva: ticket.regimeTva || regimeOf(co).id,
+-- fin

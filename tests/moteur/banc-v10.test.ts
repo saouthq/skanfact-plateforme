@@ -8,13 +8,13 @@
 
 import { describe, expect, it } from 'vitest';
 import { calculerPiece } from '../../moteur/piece.ts';
-import { convertir, demo, entier, hasard, pieceAuHasard, v10, type DocV10, type Societe } from './v10.ts';
+import { convertir, demo, ecranDeLaPlateforme, entier, hasard, pieceAuHasard, v10, type DocV10, type ResultatV10, type Societe } from './v10.ts';
 
 // Compare les deux calculs d'une pièce ; rend la liste des champs qui diffèrent.
-function ecarts(d: DocV10, societe: Societe): string[] {
+function ecarts(d: DocV10, societe: Societe, calcul: (d: DocV10, c: Societe) => ResultatV10 = v10.computeTotals): string[] {
   const p = convertir(d, societe);
   if (typeof p === 'string') return [p];
-  const a = v10.computeTotals(d, societe);
+  const a = calcul(d, societe);
   const n = calculerPiece(p);
   const s = 10 ** p.devise.decimales;
   const en = (x: number, echelle = s) => BigInt(Math.round(x * echelle));
@@ -80,5 +80,64 @@ describe('le banc v10 → plateforme, au millime', () => {
       const m = /v10 (-?\d+), nouveau (-?\d+)/.exec(e);
       expect(m && Math.abs(Number(m[1]) - Number(m[2]))).toBe(1);
     }
+  });
+
+  // Au comptoir, le prix d'étiquette fait foi (lot caisse 3, 06/10/2026) : le ticket et l'avoir de son retour se calculent
+  // TTC d'abord. Les deux moteurs (le core.js de la plateforme, et le serveur) tombent sur le même millime.
+  const plateforme = ecranDeLaPlateforme('core.js') as { computeTotals: (d: DocV10, c: Societe) => ResultatV10 };
+  // Des tickets de comptoir (jusqu'à 12 lignes, 500 DT l'article, 50 unités) : au-delà de quelques dizaines de millions de
+  // dinars, la virgule flottante de la v10 n'est plus exacte (un ticket de 96 millions y perdait un millime), hors du comptoir.
+  it('20 000 tickets « prix TTC » tirés au hasard (remises, taux, quantités) tombent sur le même millime dans les deux moteurs', () => {
+    const h = hasard(20261006);
+    const faux: { n: number; e: string[] }[] = [];
+    for (let n = 0; n < 20_000; n++) {
+      const doc: DocV10 = {
+        type: h.parmi(['facture', 'facture', 'avoir']), currency: 'DT', prixTtc: true, applyStamp: h.parmi([false, false, true]),
+        discountRate: h.parmi([0, 0, 0, 5, 10, 12.5, 3.333]),
+        lines: Array.from({ length: h.entre(1, 12) }, () => ({
+          qty: h.parmi([1, 1, 1, 2, 3, 6, 12, 0.5, 1.25, 2.333, h.entre(1, 50)]),
+          unitPrice: h.parmi([h.decimal(500, 3), h.decimal(20, 3), h.decimal(2, 3), h.decimal(50, 6)]),
+          vatRate: h.parmi([0, 7, 13, 19, 19]),
+          ...(h.suivant() < 0.05 ? { noDiscount: true } : {}),
+        })),
+      };
+      const e = ecarts(doc, societe, plateforme.computeTotals);
+      // Sans remise, aucune remise ne se lit nulle part (l'écran du client montrait « Remise − 0,000 DT »).
+      if (!doc.discountRate) {
+        const p = convertir(doc, societe);
+        if (typeof p === 'string') throw new Error(p);
+        const r = calculerPiece(p).remise, d = plateforme.computeTotals(doc, societe).discount;
+        if (r !== 0n || d !== 0) e.push(`remise sans remise : ${r} au serveur, ${d} à l'écran`);
+      }
+      if (e.length) faux.push({ n, e });
+    }
+    expect(faux.slice(0, 5)).toEqual([]);
+  });
+
+  it('un ticket « prix TTC » : quantité × prix d\'étiquette, au millime, quel que soit le prix et la quantité ; HT + TVA = TTC', () => {
+    let essais = 0;
+    for (const taux of [0, 7, 13, 19]) {
+      for (let ttcM = 100; ttcM <= 20000; ttcM += 37) {
+        // Le HT au millime que la fiche d'un article garde pour ce prix TTC (le plus proche qui y retombe), et le prix
+        // d'étiquette qu'il donne : en entiers (350 × 1,13 vaut 395,5 exactement, que la virgule flottante écrit 395,4999…).
+        const ttcDe = (hM: number) => Math.floor((2 * hM * (100 + taux) + 100) / 200);
+        const proche = Math.round(ttcM * 100 / (100 + taux));
+        const hM = [0, 1, -1, 2, -2].map((d) => proche + d).find((x) => ttcDe(x) === ttcM) ?? proche;
+        const ht = hM / 1000;
+        const etiquette = ttcDe(hM);
+        for (const qty of [1, 2, 3, 7, 12]) {
+          const doc: DocV10 = { type: 'facture', currency: 'DT', prixTtc: true, applyStamp: false, lines: [{ qty, unitPrice: ht, vatRate: taux }] };
+          const a = plateforme.computeTotals(doc, societe);
+          const p = convertir(doc, societe);
+          if (typeof p === 'string') throw new Error(p);
+          const n = calculerPiece(p);
+          expect(n.netAPayer).toBe(BigInt(qty * etiquette));
+          expect(Math.round(a.netToPay * 1000)).toBe(qty * etiquette);
+          expect(n.netHT + n.totalTVA).toBe(n.totalTTC);
+          essais++;
+        }
+      }
+    }
+    expect(essais).toBe(4 * 538 * 5);
   });
 });
