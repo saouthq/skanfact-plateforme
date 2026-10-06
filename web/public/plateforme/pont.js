@@ -67,6 +67,8 @@
       /** @type {any} */ (e).statut = r.status;
       // Le bouton qui débloque, quand le serveur le nomme (brique 81 : « Désigner le signataire »…).
       /** @type {any} */ (e).bouton = typeof lu.bouton === 'string' ? lu.bouton : null;
+      // Le champ qu'un refus désigne (E5 : le matricule de la fiche, déjà celui d'une autre entreprise).
+      /** @type {any} */ (e).champ = typeof lu.champ === 'string' ? lu.champ : null;
       throw e;
     }
     return lu;
@@ -212,10 +214,32 @@
     }
     return changements;
   }
+  // Le matricule de la fiche société, déjà celui d'une autre entreprise (E5) : le serveur refuse tout l'envoi (0071), et
+  // la page le gardait ; chaque enregistrement suivant repartait avec lui et se faisait refuser à son tour — un client,
+  // un devis, plus rien ne s'enregistrait, avec la phrase du matricule (vu sur le serveur d'essai, 06/10/2026). Seul ce
+  // changement-là est refusé désormais : la fiche reprend le matricule que le serveur a, le reste repart, et l'écran dit
+  // ce qui n'a pas changé (ce qui a été tapé, ce que la fiche garde, pourquoi). `false` : le refus vient d'ailleurs, il
+  // se dit tel quel.
+  /** @type {{ tape: string, garde: string, motif: string } | null} */
+  let matriculeRefuse = null;
+  /** @param {unknown} e @param {{ collection: string, cle: string }[]} lot @param {Record<string, any>} data */
+  function garderLeMatricule(e, lot, data) {
+    const x = /** @type {any} */ (e);
+    if (!x || x.statut !== 403 || x.champ !== 'matriculeFiscal') return false;
+    if (!lot.some((c) => c.collection === '_racine' && c.cle === 'company')) return false;
+    const fiche = data.company;
+    const avant = vu.get('_racine\u0000company');
+    const garde = String((avant ? JSON.parse(avant.json).matricule : '') ?? '');
+    if (!fiche || typeof fiche !== 'object' || String(fiche.matricule ?? '') === garde) return false;
+    matriculeRefuse = { tape: String(fiche.matricule ?? ''), garde, motif: String(x.message) };
+    fiche.matricule = garde;
+    return true;
+  }
   // Envoyer le dossier : `true` quand le serveur a tout ; `{ conflict, disk }` quand un objet a changé
   // ailleurs ; `{ horsLigne }` quand le réseau manque et que ce poste a gardé l'enregistrement (brique 73).
-  /** @param {Record<string, unknown>} data */
-  async function envoyer(data) {
+  // `matriculeRepris` : le matricule de la fiche a déjà été repris une fois dans cet envoi (un seul nouvel essai).
+  /** @param {Record<string, unknown>} data @param {boolean} [matriculeRepris] */
+  async function envoyer(data, matriculeRepris = false) {
     try { await envoyerReponses(data); } catch (e) { if (gardableHorsLigne(e)) return await mettreEnAttente(data); throw refusHorsLigne(e); }
     const changements = changementsDe(data);
     if (!changements.length) return true;
@@ -234,6 +258,8 @@
         if (/** @type {any} */ (e).statut === 409) return { conflict: true, disk: Object.assign(await relire(), { syncWrittenAt: Date.now() }) };
         // Le réseau manque : sur « mon ordinateur », l'enregistrement se garde et partira seul.
         if (gardableHorsLigne(e)) return await mettreEnAttente(data);
+        // Le matricule de la fiche, seul refusé : la fiche reprend le sien, et le reste repart.
+        if (!matriculeRepris && garderLeMatricule(e, lot, data)) return envoyer(data, true);
         throw refusHorsLigne(e);
       }
       for (const [j, c] of lot.entries()) {
@@ -257,7 +283,18 @@
         while (enAttente) { const d = enAttente; enAttente = null; r = await envoyer(d); if (r !== true) { enAttente = null; break; } }
         // Ce qui attendait le réseau est parti avec cet envoi.
         if (r === true && attenteGardee) await finirAttente(0);
+        // Le matricule refusé seul (E5) : l'écran le dit. Refusé pendant une reprise à l'ouverture (`rejouer`), il se
+        // dit au premier enregistrement qui suit.
+        if (matriculeRefuse) {
+          const m = matriculeRefuse;
+          matriculeRefuse = null;
+          return r === true ? { matriculeRefuse: m } : { .../** @type {any} */ (r), matriculeRefuse: m };
+        }
         return r;
+      } catch (e) {
+        // L'envoi refusé quand même : le refus se dit tel quel (« Rien n'a été enregistré »), sans le matricule d'avant.
+        matriculeRefuse = null;
+        throw e;
       } finally { enCours = null; }
     })();
     return enCours;

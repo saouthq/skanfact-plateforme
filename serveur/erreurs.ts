@@ -32,6 +32,17 @@ export function texteDuRefus(e: { message?: string; texte?: unknown }): Texte | 
   return reconnu ? motif(reconnu.cle, reconnu.valeurs) : (e.message ?? '');
 }
 
+// Le champ qu'un refus de la base désigne, quand il tient à un seul (E5) : l'écran le marque, comme un champ que le
+// serveur refuse (« un refus montre le champ »). Son nom est celui de l'API. Un matricule déjà celui d'une autre
+// entreprise ne se disait qu'en bas de l'écran ; la fiche société, elle, ne pouvait pas savoir qu'il s'agissait de lui.
+const CHAMPS_DES_REFUS: Record<string, string> = {
+  'base.entreprise.matricule_pris': 'matriculeFiscal',
+  'base.cabinet.matricule_pris': 'matriculeFiscal',
+};
+export function champDuRefus(texte: Texte | string): string | null {
+  return texte instanceof Texte ? CHAMPS_DES_REFUS[texte.cle] ?? null : null;
+}
+
 // L'objet a changé depuis que la personne l'a ouvert (01 R15) : on ne l'écrase pas.
 export class Perimee extends Error {
   readonly code = 'perimee';

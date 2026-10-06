@@ -57,7 +57,8 @@
     /** @type {any} */
     const lu = lire(r, await r.text());
     if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
-    if (!r.ok) throw new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.');
+    // Un refus qui tient à un champ le nomme (E5) : l'écran marque sa case (le matricule déjà pris d'un dossier).
+    if (!r.ok) throw Object.assign(new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.'), { champ: typeof lu.champ === 'string' ? lu.champ : null });
     if (methode !== 'GET') gestesFaits++;
     return lu;
   }
@@ -1743,7 +1744,17 @@
       if (faux) throw new Error(`« ${faux.d.name} » : le matricule fiscal « ${faux.matricule} » est incomplet ou ne se lit pas : sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement, en entier, comme « 1234567A/A/M/000 ». Corrige cette ligne : rien n'a été ajouté.`);
       let added = 0;
       for (const { d, matricule } of /** @type {any[]} */ (lus)) {
-        const cree = await appel('POST', `/cabinets/${cabinetId}/dossiers`, { raisonSociale: String(d.name).trim(), ...(matricule ? { matriculeFiscal: matricule } : {}) });
+        let cree;
+        try {
+          cree = await appel('POST', `/cabinets/${cabinetId}/dossiers`, { raisonSociale: String(d.name).trim(), ...(matricule ? { matriculeFiscal: matricule } : {}) });
+        } catch (e) {
+          // Une ligne que le serveur refuse (son matricule déjà celui d'une entreprise sur SkanFact : E5) arrête la liste :
+          // le refus nomme la ligne, et dit ce qui est déjà entré (la liste s'arrêtait au milieu, sans un mot de plus).
+          const x = /** @type {any} */ (e);
+          const raison = String(x.message).replace(/^\p{Lu}(?=\p{Ll})/u, (c) => c.toLowerCase());
+          const entres = added ? (added === 1 ? 'Le client d\'avant est ajouté' : `Les ${added} clients d'avant sont ajoutés`) : 'Aucun client n\'a été ajouté';
+          throw new Error(`« ${d.name} » : ${raison} ${entres} ; ${x.champ ? 'retire ou corrige cette ligne, puis ajoute' : 'ajoute'} la liste de nouveau : les clients déjà dans ton portefeuille seront ignorés.`, { cause: e });
+        }
         await poserFiche(cree.entreprise, d, null);
         added++;
       }

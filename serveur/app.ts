@@ -9,7 +9,7 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest, 
 import { z, type ZodType } from 'zod';
 import { langueDe, motif, rendre, rendreTout, t, type Langue } from '../textes/index.ts';
 import { enTantQue, type Transaction } from './base.ts';
-import { texteDuRefus } from './erreurs.ts';
+import { champDuRefus, texteDuRefus } from './erreurs.ts';
 import { cleValable } from './cles.ts';
 import { Limiteur, LIMITES_PAR_ADRESSE } from './limites.ts';
 import { jetonDUnAppareilRetire, quiEst, remisParCeJeton, type Contexte, type Qui } from './connexion.ts';
@@ -61,7 +61,12 @@ function verifierDeclaration(r: Route<never>) {
 function erreurVersReponse(e: unknown, reponse: FastifyReply, langue: Langue) {
   const err = e as { code?: string; message?: string; bouton?: string | null; texte?: unknown };
   const envoyer = (statut: number, corps: unknown) => reponse.code(statut).send(rendreTout(corps, langue));
-  if (err.code === '42501') return envoyer(403, { motif: texteDuRefus(err), qui: [], bouton: err.bouton ?? null });
+  if (err.code === '42501') {
+    // Un refus qui tient à un champ le nomme (E5) : l'écran marque ce champ.
+    const texte = texteDuRefus(err);
+    const champ = champDuRefus(texte);
+    return envoyer(403, { motif: texte, qui: [], bouton: err.bouton ?? null, ...(champ ? { champ } : {}) });
+  }
   if (err.code === 'introuvable') return envoyer(404, { motif: motif('commun.introuvable') });
   // Changé ailleurs entre-temps (01 R15) : du serveur (Perimee), ou de la base (errcode SK409).
   if (err.code === 'perimee' || err.code === 'SK409') return envoyer(409, { motif: texteDuRefus(err), bouton: 'recharger' });

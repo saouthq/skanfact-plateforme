@@ -252,8 +252,10 @@ describe('le cabinet et ses mandats', () => {
     expect((await appeler('POST', `/cabinets/${cab.id}/dossiers`, cab.associe.jeton, { raisonSociale: 'Café des Arts', matriculeFiscal: m2 })).statut).toBe(201);
     const pris = await renommer(tenu, cab.associe, { raisonSociale: 'Boulangerie Ennour', matriculeFiscal: m2 });
     expect([pris.statut, String(pris.corps.motif)]).toEqual([403, expect.stringMatching(/ce matricule fiscal est déjà celui d'une entreprise sur SkanFact/i)]);
+    // Le refus nomme sa case (E5) : la fiche du dossier la marque, au lieu d'un bandeau seul.
+    expect(pris.corps.champ).toBe('matriculeFiscal');
     const double = await appeler('POST', `/cabinets/${cab.id}/dossiers`, cab.associe.jeton, { raisonSociale: 'Autre café', matriculeFiscal: m2 });
-    expect([double.statut, String(double.corps.motif)]).toEqual([403, expect.stringMatching(/ce matricule fiscal est déjà celui/i)]);
+    expect([double.statut, String(double.corps.motif), double.corps.champ]).toEqual([403, expect.stringMatching(/ce matricule fiscal est déjà celui/i), 'matriculeFiscal']);
     // Sous une autre écriture, le même matricule (E4 : il se gardait tel qu'écrit, et passait une seconde fois sans barres).
     const autreEcriture = await appeler('POST', `/cabinets/${cab.id}/dossiers`, cab.associe.jeton, { raisonSociale: 'Autre café', matriculeFiscal: m2.replace(/\//g, '').toLowerCase() });
     expect([autreEcriture.statut, String(autreEcriture.corps.motif)]).toEqual([403, expect.stringMatching(/ce matricule fiscal est déjà celui/i)]);

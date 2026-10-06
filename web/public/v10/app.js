@@ -249,7 +249,7 @@
     rappelerModules();
     clearTimeout(saveTimer);
     const doSave = () => bridge.saveData(data)
-      .then(r => { if (r && r.conflict) return resolveConflict(r); })
+      .then(r => { if (r && r.matriculeRefuse) matriculeRefuse(r.matriculeRefuse); if (r && r.conflict) return resolveConflict(r); })
       .catch(echecEnregistrement);
     if (immediate) return doSave();
     saveTimer = setTimeout(doSave, 300);
@@ -283,6 +283,27 @@
       // fenêtre revient. C'est voulu — on ne se tait pas parce qu'on a déjà parlé une fois.
       $('#reessayer', root).onclick = () => { close(); save(true); };
     }, () => { echecOuvert = false; });
+  }
+
+  // (plateforme, E5) Le matricule de la fiche société est déjà celui d'une autre entreprise sur SkanFact : lui seul est
+  // refusé (le point de contact a remis celui que le serveur a, et enregistré tout le reste). La fenêtre dit ce qui n'a
+  // pas changé, pourquoi, et mène à la case ; la case des Paramètres, ouverte, montre ce que la fiche garde. La fenêtre
+  // « Compléter ma fiche » (la seule à porter `#cf-refus`), elle, le dit sur sa propre case.
+  let matriculeOuvert = false;
+  function matriculeRefuse(x) {
+    const champ = $('#pf [name="matricule"]');
+    if (champ) champ.value = x.garde;
+    if (matriculeOuvert || $('#cf-refus')) return;
+    matriculeOuvert = true;
+    modal(`<h2>Ton matricule fiscal n'a pas changé</h2>
+      <p>Tu as écrit « ${h(x.tape)} ». ${h(x.motif)}</p>
+      <p class="small muted">${x.garde ? `Ta fiche garde « ${h(x.garde)} »` : 'Ta fiche reste sans matricule'}, et tout le reste est enregistré.</p>
+      <div class="modal-actions">
+        <button class="btn" data-close>Fermer</button>
+        <button class="btn btn-primary" id="mf-corriger">Corriger mon matricule</button>
+      </div>`, (root, close) => {
+      $('#mf-corriger', root).onclick = () => { close(); allerParametres('societe', 'p-identite:matricule'); };
+    }, () => { matriculeOuvert = false; });
   }
 
   async function resolveConflict(r) {
@@ -1175,8 +1196,9 @@
 
   // (plateforme) « Compléter ma fiche… », depuis la fenêtre d'émission (lot facture, 05/10/2026) : les seuls champs de la
   // fiche société qui manquent à la pièce, sans la quitter. Le matricule se lit avant de partir, à la forme que le serveur
-  // porte à l'entreprise ; un refus du serveur (un matricule déjà porté par une autre entreprise) se lit dans la fenêtre,
-  // et la fiche reprend ce qu'elle avait. Le reste de la fiche vit dans Paramètres → Mon entreprise.
+  // porte à l'entreprise ; un matricule déjà porté par une autre entreprise se lit dans la fenêtre, sur sa case : la fiche
+  // garde le sien, et ce qui a été écrit à côté est enregistré (E5). Le reste de la fiche vit dans Paramètres → Mon
+  // entreprise.
   function completerFicheForm(pourFacture, done) {
     const co = company();
     const manqueNom = !(co.name || '').trim();
@@ -1216,6 +1238,8 @@
           try {
             const r = await bridge.saveData(data);
             if (r && r.conflict) await resolveConflict(r);
+            // Le matricule seul refusé (E5) : le point de contact a remis celui de la fiche, et enregistré le reste.
+            if (r && r.matriculeRefuse) { b.disabled = false; return refuser('matricule', r.matriculeRefuse.motif); }
           } catch (e) {
             Object.assign(co, avant);
             b.disabled = false;

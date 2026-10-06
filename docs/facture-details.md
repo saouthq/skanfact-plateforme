@@ -124,8 +124,8 @@ le poste avant d'écrire, avec la même règle). Le matricule s'écrit comme on 
 disant pourquoi : « Le matricule fiscal « 1234567O/A/M/000 » n'a pas la bonne forme : sept chiffres, une lettre autre que
 I, O ou U, puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur la carte
 d'identification fiscale. » Déjà celui d'une autre entreprise, la porte le dit comme la fiche (« … relis-le sur ta carte
-d'identification fiscale. Rien n'a été enregistré. ») : la base le refuse avant d'écrire (0072). Le champ de la porte
-montre la forme attendue.
+d'identification fiscale. ») : la base le refuse avant d'écrire (0072). Le champ de la porte montre la forme attendue.
+(La phrase finissait par « Rien n'a été enregistré » : E5 l'a ôté, la fiche enregistrant désormais le reste.)
 
 Ce qui le prouve : `tests/socle/api.test.ts` (la porte : la forme lisible gardée, cinq écritures fausses refusées sur
 leur champ, un matricule pris refusé sous trois écritures, rien n'est créé), `tests/cabinet/mandats.test.ts` (le dossier
@@ -133,6 +133,47 @@ tenu : une autre écriture du même matricule refusée, la forme lisible gardée
 `tests/cabinet/reprise-portefeuille.test.ts` (deux écritures du même matricule, une lettre-clé O : nommées),
 `tests/web/parcours.test.ts` et `tests/web/cabinet-liste.test.ts` (à la souris : la porte, la liste collée). Les
 preuves de `tests/preuves.sh`, section « E4 » (et onze preuves reciblées sur la règle commune).
+
+## E5 : le refus d'un matricule montre sa case, et n'en bloque pas d'autres (06/10/2026)
+
+Vu sur le serveur d'essai en vérifiant E4, à la souris :
+- à la porte, « Ce matricule fiscal est déjà celui d'une autre entreprise… » ne vivait que 2,6 secondes en bas de
+  l'écran, et la case n'était pas marquée ;
+- au Cabinet, la case d'un nouveau dossier (et de la fiche d'un dossier tenu) contrôlait encore l'ancienne règle (« sept
+  chiffres, trois lettres, trois chiffres ») : la lettre-clé O passait, et le serveur la refusait ensuite avec une autre
+  phrase ; un matricule déjà celui d'une entreprise sur SkanFact ne se disait qu'en bas de l'écran ;
+- au Cabinet, dans une liste collée, un matricule déjà pris arrêtait la liste au milieu : les lignes d'avant étaient
+  entrées, et le refus ne nommait pas la ligne ;
+- **le plus grave**, dans Paramètres → Mon entreprise : un matricule déjà celui d'une autre entreprise faisait refuser
+  tout l'envoi, et la page le gardait. Chaque enregistrement suivant (un client, un devis…) repartait avec lui et se
+  faisait refuser à son tour : « Rien n'a été enregistré », avec la phrase du matricule, et « Réessayer » ne pouvait que
+  redonner le même refus. Plus rien ne s'enregistrait, et tout se perdait à la fermeture de la page.
+
+Maintenant :
+- un refus de la base qui tient à un champ **le nomme** (`serveur/erreurs.ts`, `champDuRefus`) : le matricule déjà pris,
+  à la porte comme au Cabinet. La porte marque sa case, qui prend le focus ;
+- au Cabinet, la case tient **la règle du serveur**, dite avec ses mots (« Le matricule fiscal s'écrit comme sur la carte
+  d'identification fiscale : sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement
+  (1234567A/A/M/000). Laisse la case vide si tu ne l'as pas. »), et un refus du serveur sur le matricule se dit sur la
+  case ;
+- une liste collée qui bute sur un matricule déjà pris **nomme la ligne et dit ce qui est entré** (« Le client d'avant
+  est ajouté ; retire ou corrige cette ligne, puis ajoute la liste de nouveau : les clients déjà dans ton portefeuille
+  seront ignorés ») ;
+- dans la fiche société, **le matricule est seul refusé** : le point de contact (`web/public/plateforme/pont.js`,
+  `garderLeMatricule`) remet celui que le serveur a et renvoie le reste. Une fenêtre dit « Ton matricule fiscal n'a pas
+  changé » (ce qui a été tapé, pourquoi, ce que la fiche garde, « tout le reste est enregistré ») et mène à la case
+  (« Corriger mon matricule ») ; l'enregistrement suivant passe. « Compléter ma fiche… » le dit sur sa case, sans autre
+  fenêtre (`web/v10/matricule-refus.txt`, `web/v10/facture-details.txt`) ;
+- la phrase du refus ne dit plus « Rien n'a été enregistré » : sur la fiche, le reste l'est.
+
+Ce qui le prouve : `tests/socle/api.test.ts`, `tests/cabinet/mandats.test.ts` et `tests/v10/identite.test.ts` (le refus
+nomme le champ, à la porte, au Cabinet, sur la fiche) ; à la souris, `tests/web/parcours.test.ts` (la porte : la phrase,
+la case marquée qui a le focus), `tests/web/cabinet-liste.test.ts` (la lettre-clé O refusée par la case avec la phrase de
+la règle ; un matricule déjà pris, écrit autrement, sur sa case ; la ligne nommée, ce qui est entré, la liste reprise),
+`tests/web/cabinet-nom-dossier.test.ts` (la phrase de la règle), `tests/web/facture-details.test.ts` (« Compléter ma
+fiche » : la case marquée, pas d'autre fenêtre ; Paramètres : la fenêtre, la case qui montre ce que la fiche garde, le
+téléphone enregistré, le serveur qui garde le bon matricule, « Corriger mon matricule », puis un client qui
+s'enregistre). Les preuves de `tests/preuves.sh`, section « E5 ».
 
 ## Ce qui reste (À FAIRE)
 
@@ -148,9 +189,12 @@ preuves de `tests/preuves.sh`, section « E4 » (et onze preuves reciblées sur 
 - **Une facture émise avant la fiche complétée** garde, dans sa copie figée, l'identité du jour de son émission (sans
   matricule) ; la réimpression lit la fiche du jour. **À VÉRIFIER avec un comptable** : faut-il annuler une facture
   émise sans matricule par un avoir et la refaire ?
-- **Un matricule déjà pris, écrit dans Paramètres → Mon entreprise**, fait refuser chaque enregistrement de la fiche
-  tant qu'il n'est pas corrigé (le motif dit pourquoi) ; la fenêtre « Compléter ma fiche » le dit sous le champ, mais
-  Paramètres pas encore : le contrôle du champ dans Paramètres est à faire.
+- **Un refus du serveur sur un autre objet du dossier emporte encore tout l'envoi** (il est d'un seul tenant) : l'écran
+  prévient chacun de ces refus avant d'écrire (les droits, une pièce émise, l'accord d'un responsable), et le matricule
+  déjà pris était le seul qu'il ne pouvait pas prévoir (E5). Un autre qui apparaîtrait bloquerait les enregistrements
+  suivants de la même façon, et « Réessayer » ne le débloquerait pas : à surveiller.
+- **Un matricule déjà pris, gardé hors ligne puis refusé à la reprise** (à l'ouverture) se dit au premier enregistrement
+  qui suit, pas à l'ouverture.
 - **La forme du matricule** (sept chiffres, une lettre, trois codes) est celle de la carte d'identification fiscale ;
   les valeurs permises de chaque code (TVA, catégorie) ne sont pas contrôlées : **À VÉRIFIER**.
 
@@ -177,8 +221,8 @@ preuves de `tests/preuves.sh`, section « E4 » (et onze preuves reciblées sur 
   la facture émise avec son matricule (tapé « 1357913 b a m 000 », imprimé 1357913B/A/M/000 en tête et au pied, gardé
   ainsi dans la fiche) et son RIB, son taux en nombre ; « d'août », « d'octobre » ; le menu ; l'espace client ; un refus
   du serveur qui reste à l'écran. Photos : `dist/photos/facture-details-*.png`.
-- Les preuves de `tests/preuves.sh`, sections « Le lot facture » et « Vu sur le serveur d'essai après le lot facture » :
-  chaque correction, défaut remis, fait tomber son test.
+- Les preuves de `tests/preuves.sh`, sections « Le lot facture », « Vu sur le serveur d'essai après le lot facture »,
+  « E4 » et « E5 » : chaque correction, défaut remis, fait tomber son test.
 - **Les tests partagent une base** : depuis D6, un matricule n'y est celui que d'une entreprise à la fois. Un test qui
   donne un matricule à son entreprise en prend un à lui ; celui que lui impose ce qu'il rejoue (celui de Nadia, imprimé
   sur les factures photographiées et connu de la TTN simulée ; celui de la quincaillerie) se reprend d'abord à

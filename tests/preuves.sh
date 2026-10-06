@@ -4094,7 +4094,7 @@ HE5="la session finie pendant la coupure : se reconnecter, et ce qui attendait p
 HE4="se déconnecter avec des changements qui attendent : la question d'abord ; « Attendre le réseau » ne perd rien"
 prouver "sans réseau, l'enregistrement refusé au lieu d'être gardé" $PONT \
   "        if (gardableHorsLigne(e)) return await mettreEnAttente(data);
-        throw refusHorsLigne(e);" "        throw refusHorsLigne(e);" \
+        // Le matricule de la fiche, seul refusé" "        // Le matricule de la fiche, seul refusé" \
   "$HE1"
 prouver "ce qui attend le réseau jamais gardé sur le poste" $PONT \
   "    await poste.ecrireAttente(ent, { data });
@@ -8521,9 +8521,12 @@ prouver 'la fenêtre d'\''émission qui ne se relit pas après la fiche' web/pub
 prouver 'un matricule mal formé qui part au serveur' web/public/v10/app.js \
   'if (manqueMf && !C.matriculeBienForme(v.matricule)) return refuser(' 'if (false) return refuser(' \
   "$FDW"
-prouver 'la fiche qui garde le matricule que le serveur a refusé' web/public/v10/app.js \
-  '            Object.assign(co, avant);
-' '' \
+# Depuis E5, deux gestes reprennent le matricule refusé : le point de contact (seul refusé, il remet celui du serveur) et
+# la fenêtre (un refus qui lui arrive quand même remet ce qu'elle avait). Le défaut, c'est perdre les deux.
+prouver 'la fiche qui garde le matricule que le serveur a refusé' 'web/public/plateforme/pont.js|||web/public/v10/app.js' \
+  '    fiche.matricule = garde;
+|||            Object.assign(co, avant);
+' '|||' \
   "$FDW"
 prouver 'la retenue émise en texte, telle que la liste l'\''écrit' web/public/v10/app.js \
   '      doc.withholdingRate = Number(doc.withholdingRate) || 0;
@@ -8691,6 +8694,80 @@ prouver 'la liste collée qui laisse passer la lettre-clé O' web/public/platefo
 prouver 'la porte sans la forme attendue du matricule' web/src/ecrans/Porte.tsx \
   ' placeholder="1234567A/A/M/000"' '' \
   "$PARC"
+
+# ── E5 : le refus d'un matricule montre sa case, et n'en bloque pas d'autres (06/10/2026 ; docs/facture-details.md, E5) ──
+# Le refus nomme son champ ; la porte et le Cabinet marquent la case ; la case du Cabinet tient la règle du serveur ; une
+# liste collée nomme la ligne refusée ; dans la fiche société, le matricule est seul refusé et le reste s'enregistre.
+IDT5='un matricule mal formé ne se porte pas ; celui d'\''une autre entreprise se refuse en le disant, et rien n'\''est écrit'
+WLE5='un matricule refusé se dit sur sa case ; dans une liste, la ligne refusée est nommée avec ce qui est entré (E5)'
+NDT5='le dossier tenu se renomme et reçoit son matricule ; celui d'\''un client sur SkanFact reste le sien'
+FDE5='la fiche société : un matricule déjà pris est refusé seul, le reste s'\''enregistre, et rien ne reste bloqué (E5)'
+FD15='Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
+for t in "$POR2" "$NT1" "$IDT5" "$PARC"; do
+  prouver "le refus d'un matricule déjà pris, sans son champ (${t:0:40}…)" serveur/app.ts \
+    'bouton: err.bouton ?? null, ...(champ ? { champ } : {}) });' 'bouton: err.bouton ?? null });' \
+    "$t"
+done
+prouver 'le matricule déjà pris à la porte et sur la fiche, sans son champ' serveur/erreurs.ts \
+  "  'base.entreprise.matricule_pris': 'matriculeFiscal',
+" '' \
+  "$POR2"
+prouver 'le matricule déjà pris d'\''un dossier tenu, sans son champ' serveur/erreurs.ts \
+  "  'base.cabinet.matricule_pris': 'matriculeFiscal',
+" '' \
+  "$NT1"
+prouver 'le matricule déjà pris qui dit « Rien n'\''a été enregistré » quand le reste l'\''est' textes/base.ts \
+  'relis-le sur ta carte d\'\''identification fiscale'\'' },' 'relis-le sur ta carte d\'\''identification fiscale. Rien n\'\''a été enregistré'\'' },' \
+  "$POR2"
+prouver 'la case du Cabinet qui laisse passer la lettre-clé O' web/public/v10/cabinet/app.js \
+  'const matriculeFiscalLisible = m => !m || /^[0-9]{7}[A-HJ-NP-TV-Z]' 'const matriculeFiscalLisible = m => !m || /^[0-9]{7}[A-Z]' \
+  "$WLE5"
+for t in "$WLE5" "$NDT5"; do
+  prouver "la case du Cabinet qui dit l'ancienne règle (${t:0:40}…)" web/public/v10/cabinet/app.js \
+    's\'\''écrit comme sur la carte d\'\''identification fiscale : sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement (1234567A/A/M/000). Laisse' 's\'\''écrit 1234567A/B/C/000 : sept chiffres, trois lettres, trois chiffres. Laisse' \
+    "$t"
+done
+prouver 'le matricule déjà pris d'\''un nouveau dossier, dit en bas de l'\''écran seulement' web/public/v10/cabinet/app.js \
+  'matricule mal écrit (il ne se disait qu'\''en bas de l'\''écran).
+            if (e && e.champ === '\''matriculeFiscal'\'') return refus($('\''#f-mat'\'', layer), plainError(e));' 'matricule mal écrit (il ne se disait qu'\''en bas de l'\''écran).' \
+  "$WLE5"
+prouver 'le matricule déjà pris dans la fiche d'\''un dossier tenu, dit en bas de l'\''écran seulement' web/public/v10/cabinet/app.js \
+  'refusé sur sa case.
+            if (e && e.champ === '\''matriculeFiscal'\'') return refus($('\''#f-mat'\'', layer), plainError(e));' 'refusé sur sa case.' \
+  "$NDT5"
+for t in "$WLE5" "$NDT5"; do
+  prouver "le refus du serveur qui perd son champ au Cabinet (${t:0:40}…)" web/public/plateforme/pont-cabinet.js \
+    '{ champ: typeof lu.champ === '\''string'\'' ? lu.champ : null }' '{ champ: null }' \
+    "$t"
+done
+prouver 'la liste collée qui s'\''arrête sans nommer la ligne ni dire ce qui est entré' web/public/plateforme/pont-cabinet.js \
+  '« ${d.name} » : ${raison} ${entres}' '${x.message}' \
+  "$WLE5"
+prouver 'la fiche dont le matricule refusé emporte tout l'\''envoi' web/public/plateforme/pont.js \
+  '        if (!matriculeRepris && garderLeMatricule(e, lot, data)) return envoyer(data, true);
+' '' \
+  "$FDE5"
+prouver 'le refus de l'\''envoi qui perd son champ' web/public/plateforme/pont.js \
+  "(e).champ = typeof lu.champ === 'string' ? lu.champ : null;" '(e).champ = null;' \
+  "$FDE5"
+prouver 'la fiche qui garde le matricule refusé' web/public/plateforme/pont.js \
+  '    fiche.matricule = garde;
+' '' \
+  "$FDE5"
+prouver 'le matricule refusé seul, sans un mot à l'\''écran' web/public/v10/app.js \
+  'if (r && r.matriculeRefuse) matriculeRefuse(r.matriculeRefuse); ' '' \
+  "$FDE5"
+prouver 'la case des Paramètres qui montre le matricule refusé' web/public/v10/app.js \
+  '    if (champ) champ.value = x.garde;
+' '' \
+  "$FDE5"
+prouver '« Corriger mon matricule » qui ne mène pas à la case' web/public/v10/app.js \
+  "allerParametres('societe', 'p-identite:matricule'); };" "allerParametres('societe', 'p-identite'); };" \
+  "$FDE5"
+prouver '« Compléter ma fiche » qui se ferme sur un matricule refusé' web/public/v10/app.js \
+  "            if (r && r.matriculeRefuse) { b.disabled = false; return refuser('matricule', r.matriculeRefuse.motif); }
+" '' \
+  "$FD15"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

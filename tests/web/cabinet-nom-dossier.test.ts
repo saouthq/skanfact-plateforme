@@ -1,7 +1,8 @@
 // Le nom et le matricule d'un dossier, à la souris (brique 57 ; docs/cabinet.md, C47). L'écran est la
 // fiche du dossier du Cabinet v10. Ce que le parcours vérifie, écran ET serveur :
 //   - un dossier tenu : son nom et son matricule s'écrivent ; un matricule mal écrit se refuse sur sa
-//     case, rien ne part ; bien écrit, le serveur les garde ;
+//     case, rien ne part ; déjà celui d'une entreprise sur SkanFact, le serveur le refuse sur sa case (E5) ; bien
+//     écrit, le serveur les garde ;
 //   - un client sur SkanFact : ses cases ne s'écrivent pas, et la fiche dit pourquoi, sans « paquets ».
 
 import fs from 'node:fs';
@@ -87,7 +88,17 @@ describe('le nom et le matricule d\'un dossier, à la souris', () => {
     await f.locator('#f-mat').fill('1234567A');
     await f.locator('#ok').click();
     await expect.poll(() => p.evaluate(() => document.activeElement?.id)).toBe('f-mat');
-    await expect.poll(async () => (await p.locator('body').innerText()).includes('Le matricule fiscal s\'écrit 1234567A/B/C/000')).toBe(true);
+    // La règle du serveur, dite avec ses mots (E5 : la case disait encore « sept chiffres, trois lettres, trois chiffres »).
+    await expect.poll(async () => (await p.locator('body').innerText()).includes('Le matricule fiscal s\'écrit comme sur la carte d\'identification fiscale : sept chiffres, une lettre autre que I, O ou U')).toBe(true);
+    expect((await lu(tenu))?.raisonSociale).toBe('Boulangerie');
+    // Déjà celui d'une entreprise sur SkanFact, écrit autrement : le serveur le refuse, et la case le montre (E5 : le refus
+    // ne se disait qu'en bas de l'écran). Un matricule à ce fichier seul (tests/matricule-libre.ts).
+    const autre = await personne('autre');
+    expect((await api('POST', '/entreprises', autre, { raisonSociale: 'Pâtisserie Masmoudi', matriculeFiscal: '1732050F/A/M/000' })).statut).toBe(201);
+    await f.locator('#f-mat').fill('1732050 f a m 000');
+    await f.locator('#ok').click();
+    await expect.poll(toast).toBe('Ce matricule fiscal est déjà celui d\'une entreprise sur SkanFact : si c\'est ton client, qu\'il te propose le mandat avec le code de ton cabinet.');
+    await expect.poll(() => f.locator('#f-mat').getAttribute('aria-invalid')).toBe('true');
     expect((await lu(tenu))?.raisonSociale).toBe('Boulangerie');
     // Bien écrit : le serveur garde le nom et le matricule.
     // Bien écrit, même avec des points et en minuscules : le serveur le garde dans sa forme.
@@ -117,6 +128,9 @@ describe('le nom et le matricule d\'un dossier, à la souris', () => {
     await nouveau.locator('#f-mat').fill('12345');
     await nouveau.locator('#ok').click();
     await expect.poll(() => p.evaluate(() => document.activeElement?.id)).toBe('f-mat');
+    // Refusé par la case elle-même, avec la phrase de la règle (le serveur le refuserait aussi sur la case, depuis E5 :
+    // seule la phrase dit lequel des deux a parlé).
+    await expect.poll(toast).toBe('Le matricule fiscal s\'écrit comme sur la carte d\'identification fiscale : sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement (1234567A/A/M/000). Laisse la case vide si tu ne l\'as pas.');
     expect(((await api('GET', `/cabinets/${cabinet}/portefeuille`, associe)).corps.dossiers as unknown[]).length).toBe(2);
     await nouveau.locator('#no').click();
 

@@ -1,0 +1,77 @@
+Le refus d'un matricule montre sa case, et n'en bloque pas d'autres (E5, 06/10/2026 ; docs/facture-details.md).
+Format : voir sans-paquets.mjs.
+
+Vu sur le serveur d'essai en vérifiant E4 : un matricule fiscal déjà celui d'une autre entreprise ne se disait qu'en
+bas de l'écran, sans marquer sa case ; et sur la fiche société, le serveur refusait tout l'envoi avec lui. La page
+gardait ce matricule : chaque enregistrement suivant (un client, un devis…) repartait avec lui et se faisait refuser à
+son tour, avec la phrase du matricule, et « Réessayer » ne pouvait que redonner le même refus. Le point de contact ne
+fait plus refuser que lui (web/public/plateforme/pont.js, `garderLeMatricule`) : la fiche reprend le matricule que le
+serveur a, le reste est enregistré, et la page le dit ici.
+
+== app.js | le matricule de la fiche refusé seul : la page le dit, le reste est enregistré
+-- avant
+      .then(r => { if (r && r.conflict) return resolveConflict(r); })
+-- après
+      .then(r => { if (r && r.matriculeRefuse) matriculeRefuse(r.matriculeRefuse); if (r && r.conflict) return resolveConflict(r); })
+-- fin
+
+== app.js | la fenêtre du matricule refusé : ce qui n'a pas changé, pourquoi, et la case
+-- avant
+    }, () => { echecOuvert = false; });
+  }
+-- après
+    }, () => { echecOuvert = false; });
+  }
+
+  // (plateforme, E5) Le matricule de la fiche société est déjà celui d'une autre entreprise sur SkanFact : lui seul est
+  // refusé (le point de contact a remis celui que le serveur a, et enregistré tout le reste). La fenêtre dit ce qui n'a
+  // pas changé, pourquoi, et mène à la case ; la case des Paramètres, ouverte, montre ce que la fiche garde. La fenêtre
+  // « Compléter ma fiche » (la seule à porter `#cf-refus`), elle, le dit sur sa propre case.
+  let matriculeOuvert = false;
+  function matriculeRefuse(x) {
+    const champ = $('#pf [name="matricule"]');
+    if (champ) champ.value = x.garde;
+    if (matriculeOuvert || $('#cf-refus')) return;
+    matriculeOuvert = true;
+    modal(`<h2>Ton matricule fiscal n'a pas changé</h2>
+      <p>Tu as écrit « ${h(x.tape)} ». ${h(x.motif)}</p>
+      <p class="small muted">${x.garde ? `Ta fiche garde « ${h(x.garde)} »` : 'Ta fiche reste sans matricule'}, et tout le reste est enregistré.</p>
+      <div class="modal-actions">
+        <button class="btn" data-close>Fermer</button>
+        <button class="btn btn-primary" id="mf-corriger">Corriger mon matricule</button>
+      </div>`, (root, close) => {
+      $('#mf-corriger', root).onclick = () => { close(); allerParametres('societe', 'p-identite:matricule'); };
+    }, () => { matriculeOuvert = false; });
+  }
+-- fin
+
+== cabinet/app.js | un refus du serveur sur le matricule d'un nouveau dossier se dit sur sa case
+-- avant
+            const r = await api.newDossier(f);
+            S = r.state; close(); render(); toast('Dossier créé.');
+            location.hash = '#/dossier/' + encodeURIComponent(r.id);
+          } catch (e) { toast(plainError(e), 'error'); }
+-- après
+            const r = await api.newDossier(f);
+            S = r.state; close(); render(); toast('Dossier créé.');
+            location.hash = '#/dossier/' + encodeURIComponent(r.id);
+          } catch (e) {
+            // (plateforme, E5) Un matricule déjà celui d'une entreprise sur SkanFact : refusé sur sa case, comme un
+            // matricule mal écrit (il ne se disait qu'en bas de l'écran).
+            if (e && e.champ === 'matriculeFiscal') return refus($('#f-mat', layer), plainError(e));
+            toast(plainError(e), 'error');
+          }
+-- fin
+
+== cabinet/app.js | un refus du serveur sur le matricule d'un dossier tenu se dit sur sa case, dans sa fiche
+-- avant
+            toast(r.moved ? `Fiche enregistrée · ${pl(r.moved, 'paquet')} rangé${r.moved > 1 ? 's' : ''} au nouveau nom.` : 'Fiche enregistrée.');
+          } catch (e) { toast(plainError(e), 'error'); }
+-- après
+            toast(r.moved ? `Fiche enregistrée · ${pl(r.moved, 'paquet')} rangé${r.moved > 1 ? 's' : ''} au nouveau nom.` : 'Fiche enregistrée.');
+          } catch (e) {
+            // (plateforme, E5) Un matricule déjà celui d'une entreprise sur SkanFact : refusé sur sa case.
+            if (e && e.champ === 'matriculeFiscal') return refus($('#f-mat', layer), plainError(e));
+            toast(plainError(e), 'error');
+          }
+-- fin

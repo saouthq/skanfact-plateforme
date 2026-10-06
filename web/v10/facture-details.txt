@@ -146,8 +146,9 @@ deviennent ceux de l'entreprise au serveur (serveur/v10/identite.ts, 0071).
 -- après
   // (plateforme) « Compléter ma fiche… », depuis la fenêtre d'émission (lot facture, 05/10/2026) : les seuls champs de la
   // fiche société qui manquent à la pièce, sans la quitter. Le matricule se lit avant de partir, à la forme que le serveur
-  // porte à l'entreprise ; un refus du serveur (un matricule déjà porté par une autre entreprise) se lit dans la fenêtre,
-  // et la fiche reprend ce qu'elle avait. Le reste de la fiche vit dans Paramètres → Mon entreprise.
+  // porte à l'entreprise ; un matricule déjà porté par une autre entreprise se lit dans la fenêtre, sur sa case : la fiche
+  // garde le sien, et ce qui a été écrit à côté est enregistré (E5). Le reste de la fiche vit dans Paramètres → Mon
+  // entreprise.
   function completerFicheForm(pourFacture, done) {
     const co = company();
     const manqueNom = !(co.name || '').trim();
@@ -187,6 +188,8 @@ deviennent ceux de l'entreprise au serveur (serveur/v10/identite.ts, 0071).
           try {
             const r = await bridge.saveData(data);
             if (r && r.conflict) await resolveConflict(r);
+            // Le matricule seul refusé (E5) : le point de contact a remis celui de la fiche, et enregistré le reste.
+            if (r && r.matriculeRefuse) { b.disabled = false; return refuser('matricule', r.matriculeRefuse.motif); }
           } catch (e) {
             Object.assign(co, avant);
             b.disabled = false;

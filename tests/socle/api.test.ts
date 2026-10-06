@@ -402,7 +402,9 @@ describe('le matricule à la porte (E4)', () => {
     for (const ecrit of ['5772156B/A/M/000', '5772156BAM000', '5772156 b a m 000']) {
       const x = await appeler('POST', '/entreprises', b.jeton, { raisonSociale: 'Droguerie Ennasr', matriculeFiscal: ecrit });
       expect(x.statut, ecrit).toBe(403);
-      expect(x.corps.motif).toBe('Ce matricule fiscal est déjà celui d\'une autre entreprise sur SkanFact : relis-le sur ta carte d\'identification fiscale. Rien n\'a été enregistré.');
+      expect(x.corps.motif).toBe('Ce matricule fiscal est déjà celui d\'une autre entreprise sur SkanFact : relis-le sur ta carte d\'identification fiscale.');
+      // Le refus nomme sa case (E5) : la porte la marque, au lieu d'un bandeau seul.
+      expect(x.corps.champ).toBe('matriculeFiscal');
     }
     expect((await appeler('GET', '/moi', b.jeton)).corps.entreprises).toEqual([]);
   });

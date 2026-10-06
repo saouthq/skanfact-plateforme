@@ -108,7 +108,9 @@ describe('l\'identité de l\'entreprise suit sa fiche société', () => {
     const avant = await e.fiche();
     const refus = await e.ecrireFiche({ name: 'Pâtisserie Mahdia bis', matricule: '1618033c/a/m/000' });
     expect(refus.statut).toBe(403);
-    expect(refus.corps.motif).toBe('Ce matricule fiscal est déjà celui d\'une autre entreprise sur SkanFact : relis-le sur ta carte d\'identification fiscale. Rien n\'a été enregistré.');
+    expect(refus.corps.motif).toBe('Ce matricule fiscal est déjà celui d\'une autre entreprise sur SkanFact : relis-le sur ta carte d\'identification fiscale.');
+    // Le refus nomme le matricule (E5) : le point de contact ne refuse que lui, et renvoie le reste.
+    expect(refus.corps.champ).toBe('matriculeFiscal');
     expect(await e.fiche()).toEqual(avant);
     expect(await e.auServeur()).toMatchObject({ raison_sociale: 'Pâtisserie Mahdia', matricule_fiscal: '1111111A/A/M/000' });
     // Effacé dans la fiche : l'entreprise n'en a plus.

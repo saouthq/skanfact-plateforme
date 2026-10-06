@@ -8573,10 +8573,12 @@
       <label class="field mt">${lbl('Note interne', 'd.note')}<textarea id="f-note" rows="3">${esc(d.note || '')}</textarea></label>`;
   }
 
-  // La forme d'un matricule fiscal (brique 57) : celle que le serveur garde (« 1234567A/B/C/000 »), les
-  // espaces ôtés, un point ou un tiret lus comme une barre ; vide, il n'y en a pas.
-  const MATRICULE_FISCAL_FORME = 'Le matricule fiscal s\'écrit 1234567A/B/C/000 : sept chiffres, trois lettres, trois chiffres. Laisse la case vide si tu ne l\'as pas.';
-  const matriculeFiscalLisible = m => !m || /^[0-9]{7}[A-Z]\/?[A-Z]\/?[A-Z]\/?[0-9]{3}$/.test(String(m).replace(/\s+/g, '').replace(/[.-]/g, '/').toUpperCase());
+  // La forme d'un matricule fiscal (brique 57) : la règle du serveur (serveur/matricule.ts ; E4, E5), quelle que soit
+  // l'écriture (espaces, barres, points, tirets, minuscules) ; vide, il n'y en a pas. La case disait encore l'ancienne
+  // (« sept chiffres, trois lettres, trois chiffres ») : une lettre-clé O passait, et le serveur la refusait ensuite
+  // avec une autre phrase.
+  const MATRICULE_FISCAL_FORME = 'Le matricule fiscal s\'écrit comme sur la carte d\'identification fiscale : sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement (1234567A/A/M/000). Laisse la case vide si tu ne l\'as pas.';
+  const matriculeFiscalLisible = m => !m || /^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(String(m).toUpperCase().replace(/[\s/.\-_]/g, ''));
   function readDossierFields(layer) {
     const from = K.moisTape($('#f-from', layer).value);
     return {
@@ -8655,7 +8657,12 @@
             const r = await api.newDossier(f);
             S = r.state; close(); render(); toast('Dossier créé.');
             location.hash = '#/dossier/' + encodeURIComponent(r.id);
-          } catch (e) { toast(plainError(e), 'error'); }
+          } catch (e) {
+            // (plateforme, E5) Un matricule déjà celui d'une entreprise sur SkanFact : refusé sur sa case, comme un
+            // matricule mal écrit (il ne se disait qu'en bas de l'écran).
+            if (e && e.champ === 'matriculeFiscal') return refus($('#f-mat', layer), plainError(e));
+            toast(plainError(e), 'error');
+          }
         };
       },
       null,
@@ -8778,7 +8785,11 @@
             if (r.id && r.id !== dossier.id) location.hash = '#/dossier/' + encodeURIComponent(r.id);
             else render();
             toast(r.moved ? `Fiche enregistrée · ${pl(r.moved, 'paquet')} rangé${r.moved > 1 ? 's' : ''} au nouveau nom.` : 'Fiche enregistrée.');
-          } catch (e) { toast(plainError(e), 'error'); }
+          } catch (e) {
+            // (plateforme, E5) Un matricule déjà celui d'une entreprise sur SkanFact : refusé sur sa case.
+            if (e && e.champ === 'matriculeFiscal') return refus($('#f-mat', layer), plainError(e));
+            toast(plainError(e), 'error');
+          }
         };
       },
       null,

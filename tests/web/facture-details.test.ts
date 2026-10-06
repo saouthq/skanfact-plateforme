@@ -5,13 +5,16 @@
 //   - l'en-tête de la pièce n'imprime plus « MF » suivi de rien ; le tampon « Brouillon » ne couvre plus l'objet : pâle,
 //     au milieu de la page, il s'imprime comme une encre ;
 //   - avant d'émettre, ce qui manque à la fiche se nomme, et « Compléter ma fiche… » le règle sans quitter la pièce : un
-//     matricule mal formé se dit sur son champ, celui d'une autre entreprise est refusé par le serveur et rien ne change ;
-//     complété, la fenêtre se relit (plus d'avertissement, « Émettre ») et le serveur porte le matricule à l'entreprise ;
+//     matricule mal formé se dit sur son champ, celui d'une autre entreprise est refusé par le serveur (lui seul : E5) et
+//     la fiche garde le sien ; complété, la fenêtre se relit (plus d'avertissement, « Émettre ») et le serveur porte le
+//     matricule à l'entreprise ;
 //   - la pièce émise porte son matricule et son RIB ; la retenue choisie dans la liste part en nombre ;
 //   - la page rechargée, un paiement s'enregistre ; sa fenêtre dit « une retenue subie d'août », « de septembre » ;
 //   - le menu d'une pièce émise dit ce que font ses gestes en ligne (pas de PDF joint, pas de modification) ;
 //   - l'espace du client dit ce qui a déjà été payé à côté du reste ;
-//   - un refus du serveur à l'émission se lit dans une fenêtre qui reste.
+//   - un refus du serveur à l'émission se lit dans une fenêtre qui reste ;
+//   - dans Paramètres, un matricule déjà pris est refusé seul : le reste s'enregistre, la fenêtre mène à la case, et
+//     l'enregistrement suivant (un client) passe (E5).
 // Les données discriminent : 2 × 96,500 à 19 %, timbre 1,000, retenue 1 % hors timbre (2,297) → 228,373 ; 100,000 payés.
 
 import fs from 'node:fs';
@@ -136,11 +139,14 @@ describe('le lot facture, à l\'écran', () => {
     await fiche.locator('#ok').click();
     await expect.poll(() => fiche.locator('#cf-refus').innerText().then(net).catch(() => '')).toContain('« 1234567 » n\'a pas la forme d\'un matricule fiscal');
     expect(await fiche.locator('#cf [name=matricule]').evaluate((el) => el.closest('.field')?.classList.contains('champ-faute'))).toBe(true);
-    // Celui d'une autre entreprise : le serveur refuse, et la fiche reprend ce qu'elle avait.
+    // Celui d'une autre entreprise : le serveur le refuse, lui seul (E5), et la fiche garde le sien ; le refus se lit sur sa
+    // case, et aucune autre fenêtre ne s'ouvre par-dessus.
     await fiche.locator('#cf [name=matricule]').fill('2222222B/A/M/000');
     await fiche.locator('#ok').click();
     await expect.poll(() => fiche.locator('#cf-refus').innerText().then(net).catch(() => ''), { timeout: 10_000 })
-      .toBe('Ce matricule fiscal est déjà celui d\'une autre entreprise sur SkanFact : relis-le sur ta carte d\'identification fiscale. Rien n\'a été enregistré.');
+      .toBe('Ce matricule fiscal est déjà celui d\'une autre entreprise sur SkanFact : relis-le sur ta carte d\'identification fiscale.');
+    expect(await fiche.locator('#cf [name=matricule]').evaluate((el) => el.closest('.field')?.classList.contains('champ-faute'))).toBe(true);
+    expect(await p.getByRole('heading', { name: 'Ton matricule fiscal n\'a pas changé' }).count()).toBe(0);
     expect((await surLeServeur()).find((o) => o.collection === '_racine' && o.cle === 'company')?.contenu.matricule ?? '').toBe('');
     // Et la page non plus ne le garde pas : son prochain enregistrement ne repartirait pas avec lui.
     expect(await p.evaluate(() => (window as unknown as { __data: { company: { matricule?: string } } }).__data.company.matricule ?? '')).toBe('');
@@ -222,4 +228,56 @@ describe('le lot facture, à l\'écran', () => {
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'facture-details-2-refus.png') });
     expect(erreurs).toEqual([]);
   }, 240_000);
+
+  // E5 (vu sur le serveur d'essai, 06/10/2026) : dans Paramètres, un matricule déjà celui d'une autre entreprise faisait
+  // refuser TOUT l'envoi ; la page le gardait, et chaque enregistrement suivant repartait avec lui — un client, un devis :
+  // « Rien n'a été enregistré », avec la phrase du matricule, et « Réessayer » qui redonnait le même refus.
+  it('la fiche société : un matricule déjà pris est refusé seul, le reste s\'enregistre, et rien ne reste bloqué (E5)', async () => {
+    // Une autre entreprise porte 4142135C/A/M/000 ; Hédi a le sien (des matricules à ce fichier seul).
+    await personne('Lotfi', 'Quincaillerie El Amen', '4142135C/A/M/000');
+    const { jeton, ent } = await personne('Hedi', 'Librairie Ibn Khaldoun', '7320508D/A/M/000');
+    const surLeServeur = async () => (((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; cle: string; contenu: Record<string, unknown> }[]));
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(`${e.message} @ ${p.url()}`));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
+    const mf = p.locator('#pf [name="matricule"]');
+    await mf.waitFor({ timeout: 20_000 });
+    await plusTard(p);
+
+    // 1. Le matricule de l'autre entreprise, recopié autrement, et un téléphone : « Enregistrer ».
+    await mf.fill('4142135 c a m 000');
+    await p.locator('#pf [name="phone"]').fill('+216 71 245 300');
+    await p.locator('#save').click();
+
+    // 2. La fenêtre dit ce qui n'a pas changé, pourquoi, et que le reste est enregistré ; la case montre ce que la fiche
+    // garde, le serveur aussi.
+    const fenetre = dessus(p);
+    await expect.poll(() => fenetre.locator('h2').innerText().catch(() => ''), { timeout: 10_000 }).toBe('Ton matricule fiscal n\'a pas changé');
+    const dit = net(await fenetre.innerText());
+    expect(dit).toContain('Tu as écrit « 4142135 c a m 000 ». Ce matricule fiscal est déjà celui d\'une autre entreprise sur SkanFact : relis-le sur ta carte d\'identification fiscale.');
+    expect(dit).toContain('Ta fiche garde « 7320508D/A/M/000 », et tout le reste est enregistré.');
+    expect(dit).not.toContain('Réessayer');
+    expect(await mf.inputValue()).toBe('7320508D/A/M/000');
+    const ficheServeur = async () => (await surLeServeur()).find((o) => o.collection === '_racine' && o.cle === 'company')?.contenu ?? {};
+    expect(await ficheServeur()).toMatchObject({ matricule: '7320508D/A/M/000', phone: '+216 71 245 300' });
+    expect((await admin.query('select matricule_fiscal from socle.entreprise where id = $1', [ent])).rows[0].matricule_fiscal).toBe('7320508D/A/M/000');
+    await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'facture-details-3-matricule-pris.png') });
+
+    // 3. « Corriger mon matricule » ramène à la case.
+    await fenetre.getByRole('button', { name: 'Corriger mon matricule' }).click();
+    await expect.poll(() => mf.evaluate((e) => e === document.activeElement)).toBe(true);
+
+    // 4. Rien ne reste bloqué : un client enregistré ensuite part au serveur, sans un mot du matricule.
+    await p.evaluate(() => { location.hash = '#/clients'; });
+    await p.getByRole('button', { name: '+ Nouveau client' }).first().click({ timeout: 15_000 });
+    await p.locator('#modal-root [name=name]').fill('Lycée Pilote de Sousse');
+    await p.locator('#modal-root').getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await expect.poll(async () => (await surLeServeur()).some((o) => o.collection === 'clients' && o.contenu.name === 'Lycée Pilote de Sousse'), { timeout: 10_000 }).toBe(true);
+    expect(await p.getByRole('heading', { name: 'Rien n\'a été enregistré' }).count()).toBe(0);
+    expect(await p.getByRole('heading', { name: 'Ton matricule fiscal n\'a pas changé' }).count()).toBe(0);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
 });

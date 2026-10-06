@@ -1077,12 +1077,18 @@ avec la règle du serveur (`serveur/matricule.ts`, depuis E4 : docs/facture-deta
 libres (« 1234567a.p.m.000 » se garde « 1234567A/P/M/000 »), la lettre-clé jamais I, O ni U ; **une seule ligne dont
 le matricule est incomplet ou illisible arrête tout, et rien n'est ajouté** — le refus nomme le client et dit la forme
 attendue (la v10 acceptait un matricule court, « 1234567A » ; le serveur demande la forme entière). Puis chaque client est créé comme
-par « Nouveau client » (le dossier tenu au serveur, sa fiche : l'adresse, le téléphone).
+par « Nouveau client » (le dossier tenu au serveur, sa fiche : l'adresse, le téléphone). Un matricule déjà celui
+d'une entreprise sur SkanFact ne se voit qu'au serveur : la ligne qui le porte arrête la liste, et le refus la nomme et
+dit ce qui est déjà entré (« Le client d'avant est ajouté ; retire ou corrige cette ligne, puis ajoute la liste de
+nouveau : les clients déjà dans ton portefeuille seront ignorés ») — E5, 06/10/2026 : la liste s'arrêtait au milieu
+sans un mot de plus.
 
 **Les tests** : à la souris (`tests/web/cabinet-liste.test.ts`) : une liste dont une ligne porte un
 matricule court est refusée sur cette ligne, et le portefeuille ne bouge pas ; corrigée, ses deux clients
 entrent (le matricule écrit avec des points, gardé avec des « / » ; l'adresse et le téléphone dans la
-fiche), le client déjà là est ignoré et nommé.
+fiche), le client déjà là est ignoré et nommé. Puis (E5) : la case du nouveau dossier refuse la lettre-clé O avec
+la phrase de la règle ; un matricule déjà pris, écrit autrement, se dit sur la case ; dans une liste, la ligne qui le
+porte est nommée avec ce qui est entré, et la liste reprise sans elle ajoute le reste.
 
 ## Brique 53 : la visite « Travailler à plusieurs » (fait le 29/09/2026)
 
@@ -1198,11 +1204,14 @@ Un cabinet qui avait créé un client sans son matricule ne pouvait plus le lui 
 - un client **sur SkanFact** : son nom et son matricule sont les siens. La fiche ne les laisse pas écrire
   et dit pourquoi (« Ce client est sur SkanFact : son nom et son matricule sont ceux qu'il y a donnés,
   lui seul les change ») ; le serveur le refuse aussi ;
-- un matricule mal écrit se refuse **sur sa case**, à la création comme dans la fiche (sept chiffres,
-  trois lettres, trois chiffres ; les espaces ôtés, un point ou un tiret lus comme une barre) ;
+- un matricule mal écrit se refuse **sur sa case**, à la création comme dans la fiche, avec la règle du
+  serveur (sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement ; quelle
+  que soit l'écriture : E4, et E5 le 06/10/2026, la case disait encore « sept chiffres, trois lettres, trois
+  chiffres » et laissait passer la lettre-clé O) ;
 - un matricule déjà porté par une autre entreprise sur SkanFact se refuse en le disant (« si c'est ton
-  client, qu'il te propose le mandat avec le code de ton cabinet »), à la création comme ici : la base
-  le refusait jusque-là sans un mot.
+  client, qu'il te propose le mandat avec le code de ton cabinet »), à la création comme ici, **sur sa
+  case** (E5 : le refus nomme le champ, il ne se disait qu'en bas de l'écran) : la base le refusait
+  jusque-là sans un mot.
 
 **Les tests** : par l'API (`tests/cabinet/mandats.test.ts`) : un associé renomme et donne le matricule
 (la trace, le nom de l'organisation), son propre matricule n'est pas « déjà pris », une forme fausse et

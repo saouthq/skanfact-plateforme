@@ -92,6 +92,14 @@ describe('le parcours, à la souris', () => {
     // une erreur »). Puis recopié de la carte, en minuscules et avec des espaces : il passe, sous sa forme lisible.
     // Le champ montre la forme attendue (E4 : il n'en montrait aucune).
     expect(await champ(p, 'ecran.porte.matricule').getAttribute('placeholder')).toBe('1234567A/A/M/000');
+    // Déjà celui d'une autre entreprise, écrit autrement : refusé en le disant, SUR son champ, qui prend le focus (E5 :
+    // le refus ne vivait que 2,6 secondes en bas de l'écran). Un matricule à ce fichier seul (tests/matricule-libre.ts).
+    await admin.query(`with o as (insert into socle.organisation (type, nom) values ('independant', 'Quincaillerie du Lac') returning id)
+      insert into socle.entreprise (organisation, raison_sociale, matricule_fiscal) select id, 'Quincaillerie du Lac', '6931471B/A/M/000' from o`);
+    await champ(p, 'ecran.porte.matricule').fill('6931471 b a m 000');
+    await bouton(p, 'ecran.porte.creer').click();
+    await expect.poll(() => p.getByRole('alert').first().innerText()).toBe(phrase('base.entreprise.matricule_pris'));
+    expect(await champ(p, 'ecran.porte.matricule').evaluate((e) => e === document.activeElement && e.getAttribute('aria-invalid') === 'true')).toBe(true);
     await champ(p, 'ecran.porte.matricule').fill('1234567O/A/M/000');
     await bouton(p, 'ecran.porte.creer').click();
     await expect.poll(() => p.getByRole('alert').first().innerText()).toBe(phrase('socle.matricule_forme', { matricule: '1234567O/A/M/000' }));

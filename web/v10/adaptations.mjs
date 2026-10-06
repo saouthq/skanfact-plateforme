@@ -716,4 +716,6 @@ export const ADAPTATIONS = [
   ...lireFichier('exemple.txt'),
   // ── Le lot facture (05/10/2026 ; le parcours d'un commerçant, docs/facture-details.md) ──
   ...lireFichier('facture-details.txt'),
+  // ── Le refus d'un matricule montre sa case, et n'en bloque pas d'autres (06/10/2026 ; docs/facture-details.md, E5) ──
+  ...lireFichier('matricule-refus.txt'),
 ];
