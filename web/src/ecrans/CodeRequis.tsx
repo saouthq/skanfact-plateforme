@@ -50,6 +50,7 @@ export function CodeRequis({ pose, deconnecte, entreprise }: { pose: () => void;
   const [codes, setCodes] = useState<{ adresse: string | null; cle: string | null; secours: string[] } | null>(null);
   const [essai, setEssai] = useState('');
   const [garde, setGarde] = useState(false);
+  const [aCocher, setACocher] = useState(false);
   const caseGarde = useRef<HTMLDivElement>(null);
 
   const poser = () => g.geste(async () => {
@@ -59,7 +60,7 @@ export function CodeRequis({ pose, deconnecte, entreprise }: { pose: () => void;
   });
   const verifier = () => g.geste(async () => {
     // Les codes de secours ne se montreront plus : on ne part pas sans les avoir mis de côté.
-    if (!garde) { toast(phrase('ecran.code_pose.garde_avant'), true); caseGarde.current?.querySelector('input')?.focus(); return; }
+    if (!garde) { toast(phrase('ecran.code_pose.garde_avant'), true); setACocher(true); caseGarde.current?.querySelector('input')?.focus(); return; }
     const r = await g.api('POST', '/moi/code/essayer', { code: essai });
     if (!r) return;
     if (r.statut === 200) pose(); else g.refuser({ ...refusDe(r), champ: 'code' });
@@ -103,7 +104,7 @@ export function CodeRequis({ pose, deconnecte, entreprise }: { pose: () => void;
               <button type="button" className="ent-petit" onClick={() => { void copier(codes.secours.join('\n'), phrase('ecran.code_pose.codes_copies')); }}>{titre('ecran.code_pose.copier')}</button>
               <button type="button" className="ent-petit" onClick={() => telecharger(codes.secours)}>{titre('ecran.code_pose.telecharger')}</button>
             </div>
-            <div ref={caseGarde}><Case libelle={titre('ecran.code_pose.garde')} coche={garde} changer={setGarde} /></div>
+            <div ref={caseGarde} className={aCocher && !garde ? 'a-cocher' : undefined}><Case libelle={titre('ecran.code_pose.garde')} coche={garde} changer={setGarde} /></div>
           </aside>
           <div className="ent-pose-pied">
             <span />

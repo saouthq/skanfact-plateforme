@@ -203,4 +203,67 @@ describe('l\'entrée refaite, à la souris', () => {
     });
     await p.context().close();
   });
+
+  // Ce que le parcours sur app.skanfact.tn a relevé le 06/10/2026, une fois l'entrée en ligne.
+  it('l\'entrée ne bouge pas sous la frappe et dit vrai : la clé se coupe entre ses groupes, le refus montre la case, rien ne se dit fait avant la vérification', async () => {
+    const { jeton } = await personne();
+    const p = await page(jeton);
+    await p.goto(serveur.adresse);
+    await ecran(p, 'ecran.porte.titre');
+    await bouton(p, 'ecran.porte.demarrer_bouton').click();
+    await ecran(p, 'ecran.porte.entreprise_titre');
+    // L'aide du matricule change de hauteur pendant la frappe : le champ du dessus ne bouge pas pour autant.
+    const haut = async () => (await champ(p, 'ecran.porte.raison').boundingBox())?.y;
+    const avant = await haut();
+    const aide = p.locator('.ent-champ').filter({ has: champ(p, 'ecran.porte.matricule') }).locator('.ent-aide');
+    const hauteurs = [(await aide.boundingBox())?.height];
+    await champ(p, 'ecran.porte.raison').fill('Gharbi Informatique SARL');
+    await champ(p, 'ecran.porte.matricule').fill('1234567A');
+    hauteurs.push((await aide.boundingBox())?.height);
+    expect(await haut()).toBe(avant);
+    await champ(p, 'ecran.porte.matricule').fill('1234567A/A/M/000');
+    hauteurs.push((await aide.boundingBox())?.height);
+    expect(await haut()).toBe(avant);
+    // L'instrument a mesuré : l'aide a bien changé de hauteur.
+    expect(new Set(hauteurs).size).toBeGreaterThan(1);
+    // Au téléphone, le haut de la facture passe sous le formulaire : la phrase ne dit pas qu'il est « à côté ».
+    await p.setViewportSize({ width: 390, height: 844 });
+    const form = await p.locator('.ent-deux > form').boundingBox();
+    const apercu = await p.locator('.ent-apercu').boundingBox();
+    expect((apercu?.y ?? 0) >= (form?.y ?? 0) + (form?.height ?? 0)).toBe(true);
+    expect(await p.locator('.ent-titre-page p').innerText()).not.toMatch(/à côté/);
+    await p.setViewportSize({ width: 1440, height: 900 });
+    await bouton(p, 'ecran.porte.creer').click();
+    await ecran(p, 'ecran.code_requis.titre');
+    await bouton(p, 'ecran.code_requis.bouton').click();
+    await ecran(p, 'ecran.code_pose.titre');
+    // La clé à taper à la main tient sur plusieurs lignes, mais aucun groupe de quatre ne se coupe.
+    const cle = await p.locator('.code-cle').evaluate((el) => {
+      const texte = el.firstChild as Text;
+      const lignes = (r: Range) => new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size;
+      const tout = document.createRange(); tout.selectNodeContents(el);
+      let i = 0;
+      const groupes = (texte.textContent ?? '').split(' ').map((g) => {
+        const r = document.createRange(); r.setStart(texte, i); r.setEnd(texte, i + g.length); i += g.length + 1; return lignes(r);
+      });
+      return { lignes: lignes(tout), groupes };
+    });
+    expect(cle.lignes).toBeGreaterThan(1);
+    expect(cle.groupes.every((n) => n === 1)).toBe(true);
+    // « Vérifier » sans la case cochée : le refus montre la case (sa bordure change) et y met le curseur.
+    const caseGarde = p.locator('.ent-secours label.check');
+    const bord = () => caseGarde.evaluate((e) => getComputedStyle(e).borderTopColor);
+    const bordAvant = await bord();
+    await champ(p, 'ecran.code_pose.essai').fill('123456');
+    const verifier = bouton(p, 'ecran.code_pose.bouton');
+    await verifier.click();
+    expect(await p.evaluate(() => document.activeElement?.getAttribute('type'))).toBe('checkbox');
+    expect(await bord()).not.toBe(bordAvant);
+    // Cocher ne déplace pas le bouton, et rien ne dit le code en place tant qu'il n'est pas vérifié.
+    const place = await verifier.boundingBox();
+    await p.getByRole('checkbox', { name: titre('ecran.code_pose.garde') }).check();
+    expect(await verifier.boundingBox()).toEqual(place);
+    expect(await p.locator('.ent-pose-pied .ent-aide').innerText()).not.toMatch(/parfait|sera demandé/i);
+    await p.context().close();
+  });
 });

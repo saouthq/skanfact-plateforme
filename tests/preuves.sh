@@ -9091,6 +9091,26 @@ prouver "l'écran qui part sans les codes de secours mis de côté" web/src/ecra
 prouver "le téléphone perdu qui ne fait pas taper un code de secours" web/src/ecrans/Code.tsx \
   "onClick={() => { setSecours(!secours); setCode(''); }}" "onClick={() => { setCode(''); }}" \
   "$PARC"
+# Ce que le parcours sur app.skanfact.tn a relevé une fois l'entrée en ligne (06/10/2026).
+KEW5="l'entrée ne bouge pas sous la frappe et dit vrai : la clé se coupe entre ses groupes, le refus montre la case, rien ne se dit fait avant la vérification"
+prouver "la page des étapes centrée en hauteur, qui bouge quand une aide change de taille" web/src/entree.css \
+  "display: flex; flex-direction: column; justify-content: flex-start; gap: 32px; }" "display: flex; flex-direction: column; justify-content: center; gap: 32px; }" \
+  "$KEW5"
+prouver "la clé du code coupée au milieu d'un groupe" web/src/entree.css \
+  "letter-spacing: .06em; word-break: normal; overflow-wrap: anywhere; user-select: all;" "letter-spacing: .06em; word-break: break-all; user-select: all;" \
+  "$KEW5"
+prouver "le bouton « Vérifier » qui se déplace quand la case se coche" web/src/entree.css \
+  ".ent-pose-pied { flex: 1 1 100%; display: flex;" ".ent-pose-pied { display: flex;" \
+  "$KEW5"
+prouver "« parfait » dit avant que le code soit vérifié" web/src/textes.ts \
+  "'ecran.code_pose.garde_ok': 'codes mis de côté : il reste à taper le code que montre l\\'application, puis à vérifier'," "'ecran.code_pose.garde_ok': 'parfait : le code sera demandé à chaque connexion'," \
+  "$KEW5"
+prouver "le refus sans la case à cocher qui ne montre pas la case" web/src/ecrans/CodeRequis.tsx \
+  "toast(phrase('ecran.code_pose.garde_avant'), true); setACocher(true);" "toast(phrase('ecran.code_pose.garde_avant'), true);" \
+  "$KEW5"
+prouver "le haut de la facture dit « à côté » au téléphone, où il est dessous" web/src/textes.ts \
+  "regarde-le se dessiner pendant que tu tapes'," "regarde-le se dessiner à côté'," \
+  "$KEW5"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

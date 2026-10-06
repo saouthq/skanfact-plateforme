@@ -222,7 +222,8 @@ body.dark .ent-etapes .ent-logo { background: #0f9d8f; color: #fff; }
 .ent-fil .actuelle .rond { border-color: var(--e-lien); color: var(--e-lien); }
 .ent-fil .trait { width: 28px; height: 2px; border-radius: 1px; background: var(--e-champ); }
 .ent-fil .trait.fait { background: var(--e-bouton); }
-.ent-scene { flex: 1 1 auto; width: 100%; max-width: 1120px; margin: 0 auto; padding-block: 16px 64px; display: flex; flex-direction: column; justify-content: center; gap: 32px; }
+/* Le haut de la scène ne bouge jamais : centrée en hauteur, elle remontait ou descendait quand une aide changeait de taille. */
+.ent-scene { flex: 1 1 auto; width: 100%; max-width: 1120px; margin: 0 auto; padding-block: clamp(16px, 6vh, 64px) 64px; display: flex; flex-direction: column; justify-content: flex-start; gap: 32px; }
 .ent-scene.etroite { align-items: center; }
 
 .ent-carte {
@@ -311,7 +312,7 @@ body.dark .ent-pose .num { background: var(--e-menthe); color: var(--e-nuit); }
 .ent-qr-image { flex: none; width: 168px; height: 168px; padding: 8px; border-radius: 12px; border: 1px solid #e1e8e6; background: #fff; }
 .ent-qr-image svg { display: block; width: 100%; height: 100%; }
 .ent-cle { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.ent-cle code { padding: 8px 12px; border-radius: 8px; background: var(--e-doux); font-family: var(--e-chiffres); font-size: 14px; letter-spacing: .06em; word-break: break-all; user-select: all; color: var(--e-encre); }
+.ent-cle code { padding: 8px 12px; border-radius: 8px; background: var(--e-doux); font-family: var(--e-chiffres); font-size: 14px; letter-spacing: .06em; word-break: normal; overflow-wrap: anywhere; user-select: all; color: var(--e-encre); }
 .ent .ent-petit {
   min-height: 44px; padding: 0 14px; border: 1px solid var(--e-champ); border-radius: 10px; background: var(--e-papier); color: var(--e-encre);
   font-family: var(--e-texte); font-size: 14px; font-weight: 600; cursor: pointer;
@@ -330,8 +331,9 @@ body.dark .ent-secours { background: var(--e-nuit-2); }
 .ent .ent-secours label.check { background: rgba(127, 224, 211, .1); border-color: transparent; color: #fff; }
 .ent .ent-secours label.check:has(input:checked) { border-color: var(--e-menthe); background: rgba(127, 224, 211, .16); }
 .ent .ent-secours label.check input { accent-color: var(--e-menthe); }
+.ent .ent-secours .a-cocher label.check { border-color: var(--e-alerte); box-shadow: 0 0 0 3px rgba(251, 146, 60, .35); }
 .ent .ent-secours label.check .lbl, .ent .ent-secours label.check span { color: #fff; }
-.ent-pose-pied { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; border-top: 1px solid var(--e-trait); padding-top: 22px; }
+.ent-pose-pied { flex: 1 1 100%; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; border-top: 1px solid var(--e-trait); padding-top: 22px; }
 .ent-pose-pied .droite { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 14px; margin-inline-start: auto; }
 .ent-pose-pied .ent-principal { width: auto; padding-inline: 28px; }
 

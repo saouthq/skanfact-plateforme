@@ -35,6 +35,22 @@ parcours du débutant avait relevé (docs/debutant.md).
 | Ajoute SkanFact à ton application | les codes de secours en liste, sans rien pour les garder | « Copier » et « Télécharger » (un fichier texte) ; on ne part pas sans cocher « Je les ai mis de côté » (ils ne se montreront plus) |
 | L'ouverture | une page blanche le temps du chargement | « On ouvre ton entreprise » : ce qui est fait se coche (le compte, sa protection, l'entreprise), la dernière ligne tourne pendant que les écrans se chargent. Rien n'est inventé ni retardé |
 
+### Revu en ligne (06/10/2026)
+
+Refait à la souris sur app.skanfact.tn, à l'ordinateur et au téléphone, avec un compte fictif neuf : compte, entreprise,
+code, codes de secours téléchargés, ouverture, puis reconnexion par le code et par un code de secours. Corrigé ensuite :
+
+- la page des étapes ne se centre plus en hauteur : elle remontait ou descendait quand l'aide du matricule changeait de
+  taille pendant la frappe (et le lien « code de secours » fuyait sous le doigt) ;
+- la clé à taper à la main ne se coupe plus au milieu d'un groupe de quatre ;
+- « Vérifier et continuer » ne se déplace plus quand on coche « Je les ai mis de côté » ;
+- rien ne dit « Parfait : le code sera demandé à chaque connexion » avant que le code soit vérifié (la phrase restait
+  même après un code refusé) ;
+- le refus sans la case cochée la montre (bordure orange), en plus d'y mettre le curseur ;
+- « regarde-le se dessiner à côté » devient « pendant que tu tapes » : au téléphone, le haut de la facture est dessous.
+
+Test : `tests/web/entree.test.ts` (« l'entrée ne bouge pas sous la frappe et dit vrai… »), six preuves.
+
 ## Le mot de passe oublié
 
 1. « Mot de passe oublié ? », sous le mot de passe, **seulement si le serveur sait envoyer un e-mail**
