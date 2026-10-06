@@ -226,6 +226,12 @@ describe('les envois, à la souris', () => {
     await expect.poll(() => nadia.locator('#modal-root .modal').last().locator('#lc-liste').innerText(), { timeout: 15_000 })
       .toMatch(/^Son compte, donné le .* par Nadia\s*Vu le .*\s*Retirer\s*Cette pièce, envoyé par WhatsApp le .* par Nadia\s*Vu le .*\s*Retirer$/);
     await nadia.locator('#modal-root .modal').last().getByRole('button', { name: 'Fermer', exact: true }).click();
+    // Sans le lien (la case décochée) : WhatsApp s'ouvre pendant le geste, sans lien, sur le message du modèle.
+    const sansLien = await envoi(nadia, /^(WhatsApp|Envoyer par WhatsApp…)$/);
+    await sansLien.getByLabel(/Ajouter le lien de la pièce/).uncheck();
+    await sansLien.getByRole('button', { name: 'Ouvrir WhatsApp', exact: true }).click();
+    await expect.poll(async () => (await ouverts(nadia)).slice(5), { timeout: 15_000 }).toEqual(['fenêtre:', expect.stringMatching(/^https:\/\/wa\.me\/216\d{8}\?text=Bonjour/)]);
+    expect((await ouverts(nadia))[6]).not.toContain('espace');
 
     // Le relevé de compte : il ne se joint pas, et le message ouvert le dit.
     await nadia.goto(`${serveur.adresse}/v10/?e=${ent}#/client/${menuiserie.cle}`);
