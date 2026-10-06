@@ -62,7 +62,7 @@ export function Porte({ creee, cabinetCree, deconnecte }: { creee: (ent: string)
         </>}>
         <div className="grid-2">
           <Champ classe="span-2" obligatoire libelle={titre('ecran.porte.raison')} aide={phrase('ecran.porte.raison_aide')} valeur={raison} changer={setRaison} {...g.sur('raisonSociale')} />
-          <Champ classe="span-2" libelle={titre('ecran.porte.matricule')} aide={phrase('ecran.porte.matricule_aide')} valeur={matricule} changer={setMatricule} {...g.sur('matriculeFiscal')} />
+          <Champ classe="span-2" libelle={titre('ecran.porte.matricule')} aide={phrase('ecran.porte.matricule_aide')} valeur={matricule} changer={setMatricule} placeholder="1234567A/A/M/000" {...g.sur('matriculeFiscal')} />
         </div>
       </Carte>
     );

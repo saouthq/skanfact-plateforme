@@ -108,14 +108,38 @@ le test ne tourne plus : la preuve restait verte. Les deux sont réécrites en v
 CASSÉE ») : il relit, comme le navigateur, la plus petite fonction qui contient le défaut (cinq secondes pour les
 2 363 preuves).
 
+## E4 : la même règle à toutes les entrées du matricule (05/10/2026)
+
+Vu en corrigeant E3, puis refait à la souris sur le serveur d'essai : à la porte (« Créer mon entreprise »), un matricule
+recopié en minuscules ou avec des espaces (« 2357111 b a m 000 ») donnait « Le serveur a rencontré une erreur :
+réessaie dans un instant. » dans un bandeau de trois secondes, comme un matricule déjà pris ; le même matricule écrit sans
+barres (« 1593574CAM000 ») passait, et deux entreprises actives portaient alors un seul matricule ; la lettre-clé O
+passait. Au Cabinet, un dossier tenu acceptait la lettre-clé O, et refusait un matricule recopié avec des espaces par
+« Le champ « matriculeFiscal » ne va pas ». La reprise d'un portefeuille de la v10 faisait de même.
+
+Maintenant, **une seule règle** (`serveur/matricule.ts`), à chaque entrée d'un matricule : la porte, la fiche société
+(D6), le dossier tenu (création, correction), la reprise d'un portefeuille, et la liste collée du Cabinet (contrôlée sur
+le poste avant d'écrire, avec la même règle). Le matricule s'écrit comme on le recopie et se garde sous sa forme lisible
+(1234567A/A/M/000) : écrit autrement, c'est le même, et l'unicité le reconnaît. Mal formé, il se refuse sur son champ en
+disant pourquoi : « Le matricule fiscal « 1234567O/A/M/000 » n'a pas la bonne forme : sept chiffres, une lettre autre que
+I, O ou U, puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur la carte
+d'identification fiscale. » Déjà celui d'une autre entreprise, la porte le dit comme la fiche (« … relis-le sur ta carte
+d'identification fiscale. Rien n'a été enregistré. ») : la base le refuse avant d'écrire (0072). Le champ de la porte
+montre la forme attendue.
+
+Ce qui le prouve : `tests/socle/api.test.ts` (la porte : la forme lisible gardée, cinq écritures fausses refusées sur
+leur champ, un matricule pris refusé sous trois écritures, rien n'est créé), `tests/cabinet/mandats.test.ts` (le dossier
+tenu : une autre écriture du même matricule refusée, la forme lisible gardée, la lettre-clé O refusée en le disant),
+`tests/cabinet/reprise-portefeuille.test.ts` (deux écritures du même matricule, une lettre-clé O : nommées),
+`tests/web/parcours.test.ts` et `tests/web/cabinet-liste.test.ts` (à la souris : la porte, la liste collée). Les
+preuves de `tests/preuves.sh`, section « E4 » (et onze preuves reciblées sur la règle commune).
+
 ## Ce qui reste (À FAIRE)
 
-- **E4. La même règle à toutes les entrées du matricule** (vu en corrigeant E3) : la porte (« Créer mon entreprise »,
-  `POST /entreprises`), le dossier tenu d'un cabinet (création et correction) et la reprise d'un portefeuille acceptent
-  encore la lettre-clé I, O ou U, et gardent le matricule tel qu'il est écrit, avec ou sans barres. Or l'unicité (un
-  matricule, une seule entreprise active : D6) compare les textes : 1234567AAM000 et 1234567A/A/M/000 peuvent coexister.
-  À faire au lot suivant : la forme lisible du serveur (`matriculeCanonique`) aux trois entrées, et les matricules déjà
-  gardés remis sous cette forme.
+- **Les matricules gardés tels qu'écrits avant E4** (sur le serveur d'essai seulement : des entreprises fictives
+  créées à la porte avec « 2357111BAM000 », ou une lettre-clé O) restent tels quels ; ils s'impriment sous leur forme
+  lisible (E2), et la fiche les nomme s'ils sont mal formés. Aucun n'existe ailleurs : le serveur de production n'a pas
+  encore de données.
 
 - **Un devis envoyé part sans pièce jointe** : il n'a pas de lien dans l'espace client (seules les factures et les
   avoirs émis en ont). À faire avec la brique « les devis dans l'espace client » (déjà proposée à Skander).

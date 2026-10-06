@@ -16,6 +16,7 @@ import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
 import './textes.ts';
 import { Refus } from '../erreurs.ts';
+import { matriculeCanonique, refusDuMatricule } from '../matricule.ts';
 import { lireLivreV10, rapportDuLivre } from '../reprise/livre-v10.ts';
 import { lirePortefeuilleV10, PORTEFEUILLE_V10 } from '../reprise/cabinet-v10.ts';
 import { versLaBaseFiche } from '../compta/immobilisations.ts';
@@ -260,12 +261,14 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
     methode: 'POST', chemin: '/cabinets/:cabinet/dossiers', geste: 'compte.cabinet.gerer',
     corps: z.object({
       raisonSociale: z.string().trim().min(1).max(200),
-      // La forme du matricule fiscal que la base garde (0001) : « 1234567A/P/M/000 ».
-      matriculeFiscal: z.string().trim().toUpperCase().regex(/^[0-9]{7}[A-Z]\/?[A-Z]\/?[A-Z]\/?[0-9]{3}$/, { message: 'cabinet.champ.matricule' }).optional(),
+      // Écrit comme on le recopie : le serveur le garde sous sa forme lisible (serveur/matricule.ts ; E4).
+      matriculeFiscal: z.string().max(40).optional(),
     }),
     traiter: async ({ params, corps }, tx) => {
       if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
-      const id = (await tx.query('select socle.creer_dossier_tenu($1, $2, $3) id', [params.cabinet, corps.raisonSociale, corps.matriculeFiscal ?? null])).rows[0].id as string;
+      const matricule = matriculeCanonique(corps.matriculeFiscal);
+      if (matricule === undefined) return refusDuMatricule(corps.matriculeFiscal);
+      const id = (await tx.query('select socle.creer_dossier_tenu($1, $2, $3) id', [params.cabinet, corps.raisonSociale, matricule])).rows[0].id as string;
       await tracer(tx, id, 'cabinet.dossier_tenu.creer', id, null, { cabinet: params.cabinet, raisonSociale: corps.raisonSociale });
       return { statut: 201, corps: { entreprise: id } };
     },
@@ -276,13 +279,15 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
     methode: 'PUT', chemin: '/cabinets/:cabinet/dossiers/:dossier', geste: 'compte.cabinet.gerer',
     corps: z.object({
       raisonSociale: z.string().trim().min(1).max(200),
-      matriculeFiscal: z.string().trim().toUpperCase().regex(/^([0-9]{7}[A-Z]\/?[A-Z]\/?[A-Z]\/?[0-9]{3})?$/, { message: 'cabinet.champ.matricule' }),
+      matriculeFiscal: z.string().max(40),
     }).strict(),
     traiter: async ({ params, corps }, tx) => {
       if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.dossier).success) return introuvable;
       const dossier = params.dossier ?? '';
-      const avant = (await tx.query('select socle.renommer_dossier_tenu($1, $2, $3, $4) avant', [params.cabinet, dossier, corps.raisonSociale, corps.matriculeFiscal || null])).rows[0].avant;
-      await tracer(tx, dossier, 'cabinet.dossier_tenu.renommer', dossier, avant, { raisonSociale: corps.raisonSociale, matriculeFiscal: corps.matriculeFiscal || null });
+      const matricule = matriculeCanonique(corps.matriculeFiscal);
+      if (matricule === undefined) return refusDuMatricule(corps.matriculeFiscal);
+      const avant = (await tx.query('select socle.renommer_dossier_tenu($1, $2, $3, $4) avant', [params.cabinet, dossier, corps.raisonSociale, matricule])).rows[0].avant;
+      await tracer(tx, dossier, 'cabinet.dossier_tenu.renommer', dossier, avant, { raisonSociale: corps.raisonSociale, matriculeFiscal: matricule });
       return { corps: { entreprise: dossier } };
     },
   });

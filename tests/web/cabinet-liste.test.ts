@@ -76,6 +76,11 @@ describe('une liste de clients collée, à la souris', () => {
     await p.locator('#modal-root .modal').last().locator('#ok').click();
     await expect.poll(toast).toMatch(/« Pharmacie El Menzah » : le matricule fiscal « 1234567A » est incomplet ou ne se lit pas.*rien n'a été ajouté\./);
     expect((await portefeuille()).map((d) => d.raisonSociale)).toEqual(['Café des Jasmins']);
+    // La lettre-clé n'est jamais I, O ni U : la même règle que le serveur, avant d'écrire quoi que ce soit (E4).
+    await p.locator('#cl-liste').fill('Pharmacie El Menzah ; 1234567O.B.C.099');
+    await p.locator('#modal-root .modal').last().locator('#ok').click();
+    await expect.poll(toast).toMatch(/« Pharmacie El Menzah » : le matricule fiscal « 1234567O\.B\.C\.099 » est incomplet ou ne se lit pas : sept chiffres, une lettre autre que I, O ou U.*rien n'a été ajouté\./);
+    expect((await portefeuille()).map((d) => d.raisonSociale)).toEqual(['Café des Jasmins']);
     // ── Corrigée : chaque client entre, le doublon est ignoré et nommé ──────────────────────────────
     await p.locator('#cl-liste').fill('Menuiserie Trabelsi SUARL ; 1122334A/M/P/000 ; contact@trabelsi.tn ; 71 222 333\nPharmacie El Menzah ; 1234567A.B.C.099\nCafé des Jasmins');
     await expect.poll(() => p.locator('#cl-apercu').innerText()).toMatch(/2 clients entreront/);

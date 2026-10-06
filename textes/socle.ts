@@ -37,6 +37,8 @@ declarerTextes({
   'champ.https': 'une adresse qui commence par https://',
   'champ.code_regle': 'un code de règle (ex. « rs.taux »)',
   'champ.prefixe': '1 à 10 lettres majuscules ou chiffres',
+  // Un matricule fiscal mal formé, à la porte comme au dossier tenu d'un cabinet (serveur/matricule.ts ; E4).
+  'socle.matricule_forme': 'le matricule fiscal « {matricule} » n\'a pas la bonne forme : sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu\'ils figurent sur la carte d\'identification fiscale',
 
   // ── La connexion ────────────────────────────────────────────────────────────────────────────
   'connexion.refusee': 'l\'adresse ou le mot de passe ne correspond pas',

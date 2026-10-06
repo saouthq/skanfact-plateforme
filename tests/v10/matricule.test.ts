@@ -6,7 +6,7 @@
 // la pièce imprime le matricule sous la forme que le serveur garde, pas tel qu'il a été tapé.
 
 import { describe, expect, it } from 'vitest';
-import { matriculeCanonique } from '../../serveur/v10/identite.ts';
+import { matriculeCanonique } from '../../serveur/matricule.ts';
 import { ecranDeLaPlateforme } from '../moteur/v10.ts';
 
 type Objet = Record<string, unknown>;

@@ -31,6 +31,17 @@
     }
   }
 
+  // La forme lisible d'un matricule fiscal, celle que le serveur garde (serveur/matricule.ts ; E4) : sept chiffres, la
+  // lettre-clé (jamais I, O ni U), le code TVA, la catégorie et l'établissement, quelle que soit l'écriture. « » s'il est
+  // vide, null s'il n'en est pas un. Le matricule part tel qu'il est écrit : le serveur le garde sous cette forme, ou le
+  // refuse en disant pourquoi ; une liste collée se contrôle ici d'abord, rien n'étant écrit avant.
+  /** @param {unknown} v @returns {string | null} */
+  function mfLisible(v) {
+    const c = String(v == null ? '' : v).toUpperCase().replace(/[\s/.\-_]/g, '');
+    if (!c) return '';
+    return /^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c) ? `${c.slice(0, 8)}/${c[8]}/${c[9]}/${c.slice(10)}` : null;
+  }
+
   /** @param {string} methode @param {string} chemin @param {unknown} [corps] */
   async function appel(methode, chemin, corps) {
     /** @type {Record<string, string>} */
@@ -1714,7 +1725,7 @@
     newDossier: async (/** @type {Record<string, unknown>} */ f) => {
       const nom = String(f.name || '').trim();
       if (!nom) throw new Error('Donne au moins un nom à ce client.');
-      const matricule = String(f.matricule || '').replace(/\s+/g, '').replace(/[.-]/g, '/').toUpperCase();
+      const matricule = String(f.matricule || '').trim();
       const cree = await appel('POST', `/cabinets/${cabinetId}/dossiers`, { raisonSociale: nom, ...(matricule ? { matriculeFiscal: matricule } : {}) });
       await poserFiche(cree.entreprise, f, null);
       return { state: await construireEtat(), id: cree.entreprise };
@@ -1726,10 +1737,10 @@
       /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
       const etat = await construireEtat();
       const r = K.parseDossierLines(texte, etat.dossiers);
-      // Le matricule s'écrit comme le serveur le garde : sans espace, en majuscules, « / » entre ses codes.
-      const lus = r.dossiers.map((/** @type {any} */ d) => ({ d, matricule: String(d.matricule || '').replace(/\s+/g, '').replace(/[.-]/g, '/').toUpperCase() }));
-      const faux = lus.find((/** @type {any} */ x) => x.matricule && !/^[0-9]{7}[A-Z]\/?[A-Z]\/?[A-Z]\/?[0-9]{3}$/.test(x.matricule));
-      if (faux) throw new Error(`« ${faux.d.name} » : le matricule fiscal « ${faux.matricule} » est incomplet ou ne se lit pas : il s'écrit en entier, comme « 1234567A/P/M/000 ». Corrige cette ligne : rien n'a été ajouté.`);
+      // Le matricule se contrôle avec la règle du serveur (E4) : une ligne qu'il refuserait arrête tout ici.
+      const lus = r.dossiers.map((/** @type {any} */ d) => ({ d, matricule: String(d.matricule || '').trim() }));
+      const faux = lus.find((/** @type {any} */ x) => mfLisible(x.matricule) === null);
+      if (faux) throw new Error(`« ${faux.d.name} » : le matricule fiscal « ${faux.matricule} » est incomplet ou ne se lit pas : sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement, en entier, comme « 1234567A/A/M/000 ». Corrige cette ligne : rien n'a été ajouté.`);
       let added = 0;
       for (const { d, matricule } of /** @type {any[]} */ (lus)) {
         const cree = await appel('POST', `/cabinets/${cabinetId}/dossiers`, { raisonSociale: String(d.name).trim(), ...(matricule ? { matriculeFiscal: matricule } : {}) });
@@ -1745,7 +1756,7 @@
       // corrigent par le serveur, avant la fiche ; ceux d'un client sur SkanFact sont les siens (l'écran
       // ne les laisse pas écrire, et le serveur le refuse).
       const nom = patch.name != null ? String(patch.name).trim() : d.name;
-      const matricule = patch.matricule != null ? String(patch.matricule).replace(/\s+/g, '').replace(/[.-]/g, '/').toUpperCase() : d.matricule;
+      const matricule = patch.matricule != null ? String(patch.matricule).trim() : d.matricule;
       if (nom !== d.name || matricule !== d.matricule) {
         await appel('PUT', `/cabinets/${cabinetId}/dossiers/${id}`, { raisonSociale: nom, matriculeFiscal: matricule });
       }

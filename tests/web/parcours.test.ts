@@ -88,7 +88,14 @@ describe('le parcours, à la souris', () => {
     await bouton(p, 'ecran.porte.demarrer_titre').click();
     await ecran(p, 'ecran.porte.entreprise_titre');
     await champ(p, 'ecran.porte.raison').fill('Épicerie Sami Gharbi');
-    await champ(p, 'ecran.porte.matricule').fill('1234567A/A/M/000');
+    // Un O pour la lettre-clé : refusé sur son champ, en disant pourquoi (E4 : la porte disait « le serveur a rencontré
+    // une erreur »). Puis recopié de la carte, en minuscules et avec des espaces : il passe, sous sa forme lisible.
+    // Le champ montre la forme attendue (E4 : il n'en montrait aucune).
+    expect(await champ(p, 'ecran.porte.matricule').getAttribute('placeholder')).toBe('1234567A/A/M/000');
+    await champ(p, 'ecran.porte.matricule').fill('1234567O/A/M/000');
+    await bouton(p, 'ecran.porte.creer').click();
+    await expect.poll(() => p.getByRole('alert').first().innerText()).toBe(phrase('socle.matricule_forme', { matricule: '1234567O/A/M/000' }));
+    await champ(p, 'ecran.porte.matricule').fill('1234567 a a m 000');
     await bouton(p, 'ecran.porte.creer').click();
     await ecran(p, 'ecran.code_requis.titre');
     await bouton(p, 'ecran.code_requis.bouton').click();

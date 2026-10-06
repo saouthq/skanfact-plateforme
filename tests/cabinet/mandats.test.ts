@@ -254,6 +254,18 @@ describe('le cabinet et ses mandats', () => {
     expect([pris.statut, String(pris.corps.motif)]).toEqual([403, expect.stringMatching(/ce matricule fiscal est déjà celui d'une entreprise sur SkanFact/i)]);
     const double = await appeler('POST', `/cabinets/${cab.id}/dossiers`, cab.associe.jeton, { raisonSociale: 'Autre café', matriculeFiscal: m2 });
     expect([double.statut, String(double.corps.motif)]).toEqual([403, expect.stringMatching(/ce matricule fiscal est déjà celui/i)]);
+    // Sous une autre écriture, le même matricule (E4 : il se gardait tel qu'écrit, et passait une seconde fois sans barres).
+    const autreEcriture = await appeler('POST', `/cabinets/${cab.id}/dossiers`, cab.associe.jeton, { raisonSociale: 'Autre café', matriculeFiscal: m2.replace(/\//g, '').toLowerCase() });
+    expect([autreEcriture.statut, String(autreEcriture.corps.motif)]).toEqual([403, expect.stringMatching(/ce matricule fiscal est déjà celui/i)]);
+    // Écrit comme on le recopie, il se garde sous sa forme lisible ; la lettre-clé n'est jamais I, O ni U (la règle du
+    // fichier El Fatoora), et le refus dit pourquoi, sans nommer de champ technique.
+    const m3 = matricule();
+    const recopie = await appeler('POST', `/cabinets/${cab.id}/dossiers`, cab.associe.jeton, { raisonSociale: 'Librairie El Manar', matriculeFiscal: ` ${m3.replace(/\//g, ' ').toLowerCase()} ` });
+    expect(recopie.statut, JSON.stringify(recopie.corps)).toBe(201);
+    expect(((await portefeuille(cab.id, cab.associe)).find((d) => d.entreprise === recopie.corps.entreprise) as unknown as { matriculeFiscal: string | null }).matriculeFiscal).toBe(m3);
+    const cleO = `${m3.slice(0, 7)}O/P/M/000`;
+    const o = await renommer(tenu, cab.associe, { raisonSociale: 'Boulangerie Ennour', matriculeFiscal: cleO });
+    expect([o.statut, o.corps.champ, o.corps.motif]).toEqual([400, 'matriculeFiscal', `Le matricule fiscal « ${cleO} » n'a pas la bonne forme : sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur la carte d'identification fiscale.`]);
     // Un client sur SkanFact : son nom est le sien.
     const cl = await client();
     const mandat = String((await appeler('POST', `/entreprises/${cl.ent}/mandat`, cl.jeton, { codeCabinet: cab.code })).corps.mandat);

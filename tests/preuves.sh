@@ -138,7 +138,7 @@ prouver "deux propriétaires pour une entreprise" $M \
   "create unique index membre_un_proprietaire on socle.membre (entreprise)
   where actif and entreprise is not null and 'proprietaire' = any(roles);" "" \
   "une entreprise n'a qu'un seul propriétaire"
-prouver "créer une entreprise sans dire qui on est" $M \
+prouver "créer une entreprise sans dire qui on est" base/migrations/0072_matricule_a_la_porte.sql \
   "  if socle.moi() is null then" "  if false then" \
   "personne ne crée d'entreprise sans dire qui il est"
 prouver "le nom de la personne gardé par la connexion" serveur/base.ts \
@@ -1835,7 +1835,8 @@ prouver "un dossier tenu sans tout son périmètre" $M33 \
   "array['comptabilite', 'declarations', 'saisie_achats', 'paie'], 'actif');" "array['comptabilite'], 'actif');" \
   "$CT"
 prouver "un matricule mal formé qui fait tomber le serveur" serveur/cabinet/routes.ts \
-  ".regex(/^[0-9]{7}[A-Z]\/?[A-Z]\/?[A-Z]\/?[0-9]{3}$/, { message: 'cabinet.champ.matricule' })" "" \
+  '      if (matricule === undefined) return refusDuMatricule(corps.matriculeFiscal);
+      const id = (await tx.query('\''select socle.creer_dossier_tenu(' '      const id = (await tx.query('\''select socle.creer_dossier_tenu(' \
   "$CT"
 prouver "les pièces de vente fermées au cabinet de comptabilité" serveur/porte/porte.ts \
   "  compta: ['comptabilite'], ventes: ['comptabilite']," "  compta: ['comptabilite'], ventes: []," \
@@ -3209,7 +3210,7 @@ prouver "une ligne fausse qui laisse passer les lignes d'avant" $PC \
   "      if (faux) throw new Error(" "      if (false) throw new Error(" \
   "$WL1"
 prouver "un matricule écrit avec des points refusé" $PC \
-  "String(d.matricule || '').replace(/\\s+/g, '').replace(/[.-]/g, '/').toUpperCase()" "String(d.matricule || '').replace(/\\s+/g, '').toUpperCase()" \
+  'String(v == null ? '\'''\'' : v).toUpperCase().replace(/[\s/.\-_]/g, '\'''\'')' 'String(v == null ? '\'''\'' : v).toUpperCase().replace(/[\s/]/g, '\'''\'')' \
   "$WL1"
 prouver "les coordonnées d'une liste collée perdues" $PC \
   "        await poserFiche(cree.entreprise, d, null);
@@ -3327,7 +3328,7 @@ prouver "l'organisation du dossier qui garde l'ancien nom" $M33 \
   "  update socle.organisation set nom = v_nom where id = e.organisation;" "" \
   "$NT1"
 prouver "un matricule vidé écrit comme une chaîne vide" $CR \
-  "[params.cabinet, dossier, corps.raisonSociale, corps.matriculeFiscal || null]" "[params.cabinet, dossier, corps.raisonSociale, corps.matriculeFiscal]" \
+  'corps.raisonSociale, matricule])).rows[0].avant;' 'corps.raisonSociale, matricule ?? corps.matriculeFiscal])).rows[0].avant;' \
   "$NT1"
 prouver "un dossier renommé sans trace" $CR \
   "      await tracer(tx, dossier, 'cabinet.dossier_tenu.renommer', dossier, avant," "      void (tx, dossier, 'cabinet.dossier_tenu.renommer', dossier, avant," \
@@ -3335,8 +3336,8 @@ prouver "un dossier renommé sans trace" $CR \
 prouver "le nom d'un dossier tenu que l'écran n'envoie pas" $PC \
   '        await appel('"'"'PUT'"'"', `/cabinets/${cabinetId}/dossiers/${id}`, { raisonSociale: nom, matriculeFiscal: matricule });' "" \
   "$NT2"
-prouver "un matricule à points envoyé tel quel" $PC \
-  "String(patch.matricule).replace(/\\s+/g, '').replace(/[.-]/g, '/').toUpperCase()" "String(patch.matricule).replace(/\\s+/g, '').toUpperCase()" \
+prouver "un matricule à points envoyé tel quel" serveur/matricule.ts \
+  '.toUpperCase().replace(/[\s/.\-_]/g, '\'''\'');' '.toUpperCase().replace(/[\s/]/g, '\'''\'');' \
   "$NT2"
 prouver "le nom d'un client sur SkanFact qui s'écrit" web/public/v10/cabinet/app.js \
   "id=\"f-name\" value=\"\${esc(d.name || '')}\" \${d.id && !d.manual ? 'readonly' : ''}>" "id=\"f-name\" value=\"\${esc(d.name || '')}\">" \
@@ -3946,13 +3947,13 @@ prouver "un dossier sans nom qui passe l'essai" $CV \
   "    if (!nom || nom.length > 200) nomme(" "    if (false) nomme(" \
   "$RP2"
 prouver "un matricule illisible qui passe l'essai" $CV \
-  "    if (matricule && !MATRICULE.test(matricule)) nomme(" "    if (false) nomme(" \
+  "    if (lu === undefined) nomme(" "    if (false) nomme(" \
   "$RP2"
 prouver "un matricule en double dans le fichier qui passe l'essai" $CV \
-  "    else if (matricule && matricules.has(matricule)) nomme(" "    else if (false) nomme(" \
+  "    else if (lu && matricules.has(lu)) nomme(" "    else if (false) nomme(" \
   "$RP2"
-prouver "un matricule à points de la v10 refusé" $CV \
-  ".replace(/\\s+/g, '').replace(/[.-]/g, '/').toUpperCase();" ".replace(/\\s+/g, '').toUpperCase();" \
+prouver "un matricule à points de la v10 refusé" serveur/matricule.ts \
+  '.toUpperCase().replace(/[\s/.\-_]/g, '\'''\'');' '.toUpperCase().replace(/[\s/]/g, '\'''\'');' \
   "$RP1"
 prouver "des honoraires illisibles qui passent l'essai" $CV \
   "    if (fees === null) nomme(motif('reprise.dossier_honoraires'));" "" \
@@ -8474,10 +8475,10 @@ prouver 'la fiche qui ne porte pas son identité à l'\''entreprise' serveur/v10
   '  await suivreIdentite(tx, entreprise, lus);
 ' '' \
   "$IDS1"
-prouver 'le matricule porté tel qu'\''il est écrit' serveur/v10/identite.ts \
+prouver 'le matricule porté tel qu'\''il est écrit' serveur/matricule.ts \
   '? `${c.slice(0, 8)}/${c[8]}/${c[9]}/${c.slice(10)}` : undefined' '? c : undefined' \
   "$IDS1"
-prouver 'un matricule mal formé qui efface celui de l'\''entreprise' serveur/v10/identite.ts \
+prouver 'un matricule mal formé qui efface celui de l'\''entreprise' serveur/matricule.ts \
   '  if (!c) return null;' '  if (!c || !/^[0-9]{7}[A-Z]{3}[0-9]{3}$/.test(c)) return null;' \
   "$IDS2"
 prouver 'le matricule d'\''une autre entreprise porté sans refus' base/migrations/0071_identite_suit_la_fiche.sql \
@@ -8634,12 +8635,62 @@ prouver 'la fiche complétée qui garde le matricule tel que tapé' web/public/v
 prouver 'la lettre-clé I, O ou U acceptée à l'\''écran' web/public/v10/core.js \
   'const MF_FORME = /^[0-9]{7}[A-HJ-NP-TV-Z]' 'const MF_FORME = /^[0-9]{7}[A-Z]' \
   "$MAT1"
-prouver 'la lettre-clé I, O ou U portée à l'\''entreprise par le serveur' serveur/v10/identite.ts \
+prouver 'la lettre-clé I, O ou U portée à l'\''entreprise par le serveur' serveur/matricule.ts \
   '/^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c)' '/^[0-9]{7}[A-Z][A-Z]{2}[0-9]{3}$/.test(c)' \
   "$MAT1"
 prouver 'la fiche qui ne dit pas que la lettre-clé n'\''est jamais I, O ni U' web/public/v10/core.js \
   'sept chiffres, une lettre autre que I, O ou U, puis code TVA' 'sept chiffres, une lettre, puis code TVA' \
   "$MAT2"
+
+# ── E4 : la même règle du matricule à toutes ses entrées (05/10/2026 ; docs/facture-details.md, E4) ──
+# La porte, le dossier tenu d'un cabinet, la reprise d'un portefeuille et la liste collée : la forme lisible gardée,
+# la lettre-clé jamais I, O ni U, un refus qui dit pourquoi sur son champ, un matricule déjà pris refusé en le disant.
+POR1='écrit comme on le recopie, il se garde sous sa forme lisible ; mal formé, il se refuse sur son champ en disant pourquoi, et rien n'\''est créé'
+POR2='déjà celui d'\''une autre entreprise, sous n'\''importe quelle écriture : refusé en le disant, et rien n'\''est créé'
+NT1='le nom et le matricule d'\''un dossier tenu : un associé les corrige, tracés ; un collaborateur, non ; ceux d'\''un client sur SkanFact, jamais ; un matricule déjà pris, refusé en le disant'
+RP2='ce qui ne se reprendrait pas tel quel est nommé et rien ne se crée ; un champ de plus (la clé privée) refusé ; un collaborateur refusé'
+WL1E4='une ligne fausse arrête tout ; la liste corrigée ajoute chaque client, un doublon est ignoré et nommé'
+PARC='du compte à la facture émise par le serveur, retrouvée après rechargement, puis le retour d'\''un autre appareil'
+prouver 'la porte qui garde le matricule tel qu'\''il est écrit' serveur/routes/socle.ts \
+  '[corps.raisonSociale, matricule])).rows[0].id;' '[corps.raisonSociale, corps.matriculeFiscal ?? null])).rows[0].id;' \
+  "$POR1"
+prouver 'la porte qui laisse passer un matricule mal formé' serveur/routes/socle.ts \
+  '      if (matricule === undefined) return refusDuMatricule(corps.matriculeFiscal);
+' '' \
+  "$POR1"
+prouver 'le refus du matricule sans son champ' serveur/matricule.ts \
+  ', champ } };' ' } };' \
+  "$POR1"
+prouver 'la lettre-clé I, O ou U acceptée à la porte' serveur/matricule.ts \
+  '/^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c)' '/^[0-9]{7}[A-Z][A-Z]{2}[0-9]{3}$/.test(c)' \
+  "$POR1"
+prouver 'la porte qui répond « erreur du serveur » à un matricule déjà pris' base/migrations/0072_matricule_a_la_porte.sql \
+  '  if p_matricule_fiscal is not null and exists (select 1 from socle.entreprise x where x.active and x.matricule_fiscal = p_matricule_fiscal) then' '  if false then' \
+  "$POR2"
+prouver 'le même matricule sans barres qui passe la porte une seconde fois' serveur/routes/socle.ts \
+  'const matricule = matriculeCanonique(corps.matriculeFiscal);
+      if (matricule === undefined) return refusDuMatricule(corps.matriculeFiscal);
+      const id = (await tx.query('\''select socle.creer_entreprise(' 'const matricule = corps.matriculeFiscal?.trim().toUpperCase() || null;
+      const id = (await tx.query('\''select socle.creer_entreprise(' \
+  "$POR2"
+prouver 'le dossier tenu qui garde le matricule tel qu'\''il est écrit' serveur/cabinet/routes.ts \
+  '[params.cabinet, corps.raisonSociale, matricule])).rows[0].id as string;' '[params.cabinet, corps.raisonSociale, corps.matriculeFiscal ?? null])).rows[0].id as string;' \
+  "$NT1"
+prouver 'la lettre-clé I, O ou U acceptée au dossier tenu' serveur/matricule.ts \
+  '/^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c)' '/^[0-9]{7}[A-Z][A-Z]{2}[0-9]{3}$/.test(c)' \
+  "$NT1"
+prouver 'deux écritures du même matricule qui passent la reprise' serveur/reprise/cabinet-v10.ts \
+  '    if (matricule) matricules.add(matricule);' '    if (matricule) matricules.add(d.matricule);' \
+  "$RP2"
+prouver 'la lettre-clé I, O ou U acceptée à la reprise' serveur/matricule.ts \
+  '/^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c)' '/^[0-9]{7}[A-Z][A-Z]{2}[0-9]{3}$/.test(c)' \
+  "$RP2"
+prouver 'la liste collée qui laisse passer la lettre-clé O' web/public/plateforme/pont-cabinet.js \
+  'return /^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c)' 'return /^[0-9]{7}[A-Z][A-Z]{2}[0-9]{3}$/.test(c)' \
+  "$WL1E4"
+prouver 'la porte sans la forme attendue du matricule' web/src/ecrans/Porte.tsx \
+  ' placeholder="1234567A/A/M/000"' '' \
+  "$PARC"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

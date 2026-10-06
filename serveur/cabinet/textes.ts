@@ -4,7 +4,6 @@ import { declarerTextes } from '../../textes/index.ts';
 
 declarerTextes({
   'cabinet.champ.perimetre': 'le périmètre : comptabilite, declarations, saisie_achats ou paie, chacun une fois',
-  'cabinet.champ.matricule': 'le matricule fiscal, comme « 1234567A/P/M/000 »',
   'cabinet.reprise.pas_un_livre': 'ce fichier n\'est pas le livre d\'un exercice du Cabinet v10 (livre-AAAA.json) : rien n\'a été lu',
   'cabinet.reprise.associe': 'seul un associé du cabinet reprend les livres de la v10',
   'cabinet.reprise.anomalies': 'ce livre ne se reprend pas tel quel : le rapport nomme ce qui l\'empêche ({n}), un point après l\'autre ; rien n\'a été écrit',

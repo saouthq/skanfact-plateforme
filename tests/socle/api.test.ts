@@ -373,3 +373,37 @@ describe('les règles et les séries par l\'API', () => {
     expect(await appeler('GET', `/entreprises/${ent}/chaines`, alice.jeton)).toEqual({ statut: 200, corps: { chaines: [] } });
   });
 });
+
+// Le matricule à la porte (lot facture vérifié sur le serveur d'essai, 05/10/2026 ; docs/facture-details.md, E4) : il
+// partait tel qu'il était écrit. En minuscules ou avec des espaces, ou déjà pris, la base le refusait et la porte disait
+// « le serveur a rencontré une erreur » ; sans barres, le même matricule passait une seconde fois ; la lettre-clé O
+// passait. Les matricules de ce fichier sont à lui (les tests partagent une base : tests/matricule-libre.ts).
+describe('le matricule à la porte (E4)', () => {
+  it('écrit comme on le recopie, il se garde sous sa forme lisible ; mal formé, il se refuse sur son champ en disant pourquoi, et rien n\'est créé', async () => {
+    const p = await personne('rania');
+    const r = await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'Épicerie Sidi Bou', matriculeFiscal: ' 3141592 b a m 000 ' });
+    expect(r.statut).toBe(201);
+    expect((await admin.query('select matricule_fiscal m from socle.entreprise where id = $1', [r.corps.id])).rows[0].m).toBe('3141592B/A/M/000');
+    // Propriétaire désormais : le code du téléphone d'abord (son rôle l'exige).
+    await mettreLeCode(p.jeton);
+    for (const faux of ['1414213O/A/M/000', '1414213i/a/m/000', '1414213U/A/M/000', '1414213', '1414213A/A/M/0000']) {
+      const x = await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'Épicerie Sidi Bou, la seconde', matriculeFiscal: faux });
+      expect(x.statut, faux).toBe(400);
+      expect(x.corps.champ).toBe('matriculeFiscal');
+      expect(x.corps.motif).toBe(`Le matricule fiscal « ${faux} » n'a pas la bonne forme : sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur la carte d'identification fiscale.`);
+    }
+    expect(((await appeler('GET', '/moi', p.jeton)).corps.entreprises as unknown[]).length).toBe(1);
+  });
+
+  it('déjà celui d\'une autre entreprise, sous n\'importe quelle écriture : refusé en le disant, et rien n\'est créé', async () => {
+    const a = await personne('sami');
+    const b = await personne('hela');
+    expect((await appeler('POST', '/entreprises', a.jeton, { raisonSociale: 'Quincaillerie Nour', matriculeFiscal: '5772156B/A/M/000' })).statut).toBe(201);
+    for (const ecrit of ['5772156B/A/M/000', '5772156BAM000', '5772156 b a m 000']) {
+      const x = await appeler('POST', '/entreprises', b.jeton, { raisonSociale: 'Droguerie Ennasr', matriculeFiscal: ecrit });
+      expect(x.statut, ecrit).toBe(403);
+      expect(x.corps.motif).toBe('Ce matricule fiscal est déjà celui d\'une autre entreprise sur SkanFact : relis-le sur ta carte d\'identification fiscale. Rien n\'a été enregistré.');
+    }
+    expect((await appeler('GET', '/moi', b.jeton)).corps.entreprises).toEqual([]);
+  });
+});

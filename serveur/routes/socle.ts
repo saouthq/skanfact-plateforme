@@ -14,6 +14,7 @@ import { creerCle } from '../cles.ts';
 import { EVENEMENTS, nouveauSecret } from '../avis.ts';
 import { motif, t } from '../../textes/index.ts';
 import { Refus } from '../erreurs.ts';
+import { matriculeCanonique, refusDuMatricule } from '../matricule.ts';
 
 const uuid = z.string().uuid();
 const jour = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'champ.jour');
@@ -163,10 +164,15 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
   // ── L'entreprise ────────────────────────────────────────────────────────────────────────────
   ajouter({
     methode: 'POST', chemin: '/entreprises', geste: 'compte.entreprise.creer',
-    corps: z.object({ raisonSociale: z.string().min(1).max(200), matriculeFiscal: z.string().max(20).optional() }),
+    corps: z.object({ raisonSociale: z.string().min(1).max(200), matriculeFiscal: z.string().max(40).optional() }),
     traiter: async ({ corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
-      const id = (await tx.query('select socle.creer_entreprise($1, $2) id', [corps.raisonSociale, corps.matriculeFiscal ?? null])).rows[0].id;
+      // Le matricule, écrit comme on le recopie, se garde sous sa forme lisible ; mal formé, il se refuse sur son champ ;
+      // déjà celui d'une autre entreprise, la base le refuse en le disant (E4 : la porte répondait par une erreur du
+      // serveur, et le même matricule écrit sans barres passait).
+      const matricule = matriculeCanonique(corps.matriculeFiscal);
+      if (matricule === undefined) return refusDuMatricule(corps.matriculeFiscal);
+      const id = (await tx.query('select socle.creer_entreprise($1, $2) id', [corps.raisonSociale, matricule])).rows[0].id;
       await tx.query(`select socle.tracer($1, 'socle.entreprise.creer', 'entreprise', $1, null, $2)`, [id, JSON.stringify({ raisonSociale: corps.raisonSociale })]);
       return { statut: 201, corps: { id } };
     },

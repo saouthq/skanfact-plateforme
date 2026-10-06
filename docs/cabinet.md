@@ -1072,11 +1072,11 @@ aperçu montre ce qui entrera, et un client déjà là est ignoré et nommé. En
 clients » répondait « pas encore en ligne » — dans les Dossiers comme dans l'assistant de bienvenue.
 
 **C42. Une liste collée se contrôle en entier avant d'écrire** (par délégation ; rien de neuf au
-serveur). La liste est lue par la v10 (`parseDossierLines`, les doublons écartés). Le matricule s'écrit
-comme le serveur le garde (sans espace, en majuscules, « / » entre ses codes : « 1234567A.P.M.000 »
-devient « 1234567A/P/M/000 ») ; **une seule ligne dont le matricule est incomplet ou illisible arrête
-tout, et rien n'est ajouté** — le refus nomme le client et dit la forme attendue (la v10 acceptait un
-matricule court, « 1234567A » ; le serveur demande la forme entière). Puis chaque client est créé comme
+serveur). La liste est lue par la v10 (`parseDossierLines`, les doublons écartés). Le matricule se contrôle
+avec la règle du serveur (`serveur/matricule.ts`, depuis E4 : docs/facture-details.md) : séparateurs et minuscules
+libres (« 1234567a.p.m.000 » se garde « 1234567A/P/M/000 »), la lettre-clé jamais I, O ni U ; **une seule ligne dont
+le matricule est incomplet ou illisible arrête tout, et rien n'est ajouté** — le refus nomme le client et dit la forme
+attendue (la v10 acceptait un matricule court, « 1234567A » ; le serveur demande la forme entière). Puis chaque client est créé comme
 par « Nouveau client » (le dossier tenu au serveur, sa fiche : l'adresse, le téléphone).
 
 **Les tests** : à la souris (`tests/web/cabinet-liste.test.ts`) : une liste dont une ligne porte un

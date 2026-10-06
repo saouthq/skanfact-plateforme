@@ -7,17 +7,10 @@
 // valide »). Un matricule déjà porté par une autre entreprise se refuse, et rien n'est écrit (la base le dit).
 
 import type { Transaction } from '../base.ts';
+// La forme gardée, la même à chaque entrée d'un matricule (serveur/matricule.ts) : mal formé, il ne se porte pas.
+import { matriculeCanonique } from '../matricule.ts';
 import { tracer } from '../trace.ts';
 import { estObjet } from './lecture.ts';
-
-// La forme gardée : sept chiffres, la lettre-clé (jamais I, O ni U : la règle du fichier El Fatoora, teif.js), le code
-// TVA, la catégorie et l'établissement (1234567A/A/M/000), comme la base l'accepte. La même que celle de l'écran
-// (`matriculeBienForme`, `matriculeLisible` de core.js). Vide : null ; mal formé : undefined (ne se porte pas).
-export function matriculeCanonique(v: unknown): string | null | undefined {
-  const c = String(v ?? '').toUpperCase().replace(/[\s/.\-_]/g, '');
-  if (!c) return null;
-  return /^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c) ? `${c.slice(0, 8)}/${c[8]}/${c[9]}/${c.slice(10)}` : undefined;
-}
 
 export async function suivreIdentite(tx: Transaction, entreprise: string, lus: { collection: string; cle: string; apres: unknown }[]) {
   const fiche = lus.find((l) => l.collection === '_racine' && l.cle === 'company')?.apres;

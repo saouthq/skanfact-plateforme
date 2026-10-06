@@ -9,6 +9,7 @@
 import { z } from 'zod';
 import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import { motif, type Texte } from '../../textes/index.ts';
+import { matriculeCanonique } from '../matricule.ts';
 import './textes.ts';
 
 // Ce qui part du poste, pour chaque dossier (la forme de la v10, cabcore.js migrateDossier) : cette
@@ -25,9 +26,6 @@ type DossierV10 = z.infer<typeof DOSSIER_V10>;
 
 export type AnomalieDossier = { dossier: string; nom: string; motif: Texte };
 export type DossierRepris = { refV10: string; nom: string; matricule: string | null; fiche: Record<string, unknown> };
-
-// La forme du matricule fiscal que la base garde (0001) : « 1234567A/P/M/000 ».
-const MATRICULE = /^[0-9]{7}[A-Z]\/?[A-Z]\/?[A-Z]\/?[0-9]{3}$/;
 
 // Un montant de la v10 (un nombre en dinars, arrondi au millime par elle), en millimes exacts ; null
 // s'il a plus de trois décimales (jamais arrondi ici).
@@ -71,11 +69,12 @@ export function lirePortefeuilleV10(p: z.infer<typeof PORTEFEUILLE_V10>) {
     if (!d.manual) { surSkanfact.push(nom); continue; }
     const nomme = (m: Texte) => anomalies.push({ dossier: d.id, nom, motif: m });
     if (!nom || nom.length > 200) nomme(motif('reprise.dossier_nom'));
-    // Comme « Nouveau client » (le point de contact, newDossier) : sans espaces, points et tirets en « / ».
-    const brut = d.matricule.replace(/\s+/g, '').replace(/[.-]/g, '/').toUpperCase();
-    const matricule = brut || null;
-    if (matricule && !MATRICULE.test(matricule)) nomme(motif('reprise.dossier_matricule', { matricule: d.matricule }));
-    else if (matricule && matricules.has(matricule)) nomme(motif('reprise.dossier_matricule_double', { matricule }));
+    // Sous sa forme lisible, comme à chaque entrée d'un matricule (serveur/matricule.ts ; E4) : deux écritures du même
+    // matricule sont le même, et la lettre-clé n'est jamais I, O ni U.
+    const lu = matriculeCanonique(d.matricule);
+    if (lu === undefined) nomme(motif('reprise.dossier_matricule', { matricule: d.matricule.trim() }));
+    else if (lu && matricules.has(lu)) nomme(motif('reprise.dossier_matricule_double', { matricule: lu }));
+    const matricule = lu ?? null;
     if (matricule) matricules.add(matricule);
     const fees = millimes(d.fees);
     if (fees === null) nomme(motif('reprise.dossier_honoraires'));

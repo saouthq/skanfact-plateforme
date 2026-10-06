@@ -108,17 +108,21 @@ describe('la reprise du portefeuille du Cabinet v10', () => {
     e.dossiers.push(
       { ...e.dossiers[1], id: 'd5', name: '  ' },
       { ...e.dossiers[1], id: 'd6', name: 'Pharmacie Nour', matricule: '12345' },
-      { ...e.dossiers[1], id: 'd7', name: 'Garage Salah', matricule: `${MAT}A/P/M/000` },
+      // Le matricule de d1, écrit autrement (sans barres) : le même (E4).
+      { ...e.dossiers[1], id: 'd7', name: 'Garage Salah', matricule: `${MAT}APM000` },
+      // La lettre-clé n'est jamais I, O ni U (la règle du fichier El Fatoora).
+      { ...e.dossiers[1], id: 'd10', name: 'Épicerie Ennasr', matricule: `${MAT.slice(1)}9O/P/M/000` },
       { ...e.dossiers[1], id: 'd8', name: 'Librairie Amal', fees: 12.3456 },
       { ...e.dossiers[1], id: 'd9', name: 'Hammam El Bey', relances: [{ at: 1, months: [], via: 'pigeon', note: '' }] },
     );
     const corps = envoyer(e);
     const r = await appeler('POST', `/cabinets/${cabinet}/reprise/portefeuille`, associe.jeton, corps);
-    expect([r.statut, r.corps.motif]).toEqual([400, 'Ce portefeuille ne se reprend pas tel quel : le rapport nomme ce qui l\'empêche (5), dossier par dossier ; aucun dossier n\'a été créé.']);
+    expect([r.statut, r.corps.motif]).toEqual([400, 'Ce portefeuille ne se reprend pas tel quel : le rapport nomme ce qui l\'empêche (6), dossier par dossier ; aucun dossier n\'a été créé.']);
     expect((r.corps.rapport as { anomalies: { nom: string; motif: string }[] }).anomalies.map((x) => [x.nom, x.motif])).toEqual([
       ['', 'Un dossier n\'a pas de nom (ou un nom de plus de deux cents caractères).'],
-      ['Pharmacie Nour', 'Le matricule fiscal « 12345 » ne se lit pas (1234567A/P/M/000).'],
+      ['Pharmacie Nour', 'Le matricule fiscal « 12345 » ne se lit pas : sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement (1234567A/A/M/000).'],
       ['Garage Salah', `Le matricule fiscal ${MAT}A/P/M/000 est celui de deux dossiers du fichier.`],
+      ['Épicerie Ennasr', `Le matricule fiscal « ${MAT.slice(1)}9O/P/M/000 » ne se lit pas : sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement (1234567A/A/M/000).`],
       ['Librairie Amal', 'Les honoraires de ce dossier ne se lisent pas au millime.'],
       ['Hammam El Bey', 'La fiche de ce dossier ne se reprend pas telle quelle (relances.0.via).'],
     ]);
