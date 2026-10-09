@@ -144,7 +144,9 @@ describe('le lot achats, à l\'écran', () => {
     // 2. « Recevoir » une commande en brouillon : elle part (le serveur refuserait sinon la réception validée).
     await p.locator('#cf-recevoir').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Réception \(brouillon\)/);
-    expect((await b.surLeServeur('supplierOrders'))[0]?.status).toBe('envoyée');
+    // L'écran change aussitôt ; l'enregistrement, lui, arrive au serveur un instant après : on l'attend (lu trop tôt sur
+    // la machine de GitHub, 0a22abd).
+    await expect.poll(async () => (await b.surLeServeur('supplierOrders'))[0]?.status, { timeout: 10_000 }).toBe('envoyée');
     // Les sacs arrivent, la farine pas encore : rien de suivi n'entre en stock, et le message le dit.
     await p.locator('[data-rq="0"]').fill('0');
     await p.locator('[data-rq="1"]').fill('500');

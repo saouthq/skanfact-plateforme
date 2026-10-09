@@ -1,0 +1,365 @@
+La messagerie entre l'entreprise et son cabinet (lot messagerie ; maquettes « Mon comptable » et « Les messages de tes
+clients » validées par Skander le 09/10/2026 ; docs/messagerie.md). Format : voir sans-paquets.mjs.
+
+L'écran du fil et celui de la boîte vivent dans plateforme/messagerie.js (partagé par les deux applications) ; ces
+adaptations ne font que les brancher : l'entrée du menu et sa pastille, la page, et la photo d'un message rangée dans
+les achats (elle passe par la lecture de la brique 84, devenue une fonction).
+
+── L'application de l'entreprise ──
+
+== index.html | l'écran de la messagerie et sa feuille se chargent avec le reste
+-- avant
+  <link rel="stylesheet" href="../plateforme/premiers-pas.css">
+  <script src="../plateforme/telephone.js"></script>
+-- après
+  <link rel="stylesheet" href="../plateforme/premiers-pas.css">
+  <script src="../plateforme/messagerie.js"></script>
+  <link rel="stylesheet" href="../plateforme/messagerie.css">
+  <script src="../plateforme/telephone.js"></script>
+-- fin
+
+== core.js | la page « Mon comptable », hors du menu des modules : la barre l'ajoute quand un cabinet tient le dossier
+-- avant
+      quoi: 'Les licences SkanFact que tu as émises : à qui, quelle offre, jusqu\'à quand.' },
+    { id: 'parametres', titre: 'Paramètres', module: null, pied: true },
+-- après
+      quoi: 'Les licences SkanFact que tu as émises : à qui, quelle offre, jusqu\'à quand.' },
+    // (plateforme, lot messagerie) Le fil avec le cabinet : hors du menu des modules, la barre l'ajoute quand un cabinet
+    // tient le dossier (plateforme/messagerie.js).
+    { id: 'comptable', titre: 'Mon comptable', module: null, horsMenu: true,
+      quoi: 'Tes échanges avec ton cabinet comptable : ses messages, ses questions, les pièces qu\'il te demande.' },
+    { id: 'parametres', titre: 'Paramètres', module: null, pied: true },
+-- fin
+
+== app.js | la page « Mon comptable » a son nom, comme les autres pages
+-- avant
+    contrat: 'le contrat', autres: 'Proforma, bons et contrats', clients: 'Clients', client: 'la fiche client', catalogue: 'Catalogue', listesprix: 'Listes de prix', listeprix: 'la liste de prix',
+    tresorerie: 'Trésorerie', stats: 'Statistiques', compta: 'Comptabilité', parametres: 'Paramètres', aide: 'Aide', doc: 'le document', licences: 'Licences',
+    achats: 'Achats et dépenses', achat: 'l\'achat', fournisseurs: 'Fournisseurs', fournisseur: 'la fiche fournisseur',
+-- après
+    contrat: 'le contrat', autres: 'Proforma, bons et contrats', clients: 'Clients', client: 'la fiche client', catalogue: 'Catalogue', listesprix: 'Listes de prix', listeprix: 'la liste de prix',
+    tresorerie: 'Trésorerie', stats: 'Statistiques', compta: 'Comptabilité', parametres: 'Paramètres', aide: 'Aide', doc: 'le document', licences: 'Licences', comptable: 'Mon comptable',
+    achats: 'Achats et dépenses', achat: 'l\'achat', fournisseurs: 'Fournisseurs', fournisseur: 'la fiche fournisseur',
+-- fin
+
+== app.js | l'entrée « Mon comptable » a son icône (une bulle)
+-- avant
+    modules: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/>',
+    licences: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l2 2M14 9l2 2"/>'
+  };
+-- après
+    modules: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/>',
+    licences: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l2 2M14 9l2 2"/>',
+    comptable: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/>'
+  };
+-- fin
+
+== app.js | la pastille de « Mon comptable », ce qui attend dans le fil lu au serveur, et UNE règle qui décide si l'entrée paraît
+-- avant
+  // Maintenant qu'on dessine, on les pose en même temps que le lien.
+  const NAV_COMPTEURS = { relances: 'nav-relances', contrats: 'nav-contrats', achats: 'nav-achats', tresorerie: 'nav-treso', paie: 'nav-paie', stock: 'nav-stock', immos: 'nav-immos', licences: 'nav-licences' };
+  const NAV_INFO = ['contrats', 'immos'];          // compteur bleu « pour information », pas une alerte
+
+-- après
+  // Maintenant qu'on dessine, on les pose en même temps que le lien.
+  const NAV_COMPTEURS = { relances: 'nav-relances', contrats: 'nav-contrats', achats: 'nav-achats', tresorerie: 'nav-treso', paie: 'nav-paie', stock: 'nav-stock', immos: 'nav-immos', licences: 'nav-licences', comptable: 'nav-comptable' };
+  const NAV_INFO = ['contrats', 'immos'];          // compteur bleu « pour information », pas une alerte
+  // (plateforme, lot messagerie) Ce qui attend dans le fil du cabinet, lu au serveur (null : pas encore lu, ou pas pour
+  // ce rôle) ; et la photo d'un message en route vers un achat.
+  let messagerieVue = null;
+  let rangementDuMessage = null;
+  // L'entrée « Mon comptable » : quand un cabinet tient le dossier, ou l'a tenu (ses échanges se relisent). UNE règle,
+  // pour la barre et pour savoir s'il faut la redessiner.
+  const avecMessagerie = a => !!(a && (a.cabinet || a.anciens));
+  function majMessagerie(a) {
+    const avant = avecMessagerie(messagerieVue);
+    messagerieVue = a;
+    if (avant !== avecMessagerie(a)) {
+      drawNav();
+      $$('nav a, .sidebar-foot a').forEach(x => x.classList.toggle('active', x.dataset.route === navActif));
+    }
+    updateNavCounts();
+  }
+
+-- fin
+
+== app.js | « Mon comptable » paraît seule en bas de la barre quand un cabinet tient le dossier, ou l'a tenu
+-- avant
+    if (licence.editeur) pages.push({ ...C.pageById('licences'), famille: 'Éditeur' });
+    // Groupé par FAMILLE, pas par module : huit intertitres coûteraient 250 px de barre, et on aurait
+-- après
+    if (licence.editeur) pages.push({ ...C.pageById('licences'), famille: 'Éditeur' });
+    // (plateforme, lot messagerie) « Mon comptable » : quand un cabinet tient le dossier (ou l'a tenu : ses échanges se
+    // relisent), pour qui lui écrit (le serveur le dit en lisant ce qui attend). Seule en bas de la barre, comme la maquette.
+    if (avecMessagerie(messagerieVue)) pages.push({ ...C.pageById('comptable'), famille: '' });
+    // Groupé par FAMILLE, pas par module : huit intertitres coûteraient 250 px de barre, et on aurait
+-- fin
+
+== app.js | la photo d'un message à ranger appartient à l'achat qu'elle ouvre : ailleurs, elle s'oublie
+-- avant
+    const name = parts[0];
+    // L'invitation « Première fois sur cette page ? » appartient à la page qu'on quitte ; l'observateur
+-- après
+    const name = parts[0];
+    // (plateforme, lot messagerie) La photo d'un message à ranger appartient à l'achat qu'elle ouvre : ailleurs, elle s'oublie.
+    if (name !== 'achat') rangementDuMessage = null;
+    // L'invitation « Première fois sur cette page ? » appartient à la page qu'on quitte ; l'observateur
+-- fin
+
+== app.js | la pastille compte les messages non lus, les questions sans réponse et les pièces demandées
+-- avant
+    if (stk) { const n = C.stockAlerts(data).length + C.serialGaps(data).length; stk.hidden = !n; stk.textContent = n; }
+    resumerFamilles();              // une famille repliée porte le compte de ce qui attend dedans
+-- après
+    if (stk) { const n = C.stockAlerts(data).length + C.serialGaps(data).length; stk.hidden = !n; stk.textContent = n; }
+    // (plateforme, lot messagerie) Ce qui attend dans le fil du cabinet : ses messages non lus, ses questions sans réponse,
+    // ses pièces demandées — le compte que l'encart « En attente de toi » détaille (serveur/messagerie/routes.ts, `attente`).
+    const msg = $('#nav-comptable');
+    if (msg) { const a = messagerieVue || {}; const n = (a.nonLus || 0) + (a.questions || 0) + (a.demandes || 0); msg.hidden = !n; msg.textContent = n; }
+    resumerFamilles();              // une famille repliée porte le compte de ce qui attend dedans
+-- fin
+
+== app.js | la lecture d'une photo devient une fonction, pour lire aussi celle d'un message (« Ranger dans mes achats »)
+-- avant
+      if (!file) return;
+      // Sur la plateforme, le fichier est lu par le serveur de SkanFact, en Tunisie, comme le reste du dossier
+-- après
+      if (!file) return;
+      await lirePhoto(file);
+    };
+    // (plateforme, lot messagerie) La lecture d'une photo, choisie ici ou venue d'un message (« Ranger dans mes achats »).
+    const lirePhoto = async (file) => {
+      // Sur la plateforme, le fichier est lu par le serveur de SkanFact, en Tunisie, comme le reste du dossier
+-- fin
+
+== app.js | l'échec de lecture d'une photo venue d'un message dit comment la ranger quand même
+-- avant
+      catch (e) {
+        // Sans pièces jointes en ligne (pour l'instant), l'échec se dit sans proposer de joindre la photo.
+        if (bridge.piecesJointes === false) return infoDialog('La lecture de la facture a échoué', e.message || 'Erreur inconnue.');
+        const retry = await confirmDialog(`La lecture a échoué.\n\n${e.message || 'Erreur inconnue.'}\n\nTu peux joindre la photo et saisir la facture à la main.`, 'Joindre la photo', false, { titre: 'La lecture de la photo a échoué' });
+-- après
+      catch (e) {
+        // Sans pièces jointes en ligne (pour l'instant), l'échec se dit sans proposer de joindre la photo. Venue d'un message,
+        // la photo se range quand même : l'achat se saisit à la main, et le message dira où il est rangé.
+        const depuisMessage = rangementDuMessage && rangementDuMessage.lu ? ' Saisis l\'achat à la main, puis « Enregistrer » : ton cabinet lira dans votre fil où la pièce est rangée.' : '';
+        if (bridge.piecesJointes === false) return infoDialog('La lecture de la facture a échoué', (e.message || 'Erreur inconnue.') + depuisMessage);
+        const retry = await confirmDialog(`La lecture a échoué.\n\n${e.message || 'Erreur inconnue.'}\n\nTu peux joindre la photo et saisir la facture à la main.`, 'Joindre la photo', false, { titre: 'La lecture de la photo a échoué' });
+-- fin
+
+== app.js | arrivé depuis « Ranger dans mes achats », la photo du message se lit tout de suite (sans lecture sur ce serveur, l'achat se saisit à la main)
+-- avant
+      } : undefined);
+    };
+
+
+-- après
+      } : undefined);
+    };
+    // (plateforme, lot messagerie) Arrivé depuis « Ranger dans mes achats » : la photo du message se lit tout de suite ;
+    // sans lecture sur ce serveur, l'achat se saisit à la main, et le message dira quand même où il est rangé.
+    if (isNew && rangementDuMessage && !rangementDuMessage.lu && bridge.ocrDepuisFichier) {
+      const r = rangementDuMessage;
+      r.lu = true;
+      const file = bridge.ocrDepuisFichier(r.fichier);
+      bridge.ocrStatus().then(st => {
+        if (st && st.hasKey) return lirePhoto(file);
+        toast(`La lecture des photos n'est pas branchée sur ce serveur : saisis l'achat de « ${r.fichier.nom} » à la main, puis « Enregistrer ».`);
+      }, () => {});
+    }
+
+
+-- fin
+
+== app.js | enregistré, l'achat venu d'un message dit au fil où la pièce est rangée
+-- avant
+      toast('Enregistré');
+      if (isNew) remplacerPage('#/achat/' + p.id); else render(true);
+-- après
+      toast('Enregistré');
+      if (isNew && rangementDuMessage && rangementDuMessage.lu && bridge.messagerie) {
+        const r = rangementDuMessage;
+        rangementDuMessage = null;
+        const qui = p.supplierId ? supplierName(p.supplierId) : (p.subject || 'Achat');
+        const libelle = `${qui}, ${C.money(C.purchaseTotals(p, company()).netToPay, p.currency || company().currency)}`;
+        bridge.messagerie.rangerAchat(r.message, p.id, libelle)
+          .then(() => toast(`Enregistré, et rangé : ton cabinet le lit dans le fil (${libelle})`), e => toast(plainError(e), true));
+      }
+      if (isNew) remplacerPage('#/achat/' + p.id); else render(true);
+-- fin
+
+== app.js | la page « Mon comptable » : le fil avec le cabinet, et ce que la page lui fournit (les pièces du dossier, les ouvrir, répondre à une question de la révision, ranger une photo dans les achats)
+-- avant
+
+  // (plateforme, brique 113) Le groupe : les sociétés de la personne, leurs chiffres lus dans leurs livres au serveur.
+-- après
+
+  // (plateforme, lot messagerie) « Mon comptable » : le fil avec le cabinet (plateforme/messagerie.js ; maquette validée
+  // par Skander le 09/10/2026). La page fournit ce que le fil ne sait pas : les pièces du dossier (« Parler d'une pièce »),
+  // les ouvrir, répondre à une question de la révision (le chemin de `repondreA`), ranger une photo dans les achats.
+  let conversationOuverte = null;
+  routes.comptable = () => {
+    if (conversationOuverte) { conversationOuverte.arreter(); conversationOuverte = null; }
+    const view = $('#view');
+    if (!bridge.messagerie) {
+      view.innerHTML = '<div class="page-head"><h1>Mon comptable</h1></div><div class="panel"><p class="small muted">La messagerie avec ton cabinet se tient en ligne, au serveur.</p></div>';
+      return;
+    }
+    view.innerHTML = '<div id="msg-racine"></div>';
+    const doc = d => {
+      const t = C.computeTotals(d, company());
+      return `${d.number || 'Brouillon'} · ${clientName(d.clientId)} · ${C.money(d.type === 'devis' ? t.totalTTC : t.netToPay, docCur(d))}`;
+    };
+    const achat = p => `${p.number || p.subject || 'Sans numéro'} · ${p.supplierId ? supplierName(p.supplierId) : 'Sans fournisseur'} · ${C.money(C.purchaseTotals(p, company()).netToPay, p.currency || company().currency)}`;
+    const ouvrirPiece = (genre, id) => {
+      if (genre === 'achat') { if (!purchaseById(id)) return false; navigate('#/achat/' + id); return true; }
+      if (!docById(id)) return false;
+      navigate('#/doc/' + id);
+      return true;
+    };
+    conversationOuverte = bridge.messagerie.dessiner($('#msg-racine'), {
+      toast,
+      pieces: () => [
+        ...data.documents.filter(d => ['facture', 'avoir', 'devis'].includes(d.type) && (d.number || d.status !== 'brouillon'))
+          .map(d => ({ genre: d.type, id: d.id, libelle: doc(d), date: d.date })),
+        ...data.purchases.map(p => ({ genre: 'achat', id: p.id, libelle: achat(p), date: p.date })),
+      ],
+      ouvrirPiece,
+      // Une question de la révision nomme sa pièce par son numéro.
+      pieceDuNumero: numero => {
+        const d = data.documents.find(x => x.number === numero);
+        if (d) return { genre: d.type === 'avoir' ? 'avoir' : d.type === 'devis' ? 'devis' : 'facture', id: d.id };
+        const p = data.purchases.find(x => x.number === numero);
+        return p ? { genre: 'achat', id: p.id } : null;
+      },
+      repondre: async (id, texte) => {
+        const r = C.repondreQuestion(data.questionsCabinet || [], id, { texte }, Date.now());
+        if (!r.ok) throw new Error(r.motif);
+        data.questionsCabinet = r.liste;
+        await save(true);
+        updateNavCounts();
+      },
+      rangerAchat: m => { rangementDuMessage = { message: m.id, fichier: m, lu: false }; navigate('#/achat/new'); },
+      voirMandat: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
+      inviter: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
+      surAttente: a => majMessagerie({ ...(messagerieVue || {}), ...a }),
+    });
+  };
+  // (plateforme, brique 113) Le groupe : les sociétés de la personne, leurs chiffres lus dans leurs livres au serveur.
+-- fin
+
+== app.js | ce qui attend dans le fil est relu toutes les 30 secondes tant que la page est visible (un rôle qui n'écrit pas au cabinet ne la voit jamais)
+-- avant
+    window.addEventListener('focus', relireLicence);
+    if (licence && licence.commande) verifierAchat(false);
+-- après
+    window.addEventListener('focus', relireLicence);
+    // (plateforme, lot messagerie) Ce qui attend dans le fil du cabinet, relu toutes les 30 secondes tant que la page est
+    // visible : la pastille de « Mon comptable », et l'entrée elle-même (elle paraît avec le mandat). Un rôle qui n'écrit
+    // pas au cabinet ne la voit jamais, et on ne redemande plus.
+    if (bridge.messagerie) {
+      let sansMessagerie = false;
+      const suivreMessagerie = async () => {
+        if (sansMessagerie || document.visibilityState !== 'visible') return;
+        try { majMessagerie(await bridge.messagerie.attente()); } catch (e) { if (e && e.statut === 403) { sansMessagerie = true; majMessagerie(null); } }
+      };
+      void suivreMessagerie();
+      setInterval(suivreMessagerie, 30 * 1000);
+      document.addEventListener('visibilitychange', () => { void suivreMessagerie(); });
+    }
+    if (licence && licence.commande) verifierAchat(false);
+-- fin
+
+── Le Cabinet ──
+
+== cabinet/index.html | « Messages » dans la barre du Cabinet, avec sa pastille (les clients « À traiter »)
+-- avant
+        <a href="#/dossiers" data-route="dossiers" class="solo"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Dossiers</a>
+        <a href="#/relances" data-route="relances"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>Relances<span class="nav-count" id="nav-relances" hidden></span></a>
+-- après
+        <a href="#/dossiers" data-route="dossiers" class="solo"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Dossiers</a>
+        <!-- (plateforme, lot messagerie) Les messages des clients : la pastille compte ceux « À traiter ». -->
+        <a href="#/messages" data-route="messages"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/></svg>Messages<span class="nav-count" id="nav-messages" hidden></span></a>
+        <a href="#/relances" data-route="relances"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>Relances<span class="nav-count" id="nav-relances" hidden></span></a>
+-- fin
+
+== cabinet/index.html | l'écran de la messagerie et sa feuille se chargent dans le Cabinet
+-- avant
+  <link rel="stylesheet" href="../../plateforme/compte.css">
+  <script src="../rowmenu.js"></script>
+-- après
+  <link rel="stylesheet" href="../../plateforme/compte.css">
+  <script src="../../plateforme/messagerie.js"></script>
+  <link rel="stylesheet" href="../../plateforme/messagerie.css">
+  <script src="../rowmenu.js"></script>
+-- fin
+
+== cabinet/app.js | les messages des clients : la boîte de tous les clients, puis la conversation d'un client
+-- avant
+  }
+  function render() {
+-- après
+  }
+  // (plateforme, lot messagerie) Les messages des clients : la boîte de tous les clients (« À traiter », « Attend le
+  // client », « Tout »), puis la conversation d'un client (plateforme/messagerie.js ; maquette validée le 09/10/2026).
+  let messagerieOuverte = null;
+  let pastilleMessagesLue = false;
+  function majPastilleMessages(n) { const p = $('#nav-messages'); if (p) { p.hidden = !n; p.textContent = n ? String(n) : ''; } }
+  async function rafraichirPastilleMessages() {
+    if (!api.messagerie || document.visibilityState !== 'visible') return;
+    try { majPastilleMessages((await api.messagerie.compteurs()).aTraiter); } catch (_) { /* la pastille attend la relecture suivante */ }
+  }
+  if (api.messagerie) {
+    setInterval(rafraichirPastilleMessages, 60 * 1000);
+    document.addEventListener('visibilitychange', () => { void rafraichirPastilleMessages(); });
+  }
+  function drawMessages(view, ent, geste) {
+    if (messagerieOuverte) { messagerieOuverte.arreter(); messagerieOuverte = null; }
+    if (!api.messagerie) { view.innerHTML = '<div class="empty">La messagerie avec les clients se tient en ligne, au serveur.</div>'; return; }
+    view.innerHTML = '<div id="msg-racine"></div>';
+    const racine = $('#msg-racine');
+    const revision = id => { location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/revision'; };
+    if (!ent) {
+      messagerieOuverte = api.messagerie.boite(racine, {
+        ouvrir: (id, demander) => { location.hash = '#/messages/' + encodeURIComponent(id) + (demander ? '/demande' : ''); },
+        revision,
+        surCompteurs: c => majPastilleMessages(c.aTraiter),
+      });
+      return;
+    }
+    const id = decodeURIComponent(ent);
+    const d = (S.dossiers || []).find(x => x.id === id);
+    messagerieOuverte = api.messagerie.conversation(racine, id, {
+      nom: d ? d.name : 'Ce client',
+      demander: geste === 'demande',
+      toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined),
+      retour: { texte: 'Les messages de tes clients', aller: () => { location.hash = '#/messages'; } },
+      revision: () => revision(id),
+      surAttente: () => { void rafraichirPastilleMessages(); },
+    });
+  }
+
+  function render() {
+-- fin
+
+== cabinet/app.js | la conversation ouverte s'arrête quand on la quitte, et la pastille des messages se lit une première fois
+-- avant
+    routeLue = route;
+    const view = $('#view');
+-- après
+    routeLue = route;
+    // (plateforme, lot messagerie) La conversation ouverte s'arrête quand on la quitte ; la pastille se lit une première fois.
+    if (route !== 'messages' && messagerieOuverte) { messagerieOuverte.arreter(); messagerieOuverte = null; }
+    if (!pastilleMessagesLue) { pastilleMessagesLue = true; void rafraichirPastilleMessages(); }
+    const view = $('#view');
+-- fin
+
+== cabinet/app.js | la route « Messages » du Cabinet
+-- avant
+    else if (route === 'reglages') drawReglages(view);
+    else if (route === 'aide') drawAide(view, arg);
+-- après
+    else if (route === 'reglages') drawReglages(view);
+    else if (route === 'messages') drawMessages(view, arg, hash.split('/')[2]);
+    else if (route === 'aide') drawAide(view, arg);
+-- fin
