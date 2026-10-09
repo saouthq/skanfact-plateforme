@@ -6,7 +6,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
-import { connecter, deconnecter, demanderReinitialisation, essayerCode, inscrire, lireReinitialisation, mettreEnPlaceCode, reinitialiser, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
+import { connecter, corrigerAdresse, deconnecter, demanderReinitialisation, essayerCode, inscrire, lireReinitialisation, mettreEnPlaceCode, reinitialiser, renvoyerCode, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
+import { activerCode, changerMotDePasse, confirmerChangementAdresse, demanderChangementAdresse, nouveauxCodesDeSecours, preparerCode, retirerCode, type Refuse } from '../compte.ts';
 import { prochainNumero } from '../numeros.ts';
 import { regle } from '../regles.ts';
 import { requetes } from '../base.ts';
@@ -15,6 +16,7 @@ import { EVENEMENTS, nouveauSecret } from '../avis.ts';
 import { motif, t } from '../../textes/index.ts';
 import { Refus } from '../erreurs.ts';
 import { matriculeCanonique, refusDuMatricule } from '../matricule.ts';
+import { LONGUEUR_MINIMALE } from '../../commun/compte.ts';
 
 const uuid = z.string().uuid();
 const jour = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'champ.jour');
@@ -78,10 +80,30 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
   });
 
   // Ce que l'entrée peut proposer sur ce serveur (lot entrée, 06/10/2026) : le mot de passe oublié, seulement si un
-  // relais d'e-mails est branché (l'écran ne propose pas ce qu'il ne peut pas faire).
+  // relais d'e-mails est branché (l'écran ne propose pas ce qu'il ne peut pas faire) ; et, depuis le lot onboarding
+  // (0076), si un code par e-mail vérifiera l'adresse à la création du compte (l'écran le dit AVANT le geste).
   ajouter({
     methode: 'GET', chemin: '/connexion/options', geste: 'public',
-    traiter: async () => ({ corps: { motDePasseOublie: !!ctx.courriel } }),
+    traiter: async () => ({ corps: { motDePasseOublie: !!ctx.courriel, codeParCourriel: !!ctx.courriel } }),
+  });
+
+  // « Renvoyer le code » d'un défi par e-mail (0076).
+  ajouter({
+    methode: 'POST', chemin: '/connexion/code/renvoyer', geste: 'public',
+    corps: z.object({ defi: uuid }),
+    traiter: async ({ corps }) => {
+      const r = await renvoyerCode(ctx, corps.defi);
+      return r.ok ? { statut: 202, corps: { ok: true } } : { statut: 409, corps: { motif: r.motif } };
+    },
+  });
+  // « Ce n'est pas ton adresse ? La corriger » : pendant le défi de l'inscription (0076).
+  ajouter({
+    methode: 'POST', chemin: '/connexion/code/corriger', geste: 'public',
+    corps: z.object({ defi: uuid, adresse: z.string().email().max(200) }),
+    traiter: async ({ corps }) => {
+      const r = await corrigerAdresse(ctx, corps.defi, corps.adresse);
+      return r.ok ? { statut: 202, corps: { adresse: r.adresse } } : { statut: 409, corps: { motif: r.motif, champ: 'adresse' } };
+    },
   });
 
   // Le mot de passe oublié (lot entrée ; migration 0075) : la demande répond la même chose qu'un compte réponde ou non.
@@ -121,7 +143,11 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       const cabinets = (await tx.query(`select o.id, o.nom from socle.organisation o
           join socle.membre m on m.organisation = o.id and m.utilisateur = socle.moi() and m.actif
          where o.type = 'cabinet' order by o.nom, o.id`)).rows;
-      return { corps: { ...moi, codeAConfigurer: qui.codeAConfigurer, entreprises, cabinets } };
+      // Ton compte (0076) : le code est-il exigé de moi (un comptable de cabinet), mon adresse est-elle vérifiée, combien
+      // de codes de secours me restent ; et ce serveur sait-il envoyer un e-mail.
+      const c = (await tx.query('select * from socle.mon_compte()')).rows[0] as { code_exige: boolean; adresse_verifiee: boolean; codes_secours: number };
+      const compte = { codeExige: c.code_exige, adresseVerifiee: c.adresse_verifiee, codesSecours: c.codes_secours, courriel: !!ctx.courriel, motDePasseMin: LONGUEUR_MINIMALE };
+      return { corps: { ...moi, codeAConfigurer: qui.codeAConfigurer, entreprises, cabinets, compte } };
     },
   });
 
@@ -145,6 +171,76 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       if (!qui) throw new Error('session attendue');
       if (!await essayerCode(ctx, qui, corps.code)) throw new Refus('compte.code_essai_faux');
       return { corps: { bon: true } };
+    },
+  });
+
+  // Ton compte (lot onboarding, 0076 ; serveur/compte.ts). Un refus dit son champ.
+  const refus = (r: Refuse) => ({ statut: r.attendre ? 429 : 400, corps: { motif: r.motif, champ: r.champ ?? null } });
+  // Activer le code en deux temps (0076 § 1 bis) : ce que les écrans utilisent. La préparation montre la clé et les
+  // codes de secours UNE fois (`code` : le code actuel, pour qui change de téléphone) ; rien ne change avant le premier
+  // code juste.
+  ajouter({
+    methode: 'POST', chemin: '/moi/code/preparer', geste: 'compte.code.configurer',
+    corps: z.object({ code: z.string().max(20).optional() }),
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await preparerCode(ctx, qui, corps.code);
+      return r.ok ? { corps: { codesDeSecours: r.codesDeSecours, adresseApplication: r.adresseApplication, cle: r.cle } } : refus(r);
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/moi/code/activer', geste: 'compte.code.configurer',
+    corps: z.object({ code: z.string().min(1).max(20) }),
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await activerCode(ctx, qui, corps.code);
+      return r.ok ? { corps: { ok: true } } : refus(r);
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/moi/code/retirer', geste: 'compte.code.configurer',
+    corps: z.object({ code: z.string().min(1).max(20) }),
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await retirerCode(ctx, qui, corps.code);
+      return r.ok ? { corps: { ok: true, confirme: r.confirme } } : refus(r);
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/moi/code/secours', geste: 'compte.code.configurer',
+    corps: z.object({ code: z.string().min(1).max(20) }),
+    // Les nouveaux codes se montrent UNE fois : ils ne sont gardés qu'en empreinte.
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await nouveauxCodesDeSecours(ctx, qui, corps.code);
+      return r.ok ? { corps: { codesDeSecours: r.codes } } : refus(r);
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/moi/mot-de-passe', geste: 'compte.securite.gerer',
+    corps: z.object({ actuel: z.string().max(200), nouveau: z.string().max(200) }),
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await changerMotDePasse(ctx, qui, corps.actuel, corps.nouveau);
+      return r.ok ? { corps: { ok: true } } : refus(r);
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/moi/adresse', geste: 'compte.securite.gerer',
+    corps: z.object({ adresse: z.string().email().max(200), motDePasse: z.string().max(200) }),
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await demanderChangementAdresse(ctx, qui, corps.adresse, corps.motDePasse);
+      return r.ok ? { corps: { demande: r.demande } } : refus(r);
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/moi/adresse/confirmer', geste: 'compte.securite.gerer',
+    corps: z.object({ demande: uuid, code: z.string().min(1).max(20) }),
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await confirmerChangementAdresse(ctx, qui, corps.demande, corps.code);
+      return r.ok ? { corps: { ok: true } } : refus(r);
     },
   });
 

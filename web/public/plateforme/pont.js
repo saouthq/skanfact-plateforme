@@ -711,6 +711,7 @@
 
   /** @type {any} */ (window).skanfact = {
     dessinerMandat,
+    dessinerCompte,
     dessinerAppareils,
     dessinerQuarantaine,
     dessinerPaiement,
@@ -1159,38 +1160,16 @@
     const lu = lire(r, await r.text());
     if (r.status === 401) { await finDeSession(lu); throw new Error('Ta session est terminée : reconnecte-toi.'); }
     if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
-    // Le bouton qui débloque voyage avec le refus (brique 123 : « session_de_caisse »).
-    if (!r.ok) throw Object.assign(new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.'), { bouton: typeof lu.bouton === 'string' ? lu.bouton : null, statut: r.status });
+    // Le bouton qui débloque voyage avec le refus (brique 123 : « session_de_caisse ») ; la case refusée aussi (Ton
+    // compte, 0076).
+    if (!r.ok) throw Object.assign(new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.'), { bouton: typeof lu.bouton === 'string' ? lu.bouton : null, statut: r.status, champ: typeof lu.champ === 'string' ? lu.champ : null });
     return lu;
   }
-  // ── Tes appareils (brique 74 ; docs/hors-ligne.md, H9) : les voir, en retirer un ────────────
+  // ── Ton compte (lot onboarding, 0076 ; compte.js, partagé avec le Cabinet) et tes appareils (brique 74) ──────
+  /** @param {HTMLElement} el @param {{ modal: any, toast: (t: string, erreur?: boolean) => void }} v10 */
+  function dessinerCompte(el, v10) { return /** @type {any} */ (window).SkanCompte.dessiner(el, { appel: appelCompte, modal: v10.modal, toast: v10.toast }); }
   /** @param {HTMLElement} el */
-  async function dessinerAppareils(el) {
-    /** @type {any[]} */ let liste;
-    try { liste = (await appelCompte('GET', '/moi/appareils')).appareils; } catch (x) { el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`; return; }
-    el.innerHTML = `<p class="small muted mb">Chaque navigateur ou téléphone où tu t'es connecté. Un appareil perdu, volé ou donné se retire ici : il ne peut plus rien ouvrir, et ce qu'il garde pour travailler sans réseau s'efface à sa prochaine connexion.</p>
-      <table class="list compact" id="appareils-liste"><tbody>${liste.map((a) => `<tr><td><strong>${esc(a.nom)}</strong>${a.celuiCi ? ' <span class="badge">cet appareil</span>' : ''}
-        <div class="small muted">${a.retireLe ? `Retiré le ${esc(jourATunis(a.retireLe))}` : a.derniereActivite ? `Dernière activité le ${esc(jourATunis(a.derniereActivite))}` : ''}</div></td>
-        <td class="r">${a.celuiCi || a.retireLe ? '' : `<button type="button" class="btn btn-sm" data-retirer="${esc(a.id)}">Retirer…</button>`}</td></tr>`).join('')}</tbody></table>
-      <p class="small" role="alert"></p>`;
-    /** @param {unknown} x */
-    const dire = (x) => { const a = el.querySelector('[role=alert]'); if (a) a.textContent = x instanceof Error ? x.message : String(x); };
-    el.querySelectorAll('[data-retirer]').forEach((b) => {
-      const bouton = /** @type {HTMLElement} */ (b);
-      bouton.onclick = async () => {
-        const a = liste.find((x) => x.id === bouton.dataset.retirer);
-        // Retirer se demande d'abord : l'appareil ne pourra plus rien ouvrir.
-        if (!bouton.dataset.confirme) {
-          bouton.dataset.confirme = '1';
-          bouton.textContent = 'Oui, le retirer';
-          dire(`« ${a ? a.nom : ''} » ne pourra plus rien ouvrir, et ce qu'il garde s'effacera à sa prochaine connexion.`);
-          return;
-        }
-        bouton.setAttribute('disabled', '');
-        try { await appelCompte('DELETE', `/moi/appareils/${encodeURIComponent(String(bouton.dataset.retirer))}`); await dessinerAppareils(el); } catch (x) { bouton.removeAttribute('disabled'); dire(x); }
-      };
-    });
-  }
+  function dessinerAppareils(el) { return /** @type {any} */ (window).SkanCompte.appareils(el, { appel: appelCompte }); }
   // ── Services connectés (brique 134 ; docs/boutique.md, B0) : les services qui agissent pour l'entreprise avec une
   // clé de l'API (une boutique SkanEcom reliée, un outil branché), ce qu'ils peuvent faire, et « Couper l'accès ».
   // Une clé coupée ou expirée ne se montre plus : elle ne peut plus rien.

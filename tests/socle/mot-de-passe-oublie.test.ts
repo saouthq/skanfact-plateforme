@@ -39,13 +39,20 @@ const appeler = async (methode: 'GET' | 'POST', url: string, jeton?: string, cor
 };
 const dire = (cle: string) => rendre(motif(cle), 'fr');
 let n = 0;
+// Un compte neuf : avec un relais d'e-mails, sa première connexion vérifie son adresse par un code (0076), que l'on
+// prend dans l'e-mail parti ; son appareil est ensuite reconnu.
 async function personne(nom = 'Karim Testeur') {
   const email = `oubli-${++n}-${Date.now()}@exemple.tn`;
   expect((await appeler('POST', '/inscription', undefined, { email, nom, motDePasse: 'Un-bon-mot-de-passe' })).statut).toBe(201);
   const c = await appeler('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } });
-  return { email, jeton: String(c.corps.jeton) };
+  expect(c.corps).toMatchObject({ etat: 'code', methode: 'courriel', raison: 'inscription' });
+  const code = /\n\n(\d{6})\n\n/.exec(partis.filter((m) => m.a === email).at(-1)?.texte ?? '')?.[1] ?? '';
+  const ok = await appeler('POST', '/connexion/code', undefined, { defi: c.corps.defi, code });
+  expect(ok.corps.etat).toBe('connecte');
+  return { email, jeton: String(ok.corps.jeton), appareil: String(ok.corps.appareil) };
 }
-const connexion = (email: string, motDePasse: string) => appeler('POST', '/connexion', undefined, { email, motDePasse, appareil: { nom: 'Poste', type: 'navigateur' } });
+const connexion = (email: string, motDePasse: string, appareil?: string) =>
+  appeler('POST', '/connexion', undefined, { email, motDePasse, appareil: { nom: 'Poste', type: 'navigateur', ...(appareil ? { id: appareil } : {}) } });
 // Le jeton du dernier e-mail parti pour cette adresse.
 function lienPour(email: string) {
   const m = partis.filter((c) => c.a === email).at(-1);
@@ -56,11 +63,11 @@ function lienPour(email: string) {
 
 describe('le mot de passe oublié', () => {
   it('sans relais d\'e-mails, l\'entrée ne le propose pas, et la demande se refuse en le disant', async () => {
-    expect(await appeler('GET', '/connexion/options', undefined, undefined, appSans)).toEqual({ statut: 200, corps: { motDePasseOublie: false } });
+    expect(await appeler('GET', '/connexion/options', undefined, undefined, appSans)).toEqual({ statut: 200, corps: { motDePasseOublie: false, codeParCourriel: false } });
     const r = await appeler('POST', '/mot-de-passe/oubli', undefined, { email: 'qui@exemple.tn' }, appSans);
     expect(r.statut).toBe(403);
     expect(r.corps.motif).toBe(dire('connexion.oubli_indisponible'));
-    expect(await appeler('GET', '/connexion/options')).toEqual({ statut: 200, corps: { motDePasseOublie: true } });
+    expect(await appeler('GET', '/connexion/options')).toEqual({ statut: 200, corps: { motDePasseOublie: true, codeParCourriel: true } });
   });
 
   it('la même réponse qu\'un compte existe ou non ; le lien part à l\'adresse du compte, avec lui seul ; trois demandes par heure au plus', async () => {
@@ -98,7 +105,7 @@ describe('le mot de passe oublié', () => {
     // L'ancienne session est fermée ; l'ancien mot de passe ne passe plus, le nouveau oui.
     expect((await appeler('GET', '/moi', sami.jeton)).statut).toBe(401);
     expect((await connexion(sami.email, 'Un-bon-mot-de-passe')).statut).toBe(401);
-    expect((await connexion(sami.email, 'Une-autre-phrase-sure')).corps.etat).toBe('connecte');
+    expect((await connexion(sami.email, 'Une-autre-phrase-sure', sami.appareil)).corps.etat).toBe('connecte');
     // Le lien a servi.
     const encore = await appeler('POST', '/mot-de-passe/nouveau', undefined, { jeton, motDePasse: 'Encore-une-phrase-sure' });
     expect(encore).toEqual({ statut: 400, corps: { motif: dire('connexion.oubli_lien_perime'), champ: 'jeton' } });

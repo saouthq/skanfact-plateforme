@@ -157,14 +157,30 @@ prouver "l'attente ne commence jamais" $C \
 prouver "un blocage définitif" $C \
   "      else interval '60 minutes' end;" "      else interval '100 years' end;" \
   "après 5 erreurs, 1 minute"
-prouver "le propriétaire dispensé du code" $C \
-  "array['proprietaire', 'administrateur', 'paie', 'supervision', 'revision', 'saisie']" "array['administrateur', 'paie', 'supervision', 'revision', 'saisie']" \
-  "un propriétaire sans code"
+# Depuis le 09/10/2026 (décision de Skander, 0076) : le code du téléphone n'est exigé que d'un comptable de cabinet.
+C76=base/migrations/0076_code_facultatif.sql
+prouver "un comptable de cabinet dispensé du code" $C76 \
+  "and m.roles && array['supervision', 'revision', 'saisie']::text[])
+    from socle.utilisateur u where lower(u.email) = lower(trim(p_email))" "and m.roles && array['revision', 'saisie']::text[])
+    from socle.utilisateur u where lower(u.email) = lower(trim(p_email))" \
+  "un comptable de cabinet sans code : une session qui ne sert qu"
+prouver "le propriétaire forcé au code à la connexion" $C76 \
+  "and m.roles && array['supervision', 'revision', 'saisie']::text[])
+    from socle.utilisateur u where lower(u.email) = lower(trim(p_email))" "and m.roles && array['proprietaire', 'supervision', 'revision', 'saisie']::text[])
+    from socle.utilisateur u where lower(u.email) = lower(trim(p_email))" \
+  "un propriétaire entre sans code du téléphone : recommandé, jamais imposé"
+prouver "le propriétaire forcé au code à chaque requête" $C76 \
+  "and exists (select 1 from socle.membre m where m.utilisateur = socle.moi() and m.actif
+                  and m.roles && array['supervision', 'revision', 'saisie']::text[])
+\$\$;" "and exists (select 1 from socle.membre m where m.utilisateur = socle.moi() and m.actif
+                  and m.roles && array['proprietaire', 'supervision', 'revision', 'saisie']::text[])
+\$\$;" \
+  "un propriétaire continue sans code du téléphone"
 prouver "un appareil reconnu pour un an" $C \
   "reconnu_jusqu_au = p_maintenant + interval '30 days'" "reconnu_jusqu_au = p_maintenant + interval '365 days'" \
   "ne redemande le code qu'après 30 jours"
 prouver "le poste d'un autre dispensé du code" $S \
-  "!(reconnu && !posteDUnAutre)" "!reconnu" \
+  "const faut = (aUnCode || u.code_obligatoire) && !(reconnu && !posteDUnAutre);" "const faut = (aUnCode || u.code_obligatoire) && !reconnu;" \
   "sur le poste d'un autre"
 prouver "le poste d'un autre gardé 12 heures" $C \
   "case when p_poste_d_un_autre then interval '30 minutes' else interval '12 hours' end" "case when p_poste_d_un_autre then interval '12 hours' else interval '12 hours' end" \
@@ -251,7 +267,7 @@ prouver "une lecture sensible non tracée" $A \
   "une lecture de donnée sensible est tracée"
 prouver "le code jugé à la connexion seulement" $A \
   "if (!qui.cle && !qui.codeAConfigurer && (await tx.query('select socle.code_manquant() m')).rows[0].m) qui.codeAConfigurer = true;" "" \
-  "une session ouverte avant de devenir propriétaire"
+  "une session ouverte avant de devenir comptable d'un cabinet"
 prouver "la trace qu'on modifie" $E \
   "create trigger audit_intouchable before update or delete on socle.audit
   for each row execute function socle.refuser_modification();" "" \
@@ -398,10 +414,11 @@ prouver "sceller chez une autre entreprise" $Q \
 prouver "une porte dérobée ouverte au public" $E \
   "revoke execute on function socle.code_manquant() from public;" "" \
   "chaque porte dérobée (security definer) fixe son chemin"
-prouver "une porte dérobée sans chemin fixé" $E \
-  "language sql stable security definer set search_path = pg_catalog, socle as \$\$
-  select coalesce((select u.code_methode" "language sql stable security definer as \$\$
-  select coalesce((select u.code_methode" \
+# Depuis 0076, code_manquant vit dans sa nouvelle définition.
+prouver "une porte dérobée sans chemin fixé" base/migrations/0076_code_facultatif.sql \
+  "create or replace function socle.code_manquant() returns boolean
+language sql stable security definer set search_path = pg_catalog, socle as \$\$" "create or replace function socle.code_manquant() returns boolean
+language sql stable security definer as \$\$" \
   "chaque porte dérobée (security definer) fixe son chemin"
 
 # ── La file d'opérations (0005) ─────────────────────────────────────────────────────────────────
@@ -1123,11 +1140,16 @@ prouver "les listes et les onglets de la v10 laissés à la taille de la souris"
 prouver "le téléphone sans menu" web/public/plateforme/telephone.js \
   "    tete.appendChild(b);" "" \
   "$PA"
-prouver "une entreprise ouverte sans le code du téléphone que son rôle exige" "web/src/App.tsx|||$PONT" \
-  "ecran = <Porte creee={(id) => { retenir(id); void charger(); }}|||    if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
+# Depuis le lot onboarding (0076), le code n'est exigé que du comptable d'un cabinet : la porte d'une entreprise ne le
+# demande plus ; ce sont les pages de l'entreprise et du cabinet qui renvoient à l'écran du code qui manque.
+prouver "une entreprise ouverte sans le code du téléphone que son rôle exige" $PONT \
+  "    if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
     if (!r.ok) {" \
-  "ecran = <Porte creee={ouvrirEntreprise}|||    if (!r.ok) {" \
-  "$PA"
+  "    if (!r.ok) {" \
+  "la page de son entreprise, puis celle du cabinet"
+prouver "un cabinet ouvert sans le code du téléphone que son rôle exige" web/public/plateforme/pont-cabinet.js \
+  "    if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }" "" \
+  "la page de son entreprise, puis celle du cabinet"
 prouver "un net à payer de l'écran qui n'est pas celui que le serveur scelle" $PONT \
   "netAPayer: Number(netAPayer).toFixed(decimales)," "netAPayer: Number(netAPayer + 0.001).toFixed(decimales)," \
   "$PA"
@@ -4174,14 +4196,15 @@ prouver "l'entrée qui tait que l'appareil est retiré" web/src/App.tsx \
   "        if (r.corps.effacer) toast(r.corps.motif ?? '', true);
 " "" \
   "$AW1"
-prouver "retirer un appareil sans demander" $PONT \
+# Depuis le lot onboarding (0076), la liste vit dans compte.js, partagé avec le Cabinet.
+prouver "retirer un appareil sans demander" web/public/plateforme/compte.js \
   "        if (!bouton.dataset.confirme) {
           bouton.dataset.confirme = '1';
           bouton.textContent = 'Oui, le retirer';" "        if (false) {
           bouton.dataset.confirme = '1';
           bouton.textContent = 'Oui, le retirer';" \
   "$AW1"
-prouver "retirer l'appareil où l'on est" $PONT \
+prouver "retirer l'appareil où l'on est" web/public/plateforme/compte.js \
   "\${a.celuiCi || a.retireLe ? '' :" "\${a.retireLe ? '' :" \
   "$AW1"
 prouver "le nom d'un appareil illisible (la signature du navigateur)" web/src/ecrans/Connexion.tsx \
@@ -7715,8 +7738,9 @@ prouver "un retour du poste avec ses paramètres admis" serveur/partenaires.ts \
 prouver "l'heure d'une action dite à l'heure du navigateur, pas de Tunis" web/public/plateforme/pont.js \
   "{ timeZone: 'Africa/Tunis', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit'," "{ day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit'," \
   "$BSC"
-prouver "Tes appareils qui datent en UTC" web/public/plateforme/pont.js \
-  "\`Dernière activité le \${esc(jourATunis(a.derniereActivite))}\`" "\`Dernière activité le \${esc(jour(a.derniereActivite))}\`" \
+# Tes appareils vivent dans Ton compte depuis le lot onboarding (compte.js, partagé avec le Cabinet).
+prouver "Tes appareils qui datent en UTC" web/public/plateforme/compte.js \
+  "toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis', day: '2-digit'" "toLocaleDateString('fr-FR', { day: '2-digit'" \
   "$BSC"
 
 # ── Brique 142 : la limite d'appels par adresse sur les routes sans session (docs/mise-en-ligne.md, A) ──
@@ -7844,21 +7868,26 @@ prouver "le code tapé avec son espace refusé" serveur/connexion.ts \
 prouver "le secret d'un code par SMS pris pour celui d'une application" base/migrations/0070_essayer_code.sql \
   "where u.id = socle.moi() and u.code_methode = 'application'" "where u.id = socle.moi()" \
   "$CE2"
-prouver "l'écran qui laisse partir sans essayer le code" web/src/ecrans/CodeRequis.tsx \
-  "    const r = await g.api('POST', '/moi/code/essayer', { code: essai });" "    pose(); return; const r = await g.api('POST', '/moi/code/essayer', { code: essai });" \
-  "$CEP"
+# L'écran du code n'est plus montré qu'au comptable d'un cabinet (lot onboarding, 0076) : ses preuves visent son test ;
+# le parcours de l'entreprise active le code dans Ton compte (compte.js, ses preuves à la fin de ce fichier).
+CEC="les codes de secours se copient et se téléchargent"
+prouver "l'écran qui laisse partir sans activer le code" web/src/ecrans/CodeRequis.tsx \
+  "    const r = await g.api('POST', '/moi/code/activer', { code: essai });" "    pose(); return; const r = await g.api('POST', '/moi/code/activer', { code: essai });" \
+  "$CEC"
 prouver "le code faux refusé sans montrer son champ" web/src/ecrans/CodeRequis.tsx \
-  "else g.refuser({ ...refusDe(r), champ: 'code' });" "else g.refuser(refusDe(r));" \
-  "$CEP"
+  "    if (r.corps.champ !== 'code') { setCodes(null); setGarde(false); setEssai(''); }
+    g.refuser(refusDe(r));" "    if (r.corps.champ !== 'code') { setCodes(null); setGarde(false); setEssai(''); }
+    g.refuser({ ...refusDe(r), champ: null });" \
+  "$CEC"
 prouver "la clé en clair qui n'est pas celle du code QR" web/src/ecrans/CodeRequis.tsx \
   '{parQuatre(codes.cle)}' '{parQuatre(codes.cle.slice(1))}' \
-  "$CEP"
+  "$CEC"
 prouver "le lien qui n'ouvre pas l'application" web/src/ecrans/CodeRequis.tsx \
   'href={codes.adresse}' 'href="#"' \
-  "$CEP"
+  "$CEC"
 prouver "un code QR qui ne dit pas l'adresse" web/src/ecrans/CodeRequis.tsx \
   "  q.addData(adresse);" "  q.addData(adresse.replace('SkanFact', 'Skan'));" \
-  "$CEP"
+  "$CEC"
 
 # Le suiveur ne descend jamais sous lui-même (brique 143, complétée le 05/10/2026).
 SV3="jamais une version d'avant le suiveur : un serveur neuf attend plutôt qu'une version vérifiée le porte"
@@ -8448,8 +8477,8 @@ prouver "la découverte qui attend la copie vers une clé" web/public/v10/visite
   "cible: '#p-appareils', cote: 'dessous', titre: 'Tes données à l\\'abri'," "cible: '#p-externe', cote: 'dessous', titre: 'Tes données à l\\'abri'," \
   "$VEL"
 prouver "la découverte qui attend la clôture reçue en fichier" web/public/v10/visites.js \
-  "        { page: '#/parametres', avant: onglet('#set-tabs', 'donnees'), cible: '#p-appareils'" "        { page: '#/compta', avant: onglet('#c-tabs', 'clotures'), cible: '#p-cloture-cabinet', cote: 'dessus', titre: 'Sa clôture', texte: 'x' },
-        { page: '#/parametres', avant: onglet('#set-tabs', 'donnees'), cible: '#p-appareils'" \
+  "        { page: '#/parametres', avant: onglet('#set-tabs', 'compte'), cible: '#p-appareils'" "        { page: '#/compta', avant: onglet('#c-tabs', 'clotures'), cible: '#p-cloture-cabinet', cote: 'dessus', titre: 'Sa clôture', texte: 'x' },
+        { page: '#/parametres', avant: onglet('#set-tabs', 'compte'), cible: '#p-appareils'" \
   "$VEL"
 prouver "la fin de la découverte qui parle de licence" web/public/v10/visites.js \
   "abonnement réglé ou pas, tu gardes la lecture, l\\'impression et l\\'export." "licence ou pas, tu gardes la lecture, l\\'impression, l\\'export et l\\'envoi à ton comptable." \
@@ -9027,9 +9056,9 @@ KE4="avec le code du téléphone, le lien seul ne suffit pas : il faut le code, 
 KEW1="mot de passe oublié : proposé seulement si l'e-mail peut partir ; le lien reçu choisit un nouveau mot de passe, qui ouvre ensuite le compte"
 KEW2="créer son compte : la jauge dit pendant la frappe ce qui manque, « Afficher » montre le mot de passe"
 KEW3="ton entreprise : la forme du matricule se dit pendant la frappe, et le haut de la facture se dessine avec ce qui est tapé"
-KEW4="la sécurité : l'entreprise créée se dit ; les codes de secours se copient et se téléchargent ; l'ouverture coche ce qui est fait"
+KEW4="la sécurité du comptable d'un cabinet : son cabinet se dit ; les codes de secours se copient et se téléchargent ; l'ouverture coche ce qui est fait"
 prouver "le mot de passe oublié proposé sans relais d'e-mails (serveur)" serveur/routes/socle.ts \
-  "traiter: async () => ({ corps: { motDePasseOublie: !!ctx.courriel } })," "traiter: async () => ({ corps: { motDePasseOublie: true } })," \
+  "traiter: async () => ({ corps: { motDePasseOublie: !!ctx.courriel, codeParCourriel: !!ctx.courriel } })," "traiter: async () => ({ corps: { motDePasseOublie: true, codeParCourriel: !!ctx.courriel } })," \
   "$KE1"
 prouver "la demande du mot de passe oublié qui dit si l'adresse a un compte" serveur/connexion.ts \
   "  if (!a) return;" "  if (!a) throw new Refus('connexion.oubli_indisponible');" \
@@ -9073,8 +9102,8 @@ prouver "le matricule sans sa suite, qui ne dit pas ce qui manque" web/src/ecran
 prouver "le haut de la facture qui ne suit pas la raison sociale" web/src/ecrans/Porte.tsx \
   "{raison.trim() ? <strong data-donnee>{raison.trim()}</strong>" "{false ? <strong data-donnee>{raison.trim()}</strong>" \
   "$KEW3"
-prouver "l'entreprise créée, que l'écran de la sécurité tait" web/src/ecrans/CodeRequis.tsx \
-  "bandeau={entreprise ? titre('ecran.code_requis.creee', { nom: entreprise }) : undefined}" "bandeau={undefined}" \
+prouver "le cabinet, que l'écran de la sécurité tait" web/src/ecrans/CodeRequis.tsx \
+  "bandeau={cabinet ? titre('ecran.code_requis.cabinet', { nom: cabinet }) : undefined}" "bandeau={undefined}" \
   "$KEW4"
 prouver "les codes de secours copiés à moitié" web/src/ecrans/CodeRequis.tsx \
   "void copier(codes.secours.join('\n')," "void copier(codes.secours.slice(5).join('\n')," \
@@ -9087,7 +9116,7 @@ prouver "l'ouverture qui tait la protection du compte" web/src/ecrans/Ouverture.
   "$KEW4"
 prouver "l'écran qui part sans les codes de secours mis de côté" web/src/ecrans/CodeRequis.tsx \
   "    if (!garde) { toast(" "    if (false) { toast(" \
-  "$PARC"
+  "le refus montre la case"
 prouver "le téléphone perdu qui ne fait pas taper un code de secours" web/src/ecrans/Code.tsx \
   "onClick={() => { setSecours(!secours); setCode(''); }}" "onClick={() => { setCode(''); }}" \
   "$PARC"
@@ -9129,6 +9158,211 @@ prouver "l'ancien relais gardé à côté du nouveau" exploitation/courriel.sh \
 prouver "Resend branché sur un serveur aux vraies données" exploitation/courriel.sh \
   "grep -qx 'SKANFACT_ENVIRONNEMENT=test' \"\$REGLAGES\" ||" 'true ||' \
   "$RC4"
+
+# ── Le lot onboarding : le code par e-mail, Ton compte (0076 ; serveur/connexion.ts, serveur/compte.ts) ──
+C76=base/migrations/0076_code_facultatif.sql
+CX=serveur/connexion.ts
+CO=serveur/compte.ts
+CE1="à la première connexion, l'adresse se vérifie par un code reçu par e-mail"
+CE2="sans code du téléphone, un appareil inconnu (ou le poste d'un autre) demande un code par e-mail"
+CE4="renvoyer le code : pas avant 30 secondes, cinq envois au plus"
+prouver "le code par e-mail jamais demandé" $CX \
+  "    if (!aUnCode && ctx.courriel) {" "    if (false) {" \
+  "$CE1"
+prouver "un code par e-mail demandé sans relais" $CX \
+  "    if (!aUnCode && ctx.courriel) {" "    if (!aUnCode) {" \
+  "$CE1"
+prouver "un appareil reconnu à qui l'on redemande le code par e-mail" $CX \
+  "      if (!verifiee || !(reconnu && !posteDUnAutre)) {" "      if (true) {" \
+  "$CE1"
+prouver "un appareil inconnu qui entre sans code par e-mail" $CX \
+  "      if (!verifiee || !(reconnu && !posteDUnAutre)) {" "      if (!verifiee) {" \
+  "$CE2"
+prouver "l'adresse jamais prouvée par le code reçu" $CX \
+  "    if (lu.methode === 'courriel') await tx.query('select socle.prouver_adresse(\$1, \$2)', [demande.defi, maintenant]);" "" \
+  "$CE1"
+prouver "un code par e-mail valable une heure" $CX \
+  "const DUREE_DEFI_COURRIEL_MINUTES = 15;" "const DUREE_DEFI_COURRIEL_MINUTES = 60;" \
+  "$CE4"
+prouver "un code renvoyé sans attendre" $C76 \
+  "coalesce(d.envoye_le, d.cree_le) <= p_maintenant - interval '30 seconds'" "coalesce(d.envoye_le, d.cree_le) <= p_maintenant" \
+  "$CE4"
+prouver "des renvois sans fin" $C76 \
+  "     and d.envois < 5 and coalesce(" "     and d.envois < 500 and coalesce(" \
+  "$CE4"
+prouver "l'ancien code valable après un renvoi" $C76 \
+  "  update socle.defi_connexion d set code_empreinte = p_empreinte, envois = d.envois + 1" "  update socle.defi_connexion d set code_empreinte = d.code_empreinte, envois = d.envois + 1" \
+  "$CE4"
+RT1="il faut le code du moment ou un code de secours ; un e-mail le confirme"
+RT4="les erreurs comptent comme à la connexion : une attente qui s'allonge"
+prouver "le code du téléphone retiré sans le prouver" $CO \
+  "  if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
+  const a = await" "  const a = await" \
+  "$RT1"
+prouver "le code retiré sans e-mail qui le confirme" $CO \
+  "    void courriel.envoi.envoyer({
+      a, objet: rendre(t('compte.code_retire_objet')" "    void Promise.resolve({
+      a, objet: rendre(t('compte.code_retire_objet')" \
+  "$RT1"
+prouver "les codes de secours gardés après le retrait" $C76 \
+  "  delete from socle.code_secours where utilisateur = socle.moi();
+  perform socle.tracer(null, 'compte.code.retirer'" "  perform socle.tracer(null, 'compte.code.retirer'" \
+  "$RT1"
+prouver "un comptable de cabinet qui retire son code" $C76 \
+  "    perform socle.refus('le code du téléphone est exigé de chaque comptable d''un cabinet : il ne se retire pas');" "" \
+  "un comptable de cabinet ne retire pas son code : il lui est exigé"
+prouver "le bon code accepté pendant l'attente" $CO \
+  "  if (bloque) return bloque;
+  if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
+  const a = await" "  if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
+  const a = await" \
+  "$RT4"
+prouver "les erreurs de code jamais comptées" $CO \
+  "(await tx.query('select socle.noter_erreur(\$1, \$2) a', [email, maintenant])).rows[0].a as Date | null);" "(await tx.query('select null::timestamptz a')).rows[0].a as Date | null);" \
+  "$RT4"
+prouver "les anciens codes de secours valables après le renouvellement" $C76 \
+  "  delete from socle.code_secours where utilisateur = socle.moi();
+  insert into socle.code_secours (utilisateur, empreinte) select socle.moi(), e from unnest(p_empreintes) e;
+  perform socle.tracer(null, 'compte.code.secours'" "  insert into socle.code_secours (utilisateur, empreinte) select socle.moi(), e from unnest(p_empreintes) e;
+  perform socle.tracer(null, 'compte.code.secours'" \
+  "avec le code du moment ; les anciens ne valent plus"
+MP="l'actuel d'abord, puis la même règle qu'à l'inscription ; les autres sessions se ferment, pas celle-ci"
+prouver "le mot de passe changé sans l'actuel" $CO \
+  "  if (!await motDePasseBon(ctx, email, actuel)) return erreur(ctx, email, { ok: false, motif: motif('compte.mot_de_passe_actuel_faux'), champ: 'actuel' });" "" \
+  "$MP"
+prouver "les autres sessions gardées au changement de mot de passe" $C76 \
+  "  update socle.session set fermee_le = p_maintenant where utilisateur = socle.moi() and fermee_le is null and id <> p_session;" "" \
+  "$MP"
+prouver "la session en cours fermée au changement de mot de passe" $C76 \
+  "and fermee_le is null and id <> p_session;" "and fermee_le is null;" \
+  "$MP"
+AD1="avec un relais : un code à la nouvelle adresse, puis elle remplace l'ancienne"
+prouver "l'adresse changée sans le code reçu à la nouvelle" $CO \
+  "  if (!courriel) {
+    await enTantQue(ctx.pool, qui.utilisateur, (tx) => tx.query('select socle.changer_adresse_sans_code(\$1)', [adresse]));" "  if (courriel || !courriel) {
+    await enTantQue(ctx.pool, qui.utilisateur, (tx) => tx.query('select socle.changer_adresse_sans_code(\$1)', [adresse]));" \
+  "$AD1"
+prouver "l'adresse changée avec un code faux" $C76 \
+  "  if c.code_empreinte <> p_empreinte then" "  if false then" \
+  "$AD1"
+prouver "l'ancienne adresse jamais prévenue" $CO \
+  "    void courriel.envoi.envoyer({
+      a: ancienne," "    void Promise.resolve({
+      a: ancienne," \
+  "$AD1"
+prouver "l'adresse d'un autre compte acceptée" $C76 \
+  "  if exists (select 1 from socle.utilisateur u where lower(u.email) = lower(trim(p_adresse)) and u.id <> socle.moi()) then" "  if false then" \
+  "une adresse déjà celle d'un autre compte se refuse"
+prouver "une adresse changée sans code dite vérifiée" $C76 \
+  "  update socle.utilisateur set email = lower(trim(p_nouvelle)), adresse_verifiee_le = null where id = socle.moi();" "  update socle.utilisateur set email = lower(trim(p_nouvelle)) where id = socle.moi();" \
+  "sans relais : on ne sait rien envoyer, l'adresse change tout de suite et reste à vérifier"
+CR="« Ce n'est pas ton adresse ? La corriger » : pendant le défi de l'inscription seulement"
+prouver "une adresse prouvée corrigée par un défi" $C76 \
+  "     and d.envois < 5 and u.adresse_verifiee_le is null" "     and d.envois < 5" \
+  "$CR"
+prouver "l'adresse d'un autre compte prise à la correction" $C76 \
+  "  if exists (select 1 from socle.utilisateur u where lower(u.email) = lower(trim(p_adresse)) and u.id <> v_utilisateur) then" "  if false then" \
+  "$CR"
+prouver "l'ancien code valable après la correction" $C76 \
+  "  update socle.defi_connexion set code_empreinte = p_empreinte, envois = envois + 1," "  update socle.defi_connexion set code_empreinte = code_empreinte, envois = envois + 1," \
+  "$CR"
+prouver "le code de la correction jamais envoyé" $CX \
+  "  envoyerCodeParCourriel(ctx, nouvelle, code, 'inscription');" "" \
+  "$CR"
+AC1="rien ne change avant le premier code juste : une activation abandonnée ne ferme pas la porte"
+AC2="une page rechargée garde le même secret, avec de nouveaux codes de secours ; après une heure, on recommence"
+AC3="qui a déjà un code prouve l'actuel avant d'en préparer un autre (changer de téléphone)"
+prouver "le code préparé posé tout de suite" $C76 \
+  "  update socle.utilisateur set code_secret_attente = p_secret," "  update socle.utilisateur set code_methode = 'application', code_secret = p_secret, code_secret_attente = p_secret," \
+  "$AC1"
+prouver "le code activé sans le premier code juste" $CO \
+  "    if (!/^[0-9]{6}\$/.test(saisi) || !verifierTotp(secret, saisi, maintenant.getTime())) return { ok: false, motif: motif('compte.code_essai_faux'), champ: 'code' };" "" \
+  "$AC1"
+prouver "les codes de secours préparés jamais posés" $C76 \
+  "  insert into socle.code_secours (utilisateur, empreinte) select socle.moi(), e from unnest(v_secours) e;" "" \
+  "$AC1"
+prouver "l'activation du code jamais tracée" $C76 \
+  "  perform socle.tracer(null, 'compte.code.activer', 'utilisateur', socle.moi(), null, jsonb_build_object('methode', 'application'));" "" \
+  "$AC1"
+prouver "un code préparé valable sans fin" $C76 \
+  "   where u.id = socle.moi() and u.code_attente_le > p_maintenant - interval '1 hour'
+\$\$;" "   where u.id = socle.moi()
+\$\$;" \
+  "$AC2"
+prouver "une page rechargée qui change de secret" $CO \
+  "?? nouveauSecret();" ";" \
+  "$AC2"
+prouver "les codes de secours de la première préparation gardés" $C76 \
+  "code_secours_attente = p_empreintes_secours," "code_secours_attente = coalesce(code_secours_attente, p_empreintes_secours)," \
+  "$AC2"
+prouver "changer de téléphone sans prouver l'actuel" $CO \
+  "    if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
+    await enTantQue" "    await enTantQue" \
+  "$AC3"
+prouver "changer de téléphone sans même un code" $CO \
+  "    if (!code?.trim()) return { ok: false, motif: motif('compte.code_actuel_manque'), champ: 'code' };" "" \
+  "$AC3"
+prouver "l'ancien téléphone valable après le changement" $C76 \
+  "  update socle.utilisateur set code_methode = 'application', code_secret = v_secret," "  update socle.utilisateur set code_methode = 'application', code_secret = coalesce(code_secret, v_secret)," \
+  "$AC3"
+prouver "le code posé d'un coup qui remplace un code actif" $C76 \
+  "    perform socle.refus('le code du téléphone est déjà activé : pour changer de téléphone, passe par Ton compte');" "" \
+  "le code posé d'un coup (gardé pour l'API) ne remplace pas un code actif"
+prouver "la session réduite gardée après l'activation" $C76 \
+  "  update socle.session set code_a_configurer = false where utilisateur = socle.moi() and fermee_le is null;
+  perform socle.tracer(null, 'compte.code.activer'" "  perform socle.tracer(null, 'compte.code.activer'" \
+  "un comptable de cabinet sans code : l'activation lève la session réduite"
+
+# Les écrans du lot onboarding (09/10/2026) : Ton compte (compte.js, partagé par l'entreprise et le Cabinet), le code
+# reçu par e-mail (CodeCourriel.tsx), et l'écran du code gardé dans l'onglet (App.tsx).
+CPTJS=web/public/plateforme/compte.js
+CPTE="de nouveaux codes de secours, puis le code désactivé"
+CPTC="le Cabinet : le code est exigé et ne se désactive pas"
+prouver "le code activé sans les codes de secours mis de côté" $CPTJS \
+  "          if (!\$('#cpt-garde').checked) {" "          if (false) {" \
+  "$PARC"
+prouver "le refus caché sous le bord de la fenêtre" $CPTJS \
+  "    if (alerte && alerte.textContent) alerte.scrollIntoView({ block: 'nearest' });" "" \
+  "$PARC"
+prouver "un code QR de Ton compte qui ne dit pas l'adresse" $CPTJS \
+  "    q.addData(adresse);" "    q.addData(adresse.replace('SkanFact', 'Skan'));" \
+  "$PARC"
+prouver "la clé de Ton compte qui n'est pas celle du code QR" $CPTJS \
+  "<code>\${esc(parQuatre(r.cle))}</code>" "<code>\${esc(parQuatre(r.cle.slice(1)))}</code>" \
+  "$PARC"
+prouver "le lien de Ton compte qui n'ouvre pas l'application" $CPTJS \
+  "<p><a href=\"\${esc(r.adresseApplication)}\">" "<p><a href=\"#\">" \
+  "$PARC"
+prouver "le code exigé d'un comptable de cabinet, désactivable à l'écran" $CPTJS \
+  "c.codeExige ? '' : '<button" "false ? '' : '<button" \
+  "$CPTC"
+prouver "le refus du mot de passe qui ne montre pas sa case" $CPTJS \
+  "refuser(racine, x, { actuel: '#cpt-actuel', nouveau: '#cpt-nouveau' })" "refuser(racine, x)" \
+  "$CPTE"
+prouver "l'adresse dite changée avant le code reçu" $CPTJS \
+  "if (!r.demande) { fermer(); o.toast('Adresse changée.'); fini(); return; }" "{ fermer(); o.toast('Adresse changée.'); fini(); return; }" \
+  "$CPTE"
+prouver "l'onglet Ton compte absent des Paramètres" web/public/v10/app.js \
+  "const SETTINGS_TABS = [...(bridge.dessinerCompte ? [['compte', 'Ton compte']] : []), " "const SETTINGS_TABS = [" \
+  "$CPTE"
+prouver "l'onglet Ton compte absent des Réglages du Cabinet" web/public/v10/cabinet/app.js \
+  "const REG_TABS = [['compte', 'Ton compte'], " "const REG_TABS = [" \
+  "$CPTC"
+prouver "l'écran du code perdu au rechargement" web/src/App.tsx \
+  "if (a.ecran === 'code') defiEnCours.garder(a.defi); else defiEnCours.oublier();" "defiEnCours.oublier();" \
+  "tient au rechargement"
+prouver "l'adresse corrigée oubliée au rechargement" web/src/App.tsx \
+  "corrige={(adresse) => { if (defi.methode === 'courriel') setAccueil({ ecran: 'code', defi: { ...defi, adresse } }); }}" "corrige={() => undefined}" \
+  "tient au rechargement"
+prouver "l'adresse en entier sur un appareil inconnu" web/src/ecrans/CodeCourriel.tsx \
+  "<b data-donnee>{masquer(adresse)}</b>" "<b data-donnee>{adresse}</b>" \
+  "le lien reçu choisit un nouveau mot de passe"
+prouver "renvoyer le code sans attendre" web/src/ecrans/CodeCourriel.tsx \
+  "disabled={decompte.reste > 0 || g.occupe}" "disabled={g.occupe}" \
+  "le lien reçu choisit un nouveau mot de passe"
+prouver "l'écran du code qui ne nomme pas le cabinet" web/src/App.tsx \
+  " cabinet={moi.cabinets[0]?.nom} />" " />" \
+  "$KEW4"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

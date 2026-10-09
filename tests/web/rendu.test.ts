@@ -73,12 +73,16 @@ describe('l\'instrument de rendu des écrans', () => {
     await api('POST', '/inscription', undefined, { email, nom: 'Leïla Ben Youssef-Trabelsi', motDePasse: 'Un-bon-mot-de-passe' });
     const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Essai', type: 'navigateur' } })).jeton);
     if (etape === 'vide') return { jeton, ent: '' };
+    // Le code du téléphone n'est exigé que d'un comptable de cabinet (0076, décision du 09/10/2026).
+    if (etape === 'code_requis') { await api('POST', '/cabinets', jeton, { nom: 'Cabinet Ben Youssef-Trabelsi' }); return { jeton, ent: '' }; }
     const ent = String((await api('POST', '/entreprises-essai', jeton)).id);
-    if (etape === 'prete') await api('POST', '/moi/code', jeton, { methode: 'application' });
     return { jeton, ent };
   }
+  // Un défi par e-mail en cours, comme l'onglet le garde (App.tsx) : l'écran du code s'ouvre sans rien demander au
+  // serveur (le défi n'est lu qu'au geste).
+  const defi = (raison: 'inscription' | 'appareil') => ({ defi: '00000000-0000-4000-8000-000000000000', methode: 'courriel', posteDUnAutre: false, adresse: 'leila.benyoussef-trabelsi@exemple.tn', raison });
 
-  type Ecran = { nom: string; titre: string; etape: Etape | null; adresse?: string; ouvrir?: (p: Page, langue: Langue) => Promise<void> };
+  type Ecran = { nom: string; titre: string; etape: Etape | null; adresse?: string; ouvrir?: (p: Page, langue: Langue) => Promise<void>; defi?: ReturnType<typeof defi> };
   const ENTREE: Ecran[] = [
     { nom: 'connexion', titre: 'ecran.connexion.titre', etape: null },
     { nom: 'inscription', titre: 'ecran.inscription.titre', etape: null, ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.connexion.creer_compte', l) }).click(); } },
@@ -87,6 +91,10 @@ describe('l\'instrument de rendu des écrans', () => {
     { nom: 'porte-cabinet', titre: 'ecran.porte.cabinet_titre', etape: 'vide', ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.porte.cabinet_lien', l), exact: true }).click(); } },
     { nom: 'code-requis', titre: 'ecran.code_requis.titre', etape: 'code_requis' },
     { nom: 'code-pose', titre: 'ecran.code_pose.titre', etape: 'code_requis', ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.code_requis.bouton', l) }).click(); } },
+    // Le lot onboarding (09/10/2026) : l'adresse à vérifier (et à corriger), un appareil inconnu.
+    { nom: 'verifie-email', titre: 'ecran.courriel.titre_inscription', etape: null, defi: defi('inscription') },
+    { nom: 'corriger-adresse', titre: 'ecran.courriel.titre_inscription', etape: null, defi: defi('inscription'), ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.courriel.corriger', l) }).click(); } },
+    { nom: 'bien-toi', titre: 'ecran.courriel.titre_appareil', etape: null, defi: defi('appareil') },
     // Le lot entrée (06/10/2026) : le lien du mot de passe oublié, une fois servi (ou faux), dit qu'il ne vaut plus rien.
     { nom: 'lien-perime', titre: 'ecran.nouveau.perime_titre', etape: null, adresse: '?reinitialiser=un-lien-qui-ne-vaut-rien' },
   ];
@@ -101,6 +109,7 @@ describe('l\'instrument de rendu des écrans', () => {
           const page = await contexte.newPage();
           const d = e.etape ? await personne(e.etape) : null;
           if (d) await page.addInitScript((j) => sessionStorage.setItem('skanfact.jeton', j), d.jeton);
+          if (e.defi) await page.addInitScript((x) => sessionStorage.setItem('skanfact.defi', JSON.stringify({ defi: x, le: Date.now() })), e.defi);
           const q = [e.adresse?.slice(1), langue === 'factice' ? 'langue=factice' : ''].filter(Boolean).join('&');
           await page.goto(`${serveur.adresse}/${q ? `?${q}` : ''}`);
           if (e.ouvrir) await e.ouvrir(page, langue);

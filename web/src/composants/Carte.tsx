@@ -5,12 +5,12 @@ import type { ReactNode } from 'react';
 import { Dessin, PageEtapes } from './Entree.tsx';
 
 type Props = {
-  titre: string; sous?: string | undefined; pied?: ReactNode; children?: ReactNode; onSubmit?: () => void;
+  titre: string; sous?: ReactNode; pied?: ReactNode; children?: ReactNode; onSubmit?: () => void;
   icone?: string; bandeau?: string | undefined; aide?: ReactNode; large?: boolean;
-  etape?: 1 | 2 | 3 | undefined; droite?: ReactNode;
+  etape?: 1 | 2 | 3 | undefined; cabinet?: boolean; droite?: ReactNode;
 };
 
-export function Carte({ titre, sous, pied, children, onSubmit, icone, bandeau, aide, large = false, etape, droite }: Props) {
+export function Carte({ titre, sous, pied, children, onSubmit, icone, bandeau, aide, large = false, etape, cabinet = false, droite }: Props) {
   const corps = (
     <>
       {children ? <div className="ent-carte-corps">{children}</div> : null}
@@ -19,7 +19,7 @@ export function Carte({ titre, sous, pied, children, onSubmit, icone, bandeau, a
     </>
   );
   return (
-    <PageEtapes etape={etape} droite={droite} etroite>
+    <PageEtapes etape={etape} cabinet={cabinet} droite={droite} etroite>
       <section className={`ent-carte${large ? ' large' : ''}`}>
         {bandeau ? <span className="ent-bandeau"><Dessin id="coche" />{bandeau}</span> : null}
         {icone ? <span className="ent-carte-ico"><Dessin id={icone} /></span> : null}

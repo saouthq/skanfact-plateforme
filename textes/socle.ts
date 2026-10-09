@@ -55,6 +55,24 @@ declarerTextes({
   'connexion.oubli_objet': 'Ton nouveau mot de passe SkanFact',
   'connexion.oubli_texte': 'Bonjour,\n\nQuelqu\'un, sans doute toi, a demandé à changer le mot de passe de ton compte SkanFact. Pour en choisir un nouveau, ouvre ce lien dans les {minutes} minutes :\n\n{lien}\n\nSi ce n\'est pas toi, ne fais rien : ton mot de passe reste le même.\n\nSkanFact',
   'compte.code_essai_faux': 'ce code ne correspond pas : vérifie que tu as bien ajouté SkanFact dans ton application, et que l\'heure de ton téléphone est réglée automatiquement',
+  // Les codes par e-mail (0076, lot onboarding du 09/10/2026) : l'adresse à vérifier, un appareil inconnu. Ce qui part
+  // chez le relais : l'adresse, l'objet et un texte qui ne porte que le code (03 § 6).
+  'connexion.courriel_objet': 'Ton code SkanFact : {code}',
+  'connexion.courriel_inscription': 'Bonjour,\n\nVoici ton code pour vérifier ton adresse e-mail sur SkanFact :\n\n{code}\n\nIl reste valable {minutes} minutes.\n\nCe n\'est pas toi ? Ne fais rien : sans ce code, personne ne vérifie cette adresse à ta place.\n\nSkanFact',
+  'connexion.courriel_appareil': 'Bonjour,\n\nVoici ton code pour te connecter à SkanFact depuis un nouvel appareil :\n\n{code}\n\nIl reste valable {minutes} minutes.\n\nCe n\'est pas toi ? Ne donne ce code à personne, et change ton mot de passe : quelqu\'un le connaît.\n\nSkanFact',
+  'connexion.renvoi_impossible': 'un code vient de partir : attends 30 secondes avant d\'en demander un autre (cinq envois au plus). Si rien n\'arrive, regarde dans les courriers indésirables, ou recommence la connexion',
+  'connexion.correction_impossible': 'l\'adresse ne se corrige plus ici (le code a expiré, ou il est parti trop de fois) : recommence la connexion',
+  // Ton compte (0076) : le code du téléphone qu'on retire, le mot de passe et l'adresse qu'on change.
+  'compte.code_retire_objet': 'Le code du téléphone a été désactivé',
+  'compte.code_retire_texte': 'Bonjour,\n\nLe code du téléphone vient d\'être désactivé sur ton compte SkanFact : ton mot de passe suffit désormais pour entrer.\n\nCe n\'est pas toi ? Change ton mot de passe tout de suite, puis réactive le code dans Paramètres, Ton compte :\n\n{adresse}\n\nSkanFact',
+  'compte.code_actuel_manque': 'tape d\'abord le code que donne ton téléphone actuel (ou un code de secours) : c\'est lui qui prouve que c\'est toi',
+  'compte.code_attente_perimee': 'plus d\'une heure a passé depuis le début de l\'activation : recommence-la (supprime l\'ancienne ligne SkanFact de ton application)',
+  'compte.mot_de_passe_actuel_faux': 'ce n\'est pas ton mot de passe actuel',
+  'compte.adresse_meme': 'c\'est déjà l\'adresse de ton compte',
+  'compte.adresse_objet': 'Ton code SkanFact : {code}',
+  'compte.adresse_texte': 'Bonjour,\n\nVoici ton code pour confirmer ta nouvelle adresse e-mail sur SkanFact :\n\n{code}\n\nIl reste valable {minutes} minutes.\n\nCe n\'est pas toi ? Ne fais rien : l\'adresse du compte ne change pas sans ce code.\n\nSkanFact',
+  'compte.adresse_changee_objet': 'L\'adresse de ton compte SkanFact a changé',
+  'compte.adresse_changee_texte': 'Bonjour,\n\nL\'adresse e-mail de ton compte SkanFact vient d\'être changée : les prochains e-mails partiront à la nouvelle.\n\nCe n\'est pas toi ? Écris-nous tout de suite :\n\n{aide}\n\nSkanFact',
   'mot_de_passe.trop_court': 'ton mot de passe doit faire au moins {min} caractères',
   'mot_de_passe.vole': 'ce mot de passe figure dans une liste de mots de passe déjà volés : choisis-en un autre',
 

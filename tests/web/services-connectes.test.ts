@@ -86,12 +86,15 @@ describe('services connectés, à la souris', () => {
     expect(texte).toContain(`Peut : ${rendre(t('geste.ventes.boutique.facturer'), 'fr')} ; ${rendre(t('geste.ventes.pieces.voir'), 'fr')}.`);
     expect(texte).toContain('Relié le 01/10/2026, jusqu');
     expect(texte).toContain('dernière action le 01/10/2026 à 0 h 40.');
-    expect(await p.locator('#p-appareils tr').filter({ hasText: 'Préparation' }).innerText()).toContain('Dernière activité le 01/10/2026');
     expect(texte).toMatch(/Relié le \d\d\/\d\d\/\d{4}, jusqu'au \d\d\/\d\d\/\d{4}\s?; dernière action le \d\d\/\d\d\/\d{4} à \d+ h \d\d\./);
     // Ni la clé coupée, ni l'expirée : elles ne peuvent plus rien.
     expect(texte).not.toContain('Ancien outil');
     expect(texte).not.toContain('Outil expiré');
     await p.screenshot({ path: path.join(PHOTOS, 'services-1-liste.png') });
+    // Le jour à Tunis aussi dans « Tes appareils », passé dans l'onglet Ton compte (lot onboarding).
+    await p.getByRole('tab', { name: 'Ton compte', exact: true }).click();
+    await expect.poll(() => p.locator('#p-appareils tr').filter({ hasText: 'Préparation' }).innerText(), { timeout: 15_000 }).toContain('Dernière activité le 01/10/2026');
+    await p.getByRole('tab', { name: 'Données et sécurité', exact: true }).click();
 
     // « Couper l'accès… » demande d'abord ; rien n'est coupé tant qu'on n'a pas confirmé.
     await panneau.getByRole('button', { name: 'Couper l\'accès…', exact: true }).click();

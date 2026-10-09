@@ -374,10 +374,14 @@
     retouche (`migrateData`) partait du poste suivant compté comme un geste de la personne ; un tel objet naît
     maintenant complet (l'achat et sa devise : `web/v10/compte-hors-ligne.txt`).
   - **L'entrée** (se connecter, créer son compte, le code du téléphone, la porte de la première
-    fois) : les seuls écrans écrits pour la plateforme, en React (`web/src`), à l'habillage de la
+    fois ; `docs/entree.md`) : les seuls écrans écrits pour la plateforme, en React (`web/src`), à l'habillage de la
     v10 ; leurs phrases viennent du catalogue. Le jeton de session vit dans l'onglet
     (sessionStorage) : décidé par délégation ; **À VÉRIFIER** le passage à un cookie que le
-    JavaScript ne lit pas.
+    JavaScript ne lit pas. **Le code du téléphone** (Skander, 09/10/2026 ; `0076`) : exigé du seul comptable d'un
+    cabinet, recommandé à tous les autres ; il s'active en deux temps (rien ne change avant le premier code juste) dans
+    **Ton compte**, premier onglet des Paramètres et des Réglages du Cabinet (`plateforme/compte.js`, partagé), qui porte
+    aussi l'adresse, le mot de passe et « Tes appareils ». Un serveur qui sait envoyer des e-mails vérifie l'adresse à
+    l'inscription et un appareil inconnu par un code à six chiffres (« Vérifie ton e-mail », « C'est bien toi ? »).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

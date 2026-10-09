@@ -10,11 +10,18 @@ import { Champ } from '../composants/Champ.tsx';
 import { Dessin } from '../composants/Entree.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
+import { CodeCourriel } from './CodeCourriel.tsx';
 import type { Defi } from './Connexion.tsx';
 
 const rien = () => undefined;
 
-export function Code({ defi, connecte, retour }: { defi: Defi; connecte: () => void; retour: () => void }) {
+export function Code({ defi, connecte, retour, corrige }: { defi: Defi; connecte: () => void; retour: () => void; corrige?: (adresse: string) => void }) {
+  // Le code reçu par e-mail a son écran (0076) ; une adresse corrigée se garde avec le défi.
+  if (defi.methode === 'courriel') return <CodeCourriel defi={defi} connecte={connecte} retour={retour} corrige={corrige} />;
+  return <CodeTelephone defi={defi} connecte={connecte} retour={retour} />;
+}
+
+function CodeTelephone({ defi, connecte, retour }: { defi: Exclude<Defi, { methode: 'courriel' }>; connecte: () => void; retour: () => void }) {
   const g = useGeste(rien);
   const [code, setCode] = useState('');
   const [secours, setSecours] = useState(false);

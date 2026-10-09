@@ -29,6 +29,22 @@ type Moi = { id: string; code_methode: string | null; codeAConfigurer: boolean; 
 
 const RETENUE = 'skanfact.entreprise';
 const INVITATION = 'skanfact.invitation';
+// Le défi en cours (le code à taper), gardé dans l'onglet le temps de sa validité : au téléphone, aller lire le code dans
+// l'application d'e-mails puis revenir recharge parfois la page, et l'écran du code se perdait (une nouvelle connexion
+// envoyait un autre code, et le premier, tapé, était refusé). Il ne donne rien sans le code.
+const DEFI = 'skanfact.defi';
+const DEFI_MS = 15 * 60_000;
+const defiEnCours = {
+  lire: (): Defi | null => {
+    try {
+      const t = sessionStorage.getItem(DEFI);
+      const d = t ? JSON.parse(t) as { defi: Defi; le: number } : null;
+      return d && Date.now() - d.le < DEFI_MS ? d.defi : null;
+    } catch { return null; }
+  },
+  garder: (defi: Defi) => { try { sessionStorage.setItem(DEFI, JSON.stringify({ defi, le: Date.now() })); } catch { /* sans stockage : l'écran ne survit pas au rechargement */ } },
+  oublier: () => { try { sessionStorage.removeItem(DEFI); } catch { /* rien à oublier */ } },
+};
 // Le jeton du mot de passe oublié, arrivé dans l'adresse : retiré de l'adresse aussitôt (il ne se garde nulle part).
 const REINITIALISER = (() => {
   const q = new URLSearchParams(location.search);
@@ -89,7 +105,17 @@ export function ouvrirCabinet(id: string) {
 }
 
 export function App() {
-  const [accueil, setAccueil] = useState<Accueil>(REINITIALISER ? { ecran: 'nouveau', jeton: REINITIALISER } : session.jeton() ? { ecran: 'dedans' } : { ecran: 'connexion' });
+  const [accueil, setAccueilBrut] = useState<Accueil>(() => {
+    if (REINITIALISER) return { ecran: 'nouveau', jeton: REINITIALISER };
+    if (session.jeton()) return { ecran: 'dedans' };
+    const defi = defiEnCours.lire();
+    return defi ? { ecran: 'code', defi } : { ecran: 'connexion' };
+  });
+  // L'écran du code se garde dans l'onglet ; tout autre écran l'oublie.
+  const setAccueil = useCallback((a: Accueil) => {
+    if (a.ecran === 'code') defiEnCours.garder(a.defi); else defiEnCours.oublier();
+    setAccueilBrut(a);
+  }, []);
   const [moi, setMoi] = useState<Moi | null>(null);
   // Ce qui s'ouvre (l'écran d'ouverture le montre le temps que l'application arrive).
   const [ouvrir, setOuvrir] = useState<Ouvrir | null>(null);
@@ -172,8 +198,14 @@ export function App() {
   const finirConnexion = () => { connexionDemandee.oublier(); setDemandeConnexion(null); };
   let ecran: ReactNode;
   switch (accueil.ecran) {
-    case 'inscription': ecran = <Inscription connecte={vers({ ecran: 'dedans' })} aConnecter={(email) => setAccueil({ ecran: 'connexion', email })} connexion={vers({ ecran: 'connexion' })} sous={attend} />; break;
-    case 'code': ecran = <Code defi={accueil.defi} connecte={vers({ ecran: 'dedans' })} retour={vers({ ecran: 'connexion' })} />; break;
+    case 'inscription': ecran = <Inscription connecte={vers({ ecran: 'dedans' })} code={(defi) => setAccueil({ ecran: 'code', defi })}
+      aConnecter={(email) => setAccueil({ ecran: 'connexion', email })} connexion={vers({ ecran: 'connexion' })} sous={attend} />; break;
+    case 'code': {
+      const defi = accueil.defi;
+      ecran = <Code defi={defi} connecte={vers({ ecran: 'dedans' })} retour={vers({ ecran: 'connexion' })}
+        corrige={(adresse) => { if (defi.methode === 'courriel') setAccueil({ ecran: 'code', defi: { ...defi, adresse } }); }} />;
+      break;
+    }
     case 'connexion': ecran = <Connexion connecte={vers({ ecran: 'dedans' })} code={(defi) => setAccueil({ ecran: 'code', defi })} oubli={(email) => setAccueil({ ecran: 'oubli', email })}
       inscription={vers({ ecran: 'inscription' })} sous={attend} {...(accueil.email ? { email: accueil.email } : {})} />; break;
     case 'oubli': ecran = <Oubli email={accueil.email} retour={vers({ ecran: 'connexion', email: accueil.email })} />; break;
@@ -184,12 +216,13 @@ export function App() {
         ecran = <Carte titre={titre('ecran.invitation.titre')} pied={<Bouton principal onClick={() => setRefusInvitation(null)}>{titre('ecran.invitation.continuer')}</Bouton>}>
           <p role="alert">{refusInvitation}</p></Carte>;
       } else if (refusInvitation !== null) ecran = <Ouverture ouvrir={null} />;
-      else if (moi?.codeAConfigurer) ecran = <CodeRequis pose={() => { void charger(); }} deconnecte={() => { void sortir(); }} entreprise={miennes[0]?.raison_sociale} />;
+      // Le code du téléphone, exigé des seuls comptables d'un cabinet (0076).
+      else if (moi?.codeAConfigurer) ecran = <CodeRequis pose={() => { void charger(); }} deconnecte={() => { void sortir(); }} cabinet={moi.cabinets[0]?.nom} />;
       // Un partenaire attend l'accord : la page « Connecter » passe avant l'entreprise (ou la porte).
       else if (moi && demandeConnexion) {
         ecran = <Connecter demande={demandeConnexion} entreprises={moi.entreprises} creee={() => { void charger(); }} partir={(adresse) => { connexionDemandee.oublier(); location.assign(adresse); }} fini={finirConnexion} deconnecte={() => { void sortir(); }} />;
       }
-      // L'entreprise créée, on relit le compte : son rôle peut exiger le code du téléphone d'abord.
+      // L'entreprise ou le cabinet créé, on relit le compte : un cabinet exige le code du téléphone d'abord.
       else if (moi && miennes.length === 0 && moi.cabinets.length === 0) {
         ecran = <Porte creee={(id) => { retenir(id); void charger(); }} cabinetCree={(id) => { retenir(id); void charger(); }} deconnecte={() => { void sortir(); }} />;
       }

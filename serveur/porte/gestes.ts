@@ -91,7 +91,7 @@ export const GESTES_SOCLE: Geste[] = [
 export const GESTES_PERSONNELS = [
   'compte.voir', 'compte.deconnecter', 'compte.code.configurer', 'compte.appareils.gerer', 'compte.trace.voir',
   'compte.entreprise.creer', 'compte.invitation.accepter', 'compte.transfert.accepter', 'compte.file.envoyer',
-  'compte.a_reprendre.resoudre', 'compte.cabinet.creer', 'compte.cabinets.voir', 'compte.cabinet.gerer', 'public',
+  'compte.a_reprendre.resoudre', 'compte.cabinet.creer', 'compte.cabinets.voir', 'compte.cabinet.gerer', 'compte.securite.gerer', 'public',
 ] as const;
 
 export function registreDesGestes(...listes: Geste[][]): Map<string, Geste> {

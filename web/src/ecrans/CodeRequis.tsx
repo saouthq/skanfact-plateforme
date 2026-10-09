@@ -7,6 +7,9 @@
 // le lien qui ouvre l'application quand on est déjà sur son téléphone, et le premier code vérifié avant de partir.
 // Lot entrée (06/10/2026 ; docs/entree.md) : les codes de secours se copient et se téléchargent, et l'écran ne part pas
 // avant que la personne dise les avoir mis de côté (ils ne se montreront plus).
+// Lot onboarding (décision de Skander du 09/10/2026 ; 0076) : le code n'est plus exigé que des comptables d'un cabinet,
+// et il s'active en deux temps — préparé (rien ne change), puis activé par le premier code juste : une page fermée en
+// route ne laisse plus la personne dehors.
 import qrcode from 'qrcode-generator';
 import { useRef, useState } from 'react';
 import { Bouton } from '../composants/Bouton.tsx';
@@ -45,7 +48,7 @@ function telecharger(codes: string[]) {
 
 const seDeconnecter = (deconnecte: () => void) => <button type="button" className="ent-lien gris" onClick={deconnecte}>{titre('ecran.deconnexion')}</button>;
 
-export function CodeRequis({ pose, deconnecte, entreprise }: { pose: () => void; deconnecte: () => void; entreprise?: string | undefined }) {
+export function CodeRequis({ pose, deconnecte, cabinet }: { pose: () => void; deconnecte: () => void; cabinet?: string | undefined }) {
   const g = useGeste(deconnecte);
   const [codes, setCodes] = useState<{ adresse: string | null; cle: string | null; secours: string[] } | null>(null);
   const [essai, setEssai] = useState('');
@@ -54,21 +57,24 @@ export function CodeRequis({ pose, deconnecte, entreprise }: { pose: () => void;
   const caseGarde = useRef<HTMLDivElement>(null);
 
   const poser = () => g.geste(async () => {
-    const r = await g.api<{ codesDeSecours: string[]; adresseApplication: string | null; cle: string | null }>('POST', '/moi/code', { methode: 'application' });
+    const r = await g.api<{ codesDeSecours: string[]; adresseApplication: string | null; cle: string | null }>('POST', '/moi/code/preparer', {});
     if (!r) return;
     if (r.statut === 200) setCodes({ adresse: r.corps.adresseApplication, cle: r.corps.cle, secours: r.corps.codesDeSecours }); else g.refuser(refusDe(r));
   });
   const verifier = () => g.geste(async () => {
     // Les codes de secours ne se montreront plus : on ne part pas sans les avoir mis de côté.
     if (!garde) { toast(phrase('ecran.code_pose.garde_avant'), true); setACocher(true); caseGarde.current?.querySelector('input')?.focus(); return; }
-    const r = await g.api('POST', '/moi/code/essayer', { code: essai });
+    const r = await g.api('POST', '/moi/code/activer', { code: essai });
     if (!r) return;
-    if (r.statut === 200) pose(); else g.refuser({ ...refusDe(r), champ: 'code' });
+    if (r.statut === 200) { pose(); return; }
+    // Plus d'une heure depuis la préparation : on recommence depuis le début (le refus le dit).
+    if (r.corps.champ !== 'code') { setCodes(null); setGarde(false); setEssai(''); }
+    g.refuser(refusDe(r));
   });
 
   if (codes) {
     return (
-      <PageEtapes etape={3} droite={seDeconnecter(deconnecte)}>
+      <PageEtapes etape={3} cabinet droite={seDeconnecter(deconnecte)}>
         <div className="ent-titre-page"><h1>{titre('ecran.code_pose.titre')}</h1><p>{phrase('ecran.code_pose.application')}</p></div>
         <form noValidate className="ent-pose" onSubmit={(e) => { e.preventDefault(); void verifier(); }}>
           <ol>
@@ -118,8 +124,8 @@ export function CodeRequis({ pose, deconnecte, entreprise }: { pose: () => void;
     );
   }
   return (
-    <Carte large etape={3} droite={seDeconnecter(deconnecte)} icone="bouclier" titre={titre('ecran.code_requis.titre')}
-      bandeau={entreprise ? titre('ecran.code_requis.creee', { nom: entreprise }) : undefined} sous={phrase('ecran.code_requis.aide')}
+    <Carte large etape={3} cabinet droite={seDeconnecter(deconnecte)} icone="bouclier" titre={titre('ecran.code_requis.titre')}
+      bandeau={cabinet ? titre('ecran.code_requis.cabinet', { nom: cabinet }) : undefined} sous={phrase('ecran.code_requis.aide')}
       pied={<Bouton principal occupe={g.occupe} onClick={() => { void poser(); }}>{titre('ecran.code_requis.bouton')}<Dessin id="fleche" /></Bouton>}>
       <ol className="ent-etapes-courtes">
         {['ecran.code_requis.etape1', 'ecran.code_requis.etape2', 'ecran.code_requis.etape3'].map((cle, i) => (

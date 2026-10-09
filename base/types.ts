@@ -487,6 +487,16 @@ export interface BaseDeDonnees {
     controle_le: Date | null;
     controle_ok: boolean | null;
   };
+  'socle.changement_adresse': {
+    id: Generated<string>;
+    utilisateur: string;
+    nouvelle: string;
+    code_empreinte: string;
+    cree_le: Date;
+    expire_le: Date;
+    erreurs: Generated<number>;
+    fait_le: Date | null;
+  };
   'socle.cle_api': {
     id: Generated<string>;
     entreprise: string;
@@ -524,6 +534,8 @@ export interface BaseDeDonnees {
     expire_le: Date;
     erreurs: Generated<number>;
     resolu_le: Date | null;
+    envois: Generated<number>;
+    envoye_le: Date | null;
   };
   'socle.devise': {
     code: string;
@@ -782,6 +794,10 @@ export interface BaseDeDonnees {
     cree_le: Generated<Date>;
     code_methode: string | null;
     code_secret: string | null;
+    adresse_verifiee_le: Date | null;
+    code_secret_attente: string | null;
+    code_secours_attente: string[] | null;
+    code_attente_le: Date | null;
   };
   'ventes.accord': {
     id: Generated<string>;

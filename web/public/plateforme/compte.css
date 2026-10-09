@@ -1,0 +1,58 @@
+/* Ton compte (lot onboarding, 09/10/2026 ; maquettes validées par Skander ; compte.js) : une carte par sujet, celle du
+   code du téléphone mise en avant tant qu'il est recommandé. Les couleurs sont les variables de la v10, qui suivent son
+   thème sombre. Feuille partagée par les deux applications (l'entreprise et le Cabinet). */
+/* Le panneau qui porte les cartes s'efface : des cartes posées sur la page, comme la maquette, sans cadre autour d'elles
+   ni titre qui répète l'onglet (il reste lu par les lecteurs d'écran). */
+.panel#p-compte, .panel#pan-compte { background: transparent; border: 0; box-shadow: none; padding: 0; }
+.panel#p-compte > h2, .panel#pan-compte > h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.cpt { display: flex; flex-direction: column; gap: 14px; }
+.cpt-carte { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 22px; }
+.cpt-ligne { display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap; }
+.cpt-quoi { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cpt-quoi h3 { margin: 0; font-size: 16px; font-weight: 650; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cpt-quoi p { margin: 0; }
+.cpt-etiquette { font-size: 13px; font-weight: 600; color: var(--muted); }
+.cpt-valeur { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 15px; overflow-wrap: anywhere; }
+.cpt-ligne > .btn { flex: none; }
+.cpt .badge svg { width: 12px; height: 12px; vertical-align: -1px; margin-inline-end: 4px; }
+.badge.cpt-ok { background: var(--success-soft); color: var(--success); }
+.badge.cpt-attente { background: var(--warning-soft); color: var(--warning); }
+.badge.cpt-eteint { background: var(--ink-soft); color: var(--muted); }
+.cpt-ico { flex: none; width: 40px; height: 40px; border-radius: 12px; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; }
+.cpt-ico svg { width: 22px; height: 22px; }
+.cpt-ico-alerte { background: var(--danger-soft); color: var(--danger); }
+.modal .cpt-ico { margin-bottom: 14px; }
+/* Recommandé : la carte du code se voit (un trait de la couleur de SkanFact), sans crier. */
+.cpt-recommande { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.cpt-pied { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.cpt-boutons { display: flex; flex-wrap: wrap; gap: 8px; }
+.cpt-discret { background: var(--bg); }
+
+/* Les fenêtres : deux champs l'un sous l'autre ont leur écart (la règle de la v10 ne vise que les champs posés à même
+   la fenêtre) ; un refus se dit sous les boutons (rien ne bouge sous le curseur), et sa case se marque. */
+.cpt-form > * + .field, .cpt-form > .field + * { margin-block-start: 14px; }
+.cpt-alerte { margin: 10px 0 0; color: var(--danger); }
+.cpt-alerte:empty { margin: 0; }
+.cpt-faute input { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+label.check.cpt-faute { outline: 2px solid var(--danger); outline-offset: 4px; border-radius: 6px; }
+.modal input.cpt-code-champ { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 20px; letter-spacing: .2em; text-align: center; }
+.cpt-etapes { margin: 0; padding: 0; list-style: none; counter-reset: cpt; display: flex; flex-direction: column; gap: 12px; }
+.cpt-etapes > li { counter-increment: cpt; position: relative; padding-inline-start: 40px; display: flex; flex-direction: column; gap: 6px; }
+.cpt-etapes > li::before {
+  content: counter(cpt); position: absolute; inset-inline-start: 0; top: -2px; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--primary); color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+.cpt-qr { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+.cpt-qr-image { flex: none; width: 132px; height: 132px; padding: 6px; border-radius: 10px; border: 1px solid var(--border); background: #fff; }
+.cpt-qr-image svg { display: block; width: 100%; height: 100%; }
+.cpt-qr > .small { flex: 1 1 220px; min-width: 0; }
+.cpt-qr p { margin: 0 0 8px; }
+.cpt-cle code { padding: 4px 8px; border-radius: 6px; background: var(--ink-soft); font-family: "SF Mono", Menlo, Consolas, monospace; letter-spacing: .06em; overflow-wrap: anywhere; user-select: all; }
+.cpt-secours { margin: 6px 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 14px; }
+.cpt-secours li { padding: 4px 10px; border-radius: 8px; background: var(--ink-soft); overflow-wrap: anywhere; }
+.cpt-cache { position: absolute; inset-inline-start: -9999px; width: 1px; height: 1px; opacity: 0; }
+
+@media (max-width: 560px) {
+  .cpt-carte { padding: 16px; }
+  .cpt-ligne > .btn { width: 100%; justify-content: center; }
+}

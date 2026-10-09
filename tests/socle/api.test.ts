@@ -98,15 +98,22 @@ describe('chaque route déclare son geste (03 D2)', () => {
 });
 
 describe('le code sur le téléphone se juge à chaque requête', () => {
-  it('une session ouverte avant de devenir propriétaire doit mettre le code en place avant tout', async () => {
+  // Depuis le 09/10/2026 (décision de Skander, 03 § 6), seul un comptable de cabinet doit avoir le code.
+  it('une session ouverte avant de devenir comptable d\'un cabinet doit mettre le code en place avant tout', async () => {
     const alice = await personne('alice');
-    const r = await appeler('POST', '/entreprises', alice.jeton, { raisonSociale: 'Société sans code' });
-    const ent = String(r.corps.id);
-    const bloque = await appeler('GET', `/entreprises/${ent}/equipe`, alice.jeton);
+    await enTantQue(pool, alice.id, (tx) => tx.query(`select * from socle.creer_cabinet('Cabinet sans code')`));
+    const bloque = await appeler('POST', '/entreprises', alice.jeton, { raisonSociale: 'Société du cabinet' });
     expect(bloque.statut).toBe(403);
     expect(bloque.corps.bouton).toBe('compte.code.configurer');
     await mettreLeCode(alice.jeton);
-    expect((await appeler('GET', `/entreprises/${ent}/equipe`, alice.jeton)).statut).toBe(200);
+    expect((await appeler('POST', '/entreprises', alice.jeton, { raisonSociale: 'Société du cabinet' })).statut).toBe(201);
+  });
+
+  it('un propriétaire continue sans code du téléphone : recommandé, jamais imposé', async () => {
+    const alice = await personne('alice');
+    const r = await appeler('POST', '/entreprises', alice.jeton, { raisonSociale: 'Société sans code' });
+    expect((await appeler('GET', `/entreprises/${String(r.corps.id)}/equipe`, alice.jeton)).statut).toBe(200);
+    expect((await appeler('GET', '/moi', alice.jeton)).corps).toMatchObject({ codeAConfigurer: false, compte: { codeExige: false } });
   });
 });
 
@@ -171,10 +178,9 @@ describe('l\'équipe (03 D4 à D6)', () => {
     const mBob = await membreId(ent, bob.id);
     const mAlice = await membreId(ent, alice.id);
 
-    // Alice fait de Bob un administrateur : il doit alors mettre son code en place.
+    // Alice fait de Bob un administrateur : le code du téléphone lui est recommandé, jamais imposé (09/10/2026).
     expect((await appeler('PUT', `/entreprises/${ent}/membres/${mBob}/roles`, alice.jeton, { roles: ['administrateur'] })).statut).toBe(200);
-    expect((await appeler('GET', `/entreprises/${ent}/equipe`, bob.jeton)).corps.bouton).toBe('compte.code.configurer');
-    await mettreLeCode(bob.jeton);
+    expect((await appeler('GET', `/entreprises/${ent}/equipe`, bob.jeton)).statut).toBe(200);
 
     const soi = await appeler('PUT', `/entreprises/${ent}/membres/${mBob}/roles`, bob.jeton, { roles: ['administrateur', 'paie'] });
     expect(soi).toMatchObject({ statut: 403, corps: { motif: 'Personne ne change son propre rôle.' } });

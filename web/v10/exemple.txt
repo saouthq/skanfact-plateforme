@@ -241,7 +241,7 @@ texte: 'Quand ton comptable a une question, elle arrive ici <b>et sur la pièce 
         { page: '#/parametres', avant: onglet('#set-tabs', 'donnees'), cible: ['#ext-choose', '#view .panel'], cote: 'dessous', titre: 'Tes données à l\'abri',
           texte: 'SkanFact sauvegarde chaque jour. Mais la <b>copie automatique</b> vers une clé USB, iCloud ou OneDrive est l\'étape que tout le monde saute — et la seule dont l\'absence coûte tout.' },
 -- après
-        { page: '#/parametres', avant: onglet('#set-tabs', 'donnees'), cible: '#p-appareils', cote: 'dessous', titre: 'Tes données à l\'abri',
+        { page: '#/parametres', avant: onglet('#set-tabs', 'compte'), cible: '#p-appareils', cote: 'dessous', titre: 'Tes données à l\'abri',
           texte: 'Tes données vivent sur le serveur SkanFact, sauvegardé chaque nuit : rien à copier de ton côté. Ce qui se règle ici, ce sont <b>tes appareils</b> : un téléphone perdu ou un ordinateur donné se retire d\'un clic, et il ne peut plus rien ouvrir.' },
 -- fin
 

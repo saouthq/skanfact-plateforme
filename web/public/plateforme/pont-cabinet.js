@@ -901,6 +901,9 @@
     etapesAbsentes: ETAPES_ABSENTES,
     visitesAbsentes: [...VISITES_SANS_OBJET, ...VISITES_PAS_ENCORE],
     articlesAbsents: ARTICLES_ABSENTS,
+    // Ton compte (lot onboarding, 0076 ; compte.js, le même que dans l'entreprise) et tes appareils (brique 74).
+    dessinerCompte: (/** @type {HTMLElement} */ el, /** @type {any} */ v10) => /** @type {any} */ (window).SkanCompte.dessiner(el, { appel, modal: v10.modal, toast: v10.toast }),
+    dessinerAppareils: (/** @type {HTMLElement} */ el) => /** @type {any} */ (window).SkanCompte.appareils(el, { appel }),
     // Pas de clé de secours en ligne (C4) : le Cabinet ne la réclame jamais (adaptation de chargerRecovery).
     sansCleDeSecours: true,
     // L'ouverture : la session de la plateforme ouvre le cabinet (adaptation de boot()).

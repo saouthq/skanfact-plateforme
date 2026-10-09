@@ -5,7 +5,8 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import pg from 'pg';
 import { creerPool, enTantQue } from '../../serveur/base.ts';
-import { connecter, deconnecter, inscrire, mettreEnPlaceCode, quiEst, revoquerAppareil, validerCode, type Contexte } from '../../serveur/connexion.ts';
+import { connecter, corrigerAdresse, deconnecter, inscrire, mettreEnPlaceCode, quiEst, renvoyerCode, revoquerAppareil, validerCode, type Contexte } from '../../serveur/connexion.ts';
+import type { Courriel } from '../../serveur/courriel.ts';
 import { listeDepuisFichier, verifierPolitique } from '../../serveur/mot-de-passe.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 
@@ -20,6 +21,10 @@ const ctx: Contexte = {
   pool, listeVolee, maintenant: () => horloge,
   sms: { envoyer: async (telephone, texte) => { envoyes.push({ telephone, texte }); } },
 };
+// Le même serveur, qui sait envoyer des e-mails (0076) : ce qui partirait chez le relais est gardé ici.
+const courriels: Courriel[] = [];
+const ctxCourriel: Contexte = { ...ctx, courriel: { envoi: { envoyer: async (c) => { courriels.push(c); } }, adresse: () => 'https://app.exemple.tn' } };
+const codeDuCourriel = () => /\n\n(\d{6})\n\n/.exec(courriels.at(-1)?.texte ?? '')?.[1] ?? '';
 const MDP = 'Un-bon-mot-de-passe';
 const POSTE = { nom: 'Portable', type: 'bureau' as const };
 
@@ -102,8 +107,18 @@ describe('le code sur le téléphone', () => {
     expect((await quiEst(ctx, r.jeton))?.utilisateur).toBe(p.id);
   });
 
-  it('un propriétaire sans code : une session qui ne sert qu\'à le mettre en place', async () => {
-    const p = await personne({ proprietaire: true, telephone: '+216 20 000 001' });
+  it('un propriétaire entre sans code du téléphone : recommandé, jamais imposé (09/10/2026)', async () => {
+    const p = await personne({ proprietaire: true, telephone: '+216 20 000 009' });
+    const r = await connecter(ctx, { email: p.email, motDePasse: MDP, appareil: POSTE });
+    expect(r).toMatchObject({ etat: 'connecte', codeAConfigurer: false });
+    if (r.etat !== 'connecte') return;
+    expect((await sessionDe(r.jeton)).codeAConfigurer).toBe(false);
+    expect((await enTantQue(pool, p.id, (tx) => tx.query('select socle.code_manquant() m'))).rows[0].m).toBe(false);
+  });
+
+  it('un comptable de cabinet sans code : une session qui ne sert qu\'à le mettre en place', async () => {
+    const p = await personne({ telephone: '+216 20 000 001' });
+    await enTantQue(pool, p.id, (tx) => tx.query(`select * from socle.creer_cabinet('Cabinet ${n}')`));
     const r = await connecter(ctx, { email: p.email, motDePasse: MDP, appareil: POSTE });
     expect(r).toMatchObject({ etat: 'connecte', codeAConfigurer: true });
     if (r.etat !== 'connecte') return;
@@ -167,6 +182,106 @@ describe('le code sur le téléphone', () => {
     };
     expect((await essai()).etat).toBe('connecte');
     expect((await essai()).etat).toBe('refuse');
+  });
+});
+
+describe('le code par e-mail (0076 ; seulement si le serveur sait envoyer un e-mail)', () => {
+  it('à la première connexion, l\'adresse se vérifie par un code reçu par e-mail : seuls l\'adresse et le code partent', async () => {
+    const p = await personne({ proprietaire: true });
+    // Sans relais d'e-mails, rien ne se demande par e-mail.
+    expect((await connecter(ctx, { email: p.email, motDePasse: MDP, appareil: POSTE })).etat).toBe('connecte');
+    const avant = courriels.length;
+    const r = await connecter(ctxCourriel, { email: p.email.toUpperCase(), motDePasse: MDP, appareil: POSTE });
+    expect(r).toMatchObject({ etat: 'code', methode: 'courriel', raison: 'inscription', adresse: p.email });
+    if (r.etat !== 'code') return;
+    expect(courriels).toHaveLength(avant + 1);
+    const c = courriels.at(-1);
+    const code = codeDuCourriel();
+    expect(c).toEqual({ a: p.email, objet: `Ton code SkanFact : ${code}`, texte: expect.stringContaining('vérifier ton adresse') });
+    // Ni le nom de la personne, ni son entreprise.
+    expect(JSON.stringify(c)).not.toMatch(new RegExp(`Personne ${p.email.match(/\d+/)?.[0]}\b|Société`));
+    // Un code faux, puis un code de secours : refusés (pas de code du téléphone, donc pas de codes de secours).
+    expect((await validerCode(ctxCourriel, { defi: r.defi, code: code === '000000' ? '111111' : '000000' })).etat).toBe('refuse');
+    expect((await validerCode(ctxCourriel, { defi: r.defi, code: 'ABCD-EFGH' })).etat).toBe('refuse');
+    const ok = await validerCode(ctxCourriel, { defi: r.defi, code });
+    expect(ok.etat).toBe('connecte');
+    if (ok.etat !== 'connecte') return;
+    expect((await admin.query('select adresse_verifiee_le v from socle.utilisateur where id = $1', [p.id])).rows[0].v).not.toBeNull();
+    // L'appareil est reconnu : la connexion suivante n'en demande plus.
+    expect((await connecter(ctxCourriel, { email: p.email, motDePasse: MDP, appareil: { ...POSTE, id: r.appareil } })).etat).toBe('connecte');
+  });
+
+  it('sans code du téléphone, un appareil inconnu (ou le poste d\'un autre) demande un code par e-mail ; un appareil reconnu, non', async () => {
+    const p = await personne();
+    const r0 = await connecter(ctxCourriel, { email: p.email, motDePasse: MDP, appareil: POSTE });
+    if (r0.etat !== 'code') throw new Error('code attendu');
+    const ok0 = await validerCode(ctxCourriel, { defi: r0.defi, code: codeDuCourriel() });
+    if (ok0.etat !== 'connecte' || !ok0.appareil) throw new Error('connexion attendue');
+    const ailleurs = await connecter(ctxCourriel, { email: p.email, motDePasse: MDP, appareil: { nom: 'Téléphone', type: 'telephone' } });
+    expect(ailleurs).toMatchObject({ etat: 'code', methode: 'courriel', raison: 'appareil' });
+    expect(courriels.at(-1)?.texte).toMatch(/nouvel appareil/);
+    expect((await connecter(ctxCourriel, { email: p.email, motDePasse: MDP, appareil: { ...POSTE, id: ok0.appareil }, posteDUnAutre: true })).etat).toBe('code');
+    expect((await connecter(ctxCourriel, { email: p.email, motDePasse: MDP, appareil: { ...POSTE, id: ok0.appareil } })).etat).toBe('connecte');
+    // Trente et un jours plus tard, l'appareil n'est plus reconnu.
+    avancer(60 * 24 * 31);
+    expect((await connecter(ctxCourriel, { email: p.email, motDePasse: MDP, appareil: { ...POSTE, id: ok0.appareil } })).etat).toBe('code');
+  });
+
+  it('qui a le code du téléphone le tape : aucun e-mail ne part', async () => {
+    const p = await personne({ proprietaire: true });
+    const r0 = await connecter(ctx, { email: p.email, motDePasse: MDP, appareil: POSTE });
+    if (r0.etat !== 'connecte') throw new Error('connexion attendue');
+    await mettreEnPlaceCode(ctx, await sessionDe(r0.jeton), 'application');
+    const avant = courriels.length;
+    const r = await connecter(ctxCourriel, { email: p.email, motDePasse: MDP, appareil: { nom: 'Autre', type: 'navigateur' } });
+    expect(r).toMatchObject({ etat: 'code', methode: 'application' });
+    expect(courriels).toHaveLength(avant);
+  });
+
+  it('renvoyer le code : pas avant 30 secondes, cinq envois au plus ; le nouveau remplace l\'ancien, et un code de 15 minutes ne vaut plus', async () => {
+    const p = await personne();
+    const r = await connecter(ctxCourriel, { email: p.email, motDePasse: MDP, appareil: POSTE });
+    if (r.etat !== 'code') throw new Error('code attendu');
+    const premier = codeDuCourriel();
+    expect(await renvoyerCode(ctxCourriel, r.defi)).toMatchObject({ ok: false });
+    for (let i = 0; i < 4; i++) {
+      avancer(0.6);
+      expect(await renvoyerCode(ctxCourriel, r.defi)).toEqual({ ok: true });
+    }
+    avancer(0.6);
+    expect(await renvoyerCode(ctxCourriel, r.defi)).toMatchObject({ ok: false });
+    const dernier = codeDuCourriel();
+    expect(courriels.at(-1)?.a).toBe(p.email);
+    if (premier !== dernier) expect((await validerCode(ctxCourriel, { defi: r.defi, code: premier })).etat).toBe('refuse');
+    expect((await validerCode(ctxCourriel, { defi: r.defi, code: dernier })).etat).toBe('connecte');
+    // Un autre défi, laissé 15 minutes : son code ne vaut plus.
+    const r2 = await connecter(ctxCourriel, { email: p.email, motDePasse: MDP, appareil: { nom: 'Tablette', type: 'navigateur' } });
+    if (r2.etat !== 'code') throw new Error('code attendu');
+    avancer(16);
+    expect((await validerCode(ctxCourriel, { defi: r2.defi, code: codeDuCourriel() })).etat).toBe('refuse');
+  });
+
+  it('« Ce n\'est pas ton adresse ? La corriger » : pendant le défi de l\'inscription seulement, le code part à la nouvelle', async () => {
+    const p = await personne();
+    const autre = await personne();
+    const r = await connecter(ctxCourriel, { email: p.email, motDePasse: MDP, appareil: POSTE });
+    if (r.etat !== 'code') throw new Error('code attendu');
+    const ancien = codeDuCourriel();
+    const nouvelle = `Corrigee${n}@Exemple.tn`;
+    // L'adresse d'un autre compte se refuse.
+    await expect(corrigerAdresse(ctxCourriel, r.defi, autre.email)).rejects.toThrow(/déjà celle d'un autre compte/);
+    expect(await corrigerAdresse(ctxCourriel, r.defi, nouvelle)).toEqual({ ok: true, adresse: nouvelle.toLowerCase() });
+    expect(courriels.at(-1)).toMatchObject({ a: nouvelle.toLowerCase(), texte: expect.stringContaining('vérifier ton adresse') });
+    expect((await admin.query('select email from socle.utilisateur where id = $1', [p.id])).rows[0].email).toBe(nouvelle.toLowerCase());
+    // L'ancien code ne vaut plus ; le nouveau prouve la nouvelle adresse.
+    if (ancien !== codeDuCourriel()) expect((await validerCode(ctxCourriel, { defi: r.defi, code: ancien })).etat).toBe('refuse');
+    expect((await validerCode(ctxCourriel, { defi: r.defi, code: codeDuCourriel() })).etat).toBe('connecte');
+    expect((await admin.query('select adresse_verifiee_le v from socle.utilisateur where id = $1', [p.id])).rows[0].v).not.toBeNull();
+    // Une adresse prouvée ne se corrige plus ainsi (le défi d'un nouvel appareil ne le permet pas).
+    const ailleurs = await connecter(ctxCourriel, { email: nouvelle, motDePasse: MDP, appareil: { nom: 'Téléphone', type: 'telephone' } });
+    if (ailleurs.etat !== 'code') throw new Error('code attendu');
+    expect(await corrigerAdresse(ctxCourriel, ailleurs.defi, `encore${n}@exemple.tn`)).toMatchObject({ ok: false });
+    expect((await admin.query('select email from socle.utilisateur where id = $1', [p.id])).rows[0].email).toBe(nouvelle.toLowerCase());
   });
 });
 

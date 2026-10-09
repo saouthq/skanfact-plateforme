@@ -1,7 +1,9 @@
 // L'entrée refaite (lot entrée, 06/10/2026 ; maquettes validées par Skander, docs/entree.md), jouée à la souris dans un
 // vrai navigateur : le mot de passe oublié de bout en bout (proposé seulement si le serveur sait envoyer l'e-mail), la
 // jauge du mot de passe et « Afficher », la forme du matricule dite pendant la frappe avec le haut de la facture qui se
-// dessine, les codes de secours copiés et téléchargés, et l'écran d'ouverture qui coche ce qui est fait.
+// dessine, les codes de secours copiés et téléchargés, et l'écran d'ouverture qui coche ce qui est fait. Et le code
+// reçu par e-mail (lot onboarding, 0076) : « Vérifie ton e-mail » à l'inscription (une adresse mal tapée s'y corrige),
+// « C'est bien toi ? » sur un appareil inconnu ; le code du téléphone, exigé du seul comptable d'un cabinet.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -16,6 +18,7 @@ import '../../web/src/textes.ts';
 import type { Courriel } from '../../serveur/courriel.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
+import * as jsqr from 'jsqr';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -48,11 +51,15 @@ describe('l\'entrée refaite, à la souris', () => {
     method: methode, headers: { ...(corps === undefined ? {} : { 'content-type': 'application/json' }), ...(jeton ? { authorization: `Bearer ${jeton}` } : {}) },
     ...(corps === undefined ? {} : { body: JSON.stringify(corps) }),
   })).json()) as Record<string, unknown>;
+  // Le dernier code parti à cette adresse, lu dans l'objet de l'e-mail (« Ton code SkanFact : 482913 »).
+  const codeRecu = (email: string) => /(\d{6})$/.exec(partis.filter((m) => m.a === email).at(-1)?.objet ?? '')?.[1] ?? '';
   let n = 0;
   async function personne() {
     const email = `entree-${++n}-${Date.now()}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Amine Gharbi', motDePasse: 'Un-bon-mot-de-passe' });
-    const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Essai', type: 'navigateur' } })).jeton);
+    // Ce serveur envoie des e-mails : la première connexion vérifie l'adresse, par le code reçu.
+    const defi = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Essai', type: 'navigateur' } })).defi);
+    const jeton = String((await api('POST', '/connexion/code', undefined, { defi, code: codeRecu(email) })).jeton);
     return { email, jeton };
   }
   async function page(jeton?: string, adresse = serveur.adresse) {
@@ -106,12 +113,74 @@ describe('l\'entrée refaite, à la souris', () => {
     await ecran(p, 'ecran.nouveau.perime_titre');
     await bouton(p, 'ecran.nouveau.redemander').click();
     await ecran(p, 'ecran.oubli.titre');
-    // Le nouveau mot de passe ouvre le compte (la porte : il n'a pas encore d'entreprise).
+    // Le nouveau mot de passe ouvre le compte. Cet appareil, SkanFact ne le connaît pas : « C'est bien toi ? », un code
+    // part à l'adresse, à demi cachée à l'écran ; « Renvoyer le code » attend ses 30 secondes. Puis la porte (il n'a pas
+    // encore d'entreprise).
     await p.goto(serveur.adresse);
     await champ(p, 'ecran.connexion.email').fill(email);
     await champ(p, 'ecran.connexion.mot_de_passe').fill('Une-phrase-toute-neuve');
+    const envoyes = partis.length;
     await bouton(p, 'ecran.connexion.bouton').click();
+    await ecran(p, 'ecran.courriel.titre_appareil');
+    expect(partis.length).toBe(envoyes + 1);
+    expect(partis.at(-1)?.texte).toContain('depuis un nouvel appareil');
+    expect(await p.locator('.ent-entete [data-donnee]').innerText()).toBe('e•••••@exemple.tn');
+    expect(await p.locator('.ent-renvoi button').innerText()).toMatch(/^Renvoyer le code dans \d+ s$/);
+    expect(await p.locator('.ent-renvoi button').isDisabled()).toBe(true);
+    await expect.poll(() => champ(p, 'ecran.courriel.champ_appareil').evaluate((i) => i === document.activeElement)).toBe(true);
+    await p.screenshot({ path: path.join(PHOTOS, 'entree-bien-toi.png') });
+    await champ(p, 'ecran.courriel.champ_appareil').fill(codeRecu(email));
+    await bouton(p, 'ecran.courriel.bouton').click();
     await ecran(p, 'ecran.porte.titre');
+    await p.context().close();
+  });
+
+  it('créer son compte : « Vérifie ton e-mail » tient au rechargement ; une adresse mal tapée se corrige, et le code part à la bonne', async () => {
+    const faute = `amine.gharbi-${++n}-${Date.now()}@exmple.tn`;
+    const bonne = faute.replace('@exmple.tn', '@exemple.tn');
+    const p = await page();
+    await p.goto(serveur.adresse);
+    await bouton(p, 'ecran.connexion.creer_compte').click();
+    await ecran(p, 'ecran.inscription.titre');
+    await champ(p, 'ecran.connexion.email').fill(faute);
+    await champ(p, 'ecran.inscription.nom').fill('Amine Gharbi');
+    await champ(p, 'ecran.connexion.mot_de_passe').fill('Un-bon-mot-de-passe');
+    await bouton(p, 'ecran.inscription.bouton').click();
+    // L'étape 1 sur 3 : l'adresse en entier (la faute s'y voit), et le curseur dans la case du code.
+    await ecran(p, 'ecran.courriel.titre_inscription');
+    const adresse = p.locator('.ent-entete [data-donnee]');
+    expect(await adresse.innerText()).toBe(faute);
+    await expect.poll(() => champ(p, 'ecran.courriel.champ_inscription').evaluate((i) => i === document.activeElement)).toBe(true);
+    const premier = codeRecu(faute);
+    expect(premier).toMatch(/^\d{6}$/);
+    expect(partis.at(-1)?.texte).toContain('pour vérifier ton adresse e-mail');
+    // Recharger la page ne perd pas l'écran : le défi se garde dans l'onglet.
+    await p.reload();
+    await ecran(p, 'ecran.courriel.titre_inscription');
+    expect(await adresse.innerText()).toBe(faute);
+    // « Ce n'est pas ton adresse ? La corriger » : le nouveau code part à la bonne adresse, l'ancien ne vaut plus.
+    await p.getByRole('button', { name: titre('ecran.courriel.corriger'), exact: true }).click();
+    expect(await champ(p, 'ecran.courriel.corriger_champ').inputValue()).toBe(faute);
+    await champ(p, 'ecran.courriel.corriger_champ').fill(bonne);
+    await p.screenshot({ path: path.join(PHOTOS, 'entree-corriger-adresse.png') });
+    await bouton(p, 'ecran.courriel.corriger_bouton').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toBe(phrase('ecran.courriel.corrigee'));
+    expect(await adresse.innerText()).toBe(bonne);
+    const second = codeRecu(bonne);
+    expect(second).toMatch(/^\d{6}$/);
+    await champ(p, 'ecran.courriel.champ_inscription').fill(premier === second ? '000000' : premier);
+    await bouton(p, 'ecran.courriel.bouton_inscription').click();
+    await expect.poll(() => p.getByRole('alert').first().innerText()).toBe(phrase('connexion.code_faux'));
+    // Rechargée, la page garde l'adresse corrigée ; le bon code vérifie l'adresse, et la porte s'ouvre.
+    await p.reload();
+    await ecran(p, 'ecran.courriel.titre_inscription');
+    expect(await adresse.innerText()).toBe(bonne);
+    await champ(p, 'ecran.courriel.champ_inscription').fill(second);
+    await bouton(p, 'ecran.courriel.bouton_inscription').click();
+    await ecran(p, 'ecran.porte.titre');
+    await expect.poll(() => p.locator('#toast').innerText()).toBe(phrase('ecran.courriel.verifiee'));
+    expect((await admin.query('select email, adresse_verifiee_le is not null verifiee from socle.utilisateur where email in ($1, $2)', [faute, bonne])).rows)
+      .toEqual([{ email: bonne, verifiee: true }]);
     await p.context().close();
   });
 
@@ -158,9 +227,11 @@ describe('l\'entrée refaite, à la souris', () => {
     await p.context().close();
   });
 
-  it('la sécurité : l\'entreprise créée se dit ; les codes de secours se copient et se téléchargent ; l\'ouverture coche ce qui est fait', async () => {
-    const { jeton } = await personne();
-    await api('POST', '/entreprises', jeton, { raisonSociale: 'Librairie Ennour' });
+  it('la sécurité du comptable d\'un cabinet : son cabinet se dit ; les codes de secours se copient et se téléchargent ; l\'ouverture coche ce qui est fait', async () => {
+    const { email, jeton } = await personne();
+    // Le code du téléphone n'est exigé que du comptable d'un cabinet, qui voit les comptes et les salaires de ses clients
+    // (0076) : son cabinet créé, il le met en place d'abord.
+    await api('POST', '/cabinets', jeton, { nom: 'Cabinet Ennour' });
     const p = await page(jeton);
     // L'écran d'ouverture ne dure que le temps du chargement : un observateur note ce qu'il montre, dans l'onglet.
     await p.addInitScript(() => {
@@ -176,9 +247,25 @@ describe('l\'entrée refaite, à la souris', () => {
     });
     await p.goto(serveur.adresse);
     await ecran(p, 'ecran.code_requis.titre');
-    expect(await p.locator('.ent-bandeau').innerText()).toBe(titre('ecran.code_requis.creee', { nom: 'Librairie Ennour' }));
+    expect(await p.locator('.ent-bandeau').innerText()).toBe(titre('ecran.code_requis.cabinet', { nom: 'Cabinet Ennour' }));
     await bouton(p, 'ecran.code_requis.bouton').click();
     await ecran(p, 'ecran.code_pose.titre');
+    // Le téléphone scanne le code QR : l'image dessinée, relue par un lecteur de QR, dit l'adresse du compte ; la clé
+    // écrite en clair est la sienne, et le lien l'ouvre dans l'application.
+    const pixels = await p.getByRole('img', { name: phrase('ecran.code_pose.qr') }).evaluate(async (el) => {
+      const img = new Image();
+      img.src = `data:image/svg+xml;base64,${btoa(new XMLSerializer().serializeToString(el.querySelector('svg') as SVGElement))}`;
+      await img.decode();
+      const c = document.createElement('canvas');
+      c.width = 400; c.height = 400;
+      const g = c.getContext('2d') as CanvasRenderingContext2D;
+      g.fillStyle = '#fff'; g.fillRect(0, 0, 400, 400); g.drawImage(img, 0, 0, 400, 400);
+      return Array.from(g.getImageData(0, 0, 400, 400).data);
+    });
+    const lu = jsqr.default.default(Uint8ClampedArray.from(pixels), 400, 400)?.data ?? '';
+    expect(lu).toMatch(new RegExp(`^otpauth://totp/SkanFact%3A${encodeURIComponent(email).replace(/\./g, '\\.')}\\?secret=[A-Z2-7]+&issuer=SkanFact&digits=6&period=30$`));
+    expect((await p.locator('.code-cle').innerText()).replace(/\s/g, '')).toBe(new URL(lu).searchParams.get('secret'));
+    expect(await p.getByRole('link', { name: titre('ecran.code_pose.ouvrir') }).getAttribute('href')).toBe(lu);
     const codes = (await p.locator('.ent-secours li').allInnerTexts()).map((c) => c.trim());
     expect(codes).toHaveLength(10);
     // Copier : les dix codes, un par ligne.
@@ -189,17 +276,24 @@ describe('l\'entrée refaite, à la souris', () => {
     expect(fichier.suggestedFilename()).toBe('skanfact-codes-de-secours.txt');
     const contenu = fs.readFileSync(await fichier.path(), 'utf8');
     for (const c of codes) expect(contenu).toContain(c);
-    // Le premier code, la case cochée : l'ouverture coche ce qui est fait le temps que l'application arrive.
+    // La case cochée, un code faux n'active rien : le refus le dit, sur son champ, et le compte n'a toujours pas de code.
     const cle = (await p.locator('.code-cle').innerText()).replace(/\s/g, '');
-    await champ(p, 'ecran.code_pose.essai').fill(codeTotp(depuisBase32(cle), Date.now()));
     await p.getByRole('checkbox', { name: titre('ecran.code_pose.garde') }).check();
+    const juste = codeTotp(depuisBase32(cle), Date.now());
+    await champ(p, 'ecran.code_pose.essai').fill(juste === '000000' ? '111111' : '000000');
     await bouton(p, 'ecran.code_pose.bouton').click();
-    await p.waitForURL(/\/v10\/\?e=[0-9a-f-]{36}/, { timeout: 15_000 });
+    await expect.poll(() => p.getByRole('alert').first().innerText()).toBe(phrase('compte.code_essai_faux'));
+    expect(await champ(p, 'ecran.code_pose.essai').evaluate((e) => e === document.activeElement && e.getAttribute('aria-invalid') === 'true')).toBe(true);
+    expect((await api('GET', '/moi', jeton)).code_methode).toBeNull();
+    // Le premier code juste : l'ouverture coche ce qui est fait le temps que l'application arrive.
+    await champ(p, 'ecran.code_pose.essai').fill(codeTotp(depuisBase32(cle), Date.now()));
+    await bouton(p, 'ecran.code_pose.bouton').click();
+    await p.waitForURL(/\/v10\/cabinet\/\?c=[0-9a-f-]{36}/, { timeout: 15_000 });
     // Ce que l'écran d'ouverture a montré, noté par l'observateur de la page (il garde la dernière version, avant que
     // l'application ne la remplace).
     expect(JSON.parse(await p.evaluate(() => sessionStorage.getItem('essai.ouverture') ?? 'null'))).toEqual({
-      titre: titre('ecran.ouverture.entreprise_titre'), nom: 'Librairie Ennour',
-      lignes: [titre('ecran.ouverture.compte'), titre('ecran.ouverture.protege'), titre('ecran.ouverture.entreprise'), titre('ecran.ouverture.charge')],
+      titre: titre('ecran.ouverture.cabinet_titre'), nom: 'Cabinet Ennour',
+      lignes: [titre('ecran.ouverture.compte'), titre('ecran.ouverture.protege'), titre('ecran.ouverture.cabinet'), titre('ecran.ouverture.charge')],
     });
     await p.context().close();
   });
@@ -233,7 +327,9 @@ describe('l\'entrée refaite, à la souris', () => {
     expect((apercu?.y ?? 0) >= (form?.y ?? 0) + (form?.height ?? 0)).toBe(true);
     expect(await p.locator('.ent-titre-page p').innerText()).not.toMatch(/à côté/);
     await p.setViewportSize({ width: 1440, height: 900 });
-    await bouton(p, 'ecran.porte.creer').click();
+    // L'écran du code, que seul le comptable d'un cabinet met en place d'abord (0076).
+    await api('POST', '/cabinets', jeton, { nom: 'Cabinet Gharbi' });
+    await p.goto(serveur.adresse);
     await ecran(p, 'ecran.code_requis.titre');
     await bouton(p, 'ecran.code_requis.bouton').click();
     await ecran(p, 'ecran.code_pose.titre');
@@ -264,6 +360,26 @@ describe('l\'entrée refaite, à la souris', () => {
     await p.getByRole('checkbox', { name: titre('ecran.code_pose.garde') }).check();
     expect(await verifier.boundingBox()).toEqual(place);
     expect(await p.locator('.ent-pose-pied .ent-aide').innerText()).not.toMatch(/parfait|sera demandé/i);
+    await p.context().close();
+  });
+
+  // Le code n'est exigé que du comptable d'un cabinet (0076) : la propriétaire d'une entreprise qui crée ensuite son
+  // cabinet n'ouvre plus rien sans lui (le serveur refuse tout, sauf de le mettre en place) ; la page de son entreprise
+  // comme celle de son cabinet la renvoient à l'écran du code, au lieu de dire une erreur.
+  it('devenue comptable d\'un cabinet sans code : la page de son entreprise, puis celle du cabinet, la renvoient à l\'écran du code', async () => {
+    const { jeton } = await personne();
+    const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Librairie Ennour' })).id);
+    const p = await page(jeton);
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}`);
+    await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    const cabinet = String((await api('POST', '/cabinets', jeton, { nom: 'Cabinet Ennour' })).id);
+    await p.reload();
+    await ecran(p, 'ecran.code_requis.titre');
+    expect(new URL(p.url()).pathname).toBe('/');
+    expect(await p.locator('.ent-bandeau').innerText()).toBe(titre('ecran.code_requis.cabinet', { nom: 'Cabinet Ennour' }));
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}`);
+    await ecran(p, 'ecran.code_requis.titre');
+    expect(new URL(p.url()).pathname).toBe('/');
     await p.context().close();
   });
 });

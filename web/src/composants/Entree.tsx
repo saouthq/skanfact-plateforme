@@ -22,6 +22,7 @@ const DESSINS: Record<string, string> = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/>',
   enveloppe: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
   cle: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M14 9l2 2"/>',
+  ecran: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
 };
 
 export function Dessin({ id }: { id: string }) {
@@ -75,9 +76,10 @@ export function VitrineConnexion() {
   );
 }
 
-// La vitrine de « créer ton compte » : les trois étapes, sans surprise.
-export function VitrineCompte() {
-  const etapes = [['compte', 'ecran.etape.compte_texte'], ['entreprise', 'ecran.etape.entreprise_texte'], ['securite', 'ecran.etape.securite_texte']] as const;
+// La vitrine de « créer ton compte » : les trois étapes, sans surprise. `code` : ce serveur vérifie l'adresse par un
+// code reçu par e-mail (il sait en envoyer) ; sinon la vitrine ne le promet pas.
+export function VitrineCompte({ code = false }: { code?: boolean }) {
+  const etapes = [['compte', code ? 'ecran.etape.compte_texte_code' : 'ecran.etape.compte_texte'], ['entreprise', 'ecran.etape.entreprise_texte'], ['activite', 'ecran.etape.activite_texte']] as const;
   return (
     <>
       <div className="ent-vitrine-titre"><h2>{titre('ecran.vitrine.compte_titre')}</h2><p>{phrase('ecran.vitrine.compte_sous')}</p></div>
@@ -107,9 +109,10 @@ export function PageDouble({ vitrine, haut, bas, children }: { vitrine: ReactNod
   );
 }
 
-// Le fil des étapes de la première fois : ton compte → ton entreprise → la sécurité.
-export function Fil({ etape }: { etape: 1 | 2 | 3 }) {
-  const noms = ['compte', 'entreprise', 'securite'];
+// Le fil des étapes de la première fois : ton compte → ton entreprise → ton activité ; pour un cabinet comptable, ton
+// compte → ton cabinet → la sécurité (le code du téléphone lui est exigé).
+export function Fil({ etape, cabinet = false }: { etape: 1 | 2 | 3; cabinet?: boolean }) {
+  const noms = cabinet ? ['compte', 'cabinet', 'securite'] : ['compte', 'entreprise', 'activite'];
   return (
     <ol className="ent-fil" aria-label={titre('ecran.etape.fil')}>
       {noms.map((n, i) => {
@@ -127,10 +130,10 @@ export function Fil({ etape }: { etape: 1 | 2 | 3 }) {
 }
 
 // La page des étapes : la marque, le fil (s'il y en a un) et ce qui se fait à droite (se déconnecter, revenir).
-export function PageEtapes({ etape, droite, etroite = false, children }: { etape?: 1 | 2 | 3 | undefined; droite?: ReactNode; etroite?: boolean; children: ReactNode }) {
+export function PageEtapes({ etape, cabinet = false, droite, etroite = false, children }: { etape?: 1 | 2 | 3 | undefined; cabinet?: boolean; droite?: ReactNode; etroite?: boolean; children: ReactNode }) {
   return (
     <div className="ent ent-etapes">
-      <header className="ent-barre"><Marque />{etape ? <Fil etape={etape} /> : null}{droite ?? <span />}</header>
+      <header className="ent-barre"><Marque />{etape ? <Fil etape={etape} cabinet={cabinet} /> : null}{droite ?? <span />}</header>
       <main className={`ent-scene${etroite ? ' etroite' : ''}`}>{children}</main>
     </div>
   );

@@ -1,10 +1,13 @@
 // Se connecter (03 § 6). Le parcours, dans l'ordre :
 //   1. l'adresse et le mot de passe (une attente qui s'allonge après 5 erreurs, jamais un blocage) ;
-//   2. le code sur le téléphone, si la personne en a un ou si son rôle l'exige, sauf sur un appareil
-//      déjà reconnu (30 jours) ; un code de secours remplace le code ;
+//   2. le code sur le téléphone, si la personne en a un ou si son rôle l'exige (un comptable de cabinet, depuis le
+//      09/10/2026), sauf sur un appareil déjà reconnu (30 jours) ; un code de secours remplace le code ;
+//   2 bis. sans code du téléphone, un code par e-mail (si ce serveur sait en envoyer) : à la première connexion d'un
+//      compte dont l'adresse n'est pas vérifiée, et sur un appareil inconnu (0076) ;
 //   3. une session, dont le jeton n'est gardé qu'en empreinte.
 //
-// Ce qui part chez le fournisseur de SMS : le numéro et le code, RIEN d'autre (03 § 6).
+// Ce qui part chez le fournisseur de SMS : le numéro et le code, RIEN d'autre (03 § 6). Chez le relais d'e-mails :
+// l'adresse, l'objet et un texte qui ne porte que le code ou le lien.
 
 import { createHash, randomBytes, randomInt } from 'node:crypto';
 import type pg from 'pg';
@@ -49,10 +52,14 @@ export type ResultatConnexion =
   | { etat: 'refuse'; motif: Texte }
   | { etat: 'attendre'; jusqua: Date; motif: Texte }
   | { etat: 'code'; defi: string; methode: 'sms' | 'application'; appareil: string }
+  // Le code par e-mail : à l'adresse du compte, qui le reçoit (« inscription » : l'adresse n'est pas encore vérifiée).
+  | { etat: 'code'; defi: string; methode: 'courriel'; appareil: string; adresse: string; raison: 'inscription' | 'appareil' }
   | { etat: 'connecte'; jeton: string; appareil: string | null; codeAConfigurer: boolean };
 
 const sha256 = (t: string) => createHash('sha256').update(t, 'utf8').digest('hex');
 const DUREE_DEFI = '10 minutes';
+// Un e-mail met plus longtemps qu'un SMS à arriver, et se lit sur un autre écran.
+const DUREE_DEFI_COURRIEL_MINUTES = 15;
 const MOTIF_REFUS = () => motif('connexion.refusee');
 
 export function attenteLisible(jusqua: Date, maintenant: Date): Texte {
@@ -117,6 +124,22 @@ export async function connecter(ctx: Contexte, demande: {
       return { etat: 'code', defi, methode: u.code_methode, appareil: appareil as string };
     }
 
+    // Sans code du téléphone : l'adresse pas encore vérifiée (juste après l'inscription), ou un appareil inconnu, se
+    // prouvent par un code envoyé par e-mail — seulement si ce serveur sait en envoyer (on ne demande jamais ce qu'on ne
+    // sait pas envoyer). Un comptable de cabinet sans code encore en place passe aussi par là d'abord.
+    if (!aUnCode && ctx.courriel) {
+      const verifiee = (await tx.query('select socle.adresse_verifiee($1) v', [u.utilisateur])).rows[0].v as boolean;
+      if (!verifiee || !(reconnu && !posteDUnAutre)) {
+        const code = codeSms();
+        const defi = (await tx.query('select socle.ouvrir_defi($1, $2, $3, $4, $5, $6) id',
+          [u.utilisateur, appareil, 'courriel', sha256(code), maintenant, `${DUREE_DEFI_COURRIEL_MINUTES} minutes`])).rows[0].id as string;
+        const email = (await tx.query('select email from socle.lire_defi($1, $2)', [defi, maintenant])).rows[0].email as string;
+        const raison = verifiee ? 'appareil' : 'inscription';
+        envoyerCodeParCourriel(ctx, email, code, raison);
+        return { etat: 'code', defi, methode: 'courriel', appareil: appareil as string, adresse: email, raison };
+      }
+    }
+
     // Pas de code à demander ; ou un code obligatoire pas encore en place : la session ne servira
     // qu'à le mettre en place.
     const jeton = randomBytes(32).toString('base64url');
@@ -139,7 +162,10 @@ export async function validerCode(ctx: Contexte, demande: {
   let bon: boolean;
   let secours: string | null = null;
   if (/^[0-9]{6}$/.test(saisi)) {
-    bon = lu.methode === 'sms' ? sha256(saisi) === lu.code_empreinte : verifierTotp(lu.code_secret ?? '', saisi, maintenant.getTime());
+    bon = lu.methode === 'sms' || lu.methode === 'courriel' ? sha256(saisi) === lu.code_empreinte : verifierTotp(lu.code_secret ?? '', saisi, maintenant.getTime());
+  } else if (lu.methode === 'courriel') {
+    // Un code par e-mail ne se remplace pas : la personne n'a pas de code du téléphone, donc pas de codes de secours.
+    bon = false;
   } else {
     // Un code de secours (XXXX-XXXX) : il remplace le code, une seule fois.
     const e = sha256(saisi.toUpperCase().replace(/-/g, ''));
@@ -162,9 +188,52 @@ export async function validerCode(ctx: Contexte, demande: {
       throw new Error('ce code de secours vient déjà de servir');
     }
     await tx.query('select socle.conclure_defi($1, $2, $3, $4, $5)', [demande.defi, sha256(jeton), maintenant, demande.posteDUnAutre ?? false, demande.ip ?? null]);
+    // Le code reçu par e-mail, puis tapé : l'adresse est prouvée.
+    if (lu.methode === 'courriel') await tx.query('select socle.prouver_adresse($1, $2)', [demande.defi, maintenant]);
     await tx.query('select socle.effacer_erreurs($1)', [lu.email]);
   });
   return { etat: 'connecte', jeton, appareil: lu.appareil, codeAConfigurer: false };
+}
+
+// Le code par e-mail : à l'adresse du compte, sans attendre l'envoi (le relais peut prendre quelques secondes ; un
+// échec se dit dans le journal du serveur, et « Renvoyer le code » le redemande).
+function envoyerCodeParCourriel(ctx: Contexte, a: string, code: string, raison: 'inscription' | 'appareil') {
+  const courriel = ctx.courriel;
+  if (!courriel) return;
+  // Le français : l'anglais viendra avec son catalogue (vague 4).
+  const langue = 'fr';
+  void courriel.envoi.envoyer({
+    a,
+    objet: rendre(t('connexion.courriel_objet', { code }), langue),
+    texte: rendre(t(raison === 'inscription' ? 'connexion.courriel_inscription' : 'connexion.courriel_appareil', { code, minutes: DUREE_DEFI_COURRIEL_MINUTES }), langue),
+  }).catch((e: unknown) => { console.error(`le code par e-mail n'est pas parti : ${String(e)}`); });
+}
+
+// « Renvoyer le code » : un nouveau code remplace l'ancien, au plus cinq envois par défi, pas deux en moins de 30
+// secondes (personne ne remplit la boîte d'un autre).
+export async function renvoyerCode(ctx: Contexte, defi: string): Promise<{ ok: true } | { ok: false; motif: Texte }> {
+  if (!ctx.courriel) return { ok: false, motif: motif('connexion.oubli_indisponible') };
+  const maintenant = (ctx.maintenant ?? (() => new Date()))();
+  const code = codeSms();
+  const r = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.renvoyer_defi($1, $2, $3, $4)',
+    [defi, sha256(code), maintenant, `${DUREE_DEFI_COURRIEL_MINUTES} minutes`])).rows[0] as { a_email: string; a_verifiee: boolean } | undefined);
+  if (!r) return { ok: false, motif: motif('connexion.renvoi_impossible') };
+  envoyerCodeParCourriel(ctx, r.a_email, code, r.a_verifiee ? 'appareil' : 'inscription');
+  return { ok: true };
+}
+
+// « Ce n'est pas ton adresse ? La corriger » (0076) : pendant le défi de l'inscription seulement, tant que l'adresse n'a
+// jamais été prouvée. Le nouveau code part à la nouvelle adresse ; l'ancien ne vaut plus.
+export async function corrigerAdresse(ctx: Contexte, defi: string, adresse: string): Promise<{ ok: true; adresse: string } | { ok: false; motif: Texte }> {
+  if (!ctx.courriel) return { ok: false, motif: motif('connexion.oubli_indisponible') };
+  const maintenant = (ctx.maintenant ?? (() => new Date()))();
+  const nouvelle = adresse.trim().toLowerCase();
+  const code = codeSms();
+  const ok = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select socle.corriger_adresse_du_defi($1, $2, $3, $4, $5) ok',
+    [defi, nouvelle, sha256(code), maintenant, `${DUREE_DEFI_COURRIEL_MINUTES} minutes`])).rows[0].ok as boolean);
+  if (!ok) return { ok: false, motif: motif('connexion.correction_impossible') };
+  envoyerCodeParCourriel(ctx, nouvelle, code, 'inscription');
+  return { ok: true, adresse: nouvelle };
 }
 
 export type Qui = {
@@ -215,16 +284,22 @@ export async function deconnecter(ctx: Contexte, qui: Qui): Promise<void> {
 
 // Mettre en place le code sur le téléphone. Rend les 10 codes de secours, à montrer UNE fois, et
 // pour une application, l'adresse du QR code.
-export async function mettreEnPlaceCode(ctx: Contexte, qui: Qui, methode: 'sms' | 'application') {
-  const secret = methode === 'application' ? nouveauSecret() : null;
+// Dix codes de secours (XXXX-XXXX), à montrer une fois ; la base n'en garde que l'empreinte (`empreinteDuSecours`).
+export function tirerCodesDeSecours(): string[] {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sans 0/O ni 1/I, qu'on confond à l'écrit
-  const codes = Array.from({ length: 10 }, () => {
+  return Array.from({ length: 10 }, () => {
     const b = randomBytes(8);
     const brut = [...b].map((o) => alphabet[o % alphabet.length]).join('');
     return `${brut.slice(0, 4)}-${brut.slice(4)}`;
   });
+}
+export const empreinteDuSecours = (code: string) => sha256(code.replace('-', ''));
+
+export async function mettreEnPlaceCode(ctx: Contexte, qui: Qui, methode: 'sms' | 'application') {
+  const secret = methode === 'application' ? nouveauSecret() : null;
+  const codes = tirerCodesDeSecours();
   const email = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => {
-    await tx.query('select socle.poser_code($1, $2, $3)', [methode, secret, codes.map((c) => sha256(c.replace('-', '')))]);
+    await tx.query('select socle.poser_code($1, $2, $3)', [methode, secret, codes.map(empreinteDuSecours)]);
     return (await tx.query('select email from socle.utilisateur where id = $1', [qui.utilisateur])).rows[0].email as string;
   });
   return { codesDeSecours: codes, adresseApplication: secret ? adresseTotp(secret, email) : null, secret };

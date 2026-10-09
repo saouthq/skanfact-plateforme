@@ -1,7 +1,7 @@
 // Tes appareils, à la souris (brique 74 ; docs/hors-ligne.md, H9). Nadia a deux appareils : son portable
 // (« mon ordinateur », qui garde une copie de l'entreprise) et le PC du bureau. Le portable est perdu.
 // Ce que le parcours vérifie, écran ET serveur :
-//   - depuis le bureau, Paramètres → Données et sécurité → « Tes appareils » : les deux, celui-ci marqué ;
+//   - depuis le bureau, Paramètres → Ton compte → « Tes appareils » : les deux, celui-ci marqué ;
 //     « Retirer… » demande d'abord, puis retire ; le portable est dit retiré ;
 //   - le portable, à sa reconnexion : ce qu'il gardait est effacé AVANT toute autre chose (la copie, sa
 //     clé, la session), et l'entrée le dit ;
@@ -75,7 +75,7 @@ describe('tes appareils, à la souris', () => {
     await plusTard(portable);
     await expect.poll(() => posteGarde(portable), { timeout: 15_000 }).toBe(true);
 
-    // Le bureau : Paramètres → Données et sécurité → Tes appareils.
+    // Le bureau : Paramètres → Ton compte → Tes appareils (avec l'adresse, le mot de passe et le code : lot onboarding).
     const cb = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
     await cb.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, bureauJeton);
     const bureau = await cb.newPage();
@@ -84,7 +84,7 @@ describe('tes appareils, à la souris', () => {
     await bureau.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
     await bureau.locator('#view h1').first().waitFor({ timeout: 20_000 });
     await plusTard(bureau);
-    await bureau.getByRole('tab', { name: 'Données et sécurité', exact: true }).click();
+    await bureau.getByRole('tab', { name: 'Ton compte', exact: true }).click();
     const panneau = bureau.locator('#p-appareils');
     await expect.poll(() => panneau.innerText(), { timeout: 15_000 }).toMatch(/Tes appareils[\s\S]*Chrome sur Linux\s*cet appareil[\s\S]*Chrome sur Windows/);
     expect(await panneau.innerText()).toContain('Firefox sur Mac');

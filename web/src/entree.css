@@ -141,8 +141,10 @@ body.dark .ent-etapes .ent-logo { background: #0f9d8f; color: #fff; }
 .ent-jauge span { height: 5px; border-radius: 3px; background: var(--e-trait); }
 .ent-jauge span.plein { background: var(--e-bouton); }
 .ent-jauge.court span.plein { background: var(--e-alerte); }
-.ent .ent-code input { height: 64px; font-family: var(--e-chiffres); font-size: 28px; letter-spacing: .3em; text-align: center; }
-.ent .ent-code.secours input { font-size: 22px; letter-spacing: .1em; }
+/* La case d'un code : grande, en chiffres. Elle pèse plus que la règle commune des champs (`.ent label.field input`),
+   qui l'emportait et la laissait à la taille d'une adresse. */
+.ent label.field.ent-code input { height: 64px; font-family: var(--e-chiffres); font-size: 28px; letter-spacing: .3em; text-align: center; }
+.ent label.field.ent-code.secours input { font-size: 22px; letter-spacing: .1em; }
 
 /* ── La page double : la vitrine sombre à gauche, le formulaire à droite (se connecter, créer son compte) ────────── */
 .ent-double { display: flex; flex-wrap: wrap; }
@@ -190,7 +192,7 @@ body.dark .ent-etapes .ent-logo { background: #0f9d8f; color: #fff; }
 .ent-etapes-liste .txt span { font-size: 14px; line-height: 1.5; color: var(--e-nuit-gris); }
 
 .ent-cote { flex: 1 1 480px; min-width: 0; padding: 32px 56px; display: flex; flex-direction: column; }
-.ent-cote-haut { display: flex; justify-content: space-between; align-items: center; gap: 8px 16px; flex-wrap: wrap; font-size: 14px; color: var(--e-gris); }
+.ent-cote-haut { display: flex; justify-content: space-between; align-items: center; gap: 8px 16px; flex-wrap: wrap; min-height: 44px; font-size: 14px; color: var(--e-gris); }
 .ent-cote-haut .etape { font-weight: 600; color: var(--e-lien); }
 .ent-cote-haut .vide { flex: 1; }
 .ent-cote-milieu { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding-block: 28px; }
@@ -245,6 +247,18 @@ body.dark .ent-etapes .ent-logo { background: #0f9d8f; color: #fff; }
 .ent-bandeau { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: var(--e-doux); color: var(--e-doux-texte); font-size: 14px; font-weight: 600; }
 .ent-bandeau svg { width: 16px; height: 16px; flex: none; }
 .ent-message { padding: 14px 16px; border-radius: 12px; background: var(--e-doux); color: var(--e-encre); font-size: 15px; line-height: 1.5; }
+
+/* Le code reçu par e-mail (lot onboarding, 0076) : « Rien reçu ? », le renvoi qui attend 30 secondes, et ce qui vient de
+   partir. Le décompte change de texte, jamais de place : rien ne bouge sous le curseur. */
+.ent .ent-lien:disabled { color: var(--e-gris); cursor: default; text-decoration: none; font-variant-numeric: tabular-nums; }
+.ent-rien-recu { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--e-trait); padding-top: 16px; font-size: 14px; color: var(--e-gris); }
+.ent-renvoi { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 14px; color: var(--e-gris); }
+/* Le renvoi garde les 44 px d'une cible au doigt (l'instrument de rendu l'a vu à 36 sur un téléphone). */
+.ent-renvoi .ent-lien { font-size: 14px; }
+.ent-renvoye { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.ent-renvoye svg { width: 14px; height: 14px; flex: none; }
+.ent .ent-lien.ent-centre { align-self: center; }
+.ent-formulaire > .ent-carte-ico { margin-bottom: -4px; }
 
 .ent-titre-page { display: flex; flex-direction: column; gap: 10px; }
 .ent-titre-page h1 { font-size: 40px; line-height: 1.1; }
@@ -373,7 +387,7 @@ body.dark .ent-secours { background: var(--e-nuit-2); }
   .ent-choix > article { padding: 22px 18px; }
   .ent-pose > ol > li { padding: 18px 14px; gap: 12px; }
   .ent-qr-image { width: 148px; height: 148px; }
-  .ent .ent-code input { font-size: 24px; letter-spacing: .2em; }
+  .ent label.field.ent-code input { font-size: 24px; letter-spacing: .2em; }
   .ent-pose-pied .ent-principal { width: 100%; }
   .ent-pose-pied .droite { width: 100%; }
 }

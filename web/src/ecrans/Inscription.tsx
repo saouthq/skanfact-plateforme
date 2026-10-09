@@ -1,8 +1,9 @@
 // Créer son compte (lot entrée, 06/10/2026 ; docs/entree.md) : à gauche, les trois étapes qui attendent (ton compte, ton
-// entreprise, la sécurité) ; à droite le nom, l'adresse et le mot de passe, sa jauge qui dit pendant la frappe combien il
-// manque (la longueur minimale dite AVANT le geste). Le compte créé, la personne est connectée tout de suite (vu le
-// 05/10/2026 en essayant le vrai serveur : on revenait à la connexion, l'adresse à retaper) ; si la connexion ne se
-// fait pas, l'écran de connexion s'ouvre avec l'adresse déjà remplie.
+// entreprise, ton activité) ; à droite le nom, l'adresse et le mot de passe, sa jauge qui dit pendant la frappe combien
+// il manque (la longueur minimale dite AVANT le geste). Le compte créé, la personne est connectée tout de suite (vu le
+// 05/10/2026 en essayant le vrai serveur : on revenait à la connexion, l'adresse à retaper), après avoir vérifié son
+// adresse par un code si ce serveur sait envoyer un e-mail (0076) ; si la connexion ne se fait pas, l'écran de
+// connexion s'ouvre avec l'adresse déjà remplie.
 import { useState } from 'react';
 import { LONGUEUR_MINIMALE } from '../../../commun/compte.ts';
 import { appeler, ErreurReseau, session } from '../api.ts';
@@ -12,7 +13,7 @@ import { Dessin, PageDouble, VitrineCompte } from '../composants/Entree.tsx';
 import { toast } from '../composants/Toast.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
-import { nomDeCetAppareil } from './Connexion.tsx';
+import { defiDe, nomDeCetAppareil, useOptions, type Defi } from './Connexion.tsx';
 
 const rien = () => undefined;
 
@@ -34,8 +35,11 @@ export function Jauge({ motDePasse }: { motDePasse: string }) {
   );
 }
 
-export function Inscription({ connecte, aConnecter, connexion, sous }: { connecte: () => void; aConnecter: (email: string) => void; connexion: () => void; sous?: string | null }) {
+export function Inscription({ connecte, code, aConnecter, connexion, sous }: {
+  connecte: () => void; code: (d: Defi) => void; aConnecter: (email: string) => void; connexion: () => void; sous?: string | null;
+}) {
   const g = useGeste(rien);
+  const options = useOptions();
   const [email, setEmail] = useState('');
   const [nom, setNom] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
@@ -48,9 +52,9 @@ export function Inscription({ connecte, aConnecter, connexion, sous }: { connect
     }
     if (r.statut !== 201) { g.refuser(refusDe(r)); return; }
     // Le compte existe : on se connecte avec ce qu'on vient de taper (un compte neuf n'a encore aucun rôle qui exige le
-    // code du téléphone).
+    // code du téléphone). Un serveur qui sait envoyer un e-mail fait d'abord vérifier l'adresse par un code (0076).
     try {
-      const c = await appeler<{ etat: string; jeton?: string; appareil?: string | null }>('POST', '/connexion', {
+      const c = await appeler<Parameters<typeof defiDe>[0]>('POST', '/connexion', {
         email, motDePasse, posteDUnAutre: false, appareil: { nom: nomDeCetAppareil(), type: 'navigateur' },
       });
       if (c.corps.etat === 'connecte' && c.corps.jeton) {
@@ -60,13 +64,19 @@ export function Inscription({ connecte, aConnecter, connexion, sous }: { connect
         connecte();
         return;
       }
+      const defi = defiDe(c.corps, false);
+      if (defi) {
+        session.retenirAppareil(c.corps.appareil ?? null);
+        code(defi);
+        return;
+      }
     } catch { /* la connexion se fera à la main */ }
     toast(phrase('ecran.inscription.faite'));
     aConnecter(email);
   });
 
   return (
-    <PageDouble vitrine={<VitrineCompte />}
+    <PageDouble vitrine={<VitrineCompte code={options.courriel} />}
       haut={<>
         <span className="etape">{titre('ecran.inscription.etape')}</span>
         <span>{titre('ecran.inscription.deja')} <button type="button" className="ent-lien" onClick={connexion}>{titre('ecran.inscription.se_connecter')}</button></span>

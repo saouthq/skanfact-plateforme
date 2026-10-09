@@ -164,9 +164,12 @@ describe('l\'exemple rempli et « Faire une facture », à l\'écran', () => {
     await p.evaluate(() => { location.hash = '#/parametres'; });
     await p.locator('#view h1').filter({ hasText: 'Paramètres' }).waitFor({ timeout: 15_000 });
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    // « Tes appareils » vit dans Ton compte, avec l'adresse, le mot de passe et le code (lot onboarding).
+    await p.locator('#set-tabs [data-tab=compte]').click();
+    expect(await p.locator('#set-somm .somm-chip:visible').allInnerTexts()).toEqual(['Ton compte', 'Tes appareils']);
     await p.locator('#set-tabs [data-tab=donnees]').click();
     const puces = await p.locator('#set-somm .somm-chip:visible').allInnerTexts();
-    expect(puces).toContain('Tes appareils');
+    expect(puces).toContain('Essayer sans risque');
     for (const absente of ['Dossiers', 'Sauvegardes', 'Copie externe', 'Mot de passe', 'Zone sensible']) expect(puces).not.toContain(absente);
     const avant = await compter('socle.dossier_v10', vraie);
     const pieces = await compter('ventes.piece', essai);

@@ -1,0 +1,112 @@
+Ton compte (lot onboarding, décision de Skander du 09/10/2026 ; maquettes validées ; migration 0076, docs/entree.md).
+Format : voir sans-paquets.mjs.
+
+Le premier onglet des Paramètres (l'entreprise) et des Réglages (le Cabinet) : ton adresse e-mail (vérifiée ou non), ton
+mot de passe, le code du téléphone (l'activer, de nouveaux codes de secours, changer de téléphone, le désactiver), ce
+que demande un nouvel appareil, et tes appareils (le panneau de la brique 74, qui quitte l'onglet Données pour
+rejoindre le reste du compte). Tout est dessiné par plateforme/compte.js, le même dans les deux applications, avec les
+fenêtres de la v10 (`modal`) et son `toast`.
+
+── L'application de l'entreprise ──
+
+== index.html | le dessin de « Ton compte » et sa feuille se chargent avec le point de contact
+-- avant
+  <script src="../plateforme/pont.js"></script>
+-- après
+  <script src="../plateforme/pont.js"></script>
+  <script src="../plateforme/compte.js"></script>
+  <link rel="stylesheet" href="../plateforme/compte.css">
+-- fin
+
+== app.js | « Ton compte » est le premier onglet des Paramètres, quand le point de contact sait le dessiner
+-- avant
+  const SETTINGS_TABS = [['societe', 'Mon entreprise'], ['documents', 'Documents'], ['envois', 'Envois'],
+-- après
+  const SETTINGS_TABS = [...(bridge.dessinerCompte ? [['compte', 'Ton compte']] : []), ['societe', 'Mon entreprise'], ['documents', 'Documents'], ['envois', 'Envois'],
+-- fin
+
+== app.js | le panneau « Ton compte » a son entrée (recherche des réglages, palette) ; « Tes appareils » le rejoint
+-- avant
+    'p-appareils': { onglet: 'donnees', titre: 'Tes appareils',
+-- après
+    'p-compte': { onglet: 'compte', titre: 'Ton compte', mots: 'compte adresse email e-mail courriel mot de passe changer code telephone authentification double secours activer desactiver appareil verifier', visible: () => !!bridge.dessinerCompte },
+    'p-appareils': { onglet: 'compte', titre: 'Tes appareils',
+-- fin
+
+== app.js | « Tes appareils » quitte l'onglet Données…
+-- avant
+      ${bridge.dessinerAppareils ? `${panneau('p-appareils')}<div id="appareils-panel"></div></div>` : ''}
+      ${bridge.dessinerServices ? `${panneau('p-services')}<div id="services-panel"></div></div>` : ''}
+-- après
+      ${bridge.dessinerServices ? `${panneau('p-services')}<div id="services-panel"></div></div>` : ''}
+-- fin
+
+== app.js | … pour l'onglet « Ton compte », sous le compte lui-même
+-- avant
+      <section data-pane="donnees" hidden>
+-- après
+      <section data-pane="compte" hidden>
+      ${bridge.dessinerCompte ? `${panneau('p-compte')}<div id="compte-panel"></div></div>` : ''}
+      ${bridge.dessinerAppareils ? `${panneau('p-appareils')}<div id="appareils-panel"></div></div>` : ''}
+      </section>
+
+      <section data-pane="donnees" hidden>
+-- fin
+
+== app.js | le point de contact dessine « Ton compte » quand les Paramètres s'ouvrent, avec les fenêtres de la v10
+-- avant
+    if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));
+-- après
+    if (bridge.dessinerCompte && $('#compte-panel')) void bridge.dessinerCompte($('#compte-panel'), { modal, toast });
+    if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));
+-- fin
+
+── Le Cabinet (le comptable : le code du téléphone lui est exigé, il ne s'y désactive pas) ──
+
+== cabinet/index.html | le dessin de « Ton compte », sa feuille et le dessin des codes QR se chargent avec le point de contact
+-- avant
+  <script src="../../plateforme/pont-cabinet.js"></script>
+-- après
+  <script src="../../plateforme/pont-cabinet.js"></script>
+  <script src="../../tiers/qrcode.js"></script>
+  <script src="../../plateforme/compte.js"></script>
+  <link rel="stylesheet" href="../../plateforme/compte.css">
+-- fin
+
+== cabinet/app.js | « Ton compte » est le premier onglet des Réglages
+-- avant
+  const REG_TABS = [['cabinet', 'Mon cabinet'],
+-- après
+  const REG_TABS = [['compte', 'Ton compte'], ['cabinet', 'Mon cabinet'],
+-- fin
+
+== cabinet/app.js | ses panneaux ont leur entrée (recherche des réglages, palette)
+-- avant
+    'pan-cabinet': { onglet: 'cabinet', titre: 'Ton cabinet',
+-- après
+    'pan-compte': { onglet: 'compte', titre: 'Ton compte', mots: 'compte adresse email e-mail courriel mot de passe changer code telephone authentification double secours activer changer appareil verifier' },
+    'pan-appareils': { onglet: 'compte', titre: 'Tes appareils', mots: 'appareil ordinateur telephone perdu vole retirer session connexion' },
+    'pan-cabinet': { onglet: 'cabinet', titre: 'Ton cabinet',
+-- fin
+
+== cabinet/app.js | l'onglet « Ton compte » : le compte, puis tes appareils
+-- avant
+      <section data-pane="cabinet"${reglagesTab === 'cabinet' ? '' : ' hidden'}>
+-- après
+      <section data-pane="compte"${reglagesTab === 'compte' ? '' : ' hidden'}>
+      ${panneauReg('pan-compte')}<div id="compte-panel"></div></div>
+      ${panneauReg('pan-appareils')}<div id="appareils-panel"></div></div>
+      </section>
+      <section data-pane="cabinet"${reglagesTab === 'cabinet' ? '' : ' hidden'}>
+-- fin
+
+== cabinet/app.js | le point de contact les dessine quand les Réglages s'ouvrent, avec les fenêtres de la v10
+-- avant
+    drawBackupPanels();
+    // Les onglets, le sommaire et la recherche : la mécanique vient de src/renderer/reglages.js,
+-- après
+    drawBackupPanels();
+    void api.dessinerCompte($('#compte-panel'), { modal, toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined) });
+    void api.dessinerAppareils($('#appareils-panel'));
+    // Les onglets, le sommaire et la recherche : la mécanique vient de src/renderer/reglages.js,
+-- fin

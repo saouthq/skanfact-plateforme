@@ -297,6 +297,13 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'Une facture émise seule engage l\'entreprise : ce choix se fait par le propriétaire ou un administrateur.', cle: 'base.contrat.seul', fr: 'une facture émise seule engage l\'entreprise : ce choix se fait par le propriétaire ou un administrateur' },
   // L'accord au-delà d'une commande fournisseur (0055, brique 114).
   { base: 'Le montant d\'une commande fournisseur permis sans accord se règle par le propriétaire ou un administrateur.', cle: 'base.accord.commande', fr: 'le montant d\'une commande fournisseur permis sans accord se règle par le propriétaire ou un administrateur' },
+  // Le code du téléphone facultatif dans une entreprise, et le compte (0076, lot onboarding du 09/10/2026).
+  { base: 'le code du téléphone est exigé de chaque comptable d\'un cabinet : il ne se retire pas', cle: 'base.compte.code_exige', fr: 'le code du téléphone est exigé de chaque comptable d\'un cabinet : il ne se retire pas' },
+  { base: 'le code du téléphone n\'est pas activé sur ce compte', cle: 'base.compte.code_absent', fr: 'le code du téléphone n\'est pas activé sur ce compte' },
+  { base: 'le code du téléphone est déjà activé : pour changer de téléphone, passe par Ton compte', cle: 'base.compte.code_deja_actif', fr: 'le code du téléphone est déjà activé : pour changer de téléphone, passe par Ton compte' },
+  { base: 'cette adresse est déjà celle d\'un autre compte', cle: 'base.compte.adresse_prise', fr: 'cette adresse est déjà celle d\'un autre compte' },
+  { base: 'trois demandes en une heure : attends un peu avant d\'en refaire une', cle: 'base.compte.adresse_trop_souvent', fr: 'trois demandes en une heure : attends un peu avant d\'en refaire une' },
+  { base: 'cette demande n\'est plus valable : recommence le changement d\'adresse', cle: 'base.compte.adresse_perimee', fr: 'cette demande n\'est plus valable : recommence le changement d\'adresse' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

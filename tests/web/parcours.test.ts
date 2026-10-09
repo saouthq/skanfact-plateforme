@@ -1,9 +1,11 @@
 // Le parcours joué comme une personne (règle du projet : rien ne s'annonce avant d'avoir été refait à
 // la souris et vu à l'écran), de bout en bout : créer son compte (un mot de passe trop court se
 // refuse sur son champ) et s'y retrouver connecté, commencer avec son entreprise sur la porte (la découverte
-// sur l'exemple a son parcours : tests/web/exemple.test.ts), poser le code du téléphone ; puis, dans l'application v10 servie par la plateforme : une facture
+// sur l'exemple a son parcours : tests/web/exemple.test.ts), qui s'ouvre sans exiger le code du téléphone (facultatif
+// depuis le 09/10/2026, sauf pour un comptable de cabinet) ; puis, dans l'application v10 servie par la plateforme : une facture
 // pour un client créé depuis l'éditeur, émise par le serveur (le numéro de sa série, le même net à
-// payer à l'écran et au serveur), retrouvée après rechargement ; se déconnecter par le menu du haut,
+// payer à l'écran et au serveur), retrouvée après rechargement ; activer le code du téléphone dans Paramètres → Ton
+// compte ; se déconnecter par le menu du haut,
 // et revenir d'un autre appareil (un mauvais mot de passe d'abord) avec le code à six chiffres. Chaque bouton est trouvé par ce qu'il
 // dit, jamais par son rang.
 
@@ -27,6 +29,9 @@ const PHOTOS = path.join(RACINE, 'dist/photos');
 const VERSION = '2026.10.05 · 0a1b2c3';
 const titre = (cle: string, v: Record<string, string> = {}) => { const s = rendre(t(cle, v), 'fr'); return s.charAt(0).toUpperCase() + s.slice(1); };
 const phrase = (cle: string, v = {}) => rendre(motif(cle, v), 'fr');
+// La prose de la v10 se lit à la française (C.typoFr, 10.14.0) : une espace fine insécable devant « : ; ? ! » et »,
+// et après «.
+const fine = (s: string) => s.replace(/ ([?!;:»%])/g, ' $1').replace(/« /g, '« ');
 
 describe('le parcours, à la souris', () => {
   let navigateur: Browser;
@@ -83,7 +88,8 @@ describe('le parcours, à la souris', () => {
 
     // Le compte créé, on est connecté tout de suite : rien à retaper (vu le 05/10/2026 sur le vrai serveur).
 
-    // La porte : « Commencer avec mon entreprise » ; le rôle de propriétaire exige alors le code du téléphone, d'abord.
+    // La porte : « Commencer avec mon entreprise » ; l'application s'ouvre ensuite, sans exiger le code du téléphone
+    // (recommandé, il s'active plus loin dans Ton compte).
     await ecran(p, 'ecran.porte.titre');
     await bouton(p, 'ecran.porte.demarrer_bouton').click();
     await ecran(p, 'ecran.porte.entreprise_titre');
@@ -105,48 +111,8 @@ describe('le parcours, à la souris', () => {
     await expect.poll(() => p.getByRole('alert').first().innerText()).toBe(phrase('socle.matricule_forme', { matricule: '1234567O/A/M/000' }));
     await champ(p, 'ecran.porte.matricule').fill('1234567 a a m 000');
     await bouton(p, 'ecran.porte.creer').click();
-    await ecran(p, 'ecran.code_requis.titre');
-    await bouton(p, 'ecran.code_requis.bouton').click();
-    await ecran(p, 'ecran.code_pose.titre');
-    // Le téléphone scanne le code QR (brique 145) : l'image dessinée, relue par un lecteur de QR.
-    const pixels = await p.getByRole('img', { name: phrase('ecran.code_pose.qr') }).evaluate(async (el) => {
-      const img = new Image();
-      img.src = `data:image/svg+xml;base64,${btoa(new XMLSerializer().serializeToString(el.querySelector('svg') as SVGElement))}`;
-      await img.decode();
-      const c = document.createElement('canvas');
-      c.width = 400; c.height = 400;
-      const g = c.getContext('2d') as CanvasRenderingContext2D;
-      g.fillStyle = '#fff'; g.fillRect(0, 0, 400, 400); g.drawImage(img, 0, 0, 400, 400);
-      return Array.from(g.getImageData(0, 0, 400, 400).data);
-    });
-    const lu = jsqr.default.default(Uint8ClampedArray.from(pixels), 400, 400)?.data ?? '';
-    expect(lu).toMatch(new RegExp(`^otpauth://totp/SkanFact%3A${encodeURIComponent(email).replace(/\./g, '\\.')}\\?secret=[A-Z2-7]+&issuer=SkanFact&digits=6&period=30$`));
-    const secret = new URL(lu).searchParams.get('secret') ?? '';
-    // La clé écrite en clair est la même, par groupes de quatre (pour qui la tape à la main) ; le lien ouvre l'application.
-    expect((await p.locator('.code-cle').innerText()).replace(/\s/g, '')).toBe(secret);
-    expect(await p.getByRole('link', { name: titre('ecran.code_pose.ouvrir') }).getAttribute('href')).toBe(lu);
-    // Les codes de secours ne se montreront plus : sans « Je les ai mis de côté », l'écran ne part pas, le dit, et
-    // montre la case (lot entrée).
-    const champCode = champ(p, 'ecran.code_pose.essai');
-    const juste = codeTotp(depuisBase32(secret), Date.now());
-    await champCode.fill(juste);
-    await bouton(p, 'ecran.code_pose.bouton').click();
-    await expect.poll(() => p.getByRole('alert').first().innerText()).toBe(phrase('ecran.code_pose.garde_avant'));
-    expect(await p.getByRole('checkbox', { name: titre('ecran.code_pose.garde') }).evaluate((e) => e === document.activeElement)).toBe(true);
-    await ecran(p, 'ecran.code_pose.titre');
-    await p.getByRole('checkbox', { name: titre('ecran.code_pose.garde') }).check();
-    // Un code faux ne laisse pas partir : le refus le dit, sur son champ.
-    await champCode.fill(juste === '000000' ? '111111' : '000000');
-    await bouton(p, 'ecran.code_pose.bouton').click();
-    await expect.poll(() => p.getByRole('alert').first().innerText()).toBe(phrase('compte.code_essai_faux'));
-    expect(await champCode.evaluate((e) => e === document.activeElement)).toBe(true);
-    await ecran(p, 'ecran.code_pose.titre');
-    await p.screenshot({ path: path.join(PHOTOS, 'parcours-0-code-qr.png') });
-    // Le code que montre le téléphone : on continue.
-    await champCode.fill(codeTotp(depuisBase32(secret), Date.now()));
-    await bouton(p, 'ecran.code_pose.bouton').click();
 
-    // L'application v10 de l'entreprise s'ouvre.
+    // L'application v10 de l'entreprise s'ouvre, sans écran du code entre les deux.
     await p.waitForURL(/\/v10\/\?e=[0-9a-f-]{36}/, { timeout: 15_000 });
     const ent = new URL(p.url()).searchParams.get('e') ?? '';
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
@@ -193,6 +159,63 @@ describe('le parcours, à la souris', () => {
     await plusTard(p);
     await expect.poll(() => p.locator('#view').innerText()).toMatch(/FAC-2026-001[\s\S]*Boulangerie Ennour/);
     await p.screenshot({ path: path.join(PHOTOS, 'parcours-4-liste.png') });
+
+    // Paramètres → Ton compte : le code du téléphone, recommandé, s'active dans une fenêtre en quatre étapes (lot
+    // onboarding) ; rien ne change avant le premier code juste.
+    await p.getByRole('link', { name: 'Paramètres', exact: true }).first().click();
+    await pageV10(p, /Paramètres/);
+    await plusTard(p);
+    await p.getByRole('tab', { name: 'Ton compte', exact: true }).click();
+    const carte = p.locator('#cpt-code');
+    await expect.poll(() => carte.locator('#cpt-etat').innerText(), { timeout: 15_000 }).toBe('Désactivé');
+    await carte.getByRole('button', { name: 'Activer le code', exact: true }).click();
+    const fenetre = p.locator('#modal-root');
+    // Le téléphone scanne le code QR (brique 145) : l'image dessinée, relue par un lecteur de QR.
+    const pixels = await fenetre.getByRole('img', { name: 'Le code QR à scanner avec ton application d\'authentification' }).evaluate(async (el) => {
+      const img = new Image();
+      img.src = `data:image/svg+xml;base64,${btoa(new XMLSerializer().serializeToString(el.querySelector('svg') as SVGElement))}`;
+      await img.decode();
+      const c = document.createElement('canvas');
+      c.width = 400; c.height = 400;
+      const g = c.getContext('2d') as CanvasRenderingContext2D;
+      g.fillStyle = '#fff'; g.fillRect(0, 0, 400, 400); g.drawImage(img, 0, 0, 400, 400);
+      return Array.from(g.getImageData(0, 0, 400, 400).data);
+    });
+    const lu = jsqr.default.default(Uint8ClampedArray.from(pixels), 400, 400)?.data ?? '';
+    expect(lu).toMatch(new RegExp(`^otpauth://totp/SkanFact%3A${encodeURIComponent(email).replace(/\./g, '\\.')}\\?secret=[A-Z2-7]+&issuer=SkanFact&digits=6&period=30$`));
+    const secret = new URL(lu).searchParams.get('secret') ?? '';
+    // La clé écrite en clair est la même, par groupes de quatre (pour qui la tape à la main) ; le lien ouvre l'application.
+    expect((await fenetre.locator('.cpt-cle code').innerText()).replace(/\s/g, '')).toBe(secret);
+    expect(await fenetre.getByRole('link', { name: 'Déjà sur ton téléphone ? Ouvrir dans l\'application' }).getAttribute('href')).toBe(lu);
+    // Les codes de secours ne se montreront plus : sans « Je les ai mis de côté », la fenêtre ne part pas, le dit, et
+    // montre la case.
+    const premier = fenetre.locator('label.field').filter({ hasText: 'Le code de SkanFact dans l\'application' }).locator('input');
+    const activer = fenetre.getByRole('button', { name: 'Vérifier et activer', exact: true });
+    const juste = codeTotp(depuisBase32(secret), Date.now());
+    await premier.fill(juste);
+    await activer.click();
+    await expect.poll(() => fenetre.getByRole('alert').innerText()).toBe(fine('Mets d\'abord tes codes de secours de côté (copie-les ou télécharge-les), puis coche « Je les ai mis de côté ».'));
+    expect(await fenetre.getByRole('checkbox', { name: 'Je les ai mis de côté' }).evaluate((e) => e === document.activeElement)).toBe(true);
+    await fenetre.getByRole('checkbox', { name: 'Je les ai mis de côté' }).check();
+    // Un code faux n'active rien : le refus le dit, sur son champ, et le compte n'a toujours pas de code.
+    await premier.fill(juste === '000000' ? '111111' : '000000');
+    await activer.click();
+    await expect.poll(() => fenetre.getByRole('alert').innerText()).toBe(fine(phrase('compte.code_essai_faux')));
+    expect(await premier.evaluate((e) => e === document.activeElement)).toBe(true);
+    // Le refus se lit en entier, au bas de cette fenêtre plus haute que l'écran (vu le 09/10/2026 : la moitié du
+    // message passait sous le bord).
+    await expect.poll(async () => {
+      const [boite, message] = await Promise.all([fenetre.locator('.modal').boundingBox(), fenetre.getByRole('alert').boundingBox()]);
+      return !!boite && !!message && message.y >= boite.y && message.y + message.height <= boite.y + boite.height;
+    }).toBe(true);
+    expect((await admin.query('select code_methode from socle.utilisateur where email = $1', [email])).rows).toEqual([{ code_methode: null }]);
+    await p.screenshot({ path: path.join(PHOTOS, 'parcours-0-code-qr.png') });
+    // Le code que montre le téléphone : le code est activé, et la carte le dit.
+    await premier.fill(codeTotp(depuisBase32(secret), Date.now()));
+    await activer.click();
+    await expect.poll(() => carte.locator('#cpt-etat').innerText()).toBe('Activé');
+    expect(await carte.locator('#cpt-restants').innerText()).toBe('10 codes de secours');
+    expect(await fenetre.getByRole('button', { name: 'Vérifier et activer' }).count()).toBe(0);
 
     // Se déconnecter par le menu du haut de la v10.
     await p.locator('#brand-btn').click();

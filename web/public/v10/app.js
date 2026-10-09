@@ -8420,7 +8420,7 @@
   // phrase chacun ; « Apparence » n'en portait plus que deux une fois l'image de marque partie avec
   // les documents. Les identifiants sont ceux que visent `allerParametres` et la palette : un test
   // vérifie qu'aucun lien ne désigne un onglet ou un panneau disparu.
-  const SETTINGS_TABS = [['societe', 'Mon entreprise'], ['documents', 'Documents'], ['envois', 'Envois'],
+  const SETTINGS_TABS = [...(bridge.dessinerCompte ? [['compte', 'Ton compte']] : []), ['societe', 'Mon entreprise'], ['documents', 'Documents'], ['envois', 'Envois'],
     ['donnees', 'Données et sécurité'], ['app', 'L\'application']];
 
   // Les PANNEAUX, et une seule fois. Cette table dit, pour chacun : dans quel onglet il vit, comment
@@ -8451,7 +8451,8 @@
     'p-modeles': { onglet: 'envois', titre: 'Modèles de messages', mots: 'modele message objet relance rappel email gabarit variables' },
     'p-cabinet': { onglet: 'envois', titre: 'Ton cabinet comptable', mots: 'cabinet comptable expert code confier mandat livres' },
     'p-quarantaine': { onglet: 'donnees', titre: 'Remis par un appareil retiré', mots: 'appareil retire quarantaine remis hors ligne accepter rejeter changement attente', visible: () => !!(bridge.quarantaine && bridge.quarantaine()) },
-    'p-appareils': { onglet: 'donnees', titre: 'Tes appareils', mots: 'appareil ordinateur telephone perdu vole retirer session connexion hors ligne copie', visible: () => !!bridge.dessinerAppareils },
+    'p-compte': { onglet: 'compte', titre: 'Ton compte', mots: 'compte adresse email e-mail courriel mot de passe changer code telephone authentification double secours activer desactiver appareil verifier', visible: () => !!bridge.dessinerCompte },
+    'p-appareils': { onglet: 'compte', titre: 'Tes appareils', mots: 'appareil ordinateur telephone perdu vole retirer session connexion hors ligne copie', visible: () => !!bridge.dessinerAppareils },
     'p-services': { onglet: 'donnees', titre: 'Services connectés', mots: 'service connecte boutique skanecom cle api partenaire couper acces relier', visible: () => !!bridge.dessinerServices },
     'p-dossiers': { onglet: 'donnees', titre: 'Dossiers — plusieurs entreprises sur cet ordinateur', mots: 'dossier entreprise changer basculer partager deux postes rejoindre poste ordinateur nom appareil machine' },
     'p-sauvegardes': { onglet: 'donnees', titre: 'Sauvegardes', mots: 'sauvegarde restaurer restauration perdu recuperer export import fichier donnees backup' },
@@ -17743,9 +17744,13 @@
       </div>
       </section>
 
+      <section data-pane="compte" hidden>
+      ${bridge.dessinerCompte ? `${panneau('p-compte')}<div id="compte-panel"></div></div>` : ''}
+      ${bridge.dessinerAppareils ? `${panneau('p-appareils')}<div id="appareils-panel"></div></div>` : ''}
+      </section>
+
       <section data-pane="donnees" hidden>
       ${bridge.quarantaine && bridge.quarantaine() ? `${panneau('p-quarantaine')}<div id="quarantaine-panel"></div></div>` : ''}
-      ${bridge.dessinerAppareils ? `${panneau('p-appareils')}<div id="appareils-panel"></div></div>` : ''}
       ${bridge.dessinerServices ? `${panneau('p-services')}<div id="services-panel"></div></div>` : ''}
       ${panneau('p-dossiers', info('data.dossiers'))}
         <p class="small muted mb">Chaque dossier est une entreprise : ses clients, ses documents, ses achats, ses sauvegardes. Ils ne se mélangent jamais. Tu passes de l'un à l'autre en un clic, l'application se recharge.</p>
@@ -18071,6 +18076,7 @@
     }
     drawCabinetPair();
     if (bridge.dessinerQuarantaine && $('#quarantaine-panel')) bridge.dessinerQuarantaine($('#quarantaine-panel'));
+    if (bridge.dessinerCompte && $('#compte-panel')) void bridge.dessinerCompte($('#compte-panel'), { modal, toast });
     if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));
     if (bridge.dessinerServices && $('#services-panel')) void bridge.dessinerServices($('#services-panel'));
     if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));

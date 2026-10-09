@@ -10220,13 +10220,15 @@
     if (corrBrouillon !== null) sale(box);
   }
 
-  const REG_TABS = [['cabinet', 'Mon cabinet'], ['compta', 'Comptabilité'], ['donnees', 'Données et sécurité'], ['app', 'L\'application']];
+  const REG_TABS = [['compte', 'Ton compte'], ['cabinet', 'Mon cabinet'], ['compta', 'Comptabilité'], ['donnees', 'Données et sécurité'], ['app', 'L\'application']];
 
   // Une seule table pour TROIS choses qui, écrites à trois endroits, divergent toujours : le titre du
   // panneau, les mots que sa recherche connaît sans qu'ils soient à l'écran, et son entrée de palette
   // Cmd+K. Même mécanique que SETTINGS_PANNEAUX côté entreprise, et pour la même raison : là-bas, six
   // alias écrits à la main ont nommé des onglets disparus et la palette n'a plus rien rendu.
   const REG_PANNEAUX = {
+    'pan-compte': { onglet: 'compte', titre: 'Ton compte', mots: 'compte adresse email e-mail courriel mot de passe changer code telephone authentification double secours activer changer appareil verifier' },
+    'pan-appareils': { onglet: 'compte', titre: 'Tes appareils', mots: 'appareil ordinateur telephone perdu vole retirer session connexion' },
     'pan-cabinet': { onglet: 'cabinet', titre: 'Ton cabinet', mots: 'cabinet nom email telephone jour relance tva cnss depot echeance' },
     'pan-appairage': { onglet: 'cabinet', titre: 'Le code de ton cabinet', mots: 'code cabinet client confier dossier mandat accepter' },
     'pan-equipe': { onglet: 'cabinet', titre: 'L\'équipe', mots: 'equipe collaborateur collaborateurs qui saisit valide supervision role droits personne poste partage plusieurs assistant stagiaire chef mission' },
@@ -10273,6 +10275,10 @@
       <div class="tabs" id="set-tabs" role="tablist" aria-label="Les réglages du cabinet">${REG_TABS.map(([id, label]) =>
         `<button role="tab" data-tab="${id}" class="${id === reglagesTab ? 'active' : ''}">${label}</button>`).join('')}</div>
       <div class="set-somm" id="set-somm"></div>
+      <section data-pane="compte"${reglagesTab === 'compte' ? '' : ' hidden'}>
+      ${panneauReg('pan-compte')}<div id="compte-panel"></div></div>
+      ${panneauReg('pan-appareils')}<div id="appareils-panel"></div></div>
+      </section>
       <section data-pane="cabinet"${reglagesTab === 'cabinet' ? '' : ' hidden'}>
       ${panneauReg('pan-cabinet')}
         <div class="grid-2">
@@ -10456,6 +10462,8 @@
       </div>`;
     drawUpdatePanel();
     drawBackupPanels();
+    void api.dessinerCompte($('#compte-panel'), { modal, toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined) });
+    void api.dessinerAppareils($('#appareils-panel'));
     // Les onglets, le sommaire et la recherche : la mécanique vient de src/renderer/reglages.js,
     // partagée avec l'app entreprise, qui sait déjà basculer d'onglet — il suffit de lui dire
     // comment. Les trois rappels vont ENSEMBLE : n'en donner que deux laisse `montrer()`

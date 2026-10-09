@@ -1016,7 +1016,7 @@
         // — Réglages
         { chapitre: 'Réglages et sécurité', couleur: 'piloter', page: '#/parametres', avant: onglet('#set-tabs', 'societe'), cible: '#view .panel', cote: 'dessus', titre: 'Ta fiche société',
           texte: 'Raison sociale, matricule fiscal, adresse, RIB, logo : <b>tout ce qui s\'imprime</b> en haut de tes documents.' },
-        { page: '#/parametres', avant: onglet('#set-tabs', 'donnees'), cible: '#p-appareils', cote: 'dessous', titre: 'Tes données à l\'abri',
+        { page: '#/parametres', avant: onglet('#set-tabs', 'compte'), cible: '#p-appareils', cote: 'dessous', titre: 'Tes données à l\'abri',
           texte: 'Tes données vivent sur le serveur SkanFact, sauvegardé chaque nuit : rien à copier de ton côté. Ce qui se règle ici, ce sont <b>tes appareils</b> : un téléphone perdu ou un ordinateur donné se retire d\'un clic, et il ne peut plus rien ouvrir.' },
         { page: '#/parametres', cible: '#app-version', cote: 'droite', titre: 'Les mises à jour',
           texte: 'SkanFact se met à jour tout seul, sur le serveur : <b>rien à installer</b> de ton côté, et tes données ne bougent pas. La version en service s\'écrit ici, au pied du menu : c\'est elle que tu donnes si tu signales un problème.' },

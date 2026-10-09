@@ -10,7 +10,17 @@ import { Dessin, PageDouble, VitrineConnexion } from '../composants/Entree.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
 
-export type Defi = { defi: string; methode: 'sms' | 'application'; posteDUnAutre: boolean };
+// Un défi par e-mail (0076) dit aussi à quelle adresse le code est parti, et pourquoi : l'adresse à vérifier juste après
+// l'inscription, ou un appareil que SkanFact ne connaît pas.
+export type Defi = { defi: string; methode: 'sms' | 'application'; posteDUnAutre: boolean }
+  | { defi: string; methode: 'courriel'; posteDUnAutre: boolean; adresse: string; raison: 'inscription' | 'appareil' };
+type ReponseConnexion = { etat: string; jeton?: string; defi?: string; methode?: 'sms' | 'application' | 'courriel'; appareil?: string | null; adresse?: string; raison?: 'inscription' | 'appareil' };
+// Le défi que décrit une réponse de connexion, ou rien.
+export function defiDe(r: ReponseConnexion, posteDUnAutre: boolean): Defi | null {
+  if (r.etat !== 'code' || !r.defi || !r.methode) return null;
+  if (r.methode === 'courriel') return r.adresse && r.raison ? { defi: r.defi, methode: 'courriel', posteDUnAutre, adresse: r.adresse, raison: r.raison } : null;
+  return { defi: r.defi, methode: r.methode, posteDUnAutre };
+}
 // `sous` : la phrase sous le titre, quand un partenaire a envoyé la personne ici (brique 133).
 // `email` : l'adresse déjà connue (un compte qu'on vient de créer), pour ne pas la retaper.
 type Props = { connecte: () => void; code: (d: Defi) => void; inscription: () => void; oubli: (email: string) => void; sous?: string | null; email?: string };
@@ -26,13 +36,15 @@ export function nomDeCetAppareil() {
   return os ? `${nav} sur ${os}` : nav;
 }
 
-// Ce que ce serveur sait faire à l'entrée (le mot de passe oublié : seulement avec un relais d'e-mails).
+// Ce que ce serveur sait faire à l'entrée, seulement avec un relais d'e-mails : le mot de passe oublié, et l'adresse
+// vérifiée par un code (0076).
 export function useOptions() {
-  const [oubli, setOubli] = useState(false);
+  const [options, setOptions] = useState({ oubli: false, courriel: false });
   useEffect(() => {
-    void appeler<{ motDePasseOublie: boolean }>('GET', '/connexion/options').then((r) => { if (r.statut === 200) setOubli(r.corps.motDePasseOublie); }).catch(() => undefined);
+    void appeler<{ motDePasseOublie: boolean; codeParCourriel?: boolean }>('GET', '/connexion/options')
+      .then((r) => { if (r.statut === 200) setOptions({ oubli: r.corps.motDePasseOublie, courriel: !!r.corps.codeParCourriel }); }).catch(() => undefined);
   }, []);
-  return { oubli };
+  return options;
 }
 
 export function Connexion({ connecte, code, inscription, oubli, sous, email: connu }: Props) {
@@ -46,17 +58,18 @@ export function Connexion({ connecte, code, inscription, oubli, sous, email: con
     const appareil = session.appareil();
     let r;
     try {
-      r = await appeler<{ etat: string; jeton?: string; defi?: string; methode?: 'sms' | 'application'; appareil?: string | null }>('POST', '/connexion', {
+      r = await appeler<ReponseConnexion>('POST', '/connexion', {
         email, motDePasse, posteDUnAutre, appareil: { nom: nomDeCetAppareil(), type: 'navigateur', ...(appareil ? { id: appareil } : {}) },
       });
     } catch (x) { g.refuser({ texte: phrase(x instanceof ErreurReseau ? 'ecran.erreur_reseau' : 'ecran.erreur_serveur'), champ: null }); return; }
+    const defi = defiDe(r.corps, posteDUnAutre);
     if (r.corps.etat === 'connecte' && r.corps.jeton) {
       session.ouvrir(r.corps.jeton, !posteDUnAutre);
       if (!posteDUnAutre) session.retenirAppareil(r.corps.appareil ?? null);
       connecte();
-    } else if (r.corps.etat === 'code' && r.corps.defi && r.corps.methode) {
+    } else if (defi) {
       if (!posteDUnAutre && r.corps.appareil) session.retenirAppareil(r.corps.appareil);
-      code({ defi: r.corps.defi, methode: r.corps.methode, posteDUnAutre });
+      code(defi);
     } else {
       g.refuser(refusDe(r));
     }
