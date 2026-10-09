@@ -23,7 +23,9 @@ jobs:
         moitie: [1, 2]
     services:
       postgres:
-        image: postgres:16
+        # L'image officielle de PostgreSQL, prise sur le miroir public d'AWS plutôt que sur Docker Hub : le 09/10/2026,
+        # Docker Hub refusait les téléchargements des machines de GitHub, et chaque vérification tombait avant le moindre test.
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_PASSWORD: postgres
         ports: ['5432:5432']
@@ -71,7 +73,9 @@ jobs:
         groupe: [1, 2, 3, 4, 5, 6]
     services:
       postgres:
-        image: postgres:16
+        # L'image officielle de PostgreSQL, prise sur le miroir public d'AWS plutôt que sur Docker Hub : le 09/10/2026,
+        # Docker Hub refusait les téléchargements des machines de GitHub, et chaque vérification tombait avant le moindre test.
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_PASSWORD: postgres
         ports: ['5432:5432']
