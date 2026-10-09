@@ -235,20 +235,22 @@ lancement**, notre propre relais sur notre serveur en Tunisie, et **Brevo** (Eur
 secours. Resend garde ses données aux États-Unis ; **il ne sert jamais un serveur aux vraies données**, et le script
 le refuse.
 
-**H1. Ce que fait Skander, une fois.**
-1. Chez Resend : créer le compte, ajouter le domaine `skanfact.tn` (région Irlande, `eu-west-1`).
-2. Chez Cloudflare (zone `skanfact.tn`) : recopier les lignes que Resend affiche (DKIM, et l'envoi par le sous-domaine
-   `send` : MX et SPF), puis attendre « Verified » chez Resend.
-3. Chez Resend : créer une clé « Sending access » (envoi seulement).
-4. Dans la console du serveur (espace client OVH), en root :
+**H1. Ce que fait Skander, une fois.** Les e-mails partent de **`ne-pas-repondre@send.skanfact.tn`** : le domaine
+`send.skanfact.tn` est déjà « Verified » chez Resend (celui de la console de la v10, qui y envoie les clés de licence
+depuis `licences@send.skanfact.tn` ; ses lignes DNS : dépôt `skanfact`, `plateforme/DNS-skanfact-tn.md`). Rien à
+ajouter chez Cloudflare (09/10/2026 : la capture de Resend envoyée par Skander le montre « Verified »).
+1. Chez Resend, « API Keys » → « Create API Key » : nom « serveur d'essai », permission **« Sending access »** (envoi
+   seulement), domaine **`send.skanfact.tn`**. Une clé à part de celle de la console : chacune se retire sans l'autre.
+2. Dans la console du serveur (espace client OVH), en root :
    `curl -fsSL https://raw.githubusercontent.com/saouthq/skanfact-plateforme/main/exploitation/courriel.sh | bash`
+   puis coller la clé (elle ne s'affiche pas) et donner une adresse où recevoir l'e-mail d'essai.
 
 **H2. Le script** (`exploitation/courriel.sh`) :
 - il demande la clé **sans l'afficher** ;
-- il envoie d'abord un **e-mail d'essai** avec elle : si Resend refuse (domaine pas vérifié, clé mal copiée), rien ne
-  change ;
+- il envoie d'abord un **e-mail d'essai** avec elle : si Resend refuse (clé mal copiée, clé sans droit d'envoi sur
+  `send.skanfact.tn`), rien ne change ;
 - il écrit ensuite les deux réglages dans `/etc/skanfact/serveur.env`, lisible par root et le service seulement :
-  `SKANFACT_SMTP=smtps://resend:<clé>@smtp.resend.com:465` et `SKANFACT_COURRIEL_DE=ne-pas-repondre@skanfact.tn` ;
+  `SKANFACT_SMTP=smtps://resend:<clé>@smtp.resend.com:465` et `SKANFACT_COURRIEL_DE=ne-pas-repondre@send.skanfact.tn` ;
 - il redémarre SkanFact et vérifie que « Mot de passe oublié ? » est proposé.
 
 La clé passe à curl par son entrée, jamais par sa ligne de commande. **Elle ne passe ni par le dépôt, ni par Claude.**
@@ -256,7 +258,7 @@ La clé passe à curl par son entrée, jamais par sa ligne de commande. **Elle n
 **H3. Ce qui part chez Resend**, compté et décidé (skanfact `docs/cadrage/03-droits.md` § 6) : l'adresse de la
 personne, l'objet, et un texte qui ne porte que le code ou le lien. Ni son nom, ni son entreprise.
 
-Test : `tests/exploitation/courriel.test.ts` (4 preuves), joué avec des doublures de curl et de systemctl.
+Test : `tests/exploitation/courriel.test.ts` (5 preuves), joué avec des doublures de curl et de systemctl.
 
 ## Reste à faire avant les testeurs
 

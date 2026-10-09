@@ -248,7 +248,7 @@ L'envoi passe par un relais SMTP, réglé dans l'environnement du serveur (jamai
 
 ```
 SKANFACT_SMTP=smtp://utilisateur:mot-de-passe@relais.exemple:587   (STARTTLS exigé ; ou smtps://…:465)
-SKANFACT_COURRIEL_DE=ne-pas-repondre@skanfact.tn
+SKANFACT_COURRIEL_DE=ne-pas-repondre@send.skanfact.tn
 ```
 
 Sans ces deux lignes, rien ne part : l'écran ne propose pas le mot de passe oublié, et aucun code par e-mail n'est

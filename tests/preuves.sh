@@ -9257,6 +9257,9 @@ prouver "l'ancien relais gardé à côté du nouveau" exploitation/courriel.sh \
 prouver "Resend branché sur un serveur aux vraies données" exploitation/courriel.sh \
   "grep -qx 'SKANFACT_ENVIRONNEMENT=test' \"\$REGLAGES\" ||" 'true ||' \
   "$RC4"
+prouver "l'expéditeur hors du domaine vérifié chez Resend" exploitation/courriel.sh \
+  'DE=${SKANFACT_COURRIEL_DE:-ne-pas-repondre@send.skanfact.tn}' 'DE=${SKANFACT_COURRIEL_DE:-ne-pas-repondre@skanfact.tn}' \
+  "$RC1"
 
 # ── Le lot onboarding : le code par e-mail, Ton compte (0076 ; serveur/connexion.ts, serveur/compte.ts) ──
 C76=base/migrations/0076_code_facultatif.sql

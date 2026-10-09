@@ -125,7 +125,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   const smtp = env.SKANFACT_SMTP ?? null;
   if (smtp && !/^smtps?:\/\/[^/]+$/.test(smtp)) throw new ConfigurationFausse('SKANFACT_SMTP : l\'adresse du relais, smtp://utilisateur:mot-de-passe@hote:587 (ou smtps://…:465)');
   const de = env.SKANFACT_COURRIEL_DE ?? null;
-  if (smtp && !(de && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(de))) throw new ConfigurationFausse('SKANFACT_COURRIEL_DE : l\'adresse d\'où partent les e-mails (par exemple ne-pas-repondre@skanfact.tn)');
+  if (smtp && !(de && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(de))) throw new ConfigurationFausse('SKANFACT_COURRIEL_DE : l\'adresse d\'où partent les e-mails (par exemple ne-pas-repondre@send.skanfact.tn)');
   let partenaires: Partenaire[];
   // Les partenaires déclarés (brique 133) : ceux du dépôt (serveur/partenaires.json : des adresses et des empreintes,
   // rien de secret), sauf si l'environnement en donne d'autres. Un serveur d'essai admet aussi un retour sur le poste.
