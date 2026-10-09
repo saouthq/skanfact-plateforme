@@ -65,7 +65,7 @@ describe('l\'exemple puis la vraie entreprise, autour du versement', () => {
   };
   const premiersPas = (p: Page) => p.locator('#view .premiers-pas');
 
-  it('l\'entreprise d\'essai encore vide repart vers sa préparation : coupée, elle dit quoi faire ; un conflit se redemande ; un refus se lit, et « telle quelle » l\'ouvre sans y revenir', async () => {
+  it('l\'entreprise d\'essai encore vide repart vers sa préparation : coupée, elle dit quoi faire ; un conflit se redemande ; le serveur qui trébuche se réessaie ; un refus se lit, et « telle quelle » l\'ouvre sans y revenir', async () => {
     const jeton = await personne('salma');
     const essai = String((await api('POST', '/entreprises-essai', jeton)).corps.id);
     const { p, erreurs } = await page(jeton);
@@ -94,12 +94,20 @@ describe('l\'exemple puis la vraie entreprise, autour du versement', () => {
     expect(await ecran.getByRole('button', { name: 'Ouvrir mon entreprise d\'essai telle quelle' }).count()).toBe(0);
     await p.screenshot({ path: path.join(PHOTOS, 'exemple-vraie-1-coupe.png') });
 
-    // « Réessayer » : un enregistrement qui croise le versement (un conflit) se redemande ; puis un refus, lu en entier.
+    // « Réessayer » : un enregistrement qui croise le versement (un conflit) se redemande ; puis le serveur trébuche :
+    // sa phrase, et « Réessayer » qui débloque (vu en ligne le 09/10/2026 : « réessaie dans un instant », sans bouton).
+    const trebuche = 'Une erreur est survenue de notre côté. Elle est notée ; réessaie dans un instant.';
     reponses.push({ status: 409, body: JSON.stringify({ motif: 'Quelqu\'un d\'autre vient de modifier ce dossier : rien n\'a été enregistré.' }) },
-      { status: 403, body: JSON.stringify({ motif: 'Ton rôle ne permet pas de remplir cette entreprise : rien n\'a été fait.' }) });
+      { status: 500, body: JSON.stringify({ motif: trebuche }) });
+    await ecran.getByRole('button', { name: 'Réessayer', exact: true }).click();
+    await expect.poll(() => alerte.innerText().catch(() => ''), { timeout: 15_000 }).toBe(trebuche);
+    expect(demandes).toBe(7);
+    // Réessayé : cette fois un refus, lu en entier ; un refus ne se réessaie pas (rien à attendre d'une seconde demande).
+    reponses.push({ status: 403, body: JSON.stringify({ motif: 'Ton rôle ne permet pas de remplir cette entreprise : rien n\'a été fait.' }) });
     await ecran.getByRole('button', { name: 'Réessayer', exact: true }).click();
     await expect.poll(() => alerte.innerText().catch(() => ''), { timeout: 15_000 }).toBe('Ton rôle ne permet pas de remplir cette entreprise : rien n\'a été fait.');
-    expect(demandes).toBe(7);
+    expect(demandes).toBe(8);
+    expect(await ecran.getByRole('button', { name: 'Réessayer', exact: true }).count()).toBe(0);
 
     // « Telle quelle » : elle s'ouvre, vide, sans repartir vers la préparation, et sans premiers pas (ce n'est pas la
     // vraie entreprise).
@@ -108,7 +116,7 @@ describe('l\'exemple puis la vraie entreprise, autour du versement', () => {
     await accueil(p);
     await expect.poll(() => premiersPas(p).count(), { timeout: 10_000 }).toBe(0);
     expect(new URL(p.url()).pathname).toBe('/v10/');
-    expect(demandes).toBe(7);
+    expect(demandes).toBe(8);
     expect(erreurs).toEqual([]);
   }, 120_000);
 

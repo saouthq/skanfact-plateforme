@@ -127,6 +127,22 @@ describe('l\'exemple de la v10, versé par le serveur dans l\'entreprise d\'essa
     expect((await s.dossier(s.essai)).length).toBe(objets.length);
   }, 300_000);
 
+  // Vu en ligne le 09/10/2026 : « On prépare l'exemple » redemande le versement quand un relais coupe la réponse ; la
+  // seconde demande, arrivée pendant le versement, tombait parfois sur « Une erreur est survenue de notre côté » (une
+  // entreprise d'essai neuve n'a encore aucun objet de dossier à verrouiller). Elle attend maintenant la première.
+  it('deux demandes de versement en même temps (la réponse coupée, redemandée) : la seconde attend la première et trouve l\'exemple là', async () => {
+    const s = await personne('Rania');
+    const [a, b] = await Promise.all([
+      appeler('POST', `/entreprises/${s.essai}/exemple`, s.jeton),
+      new Promise<Reponse>((ok) => { setTimeout(() => { void appeler('POST', `/entreprises/${s.essai}/exemple`, s.jeton).then(ok); }, 300); }),
+    ]);
+    expect([a.statut, b.statut]).toEqual([200, 200]);
+    expect([a.corps.deja, b.corps.deja].sort()).toEqual([false, true]);
+    // Versé une seule fois : chaque facture émise a une pièce, et une seule.
+    const docs = (await s.dossier(s.essai)).filter((o) => o.collection === 'documents').map((o) => decoder(o.contenu) as { type: string; status: string });
+    expect(await compter('ventes.piece', s.essai)).toBe(docs.filter((x) => (x.type === 'facture' || x.type === 'avoir') && x.status !== 'brouillon').length);
+  }, 300_000);
+
   it('jamais dans une vraie entreprise, ni dans une entreprise d\'essai qui a ses propres pièces, ni chez un autre ; un refus n\'écrit rien', async () => {
     const s = await personne('Nadia');
     // Une vraie entreprise.

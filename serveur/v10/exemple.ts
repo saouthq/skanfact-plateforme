@@ -76,6 +76,11 @@ const FIN = ['movements', 'ecrituresOD', 'closureLog', 'closedUntil', 'counters'
 export async function verserExemple(tx: Transaction, entreprise: string, utilisateur: string, jour: string): Promise<{ deja: boolean; pieces: number }> {
   const e = (await tx.query('select essai from socle.entreprise where id = $1', [entreprise])).rows[0] as { essai: boolean } | undefined;
   if (!e?.essai) throw new Refus('exemple.vraie_entreprise');
+  // Un versement à la fois par entreprise : la même demande refaite (une réponse coupée par un relais, redemandée par
+  // « On prépare l'exemple ») attend la fin du premier, puis le trouve fait. Le verrou des objets du dossier ne suffisait
+  // pas : une entreprise d'essai neuve n'en a encore aucun, et la seconde demande versait par-dessus la première
+  // (« Une erreur est survenue de notre côté », vu en ligne le 09/10/2026).
+  await tx.query('select pg_advisory_xact_lock(hashtextextended($1, 0))', [`exemple:${entreprise}`]);
   // Le dossier se lit verrouillé : un enregistrement de la page parti au même moment (ses réglages de départ, à
   // l'ouverture) attend la fin du versement, au lieu de le faire échouer sur un conflit (vu à la souris le 05/10/2026).
   await tx.query('select 1 from socle.dossier_v10 where entreprise = $1 for update', [entreprise]);

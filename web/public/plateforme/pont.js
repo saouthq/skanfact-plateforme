@@ -550,6 +550,17 @@
   async function remettre() {
     const attente = await poste.lireAttente(ent).catch(() => null);
     if (!attente) return 0;
+    // La session peut se dire finie avant que la page ait relu la copie (un autre appel, celui du compte, revient le
+    // premier) : comparée à rien, chaque objet passait pour ajouté et chaque réglage pour changé (vu le 09/10/2026 :
+    // « 42 réglages du dossier », un client renommé hors ligne remis comme « ajouté »). Ce que le poste avait vu, c'est
+    // sa copie : elle sert alors de point de départ.
+    if (!vu.size) {
+      const c = await poste.lireCopie(ent).catch(() => null);
+      if (c) {
+        for (const o of c.contenu.objets) vu.set(`${o.collection}\u0000${o.cle}`, { json: JSON.stringify(o.contenu), rang: o.rang, revision: o.revision });
+        adopter();
+      }
+    }
     const changements = changementsDe(attente.contenu.data);
     if (!changements.length) return 0;
     try {

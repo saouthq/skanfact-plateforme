@@ -14,7 +14,8 @@ import { Dessin } from '../composants/Entree.tsx';
 import { phrase, titre } from '../langue.ts';
 
 type Moi = { compte?: { adresseVerifiee?: boolean }; entreprises: { id: string; essai?: boolean; parCabinet?: boolean }[] };
-type Etat = { pas: 'compte' | 'exemple' | 'pret' | 'refus' | 'coupe'; motif?: string; essai?: string; vraie?: boolean; verifiee?: boolean };
+// `reessayable` : le serveur a trébuché (une erreur de son côté) ; une seconde demande peut aboutir, l'écran l'offre.
+type Etat = { pas: 'compte' | 'exemple' | 'pret' | 'refus' | 'coupe'; motif?: string; essai?: string; vraie?: boolean; verifiee?: boolean; reessayable?: boolean };
 
 const attendre = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 
@@ -45,7 +46,7 @@ export function ExemplePrepare({ visite, ouvrir, deconnecte }: { visite: string;
           const r = await appeler<{ id: string }>('POST', '/entreprises-essai');
           if (fini) return;
           if (r.statut === 401) { sortir(); return; }
-          if (r.statut !== 201) { setEtat({ pas: 'refus', motif: r.corps.motif ?? phrase('ecran.erreur_serveur'), vraie, verifiee }); return; }
+          if (r.statut !== 201) { setEtat({ pas: 'refus', motif: r.corps.motif ?? phrase('ecran.erreur_serveur'), vraie, verifiee, reessayable: r.statut >= 500 }); return; }
           id = r.corps.id;
         }
         const t0 = Date.now();
@@ -66,7 +67,7 @@ export function ExemplePrepare({ visite, ouvrir, deconnecte }: { visite: string;
             if (++coupes <= 4) { await attendre(1500); continue; }
             throw new ErreurReseau();
           }
-          setEtat({ pas: 'refus', motif: r.corps.motif ?? phrase('ecran.erreur_serveur'), essai: id, vraie, verifiee });
+          setEtat({ pas: 'refus', motif: r.corps.motif ?? phrase('ecran.erreur_serveur'), essai: id, vraie, verifiee, reessayable: r.statut >= 500 });
           return;
         }
         if (fini) return;
@@ -109,7 +110,7 @@ export function ExemplePrepare({ visite, ouvrir, deconnecte }: { visite: string;
           <div className="ent-exemple-refus">
             <p role="alert">{etat.pas === 'coupe' ? phrase('ecran.exemple.coupe') : etat.motif}</p>
             <div className="ent-exemple-gestes">
-              {etat.pas === 'coupe' ? <Bouton principal onClick={() => setTentative((n) => n + 1)}>{titre('ecran.exemple.reessayer')}</Bouton> : null}
+              {etat.pas === 'coupe' || etat.reessayable ? <Bouton principal onClick={() => setTentative((n) => n + 1)}>{titre('ecran.exemple.reessayer')}</Bouton> : null}
               {etat.pas === 'refus' && etat.essai ? (
                 <Bouton onClick={() => {
                   // L'entreprise d'essai que le serveur ne remplit pas (elle a déjà ses pièces) s'ouvre telle quelle, sans

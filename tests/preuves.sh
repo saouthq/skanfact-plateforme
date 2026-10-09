@@ -9705,6 +9705,24 @@ prouver "la proposition au cabinet cachée sous une étape faite" $ASAPP \
   "\${e.fait && e.attente ? \`<span class=\"pp-attente\">" "\${e.fait && e.attente ? \`<span class=\"small pp-attente\">" \
   "$PPW1"
 
+# ── Réparations du 09/10/2026 : la remise d'un appareil retiré qui partait de rien (tests/web/quarantaine.test.ts
+# rouge sur GitHub), et le versement de l'exemple demandé deux fois (« Une erreur est survenue de notre côté », en
+# ligne) ; tests/v10/remise-retire.test.ts, tests/v10/exemple.test.ts, tests/web/exemple-puis-vraie.test.ts ──
+RRE="la remise part de la copie du poste, même quand l'appel du compte apprend le premier que l'appareil est retiré"
+EXC="deux demandes de versement en même temps (la réponse coupée, redemandée) : la seconde attend la première et trouve l'exemple là"
+prouver "la remise comparée à rien quand le compte apprend le premier que l'appareil est retiré" $PONT \
+  "    if (!vu.size) {" "    if (false) {" \
+  "$RRE"
+prouver "deux versements de l'exemple qui se croisent dans une entreprise d'essai neuve" $EXV \
+  "  await tx.query('select pg_advisory_xact_lock(hashtextextended(\$1, 0))', [\`exemple:\${entreprise}\`]);" "" \
+  "$EXC"
+prouver "le serveur qui trébuche pendant la préparation, sans « Réessayer »" $EXP \
+  "{etat.pas === 'coupe' || etat.reessayable ? <Bouton principal" "{etat.pas === 'coupe' ? <Bouton principal" \
+  "$EPV1"
+prouver "un refus de la préparation offert à réessayer" $EXP \
+  "essai: id, vraie, verifiee, reessayable: r.statut >= 500 });" "essai: id, vraie, verifiee, reessayable: true });" \
+  "$EPV1"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
