@@ -385,6 +385,12 @@
     **L'assistant de démarrage** (lot onboarding, 09/10/2026 ; `plateforme/assistant.js`, `web/v10/assistant.txt`) :
     l'entreprise créée par la porte s'ouvre sur « Où te joindre ? », puis le métier, la TVA et le menu, au dessin de
     l'entrée ; il écrit par `OB.applySetup` de la v10 et montre la vraie facture et le vrai menu, jamais recomposés.
+    **Les premiers pas** (même lot ; `plateforme/premiers-pas.js`, `web/v10/premiers-pas.txt`) remplacent
+    `C.firstSteps` sur la plateforme, sous sa forme (l'accueil, la jauge des visites et « Me guider » les lisent) : le
+    compte (l'adresse à vérifier en tête quand le serveur sait envoyer le code ; « Vérifier mon adresse » dans Ton compte,
+    `0077`), l'entreprise, l'activité, le RIB si l'on attend un virement, le code du téléphone (recommandé : il ne
+    retient pas le panneau), le premier client, le premier devis ; facultatifs, la facture à son image et le cabinet.
+    Ce qui vit sur le serveur arrive par `etatDuDemarrage`, relu à chaque retour sur l'accueil.
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

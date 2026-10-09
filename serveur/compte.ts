@@ -1,8 +1,8 @@
 // Ton compte (lot onboarding, décision de Skander du 09/10/2026 ; skanfact docs/cadrage/03-droits.md § 6 ; migration
 // 0076 ; docs/entree.md) : le code du téléphone qu'on retire ou dont on renouvelle les codes de secours, le mot de passe
-// et l'adresse qu'on change. Chaque geste qui affaiblit ou déplace le compte se prouve d'abord : le code du moment (ou un
-// code de secours) pour le code, le mot de passe actuel pour le mot de passe et l'adresse. Les erreurs comptent comme à
-// la connexion (une attente qui s'allonge, jamais un blocage).
+// et l'adresse qu'on change, ou qu'on vérifie (0077). Chaque geste qui affaiblit ou déplace le compte se prouve
+// d'abord : le code du moment (ou un code de secours) pour le code, le mot de passe actuel pour le mot de passe et
+// l'adresse. Les erreurs comptent comme à la connexion (une attente qui s'allonge, jamais un blocage).
 //
 // Ce qui part chez le relais d'e-mails, compté et décidé (03 § 6) : l'adresse, l'objet, et un texte qui ne porte que le
 // code ou le lien. La confirmation d'un code retiré ne porte que l'adresse de l'application ; celle d'une adresse
@@ -167,6 +167,28 @@ export async function demanderChangementAdresse(ctx: Contexte, qui: Qui, nouvell
     a: adresse, objet: rendre(t('compte.adresse_objet', { code }), 'fr'), texte: rendre(t('compte.adresse_texte', { code, minutes: DUREE_ADRESSE_MINUTES }), 'fr'),
   }).catch((e: unknown) => { console.error(`le code de la nouvelle adresse n'est pas parti : ${String(e)}`); });
   return { ok: true, demande };
+}
+
+// Vérifier l'adresse du compte sans en changer (0077) : un code part à cette adresse ; tapé, il la prouve. Qui a le code
+// du téléphone ne reçoit jamais de code par e-mail à la connexion : sans ce geste, son adresse ne se prouvait jamais.
+// Le texte est celui de l'inscription (« Voici ton code pour vérifier ton adresse e-mail »).
+export async function demanderVerificationAdresse(ctx: Contexte, qui: Qui): Promise<{ ok: true; demande: string } | Refuse> {
+  const courriel = ctx.courriel;
+  if (!courriel) return { ok: false, motif: motif('connexion.oubli_indisponible') };
+  const email = await monAdresse(ctx, qui);
+  const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+  const demande = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => (await tx.query('select socle.demander_verification_adresse($1, $2, $3) id',
+    [sha256(code), maintenantDe(ctx), `${DUREE_ADRESSE_MINUTES} minutes`])).rows[0].id as string);
+  void courriel.envoi.envoyer({
+    a: email, objet: rendre(t('connexion.courriel_objet', { code }), 'fr'), texte: rendre(t('connexion.courriel_inscription', { code, minutes: DUREE_ADRESSE_MINUTES }), 'fr'),
+  }).catch((e: unknown) => { console.error(`le code de vérification de l'adresse n'est pas parti : ${String(e)}`); });
+  return { ok: true, demande };
+}
+export async function confirmerVerificationAdresse(ctx: Contexte, qui: Qui, demande: string, code: string): Promise<{ ok: true } | Refuse> {
+  const saisi = code.replace(/\s/g, '');
+  const bon = /^[0-9]{6}$/.test(saisi)
+    && await enTantQue(ctx.pool, qui.utilisateur, async (tx) => (await tx.query('select socle.confirmer_verification_adresse($1, $2, $3) b', [demande, sha256(saisi), maintenantDe(ctx)])).rows[0].b as boolean);
+  return bon ? { ok: true } : { ok: false, motif: motif('connexion.code_faux'), champ: 'code' };
 }
 
 // Le code reçu à la nouvelle adresse : elle remplace l'ancienne, prouvée ; l'ancienne est prévenue.

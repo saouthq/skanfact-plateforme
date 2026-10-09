@@ -71,7 +71,7 @@ moderne ») :
 | C'est bien toi ? | À la connexion depuis un appareil inconnu, sans code du téléphone : l'adresse **à demi cachée** (a•••••@exemple.tn), le code reçu, puis l'appareil est reconnu 30 jours (jamais l'ordinateur d'un autre) |
 | Ton entreprise créée | L'application s'ouvre aussitôt : plus d'écran « Protège ton compte » entre les deux |
 | Ton cabinet créé | L'écran du code d'abord, qui le dit : « Ton cabinet « X » t'attend » |
-| Paramètres → **Ton compte** (le premier onglet ; le même dans les Réglages du Cabinet) | Une carte par sujet. **L'adresse** (Vérifiée ou À vérifier) : la changer demande le mot de passe actuel, puis le code reçu à la nouvelle ; l'ancienne est prévenue. **Le mot de passe** : l'actuel, puis le nouveau ; les autres sessions se ferment, celle-ci reste. **Le code du téléphone** (Activé, Exigé ou Désactivé, mis en avant tant qu'il est recommandé) : l'activer en quatre étapes dans une fenêtre (l'application, le code QR ou la clé, les codes de secours à mettre de côté, le premier code) ; de nouveaux codes de secours, changer de téléphone, le désactiver — chaque fois par le code du moment ou un code de secours ; « Désactiver » n'existe pas pour un comptable de cabinet ; un e-mail confirme la désactivation. **Ce que demande un nouvel appareil**, dit selon le cas. **Tes appareils**, venus de « Données et sécurité » |
+| Paramètres → **Ton compte** (le premier onglet ; le même dans les Réglages du Cabinet) | Une carte par sujet. **L'adresse** (Vérifiée ou À vérifier) : la changer demande le mot de passe actuel, puis le code reçu à la nouvelle ; l'ancienne est prévenue ; « Vérifier mon adresse » tant qu'elle ne l'est pas (0077, plus bas). **Le mot de passe** : l'actuel, puis le nouveau ; les autres sessions se ferment, celle-ci reste. **Le code du téléphone** (Activé, Exigé ou Désactivé, mis en avant tant qu'il est recommandé) : l'activer en quatre étapes dans une fenêtre (l'application, le code QR ou la clé, les codes de secours à mettre de côté, le premier code) ; de nouveaux codes de secours, changer de téléphone, le désactiver — chaque fois par le code du moment ou un code de secours ; « Désactiver » n'existe pas pour un comptable de cabinet ; un e-mail confirme la désactivation. **Ce que demande un nouvel appareil**, dit selon le cas. **Tes appareils**, venus de « Données et sécurité » |
 
 Les règles que tient le serveur (`base/migrations/0076_code_facultatif.sql`, `serveur/compte.ts`,
 `serveur/connexion.ts`) :
@@ -151,6 +151,60 @@ du compte). Tests : `tests/web/assistant.test.ts` (le parcours, l'écran et le d
 téléphone, les polices et les couleurs), `tests/web/parcours.test.ts`, `tests/web/exemple.test.ts`,
 `tests/v10/pont-exemple.test.ts`.
 
+## Les premiers pas refaits, et l'adresse vérifiée dans Ton compte (lot onboarding, 09/10/2026)
+
+La maquette « Tes premiers pas » validée par Skander le 09/10/2026, construite. Le panneau de l'accueil prend le haut
+sombre de l'entrée, dit « N sur M faits » avec sa barre, et met la suite en avant : « À faire maintenant », son bouton
+le seul en vert. Les étapes, dans l'ordre où elles servent :
+
+| Étape | Faite quand | Son bouton |
+|---|---|---|
+| Ton compte (et ton adresse vérifiée) | Toujours : on est dedans. Quand le serveur sait envoyer un e-mail et que l'adresse n'est pas prouvée, elle devient « Vérifie ton adresse e-mail », en tête | « Vérifier mon adresse » → Ton compte |
+| Ton entreprise et où te joindre | La raison sociale, un matricule fiscal bien formé, et une adresse, un téléphone ou un e-mail. Sinon, ce qui manque se nomme (sans matricule : « une facture sans matricule fiscal n'est pas conforme ») | « Compléter ma fiche » |
+| Ton activité, ta TVA et ton menu | L'assistant terminé, avec un métier. Un métier laissé « Plus tard » se choisit ici, en revoyant l'assistant (rien ne s'écrit avant la fin) | « Choisir mon activité » |
+| Ton RIB, pour être payé par virement | Seulement quand on attend un virement (un commerce encaisse sur place : pas de RIB réclamé). Un RIB faux ne compte pas, et dit pourquoi | « Ajouter mon RIB » → sa case |
+| Protège ton compte — Recommandé | Le code du téléphone actif | « Activer le code » → Ton compte |
+| Ton premier client | Un client | « + Créer un client » |
+| Ton premier devis (ou ta première facture) | Un devis, ou une facture : qui facture sans devis a commencé aussi | « + Créer un devis » |
+| Ta facture à ton image — Facultatif | Un logo ou une couleur | « Personnaliser ma facture » |
+| Invite ton comptable — Facultatif | Le dossier proposé à un cabinet (« Ta proposition attend que ton cabinet l'accepte », dit sous l'étape cochée) ou confié | « Inviter mon comptable » → Comptabilité, l'onglet du cabinet |
+
+Les règles (`web/public/plateforme/premiers-pas.js`) :
+
+- **Le panneau quitte l'accueil quand le métier est fait** : ni le code recommandé ni les étapes facultatives ne le
+  retiennent (un panneau qui ne partirait jamais serait celui qu'on apprend à ne plus lire). Il ne s'affiche jamais
+  dans l'entreprise d'essai, qui a déjà tout ; il se retrouve dans l'Aide.
+- **Ce qui vit sur le serveur se dit tel qu'il est** : l'adresse vérifiée, le code du téléphone et le cabinet arrivent
+  par le point de contact (`etatDuDemarrage`), lus au chargement puis relus à chaque retour sur l'accueil (au plus
+  toutes les cinq secondes) : un code activé dans Ton compte, ou un cabinet choisi, s'y coche au retour, sans recharger
+  la page. Tant que rien n'est lu, rien ne se dit fait de travers (le compte compte, le code non).
+- **Un compteur et la liste qu'il annonce sont la même fonction** : les étapes ont la forme de `C.firstSteps`, et
+  l'accueil, la jauge de fin de visite et « Me guider » les lisent toutes de la même façon.
+- **La bulle « Première fois sur cette page ? »** ne se pose plus sur l'accueil quand les premiers pas y sont : elle
+  couvrait le tiers d'un téléphone (vu sur app.skanfact.tn le 09/10/2026).
+
+**Vérifier son adresse sans en changer** (`base/migrations/0077_verifier_adresse.sql`). Qui a le code du téléphone ne
+reçoit jamais de code par e-mail à la connexion : son adresse restait « À vérifier » pour toujours, et Ton compte disait
+« elle se vérifie à ta prochaine connexion », ce qui était faux (trouvé en construisant la première ligne des premiers
+pas). Ton compte propose maintenant **« Vérifier mon adresse »** quand le serveur sait envoyer un e-mail : un code part à
+l'adresse du compte ; tapé, il la prouve. Mêmes limites qu'un changement d'adresse, dont la demande emprunte la table
+(15 minutes, cinq erreurs, trois demandes par heure, comptées ensemble) ; une demande faite avant un changement
+d'adresse ne prouve rien. Sans relais, la carte le dit : « tu pourras la vérifier dès qu'il le pourra ».
+
+Revu à la souris sur un serveur local le 09/10/2026 (ordinateur et téléphone, avec le relais d'e-mails). Corrigé en
+route : le badge « À faire maintenant » qui ne se lisait pas sur la ligne teintée ; au téléphone, le lien vers l'aide
+collé au bord du panneau et les boutons poussés à droite sous leur texte ; la phrase « Ta proposition attend… » cachée
+sous une étape faite (la v10 cache l'explication d'une étape cochée : l'attente a maintenant sa propre ligne). Vu sur
+app.skanfact.tn avant ce lot, et corrigé : le survol qui restait collé sur une tuile de l'assistant après un toucher
+(les survols ne valent plus qu'avec une souris).
+
+Code : `web/public/plateforme/premiers-pas.js` et `premiers-pas.css`, `web/v10/premiers-pas.txt` (le calcul branché, le
+panneau, les gestes, la bulle tue, la visite des premiers pas), `web/public/plateforme/pont.js` (`etatDuDemarrage`),
+`web/public/plateforme/compte.js` (« Vérifier mon adresse »), `serveur/compte.ts` et `serveur/routes/socle.ts`
+(`POST /v1/moi/adresse/verifier` et `…/verifier/confirmer`). Tests : `tests/v10/premiers-pas.test.ts` (le calcul),
+`tests/web/premiers-pas.test.ts` (le panneau à la souris, le retour sur l'accueil, le téléphone),
+`tests/socle/compte.test.ts`, `tests/web/compte.test.ts`.
+
 ## Le mot de passe oublié
 
 1. « Mot de passe oublié ? », sous le mot de passe, **seulement si le serveur sait envoyer un e-mail**
@@ -194,5 +248,5 @@ lancement, en Tunisie (où il garde les adresses : INPDP).
   les lier depuis la plateforme dirait faux. Elles viendront avec les textes de la plateforme (À VÉRIFIER avec un juriste
   et l'INPDP).
 - **Le logo** : le « S » dans un carré est provisoire.
-- **La suite du lot onboarding** : les premiers pas refaits au style de l'entrée (avec « Protège ton compte —
-  Recommandé »), et le parcours de l'exemple puis de la vraie entreprise (X1–X6).
+- **La suite du lot onboarding** : le parcours de l'exemple puis de la vraie entreprise (X2–X6), puis la messagerie
+  entre le cabinet et l'entreprise.

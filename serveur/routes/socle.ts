@@ -7,7 +7,7 @@ import { z } from 'zod';
 import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
 import { connecter, corrigerAdresse, deconnecter, demanderReinitialisation, essayerCode, inscrire, lireReinitialisation, mettreEnPlaceCode, reinitialiser, renvoyerCode, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
-import { activerCode, changerMotDePasse, confirmerChangementAdresse, demanderChangementAdresse, nouveauxCodesDeSecours, preparerCode, retirerCode, type Refuse } from '../compte.ts';
+import { activerCode, changerMotDePasse, confirmerChangementAdresse, confirmerVerificationAdresse, demanderChangementAdresse, demanderVerificationAdresse, nouveauxCodesDeSecours, preparerCode, retirerCode, type Refuse } from '../compte.ts';
 import { prochainNumero } from '../numeros.ts';
 import { regle } from '../regles.ts';
 import { requetes } from '../base.ts';
@@ -232,6 +232,24 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       if (!qui) throw new Error('session attendue');
       const r = await demanderChangementAdresse(ctx, qui, corps.adresse, corps.motDePasse);
       return r.ok ? { corps: { demande: r.demande } } : refus(r);
+    },
+  });
+  // Vérifier l'adresse du compte sans en changer (0077) : un code y part ; tapé, il la prouve.
+  ajouter({
+    methode: 'POST', chemin: '/moi/adresse/verifier', geste: 'compte.securite.gerer',
+    traiter: async ({ qui }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await demanderVerificationAdresse(ctx, qui);
+      return r.ok ? { corps: { demande: r.demande } } : refus(r);
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/moi/adresse/verifier/confirmer', geste: 'compte.securite.gerer',
+    corps: z.object({ demande: uuid, code: z.string().min(1).max(20) }),
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await confirmerVerificationAdresse(ctx, qui, corps.demande, corps.code);
+      return r.ok ? { corps: { ok: true } } : refus(r);
     },
   });
   ajouter({

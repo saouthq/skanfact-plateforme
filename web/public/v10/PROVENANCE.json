@@ -1,11 +1,11 @@
 {
   "depot": "saouthq/skanfact",
   "branche": "beta",
-  "commit": "7ef91fe",
+  "commit": "411c0a2",
   "reprisLe": "2026-10-09",
-  "adaptations": 748,
+  "adaptations": 758,
   "fichiers": {
-    "app.js": "15c2021a1d9ef92c91bf7b7ed9a22b2ab39bfc5ad223c3bc7a449e0ec06e1a14",
+    "app.js": "3d32462f56b9b295a8b77454628bdfd09b67ece378f3c3f9aced3d99bb4efe65",
     "cabinet/app.js": "14f428c3048c6eaeef9b2dea8c3366fd9c9011ac3e33b664ac82bb332b3a72ae",
     "cabinet/cabcore.js": "84cd43912cd60b911fe88574c87908bab34110c28bfa6c0a3da050fd3811af73",
     "cabinet/cabguide.js": "eed3abc1f9de8d877096b9f2d45f52c29d63fca97b5018ac9c4fa221808c754a",
@@ -16,7 +16,7 @@
     "core.js": "34d43cd7c738baf06f789237941a317eae05574efbfd21ba703ec4da53fdd796",
     "demo.js": "7831c54cb6ce833e60421c7f837510c3d722efdb94139db2e369ccb3b5fcc18a",
     "guide.js": "06c70b70116e193382cc8c3565b2ed2e6e6ebe2ddb32f2c88ddc26e871200408",
-    "index.html": "5b50c4ebf664973307b6c5cd302888e4a24977624c66b7e4cd544a1c813b2cee",
+    "index.html": "ee370134a1c32dcd9a1949541e57d7b6fd5548a5adcc4a951b75307ea5876745",
     "listes.js": "22f04a516104badfe38c23a834c2a7b3b6926a65d8861516d7106bc6f7e0e8b2",
     "majui.js": "4e510979f9abb6e59386af4463d30fe25c6ac44ec04395294506d68d7b02ef7d",
     "nouveautes.js": "71de9bce8598a3bd2df435d873eee02a7c64aa4d7273c3ac90c64cddc4b86225",
@@ -27,6 +27,6 @@
     "style.css": "50186b8a6e2727addc9b34602e3e235fabdb206fa62ebd975cfa5f2c6a7fd012",
     "teif.js": "87e7870460227508739bac49cf77e13c4435c2e7c1ddbaf99f4a9f31679b45d4",
     "visite.js": "e2251e94b8ad0d3ea182d9ddff317e84bc71c4e552af4f613cc6040c0c925358",
-    "visites.js": "5c0ff0ad146ff222cc65b9c6814589ea6618a3da3561a5680d057c6940952cf4"
+    "visites.js": "3398c03e85b37bad957db5e9e12b163d704bbe031d09127d7519e41f7d1f5636"
   }
 }

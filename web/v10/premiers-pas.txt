@@ -1,0 +1,125 @@
+« Tes premiers pas » de la plateforme (lot onboarding ; maquette validée par Skander le 09/10/2026 ; docs/entree.md).
+Format : voir sans-paquets.mjs.
+
+Les étapes sont celles de la maquette, dans l'ordre où elles servent : ton compte, ton entreprise et ton activité (la porte
+et l'assistant viennent de les faire), ton RIB quand on te paie par virement, la protection de ton compte (recommandée),
+ton premier client, ton premier devis ; puis, facultatifs, ta facture à ton image et ton comptable. Elles sont calculées
+par plateforme/premiers-pas.js, sous la forme de `C.firstSteps` : la v10 les lit partout de la même façon (l'accueil, la
+jauge de fin de visite, « Me guider »). Ce qui vit sur le serveur (l'adresse vérifiée, le code du téléphone, le mandat
+confié à un cabinet) arrive par le point de contact, relu à chaque passage sur l'accueil.
+
+── L'application de l'entreprise ──
+
+== index.html | le calcul des premiers pas et leur feuille se chargent avec l'assistant
+-- avant
+  <link rel="stylesheet" href="../plateforme/assistant.css">
+-- après
+  <link rel="stylesheet" href="../plateforme/assistant.css">
+  <script src="../plateforme/premiers-pas.js"></script>
+  <link rel="stylesheet" href="../plateforme/premiers-pas.css">
+-- fin
+
+== app.js | les gestes des premiers pas de la plateforme
+-- avant
+    comptable: ['Relier mon comptable', () => allerParametres('envois', 'p-comptable')]
+  };
+-- après
+    comptable: ['Relier mon comptable', () => allerParametres('envois', 'p-comptable')],
+    // (plateforme, lot onboarding) Les gestes des premiers pas de la plateforme (plateforme/premiers-pas.js) : vérifier son
+    // adresse et activer le code (Ton compte), choisir son activité (l'assistant, revu : rien ne s'écrit avant la fin), le
+    // RIB (Mon entreprise), confier son dossier à son cabinet (Comptabilité → Ton cabinet comptable).
+    adresse: ['Vérifier mon adresse', () => allerParametres('compte', 'p-compte')],
+    assistant: ['Choisir mon activité', () => runSetup(true).then(fait => { if (fait) render(true); })],
+    rib: ['Ajouter mon RIB', () => allerParametres('societe', 'p-banque:rib')],
+    code: ['Activer le code', () => allerParametres('compte', 'p-compte')],
+    mandat: ['Inviter mon comptable', () => { comptaState.tab = 'cabinet'; navigate('#/compta'); }]
+  };
+-- fin
+
+== app.js | les premiers pas de la plateforme, et ce qu'ils lisent sur le serveur
+-- avant
+  const lesPas = () => C.firstSteps(data, company(), { copieExterne, partage: dossierPartage, decouverte: !!visitesEtat().faites.decouvrir });
+-- après
+  // (plateforme, lot onboarding) Les premiers pas de la plateforme (plateforme/premiers-pas.js). Ce qui vit sur le serveur
+  // (l'adresse vérifiée, le code du téléphone, le mandat) se lit dès le chargement, puis se relit à chaque passage sur
+  // l'accueil (au plus toutes les cinq secondes) : un code activé dans Ton compte s'y coche au retour.
+  let etatDemarrage = null;
+  let demarrageLu = 0;
+  let lectureDemarrage = null;
+  function relireDemarrage() {
+    if (!bridge.etatDuDemarrage || lectureDemarrage || Date.now() - demarrageLu < 5000) return;
+    lectureDemarrage = bridge.etatDuDemarrage().then(e => {
+      const change = JSON.stringify(e) !== JSON.stringify(etatDemarrage);
+      etatDemarrage = e;
+      demarrageLu = Date.now();
+      if (change && data && location.hash === '#/dashboard') render(true);
+    }).catch(() => {}).then(() => { lectureDemarrage = null; });
+  }
+  relireDemarrage();
+  const lesPas = () => (window.SkanPremiersPas && bridge.etatDuDemarrage
+    ? SkanPremiersPas.etapes(C, data, company(), etatDemarrage || {})
+    : C.firstSteps(data, company(), { copieExterne, partage: dossierPartage, decouverte: !!visitesEtat().faites.decouvrir }));
+-- fin
+
+== app.js | l'accueil relit ce que les premiers pas lisent sur le serveur
+-- avant
+  function premiersPas() {
+    if (!estResponsable()) return accueilDuRole();
+    const p = lesPas();
+-- après
+  function premiersPas() {
+    if (!estResponsable()) return accueilDuRole();
+    relireDemarrage();
+    const p = lesPas();
+-- fin
+
+== app.js | le panneau de la maquette : le haut sombre, « N sur M faits » et sa barre
+-- avant
+      </section>` : ''}<div class="panel premiers-pas">
+      <h2>Tes premiers pas <span class="pp-compte">${p.faits} / ${p.total}</span></h2>
+      <p class="small muted mb">SkanFact fait beaucoup de choses, mais elles s'enchaînent toujours dans le même ordre.
+        Voilà celui-là. Ce panneau disparaît tout seul quand tu l'as parcouru, et se retrouve ensuite dans l'Aide.</p>
+-- après
+      </section>` : ''}<div class="panel premiers-pas pp2">
+      <div class="pp-tete"><div class="pp-tete-txt"><h2>Tes premiers pas</h2>
+        <p>Dans l'ordre où ils servent. Ce panneau disparaît tout seul une fois parcouru, et se retrouve dans l'Aide.</p></div>
+        <div class="pp-jauge"><span class="pp-compte">${p.faits} sur ${p.total} faits</span>
+          <div class="pp-barre" role="progressbar" aria-label="Tes premiers pas" aria-valuemin="0" aria-valuemax="${p.total}" aria-valuenow="${p.faits}"><i style="width:${Math.round(p.faits / Math.max(p.total, 1) * 100)}%"></i></div></div></div>
+-- fin
+
+== app.js | chaque étape dit ce qu'elle est : « À faire maintenant » (la suivante), « Recommandé », « Facultatif » ; une étape faite qui attend encore quelqu'un le dit
+-- avant
+          <span class="pp-txt"><strong>${h(e.titre)}${e.facultatif && !e.fait ? ' <span class="pp-facult">facultatif</span>' : ''}</strong><span class="small muted">${h(e.quoi)}</span>
+-- après
+          <span class="pp-txt"><strong>${h(e.titre)}${!e.fait && (e.badge || encours) ? ` <span class="pp-badge${e.reco ? ' reco' : e.badge ? '' : ' maintenant'}">${h(e.badge || 'À faire maintenant')}</span>` : e.facultatif && !e.fait ? ' <span class="pp-facult">facultatif</span>' : ''}</strong><span class="small muted">${h(e.quoi)}</span>${e.fait && e.attente ? `<span class="pp-attente">${h(e.attente)}</span>` : ''}
+-- fin
+
+== app.js | l'accueil où les premiers pas sont là ne propose pas en plus la visite de la page
+-- avant
+    if ($('#view .pp-accueil')) return;
+-- après
+    // (plateforme, lot onboarding) Les premiers pas sont l'invitation de l'accueil : la bulle de la visite de la page s'y
+    // posait par-dessus, et couvrait le tiers de l'écran d'un téléphone (vu sur app.skanfact.tn le 09/10/2026).
+    if ($('#view .pp-accueil, #view .premiers-pas')) return;
+-- fin
+
+== visites.js | la visite des premiers pas dit les étapes de la plateforme
+-- avant
+      resume: 'Tes premiers pas, dans l\'ordre : ta fiche, ton premier client, ton premier devis, ta copie de sécurité.',
+-- après
+      resume: 'Tes premiers pas, dans l\'ordre où ils servent : ton RIB si on te paie par virement, la protection de ton compte, ton premier client, ton premier devis.',
+-- fin
+
+== visites.js | la conclusion de la visite des premiers pas
+-- avant
+      conclusion: 'Chaque étape de « Tes premiers pas » a son bouton, et sa visite guidée dans « Me guider ». Commence par ta fiche société : c\'est elle qui s\'imprime sur tout.',
+-- après
+      conclusion: 'Chaque étape de « Tes premiers pas » a son bouton, et souvent sa visite guidée dans « Me guider ». Commence par celle qui est en avant : c\'est la suivante.',
+-- fin
+
+== visites.js | la bulle sur le panneau des premiers pas
+-- avant
+          texte: 'L\'ordre à suivre : ta fiche société, ton premier client, ton catalogue, ton premier devis — puis ta copie de sécurité, l\'envoi et la facture. <b>Chaque étape se coche toute seule</b> quand c\'est fait ; celles marquées « facultatif » t\'attendent sans te presser.' },
+-- après
+          texte: 'Dans l\'ordre où ils servent : ton compte, ton entreprise et ton activité (l\'assistant vient de les faire), puis ton RIB si on te paie par virement, la protection de ton compte, ton premier client et ton premier devis. <b>Chaque étape se coche toute seule</b> quand c\'est fait ; celles marquées « Facultatif » t\'attendent sans te presser.' },
+-- fin

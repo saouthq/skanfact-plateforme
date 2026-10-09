@@ -134,16 +134,19 @@
       : relais
         ? ['Un nouvel appareil se vérifie par e-mail', 'Quand tu te connectes depuis un appareil que SkanFact ne connaît pas, un code part à ton adresse. L\'appareil est ensuite reconnu 30 jours.']
         : ['Un nouvel appareil entre avec le mot de passe', 'Ce serveur n\'envoie pas encore d\'e-mails : rien d\'autre n\'est demandé sur un nouvel appareil. Le code du téléphone le protège.'];
+    // Vérifier l'adresse sans en changer (0077) : qui a le code du téléphone ne reçoit jamais de code par e-mail à la
+    // connexion. La phrase disait « elle se vérifie à ta prochaine connexion », ce qui était faux pour lui.
     const adresseNote = c.adresseVerifiee
       ? 'Une nouvelle adresse se vérifie elle aussi par un code, avant de remplacer celle-ci.'
-      : relais ? 'Elle se vérifie à ta prochaine connexion, par un code reçu à cette adresse.'
-        : 'Ce serveur n\'envoie pas encore d\'e-mails : elle se vérifiera dès qu\'il le pourra.';
+      : relais ? 'Un code part à cette adresse ; tapé ici, il prouve qu\'elle est bien à toi. C\'est elle qui te rend ton compte si tu oublies ton mot de passe.'
+        : 'Ce serveur n\'envoie pas encore d\'e-mails : tu pourras la vérifier dès qu\'il le pourra.';
 
     el.innerHTML = `<div class="cpt">
       <section class="cpt-carte"><div class="cpt-ligne">
         <div class="cpt-quoi"><span class="cpt-etiquette">Ton adresse e-mail</span>
           <div class="cpt-valeur"><strong id="cpt-email">${esc(moi.email)}</strong>${c.adresseVerifiee ? `<span class="badge cpt-ok">${dessin('coche')}Vérifiée</span>` : '<span class="badge cpt-attente">À vérifier</span>'}</div>
           <p class="small muted">${adresseNote}</p></div>
+        ${!c.adresseVerifiee && relais ? '<button type="button" class="btn btn-primary" id="cpt-verifier">Vérifier mon adresse</button>' : ''}
         <button type="button" class="btn" id="cpt-adresse">Changer d'adresse…</button>
       </div></section>
       <section class="cpt-carte"><div class="cpt-ligne">
@@ -168,11 +171,46 @@
 
     const $ = (/** @type {string} */ q) => /** @type {HTMLElement} */ (el.querySelector(q));
     $('#cpt-adresse').onclick = () => changerAdresse(outils, relais, moi.email, redessiner);
+    if ($('#cpt-verifier')) $('#cpt-verifier').onclick = () => verifierAdresse(outils, moi.email, redessiner);
     $('#cpt-mdp').onclick = () => changerMotDePasse(outils, c.motDePasseMin || 10, redessiner);
     if ($('#cpt-activer')) $('#cpt-activer').onclick = () => activer(outils, false, redessiner);
     if ($('#cpt-changer')) $('#cpt-changer').onclick = () => activer(outils, true, redessiner);
     if ($('#cpt-secours')) $('#cpt-secours').onclick = () => nouveauxSecours(outils, redessiner);
     if ($('#cpt-desactiver')) $('#cpt-desactiver').onclick = () => desactiver(outils, relais, moi.email, redessiner);
+  }
+
+  // ── Vérifier son adresse (0077) : un code y part ; tapé, il la prouve ──────────────────────────────────────────────
+  /** @param {Outils} o @param {string} adresse @param {() => void} fini */
+  function verifierAdresse(o, adresse, fini) {
+    o.modal(`<h2>Vérifier ton adresse e-mail</h2>
+      <p class="small muted">Un code va partir à <b>${esc(adresse)}</b>. Le taper ici prouve que cette adresse est bien à toi : c'est elle qui te rend ton compte si tu oublies ton mot de passe.</p>
+      <form id="cpt-f" class="cpt-form" novalidate>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="submit" class="btn btn-primary" id="cpt-ok">Envoyer le code</button></div>
+        <p class="small cpt-alerte" role="alert"></p>
+      </form>`, (racine, fermer) => {
+      const $ = (/** @type {string} */ q) => /** @type {HTMLInputElement} */ (racine.querySelector(q));
+      surClic(racine, '#cpt-ok', async () => {
+        effacerRefus(racine);
+        /** @type {any} */ let r;
+        try { r = await o.appel('POST', '/moi/adresse/verifier'); } catch (x) { refuser(racine, x); return; }
+        const demande = r.demande;
+        const form = /** @type {HTMLElement} */ (racine.querySelector('#cpt-f'));
+        form.innerHTML = `<p>On vient d'envoyer un code à <b>${esc(adresse)}</b>. Il reste valable 15 minutes.</p>
+          <label class="field">Le code reçu à cette adresse<input type="text" id="cpt-code-adresse" class="cpt-code-champ" autocomplete="one-time-code" inputmode="numeric" maxlength="7"></label>
+          <p class="small muted">Rien reçu ? Regarde dans les courriers indésirables.</p>
+          <div class="modal-actions"><button type="button" class="btn" data-close-code>Annuler</button><button type="submit" class="btn btn-primary" id="cpt-confirmer">Vérifier mon adresse</button></div>
+          <p class="small cpt-alerte" role="alert"></p>`;
+        /** @type {HTMLElement} */ (racine.querySelector('[data-close-code]')).onclick = () => fermer();
+        $('#cpt-code-adresse').focus();
+        surClic(racine, '#cpt-confirmer', async () => {
+          effacerRefus(racine);
+          try { await o.appel('POST', '/moi/adresse/verifier/confirmer', { demande, code: $('#cpt-code-adresse').value }); } catch (x) { refuser(racine, x, { code: '#cpt-code-adresse' }); return; }
+          fermer();
+          o.toast('Adresse vérifiée.');
+          fini();
+        });
+      });
+    });
   }
 
   // ── Changer d'adresse : le mot de passe actuel, puis (avec un relais) le code reçu à la nouvelle ──────────────────

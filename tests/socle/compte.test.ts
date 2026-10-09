@@ -1,13 +1,13 @@
 // Ton compte (lot onboarding, décision de Skander du 09/10/2026 ; 03 § 6 ; migration 0076 ; serveur/compte.ts), joué
 // contre la vraie base : retirer le code du téléphone (avec ce code ou un code de secours, jamais pour un comptable de
-// cabinet), de nouveaux codes de secours, changer son mot de passe et son adresse. Ce qui part chez le relais
+// cabinet), de nouveaux codes de secours, changer son mot de passe et son adresse, ou la vérifier (0077). Ce qui part chez le relais
 // d'e-mails : l'adresse, l'objet, et un texte qui ne porte que le code ou le lien.
 
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import pg from 'pg';
 import { creerPool, enTantQue } from '../../serveur/base.ts';
-import { activerCode, changerMotDePasse, confirmerChangementAdresse, demanderChangementAdresse, nouveauxCodesDeSecours, preparerCode, retirerCode } from '../../serveur/compte.ts';
+import { activerCode, changerMotDePasse, confirmerChangementAdresse, confirmerVerificationAdresse, demanderChangementAdresse, demanderVerificationAdresse, nouveauxCodesDeSecours, preparerCode, retirerCode } from '../../serveur/compte.ts';
 import { connecter, inscrire, mettreEnPlaceCode, quiEst, validerCode, type Contexte, type Qui } from '../../serveur/connexion.ts';
 import type { Courriel } from '../../serveur/courriel.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
@@ -252,5 +252,51 @@ describe('changer d\'adresse', () => {
     const p = await personne();
     const autre = await personne();
     await expect(demanderChangementAdresse(ctx, p.qui, autre.email, MDP)).rejects.toThrow(/déjà celle d'un autre compte/);
+  });
+});
+
+describe('vérifier son adresse sans en changer (0077)', () => {
+  const verifiee = async (id: string) => (await admin.query('select adresse_verifiee_le is not null v from socle.utilisateur where id = $1', [id])).rows[0].v as boolean;
+  const traces = async (id: string, geste: string) => (await admin.query('select count(*)::int n from socle.audit where utilisateur = $1 and geste = $2', [id, geste])).rows[0].n as number;
+
+  it('qui a le code du téléphone ne reçoit jamais de code à la connexion : un code part à son adresse et la prouve, tracé « vérifiée », sans avis de changement', async () => {
+    const p = await personne({ code: true });
+    expect(await verifiee(p.id)).toBe(false);
+    // Sans relais, rien ne part : on le dit.
+    expect(await demanderVerificationAdresse(sansRelais, p.qui)).toMatchObject({ ok: false, motif: expect.anything() });
+    const r = await demanderVerificationAdresse(ctx, p.qui);
+    if (!r.ok) throw new Error('demande attendue');
+    const envoi = courriels.at(-1);
+    const code = /\n\n(\d{6})\n\n/.exec(envoi?.texte ?? '')?.[1] ?? '';
+    expect(envoi).toEqual({ a: p.email, objet: `Ton code SkanFact : ${code}`, texte: expect.stringContaining('vérifier ton adresse e-mail') });
+    expect(await confirmerVerificationAdresse(ctx, p.qui, r.demande, faux(code))).toMatchObject({ ok: false, champ: 'code' });
+    expect(await verifiee(p.id)).toBe(false);
+    expect(await confirmerVerificationAdresse(ctx, p.qui, r.demande, code)).toEqual({ ok: true });
+    expect(await verifiee(p.id)).toBe(true);
+    expect([await traces(p.id, 'compte.adresse.verifier'), await traces(p.id, 'compte.adresse.changer')]).toEqual([1, 0]);
+    expect(courriels.at(-1)).toBe(envoi);
+    // Une adresse déjà prouvée ne se redemande pas.
+    await expect(demanderVerificationAdresse(ctx, p.qui)).rejects.toThrow(/déjà vérifiée/);
+  });
+
+  it('le code ne prouve que l\'adresse où il est parti : changée entre-temps, la demande ne vaut plus ; cinq erreurs, et elle ne vaut plus non plus ; trois demandes par heure', async () => {
+    const p = await personne();
+    const r = await demanderVerificationAdresse(ctx, p.qui);
+    if (!r.ok) throw new Error('demande attendue');
+    const code = /\n\n(\d{6})\n\n/.exec(courriels.at(-1)?.texte ?? '')?.[1] ?? '';
+    expect(await demanderChangementAdresse(sansRelais, p.qui, `ailleurs${n}@exemple.tn`, MDP)).toEqual({ ok: true, demande: null });
+    await expect(confirmerVerificationAdresse(ctx, p.qui, r.demande, code)).rejects.toThrow(/plus valable/);
+    expect(await verifiee(p.id)).toBe(false);
+    const q = await personne();
+    const s = await demanderVerificationAdresse(ctx, q.qui);
+    if (!s.ok) throw new Error('demande attendue');
+    const bon = /\n\n(\d{6})\n\n/.exec(courriels.at(-1)?.texte ?? '')?.[1] ?? '';
+    for (let i = 0; i < 5; i++) expect(await confirmerVerificationAdresse(ctx, q.qui, s.demande, faux(bon))).toMatchObject({ ok: false });
+    await expect(confirmerVerificationAdresse(ctx, q.qui, s.demande, bon)).rejects.toThrow(/plus valable/);
+    expect(await verifiee(q.id)).toBe(false);
+    // Un nouveau code se redemande : trois demandes par heure, comptées avec celles d'un changement d'adresse.
+    expect(await demanderVerificationAdresse(ctx, q.qui)).toMatchObject({ ok: true });
+    expect(await demanderVerificationAdresse(ctx, q.qui)).toMatchObject({ ok: true });
+    await expect(demanderVerificationAdresse(ctx, q.qui)).rejects.toThrow(/trois demandes/);
   });
 });

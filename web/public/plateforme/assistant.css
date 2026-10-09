@@ -106,7 +106,8 @@ body.dark #setup.as .as-logo { background: #0f9d8f; color: #fff; }
   display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: var(--e-lien);
   font-family: var(--e-texte); font-size: 15px; font-weight: 600; text-decoration: none; cursor: pointer; text-align: start; box-shadow: none;
 }
-#setup.as .as-lien:hover { text-decoration: underline; }
+/* Le survol ne vaut qu'à la souris : au doigt, la tuile touchée restait « survolée » sous l'écran suivant (vu au téléphone sur app.skanfact.tn le 09/10/2026). */
+@media (hover: hover) { #setup.as .as-lien:hover { text-decoration: underline; } }
 #setup.as .as-lien.gris { color: var(--e-gris); }
 #setup.as .as-lien svg { width: 16px; height: 16px; }
 #setup.as .as-principal {
@@ -114,7 +115,7 @@ body.dark #setup.as .as-logo { background: #0f9d8f; color: #fff; }
   display: inline-flex; align-items: center; justify-content: center; gap: 10px; font-family: var(--e-texte); font-size: 17px; font-weight: 600; line-height: 1.25;
   cursor: pointer; box-shadow: var(--e-ombre-bouton);
 }
-#setup.as .as-principal:hover { background: var(--e-bouton-survol); }
+@media (hover: hover) { #setup.as .as-principal:hover { background: var(--e-bouton-survol); } }
 #setup.as .as-principal svg { width: 18px; height: 18px; }
 #setup.as .as-principal:focus-visible, #setup.as .as-lien:focus-visible, #setup.as .as-geste:focus-visible { outline: 3px solid rgba(15, 157, 143, .45); outline-offset: 2px; }
 /* Le pied : les gestes secondaires à gauche, le bouton principal à droite ; au téléphone, le principal passe au-dessus. */
@@ -151,7 +152,7 @@ body.dark #setup.as .as-logo { background: #0f9d8f; color: #fff; }
   align-self: flex-start; min-height: 44px; padding: 6px 14px; border: 1px dashed var(--e-champ); border-radius: 999px; background: var(--e-papier); line-height: 1.35;
   color: var(--e-doux-texte); font-family: var(--e-texte); font-size: 13px; font-weight: 600; cursor: pointer; overflow-wrap: anywhere; text-align: start; box-shadow: none;
 }
-#setup.as .as-geste:hover { border-style: solid; border-color: var(--e-lien); }
+@media (hover: hover) { #setup.as .as-geste:hover { border-style: solid; border-color: var(--e-lien); } }
 
 /* ── L'aperçu : la facture qui se dessine pendant la frappe (le papier reste blanc dans les deux thèmes) ─────────── */
 #setup.as .as-apercu { display: flex; flex-direction: column; gap: 14px; }
@@ -199,7 +200,7 @@ body.dark #setup.as .as-logo { background: #0f9d8f; color: #fff; }
   position: relative; min-height: 84px; padding: 14px 16px; border-radius: 16px; border: 1.5px solid var(--e-trait); background: var(--e-papier); color: var(--e-encre);
   display: flex; align-items: center; gap: 14px; cursor: pointer; margin: 0; font-weight: 400;
 }
-#setup.as .as-tuile:hover { border-color: var(--e-lien); }
+@media (hover: hover) { #setup.as .as-tuile:hover { border-color: var(--e-lien); } }
 #setup.as .as-tuile input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
 #setup.as .as-tuile:has(input:focus-visible) { outline: 3px solid rgba(15, 157, 143, .45); outline-offset: 2px; }
 #setup.as .as-tuile .ico { flex: none; width: 42px; height: 42px; border-radius: 12px; background: var(--e-doux); color: var(--e-lien); display: flex; align-items: center; justify-content: center; }
@@ -240,7 +241,7 @@ body.dark #setup.as .as-tuile:has(input:checked) { background: var(--e-nuit-2); 
   display: flex; gap: 14px; align-items: flex-start; margin: 0; padding: 18px; border-radius: 16px; border: 1.5px solid var(--e-trait);
   background: color-mix(in srgb, var(--e-papier) 70%, transparent); cursor: pointer; font-weight: 400; color: var(--e-encre);
 }
-#setup.as .as-option:hover { border-color: var(--e-lien); }
+@media (hover: hover) { #setup.as .as-option:hover { border-color: var(--e-lien); } }
 #setup.as .as-option:has(input:checked) { border-color: var(--e-lien); background: var(--e-papier); box-shadow: 0 12px 28px rgba(11, 39, 36, .10); }
 #setup.as .as-option:has(input:focus-visible) { outline: 3px solid rgba(15, 157, 143, .45); outline-offset: 2px; }
 #setup.as .as-option input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--e-bouton); flex: none; }
@@ -263,7 +264,7 @@ body.dark #setup.as .as-avertir b { color: var(--e-alerte-texte); }
   position: relative; display: flex; gap: 14px; align-items: flex-start; margin: 0; padding: 16px; border-radius: 16px; border: 1.5px solid var(--e-trait);
   background: var(--e-papier); cursor: pointer; min-height: 44px; font-weight: 400; color: var(--e-encre);
 }
-#setup.as .as-module:hover { border-color: var(--e-lien); }
+@media (hover: hover) { #setup.as .as-module:hover { border-color: var(--e-lien); } }
 #setup.as .as-module:has(input:checked) { border-color: var(--e-lien); }
 #setup.as .as-module:has(input:focus-visible) { outline: 3px solid rgba(15, 157, 143, .45); outline-offset: 2px; }
 #setup.as .as-module input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }

@@ -1037,15 +1037,15 @@
       // d'abord (l'hôte le propose), sinon sa première bulle mentirait.
       id: 'premiers-pas', theme: 'demarrer', type: 'faire', reel: true, duree: '3 min', page: '#/dashboard',
       titre: 'Démarrer dans ma vraie entreprise',
-      resume: 'Tes premiers pas, dans l\'ordre : ta fiche, ton premier client, ton premier devis, ta copie de sécurité.',
+      resume: 'Tes premiers pas, dans l\'ordre où ils servent : ton RIB si on te paie par virement, la protection de ton compte, ton premier client, ton premier devis.',
       mots: ['premiers pas', 'demarrer', 'commencer', 'reel', 'vraie entreprise'],
       suite: ['societe', 'premier-client', 'premier-devis'],
       bravo: 'Te voilà prêt',
-      conclusion: 'Chaque étape de « Tes premiers pas » a son bouton, et sa visite guidée dans « Me guider ». Commence par ta fiche société : c\'est elle qui s\'imprime sur tout.',
+      conclusion: 'Chaque étape de « Tes premiers pas » a son bouton, et souvent sa visite guidée dans « Me guider ». Commence par celle qui est en avant : c\'est la suivante.',
       etapes: [
         { page: '#/dashboard', titre: 'Ta vraie entreprise', texte: '<p>Ici, c\'est <b>ta</b> entreprise : tout ce que tu fais compte, et s\'imprime à ton nom.</p><p>Je te montre l\'ordre des choses. Pour chaque étape, une visite te guidera <b>clic par clic</b>.</p>' },
         { page: '#/dashboard', cible: '.premiers-pas', cote: 'gauche', titre: 'Tes premiers pas',
-          texte: 'L\'ordre à suivre : ta fiche société, ton premier client, ton catalogue, ton premier devis — puis ta copie de sécurité, l\'envoi et la facture. <b>Chaque étape se coche toute seule</b> quand c\'est fait ; celles marquées « facultatif » t\'attendent sans te presser.' },
+          texte: 'Dans l\'ordre où ils servent : ton compte, ton entreprise et ton activité (l\'assistant vient de les faire), puis ton RIB si on te paie par virement, la protection de ton compte, ton premier client et ton premier devis. <b>Chaque étape se coche toute seule</b> quand c\'est fait ; celles marquées « Facultatif » t\'attendent sans te presser.' },
         { page: '#/dashboard', cible: '.premiers-pas .encours .pp-go', cote: 'gauche', titre: 'Le bouton de chaque étape', facultatif: true,
           texte: 'Il t\'emmène au bon endroit. <b>« Me guider »</b>, juste à côté, t\'y emmène en te montrant où cliquer, clic par clic.' },
         { page: '#/dashboard', cible: '.sidebar-foot a[data-route="guide"]', cote: 'droite', titre: 'Me guider',

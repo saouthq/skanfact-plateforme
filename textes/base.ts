@@ -304,6 +304,9 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'cette adresse est déjà celle d\'un autre compte', cle: 'base.compte.adresse_prise', fr: 'cette adresse est déjà celle d\'un autre compte' },
   { base: 'trois demandes en une heure : attends un peu avant d\'en refaire une', cle: 'base.compte.adresse_trop_souvent', fr: 'trois demandes en une heure : attends un peu avant d\'en refaire une' },
   { base: 'cette demande n\'est plus valable : recommence le changement d\'adresse', cle: 'base.compte.adresse_perimee', fr: 'cette demande n\'est plus valable : recommence le changement d\'adresse' },
+  // Vérifier son adresse sans en changer (0077, lot onboarding du 09/10/2026).
+  { base: 'ton adresse est déjà vérifiée', cle: 'base.compte.adresse_deja_verifiee', fr: 'ton adresse est déjà vérifiée' },
+  { base: 'cette demande n\'est plus valable : redemande un code', cle: 'base.compte.verification_perimee', fr: 'cette demande n\'est plus valable : redemande un code' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

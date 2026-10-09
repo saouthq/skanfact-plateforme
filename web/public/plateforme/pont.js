@@ -1137,6 +1137,15 @@
     },
     // L'adresse du compte, que l'assistant propose comme adresse de l'entreprise (« Utiliser … »).
     courrielDuCompte: async () => String((await appelCompte('GET', '/moi')).email || ''),
+    // Ce que les premiers pas lisent sur le serveur (lot onboarding ; plateforme/premiers-pas.js) : l'adresse vérifiée et
+    // le code du téléphone (le compte), et le mandat confié à un cabinet (l'entreprise ; un rôle qui ne le voit pas lit
+    // « aucun »).
+    etatDuDemarrage: async () => {
+      const [moi, mandat] = await Promise.all([appelCompte('GET', '/moi'), appel('GET', '/mandat').catch(() => null)]);
+      const c = (moi && moi.compte) || {};
+      const m = mandat && mandat.mandat;
+      return { compte: { adresseVerifiee: !!c.adresseVerifiee, courriel: !!c.courriel, codeActif: !!moi.code_methode }, mandat: m ? String(m.statut || '') : null };
+    },
     // Quitter l'exemple : ta vraie entreprise s'ouvre (l'exemple reste dans l'entreprise d'essai, rien ne s'efface).
     // Sans vraie entreprise encore : { aCreer }, et l'écran demande son nom (`addDossier`, qui emporte la visite : une
     // fenêtre fermée sans créer ne laisse pas une visite en attente pour la page suivante).

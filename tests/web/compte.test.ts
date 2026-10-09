@@ -187,6 +187,39 @@ describe('ton compte, à la souris', () => {
     await p.context().close();
   }, 120_000);
 
+  // Qui a le code du téléphone ne reçoit jamais de code par e-mail à la connexion : la carte disait « elle se vérifie à ta
+  // prochaine connexion », et c'était faux (0077).
+  it('une adresse qu\'aucune connexion ne vérifie (le code du téléphone actif) se vérifie ici, par un code reçu à cette adresse', async () => {
+    const { email, jeton } = await personne('sami');
+    const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Quincaillerie Sami' })).corps.id);
+    await api('POST', '/moi/code', jeton, { methode: 'application' });
+    // Un compte d'avant le relais d'e-mails : son adresse n'a jamais été prouvée.
+    await admin.query('update socle.utilisateur set adresse_verifiee_le = null where email = $1', [email]);
+    const { p, erreurs } = await page(jeton);
+    await ouvrirCompte(p, `/v10/?e=${ent}#/parametres`);
+    const carte = p.locator('.cpt-carte').filter({ has: p.locator('#cpt-email') });
+    await expect.poll(() => carte.innerText(), { timeout: 15_000 }).toContain('À vérifier');
+    expect(await carte.innerText()).not.toContain('prochaine connexion');
+    await carte.getByRole('button', { name: 'Vérifier mon adresse', exact: true }).click();
+    expect(await fenetre(p).innerText()).toContain(`Un code va partir à ${email}.`);
+    await bouton(p, 'Envoyer le code').click();
+    await expect.poll(() => fenetre(p).innerText()).toContain(`On vient d'envoyer un code à ${email}.`);
+    const code = codeRecu(email);
+    expect(partis.filter((m) => m.a === email).at(-1)?.texte).toContain('vérifier ton adresse e-mail');
+    await champ(p, 'Le code reçu à cette adresse').fill(faux(code));
+    await bouton(p, 'Vérifier mon adresse').click();
+    await expect.poll(() => refus(p).innerText()).toBe(phrase('connexion.code_faux'));
+    expect(await aLeCurseur(champ(p, 'Le code reçu à cette adresse'))).toBe(true);
+    await champ(p, 'Le code reçu à cette adresse').fill(code);
+    await bouton(p, 'Vérifier mon adresse').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toBe('Adresse vérifiée.');
+    await expect.poll(() => carte.innerText()).toContain('Vérifiée');
+    expect(await carte.getByRole('button', { name: 'Vérifier mon adresse' }).count()).toBe(0);
+    expect(((await api('GET', '/moi', jeton)).corps.compte as { adresseVerifiee: boolean }).adresseVerifiee).toBe(true);
+    expect(erreurs).toEqual([]);
+    await p.context().close();
+  }, 120_000);
+
   it('le Cabinet : le code est exigé et ne se désactive pas ; changer de téléphone demande le code actuel, et le nouveau ne vaut qu\'à son premier code', async () => {
     const { email, jeton } = await personne('karim');
     const cabinet = String((await api('POST', '/cabinets', jeton, { nom: 'Cabinet Ben Salah' })).corps.id);

@@ -2877,12 +2877,38 @@
     // Les deux étapes facultatives (10.14.0). La découverte REPREND là où elle s'était arrêtée : la
     // recommencer au début ferait relire dix bulles déjà lues.
     decouverte: ['Faire la découverte', () => { const r = decouverteEnPause(); lancerVisite(visiteParId('decouvrir'), r ? r.i : 0); }],
-    comptable: ['Relier mon comptable', () => allerParametres('envois', 'p-comptable')]
+    comptable: ['Relier mon comptable', () => allerParametres('envois', 'p-comptable')],
+    // (plateforme, lot onboarding) Les gestes des premiers pas de la plateforme (plateforme/premiers-pas.js) : vérifier son
+    // adresse et activer le code (Ton compte), choisir son activité (l'assistant, revu : rien ne s'écrit avant la fin), le
+    // RIB (Mon entreprise), confier son dossier à son cabinet (Comptabilité → Ton cabinet comptable).
+    adresse: ['Vérifier mon adresse', () => allerParametres('compte', 'p-compte')],
+    assistant: ['Choisir mon activité', () => runSetup(true).then(fait => { if (fait) render(true); })],
+    rib: ['Ajouter mon RIB', () => allerParametres('societe', 'p-banque:rib')],
+    code: ['Activer le code', () => allerParametres('compte', 'p-compte')],
+    mandat: ['Inviter mon comptable', () => { comptaState.tab = 'cabinet'; navigate('#/compta'); }]
   };
   // Les premiers pas, lus de la MÊME façon partout (accueil, jauge de fin de visite, « Me guider ») :
   // la copie externe vit sur le poste et la découverte sur la personne — ni l'une ni l'autre dans les
   // données —, et `firstSteps` reste une fonction pure qu'on teste sans Electron.
-  const lesPas = () => C.firstSteps(data, company(), { copieExterne, partage: dossierPartage, decouverte: !!visitesEtat().faites.decouvrir });
+  // (plateforme, lot onboarding) Les premiers pas de la plateforme (plateforme/premiers-pas.js). Ce qui vit sur le serveur
+  // (l'adresse vérifiée, le code du téléphone, le mandat) se lit dès le chargement, puis se relit à chaque passage sur
+  // l'accueil (au plus toutes les cinq secondes) : un code activé dans Ton compte s'y coche au retour.
+  let etatDemarrage = null;
+  let demarrageLu = 0;
+  let lectureDemarrage = null;
+  function relireDemarrage() {
+    if (!bridge.etatDuDemarrage || lectureDemarrage || Date.now() - demarrageLu < 5000) return;
+    lectureDemarrage = bridge.etatDuDemarrage().then(e => {
+      const change = JSON.stringify(e) !== JSON.stringify(etatDemarrage);
+      etatDemarrage = e;
+      demarrageLu = Date.now();
+      if (change && data && location.hash === '#/dashboard') render(true);
+    }).catch(() => {}).then(() => { lectureDemarrage = null; });
+  }
+  relireDemarrage();
+  const lesPas = () => (window.SkanPremiersPas && bridge.etatDuDemarrage
+    ? SkanPremiersPas.etapes(C, data, company(), etatDemarrage || {})
+    : C.firstSteps(data, company(), { copieExterne, partage: dossierPartage, decouverte: !!visitesEtat().faites.decouvrir }));
   // Le panneau est-il à l'écran ? `todoPanel` a besoin de le savoir pour ne pas répéter l'étape 1.
   // Le panneau ne s'affiche que pendant le démarrage : une fois une facture partie, il proposerait
   // « crée ton premier client » à quelqu'un qui a deux ans d'activité — et reprendrait tout l'écran,
@@ -2913,6 +2939,7 @@
   }
   function premiersPas() {
     if (!estResponsable()) return accueilDuRole();
+    relireDemarrage();
     const p = lesPas();
     if (!p.demarrage) return '';
     const suivante = p.suivante;
@@ -2941,10 +2968,11 @@
             <button type="button" class="btn" id="pp-guider">Me guider pas à pas</button></article>
         </div>
         <button type="button" class="btn btn-ghost btn-sm" id="pp-plus-tard" title="Les deux restent dans « Me guider », en bas du menu">Non merci, je découvre seul</button>
-      </section>` : ''}<div class="panel premiers-pas">
-      <h2>Tes premiers pas <span class="pp-compte">${p.faits} / ${p.total}</span></h2>
-      <p class="small muted mb">SkanFact fait beaucoup de choses, mais elles s'enchaînent toujours dans le même ordre.
-        Voilà celui-là. Ce panneau disparaît tout seul quand tu l'as parcouru, et se retrouve ensuite dans l'Aide.</p>
+      </section>` : ''}<div class="panel premiers-pas pp2">
+      <div class="pp-tete"><div class="pp-tete-txt"><h2>Tes premiers pas</h2>
+        <p>Dans l'ordre où ils servent. Ce panneau disparaît tout seul une fois parcouru, et se retrouve dans l'Aide.</p></div>
+        <div class="pp-jauge"><span class="pp-compte">${p.faits} sur ${p.total} faits</span>
+          <div class="pp-barre" role="progressbar" aria-label="Tes premiers pas" aria-valuemin="0" aria-valuemax="${p.total}" aria-valuenow="${p.faits}"><i style="width:${Math.round(p.faits / Math.max(p.total, 1) * 100)}%"></i></div></div></div>
       <ol class="pp-list">${p.etapes.map(e => {
         // La découverte a déjà sa grande porte juste au-dessus tant que l'accueil est là : un second
         // bouton pour le même geste, dix lignes plus bas, ferait douter que ce soit le même.
@@ -2960,7 +2988,7 @@
         const imp = !e.fait && PAS_IMPORT[e.action];
         return `<li class="${e.fait ? 'fait' : ''}${encours ? ' encours' : ''}">
           <span class="pp-marque">${e.fait ? '✓' : ''}</span>
-          <span class="pp-txt"><strong>${h(e.titre)}${e.facultatif && !e.fait ? ' <span class="pp-facult">facultatif</span>' : ''}</strong><span class="small muted">${h(e.quoi)}</span>${imp ? `<button type="button" class="link-add pp-import" data-pas-import="${h(imp[0])}">${h(imp[1])}</button>` : ''}</span>
+          <span class="pp-txt"><strong>${h(e.titre)}${!e.fait && (e.badge || encours) ? ` <span class="pp-badge${e.reco ? ' reco' : e.badge ? '' : ' maintenant'}">${h(e.badge || 'À faire maintenant')}</span>` : e.facultatif && !e.fait ? ' <span class="pp-facult">facultatif</span>' : ''}</strong><span class="small muted">${h(e.quoi)}</span>${e.fait && e.attente ? `<span class="pp-attente">${h(e.attente)}</span>` : ''}${imp ? `<button type="button" class="link-add pp-import" data-pas-import="${h(imp[0])}">${h(imp[1])}</button>` : ''}</span>
           <span class="pp-go">${!e.fait && guide ? `<button type="button" class="pp-guide" data-pas-guide="${h(guide)}" title="Je te montre où cliquer, étape par étape">${ICONE_GUIDE}Me guider</button>` : ''}${!e.fait && a ? `<button class="btn btn-sm ${encours && !accueil ? 'btn-primary' : ''}" data-pas="${h(e.action)}">${h(libelle)}</button>` : ''}</span>
         </li>`;
       }).join('')}</ol>
@@ -18865,7 +18893,9 @@
     if (!p || !et.proposer || et.faites[p.id] || (et.vues[route] || 0) >= VISITE_PROPOSEE_MAX) return;
     // Deux invitations l'une sous l'autre se contredisent (7.18.0) : quand l'accueil propose déjà
     // « Nouveau sur SkanFact ? », la visite de la page se tait — et ne compte pas cette ouverture.
-    if ($('#view .pp-accueil')) return;
+    // (plateforme, lot onboarding) Les premiers pas sont l'invitation de l'accueil : la bulle de la visite de la page s'y
+    // posait par-dessus, et couvrait le tiers de l'écran d'un téléphone (vu sur app.skanfact.tn le 09/10/2026).
+    if ($('#view .pp-accueil, #view .premiers-pas')) return;
     const bouton = $('#guide-moi');
     // Une page asynchrone n'a pas encore son en-tête : l'invitation attend le bouton (`poserGuideMoi`).
     if (!bouton) { appelEnAttente = route; return; }

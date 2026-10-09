@@ -1,0 +1,51 @@
+/* « Tes premiers pas » de la plateforme (lot onboarding ; maquette validée par Skander le 09/10/2026 ; plateforme/premiers-pas.js,
+   web/v10/premiers-pas.txt) : le haut sombre de l'entrée, « N sur M faits » et sa barre ; une étape par ligne, la suivante
+   mise en avant et dite « À faire maintenant ». Les couleurs du reste sont celles de la page (style.css), en clair comme
+   en sombre. */
+.premiers-pas.pp2 { padding: 0; overflow: hidden; border-radius: 20px; }
+.premiers-pas.pp2 .pp-tete {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px 32px; padding: 24px 28px;
+  background-color: #0b2724; background-image: repeating-linear-gradient(0deg, rgba(127, 224, 211, .06) 0 1px, transparent 1px 32px);
+  color: #e8f3f1;
+}
+.premiers-pas.pp2 .pp-tete-txt { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.premiers-pas.pp2 .pp-tete h2 {
+  display: block; margin: 0; font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 600; font-size: 24px;
+  letter-spacing: -0.02em; text-transform: none; color: #fff;
+}
+.premiers-pas.pp2 .pp-tete p { margin: 0; max-width: 560px; font-size: 14px; line-height: 1.5; color: #a9c6c1; }
+.premiers-pas.pp2 .pp-jauge { flex: 0 1 260px; display: flex; flex-direction: column; gap: 8px; }
+.premiers-pas.pp2 .pp-compte { padding: 0; border-radius: 0; background: none; font-size: 14px; font-weight: 600; color: #fff; }
+.premiers-pas.pp2 .pp-barre { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+.premiers-pas.pp2 .pp-barre i { display: block; height: 100%; border-radius: 4px; background: #7fe0d3; }
+
+.premiers-pas.pp2 .pp-list { padding: 8px 28px 20px; }
+/* Le lien vers l'aide, sous la liste : la marge du panneau, que le haut sombre a fait passer à zéro. */
+.premiers-pas.pp2 > p { margin: 0; padding: 0 28px 22px; }
+.premiers-pas.pp2 .pp-list li { grid-template-columns: 28px minmax(0, 1fr) auto; gap: 12px 18px; padding: 16px 0; }
+.premiers-pas.pp2 .pp-marque { width: 28px; height: 28px; font-size: 14px; }
+.premiers-pas.pp2 .pp-txt { gap: 4px; }
+.premiers-pas.pp2 .pp-txt strong { font-size: 16px; font-weight: 600; }
+.premiers-pas.pp2 .pp-txt .small { font-size: 14px; line-height: 1.5; }
+/* Une étape faite cache son explication (style.css), pas ce qu'elle attend encore (un cabinet qui doit accepter). */
+.premiers-pas.pp2 .pp-attente { font-size: 14px; line-height: 1.5; color: var(--muted); }
+/* La suivante déborde de 12 points de chaque côté pour respirer, sans élargir la liste (la règle de la v10, 10.14.1). */
+.premiers-pas.pp2 .pp-list li.encours { border-radius: 12px; box-shadow: 0 0 0 12px var(--primary-soft); clip-path: inset(0 -12px round 12px); }
+
+/* Ce que chaque étape est, à côté de son titre. */
+.pp-badge {
+  display: inline-block; margin-inline-start: 8px; vertical-align: 2px; padding: 2px 9px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; background: var(--ink-soft); color: var(--muted);
+}
+/* Sur la ligne mise en avant, déjà teintée : le fond de la page, et un filet, pour qu'il se lise. */
+.pp-badge.maintenant { background: var(--panel); color: var(--primary); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 35%, transparent); }
+.pp-badge.reco { background: #0b2724; color: #7fe0d3; }
+
+/* Au téléphone (même seuil que telephone.css) : les boutons d'une étape passent sous son texte, alignés sur lui. */
+@media (max-width: 760px) {
+  .premiers-pas.pp2 .pp-tete { padding: 20px 18px; }
+  .premiers-pas.pp2 .pp-list { padding: 4px 18px 16px; }
+  .premiers-pas.pp2 > p { padding: 0 18px 18px; }
+  .premiers-pas.pp2 .pp-list li { grid-template-columns: 28px minmax(0, 1fr); }
+  .premiers-pas.pp2 .pp-list li .pp-go { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; }
+}

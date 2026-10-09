@@ -9454,6 +9454,161 @@ prouver "une couleur sombre de l'assistant qui n'est pas celle de l'entrée" $AS
   "  --e-lien: #7fe0d3;" "  --e-lien: #7fe0d4;" \
   "$AS5"
 
+# Vérifier son adresse sans en changer (lot onboarding, 09/10/2026 ; migration 0077, serveur/compte.ts, Ton compte) :
+# qui a le code du téléphone ne reçoit jamais de code par e-mail à la connexion, et son adresse ne se prouvait jamais.
+V77=base/migrations/0077_verifier_adresse.sql
+VA1="qui a le code du téléphone ne reçoit jamais de code à la connexion : un code part à son adresse et la prouve, tracé « vérifiée », sans avis de changement"
+VA2="le code ne prouve que l'adresse où il est parti : changée entre-temps, la demande ne vaut plus ; cinq erreurs, et elle ne vaut plus non plus ; trois demandes par heure"
+VA3="une adresse qu'aucune connexion ne vérifie (le code du téléphone actif) se vérifie ici, par un code reçu à cette adresse"
+prouver "une adresse déjà vérifiée qui se redemande" $V77 \
+  "  if u.adresse_verifiee_le is not null then perform socle.refus('ton adresse est déjà vérifiée'); end if;" "" \
+  "$VA1"
+prouver "le code d'une adresse que le compte n'a plus" $V77 \
+  "     and lower(d.nouvelle) = lower(u.email);" ";" \
+  "$VA2"
+prouver "les erreurs de vérification jamais comptées" $V77 \
+  "    update socle.changement_adresse set erreurs = erreurs + 1 where id = p_demande;" "" \
+  "$VA2"
+prouver "l'adresse vérifiée avec un code faux" $V77 \
+  "  if c.code_empreinte <> p_empreinte then" "  if false then" \
+  "$VA1"
+prouver "l'adresse jamais dite vérifiée" $V77 \
+  "  update socle.utilisateur set adresse_verifiee_le = coalesce(adresse_verifiee_le, p_maintenant) where id = socle.moi();" "" \
+  "$VA1"
+prouver "la vérification de l'adresse jamais tracée" $V77 \
+  "  perform socle.tracer(null, 'compte.adresse.verifier', 'utilisateur', socle.moi(), null, jsonb_build_object('email', c.nouvelle));" "" \
+  "$VA1"
+prouver "des codes de vérification demandés sans limite" $V77 \
+  "c.cree_le > p_maintenant - interval '1 hour') >= 3 then" "c.cree_le > p_maintenant - interval '1 hour') >= 300 then" \
+  "$VA2"
+prouver "la vérification demandée sans relais pour envoyer le code" $CO \
+  "  if (!courriel) return { ok: false, motif: motif('connexion.oubli_indisponible') };" "" \
+  "$VA1"
+prouver "le code de vérification jamais envoyé" $CO \
+  "  void courriel.envoi.envoyer({
+    a: email, objet: rendre(t('connexion.courriel_objet'" "  void Promise.resolve({
+    a: email, objet: rendre(t('connexion.courriel_objet'" \
+  "$VA1"
+prouver "« Vérifier mon adresse » absent de Ton compte" $CPTJS \
+  "\${!c.adresseVerifiee && relais ? '<button type=\"button\" class=\"btn btn-primary\" id=\"cpt-verifier\">" "\${false ? '<button type=\"button\" class=\"btn btn-primary\" id=\"cpt-verifier\">" \
+  "$VA3"
+prouver "la carte qui promet la vérification à la prochaine connexion" $CPTJS \
+  ": relais ? 'Un code part à cette adresse ; tapé ici, il prouve qu\'elle est bien à toi. C\'est elle qui te rend ton compte si tu oublies ton mot de passe.'" ": relais ? 'Elle se vérifie à ta prochaine connexion, par un code reçu à cette adresse.'" \
+  "$VA3"
+prouver "le code de vérification faux qui ne montre pas sa case" $CPTJS \
+  "'/moi/adresse/verifier/confirmer', { demande, code: \$('#cpt-code-adresse').value }); } catch (x) { refuser(racine, x, { code: '#cpt-code-adresse' }); return; }" "'/moi/adresse/verifier/confirmer', { demande, code: \$('#cpt-code-adresse').value }); } catch (x) { refuser(racine, x); return; }" \
+  "$VA3"
+prouver "la carte pas redessinée après la vérification" $CPTJS \
+  "          o.toast('Adresse vérifiée.');
+          fini();" "          o.toast('Adresse vérifiée.');" \
+  "$VA3"
+
+# Les premiers pas refaits (lot onboarding, 09/10/2026 ; maquette validée par Skander) : leur calcul
+# (plateforme/premiers-pas.js), ce qu'ils lisent sur le serveur (pont.js), leur panneau dans la v10 (web/v10/premiers-pas.txt).
+PPJS=web/public/plateforme/premiers-pas.js
+PPCSS=web/public/plateforme/premiers-pas.css
+PP1="l'ordre de la maquette, ce que la porte et l'assistant ont fait, et le RIB qui suit, à faire maintenant"
+PP2="un commerce encaisse sur place : pas de RIB réclamé"
+PP3="le compte se dit tel qu'il est : l'adresse à vérifier seulement quand le serveur sait envoyer le code ; le code fait seulement s'il est actif"
+PP4="ce qui manque à la fiche se nomme ; sans matricule, la facture n'est pas conforme"
+PP5="l'activité laissée « Plus tard » se choisit ici ; qui facture sans devis a commencé aussi"
+PP6="le comptable : fait dès que le mandat est proposé, et la proposition se dit"
+PP7="le panneau quitte l'accueil quand le métier est fait : ni le code recommandé ni les facultatifs ne le retiennent ; jamais dans l'exemple"
+PPW1="après la porte et l'assistant : le panneau de la maquette, la suite mise en avant, chaque bouton mène où il dit, et ce qui se fait ailleurs se coche au retour"
+PPW2="une adresse que le serveur sait vérifier passe en tête ; une activité laissée de côté se choisit en revoyant l'assistant"
+PPW3="au téléphone : le panneau ne déborde pas, et chaque bouton se touche du doigt"
+prouver "le RIB réclamé à un commerce" $PPJS \
+  "    if (C.ribAttendu(c)) {" "    if (true) {" \
+  "$PP2"
+prouver "un RIB faux compté comme fait" $PPJS \
+  "const bon = !!rib && C.verifRib(rib).ok;" "const bon = !!rib;" \
+  "$PP1"
+prouver "une adresse à vérifier quand rien ne sait envoyer le code" $PPJS \
+  "const aVerifier = !!(compte && compte.courriel && !compte.adresseVerifiee);" "const aVerifier = !!(compte && !compte.adresseVerifiee);" \
+  "$PP3"
+prouver "le code du téléphone compté fait sans être actif" $PPJS \
+  "const code = !!(compte && compte.codeActif);" "const code = !!compte;" \
+  "$PP1"
+prouver "une fiche sans matricule comptée faite" $PPJS \
+  "    if (!mf) manque.push('ton matricule fiscal');" "    if (!mf) void 0;" \
+  "$PP4"
+prouver "une fiche sans moyen de te joindre comptée faite" $PPJS \
+  "    if (![c.address, c.phone, c.email].some((x) => txt(x))) manque.push(" "    if (false) manque.push(" \
+  "$PP4"
+prouver "le métier laissé « Plus tard » compté choisi" $PPJS \
+  "const activite = !!c.setupDone && !!txt(c.activity);" "const activite = !!c.setupDone;" \
+  "$PP5"
+prouver "qui facture sans devis invité à faire son premier devis" $PPJS \
+  "fait: unDevis || uneFacture," "fait: unDevis," \
+  "$PP5"
+prouver "le cabinet proposé compté comme à faire" $PPJS \
+  "fait: mandat === 'actif' || mandat === 'propose'," "fait: mandat === 'actif'," \
+  "$PP6"
+prouver "la proposition au cabinet qui ne se dit pas" $PPJS \
+  "attente: mandat === 'propose' ? 'Ta proposition attend que ton cabinet l\'accepte.' : ''" "attente: ''" \
+  "$PP6"
+prouver "le code recommandé qui retient le panneau sur l'accueil" $PPJS \
+  "lesEtapes.some((x) => !x.fait && !x.facultatif && !x.recommande)" "lesEtapes.some((x) => !x.fait && !x.facultatif)" \
+  "$PP7"
+prouver "les premiers pas proposés dans l'exemple" $PPJS \
+  "const demarrage = !exemple && " "const demarrage = " \
+  "$PP7"
+prouver "une suite proposée dans l'exemple" $PPJS \
+  "const suivante = exemple ? null : " "const suivante = " \
+  "$PP7"
+prouver "le code du téléphone lu comme absent" web/public/plateforme/pont.js \
+  "codeActif: !!moi.code_methode" "codeActif: false" \
+  "$PPW1"
+prouver "le cabinet choisi jamais lu" web/public/plateforme/pont.js \
+  "mandat: m ? String(m.statut || '') : null" "mandat: null" \
+  "$PPW1"
+prouver "l'adresse à vérifier lue comme vérifiée" web/public/plateforme/pont.js \
+  "adresseVerifiee: !!c.adresseVerifiee," "adresseVerifiee: true," \
+  "$PPW2"
+prouver "le relais d'e-mails du serveur jamais lu" web/public/plateforme/pont.js \
+  "courriel: !!c.courriel," "courriel: false," \
+  "$PPW2"
+prouver "les premiers pas de la v10 sur la plateforme" $ASAPP \
+  "  const lesPas = () => (window.SkanPremiersPas && bridge.etatDuDemarrage" "  const lesPas = () => (false" \
+  "$PPW1"
+prouver "l'accueil qui ne relit pas le serveur" $ASAPP \
+  "    relireDemarrage();
+    const p = lesPas();" "    const p = lesPas();" \
+  "$PPW1"
+prouver "l'accueil pas redessiné quand le serveur a changé" $ASAPP \
+  "      if (change && data && location.hash === '#/dashboard') render(true);" "" \
+  "$PPW1"
+prouver "la suite des premiers pas pas dite « À faire maintenant »" $ASAPP \
+  "\${!e.fait && (e.badge || encours) ? " "\${!e.fait && e.badge ? " \
+  "$PPW1"
+prouver "la bulle de la page posée sur les premiers pas" $ASAPP \
+  "    if (\$('#view .pp-accueil, #view .premiers-pas')) return;" "    if (\$('#view .pp-accueil')) return;" \
+  "$PPW1"
+prouver "« Ajouter mon RIB » qui ne mène pas à sa case" $ASAPP \
+  "    rib: ['Ajouter mon RIB', () => allerParametres('societe', 'p-banque:rib')]," "    rib: ['Ajouter mon RIB', () => allerParametres('societe', 'p-banque')]," \
+  "$PPW1"
+prouver "« Activer le code » qui ne mène pas à Ton compte" $ASAPP \
+  "    code: ['Activer le code', () => allerParametres('compte', 'p-compte')]," "    code: ['Activer le code', () => allerParametres('societe')]," \
+  "$PPW1"
+prouver "« Inviter mon comptable » qui ne mène pas à l'onglet du cabinet" $ASAPP \
+  "    mandat: ['Inviter mon comptable', () => { comptaState.tab = 'cabinet'; navigate('#/compta'); }]" "    mandat: ['Inviter mon comptable', () => navigate('#/compta')]" \
+  "$PPW1"
+prouver "« Vérifier mon adresse » qui ne mène pas à Ton compte" $ASAPP \
+  "    adresse: ['Vérifier mon adresse', () => allerParametres('compte', 'p-compte')]," "    adresse: ['Vérifier mon adresse', () => allerParametres('societe')]," \
+  "$PPW2"
+prouver "« Choisir mon activité » qui écrit en route" $ASAPP \
+  "    assistant: ['Choisir mon activité', () => runSetup(true)" "    assistant: ['Choisir mon activité', () => runSetup(false)" \
+  "$PPW2"
+prouver "au téléphone, les boutons d'une étape poussés à droite" $PPCSS \
+  "gap: 8px; justify-content: flex-start; }" "gap: 8px; }" \
+  "$PPW3"
+prouver "au téléphone, le lien vers l'aide collé au bord du panneau" $PPCSS \
+  "  .premiers-pas.pp2 > p { padding: 0 18px 18px; }" "  .premiers-pas.pp2 > p { padding: 0; }" \
+  "$PPW3"
+prouver "la proposition au cabinet cachée sous une étape faite" $ASAPP \
+  "\${e.fait && e.attente ? \`<span class=\"pp-attente\">" "\${e.fait && e.attente ? \`<span class=\"small pp-attente\">" \
+  "$PPW1"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
