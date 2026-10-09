@@ -28,7 +28,7 @@
    * @param {any} C le moteur de la v10
    * @param {any} data le dossier
    * @param {any} co la fiche de l'entreprise
-   * @param {{ compte?: { adresseVerifiee: boolean, courriel: boolean, codeActif: boolean } | null, mandat?: string | null }} [etat]
+   * @param {{ compte?: { adresseVerifiee: boolean, courriel: boolean, codeActif: boolean } | null, mandat?: string | null, essai?: boolean }} [etat]
    */
   function etapes(C, data, co, etat) {
     const d = data || {};
@@ -99,8 +99,9 @@
     const faits = lesEtapes.filter((x) => x.fait).length;
     // Le panneau occupe l'accueil tant qu'une étape du métier attend ; ni une facultative, ni le code recommandé ne le
     // retiennent (un panneau qui ne partirait jamais serait celui qu'on apprend à ne plus lire). Jamais dans l'entreprise
-    // d'essai : l'exemple a déjà tout, et y proposer « ton premier client » mentirait.
-    const exemple = !!C.estDemo(d);
+    // d'essai : l'exemple a déjà tout, et y proposer « ton premier client » mentirait ; une entreprise d'essai essayée
+    // avant l'exemple (`essai`, lu au serveur) n'est pas non plus ta vraie entreprise.
+    const exemple = !!C.estDemo(d) || !!e.essai;
     const demarrage = !exemple && lesEtapes.some((x) => !x.fait && !x.facultatif && !x.recommande);
     const suivante = exemple ? null : lesEtapes.find((x) => !x.fait && !x.facultatif) || null;
     return { etapes: lesEtapes, faits, total: lesEtapes.length, fini: faits === lesEtapes.length, demarrage, suivante };

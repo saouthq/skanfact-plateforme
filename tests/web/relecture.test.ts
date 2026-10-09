@@ -53,6 +53,9 @@ describe('relire le dossier par différence, à la souris', () => {
       localStorage.setItem('test.pose', '1');
       localStorage.setItem('skanfact.jeton', j);
     }, jeton);
+    // L'entreprise d'essai sert ici d'entreprise de travail (ses tiers d'essai, sans l'exemple de cinq ans) : elle s'ouvre
+    // telle quelle, comme après « Ouvrir telle quelle » ; vide de pièces, elle partirait vers « On prépare l'exemple ».
+    await cx.addInitScript(() => { const e = new URLSearchParams(location.search).get('e'); if (e) sessionStorage.setItem('skanfact.essai_tel_quel', e); });
     const p = await cx.newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));

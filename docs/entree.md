@@ -205,6 +205,22 @@ panneau, les gestes, la bulle tue, la visite des premiers pas), `web/public/plat
 `tests/web/premiers-pas.test.ts` (le panneau à la souris, le retour sur l'accueil, le téléphone),
 `tests/socle/compte.test.ts`, `tests/web/compte.test.ts`.
 
+## L'exemple, puis ta vraie entreprise (lot onboarding, 09/10/2026)
+
+Maquettes « On prépare l'exemple » et « Ta vraie entreprise » validées par Skander le 09/10/2026. Vu sur le serveur
+d'essai le même jour : choisir l'exemple ouvrait une page blanche, puis l'accueil d'une entreprise vide sous une fenêtre
+d'attente d'une minute ; sans vraie entreprise, « Quitter l'exemple » ouvrait une petite fenêtre à un seul champ.
+
+- **« On prépare l'exemple »** (`ExemplePrepare.tsx`, `/?exemple=<visite>`) : ton compte, puis les cinq ans d'activité,
+  cochés quand le serveur les a vraiment faits ; puis « Commencer la visite ». Une coupure dit quoi faire
+  (« Réessayer ») ; un exemple déjà là s'ouvre aussitôt ; une entreprise d'essai encore vide y repart d'elle-même.
+- **« Ta vraie entreprise »** et **« Une nouvelle entreprise »** (`EntrepriseNeuve.tsx`,
+  `/?entreprise=exemple|menu&retour=<entreprise>&visite=<visite>`) : la page « Ton entreprise » de la porte (la fiche
+  et le haut de la facture vivent dans `composants/Fiche.tsx`, partagés), avec le lien qui revient ; créée, l'entreprise
+  ouvre l'assistant, puis la visite demandée. Le bouton du bandeau de l'exemple (« Créer ma vraie entreprise » tant
+  qu'il n'y en a pas, « Quitter l'exemple » ensuite) et « Nouvelle entreprise… » y mènent.
+- Le détail, les refus et ce qui le prouve : `docs/exemple.md`.
+
 ## Le mot de passe oublié
 
 1. « Mot de passe oublié ? », sous le mot de passe, **seulement si le serveur sait envoyer un e-mail**

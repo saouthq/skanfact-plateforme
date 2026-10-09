@@ -32,8 +32,10 @@ function charger() {
     localStorage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined },
     location: { search: '?e=00000000-0000-4000-8000-000000000000', pathname: '/v10/', hash: '', replace: () => undefined },
     URLSearchParams, document, console, navigator: { onLine: true },
-    // Rien ne part ni ne s'attend : seules les définitions comptent.
-    fetch: () => new Promise(() => undefined), setTimeout: () => 0, clearTimeout: () => undefined, setInterval: () => 0, clearInterval: () => undefined,
+    // Rien ne part ni ne s'attend : seules les définitions comptent ; le mandat (le panneau « Ton cabinet comptable »)
+    // répond « aucun », pour que le panneau se dessine.
+    fetch: (url: string) => (String(url).endsWith('/mandat') ? Promise.resolve({ status: 200, ok: true, text: async () => '{"mandat":null}' }) : new Promise(() => undefined)),
+    setTimeout: () => 0, clearTimeout: () => undefined, setInterval: () => 0, clearInterval: () => undefined,
     addEventListener: () => undefined, removeEventListener: () => undefined, matchMedia: () => ({ matches: false, addEventListener: () => undefined }),
     MutationObserver: class { observe() { return undefined; } disconnect() { return undefined; } },
     // La copie du poste (brique 72) : sans objet ici.
@@ -43,7 +45,7 @@ function charger() {
   bac.self = bac;
   vm.createContext(bac);
   for (const f of ['plateforme/pont.js', 'v10/visite.js', 'v10/visites.js']) vm.runInContext(fs.readFileSync(path.join(PUBLIC, f), 'utf8'), bac, { filename: f });
-  const pont = bac.skanfact as { panneauxAbsents: string[]; piecesJointes?: boolean; visitesAbsentes?: string[] };
+  const pont = bac.skanfact as { panneauxAbsents: string[]; piecesJointes?: boolean; visitesAbsentes?: string[]; dessinerMandat: (el: unknown) => Promise<void> };
   const visites = (bac.SkanVisites as { parcours: (ctx: unknown) => Visite[] }).parcours({
     data: () => ({}), premier: () => null, estDemo: () => false, editeur: () => false, Visite: bac.Visite, G: { INFO: {} }, chiffre: () => false,
   });
@@ -93,6 +95,25 @@ describe('les visites de l\'entreprise, en ligne', () => {
     expect(visites.filter((v) => !retirees.has(v.id)).flatMap(enAttente)).toEqual([]);
     // Le test mesure : sans la liste, des visites attendraient un panneau absent.
     expect(visites.filter((v) => retirees.has(v.id)).flatMap(enAttente).length).toBeGreaterThan(0);
+  });
+
+  // Lot onboarding (09/10/2026) : « Relier mon comptable » faisait taper son adresse et importer son fichier
+  // d'appairage, pour des paquets qui n'existent plus en ligne ; on confie son dossier par le code du cabinet (un mandat).
+  it('« Confier mon dossier à mon comptable » ne vise que le panneau du mandat ; la visite du paquet n\'est plus proposée', async () => {
+    const relier = visites.find((v) => v.id === 'relier-comptable');
+    const cibles = (relier?.etapes ?? []).flatMap((e) => alternatives(e.cible));
+    // Le panneau, dessiné comme dans Comptabilité → Cabinet, sans mandat encore (pont.js, `dessinerMandat`) ; son cadre
+    // vient de l'onglet (web/v10/questions-client.txt).
+    const panneau = { innerHTML: '', querySelector: () => ({}) };
+    await pont.dessinerMandat(panneau);
+    const dessines = new Set([...panneau.innerHTML.matchAll(/id="([^"]+)"/g)].map((m) => `#${m[1]}`));
+    if (fs.readFileSync(path.join(PUBLIC, 'v10/app.js'), 'utf8').includes('<div class="panel" id="p-cabinet-mandat">')) dessines.add('#p-cabinet-mandat');
+    // Le test mesure : la visite est lue, et le panneau dessiné.
+    expect(relier?.titre).toBe('Confier mon dossier à mon comptable');
+    expect(cibles).toEqual(['#p-cabinet-mandat', '#mandat-code', '#mandat-perimetre', '#mandat-confier']);
+    expect(cibles.filter((c) => !dessines.has(c))).toEqual([]);
+    expect(JSON.stringify(relier)).not.toMatch(/appairage|paquet|adresse de ton comptable/i);
+    expect(pont.visitesAbsentes).toContain('paquet');
   });
 
   // La découverte, jouée en entier sur l'exemple versé (05/10/2026), décrivait l'application de bureau en cinq bulles :

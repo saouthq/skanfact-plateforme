@@ -251,7 +251,7 @@
   b('#ga-go', "Lance la visite de cette page : à quoi elle sert, puis chaque bloc et chaque bouton, en une ou deux minutes.");
   b('#ga-non', "Ne plus proposer la visite de cette page. Elle reste dans « Guide-moi », en haut de la page.");
   b('#demo-visite', "Le grand tour de SkanFact sur cet exemple, en chapitres : tu vois chaque page remplie, sans rien risquer.");
-  b('#demo-out', "Quitte l'exemple : tes données d'avant reviennent (elles avaient été mises de côté) ; s'il n'y en avait pas, tu repars d'une entreprise vide.");
+  b('#demo-out', "Ouvre ta vraie entreprise, ou la page qui la crée si tu n'en as pas encore. L'exemple reste à part, dans ton entreprise d'essai : tu y reviens par le nom de l'entreprise, en haut du menu, qui liste tes entreprises.");
   b('#todo-toggle', "Replie ou déplie la liste « À faire ».", { nom: 'À faire' });
   b('#todo-more', "Montre le reste de la liste « À faire ».");
   b('[data-todo]', "Le geste qui règle cette ligne : il t'emmène au bon endroit, déjà filtré.", { nom: 'Le bouton de chaque ligne', cle: 'todo' });
@@ -928,7 +928,7 @@
         { chapitre: 'Bienvenue', couleur: 'commencer', page: '#/dashboard', titre: 'Bienvenue dans l\'exemple',
           texte: '<p>Voici <b>une entreprise fictive qui a cinq ans</b> : des centaines de factures, des clients, des achats, deux salariés. Tout est inventé, rien ne part : tu peux cliquer partout.</p><p>Je te fais faire le tour, chapitre par chapitre — le compte est écrit en haut de cette bulle. <b>« Passer au chapitre suivant »</b> saute ce qui ne te concerne pas, et la croix met en pause : tu reprendras plus tard depuis « Me guider ».</p>' },
         { page: '#/dashboard', cible: '.demo-banner', cote: 'dessous', titre: 'Tu es dans un bac à sable',
-          texte: 'Ce bandeau reste en haut de chaque page de l\'exemple. <b>« Quitter l\'exemple »</b> ouvre ta vraie entreprise : l\'exemple vit à part, dans ton entreprise d\'essai, et rien de ce que tu y fais ne la touche.' },
+          texte: 'Ce bandeau reste en haut de chaque page de l\'exemple. Son bouton te mène à ta vraie entreprise : <b>« Quitter l\'exemple »</b> l\'ouvre, <b>« Créer ma vraie entreprise »</b> la crée si tu n\'en as pas encore. L\'exemple vit à part, dans ton entreprise d\'essai, et rien de ce que tu y fais ne la touche.' },
         { page: '#/dashboard', cible: 'nav#nav', cote: 'droite', titre: 'Le menu',
           texte: 'Tout SkanFact est rangé ici, en trois familles : <b>Vendre</b>, <b>Acheter</b> et <b>Piloter</b>. Un titre de famille se déplie et se replie d\'un clic. Le chiffre à côté d\'une page dit ce qui y attend.' },
         { page: '#/dashboard', cible: '#nav-search', cote: 'droite', titre: 'Tout trouver',
@@ -1850,32 +1850,30 @@
     // paquet, trouver un fichier joint, faire la mise à jour ? » Ce sont les gestes qu'on fait
     // rarement — donc ceux qu'on ne sait jamais refaire, et ceux pour lesquels on appelle.
     visite({
-      id: 'relier-comptable', theme: 'compta', type: 'faire', reel: true, duree: '2 min', page: '#/parametres',
-      titre: 'Relier mon comptable',
-      resume: 'Son adresse, et s\'il utilise SkanFact Cabinet, son fichier d\'appairage : tes paquets partent chiffrés pour lui seul.',
-      mots: ['comptable', 'cabinet', 'appairage', 'relier', 'skanpair', 'empreinte', 'adresse'],
-      suite: ['paquet', 'repondre-comptable'],
-      // Relié quand son adresse est ENREGISTRÉE ; et la fin dit ce qui l'est vraiment : l'adresse seule,
-      // ou l'adresse et son fichier d'appairage (10.14.1).
-      preuve: () => !!String((data().company || {}).accountantEmail || '').trim() && parametresEnregistres(),
-      echec: 'L\'adresse de ton comptable n\'est pas enregistrée : sans « Enregistrer » dans la barre en bas de l\'écran, elle n\'est gardée nulle part.',
-      bravo: () => cabinetRelie() ? 'Ton comptable est relié' : 'Ton comptable a son adresse',
-      conclusion: () => cabinetRelie()
-        ? 'Chaque mois, Comptabilité → Cabinet → « Fabriquer le paquet » lui prépare son envoi, chiffré pour lui seul — la visite « Envoyer le mois à mon comptable » te le montre. Ses questions et sa clôture te reviendront, signées.'
-        : 'Tes journaux et le paquet du mois partiront à cette adresse. S\'il utilise SkanFact Cabinet, demande-lui son fichier d\'appairage : tes paquets seront alors chiffrés pour lui seul, et ses questions te reviendront sur la bonne pièce.',
+      // (plateforme) Plus d'adresse ni de fichier d'appairage : le propriétaire confie son dossier à son cabinet par le code
+      // du cabinet (un mandat, que l'associé accepte ; brique 37, docs/cabinet.md), dans Comptabilité → Cabinet (pont.js,
+      // `dessinerMandat`). Confié quand le panneau dit à qui : son bouton « Retirer ma proposition » ou « Arrêter le
+      // mandat… » est là. Le cabinet voit le dossier une fois qu'il a accepté.
+      id: 'relier-comptable', theme: 'compta', type: 'faire', reel: true, duree: '2 min', page: '#/compta',
+      titre: 'Confier mon dossier à mon comptable',
+      resume: 'Le code de son cabinet, et ce que tu lui confies : il lit tes écritures à jour ici même, et valide tes mois.',
+      mots: ['comptable', 'cabinet', 'mandat', 'confier', 'relier', 'inviter', 'code'],
+      suite: ['repondre-comptable'],
+      preuve: () => !!$('#mandat-arreter'),
+      echec: 'Ton dossier n\'est pas confié : sans « Confier mon dossier », ton cabinet ne voit rien.',
+      bravo: 'Ton dossier est confié',
+      conclusion: 'Ton cabinet le voit dès qu\'il a accepté : il lira tes écritures à jour et validera tes mois. Ses questions arriveront dans cet onglet, en face de la pièce qu\'elles visent — « Répondre aux questions de mon comptable » te montre comment y répondre.',
       etapes: [
-        { page: '#/parametres', avant: onglet('#set-tabs', 'envois'), cible: '#view input[name="accountantEmail"]', cote: 'droite', faire: 'valeur', bouton: 'Suivant',
-          titre: 'Son adresse', texte: 'C\'est là que partiront tes journaux et le paquet du mois.', action: 'Tape l\'adresse de ton comptable.', essai: { taper: 'comptable@cabinet-exemple.tn' } },
-        { page: '#/parametres', si: () => !parametresEnregistres(), cible: '#save-bar #save', cote: 'dessus', faire: 'clic',
-          titre: 'Enregistrer', texte: 'Tant que tu n\'as pas enregistré, l\'adresse n\'est gardée nulle part : la barre en bas de l\'écran le rappelle.',
-          action: 'Clique sur <b>« Enregistrer »</b>, dans la barre en bas de l\'écran.', fait: parametresEnregistres, essai: { clic: true } },
-        { page: '#/parametres', cible: '#p-cabinet', cote: 'dessus', titre: 'S\'il utilise SkanFact Cabinet',
-          texte: 'SkanFact Cabinet est l\'application de ton comptable, gratuite pour les dossiers de ses clients sur SkanFact. Demande-lui son <b>fichier d\'appairage</b> : il l\'exporte depuis son application.' },
-        { page: '#/parametres', si: () => !cabinetRelie(), cible: '#cab-import', cote: 'dessous', faire: 'clic', facultatif: true,
-          titre: 'Importer son fichier', texte: 'Rien de secret dedans : c\'est sa clé publique. Tes paquets seront chiffrés pour lui seul, sans mot de passe à échanger.',
-          action: 'Clique sur {bouton} et choisis le fichier qu\'il t\'a envoyé.', fait: cabinetRelie, essai: { clic: true } },
-        { page: '#/parametres', si: cabinetRelie, cible: '#p-cabinet', cote: 'dessus',
-          titre: 'Vérifie l\'empreinte de vive voix', texte: 'Lis-lui ses vingt caractères au téléphone : s\'il lit les mêmes, c\'est bien sa clé, et pas celle de quelqu\'un d\'autre.' }
+        { page: '#/compta', avant: onglet('#c-tabs', 'cabinet'), cible: '#p-cabinet-mandat', cote: 'dessus', titre: 'Ton cabinet comptable',
+          texte: 'Ton comptable tient tes livres <b>ici même</b> : il lit tes écritures à jour, et valide tes mois. Tu lui confies ton entreprise une fois ; ensuite, rien à lui envoyer.' },
+        { page: '#/compta', si: () => !!$('#mandat-code'), cible: '#mandat-code', cote: 'droite', faire: 'valeur', bouton: 'Suivant',
+          titre: 'Le code de son cabinet', texte: 'Ton comptable le lit dans SkanFact Cabinet, dans Réglages → Mon cabinet : demande-le-lui.',
+          action: 'Tape le code de son cabinet.' },
+        { page: '#/compta', si: () => !!$('#mandat-perimetre'), cible: '#mandat-perimetre', cote: 'droite', titre: 'Ce que tu lui confies',
+          texte: 'Coché d\'office : la comptabilité, les déclarations et la saisie de tes achats ; la paie, seulement si tu la lui confies. Il ne touche jamais à tes factures, à ta caisse ni à ton équipe.' },
+        { page: '#/compta', si: () => !!$('#mandat-confier'), cible: '#mandat-confier', cote: 'dessous', faire: 'clic',
+          titre: 'Confier mon dossier', texte: 'Ton cabinet reçoit ta proposition : il ne voit ton dossier qu\'une fois qu\'il l\'a acceptée.',
+          action: 'Clique sur {bouton}.', fait: () => !!$('#mandat-arreter') }
       ]
     });
 

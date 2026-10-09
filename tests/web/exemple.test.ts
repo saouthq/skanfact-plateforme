@@ -2,16 +2,19 @@
 // serveur/v10/exemple.ts, web/v10/exemple.txt). Skander, sur un compte neuf : « le jeu d'exemple ne marche pas, il me dit
 // tu es déjà dans l'exemple mais il n'y a rien dessus afin de faire la visite guidée, et l'assistant de remplissage ne
 // guide pas pour une facture, il le fait pour un devis ». Ce que ce parcours tient :
-//   - « Commencer la découverte » sur la porte : l'entreprise d'essai s'ouvre, une fenêtre dit que l'exemple se prépare,
-//     le serveur la remplit, la page s'ouvre toute seule dessus, et la découverte démarre sur des pièces ;
-//   - la découverte va au bout, et sa fin ne parle pas de licence ; « Passer à ma vraie entreprise » demande la raison
-//     sociale, crée l'entreprise, l'ouvre sur l'assistant de démarrage, et la visite des premiers pas y démarre ensuite ;
+//   - « Commencer la découverte » sur la porte : « On prépare l'exemple » dit ce qui se fait pendant que le serveur
+//     remplit l'entreprise d'essai (une réponse coupée en route se redemande, jamais le texte du relais), puis
+//     « Commencer la visite » l'ouvre, et la découverte démarre sur des pièces ; sans vraie entreprise encore, le
+//     bandeau dit « Créer ma vraie entreprise » (lot onboarding, 09/10/2026) ;
+//   - la découverte va au bout, et sa fin ne parle pas de licence ; « Passer à ma vraie entreprise » ouvre la page « Ta
+//     vraie entreprise » (le lien qui revient à l'exemple), qui la crée et l'ouvre sur l'assistant de démarrage ; la
+//     visite des premiers pas y démarre ensuite ; avec l'exemple et une seule vraie entreprise, pas de « groupe » ;
 //   - dans la vraie entreprise, « Guide-moi » sur une nouvelle facture propose « Faire une facture », qui mène geste après
 //     geste jusqu'au brouillon enregistré, au millime ;
 //   - « Me guider » ne propose pas les visites sans objet en ligne (les sauvegardes, les mises à jour…) ; les Paramètres
 //     ne montrent pas de puce vers un panneau absent ;
-//   - « Ouvrir l'exemple », depuis la vraie entreprise, ramène à l'entreprise d'essai déjà remplie, sans rien y reverser
-//     et sans rien écrire dans la vraie.
+//   - « Ouvrir l'exemple », depuis la vraie entreprise, ramène à l'entreprise d'essai déjà remplie, aussitôt, sans rien y
+//     reverser et sans rien écrire dans la vraie ; son bandeau dit alors « Quitter l'exemple ».
 // Les données discriminent : 12 × 18,750 à 19 %, timbre 1,000 → 268,750 DT.
 
 import fs from 'node:fs';
@@ -64,23 +67,42 @@ describe('l\'exemple rempli et « Faire une facture », à l\'écran', () => {
     const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', premier, { methode: 'application' })).adresseApplication))?.[1] ?? '';
     const defi = (await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Portable', type: 'navigateur' } })).defi;
     const jeton = String((await api('POST', '/connexion/code', undefined, { defi, code: codeTotp(depuisBase32(secret), Date.now()) })).jeton);
-    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    // Le service des écrans (sw.js) est bloqué : la réponse coupée, imitée, ne passe qu'une fois, par la page.
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', serviceWorkers: 'block' });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
     const p = await cx.newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(`${e.message} @ ${p.url()}`));
     await p.goto(serveur.adresse);
 
-    // 1. La porte : « Commencer la découverte ». L'exemple se prépare, puis la page s'ouvre dessus, et la découverte
-    // démarre sur des pièces.
+    // 1. La porte : « Commencer la découverte ». « On prépare l'exemple » dit ce qui se fait ; la première réponse du
+    // versement est coupée par un relais (vu le 05/10/2026) : la même demande repart, le serveur va au bout.
+    let versements = 0;
+    await p.route('**/v1/entreprises/*/exemple', async (r) => {
+      if (++versements === 1) await r.fulfill({ status: 504, contentType: 'text/plain', body: 'upstream request timeout' });
+      else await r.continue();
+    });
     await p.getByRole('button', { name: 'Commencer la découverte', exact: true }).click();
+    await p.waitForURL((u) => u.pathname === '/' && u.searchParams.get('exemple') === 'decouvrir', { timeout: 20_000 });
+    const prepare = p.locator('.ent-exemple');
+    await expect.poll(() => prepare.innerText().then(net).catch(() => ''), { timeout: 20_000 })
+      .toMatch(/^On prépare l'exemple… .*Ton compte est prêt .*Cinq ans d'activité inventée .*La visite guidée .*Compte une minute : laisse cette page ouverte, elle continue toute seule\./);
+    await p.screenshot({ path: path.join(PHOTOS, 'exemple-0-prepare.png') });
+    // Le serveur verse l'exemple (une minute, plus sur une petite machine) ; l'écran le dit prêt, et la visite part d'un
+    // bouton.
+    const commencer = prepare.getByRole('button', { name: /Commencer la visite/ });
+    await commencer.waitFor({ timeout: 240_000 });
+    expect(net(await prepare.locator('h1').innerText())).toBe('L\'exemple est prêt');
+    expect(await p.locator('body').innerText()).not.toMatch(/upstream/i);
+    expect(versements).toBe(2);
+    await commencer.click();
     await p.waitForURL(/\/v10\/\?e=[0-9a-f-]{36}/, { timeout: 20_000 });
     const essai = new URL(p.url()).searchParams.get('e') ?? '';
-    await expect.poll(() => p.locator('#modal-root').innerText().then(net).catch(() => ''), { timeout: 20_000 }).toMatch(/^L'exemple se prépare Cinq ans d'une entreprise inventée/);
-    // Le serveur verse l'exemple (une minute, plus sur une petite machine), puis la page s'ouvre dessus.
-    await expect.poll(() => p.locator('#view .demo-banner').isVisible().catch(() => false), { timeout: 240_000 }).toBe(true);
+    await expect.poll(() => p.locator('#view .demo-banner').isVisible().catch(() => false), { timeout: 20_000 }).toBe(true);
     await expect.poll(() => titreBulle(p), { timeout: 20_000 }).toBe('Bienvenue dans l\'exemple');
     expect(await compter('ventes.piece', essai)).toBeGreaterThan(250);
+    // Sans vraie entreprise encore, le bouton du bandeau la crée, et le dit.
+    expect(net(await p.locator('#demo-out').innerText())).toBe('Créer ma vraie entreprise');
     expect(net(await p.locator('#view').innerText())).toMatch(/À faire \d+/);
     await p.screenshot({ path: path.join(PHOTOS, 'exemple-1-decouverte.png') });
 
@@ -96,13 +118,17 @@ describe('l\'exemple rempli et « Faire une facture », à l\'écran', () => {
     expect(fin).toContain('abonnement réglé ou pas, tu gardes la lecture, l\'impression et l\'export');
     expect(fin).not.toMatch(/licence/i);
 
-    // 3. « Passer à ma vraie entreprise » : sa raison sociale, et elle s'ouvre sur l'assistant de démarrage (lot
-    // onboarding), traversé ici sans rien remplir (« Je le ferai plus tard », « Plus tard », le réel, le menu proposé) ;
-    // la visite des premiers pas démarre ensuite.
+    // 3. « Passer à ma vraie entreprise » : la page « Ta vraie entreprise » (le lien qui revient à l'exemple), sa raison
+    // sociale, et elle s'ouvre sur l'assistant de démarrage (lot onboarding), traversé ici sans rien remplir (« Je le
+    // ferai plus tard », « Plus tard », le réel, le menu proposé) ; la visite des premiers pas démarre ensuite.
     await bulle(p).getByRole('button', { name: /Passer à ma vraie entreprise/ }).click();
-    await expect.poll(() => p.locator('#modal-root h2').first().innerText().catch(() => '')).toBe('Ta vraie entreprise');
-    await p.locator('#modal-root label.field').filter({ hasText: 'Raison sociale' }).locator('input').fill('Quincaillerie El Amen');
-    await p.locator('#modal-root').getByRole('button', { name: 'Créer et ouvrir', exact: true }).click();
+    await p.waitForURL((u) => u.pathname === '/' && u.searchParams.get('entreprise') === 'exemple' && u.searchParams.get('retour') === essai
+      && u.searchParams.get('visite') === 'premiers-pas', { timeout: 20_000 });
+    await expect.poll(() => p.locator('h1').first().innerText().catch(() => '')).toBe('Ta vraie entreprise');
+    expect(await p.getByRole('link', { name: 'Revenir à l\'exemple' }).getAttribute('href')).toBe(`/v10/?e=${essai}`);
+    await p.locator('label.field').filter({ hasText: 'Raison sociale' }).locator('input').fill('Quincaillerie El Amen');
+    await p.screenshot({ path: path.join(PHOTOS, 'exemple-1b-vraie.png') });
+    await p.getByRole('button', { name: /Créer ma vraie entreprise/ }).click();
     await p.waitForURL((u) => /\/v10\/\?e=[0-9a-f-]{36}/.test(u.href) && !u.href.includes(essai), { timeout: 20_000 });
     const vraie = new URL(p.url()).searchParams.get('e') ?? '';
     const assistant = p.locator('#setup.as');
@@ -117,6 +143,11 @@ describe('l\'exemple rempli et « Faire une facture », à l\'écran', () => {
     const moi = await api('GET', '/moi', jeton) as { entreprises: { id: string; essai: boolean; nom?: string; raisonSociale?: string }[] };
     expect(moi.entreprises.find((e) => e.id === vraie)?.essai).toBe(false);
     await p.keyboard.press('Escape');
+    // L'exemple et une seule vraie entreprise : le menu des entreprises ne propose pas de « groupe ».
+    await p.locator('#brand-btn').click();
+    await p.locator('#dos-menu #dm-new').waitFor({ timeout: 10_000 });
+    expect(await p.locator('#dos-menu #dm-groupe').count()).toBe(0);
+    await p.locator('#brand-btn').click();
 
     // 4. « Guide-moi » sur une nouvelle facture propose « Faire une facture », qui mène jusqu'au brouillon.
     await p.getByRole('button', { name: '+ Nouvelle facture' }).first().click();
@@ -186,6 +217,8 @@ describe('l\'exemple rempli et « Faire une facture », à l\'écran', () => {
     await p.locator('#load-demo').click();
     await p.waitForURL(new RegExp(`/v10/\\?e=${essai}`), { timeout: 20_000 });
     await expect.poll(() => p.locator('#view .demo-banner').isVisible(), { timeout: 20_000 }).toBe(true);
+    expect(net(await p.locator('#demo-out').innerText())).toBe('Quitter l\'exemple');
+    expect(versements).toBe(3);
     expect(await compter('ventes.piece', essai)).toBe(pieces);
     expect(await compter('socle.dossier_v10', vraie)).toBe(avant);
     expect(erreurs).toEqual([]);

@@ -6,39 +6,24 @@
 // avant le geste (vu au parcours débutant : rien ne disait où le trouver ni ce qui manquait). Un cabinet comptable : son
 // nom, et le Cabinet v10 s'ouvre sur ses dossiers (brique 37 ; docs/cabinet.md).
 import { useState } from 'react';
-import { matriculeCanonique, matriculeSansSuite } from '../../../commun/matricule.ts';
 import { Bouton } from '../composants/Bouton.tsx';
 import { Carte } from '../composants/Carte.tsx';
 import { Champ } from '../composants/Champ.tsx';
 import { Dessin, PageEtapes } from '../composants/Entree.tsx';
+import { ApercuEntete, etatDuMatricule } from '../composants/Fiche.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { dire, phrase, titre } from '../langue.ts';
 
-// Ce que l'écran dit du matricule pendant la frappe : la même règle que le serveur (commun/matricule.ts).
-function etatDuMatricule(m: string): { texte: string; classe: string } {
-  if (!m.trim()) return { texte: phrase('ecran.porte.mf_ou'), classe: '' };
-  if (matriculeCanonique(m)) return { texte: phrase('ecran.porte.mf_ok'), classe: ' ok' };
-  if (matriculeSansSuite(m)) return { texte: phrase('ecran.porte.mf_debut'), classe: ' alerte' };
-  return { texte: phrase('ecran.porte.mf_faux'), classe: ' alerte' };
-}
-
-export function Porte({ creee, cabinetCree, deconnecte }: { creee: (ent: string) => void; cabinetCree: (cabinet: string) => void; deconnecte: () => void }) {
+export function Porte({ creee, cabinetCree, decouvrir, deconnecte }: { creee: (ent: string) => void; cabinetCree: (cabinet: string) => void; decouvrir: () => void; deconnecte: () => void }) {
   const g = useGeste(deconnecte);
   const [etape, setEtape] = useState<'porte' | 'entreprise' | 'cabinet'>('porte');
   const [raison, setRaison] = useState('');
   const [nomCabinet, setNomCabinet] = useState('');
   const [matricule, setMatricule] = useState('');
 
-  // Découvrir : l'entreprise d'essai, puis la découverte de la v10 sur elle — le serveur la remplit de l'exemple d'abord
-  // (retour de Skander, 05/10/2026 : elle n'avait que trois clients, et la visite n'avait rien à montrer). La visite
-  // voyage jusqu'à la page de l'entreprise (web/public/plateforme/pont.js, `visiteDemandee`).
-  const essai = () => g.geste(async () => {
-    const r = await g.api<{ id: string }>('POST', '/entreprises-essai');
-    if (!r) return;
-    if (r.statut !== 201) { g.refuser(refusDe(r)); return; }
-    try { sessionStorage.setItem('skanfact.visite', 'decouvrir'); } catch { /* sans stockage : l'entreprise d'essai s'ouvre, sans la découverte */ }
-    creee(r.corps.id);
-  });
+  // Découvrir : l'écran « On prépare l'exemple » (lot onboarding ; ExemplePrepare.tsx) crée l'entreprise d'essai, la
+  // remplit de l'exemple en disant où il en est, puis ouvre la découverte sur elle : plus de page blanche ni d'attente
+  // posée par-dessus l'accueil d'une entreprise vide.
   // Créée, l'entreprise ouvre l'assistant de démarrage (lot onboarding : « Où te joindre ? », puis l'activité, la TVA et le
   // menu), qui voyage jusqu'à sa page comme la visite de la découverte (pont.js, `assistantDemande`).
   const creer = () => g.geste(async () => {
@@ -68,7 +53,6 @@ export function Porte({ creee, cabinetCree, deconnecte }: { creee: (ent: string)
   }
   if (etape === 'entreprise') {
     const mf = etatDuMatricule(matricule);
-    const lisible = matriculeCanonique(matricule) ?? matricule.trim().toUpperCase();
     return (
       <PageEtapes etape={2} droite={sortir}>
         <div className="ent-deux">
@@ -81,27 +65,7 @@ export function Porte({ creee, cabinetCree, deconnecte }: { creee: (ent: string)
               dessous={<span className={`ent-aide${mf.classe}`} aria-live="polite">{mf.texte}</span>} {...g.sur('matriculeFiscal')} />
             <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.porte.creer')}<Dessin id="fleche" /></Bouton>
           </form>
-          <div className="ent-apercu" aria-hidden="true">
-            <span className="ent-apercu-etiquette">{dire('ecran.porte.apercu')}</span>
-            <div className="ent-apercu-page">
-              <div className="ent-apercu-haut">
-                <div className="ent-apercu-qui">
-                  <span className="ent-apercu-logo">{titre('ecran.porte.apercu_logo')}</span>
-                  <div className="ent-apercu-nom">
-                    {raison.trim() ? <strong data-donnee>{raison.trim()}</strong> : <strong className="vide">{titre('ecran.porte.apercu_raison')}</strong>}
-                    <span>{dire('ecran.porte.apercu_mf')} : {lisible ? <span data-donnee>{lisible}</span> : '—'}</span>
-                  </div>
-                </div>
-                <span className="ent-apercu-type">{dire('ecran.porte.apercu_type')}</span>
-              </div>
-              <div className="ent-apercu-lignes">
-                <i style={{ width: '62%' }} /><i style={{ width: '48%' }} />
-                <div className="ligne"><i style={{ width: '40%' }} /><i style={{ width: '14%' }} /></div>
-                <div className="ligne"><i style={{ width: '34%' }} /><i style={{ width: '12%' }} /></div>
-              </div>
-            </div>
-            <span className="ent-aide">{phrase('ecran.porte.apercu_note')}</span>
-          </div>
+          <ApercuEntete raison={raison} matricule={matricule} note={phrase('ecran.porte.apercu_note')} />
         </div>
       </PageEtapes>
     );
@@ -119,7 +83,7 @@ export function Porte({ creee, cabinetCree, deconnecte }: { creee: (ent: string)
             <li><Dessin id="coche" />{titre('ecran.porte.essai_puce2')}</li>
             <li><Dessin id="coche" />{titre('ecran.porte.essai_puce3')}</li>
           </ul>
-          <Bouton principal occupe={g.occupe} onClick={() => { void essai(); }}>{titre('ecran.porte.essai_bouton')}</Bouton>
+          <Bouton principal onClick={decouvrir}>{titre('ecran.porte.essai_bouton')}</Bouton>
         </article>
         <article className="autre">
           <div className="ent-choix-haut"><span className="ent-choix-ico"><Dessin id="batiment" /></span><span className="ent-choix-meta">{titre('ecran.porte.demarrer_meta')}</span></div>

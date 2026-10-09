@@ -17,6 +17,8 @@ import { Code } from './ecrans/Code.tsx';
 import { CodeRequis } from './ecrans/CodeRequis.tsx';
 import { Connecter, type DemandeConnexion, type EntrepriseDeMoi } from './ecrans/Connecter.tsx';
 import { Connexion, type Defi } from './ecrans/Connexion.tsx';
+import { EntrepriseNeuve, type DepuisOu } from './ecrans/EntrepriseNeuve.tsx';
+import { ExemplePrepare } from './ecrans/ExemplePrepare.tsx';
 import { Inscription } from './ecrans/Inscription.tsx';
 import { NouveauMotDePasse, Oubli } from './ecrans/Oubli.tsx';
 import { Ouverture, type Ouvrir } from './ecrans/Ouverture.tsx';
@@ -89,6 +91,32 @@ const invitation = {
   lire: () => { try { return sessionStorage.getItem(INVITATION); } catch { return null; } },
   oublier: () => { try { sessionStorage.removeItem(INVITATION); } catch { /* rien à oublier */ } },
 };
+// Une demande venue d'une page de l'entreprise (lot onboarding ; web/public/plateforme/pont.js) : préparer l'exemple
+// (`/?exemple=<visite>`), ou créer une entreprise (`/?entreprise=exemple|menu&retour=<entreprise>&visite=<visite>`). Elle
+// reste dans l'adresse : un rechargement retrouve le même écran (la préparation reprend sans rien faire deux fois).
+type Demande = { ecran: 'exemple'; visite: string } | { ecran: 'entreprise'; depuis: DepuisOu; retour: string | null; visite: string };
+const VISITE_ID = /^[a-z0-9-]{1,60}$/;
+const DEMANDE: Demande | null = (() => {
+  const q = new URLSearchParams(location.search);
+  const exemple = q.get('exemple');
+  if (exemple !== null) return { ecran: 'exemple', visite: VISITE_ID.test(exemple) ? exemple : 'exemple' };
+  const depuis = q.get('entreprise');
+  if (depuis !== 'exemple' && depuis !== 'menu') return null;
+  const retour = q.get('retour') ?? '';
+  const visite = q.get('visite') ?? '';
+  return { ecran: 'entreprise', depuis, retour: /^[0-9a-f-]{36}$/.test(retour) ? retour : null, visite: VISITE_ID.test(visite) ? visite : '' };
+})();
+// Ouvrir une entreprise avec la visite à y lancer (pont.js, `visiteDemandee`) ; « exemple » : l'exemple seul.
+function ouvrirAvecVisite(id: string, visite: string) {
+  if (visite && visite !== 'exemple') try { sessionStorage.setItem('skanfact.visite', visite); } catch { /* sans stockage : l'entreprise s'ouvre, sans la visite */ }
+  ouvrirEntreprise(id);
+}
+// Une entreprise créée depuis l'exemple ou le menu : l'assistant de démarrage s'y ouvre, comme depuis la porte, puis la
+// visite demandée (pont.js, `assistantDemande`).
+function ouvrirLaCreee(id: string, visite: string) {
+  try { sessionStorage.setItem('skanfact.assistant', id); } catch { /* sans stockage : l'entreprise s'ouvre sur ses premiers pas */ }
+  ouvrirAvecVisite(id, visite);
+}
 // L'entreprise à ouvrir la prochaine fois (sur ce navigateur).
 function retenir(id: string) {
   try { localStorage.setItem(RETENUE, id); } catch { /* sans stockage : la première entreprise la prochaine fois */ }
@@ -120,6 +148,7 @@ export function App() {
   // Ce qui s'ouvre (l'écran d'ouverture le montre le temps que l'application arrive).
   const [ouvrir, setOuvrir] = useState<Ouvrir | null>(null);
   const [demandeConnexion, setDemandeConnexion] = useState<DemandeConnexion | null>(connexionDemandee.lire);
+  const [demande, setDemande] = useState<Demande | null>(DEMANDE);
   // Envoyée par un partenaire : la connexion (et la création du compte) disent qui attend, et pourquoi.
   const [attend, setAttend] = useState<string | null>(null);
   useEffect(() => {
@@ -180,7 +209,7 @@ export function App() {
   // Une entreprise ou un cabinet existe et le code est en place : l'application v10 s'ouvre.
   const miennes = moi ? moi.entreprises.filter((x) => !x.parCabinet) : [];
   useEffect(() => {
-    if (!moi || moi.codeAConfigurer || refusInvitation !== null || invitation.lire() || demandeConnexion) return;
+    if (!moi || moi.codeAConfigurer || refusInvitation !== null || invitation.lire() || demandeConnexion || demande) return;
     let retenue: string | null = null;
     try { retenue = localStorage.getItem(RETENUE); } catch { /* pas de mémoire : la première */ }
     const siennes = moi.entreprises.filter((x) => !x.parCabinet);
@@ -192,7 +221,7 @@ export function App() {
     if (cabinet) { setOuvrir({ type: 'cabinet', nom: cabinet.nom, protege }); ouvrirCabinet(cabinet.id); }
     else if (e) { setOuvrir({ type: 'entreprise', nom: e.raison_sociale, protege }); ouvrirEntreprise(e.id); }
     else if (moi.cabinets[0]) { setOuvrir({ type: 'cabinet', nom: moi.cabinets[0].nom, protege }); ouvrirCabinet(moi.cabinets[0].id); }
-  }, [moi, refusInvitation, demandeConnexion]);
+  }, [moi, refusInvitation, demandeConnexion, demande]);
 
   const vers = (e: Accueil) => () => setAccueil(e);
   const finirConnexion = () => { connexionDemandee.oublier(); setDemandeConnexion(null); };
@@ -222,9 +251,17 @@ export function App() {
       else if (moi && demandeConnexion) {
         ecran = <Connecter demande={demandeConnexion} entreprises={moi.entreprises} creee={() => { void charger(); }} partir={(adresse) => { connexionDemandee.oublier(); location.assign(adresse); }} fini={finirConnexion} deconnecte={() => { void sortir(); }} />;
       }
+      // « On prépare l'exemple », et « Ta vraie entreprise » (lot onboarding) : demandés par une page de l'entreprise, ou
+      // par la porte.
+      else if (moi && demande?.ecran === 'exemple') {
+        ecran = <ExemplePrepare visite={demande.visite} ouvrir={ouvrirAvecVisite} deconnecte={() => { void sortir(); }} />;
+      } else if (moi && demande?.ecran === 'entreprise') {
+        ecran = <EntrepriseNeuve depuis={demande.depuis} retour={demande.retour} visite={demande.visite} creee={ouvrirLaCreee} deconnecte={() => { void sortir(); }} />;
+      }
       // L'entreprise ou le cabinet créé, on relit le compte : un cabinet exige le code du téléphone d'abord.
       else if (moi && miennes.length === 0 && moi.cabinets.length === 0) {
-        ecran = <Porte creee={(id) => { retenir(id); void charger(); }} cabinetCree={(id) => { retenir(id); void charger(); }} deconnecte={() => { void sortir(); }} />;
+        ecran = <Porte creee={(id) => { retenir(id); void charger(); }} cabinetCree={(id) => { retenir(id); void charger(); }} deconnecte={() => { void sortir(); }}
+          decouvrir={() => { history.replaceState(null, '', '/?exemple=decouvrir'); setDemande({ ecran: 'exemple', visite: 'decouvrir' }); }} />;
       }
       // Le compte se lit, ou l'application s'ouvre : l'écran d'ouverture, jamais une page blanche.
       else ecran = <Ouverture ouvrir={ouvrir} />;

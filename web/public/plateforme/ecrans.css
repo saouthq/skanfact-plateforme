@@ -21,9 +21,3 @@
 @media (max-width: 760px) {
   .guide-appel.ga-coin { left: 12px; right: 12px; width: auto; }
 }
-
-/* L'attente pendant que le serveur verse l'exemple (exemple.txt, adaptations.mjs) : la roue du chargement d'une page. */
-.attente-exemple { display: flex; align-items: center; gap: 10px; }
-.attente-roue { flex: none; width: 20px; height: 20px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--primary);
-  animation: maj-tourne .8s linear infinite; }
-@media (prefers-reduced-motion: reduce) { .attente-roue { animation-duration: 2.4s; } }

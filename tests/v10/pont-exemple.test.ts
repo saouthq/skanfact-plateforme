@@ -1,15 +1,17 @@
-// L'exemple et la vraie entreprise, au point de contact (retour de Skander, 05/10/2026 ; docs/exemple.md ;
-// web/public/plateforme/pont.js). Le point de contact tourne ici dans un bac à sable, devant un serveur imité : ce qu'il
-// appelle, ce qu'il ouvre, ce qu'il garde pour la page suivante. Ce qu'il garantit :
-//   - depuis une vraie entreprise, l'exemple ouvre l'entreprise d'essai : rien ne se verse jamais ici ;
-//   - l'entreprise d'essai déjà remplie ne se remplit pas deux fois ;
-//   - encore vide, le serveur la remplit (une fenêtre d'attente l'annonce), puis la page se rouvre sur la visite
-//     demandée ; un conflit avec l'enregistrement de départ de la page se redemande, une fois ; un refus se lit en
-//     entier, et la fenêtre d'attente se ferme ;
-//   - quitter l'exemple ouvre la vraie entreprise, la visite avec elle ; sans vraie entreprise, son nom d'abord, et la
-//     visite ne part qu'avec l'entreprise créée (une fenêtre fermée sans créer ne laisse rien en attente), qui ouvre
-//     l'assistant de démarrage comme celle de la porte (lot onboarding).
-// Le parcours entier, à l'écran : tests/web/exemple.test.ts.
+// L'exemple et la vraie entreprise, au point de contact (retour de Skander, 05/10/2026 ; lot onboarding, 09/10/2026 ;
+// docs/exemple.md, docs/entree.md ; web/public/plateforme/pont.js). Le point de contact tourne ici dans un bac à sable,
+// devant un serveur imité : ce qu'il appelle, ce qu'il ouvre, ce qu'il garde pour la page suivante. Ce qu'il garantit :
+//   - l'exemple déjà là s'ouvre tel quel ; ailleurs, la page part vers « On prépare l'exemple » (ExemplePrepare.tsx), la
+//     visite dans son adresse : rien ne se crée ni ne se verse d'ici ;
+//   - l'entreprise d'essai encore vide ne s'ouvre pas sur un accueil vide : elle repart vers sa préparation, la visite
+//     demandée avec elle ; celle qui a ses propres pièces s'ouvre telle quelle ; une vraie entreprise au travail ne fait
+//     pas lire le compte ;
+//   - quitter l'exemple ouvre la vraie entreprise, la visite avec elle ; sans vraie entreprise, la page qui la crée (le
+//     chemin du retour et la visite dans son adresse), et rien n'attend la page suivante avant qu'elle soit créée ;
+//   - « Nouvelle entreprise… » mène à la même page, avec le chemin du retour ;
+//   - le bandeau de l'exemple sait s'il y a une vraie entreprise ; le menu, laquelle est l'entreprise d'essai ; les premiers
+//     pas, si l'entreprise ouverte en est une ; le compte se lit une fois pour les gestes d'un même instant.
+// Le parcours entier, à l'écran : tests/web/exemple.test.ts et tests/web/exemple-puis-vraie.test.ts.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,14 +21,18 @@ import { describe, expect, it } from 'vitest';
 const PONT = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/plateforme/pont.js'), 'utf8');
 const ESSAI = '00000000-0000-4000-8000-0000000000e5';
 const VRAIE = '00000000-0000-4000-8000-0000000000a1';
-const NEUVE = '00000000-0000-4000-8000-0000000000b2';
 
 // `texte` : une réponse qui ne vient pas du serveur (un relais, le frontal), telle quelle.
 type Reponse = { statut: number; corps?: unknown; texte?: string };
 type Pont = {
-  exemple: (o: { visite?: string; attendre?: () => unknown }) => Promise<Record<string, unknown>>;
+  exemple: (o: { visite?: string }) => Promise<Record<string, unknown>>;
   quitterExemple: (o: { visite?: string }) => Promise<Record<string, unknown>>;
-  addDossier: (o: { name?: string; visite?: string }) => Promise<Record<string, unknown>>;
+  nouvelleEntreprise: () => void;
+  aUneVraieEntreprise: () => boolean | null;
+  listDossiers: () => Promise<{ dossiers: { id: string; essai: boolean }[] }>;
+  etatDuDemarrage: () => Promise<{ essai: boolean }>;
+  courrielDuCompte: () => Promise<string>;
+  loadData: () => Promise<{ data: Record<string, unknown> }>;
   accords: () => Promise<unknown>;
   assistantDemande: () => boolean;
 };
@@ -37,20 +43,21 @@ function charger(ent: string, routes: Record<string, (corps: unknown) => Reponse
   const stockage = new Map<string, string>([['skanfact.jeton', 'jeton']]);
   const appels: { cle: string; corps: unknown }[] = [];
   const ouverts: string[] = [];
-  const etat = { recharges: 0 };
   const element = () => ({
     style: {}, classList: { add: () => undefined, remove: () => undefined, toggle: () => undefined, contains: () => false },
     setAttribute: () => undefined, appendChild: () => undefined, addEventListener: () => undefined, querySelector: () => null, querySelectorAll: () => [],
   });
+  // Le poste : rien de gardé (l'ordinateur d'un autre), rien qui attende.
+  const poste: Record<string, unknown> = { garde: () => false, limite: () => null, lireCopie: async () => null, lireAttente: async () => null };
   const bac: Record<string, unknown> = {
     sessionStorage: { getItem: (k: string) => stockage.get(k) ?? null, setItem: (k: string, v: string) => { stockage.set(k, String(v)); }, removeItem: (k: string) => { stockage.delete(k); } },
     localStorage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined },
-    location: { search: `?e=${ent}`, pathname: '/v10/', hash: '', replace: () => undefined, assign: (u: string) => { ouverts.push(u); }, reload: () => { etat.recharges++; } },
+    location: { search: `?e=${ent}`, pathname: '/v10/', hash: '', replace: (u: string) => { ouverts.push(`remplace ${u}`); }, assign: (u: string) => { ouverts.push(u); }, reload: () => undefined },
     document: { createElement: element, head: element(), body: element(), documentElement: element(), addEventListener: () => undefined, removeEventListener: () => undefined, querySelector: () => null, querySelectorAll: () => [] },
     URLSearchParams, console, navigator: { onLine: true }, setTimeout, clearTimeout, setInterval: () => 0, clearInterval: () => undefined,
     addEventListener: () => undefined, removeEventListener: () => undefined, matchMedia: () => ({ matches: false, addEventListener: () => undefined }),
     MutationObserver: class { observe() { return undefined; } disconnect() { return undefined; } },
-    SkanPoste: new Proxy({}, { get: () => () => undefined }),
+    SkanPoste: new Proxy(poste, { get: (p, k) => (typeof k === 'string' && k in p ? p[k] : () => undefined) }),
     __data: donnees,
     fetch: (url: string, init?: { method?: string; body?: string }) => {
       const cle = `${init?.method ?? 'GET'} ${url}`;
@@ -66,75 +73,124 @@ function charger(ent: string, routes: Record<string, (corps: unknown) => Reponse
   bac.self = bac;
   vm.createContext(bac);
   vm.runInContext(PONT, bac, { filename: 'pont.js' });
-  return { pont: bac.skanfact as Pont, stockage, appels, ouverts, etat };
+  return { pont: bac.skanfact as Pont, stockage, appels, ouverts };
 }
-const moi = (...entreprises: { id: string; essai: boolean }[]) => ({ 'GET /v1/moi': () => ({ statut: 200, corps: { entreprises } }) });
-const versements = (appels: { cle: string }[]) => appels.filter((a) => a.cle.endsWith('/exemple')).map((a) => a.cle);
+const moi = (...entreprises: { id: string; essai: boolean }[]) => ({ 'GET /v1/moi': () => ({ statut: 200, corps: { email: 'nadia@exemple.tn', entreprises } }) });
+const lusDuCompte = (appels: { cle: string }[]) => appels.filter((a) => a.cle === 'GET /v1/moi').length;
+// Le dossier d'une entreprise, tel que le serveur le rend : `objets` (la racine, puis les listes).
+const dossier = (ent: string, objets: { collection: string; cle: string; contenu: unknown }[]) => ({
+  [`GET /v1/entreprises/${ent}/dossier-v10`]: () => ({ statut: 200, corps: { objets: objets.map((o, i) => ({ ...o, rang: o.collection === '_racine' ? null : i, revision: 1 })), droits: { tout: true } } }),
+  [`GET /v1/entreprises/${ent}/compta/questions`]: () => ({ statut: 200, corps: { questions: [] } }),
+  [`GET /v1/entreprises/${ent}/quarantaine`]: () => ({ statut: 200, corps: { remises: [] } }),
+});
+const fiche = { collection: '_racine', cle: 'company', contenu: { name: 'Atelier Nadia' } };
+const exemple = { collection: '_racine', cle: 'demo', contenu: true };
+const unDevis = { collection: 'documents', cle: 'd1', contenu: { id: 'd1', type: 'devis', status: 'brouillon' } };
+// Un tour de la boucle des promesses : ce qui devait partir est parti.
+const unInstant = () => new Promise((r) => setTimeout(r, 30));
 
 describe('l\'exemple et la vraie entreprise, au point de contact', () => {
-  it('depuis une vraie entreprise, l\'exemple ouvre l\'entreprise d\'essai : rien ne se verse ici', async () => {
-    const t = charger(VRAIE, moi({ id: ESSAI, essai: true }, { id: VRAIE, essai: false }));
-    expect(await t.pont.exemple({ visite: '' })).toEqual({});
-    expect(t.ouverts).toEqual([`/v10/?e=${ESSAI}`]);
-    expect(t.stockage.get('skanfact.visite')).toBe('exemple');
-    expect(versements(t.appels)).toEqual([]);
-  });
-
-  it('sans entreprise d\'essai encore, elle se crée puis s\'ouvre ; une création refusée ne laisse aucune visite en attente', async () => {
-    const t = charger(VRAIE, { ...moi({ id: VRAIE, essai: false }), 'POST /v1/entreprises-essai': () => ({ statut: 201, corps: { id: ESSAI } }) });
-    expect(await t.pont.exemple({ visite: '' })).toEqual({});
-    expect(t.ouverts).toEqual([`/v10/?e=${ESSAI}`]);
-    expect(t.stockage.get('skanfact.visite')).toBe('exemple');
-    const refus = charger(VRAIE, { ...moi({ id: VRAIE, essai: false }), 'POST /v1/entreprises-essai': () => ({ statut: 500 }) });
-    await expect(refus.pont.exemple({ visite: '' })).rejects.toThrow();
-    expect(refus.stockage.has('skanfact.visite')).toBe(false);
-    expect(refus.ouverts).toEqual([]);
-  });
-
-  it('l\'entreprise d\'essai déjà remplie ne se remplit pas deux fois', async () => {
+  it('l\'exemple déjà là s\'ouvre tel quel : rien ne part vers sa préparation', async () => {
     const t = charger(ESSAI, moi({ id: ESSAI, essai: true }), { demo: true });
     expect(await t.pont.exemple({ visite: 'decouvrir' })).toEqual({ pret: true });
-    expect(versements(t.appels)).toEqual([]);
-    expect(t.etat.recharges).toBe(0);
+    expect(t.ouverts).toEqual([]);
+    expect(t.appels).toEqual([]);
   });
 
-  it('encore vide, le serveur la remplit derrière une fenêtre d\'attente, puis la page se rouvre sur la visite demandée ; un conflit se redemande une fois', async () => {
-    let n = 0;
-    const t = charger(ESSAI, { ...moi({ id: ESSAI, essai: true }), [`POST /v1/entreprises/${ESSAI}/exemple`]: () => (++n === 1
-      ? { statut: 409, corps: { motif: 'Quelqu\'un d\'autre vient de modifier ce dossier : rien n\'a été enregistré.' } }
-      : { statut: 200, corps: { deja: false, pieces: 640 } }) });
-    let fenetres = 0;
-    expect(await t.pont.exemple({ visite: 'decouvrir', attendre: () => { fenetres++; return () => undefined; } })).toEqual({});
-    expect(versements(t.appels)).toEqual([`POST /v1/entreprises/${ESSAI}/exemple`, `POST /v1/entreprises/${ESSAI}/exemple`]);
-    expect(fenetres).toBe(1);
-    expect(t.etat.recharges).toBe(1);
-    expect(t.stockage.get('skanfact.visite')).toBe('decouvrir');
-  });
-
-  // Vu sur le serveur d'essai le 05/10/2026 : le versement prend une minute, un relais a coupé la réponse
-  // (« upstream request timeout »), et la fenêtre a montré « Unexpected token 'u'… is not valid JSON ». Le serveur, lui,
-  // avait tout versé.
-  it('une réponse coupée en route : la page redemande, le serveur a fini, et elle s\'ouvre sur la visite ; jamais le texte du relais', async () => {
-    let n = 0;
-    const t = charger(ESSAI, { ...moi({ id: ESSAI, essai: true }), [`POST /v1/entreprises/${ESSAI}/exemple`]: () => (++n === 1
-      ? { statut: 504, texte: 'upstream request timeout' }
-      : { statut: 200, corps: { deja: true, pieces: 0 } }) });
-    expect(await t.pont.exemple({ visite: 'decouvrir', attendre: () => () => undefined })).toEqual({});
-    expect(versements(t.appels)).toHaveLength(2);
-    expect(t.etat.recharges).toBe(1);
-    expect(t.stockage.get('skanfact.visite')).toBe('decouvrir');
-  });
-
-  it('coupée à chaque fois : une phrase qui dit quoi faire, la fenêtre d\'attente fermée, rien ne se rouvre', async () => {
-    const t = charger(ESSAI, { ...moi({ id: ESSAI, essai: true }), [`POST /v1/entreprises/${ESSAI}/exemple`]: () => ({ statut: 502, texte: '<html><body>502 Bad Gateway</body></html>' }) });
-    let fermee = 0;
-    expect(await t.pont.exemple({ visite: 'decouvrir', attendre: () => () => { fermee++; } }))
-      .toEqual({ motif: 'La connexion au serveur a coupé avant la fin : rouvre la page dans une minute ; si l\'exemple n\'y est pas, recommence.' });
-    expect(versements(t.appels)).toHaveLength(5);
-    expect(fermee).toBe(1);
-    expect(t.etat.recharges).toBe(0);
+  it('ailleurs, l\'exemple part vers l\'écran qui le prépare, la visite dans son adresse : rien ne se crée ni ne se verse d\'ici', async () => {
+    const t = charger(VRAIE, { ...moi({ id: VRAIE, essai: false }), 'POST /v1/entreprises-essai': () => ({ statut: 201, corps: { id: ESSAI } }) });
+    expect(await t.pont.exemple({ visite: 'decouvrir' })).toEqual({});
+    expect(await t.pont.exemple({ visite: '' })).toEqual({});
+    expect(t.ouverts).toEqual(['/?exemple=decouvrir', '/?exemple=exemple']);
+    expect(t.appels).toEqual([]);
+    // La visite voyage dans l'adresse : rien n'attend la page suivante si la préparation n'aboutit pas.
     expect(t.stockage.has('skanfact.visite')).toBe(false);
-  }, 20_000);
+  });
+
+  it('l\'entreprise d\'essai encore vide repart vers sa préparation, la visite demandée avec elle ; jamais un accueil vide', async () => {
+    const t = charger(ESSAI, { ...moi({ id: ESSAI, essai: true }), ...dossier(ESSAI, [fiche]) });
+    t.stockage.set('skanfact.visite', 'decouvrir');
+    const ouverte = t.pont.loadData().then(() => 'ouverte');
+    expect(await Promise.race([ouverte, unInstant().then(() => 'en attente')])).toBe('en attente');
+    expect(t.ouverts).toEqual(['remplace /?exemple=decouvrir']);
+    expect(t.stockage.has('skanfact.visite')).toBe(false);
+    // Sans visite demandée : l'exemple seul.
+    const seule = charger(ESSAI, { ...moi({ id: ESSAI, essai: true }), ...dossier(ESSAI, [fiche]) });
+    void seule.pont.loadData();
+    await unInstant();
+    expect(seule.ouverts).toEqual(['remplace /?exemple=exemple']);
+  });
+
+  it('l\'entreprise d\'essai qui a ses propres pièces s\'ouvre telle quelle ; une vraie entreprise au travail ne fait pas lire le compte', async () => {
+    const essayee = charger(ESSAI, { ...moi({ id: ESSAI, essai: true }), ...dossier(ESSAI, [fiche, unDevis]) });
+    expect((await essayee.pont.loadData()).data.documents).toHaveLength(1);
+    expect(essayee.ouverts).toEqual([]);
+    const vraie = charger(VRAIE, { ...moi({ id: VRAIE, essai: false }), ...dossier(VRAIE, [fiche, unDevis]) });
+    await vraie.pont.loadData();
+    expect(vraie.ouverts).toEqual([]);
+    expect(lusDuCompte(vraie.appels)).toBe(0);
+    // Une vraie entreprise neuve (sans pièce) se lit au compte, et s'ouvre.
+    const neuve = charger(VRAIE, { ...moi({ id: VRAIE, essai: false }), ...dossier(VRAIE, [fiche]) });
+    await neuve.pont.loadData();
+    expect(neuve.ouverts).toEqual([]);
+    expect(lusDuCompte(neuve.appels)).toBe(1);
+  });
+
+  it('le bandeau de l\'exemple sait s\'il y a une vraie entreprise', async () => {
+    const seul = charger(ESSAI, { ...moi({ id: ESSAI, essai: true }), ...dossier(ESSAI, [fiche, exemple, unDevis]) });
+    expect(seul.pont.aUneVraieEntreprise()).toBe(null);
+    await seul.pont.loadData();
+    expect(seul.pont.aUneVraieEntreprise()).toBe(false);
+    expect(seul.ouverts).toEqual([]);
+    const avec = charger(ESSAI, { ...moi({ id: ESSAI, essai: true }, { id: VRAIE, essai: false }), ...dossier(ESSAI, [fiche, exemple, unDevis]) });
+    await avec.pont.loadData();
+    expect(avec.pont.aUneVraieEntreprise()).toBe(true);
+  });
+
+  it('quitter l\'exemple sans vraie entreprise : la page qui la crée, le chemin du retour et la visite dans son adresse ; rien n\'attend avant qu\'elle soit créée', async () => {
+    const t = charger(ESSAI, moi({ id: ESSAI, essai: true }));
+    expect(await t.pont.quitterExemple({ visite: 'premiers-pas' })).toEqual({});
+    expect(t.ouverts).toEqual([`/?entreprise=exemple&retour=${ESSAI}&visite=premiers-pas`]);
+    expect(t.stockage.has('skanfact.visite')).toBe(false);
+    expect(t.stockage.has('skanfact.assistant')).toBe(false);
+    const sans = charger(ESSAI, moi({ id: ESSAI, essai: true }));
+    await sans.pont.quitterExemple({});
+    expect(sans.ouverts).toEqual([`/?entreprise=exemple&retour=${ESSAI}`]);
+  });
+
+  it('quitter l\'exemple ouvre la vraie entreprise, la visite avec elle', async () => {
+    const t = charger(ESSAI, moi({ id: ESSAI, essai: true }, { id: VRAIE, essai: false }));
+    expect(await t.pont.quitterExemple({ visite: 'premiers-pas' })).toEqual({});
+    expect(t.ouverts).toEqual([`/v10/?e=${VRAIE}`]);
+    expect(t.stockage.get('skanfact.visite')).toBe('premiers-pas');
+  });
+
+  it('« Nouvelle entreprise… » mène à la page qui la crée, avec le chemin du retour', () => {
+    const t = charger(VRAIE, {});
+    t.pont.nouvelleEntreprise();
+    expect(t.ouverts).toEqual([`/?entreprise=menu&retour=${VRAIE}`]);
+  });
+
+  it('le menu dit laquelle est l\'entreprise d\'essai ; les premiers pas, si l\'entreprise ouverte en est une ; le compte se lit une fois pour un même instant', async () => {
+    const routes = { ...moi({ id: ESSAI, essai: true }, { id: VRAIE, essai: false }),
+      [`GET /v1/entreprises/${ESSAI}/mandat`]: () => ({ statut: 200, corps: { mandat: null } }),
+      [`GET /v1/entreprises/${VRAIE}/mandat`]: () => ({ statut: 200, corps: { mandat: null } }) };
+    const t = charger(ESSAI, routes);
+    const [liste, etat, courriel] = await Promise.all([t.pont.listDossiers(), t.pont.etatDuDemarrage(), t.pont.courrielDuCompte()]);
+    expect(liste.dossiers.map((d) => [d.id, d.essai])).toEqual([[ESSAI, true], [VRAIE, false]]);
+    expect(etat.essai).toBe(true);
+    expect(courriel).toBe('nadia@exemple.tn');
+    expect(lusDuCompte(t.appels)).toBe(1);
+    expect((await charger(VRAIE, routes).pont.etatDuDemarrage()).essai).toBe(false);
+  });
+
+  it('une lecture du compte qui a échoué ne se garde pas : le geste suivant redemande', async () => {
+    let n = 0;
+    const t = charger(VRAIE, { 'GET /v1/moi': () => (++n === 1 ? { statut: 504, texte: 'upstream request timeout' } : { statut: 200, corps: { email: 'nadia@exemple.tn', entreprises: [] } }) });
+    await expect(t.pont.courrielDuCompte()).rejects.toThrow('Le serveur n\'a pas répondu à temps');
+    expect(await t.pont.courrielDuCompte()).toBe('nadia@exemple.tn');
+    expect(lusDuCompte(t.appels)).toBe(2);
+  });
 
   it('une réponse qui ne vient pas du serveur ne s\'affiche jamais telle quelle, par l\'entreprise comme par le compte', async () => {
     const coupe = 'Le serveur n\'a pas répondu à temps : réessaie dans un instant.';
@@ -148,46 +204,14 @@ describe('l\'exemple et la vraie entreprise, au point de contact', () => {
     await expect(refus.pont.accords()).rejects.toThrow('Ton rôle ne permet pas de voir les demandes d\'accord.');
   });
 
-  it('un refus se lit en entier, la fenêtre d\'attente se ferme, et rien ne se rouvre', async () => {
-    const motif = 'Ton entreprise d\'essai a déjà tes propres pièces : l\'exemple ne s\'y ajoute pas. Rien n\'a été fait.';
-    const t = charger(ESSAI, { ...moi({ id: ESSAI, essai: true }), [`POST /v1/entreprises/${ESSAI}/exemple`]: () => ({ statut: 403, corps: { motif } }) });
-    let fermee = 0;
-    expect(await t.pont.exemple({ visite: 'decouvrir', attendre: () => () => { fermee++; } })).toEqual({ motif });
-    expect(fermee).toBe(1);
-    expect(t.etat.recharges).toBe(0);
-    expect(t.stockage.has('skanfact.visite')).toBe(false);
-  });
-
-  it('quitter l\'exemple sans vraie entreprise : son nom d\'abord ; la visite part avec l\'entreprise créée, jamais avant', async () => {
-    const t = charger(ESSAI, { ...moi({ id: ESSAI, essai: true }), 'POST /v1/entreprises': () => ({ statut: 201, corps: { id: NEUVE } }) });
-    expect(await t.pont.quitterExemple({ visite: 'premiers-pas' })).toEqual({ aCreer: true });
-    // La fenêtre du nom peut se fermer sans créer : rien n'attend la page suivante.
-    expect(t.stockage.has('skanfact.visite')).toBe(false);
-    expect(t.stockage.has('skanfact.assistant')).toBe(false);
-    expect(t.ouverts).toEqual([]);
-    expect(await t.pont.addDossier({ name: 'Quincaillerie El Amen', visite: 'premiers-pas' })).toEqual({ ok: true });
-    expect(t.appels.find((a) => a.cle === 'POST /v1/entreprises')?.corps).toEqual({ raisonSociale: 'Quincaillerie El Amen' });
-    expect(t.stockage.get('skanfact.visite')).toBe('premiers-pas');
-    // L'entreprise créée ouvre l'assistant de démarrage (pour elle seule), puis la visite, une fois l'assistant fini.
-    expect(t.stockage.get('skanfact.assistant')).toBe(NEUVE);
-    expect(t.ouverts).toEqual([`/v10/?e=${NEUVE}`]);
-  });
-
   it('l\'assistant de démarrage s\'ouvre dans l\'entreprise qui l\'a demandé, une seule fois, et jamais dans une autre', () => {
-    const neuve = charger(NEUVE, {});
-    neuve.stockage.set('skanfact.assistant', NEUVE);
+    const neuve = charger(VRAIE, {});
+    neuve.stockage.set('skanfact.assistant', VRAIE);
     expect(neuve.pont.assistantDemande()).toBe(true);
     expect(neuve.pont.assistantDemande()).toBe(false);
-    const autre = charger(VRAIE, {});
-    autre.stockage.set('skanfact.assistant', NEUVE);
+    const autre = charger(ESSAI, {});
+    autre.stockage.set('skanfact.assistant', VRAIE);
     expect(autre.pont.assistantDemande()).toBe(false);
     expect(autre.stockage.has('skanfact.assistant')).toBe(false);
-  });
-
-  it('quitter l\'exemple ouvre la vraie entreprise, la visite avec elle', async () => {
-    const t = charger(ESSAI, moi({ id: ESSAI, essai: true }, { id: VRAIE, essai: false }));
-    expect(await t.pont.quitterExemple({ visite: 'premiers-pas' })).toEqual({});
-    expect(t.ouverts).toEqual([`/v10/?e=${VRAIE}`]);
-    expect(t.stockage.get('skanfact.visite')).toBe('premiers-pas');
   });
 });

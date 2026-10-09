@@ -55,25 +55,18 @@ l'exemple (`loadDemo`, adapté dans adaptations.mjs) passe par le point de conta
     if (bridge.exemple) return;
 -- fin
 
-== app.js | « Quitter l'exemple » ouvre ta vraie entreprise ; sans elle encore, on la crée ici
+== app.js | « Quitter l'exemple » ouvre ta vraie entreprise ; sans elle encore, la page qui la crée
 -- avant
   async function demoSortie() {
     let avant = null;
 -- après
   async function demoSortie(visite) {
     // (plateforme) L'exemple vit dans l'entreprise d'essai, à part : le quitter ouvre ta vraie entreprise, et rien ne
-    // s'efface (la v10 remettait une sauvegarde du disque, ou effaçait l'exemple). Sans vraie entreprise encore, on la
-    // crée ici, par son nom, et elle s'ouvre vide ; la visite demandée (« Démarrer dans ma vraie entreprise ») y démarre.
+    // s'efface (la v10 remettait une sauvegarde du disque, ou effaçait l'exemple). Sans vraie entreprise encore, la page
+    // « Ta vraie entreprise » la crée (sa raison sociale, son matricule ; lot onboarding) ; la visite demandée (« Passer à
+    // ma vraie entreprise ») y démarre, après l'assistant.
     if (bridge.quitterExemple) {
-      try {
-        const r = await bridge.quitterExemple({ visite: typeof visite === 'string' ? visite : '' });
-        if (r && r.aCreer) {
-          promptDialog('Ta vraie entreprise', 'Sa raison sociale, telle qu\'elle s\'imprimera sur tes factures', '', async v => {
-            const x = await bridge.addDossier({ name: v, visite: typeof visite === 'string' ? visite : '' });
-            if (!x || !x.ok) toast((x && x.error) || 'L\'entreprise n\'a pas été créée : réessaie.', true);
-          }, 'text', { champ: 'Raison sociale', ok: 'Créer et ouvrir' });
-        }
-      } catch (e) { toast(plainError(e), true); }
+      try { await bridge.quitterExemple({ visite: typeof visite === 'string' ? visite : '' }); } catch (e) { toast(plainError(e), true); }
       return false;
     }
     let avant = null;
@@ -86,11 +79,50 @@ l'exemple (`loadDemo`, adapté dans adaptations.mjs) passe par le point de conta
       if (await demoSortie('premiers-pas')) lancerVisite(visiteParId('premiers-pas'));
 -- fin
 
-== app.js | le bandeau de l'exemple dit ce que fait « Quitter l'exemple » en ligne
+== app.js | sans vraie entreprise encore, le bouton du bandeau de l'exemple la crée, et le dit
+-- avant
+  function htmlBandeauDemo(route) {
+    const court = route !== 'dashboard';
+-- après
+  function htmlBandeauDemo(route) {
+    const court = route !== 'dashboard';
+    // (plateforme, lot onboarding) Le compte n'a pas encore de vraie entreprise : « Quitter l'exemple » mène à la page qui
+    // la crée, et le bouton dit « Créer ma vraie entreprise » (vu sur le serveur d'essai le 09/10/2026 : il disait
+    // « Quitter », et ouvrait une petite fenêtre à un seul champ).
+    const aCreer = !!bridge.aUneVraieEntreprise && bridge.aUneVraieEntreprise() === false;
+-- fin
+
+== app.js | le bandeau de l'exemple dit ce que fait son bouton en ligne
 -- avant
 title="Tes données d'avant l'exemple reviennent ; s'il n'y en avait pas, tu repars d'une entreprise vide">Quitter l'exemple</button>
 -- après
-title="${bridge.quitterExemple ? 'Ta vraie entreprise s\'ouvre ; l\'exemple reste ici, dans ton entreprise d\'essai' : 'Tes données d\'avant l\'exemple reviennent ; s\'il n\'y en avait pas, tu repars d\'une entreprise vide'}">Quitter l'exemple</button>
+title="${!bridge.quitterExemple ? 'Tes données d\'avant l\'exemple reviennent ; s\'il n\'y en avait pas, tu repars d\'une entreprise vide' : aCreer ? 'Sa raison sociale et son matricule fiscal, puis elle s\'ouvre ; l\'exemple reste dans ton entreprise d\'essai' : 'Ta vraie entreprise s\'ouvre ; l\'exemple reste ici, dans ton entreprise d\'essai'}">${aCreer ? 'Créer ma vraie entreprise' : 'Quitter l\'exemple'}</button>
+-- fin
+
+== app.js | le menu des entreprises ne propose pas « Gérer les dossiers… » quand leur panneau n'est pas là (en ligne)
+-- avant
+      <button type="button" id="dm-manage" title="Renommer, retirer de la liste, voir où vivent les fichiers"><span class="dm-mark">⚙</span><span class="dm-nom">Gérer les dossiers…</span></button>`;
+-- après
+      ${(bridge.panneauxAbsents || []).includes('p-dossiers') ? '' : '<button type="button" id="dm-manage" title="Renommer, retirer de la liste, voir où vivent les fichiers"><span class="dm-mark">⚙</span><span class="dm-nom">Gérer les dossiers…</span></button>'}`;
+-- fin
+
+== app.js | … et son geste ne cherche pas un bouton absent
+-- avant
+    $('#dm-manage', m).onclick = () => { fermerDossiers(); allerParametres('donnees', 'p-dossiers'); };
+-- après
+    if ($('#dm-manage', m)) $('#dm-manage', m).onclick = () => { fermerDossiers(); allerParametres('donnees', 'p-dossiers'); };
+-- fin
+
+== app.js | « Nouvelle entreprise… » ouvre la page qui la crée, comme la porte
+-- avant
+  async function nouvelleEntreprise() {
+    if (!await leaveOk()) return;
+-- après
+  async function nouvelleEntreprise() {
+    if (!await leaveOk()) return;
+    // (plateforme, lot onboarding) La page « Une nouvelle entreprise » : sa raison sociale, son matricule, le haut de la
+    // facture qui se dessine pendant la frappe, et le lien qui revient ici ; créée, elle ouvre l'assistant de démarrage.
+    if (bridge.nouvelleEntreprise) { bridge.nouvelleEntreprise(); return; }
 -- fin
 
 ── Les visites (visites.js) ──
@@ -206,11 +238,18 @@ Joué en entier sur l'exemple versé (05/10/2026) : quarante-six bulles, une seu
 panneau n'existe pas en ligne), et cinq qui décrivaient l'application de bureau : l'exemple qui « rend tes données »,
 le paquet du comptable, ses réponses « dans le paquet du mois », sa clôture par fichier, la copie vers une clé USB.
 
-== visites.js | « Quitter l'exemple » ouvre ta vraie entreprise : l'exemple vit à part
+== visites.js | le bouton du bandeau mène à ta vraie entreprise : l'exemple vit à part
 -- avant
 texte: 'Ce bandeau reste en haut de chaque page tant que l\'exemple est chargé. <b>« Quitter l\'exemple »</b> te rend tes vraies données — elles ont été mises de côté.' },
 -- après
-texte: 'Ce bandeau reste en haut de chaque page de l\'exemple. <b>« Quitter l\'exemple »</b> ouvre ta vraie entreprise : l\'exemple vit à part, dans ton entreprise d\'essai, et rien de ce que tu y fais ne la touche.' },
+texte: 'Ce bandeau reste en haut de chaque page de l\'exemple. Son bouton te mène à ta vraie entreprise : <b>« Quitter l\'exemple »</b> l\'ouvre, <b>« Créer ma vraie entreprise »</b> la crée si tu n\'en as pas encore. L\'exemple vit à part, dans ton entreprise d\'essai, et rien de ce que tu y fais ne la touche.' },
+-- fin
+
+== visites.js | la bulle d'aide du bouton du bandeau dit ce qu'il fait en ligne
+-- avant
+  b('#demo-out', "Quitte l'exemple : tes données d'avant reviennent (elles avaient été mises de côté) ; s'il n'y en avait pas, tu repars d'une entreprise vide.");
+-- après
+  b('#demo-out', "Ouvre ta vraie entreprise, ou la page qui la crée si tu n'en as pas encore. L'exemple reste à part, dans ton entreprise d'essai : tu y reviens par le nom de l'entreprise, en haut du menu, qui liste tes entreprises.");
 -- fin
 
 == visites.js | plus de paquet : ton cabinet tient tes livres ici même
@@ -293,4 +332,75 @@ le justificatif joint, le journal de dépannage), et finissaient sur « Je suis 
     chiffre: () => !!security.encrypted
   }).filter(v => !(bridge.visitesAbsentes || []).includes(v.id)));
   const visiteParId = id => visites().find(v => v.id === id) || null;
+-- fin
+
+── Ton comptable, par le mandat (visites.js, app.js) ──
+
+La visite « Relier mon comptable » de la v10 faisait taper son adresse e-mail et importer son fichier d'appairage, pour
+lui envoyer des paquets chiffrés : rien de cela n'existe en ligne. Le propriétaire confie son dossier à son cabinet par le
+code du cabinet (un mandat ; brique 37), dans Comptabilité → Cabinet. La visite « Envoyer le mois à mon comptable » (le
+paquet) n'a plus d'objet : le point de contact la retire de « Guide-moi » (pont.js, `visitesAbsentes`).
+
+== visites.js | « Confier mon dossier à mon comptable » : le code de son cabinet, ce qu'on lui confie, et le geste
+-- avant
+      id: 'relier-comptable', theme: 'compta', type: 'faire', reel: true, duree: '2 min', page: '#/parametres',
+      titre: 'Relier mon comptable',
+      resume: 'Son adresse, et s\'il utilise SkanFact Cabinet, son fichier d\'appairage : tes paquets partent chiffrés pour lui seul.',
+      mots: ['comptable', 'cabinet', 'appairage', 'relier', 'skanpair', 'empreinte', 'adresse'],
+      suite: ['paquet', 'repondre-comptable'],
+      // Relié quand son adresse est ENREGISTRÉE ; et la fin dit ce qui l'est vraiment : l'adresse seule,
+      // ou l'adresse et son fichier d'appairage (10.14.1).
+      preuve: () => !!String((data().company || {}).accountantEmail || '').trim() && parametresEnregistres(),
+      echec: 'L\'adresse de ton comptable n\'est pas enregistrée : sans « Enregistrer » dans la barre en bas de l\'écran, elle n\'est gardée nulle part.',
+      bravo: () => cabinetRelie() ? 'Ton comptable est relié' : 'Ton comptable a son adresse',
+      conclusion: () => cabinetRelie()
+        ? 'Chaque mois, Comptabilité → Cabinet → « Fabriquer le paquet » lui prépare son envoi, chiffré pour lui seul — la visite « Envoyer le mois à mon comptable » te le montre. Ses questions et sa clôture te reviendront, signées.'
+        : 'Tes journaux et le paquet du mois partiront à cette adresse. S\'il utilise SkanFact Cabinet, demande-lui son fichier d\'appairage : tes paquets seront alors chiffrés pour lui seul, et ses questions te reviendront sur la bonne pièce.',
+      etapes: [
+        { page: '#/parametres', avant: onglet('#set-tabs', 'envois'), cible: '#view input[name="accountantEmail"]', cote: 'droite', faire: 'valeur', bouton: 'Suivant',
+          titre: 'Son adresse', texte: 'C\'est là que partiront tes journaux et le paquet du mois.', action: 'Tape l\'adresse de ton comptable.', essai: { taper: 'comptable@cabinet-exemple.tn' } },
+        { page: '#/parametres', si: () => !parametresEnregistres(), cible: '#save-bar #save', cote: 'dessus', faire: 'clic',
+          titre: 'Enregistrer', texte: 'Tant que tu n\'as pas enregistré, l\'adresse n\'est gardée nulle part : la barre en bas de l\'écran le rappelle.',
+          action: 'Clique sur <b>« Enregistrer »</b>, dans la barre en bas de l\'écran.', fait: parametresEnregistres, essai: { clic: true } },
+        { page: '#/parametres', cible: '#p-cabinet', cote: 'dessus', titre: 'S\'il utilise SkanFact Cabinet',
+          texte: 'SkanFact Cabinet est l\'application de ton comptable, gratuite pour les dossiers de ses clients sur SkanFact. Demande-lui son <b>fichier d\'appairage</b> : il l\'exporte depuis son application.' },
+        { page: '#/parametres', si: () => !cabinetRelie(), cible: '#cab-import', cote: 'dessous', faire: 'clic', facultatif: true,
+          titre: 'Importer son fichier', texte: 'Rien de secret dedans : c\'est sa clé publique. Tes paquets seront chiffrés pour lui seul, sans mot de passe à échanger.',
+          action: 'Clique sur {bouton} et choisis le fichier qu\'il t\'a envoyé.', fait: cabinetRelie, essai: { clic: true } },
+        { page: '#/parametres', si: cabinetRelie, cible: '#p-cabinet', cote: 'dessus',
+          titre: 'Vérifie l\'empreinte de vive voix', texte: 'Lis-lui ses vingt caractères au téléphone : s\'il lit les mêmes, c\'est bien sa clé, et pas celle de quelqu\'un d\'autre.' }
+      ]
+-- après
+      // (plateforme) Plus d'adresse ni de fichier d'appairage : le propriétaire confie son dossier à son cabinet par le code
+      // du cabinet (un mandat, que l'associé accepte ; brique 37, docs/cabinet.md), dans Comptabilité → Cabinet (pont.js,
+      // `dessinerMandat`). Confié quand le panneau dit à qui : son bouton « Retirer ma proposition » ou « Arrêter le
+      // mandat… » est là. Le cabinet voit le dossier une fois qu'il a accepté.
+      id: 'relier-comptable', theme: 'compta', type: 'faire', reel: true, duree: '2 min', page: '#/compta',
+      titre: 'Confier mon dossier à mon comptable',
+      resume: 'Le code de son cabinet, et ce que tu lui confies : il lit tes écritures à jour ici même, et valide tes mois.',
+      mots: ['comptable', 'cabinet', 'mandat', 'confier', 'relier', 'inviter', 'code'],
+      suite: ['repondre-comptable'],
+      preuve: () => !!$('#mandat-arreter'),
+      echec: 'Ton dossier n\'est pas confié : sans « Confier mon dossier », ton cabinet ne voit rien.',
+      bravo: 'Ton dossier est confié',
+      conclusion: 'Ton cabinet le voit dès qu\'il a accepté : il lira tes écritures à jour et validera tes mois. Ses questions arriveront dans cet onglet, en face de la pièce qu\'elles visent — « Répondre aux questions de mon comptable » te montre comment y répondre.',
+      etapes: [
+        { page: '#/compta', avant: onglet('#c-tabs', 'cabinet'), cible: '#p-cabinet-mandat', cote: 'dessus', titre: 'Ton cabinet comptable',
+          texte: 'Ton comptable tient tes livres <b>ici même</b> : il lit tes écritures à jour, et valide tes mois. Tu lui confies ton entreprise une fois ; ensuite, rien à lui envoyer.' },
+        { page: '#/compta', si: () => !!$('#mandat-code'), cible: '#mandat-code', cote: 'droite', faire: 'valeur', bouton: 'Suivant',
+          titre: 'Le code de son cabinet', texte: 'Ton comptable le lit dans SkanFact Cabinet, dans Réglages → Mon cabinet : demande-le-lui.',
+          action: 'Tape le code de son cabinet.' },
+        { page: '#/compta', si: () => !!$('#mandat-perimetre'), cible: '#mandat-perimetre', cote: 'droite', titre: 'Ce que tu lui confies',
+          texte: 'Coché d\'office : la comptabilité, les déclarations et la saisie de tes achats ; la paie, seulement si tu la lui confies. Il ne touche jamais à tes factures, à ta caisse ni à ton équipe.' },
+        { page: '#/compta', si: () => !!$('#mandat-confier'), cible: '#mandat-confier', cote: 'dessous', faire: 'clic',
+          titre: 'Confier mon dossier', texte: 'Ton cabinet reçoit ta proposition : il ne voit ton dossier qu\'une fois qu\'il l\'a acceptée.',
+          action: 'Clique sur {bouton}.', fait: () => !!$('#mandat-arreter') }
+      ]
+-- fin
+
+== app.js | « Me guider » sur l'étape « Invite ton comptable » des premiers pas lance la visite du mandat
+-- avant
+    envoiDevis: 'envoyer', factures: 'devis-facture', sauvegarde: 'sauvegarde', decouverte: 'decouvrir', comptable: 'relier-comptable' };
+-- après
+    envoiDevis: 'envoyer', factures: 'devis-facture', sauvegarde: 'sauvegarde', decouverte: 'decouvrir', comptable: 'relier-comptable', mandat: 'relier-comptable' };
 -- fin

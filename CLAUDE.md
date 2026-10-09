@@ -391,6 +391,11 @@
     `0077`), l'entreprise, l'activité, le RIB si l'on attend un virement, le code du téléphone (recommandé : il ne
     retient pas le panneau), le premier client, le premier devis ; facultatifs, la facture à son image et le cabinet.
     Ce qui vit sur le serveur arrive par `etatDuDemarrage`, relu à chaque retour sur l'accueil.
+    **L'exemple puis la vraie entreprise** (même lot ; `ExemplePrepare.tsx`, `EntrepriseNeuve.tsx`, `docs/exemple.md`) :
+    « On prépare l'exemple » (`/?exemple=<visite>`) crée et remplit l'entreprise d'essai en disant où il en est (une
+    entreprise d'essai vide y repart d'elle-même) ; « Ta vraie entreprise » et « Une nouvelle entreprise »
+    (`/?entreprise=exemple|menu&retour=…`) les créent, la visite demandée voyageant dans l'adresse ; le bandeau de
+    l'exemple dit « Créer ma vraie entreprise » tant qu'il n'y en a pas ; « Le groupe » attend deux vraies sociétés.
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

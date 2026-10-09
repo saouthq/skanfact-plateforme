@@ -94,6 +94,9 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
   async function ouvrir(c: { jeton: string; ent: string }, hash: string, e: Ecran) {
     const cx = await navigateur.newContext({ viewport: { width: e.largeur, height: e.hauteur }, deviceScaleFactor: 1, locale: 'fr-FR', timezoneId: 'Africa/Tunis', isMobile: e.doigt, hasTouch: e.doigt });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, c.jeton);
+    // L'entreprise d'essai sert ici d'entreprise de travail (ses tiers d'essai, sans l'exemple de cinq ans) : elle s'ouvre
+    // telle quelle, comme après « Ouvrir telle quelle » ; vide de pièces, elle partirait vers « On prépare l'exemple ».
+    await cx.addInitScript(() => { const e = new URLSearchParams(location.search).get('e'); if (e) sessionStorage.setItem('skanfact.essai_tel_quel', e); });
     const p = await cx.newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (x) => erreurs.push(x.message));

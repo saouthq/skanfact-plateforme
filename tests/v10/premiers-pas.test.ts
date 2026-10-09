@@ -6,7 +6,7 @@
 //   - ce qui manque à la fiche se nomme (sans matricule, la facture n'est pas conforme) ;
 //   - qui facture sans devis a commencé aussi : « Ta première facture » ;
 //   - le panneau quitte l'accueil quand le métier est fait : ni le code recommandé, ni une étape facultative ne le
-//     retiennent ; jamais dans l'entreprise d'essai, qui a déjà tout.
+//     retiennent ; jamais dans l'entreprise d'essai, qui a déjà tout (même essayée avant l'exemple).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,7 +15,7 @@ import { describe, expect, it } from 'vitest';
 
 type Etape = { id: string; titre: string; fait: boolean; action: string | null; quoi: string; badge?: string; facultatif?: boolean; attente?: string };
 type Pas = { etapes: Etape[]; faits: number; total: number; fini: boolean; demarrage: boolean; suivante: Etape | null };
-type Etat = { compte?: { adresseVerifiee: boolean; courriel: boolean; codeActif: boolean } | null; mandat?: string | null };
+type Etat = { compte?: { adresseVerifiee: boolean; courriel: boolean; codeActif: boolean } | null; mandat?: string | null; essai?: boolean };
 
 const module = { exports: {} as unknown };
 const core = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/v10/core.js'), 'utf8');
@@ -87,5 +87,16 @@ describe('les premiers pas de la plateforme', () => {
     expect(p.demarrage).toBe(false);
     const exemple = pas({ demo: true, company: { ...conseil, activity: '' }, clients: [], documents: [] }, { compte });
     expect([exemple.demarrage, exemple.suivante]).toEqual([false, null]);
+  });
+
+  // Lot onboarding (09/10/2026) : une entreprise d'essai essayée avant l'exemple (ses propres pièces, sans le jeu de la
+  // v10) n'est pas la vraie entreprise : ses premiers pas n'occupent pas l'accueil, et rien n'y est « à faire ensuite ».
+  it('jamais dans une entreprise d\'essai, même sans l\'exemple ; une vraie entreprise au même point, si', () => {
+    const debut = { company: { ...conseil, activity: '' }, clients: [], documents: [] };
+    const essai = pas(debut, { compte, mandat: null, essai: true });
+    expect([essai.demarrage, essai.suivante]).toEqual([false, null]);
+    const vraie = pas(debut, { compte, mandat: null, essai: false });
+    expect(vraie.demarrage).toBe(true);
+    expect(vraie.suivante?.id).toBe('activite');
   });
 });

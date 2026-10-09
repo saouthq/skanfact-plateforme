@@ -371,6 +371,35 @@ body.dark .ent-secours { background: var(--e-nuit-2); }
 @keyframes ent-tourne { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .ent-ouverture li.attend .rond { animation: none; } }
 
+/* « On prépare l'exemple » (lot onboarding) : l'écran de l'ouverture, avec ce que chaque ligne fait, et la suite. */
+.ent-exemple .ent-boussole { display: flex; align-items: center; justify-content: center; }
+.ent-exemple .ent-boussole svg { width: 34px; height: 34px; }
+.ent-exemple-titre { display: flex; flex-direction: column; gap: 10px; }
+.ent-exemple-titre h1 { text-wrap: balance; }
+.ent-exemple-titre p { margin: 0; font-size: 17px; line-height: 1.5; color: var(--e-nuit-gris); }
+.ent-exemple li .txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ent-exemple li .detail { font-size: 13px; font-weight: 400; line-height: 1.45; color: var(--e-nuit-gris); }
+.ent-exemple li.attend .txt b { color: #fff; }
+.ent-exemple li.avenir { color: #7e9c97; }
+.ent-exemple li.avenir .rond { background: transparent; border: 2px solid #3e6862; }
+.ent-exemple-attente, .ent-exemple-pied { margin: 0; font-size: 14px; line-height: 1.5; color: var(--e-nuit-gris); }
+.ent-exemple-cta {
+  width: 100%; min-height: 56px; border: 0; border-radius: 14px; background: var(--e-menthe); color: var(--e-nuit); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 10px; font: inherit; font-size: 17px; font-weight: 700;
+}
+.ent-exemple-cta svg { width: 18px; height: 18px; }
+@media (hover: hover) { .ent-exemple-cta:hover { background: #b5f0e8; } }
+.ent-exemple-cta:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.ent-exemple-refus { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+.ent-exemple-refus p { margin: 0; padding: 14px 16px; border-radius: 14px; background: rgba(255, 255, 255, .08); color: #fff; font-size: 15px; line-height: 1.5; text-align: start; }
+.ent-exemple-gestes { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+/* « Ta vraie entreprise » : l'exemple reste dans le menu, dit au-dessus du titre. */
+.ent-pastille {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px;
+  background: var(--e-doux); color: var(--e-lien); font-size: 14px; font-weight: 600; line-height: 1.4;
+}
+.ent-pastille svg { flex: none; width: 16px; height: 16px; }
+
 /* ── Au téléphone ─────────────────────────────────────────────────────────────────────────────────────────────── */
 @media (max-width: 860px) {
   .ent-vitrine { flex-basis: 100%; min-height: 0; padding: 18px 20px; gap: 12px; }

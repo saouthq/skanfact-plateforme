@@ -565,6 +565,14 @@
   // L'entreprise ne s'ouvre plus à cette personne (retirée de son équipe, brique 76 ; 03 D8) : ce qui
   // l'attendait est remis, puis ce que le poste en gardait s'efface — elle seule —, et le bandeau le dit.
   async function plusOuverte() {
+    // Ce poste n'en a rien (ni copie, ni changement en attente) : une adresse venue d'ailleurs, l'entreprise d'un autre
+    // compte. Rien à remettre ni à effacer, et rien ne dit qu'on en a été retiré (vu le 09/10/2026 : « tu as été retiré
+    // de son équipe », pour une entreprise que ce compte n'avait jamais eue).
+    const [copie, attente] = await Promise.all([poste.lireCopie(ent).catch(() => null), poste.lireAttente(ent).catch(() => null)]);
+    if (!copie && !attente) {
+      poste.conclure('Cette entreprise ne t\'est pas ouverte : ton compte ne fait pas partie de son équipe, ou elle n\'existe pas.');
+      return await new Promise(() => { /* rien ne s'ouvre */ });
+    }
     const recus = await remettre();
     if (recus === null) {
       poste.sansCopie('Cette entreprise ne t\'est plus ouverte. Ce que tu y avais enregistré sans réseau n\'a pas encore pu être remis au serveur : rien n\'est effacé tant qu\'il ne l\'a pas reçu.');
@@ -642,8 +650,37 @@
   // jour, la licence, un dossier partagé entre deux ordinateurs, la clôture du comptable reçue en fichier), et celles
   // d'un geste pas encore en ligne, qui reviennent avec leur brique (le justificatif joint, le signalement avec le
   // journal de l'ordinateur).
-  const VISITES_SANS_OBJET = ['sauvegarde', 'restaurer', 'fichiers', 'mise-a-jour', 'licence', 'partager', 'recevoir-cloture'];
+  // Le paquet du mois n'existe plus : le cabinet lit les livres ici même (« Confier mon dossier à mon comptable »,
+  // adaptée dans web/v10/exemple.txt).
+  const VISITES_SANS_OBJET = ['sauvegarde', 'restaurer', 'fichiers', 'mise-a-jour', 'licence', 'partager', 'recevoir-cloture', 'paquet'];
   const VISITES_PAS_ENCORE = ['justificatif', 'signaler'];
+
+  // ── L'entreprise d'essai, vue à l'ouverture (lot onboarding ; docs/entree.md) ───────────────────
+  // Remplie de l'exemple, son bandeau dit « Créer ma vraie entreprise » tant que le compte n'en a pas (`aUneVraieEntreprise`).
+  // Encore vide (sa préparation coupée, un onglet fermé pendant la minute du versement), elle ne s'ouvre pas sur un
+  // accueil vide : l'écran « On prépare l'exemple » (ExemplePrepare.tsx) la remplit d'abord, la visite demandée avec elle.
+  // Une entreprise d'essai qui a ses propres pièces (d'avant l'exemple) s'ouvre telle quelle : le serveur n'y verse rien ;
+  // celle que cet écran a ouverte « telle quelle » après un refus (`skanfact.essai_tel_quel`) aussi, le temps de l'onglet.
+  // Le compte n'est lu que pour une entreprise sans pièces ou pour l'exemple : jamais pour une vraie entreprise au travail.
+  const PIECES_A_SOI = ['documents', 'purchases', 'payslips', 'supplierOrders', 'receptions'];
+  /** @type {boolean | null} */
+  let vraieEntreprise = null;
+  /** @param {Record<string, unknown>} data */
+  async function regarderLEssai(data) {
+    const demo = data.demo === true;
+    if (!demo && PIECES_A_SOI.some((k) => Array.isArray(data[k]) && /** @type {unknown[]} */ (data[k]).length)) return;
+    /** @type {any} */ let moi;
+    try { moi = await lireMoi(); } catch { return; }
+    const ici = (moi.entreprises || []).find((/** @type {any} */ e) => e.id === ent);
+    if (!ici || !ici.essai) return;
+    vraieEntreprise = moi.entreprises.some((/** @type {any} */ e) => !e.essai && !e.parCabinet);
+    if (demo) return;
+    try { if (sessionStorage.getItem('skanfact.essai_tel_quel') === ent) return; } catch { /* sans stockage : la préparation */ }
+    let visite = '';
+    try { visite = sessionStorage.getItem(VISITE_APRES) || ''; sessionStorage.removeItem(VISITE_APRES); } catch { /* sans stockage : l'exemple seul */ }
+    location.replace(`/?exemple=${encodeURIComponent(visite || 'exemple')}`);
+    await new Promise(() => { /* la page part */ });
+  }
 
   // ── Ton cabinet comptable (brique 37 ; docs/cabinet.md) ─────────────────────────────────────
   // Plus d'appairage ni de paquets : le propriétaire confie son dossier à son cabinet en tapant le
@@ -676,7 +713,7 @@
       poser(`<p>Ton cabinet comptable tient tes livres ici même : il lit tes écritures à jour, et valide tes mois. Rien ne lui est envoyé : il n'y a plus de paquet ni de fichier.</p>
         <label class="field mt">Le code de ton cabinet<input type="text" id="mandat-code" maxlength="10" autocomplete="off" spellcheck="false" style="max-width:220px"></label>
         <p class="small muted">Ton comptable le lit dans SkanFact Cabinet (Réglages → Mon cabinet). Ce que tu lui confies :</p>
-        ${PERIMETRES.map(([k, l, d]) => `<label class="check"><input type="checkbox" data-perimetre="${k}"${k === 'paie' ? '' : ' checked'}> ${esc(l)} <span class="muted small">— ${esc(d)}</span></label>`).join('')}
+        <div id="mandat-perimetre">${PERIMETRES.map(([k, l, d]) => `<label class="check"><input type="checkbox" data-perimetre="${k}"${k === 'paie' ? '' : ' checked'}> ${esc(l)} <span class="muted small">— ${esc(d)}</span></label>`).join('')}</div>
         <p class="small" role="alert"></p>
         <button type="button" class="btn btn-primary mt" id="mandat-confier">Confier mon dossier</button>`);
       const b = /** @type {HTMLElement} */ (el.querySelector('#mandat-confier'));
@@ -741,6 +778,7 @@
         // Les tickets encaissés sans réseau partent d'abord, dans l'ordre ; ceux qui attendent encore se montrent.
         if (fileTickets.length) await remettreTickets();
         const data = avecTicketsEnAttente(attente ? await rejouer(attente.contenu.data) : await relire());
+        await regarderLEssai(data);
         if (fileTickets.length) annoncerAttente();
         // La page reçoit ce dossier : elle a chacun de ses objets (brique 112).
         adopter();
@@ -908,7 +946,7 @@
     groupe: async () => appelCompte('GET', '/moi/groupe'),
     listDossiers: async () => {
       let moi;
-      try { moi = await appelCompte('GET', '/moi'); } catch (e) {
+      try { moi = await lireMoi(); } catch (e) {
         // Une session ouverte par un code de caisse (brique 123) ne sert qu'à cette caisse : l'entreprise ouverte seulement.
         if (/** @type {any} */ (e).bouton === 'session_de_caisse') {
           const nom = String((((/** @type {any} */ (window).__data) || {}).company || {}).name || '');
@@ -921,24 +959,18 @@
         return { dossiers: [{ id: ent, name: nom, shared: false, dir: 'Copie de ce poste' }], current: ent, device: { name: '' }, retires: [] };
       }
       return {
-        // Celles que la personne voit par son cabinet s'ouvrent dans le Cabinet, pas ici.
+        // Celles que la personne voit par son cabinet s'ouvrent dans le Cabinet, pas ici. `essai` : l'entreprise d'essai
+        // (l'exemple), qui ne compte pas dans le groupe.
         dossiers: moi.entreprises.filter((/** @type {any} */ e) => !e.parCabinet)
-          .map((/** @type {any} */ e) => ({ id: e.id, name: e.raison_sociale, shared: false, dir: 'Serveur SkanFact' })),
+          .map((/** @type {any} */ e) => ({ id: e.id, name: e.raison_sociale, shared: false, dir: 'Serveur SkanFact', essai: !!e.essai })),
         current: ent, device: { name: '' }, retires: [],
       };
     },
     switchDossier: async (/** @type {string} */ id) => { ouvrirEntreprise(id); return { ok: true }; },
-    // `visite` : celle qui démarre dans l'entreprise créée (« Passer à ma vraie entreprise », à la fin de la découverte).
-    // L'entreprise créée ici ouvre l'assistant de démarrage, comme celle de la porte (lot onboarding, `assistantDemande`).
-    addDossier: async (/** @type {{ name?: string, visite?: string }} */ o) => {
-      const nom = String((o && o.name) || '').trim();
-      if (!nom) return { ok: false, error: 'Donne un nom à cette entreprise.' };
-      const r = await appelCompte('POST', '/entreprises', { raisonSociale: nom });
-      if (o && typeof o.visite === 'string' && o.visite) visiteApres(o.visite);
-      assistantApres(r.id);
-      ouvrirEntreprise(r.id);
-      return { ok: true };
-    },
+    // « Nouvelle entreprise… » (le menu des entreprises) : la page « Une nouvelle entreprise » (EntrepriseNeuve.tsx), la
+    // même que « Ton entreprise » de la porte (sa raison sociale, son matricule, le haut de la facture qui se dessine), avec
+    // le lien qui revient ici. Créée, elle ouvre l'assistant de démarrage (lot onboarding ; docs/entree.md).
+    nouvelleEntreprise: () => { location.assign(`/?entreprise=menu&retour=${encodeURIComponent(ent)}`); },
     // Le nom d'une entreprise est sa raison sociale : il se change dans Paramètres → Société.
     renameDossier: async () => ({ ok: true }),
     forgetDossier: pasEncore('Retirer une entreprise de la liste'),
@@ -1083,45 +1115,14 @@
     // plateforme, l'exemple est l'entreprise d'essai, à part : jamais une pièce inventée dans une
     // vraie entreprise (adaptation de `loadDemo`). La première fois, le serveur la remplit du jeu de la v10
     // (cinq ans, ses factures émises par lui : serveur/v10/exemple.ts ; retour de Skander, 05/10/2026 : « il me dit
-    // tu es déjà dans l'exemple mais il n'y a rien dessus »). `o.visite` : la visite à lancer une fois l'exemple là
-    // (la découverte) ; `o.attendre()` montre l'attente et rend de quoi la fermer.
-    // Rend { pret } quand l'exemple est l'entreprise ouverte ; sinon la page part vers lui, ou se recharge remplie.
+    // tu es déjà dans l'exemple mais il n'y a rien dessus »). `o.visite` : la visite à lancer une fois l'exemple là.
+    // Rend { pret } quand l'exemple est l'entreprise ouverte. Sinon, l'écran « On prépare l'exemple » (lot onboarding ;
+    // ExemplePrepare.tsx) la crée s'il le faut, la remplit en disant où il en est, puis l'ouvre, la visite avec elle :
+    // plus d'accueil vide sous une fenêtre d'attente d'une minute (vu sur le serveur d'essai le 09/10/2026).
     exemple: async (/** @type {any} */ o) => {
-      const visite = o && typeof o.visite === 'string' ? o.visite : '';
-      const moi = await appelCompte('GET', '/moi');
-      const essai = moi.entreprises.find((/** @type {any} */ e) => e.essai && !e.parCabinet);
-      if (!essai || essai.id !== ent) {
-        // La visite ne se note qu'une fois l'entreprise d'essai là : une création refusée ne laisse rien en attente.
-        const id = essai ? essai.id : (await appelCompte('POST', '/entreprises-essai')).id;
-        visiteApres(visite || 'exemple');
-        ouvrirEntreprise(id);
-        return {};
-      }
       if ((/** @type {any} */ (window).__data || {}).demo === true) return { pret: true };
-      const fin = o && typeof o.attendre === 'function' ? o.attendre() : null;
-      try {
-        // Ce que la page enregistrait (ses réglages de départ, à l'ouverture) part d'abord ; un enregistrement qui croise
-        // quand même le versement le fait refuser (un conflit) : on le redemande une fois, rien n'ayant été écrit.
-        // Le versement prend une minute : un relais peut couper la réponse avant (vu le 05/10/2026). Le serveur, lui, va au
-        // bout ; la même demande attend la fin du versement, puis le trouve fait. Jusqu'à quatre fois.
-        for (let conflits = 0, coupes = 0; ;) {
-          while (enCours) await enCours.catch(() => undefined);
-          try { await appelCompte('POST', `/entreprises/${encodeURIComponent(ent)}/exemple`); break; } catch (e) {
-            const x = /** @type {any} */ (e);
-            if ((x.coupe || x.horsLigne) && ++coupes <= 4) { await new Promise((r) => setTimeout(r, 1500)); continue; }
-            if (x.coupe) throw Object.assign(new Error('La connexion au serveur a coupé avant la fin : rouvre la page dans une minute ; si l\'exemple n\'y est pas, recommence.'), { coupe: true });
-            if (++conflits > 2 || x.statut !== 409) throw e;
-            await new Promise((r) => setTimeout(r, 800));
-          }
-        }
-      } catch (e) {
-        if (typeof fin === 'function') fin();
-        // Hors ligne, l'écran le dit comme ailleurs ; un refus (une entreprise d'essai déjà utilisée) se lit en entier.
-        if (/** @type {any} */ (e).horsLigne) throw e;
-        return { motif: e instanceof Error ? e.message : String(e) };
-      }
-      visiteApres(visite || 'exemple');
-      location.reload();
+      const visite = o && typeof o.visite === 'string' && o.visite ? o.visite : 'exemple';
+      location.assign(`/?exemple=${encodeURIComponent(visite)}`);
       return {};
     },
     // La visite demandée avant d'arriver ici (la porte, « Voir un exemple » d'une autre entreprise, « Quitter l'exemple »),
@@ -1136,28 +1137,52 @@
       try { const v = sessionStorage.getItem(ASSISTANT_APRES); sessionStorage.removeItem(ASSISTANT_APRES); return v === ent; } catch { return false; }
     },
     // L'adresse du compte, que l'assistant propose comme adresse de l'entreprise (« Utiliser … »).
-    courrielDuCompte: async () => String((await appelCompte('GET', '/moi')).email || ''),
+    courrielDuCompte: async () => String((await lireMoi()).email || ''),
     // Ce que les premiers pas lisent sur le serveur (lot onboarding ; plateforme/premiers-pas.js) : l'adresse vérifiée et
-    // le code du téléphone (le compte), et le mandat confié à un cabinet (l'entreprise ; un rôle qui ne le voit pas lit
-    // « aucun »).
+    // le code du téléphone (le compte), le mandat confié à un cabinet (l'entreprise ; un rôle qui ne le voit pas lit
+    // « aucun »), et si l'entreprise ouverte est l'entreprise d'essai (ses premiers pas n'ont pas d'objet).
     etatDuDemarrage: async () => {
-      const [moi, mandat] = await Promise.all([appelCompte('GET', '/moi'), appel('GET', '/mandat').catch(() => null)]);
+      const [moi, mandat] = await Promise.all([lireMoi(), appel('GET', '/mandat').catch(() => null)]);
       const c = (moi && moi.compte) || {};
       const m = mandat && mandat.mandat;
-      return { compte: { adresseVerifiee: !!c.adresseVerifiee, courriel: !!c.courriel, codeActif: !!moi.code_methode }, mandat: m ? String(m.statut || '') : null };
+      const ici = (moi.entreprises || []).find((/** @type {any} */ e) => e.id === ent);
+      return { compte: { adresseVerifiee: !!c.adresseVerifiee, courriel: !!c.courriel, codeActif: !!moi.code_methode }, mandat: m ? String(m.statut || '') : null,
+        essai: !!(ici && ici.essai) };
     },
-    // Quitter l'exemple : ta vraie entreprise s'ouvre (l'exemple reste dans l'entreprise d'essai, rien ne s'efface).
-    // Sans vraie entreprise encore : { aCreer }, et l'écran demande son nom (`addDossier`, qui emporte la visite : une
-    // fenêtre fermée sans créer ne laisse pas une visite en attente pour la page suivante).
+    // Quitter l'exemple : ta vraie entreprise s'ouvre (l'exemple reste dans l'entreprise d'essai, rien ne s'efface), la
+    // visite demandée avec elle. Sans vraie entreprise encore, la page « Ta vraie entreprise » (EntrepriseNeuve.tsx) : sa
+    // raison sociale et son matricule, le lien qui revient à l'exemple ; la visite part avec l'entreprise créée, jamais
+    // avant (vu sur le serveur d'essai le 09/10/2026 : une petite fenêtre à un seul champ, par-dessus l'exemple).
     quitterExemple: async (/** @type {any} */ o) => {
-      const moi = await appelCompte('GET', '/moi');
+      const visite = o && typeof o.visite === 'string' ? o.visite : '';
+      const moi = await lireMoi();
       const vraie = moi.entreprises.find((/** @type {any} */ e) => !e.essai && !e.parCabinet);
-      if (!vraie) return { aCreer: true };
-      if (o && typeof o.visite === 'string' && o.visite) visiteApres(o.visite);
+      if (!vraie) {
+        location.assign(`/?entreprise=exemple&retour=${encodeURIComponent(ent)}${visite ? `&visite=${encodeURIComponent(visite)}` : ''}`);
+        return {};
+      }
+      if (visite) visiteApres(visite);
       ouvrirEntreprise(vraie.id);
       return {};
     },
+    // Le compte a-t-il une vraie entreprise ? Lu à l'ouverture de l'exemple (`regarderLEssai`) : le bouton de son bandeau
+    // dit alors « Quitter l'exemple », sinon « Créer ma vraie entreprise » ; null tant que ce n'est pas lu.
+    aUneVraieEntreprise: () => vraieEntreprise,
   };
+
+  // Le compte et ses entreprises (`GET /moi`), lu une fois pour les gestes d'un même instant : l'ouverture d'une
+  // entreprise en demande plusieurs (l'entreprise d'essai, les premiers pas, le menu), et deux lectures à deux secondes
+  // près disent la même chose.
+  /** @type {{ le: number, lu: Promise<any> } | null} */
+  let moiLu = null;
+  function lireMoi() {
+    if (moiLu && Date.now() - moiLu.le < 2000) return moiLu.lu;
+    const lu = appelCompte('GET', '/moi');
+    moiLu = { le: Date.now(), lu };
+    // Un échec ne se garde pas : le geste suivant redemande.
+    lu.catch(() => { if (moiLu && moiLu.lu === lu) moiLu = null; });
+    return lu;
+  }
 
   // Les appels du compte (hors entreprise) : la liste des entreprises, en créer une, se déconnecter.
   /** @param {string} methode @param {string} chemin @param {unknown} [corps] */
@@ -1919,12 +1944,9 @@
   function visiteApres(id) {
     try { sessionStorage.setItem(VISITE_APRES, id); } catch { /* sans stockage : l'exemple s'ouvre, sans sa visite */ }
   }
-  // L'entreprise qui ouvre l'assistant à sa prochaine ouverture (`assistantDemande`) : la même clé que la porte.
+  // L'entreprise qui ouvre l'assistant à sa prochaine ouverture (`assistantDemande`) : la clé que posent la porte et la
+  // page « Ta vraie entreprise » (App.tsx).
   const ASSISTANT_APRES = 'skanfact.assistant';
-  /** @param {string} id */
-  function assistantApres(id) {
-    try { sessionStorage.setItem(ASSISTANT_APRES, id); } catch { /* sans stockage : l'entreprise s'ouvre sur ses premiers pas */ }
-  }
   // Ouvrir une entreprise, et s'en souvenir pour la prochaine fois (la même clé que l'entrée).
   /** @param {string} id */
   function ouvrirEntreprise(id) {

@@ -1125,7 +1125,7 @@ VR="dans une vraie entreprise"
 PONT=web/public/plateforme/pont.js
 TEL=web/public/plateforme/telephone.css
 prouver "une phrase écrite en dur dans un écran de l'entrée" web/src/ecrans/Porte.tsx \
-  "onClick={() => { void essai(); }}>{titre('ecran.porte.essai_bouton')}</Bouton>" "onClick={() => { void essai(); }}>Commencer la découverte</Bouton>" \
+  "onClick={decouvrir}>{titre('ecran.porte.essai_bouton')}</Bouton>" "onClick={decouvrir}>Commencer la découverte</Bouton>" \
   "$RE"
 prouver "un bouton de l'entrée trop petit pour un doigt" web/src/entree.css \
   "  min-height: 50px; height: auto; padding: 10px 18px;" "  min-height: 30px; height: 30px; padding: 0 18px;" \
@@ -1165,8 +1165,10 @@ prouver "un conflit tranché contre le serveur (l'onglet en retard écrase)" $PO
   "disk: Object.assign(await relire(), { syncWrittenAt: Date.now() }) };" "disk: await relire() };" \
   "$CO"
 prouver "l'exemple écrit dans la vraie entreprise" $PONT \
-  "      if (!essai || essai.id !== ent) {" "      if (!essai) {" \
-  "depuis une vraie entreprise, l'exemple ouvre l'entreprise d'essai : rien ne se verse ici"
+  "      location.assign(\`/?exemple=\${encodeURIComponent(visite)}\`);
+      return {};" "      void appelCompte('POST', \`/entreprises/\${encodeURIComponent(ent)}/exemple\`);
+      return {};" \
+  "ailleurs, l'exemple part vers l'écran qui le prépare, la visite dans son adresse : rien ne se crée ni ne se verse d'ici"
 prouver "« Tout effacer » laissé sur la plateforme" $PONT \
   "'p-ocr', 'p-danger', 'p-maj'" "'p-ocr', 'p-maj'" \
   "$VR"
@@ -6136,7 +6138,7 @@ prouver "le total du groupe qui ne garde que la dernière société" serveur/gro
   "t.somme[k] += brut[k];" "t.somme[k] = brut[k];" \
   "$GS"
 prouver "le groupe absent du menu des entreprises" web/public/v10/app.js \
-  "\${bridge.groupe && autres.length ? " "\${false ? " \
+  "\${bridge.groupe && (r.dossiers || []).filter(d => !d.essai).length > 1 ? " "\${false ? " \
   "$GW"
 
 prouver "une réponse de l'API gardée dans le cache du navigateur" serveur/app.ts \
@@ -7363,7 +7365,7 @@ prouver "la demande de connexion jamais oubliée en partant" web/src/App.tsx \
   "partir={(adresse) => { connexionDemandee.oublier(); location.assign(adresse); }}" "partir={(adresse) => { location.assign(adresse); }}" \
   "$BW"
 prouver "l'entreprise ouverte par-dessus la page Connecter" web/src/App.tsx \
-  "|| invitation.lire() || demandeConnexion) return;" "|| invitation.lire()) return;" \
+  "|| invitation.lire() || demandeConnexion || demande) return;" "|| invitation.lire() || demande) return;" \
   "$BW"
 prouver "la demande de connexion perdue à la connexion" web/src/App.tsx \
   "if (location.pathname === '/connecter') {" "if (location.pathname === '/jamais') {" \
@@ -8374,10 +8376,26 @@ prouver "la désignation d'une commande écrasée par les autres colonnes" web/p
 EXS1="l'entreprise d'essai reçoit le jeu entier, ses factures émises par le serveur au millime de la v10, une seule fois"
 EXS2="jamais dans une vraie entreprise, ni dans une entreprise d'essai qui a ses propres pièces, ni chez un autre ; un refus n'écrit rien"
 EXW="Skander, sur un compte neuf : l'exemple se remplit, la découverte va au bout, puis sa vraie entreprise et sa première facture, guidée jusqu'au brouillon"
-POE2="l'entreprise d'essai déjà remplie ne se remplit pas deux fois"
-POE3="encore vide, le serveur la remplit derrière une fenêtre d'attente, puis la page se rouvre sur la visite demandée ; un conflit se redemande une fois"
-POE4="un refus se lit en entier, la fenêtre d'attente se ferme, et rien ne se rouvre"
-POE5="quitter l'exemple sans vraie entreprise : son nom d'abord ; la visite part avec l'entreprise créée, jamais avant"
+# Lot onboarding (09/10/2026) : l'exemple se prépare sur son écran, et la vraie entreprise se crée sur sa page
+# (ExemplePrepare.tsx, EntrepriseNeuve.tsx ; tests/v10/pont-exemple.test.ts, tests/web/exemple-puis-vraie.test.ts).
+POE1="l'exemple déjà là s'ouvre tel quel : rien ne part vers sa préparation"
+POE2="ailleurs, l'exemple part vers l'écran qui le prépare, la visite dans son adresse"
+POE3="l'entreprise d'essai encore vide repart vers sa préparation, la visite demandée avec elle"
+POE4="l'entreprise d'essai qui a ses propres pièces s'ouvre telle quelle ; une vraie entreprise au travail ne fait pas lire le compte"
+POE5="le bandeau de l'exemple sait s'il y a une vraie entreprise"
+POE6="quitter l'exemple sans vraie entreprise : la page qui la crée, le chemin du retour et la visite dans son adresse"
+POE7="quitter l'exemple ouvre la vraie entreprise, la visite avec elle"
+POE8="« Nouvelle entreprise… » mène à la page qui la crée, avec le chemin du retour"
+POE9="le menu dit laquelle est l'entreprise d'essai ; les premiers pas, si l'entreprise ouverte en est une"
+POE10="une lecture du compte qui a échoué ne se garde pas"
+EPV1="l'entreprise d'essai encore vide repart vers sa préparation : coupée, elle dit quoi faire"
+EPV2="une entreprise d'essai qui a ses propres pièces s'ouvre telle quelle, sans repasser par la préparation"
+EPV3="une entreprise dont le compte n'est pas de l'équipe : « ne t'est pas ouverte »"
+EPV4="« Nouvelle entreprise… » : la page qui la crée et le lien qui revient"
+EPV5="l'exemple déjà là s'ouvre aussitôt ; sans vraie entreprise, son bandeau la crée"
+PPE="jamais dans une entreprise d'essai, même sans l'exemple"
+VMA="« Confier mon dossier à mon comptable » ne vise que le panneau du mandat"
+EXP=web/src/ecrans/ExemplePrepare.tsx
 VEL="une visite que « Guide-moi » propose en ligne n'attend jamais un élément que la version en ligne ne montre pas"
 VELT="la découverte proposée en ligne ne décrit pas l'application de bureau"
 EXV=serveur/v10/exemple.ts
@@ -8403,51 +8421,120 @@ prouver "le timbre des années de l'exemple d'avant la règle commune oublié" $
 prouver "les règlements des factures de l'exemple perdus" $EXV \
   "    if (paiements.length) reglements.push(" "    if (false) reglements.push(" \
   "$EXS1"
-prouver "une visite laissée en attente par une entreprise d'essai qui n'a pas pu se créer" $PONT \
-  "        const id = essai ? essai.id : (await appelCompte('POST', '/entreprises-essai')).id;
-        visiteApres(visite || 'exemple');" "        visiteApres(visite || 'exemple');
-        const id = essai ? essai.id : (await appelCompte('POST', '/entreprises-essai')).id;" \
-  "sans entreprise d'essai encore, elle se crée puis s'ouvre ; une création refusée ne laisse aucune visite en attente"
-prouver "l'exemple déjà rempli qu'on redemande au serveur" $PONT \
+prouver "l'exemple déjà là renvoyé vers sa préparation" $PONT \
   "      if ((/** @type {any} */ (window).__data || {}).demo === true) return { pret: true };
 " "" \
+  "$POE1"
+prouver "l'exemple qui part vers sa préparation sans la visite demandée" $PONT \
+  "      location.assign(\`/?exemple=\${encodeURIComponent(visite)}\`);" "      location.assign('/?exemple=exemple');" \
   "$POE2"
-prouver "un conflit avec l'enregistrement de départ de la page qui fait échouer l'exemple" $PONT \
-  "            if (++conflits > 2 || x.statut !== 409) throw e;" "            throw e;" \
-  "$POE3"
-prouver "la fenêtre d'attente de l'exemple qui reste ouverte après un refus" $PONT \
-  "        if (typeof fin === 'function') fin();
+prouver "l'entreprise d'essai vide ouverte sur un accueil vide" $PONT \
+  "    location.replace(\`/?exemple=\${encodeURIComponent(visite || 'exemple')}\`);
+    await new Promise(() => { /* la page part */ });
 " "" \
+  "$POE3"
+prouver "la visite demandée perdue en repartant vers la préparation" $PONT \
+  "    try { visite = sessionStorage.getItem(VISITE_APRES) || ''; sessionStorage.removeItem(VISITE_APRES); } catch { /* sans stockage : l'exemple seul */ }" "    void VISITE_APRES;" \
+  "$POE3"
+prouver "l'entreprise d'essai qui a ses pièces renvoyée vers la préparation" $PONT \
+  "    if (!demo && PIECES_A_SOI.some((k) => Array.isArray(data[k]) && /** @type {unknown[]} */ (data[k]).length)) return;" "    if (false) return;" \
   "$POE4"
-prouver "une visite laissée en attente par la fenêtre du nom fermée sans créer" $PONT \
-  "      if (!vraie) return { aCreer: true };
-      if (o && typeof o.visite === 'string' && o.visite) visiteApres(o.visite);" "      if (o && typeof o.visite === 'string' && o.visite) visiteApres(o.visite);
-      if (!vraie) return { aCreer: true };" \
+prouver "le bandeau de l'exemple qui ne sait pas s'il y a une vraie entreprise" $PONT \
+  "    vraieEntreprise = moi.entreprises.some((/** @type {any} */ e) => !e.essai && !e.parCabinet);" "" \
   "$POE5"
-prouver "l'entreprise créée en quittant l'exemple, ouverte sans sa visite" $PONT \
-  "      if (o && typeof o.visite === 'string' && o.visite) visiteApres(o.visite);
-      assistantApres(r.id);" "      assistantApres(r.id);" \
-  "$POE5"
+prouver "une visite laissée en attente avant que la vraie entreprise soit créée" $PONT \
+  "      const visite = o && typeof o.visite === 'string' ? o.visite : '';
+      const moi = await lireMoi();" "      const visite = o && typeof o.visite === 'string' ? o.visite : '';
+      if (visite) visiteApres(visite);
+      const moi = await lireMoi();" \
+  "$POE6"
+prouver "la page qui crée la vraie entreprise sans la visite demandée" $PONT \
+  "\${visite ? \`&visite=\${encodeURIComponent(visite)}\` : ''}" "" \
+  "$POE6"
 prouver "la visite demandée oubliée au changement de page" $PONT \
   "    try { sessionStorage.setItem(VISITE_APRES, id); } catch { /* sans stockage : l'exemple s'ouvre, sans sa visite */ }" "    void id;" \
-  "$POE3"
+  "$POE7"
+prouver "« Nouvelle entreprise… » sans le chemin du retour" $PONT \
+  "    nouvelleEntreprise: () => { location.assign(\`/?entreprise=menu&retour=\${encodeURIComponent(ent)}\`); }," "    nouvelleEntreprise: () => { location.assign('/?entreprise=menu'); }," \
+  "$POE8"
+prouver "le menu qui ne dit pas laquelle est l'entreprise d'essai" $PONT \
+  ", dir: 'Serveur SkanFact', essai: !!e.essai }))," ", dir: 'Serveur SkanFact' }))," \
+  "$POE9"
+prouver "les premiers pas qui ne savent pas que l'entreprise ouverte est l'entreprise d'essai" $PONT \
+  ",
+        essai: !!(ici && ici.essai) };" " };" \
+  "$POE9"
+prouver "le compte relu à chaque geste d'un même instant" $PONT \
+  "    if (moiLu && Date.now() - moiLu.le < 2000) return moiLu.lu;
+" "" \
+  "$POE9"
+prouver "une lecture du compte qui a échoué gardée pour les gestes suivants" $PONT \
+  "    lu.catch(() => { if (moiLu && moiLu.lu === lu) moiLu = null; });" "    lu.catch(() => undefined);" \
+  "$POE10"
+prouver "« tu as été retiré de son équipe » pour une entreprise que ce compte n'a jamais eue" $PONT \
+  "    if (!copie && !attente) {" "    if (false) {" \
+  "$EPV3"
+prouver "l'entreprise d'essai ouverte « telle quelle » renvoyée vers la préparation" $PONT \
+  "    try { if (sessionStorage.getItem('skanfact.essai_tel_quel') === ent) return; } catch { /* sans stockage : la préparation */ }
+" "" \
+  "$EPV1"
+prouver "« Guide-moi » qui propose encore d'envoyer le paquet du mois" $PONT \
+  ", 'recevoir-cloture', 'paquet'];" ", 'recevoir-cloture'];" \
+  "$VMA"
+prouver "le panneau du mandat sans cadre pour ce qu'on confie" $PONT \
+  "<div id=\"mandat-perimetre\">" "<div>" \
+  "$VMA"
+prouver "les premiers pas d'une entreprise d'essai essayée avant l'exemple" web/public/plateforme/premiers-pas.js \
+  "    const exemple = !!C.estDemo(d) || !!e.essai;" "    const exemple = !!C.estDemo(d);" \
+  "$PPE"
+prouver "un conflit avec l'enregistrement de départ de la page qui fait échouer l'exemple" $EXP \
+  "          if (r.statut === 409 && ++conflits <= 2) { await attendre(800); continue; }" "" \
+  "$EPV1"
+prouver "un relais muet (502, 503, 504 vides) lu comme un refus" $EXP \
+  "          if ([502, 503, 504].includes(r.statut) && !r.corps.motif) {" "          if (false) {" \
+  "$EPV1"
+prouver "deux préparations qui demandent le versement en même temps" $EXP \
+  "    return () => { fini = true; };" "    return () => undefined;" \
+  "$EPV1"
+prouver "l'attente de la préparation qui ne dit rien" $EXP \
+  "{exempleEnCours ? <p className=\"ent-exemple-attente\" role=\"status\">{phrase('ecran.exemple.attente')}</p> : null}" "{null}" \
+  "$EPV1"
+prouver "« telle quelle » qui ne se retient pas" $EXP \
+  "                  try { sessionStorage.setItem('skanfact.essai_tel_quel', etat.essai); } catch { /* sans stockage : elle repasserait par ici */ }
+" "" \
+  "$EPV1"
+prouver "l'exemple déjà là qui fait attendre" $EXP \
+  "        if (deja && Date.now() - t0 < 3000) { parti.current = true; gestes.current.ouvrir(id, visite); return; }
+" "" \
+  "$EPV5"
+prouver "l'entreprise créée en quittant l'exemple, ouverte sans sa visite" web/src/App.tsx \
+  "  try { sessionStorage.setItem('skanfact.assistant', id); } catch { /* sans stockage : l'entreprise s'ouvre sur ses premiers pas */ }
+  ouvrirAvecVisite(id, visite);" "  try { sessionStorage.setItem('skanfact.assistant', id); } catch { /* sans stockage : l'entreprise s'ouvre sur ses premiers pas */ }
+  ouvrirEntreprise(id);" \
+  "$EPV5"
+prouver "l'entreprise créée sans l'assistant de démarrage" web/src/App.tsx \
+  "  try { sessionStorage.setItem('skanfact.assistant', id); } catch { /* sans stockage : l'entreprise s'ouvre sur ses premiers pas */ }
+  ouvrirAvecVisite" "  ouvrirAvecVisite" \
+  "$EPV4"
+prouver "le lien qui revient ne mène pas à l'entreprise quittée" web/src/ecrans/EntrepriseNeuve.tsx \
+  "href={\`/v10/?e=\${encodeURIComponent(retour)}\`}" "href=\"/\"" \
+  "$EPV4"
+prouver "la page de la vraie entreprise qui oublie la visite demandée" web/src/ecrans/EntrepriseNeuve.tsx \
+  "    creee(r.corps.id, visite);" "    creee(r.corps.id, '');" \
+  "$EPV5"
 prouver "« Guide-moi » qui propose en ligne de revenir à une sauvegarde" $PONT \
   "  const VISITES_SANS_OBJET = ['sauvegarde', 'restaurer'," "  const VISITES_SANS_OBJET = ['sauvegarde'," \
   "$VEL"
 prouver "les puces des Paramètres qui mènent à un panneau absent" $PONT \
   "PANNEAUX_ABSENTS.flatMap((id) => [\`#\${id}\`, \`[data-somm=\"\${id}\"]\`, \`[data-go=\"\${id}\"]\`])" "PANNEAUX_ABSENTS.flatMap((id) => [\`#\${id}\`])" \
   "$VR"
-prouver "« Commencer la découverte » qui ouvre une entreprise d'essai vide" web/src/ecrans/Porte.tsx \
-  "    try { sessionStorage.setItem('skanfact.visite', 'decouvrir'); } catch { /* sans stockage : l'entreprise d'essai s'ouvre, sans la découverte */ }
-" "" \
+prouver "« Commencer la découverte » qui ouvre l'exemple sans la découverte" web/src/App.tsx \
+  "setDemande({ ecran: 'exemple', visite: 'decouvrir' })" "setDemande({ ecran: 'exemple', visite: 'exemple' })" \
   "$EXW"
 prouver "l'exemple chargé à l'écran au lieu d'être versé par le serveur" web/public/v10/app.js \
   "  async function loadDemo(visite) {
     if (bridge.exemple) {" "  async function loadDemo(visite) {
     if (false) {" \
-  "$EXW"
-prouver "l'exemple qui se prépare sans le dire" web/public/v10/app.js \
-  "attendre: () => (fin = attenteExemple())" "attendre: () => null" \
   "$EXW"
 prouver "la visite demandée jamais lancée une fois la page chargée" web/public/v10/app.js \
   "      else if (demandee) { const v = visiteParId(demandee); if (v) lancerVisite(v); }" "      else if (demandee) { void demandee; }" \
@@ -8455,12 +8542,25 @@ prouver "la visite demandée jamais lancée une fois la page chargée" web/publi
 prouver "« Passer à ma vraie entreprise » qui oublie les premiers pas" web/public/v10/app.js \
   "      if (await demoSortie('premiers-pas')) lancerVisite(visiteParId('premiers-pas'));" "      if (await demoSortie()) lancerVisite(visiteParId('premiers-pas'));" \
   "$EXW"
-prouver "l'entreprise créée depuis l'exemple sans la visite demandée" web/public/v10/app.js \
-  "const x = await bridge.addDossier({ name: v, visite: typeof visite === 'string' ? visite : '' });" "const x = await bridge.addDossier({ name: v });" \
-  "$EXW"
 prouver "« Quitter l'exemple » qui fait comme sur l'ordinateur" web/public/v10/app.js \
   "    if (bridge.quitterExemple) {" "    if (false) {" \
-  "$EXW"
+  "$EPV5"
+prouver "le bandeau de l'exemple qui dit « Quitter » quand il n'y a pas encore de vraie entreprise" web/public/v10/app.js \
+  "    const aCreer = !!bridge.aUneVraieEntreprise && bridge.aUneVraieEntreprise() === false;" "    const aCreer = false;" \
+  "$EPV5"
+prouver "« Le groupe » proposé avec l'exemple et une seule vraie entreprise" web/public/v10/app.js \
+  "\${bridge.groupe && (r.dossiers || []).filter(d => !d.essai).length > 1 ?" "\${bridge.groupe && autres.length ?" \
+  "$EPV4"
+prouver "« Gérer les dossiers… » proposé en ligne, vers un panneau absent" web/public/v10/app.js \
+  "\${(bridge.panneauxAbsents || []).includes('p-dossiers') ? '' : '<button type=\"button\" id=\"dm-manage\"" "\${false ? '' : '<button type=\"button\" id=\"dm-manage\"" \
+  "$EPV4"
+prouver "« Nouvelle entreprise… » qui demande un nom dans une petite fenêtre" web/public/v10/app.js \
+  "    if (bridge.nouvelleEntreprise) { bridge.nouvelleEntreprise(); return; }
+" "" \
+  "$EPV4"
+prouver "la visite du comptable qui vise encore le fichier d'appairage" web/public/v10/visites.js \
+  "si: () => !!\$('#mandat-perimetre'), cible: '#mandat-perimetre'," "si: () => !!\$('#mandat-perimetre'), cible: '#cab-import'," \
+  "$VMA"
 prouver "« Me guider » qui propose en ligne les visites sans objet" web/public/v10/app.js \
   "  }).filter(v => !(bridge.visitesAbsentes || []).includes(v.id)));" "  }));" \
   "$EXW"
@@ -8487,7 +8587,7 @@ prouver "la découverte qui décrit le paquet du comptable" web/public/v10/visit
   "Rien à lui envoyer : tu lui confies ton entreprise une fois" "Chaque mois, un paquet : tu lui confies ton entreprise une fois" \
   "$VELT"
 prouver "l'exemple qui « rend tes vraies données » en ligne" web/public/v10/visites.js \
-  "<b>« Quitter l\\'exemple »</b> ouvre ta vraie entreprise : l\\'exemple vit à part" "<b>« Quitter l\\'exemple »</b> te rend tes vraies données — elles ont été mises de côté : l\\'exemple vit à part" \
+  "<b>« Quitter l\\'exemple »</b> l\\'ouvre, <b>« Créer ma vraie entreprise »</b> la crée si tu n\\'en as pas encore." "<b>« Quitter l\\'exemple »</b> te rend tes vraies données — elles ont été mises de côté." \
   "$VELT"
 prouver "la réponse au comptable qui part « dans le paquet du mois »" web/public/v10/visites.js \
   "Tu réponds en une phrase ; il la lit dès que tu l\\'enregistres." "Tu réponds en une phrase ; ta réponse repart dans le paquet du mois." \
@@ -8583,8 +8683,6 @@ prouver 'le refus du serveur à l'\''émission dans un bandeau de trois secondes
 # E1 : une réponse qui ne vient pas du serveur (un relais qui coupe une demande longue, le frontal), aux trois portes ;
 # E2 : le matricule imprimé tel qu'il a été tapé, sur chaque pièce ; E3 : la lettre-clé I, O ou U. (Les deux preuves
 # qui « prouvaient » en cassant la syntaxe d'un écran sont réécrites à leur place ; tests/verif-preuves.sh le contrôle.)
-CPE1='une réponse coupée en route : la page redemande, le serveur a fini, et elle s'\''ouvre sur la visite ; jamais le texte du relais'
-CPE2='coupée à chaque fois : une phrase qui dit quoi faire, la fenêtre d'\''attente fermée, rien ne se rouvre'
 CPE3='une réponse qui ne vient pas du serveur ne s'\''affiche jamais telle quelle, par l'\''entreprise comme par le compte'
 CPE4='au Cabinet : « le serveur n'\''a pas répondu », jamais le texte du relais ; un vrai refus garde sa phrase'
 CPE5='aux écrans d'\''entrée : un serveur qui ne répond pas (ErreurReseau), jamais l'\''erreur du lecteur ; un vrai refus rendu tel quel'
@@ -8595,12 +8693,13 @@ prouver 'la réponse d'\''un relais lue comme du JSON par l'\''entreprise (l'\''
 prouver 'une réponse vide d'\''un relais (502, 503, 504) prise pour celle du serveur, côté entreprise' web/public/plateforme/pont.js \
   'if (!texte && ![502, 503, 504].includes(r.status)) return {};' 'if (!texte) return {};' \
   "$CPE3"
-prouver 'l'\''exemple abandonné à la première coupure' web/public/plateforme/pont.js \
-  '            if ((x.coupe || x.horsLigne) && ++coupes <= 4)' '            if (false)' \
-  "$CPE1"
-prouver 'une coupure répétée qui dit « réessaie » sans dire quoi faire de l'\''exemple' web/public/plateforme/pont.js \
-  '            if (x.coupe) throw Object.assign(new Error('\''La connexion au serveur a coupé avant la fin' '            if (false) throw Object.assign(new Error('\''La connexion au serveur a coupé avant la fin' \
-  "$CPE2"
+# La préparation de l'exemple vit sur son écran depuis le lot onboarding (09/10/2026 ; ExemplePrepare.tsx).
+prouver 'l'\''exemple abandonné à la première coupure' "$EXP" \
+  '            if (x instanceof ErreurReseau && ++coupes <= 4) { await attendre(1500); continue; }' '            if (false) { await attendre(1500); continue; }' \
+  "$EPV1"
+prouver 'une coupure répétée qui dit « réessaie » sans dire quoi faire de l'\''exemple' "$EXP" \
+  "{etat.pas === 'coupe' ? phrase('ecran.exemple.coupe') : etat.motif}" '{etat.motif}' \
+  "$EPV1"
 prouver 'le Cabinet qui lit la réponse d'\''un relais comme du JSON' web/public/plateforme/pont-cabinet.js \
   '    const lu = lire(r, await r.text());' '    const texte = await r.text(); const lu = texte ? JSON.parse(texte) : {};' \
   "$CPE4"
@@ -9096,10 +9195,10 @@ prouver "la jauge du mot de passe qui ne suit pas la frappe" web/src/ecrans/Insc
 prouver "« Afficher » qui ne montre pas le mot de passe" web/src/composants/Champ.tsx \
   "type={revelable && vu ? 'text' : type}" "type={type}" \
   "$KEW2"
-prouver "le matricule sans sa suite, qui ne dit pas ce qui manque" web/src/ecrans/Porte.tsx \
+prouver "le matricule sans sa suite, qui ne dit pas ce qui manque" web/src/composants/Fiche.tsx \
   "  if (matriculeSansSuite(m)) return { texte: phrase('ecran.porte.mf_debut'), classe: ' alerte' };" "" \
   "$KEW3"
-prouver "le haut de la facture qui ne suit pas la raison sociale" web/src/ecrans/Porte.tsx \
+prouver "le haut de la facture qui ne suit pas la raison sociale" web/src/composants/Fiche.tsx \
   "{raison.trim() ? <strong data-donnee>{raison.trim()}</strong>" "{false ? <strong data-donnee>{raison.trim()}</strong>" \
   "$KEW3"
 prouver "le cabinet, que l'écran de la sécurité tait" web/src/ecrans/CodeRequis.tsx \
@@ -9390,9 +9489,6 @@ prouver "l'accueil qui repose la question de la porte après l'assistant" $ASAPP
 prouver "la porte qui ne demande pas l'assistant" web/src/ecrans/Porte.tsx \
   "sessionStorage.setItem('skanfact.assistant', r.corps.id);" "void r;" \
   "$AS1"
-prouver "l'entreprise créée depuis l'exemple, sans l'assistant" web/public/plateforme/pont.js \
-  "      assistantApres(r.id);" "" \
-  "quitter l'exemple sans vraie entreprise : son nom d'abord ; la visite part avec l'entreprise créée, jamais avant"
 prouver "l'assistant demandé pour une autre entreprise" web/public/plateforme/pont.js \
   "sessionStorage.removeItem(ASSISTANT_APRES); return v === ent;" "sessionStorage.removeItem(ASSISTANT_APRES); return !!v;" \
   "l'assistant de démarrage s'ouvre dans l'entreprise qui l'a demandé, une seule fois, et jamais dans une autre"

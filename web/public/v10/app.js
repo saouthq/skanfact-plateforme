@@ -2058,10 +2058,10 @@
         ${autres.map(d => `<button type="button" data-dos="${h(d.id)}" title="${h(d.name)}">
           <span class="dm-mark"></span><span class="dm-nom">${h(d.name)}</span>${d.shared ? '<span class="dm-tag">partagé</span>' : ''}</button>`).join('')}` : ''}
       <hr>
-      ${bridge.groupe && autres.length ? '<button type="button" id="dm-groupe" title="Les chiffres de tes sociétés, côte à côte"><span class="dm-mark">Σ</span><span class="dm-nom">Le groupe</span></button>' : ''}
+      ${bridge.groupe && (r.dossiers || []).filter(d => !d.essai).length > 1 ? '<button type="button" id="dm-groupe" title="Les chiffres de tes sociétés, côte à côte"><span class="dm-mark">Σ</span><span class="dm-nom">Le groupe</span></button>' : ''}
       <button type="button" id="dm-new" title="Créer un second dossier, pour une autre entreprise"><span class="dm-mark">+</span><span class="dm-nom">Nouvelle entreprise…</span></button>
       <button type="button" id="dm-sortir" title="Fermer ta session sur cet appareil"><span class="dm-mark">⏻</span><span class="dm-nom">Se déconnecter</span></button>
-      <button type="button" id="dm-manage" title="Renommer, retirer de la liste, voir où vivent les fichiers"><span class="dm-mark">⚙</span><span class="dm-nom">Gérer les dossiers…</span></button>`;
+      ${(bridge.panneauxAbsents || []).includes('p-dossiers') ? '' : '<button type="button" id="dm-manage" title="Renommer, retirer de la liste, voir où vivent les fichiers"><span class="dm-mark">⚙</span><span class="dm-nom">Gérer les dossiers…</span></button>'}`;
     m.hidden = false;
     bouton.setAttribute('aria-expanded', 'true');
     $$('[data-dos]', m).forEach(b => b.onclick = async () => {
@@ -2086,7 +2086,7 @@
       rejoindreDossier({ autre: partageable
         ? 'Si c\'est toi qui as le dossier et que tu veux le partager, c\'est l\'entrée juste au-dessus dans ce menu\u00a0: «\u00a0Partager cette entreprise\u00a0».' : '' });
     };
-    $('#dm-manage', m).onclick = () => { fermerDossiers(); allerParametres('donnees', 'p-dossiers'); };
+    if ($('#dm-manage', m)) $('#dm-manage', m).onclick = () => { fermerDossiers(); allerParametres('donnees', 'p-dossiers'); };
   }
 
   // UNE porte pour créer une entreprise. Le menu du haut et les Paramètres en portaient chacun une
@@ -2097,6 +2097,9 @@
   // le geste.
   async function nouvelleEntreprise() {
     if (!await leaveOk()) return;
+    // (plateforme, lot onboarding) La page « Une nouvelle entreprise » : sa raison sociale, son matricule, le haut de la
+    // facture qui se dessine pendant la frappe, et le lien qui revient ici ; créée, elle ouvre l'assistant de démarrage.
+    if (bridge.nouvelleEntreprise) { bridge.nouvelleEntreprise(); return; }
     promptDialog('Nouvelle entreprise',
       'Un dossier neuf et séparé : ses clients, ses documents, ses sauvegardes. L\'application s\'y ouvre tout de suite ; l\'entreprise actuelle reste intacte, et tu la retrouves dans le menu du haut.',
       '', async v => {
@@ -2459,6 +2462,10 @@
   // phrase entière reste au survol du rappel. Le MÊME choix au Cabinet (`htmlBandeauDemo`).
   function htmlBandeauDemo(route) {
     const court = route !== 'dashboard';
+    // (plateforme, lot onboarding) Le compte n'a pas encore de vraie entreprise : « Quitter l'exemple » mène à la page qui
+    // la crée, et le bouton dit « Créer ma vraie entreprise » (vu sur le serveur d'essai le 09/10/2026 : il disait
+    // « Quitter », et ouvrait une petite fenêtre à un seul champ).
+    const aCreer = !!bridge.aUneVraieEntreprise && bridge.aUneVraieEntreprise() === false;
     const enVisite = typeof Visite !== 'undefined' && Visite.enCours();
     const texte = court
       ? `<b>Entreprise d'exemple</b> : ici, rien ne compte — tes vraies données sont à l'abri.`
@@ -2470,7 +2477,7 @@
     return { court, html: `<span class="db-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6.2L4.8 18a2 2 0 0 0 1.7 3h11a2 2 0 0 0 1.7-3L14 9.2V3"/><path d="M7.5 15h9"/></svg></span>
       <span class="db-txt"${court ? ` title="Tu explores une entreprise d'exemple : cinq ans d'activité inventée. Clique, ouvre, modifie — rien de ce que tu fais ici ne compte."` : ''}>${texte}</span>
       <span class="db-actions">${enVisite ? '' : `<button class="btn btn-sm" id="demo-visite">${decouverteEnPause() ? 'Reprendre la visite' : 'Visite guidée'}</button>`}
-      <button class="btn btn-sm" id="demo-out" title="${bridge.quitterExemple ? 'Ta vraie entreprise s\'ouvre ; l\'exemple reste ici, dans ton entreprise d\'essai' : 'Tes données d\'avant l\'exemple reviennent ; s\'il n\'y en avait pas, tu repars d\'une entreprise vide'}">Quitter l'exemple</button></span>` };
+      <button class="btn btn-sm" id="demo-out" title="${!bridge.quitterExemple ? 'Tes données d\'avant l\'exemple reviennent ; s\'il n\'y en avait pas, tu repars d\'une entreprise vide' : aCreer ? 'Sa raison sociale et son matricule fiscal, puis elle s\'ouvre ; l\'exemple reste dans ton entreprise d\'essai' : 'Ta vraie entreprise s\'ouvre ; l\'exemple reste ici, dans ton entreprise d\'essai'}">${aCreer ? 'Créer ma vraie entreprise' : 'Quitter l\'exemple'}</button></span>` };
   }
 
   function bandeauDemo(route) {
@@ -2493,21 +2500,12 @@
   // toast qui nommait l'onglet où chercher. C'est le contraire d'un exemple.
   // Rend `true` quand l'exemple est chargé, `false` quand on a renoncé : la visite guidée de
   // découverte (10.14.0) ne se lance que sur un exemple réellement là.
-  function attenteExemple() {
-    let fermer = () => {};
-    modal(`<h2>L'exemple se prépare</h2>
-      <p>Cinq ans d'une entreprise inventée : ses clients, ses devis, des centaines de factures émises et numérotées par le serveur, leurs règlements, les achats, la paie.</p>
-      <p class="small muted attente-exemple" role="status"><span class="attente-roue" aria-hidden="true"></span>Compte une minute : la page s'ouvre toute seule sur l'exemple. Laisse-la ouverte.</p>`, (root, close) => { fermer = close; });
-    return () => fermer();
-  }
   async function loadDemo(visite) {
     if (bridge.exemple) {
-      let fin = null;
       try {
-        const r = await bridge.exemple({ visite: typeof visite === 'string' ? visite : '', attendre: () => (fin = attenteExemple()) });
-        if (r && r.motif) await infoDialog('L\'exemple', r.motif);
+        const r = await bridge.exemple({ visite: typeof visite === 'string' ? visite : '' });
         return !!(r && r.pret);
-      } catch (e) { if (fin) fin(); toast(plainError(e), true); }
+      } catch (e) { toast(plainError(e), true); }
       return false;
     }
     // `hasData` ne regardait que les documents et les clients : DEUX listes sur vingt. L'assistant
@@ -2558,18 +2556,11 @@
   //   — sinon (on a chargé l'exemple sur une installation neuve) → on repart à vide.
   async function demoSortie(visite) {
     // (plateforme) L'exemple vit dans l'entreprise d'essai, à part : le quitter ouvre ta vraie entreprise, et rien ne
-    // s'efface (la v10 remettait une sauvegarde du disque, ou effaçait l'exemple). Sans vraie entreprise encore, on la
-    // crée ici, par son nom, et elle s'ouvre vide ; la visite demandée (« Démarrer dans ma vraie entreprise ») y démarre.
+    // s'efface (la v10 remettait une sauvegarde du disque, ou effaçait l'exemple). Sans vraie entreprise encore, la page
+    // « Ta vraie entreprise » la crée (sa raison sociale, son matricule ; lot onboarding) ; la visite demandée (« Passer à
+    // ma vraie entreprise ») y démarre, après l'assistant.
     if (bridge.quitterExemple) {
-      try {
-        const r = await bridge.quitterExemple({ visite: typeof visite === 'string' ? visite : '' });
-        if (r && r.aCreer) {
-          promptDialog('Ta vraie entreprise', 'Sa raison sociale, telle qu\'elle s\'imprimera sur tes factures', '', async v => {
-            const x = await bridge.addDossier({ name: v, visite: typeof visite === 'string' ? visite : '' });
-            if (!x || !x.ok) toast((x && x.error) || 'L\'entreprise n\'a pas été créée : réessaie.', true);
-          }, 'text', { champ: 'Raison sociale', ok: 'Créer et ouvrir' });
-        }
-      } catch (e) { toast(plainError(e), true); }
+      try { await bridge.quitterExemple({ visite: typeof visite === 'string' ? visite : '' }); } catch (e) { toast(plainError(e), true); }
       return false;
     }
     let avant = null;
@@ -2918,7 +2909,7 @@
   // guider » y mène EN MONTRANT où cliquer, clic par clic.
   const PAS_IMPORT = { client: ['clients', 'Ta liste est dans un tableur ? Importe-la d\'un coup'], catalogue: ['catalogue', 'Tes prix sont dans un tableur ? Importe-les d\'un coup'] };
   const PAS_VISITES = { societe: 'societe', marque: 'marque', client: 'premier-client', catalogue: 'article', devis: 'premier-devis',
-    envoiDevis: 'envoyer', factures: 'devis-facture', sauvegarde: 'sauvegarde', decouverte: 'decouvrir', comptable: 'relier-comptable' };
+    envoiDevis: 'envoyer', factures: 'devis-facture', sauvegarde: 'sauvegarde', decouverte: 'decouvrir', comptable: 'relier-comptable', mandat: 'relier-comptable' };
   // L'accueil de la toute première fois (10.14.0). Skander : « appliquer la visite guidée au début,
   // sur un exemple de données ; et quand il passe à sa vraie entreprise, la visite pour le guider
   // dans chaque étape ». Il vit DANS le panneau des premiers pas, pas dans une fenêtre : une fenêtre

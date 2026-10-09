@@ -9,11 +9,15 @@ est nommée, sans ses chiffres, et dit pourquoi. Chaque ligne ouvre sa société
 
 ── Les écrans (app.js) ──
 
-== app.js | le menu des entreprises mène au groupe, dès deux sociétés
+Le groupe se propose dès deux VRAIES sociétés : l'entreprise d'essai (l'exemple, `essai` au point de contact) n'en est
+pas une, et le serveur ne la compte pas (lot onboarding, 09/10/2026 : avec l'exemple et une seule vraie entreprise,
+« Le groupe » s'offrait pour un tableau d'une ligne).
+
+== app.js | le menu des entreprises mène au groupe, dès deux sociétés (l'exemple n'en est pas une)
 -- avant
       <button type="button" id="dm-new" title="Créer un second dossier, pour une autre entreprise">
 -- après
-      ${bridge.groupe && autres.length ? '<button type="button" id="dm-groupe" title="Les chiffres de tes sociétés, côte à côte"><span class="dm-mark">Σ</span><span class="dm-nom">Le groupe</span></button>' : ''}
+      ${bridge.groupe && (r.dossiers || []).filter(d => !d.essai).length > 1 ? '<button type="button" id="dm-groupe" title="Les chiffres de tes sociétés, côte à côte"><span class="dm-mark">Σ</span><span class="dm-nom">Le groupe</span></button>' : ''}
       <button type="button" id="dm-new" title="Créer un second dossier, pour une autre entreprise">
 -- fin
 
