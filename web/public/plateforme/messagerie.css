@@ -1,0 +1,188 @@
+/* La messagerie entre l'entreprise et son cabinet (lot messagerie ; maquettes « Mon comptable » et « Les messages de tes
+   clients » validées par Skander le 09/10/2026 ; plateforme/messagerie.js). Les couleurs sont celles de la page
+   (style.css), en clair comme en sombre ; les titres prennent la police de l'entrée, déclarée ici aussi pour le Cabinet
+   (qui ne charge pas assistant.css). */
+@font-face {
+  font-family: 'Bricolage Grotesque Variable'; font-style: normal; font-display: swap; font-weight: 200 800;
+  src: url(polices/bricolage-grotesque-latin-wght-normal.woff2) format('woff2-variations');
+}
+@font-face {
+  font-family: 'IBM Plex Mono'; font-style: normal; font-display: swap; font-weight: 500;
+  src: url(polices/ibm-plex-mono-latin-500-normal.woff2) format('woff2');
+}
+.msg-page { display: flex; flex-direction: column; gap: 20px; max-width: 1180px; }
+.msg-retour { align-self: flex-start; padding: 6px 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--primary); cursor: pointer; }
+.msg-retour:hover { text-decoration: underline; }
+.msg-tete { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.msg-avatar {
+  flex: none; width: 48px; height: 48px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: #0b2724; color: #7fe0d3; font-family: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 700; font-size: 18px;
+}
+.msg-avatar.petit { width: 40px; height: 40px; font-size: 14px; background: var(--primary-soft); color: var(--primary); }
+.msg-tete-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.msg-page h1 {
+  margin: 0; font-family: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 600; font-size: 28px;
+  letter-spacing: -0.02em; line-height: 1.15; text-wrap: balance;
+}
+.msg-sous { font-size: 14px; color: var(--muted); }
+.msg-surtitre { font-size: 13px; font-weight: 600; color: var(--muted); }
+.msg-cache { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.msg-corps { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.msg-zone {
+  flex: 1 1 520px; min-width: 0; display: flex; flex-direction: column; border-radius: 20px; background: var(--panel);
+  border: 1px solid var(--border); overflow: hidden;
+}
+.msg-a-cote { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+
+/* Le fil : il défile en lui-même, le champ d'écriture reste sous les yeux. */
+.msg-fil { display: flex; flex-direction: column; gap: 18px; padding: 24px; max-height: max(300px, calc(100vh - 400px)); min-height: 260px; overflow-y: auto; }
+.msg-jour { align-self: center; padding: 4px 12px; border-radius: 999px; background: var(--ink-soft); font-size: 12px; font-weight: 600; color: var(--muted); }
+.msg-plus { align-self: center; }
+.msg-ligne { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; max-width: 80%; }
+.msg-ligne.moi { align-self: flex-end; align-items: flex-end; }
+.msg-qui { font-size: 12px; color: var(--muted); }
+.msg-qui b { color: var(--text); }
+.msg-bulle {
+  padding: 12px 16px; border-radius: 4px 16px 16px 16px; background: var(--ink-soft); font-size: 15px; line-height: 1.55;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.msg-ligne.moi .msg-bulle { border-radius: 16px 4px 16px 16px; background: var(--primary); color: #fff; }
+.msg-carte, .msg-fichier {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 14px; border-radius: 12px;
+  border: 1px solid var(--primary-soft-2); background: var(--primary-soft); font-size: 14px; color: var(--text);
+}
+.msg-carte svg, .msg-fichier svg { flex: none; color: var(--primary); }
+/* Le texte reste à côté de son icône (au téléphone, l'icône restait seule sur sa ligne) ; l'état et le geste passent dessous. */
+.msg-carte-txt { flex: 1 1 10em; min-width: 0; display: flex; flex-wrap: wrap; gap: 2px 6px; overflow-wrap: anywhere; }
+.msg-fichier .msg-carte-txt { flex-direction: column; }
+.msg-poids { font-size: 12px; color: var(--muted); }
+.msg-etat { font-weight: 600; color: var(--warning); }
+.msg-demande-carte.recue .msg-etat { color: var(--primary); }
+.msg-pied { font-size: 12px; font-weight: 600; color: var(--primary); }
+.msg-reponse-a { font-size: 12px; color: var(--muted); }
+.msg-lien { padding: 4px 2px; border: 0; background: none; font: inherit; font-size: 14px; font-weight: 600; color: var(--primary); cursor: pointer; text-align: left; }
+.msg-lien:hover { text-decoration: underline; }
+
+/* La question de la révision : sa pièce et son montant en tête, ce qu'elle attend, et la réponse sur place. */
+.msg-question { width: 100%; min-width: min(420px, 100%); border-radius: 4px 16px 16px 16px; border: 1.5px solid var(--border); background: var(--panel); overflow: hidden; }
+.msg-ligne.moi .msg-question { border-radius: 16px 4px 16px 16px; }
+.msg-question.attend { border-color: color-mix(in srgb, var(--warning) 45%, var(--border)); }
+.msg-q-tete {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 10px 14px; background: var(--ink-soft);
+  border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.msg-q-tete > span:first-of-type { flex: 1 1 auto; min-width: 0; }
+.msg-montant { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.msg-q-corps { display: flex; flex-direction: column; gap: 10px; padding: 14px; font-size: 15px; line-height: 1.55; overflow-wrap: anywhere; }
+.msg-q-attendu { font-size: 13px; color: var(--muted); }
+.msg-q-etat { align-self: flex-start; padding: 2px 10px; border-radius: 999px; background: var(--ink-soft); font-size: 12px; font-weight: 700; color: var(--muted); }
+.msg-q-etat.attend { background: var(--warning-soft); color: var(--warning); }
+.msg-q-repondre { display: flex; flex-direction: column; gap: 8px; }
+.msg-q-repondre textarea, .msg-ecrire textarea, .msg-demande input {
+  width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--panel);
+  color: var(--text); font: inherit; font-size: 15px; line-height: 1.5; resize: vertical;
+}
+.msg-q-repondre textarea:focus, .msg-ecrire textarea:focus, .msg-demande input:focus, .msg-fp-chercher:focus {
+  outline: none; border-color: var(--primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 16%, transparent);
+}
+.msg-q-gestes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.msg-refus { margin: 0; font-size: 13px; color: var(--danger); }
+.msg-refus:empty { display: none; }
+
+/* Écrire : le champ, ce qui est joint, et les gestes ; « Envoyer » est le seul bouton principal. */
+.msg-ecrire { display: flex; flex-direction: column; gap: 10px; padding: 16px 20px 20px; border-top: 1px solid var(--border); background: color-mix(in srgb, var(--ink-soft) 40%, var(--panel)); }
+.msg-joints { display: flex; flex-wrap: wrap; gap: 8px; }
+.msg-joint {
+  display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 6px 6px 6px 12px; border-radius: 999px;
+  background: var(--primary-soft); color: var(--text); font-size: 13px;
+}
+.msg-joint > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-joint svg { flex: none; color: var(--primary); }
+.msg-joint button { flex: none; display: inline-flex; padding: 4px; border: 0; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; }
+.msg-joint button:hover { background: var(--panel); color: var(--text); }
+.msg-demande { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; }
+.msg-gestes { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
+.msg-gestes-g { display: flex; flex-wrap: wrap; gap: 8px; }
+.msg-gestes .btn { min-height: 40px; display: inline-flex; align-items: center; gap: 8px; }
+.msg-gestes .btn[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+.msg-gestes .btn-primary { padding-inline: 22px; }
+
+/* À côté : ce qui attend, ce que voit le cabinet, l'alerte par e-mail. */
+.msg-encart {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px 18px; border-radius: 16px;
+  background: var(--panel); border: 1px solid var(--border); font-size: 14px; line-height: 1.5;
+}
+.msg-encart > b { font-size: 15px; }
+.msg-encart > span { color: var(--muted); }
+.msg-encart.attend { background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 30%, transparent); }
+.msg-encart.attend > span, .msg-encart.ok > span { color: var(--text); }
+.msg-encart.ok { background: var(--primary-soft); border-color: var(--primary-soft-2); }
+.msg-alerte { flex-direction: row; gap: 12px; cursor: pointer; }
+.msg-alerte input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: var(--primary); }
+.msg-alerte > span { display: flex; flex-direction: column; gap: 4px; }
+.msg-alerte > span > span { font-size: 13px; color: var(--muted); }
+
+.msg-vide { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 28px; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.msg-vide b { font-size: 16px; color: var(--text); }
+.msg-fil .msg-vide { align-self: center; align-items: center; text-align: center; max-width: 440px; margin: auto; }
+
+/* « Parler d'une pièce » : une fenêtre à elle, posée à la hauteur des autres (style.css, --haut-fenetre). */
+.msg-fenetre-fond { position: fixed; inset: 0; z-index: 900; display: flex; justify-content: center; align-items: flex-start; padding: var(--haut-fenetre, 10vh) 16px 16px; background: rgba(10, 20, 30, .42); }
+.msg-fenetre { width: min(560px, 100%); max-height: 76vh; display: flex; flex-direction: column; gap: 12px; padding: 22px; border-radius: 18px; background: var(--panel); box-shadow: var(--shadow); }
+.msg-fenetre h2 { margin: 0; font-size: 20px; }
+.msg-fenetre p { margin: 0; }
+.msg-fp-chercher { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--text); font: inherit; font-size: 15px; }
+.msg-fp-liste { display: flex; flex-direction: column; overflow-y: auto; min-height: 120px; border: 1px solid var(--border); border-radius: 12px; }
+.msg-fp-liste > p { padding: 14px; }
+.msg-fp-ligne { display: flex; gap: 10px; padding: 12px 14px; border: 0; border-bottom: 1px solid var(--border); background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.msg-fp-ligne:hover, .msg-fp-ligne:focus-visible { background: var(--primary-soft); outline: none; }
+.msg-fp-ligne b { flex: none; min-width: 64px; }
+.msg-fp-ligne span { min-width: 0; overflow-wrap: anywhere; }
+.msg-fp-gestes { display: flex; justify-content: flex-end; }
+
+/* La boîte du cabinet : les filtres, une ligne par client, et le client choisi à côté. */
+.msg-boite-tete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.msg-filtres { display: flex; flex-wrap: wrap; gap: 8px; }
+.msg-filtre {
+  min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--text);
+  font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.msg-filtre[aria-selected="true"] { background: #0b2724; border-color: #0b2724; color: #fff; }
+.msg-liste { padding: 0; }
+.msg-dossier {
+  width: 100%; display: flex; align-items: center; gap: 14px; padding: 16px 20px; border: 0; border-bottom: 1px solid var(--border);
+  background: var(--panel); color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.msg-dossier:hover { background: var(--ink-soft); }
+.msg-dossier.choisi { background: var(--primary-soft); }
+.msg-dossier-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.msg-dossier-l1 { display: flex; justify-content: space-between; gap: 12px; }
+.msg-dossier-l1 b { font-size: 15px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-quand { flex: none; font-size: 12px; color: var(--muted); }
+.msg-extrait { font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg-non-lus { flex: none; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: #c2410c; color: #fff; font-size: 12px; font-weight: 700; }
+.msg-etat-pastille { flex: none; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--ink-soft); color: var(--muted); }
+.msg-etat-pastille.traiter { background: var(--warning-soft); color: var(--warning); }
+.msg-etat-pastille.client { background: var(--primary-soft); color: var(--primary); }
+.msg-choisi { padding: 22px; border-radius: 20px; background: var(--panel); border: 1px solid var(--border); }
+.msg-choisi-nom { font-family: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 600; font-size: 20px; }
+.msg-dernier { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 14px; background: var(--ink-soft); font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
+.msg-choisi > .btn { min-height: 44px; }
+.msg-boite-gestes { display: flex; flex-wrap: wrap; gap: 8px; }
+.msg-boite-gestes .btn { flex: 1 1 140px; min-height: 44px; }
+
+/* Au téléphone (même seuil que telephone.css) : une colonne, le fil d'abord, sans bulle trop étroite. */
+@media (max-width: 760px) {
+  .msg-page h1 { font-size: 24px; }
+  .msg-avatar { width: 40px; height: 40px; font-size: 15px; }
+  .msg-fil { padding: 16px; max-height: 64vh; }
+  .msg-ligne { max-width: 92%; }
+  .msg-question { min-width: 0; }
+  .msg-ecrire { padding: 12px 14px 14px; }
+  .msg-gestes, .msg-gestes-g { width: 100%; }
+  .msg-gestes-g .btn { flex: 1 1 auto; justify-content: center; }
+  .msg-gestes .btn-primary { width: 100%; justify-content: center; }
+  .msg-dossier { padding: 14px 14px; gap: 10px; }
+  .msg-dossier .msg-etat-pastille { padding: 3px 8px; font-size: 11px; }
+}

@@ -1867,7 +1867,7 @@
   const PAGE_LABELS = {
     dashboard: 'Accueil', devis: 'Devis', factures: 'Factures', relances: 'Relances', contrats: 'Facturation récurrente',
     contrat: 'le contrat', autres: 'Proforma, bons et contrats', clients: 'Clients', client: 'la fiche client', catalogue: 'Catalogue', listesprix: 'Listes de prix', listeprix: 'la liste de prix',
-    tresorerie: 'Trésorerie', stats: 'Statistiques', compta: 'Comptabilité', parametres: 'Paramètres', aide: 'Aide', doc: 'le document', licences: 'Licences',
+    tresorerie: 'Trésorerie', stats: 'Statistiques', compta: 'Comptabilité', parametres: 'Paramètres', aide: 'Aide', doc: 'le document', licences: 'Licences', comptable: 'Mon comptable',
     achats: 'Achats et dépenses', achat: 'l\'achat', fournisseurs: 'Fournisseurs', fournisseur: 'la fiche fournisseur',
     commandesf: 'Commandes fournisseurs', commandef: 'la commande fournisseur', reception: 'la réception',
     marges: 'Marges', affaire: 'l\'affaire', immos: 'Immobilisations', immo: 'l\'immobilisation', groupe: 'Le groupe',
@@ -1994,7 +1994,8 @@
     stats: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
     compta: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/>',
     modules: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/>',
-    licences: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l2 2M14 9l2 2"/>'
+    licences: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l2 2M14 9l2 2"/>',
+    comptable: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/>'
   };
   const icone = id => `<svg viewBox="0 0 24 24">${ICONES[id] || ICONES.modules}</svg>`;
   // Le cadenas d'un module fermé par l'offre (7.33.0), à côté du titre dans la barre.
@@ -2002,8 +2003,24 @@
 
   // Les compteurs de la barre : ils vivaient en dur dans index.html (<span id="nav-relances">…).
   // Maintenant qu'on dessine, on les pose en même temps que le lien.
-  const NAV_COMPTEURS = { relances: 'nav-relances', contrats: 'nav-contrats', achats: 'nav-achats', tresorerie: 'nav-treso', paie: 'nav-paie', stock: 'nav-stock', immos: 'nav-immos', licences: 'nav-licences' };
+  const NAV_COMPTEURS = { relances: 'nav-relances', contrats: 'nav-contrats', achats: 'nav-achats', tresorerie: 'nav-treso', paie: 'nav-paie', stock: 'nav-stock', immos: 'nav-immos', licences: 'nav-licences', comptable: 'nav-comptable' };
   const NAV_INFO = ['contrats', 'immos'];          // compteur bleu « pour information », pas une alerte
+  // (plateforme, lot messagerie) Ce qui attend dans le fil du cabinet, lu au serveur (null : pas encore lu, ou pas pour
+  // ce rôle) ; et la photo d'un message en route vers un achat.
+  let messagerieVue = null;
+  let rangementDuMessage = null;
+  // L'entrée « Mon comptable » : quand un cabinet tient le dossier, ou l'a tenu (ses échanges se relisent). UNE règle,
+  // pour la barre et pour savoir s'il faut la redessiner.
+  const avecMessagerie = a => !!(a && (a.cabinet || a.anciens));
+  function majMessagerie(a) {
+    const avant = avecMessagerie(messagerieVue);
+    messagerieVue = a;
+    if (avant !== avecMessagerie(a)) {
+      drawNav();
+      $$('nav a, .sidebar-foot a').forEach(x => x.classList.toggle('active', x.dataset.route === navActif));
+    }
+    updateNavCounts();
+  }
 
   // ---------- le sélecteur d'entreprise (7.14.0) ----------
   //
@@ -2220,6 +2237,9 @@
     // La page de l'ÉDITEUR de SkanFact : elle n'existe que sur le poste où vit la clé privée de
     // signature. Elle n'est pas un module (elle ne se coche pas, elle ne dépend pas du dossier).
     if (licence.editeur) pages.push({ ...C.pageById('licences'), famille: 'Éditeur' });
+    // (plateforme, lot messagerie) « Mon comptable » : quand un cabinet tient le dossier (ou l'a tenu : ses échanges se
+    // relisent), pour qui lui écrit (le serveur le dit en lisant ce qui attend). Seule en bas de la barre, comme la maquette.
+    if (avecMessagerie(messagerieVue)) pages.push({ ...C.pageById('comptable'), famille: '' });
     // Groupé par FAMILLE, pas par module : huit intertitres coûteraient 250 px de barre, et on aurait
     // remplacé un débordement par un autre.
     const familles = [];
@@ -2688,6 +2708,8 @@
     const scroll = keepScroll ? view.scrollTop : 0;
     const parts = (location.hash.replace(/^#\/?/, '') || 'dashboard').split('/');
     const name = parts[0];
+    // (plateforme, lot messagerie) La photo d'un message à ranger appartient à l'achat qu'elle ouvre : ailleurs, elle s'oublie.
+    if (name !== 'achat') rangementDuMessage = null;
     // L'invitation « Première fois sur cette page ? » appartient à la page qu'on quitte ; l'observateur
     // qui repose « Guide-moi » se branche une fois, au premier dessin.
     fermerAppelGuide();
@@ -8426,6 +8448,10 @@
     }
     const stk = $('#nav-stock');
     if (stk) { const n = C.stockAlerts(data).length + C.serialGaps(data).length; stk.hidden = !n; stk.textContent = n; }
+    // (plateforme, lot messagerie) Ce qui attend dans le fil du cabinet : ses messages non lus, ses questions sans réponse,
+    // ses pièces demandées — le compte que l'encart « En attente de toi » détaille (serveur/messagerie/routes.ts, `attente`).
+    const msg = $('#nav-comptable');
+    if (msg) { const a = messagerieVue || {}; const n = (a.nonLus || 0) + (a.questions || 0) + (a.demandes || 0); msg.hidden = !n; msg.textContent = n; }
     resumerFamilles();              // une famille repliée porte le compte de ce qui attend dedans
     montrerEntreeActive();          // un compteur qui paraît peut faire passer une entrée sur deux lignes
   }
@@ -10523,6 +10549,10 @@
       let file;
       try { file = await bridge.ocrPick(); } catch (e) { return toast(e.message || 'Fichier illisible', true); }
       if (!file) return;
+      await lirePhoto(file);
+    };
+    // (plateforme, lot messagerie) La lecture d'une photo, choisie ici ou venue d'un message (« Ranger dans mes achats »).
+    const lirePhoto = async (file) => {
       // Sur la plateforme, le fichier est lu par le serveur de SkanFact, en Tunisie, comme le reste du dossier
       // y vit déjà : la question d'avant existait pour un service à l'étranger.
       if (!bridge.lectureSurLeServeur && !await confirmDialog(`Envoyer « ${file.name} » (${(file.size / 1024).toFixed(0)} Ko) au service de lecture ?\n\nL'image part sur internet. Rien d'autre n'est envoyé. Le résultat te sera proposé : tu le valides ou tu le corriges avant qu'il n'entre dans tes données.`, 'Lire la facture', false)) return;
@@ -10532,8 +10562,10 @@
       if (boutonPhoto) boutonPhoto.disabled = true;
       try { read = await bridge.ocrRead(file.path); }
       catch (e) {
-        // Sans pièces jointes en ligne (pour l'instant), l'échec se dit sans proposer de joindre la photo.
-        if (bridge.piecesJointes === false) return infoDialog('La lecture de la facture a échoué', e.message || 'Erreur inconnue.');
+        // Sans pièces jointes en ligne (pour l'instant), l'échec se dit sans proposer de joindre la photo. Venue d'un message,
+        // la photo se range quand même : l'achat se saisit à la main, et le message dira où il est rangé.
+        const depuisMessage = rangementDuMessage && rangementDuMessage.lu ? ' Saisis l\'achat à la main, puis « Enregistrer » : ton cabinet lira dans votre fil où la pièce est rangée.' : '';
+        if (bridge.piecesJointes === false) return infoDialog('La lecture de la facture a échoué', (e.message || 'Erreur inconnue.') + depuisMessage);
         const retry = await confirmDialog(`La lecture a échoué.\n\n${e.message || 'Erreur inconnue.'}\n\nTu peux joindre la photo et saisir la facture à la main.`, 'Joindre la photo', false, { titre: 'La lecture de la photo a échoué' });
         if (retry) await joindreFichier(file);
         return;
@@ -10546,6 +10578,17 @@
         ou: read.ou || {}
       } : undefined);
     };
+    // (plateforme, lot messagerie) Arrivé depuis « Ranger dans mes achats » : la photo du message se lit tout de suite ;
+    // sans lecture sur ce serveur, l'achat se saisit à la main, et le message dira quand même où il est rangé.
+    if (isNew && rangementDuMessage && !rangementDuMessage.lu && bridge.ocrDepuisFichier) {
+      const r = rangementDuMessage;
+      r.lu = true;
+      const file = bridge.ocrDepuisFichier(r.fichier);
+      bridge.ocrStatus().then(st => {
+        if (st && st.hasKey) return lirePhoto(file);
+        toast(`La lecture des photos n'est pas branchée sur ce serveur : saisis l'achat de « ${r.fichier.nom} » à la main, puis « Enregistrer ».`);
+      }, () => {});
+    }
 
 
     // --- règlements
@@ -10692,6 +10735,14 @@
       if (!await doublonOk()) return;
       if (!persist()) return;
       toast('Enregistré');
+      if (isNew && rangementDuMessage && rangementDuMessage.lu && bridge.messagerie) {
+        const r = rangementDuMessage;
+        rangementDuMessage = null;
+        const qui = p.supplierId ? supplierName(p.supplierId) : (p.subject || 'Achat');
+        const libelle = `${qui}, ${C.money(C.purchaseTotals(p, company()).netToPay, p.currency || company().currency)}`;
+        bridge.messagerie.rangerAchat(r.message, p.id, libelle)
+          .then(() => toast(`Enregistré, et rangé : ton cabinet le lit dans le fil (${libelle})`), e => toast(plainError(e), true));
+      }
       if (isNew) remplacerPage('#/achat/' + p.id); else render(true);
     };
     if ($('#pay')) $('#pay').onclick = () => supplierPaymentForm(purchaseById(p.id), () => render());
@@ -15566,6 +15617,57 @@
   // et qui sont mes clients.
   const statsState = { kind: 'annee', year: C.today().slice(0, 4), n: String(Number(C.today().slice(5, 7))) };
 
+  // (plateforme, lot messagerie) « Mon comptable » : le fil avec le cabinet (plateforme/messagerie.js ; maquette validée
+  // par Skander le 09/10/2026). La page fournit ce que le fil ne sait pas : les pièces du dossier (« Parler d'une pièce »),
+  // les ouvrir, répondre à une question de la révision (le chemin de `repondreA`), ranger une photo dans les achats.
+  let conversationOuverte = null;
+  routes.comptable = () => {
+    if (conversationOuverte) { conversationOuverte.arreter(); conversationOuverte = null; }
+    const view = $('#view');
+    if (!bridge.messagerie) {
+      view.innerHTML = '<div class="page-head"><h1>Mon comptable</h1></div><div class="panel"><p class="small muted">La messagerie avec ton cabinet se tient en ligne, au serveur.</p></div>';
+      return;
+    }
+    view.innerHTML = '<div id="msg-racine"></div>';
+    const doc = d => {
+      const t = C.computeTotals(d, company());
+      return `${d.number || 'Brouillon'} · ${clientName(d.clientId)} · ${C.money(d.type === 'devis' ? t.totalTTC : t.netToPay, docCur(d))}`;
+    };
+    const achat = p => `${p.number || p.subject || 'Sans numéro'} · ${p.supplierId ? supplierName(p.supplierId) : 'Sans fournisseur'} · ${C.money(C.purchaseTotals(p, company()).netToPay, p.currency || company().currency)}`;
+    const ouvrirPiece = (genre, id) => {
+      if (genre === 'achat') { if (!purchaseById(id)) return false; navigate('#/achat/' + id); return true; }
+      if (!docById(id)) return false;
+      navigate('#/doc/' + id);
+      return true;
+    };
+    conversationOuverte = bridge.messagerie.dessiner($('#msg-racine'), {
+      toast,
+      pieces: () => [
+        ...data.documents.filter(d => ['facture', 'avoir', 'devis'].includes(d.type) && (d.number || d.status !== 'brouillon'))
+          .map(d => ({ genre: d.type, id: d.id, libelle: doc(d), date: d.date })),
+        ...data.purchases.map(p => ({ genre: 'achat', id: p.id, libelle: achat(p), date: p.date })),
+      ],
+      ouvrirPiece,
+      // Une question de la révision nomme sa pièce par son numéro.
+      pieceDuNumero: numero => {
+        const d = data.documents.find(x => x.number === numero);
+        if (d) return { genre: d.type === 'avoir' ? 'avoir' : d.type === 'devis' ? 'devis' : 'facture', id: d.id };
+        const p = data.purchases.find(x => x.number === numero);
+        return p ? { genre: 'achat', id: p.id } : null;
+      },
+      repondre: async (id, texte) => {
+        const r = C.repondreQuestion(data.questionsCabinet || [], id, { texte }, Date.now());
+        if (!r.ok) throw new Error(r.motif);
+        data.questionsCabinet = r.liste;
+        await save(true);
+        updateNavCounts();
+      },
+      rangerAchat: m => { rangementDuMessage = { message: m.id, fichier: m, lu: false }; navigate('#/achat/new'); },
+      voirMandat: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
+      inviter: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
+      surAttente: a => majMessagerie({ ...(messagerieVue || {}), ...a }),
+    });
+  };
   // (plateforme, brique 113) Le groupe : les sociétés de la personne, leurs chiffres lus dans leurs livres au serveur.
   routes.groupe = async () => {
     const tete = `<div class="page-head"><h1>Le groupe ${info('groupe.page')}</h1><div class="actions">${backButton('#/dashboard')}</div></div>`;
@@ -21531,6 +21633,19 @@
     });
     setInterval(relireLicence, 60 * 60 * 1000);
     window.addEventListener('focus', relireLicence);
+    // (plateforme, lot messagerie) Ce qui attend dans le fil du cabinet, relu toutes les 30 secondes tant que la page est
+    // visible : la pastille de « Mon comptable », et l'entrée elle-même (elle paraît avec le mandat). Un rôle qui n'écrit
+    // pas au cabinet ne la voit jamais, et on ne redemande plus.
+    if (bridge.messagerie) {
+      let sansMessagerie = false;
+      const suivreMessagerie = async () => {
+        if (sansMessagerie || document.visibilityState !== 'visible') return;
+        try { majMessagerie(await bridge.messagerie.attente()); } catch (e) { if (e && e.statut === 403) { sansMessagerie = true; majMessagerie(null); } }
+      };
+      void suivreMessagerie();
+      setInterval(suivreMessagerie, 30 * 1000);
+      document.addEventListener('visibilitychange', () => { void suivreMessagerie(); });
+    }
     if (licence && licence.commande) verifierAchat(false);
     // La copie de sauvegarde externe ne vit pas dans les données : on la lit une fois ici pour que
     // « Tes premiers pas » sache si l'étape est faite. Un échec n'empêche rien : l'étape s'affiche

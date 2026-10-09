@@ -396,6 +396,15 @@
     entreprise d'essai vide y repart d'elle-même) ; « Ta vraie entreprise » et « Une nouvelle entreprise »
     (`/?entreprise=exemple|menu&retour=…`) les créent, la visite demandée voyageant dans l'adresse ; le bandeau de
     l'exemple dit « Créer ma vraie entreprise » tant qu'il n'y en a pas ; « Le groupe » attend deux vraies sociétés.
+  - **La messagerie entre l'entreprise et son cabinet** (lot messagerie, 09/10/2026, maquettes validées ;
+    `docs/messagerie.md`, `0078`, `serveur/messagerie/`, `web/public/plateforme/messagerie.js`) : un fil par entreprise et
+    par cabinet, qui appartient à l'entreprise ; « Mon comptable » dans le menu de l'entreprise (sa pastille : non lus,
+    questions sans réponse, pièces demandées, chacune une fois), « Messages » dans le Cabinet (la boîte « À traiter »,
+    « Attend le client », « Tout », comptés au serveur avec la même règle). Les questions de la révision y paraissent sans
+    y être recopiées ; une pièce demandée se reçoit quand le client l'envoie ; une photo ou un PDF (10 Mo, reconnus à
+    leurs octets) se range dans les achats. L'alerte par e-mail ne porte RIEN du message (ni nom, ni identifiant),
+    part une fois cinq minutes après, à une adresse vérifiée (`postier.ts`, `SKANFACT_ALERTES_MS`). Pas de « en train
+    d'écrire » : la page relit toutes les 30 secondes, page visible.
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

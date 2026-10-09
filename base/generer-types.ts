@@ -34,6 +34,8 @@ const TYPES: Record<string, string> = {
   interval: 'string',
   'timestamp with time zone': 'Date',
   jsonb: 'Json',
+  // Le contenu d'un fichier joint à un message (lot messagerie, 0078) : lu en octets, tel quel.
+  bytea: 'Buffer',
 };
 
 type Colonne = { schema: string; table: string; colonne: string; type: string; tableau: boolean; requis: boolean; defaut: boolean; generee: boolean; vue: boolean };

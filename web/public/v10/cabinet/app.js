@@ -1573,6 +1573,45 @@
     obsOrdinateur.observe($('#view'), { childList: true, subtree: true });
     poser();
   }
+  // (plateforme, lot messagerie) Les messages des clients : la boîte de tous les clients (« À traiter », « Attend le
+  // client », « Tout »), puis la conversation d'un client (plateforme/messagerie.js ; maquette validée le 09/10/2026).
+  let messagerieOuverte = null;
+  let pastilleMessagesLue = false;
+  function majPastilleMessages(n) { const p = $('#nav-messages'); if (p) { p.hidden = !n; p.textContent = n ? String(n) : ''; } }
+  async function rafraichirPastilleMessages() {
+    if (!api.messagerie || document.visibilityState !== 'visible') return;
+    try { majPastilleMessages((await api.messagerie.compteurs()).aTraiter); } catch (_) { /* la pastille attend la relecture suivante */ }
+  }
+  if (api.messagerie) {
+    setInterval(rafraichirPastilleMessages, 60 * 1000);
+    document.addEventListener('visibilitychange', () => { void rafraichirPastilleMessages(); });
+  }
+  function drawMessages(view, ent, geste) {
+    if (messagerieOuverte) { messagerieOuverte.arreter(); messagerieOuverte = null; }
+    if (!api.messagerie) { view.innerHTML = '<div class="empty">La messagerie avec les clients se tient en ligne, au serveur.</div>'; return; }
+    view.innerHTML = '<div id="msg-racine"></div>';
+    const racine = $('#msg-racine');
+    const revision = id => { location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/revision'; };
+    if (!ent) {
+      messagerieOuverte = api.messagerie.boite(racine, {
+        ouvrir: (id, demander) => { location.hash = '#/messages/' + encodeURIComponent(id) + (demander ? '/demande' : ''); },
+        revision,
+        surCompteurs: c => majPastilleMessages(c.aTraiter),
+      });
+      return;
+    }
+    const id = decodeURIComponent(ent);
+    const d = (S.dossiers || []).find(x => x.id === id);
+    messagerieOuverte = api.messagerie.conversation(racine, id, {
+      nom: d ? d.name : 'Ce client',
+      demander: geste === 'demande',
+      toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined),
+      retour: { texte: 'Les messages de tes clients', aller: () => { location.hash = '#/messages'; } },
+      revision: () => revision(id),
+      surAttente: () => { void rafraichirPastilleMessages(); },
+    });
+  }
+
   function render() {
     const hash = location.hash.replace(/^#\//, '') || 'dossiers';
     const [route, arg] = hash.split('/');
@@ -1611,6 +1650,9 @@
     // saisi dans la journée y restait « à saisir » (même règle que le résumé ci-dessus).
     if (route !== routeLue && route === 'production') prodState.lignes = null;
     routeLue = route;
+    // (plateforme, lot messagerie) La conversation ouverte s'arrête quand on la quitte ; la pastille se lit une première fois.
+    if (route !== 'messages' && messagerieOuverte) { messagerieOuverte.arreter(); messagerieOuverte = null; }
+    if (!pastilleMessagesLue) { pastilleMessagesLue = true; void rafraichirPastilleMessages(); }
     const view = $('#view');
     if (route === 'dossier') drawDossier(view, arg, hash.split('/')[2], hash.split('/')[3], hash.split('/')[4]);
     else if (route === 'production') drawProduction(view);
@@ -1618,6 +1660,7 @@
     else if (route === 'echeances') drawEcheances(view);
     else if (route === 'relances') drawRelances(view);
     else if (route === 'reglages') drawReglages(view);
+    else if (route === 'messages') drawMessages(view, arg, hash.split('/')[2]);
     else if (route === 'aide') drawAide(view, arg);
     else if (route === 'guide') drawGuide(view);
     else drawDossiers(view);

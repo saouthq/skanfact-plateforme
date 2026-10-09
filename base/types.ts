@@ -355,6 +355,54 @@ export interface BaseDeDonnees {
     rouvert_par: string | null;
     motif: string;
   };
+  'messagerie.alerte': {
+    utilisateur: string;
+    entreprise: string;
+    cabinet: string;
+    active: Generated<boolean>;
+    prevenue_le: Date | null;
+  };
+  'messagerie.fichier': {
+    id: Generated<string>;
+    entreprise: string;
+    cabinet: string;
+    nom: string;
+    type: string;
+    taille: number;
+    contenu: Buffer;
+    empreinte: string;
+    depose_par: string;
+    depose_le: Generated<Date>;
+  };
+  'messagerie.fil': {
+    entreprise: string;
+    cabinet: string;
+    lu_entreprise: Date | null;
+    lu_cabinet: Date | null;
+    traite_le: Date | null;
+    traite_par: string | null;
+    cree_le: Generated<Date>;
+  };
+  'messagerie.message': {
+    id: Generated<string>;
+    entreprise: string;
+    cabinet: string;
+    cote: string;
+    auteur: string;
+    auteur_nom: string;
+    texte: Generated<string>;
+    piece_genre: string | null;
+    piece_id: string | null;
+    piece_libelle: string | null;
+    demande: string | null;
+    demande_recue_le: Date | null;
+    demande_recue_par: string | null;
+    fichier: string | null;
+    achat_id: string | null;
+    achat_libelle: string | null;
+    repond_a: string | null;
+    ecrit_le: Generated<Date>;
+  };
   'paie.bulletin': {
     id: Generated<string>;
     entreprise: string;

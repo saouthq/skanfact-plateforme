@@ -764,6 +764,13 @@
     dessinerQuarantaine,
     dessinerPaiement,
     dessinerServices,
+    // La messagerie avec le cabinet (lot messagerie ; plateforme/messagerie.js) : ce qui attend (la pastille), le fil, et
+    // l'achat où la photo d'un message a été rangée.
+    messagerie: {
+      attente: () => appel('GET', '/messages/attente'),
+      dessiner: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, { ...o, appel, cote: 'entreprise' }),
+      rangerAchat: (/** @type {string} */ message, /** @type {string} */ achat, /** @type {string} */ libelle) => appel('POST', `/messages/${encodeURIComponent(message)}/achat`, { achat, libelle }),
+    },
     // L'application de bureau (brique 138) : l'impression par l'agent local, seulement quand il est là.
     ...(/** @type {any} */ (window).skanfactBureau ? { dessinerImprimante, imprimerTicket: imprimerParAgent, ticketEncaisse } : {}),
     lienClient,
@@ -1095,6 +1102,13 @@
       });
       const r = await appel('POST', '/achats/lecture', { nom: f.name, contenu });
       return Object.assign({}, r.lecture, { remarques: r.remarques || [], ou: r.ou || {}, moteur: r.moteur });
+    },
+    // (lot messagerie) La photo ou le PDF d'un message, à lire comme un fichier choisi (« Ranger dans mes achats »).
+    ocrDepuisFichier: (/** @type {{ nom: string, type: string, contenu: string }} */ f) => {
+      const fichier = new File([Uint8Array.from(atob(f.contenu), (c) => c.charCodeAt(0))], f.nom, { type: f.type });
+      const chemin = `lecture:${++lecturesChoisies}`;
+      fichiersALire.set(chemin, fichier);
+      return { path: chemin, name: fichier.name, size: fichier.size, type: fichier.type };
     },
     buildPack: pasEncore('Le paquet pour le comptable'),
     onPackProgress: () => () => undefined,

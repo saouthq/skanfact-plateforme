@@ -457,6 +457,10 @@
     // barre ajoute elle-même quand c'est le cas — jamais d'un réglage du dossier.
     { id: 'licences', titre: 'Licences', module: null, horsMenu: true,
       quoi: 'Les licences SkanFact que tu as émises : à qui, quelle offre, jusqu\'à quand.' },
+    // (plateforme, lot messagerie) Le fil avec le cabinet : hors du menu des modules, la barre l'ajoute quand un cabinet
+    // tient le dossier (plateforme/messagerie.js).
+    { id: 'comptable', titre: 'Mon comptable', module: null, horsMenu: true,
+      quoi: 'Tes échanges avec ton cabinet comptable : ses messages, ses questions, les pièces qu\'il te demande.' },
     { id: 'parametres', titre: 'Paramètres', module: null, pied: true },
     { id: 'aide', titre: 'Aide', module: null, pied: true }
   ];

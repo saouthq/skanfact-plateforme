@@ -21,6 +21,8 @@
 //   SKANFACT_TTN             le service El Fatoora de la TTN (l'envoi des factures électroniques signées) ;
 //                            sans lui, les pièces signées attendent (et l'écran le dit)
 //   SKANFACT_TTN_MS          le rythme du facteur de la TTN, en millisecondes (60 000 par défaut)
+//   SKANFACT_ALERTES_MS      le rythme des alertes par e-mail de la messagerie, en millisecondes (60 000 par
+//                            défaut) ; sans relais d'e-mails, aucune ne part
 //   SKANFACT_COFFRE          la clé du coffre (32 octets en base64) qui scelle les clés confiées par les
 //                            entreprises (serveur/coffre.ts) ; exigée en production, une clé d'essai
 //                            connue de tous sinon
@@ -54,6 +56,9 @@ import { routesCabinet } from './cabinet/routes.ts';
 import { routesCompta } from './compta/routes.ts';
 import { declarerGestesPaie } from './paie/gestes.ts';
 import { routesPaie } from './paie/routes.ts';
+import { declarerGestesMessagerie } from './messagerie/gestes.ts';
+import { prevenirParCourriel } from './messagerie/postier.ts';
+import { routesMessagerie } from './messagerie/routes.ts';
 import { declarerGestesVentes } from './ventes/gestes.ts';
 import { routesVentes } from './ventes/routes.ts';
 import { envoyerALaTtn } from './v10/envoi.ts';
@@ -66,7 +71,7 @@ export type Configuration = {
   base: string; environnement: 'test' | 'production'; port: number; hote: string; listeVolee: string;
   sms: 'aucun'; livreurMs: number; web: string; adresse: string | null; konnect: string; coffre: Buffer; verificationMs: number;
   digigo: { base: string; cle: string } | null;
-  ttn: string | null; ttnMs: number; contratsMs: number;
+  ttn: string | null; ttnMs: number; contratsMs: number; alertesMs: number;
   lectures: number;
   partenaires: Partenaire[];
   // Combien de relais de confiance (le frontal) se tiennent devant le serveur (brique 142) : 0, le serveur est
@@ -135,6 +140,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     adresse, konnect, coffre, verificationMs: Number(env.SKANFACT_VERIFICATION_MS ?? 60_000),
     digigo: digigo ? { base: digigo, cle: env.SKANFACT_DIGIGO_CLE ?? '' } : null,
     ttn, ttnMs: Number(env.SKANFACT_TTN_MS ?? 60_000), contratsMs: Number(env.SKANFACT_CONTRATS_MS ?? 3_600_000),
+    alertesMs: Number(env.SKANFACT_ALERTES_MS ?? 60_000),
     lectures, partenaires, proxy, version: env.SKANFACT_VERSION ?? versionDuCode(),
     courriel: smtp && de ? { smtp, de } : null,
   };
@@ -202,7 +208,8 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   declarerGestesAchats();
   declarerGestesPaie();
   declarerGestesCompta();
-  const app = creerApp(ctx, [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx)], { proxy: c.proxy });
+  declarerGestesMessagerie();
+  const app = creerApp(ctx, [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx), ...routesMessagerie(ctx)], { proxy: c.proxy });
   servirLesEcrans(app, c.web, c.version);
   const adresse = await app.listen({ port: c.port, host: c.hote });
   if (!publique) publique = adresse;
@@ -249,6 +256,16 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   tourDesContrats();
   const contrats = setInterval(tourDesContrats, c.contratsMs);
 
+  // Les alertes par e-mail de la messagerie (lot messagerie) : chaque minute, qui a un message à lire depuis cinq
+  // minutes ; un seul tour à la fois, et rien sans relais d'e-mails.
+  let alertes: Promise<unknown> = Promise.resolve();
+  let enAlertes = false;
+  const postier = setInterval(() => {
+    if (enAlertes || !ctx.courriel) return;
+    enAlertes = true;
+    alertes = prevenirParCourriel(ctx).catch((e: unknown) => { app.log.error(e); }).finally(() => { enAlertes = false; });
+  }, c.alertesMs);
+
   return {
     adresse,
     arreter: async () => {
@@ -256,10 +273,12 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
       clearInterval(veilleur);
       clearInterval(facteur);
       clearInterval(contrats);
+      clearInterval(postier);
       await tour;
       await verification;
       await tournee;
       await echeancier;
+      await alertes;
       await app.close();
       await pool.end();
     },

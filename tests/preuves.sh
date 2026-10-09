@@ -5141,7 +5141,7 @@ prouver "la lecture qui essaie de joindre la photo sans pièces jointes" web/pub
   "      const jointe = bridge.piecesJointes === false ? false : await joindreFichier(file);" "      const jointe = await joindreFichier(file);" \
   "$LW1"
 prouver "un échec de lecture qui propose de joindre la photo, sans pièces jointes" web/public/v10/app.js \
-  "        if (bridge.piecesJointes === false) return infoDialog('La lecture de la facture a échoué', e.message || 'Erreur inconnue.');
+  "        if (bridge.piecesJointes === false) return infoDialog('La lecture de la facture a échoué', (e.message || 'Erreur inconnue.') + depuisMessage);
 " "" \
   "$LW2"
 prouver "la ligne lue coupée sur un téléphone" web/public/v10/app.js \
@@ -9722,6 +9722,108 @@ prouver "le serveur qui trébuche pendant la préparation, sans « Réessayer »
 prouver "un refus de la préparation offert à réessayer" $EXP \
   "essai: id, vraie, verifiee, reessayable: r.statut >= 500 });" "essai: id, vraie, verifiee, reessayable: true });" \
   "$EPV1"
+
+# ── Lot messagerie (09/10/2026 ; docs/messagerie.md ; base/migrations/0078_messagerie.sql, serveur/messagerie/,
+# web/public/plateforme/messagerie.js ; tests/messagerie/messagerie.test.ts, tests/web/messagerie.test.ts) ──
+MG=base/migrations/0078_messagerie.sql
+MR=serveur/messagerie/routes.ts
+MJ=web/public/plateforme/messagerie.js
+MSG1="ils s'écrivent ; chacun voit ce qui l'attend, « lu » se dit à l'autre ; ni la voisine, ni un autre rôle, ni un collaborateur sans le dossier"
+MSG2="une pièce demandée : le cabinet la demande, le client l'envoie en photo et elle est reçue ; rangée dans un achat, le message le dit"
+MSG3="cinquante messages à la fois, du plus récent ; la suite donne les plus anciens, sans en perdre ni en doubler"
+MSG4="« À traiter », « Attend le client », « Rien à faire » : chaque client à sa place, et les compteurs sortent des mêmes lignes"
+MSG5="le cabinet ne lit plus ; l'entreprise relit l'ancien fil sans y écrire ; un nouveau cabinet ne le lit pas"
+MSG6="ne porte rien du message ; part une fois, cinq minutes après, à une adresse vérifiée ; se redit après lecture ; se décoche"
+MSGW="Amine et son comptable s'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet"
+prouver "les messages d'un fil lus de tous" $MG \
+  "create policy visible on messagerie.message using ((entreprise, cabinet) in (select f.entreprise, f.cabinet from messagerie.mes_fils() f));" "create policy visible on messagerie.message using (true);" \
+  "$MSG1"
+prouver "la messagerie ouverte à tous les rôles de l'entreprise" $MG \
+  "socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne']::text[]" "cardinality(socle.mes_roles(p_entreprise)) > 0" \
+  "$MSG1"
+prouver "le fil lu d'un membre du cabinet à qui le dossier n'est pas confié" $MG \
+  "     and ('supervision' = any(m.roles) or exists (select 1 from socle.mandat_affectation a where a.mandat = d.id and a.membre = m.id))
+     and socle.ma_cle() is null
+\$\$;" "     and socle.ma_cle() is null
+\$\$;" \
+  "$MSG1"
+prouver "« Toi » sous le message d'un collègue" $MR \
+  "            moi: m.de_moi," "            moi: m.cote === cote.data," \
+  "$MSG1"
+prouver "le client qui demande une pièce" $MG \
+  "  if v_demande is not null and p_cote <> 'cabinet' then perform socle.refus('seul le cabinet demande une pièce'); end if;" "" \
+  "$MSG2"
+prouver "la pièce demandée envoyée, jamais reçue" $MG \
+  "    update messagerie.message set demande_recue_le = clock_timestamp(), demande_recue_par = socle.moi()
+     where id = v_repond and entreprise = p_entreprise and cabinet = v_cabinet and demande is not null and demande_recue_le is null;
+    if not found then perform socle.refus('cette pièce demandée n''attend plus rien'); end if;" "" \
+  "$MSG2"
+prouver "un fichier joint à deux messages" $MG \
+  "    if exists (select 1 from messagerie.message m where m.fichier = v_fichier) then perform socle.refus('ce fichier est déjà joint à un message'); end if;" "" \
+  "$MSG2"
+prouver "un fichier pas encore joint, lu de l'autre côté" $MG \
+  "  and (depose_par = socle.moi() or exists (select 1 from messagerie.message m where m.fichier = fichier.id)));" "  and true);" \
+  "$MSG2"
+prouver "un fichier reconnu à son nom plutôt qu'à ses octets" $MR \
+  "      const sorte = sorteDe(fichier);" "      const sorte = sorteDe(fichier) ?? 'png';" \
+  "$MSG2"
+prouver "la pièce demandée comptée deux fois dans la pastille" $MR \
+  "          and not (m.demande is not null and m.demande_recue_le is null))" ")" \
+  "$MSG2"
+prouver "la suite d'un fil perdue (une page sans savoir qu'il en reste)" $MR \
+  "avant?.[1] ?? null, PAGE + 1])" "avant?.[1] ?? null, PAGE])" \
+  "$MSG3"
+prouver "« C'est traité » sans effet sur la boîte" $MR \
+  "cl.quand > greatest(coalesce(f.traite_le, '-infinity'), coalesce(ca.quand, '-infinity')) then 'a_traiter'" "cl.quand > coalesce(ca.quand, '-infinity') then 'a_traiter'" \
+  "$MSG4"
+prouver "une pièce demandée qui n'attend pas le client dans la boîte" $MR \
+  "            union all
+            select m.entreprise from messagerie.message m where m.cabinet = \$1 and m.demande is not null and m.demande_recue_le is null" "" \
+  "$MSG4"
+prouver "le fil d'un ancien cabinet écrit par l'entreprise" $MG \
+  "  if v is null then perform socle.refus('aucun cabinet ne tient ce dossier : la messagerie s''ouvre avec le mandat'); end if;" "  if v is null then select f.cabinet into v from messagerie.fil f where f.entreprise = p_entreprise limit 1; end if;" \
+  "$MSG5"
+prouver "l'alerte qui nomme l'entreprise dans son lien" serveur/messagerie/postier.ts \
+  "{ lien: \`\${courriel.adresse()}/\` }" "{ lien: \`\${courriel.adresse()}/v10/?e=\${p.entreprise}\` }" \
+  "$MSG6"
+prouver "l'alerte envoyée à une adresse que personne n'a vérifiée" $MG \
+  "    join socle.utilisateur u on u.id = p.utilisateur and u.adresse_verifiee_le is not null" "    join socle.utilisateur u on u.id = p.utilisateur" \
+  "$MSG6"
+prouver "l'alerte répétée à chaque tour" $MG \
+  "     and (al.prevenue_le is null
+          or" "     and (true
+          or" \
+  "$MSG6"
+prouver "l'alerte partie avant les cinq minutes" $MG \
+  "    where x.quand <= p_maintenant - p_delai" "    where x.quand <= p_maintenant" \
+  "$MSG6"
+prouver "l'alerte décochée qui part quand même" $MG \
+  "   where socle.moi() is null and coalesce(al.active, true)" "   where socle.moi() is null" \
+  "$MSG6"
+prouver "« Parler d'une pièce » qui envoie plus que sa pièce" $MJ \
+  "piece = { genre: p.genre, id: p.id, libelle: p.libelle };" "piece = p;" \
+  "$MSGW"
+prouver "la pièce demandée vue mais jamais dite lue" $MJ \
+  "r.attente && r.attente.aLire && document.visibilityState" "r.attente && r.attente.nonLus > 0 && document.visibilityState" \
+  "$MSGW"
+prouver "la boîte qui s'ouvre sur « Rien à traiter » quand le client est attendu" $MJ \
+  "      if (!filtre) filtre = c.aTraiter ? 'a_traiter' : c.attendClient ? 'attend_client' : 'tout';" "      if (!filtre) filtre = 'a_traiter';" \
+  "$MSGW"
+prouver "« Demander une pièce » qui n'ouvre pas le champ de la pièce" $MJ \
+  "      if (demande) setTimeout(() => demandeTxt.focus(), 0);" "" \
+  "$MSGW"
+prouver "un message vide parti au serveur" $MJ \
+  "        if (!t && !fichier && !d) {" "        if (false) {" \
+  "$MSGW"
+prouver "« Mon comptable » dans le menu sans cabinet" web/public/v10/app.js \
+  "  const avecMessagerie = a => !!(a && (a.cabinet || a.anciens));" "  const avecMessagerie = a => !!a;" \
+  "$MSGW"
+prouver "la pastille de « Mon comptable » sans les pièces demandées" web/public/v10/app.js \
+  "const n = (a.nonLus || 0) + (a.questions || 0) + (a.demandes || 0);" "const n = (a.nonLus || 0) + (a.questions || 0);" \
+  "$MSGW"
+prouver "la pastille des Messages qui compte tous les clients" web/public/v10/cabinet/app.js \
+  "majPastilleMessages((await api.messagerie.compteurs()).aTraiter)" "majPastilleMessages((await api.messagerie.compteurs()).tout)" \
+  "$MSGW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

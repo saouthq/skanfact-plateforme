@@ -307,6 +307,26 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   // Vérifier son adresse sans en changer (0077, lot onboarding du 09/10/2026).
   { base: 'ton adresse est déjà vérifiée', cle: 'base.compte.adresse_deja_verifiee', fr: 'ton adresse est déjà vérifiée' },
   { base: 'cette demande n\'est plus valable : redemande un code', cle: 'base.compte.verification_perimee', fr: 'cette demande n\'est plus valable : redemande un code' },
+  // La messagerie entre l'entreprise et son cabinet (0078, lot messagerie du 09/10/2026).
+  { base: 'la messagerie se tient entre personnes, jamais par une clé de l\'API', cle: 'base.messagerie.cle', fr: 'la messagerie se tient entre personnes, jamais par une clé de l\'API' },
+  { base: 'ce dossier n\'est pas tenu par ton cabinet', cle: 'base.messagerie.pas_ton_dossier', fr: 'ce dossier n\'est pas tenu par ton cabinet' },
+  { base: 'ce côté de la messagerie n\'existe pas', cle: 'base.messagerie.cote', fr: 'ce côté de la messagerie n\'existe pas' },
+  { base: 'seuls le propriétaire, un administrateur et la comptabilité interne écrivent au cabinet', cle: 'base.messagerie.role', fr: 'seuls le propriétaire, un administrateur et la comptabilité interne écrivent au cabinet' },
+  { base: 'aucun cabinet ne tient ce dossier : la messagerie s\'ouvre avec le mandat', cle: 'base.messagerie.sans_mandat', fr: 'aucun cabinet ne tient ce dossier : la messagerie s\'ouvre quand tu confies ton dossier à un cabinet' },
+  { base: 'seules une photo (JPEG, PNG, WebP) ou un PDF se joignent à un message', cle: 'base.messagerie.type', fr: 'seules une photo (JPEG, PNG, WebP) ou un PDF se joignent à un message' },
+  { base: 'un fichier joint pèse dix mégaoctets au plus', cle: 'base.messagerie.taille', fr: 'un fichier joint pèse dix mégaoctets au plus' },
+  { base: 'seul le cabinet demande une pièce', cle: 'base.messagerie.demande_cabinet', fr: 'seul le cabinet demande une pièce' },
+  { base: 'un message vide n\'apprend rien', cle: 'base.messagerie.vide', fr: 'un message vide n\'apprend rien : écris quelque chose, ou joins une photo ou un PDF' },
+  { base: 'un message tient en 4 000 caractères', cle: 'base.messagerie.long', fr: 'un message tient en 4 000 caractères' },
+  { base: 'une pièce demandée se nomme en 300 caractères', cle: 'base.messagerie.demande_longue', fr: 'une pièce demandée se nomme en 300 caractères' },
+  { base: 'cette pièce ne se reconnaît pas : une facture, un avoir, un devis ou un achat, avec son libellé', cle: 'base.messagerie.piece', fr: 'cette pièce ne se reconnaît pas : une facture, un avoir, un devis ou un achat, avec son libellé' },
+  { base: 'ce fichier n\'est pas là : dépose-le d\'abord', cle: 'base.messagerie.fichier_absent', fr: 'ce fichier n\'est pas là : joins-le à nouveau' },
+  { base: 'ce fichier est déjà joint à un message', cle: 'base.messagerie.fichier_pris', fr: 'ce fichier est déjà joint à un message' },
+  { base: 'on répond à une pièce demandée en l\'envoyant', cle: 'base.messagerie.reponse_demande', fr: 'on répond à une pièce demandée en l\'envoyant : joins la photo ou le PDF' },
+  { base: 'cette pièce demandée n\'attend plus rien', cle: 'base.messagerie.demande_close', fr: 'cette pièce demandée n\'attend plus rien' },
+  { base: 'un achat se nomme par son identifiant et son libellé', cle: 'base.messagerie.achat', fr: 'un achat se nomme par son identifiant et son libellé' },
+  { base: 'ce message n\'a pas de fichier à ranger', cle: 'base.messagerie.rien_a_ranger', fr: 'ce message n\'a pas de fichier à ranger' },
+  { base: 'seul le serveur note une alerte partie', cle: 'base.messagerie.alerte_serveur', fr: 'seul le serveur note une alerte partie' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

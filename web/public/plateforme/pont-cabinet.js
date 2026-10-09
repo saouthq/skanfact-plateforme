@@ -904,6 +904,15 @@
     // Ton compte (lot onboarding, 0076 ; compte.js, le même que dans l'entreprise) et tes appareils (brique 74).
     dessinerCompte: (/** @type {HTMLElement} */ el, /** @type {any} */ v10) => /** @type {any} */ (window).SkanCompte.dessiner(el, { appel, modal: v10.modal, toast: v10.toast }),
     dessinerAppareils: (/** @type {HTMLElement} */ el) => /** @type {any} */ (window).SkanCompte.appareils(el, { appel }),
+    // Les messages des clients (lot messagerie ; plateforme/messagerie.js) : la boîte de tous les clients, la
+    // conversation d'un client, et le compte de ceux « À traiter » (la pastille du menu).
+    messagerie: {
+      boite: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.boite(el, { ...o, appel, cabinet: cabinetId, nomCabinet: nomDuCabinet }),
+      conversation: (/** @type {HTMLElement} */ el, /** @type {string} */ entreprise, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, {
+        ...o, cote: 'cabinet', appel: (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b),
+      }),
+      compteurs: async () => (await appel('GET', `/cabinets/${cabinetId}/messages`)).compteurs,
+    },
     // Pas de clé de secours en ligne (C4) : le Cabinet ne la réclame jamais (adaptation de chargerRecovery).
     sansCleDeSecours: true,
     // L'ouverture : la session de la plateforme ouvre le cabinet (adaptation de boot()).
