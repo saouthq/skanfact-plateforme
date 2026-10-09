@@ -2,7 +2,8 @@
 // la souris et vu à l'écran), de bout en bout : créer son compte (un mot de passe trop court se
 // refuse sur son champ) et s'y retrouver connecté, commencer avec son entreprise sur la porte (la découverte
 // sur l'exemple a son parcours : tests/web/exemple.test.ts), qui s'ouvre sans exiger le code du téléphone (facultatif
-// depuis le 09/10/2026, sauf pour un comptable de cabinet) ; puis, dans l'application v10 servie par la plateforme : une facture
+// depuis le 09/10/2026, sauf pour un comptable de cabinet), sur l'assistant de démarrage (son parcours en détail :
+// tests/web/assistant.test.ts) ; puis, dans l'application v10 servie par la plateforme : une facture
 // pour un client créé depuis l'éditeur, émise par le serveur (le numéro de sa série, le même net à
 // payer à l'écran et au serveur), retrouvée après rechargement ; activer le code du téléphone dans Paramètres → Ton
 // compte ; se déconnecter par le menu du haut,
@@ -112,9 +113,24 @@ describe('le parcours, à la souris', () => {
     await champ(p, 'ecran.porte.matricule').fill('1234567 a a m 000');
     await bouton(p, 'ecran.porte.creer').click();
 
-    // L'application v10 de l'entreprise s'ouvre, sans écran du code entre les deux.
+    // L'application v10 de l'entreprise s'ouvre, sans écran du code entre les deux, sur l'assistant de démarrage (lot
+    // onboarding) : « Où te joindre ? » (rien d'obligatoire), le métier (une épicerie : le commerce, et son catalogue de
+    // départ), la TVA (le réel, déjà coché) et le menu proposé ; « Ouvrir mon entreprise » ouvre son accueil.
     await p.waitForURL(/\/v10\/\?e=[0-9a-f-]{36}/, { timeout: 15_000 });
     const ent = new URL(p.url()).searchParams.get('e') ?? '';
+    const assistant = p.locator('#setup.as');
+    const etape = (texte: string) => assistant.getByRole('heading', { level: 1, name: fine(texte), exact: true }).waitFor({ timeout: 15_000 });
+    await etape('Où te joindre ?');
+    await assistant.getByRole('button', { name: 'Continuer', exact: true }).click();
+    await etape('Que fais-tu ?');
+    await assistant.locator('.as-tuile').filter({ hasText: 'Commerce et vente de produits' }).click();
+    await assistant.getByRole('button', { name: 'Continuer', exact: true }).click();
+    await etape('Factures-tu la TVA ?');
+    expect(await assistant.getByRole('radio', { name: /Oui, je facture la TVA/ }).isChecked()).toBe(true);
+    await assistant.getByRole('button', { name: 'Continuer', exact: true }).click();
+    await etape('De quoi as-tu besoin ?');
+    await assistant.getByRole('button', { name: 'Ouvrir mon entreprise', exact: true }).click();
+    await assistant.waitFor({ state: 'detached' });
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await plusTard(p);
     // Au pied du menu, la version du code qui tourne (le jour de l'envoi et son empreinte), jamais « vdev » : c'est ce

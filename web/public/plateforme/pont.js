@@ -929,11 +929,13 @@
     },
     switchDossier: async (/** @type {string} */ id) => { ouvrirEntreprise(id); return { ok: true }; },
     // `visite` : celle qui démarre dans l'entreprise créée (« Passer à ma vraie entreprise », à la fin de la découverte).
+    // L'entreprise créée ici ouvre l'assistant de démarrage, comme celle de la porte (lot onboarding, `assistantDemande`).
     addDossier: async (/** @type {{ name?: string, visite?: string }} */ o) => {
       const nom = String((o && o.name) || '').trim();
       if (!nom) return { ok: false, error: 'Donne un nom à cette entreprise.' };
       const r = await appelCompte('POST', '/entreprises', { raisonSociale: nom });
       if (o && typeof o.visite === 'string' && o.visite) visiteApres(o.visite);
+      assistantApres(r.id);
       ouvrirEntreprise(r.id);
       return { ok: true };
     },
@@ -1127,6 +1129,14 @@
     visiteDemandee: () => {
       try { const v = sessionStorage.getItem(VISITE_APRES); sessionStorage.removeItem(VISITE_APRES); return v; } catch { return null; }
     },
+    // L'assistant de démarrage, demandé par la porte (lot onboarding ; docs/entree.md) : l'entreprise qu'elle vient de créer
+    // (« Ton entreprise », 1 sur 2) l'ouvre à sa première ouverture (« Où te joindre ? », 2 sur 2). Lu une fois, et pour
+    // cette entreprise seulement ; l'écran le pose ensuite dans le dossier, d'où il se reprend sur n'importe quel poste.
+    assistantDemande: () => {
+      try { const v = sessionStorage.getItem(ASSISTANT_APRES); sessionStorage.removeItem(ASSISTANT_APRES); return v === ent; } catch { return false; }
+    },
+    // L'adresse du compte, que l'assistant propose comme adresse de l'entreprise (« Utiliser … »).
+    courrielDuCompte: async () => String((await appelCompte('GET', '/moi')).email || ''),
     // Quitter l'exemple : ta vraie entreprise s'ouvre (l'exemple reste dans l'entreprise d'essai, rien ne s'efface).
     // Sans vraie entreprise encore : { aCreer }, et l'écran demande son nom (`addDossier`, qui emporte la visite : une
     // fenêtre fermée sans créer ne laisse pas une visite en attente pour la page suivante).
@@ -1899,6 +1909,12 @@
   /** @param {string} id */
   function visiteApres(id) {
     try { sessionStorage.setItem(VISITE_APRES, id); } catch { /* sans stockage : l'exemple s'ouvre, sans sa visite */ }
+  }
+  // L'entreprise qui ouvre l'assistant à sa prochaine ouverture (`assistantDemande`) : la même clé que la porte.
+  const ASSISTANT_APRES = 'skanfact.assistant';
+  /** @param {string} id */
+  function assistantApres(id) {
+    try { sessionStorage.setItem(ASSISTANT_APRES, id); } catch { /* sans stockage : l'entreprise s'ouvre sur ses premiers pas */ }
   }
   // Ouvrir une entreprise, et s'en souvenir pour la prochaine fois (la même clé que l'entrée).
   /** @param {string} id */

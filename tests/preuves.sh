@@ -8426,7 +8426,7 @@ prouver "une visite laissée en attente par la fenêtre du nom fermée sans cré
   "$POE5"
 prouver "l'entreprise créée en quittant l'exemple, ouverte sans sa visite" $PONT \
   "      if (o && typeof o.visite === 'string' && o.visite) visiteApres(o.visite);
-      ouvrirEntreprise(r.id);" "      ouvrirEntreprise(r.id);" \
+      assistantApres(r.id);" "      assistantApres(r.id);" \
   "$POE5"
 prouver "la visite demandée oubliée au changement de page" $PONT \
   "    try { sessionStorage.setItem(VISITE_APRES, id); } catch { /* sans stockage : l'exemple s'ouvre, sans sa visite */ }" "    void id;" \
@@ -9363,6 +9363,96 @@ prouver "renvoyer le code sans attendre" web/src/ecrans/CodeCourriel.tsx \
 prouver "l'écran du code qui ne nomme pas le cabinet" web/src/App.tsx \
   " cabinet={moi.cabinets[0]?.nom} />" " />" \
   "$KEW4"
+
+# L'assistant de démarrage au nouveau style (lot onboarding, 09/10/2026) : son dessin (plateforme/assistant.js et .css),
+# son ouverture dans la v10 (web/v10/assistant.txt), la porte et le point de contact qui le demandent.
+ASJS=web/public/plateforme/assistant.js
+ASCSS=web/public/plateforme/assistant.css
+ASAPP=web/public/v10/app.js
+AS1="la porte, puis l'assistant : chaque écran s'écrit et se reprend, la facture de l'aperçu est la vraie, et le métier retenu à la fin décide du catalogue"
+AS2="revoir l'assistant : ses réponses y sont, rien ne s'écrit avant la fin, et « Fermer sans rien changer » ne change rien"
+AS3="l'assistant est au propriétaire : un membre de l'équipe ne le voit jamais ; une entreprise créée sans la porte s'ouvre sur son accueil"
+AS4="au téléphone : aucun écran de l'assistant ne défile de côté, tout se touche du doigt, et « Plus tard » mène au bout"
+AS5="ses polices sont celles de l'entrée, à l'octet près, servies comme des polices ; ses couleurs sont les mêmes"
+prouver "l'assistant demandé par la porte, jamais ouvert" $ASAPP \
+  "    if (bridge.assistantDemande && bridge.assistantDemande()) {" "    if (false) {" \
+  "$AS1"
+prouver "l'assistant ouvert dans une entreprise créée sans la porte" $ASAPP \
+  "    if (bridge.assistantDemande && bridge.assistantDemande()) {" "    if (true) {" \
+  "$AS3"
+prouver "l'assistant ouvert à un membre de l'équipe" $ASAPP \
+  "    if (premierLancement && estResponsable()) {" "    if (premierLancement) {" \
+  "$AS3"
+prouver "l'accueil qui repose la question de la porte après l'assistant" $ASAPP \
+  "      visitesPoser(e => { e.accueilVu = true; });
+      if (!data.company.setupDone && !data.company.setupStarted) {" "      if (!data.company.setupDone && !data.company.setupStarted) {" \
+  "$AS1"
+prouver "la porte qui ne demande pas l'assistant" web/src/ecrans/Porte.tsx \
+  "sessionStorage.setItem('skanfact.assistant', r.corps.id);" "void r;" \
+  "$AS1"
+prouver "l'entreprise créée depuis l'exemple, sans l'assistant" web/public/plateforme/pont.js \
+  "      assistantApres(r.id);" "" \
+  "quitter l'exemple sans vraie entreprise : son nom d'abord ; la visite part avec l'entreprise créée, jamais avant"
+prouver "l'assistant demandé pour une autre entreprise" web/public/plateforme/pont.js \
+  "sessionStorage.removeItem(ASSISTANT_APRES); return v === ent;" "sessionStorage.removeItem(ASSISTANT_APRES); return !!v;" \
+  "l'assistant de démarrage s'ouvre dans l'entreprise qui l'a demandé, une seule fois, et jamais dans une autre"
+prouver "l'assistant demandé qui revient à chaque ouverture" web/public/plateforme/pont.js \
+  "sessionStorage.removeItem(ASSISTANT_APRES); " "" \
+  "l'assistant de démarrage s'ouvre dans l'entreprise qui l'a demandé, une seule fois, et jamais dans une autre"
+prouver "la page rechargée qui recommence l'assistant au début" $ASJS \
+  "let i = reprise ? Math.min(Math.max(Number(c0.setupStep) || 0, 0), ETAPES.length - 1) : 0;" "let i = 0;" \
+  "$AS1"
+prouver "le catalogue versé en route, celui du premier métier cliqué" $ASJS \
+  "({ ...a, fillCatalog: false, modules:" "({ ...a, modules:" \
+  "$AS1"
+prouver "le menu proposé écrit en route, comme s'il était choisi" $ASJS \
+  "modules: a.modulesTouche ? a.modules : undefined" "modules: a.modules" \
+  "$AS1"
+prouver "le régime choisi à la main écrasé par le métier" $ASJS \
+  "            a.regimeTouche = true;" "" \
+  "$AS1"
+prouver "le menu choisi à la main écrasé par le métier" $ASJS \
+  "            a.modulesTouche = true;" "" \
+  "$AS1"
+prouver "une adresse e-mail mal formée acceptée" $ASJS \
+  "if (a.email && !" "if (false && !" \
+  "$AS1"
+prouver "« Continuer » sans métier" $ASJS \
+  "          if (!a.activity) {" "          if (false) {" \
+  "$AS1"
+prouver "le téléphone enregistré sans son indicatif" $ASJS \
+  '/^(\+|00)/.test(s) ? s : `${INDICATIF} ${s}`;' '/^(\+|00)/.test(s) ? s : s;' \
+  "$AS1"
+prouver "le pied de l'aperçu qui n'est pas lu sur la facture" $ASJS \
+  "const pied = lignesDe(d.querySelector('.footer .f-left'));" "const pied = [];" \
+  "$AS1"
+prouver "la colonne TVA dessinée sans TVA" $ASJS \
+  "const avecTva = entetes.length >= 5;" "const avecTva = true;" \
+  "$AS1"
+prouver "revoir l'assistant écrit en route" $ASJS \
+  "        if (rejoue) return;" "" \
+  "$AS2"
+prouver "« Fermer sans rien changer » qui déconnecte" $ASJS \
+  "if (rejoue) { fermer(false); return; }" "" \
+  "$AS2"
+prouver "la sortie qui ne dit pas qu'elle ne change rien" $ASJS \
+  "const sortie = rejoue ? 'Fermer sans rien changer' : 'Se déconnecter';" "const sortie = 'Se déconnecter';" \
+  "$AS2"
+prouver "au téléphone, l'icône à côté du nom du métier" $ASCSS \
+  "  #setup.as .as-tuile { flex-direction: column; align-items: flex-start; padding: 12px;" "  #setup.as .as-tuile { padding: 12px;" \
+  "$AS4"
+prouver "le rembourrage de la page ouverte de la v10 sur l'assistant" $ASCSS \
+  "padding: clamp(16px, 4vh, 40px) 0 64px; overflow: visible; " "" \
+  "$AS4"
+prouver "les polices servies sans leur type" serveur/principal.ts \
+  "  '.woff2': 'font/woff2'," "" \
+  "$AS5"
+prouver "une couleur de l'assistant qui n'est pas celle de l'entrée" $ASCSS \
+  "  --e-lien: #0b7a70;" "  --e-lien: #0b7a71;" \
+  "$AS5"
+prouver "une couleur sombre de l'assistant qui n'est pas celle de l'entrée" $ASCSS \
+  "  --e-lien: #7fe0d3;" "  --e-lien: #7fe0d4;" \
+  "$AS5"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

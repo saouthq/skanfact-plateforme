@@ -1,0 +1,311 @@
+/* L'assistant de démarrage (lot onboarding, 09/10/2026 ; maquettes validées par Skander ; docs/entree.md) : dessiné comme
+   l'entrée (web/src/entree.css), dont il reprend les couleurs à l'identique (tests/web/assistant.test.ts le vérifie) et
+   les trois polices, servies d'ici (polices/, copies des paquets de l'entrée). Il couvre la page de l'application sous le
+   nom de l'ancien assistant de la v10 (#setup), que d'autres écrans savent attendre ; chaque règle passe par #setup.as
+   pour l'emporter sur les champs de la v10 (style.css), en clair comme en sombre (`body.dark`, le thème de la v10). */
+
+@font-face {
+  font-family: 'Bricolage Grotesque Variable'; font-style: normal; font-display: swap; font-weight: 200 800;
+  src: url(polices/bricolage-grotesque-latin-wght-normal.woff2) format('woff2-variations');
+}
+@font-face {
+  font-family: 'Instrument Sans Variable'; font-style: normal; font-display: swap; font-weight: 400 700;
+  src: url(polices/instrument-sans-latin-wght-normal.woff2) format('woff2-variations');
+}
+@font-face {
+  font-family: 'IBM Plex Mono'; font-style: normal; font-display: swap; font-weight: 500;
+  src: url(polices/ibm-plex-mono-latin-500-normal.woff2) format('woff2');
+}
+
+#setup.as {
+  --e-fond: #f6f8f7;
+  --e-papier: #ffffff;
+  --e-encre: #13211f;
+  --e-gris: #56655f;
+  --e-trait: #dce4e1;
+  --e-champ: #d3ddda;
+  --e-lien: #0b7a70;
+  --e-bouton: #0b7a70;
+  --e-bouton-texte: #ffffff;
+  --e-bouton-survol: #075c54;
+  --e-ombre-bouton: 0 8px 20px rgba(11, 122, 112, .22);
+  --e-doux: #e3f4f1;
+  --e-doux-texte: #0b5f57;
+  --e-alerte: #c2410c;
+  --e-alerte-texte: #9a3412;
+  --e-nuit: #0b2724;
+  --e-nuit-2: #12352f;
+  --e-nuit-texte: #e8f3f1;
+  --e-nuit-gris: #a9c6c1;
+  --e-nuit-trait: #3e6862;
+  --e-menthe: #7fe0d3;
+  --e-menthe-survol: #b5f0e8;
+  --e-titre: 'Bricolage Grotesque Variable', 'Segoe UI', system-ui, sans-serif;
+  --e-texte: 'Instrument Sans Variable', 'Segoe UI', system-ui, sans-serif;
+  --e-chiffres: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+  display: block; padding: 0; background: var(--e-fond); color: var(--e-encre);
+  font-family: var(--e-texte); font-size: 16px; line-height: 1.5; text-align: start;
+}
+body.dark #setup.as {
+  --e-fond: #0e1716;
+  --e-papier: #142220;
+  --e-encre: #e6efed;
+  --e-gris: #a3b6b1;
+  --e-trait: #263a37;
+  --e-champ: #3a5651;
+  --e-lien: #7fe0d3;
+  --e-bouton: #7fe0d3;
+  --e-bouton-texte: #0b2724;
+  --e-bouton-survol: #b5f0e8;
+  --e-ombre-bouton: none;
+  --e-doux: rgba(127, 224, 211, .12);
+  --e-doux-texte: #b5f0e8;
+  --e-alerte: #fb923c;
+  --e-alerte-texte: #fdba74;
+}
+#setup.as *, #setup.as *::before, #setup.as *::after { box-sizing: border-box; }
+#setup.as h1, #setup.as h2 { font-family: var(--e-titre); font-weight: 600; letter-spacing: -0.02em; margin: 0; text-wrap: balance; color: inherit; }
+#setup.as p { margin: 0; }
+#setup.as [data-chiffres] { font-family: var(--e-chiffres); font-variant-numeric: tabular-nums; }
+#setup.as svg { flex: none; }
+
+/* ── La page : le fond pointé, la barre du haut (la marque, le fil des étapes, la sortie) ─────────────────────────── */
+#setup.as .as-page {
+  min-height: 100%; display: flex; flex-direction: column; padding-inline: 16px;
+  background-image: radial-gradient(circle at 1px 1px, var(--e-trait) 1px, transparent 0); background-size: 24px 24px;
+}
+#setup.as .as-barre { width: 100%; max-width: 1200px; margin: 0 auto; padding-block: 20px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 16px; }
+#setup.as .as-marque { display: inline-flex; align-items: center; gap: 12px; font-family: var(--e-titre); font-weight: 600; font-size: 21px; letter-spacing: -0.01em; }
+#setup.as .as-logo { width: 36px; height: 36px; flex: none; border-radius: 10px; background: var(--e-nuit); color: var(--e-menthe); display: flex; align-items: center; justify-content: center; font-family: var(--e-titre); font-weight: 700; font-size: 20px; }
+body.dark #setup.as .as-logo { background: #0f9d8f; color: #fff; }
+#setup.as .as-fil { margin: 0; padding: 0; list-style: none; display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--e-gris); }
+#setup.as .as-fil li { display: flex; align-items: center; gap: 8px; }
+#setup.as .as-fil .rond { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--e-champ); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex: none; }
+#setup.as .as-fil .fait { color: var(--e-lien); font-weight: 600; }
+#setup.as .as-fil .fait .rond { border: 0; background: var(--e-bouton); color: var(--e-bouton-texte); }
+#setup.as .as-fil .fait .rond svg { width: 13px; height: 13px; }
+#setup.as .as-fil .actuelle { color: var(--e-encre); font-weight: 600; }
+#setup.as .as-fil .actuelle .rond { border-color: var(--e-lien); color: var(--e-lien); }
+#setup.as .as-fil .trait { width: 28px; height: 2px; border-radius: 1px; background: var(--e-champ); }
+#setup.as .as-fil .trait.fait { background: var(--e-bouton); }
+
+/* Le haut de la scène ne bouge jamais : une aide ou un refus qui paraît pousse ce qui est dessous, pas ce qui est dessus. */
+/* `main` porte, dans la v10, le rembourrage et le défilement de la page ouverte (style.css, telephone.css) : pas ici. */
+#setup.as .as-scene { flex: 1 1 auto; width: 100%; max-width: 1120px; margin: 0 auto; padding: clamp(16px, 4vh, 40px) 0 64px; overflow: visible; display: flex; flex-direction: column; gap: 28px; }
+#setup.as .as-deux { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 40px 48px; }
+#setup.as .as-deux > .as-col { flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 22px; }
+#setup.as .as-deux > .as-apercu { flex: 1 1 420px; min-width: 0; padding-top: 56px; }
+#setup.as .as-deux > .as-apercu.etroit { flex: 0 1 300px; min-width: 240px; }
+
+/* ── Les titres, les liens, les boutons ─────────────────────────────────────────────────────────────────────────── */
+#setup.as .as-tete { display: flex; flex-direction: column; gap: 10px; }
+#setup.as .as-puce { align-self: flex-start; padding: 5px 12px; border-radius: 999px; background: var(--e-doux); color: var(--e-doux-texte); font-size: 13px; font-weight: 600; }
+#setup.as .as-tete h1 { font-size: 38px; line-height: 1.1; outline: none; }
+#setup.as .as-tete p { max-width: 660px; font-size: 16px; line-height: 1.5; color: var(--e-gris); }
+#setup.as .as-lien {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 4px; border: 0; background: transparent; color: var(--e-lien);
+  font-family: var(--e-texte); font-size: 15px; font-weight: 600; text-decoration: none; cursor: pointer; text-align: start; box-shadow: none;
+}
+#setup.as .as-lien:hover { text-decoration: underline; }
+#setup.as .as-lien.gris { color: var(--e-gris); }
+#setup.as .as-lien svg { width: 16px; height: 16px; }
+#setup.as .as-principal {
+  flex: 0 1 280px; min-height: 54px; padding: 12px 20px; border: 0; border-radius: 12px; background: var(--e-bouton); color: var(--e-bouton-texte);
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px; font-family: var(--e-texte); font-size: 17px; font-weight: 600; line-height: 1.25;
+  cursor: pointer; box-shadow: var(--e-ombre-bouton);
+}
+#setup.as .as-principal:hover { background: var(--e-bouton-survol); }
+#setup.as .as-principal svg { width: 18px; height: 18px; }
+#setup.as .as-principal:focus-visible, #setup.as .as-lien:focus-visible, #setup.as .as-geste:focus-visible { outline: 3px solid rgba(15, 157, 143, .45); outline-offset: 2px; }
+/* Le pied : les gestes secondaires à gauche, le bouton principal à droite ; au téléphone, le principal passe au-dessus. */
+#setup.as .as-pied { display: flex; flex-wrap: wrap-reverse; justify-content: space-between; align-items: center; gap: 12px; padding-top: 6px; }
+#setup.as .as-pied-gauche { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+
+/* ── Les champs ─────────────────────────────────────────────────────────────────────────────────────────────────── */
+#setup.as .as-rang { display: flex; flex-wrap: wrap; gap: 16px; }
+#setup.as .as-champ { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+#setup.as .as-rang > .as-champ { flex: 1 1 200px; }
+#setup.as .as-lib { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 14px; font-weight: 600; color: var(--e-encre); }
+#setup.as .as-lib small { font-size: 13px; font-weight: 400; color: var(--e-gris); }
+#setup.as .as-champ input, #setup.as .as-champ textarea {
+  width: 100%; min-height: 52px; height: auto; margin: 0; padding: 0 16px; border: 1.5px solid var(--e-champ); border-radius: 12px; background: var(--e-papier);
+  color: var(--e-encre); font-family: var(--e-texte); font-size: 16px; font-weight: 400; box-shadow: none; transition: border-color .12s, box-shadow .12s;
+}
+#setup.as .as-champ textarea { padding: 12px 16px; line-height: 1.5; resize: vertical; min-height: 76px; }
+#setup.as .as-champ input:focus, #setup.as .as-champ textarea:focus, #setup.as .as-groupe:focus-within {
+  outline: none; border-color: var(--e-lien); box-shadow: 0 0 0 4px rgba(15, 157, 143, .16); background: var(--e-papier);
+}
+#setup.as .as-champ input::placeholder, #setup.as .as-champ textarea::placeholder { color: var(--e-gris); opacity: .75; font-weight: 400; }
+#setup.as .as-champ .mono, #setup.as .as-groupe input { font-family: var(--e-chiffres); }
+/* Une case avec ce qui l'entoure (l'indicatif, la devise) : le cadre est celui du groupe, la case n'en a plus. */
+#setup.as .as-groupe { display: flex; min-height: 52px; border: 1.5px solid var(--e-champ); border-radius: 12px; background: var(--e-papier); overflow: hidden; transition: border-color .12s, box-shadow .12s; }
+#setup.as .as-groupe input, #setup.as .as-groupe input:focus { flex: 1 1 auto; min-width: 0; border: 0; border-radius: 0; box-shadow: none; padding: 0 14px; background: transparent; }
+#setup.as .as-groupe > span { flex: none; display: flex; align-items: center; padding: 0 12px; background: var(--e-fond); color: var(--e-gris); font-size: 15px; }
+#setup.as .as-groupe > .avant { border-right: 1px solid var(--e-trait); font-family: var(--e-chiffres); }
+#setup.as .as-groupe > .apres { border-left: 1px solid var(--e-trait); font-weight: 600; }
+#setup.as .as-groupe > span[hidden] { display: none; }
+#setup.as .as-champ.faute input, #setup.as .as-champ.faute textarea { border-color: var(--e-alerte); box-shadow: 0 0 0 4px rgba(194, 65, 12, .14); }
+#setup.as .as-refus { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; line-height: 1.5; font-weight: 600; color: var(--e-alerte-texte); }
+#setup.as .as-refus svg { width: 18px; height: 18px; margin-top: 1px; color: var(--e-alerte); }
+#setup.as .as-geste {
+  align-self: flex-start; min-height: 44px; padding: 6px 14px; border: 1px dashed var(--e-champ); border-radius: 999px; background: var(--e-papier); line-height: 1.35;
+  color: var(--e-doux-texte); font-family: var(--e-texte); font-size: 13px; font-weight: 600; cursor: pointer; overflow-wrap: anywhere; text-align: start; box-shadow: none;
+}
+#setup.as .as-geste:hover { border-style: solid; border-color: var(--e-lien); }
+
+/* ── L'aperçu : la facture qui se dessine pendant la frappe (le papier reste blanc dans les deux thèmes) ─────────── */
+#setup.as .as-apercu { display: flex; flex-direction: column; gap: 14px; }
+#setup.as .as-etiquette { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--e-gris); }
+#setup.as .as-feuille {
+  background: #fff; color: #13211f; border-radius: 18px; border: 1px solid #e1e8e6; box-shadow: 0 30px 70px rgba(11, 39, 36, .12);
+  padding: 28px; display: flex; flex-direction: column; gap: 22px;
+}
+#setup.as .as-feuille-haut { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px 20px; }
+#setup.as .as-qui { flex: 1 1 auto; display: flex; gap: 14px; align-items: flex-start; min-width: 0; }
+#setup.as .as-logo-vide { flex: none; width: 52px; height: 52px; border-radius: 12px; border: 1.5px dashed #c9d6d2; color: #56655f; display: flex; align-items: center; justify-content: center; font-size: 11px; text-align: center; line-height: 1.2; padding: 4px; }
+#setup.as .as-logo-image { flex: none; max-width: 72px; max-height: 52px; object-fit: contain; }
+#setup.as .as-coord { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 13px; line-height: 1.45; color: #33433f; overflow-wrap: anywhere; }
+#setup.as .as-coord strong { font-family: var(--e-titre); font-weight: 600; font-size: 21px; color: #13211f; }
+#setup.as .as-coord em { font-style: normal; color: #56655f; }
+#setup.as .as-coord .vide { color: #8a9893; }
+#setup.as .as-quoi { flex: none; display: flex; flex-direction: column; gap: 4px; text-align: right; }
+#setup.as .as-quoi span:first-child { font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: #56655f; }
+#setup.as .as-quoi span:last-child { font-family: var(--e-chiffres); font-size: 15px; }
+#setup.as .as-barres { display: flex; flex-direction: column; gap: 12px; }
+#setup.as .as-barres i { display: block; height: 10px; border-radius: 5px; background: #eef3f1; }
+#setup.as .as-barres .ligne { display: flex; justify-content: space-between; gap: 16px; }
+#setup.as .as-pied-feuille { border-top: 1px solid #e5ecea; padding-top: 12px; font-size: 12px; line-height: 1.5; color: #56655f; overflow-wrap: anywhere; }
+#setup.as .as-note { font-size: 13px; line-height: 1.5; color: var(--e-gris); }
+
+/* Le bas de la facture (« Factures-tu la TVA ? ») : la ligne, les totaux et la mention, lus sur la vraie facture. */
+#setup.as .as-lignes { display: flex; flex-direction: column; gap: 12px; font-size: 15px; }
+#setup.as .as-lignes .entete { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid #e5ecea; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #56655f; }
+#setup.as .as-lignes .ligne { display: flex; justify-content: space-between; gap: 16px; }
+#setup.as .as-lignes .nombres { display: flex; gap: 28px; text-align: right; white-space: nowrap; }
+#setup.as .as-lignes .nombres span { font-family: var(--e-chiffres); font-size: 14px; }
+#setup.as .as-lignes .entete .nombres span { font-family: inherit; font-size: inherit; }
+#setup.as .as-lignes .taux { color: #56655f; }
+#setup.as .as-totaux { display: flex; flex-direction: column; gap: 8px; margin-left: auto; width: min(100%, 320px); padding-top: 12px; border-top: 1px solid #e5ecea; font-size: 14px; }
+#setup.as .as-totaux > div { display: flex; justify-content: space-between; gap: 12px; color: #33433f; }
+#setup.as .as-totaux > div span:last-child { font-family: var(--e-chiffres); white-space: nowrap; }
+#setup.as .as-totaux .mention { padding: 8px 12px; border-radius: 8px; background: #f1f5f4; font-size: 13px; font-weight: 600; color: #33433f; }
+#setup.as .as-totaux .net { margin-top: 6px; padding: 12px 14px; border-radius: 12px; background: #0b2724; color: #fff; align-items: baseline; }
+#setup.as .as-totaux .net span:first-child { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #a9c6c1; }
+#setup.as .as-totaux .net span:last-child { font-size: 18px; }
+
+/* ── « Que fais-tu ? » : les seize métiers, puis le catalogue de départ ─────────────────────────────────────────── */
+#setup.as .as-grille { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; border: 0; min-width: 0; }
+#setup.as .as-tuile {
+  position: relative; min-height: 84px; padding: 14px 16px; border-radius: 16px; border: 1.5px solid var(--e-trait); background: var(--e-papier); color: var(--e-encre);
+  display: flex; align-items: center; gap: 14px; cursor: pointer; margin: 0; font-weight: 400;
+}
+#setup.as .as-tuile:hover { border-color: var(--e-lien); }
+#setup.as .as-tuile input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+#setup.as .as-tuile:has(input:focus-visible) { outline: 3px solid rgba(15, 157, 143, .45); outline-offset: 2px; }
+#setup.as .as-tuile .ico { flex: none; width: 42px; height: 42px; border-radius: 12px; background: var(--e-doux); color: var(--e-lien); display: flex; align-items: center; justify-content: center; }
+#setup.as .as-tuile .ico svg { width: 22px; height: 22px; }
+#setup.as .as-tuile .txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+#setup.as .as-tuile .txt b { font-size: 15px; font-weight: 600; line-height: 1.25; }
+#setup.as .as-tuile .txt small { font-size: 12px; color: var(--e-gris); }
+#setup.as .as-tuile:has(input:checked) { background: var(--e-nuit); border-color: var(--e-nuit); color: #fff; box-shadow: 0 14px 30px rgba(11, 39, 36, .22); }
+#setup.as .as-tuile:has(input:checked) .txt small { color: var(--e-nuit-gris); }
+#setup.as .as-tuile:has(input:checked) .ico { background: rgba(127, 224, 211, .16); color: var(--e-menthe); }
+body.dark #setup.as .as-tuile:has(input:checked) { background: var(--e-nuit-2); border-color: var(--e-menthe); }
+
+#setup.as .as-bloc { display: flex; flex-wrap: wrap; gap: 24px; padding: 24px; border-radius: 20px; background: var(--e-papier); border: 1px solid var(--e-trait); box-shadow: 0 18px 44px rgba(11, 39, 36, .06); }
+#setup.as .as-bloc > .gauche { flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+#setup.as .as-bloc > .droite { flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; }
+#setup.as .as-bloc h2 { font-size: 22px; }
+#setup.as .as-bloc p { font-size: 14px; line-height: 1.55; color: var(--e-gris); }
+#setup.as .as-case {
+  display: flex; gap: 12px; align-items: center; margin: 0; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--e-trait); background: var(--e-papier);
+  cursor: pointer; min-height: 48px; font-size: 15px; font-weight: 600; color: var(--e-encre);
+}
+#setup.as .as-case:has(input:checked) { border-color: var(--e-lien); background: var(--e-doux); }
+#setup.as .as-case input { width: 20px; height: 20px; margin: 0; accent-color: var(--e-bouton); flex: none; }
+#setup.as .as-info { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.5; color: var(--e-doux-texte); }
+#setup.as .as-info svg { width: 16px; height: 16px; margin-top: 2px; }
+#setup.as .as-article { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 4px; border-bottom: 1px solid var(--e-trait); transition: opacity .15s; }
+#setup.as .as-article:last-child { border-bottom: 0; }
+#setup.as .as-article.estompe { opacity: .45; }
+#setup.as .as-article .nom { font-size: 15px; font-weight: 500; min-width: 0; }
+#setup.as .as-article .prix { flex: none; text-align: right; display: flex; flex-direction: column; gap: 1px; }
+#setup.as .as-article .prix span:first-child { font-family: var(--e-chiffres); font-size: 14px; }
+#setup.as .as-article .prix span:last-child { font-size: 12px; color: var(--e-gris); }
+#setup.as .as-vide { margin: 0; padding: 18px; border-radius: 12px; background: var(--e-fond); font-size: 14px; line-height: 1.5; color: var(--e-encre); }
+
+/* ── « Factures-tu la TVA ? » : trois choix ─────────────────────────────────────────────────────────────────────── */
+#setup.as .as-choix { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+#setup.as .as-option {
+  display: flex; gap: 14px; align-items: flex-start; margin: 0; padding: 18px; border-radius: 16px; border: 1.5px solid var(--e-trait);
+  background: color-mix(in srgb, var(--e-papier) 70%, transparent); cursor: pointer; font-weight: 400; color: var(--e-encre);
+}
+#setup.as .as-option:hover { border-color: var(--e-lien); }
+#setup.as .as-option:has(input:checked) { border-color: var(--e-lien); background: var(--e-papier); box-shadow: 0 12px 28px rgba(11, 39, 36, .10); }
+#setup.as .as-option:has(input:focus-visible) { outline: 3px solid rgba(15, 157, 143, .45); outline-offset: 2px; }
+#setup.as .as-option input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--e-bouton); flex: none; }
+#setup.as .as-option .txt { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+#setup.as .as-option .titre { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 17px; font-weight: 600; }
+#setup.as .as-option .badge { padding: 3px 10px; border-radius: 999px; background: var(--e-nuit); color: var(--e-menthe); font-size: 12px; font-weight: 700; }
+body.dark #setup.as .as-option .badge { background: var(--e-menthe); color: var(--e-nuit); }
+#setup.as .as-option .txt > span:last-child { font-size: 14px; line-height: 1.5; color: var(--e-gris); }
+#setup.as .as-avertir { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; background: #fff4ec; border: 1px solid #f6d5bf; font-size: 14px; line-height: 1.55; color: #33433f; }
+#setup.as .as-avertir svg { width: 18px; height: 18px; margin-top: 2px; color: #c2410c; }
+#setup.as .as-avertir b { color: #9a3412; }
+body.dark #setup.as .as-avertir { background: rgba(251, 146, 60, .1); border-color: rgba(251, 146, 60, .35); color: var(--e-encre); }
+body.dark #setup.as .as-avertir b { color: var(--e-alerte-texte); }
+
+/* ── « De quoi as-tu besoin ? » : les modules, et le menu qui se range pendant qu'on choisit ───────────────────── */
+#setup.as .as-toujours { display: flex; align-items: flex-start; gap: 8px; padding: 12px 14px; border-radius: 12px; background: var(--e-doux); font-size: 14px; line-height: 1.5; color: var(--e-encre); }
+#setup.as .as-toujours svg { flex: none; width: 16px; height: 16px; margin-top: 3px; color: var(--e-lien); }
+#setup.as .as-modules { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+#setup.as .as-module {
+  position: relative; display: flex; gap: 14px; align-items: flex-start; margin: 0; padding: 16px; border-radius: 16px; border: 1.5px solid var(--e-trait);
+  background: var(--e-papier); cursor: pointer; min-height: 44px; font-weight: 400; color: var(--e-encre);
+}
+#setup.as .as-module:hover { border-color: var(--e-lien); }
+#setup.as .as-module:has(input:checked) { border-color: var(--e-lien); }
+#setup.as .as-module:has(input:focus-visible) { outline: 3px solid rgba(15, 157, 143, .45); outline-offset: 2px; }
+#setup.as .as-module input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+#setup.as .as-module .piste { flex: none; margin-top: 2px; width: 40px; height: 24px; border-radius: 999px; background: var(--e-champ); display: flex; align-items: center; padding: 0 3px; transition: background .15s; }
+#setup.as .as-module .piste::after { content: ''; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .2); transition: transform .15s; }
+#setup.as .as-module:has(input:checked) .piste { background: var(--e-bouton); }
+#setup.as .as-module:has(input:checked) .piste::after { transform: translateX(16px); }
+#setup.as .as-module .txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#setup.as .as-module .txt b { font-size: 15px; font-weight: 600; }
+#setup.as .as-module .txt > span { font-size: 13px; line-height: 1.45; color: var(--e-gris); }
+#setup.as .as-module .propose { align-self: flex-start; margin-top: 2px; padding: 2px 8px; border-radius: 999px; background: var(--e-doux); color: var(--e-doux-texte); font-size: 12px; font-weight: 600; }
+#setup.as .as-menu { padding: 18px 14px; border-radius: 18px; background: var(--e-papier); border: 1px solid var(--e-trait); box-shadow: 0 24px 60px rgba(11, 39, 36, .10); display: flex; flex-direction: column; gap: 2px; margin: 0; list-style: none; }
+#setup.as .as-menu .qui { display: flex; align-items: center; gap: 10px; padding: 4px 8px 14px; }
+#setup.as .as-menu .qui .as-logo { width: 30px; height: 30px; border-radius: 9px; font-size: 16px; }
+#setup.as .as-menu .qui span:last-child { display: flex; flex-direction: column; min-width: 0; font-size: 12px; color: var(--e-gris); }
+#setup.as .as-menu .qui b { font-size: 14px; color: var(--e-encre); }
+#setup.as .as-menu .famille { padding: 14px 8px 4px; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--e-gris); }
+#setup.as .as-menu .page { padding: 8px 10px; border-radius: 8px; font-size: 14px; font-weight: 500; }
+#setup.as .as-menu .page.accueil { background: var(--e-doux); color: var(--e-doux-texte); font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  #setup.as .as-module .piste, #setup.as .as-module .piste::after, #setup.as .as-article { transition: none; }
+}
+
+/* ── Au téléphone et sur une tablette ───────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 1000px) {
+  #setup.as .as-grille { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  #setup.as .as-fil .nom { display: none; }
+  #setup.as .as-tete h1 { font-size: 30px; }
+  #setup.as .as-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Une tuile sur deux colonnes : le dessin au-dessus, pour que le nom du métier ait toute la largeur. */
+  #setup.as .as-tuile { flex-direction: column; align-items: flex-start; padding: 12px; gap: 8px; min-height: 76px; }
+  #setup.as .as-tuile .ico { width: 34px; height: 34px; border-radius: 10px; }
+  #setup.as .as-tuile .ico svg { width: 19px; height: 19px; }
+  #setup.as .as-deux > .as-apercu { padding-top: 0; }
+  #setup.as .as-feuille { padding: 20px; }
+  #setup.as .as-bloc { padding: 18px; }
+  #setup.as .as-principal { flex-basis: 100%; }
+}
+@media (max-width: 560px) {
+  #setup.as .as-feuille-haut { flex-wrap: wrap; }
+  #setup.as .as-quoi { text-align: left; }
+}

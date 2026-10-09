@@ -1,0 +1,66 @@
+L'assistant de démarrage au nouveau style (lot onboarding ; maquettes validées par Skander le 09/10/2026 ; docs/entree.md).
+Format : voir sans-paquets.mjs.
+
+La porte (« Ton entreprise », 1 sur 2) crée l'entreprise avec sa raison sociale et son matricule ; l'assistant prend la suite
+dans l'entreprise elle-même : « Où te joindre ? » (2 sur 2), puis son activité, sa TVA et son menu. Il est dessiné par
+plateforme/assistant.js (et assistant.css, avec les polices de l'entrée) et garde les règles de l'assistant de la v10 ; ce
+qu'il écrit passe par `OB.applySetup`, ce qu'il montre est lu sur la vraie facture (`factureDApercu`, `C.documentHtml`) et
+sur le vrai menu (`C.navPages`, sans les pages que le rôle ne montre pas).
+
+Avant lui, l'assistant de la v10 ne s'ouvrait jamais sur la plateforme : il attend une entreprise SANS nom, et le serveur crée
+l'entreprise avec le sien (vu sur app.skanfact.tn le 09/10/2026 : « la vraie entreprise s'ouvre sans aucune question »).
+
+── L'application de l'entreprise ──
+
+== index.html | le dessin de l'assistant et sa feuille se chargent avec le point de contact
+-- avant
+  <link rel="stylesheet" href="../plateforme/compte.css">
+-- après
+  <link rel="stylesheet" href="../plateforme/compte.css">
+  <script src="../plateforme/assistant.js"></script>
+  <link rel="stylesheet" href="../plateforme/assistant.css">
+-- fin
+
+== app.js | l'assistant au nouveau style remplace celui de la v10 (le premier lancement, la reprise, « Revoir l'assistant »)
+-- avant
+  function runSetup(rejoue) {
+    return new Promise(resolve => {
+-- après
+  function runSetup(rejoue) {
+    // (plateforme, lot onboarding) L'assistant au nouveau style (plateforme/assistant.js) : « Où te joindre ? », puis
+    // l'activité, la TVA et le menu. Il écrit par `OB.applySetup`, et montre la vraie facture et le vrai menu.
+    if (window.SkanAssistant) {
+      return window.SkanAssistant.ouvrir({
+        rejoue: !!rejoue, C, OB,
+        donnees: () => data,
+        enregistrer: () => save(true),
+        apercu: (co, lignes) => { const ex = factureDApercu(co); if (lignes) ex.doc.lines = lignes; return C.documentHtml(ex.doc, ex.client, co, {}); },
+        menu: modules => C.navPages({ ...data, company: { ...data.company, modules } }).filter(p => !pageCachee(p.id)),
+        deconnecter: () => { if (bridge.deconnecter) bridge.deconnecter(); },
+        courriel: () => (bridge.courrielDuCompte ? bridge.courrielDuCompte() : Promise.resolve(''))
+      }).then(fait => { drawNav(); return fait; });
+    }
+    return new Promise(resolve => {
+-- fin
+
+== app.js | l'entreprise que la porte vient de créer ouvre l'assistant ; un membre de l'équipe ne le voit jamais
+-- avant
+    const premierLancement = OB.needsSetup(data);
+    if (premierLancement) {
+-- après
+    // (plateforme, lot onboarding) L'entreprise que la porte vient de créer ouvre l'assistant : posé dans le dossier dès
+    // l'ouverture, il se reprend là où il s'est arrêté, sur ce poste ou un autre. Il est au propriétaire et aux
+    // administrateurs (ceux qui mettent l'entreprise en place) : un membre de l'équipe ne le voit jamais. La porte a été
+    // vue (celle de l'entrée, qui a fait choisir entre l'essai et l'entreprise) : l'accueil ne la repropose pas, comme la
+    // v10 après la sienne (`porteVue`).
+    if (bridge.assistantDemande && bridge.assistantDemande()) {
+      visitesPoser(e => { e.accueilVu = true; });
+      if (!data.company.setupDone && !data.company.setupStarted) {
+        data.company.setupStarted = true;
+        data.company.setupStep = 0;
+        save(true);
+      }
+    }
+    const premierLancement = OB.needsSetup(data);
+    if (premierLancement && estResponsable()) {
+-- fin

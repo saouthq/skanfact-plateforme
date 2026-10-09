@@ -20994,6 +20994,19 @@
   // document, NI client — et « Passer » le condamnait pour de bon. Quelqu'un qui l'avait sauté par
   // réflexe le premier jour ne pouvait plus jamais le revoir.
   function runSetup(rejoue) {
+    // (plateforme, lot onboarding) L'assistant au nouveau style (plateforme/assistant.js) : « Où te joindre ? », puis
+    // l'activité, la TVA et le menu. Il écrit par `OB.applySetup`, et montre la vraie facture et le vrai menu.
+    if (window.SkanAssistant) {
+      return window.SkanAssistant.ouvrir({
+        rejoue: !!rejoue, C, OB,
+        donnees: () => data,
+        enregistrer: () => save(true),
+        apercu: (co, lignes) => { const ex = factureDApercu(co); if (lignes) ex.doc.lines = lignes; return C.documentHtml(ex.doc, ex.client, co, {}); },
+        menu: modules => C.navPages({ ...data, company: { ...data.company, modules } }).filter(p => !pageCachee(p.id)),
+        deconnecter: () => { if (bridge.deconnecter) bridge.deconnecter(); },
+        courriel: () => (bridge.courrielDuCompte ? bridge.courrielDuCompte() : Promise.resolve(''))
+      }).then(fait => { drawNav(); return fait; });
+    }
     return new Promise(resolve => {
       const steps = OB.STEPS;
       const co = (data && data.company) || {};
@@ -21458,8 +21471,21 @@
     // Retenu AVANT l'assistant : une fois la société remplie, rien ne distingue plus une installation
     // neuve d'une mise à jour, et la carte « Ce qui change pour toi » s'ouvrait sur le tout premier
     // écran de quelqu'un pour qui rien n'a changé (vu à la souris, parcours d'un débutant).
+    // (plateforme, lot onboarding) L'entreprise que la porte vient de créer ouvre l'assistant : posé dans le dossier dès
+    // l'ouverture, il se reprend là où il s'est arrêté, sur ce poste ou un autre. Il est au propriétaire et aux
+    // administrateurs (ceux qui mettent l'entreprise en place) : un membre de l'équipe ne le voit jamais. La porte a été
+    // vue (celle de l'entrée, qui a fait choisir entre l'essai et l'entreprise) : l'accueil ne la repropose pas, comme la
+    // v10 après la sienne (`porteVue`).
+    if (bridge.assistantDemande && bridge.assistantDemande()) {
+      visitesPoser(e => { e.accueilVu = true; });
+      if (!data.company.setupDone && !data.company.setupStarted) {
+        data.company.setupStarted = true;
+        data.company.setupStep = 0;
+        save(true);
+      }
+    }
     const premierLancement = OB.needsSetup(data);
-    if (premierLancement) {
+    if (premierLancement && estResponsable()) {
       const done = await runSetup();
       applyTheme();
       // Le premier message de l'application était un toast de deux secondes et demie, qui nommait

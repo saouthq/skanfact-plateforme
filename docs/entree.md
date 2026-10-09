@@ -103,6 +103,54 @@ les deux applications), `web/v10/compte.txt` (l'onglet posé dans la v10). Tests
 `tests/socle/connexion.test.ts`, `tests/web/entree.test.ts`, `tests/web/compte.test.ts`, `tests/web/parcours.test.ts`
 (le code activé dans Ton compte, son code QR relu, puis demandé sur un autre appareil).
 
+## L'assistant de démarrage (lot onboarding, 09/10/2026)
+
+Les maquettes validées par Skander le 09/10/2026, construites. Avant lui, l'assistant de la v10 ne s'ouvrait **jamais**
+sur la plateforme : il attend une entreprise sans nom, et le serveur la crée avec le sien (vu sur app.skanfact.tn : « la
+vraie entreprise s'ouvre sans aucune question »).
+
+La porte (« Ton entreprise », 1 sur 2) demande la raison sociale et le matricule ; l'entreprise créée s'ouvre sur
+l'assistant, dessiné comme l'entrée (le fond pointé, le fil des étapes, les mêmes couleurs et les mêmes polices), avec à
+droite la facture qui se dessine pendant qu'on répond :
+
+| Écran | Ce que la personne voit |
+|---|---|
+| Où te joindre ? (Ton entreprise, 2 sur 2) | L'adresse, le téléphone (« +216 » devant la case, enregistré avec le numéro ; un numéro qui commence par + ou 00 reste tel quel), l'adresse e-mail (« Utiliser *l'adresse du compte* » d'un clic), le registre de commerce et le capital. Rien d'obligatoire : « Je le ferai plus tard ». Une adresse e-mail mal formée se refuse sur sa case. L'aperçu est **la vraie facture** de la v10 : le haut (le nom, l'adresse, le matricule, les contacts), le numéro qu'elle prendra, et le pied (le registre, le capital) |
+| Que fais-tu ? (Ton activité, 1 sur 3) | Les seize métiers de la v10 en tuiles, chacun avec son catalogue de départ et ses prix d'exemple, la note d'honoraires des professions qui l'emploient, et le régime que le métier propose (la santé : exonéré, À VÉRIFIER). « Continuer » demande un métier, en disant pourquoi ; « Plus tard » passe |
+| Factures-tu la TVA ? (2 sur 3) | Les trois régimes, dits à la première personne, « Le plus courant » sur le réel ; l'avertissement « À vérifier avec ton comptable » ; le bas de la vraie facture (une ligne du métier, ses totaux, la mention qui remplace la colonne TVA) qui change avec le choix |
+| De quoi as-tu besoin ? (3 sur 3) | « Toujours là » (les modules du cœur), les autres en interrupteurs, ceux du métier allumés et marqués « Proposé pour ton métier » ; le vrai menu se range à droite. « Ouvrir mon entreprise » |
+
+Les règles de l'assistant de la v10, gardées (`web/public/plateforme/assistant.js`) :
+
+- **Chaque écran s'écrit** dans le dossier (l'étape atteinte, ce qui est tapé) : la page fermée ou rechargée reprend là
+  où elle s'était arrêtée, sur ce poste ou un autre. « Se déconnecter » en route n'y perd rien.
+- **Ce qu'il écrit passe par la v10 elle-même** (`OB.applySetup`) ; ce qu'il montre est lu sur la vraie facture
+  (`factureDApercu`, `C.documentHtml`) et le vrai menu (`C.navPages`), jamais recomposé.
+- **Un régime ou un menu choisi à la main** ne se fait plus écraser par le métier ; un menu seulement vu ne s'écrit pas
+  en route (une reprise le croirait choisi).
+- **Revoir l'assistant** (Paramètres → L'application) : ses réponses y sont, rien ne s'écrit avant « Enregistrer mes
+  réponses », et la sortie le dit avant le geste : « Fermer sans rien changer ».
+- **Il est au propriétaire et aux administrateurs** : un membre de l'équipe ne le voit jamais. Une entreprise créée
+  sans la porte (par l'API) s'ouvre sur son accueil.
+
+Une règle change : **le catalogue de départ se verse à la fin**, celui du métier retenu. Versé au premier « Continuer »
+(comme dans la v10), il restait celui du premier métier cliqué quand on revenait en choisir un autre. Et l'accueil de la
+v10 (« Prends ta gestion en main ») ne repose plus la question de la porte de l'entrée, qui a déjà fait choisir entre
+l'exemple et l'entreprise. L'entreprise créée en quittant l'exemple (« Passer à ma vraie entreprise ») ouvre l'assistant
+aussi, puis la visite des premiers pas.
+
+Revu à la souris sur un serveur local le 09/10/2026 (ordinateur, téléphone, thème sombre, reprise, rejeu). Corrigé en
+route : un grand vide sous l'adresse, « Facture » qui passait sous le nom dans l'aperçu, le rembourrage et le défilement
+de la page ouverte de la v10 sur l'assistant, les tuiles écrasées au téléphone (l'icône passe au-dessus du nom), une
+coche seule sur sa ligne, une puce de 40 px (remise à 44).
+
+Code : `web/public/plateforme/assistant.js` et `assistant.css` (avec les polices de l'entrée, copiées dans
+`web/public/plateforme/polices`, servies comme des polices par le serveur), `web/v10/assistant.txt` (l'assistant de la v10
+remplacé, son ouverture), `web/src/ecrans/Porte.tsx` et `web/public/plateforme/pont.js` (`assistantDemande`, l'adresse
+du compte). Tests : `tests/web/assistant.test.ts` (le parcours, l'écran et le dossier, le rejeu, le rôle, le
+téléphone, les polices et les couleurs), `tests/web/parcours.test.ts`, `tests/web/exemple.test.ts`,
+`tests/v10/pont-exemple.test.ts`.
+
 ## Le mot de passe oublié
 
 1. « Mot de passe oublié ? », sous le mot de passe, **seulement si le serveur sait envoyer un e-mail**
@@ -146,5 +194,5 @@ lancement, en Tunisie (où il garde les adresses : INPDP).
   les lier depuis la plateforme dirait faux. Elles viendront avec les textes de la plateforme (À VÉRIFIER avec un juriste
   et l'INPDP).
 - **Le logo** : le « S » dans un carré est provisoire.
-- **La suite du lot onboarding** : l'assistant de démarrage au style de l'entrée, « Protège ton compte — Recommandé »
-  dans les premiers pas, et le parcours de l'exemple puis de la vraie entreprise (X1–X6).
+- **La suite du lot onboarding** : les premiers pas refaits au style de l'entrée (avec « Protège ton compte —
+  Recommandé »), et le parcours de l'exemple puis de la vraie entreprise (X1–X6).

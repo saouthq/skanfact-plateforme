@@ -725,6 +725,7 @@ export const ADAPTATIONS = [
   ...lireFichier('caisse-sans-compte.txt'),
   // ── Le lot débutant (1) (06/10/2026 ; un commerçant qui débute, à la souris, docs/debutant.md) ──
   ...lireFichier('debutant.txt'),
-  // ── Le lot onboarding (09/10/2026 ; décision de Skander, docs/entree.md) : Ton compte ──
+  // ── Le lot onboarding (09/10/2026 ; décision de Skander, docs/entree.md) : Ton compte, puis l'assistant de démarrage ──
   ...lireFichier('compte.txt'),
+  ...lireFichier('assistant.txt'),
 ];

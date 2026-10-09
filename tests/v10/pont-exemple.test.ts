@@ -7,7 +7,8 @@
 //     demandée ; un conflit avec l'enregistrement de départ de la page se redemande, une fois ; un refus se lit en
 //     entier, et la fenêtre d'attente se ferme ;
 //   - quitter l'exemple ouvre la vraie entreprise, la visite avec elle ; sans vraie entreprise, son nom d'abord, et la
-//     visite ne part qu'avec l'entreprise créée (une fenêtre fermée sans créer ne laisse rien en attente).
+//     visite ne part qu'avec l'entreprise créée (une fenêtre fermée sans créer ne laisse rien en attente), qui ouvre
+//     l'assistant de démarrage comme celle de la porte (lot onboarding).
 // Le parcours entier, à l'écran : tests/web/exemple.test.ts.
 
 import fs from 'node:fs';
@@ -27,6 +28,7 @@ type Pont = {
   quitterExemple: (o: { visite?: string }) => Promise<Record<string, unknown>>;
   addDossier: (o: { name?: string; visite?: string }) => Promise<Record<string, unknown>>;
   accords: () => Promise<unknown>;
+  assistantDemande: () => boolean;
 };
 
 // Le point de contact chargé dans l'entreprise `ent`, devant un serveur qui répond par `routes` (« GET /v1/moi ») ; ce
@@ -161,11 +163,25 @@ describe('l\'exemple et la vraie entreprise, au point de contact', () => {
     expect(await t.pont.quitterExemple({ visite: 'premiers-pas' })).toEqual({ aCreer: true });
     // La fenêtre du nom peut se fermer sans créer : rien n'attend la page suivante.
     expect(t.stockage.has('skanfact.visite')).toBe(false);
+    expect(t.stockage.has('skanfact.assistant')).toBe(false);
     expect(t.ouverts).toEqual([]);
     expect(await t.pont.addDossier({ name: 'Quincaillerie El Amen', visite: 'premiers-pas' })).toEqual({ ok: true });
     expect(t.appels.find((a) => a.cle === 'POST /v1/entreprises')?.corps).toEqual({ raisonSociale: 'Quincaillerie El Amen' });
     expect(t.stockage.get('skanfact.visite')).toBe('premiers-pas');
+    // L'entreprise créée ouvre l'assistant de démarrage (pour elle seule), puis la visite, une fois l'assistant fini.
+    expect(t.stockage.get('skanfact.assistant')).toBe(NEUVE);
     expect(t.ouverts).toEqual([`/v10/?e=${NEUVE}`]);
+  });
+
+  it('l\'assistant de démarrage s\'ouvre dans l\'entreprise qui l\'a demandé, une seule fois, et jamais dans une autre', () => {
+    const neuve = charger(NEUVE, {});
+    neuve.stockage.set('skanfact.assistant', NEUVE);
+    expect(neuve.pont.assistantDemande()).toBe(true);
+    expect(neuve.pont.assistantDemande()).toBe(false);
+    const autre = charger(VRAIE, {});
+    autre.stockage.set('skanfact.assistant', NEUVE);
+    expect(autre.pont.assistantDemande()).toBe(false);
+    expect(autre.stockage.has('skanfact.assistant')).toBe(false);
   });
 
   it('quitter l\'exemple ouvre la vraie entreprise, la visite avec elle', async () => {

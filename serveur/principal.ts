@@ -150,6 +150,8 @@ export const smsAucun: Contexte['sms'] = { envoyer: async () => { throw new Refu
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.webmanifest': 'application/manifest+json',
+  // Les polices de l'entrée, et celles que l'assistant de démarrage charge depuis plateforme/polices : déjà compressées.
+  '.woff2': 'font/woff2',
 };
 // L'aperçu d'un document de la v10 se dessine dans un cadre (`frame-src` : data: et blob:, comme sa
 // propre politique le permet).

@@ -382,6 +382,9 @@
     **Ton compte**, premier onglet des Paramètres et des Réglages du Cabinet (`plateforme/compte.js`, partagé), qui porte
     aussi l'adresse, le mot de passe et « Tes appareils ». Un serveur qui sait envoyer des e-mails vérifie l'adresse à
     l'inscription et un appareil inconnu par un code à six chiffres (« Vérifie ton e-mail », « C'est bien toi ? »).
+    **L'assistant de démarrage** (lot onboarding, 09/10/2026 ; `plateforme/assistant.js`, `web/v10/assistant.txt`) :
+    l'entreprise créée par la porte s'ouvre sur « Où te joindre ? », puis le métier, la TVA et le menu, au dessin de
+    l'entrée ; il écrit par `OB.applySetup` de la v10 et montre la vraie facture et le vrai menu, jamais recomposés.
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

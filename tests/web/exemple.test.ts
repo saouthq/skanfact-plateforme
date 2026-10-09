@@ -5,7 +5,7 @@
 //   - « Commencer la découverte » sur la porte : l'entreprise d'essai s'ouvre, une fenêtre dit que l'exemple se prépare,
 //     le serveur la remplit, la page s'ouvre toute seule dessus, et la découverte démarre sur des pièces ;
 //   - la découverte va au bout, et sa fin ne parle pas de licence ; « Passer à ma vraie entreprise » demande la raison
-//     sociale, crée l'entreprise, l'ouvre, et la visite des premiers pas y démarre ;
+//     sociale, crée l'entreprise, l'ouvre sur l'assistant de démarrage, et la visite des premiers pas y démarre ensuite ;
 //   - dans la vraie entreprise, « Guide-moi » sur une nouvelle facture propose « Faire une facture », qui mène geste après
 //     geste jusqu'au brouillon enregistré, au millime ;
 //   - « Me guider » ne propose pas les visites sans objet en ligne (les sauvegardes, les mises à jour…) ; les Paramètres
@@ -96,13 +96,23 @@ describe('l\'exemple rempli et « Faire une facture », à l\'écran', () => {
     expect(fin).toContain('abonnement réglé ou pas, tu gardes la lecture, l\'impression et l\'export');
     expect(fin).not.toMatch(/licence/i);
 
-    // 3. « Passer à ma vraie entreprise » : sa raison sociale, et elle s'ouvre avec la visite des premiers pas.
+    // 3. « Passer à ma vraie entreprise » : sa raison sociale, et elle s'ouvre sur l'assistant de démarrage (lot
+    // onboarding), traversé ici sans rien remplir (« Je le ferai plus tard », « Plus tard », le réel, le menu proposé) ;
+    // la visite des premiers pas démarre ensuite.
     await bulle(p).getByRole('button', { name: /Passer à ma vraie entreprise/ }).click();
     await expect.poll(() => p.locator('#modal-root h2').first().innerText().catch(() => '')).toBe('Ta vraie entreprise');
     await p.locator('#modal-root label.field').filter({ hasText: 'Raison sociale' }).locator('input').fill('Quincaillerie El Amen');
     await p.locator('#modal-root').getByRole('button', { name: 'Créer et ouvrir', exact: true }).click();
     await p.waitForURL((u) => /\/v10\/\?e=[0-9a-f-]{36}/.test(u.href) && !u.href.includes(essai), { timeout: 20_000 });
     const vraie = new URL(p.url()).searchParams.get('e') ?? '';
+    const assistant = p.locator('#setup.as');
+    await assistant.getByRole('heading', { level: 1 }).filter({ hasText: /^Où te joindre/ }).waitFor({ timeout: 20_000 });
+    await assistant.getByRole('button', { name: 'Je le ferai plus tard', exact: true }).click();
+    await assistant.getByRole('button', { name: 'Plus tard', exact: true }).click();
+    await assistant.getByRole('heading', { level: 1 }).filter({ hasText: /^Factures-tu la TVA/ }).waitFor();
+    await assistant.getByRole('button', { name: 'Continuer', exact: true }).click();
+    await assistant.getByRole('button', { name: 'Ouvrir mon entreprise', exact: true }).click();
+    await assistant.waitFor({ state: 'detached' });
     await expect.poll(() => titreBulle(p), { timeout: 20_000 }).toBe('Ta vraie entreprise');
     const moi = await api('GET', '/moi', jeton) as { entreprises: { id: string; essai: boolean; nom?: string; raisonSociale?: string }[] };
     expect(moi.entreprises.find((e) => e.id === vraie)?.essai).toBe(false);

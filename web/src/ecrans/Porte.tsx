@@ -39,10 +39,14 @@ export function Porte({ creee, cabinetCree, deconnecte }: { creee: (ent: string)
     try { sessionStorage.setItem('skanfact.visite', 'decouvrir'); } catch { /* sans stockage : l'entreprise d'essai s'ouvre, sans la découverte */ }
     creee(r.corps.id);
   });
+  // Créée, l'entreprise ouvre l'assistant de démarrage (lot onboarding : « Où te joindre ? », puis l'activité, la TVA et le
+  // menu), qui voyage jusqu'à sa page comme la visite de la découverte (pont.js, `assistantDemande`).
   const creer = () => g.geste(async () => {
     const r = await g.api<{ id: string }>('POST', '/entreprises', { raisonSociale: raison.trim(), ...(matricule.trim() ? { matriculeFiscal: matricule.trim() } : {}) });
     if (!r) return;
-    if (r.statut === 201) creee(r.corps.id); else g.refuser(refusDe(r));
+    if (r.statut !== 201) { g.refuser(refusDe(r)); return; }
+    try { sessionStorage.setItem('skanfact.assistant', r.corps.id); } catch { /* sans stockage : l'entreprise s'ouvre sur ses premiers pas */ }
+    creee(r.corps.id);
   });
   const creerCabinet = () => g.geste(async () => {
     const r = await g.api<{ id: string }>('POST', '/cabinets', { nom: nomCabinet.trim() });

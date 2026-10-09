@@ -373,13 +373,21 @@ describe('l\'entrée refaite, à la souris', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${ent}`);
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     const cabinet = String((await api('POST', '/cabinets', jeton, { nom: 'Cabinet Ennour' })).id);
-    await p.reload();
-    await ecran(p, 'ecran.code_requis.titre');
-    expect(new URL(p.url()).pathname).toBe('/');
-    expect(await p.locator('.ent-bandeau').innerText()).toBe(titre('ecran.code_requis.cabinet', { nom: 'Cabinet Ennour' }));
-    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}`);
-    await ecran(p, 'ecran.code_requis.titre');
-    expect(new URL(p.url()).pathname).toBe('/');
-    await p.context().close();
+    // La page de son entreprise, rouverte dans un onglet neuf : l'ancien part de lui-même vers l'écran du code à son
+    // prochain appel au serveur, et le recharger pouvait tomber au milieu (« net::ERR_ABORTED », vu sur GitHub le
+    // 09/10/2026). La page s'en va avant d'avoir fini de se charger : on attend qu'elle soit partie (« commit »), puis
+    // l'écran où elle arrive.
+    const cx = p.context();
+    await p.close();
+    const q = await cx.newPage();
+    await q.addInitScript((j) => sessionStorage.setItem('skanfact.jeton', j), jeton);
+    await q.goto(`${serveur.adresse}/v10/?e=${ent}`, { waitUntil: 'commit' });
+    await ecran(q, 'ecran.code_requis.titre');
+    expect(new URL(q.url()).pathname).toBe('/');
+    expect(await q.locator('.ent-bandeau').innerText()).toBe(titre('ecran.code_requis.cabinet', { nom: 'Cabinet Ennour' }));
+    await q.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}`, { waitUntil: 'commit' });
+    await ecran(q, 'ecran.code_requis.titre');
+    expect(new URL(q.url()).pathname).toBe('/');
+    await cx.close();
   });
 });
