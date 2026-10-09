@@ -9112,6 +9112,24 @@ prouver "le haut de la facture dit « à côté » au téléphone, où il est de
   "regarde-le se dessiner pendant que tu tapes'," "regarde-le se dessiner à côté'," \
   "$KEW5"
 
+# ── Le relais d'e-mails du serveur d'essai : Resend (09/10/2026 ; docs/mise-en-ligne.md, H) ──
+RC1="la clé ne paraît sur aucune ligne de commande ; l'essai passe, puis les deux réglages remplacent les anciens et SkanFact redémarre"
+RC2="Resend refuse l'essai : rien ne change sur le serveur, et l'écran dit pourquoi le plus souvent"
+RC4="un serveur qui n'est pas d'essai le refuse : son relais sera en Tunisie"
+prouver "la clé de Resend sur la ligne de commande de curl" exploitation/courriel.sh \
+  'printf '"'"'user = "resend:%s"\n'"'"' "$CLE" | curl -sS --ssl-reqd' 'printf '"'"'user = "resend:%s"\n'"'"' "$CLE" | curl -sS --user "resend:$CLE" --ssl-reqd' \
+  "$RC1"
+prouver "les réglages écrits même quand Resend refuse l'essai" exploitation/courriel.sh \
+  'Rien n'"'"'a changé sur le serveur." >&2
+  exit 1' 'Rien n'"'"'a changé sur le serveur." >&2' \
+  "$RC2"
+prouver "l'ancien relais gardé à côté du nouveau" exploitation/courriel.sh \
+  "grep -v -e '^SKANFACT_SMTP=' -e '^SKANFACT_COURRIEL_DE=' \"\$REGLAGES\"" 'cat "$REGLAGES"' \
+  "$RC1"
+prouver "Resend branché sur un serveur aux vraies données" exploitation/courriel.sh \
+  "grep -qx 'SKANFACT_ENVIRONNEMENT=test' \"\$REGLAGES\" ||" 'true ||' \
+  "$RC4"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

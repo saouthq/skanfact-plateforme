@@ -227,6 +227,37 @@ et rien ne les posait sur un vrai serveur.
 Le refus dit désormais la date comme on l'écrit (« 05/10/2026 », plus « 2026-10-05 »). Test :
 `tests/socle/regles-communes.test.ts` (6 preuves avec celle de la date).
 
+## H. Le relais d'e-mails du serveur d'essai : Resend (décidé par Skander le 09/10/2026)
+
+L'étude est dans le dépôt `skanfact` (`docs/etudes/ENVOI-EMAILS.md`). Aucun service « tout prêt » n'annonce ses
+serveurs en Tunisie. **Resend pour le serveur d'essai** : il est déjà en France, avec des données inventées. **Au
+lancement**, notre propre relais sur notre serveur en Tunisie, et **Brevo** (Europe, avec l'autorisation de l'INPDP) en
+secours. Resend garde ses données aux États-Unis ; **il ne sert jamais un serveur aux vraies données**, et le script
+le refuse.
+
+**H1. Ce que fait Skander, une fois.**
+1. Chez Resend : créer le compte, ajouter le domaine `skanfact.tn` (région Irlande, `eu-west-1`).
+2. Chez Cloudflare (zone `skanfact.tn`) : recopier les lignes que Resend affiche (DKIM, et l'envoi par le sous-domaine
+   `send` : MX et SPF), puis attendre « Verified » chez Resend.
+3. Chez Resend : créer une clé « Sending access » (envoi seulement).
+4. Dans la console du serveur (espace client OVH), en root :
+   `curl -fsSL https://raw.githubusercontent.com/saouthq/skanfact-plateforme/main/exploitation/courriel.sh | bash`
+
+**H2. Le script** (`exploitation/courriel.sh`) :
+- il demande la clé **sans l'afficher** ;
+- il envoie d'abord un **e-mail d'essai** avec elle : si Resend refuse (domaine pas vérifié, clé mal copiée), rien ne
+  change ;
+- il écrit ensuite les deux réglages dans `/etc/skanfact/serveur.env`, lisible par root et le service seulement :
+  `SKANFACT_SMTP=smtps://resend:<clé>@smtp.resend.com:465` et `SKANFACT_COURRIEL_DE=ne-pas-repondre@skanfact.tn` ;
+- il redémarre SkanFact et vérifie que « Mot de passe oublié ? » est proposé.
+
+La clé passe à curl par son entrée, jamais par sa ligne de commande. **Elle ne passe ni par le dépôt, ni par Claude.**
+
+**H3. Ce qui part chez Resend**, compté et décidé (skanfact `docs/cadrage/03-droits.md` § 6) : l'adresse de la
+personne, l'objet, et un texte qui ne porte que le code ou le lien. Ni son nom, ni son entreprise.
+
+Test : `tests/exploitation/courriel.test.ts` (4 preuves), joué avec des doublures de curl et de systemctl.
+
 ## Reste à faire avant les testeurs
 
 - ~~Une fiche pour les testeurs~~ : `docs/testeurs.md` (05/10/2026).
