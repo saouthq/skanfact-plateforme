@@ -104,7 +104,9 @@ describe('l\'assistant de démarrage, à la souris', () => {
   it('la porte, puis l\'assistant : chaque écran s\'écrit et se reprend, la facture de l\'aperçu est la vraie, et le métier retenu à la fin décide du catalogue', async () => {
     const { email, jeton } = await personne('amine');
     const { p, erreurs } = await page(jeton);
-    const ent = await parLaPorte(p, 'Gharbi Informatique SARL', '1234567A/A/M/000');
+    // Un matricule à ce fichier seul : les tests partagent une base, et un matricule n'est celui que d'une entreprise
+    // (tests/matricule-libre.ts ; vu sur GitHub le 09/10/2026, celui du parcours était déjà pris).
+    const ent = await parLaPorte(p, 'Gharbi Informatique SARL', '4142136K/A/M/000');
 
     // 1. Où te joindre ? Le fil : ton compte fait, ton entreprise en cours. La fiche porte l'étape dès l'ouverture.
     await ecran(p, 'Où te joindre ?');
@@ -115,7 +117,7 @@ describe('l\'assistant de démarrage, à la souris', () => {
     expect((await fiche(jeton, ent))?.contenu.setupStep).toBe(0);
     // La facture de l'aperçu est la prochaine vraie : le nom, le matricule, le numéro qu'elle prendra.
     const coord = assistant(p).locator('#as-coord');
-    expect(net(await coord.innerText())).toBe('Gharbi Informatique SARL MF 1234567A/A/M/000');
+    expect(net(await coord.innerText())).toBe('Gharbi Informatique SARL MF 4142136K/A/M/000');
     expect(await assistant(p).locator('.as-quoi').innerText()).toMatch(/^FACTURE\nFAC-\d{4}-001$/);
     await p.screenshot({ path: path.join(PHOTOS, 'assistant-1-coordonnees.png') });
 
@@ -130,9 +132,9 @@ describe('l\'assistant de démarrage, à la souris', () => {
     await assistant(p).locator('#as-rc').fill('B0123452026');
     await assistant(p).locator('#as-cap').fill('10000');
     await expect.poll(async () => net(await coord.innerText()))
-      .toBe(`Gharbi Informatique SARL 12 rue de Marseille 1000 Tunis MF 1234567A/A/M/000 +216 55 123 456 ${email}`);
+      .toBe(`Gharbi Informatique SARL 12 rue de Marseille 1000 Tunis MF 4142136K/A/M/000 +216 55 123 456 ${email}`);
     await expect.poll(async () => net(await assistant(p).locator('#as-pied-feuille').innerText()))
-      .toBe('Gharbi Informatique SARL — Matricule fiscal 1234567A/A/M/000 — RC B0123452026 — Capital 10 000 DT');
+      .toBe('Gharbi Informatique SARL — Matricule fiscal 4142136K/A/M/000 — RC B0123452026 — Capital 10 000 DT');
     await p.screenshot({ path: path.join(PHOTOS, 'assistant-2-coordonnees-remplies.png') });
 
     // Une adresse mal formée : refusée sur sa case, qui garde le curseur ; rien ne s'écrit, l'écran reste.
