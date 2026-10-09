@@ -161,6 +161,9 @@ describe('l\'assistant de démarrage, à la souris', () => {
     expect(await assistant(p).locator('#as-indicatif').isVisible()).toBe(true);
     await suite(p).click();
     await ecran(p, 'Que fais-tu ?');
+    // L'étape 1 de nouveau écrite au serveur (« Retour » avait écrit l'étape 0) avant de juger qu'elle n'avance pas : lue
+    // trop tôt, la fiche disait encore 0 (vu sur GitHub le 09/10/2026, sur un poste chargé).
+    await expect.poll(async () => (await fiche(jeton, ent))?.contenu.setupStep).toBe(1);
 
     // « Continuer » sans métier : refusé en disant pourquoi et ce qui débloque ; l'étape n'avance pas.
     await suite(p).click();
@@ -336,10 +339,17 @@ describe('l\'assistant de démarrage, à la souris', () => {
     await a.p.context().close();
 
     // L'assistant commencé (l'étape 1 atteinte) : la propriétaire le retrouve là ; Karim, commercial, ouvre l'accueil.
-    const f = await fiche(nadia.jeton, ent);
-    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, nadia.jeton, { changements: [
-      { collection: '_racine', cle: 'company', rang: null, revision: f?.revision ?? null, contenu: { ...f?.contenu, setupStarted: true, setupStep: 1 } },
-    ] })).statut).toBe(200);
+    // La page qu'on vient de fermer a pu enregistrer sa fiche après notre lecture (ses réglages de départ, partis à
+    // l'ouverture : un conflit, vu sur GitHub le 09/10/2026) : on écrit sur la dernière révision, relue s'il le faut.
+    let ecrite = 0;
+    for (let essai = 0; essai < 3 && ecrite !== 200; essai++) {
+      const f = await fiche(nadia.jeton, ent);
+      ecrite = (await api('POST', `/entreprises/${ent}/dossier-v10`, nadia.jeton, { changements: [
+        { collection: '_racine', cle: 'company', rang: null, revision: f?.revision ?? null, contenu: { ...f?.contenu, setupStarted: true, setupStep: 1 } },
+      ] })).statut;
+      if (ecrite !== 200 && ecrite !== 409) break;
+    }
+    expect(ecrite).toBe(200);
     const karim = await personne('karim');
     const inv = String((await api('POST', `/entreprises/${ent}/invitations`, nadia.jeton, { email: karim.email, roles: ['commercial'] })).corps.jeton);
     expect((await api('POST', '/invitations/accepter', karim.jeton, { jeton: inv })).statut).toBe(200);
