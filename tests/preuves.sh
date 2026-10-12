@@ -10598,6 +10598,13 @@ prouver 'la tâche 0009 qui relance sans rendre le dossier à postgres' exploita
 ' '' \
   "$TR4"
 
+prouver 'la trace comptée deux fois avant la remise' base/entreprise.ts \
+  '    const tables = reposees.map((t) => (t.table === '"'"'socle.audit'"'"'' '    const tables = reposees.map((t) => (false' \
+  "$RM1"
+prouver 'un essai oublié qui traîne avec les données d'"'"'une entreprise' exploitation/remettre-entreprise.sh \
+  'find "$REMISES" -maxdepth 1 -name '"'"'*.jsonl'"'"' -mmin +1440 -delete
+' '' \
+  "$RM3"
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

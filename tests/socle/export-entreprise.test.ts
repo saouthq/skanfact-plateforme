@@ -264,8 +264,11 @@ describe('remettre UNE entreprise par-dessus elle-même', () => {
       const voisine = await exporter(cible, B.ent);
       expect(sansEnTete(abimee)).not.toEqual(sansEnTete(etatT));
 
+      const auditAvant = Number((await cible.query('select count(*)::int n from socle.audit where entreprise = $1', [A.ent])).rows[0].n);
       const essai = await remettre(cible, etatT, { motif: 'Essai avant la remise', essayer: true });
       expect(essai.essai).toBe(true);
+      // La trace ne s'efface pas : autant de lignes avant qu'après (celles du fichier y étaient).
+      expect(essai.tables.find((t) => t.table === 'socle.audit')).toMatchObject({ avant: auditAvant, lignes: auditAvant });
       expect(essai.numerosRetires).toEqual(['FAC-2026-777', 'FAC-2026-APRES']);
       expect(essai.tables.find((t) => t.table === 'ventes.ligne')).toMatchObject({ avant: 2, lignes: 3 });
       expect(sansEnTete(await exporter(cible, A.ent))).toEqual(sansEnTete(abimee));
@@ -381,7 +384,13 @@ describe('remettre UNE entreprise par-dessus elle-même', () => {
       const nom = async () => (await cible.query('select raison_sociale from socle.tiers where id = $1', [A.client])).rows[0].raison_sociale as string;
       const motif = 'Une erreur de manipulation';
 
+      // Un essai d'hier, oublié : il s'en va au passage suivant.
+      fs.mkdirSync(path.join(dossier, 'remises'), { recursive: true });
+      const vieux = path.join(dossier, 'remises', `${A.ent}-2026-10-10-09-00.jsonl`);
+      fs.writeFileSync(vieux, '{}\n');
+      fs.utimesSync(vieux, new Date(Date.now() - 2 * 86_400_000), new Date(Date.now() - 2 * 86_400_000));
       const sansEssai = lancer(A.ent, '2026-10-12 14:03', motif, '--remettre');
+      expect(fs.existsSync(vieux)).toBe(false);
       expect(sansEssai.status).toBe(1);
       expect(sansEssai.stderr).toMatch(/fais d'abord l'essai/);
       expect(lancer(A.ent, '2026-10-12 14:03', 'x').status).toBe(2);

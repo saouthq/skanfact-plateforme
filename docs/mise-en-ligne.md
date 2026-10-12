@@ -210,12 +210,15 @@ erreur de manipulation ou un défaut a abîmé les données d'une entreprise, le
   jouée dans la base vive et **annulée** : rien ne change, et l'écran dit ce qui changerait — les tables, et les
   **numéros de pièces** qui disparaîtraient (une facture émise après cette minute : sa série redonnera son numéro, il
   faut la refaire à l'identique).
-- **La remise** : la même commande suivie de `--remettre`, sur le fichier de l'essai (sans essai, elle est refusée).
+- **La remise** : la même commande suivie de `--remettre`, sur le fichier de l'essai (sans essai, elle est refusée ;
+  un essai vaut un jour : son fichier porte les données de l'entreprise, il ne traîne pas plus longtemps).
   Les lignes de l'entreprise sont remplacées par celles du fichier, en une transaction ; rien ne bouge des autres
   entreprises ; sa piste d'audit est gardée entière et dit la remise, son motif et les numéros retirés ; ses postes
   relisent tout leur dossier. La remise est refusée si une ligne d'ailleurs (le dossier de révision d'un cabinet…)
   désigne ce qu'elle ferait disparaître. L'état d'avant reste retrouvable à la minute que le script affiche : une
-  remise se défait par une autre.
+  remise se défait par une autre. **Essayée sur le serveur d'essai le 12/10/2026** (données inventées) : une écriture,
+  puis l'essai de la remise à la minute d'avant — la base de cette minute restaurée à côté, l'entreprise exportée,
+  l'essai joué et annulé, la base d'à côté vidée ; il a montré la piste d'audit comptée deux fois (corrigé).
 
 Code : `exploitation/archiver.sh`, `exploitation/copie-de-base.sh`, `exploitation/restaurer.sh`,
 `exploitation/hors-machine.sh`, `exploitation/regler-hors-machine.sh`, `exploitation/rapatrier.sh`,

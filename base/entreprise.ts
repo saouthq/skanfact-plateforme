@@ -544,10 +544,12 @@ export async function remettre(client: pg.ClientBase, lignes: string[], options:
     // 5. Les numéros qu'aucune pièce ne porte plus (une pièce disparue, une facture émise redevenue brouillon).
     const numerosApres = new Set(await numerosEmis(client, E));
     const numerosRetires = numerosAvant.filter((n) => !numerosApres.has(n));
-    const tables = reposees.map((t) => ({
-      table: t.table, role: t.role, lignes: t.lignes,
-      avant: t.role === 'entreprise' ? (avant.get(t.table) ?? 0) + t.remplacees : t.lignes,
-    }));
+    // La piste d'audit ne s'efface pas : ce qu'elle compte avant la remise, et après (celle du fichier y était déjà). Comptée
+    // comme les autres, elle se disait deux fois plus longue avant (vu le 12/10/2026 sur le serveur d'essai).
+    const auditApres = (await client.query('select count(*)::int n from socle.audit where entreprise = $1', [E])).rows[0].n as number;
+    const tables = reposees.map((t) => (t.table === 'socle.audit'
+      ? { table: t.table, role: t.role, avant: avant.get(t.table) ?? 0, lignes: auditApres }
+      : { table: t.table, role: t.role, lignes: t.lignes, avant: t.role === 'entreprise' ? (avant.get(t.table) ?? 0) + t.remplacees : t.lignes }));
     const compte = (role: 'avant' | 'lignes') => Object.fromEntries(tables.filter((t) => t.role === 'entreprise' && t[role]).map((t) => [t.table, t[role]]));
     await client.query(`insert into socle.audit (entreprise, geste, objet_type, objet_id, avant, apres)
       values ($1, 'socle.entreprise.remettre', 'entreprise', $1, $2, $3)`,
