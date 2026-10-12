@@ -50,9 +50,11 @@ jobs:
         run: node node_modules/electron/install.js
       # xmllint relit chaque fichier El Fatoora contre le schéma de la TTN (tests/v10/efacture.test.ts) ;
       # sans lui, le test tombe (il ne saute jamais le schéma). Tesseract (avec le français) et Poppler
-      # lisent les factures d'achat en photo ou en PDF (brique 84, tests/achats) : les mêmes que sur le serveur.
-      - name: xmllint, Tesseract, Poppler et Xvfb (la facture électronique, la lecture des factures d'achat, la coque de bureau)
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb
+      # lisent les factures d'achat en photo ou en PDF (brique 84, tests/achats) : les mêmes que sur le serveur. age
+      # chiffre les copies hors de la machine (tests/exploitation/archivage.test.ts, qui joue aussi l'archivage à la minute
+      # sur le PostgreSQL 16 du poste).
+      - name: xmllint, Tesseract, Poppler, Xvfb et age (la facture électronique, la lecture des factures d'achat, la coque de bureau, les copies hors machine)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb age
       - name: Types
         run: npm run types
       - name: Lint (0 erreur, 0 avertissement)
@@ -106,8 +108,8 @@ jobs:
         run: node node_modules/electron/install.js
       # Sans xmllint (ou sans Tesseract et Poppler), les tests de la facture électronique (ou de la lecture
       # des factures d'achat) tomberaient pour une autre raison que le défaut remis : la preuve ne prouverait rien.
-      - name: xmllint, Tesseract, Poppler et Xvfb
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb
+      - name: xmllint, Tesseract, Poppler, Xvfb et age
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb age
       - name: Preuves (chaque test tombe quand on remet son défaut)
         run: npm run preuves
         env:

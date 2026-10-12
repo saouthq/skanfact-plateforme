@@ -626,7 +626,7 @@ prouver "un grand entier qui casse la réponse de l'API" serveur/app.ts \
 # ── Exporter et restaurer une entreprise (base/entreprise.ts) ────────────────────────────────────
 EX=base/entreprise.ts
 prouver "une table nouvelle exportée sans décision" $EX \
-  "  if (manquantes.length) throw" "  if (manquantes.length === -1) throw" \
+  "  if (manquantes.length) throw new Error(\`table non classée pour l" "  if (manquantes.length === -1) throw new Error(\`table non classée pour l" \
   "une table nouvelle que personne n'a rangée arrête l'export"
 prouver "l'empreinte du mot de passe dans l'export" $EX \
   "  'socle.utilisateur': { classe: 'reference', colonnes: ['id', 'email', 'nom', 'langue', 'cree_le'] }," "  'socle.utilisateur': { classe: 'reference', colonnes: ['id', 'email', 'nom', 'langue', 'cree_le', 'empreinte_mot_de_passe'] }," \
@@ -638,16 +638,17 @@ prouver "un fichier abîmé accepté" $EX \
   "  if (fin.fin !== true || fin.empreinte !== empreinte(lignes.slice(0, -1))) {" "  if (fin.fin !== true) {" \
   "un fichier coupé ou abîmé est refusé"
 prouver "une base aux migrations différentes acceptée" $EX \
-  "      throw new Error('la base cible n\\'a pas les mêmes migrations" "      if (Date.now() < 0) throw new Error('la base cible n\\'a pas les mêmes migrations" \
+  "    throw new Error(\`la base cible n'a pas les mêmes migrations" "    if (Date.now() < 0) throw new Error(\`la base cible n'a pas les mêmes migrations" \
   "un fichier coupé ou abîmé est refusé"
 prouver "une restauration par-dessus l'entreprise" $EX \
   "      throw new Error('cette entreprise existe déjà" "      if (Date.now() < 0) throw new Error('cette entreprise existe déjà" \
   "restaurée dans une base vide"
 prouver "un lien qui mène nulle part accepté" $EX \
-  "      if (pendantes) throw" "      if (pendantes === -1) throw" \
+  "    if (pendantes) throw new Error(\`\${pendantes} ligne(s) de \${l.de} désignent une ligne absente" "    if (pendantes === -1) throw new Error(\`\${pendantes} ligne(s) de \${l.de} désignent une ligne absente" \
   "un lien qui mène nulle part annule tout"
 prouver "les règles du métier qui refusent de reposer une facture émise" $EX \
-  "    await client.query('set local session_replication_role = replica');" "" \
+  "    // le temps de reposer les lignes telles qu'elles étaient ; les clés sont contrôlées ensuite.
+    await client.query('set local session_replication_role = replica');" "    // le temps de reposer les lignes telles qu'elles étaient ; les clés sont contrôlées ensuite." \
   "restaurée dans une base vide"
 prouver "une restauration sans trace" $EX \
   "    await client.query(\`insert into socle.audit (entreprise, geste, objet_type, objet_id, apres)" "    if (Date.now() < 0) await client.query(\`insert into socle.audit (entreprise, geste, objet_type, objet_id, apres)" \
@@ -7857,7 +7858,7 @@ prouver "un échec imprévu tu (le réussi de la veille reste)" exploitation/sau
   "trap 'ecrire false" ": 'ecrire false" \
   "$SA4"
 prouver "le fichier à moitié écrit laissé là" exploitation/sauvegarder.sh \
-  '[ "$MODE" = essayer ] || rm -f "$f"'"' ERR" "true' ERR" \
+  '[ "$MODE" = essayer ] || rm -f "$f" "$f.partiel"'"' ERR" "true' ERR" \
   "$SA4"
 prouver "le fichier examiné jeté quand l'essai échoue" exploitation/sauvegarder.sh \
   '[ "$MODE" = essayer ] || rm -f "$f"' 'rm -f "$f"' \
@@ -10172,6 +10173,401 @@ prouver "le scénario des deux postes joué pendant que la page enregistre encor
   "    await p.evaluate(async () => { await (window as unknown as { __enregistrerMaintenant: () => Promise<unknown> }).__enregistrerMaintenant(); });" "" \
   "$EC"
 
+# ── Le lot « prêt pour les pilotes », 2 (12/10/2026 ; docs/mise-en-ligne.md, B bis et I) : deux sortes de serveurs, toutes
+# les preuves avant d'installer, le frontal en un seul endroit, la veille (alertes et page d'état) ──
+SV5="les pilotes (« toutes », et toute valeur inconnue) : seulement une version verte des deux côtés, la plus récente"
+SV6="toutes les preuves se relisent au plus toutes les demi-heures (GitHub compte les questions), et un relevé faux se relit"
+prouver "les pilotes qui installent une version que toutes les preuves n'ont pas vue" exploitation/suivre.ts \
+  "return a === 'rouge' || b === 'rouge' ? 'rouge' : a === 'vert' && b === 'vert' ? 'vert' : 'en_cours';" "return a === 'rouge' ? 'rouge' : a === 'vert' ? 'vert' : 'en_cours';" \
+  "$SV5"
+prouver "un réglage inconnu qui n'attend que la vérification de l'envoi" exploitation/suivre.ts \
+  "  if (verification === 'github') return async (v) => verdicts.get(v) ?? 'en_cours';" "  if (verification !== 'toutes' && verification !== undefined) return async (v) => verdicts.get(v) ?? 'en_cours';" \
+  "$SV5"
+prouver "toutes les preuves redemandées à GitHub à chaque tour" exploitation/suivre.ts \
+  "  return !Number.isFinite(t) || maintenant.getTime() - t >= RELIRE_COMPLETES_MS || t > maintenant.getTime();" "  return true;" \
+  "$SV6"
+prouver "un relevé daté du futur qui bloque la relecture des preuves" exploitation/suivre.ts \
+  " || t > maintenant.getTime();" ";" \
+  "$SV6"
+RC6="pendant l'installation des pilotes : l'essai et les réglages, sans redémarrer ni attendre SkanFact"
+prouver "l'installation des pilotes qui redémarre un SkanFact qui ne tourne pas encore" exploitation/courriel.sh \
+  'if [ "${SKANFACT_SANS_REDEMARRER:-}" = 1 ]; then' 'if false; then' \
+  "$RC6"
+IP1="une sorte inconnue se refuse avant de toucher à rien"
+IP2="l'installation des pilotes : production, toutes les preuves, le relais demandé, et jamais l'accès de Claude"
+IP3="la tâche de l'accès de Claude ne pose rien sur un serveur aux vraies données"
+prouver "une sorte de serveur inconnue installée comme un serveur d'essai" exploitation/installer.sh \
+  '[ "$SORTE" = essai ] || [ "$SORTE" = pilotes ] || { echo "« $SORTE » : « essai » (données inventées) ou « pilotes » (vraies données)" >&2; exit 2; }' '' \
+  "$IP1"
+prouver "les pilotes installés comme un serveur d'essai" exploitation/installer.sh \
+  'if [ "$SORTE" = pilotes ]; then ENVIRONNEMENT=production; ATTENDRE=toutes; else ENVIRONNEMENT=test; ATTENDRE=aucune; fi' 'ENVIRONNEMENT=test; ATTENDRE=aucune' \
+  "$IP2"
+prouver "l'accès de Claude allumé sur un serveur des pilotes" exploitation/installer.sh \
+  'if [ "$SORTE" = essai ]; then systemctl enable -q --now skanfact-acces.service; fi' 'systemctl enable -q --now skanfact-acces.service' \
+  "$IP2"
+prouver "un serveur d'essai qui devient, d'une ligne, celui des vraies données" exploitation/installer.sh \
+  'if [ -f /etc/skanfact/serveur.env ] && ! grep -qx "SKANFACT_ENVIRONNEMENT=$ENVIRONNEMENT" /etc/skanfact/serveur.env; then' 'if false; then' \
+  "$IP2"
+prouver "les pilotes installés sans demander qui prévenir" exploitation/installer.sh \
+  '  bash "$MAISON/depot/exploitation/alertes.sh" ||' '  true ||' \
+  "$IP2"
+prouver "l'installation qui réécrit le Caddyfile à côté du frontal" exploitation/installer.sh \
+  'bash "$MAISON/depot/exploitation/frontal.sh"' 'bash "$MAISON/depot/exploitation/frontal.sh"; : > /etc/caddy/Caddyfile' \
+  "$IP2"
+prouver "l'accès de Claude posé sur un serveur aux vraies données" exploitation/taches/0004-acces-de-claude.sh \
+  "if ! grep -qx 'SKANFACT_ENVIRONNEMENT=test' \"\$REGLAGES\"; then" "if false; then" \
+  "$IP3"
+FR1="un serveur d'essai : la page d'état, l'état détaillé, l'accès de Claude, puis le programme ; Caddy rechargé"
+FR2="un serveur aux vraies données : la page d'état et le programme, rien d'autre (ni l'état détaillé, ni l'accès de Claude)"
+FR3="une adresse illisible : rien n'est écrit, rien ne se recharge"
+prouver "l'état détaillé publié par un serveur aux vraies données" exploitation/frontal.sh \
+  "grep -qx 'SKANFACT_ENVIRONNEMENT=test' \"\$REGLAGES\" && ESSAI=1" "ESSAI=1" \
+  "$FR2"
+prouver "la page d'état qui n'est pas servie" exploitation/frontal.sh \
+  '		rewrite * /etat.html
+' '' \
+  "$FR1"
+prouver "le frontal réécrit et Caddy pas rechargé" exploitation/frontal.sh \
+  '[ "${SKANFACT_SANS_RECHARGER:-}" = 1 ] || systemctl reload caddy 2>/dev/null || systemctl restart caddy' 'true' \
+  "$FR1"
+prouver "un Caddyfile écrit avec une adresse illisible" exploitation/frontal.sh \
+  '[[ "$ADRESSE" =~ ^[a-z0-9.-]+$ ]] ||' '[[ -n "$ADRESSE" ]] ||' \
+  "$FR3"
+AL1="l'essai d'abord, avec les destinataires qu'on vient de donner ; puis ils remplacent les anciens"
+AL2="l'essai ne part pas, ou n'est pas arrivé : rien ne change"
+AL4="ce qui manque se dit avant toute question : le relais d'e-mails, la première version ; une saisie fausse ne change rien"
+prouver "les destinataires des alertes écrits sans essai" exploitation/alertes.sh \
+  'if ! (cd "$DEPOT" && SKANFACT_REGLAGES="$REGLAGES" SKANFACT_VEILLE_REGLAGES="$NOUVEAU" node exploitation/veiller.ts essai); then' 'if false; then' \
+  "$AL1"
+prouver "l'alerte d'essai envoyée aux anciens destinataires" exploitation/alertes.sh \
+  'SKANFACT_VEILLE_REGLAGES="$NOUVEAU" node' 'SKANFACT_VEILLE_REGLAGES="$VEILLE" node' \
+  "$AL1"
+prouver "l'adresse de l'exploitant sur la ligne de commande" exploitation/alertes.sh \
+  'node exploitation/veiller.ts essai); then' 'node exploitation/veiller.ts essai "$COURRIEL"); then' \
+  "$AL1"
+prouver "le mobile des alertes écrit sans l'indicatif" exploitation/alertes.sh \
+  "printf 'SKANFACT_ALERTE_SMS=+216%s\\n' \"\$TEL\"" "printf 'SKANFACT_ALERTE_SMS=%s\\n' \"\$TEL\"" \
+  "$AL1"
+prouver "les destinataires des alertes lisibles par tous" exploitation/alertes.sh \
+  'chmod 640 "$VEILLE"' 'chmod 644 "$VEILLE"' \
+  "$AL1"
+prouver "les destinataires écrits quand l'alerte d'essai n'est pas arrivée" exploitation/alertes.sh \
+  '[[ "$RECU" =~ ^[oOyY] ]] ||' 'true ||' \
+  "$AL2"
+prouver "un mobile faux accepté pour les alertes" exploitation/alertes.sh \
+  '[ -z "$TEL" ] || [[ "$TEL" =~ ^[2459][0-9]{7}$ ]] ||' '[ -z "$TEL" ] || [[ "$TEL" =~ ^[0-9]+$ ]] ||' \
+  "$AL4"
+prouver "les alertes réglées avant que le serveur envoie des e-mails" exploitation/alertes.sh \
+  "grep -q '^SKANFACT_SMTP=' \"\$REGLAGES\" ||" "true ||" \
+  "$AL4"
+TV1="un minuteur chaque minute, en compte skanfact, qui n'écrit que dans l'état ; puis le frontal"
+prouver "la veille lancée en root" exploitation/taches/0007-veille.sh \
+  'Type=oneshot
+User=skanfact
+' 'Type=oneshot
+' \
+  "$TV1"
+prouver "les destinataires des alertes écrasés par la tâche d'entretien" exploitation/taches/0007-veille.sh \
+  '[ -f /etc/skanfact/veille.env ] || install' 'install' \
+  "$TV1"
+VE2="chacun, avec sa gravité et ce qu'il faut faire ; les seuils sont ceux du document 06 § 7"
+VE3="la sauvegarde : absente, ratée, ou trop vieille (jamais le « réussi » d'il y a deux jours)"
+VE4="le suiveur qui se tait (plus aucune version ne s'installerait), et un état illisible"
+VE5="un certificat expiré est grave ; un certificat qu'on n'a pas su lire ne dit rien (le service, lui, parle)"
+VE6="le service se dit après deux minutes sans réponse, pas au premier relevé (un redémarrage dure moins)"
+VE7="un problème dit ne se redit pas chaque minute ; un rappel toutes les six heures ; un mot quand c'est réglé"
+VE8="un envoi qui n'est parti par aucun moyen se redit à la minute suivante"
+VE9="l'e-mail dit tout, avec ce qu'il faut faire et le lien de la page d'état"
+VE10="le SMS est court, ne dit que le nouveau et le grave, et finit par le lien"
+VE12="pendant un incident : ce qui ne marche pas, sans le message ni le chemin ; seulement ce qui est confirmé"
+VE13="le nom du serveur s'échappe"
+prouver "le service dit en panne dès le premier relevé (un redémarrage)" exploitation/veille.ts \
+  '{ service: 2 }' '{ service: 1 }' \
+  "$VE6"
+prouver "un problème redit chaque minute" exploitation/veille.ts \
+  '} else if (e.ditLe !== null && maintenant.getTime() - Date.parse(e.ditLe) >= RAPPEL_H * 3_600_000) {' '} else if (e.ditLe !== null) {' \
+  "$VE7"
+prouver "le retour annoncé d'un problème que personne n'a entendu" exploitation/veille.ts \
+  'if (!(cle in apres.problemes) && e.ditLe !== null) messages.push' 'if (!(cle in apres.problemes)) messages.push' \
+  "$VE6"
+prouver "une alerte partie par aucun moyen, oubliée" exploitation/veille.ts \
+  '  if (parti) return apres;' '  if (parti || !parti) return apres;' \
+  "$VE8"
+prouver "le seuil du disque qui n'est pas celui du cadrage" exploitation/veille.ts \
+  'export const DISQUE_ALERTE = 75;' 'export const DISQUE_ALERTE = 85;' \
+  "$VE2"
+prouver "une sauvegarde ratée passée sous silence" exploitation/veille.ts \
+  "  else if (!s.ok) p.push({ cle: 'sauvegarde', titre: 'la dernière sauvegarde de la base a échoué', grave: true, faire });" "  else if (!s.ok) void 0;" \
+  "$VE3"
+prouver "le suiveur muet jamais signalé" exploitation/veille.ts \
+  'if (!Number.isFinite(silence) || silence > SUIVEUR_SILENCIEUX_MIN * 60_000) {' 'if (!Number.isFinite(silence)) {' \
+  "$VE4"
+prouver "un certificat expiré qui n'est pas grave" exploitation/veille.ts \
+  '      grave: !Number.isFinite(jours) || jours < CERTIFICAT_GRAVE_J,' '      grave: false,' \
+  "$VE5"
+prouver "une alerte qui ne dit pas quoi faire" exploitation/veille.ts \
+  '.\nQue faire : ${m.faire}`;' '.`;' \
+  "$VE9"
+prouver "chaque rappel par SMS, même sans gravité" exploitation/veille.ts \
+  "  const parSms = messages.filter((m) => m.sorte === 'nouveau' || m.grave);" "  const parSms = messages;" \
+  "$VE10"
+prouver "la page publique qui montre une panne pas encore confirmée" exploitation/veille.ts \
+  '.filter(([c, e]) => confirme(c, e.vus))' '.filter(() => true)' \
+  "$VE12"
+prouver "le nom du serveur posé tel quel dans la page publique" exploitation/veille.ts \
+  '<p class="sous">${echapper(serveur)}</p>' '<p class="sous">${serveur}</p>' \
+  "$VE13"
+VW1="un fichier de réglages se lit comme systemd le lit : la valeur jusqu'au bout de la ligne, espaces comprises"
+VW2="la place des disques, chacun compté une fois"
+VW3="part par e-mail et par SMS ; ne porte ni la clé, ni rien du serveur"
+VW4="un relais qui refuse se dit, et l'essai sort en échec ; sans destinataire, aussi"
+VW5="le service tombe : rien à la première minute, l'alerte à la seconde (e-mail et SMS), puis le retour se dit"
+VW6="une alerte partie par aucun moyen se redit à la minute suivante"
+prouver "un nom d'expéditeur coupé à l'espace" exploitation/veiller.ts \
+  'const m = /^([A-Z][A-Z0-9_]*)=(.*)$/.exec(l.trim());' 'const m = /^([A-Z][A-Z0-9_]*)=(\S*)/.exec(l.trim());' \
+  "$VW1"
+prouver "un disque compté deux fois" exploitation/veiller.ts \
+  'vus.set(point, pourcent);' 'vus.set(`${point}#${vus.size}`, pourcent);' \
+  "$VW2"
+prouver "l'alerte jamais envoyée par SMS" exploitation/veiller.ts \
+  "if (a.sms && R.SKANFACT_ALERTE_SMS && R.SKANFACT_SMS === 'winsms' && R.SKANFACT_SMS_CLE) {" "if (false) {" \
+  "$VW3"
+prouver "l'essai des alertes réussi sans rien envoyer" exploitation/veiller.ts \
+  'return p.courriel !== false && p.sms !== false && (p.courriel === true || p.sms === true);' 'return p.courriel !== false && p.sms !== false;' \
+  "$VW4"
+prouver "la page d'état jamais écrite" exploitation/veiller.ts \
+  "  ecrire(path.join(ETAT, 'public', 'etat.html'), pageEtat(SERVEUR, r, garde));" "" \
+  "$VW5"
+prouver "la veille qui oublie d'une minute à l'autre" exploitation/veiller.ts \
+  '  const avant = lire<Veille>(fichier, { problemes: {} });' '  const avant: Veille = { problemes: {} };' \
+  "$VW5"
+prouver "un envoi raté compté parti" exploitation/veiller.ts \
+  '    parti = p.courriel === true || p.sms === true;' '    parti = true;' \
+  "$VW6"
+
+# ── Le lot « prêt pour les pilotes », 2 (suite) : revenir à la minute, et la copie hors de la machine (docs/mise-en-ligne.md,
+# C bis ; tâche d'entretien 0008) ──
+AR1='chaque journal rempli est rangé compressé ; un journal déjà archivé n'"'"'est jamais écrasé par un autre'
+AR2='la copie de base de la nuit : vérifiée, rangée avec son premier journal ; les vieilles et leurs journaux s'"'"'en vont, jamais les deux dernières'
+AR2B='une copie de base ratée se dit, ne laisse rien derrière elle, et n'"'"'efface rien'
+AR2C='la copie est vérifiée contre son manifeste AVANT d'"'"'être rangée, et les vieilles ne s'"'"'en vont qu'"'"'après'
+AR3='restaurée à côté jusqu'"'"'à une minute précise : ce qui est passé avant, rien de ce qui a suivi ; la base vive n'"'"'est pas touchée'
+AR4='l'"'"'exercice du mois : jusqu'"'"'au dernier journal, compté, mesuré, puis jeté ; une minute illisible se refuse'
+AR5='une minute d'"'"'avant la première copie de base se refuse, et se dit'
+AR6='pg_dump écrit à part, puis le fichier est renommé d'"'"'un coup (la copie hors machine ne prend jamais un fichier à moitié écrit)'
+AR7='le réglage : la clé qui relit se montre une fois et ne reste pas ; un envoi d'"'"'essai relu et déchiffré d'"'"'abord'
+AR7B='la clé qui relit mal recopiée : rien n'"'"'est réglé, et elle est oubliée'
+AR7C='ni le secret du stockage ni la clé qui relit sur une ligne de commande (que la machine entière lit)'
+AR8='chaque minute, ce qui est nouveau part chiffré et vérifié ; rien deux fois ; jamais un fichier à moitié écrit'
+AR9='un envoi que le stockage ne rend pas tel quel ne compte pas : l'"'"'échec se dit, la minute suivante reprend'
+AR11='tout revient du stockage, déchiffré avec la clé gardée (page après page), et la base se restaure comme avant'
+AR13='PostgreSQL archive par une copie du script hors du dépôt, chaque minute au plus, et la tâche vérifie qu'"'"'un journal est parti'
+AR14='la copie de base et l'"'"'exercice en compte postgres, la copie hors machine en root mais n'"'"'écrivant que son état ; une première copie et un premier exercice tout de suite'
+VC2='l'"'"'archivage qui échoue est grave ; reparti, il ne dit plus rien ; arrêté, seulement sur un serveur aux vraies données'
+VC3='la copie de base : absente, ratée ou trop vieille, grave — seulement quand l'"'"'archivage tourne'
+VC4='l'"'"'exercice de restauration : raté, grave ; plus vieux que 35 jours, à faire'
+VC5='hors de la machine : en retard d'"'"'un quart d'"'"'heure, grave après une heure, et l'"'"'échec se dit ; pas réglée, seulement sur les vraies données'
+VW7='un serveur aux vraies données sans copie hors de la machine le dit ; réglée et en retard, aussi ; leur état part, jamais leur détail'
+prouver 'un journal déjà archivé écrasé par un autre' exploitation/archiver.sh \
+  '  echo "archiver.sh : $NOM est déjà archivé, et diffère du journal que PostgreSQL propose" >&2
+  exit 1' '  gzip -c "$SOURCE" > "$CIBLE"; exit 0' \
+  "$AR1"
+prouver 'un journal identique refusé : PostgreSQL bloqué pour toujours' exploitation/archiver.sh \
+  '  if gzip -dc "$CIBLE" | cmp -s - "$SOURCE"; then exit 0; fi
+' '' \
+  "$AR1"
+prouver 'les deux dernières copies de base effacées elles aussi' exploitation/copie-de-base.sh \
+  'for ((i = 2; i < ${#copies[@]}; i++)); do' 'for ((i = 0; i < ${#copies[@]}; i++)); do' \
+  "$AR2"
+prouver 'les journaux d'"'"'une copie gardée effacés' exploitation/copie-de-base.sh \
+  '-printf '"'"'%f\n'"'"' | sort | head -n 1)' '-printf '"'"'%f\n'"'"' | sort -r | head -n 1)' \
+  "$AR2"
+prouver 'une copie de base ratée qui laisse dire « réussie »' exploitation/copie-de-base.sh \
+  'trap '"'"'ecrire false "échec à la ligne $LINENO de copie-de-base.sh"; rm -rf "$TRAVAIL" "$COPIES/base-$MARQUE.tar.gz.tmp"'"'"' ERR' 'trap '"'"'rm -rf "$TRAVAIL"'"'"' ERR' \
+  "$AR2B"
+prouver 'une copie de base rangée sans être vérifiée' exploitation/copie-de-base.sh \
+  '"$PGBIN/pg_verifybackup" -n -q "$TRAVAIL"
+' '' \
+  "$AR2C"
+prouver 'la restauration qui va au bout au lieu de s'"'"'arrêter à la minute' exploitation/restaurer.sh \
+  '[ -z "$JUSQUA" ] || printf "recovery_target_time' '[ -n "$JUSQUA" ] || printf "recovery_target_time' \
+  "$AR3"
+prouver 'la minute lue en temps universel au lieu de l'"'"'heure de Tunis' exploitation/restaurer.sh \
+  'JUSQUA=$(TZ=Africa/Tunis date -u -d "TZ=\"Africa/Tunis\" $2"' 'JUSQUA=$(date -u -d "$2"' \
+  "$AR3"
+prouver 'la base restaurée ouverte au réseau' exploitation/restaurer.sh \
+  'listen_addresses = '"'"''"'"'' 'listen_addresses = '"'"'127.0.0.1'"'"'' \
+  "$AR3"
+prouver 'une restauration à la main qui écrase l'"'"'état de l'"'"'exercice' exploitation/restaurer.sh \
+  '  RESULTAT=derniere-restauration-a-la-minute.json
+' '' \
+  "$AR3"
+prouver 'l'"'"'exercice laissé là, avec toutes les données' exploitation/restaurer.sh \
+  '  arreter; rm -rf "$DOSSIER"
+  echo "Exercice réussi' '  echo "Exercice réussi' \
+  "$AR4"
+prouver 'une copie de base d'"'"'après la minute prise quand même' exploitation/restaurer.sh \
+  '  if [ -z "$LIMITE" ] || [[ ! "$marque" > "$LIMITE" ]]; then COPIE=$c; break; fi' '  COPIE=$c; break' \
+  "$AR5"
+prouver 'la sauvegarde de la nuit écrite sous son nom avant d'"'"'être finie' exploitation/sauvegarder.sh \
+  'pg_dump -Fc -f "$f.partiel" "$BASE"
+mv "$f.partiel" "$f"' 'pg_dump -Fc -f "$f" "$BASE"' \
+  "$AR6"
+prouver 'la clé qui relit écrite sur le serveur' exploitation/regler-hors-machine.sh \
+  'SKANFACT_AGE_DESTINATAIRE=$DESTINATAIRE
+ENV' 'SKANFACT_AGE_DESTINATAIRE=$DESTINATAIRE
+SKANFACT_AGE_IDENTITE=$IDENTITE
+ENV' \
+  "$AR7"
+prouver 'les réglages du stockage lisibles par tous' exploitation/regler-hors-machine.sh \
+  'chmod 600 "$REGLAGES.nouveau"' 'chmod 644 "$REGLAGES.nouveau"' \
+  "$AR7"
+prouver 'la clé qui relit acceptée sans preuve qu'"'"'elle est recopiée' exploitation/regler-hors-machine.sh \
+  '[ "$FIN" = "${IDENTITE: -6}" ] ||' 'true ||' \
+  "$AR7B"
+prouver 'le secret du stockage sur la ligne de commande de curl' exploitation/hors-machine.sh \
+  '--aws-sigv4 "aws:amz:${REGION:-us-east-1}:s3" -K - \
+    -T "$chiffre"' '--aws-sigv4 "aws:amz:${REGION:-us-east-1}:s3" --user "$CLE:$SECRET" \
+    -T "$chiffre"' \
+  "$AR7C"
+prouver 'une copie partie en clair' exploitation/hors-machine.sh \
+  'age -r "$DESTINATAIRE" -o "$chiffre" "$1"' 'cp "$1" "$chiffre"' \
+  "$AR8"
+prouver 'une sauvegarde à moitié écrite envoyée' exploitation/hors-machine.sh \
+  '-type f -name '"'"'*.dump'"'"' -printf' '-type f -name '"'"'*.dump*'"'"' -printf' \
+  "$AR8"
+prouver 'tout renvoyé à chaque minute' exploitation/hors-machine.sh \
+  '  if [ -e "$marque" ]; then continue; fi
+' '' \
+  "$AR8"
+prouver 'l'"'"'état de la copie hors machine illisible par la veille' exploitation/hors-machine.sh \
+  'chmod 644 "$ETAT/hors-machine.json.tmp"
+' '' \
+  "$AR8"
+prouver 'un envoi compté sans vérifier son empreinte' exploitation/hors-machine.sh \
+  '  [ "${etag,,}" = "$empreinte" ] || {' '  true || {' \
+  "$AR9"
+prouver 'le rapatriement qui ne lit que la première page' exploitation/rapatrier.sh \
+  '  grep -q '"'"'<IsTruncated>true</IsTruncated>'"'"' "$TMP/page" || break' '  break' \
+  "$AR11"
+prouver 'le jeton de reprise envoyé sans encodage' exploitation/rapatrier.sh \
+  '${JETON:+&continuation-token=$(encoder "$JETON")}' '${JETON:+&continuation-token=$JETON}' \
+  "$AR11"
+prouver 'une copie de base rapatriée sans son premier journal' exploitation/rapatrier.sh \
+  '> "${cible%.tar.gz}.debut"' '> /dev/null' \
+  "$AR11"
+prouver 'PostgreSQL qui archive par le script du dépôt' exploitation/taches/0008-archivage.sh \
+  'archive_command = '"'"'/usr/local/lib/skanfact/archiver.sh "%p" "%f"'"'"'' 'archive_command = '"'"'/opt/skanfact/depot/exploitation/archiver.sh "%p" "%f"'"'"'' \
+  "$AR13"
+prouver 'la tâche qui ne vérifie pas qu'"'"'un journal est parti' exploitation/taches/0008-archivage.sh \
+  ' || { echo "Aucun journal archivé après une minute" >&2; exit 1; }' '' \
+  "$AR13"
+prouver 'la copie hors machine qui peut écrire partout' exploitation/taches/0008-archivage.sh \
+  'NoNewPrivileges=true\nProtectSystem=strict' NoNewPrivileges=true \
+  "$AR14"
+prouver 'aucune copie de base à l'"'"'archivage posé' exploitation/taches/0008-archivage.sh \
+  'systemctl start skanfact-base.service
+' '' \
+  "$AR14"
+prouver 'l'"'"'archivage qui échoue pris pour reparti' exploitation/veille.ts \
+  'Date.parse(a.dernierEchec) > Date.parse(a.dernierReussi)' 'Date.parse(a.dernierEchec) < Date.parse(a.dernierReussi)' \
+  "$VC2"
+prouver 'la copie de base reprochée quand l'"'"'archivage ne tourne pas' exploitation/veille.ts \
+  '  if (a?.enMarche) {
+    const b = c.copieDeBase;' '  if (true) {
+    const b = c.copieDeBase;' \
+  "$VC3"
+prouver 'un exercice de restauration raté qui n'"'"'est pas grave' exploitation/veille.ts \
+  'titre: '"'"'le dernier exercice de restauration a échoué'"'"', grave: true,' 'titre: '"'"'le dernier exercice de restauration a échoué'"'"', grave: false,' \
+  "$VC4"
+prouver 'la copie hors machine en retard dite seulement après une heure' exploitation/veille.ts \
+  'retard > HORS_MACHINE_EN_RETARD_MIN * 60_000' 'retard > HORS_MACHINE_GRAVE_MIN * 60_000' \
+  "$VC5"
+prouver 'la copie hors machine pas réglée, reprochée au serveur d'"'"'essai' exploitation/veille.ts \
+  '} else if (!h.regle && r.production) {' '} else if (!h.regle) {' \
+  "$VC5"
+prouver 'deux natures d'"'"'un problème des copies sous une seule clé' exploitation/veille.ts \
+  'cle: '"'"'hors-machine-reglage'"'"'' 'cle: '"'"'hors-machine'"'"'' \
+  "$VW7"
+prouver 'l'"'"'état des copies jamais lu par le veilleur' exploitation/veiller.ts \
+  ' copies: await copies(),' '' \
+  "$VW7"
+
+# La remise d'UNE entreprise par-dessus elle-même (lot « prêt pour les pilotes », 12/10/2026 ; 06 § 4.4).
+RM1='l'"'"'essai ne change rien et nomme ce qui disparaîtrait ; la remise rend A telle que le fichier, garde sa trace entière, fait tout relire à ses postes ; la voisine ne bouge pas'
+RM2='refusée sans motif, sur une entreprise absente, ou quand une ligne d'"'"'ailleurs désigne ce qu'"'"'elle ferait disparaître (et rien ne change)'
+RM3='remettre-entreprise.sh : la base de la minute restaurée à côté puis jetée ; l'"'"'essai ne change rien ; la remise se fait sur le fichier de l'"'"'essai, jamais sans lui'
+RM4='une ligne que sa condition ne voit plus (un brouillon de question du cabinet, un fichier détaché) est remplacée par celle du fichier'
+prouver 'la remise qui efface aussi la trace de l'"'"'entreprise' base/entreprise.ts \
+  'c.classe === '"'"'entreprise'"'"' && t !== '"'"'socle.audit'"'"' && cat.colonnes.has(t)' 'c.classe === '"'"'entreprise'"'"' && cat.colonnes.has(t)' \
+  "$RM1"
+prouver 'les postes qui ne relisent pas après la remise' base/entreprise.ts \
+  '    await client.query('"'"'update socle.dossier_v10 set xid = pg_current_xact_id() where entreprise = $1'"'"', [E]);
+' '' \
+  "$RM1"
+prouver 'ce qui a disparu du dossier sans le dire aux postes' base/entreprise.ts \
+  'x.collection, x.cle, pg_current_xact_id(), now() from unnest($2::text[], $3::text[]) x(collection, cle)' 'x.collection, x.cle, pg_current_xact_id(), now() from unnest($2::text[], $3::text[]) x(collection, cle) where false' \
+  "$RM1"
+prouver 'ce qui est revenu au dossier toujours dit retiré' base/entreprise.ts \
+  '    await client.query(`delete from socle.dossier_v10_retire r where r.entreprise = $1' '    await client.query(`select 1 from socle.dossier_v10_retire r where r.entreprise = $1' \
+  "$RM1"
+prouver 'l'"'"'essai qui remet pour de vrai' base/entreprise.ts \
+  '    await client.query(options.essayer ? '"'"'rollback'"'"' : '"'"'commit'"'"');' '    await client.query('"'"'commit'"'"');' \
+  "$RM1"
+prouver 'une remise qui efface aussi la voisine' base/entreprise.ts \
+  'condition: c.classe === '"'"'entreprise'"'"' ? (c.condition ?? '"'"'entreprise = $1'"'"') : '"'"'false'"'"'' 'condition: c.classe === '"'"'entreprise'"'"' ? (c.condition ?? '"'"'entreprise = $1 or $1 is not null'"'"') : '"'"'false'"'"'' \
+  "$RM1"
+prouver 'les numéros retirés jamais dits' base/entreprise.ts \
+  '    const numerosRetires = numerosAvant.filter((n) => !numerosApres.has(n));' '    const numerosRetires: string[] = [];' \
+  "$RM1"
+prouver 'les numéros des pièces du dossier oubliés' base/entreprise.ts \
+  '
+      union all select contenu->>'"'"'number'"'"' from socle.dossier_v10 where entreprise = $1 and collection = '"'"'documents'"'"'' '' \
+  "$RM1"
+prouver 'une remise sans motif' base/entreprise.ts \
+  '  if (motif.length < 3) throw new Error('"'"'une remise demande son motif' '  if (motif.length < 0) throw new Error('"'"'une remise demande son motif' \
+  "$RM2"
+prouver 'une remise sur une entreprise absente' base/entreprise.ts \
+  '    if (!(await client.query('"'"'select 1 from socle.entreprise where id = $1'"'"', [E])).rowCount) {' '    if (false) {' \
+  "$RM2"
+prouver 'une table non classée laissée derrière la remise' base/entreprise.ts \
+  '    if (manquantes.length) throw new Error(`table non classée : ' '    if (false) throw new Error(`table non classée : ' \
+  "$RM2"
+prouver 'ce qui désigne l'"'"'entreprise d'"'"'ailleurs jamais vérifié' base/entreprise.ts \
+  '  if (geste !== '"'"'remise'"'"') return;' '  return;' \
+  "$RM2"
+prouver 'une ligne que sa condition ne voit plus qui fait échouer la remise' base/entreprise.ts \
+  '    if (remplacer && t.role === '"'"'entreprise'"'"' && cle.length) {' '    if (false) {' \
+  "$RM4"
+prouver 'la remise sans essai' exploitation/remettre-entreprise.sh \
+  '[ -f "$FICHIER" ] || {' 'true || {' \
+  "$RM3"
+prouver 'la base d'"'"'à côté jamais jetée' exploitation/remettre-entreprise.sh \
+  '  en_postgres bash "$RESTAURER" arreter >/dev/null
+  trap - EXIT' '  trap - EXIT' \
+  "$RM3"
+prouver 'l'"'"'essai du script qui remet pour de vrai' exploitation/remettre-entreprise.sh \
+  'node base/entreprise.ts remettre "$FICHIER" "$MOTIF" --essayer)' 'node base/entreprise.ts remettre "$FICHIER" "$MOTIF")' \
+  "$RM3"
+prouver 'le fichier d'"'"'un client laissé après la remise' exploitation/remettre-entreprise.sh \
+  '  rm -f "$FICHIER"
+  echo
+' '  echo
+' \
+  "$RM3"
+prouver 'le fichier d'"'"'un client lisible par tous' 'exploitation/remettre-entreprise.sh|||base/entreprise.ts' \
+  'umask 077|||{ mode: 0o600 }' 'umask 022|||{ mode: 0o644 }' \
+  "$RM3"
+
+prouver 'les règles du métier qui refusent de remettre une facture émise' base/entreprise.ts \
+  '    await client.query('"'"'set local session_replication_role = replica'"'"');
+    const cat = await lireCatalogue(client);
+    const manquantes' '    const cat = await lireCatalogue(client);
+    const manquantes' \
+  "$RM1"
+prouver 'une remise sans trace' base/entreprise.ts \
+  '    await client.query(`insert into socle.audit (entreprise, geste, objet_type, objet_id, avant, apres)' '    if (Date.now() < 0) await client.query(`insert into socle.audit (entreprise, geste, objet_type, objet_id, avant, apres)' \
+  "$RM1"
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -9,7 +9,9 @@
 //     cabinet) lui est rendu par une fonction de la base, pour les seuls identifiants désignés.
 //
 //   PG_ADMIN=… node base/entreprise.ts exporter <entreprise> <fichier>
-//   PG_ADMIN=… node base/entreprise.ts restaurer <fichier>
+//   PG_ADMIN=… node base/entreprise.ts restaurer <fichier>            dans une base où elle n'est pas
+//   PG_ADMIN=… node base/entreprise.ts remettre <fichier> "<motif>" [--essayer]
+//                                                                     par-dessus elle-même (exploitation/remettre-entreprise.sh)
 //
 // Le fichier, une ligne par élément :
 //   - l'en-tête (le format, l'entreprise, les migrations de la base d'origine) ;
@@ -361,9 +363,8 @@ const empreinte = (lignes: string[]) => createHash('sha256').update(lignes.join(
 
 export type Bilan = { entreprise: string; tables: { table: string; role: string; lignes: number }[]; aReprendre: number };
 
-// La restauration, dans une base où l'entreprise n'est PAS (la remise en place par-dessus une
-// entreprise abîmée viendra avec son propre geste, tracé). Tout ou rien : une seule transaction.
-export async function restaurer(client: pg.ClientBase, lignes: string[]): Promise<Bilan> {
+// Un fichier d'export relu : son empreinte d'abord (un fichier coupé ou abîmé est refusé), puis son format.
+function lireFichier(lignes: string[]): { enTete: EnTete; empreinte: string } {
   const derniere = lignes.at(-1);
   const fin = derniere ? (JSON.parse(derniere) as Partial<Fin>) : {};
   if (fin.fin !== true || fin.empreinte !== empreinte(lignes.slice(0, -1))) {
@@ -371,50 +372,188 @@ export async function restaurer(client: pg.ClientBase, lignes: string[]): Promis
   }
   const enTete = JSON.parse(lignes[0] ?? '{}') as EnTete;
   if (enTete.format !== FORMAT || enTete.version !== VERSION) throw new Error(`format inconnu : ${enTete.format} ${enTete.version}`);
+  return { enTete, empreinte: fin.empreinte };
+}
+
+async function memesMigrations(client: pg.ClientBase, enTete: EnTete, geste: string): Promise<void> {
+  const ici = (await client.query('select numero, empreinte from socle.migration order by numero')).rows;
+  if (JSON.stringify(ici) !== JSON.stringify(enTete.migrations)) {
+    throw new Error(`la base cible n'a pas les mêmes migrations que la base d'origine : mets-la au même niveau avant de ${geste}`);
+  }
+}
+
+// Reposer les lignes du fichier, table par table (les règles du métier et les clés étrangères se taisent : la
+// transaction a posé `session_replication_role = replica`).
+//   - une ligne de l'entreprise est reposée telle quelle, et toutes doivent l'être ;
+//   - `remplacer` (la remise) : une ligne de l'entreprise qui porte déjà la même clé est d'abord retirée (une ligne que
+//     l'effacement par sa condition n'a pas vue, un fichier d'un message devenu dépôt…) : le fichier fait foi ;
+//   - une référence (une personne, un cabinet, un appareil) n'est créée que si elle manque, jamais écrasée.
+// (La piste d'audit, qu'une remise n'efface pas : ses lignes du fichier, déjà là et immuables, reviennent identiques.)
+async function reposer(client: pg.ClientBase, cat: Catalogue, lignes: string[], remplacer: boolean): Promise<{ table: string; role: string; lignes: number; remplacees: number }[]> {
+  const tables: { table: string; role: string; lignes: number; remplacees: number }[] = [];
+  for (let i = 1; i + 1 < lignes.length - 1; i += 2) {
+    const t = JSON.parse(lignes[i] ?? '') as LigneTable;
+    const c = CLASSEMENT[t.table];
+    if (!c || !cat.colonnes.has(t.table)) throw new Error(`table inconnue dans le fichier : ${t.table}`);
+    const colonnes = (cat.colonnes.get(t.table) ?? []).filter((x) => t.role === 'entreprise' || c.classe !== 'reference' || !c.colonnes || c.colonnes.includes(x.nom));
+    const liste = colonnes.map((x) => q(x.nom)).join(', ');
+    const identite = colonnes.some((x) => x.identite) ? ' overriding system value' : '';
+    let remplacees = 0;
+    const cle = cat.cles.get(t.table) ?? [];
+    if (remplacer && t.role === 'entreprise' && cle.length) {
+      const cles = cle.map(q).join(', ');
+      remplacees = (await client.query(`delete from ${qt(t.table)} where (${cles}) in
+        (select ${cles} from jsonb_populate_recordset(null::${qt(t.table)}, $1::jsonb))`, [lignes[i + 1]])).rowCount ?? 0;
+    }
+    const r = await client.query(`insert into ${qt(t.table)} (${liste})${identite}
+      select ${liste} from jsonb_populate_recordset(null::${qt(t.table)}, $1::jsonb)
+      ${t.role === 'reference' ? 'on conflict do nothing' : ''}`, [lignes[i + 1]]);
+    if (t.role === 'entreprise' && r.rowCount !== t.lignes) throw new Error(`${t.table} : ${t.lignes} lignes attendues, ${r.rowCount} reposées`);
+    tables.push({ table: t.table, role: t.role, lignes: r.rowCount ?? 0, remplacees });
+  }
+  return tables;
+}
+
+// Chaque lien d'une ligne reposée mène à une ligne qui existe (les clés étrangères, et les liens de la trace). Une
+// remise regarde aussi dans l'autre sens : ce qui, ailleurs, désigne une ligne de l'entreprise (le dossier de révision
+// d'un cabinet, une ligne qu'une table hors de l'export garde) ne doit pas se retrouver désigner une ligne que la remise
+// a fait disparaître.
+async function verifierLiens(client: pg.ClientBase, cat: Catalogue, entreprise: string, geste: 'restauration' | 'remise'): Promise<void> {
+  const egalites = (l: Lien) => l.colonnes.map((k, j) => `v.${q(l.versColonnes[j] ?? '')} = s.${q(k)}`).join(' and ');
+  const remplies = (l: Lien) => l.colonnes.map((k) => `s.${q(k)} is not null`).join(' and ');
+  for (const l of cat.liens) {
+    const c = CLASSEMENT[l.de];
+    if (c?.classe !== 'entreprise' && c?.classe !== 'reference') continue;
+    const filtre = c.classe === 'entreprise' ? `(${c.condition ?? 'entreprise = $1'})` : 'true';
+    const texte = `select count(*)::int n from ${qt(l.de)} s
+      where ${filtre} and ${remplies(l)} and not exists (select 1 from ${qt(l.vers)} v where ${egalites(l)})`;
+    const pendantes = (await client.query(texte, parametres(texte, entreprise))).rows[0].n as number;
+    if (pendantes) throw new Error(`${pendantes} ligne(s) de ${l.de} désignent une ligne absente (${l.nom}) : ${geste} annulée`);
+  }
+  if (geste !== 'remise') return;
+  for (const l of cat.liens) {
+    if (CLASSEMENT[l.vers]?.classe !== 'entreprise') continue;
+    const c = CLASSEMENT[l.de];
+    // Les lignes de l'entreprise elle-même viennent d'être vérifiées ; restent, dans une table de l'entreprise, ses
+    // lignes que l'export ne prend pas (le brouillon d'une question du cabinet), et, ailleurs, toutes.
+    let filtre = 'true';
+    if (c?.classe === 'entreprise') {
+      if (!(cat.colonnes.get(l.de) ?? []).some((x) => x.nom === 'entreprise')) continue;
+      filtre = `s.entreprise = $1 and not coalesce((${c.condition ?? 'entreprise = $1'}), false)`;
+    }
+    const texte = `select count(*)::int n from ${qt(l.de)} s
+      where ${filtre} and ${remplies(l)} and not exists (select 1 from ${qt(l.vers)} v where ${egalites(l)})`;
+    const pendantes = (await client.query(texte, parametres(texte, entreprise))).rows[0].n as number;
+    if (pendantes) throw new Error(`${pendantes} ligne(s) de ${l.de} désignent une ligne que la remise ferait disparaître (${l.nom}) : remise annulée, rien n'a changé`);
+  }
+}
+
+// La restauration, dans une base où l'entreprise n'est PAS. Tout ou rien : une seule transaction.
+export async function restaurer(client: pg.ClientBase, lignes: string[]): Promise<Bilan> {
+  const { enTete, empreinte: emp } = lireFichier(lignes);
   await client.query('begin');
   try {
-    const ici = (await client.query('select numero, empreinte from socle.migration order by numero')).rows;
-    if (JSON.stringify(ici) !== JSON.stringify(enTete.migrations)) {
-      throw new Error('la base cible n\'a pas les mêmes migrations que la base d\'origine : mets-la au même niveau avant de restaurer');
-    }
+    await memesMigrations(client, enTete, 'restaurer');
     if ((await client.query('select 1 from socle.entreprise where id = $1', [enTete.entreprise])).rowCount) {
-      throw new Error('cette entreprise existe déjà dans la base cible : rien n\'est écrasé');
+      throw new Error('cette entreprise existe déjà dans la base cible : rien n\'est écrasé (pour la remettre par-dessus elle-même : remettre)');
     }
     // Les règles du métier (une facture émise ne se réécrit pas…) et les clés étrangères se taisent
     // le temps de reposer les lignes telles qu'elles étaient ; les clés sont contrôlées ensuite.
     await client.query('set local session_replication_role = replica');
     const cat = await lireCatalogue(client);
-    const bilan: Bilan = { entreprise: enTete.entreprise, tables: [], aReprendre: enTete.aReprendre };
-    for (let i = 1; i + 1 < lignes.length - 1; i += 2) {
-      const t = JSON.parse(lignes[i] ?? '') as LigneTable;
-      const c = CLASSEMENT[t.table];
-      if (!c || !cat.colonnes.has(t.table)) throw new Error(`table inconnue dans le fichier : ${t.table}`);
-      const colonnes = (cat.colonnes.get(t.table) ?? []).filter((x) => t.role === 'entreprise' || c.classe !== 'reference' || !c.colonnes || c.colonnes.includes(x.nom));
-      const liste = colonnes.map((x) => q(x.nom)).join(', ');
-      const identite = colonnes.some((x) => x.identite) ? ' overriding system value' : '';
-      const r = await client.query(`insert into ${qt(t.table)} (${liste})${identite}
-        select ${liste} from jsonb_populate_recordset(null::${qt(t.table)}, $1::jsonb)
-        ${t.role === 'reference' ? 'on conflict do nothing' : ''}`, [lignes[i + 1]]);
-      if (t.role === 'entreprise' && r.rowCount !== t.lignes) throw new Error(`${t.table} : ${t.lignes} lignes attendues, ${r.rowCount} reposées`);
-      bilan.tables.push({ table: t.table, role: t.role, lignes: r.rowCount ?? 0 });
-    }
-    // Chaque lien d'une ligne reposée mène à une ligne qui existe (les clés étrangères, et les liens
-    // de la trace).
-    for (const l of cat.liens) {
-      const c = CLASSEMENT[l.de];
-      if (c?.classe !== 'entreprise' && c?.classe !== 'reference') continue;
-      const filtre = c.classe === 'entreprise' ? `(${c.condition ?? 'entreprise = $1'})` : 'true';
-      const texte = `select count(*)::int n from ${qt(l.de)} s
-        where ${filtre} and ${l.colonnes.map((k) => `s.${q(k)} is not null`).join(' and ')}
-          and not exists (select 1 from ${qt(l.vers)} v where ${l.colonnes.map((k, j) => `v.${q(l.versColonnes[j] ?? '')} = s.${q(k)}`).join(' and ')})`;
-      const pendantes = (await client.query(texte, parametres(texte, enTete.entreprise))).rows[0].n as number;
-      if (pendantes) throw new Error(`${pendantes} ligne(s) de ${l.de} désignent une ligne absente (${l.nom}) : restauration annulée`);
-    }
+    const tables = await reposer(client, cat, lignes, false);
+    await verifierLiens(client, cat, enTete.entreprise, 'restauration');
     await client.query(`insert into socle.audit (entreprise, geste, objet_type, objet_id, apres)
       values ($1, 'socle.entreprise.restaurer', 'entreprise', $1, $2)`,
-    [enTete.entreprise, JSON.stringify({ exporteLe: enTete.exporteLe, empreinte: fin.empreinte, aReprendre: enTete.aReprendre })]);
+    [enTete.entreprise, JSON.stringify({ exporteLe: enTete.exporteLe, empreinte: emp, aReprendre: enTete.aReprendre })]);
     await client.query('commit');
-    return bilan;
+    return { entreprise: enTete.entreprise, tables: tables.map(({ table, role, lignes: n }) => ({ table, role, lignes: n })), aReprendre: enTete.aReprendre };
+  } catch (e) {
+    await client.query('rollback');
+    throw e;
+  }
+}
+
+export type BilanRemise = {
+  entreprise: string; motif: string; exporteLe: string; essai: boolean; aReprendre: number;
+  // Par table de l'entreprise : ses lignes juste avant la remise, et celles du fichier, reposées.
+  tables: { table: string; role: string; avant: number; lignes: number }[];
+  // Les numéros que portent aujourd'hui des pièces, et qu'aucune ne porte plus après la remise (une facture émise après
+  // la minute du fichier) : leur série les redonnera. L'essai les nomme AVANT la remise.
+  numerosRetires: string[];
+};
+
+// Les numéros des pièces d'une entreprise : ses pièces émises du serveur (une série légale), les pièces numérotées de
+// son dossier v10.
+async function numerosEmis(client: pg.ClientBase, entreprise: string): Promise<string[]> {
+  return (await client.query(`select distinct n from (
+      select numero_texte n from ventes.piece where entreprise = $1 and emise_le is not null
+      union all select contenu->>'number' from socle.dossier_v10 where entreprise = $1 and collection = 'documents'
+    ) x where coalesce(n, '') <> '' order by 1`, [entreprise])).rows.map((r) => String(r.n));
+}
+
+// La remise : UNE entreprise abîmée (une erreur de manipulation, un défaut), remise telle que le fichier la décrit, par-
+// dessus elle-même, dans la base vive (06 § 4.4). Le fichier vient d'une restauration à la minute faite à côté
+// (exploitation/remettre-entreprise.sh). Ses lignes remplacent les siennes, table par table ; rien ne bouge des autres
+// entreprises ; sa piste d'audit est gardée entière, et dit la remise, son motif et ce qu'elle a retiré. Les postes de
+// l'entreprise relisent tout leur dossier. `essayer` : tout se fait, puis s'annule, et le bilan dit ce qui changerait.
+// Tout ou rien : une seule transaction.
+export async function remettre(client: pg.ClientBase, lignes: string[], options: { motif: string; essayer?: boolean }): Promise<BilanRemise> {
+  const motif = options.motif.trim();
+  if (motif.length < 3) throw new Error('une remise demande son motif (trois caractères au moins) : il entre dans la piste d\'audit de l\'entreprise');
+  const { enTete, empreinte: emp } = lireFichier(lignes);
+  const E = enTete.entreprise;
+  await client.query('begin');
+  try {
+    await memesMigrations(client, enTete, 'remettre');
+    if (!(await client.query('select 1 from socle.entreprise where id = $1', [E])).rowCount) {
+      throw new Error('cette entreprise n\'est pas dans cette base : la remise ne vaut que par-dessus elle (pour la recréer : restaurer)');
+    }
+    await client.query('set local session_replication_role = replica');
+    const cat = await lireCatalogue(client);
+    const manquantes = cat.tables.filter((t) => !(t in CLASSEMENT));
+    if (manquantes.length) throw new Error(`table non classée : ${manquantes.join(', ')} (base/entreprise.ts, CLASSEMENT) : la remise ne saurait pas si elle lui appartient`);
+    // Ce que l'état d'aujourd'hui porte, et que la remise peut retirer : les objets du dossier, les numéros de pièces.
+    const dossierAvant = (await client.query('select collection, cle from socle.dossier_v10 where entreprise = $1', [E])).rows as { collection: string; cle: string }[];
+    const numerosAvant = await numerosEmis(client, E);
+    // 1. Ses lignes d'aujourd'hui s'en vont, toutes tables de l'entreprise à la fois (une seule instruction : chaque
+    //    condition se lit sur l'état d'avant, même celle qui regarde une autre table), sauf la piste d'audit.
+    const aEffacer = Object.entries(CLASSEMENT).filter(([t, c]) => c.classe === 'entreprise' && t !== 'socle.audit' && cat.colonnes.has(t))
+      .map(([t, c]) => ({ table: t, condition: c.classe === 'entreprise' ? (c.condition ?? 'entreprise = $1') : 'false' }));
+    const effacer = `with ${aEffacer.map((x, i) => `e${i} as (delete from ${qt(x.table)} where ${x.condition} returning 1)`).join(', ')}
+      select ${aEffacer.map((_, i) => `(select count(*)::int from e${i}) e${i}`).join(', ')}`;
+    const effacees = (await client.query(effacer, [E])).rows[0] as Record<string, number>;
+    const avant = new Map(aEffacer.map((x, i) => [x.table, effacees[`e${i}`] ?? 0]));
+    avant.set('socle.audit', (await client.query('select count(*)::int n from socle.audit where entreprise = $1', [E])).rows[0].n as number);
+    // 2. Celles du fichier reviennent.
+    const reposees = await reposer(client, cat, lignes, true);
+    // 3. Les postes de l'entreprise relisent tout : chaque objet du dossier porte la transaction de la remise, ce qui a
+    //    disparu le dit, ce qui est revenu ne le dit plus (ce que font d'ordinaire les déclencheurs, tus ici).
+    const disparus = (await client.query(`select x.collection, x.cle from unnest($2::text[], $3::text[]) x(collection, cle)
+      where not exists (select 1 from socle.dossier_v10 d where d.entreprise = $1 and d.collection = x.collection and d.cle = x.cle)`,
+    [E, dossierAvant.map((d) => d.collection), dossierAvant.map((d) => d.cle)])).rows as { collection: string; cle: string }[];
+    await client.query(`insert into socle.dossier_v10_retire (entreprise, collection, cle, xid, retire_le)
+      select $1, x.collection, x.cle, pg_current_xact_id(), now() from unnest($2::text[], $3::text[]) x(collection, cle)
+      on conflict (entreprise, collection, cle) do update set xid = excluded.xid, retire_le = excluded.retire_le`,
+    [E, disparus.map((d) => d.collection), disparus.map((d) => d.cle)]);
+    await client.query(`delete from socle.dossier_v10_retire r where r.entreprise = $1
+      and exists (select 1 from socle.dossier_v10 d where d.entreprise = r.entreprise and d.collection = r.collection and d.cle = r.cle)`, [E]);
+    await client.query('update socle.dossier_v10 set xid = pg_current_xact_id() where entreprise = $1', [E]);
+    // 4. Les liens, dans les deux sens.
+    await verifierLiens(client, cat, E, 'remise');
+    // 5. Les numéros qu'aucune pièce ne porte plus (une pièce disparue, une facture émise redevenue brouillon).
+    const numerosApres = new Set(await numerosEmis(client, E));
+    const numerosRetires = numerosAvant.filter((n) => !numerosApres.has(n));
+    const tables = reposees.map((t) => ({
+      table: t.table, role: t.role, lignes: t.lignes,
+      avant: t.role === 'entreprise' ? (avant.get(t.table) ?? 0) + t.remplacees : t.lignes,
+    }));
+    const compte = (role: 'avant' | 'lignes') => Object.fromEntries(tables.filter((t) => t.role === 'entreprise' && t[role]).map((t) => [t.table, t[role]]));
+    await client.query(`insert into socle.audit (entreprise, geste, objet_type, objet_id, avant, apres)
+      values ($1, 'socle.entreprise.remettre', 'entreprise', $1, $2, $3)`,
+    [E, JSON.stringify({ lignes: compte('avant') }), JSON.stringify({ motif, exporteLe: enTete.exporteLe, empreinte: emp, lignes: compte('lignes'), numerosRetires })]);
+    await client.query(options.essayer ? 'rollback' : 'commit');
+    return { entreprise: E, motif, exporteLe: enTete.exporteLe, essai: options.essayer === true, aReprendre: enTete.aReprendre, tables, numerosRetires };
   } catch (e) {
     await client.query('rollback');
     throw e;
@@ -422,22 +561,30 @@ export async function restaurer(client: pg.ClientBase, lignes: string[]): Promis
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [geste, a, b] = process.argv.slice(2);
+  const [geste, a, b, c] = process.argv.slice(2);
   const adresse = process.env.PG_ADMIN;
-  if (!adresse || !((geste === 'exporter' && a && b) || (geste === 'restaurer' && a))) {
-    console.error('PG_ADMIN=… node base/entreprise.ts exporter <entreprise> <fichier> | restaurer <fichier>');
+  if (!adresse || !((geste === 'exporter' && a && b) || (geste === 'restaurer' && a) || (geste === 'remettre' && a && b && (c === undefined || c === '--essayer')))) {
+    console.error('PG_ADMIN=… node base/entreprise.ts exporter <entreprise> <fichier> | restaurer <fichier> | remettre <fichier> "<motif>" [--essayer]');
     process.exit(1);
   }
   const client = new pg.Client({ connectionString: adresse });
   await client.connect();
   try {
     if (geste === 'exporter') {
-      fs.writeFileSync(b ?? '', (await exporter(client, a)).join('\n') + '\n');
+      fs.writeFileSync(b ?? '', (await exporter(client, a)).join('\n') + '\n', { mode: 0o600 });
       console.log(`Exportée : ${b}`);
-    } else {
+    } else if (geste === 'restaurer') {
       const bilan = await restaurer(client, fs.readFileSync(a, 'utf8').replace(/\n$/, '').split('\n'));
       for (const t of bilan.tables) console.log(`${t.table} (${t.role}) : ${t.lignes}`);
       if (bilan.aReprendre) console.log(`Attention : ${bilan.aReprendre} geste(s) « À reprendre » ouverts n'ont pas été repris.`);
+    } else {
+      const bilan = await remettre(client, fs.readFileSync(a, 'utf8').replace(/\n$/, '').split('\n'), { motif: b ?? '', essayer: c === '--essayer' });
+      const changees = bilan.tables.filter((t) => t.role === 'entreprise' && t.avant !== t.lignes);
+      console.log(bilan.essai ? `Essai de la remise à l'état du ${bilan.exporteLe} (rien n'a changé) :` : `Remise à l'état du ${bilan.exporteLe} faite :`);
+      for (const t of changees) console.log(`  ${t.table} : ${t.avant} ligne(s) aujourd'hui, ${t.lignes} après la remise`);
+      if (!changees.length) console.log('  aucune table ne change de nombre de lignes (des lignes peuvent changer de contenu)');
+      if (bilan.numerosRetires.length) console.log(`Attention : ces numéros de pièces disparaissent, et leur série les redonnera : ${bilan.numerosRetires.join(', ')}`);
+      if (bilan.aReprendre) console.log(`Attention : ${bilan.aReprendre} geste(s) « À reprendre » ouverts dans le fichier ne sont pas repris.`);
     }
   } catch (e) {
     console.error(`Refusé : ${(e as Error).message}`);

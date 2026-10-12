@@ -77,9 +77,12 @@ plus retentée.
 **B3. Les tâches d'entretien** (`exploitation/taches/NNNN-nom.sh`) : chacune tourne une fois, après une installation
 réussie ; c'est par elles que Claude règle le serveur sans s'y connecter.
 
-**B4. L'état du serveur** se lit à `https://app.skanfact.tn/etat.json` (servi par le frontal, même si le programme
-est arrêté) : la version en service, la plus récente vue, l'échec éventuel (sa version, son étape, son message), les
-tâches faites et leur sortie. Rien de secret.
+**B4. L'état du serveur.** Le détail (la version en service, la plus récente vue, l'échec éventuel avec son étape et
+son message, les tâches faites et leur sortie) se lit à `https://app.skanfact.tn/etat.json` sur un serveur **d'essai**
+seulement : le message d'une migration en échec peut citer une valeur d'un client, et un serveur aux vraies données ne
+le publie pas (il se lit dans sa console : `/var/lib/skanfact/public/etat.json`). Partout, la **page d'état** publique
+(`/etat`, I) dit ce qui marche, sans un détail de plus. Le frontal s'écrit en un seul endroit,
+`exploitation/frontal.sh`, d'après les réglages du serveur (l'installation et les tâches d'entretien l'appellent).
 
 **B5. La première installation** : une ligne, une fois, en root, dans la console du VPS (espace client OVH) :
 `curl -fsSL https://raw.githubusercontent.com/saouthq/skanfact-plateforme/main/exploitation/installer.sh | sudo bash -s app.skanfact.tn`
@@ -97,8 +100,24 @@ propres au simulateur ont été contournés pour l'essai seulement (git refusait
 Docker empêchait les services de démarrer) ; le second a fait ajouter à l'installation le démarrage explicite de la
 base.
 
-Code : `exploitation/installer.sh`, `exploitation/suivre.sh`, `exploitation/suivre.ts`. Test :
-`tests/exploitation/suivre.test.ts` (la règle : quelle version installer).
+**B bis. Deux sortes de serveurs** (décidé par Skander le 12/10/2026), le second mot de la ligne d'installation :
+
+| | `essai` (par défaut) | `pilotes` |
+|---|---|---|
+| Les données | inventées seulement | **les vraies données des clients** |
+| `SKANFACT_ENVIRONNEMENT` | `test` | `production` (le serveur ne démarre pas sans relais d'e-mails) |
+| Ce que le suiveur attend (E) | rien (`aucune`) : chaque version dès qu'elle est envoyée | **toutes les preuves** (`toutes`) : la vérification de l'envoi **et** les preuves complètes de la nuit, vertes |
+| L'accès de Claude (F) | oui | **jamais** : ni son service, ni sa route ; la tâche 0004 ne pose rien et le dit |
+| L'état détaillé (`/etat.json`) | publié | dans la console seulement |
+| Pendant l'installation | — | le relais d'e-mails (H), puis qui prévenir (I) |
+
+`… | sudo bash -s app.exemple.tn pilotes` installe un serveur des pilotes. Relancer l'installation ne change jamais la
+sorte d'un serveur : un serveur d'essai ne devient pas, d'une ligne, celui des vraies données (il porte des données
+inventées et l'accès de Claude) ; les vraies données s'installent sur une machine neuve.
+
+Code : `exploitation/installer.sh`, `exploitation/frontal.sh`, `exploitation/suivre.sh`, `exploitation/suivre.ts`.
+Tests : `tests/exploitation/suivre.test.ts` (la règle : quelle version installer, et ce qu'on attend),
+`tests/exploitation/courriel.test.ts` et `tests/exploitation/alertes.test.ts` (les deux sortes, le frontal).
 
 ## C. La sauvegarde de la nuit (brique 144)
 
@@ -118,16 +137,92 @@ première sauvegarde tout de suite : c'est la première fois que Claude règle l
 05/10/2026 dans l'Ubuntu simulé : la tâche jouée après l'installation, la sauvegarde restaurée et comptée (69
 migrations), le minuteur réglé pour la nuit, l'état montré par le frontal.
 
-**C5. Ce qu'elle ne fait pas encore** : la copie **hors de la machine**. Sur le serveur d'essai (données inventées), un
-disque perdu ne perd rien qui compte. Pour les pilotes et le lancement, la copie part chaque nuit vers le second centre
-de données tunisien (`06` § 2.3), avant la première donnée réelle d'un client.
+**C5. La copie hors de la machine et le retour à la minute** : C bis (12/10/2026). La sauvegarde de la nuit s'écrit
+désormais à part (`….dump.partiel`) puis prend son nom d'un coup : la copie hors machine ne prend jamais un fichier à
+moitié écrit.
 
 **Remettre une sauvegarde** (une seule fois par incident, par une tâche d'entretien écrite pour lui) : arrêter le service
 `skanfact`, `pg_restore --clean --if-exists -d skanfact <fichier>` en compte `postgres`, relancer. Une entreprise seule se
-remet par son export (`base/entreprise.ts`), pas par la sauvegarde entière.
+remet à une minute donnée, sans toucher aux autres : C bis 7.
 
 Code : `exploitation/sauvegarder.sh`, `exploitation/taches/0001-sauvegardes.sh`, `exploitation/suivre.ts` (l'état).
 Test : `tests/exploitation/sauvegarder.test.ts`.
+
+## C bis. Revenir à la minute, et une copie hors de la machine (lot « prêt pour les pilotes », 12/10/2026)
+
+Le cadrage (`06` § 4) : revenir à **n'importe quelle minute des 35 derniers jours**, une copie sur l'autre site,
+chiffrée avec une clé qui ne voyage pas avec elle, et un exercice de restauration réel chaque mois. Posé par la tâche
+d'entretien 0008, sur les deux sortes de serveurs (B bis).
+
+**C bis 1. L'archivage continu.** PostgreSQL range lui-même chaque journal qu'il remplit (16 Mo, ou chaque minute au
+plus quand la base a bougé : `archive_timeout = 60`) par `exploitation/archiver.sh`, compressé, dans
+`/var/lib/skanfact/archives/wal`. Le script ne répond « fait » que quand la copie est entière sur le disque ; sinon
+PostgreSQL garde le journal et réessaie, et la veille le dit (I). Un journal déjà archivé n'est jamais écrasé par un
+autre. PostgreSQL appelle une **copie** du script, hors du dépôt (`/usr/local/lib/skanfact/archiver.sh`) : une
+installation qui change le dépôt ne le change pas sous lui.
+
+**C bis 2. La copie de base de chaque nuit** (2 h 45 UTC, `exploitation/copie-de-base.sh`, en compte `postgres`) : le
+point de départ d'une restauration à la minute. Vérifiée fichier par fichier contre son manifeste (`pg_verifybackup`),
+rangée compressée à côté du nom du premier journal dont elle a besoin ; seulement alors, les copies de plus de 35 jours
+s'en vont (jamais les deux plus récentes), puis les journaux dont plus aucune copie n'a besoin.
+
+**C bis 3. Restaurer à côté** (`exploitation/restaurer.sh`, en compte `postgres`) : la copie de base d'avant la minute
+voulue, puis les journaux jusqu'à elle, dans un PostgreSQL **à part** (son dossier, son port, sans réseau) ; la base vive
+n'est jamais touchée.
+- **L'exercice de chaque mois** (le 1er, 4 h UTC, et un premier dès la tâche 0008) : jusqu'au dernier journal, toutes
+  les lignes et les migrations comptées, le temps mesuré, puis jeté (`derniere-restauration.json`, que la veille lit).
+- **À une minute** : `sudo -u postgres bash /opt/skanfact/depot/exploitation/restaurer.sh --jusqua "2026-10-12 14:03"`
+  (heure de Tunis) ; la base de cette minute reste à part (port 5544) pour en extraire une entreprise ;
+  `restaurer.sh arreter` la jette. Son résultat s'écrit à part : un geste fait à la main ne cache pas l'exercice.
+
+**C bis 4. La copie hors de la machine** (`exploitation/hors-machine.sh`, chaque minute) : ce qui est nouveau — les
+journaux, la copie de base, la sauvegarde de la nuit — part vers un **stockage objet** (S3, chez l'hébergeur de
+secours, en Tunisie : `06` § 2.3), **chiffré** par age pour une clé **publique** seulement. La clé qui relit vit chez
+l'exploitant, jamais sur le serveur ni avec les copies (`06` § 5) : qui vole le stockage ne lit rien. Chaque envoi se
+vérifie (l'empreinte que rend le stockage est celle du fichier chiffré) avant de compter ; un échec arrête le tour, se
+dit dans `hors-machine.json` et dans la veille, et la minute suivante reprend. Rien n'est jamais effacé là-bas d'ici.
+Le secret du stockage passe à curl par son entrée, jamais par sa ligne de commande.
+
+**C bis 5. Ce que fait Skander, une fois** (le stockage ouvert chez l'hébergeur de secours) :
+`curl -fsSL https://raw.githubusercontent.com/saouthq/skanfact-plateforme/main/exploitation/regler-hors-machine.sh | sudo bash`,
+puis l'adresse du stockage, sa région, le seau, la clé d'accès et son secret (il ne s'affiche pas). La première fois, le
+script fabrique la clé de chiffrement et **montre une seule fois la clé qui relit** (`AGE-SECRET-KEY-…`) : la copier
+dans le gestionnaire de mots de passe **et** sur papier, rangé ailleurs que l'ordinateur ; le script demande ses six
+derniers caractères pour vérifier. Il envoie un fichier d'essai, le relit et le déchiffre, puis seulement écrit
+`/etc/skanfact/hors-machine.env` (root seulement). **Chez le fournisseur**, une fois : le verrou des objets (« Object
+Lock », mode conformité, 35 jours : personne, même avec ces clés, n'efface une copie avant) et leur effacement
+automatique après 35 jours (12 mois pour le dossier `nuit` ; la garde sur 10 ans : **À VÉRIFIER** avec le juriste,
+`06` § 4.2).
+
+**C bis 6. Le jour où le serveur est perdu** : une machine neuve installée en `pilotes` (B bis), le stockage réglé
+(C bis 5 : une clé neuve pour les copies suivantes), puis
+`curl -fsSL https://raw.githubusercontent.com/saouthq/skanfact-plateforme/main/exploitation/rapatrier.sh | sudo bash` :
+le nom de l'ancien serveur et **son ancienne clé de relecture** ; tout revient, déchiffré, là où `restaurer.sh` le
+cherche. Puis `restaurer.sh --jusqua "<la dernière minute>"`, et la base restaurée à part remplace la base vive vide
+(`pg_dump` de l'une, `pg_restore` dans l'autre, SkanFact arrêté). **À VÉRIFIER** : l'exercice complet sur une
+machine neuve, deux fois par an (`06` § 4.3).
+
+**C bis 7. Remettre UNE entreprise à une minute** (`exploitation/remettre-entreprise.sh`, en root ; `06` § 4.4) : une
+erreur de manipulation ou un défaut a abîmé les données d'une entreprise, les autres vont bien. Deux temps, toujours :
+- **L'essai** : `sudo bash /opt/skanfact/depot/exploitation/remettre-entreprise.sh <entreprise> "2026-10-12 14:03" "<motif>"`
+  (l'identifiant de l'entreprise, la dernière minute AVANT le dégât à l'heure de Tunis, et le motif). La base de cette
+  minute est restaurée à côté (C bis 3), l'entreprise en est exportée, la base d'à côté est jetée ; puis la remise est
+  jouée dans la base vive et **annulée** : rien ne change, et l'écran dit ce qui changerait — les tables, et les
+  **numéros de pièces** qui disparaîtraient (une facture émise après cette minute : sa série redonnera son numéro, il
+  faut la refaire à l'identique).
+- **La remise** : la même commande suivie de `--remettre`, sur le fichier de l'essai (sans essai, elle est refusée).
+  Les lignes de l'entreprise sont remplacées par celles du fichier, en une transaction ; rien ne bouge des autres
+  entreprises ; sa piste d'audit est gardée entière et dit la remise, son motif et les numéros retirés ; ses postes
+  relisent tout leur dossier. La remise est refusée si une ligne d'ailleurs (le dossier de révision d'un cabinet…)
+  désigne ce qu'elle ferait disparaître. L'état d'avant reste retrouvable à la minute que le script affiche : une
+  remise se défait par une autre.
+
+Code : `exploitation/archiver.sh`, `exploitation/copie-de-base.sh`, `exploitation/restaurer.sh`,
+`exploitation/hors-machine.sh`, `exploitation/regler-hors-machine.sh`, `exploitation/rapatrier.sh`,
+`exploitation/remettre-entreprise.sh`, `base/entreprise.ts` (`remettre`), `exploitation/taches/0008-archivage.sh`. Test : `tests/exploitation/archivage.test.ts` (joué pour de vrai : un
+PostgreSQL à part qui archive, une copie de base, une restauration à la seconde près, l'exercice, l'envoi chiffré vers
+un faux stockage, le rapatriement et la même base restaurée ; age et PostgreSQL 16 sur les postes de GitHub) ;
+`tests/socle/export-entreprise.test.ts` (la remise : l'essai, la remise, la voisine intacte, les refus, le script).
 
 ## D. Le parcours sans SMS ni e-mail (brique 145)
 
@@ -199,7 +294,8 @@ la session ne laisse passer que https). L'accès passe donc par le web :
 - **Tout se trace** : chaque commande acceptée s'écrit dans `/var/lib/skanfact/acces.log` (l'heure, la clé, la
   commande, son code).
 - Côté Claude : `scripts/serveur.sh 'commande'` (signe, envoie, affiche).
-- Posé par la tâche d'entretien 0004 (et par l'installation, pour un serveur neuf).
+- Posé par la tâche d'entretien 0004 (et par l'installation, pour un serveur neuf), **sur un serveur d'essai
+  seulement** : Claude ne touche jamais un serveur aux vraies données (B bis).
 
 Code : `exploitation/acces.ts`, `exploitation/acces-cles.json`, `scripts/serveur.ts`. Test :
 `tests/exploitation/acces.test.ts` (8 preuves).
@@ -306,6 +402,54 @@ l'ancien numéro (10 minutes, une fois) ou un code de secours ; le numéro ne s'
 directement ; un mobile tunisien seulement (huit chiffres, 2, 4, 5 ou 9). Tests : `tests/socle/code-au-choix.test.ts`,
 `tests/exploitation/sms.test.ts` (joué avec des doublures de curl et de systemctl), `tests/web/compte.test.ts` (le SMS
 à la souris).
+
+## I. La veille : les alertes et la page d'état (lot « prêt pour les pilotes », 12/10/2026)
+
+**I1. Chaque minute**, le veilleur (`exploitation/veiller.ts`, minuteur `skanfact-veille`, en compte `skanfact`, posé
+par la tâche d'entretien 0007) relève l'état du serveur et en tire les problèmes (les règles :
+`exploitation/veille.ts` ; les seuils du cadrage, `06` § 7) :
+
+| Ce qui ne va pas | Grave | Que faire (dans la console du serveur) |
+|---|---|---|
+| SkanFact ne répond plus, **deux minutes de suite** (un redémarrage dure moins) | oui | `sudo systemctl status skanfact`, puis `sudo journalctl -u skanfact -n 50` |
+| La sauvegarde de la nuit absente, ratée, ou plus de 26 heures sans réussite | oui | `sudo systemctl status skanfact-sauvegarde` ; le détail : `/var/lib/skanfact/sauvegardes/derniere.json` |
+| Une version qui n'a pas pu s'installer (l'ancienne tourne toujours) ; une tâche d'entretien ratée | non | le détail : `/var/lib/skanfact/public/etat.json` |
+| Le suiveur des versions muet depuis plus de 30 minutes | non | `sudo systemctl status skanfact-suivre.timer` |
+| Un disque plein à 75 % (grave à 90 %) | à 90 % | libérer de la place, ou agrandir le disque chez l'hébergeur |
+| Le certificat https qui expire dans moins de 30 jours (grave à moins de 7) | à 7 jours | `sudo systemctl status caddy`, puis `sudo journalctl -u caddy -n 50` |
+| L'archivage continu qui échoue (ou, sur un serveur aux vraies données, arrêté) | oui | `sudo journalctl -u postgresql -n 50` (C bis 1) |
+| La copie de base absente, ratée ou de plus de 26 heures (quand l'archivage tourne) | oui | `sudo systemctl status skanfact-base` (C bis 2) |
+| L'exercice de restauration raté (grave) ou de plus de 35 jours | raté | `sudo systemctl status skanfact-restauration` (C bis 3) |
+| La copie hors de la machine en retard d'un quart d'heure (grave après une heure) ; pas réglée sur un serveur aux vraies données | après une heure | `sudo systemctl status skanfact-hors-machine` ; ou la régler (C bis 5) |
+
+**I2. Prévenir, sans bavarder.** Un problème qui apparaît part tout de suite par **e-mail** (par le relais du serveur,
+H : un seul e-mail par minute, qui dit tout et ce qu'il faut faire) et par **SMS** (WinSMS, H bis, s'il est branché :
+le nouveau, et ce qui est grave). Tant qu'il dure, un **rappel toutes les six heures** ; quand il est réglé, **un mot**
+(par SMS aussi s'il était grave). Rien n'est redit chaque minute. Une alerte qui n'est partie par **aucun** moyen se
+redit à la minute suivante. **Ce qui part**, compté et décidé : l'adresse et le mobile de l'exploitant, le nom du
+serveur, ce qui ne va pas et ce qu'il faut faire ; jamais une donnée d'un client, jamais un message d'erreur (celui
+d'une migration peut citer une valeur).
+
+**I3. Qui prévenir** se règle une fois, en root, dans la console du serveur (l'installation d'un serveur des pilotes le
+demande d'elle-même) :
+`curl -fsSL https://raw.githubusercontent.com/saouthq/skanfact-plateforme/main/exploitation/alertes.sh | sudo bash`.
+Le script demande l'adresse e-mail et, si les SMS sont branchés, le mobile ; il envoie **d'abord une alerte d'essai**
+par chaque moyen, demande si elle est arrivée, et seulement alors écrit `/etc/skanfact/veille.env` (lisible par root et
+le service). L'adresse et le numéro ne passent ni par le dépôt, ni par Claude. Sans destinataire, la page d'état
+s'écrit quand même, et rien ne part.
+
+**I4. La page d'état publique**, `https://app.skanfact.tn/etat` (servie par le frontal, même si le programme est
+arrêté ; revue chaque minute) : le service, la sauvegarde, l'entretien, chacun « fonctionne » ou non. Aucun message,
+aucune version, aucun chemin : c'est elle qu'on donne aux clients pendant un incident.
+
+**I5. Ce qui reste** (cadrage `06` § 7) : une vérification **de l'extérieur**, depuis deux villes (un service qui
+regarde l'adresse publique : à choisir, et à compter dans les flux qui sortent, `05` § 4.3) ; les temps de réponse et le
+taux d'erreurs.
+
+Code : `exploitation/veille.ts`, `exploitation/veiller.ts`, `exploitation/alertes.sh`, `exploitation/frontal.sh`,
+`exploitation/taches/0007-veille.sh`. Tests : `tests/exploitation/veille.test.ts` (les règles),
+`tests/exploitation/veiller.test.ts` (le veilleur lancé pour de vrai, avec un faux relais d'e-mails, un faux WinSMS et
+un faux programme), `tests/exploitation/alertes.test.ts` (le réglage des destinataires, la tâche, le frontal).
 
 ## Reste à faire avant les testeurs
 

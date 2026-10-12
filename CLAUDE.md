@@ -105,9 +105,12 @@
   transaction du fait, part signé, se renvoie puis s'abandonne. Le livreur (`livrerAvis`) tourne
   dans le programme serveur.
 - La sauvegarde et l'exercice de restauration (`base/sauvegarde.ts`, 06 § 4.3) : dans les tests,
-  sur une base à part (d'autres tests cassent des chaînes exprès dans la base commune). Ouvert :
-  l'archivage continu à la minute, l'exercice mensuel sur le serveur de test et son rapport à la
-  console.
+  sur une base à part (d'autres tests cassent des chaînes exprès dans la base commune). **Sur les serveurs** (lot « prêt
+  pour les pilotes », 12/10/2026, `docs/mise-en-ligne.md` C bis et I) : l'archivage à la minute, la copie de base de la
+  nuit, l'exercice de restauration du mois, la copie hors de la machine chiffrée par age (la clé qui relit ne vit
+  jamais sur le serveur ; le stockage objet chez l'hébergeur de secours est À DÉCIDER par Skander), la remise d'UNE
+  entreprise à une minute (`exploitation/remettre-entreprise.sh` : un essai d'abord, toujours) ; la veille de chaque
+  minute (`exploitation/veiller.ts`) prévient l'exploitant par e-mail et SMS et tient la page d'état publique `/etat`.
 - Le programme serveur (`serveur/principal.ts`, `npm run serveur`) : configuration par
   l'environnement, refus de démarrer si elle est fausse ; en production, exige le relais d'e-mails
   (`SKANFACT_SMTP` : le code de connexion part par e-mail par défaut) ; le SMS (`SKANFACT_SMS=winsms`,
@@ -456,15 +459,19 @@
   France (données inventées seulement), à `app.skanfact.tn`. **Personne ne s'y connecte** : il suit `main` tout seul
   (`exploitation/suivre.ts`, toutes les deux minutes) et installe la plus récente version que GitHub a vérifiée en
   vert ; un réglage du serveur passe par une tâche d'entretien (`exploitation/taches/NNNN-nom.sh`, une fois chacune).
-  Son état se lit à `https://app.skanfact.tn/etat.json`. **Claude a la main dessus** (Skander, 05/10/2026) :
+  Son état se lit à `https://app.skanfact.tn/etat.json` (serveur d'essai seulement ; `/etat`, la page publique, partout).
+  **Deux sortes de serveurs** (`installer.sh <adresse> essai|pilotes`, B bis) : l'essai (données inventées) et les
+  pilotes (vraies données : relais d'e-mails exigé, aucun état détaillé public, **jamais l'accès de Claude**).
+  **Claude a la main dessus** (Skander, 05/10/2026) :
   `scripts/serveur.sh 'commande'` l'exécute en root sur le serveur, signée par la clé de la session
   (`~/.skanfact-acces/`, hors dépôt ; une session neuve se donne une clé neuve, déclarée dans
   `exploitation/acces-cles.json`, l'ancienne marquée `retiree`) ; `docs/mise-en-ligne.md`, F. Donc **un `main` rouge n'arrive jamais sur le serveur**, et
   les migrations poussées s'appliquent à sa base. Les routes sans session sont limitées par adresse
   (`LIMITES_PAR_ADRESSE`) ; derrière le frontal, `SKANFACT_PROXY=1`.
 - **Ouvert** : les gestes « À reprendre » encore ouverts sont comptés dans l'export mais pas
-  restaurés (à revoir avec la file, étape 2) ; la remise en place d'une entreprise **par-dessus**
-  son état abîmé (06 § 4.4) n'existe pas encore : on ne restaure que là où elle n'est pas.
+  restaurés (à revoir avec la file, étape 2). La remise **par-dessus** son état abîmé (`remettre`, 06 § 4.4) remplace
+  ses lignes, garde sa piste d'audit entière, fait relire tout le dossier à ses postes (les déclencheurs se taisent
+  pendant la remise : elle pose elle-même les marques de relecture) et nomme les numéros de pièces qu'elle retire.
 
 ## Les règles de ce dépôt
 

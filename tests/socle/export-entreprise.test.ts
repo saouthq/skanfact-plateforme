@@ -1,12 +1,15 @@
 // Exporter UNE entreprise et la restaurer à l'identique (vision § 4.2, 01 R14, 06 § 4.4 ; jalon J1 :
 // « une entreprise est exportée puis restaurée à l'identique »).
 
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { CLASSEMENT, exporter, restaurer, tablesNonClassees } from '../../base/entreprise.ts';
+import { CLASSEMENT, exporter, remettre, restaurer, tablesNonClassees } from '../../base/entreprise.ts';
 import { creerApp, VERSION } from '../../serveur/app.ts';
 import { creerPool, enTantQue } from '../../serveur/base.ts';
 import type { Contexte } from '../../serveur/connexion.ts';
@@ -217,6 +220,198 @@ describe('exporter et restaurer UNE entreprise', () => {
     } finally {
       await cible.end();
       await base.jeter();
+    }
+  });
+});
+
+// La remise (06 § 4.4) : UNE entreprise abîmée revient telle qu'un fichier la décrit, par-dessus elle-même, dans une base
+// qui porte aussi les autres. Joué dans une base à part : A et la voisine B y sont restaurées, A y vit encore un peu
+// (l'état « T » du fichier), puis s'abîme.
+describe('remettre UNE entreprise par-dessus elle-même', () => {
+  // L'état T de A dans la base `cible` : un objet de son dossier, puis l'export (ce que la restauration à la minute rend).
+  async function aLEtatT(cible: pg.Client) {
+    await restaurer(cible, fichier);
+    await restaurer(cible, await exporter(admin, B.ent));
+    await cible.query(`insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'clients', 'k1', '{"name":"Garage Nord"}')`, [A.ent]);
+    return exporter(cible, A.ent);
+  }
+  // Ce qui abîme A après T : un client renommé, une facture sans ses lignes, un brouillon émis, un objet retiré du dossier,
+  // deux autres arrivés (dont une pièce numérotée), et un geste dans sa trace.
+  async function abimer(cible: pg.Client) {
+    await cible.query('begin');
+    await cible.query('set local session_replication_role = replica');
+    await cible.query(`update socle.tiers set raison_sociale = 'Garage abîmé' where id = $1`, [A.client]);
+    await cible.query('delete from ventes.ligne where piece = $1', [A.factures[0]]);
+    await cible.query(`update ventes.piece set emise_le = now(), numero_texte = 'FAC-2026-APRES' where id = $1`, [A.brouillon]);
+    await cible.query(`delete from socle.dossier_v10 where entreprise = $1 and cle = 'k1'`, [A.ent]);
+    await cible.query(`insert into socle.dossier_v10_retire (entreprise, collection, cle) values ($1, 'clients', 'k1')`, [A.ent]);
+    await cible.query(`insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'clients', 'k2', '{"name":"Arrivé après"}'),
+      ($1, 'documents', 'd2', '{"type":"facture","number":"FAC-2026-777"}')`, [A.ent]);
+    await cible.query(`insert into socle.audit (entreprise, geste) values ($1, 'essai.apres')`, [A.ent]);
+    await cible.query('commit');
+  }
+  const sansEnTete = (lignes: string[]) => lignes.slice(1, -1);
+  const trace = (lignes: string[]) => JSON.parse(lignes[donnees(lignes, 'socle.audit') + 1] ?? '[]') as { id: string; geste: string; apres: Record<string, unknown> | null }[];
+
+  it('l\'essai ne change rien et nomme ce qui disparaîtrait ; la remise rend A telle que le fichier, garde sa trace entière, fait tout relire à ses postes ; la voisine ne bouge pas', async () => {
+    const base = await baseNeuve('skanfact_test_remise');
+    const cible = new pg.Client({ connectionString: base.admin });
+    await cible.connect();
+    try {
+      const etatT = await aLEtatT(cible);
+      await abimer(cible);
+      const abimee = await exporter(cible, A.ent);
+      const voisine = await exporter(cible, B.ent);
+      expect(sansEnTete(abimee)).not.toEqual(sansEnTete(etatT));
+
+      const essai = await remettre(cible, etatT, { motif: 'Essai avant la remise', essayer: true });
+      expect(essai.essai).toBe(true);
+      expect(essai.numerosRetires).toEqual(['FAC-2026-777', 'FAC-2026-APRES']);
+      expect(essai.tables.find((t) => t.table === 'ventes.ligne')).toMatchObject({ avant: 2, lignes: 3 });
+      expect(sansEnTete(await exporter(cible, A.ent))).toEqual(sansEnTete(abimee));
+
+      const marque = String((await cible.query('select pg_current_xact_id()::text x')).rows[0].x);
+      const bilan = await remettre(cible, etatT, { motif: 'Une erreur de manipulation, le 12/10' });
+      expect(bilan.essai).toBe(false);
+      const remise = await exporter(cible, A.ent);
+      // Tout est le fichier, au caractère près, sauf la trace (elle garde ce qui s'est passé depuis, et dit la remise) et
+      // la transaction que porte chaque objet du dossier (celle de la remise : vérifiée plus bas).
+      const iAudit = donnees(etatT, 'socle.audit');
+      const iDossier = donnees(etatT, 'socle.dossier_v10');
+      const sansTransaction = (texte: string | undefined) => (JSON.parse(texte ?? '[]') as Record<string, unknown>[]).map((o) => ({ ...o, xid: null }));
+      expect(remise.length).toBe(etatT.length);
+      for (let i = 1; i < etatT.length - 1; i++) {
+        if (i === iAudit || i === iAudit + 1) continue;
+        if (i === iDossier + 1) expect(sansTransaction(remise[i])).toEqual(sansTransaction(etatT[i]));
+        else expect(remise[i], `ligne ${i} : ${etatT[i]?.slice(0, 60)}`).toBe(etatT[i]);
+      }
+      const apres = trace(remise);
+      const avantT = trace(etatT).map((t) => t.id);
+      expect(apres.map((t) => t.id).filter((id) => avantT.includes(id))).toEqual(avantT);
+      expect(apres.filter((t) => t.geste === 'essai.apres')).toHaveLength(1);
+      const tracees = apres.filter((t) => t.geste === 'socle.entreprise.remettre');
+      expect(tracees).toHaveLength(1);
+      expect(tracees[0]?.apres).toMatchObject({ motif: 'Une erreur de manipulation, le 12/10', numerosRetires: ['FAC-2026-777', 'FAC-2026-APRES'] });
+      // La voisine, au caractère près (sauf l'heure de l'export).
+      expect(sansEnTete(await exporter(cible, B.ent))).toEqual(sansEnTete(voisine));
+      // Les postes de A relisent tout : chaque objet porte la transaction de la remise, ce qui a disparu le dit, ce qui
+      // est revenu ne le dit plus.
+      const objets = (await cible.query('select cle, (xid >= $2::xid8) relu from socle.dossier_v10 where entreprise = $1 order by cle', [A.ent, marque])).rows;
+      expect(objets.map((o) => o.cle)).toContain('k1');
+      expect(objets.every((o) => o.relu)).toBe(true);
+      const retires = (await cible.query('select cle, (xid >= $2::xid8) relu from socle.dossier_v10_retire where entreprise = $1 order by cle', [A.ent, marque])).rows;
+      expect(retires).toEqual([{ cle: 'd2', relu: true }, { cle: 'k2', relu: true }]);
+    } finally {
+      await cible.end();
+      await base.jeter();
+    }
+  });
+
+  it('refusée sans motif, sur une entreprise absente, ou quand une ligne d\'ailleurs désigne ce qu\'elle ferait disparaître (et rien ne change)', async () => {
+    const base = await baseNeuve('skanfact_test_remise');
+    const cible = new pg.Client({ connectionString: base.admin });
+    await cible.connect();
+    try {
+      await expect(remettre(cible, fichier, { motif: ' ' })).rejects.toThrow(/demande son motif/);
+      await expect(remettre(cible, fichier, { motif: 'Essai' })).rejects.toThrow(/n'est pas dans cette base/);
+      const etatT = await aLEtatT(cible);
+      await expect(restaurer(cible, etatT)).rejects.toThrow(/existe déjà[\s\S]*remettre/);
+      await abimer(cible);
+      // Une table hors de l'export (rangée « hors ») qui désigne un objet arrivé après T.
+      await cible.query(`create schema essai_remise; create table essai_remise.t (entreprise uuid, collection text, cle text,
+        foreign key (entreprise, collection, cle) references socle.dossier_v10 (entreprise, collection, cle))`);
+      await cible.query(`insert into essai_remise.t values ($1, 'clients', 'k2')`, [A.ent]);
+      // Tant que personne ne l'a rangée, la remise ne sait pas si elle appartient à l'entreprise : refusée.
+      await expect(remettre(cible, etatT, { motif: 'Essai' })).rejects.toThrow(/table non classée : essai_remise\.t/);
+      CLASSEMENT['essai_remise.t'] = { classe: 'hors', raison: 'essai' };
+      try {
+        await expect(remettre(cible, etatT, { motif: 'Essai' })).rejects.toThrow(/essai_remise\.t désignent une ligne que la remise ferait disparaître/);
+      } finally {
+        delete CLASSEMENT['essai_remise.t'];
+      }
+      expect((await cible.query('select raison_sociale from socle.tiers where id = $1', [A.client])).rows).toEqual([{ raison_sociale: 'Garage abîmé' }]);
+    } finally {
+      await cible.end();
+      await base.jeter();
+    }
+  });
+
+  it('une ligne que sa condition ne voit plus (un brouillon de question du cabinet, un fichier détaché) est remplacée par celle du fichier', async () => {
+    const base = await baseNeuve('skanfact_test_remise');
+    const cible = new pg.Client({ connectionString: base.admin });
+    await cible.connect();
+    try {
+      await restaurer(cible, fichier);
+      await cible.query('create schema essai_remise; create table essai_remise.u (id uuid primary key, entreprise uuid not null, garde boolean not null, valeur text)');
+      CLASSEMENT['essai_remise.u'] = { classe: 'entreprise', condition: 'entreprise = $1 and garde' };
+      try {
+        await cible.query(`insert into essai_remise.u values ('00000000-0000-4000-8000-000000000001', $1, true, 'au moment T')`, [A.ent]);
+        const etatT = await exporter(cible, A.ent);
+        await cible.query(`update essai_remise.u set garde = false, valeur = 'abîmée'`);
+        await remettre(cible, etatT, { motif: 'Essai du remplacement' });
+        expect((await cible.query('select garde, valeur from essai_remise.u')).rows).toEqual([{ garde: true, valeur: 'au moment T' }]);
+      } finally {
+        delete CLASSEMENT['essai_remise.u'];
+      }
+    } finally {
+      await cible.end();
+      await base.jeter();
+    }
+  });
+
+  it('remettre-entreprise.sh : la base de la minute restaurée à côté puis jetée ; l\'essai ne change rien ; la remise se fait sur le fichier de l\'essai, jamais sans lui', async () => {
+    const minute = await baseNeuve('skanfact_test_remise_minute');
+    const vive = await baseNeuve('skanfact_test_remise');
+    const cible = new pg.Client({ connectionString: vive.admin });
+    const aCote = new pg.Client({ connectionString: minute.admin });
+    await cible.connect();
+    await aCote.connect();
+    const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'remise-'));
+    try {
+      await aLEtatT(aCote);
+      await aLEtatT(cible);
+      await abimer(cible);
+      // restaurer.sh remplacé : la base « de la minute » est déjà là ; on note seulement ce qui lui est demandé.
+      const journal = path.join(dossier, 'restaurer.log');
+      fs.writeFileSync(path.join(dossier, 'restaurer.sh'), `echo "$*" >> ${JSON.stringify(journal)}\n`);
+      const lancer = (...args: string[]) => spawnSync('bash', [path.join(import.meta.dirname, '../../exploitation/remettre-entreprise.sh'), ...args], {
+        encoding: 'utf8',
+        env: { ...process.env, SKANFACT_SANS_POSTGRES: '1', SKANFACT_RESTAURER: path.join(dossier, 'restaurer.sh'), SKANFACT_REMISES: path.join(dossier, 'remises'), SKANFACT_PG_VIVE: vive.admin, SKANFACT_PG_RESTAUREE: minute.admin },
+      });
+      const nom = async () => (await cible.query('select raison_sociale from socle.tiers where id = $1', [A.client])).rows[0].raison_sociale as string;
+      const motif = 'Une erreur de manipulation';
+
+      const sansEssai = lancer(A.ent, '2026-10-12 14:03', motif, '--remettre');
+      expect(sansEssai.status).toBe(1);
+      expect(sansEssai.stderr).toMatch(/fais d'abord l'essai/);
+      expect(lancer(A.ent, '2026-10-12 14:03', 'x').status).toBe(2);
+      expect(lancer('pas-un-identifiant', '2026-10-12 14:03', motif).status).toBe(2);
+
+      const essai = lancer(A.ent, '2026-10-12 14:03', motif);
+      expect(essai.status, essai.stderr).toBe(0);
+      expect(essai.stdout).toMatch(/Essai de la remise/);
+      expect(essai.stdout).toMatch(/FAC-2026-777, FAC-2026-APRES/);
+      expect(essai.stdout).toMatch(/Rien n'a changé/);
+      expect(fs.readFileSync(journal, 'utf8')).toBe('--jusqua 2026-10-12 14:03\narreter\n');
+      const fichierEssai = path.join(dossier, 'remises', `${A.ent}-2026-10-12-14-03.jsonl`);
+      expect(fs.statSync(fichierEssai).mode & 0o777).toBe(0o600);
+      expect(await nom()).toBe('Garage abîmé');
+
+      const faite = lancer(A.ent, '2026-10-12 14:03', motif, '--remettre');
+      expect(faite.status, faite.stderr).toBe(0);
+      expect(faite.stdout).toMatch(/faite/);
+      expect(faite.stdout).toMatch(/retrouvable à la minute « \d{4}-\d{2}-\d{2} \d{2}:\d{2} »/);
+      expect(await nom()).toBe('Garage Nord');
+      // Restaurée une seule fois (l'essai) ; le fichier, qui porte les données d'un client, ne reste pas.
+      expect(fs.readFileSync(journal, 'utf8')).toBe('--jusqua 2026-10-12 14:03\narreter\n');
+      expect(fs.existsSync(fichierEssai)).toBe(false);
+      expect((await cible.query(`select apres->>'motif' m from socle.audit where entreprise = $1 and geste = 'socle.entreprise.remettre'`, [A.ent])).rows).toEqual([{ m: motif }]);
+    } finally {
+      await cible.end();
+      await aCote.end();
+      await vive.jeter();
+      await minute.jeter();
+      fs.rmSync(dossier, { recursive: true, force: true });
     }
   });
 });

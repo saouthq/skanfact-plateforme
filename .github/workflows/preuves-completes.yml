@@ -44,8 +44,8 @@ jobs:
         run: npx playwright-core install --with-deps chromium
       - name: Electron (la coque de bureau)
         run: node node_modules/electron/install.js
-      - name: xmllint, Tesseract, Poppler et Xvfb
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb
+      - name: xmllint, Tesseract, Poppler, Xvfb et age
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb age
       - name: Preuves (chaque test tombe quand on remet son défaut)
         run: npm run preuves
         env:
