@@ -100,8 +100,6 @@
   // porte des renvois internes de la page (`amenerChamp`), qui ouvre l'onglet, amène le panneau et y
   // met le curseur — sans redessiner, donc sans jeter une saisie en cours.
   let amenerDansParametres = null;
-  // (plateforme) Le point de contact mène à un panneau des Paramètres (brique 74 bis).
-  window.__allerParametres = (tab, focus) => allerParametres(tab, focus);
   // (plateforme, abonnement) Où l'abonnement se règle : l'onglet « Ton abonnement », pour qui le gère (le propriétaire, un
   // administrateur : la base refuse le détail à tout autre rôle). Aux autres, la fenêtre dit qui s'en occupe, au lieu
   // d'ouvrir un onglet qu'ils ne voient pas.
@@ -123,6 +121,8 @@
         Tout ce qui existe déjà se lit, s'imprime, s'exporte et se corrige ; seule la création attend l'abonnement.</span>
         <span class="lock-go"><button class="btn btn-sm" id="abo-voir">${abonnementVisible() ? 'Voir l\'abonnement' : 'Qui le règle ?'}</button></span></div>`;
   }
+  // (plateforme) Le point de contact mène à un panneau des Paramètres (brique 74 bis).
+  window.__allerParametres = (tab, focus) => allerParametres(tab, focus);
   function allerParametres(tab, focus) {
     // (plateforme, abonnement) La licence de la v10 est l'abonnement : ses raccourcis (la pastille, la carte de l'essai,
     // la fenêtre d'un refus) mènent à lui.

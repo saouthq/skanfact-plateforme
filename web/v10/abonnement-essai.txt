@@ -23,10 +23,9 @@ une fenêtre dit qui s'en occupe. Une NOUVELLE pièce ouverte en lecture seule l
   <link rel="stylesheet" href="../plateforme/abonnement.css">
 -- fin
 
-== app.js | un raccourci vers la licence mène à l'abonnement (une porte : la pastille, la carte de l'essai, les refus)
+== app.js | où l'abonnement se règle, et le bandeau d'une nouvelle pièce en lecture seule, se déclarent juste avant le point de contact des Paramètres (sans couper la retouche de la remise, brique 74 bis)
 -- avant
-  function allerParametres(tab, focus) {
-    if (location.hash === '#/parametres' && amenerDansParametres && $('#pf')) { amenerDansParametres(focus || ''); return; }
+  // (plateforme) Le point de contact mène à un panneau des Paramètres (brique 74 bis).
 -- après
   // (plateforme, abonnement) Où l'abonnement se règle : l'onglet « Ton abonnement », pour qui le gère (le propriétaire, un
   // administrateur : la base refuse le détail à tout autre rôle). Aux autres, la fenêtre dit qui s'en occupe, au lieu
@@ -49,7 +48,13 @@ une fenêtre dit qui s'en occupe. Une NOUVELLE pièce ouverte en lecture seule l
         Tout ce qui existe déjà se lit, s'imprime, s'exporte et se corrige ; seule la création attend l'abonnement.</span>
         <span class="lock-go"><button class="btn btn-sm" id="abo-voir">${abonnementVisible() ? 'Voir l\'abonnement' : 'Qui le règle ?'}</button></span></div>`;
   }
-  function allerParametres(tab, focus) {
+  // (plateforme) Le point de contact mène à un panneau des Paramètres (brique 74 bis).
+-- fin
+
+== app.js | un raccourci vers la licence mène à l'abonnement (une porte : la pastille, la carte de l'essai, les refus)
+-- avant
+    if (location.hash === '#/parametres' && amenerDansParametres && $('#pf')) { amenerDansParametres(focus || ''); return; }
+-- après
     // (plateforme, abonnement) La licence de la v10 est l'abonnement : ses raccourcis (la pastille, la carte de l'essai,
     // la fenêtre d'un refus) mènent à lui.
     if (focus === 'p-licence' && bridge.dessinerAbonnement) { allerAbonnement(); return; }
