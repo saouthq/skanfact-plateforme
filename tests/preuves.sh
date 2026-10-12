@@ -10096,6 +10096,9 @@ prouver "la visite bloquée sur « La visite t'attend » après « + Nouvel arti
 prouver "la base du poste effacé, recréée par une lecture partie au moment de l'effacement" web/public/plateforme/poste.js \
   "    efface = true;" "" \
   "$KAP"
+prouver "le scénario des deux postes joué pendant que la page enregistre encore d'elle-même" tests/web/enregistrement-concurrent.test.ts \
+  "    await p.evaluate(async () => { await (window as unknown as { __enregistrerMaintenant: () => Promise<unknown> }).__enregistrerMaintenant(); });" "" \
+  "$EC"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

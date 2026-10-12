@@ -55,10 +55,21 @@ describe('deux postes sur le même dossier', () => {
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
     const p = await cx.newPage();
+    // À l'ouverture, la page enregistre d'elle-même (le dossier mis au format de la v10). Sur une machine lente, cet
+    // enregistrement était encore en route quand le scénario commençait : il partait avec les données de la page, se
+    // heurtait à l'autre poste, et c'est SA réponse que recevait l'enregistrement du test (vu sur GitHub, 12/10/2026).
+    // Il est ralenti exprès, pour que le scénario se joue toujours derrière lui.
+    let ralentir = true;
+    await p.route('**/dossier-v10', async (route) => {
+      if (route.request().method() === 'POST' && ralentir) { ralentir = false; await new Promise((ok) => { setTimeout(ok, 1500); }); }
+      await route.continue();
+    });
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/clients`);
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    // La page a fini ce qu'elle enregistre d'elle-même : le scénario commence sur une page au repos.
+    await p.evaluate(async () => { await (window as unknown as { __enregistrerMaintenant: () => Promise<unknown> }).__enregistrerMaintenant(); });
     // Ce que la page a (le dossier tel qu'elle l'a lu), gardé pour rejouer « ses données d'avant ».
     await p.evaluate(async () => { const w = window as unknown as { skanfact: { loadData: () => Promise<{ data: unknown }> }; __avant: unknown }; w.__avant = JSON.parse(JSON.stringify((await w.skanfact.loadData()).data)); });
 
