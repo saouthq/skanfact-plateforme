@@ -2,7 +2,8 @@
 // web/public/plateforme/premiers-pas.js), calculés sur le moteur de la v10. Ce qu'ils tiennent :
 //   - l'ordre de la maquette ; le RIB seulement quand on attend un virement (un commerce encaisse sur place) ;
 //   - ce qui vit sur le serveur se dit tel qu'il est : une adresse à vérifier seulement si le serveur sait envoyer le code,
-//     le code du téléphone fait seulement s'il est actif, le comptable fait dès que le mandat est proposé ;
+//     le code de connexion fait quand il est actif ou quand le serveur l'envoie par e-mail (12/10/2026 : l'e-mail par
+//     défaut), le comptable fait dès que le mandat est proposé ;
 //   - ce qui manque à la fiche se nomme (sans matricule, la facture n'est pas conforme) ;
 //   - qui facture sans devis a commencé aussi : « Ta première facture » ;
 //   - le panneau quitte l'accueil quand le métier est fait : ni le code recommandé, ni une étape facultative ne le
@@ -28,14 +29,17 @@ const pas = (data: Record<string, unknown>, etat?: Etat) => (fenetre.SkanPremier
 // Une entreprise de conseil que l'assistant vient de mettre en place : son nom, son matricule, son téléphone.
 const conseil = { name: 'Gharbi Conseil', matricule: '4142136K/A/M/000', phone: '+216 55 123 456', activity: 'conseil', setupDone: true };
 const compte = { adresseVerifiee: true, courriel: true, codeActif: false };
+// Un serveur qui n'envoie pas d'e-mails : rien ne protège un nouvel appareil tant qu'on n'a pas choisi son code.
+const sansCourriel = { adresseVerifiee: false, courriel: false, codeActif: false };
 
 describe('les premiers pas de la plateforme', () => {
   it('l\'ordre de la maquette, ce que la porte et l\'assistant ont fait, et le RIB qui suit, à faire maintenant', () => {
     const p = pas({ company: conseil, clients: [], documents: [] }, { compte, mandat: null });
     expect(p.etapes.map((e) => e.titre)).toEqual(['Ton compte et ton adresse vérifiée', 'Ton entreprise et où te joindre', 'Ton activité, ta TVA et ton menu',
       'Ton RIB, pour être payé par virement', 'Protège ton compte', 'Ton premier client', 'Ton premier devis', 'Ta facture à ton image', 'Invite ton comptable']);
-    expect(p.etapes.filter((e) => e.fait).map((e) => e.id)).toEqual(['compte', 'societe', 'activite']);
-    expect([p.faits, p.total, p.demarrage, p.suivante?.id]).toEqual([3, 9, true, 'rib']);
+    // Le serveur envoie le code par e-mail : le compte est déjà protégé.
+    expect(p.etapes.filter((e) => e.fait).map((e) => e.id)).toEqual(['compte', 'societe', 'activite', 'code']);
+    expect([p.faits, p.total, p.demarrage, p.suivante?.id]).toEqual([4, 9, true, 'rib']);
     expect(p.etapes.find((e) => e.id === 'code')?.badge).toBe('Recommandé');
     expect(p.etapes.filter((e) => e.facultatif).map((e) => [e.id, e.badge])).toEqual([['marque', 'Facultatif'], ['comptable', 'Facultatif']]);
     // Un RIB faux ne compte pas : il se dit, avec ce qui ne va pas.
@@ -47,7 +51,9 @@ describe('les premiers pas de la plateforme', () => {
   it('un commerce encaisse sur place : pas de RIB réclamé', () => {
     const p = pas({ company: { ...conseil, activity: 'commerce' }, clients: [], documents: [] }, { compte });
     expect(p.etapes.map((e) => e.id)).not.toContain('rib');
-    expect(p.suivante?.id).toBe('code');
+    expect(p.suivante?.id).toBe('client');
+    // Sans e-mails, le code vient d'abord.
+    expect(pas({ company: { ...conseil, activity: 'commerce' }, clients: [], documents: [] }, { compte: sansCourriel }).suivante?.id).toBe('code');
   });
 
   it('le compte se dit tel qu\'il est : l\'adresse à vérifier seulement quand le serveur sait envoyer le code ; le code fait seulement s\'il est actif', () => {
@@ -56,8 +62,12 @@ describe('les premiers pas de la plateforme', () => {
     expect(premiere({ compte: { adresseVerifiee: false, courriel: false, codeActif: false } })).toMatchObject({ titre: 'Ton compte', fait: true });
     // Pas encore lu : le compte existe (on est dedans), rien ne se dit vérifié, ni le code fait.
     expect(premiere({})).toMatchObject({ titre: 'Ton compte', fait: true });
-    expect(pas({ company: conseil, clients: [], documents: [] }, {}).etapes.find((e) => e.id === 'code')?.fait).toBe(false);
-    expect(pas({ company: conseil, clients: [], documents: [] }, { compte: { ...compte, codeActif: true } }).etapes.find((e) => e.id === 'code')?.fait).toBe(true);
+    const code = (etat: Etat) => pas({ company: conseil, clients: [], documents: [] }, etat).etapes.find((e) => e.id === 'code')?.fait;
+    expect(code({})).toBe(false);
+    expect(code({ compte: sansCourriel })).toBe(false);
+    expect(code({ compte: { ...sansCourriel, codeActif: true } })).toBe(true);
+    // Le code par e-mail protège un nouvel appareil : fait sans rien choisir.
+    expect(code({ compte })).toBe(true);
   });
 
   it('ce qui manque à la fiche se nomme ; sans matricule, la facture n\'est pas conforme', () => {
@@ -82,7 +92,7 @@ describe('les premiers pas de la plateforme', () => {
 
   it('le panneau quitte l\'accueil quand le métier est fait : ni le code recommandé ni les facultatifs ne le retiennent ; jamais dans l\'exemple', () => {
     const fait = { company: { ...conseil, rib: '08001000123456789013' }, clients: [{ id: 'c1' }], documents: [{ id: 'd1', type: 'devis' }] };
-    const p = pas(fait, { compte, mandat: null });
+    const p = pas(fait, { compte: sansCourriel, mandat: null });
     expect(p.etapes.filter((e) => !e.fait).map((e) => e.id)).toEqual(['code', 'marque', 'comptable']);
     expect(p.demarrage).toBe(false);
     const exemple = pas({ demo: true, company: { ...conseil, activity: '' }, clients: [], documents: [] }, { compte });
