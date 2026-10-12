@@ -114,7 +114,10 @@ garde (la copie, ce qui attendait, leur clé, la session) : l'écran de l'entrep
 si c'est elle qui l'apprend, y passe d'abord (quel que soit l'écran qui a appelé) ; puis l'entrée le
 dit : « Cet appareil a été retiré de
 ton compte : ce qu'il gardait pour travailler sans réseau est effacé ; reconnecte-toi pour
-continuer. » Une session simplement finie (12 heures sans rien faire) ne reçoit jamais cet ordre : ce
+continuer. » Une fois effacé, le poste ne lit ni n'écrit plus rien jusqu'au départ de la page (`poste.js`,
+`efface`) : une lecture partie juste avant ROUVRAIT la base après sa suppression et la recréait, et l'entrée
+disait « effacé » d'une base encore là (vu par les tests sur GitHub, 12/10/2026). Une suppression bloquée par
+une lecture en cours est attendue un instant (2 secondes au plus) avant de partir. Une session simplement finie (12 heures sans rien faire) ne reçoit jamais cet ordre : ce
 que le poste garde y reste, pour la même personne (H8). **Limite honnête** : un appareil qui ne se
 reconnecte jamais garde sa copie, chiffrée (H3) ; le retirer ne l'atteint qu'à sa reconnexion.
 Ce qui attendait le réseau n'est pas perdu : il est d'abord remis au serveur, en quarantaine (H10).

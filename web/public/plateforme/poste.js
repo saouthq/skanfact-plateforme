@@ -18,8 +18,13 @@
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => { /* sans lui, rien ne se garde : en ligne, tout marche */ });
 
+  // Le poste a été effacé (un appareil retiré, une déconnexion) : la page s'en va, et plus rien ne s'y lit ni ne s'y
+  // écrit. Une lecture ou une écriture partie juste avant (la copie qu'on rafraîchit, ce qui attend le réseau) ROUVRAIT
+  // la base juste après sa suppression, et la recréait : l'entrée disait « ce qu'il gardait […] est effacé » d'une base
+  // encore là (vu par tests/web/appareils.test.ts : supprimée, puis recréée à la milliseconde suivante).
+  let efface = false;
   /** @returns {boolean} La session est gardée sur l'appareil : c'est « mon ordinateur ». */
-  const garde = () => { try { return !!localStorage.getItem('skanfact.jeton'); } catch { return false; } };
+  const garde = () => { if (efface) return false; try { return !!localStorage.getItem('skanfact.jeton'); } catch { return false; } };
 
   /** @returns {Promise<IDBDatabase>} */
   const ouvrir = () => new Promise((ok, ko) => {
@@ -32,6 +37,7 @@
   });
   /** @param {string} magasin @param {IDBTransactionMode} mode @param {(s: IDBObjectStore) => IDBRequest} geste @returns {Promise<any>} */
   async function faire(magasin, mode, geste) {
+    if (efface) return undefined;
     const db = await ouvrir();
     try {
       return await new Promise((ok, ko) => {
@@ -71,6 +77,8 @@
   async function ecrireCopie(id, contenu) {
     if (!garde()) return;
     await garder('copies', id, contenu);
+    // Effacé pendant qu'on écrivait : l'entrée ne doit pas croire qu'il reste une entreprise à rouvrir.
+    if (!garde()) return;
     try { localStorage.setItem(DERNIERE, id); } catch { /* sans mémoire : l'entrée ne saura pas quoi ouvrir hors ligne */ }
   }
   /** @param {string} id */
@@ -85,8 +93,15 @@
   const effacerAttente = async (id) => { await faire('attentes', 'readwrite', (s) => s.delete(id)); };
   // Tout ce que le poste garde : les copies, ce qui attend, la clé, et le souvenir de la dernière entreprise.
   async function effacer() {
+    efface = true;
     try { localStorage.removeItem(DERNIERE); localStorage.removeItem('skanfact.poste_de'); } catch { /* rien à retirer */ }
-    await new Promise((ok) => { const r = indexedDB.deleteDatabase(BASE); r.onsuccess = r.onerror = r.onblocked = () => ok(undefined); });
+    // Bloquée, la suppression attend que la lecture en cours se referme (quelques millisecondes) : on l'attend un
+    // instant, plutôt que de partir en la laissant derrière soi. Bornée : un autre onglet figé ne retient pas la page.
+    await new Promise((ok) => {
+      const r = indexedDB.deleteDatabase(BASE);
+      r.onsuccess = r.onerror = () => ok(undefined);
+      r.onblocked = () => setTimeout(() => ok(undefined), 2000);
+    });
   }
   // Ce que le poste garde d'UNE entreprise (brique 76 : la personne n'en fait plus partie) : sa copie,
   // ce qui l'attendait, et le souvenir de l'avoir ouverte en dernier. Les autres entreprises restent.
