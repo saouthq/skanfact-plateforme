@@ -1,5 +1,5 @@
-// Le programme serveur : il refuse de démarrer sur une configuration fausse (et en production tant
-// qu'aucun fournisseur de SMS n'est choisi), écoute, fait tourner le livreur des avis, s'arrête
+// Le programme serveur : il refuse de démarrer sur une configuration fausse (et en production sans relais d'e-mails :
+// le code par e-mail est le code de connexion par défaut, 0081), écoute, fait tourner le livreur des avis, s'arrête
 // proprement ; sans fournisseur, un SMS ne part jamais en silence.
 
 import fs from 'node:fs';
@@ -16,21 +16,32 @@ describe('le programme serveur', () => {
   it('une configuration fausse l\'arrête avant qu\'il n\'écoute, et dit laquelle', () => {
     expect(() => lireConfiguration({})).toThrow(ConfigurationFausse);
     expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'essai' })).toThrow(/test.*production/);
-    // La production : jamais la clé d'essai du coffre ; puis, clé donnée, le fournisseur de SMS exigé.
+    // La production : jamais la clé d'essai du coffre ; puis, clé donnée, le relais d'e-mails exigé (le code par e-mail
+    // est le code de connexion par défaut) ; le SMS, lui, se choisit.
     const coffre = Buffer.alloc(32, 7).toString('base64');
+    const prod = { SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'production', SKANFACT_COFFRE: coffre, SKANFACT_PROXY: '1' };
     expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'production' })).toThrow(/SKANFACT_COFFRE manque/);
-    expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'production', SKANFACT_COFFRE: coffre, SKANFACT_PROXY: '1' })).toThrow(/fournisseur de SMS/);
+    expect(() => lireConfiguration(prod)).toThrow(/SKANFACT_SMTP manque/);
+    const relais = { SKANFACT_SMTP: 'smtps://u:p@relais.exemple.tn:465', SKANFACT_COURRIEL_DE: 'ne-pas-repondre@exemple.tn' };
+    expect(lireConfiguration({ ...prod, ...relais })).toMatchObject({ environnement: 'production', sms: 'aucun' });
+    // WinSMS : sa clé exigée ; l'expéditeur, onze lettres ou chiffres au plus ; son API en https.
+    expect(() => lireConfiguration({ ...prod, ...relais, SKANFACT_SMS: 'winsms' })).toThrow(/SKANFACT_SMS_CLE manque/);
+    expect(() => lireConfiguration({ ...prod, ...relais, SKANFACT_SMS: 'winsms', SKANFACT_SMS_CLE: 'k', SKANFACT_SMS_EXPEDITEUR: 'SkanFact SUARL' })).toThrow(/onze/);
+    expect(() => lireConfiguration({ ...prod, ...relais, SKANFACT_SMS: 'winsms', SKANFACT_SMS_CLE: 'k', SKANFACT_SMS_ADRESSE: 'http://winsms.exemple' })).toThrow(/https/);
+    expect(lireConfiguration({ ...prod, ...relais, SKANFACT_SMS: 'winsms', SKANFACT_SMS_CLE: 'k', SKANFACT_SMS_EXPEDITEUR: 'SkanFact' }))
+      .toMatchObject({ sms: { fournisseur: 'winsms', cle: 'k', expediteur: 'SkanFact', adresse: 'https://www.winsmspro.com/sms/sms/api' } });
     expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_COFFRE: 'trop-courte' })).toThrow(/32 octets/);
     expect(lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_COFFRE: coffre }).coffre).toEqual(Buffer.alloc(32, 7));
-    expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_SMS: 'orange' })).toThrow(/aucun fournisseur/);
+    expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_SMS: 'orange' })).toThrow(/« aucun » ou « winsms »/);
     expect(() => lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_PORT: 'huit' })).toThrow(/port/);
     expect(lireConfiguration({ SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'test' })).toMatchObject({ port: 8080, hote: '127.0.0.1', sms: 'aucun', livreurMs: 15_000 });
   });
 
-  it('sans fournisseur, un SMS ne part jamais en silence : la personne est invitée à choisir une application', async () => {
+  it('sans fournisseur, un SMS ne part jamais en silence : la personne est invitée à choisir l\'e-mail ou une application', async () => {
     const e = await smsAucun.envoyer('+21620000000', 'code').catch((x: unknown) => x) as { code?: string; texte?: Parameters<typeof rendre>[0]; bouton?: string };
     expect(e.code).toBe('42501');
-    expect(rendre(e.texte as Parameters<typeof rendre>[0], 'fr')).toBe('L\'envoi du code par SMS n\'est pas encore en service : choisis une application d\'authentification.');
+    expect(rendre(e.texte as Parameters<typeof rendre>[0], 'fr')).toBe('Ce serveur n\'envoie pas de SMS : choisis le code par e-mail ou une application d\'authentification.');
+    expect(smsAucun.disponible).toBe(false);
     expect(e.bouton).toBe('compte.code.configurer');
   });
 

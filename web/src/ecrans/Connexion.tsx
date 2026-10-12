@@ -12,13 +12,19 @@ import { phrase, titre } from '../langue.ts';
 
 // Un défi par e-mail (0076) dit aussi à quelle adresse le code est parti, et pourquoi : l'adresse à vérifier juste après
 // l'inscription, ou un appareil que SkanFact ne connaît pas.
-export type Defi = { defi: string; methode: 'sms' | 'application'; posteDUnAutre: boolean }
+// Un défi par SMS (0081) dit le numéro masqué, et si le SMS est parti (« rate » : le fournisseur n'a pas pu ; « limite » :
+// trop de SMS envoyés à ce compte).
+export type EnvoiSms = 'parti' | 'rate' | 'limite';
+export type Defi = { defi: string; methode: 'application'; posteDUnAutre: boolean }
+  | { defi: string; methode: 'sms'; posteDUnAutre: boolean; telephone: string; envoi: EnvoiSms }
   | { defi: string; methode: 'courriel'; posteDUnAutre: boolean; adresse: string; raison: 'inscription' | 'appareil' };
-type ReponseConnexion = { etat: string; jeton?: string; defi?: string; methode?: 'sms' | 'application' | 'courriel'; appareil?: string | null; adresse?: string; raison?: 'inscription' | 'appareil' };
+type ReponseConnexion = { etat: string; jeton?: string; defi?: string; methode?: 'sms' | 'application' | 'courriel'; appareil?: string | null; adresse?: string;
+  raison?: 'inscription' | 'appareil'; telephone?: string; envoi?: EnvoiSms };
 // Le défi que décrit une réponse de connexion, ou rien.
 export function defiDe(r: ReponseConnexion, posteDUnAutre: boolean): Defi | null {
   if (r.etat !== 'code' || !r.defi || !r.methode) return null;
   if (r.methode === 'courriel') return r.adresse && r.raison ? { defi: r.defi, methode: 'courriel', posteDUnAutre, adresse: r.adresse, raison: r.raison } : null;
+  if (r.methode === 'sms') return { defi: r.defi, methode: 'sms', posteDUnAutre, telephone: r.telephone ?? '', envoi: r.envoi ?? 'parti' };
   return { defi: r.defi, methode: r.methode, posteDUnAutre };
 }
 // `sous` : la phrase sous le titre, quand un partenaire a envoyé la personne ici (brique 133).

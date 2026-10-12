@@ -9,9 +9,14 @@
 //   SKANFACT_PORT, SKANFACT_HOTE   où écouter (8080, 127.0.0.1 par défaut : un proxy https est devant)
 //   SKANFACT_LISTE_VOLEE     la liste des mots de passe volés (tests/donnees/… par défaut, en test)
 //   SKANFACT_WEB             l'application web construite (dist/web par défaut), servie à côté de l'API
-//   SKANFACT_SMS             « aucun » tant que le fournisseur de SMS tunisien n'est pas choisi
-//                            (03 § 6, 12 : question ouverte) ; le code se reçoit alors par une
-//                            application d'authentification. En production, un fournisseur est exigé.
+//   SKANFACT_SMS             « aucun » (par défaut) ou « winsms » : le code de connexion par SMS (décision de
+//                            Skander du 12/10/2026 ; 0081). Sans lui, le SMS ne se propose pas : l'e-mail
+//                            (par défaut) et l'application d'authentification restent
+//   SKANFACT_SMS_CLE         la clé de l'API WinSMS (exigée avec « winsms » ; exploitation/sms.sh la pose)
+//   SKANFACT_SMS_EXPEDITEUR  le nom d'expéditeur accordé par WinSMS (« SkanFact ») ; sans lui, celui du compte
+//   SKANFACT_SMS_ADRESSE     l'API de WinSMS (https://www.winsmspro.com/sms/sms/api par défaut)
+//   SKANFACT_SMTP, SKANFACT_COURRIEL_DE   le relais des e-mails et l'adresse d'où ils partent ; exigés en
+//                            production : le code par e-mail est le code de connexion par défaut
 //   SKANFACT_ADRESSE         l'adresse publique du serveur (https), où reviennent le client et l'avis
 //                            du prestataire de paiement ; par défaut, celle où il écoute
 //   SKANFACT_KONNECT         l'API de Konnect (https://api.konnect.network/api/v2 par défaut)
@@ -44,6 +49,7 @@ import { choisirEncodage, compressible, SEUIL_COMPRESSION } from './compression.
 import { dejaGarde, fichiersDesEcrans, versionDuCode } from './ecrans.ts';
 import { Refus } from './erreurs.ts';
 import { listeDepuisFichier } from './mot-de-passe.ts';
+import { smsWinsms, WINSMS_PAR_DEFAUT } from './sms.ts';
 import { routesSocle } from './routes/socle.ts';
 import { routesGroupe } from './groupe.ts';
 import { routesCaisse } from './caisse/routes.ts';
@@ -69,7 +75,8 @@ import { KONNECT_PAR_DEFAUT } from './ventes/konnect.ts';
 
 export type Configuration = {
   base: string; environnement: 'test' | 'production'; port: number; hote: string; listeVolee: string;
-  sms: 'aucun'; livreurMs: number; web: string; adresse: string | null; konnect: string; coffre: Buffer; verificationMs: number;
+  // Le fournisseur de SMS (0081) : aucun, ou WinSMS avec sa clé (de l'environnement, jamais du dépôt).
+  sms: 'aucun' | { fournisseur: 'winsms'; cle: string; expediteur: string | null; adresse: string }; livreurMs: number; web: string; adresse: string | null; konnect: string; coffre: Buffer; verificationMs: number;
   digigo: { base: string; cle: string } | null;
   ttn: string | null; ttnMs: number; contratsMs: number; alertesMs: number;
   lectures: number;
@@ -93,7 +100,6 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   const environnement = env.SKANFACT_ENVIRONNEMENT;
   if (environnement !== 'test' && environnement !== 'production') throw new ConfigurationFausse('SKANFACT_ENVIRONNEMENT : « test » ou « production »');
   // La clé du coffre : celle de la production ne vient que de l'environnement (jamais la clé d'essai).
-  // Contrôlée avant le fournisseur de SMS, pour que la règle se prouve dès aujourd'hui.
   if (environnement === 'production' && !env.SKANFACT_COFFRE) throw new ConfigurationFausse('SKANFACT_COFFRE manque : la production scelle les clés des entreprises avec SA clé');
   let coffre: Buffer;
   try { coffre = env.SKANFACT_COFFRE ? cleDuCoffre(env.SKANFACT_COFFRE) : CLE_DU_COFFRE_D_ESSAI; } catch (e) {
@@ -103,9 +109,17 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   // En production, le nombre de relais se dit toujours (même 0) : oublié derrière le frontal, chaque visiteur aurait
   // l'adresse de la machine, que la limite par adresse ne compte pas (brique 142).
   if (environnement === 'production' && env.SKANFACT_PROXY === undefined) throw new ConfigurationFausse('SKANFACT_PROXY manque : combien de relais de confiance (le frontal) se tiennent devant le serveur, 0 s\'il n\'y en a pas');
-  const sms = env.SKANFACT_SMS ?? 'aucun';
-  if (sms !== 'aucun') throw new ConfigurationFausse(`SKANFACT_SMS « ${sms} » : aucun fournisseur de SMS n'est encore branché`);
-  if (environnement === 'production') throw new ConfigurationFausse('la production exige un fournisseur de SMS, qui n\'est pas encore choisi (03 § 6)');
+  const choixSms = env.SKANFACT_SMS ?? 'aucun';
+  if (choixSms !== 'aucun' && choixSms !== 'winsms') throw new ConfigurationFausse(`SKANFACT_SMS « ${choixSms} » : « aucun » ou « winsms »`);
+  let sms: Configuration['sms'] = 'aucun';
+  if (choixSms === 'winsms') {
+    if (!env.SKANFACT_SMS_CLE) throw new ConfigurationFausse('SKANFACT_SMS_CLE manque : la clé de l\'API WinSMS (exploitation/sms.sh la pose)');
+    const adresseSms = (env.SKANFACT_SMS_ADRESSE ?? WINSMS_PAR_DEFAUT).replace(/\/+$/, '');
+    if (!/^https:\/\//.test(adresseSms)) throw new ConfigurationFausse(`SKANFACT_SMS_ADRESSE « ${adresseSms} » : l'API de WinSMS, en https`);
+    const expediteur = env.SKANFACT_SMS_EXPEDITEUR?.trim() || null;
+    if (expediteur && !/^[A-Za-z0-9 ]{1,11}$/.test(expediteur)) throw new ConfigurationFausse('SKANFACT_SMS_EXPEDITEUR : le nom d\'expéditeur accordé par WinSMS, onze lettres ou chiffres au plus');
+    sms = { fournisseur: 'winsms', cle: env.SKANFACT_SMS_CLE, expediteur, adresse: adresseSms };
+  }
   const port = Number(env.SKANFACT_PORT ?? 8080);
   if (!Number.isInteger(port) || port < 0 || port > 65535) throw new ConfigurationFausse(`SKANFACT_PORT « ${env.SKANFACT_PORT} » n'est pas un port`);
   const ici = path.dirname(fileURLToPath(import.meta.url));
@@ -126,6 +140,8 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   if (smtp && !/^smtps?:\/\/[^/]+$/.test(smtp)) throw new ConfigurationFausse('SKANFACT_SMTP : l\'adresse du relais, smtp://utilisateur:mot-de-passe@hote:587 (ou smtps://…:465)');
   const de = env.SKANFACT_COURRIEL_DE ?? null;
   if (smtp && !(de && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(de))) throw new ConfigurationFausse('SKANFACT_COURRIEL_DE : l\'adresse d\'où partent les e-mails (par exemple ne-pas-repondre@send.skanfact.tn)');
+  // Le code par e-mail est le code de connexion par défaut (0081) : sans relais, la production n'en aurait aucun.
+  if (environnement === 'production' && !smtp) throw new ConfigurationFausse('SKANFACT_SMTP manque : la production envoie le code de connexion par e-mail (exploitation/courriel.sh pose le relais)');
   let partenaires: Partenaire[];
   // Les partenaires déclarés (brique 133) : ceux du dépôt (serveur/partenaires.json : des adresses et des empreintes,
   // rien de secret), sauf si l'environnement en donne d'autres. Un serveur d'essai admet aussi un retour sur le poste.
@@ -146,9 +162,9 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   };
 }
 
-// Sans fournisseur, un SMS ne part jamais en silence : la personne est invitée à choisir
-// l'application d'authentification.
-export const smsAucun: Contexte['sms'] = { envoyer: async () => { throw new Refus('connexion.sms_indisponible', { bouton: 'compte.code.configurer' }); } };
+// Sans fournisseur, un SMS ne part jamais en silence : l'écran ne le propose pas (`disponible`), et un envoi demandé
+// quand même se refuse en invitant à choisir l'e-mail ou l'application.
+export const smsAucun: Contexte['sms'] = { disponible: false, envoyer: async () => { throw new Refus('connexion.sms_indisponible', { bouton: 'compte.code.configurer' }); } };
 
 // Les écrans : l'application web construite, servie à la même adresse que l'API (même origine).
 // Une adresse inconnue rend l'application (elle choisit son écran) ; une adresse inconnue de l'API,
@@ -193,11 +209,13 @@ export function servirLesEcrans(app: ReturnType<typeof creerApp>, dossier: strin
   });
 }
 
-export async function demarrer(c: Configuration, dependances: { envoyer?: Envoyeur; courriel?: EnvoiCourriel } = {}): Promise<{ adresse: string; arreter: () => Promise<void> }> {
+export async function demarrer(c: Configuration, dependances: { envoyer?: Envoyeur; courriel?: EnvoiCourriel; sms?: Contexte['sms'] } = {}): Promise<{ adresse: string; arreter: () => Promise<void> }> {
   const pool = creerPool(c.base);
   // L'adresse publique : réglée, sinon celle où le serveur écoute (connue une fois qu'il écoute).
   let publique = c.adresse ?? '';
-  const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms: smsAucun, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique },
+  // Le fournisseur de SMS (un essai en donne un autre, qui garde ce qu'il reçoit) ; sans lui, aucun SMS ne part.
+  const sms = dependances.sms ?? (c.sms === 'aucun' ? smsAucun : smsWinsms({ cle: c.sms.cle, expediteur: c.sms.expediteur, adresse: c.sms.adresse }));
+  const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique },
     ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}), ttn: { adresse: c.ttn, coffre: c.coffre },
     lecteur: await lecteurDuServeur({ simultanees: c.lectures }), partenaires: { liste: c.partenaires, cle: c.coffre } };
   // Le relais des e-mails (un essai en donne un autre, qui garde ce qu'il reçoit) ; sans lui, aucun e-mail ne part.

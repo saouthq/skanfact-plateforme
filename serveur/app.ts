@@ -226,8 +226,9 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
           // qui l'a créée : la clé ne voit que son entreprise, et seulement tant qu'elle vaut).
           const res = await enTantQue(ctx.pool, qui.cle ? null : qui.utilisateur, async (tx) => {
             // Le code sur le téléphone se juge à CHAQUE requête : un rôle reçu après la connexion
-            // (créer son entreprise, être promu administrateur) l'exige aussitôt.
-            if (!qui.cle && !qui.codeAConfigurer && (await tx.query('select socle.code_manquant() m')).rows[0].m) qui.codeAConfigurer = true;
+            // (créer son entreprise, être promu administrateur) l'exige aussitôt. Un serveur qui envoie des e-mails ne
+            // l'exige pas : le code par e-mail en tient lieu (0081, décision de Skander du 12/10/2026).
+            if (!ctx.courriel && !qui.cle && !qui.codeAConfigurer && (await tx.query('select socle.code_manquant() m')).rows[0].m) qui.codeAConfigurer = true;
             if (qui.codeAConfigurer && !['compte.code.configurer', 'compte.voir', 'compte.deconnecter'].includes(r.geste)) {
               return { statut: 403, corps: { motif: motif('commun.code_requis'), qui: [], bouton: 'compte.code.configurer' } };
             }

@@ -1,6 +1,6 @@
 // Ton compte (lot onboarding, décision de Skander du 09/10/2026 ; 03 § 6 ; migration 0076 ; serveur/compte.ts), joué
-// contre la vraie base : retirer le code du téléphone (avec ce code ou un code de secours, jamais pour un comptable de
-// cabinet), de nouveaux codes de secours, changer son mot de passe et son adresse, ou la vérifier (0077). Ce qui part chez le relais
+// contre la vraie base : retirer le code du téléphone (avec ce code ou un code de secours ; un comptable de cabinet
+// seulement pour revenir au code par e-mail, 0081), de nouveaux codes de secours, changer son mot de passe et son adresse, ou la vérifier (0077). Ce qui part chez le relais
 // d'e-mails : l'adresse, l'objet, et un texte qui ne porte que le code ou le lien.
 
 import path from 'node:path';
@@ -148,7 +148,7 @@ describe('retirer le code du téléphone (Paramètres → Ton compte)', () => {
     expect(await retirerCode(ctx, p.qui, codeDe(p.secret))).toEqual({ ok: true, confirme: true });
     expect(await methode(p.id)).toBeNull();
     expect((await admin.query('select count(*)::int n from socle.code_secours where utilisateur = $1', [p.id])).rows[0].n).toBe(0);
-    expect(courriels.slice(avant)).toEqual([{ a: p.email, objet: 'Le code du téléphone a été désactivé', texte: expect.stringContaining('https://app.exemple.tn'), bouton: 'Ouvrir SkanFact', langue: 'fr' }]);
+    expect(courriels.slice(avant)).toEqual([{ a: p.email, objet: 'Ton code de connexion arrive désormais par e-mail', texte: expect.stringContaining('https://app.exemple.tn'), bouton: 'Ouvrir SkanFact', langue: 'fr' }]);
     expect(courriels.at(-1)?.texte).not.toMatch(/Compte \d|Société/);
     // Tracé au nom de la personne.
     expect((await admin.query(`select count(*)::int n from socle.audit where utilisateur = $1 and geste = 'compte.code.retirer'`, [p.id])).rows[0].n).toBe(1);
@@ -164,10 +164,12 @@ describe('retirer le code du téléphone (Paramètres → Ton compte)', () => {
     expect(courriels).toHaveLength(avant);
   });
 
-  it('un comptable de cabinet ne retire pas son code : il lui est exigé', async () => {
+  it('un comptable de cabinet revient au code par e-mail quand le serveur en envoie ; sans relais, son code ne se retire pas (0081)', async () => {
     const p = await personne({ code: true, cabinet: true });
-    await expect(retirerCode(ctx, p.qui, codeDe(p.secret))).rejects.toThrow(/exigé de chaque comptable d'un cabinet/);
+    await expect(retirerCode(sansRelais, p.qui, codeDe(p.secret))).rejects.toThrow(/exigé de chaque comptable d'un cabinet/);
     expect(await methode(p.id)).toBe('application');
+    expect(await retirerCode(ctx, p.qui, codeDe(p.secret))).toEqual({ ok: true, confirme: true });
+    expect(await methode(p.id)).toBeNull();
   });
 
   it('les erreurs comptent comme à la connexion : une attente qui s\'allonge, jamais un blocage', async () => {

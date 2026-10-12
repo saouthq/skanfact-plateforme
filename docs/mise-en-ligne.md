@@ -228,13 +228,14 @@ et rien ne les posait sur un vrai serveur.
 Le refus dit désormais la date comme on l'écrit (« 05/10/2026 », plus « 2026-10-05 »). Test :
 `tests/socle/regles-communes.test.ts` (6 preuves avec celle de la date).
 
-## H. Le relais d'e-mails du serveur d'essai : Resend (décidé par Skander le 09/10/2026)
+## H. Le relais d'e-mails : Resend (décidé par Skander le 09/10/2026, gardé pour les vraies données le 12/10/2026)
 
 L'étude est dans le dépôt `skanfact` (`docs/etudes/ENVOI-EMAILS.md`). Aucun service « tout prêt » n'annonce ses
-serveurs en Tunisie. **Resend pour le serveur d'essai** : il est déjà en France, avec des données inventées. **Au
-lancement**, notre propre relais sur notre serveur en Tunisie, et **Brevo** (Europe, avec l'autorisation de l'INPDP) en
-secours. Resend garde ses données aux États-Unis ; **il ne sert jamais un serveur aux vraies données**, et le script
-le refuse.
+serveurs en Tunisie. **Resend pour le serveur d'essai** (09/10/2026), puis **gardé aussi pour le serveur aux vraies
+données** (Skander, 12/10/2026 : « pour les mails finalement on garde Resend ») : le code de connexion part par e-mail
+par défaut (§ H bis), et **un serveur de production ne démarre pas sans relais d'e-mails** (`SKANFACT_SMTP`). Resend
+garde ses données aux États-Unis : **À VÉRIFIER** l'autorisation de l'INPDP pour ce transfert (l'adresse et le code),
+à demander avec la déclaration, avant la première donnée réelle. Le script accepte désormais tous les serveurs.
 
 **H1. Ce que fait Skander, une fois.** Les e-mails partent de **`ne-pas-repondre@send.skanfact.tn`** : le domaine
 `send.skanfact.tn` est déjà « Verified » chez Resend (celui de la console de la v10, qui y envoie les clés de licence
@@ -269,6 +270,42 @@ catalogue (`courriel.*`, et un `…_bouton` par e-mail qui porte un lien).
 
 Tests : `tests/exploitation/courriel.test.ts` (6 preuves), joué avec des doublures de curl et de systemctl ;
 `tests/socle/courriel-habille.test.ts` pour le rendu.
+
+## H bis. Le code de connexion au choix, et le SMS par WinSMS (décidé par Skander le 12/10/2026)
+
+**Le choix.** Chacun choisit où arrive son code de connexion, dans Paramètres → Ton compte (les Réglages du Cabinet) :
+**par e-mail** (le choix par défaut : rien à installer, et le moins cher), **par SMS** ou **par une application**
+d'authentification. Le comptable d'un cabinet aussi peut garder l'e-mail : avec un relais, le code par e-mail lui
+tient lieu de code ; un serveur qui n'envoie pas d'e-mails exige encore de lui le SMS ou une application (0076).
+« Protège ton compte », dans les premiers pas, est fait d'emblée quand le serveur envoie des e-mails.
+
+**Le fournisseur.** WinSMS (winsmspro.com) : le plus utilisé et le moins cher des fournisseurs tunisiens comparés. Ce
+que fait Skander, une fois :
+1. créer le compte chez WinSMS, acheter un pack (1 500 SMS, environ 75 DT HT) ;
+2. demander le nom d'expéditeur **« SkanFact »** (environ 18 jours ; en attendant, celui du compte sert) ;
+3. dans la console du serveur (espace client OVH), en root :
+   `curl -fsSL https://raw.githubusercontent.com/saouthq/skanfact-plateforme/main/exploitation/sms.sh | sudo bash`,
+   puis coller la clé de l'API (elle ne s'affiche pas), le nom d'expéditeur (ou Entrée) et un mobile à soi.
+
+**Le script** (`exploitation/sms.sh`) envoie d'abord un **SMS d'essai** et montre la réponse brute de WinSMS (sa forme
+n'est pas publiée : **À VÉRIFIER** avec le compte réel) ; il demande si le SMS est arrivé ; **seulement alors** il écrit
+`SKANFACT_SMS=winsms`, `SKANFACT_SMS_CLE` et `SKANFACT_SMS_EXPEDITEUR` dans `/etc/skanfact/serveur.env`, redémarre
+SkanFact et vérifie que le SMS est proposé (`codeParSms` dans `GET /v1/connexion/options`). La clé passe à curl par
+son entrée, jamais par sa ligne de commande. **Elle ne passe ni par le dépôt, ni par Claude.**
+
+**Ce qui part chez WinSMS**, compté et décidé (skanfact `docs/cadrage/03-droits.md` § 6) : le numéro et un texte qui
+ne porte que le code (« Ton code SkanFact : 482 913 »). Chaque SMS se compte, **5 par heure et 20 par jour au plus**
+pour une même personne (À VÉRIFIER à l'usage) : à la connexion, à l'activation, pour une preuve (quitter le SMS,
+changer de numéro, de nouveaux codes de secours) et pour un mot de passe oublié. Un SMS qui ne part pas se dit à
+l'écran, avec le geste qui reste (renvoyer, ou un code de secours) ; il n'arrête jamais le serveur.
+
+Les règles que tient le serveur (`base/migrations/0081_code_au_choix.sql`, `serveur/sms.ts`, `serveur/compte.ts`,
+`serveur/connexion.ts`) : le SMS s'active en deux temps, comme l'application (un code part au numéro, rien ne change
+avant qu'il soit tapé : 15 minutes, cinq essais) ; changer de numéro ou quitter le SMS se prouve par un code reçu à
+l'ancien numéro (10 minutes, une fois) ou un code de secours ; le numéro ne s'écrit que par ces gestes, jamais
+directement ; un mobile tunisien seulement (huit chiffres, 2, 4, 5 ou 9). Tests : `tests/socle/code-au-choix.test.ts`,
+`tests/exploitation/sms.test.ts` (joué avec des doublures de curl et de systemctl), `tests/web/compte.test.ts` (le SMS
+à la souris).
 
 ## Reste à faire avant les testeurs
 

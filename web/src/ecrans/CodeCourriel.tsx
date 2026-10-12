@@ -28,7 +28,7 @@ export function masquer(adresse: string): string {
 }
 
 // Le décompte avant de pouvoir redemander un code ; `repartir` le relance après un envoi.
-function useDecompte() {
+export function useDecompte() {
   const [reste, setReste] = useState(ATTENTE);
   useEffect(() => {
     if (reste <= 0) return undefined;

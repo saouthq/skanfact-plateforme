@@ -1,9 +1,12 @@
 // Se connecter (03 § 6). Le parcours, dans l'ordre :
 //   1. l'adresse et le mot de passe (une attente qui s'allonge après 5 erreurs, jamais un blocage) ;
-//   2. le code sur le téléphone, si la personne en a un ou si son rôle l'exige (un comptable de cabinet, depuis le
-//      09/10/2026), sauf sur un appareil déjà reconnu (30 jours) ; un code de secours remplace le code ;
-//   2 bis. sans code du téléphone, un code par e-mail (si ce serveur sait en envoyer) : à la première connexion d'un
-//      compte dont l'adresse n'est pas vérifiée, et sur un appareil inconnu (0076) ;
+//   2. le code de connexion, au choix de la personne (décision de Skander du 12/10/2026, 0081) : par SMS ou par une
+//      application d'authentification, sauf sur un appareil déjà reconnu (30 jours) ; un code de secours remplace le
+//      code. Un SMS qui ne part pas (le fournisseur en panne, trop de SMS envoyés) ne ferme pas la porte : le défi reste
+//      ouvert, l'écran le dit, et propose de le renvoyer ou un code de secours ;
+//   2 bis. sans SMS ni application, le code par e-mail (si ce serveur sait en envoyer), le choix par défaut : à la
+//      première connexion d'un compte dont l'adresse n'est pas vérifiée, et sur un appareil inconnu (0076). Il vaut
+//      aussi pour un comptable de cabinet, dont le rôle exige un code (0081) ;
 //   3. une session, dont le jeton n'est gardé qu'en empreinte.
 //
 // Ce qui part chez le fournisseur de SMS : le numéro et le code, RIEN d'autre (03 § 6). Chez le relais d'e-mails :
@@ -17,10 +20,12 @@ import { enTantQue } from './base.ts';
 import { Refus } from './erreurs.ts';
 import { correspond, empreinte, verifierPolitique, verifierPourRien, type ListeVolee } from './mot-de-passe.ts';
 import type { Partenaire } from './partenaires.ts';
+import { numeroMasque } from './sms.ts';
 import { adresseTotp, nouveauSecret, verifierTotp } from './totp.ts';
 import { motif, rendre, t, type Texte } from '../textes/index.ts';
 
-export type EnvoiSms = { envoyer: (telephone: string, texte: string) => Promise<void> };
+// `disponible` : faux quand ce serveur n'a pas de fournisseur de SMS (l'écran ne propose pas le SMS).
+export type EnvoiSms = { envoyer: (telephone: string, texte: string) => Promise<void>; disponible?: boolean };
 
 export type Contexte = {
   pool: pg.Pool;
@@ -51,7 +56,10 @@ export type Appareil = { id?: string; nom: string; type: 'navigateur' | 'bureau'
 export type ResultatConnexion =
   | { etat: 'refuse'; motif: Texte }
   | { etat: 'attendre'; jusqua: Date; motif: Texte }
-  | { etat: 'code'; defi: string; methode: 'sms' | 'application'; appareil: string }
+  | { etat: 'code'; defi: string; methode: 'application'; appareil: string }
+  // Le code par SMS : au numéro masqué ; `envoi` dit s'il est parti (« rate » : le fournisseur n'a pas pu ; « limite » :
+  // trop de SMS envoyés à ce compte).
+  | { etat: 'code'; defi: string; methode: 'sms'; appareil: string; telephone: string; envoi: 'parti' | 'rate' | 'limite' }
   // Le code par e-mail : à l'adresse du compte, qui le reçoit (« inscription » : l'adresse n'est pas encore vérifiée).
   | { etat: 'code'; defi: string; methode: 'courriel'; appareil: string; adresse: string; raison: 'inscription' | 'appareil' }
   | { etat: 'connecte'; jeton: string; appareil: string | null; codeAConfigurer: boolean };
@@ -87,7 +95,9 @@ export async function connecter(ctx: Contexte, demande: {
 }): Promise<ResultatConnexion> {
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
   const posteDUnAutre = demande.posteDUnAutre ?? false;
-  return enTantQue(ctx.pool, null, async (tx) => {
+  // Le SMS part APRÈS la transaction (le défi est écrit) : un fournisseur lent ne retient pas la base, et un envoi
+  // raté laisse un défi valable (un code de secours, ou « Renvoyer »).
+  const r = await enTantQue(ctx.pool, null, async (tx): Promise<ResultatConnexion & { aEnvoyer?: { telephone: string; code: string } | null }> => {
     const attente = (await tx.query('select socle.attente_connexion($1, $2) a', [demande.email, maintenant])).rows[0].a as Date | null;
     if (attente) return { etat: 'attendre', jusqua: attente, motif: attenteLisible(attente, maintenant) };
 
@@ -113,15 +123,17 @@ export async function connecter(ctx: Contexte, demande: {
     const faut = (aUnCode || u.code_obligatoire) && !(reconnu && !posteDUnAutre);
 
     if (faut && aUnCode) {
-      let codeEmpreinte: string | null = null;
       if (u.code_methode === 'sms') {
         const code = codeSms();
-        codeEmpreinte = sha256(code);
-        await ctx.sms.envoyer(u.telephone, rendre(t('connexion.sms', { code: `${code.slice(0, 3)} ${code.slice(3)}` }), 'fr'));
+        const defi = (await tx.query('select socle.ouvrir_defi($1, $2, $3, $4, $5, $6) id',
+          [u.utilisateur, appareil, 'sms', sha256(code), maintenant, DUREE_DEFI])).rows[0].id as string;
+        const permis = (await tx.query('select socle.compter_sms($1, $2, $3) p', [u.utilisateur, 'connexion', maintenant])).rows[0].p as boolean;
+        return { etat: 'code', defi, methode: 'sms', appareil: appareil as string, telephone: numeroMasque(u.telephone),
+          envoi: permis ? 'parti' : 'limite', aEnvoyer: permis ? { telephone: u.telephone as string, code } : null };
       }
       const defi = (await tx.query('select socle.ouvrir_defi($1, $2, $3, $4, $5, $6) id',
-        [u.utilisateur, appareil, u.code_methode, codeEmpreinte, maintenant, DUREE_DEFI])).rows[0].id as string;
-      return { etat: 'code', defi, methode: u.code_methode, appareil: appareil as string };
+        [u.utilisateur, appareil, 'application', null, maintenant, DUREE_DEFI])).rows[0].id as string;
+      return { etat: 'code', defi, methode: 'application', appareil: appareil as string };
     }
 
     // Sans code du téléphone : l'adresse pas encore vérifiée (juste après l'inscription), ou un appareil inconnu, se
@@ -148,6 +160,21 @@ export async function connecter(ctx: Contexte, demande: {
     await tx.query('select socle.effacer_erreurs($1)', [demande.email]);
     return { etat: 'connecte', jeton, appareil, codeAConfigurer: faut && !aUnCode };
   });
+  if (!('aEnvoyer' in r)) return r;
+  const { aEnvoyer, ...reponse } = r;
+  if (aEnvoyer && reponse.etat === 'code' && reponse.methode === 'sms' && !await envoyerSms(ctx, aEnvoyer.telephone, aEnvoyer.code)) reponse.envoi = 'rate';
+  return reponse;
+}
+
+// Un SMS qui porte un code : vrai s'il est parti. Un échec se dit dans le journal du serveur (sans le code).
+export async function envoyerSms(ctx: Contexte, telephone: string, code: string): Promise<boolean> {
+  try {
+    await ctx.sms.envoyer(telephone, rendre(t('connexion.sms', { code: `${code.slice(0, 3)} ${code.slice(3)}` }), 'fr'));
+    return true;
+  } catch (e) {
+    console.error(`le SMS du code n'est pas parti : ${String(e instanceof Error ? e.message : e)}`);
+    return false;
+  }
 }
 
 export async function validerCode(ctx: Contexte, demande: {
@@ -211,14 +238,25 @@ function envoyerCodeParCourriel(ctx: Contexte, a: string, code: string, raison: 
 }
 
 // « Renvoyer le code » : un nouveau code remplace l'ancien, au plus cinq envois par défi, pas deux en moins de 30
-// secondes (personne ne remplit la boîte d'un autre).
+// secondes (personne ne remplit la boîte d'un autre). Par e-mail ou par SMS, selon le défi ; un SMS se compte (0081).
 export async function renvoyerCode(ctx: Contexte, defi: string): Promise<{ ok: true } | { ok: false; motif: Texte }> {
-  if (!ctx.courriel) return { ok: false, motif: motif('connexion.oubli_indisponible') };
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
+  const lu = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select methode, utilisateur from socle.lire_defi($1, $2)', [defi, maintenant])).rows[0] as { methode: string; utilisateur: string } | undefined);
+  if (lu?.methode === 'sms') {
+    if (ctx.sms.disponible === false) return { ok: false, motif: motif('connexion.sms_indisponible') };
+    // La limite des SMS se dit à part : attendre 30 secondes n'y changerait rien.
+    const permis = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select socle.sms_permis($1, $2) p', [lu.utilisateur, maintenant])).rows[0].p as boolean);
+    if (!permis) return { ok: false, motif: motif('connexion.sms_limite') };
+  } else if (!ctx.courriel) return { ok: false, motif: motif('connexion.oubli_indisponible') };
   const code = codeSms();
+  const duree = lu?.methode === 'sms' ? DUREE_DEFI : `${DUREE_DEFI_COURRIEL_MINUTES} minutes`;
   const r = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.renvoyer_defi($1, $2, $3, $4)',
-    [defi, sha256(code), maintenant, `${DUREE_DEFI_COURRIEL_MINUTES} minutes`])).rows[0] as { a_email: string; a_verifiee: boolean } | undefined);
-  if (!r) return { ok: false, motif: motif('connexion.renvoi_impossible') };
+    [defi, sha256(code), maintenant, duree])).rows[0] as { a_email: string; a_verifiee: boolean; a_methode: string; a_telephone: string | null } | undefined);
+  if (!r) return { ok: false, motif: motif(lu?.methode === 'sms' ? 'connexion.renvoi_sms_impossible' : 'connexion.renvoi_impossible') };
+  if (r.a_methode === 'sms') {
+    if (!r.a_telephone || !await envoyerSms(ctx, r.a_telephone, code)) return { ok: false, motif: motif('connexion.sms_rate') };
+    return { ok: true };
+  }
   envoyerCodeParCourriel(ctx, r.a_email, code, r.a_verifiee ? 'appareil' : 'inscription');
   return { ok: true };
 }
@@ -346,11 +384,24 @@ export async function demanderReinitialisation(ctx: Contexte, email: string): Pr
   }).catch((e: unknown) => { console.error(`l'e-mail du mot de passe oublié n'est pas parti : ${String(e)}`); });
 }
 
-// Ce lien vaut-il encore, et faut-il aussi le code du téléphone ?
-export async function lireReinitialisation(ctx: Contexte, jeton: string): Promise<{ valable: boolean; code: boolean }> {
+// Ce lien vaut-il encore, et faut-il aussi le code du téléphone ? Un compte au SMS (0081) reçoit ce code sur demande, à
+// son numéro (`sms` : le numéro masqué).
+export async function lireReinitialisation(ctx: Contexte, jeton: string): Promise<{ valable: boolean; code: boolean; sms: string | null }> {
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
   const r = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.lire_reinitialisation($1, $2)', [sha256(jeton), maintenant])).rows[0]);
-  return r ? { valable: true, code: r.code_methode === 'sms' || r.code_methode === 'application' } : { valable: false, code: false };
+  if (!r) return { valable: false, code: false, sms: null };
+  return { valable: true, code: r.code_methode === 'sms' || r.code_methode === 'application', sms: r.code_methode === 'sms' ? numeroMasque(r.telephone) : null };
+}
+
+// « Recevoir le code par SMS » sur la page du lien (0081) : au numéro du compte, au plus cinq fois par lien, pas deux en
+// moins de 30 secondes, et dans la limite des SMS.
+export async function envoyerCodeReinitialisation(ctx: Contexte, jeton: string): Promise<{ ok: true } | { ok: false; motif: Texte }> {
+  if (ctx.sms.disponible === false) return { ok: false, motif: motif('connexion.sms_indisponible') };
+  const maintenant = (ctx.maintenant ?? (() => new Date()))();
+  const code = codeSms();
+  const tel = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select socle.reinitialisation_sms($1, $2, $3) t', [sha256(jeton), sha256(code), maintenant])).rows[0].t as string | null);
+  if (!tel) return { ok: false, motif: motif('connexion.renvoi_sms_impossible') };
+  return await envoyerSms(ctx, tel, code) ? { ok: true } : { ok: false, motif: motif('connexion.sms_rate') };
 }
 
 export type ResultatReinitialisation = { ok: true } | { ok: false; motif: Texte; champ: 'jeton' | 'code' | 'motDePasse' };
@@ -369,7 +420,10 @@ export async function reinitialiser(ctx: Contexte, demande: { jeton: string; mot
     const saisi = (demande.code ?? '').replace(/\s/g, '');
     if (!saisi) return { ok: false, motif: motif('connexion.oubli_code_manque'), champ: 'code' };
     let bon: boolean;
-    if (/^[0-9]{6}$/.test(saisi)) bon = lu.code_methode === 'application' && verifierTotp(lu.code_secret ?? '', saisi, maintenant.getTime());
+    if (/^[0-9]{6}$/.test(saisi)) {
+      bon = lu.code_methode === 'application' ? verifierTotp(lu.code_secret ?? '', saisi, maintenant.getTime())
+        : !!lu.code_sms && sha256(saisi) === lu.code_sms;
+    }
     else {
       const empreinteSecours = sha256(saisi.toUpperCase().replace(/-/g, ''));
       const restants = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.codes_secours_restants($1)', [lu.utilisateur])).rows);

@@ -2892,12 +2892,12 @@
     decouverte: ['Faire la découverte', () => { const r = decouverteEnPause(); lancerVisite(visiteParId('decouvrir'), r ? r.i : 0); }],
     comptable: ['Relier mon comptable', () => allerParametres('envois', 'p-comptable')],
     // (plateforme, lot onboarding) Les gestes des premiers pas de la plateforme (plateforme/premiers-pas.js) : vérifier son
-    // adresse et activer le code (Ton compte), choisir son activité (l'assistant, revu : rien ne s'écrit avant la fin), le
+    // adresse et choisir son code de connexion (Ton compte), choisir son activité (l'assistant, revu : rien ne s'écrit avant la fin), le
     // RIB (Mon entreprise), confier son dossier à son cabinet (Comptabilité → Ton cabinet comptable).
     adresse: ['Vérifier mon adresse', () => allerParametres('compte', 'p-compte')],
     assistant: ['Choisir mon activité', () => runSetup(true).then(fait => { if (fait) render(true); })],
     rib: ['Ajouter mon RIB', () => allerParametres('societe', 'p-banque:rib')],
-    code: ['Activer le code', () => allerParametres('compte', 'p-compte')],
+    code: ['Choisir mon code', () => allerParametres('compte', 'p-compte')],
     mandat: ['Inviter mon comptable', () => { comptaState.tab = 'cabinet'; navigate('#/compta'); }]
   };
   // Les premiers pas, lus de la MÊME façon partout (accueil, jauge de fin de visite, « Me guider ») :

@@ -176,15 +176,17 @@ describe('le parcours, à la souris', () => {
     await expect.poll(() => p.locator('#view').innerText()).toMatch(/FAC-2026-001[\s\S]*Boulangerie Ennour/);
     await p.screenshot({ path: path.join(PHOTOS, 'parcours-4-liste.png') });
 
-    // Paramètres → Ton compte : le code du téléphone, recommandé, s'active dans une fenêtre en quatre étapes (lot
-    // onboarding) ; rien ne change avant le premier code juste.
+    // Paramètres → Ton compte : ce serveur n'envoie pas d'e-mails, le mot de passe suffit ; une application
+    // d'authentification, recommandée, s'active dans une fenêtre en quatre étapes (lot onboarding ; le choix du code,
+    // 0081) ; rien ne change avant le premier code juste.
     await p.getByRole('link', { name: 'Paramètres', exact: true }).first().click();
     await pageV10(p, /Paramètres/);
     await plusTard(p);
     await p.getByRole('tab', { name: 'Ton compte', exact: true }).click();
     const carte = p.locator('#cpt-code');
-    await expect.poll(() => carte.locator('#cpt-etat').innerText(), { timeout: 15_000 }).toBe('Désactivé');
-    await carte.getByRole('button', { name: 'Activer le code', exact: true }).click();
+    await expect.poll(() => carte.locator('#cpt-etat').innerText(), { timeout: 15_000 }).toBe('Mot de passe seul');
+    expect(await carte.getAttribute('class')).toContain('cpt-recommande');
+    await carte.getByRole('button', { name: 'Utiliser une application…', exact: true }).click();
     const fenetre = p.locator('#modal-root');
     // Le téléphone scanne le code QR (brique 145) : l'image dessinée, relue par un lecteur de QR.
     const pixels = await fenetre.getByRole('img', { name: 'Le code QR à scanner avec ton application d\'authentification' }).evaluate(async (el) => {
@@ -229,7 +231,7 @@ describe('le parcours, à la souris', () => {
     // Le code que montre le téléphone : le code est activé, et la carte le dit.
     await premier.fill(codeTotp(depuisBase32(secret), Date.now()));
     await activer.click();
-    await expect.poll(() => carte.locator('#cpt-etat').innerText()).toBe('Activé');
+    await expect.poll(() => carte.locator('#cpt-etat').innerText()).toBe('Par application');
     expect(await carte.locator('#cpt-restants').innerText()).toBe('10 codes de secours');
     expect(await fenetre.getByRole('button', { name: 'Vérifier et activer' }).count()).toBe(0);
 

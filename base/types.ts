@@ -771,6 +771,9 @@ export interface BaseDeDonnees {
     expire_le: Date;
     erreurs: Generated<number>;
     utilise_le: Date | null;
+    code_sms: string | null;
+    sms_envois: Generated<number>;
+    sms_le: Date | null;
   };
   'socle.serie': {
     id: Generated<string>;
@@ -797,6 +800,12 @@ export interface BaseDeDonnees {
     fermee_le: Date | null;
     ip: string | null;
     caisse_de: string | null;
+  };
+  'socle.sms_envoye': {
+    id: Generated<string>;
+    utilisateur: string;
+    raison: string;
+    le: Date;
   };
   'socle.tentative': {
     cle: string;
@@ -846,6 +855,12 @@ export interface BaseDeDonnees {
     code_secret_attente: string | null;
     code_secours_attente: string[] | null;
     code_attente_le: Date | null;
+    telephone_attente: string | null;
+    code_sms_attente: string | null;
+    code_sms_attente_le: Date | null;
+    code_sms_attente_erreurs: Generated<number>;
+    code_sms_preuve: string | null;
+    code_sms_preuve_le: Date | null;
   };
   'ventes.accord': {
     id: Generated<string>;

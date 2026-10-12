@@ -269,8 +269,11 @@ prouver "une lecture sensible non tracée" $A \
   "if (d.geste.sensible && r.methode === 'GET') {" "if (false) {" \
   "une lecture de donnée sensible est tracée"
 prouver "le code jugé à la connexion seulement" $A \
-  "if (!qui.cle && !qui.codeAConfigurer && (await tx.query('select socle.code_manquant() m')).rows[0].m) qui.codeAConfigurer = true;" "" \
+  "if (!ctx.courriel && !qui.cle && !qui.codeAConfigurer && (await tx.query('select socle.code_manquant() m')).rows[0].m) qui.codeAConfigurer = true;" "" \
   "une session ouverte avant de devenir comptable d'un cabinet"
+prouver "le code par e-mail qui ne suffit pas au comptable d'un cabinet" $A \
+  "if (!ctx.courriel && !qui.cle && !qui.codeAConfigurer" "if (!qui.cle && !qui.codeAConfigurer" \
+  "avec un relais, un comptable sans SMS ni application entre par le code reçu par e-mail, et rien ne lui est bloqué"
 prouver "la trace qu'on modifie" $E \
   "create trigger audit_intouchable before update or delete on socle.audit
   for each row execute function socle.refuser_modification();" "" \
@@ -1088,11 +1091,14 @@ prouver "la base de l'exercice laissée derrière lui" $BS \
 
 # ── Le programme serveur (serveur/principal.ts) ─────────────────────────────────────────────────
 SP=serveur/principal.ts
-prouver "la production qui démarre sans fournisseur de SMS" $SP \
-  "  if (environnement === 'production') throw" "  if (Date.now() < 0) throw" \
+prouver "la production qui démarre sans relais d'e-mails" $SP \
+  "  if (environnement === 'production' && !smtp) throw" "  if (Date.now() < 0) throw" \
+  "une configuration fausse l'arrête"
+prouver "WinSMS choisi sans sa clé" $SP \
+  "    if (!env.SKANFACT_SMS_CLE) throw" "    if (Date.now() < 0) throw" \
   "une configuration fausse l'arrête"
 prouver "un SMS qui ne part pas, en silence" $SP \
-  "{ envoyer: async () => { throw new Refus(" "{ envoyer: async () => { if (Date.now() > 0) return; throw new Refus(" \
+  "envoyer: async () => { throw new Refus('connexion.sms_indisponible'" "envoyer: async () => { if (Date.now() > 0) return; throw new Refus('connexion.sms_indisponible'" \
   "un SMS ne part jamais en silence"
 prouver "un livreur qui ne tourne pas" $SP \
   "    tour = livrerAvis(pool, envoyer)" "    tour = Promise.resolve()" \
@@ -9160,7 +9166,7 @@ KEW2="créer son compte : la jauge dit pendant la frappe ce qui manque, « Affic
 KEW3="ton entreprise : la forme du matricule se dit pendant la frappe, et le haut de la facture se dessine avec ce qui est tapé"
 KEW4="la sécurité du comptable d'un cabinet : son cabinet se dit ; les codes de secours se copient et se téléchargent ; l'ouverture coche ce qui est fait"
 prouver "le mot de passe oublié proposé sans relais d'e-mails (serveur)" serveur/routes/socle.ts \
-  "traiter: async () => ({ corps: { motDePasseOublie: !!ctx.courriel, codeParCourriel: !!ctx.courriel } })," "traiter: async () => ({ corps: { motDePasseOublie: true, codeParCourriel: !!ctx.courriel } })," \
+  "traiter: async () => ({ corps: { motDePasseOublie: !!ctx.courriel, codeParCourriel: !!ctx.courriel, codeParSms: ctx.sms.disponible !== false } })," "traiter: async () => ({ corps: { motDePasseOublie: true, codeParCourriel: !!ctx.courriel, codeParSms: ctx.sms.disponible !== false } })," \
   "$KE1"
 prouver "la demande du mot de passe oublié qui dit si l'adresse a un compte" serveur/connexion.ts \
   "  if (!a) return;" "  if (!a) throw new Refus('connexion.oubli_indisponible');" \
@@ -9246,7 +9252,6 @@ prouver "le haut de la facture dit « à côté » au téléphone, où il est de
 # ── Le relais d'e-mails du serveur d'essai : Resend (09/10/2026 ; docs/mise-en-ligne.md, H) ──
 RC1="la clé ne paraît sur aucune ligne de commande ; l'essai passe, puis les deux réglages remplacent les anciens et SkanFact redémarre"
 RC2="Resend refuse l'essai : rien ne change sur le serveur, et l'écran dit pourquoi le plus souvent"
-RC4="un serveur qui n'est pas d'essai le refuse : son relais sera en Tunisie"
 prouver "la clé de Resend sur la ligne de commande de curl" exploitation/courriel.sh \
   'printf '"'"'user = "resend:%s"\n'"'"' "$CLE" | curl -sS --ssl-reqd' 'printf '"'"'user = "resend:%s"\n'"'"' "$CLE" | curl -sS --user "resend:$CLE" --ssl-reqd' \
   "$RC1"
@@ -9257,15 +9262,13 @@ prouver "les réglages écrits même quand Resend refuse l'essai" exploitation/c
 prouver "l'ancien relais gardé à côté du nouveau" exploitation/courriel.sh \
   "grep -v -e '^SKANFACT_SMTP=' -e '^SKANFACT_COURRIEL_DE=' \"\$REGLAGES\"" 'cat "$REGLAGES"' \
   "$RC1"
-prouver "Resend branché sur un serveur aux vraies données" exploitation/courriel.sh \
-  "grep -qx 'SKANFACT_ENVIRONNEMENT=test' \"\$REGLAGES\" ||" 'true ||' \
-  "$RC4"
 prouver "l'expéditeur hors du domaine vérifié chez Resend" exploitation/courriel.sh \
   'DE=${SKANFACT_COURRIEL_DE:-ne-pas-repondre@send.skanfact.tn}' 'DE=${SKANFACT_COURRIEL_DE:-ne-pas-repondre@skanfact.tn}' \
   "$RC1"
 
 # ── Le lot onboarding : le code par e-mail, Ton compte (0076 ; serveur/connexion.ts, serveur/compte.ts) ──
 C76=base/migrations/0076_code_facultatif.sql
+C81=base/migrations/0081_code_au_choix.sql
 CX=serveur/connexion.ts
 CO=serveur/compte.ts
 CE1="à la première connexion, l'adresse se vérifie par un code reçu par e-mail"
@@ -9289,38 +9292,41 @@ prouver "l'adresse jamais prouvée par le code reçu" $CX \
 prouver "un code par e-mail valable une heure" $CX \
   "const DUREE_DEFI_COURRIEL_MINUTES = 15;" "const DUREE_DEFI_COURRIEL_MINUTES = 60;" \
   "$CE4"
-prouver "un code renvoyé sans attendre" $C76 \
+prouver "un code renvoyé sans attendre" $C81 \
   "coalesce(d.envoye_le, d.cree_le) <= p_maintenant - interval '30 seconds'" "coalesce(d.envoye_le, d.cree_le) <= p_maintenant" \
   "$CE4"
-prouver "des renvois sans fin" $C76 \
+prouver "des renvois sans fin" $C81 \
   "     and d.envois < 5 and coalesce(" "     and d.envois < 500 and coalesce(" \
   "$CE4"
-prouver "l'ancien code valable après un renvoi" $C76 \
+prouver "l'ancien code valable après un renvoi" $C81 \
   "  update socle.defi_connexion d set code_empreinte = p_empreinte, envois = d.envois + 1" "  update socle.defi_connexion d set code_empreinte = d.code_empreinte, envois = d.envois + 1" \
   "$CE4"
 RT1="il faut le code du moment ou un code de secours ; un e-mail le confirme"
 RT4="les erreurs comptent comme à la connexion : une attente qui s'allonge"
 prouver "le code du téléphone retiré sans le prouver" $CO \
   "  if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
-  const a = await" "  const a = await" \
+  // Ce serveur envoie des e-mails" "  // Ce serveur envoie des e-mails" \
   "$RT1"
 prouver "le code retiré sans e-mail qui le confirme" $CO \
   "    void courriel.envoi.envoyer({
       a, objet: rendre(t('compte.code_retire_objet')" "    void Promise.resolve({
       a, objet: rendre(t('compte.code_retire_objet')" \
   "$RT1"
-prouver "les codes de secours gardés après le retrait" $C76 \
+prouver "les codes de secours gardés après le retrait" $C81 \
   "  delete from socle.code_secours where utilisateur = socle.moi();
   perform socle.tracer(null, 'compte.code.retirer'" "  perform socle.tracer(null, 'compte.code.retirer'" \
   "$RT1"
-prouver "un comptable de cabinet qui retire son code" $C76 \
+prouver "un comptable de cabinet qui retire son code" $C81 \
   "    perform socle.refus('le code du téléphone est exigé de chaque comptable d''un cabinet : il ne se retire pas');" "" \
-  "un comptable de cabinet ne retire pas son code : il lui est exigé"
+  "sans relais, son code ne se retire pas (0081)"
+prouver "un comptable de cabinet qui ne revient jamais à l'e-mail" $C81 \
+  "  if not p_courriel and exists (select 1 from socle.membre m" "  if true and exists (select 1 from socle.membre m" \
+  "un comptable de cabinet revient au code par e-mail quand le serveur en envoie"
 prouver "le bon code accepté pendant l'attente" $CO \
   "  if (bloque) return bloque;
   if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
-  const a = await" "  if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
-  const a = await" \
+  // Ce serveur envoie des e-mails" "  if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
+  // Ce serveur envoie des e-mails" \
   "$RT4"
 prouver "les erreurs de code jamais comptées" $CO \
   "(await tx.query('select socle.noter_erreur(\$1, \$2) a', [email, maintenant])).rows[0].a as Date | null);" "(await tx.query('select null::timestamptz a')).rows[0].a as Date | null);" \
@@ -9383,10 +9389,10 @@ prouver "le code préparé posé tout de suite" $C76 \
 prouver "le code activé sans le premier code juste" $CO \
   "    if (!/^[0-9]{6}\$/.test(saisi) || !verifierTotp(secret, saisi, maintenant.getTime())) return { ok: false, motif: motif('compte.code_essai_faux'), champ: 'code' };" "" \
   "$AC1"
-prouver "les codes de secours préparés jamais posés" $C76 \
+prouver "les codes de secours préparés jamais posés" $C81 \
   "  insert into socle.code_secours (utilisateur, empreinte) select socle.moi(), e from unnest(v_secours) e;" "" \
   "$AC1"
-prouver "l'activation du code jamais tracée" $C76 \
+prouver "l'activation du code jamais tracée" $C81 \
   "  perform socle.tracer(null, 'compte.code.activer', 'utilisateur', socle.moi(), null, jsonb_build_object('methode', 'application'));" "" \
   "$AC1"
 prouver "un code préparé valable sans fin" $C76 \
@@ -9401,28 +9407,30 @@ prouver "les codes de secours de la première préparation gardés" $C76 \
   "code_secours_attente = p_empreintes_secours," "code_secours_attente = coalesce(code_secours_attente, p_empreintes_secours)," \
   "$AC2"
 prouver "changer de téléphone sans prouver l'actuel" $CO \
-  "    if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
-    await enTantQue" "    await enTantQue" \
+  "  if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
+  await enTantQue(ctx.pool, null, (tx) => tx.query('select socle.effacer_erreurs(\$1)', [email]));
+  return { email };" "  await enTantQue(ctx.pool, null, (tx) => tx.query('select socle.effacer_erreurs(\$1)', [email]));
+  return { email };" \
   "$AC3"
 prouver "changer de téléphone sans même un code" $CO \
-  "    if (!code?.trim()) return { ok: false, motif: motif('compte.code_actuel_manque'), champ: 'code' };" "" \
+  "  if (!code?.trim()) return { ok: false, motif: motif(parSms ? 'compte.preuve_sms_manque' : 'compte.code_actuel_manque'), champ: 'code' };" "" \
   "$AC3"
-prouver "l'ancien téléphone valable après le changement" $C76 \
+prouver "l'ancien téléphone valable après le changement" $C81 \
   "  update socle.utilisateur set code_methode = 'application', code_secret = v_secret," "  update socle.utilisateur set code_methode = 'application', code_secret = coalesce(code_secret, v_secret)," \
   "$AC3"
-prouver "le code posé d'un coup qui remplace un code actif" $C76 \
+prouver "le code posé d'un coup qui remplace un code actif" $C81 \
   "    perform socle.refus('le code du téléphone est déjà activé : pour changer de téléphone, passe par Ton compte');" "" \
   "le code posé d'un coup (gardé pour l'API) ne remplace pas un code actif"
-prouver "la session réduite gardée après l'activation" $C76 \
+prouver "la session réduite gardée après l'activation" $C81 \
   "  update socle.session set code_a_configurer = false where utilisateur = socle.moi() and fermee_le is null;
-  perform socle.tracer(null, 'compte.code.activer'" "  perform socle.tracer(null, 'compte.code.activer'" \
+  perform socle.tracer(null, 'compte.code.activer', 'utilisateur', socle.moi(), null," "  perform socle.tracer(null, 'compte.code.activer', 'utilisateur', socle.moi(), null," \
   "un comptable de cabinet sans code : l'activation lève la session réduite"
 
 # Les écrans du lot onboarding (09/10/2026) : Ton compte (compte.js, partagé par l'entreprise et le Cabinet), le code
 # reçu par e-mail (CodeCourriel.tsx), et l'écran du code gardé dans l'onglet (App.tsx).
 CPTJS=web/public/plateforme/compte.js
 CPTE="de nouveaux codes de secours, puis le code désactivé"
-CPTC="le Cabinet : le code est exigé et ne se désactive pas"
+CPTC="le Cabinet : avec un relais d'e-mails, le comptable peut revenir à l'e-mail"
 prouver "le code activé sans les codes de secours mis de côté" $CPTJS \
   "          if (!\$('#cpt-garde').checked) {" "          if (false) {" \
   "$PARC"
@@ -9439,7 +9447,7 @@ prouver "le lien de Ton compte qui n'ouvre pas l'application" $CPTJS \
   "<p><a href=\"\${esc(r.adresseApplication)}\">" "<p><a href=\"#\">" \
   "$PARC"
 prouver "le code exigé d'un comptable de cabinet, désactivable à l'écran" $CPTJS \
-  "c.codeExige ? '' : '<button" "false ? '' : '<button" \
+  "!actif ? '' : c.codeExige ? '<span" "!actif ? '' : false ? '<span" \
   "$CPTC"
 prouver "le refus du mot de passe qui ne montre pas sa case" $CPTJS \
   "refuser(racine, x, { actuel: '#cpt-actuel', nouveau: '#cpt-nouveau' })" "refuser(racine, x)" \
@@ -9447,6 +9455,66 @@ prouver "le refus du mot de passe qui ne montre pas sa case" $CPTJS \
 prouver "l'adresse dite changée avant le code reçu" $CPTJS \
   "if (!r.demande) { fermer(); o.toast('Adresse changée.'); fini(); return; }" "{ fermer(); o.toast('Adresse changée.'); fini(); return; }" \
   "$CPTE"
+# ── Le code de connexion au choix (0081 ; serveur/sms.ts, compte.ts, connexion.ts ; compte.js, Code.tsx, Oubli.tsx) ──
+SMS1="un numéro qui n'est pas un mobile tunisien se refuse ; préparé, rien ne change avant le code reçu"
+SMS2="un code reçu il y a plus de 15 minutes ne vaut plus"
+SMS3="le numéro ne se change pas par une simple mise à jour"
+SMS4="changer de numéro prouve d'abord le code actuel"
+SMS5="au plus cinq SMS par heure"
+SMS6="un SMS qui ne part pas laisse le défi ouvert"
+SMSW="le SMS à la souris"
+prouver "un SMS jamais compté" $C81 \
+  "  insert into socle.sms_envoye (utilisateur, raison, le) values (p_utilisateur, p_raison, p_maintenant);" "" \
+  "$SMS5"
+prouver "des SMS sans limite par heure" $C81 \
+  "interval '1 hour') < 5" "interval '1 hour') < 500" \
+  "$SMS5"
+prouver "le numéro qui se change par une simple mise à jour" $C81 \
+  "revoke update (telephone) on socle.utilisateur from skanfact_app;" "grant update (telephone) on socle.utilisateur to skanfact_app;" \
+  "$SMS3"
+prouver "un code SMS faux qui active" $C81 \
+  "  if u.code_sms_attente <> p_code then" "  if false then" \
+  "$SMS1"
+prouver "un code SMS valable sans fin" $C81 \
+  "u.code_sms_attente_le <= p_maintenant - interval '15 minutes'" "u.code_sms_attente_le <= p_maintenant - interval '15 days'" \
+  "$SMS2"
+prouver "la preuve par SMS qui sert deux fois" $C81 \
+  "  update socle.utilisateur set code_sms_preuve = null, code_sms_preuve_le = null
+   where id = socle.moi() and code_methode = 'sms'" "  update socle.utilisateur set code_sms_preuve = code_sms_preuve
+   where id = socle.moi() and code_methode = 'sms'" \
+  "$SMS4"
+prouver "changer de numéro sans prouver l'actuel" $CO \
+  "  const preuve = await prouverCodeActuel(ctx, qui, code);
+  if ('ok' in preuve) return preuve;
+  const nouveau = codeSix();" "  const nouveau = codeSix();" \
+  "$SMS4"
+prouver "le SMS activé sans le code reçu" $CO \
+  "  if (etat === 'faux') return { ok: false, motif: motif('compte.sms_essai_faux'), champ: 'code' };" "" \
+  "$SMS1"
+prouver "un SMS raté qui se dit parti" $CX \
+  " && !await envoyerSms(ctx, aEnvoyer.telephone, aEnvoyer.code)) reponse.envoi = 'rate';" " && !await envoyerSms(ctx, aEnvoyer.telephone, aEnvoyer.code)) void 0;" \
+  "$SMS6"
+prouver "un SMS de connexion qui part au-delà de la limite" $CX \
+  "aEnvoyer: permis ? { telephone: u.telephone as string, code } : null" "aEnvoyer: { telephone: u.telephone as string, code }" \
+  "$SMS5"
+prouver "un refus de WinSMS compté comme parti" serveur/sms.ts \
+  "      if (!r.ok || reponseEnErreur(reponse)) throw" "      if (Date.now() < 0) throw" \
+  "un refus est un envoi raté"
+prouver "un fixe pris pour un mobile" serveur/sms.ts \
+  "  if (!/^[2459][0-9]{7}\$/.test(chiffres)) return null;" "  if (!/^[0-9]{8}\$/.test(chiffres)) return null;" \
+  "les numéros tunisiens se lisent comme on les tape"
+prouver "le code exigé du comptable même avec le relais d'e-mails" serveur/routes/socle.ts \
+  "codeExige: c.code_exige && !ctx.courriel" "codeExige: c.code_exige" \
+  "avec un relais, un comptable sans SMS ni application entre par le code reçu par e-mail"
+prouver "le SMS activé sans montrer les codes de secours" $CPTJS \
+  "          etapeSecours(masque, r.codesDeSecours);" "          fermer();" \
+  "$SMSW"
+prouver "un numéro refusé qui ne montre pas sa case" $CPTJS \
+  "refuser(racine, x, { telephone: '#cpt-numero', code: '#cpt-actuel-code' })" "refuser(racine, x)" \
+  "$SMSW"
+prouver "le numéro entier à l'écran de connexion" serveur/connexion.ts \
+  "telephone: numeroMasque(u.telephone)," "telephone: u.telephone," \
+  "le code par SMS : la connexion dit le numéro à demi caché"
 prouver "l'onglet Ton compte absent des Paramètres" web/public/v10/app.js \
   "const SETTINGS_TABS = [...(bridge.dessinerCompte ? [['compte', 'Ton compte']] : []), " "const SETTINGS_TABS = [" \
   "$CPTE"
@@ -9629,7 +9697,7 @@ prouver "une adresse à vérifier quand rien ne sait envoyer le code" $PPJS \
   "const aVerifier = !!(compte && compte.courriel && !compte.adresseVerifiee);" "const aVerifier = !!(compte && !compte.adresseVerifiee);" \
   "$PP3"
 prouver "le code du téléphone compté fait sans être actif" $PPJS \
-  "const code = !!(compte && compte.codeActif);" "const code = !!compte;" \
+  "const code = !!(compte && (compte.codeActif || compte.courriel));" "const code = !!compte;" \
   "$PP1"
 prouver "une fiche sans matricule comptée faite" $PPJS \
   "    if (!mf) manque.push('ton matricule fiscal');" "    if (!mf) void 0;" \
@@ -9689,9 +9757,13 @@ prouver "la bulle de la page posée sur les premiers pas" $ASAPP \
 prouver "« Ajouter mon RIB » qui ne mène pas à sa case" $ASAPP \
   "    rib: ['Ajouter mon RIB', () => allerParametres('societe', 'p-banque:rib')]," "    rib: ['Ajouter mon RIB', () => allerParametres('societe', 'p-banque')]," \
   "$PPW1"
-prouver "« Activer le code » qui ne mène pas à Ton compte" $ASAPP \
-  "    code: ['Activer le code', () => allerParametres('compte', 'p-compte')]," "    code: ['Activer le code', () => allerParametres('societe')]," \
-  "$PPW1"
+PPW5="sans relais d'e-mails, « Protège ton compte » reste à faire"
+prouver "« Choisir mon code » qui ne mène pas à Ton compte" $ASAPP \
+  "    code: ['Choisir mon code', () => allerParametres('compte', 'p-compte')]," "    code: ['Choisir mon code', () => allerParametres('societe')]," \
+  "$PPW5"
+prouver "le compte dit protégé sans relais d'e-mails" $PPJS \
+  "const code = !!(compte && (compte.codeActif || compte.courriel));" "const code = !!(compte && (compte.codeActif || true));" \
+  "$PPW5"
 prouver "« Inviter mon comptable » qui ne mène pas à l'onglet du cabinet" $ASAPP \
   "    mandat: ['Inviter mon comptable', () => { comptaState.tab = 'cabinet'; navigate('#/compta'); }]" "    mandat: ['Inviter mon comptable', () => navigate('#/compta')]" \
   "$PPW1"

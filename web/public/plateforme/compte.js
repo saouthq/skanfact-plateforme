@@ -1,8 +1,9 @@
 // @ts-check
 // Ton compte (lot onboarding, décision de Skander du 09/10/2026 ; maquettes validées ; migration 0076, docs/entree.md) :
 // le premier onglet des Paramètres de l'entreprise et des Réglages du Cabinet, le même dans les deux. Ton adresse e-mail
-// (vérifiée ou non), ton mot de passe, le code du téléphone (l'activer, de nouveaux codes de secours, changer de
-// téléphone, le désactiver), ce que demande un nouvel appareil, et tes appareils.
+// (vérifiée ou non), ton mot de passe, ton code de connexion — au choix (décision de Skander du 12/10/2026, 0081) :
+// par e-mail (par défaut), par SMS ou par une application, avec ses codes de secours —, ce que demande un nouvel
+// appareil, et tes appareils.
 //
 // Chaque geste qui affaiblit ou déplace le compte se prouve d'abord, et c'est le serveur qui le refuse sinon : le code
 // du moment (ou un code de secours) pour le code, le mot de passe actuel pour le mot de passe et l'adresse. Le code
@@ -24,6 +25,8 @@
     bouclierBarre: '<path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z"/><path d="M4 4l16 16"/>',
     enveloppe: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
     coche: '<path d="M20 6 9 17l-5-5"/>',
+    sms: '<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M9.5 8h5M9.5 11.5h3"/><path d="M11 18h2"/>',
+    appli: '<rect x="6" y="2" width="12" height="20" rx="2"/><circle cx="12" cy="11" r="3"/><path d="M12 9.5V11l1 .8"/><path d="M11 18h2"/>',
   };
   /** @param {keyof typeof DESSINS} id */
   const dessin = (id) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${DESSINS[id]}</svg>`;
@@ -120,20 +123,44 @@
     /** @type {any} */ let moi;
     try { moi = await outils.appel('GET', '/moi'); } catch (x) { el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`; return; }
     const c = moi.compte || {};
-    const actif = moi.code_methode === 'application' || moi.code_methode === 'sms';
+    // Le code de connexion (0081) : « sms », « application », ou rien (l'e-mail par défaut, quand ce serveur en envoie ;
+    // le mot de passe seul sinon).
+    /** @type {'sms' | 'application' | null} */
+    const methode = moi.code_methode === 'application' || moi.code_methode === 'sms' ? moi.code_methode : null;
+    const actif = methode !== null;
     const relais = !!c.courriel;
     const redessiner = () => { void dessiner(el, outils); };
 
-    const etatCode = actif ? (c.codeExige ? ['Exigé', 'cpt-ok'] : ['Activé', 'cpt-ok']) : ['Désactivé', 'cpt-eteint'];
-    const explication = actif
-      ? (c.codeExige ? 'Il est exigé de chaque comptable d\'un cabinet, qui voit les comptes et les salaires de ses clients : il ne se désactive pas.'
-        : 'À chaque connexion depuis un nouvel appareil, SkanFact demande le code de ton application d\'authentification : personne n\'entre à ta place, même avec ton mot de passe.')
-      : 'Recommandé : en plus du mot de passe, un code qui change toutes les 30 secondes sur ton téléphone. Personne n\'entre à ta place, même avec ton mot de passe.';
+    const etatCode = methode === 'sms' ? 'Par SMS' : methode === 'application' ? 'Par application' : relais ? 'Par e-mail' : 'Mot de passe seul';
+    const explication = c.codeExige && !actif
+      ? 'Il est exigé de chaque comptable d\'un cabinet, qui voit les comptes et les salaires de ses clients : choisis le SMS ou une application.'
+      : actif || relais
+        ? 'Sur un appareil que SkanFact ne connaît pas, il faut ton mot de passe et ce code : personne n\'entre à ta place avec ton seul mot de passe.'
+        : 'Ce serveur n\'envoie pas encore d\'e-mails : ton mot de passe suffit. Recommandé : un code par SMS ou dans une application, en plus.';
+    // Les trois choix ; celui du compte est marqué, les autres disent le geste qui y mène.
+    /** @param {string} cle @param {keyof typeof DESSINS} ico @param {string} nom @param {string} texte @param {boolean} choisi @param {string} geste */
+    const option = (cle, ico, nom, texte, choisi, geste) => `<li class="cpt-option${choisi ? ' cpt-choisi' : ''}" data-methode="${cle}">
+        <span class="cpt-ico">${dessin(ico)}</span>
+        <div class="cpt-quoi"><b>${nom}${choisi ? ` <span class="badge cpt-ok">${dessin('coche')}Choisi</span>` : ''}</b><p class="small muted">${texte}</p></div>${geste}</li>`;
+    const courriel = option('courriel', 'enveloppe', relais ? 'Par e-mail' : 'Le mot de passe seul',
+      relais ? `Un code part à <b>${esc(moi.email)}</b> quand tu te connectes depuis un nouvel appareil. Rien à installer.` : 'Ce serveur n\'envoie pas encore d\'e-mails : sans SMS ni application, rien d\'autre n\'est demandé.',
+      !actif, !actif ? '' : c.codeExige ? '<span class="small muted cpt-geste">Exigé : SMS ou application</span>'
+        : `<button type="button" class="btn btn-sm" id="cpt-desactiver">${relais ? 'Revenir à l\'e-mail…' : 'Désactiver le code…'}</button>`);
+    const sms = option('sms', 'sms', 'Par SMS',
+      methode === 'sms' ? `Au <b id="cpt-telephone" class="cpt-masque">${esc(c.telephone || '')}</b>. Le code arrive en quelques secondes ; il faut du réseau mobile.`
+        : c.sms ? 'Un code arrive par SMS sur ton mobile tunisien quand tu te connectes depuis un nouvel appareil.' : 'Ce serveur n\'envoie pas de SMS pour l\'instant.',
+      methode === 'sms', methode === 'sms' ? '<button type="button" class="btn btn-sm" id="cpt-sms">Changer de numéro…</button>'
+        : c.sms ? '<button type="button" class="btn btn-sm" id="cpt-sms">Recevoir par SMS…</button>' : '');
+    const appli = option('application', 'appli', 'Par une application',
+      'Un code qui change toutes les 30 secondes, dans Google Authenticator ou Microsoft Authenticator. Le plus sûr, et il marche sans réseau.',
+      methode === 'application', methode === 'application' ? '<button type="button" class="btn btn-sm" id="cpt-changer">Changer de téléphone…</button>'
+        : '<button type="button" class="btn btn-sm" id="cpt-activer">Utiliser une application…</button>');
+    const recommande = !actif && (!relais || c.codeExige);
     const appareil = actif
-      ? ['Un nouvel appareil demande le code du téléphone', 'C\'est lui qui prouve que c\'est toi sur un appareil que SkanFact ne connaît pas : il remplace l\'e-mail.']
+      ? [`Un nouvel appareil demande ${methode === 'sms' ? 'le code reçu par SMS' : 'le code de ton application'}`, 'C\'est lui qui prouve que c\'est toi sur un appareil que SkanFact ne connaît pas : il remplace l\'e-mail.']
       : relais
         ? ['Un nouvel appareil se vérifie par e-mail', 'Quand tu te connectes depuis un appareil que SkanFact ne connaît pas, un code part à ton adresse. L\'appareil est ensuite reconnu 30 jours.']
-        : ['Un nouvel appareil entre avec le mot de passe', 'Ce serveur n\'envoie pas encore d\'e-mails : rien d\'autre n\'est demandé sur un nouvel appareil. Le code du téléphone le protège.'];
+        : ['Un nouvel appareil entre avec le mot de passe', 'Ce serveur n\'envoie pas encore d\'e-mails : rien d\'autre n\'est demandé sur un nouvel appareil. Un code par SMS ou dans une application le protège.'];
     // Vérifier l'adresse sans en changer (0077) : qui a le code du téléphone ne reçoit jamais de code par e-mail à la
     // connexion. La phrase disait « elle se vérifie à ta prochaine connexion », ce qui était faux pour lui.
     const adresseNote = c.adresseVerifiee
@@ -154,14 +181,14 @@
           <p class="small muted">Il n'est gardé qu'en empreinte : personne ne peut le lire, pas même SkanFact.</p></div>
         <button type="button" class="btn" id="cpt-mdp">Changer le mot de passe…</button>
       </div></section>
-      <section class="cpt-carte cpt-code${actif ? '' : ' cpt-recommande'}" id="cpt-code"><div class="cpt-ligne">
+      <section class="cpt-carte cpt-code${recommande ? ' cpt-recommande' : ''}" id="cpt-code"><div class="cpt-ligne">
         <span class="cpt-ico">${dessin('bouclier')}</span>
-        <div class="cpt-quoi"><h3>Le code du téléphone <span class="badge ${etatCode[1]}" id="cpt-etat">${etatCode[0]}</span></h3>
+        <div class="cpt-quoi"><h3>Ton code de connexion <span class="badge ${actif || relais ? 'cpt-ok' : 'cpt-eteint'}" id="cpt-etat">${etatCode}</span></h3>
           <p class="small muted">${explication}</p></div>
-        ${actif ? '' : '<button type="button" class="btn btn-primary" id="cpt-activer">Activer le code</button>'}
       </div>
-      ${actif ? `<div class="cpt-pied"><span class="small">Avec une application d'authentification · <b id="cpt-restants">${pl(c.codesSecours || 0, 'code de secours', 'codes de secours')}</b> ${(c.codesSecours || 0) > 1 ? 'restants' : 'restant'}</span>
-        <span class="cpt-boutons"><button type="button" class="btn btn-sm" id="cpt-secours">Nouveaux codes de secours…</button><button type="button" class="btn btn-sm" id="cpt-changer">Changer de téléphone…</button>${c.codeExige ? '' : '<button type="button" class="btn btn-sm btn-danger" id="cpt-desactiver">Désactiver…</button>'}</span></div>` : ''}
+      <ul class="cpt-options" aria-label="Où recevoir ton code de connexion">${courriel}${sms}${appli}</ul>
+      ${actif ? `<div class="cpt-pied"><span class="small">Si ${methode === 'sms' ? 'ton mobile n\'est pas là' : 'tu perds ton téléphone'} : <b id="cpt-restants">${pl(c.codesSecours || 0, 'code de secours', 'codes de secours')}</b> ${(c.codesSecours || 0) > 1 ? 'restants' : 'restant'}</span>
+        <span class="cpt-boutons"><button type="button" class="btn btn-sm" id="cpt-secours">Nouveaux codes de secours…</button></span></div>` : ''}
       </section>
       <section class="cpt-carte cpt-discret"><div class="cpt-ligne">
         <span class="cpt-ico">${dessin('enveloppe')}</span>
@@ -173,10 +200,11 @@
     $('#cpt-adresse').onclick = () => changerAdresse(outils, relais, moi.email, redessiner);
     if ($('#cpt-verifier')) $('#cpt-verifier').onclick = () => verifierAdresse(outils, moi.email, redessiner);
     $('#cpt-mdp').onclick = () => changerMotDePasse(outils, c.motDePasseMin || 10, redessiner);
-    if ($('#cpt-activer')) $('#cpt-activer').onclick = () => activer(outils, false, redessiner);
-    if ($('#cpt-changer')) $('#cpt-changer').onclick = () => activer(outils, true, redessiner);
-    if ($('#cpt-secours')) $('#cpt-secours').onclick = () => nouveauxSecours(outils, redessiner);
-    if ($('#cpt-desactiver')) $('#cpt-desactiver').onclick = () => desactiver(outils, relais, moi.email, redessiner);
+    if ($('#cpt-activer')) $('#cpt-activer').onclick = () => activer(outils, methode, redessiner);
+    if ($('#cpt-changer')) $('#cpt-changer').onclick = () => activer(outils, methode, redessiner);
+    if ($('#cpt-sms')) $('#cpt-sms').onclick = () => activerSms(outils, methode, redessiner);
+    if ($('#cpt-secours')) $('#cpt-secours').onclick = () => nouveauxSecours(outils, methode, redessiner);
+    if ($('#cpt-desactiver')) $('#cpt-desactiver').onclick = () => desactiver(outils, methode, relais, moi.email, redessiner);
   }
 
   // ── Vérifier son adresse (0077) : un code y part ; tapé, il la prouve ──────────────────────────────────────────────
@@ -275,10 +303,29 @@
     });
   }
 
-  // ── Activer le code (ou changer de téléphone) : préparé, puis activé par le premier code juste ───────────────────
-  /** @param {Outils} o @param {boolean} changer @param {() => void} fini */
-  function activer(o, changer, fini) {
-    o.modal(`<h2>${changer ? 'Changer de téléphone' : 'Activer le code du téléphone'}</h2><div id="cpt-corps" class="cpt-form"></div>`, (racine, fermer) => {
+  // ── Prouver le code actuel (0081) : celui de l'application, ou celui reçu par SMS (demandé ici), ou un code de secours ─
+  /** @param {'sms' | 'application' | null} methode @param {string} [libelle] */
+  const champActuel = (methode, libelle) => `<label class="field">${libelle || (methode === 'sms' ? 'Le code reçu par SMS, ou un code de secours' : 'Le code de ton application, ou un code de secours')}<input type="text" id="cpt-actuel-code" class="cpt-code-champ" autocomplete="one-time-code"></label>
+    ${methode === 'sms' ? '<p class="cpt-preuve"><button type="button" class="btn btn-sm" id="cpt-preuve">M\'envoyer un code par SMS</button><span class="small muted" id="cpt-preuve-dit" aria-live="polite"></span></p>' : ''}`;
+  /** @param {HTMLElement} racine @param {Outils} o */
+  function brancherPreuve(racine, o) {
+    surClic(racine, '#cpt-preuve', async () => {
+      effacerRefus(racine);
+      /** @type {any} */ let r;
+      try { r = await o.appel('POST', '/moi/code/sms/preuve', {}); } catch (x) { refuser(racine, x); return; }
+      const dit = racine.querySelector('#cpt-preuve-dit');
+      if (dit) dit.textContent = `Code envoyé au ${r.telephone} : il vaut 10 minutes, une fois.`;
+      const b = racine.querySelector('#cpt-preuve');
+      if (b) b.textContent = 'Renvoyer le SMS';
+      /** @type {HTMLInputElement | null} */ (racine.querySelector('#cpt-actuel-code'))?.focus();
+    });
+  }
+
+  // ── Utiliser une application (ou changer de téléphone) : préparé, puis activé par le premier code juste ───────────
+  /** @param {Outils} o @param {'sms' | 'application' | null} methode @param {() => void} fini */
+  function activer(o, methode, fini) {
+    const changer = methode === 'application';
+    o.modal(`<h2>${changer ? 'Changer de téléphone' : 'Utiliser une application d\'authentification'}</h2><div id="cpt-corps" class="cpt-form"></div>`, (racine, fermer) => {
       const corps = /** @type {HTMLElement} */ (racine.querySelector('#cpt-corps'));
       const $ = (/** @type {string} */ q) => /** @type {HTMLInputElement} */ (racine.querySelector(q));
       /** @param {string} [actuel] */
@@ -319,39 +366,107 @@
           }
           try { await o.appel('POST', '/moi/code/activer', { code: $('#cpt-premier').value }); } catch (x) { refuser(racine, x, { code: '#cpt-premier' }); return; }
           fermer();
-          o.toast(changer ? 'C\'est fait : SkanFact demandera le code de ton nouveau téléphone.' : 'Le code du téléphone est activé : il sera demandé sur chaque nouvel appareil.');
+          o.toast(changer ? 'C\'est fait : SkanFact demandera le code de ton nouveau téléphone.' : 'C\'est fait : SkanFact demandera le code de ton application sur chaque nouvel appareil.');
           fini();
         });
         $('#cpt-premier').focus();
       };
-      if (!changer) { corps.innerHTML = '<p class="small muted">Un instant…</p><p class="small cpt-alerte" role="alert"></p>'; void preparer(); return; }
-      // Changer de téléphone : le code actuel d'abord (une session volée ne suffit pas à mettre le sien à la place).
-      corps.innerHTML = `<p class="small muted">Le code de ton téléphone actuel reste valable tant que le nouveau n'a pas donné son premier code.</p>
-        <label class="field">Le code de ton téléphone actuel, ou un code de secours<input type="text" id="cpt-actuel-code" class="cpt-code-champ" autocomplete="one-time-code"></label>
+      if (!methode) { corps.innerHTML = '<p class="small muted">Un instant…</p><p class="small cpt-alerte" role="alert"></p>'; void preparer(); return; }
+      // Un code déjà en place (changer de téléphone, ou passer du SMS à l'application) : l'actuel d'abord (une session
+      // volée ne suffit pas à mettre son téléphone à la place du sien).
+      corps.innerHTML = `<p class="small muted">${changer ? 'Le code de ton téléphone actuel reste valable tant que le nouveau n\'a pas donné son premier code.' : 'Le SMS reste ton code tant que l\'application n\'a pas donné son premier code.'}</p>
+        ${champActuel(methode, changer ? 'Le code de ton téléphone actuel, ou un code de secours' : undefined)}
         <p class="small muted">C'est ce qui prouve que c'est bien toi qui le demandes.</p>
         <div class="modal-actions"><button type="button" class="btn" data-close-code>Annuler</button><button type="button" class="btn btn-primary" id="cpt-continuer">Continuer</button></div>
         <p class="small cpt-alerte" role="alert"></p>`;
       /** @type {HTMLElement} */ (racine.querySelector('[data-close-code]')).onclick = () => fermer();
+      brancherPreuve(racine, o);
       surClic(racine, '#cpt-continuer', async () => { effacerRefus(racine); await preparer($('#cpt-actuel-code').value); });
       $('#cpt-actuel-code').focus();
     }, undefined, { garde: false });
   }
 
+  // ── Recevoir le code par SMS (ou changer de numéro) : un code part au numéro, puis le code reçu l'active (0081) ──────
+  /** @param {Outils} o @param {'sms' | 'application' | null} methode @param {() => void} fini */
+  function activerSms(o, methode, fini) {
+    const changer = methode === 'sms';
+    o.modal(`<h2>${changer ? 'Changer de numéro' : 'Recevoir ton code par SMS'}</h2><div id="cpt-corps" class="cpt-form"></div>`, (racine, fermer) => {
+      const corps = /** @type {HTMLElement} */ (racine.querySelector('#cpt-corps'));
+      const $ = (/** @type {string} */ q) => /** @type {HTMLInputElement} */ (racine.querySelector(q));
+      const annuler = () => { /** @type {HTMLElement} */ (racine.querySelector('[data-close-code]')).onclick = () => fermer(); };
+      let numero = '';
+      const etapeNumero = () => {
+        const avant = methode === 'sms' ? 'Ton numéro actuel reste celui du compte tant que le nouveau n\'a pas reçu et donné son code.'
+          : methode === 'application' ? 'Ton application reste ton code tant que le SMS n\'a pas donné son premier code.'
+            : 'Quand tu te connecteras depuis un appareil que SkanFact ne connaît pas, un code à six chiffres arrivera par SMS sur ce numéro.';
+        corps.innerHTML = `<p class="small muted">${avant}</p>
+          ${methode ? champActuel(methode) : ''}
+          <label class="field">Ton numéro de mobile<input type="tel" id="cpt-numero" autocomplete="tel-national" inputmode="tel" placeholder="22 123 456" value="${esc(numero)}"></label>
+          <p class="small muted">Un mobile tunisien, huit chiffres. Seuls ce numéro et le code partent chez le fournisseur de SMS.</p>
+          <div class="modal-actions"><button type="button" class="btn" data-close-code>Annuler</button><button type="button" class="btn btn-primary" id="cpt-envoyer">Envoyer le code</button></div>
+          <p class="small cpt-alerte" role="alert"></p>`;
+        annuler();
+        brancherPreuve(racine, o);
+        surClic(racine, '#cpt-envoyer', async () => {
+          effacerRefus(racine);
+          numero = $('#cpt-numero').value;
+          /** @type {any} */ let r;
+          try { r = await o.appel('POST', '/moi/code/sms/preparer', { telephone: numero, ...(methode ? { code: $('#cpt-actuel-code').value } : {}) }); } catch (x) { refuser(racine, x, { telephone: '#cpt-numero', code: '#cpt-actuel-code' }); return; }
+          etapeCode(String(r.telephone));
+        });
+        (methode ? $('#cpt-actuel-code') : $('#cpt-numero')).focus();
+      };
+      /** @param {string} masque */
+      const etapeCode = (masque) => {
+        corps.innerHTML = `<p>On vient d'envoyer un code par SMS au <b class="cpt-masque">${esc(masque)}</b>. Il reste valable 15 minutes.</p>
+          <label class="field">Le code reçu par SMS<input type="text" id="cpt-code-sms" class="cpt-code-champ" autocomplete="one-time-code" inputmode="numeric" maxlength="7"></label>
+          <p class="small muted cpt-preuve">Rien reçu ? <button type="button" class="btn btn-sm" id="cpt-autre">Corriger le numéro ou renvoyer</button></p>
+          <div class="modal-actions"><button type="button" class="btn" data-close-code>Annuler</button><button type="button" class="btn btn-primary" id="cpt-ok">Vérifier et activer</button></div>
+          <p class="small cpt-alerte" role="alert"></p>`;
+        annuler();
+        /** @type {HTMLElement} */ (racine.querySelector('#cpt-autre')).onclick = () => etapeNumero();
+        surClic(racine, '#cpt-ok', async () => {
+          effacerRefus(racine);
+          /** @type {any} */ let r;
+          try { r = await o.appel('POST', '/moi/code/sms/activer', { code: $('#cpt-code-sms').value }); } catch (x) { refuser(racine, x, { code: '#cpt-code-sms' }); return; }
+          etapeSecours(masque, r.codesDeSecours);
+          // La carte, derrière la fenêtre, dit déjà le SMS.
+          fini();
+        });
+        $('#cpt-code-sms').focus();
+      };
+      // Le SMS est activé : ses codes de secours, montrés une fois.
+      /** @param {string} masque @param {string[]} codes */
+      const etapeSecours = (masque, codes) => {
+        corps.innerHTML = `<p class="small"><b>C'est fait :</b> ton code arrivera désormais par SMS au <span class="cpt-masque">${esc(masque)}</span>. Voici tes codes de secours : si ton mobile n'est pas là, chacun remplace une fois le code. Ils ne se montreront plus.</p>
+          ${blocSecours(codes)}
+          <div class="modal-actions"><button type="button" class="btn btn-primary" id="cpt-fini">Je les ai mis de côté</button></div>
+          <p class="small cpt-alerte" role="alert"></p>`;
+        brancherSecours(racine, codes, (t) => { const a = racine.querySelector('[role=alert]'); if (a) a.textContent = t; });
+        const b = /** @type {HTMLElement} */ (racine.querySelector('#cpt-fini'));
+        b.onclick = () => { fermer(); o.toast(changer ? 'C\'est fait : ton code arrivera à ton nouveau numéro.' : 'C\'est fait : ton code arrivera par SMS sur chaque nouvel appareil.'); };
+        b.focus();
+      };
+      etapeNumero();
+    }, undefined, { garde: false });
+  }
+
   // ── De nouveaux codes de secours : le code du moment, puis les nouveaux (les anciens ne valent plus) ───────────────
-  /** @param {Outils} o @param {() => void} fini */
-  function nouveauxSecours(o, fini) {
+  /** @param {Outils} o @param {'sms' | 'application' | null} methode @param {() => void} fini */
+  function nouveauxSecours(o, methode, fini) {
     o.modal(`<h2>De nouveaux codes de secours</h2>
       <div id="cpt-corps" class="cpt-form"><p class="small muted">Les anciens ne vaudront plus : utile si tu les as perdus, ou s'il t'en reste peu.</p>
-        <label class="field">Le code de ton application, ou un code de secours<input type="text" id="cpt-actuel-code" class="cpt-code-champ" autocomplete="one-time-code"></label>
+        ${champActuel(methode)}
         <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="cpt-ok">Créer de nouveaux codes</button></div>
         <p class="small cpt-alerte" role="alert"></p></div>`, (racine, fermer) => {
       const $ = (/** @type {string} */ q) => /** @type {HTMLInputElement} */ (racine.querySelector(q));
+      brancherPreuve(racine, o);
       surClic(racine, '#cpt-ok', async () => {
         effacerRefus(racine);
         /** @type {any} */ let r;
         try { r = await o.appel('POST', '/moi/code/secours', { code: $('#cpt-actuel-code').value }); } catch (x) { refuser(racine, x, { code: '#cpt-actuel-code' }); return; }
         const corps = /** @type {HTMLElement} */ (racine.querySelector('#cpt-corps'));
-        corps.innerHTML = `<p class="small">Voici tes nouveaux codes : les anciens ne valent plus. Chacun remplace une fois le code du téléphone ; ils ne se montreront plus.</p>
+        corps.innerHTML = `<p class="small">Voici tes nouveaux codes : les anciens ne valent plus. Chacun remplace une fois ton code ; ils ne se montreront plus.</p>
           ${blocSecours(r.codesDeSecours)}
           <div class="modal-actions"><button type="button" class="btn btn-primary" id="cpt-fini">Je les ai mis de côté</button></div>
           <p class="small cpt-alerte" role="alert"></p>`;
@@ -362,25 +477,28 @@
     }, undefined, { garde: false });
   }
 
-  // ── Désactiver le code : le code du moment (ou un code de secours) ; un e-mail le confirme ─────────────────────────
-  /** @param {Outils} o @param {boolean} relais @param {string} email @param {() => void} fini */
-  function desactiver(o, relais, email, fini) {
+  // ── Revenir à l'e-mail (ou, sans relais, désactiver le code) : le code du moment ; un e-mail le confirme ───────────
+  /** @param {Outils} o @param {'sms' | 'application' | null} methode @param {boolean} relais @param {string} email @param {() => void} fini */
+  function desactiver(o, methode, relais, email, fini) {
+    const quoi = methode === 'sms' ? 'le SMS' : 'l\'application';
     o.modal(`<div id="cpt-corps" class="cpt-form"><span class="cpt-ico cpt-ico-alerte">${dessin('bouclierBarre')}</span>
-      <h2>Désactiver le code du téléphone ?</h2>
-      <p class="small">Sans lui, ton mot de passe suffira pour entrer dans ton compte, et dans chacune de tes entreprises.${relais ? ' Un e-mail te le confirmera, pour que tu le saches si ce n\'est pas toi.' : ''}</p>
-      <label class="field">Le code de ton application, ou un code de secours<input type="text" id="cpt-actuel-code" class="cpt-code-champ" autocomplete="one-time-code"></label>
+      <h2>${relais ? 'Revenir au code par e-mail ?' : 'Désactiver le code ?'}</h2>
+      <p class="small">${relais ? `Sur un nouvel appareil, ton code arrivera à ${esc(email)} au lieu de ${quoi} : celui qui lit tes e-mails pourrait alors entrer avec ton mot de passe. Un e-mail te le confirmera, pour que tu le saches si ce n'est pas toi.`
+        : 'Sans lui, ton mot de passe suffira pour entrer dans ton compte, et dans chacune de tes entreprises.'}</p>
+      ${champActuel(methode)}
       <p class="small muted">C'est ce qui prouve que c'est bien toi qui le demandes.</p>
-      <div class="modal-actions"><button type="button" class="btn btn-danger" id="cpt-ok">Désactiver</button><button type="button" class="btn btn-primary" data-close>Garder le code</button></div>
+      <div class="modal-actions"><button type="button" class="btn btn-danger" id="cpt-ok">${relais ? 'Revenir à l\'e-mail' : 'Désactiver'}</button><button type="button" class="btn btn-primary" data-close>Garder ${quoi}</button></div>
       <p class="small cpt-alerte" role="alert"></p></div>`, (racine, fermer) => {
       const $ = (/** @type {string} */ q) => /** @type {HTMLInputElement} */ (racine.querySelector(q));
+      brancherPreuve(racine, o);
       surClic(racine, '#cpt-ok', async () => {
         effacerRefus(racine);
         /** @type {any} */ let r;
         try { r = await o.appel('POST', '/moi/code/retirer', { code: $('#cpt-actuel-code').value }); } catch (x) { refuser(racine, x, { code: '#cpt-actuel-code' }); return; }
         const corps = /** @type {HTMLElement} */ (racine.querySelector('#cpt-corps'));
         corps.innerHTML = `<span class="cpt-ico">${dessin('enveloppe')}</span>
-          <h2>Le code du téléphone est désactivé</h2>
-          <p class="small">${r.confirme ? `Un e-mail de confirmation est parti à ${esc(email)}. ` : ''}Tu peux le réactiver quand tu veux, ici même.</p>
+          <h2>${relais ? 'Ton code arrive désormais par e-mail' : 'Le code est désactivé'}</h2>
+          <p class="small">${r.confirme ? `Un e-mail de confirmation est parti à ${esc(email)}. ` : ''}Tu peux choisir le SMS ou une application quand tu veux, ici même.</p>
           <div class="modal-actions"><button type="button" class="btn btn-primary" id="cpt-fini">Revenir aux paramètres</button></div>`;
         /** @type {HTMLElement} */ (racine.querySelector('#cpt-fini')).onclick = () => fermer();
         /** @type {HTMLElement} */ (racine.querySelector('#cpt-fini')).focus();

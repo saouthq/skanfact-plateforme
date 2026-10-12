@@ -3,10 +3,11 @@
 // serveur :
 //   - l'adresse change par un code reçu à la nouvelle (le mot de passe actuel d'abord), et l'ancienne est prévenue ;
 //   - le mot de passe change par l'actuel ; chaque refus se dit sous les boutons, et sa case se marque ;
-//   - le code du téléphone : de nouveaux codes de secours, puis le désactiver, chaque fois par le code du moment ; un
-//     e-mail confirme la désactivation ;
-//   - au Cabinet, le code est exigé : il ne se désactive pas ; changer de téléphone demande le code actuel, et le
-//     nouveau ne remplace l'ancien qu'à son premier code juste.
+//   - le code de connexion au choix (0081) : l'e-mail par défaut ; une application, puis de nouveaux codes de secours et
+//     le retour à l'e-mail, chaque fois par le code du moment (un e-mail confirme le retour) ;
+//   - le SMS : le numéro, le code reçu, les codes de secours ; changer de numéro par un code de preuve reçu par SMS ;
+//   - au Cabinet, avec un relais d'e-mails, le comptable revient à l'e-mail s'il le veut ; changer de téléphone demande
+//     le code actuel, et le nouveau ne remplace l'ancien qu'à son premier code juste.
 // L'activation (le code QR relu) est jouée par le parcours : tests/web/parcours.test.ts.
 
 import fs from 'node:fs';
@@ -28,18 +29,23 @@ const phrase = (cle: string, v: Record<string, string | number> = {}) => rendre(
 describe('ton compte, à la souris', () => {
   let navigateur: Browser;
   let serveur: Awaited<ReturnType<typeof demarrer>>;
+  // Le même, sans relais d'e-mails : le code y est encore exigé du comptable d'un cabinet (0076, 0081).
+  let sansCourriel: Awaited<ReturnType<typeof demarrer>>;
   const partis: Courriel[] = [];
+  // Ce qui partirait chez le fournisseur de SMS : le numéro et le texte.
+  const sms: { telephone: string; texte: string }[] = [];
   const admin = new pg.Client({ connectionString: inject('pgAdmin') });
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-compte-'));
   beforeAll(async () => {
     await admin.connect();
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 },
-      { courriel: { envoyer: async (m) => { partis.push(m); } } });
+      { courriel: { envoyer: async (m) => { partis.push(m); } }, sms: { envoyer: async (telephone, texte) => { sms.push({ telephone, texte }); } } });
+    sansCourriel = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
     navigateur = await chromium.launch();
     fs.mkdirSync(PHOTOS, { recursive: true });
   }, 120_000);
-  afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); await admin.end(); fs.rmSync(dossier, { recursive: true, force: true }); });
+  afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); await sansCourriel?.arreter(); await admin.end(); fs.rmSync(dossier, { recursive: true, force: true }); });
 
   const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
     const r = await fetch(`${serveur.adresse}/v1${chemin}`, {
@@ -61,8 +67,8 @@ describe('ton compte, à la souris', () => {
   }
   // Les Paramètres (ou les Réglages du Cabinet), l'onglet Ton compte ; sans adresse, la page rechargée (une même adresse
   // ne recharge rien).
-  async function ouvrirCompte(p: Page, adresse?: string) {
-    if (adresse) await p.goto(`${serveur.adresse}${adresse}`); else await p.reload();
+  async function ouvrirCompte(p: Page, adresse?: string, base = serveur.adresse) {
+    if (adresse) await p.goto(`${base}${adresse}`); else await p.reload();
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     await p.getByRole('tab', { name: 'Ton compte', exact: true }).click();
@@ -88,12 +94,15 @@ describe('ton compte, à la souris', () => {
     const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Librairie Ennour' })).corps.id);
     const { p, erreurs } = await page(jeton);
     await ouvrirCompte(p, `/v10/?e=${ent}#/parametres`);
-    // Les cartes : l'adresse vérifiée, le code recommandé (pas activé), un nouvel appareil vérifié par e-mail.
+    // Les cartes : l'adresse vérifiée, le code par e-mail (le choix par défaut : rien à activer), le SMS et l'application
+    // proposés, un nouvel appareil vérifié par e-mail.
     await expect.poll(() => p.locator('#cpt-email').innerText(), { timeout: 15_000 }).toBe(email);
     expect(await p.locator('.cpt-carte').filter({ has: p.locator('#cpt-email') }).innerText()).toContain('Vérifiée');
-    expect(await p.locator('#cpt-etat').innerText()).toBe('Désactivé');
-    expect(await p.locator('#cpt-code').getAttribute('class')).toContain('cpt-recommande');
-    expect(await p.locator('#cpt-code').getByRole('button', { name: 'Activer le code', exact: true }).count()).toBe(1);
+    expect(await p.locator('#cpt-etat').innerText()).toBe('Par e-mail');
+    expect(await p.locator('#cpt-code').getAttribute('class')).not.toContain('cpt-recommande');
+    expect(await p.locator('.cpt-option.cpt-choisi').getAttribute('data-methode')).toBe('courriel');
+    expect(await p.locator('#cpt-code').getByRole('button', { name: 'Recevoir par SMS…', exact: true }).count()).toBe(1);
+    expect(await p.locator('#cpt-code').getByRole('button', { name: 'Utiliser une application…', exact: true }).count()).toBe(1);
     expect(await p.locator('.cpt-discret').innerText()).toContain('Un nouvel appareil se vérifie par e-mail');
     await p.screenshot({ path: path.join(PHOTOS, 'compte-1-entreprise.png') });
 
@@ -145,10 +154,10 @@ describe('ton compte, à la souris', () => {
     // Le code activé (d'un coup, par l'API : l'activation à l'écran est au parcours) : la carte le dit, avec ses codes.
     const secret = String((await api('POST', '/moi/code', jeton, { methode: 'application' })).corps.cle);
     await ouvrirCompte(p);
-    await expect.poll(() => p.locator('#cpt-etat').innerText(), { timeout: 15_000 }).toBe('Activé');
+    await expect.poll(() => p.locator('#cpt-etat').innerText(), { timeout: 15_000 }).toBe('Par application');
     expect(await p.locator('#cpt-restants').innerText()).toBe('10 codes de secours');
-    expect(await p.locator('#cpt-code').getAttribute('class')).not.toContain('cpt-recommande');
-    expect(await p.locator('.cpt-discret').innerText()).toContain('Un nouvel appareil demande le code du téléphone');
+    expect(await p.locator('.cpt-option.cpt-choisi').getAttribute('data-methode')).toBe('application');
+    expect(await p.locator('.cpt-discret').innerText()).toContain('Un nouvel appareil demande le code de ton application');
 
     // De nouveaux codes de secours : le code du moment d'abord ; les dix nouveaux se montrent une fois.
     await p.getByRole('button', { name: 'Nouveaux codes de secours…', exact: true }).click();
@@ -165,23 +174,23 @@ describe('ton compte, à la souris', () => {
     await expect.poll(() => fenetre(p).locator('.cpt-secours').count()).toBe(0);
     expect(await p.locator('#cpt-restants').innerText()).toBe('10 codes de secours');
 
-    // Désactiver : demandé, le code du moment d'abord (un faux est refusé) ; un e-mail le confirme.
-    await p.getByRole('button', { name: 'Désactiver…', exact: true }).click();
-    const garder = bouton(p, 'Garder le code');
+    // Revenir à l'e-mail : demandé, le code du moment d'abord (un faux est refusé) ; un e-mail le confirme.
+    await p.getByRole('button', { name: 'Revenir à l\'e-mail…', exact: true }).click();
+    const garder = bouton(p, 'Garder l\'application');
     expect(await garder.getAttribute('class')).toContain('btn-primary');
     await champ(p, 'Le code de ton application, ou un code de secours').fill(faux(codeTotp(depuisBase32(secret), Date.now())));
-    await bouton(p, 'Désactiver').click();
+    await bouton(p, 'Revenir à l\'e-mail').click();
     await expect.poll(() => refus(p).innerText()).toBe(phrase('connexion.code_faux'));
     expect((await api('GET', '/moi', jeton)).corps.code_methode).toBe('application');
     // Un des nouveaux codes de secours le remplace.
     await champ(p, 'Le code de ton application, ou un code de secours').fill(secours[0] ?? '');
-    await bouton(p, 'Désactiver').click();
-    await expect.poll(() => fenetre(p).locator('h2').innerText()).toBe('Le code du téléphone est désactivé');
+    await bouton(p, 'Revenir à l\'e-mail').click();
+    await expect.poll(() => fenetre(p).locator('h2').innerText()).toBe('Ton code arrive désormais par e-mail');
     expect(await fenetre(p).innerText()).toContain(`Un e-mail de confirmation est parti à ${nouvelle}.`);
-    expect(partis.filter((m) => m.a === nouvelle).at(-1)?.objet).toBe('Le code du téléphone a été désactivé');
+    expect(partis.filter((m) => m.a === nouvelle).at(-1)?.objet).toBe('Ton code de connexion arrive désormais par e-mail');
     await p.screenshot({ path: path.join(PHOTOS, 'compte-2-desactive.png') });
     await bouton(p, 'Revenir aux paramètres').click();
-    await expect.poll(() => p.locator('#cpt-etat').innerText()).toBe('Désactivé');
+    await expect.poll(() => p.locator('#cpt-etat').innerText()).toBe('Par e-mail');
     expect((await api('GET', '/moi', jeton)).corps.code_methode).toBeNull();
     expect(erreurs).toEqual([]);
     await p.context().close();
@@ -220,16 +229,16 @@ describe('ton compte, à la souris', () => {
     await p.context().close();
   }, 120_000);
 
-  it('le Cabinet : le code est exigé et ne se désactive pas ; changer de téléphone demande le code actuel, et le nouveau ne vaut qu\'à son premier code', async () => {
+  it('le Cabinet : avec un relais d\'e-mails, le comptable peut revenir à l\'e-mail ; changer de téléphone demande le code actuel, et le nouveau ne vaut qu\'à son premier code', async () => {
     const { email, jeton } = await personne('karim');
     const cabinet = String((await api('POST', '/cabinets', jeton, { nom: 'Cabinet Ben Salah' })).corps.id);
     const ancien = String((await api('POST', '/moi/code', jeton, { methode: 'application' })).corps.cle);
     const secretEnBase = async () => (await admin.query('select code_secret from socle.utilisateur where email = $1', [email])).rows[0]?.code_secret as string;
     const { p, erreurs } = await page(jeton);
     await ouvrirCompte(p, `/v10/cabinet/?c=${cabinet}#/reglages`);
-    await expect.poll(() => p.locator('#cpt-etat').innerText(), { timeout: 15_000 }).toBe('Exigé');
-    expect(await p.locator('#cpt-code').innerText()).toContain('Il est exigé de chaque comptable d\'un cabinet');
-    expect(await p.getByRole('button', { name: 'Désactiver…' }).count()).toBe(0);
+    await expect.poll(() => p.locator('#cpt-etat').innerText(), { timeout: 15_000 }).toBe('Par application');
+    expect(((await api('GET', '/moi', jeton)).corps.compte as { codeExige: boolean; comptable: boolean })).toMatchObject({ codeExige: false, comptable: true });
+    expect(await p.getByRole('button', { name: 'Revenir à l\'e-mail…' }).count()).toBe(1);
     expect(await p.locator('#cpt-restants').innerText()).toBe('10 codes de secours');
     // Tes appareils, dans le même onglet.
     await expect.poll(() => p.locator('#appareils-liste').innerText()).toContain('cet appareil');
@@ -262,7 +271,112 @@ describe('ton compte, à la souris', () => {
     await bouton(p, 'Vérifier et activer').click();
     await expect.poll(() => p.locator('#toast').innerText()).toBe('C\'est fait : SkanFact demandera le code de ton nouveau téléphone.');
     expect(await secretEnBase()).toBe(nouveau);
-    await expect.poll(() => p.locator('#cpt-etat').innerText()).toBe('Exigé');
+    await expect.poll(() => p.locator('#cpt-etat').innerText()).toBe('Par application');
+
+    // Le même compte sur un serveur sans relais d'e-mails : le code y est exigé du comptable d'un cabinet (0076), et
+    // rien ne propose de le retirer ; la ligne de l'e-mail dit ce qui est exigé.
+    await ouvrirCompte(p, `/v10/cabinet/?c=${cabinet}#/reglages`, sansCourriel.adresse);
+    await expect.poll(() => p.locator('#cpt-etat').innerText(), { timeout: 15_000 }).toBe('Par application');
+    expect(await p.locator('.cpt-option[data-methode=courriel]').innerText()).toContain('Exigé : SMS ou application');
+    expect(await p.getByRole('button', { name: 'Désactiver le code…' }).count()).toBe(0);
+    expect(erreurs).toEqual([]);
+    await p.context().close();
+  }, 120_000);
+
+  // Le code par SMS (0081) : un numéro mal tapé se refuse sur sa case, sans rien envoyer ; un code part au mobile donné,
+  // et rien ne change avant qu'il soit tapé ; puis les codes de secours. Changer de numéro se prouve par un code reçu
+  // à l'ancien ; revenir à l'e-mail aussi. Ce qui part chez le fournisseur : le numéro et le code, rien d'autre.
+  it('le SMS à la souris : le numéro, le code reçu, les codes de secours ; changer de numéro, puis revenir à l\'e-mail, par un code reçu par SMS', async () => {
+    const { email, jeton } = await personne('lina');
+    const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Atelier Lina' })).corps.id);
+    const { p, erreurs } = await page(jeton);
+    await ouvrirCompte(p, `/v10/?e=${ent}#/parametres`);
+    await expect.poll(() => p.locator('#cpt-etat').innerText(), { timeout: 15_000 }).toBe('Par e-mail');
+    // La page pose des espaces insécables devant « : » (la typographie de l'app) : on compare à plat.
+    const plat = (t: string) => t.replace(/[\u00a0\u202f]/g, ' ');
+    const refusDit = async () => plat(await refus(p).innerText());
+    const dernierSms = () => sms.at(-1);
+    const codeSms = () => (/(\d{3}) (\d{3})$/.exec(dernierSms()?.texte ?? '') ?? []).slice(1, 3).join('');
+
+    // Un fixe n'est pas un mobile : refusé sur sa case, et rien ne part.
+    await p.getByRole('button', { name: 'Recevoir par SMS…', exact: true }).click();
+    const avant = sms.length;
+    await champ(p, 'Ton numéro de mobile').fill('71 123 456');
+    await bouton(p, 'Envoyer le code').click();
+    await expect.poll(refusDit).toBe(plat(phrase('compte.telephone_invalide')));
+    expect(await aLeCurseur(champ(p, 'Ton numéro de mobile'))).toBe(true);
+    expect(sms.length).toBe(avant);
+
+    // Un mobile : le code part, le numéro se montre masqué ; rien ne change avant le code.
+    await champ(p, 'Ton numéro de mobile').fill('22 123 456');
+    await bouton(p, 'Envoyer le code').click();
+    await expect.poll(() => fenetre(p).innerText()).toContain('On vient d\'envoyer un code par SMS au +216 \u2022\u2022 \u2022\u2022\u2022 456.');
+    expect(dernierSms()?.telephone).toBe('+21622123456');
+    expect(dernierSms()?.texte).toMatch(/^Ton code SkanFact : \d{3} \d{3}$/);
+    expect((await api('GET', '/moi', jeton)).corps.code_methode).toBeNull();
+    await p.screenshot({ path: path.join(PHOTOS, 'compte-5-sms-fenetre.png') });
+    const recu = codeSms();
+    await champ(p, 'Le code reçu par SMS').fill(faux(recu));
+    await bouton(p, 'Vérifier et activer').click();
+    await expect.poll(refusDit).toBe(plat(phrase('compte.sms_essai_faux')));
+    expect(await aLeCurseur(champ(p, 'Le code reçu par SMS'))).toBe(true);
+    await champ(p, 'Le code reçu par SMS').fill(recu);
+    await bouton(p, 'Vérifier et activer').click();
+    await expect.poll(() => fenetre(p).locator('.cpt-secours li').count()).toBe(10);
+    // La carte, derrière la fenêtre, dit déjà le SMS.
+    await expect.poll(() => p.locator('#cpt-etat').innerText()).toBe('Par SMS');
+    expect((await api('GET', '/moi', jeton)).corps.code_methode).toBe('sms');
+    await bouton(p, 'Je les ai mis de côté').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toBe('C\'est fait : ton code arrivera par SMS sur chaque nouvel appareil.');
+    expect(await p.locator('#cpt-telephone').innerText()).toBe('+216 \u2022\u2022 \u2022\u2022\u2022 456');
+    expect(await p.locator('.cpt-option.cpt-choisi').getAttribute('data-methode')).toBe('sms');
+    expect(await p.locator('.cpt-discret').innerText()).toContain('Un nouvel appareil demande le code reçu par SMS');
+    await p.screenshot({ path: path.join(PHOTOS, 'compte-4-sms.png') });
+    // Au téléphone : la carte se lit sans défiler de côté, chaque geste sous sa ligne.
+    await p.setViewportSize({ width: 390, height: 844 });
+    await p.locator('#cpt-code').screenshot({ path: path.join(PHOTOS, 'compte-6-sms-telephone.png') });
+    expect(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await p.setViewportSize({ width: 1440, height: 900 });
+
+    // Changer de numéro : sans preuve, le refus nomme le bouton qui en envoie une ; puis la preuve reçue à l'ancien numéro.
+    await p.getByRole('button', { name: 'Changer de numéro…', exact: true }).click();
+    const preuve = champ(p, 'Le code reçu par SMS, ou un code de secours');
+    await champ(p, 'Ton numéro de mobile').fill('50 000 789');
+    await bouton(p, 'Envoyer le code').click();
+    await expect.poll(refusDit).toBe(plat(phrase('compte.preuve_sms_manque')));
+    expect(await aLeCurseur(preuve)).toBe(true);
+    await bouton(p, 'M\'envoyer un code par SMS').click();
+    await expect.poll(async () => plat(await fenetre(p).locator('#cpt-preuve-dit').innerText())).toBe('Code envoyé au +216 \u2022\u2022 \u2022\u2022\u2022 456 : il vaut 10 minutes, une fois.');
+    expect(dernierSms()?.telephone).toBe('+21622123456');
+    await preuve.fill(codeSms());
+    await bouton(p, 'Envoyer le code').click();
+    await expect.poll(() => fenetre(p).innerText()).toContain('On vient d\'envoyer un code par SMS au +216 \u2022\u2022 \u2022\u2022\u2022 789.');
+    expect(dernierSms()?.telephone).toBe('+21650000789');
+    // L'ancien numéro reste celui du compte tant que le nouveau n'a pas donné son code.
+    expect((await admin.query('select telephone from socle.utilisateur where email = $1', [email])).rows[0]?.telephone).toBe('+21622123456');
+    await champ(p, 'Le code reçu par SMS').fill(codeSms());
+    await bouton(p, 'Vérifier et activer').click();
+    await expect.poll(() => fenetre(p).locator('.cpt-secours li').count()).toBe(10);
+    await bouton(p, 'Je les ai mis de côté').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toBe('C\'est fait : ton code arrivera à ton nouveau numéro.');
+    await expect.poll(() => p.locator('#cpt-telephone').innerText()).toBe('+216 \u2022\u2022 \u2022\u2022\u2022 789');
+    expect((await admin.query('select telephone from socle.utilisateur where email = $1', [email])).rows[0]?.telephone).toBe('+21650000789');
+
+    // Revenir à l'e-mail : la preuve par SMS, au nouveau numéro ; un e-mail le confirme.
+    await p.getByRole('button', { name: 'Revenir à l\'e-mail…', exact: true }).click();
+    expect(await bouton(p, 'Garder le SMS').getAttribute('class')).toContain('btn-primary');
+    await bouton(p, 'M\'envoyer un code par SMS').click();
+    await expect.poll(() => fenetre(p).locator('#cpt-preuve-dit').innerText()).toContain('+216 \u2022\u2022 \u2022\u2022\u2022 789');
+    expect(dernierSms()?.telephone).toBe('+21650000789');
+    await champ(p, 'Le code reçu par SMS, ou un code de secours').fill(codeSms());
+    await bouton(p, 'Revenir à l\'e-mail').click();
+    await expect.poll(() => fenetre(p).locator('h2').innerText()).toBe('Ton code arrive désormais par e-mail');
+    expect(partis.filter((m) => m.a === email).at(-1)?.objet).toBe('Ton code de connexion arrive désormais par e-mail');
+    await bouton(p, 'Revenir aux paramètres').click();
+    await expect.poll(() => p.locator('#cpt-etat').innerText()).toBe('Par e-mail');
+    expect((await api('GET', '/moi', jeton)).corps.code_methode).toBeNull();
+    // Rien d'autre que le numéro et le code n'est parti chez le fournisseur.
+    for (const m of sms) expect(m.texte).toMatch(/^Ton code SkanFact : \d{3} \d{3}$/);
     expect(erreurs).toEqual([]);
     await p.context().close();
   }, 120_000);

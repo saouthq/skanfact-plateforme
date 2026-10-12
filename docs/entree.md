@@ -59,7 +59,8 @@ moderne ») :
 
 - **Le code du téléphone n'est exigé que du comptable d'un cabinet**, qui voit les comptes et les salaires de ses
   clients. Pour tous les autres, il est **recommandé**, jamais imposé : la personne qui crée son entreprise y entre tout
-  de suite, et l'active quand elle veut dans Ton compte.
+  de suite, et l'active quand elle veut dans Ton compte. (Depuis le 12/10/2026, le code de connexion est au choix, et
+  le code par e-mail suffit aussi au comptable : voir plus bas.)
 - **Un code à six chiffres par e-mail**, si le serveur sait en envoyer : à l'inscription (l'adresse se vérifie), et sur
   un appareil que SkanFact ne connaît pas, pour qui n'a pas de code du téléphone (celui-ci le remplace).
 - Le serveur d'essai envoie ses e-mails par Resend (`docs/mise-en-ligne.md`, H) ; la messagerie entre le cabinet et
@@ -163,7 +164,7 @@ le seul en vert. Les étapes, dans l'ordre où elles servent :
 | Ton entreprise et où te joindre | La raison sociale, un matricule fiscal bien formé, et une adresse, un téléphone ou un e-mail. Sinon, ce qui manque se nomme (sans matricule : « une facture sans matricule fiscal n'est pas conforme ») | « Compléter ma fiche » |
 | Ton activité, ta TVA et ton menu | L'assistant terminé, avec un métier. Un métier laissé « Plus tard » se choisit ici, en revoyant l'assistant (rien ne s'écrit avant la fin) | « Choisir mon activité » |
 | Ton RIB, pour être payé par virement | Seulement quand on attend un virement (un commerce encaisse sur place : pas de RIB réclamé). Un RIB faux ne compte pas, et dit pourquoi | « Ajouter mon RIB » → sa case |
-| Protège ton compte — Recommandé | Le code du téléphone actif | « Activer le code » → Ton compte |
+| Protège ton compte — Recommandé | Le code par SMS ou par une application actif ; ou, depuis le 12/10/2026, un serveur qui envoie des e-mails (le code par e-mail, le choix par défaut, protège déjà un nouvel appareil) | « Choisir mon code » → Ton compte |
 | Ton premier client | Un client | « + Créer un client » |
 | Ton premier devis (ou ta première facture) | Un devis, ou une facture : qui facture sans devis a commencé aussi | « + Créer un devis » |
 | Ta facture à ton image — Facultatif | Un logo ou une couleur | « Personnaliser ma facture » |
@@ -255,13 +256,30 @@ SKANFACT_COURRIEL_DE=ne-pas-repondre@send.skanfact.tn
 
 Sans ces deux lignes, rien ne part : l'écran ne propose pas le mot de passe oublié, et aucun code par e-mail n'est
 demandé (on ne demande jamais ce qu'on ne sait pas envoyer). **Décidé le 09/10/2026** : Resend pour le serveur d'essai,
-branché d'une ligne par Skander (`exploitation/courriel.sh`, `docs/mise-en-ligne.md`, H). **À DÉCIDER** : le relais du
-lancement, en Tunisie (où il garde les adresses : INPDP).
+branché d'une ligne par Skander (`exploitation/courriel.sh`, `docs/mise-en-ligne.md`, H). **Décidé le 12/10/2026** :
+Resend gardé aussi pour le serveur aux vraies données, qui ne démarre pas sans relais (**À VÉRIFIER** : l'autorisation
+de l'INPDP, Resend gardant les adresses aux États-Unis).
+
+## Le code de connexion au choix : e-mail, SMS ou application (12/10/2026, 0081)
+
+Décidé par Skander le 12/10/2026 (« il nous faut proposer SMS / email / authentification ; il faut avoir le choix, et
+tout sur le mail par défaut c'est mieux » ; « oui, l'e-mail aussi pour les comptables ») :
+
+| Écran | Ce que la personne voit |
+|---|---|
+| Ton compte → **Ton code de connexion** | Son état en titre (« Par e-mail », « Par SMS », « Par application », ou « Mot de passe seul » sur un serveur sans e-mails), puis trois lignes : **par e-mail** (l'adresse), **par SMS** (le numéro, à demi caché), **par une application** ; celle du compte est marquée « Choisi », les autres portent le geste qui y mène (« Recevoir par SMS… », « Utiliser une application… », « Revenir à l'e-mail… »). Les codes de secours restants dessous, quand un SMS ou une application est choisi |
+| Recevoir par SMS | Le numéro (un mobile tunisien ; un fixe est refusé sur sa case, et rien ne part), « On vient d'envoyer un code par SMS au +216 •• ••• 456 », le code reçu, puis les dix codes de secours. Changer de numéro : la même fenêtre, avec d'abord un code reçu à l'ancien numéro (« M'envoyer un code par SMS ») ou un code de secours |
+| Revenir à l'e-mail | Ce que ça change (sur un nouvel appareil, le code arrivera à l'adresse), le code du moment, puis « Ton code arrive désormais par e-mail » ; un e-mail le confirme |
+| À la connexion, par SMS | « On vient de t'envoyer un code par SMS au +216 •• ••• 456 », « Renvoyer le SMS » (après 30 secondes) ; un SMS qui ne part pas, ou trop de SMS, se dit à l'écran avec le code de secours en recours |
+| Mot de passe oublié, compte au SMS | Le lien reçu par e-mail ne suffit pas : « Recevoir le code par SMS », puis le code reçu (ou un code de secours) |
+
+Le fournisseur (WinSMS), son branchement et ce qui part chez lui : `docs/mise-en-ligne.md`, H bis.
 
 ## Ce qui n'est pas fait, et pourquoi
 
-- **Recevoir le code par SMS** : aucun fournisseur de SMS n'est encore choisi (03 § 6 ; `SKANFACT_SMS` n'admet que
-  « aucun »). L'écran ne le propose donc pas. À DÉCIDER : le fournisseur.
+- ~~Recevoir le code par SMS~~ : fait le 12/10/2026 (WinSMS ; plus haut, et `docs/mise-en-ligne.md`, H bis). Tant que
+  Skander ne l'a pas branché sur un serveur, l'écran ne le propose pas (on ne propose jamais ce qu'on ne sait pas
+  envoyer).
 - **Confidentialité, Conditions** : les pages du site décrivent l'application de bureau (les données sur l'ordinateur) ;
   les lier depuis la plateforme dirait faux. Elles viendront avec les textes de la plateforme (À VÉRIFIER avec un juriste
   et l'INPDP).

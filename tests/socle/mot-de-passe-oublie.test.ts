@@ -63,11 +63,11 @@ function lienPour(email: string) {
 
 describe('le mot de passe oublié', () => {
   it('sans relais d\'e-mails, l\'entrée ne le propose pas, et la demande se refuse en le disant', async () => {
-    expect(await appeler('GET', '/connexion/options', undefined, undefined, appSans)).toEqual({ statut: 200, corps: { motDePasseOublie: false, codeParCourriel: false } });
+    expect(await appeler('GET', '/connexion/options', undefined, undefined, appSans)).toEqual({ statut: 200, corps: { motDePasseOublie: false, codeParCourriel: false, codeParSms: true } });
     const r = await appeler('POST', '/mot-de-passe/oubli', undefined, { email: 'qui@exemple.tn' }, appSans);
     expect(r.statut).toBe(403);
     expect(r.corps.motif).toBe(dire('connexion.oubli_indisponible'));
-    expect(await appeler('GET', '/connexion/options')).toEqual({ statut: 200, corps: { motDePasseOublie: true, codeParCourriel: true } });
+    expect(await appeler('GET', '/connexion/options')).toEqual({ statut: 200, corps: { motDePasseOublie: true, codeParCourriel: true, codeParSms: true } });
   });
 
   it('la même réponse qu\'un compte existe ou non ; le lien part à l\'adresse du compte, avec lui seul ; trois demandes par heure au plus', async () => {
@@ -99,7 +99,7 @@ describe('le mot de passe oublié', () => {
     const sami = await personne();
     await appeler('POST', '/mot-de-passe/oubli', undefined, { email: sami.email });
     const jeton = lienPour(sami.email);
-    expect(await appeler('POST', '/mot-de-passe/lien', undefined, { jeton })).toEqual({ statut: 200, corps: { valable: true, code: false } });
+    expect(await appeler('POST', '/mot-de-passe/lien', undefined, { jeton })).toEqual({ statut: 200, corps: { valable: true, code: false, sms: null } });
     const court = await appeler('POST', '/mot-de-passe/nouveau', undefined, { jeton, motDePasse: 'court' });
     expect(court.statut).toBe(400);
     expect(court.corps.champ).toBe('motDePasse');
@@ -115,7 +115,7 @@ describe('le mot de passe oublié', () => {
     await appeler('POST', '/mot-de-passe/oubli', undefined, { email: sami.email });
     const vieux = lienPour(sami.email);
     horloge = new Date(horloge.getTime() + 31 * 60_000);
-    expect(await appeler('POST', '/mot-de-passe/lien', undefined, { jeton: vieux })).toEqual({ statut: 200, corps: { valable: false, code: false } });
+    expect(await appeler('POST', '/mot-de-passe/lien', undefined, { jeton: vieux })).toEqual({ statut: 200, corps: { valable: false, code: false, sms: null } });
     expect((await appeler('POST', '/mot-de-passe/nouveau', undefined, { jeton: vieux, motDePasse: 'Encore-une-phrase-sure' })).corps.champ).toBe('jeton');
   });
 
@@ -128,7 +128,7 @@ describe('le mot de passe oublié', () => {
 
     await appeler('POST', '/mot-de-passe/oubli', undefined, { email: leila.email });
     const premier = lienPour(leila.email);
-    expect(await appeler('POST', '/mot-de-passe/lien', undefined, { jeton: premier })).toEqual({ statut: 200, corps: { valable: true, code: true } });
+    expect(await appeler('POST', '/mot-de-passe/lien', undefined, { jeton: premier })).toEqual({ statut: 200, corps: { valable: true, code: true, sms: null } });
     expect(await appeler('POST', '/mot-de-passe/nouveau', undefined, { jeton: premier, motDePasse: 'Une-autre-phrase-sure' }))
       .toEqual({ statut: 400, corps: { motif: dire('connexion.oubli_code_manque'), champ: 'code' } });
     const faux = codeTotp(depuisBase32(cle), horloge.getTime() - 600_000);

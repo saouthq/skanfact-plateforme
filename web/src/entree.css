@@ -261,6 +261,8 @@ body.dark .ent-etapes .ent-logo { background: #0f9d8f; color: #fff; }
 .ent-renvoi .ent-lien { font-size: 14px; }
 .ent-renvoye { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .ent-renvoye svg { width: 14px; height: 14px; flex: none; }
+/* Un numéro à demi caché (« +216 •• ••• 456 ») se lit d'un bloc : il ne se coupe pas en fin de ligne (0081). */
+.ent-numero { white-space: nowrap; }
 .ent .ent-lien.ent-centre { align-self: center; }
 .ent-formulaire > .ent-carte-ico { margin-bottom: -4px; }
 

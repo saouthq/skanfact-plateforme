@@ -307,6 +307,10 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'le code du téléphone n\'est pas activé sur ce compte', cle: 'base.compte.code_absent', fr: 'le code du téléphone n\'est pas activé sur ce compte' },
   { base: 'le code du téléphone est déjà activé : pour changer de téléphone, passe par Ton compte', cle: 'base.compte.code_deja_actif', fr: 'le code du téléphone est déjà activé : pour changer de téléphone, passe par Ton compte' },
   { base: 'cette adresse est déjà celle d\'un autre compte', cle: 'base.compte.adresse_prise', fr: 'cette adresse est déjà celle d\'un autre compte' },
+  // Le code de connexion au choix (0081, décision de Skander du 12/10/2026).
+  { base: 'le code par SMS s\'active depuis Ton compte : un code part d\'abord à ton numéro', cle: 'base.compte.sms_sans_numero', fr: 'le code par SMS s\'active depuis Ton compte : un code part d\'abord à ton numéro' },
+  { base: 'le numéro s\'écrit +216 suivi de huit chiffres', cle: 'base.compte.numero_forme', fr: 'le numéro s\'écrit +216 suivi de huit chiffres' },
+  { base: 'le code par SMS n\'est pas celui de ce compte', cle: 'base.compte.sms_absent', fr: 'le code par SMS n\'est pas celui de ce compte' },
   { base: 'trois demandes en une heure : attends un peu avant d\'en refaire une', cle: 'base.compte.adresse_trop_souvent', fr: 'trois demandes en une heure : attends un peu avant d\'en refaire une' },
   { base: 'cette demande n\'est plus valable : recommence le changement d\'adresse', cle: 'base.compte.adresse_perimee', fr: 'cette demande n\'est plus valable : recommence le changement d\'adresse' },
   // Vérifier son adresse sans en changer (0077, lot onboarding du 09/10/2026).

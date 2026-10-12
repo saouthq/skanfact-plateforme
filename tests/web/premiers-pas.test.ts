@@ -27,6 +27,8 @@ const net = (s: string) => s.replace(/\s+/g, ' ').trim();
 describe('les premiers pas de la plateforme, à la souris', () => {
   let navigateur: Browser;
   let serveur: Awaited<ReturnType<typeof demarrer>>;
+  // Le même, sans relais d'e-mails : rien n'y protège un nouvel appareil hors du mot de passe (0081).
+  let sansCourriel: Awaited<ReturnType<typeof demarrer>>;
   const partis: Courriel[] = [];
   const admin = new pg.Client({ connectionString: inject('pgAdmin') });
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-premiers-pas-'));
@@ -35,10 +37,11 @@ describe('les premiers pas de la plateforme, à la souris', () => {
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 },
       { courriel: { envoyer: async (m) => { partis.push(m); } } });
+    sansCourriel = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
     navigateur = await chromium.launch();
     fs.mkdirSync(PHOTOS, { recursive: true });
   }, 120_000);
-  afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); await admin.end(); fs.rmSync(dossier, { recursive: true, force: true }); });
+  afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); await sansCourriel?.arreter(); await admin.end(); fs.rmSync(dossier, { recursive: true, force: true }); });
 
   const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
     const r = await fetch(`${serveur.adresse}/v1${chemin}`, {
@@ -98,17 +101,17 @@ describe('les premiers pas de la plateforme, à la souris', () => {
     const { jeton } = await personne('amine');
     const { p, erreurs } = await page(jeton);
     const ent = await conseil(p);
-    // Le compte, l'entreprise et l'activité : faits par la porte et l'assistant.
-    await expect.poll(() => panneau(p).locator('.pp-compte').innerText(), { timeout: 15_000 }).toBe('3 sur 9 faits');
+    // Le compte, l'entreprise et l'activité : faits par la porte et l'assistant ; et le compte est protégé : ce serveur
+    // envoie des e-mails, le code par e-mail (le choix par défaut, 0081) protège déjà un nouvel appareil.
+    await expect.poll(() => panneau(p).locator('.pp-compte').innerText(), { timeout: 15_000 }).toBe('4 sur 9 faits');
     const barre = panneau(p).getByRole('progressbar', { name: 'Tes premiers pas' });
-    expect([await barre.getAttribute('aria-valuenow'), await barre.getAttribute('aria-valuemax')]).toEqual(['3', '9']);
-    expect(await panneau(p).locator('.pp-list li.fait .pp-txt strong').allInnerTexts()).toEqual(['Ton compte et ton adresse vérifiée', 'Ton entreprise et où te joindre', 'Ton activité, ta TVA et ton menu']);
+    expect([await barre.getAttribute('aria-valuenow'), await barre.getAttribute('aria-valuemax')]).toEqual(['4', '9']);
+    expect(await panneau(p).locator('.pp-list li.fait .pp-txt strong').allInnerTexts()).toEqual(['Ton compte et ton adresse vérifiée', 'Ton entreprise et où te joindre', 'Ton activité, ta TVA et ton menu', 'Protège ton compte']);
     // La suite : le RIB, « À faire maintenant », son bouton le seul en avant.
     const rib = ligne(p, 'Ton RIB, pour être payé par virement');
     expect(await rib.getAttribute('class')).toContain('encours');
     expect(await rib.locator('.pp-badge').innerText()).toBe('À faire maintenant');
     expect(await panneau(p).locator('.btn-primary').allInnerTexts()).toEqual(['Ajouter mon RIB']);
-    expect(await ligne(p, 'Protège ton compte').locator('.pp-badge').innerText()).toBe('Recommandé');
     expect(await ligne(p, 'Invite ton comptable').locator('.pp-badge').innerText()).toBe('Facultatif');
     // Les premiers pas sont l'invitation de l'accueil : pas de bulle par-dessus.
     await p.waitForTimeout(800);
@@ -121,12 +124,9 @@ describe('les premiers pas de la plateforme, à la souris', () => {
     await accueil(p);
     await ligne(p, 'Invite ton comptable').getByRole('button', { name: 'Inviter mon comptable', exact: true }).click();
     await p.locator('#p-cabinet-mandat').waitFor({ timeout: 15_000 });
-    await accueil(p);
-    await ligne(p, 'Protège ton compte').getByRole('button', { name: 'Activer le code', exact: true }).click();
-    await p.locator('#cpt-code').getByRole('button', { name: 'Activer le code', exact: true }).waitFor({ timeout: 15_000 });
 
-    // Le code activé (d'un coup, par l'API : l'activation à l'écran est au parcours) et le dossier proposé à un cabinet :
-    // au retour sur l'accueil, sans recharger la page, ils se cochent (le serveur s'y relit, au plus toutes les cinq
+    // Le dossier proposé à un cabinet (et le code de l'application activé par l'API : rien ne change, l'étape était
+    // faite) : au retour sur l'accueil, sans recharger la page, il se coche (le serveur s'y relit, au plus toutes les cinq
     // secondes).
     await api('POST', '/moi/code', jeton, { methode: 'application' });
     const { jeton: associe } = await personne('associe');
@@ -166,6 +166,27 @@ describe('les premiers pas de la plateforme, à la souris', () => {
     expect(await p.locator('#as-sortir').innerText()).toBe('Fermer sans rien changer');
     await p.locator('#as-sortir').click();
     await panneau(p).waitFor({ timeout: 15_000 });
+    expect(erreurs).toEqual([]);
+    await p.context().close();
+  }, 120_000);
+
+  it('sans relais d\'e-mails, « Protège ton compte » reste à faire, et « Choisir mon code » mène au choix du code dans Ton compte', async () => {
+    const email = `nour-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Nour', motDePasse: 'Un-bon-mot-de-passe' });
+    // Ce serveur n'envoie pas d'e-mails : la connexion n'en demande aucun.
+    const c = await fetch(`${sansCourriel.adresse}/v1/connexion`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } }) });
+    const jeton = String(((await c.json()) as { jeton?: string }).jeton);
+    const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Atelier Nour' })).corps.id);
+    const { p, erreurs } = await page(jeton);
+    await p.goto(`${sansCourriel.adresse}/v10/?e=${ent}`);
+    await panneau(p).waitFor({ timeout: 20_000 });
+    const code = ligne(p, 'Protège ton compte');
+    await expect.poll(() => code.getAttribute('class'), { timeout: 15_000 }).not.toContain('fait');
+    expect(net(await code.innerText())).toContain('Un code par SMS ou dans une application');
+    await code.getByRole('button', { name: 'Choisir mon code', exact: true }).click();
+    await p.locator('#cpt-code').waitFor({ timeout: 15_000 });
+    expect(await p.locator('#cpt-etat').innerText()).toBe('Mot de passe seul');
     expect(erreurs).toEqual([]);
     await p.context().close();
   }, 120_000);

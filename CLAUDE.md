@@ -109,9 +109,10 @@
   l'archivage continu à la minute, l'exercice mensuel sur le serveur de test et son rapport à la
   console.
 - Le programme serveur (`serveur/principal.ts`, `npm run serveur`) : configuration par
-  l'environnement, refus de démarrer si elle est fausse ; en production, exige un fournisseur de SMS
-  (pas encore choisi : 03 § 6, 12) ; les messages à l'exploitant (`ConfigurationFausse`,
-  `console.*`) sont hors du catalogue.
+  l'environnement, refus de démarrer si elle est fausse ; en production, exige le relais d'e-mails
+  (`SKANFACT_SMTP` : le code de connexion part par e-mail par défaut) ; le SMS (`SKANFACT_SMS=winsms`,
+  `exploitation/sms.sh`) est facultatif (Skander, 12/10/2026 ; 0081) ; les messages à l'exploitant
+  (`ConfigurationFausse`, `console.*`) sont hors du catalogue.
 - **L'application web EST le code de la v10** (Skander, 28/09/2026 : « récupérer le même code et
   l'adapter », `VISION-ARCHITECTURE.md` § 4.8 du dépôt `skanfact`). Les fichiers de
   `src/renderer` (branche `beta`) sont copiés TELS QUELS dans `web/public/v10` par
@@ -377,8 +378,10 @@
     fois ; `docs/entree.md`) : les seuls écrans écrits pour la plateforme, en React (`web/src`), à l'habillage de la
     v10 ; leurs phrases viennent du catalogue. Le jeton de session vit dans l'onglet
     (sessionStorage) : décidé par délégation ; **À VÉRIFIER** le passage à un cookie que le
-    JavaScript ne lit pas. **Le code du téléphone** (Skander, 09/10/2026 ; `0076`) : exigé du seul comptable d'un
-    cabinet, recommandé à tous les autres ; il s'active en deux temps (rien ne change avant le premier code juste) dans
+    JavaScript ne lit pas. **Le code de connexion au choix** (Skander, 12/10/2026 ; `0081`) : par e-mail par défaut,
+    par SMS (WinSMS) ou par une application ; avec le relais d'e-mails, le code par e-mail suffit aussi au comptable
+    d'un cabinet. **Le code du téléphone** (Skander, 09/10/2026 ; `0076`) : exigé du seul comptable d'un
+    cabinet (depuis le 12/10, d'un serveur sans e-mails), recommandé à tous les autres ; il s'active en deux temps (rien ne change avant le premier code juste) dans
     **Ton compte**, premier onglet des Paramètres et des Réglages du Cabinet (`plateforme/compte.js`, partagé), qui porte
     aussi l'adresse, le mot de passe et « Tes appareils ». Un serveur qui sait envoyer des e-mails vérifie l'adresse à
     l'inscription et un appareil inconnu par un code à six chiffres (« Vérifie ton e-mail », « C'est bien toi ? »).
@@ -388,8 +391,9 @@
     **Les premiers pas** (même lot ; `plateforme/premiers-pas.js`, `web/v10/premiers-pas.txt`) remplacent
     `C.firstSteps` sur la plateforme, sous sa forme (l'accueil, la jauge des visites et « Me guider » les lisent) : le
     compte (l'adresse à vérifier en tête quand le serveur sait envoyer le code ; « Vérifier mon adresse » dans Ton compte,
-    `0077`), l'entreprise, l'activité, le RIB si l'on attend un virement, le code du téléphone (recommandé : il ne
-    retient pas le panneau), le premier client, le premier devis ; facultatifs, la facture à son image et le cabinet.
+    `0077`), l'entreprise, l'activité, le RIB si l'on attend un virement, le code de connexion (recommandé : il ne
+    retient pas le panneau ; fait d'emblée quand le serveur envoie des e-mails), le premier client, le premier devis ;
+    facultatifs, la facture à son image et le cabinet.
     Ce qui vit sur le serveur arrive par `etatDuDemarrage`, relu à chaque retour sur l'accueil.
     **L'exemple puis la vraie entreprise** (même lot ; `ExemplePrepare.tsx`, `EntrepriseNeuve.tsx`, `docs/exemple.md`) :
     « On prépare l'exemple » (`/?exemple=<visite>`) crée et remplit l'entreprise d'essai en disant où il en est (une

@@ -1,6 +1,7 @@
 // Le mot de passe oublié (lot entrée, 06/10/2026 ; migration 0075, docs/entree.md). Deux écrans : la demande (l'adresse,
 // et la même réponse qu'un compte existe ou non), puis le nouveau mot de passe, ouvert par le lien de l'e-mail
-// (« /?reinitialiser=<jeton> ») : il demande aussi le code du téléphone si le compte en a un, et ramène à la connexion.
+// (« /?reinitialiser=<jeton> ») : il demande aussi le code du téléphone si le compte en a un (par SMS, il se reçoit ici
+// sur demande, 0081), et ramène à la connexion.
 import { useEffect, useState } from 'react';
 import { appeler, ErreurReseau } from '../api.ts';
 import { Bouton } from '../composants/Bouton.tsx';
@@ -10,6 +11,7 @@ import { Dessin } from '../composants/Entree.tsx';
 import { toast } from '../composants/Toast.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
+import { useDecompte } from './CodeCourriel.tsx';
 import { Jauge } from './Inscription.tsx';
 
 const rien = () => undefined;
@@ -45,15 +47,23 @@ export function Oubli({ email: connu, retour }: { email: string; retour: () => v
 
 export function NouveauMotDePasse({ jeton, fait, redemander, retour }: { jeton: string; fait: () => void; redemander: () => void; retour: () => void }) {
   const g = useGeste(rien);
-  const [lien, setLien] = useState<{ valable: boolean; code: boolean } | null>(null);
+  // `sms` : le compte reçoit son code par SMS (0081), au numéro masqué ; il le demande ici.
+  const [lien, setLien] = useState<{ valable: boolean; code: boolean; sms?: string | null } | null>(null);
   const [motDePasse, setMotDePasse] = useState('');
   const [code, setCode] = useState('');
+  const [smsParti, setSmsParti] = useState(false);
+  const decompte = useDecompte();
 
   useEffect(() => {
-    void appeler<{ valable: boolean; code: boolean }>('POST', '/mot-de-passe/lien', { jeton })
+    void appeler<{ valable: boolean; code: boolean; sms?: string | null }>('POST', '/mot-de-passe/lien', { jeton })
       .then((r) => setLien(r.statut === 200 ? r.corps : { valable: false, code: false }))
       .catch(() => { setLien({ valable: false, code: false }); toast(phrase('ecran.erreur_reseau'), true); });
   }, [jeton]);
+  const demanderSms = () => g.geste(async () => {
+    let r;
+    try { r = await appeler('POST', '/mot-de-passe/sms', { jeton }); } catch (x) { g.refuser(panne(x)); return; }
+    if (r.statut === 202) { setSmsParti(true); decompte.repartir(); } else g.refuser({ ...refusDe(r), champ: 'code' });
+  });
 
   const changer = () => g.geste(async () => {
     let r;
@@ -76,7 +86,13 @@ export function NouveauMotDePasse({ jeton, fait, redemander, retour }: { jeton: 
       pied={<Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.nouveau.bouton')}</Bouton>}>
       <Champ obligatoire libelle={titre('ecran.connexion.mot_de_passe')} valeur={motDePasse} changer={setMotDePasse} type="password" autoComplete="new-password" revelable premier
         dessous={<Jauge motDePasse={motDePasse} />} {...g.sur('motDePasse')} />
-      {lien.code ? <Champ classe="ent-code secours" libelle={titre('ecran.nouveau.code')} aide={phrase('ecran.nouveau.code_aide')} valeur={code} changer={setCode} autoComplete="one-time-code" {...g.sur('code')} /> : null}
+      {lien.code ? <Champ classe="ent-code secours" libelle={titre('ecran.nouveau.code')} aide={phrase(lien.sms ? 'ecran.nouveau.code_aide_sms' : 'ecran.nouveau.code_aide')} valeur={code} changer={setCode} autoComplete="one-time-code"
+        dessous={lien.sms ? <span className="ent-renvoi">
+          <button type="button" className="ent-lien" disabled={(smsParti && decompte.reste > 0) || g.occupe} onClick={() => { void demanderSms(); }}>
+            {smsParti && decompte.reste > 0 ? titre('ecran.code.renvoyer_dans', { n: decompte.reste }) : titre(smsParti ? 'ecran.code.renvoyer' : 'ecran.nouveau.recevoir_sms')}
+          </button>
+          {smsParti ? <span className="ent-aide ok ent-renvoye" aria-live="polite"><Dessin id="coche" /><span>{titre('ecran.code.sms_parti')} <b data-donnee className="ent-numero">{lien.sms}</b></span></span> : null}
+        </span> : undefined} {...g.sur('code')} /> : null}
     </Carte>
   );
 }

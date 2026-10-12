@@ -96,7 +96,8 @@ describe('la limite par adresse', () => {
     // machine, que la limite ne compte pas.
     const production = { SKANFACT_BASE: 'postgres://x', SKANFACT_ENVIRONNEMENT: 'production', SKANFACT_COFFRE: Buffer.alloc(32, 7).toString('base64') };
     expect(() => lireConfiguration(production)).toThrow(/SKANFACT_PROXY manque/);
-    expect(() => lireConfiguration({ ...production, SKANFACT_PROXY: '0' })).toThrow(/fournisseur de SMS/);
+    // Le nombre dit, la configuration va plus loin : elle s'arrête au relais d'e-mails, que la production exige (0081).
+    expect(() => lireConfiguration({ ...production, SKANFACT_PROXY: '0' })).toThrow(/SKANFACT_SMTP manque/);
   });
 
   it('le programme serveur, derrière un frontal déclaré : 60 demandes d\'un visiteur passent, la suivante attend ; un autre visiteur passe', async () => {

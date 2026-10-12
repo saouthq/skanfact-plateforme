@@ -3,7 +3,8 @@
 // jauge du mot de passe et « Afficher », la forme du matricule dite pendant la frappe avec le haut de la facture qui se
 // dessine, les codes de secours copiés et téléchargés, et l'écran d'ouverture qui coche ce qui est fait. Et le code
 // reçu par e-mail (lot onboarding, 0076) : « Vérifie ton e-mail » à l'inscription (une adresse mal tapée s'y corrige),
-// « C'est bien toi ? » sur un appareil inconnu ; le code du téléphone, exigé du seul comptable d'un cabinet.
+// « C'est bien toi ? » sur un appareil inconnu ; le code du téléphone, exigé du seul comptable d'un cabinet quand le serveur
+// n'envoie pas d'e-mails (avec le relais, le code par e-mail lui suffit : décision de Skander du 12/10/2026, 0081).
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -31,13 +32,15 @@ describe('l\'entrée refaite, à la souris', () => {
   let serveur: Awaited<ReturnType<typeof demarrer>>;
   let sansCourriel: Awaited<ReturnType<typeof demarrer>>;
   const partis: Courriel[] = [];
+  // Ce qui partirait chez le fournisseur de SMS (0081) : le numéro et le texte.
+  const sms: { telephone: string; texte: string }[] = [];
   const admin = new pg.Client({ connectionString: inject('pgAdmin') });
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-entree-'));
   beforeAll(async () => {
     await admin.connect();
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     const c = { ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_VERSION: VERSION }), port: 0, web: dossier, livreurMs: 60_000 };
-    serveur = await demarrer(c, { courriel: { envoyer: async (m) => { partis.push(m); } } });
+    serveur = await demarrer(c, { courriel: { envoyer: async (m) => { partis.push(m); } }, sms: { envoyer: async (telephone, texte) => { sms.push({ telephone, texte }); } } });
     sansCourriel = await demarrer(c);
     navigateur = await chromium.launch();
     fs.mkdirSync(PHOTOS, { recursive: true });
@@ -51,6 +54,8 @@ describe('l\'entrée refaite, à la souris', () => {
     method: methode, headers: { ...(corps === undefined ? {} : { 'content-type': 'application/json' }), ...(jeton ? { authorization: `Bearer ${jeton}` } : {}) },
     ...(corps === undefined ? {} : { body: JSON.stringify(corps) }),
   })).json()) as Record<string, unknown>;
+  // Le dernier code parti par SMS (« Ton code SkanFact : 482 913 »).
+  const codeSms = () => (/(\d{3}) (\d{3})$/.exec(sms.at(-1)?.texte ?? '') ?? []).slice(1, 3).join('');
   // Le dernier code parti à cette adresse, lu dans l'objet de l'e-mail (« Ton code SkanFact : 482913 »).
   const codeRecu = (email: string) => /(\d{6})$/.exec(partis.filter((m) => m.a === email).at(-1)?.objet ?? '')?.[1] ?? '';
   let n = 0;
@@ -133,6 +138,65 @@ describe('l\'entrée refaite, à la souris', () => {
     await bouton(p, 'ecran.courriel.bouton').click();
     await ecran(p, 'ecran.porte.titre');
     await p.context().close();
+  });
+
+  // Le code par SMS (0081) : l'écran de connexion dit où le code est parti sans montrer le numéro en entier, et
+  // « Renvoyer le SMS » attend ses 30 secondes ; le lien du mot de passe oublié d'un compte au SMS ne suffit pas seul :
+  // le code se demande par SMS, sur la page du lien.
+  it('le code par SMS : la connexion dit le numéro à demi caché et attend 30 secondes pour renvoyer ; le mot de passe oublié demande le code reçu par SMS', async () => {
+    const { email, jeton } = await personne();
+    await api('POST', '/moi/code/sms/preparer', jeton, { telephone: '22 123 456' });
+    await api('POST', '/moi/code/sms/activer', jeton, { code: codeSms() });
+    expect((await api('GET', '/moi', jeton)).code_methode).toBe('sms');
+
+    const p = await page();
+    await p.goto(serveur.adresse);
+    await ecran(p, 'ecran.connexion.titre');
+    await champ(p, 'ecran.connexion.email').fill(email);
+    await champ(p, 'ecran.connexion.mot_de_passe').fill('Un-bon-mot-de-passe');
+    const avant = sms.length;
+    await bouton(p, 'ecran.connexion.bouton').click();
+    await ecran(p, 'ecran.code.titre');
+    expect(sms.length).toBe(avant + 1);
+    expect(sms.at(-1)).toEqual({ telephone: '+21622123456', texte: expect.stringMatching(/^Ton code SkanFact : \d{3} \d{3}$/) });
+    expect(await p.locator('.ent-entete [data-donnee]').innerText()).toBe('+216 \u2022\u2022 \u2022\u2022\u2022 456');
+    expect(await p.locator('.ent-renvoi button').innerText()).toMatch(/^Renvoyer le SMS dans \d+ s$/);
+    expect(await p.locator('.ent-renvoi button').isDisabled()).toBe(true);
+    await expect.poll(() => champ(p, 'ecran.code.sms_champ').evaluate((i) => i === document.activeElement)).toBe(true);
+    await p.screenshot({ path: path.join(PHOTOS, 'entree-code-sms.png') });
+    const bon = codeSms();
+    await champ(p, 'ecran.code.sms_champ').fill(bon === '000000' ? '111111' : '000000');
+    await bouton(p, 'ecran.code.bouton').click();
+    await expect.poll(() => champ(p, 'ecran.code.sms_champ').getAttribute('aria-invalid')).toBe('true');
+    await champ(p, 'ecran.code.sms_champ').fill(bon);
+    await bouton(p, 'ecran.code.bouton').click();
+    await ecran(p, 'ecran.porte.titre');
+    await p.context().close();
+
+    // Le mot de passe oublié : le lien de l'e-mail, puis le code demandé par SMS.
+    const q = await page();
+    await q.goto(serveur.adresse);
+    await ecran(q, 'ecran.connexion.titre');
+    await champ(q, 'ecran.connexion.email').fill(email);
+    await bouton(q, 'ecran.connexion.oublie').click();
+    await ecran(q, 'ecran.oubli.titre');
+    await bouton(q, 'ecran.oubli.bouton').click();
+    await ecran(q, 'ecran.oubli.envoye_titre');
+    const lien = /https?:\/\/[^\s]+\?reinitialiser=[A-Za-z0-9_-]+/.exec(partis.at(-1)?.texte ?? '')?.[0] ?? '';
+    await q.goto(lien);
+    await ecran(q, 'ecran.nouveau.titre');
+    const avantOubli = sms.length;
+    await bouton(q, 'ecran.nouveau.recevoir_sms').click();
+    await expect.poll(() => sms.length).toBe(avantOubli + 1);
+    await expect.poll(() => q.locator('.ent-renvoi .ent-aide').innerText()).toContain('+216 \u2022\u2022 \u2022\u2022\u2022 456');
+    expect(await q.locator('.ent-renvoi button').innerText()).toMatch(/^Renvoyer le SMS dans \d+ s$/);
+    await champ(q, 'ecran.connexion.mot_de_passe').fill('Une-phrase-toute-neuve');
+    await champ(q, 'ecran.nouveau.code').fill(codeSms());
+    await q.screenshot({ path: path.join(PHOTOS, 'entree-oubli-sms.png') });
+    await bouton(q, 'ecran.nouveau.bouton').click();
+    await ecran(q, 'ecran.connexion.titre');
+    await expect.poll(() => q.locator('#toast').innerText()).toBe(phrase('ecran.nouveau.fait'));
+    await q.context().close();
   });
 
   it('créer son compte : « Vérifie ton e-mail » tient au rechargement ; une adresse mal tapée se corrige, et le code part à la bonne', async () => {
@@ -230,9 +294,10 @@ describe('l\'entrée refaite, à la souris', () => {
   it('la sécurité du comptable d\'un cabinet : son cabinet se dit ; les codes de secours se copient et se téléchargent ; l\'ouverture coche ce qui est fait', async () => {
     const { email, jeton } = await personne();
     // Le code du téléphone n'est exigé que du comptable d'un cabinet, qui voit les comptes et les salaires de ses clients
-    // (0076) : son cabinet créé, il le met en place d'abord.
+    // (0076), sur un serveur qui n'envoie pas d'e-mails (avec le relais, le code par e-mail lui suffit, 0081) : son
+    // cabinet créé, il le met en place d'abord.
     await api('POST', '/cabinets', jeton, { nom: 'Cabinet Ennour' });
-    const p = await page(jeton);
+    const p = await page(jeton, sansCourriel.adresse);
     // L'écran d'ouverture ne dure que le temps du chargement : un observateur note ce qu'il montre, dans l'onglet.
     await p.addInitScript(() => {
       if (location.pathname !== '/') return;
@@ -245,7 +310,7 @@ describe('l\'entrée refaite, à la souris', () => {
         }));
       }).observe(document, { childList: true, subtree: true });
     });
-    await p.goto(serveur.adresse);
+    await p.goto(sansCourriel.adresse);
     await ecran(p, 'ecran.code_requis.titre');
     expect(await p.locator('.ent-bandeau').innerText()).toBe(titre('ecran.code_requis.cabinet', { nom: 'Cabinet Ennour' }));
     await bouton(p, 'ecran.code_requis.bouton').click();
@@ -340,9 +405,9 @@ describe('l\'entrée refaite, à la souris', () => {
     expect((apercu?.y ?? 0) >= (form?.y ?? 0) + (form?.height ?? 0)).toBe(true);
     expect(await p.locator('.ent-titre-page p').innerText()).not.toMatch(/à côté/);
     await p.setViewportSize({ width: 1440, height: 900 });
-    // L'écran du code, que seul le comptable d'un cabinet met en place d'abord (0076).
+    // L'écran du code, que seul le comptable d'un cabinet met en place d'abord (0076), sur un serveur sans e-mails (0081).
     await api('POST', '/cabinets', jeton, { nom: 'Cabinet Gharbi' });
-    await p.goto(serveur.adresse);
+    await p.goto(sansCourriel.adresse);
     await ecran(p, 'ecran.code_requis.titre');
     await bouton(p, 'ecran.code_requis.bouton').click();
     await ecran(p, 'ecran.code_pose.titre');
@@ -376,16 +441,25 @@ describe('l\'entrée refaite, à la souris', () => {
     await p.context().close();
   });
 
-  // Le code n'est exigé que du comptable d'un cabinet (0076) : la propriétaire d'une entreprise qui crée ensuite son
-  // cabinet n'ouvre plus rien sans lui (le serveur refuse tout, sauf de le mettre en place) ; la page de son entreprise
-  // comme celle de son cabinet la renvoient à l'écran du code, au lieu de dire une erreur.
-  it('devenue comptable d\'un cabinet sans code : la page de son entreprise, puis celle du cabinet, la renvoient à l\'écran du code', async () => {
+  // Le code n'est exigé que du comptable d'un cabinet (0076), et seulement d'un serveur qui n'envoie pas d'e-mails : avec
+  // le relais, le code par e-mail lui suffit (décision de Skander du 12/10/2026, 0081), et son cabinet s'ouvre. Sans
+  // relais, la propriétaire d'une entreprise qui crée ensuite son cabinet n'ouvre plus rien sans lui (le serveur refuse
+  // tout, sauf de le mettre en place) ; la page de son entreprise comme celle de son cabinet la renvoient à l'écran du
+  // code, au lieu de dire une erreur.
+  it('devenue comptable d\'un cabinet sans code : avec le relais d\'e-mails, son cabinet s\'ouvre ; sans lui, la page de son entreprise, puis celle du cabinet, la renvoient à l\'écran du code', async () => {
     const { jeton } = await personne();
     const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Librairie Ennour' })).id);
-    const p = await page(jeton);
-    await p.goto(`${serveur.adresse}/v10/?e=${ent}`);
+    const p = await page(jeton, sansCourriel.adresse);
+    await p.goto(`${sansCourriel.adresse}/v10/?e=${ent}`);
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     const cabinet = String((await api('POST', '/cabinets', jeton, { nom: 'Cabinet Ennour' })).id);
+    // Avec le relais d'e-mails : le code par e-mail tient lieu de code, le cabinet s'ouvre sans rien demander.
+    const avecRelais = await page(jeton);
+    await avecRelais.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}`);
+    await avecRelais.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    expect(new URL(avecRelais.url()).pathname).toBe('/v10/cabinet/');
+    expect((await api('GET', '/moi', jeton)).codeAConfigurer).toBe(false);
+    await avecRelais.context().close();
     // La page de son entreprise, rouverte dans un onglet neuf : l'ancien part de lui-même vers l'écran du code à son
     // prochain appel au serveur, et le recharger pouvait tomber au milieu (« net::ERR_ABORTED », vu sur GitHub le
     // 09/10/2026). La page s'en va avant d'avoir fini de se charger : on attend qu'elle soit partie (« commit »), puis
@@ -394,11 +468,11 @@ describe('l\'entrée refaite, à la souris', () => {
     await p.close();
     const q = await cx.newPage();
     await q.addInitScript((j) => sessionStorage.setItem('skanfact.jeton', j), jeton);
-    await q.goto(`${serveur.adresse}/v10/?e=${ent}`, { waitUntil: 'commit' });
+    await q.goto(`${sansCourriel.adresse}/v10/?e=${ent}`, { waitUntil: 'commit' });
     await ecran(q, 'ecran.code_requis.titre');
     expect(new URL(q.url()).pathname).toBe('/');
     expect(await q.locator('.ent-bandeau').innerText()).toBe(titre('ecran.code_requis.cabinet', { nom: 'Cabinet Ennour' }));
-    await q.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}`, { waitUntil: 'commit' });
+    await q.goto(`${sansCourriel.adresse}/v10/cabinet/?c=${cabinet}`, { waitUntil: 'commit' });
     await ecran(q, 'ecran.code_requis.titre');
     expect(new URL(q.url()).pathname).toBe('/');
     await cx.close();

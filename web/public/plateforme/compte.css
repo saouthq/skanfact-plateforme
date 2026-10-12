@@ -1,5 +1,5 @@
 /* Ton compte (lot onboarding, 09/10/2026 ; maquettes validées par Skander ; compte.js) : une carte par sujet, celle du
-   code du téléphone mise en avant tant qu'il est recommandé. Les couleurs sont les variables de la v10, qui suivent son
+   code de connexion mise en avant tant qu'un code est recommandé (sans e-mail) ou exigé. Les couleurs sont les variables de la v10, qui suivent son
    thème sombre. Feuille partagée par les deux applications (l'entreprise et le Cabinet). */
 /* Le panneau qui porte les cartes s'efface : des cartes posées sur la page, comme la maquette, sans cadre autour d'elles
    ni titre qui répète l'onglet (il reste lu par les lecteurs d'écran). */
@@ -27,6 +27,21 @@
 .cpt-pied { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
 .cpt-boutons { display: flex; flex-wrap: wrap; gap: 8px; }
 .cpt-discret { background: var(--bg); }
+/* Ton code de connexion au choix (0081, décision de Skander du 12/10/2026) : trois lignes, l'e-mail, le SMS,
+   l'application ; celle du compte est marquée, les autres portent le geste qui y mène, aligné à droite. */
+.cpt-options { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cpt-option { display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; }
+.cpt-option .cpt-ico { width: 34px; height: 34px; border-radius: 10px; background: var(--ink-soft); color: var(--muted); }
+.cpt-option .cpt-ico svg { width: 19px; height: 19px; }
+/* Le titre de la ligne seulement (« Par SMS » et son badge) : le gras d'une phrase dessous reste dans la phrase. */
+.cpt-option .cpt-quoi > b { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 650; }
+.cpt-option > .btn, .cpt-option > .cpt-geste { flex: none; margin-inline-start: auto; }
+.cpt-choisi { border-color: var(--primary); background: var(--primary-soft); }
+.cpt-choisi .cpt-ico { background: var(--panel); color: var(--primary); }
+.badge svg { width: 12px; height: 12px; margin-inline-end: 3px; vertical-align: -1px; }
+/* Un numéro à demi caché (« +216 •• ••• 456 ») se lit d'un bloc. */
+.cpt-masque { white-space: nowrap; }
+.cpt-preuve { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 8px 0 0; }
 
 /* Les fenêtres : deux champs l'un sous l'autre ont leur écart (la règle de la v10 ne vise que les champs posés à même
    la fenêtre) ; un refus se dit sous les boutons (rien ne bouge sous le curseur), et sa case se marque. */
@@ -55,4 +70,5 @@ label.check.cpt-faute { outline: 2px solid var(--danger); outline-offset: 4px; b
 @media (max-width: 560px) {
   .cpt-carte { padding: 16px; }
   .cpt-ligne > .btn { width: 100%; justify-content: center; }
+  .cpt-option > .btn { width: 100%; justify-content: center; margin-inline-start: 0; }
 }

@@ -74,10 +74,11 @@
     }
 
     // 5. Protège ton compte : recommandé, jamais imposé (le code n'est exigé que d'un comptable de cabinet). Il ne retient
-    // pas le panneau à l'accueil.
-    const code = !!(compte && compte.codeActif);
+    // pas le panneau à l'accueil. Un serveur qui envoie des e-mails protège déjà un nouvel appareil par le code par
+    // e-mail, le choix par défaut (0081) : l'étape est faite ; le SMS ou l'application se choisissent dans Ton compte.
+    const code = !!(compte && (compte.codeActif || compte.courriel));
     lesEtapes.push({ id: 'code', titre: 'Protège ton compte', fait: code, action: 'code', badge: 'Recommandé', reco: true, recommande: true,
-      quoi: code ? '' : 'Un code sur ton téléphone en plus du mot de passe : même avec ton mot de passe, personne n\'entre sans lui. Deux minutes.' });
+      quoi: code ? '' : 'Un code par SMS ou dans une application, en plus du mot de passe : même avec ton mot de passe, personne n\'entre sans lui. Deux minutes.' });
 
     // 6. et 7. Ton premier client, ton premier devis (ou ta première facture : qui facture sans devis a commencé aussi).
     lesEtapes.push({ id: 'client', titre: 'Ton premier client', fait: (d.clients || []).length > 0, action: 'client',

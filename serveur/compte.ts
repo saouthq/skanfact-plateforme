@@ -4,12 +4,16 @@
 // d'abord : le code du moment (ou un code de secours) pour le code, le mot de passe actuel pour le mot de passe et
 // l'adresse. Les erreurs comptent comme à la connexion (une attente qui s'allonge, jamais un blocage).
 //
+// Le code se choisit (décision de Skander du 12/10/2026, 0081) : l'e-mail par défaut (rien à activer), le SMS, ou une
+// application d'authentification ; le SMS et l'application s'activent en deux temps.
+//
 // Ce qui part chez le relais d'e-mails, compté et décidé (03 § 6) : l'adresse, l'objet, et un texte qui ne porte que le
-// code ou le lien. La confirmation d'un code retiré ne porte que l'adresse de l'application ; celle d'une adresse
+// code ou le lien. Chez le fournisseur de SMS : le numéro et le code. La confirmation d'un code retiré ne porte que l'adresse de l'application ; celle d'une adresse
 // changée, partie à l'ancienne, ne nomme pas la nouvelle.
 
 import { createHash, randomInt } from 'node:crypto';
-import { attenteLisible, empreinteDuSecours, tirerCodesDeSecours, type Contexte, type Qui } from './connexion.ts';
+import { attenteLisible, empreinteDuSecours, envoyerSms, tirerCodesDeSecours, type Contexte, type Qui } from './connexion.ts';
+import { numeroMasque, numeroTunisien } from './sms.ts';
 import { enTantQue } from './base.ts';
 import { correspond, empreinte, verifierPolitique } from './mot-de-passe.ts';
 import { adresseTotp, nouveauSecret, verifierTotp } from './totp.ts';
@@ -39,20 +43,38 @@ async function erreur(ctx: Contexte, email: string, refus: Refuse): Promise<Refu
   return a ? { ok: false, motif: attenteLisible(a, maintenant), attendre: true, ...(refus.champ ? { champ: refus.champ } : {}) } : refus;
 }
 
-// Le code de l'application, ou un code de secours encore valable : c'est bien la personne. Le code par SMS n'est pas
-// encore en service (03 § 6) : qui l'aurait prouve par un code de secours.
+// Le code de l'application, le code de preuve reçu par SMS (0081 : il ne sert qu'une fois), ou un code de secours encore
+// valable : c'est bien la personne.
 async function monCodeEstBon(ctx: Contexte, qui: Qui, code: string): Promise<boolean> {
   const maintenant = maintenantDe(ctx);
   const saisi = code.replace(/\s/g, '');
   return enTantQue(ctx.pool, qui.utilisateur, async (tx) => {
     if (/^[0-9]{6}$/.test(saisi)) {
       const secret = (await tx.query('select socle.mon_secret_d_application() s')).rows[0]?.s as string | null;
-      return !!secret && verifierTotp(secret, saisi, maintenant.getTime());
+      if (secret) return verifierTotp(secret, saisi, maintenant.getTime());
+      return (await tx.query('select socle.consommer_preuve_sms($1, $2) b', [sha256(saisi), maintenant])).rows[0].b as boolean;
     }
     const e = empreinteDuSecours(saisi.toUpperCase());
     const restants = (await tx.query('select * from socle.codes_secours_restants($1)', [qui.utilisateur])).rows as { empreinte: string }[];
     return restants.some((r) => r.empreinte === e);
   });
+}
+
+// Qui a déjà un code (l'application ou le SMS) prouve l'actuel, ou un code de secours, avant d'en préparer un autre :
+// une session volée ne met pas son téléphone, ni son numéro, à la place du sien. Sans code (l'e-mail par défaut), rien
+// à prouver. Rend l'adresse du compte, ou le refus.
+async function prouverCodeActuel(ctx: Contexte, qui: Qui, code: string | undefined): Promise<{ email: string } | Refuse> {
+  const { email, actif, parSms } = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => {
+    const u = (await tx.query('select email, code_methode from socle.utilisateur where id = $1', [qui.utilisateur])).rows[0] as { email: string; code_methode: string | null };
+    return { email: u.email, actif: u.code_methode !== null, parSms: u.code_methode === 'sms' };
+  });
+  if (!actif) return { email };
+  if (!code?.trim()) return { ok: false, motif: motif(parSms ? 'compte.preuve_sms_manque' : 'compte.code_actuel_manque'), champ: 'code' };
+  const bloque = await attente(ctx, email);
+  if (bloque) return bloque;
+  if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
+  await enTantQue(ctx.pool, null, (tx) => tx.query('select socle.effacer_erreurs($1)', [email]));
+  return { email };
 }
 
 // Activer le code du téléphone en deux temps (0076 § 1 bis). Préparé d'abord : le secret et les codes de secours
@@ -62,17 +84,9 @@ async function monCodeEstBon(ctx: Contexte, qui: Qui, code: string): Promise<boo
 // secours : une session volée ne suffit pas à mettre son téléphone à la place du sien.
 export async function preparerCode(ctx: Contexte, qui: Qui, code?: string): Promise<{ ok: true; codesDeSecours: string[]; adresseApplication: string; cle: string } | Refuse> {
   const maintenant = maintenantDe(ctx);
-  const { email, actif } = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => {
-    const u = (await tx.query('select email, code_methode from socle.utilisateur where id = $1', [qui.utilisateur])).rows[0] as { email: string; code_methode: string | null };
-    return { email: u.email, actif: u.code_methode !== null };
-  });
-  if (actif) {
-    if (!code?.trim()) return { ok: false, motif: motif('compte.code_actuel_manque'), champ: 'code' };
-    const bloque = await attente(ctx, email);
-    if (bloque) return bloque;
-    if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
-    await enTantQue(ctx.pool, null, (tx) => tx.query('select socle.effacer_erreurs($1)', [email]));
-  }
+  const preuve = await prouverCodeActuel(ctx, qui, code);
+  if ('ok' in preuve) return preuve;
+  const { email } = preuve;
   const codes = tirerCodesDeSecours();
   const secret = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => {
     const s = ((await tx.query('select socle.mon_secret_en_attente($1) s', [maintenant])).rows[0]?.s as string | null) ?? nouveauSecret();
@@ -96,13 +110,57 @@ export async function activerCode(ctx: Contexte, qui: Qui, code: string): Promis
   });
 }
 
+// ── Le code par SMS (0081) ──────────────────────────────────────────────────────────────────────────────────────
+// Ce qui part chez le fournisseur : le numéro et le code, rien d'autre.
+const codeSix = () => String(randomInt(0, 1_000_000)).padStart(6, '0');
+
+// Préparer le SMS : un code part au numéro donné ; rien ne change tant qu'il n'est pas tapé (15 minutes, cinq essais).
+// Qui a déjà un code (il change de numéro, ou passe de l'application au SMS) prouve d'abord l'actuel.
+export async function preparerSms(ctx: Contexte, qui: Qui, telephone: string, code?: string): Promise<{ ok: true; telephone: string } | Refuse> {
+  if (ctx.sms.disponible === false) return { ok: false, motif: motif('connexion.sms_indisponible') };
+  const numero = numeroTunisien(telephone);
+  if (!numero) return { ok: false, motif: motif('compte.telephone_invalide'), champ: 'telephone' };
+  const maintenant = maintenantDe(ctx);
+  const preuve = await prouverCodeActuel(ctx, qui, code);
+  if ('ok' in preuve) return preuve;
+  const nouveau = codeSix();
+  const etat = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => (await tx.query('select socle.preparer_sms($1, $2, $3) e', [numero, sha256(nouveau), maintenant])).rows[0].e as string);
+  if (etat === 'limite') return { ok: false, motif: motif('compte.sms_limite'), champ: 'telephone' };
+  if (!await envoyerSms(ctx, numero, nouveau)) return { ok: false, motif: motif('compte.sms_rate'), champ: 'telephone' };
+  return { ok: true, telephone: numeroMasque(numero) };
+}
+
+// Le code reçu, tapé : le SMS devient le code du compte. Rend les 10 codes de secours, à montrer UNE fois.
+export async function activerSms(ctx: Contexte, qui: Qui, code: string): Promise<{ ok: true; codesDeSecours: string[] } | Refuse> {
+  const saisi = code.replace(/\s/g, '');
+  if (!/^[0-9]{6}$/.test(saisi)) return { ok: false, motif: motif('compte.sms_essai_faux'), champ: 'code' };
+  const codes = tirerCodesDeSecours();
+  const etat = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => (await tx.query('select socle.activer_sms_en_attente($1, $2, $3) e',
+    [sha256(saisi), codes.map(empreinteDuSecours), maintenantDe(ctx)])).rows[0].e as string);
+  if (etat === 'faux') return { ok: false, motif: motif('compte.sms_essai_faux'), champ: 'code' };
+  if (etat === 'perime') return { ok: false, motif: motif('compte.sms_attente_perimee'), champ: 'code' };
+  return { ok: true, codesDeSecours: codes };
+}
+
+// Prouver le code actuel quand on a le SMS (retirer le code, de nouveaux codes de secours, changer de numéro) : un code
+// de preuve part au numéro du compte, valable 10 minutes, une fois.
+export async function envoyerPreuveSms(ctx: Contexte, qui: Qui): Promise<{ ok: true; telephone: string } | Refuse> {
+  if (ctx.sms.disponible === false) return { ok: false, motif: motif('connexion.sms_indisponible') };
+  const code = codeSix();
+  const tel = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => (await tx.query('select socle.poser_preuve_sms($1, $2) t', [sha256(code), maintenantDe(ctx)])).rows[0].t as string | null);
+  if (!tel) return { ok: false, motif: motif('compte.sms_limite') };
+  if (!await envoyerSms(ctx, tel, code)) return { ok: false, motif: motif('compte.sms_rate') };
+  return { ok: true, telephone: numeroMasque(tel) };
+}
+
 // Retirer le code du téléphone. Un e-mail le confirme (si ce serveur sait en envoyer) : qui ne l'a pas fait le saura.
 export async function retirerCode(ctx: Contexte, qui: Qui, code: string): Promise<{ ok: true; confirme: boolean } | Refuse> {
   const email = await monAdresse(ctx, qui);
   const bloque = await attente(ctx, email);
   if (bloque) return bloque;
   if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
-  const a = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => (await tx.query('select socle.retirer_code() a')).rows[0].a as string);
+  // Ce serveur envoie des e-mails : le code par e-mail tient lieu de code, un comptable de cabinet y revient (0081).
+  const a = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => (await tx.query('select socle.retirer_code($1) a', [!!ctx.courriel])).rows[0].a as string);
   await enTantQue(ctx.pool, null, (tx) => tx.query('select socle.effacer_erreurs($1)', [email]));
   const courriel = ctx.courriel;
   if (courriel) {

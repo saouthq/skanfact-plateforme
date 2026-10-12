@@ -6,8 +6,9 @@ import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
-import { connecter, corrigerAdresse, deconnecter, demanderReinitialisation, essayerCode, inscrire, lireReinitialisation, mettreEnPlaceCode, reinitialiser, renvoyerCode, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
-import { activerCode, changerMotDePasse, confirmerChangementAdresse, confirmerVerificationAdresse, demanderChangementAdresse, demanderVerificationAdresse, nouveauxCodesDeSecours, preparerCode, retirerCode, type Refuse } from '../compte.ts';
+import { connecter, corrigerAdresse, deconnecter, demanderReinitialisation, envoyerCodeReinitialisation, essayerCode, inscrire, lireReinitialisation, mettreEnPlaceCode, reinitialiser, renvoyerCode, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
+import { activerCode, activerSms, changerMotDePasse, confirmerChangementAdresse, confirmerVerificationAdresse, demanderChangementAdresse, demanderVerificationAdresse, envoyerPreuveSms, nouveauxCodesDeSecours, preparerCode, preparerSms, retirerCode, type Refuse } from '../compte.ts';
+import { numeroMasque } from '../sms.ts';
 import { prochainNumero } from '../numeros.ts';
 import { regle } from '../regles.ts';
 import { enTantQue, requetes } from '../base.ts';
@@ -86,7 +87,8 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
   // (0076), si un code par e-mail vérifiera l'adresse à la création du compte (l'écran le dit AVANT le geste).
   ajouter({
     methode: 'GET', chemin: '/connexion/options', geste: 'public',
-    traiter: async () => ({ corps: { motDePasseOublie: !!ctx.courriel, codeParCourriel: !!ctx.courriel } }),
+    // `codeParSms` : ce serveur envoie des SMS (0081 ; exploitation/sms.sh le lit pour dire que c'est branché).
+    traiter: async () => ({ corps: { motDePasseOublie: !!ctx.courriel, codeParCourriel: !!ctx.courriel, codeParSms: ctx.sms.disponible !== false } }),
   });
 
   // « Renvoyer le code » d'un défi par e-mail (0076).
@@ -119,6 +121,15 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
     corps: z.object({ jeton: z.string().min(1).max(100) }),
     traiter: async ({ corps }) => ({ corps: await lireReinitialisation(ctx, corps.jeton) }),
   });
+  // Le code du mot de passe oublié par SMS, pour un compte au SMS (0081).
+  ajouter({
+    methode: 'POST', chemin: '/mot-de-passe/sms', geste: 'public',
+    corps: z.object({ jeton: z.string().min(1).max(100) }),
+    traiter: async ({ corps }) => {
+      const r = await envoyerCodeReinitialisation(ctx, corps.jeton);
+      return r.ok ? { statut: 202, corps: { ok: true } } : { statut: 409, corps: { motif: r.motif } };
+    },
+  });
   ajouter({
     methode: 'POST', chemin: '/mot-de-passe/nouveau', geste: 'public',
     corps: z.object({ jeton: z.string().min(1).max(100), motDePasse: z.string().max(200), code: z.string().max(20).optional() }),
@@ -137,7 +148,7 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
     methode: 'GET', chemin: '/moi', geste: 'compte.voir',
     traiter: async ({ qui }, tx) => {
       if (!qui || !tx) throw new Error('session attendue');
-      const moi = (await tx.query('select id, email, nom, langue, code_methode from socle.utilisateur where id = $1', [qui.utilisateur])).rows[0];
+      const { telephone, ...moi } = (await tx.query('select id, email, nom, langue, code_methode, telephone from socle.utilisateur where id = $1', [qui.utilisateur])).rows[0] as Record<string, unknown>;
       // Les entreprises de la personne, et celles qu'elle voit par un mandat de son cabinet
       // (parCabinet : elles s'ouvrent dans le Cabinet, jamais comme les siennes).
       const entreprises = (await tx.query(`select e.id, e.raison_sociale, e.essai, socle.mes_roles(e.id) roles,
@@ -146,16 +157,19 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
           join socle.membre m on m.organisation = o.id and m.utilisateur = socle.moi() and m.actif
          where o.type = 'cabinet' order by o.nom, o.id`)).rows;
       // Ton compte (0076) : le code est-il exigé de moi (un comptable de cabinet), mon adresse est-elle vérifiée, combien
-      // de codes de secours me restent ; et ce serveur sait-il envoyer un e-mail.
+      // de codes de secours me restent ; et ce serveur sait-il envoyer un e-mail, un SMS (0081). Avec l'e-mail, le code
+      // par e-mail tient lieu du code exigé : `codeExige` ne vaut plus que sans relais. Le numéro, masqué.
       const c = (await tx.query('select * from socle.mon_compte()')).rows[0] as { code_exige: boolean; adresse_verifiee: boolean; codes_secours: number };
-      const compte = { codeExige: c.code_exige, adresseVerifiee: c.adresse_verifiee, codesSecours: c.codes_secours, courriel: !!ctx.courriel, motDePasseMin: LONGUEUR_MINIMALE };
+      const compte = { codeExige: c.code_exige && !ctx.courriel, comptable: c.code_exige, adresseVerifiee: c.adresse_verifiee, codesSecours: c.codes_secours,
+        courriel: !!ctx.courriel, sms: ctx.sms.disponible !== false, telephone: telephone ? numeroMasque(String(telephone)) : null, motDePasseMin: LONGUEUR_MINIMALE };
       return { corps: { ...moi, codeAConfigurer: qui.codeAConfigurer, entreprises, cabinets, compte } };
     },
   });
 
   ajouter({
     methode: 'POST', chemin: '/moi/code', geste: 'compte.code.configurer',
-    corps: z.object({ methode: z.enum(['sms', 'application']) }),
+    // Le SMS s'active par /moi/code/sms/… : un code part d'abord au numéro (0081). Ici, l'application seule (l'API).
+    corps: z.object({ methode: z.enum(['application']) }),
     // La réponse montre les codes de secours UNE fois : ils ne sont gardés qu'en empreinte.
     traiter: async ({ qui, corps }) => {
       if (!qui) throw new Error('session attendue');
@@ -197,6 +211,35 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       if (!qui) throw new Error('session attendue');
       const r = await activerCode(ctx, qui, corps.code);
       return r.ok ? { corps: { ok: true } } : refus(r);
+    },
+  });
+  // Le code par SMS (0081) : un code part au numéro (préparer), puis le code reçu l'active ; la preuve par SMS du code
+  // actuel, pour qui a le SMS. Le numéro se renvoie masqué.
+  ajouter({
+    methode: 'POST', chemin: '/moi/code/sms/preparer', geste: 'compte.code.configurer',
+    corps: z.object({ telephone: z.string().min(1).max(30), code: z.string().max(20).optional() }),
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await preparerSms(ctx, qui, corps.telephone, corps.code);
+      return r.ok ? { corps: { telephone: r.telephone } } : refus(r);
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/moi/code/sms/activer', geste: 'compte.code.configurer',
+    corps: z.object({ code: z.string().min(1).max(20) }),
+    // Les codes de secours se montrent UNE fois : ils ne sont gardés qu'en empreinte.
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await activerSms(ctx, qui, corps.code);
+      return r.ok ? { corps: { codesDeSecours: r.codesDeSecours } } : refus(r);
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/moi/code/sms/preuve', geste: 'compte.code.configurer',
+    traiter: async ({ qui }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await envoyerPreuveSms(ctx, qui);
+      return r.ok ? { statut: 202, corps: { telephone: r.telephone } } : refus(r);
     },
   });
   ajouter({

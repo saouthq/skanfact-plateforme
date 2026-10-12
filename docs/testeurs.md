@@ -37,10 +37,14 @@ l'inscription. Pour faire plusieurs comptes avec une seule adresse Gmail, ajoute
 C'est tout : tu es dans SkanFact. Mot de passe oublié ? Clique **« Mot de passe oublié ? »** sur l'écran de connexion :
 un code arrive à ton adresse.
 
-**Le code du téléphone** : SkanFact te le **recommande** (dans « Tes premiers pas » et Paramètres → Ton compte) ; il n'est
-**exigé que d'un cabinet comptable**. Pour le mettre en place, installe une application gratuite d'authentification
-(**Google Authenticator** ou **Microsoft Authenticator**), scanne le code QR affiché, **garde les codes de secours** (une
-photo suffit : chacun remplace une fois le code du téléphone si tu le perds), puis tape le code à 6 chiffres.
+**Ton code de connexion** : quand tu te connectes depuis un appareil que SkanFact ne connaît pas, un code à 6 chiffres
+arrive **par e-mail**. C'est le réglage de départ, pour tout le monde (un cabinet comptable aussi) : rien à installer. Tu
+peux préférer, dans Paramètres → **Ton compte** → « Ton code de connexion » :
+- **une application d'authentification** gratuite (**Google Authenticator** ou **Microsoft Authenticator**) : scanne le
+  code QR affiché, **garde les codes de secours** (une photo suffit : chacun remplace une fois le code si tu perds ton
+  téléphone), puis tape le code à 6 chiffres ;
+- **un SMS** sur ton mobile tunisien, dès que le serveur d'essai envoie des SMS (le choix le dit tant qu'il ne le fait
+  pas).
 
 ## Quoi essayer
 
@@ -63,8 +67,9 @@ Fais ce que tu ferais dans ta vraie journée. Quelques idées :
 
 - **El Fatoora (la facture électronique), la signature DigiGo et le paiement en ligne Konnect** : la facture se
   prépare, mais rien ne part à la TTN ni à la banque. Les accès de test sont en cours de demande.
-- **Les SMS** : rien n'est envoyé par SMS. Les e-mails, eux, partent (le code de vérification, le mot de passe oublié,
-  l'alerte des messages du cabinet) ; l'invitation d'un collègue, non : c'est toi qui lui envoies le lien.
+- **Les SMS** : le fournisseur est choisi (WinSMS), pas encore branché sur le serveur d'essai : rien n'est envoyé par
+  SMS pour l'instant. Les e-mails, eux, partent (le code de connexion, le mot de passe oublié, l'alerte des messages du
+  cabinet) ; l'invitation d'un collègue, non : c'est toi qui lui envoies le lien.
 
 ## Tu vois un problème ? Dis-le, même petit
 
