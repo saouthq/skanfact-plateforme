@@ -69,6 +69,18 @@ describe('tes appareils, à la souris', () => {
     // Le portable : « mon ordinateur », la copie de l'entreprise sur le poste.
     const cp = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
     await cp.addInitScript((j) => { if (location.protocol.startsWith('http') && !localStorage.getItem('test.pose')) { localStorage.setItem('test.pose', '1'); localStorage.setItem('skanfact.jeton', j); } }, portableJeton);
+    // Une lecture ou une écriture du poste qui part juste après l'effacement (la copie qu'on rafraîchit, ce qui attend le
+    // réseau) rouvrait la base supprimée et la recréait. Sur une machine, ce moment arrive tout seul ; sur une autre,
+    // jamais : il est posé ici exprès, au moment même de l'effacement.
+    await cp.addInitScript(() => {
+      type Poste = { effacer: () => Promise<void>; effacerAttente: (id: string) => Promise<void> };
+      let poste: Poste | undefined;
+      Object.defineProperty(window, 'SkanPoste', { configurable: true, get: () => poste, set: (v: Poste) => {
+        poste = v;
+        const effacer = v.effacer;
+        v.effacer = () => { const fini = effacer(); void v.effacerAttente('juste-apres').catch(() => undefined); return fini; };
+      } });
+    });
     const portable = await cp.newPage();
     await portable.goto(`${serveur.adresse}/v10/?e=${ent}#/clients`);
     await portable.locator('#view h1').first().waitFor({ timeout: 20_000 });

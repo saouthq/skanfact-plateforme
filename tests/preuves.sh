@@ -10093,7 +10093,7 @@ prouver "le geste fait pendant que l'étape prépare son écran, compté « déj
 prouver "la visite bloquée sur « La visite t'attend » après « + Nouvel article » cliqué pendant qu'elle prépare l'écran" web/public/v10/visite.js \
   "      if (s.fait && s.entree) return s.geste ? 'avancer' : 'dejaFait';" "      if (s.fait && s.entree) return 'dejaFait';" \
   "$KN2"
-prouver "la base du poste effacé, recréée par une lecture partie juste avant" web/public/plateforme/poste.js \
+prouver "la base du poste effacé, recréée par une lecture partie au moment de l'effacement" web/public/plateforme/poste.js \
   "    efface = true;" "" \
   "$KAP"
 
