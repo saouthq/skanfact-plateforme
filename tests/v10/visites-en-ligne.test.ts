@@ -49,7 +49,7 @@ function charger() {
   const visites = (bac.SkanVisites as { parcours: (ctx: unknown) => Visite[] }).parcours({
     data: () => ({}), premier: () => null, estDemo: () => false, editeur: () => false, Visite: bac.Visite, G: { INFO: {} }, chiffre: () => false,
   });
-  return { pont, visites };
+  return { pont, visites, moteur: bac.Visite as { decider: (s: Record<string, unknown>) => string | null } };
 }
 
 // Les sélecteurs d'une étape (un seul, ou plusieurs essayés dans l'ordre), chacun coupé à ses virgules du premier niveau.
@@ -69,7 +69,7 @@ function alternatives(cible: unknown): string[] {
 }
 
 describe('les visites de l\'entreprise, en ligne', () => {
-  const { pont, visites } = charger();
+  const { pont, visites, moteur } = charger();
   // Ce que la version en ligne ne montre pas : les panneaux des Paramètres sans objet (pont.js, `panneauxAbsents`), et
   // le bouton du justificatif tant que le serveur ne garde pas les fichiers (`piecesJointes`, web/v10/achats-lot.txt).
   const absents = [...pont.panneauxAbsents.map((id) => `#${id}`), ...(pont.piecesJointes === false ? ['#attach-top'] : [])];
@@ -190,5 +190,18 @@ describe('les visites de l\'entreprise, en ligne', () => {
     const tva = etapes.find((e) => alternatives(e.cible).some((a) => a.includes('name="vatRate"')));
     expect(alternatives(tva?.eclairer).some((a) => a.includes('#cat-unit'))).toBe(true);
     expect(etapes.filter((e) => alternatives(e.cible).some((a) => a.includes('#cat-unit') || a.includes('name="unit"'))).map((e) => e.titre)).toEqual([]);
+  });
+
+  // Une étape « faire » prépare son écran (la page, son onglet) pendant que la bulle dit déjà « J'attends ton geste » ;
+  // le moteur ne prend la mesure d'entrée qu'une fois l'écran prêt. Le geste fait entre-temps (« + Nouvel article »)
+  // trouvait la fenêtre déjà ouverte : « déjà fait », puis cette fenêtre prise pour une question posée par-dessus — « La
+  // visite t'attend », sans un bouton (vu par les tests sur GitHub, une machine plus lente).
+  it('un geste fait pendant que l\'étape prépare son écran la fait avancer ; sans geste, elle dit « déjà fait »', () => {
+    const entree = { cible: true, el: true, vu: true, facultatif: false, faire: true, mode: 'clic', aFait: true, fait: true, faitAvant: undefined,
+      entree: true, clic: false, clicRecent: false, essai: false, t: 0, defait: false };
+    expect(moteur.decider({ ...entree, geste: true })).toBe('avancer');
+    expect(moteur.decider({ ...entree, geste: false })).toBe('dejaFait');
+    // Le geste pas encore fait : on attend, geste ou pas.
+    expect(moteur.decider({ ...entree, fait: false, geste: true })).toBe('present');
   });
 });

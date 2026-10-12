@@ -205,7 +205,11 @@
     if (s.cible && !s.el && s.defait && !(s.aFait && s.fait && s.faitAvant === false)) return 'perdu';
     if (s.mode === 'valeur') return 'valeur';
     if (s.aFait) {
-      if (s.fait && s.entree) return 'dejaFait';
+      // (plateforme, lot débutant 2) Le geste fait PENDANT que l'étape préparait son écran (la page, son onglet) est le geste
+      // de l'étape : la bulle disait déjà « J'attends ton geste », on cliquait « + Nouvel article », et la visite, qui ne
+      // regardait pas encore, trouvait la fenêtre déjà ouverte — « déjà fait », puis cette fenêtre prise pour une question
+      // posée par-dessus : « La visite t'attend », sans un bouton (vu par les tests sur GitHub, une machine plus lente).
+      if (s.fait && s.entree) return s.geste ? 'avancer' : 'dejaFait';
       if (s.fait && s.faitAvant === false) return 'avancer';
     } else if (s.mode === 'clic' && s.clic) return 'avancer';
     // Le clic vient d'avoir lieu : la page qu'il ouvre fait disparaître la cible, ce n'est pas se

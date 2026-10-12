@@ -4036,10 +4036,10 @@ prouver "la copie du poste gardée en clair" web/public/plateforme/poste.js \
   "    const chiffre = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await cle(), new TextEncoder().encode(JSON.stringify(contenu)));" "    const chiffre = new TextEncoder().encode(JSON.stringify(contenu)).buffer;" \
   "$HL1"
 prouver "une copie gardée sur l'ordinateur d'un autre" web/public/plateforme/poste.js \
-  "  const garde = () => { try { return !!localStorage.getItem('skanfact.jeton'); } catch { return false; } };" "  const garde = () => true;" \
+  "  const garde = () => { if (efface) return false; try { return !!localStorage.getItem('skanfact.jeton'); } catch { return false; } };" "  const garde = () => true;" \
   "$HL2"
 prouver "la copie qui survit à la déconnexion" web/public/plateforme/poste.js \
-  "    await new Promise((ok) => { const r = indexedDB.deleteDatabase(BASE); r.onsuccess = r.onerror = r.onblocked = () => ok(undefined); });" "" \
+  "      const r = indexedDB.deleteDatabase(BASE);" "      const r = {}; ok(undefined);" \
   "$HL1"
 prouver "le bandeau qui tait de quand date la copie" web/public/plateforme/poste.js \
   "    if (o.copieLe) copieLue = o.copieLe;
@@ -10083,6 +10083,19 @@ prouver "l'Aide qui fait importer un fichier d'appairage" web/public/v10/guide.j
 prouver "le bouton de « Ton entreprise » qui bouge sous la frappe du matricule" web/src/composants/Fiche.tsx \
   '      {VARIANTES_MATRICULE.map((cle) => <span key={cle} className="ent-aide-gabarit" aria-hidden="true">{phrase(cle)}</span>)}' '' \
   "$KEW5"
+# Vus par les tests sur GitHub après l'envoi du lot (une machine plus lente) : le geste fait pendant que la visite prépare
+# son écran, pris pour une question posée par-dessus ; la base du poste effacé, recréée par une lecture partie juste avant.
+KNV5="un geste fait pendant que l'étape prépare son écran la fait avancer ; sans geste, elle dit « déjà fait »"
+KAP="le bureau retire le portable perdu ; le portable, à sa reconnexion, efface ce qu'il gardait, et l'entrée le dit"
+prouver "le geste fait pendant que l'étape prépare son écran, compté « déjà fait »" web/public/v10/visite.js \
+  "      if (s.fait && s.entree) return s.geste ? 'avancer' : 'dejaFait';" "      if (s.fait && s.entree) return 'dejaFait';" \
+  "$KNV5"
+prouver "la visite bloquée sur « La visite t'attend » après « + Nouvel article » cliqué pendant qu'elle prépare l'écran" web/public/v10/visite.js \
+  "      if (s.fait && s.entree) return s.geste ? 'avancer' : 'dejaFait';" "      if (s.fait && s.entree) return 'dejaFait';" \
+  "$KN2"
+prouver "la base du poste effacé, recréée par une lecture partie juste avant" web/public/plateforme/poste.js \
+  "    efface = true;" "" \
+  "$KAP"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

@@ -154,15 +154,21 @@ describe('le lot débutant (2), à la souris', () => {
     const etape = () => p.evaluate(() => (window as unknown as { Visite: { etapeCourante: () => { titre?: string } | null } }).Visite.etapeCourante()?.titre ?? '');
     const bulle = p.locator('#visite-bulle');
     const suivant = async (titre: string) => { await bulle.locator('.vb-suiv').click(); await expect.poll(etape).toBe(titre); };
+    // Un écran lent à se préparer (une machine plus lente, celle des tests sur GitHub) : la visite ouvre la page, puis son
+    // onglet, pendant que la bulle dit déjà « J'attends ton geste ». Le clic fait à ce moment-là est le geste de l'étape —
+    // la visite le prenait pour une question posée par-dessus (« La visite t'attend », sans un bouton).
+    await p.evaluate(() => {
+      const V = (window as unknown as { Visite: { ouvrirOnglet: (...a: unknown[]) => Promise<unknown> } }).Visite;
+      const ouvrirOnglet = V.ouvrirOnglet;
+      V.ouvrirOnglet = (...a) => new Promise((ok) => { setTimeout(() => ok(ouvrirOnglet(...a)), 1500); });
+    });
     // « Ajouter au catalogue ce que tu vends », lancée depuis « Me guider ».
     await p.locator('#view li').filter({ hasText: 'Ajouter au catalogue ce que tu vends' }).locator('button').last().click();
     await expect.poll(etape).toBe('Ajouter au catalogue');
-    // La visite ouvre la page et son onglet avant de poser sa bulle : on clique quand elle attend le geste, comme un humain
-    // qui lit la bulle avant d'agir.
     await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/catalogue');
     await expect.poll(async () => net(await bulle.innerText())).toContain('J\'attends ton geste');
     await p.locator('#new').click();
-    await expect.poll(etape).toBe('Son nom');
+    await expect.poll(etape, { timeout: 5_000 }).toBe('Son nom');
     await p.locator('#modal-root .modal input[name=label]').fill('Pince coupante');
     await suivant('Sa description');
     // Une étape à lire sur une case de texte : le curseur y est, la frappe ne part pas dans le vide.

@@ -51,6 +51,12 @@ téléphone, devenu facultatif. Vu en revérifiant : fusionner les notes et les 
 faisait parler la bulle des pièces jointes, absentes en ligne ; les deux étapes sont restées séparées (celle des pièces
 jointes se saute d'elle-même), et un test veut désormais que ce qu'une étape éclaire à côté de sa cible existe en ligne.
 
+Vu par les tests sur GitHub après l'envoi (une machine plus lente) : une visite prépare son écran (la page, puis son
+onglet) pendant que la bulle dit déjà « J'attends ton geste ». « + Nouvel article » cliqué à ce moment-là ouvrait la
+fenêtre avant que la visite ne regarde : elle la trouvait « déjà faite », puis la prenait pour une question posée
+par-dessus — « La visite t'attend », sans un bouton. Un geste fait pendant la préparation est maintenant le geste de
+l'étape (`visite.js`, `decider`).
+
 Tests : `tests/web/debutant-2.test.ts` (quatre parcours à la souris), `tests/v10/visites-en-ligne.test.ts` (quatre de
 plus), `tests/v10/aide-en-ligne.test.ts`, et `tests/web/entree.test.ts` (le bouton sous le matricule). Dix-sept preuves
 (`tests/preuves.sh`, « Le lot débutant (2) ») : chacune remet son défaut et fait tomber son test.

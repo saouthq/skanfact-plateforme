@@ -387,6 +387,17 @@ Le plan comptable tunisien complet y est consultable, pour nommer un compte — 
     if (!e || estFaire(e) || !ouvreEssai(t) || dansSaCase(e, t)) return;
 -- fin
 
+== visite.js | un geste fait PENDANT que l'étape prépare son écran est le geste de l'étape : la visite ne prend plus la fenêtre qu'il ouvre pour une question posée par-dessus
+-- avant
+      if (s.fait && s.entree) return 'dejaFait';
+-- après
+      // (plateforme, lot débutant 2) Le geste fait PENDANT que l'étape préparait son écran (la page, son onglet) est le geste
+      // de l'étape : la bulle disait déjà « J'attends ton geste », on cliquait « + Nouvel article », et la visite, qui ne
+      // regardait pas encore, trouvait la fenêtre déjà ouverte — « déjà fait », puis cette fenêtre prise pour une question
+      // posée par-dessus : « La visite t'attend », sans un bouton (vu par les tests sur GitHub, une machine plus lente).
+      if (s.fait && s.entree) return s.geste ? 'avancer' : 'dejaFait';
+-- fin
+
 == visite.js | dansSaCase : un clic dans la case éclairée par l'étape, ou dans la liste qu'elle vient d'ouvrir
 -- avant
     return !(c && c.matches && c.matches(CHAMP_TEXTE));
