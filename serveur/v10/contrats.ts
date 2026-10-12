@@ -9,6 +9,7 @@
 import { motif as texteDe, rendre } from '../../textes/index.ts';
 import { enTantQue, type Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
+import { refuserSiLectureSeule } from '../abonnement/condition.ts';
 import { Refus } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { appliquer, emettreDepuisV10 } from './dossier.ts';
@@ -58,6 +59,9 @@ export async function emettreUnContrat(tx: Transaction, entreprise: string, cle:
     { contenu: Json; revision: string; rang: number | null } | undefined;
   // Relu sous verrou : suspendu, ou plus émis seul, depuis la liste du tour, il attend.
   if (!ligne || ligne.contenu.emettreSeul !== true || ligne.contenu.active === false) return 0;
+  // L'abonnement en lecture seule (docs/abonnement.md) : la facture du contrat attend. Le refus se note sur le contrat
+  // (l'écran le montre), et le contrat se retente au tour suivant : il repart quand l'abonnement est repris.
+  await refuserSiLectureSeule(tx, entreprise, { jour });
   const rec = { ...ligne.contenu };
   const societe = (await lire(tx, entreprise, '_racine', 'company'))?.contenu ?? {};
   let n = 0, periodes = 0;

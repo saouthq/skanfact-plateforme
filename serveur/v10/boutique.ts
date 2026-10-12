@@ -19,6 +19,7 @@ import { requetes, type Transaction } from '../base.ts';
 import { Refus } from '../erreurs.ts';
 import { soldesDeFactures } from '../ventes/reglements.ts';
 import { lienEcran } from '../ventes/situation.ts';
+import { refuserSiLectureSeule } from '../abonnement/condition.ts';
 import { appliquer, dossierPret, emettreDepuisV10 } from './dossier.ts';
 import { enNombreV10, type Json } from './lecture.ts';
 
@@ -182,6 +183,9 @@ export function routesBoutique(): Route<never>[] {
       // Déjà facturée : la même réponse (la boutique a renvoyé la commande).
       const deja = await resultat(tx, ent, corps.reference, true);
       if (deja) return { corps: deja };
+      // L'abonnement en lecture seule (docs/abonnement.md) : une commande nouvelle ne se facture pas ; ses paiements et
+      // ses retours, sur une commande déjà facturée, si (leurs routes ne passent pas ici).
+      await refuserSiLectureSeule(tx, ent);
       await dossierPret(tx, ent, qui.utilisateur);
 
       // Le client de la commande : le même d'une commande à l'autre (sa référence chez la boutique, son e-mail, ou son nom).

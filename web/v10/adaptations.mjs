@@ -728,4 +728,6 @@ export const ADAPTATIONS = [
   ...lireFichier('export-complet.txt'),
   // ── Le lot débutant (2) (12/10/2026 ; les gênants d'un commerçant qui débute, refaits à la souris, docs/debutant.md) ──
   ...lireFichier('debutant-2.txt'),
+  // ── L'abonnement (12/10/2026 ; l'essai de 30 jours, la lecture seule, « Ton abonnement », docs/abonnement.md) ──
+  ...lireFichier('abonnement-essai.txt'),
 ];

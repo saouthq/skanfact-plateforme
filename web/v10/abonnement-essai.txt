@@ -1,0 +1,282 @@
+L'abonnement de l'entreprise (lot « les fonctions qui manquent », 12/10/2026 ; migration 0082, docs/abonnement.md ;
+skanfact docs/cadrage/07-offres-et-prix.md). Format : voir sans-paquets.mjs.
+
+La v10 a une licence, avec trois endroits qui la disent : la pastille du bas de la barre (`licenceBanner`), la carte de
+l'essai sur l'accueil (`carteEssai`), et la porte de création (`licenceBlock`), posée sur chaque point de création. Sur la
+plateforme, la licence EST l'abonnement : le point de contact la tire de l'état que le serveur déduit (plateforme/
+abonnement.js), et ces trois endroits parlent d'abonnement. En lecture seule, la création est refusée AVANT le geste, en
+le disant ; lire, imprimer, exporter et corriger restent ouverts (6.4.0, jamais de données en otage).
+
+Le panneau « Licence » (une clé à coller) n'a pas de sens ici : il est déjà absent (pont.js, PANNEAUX_ABSENTS), et tout
+raccourci vers lui mène à l'onglet « Ton abonnement », pour qui le gère (le propriétaire, un administrateur) ; aux autres,
+une fenêtre dit qui s'en occupe. Une NOUVELLE pièce ouverte en lecture seule le dit à l'ouverture, avant la saisie (la règle
+10.14.0 du mois clôturé : une saisie ne se perd pas au premier « Enregistrer »).
+
+== index.html | le dessin de l'abonnement et sa feuille se chargent après l'équipe
+-- avant
+  <script src="../plateforme/equipe.js"></script>
+  <link rel="stylesheet" href="../plateforme/equipe.css">
+-- après
+  <script src="../plateforme/equipe.js"></script>
+  <link rel="stylesheet" href="../plateforme/equipe.css">
+  <script src="../plateforme/abonnement.js"></script>
+  <link rel="stylesheet" href="../plateforme/abonnement.css">
+-- fin
+
+== app.js | un raccourci vers la licence mène à l'abonnement (une porte : la pastille, la carte de l'essai, les refus)
+-- avant
+  function allerParametres(tab, focus) {
+    if (location.hash === '#/parametres' && amenerDansParametres && $('#pf')) { amenerDansParametres(focus || ''); return; }
+-- après
+  // (plateforme, abonnement) Où l'abonnement se règle : l'onglet « Ton abonnement », pour qui le gère (le propriétaire, un
+  // administrateur : la base refuse le détail à tout autre rôle). Aux autres, la fenêtre dit qui s'en occupe, au lieu
+  // d'ouvrir un onglet qu'ils ne voient pas.
+  function abonnementVisible() { return !!bridge.dessinerAbonnement && !!(bridge.droitsDossier && bridge.droitsDossier().responsable); }
+  function allerAbonnement() {
+    if (abonnementVisible()) { allerParametres('abonnement', 'p-abonnement'); return; }
+    modal(`<h2>L'abonnement de l'entreprise</h2>
+      ${licence.label ? `<p><b>${h(licence.label)}.</b> ${h(licence.detail || '')}</p>` : ''}
+      <p>C'est le propriétaire de l'entreprise, ou un administrateur, qui choisit l'offre et règle l'abonnement : préviens-le.</p>
+      <p class="small">Abonnement ou pas, tout ce qui existe reste lisible, imprimable et exportable.</p>
+      <div class="modal-actions"><button class="btn btn-primary" data-close>Compris</button></div>`);
+  }
+  // Une NOUVELLE pièce ouverte en lecture seule le dit à l'ouverture, avant la saisie : sinon le refus n'arrivait qu'à
+  // « Enregistrer », et la saisie était perdue (la règle 10.14.0 d'une pièce d'un mois clôturé).
+  function bandeauAbonnement(neuve) {
+    if (!neuve || !licence.locked || !bridge.dessinerAbonnement) return '';
+    return `<div class="banner info lock-banner" id="abo-banner">
+        <span><b>${h(licence.label)} : cette nouvelle pièce ne pourra pas être enregistrée.</b> ${h(licence.detail)}
+        Tout ce qui existe déjà se lit, s'imprime, s'exporte et se corrige ; seule la création attend l'abonnement.</span>
+        <span class="lock-go"><button class="btn btn-sm" id="abo-voir">${abonnementVisible() ? 'Voir l\'abonnement' : 'Qui le règle ?'}</button></span></div>`;
+  }
+  function allerParametres(tab, focus) {
+    // (plateforme, abonnement) La licence de la v10 est l'abonnement : ses raccourcis (la pastille, la carte de l'essai,
+    // la fenêtre d'un refus) mènent à lui.
+    if (focus === 'p-licence' && bridge.dessinerAbonnement) { allerAbonnement(); return; }
+    if (location.hash === '#/parametres' && amenerDansParametres && $('#pf')) { amenerDansParametres(focus || ''); return; }
+-- fin
+
+== app.js | en lecture seule, la création se refuse avec les mots de l'abonnement, et le bouton mène à qui le règle
+-- avant
+    if (licence.locked) {
+      modal(`<h2>${h(licence.label)}</h2>
+        <p>${h(what)} : il faut une licence en cours de validité.</p>
+        <p class="small">${h(licence.detail)}</p>
+        <ul class="small">
+          <li><strong>Tes données restent les tiennes</strong> : tu peux tout lire, imprimer, exporter et envoyer à ton comptable, aujourd'hui comme dans dix ans.</li>
+          <li>Seule la création de nouvelles pièces attend la licence.</li>
+        </ul>
+        <div class="modal-actions"><button class="btn" data-close>Plus tard</button><button class="btn btn-primary" id="go-lic">Voir ma licence</button></div>`,
+        (root, close) => { $('#go-lic', root).onclick = () => { close(); allerParametres('app', 'p-licence'); }; });
+      return true;
+    }
+-- après
+    if (licence.locked) {
+      // (plateforme, abonnement) La lecture seule d'un abonnement : les mots de l'abonnement, et le bouton seulement pour
+      // qui peut le régler ; les autres apprennent qui s'en occupe.
+      const abo = !!bridge.dessinerAbonnement;
+      const regle = !abo || abonnementVisible();
+      modal(`<h2>${h(licence.label)}</h2>
+        <p>${h(what)} : il faut ${abo ? 'un abonnement en cours' : 'une licence en cours de validité'}.</p>
+        <p class="small">${h(licence.detail)}</p>
+        <ul class="small">
+          <li><strong>Tes données restent les tiennes</strong> : tu peux tout lire, imprimer, exporter et envoyer à ton comptable, aujourd'hui comme dans dix ans.</li>
+          <li>Seule la création de nouvelles pièces attend ${abo ? 'l\'abonnement' : 'la licence'}.</li>
+          ${regle ? '' : '<li>C\'est le propriétaire de l\'entreprise, ou un administrateur, qui règle l\'abonnement : préviens-le.</li>'}
+        </ul>
+        <div class="modal-actions">${regle ? `<button class="btn" data-close>Plus tard</button><button class="btn btn-primary" id="go-lic">${abo ? 'Voir l\'abonnement' : 'Voir ma licence'}</button>` : '<button class="btn btn-primary" data-close>Compris</button>'}</div>`,
+        (root, close) => { const b = $('#go-lic', root); if (b) b.onclick = () => { close(); allerParametres('app', 'p-licence'); }; });
+      return true;
+    }
+-- fin
+
+== app.js | la pastille de la barre dit l'abonnement : l'essai, l'échéance qui approche, la lecture seule
+-- avant
+    const p = C.pastilleLicence(licence);
+-- après
+    const p = bridge.pastilleAbonnement ? bridge.pastilleAbonnement() : C.pastilleLicence(licence);
+-- fin
+
+== app.js | la carte de l'essai prend le ton de la même pastille
+-- avant
+    const ton = C.pastilleLicence(licence).ton;
+-- après
+    const ton = (bridge.pastilleAbonnement ? bridge.pastilleAbonnement() : C.pastilleLicence(licence)).ton;
+-- fin
+
+== app.js | la carte de l'essai parle d'abonnement, et dit jusqu'à quand tout marche encore
+-- avant
+          : '<p class="g-essai-sur">Tout fonctionne pendant l\'essai, et ce que tu y crées reste quand tu actives ta licence : rien à ressaisir.</p>'}
+        <p class="small">${fin ? 'Tes données sont intactes : tu gardes' : 'Licence ou pas, tes données restent à toi : tu gardes toujours'} la lecture, l'impression, l'export et l'envoi à ton comptable. Seule la création de nouvelles pièces attend ta licence.</p></div>
+      <button type="button" class="btn" id="g-licence">${fin ? 'Activer ma licence' : 'Voir ma licence'}</button>
+-- après
+          : `<p class="g-essai-sur">Tout fonctionne pendant l'essai, et ce que tu y crées reste quand tu ${bridge.dessinerAbonnement ? 't\'abonnes' : 'actives ta licence'} : rien à ressaisir.</p>`}
+        ${fin && bridge.dessinerAbonnement && licence.detail ? `<p class="small"><b>${h(licence.detail)}</b></p>` : ''}
+        <p class="small">${fin ? 'Tes données sont intactes : tu gardes' : `${bridge.dessinerAbonnement ? 'Abonnement' : 'Licence'} ou pas, tes données restent à toi : tu gardes toujours`} la lecture, l'impression, l'export et l'envoi à ton comptable. Seule la création de nouvelles pièces attend ${bridge.dessinerAbonnement ? 'ton abonnement' : 'ta licence'}.</p></div>
+      <button type="button" class="btn" id="g-licence">${bridge.dessinerAbonnement ? (fin ? 'Choisir mon offre' : 'Voir l\'abonnement') : (fin ? 'Activer ma licence' : 'Voir ma licence')}</button>
+-- fin
+
+== app.js | « Ton abonnement » est un onglet des Paramètres, après l'équipe
+-- avant
+...(bridge.dessinerEquipe ? [['equipe', 'L\'équipe']] : []), ['documents', 'Documents'],
+-- après
+...(bridge.dessinerEquipe ? [['equipe', 'L\'équipe']] : []), ...(bridge.dessinerAbonnement ? [['abonnement', 'Ton abonnement']] : []), ['documents', 'Documents'],
+-- fin
+
+== app.js | son panneau a son entrée (le sommaire de l'onglet, la recherche des réglages, la palette) ; celui de la licence est déjà absent (pont.js, PANNEAUX_ABSENTS)
+-- avant
+    'p-licence': { onglet: 'app', titre: 'Licence', mots: 'licence cle activation essai expiration acheter abonnement offre independant entreprise' },
+-- après
+    'p-licence': { onglet: 'app', titre: 'Licence', mots: 'licence cle activation essai expiration acheter abonnement offre independant entreprise' },
+    'p-abonnement': { onglet: 'abonnement', titre: 'Ton abonnement', mots: 'abonnement essai offre essentiel complet prix tarif payer paiement renouveler echeance lecture seule facture skanfact licence', visible: () => abonnementVisible() },
+-- fin
+
+== app.js | la palette ne propose l'onglet de l'abonnement qu'à qui le voit
+-- avant
+SETTINGS_TABS.filter(t => t[0] !== 'equipe' || equipeVisible())]
+-- après
+SETTINGS_TABS.filter(t => (t[0] !== 'equipe' || equipeVisible()) && (t[0] !== 'abonnement' || abonnementVisible()))]
+-- fin
+
+== app.js | les Paramètres n'ouvrent l'onglet de l'abonnement qu'à qui le voit
+-- avant
+    const TABS = SETTINGS_TABS.filter(t => t[0] !== 'equipe' || equipeVisible());
+-- après
+    const TABS = SETTINGS_TABS.filter(t => (t[0] !== 'equipe' || equipeVisible()) && (t[0] !== 'abonnement' || abonnementVisible()));
+-- fin
+
+== app.js | l'onglet « Ton abonnement » : son panneau
+-- avant
+      <section data-pane="compte" hidden>
+-- après
+      ${abonnementVisible() ? `<section data-pane="abonnement" hidden>
+      ${panneau('p-abonnement', info('set.abonnement'))}<div id="abonnement-panel"></div></div>
+      </section>` : ''}
+
+      <section data-pane="compte" hidden>
+-- fin
+
+== app.js | le point de contact dessine l'abonnement quand les Paramètres s'ouvrent
+-- avant
+    if (bridge.dessinerEquipe && $('#equipe-panel')) void bridge.dessinerEquipe($('#equipe-panel'), { modal, toast, confirmDialog, nom: company().name });
+-- après
+    if (bridge.dessinerEquipe && $('#equipe-panel')) void bridge.dessinerEquipe($('#equipe-panel'), { modal, toast, confirmDialog, nom: company().name });
+    if (bridge.dessinerAbonnement && $('#abonnement-panel')) void bridge.dessinerAbonnement($('#abonnement-panel'));
+-- fin
+
+== app.js | émettre est une pièce fiscale nouvelle : en lecture seule, le serveur la refuse, même d'un brouillon déjà enregistré
+-- avant
+      if (!data.documents.some(d => d.id === doc.id) && licenceBlock('Émettre une nouvelle pièce')) return false;
+-- après
+      if ((bridge.dessinerAbonnement || !data.documents.some(d => d.id === doc.id)) && licenceBlock('Émettre une nouvelle pièce')) return false;
+-- fin
+
+== app.js | et le refus se dit AVANT le contrôle de la saisie et le récapitulatif de l'émission : on ne fait pas compléter une pièce, ni relire et confirmer, pour la refuser ensuite
+-- avant
+        if (enLecture('documents')) { refus('#issue', refusLecture('documents')); return; }
+        if (!validate()) return;
+-- après
+        if (enLecture('documents')) { refus('#issue', refusLecture('documents')); return; }
+        if (bridge.dessinerAbonnement && licenceBlock('Émettre une nouvelle pièce')) return;
+        if (!validate()) return;
+-- fin
+
+== app.js | une nouvelle pièce de vente se refuse avant le contrôle de sa saisie (on ne fait pas choisir un client pour rien)
+-- avant
+    function persist() {
+      if (enLecture('documents')) return refus('#save', refusLecture('documents'));
+      if (!validate()) return false;
+-- après
+    function persist() {
+      if (enLecture('documents')) return refus('#save', refusLecture('documents'));
+      if (bridge.dessinerAbonnement && !data.documents.some(d => d.id === doc.id) && licenceBlock('Créer un nouveau document')) return false;
+      if (!validate()) return false;
+-- fin
+
+== app.js | un nouvel achat aussi
+-- avant
+    function persist() {
+      if (!validate()) return false;
+      const wasDate = (data.purchases.find(x => x.id === p.id) || {}).date;
+-- après
+    function persist() {
+      if (bridge.dessinerAbonnement && !data.purchases.some(x => x.id === p.id) && licenceBlock('Enregistrer un nouvel achat', 'achats')) return false;
+      if (!validate()) return false;
+      const wasDate = (data.purchases.find(x => x.id === p.id) || {}).date;
+-- fin
+
+== app.js | ouvrir la caisse se refuse avant le geste en lecture seule (le serveur la refuse)
+-- avant
+      $('#cs-ouvrir').onclick = async () => {
+        const b = $('#cs-ouvrir'); b.disabled = true;
+-- après
+      $('#cs-ouvrir').onclick = async () => {
+        if (licenceBlock('Ouvrir la caisse', 'caisse')) return;
+        const b = $('#cs-ouvrir'); b.disabled = true;
+-- fin
+
+== app.js | la caisse fermée le dit avant qu'on tape le fond de caisse : en lecture seule, elle ne s'ouvre plus
+-- avant
+        <p>Ouvre-la sur cet appareil avec le fond de caisse (les espèces déjà dans le tiroir) : elle encaisse ensuite ici, et seulement ici, jusqu'à sa fermeture. ${info('cs.session')}</p>
+-- après
+        <p>Ouvre-la sur cet appareil avec le fond de caisse (les espèces déjà dans le tiroir) : elle encaisse ensuite ici, et seulement ici, jusqu'à sa fermeture. ${info('cs.session')}</p>
+        ${licence.locked && bridge.dessinerAbonnement ? `<p class="ct-abo" id="cs-abo"><b>${h(licence.label)} :</b> la caisse ne s'ouvre plus tant que l'abonnement n'est pas réglé. ${h(licence.detail)} Les tickets déjà faits se lisent toujours.</p>` : ''}
+-- fin
+
+== app.js | lire une facture d'achat crée un achat : refusé avant l'envoi du fichier en lecture seule (le serveur la refuse)
+-- avant
+    const lirePhoto = async (file) => {
+-- après
+    const lirePhoto = async (file) => {
+      if (licenceBlock('Lire une facture d\'achat', 'achats')) return;
+-- fin
+
+== app.js | une nouvelle pièce de vente le dit à l'ouverture, en lecture seule
+-- avant
+      ${bandeauQuestions(doc.number)}
+      <div class="editor" data-devise="${h(cur)}">
+-- après
+      ${bandeauAbonnement(isNew)}
+      ${bandeauQuestions(doc.number)}
+      <div class="editor" data-devise="${h(cur)}">
+-- fin
+
+== app.js | son bouton mène à l'abonnement
+-- avant
+    if ($('#clos-go')) $('#clos-go').onclick = () => { comptaState.tab = 'clotures'; navigate('#/compta'); };
+-- après
+    if ($('#clos-go')) $('#clos-go').onclick = () => { comptaState.tab = 'clotures'; navigate('#/compta'); };
+    if ($('#abo-voir')) $('#abo-voir').onclick = () => allerAbonnement();
+-- fin
+
+== app.js | un nouvel achat le dit à l'ouverture, en lecture seule
+-- avant
+      ${bandeauQuestions(p.number)}
+-- après
+      ${bandeauAbonnement(isNew)}
+      ${bandeauQuestions(p.number)}
+-- fin
+
+== app.js | son bouton mène à l'abonnement
+-- avant
+    if ($('#buy-clos-go')) $('#buy-clos-go').onclick = () => { comptaState.tab = 'clotures'; navigate('#/compta'); };
+-- après
+    if ($('#buy-clos-go')) $('#buy-clos-go').onclick = () => { comptaState.tab = 'clotures'; navigate('#/compta'); };
+    if ($('#abo-voir')) $('#abo-voir').onclick = () => allerAbonnement();
+-- fin
+
+== visites.js | le bouton de la carte de l'essai ouvre l'abonnement, pas une licence (une explication fausse est pire qu'aucune, 10.14.0)
+-- avant
+  b('#g-licence', "Ouvre ta licence, dans les Paramètres : son état, ce qu'elle ouvre, et comment l'obtenir.");
+-- après
+  b('#g-licence', "Ouvre l'abonnement de l'entreprise : où en est l'essai, les deux offres, et comment s'abonner. C'est le propriétaire, ou un administrateur, qui le règle.");
+  b('#abo-voir', "Ouvre l'abonnement de l'entreprise : pourquoi la création attend, et comment la rouvrir.");
+-- fin
+
+== guide.js | la bulle de l'abonnement
+-- avant
+    'data.dossiers': {
+-- après
+    'set.abonnement': { t: 'Ton abonnement', d: 'Ce que l\'entreprise paie pour SkanFact : un prix <b>par entreprise</b>, jamais par utilisateur. Les <b>30 premiers jours</b> sont un essai gratuit, tout ouvert, sans carte. Ensuite tu choisis <b>Essentiel</b> ou <b>Complet</b>, à l\'année ou au mois ; ce que tu as créé pendant l\'essai reste, rien à ressaisir.<br><br>Un rappel part par e-mail quinze jours, sept jours et la veille de l\'échéance. Après l\'échéance, tout marche encore <b>sept jours</b>. Ensuite l\'entreprise passe en <b>lecture seule</b> : tout se lit, s\'imprime et s\'exporte, rien de nouveau ne se crée (une facture, un ticket, une caisse qu\'on ouvre). Ce qui existe déjà se corrige toujours, et ta comptabilité et tes déclarations restent ouvertes.<br><br>Seuls le propriétaire et un administrateur voient cet onglet.' },
+    'data.dossiers': {
+-- fin

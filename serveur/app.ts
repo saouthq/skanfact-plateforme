@@ -16,6 +16,7 @@ import { jetonDUnAppareilRetire, quiEst, remisParCeJeton, type Contexte, type Qu
 import { choisirEncodage, compresser, compressible, SEUIL_COMPRESSION } from './compression.ts';
 import { GESTES, GESTES_PERSONNELS } from './porte/gestes.ts';
 import { peut } from './porte/porte.ts';
+import { brancherAbonnement } from './abonnement/condition.ts';
 import { nomDuChamp, raison } from './validation.ts';
 
 export type Requete<C> = { corps: C; params: Record<string, string>; query: Record<string, string>; qui: Qui | null; requete: FastifyRequest };
@@ -111,6 +112,8 @@ const MACHINE = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limiteur?: Limiteur; limiteurPublic?: Limiteur; proxy?: number } = {}): FastifyInstance {
   // Le démarrage échoue AVANT d'écouter si une seule route est mal déclarée.
   for (const r of routes) verifierDeclaration(r);
+  // La lecture seule d'un abonnement (docs/abonnement.md) : la porte de tout serveur la porte, une fois.
+  brancherAbonnement();
 
   // (Les `proxy` premiers relais en partant du serveur sont de confiance ; l'adresse lue est celle d'avant eux.)
   const relais = options.proxy ?? 0;

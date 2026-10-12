@@ -1,0 +1,107 @@
+/* L'abonnement de l'entreprise (0082 ; abonnement.js, docs/abonnement.md), dans la DA des maquettes validées par Skander
+   (l'entrée, « Tes premiers pas », la messagerie) : le haut vert presque noir et quadrillé de la vitrine, les titres en
+   Bricolage Grotesque, les cartes arrondies, la sarcelle pour ce qui est à toi. Le haut reste sombre dans les deux thèmes
+   (comme « Tes premiers pas ») ; le reste suit les variables de la v10, en clair comme en sombre. Les polices sont celles
+   de l'entrée, servies par le serveur (déclarées aussi par messagerie.css : le navigateur ne les charge qu'une fois). */
+@font-face {
+  font-family: 'Bricolage Grotesque Variable'; font-style: normal; font-display: swap; font-weight: 200 800;
+  src: url(polices/bricolage-grotesque-latin-wght-normal.woff2) format('woff2-variations');
+}
+@font-face {
+  font-family: 'IBM Plex Mono'; font-style: normal; font-display: swap; font-weight: 500;
+  src: url(polices/ibm-plex-mono-latin-500-normal.woff2) format('woff2');
+}
+.abo { --abo-titre: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', system-ui, sans-serif;
+  --abo-nuit: #0b2724; --abo-menthe: #7fe0d3; --abo-brume: #a9c6c1;
+  display: flex; flex-direction: column; gap: 28px; }
+.abo h3, .abo h4, .abo p { margin: 0; }
+
+/* ── L'état : le haut sombre de la vitrine ── */
+.abo-tete {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 18px 32px; padding: 26px 28px;
+  border-radius: 20px; color: #e8f3f1;
+  background-color: var(--abo-nuit); background-image: repeating-linear-gradient(0deg, rgba(127, 224, 211, .06) 0 1px, transparent 1px 32px);
+}
+.abo-tete-txt { flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.abo-tete h3 { font-family: var(--abo-titre); font-weight: 600; font-size: 26px; line-height: 1.15; letter-spacing: -0.02em; color: #fff; text-wrap: balance; }
+.abo-tete p { max-width: 620px; font-size: 14.5px; line-height: 1.55; color: var(--abo-brume); }
+.abo-pastille {
+  padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 650; letter-spacing: .02em;
+  background: rgba(127, 224, 211, .14); color: var(--abo-menthe); border: 1px solid rgba(127, 224, 211, .28);
+}
+.abo-tete.attire .abo-pastille { background: rgba(245, 185, 113, .14); color: #f5c58a; border-color: rgba(245, 185, 113, .35); }
+.abo-tete.alerte .abo-pastille { background: rgba(255, 140, 128, .14); color: #ffab9f; border-color: rgba(255, 140, 128, .38); }
+.abo-jauge { flex: 0 1 240px; min-width: 180px; display: flex; flex-direction: column; gap: 8px; }
+.abo-jauge-txt { font-size: 14px; font-weight: 600; color: #fff; font-variant-numeric: tabular-nums; }
+.abo-barre { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+.abo-barre i { display: block; height: 100%; border-radius: 4px; background: var(--abo-menthe); }
+.abo-tete.attire .abo-barre i { background: #f5c58a; }
+.abo-tete.alerte .abo-barre i { background: #ffab9f; }
+/* En sombre, le haut est posé sur un panneau presque aussi sombre que lui : un filet menthe le détache. */
+body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
+
+/* ── Une section : son titre, en Bricolage, et sa phrase ── */
+.abo-section { display: flex; flex-direction: column; gap: 14px; }
+.abo-section-tete { display: flex; flex-direction: column; gap: 4px; }
+.abo-section-tete h3 { font-family: var(--abo-titre); font-weight: 600; font-size: 19px; letter-spacing: -0.01em; color: var(--text); }
+.abo-section-tete p { font-size: 13.5px; color: var(--muted); }
+
+/* ── Les offres : la même place pour la même chose, d'une carte à l'autre ── */
+.abo-offres { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.abo-offre {
+  display: flex; flex-direction: column; gap: 10px; padding: 22px 24px; border-radius: 20px;
+  background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.abo-offre.courante { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary), var(--shadow); }
+.abo-offre-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.abo-offre-tete h4 { font-family: var(--abo-titre); font-weight: 650; font-size: 20px; letter-spacing: -0.01em; color: var(--text); }
+.abo-badge { padding: 3px 11px; border-radius: 999px; background: var(--abo-nuit); color: var(--abo-menthe); font-size: 12px; font-weight: 650; white-space: nowrap; }
+.abo-pour { font-size: 14px; line-height: 1.45; color: var(--muted); min-height: 2.9em; }
+.abo-prix { display: flex; align-items: baseline; gap: 8px; margin-top: 4px; }
+.abo-prix b { font-family: var(--abo-titre); font-weight: 650; font-size: 38px; line-height: 1; letter-spacing: -0.03em; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.abo-prix span { font-size: 14px; font-weight: 600; color: var(--muted); }
+.abo-mois { font-size: 13.5px; color: var(--muted); }
+.abo-inclus { margin: 6px 0 0; padding: 14px 0 0; list-style: none; display: flex; flex-direction: column; gap: 9px; border-top: 1px solid var(--border); }
+.abo-inclus li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 14px; line-height: 1.4; color: var(--text); }
+.abo-inclus svg { width: 18px; height: 18px; margin-top: 1px; fill: none; stroke: var(--primary); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ── T'abonner : la carte sarcelle, et l'adresse qui se clique ── */
+.abo-payer { display: flex; align-items: flex-start; gap: 16px; padding: 20px 24px; border-radius: 20px; background: var(--primary-soft); border: 1px solid transparent; }
+.abo-payer-ico { flex: none; width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--abo-nuit); }
+.abo-payer-ico svg { width: 22px; height: 22px; fill: none; stroke: var(--abo-menthe); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.abo-payer-txt { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.abo-payer-txt h4 { font-family: var(--abo-titre); font-weight: 650; font-size: 17px; color: var(--text); }
+.abo-payer-txt p { font-size: 14px; line-height: 1.55; color: var(--text); }
+.abo-payer-txt a { font-weight: 650; color: var(--primary); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+
+/* ── À l'échéance : trois étapes, dans l'ordre où elles arrivent ── */
+.abo-etapes { margin: 0; padding: 0; list-style: none; counter-reset: etape; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.abo-etapes li {
+  counter-increment: etape; position: relative; display: flex; flex-direction: column; gap: 4px; padding: 16px 18px 16px 58px;
+  border-radius: 16px; background: var(--panel); border: 1px solid var(--border); font-size: 13.5px; line-height: 1.45; color: var(--muted);
+}
+.abo-etapes li::before {
+  content: counter(etape); position: absolute; inset-inline-start: 18px; top: 16px; width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-family: var(--abo-titre); font-weight: 700; font-size: 14px;
+  background: var(--primary-soft); color: var(--primary);
+}
+.abo-etapes li:last-child::before { background: var(--abo-nuit); color: var(--abo-menthe); }
+.abo-etapes b { font-size: 14.5px; font-weight: 650; color: var(--text); }
+
+/* ── L'histoire : le jour, ce qui est arrivé ── */
+.abo-histoire { margin: 0; padding: 4px 0; list-style: none; border-radius: 16px; border: 1px solid var(--border); background: var(--panel); }
+.abo-histoire li { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 12px; padding: 11px 18px; font-size: 14px; }
+.abo-histoire li + li { border-top: 1px solid var(--border); }
+.abo-quand { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 900px) {
+  .abo-etapes { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 720px) {
+  .abo-offres { grid-template-columns: minmax(0, 1fr); }
+  .abo-tete { padding: 22px 20px; }
+  .abo-tete h3 { font-size: 22px; }
+}
+
+/* La caisse fermée, en lecture seule : la phrase qui le dit, avant qu'on tape le fond de caisse. */
+.ct-abo { margin: 4px 0 14px; padding: 12px 14px; border-radius: 14px; background: var(--danger-soft); border: 1px solid var(--danger); text-align: start; }

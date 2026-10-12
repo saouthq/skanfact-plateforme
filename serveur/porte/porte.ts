@@ -2,7 +2,7 @@
 // Elle pose les trois questions DANS L'ORDRE et nomme la première réponse qui manque :
 //   1. cette personne voit-elle cette entreprise ? (la sécurité par ligne de la base le dit)
 //   2. le geste est-il possible ici et maintenant ? (offre, abonnement, mois fermé : les modules
-//      branchent leurs conditions ici ; aucune au socle pour l'instant)
+//      branchent leurs conditions ici ; la lecture seule d'un abonnement, serveur/abonnement/condition.ts)
 //   3. son rôle le permet-il ?
 // `qui` : les personnes qui ont ce droit, parmi les membres ACTIFS (jamais une personne absente,
 // D4) ; `bouton` : le geste qui débloque, s'il existe.
@@ -19,8 +19,8 @@ export type Decision =
 export type QuiAgit = { utilisateur: string; codeAConfigurer?: boolean; cle?: { gestes: string[] } | undefined };
 
 // Une condition « ici et maintenant » (2e question), branchée par un module : elle rend un refus
-// ou rien.
-export type Condition = (tx: Transaction, entreprise: string, geste: Geste) => Promise<{ motif: Texte; bouton: string | null } | null>;
+// ou rien. `ecrire` : le geste écrit-il cette fois-ci (une route GET d'un geste qui écrit ne fait que lire).
+export type Condition = (tx: Transaction, entreprise: string, geste: Geste, ecrire: boolean) => Promise<{ motif: Texte; bouton: string | null } | null>;
 const conditions: Condition[] = [];
 
 // Ce qu'il faut au mandat d'un cabinet pour les gestes de chaque module (03 § 3.4) : l'une des
@@ -55,7 +55,7 @@ export async function peut(tx: Transaction, qui: QuiAgit, entreprise: string, co
 
   // 2. Possible ici et maintenant ?
   for (const c of conditions) {
-    const refus = await c(tx, entreprise, geste);
+    const refus = await c(tx, entreprise, geste, ecrire);
     if (refus) return { ok: false, raison: 'condition', motif: refus.motif, qui: [], bouton: refus.bouton };
   }
 

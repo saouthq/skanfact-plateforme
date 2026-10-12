@@ -466,6 +466,39 @@ export interface BaseDeDonnees {
     modifie_le: Generated<Date>;
     revision: Generated<bigint>;
   };
+  'plateforme.abonnement': {
+    entreprise: string;
+    essai_jusqu_au: string;
+    paye_jusqu_au: string | null;
+    offre: string | null;
+    periodicite: string | null;
+    resilie_le: string | null;
+    suspendu_le: string | null;
+    offert: Generated<boolean>;
+    modifie_le: Generated<Date>;
+  };
+  'plateforme.evenement_abonnement': {
+    id: Generated<string>;
+    entreprise: string;
+    le: Generated<Date>;
+    nature: string;
+    par: string;
+    motif: string | null;
+    avant: ColumnType<Json | null, string | null, string | null>;
+    apres: ColumnType<Json | null, string | null, string | null>;
+  };
+  'plateforme.prix': {
+    offre: string;
+    periodicite: string;
+    a_partir_du: string;
+    montant_ht: bigint;
+  };
+  'plateforme.relance_abonnement': {
+    entreprise: string;
+    echeance: string;
+    rang: string;
+    partie_le: Date;
+  };
   'socle.abonnement_avis': {
     id: Generated<string>;
     entreprise: string;

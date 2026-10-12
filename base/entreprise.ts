@@ -113,6 +113,12 @@ export const CLASSEMENT: Record<string, Classe> = {
   // Les traces de ce qui a été retiré du dossier (0059) : elles servent la relecture par différence des postes ; un poste
   // d'une entreprise restaurée relit tout.
   'socle.instance': { classe: 'hors', raison: 'l\'identité de la base, propre à chaque base' },
+  // L'abonnement (0082, docs/abonnement.md) : le compte de l'entreprise CHEZ SkanFact. Une remise ou une restauration ne le
+  // fait jamais revenir en arrière (un paiement d'après la minute remise resterait payé), et il ne part pas avec ses données.
+  'plateforme.abonnement': { classe: 'hors', raison: 'le compte de l\'entreprise chez SkanFact (essai, échéances, paiements) : une remise ne le fait jamais revenir en arrière' },
+  'plateforme.evenement_abonnement': { classe: 'hors', raison: 'l\'histoire de l\'abonnement chez SkanFact, avec les notes de SkanFact' },
+  'plateforme.relance_abonnement': { classe: 'hors', raison: 'les relances déjà parties : une remise ne les fait pas repartir' },
+  'plateforme.prix': { classe: 'hors', raison: 'la grille de SkanFact, commune à toutes les entreprises' },
   'socle.dossier_v10_retire': { classe: 'hors', raison: 'les traces de retrait servent la relecture des postes ; après une restauration, un poste relit tout' },
   // Ce qu'un appareil retiré a remis (0044) : à l'entreprise, décidé ou non.
   'socle.quarantaine': { classe: 'entreprise' },

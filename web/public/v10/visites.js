@@ -680,7 +680,8 @@
   b('#g-reprendre', "Reprend la visite en pause, à l'étape où tu l'avais laissée.");
   b('#g-prochain', "Lance le prochain geste : la découverte de l'exemple tant qu'elle n'est pas faite, puis le premier de tes premiers pas qui manque.");
   b('#g-aide', "Ouvre l'Aide.");
-  b('#g-licence', "Ouvre ta licence, dans les Paramètres : son état, ce qu'elle ouvre, et comment l'obtenir.");
+  b('#g-licence', "Ouvre l'abonnement de l'entreprise : où en est l'essai, les deux offres, et comment s'abonner. C'est le propriétaire, ou un administrateur, qui le règle.");
+  b('#abo-voir', "Ouvre l'abonnement de l'entreprise : pourquoi la création attend, et comment la rouvrir.");
   b('#pp-decouvrir', "Charge l'entreprise d'exemple — tes données sont mises de côté — et lance le grand tour, chapitre par chapitre.");
   b('#pp-guider', "Te guide clic par clic dans ta vraie entreprise : ta fiche, ton premier client, ton premier devis.");
   b('#pp-plus-tard', "Range cet accueil. La découverte et chaque visite restent dans « Me guider », en bas du menu.");

@@ -177,6 +177,7 @@ declarerTextes({
   'geste.socle.propriete.transferer': 'transférer la propriété',
   'geste.socle.offre.changer': 'changer d\'offre ou acheter un module',
   'geste.socle.abonnement.payer': 'payer une échéance de l\'abonnement',
+  'geste.socle.abonnement.voir': 'voir l\'abonnement de l\'entreprise',
   'geste.socle.cabinet.choisir': 'choisir le cabinet ou arrêter son mandat',
   'geste.socle.support.autoriser': 'accorder un accès au support',
   'geste.socle.export_complet': 'exporter toute l\'entreprise',

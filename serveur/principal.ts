@@ -64,6 +64,8 @@ import { declarerGestesPaie } from './paie/gestes.ts';
 import { routesPaie } from './paie/routes.ts';
 import { declarerGestesMessagerie } from './messagerie/gestes.ts';
 import { prevenirParCourriel } from './messagerie/postier.ts';
+import { relancerLesAbonnements } from './abonnement/relances.ts';
+import { routesAbonnement } from './abonnement/routes.ts';
 import { routesMessagerie } from './messagerie/routes.ts';
 import { declarerGestesVentes } from './ventes/gestes.ts';
 import { routesVentes } from './ventes/routes.ts';
@@ -78,7 +80,7 @@ export type Configuration = {
   // Le fournisseur de SMS (0081) : aucun, ou WinSMS avec sa clé (de l'environnement, jamais du dépôt).
   sms: 'aucun' | { fournisseur: 'winsms'; cle: string; expediteur: string | null; adresse: string }; livreurMs: number; web: string; adresse: string | null; konnect: string; coffre: Buffer; verificationMs: number;
   digigo: { base: string; cle: string } | null;
-  ttn: string | null; ttnMs: number; contratsMs: number; alertesMs: number;
+  ttn: string | null; ttnMs: number; contratsMs: number; alertesMs: number; relancesMs: number;
   lectures: number;
   partenaires: Partenaire[];
   // Combien de relais de confiance (le frontal) se tiennent devant le serveur (brique 142) : 0, le serveur est
@@ -157,6 +159,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     digigo: digigo ? { base: digigo, cle: env.SKANFACT_DIGIGO_CLE ?? '' } : null,
     ttn, ttnMs: Number(env.SKANFACT_TTN_MS ?? 60_000), contratsMs: Number(env.SKANFACT_CONTRATS_MS ?? 3_600_000),
     alertesMs: Number(env.SKANFACT_ALERTES_MS ?? 60_000),
+    relancesMs: Number(env.SKANFACT_RELANCES_MS ?? 3_600_000),
     lectures, partenaires, proxy, version: env.SKANFACT_VERSION ?? versionDuCode(),
     courriel: smtp && de ? { smtp, de } : null,
   };
@@ -227,7 +230,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   declarerGestesPaie();
   declarerGestesCompta();
   declarerGestesMessagerie();
-  const app = creerApp(ctx, [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx), ...routesMessagerie(ctx)], { proxy: c.proxy });
+  const app = creerApp(ctx, [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesAbonnement()], { proxy: c.proxy });
   servirLesEcrans(app, c.web, c.version);
   const adresse = await app.listen({ port: c.port, host: c.hote });
   if (!publique) publique = adresse;
@@ -284,6 +287,18 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
     alertes = prevenirParCourriel(ctx).catch((e: unknown) => { app.log.error(e); }).finally(() => { enAlertes = false; });
   }, c.alertesMs);
 
+  // Les relances de l'abonnement (docs/abonnement.md) : au démarrage, puis chaque heure, les échéances proches ; un seul
+  // tour à la fois, et rien sans relais d'e-mails.
+  let relances: Promise<unknown> = Promise.resolve();
+  let enRelances = false;
+  const tourDesRelances = () => {
+    if (enRelances || !ctx.courriel) return;
+    enRelances = true;
+    relances = relancerLesAbonnements(ctx).catch((e: unknown) => { app.log.error(e); }).finally(() => { enRelances = false; });
+  };
+  tourDesRelances();
+  const relanceur = setInterval(tourDesRelances, c.relancesMs);
+
   return {
     adresse,
     arreter: async () => {
@@ -292,11 +307,13 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
       clearInterval(facteur);
       clearInterval(contrats);
       clearInterval(postier);
+      clearInterval(relanceur);
       await tour;
       await verification;
       await tournee;
       await echeancier;
       await alertes;
+      await relances;
       await app.close();
       await pool.end();
     },

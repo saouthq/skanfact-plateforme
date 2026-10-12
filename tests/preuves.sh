@@ -10000,7 +10000,7 @@ prouver "l'aperçu qui en dit plus que le message" serveur/routes/socle.ts \
   "$EQ5"
 EQW="inviter, rejoindre par le lien sans compte, changer les rôles, retirer, annuler une invitation"
 prouver "l'onglet de l'équipe montré à qui ne la gère pas" web/public/v10/app.js \
-  "    const TABS = SETTINGS_TABS.filter(t => t[0] !== 'equipe' || equipeVisible());" "    const TABS = SETTINGS_TABS;" \
+  "    const TABS = SETTINGS_TABS.filter(t => (t[0] !== 'equipe' || equipeVisible()) && (t[0] !== 'abonnement' || abonnementVisible()));" "    const TABS = SETTINGS_TABS.filter(t => t[0] !== 'abonnement' || abonnementVisible());" \
   "$EQW"
 prouver "un rôle coché d'avance à l'invitation" web/public/plateforme/equipe.js \
   "\${casesRoles(donnables, [], 'Ce qu\\'il pourra faire')}" "\${casesRoles(donnables, ['commercial'], 'Ce qu\\'il pourra faire')}" \
@@ -10605,6 +10605,205 @@ prouver 'un essai oublié qui traîne avec les données d'"'"'une entreprise' ex
   'find "$REMISES" -maxdepth 1 -name '"'"'*.jsonl'"'"' -mmin +1440 -delete
 ' '' \
   "$RM3"
+# ── L'abonnement (lot des fonctions qui manquent, 14a, 12/10/2026 ; docs/abonnement.md) ──
+AE1='ce qui n'"'"'a pas d'"'"'échéance ne se ferme jamais, même expiré'
+AE2='l'"'"'essai : trente jours, le dernier compris'
+AE3='sept jours de grâce après l'"'"'échéance, puis la lecture seule'
+AE4='une période payée : active jusqu'"'"'au bout, puis la même grâce, puis « non renouvelé »'
+AE5='résilié : la période payée va au bout, puis la lecture seule sans grâce'
+AE6='suspendu par SkanFact : la lecture seule le jour même, pas avant'
+AE7='l'"'"'échéance est le plus tard de l'"'"'essai et de la période payée'
+AR1='quinze jours, sept jours, la veille : la plus pressante que le jour atteint, une fois chacune'
+AR2='un serveur arrêté ne rattrape pas les relances manquées : la plus pressante seulement'
+AR3='pendant la grâce, rien ; le jour de la lecture seule, une fois'
+AR4='une échéance nouvelle a ses relances : celles de l'"'"'ancienne ne comptent pas'
+AR5='ni pour qui a résilié, ni pour une suspension, ni pour ce qui n'"'"'a pas d'"'"'échéance'
+AP1='payé pendant l'"'"'essai : elle commence le lendemain de l'"'"'échéance, aucun jour d'"'"'essai ne se perd'
+AP2='payé pendant la grâce : la même, sans interruption ; après : le jour du paiement'
+AP3='un renouvellement prend la suite de la période payée'
+AP4='un mois de calendrier : le 31 janvier plus un mois est le dernier jour de février'
+AJ1='un jour illisible vaut « pas de jour », jamais une date devinée'
+APO1='chaque geste qui écrit a sa décision'
+APO2='chaque décision désigne un geste qui écrit'
+APO3='ce qui a de la valeur et ce qui engage se ferme ; ce que la loi demande pour l'"'"'existant reste ouvert'
+AB1='une entreprise neuve a trente jours d'"'"'essai, et son histoire le dit'
+AB2='l'"'"'état, pour tous ceux qui y travaillent'
+AB3='le détail (les prix, l'"'"'histoire), pour qui gère l'"'"'abonnement ; jamais le motif d'"'"'un geste de SkanFact'
+AB4='une personne d'"'"'ailleurs ne voit rien, ni l'"'"'état ni les faits'
+AB5='émettre une facture est refusé : pourquoi, depuis quand, et le geste qui rouvre'
+AB6='la porte ne ferme que les gestes fermés, et seulement pour écrire'
+AB7='un ticket encaissé sans réseau AVANT la lecture seule se reçoit ; un nouveau, non'
+AB8='un paiement rouvre tout, aussitôt'
+ABR1='quinze jours avant : à qui gère l'"'"'abonnement, une fois, sans le nom de l'"'"'entreprise'
+ABR2='un envoi qui échoue n'"'"'est pas noté : il se retente au tour suivant'
+ABR3='le jour de la lecture seule, une fois ; pendant la grâce, rien'
+ABR4='sans relais d'"'"'e-mails, rien ne part et rien ne se note : la relance partira avec le relais'
+ABG1='chacun pose son événement, avec son motif ; un motif vide est refusé'
+ABG2='un renouvellement à l'"'"'année prend la suite de la période payée'
+ABG3='une trace ne se modifie pas et ne s'"'"'efface pas'
+AET=serveur/abonnement/etat.ts
+prouver 'le bac à sable des développeurs qui se ferme à la fin de son essai' $AET \
+  "  if (f.bacASable) return { etat: 'hors', raison: 'bac_a_sable' };
+" '' \
+  "$AE1"
+prouver 'un abonnement offert qu'"'"'une suspension ferme quand même' $AET \
+  "  if (f.offert) return { etat: 'hors', raison: 'offert' };
+" '' \
+  "$AE1"
+prouver 'le dernier jour de l'"'"'essai déjà compté en retard' $AET \
+  '  if (jour <= echeance) {' '  if (jour < echeance) {' \
+  "$AE2"
+prouver 'six jours de grâce au lieu de sept' $AET \
+  '  const lectureSeuleLe = plusJours(echeance, GRACE_JOURS + 1);' '  const lectureSeuleLe = plusJours(echeance, GRACE_JOURS);' \
+  "$AE3"
+prouver 'une période payée échue qui se dit « essai terminé »' $AET \
+  '  const apresEssai = !f.payeJusquAu || f.payeJusquAu < (f.essaiJusquAu ?? echeance);' '  const apresEssai = true;' \
+  "$AE4"
+prouver 'une résiliation qui a droit à la grâce' $AET \
+  "  if (f.resilieLe) return { etat: 'lecture_seule', depuis: plusJours(echeance, 1), raison: 'resilie' };
+" '' \
+  "$AE5"
+prouver 'une suspension qui ferme avant son jour' $AET \
+  '  if (f.suspenduLe && f.suspenduLe <= jour) return' '  if (f.suspenduLe) return' \
+  "$AE6"
+prouver 'l'"'"'échéance qui oublie la période payée' $AET \
+  '  return plusTard(f.essaiJusquAu, f.payeJusquAu);' '  return f.essaiJusquAu;' \
+  "$AE7"
+prouver 'la relance des quinze jours qui part un jour trop tard' $AET \
+  '    if (reste > seuil) continue;' '    if (reste >= seuil) continue;' \
+  "$AR1"
+prouver 'une relance moins pressante qui repart après une plus pressante' $AET \
+  '    if (plusPressantes.some((r) => deja.has(r))) return null;' '    if (deja.has(rang)) return null;' \
+  "$AR2"
+prouver 'la relance de la lecture seule qui repart chaque jour' $AET \
+  "    if (e.raison === 'suspendu' || deja.has('lecture_seule')) return null;" "    if (e.raison === 'suspendu') return null;" \
+  "$AR3"
+prouver 'les relances d'"'"'une ancienne échéance qui comptent pour la nouvelle' $AET \
+  '  const deja = new Set(parties.filter((p) => p.echeance === echeance).map((p) => p.rang));' '  const deja = new Set(parties.map((p) => p.rang));' \
+  "$AR4"
+prouver 'un abonnement résilié qu'"'"'on relance quand même' $AET \
+  "  if (echeance === null || f.resilieLe || e.etat === 'hors') return null;" "  if (echeance === null || e.etat === 'hors') return null;" \
+  "$AR5"
+prouver 'une suspension relancée comme une échéance manquée' $AET \
+  "    if (e.raison === 'suspendu' || deja.has('lecture_seule')) return null;" "    if (deja.has('lecture_seule')) return null;" \
+  "$AR5"
+prouver 'un paiement fait pendant l'"'"'essai qui en perd les derniers jours' $AET \
+  '  const debut = jour <= plusJours(echeance, GRACE_JOURS) ? plusJours(echeance, 1) : jour;' '  const debut = jour;' \
+  "$AP1"
+prouver 'un paiement fait pendant la grâce qui laisse un trou' $AET \
+  '  const debut = jour <= plusJours(echeance, GRACE_JOURS) ? plusJours(echeance, 1) : jour;' '  const debut = jour <= echeance ? plusJours(echeance, 1) : jour;' \
+  "$AP2"
+prouver 'une période qui déborde d'"'"'un jour sur la suivante' $AET \
+  "  return { debut, fin: plusJours(plusMois(debut, periodicite === 'annuel' ? 12 : 1), -1) };" "  return { debut, fin: plusMois(debut, periodicite === 'annuel' ? 12 : 1) };" \
+  "$AP3"
+prouver 'le 31 janvier plus un mois qui tombe en mars' $AET \
+  '  return versJour(Date.UTC(annee, mois, Math.min(d, dernier)));' '  return versJour(Date.UTC(annee, mois, d + 0 * dernier));' \
+  "$AP4"
+prouver 'un jour impossible (le 30 février) pris pour un jour' $AET \
+  "export const estJour = (v: unknown): v is string => typeof v === 'string' && JOUR.test(v) && versJour(versMs(v)) === v;" "export const estJour = (v: unknown): v is string => typeof v === 'string' && JOUR.test(v);" \
+  "$AJ1"
+ACO=serveur/abonnement/condition.ts
+prouver 'un geste qui écrit sans décision de lecture seule' $ACO \
+  "  'achats.facture.lire': 'ferme',
+" '' \
+  "$APO1"
+prouver 'une décision qui ne désigne aucun geste' $ACO \
+  "  'messagerie.ecrire': 'ouvert',
+" "  'messagerie.ecrire': 'ouvert',
+  'messagerie.inventee': 'ouvert',
+" \
+  "$APO2"
+prouver 'émettre une facture ouvert en lecture seule' $ACO \
+  "  'ventes.facture.emettre': 'ferme'," "  'ventes.facture.emettre': 'ouvert'," \
+  "$APO3"
+AMG=base/migrations/0082_abonnement.sql
+prouver 'un essai de vingt-neuf jours' $AMG \
+  '    values (new.id, (now() at time zone new.fuseau)::date + 30);' '    values (new.id, (now() at time zone new.fuseau)::date + 29);' \
+  "$AB1"
+prouver 'l'"'"'état de l'"'"'abonnement réservé à qui le gère' serveur/abonnement/routes.ts \
+  "chemin: '/entreprises/:entreprise/abonnement/etat', geste: 'socle.accueil.voir'," "chemin: '/entreprises/:entreprise/abonnement/etat', geste: 'socle.abonnement.voir'," \
+  "$AB2"
+prouver 'le détail de l'"'"'abonnement ouvert à tous les rôles' serveur/abonnement/routes.ts \
+  "chemin: '/entreprises/:entreprise/abonnement', geste: 'socle.abonnement.voir'," "chemin: '/entreprises/:entreprise/abonnement', geste: 'socle.accueil.voir'," \
+  "$AB3"
+prouver 'le motif d'"'"'un geste de SkanFact montré à l'"'"'entreprise' $AMG \
+  "jsonb_build_object('le', v.le, 'nature', v.nature, 'apres', v.apres)" "jsonb_build_object('le', v.le, 'nature', v.nature, 'apres', v.apres, 'motif', v.motif)" \
+  "$AB3"
+prouver 'les faits d'"'"'un abonnement lus par une personne d'"'"'ailleurs' $AMG \
+  '   where e.id = p_entreprise and e.id in (select socle.mes_entreprises())' '   where e.id = p_entreprise' \
+  "$AB4"
+prouver 'la lecture seule jamais branchée à la porte' serveur/app.ts \
+  '  brancherAbonnement();
+' '' \
+  "$AB5"
+prouver 'une lecture fermée par la lecture seule' $ACO \
+  "    if (!ecrire || (POLITIQUE_LECTURE_SEULE[geste.code] ?? 'ouvert') !== 'ferme') return null;" "    if ((POLITIQUE_LECTURE_SEULE[geste.code] ?? 'ouvert') !== 'ferme') return null;" \
+  "$AB6"
+prouver 'un ticket du jour de la lecture seule reçu comme fait avant' $ACO \
+  '  if (options.faitLe && options.faitLe < e.depuis) return;' '  if (options.faitLe && options.faitLe <= e.depuis) return;' \
+  "$AB7"
+prouver 'l'"'"'état de l'"'"'abonnement gardé en mémoire à la porte' $ACO \
+  'let branchee = false;|||    const e = await etatDe(tx, entreprise);
+    return e ? refusDeLectureSeule(e) : null;' 'let branchee = false;
+const memoire = new Map<string, Etat>();|||    const e = memoire.get(entreprise) ?? await etatDe(tx, entreprise);
+    if (e) memoire.set(entreprise, e);
+    return e ? refusDeLectureSeule(e) : null;' \
+  "$AB8"
+prouver 'une relance envoyée à toute l'"'"'équipe' $AMG \
+  "where m.entreprise = a.entreprise and m.actif and m.roles && array['proprietaire', 'administrateur']))), '[]'::jsonb)" "where m.entreprise = a.entreprise and m.actif))), '[]'::jsonb)" \
+  "$ABR1"
+prouver 'une relance partie et jamais notée' serveur/abonnement/relances.ts \
+  "    await enTantQue(ctx.pool, null, async (tx) => { await tx.query('select plateforme.relance_partie(\$1, \$2::date, \$3, \$4)', [a.entreprise, due.echeance, due.rang, maintenant]); });
+" '' \
+  "$ABR1"
+prouver 'un envoi raté noté comme parti' serveur/abonnement/relances.ts \
+  '      console.error(`une relance d'"'"'abonnement n'"'"'est pas partie : ${String(x)}`);
+      continue;' '      console.error(`une relance d'"'"'abonnement n'"'"'est pas partie : ${String(x)}`);' \
+  "$ABR2"
+prouver 'une relance pendant la grâce' $AET \
+  '  if (reste < 0) return null;
+' '' \
+  "$ABR3"
+prouver 'un relais factice qui note des relances jamais parties' serveur/abonnement/relances.ts \
+  '  const courriel = ctx.courriel;
+  if (!courriel) return 0;' '  const courriel = ctx.courriel ?? { envoi: { envoyer: async () => {} }, adresse: () => '"'"''"'"' };' \
+  "$ABR4"
+prouver 'un geste de l'"'"'exploitant sans motif' base/abonnement.ts \
+  '  if (d.motif.trim().length < 3) throw' '  if (d.motif.length < 1) throw' \
+  "$ABG1"
+prouver 'un motif d'"'"'espaces accepté par la base' $AMG \
+  '  motif text check (motif is null or length(btrim(motif)) >= 3),' '  motif text,' \
+  "$ABG1"
+prouver 'un renouvellement qui repart de la fin de l'"'"'essai' base/abonnement.ts \
+  '        const p = prochainePeriode(faits, d.periodicite, jour);' '        const p = prochainePeriode({ ...faits, payeJusquAu: null }, d.periodicite, jour);' \
+  "$ABG2"
+AW1='l'"'"'essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'"'"'arrive au serveur'
+prouver 'la v10 qui ne lit pas l'"'"'abonnement' web/public/plateforme/pont.js \
+  '    licenceStatus: async () => /** @type {any} */ (window).SkanAbonnement.licence(await lireAbonnement()),
+' '' \
+  "$AW1"
+prouver 'la carte de l'"'"'essai qui mène à la licence de la v10' web/public/v10/app.js \
+  "    if (focus === 'p-licence' && bridge.dessinerAbonnement) { allerAbonnement(); return; }
+" '' \
+  "$AW1"
+prouver 'une nouvelle pièce qui ne dit la lecture seule qu'"'"'à l'"'"'enregistrement' web/public/v10/app.js \
+  '      ${bandeauAbonnement(isNew)}
+      ${bandeauQuestions(doc.number)}' '      ${bandeauQuestions(doc.number)}' \
+  "$AW1"
+prouver 'une nouvelle pièce refusée après le contrôle de sa saisie' web/public/v10/app.js \
+  "      if (bridge.dessinerAbonnement && !data.documents.some(d => d.id === doc.id) && licenceBlock('Créer un nouveau document')) return false;
+" '' \
+  "$AW1"
+prouver 'l'"'"'onglet de l'"'"'abonnement montré à qui ne le règle pas' web/public/v10/app.js \
+  'function abonnementVisible() { return !!bridge.dessinerAbonnement && !!(bridge.droitsDossier && bridge.droitsDossier().responsable); }' 'function abonnementVisible() { return !!bridge.dessinerAbonnement; }' \
+  "$AW1"
+prouver 'la fin de l'"'"'essai qui ne se dit en orange que trois jours avant' web/public/plateforme/abonnement.js \
+  "      if (j > 7) return { show: true, ton: 'calme'," "      if (j > 3) return { show: true, ton: 'calme'," \
+  "$AW1"
+prouver 'une trace d'"'"'abonnement qu'"'"'on efface' $AMG \
+  'create trigger evenement_intouchable before update or delete on plateforme.evenement_abonnement' 'create trigger evenement_intouchable before update on plateforme.evenement_abonnement' \
+  "$ABG3"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

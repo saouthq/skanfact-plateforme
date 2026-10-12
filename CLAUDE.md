@@ -446,6 +446,18 @@
     absent se saute, ce qu'elle éclaire en plus ne se saute pas (vu en fusionnant les notes et les pièces jointes ; un
     test le tient). Et **ce qui change de hauteur pendant la frappe garde sa place** : « Ton entreprise » empile les
     quatre phrases du matricule, invisibles, dans la même case (`AideMatricule`).
+  - **L'abonnement de l'entreprise** (lot des fonctions qui manquent, 14a, 12/10/2026 ; `docs/abonnement.md`, `0082`,
+    `serveur/abonnement/`, `web/public/plateforme/abonnement.js`, `web/v10/abonnement-essai.txt`) : un essai de trente
+    jours né avec l'entreprise, sept jours de grâce après l'échéance, puis la lecture seule. **On garde des faits, l'état
+    se déduit du jour de Tunis** (`etatAbonnement`) : un état écrit se périmerait à minuit. **Chaque geste qui écrit a SA
+    décision de lecture seule** (`POLITIQUE_LECTURE_SEULE` : fermé à la porte, ouvert, ou décidé par la route ; un test
+    l'exige pour tout geste neuf) : la porte ferme ce qui crée de la valeur ou engage (émettre, ouvrir la caisse, lire
+    une facture d'achat), jamais une lecture, un export ni ce que la loi demande pour l'existant. **L'écran retient la
+    création AVANT le geste**, à l'ouverture de l'éditeur ou de la caisse (`licenceBlock` de la v10 nourri par l'état) :
+    un refus pris à « Enregistrer » jette la saisie. Les relances (15 j, 7 j, la veille, la lecture seule ; une fois par
+    échéance) ne disent pas le nom de l'entreprise. Les gestes de SkanFact (`exploitation/abonnement.sh`, en attendant
+    la console) exigent un motif et laissent un événement qu'on ne modifie ni n'efface ; l'entreprise ne voit jamais le
+    motif. Pas encore : le paiement en ligne (14b), ce qui distingue les offres (14c).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se
@@ -629,6 +641,17 @@
   la session), avec des comptes nommés « essai ».
   Le premier passage (brique 125) a trouvé sept défauts que les tests verts ne voyaient pas (`docs/caisse.md`) :
   chaque défaut vu à l'écran devient une assertion et sa preuve.
+
+**Les écrans**
+- **Tout écran neuf suit la DA des maquettes validées, et se veut premium** (Skander, 12/10/2026 : « quand tu développes
+  de l'UI il faut respecter notre nouvelle DA, celle de notre dernière maquette […] il faut que ça soit toujours
+  premium ») : `docs/entree.md`, « Le dessin ». La sarcelle (#0F9D8F, #0B7A70 sur les boutons) ; le vert presque noir
+  quadrillé de la vitrine (#0B2724, menthe #7FE0D3, brume #A9C6C1) pour le haut d'un écran qui dit un état ; Bricolage
+  Grotesque pour les titres, Instrument Sans pour le texte, IBM Plex Mono pour les codes et les dates d'une liste
+  (servies par le serveur, `web/public/plateforme/polices/`) ; des cartes arrondies (20 px) ; le reste par les
+  variables de la v10. Un haut sombre reste sombre en thème sombre (un filet menthe le détache de son panneau).
+  Exemples : `premiers-pas.css`, `messagerie.css`, `abonnement.css`. **Chaque écran se regarde en clair ET en sombre**,
+  à la souris, avant d'être envoyé.
 
 **Sécurité (sans exception)**
 - Dépôt **public** : jamais de secret, de jeton, de mot de passe réel ni de donnée de client. Les

@@ -60,6 +60,10 @@ export const GESTES_SOCLE: Geste[] = [
     roles: { proprietaire: P, administrateur: V } },
   { code: 'socle.abonnement.payer', module: 'socle', horsCle: true, ecrit: true,
     roles: { proprietaire: P, administrateur: P } },
+  // L'abonnement en détail (docs/abonnement.md) : ses prix, ce qui lui est arrivé. Son ÉTAT, lui, se lit par tous
+  // (socle.accueil.voir) : chacun doit savoir pourquoi la création attend.
+  { code: 'socle.abonnement.voir', module: 'socle', horsCle: true, ecrit: false,
+    roles: { proprietaire: P, administrateur: P } },
   { code: 'socle.cabinet.choisir', module: 'socle', horsCle: true, ecrit: true,
     roles: { proprietaire: P } },
   { code: 'socle.support.autoriser', module: 'socle', horsCle: true, ecrit: true, prevenirProprietaire: true,

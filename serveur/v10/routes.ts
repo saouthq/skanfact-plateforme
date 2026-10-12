@@ -14,6 +14,7 @@ import { Refus, texteDuRefus } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { accordRemiseDeLaPiece, commandeDuServeur, depassementDuServeur, estResponsable, remiseDuServeur } from './accords.ts';
+import { refuserSiLectureSeule } from '../abonnement/condition.ts';
 import { avecSesTickets, filtrer, mesRoles } from './droits.ts';
 import { appliquer, Conflit, emettreDepuisV10, lireDepuis, lireDossier, marqueDeLecture, PARTIES_A_AUTEUR, type Changement } from './dossier.ts';
 import { verserExemple } from './exemple.ts';
@@ -142,6 +143,9 @@ export function routesV10(ctx: Contexte): Route<never>[] {
            where t.entreprise = $1 and vp.ref_v10 = $2 and t.empreinte_poste = $3`, [ent, String(doc.id ?? ''), p.empreinte])).rows[0];
         if (deja) return { corps: { contenu: deja.contenu, revision: Number(deja.revision), numero: deja.numero_texte, caisse: await etatDeNumerotation(tx, ent) } };
       }
+      // L'abonnement en lecture seule (docs/abonnement.md) : un nouveau ticket, non ; un ticket encaissé sans réseau quand
+      // l'abonnement courait encore, oui (la vente est faite, le ticket imprimé).
+      await refuserSiLectureSeule(tx, ent, p?.horsLigne ? { faitLe: aujourdhuiATunis(new Date(p.encaisseLe)) } : {});
       let session: { id: string; ferme: boolean };
       if (p?.horsLigne) {
         const s = (await tx.query(`select id, appareil, fermee_le from caisse.session where id = $1 and entreprise = $2`, [p.session, ent])).rows[0] as

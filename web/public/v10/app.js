@@ -102,7 +102,31 @@
   let amenerDansParametres = null;
   // (plateforme) Le point de contact mène à un panneau des Paramètres (brique 74 bis).
   window.__allerParametres = (tab, focus) => allerParametres(tab, focus);
+  // (plateforme, abonnement) Où l'abonnement se règle : l'onglet « Ton abonnement », pour qui le gère (le propriétaire, un
+  // administrateur : la base refuse le détail à tout autre rôle). Aux autres, la fenêtre dit qui s'en occupe, au lieu
+  // d'ouvrir un onglet qu'ils ne voient pas.
+  function abonnementVisible() { return !!bridge.dessinerAbonnement && !!(bridge.droitsDossier && bridge.droitsDossier().responsable); }
+  function allerAbonnement() {
+    if (abonnementVisible()) { allerParametres('abonnement', 'p-abonnement'); return; }
+    modal(`<h2>L'abonnement de l'entreprise</h2>
+      ${licence.label ? `<p><b>${h(licence.label)}.</b> ${h(licence.detail || '')}</p>` : ''}
+      <p>C'est le propriétaire de l'entreprise, ou un administrateur, qui choisit l'offre et règle l'abonnement : préviens-le.</p>
+      <p class="small">Abonnement ou pas, tout ce qui existe reste lisible, imprimable et exportable.</p>
+      <div class="modal-actions"><button class="btn btn-primary" data-close>Compris</button></div>`);
+  }
+  // Une NOUVELLE pièce ouverte en lecture seule le dit à l'ouverture, avant la saisie : sinon le refus n'arrivait qu'à
+  // « Enregistrer », et la saisie était perdue (la règle 10.14.0 d'une pièce d'un mois clôturé).
+  function bandeauAbonnement(neuve) {
+    if (!neuve || !licence.locked || !bridge.dessinerAbonnement) return '';
+    return `<div class="banner info lock-banner" id="abo-banner">
+        <span><b>${h(licence.label)} : cette nouvelle pièce ne pourra pas être enregistrée.</b> ${h(licence.detail)}
+        Tout ce qui existe déjà se lit, s'imprime, s'exporte et se corrige ; seule la création attend l'abonnement.</span>
+        <span class="lock-go"><button class="btn btn-sm" id="abo-voir">${abonnementVisible() ? 'Voir l\'abonnement' : 'Qui le règle ?'}</button></span></div>`;
+  }
   function allerParametres(tab, focus) {
+    // (plateforme, abonnement) La licence de la v10 est l'abonnement : ses raccourcis (la pastille, la carte de l'essai,
+    // la fenêtre d'un refus) mènent à lui.
+    if (focus === 'p-licence' && bridge.dessinerAbonnement) { allerAbonnement(); return; }
     if (location.hash === '#/parametres' && amenerDansParametres && $('#pf')) { amenerDansParametres(focus || ''); return; }
     settingsTab = tab || 'societe'; settingsFocus = focus || ''; navigate('#/parametres');
   }
@@ -410,15 +434,20 @@
 
   function licenceBlock(what, module) {
     if (licence.locked) {
+      // (plateforme, abonnement) La lecture seule d'un abonnement : les mots de l'abonnement, et le bouton seulement pour
+      // qui peut le régler ; les autres apprennent qui s'en occupe.
+      const abo = !!bridge.dessinerAbonnement;
+      const regle = !abo || abonnementVisible();
       modal(`<h2>${h(licence.label)}</h2>
-        <p>${h(what)} : il faut une licence en cours de validité.</p>
+        <p>${h(what)} : il faut ${abo ? 'un abonnement en cours' : 'une licence en cours de validité'}.</p>
         <p class="small">${h(licence.detail)}</p>
         <ul class="small">
           <li><strong>Tes données restent les tiennes</strong> : tu peux tout lire, imprimer, exporter et envoyer à ton comptable, aujourd'hui comme dans dix ans.</li>
-          <li>Seule la création de nouvelles pièces attend la licence.</li>
+          <li>Seule la création de nouvelles pièces attend ${abo ? 'l\'abonnement' : 'la licence'}.</li>
+          ${regle ? '' : '<li>C\'est le propriétaire de l\'entreprise, ou un administrateur, qui règle l\'abonnement : préviens-le.</li>'}
         </ul>
-        <div class="modal-actions"><button class="btn" data-close>Plus tard</button><button class="btn btn-primary" id="go-lic">Voir ma licence</button></div>`,
-        (root, close) => { $('#go-lic', root).onclick = () => { close(); allerParametres('app', 'p-licence'); }; });
+        <div class="modal-actions">${regle ? `<button class="btn" data-close>Plus tard</button><button class="btn btn-primary" id="go-lic">${abo ? 'Voir l\'abonnement' : 'Voir ma licence'}</button>` : '<button class="btn btn-primary" data-close>Compris</button>'}</div>`,
+        (root, close) => { const b = $('#go-lic', root); if (b) b.onclick = () => { close(); allerParametres('app', 'p-licence'); }; });
       return true;
     }
     if (!module || !(licence.reserves || []).includes(module)) return false;
@@ -4101,6 +4130,7 @@
           ${isAv ? '' : '<button class="btn btn-sm" id="clos-dup">Refaire à la date d\'aujourd\'hui</button>'}
           <button class="btn btn-sm" id="clos-go">Voir les clôtures</button>
         </span></div>`}
+      ${bandeauAbonnement(isNew)}
       ${bandeauQuestions(doc.number)}
       <div class="editor" data-devise="${h(cur)}">
         <div>
@@ -4935,6 +4965,7 @@
     }
     function persist() {
       if (enLecture('documents')) return refus('#save', refusLecture('documents'));
+      if (bridge.dessinerAbonnement && !data.documents.some(d => d.id === doc.id) && licenceBlock('Créer un nouveau document')) return false;
       if (!validate()) return false;
       // L'ancienne date compte autant que la nouvelle : déplacer une pièce hors d'un mois clos
       // contournerait la clôture aussi sûrement que d'en créer une dedans.
@@ -4980,7 +5011,7 @@
       // Avant `nextNumber` : le compteur est écrit même quand l'enregistrement échoue ensuite. Un
       // garde-fou posé après aurait troué la numérotation à chaque tentative refusée.
       if (closedBlock(doc.date, 'Cette pièce')) return false;
-      if (!data.documents.some(d => d.id === doc.id) && licenceBlock('Émettre une nouvelle pièce')) return false;
+      if ((bridge.dessinerAbonnement || !data.documents.some(d => d.id === doc.id)) && licenceBlock('Émettre une nouvelle pièce')) return false;
       // (plateforme) Le numéro vient du serveur, à l'émission, plus bas.
       // Le timbre se fige ici, avec le numéro : les deux deviennent définitifs au même instant.
       // Sans ça, changer le réglage du timbre réécrivait le total des factures déjà envoyées.
@@ -5031,6 +5062,7 @@
       b.dataset.busy = '1'; b.disabled = true;
       try {
         if (enLecture('documents')) { refus('#issue', refusLecture('documents')); return; }
+        if (bridge.dessinerAbonnement && licenceBlock('Émettre une nouvelle pièce')) return;
         if (!validate()) return;
         if (bloqueParEfacture(doc)) return;
         const n = doc.number || peekNumber(doc.type, doc.date);
@@ -5188,6 +5220,7 @@
     // qu'il faut changer.
     if ($('#clos-dup')) $('#clos-dup').onclick = () => duplicateDoc(stored);
     if ($('#clos-go')) $('#clos-go').onclick = () => { comptaState.tab = 'clotures'; navigate('#/compta'); };
+    if ($('#abo-voir')) $('#abo-voir').onclick = () => allerAbonnement();
     brancherQuestions();
     if ($('#lock-unlock')) $('#lock-unlock').onclick = () => { const u = $('#unlock'); if (u) u.onclick(); };
     if ($('#lock-uncancel')) $('#lock-uncancel').onclick = () => { const u = $('#uncancel'); if (u) u.onclick(); };
@@ -8498,7 +8531,7 @@
   // phrase chacun ; « Apparence » n'en portait plus que deux une fois l'image de marque partie avec
   // les documents. Les identifiants sont ceux que visent `allerParametres` et la palette : un test
   // vérifie qu'aucun lien ne désigne un onglet ou un panneau disparu.
-  const SETTINGS_TABS = [...(bridge.dessinerCompte ? [['compte', 'Ton compte']] : []), ['societe', 'Mon entreprise'], ...(bridge.dessinerEquipe ? [['equipe', 'L\'équipe']] : []), ['documents', 'Documents'], ['envois', 'Envois'],
+  const SETTINGS_TABS = [...(bridge.dessinerCompte ? [['compte', 'Ton compte']] : []), ['societe', 'Mon entreprise'], ...(bridge.dessinerEquipe ? [['equipe', 'L\'équipe']] : []), ...(bridge.dessinerAbonnement ? [['abonnement', 'Ton abonnement']] : []), ['documents', 'Documents'], ['envois', 'Envois'],
     ['donnees', 'Données et sécurité'], ['app', 'L\'application']];
 
   // Les PANNEAUX, et une seule fois. Cette table dit, pour chacun : dans quel onglet il vit, comment
@@ -8551,6 +8584,7 @@
     'p-modules': { onglet: 'app', titre: 'Ce que l\'application t\'affiche', mots: 'modules menu masquer afficher pages barre laterale assistant demarrage' },
     'p-maj': { onglet: 'app', titre: 'Mises à jour', mots: 'mise a jour version nouveautes beta jeton token telecharger installer maj' },
     'p-licence': { onglet: 'app', titre: 'Licence', mots: 'licence cle activation essai expiration acheter abonnement offre independant entreprise' },
+    'p-abonnement': { onglet: 'abonnement', titre: 'Ton abonnement', mots: 'abonnement essai offre essentiel complet prix tarif payer paiement renouveler echeance lecture seule facture skanfact licence', visible: () => abonnementVisible() },
     // `visible` : le panneau n'est posé que sur le poste de l'éditeur — et la palette Cmd+K, qui
     // engendre une entrée par panneau, doit le taire au même moment (sinon elle mène nulle part).
     'p-editeur': { onglet: 'app', titre: 'Éditeur de SkanFact — tes clés de signature', mots: 'editeur cle privee publique signature vendre licences emettre armer', visible: () => !!licence.editeur },
@@ -8579,7 +8613,7 @@
       ['Immobilisations', '#/immos', v => { immoState.tab = v; }, IMMO_TABS],
       ['Proforma, bons et contrats', '#/autres', v => { autresTab = v; }, AUTRES_TABS],
       ['Catalogue', '#/catalogue', v => { catalogTab = v; }, CATALOG_TABS],
-      ['Paramètres', '#/parametres', v => { settingsTab = v; }, SETTINGS_TABS.filter(t => t[0] !== 'equipe' || equipeVisible())]
+      ['Paramètres', '#/parametres', v => { settingsTab = v; }, SETTINGS_TABS.filter(t => (t[0] !== 'equipe' || equipeVisible()) && (t[0] !== 'abonnement' || abonnementVisible()))]
     ];
   }
   // Les réglages, PANNEAU par panneau. La palette n'indexait que les onglets : taper « mot de
@@ -10083,6 +10117,7 @@
           ${C.PURCHASE_LIES.includes(p.kind) ? '' : '<button class="btn btn-sm" id="buy-clos-avoir">Saisir un avoir sur cette pièce</button>'}
           <button class="btn btn-sm" id="buy-clos-go">Voir les clôtures</button>
         </span></div>`}
+      ${bandeauAbonnement(isNew)}
       ${bandeauQuestions(p.number)}
       ${Array.isArray(p.receptions) && p.receptions.length ? `<div class="banner info mb" id="b-receptions"><span>Saisie depuis ${p.receptions.length > 1 ? 'les réceptions' : 'la réception'} ${p.receptions.map(x => `<a href="#/reception/${h(x.id)}">${h(x.number || 'sans numéro')}</a>`).join(', ')} : ${phraseReceptionsAchat(p.receptions)}. ${info('cf.facture')}</span></div>` : ''}
       <div class="buy-editor" data-devise="${h(cur)}">
@@ -10610,6 +10645,7 @@
     };
     // (plateforme, lot messagerie) La lecture d'une photo, choisie ici ou venue d'un message (« Ranger dans mes achats »).
     const lirePhoto = async (file) => {
+      if (licenceBlock('Lire une facture d\'achat', 'achats')) return;
       // Sur la plateforme, le fichier est lu par le serveur de SkanFact, en Tunisie, comme le reste du dossier
       // y vit déjà : la question d'avant existait pour un service à l'étranger.
       if (!bridge.lectureSurLeServeur && !await confirmDialog(`Envoyer « ${file.name} » (${(file.size / 1024).toFixed(0)} Ko) au service de lecture ?\n\nL'image part sur internet. Rien d'autre n'est envoyé. Le résultat te sera proposé : tu le valides ou tu le corriges avant qu'il n'entre dans tes données.`, 'Lire la facture', false)) return;
@@ -10776,6 +10812,7 @@
     }
 
     function persist() {
+      if (bridge.dessinerAbonnement && !data.purchases.some(x => x.id === p.id) && licenceBlock('Enregistrer un nouvel achat', 'achats')) return false;
       if (!validate()) return false;
       const wasDate = (data.purchases.find(x => x.id === p.id) || {}).date;
       if (closedBlock([wasDate, p.date], 'Cet achat')) return false;
@@ -10822,6 +10859,7 @@
 
     if ($('#buy-clos-avoir')) $('#buy-clos-avoir').onclick = () => navigate(`#/achat/new/${p.supplierId || '-'}/avoir/${p.id}`);
     if ($('#buy-clos-go')) $('#buy-clos-go').onclick = () => { comptaState.tab = 'clotures'; navigate('#/compta'); };
+    if ($('#abo-voir')) $('#abo-voir').onclick = () => allerAbonnement();
 
     drawLines();
     drawPayments();
@@ -13634,9 +13672,11 @@
       const fondPropose = dansLeTiroir > 0 ? dansLeTiroir.toFixed(caisseEtat.decimales ?? 3).replace('.', ',') : '';
       $('#cs-body').innerHTML = `<div class="ct-fermee"><div class="ct-fermee-carte" id="cs-fermee"><h2>La caisse est fermée.</h2>
         <p>Ouvre-la sur cet appareil avec le fond de caisse (les espèces déjà dans le tiroir) : elle encaisse ensuite ici, et seulement ici, jusqu'à sa fermeture. ${info('cs.session')}</p>
+        ${licence.locked && bridge.dessinerAbonnement ? `<p class="ct-abo" id="cs-abo"><b>${h(licence.label)} :</b> la caisse ne s'ouvre plus tant que l'abonnement n'est pas réglé. ${h(licence.detail)} Les tickets déjà faits se lisent toujours.</p>` : ''}
         <label class="field">Fond de caisse (${h(caisseEtat.devise === 'TND' ? 'DT' : caisseEtat.devise)})<input type="text" inputmode="decimal" class="num" id="cs-fond" placeholder="0" value="${h(fondPropose)}"></label>
         <button type="button" class="ct-principal" id="cs-ouvrir">Ouvrir la caisse</button></div></div>`;
       $('#cs-ouvrir').onclick = async () => {
+        if (licenceBlock('Ouvrir la caisse', 'caisse')) return;
         const b = $('#cs-ouvrir'); b.disabled = true;
         try {
           const r = await bridge.ouvrirCaisse($('#cs-fond').value.trim() || '0');
@@ -17711,7 +17751,7 @@
   routes.parametres = async () => {
     const c = company();
     const path = await bridge.dataPath();
-    const TABS = SETTINGS_TABS.filter(t => t[0] !== 'equipe' || equipeVisible());
+    const TABS = SETTINGS_TABS.filter(t => (t[0] !== 'equipe' || equipeVisible()) && (t[0] !== 'abonnement' || abonnementVisible()));
     if (!TABS.some(t => t[0] === settingsTab)) settingsTab = 'societe';
     const manques = C.companyGaps(c);
     // (plateforme, lot débutant) Il restait affiché après « Enregistrer » une fiche complète, jusqu'au rechargement.
@@ -17928,6 +17968,10 @@
 
       ${equipeVisible() ? `<section data-pane="equipe" hidden>
       ${panneau('p-equipe', info('set.equipe'))}<div id="equipe-panel"></div></div>
+      </section>` : ''}
+
+      ${abonnementVisible() ? `<section data-pane="abonnement" hidden>
+      ${panneau('p-abonnement', info('set.abonnement'))}<div id="abonnement-panel"></div></div>
       </section>` : ''}
 
       <section data-pane="compte" hidden>
@@ -18265,6 +18309,7 @@
     if (bridge.dessinerQuarantaine && $('#quarantaine-panel')) bridge.dessinerQuarantaine($('#quarantaine-panel'));
     if (bridge.dessinerCompte && $('#compte-panel')) void bridge.dessinerCompte($('#compte-panel'), { modal, toast });
     if (bridge.dessinerEquipe && $('#equipe-panel')) void bridge.dessinerEquipe($('#equipe-panel'), { modal, toast, confirmDialog, nom: company().name });
+    if (bridge.dessinerAbonnement && $('#abonnement-panel')) void bridge.dessinerAbonnement($('#abonnement-panel'));
     if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));
     if (bridge.dessinerExport && $('#export-panel')) bridge.dessinerExport($('#export-panel'));
     if (bridge.dessinerServices && $('#services-panel')) void bridge.dessinerServices($('#services-panel'));
@@ -19159,15 +19204,16 @@
     if (ca > 0.0005) faits.push(`${C.money(ca, co.currency)} facturés HT`);
     const fin = licence.state === 'finessai';
     const j = Number(licence.daysLeft);
-    const ton = C.pastilleLicence(licence).ton;
+    const ton = (bridge.pastilleAbonnement ? bridge.pastilleAbonnement() : C.pastilleLicence(licence)).ton;
     const titre = fin ? 'Ton essai est terminé' : j <= 0 ? 'C\'est le dernier jour de ton essai' : `Ton essai : encore ${pl(j, 'jour')}`;
     return `<section class="panel g-essai${fin || ton === 'attire' || ton === 'alerte' ? ' proche' : ''}" aria-labelledby="g-essai-t">
       <span class="g-essai-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="M8.8 12.2l2.2 2.2 4.4-4.6"/></svg></span>
       <div class="g-essai-txt"><h2 id="g-essai-t">${h(titre)}</h2>
         ${faits.length ? `<p class="g-essai-sur">Déjà dans ton SkanFact :</p><ul class="g-essai-faits">${faits.map(f => `<li>${h(f)}</li>`).join('')}</ul>`
-          : '<p class="g-essai-sur">Tout fonctionne pendant l\'essai, et ce que tu y crées reste quand tu actives ta licence : rien à ressaisir.</p>'}
-        <p class="small">${fin ? 'Tes données sont intactes : tu gardes' : 'Licence ou pas, tes données restent à toi : tu gardes toujours'} la lecture, l'impression, l'export et l'envoi à ton comptable. Seule la création de nouvelles pièces attend ta licence.</p></div>
-      <button type="button" class="btn" id="g-licence">${fin ? 'Activer ma licence' : 'Voir ma licence'}</button>
+          : `<p class="g-essai-sur">Tout fonctionne pendant l'essai, et ce que tu y crées reste quand tu ${bridge.dessinerAbonnement ? 't\'abonnes' : 'actives ta licence'} : rien à ressaisir.</p>`}
+        ${fin && bridge.dessinerAbonnement && licence.detail ? `<p class="small"><b>${h(licence.detail)}</b></p>` : ''}
+        <p class="small">${fin ? 'Tes données sont intactes : tu gardes' : `${bridge.dessinerAbonnement ? 'Abonnement' : 'Licence'} ou pas, tes données restent à toi : tu gardes toujours`} la lecture, l'impression, l'export et l'envoi à ton comptable. Seule la création de nouvelles pièces attend ${bridge.dessinerAbonnement ? 'ton abonnement' : 'ta licence'}.</p></div>
+      <button type="button" class="btn" id="g-licence">${bridge.dessinerAbonnement ? (fin ? 'Choisir mon offre' : 'Voir l\'abonnement') : (fin ? 'Activer ma licence' : 'Voir ma licence')}</button>
     </section>`;
   }
   // Ce que fait vraiment un bouton de visite, dit sur le bouton : la découverte CHARGE l'exemple, une
@@ -19931,7 +19977,7 @@
   function licenceBanner() {
     const el = $('#lic-banner');
     if (!el) return;
-    const p = C.pastilleLicence(licence);
+    const p = bridge.pastilleAbonnement ? bridge.pastilleAbonnement() : C.pastilleLicence(licence);
     el.hidden = !p.show;
     el.classList.toggle('warn', p.ton === 'alerte' || p.ton === 'attire');
     el.classList.toggle('calme', p.ton === 'calme');

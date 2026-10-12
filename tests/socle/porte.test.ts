@@ -21,6 +21,7 @@ const MATRICE: Record<string, string[]> = {
   'socle.propriete.transferer':   ['✓', '—', '—', '—', '—', '—', '—', '—', '—'],
   'socle.offre.changer':          ['✓', 'v', '—', '—', '—', '—', '—', '—', '—'],
   'socle.abonnement.payer':       ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
+  'socle.abonnement.voir':        ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
   'socle.cabinet.choisir':        ['✓', '—', '—', '—', '—', '—', '—', '—', '—'],
   'socle.support.autoriser':      ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
   'socle.export_complet':         ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],

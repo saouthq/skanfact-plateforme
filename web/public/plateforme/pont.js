@@ -763,6 +763,10 @@
     dessinerAppareils,
     dessinerEquipe,
     dessinerExport,
+    dessinerAbonnement,
+    // La licence de la v10, tirée de l'abonnement : sa pastille, sa carte d'essai, et sa porte de création (licenceBlock).
+    licenceStatus: async () => /** @type {any} */ (window).SkanAbonnement.licence(await lireAbonnement()),
+    pastilleAbonnement: () => /** @type {any} */ (window).SkanAbonnement.pastille(abonnement),
     dessinerQuarantaine,
     dessinerPaiement,
     dessinerServices,
@@ -1241,6 +1245,16 @@
   function dessinerCompte(el, v10) { return /** @type {any} */ (window).SkanCompte.dessiner(el, { appel: appelCompte, modal: v10.modal, toast: v10.toast }); }
   /** @param {HTMLElement} el */
   function dessinerAppareils(el) { return /** @type {any} */ (window).SkanCompte.appareils(el, { appel: appelCompte }); }
+  // ── L'abonnement (0082 ; abonnement.js, docs/abonnement.md) : son état, que la v10 relit avec sa licence (au
+  // chargement, chaque heure, au retour au premier plan) ; sans réponse du serveur, le dernier connu. Rien ne se ferme sur
+  // ce qu'on ne sait pas : avant toute réponse, la v10 ne voit qu'une licence « libre ».
+  /** @type {any} */ let abonnement = null;
+  async function lireAbonnement() {
+    try { abonnement = await appel('GET', '/abonnement/etat'); } catch (e) { if (/** @type {any} */ (e).statut === 403) abonnement = null; }
+    return abonnement;
+  }
+  /** @param {HTMLElement} el */
+  function dessinerAbonnement(el) { return /** @type {any} */ (window).SkanAbonnement.dessiner(el, { appel }); }
   // ── L'équipe (lot équipe, 0079 ; equipe.js) : qui y travaille, les invitations qui attendent, et les gestes de qui la
   // gère. Les appels portent sur CETTE entreprise ; la base refuse à qui n'est ni propriétaire ni administrateur.
   /** @param {HTMLElement} el @param {{ modal: any, toast: (t: string, erreur?: boolean) => void, confirmDialog: any, nom?: string }} v10 */
