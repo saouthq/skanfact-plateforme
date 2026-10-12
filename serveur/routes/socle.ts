@@ -17,6 +17,8 @@ import { motif, t } from '../../textes/index.ts';
 import { Refus } from '../erreurs.ts';
 import { matriculeCanonique, refusDuMatricule } from '../matricule.ts';
 import { LONGUEUR_MINIMALE } from '../../commun/compte.ts';
+import { exporterDans, nomDExport, type EnTete } from '../../base/entreprise.ts';
+import { aujourdhuiATunis } from '../reglements.ts';
 
 const uuid = z.string().uuid();
 const jour = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'champ.jour');
@@ -387,6 +389,22 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
         { email: string; entreprise: string | null; cabinet: string | null; invite_par: string; expire_le: Date } | undefined;
       if (!r) return { corps: { valable: false } };
       return { corps: { valable: true, email: r.email, ou: r.entreprise ?? r.cabinet, type: r.entreprise ? 'entreprise' : 'cabinet', invitePar: r.invite_par, expire: r.expire_le.toISOString() } };
+    },
+  });
+
+  // « Télécharger toutes mes données » (03, « Export complet » ; 0080, docs/export-complet.md) : le fichier de l'outil
+  // d'exploitation, au caractère près, fabriqué au nom de la personne et sous la sécurité par ligne, dans une
+  // photographie cohérente de la base. Jamais bloqué par l'abonnement (07) : c'est une lecture. Le geste est une lecture
+  // sensible : sa trace est écrite avant (app.ts), et part dans le fichier.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/export', geste: 'socle.export_complet', instantane: true,
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const quand = maintenant();
+      const lignes = await exporterDans(tx, params.entreprise ?? '', 'entreprise', quand);
+      const enTete = JSON.parse(lignes[0] ?? '{}') as EnTete;
+      const contenu = lignes.join('\n') + '\n';
+      return { corps: { nom: nomDExport(enTete.raisonSociale, aujourdhuiATunis(quand)), contenu, octets: Buffer.byteLength(contenu, 'utf8') } };
     },
   });
 

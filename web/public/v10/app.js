@@ -8478,6 +8478,9 @@
   // d'un onglet de sept panneaux. Elle mène maintenant au panneau lui-même. Un test vérifie que
   // chaque entrée de cette table est posée une fois et une seule dans la page, et qu'aucun panneau
   // de la page ne lui échappe : c'est ce qui empêche un panneau ajouté demain d'être introuvable.
+  // (plateforme, export complet) Toutes les données de l'entreprise ne se téléchargent que par le propriétaire et un
+  // administrateur : le serveur refuse à tout autre rôle (03, « Export complet »).
+  const exportVisible = () => !!bridge.dessinerExport && !!(bridge.droitsDossier && bridge.droitsDossier().responsable);
   // (plateforme, lot équipe) L'onglet de l'équipe ne se montre qu'au propriétaire et à un administrateur : la base refuse
   // ses gestes à tout autre rôle (03 D3).
   const equipeVisible = () => !!bridge.dessinerEquipe && !!(bridge.droitsDossier && bridge.droitsDossier().responsable);
@@ -8498,6 +8501,7 @@
     'p-comptable': { onglet: 'envois', titre: 'Ton comptable', mots: 'comptable email adresse envoyer journaux' },
     'p-modeles': { onglet: 'envois', titre: 'Modèles de messages', mots: 'modele message objet relance rappel email gabarit variables' },
     'p-cabinet': { onglet: 'envois', titre: 'Ton cabinet comptable', mots: 'cabinet comptable expert code confier mandat livres' },
+    'p-export': { onglet: 'donnees', titre: 'Toutes les données de l\'entreprise', mots: 'export exporter telecharger donnees tout fichier copie sauvegarde json garder quitter partir recuperer reversibilite', visible: () => exportVisible() },
     'p-quarantaine': { onglet: 'donnees', titre: 'Remis par un appareil retiré', mots: 'appareil retire quarantaine remis hors ligne accepter rejeter changement attente', visible: () => !!(bridge.quarantaine && bridge.quarantaine()) },
     'p-equipe': { onglet: 'equipe', titre: 'L\'équipe', mots: 'equipe inviter invitation collaborateur salarie vendeur commercial caissier caissiere magasinier comptabilite paie lecture acces role droits retirer membre personne', visible: () => equipeVisible() },
     'p-compte': { onglet: 'compte', titre: 'Ton compte', mots: 'compte adresse email e-mail courriel mot de passe changer code telephone authentification double secours activer desactiver appareil verifier', visible: () => !!bridge.dessinerCompte },
@@ -17879,6 +17883,7 @@
       </section>
 
       <section data-pane="donnees" hidden>
+      ${exportVisible() ? `${panneau('p-export', info('data.export'))}<div id="export-panel"></div></div>` : ''}
       ${bridge.quarantaine && bridge.quarantaine() ? `${panneau('p-quarantaine')}<div id="quarantaine-panel"></div></div>` : ''}
       ${bridge.dessinerServices ? `${panneau('p-services')}<div id="services-panel"></div></div>` : ''}
       ${panneau('p-dossiers', info('data.dossiers'))}
@@ -18208,6 +18213,7 @@
     if (bridge.dessinerCompte && $('#compte-panel')) void bridge.dessinerCompte($('#compte-panel'), { modal, toast });
     if (bridge.dessinerEquipe && $('#equipe-panel')) void bridge.dessinerEquipe($('#equipe-panel'), { modal, toast, confirmDialog, nom: company().name });
     if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));
+    if (bridge.dessinerExport && $('#export-panel')) bridge.dessinerExport($('#export-panel'));
     if (bridge.dessinerServices && $('#services-panel')) void bridge.dessinerServices($('#services-panel'));
     if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));
     if (bridge.dessinerSignataire && $('#signataire-panel')) void bridge.dessinerSignataire($('#signataire-panel'));

@@ -1,0 +1,50 @@
+Toutes les données de l'entreprise (lot équipe, « Télécharger toutes mes données », 12/10/2026 ; migration 0080,
+docs/export-complet.md). Format : voir sans-paquets.mjs.
+
+L'onglet « Données et sécurité » des Paramètres ne proposait aucun moyen de récupérer ses données : la plateforme cache
+les panneaux de la v10 de bureau qui le faisaient (le fichier, les sauvegardes du disque), et rien ne les remplaçait.
+Le panneau « Toutes les données de l'entreprise », en tête de l'onglet, pour le propriétaire et un administrateur (03,
+« Export complet ») : il télécharge le fichier complet que le serveur fabrique (plateforme/pont.js, `dessinerExport`).
+Jamais bloqué par l'abonnement (07) : c'est une lecture.
+
+== app.js | qui télécharge toutes les données : le propriétaire, un administrateur (les droits du dossier)
+-- avant
+  // (plateforme, lot équipe) L'onglet de l'équipe ne se montre qu'au propriétaire et à un administrateur : la base refuse
+-- après
+  // (plateforme, export complet) Toutes les données de l'entreprise ne se téléchargent que par le propriétaire et un
+  // administrateur : le serveur refuse à tout autre rôle (03, « Export complet »).
+  const exportVisible = () => !!bridge.dessinerExport && !!(bridge.droitsDossier && bridge.droitsDossier().responsable);
+  // (plateforme, lot équipe) L'onglet de l'équipe ne se montre qu'au propriétaire et à un administrateur : la base refuse
+-- fin
+
+== app.js | le panneau a son entrée (le sommaire de l'onglet, la recherche des réglages, la palette)
+-- avant
+    'p-quarantaine': { onglet: 'donnees',
+-- après
+    'p-export': { onglet: 'donnees', titre: 'Toutes les données de l\'entreprise', mots: 'export exporter telecharger donnees tout fichier copie sauvegarde json garder quitter partir recuperer reversibilite', visible: () => exportVisible() },
+    'p-quarantaine': { onglet: 'donnees',
+-- fin
+
+== app.js | le panneau, en tête de l'onglet « Données et sécurité »
+-- avant
+      ${bridge.quarantaine && bridge.quarantaine() ? `${panneau('p-quarantaine')}<div id="quarantaine-panel"></div></div>` : ''}
+-- après
+      ${exportVisible() ? `${panneau('p-export', info('data.export'))}<div id="export-panel"></div></div>` : ''}
+      ${bridge.quarantaine && bridge.quarantaine() ? `${panneau('p-quarantaine')}<div id="quarantaine-panel"></div></div>` : ''}
+-- fin
+
+== app.js | le point de contact dessine le panneau quand les Paramètres s'ouvrent
+-- avant
+    if (bridge.dessinerServices && $('#services-panel')) void bridge.dessinerServices($('#services-panel'));
+-- après
+    if (bridge.dessinerExport && $('#export-panel')) bridge.dessinerExport($('#export-panel'));
+    if (bridge.dessinerServices && $('#services-panel')) void bridge.dessinerServices($('#services-panel'));
+-- fin
+
+== guide.js | la bulle du panneau
+-- avant
+    'data.dossiers': {
+-- après
+    'data.export': { t: 'Toutes les données de l\'entreprise', d: 'Un seul fichier qui contient <b>tout</b> ce que ton entreprise a sur SkanFact : ses pièces et leurs règlements, ses clients et fournisseurs, ses achats, sa caisse, sa paie, sa comptabilité, ses messages avec ton cabinet, son équipe, et la trace de chaque geste. Il ne contient <b>aucun mot de passe ni aucune clé</b> d\'accès : une personne remise en place se reconnecte par « Mot de passe oublié ».<br><br>Il est <b>à toi</b> : garde-le où tu veux. Il est au format <b>JSON</b>, que n\'importe quel outil ou informaticien sait lire, et SkanFact sait le <b>remettre en place tel quel</b> sur un autre serveur. Il se télécharge toujours, même quand l\'abonnement est arrêté : jamais tes données ne restent enfermées.<br><br>Seuls le propriétaire et un administrateur le téléchargent, et chaque téléchargement est noté dans la trace de l\'entreprise. Deux brouillons de ton cabinet n\'y sont pas : une question qu\'il n\'a pas encore envoyée, un fichier qu\'il a déposé sans le joindre à un message.' },
+    'data.dossiers': {
+-- fin

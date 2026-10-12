@@ -762,6 +762,7 @@
     dessinerCompte,
     dessinerAppareils,
     dessinerEquipe,
+    dessinerExport,
     dessinerQuarantaine,
     dessinerPaiement,
     dessinerServices,
@@ -1245,6 +1246,48 @@
   /** @param {HTMLElement} el @param {{ modal: any, toast: (t: string, erreur?: boolean) => void, confirmDialog: any, nom?: string }} v10 */
   function dessinerEquipe(el, v10) {
     return /** @type {any} */ (window).SkanEquipe.dessiner(el, { appel, modal: v10.modal, toast: v10.toast, confirmDialog: v10.confirmDialog, nom: v10.nom || '' });
+  }
+  // ── Toutes les données de l'entreprise (« Télécharger toutes mes données », 0080 ; docs/export-complet.md) : le
+  // fichier complet, que le serveur fabrique au nom de la personne (le propriétaire, un administrateur). Il demande le
+  // serveur : hors ligne, le refus le dit (04, « il doit contenir tout, pas ce que le poste a »).
+  /** @param {number} octets */
+  const poids = (octets) => (octets < 1024 * 1024
+    ? `${Math.max(1, Math.round(octets / 1024))} Ko`
+    : `${(octets / (1024 * 1024)).toFixed(1).replace('.', ',')} Mo`);
+  // La ligne qui dit le résultat a sa place réservée : elle ne pousse pas le panneau du dessous au moment du clic (10.12.0).
+  /** @param {HTMLElement} el */
+  function dessinerExport(el) {
+    el.innerHTML = `<p class="small muted mb">Un seul fichier qui contient tout ce que ton entreprise a sur SkanFact : ses pièces et leurs règlements, ses clients et fournisseurs, ses achats, sa caisse, sa paie, sa comptabilité, ses messages avec ton cabinet, son équipe et la trace de chaque geste. Aucun mot de passe ni aucune clé d'accès n'y figure.</p>
+      <p class="small muted mb">Il est à toi : garde-le où tu veux. Il est au format JSON, que n'importe quel outil sait lire, et SkanFact sait le remettre en place tel quel. Chaque téléchargement est noté dans la trace de l'entreprise.</p>
+      <div class="inline"><button type="button" class="btn" id="export-telecharger">Télécharger toutes les données</button></div>
+      <p class="small mt" role="status" id="export-etat" style="min-height: 1.5em"></p>`;
+    const bouton = /** @type {HTMLButtonElement} */ (el.querySelector('#export-telecharger'));
+    const etat = /** @type {HTMLElement} */ (el.querySelector('#export-etat'));
+    bouton.onclick = async () => {
+      bouton.disabled = true;
+      bouton.textContent = 'Préparation du fichier…';
+      etat.textContent = '';
+      etat.removeAttribute('role');
+      try {
+        const r = /** @type {{ nom: string, contenu: string, octets: number }} */ (await appel('GET', '/export'));
+        const url = URL.createObjectURL(new Blob([r.contenu], { type: 'application/json' }));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = r.nom;
+        document.body.append(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        etat.setAttribute('role', 'status');
+        etat.textContent = `Téléchargé : ${r.nom} (${poids(r.octets)}).`;
+      } catch (x) {
+        etat.setAttribute('role', 'alert');
+        etat.textContent = x instanceof Error ? x.message : String(x);
+      } finally {
+        bouton.disabled = false;
+        bouton.textContent = 'Télécharger toutes les données';
+      }
+    };
   }
   // ── Services connectés (brique 134 ; docs/boutique.md, B0) : les services qui agissent pour l'entreprise avec une
   // clé de l'API (une boutique SkanEcom reliée, un outil branché), ce qu'ils peuvent faire, et « Couper l'accès ».

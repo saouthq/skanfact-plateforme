@@ -32,12 +32,14 @@ const enCours = new WeakMap<Transaction, object>();
 const parTransaction = new WeakMap<object, Requetes>();
 
 // `cle` : une clé de l'API qui agit (03 § 8), à la place d'une personne (voir enTantQueCle).
-export async function enTantQue<T>(pool: pg.Pool, utilisateur: string | null, travail: (tx: Transaction) => Promise<T>, cle: string | null = null): Promise<T> {
+// `instantane` : toutes les lectures de la transaction voient la base au même instant (« repeatable read ») ; l'export
+// complet de l'entreprise le demande (0080) : sans cela, une facture émise pendant sa lecture partirait sans ses lignes.
+export async function enTantQue<T>(pool: pg.Pool, utilisateur: string | null, travail: (tx: Transaction) => Promise<T>, cle: string | null = null, options: { instantane?: boolean } = {}): Promise<T> {
   if (utilisateur !== null && !UUID.test(utilisateur)) throw new Error('identifiant de personne invalide');
   if (cle !== null && (!UUID.test(cle) || utilisateur !== null)) throw new Error('une clé agit seule, avec un identifiant valide');
   const tx = await pool.connect();
   try {
-    await tx.query('begin');
+    await tx.query(options.instantane ? 'begin isolation level repeatable read' : 'begin');
     // `true` : le nom ne vaut que pour cette transaction. Une connexion rendue au pool ne garde
     // jamais le nom de la personne précédente.
     await tx.query(`select set_config('app.utilisateur', $1, true), set_config('app.cle_api', $2, true)`, [utilisateur ?? '', cle ?? '']);

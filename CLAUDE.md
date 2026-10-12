@@ -419,6 +419,15 @@
     (`POST /invitations/apercu`, public, `socle.apercu_invitation`) et arrive sur « Créer un compte », l'adresse remplie.
     Pas faits : le prix à la quatrième personne (l'abonnement ne compte pas encore les utilisateurs) ; le drapeau
     `prevenirProprietaire` des gestes n'a aucun lecteur.
+  - **Toutes les données de l'entreprise** (même lot, 12/10/2026 ; `docs/export-complet.md`, `0080`) : « Télécharger toutes
+    les données », en tête de l'onglet « Données et sécurité », pour le propriétaire et un administrateur. Le fichier est
+    celui de l'outil d'exploitation au caractère près (`exporterDans`, lecteur « entreprise » ; un test compare les deux
+    chemins) et se restaure ; le serveur le fabrique au nom de la personne, sous la sécurité par ligne, dans une
+    transaction « instantanée » (`instantane` d'une route). Ce que ses lignes désignent ailleurs (le cabinet, ses
+    collaborateurs, les appareils d'autrui, le support) vient de quatre fonctions de la base, pour les seuls identifiants
+    demandés et parmi ceux qui touchent l'entreprise : **une table de référence nouvelle a sa fonction**
+    (`REFERENCES_PAR_FONCTION`), sinon l'export de l'entreprise refuse. Deux brouillons du cabinet ne partent plus (une
+    question non envoyée, un fichier non joint).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

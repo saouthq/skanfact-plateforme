@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import pg from 'pg';
 import type { FastifyInstance } from 'fastify';
-import { creerApp, RouteSansGeste, type Route, VERSION } from '../../serveur/app.ts';
+import { creerApp, RouteSansGeste, VERSION } from '../../serveur/app.ts';
 import { creerPool, enTantQue } from '../../serveur/base.ts';
 import type { Contexte } from '../../serveur/connexion.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
@@ -22,11 +22,6 @@ const ctx: Contexte = {
 };
 const MDP = 'Un-bon-mot-de-passe';
 
-// Une route de test qui lit une donnée sensible : sa lecture doit être tracée (D10).
-const lectureSensible: Route<never> = {
-  methode: 'GET', chemin: '/entreprises/:entreprise/export', geste: 'socle.export_complet',
-  traiter: async () => ({ corps: { ok: true } }),
-};
 let app: FastifyInstance;
 
 type Reponse = { statut: number; corps: Record<string, unknown> & { motif?: string } };
@@ -68,7 +63,7 @@ async function inviter(entreprise: string, jeton: string, email: string, roles: 
 
 beforeAll(async () => {
   await admin.connect();
-  app = creerApp(ctx, [...routesSocle(ctx, () => horloge), lectureSensible]);
+  app = creerApp(ctx, routesSocle(ctx, () => horloge));
   await app.ready();
 });
 afterAll(async () => { await app.close(); await admin.end(); await pool.end(); });
@@ -405,6 +400,7 @@ describe('la trace (01 R10, 03 § 7)', () => {
   it('une lecture de donnée sensible est tracée (D10)', async () => {
     const alice = await personne('alice');
     const ent = await entrepriseDe(alice);
+    // L'export complet de l'entreprise (0080) est une lecture sensible : elle se trace.
     expect((await appeler('GET', `/entreprises/${ent}/export`, alice.jeton)).statut).toBe(200);
     const l = (await admin.query(`select utilisateur, lecture from socle.audit where entreprise = $1 and geste = 'socle.export_complet'`, [ent])).rows;
     expect(l).toEqual([{ utilisateur: alice.id, lecture: true }]);

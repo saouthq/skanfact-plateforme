@@ -234,6 +234,7 @@ prouver "un mot de passe volé accepté" serveur/mot-de-passe.ts \
 E=base/migrations/0003_equipe_et_trace.sql
 # Depuis le lot équipe (12/10/2026), socle.inviter vit dans 0079.
 E79=base/migrations/0079_equipe_entreprise.sql
+E80=base/migrations/0080_export_complet.sql
 G=serveur/porte/gestes.ts
 PO=serveur/porte/porte.ts
 A=serveur/app.ts
@@ -622,7 +623,7 @@ prouver "un grand entier qui casse la réponse de l'API" serveur/app.ts \
 # ── Exporter et restaurer une entreprise (base/entreprise.ts) ────────────────────────────────────
 EX=base/entreprise.ts
 prouver "une table nouvelle exportée sans décision" $EX \
-  "    if (manquantes.length) throw" "    if (manquantes.length === -1) throw" \
+  "  if (manquantes.length) throw" "  if (manquantes.length === -1) throw" \
   "une table nouvelle que personne n'a rangée arrête l'export"
 prouver "l'empreinte du mot de passe dans l'export" $EX \
   "  'socle.utilisateur': { classe: 'reference', colonnes: ['id', 'email', 'nom', 'langue', 'cree_le'] }," "  'socle.utilisateur': { classe: 'reference', colonnes: ['id', 'email', 'nom', 'langue', 'cree_le', 'empreinte_mot_de_passe'] }," \
@@ -649,7 +650,7 @@ prouver "une restauration sans trace" $EX \
   "    await client.query(\`insert into socle.audit (entreprise, geste, objet_type, objet_id, apres)" "    if (Date.now() < 0) await client.query(\`insert into socle.audit (entreprise, geste, objet_type, objet_id, apres)" \
   "restaurée dans une base vide"
 prouver "les lignes relues en JavaScript (un grand entier y perd un chiffre)" $EX \
-  "      lignes.push(JSON.stringify(entete), r.lignes);" "      lignes.push(JSON.stringify(entete), JSON.stringify(JSON.parse(r.lignes)));" \
+  "    lignes.push(JSON.stringify(entete), r.lignes);" "    lignes.push(JSON.stringify(entete), JSON.stringify(JSON.parse(r.lignes)));" \
   "restaurée dans une base vide"
 prouver "un collaborateur du cabinet oublié (vide comparé à une entreprise)" $EX \
   "and (\${c.condition ?? 'entreprise = \$1'}) is not true\`;" "and not (\${c.condition ?? 'entreprise = \$1'})\`;" \
@@ -708,7 +709,7 @@ prouver "une clé qui agit comme une personne (son compte)" serveur/app.ts \
   "        if (qui.cle && !GESTES.has(r.geste)) return" "        if (qui.cle && r.geste === 'jamais') return" \
   "une clé fait ses gestes dans son entreprise"
 prouver "une clé qui agit au nom de son créateur (et voit tout ce qu'il voit)" serveur/app.ts \
-  "enTantQue(ctx.pool, qui.cle ? null : qui.utilisateur, async (tx) => {|||          }, qui.cle?.id ?? null);" "enTantQue(ctx.pool, qui.utilisateur, async (tx) => {|||          });" \
+  "enTantQue(ctx.pool, qui.cle ? null : qui.utilisateur, async (tx) => {|||          }, qui.cle?.id ?? null, { instantane: r.instantane === true });" "enTantQue(ctx.pool, qui.utilisateur, async (tx) => {|||          }, null, { instantane: r.instantane === true });" \
   "une clé fait ses gestes dans son entreprise"
 prouver "la clé gardée par la connexion" serveur/base.ts \
   "\$2, true)" "\$2, false)" \
@@ -9950,6 +9951,66 @@ prouver "les lignes de soi et du propriétaire avec un menu" web/public/platefor
 prouver "le lien d'invitation qui arrive sur « Bon retour »" web/src/App.tsx \
   "{ ecran: invitation.lire() ? 'inscription' : 'connexion' }" "{ ecran: 'connexion' }" \
   "$EQW"
+# ── Toutes les données de l'entreprise (12/10/2026 ; migration 0080, docs/export-complet.md) ──────────────────────────
+EX1="le fichier téléchargé est celui de l'exploitation, au caractère près (deux chemins, un fichier)"
+prouver "l'export de l'entreprise qui lit les tables sans les fonctions de la base" base/entreprise.ts \
+  "    if (lecteur === 'entreprise') {" "    if (false) {" \
+  "$EX1"
+prouver "le cabinet et ses collaborateurs absents de l'export de l'entreprise" $E80 \
+  "  union select cabinet from socle.mandat where entreprise = p_entreprise
+\$\$;" "\$\$;" \
+  "$EX1"
+prouver "les appareils d'autrui absents de l'export de l'entreprise" $E80 \
+  "    where a.id = any(p_ids) and socle.export_personne_proche(p_entreprise, a.utilisateur);" "    where a.id = any(p_ids) and a.utilisateur = socle.moi();" \
+  "$EX1"
+prouver "les transferts de propriété invisibles à l'administrateur" $E80 \
+  "
+  or (entreprise in (select socle.mes_entreprises()) and socle.mes_roles(entreprise) && array['proprietaire', 'administrateur']::text[]));" ");" \
+  "$EX1"
+EX2="ce que l'entreprise ne lit pas d'elle-même y est : le cabinet, ses collaborateurs, les appareils d'autrui, le support, les transferts"
+prouver "la question que le cabinet n'a pas envoyée qui part avec l'entreprise" base/entreprise.ts \
+  "{ classe: 'entreprise', condition: 'entreprise = \$1 and (cardinality(envois) > 0 or cabinet is null)' }," "{ classe: 'entreprise' }," \
+  "$EX2"
+prouver "le fichier jamais joint qui part avec l'entreprise" base/entreprise.ts \
+  "{ classe: 'entreprise', condition: 'entreprise = \$1 and id in (select m.fichier from messagerie.message m where m.entreprise = \$1 and m.fichier is not null)' }," "{ classe: 'entreprise' }," \
+  "$EX2"
+EX3="les fonctions de la base ne rendent que ce qui touche l'entreprise, et à son propriétaire ou son administrateur seulement"
+prouver "une personne qui ne touche pas l'entreprise rendue par la base" $E80 \
+  "    where u.id = any(p_ids) and socle.export_personne_proche(p_entreprise, u.id);" "    where u.id = any(p_ids);" \
+  "$EX3"
+prouver "les fonctions de l'export ouvertes à tout membre" $E80 \
+  "
+     and socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur']::text[]" "" \
+  "$EX3"
+EX4="seuls le propriétaire et l'administrateur l'obtiennent : ni le commercial, ni le collaborateur du cabinet, ni la voisine"
+prouver "l'export complet ouvert à tout membre" serveur/routes/socle.ts \
+  "chemin: '/entreprises/:entreprise/export', geste: 'socle.export_complet'," "chemin: '/entreprises/:entreprise/export', geste: 'socle.accueil.voir'," \
+  "$EX4"
+EX5="la demande est tracée (une lecture sensible, au nom de qui la fait) et sa trace part dans le fichier"
+prouver "l'export complet qui ne se trace pas" serveur/porte/gestes.ts \
+  "{ code: 'socle.export_complet', module: 'socle', horsCle: true, ecrit: false, prevenirProprietaire: true, sensible: true," "{ code: 'socle.export_complet', module: 'socle', horsCle: true, ecrit: false, prevenirProprietaire: true," \
+  "$EX5"
+EX6="une photographie : la transaction de l'export voit la base à un seul instant"
+prouver "l'export lu au fil des écritures" serveur/routes/socle.ts \
+  "geste: 'socle.export_complet', instantane: true," "geste: 'socle.export_complet'," \
+  "$EX6"
+prouver "une transaction qui ignore la photographie demandée" serveur/base.ts \
+  "await tx.query(options.instantane ? 'begin isolation level repeatable read' : 'begin');" "await tx.query('begin');" \
+  "$EX6"
+EX7="le nom du fichier garde la raison sociale, en toutes écritures, et un nom sûr quand il n'en reste rien"
+prouver "le nom du fichier qui perd une raison sociale en arabe" base/entreprise.ts \
+  ".replace(/[^\\p{L}\\p{N}]+/gu, '-')" ".replace(/[^a-z0-9]+/g, '-')" \
+  "$EX7"
+EXW="le propriétaire télécharge le fichier complet ; un commercial ne voit pas le panneau"
+prouver "le panneau de l'export montré à un commercial" web/public/v10/app.js \
+  "  const exportVisible = () => !!bridge.dessinerExport && !!(bridge.droitsDossier && bridge.droitsDossier().responsable);" "  const exportVisible = () => !!bridge.dessinerExport;" \
+  "$EXW"
+prouver "un fichier téléchargé sans le nom de l'entreprise" web/public/plateforme/pont.js \
+  "        a.download = r.nom;" "        a.download = 'export.jsonl';" \
+  "$EXW"
+prouver "la ligne d'état qui pousse le panneau du dessous" web/public/plateforme/pont.js \
+  ' id="export-etat" style="min-height: 1.5em"></p>' ' id="export-etat"></p>' \
+  "$EXW"
 prouver "l'adresse invitée à retaper" web/src/ecrans/Inscription.tsx \
   "useState(invitation?.email ?? '')" "useState('')" \
   "$EQW"

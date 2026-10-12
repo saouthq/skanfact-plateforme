@@ -1,6 +1,12 @@
-// Exporter UNE entreprise, et la restaurer à l'identique (vision § 4.2, 01 R14, 06 § 4.4). C'est un
-// outil d'exploitation : il travaille avec un compte d'administration, jamais par le serveur web, et
-// chaque restauration laisse sa trace dans la piste d'audit de l'entreprise.
+// Exporter UNE entreprise, et la restaurer à l'identique (vision § 4.2, 01 R14, 06 § 4.4). La restauration est un
+// outil d'exploitation : elle travaille avec un compte d'administration, jamais par le serveur web, et chaque
+// restauration laisse sa trace dans la piste d'audit de l'entreprise. L'export a deux lecteurs, qui font le même fichier
+// au caractère près (un test le vérifie) :
+//   - l'exploitation, avec un compte d'administration (`exporter`) ;
+//   - l'entreprise elle-même, son propriétaire ou un administrateur (« Télécharger toutes mes données », 03 « Export
+//     complet », 0080), dans la transaction de sa requête, sous la sécurité par ligne (`exporterDans`, lecteur
+//     « entreprise »). Elle y voit toutes ses lignes ; ce qu'elles désignent ailleurs (une personne, un appareil, le
+//     cabinet) lui est rendu par une fonction de la base, pour les seuls identifiants désignés.
 //
 //   PG_ADMIN=… node base/entreprise.ts exporter <entreprise> <fichier>
 //   PG_ADMIN=… node base/entreprise.ts restaurer <fichier>
@@ -85,14 +91,17 @@ export const CLASSEMENT: Record<string, Classe> = {
   'compta.immobilisation': { classe: 'entreprise' },
   'compta.immobilisation_ecriture': { classe: 'entreprise' },
   'compta.inventaire': { classe: 'entreprise' },
-  // Les questions du cabinet au client (0028) : elles se lisent dans ses livres, en face de ses pièces.
-  'compta.question': { classe: 'entreprise' },
+  // Les questions du cabinet au client (0028) : elles se lisent dans ses livres, en face de ses pièces. Une question que
+  // le cabinet n'a pas encore envoyée est son brouillon : elle reste avec sa révision (0080, comme ce que le client lit).
+  'compta.question': { classe: 'entreprise', condition: 'entreprise = $1 and (cardinality(envois) > 0 or cabinet is null)' },
   // Les réouvertures d'un exercice clos (0029) : quand, qui, pourquoi.
   'compta.reouverture': { classe: 'entreprise' },
   // La messagerie avec le cabinet (0078) : le fil appartient à l'entreprise, ses messages et leurs fichiers aussi.
   'messagerie.fil': { classe: 'entreprise' },
   'messagerie.message': { classe: 'entreprise' },
-  'messagerie.fichier': { classe: 'entreprise' },
+  // Un fichier jamais joint à un message est un dépôt en cours, que seul son auteur lit (0078) : il ne fait pas encore
+  // partie du fil, et ne part pas (0080).
+  'messagerie.fichier': { classe: 'entreprise', condition: 'entreprise = $1 and id in (select m.fichier from messagerie.message m where m.entreprise = $1 and m.fichier is not null)' },
   // L'alerte par e-mail est un réglage de chaque personne (cochée par défaut) : restaurée, l'entreprise la rend cochée.
   'messagerie.alerte': { classe: 'hors', raison: 'un réglage de chaque personne, coché par défaut' },
   // La révision d'un dossier (0028) : le dossier de travail du CABINET ; elle ne part pas avec l'entreprise.
@@ -210,10 +219,25 @@ export async function tablesNonClassees(client: pg.ClientBase): Promise<string[]
   return (await lireCatalogue(client)).tables.filter((t) => !(t in CLASSEMENT));
 }
 
+// Qui lit la base pour l'export : l'exploitation (au-dessus de la sécurité par ligne), ou l'entreprise elle-même (sous
+// elle, 0080).
+export type Lecteur = 'exploitation' | 'entreprise';
+
+// Ce que la sécurité par ligne cache à l'entreprise des lignes qu'elle désigne ailleurs, et la fonction de la base qui le
+// lui rend (0080) : pour les identifiants demandés, parmi ceux qui la touchent, avec les seules colonnes de l'export
+// (`colonnes` de CLASSEMENT ; un membre, toutes les siennes). Une table de référence nouvelle a sa fonction, sinon
+// l'export de l'entreprise refuse (et un test tombe).
+export const REFERENCES_PAR_FONCTION: Record<string, string> = {
+  'socle.membre': 'socle.export_membres',
+  'socle.organisation': 'socle.export_organisations',
+  'socle.utilisateur': 'socle.export_utilisateurs',
+  'socle.appareil': 'socle.export_appareils',
+};
+
 // Les parties de l'export : pour chaque table, les lignes de l'entreprise et/ou les références.
 type Partie = { table: string; role: 'entreprise' | 'reference'; selection: string; colonnes: string[] };
 
-function parties(cat: Catalogue): Partie[] {
+function parties(cat: Catalogue, lecteur: Lecteur): Partie[] {
   const res: Partie[] = [];
   const entreprise = new Map<string, string>();
   for (const [table, c] of Object.entries(CLASSEMENT)) {
@@ -238,9 +262,17 @@ function parties(cat: Catalogue): Partie[] {
     }
     const cle = cat.cles.get(table) ?? [];
     const c = CLASSEMENT[table];
-    let sel = sources.length
-      ? `select * from ${qt(table)} where (${cle.map(q).join(', ')}) in (${sources.join(' union ')})`
-      : `select * from ${qt(table)} where false`;
+    let sel: string;
+    if (lecteur === 'entreprise') {
+      // Les identifiants désignés partent à la fonction, qui ne rend que ceux qui touchent l'entreprise.
+      const fonction = REFERENCES_PAR_FONCTION[table];
+      if (!fonction || cle.length !== 1) throw new Error(`${table} : aucune fonction ne rend ses références à l'entreprise (0080, REFERENCES_PAR_FONCTION)`);
+      sel = `select * from ${fonction}($1, ${sources.length ? `array(${sources.join(' union ')})` : '\'{}\'::uuid[]'}) where true`;
+    } else {
+      sel = sources.length
+        ? `select * from ${qt(table)} where (${cle.map(q).join(', ')}) in (${sources.join(' union ')})`
+        : `select * from ${qt(table)} where false`;
+    }
     // « is not true » et non « not (…) » : un membre du cabinet a une entreprise vide, et « not
     // (vide = X) » ne vaut ni vrai ni faux.
     if (c?.classe === 'entreprise') sel += ` and (${c.condition ?? 'entreprise = $1'}) is not true`;
@@ -268,41 +300,57 @@ export type EnTete = {
 type LigneTable = { table: string; role: 'entreprise' | 'reference'; lignes: number };
 type Fin = { fin: true; empreinte: string };
 
-// L'export, dans une photographie cohérente de la base (une seule transaction en lecture).
+// L'export de l'exploitation, dans une photographie cohérente de la base (une seule transaction en lecture).
 export async function exporter(client: pg.ClientBase, entreprise: string): Promise<string[]> {
   await client.query('begin isolation level repeatable read read only');
   try {
-    const cat = await lireCatalogue(client);
-    const manquantes = cat.tables.filter((t) => !(t in CLASSEMENT));
-    if (manquantes.length) throw new Error(`table non classée pour l'export : ${manquantes.join(', ')} (base/entreprise.ts, CLASSEMENT)`);
-    const e = (await client.query('select raison_sociale from socle.entreprise where id = $1', [entreprise])).rows[0];
-    if (!e) throw new Error(`entreprise introuvable : ${entreprise}`);
-    const migrations = (await client.query('select numero, empreinte from socle.migration order by numero')).rows;
-    const aReprendre = (await client.query(`select count(*)::int n from socle.operation
-      where entreprise = $1 and statut <> 'acceptee' and resolue_le is null`, [entreprise])).rows[0].n as number;
-    const enTete: EnTete = {
-      format: FORMAT, version: VERSION, entreprise, raisonSociale: e.raison_sociale, exporteLe: new Date().toISOString(), migrations, aReprendre,
-    };
-    const lignes = [JSON.stringify(enTete)];
-    for (const p of parties(cat)) {
-      const cle = cat.cles.get(p.table) ?? [];
-      const ordre = cle.length ? cle.map((k) => `t.${q(k)}`).join(', ') : 't::text';
-      // Toutes les colonnes : la ligne entière ; une référence : ses seules colonnes dites.
-      const toutes = (cat.colonnes.get(p.table) ?? []).length === p.colonnes.length;
-      const projection = toutes ? 'to_jsonb(t)' : `jsonb_build_object(${p.colonnes.map((k) => `'${k}', t.${q(k)}`).join(', ')})`;
-      const texte = `select count(*)::int n, coalesce(jsonb_agg(${projection} order by ${ordre}), '[]')::text lignes from (${p.selection}) t`;
-      const r = (await client.query(texte, parametres(texte, entreprise))).rows[0];
-      const entete: LigneTable = { table: p.table, role: p.role, lignes: r.n };
-      lignes.push(JSON.stringify(entete), r.lignes);
-    }
-    const fin: Fin = { fin: true, empreinte: empreinte(lignes) };
-    lignes.push(JSON.stringify(fin));
+    const lignes = await exporterDans(client, entreprise, 'exploitation');
     await client.query('commit');
     return lignes;
   } catch (e) {
     await client.query('rollback');
     throw e;
   }
+}
+
+// L'export, dans la transaction ouverte par l'appelant : la photographie est celle de cette transaction (le serveur
+// l'ouvre en « repeatable read » pour l'export de l'entreprise : la route le déclare).
+export async function exporterDans(client: pg.ClientBase, entreprise: string, lecteur: Lecteur, maintenant = new Date()): Promise<string[]> {
+  const cat = await lireCatalogue(client);
+  const manquantes = cat.tables.filter((t) => !(t in CLASSEMENT));
+  if (manquantes.length) throw new Error(`table non classée pour l'export : ${manquantes.join(', ')} (base/entreprise.ts, CLASSEMENT)`);
+  const e = (await client.query('select raison_sociale from socle.entreprise where id = $1', [entreprise])).rows[0];
+  if (!e) throw new Error(`entreprise introuvable : ${entreprise}`);
+  const migrations = (lecteur === 'entreprise'
+    ? await client.query('select numero, empreinte from socle.export_migrations($1)', [entreprise])
+    : await client.query('select numero, empreinte from socle.migration order by numero')).rows;
+  const aReprendre = (await client.query(`select count(*)::int n from socle.operation
+    where entreprise = $1 and statut <> 'acceptee' and resolue_le is null`, [entreprise])).rows[0].n as number;
+  const enTete: EnTete = {
+    format: FORMAT, version: VERSION, entreprise, raisonSociale: e.raison_sociale, exporteLe: maintenant.toISOString(), migrations, aReprendre,
+  };
+  const lignes = [JSON.stringify(enTete)];
+  for (const p of parties(cat, lecteur)) {
+    const cle = cat.cles.get(p.table) ?? [];
+    const ordre = cle.length ? cle.map((k) => `t.${q(k)}`).join(', ') : 't::text';
+    // Toutes les colonnes : la ligne entière ; une référence : ses seules colonnes dites.
+    const toutes = (cat.colonnes.get(p.table) ?? []).length === p.colonnes.length;
+    const projection = toutes ? 'to_jsonb(t)' : `jsonb_build_object(${p.colonnes.map((k) => `'${k}', t.${q(k)}`).join(', ')})`;
+    const texte = `select count(*)::int n, coalesce(jsonb_agg(${projection} order by ${ordre}), '[]')::text lignes from (${p.selection}) t`;
+    const r = (await client.query(texte, parametres(texte, entreprise))).rows[0];
+    const entete: LigneTable = { table: p.table, role: p.role, lignes: r.n };
+    lignes.push(JSON.stringify(entete), r.lignes);
+  }
+  const fin: Fin = { fin: true, empreinte: empreinte(lignes) };
+  lignes.push(JSON.stringify(fin));
+  return lignes;
+}
+
+// Le nom du fichier que l'entreprise télécharge : « skanfact-<sa raison sociale>-<jour>.jsonl », sa raison sociale
+// réduite à ses lettres et ses chiffres (toutes écritures), pour qu'un fichier rangé se reconnaisse.
+export function nomDExport(raisonSociale: string, jour: string): string {
+  const mot = raisonSociale.normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, '');
+  return `skanfact-${mot || 'entreprise'}-${jour}.jsonl`;
 }
 
 // Une requête reçoit l'entreprise seulement si elle la demande ($1).

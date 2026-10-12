@@ -26,6 +26,8 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   // L'équipe à l'écran (0079) : un membre ne se réinvite pas, une invitation acceptée ne s'annule plus.
   { base: 'cette personne fait déjà partie de l\'équipe : change ses rôles dans la liste', cle: 'base.equipe.deja_membre', fr: 'cette personne fait déjà partie de l\'équipe : change ses rôles dans la liste' },
   { base: 'cette invitation a déjà été acceptée : retire la personne de l\'équipe si elle ne doit plus y être', cle: 'base.equipe.invitation_acceptee', fr: 'cette invitation a déjà été acceptée : retire la personne de l\'équipe si elle ne doit plus y être' },
+  // L'export complet demandé par l'entreprise (0080) : le propriétaire et l'administrateur.
+  { base: 'ton rôle ne permet pas l\'export complet de l\'entreprise', cle: 'base.export.role', fr: 'ton rôle ne permet pas l\'export complet de l\'entreprise' },
   { base: 'personne ne change son propre rôle', cle: 'base.equipe.propre_role', fr: 'personne ne change son propre rôle' },
   { base: 'le rôle du propriétaire ne se change pas : il se transfère', cle: 'base.equipe.role_proprietaire', fr: 'le rôle du propriétaire ne se change pas : il se transfère' },
   { base: 'on ne retire pas le propriétaire : il transfère d\'abord la propriété', cle: 'base.equipe.retirer_proprietaire', fr: 'on ne retire pas le propriétaire : il transfère d\'abord la propriété' },

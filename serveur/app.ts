@@ -36,6 +36,8 @@ export type Route<C = unknown> = {
   // La taille permise du corps, en octets, quand ce n'est pas celle de Fastify (1 Mo) : un livre d'un
   // exercice entier se reprend en une fois (brique 62).
   limiteCorps?: number;
+  // Toutes les lectures du travail voient la base au même instant (enTantQue, `instantane`) : l'export complet.
+  instantane?: true;
 };
 
 export class RouteSansGeste extends Error {}
@@ -243,7 +245,7 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
               }
             }
             return r.traiter({ corps: corps as never, params, query, qui, requete }, tx);
-          }, qui.cle?.id ?? null);
+          }, qui.cle?.id ?? null, { instantane: r.instantane === true });
           return envoyer(res.statut ?? 200, res.corps);
         } catch (e) { return erreurVersReponse(e, reponse, langue); }
       },
