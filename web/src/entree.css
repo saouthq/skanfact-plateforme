@@ -130,6 +130,10 @@ body.dark .ent-etapes .ent-logo { background: #0f9d8f; color: #fff; }
 .ent-aide { font-size: 13px; line-height: 1.5; color: var(--e-gris); font-weight: 400; }
 .ent-aide.ok { color: var(--e-doux-texte); }
 .ent-aide.alerte { color: var(--e-alerte-texte); }
+/* La phrase sous le matricule et ses variantes, dans la même case : la plus haute décide, rien ne bouge (AideMatricule). */
+.ent-aide-pile { display: grid; }
+.ent-aide-pile > * { grid-area: 1 / 1; }
+.ent-aide-gabarit { font-size: 13px; line-height: 1.5; font-weight: 400; visibility: hidden; }
 .ent-champ { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .ent-oeil-zone { position: relative; }
 .ent-oeil-zone label.field input { padding-inline-end: 104px; }

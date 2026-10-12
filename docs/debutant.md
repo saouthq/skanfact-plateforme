@@ -26,14 +26,43 @@ Tests : `tests/web/debutant.test.ts` (quatre parcours à la souris), et les test
 des envois et de la lecture en photo, retournés vers la règle. Quinze preuves (`tests/preuves.sh`, « Le lot débutant
 (1) ») : chacune remet son défaut et fait tomber son test.
 
+## Le lot débutant (2) : ce qui est corrigé (12/10/2026)
+
+Les gênants refaits à la souris sur une entreprise neuve (« Quincaillerie Gharbi SARL », au réel), en local, puis
+revérifiés à la souris une fois corrigés. Les écrans de la v10 changent par `web/v10/debutant-2.txt`.
+
+| Constat | Correction | Où |
+|---|---|---|
+| « Démarrer » faisait poser l'adresse du comptable dans Paramètres → Envois et importer son « fichier d'appairage » ; l'article du comptable décrivait le paquet du mois — rien de tout ça n'existe en ligne | « Confier ton dossier à ton comptable » : Comptabilité → Cabinet, le code de son cabinet, « Confier mon dossier » ; l'article est réécrit (il lit tes livres en direct, il valide tes mois, ses questions, « Mon comptable ») | `guide.js` |
+| La visite « Compléter ma fiche société » sautait le régime fiscal, qui décide si les factures portent de la TVA | une étape « Ton régime fiscal », juste après l'adresse | `visites.js` |
+| Une étape à lire posée sur une case (« Remplis la case éclairée si tu as l'information ») ne mettait pas le curseur dedans : la frappe partait nulle part | le curseur va dans la case de texte éclairée | `visite.js` |
+| Une quincaillerie lisait « Prestations », « + Nouvelle prestation », « 3 prestations » sur ce qu'elle vend | le mot suit le métier : « article » pour le commerce, la restauration et l'artisanat, partout dans le catalogue, ses menus, ses recherches et les numéros de série | `app.js` (`motsCatalogue`) |
+| La visite d'un article ne parlait que du prix hors taxe ; un commerçant connaît le prix de l'étiquette | l'étape du prix éclaire aussi « Prix TTC » et le dit : le hors taxe se calcule tout seul | `visites.js` |
+| Choisir dans la liste qu'une étape éclaire (l'unité, la TVA) rangeait la bulle dans un coin (« Vas-y, essaie ») : la visite paraissait se mettre en pause au moment où l'on faisait ce qu'elle demandait | un clic dans la case éclairée, dans celles qu'elle éclaire à côté, ou dans la liste qu'elle ouvre, est le geste de l'étape | `visite.js` (`dansSaCase`) |
+| Le coût unitaire du stock de départ restait à 0 : dix marteaux entraient au stock pour 0 DT | il suit le coût de revient tant qu'on n'y a pas touché | `app.js` |
+| « Faire un devis » comptait 24 étapes, « Faire une facture » 25 | les cases déjà remplies de l'en-tête se lisent ensemble, chacune avec sa bulle ; l'objet, la retenue et le timbre gardent leur étape ; l'unité se lit avec la TVA de la ligne (16 et 17 étapes au plus : celles qui ne concernent pas la pièce — le taux d'une autre devise, les pièces jointes en ligne — se sautent) | `visites.js` |
+| Le bandeau d'une facture émise sortait de l'écran : la phrase entière collée à sa bulle « i » sur une ligne | seul ce qui touche la bulle reste collé ; la phrase passe à la ligne | `style.css` |
+| Une dépense sans fournisseur (un ticket, un reçu) était refusée | elle se range sous une fiche unique « Dépenses diverses », créée au premier enregistrement ; la liste le dit (« — Aucun : dépenses diverses — ») ; une facture d'achat demande toujours son fournisseur | `app.js` (`fournisseurDivers`) |
+| Un avoir neuf qui choisit sa facture n'en reprenait ni les lignes ni l'objet : on retapait ce qu'on annulait | il les reprend, comme « Créer un avoir… » sur la facture — sauf si une ligne est déjà tapée | `app.js` |
+| « Ton entreprise » : la phrase du matricule passait de trois lignes à une au dernier caractère, et le bouton remontait de 39 px sous la souris | ses quatre phrases sont empilées, invisibles, dans la même case : la plus longue en donne la hauteur | `web/src/composants/Fiche.tsx` |
+
+Déjà réglés avant ce lot : l'aide de la raison sociale et du matricule (où le trouver, lot entrée) ; le code du
+téléphone, devenu facultatif. Vu en revérifiant : fusionner les notes et les pièces jointes d'un devis en une étape
+faisait parler la bulle des pièces jointes, absentes en ligne ; les deux étapes sont restées séparées (celle des pièces
+jointes se saute d'elle-même), et un test veut désormais que ce qu'une étape éclaire à côté de sa cible existe en ligne.
+
+Tests : `tests/web/debutant-2.test.ts` (quatre parcours à la souris), `tests/v10/visites-en-ligne.test.ts` (quatre de
+plus), `tests/v10/aide-en-ligne.test.ts`, et `tests/web/entree.test.ts` (le bouton sous le matricule). Dix-sept preuves
+(`tests/preuves.sh`, « Le lot débutant (2) ») : chacune remet son défaut et fait tomber son test.
+
 ## À décider avec Skander
 
 - **Le prix TTC sur un devis ou une facture.** Deux claviers à 35 DT TTC font 70,000 DT à la caisse (le prix
   d'étiquette fait foi depuis le lot caisse 3) et 70,001 DT sur un devis ou une facture (calculés hors taxes d'abord) :
-  deux chiffres pour la même vente. Proposer « prix TTC » sur une pièce à un particulier ? À VÉRIFIER avec un comptable.
-- **Inviter son équipe.** Le serveur sait inviter un collaborateur dans l'entreprise ; aucun écran ne le propose encore
-  (un commerçant ne peut pas donner un accès à son vendeur).
-- **Télécharger toutes ses données.** Rien côté entreprise ne le propose (« jamais de données en otage »).
+  deux chiffres pour la même vente. Même chose sur une fiche du catalogue : 4,500 DT tapés en TTC donnent 3,782 DT hors
+  taxe, et 4,501 DT sur la pièce. Proposer « prix TTC » sur une pièce à un particulier ? À VÉRIFIER avec un comptable.
+- Inviter son équipe et télécharger toutes ses données : faits (lot équipe, 12/10/2026 ; `docs/equipe.md`,
+  `docs/export-complet.md`).
 
 ## À VÉRIFIER
 
@@ -43,11 +72,15 @@ des envois et de la lecture en photo, retournés vers la règle. Quinze preuves 
 
 ## Pour les lots suivants
 
-Gênants : l'aide de « Raison sociale » et du matricule (où le trouver), le code du téléphone sans « plus tard »,
-« Relier ton comptable » qui parle encore du paquet de la v10, la visite qui saute le régime fiscal, le curseur absent
-des cases éclairées par les visites, « Catalogue / Prestations » pour un commerçant qui vend des produits, le prix TTC
-absent de la visite d'un article, la visite qui se met en pause quand on ouvre la liste demandée, le coût du stock de
-départ à 0, les visites trop longues (devis : 24 étapes), le bandeau d'une facture émise qui déborde, une dépense sans
-fournisseur, l'avoir qui ne reprend pas les lignes de la facture. Petits : le point dans « 0.000 », « Encaissé » TTC
-face au « Facturé HT », la fiche salarié au net, le compte d'où part un salaire, l'avertissement DigiGo après le geste,
-et le reste du journal.
+Les gênants sont faits (lot débutant 2). Restent les petits : le point dans « 0.000 », « Encaissé » TTC face au
+« Facturé HT », la fiche salarié au net, le compte d'où part un salaire, l'avertissement DigiGo après le geste, et le
+reste du journal. Vus en revérifiant le lot 2 :
+
+- « Le code de ton cabinet » (Comptabilité → Cabinet) n'a pas de bulle « i ».
+- Dans « Me guider », « Envoyer un devis ou une facture » dit « il te faut d'abord un devis à envoyer » à une entreprise
+  qui a déjà une facture émise.
+- Les articles de l'Aide propres à l'application de bureau (deux postes, partager un dossier, la licence…) n'ont pas de
+  moyen d'être cachés en ligne côté entreprise ; le Cabinet en a un (`articlesAbsents`).
+- Page Stock, au téléphone : une carte `.stat` est en `overflow: hidden`, donc sa colonne ignore la largeur de son
+  montant, et « 2 500,000 DT » dépasse de la carte quand la police est un peu plus large (vu sur la machine de
+  développement, où `tests/web/rendu.test.ts` le signale déjà avant ce lot ; vert sur GitHub).

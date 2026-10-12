@@ -10021,6 +10021,69 @@ prouver "l'accueil d'un vendeur qui défile de côté" web/public/plateforme/ecr
   "#accueil-role .inline { flex-wrap: wrap; }" "" \
   "$EQW"
 
+# Le lot débutant (2) (12/10/2026) : les gênants du parcours d'un commerçant qui débute, refaits à la souris sur une
+# quincaillerie (docs/debutant.md).
+KN1="Catalogue : le mot suit le métier (« article » chez un commerçant) ; le coût du stock de départ suit le coût de revient tant qu'on n'y a pas touché"
+KN2="Visites : une étape à lire posée sur une case de texte y met le curseur ; choisir dans la case qu'elle éclaire n'ouvre pas l'essai"
+KN3="Avoir : choisir sa facture en reprend les lignes, sans écraser ce qu'on a déjà tapé ; le bandeau d'une facture émise passe à la ligne"
+KN4="Dépense : sans fournisseur, elle se range sous « Dépenses diverses », une seule fiche pour toutes ; une facture d'achat le demande toujours"
+KNV1="ce qu'une étape éclaire à côté de sa cible existe en ligne : la bulle ne décrit pas un panneau absent"
+KNV2="« Faire un devis » et « Faire une facture » : les cases déjà remplies de l'en-tête se lisent ensemble ; l'objet, la retenue et le timbre gardent leur étape"
+KNV3="« Compléter ma fiche société » montre le régime fiscal, avant la banque"
+KNV4="« Ajouter au catalogue » montre le prix TTC à côté du hors taxe, et l'unité avec la TVA"
+KNA="confier son dossier à son comptable : le code du cabinet, sans paquet ni fichier d'appairage"
+prouver "le catalogue d'une quincaillerie qui parle de prestations" web/public/v10/app.js \
+  "const METIERS_ARTICLES = ['commerce', 'restauration', 'artisanat'];" "const METIERS_ARTICLES = [];" \
+  "$KN1"
+prouver "le coût du stock de départ laissé à 0 à côté d'un coût de revient" web/public/v10/app.js \
+  "const suivre = () => { if (!departTouche && Number(champRevient.value) > 0) champDepart.value = champRevient.value; };" "const suivre = () => {};" \
+  "$KN1"
+prouver "le coût du départ tapé à la main, écrasé par le coût de revient" web/public/v10/app.js \
+  "champDepart.addEventListener('input', () => { departTouche = true; });" "champDepart.addEventListener('input', () => {});" \
+  "$KN1"
+prouver "le curseur absent de la case de texte qu'une étape à lire éclaire" web/public/v10/visite.js \
+  "    else if (!faire && champ && !cur.perdu && !cur.curseur) {" "    else if (false) {" \
+  "$KN2"
+prouver "l'essai ouvert en choisissant dans la liste que l'étape éclaire" web/public/v10/visite.js \
+  "    if (!e || estFaire(e) || !ouvreEssai(t) || dansSaCase(e, t)) return;" "    if (!e || estFaire(e) || !ouvreEssai(t)) return;" \
+  "$KN2"
+prouver "l'avoir neuf qui ne reprend pas les lignes de sa facture" web/public/v10/app.js \
+  "if (inv && !figee && !doc.lines.some(l => String(l.label || '').trim() || Number(l.unitPrice))) {" "if (false) {" \
+  "$KN3"
+prouver "l'avoir qui écrase une ligne déjà tapée en choisissant sa facture" web/public/v10/app.js \
+  "if (inv && !figee && !doc.lines.some(l => String(l.label || '').trim() || Number(l.unitPrice))) {" "if (inv && !figee) {" \
+  "$KN3"
+prouver "le bandeau d'une facture émise qui sort de l'écran" web/public/v10/style.css \
+  ".colle-bulle > * { white-space: normal; }" "" \
+  "$KN3"
+prouver "la dépense sans fournisseur refusée" web/public/v10/app.js \
+  "if (!p.supplierId && p.kind !== 'depense') return refus(" "if (!p.supplierId) return refus(" \
+  "$KN4"
+prouver "une fiche « Dépenses diverses » de plus à chaque dépense" web/public/v10/app.js \
+  "let s = data.suppliers.find(x => x.divers || x.name === NOM_DIVERS);" "let s = null;" \
+  "$KN4"
+prouver "l'étape des notes qui parle des pièces jointes, absentes en ligne" web/public/v10/visites.js \
+  "texte: 'Un texte libre <b>imprimé</b> sur le devis : délai" "eclairer: '#p-pj', texte: 'Un texte libre <b>imprimé</b> sur le devis : délai" \
+  "$KNV1"
+prouver "une étape par case dans l'en-tête du devis" web/public/v10/visites.js \
+  "{ cible: '#f-head', liste: '.datefield .d-txt, input[name=\"reference\"], [data-combo=\"projectId\"] .combo-btn, select[name=\"lang\"], select[name=\"currency\"], select[name=\"status\"]" "{ cible: 'input[name=\"reference\"]', titre: 'Référence' }, { cible: '#f-head', liste: '.datefield .d-txt, input[name=\"reference\"], [data-combo=\"projectId\"] .combo-btn, select[name=\"lang\"], select[name=\"currency\"], select[name=\"status\"]" \
+  "$KNV2"
+prouver "l'unité de la ligne qui reprend son étape" web/public/v10/visites.js \
+  "        { cible: '#totals', cote: 'gauche', titre: 'Les totaux', texte: 'Hors taxe, TVA, total : tout suit" "        { cible: '#lines tr:first-child select[data-k=\"unit\"]', titre: 'Unité' }, { cible: '#totals', cote: 'gauche', titre: 'Les totaux', texte: 'Hors taxe, TVA, total : tout suit" \
+  "$KNV2"
+prouver "la visite de la fiche qui saute le régime fiscal" web/public/v10/visites.js \
+  "cible: '#view select[name=\"taxRegime\"]'" "cible: '#view select[name=\"defaultVatRate\"]'" \
+  "$KNV3"
+prouver "la visite d'un article qui ne montre pas le prix TTC" web/public/v10/visites.js \
+  "eclairer: '#modal-root .modal #cat-ttc'," "" \
+  "$KNV4"
+prouver "l'Aide qui fait importer un fichier d'appairage" web/public/v10/guide.js \
+  "<h3>Confier ton dossier à ton comptable (facultatif)</h3>" "<h3>Relier ton comptable (facultatif)</h3><p>Importe son fichier d'appairage : tes paquets partent chiffrés pour lui seul.</p>" \
+  "$KNA"
+prouver "le bouton de « Ton entreprise » qui bouge sous la frappe du matricule" web/src/composants/Fiche.tsx \
+  '      {VARIANTES_MATRICULE.map((cle) => <span key={cle} className="ent-aide-gabarit" aria-hidden="true">{phrase(cle)}</span>)}' '' \
+  "$KEW5"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

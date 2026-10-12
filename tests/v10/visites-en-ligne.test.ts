@@ -15,7 +15,7 @@ import { describe, expect, it } from 'vitest';
 
 const PUBLIC = path.join(import.meta.dirname, '../../web/public');
 
-type Etape = { cible?: unknown; titre?: string; facultatif?: boolean };
+type Etape = { cible?: unknown; titre?: string; texte?: string; facultatif?: boolean; eclairer?: unknown; liste?: string };
 type Visite = { id: string; titre?: string; etapes?: Etape[] };
 
 function charger() {
@@ -132,5 +132,63 @@ describe('les visites de l\'entreprise, en ligne', () => {
     // Le test mesure : la découverte est lue, bulle par bulle.
     expect(phrases.length).toBeGreaterThan(40);
     expect(phrases.filter((t) => /paquet|clé USB|iCloud|OneDrive|licence|fichier de clôture|t'envoie sa clôture|rend tes (vraies )?données|mises de côté/i.test(t))).toEqual([]);
+  });
+
+  // Lot débutant 2 (12/10/2026 ; docs/debutant.md) : réunir les notes et les pièces jointes d'un devis en UNE étape faisait
+  // parler la bulle des pièces jointes, que la version en ligne ne montre pas (vu à la souris). Une étape facultative
+  // posée sur un élément absent se saute d'elle-même ; ce qu'une étape éclaire À CÔTÉ de sa cible, lui, ne se saute pas.
+  it('ce qu\'une étape éclaire à côté de sa cible existe en ligne : la bulle ne décrit pas un panneau absent', () => {
+    const retirees = new Set(pont.visitesAbsentes ?? []);
+    const eclaire = (e: Etape) => alternatives(e.eclairer);
+    const fautives = visites.filter((v) => !retirees.has(v.id))
+      .flatMap((v) => (v.etapes ?? []).filter((e) => eclaire(e).some(absente)).map((e) => `${v.id} : ${e.titre}`));
+    expect(fautives).toEqual([]);
+    // Le test mesure : des étapes éclairent bien quelque chose à côté de leur cible.
+    expect(visites.flatMap((v) => v.etapes ?? []).filter((e) => eclaire(e).length > 0).length).toBeGreaterThan(3);
+  });
+
+  // Lot débutant 2 : « Faire un devis » comptait 24 étapes, une par case, et « Faire une facture » 25 — trop long pour une
+  // première pièce (vu à la souris). Les cases de l'en-tête déjà remplies ou facultatives se lisent ENSEMBLE, chacune avec
+  // sa bulle ; ce qu'on écrit (l'objet) et ce qui change ce que le client paie (la retenue, le timbre) gardent leur
+  // étape ; l'unité se lit avec la TVA de la ligne.
+  it('« Faire un devis » et « Faire une facture » : les cases déjà remplies de l\'en-tête se lisent ensemble ; l\'objet, la retenue et le timbre gardent leur étape', () => {
+    const CASE_ENSEMBLE = /\.datefield|name="(reference|lang|currency|status|discountRate)"|data-combo="projectId"/;
+    for (const id of ['premier-devis', 'premiere-facture']) {
+      const etapes = visites.find((v) => v.id === id)?.etapes ?? [];
+      const ensemble = etapes.filter((e) => typeof e.liste === 'string');
+      expect(ensemble.map((e) => e.titre), id).toEqual(['Les autres cases']);
+      for (const c of ['.datefield', 'name="reference"', 'data-combo="projectId"', 'name="lang"', 'name="currency"', 'name="discountRate"']) expect(ensemble[0]?.liste, `${id} : ${c}`).toContain(c);
+      // Aucune autre étape ne revient sur une de ces cases, une à une.
+      expect(etapes.filter((e) => !e.liste && alternatives(e.cible).some((a) => CASE_ENSEMBLE.test(a))).map((e) => `${id} : ${e.titre}`)).toEqual([]);
+      // L'objet garde son étape ; l'unité n'a plus la sienne, elle est éclairée avec la TVA de la ligne.
+      expect(etapes.some((e) => alternatives(e.cible).some((a) => a.includes('name="subject"'))), id).toBe(true);
+      expect(etapes.filter((e) => alternatives(e.cible).some((a) => a.includes('data-k="unit"'))).map((e) => e.titre), id).toEqual([]);
+      expect(etapes.some((e) => alternatives(e.cible).some((a) => a.includes('data-k="vatRate"')) && alternatives(e.eclairer).some((a) => a.includes('data-k="unit"'))), id).toBe(true);
+    }
+    const facture = visites.find((v) => v.id === 'premiere-facture')?.etapes ?? [];
+    expect(facture.some((e) => alternatives(e.cible).some((a) => a.includes('name="withholdingRate"')))).toBe(true);
+    expect(facture.some((e) => alternatives(e.cible).some((a) => a.includes('name="applyStamp"')))).toBe(true);
+  });
+
+  // Lot débutant 2 : « Compléter ma fiche société » sautait le régime fiscal, juste sous l'adresse — c'est lui qui décide si
+  // les factures portent de la TVA (vu à la souris : la quincaillerie restait au réel sans l'avoir choisi).
+  it('« Compléter ma fiche société » montre le régime fiscal, avant la banque', () => {
+    const etapes = visites.find((v) => v.id === 'societe')?.etapes ?? [];
+    const rang = (motif: string) => etapes.findIndex((e) => alternatives(e.cible).some((a) => a.includes(motif)));
+    expect(rang('name="taxRegime"')).toBeGreaterThan(-1);
+    expect(etapes[rang('name="taxRegime"')]?.facultatif).toBeFalsy();
+    expect(rang('name="taxRegime"')).toBeLessThan(rang('name="bank"'));
+  });
+
+  // Lot débutant 2 : un commerçant connaît le prix de l'étiquette, TTC ; la visite d'un article ne montrait que le hors
+  // taxe, et la TVA et l'unité prenaient deux étapes.
+  it('« Ajouter au catalogue » montre le prix TTC à côté du hors taxe, et l\'unité avec la TVA', () => {
+    const etapes = visites.find((v) => v.id === 'article')?.etapes ?? [];
+    const prix = etapes.find((e) => alternatives(e.cible).some((a) => a.includes('name="unitPrice"')));
+    expect(alternatives(prix?.eclairer).some((a) => a.includes('#cat-ttc'))).toBe(true);
+    expect(prix?.texte).toMatch(/TTC/);
+    const tva = etapes.find((e) => alternatives(e.cible).some((a) => a.includes('name="vatRate"')));
+    expect(alternatives(tva?.eclairer).some((a) => a.includes('#cat-unit'))).toBe(true);
+    expect(etapes.filter((e) => alternatives(e.cible).some((a) => a.includes('#cat-unit') || a.includes('name="unit"'))).map((e) => e.titre)).toEqual([]);
   });
 });

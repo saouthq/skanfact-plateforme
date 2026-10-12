@@ -11,6 +11,21 @@ export function etatDuMatricule(m: string): { texte: string; classe: string } {
   return { texte: phrase('ecran.porte.mf_faux'), classe: ' alerte' };
 }
 
+// La phrase sous le matricule change pendant la frappe, de trois lignes (où le trouver) à une (« complet »). Elle
+// faisait remonter le bouton de 39 px sous la souris au dernier caractère tapé (lot débutant 2, vu à la souris) : ce
+// qui apparaît selon une valeur vit dans une place qui existe déjà. Ses quatre variantes sont empilées dans la même
+// case, invisibles : la plus longue, À LA LARGEUR DE L'ÉCRAN, donne la hauteur, et rien ne bouge plus.
+const VARIANTES_MATRICULE = ['ecran.porte.mf_ou', 'ecran.porte.mf_ok', 'ecran.porte.mf_debut', 'ecran.porte.mf_faux'] as const;
+export function AideMatricule({ matricule }: { matricule: string }) {
+  const mf = etatDuMatricule(matricule);
+  return (
+    <span className="ent-aide-pile">
+      {VARIANTES_MATRICULE.map((cle) => <span key={cle} className="ent-aide-gabarit" aria-hidden="true">{phrase(cle)}</span>)}
+      <span className={`ent-aide${mf.classe}`} aria-live="polite">{mf.texte}</span>
+    </span>
+  );
+}
+
 export function ApercuEntete({ raison, matricule, note }: { raison: string; matricule: string; note: string }) {
   const lisible = matriculeCanonique(matricule) ?? matricule.trim().toUpperCase();
   return (

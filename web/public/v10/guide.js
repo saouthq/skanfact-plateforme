@@ -292,7 +292,7 @@
     'immo.attente': { t: 'Ligne en immobilisation', d: 'Un bien qui sert plusieurs années ne se déduit pas d\'un coup : il s\'amortit. Tant que sa <b>fiche</b> n\'existe pas — famille, durée, date de mise en service — SkanFact ne sait pas sur combien d\'années l\'étaler, donc ce montant n\'est déduit <b>nulle part</b> : ni en charge, ni en amortissement. La TVA, elle, reste déductible dès l\'achat. Crée la fiche depuis Immobilisations → À créer. <em>À VÉRIFIER avec ton comptable : le seuil à partir duquel un achat s\'immobilise et la durée de chaque famille.</em>', a: 'immobilisations' },
     'stk.orphan': { t: 'Ligne « stock » sans article suivi', d: 'Pour qu\'un achat entre en stock, sa ligne doit être <b>rattachée</b> à un article du catalogue coché « Suivi en stock ». Tape le début de son nom dans la désignation : le catalogue se propose, et choisir suffit — inutile de recopier l\'orthographe exacte. Si l\'article n\'existe pas encore, la liste propose de le créer. Tant que la ligne n\'est rattachée à rien, la marchandise est bien achetée et sa TVA bien déductible, mais elle n\'apparaît nulle part dans le stock — et au moment de la vendre, le stock passera en négatif.' },
     'stk.initial': { t: 'Stock de départ', d: 'Ce que tu as en rayon aujourd\'hui, avant que SkanFact ne commence à compter. Compte-le une fois, saisis-le, et les achats et ventes s\'y ajouteront automatiquement. Si tu te trompes, tout le reste sera décalé de la même quantité.' },
-    'stk.initialCost': { t: 'Coût unitaire du départ', d: 'Ce que t\'a coûté, en moyenne, une unité de ce stock de départ. Il sert de base au coût moyen pondéré. Dans le doute, reprends le prix de ta dernière facture d\'achat.' },
+    'stk.initialCost': { t: 'Coût unitaire du départ', d: 'Ce que t\'a coûté, en moyenne, une unité de ce stock de départ. Il sert de base au coût moyen pondéré : c\'est lui qui donne sa valeur à ton stock, et le coût de ce que tu vendras. SkanFact y met ton coût de revient tant que tu n\'y touches pas ; dans le doute, reprends le prix de ta dernière facture d\'achat.' },
     'lot.parLot': { t: 'Suivi par lot', d: 'Pour ce qui se périme ou se rappelle : chaque achat dit son <b>numéro de lot</b> et sa <b>date de péremption</b>, chaque vente dit de quel lot elle sort. La page de l\'article montre le stock lot par lot, et « À faire » prévient 30 jours avant qu\'un lot ne périme.' },
     'lot.initial': { t: 'Lot du départ', d: 'Le numéro du lot que tu as en rayon aujourd\'hui, pour un article suivi par lot.' },
     'lot.peremption': { t: 'Péremption', d: 'La date après laquelle ce lot ne se vend plus.' },
@@ -458,7 +458,7 @@
     'compta.journal': { t: 'Journal des ventes', d: 'La liste chronologique de toutes tes factures et avoirs émis sur la période. C\'est le document de base de ta comptabilité : exporte-le en CSV pour ton comptable, avec les PDF de la période si besoin.' },
     'compta.payments': { t: 'Encaissements', d: 'Les paiements reçus pendant la période, quelle que soit la date des factures concernées. À rapprocher de ton relevé bancaire pour vérifier que rien ne manque.' },
     'compta.rs': { t: 'Attestations de retenue à la source', d: 'Ton client garde la retenue au moment où il te PAIE, et te remet alors une attestation : tant qu\'il n\'a rien payé, il n\'a rien retenu, et il n\'y a rien à réclamer. Sans l\'attestation, tu ne peux pas déduire cette somme de ton impôt : c\'est de l\'argent perdu. Réclame-la après chaque paiement, et coche quand elle arrive. À VÉRIFIER avec ton comptable.' },
-    'cat.catalog': { t: 'Catalogue de prestations', d: 'Tes services avec leur prix et leur TVA, prêts à insérer dans un devis. Y mettre tes prestations habituelles t\'évite de retaper les descriptions et t\'empêche de te tromper de prix.' },
+    'cat.catalog': { t: 'Ton catalogue', d: 'Ce que tu vends — tes articles ou tes prestations — avec leur prix et leur TVA, prêts à insérer dans un devis, une facture ou un ticket de caisse. Les y mettre une fois t\'évite de retaper les descriptions et t\'empêche de te tromper de prix.' },
     'todo': { t: 'À faire', d: 'Tout ce que SkanFact a repéré dans tes données et qui demande une <b>décision de ta part</b> : de l\'argent à récupérer, une échéance qui approche, une pièce manquante, un chiffre qui ne colle pas. Rien n\'est saisi ici : chaque ligne est déduite de ce que tu as déjà enregistré, et disparaît d\'elle-même quand la chose est faite.<br><br>La liste est triée <b>du plus urgent au moins urgent</b>. Une ligne en rouge coûte de l\'argent ou une pénalité si tu ne fais rien ; en orange, elle peut attendre quelques jours. Seules les cinq premières sont affichées — « Voir les autres » déplie le reste.<br><br>Chaque ligne porte un bouton qui ouvre exactement les pièces concernées. Clique le titre « À faire » pour replier le panneau : il reste une ligne de résumé, et ton choix est gardé au prochain démarrage.', a: 'demarrer' },
     'ed.history': { t: 'Historique', d: 'Tout ce qui est arrivé à ce document : création, émission, envois par email, relances (email et téléphone), paiements reçus, avoirs. Sur un devis, les factures qui en sont tirées ; sur une facture, le devis d\'origine — chaque ligne est cliquable. Rien à saisir : c\'est reconstitué à partir de ce que tu as déjà enregistré.' },
     'rel.snooze': { t: 'Relances reportées', d: 'Quand un client t\'annonce une date de paiement, reporte la relance : la facture descend en bas de la liste jusqu\'à cette date. Elle reste comptée dans ton « reste à encaisser » — on ne cache jamais un impayé.' },
@@ -632,8 +632,8 @@
 <p><b>Par WhatsApp</b> : « Plus ▾ → Envoyer par WhatsApp… » (ou le menu « Actions » d'une ligne de la liste) ouvre la conversation du client avec le message déjà écrit — le même texte que l'email, réglé une fois dans Paramètres → Envois. Un lien WhatsApp ne peut pas joindre de fichier : le PDF s'affiche dans son dossier, glisse-le dans la conversation. Le devis passe en « envoyé », et l'historique dit « par WhatsApp ». Une relance part de la même façon, depuis la page Relances.</p>
 <h3>Transformer un devis accepté en facture</h3>
 <p>Quand le client dit oui, passe le devis en « accepté » : le bouton <b>Facturer ce devis</b> devient le bouton vert de l'écran, et il existe aussi sur chaque ligne de la liste. La facture reprend tout, sans ressaisie. Voir <a href="#/aide/facture">La facture : réclamer ton argent</a>.</p>
-<h3>Relier ton comptable (facultatif)</h3>
-<p><b>Paramètres → Envois</b> : son adresse, dans « Email du comptable » — « Envoyer au comptable » s'en sert pour le paquet du mois. S'il utilise SkanFact Cabinet, importe aussi son <b>fichier d'appairage</b>, dans le bloc « Ton cabinet comptable » du même onglet : tes paquets partent chiffrés pour lui seul, et ses questions te reviendront sur la bonne pièce. Voir <a href="#/aide/cabinet">Envoyer le mois à ton comptable</a>.</p>
+<h3>Confier ton dossier à ton comptable (facultatif)</h3>
+<p><b>Comptabilité → Cabinet</b> : tape le <b>code de son cabinet</b> (il le lit dans SkanFact Cabinet), coche ce que tu lui confies, puis « Confier mon dossier ». Une fois qu'il a accepté, il tient tes livres <b>ici même</b> : il lit tes écritures à jour et valide tes mois. Rien ne lui est envoyé — il n'y a ni paquet ni fichier —, et ses questions te reviennent dans le même onglet, en face de la pièce qu'elles concernent. Voir <a href="#/aide/cabinet">Confier ta comptabilité à ton comptable</a>.</p>
 <h3>Et si tu veux revoir les questions du départ</h3>
 <p>L'assistant se rejoue à tout moment : <b>Paramètres → Mon entreprise → Revoir l'assistant de démarrage…</b>. Tes réponses actuelles y sont déjà inscrites, et aucune de tes pièces n'est touchée.</p>`
     },
@@ -800,7 +800,7 @@
 <h3>Journal des achats</h3>
 <p>Le symétrique, dans l'onglet <b>Achats</b> : tout ce que tu as acheté sur la période, avec la part de TVA récupérable. Le classement « où part ton argent » regroupe tes charges par catégorie, du plus gros au plus petit — c'est souvent une surprise.</p>
 <h3>Les neuf onglets</h3>
-<p><b>Ventes</b> et <b>Achats</b> : les journaux de la période, à exporter ou à envoyer. <b>TVA à payer</b> : la soustraction du mois. <b>Écritures</b> : les mêmes pièces traduites en comptabilité, prêtes pour le logiciel de ton comptable. <b>Grand livre</b> : les mêmes écritures rangées par compte, avec le solde qui avance. <b>Balance</b> : tous les comptes sur une page, et les tiers un par un. <b>Calendrier fiscal</b> : ce qu'il faut déposer et quand. <b>Clôtures</b> : fermer un mois pour qu'il ne bouge plus. <b>Cabinet</b> : fabriquer et envoyer le paquet mensuel.</p>
+<p><b>Ventes</b> et <b>Achats</b> : les journaux de la période, à exporter ou à envoyer. <b>TVA à payer</b> : la soustraction du mois. <b>Écritures</b> : les mêmes pièces traduites en comptabilité, prêtes pour le logiciel de ton comptable. <b>Grand livre</b> : les mêmes écritures rangées par compte, avec le solde qui avance. <b>Balance</b> : tous les comptes sur une page, et les tiers un par un. <b>Calendrier fiscal</b> : ce qu'il faut déposer et quand. <b>Clôtures</b> : fermer un mois pour qu'il ne bouge plus. <b>Cabinet</b> : à qui ton dossier est confié, et les questions de ton comptable.</p>
 
 <h3>Onglet TVA : la soustraction qui compte</h3>
 <p>L'onglet <b>TVA à payer</b> fait le calcul complet : la TVA que tu as <b>collectée</b> sur tes ventes, moins celle que tu as <b>payée</b> sur tes achats. Tu ne reverses que la différence.</p>
@@ -809,22 +809,22 @@
 <h3>Onglet Calendrier fiscal</h3>
 <p>Un pense-bête des déclarations qui reviennent. Active celles qui te concernent, ajuste le jour limite, et les échéances proches remonteront dans « À faire » sur l'accueil. <em>À VÉRIFIER avec ton comptable :</em> les dates, la périodicité et les déclarations applicables dépendent de ta forme juridique, de ton régime fiscal et de la présence de salariés.</p>
 <h3>Onglet Écritures : le livre-journal que ton comptable importe</h3>
-<p>Les mêmes pièces, traduites en comptabilité à partie double — débit d'un côté, crédit de l'autre, à l'équilibre sur chaque pièce. Le fichier s'importe directement dans son logiciel : il n'a plus rien à retaper. <em>À VÉRIFIER : les numéros de compte proposés suivent l'usage tunisien, mais chaque cabinet a les siens — ils se modifient dans « Plan de comptes… ».</em> Voir <a href="#/aide/cabinet">Envoyer à ton comptable</a>.</p>
+<p>Les mêmes pièces, traduites en comptabilité à partie double — débit d'un côté, crédit de l'autre, à l'équilibre sur chaque pièce. Le fichier s'importe directement dans son logiciel : il n'a plus rien à retaper. <em>À VÉRIFIER : les numéros de compte proposés suivent l'usage tunisien, mais chaque cabinet a les siens — ils se modifient dans « Plan de comptes… ».</em> Voir <a href="#/aide/cabinet">Confier ta comptabilité à ton comptable</a>.</p>
 <p>Depuis la 8.9.0, c'est un vrai <b>livre-journal</b> : chaque pièce porte un numéro continu dans l'exercice (clôture les mois envoyés pour que leurs numéros ne bougent plus), et tout ce qui touche l'argent y est — les mouvements libres de la Trésorerie (frais bancaires, apports, impôts payés, avec leur contrepartie), le paiement des bulletins, les soldes de départ des comptes, et la <b>déclaration mensuelle</b> passée en écriture à la fin de chaque mois écoulé (la TVA collectée soldée contre la déductible, le net à payer au 4365 avec les timbres et les retenues opérées). Le <b>journal centralisateur</b> résume l'exercice mois par mois et journal par journal. Et ce qui n'a ni facture, ni achat, ni règlement se saisit en <b>opération diverse</b> : deux lignes au moins, autant au débit qu'au crédit, sinon rien ne s'enregistre. Le <b>lettrage</b>, dans l'onglet Balance, liste ce qui reste ouvert tiers par tiers.</p>
 <p><b>Le fichier FEC.</b> Si ton comptable tient ses dossiers dans Sage, EBP, Cegid ou un autre logiciel, « Fichier FEC… » lui donne tes écritures dans le format que ces logiciels importent tels quels : une ligne par ligne d'écriture, dans l'ordre des numéros, avec le compte auxiliaire de chaque client et fournisseur. Il porte la période choisie en haut à droite — un exercice entier en général. La Tunisie ne l'impose pas (À VÉRIFIER avec ton comptable) : il sert à ce que personne ne retape rien.</p>
 <h3>Onglets Grand livre et Balance : ce que ton comptable regarde en premier</h3>
 <p>Depuis la 8.8.0, les écritures se lisent aussi <b>par compte</b>. Le <b>grand livre</b> — le « mouvement de compte » — montre, pour un compte donné, chaque ligne qui l'a touché et le solde qui avance ; en tête, le solde d'ouverture reprend tout ce qui précède la période (les charges et les produits repartent de zéro au 1er janvier, et ce qu'ils portaient avant est reporté au compte de résultat). La <b>balance</b> met tous les comptes sur une page : ouverture, mouvements, soldes, et des totaux qui doivent tomber juste — c'est le contrôle qu'un cabinet fait avant tout autre. Ses deux autres vues, <b>auxiliaire clients</b> et <b>auxiliaire fournisseurs</b>, disent qui doit quoi, tiers par tiers.</p>
-<p>Dans « Plan de comptes… », la case <b>un sous-compte par client et par fournisseur</b> donne à chaque tiers son numéro (411001, 401001…), comme les cabinets les tiennent ; le code est figé sur la fiche et ne change plus. Le plan comptable tunisien complet y est consultable, pour nommer un compte — il n'impose rien. La balance du mois part aussi dans le paquet du cabinet. <em>À VÉRIFIER avec ton comptable.</em></p>
+<p>Dans « Plan de comptes… », la case <b>un sous-compte par client et par fournisseur</b> donne à chaque tiers son numéro (411001, 401001…), comme les cabinets les tiennent ; le code est figé sur la fiche et ne change plus. Le plan comptable tunisien complet y est consultable, pour nommer un compte — il n'impose rien. Ton comptable lit la même balance, à jour, dans son application. <em>À VÉRIFIER avec ton comptable.</em></p>
 <h3>Onglet États financiers : le bilan et l'état de résultat</h3>
 <p>Depuis la 9.0.0, l'exercice se lit en entier. Au 1er janvier, une pièce d'<b>à-nouveaux</b> rouvre chaque compte de bilan avec son solde de la veille et porte le passé au compte de résultat des exercices antérieurs. Au 31 décembre, la <b>dotation aux amortissements</b> de chaque bien s'écrit (681 / 28), et une cession sort le bien de l'actif. La paie porte la TFP et le FOPROLOS. Et l'onglet <b>États financiers</b> déduit de la balance un <b>bilan</b> (actif = passif) et un <b>état de résultat</b> (produits − charges) : une présentation d'ensemble, pas la liasse fiscale, que ton comptable établit à partir de ces chiffres. Dans la Trésorerie, l'<b>état de rapprochement</b> présente ton relevé face à SkanFact comme il le joint au dossier.</p>
 <h3>Onglet Clôtures : fermer un mois</h3>
 <p>Clôturer un mois le fige : plus aucune écriture ne peut le changer sans que tu le décides et que tu dises pourquoi. C'est ce qui garantit qu'un chiffre déjà déclaré ne bouge plus dans ton dos. Voir <a href="#/aide/cloture">Clôturer un mois</a>.</p>
-<h3>Onglet Cabinet : le paquet du mois</h3>
-<p>Un seul fichier qui contient tout ce que ton comptable attend pour le mois : les PDF des pièces, les journaux, les justificatifs d'achat et une page de garde qui dit ce qui manque. Voir <a href="#/aide/cabinet">Envoyer à ton comptable</a>.</p>
+<h3>Onglet Cabinet : ton comptable</h3>
+<p>C'est là que tu confies ton dossier à ton cabinet, avec son code, et que t'arrivent ses questions, chacune en face de sa pièce. Il lit tes livres en direct : tu n'as rien à lui envoyer. Voir <a href="#/aide/cabinet">Confier ta comptabilité à ton comptable</a>.</p>
 <h3>Ta routine</h3>
 <ul>
   <li><b>Chaque semaine</b> : pointe ton relevé bancaire et enregistre les paiements reçus. Regarde les relances.</li>
-  <li><b>Début de mois</b> : génère les factures des contrats, envoie-les, puis exporte le journal du mois écoulé et les PDF pour ton comptable.</li>
+  <li><b>Début de mois</b> : génère les factures des contrats, envoie-les, vérifie que chaque achat du mois écoulé a son justificatif, et réponds aux questions de ton comptable (Comptabilité → Cabinet).</li>
   <li><b>Chaque trimestre</b> : réclame les attestations de retenue à la source manquantes.</li>
   <li><b>Chaque année</b> : vérifie que la numérotation repart à 001 en janvier (c'est automatique) et archive une copie complète de tes données.</li>
 </ul>`
@@ -1069,43 +1069,29 @@
 <p>Pas de demande de congé à valider, pas de planning d'équipe, pas de pointage. Pas de calcul d'indemnité de licenciement non plus : ce calcul dépend de l'ancienneté, du motif et de la convention, et se fait avec un comptable ou un juriste, pas dans un tableau.</p>`
     },
     {
-      id: 'cabinet', title: 'Envoyer le mois à ton comptable', sub: 'Un fichier, complet, vérifiable',
+      id: 'cabinet', title: 'Confier ta comptabilité à ton comptable', sub: 'Il tient tes livres ici même, à jour',
       body: `
-<p>Ce que la plupart des petites entreprises envoient à leur comptable, c'est un mail par-ci, une photo par-là, un classeur en fin d'année. Le comptable passe son temps à réclamer. SkanFact fabrique à la place <b>un fichier unique par mois</b>, qui contient tout, et qui dit lui-même ce qui lui manque.</p>
+<p>Ce que la plupart des petites entreprises envoient à leur comptable, c'est un mail par-ci, une photo par-là, un classeur en fin d'année. Le comptable passe son temps à réclamer et à retaper. Avec SkanFact en ligne, <b>il n'y a rien à envoyer</b> : ton comptable lit tes livres ici même, à jour, dans son application (SkanFact Cabinet).</p>
 
-<h3>Ce qu'il y a dedans</h3>
+<h3>Confier ton dossier</h3>
+<p>Va dans <b>Comptabilité → Cabinet</b>. Tape le <b>code de son cabinet</b> — il le lit dans SkanFact Cabinet —, coche ce que tu lui confies (la comptabilité, les déclarations, la saisie de tes achats, la paie), puis clique sur « Confier mon dossier ». Il voit ton dossier une fois qu'il a accepté.</p>
+
+<h3>Ce qu'il fait, et ce qu'il ne touche jamais</h3>
+<p>Il lit tes écritures telles que tes pièces les écrivent, au fil de l'eau, et il <b>valide tes mois</b>. Il ne touche jamais à tes factures, à ta caisse ni à ton équipe : ce que tu as émis reste à toi.</p>
+
+<h3>Ses questions, et vos messages</h3>
+<p>Quand une pièce l'interroge (« ce paiement, c'est quelle facture ? »), sa question t'arrive dans <b>Comptabilité → Cabinet</b>, en face de la pièce, et tu réponds là. Pour le reste, « Mon comptable » est votre messagerie : l'entrée paraît dans le menu dès qu'il tient ton dossier.</p>
+
+<h3>Ce qui l'aide vraiment</h3>
 <ul>
-<li><b>Une page de garde</b> en PDF : le mois en chiffres, ce que contient le paquet, et la liste de ce qui manque.</li>
-<li><b>Les journaux en CSV</b> — ventes, achats, encaissements, règlements fournisseurs, trésorerie — que ton comptable ouvre dans Excel ou importe dans son logiciel.</li>
-<li><b>La TVA du mois</b>, avec le crédit reporté du mois précédent.</li>
-<li><b>Le PDF de chaque facture et de chaque avoir émis</b> : le justificatif, pas seulement la ligne du tableau.</li>
-<li><b>Les justificatifs d'achat</b> que tu as joints à tes achats. Sans eux, il ne peut pas récupérer ta TVA.</li>
-<li><b>Les bulletins de paie</b> du mois, et la déclaration CNSS quand le trimestre se termine.</li>
-<li><b>Les écritures comptables</b> en partie double (<code>journaux/ecritures.csv</code>) : ton comptable les importe au lieu de retaper tes pièces une par une.</li>
-<li><b>Un manifeste</b> qui liste chaque fichier avec son empreinte.</li>
+<li><b>Le justificatif de chaque achat</b> (la photo ou le PDF de la facture) : sans lui, il ne peut pas récupérer ta TVA.</li>
+<li><b>Tes paiements à jour</b> : ce qui est encaissé et ce qui est payé.</li>
+<li><b>Les mois clôturés</b> : il sait que ces chiffres-là ne bougeront plus (voir <a href="#/aide/cloture">Clôturer un mois</a>).</li>
 </ul>
-<p>Le fichier porte l'extension <code>.skanpack</code>, mais c'est une archive ordinaire : ton comptable peut la renommer en <code>.zip</code> et l'ouvrir avec le Finder ou l'Explorateur, sans rien installer. Rien ne l'enferme dans SkanFact.</p>
+<p>Les numéros de compte proposés ne sont qu'une proposition : ils suivent l'usage du plan comptable tunisien, mais chaque cabinet a ses habitudes. <em>À VÉRIFIER avec ton comptable.</em></p>
 
-<h3>Provisoire ou définitif</h3>
-<p>Un paquet n'est <b>définitif</b> que si le mois a été clôturé (voir « Clôturer un mois »). Sinon il part marqué <b>provisoire</b>, en toutes lettres sur la page de garde : ton comptable sait que les chiffres peuvent encore bouger. Tu peux envoyer un provisoire en cours de mois si ton comptable le demande — mais l'envoi qui compte est celui d'après la clôture.</p>
-
-<h3>Le mot de passe</h3>
-<p>Le paquet contient tes factures, tes achats et les salaires de tes employés. Ce n'est pas ce qu'on laisse traîner dans une boîte mail. Coche « Protéger par un mot de passe » : le contenu devient illisible sans lui.</p>
-<p><b>Transmets le mot de passe par un autre canal que le fichier</b> — par téléphone, par message, mais pas dans le mail qui contient la pièce jointe : sinon la protection ne sert à rien. Le nom de ton entreprise et le mois restent lisibles sans mot de passe, pour que ton comptable sache de quoi il s'agit avant de l'ouvrir.</p>
-
-<h3>L'empreinte, et à quoi elle sert</h3>
-<p>Chaque fichier du paquet a une empreinte : une suite de caractères calculée à partir de son contenu. Change un seul octet, l'empreinte change du tout au tout. Elle sert le jour où quelqu'un se demande si le fichier reçu est bien celui qui a été envoyé — un mail qui tronque une pièce jointe, une clé USB abîmée, un doute. Si les deux empreintes se ressemblent, le paquet est intact.</p>
-
-<h3>Si un justificatif a disparu</h3>
-<p>Si une photo jointe à un achat n'est plus sur le disque, le paquet part quand même <b>sans elle</b>, et le manifeste dit laquelle manque. Un fichier introuvable ne doit pas bloquer tout un envoi : mieux vaut un dossier à 99 % avec le trou signalé qu'un envoi qui échoue.</p>
-
-<h3>Les écritures : ce qui lui fait vraiment gagner du temps</h3>
-<p>Un comptable passe l'essentiel de son temps sur un petit dossier à <b>retaper</b> : chaque facture, chaque achat, chaque règlement, dans son logiciel. L'onglet <b>Comptabilité → Écritures</b> fait ce travail à sa place. Chaque pièce y devient un jeu d'écritures en <b>partie double</b> — autant au débit qu'au crédit — et le fichier est joint au paquet.</p>
-<p>Une chose à savoir : <b>les numéros de compte proposés ne sont qu'une proposition.</b> Ils suivent l'usage du plan comptable tunisien, mais chaque cabinet a ses habitudes. Demande-lui les siens la première fois et saisis-les dans « Plan de comptes » : tu ne le feras qu'une fois, et tous tes envois suivants seront directement à son format. <em>À VÉRIFIER avec ton comptable.</em></p>
-<p>Le contrôle affiché en haut de la page vérifie que chaque pièce <b>tombe juste</b> (débit = crédit). Si ce n'est pas le cas, ne l'envoie pas : son logiciel refuserait le fichier, et il t'appellerait.</p>
-
-<h3>La routine</h3>
-<p>Une fois par mois, quand tout est saisi : clôture le mois, va dans <b>Comptabilité → Cabinet</b>, vérifie ce qui manque, fabrique le paquet, envoie-le. Dix minutes, et ton comptable a tout.</p>`
+<h3>Arrêter</h3>
+<p>« Arrêter le mandat… », dans le même onglet : il ne voit plus tes livres à partir de ce jour. Ce qu'il a déjà validé reste validé.</p>`
     },
     {
       id: 'cloture', title: 'Clôturer un mois', sub: 'Promettre à ton comptable que le passé ne bougera plus',

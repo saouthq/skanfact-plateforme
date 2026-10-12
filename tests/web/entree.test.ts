@@ -306,19 +306,26 @@ describe('l\'entrée refaite, à la souris', () => {
     await ecran(p, 'ecran.porte.titre');
     await bouton(p, 'ecran.porte.demarrer_bouton').click();
     await ecran(p, 'ecran.porte.entreprise_titre');
-    // L'aide du matricule change de hauteur pendant la frappe : le champ du dessus ne bouge pas pour autant.
+    // L'aide du matricule change de hauteur pendant la frappe : le champ du dessus ne bouge pas pour autant — ni le
+    // bouton du dessous (lot débutant 2 : il remontait de 39 px sous la souris au dernier caractère tapé).
     const haut = async () => (await champ(p, 'ecran.porte.raison').boundingBox())?.y;
+    const bas = async () => (await p.locator('.ent-deux > form button[type=submit]').boundingBox())?.y;
     const avant = await haut();
+    const avantBas = await bas();
     const aide = p.locator('.ent-champ').filter({ has: champ(p, 'ecran.porte.matricule') }).locator('.ent-aide');
-    const hauteurs = [(await aide.boundingBox())?.height];
+    // La hauteur du TEXTE de l'aide (sa case, elle, garde la hauteur de la plus longue phrase).
+    const hauteurTexte = () => aide.evaluate((el) => { const r = document.createRange(); r.selectNodeContents(el); return Math.round(r.getBoundingClientRect().height); });
+    const hauteurs = [await hauteurTexte()];
     await champ(p, 'ecran.porte.raison').fill('Gharbi Informatique SARL');
     await champ(p, 'ecran.porte.matricule').fill('1234567A');
-    hauteurs.push((await aide.boundingBox())?.height);
+    hauteurs.push(await hauteurTexte());
     expect(await haut()).toBe(avant);
+    expect(await bas()).toBe(avantBas);
     await champ(p, 'ecran.porte.matricule').fill('1234567A/A/M/000');
-    hauteurs.push((await aide.boundingBox())?.height);
+    hauteurs.push(await hauteurTexte());
     expect(await haut()).toBe(avant);
-    // L'instrument a mesuré : l'aide a bien changé de hauteur.
+    expect(await bas()).toBe(avantBas);
+    // L'instrument a mesuré : la phrase de l'aide a bien changé de hauteur.
     expect(new Set(hauteurs).size).toBeGreaterThan(1);
     // Au téléphone, le haut de la facture passe sous le formulaire : la phrase ne dit pas qu'il est « à côté ».
     await p.setViewportSize({ width: 390, height: 844 });

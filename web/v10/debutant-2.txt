@@ -1,0 +1,674 @@
+Le lot débutant (2) : les gênants du parcours d'un commerçant qui débute, refaits à la souris le 12/10/2026 sur une
+entreprise neuve (une quincaillerie, au réel) ; docs/debutant.md, « Le lot débutant (2) ». Format : voir sans-paquets.mjs.
+
+─── L'Aide parlait encore du paquet de la v10 ───────────────────────────────────────────────────────────────────────
+En ligne, il n'y a ni paquet ni fichier d'appairage : l'entreprise confie son dossier à son cabinet (Comptabilité →
+Cabinet, le code du cabinet), et le comptable lit ses livres en direct. « Démarrer » envoyait vers Paramètres → Envois
+et un fichier d'appairage qui n'existent pas en ligne, et l'article vers lequel il renvoyait décrivait le paquet.
+
+== guide.js | « Démarrer » : relier son comptable se fait par le mandat (Comptabilité → Cabinet), pas par un fichier d'appairage
+-- avant
+<h3>Relier ton comptable (facultatif)</h3>
+<p><b>Paramètres → Envois</b> : son adresse, dans « Email du comptable » — « Envoyer au comptable » s'en sert pour le paquet du mois. S'il utilise SkanFact Cabinet, importe aussi son <b>fichier d'appairage</b>, dans le bloc « Ton cabinet comptable » du même onglet : tes paquets partent chiffrés pour lui seul, et ses questions te reviendront sur la bonne pièce. Voir <a href="#/aide/cabinet">Envoyer le mois à ton comptable</a>.</p>
+-- après
+<h3>Confier ton dossier à ton comptable (facultatif)</h3>
+<p><b>Comptabilité → Cabinet</b> : tape le <b>code de son cabinet</b> (il le lit dans SkanFact Cabinet), coche ce que tu lui confies, puis « Confier mon dossier ». Une fois qu'il a accepté, il tient tes livres <b>ici même</b> : il lit tes écritures à jour et valide tes mois. Rien ne lui est envoyé — il n'y a ni paquet ni fichier —, et ses questions te reviennent dans le même onglet, en face de la pièce qu'elles concernent. Voir <a href="#/aide/cabinet">Confier ta comptabilité à ton comptable</a>.</p>
+-- fin
+
+== guide.js | « Ta comptabilité » : l'onglet Cabinet dit à qui le dossier est confié, il ne fabrique plus de paquet
+-- avant
+<b>Clôtures</b> : fermer un mois pour qu'il ne bouge plus. <b>Cabinet</b> : fabriquer et envoyer le paquet mensuel.</p>
+-- après
+<b>Clôtures</b> : fermer un mois pour qu'il ne bouge plus. <b>Cabinet</b> : à qui ton dossier est confié, et les questions de ton comptable.</p>
+-- fin
+
+== guide.js | « Ta comptabilité » : le lien vers l'article du comptable porte son nouveau titre
+-- avant
+ils se modifient dans « Plan de comptes… ».</em> Voir <a href="#/aide/cabinet">Envoyer à ton comptable</a>.</p>
+-- après
+ils se modifient dans « Plan de comptes… ».</em> Voir <a href="#/aide/cabinet">Confier ta comptabilité à ton comptable</a>.</p>
+-- fin
+
+== guide.js | « Ta comptabilité » : la balance ne part dans aucun paquet, le comptable la lit en direct
+-- avant
+Le plan comptable tunisien complet y est consultable, pour nommer un compte — il n'impose rien. La balance du mois part aussi dans le paquet du cabinet. <em>À VÉRIFIER avec ton comptable.</em></p>
+-- après
+Le plan comptable tunisien complet y est consultable, pour nommer un compte — il n'impose rien. Ton comptable lit la même balance, à jour, dans son application. <em>À VÉRIFIER avec ton comptable.</em></p>
+-- fin
+
+== guide.js | « Ta comptabilité » : l'onglet Cabinet, en ligne
+-- avant
+<h3>Onglet Cabinet : le paquet du mois</h3>
+<p>Un seul fichier qui contient tout ce que ton comptable attend pour le mois : les PDF des pièces, les journaux, les justificatifs d'achat et une page de garde qui dit ce qui manque. Voir <a href="#/aide/cabinet">Envoyer à ton comptable</a>.</p>
+-- après
+<h3>Onglet Cabinet : ton comptable</h3>
+<p>C'est là que tu confies ton dossier à ton cabinet, avec son code, et que t'arrivent ses questions, chacune en face de sa pièce. Il lit tes livres en direct : tu n'as rien à lui envoyer. Voir <a href="#/aide/cabinet">Confier ta comptabilité à ton comptable</a>.</p>
+-- fin
+
+== guide.js | « Ta comptabilité » : la routine du début de mois, en ligne
+-- avant
+  <li><b>Début de mois</b> : génère les factures des contrats, envoie-les, puis exporte le journal du mois écoulé et les PDF pour ton comptable.</li>
+-- après
+  <li><b>Début de mois</b> : génère les factures des contrats, envoie-les, vérifie que chaque achat du mois écoulé a son justificatif, et réponds aux questions de ton comptable (Comptabilité → Cabinet).</li>
+-- fin
+
+== guide.js | l'article du comptable, réécrit pour la plateforme : le mandat, la lecture en direct, les questions (il décrivait le paquet)
+-- avant
+      id: 'cabinet', title: 'Envoyer le mois à ton comptable', sub: 'Un fichier, complet, vérifiable',
+      body: `
+<p>Ce que la plupart des petites entreprises envoient à leur comptable, c'est un mail par-ci, une photo par-là, un classeur en fin d'année. Le comptable passe son temps à réclamer. SkanFact fabrique à la place <b>un fichier unique par mois</b>, qui contient tout, et qui dit lui-même ce qui lui manque.</p>
+
+<h3>Ce qu'il y a dedans</h3>
+<ul>
+<li><b>Une page de garde</b> en PDF : le mois en chiffres, ce que contient le paquet, et la liste de ce qui manque.</li>
+<li><b>Les journaux en CSV</b> — ventes, achats, encaissements, règlements fournisseurs, trésorerie — que ton comptable ouvre dans Excel ou importe dans son logiciel.</li>
+<li><b>La TVA du mois</b>, avec le crédit reporté du mois précédent.</li>
+<li><b>Le PDF de chaque facture et de chaque avoir émis</b> : le justificatif, pas seulement la ligne du tableau.</li>
+<li><b>Les justificatifs d'achat</b> que tu as joints à tes achats. Sans eux, il ne peut pas récupérer ta TVA.</li>
+<li><b>Les bulletins de paie</b> du mois, et la déclaration CNSS quand le trimestre se termine.</li>
+<li><b>Les écritures comptables</b> en partie double (<code>journaux/ecritures.csv</code>) : ton comptable les importe au lieu de retaper tes pièces une par une.</li>
+<li><b>Un manifeste</b> qui liste chaque fichier avec son empreinte.</li>
+</ul>
+<p>Le fichier porte l'extension <code>.skanpack</code>, mais c'est une archive ordinaire : ton comptable peut la renommer en <code>.zip</code> et l'ouvrir avec le Finder ou l'Explorateur, sans rien installer. Rien ne l'enferme dans SkanFact.</p>
+
+<h3>Provisoire ou définitif</h3>
+<p>Un paquet n'est <b>définitif</b> que si le mois a été clôturé (voir « Clôturer un mois »). Sinon il part marqué <b>provisoire</b>, en toutes lettres sur la page de garde : ton comptable sait que les chiffres peuvent encore bouger. Tu peux envoyer un provisoire en cours de mois si ton comptable le demande — mais l'envoi qui compte est celui d'après la clôture.</p>
+
+<h3>Le mot de passe</h3>
+<p>Le paquet contient tes factures, tes achats et les salaires de tes employés. Ce n'est pas ce qu'on laisse traîner dans une boîte mail. Coche « Protéger par un mot de passe » : le contenu devient illisible sans lui.</p>
+<p><b>Transmets le mot de passe par un autre canal que le fichier</b> — par téléphone, par message, mais pas dans le mail qui contient la pièce jointe : sinon la protection ne sert à rien. Le nom de ton entreprise et le mois restent lisibles sans mot de passe, pour que ton comptable sache de quoi il s'agit avant de l'ouvrir.</p>
+
+<h3>L'empreinte, et à quoi elle sert</h3>
+<p>Chaque fichier du paquet a une empreinte : une suite de caractères calculée à partir de son contenu. Change un seul octet, l'empreinte change du tout au tout. Elle sert le jour où quelqu'un se demande si le fichier reçu est bien celui qui a été envoyé — un mail qui tronque une pièce jointe, une clé USB abîmée, un doute. Si les deux empreintes se ressemblent, le paquet est intact.</p>
+
+<h3>Si un justificatif a disparu</h3>
+<p>Si une photo jointe à un achat n'est plus sur le disque, le paquet part quand même <b>sans elle</b>, et le manifeste dit laquelle manque. Un fichier introuvable ne doit pas bloquer tout un envoi : mieux vaut un dossier à 99 % avec le trou signalé qu'un envoi qui échoue.</p>
+
+<h3>Les écritures : ce qui lui fait vraiment gagner du temps</h3>
+<p>Un comptable passe l'essentiel de son temps sur un petit dossier à <b>retaper</b> : chaque facture, chaque achat, chaque règlement, dans son logiciel. L'onglet <b>Comptabilité → Écritures</b> fait ce travail à sa place. Chaque pièce y devient un jeu d'écritures en <b>partie double</b> — autant au débit qu'au crédit — et le fichier est joint au paquet.</p>
+<p>Une chose à savoir : <b>les numéros de compte proposés ne sont qu'une proposition.</b> Ils suivent l'usage du plan comptable tunisien, mais chaque cabinet a ses habitudes. Demande-lui les siens la première fois et saisis-les dans « Plan de comptes » : tu ne le feras qu'une fois, et tous tes envois suivants seront directement à son format. <em>À VÉRIFIER avec ton comptable.</em></p>
+<p>Le contrôle affiché en haut de la page vérifie que chaque pièce <b>tombe juste</b> (débit = crédit). Si ce n'est pas le cas, ne l'envoie pas : son logiciel refuserait le fichier, et il t'appellerait.</p>
+
+<h3>La routine</h3>
+<p>Une fois par mois, quand tout est saisi : clôture le mois, va dans <b>Comptabilité → Cabinet</b>, vérifie ce qui manque, fabrique le paquet, envoie-le. Dix minutes, et ton comptable a tout.</p>`
+-- après
+      id: 'cabinet', title: 'Confier ta comptabilité à ton comptable', sub: 'Il tient tes livres ici même, à jour',
+      body: `
+<p>Ce que la plupart des petites entreprises envoient à leur comptable, c'est un mail par-ci, une photo par-là, un classeur en fin d'année. Le comptable passe son temps à réclamer et à retaper. Avec SkanFact en ligne, <b>il n'y a rien à envoyer</b> : ton comptable lit tes livres ici même, à jour, dans son application (SkanFact Cabinet).</p>
+
+<h3>Confier ton dossier</h3>
+<p>Va dans <b>Comptabilité → Cabinet</b>. Tape le <b>code de son cabinet</b> — il le lit dans SkanFact Cabinet —, coche ce que tu lui confies (la comptabilité, les déclarations, la saisie de tes achats, la paie), puis clique sur « Confier mon dossier ». Il voit ton dossier une fois qu'il a accepté.</p>
+
+<h3>Ce qu'il fait, et ce qu'il ne touche jamais</h3>
+<p>Il lit tes écritures telles que tes pièces les écrivent, au fil de l'eau, et il <b>valide tes mois</b>. Il ne touche jamais à tes factures, à ta caisse ni à ton équipe : ce que tu as émis reste à toi.</p>
+
+<h3>Ses questions, et vos messages</h3>
+<p>Quand une pièce l'interroge (« ce paiement, c'est quelle facture ? »), sa question t'arrive dans <b>Comptabilité → Cabinet</b>, en face de la pièce, et tu réponds là. Pour le reste, « Mon comptable » est votre messagerie : l'entrée paraît dans le menu dès qu'il tient ton dossier.</p>
+
+<h3>Ce qui l'aide vraiment</h3>
+<ul>
+<li><b>Le justificatif de chaque achat</b> (la photo ou le PDF de la facture) : sans lui, il ne peut pas récupérer ta TVA.</li>
+<li><b>Tes paiements à jour</b> : ce qui est encaissé et ce qui est payé.</li>
+<li><b>Les mois clôturés</b> : il sait que ces chiffres-là ne bougeront plus (voir <a href="#/aide/cloture">Clôturer un mois</a>).</li>
+</ul>
+<p>Les numéros de compte proposés ne sont qu'une proposition : ils suivent l'usage du plan comptable tunisien, mais chaque cabinet a ses habitudes. <em>À VÉRIFIER avec ton comptable.</em></p>
+
+<h3>Arrêter</h3>
+<p>« Arrêter le mandat… », dans le même onglet : il ne voit plus tes livres à partir de ce jour. Ce qu'il a déjà validé reste validé.</p>`
+-- fin
+
+─── L'INTERFACE ─────────────────────────────────────────────────────────────────────────────────────────────
+== visites.js | « Faire un devis » : l'objet garde son étape, les sept autres cases de l'en-tête se lisent ensemble (24 étapes, c'était trop long)
+-- avant
+        // 10.14.1 : les cases de l'en-tête que la visite laissait seules (vu en suivant la bulle sur une
+        // entreprise neuve). Chacune a son étape, dans l'ordre de l'écran ; la consigne d'une case à
+        // lire vient du moteur (« Si tu veux »).
+        { cible: '#view .datefield:has(input[name="date"]) .d-txt', cote: 'dessous', titre: 'La date du devis',
+          texte: 'Aujourd\'hui, proposée d\'office. Elle s\'imprime sur le devis ; tu peux l\'écrire comme tu veux (12/03/2026, 12-3-26…) ou la choisir dans le calendrier.' },
+        { cible: '#view .datefield:has(input[name="dueDate"]) .d-txt', cote: 'dessous', titre: 'Jusqu\'à quand il vaut',
+          texte: 'Au-delà, ton prix ne t\'engage plus : le devis passe « expiré » tout seul. Elle suit la date du devis tant que tu n\'y touches pas, avec le délai réglé dans tes Paramètres.' },
+        { cible: 'input[name="subject"]', cote: 'dessous', faire: 'valeur',
+          titre: 'L\'objet', texte: 'Une ligne qui dit de quoi il s\'agit : ton client la lira en premier.',
+          action: 'Écris l\'objet du devis, puis clique sur <b>« C\'est fait »</b>.', essai: { taper: 'Réfection de la vitrine' } },
+        { cible: '#view input[name="reference"]', cote: 'dessous', titre: 'Sa référence',
+          texte: 'Le numéro de commande ou de marché que ton client t\'a donné (« BC 118 »), s\'il en a un. Beaucoup de sociétés et d\'administrations ne paient pas une pièce qui ne le rappelle pas.' },
+        { cible: combo('projectId'), cote: 'droite', si: () => !!$(combo('projectId')), titre: 'L\'affaire',
+          texte: 'Facultatif : rattache ce devis à un chantier, pour comparer plus tard ce qu\'il a rapporté à ce qu\'il a coûté. Une vente simple n\'en a pas besoin.' },
+        { cible: '#view select[name="lang"]', cote: 'dessous', titre: 'La langue',
+          texte: 'Français ou anglais : tout le document change, jusqu\'au montant écrit en toutes lettres. Elle suit le client choisi.' },
+        { cible: '#view select[name="currency"]', cote: 'dessous', titre: 'La devise',
+          texte: 'Elle suit le client, elle aussi. Une autre devise que le dinar demande son taux de change, pour que ta comptabilité compte juste.' },
+        // 10.14.1 — choisir une autre devise ICI fait paraître le taux, obligatoire : la première étape
+        // du taux (après le client) était déjà passée, et la visite menait à « Enregistrer », qui
+        // refusait une case que personne n'avait montrée (vu à la souris : EUR choisi dans la liste
+        // éclairée). Elle ne paraît que si le taux est là ET encore vide.
+        Object.assign(etapeTaux('#rate-field'), {
+          texte: 'Ce devis est maintenant dans une autre devise que le dinar. Le taux dit combien vaut <b>une unité</b> de cette devise en dinars : c\'est lui qui convertit la pièce dans ta comptabilité et ta TVA. <b>Il est obligatoire</b> — sans lui, « Enregistrer » refuse le devis.',
+          si: () => !!$('#rate-field:not([hidden])') && !(Number(String(valeur('#rate-field input[name="exchangeRate"]') || '').replace(',', '.')) > 0)
+        }),
+        { cible: '#view select[name="status"]', cote: 'dessous', titre: 'Son statut',
+          texte: 'Le devis naît « Brouillon ». C\'est toi qui le passes à « Envoyé », puis à « Accepté » ou « Refusé » quand ton client répond : SkanFact ne peut pas le deviner.' },
+        { cible: '#view input[name="discountRate"]', cote: 'dessous', titre: 'Une remise',
+          texte: 'Un pourcentage retiré du total hors taxe, avant la TVA. Elle s\'affiche en clair sur le devis. Pour une remise sur une seule ligne, baisse plutôt son prix.' },
+-- après
+        // (plateforme, lot débutant 2) 24 étapes, une par case : trop long pour un premier devis (vu à la souris). L'objet
+        // garde la sienne — on l'écrit ; les autres cases de l'en-tête sont toutes proposées ou facultatives, et se lisent
+        // ENSEMBLE dans une étape qui les éclaire toutes, chacune avec sa bulle.
+        { cible: 'input[name="subject"]', cote: 'dessous', faire: 'valeur',
+          titre: 'L\'objet', texte: 'Une ligne qui dit de quoi il s\'agit : ton client la lira en premier.',
+          action: 'Écris l\'objet du devis, puis clique sur <b>« C\'est fait »</b>.', essai: { taper: 'Réfection de la vitrine' } },
+        { cible: '#f-head', liste: '.datefield .d-txt, input[name="reference"], [data-combo="projectId"] .combo-btn, select[name="lang"], select[name="currency"], select[name="status"], input[name="discountRate"]', titre: 'Les autres cases',
+          texte: 'Elles ont toutes déjà une valeur, ou sont facultatives : la date et la validité du devis, la référence de ton client, une affaire, la langue, la devise, le statut, une remise. Change-les seulement si tu en as besoin.' },
+        // 10.14.1 — choisir une autre devise ICI fait paraître le taux, obligatoire : la première étape
+        // du taux (après le client) était déjà passée, et la visite menait à « Enregistrer », qui
+        // refusait une case que personne n'avait montrée (vu à la souris : EUR choisi dans la liste
+        // éclairée). Elle ne paraît que si le taux est là ET encore vide.
+        Object.assign(etapeTaux('#rate-field'), {
+          texte: 'Ce devis est maintenant dans une autre devise que le dinar. Le taux dit combien vaut <b>une unité</b> de cette devise en dinars : c\'est lui qui convertit la pièce dans ta comptabilité et ta TVA. <b>Il est obligatoire</b> — sans lui, « Enregistrer » refuse le devis.',
+          si: () => !!$('#rate-field:not([hidden])') && !(Number(String(valeur('#rate-field input[name="exchangeRate"]') || '').replace(',', '.')) > 0)
+        }),
+-- fin
+
+== visites.js | « Faire un devis » : l'unité et la TVA de la ligne ne font qu'une étape (1/2)
+-- avant
+        // 10.14.1 — l'unité et la TVA de la ligne, les deux cases que la visite laissait seules (vu au
+        // guide : « unité (u) » et « 19 % » sans un mot, sur la seule ligne d'un premier devis).
+        { cible: '#lines tr:first-child select[data-k="unit"]', cote: 'dessous', titre: 'L\'unité',
+          texte: 'Elle s\'imprime à côté de la quantité : heure, jour, pièce, forfait, mètre carré… Une prestation du catalogue apporte la sienne. « Autre… », en bas de la liste, en ajoute une qui y restera.' },
+
+-- après
+
+-- fin
+
+== visites.js | « Faire un devis » : l'unité et la TVA de la ligne ne font qu'une étape (2/2)
+-- avant
+        { cible: '#lines tr:first-child select[data-k="vatRate"]', cote: 'dessous', titre: 'La TVA de la ligne',
+          texte: 'Le taux vient de la prestation du catalogue, sinon de tes Paramètres. Chaque ligne a le sien : une prestation exonérée reste à 0 % à côté des autres. En cas de doute sur un taux, À VÉRIFIER avec ton comptable.' },
+-- après
+        { cible: '#lines tr:first-child select[data-k="vatRate"]', cote: 'dessous', titre: 'L\'unité et la TVA de la ligne', eclairer: '#lines tr:first-child select[data-k="unit"]',
+          texte: 'L\'unité s\'imprime à côté de la quantité : la pièce, l\'heure, le mètre carré… La TVA vient de ton catalogue, sinon de tes Paramètres, et chaque ligne a la sienne. Ce que tu prends au catalogue apporte les deux. En cas de doute sur un taux, À VÉRIFIER avec ton comptable.' },
+-- fin
+
+== visites.js | « Faire une facture » : l'objet garde son étape, les autres cases de l'en-tête se lisent ensemble ; la retenue et le timbre gardent la leur (25 étapes, c'était trop long)
+-- avant
+        { cible: '#view .datefield:has(input[name="date"]) .d-txt', cote: 'dessous', titre: 'La date de la facture',
+          texte: 'Aujourd\'hui, proposée d\'office. Elle s\'imprime sur la facture, et c\'est elle qui range la facture dans le mois de ta déclaration de TVA. Pour une facture d\'un autre mois, <em>À VÉRIFIER avec ton comptable</em>.' },
+        { cible: '#view .datefield:has(input[name="dueDate"]) .d-txt', cote: 'dessous', titre: 'L\'échéance',
+          texte: 'Le jour où ton client doit avoir payé : la date de la facture plus le délai de ses conditions, ou celui de tes Paramètres. Passé ce jour, la facture paraît dans « Relances ».' },
+        { cible: 'input[name="subject"]', cote: 'dessous', faire: 'valeur',
+          titre: 'L\'objet', texte: 'Une ligne qui dit ce que la facture règle : ton client la lira en premier.',
+          action: 'Écris l\'objet de la facture, puis clique sur <b>« C\'est fait »</b>.', essai: { taper: 'Réfection de la vitrine' } },
+        { cible: '#view input[name="reference"]', cote: 'dessous', titre: 'Sa référence',
+          texte: 'Le numéro de commande ou de marché que ton client t\'a donné (« BC 118 »), s\'il en a un. Beaucoup de sociétés et d\'administrations ne paient pas une facture qui ne le rappelle pas.' },
+        { cible: combo('projectId'), cote: 'droite', si: () => !!$(combo('projectId')), titre: 'L\'affaire',
+          texte: 'Facultatif : rattache cette facture à un chantier, pour comparer plus tard ce qu\'il a rapporté à ce qu\'il a coûté. Une vente simple n\'en a pas besoin.' },
+        { cible: '#view select[name="lang"]', cote: 'dessous', titre: 'La langue',
+          texte: 'Français ou anglais : tout le document change, jusqu\'au montant écrit en toutes lettres. Elle suit le client choisi.' },
+        { cible: '#view select[name="currency"]', cote: 'dessous', titre: 'La devise',
+          texte: 'Elle suit le client, elle aussi. Une autre devise que le dinar demande son taux de change, pour que ta comptabilité compte juste.' },
+        Object.assign(etapeTaux('#rate-field'), {
+          texte: 'Cette facture est maintenant dans une autre devise que le dinar. Le taux dit combien vaut <b>une unité</b> de cette devise en dinars : c\'est lui qui convertit la facture dans ta comptabilité et ta TVA. <b>Il est obligatoire.</b>',
+          si: () => !!$('#rate-field:not([hidden])') && !(Number(String(valeur('#rate-field input[name="exchangeRate"]') || '').replace(',', '.')) > 0)
+        }),
+        { cible: '#view .status-cell', cote: 'dessous', titre: 'Un brouillon, sans numéro',
+          texte: 'La facture naît <b>brouillon</b> : elle n\'a pas encore de numéro, et tu peux tout y changer. Le numéro lui est donné à l\'émission, dans l\'ordre, sans trou ; ensuite elle ne se modifie plus (une erreur se corrige par un avoir).' },
+        { cible: '#view input[name="discountRate"]', cote: 'dessous', titre: 'Une remise',
+          texte: 'Un pourcentage retiré du total hors taxe, avant la TVA. Elle s\'affiche en clair sur la facture. Pour une remise sur une seule ligne, baisse plutôt son prix.' },
+        { cible: '#view select[name="withholdingRate"]', cote: 'dessous', titre: 'La retenue à la source',
+          texte: 'Certains clients — les sociétés, l\'État — gardent une part de ta facture et la versent au fisc à ta place : tu ne reçois que le net, et ils te remettent une attestation. Si ce client le fait, choisis son taux ; sinon, « Aucune ». <b>À VÉRIFIER</b> avec ton comptable.' },
+        { cible: '#view label.check:has(input[name="applyStamp"])', cote: 'dessous', titre: 'Le timbre fiscal',
+          texte: 'Chaque facture porte un timbre fiscal, ajouté au total et compté à part dans ta déclaration. Un client exonéré (exportateur, secteur public…) le voit retiré d\'office. <b>À VÉRIFIER</b> avec ton comptable.' },
+-- après
+        // (plateforme, lot débutant 2) 25 étapes : trop long (vu à la souris). L'objet garde son étape, la retenue et le timbre
+        // aussi (ils changent ce que le client paie) ; les autres cases de l'en-tête se lisent ensemble, chacune avec sa bulle.
+        { cible: 'input[name="subject"]', cote: 'dessous', faire: 'valeur',
+          titre: 'L\'objet', texte: 'Une ligne qui dit ce que la facture règle : ton client la lira en premier.',
+          action: 'Écris l\'objet de la facture, puis clique sur <b>« C\'est fait »</b>.', essai: { taper: 'Réfection de la vitrine' } },
+        { cible: '#f-head', liste: '.datefield .d-txt, input[name="reference"], [data-combo="projectId"] .combo-btn, select[name="lang"], select[name="currency"], input[name="discountRate"]', titre: 'Les autres cases',
+          texte: 'Elles ont toutes déjà une valeur, ou sont facultatives : la date (c\'est elle qui range la facture dans le mois de ta TVA) et l\'échéance, la référence de ton client, une affaire, la langue, la devise, une remise. Change-les seulement si tu en as besoin.' },
+        Object.assign(etapeTaux('#rate-field'), {
+          texte: 'Cette facture est maintenant dans une autre devise que le dinar. Le taux dit combien vaut <b>une unité</b> de cette devise en dinars : c\'est lui qui convertit la facture dans ta comptabilité et ta TVA. <b>Il est obligatoire.</b>',
+          si: () => !!$('#rate-field:not([hidden])') && !(Number(String(valeur('#rate-field input[name="exchangeRate"]') || '').replace(',', '.')) > 0)
+        }),
+        { cible: '#view select[name="withholdingRate"]', cote: 'dessous', titre: 'La retenue à la source',
+          texte: 'Certains clients — les sociétés, l\'État — gardent une part de ta facture et la versent au fisc à ta place : tu ne reçois que le net, et ils te remettent une attestation. Si ce client le fait, choisis son taux ; sinon, « Aucune ». <b>À VÉRIFIER</b> avec ton comptable.' },
+        { cible: '#view label.check:has(input[name="applyStamp"])', cote: 'dessous', titre: 'Le timbre fiscal',
+          texte: 'Chaque facture porte un timbre fiscal, ajouté au total et compté à part dans ta déclaration. Un client exonéré (exportateur, secteur public…) le voit retiré d\'office. <b>À VÉRIFIER</b> avec ton comptable.' },
+-- fin
+
+== visites.js | « Faire une facture » : l'unité et la TVA de la ligne ne font qu'une étape (1/2)
+-- avant
+        { cible: '#lines tr:first-child select[data-k="unit"]', cote: 'dessous', titre: 'L\'unité',
+          texte: 'Elle s\'imprime à côté de la quantité : heure, jour, pièce, forfait, mètre carré… Un article du catalogue apporte la sienne. « Autre… », en bas de la liste, en ajoute une qui y restera.' },
+
+-- après
+
+-- fin
+
+== visites.js | « Faire une facture » : l'unité et la TVA de la ligne ne font qu'une étape (2/2)
+-- avant
+        { cible: '#lines tr:first-child select[data-k="vatRate"]', cote: 'dessous', titre: 'La TVA de la ligne',
+          texte: 'Le taux vient de l\'article du catalogue, sinon de tes Paramètres. Chaque ligne a le sien : une prestation exonérée reste à 0 % à côté des autres. En cas de doute sur un taux, À VÉRIFIER avec ton comptable.' },
+-- après
+        { cible: '#lines tr:first-child select[data-k="vatRate"]', cote: 'dessous', titre: 'L\'unité et la TVA de la ligne', eclairer: '#lines tr:first-child select[data-k="unit"]',
+          texte: 'L\'unité s\'imprime à côté de la quantité : la pièce, l\'heure, le mètre carré… La TVA vient de ton catalogue, sinon de tes Paramètres, et chaque ligne a la sienne. Ce que tu prends au catalogue apporte les deux. En cas de doute sur un taux, À VÉRIFIER avec ton comptable.' },
+-- fin
+
+== visites.js | « Ajouter au catalogue » : le mot suit le métier (« prestation » à une quincaillerie), le prix TTC est montré, la TVA et l'unité ne font qu'une étape, le coût du départ dit d'où il vient
+-- avant
+      id: 'article', theme: 'fichiers', type: 'faire', duree: '2 min', page: '#/catalogue',
+      titre: 'Ajouter une prestation au catalogue',
+      resume: 'Décrite une fois avec son prix : chaque devis la reprend d\'un clic.',
+      mots: ['catalogue', 'prestation', 'article', 'prix', 'produit', 'service'],
+      suite: ['premier-devis'],
+      mesure: () => nb('catalog'), but: n0 => nb('catalog') > n0 && aucuneFenetre(),
+      bravo: 'Ta prestation est au catalogue',
+      conclusion: 'Elle est proposée dans chaque devis : « Ajouter depuis le catalogue », ou tape son nom dans une désignation.',
+      etapes: [
+        { page: '#/catalogue', avant: onglet('#cat-tabs', 'presta'), cible: ['.vide-utile .btn-primary', '.page-head #new'], cote: 'dessous', faire: 'clic',
+          titre: 'Nouvelle prestation', texte: 'Ce que tu vends, avec son prix.', action: 'Clique sur {bouton}.', fait: () => !!$('#modal-root .modal'), essai: { clic: true } },
+        { cible: '#modal-root .modal input[name="label"], #modal-root .modal input[name="name"]', cote: 'droite', faire: 'valeur',
+          titre: 'Son nom', texte: 'Tel qu\'il s\'imprimera sur la ligne du devis.', action: 'Tape le nom de la prestation.', essai: { taper: 'Heure de main-d\'œuvre' } },
+        { cible: '#modal-root .modal textarea[name="description"]', cote: 'droite', titre: 'Sa description',
+          texte: 'Une précision qui s\'imprime sous la désignation, sur le devis et la facture : les dimensions, la matière, ce qui est compris. Elle se reprend à chaque devis — tu pourras encore la retoucher sur la pièce.' },
+        { cible: '#modal-root .modal input[name="unitPrice"]', cote: 'droite', faire: 'valeur',
+          titre: 'Son prix hors taxe', texte: 'Le prix d\'une unité, hors TVA.', action: 'Tape le prix.', essai: { taper: '45' } },
+        // 10.14.1 : la visite s'arrêtait au nom et au prix, et laissait seules cinq cases qu'un débutant
+        // ne sait pas lire (vu en suivant la bulle sur une entreprise neuve). Chacune a son étape ; la
+        // consigne d'une case à lire vient du moteur (« Si tu veux »).
+        { cible: '#modal-root .modal input[name="unitCost"]', cote: 'droite', faire: 'valeur', bouton: 'Suivant', facultatif: true,
+          titre: 'Ce qu\'elle te coûte', texte: 'Ce que cette prestation te coûte à toi, hors taxe : la matière, la sous-traitance. SkanFact en tire ta marge sur chaque devis. À zéro, la marge n\'est simplement pas calculée.',
+          action: 'Tape ton coût — ou passe cette étape si tu ne le connais pas.', essai: { taper: '28' } },
+        { cible: '#modal-root .modal select[name="vatRate"]', cote: 'droite', titre: 'Son taux de TVA',
+          texte: 'Proposé d\'après ton régime ; la plupart des ventes sont à 19 %, certaines à 7 ou 13 % — À VÉRIFIER avec ton comptable. Si ton régime ne facture pas de TVA, tes pièces sortent à 0 % quoi qu\'il soit écrit ici.' },
+        { cible: '#modal-root .modal #cat-unit', cote: 'droite', titre: 'Son unité',
+          texte: 'Comment tu la comptes : l\'heure, la pièce, le mètre carré… Elle s\'imprime à côté de la quantité sur le devis. « Autre… » en crée une.' },
+        { cible: '#modal-root .modal input[name="tracked"]', cote: 'droite', titre: 'Suivi en stock',
+          texte: 'Pour une marchandise que tu achètes et revends : SkanFact compte ce qui entre et ce qui sort, et te prévient quand il en manque. Un service ne se stocke pas — une heure de travail, laisse la case décochée.' },
+        { cible: '#modal-root .modal input[name="serialized"]', cote: 'droite', titre: 'Les numéros de série',
+          texte: 'Seulement pour du matériel que tu garantis à l\'unité (un appareil, un ordinateur) : chaque unité vendue garde son numéro et sa fin de garantie. Sinon, laisse la case décochée.' },
+        { cible: '#modal-root .modal input[name="minStock"]', cote: 'droite', si: stockOuvert,
+          titre: 'Le seuil d\'alerte', texte: 'Quand le stock descend à ce nombre, SkanFact te le signale dans « À faire » : c\'est le moment de recommander. À zéro, rien ne te prévient avant la rupture.' },
+        { cible: '#modal-root .modal input[name="location"]', cote: 'droite', si: stockOuvert,
+          titre: 'Où il est rangé', texte: 'Une étagère, une réserve, un dépôt : pour le retrouver le jour de l\'inventaire.' },
+        { cible: '#modal-root .modal input[name="initialQty"]', cote: 'droite', si: stockOuvert,
+          titre: 'Ce que tu as déjà', texte: 'La quantité que tu as aujourd\'hui sur l\'étagère. Les achats l\'augmenteront, les factures la diminueront.' },
+        { cible: '#modal-root .modal input[name="initialCost"]', cote: 'droite', si: stockOuvert,
+          titre: 'Ce qu\'il t\'a coûté', texte: 'Le prix d\'achat d\'une unité de ce stock de départ, hors taxe : c\'est lui qui donne sa valeur à ton stock, et le coût de ce que tu vendras.' },
+        { cible: '#modal-root .modal .modal-actions .btn-primary', cote: 'dessus', faire: 'clic',
+          titre: 'Enregistrer', texte: 'La prestation rejoint ton catalogue : la prochaine fois, tu la choisis dans une liste au lieu de retaper son nom et son prix.', action: 'Clique sur <b>« Enregistrer »</b>.', fait: () => aucuneFenetre(), essai: { clic: true } }
+-- après
+      id: 'article', theme: 'fichiers', type: 'faire', duree: '2 min', page: '#/catalogue',
+      // (plateforme, lot débutant 2) « Ajouter une prestation » à un commerçant qui vend des marchandises ; le prix TTC, celui
+      // de l'étiquette, jamais montré ; la TVA et l'unité en deux étapes ; le coût du stock de départ laissé à 0 (vu à la souris,
+      // une quincaillerie). La visite dit « ce que tu vends » : le bouton qu'elle montre porte le mot du métier.
+      titre: 'Ajouter au catalogue ce que tu vends',
+      resume: 'Un article ou une prestation, décrit une fois avec son prix : tes devis, tes factures et la caisse le reprennent d\'un clic.',
+      mots: ['catalogue', 'prestation', 'article', 'prix', 'produit', 'service', 'ttc', 'marchandise'],
+      suite: ['premier-devis'],
+      mesure: () => nb('catalog'), but: n0 => nb('catalog') > n0 && aucuneFenetre(),
+      bravo: 'C\'est dans ton catalogue',
+      conclusion: 'Il est proposé dans chaque devis : « Ajouter depuis le catalogue », ou tape son nom dans une désignation.',
+      etapes: [
+        { page: '#/catalogue', avant: onglet('#cat-tabs', 'presta'), cible: ['.vide-utile .btn-primary', '.page-head #new'], cote: 'dessous', faire: 'clic',
+          titre: 'Ajouter au catalogue', texte: 'Ce que tu vends, avec son prix : un article, une prestation.', action: 'Clique sur {bouton}.', fait: () => !!$('#modal-root .modal'), essai: { clic: true } },
+        { cible: '#modal-root .modal input[name="label"], #modal-root .modal input[name="name"]', cote: 'droite', faire: 'valeur',
+          titre: 'Son nom', texte: 'Tel qu\'il s\'imprimera sur la ligne du devis, de la facture ou du ticket.', action: 'Tape son nom.', essai: { taper: 'Heure de main-d\'œuvre' } },
+        { cible: '#modal-root .modal textarea[name="description"]', cote: 'droite', titre: 'Sa description',
+          texte: 'Une précision qui s\'imprime sous la désignation, sur le devis et la facture : les dimensions, la matière, ce qui est compris. Elle se reprend à chaque devis — tu pourras encore la retoucher sur la pièce.' },
+        { cible: '#modal-root .modal input[name="unitPrice"]', cote: 'droite', faire: 'valeur', eclairer: '#modal-root .modal #cat-ttc',
+          titre: 'Son prix', texte: 'Le prix d\'une unité <b>hors TVA</b>. Tu connais plutôt le prix <b>TTC</b>, celui de l\'étiquette ? Tape-le dans « Prix TTC », juste à côté : le hors taxe se calcule tout seul.',
+          action: 'Tape le prix hors taxe — ou le prix TTC, à côté.', essai: { taper: '45' } },
+        { cible: '#modal-root .modal input[name="unitCost"]', cote: 'droite', faire: 'valeur', bouton: 'Suivant', facultatif: true,
+          titre: 'Ce que ça te coûte', texte: 'Ce que tu paies toi-même pour une unité, hors taxe : le prix chez ton fournisseur, la matière, la sous-traitance. SkanFact en tire ta marge sur chaque devis. À zéro, la marge n\'est simplement pas calculée.',
+          action: 'Tape ton coût — ou passe cette étape si tu ne le connais pas.', essai: { taper: '28' } },
+        { cible: '#modal-root .modal select[name="vatRate"]', cote: 'droite', eclairer: '#modal-root .modal #cat-unit', titre: 'Sa TVA et son unité',
+          texte: 'La TVA est proposée d\'après ton régime ; la plupart des ventes sont à 19 %, certaines à 7 ou 13 % — À VÉRIFIER avec ton comptable. Si ton régime ne facture pas de TVA, tes pièces sortent à 0 % quoi qu\'il soit écrit ici. L\'unité, juste à côté, dit comment tu le comptes : la pièce, l\'heure, le kilo… Elle s\'imprime à côté de la quantité.' },
+        { cible: '#modal-root .modal input[name="tracked"]', cote: 'droite', titre: 'Suivi en stock',
+          texte: 'Pour une marchandise que tu achètes et revends : SkanFact compte ce qui entre et ce qui sort, et te prévient quand il en manque. Un service ne se stocke pas — une heure de travail, laisse la case décochée.' },
+        { cible: '#modal-root .modal input[name="serialized"]', cote: 'droite', titre: 'Les numéros de série',
+          texte: 'Seulement pour du matériel que tu garantis à l\'unité (un appareil, un ordinateur) : chaque unité vendue garde son numéro et sa fin de garantie. Sinon, laisse la case décochée.' },
+        { cible: '#modal-root .modal input[name="minStock"]', cote: 'droite', si: stockOuvert,
+          titre: 'Le seuil d\'alerte', texte: 'Quand le stock descend à ce nombre, SkanFact te le signale dans « À faire » : c\'est le moment de recommander. À zéro, rien ne te prévient avant la rupture.' },
+        { cible: '#modal-root .modal input[name="location"]', cote: 'droite', si: stockOuvert,
+          titre: 'Où il est rangé', texte: 'Une étagère, une réserve, un dépôt : pour le retrouver le jour de l\'inventaire.' },
+        { cible: '#modal-root .modal input[name="initialQty"]', cote: 'droite', si: stockOuvert,
+          titre: 'Ce que tu as déjà', texte: 'La quantité que tu as aujourd\'hui sur l\'étagère. Les achats l\'augmenteront, les factures la diminueront.' },
+        { cible: '#modal-root .modal input[name="initialCost"]', cote: 'droite', si: stockOuvert,
+          titre: 'Ce qu\'il t\'a coûté', texte: 'Le prix d\'achat d\'une unité de ce stock de départ, hors taxe : c\'est lui qui donne sa valeur à ton stock, et le coût de ce que tu vendras. SkanFact y a mis ton coût de revient ; change-le si ce stock t\'a coûté autre chose.' },
+        { cible: '#modal-root .modal .modal-actions .btn-primary', cote: 'dessus', faire: 'clic',
+          titre: 'Enregistrer', texte: 'Il rejoint ton catalogue : la prochaine fois, tu le choisis dans une liste au lieu de retaper son nom et son prix.', action: 'Clique sur <b>« Enregistrer »</b>.', fait: () => aucuneFenetre(), essai: { clic: true } }
+-- fin
+
+== visites.js | le menu « Actions » d'une ligne du catalogue se dit sans le mot « prestation » (il suit le métier)
+-- avant
+    catalogue: "Modifier la prestation, la dupliquer, faire un devis avec, voir son stock.",
+-- après
+    catalogue: "Modifier sa fiche, la dupliquer, faire un devis avec, voir son stock.",
+-- fin
+
+== visites.js | « Compléter ma fiche société » : le régime fiscal a son étape — c'est lui qui décide si les factures portent de la TVA
+-- avant
+        // La banque et le RIB sont deux GESTES : une étape « à regarder » n'affiche pas sa consigne, et
+-- après
+        // (plateforme, lot débutant 2) La visite sautait le régime fiscal, juste sous l'adresse : c'est lui qui décide si tes
+        // factures portent de la TVA (règle 7.22.0), et un débutant ne sait pas qu'il a à le choisir.
+        { page: '#/parametres', cible: '#view select[name="taxRegime"]', cote: 'droite', titre: 'Ton régime fiscal',
+          texte: 'C\'est lui, et pas ton métier, qui décide si tes factures portent de la TVA. Au <b>réel</b>, tu factures la TVA, tu la déclares chaque mois et tu récupères celle de tes achats ; au <b>forfaitaire</b>, tes factures sortent sans TVA, avec la mention qui le dit. Si tu ne sais pas, ton comptable te le dit : <em>À VÉRIFIER avec lui.</em>' },
+        // La banque et le RIB sont deux GESTES : une étape « à regarder » n'affiche pas sa consigne, et
+-- fin
+
+== visite.js | une étape à lire posée sur une case de TEXTE y met le curseur (« Remplis la case éclairée » : la frappe partait nulle part)
+-- avant
+    if ((!faire || cur.dejaFait) && !cur.perdu && !champ) focaliser('.vb-suiv');
+-- après
+    if ((!faire || cur.dejaFait) && !cur.perdu && !champ) focaliser('.vb-suiv');
+    // (plateforme, lot débutant 2) Une étape à LIRE posée sur une case de TEXTE y met le curseur, une fois par étape : la
+    // bulle dit « Remplis la case éclairée si tu as l'information », et ce qu'on tapait partait nulle part (vu à la souris :
+    // la description, l'emplacement, le stock de départ). Une liste ou une case à cocher met le curseur sur « Suivant » :
+    // les flèches y changeraient la valeur.
+    else if (!faire && champ && !cur.perdu && !cur.curseur) {
+      cur.curseur = true;
+      if (cibleEl.matches && cibleEl.matches(CHAMP_TEXTE) && !cibleEl.disabled && !cibleEl.readOnly) {
+        const moi = cur, iMoi = cur.i;
+        setTimeout(() => {
+          if (cur !== moi || cur.i !== iMoi) return;
+          const c = cibleDe(e);
+          if (c && document.activeElement !== c && !c.disabled) { try { c.focus({ preventScroll: true }); } catch (_) { /* rien */ } }
+        }, 0);
+      } else focaliser('.vb-suiv');
+    }
+-- fin
+
+== visite.js | choisir dans la case que l'étape éclaire n'ouvre pas l'« essai » : la bulle ne part plus dans un coin au moment où l'on fait ce qu'elle demande
+-- avant
+    if (!e || estFaire(e) || !ouvreEssai(t)) return;
+-- après
+    if (!e || estFaire(e) || !ouvreEssai(t) || dansSaCase(e, t)) return;
+-- fin
+
+== visite.js | dansSaCase : un clic dans la case éclairée par l'étape, ou dans la liste qu'elle vient d'ouvrir
+-- avant
+    return !(c && c.matches && c.matches(CHAMP_TEXTE));
+  }
+-- après
+    return !(c && c.matches && c.matches(CHAMP_TEXTE));
+  }
+  // (plateforme, lot débutant 2) Une étape à lire posée sur une CASE dit « Choisis dans la liste éclairée, puis Suivant » ;
+  // ouvrir cette liste rangeait la bulle dans un coin (« Vas-y, essaie »), puis « C'est fait — Étape suivante » : la visite
+  // paraissait se mettre en pause au moment exact où l'on faisait ce qu'elle demandait (vu à la souris). Un clic dans la
+  // case éclairée (ou l'une de celles qu'elle éclaire à côté), sur son libellé, ou dans la liste qu'elle vient d'ouvrir (elle
+  // vit hors d'elle, posée sur la page) est le geste de l'étape, pas un essai.
+  function dansSaCase(e, t) {
+    if (!e || !t || !t.closest) return false;
+    // La cible, et les cases que l'étape éclaire à côté d'elle (`eclairer` : la TVA ET l'unité).
+    const ecl = e.eclairer ? (Array.isArray(e.eclairer) ? e.eclairer : [e.eclairer]) : [];
+    const cases = [caseDe(cibleDe(e))];
+    for (const s of ecl) { try { cases.push(caseDe(document.querySelector(s))); } catch (_) { /* sélecteur invalide : rien */ } }
+    for (const c of cases) {
+      if (!c) continue;
+      const zone = (c.closest && c.closest('[data-combo], .combo')) || c;
+      if (zone === t || (zone.contains && zone.contains(t))) return true;
+      const libelle = t.closest('label');
+      if (libelle && libelle.contains && libelle.contains(c)) return true;
+      if (genreDeCase(c) === 'liste' && t.closest(LISTES_OUVERTES)) return true;
+    }
+    return false;
+  }
+-- fin
+
+== app.js | le mot du catalogue suit le métier : « article » pour qui vend des marchandises (commerce, restauration, artisanat)
+-- avant
+  const CATALOG_TABS = [['presta', 'Prestations', 'cat.catalog'], ['modeles', 'Modèles de documents', 'ed.template'], ['textes', 'Textes prédéfinis', 'cat.snippets']];
+-- après
+  const CATALOG_TABS = [['presta', 'Prestations', 'cat.catalog'], ['modeles', 'Modèles de documents', 'ed.template'], ['textes', 'Textes prédéfinis', 'cat.snippets']];
+  // (plateforme, lot débutant 2) Une quincaillerie lisait « Prestations », « + Nouvelle prestation », « 3 prestations » sur
+  // ce qu'elle vend : des marchandises (vu à la souris). Le mot du catalogue suit le métier — les métiers qui vendent des
+  // produits disent « article », les autres gardent « prestation ». Une fonction, lue à chaque dessin : changer de métier
+  // dans l'assistant change le mot.
+  const METIERS_ARTICLES = ['commerce', 'restauration', 'artisanat'];
+  function motsCatalogue() {
+    return METIERS_ARTICLES.includes(company().activity)
+      ? { un: 'article', des: 'Articles', nouveau: 'Nouvel article', le: 'l\'article', unNom: 'un article', suivi: 'suivi' }
+      : { un: 'prestation', des: 'Prestations', nouveau: 'Nouvelle prestation', le: 'la prestation', unNom: 'une prestation', suivi: 'suivie' };
+  }
+-- fin
+
+== app.js | le catalogue : l'onglet et le titre de la page disent le mot du métier
+-- avant
+    const TABS = CATALOG_TABS;
+    if (!TABS.some(t => t[0] === catalogTab)) catalogTab = 'presta';
+-- après
+    const TABS = CATALOG_TABS.map(t => t[0] === 'presta' ? [t[0], motsCatalogue().des, t[2]] : t);
+    if (!TABS.some(t => t[0] === catalogTab)) catalogTab = 'presta';
+-- fin
+
+== app.js | le catalogue : le bouton de création dit le mot du métier
+-- avant
+        ${catalogTab === 'presta' ? '<button class="btn" id="imp-catalogue">Importer…</button><button class="btn btn-primary" id="new">+ Nouvelle prestation</button>' : ''}
+-- après
+        ${catalogTab === 'presta' ? `<button class="btn" id="imp-catalogue">Importer…</button><button class="btn btn-primary" id="new">+ ${motsCatalogue().nouveau}</button>` : ''}
+-- fin
+
+== app.js | le catalogue : la recherche, le compte et la phrase d'une liste vide disent le mot du métier
+-- avant
+      noun: 'prestation', placeholder: 'Rechercher une prestation…', text: c => `${c.label} ${c.description || ''} ${c.unit || ''} ${c.code || ''}`,
+-- après
+      noun: motsCatalogue().un, placeholder: `Rechercher ${motsCatalogue().unNom}…`, text: c => `${c.label} ${c.description || ''} ${c.unit || ''} ${c.code || ''}`,
+-- fin
+
+== app.js | le catalogue : le pied compte des articles ou des prestations, « suivis » ou « suivies »
+-- avant
+        return `<tr><td><strong>${pl(kept.length, 'prestation')}</strong>${tracked.length ? `<span class="muted"> · ${pl(tracked.length, 'suivie')} en stock</span>` : ''}</td>
+-- après
+        return `<tr><td><strong>${pl(kept.length, motsCatalogue().un)}</strong>${tracked.length ? `<span class="muted"> · ${pl(tracked.length, motsCatalogue().suivi)} en stock</span>` : ''}</td>
+-- fin
+
+== app.js | le catalogue vide ne parle pas que de prestations
+-- avant
+      empty: 'Catalogue vide. Ajoute tes prestations une à une, ou importe ta liste de prix depuis un tableur (« Importer… », en haut de la page) : tes devis les reprendront d\'un clic.',
+-- après
+      empty: 'Catalogue vide. Ajoute ce que tu vends un à un, ou importe ta liste de prix depuis un tableur (« Importer… », en haut de la page) : tes devis les reprendront d\'un clic.',
+-- fin
+
+== app.js | le menu d'une ligne du catalogue dit le mot du métier
+-- avant
+        { icon: 'modifier', label: 'Modifier la prestation', hint: 'Prix, coût, TVA, unité, suivi en stock', run: () => catalogForm(c, redraw) },
+-- après
+        { icon: 'modifier', label: `Modifier ${motsCatalogue().le}`, hint: 'Prix, coût, TVA, unité, suivi en stock', run: () => catalogForm(c, redraw) },
+-- fin
+
+== app.js | « Dupliquer » une fiche du catalogue se dit sans le mot « prestation »
+-- avant
+        { icon: 'copier', label: 'Dupliquer', hint: 'Même prestation, à renommer et à ajuster', run: () => duplicateCatalogItem(c, redraw) }
+-- après
+        { icon: 'copier', label: 'Dupliquer', hint: 'La même fiche, à renommer et à ajuster', run: () => duplicateCatalogItem(c, redraw) }
+-- fin
+
+== app.js | la fiche du catalogue : son titre dit le mot du métier
+-- avant
+    modal(`<h2>${opts.titre || (neuf ? 'Nouvelle prestation' : 'Modifier la prestation')}</h2>
+-- après
+    modal(`<h2>${opts.titre || (neuf ? motsCatalogue().nouveau : `Modifier ${motsCatalogue().le}`)}</h2>
+-- fin
+
+== app.js | la fiche créée depuis une désignation dit le mot du métier
+-- avant
+          catalogForm(articleNeuf({ label: q }), it => { if (it) poserArticle(i, it); }, { creation: true, titre: 'Nouvelle prestation' });
+-- après
+          catalogForm(articleNeuf({ label: q }), it => { if (it) poserArticle(i, it); }, { creation: true, titre: motsCatalogue().nouveau });
+-- fin
+
+== app.js | la recherche du catalogue (#cat-pick) ne dit pas « prestation » à qui vend des articles
+-- avant
+<div id="cat-pick">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher une prestation…' })}
+-- après
+<div id="cat-pick">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher dans le catalogue…' })}
+-- fin
+
+== app.js | la recherche du catalogue (#tf-cat) ne dit pas « prestation » à qui vend des articles
+-- avant
+<div id="tf-cat">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher une prestation…' })}
+-- après
+<div id="tf-cat">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher dans le catalogue…' })}
+-- fin
+
+== app.js | la recherche du catalogue (#b-cat) ne dit pas « prestation » à qui vend des articles
+-- avant
+<div id="b-cat">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher une prestation…' })}
+-- après
+<div id="b-cat">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher dans le catalogue…' })}
+-- fin
+
+== app.js | les numéros de série : on suit un article, pas une prestation (1/4)
+-- avant
+                  ${data.catalog.length ? '<button class="btn btn-primary" id="ser-pick">Choisir une prestation à suivre…</button>' : ''}
+                  <button class="btn${data.catalog.length ? ' btn-ghost' : ' btn-primary'}" id="ser-new">+ Nouvelle prestation suivie</button>
+-- après
+                  ${data.catalog.length ? '<button class="btn btn-primary" id="ser-pick">Choisir un article à suivre…</button>' : ''}
+                  <button class="btn${data.catalog.length ? ' btn-ghost' : ' btn-primary'}" id="ser-new">+ Nouvel article suivi</button>
+-- fin
+
+== app.js | les numéros de série : on suit un article, pas une prestation (2/4)
+-- avant
+        <p>Pour saisir des numéros de série, il faut d'abord dire quelle prestation se suit unité par unité.</p>
+-- après
+        <p>Pour saisir des numéros de série, il faut d'abord dire quel article se suit unité par unité.</p>
+-- fin
+
+== app.js | les numéros de série : on suit un article, pas une prestation (3/4)
+-- avant
+          <button class="btn btn-primary" id="ser-go">${data.catalog.length ? 'Choisir une prestation…' : 'Créer une prestation suivie'}</button></div>`,
+-- après
+          <button class="btn btn-primary" id="ser-go">${data.catalog.length ? 'Choisir un article…' : 'Créer un article suivi'}</button></div>`,
+-- fin
+
+== app.js | les numéros de série : on suit un article, pas une prestation (4/4)
+-- avant
+          ? [['g-choisir', 'Choisir une prestation à suivre…', true], ['g-suivre', '+ Nouvelle prestation suivie']]
+          : [['g-suivre', '+ Nouvelle prestation suivie', true]])}`;
+-- après
+          ? [['g-choisir', 'Choisir un article à suivre…', true], ['g-suivre', '+ Nouvel article suivi']]
+          : [['g-suivre', '+ Nouvel article suivi', true]])}`;
+-- fin
+
+== app.js | le coût du stock de départ suit le coût de revient tant qu'on n'y a pas touché : laissé à 0, dix marteaux entraient au stock pour 0 DT
+-- avant
+        $('#kf', root).oninput = hint; hint();
+-- après
+        $('#kf', root).oninput = hint; hint();
+        // (plateforme, lot débutant 2) Le coût du stock de départ restait à 0 sous un coût de revient de 14 DT : dix marteaux
+        // entraient au stock pour 0 DT, et chaque vente sortait sans coût (vu à la souris, une quincaillerie). Il SUIT le coût
+        // de revient tant qu'on n'y a pas touché (un champ déduit suit sa source, 7.19.0) ; une valeur tapée ne bouge plus.
+        const champDepart = $('input[name=initialCost]', root), champRevient = $('input[name=unitCost]', root);
+        if (champDepart && champRevient && !champDepart.disabled) {
+          let departTouche = Number(it.initialCost) > 0;
+          const suivre = () => { if (!departTouche && Number(champRevient.value) > 0) champDepart.value = champRevient.value; };
+          champDepart.addEventListener('input', () => { departTouche = true; });
+          $('#kf', root).addEventListener('input', e => { if (e.target !== champDepart) suivre(); });
+          suivre();
+        }
+-- fin
+
+== app.js | un avoir neuf qui choisit SA facture en reprend les lignes, comme « Créer un avoir… » sur la facture : on retapait ce qu'on annulait
+-- avant
+        if (inv && !figee && $('select[name=depotId]', head)) { doc.depotId = inv.depotId || C.DEPOT_PRINCIPAL; $('select[name=depotId]', head).value = doc.depotId; }
+-- après
+        if (inv && !figee && $('select[name=depotId]', head)) { doc.depotId = inv.depotId || C.DEPOT_PRINCIPAL; $('select[name=depotId]', head).value = doc.depotId; }
+        // (plateforme, lot débutant 2) Un avoir neuf qui choisit sa facture n'en reprenait ni les lignes ni l'objet : on
+        // retapait à la main ce qu'on annulait (vu à la souris). Il les reprend comme « Créer un avoir… » sur la facture
+        // (`creditDraftFrom`) — seulement tant qu'il n'a rien de saisi : une ligne tapée ne s'écrase jamais.
+        if (inv && !figee && !doc.lines.some(l => String(l.label || '').trim() || Number(l.unitPrice))) {
+          const modele = creditDraftFrom(inv);
+          doc.lines = modele.lines; doc.discountRate = modele.discountRate; doc.withholdingRate = modele.withholdingRate;
+          const remise = $('input[name=discountRate]', head); if (remise) remise.value = modele.discountRate;
+          const retenue = $('select[name=withholdingRate]', head); if (retenue) retenue.innerHTML = withholdingOptions(modele.withholdingRate);
+          if (!String(doc.subject || '').trim()) { doc.subject = modele.subject; const objet = $('input[name=subject]', head); if (objet) objet.value = modele.subject; }
+          drawLines();
+          toast(`Les lignes de ${inv.number} sont reprises : retire ou baisse ce que cet avoir n'annule pas.`);
+        }
+-- fin
+
+== app.js | une dépense sans fournisseur (un ticket, un reçu) n'est plus refusée : elle se range sous « Dépenses diverses »
+-- avant
+      if (!p.supplierId) return refus('[data-combo=supplierId] .combo-btn', 'Choisis un fournisseur.');
+-- après
+      // (plateforme, lot débutant 2) Un ticket de parking, un café, un timbre-poste n'ont pas de fournisseur : la dépense était
+      // refusée (« Choisis un fournisseur. »), et le débutant inventait une fiche par ticket (vu à la souris). Sans fournisseur,
+      // elle se range sous UNE fiche, « Dépenses diverses », créée à l'enregistrement (`fournisseurDivers`).
+      if (!p.supplierId && p.kind !== 'depense') return refus('[data-combo=supplierId] .combo-btn', 'Choisis un fournisseur.');
+-- fin
+
+== app.js | la dépense sans fournisseur prend la fiche « Dépenses diverses » au moment d'être rangée, pas avant (un refus plus loin ne crée rien)
+-- avant
+      if (!data.purchases.some(x => x.id === p.id) && licenceBlock('Enregistrer un nouvel achat', 'achats')) return false;
+      const idx = data.purchases.findIndex(x => x.id === p.id);
+-- après
+      if (!data.purchases.some(x => x.id === p.id) && licenceBlock('Enregistrer un nouvel achat', 'achats')) return false;
+      if (!p.supplierId && p.kind === 'depense') p.supplierId = fournisseurDivers().id;
+      const idx = data.purchases.findIndex(x => x.id === p.id);
+-- fin
+
+== app.js | fournisseurDivers : la fiche unique des dépenses sans fournisseur
+-- avant
+  const supplierName = id => (supplierById(id) || {}).name || '—';
+-- après
+  const supplierName = id => (supplierById(id) || {}).name || '—';
+  // (plateforme, lot débutant 2) Les dépenses sans fournisseur (un ticket, un reçu) se rangent sous UNE fiche, créée la
+  // première fois qu'on en a besoin : son nom se lit dans les listes, le lettrage et la balance, au lieu d'un « — ». Elle se
+  // reconnaît à son nom aussi : un champ que la migration jetterait ne doit pas en faire naître une seconde.
+  const NOM_DIVERS = 'Dépenses diverses';
+  function fournisseurDivers() {
+    let s = data.suppliers.find(x => x.divers || x.name === NOM_DIVERS);
+    if (!s) {
+      s = { id: C.uid(), name: NOM_DIVERS, contact: '', matricule: '', address: '', phone: '', email: '', rib: '', bank: '',
+        notes: 'Les dépenses notées sans fournisseur : un ticket, un reçu. Créée par SkanFact.', paymentTermsDays: '', withholdingRate: '', divers: true };
+      data.suppliers.push(s);
+    }
+    return s;
+  }
+-- fin
+
+== app.js | la liste des fournisseurs d'une dépense dit qu'on peut la laisser vide
+-- avant
+      items: supplierItems(), placeholder: '— Choisir un fournisseur —', vide: 'Aucun fournisseur pour l\'instant',
+-- après
+      items: supplierItems(), vide: 'Aucun fournisseur pour l\'instant',
+      // (plateforme, lot débutant 2) Une dépense peut rester sans fournisseur : la case le dit, là où on la regarde.
+      get placeholder() { return p.kind === 'depense' ? `— Aucun : ${NOM_DIVERS.toLowerCase()} —` : '— Choisir un fournisseur —'; },
+-- fin
+
+== app.js | changer la nature de la pièce redessine la case du fournisseur (son texte d'attente suit la nature)
+-- avant
+        if (!lie && p.achatLie) { p.achatLie = ''; lieCombo.setValue(''); }
+      }
+-- après
+        if (!lie && p.achatLie) { p.achatLie = ''; lieCombo.setValue(''); }
+        if (supCombo && supCombo.setItems) supCombo.setItems(supplierItems());
+      }
+-- fin
+
+== guide.js | la bulle du coût du départ dit qu'il suit le coût de revient
+-- avant
+    'stk.initialCost': { t: 'Coût unitaire du départ', d: 'Ce que t\'a coûté, en moyenne, une unité de ce stock de départ. Il sert de base au coût moyen pondéré. Dans le doute, reprends le prix de ta dernière facture d\'achat.' },
+-- après
+    'stk.initialCost': { t: 'Coût unitaire du départ', d: 'Ce que t\'a coûté, en moyenne, une unité de ce stock de départ. Il sert de base au coût moyen pondéré : c\'est lui qui donne sa valeur à ton stock, et le coût de ce que tu vendras. SkanFact y met ton coût de revient tant que tu n\'y touches pas ; dans le doute, reprends le prix de ta dernière facture d\'achat.' },
+-- fin
+
+== guide.js | la bulle du catalogue parle de ce qu'on vend, articles ou prestations
+-- avant
+    'cat.catalog': { t: 'Catalogue de prestations', d: 'Tes services avec leur prix et leur TVA, prêts à insérer dans un devis. Y mettre tes prestations habituelles t\'évite de retaper les descriptions et t\'empêche de te tromper de prix.' },
+-- après
+    'cat.catalog': { t: 'Ton catalogue', d: 'Ce que tu vends — tes articles ou tes prestations — avec leur prix et leur TVA, prêts à insérer dans un devis, une facture ou un ticket de caisse. Les y mettre une fois t\'évite de retaper les descriptions et t\'empêche de te tromper de prix.' },
+-- fin
+
+== style.css | une bulle collée à un LONG élément (une phrase dans un <span>) ne colle pas toute la phrase sur une ligne : le bandeau d'une facture émise sortait de l'écran
+-- avant
+.colle-bulle { white-space: nowrap; }
+-- après
+.colle-bulle { white-space: nowrap; }
+/* (plateforme, lot débutant 2) La bulle part avec le dernier mot de ce qui la précède ; quand c'est un élément (une phrase
+   entière dans un <span>, comme le bandeau d'une facture émise), seul ce qui touche la bulle reste collé : l'élément passe
+   à la ligne normalement. Sans ça, la phrase tenait sur UNE ligne et sortait de l'écran (vu à la souris). */
+.colle-bulle > * { white-space: normal; }
+-- fin

@@ -4143,7 +4143,7 @@
           <div class="panel"><h2>Lignes ${info('ed.lines')}</h2>
             ${figee ? '' : `<div class="catalog-pick">
               ${templatesFor(doc.type).length ? `<div id="tpl-pick">${combo({ items: [], placeholder: 'Depuis un modèle…', search: 'Rechercher un modèle…' })}</div>` : ''}
-              <div id="cat-pick">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher une prestation…' })}</div>
+              <div id="cat-pick">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher dans le catalogue…' })}</div>
               <button class="btn btn-sm" id="add-line">+ Ligne vide</button>
               ${isAv ? '' : '<button class="btn btn-sm" id="calc-prix">Calculer les prix…</button>'}
             </div>`}
@@ -4330,7 +4330,7 @@
         onPick: c => poserArticle(Number(el.closest('tr').dataset.i), c),
         onCreate: q => {
           const i = Number(el.closest('tr').dataset.i);
-          catalogForm(articleNeuf({ label: q }), it => { if (it) poserArticle(i, it); }, { creation: true, titre: 'Nouvelle prestation' });
+          catalogForm(articleNeuf({ label: q }), it => { if (it) poserArticle(i, it); }, { creation: true, titre: motsCatalogue().nouveau });
         }
       }));
       $$('select[data-k=unit]', linesBody).forEach(sel => {
@@ -4480,6 +4480,18 @@
         // facture elle-même : un client anglophone recevait un avoir en français.
         if (inv && inv.lang && !figee) { doc.lang = inv.lang; $('select[name=lang]', head).value = inv.lang; }
         if (inv && !figee && $('select[name=depotId]', head)) { doc.depotId = inv.depotId || C.DEPOT_PRINCIPAL; $('select[name=depotId]', head).value = doc.depotId; }
+        // (plateforme, lot débutant 2) Un avoir neuf qui choisit sa facture n'en reprenait ni les lignes ni l'objet : on
+        // retapait à la main ce qu'on annulait (vu à la souris). Il les reprend comme « Créer un avoir… » sur la facture
+        // (`creditDraftFrom`) — seulement tant qu'il n'a rien de saisi : une ligne tapée ne s'écrase jamais.
+        if (inv && !figee && !doc.lines.some(l => String(l.label || '').trim() || Number(l.unitPrice))) {
+          const modele = creditDraftFrom(inv);
+          doc.lines = modele.lines; doc.discountRate = modele.discountRate; doc.withholdingRate = modele.withholdingRate;
+          const remise = $('input[name=discountRate]', head); if (remise) remise.value = modele.discountRate;
+          const retenue = $('select[name=withholdingRate]', head); if (retenue) retenue.innerHTML = withholdingOptions(modele.withholdingRate);
+          if (!String(doc.subject || '').trim()) { doc.subject = modele.subject; const objet = $('input[name=subject]', head); if (objet) objet.value = modele.subject; }
+          drawLines();
+          toast(`Les lignes de ${inv.number} sont reprises : retire ou baisse ce que cet avoir n'annule pas.`);
+        }
       }
       // Changer la date ne recalculait jamais l'échéance : on corrigeait la date d'une facture et
       // elle restait due au 30e jour de l'ANCIENNE. On ne recalcule que tant que l'échéance est
@@ -6545,7 +6557,7 @@
     // `suivre` (10.12.0) : la fiche d'un article EXISTANT s'ouvre cases cochées, depuis « choisir une
     // prestation à suivre ». Rien n'est écrit sur l'article tant qu'on n'a pas enregistré.
     const suit = { tracked: it.tracked || !!opts.suivre, serialized: it.serialized || !!opts.suivre };
-    modal(`<h2>${opts.titre || (neuf ? 'Nouvelle prestation' : 'Modifier la prestation')}</h2>
+    modal(`<h2>${opts.titre || (neuf ? motsCatalogue().nouveau : `Modifier ${motsCatalogue().le}`)}</h2>
       <form id="kf" class="grid-2">
         <label class="field span-2 obligatoire">${lbl('Désignation', 'cat.catalog')}<input type="text" name="label" value="${h(it.label)}"></label>
         <label class="field span-2">${lbl('Description', 'cat.description')}<textarea name="description">${h(it.description || '')}</textarea></label>
@@ -6666,6 +6678,17 @@
           el.innerHTML = `<span class="small ${m <= 0 ? 'warn-text' : 'ok-text'}">Marge : <strong>${C.money(m, company().currency)}</strong> par unité, soit ${pct(r)} %${m <= 0 ? ' — tu vends à perte.' : ''}</span>`;
         };
         $('#kf', root).oninput = hint; hint();
+        // (plateforme, lot débutant 2) Le coût du stock de départ restait à 0 sous un coût de revient de 14 DT : dix marteaux
+        // entraient au stock pour 0 DT, et chaque vente sortait sans coût (vu à la souris, une quincaillerie). Il SUIT le coût
+        // de revient tant qu'on n'y a pas touché (un champ déduit suit sa source, 7.19.0) ; une valeur tapée ne bouge plus.
+        const champDepart = $('input[name=initialCost]', root), champRevient = $('input[name=unitCost]', root);
+        if (champDepart && champRevient && !champDepart.disabled) {
+          let departTouche = Number(it.initialCost) > 0;
+          const suivre = () => { if (!departTouche && Number(champRevient.value) > 0) champDepart.value = champRevient.value; };
+          champDepart.addEventListener('input', () => { departTouche = true; });
+          $('#kf', root).addEventListener('input', e => { if (e.target !== champDepart) suivre(); });
+          suivre();
+        }
         // (plateforme) Le TTC se calcule comme la tuile de la caisse (`ligneDePanier`, `computeTotals`) : la fiche et la
         // caisse disent le même prix. Le TTC tapé donne le HT par le calculateur (« Prix TTC visé ») ; quand la TVA change,
         // le prix tapé en dernier tient (le prix de l'étiquette ne bouge pas parce qu'on corrige la TVA).
@@ -7008,7 +7031,7 @@
         <label class="field span-2">${lbl('Notes', 'cat.tplNotes')}<textarea name="notes" rows="3">${h(t.notes || '')}</textarea></label>
       </form>
       <div class="panel"><h2>Lignes</h2>
-        <div class="catalog-pick"><div id="tf-cat">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher une prestation…' })}</div>
+        <div class="catalog-pick"><div id="tf-cat">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher dans le catalogue…' })}</div>
           <button type="button" class="btn btn-sm" id="tf-add">+ Ligne vide</button></div>
         <table class="lines-edit"><thead><tr><th>Désignation</th><th class="r" style="width:62px">Qté</th><th class="r" style="width:96px">P.U. HT</th><th style="width:76px">TVA</th><th class="r" style="width:118px">Total HT</th><th></th></tr></thead>
           <tbody id="tf-lines"></tbody></table>
@@ -7166,7 +7189,7 @@
       } }
     ];
     const draw = dansUnLot(drawList('#list-wrap', catalogState.presta, prestaCols, () => data.catalog.slice(), {
-      noun: 'prestation', placeholder: 'Rechercher une prestation…', text: c => `${c.label} ${c.description || ''} ${c.unit || ''} ${c.code || ''}`,
+      noun: motsCatalogue().un, placeholder: `Rechercher ${motsCatalogue().unNom}…`, text: c => `${c.label} ${c.description || ''} ${c.unit || ''} ${c.code || ''}`,
       // 10.12.0 (H-E26, vu au test humain) — deux chiffres du pied mentaient sans rien casser :
       // « moyenne 58,333 DT » faisait la moyenne de 25 DT de l'heure, d'un lot à 0 DT et d'une pièce
       // à 150 DT — un prix moyen n'a de sens que dans UNE unité (un agrégat porte son unité, 7.0.1) ;
@@ -7178,22 +7201,22 @@
         const stockValue = C.round3(tracked.reduce((a, c) => a + Math.max(0, C.stockOf(data, c.id).value), 0));
         const unites = [...new Set(kept.map(c => (c.unit || '').trim()))];
         const avg = kept.length && unites.length === 1 ? C.round3(kept.reduce((a, c) => a + (Number(c.unitPrice) || 0), 0) / kept.length) : null;
-        return `<tr><td><strong>${pl(kept.length, 'prestation')}</strong>${tracked.length ? `<span class="muted"> · ${pl(tracked.length, 'suivie')} en stock</span>` : ''}</td>
+        return `<tr><td><strong>${pl(kept.length, motsCatalogue().un)}</strong>${tracked.length ? `<span class="muted"> · ${pl(tracked.length, motsCatalogue().suivi)} en stock</span>` : ''}</td>
           <td class="r">${avg != null ? `<span class="muted">moyenne</span> <strong>${C.money(avg, cur)}</strong>${unites[0] ? `<span class="muted"> / ${h(unites[0])}</span>` : ''}` : ''}</td>
           <td colspan="4"></td>
           <td class="r" data-pied="stock">${tracked.length ? `<span class="muted">valeur</span> <strong>${C.money(stockValue, cur)}</strong>` : ''}</td>
           <td></td></tr>`;
       },
-      empty: 'Catalogue vide. Ajoute tes prestations une à une, ou importe ta liste de prix depuis un tableur (« Importer… », en haut de la page) : tes devis les reprendront d\'un clic.',
+      empty: 'Catalogue vide. Ajoute ce que tu vends un à un, ou importe ta liste de prix depuis un tableur (« Importer… », en haut de la page) : tes devis les reprendront d\'un clic.',
       // Le Catalogue AFFICHE une quantité en stock et n'offrait aucun moyen d'aller voir d'où elle
       // vient : la fiche de l'article — mouvements, coût moyen, historique — n'était atteignable que
       // depuis la page Stock. Un chiffre qu'on lit doit s'ouvrir (7.15.0).
       ouvrir: (c, redraw) => catalogForm(c, redraw),
       menu: (c, redraw) => c ? [
-        { icon: 'modifier', label: 'Modifier la prestation', hint: 'Prix, coût, TVA, unité, suivi en stock', run: () => catalogForm(c, redraw) },
+        { icon: 'modifier', label: `Modifier ${motsCatalogue().le}`, hint: 'Prix, coût, TVA, unité, suivi en stock', run: () => catalogForm(c, redraw) },
         c.tracked ? { icon: 'stock', label: 'Voir la fiche stock', hint: 'Mouvements, coût moyen, historique', run: () => navigate('#/article/' + c.id) } : null,
         { sep: true },
-        { icon: 'copier', label: 'Dupliquer', hint: 'Même prestation, à renommer et à ajuster', run: () => duplicateCatalogItem(c, redraw) }
+        { icon: 'copier', label: 'Dupliquer', hint: 'La même fiche, à renommer et à ajuster', run: () => duplicateCatalogItem(c, redraw) }
       ] : []
     }));
 
@@ -7223,12 +7246,12 @@
       ouvrir: (x, redraw) => snippetForm(x, redraw),
       menu: (x, redraw) => x ? [{ icon: 'modifier', label: 'Modifier le texte', hint: 'Nom et contenu', run: () => snippetForm(x, redraw) }] : []
     });
-    const TABS = CATALOG_TABS;
+    const TABS = CATALOG_TABS.map(t => t[0] === 'presta' ? [t[0], motsCatalogue().des, t[2]] : t);
     if (!TABS.some(t => t[0] === catalogTab)) catalogTab = 'presta';
     const head = () => {
       const t = TABS.find(x => x[0] === catalogTab);
       return `<h1>${t[1]} ${info(t[2])}</h1><div class="actions">
-        ${catalogTab === 'presta' ? '<button class="btn" id="imp-catalogue">Importer…</button><button class="btn btn-primary" id="new">+ Nouvelle prestation</button>' : ''}
+        ${catalogTab === 'presta' ? `<button class="btn" id="imp-catalogue">Importer…</button><button class="btn btn-primary" id="new">+ ${motsCatalogue().nouveau}</button>` : ''}
         ${catalogTab === 'textes' ? '<button class="btn btn-primary" id="new-snip">+ Nouveau texte</button>' : ''}
         ${catalogTab === 'modeles' ? '<span class="small muted">Depuis un devis ou une facture : Plus ▾ → « Enregistrer comme modèle »</span>' : ''}
       </div>`;
@@ -8460,6 +8483,16 @@
   // portée de la palette. Une seule source pour les deux usages : l'écran les dessine, la recherche
   // les indexe. Le troisième élément du catalogue est la clé de sa bulle « i ».
   const CATALOG_TABS = [['presta', 'Prestations', 'cat.catalog'], ['modeles', 'Modèles de documents', 'ed.template'], ['textes', 'Textes prédéfinis', 'cat.snippets']];
+  // (plateforme, lot débutant 2) Une quincaillerie lisait « Prestations », « + Nouvelle prestation », « 3 prestations » sur
+  // ce qu'elle vend : des marchandises (vu à la souris). Le mot du catalogue suit le métier — les métiers qui vendent des
+  // produits disent « article », les autres gardent « prestation ». Une fonction, lue à chaque dessin : changer de métier
+  // dans l'assistant change le mot.
+  const METIERS_ARTICLES = ['commerce', 'restauration', 'artisanat'];
+  function motsCatalogue() {
+    return METIERS_ARTICLES.includes(company().activity)
+      ? { un: 'article', des: 'Articles', nouveau: 'Nouvel article', le: 'l\'article', unNom: 'un article', suivi: 'suivi' }
+      : { un: 'prestation', des: 'Prestations', nouveau: 'Nouvelle prestation', le: 'la prestation', unNom: 'une prestation', suivi: 'suivie' };
+  }
   // Cinq onglets, et chacun pèse quelque chose (refonte 7.30.0 ; voir le commentaire au-dessus de
   // `routes.parametres`). « Licence » et « Cabinet comptable » avaient leur propre onglet pour une
   // phrase chacun ; « Apparence » n'en portait plus que deux une fois l'image de marque partie avec
@@ -8865,6 +8898,19 @@
   // ---------- Fournisseurs ----------
   const supplierById = id => data.suppliers.find(s => s.id === id);
   const supplierName = id => (supplierById(id) || {}).name || '—';
+  // (plateforme, lot débutant 2) Les dépenses sans fournisseur (un ticket, un reçu) se rangent sous UNE fiche, créée la
+  // première fois qu'on en a besoin : son nom se lit dans les listes, le lettrage et la balance, au lieu d'un « — ». Elle se
+  // reconnaît à son nom aussi : un champ que la migration jetterait ne doit pas en faire naître une seconde.
+  const NOM_DIVERS = 'Dépenses diverses';
+  function fournisseurDivers() {
+    let s = data.suppliers.find(x => x.divers || x.name === NOM_DIVERS);
+    if (!s) {
+      s = { id: C.uid(), name: NOM_DIVERS, contact: '', matricule: '', address: '', phone: '', email: '', rib: '', bank: '',
+        notes: 'Les dépenses notées sans fournisseur : un ticket, un reçu. Créée par SkanFact.', paymentTermsDays: '', withholdingRate: '', divers: true };
+      data.suppliers.push(s);
+    }
+    return s;
+  }
 
   // ---------- attestation d'exonération de retenue (10.15.0, H7) ----------
   // UNE écriture pour la fiche d'un fournisseur et celle de l'entreprise : trois champs, la même règle
@@ -10068,7 +10114,7 @@
             </form>
           </div>
           <div class="panel"><h2>Lignes ${info('buy.lines')}</h2>
-            ${clos ? '' : `<div class="catalog-pick"><div id="b-cat">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher une prestation…' })}</div>
+            ${clos ? '' : `<div class="catalog-pick"><div id="b-cat">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher dans le catalogue…' })}</div>
               <button class="btn btn-sm" id="add-line">+ Ligne</button>
               <span class="small muted" id="b-lignes-hint">${h(motsDePiece(p.kind).lignes)}</span></div>`}
             ${/* (plateforme, lot débutant) Une dépense ne demandait qu'un « P.U. HT » : le débutant y tapait les 85,400 DT payés à la
@@ -10386,6 +10432,7 @@
         const objet = $('[name=subject]', head);
         if (objet) objet.placeholder = inviteObjet(p.kind);
         if (!lie && p.achatLie) { p.achatLie = ''; lieCombo.setValue(''); }
+        if (supCombo && supCombo.setItems) supCombo.setItems(supplierItems());
       }
       // Rattaché à une autre pièce, l'avoir ou l'acompte prend SA règle de TVA (10.14.0).
       if (e && e.target && e.target.name === 'achatLie') {
@@ -10435,7 +10482,9 @@
     };
     const lieCombo = bindCombo($('[data-combo=achatLie]', head), { items: lieItems(p.supplierId), placeholder: phLie });
     const supCombo = bindCombo($('[data-combo=supplierId]', head), {
-      items: supplierItems(), placeholder: '— Choisir un fournisseur —', vide: 'Aucun fournisseur pour l\'instant',
+      items: supplierItems(), vide: 'Aucun fournisseur pour l\'instant',
+      // (plateforme, lot débutant 2) Une dépense peut rester sans fournisseur : la case le dit, là où on la regarde.
+      get placeholder() { return p.kind === 'depense' ? `— Aucun : ${NOM_DIVERS.toLowerCase()} —` : '— Choisir un fournisseur —'; },
       onAdd: saisi => supplierForm(null, sup => { supCombo.setItems(supplierItems()); supCombo.setValue(sup.id); }, { name: saisi })
     });
     const buyProjectCombo = bindCombo($('[data-combo=projectId]', head), {
@@ -10684,7 +10733,10 @@
 
     function validate() {
       if (enLecture('purchases')) return refus('[data-combo=supplierId] .combo-btn', refusLecture('purchases'));
-      if (!p.supplierId) return refus('[data-combo=supplierId] .combo-btn', 'Choisis un fournisseur.');
+      // (plateforme, lot débutant 2) Un ticket de parking, un café, un timbre-poste n'ont pas de fournisseur : la dépense était
+      // refusée (« Choisis un fournisseur. »), et le débutant inventait une fiche par ticket (vu à la souris). Sans fournisseur,
+      // elle se range sous UNE fiche, « Dépenses diverses », créée à l'enregistrement (`fournisseurDivers`).
+      if (!p.supplierId && p.kind !== 'depense') return refus('[data-combo=supplierId] .combo-btn', 'Choisis un fournisseur.');
       if (!p.date) return refus('[name=date]', 'La date de la pièce est obligatoire.');
       // Le taux de change d'un achat (10.1.0) : même règle que sur un document de vente depuis la
       // 7.0.1. Son oubli ne se voit nulle part ICI et fausse tout AILLEURS — la TVA déductible, la
@@ -10728,6 +10780,7 @@
       const wasDate = (data.purchases.find(x => x.id === p.id) || {}).date;
       if (closedBlock([wasDate, p.date], 'Cet achat')) return false;
       if (!data.purchases.some(x => x.id === p.id) && licenceBlock('Enregistrer un nouvel achat', 'achats')) return false;
+      if (!p.supplierId && p.kind === 'depense') p.supplierId = fournisseurDivers().id;
       const idx = data.purchases.findIndex(x => x.id === p.id);
       const clean = deepCopy(p);
       if (idx >= 0) data.purchases[idx] = clean; else data.purchases.push(clean);
@@ -14054,8 +14107,8 @@
                 <p><b>Aucun article n'est suivi par numéro de série.</b> C'est utile pour du matériel garanti :
                 tu sauras qui a quoi, depuis quand, et jusqu'à quand c'est couvert.</p>
                 <div class="inline" style="justify-content:center;margin-top:10px">
-                  ${data.catalog.length ? '<button class="btn btn-primary" id="ser-pick">Choisir une prestation à suivre…</button>' : ''}
-                  <button class="btn${data.catalog.length ? ' btn-ghost' : ' btn-primary'}" id="ser-new">+ Nouvelle prestation suivie</button>
+                  ${data.catalog.length ? '<button class="btn btn-primary" id="ser-pick">Choisir un article à suivre…</button>' : ''}
+                  <button class="btn${data.catalog.length ? ' btn-ghost' : ' btn-primary'}" id="ser-new">+ Nouvel article suivi</button>
                 </div></div>`}
         </div>`;
       if ($('#se-q')) $('#se-q').oninput = e => { s.ser.q = e.target.value; s.ser.page = 1; sansPerdreLaFrappe(e.target, drawSerials); };
@@ -14359,10 +14412,10 @@
     // Un refus qui nomme un geste sans le proposer oblige à traverser l'application de mémoire.
     if (!items.length) {
       return modal(`<h2>Aucun article suivi par numéro</h2>
-        <p>Pour saisir des numéros de série, il faut d'abord dire quelle prestation se suit unité par unité.</p>
+        <p>Pour saisir des numéros de série, il faut d'abord dire quel article se suit unité par unité.</p>
         <p class="small muted">Une case à cocher sur la fiche de l'article, dans le Catalogue. Elle active aussi le suivi en stock, dont elle dépend.</p>
         <div class="modal-actions"><button class="btn" data-close>Plus tard</button>
-          <button class="btn btn-primary" id="ser-go">${data.catalog.length ? 'Choisir une prestation…' : 'Créer une prestation suivie'}</button></div>`,
+          <button class="btn btn-primary" id="ser-go">${data.catalog.length ? 'Choisir un article…' : 'Créer un article suivi'}</button></div>`,
         (root, close) => {
           $('#ser-go', root).onclick = () => {
             close();
@@ -14590,8 +14643,8 @@
           'Cette page annonce les garanties qui se terminent chez tes clients : c\'est le moment naturel de proposer un contrat de maintenance. Elle se remplit à partir des numéros de série enregistrés à la vente.',
           'Un article se suit par numéro quand on veut savoir <b>quel appareil</b> est chez <b>quel client</b> : un ordinateur, une machine, un climatiseur. Les fournitures vendues au mètre ou au kilo ne se suivent pas ainsi.'
         ], data.catalog.length
-          ? [['g-choisir', 'Choisir une prestation à suivre…', true], ['g-suivre', '+ Nouvelle prestation suivie']]
-          : [['g-suivre', '+ Nouvelle prestation suivie', true]])}`;
+          ? [['g-choisir', 'Choisir un article à suivre…', true], ['g-suivre', '+ Nouvel article suivi']]
+          : [['g-suivre', '+ Nouvel article suivi', true]])}`;
       bindBack('#/stock');
       // Les mêmes gestes que « Numéros de série » dans le Stock : une prestation du catalogue qu'on
       // se met à suivre, ou une fiche neuve suivie en stock ET par numéro (un numéro de série suppose

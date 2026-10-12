@@ -1579,6 +1579,10 @@ button.i + button.i { margin-inline-start: 6px; }
    derrière une insécable. Et deux bulles voisines gardent leur écart : la première vit maintenant
    dans ce <span>, donc `button.i + button.i` ne la voit plus. */
 .colle-bulle { white-space: nowrap; }
+/* (plateforme, lot débutant 2) La bulle part avec le dernier mot de ce qui la précède ; quand c'est un élément (une phrase
+   entière dans un <span>, comme le bandeau d'une facture émise), seul ce qui touche la bulle reste collé : l'élément passe
+   à la ligne normalement. Sans ça, la phrase tenait sur UNE ligne et sortait de l'écran (vu à la souris). */
+.colle-bulle > * { white-space: normal; }
 .colle-bulle + button.i { margin-inline-start: 6px; }
 /* libellé + bulle sur une seule ligne dans un champ (.field est une colonne flex) */
 .fl { display: flex; align-items: center; gap: 4px; }

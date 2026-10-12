@@ -3,9 +3,9 @@
   "branche": "beta",
   "commit": "1a61416",
   "reprisLe": "2026-10-12",
-  "adaptations": 798,
+  "adaptations": 844,
   "fichiers": {
-    "app.js": "a57724e65b66640d38e9e761f011ae03eb32b0c896684aec377414f2cecdf438",
+    "app.js": "475608f2eb297e899b88402ec1a384a243cdbb74b9509811ebf54d73a2fc66ef",
     "cabinet/app.js": "1ec67609be175b222194f138f0e9ea41972e273972308938dae9ca2f82a607a7",
     "cabinet/cabcore.js": "84cd43912cd60b911fe88574c87908bab34110c28bfa6c0a3da050fd3811af73",
     "cabinet/cabguide.js": "eed3abc1f9de8d877096b9f2d45f52c29d63fca97b5018ac9c4fa221808c754a",
@@ -15,7 +15,7 @@
     "compta.js": "a1228cbab17b53cd0aa40454d782cabff3165a599788a9a6053f49fcf0368668",
     "core.js": "064062c02e5c90cb4d2576e84d11d3f362804a5ce5598691d49710205acf80ef",
     "demo.js": "7831c54cb6ce833e60421c7f837510c3d722efdb94139db2e369ccb3b5fcc18a",
-    "guide.js": "11f3b78fabb21b9b3d427d9ea55fdf1c5fad51965b2d4429c9a3e68836d00983",
+    "guide.js": "4eb673b83d719960b9b92d6402c82fb65f134f1c66fe754444ca390692153981",
     "index.html": "4765d519e5a9168ddda1479c5ba672b0afd714dcba4f0d3eef6e449e53df6826",
     "listes.js": "22f04a516104badfe38c23a834c2a7b3b6926a65d8861516d7106bc6f7e0e8b2",
     "majui.js": "4e510979f9abb6e59386af4463d30fe25c6ac44ec04395294506d68d7b02ef7d",
@@ -24,9 +24,9 @@
     "placement.js": "2db5b35f4ea8674909daa6587f289ab09e0b95620c62434910e946b28a39d77e",
     "reglages.js": "6bf274073f5ec91c6b2af6923b5f8c5669d55f9b983f59a74c4127dfe1f780b6",
     "rowmenu.js": "9ce5fb1062efcca4890e4e0b93e0ae33feb6cfdd09a76e6a1484d2eadba5d146",
-    "style.css": "50186b8a6e2727addc9b34602e3e235fabdb206fa62ebd975cfa5f2c6a7fd012",
+    "style.css": "18e1683a26d341654f4b0774c5d4d51bc3bfc7676cb07b8bcf80e0ac030fe8b6",
     "teif.js": "87e7870460227508739bac49cf77e13c4435c2e7c1ddbaf99f4a9f31679b45d4",
-    "visite.js": "e2251e94b8ad0d3ea182d9ddff317e84bc71c4e552af4f613cc6040c0c925358",
-    "visites.js": "7a9fcd5916ba1ace7579b3c5869991f6b5d09295a05569771e25c39fb9f585e7"
+    "visite.js": "eff360565e793dc4e92f6e176bbac8db530af5e97ac15f0a25efcab97551700d",
+    "visites.js": "c8b1d8c7b068ea57ee26d469a6dd96da35064ac150c8241f34c18e7d15b8a858"
   }
 }

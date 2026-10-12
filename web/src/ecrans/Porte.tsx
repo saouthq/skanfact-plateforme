@@ -10,7 +10,7 @@ import { Bouton } from '../composants/Bouton.tsx';
 import { Carte } from '../composants/Carte.tsx';
 import { Champ } from '../composants/Champ.tsx';
 import { Dessin, PageEtapes } from '../composants/Entree.tsx';
-import { ApercuEntete, etatDuMatricule } from '../composants/Fiche.tsx';
+import { ApercuEntete, AideMatricule } from '../composants/Fiche.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { dire, phrase, titre } from '../langue.ts';
 
@@ -52,7 +52,6 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte }: { creee: (e
     );
   }
   if (etape === 'entreprise') {
-    const mf = etatDuMatricule(matricule);
     return (
       <PageEtapes etape={2} droite={sortir}>
         <div className="ent-deux">
@@ -62,7 +61,7 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte }: { creee: (e
             <Champ obligatoire libelle={titre('ecran.porte.raison')} aide={phrase('ecran.porte.raison_aide')} valeur={raison} changer={setRaison} autoComplete="organization"
               dessous={<div className="ent-exemples"><span>{phrase('ecran.porte.raison_patente')}</span><span>{phrase('ecran.porte.raison_societe')}</span></div>} {...g.sur('raisonSociale')} />
             <Champ libelle={titre('ecran.porte.matricule')} aide={phrase('ecran.porte.matricule_aide')} valeur={matricule} changer={setMatricule} placeholder="1234567A/A/M/000"
-              dessous={<span className={`ent-aide${mf.classe}`} aria-live="polite">{mf.texte}</span>} {...g.sur('matriculeFiscal')} />
+              dessous={<AideMatricule matricule={matricule} />} {...g.sur('matriculeFiscal')} />
             <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.porte.creer')}<Dessin id="fleche" /></Bouton>
           </form>
           <ApercuEntete raison={raison} matricule={matricule} note={phrase('ecran.porte.apercu_note')} />

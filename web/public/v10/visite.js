@@ -1270,7 +1270,7 @@
     cur.geste = Date.now();
     if (ev.type !== 'pointerdown' || cur.essai || cur.attente) return;
     const e = etape();
-    if (!e || estFaire(e) || !ouvreEssai(t)) return;
+    if (!e || estFaire(e) || !ouvreEssai(t) || dansSaCase(e, t)) return;
     cur.essai = { x: ev.clientX, y: ev.clientY, v0: etatEssai(e) };
     dessinerBulle();
   }
@@ -1286,6 +1286,27 @@
     if (String(x.tagName || '').toUpperCase() !== 'LABEL') return true;
     const c = x.control || (x.querySelector ? x.querySelector('input, select, textarea') : null);
     return !(c && c.matches && c.matches(CHAMP_TEXTE));
+  }
+  // (plateforme, lot débutant 2) Une étape à lire posée sur une CASE dit « Choisis dans la liste éclairée, puis Suivant » ;
+  // ouvrir cette liste rangeait la bulle dans un coin (« Vas-y, essaie »), puis « C'est fait — Étape suivante » : la visite
+  // paraissait se mettre en pause au moment exact où l'on faisait ce qu'elle demandait (vu à la souris). Un clic dans la
+  // case éclairée (ou l'une de celles qu'elle éclaire à côté), sur son libellé, ou dans la liste qu'elle vient d'ouvrir (elle
+  // vit hors d'elle, posée sur la page) est le geste de l'étape, pas un essai.
+  function dansSaCase(e, t) {
+    if (!e || !t || !t.closest) return false;
+    // La cible, et les cases que l'étape éclaire à côté d'elle (`eclairer` : la TVA ET l'unité).
+    const ecl = e.eclairer ? (Array.isArray(e.eclairer) ? e.eclairer : [e.eclairer]) : [];
+    const cases = [caseDe(cibleDe(e))];
+    for (const s of ecl) { try { cases.push(caseDe(document.querySelector(s))); } catch (_) { /* sélecteur invalide : rien */ } }
+    for (const c of cases) {
+      if (!c) continue;
+      const zone = (c.closest && c.closest('[data-combo], .combo')) || c;
+      if (zone === t || (zone.contains && zone.contains(t))) return true;
+      const libelle = t.closest('label');
+      if (libelle && libelle.contains && libelle.contains(c)) return true;
+      if (genreDeCase(c) === 'liste' && t.closest(LISTES_OUVERTES)) return true;
+    }
+    return false;
   }
   // La TOUCHE qu'une étape « valeur » annonce (« Tape le jour, puis Entrée ») est un geste : elle
   // fait avancer, une fois la case remplie. Sans elle, la bulle disait « puis Entrée », la personne
@@ -1792,6 +1813,21 @@
     const cibleEl = cibleDe(e);
     const champ = cibleEl && /^(INPUT|SELECT|TEXTAREA)$/.test(cibleEl.tagName);
     if ((!faire || cur.dejaFait) && !cur.perdu && !champ) focaliser('.vb-suiv');
+    // (plateforme, lot débutant 2) Une étape à LIRE posée sur une case de TEXTE y met le curseur, une fois par étape : la
+    // bulle dit « Remplis la case éclairée si tu as l'information », et ce qu'on tapait partait nulle part (vu à la souris :
+    // la description, l'emplacement, le stock de départ). Une liste ou une case à cocher met le curseur sur « Suivant » :
+    // les flèches y changeraient la valeur.
+    else if (!faire && champ && !cur.perdu && !cur.curseur) {
+      cur.curseur = true;
+      if (cibleEl.matches && cibleEl.matches(CHAMP_TEXTE) && !cibleEl.disabled && !cibleEl.readOnly) {
+        const moi = cur, iMoi = cur.i;
+        setTimeout(() => {
+          if (cur !== moi || cur.i !== iMoi) return;
+          const c = cibleDe(e);
+          if (c && document.activeElement !== c && !c.disabled) { try { c.focus({ preventScroll: true }); } catch (_) { /* rien */ } }
+        }, 0);
+      } else focaliser('.vb-suiv');
+    }
     // Une étape « tape ceci » sur une CASE y pose le curseur, une fois par étape : la touche de
     // l'étape d'avant l'a souvent envoyé ailleurs — Tab sur le compte d'une ligne tombe sur son
     // libellé, et « tape 1190 dans la case Débit » partait dans le libellé (vu au guide, un comptable

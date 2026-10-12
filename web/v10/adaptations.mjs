@@ -726,4 +726,6 @@ export const ADAPTATIONS = [
   // ── Le lot équipe (12/10/2026 ; inviter son équipe, docs/equipe.md ; toutes ses données, docs/export-complet.md) ──
   ...lireFichier('equipe-entreprise.txt'),
   ...lireFichier('export-complet.txt'),
+  // ── Le lot débutant (2) (12/10/2026 ; les gênants d'un commerçant qui débute, refaits à la souris, docs/debutant.md) ──
+  ...lireFichier('debutant-2.txt'),
 ];

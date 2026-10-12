@@ -428,6 +428,17 @@
     demandés et parmi ceux qui touchent l'entreprise : **une table de référence nouvelle a sa fonction**
     (`REFERENCES_PAR_FONCTION`), sinon l'export de l'entreprise refuse. Deux brouillons du cabinet ne partent plus (une
     question non envoyée, un fichier non joint).
+  - **Le lot débutant (2)** (12/10/2026 ; `docs/debutant.md`, `web/v10/debutant-2.txt`) : les gênants d'un commerçant
+    qui débute, refaits à la souris sur une quincaillerie. Le mot du catalogue suit le métier (`motsCatalogue` :
+    « article » pour le commerce, la restauration, l'artisanat) ; une dépense sans fournisseur se range sous UNE fiche
+    « Dépenses diverses » (`divers: true`, créée à l'enregistrement, `fournisseurDivers`) ; l'avoir neuf reprend les
+    lignes de sa facture tant que rien n'est tapé ; le coût du stock de départ suit le coût de revient tant qu'on n'y a
+    pas touché. Visites : une étape à lire sur une case de texte y met le curseur ; un clic dans ce qu'elle éclaire (ou
+    la liste qu'elle ouvre) n'ouvre pas l'essai (`dansSaCase`) ; les cases déjà remplies d'un en-tête se lisent dans UNE
+    étape `liste`. **Ce qu'une étape éclaire à côté de sa cible existe en ligne** : une étape facultative sur un panneau
+    absent se saute, ce qu'elle éclaire en plus ne se saute pas (vu en fusionnant les notes et les pièces jointes ; un
+    test le tient). Et **ce qui change de hauteur pendant la frappe garde sa place** : « Ton entreprise » empile les
+    quatre phrases du matricule, invisibles, dans la même case (`AideMatricule`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

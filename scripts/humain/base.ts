@@ -6,6 +6,7 @@ import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import pg from 'pg';
 import { migrer } from '../../base/migrer.ts';
+import { lireRegistre, poserReglesCommunes } from '../../base/regles-communes.ts';
 
 const admin = process.env.PG_ADMIN;
 if (!admin) throw new Error('PG_ADMIN manque : l\'adresse d\'un compte d\'administration PostgreSQL');
@@ -30,6 +31,10 @@ await c.query(`do $$ begin
 await c.query(`create role ${COMPTE} login nobypassrls password '${mdp}'`);
 await c.query('select pg_advisory_lock(20260929)');
 try { await migrer(adresse(BASE)); } finally { await c.query('select pg_advisory_unlock(20260929)'); await c.end(); }
+// Les règles de droit du registre (le timbre d'une facture…), posées comme à chaque installation du serveur
+// (exploitation/suivre.ts) : sans elles, aucune facture ne s'émettait ici (« le timbre fiscal n'est pas renseigné »), et
+// l'outil ne testait pas le produit qu'ont les clients (lot débutant 2).
+await poserReglesCommunes(adresse(BASE), lireRegistre());
 const m = new pg.Client({ connectionString: adresse(BASE) });
 await m.connect();
 await m.query(`grant skanfact_app to ${COMPTE}`);

@@ -814,7 +814,7 @@
     autres: "Ouvrir, envoyer, facturer, tirer une autre pièce.",
     clients: "Ouvrir la fiche, modifier le client, faire un devis, envoyer son relevé de compte.",
     client: "Écrire au client, modifier sa fiche, son relevé de compte.",
-    catalogue: "Modifier la prestation, la dupliquer, faire un devis avec, voir son stock.",
+    catalogue: "Modifier sa fiche, la dupliquer, faire un devis avec, voir son stock.",
     contrats: "Ouvrir la fiche, modifier le contrat, le suspendre ou le reprendre, générer maintenant.",
     contrat: "Ouvrir, envoyer, enregistrer un paiement.",
     relances: "Relancer par email, noter un appel, reporter, noter un paiement, envoyer le relevé.",
@@ -1076,6 +1076,10 @@
           titre: 'Le matricule fiscal', texte: 'Obligatoire sur toute facture. En Tunisie : <b>1234567X/A/M/000</b>.', action: 'Tape ton matricule fiscal.', essai: { taper: '1234567A/A/M/000' } },
         { page: '#/parametres', cible: ['#view textarea[name="address"]', '#view [name="address"]'], cote: 'droite', faire: 'valeur', bouton: 'Suivant',
           titre: 'L\'adresse', texte: 'Celle du siège, sur deux lignes : elle s\'imprime telle quelle.', action: 'Tape ton adresse.', essai: { taper: '12 rue de la Liberté\n1002 Tunis' } },
+        // (plateforme, lot débutant 2) La visite sautait le régime fiscal, juste sous l'adresse : c'est lui qui décide si tes
+        // factures portent de la TVA (règle 7.22.0), et un débutant ne sait pas qu'il a à le choisir.
+        { page: '#/parametres', cible: '#view select[name="taxRegime"]', cote: 'droite', titre: 'Ton régime fiscal',
+          texte: 'C\'est lui, et pas ton métier, qui décide si tes factures portent de la TVA. Au <b>réel</b>, tu factures la TVA, tu la déclares chaque mois et tu récupères celle de tes achats ; au <b>forfaitaire</b>, tes factures sortent sans TVA, avec la mention qui le dit. Si tu ne sais pas, ton comptable te le dit : <em>À VÉRIFIER avec lui.</em>' },
         // La banque et le RIB sont deux GESTES : une étape « à regarder » n'affiche pas sa consigne, et
         // l'accueil disait « il manque le RIB » pendant que la bulle ne disait pas de le taper — et
         // couvrait la case de la banque, à gauche (10.14.1). Facultatifs : qui encaisse sur place n'en
@@ -1191,24 +1195,14 @@
         // cette étape, la visite menait jusqu'à « Enregistrer », qui refusait. Vu à la souris avec
         // Nova Digital. Elle ne paraît que si le champ est là.
         etapeTaux('#rate-field'),
-        // 10.14.1 : les cases de l'en-tête que la visite laissait seules (vu en suivant la bulle sur une
-        // entreprise neuve). Chacune a son étape, dans l'ordre de l'écran ; la consigne d'une case à
-        // lire vient du moteur (« Si tu veux »).
-        { cible: '#view .datefield:has(input[name="date"]) .d-txt', cote: 'dessous', titre: 'La date du devis',
-          texte: 'Aujourd\'hui, proposée d\'office. Elle s\'imprime sur le devis ; tu peux l\'écrire comme tu veux (12/03/2026, 12-3-26…) ou la choisir dans le calendrier.' },
-        { cible: '#view .datefield:has(input[name="dueDate"]) .d-txt', cote: 'dessous', titre: 'Jusqu\'à quand il vaut',
-          texte: 'Au-delà, ton prix ne t\'engage plus : le devis passe « expiré » tout seul. Elle suit la date du devis tant que tu n\'y touches pas, avec le délai réglé dans tes Paramètres.' },
+        // (plateforme, lot débutant 2) 24 étapes, une par case : trop long pour un premier devis (vu à la souris). L'objet
+        // garde la sienne — on l'écrit ; les autres cases de l'en-tête sont toutes proposées ou facultatives, et se lisent
+        // ENSEMBLE dans une étape qui les éclaire toutes, chacune avec sa bulle.
         { cible: 'input[name="subject"]', cote: 'dessous', faire: 'valeur',
           titre: 'L\'objet', texte: 'Une ligne qui dit de quoi il s\'agit : ton client la lira en premier.',
           action: 'Écris l\'objet du devis, puis clique sur <b>« C\'est fait »</b>.', essai: { taper: 'Réfection de la vitrine' } },
-        { cible: '#view input[name="reference"]', cote: 'dessous', titre: 'Sa référence',
-          texte: 'Le numéro de commande ou de marché que ton client t\'a donné (« BC 118 »), s\'il en a un. Beaucoup de sociétés et d\'administrations ne paient pas une pièce qui ne le rappelle pas.' },
-        { cible: combo('projectId'), cote: 'droite', si: () => !!$(combo('projectId')), titre: 'L\'affaire',
-          texte: 'Facultatif : rattache ce devis à un chantier, pour comparer plus tard ce qu\'il a rapporté à ce qu\'il a coûté. Une vente simple n\'en a pas besoin.' },
-        { cible: '#view select[name="lang"]', cote: 'dessous', titre: 'La langue',
-          texte: 'Français ou anglais : tout le document change, jusqu\'au montant écrit en toutes lettres. Elle suit le client choisi.' },
-        { cible: '#view select[name="currency"]', cote: 'dessous', titre: 'La devise',
-          texte: 'Elle suit le client, elle aussi. Une autre devise que le dinar demande son taux de change, pour que ta comptabilité compte juste.' },
+        { cible: '#f-head', liste: '.datefield .d-txt, input[name="reference"], [data-combo="projectId"] .combo-btn, select[name="lang"], select[name="currency"], select[name="status"], input[name="discountRate"]', titre: 'Les autres cases',
+          texte: 'Elles ont toutes déjà une valeur, ou sont facultatives : la date et la validité du devis, la référence de ton client, une affaire, la langue, la devise, le statut, une remise. Change-les seulement si tu en as besoin.' },
         // 10.14.1 — choisir une autre devise ICI fait paraître le taux, obligatoire : la première étape
         // du taux (après le client) était déjà passée, et la visite menait à « Enregistrer », qui
         // refusait une case que personne n'avait montrée (vu à la souris : EUR choisi dans la liste
@@ -1217,10 +1211,6 @@
           texte: 'Ce devis est maintenant dans une autre devise que le dinar. Le taux dit combien vaut <b>une unité</b> de cette devise en dinars : c\'est lui qui convertit la pièce dans ta comptabilité et ta TVA. <b>Il est obligatoire</b> — sans lui, « Enregistrer » refuse le devis.',
           si: () => !!$('#rate-field:not([hidden])') && !(Number(String(valeur('#rate-field input[name="exchangeRate"]') || '').replace(',', '.')) > 0)
         }),
-        { cible: '#view select[name="status"]', cote: 'dessous', titre: 'Son statut',
-          texte: 'Le devis naît « Brouillon ». C\'est toi qui le passes à « Envoyé », puis à « Accepté » ou « Refusé » quand ton client répond : SkanFact ne peut pas le deviner.' },
-        { cible: '#view input[name="discountRate"]', cote: 'dessous', titre: 'Une remise',
-          texte: 'Un pourcentage retiré du total hors taxe, avant la TVA. Elle s\'affiche en clair sur le devis. Pour une remise sur une seule ligne, baisse plutôt son prix.' },
         // La case de la désignation est éclairée aussi : la bulle propose d'y taper, elle ne reste pas
         // dans l'ombre (10.14.1 — « ce dont le guide parle, je dois pouvoir cliquer dessus »).
         { cible: ['#cat-pick .combo-btn', '#add-line'], cote: 'dessus', titre: 'Ajouter une ligne', eclairer: '#lines tr:first-child input[data-k="label"]',
@@ -1231,15 +1221,11 @@
         { cible: '#lines tr:first-child input[data-k="qty"]', cote: 'dessous', faire: 'valeur',
           titre: 'La quantité', texte: 'Des heures, des pièces, un forfait : l\'unité se choisit juste à côté.',
           action: 'Indique la quantité.', fait: () => Number(valeur('#lines tr:first-child input[data-k="qty"]')) > 0, essai: { taper: '2' } },
-        // 10.14.1 — l'unité et la TVA de la ligne, les deux cases que la visite laissait seules (vu au
-        // guide : « unité (u) » et « 19 % » sans un mot, sur la seule ligne d'un premier devis).
-        { cible: '#lines tr:first-child select[data-k="unit"]', cote: 'dessous', titre: 'L\'unité',
-          texte: 'Elle s\'imprime à côté de la quantité : heure, jour, pièce, forfait, mètre carré… Une prestation du catalogue apporte la sienne. « Autre… », en bas de la liste, en ajoute une qui y restera.' },
         { cible: '#lines tr:first-child input[data-k="unitPrice"]', cote: 'dessous', faire: 'valeur',
           titre: 'Le prix unitaire hors taxe', texte: 'Le prix d\'une unité, <b>hors TVA</b>. La TVA et le total se calculent tout seuls.',
           action: 'Tape le prix unitaire HT.', fait: () => Number(valeur('#lines tr:first-child input[data-k="unitPrice"]')) > 0, essai: { taper: '350' } },
-        { cible: '#lines tr:first-child select[data-k="vatRate"]', cote: 'dessous', titre: 'La TVA de la ligne',
-          texte: 'Le taux vient de la prestation du catalogue, sinon de tes Paramètres. Chaque ligne a le sien : une prestation exonérée reste à 0 % à côté des autres. En cas de doute sur un taux, À VÉRIFIER avec ton comptable.' },
+        { cible: '#lines tr:first-child select[data-k="vatRate"]', cote: 'dessous', titre: 'L\'unité et la TVA de la ligne', eclairer: '#lines tr:first-child select[data-k="unit"]',
+          texte: 'L\'unité s\'imprime à côté de la quantité : la pièce, l\'heure, le mètre carré… La TVA vient de ton catalogue, sinon de tes Paramètres, et chaque ligne a la sienne. Ce que tu prends au catalogue apporte les deux. En cas de doute sur un taux, À VÉRIFIER avec ton comptable.' },
         { cible: '#totals', cote: 'gauche', titre: 'Les totaux', texte: 'Hors taxe, TVA, total : tout suit ce que tu tapes, ligne par ligne. Rien à calculer. Dessous, la <b>marge estimée</b> retire le coût de revient de chaque ligne (celui de ton catalogue) : c\'est pour toi, elle ne s\'imprime pas.' },
         // 10.14.1 — les deux panneaux sous les lignes, que la visite laissait seuls (vu au guide).
         { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes', facultatif: true,
@@ -1279,29 +1265,17 @@
           titre: 'Choisis le client', texte: 'Clique dans la liste, tape les premières lettres de son nom, et choisis-le. S\'il n\'existe pas encore, « + Nouveau client » en bas de la liste le crée sans quitter la facture.',
           action: 'Choisis ton client dans la liste.', fait: () => !!valeur('input[name="clientId"]'), essai: { combo: 1 } },
         etapeTaux('#rate-field'),
-        { cible: '#view .datefield:has(input[name="date"]) .d-txt', cote: 'dessous', titre: 'La date de la facture',
-          texte: 'Aujourd\'hui, proposée d\'office. Elle s\'imprime sur la facture, et c\'est elle qui range la facture dans le mois de ta déclaration de TVA. Pour une facture d\'un autre mois, <em>À VÉRIFIER avec ton comptable</em>.' },
-        { cible: '#view .datefield:has(input[name="dueDate"]) .d-txt', cote: 'dessous', titre: 'L\'échéance',
-          texte: 'Le jour où ton client doit avoir payé : la date de la facture plus le délai de ses conditions, ou celui de tes Paramètres. Passé ce jour, la facture paraît dans « Relances ».' },
+        // (plateforme, lot débutant 2) 25 étapes : trop long (vu à la souris). L'objet garde son étape, la retenue et le timbre
+        // aussi (ils changent ce que le client paie) ; les autres cases de l'en-tête se lisent ensemble, chacune avec sa bulle.
         { cible: 'input[name="subject"]', cote: 'dessous', faire: 'valeur',
           titre: 'L\'objet', texte: 'Une ligne qui dit ce que la facture règle : ton client la lira en premier.',
           action: 'Écris l\'objet de la facture, puis clique sur <b>« C\'est fait »</b>.', essai: { taper: 'Réfection de la vitrine' } },
-        { cible: '#view input[name="reference"]', cote: 'dessous', titre: 'Sa référence',
-          texte: 'Le numéro de commande ou de marché que ton client t\'a donné (« BC 118 »), s\'il en a un. Beaucoup de sociétés et d\'administrations ne paient pas une facture qui ne le rappelle pas.' },
-        { cible: combo('projectId'), cote: 'droite', si: () => !!$(combo('projectId')), titre: 'L\'affaire',
-          texte: 'Facultatif : rattache cette facture à un chantier, pour comparer plus tard ce qu\'il a rapporté à ce qu\'il a coûté. Une vente simple n\'en a pas besoin.' },
-        { cible: '#view select[name="lang"]', cote: 'dessous', titre: 'La langue',
-          texte: 'Français ou anglais : tout le document change, jusqu\'au montant écrit en toutes lettres. Elle suit le client choisi.' },
-        { cible: '#view select[name="currency"]', cote: 'dessous', titre: 'La devise',
-          texte: 'Elle suit le client, elle aussi. Une autre devise que le dinar demande son taux de change, pour que ta comptabilité compte juste.' },
+        { cible: '#f-head', liste: '.datefield .d-txt, input[name="reference"], [data-combo="projectId"] .combo-btn, select[name="lang"], select[name="currency"], input[name="discountRate"]', titre: 'Les autres cases',
+          texte: 'Elles ont toutes déjà une valeur, ou sont facultatives : la date (c\'est elle qui range la facture dans le mois de ta TVA) et l\'échéance, la référence de ton client, une affaire, la langue, la devise, une remise. Change-les seulement si tu en as besoin.' },
         Object.assign(etapeTaux('#rate-field'), {
           texte: 'Cette facture est maintenant dans une autre devise que le dinar. Le taux dit combien vaut <b>une unité</b> de cette devise en dinars : c\'est lui qui convertit la facture dans ta comptabilité et ta TVA. <b>Il est obligatoire.</b>',
           si: () => !!$('#rate-field:not([hidden])') && !(Number(String(valeur('#rate-field input[name="exchangeRate"]') || '').replace(',', '.')) > 0)
         }),
-        { cible: '#view .status-cell', cote: 'dessous', titre: 'Un brouillon, sans numéro',
-          texte: 'La facture naît <b>brouillon</b> : elle n\'a pas encore de numéro, et tu peux tout y changer. Le numéro lui est donné à l\'émission, dans l\'ordre, sans trou ; ensuite elle ne se modifie plus (une erreur se corrige par un avoir).' },
-        { cible: '#view input[name="discountRate"]', cote: 'dessous', titre: 'Une remise',
-          texte: 'Un pourcentage retiré du total hors taxe, avant la TVA. Elle s\'affiche en clair sur la facture. Pour une remise sur une seule ligne, baisse plutôt son prix.' },
         { cible: '#view select[name="withholdingRate"]', cote: 'dessous', titre: 'La retenue à la source',
           texte: 'Certains clients — les sociétés, l\'État — gardent une part de ta facture et la versent au fisc à ta place : tu ne reçois que le net, et ils te remettent une attestation. Si ce client le fait, choisis son taux ; sinon, « Aucune ». <b>À VÉRIFIER</b> avec ton comptable.' },
         { cible: '#view label.check:has(input[name="applyStamp"])', cote: 'dessous', titre: 'Le timbre fiscal',
@@ -1314,13 +1288,11 @@
         { cible: '#lines tr:first-child input[data-k="qty"]', cote: 'dessous', faire: 'valeur',
           titre: 'La quantité', texte: 'Des heures, des pièces, un forfait : l\'unité se choisit juste à côté.',
           action: 'Indique la quantité.', fait: () => Number(valeur('#lines tr:first-child input[data-k="qty"]')) > 0, essai: { taper: '2' } },
-        { cible: '#lines tr:first-child select[data-k="unit"]', cote: 'dessous', titre: 'L\'unité',
-          texte: 'Elle s\'imprime à côté de la quantité : heure, jour, pièce, forfait, mètre carré… Un article du catalogue apporte la sienne. « Autre… », en bas de la liste, en ajoute une qui y restera.' },
         { cible: '#lines tr:first-child input[data-k="unitPrice"]', cote: 'dessous', faire: 'valeur',
           titre: 'Le prix unitaire hors taxe', texte: 'Le prix d\'une unité, <b>hors TVA</b>. La TVA, le timbre et le total se calculent tout seuls.',
           action: 'Tape le prix unitaire HT.', fait: () => Number(valeur('#lines tr:first-child input[data-k="unitPrice"]')) > 0, essai: { taper: '350' } },
-        { cible: '#lines tr:first-child select[data-k="vatRate"]', cote: 'dessous', titre: 'La TVA de la ligne',
-          texte: 'Le taux vient de l\'article du catalogue, sinon de tes Paramètres. Chaque ligne a le sien : une prestation exonérée reste à 0 % à côté des autres. En cas de doute sur un taux, À VÉRIFIER avec ton comptable.' },
+        { cible: '#lines tr:first-child select[data-k="vatRate"]', cote: 'dessous', titre: 'L\'unité et la TVA de la ligne', eclairer: '#lines tr:first-child select[data-k="unit"]',
+          texte: 'L\'unité s\'imprime à côté de la quantité : la pièce, l\'heure, le mètre carré… La TVA vient de ton catalogue, sinon de tes Paramètres, et chaque ligne a la sienne. Ce que tu prends au catalogue apporte les deux. En cas de doute sur un taux, À VÉRIFIER avec ton comptable.' },
         { cible: '#totals', cote: 'gauche', titre: 'Les totaux',
           texte: 'Hors taxe, TVA, timbre, total, et le <b>net à payer</b> (la retenue déduite) : tout suit ce que tu tapes, ligne par ligne. Rien à calculer.' },
         { cible: '#notes', cote: 'dessus', titre: 'Les notes',
@@ -1523,32 +1495,31 @@
 
     visite({
       id: 'article', theme: 'fichiers', type: 'faire', duree: '2 min', page: '#/catalogue',
-      titre: 'Ajouter une prestation au catalogue',
-      resume: 'Décrite une fois avec son prix : chaque devis la reprend d\'un clic.',
-      mots: ['catalogue', 'prestation', 'article', 'prix', 'produit', 'service'],
+      // (plateforme, lot débutant 2) « Ajouter une prestation » à un commerçant qui vend des marchandises ; le prix TTC, celui
+      // de l'étiquette, jamais montré ; la TVA et l'unité en deux étapes ; le coût du stock de départ laissé à 0 (vu à la souris,
+      // une quincaillerie). La visite dit « ce que tu vends » : le bouton qu'elle montre porte le mot du métier.
+      titre: 'Ajouter au catalogue ce que tu vends',
+      resume: 'Un article ou une prestation, décrit une fois avec son prix : tes devis, tes factures et la caisse le reprennent d\'un clic.',
+      mots: ['catalogue', 'prestation', 'article', 'prix', 'produit', 'service', 'ttc', 'marchandise'],
       suite: ['premier-devis'],
       mesure: () => nb('catalog'), but: n0 => nb('catalog') > n0 && aucuneFenetre(),
-      bravo: 'Ta prestation est au catalogue',
-      conclusion: 'Elle est proposée dans chaque devis : « Ajouter depuis le catalogue », ou tape son nom dans une désignation.',
+      bravo: 'C\'est dans ton catalogue',
+      conclusion: 'Il est proposé dans chaque devis : « Ajouter depuis le catalogue », ou tape son nom dans une désignation.',
       etapes: [
         { page: '#/catalogue', avant: onglet('#cat-tabs', 'presta'), cible: ['.vide-utile .btn-primary', '.page-head #new'], cote: 'dessous', faire: 'clic',
-          titre: 'Nouvelle prestation', texte: 'Ce que tu vends, avec son prix.', action: 'Clique sur {bouton}.', fait: () => !!$('#modal-root .modal'), essai: { clic: true } },
+          titre: 'Ajouter au catalogue', texte: 'Ce que tu vends, avec son prix : un article, une prestation.', action: 'Clique sur {bouton}.', fait: () => !!$('#modal-root .modal'), essai: { clic: true } },
         { cible: '#modal-root .modal input[name="label"], #modal-root .modal input[name="name"]', cote: 'droite', faire: 'valeur',
-          titre: 'Son nom', texte: 'Tel qu\'il s\'imprimera sur la ligne du devis.', action: 'Tape le nom de la prestation.', essai: { taper: 'Heure de main-d\'œuvre' } },
+          titre: 'Son nom', texte: 'Tel qu\'il s\'imprimera sur la ligne du devis, de la facture ou du ticket.', action: 'Tape son nom.', essai: { taper: 'Heure de main-d\'œuvre' } },
         { cible: '#modal-root .modal textarea[name="description"]', cote: 'droite', titre: 'Sa description',
           texte: 'Une précision qui s\'imprime sous la désignation, sur le devis et la facture : les dimensions, la matière, ce qui est compris. Elle se reprend à chaque devis — tu pourras encore la retoucher sur la pièce.' },
-        { cible: '#modal-root .modal input[name="unitPrice"]', cote: 'droite', faire: 'valeur',
-          titre: 'Son prix hors taxe', texte: 'Le prix d\'une unité, hors TVA.', action: 'Tape le prix.', essai: { taper: '45' } },
-        // 10.14.1 : la visite s'arrêtait au nom et au prix, et laissait seules cinq cases qu'un débutant
-        // ne sait pas lire (vu en suivant la bulle sur une entreprise neuve). Chacune a son étape ; la
-        // consigne d'une case à lire vient du moteur (« Si tu veux »).
+        { cible: '#modal-root .modal input[name="unitPrice"]', cote: 'droite', faire: 'valeur', eclairer: '#modal-root .modal #cat-ttc',
+          titre: 'Son prix', texte: 'Le prix d\'une unité <b>hors TVA</b>. Tu connais plutôt le prix <b>TTC</b>, celui de l\'étiquette ? Tape-le dans « Prix TTC », juste à côté : le hors taxe se calcule tout seul.',
+          action: 'Tape le prix hors taxe — ou le prix TTC, à côté.', essai: { taper: '45' } },
         { cible: '#modal-root .modal input[name="unitCost"]', cote: 'droite', faire: 'valeur', bouton: 'Suivant', facultatif: true,
-          titre: 'Ce qu\'elle te coûte', texte: 'Ce que cette prestation te coûte à toi, hors taxe : la matière, la sous-traitance. SkanFact en tire ta marge sur chaque devis. À zéro, la marge n\'est simplement pas calculée.',
+          titre: 'Ce que ça te coûte', texte: 'Ce que tu paies toi-même pour une unité, hors taxe : le prix chez ton fournisseur, la matière, la sous-traitance. SkanFact en tire ta marge sur chaque devis. À zéro, la marge n\'est simplement pas calculée.',
           action: 'Tape ton coût — ou passe cette étape si tu ne le connais pas.', essai: { taper: '28' } },
-        { cible: '#modal-root .modal select[name="vatRate"]', cote: 'droite', titre: 'Son taux de TVA',
-          texte: 'Proposé d\'après ton régime ; la plupart des ventes sont à 19 %, certaines à 7 ou 13 % — À VÉRIFIER avec ton comptable. Si ton régime ne facture pas de TVA, tes pièces sortent à 0 % quoi qu\'il soit écrit ici.' },
-        { cible: '#modal-root .modal #cat-unit', cote: 'droite', titre: 'Son unité',
-          texte: 'Comment tu la comptes : l\'heure, la pièce, le mètre carré… Elle s\'imprime à côté de la quantité sur le devis. « Autre… » en crée une.' },
+        { cible: '#modal-root .modal select[name="vatRate"]', cote: 'droite', eclairer: '#modal-root .modal #cat-unit', titre: 'Sa TVA et son unité',
+          texte: 'La TVA est proposée d\'après ton régime ; la plupart des ventes sont à 19 %, certaines à 7 ou 13 % — À VÉRIFIER avec ton comptable. Si ton régime ne facture pas de TVA, tes pièces sortent à 0 % quoi qu\'il soit écrit ici. L\'unité, juste à côté, dit comment tu le comptes : la pièce, l\'heure, le kilo… Elle s\'imprime à côté de la quantité.' },
         { cible: '#modal-root .modal input[name="tracked"]', cote: 'droite', titre: 'Suivi en stock',
           texte: 'Pour une marchandise que tu achètes et revends : SkanFact compte ce qui entre et ce qui sort, et te prévient quand il en manque. Un service ne se stocke pas — une heure de travail, laisse la case décochée.' },
         { cible: '#modal-root .modal input[name="serialized"]', cote: 'droite', titre: 'Les numéros de série',
@@ -1560,9 +1531,9 @@
         { cible: '#modal-root .modal input[name="initialQty"]', cote: 'droite', si: stockOuvert,
           titre: 'Ce que tu as déjà', texte: 'La quantité que tu as aujourd\'hui sur l\'étagère. Les achats l\'augmenteront, les factures la diminueront.' },
         { cible: '#modal-root .modal input[name="initialCost"]', cote: 'droite', si: stockOuvert,
-          titre: 'Ce qu\'il t\'a coûté', texte: 'Le prix d\'achat d\'une unité de ce stock de départ, hors taxe : c\'est lui qui donne sa valeur à ton stock, et le coût de ce que tu vendras.' },
+          titre: 'Ce qu\'il t\'a coûté', texte: 'Le prix d\'achat d\'une unité de ce stock de départ, hors taxe : c\'est lui qui donne sa valeur à ton stock, et le coût de ce que tu vendras. SkanFact y a mis ton coût de revient ; change-le si ce stock t\'a coûté autre chose.' },
         { cible: '#modal-root .modal .modal-actions .btn-primary', cote: 'dessus', faire: 'clic',
-          titre: 'Enregistrer', texte: 'La prestation rejoint ton catalogue : la prochaine fois, tu la choisis dans une liste au lieu de retaper son nom et son prix.', action: 'Clique sur <b>« Enregistrer »</b>.', fait: () => aucuneFenetre(), essai: { clic: true } }
+          titre: 'Enregistrer', texte: 'Il rejoint ton catalogue : la prochaine fois, tu le choisis dans une liste au lieu de retaper son nom et son prix.', action: 'Clique sur <b>« Enregistrer »</b>.', fait: () => aucuneFenetre(), essai: { clic: true } }
       ]
     });
 

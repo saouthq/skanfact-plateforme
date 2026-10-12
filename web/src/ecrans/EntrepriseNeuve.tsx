@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { Bouton } from '../composants/Bouton.tsx';
 import { Champ } from '../composants/Champ.tsx';
 import { Dessin, PageEtapes } from '../composants/Entree.tsx';
-import { ApercuEntete, etatDuMatricule } from '../composants/Fiche.tsx';
+import { ApercuEntete, AideMatricule } from '../composants/Fiche.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
 
@@ -27,7 +27,6 @@ export function EntrepriseNeuve({ depuis, retour, visite, creee, deconnecte }: {
     if (r.statut !== 201) { g.refuser(refusDe(r)); return; }
     creee(r.corps.id, visite);
   });
-  const mf = etatDuMatricule(matricule);
   const sortir = <button type="button" className="ent-lien gris" onClick={deconnecte}>{titre('ecran.deconnexion')}</button>;
   return (
     <PageEtapes etape={2} droite={sortir}>
@@ -41,7 +40,7 @@ export function EntrepriseNeuve({ depuis, retour, visite, creee, deconnecte }: {
           <Champ obligatoire libelle={titre('ecran.porte.raison')} aide={phrase('ecran.porte.raison_aide')} valeur={raison} changer={setRaison} autoComplete="organization"
             dessous={<div className="ent-exemples"><span>{phrase('ecran.porte.raison_patente')}</span><span>{phrase('ecran.porte.raison_societe')}</span></div>} {...g.sur('raisonSociale')} />
           <Champ libelle={titre('ecran.porte.matricule')} aide={phrase('ecran.porte.matricule_aide')} valeur={matricule} changer={setMatricule} placeholder="1234567A/A/M/000"
-            dessous={<span className={`ent-aide${mf.classe}`} aria-live="polite">{mf.texte}</span>} {...g.sur('matriculeFiscal')} />
+            dessous={<AideMatricule matricule={matricule} />} {...g.sur('matriculeFiscal')} />
           <Bouton principal type="submit" occupe={g.occupe}>{titre(exemple ? 'ecran.vraie.creer' : 'ecran.vraie.creer_nouvelle')}<Dessin id="fleche" /></Bouton>
         </form>
         <ApercuEntete raison={raison} matricule={matricule} note={phrase(exemple ? 'ecran.vraie.apercu_note' : 'ecran.porte.apercu_note')} />
