@@ -143,7 +143,10 @@ describe('les achats du dossier v10, tenus par le serveur', () => {
     // Chaque achat a laissé sa trace, une seule fois ; chaque fournisseur a sa fiche.
     expect((await e.trace()).filter((g) => g === 'achats.piece.enregistrer')).toHaveLength(d.purchases.length);
     expect((await admin.query(`select count(*)::int n from socle.tiers where entreprise = $1 and 'fournisseur' = any(roles)`, [e.ent])).rows[0].n).toBe(d.suppliers.length);
-  });
+  // Un banc sur toute une histoire, comme l'exemple de cinq ans (tests/v10/exemple.test.ts) : sa durée suit le nombre de
+  // pièces — dix secondes de travail du serveur sur ce poste, deux fois plus sur les machines de GitHub, où le délai commun
+  // de vingt secondes le faisait tomber au hasard (12/10/2026). Ce délai n'est pas un seuil de vitesse.
+  }, 60_000);
 
   it('200 achats tirés au hasard (devises, TVA non déductible, destinations, frais, retenue) : les mêmes montants qu\'à l\'écran', async () => {
     const e = await essai();
@@ -167,7 +170,7 @@ describe('les achats du dossier v10, tenus par le serveur', () => {
     }
     expect(faux).toEqual([]);
     expect(achats.filter((p) => p.currency !== 'DT').length).toBeGreaterThan(30);
-  });
+  }, 60_000);   // un banc de deux cents pièces : voir le précédent
 
   it('un achat se modifie et se supprime comme dans la v10, chaque geste avec sa trace ; une pièce qui n\'a fait que changer de place ne se recalcule pas', async () => {
     const e = await essai();
