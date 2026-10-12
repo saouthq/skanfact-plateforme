@@ -219,7 +219,10 @@ erreur de manipulation ou un défaut a abîmé les données d'une entreprise, le
 
 Code : `exploitation/archiver.sh`, `exploitation/copie-de-base.sh`, `exploitation/restaurer.sh`,
 `exploitation/hors-machine.sh`, `exploitation/regler-hors-machine.sh`, `exploitation/rapatrier.sh`,
-`exploitation/remettre-entreprise.sh`, `base/entreprise.ts` (`remettre`), `exploitation/taches/0008-archivage.sh`. Test : `tests/exploitation/archivage.test.ts` (joué pour de vrai : un
+`exploitation/remettre-entreprise.sh`, `base/entreprise.ts` (`remettre`), `exploitation/taches/0008-archivage.sh`,
+`exploitation/taches/0009-premier-exercice.sh` (le premier exercice refait : sur le serveur d'essai, le 12/10/2026,
+restaurer.sh effaçait son dossier pour le recréer, ce que postgres ne peut pas dans `/var/lib/skanfact` ; il le vide
+désormais, et le test pose la même cloison). Test : `tests/exploitation/archivage.test.ts` (joué pour de vrai : un
 PostgreSQL à part qui archive, une copie de base, une restauration à la seconde près, l'exercice, l'envoi chiffré vers
 un faux stockage, le rapatriement et la même base restaurée ; age et PostgreSQL 16 sur les postes de GitHub) ;
 `tests/socle/export-entreprise.test.ts` (la remise : l'essai, la remise, la voisine intacte, les refus, le script).
@@ -413,7 +416,7 @@ par la tâche d'entretien 0007) relève l'état du serveur et en tire les probl�
 |---|---|---|
 | SkanFact ne répond plus, **deux minutes de suite** (un redémarrage dure moins) | oui | `sudo systemctl status skanfact`, puis `sudo journalctl -u skanfact -n 50` |
 | La sauvegarde de la nuit absente, ratée, ou plus de 26 heures sans réussite | oui | `sudo systemctl status skanfact-sauvegarde` ; le détail : `/var/lib/skanfact/sauvegardes/derniere.json` |
-| Une version qui n'a pas pu s'installer (l'ancienne tourne toujours) ; une tâche d'entretien ratée | non | le détail : `/var/lib/skanfact/public/etat.json` |
+| Une version qui n'a pas pu s'installer (l'ancienne tourne toujours) ; une tâche d'entretien ratée (sauf si une suivante, réussie, la **reprend** : « # Reprend : … » en tête de celle-ci) | non | le détail : `/var/lib/skanfact/public/etat.json` |
 | Le suiveur des versions muet depuis plus de 30 minutes | non | `sudo systemctl status skanfact-suivre.timer` |
 | Un disque plein à 75 % (grave à 90 %) | à 90 % | libérer de la place, ou agrandir le disque chez l'hébergeur |
 | Le certificat https qui expire dans moins de 30 jours (grave à moins de 7) | à 7 jours | `sudo systemctl status caddy`, puis `sudo journalctl -u caddy -n 50` |
@@ -440,7 +443,9 @@ s'écrit quand même, et rien ne part.
 
 **I4. La page d'état publique**, `https://app.skanfact.tn/etat` (servie par le frontal, même si le programme est
 arrêté ; revue chaque minute) : le service, la sauvegarde, l'entretien, chacun « fonctionne » ou non. Aucun message,
-aucune version, aucun chemin : c'est elle qu'on donne aux clients pendant un incident.
+aucune version, aucun chemin : c'est elle qu'on donne aux clients pendant un incident. Elle ne dit « l'exploitant est
+prévenu » que si l'alerte de chacun de ces problèmes est vraiment partie : un serveur sans destinataire (le serveur
+d'essai) ne le prétend pas.
 
 **I5. Ce qui reste** (cadrage `06` § 7) : une vérification **de l'extérieur**, depuis deux villes (un service qui
 regarde l'adresse publique : à choisir, et à compter dans les flux qui sortent, `05` § 4.3) ; les temps de réponse et le

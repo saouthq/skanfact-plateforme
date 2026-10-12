@@ -7912,9 +7912,6 @@ SV4="le serveur d'essai (« aucune ») prend la plus récente dès qu'elle est e
 prouver "le serveur d'essai qui attend quand même GitHub" exploitation/suivre.ts \
   "  if (verification === 'aucune') return async () => 'vert';" "" \
   "$SV4"
-prouver "la production qui n'attend plus GitHub" exploitation/suivre.ts \
-  "  if (verification === 'aucune') return async () => 'vert';" "  if (verification !== 'github') return async () => 'vert';" \
-  "$SV4"
 
 # ── L'accès de Claude au serveur (exploitation/acces.ts ; docs/mise-en-ligne.md, F ; demandé par Skander le 05/10/2026) ──
 AC1="acceptée seulement bien signée, par une clé déclarée et non retirée, à l'heure, et jamais vue ; refusée sinon, avec sa raison"
@@ -10177,6 +10174,10 @@ prouver "le scénario des deux postes joué pendant que la page enregistre encor
 # les preuves avant d'installer, le frontal en un seul endroit, la veille (alertes et page d'état) ──
 SV5="les pilotes (« toutes », et toute valeur inconnue) : seulement une version verte des deux côtés, la plus récente"
 SV6="toutes les preuves se relisent au plus toutes les demi-heures (GitHub compte les questions), et un relevé faux se relit"
+# (La règle de la production vit dans le test des pilotes depuis qu'ils ont leur sorte : la preuve le vise.)
+prouver "la production qui n'attend plus GitHub" exploitation/suivre.ts \
+  "  if (verification === 'aucune') return async () => 'vert';" "  if (verification !== 'github') return async () => 'vert';" \
+  "$SV5"
 prouver "les pilotes qui installent une version que toutes les preuves n'ont pas vue" exploitation/suivre.ts \
   "return a === 'rouge' || b === 'rouge' ? 'rouge' : a === 'vert' && b === 'vert' ? 'vert' : 'en_cours';" "return a === 'rouge' ? 'rouge' : a === 'vert' ? 'vert' : 'en_cours';" \
   "$SV5"
@@ -10403,7 +10404,7 @@ prouver 'une restauration à la main qui écrase l'"'"'état de l'"'"'exercice' 
 ' '' \
   "$AR3"
 prouver 'l'"'"'exercice laissé là, avec toutes les données' exploitation/restaurer.sh \
-  '  arreter; rm -rf "$DOSSIER"
+  '  jeter
   echo "Exercice réussi' '  echo "Exercice réussi' \
   "$AR4"
 prouver 'une copie de base d'"'"'après la minute prise quand même' exploitation/restaurer.sh \
@@ -10568,6 +10569,35 @@ prouver 'les règles du métier qui refusent de remettre une facture émise' bas
 prouver 'une remise sans trace' base/entreprise.ts \
   '    await client.query(`insert into socle.audit (entreprise, geste, objet_type, objet_id, avant, apres)' '    if (Date.now() < 0) await client.query(`insert into socle.audit (entreprise, geste, objet_type, objet_id, avant, apres)' \
   "$RM1"
+# Ce que le serveur d'essai a montré (12/10/2026) : l'exercice qui effaçait son dossier, les tâches reprises, l'exploitant
+# dit prévenu sans l'être.
+TR1='une tâche ratée puis reprise par une suivante qui a réussi n'"'"'est plus à régler ; reprise par une ratée, si'
+TR2='une tâche d'"'"'entretien ratée puis reprise par une suivante réussie ne se dit plus ; sans reprise, si'
+TR3='« l'"'"'exploitant est prévenu » seulement quand l'"'"'alerte est partie (un serveur sans destinataire ne le prétend pas)'
+TR4='raté : le dossier remis à postgres, l'"'"'exercice relancé, son résultat dit ; réussi ou jamais posé : rien à refaire'
+prouver 'la base d'"'"'à côté jetée en effaçant son dossier' exploitation/restaurer.sh \
+  '  if [ -d "$DOSSIER" ]; then find "$DOSSIER" -mindepth 1 -maxdepth 1 -exec rm -rf {} +; fi' '  rm -rf "$DOSSIER"' \
+  "$AR3"
+prouver 'une tâche reprise par une suivante réussie toujours à régler' exploitation/veille.ts \
+  '  return taches.filter((t) => t.ok || !reprisesParUneReussie.has(t.nom));' '  return taches;' \
+  "$TR1"
+prouver 'une phrase qui cite la reprise prise pour une reprise' exploitation/veille.ts \
+  'f.texte.matchAll(/^# Reprend : (.+)$/gm)' 'f.texte.matchAll(/# Reprend : ([^"]+)$/gm)' \
+  "$TR1"
+prouver 'le veilleur qui ne lit pas les reprises des tâches' exploitation/veiller.ts \
+  '    taches: tachesARegler((e.taches ?? []).map((t) => ({ nom: String(t.nom), ok: t.ok === true })), reprises()),' '    taches: (e.taches ?? []).map((t) => ({ nom: String(t.nom), ok: t.ok === true })),' \
+  "$TR2"
+prouver 'l'"'"'exploitant dit prévenu sans qu'"'"'aucune alerte soit partie' exploitation/veille.ts \
+  '  const prevenu = (cles: string[]) => (cles.every((c) => (enCours.problemes[c]?.ditLe ?? null) !== null) ? '"'"', l\'"'"'exploitant est prévenu'"'"' : '"'"''"'"');' '  const prevenu = (_cles: string[]) => '"'"', l\'"'"'exploitant est prévenu'"'"';' \
+  "$TR3"
+prouver 'la tâche 0009 qui refait un exercice réussi' exploitation/taches/0009-premier-exercice.sh \
+  'if grep -q '"'"'"ok":true'"'"' "$ARCHIVES/derniere-restauration.json" 2>/dev/null; then' 'if false; then' \
+  "$TR4"
+prouver 'la tâche 0009 qui relance sans rendre le dossier à postgres' exploitation/taches/0009-premier-exercice.sh \
+  'install -d -o postgres -g postgres -m 700 "$ETAT/restauration"
+' '' \
+  "$TR4"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
