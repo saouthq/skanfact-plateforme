@@ -761,6 +761,7 @@
     dessinerMandat,
     dessinerCompte,
     dessinerAppareils,
+    dessinerEquipe,
     dessinerQuarantaine,
     dessinerPaiement,
     dessinerServices,
@@ -1239,6 +1240,12 @@
   function dessinerCompte(el, v10) { return /** @type {any} */ (window).SkanCompte.dessiner(el, { appel: appelCompte, modal: v10.modal, toast: v10.toast }); }
   /** @param {HTMLElement} el */
   function dessinerAppareils(el) { return /** @type {any} */ (window).SkanCompte.appareils(el, { appel: appelCompte }); }
+  // ── L'équipe (lot équipe, 0079 ; equipe.js) : qui y travaille, les invitations qui attendent, et les gestes de qui la
+  // gère. Les appels portent sur CETTE entreprise ; la base refuse à qui n'est ni propriétaire ni administrateur.
+  /** @param {HTMLElement} el @param {{ modal: any, toast: (t: string, erreur?: boolean) => void, confirmDialog: any, nom?: string }} v10 */
+  function dessinerEquipe(el, v10) {
+    return /** @type {any} */ (window).SkanEquipe.dessiner(el, { appel, modal: v10.modal, toast: v10.toast, confirmDialog: v10.confirmDialog, nom: v10.nom || '' });
+  }
   // ── Services connectés (brique 134 ; docs/boutique.md, B0) : les services qui agissent pour l'entreprise avec une
   // clé de l'API (une boutique SkanEcom reliée, un outil branché), ce qu'ils peuvent faire, et « Couper l'accès ».
   // Une clé coupée ou expirée ne se montre plus : elle ne peut plus rien.
@@ -1978,7 +1985,7 @@
     try { localStorage.setItem('skanfact.entreprise', id); } catch { /* sans stockage : la première la prochaine fois */ }
     location.assign(`/v10/?e=${encodeURIComponent(id)}`);
   }
-  const PARTAGE = 'Sur la plateforme, une entreprise n\'est plus un fichier à poser dans un dossier partagé : elle vit sur le serveur, et chacun l\'ouvre avec son propre compte. L\'invitation d\'un collaborateur arrive dans une prochaine étape.';
+  const PARTAGE = 'Sur la plateforme, une entreprise n\'est plus un fichier à poser dans un dossier partagé : elle vit sur le serveur, et chacun l\'ouvre avec son propre compte. Pour travailler à plusieurs, invite tes collaborateurs dans Paramètres → L\'équipe.';
   // Ce qui n'existe pas encore en ligne se refuse avec sa phrase : ce qui est refusé, et que rien n'a changé.
   /** @param {string} quoi */
   function pasEncore(quoi) {

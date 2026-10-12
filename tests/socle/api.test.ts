@@ -240,9 +240,109 @@ describe('l\'équipe (03 D4 à D6)', () => {
     const bob = await personne('bob');
     await appeler('POST', '/invitations/accepter', bob.jeton, { jeton: await inviter(ent, alice.jeton, bob.email, ['administrateur']) });
     await mettreLeCode(bob.jeton);
-    const jeton = await inviter(ent, bob.jeton, alice.email, ['lecture']);
+    // Depuis 0079, l'invitation elle-même se refuse : la propriétaire fait déjà partie de l'équipe.
+    const refus = await appeler('POST', `/entreprises/${ent}/invitations`, bob.jeton, { email: alice.email, roles: ['lecture'] });
+    expect(refus.corps.motif).toBe('Cette personne fait déjà partie de l\'équipe : change ses rôles dans la liste.');
+    // Une invitation faite AVANT (posée telle quelle) ne lui retire toujours pas son rôle à l'acceptation.
+    const jeton = 'jeton-d-une-invitation-d-avant-0079';
+    await admin.query(`insert into socle.invitation (entreprise, email, roles, jeton_empreinte, invite_par, expire_le)
+      values ($1, $2, '{lecture}', $3, $4, $5)`, [ent, alice.email, createHash('sha256').update(jeton).digest('hex'), bob.id, new Date('2026-10-08T00:00:00Z')]);
     expect((await appeler('POST', '/invitations/accepter', alice.jeton, { jeton })).statut).toBe(403);
     expect((await admin.query('select roles from socle.membre where entreprise = $1 and utilisateur = $2', [ent, alice.id])).rows[0].roles).toEqual(['proprietaire']);
+  });
+
+  // Lot équipe (0079) : l'écran de l'équipe lit les invitations qui attendent ; une invitation renvoyée remplace la
+  // précédente ; un membre ne se réinvite pas ; une invitation s'annule, et son lien ne vaut plus.
+  it('l\'équipe à l\'écran : les invitations qui attendent, pour qui gère l\'équipe seulement, et les rôles qu\'il peut donner', async () => {
+    const alice = await personne('alice');
+    const ent = await entrepriseDe(alice);
+    const bob = await personne('bob');
+    await appeler('POST', '/invitations/accepter', bob.jeton, { jeton: await inviter(ent, alice.jeton, bob.email, ['caissier']) });
+    await inviter(ent, alice.jeton, 'yassine@exemple.tn', ['commercial', 'caissier']);
+    const vue = (await appeler('GET', `/entreprises/${ent}/equipe`, alice.jeton)).corps;
+    expect(vue.moi).toBe(alice.id);
+    expect(vue.invitations).toEqual([{ id: expect.any(String), email: 'yassine@exemple.tn', roles: ['commercial', 'caissier'], expire: '2026-10-08T08:00:00.000Z' }]);
+    expect(vue.donnables).toEqual(['administrateur', 'commercial', 'caissier', 'serveur', 'magasinier', 'comptabilite_interne', 'paie', 'lecture']);
+    // Un caissier voit l'équipe, jamais les invitations, et ne peut rien donner.
+    const vueBob = (await appeler('GET', `/entreprises/${ent}/equipe`, bob.jeton)).corps;
+    expect(vueBob.invitations).toEqual([]);
+    expect(vueBob.donnables).toEqual([]);
+  });
+
+  it('une invitation renvoyée à la même adresse remplace la précédente : l\'ancien lien ne vaut plus', async () => {
+    const alice = await personne('alice');
+    const ent = await entrepriseDe(alice);
+    const bob = await personne('bob');
+    const ancien = await inviter(ent, alice.jeton, bob.email, ['commercial']);
+    const neuf = await inviter(ent, alice.jeton, bob.email, ['caissier']);
+    const vue = (await appeler('GET', `/entreprises/${ent}/equipe`, alice.jeton)).corps.invitations as { roles: string[] }[];
+    expect(vue.map((i) => i.roles)).toEqual([['caissier']]);
+    expect((await appeler('POST', '/invitations/accepter', bob.jeton, { jeton: ancien })).corps.motif).toMatch(/plus valable/);
+    expect((await appeler('POST', '/invitations/accepter', bob.jeton, { jeton: neuf })).statut).toBe(200);
+  });
+
+  it('quelqu\'un qui fait déjà partie de l\'équipe ne se réinvite pas : ses rôles se changent dans la liste', async () => {
+    const alice = await personne('alice');
+    const ent = await entrepriseDe(alice);
+    const bob = await personne('bob');
+    await appeler('POST', '/invitations/accepter', bob.jeton, { jeton: await inviter(ent, alice.jeton, bob.email, ['caissier']) });
+    const r = await appeler('POST', `/entreprises/${ent}/invitations`, alice.jeton, { email: ` ${bob.email.toUpperCase()}`, roles: ['administrateur'] });
+    expect(r).toMatchObject({ statut: 403, corps: { motif: 'Cette personne fait déjà partie de l\'équipe : change ses rôles dans la liste.' } });
+    // Retiré, il se réinvite.
+    expect((await appeler('DELETE', `/entreprises/${ent}/membres/${await membreId(ent, bob.id)}`, alice.jeton)).statut).toBe(200);
+    expect((await appeler('POST', `/entreprises/${ent}/invitations`, alice.jeton, { email: bob.email, roles: ['caissier'] })).statut).toBe(201);
+  });
+
+  it('annuler une invitation : son lien ne vaut plus ; une acceptée ne s\'annule plus ; une autre entreprise n\'en annule rien', async () => {
+    const alice = await personne('alice');
+    const ent = await entrepriseDe(alice);
+    const bob = await personne('bob');
+    const lien = await inviter(ent, alice.jeton, bob.email, ['commercial']);
+    const id = String(((await appeler('GET', `/entreprises/${ent}/equipe`, alice.jeton)).corps.invitations as { id: string }[])[0]?.id);
+    // Une autre entreprise, même gérée par la même personne, ne l'atteint pas.
+    const autre = String((await appeler('POST', '/entreprises', alice.jeton, { raisonSociale: 'Autre Sarl' })).corps.id);
+    expect((await appeler('DELETE', `/entreprises/${autre}/invitations/${id}`, alice.jeton)).statut).toBe(404);
+    expect((await appeler('DELETE', `/entreprises/${ent}/invitations/${id}`, alice.jeton)).statut).toBe(200);
+    expect((await appeler('GET', `/entreprises/${ent}/equipe`, alice.jeton)).corps.invitations).toEqual([]);
+    expect((await appeler('POST', '/invitations/accepter', bob.jeton, { jeton: lien })).corps.motif).toMatch(/plus valable/);
+    // Acceptée, elle ne s'annule plus : on retire la personne.
+    await appeler('POST', '/invitations/accepter', bob.jeton, { jeton: await inviter(ent, alice.jeton, bob.email, ['commercial']) });
+    const acceptee = (await admin.query('select id from socle.invitation where entreprise = $1 and acceptee_le is not null', [ent])).rows[0].id as string;
+    const refus = await appeler('DELETE', `/entreprises/${ent}/invitations/${acceptee}`, alice.jeton);
+    expect(refus).toMatchObject({ statut: 403, corps: { motif: 'Cette invitation a déjà été acceptée : retire la personne de l\'équipe si elle ne doit plus y être.' } });
+    // Un membre qui ne gère pas l'équipe ne l'annule pas (la porte le refuse).
+    const carla = await personne('carla');
+    await appeler('POST', '/invitations/accepter', carla.jeton, { jeton: await inviter(ent, alice.jeton, carla.email, ['caissier']) });
+    await inviter(ent, alice.jeton, 'dora@exemple.tn', ['caissier']);
+    const enAttente = String(((await appeler('GET', `/entreprises/${ent}/equipe`, alice.jeton)).corps.invitations as { id: string }[])[0]?.id);
+    expect((await appeler('DELETE', `/entreprises/${ent}/invitations/${enAttente}`, carla.jeton)).statut).toBe(403);
+    // L'annulation laisse sa trace.
+    expect((await admin.query('select count(*)::int n from socle.audit where entreprise = $1 and geste = \'socle.equipe.annuler\'', [ent])).rows[0].n).toBe(1);
+  });
+
+  it('ce qu\'un lien d\'invitation dit avant de se connecter : où il mène, qui invite, l\'adresse — et rien pour un lien qui ne vaut plus', async () => {
+    const alice = await personne('alice');
+    const ent = await entrepriseDe(alice);
+    const lien = await inviter(ent, alice.jeton, 'Yassine@Exemple.tn', ['commercial']);
+    // Sans session : c'est tout l'intérêt, la personne n'a peut-être pas encore de compte.
+    const r = await appeler('POST', '/invitations/apercu', undefined, { jeton: lien });
+    expect(r).toMatchObject({ statut: 200, corps: { valable: true, email: 'yassine@exemple.tn', ou: 'Menuiserie de l\'essai', type: 'entreprise' } });
+    expect(String(r.corps.invitePar)).toMatch(/^alice \d+$/);
+    // Rien de plus : ni les rôles, ni l'entreprise par son identifiant, ni l'adresse de qui invite.
+    expect(Object.keys(r.corps).sort()).toEqual(['email', 'expire', 'invitePar', 'ou', 'type', 'valable']);
+    // Un lien inventé, un lien remplacé, un lien annulé, un lien qui a servi : « ne vaut plus », et rien d'autre.
+    expect((await appeler('POST', '/invitations/apercu', undefined, { jeton: 'un-lien-que-personne-n-a-donne' })).corps).toEqual({ valable: false });
+    const neuf = await inviter(ent, alice.jeton, 'yassine@exemple.tn', ['commercial']);
+    expect((await appeler('POST', '/invitations/apercu', undefined, { jeton: lien })).corps).toEqual({ valable: false });
+    expect((await appeler('POST', '/invitations/apercu', undefined, { jeton: neuf })).corps.valable).toBe(true);
+    const annule = await inviter(ent, alice.jeton, 'carla@exemple.tn', ['lecture']);
+    const id = String(((await appeler('GET', `/entreprises/${ent}/equipe`, alice.jeton)).corps.invitations as { id: string; email: string }[]).find((i) => i.email === 'carla@exemple.tn')?.id);
+    expect((await appeler('DELETE', `/entreprises/${ent}/invitations/${id}`, alice.jeton)).statut).toBe(200);
+    expect((await appeler('POST', '/invitations/apercu', undefined, { jeton: annule })).corps).toEqual({ valable: false });
+    const bob = await personne('bob');
+    const servi = await inviter(ent, alice.jeton, bob.email, ['caissier']);
+    expect((await appeler('POST', '/invitations/accepter', bob.jeton, { jeton: servi })).statut).toBe(200);
+    expect((await appeler('POST', '/invitations/apercu', undefined, { jeton: servi })).corps).toEqual({ valable: false });
   });
 
   it('retirer un membre : son accès tombe aussitôt', async () => {

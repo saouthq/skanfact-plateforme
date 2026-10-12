@@ -12,6 +12,17 @@ declarerTextes({
   'ecran.deconnexion': 'se déconnecter',
   'ecran.invitation.titre': 'l\'invitation n\'a pas abouti',
   'ecran.invitation.continuer': 'continuer',
+  // Arriver par un lien d'invitation (lot équipe, 0079) : qui invite, où, et l'adresse avec laquelle entrer — l'invitation
+  // lui est réservée.
+  'ecran.invitation.etape': 'une invitation',
+  'ecran.invitation.sous_inscription': '{qui} t\'invite à rejoindre {ou} sur SkanFact. Crée ton compte avec l\'adresse {email} : l\'invitation lui est réservée',
+  'ecran.invitation.sous_connexion': '{qui} t\'invite à rejoindre {ou} sur SkanFact. Connecte-toi avec l\'adresse {email} : l\'invitation lui est réservée',
+  'ecran.invitation.perimee': 'ce lien d\'invitation ne vaut plus : il a déjà servi, a été annulé, ou ses 7 jours sont passés. Demande un nouveau lien à la personne qui t\'a invité',
+  'ecran.vitrine.invitation_titre': 'rejoins {ou}',
+  'ecran.vitrine.invitation_sous': '{qui} t\'a invité dans son équipe',
+  'ecran.vitrine.invitation_compte': 'ton nom, l\'adresse invitée et un mot de passe. Ce compte est à toi : il te suit si tu travailles un jour pour une autre entreprise',
+  'ecran.vitrine.invitation_entree': 'tu arrives directement dans {ou}, avec les accès qu\'on t\'a donnés : tu ne vois que ce qui te sert',
+  'ecran.vitrine.invitation_entree_titre': 'tu entres',
   // La phrase d'accueil de la v10, sous le titre de chaque carte.
   'ecran.accueil.sous': 'tes devis, tes factures et ta gestion, en main dès aujourd\'hui',
   'ecran.champ.afficher': 'afficher',

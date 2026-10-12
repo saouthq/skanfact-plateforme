@@ -1,0 +1,84 @@
+L'équipe de l'entreprise (lot équipe, 12/10/2026 ; migration 0079, docs/equipe.md). Format : voir sans-paquets.mjs.
+
+Le serveur savait inviter, changer un rôle et retirer quelqu'un depuis la brique 46 ; aucun écran ne le proposait : un
+commerçant ne pouvait pas donner un accès à son vendeur ou à sa caissière. L'onglet « L'équipe » des Paramètres, après
+« Mon entreprise », pour qui gère l'équipe (le propriétaire, un administrateur : 03 D3, ce qui n'est jamais à portée ne
+se montre pas). Tout est dessiné par plateforme/equipe.js, avec les fenêtres de la v10 (`modal`, `confirmDialog`) et son
+`toast`.
+
+== index.html | le dessin de l'équipe et sa feuille se chargent après « Ton compte », dont il reprend les aides
+-- avant
+  <script src="../plateforme/compte.js"></script>
+  <link rel="stylesheet" href="../plateforme/compte.css">
+-- après
+  <script src="../plateforme/compte.js"></script>
+  <link rel="stylesheet" href="../plateforme/compte.css">
+  <script src="../plateforme/equipe.js"></script>
+  <link rel="stylesheet" href="../plateforme/equipe.css">
+-- fin
+
+== app.js | « L'équipe » est un onglet des Paramètres, après « Mon entreprise », quand le point de contact sait la dessiner
+-- avant
+  const SETTINGS_TABS = [...(bridge.dessinerCompte ? [['compte', 'Ton compte']] : []), ['societe', 'Mon entreprise'], ['documents', 'Documents'], ['envois', 'Envois'],
+-- après
+  const SETTINGS_TABS = [...(bridge.dessinerCompte ? [['compte', 'Ton compte']] : []), ['societe', 'Mon entreprise'], ...(bridge.dessinerEquipe ? [['equipe', 'L\'équipe']] : []), ['documents', 'Documents'], ['envois', 'Envois'],
+-- fin
+
+== app.js | l'équipe ne se montre qu'à qui la gère : le propriétaire, un administrateur ; son panneau a son entrée (recherche des réglages, palette)
+-- avant
+    'p-compte': { onglet: 'compte', titre: 'Ton compte',
+-- après
+    'p-equipe': { onglet: 'equipe', titre: 'L\'équipe', mots: 'equipe inviter invitation collaborateur salarie vendeur commercial caissier caissiere magasinier comptabilite paie lecture acces role droits retirer membre personne', visible: () => equipeVisible() },
+    'p-compte': { onglet: 'compte', titre: 'Ton compte',
+-- fin
+
+== app.js | qui gère l'équipe : le point de contact le dit (les droits du dossier)
+-- avant
+  const SETTINGS_PANNEAUX = {
+-- après
+  // (plateforme, lot équipe) L'onglet de l'équipe ne se montre qu'au propriétaire et à un administrateur : la base refuse
+  // ses gestes à tout autre rôle (03 D3).
+  const equipeVisible = () => !!bridge.dessinerEquipe && !!(bridge.droitsDossier && bridge.droitsDossier().responsable);
+  const SETTINGS_PANNEAUX = {
+-- fin
+
+== app.js | la palette ne propose l'onglet de l'équipe qu'à qui le voit
+-- avant
+      ['Paramètres', '#/parametres', v => { settingsTab = v; }, SETTINGS_TABS]
+-- après
+      ['Paramètres', '#/parametres', v => { settingsTab = v; }, SETTINGS_TABS.filter(t => t[0] !== 'equipe' || equipeVisible())]
+-- fin
+
+== app.js | les Paramètres n'ouvrent l'onglet de l'équipe qu'à qui le voit
+-- avant
+    const TABS = SETTINGS_TABS;
+-- après
+    const TABS = SETTINGS_TABS.filter(t => t[0] !== 'equipe' || equipeVisible());
+-- fin
+
+== app.js | l'onglet « L'équipe » : son panneau
+-- avant
+      <section data-pane="compte" hidden>
+-- après
+      ${equipeVisible() ? `<section data-pane="equipe" hidden>
+      ${panneau('p-equipe', info('set.equipe'))}<div id="equipe-panel"></div></div>
+      </section>` : ''}
+
+      <section data-pane="compte" hidden>
+-- fin
+
+== app.js | le point de contact dessine l'équipe quand les Paramètres s'ouvrent, avec les fenêtres de la v10
+-- avant
+    if (bridge.dessinerCompte && $('#compte-panel')) void bridge.dessinerCompte($('#compte-panel'), { modal, toast });
+-- après
+    if (bridge.dessinerCompte && $('#compte-panel')) void bridge.dessinerCompte($('#compte-panel'), { modal, toast });
+    if (bridge.dessinerEquipe && $('#equipe-panel')) void bridge.dessinerEquipe($('#equipe-panel'), { modal, toast, confirmDialog, nom: company().name });
+-- fin
+
+== guide.js | la bulle de l'équipe
+-- avant
+    'data.dossiers': {
+-- après
+    'set.equipe': { t: 'L\'équipe', d: 'Les personnes qui travaillent dans ton entreprise sur SkanFact, chacune avec <b>son propre compte</b> : chaque geste porte le nom de qui l\'a fait. Tu invites quelqu\'un par son adresse e-mail et tu coches ses <b>rôles</b> : ils disent ce qu\'il voit et ce qu\'il fait (un commercial vend, un caissier tient la caisse, la paie voit les salaires). Avec plusieurs rôles, il a tout ce que chacun ouvre. Aucun rôle n\'est coché d\'avance : commence par le plus étroit, tu lui en donneras plus d\'un clic.<br><br>L\'invitation est un <b>lien</b>, que tu lui envoies toi-même (copier, WhatsApp, ta messagerie). Il vaut <b>7 jours, une seule fois</b>, et seulement pour l\'adresse que tu as tapée : la personne se connecte avec elle, ou crée son compte avec elle. Perdu, il se refait ; l\'ancien ne vaut plus.<br><br>Seuls le propriétaire et un administrateur voient cet onglet. Personne ne change ses propres rôles ; ceux du propriétaire ne se changent pas : la propriété se transfère. Retirée, une personne n\'ouvre plus l\'entreprise, et ce qu\'elle a fait garde son nom.' },
+    'data.dossiers': {
+-- fin

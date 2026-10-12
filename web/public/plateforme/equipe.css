@@ -1,0 +1,40 @@
+/* L'équipe de l'entreprise (lot équipe, 12/10/2026 ; equipe.js). Une ligne par personne : son initiale, son nom et son
+   adresse, ses rôles en pastilles, et UN bouton « Actions » (règle 7.29.0). Les couleurs sont les variables de la v10,
+   qui suivent son thème sombre. Les fenêtres reprennent celles de « Ton compte » (compte.css : .cpt-form, .cpt-alerte). */
+.eqp { display: flex; flex-direction: column; gap: 12px; }
+.eqp-tete { display: flex; align-items: flex-start; gap: 12px 18px; flex-wrap: wrap; }
+.eqp-tete > p { flex: 1 1 360px; margin: 0; }
+.eqp-tete > .btn { flex: none; }
+.eqp-titre { margin: 6px 0 0; font-size: 14px; font-weight: 650; }
+.eqp-liste { margin: 0; padding: 0; list-style: none; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); }
+/* Chaque ligne est sa propre grille : aucune colonne ne dépend de son contenu (10.12.0), sinon les rôles changent de place
+   d'une ligne à l'autre selon qu'elle porte un bouton « Actions » ou non. */
+.eqp-ligne { display: grid; grid-template-columns: 36px minmax(0, 1.3fr) minmax(0, 1.6fr) 8rem; align-items: center; gap: 12px 16px; padding: 12px 16px; }
+.eqp-ligne > .row-menu-btn { justify-self: end; }
+.eqp-ligne + .eqp-ligne { border-top: 1px solid var(--border); }
+.eqp-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+.eqp-attente .eqp-avatar { background: var(--ink-soft); color: var(--muted); }
+.eqp-qui { min-width: 0; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.eqp-nom { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.eqp-roles { display: flex; flex-wrap: wrap; gap: 6px; }
+.eqp-role { padding: 2px 10px; border-radius: 999px; background: var(--ink-soft); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+
+/* Les cases des rôles : une par ligne, l'étiquette est UN élément (10.12.0). */
+.eqp-choix { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.eqp-choix > legend { padding: 0; margin-bottom: 8px; font-weight: 600; }
+.eqp-case { align-items: flex-start; }
+/* La case garde sa taille quand la phrase passe sur deux lignes (« Administrateur ») : sinon le flex la rétrécit. */
+.eqp-case input { flex: none; margin-top: 3px; }
+.eqp-choix.cpt-faute { outline: 2px solid var(--danger); outline-offset: 6px; border-radius: 6px; }
+
+/* Le lien d'invitation : le champ et « Copier », puis les deux envois. */
+.eqp-lien { display: flex; gap: 8px; margin: 14px 0 10px; }
+.eqp-lien > input { flex: 1 1 auto; min-width: 0; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; }
+.eqp-envois { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.eqp-envois > .btn { text-decoration: none; }
+
+@media (max-width: 720px) {
+  .eqp-ligne { grid-template-columns: 36px minmax(0, 1fr) 7rem; }
+  .eqp-roles { grid-column: 2 / -1; grid-row: 2; }
+  .eqp-lien { flex-direction: column; }
+}

@@ -21,3 +21,8 @@
 @media (max-width: 760px) {
   .guide-appel.ga-coin { left: 12px; right: 12px; width: auto; }
 }
+
+/* « Ton accès à … », l'accueil d'un membre de l'équipe (brique 111) : ses pages passaient sur une seule rangée, et un
+   commercial (onze pages) faisait défiler tout l'accueil de côté — vu le 12/10/2026, à la première connexion d'un vendeur
+   invité. Les pages vont à la ligne. */
+#accueil-role .inline { flex-wrap: wrap; }

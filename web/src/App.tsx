@@ -137,7 +137,9 @@ export function App() {
     if (REINITIALISER) return { ecran: 'nouveau', jeton: REINITIALISER };
     if (session.jeton()) return { ecran: 'dedans' };
     const defi = defiEnCours.lire();
-    return defi ? { ecran: 'code', defi } : { ecran: 'connexion' };
+    // Un lien d'invitation est le plus souvent ouvert par quelqu'un qui n'a pas encore de compte (un vendeur, une
+    // caissière) : il arrive sur la création du compte, l'adresse invitée déjà remplie (lot équipe).
+    return defi ? { ecran: 'code', defi } : { ecran: invitation.lire() ? 'inscription' : 'connexion' };
   });
   // L'écran du code se garde dans l'onglet ; tout autre écran l'oublie.
   const setAccueil = useCallback((a: Accueil) => {
@@ -156,6 +158,24 @@ export function App() {
     void appeler<{ nom: string }>('GET', `/partenaires/${encodeURIComponent(demandeConnexion.partenaire)}?retour=${encodeURIComponent(demandeConnexion.retour)}`)
       .then((r) => { if (r.statut === 200) setAttend(phrase('ecran.connecter.connexion_sous', { partenaire: r.corps.nom })); }).catch(() => undefined);
   }, [demandeConnexion]);
+
+  // Arrivé par un lien d'invitation, sans session : ce que le lien dit (où il mène, qui invite, l'adresse avec laquelle
+  // entrer), lu avant de se connecter (0079). Un lien qui ne vaut plus se dit tout de suite, et s'oublie.
+  type Apercu = { valable: false } | { valable: true; email: string; ou: string; invitePar: string };
+  const [apercu, setApercu] = useState<Apercu | null>(null);
+  useEffect(() => {
+    const jeton = invitation.lire();
+    if (!jeton || session.jeton()) return;
+    void appeler<Apercu>('POST', '/invitations/apercu', { jeton }).then((r) => {
+      if (r.statut !== 200) return;
+      setApercu(r.corps);
+      if (!r.corps.valable) { invitation.oublier(); setAccueilBrut((a) => (a.ecran === 'inscription' ? { ecran: 'connexion' } : a)); }
+    }).catch(() => undefined);
+  }, []);
+  const invite = apercu?.valable ? { email: apercu.email, ou: apercu.ou, qui: apercu.invitePar } : null;
+  const sousInvitation = (ecran: 'inscription' | 'connexion') => (apercu === null ? null : invite
+    ? phrase(ecran === 'inscription' ? 'ecran.invitation.sous_inscription' : 'ecran.invitation.sous_connexion', { qui: invite.qui, ou: invite.ou, email: invite.email })
+    : phrase('ecran.invitation.perimee'));
 
   const sortir = useCallback(async () => {
     await appeler('POST', '/deconnexion').catch(() => undefined);
@@ -228,7 +248,8 @@ export function App() {
   let ecran: ReactNode;
   switch (accueil.ecran) {
     case 'inscription': ecran = <Inscription connecte={vers({ ecran: 'dedans' })} code={(defi) => setAccueil({ ecran: 'code', defi })}
-      aConnecter={(email) => setAccueil({ ecran: 'connexion', email })} connexion={vers({ ecran: 'connexion' })} sous={attend} />; break;
+      aConnecter={(email) => setAccueil({ ecran: 'connexion', email })} connexion={vers({ ecran: 'connexion' })} sous={attend ?? sousInvitation('inscription')}
+      invitation={invite} key={invite?.email ?? ''} />; break;
     case 'code': {
       const defi = accueil.defi;
       ecran = <Code defi={defi} connecte={vers({ ecran: 'dedans' })} retour={vers({ ecran: 'connexion' })}
@@ -236,7 +257,8 @@ export function App() {
       break;
     }
     case 'connexion': ecran = <Connexion connecte={vers({ ecran: 'dedans' })} code={(defi) => setAccueil({ ecran: 'code', defi })} oubli={(email) => setAccueil({ ecran: 'oubli', email })}
-      inscription={vers({ ecran: 'inscription' })} sous={attend} {...(accueil.email ? { email: accueil.email } : {})} />; break;
+      inscription={vers({ ecran: 'inscription' })} sous={attend ?? sousInvitation('connexion')} key={accueil.email ?? invite?.email ?? ''}
+      {...(accueil.email ? { email: accueil.email } : invite ? { email: invite.email } : {})} />; break;
     case 'oubli': ecran = <Oubli email={accueil.email} retour={vers({ ecran: 'connexion', email: accueil.email })} />; break;
     case 'nouveau': ecran = <NouveauMotDePasse jeton={accueil.jeton} fait={() => { session.quitter(); setMoi(null); setAccueil({ ecran: 'connexion' }); }}
       redemander={vers({ ecran: 'oubli', email: '' })} retour={vers({ ecran: 'connexion' })} />; break;

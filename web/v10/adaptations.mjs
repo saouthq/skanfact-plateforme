@@ -723,4 +723,6 @@ export const ADAPTATIONS = [
   ...lireFichier('premiers-pas.txt'),
   // ── La messagerie entre l'entreprise et son cabinet (09/10/2026 ; maquettes validées par Skander, docs/messagerie.md) ──
   ...lireFichier('messagerie.txt'),
+  // ── Le lot équipe (12/10/2026 ; inviter son équipe, docs/equipe.md) ──
+  ...lireFichier('equipe-entreprise.txt'),
 ];

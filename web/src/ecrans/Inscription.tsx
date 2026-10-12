@@ -9,7 +9,7 @@ import { LONGUEUR_MINIMALE } from '../../../commun/compte.ts';
 import { appeler, ErreurReseau, session } from '../api.ts';
 import { Bouton } from '../composants/Bouton.tsx';
 import { Champ } from '../composants/Champ.tsx';
-import { Dessin, PageDouble, VitrineCompte } from '../composants/Entree.tsx';
+import { Dessin, PageDouble, VitrineCompte, VitrineInvitation } from '../composants/Entree.tsx';
 import { toast } from '../composants/Toast.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
@@ -35,12 +35,15 @@ export function Jauge({ motDePasse }: { motDePasse: string }) {
   );
 }
 
-export function Inscription({ connecte, code, aConnecter, connexion, sous }: {
+// `invitation` : arrivée par un lien d'invitation (lot équipe) : l'adresse invitée est déjà remplie, la vitrine dit où
+// la personne entre, et il n'y a pas d'entreprise à créer ensuite.
+export function Inscription({ connecte, code, aConnecter, connexion, sous, invitation }: {
   connecte: () => void; code: (d: Defi) => void; aConnecter: (email: string) => void; connexion: () => void; sous?: string | null;
+  invitation?: { email: string; ou: string; qui: string } | null;
 }) {
   const g = useGeste(rien);
   const options = useOptions();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(invitation?.email ?? '');
   const [nom, setNom] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
 
@@ -76,9 +79,9 @@ export function Inscription({ connecte, code, aConnecter, connexion, sous }: {
   });
 
   return (
-    <PageDouble vitrine={<VitrineCompte code={options.courriel} />}
+    <PageDouble vitrine={invitation ? <VitrineInvitation ou={invitation.ou} qui={invitation.qui} /> : <VitrineCompte code={options.courriel} />}
       haut={<>
-        <span className="etape">{titre('ecran.inscription.etape')}</span>
+        <span className="etape">{titre(invitation ? 'ecran.invitation.etape' : 'ecran.inscription.etape')}</span>
         <span>{titre('ecran.inscription.deja')} <button type="button" className="ent-lien" onClick={connexion}>{titre('ecran.inscription.se_connecter')}</button></span>
       </>}>
       <form noValidate className="ent-formulaire" onSubmit={(e) => { e.preventDefault(); void envoyer(); }}>

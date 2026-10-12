@@ -10,7 +10,7 @@ import { connecter, corrigerAdresse, deconnecter, demanderReinitialisation, essa
 import { activerCode, changerMotDePasse, confirmerChangementAdresse, confirmerVerificationAdresse, demanderChangementAdresse, demanderVerificationAdresse, nouveauxCodesDeSecours, preparerCode, retirerCode, type Refuse } from '../compte.ts';
 import { prochainNumero } from '../numeros.ts';
 import { regle } from '../regles.ts';
-import { requetes } from '../base.ts';
+import { enTantQue, requetes } from '../base.ts';
 import { creerCle } from '../cles.ts';
 import { EVENEMENTS, nouveauSecret } from '../avis.ts';
 import { motif, t } from '../../textes/index.ts';
@@ -330,20 +330,31 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
     },
   });
 
+  // L'équipe : ses membres pour tous ; pour qui la gère (le propriétaire, un administrateur), les invitations qui
+  // attendent (la sécurité par ligne ne les montre qu'à eux) et les rôles qu'il peut donner (lot équipe, 0079).
   ajouter({
     methode: 'GET', chemin: '/entreprises/:entreprise/equipe', geste: 'socle.accueil.voir',
     traiter: async ({ params }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const membres = (await tx.query(`select m.id, m.utilisateur, u.nom, u.email, m.roles, m.actif from socle.membre m
         join socle.utilisateur u on u.id = m.utilisateur where m.entreprise = $1 and m.actif order by u.nom limit $2`, [params.entreprise, LIMITE_MAX])).rows;
-      return { corps: { membres } };
+      const invitations = (await tx.query(`select id, email, roles, expire_le from socle.invitation
+        where entreprise = $1 and acceptee_le is null and annulee_le is null and expire_le > $2 order by cree_le limit $3`, [params.entreprise, maintenant(), LIMITE_MAX])).rows as { id: string; email: string; roles: string[]; expire_le: Date }[];
+      const r = (await tx.query('select socle.moi() moi, socle.roles_donnables($1) donnables', [params.entreprise])).rows[0] as { moi: string; donnables: string[] };
+      return {
+        corps: {
+          membres, moi: r.moi, donnables: r.donnables,
+          invitations: invitations.map((i) => ({ id: i.id, email: i.email, roles: i.roles, expire: i.expire_le.toISOString() })),
+        },
+      };
     },
   });
 
   // ── L'équipe ────────────────────────────────────────────────────────────────────────────────
   ajouter({
     methode: 'POST', chemin: '/entreprises/:entreprise/invitations', geste: 'socle.equipe.gerer',
-    corps: z.object({ email: z.string().email(), roles: ROLES }),
+    // L'adresse se lit sans les espaces d'un copier-coller.
+    corps: z.object({ email: z.string().trim().email(), roles: ROLES }),
     // Le lien d'invitation n'est rendu qu'ici, une fois ; la base n'en garde que l'empreinte.
     traiter: async ({ params, corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
@@ -351,6 +362,31 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       const expire = new Date(maintenant().getTime() + 7 * 24 * 3600_000);
       const id = (await tx.query('select socle.inviter($1, $2, $3, $4, $5) id', [params.entreprise, corps.email, corps.roles, sha256(jeton), expire])).rows[0].id;
       return { statut: 201, corps: { id, jeton, expire } };
+    },
+  });
+
+  // Annuler une invitation qui attend : son lien ne vaut plus (0079).
+  ajouter({
+    methode: 'DELETE', chemin: '/entreprises/:entreprise/invitations/:invitation', geste: 'socle.equipe.gerer',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.invitation).success) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
+      const dans = (await tx.query('select 1 from socle.invitation where id = $1 and entreprise = $2', [params.invitation, params.entreprise])).rowCount;
+      if (!dans) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
+      await tx.query('select socle.annuler_invitation($1)', [params.invitation]);
+      return { corps: { ok: true } };
+    },
+  });
+
+  // Ce qu'un lien d'invitation dit à qui l'ouvre, avant de se connecter (0079) : où il mène, qui invite, et l'adresse
+  // avec laquelle entrer (l'écran la remplit). Un lien qui ne vaut plus ne dit rien d'autre que cela.
+  ajouter({
+    methode: 'POST', chemin: '/invitations/apercu', geste: 'public',
+    corps: z.object({ jeton: z.string().min(10).max(100) }),
+    traiter: async ({ corps }) => {
+      const r = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.apercu_invitation($1, $2)', [sha256(corps.jeton), maintenant()])).rows[0]) as
+        { email: string; entreprise: string | null; cabinet: string | null; invite_par: string; expire_le: Date } | undefined;
+      if (!r) return { corps: { valable: false } };
+      return { corps: { valable: true, email: r.email, ou: r.entreprise ?? r.cabinet, type: r.entreprise ? 'entreprise' : 'cabinet', invitePar: r.invite_par, expire: r.expire_le.toISOString() } };
     },
   });
 

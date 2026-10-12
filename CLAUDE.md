@@ -410,6 +410,15 @@
     bouton qui nomme son geste (`…_bouton` au catalogue : un e-mail neuf qui porte un lien en déclare un, un test le
     lit), la marque et un pied fixes, l'expéditeur « SkanFact ». Jamais une image ni rien de chargé à distance (une
     image distante dirait qui a ouvert, et d'où), jamais une phrase dans `courriel.html` : elles vont au catalogue.
+  - **L'équipe de l'entreprise** (lot équipe, 12/10/2026 ; `docs/equipe.md`, `0079`, `web/public/plateforme/equipe.js`,
+    `web/v10/equipe-entreprise.txt`) : l'onglet « L'équipe » des Paramètres, pour le propriétaire et un administrateur
+    seuls (03 D3). Inviter coche des rôles, aucun d'avance (D5) ; une invitation par adresse (la nouvelle remplace
+    l'ancienne : « Donner un nouveau lien ») ; ni sa propre ligne ni celle du propriétaire n'ont de menu (D6, D4). Le
+    lien se montre une fois et part par les moyens de qui invite (copier, WhatsApp, sa messagerie) : le serveur
+    n'envoie RIEN. Qui ouvre le lien sans compte voit où il va, qui l'invite et l'adresse réservée
+    (`POST /invitations/apercu`, public, `socle.apercu_invitation`) et arrive sur « Créer un compte », l'adresse remplie.
+    Pas faits : le prix à la quatrième personne (l'abonnement ne compte pas encore les utilisateurs) ; le drapeau
+    `prevenirProprietaire` des gestes n'a aucun lecteur.
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

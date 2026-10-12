@@ -418,5 +418,7 @@
     });
   }
 
-  w.SkanCompte = { dessiner, appareils };
+  // `aides` : ce que les autres panneaux des Paramètres reprennent tel quel (l'équipe, equipe.js) — un refus dit de la
+  // même façon partout, et une seule copie de chaque geste.
+  w.SkanCompte = { dessiner, appareils, aides: { esc, jour, pl, refuser, effacerRefus, surClic, copier } };
 })();

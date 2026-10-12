@@ -23,6 +23,9 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'cette invitation a été envoyée à une autre adresse', cle: 'base.equipe.invitation_autre_adresse', fr: 'cette invitation a été envoyée à une autre adresse' },
   { base: 'tu es le propriétaire de cette entreprise : ton rôle ne change pas par une invitation', cle: 'base.equipe.proprietaire_invite', fr: 'tu es le propriétaire de cette entreprise : ton rôle ne change pas par une invitation' },
   { base: 'membre introuvable', cle: 'base.equipe.membre_introuvable', fr: 'membre introuvable' },
+  // L'équipe à l'écran (0079) : un membre ne se réinvite pas, une invitation acceptée ne s'annule plus.
+  { base: 'cette personne fait déjà partie de l\'équipe : change ses rôles dans la liste', cle: 'base.equipe.deja_membre', fr: 'cette personne fait déjà partie de l\'équipe : change ses rôles dans la liste' },
+  { base: 'cette invitation a déjà été acceptée : retire la personne de l\'équipe si elle ne doit plus y être', cle: 'base.equipe.invitation_acceptee', fr: 'cette invitation a déjà été acceptée : retire la personne de l\'équipe si elle ne doit plus y être' },
   { base: 'personne ne change son propre rôle', cle: 'base.equipe.propre_role', fr: 'personne ne change son propre rôle' },
   { base: 'le rôle du propriétaire ne se change pas : il se transfère', cle: 'base.equipe.role_proprietaire', fr: 'le rôle du propriétaire ne se change pas : il se transfère' },
   { base: 'on ne retire pas le propriétaire : il transfère d\'abord la propriété', cle: 'base.equipe.retirer_proprietaire', fr: 'on ne retire pas le propriétaire : il transfère d\'abord la propriété' },

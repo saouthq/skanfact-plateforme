@@ -95,6 +95,22 @@ export function VitrineCompte({ code = false }: { code?: boolean }) {
   );
 }
 
+// Arriver par un lien d'invitation (lot équipe, 0079) : pas de « trois étapes » ni d'entreprise à créer — la personne
+// rejoint celle qui l'invite. Deux étapes : son compte, puis l'entrée.
+export function VitrineInvitation({ ou, qui }: { ou: string; qui: string }) {
+  return (
+    <>
+      <div className="ent-vitrine-titre"><h2>{titre('ecran.vitrine.invitation_titre', { ou })}</h2><p>{phrase('ecran.vitrine.invitation_sous', { qui })}</p></div>
+      <ol className="ent-etapes-liste">
+        <li className="actuelle"><span className="num" data-donnee>1</span>
+          <span className="txt"><b>{titre('ecran.etape.compte')}</b><span>{phrase('ecran.vitrine.invitation_compte')}</span></span></li>
+        <li><span className="num" data-donnee>2</span>
+          <span className="txt"><b>{titre('ecran.vitrine.invitation_entree_titre')}</b><span>{phrase('ecran.vitrine.invitation_entree', { ou })}</span></span></li>
+      </ol>
+    </>
+  );
+}
+
 // La page en deux : la vitrine à gauche (au téléphone, la marque seule en haut), le formulaire à droite.
 export function PageDouble({ vitrine, haut, bas, children }: { vitrine: ReactNode; haut?: ReactNode; bas?: ReactNode; children: ReactNode }) {
   return (

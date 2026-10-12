@@ -232,6 +232,8 @@ prouver "un mot de passe volé accepté" serveur/mot-de-passe.ts \
 
 # ── L'équipe, la porte et la trace (0003) ──────────────────────────────────────────────────────
 E=base/migrations/0003_equipe_et_trace.sql
+# Depuis le lot équipe (12/10/2026), socle.inviter vit dans 0079.
+E79=base/migrations/0079_equipe_entreprise.sql
 G=serveur/porte/gestes.ts
 PO=serveur/porte/porte.ts
 A=serveur/app.ts
@@ -308,7 +310,7 @@ prouver "on retire le propriétaire" $E \
     perform socle.refus('on ne retire pas le propriétaire" "  if false then
     perform socle.refus('on ne retire pas le propriétaire" \
   "D6 : personne ne se donne un droit"
-prouver "on s'invite soi-même" $E \
+prouver "on s'invite soi-même" $E79 \
   "    perform socle.refus('personne ne s''invite soi-même');" "    null;" \
   "D6 : personne ne se donne un droit"
 prouver "un transfert accepté par un autre que le destinataire" $E \
@@ -7371,7 +7373,7 @@ prouver "la demande de connexion perdue à la connexion" web/src/App.tsx \
   "if (location.pathname === '/connecter') {" "if (location.pathname === '/jamais') {" \
   "$BW"
 prouver "la connexion qui ne dit pas qui attend" web/src/App.tsx \
-  "inscription={vers({ ecran: 'inscription' })} sous={attend}" "inscription={vers({ ecran: 'inscription' })}" \
+  "inscription={vers({ ecran: 'inscription' })} sous={attend ?? sousInvitation('connexion')}" "inscription={vers({ ecran: 'inscription' })} sous={sousInvitation('connexion')}" \
   "$BW"
 prouver "refuser qui ne dit pas le refus" web/src/ecrans/Connecter.tsx \
   "const suite = new URLSearchParams({ erreur: 'refusee', etat: demande.etat });" "const suite = new URLSearchParams({ etat: demande.etat });" \
@@ -9887,6 +9889,76 @@ prouver "le refus du script d'e-mails sans la ligne à relancer" exploitation/co
 prouver "le refus de l'installation sans la ligne à relancer" exploitation/installer.sh \
   '| sudo bash -s app.skanfact.tn" >&2; exit 2; }' '" >&2; exit 2; }' \
   "$RC5"
+
+# ── Le lot équipe (12/10/2026 ; migration 0079, docs/equipe.md) ──────────────────────────────────────────────────────
+EQ1="une invitation renvoyée à la même adresse remplace la précédente : l'ancien lien ne vaut plus"
+prouver "une invitation renvoyée qui laisse l'ancien lien valable" $E79 \
+  "  update socle.invitation set annulee_le = now()
+   where entreprise = p_entreprise and email = v_email and acceptee_le is null and annulee_le is null;" "" \
+  "$EQ1"
+EQ2="quelqu'un qui fait déjà partie de l'équipe ne se réinvite pas : ses rôles se changent dans la liste"
+prouver "un membre réinvité, dont l'acceptation remplacerait les rôles en silence" $E79 \
+  "    perform socle.refus('cette personne fait déjà partie de l''équipe : change ses rôles dans la liste');" "    null;" \
+  "$EQ2"
+prouver "une adresse lue avec les espaces d'un copier-coller" serveur/routes/socle.ts \
+  "corps: z.object({ email: z.string().trim().email(), roles: ROLES })," "corps: z.object({ email: z.string().email(), roles: ROLES })," \
+  "$EQ2"
+EQ3="annuler une invitation : son lien ne vaut plus ; une acceptée ne s'annule plus ; une autre entreprise n'en annule rien"
+prouver "une invitation acceptée qui s'annule" $E79 \
+  "    perform socle.refus('cette invitation a déjà été acceptée : retire la personne de l''équipe si elle ne doit plus y être');" "    null;" \
+  "$EQ3"
+prouver "l'invitation d'une autre entreprise annulée par son adresse" serveur/routes/socle.ts \
+  "const dans = (await tx.query('select 1 from socle.invitation where id = \$1 and entreprise = \$2', [params.invitation, params.entreprise])).rowCount;" "const dans = (await tx.query('select 1 from socle.invitation where id = \$1', [params.invitation])).rowCount;" \
+  "$EQ3"
+prouver "une invitation annulée sans trace" $E79 \
+  "    perform socle.tracer(i.entreprise, 'socle.equipe.annuler', 'invitation', i.id, null, jsonb_build_object('email', i.email));" "    null;" \
+  "$EQ3"
+EQ4="l'équipe à l'écran : les invitations qui attendent, pour qui gère l'équipe seulement, et les rôles qu'il peut donner"
+prouver "l'écran de l'équipe sans les rôles qu'on peut donner" serveur/routes/socle.ts \
+  "membres, moi: r.moi, donnables: r.donnables," "membres, moi: r.moi, donnables: []," \
+  "$EQ4"
+EQ5="ce qu'un lien d'invitation dit avant de se connecter : où il mène, qui invite, l'adresse — et rien pour un lien qui ne vaut plus"
+prouver "l'aperçu d'un lien annulé" $E79 \
+  "   where i.jeton_empreinte = p_jeton_empreinte and i.acceptee_le is null and i.annulee_le is null and i.expire_le > p_maintenant" "   where i.jeton_empreinte = p_jeton_empreinte and i.acceptee_le is null and i.expire_le > p_maintenant" \
+  "$EQ5"
+prouver "l'aperçu d'un lien qui a servi" $E79 \
+  "   where i.jeton_empreinte = p_jeton_empreinte and i.acceptee_le is null and i.annulee_le is null and i.expire_le > p_maintenant" "   where i.jeton_empreinte = p_jeton_empreinte and i.annulee_le is null and i.expire_le > p_maintenant" \
+  "$EQ5"
+prouver "l'aperçu qui en dit plus que le message" serveur/routes/socle.ts \
+  "type: r.entreprise ? 'entreprise' : 'cabinet', invitePar" "type: r.entreprise ? 'entreprise' : 'cabinet', roles: [], invitePar" \
+  "$EQ5"
+EQW="inviter, rejoindre par le lien sans compte, changer les rôles, retirer, annuler une invitation"
+prouver "l'onglet de l'équipe montré à qui ne la gère pas" web/public/v10/app.js \
+  "    const TABS = SETTINGS_TABS.filter(t => t[0] !== 'equipe' || equipeVisible());" "    const TABS = SETTINGS_TABS;" \
+  "$EQW"
+prouver "un rôle coché d'avance à l'invitation" web/public/plateforme/equipe.js \
+  "\${casesRoles(donnables, [], 'Ce qu\\'il pourra faire')}" "\${casesRoles(donnables, ['commercial'], 'Ce qu\\'il pourra faire')}" \
+  "$EQW"
+prouver "une invitation sans rôle envoyée au serveur" web/public/plateforme/equipe.js \
+  "        if (!roles.length) { refuser(racine, AU_MOINS_UN(), cases); return; }
+        /** @type {any} */ let r;" "        /** @type {any} */ let r;" \
+  "$EQW"
+prouver "le message qui redit l'adresse telle que tapée" web/public/plateforme/equipe.js \
+  "        const email = champ.value.trim().toLowerCase();" "        const email = champ.value.trim();" \
+  "$EQW"
+prouver "le message WhatsApp sans le lien" web/public/plateforme/equipe.js \
+  "ou crée ton compte avec elle :\\n\\n\${lien}\\n\\n" "ou crée ton compte avec elle :\\n\\n" \
+  "$EQW"
+prouver "les lignes de soi et du propriétaire avec un menu" web/public/plateforme/equipe.js \
+  "    const modifiable = (m) => m.utilisateur !== eq.moi && !m.roles.includes('proprietaire');" "    const modifiable = (m) => true;" \
+  "$EQW"
+prouver "le lien d'invitation qui arrive sur « Bon retour »" web/src/App.tsx \
+  "{ ecran: invitation.lire() ? 'inscription' : 'connexion' }" "{ ecran: 'connexion' }" \
+  "$EQW"
+prouver "l'adresse invitée à retaper" web/src/ecrans/Inscription.tsx \
+  "useState(invitation?.email ?? '')" "useState('')" \
+  "$EQW"
+prouver "l'arrivée par un lien qui ne dit pas qui invite" web/src/App.tsx \
+  "sous={attend ?? sousInvitation('inscription')}" "sous={attend}" \
+  "$EQW"
+prouver "l'accueil d'un vendeur qui défile de côté" web/public/plateforme/ecrans.css \
+  "#accueil-role .inline { flex-wrap: wrap; }" "" \
+  "$EQW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

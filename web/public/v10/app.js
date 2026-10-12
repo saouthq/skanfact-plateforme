@@ -8465,7 +8465,7 @@
   // phrase chacun ; « Apparence » n'en portait plus que deux une fois l'image de marque partie avec
   // les documents. Les identifiants sont ceux que visent `allerParametres` et la palette : un test
   // vérifie qu'aucun lien ne désigne un onglet ou un panneau disparu.
-  const SETTINGS_TABS = [...(bridge.dessinerCompte ? [['compte', 'Ton compte']] : []), ['societe', 'Mon entreprise'], ['documents', 'Documents'], ['envois', 'Envois'],
+  const SETTINGS_TABS = [...(bridge.dessinerCompte ? [['compte', 'Ton compte']] : []), ['societe', 'Mon entreprise'], ...(bridge.dessinerEquipe ? [['equipe', 'L\'équipe']] : []), ['documents', 'Documents'], ['envois', 'Envois'],
     ['donnees', 'Données et sécurité'], ['app', 'L\'application']];
 
   // Les PANNEAUX, et une seule fois. Cette table dit, pour chacun : dans quel onglet il vit, comment
@@ -8478,6 +8478,9 @@
   // d'un onglet de sept panneaux. Elle mène maintenant au panneau lui-même. Un test vérifie que
   // chaque entrée de cette table est posée une fois et une seule dans la page, et qu'aucun panneau
   // de la page ne lui échappe : c'est ce qui empêche un panneau ajouté demain d'être introuvable.
+  // (plateforme, lot équipe) L'onglet de l'équipe ne se montre qu'au propriétaire et à un administrateur : la base refuse
+  // ses gestes à tout autre rôle (03 D3).
+  const equipeVisible = () => !!bridge.dessinerEquipe && !!(bridge.droitsDossier && bridge.droitsDossier().responsable);
   const SETTINGS_PANNEAUX = {
     'p-identite': { onglet: 'societe', titre: 'Identité de l\'entreprise', mots: 'raison sociale matricule fiscal registre commerce rc cnss capital adresse telephone email site web slogan assistant' },
     'p-regime': { onglet: 'societe', titre: 'Régime fiscal et TVA', mots: 'tva assujetti forfaitaire reel exonere regime fiscal taux mention' },
@@ -8496,6 +8499,7 @@
     'p-modeles': { onglet: 'envois', titre: 'Modèles de messages', mots: 'modele message objet relance rappel email gabarit variables' },
     'p-cabinet': { onglet: 'envois', titre: 'Ton cabinet comptable', mots: 'cabinet comptable expert code confier mandat livres' },
     'p-quarantaine': { onglet: 'donnees', titre: 'Remis par un appareil retiré', mots: 'appareil retire quarantaine remis hors ligne accepter rejeter changement attente', visible: () => !!(bridge.quarantaine && bridge.quarantaine()) },
+    'p-equipe': { onglet: 'equipe', titre: 'L\'équipe', mots: 'equipe inviter invitation collaborateur salarie vendeur commercial caissier caissiere magasinier comptabilite paie lecture acces role droits retirer membre personne', visible: () => equipeVisible() },
     'p-compte': { onglet: 'compte', titre: 'Ton compte', mots: 'compte adresse email e-mail courriel mot de passe changer code telephone authentification double secours activer desactiver appareil verifier', visible: () => !!bridge.dessinerCompte },
     'p-appareils': { onglet: 'compte', titre: 'Tes appareils', mots: 'appareil ordinateur telephone perdu vole retirer session connexion hors ligne copie', visible: () => !!bridge.dessinerAppareils },
     'p-services': { onglet: 'donnees', titre: 'Services connectés', mots: 'service connecte boutique skanecom cle api partenaire couper acces relier', visible: () => !!bridge.dessinerServices },
@@ -8538,7 +8542,7 @@
       ['Immobilisations', '#/immos', v => { immoState.tab = v; }, IMMO_TABS],
       ['Proforma, bons et contrats', '#/autres', v => { autresTab = v; }, AUTRES_TABS],
       ['Catalogue', '#/catalogue', v => { catalogTab = v; }, CATALOG_TABS],
-      ['Paramètres', '#/parametres', v => { settingsTab = v; }, SETTINGS_TABS]
+      ['Paramètres', '#/parametres', v => { settingsTab = v; }, SETTINGS_TABS.filter(t => t[0] !== 'equipe' || equipeVisible())]
     ];
   }
   // Les réglages, PANNEAU par panneau. La palette n'indexait que les onglets : taper « mot de
@@ -17650,7 +17654,7 @@
   routes.parametres = async () => {
     const c = company();
     const path = await bridge.dataPath();
-    const TABS = SETTINGS_TABS;
+    const TABS = SETTINGS_TABS.filter(t => t[0] !== 'equipe' || equipeVisible());
     if (!TABS.some(t => t[0] === settingsTab)) settingsTab = 'societe';
     const manques = C.companyGaps(c);
     // (plateforme, lot débutant) Il restait affiché après « Enregistrer » une fiche complète, jusqu'au rechargement.
@@ -17864,6 +17868,10 @@
         </div>
       </div>
       </section>
+
+      ${equipeVisible() ? `<section data-pane="equipe" hidden>
+      ${panneau('p-equipe', info('set.equipe'))}<div id="equipe-panel"></div></div>
+      </section>` : ''}
 
       <section data-pane="compte" hidden>
       ${bridge.dessinerCompte ? `${panneau('p-compte')}<div id="compte-panel"></div></div>` : ''}
@@ -18198,6 +18206,7 @@
     drawCabinetPair();
     if (bridge.dessinerQuarantaine && $('#quarantaine-panel')) bridge.dessinerQuarantaine($('#quarantaine-panel'));
     if (bridge.dessinerCompte && $('#compte-panel')) void bridge.dessinerCompte($('#compte-panel'), { modal, toast });
+    if (bridge.dessinerEquipe && $('#equipe-panel')) void bridge.dessinerEquipe($('#equipe-panel'), { modal, toast, confirmDialog, nom: company().name });
     if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));
     if (bridge.dessinerServices && $('#services-panel')) void bridge.dessinerServices($('#services-panel'));
     if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));
