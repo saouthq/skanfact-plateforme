@@ -157,6 +157,10 @@ describe('le lot débutant (2), à la souris', () => {
     // « Ajouter au catalogue ce que tu vends », lancée depuis « Me guider ».
     await p.locator('#view li').filter({ hasText: 'Ajouter au catalogue ce que tu vends' }).locator('button').last().click();
     await expect.poll(etape).toBe('Ajouter au catalogue');
+    // La visite ouvre la page et son onglet avant de poser sa bulle : on clique quand elle attend le geste, comme un humain
+    // qui lit la bulle avant d'agir.
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/catalogue');
+    await expect.poll(async () => net(await bulle.innerText())).toContain('J\'attends ton geste');
     await p.locator('#new').click();
     await expect.poll(etape).toBe('Son nom');
     await p.locator('#modal-root .modal input[name=label]').fill('Pince coupante');
@@ -237,18 +241,23 @@ describe('le lot débutant (2), à la souris', () => {
     const { jeton, ent } = await personne(false);
     const { p, erreurs, fermer } = await ouvrir(jeton, ent, '#/achat/new/-/depense');
     expect(net(await p.locator('[data-combo=supplierId] .combo-val').innerText())).toBe('— Aucun : dépenses diverses —');
+    // Une pièce neuve : la page d'avant est partie quand le titre de la neuve est là (pas le premier titre venu).
+    const nouvelle = async (route: string, titre: string) => {
+      await p.evaluate((r) => { location.hash = r; }, route);
+      await expect.poll(() => p.locator('#b-titre').innerText().catch(() => ''), { timeout: 15_000 }).toBe(titre);
+    };
+    // Enregistrée, la dépense quitte la page de création pour sa propre page.
     const ticket = async (libelle: string, montant: string) => {
       await p.locator('input[data-k=label]').first().fill(libelle);
       await p.locator('#b-ttc').fill(montant);
       await p.locator('#save').click();
-      await expect.poll(async () => (await donnees(p)).purchases.length).toBeGreaterThan(0);
+      await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toMatch(/^#\/achat\/(?!new)/);
     };
     await ticket('Ticket station-service', '45');
     await expect.poll(async () => (await donnees(p)).purchases.length).toBe(1);
     await p.screenshot({ path: path.join(PHOTOS, 'debutant-2-depense.png') });
     // Une seconde dépense sans fournisseur : la même fiche.
-    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/new/-/depense`);
-    await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    await nouvelle('#/achat/new/-/depense', 'Nouvelle dépense');
     await ticket('Café pour le chantier', '6');
     await expect.poll(async () => (await donnees(p)).purchases.length).toBe(2);
     const d = await donnees(p);
@@ -258,8 +267,7 @@ describe('le lot débutant (2), à la souris', () => {
     expect(d.purchases.map((x) => x.supplierId)).toEqual([divers[0]?.id, divers[0]?.id]);
 
     // Une facture d'achat sans fournisseur est toujours refusée : la facture vient de quelqu'un.
-    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/new/-/facture`);
-    await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    await nouvelle('#/achat/new/-/facture', 'Nouvelle facture d\'achat');
     expect(net(await p.locator('[data-combo=supplierId] .combo-val').innerText())).toBe('— Choisir un fournisseur —');
     await p.locator('input[data-k=label]').first().fill('Facture sans fournisseur');
     await p.locator('#save').click();

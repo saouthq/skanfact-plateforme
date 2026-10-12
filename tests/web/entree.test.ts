@@ -327,6 +327,12 @@ describe('l\'entrée refaite, à la souris', () => {
     expect(await bas()).toBe(avantBas);
     // L'instrument a mesuré : la phrase de l'aide a bien changé de hauteur.
     expect(new Set(hauteurs).size).toBeGreaterThan(1);
+    // L'aide du matricule garde désormais sa place (lot débutant 2) : plus rien ne change de hauteur ici, et une page
+    // centrée en hauteur ne se verrait plus. L'instrument fait grandir le formulaire lui-même, comme le ferait une aide
+    // de plus, et le haut de la page ne bouge pas.
+    await p.locator('.ent-deux > form').evaluate((f) => { const d = document.createElement('div'); d.id = 'essai-hauteur'; d.style.height = '160px'; f.append(d); });
+    expect(await haut()).toBe(avant);
+    await p.locator('#essai-hauteur').evaluate((d) => d.remove());
     // Au téléphone, le haut de la facture passe sous le formulaire : la phrase ne dit pas qu'il est « à côté ».
     await p.setViewportSize({ width: 390, height: 844 });
     const form = await p.locator('.ent-deux > form').boundingBox();

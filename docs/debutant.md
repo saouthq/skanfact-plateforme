@@ -36,7 +36,7 @@ revérifiés à la souris une fois corrigés. Les écrans de la v10 changent par
 | « Démarrer » faisait poser l'adresse du comptable dans Paramètres → Envois et importer son « fichier d'appairage » ; l'article du comptable décrivait le paquet du mois — rien de tout ça n'existe en ligne | « Confier ton dossier à ton comptable » : Comptabilité → Cabinet, le code de son cabinet, « Confier mon dossier » ; l'article est réécrit (il lit tes livres en direct, il valide tes mois, ses questions, « Mon comptable ») | `guide.js` |
 | La visite « Compléter ma fiche société » sautait le régime fiscal, qui décide si les factures portent de la TVA | une étape « Ton régime fiscal », juste après l'adresse | `visites.js` |
 | Une étape à lire posée sur une case (« Remplis la case éclairée si tu as l'information ») ne mettait pas le curseur dedans : la frappe partait nulle part | le curseur va dans la case de texte éclairée | `visite.js` |
-| Une quincaillerie lisait « Prestations », « + Nouvelle prestation », « 3 prestations » sur ce qu'elle vend | le mot suit le métier : « article » pour le commerce, la restauration et l'artisanat, partout dans le catalogue, ses menus, ses recherches et les numéros de série | `app.js` (`motsCatalogue`) |
+| Une quincaillerie lisait « Prestations », « + Nouvelle prestation », « 3 prestations » sur ce qu'elle vend | le mot suit le métier : « article » pour le commerce, la restauration et l'artisanat, dans le catalogue, ses menus, ses recherches et les numéros de série (pas encore dans l'import d'un tableur) | `app.js` (`motsCatalogue`) |
 | La visite d'un article ne parlait que du prix hors taxe ; un commerçant connaît le prix de l'étiquette | l'étape du prix éclaire aussi « Prix TTC » et le dit : le hors taxe se calcule tout seul | `visites.js` |
 | Choisir dans la liste qu'une étape éclaire (l'unité, la TVA) rangeait la bulle dans un coin (« Vas-y, essaie ») : la visite paraissait se mettre en pause au moment où l'on faisait ce qu'elle demandait | un clic dans la case éclairée, dans celles qu'elle éclaire à côté, ou dans la liste qu'elle ouvre, est le geste de l'étape | `visite.js` (`dansSaCase`) |
 | Le coût unitaire du stock de départ restait à 0 : dix marteaux entraient au stock pour 0 DT | il suit le coût de revient tant qu'on n'y a pas touché | `app.js` |
@@ -77,6 +77,8 @@ Les gênants sont faits (lot débutant 2). Restent les petits : le point dans «
 reste du journal. Vus en revérifiant le lot 2 :
 
 - « Le code de ton cabinet » (Comptabilité → Cabinet) n'a pas de bulle « i ».
+- L'import d'un catalogue depuis un tableur dit encore « nouvelles prestations », « prestation existante » à un
+  commerçant : ses phrases sont accordées au féminin, à reprendre avec le mot du métier (`IMPORTS.catalogue`).
 - Dans « Me guider », « Envoyer un devis ou une facture » dit « il te faut d'abord un devis à envoyer » à une entreprise
   qui a déjà une facture émise.
 - Les articles de l'Aide propres à l'application de bureau (deux postes, partager un dossier, la licence…) n'ont pas de
