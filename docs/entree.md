@@ -236,7 +236,9 @@ d'attente d'une minute ; sans vraie entreprise, « Quitter l'exemple » ouvrait 
    personne se reconnecte.
 
 **Ce qui part chez le relais d'e-mails**, compté et décidé (règle du projet) : l'adresse de la personne, l'objet, et un
-texte qui ne porte que le lien. Ni son nom, ni son entreprise, ni rien de ses données.
+texte qui ne porte que le lien. Ni son nom, ni son entreprise, ni rien de ses données. La version habillée (12/10/2026,
+`serveur/courriel.html`) dit exactement ce texte, avec la marque, un bouton « Choisir mon nouveau mot de passe » et un
+pied fixe ; aucune image chargée à distance (`docs/mise-en-ligne.md`, H4).
 
 Code : `base/migrations/0075_mot_de_passe_oublie.sql`, `serveur/connexion.ts` (`demanderReinitialisation`,
 `lireReinitialisation`, `reinitialiser`), `serveur/courriel.ts`, `serveur/routes/socle.ts`, `web/src/ecrans/Oubli.tsx`.

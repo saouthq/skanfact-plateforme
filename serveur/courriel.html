@@ -1,0 +1,36 @@
+<!--
+  La mise en page des e-mails du serveur (12/10/2026 ; serveur/courriel.ts). Chaque section porte un nom
+  (« modele:nom ») ; les {{valeurs}} sont remplies par courriel.ts, déjà échappées. Aucune phrase ici : les phrases
+  vivent au catalogue (textes/socle.ts), dans la langue du message. Aucune image chargée à distance : une image
+  distante dirait au serveur qui l'héberge que l'e-mail a été ouvert, et d'où. La marque est dessinée en HTML, et elle
+  s'affiche même quand la messagerie bloque les images.
+
+  Des tableaux et des styles posés sur chaque élément : c'est ce que les messageries lisent toutes (Gmail retire une
+  partie des <style>). Le thème sombre n'est qu'un surplus, pour celles qui le comprennent (Apple Mail, Outlook récent).
+-->
+<!--modele:page-->
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>{{titre}}</title>
+<style>@media (prefers-color-scheme: dark){.sf-fond{background:#0e1716!important}.sf-carte{background:#142220!important;border-color:#2a3f3b!important}.sf-txt,.sf-marque{color:#e6efed!important}.sf-gris{color:#a3b6b1!important}.sf-code{background:#1d3a35!important;color:#b5f0e8!important}.sf-bouton{background:#7fe0d3!important}.sf-bouton a{color:#0b2724!important}.sf-gris a{color:#7fe0d3!important}.sf-logo{box-shadow:0 0 0 1px #3e6862}}</style></head>
+<body class="sf-fond" style="margin:0;padding:0;background:#f6f8f7;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">{{apercu}}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="sf-fond" style="background:#f6f8f7;"><tr><td align="center" style="padding:32px 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
+<tr><td style="padding:0 4px 18px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td class="sf-logo" width="36" height="36" align="center" valign="middle" style="width:36px;height:36px;background:#0b2724;border-radius:9px;font:800 20px/36px -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#7fe0d3;">S</td>
+<td class="sf-marque" style="padding-left:10px;font:700 19px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#13211f;">SkanFact</td>
+</tr></table></td></tr>
+<tr><td class="sf-carte" style="background:#ffffff;border:1px solid #e1e8e6;border-radius:14px;padding:30px 30px 14px;">{{corps}}</td></tr>
+<tr><td class="sf-gris" style="padding:18px 8px 0;font:12.5px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#56655f;text-align:center;">{{pied_marque}}<br>{{pied_reponses}}</td></tr>
+</table></td></tr></table></body></html>
+<!--modele:texte-->
+<p class="sf-txt" style="margin:0 0 16px;font:16px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#13211f;">{{texte}}</p>
+<!--modele:apres-->
+<p class="sf-txt sf-gris" style="margin:0 0 16px;font:14px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#56655f;">{{texte}}</p>
+<!--modele:code-->
+<div class="sf-code" style="margin:4px 0 20px;padding:20px 0;background:#e3f4f1;border-radius:12px;text-align:center;font:700 34px/1 'SF Mono',Menlo,Consolas,'Liberation Mono',monospace;letter-spacing:8px;color:#0b2724;">{{debut}}&nbsp;{{fin}}</div>
+<!--modele:lien-->
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 14px;"><tr><td class="sf-bouton" style="background:#0b7a70;border-radius:10px;"><a href="{{href}}" style="display:inline-block;padding:14px 24px;font:600 16px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#ffffff;text-decoration:none;border-radius:10px;">{{bouton}}</a></td></tr></table>
+<p class="sf-gris" style="margin:0 0 20px;font:13px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#56655f;">{{secours}}<br><a href="{{href}}" style="color:#0b7a70;word-break:break-all;">{{href}}</a></p>
+<!--modele:site-->
+<a href="https://skanfact.tn/contact.html" style="color:#0b7a70;">skanfact.tn</a>

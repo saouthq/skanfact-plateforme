@@ -148,7 +148,7 @@ describe('retirer le code du téléphone (Paramètres → Ton compte)', () => {
     expect(await retirerCode(ctx, p.qui, codeDe(p.secret))).toEqual({ ok: true, confirme: true });
     expect(await methode(p.id)).toBeNull();
     expect((await admin.query('select count(*)::int n from socle.code_secours where utilisateur = $1', [p.id])).rows[0].n).toBe(0);
-    expect(courriels.slice(avant)).toEqual([{ a: p.email, objet: 'Le code du téléphone a été désactivé', texte: expect.stringContaining('https://app.exemple.tn') }]);
+    expect(courriels.slice(avant)).toEqual([{ a: p.email, objet: 'Le code du téléphone a été désactivé', texte: expect.stringContaining('https://app.exemple.tn'), bouton: 'Ouvrir SkanFact', langue: 'fr' }]);
     expect(courriels.at(-1)?.texte).not.toMatch(/Compte \d|Société/);
     // Tracé au nom de la personne.
     expect((await admin.query(`select count(*)::int n from socle.audit where utilisateur = $1 and geste = 'compte.code.retirer'`, [p.id])).rows[0].n).toBe(1);
@@ -223,7 +223,7 @@ describe('changer d\'adresse', () => {
     if (!r.ok || !r.demande) throw new Error('demande attendue');
     const envoi = courriels.at(-1);
     const code = /\n\n(\d{6})\n\n/.exec(envoi?.texte ?? '')?.[1] ?? '';
-    expect(envoi).toEqual({ a: nouvelle, objet: `Ton code SkanFact : ${code}`, texte: expect.stringContaining('nouvelle adresse') });
+    expect(envoi).toEqual({ a: nouvelle, objet: `Ton code SkanFact : ${code}`, texte: expect.stringContaining('nouvelle adresse'), langue: 'fr' });
     // Rien ne change avant le code.
     expect((await admin.query('select email from socle.utilisateur where id = $1', [p.id])).rows[0].email).toBe(p.email);
     expect(await confirmerChangementAdresse(ctx, p.qui, r.demande, code === '000000' ? '111111' : '000000')).toMatchObject({ ok: false, champ: 'code' });
@@ -268,7 +268,7 @@ describe('vérifier son adresse sans en changer (0077)', () => {
     if (!r.ok) throw new Error('demande attendue');
     const envoi = courriels.at(-1);
     const code = /\n\n(\d{6})\n\n/.exec(envoi?.texte ?? '')?.[1] ?? '';
-    expect(envoi).toEqual({ a: p.email, objet: `Ton code SkanFact : ${code}`, texte: expect.stringContaining('vérifier ton adresse e-mail') });
+    expect(envoi).toEqual({ a: p.email, objet: `Ton code SkanFact : ${code}`, texte: expect.stringContaining('vérifier ton adresse e-mail'), langue: 'fr' });
     expect(await confirmerVerificationAdresse(ctx, p.qui, r.demande, faux(code))).toMatchObject({ ok: false, champ: 'code' });
     expect(await verifiee(p.id)).toBe(false);
     expect(await confirmerVerificationAdresse(ctx, p.qui, r.demande, code)).toEqual({ ok: true });

@@ -197,7 +197,7 @@ describe('le code par e-mail (0076 ; seulement si le serveur sait envoyer un e-m
     expect(courriels).toHaveLength(avant + 1);
     const c = courriels.at(-1);
     const code = codeDuCourriel();
-    expect(c).toEqual({ a: p.email, objet: `Ton code SkanFact : ${code}`, texte: expect.stringContaining('vérifier ton adresse') });
+    expect(c).toEqual({ a: p.email, objet: `Ton code SkanFact : ${code}`, texte: expect.stringContaining('vérifier ton adresse'), langue: 'fr' });
     // Ni le nom de la personne, ni son entreprise.
     expect(JSON.stringify(c)).not.toMatch(new RegExp(`Personne ${p.email.match(/\d+/)?.[0]}\b|Société`));
     // Un code faux, puis un code de secours : refusés (pas de code du téléphone, donc pas de codes de secours).

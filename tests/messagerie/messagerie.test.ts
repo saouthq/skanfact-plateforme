@@ -21,7 +21,7 @@ import { creerPool, enTantQue } from '../../serveur/base.ts';
 import { routesCabinet } from '../../serveur/cabinet/routes.ts';
 import { declarerGestesCompta } from '../../serveur/compta/gestes.ts';
 import { routesCompta } from '../../serveur/compta/routes.ts';
-import type { Courriel } from '../../serveur/courriel.ts';
+import { habiller, type Courriel } from '../../serveur/courriel.ts';
 import type { Contexte } from '../../serveur/connexion.ts';
 import { declarerGestesMessagerie } from '../../serveur/messagerie/gestes.ts';
 import { prevenirParCourriel } from '../../serveur/messagerie/postier.ts';
@@ -331,7 +331,10 @@ describe('l\'alerte par e-mail', () => {
     expect(e?.objet).toBe('Un nouveau message t\'attend dans SkanFact');
     expect(e?.texte).toContain('https://app.exemple.tn/');
     // Rien du message, ni de l'entreprise, ni du cabinet, ni de l'auteur.
-    for (const secret of ['4 242', 'chiffre', 'Pharmacie', 'Ennour', 'Leïla', 'Mansour', ent, cab.id]) expect(`${e?.objet}\n${e?.texte}`).not.toContain(secret);
+    expect(e?.bouton).toBe('Lire le message dans SkanFact');
+    // La version habillée non plus (elle ne dit que le texte, la marque et le pied).
+    const habille = e ? habiller(e) : '';
+    for (const secret of ['4 242', 'chiffre', 'Pharmacie', 'Ennour', 'Leïla', 'Mansour', ent, cab.id]) expect(`${e?.objet}\n${e?.texte}\n${habille}`).not.toContain(secret);
     // Le cabinet a lu, le client réécrit (plus tard) : une nouvelle alerte.
     await appeler('POST', `/entreprises/${ent}/messages/lu`, cab.associe.jeton, { cote: 'cabinet' });
     await ecrire(ent, client, 'entreprise', { texte: 'Et encore une chose' });

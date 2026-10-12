@@ -206,6 +206,7 @@ function envoyerCodeParCourriel(ctx: Contexte, a: string, code: string, raison: 
     a,
     objet: rendre(t('connexion.courriel_objet', { code }), langue),
     texte: rendre(t(raison === 'inscription' ? 'connexion.courriel_inscription' : 'connexion.courriel_appareil', { code, minutes: DUREE_DEFI_COURRIEL_MINUTES }), langue),
+    langue,
   }).catch((e: unknown) => { console.error(`le code par e-mail n'est pas parti : ${String(e)}`); });
 }
 
@@ -340,6 +341,8 @@ export async function demanderReinitialisation(ctx: Contexte, email: string): Pr
     a: a.a_email,
     objet: rendre(t('connexion.oubli_objet'), langue),
     texte: rendre(t('connexion.oubli_texte', { lien, minutes: DUREE_REINITIALISATION_MINUTES }), langue),
+    bouton: rendre(t('connexion.oubli_bouton'), langue),
+    langue,
   }).catch((e: unknown) => { console.error(`l'e-mail du mot de passe oublié n'est pas parti : ${String(e)}`); });
 }
 

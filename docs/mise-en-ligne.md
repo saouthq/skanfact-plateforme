@@ -82,7 +82,8 @@ est arrêté) : la version en service, la plus récente vue, l'échec éventuel 
 tâches faites et leur sortie. Rien de secret.
 
 **B5. La première installation** : une ligne, une fois, en root, dans la console du VPS (espace client OVH) :
-`curl -fsSL https://raw.githubusercontent.com/saouthq/skanfact-plateforme/main/exploitation/installer.sh | bash -s app.skanfact.tn`.
+`curl -fsSL https://raw.githubusercontent.com/saouthq/skanfact-plateforme/main/exploitation/installer.sh | sudo bash -s app.skanfact.tn`
+(le `sudo` devant `bash`, pas devant `curl` : sinon le script tourne sans les droits, et le dit).
 Elle pose PostgreSQL 16 et Caddy (ceux d'Ubuntu), Node 24 (de nodejs.org, son empreinte vérifiée), le compte du
 service, la base et son compte (mot de passe tiré au hasard), les réglages (`/etc/skanfact/serveur.env`, lisible par
 root et le service seulement : la clé du coffre tirée au hasard, `SKANFACT_PROXY=1`), le frontal (https, son
@@ -242,7 +243,8 @@ ajouter chez Cloudflare (09/10/2026 : la capture de Resend envoyée par Skander 
 1. Chez Resend, « API Keys » → « Create API Key » : nom « serveur d'essai », permission **« Sending access »** (envoi
    seulement), domaine **`send.skanfact.tn`**. Une clé à part de celle de la console : chacune se retire sans l'autre.
 2. Dans la console du serveur (espace client OVH), en root :
-   `curl -fsSL https://raw.githubusercontent.com/saouthq/skanfact-plateforme/main/exploitation/courriel.sh | bash`
+   `curl -fsSL https://raw.githubusercontent.com/saouthq/skanfact-plateforme/main/exploitation/courriel.sh | sudo bash`
+   (le `sudo` devant `bash` : « `sudo curl … | bash` » lance le script sans les droits, et il répond « À lancer en root »),
    puis coller la clé (elle ne s'affiche pas) et donner une adresse où recevoir l'e-mail d'essai.
 
 **H2. Le script** (`exploitation/courriel.sh`) :
@@ -258,7 +260,15 @@ La clé passe à curl par son entrée, jamais par sa ligne de commande. **Elle n
 **H3. Ce qui part chez Resend**, compté et décidé (skanfact `docs/cadrage/03-droits.md` § 6) : l'adresse de la
 personne, l'objet, et un texte qui ne porte que le code ou le lien. Ni son nom, ni son entreprise.
 
-Test : `tests/exploitation/courriel.test.ts` (5 preuves), joué avec des doublures de curl et de systemctl.
+**H4. Les e-mails sont habillés** (12/10/2026, maquette validée par Skander ; `serveur/courriel.ts`, `serveur/courriel.html`) :
+la marque « S SkanFact » dessinée en HTML, une carte blanche, le code en grand en deux groupes, un bouton qui dit ce
+que fera le clic (et le lien en clair dessous), un pied fixe, l'expéditeur nommé « SkanFact », et le thème sombre pour
+les messageries qui le comprennent. La version HTML dit EXACTEMENT le texte (qui part aussi, tel quel) ; aucune image
+ni rien de chargé à distance (une image distante dirait qui a ouvert l'e-mail, et d'où). Ses phrases sont au
+catalogue (`courriel.*`, et un `…_bouton` par e-mail qui porte un lien).
+
+Tests : `tests/exploitation/courriel.test.ts` (6 preuves), joué avec des doublures de curl et de systemctl ;
+`tests/socle/courriel-habille.test.ts` pour le rendu.
 
 ## Reste à faire avant les testeurs
 

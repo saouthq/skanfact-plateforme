@@ -11,6 +11,7 @@ declarerTextes({
   'messagerie.fichier.format': 'Le fichier « {nom} » n\'est ni une photo (JPEG, PNG, WebP) ni un PDF : il ne se joint pas',
   // L'alerte par e-mail : ni le message, ni le nom de l'entreprise, ni celui du cabinet (décidé le 09/10/2026).
   'messagerie.alerte.objet': 'Un nouveau message t\'attend dans SkanFact',
+  'messagerie.alerte.bouton': 'Lire le message dans SkanFact',
   'messagerie.alerte.entreprise': 'Bonjour,\n\nTon cabinet comptable t\'a écrit dans SkanFact. Le message t\'attend là-bas, et nulle part ailleurs :\n\n{lien}\n\nPour ne plus recevoir cette alerte : décoche « Me prévenir par e-mail », dans Mon comptable.',
   'messagerie.alerte.cabinet': 'Bonjour,\n\nUn de tes clients t\'a écrit dans SkanFact. Le message t\'attend là-bas, et nulle part ailleurs :\n\n{lien}\n\nPour ne plus recevoir cette alerte : décoche « Me prévenir par e-mail », dans la conversation de ce client.',
 });

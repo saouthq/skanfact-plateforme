@@ -9828,6 +9828,66 @@ prouver "la pastille des Messages qui compte tous les clients" web/public/v10/ca
   "majPastilleMessages((await api.messagerie.compteurs()).aTraiter)" "majPastilleMessages((await api.messagerie.compteurs()).tout)" \
   "$MSGW"
 
+# ── Les e-mails habillés (12/10/2026 ; serveur/courriel.ts, courriel.html) ──
+CH1="chaque e-mail dit son texte paragraphe par paragraphe, dans l'ordre ; le code en deux groupes, le lien en bouton qui nomme son geste"
+CH2="la signature disparaît (la marque est en tête), ce qui suit le code ou le lien passe en discret, et l'aperçu n'est pas « Bonjour, »"
+CH3="la ponctuation double prend l'espace fine insécable : « ? » ou « : » ne tombe jamais seul en début de ligne"
+CH4="rien de chargé à distance, aucune adresse de plus : seuls les liens du texte et la page de contact"
+CH5="ce que le texte porte est échappé : un libellé ou un objet ne devient jamais du HTML"
+CH6="le message SMTP : l'expéditeur s'appelle SkanFact, le texte part tel quel, et sa version habillée à côté"
+CH7="les phrases du pied et des boutons viennent du catalogue, dans la langue du message"
+CH8="la mise en page n'a aucune phrase : courriel.html porte des sections et des valeurs, le catalogue porte le français"
+CH9="chaque envoi du serveur donne sa langue, et nomme son bouton dès que son texte porte un lien"
+prouver "le texte d'un e-mail habillé non échappé" serveur/courriel.ts \
+  'const ligne = (s: string) => echapper(s)' 'const ligne = (s: string) => s' \
+  "$CH5"
+prouver "le libellé du bouton non échappé" serveur/courriel.ts \
+  "        bouton: echapper(c.bouton ?? rendre(t('courriel.bouton'), langue))," "        bouton: c.bouton ?? rendre(t('courriel.bouton'), langue)," \
+  "$CH5"
+prouver "une image chargée à distance dans un e-mail" serveur/courriel.html \
+  ';color:#7fe0d3;">S</td>' ';color:#7fe0d3;"><img src="https://skanfact.tn/logo.png" alt="S"></td>' \
+  "$CH4"
+prouver "le mot de passe oublié sans bouton qui nomme son geste" serveur/connexion.ts \
+  "    bouton: rendre(t('connexion.oubli_bouton'), langue)," "" \
+  "$CH9"
+prouver "un envoi d'e-mail sans sa langue" serveur/compte.ts \
+  "      bouton: rendre(t('compte.code_retire_bouton'), 'fr'), langue: 'fr'," "      bouton: rendre(t('compte.code_retire_bouton'), 'fr')," \
+  "$CH9"
+prouver "l'expéditeur sans le nom de la marque" serveur/courriel.ts \
+  "from: { name: 'SkanFact', address: de }" "from: de" \
+  "$CH6"
+prouver "le code de six chiffres laissé dans un paragraphe" serveur/courriel.ts \
+  'if (/^\d{6}$/.test(p))' 'if (/^\d{7}$/.test(p))' \
+  "$CH1"
+prouver "un paragraphe du texte perdu dans la version habillée" serveur/courriel.ts \
+  "    return remplir(action >= 0 && i > action ? 'apres' : 'texte', { texte: ligne(b.texte) });" "    return action >= 0 && i > action ? '' : remplir('texte', { texte: ligne(b.texte) });" \
+  "$CH1"
+prouver "le lien de secours absent sous le bouton" serveur/courriel.html \
+  '{{secours}}<br><a href="{{href}}" style="color:#0b7a70;word-break:break-all;">{{href}}</a>' '' \
+  "$CH1"
+prouver "la signature gardée sous la marque" serveur/courriel.ts \
+  "    if (b.genre === 'signature') return '';" "" \
+  "$CH2"
+prouver "l'aperçu de la liste qui montre « Bonjour, »" serveur/courriel.ts \
+  "b.genre === 'texte' && !(i === 0 && /,\$/.test(b.texte))" "b.genre === 'texte'" \
+  "$CH2"
+prouver "la ponctuation double sans espace fine dans l'e-mail" serveur/courriel.ts \
+  ".replace(/ ([:;!?»])/g," ".replace(/ ([X])/g," \
+  "$CH3"
+prouver "les phrases du pied toujours en français" serveur/courriel.ts \
+  "  const langue = c.langue ?? 'fr';" "  const langue = 'fr';" \
+  "$CH7"
+prouver "une phrase écrite dans la mise en page des e-mails" serveur/courriel.html \
+  '{{pied_marque}}<br>{{pied_reponses}}' '{{pied_marque}}<br>Cette adresse ne lit pas les réponses.' \
+  "$CH8"
+RC5="lancé sans être root, chaque script redonne sa ligne, le « sudo » devant bash, et ne touche à rien"
+prouver "le refus du script d'e-mails sans la ligne à relancer" exploitation/courriel.sh \
+  'echo "À lancer en root, le « sudo » devant bash : curl -fsSL https://raw.githubusercontent.com/saouthq/skanfact-plateforme/main/exploitation/courriel.sh | sudo bash" >&2' 'echo "À lancer en root (sudo)." >&2' \
+  "$RC5"
+prouver "le refus de l'installation sans la ligne à relancer" exploitation/installer.sh \
+  '| sudo bash -s app.skanfact.tn" >&2; exit 2; }' '" >&2; exit 2; }' \
+  "$RC5"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

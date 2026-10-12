@@ -81,6 +81,8 @@ describe('le mot de passe oublié', () => {
     const m = partis.at(-1);
     expect(m?.a).toBe(karim.email);
     expect(m?.objet).toBe('Ton nouveau mot de passe SkanFact');
+    // Le bouton de la version habillée dit ce que fera le clic (serveur/courriel.ts).
+    expect(m?.bouton).toBe('Choisir mon nouveau mot de passe');
     expect(m?.texte).toContain(`https://app.exemple.tn/?reinitialiser=${lienPour(karim.email)}`);
     // Ce qui part chez le relais : l'adresse et le lien, jamais le nom de la personne.
     expect(m?.texte).not.toMatch(/Karim|Salah/);

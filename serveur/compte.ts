@@ -108,6 +108,7 @@ export async function retirerCode(ctx: Contexte, qui: Qui, code: string): Promis
   if (courriel) {
     void courriel.envoi.envoyer({
       a, objet: rendre(t('compte.code_retire_objet'), 'fr'), texte: rendre(t('compte.code_retire_texte', { adresse: courriel.adresse() }), 'fr'),
+      bouton: rendre(t('compte.code_retire_bouton'), 'fr'), langue: 'fr',
     }).catch((e: unknown) => { console.error(`la confirmation du code retiré n'est pas partie : ${String(e)}`); });
   }
   return { ok: true, confirme: !!courriel };
@@ -165,6 +166,7 @@ export async function demanderChangementAdresse(ctx: Contexte, qui: Qui, nouvell
     [adresse, sha256(code), maintenantDe(ctx), `${DUREE_ADRESSE_MINUTES} minutes`])).rows[0].id as string);
   void courriel.envoi.envoyer({
     a: adresse, objet: rendre(t('compte.adresse_objet', { code }), 'fr'), texte: rendre(t('compte.adresse_texte', { code, minutes: DUREE_ADRESSE_MINUTES }), 'fr'),
+    langue: 'fr',
   }).catch((e: unknown) => { console.error(`le code de la nouvelle adresse n'est pas parti : ${String(e)}`); });
   return { ok: true, demande };
 }
@@ -181,6 +183,7 @@ export async function demanderVerificationAdresse(ctx: Contexte, qui: Qui): Prom
     [sha256(code), maintenantDe(ctx), `${DUREE_ADRESSE_MINUTES} minutes`])).rows[0].id as string);
   void courriel.envoi.envoyer({
     a: email, objet: rendre(t('connexion.courriel_objet', { code }), 'fr'), texte: rendre(t('connexion.courriel_inscription', { code, minutes: DUREE_ADRESSE_MINUTES }), 'fr'),
+    langue: 'fr',
   }).catch((e: unknown) => { console.error(`le code de vérification de l'adresse n'est pas parti : ${String(e)}`); });
   return { ok: true, demande };
 }
@@ -202,6 +205,7 @@ export async function confirmerChangementAdresse(ctx: Contexte, qui: Qui, demand
   if (courriel) {
     void courriel.envoi.envoyer({
       a: ancienne, objet: rendre(t('compte.adresse_changee_objet'), 'fr'), texte: rendre(t('compte.adresse_changee_texte', { aide: AIDE }), 'fr'),
+      bouton: rendre(t('compte.adresse_changee_bouton'), 'fr'), langue: 'fr',
     }).catch((e: unknown) => { console.error(`l'avis à l'ancienne adresse n'est pas parti : ${String(e)}`); });
   }
   return { ok: true };

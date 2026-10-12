@@ -405,6 +405,11 @@
     leurs octets) se range dans les achats. L'alerte par e-mail ne porte RIEN du message (ni nom, ni identifiant),
     part une fois cinq minutes après, à une adresse vérifiée (`postier.ts`, `SKANFACT_ALERTES_MS`). Pas de « en train
     d'écrire » : la page relit toutes les 30 secondes, page visible.
+  - **Les e-mails du serveur sont habillés** (12/10/2026, maquette validée par Skander ; `serveur/courriel.ts`,
+    `serveur/courriel.html`) : la version HTML dit EXACTEMENT le texte (qui part aussi), le code en grand, le lien en
+    bouton qui nomme son geste (`…_bouton` au catalogue : un e-mail neuf qui porte un lien en déclare un, un test le
+    lit), la marque et un pied fixes, l'expéditeur « SkanFact ». Jamais une image ni rien de chargé à distance (une
+    image distante dirait qui a ouvert, et d'où), jamais une phrase dans `courriel.html` : elles vont au catalogue.
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

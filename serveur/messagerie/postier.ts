@@ -39,6 +39,8 @@ export async function prevenirParCourriel(ctx: Contexte, maintenant: Date = ctx.
         a: p.email,
         objet: rendre(t('messagerie.alerte.objet'), langue),
         texte: rendre(t(p.cote === 'cabinet' ? 'messagerie.alerte.cabinet' : 'messagerie.alerte.entreprise', { lien: `${courriel.adresse()}/` }), langue),
+        bouton: rendre(t('messagerie.alerte.bouton'), langue),
+        langue,
       });
     } catch (e) {
       console.error(`une alerte de la messagerie n'est pas partie : ${String(e)}`);
