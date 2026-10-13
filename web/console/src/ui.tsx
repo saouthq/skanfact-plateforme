@@ -1,6 +1,6 @@
 // Les pièces des écrans de la console : les dessins, les boutons, les puces d'état, les champs, la fenêtre et le message
 // passager. Dessinés pour la console seulement (console.css) : l'application garde les siens.
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { titre } from './langue.ts';
 
@@ -92,36 +92,40 @@ export function MenuLigne({ etiquette, actions }: { etiquette: string; actions: 
   // et toujours dans l'écran.
   const [place, setPlace] = useState<{ top: number; right: number; haut: boolean } | null>(null);
   const zone = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    if (!ouvert) { setPlace(null); return; }
+  // Sa place, lue sur le bouton : à l'ouverture, puis chaque fois que la page bouge (il suit son bouton ; si le bouton
+  // sort de l'écran, il se ferme).
+  const placer = useCallback(() => {
     const bouton = zone.current?.querySelector<HTMLElement>('button');
     const liste = zone.current?.querySelector<HTMLElement>('.c-menu-liste');
     if (!bouton || !liste) return;
     const b = bouton.getBoundingClientRect();
+    if (b.bottom < 0 || b.top > window.innerHeight) { setOuvert(false); return; }
     const h = liste.getBoundingClientRect().height;
     const dessous = window.innerHeight - b.bottom - 6, dessus = b.top - 6;
     const haut = dessous < h + 6 && dessus > dessous;
     const top = haut ? b.top - 6 - h : b.bottom + 6;
     setPlace({ top: Math.max(8, Math.min(top, window.innerHeight - h - 8)), right: Math.max(8, window.innerWidth - b.right), haut });
-  }, [ouvert]);
+  }, []);
+  useLayoutEffect(() => {
+    if (!ouvert) { setPlace(null); return; }
+    placer();
+  }, [ouvert, placer]);
   useEffect(() => {
     if (!ouvert) return undefined;
     const ailleurs = (e: MouseEvent) => { if (!zone.current?.contains(e.target as Node)) setOuvert(false); };
     const echap = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOuvert(false); zone.current?.querySelector<HTMLElement>('button')?.focus(); } };
-    // Posé sur la fenêtre, le menu ne suit pas la page : il se ferme quand elle bouge.
-    const bouge = (e: Event) => { if (!(e.target instanceof Node && zone.current?.contains(e.target))) setOuvert(false); };
     document.addEventListener('mousedown', ailleurs);
     document.addEventListener('keydown', echap);
-    window.addEventListener('scroll', bouge, true);
-    window.addEventListener('resize', bouge);
+    window.addEventListener('scroll', placer, true);
+    window.addEventListener('resize', placer);
     // Le premier choix prend le clavier SANS faire défiler la page : sur la dernière ligne, le focus la faisait sauter de
     // 440 points sous la souris.
     zone.current?.querySelector<HTMLElement>('.c-menu-liste button')?.focus({ preventScroll: true });
     return () => {
       document.removeEventListener('mousedown', ailleurs); document.removeEventListener('keydown', echap);
-      window.removeEventListener('scroll', bouge, true); window.removeEventListener('resize', bouge);
+      window.removeEventListener('scroll', placer, true); window.removeEventListener('resize', placer);
     };
-  }, [ouvert]);
+  }, [ouvert, placer]);
   return (
     <div className="c-menu" ref={zone}>
       <button type="button" className="c-menu-btn" aria-expanded={ouvert} aria-label={etiquette} onClick={() => setOuvert(!ouvert)}>
