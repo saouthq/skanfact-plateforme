@@ -11847,6 +11847,29 @@ prouver 'un menu de ligne coupé par la carte de son tableau' 'web/console/src/u
   'className={`c-menu-liste${' \
   "$EQ1"
 
+# La console à son adresse (docs/mise-en-ligne.md J) : la racine mène à /console/, rien de l'état ni de l'accès de
+# Claude sous ce nom ; la tâche n'écrit le réglage que si l'enregistrement DNS mène à cette machine.
+CO1='la console à son adresse : sa racine mène à /console/, le reste est le même programme ; une adresse illisible n'"'"'écrit rien'
+CO2='l'"'"'enregistrement DNS mène à cette machine : le réglage s'"'"'ajoute une fois, puis le frontal'
+CO3='sans enregistrement, ou vers une autre machine : rien n'"'"'est écrit, et la tâche dit pourquoi'
+CO4='un serveur aux vraies données n'"'"'est pas touché'
+prouver "la racine de la console qui ne mène pas à son entrée" exploitation/frontal.sh \
+  '	redir / /console/
+' '' \
+  "$CO1"
+prouver "une adresse de console illisible écrite dans le frontal" exploitation/frontal.sh \
+  '[[ "$CONSOLE" =~ ^[a-z0-9.-]+$ && "$CONSOLE" != "$ADRESSE" ]]' '[[ -n "$CONSOLE" ]]' \
+  "$CO1"
+prouver "le réglage de la console écrit sans enregistrement DNS" exploitation/taches/0010-console.sh \
+  'if [ -z "$LA" ] || [ "$LA" != "$ICI" ]; then' 'if false; then' \
+  "$CO3"
+prouver "le réglage de la console écrit deux fois" exploitation/taches/0010-console.sh \
+  "grep -q '^SKANFACT_CONSOLE_ADRESSE=' \"\$REGLAGES\" || echo" 'echo' \
+  "$CO2"
+prouver "la console déplacée sur un serveur aux vraies données" exploitation/taches/0010-console.sh \
+  "grep -qx 'SKANFACT_ENVIRONNEMENT=test' \"\$REGLAGES\" \\" 'true \\' \
+  "$CO4"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

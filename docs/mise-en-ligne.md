@@ -468,6 +468,23 @@ Code : `exploitation/veille.ts`, `exploitation/veiller.ts`, `exploitation/alerte
 `tests/exploitation/veiller.test.ts` (le veilleur lancé pour de vrai, avec un faux relais d'e-mails, un faux WinSMS et
 un faux programme), `tests/exploitation/alertes.test.ts` (le réglage des destinataires, la tâche, le frontal).
 
+## J. La console à sa propre adresse (demandé par Skander le 13/10/2026)
+
+La console de l'équipe (docs/console.md) vit sous `/console/` du serveur ; elle a aussi son adresse,
+**`console.skanfact.tn`**, à côté de `app.skanfact.tn`.
+
+1. **Skander, chez Cloudflare** (DNS → Records → Add record) : type `A`, nom `console`, la même adresse IPv4 que `app`,
+   **nuage gris** (« DNS only » : derrière le relais de Cloudflare, le frontal n'obtiendrait pas son certificat).
+2. **La tâche d'entretien 0010** (`exploitation/taches/0010-console.sh`), sur un serveur d'essai seulement : elle vérifie
+   que `console.<domaine>` mène à la même machine que `app.<domaine>`, ajoute `SKANFACT_CONSOLE_ADRESSE` aux réglages
+   (une fois), puis réécrit le frontal. Sans l'enregistrement, elle n'écrit rien et le dit dans `/etat.json` (une tâche
+   ne tourne qu'une fois : elle n'est envoyée qu'une fois l'enregistrement posé).
+3. **Le frontal** (`exploitation/frontal.sh`) : sous cette adresse, la racine mène à `/console/`, le reste est le même
+   programme (l'entrée de la console et son API, même origine) ; ni l'état détaillé ni l'accès de Claude.
+
+La session de la console vit dans l'onglet (docs/console.md) : rien ne se partage entre les deux adresses. Un serveur aux
+vraies données reçoit l'adresse de sa console à l'installation, décidée par Skander.
+
 ## Reste à faire avant les testeurs
 
 - ~~Une fiche pour les testeurs~~ : `docs/testeurs.md` (05/10/2026).
