@@ -4,6 +4,7 @@
 // L'entrée (se connecter, le code, le renvoyer) est publique, comme celle de l'application.
 
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import { z } from 'zod';
 import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
@@ -28,6 +29,7 @@ import {
   CALENDRIER, COMMANDES, commandesRemise, copies, exercices, GARDE, horsDeLaMachine, lArchivage, laSauvegarde, leDernierExercice, lignesParNuit,
   lireSauvegardes, nuits as nuitsGardees, pointLePlusAncien, promesses, retardsParHeure,
 } from './sauvegardes.ts';
+import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
 import { BUDGETS } from '../service/mesures.ts';
 import { LISTE_GESTES_CONSOLE, type RoleConsole } from './gestes.ts';
@@ -555,6 +557,116 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           routes: lesRoutes(brut.routes), routesDepuis: sept, exemplaires: exemplaires(brut.exemplaires, t), base: laBase(brut.base),
         },
       };
+    },
+  });
+
+  // ── Les incidents du service et la page d'état (Console 3d, docs/console.md C24) ─────────────────────────────────────
+  // L'incident ouvert et ses points, les suites promises, ce que la page d'état publique dit en ce moment (ce que la veille
+  // a écrit à côté d'elle), les maintenances (annoncées, et les mises en ligne vues), les incidents passés sur trente jours
+  // et sur l'année avec ce que la veille a mesuré, et quand chaque fiche réflexe a servi.
+  const pageEtatDe = async (): Promise<PageEtat | null> => {
+    if (!fichierVeille) return null;
+    try { return lirePageEtat(JSON.parse(await fs.readFile(path.join(path.dirname(fichierVeille), 'page-etat.json'), 'utf8'))); } catch { return null; }
+  };
+  ajouter({
+    methode: 'GET', chemin: '/console/service/incidents', geste: 'console.service.voir',
+    traiter: async (_r, tx) => {
+      const t = maintenant();
+      const jour = aujourdhuiATunis(t);
+      const x = transaction(tx);
+      const debut30 = trenteJours(jour)[0] ?? jour;
+      const debutAn = `${jour.slice(0, 4)}-01-01`;
+      const depuis = debut30 < debutAn ? debut30 : debutAn;
+      const v = lireVeilleDeLaBase(await lireJson(x, 'select plateforme.console_service_veille($1) v', [`${depuis}T00:00:00+01:00`]));
+      const lu = lireIncidents(await lireJson(x, 'select plateforme.console_service_incidents($1) v', [t.toISOString()]));
+      const veille = await lireLaVeille(fichierVeille, t);
+      const mesure = (a: string) => v.jours.filter((j) => j.jour >= a).reduce((m, j) => ({ mesurees: m.mesurees + j.mesurees, bas: m.bas + j.bas }), { mesurees: 0, bas: 0 });
+      const deVeille30 = { ...v, jours: v.jours.filter((j) => j.jour >= debut30), alertes: v.alertes };
+      const s = suites(lu, jour);
+      return {
+        corps: {
+          maintenant: t.toISOString(), aujourdhui: jour, veille, alertesEnCours: alertesOuvertes(deVeille30.alertes), briques: briques(deVeille30, jour, t, veille.etat === 'ok'),
+          ouverts: ouverts(lu), suites: s.aTenir, suitesEnRetard: s.enRetard, suitesFaites: s.faites,
+          page: await pageEtatDe(), disponibilite30: disponibilite(deVeille30).taux,
+          maintenances: maintenances(lu, misesEnLigne(v).filter((m) => m.le >= `${debut30}T00:00:00`), v.coupures, t),
+          passes: { trente: passes(lu, `${debut30}T00:00:00+01:00`, mesure(debut30)), annee: passes(lu, `${debutAn}T00:00:00+01:00`, mesure(debutAn)), annee_n: Number(jour.slice(0, 4)) },
+          fiches: fichesServies(lu), exercice: v.exercice, equipe: lu.equipe, fichesConnues: FICHES,
+        },
+      };
+    },
+  });
+  const gravite = z.enum(['mineur', 'majeur', 'critique']);
+  const sansBalise = (min: number, max: number) => z.string().trim().min(min).max(max).refine((x) => !/[<>]/.test(x), 'console.sans_balise');
+  const lireUuid = (x: string | undefined) => { if (!x || !uuid.safeParse(x).success) throw new Introuvable(); return x; };
+  ajouter({
+    methode: 'POST', chemin: '/console/service/incidents', geste: 'console.service.gerer',
+    corps: z.object({ titre: z.string().trim().min(3).max(200), gravite, fiche: z.enum(FICHES).nullable(), public: sansBalise(3, 500).nullable(), motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const r = await lireJson<{ id: string; annee: number; numero: number }>(transaction(tx), 'select plateforme.console_ouvrir_incident($1, $2, $3, $4, $5, $6) v',
+        [corps.titre, corps.gravite, corps.fiche, corps.public, corps.motif, maintenant()]);
+      return { statut: 201, corps: { id: r.id, ref: refIncident(r.annee, r.numero) } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/incidents/:incident/points', geste: 'console.service.gerer',
+    corps: z.object({ texte: z.string().trim().min(3).max(1000), public: z.boolean(), gravite: gravite.nullable() }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_point_incident($1, $2, $3, $4, $5)', [lireUuid(params.incident), corps.texte, corps.public, corps.gravite, maintenant()]);
+      return { statut: 201, corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/incidents/:incident/retirer', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_retirer_public($1, $2, $3)', [lireUuid(params.incident), corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/incidents/:incident/clore', geste: 'console.service.gerer',
+    corps: z.object({
+      fin: z.string().datetime({ offset: true }), effet: z.string().trim().min(10).max(2000), cause: z.string().trim().min(10).max(2000),
+      change: z.string().trim().min(10).max(2000), motif: motifGeste,
+      suites: z.array(z.object({ titre: z.string().trim().min(3).max(200), responsable: uuid, due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) })).max(20),
+    }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_clore_incident($1, $2, $3, $4, $5, $6::jsonb, $7, $8)',
+        [lireUuid(params.incident), corps.fin, corps.effet, corps.cause, corps.change, JSON.stringify(corps.suites), corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/suites/:suite/faite', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_suite_faite($1, $2, $3)', [lireUuid(params.suite), corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/suites/:suite/repousser', geste: 'console.service.gerer',
+    corps: z.object({ due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_repousser_suite($1, $2::date, $3, $4)', [lireUuid(params.suite), corps.due, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/maintenances', geste: 'console.service.gerer',
+    corps: z.object({ titre: sansBalise(3, 200), texte: sansBalise(3, 500), debut: z.string().datetime({ offset: true }), fin: z.string().datetime({ offset: true }), motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_annoncer_maintenance($1, $2, $3, $4, $5, $6) v',
+        [corps.titre, corps.texte, corps.debut, corps.fin, corps.motif, maintenant()]);
+      return { statut: 201, corps: { id } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/maintenances/:maintenance/annuler', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_annuler_maintenance($1, $2, $3)', [lireUuid(params.maintenance), corps.motif, maintenant()]);
+      return { corps: { ok: true } };
     },
   });
 

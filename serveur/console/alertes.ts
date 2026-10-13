@@ -232,8 +232,18 @@ export function histoire(lu: AlertesLues, maintenant: Date) {
 // en charge, l'alerte d'essai — et jusqu'à quand une sourdine devait courir : sans cela, la ligne n'a ni sujet ni effet.
 // Ce que la base a gardé du geste (0086 : la règle, ou la clé de l'alerte ; la fin de la sourdine), rien d'autre. Une
 // sourdine LEVÉE garde sa fin prévue dans son « avant » (son « après » porte la minute de la levée).
-export function sujetDuService(geste: string, avant: Record<string, unknown> | null, apres: Record<string, unknown> | null): { regle: string | null; essai: boolean; fin: string | null } | null {
+export function sujetDuService(geste: string, avant: Record<string, unknown> | null, apres: Record<string, unknown> | null): {
+  regle: string | null; essai: boolean; fin: string | null; incident: string | null; suite: string | null; maintenance: string | null;
+} | null {
   if (!geste.startsWith('service.')) return null;
   const regle = typeof apres?.regle === 'string' ? apres.regle : typeof apres?.cle === 'string' ? regleDe(apres.cle) : null;
-  return { regle, essai: geste === 'service.essai', fin: date((geste === 'service.sourdine_levee' ? avant : apres)?.fin) };
+  // Un geste sur un incident ou une suite dit son numéro (INC-2026-006) ; une suite dit aussi son titre ; une maintenance,
+  // son début.
+  const ref = texte(apres?.ref) ?? texte(avant?.ref);
+  return {
+    regle, essai: geste === 'service.essai', fin: date((geste === 'service.sourdine_levee' ? avant : apres)?.fin),
+    incident: ref && /^INC-\d{4}-\d{3}$/.test(ref) ? ref : null,
+    suite: geste.startsWith('service.suite_') ? texte(apres?.titre) : null,
+    maintenance: geste.startsWith('service.maintenance_') ? date((apres ?? avant)?.debut) : null,
+  };
 }

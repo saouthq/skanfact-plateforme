@@ -807,3 +807,120 @@ describe('les performances du service (0088, docs/console.md C15)', () => {
     await expect(enTantQue(pool, null, (tx) => tx.query('select plateforme.console_service_performances(current_date, now())'))).rejects.toThrow();
   });
 });
+
+describe('les incidents du service et la page d\'état (0089, docs/console.md C24)', () => {
+  // Les incidents partent de tables vides : l'écran (tests/web/console-incidents.test.ts) y laisse les siens.
+  beforeAll(async () => {
+    await admin.query('truncate plateforme.service_suite, plateforme.service_incident_point, plateforme.service_incident cascade');
+    await admin.query('truncate plateforme.service_maintenance');
+  });
+  // Les gestes de CE fichier : l'écran (tests/web/console-incidents.test.ts) écrit les siens, en même temps.
+  const gestes = async () => (await admin.query("select geste, motif, apres from plateforme.geste_console where (geste like 'service.incident%' or geste like 'service.suite%' or geste like 'service.maintenance%') and qui = any($1) order by le, id",
+    [[direction.id, technique.id]])).rows;
+  const annonce = async () => ((await enTantQue(pool, null, (tx) => tx.query('select plateforme.veille_lire($1, 15) v', [horloge]))).rows[0].v as { annonce: Record<string, unknown> }).annonce;
+  const lire = async (j = jT) => (await appeler('GET', '/console/service/incidents', j)).corps as {
+    ouverts: { id: string; ref: string; gravite: string; public: string | null; points: { texte: string }[] }[]; suites: { id: string; titre: string; retard: number }[];
+    suitesFaites: number; page: unknown; passes: { trente: { n: number; lignes: { ref: string; minutes: number }[] } }; maintenances: { sorte: string; etat?: string; id?: string }[];
+    fiches: Record<string, { ref: string } | null>; equipe: { id: string; nom: string }[];
+  };
+  let id = '';
+
+  it('ouvrir : un numéro par année, sans trou ; la page d\'état dit le message public, le plus grave d\'abord', async () => {
+    expect((await appeler('POST', '/console/service/incidents', jS, { titre: 'SkanFact ne répondait plus', gravite: 'majeur', fiche: 'service', public: null, motif: 'la veille crie' })).statut).toBe(403);
+    expect((await appeler('POST', '/console/service/incidents', jT, { titre: 'x', gravite: 'majeur', fiche: null, public: null, motif: 'la veille crie' })).statut).toBe(400);
+    expect((await appeler('POST', '/console/service/incidents', jT, { titre: 'Un titre', gravite: 'majeur', fiche: 'inventee', public: null, motif: 'la veille crie' })).statut).toBe(400);
+    expect((await appeler('POST', '/console/service/incidents', jT, { titre: 'Un titre', gravite: 'majeur', fiche: null, public: '<script>', motif: 'la veille crie' })).statut).toBe(400);
+    const a = await appeler('POST', '/console/service/incidents', jT, { titre: 'Les e-mails de connexion arrivent en retard', gravite: 'mineur', fiche: 'partenaire', public: 'Les e-mails de connexion arrivent avec du retard.', motif: 'trois appels' });
+    expect(a.statut).toBe(201);
+    // Un numéro par incident et par année, sans trou : le suivant est le suivant (l'écran ouvre les siens dans la même base).
+    const [, annee, n] = /^INC-(\d{4})-(\d{3})$/.exec(String(a.corps.ref)) ?? [];
+    const b = await appeler('POST', '/console/service/incidents', jD, { titre: 'SkanFact ne répondait plus', gravite: 'majeur', fiche: 'service', public: null, motif: 'la veille crie' });
+    const suivant = `INC-${annee}-${String(Number(n) + 1).padStart(3, '0')}`;
+    expect(b.corps.ref).toBe(suivant);
+    id = String(b.corps.id);
+    let l = await lire();
+    expect(l.ouverts.filter((i) => [a.corps.ref, suivant].includes(i.ref)).map((i) => [i.ref, i.gravite])).toEqual([[suivant, 'majeur'], [a.corps.ref, 'mineur']]);
+    expect((await annonce()).incident).toMatchObject({ gravite: 'mineur', texte: 'Les e-mails de connexion arrivent avec du retard.' });
+    // Un point public sur le majeur : il remplace son message, et la page dit le plus grave.
+    expect((await appeler('POST', `/console/service/incidents/${id}/points`, jT, { texte: 'SkanFact ne répond plus ; nous y travaillons.', public: true, gravite: null })).statut).toBe(201);
+    expect((await annonce()).incident).toMatchObject({ gravite: 'majeur', texte: 'SkanFact ne répond plus ; nous y travaillons.' });
+    l = await lire();
+    expect(l.ouverts[0]?.public).toBe('SkanFact ne répond plus ; nous y travaillons.');
+    expect(l.fiches.service).toMatchObject({ ref: suivant });
+  });
+
+  it('une gravité monte, elle ne descend pas ; retirer le message rend la page à la veille ; le journal garde le numéro', async () => {
+    const baisse = await appeler('POST', `/console/service/incidents/${id}/points`, jT, { texte: 'ça va mieux', public: false, gravite: 'mineur' });
+    expect(baisse.statut).toBe(403);
+    expect(String(baisse.corps.motif)).toMatch(/ne descend pas/);
+    expect((await appeler('POST', `/console/service/incidents/${id}/points`, jT, { texte: 'La base aussi', public: false, gravite: 'critique' })).statut).toBe(201);
+    expect((await lire()).ouverts[0]).toMatchObject({ gravite: 'critique' });
+    expect((await appeler('POST', `/console/service/incidents/${id}/retirer`, jT, { motif: ' ' })).statut).toBe(400);
+    expect((await appeler('POST', `/console/service/incidents/${id}/retirer`, jT, { motif: 'tout répond' })).statut).toBe(200);
+    expect(String((await appeler('POST', `/console/service/incidents/${id}/retirer`, jT, { motif: 'encore' })).corps.motif)).toMatch(/ne dit rien/);
+    // Le mineur reste annoncé.
+    expect((await annonce()).incident).toMatchObject({ gravite: 'mineur' });
+    const g = await gestes();
+    expect(g.map((x) => x.geste)).toEqual(['service.incident_ouvert', 'service.incident_ouvert', 'service.incident_point', 'service.incident_point', 'service.incident_public_retire']);
+    expect(g.every((x) => /^INC-\d{4}-\d{3}$/.test(String(x.apres?.ref)))).toBe(true);
+  });
+
+  it('clore : son compte rendu, ses suites avec une personne et une date ; puis la suite faite, la suite repoussée', async () => {
+    const qui = (await lire()).equipe.find((x) => x.nom.length > 0)?.id ?? '';
+    const fin = new Date(horloge.getTime() - 60_000).toISOString();
+    const corps = { fin, effet: 'Personne ne pouvait ouvrir l\'application.', cause: 'Une migration trop longue.', change: 'Une migration a un délai.', motif: 'compte rendu écrit' };
+    expect((await appeler('POST', `/console/service/incidents/${id}/clore`, jT, { ...corps, effet: 'court', suites: [] })).statut).toBe(400);
+    const passe = new Date(horloge.getTime() - 86_400_000).toISOString().slice(0, 10);
+    expect(String((await appeler('POST', `/console/service/incidents/${id}/clore`, jT, { ...corps, suites: [{ titre: 'Un délai', responsable: qui, due: passe }] })).corps.motif)).toMatch(/aujourd'hui ou plus tard/);
+    const loin = new Date(horloge.getTime() + 10 * 86_400_000).toISOString().slice(0, 10);
+    expect((await appeler('POST', `/console/service/incidents/${id}/clore`, jT, { ...corps, suites: [{ titre: 'Une migration a un délai', responsable: qui, due: loin }, { titre: 'Un second relais', responsable: qui, due: loin }] })).statut).toBe(200);
+    expect(String((await appeler('POST', `/console/service/incidents/${id}/points`, jT, { texte: 'trop tard', public: false, gravite: null })).corps.motif)).toMatch(/clos/);
+    let l = await lire();
+    expect(l.ouverts.map((i) => i.gravite)).toEqual(['mineur']);
+    expect(l.passes.trente.lignes.map((x) => x.ref)).toHaveLength(1);
+    expect(l.suites.map((s) => s.titre)).toEqual(['Un second relais', 'Une migration a un délai']);
+    const [s1, s2] = l.suites;
+    expect((await appeler('POST', `/console/service/suites/${s1?.id}/faite`, jT, { motif: 'en place' })).statut).toBe(200);
+    expect(String((await appeler('POST', `/console/service/suites/${s1?.id}/faite`, jT, { motif: 'encore' })).corps.motif)).toMatch(/déjà faite/);
+    expect(String((await appeler('POST', `/console/service/suites/${s2?.id}/repousser`, jT, { due: loin, motif: 'plus tard' })).corps.motif)).toMatch(/plus tard que/);
+    const plusLoin = new Date(horloge.getTime() + 20 * 86_400_000).toISOString().slice(0, 10);
+    expect((await appeler('POST', `/console/service/suites/${s2?.id}/repousser`, jT, { due: plusLoin, motif: 'le relais attend son contrat' })).statut).toBe(200);
+    l = await lire();
+    expect(l.suites.map((s) => s.titre)).toEqual(['Une migration a un délai']);
+    expect(l.suitesFaites).toBe(1);
+  });
+
+  it('une maintenance : annoncée avant de commencer, douze heures au plus ; la page l\'annonce quarante-huit heures avant ; annulée, elle se tait', async () => {
+    const dans = (h: number) => new Date(horloge.getTime() + h * 3_600_000).toISOString();
+    const m = { titre: 'Le disque de la base agrandi', texte: 'Tout reste lisible ; les envois partent après.', motif: 'prévu avec l\'hébergeur' };
+    expect(String((await appeler('POST', '/console/service/maintenances', jT, { ...m, debut: dans(-1), fin: dans(1) })).corps.motif)).toMatch(/avant de commencer/);
+    expect(String((await appeler('POST', '/console/service/maintenances', jT, { ...m, debut: dans(1), fin: dans(14) })).corps.motif)).toMatch(/douze heures/);
+    const loin = await appeler('POST', '/console/service/maintenances', jT, { ...m, debut: dans(72), fin: dans(73) });
+    expect(loin.statut).toBe(201);
+    expect((await annonce()).maintenance).toBeNull();
+    const pres = await appeler('POST', '/console/service/maintenances', jT, { ...m, debut: dans(24), fin: dans(25) });
+    expect((await annonce()).maintenance).toMatchObject({ titre: 'Le disque de la base agrandi' });
+    expect((await appeler('POST', `/console/service/maintenances/${String(pres.corps.id)}/annuler`, jT, { motif: 'reporté' })).statut).toBe(200);
+    expect((await annonce()).maintenance).toBeNull();
+    const l = await lire();
+    expect(l.maintenances.filter((x) => x.sorte === 'annoncee').map((x) => x.etat)).toEqual(['a_venir', 'annulee']);
+  });
+
+  it('la page d\'état : ce que la veille a écrit à côté d\'elle ; rien tant qu\'elle n\'a rien écrit', async () => {
+    const f = path.join(path.dirname(veille), 'page-etat.json');
+    fs.rmSync(f, { force: true });
+    expect((await lire()).page).toBeNull();
+    fs.writeFileSync(f, JSON.stringify({ le: horloge.toISOString(), tout: { couleur: 'vert', dit: 'Tout fonctionne' }, lignes: [{ nom: 'Le service', couleur: 'vert', dit: 'Fonctionne' }], annonce: { incident: null, maintenance: null } }));
+    expect((await lire()).page).toMatchObject({ tout: { couleur: 'vert', dit: 'Tout fonctionne' } });
+    fs.rmSync(f, { force: true });
+  });
+
+  it('seules la direction et la technique ; la base refuse hors d\'une session de la console ; le compte du serveur ne lit aucune de ces tables', async () => {
+    expect((await appeler('GET', '/console/service/incidents', jS)).statut).toBe(403);
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_service_incidents(now())'))).rejects.toThrow(/session de la console/);
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query("select plateforme.console_ouvrir_incident('Un titre', 'mineur', null, null, 'hors console', now())"))).rejects.toThrow(/session de la console/);
+    for (const table of ['service_incident', 'service_incident_point', 'service_suite', 'service_maintenance']) {
+      await expect(enTantQue(pool, null, (tx) => tx.query(`select * from plateforme.${table}`)), table).rejects.toThrow(/permission/);
+    }
+  });
+});

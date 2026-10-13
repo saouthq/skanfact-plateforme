@@ -10359,7 +10359,7 @@ prouver "l'essai des alertes réussi sans rien envoyer" exploitation/veiller.ts 
   'return p.courriel !== false && p.sms !== false && (p.courriel === true || p.sms === true);' 'return p.courriel !== false && p.sms !== false;' \
   "$VW4"
 prouver "la page d'état jamais écrite" exploitation/veiller.ts \
-  "    ecrire(path.join(ETAT, 'public', 'etat.html'), pageEtat(SERVEUR, r, garde(aNoter)));" "" \
+  "    ecrire(path.join(ETAT, 'public', 'etat.html'), pageEtat(SERVEUR, r, garde(aNoter), annonce));" "" \
   "$VW5"
 prouver "la veille qui oublie d'une minute à l'autre" exploitation/veiller.ts \
   '  const avant = lire<Veille>(fichier, { problemes: {} });' '  const avant: Veille = { problemes: {} };' \
@@ -11653,7 +11653,7 @@ prouver 'deux sourdines à la fois sur une règle' 'base/migrations/0086_service
   '  if exists (select 1 from plateforme.service_sourdine s where s.regle = p_regle and s.levee_le is null and s.fin > p_maintenant) then' \
   '  if false then' \
   'la sourdine : d'"'"'une règle qui prévient, un quart d'"'"'heure à un jour, quatre heures au plus sur une alerte grave, une à la fois ; la veille la lit'
-prouver 'une sourdine levée que la veille lit encore' 'base/migrations/0086_service_alertes.sql' \
+prouver 'une sourdine levée que la veille lit encore' 'base/migrations/0089_service_incidents.sql' \
   'from plateforme.service_sourdine s where s.levee_le is null and s.debut <= p_maintenant' \
   'from plateforme.service_sourdine s where s.debut <= p_maintenant' \
   'la sourdine : d'"'"'une règle qui prévient, un quart d'"'"'heure à un jour, quatre heures au plus sur une alerte grave, une à la fois ; la veille la lit'
@@ -11906,6 +11906,56 @@ prouver "une relance nommée d'après une entreprise inconnue" serveur/console/e
   '    if (!nom) continue;
     for (const rang of RANGS) {' '    for (const rang of RANGS) {' \
   "$AC1"
+
+# Les incidents du service et la page d'état (docs/console.md C24, base 0089) : un numéro sans trou, une gravité qui
+# ne descend pas, la page qui annonce le plus grave, les suites à tenir, la mesure de la veille seule.
+IN1='ouvrir : un numéro par année, sans trou ; la page d'"'"'état dit le message public, le plus grave d'"'"'abord'
+IN2='une gravité monte, elle ne descend pas ; retirer le message rend la page à la veille ; le journal garde le numéro'
+IN3='une maintenance : annoncée avant de commencer, douze heures au plus ; la page l'"'"'annonce quarante-huit heures avant ; annulée, elle se tait'
+IN4='en retard d'"'"'abord (une suite due aujourd'"'"'hui ne l'"'"'est pas), puis par date ; les faites se comptent'
+IN5='ceux clos ouverts dans la période, avec leur durée (jamais négative) ; l'"'"'arrêt et la disponibilité viennent de la veille seule'
+IN6='une mise en ligne dit les minutes sans réponse vues autour d'"'"'elle (dix minutes de part et d'"'"'autre), pas plus loin'
+IN7='l'"'"'annonce de la console : un incident majeur dit « Incident en cours » même quand la veille ne voit rien ; un mineur reste orange'
+IN8='clore demande le compte rendu ; clos, « Aucun incident ouvert » et l'"'"'incident dans les passés, sa suite à tenir'
+prouver "un numéro d'incident qui saute" base/migrations/0089_service_incidents.sql \
+  'select coalesce(max(numero), 0) + 1 into v_numero' 'select coalesce(max(numero), 0) + 2 into v_numero' \
+  "$IN1"
+prouver "la page d'état qui annonce le moins grave" base/migrations/0089_service_incidents.sql \
+  'order by plateforme.rang_gravite(i.gravite) desc, i.public_le desc limit 1' 'order by plateforme.rang_gravite(i.gravite), i.public_le desc limit 1' \
+  "$IN1"
+prouver "une gravité qui redescend en silence" base/migrations/0089_service_incidents.sql \
+  'if plateforme.rang_gravite(p_gravite) < plateforme.rang_gravite(v_i.gravite) then' 'if false then' \
+  "$IN2"
+prouver "un message retiré deux fois sans le dire" base/migrations/0089_service_incidents.sql \
+  "  if v_i.public is null then perform socle.refus('la page d''état ne dit rien de cet incident'); end if;" '' \
+  "$IN2"
+prouver "une maintenance annoncée trois semaines avant" base/migrations/0089_service_incidents.sql \
+  "m.debut <= p_maintenant + interval '48 hours'" "m.debut <= p_maintenant + interval '480 hours'" \
+  "$IN3"
+prouver "une suite en retard rangée après les autres" serveur/console/incidents.ts \
+  'aTenir.sort((a, b) => a.due.localeCompare(b.due)' 'aTenir.sort((a, b) => b.due.localeCompare(a.due)' \
+  "$IN4"
+prouver "une suite faite restée à tenir" serveur/console/incidents.ts \
+  'if (s.faiteLe) { faites++; continue; }' 'if (s.faiteLe) { faites++; }' \
+  "$IN4"
+prouver "un incident à la durée négative" serveur/console/incidents.ts \
+  'minutes: Math.max(0, Math.round((Date.parse(i.fin as string) - Date.parse(i.ouvertLe)) / 60_000)),' 'minutes: Math.round((Date.parse(i.fin as string) - Date.parse(i.ouvertLe)) / 60_000),' \
+  "$IN5"
+prouver "un arrêt de zéro minute dit sans relevé" serveur/console/incidents.ts \
+  'arret: mesure.mesurees ? mesure.bas : null,' 'arret: mesure.bas,' \
+  "$IN5"
+prouver "une coupure d'une heure plus tôt mise sur le dos d'une version" serveur/console/incidents.ts \
+  'export const AUTOUR_VERSION_MIN = 10;' 'export const AUTOUR_VERSION_MIN = 30;' \
+  "$IN6"
+prouver "un incident majeur que la page d'état tait" exploitation/veille.ts \
+  "const tout: [CouleurEtat, string] = annonce.incident && annonce.incident.gravite !== 'mineur' ? ['rouge', 'Incident en cours']" "const tout: [CouleurEtat, string] = false ? ['rouge', 'Incident en cours']" \
+  "$IN7"
+prouver "« Publier » allumé sans incident ouvert" web/console/src/ecrans/Incidents.tsx \
+  '<Bouton desactive={!ouvert} onClick=' '<Bouton onClick=' \
+  "$IN8"
+prouver "une annonce de la page d'état peinte en plein comme un point de couleur" exploitation/veille.ts \
+  "i.gravite === 'mineur' ? 'a-orange' : 'a-rouge'" "i.gravite === 'mineur' ? 'orange' : 'rouge'" \
+  "$IN7"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

@@ -186,16 +186,25 @@ describe('les alertes en cours, qui est prévenu, les règles, l\'histoire', () 
 
 describe('au journal, un geste du service dit sur quoi il porte', () => {
   it('la règle de la sourdine, celle de l\'alerte prise en charge, l\'essai ; et la fin prévue d\'une sourdine', () => {
-    expect(sujetDuService('service.sourdine', null, { regle: 'disques', fin: '2026-10-13T10:00:00Z' })).toEqual({ regle: 'disques', essai: false, fin: '2026-10-13T10:00:00Z' });
+    expect(sujetDuService('service.sourdine', null, { regle: 'disques', fin: '2026-10-13T10:00:00Z' })).toEqual({ regle: 'disques', essai: false, fin: '2026-10-13T10:00:00Z', incident: null, suite: null, maintenance: null });
     // Levée : la fin PRÉVUE est dans l'avant ; l'après porte la minute de la levée (vu à l'écran : « devait courir
     // jusqu'à 09:22 », l'heure même de la levée).
     expect(sujetDuService('service.sourdine_levee', { regle: 'copie', fin: '2026-10-13T12:00:00Z' }, { regle: 'copie', fin: '2026-10-13T09:22:00Z' }))
-      .toEqual({ regle: 'copie', essai: false, fin: '2026-10-13T12:00:00Z' });
+      .toEqual({ regle: 'copie', essai: false, fin: '2026-10-13T12:00:00Z', incident: null, suite: null, maintenance: null });
     // Une prise en charge garde la clé de l'alerte : sa règle s'en déduit, comme partout ailleurs.
-    expect(sujetDuService('service.prendre', null, { alerte: 'x', cle: 'disque:/var', prisePar: null })).toEqual({ regle: 'disques', essai: false, fin: null });
-    expect(sujetDuService('service.essai', null, { demande: 'd' })).toEqual({ regle: null, essai: true, fin: null });
+    expect(sujetDuService('service.prendre', null, { alerte: 'x', cle: 'disque:/var', prisePar: null })).toEqual({ regle: 'disques', essai: false, fin: null, incident: null, suite: null, maintenance: null });
+    expect(sujetDuService('service.essai', null, { demande: 'd' })).toEqual({ regle: null, essai: true, fin: null, incident: null, suite: null, maintenance: null });
     // Un autre geste n'est pas un geste du service ; une fin illisible ne se dit pas.
     expect(sujetDuService('abonnement.payer', null, { regle: 'disques' })).toBeNull();
     expect(sujetDuService('service.sourdine', null, { regle: 'disques', fin: 'demain' })?.fin).toBeNull();
+  });
+  it('un incident dit son numéro, une suite son titre, une maintenance son début ; un numéro mal formé ne se dit pas', () => {
+    expect(sujetDuService('service.incident_point', { incident: 'x', gravite: 'mineur' }, { incident: 'x', ref: 'INC-2026-006', gravite: 'majeur', public: true }))
+      .toMatchObject({ regle: null, incident: 'INC-2026-006', suite: null, maintenance: null });
+    expect(sujetDuService('service.suite_repoussee', { suite: 's', due: '2026-10-20' }, { suite: 's', ref: 'INC-2026-004', titre: 'Un second relais', due: '2026-10-31' }))
+      .toMatchObject({ incident: 'INC-2026-004', suite: 'Un second relais' });
+    expect(sujetDuService('service.maintenance_annulee', { maintenance: 'm', debut: '2026-10-20T02:00:00Z' }, null))
+      .toMatchObject({ incident: null, maintenance: '2026-10-20T02:00:00Z' });
+    expect(sujetDuService('service.incident_point', null, { ref: 'INC-26-6' })?.incident).toBeNull();
   });
 });

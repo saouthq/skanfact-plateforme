@@ -183,7 +183,7 @@ function useFaute<T extends HTMLElement>(faute: boolean, n: number | undefined) 
 }
 
 type PropsChamp = Commun & {
-  valeur: string; changer: (v: string) => void; type?: 'text' | 'email' | 'password' | 'number'; autoComplete?: string;
+  valeur: string; changer: (v: string) => void; type?: 'text' | 'email' | 'password' | 'number' | 'date' | 'datetime-local'; autoComplete?: string;
   inputMode?: 'numeric' | 'text' | 'email'; placeholder?: string; premier?: boolean; revelable?: boolean; min?: number; max?: number; classe?: string; nom?: string;
 };
 export function Champ({ libelle, aide, faute = false, n, valeur, changer, type = 'text', autoComplete, inputMode, placeholder, premier, revelable, min, max, classe, nom }: PropsChamp) {
@@ -212,14 +212,14 @@ export function Champ({ libelle, aide, faute = false, n, valeur, changer, type =
   );
 }
 
-export function Zone({ libelle, aide, faute = false, n, valeur, changer, premier }: Commun & { valeur: string; changer: (v: string) => void; premier?: boolean }) {
+export function Zone({ libelle, aide, faute = false, n, valeur, changer, premier, max = 500 }: Commun & { valeur: string; changer: (v: string) => void; premier?: boolean; max?: number }) {
   const f = useFaute<HTMLTextAreaElement>(faute, n);
   const id = useId();
   useEffect(() => { if (premier) f.ref.current?.focus(); }, [premier, f.ref]);
   return (
     <div className={['c-champ', f.rouge ? 'c-champ-faute' : ''].filter(Boolean).join(' ')}>
       <label className="c-champ-libelle" htmlFor={id}>{libelle}</label>
-      <textarea ref={f.ref} id={id} value={valeur} rows={3} maxLength={500} aria-invalid={f.rouge || undefined} aria-describedby={aide ? `${id}-aide` : undefined}
+      <textarea ref={f.ref} id={id} value={valeur} rows={3} maxLength={max} aria-invalid={f.rouge || undefined} aria-describedby={aide ? `${id}-aide` : undefined}
         onChange={(e) => { f.effacer(); changer(e.target.value); }} />
       {aide ? <span className="c-champ-aide" id={`${id}-aide`}>{aide}</span> : null}
     </div>

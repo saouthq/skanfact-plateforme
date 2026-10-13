@@ -15,7 +15,7 @@ declarerTextes({
   'geste.console.equipe.gerer': 'gérer l\'équipe SkanFact',
   'geste.console.service.voir': 'voir l\'état du service',
   'geste.console.service.remise': 'préparer la remise d\'une entreprise à une minute (la console compose les commandes, elle ne les exécute pas)',
-  'geste.console.service.gerer': 'gérer les alertes du service (les prendre en charge, les mettre en sourdine, envoyer une alerte d\'essai)',
+  'geste.console.service.gerer': 'gérer les alertes et les incidents du service (prendre une alerte en charge, une sourdine, une alerte d\'essai ; ouvrir, suivre et clore un incident, ses suites ; annoncer une maintenance)',
   // Les rôles de l'équipe SkanFact (03 § 5).
   'role.direction': 'direction',
   'role.support': 'support',
@@ -32,6 +32,7 @@ declarerTextes({
   'console.remise.minute_trop_vieille': 'on ne peut revenir qu\'à une minute que les copies de base gardées couvrent (le plus ancien point est dit sur l\'écran)',
   'console.remise.motif_court': 'une remise demande son motif, trois caractères au moins : il entre dans la piste d\'audit de l\'entreprise',
   'console.remise.motif_illisible': 'le motif tient sur une ligne, trois cents caractères au plus',
+  'console.sans_balise': 'ce texte part sur la page d\'état publique : sans les signes < ni >',
   'console.motif_requis': 'un geste de la console demande son motif, trois caractères au moins : il reste dans son histoire',
   'console.abonnement_change': 'cet abonnement a changé depuis que tu l\'as ouvert : relis-le avant de refaire le geste',
 });

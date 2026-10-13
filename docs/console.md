@@ -433,6 +433,38 @@ relances parties depuis hier** : celles que le serveur a envoyées tout seul (la
 nommées, la plus récente d'abord — pour que personne ne relance une seconde fois à la main. La technique ne les reçoit
 pas (elles nomment des clients). Un titre venu de la veille commence par sa majuscule.
 
+**C24. Les incidents du service et la page d'état** (10 § 2.8 ; 06 § 9 ; base 0089). `#/service/incidents`, la
+direction et la technique (aucune donnée de client). Un **incident** s'ouvre quand des clients risquent de sentir un
+problème — une alerte n'en est pas un tant que personne n'en souffre. Il porte un numéro de l'année (INC-2026-006, sans
+trou : la base verrouille la table le temps de le prendre), une gravité (mineur, majeur, critique : **elle monte, elle
+ne descend pas**, la base refuse), la fiche réflexe qu'il suit, ses points dans l'ordre, et ce que la **page d'état**
+publique en dit. Il se **clôt** avec son compte rendu — l'effet sur les clients, la cause, ce qui change — et ses
+**suites**, chacune avec une personne de l'équipe et une date ; une suite se marque faite ou se repousse (plus tard, avec
+son motif, et le compte de ses reports se garde). Les **maintenances** s'annoncent avant de commencer, douze heures au
+plus, et s'annulent tant qu'elles n'ont pas commencé ; les mises en ligne que la veille a vues s'y lisent aussi, avec les
+minutes sans réponse relevées autour d'elles (dix minutes de part et d'autre). Les **incidents passés** se lisent sur
+trente jours ou sur l'année, avec ce que la veille a mesuré (l'arrêt complet, la disponibilité ; « — » sans relevé). Chaque
+geste demande son motif et entre au journal avec le numéro de l'incident.
+- **La page d'état ne passe jamais au vert à la main** : ses lignes restent celles de la veille. La console ne fait
+  qu'y poser une **annonce** — le message public de l'incident ouvert le plus grave, la maintenance en cours ou dans les
+  quarante-huit heures — que la veille lit chaque minute (`plateforme.veille_lire`) ; un incident majeur ou critique fait
+  dire « Incident en cours », un mineur « Un incident en cours » (orange), une maintenance commencée « Maintenance en
+  cours ». Le texte n'accepte ni « < » ni « > », et la page l'échappe quand même. Sans la base, la page garde la dernière
+  annonce (une maintenance finie s'efface d'elle-même).
+- **L'aperçu montré par la console est la page elle-même** : la veille écrit à côté de son fichier ce que la page dit,
+  ligne pour ligne (`page-etat.json`, hors du dossier public), et la console le relit tel quel. Sans ce fichier, l'écran
+  dit que la veille n'a pas encore écrit la page.
+- **La page ne change qu'au passage de la veille, et l'écran le dit dans les deux sens** : ce qui vient d'être annoncé
+  (un message publié, une maintenance entrée dans ses quarante-huit heures) « n'y est pas encore » ; ce qui n'a plus lieu
+  d'être (incident clos, message retiré, maintenance annulée ou finie) y reste jusqu'au passage suivant, et l'écran le
+  dit au lieu de laisser croire qu'on l'a oublié. Une maintenance y porte son créneau, comme sur la page publique.
+- Une fenêtre qui annule quelque chose (« Annuler la maintenance ») nomme sa sortie (« Garder la maintenance ») :
+  deux « Annuler » côte à côte se lisent comme le même geste.
+- **Les règles d'un incident** (qui est prévenu, à quel rythme on parle aux clients) sont montrées **à décider** : la
+  console ne prévient personne d'elle-même (les alertes de la veille, si). **Les fiches réflexes** (neuf, quatre temps
+  chacune : contenir, dire, réparer, écrire) disent quand chacune a servi pour la dernière fois ; trois portent un
+  « à décider » ou un « à vérifier » (le site de secours, l'INPDP).
+
 ## Mettre en route
 
 La personne crée d'abord son compte SkanFact, puis met en place le code de son téléphone (« Ton compte »,
@@ -457,7 +489,7 @@ fait depuis l'écran « Équipe ». La console s'ouvre à `https://<le serveur>/
 - **À qui n'est pas de l'équipe, la réponse d'un mot de passe faux.**
 - **Le support prolonge un essai de 7 à 30 jours, une fois par entreprise** ; une seconde prolongation, et tout le reste,
   sont à la direction. « Offrir un mois » (un avoir sur la prochaine facture, 10 § 2.4) attend nos factures (14b).
-- **L'adresse : `/console/` du même serveur** pour l'instant ; `console.skanfact.tn` viendra par le frontal.
+- **L'adresse : `/console/` du même serveur** ; sur le serveur d'essai, aussi `console.skanfact.tn`, par le frontal.
 - **« Inscriptions » compte les sept derniers jours, aujourd'hui compris**, et ouvre la liste avec ce filtre.
 - **Une fenêtre ne se ferme pas d'un clic à côté.**
 - **La console n'est pas l'API des partenaires** : ses routes n'entrent pas dans la documentation de l'API.
@@ -470,7 +502,10 @@ fait depuis l'écran « Équipe ». La console s'ouvre à `https://<le serveur>/
 
 - **Qui entre dans l'équipe, et avec quel rôle.** Le premier membre se pose sur le serveur des pilotes par l'outil, en
   root : jamais par Claude.
-- **`console.skanfact.tn`** : le nom à créer dans le DNS, puis le frontal le branche.
+- **Les règles d'un incident** (C24) : les trois gravités, qui est prévenu et à quel rythme on parle aux clients. Elles
+  sont montrées comme une proposition ; rien ne les applique tant qu'elles ne sont pas décidées.
+- **Un site de secours** (la fiche « le site principal est perdu ») : aujourd'hui, la bascule se fait en montant un
+  serveur neuf depuis la copie hors machine ; rien n'est prêt d'avance.
 - **Un second destinataire des alertes** : une seule adresse et un seul numéro sont prévenus ; s'ils ne répondent pas,
   personne d'autre ne le saura. L'écran des alertes le dit ; le second se règle sur le serveur (`exploitation/alertes.sh`).
 

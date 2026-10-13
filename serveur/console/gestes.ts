@@ -28,7 +28,8 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   { code: 'console.equipe.voir', roles: [D], ecrit: false },
   { code: 'console.equipe.gerer', roles: [D], ecrit: true },
   { code: 'console.service.voir', roles: [D, T], ecrit: false },
-  // Les alertes du service : les prendre en charge, les mettre en sourdine, demander une alerte d'essai à la veille.
+  // Les alertes du service (les prendre en charge, les mettre en sourdine, demander une alerte d'essai à la veille) et ses
+  // incidents (les ouvrir, les suivre, les clore avec leurs suites ; annoncer une maintenance).
   { code: 'console.service.gerer', roles: [D, T], ecrit: true },
   // Préparer la remise d'une entreprise (docs/console.md C14) : la direction seule, parce que l'écran nomme le client ; la
   // console compose les commandes, elle ne les exécute jamais.
