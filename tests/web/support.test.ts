@@ -135,8 +135,11 @@ describe('le support, à la souris, des deux côtés', () => {
     }
     for (const [largeur, hauteur] of [[1440, 900], [1280, 800]] as const) {
       const p = await consoleSur('#/support', largeur, hauteur);
-      // Sans demande choisie, la plus urgente s'ouvre : celle de Lina (la seule ouverte de son studio).
+      // Sans demande choisie, la plus urgente s'ouvre : la première de la liste. Les tests d'avant laissent les leurs dans la
+      // même base (la console les voit toutes) : on n'attend pas que ce soit celle de Lina, on l'ouvre ensuite d'un clic.
+      await expect.poll(() => p.locator('.c-sp-ticket').first().getAttribute('aria-pressed'), { timeout: 15_000 }).toBe('true');
       const ticket = p.locator('.c-sp-ticket').filter({ hasText: 'Studio Lina Support' });
+      if (await ticket.getAttribute('aria-pressed') !== 'true') await cliquer(ticket);
       await expect.poll(() => ticket.getAttribute('aria-pressed'), { timeout: 15_000 }).toBe('true');
       await expect.poll(async () => net(await p.locator('#sp-fil-titre').innerText())).toBe(`« ${SUJET} »`);
       const g = await geometrie(p);
@@ -209,7 +212,8 @@ describe('le support, à la souris, des deux côtés', () => {
     await revenir(c);
     await expect.poll(async () => net(await c.locator('[data-sup-fil]').innerText()), { timeout: 15_000 }).toContain('je t\'appelle demain matin');
     await expect.poll(aLire, { timeout: 15_000 }).toEqual([]);
-    expect(await c.locator('#nav-support').isVisible()).toBe(false);
+    // La pastille suit le serveur à son tour : on l'attend (lue d'un coup, une machine chargée la trouvait encore allumée).
+    await expect.poll(() => c.locator('#nav-support').isVisible(), { timeout: 15_000 }).toBe(false);
     expect(erreurs).toEqual([]);
     await fermer(c);
   }, 90_000);

@@ -101,14 +101,16 @@ describe('la console de l\'équipe, à la souris', () => {
       await api('GET', `/entreprises/${id}/dossier-v10`, jeton);
       const client = { id: 'c1', name: 'Chantier Ennasr', address: 'Ennasr 2, Ariana' };
       await api('POST', `/entreprises/${id}/dossier-v10`, jeton, { changements: [{ collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: client }] });
-      const r = await api('POST', `/entreprises/${id}/dossier-v10/emettre`, jeton, { document: { id: 'f0', type: 'facture', number: '', status: 'brouillon', date: new Date().toISOString().slice(0, 10), clientId: 'c1', createdAt: 1,
+      const r = await api('POST', `/entreprises/${id}/dossier-v10/emettre`, jeton, { document: { id: 'f0', type: 'facture', number: '', status: 'brouillon', date: aujourdhui, clientId: 'c1', createdAt: 1,
         lines: [{ label: 'Ciment gris 50 kg', description: '', qty: 1, unit: 'sac', unitPrice: 25, vatRate: 19 }], discountRate: 0, withholdingRate: 0, applyStamp: false, currency: 'DT', payments: [] },
       client, revision: null, rang: 0, netAPayer: '29.750' });
       if (r.statut !== 200) throw new Error(`la facture du jeu n'est pas émise : ${JSON.stringify(r.corps)}`);
     }
-    await admin.query(`update plateforme.abonnement set essai_jusqu_au = current_date + $2::int,
-        paye_jusqu_au = case when $3::int is null then null else current_date + $3::int end, offre = $4, periodicite = $5 where entreprise = $1`,
-    [id, essaiDans, autre.payeDans ?? null, autre.offre ?? null, autre.offre ? 'annuel' : null]);
+    // Le jour de Tunis, celui de l'écran et du serveur — jamais `current_date`, le jour de la base (en UTC) : entre minuit et
+    // une heure à Tunis, ils diffèrent d'un jour, et chaque date attendue tombait à côté.
+    await admin.query(`update plateforme.abonnement set essai_jusqu_au = $6::date + $2::int,
+        paye_jusqu_au = case when $3::int is null then null else $6::date + $3::int end, offre = $4, periodicite = $5 where entreprise = $1`,
+    [id, essaiDans, autre.payeDans ?? null, autre.offre ?? null, autre.offre ? 'annuel' : null, aujourdhui]);
     return id;
   };
   // Le nombre d'entreprises de la liste des clients, tel que sa ligne de compte le dit : « 1–50 sur 61 entreprises »,
