@@ -124,6 +124,14 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.defi_console': { classe: 'hors', raison: 'un secret de connexion ne quitte jamais la plateforme' },
   'plateforme.session_console': { classe: 'hors', raison: 'une session ouverte est une clé de connexion' },
   'plateforme.geste_console': { classe: 'hors', raison: 'le journal de la console de SkanFact, avec ses notes : une remise ne le fait jamais revenir en arrière' },
+  // Le service (0085, docs/console.md C12) : ce que le serveur mesure de lui-même et ce que sa veille voit. Des comptes
+  // de requêtes de toutes les entreprises mêlées, jamais une donnée de l'une d'elles.
+  'plateforme.service_minute': { classe: 'hors', raison: 'les requêtes du serveur, minute par minute, toutes entreprises mêlées : des mesures de la plateforme' },
+  'plateforme.service_heure': { classe: 'hors', raison: 'les requêtes du serveur, heure par heure, toutes entreprises mêlées : des mesures de la plateforme' },
+  'plateforme.service_route': { classe: 'hors', raison: 'les routes appelées chaque jour, par leur modèle et sans aucune valeur : des mesures de la plateforme' },
+  'plateforme.service_releve': { classe: 'hors', raison: 'ce que la veille du serveur relève chaque minute (la machine, ses disques, ses copies) : l\'état de la plateforme' },
+  'plateforme.service_alerte': { classe: 'hors', raison: 'les alertes de la veille du serveur : l\'histoire de la plateforme, qu\'une remise ne fait jamais revenir en arrière' },
+  'plateforme.service_nuit': { classe: 'hors', raison: 'les sauvegardes de chaque nuit, de toute la base : l\'histoire de la plateforme' },
   'socle.dossier_v10_retire': { classe: 'hors', raison: 'les traces de retrait servent la relecture des postes ; après une restauration, un poste relit tout' },
   // Ce qu'un appareil retiré a remis (0044) : à l'entreprise, décidé ou non.
   'socle.quarantaine': { classe: 'entreprise' },

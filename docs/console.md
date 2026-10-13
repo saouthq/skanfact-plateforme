@@ -173,6 +173,8 @@ et ses graphiques `web/console/src/graphes.tsx`. Les tests : `tests/service/mesu
   dit par la borne de son seau, jamais par un chiffre qu'on n'a pas mesuré. Deux histogrammes s'additionnent, jamais deux
   moyennes. **Jamais une donnée de client** : une route se dit par son MODÈLE de chemin
   (`GET /entreprises/:entreprise/ventes/factures`), et la base refuse un chemin qui porte un nombre ou un identifiant.
+  Ces mesures sont à la plateforme : les six tables du service ne partent jamais avec l'export d'une entreprise
+  (`CLASSEMENT`, « hors », chacune avec sa raison).
 - **Une sorte par route, et son budget** : lecture (300 ms), caisse (200 ms), comptes (1 s), dossier, écriture et
   console (aucun budget écrit : on n'en invente pas un pour colorer un chiffre). Les routes dont la sorte n'est pas celle
   de leur méthode sont écrites une fois (`SORTE_PAR_ROUTE`), et un test exige que chacune existe.

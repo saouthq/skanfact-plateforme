@@ -25,6 +25,12 @@ choisis="$(
   while read -r f; do
     [ -f "$f" ] || continue
     if [[ "$f" =~ ^(tests|moteur)/.*\.test\.ts$ ]]; then echo "$f"; continue; fi
+    # Deux gardes qu'aucun import ne désigne. Une migration : l'export range CHAQUE table de la base (CLASSEMENT,
+    # base/entreprise.ts), et son test n'importe aucune migration. Un écran de la console : l'instrument de rendu la
+    # parcourt en entier, au doigt et à la souris. Les deux sont tombés sur GitHub pour la Console 3 (six tables du
+    # service non rangées, des filtres de 32 points au téléphone) : ce tri ne les donnait pas.
+    if [[ "$f" =~ ^base/migrations/.*\.sql$ ]]; then echo tests/socle/export-entreprise.test.ts; continue; fi
+    if [[ "$f" =~ ^web/console/src/ ]]; then echo tests/web/console.test.ts; continue; fi
     # Les tests qui importent directement un fichier changé — sauf un fichier que plus de trois
     # fichiers de test importent (les routes, par exemple) : ceux-là, GitHub les rejoue.
     if [[ "$f" =~ ^(serveur|moteur|commun|textes|base)/.*\.ts$ ]]; then

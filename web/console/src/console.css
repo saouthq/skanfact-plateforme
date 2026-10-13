@@ -1019,7 +1019,8 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   .c-sv-tuile-valeur b { font-size: 24px; }
   .c-sv-tuile-mot b { font-size: 18px; }
   .c-sv-section-tete h2 { font-size: 20px; }
-  .c-sv-periodes .c-pilule { min-height: 44px; }
+  /* Au doigt, chaque pilule fait ses 44 points : les filtres du journal aussi (resserrés à 32 sous la souris). */
+  .c-sv-periodes .c-pilule, .c-sv-filtres .c-pilule { min-height: 44px; }
   .c-sv-bas { grid-template-columns: minmax(0, 1fr); }
   .c-sv-graphe .c-courbe { --c-gouttiere: 46px; }
   .c-sv-brique { grid-template-columns: 36px minmax(0, 1fr); gap: 10px 12px; }
