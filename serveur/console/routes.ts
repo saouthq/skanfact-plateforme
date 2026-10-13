@@ -30,6 +30,7 @@ import {
   lireSauvegardes, nuits as nuitsGardees, pointLePlusAncien, promesses, retardsParHeure,
 } from './sauvegardes.ts';
 import { attenteDe, etatTour, lireTravaux, PARTENAIRES, quatorzeJours, SANS_TRACE, TOURS } from './travaux.ts';
+import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
 import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
 import { BUDGETS } from '../service/mesures.ts';
@@ -627,6 +628,39 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           branches: { ttn: Boolean(ctx.ttn?.adresse), courriel: Boolean(ctx.courriel) },
         },
       };
+    },
+  });
+  // La sécurité (C26) : les connexions de vingt-quatre heures, ce qui demande un regard, l'équipe, les règles qui
+  // freinent (tirées du code), et qui peut commander le serveur — le fichier des clés relu à chaque demande, comme le
+  // serveur d'accès le relit (une clé retirée dans le dépôt se voit ici à la mise en ligne suivante).
+  const fichierCles = path.join(import.meta.dirname, '../../exploitation/acces-cles.json');
+  ajouter({
+    methode: 'GET', chemin: '/console/service/securite', geste: 'console.service.voir',
+    traiter: async ({ qui }, tx) => {
+      const instant = maintenant();
+      const jour = aujourdhuiATunis(instant);
+      const x = transaction(tx);
+      const v = lireVeilleDeLaBase(await lireJson(x, 'select plateforme.console_service_veille($1) v', [depuisTrenteJours(jour)]));
+      const lu = lireSecurite(await lireJson(x, 'select plateforme.console_service_securite($1) v', [instant.toISOString()]));
+      const veille = await lireLaVeille(fichierVeille, instant);
+      const cles = await fs.readFile(fichierCles, 'utf8').then((t) => lireClesDeCommande(JSON.parse(t))).catch(() => null);
+      return {
+        corps: {
+          maintenant: instant.toISOString(), aujourdhui: jour, role: roleDe(qui), veille, alertesEnCours: alertesOuvertes(v.alertes), briques: briques(v, jour, instant, veille.etat === 'ok'),
+          heures: lu.heures, motsDePasseFaux: lu.motsDePasseFaux, freines: lu.freines, aRegarder: rangerARegarder(lu.aRegarder), equipe: lu.equipe,
+          regles: REGLES_DE_CONNEXION.map((r) => ({ ...r, compte: r.nom === 'mot_de_passe' ? lu.freines : null })),
+          cles, certificat: v.dernier?.certificat ? { expire: v.dernier.certificat, jours: joursDuCertificat(v.dernier.certificat, jour) } : null,
+        },
+      };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/securite/attentes/:compte/lever', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!/^[0-9a-f]{32}$/.test(params.compte ?? '')) throw new Introuvable();
+      await transaction(tx).query('select plateforme.console_lever_attente($1, $2, $3)', [params.compte, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
     },
   });
   const gravite = z.enum(['mineur', 'majeur', 'critique']);

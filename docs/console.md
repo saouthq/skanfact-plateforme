@@ -534,10 +534,33 @@ fait depuis l'écran « Équipe ». La console s'ouvre à `https://<le serveur>/
 - **Un second destinataire des alertes** : une seule adresse et un seul numéro sont prévenus ; s'ils ne répondent pas,
   personne d'autre ne le saura. L'écran des alertes le dit ; le second se règle sur le serveur (`exploitation/alertes.sh`).
 
+**C26. La sécurité du service** (10 § 2.8, 03 § 6 ; base 0091). `#/service/securite`, la direction et la technique. Ce
+que les règles de connexion ont fait, lu dans ce qu'elles écrivent déjà — **rien de neuf n'est enregistré** : quatre
+chiffres (les connexions réussies des vingt-quatre heures, les codes faux tapés après un mot de passe bon, les comptes
+freinés, les jours qui restent au certificat) ; **ce qui demande un regard** ; les connexions heure par heure ; les
+règles et leurs chiffres ; les clés qui peuvent commander le serveur ; l'équipe et ses appareils.
+- **Ce qui demande un regard, par ordre d'urgence** : trois codes faux ou plus après un mot de passe BON (quelqu'un
+  connaît ce mot de passe, la personne doit le savoir) d'abord ; le même cas qui a fini par aboutir ensuite ; un compte
+  freiné par des mots de passe faux en dernier (la règle a fait son travail). L'équipe passe devant à urgence égale : un
+  accès à la console vaut tous les dossiers. Un appareil nouveau se dit.
+- **Une adresse de client est masquée pour la technique** (h…@exemple.tn) ; la direction la lit en entier ; une
+  personne de l'équipe se nomme toujours. Un compte freiné se désigne par l'empreinte de son adresse, jamais l'adresse.
+- **Lever l'attente** d'un compte freiné (la personne a appelé, c'était bien elle) : direction ou technique, avec son
+  motif, au journal (`service.lever_attente`, l'empreinte et le nombre d'erreurs effacées, jamais l'adresse). Un compte
+  qui n'attend plus se refuse avec sa phrase. Le refus d'un motif trop court reste affiché jusqu'au clic suivant : effacé
+  à la frappe, il ferait remonter le bouton sous le curseur.
+- **Les règles sont celles du code**, recopiées pour être dites et confrontées par un test à la base (`socle.noter_erreur`,
+  `socle.sms_permis`) et aux limites du serveur : une règle dont le serveur ne garde pas le compte (ses seaux vivent en
+  mémoire) dit « pas compté », jamais zéro.
+- **Les clés qui commandent le serveur** (`exploitation/acces-cles.json`) : leur nom et si elles sont retirées, jamais
+  la clé, même publique. Le certificat se lit sur le dernier relevé de la veille ; sans relevé, « — ».
+- Ce que l'écran ne prétend pas : la chaîne du journal n'est **pas encore relue** (l'écran le dit) ; l'accès d'urgence,
+  bloquer une adresse et la date des autres secrets n'existent pas encore et ne sont pas montrés.
+
 ## Ce que le lot ne fait pas
 
-La suite de la console : les paiements et nos factures (14b), le support, la suite du service (sa sécurité, ses
-versions ; le débit des travaux heure par heure, et les envois des e-mails, de la TEJ et de la CNSS, qui n'ont pas encore
+La suite de la console : les paiements et nos factures (14b), le support, la suite du service (ses versions ; la
+sécurité : l'accès d'urgence, bloquer une adresse, la chaîne du journal relue, la date des secrets ; le débit des travaux heure par heure, et les envois des e-mails, de la TEJ et de la CNSS, qui n'ont pas encore
 de trace), la mesure, les réglages de la plateforme, l'application de bureau (les licences de la v10), l'accès accordé par un client
 (48 heures, en lecture), et le filtre du journal par geste et par période. Le service ne se voit encore que du serveur
 lui-même : aucune vérification de l'extérieur (06 § 7, depuis deux villes) ; l'écran le dit.

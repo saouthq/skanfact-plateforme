@@ -999,3 +999,65 @@ describe('les travaux et les envois du service (0090, docs/console.md C25)', () 
     await expect(enTantQue(pool, null, (tx) => tx.query('select * from plateforme.service_tour'))).rejects.toThrow(/permission/);
   });
 });
+
+describe('la sécurité du service (0091, docs/console.md C26)', () => {
+  type Lu = { aRegarder: { sorte: string; id: string; qui: string | null; adresse: string | null; role: string | null; erreurs: number; resolu: boolean | null }[];
+    regles: { nom: string; compte: number | null }[]; cles: { id: string; retiree: boolean }[] | null; equipe: { nom: string; role: string; secours: number }[] };
+  const lire = async (j: string) => (await appeler('GET', '/console/service/securite', j)).corps as Lu;
+  let client: Awaited<ReturnType<typeof personne>>;
+  let compte = '';
+
+  beforeAll(async () => {
+    client = await personne('securite');
+    // Un mot de passe bon puis quatre codes faux ; puis le même compte freiné par sept mots de passe faux.
+    await admin.query(`insert into socle.defi_connexion (utilisateur, methode, cree_le, expire_le, erreurs) values ($1, 'sms', $2, $2::timestamptz + interval '10 minutes', 4)`,
+      [client.id, horloge]);
+    await admin.query(`insert into socle.tentative (cle, erreurs, attente_jusqu_au, derniere) values (lower($1), 7, $2::timestamptz + interval '15 minutes', $2)
+      on conflict (cle) do update set erreurs = 7, attente_jusqu_au = excluded.attente_jusqu_au, derniere = excluded.derniere`, [client.email, horloge]);
+    compte = String((await admin.query('select md5(lower($1)) h', [client.email])).rows[0].h);
+  });
+
+  it('la direction lit le compte en entier ; la technique, une adresse masquée ; un mot de passe connu passe avant un compte freiné', async () => {
+    const d = (await lire(jD)).aRegarder.filter((r) => r.adresse === client.email.toLowerCase() || r.qui === client.nom);
+    expect(d.map((r) => r.sorte)).toEqual(['code', 'attente']);
+    expect(d[0]).toMatchObject({ qui: client.nom, erreurs: 4, resolu: false });
+    expect(d[1]).toMatchObject({ id: compte, erreurs: 7 });
+    const masque = `${client.email[0]}…@exemple.tn`;
+    const t = (await lire(jT)).aRegarder.filter((r) => r.id === compte || r.adresse === masque);
+    expect(t.length).toBeGreaterThanOrEqual(2);
+    expect(t.every((r) => r.qui === null && r.adresse === masque)).toBe(true);
+    // L'équipe se nomme pour tous : la technique lit qui de l'équipe a un code, des appareils, des codes de secours.
+    expect((await lire(jT)).equipe.map((m) => m.nom)).toEqual(expect.arrayContaining([direction.nom, technique.nom]));
+  });
+
+  it('les règles disent leur compte quand la base le garde ; les clés de commande, leur nom seul', async () => {
+    const d = await lire(jT);
+    expect(d.regles.map((r) => r.nom)).toEqual(['mot_de_passe', 'sans_session', 'sms', 'api', 'appareil', 'session']);
+    expect(d.regles.find((r) => r.nom === 'mot_de_passe')?.compte).toBeGreaterThanOrEqual(1);
+    expect(d.regles.filter((r) => r.nom !== 'mot_de_passe').every((r) => r.compte === null)).toBe(true);
+    expect(d.cles?.length).toBeGreaterThan(0);
+    expect(JSON.stringify(d.cles)).not.toMatch(/PUBLIC KEY|publique/);
+  });
+
+  it('lever une attente : son motif, une fois, au journal sans l\'adresse ; le support ne lit ni ne lève', async () => {
+    expect((await appeler('GET', '/console/service/securite', jS)).statut).toBe(403);
+    expect((await appeler('POST', `/console/service/securite/attentes/${compte}/lever`, jS, { motif: 'elle a appelé' })).statut).toBe(403);
+    expect((await appeler('POST', '/console/service/securite/attentes/pas-une-empreinte/lever', jT, { motif: 'elle a appelé' })).statut).toBe(404);
+    expect((await appeler('POST', `/console/service/securite/attentes/${compte}/lever`, jT, { motif: 'ok' })).statut).toBe(400);
+    expect((await appeler('POST', `/console/service/securite/attentes/${compte}/lever`, jT, { motif: 'elle a appelé, numéro de sa fiche' })).statut).toBe(200);
+    expect((await admin.query('select count(*)::int n from socle.tentative where cle = lower($1)', [client.email])).rows[0].n).toBe(0);
+    const geste = (await admin.query("select geste, motif, avant, apres from plateforme.geste_console where geste = 'service.lever_attente' and qui = $1 order by le desc limit 1", [technique.id])).rows[0];
+    expect(geste).toMatchObject({ motif: 'elle a appelé, numéro de sa fiche', avant: { compte, erreurs: 7 } });
+    expect(JSON.stringify(geste)).not.toContain(client.email.toLowerCase());
+    // Une seconde fois : il n'y a plus rien à lever, et la phrase le dit.
+    const r = await appeler('POST', `/console/service/securite/attentes/${compte}/lever`, jT, { motif: 'encore elle' });
+    // Un refus de la base (socle.refus) répond 403, avec sa phrase.
+    expect(r.statut).toBe(403);
+    expect(String(r.corps.motif)).toMatch(/rien à lever/);
+  });
+
+  it('la base refuse hors d\'une session de la console', async () => {
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_service_securite(now())'))).rejects.toThrow(/session de la console/);
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query("select plateforme.console_lever_attente('x', 'hors console', now())"))).rejects.toThrow(/session de la console/);
+  });
+});

@@ -12009,6 +12009,44 @@ prouver "les envois en tableau coupé au téléphone" web/console/src/console.cs
   "  .c-tr-table thead { display: none; }" "" \
   "$TRW5"
 
+# La sécurité du service (docs/console.md C26, base 0091) : l'adresse masquée pour la technique, le mot de passe connu
+# avant le compte freiné, la clé de commande jamais rendue, le geste au journal, les règles recopiées de la base, le
+# refus qui ne fait pas bouger le bouton, et l'équipe lisible au téléphone.
+SE1='la direction lit le compte en entier ; la technique, une adresse masquée ; un mot de passe connu passe avant un compte freiné'
+SE2='ce qui demande un regard : un mot de passe connu d'"'"'abord, l'"'"'équipe devant à urgence égale, un compte freiné en dernier'
+SE3='les clés qui commandent le serveur : leur nom et si elles sont retirées, jamais la clé'
+SE4='lever une attente : son motif, une fois, au journal sans l'"'"'adresse ; le support ne lit ni ne lève'
+SE5='l'"'"'attente après des mots de passe faux : la cinquième erreur, puis 1, 5, 15, 60 minutes — comme socle.noter_erreur'
+SEW2='lever l'"'"'attente : un motif court se refuse, le bouton ne bouge pas quand on retape ; levée, la ligne s'"'"'en va'
+SEW4='au téléphone : rien ne déborde, l'"'"'équipe se lit sans défilement de côté'
+prouver "l'adresse d'un client montrée en entier à la technique (code faux)" base/migrations/0091_service_securite.sql \
+  "then u.email else plateforme.masquer_adresse(u.email) end" "then u.email else u.email end" \
+  "$SE1"
+prouver "l'adresse d'un compte freiné montrée en entier à la technique" base/migrations/0091_service_securite.sql \
+  "then t.cle else plateforme.masquer_adresse(t.cle) end" "then t.cle else t.cle end" \
+  "$SE1"
+prouver "un compte freiné rangé avant un mot de passe connu" serveur/console/securite.ts \
+  "return (r.sorte === 'code' ? (r.resolu ? 1 : 0) : 2) * 2 + (r.role ? 0 : 1);" "return 0;" \
+  "$SE2"
+prouver "la clé de commande rendue à l'écran" serveur/console/securite.ts \
+  "[{ id: c.id, retiree: c.retiree === true }]" "[{ id: c.id, retiree: c.retiree === true, publique: c.publique }]" \
+  "$SE3"
+prouver "une attente levée sans trace au journal" base/migrations/0091_service_securite.sql \
+  "delete from socle.tentative where cle = v_t.cle;" "delete from socle.tentative where cle = v_t.cle; return;" \
+  "$SE4"
+prouver "une attente levée deux fois sans le dire" base/migrations/0091_service_securite.sql \
+  "if not found then perform socle.refus('ce compte n''attend plus : il n''y a rien à lever'); end if;" "if not found then return; end if;" \
+  "$SE4"
+prouver "une attente dite qui n'est pas celle de la base" serveur/console/securite.ts \
+  "export const ATTENTES_MIN = [1, 5, 15, 60] as const;" "export const ATTENTES_MIN = [1, 5, 15, 30] as const;" \
+  "$SE5"
+prouver "le refus effacé à la frappe, qui fait remonter le bouton" web/console/src/ecrans/Securite.tsx \
+  "valeur={motif} changer={setMotif} faute={faute > 0}" "valeur={motif} changer={(v: string) => { setMotif(v); setRefus(null); }} faute={faute > 0}" \
+  "$SEW2"
+prouver "l'équipe en tableau coupé au téléphone" web/console/src/console.css \
+  "  .c-se-table thead { display: none; }" "" \
+  "$SEW4"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

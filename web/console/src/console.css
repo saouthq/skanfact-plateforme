@@ -1939,11 +1939,62 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-tr-table td:nth-child(2) { grid-column: 1 / -1; }
   .c-tr-table td:nth-child(3) { grid-column: 1 / -1; }
   .c-tr-table td:nth-child(4) { grid-column: 2; grid-row: 1; }
-  .c-tr-table td:nth-child(4)::before { content: attr(data-libelle) ' '; font-family: inherit; color: var(--c-gris); font-size: 12.5px; }
+  .c-tr-table td:nth-child(4)::before { content: attr(data-libelle) ' '; font-family: var(--c-texte); color: var(--c-gris); font-size: 12.5px; }
   .c-tr-table td:nth-child(5) { grid-column: 1 / -1; color: var(--c-gris); }
   .c-tr-table td a { display: inline-flex; align-items: center; min-height: 44px; }
   .c-tr-tache { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; }
   .c-tr-tache > .c-puce { grid-column: 2; grid-row: 1; }
   .c-tr-tache > div { grid-column: 1; grid-row: 1 / span 2; }
   .c-tr-rythme { grid-column: 2; grid-row: 2; }
+}
+
+/* ── La sécurité (C26) ───────────────────────────────────────────────────────────────────────────────────────────── */
+.c-se-regards, .c-se-equipe, .c-se-duo { margin-top: 24px; }
+:is(.c-se-regards, .c-se-connexions, .c-se-regles, .c-se-equipe, .c-se-cles) .c-al-section-tete { padding: 0 0 16px; align-items: flex-start; }
+.c-se-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.c-se-regards-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.c-se-regard { border: 1px solid var(--c-trait); border-radius: 14px; padding: 14px 16px; display: grid; gap: 6px; }
+.c-se-regard-urgent { border-color: color-mix(in srgb, var(--c-rouge) 40%, var(--c-trait)); background: color-mix(in srgb, var(--c-rouge-doux) 45%, transparent); }
+.c-se-regard-tete { display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; }
+.c-se-regard-tete .c-puce { margin-inline-start: auto; }
+.c-se-regard-titre { font-weight: 600; color: var(--c-encre); }
+.c-se-regard-pied { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+.c-se-heures { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 3px; height: 96px; align-items: end; }
+.c-se-heure { position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; }
+.c-se-heure-bon { display: block; background: var(--c-serie-1); border-radius: 3px 3px 0 0; min-height: 1px; }
+.c-se-heure-faux { position: absolute; inset-inline: 25%; bottom: 0; background: var(--c-rouge); border-radius: 3px 3px 0 0; opacity: .9; }
+.c-se-axe { display: flex; justify-content: space-between; color: var(--c-gris); font-size: 12.5px; margin-top: 6px; }
+.c-se-totaux { margin-top: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.c-se-cle { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-inline-end: 6px; vertical-align: -1px; }
+.c-se-cle-bon { background: var(--c-serie-1); }
+.c-se-cle-faux { background: var(--c-rouge); }
+.c-se-regles-liste, .c-se-cles-liste { list-style: none; margin: 0; padding: 0; display: grid; }
+.c-se-regles-liste > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; padding: 12px 0; border-top: 1px solid var(--c-trait); }
+.c-se-regles-liste > li:first-child { border-top: 0; padding-top: 0; }
+.c-se-regles-liste > li > div { display: grid; gap: 2px; }
+.c-se-regle-compte { text-align: end; white-space: nowrap; }
+.c-se-regle-compte b { font-family: var(--c-chiffres); font-variant-numeric: tabular-nums; font-size: 18px; color: var(--c-encre); }
+.c-se-cles-liste > li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--c-trait); }
+.c-se-cles-liste > li:first-child { border-top: 0; padding-top: 0; }
+:is(.c-se-regles, .c-se-cles) .c-liste-pied { padding: 14px 0 0; margin-top: 14px; display: block; }
+.c-se-table td:first-child b, .c-se-table td:first-child .c-sous { display: block; }
+.c-se-table td .c-sous { margin-top: 2px; }
+.c-se-chaine { display: grid; gap: 10px; }
+.c-se-chaine h2 { font-size: 21px; }
+.c-se-chaine-etat { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+@media (max-width: 1100px) {
+  .c-se-duo { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 860px) {
+  .c-se-heures { height: 72px; gap: 2px; }
+  .c-se-totaux { grid-template-columns: minmax(0, 1fr); }
+  .c-se-equipe .c-defile { overflow: visible; }
+  .c-se-table thead { display: none; }
+  .c-se-table, .c-se-table tbody, .c-se-table tr, .c-se-table td { display: block; }
+  .c-se-table tr { padding: 14px 0; border-bottom: 1px solid var(--c-trait); display: grid; gap: 6px; }
+  .c-se-table tr:last-child { border-bottom: 0; }
+  .c-se-table td { padding: 0; border: 0; text-align: start; }
+  .c-se-table td.c-droite { text-align: start; }
+  .c-se-table td[data-libelle]::before { content: attr(data-libelle) ' : '; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); }
+  .c-se-regard-pied .c-btn, .c-se-regard-pied .c-lien { min-height: 44px; }
 }
