@@ -175,7 +175,11 @@
     mesure (1 Mbit/s, 300 ms : première ouverture ≤ 1 300 Ko et < 15 s, suivante ≤ 30 Ko et < 2 s), mesurés par
     `tests/web/leger.test.ts` derrière un fil bridé (`tests/lien-lent.ts`). Compression (brotli/gzip, au-delà de 1 Ko),
     empreinte de chaque fichier dans la page (`?v=`, gardé un an ; `serveur/ecrans.ts`), scripts annoncés en tête ;
-    **`/v10/…` n'est pas l'API** (`deLApi` dans `serveur/app.ts`). S4 (brique 119, `0059`) : le dossier se relit par
+    **`/v10/…` n'est pas l'API** (`deLApi` dans `serveur/app.ts`). **Ce que la page attend avant son premier dessin
+    sans dépendre du dossier part avec lui** (13/10/2026, `plateforme/pont.js` : questions du cabinet, remises,
+    abonnement ; trois allers-retours l'un après l'autre avaient fait passer S2 à 2,23 s sur GitHub) : une demande
+    nouvelle à l'ouverture se pose dans cette attente commune, jamais après une réponse dont elle ne dépend pas
+    (`tests/v10/pont-ouverture.test.ts`). S4 (brique 119, `0059`) : le dossier se relit par
     différence sur « mon ordinateur » (`?depuis=<xmin>&profil=<base/rôles>` ; `xid` par objet, traces de retrait) ;
     jamais une marque prise après la lecture (une écriture en cours serait perdue).
   - **Le tableau de bord du groupe** (brique 113, `docs/groupe.md`) : depuis le menu des entreprises, les sociétés de

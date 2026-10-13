@@ -7,6 +7,10 @@
 //   S3  tout envoi de plus de 1 Ko (écrans et réponses de l'API) compressé quand le navigateur l'accepte.
 // Le 05/10/2026, S1 mesurait 1 302 Ko (l'exemple rempli et la facture guidée) : le plan a changé, pas le seuil. L6, nos
 // écrans partent sans leurs commentaires, et rien d'autre (web/alleger.ts).
+// Le 13/10/2026, S2 mesurait 1,93 à 2,08 s sur un poste et 2,23 s sur GitHub : la page attendait le dossier, puis
+// demandait les questions du cabinet, puis les remises, puis l'abonnement, un aller-retour chacune. Le plan a changé,
+// pas le seuil : ce que la page attend avant son premier dessin sans dépendre du dossier part avec lui
+// (plateforme/pont.js), et le test le vérifie demande par demande.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -210,7 +214,8 @@ describe('léger sur une connexion lente', () => {
       const debut = Date.now();
       await p.goto(`${lien.adresse}/v10/?e=${ent}`, { timeout: 120_000 });
       await p.locator('#view h1').first().waitFor({ state: 'visible', timeout: 120_000 });
-      return { ms: Date.now() - debut, ko: Math.round(lien.octets() / KO) };
+      // Les demandes posées avant le premier dessin.
+      return { ms: Date.now() - debut, ko: Math.round(lien.octets() / KO), demandes: lien.demandes() };
     };
     // Le fil se calme : plus un octet pendant une seconde (le service des écrans finit de garder sa copie).
     const calme = async () => {
@@ -234,6 +239,20 @@ describe('léger sur une connexion lente', () => {
       fs.mkdirSync(path.join(RACINE, 'dist/mesures'), { recursive: true });
       fs.writeFileSync(path.join(RACINE, 'dist/mesures/leger.txt'),
         `S1 : ${s1.ko} Ko en ${s1.ms} ms (avec la copie gardée : ${s1complet} Ko) ; S2 : ${s2.ko} Ko en ${s2.ms} ms\n`);
+      // Ce que la page attend avant son premier dessin sans dépendre du dossier part avec lui, jamais après sa réponse :
+      // les questions du cabinet, les remises des appareils retirés, l'état de l'abonnement (lu une fois, pas redemandé).
+      // Une demande qui attend la réponse d'une autre coûte un aller-retour sur une connexion lente ; trois l'une après
+      // l'autre faisaient passer S2 au-dessus de 2 s sur GitHub (13/10/2026). Jugé avant les seuils de temps : c'est
+      // la cause qu'on veut lire, pas la seule conséquence.
+      const vers = (fin: string) => s2.demandes.filter((d) => new URL(d.chemin, 'http://x').pathname === `/v1/entreprises/${ent}/${fin}`);
+      const [dossierLu, ...autresDossiers] = vers('dossier-v10');
+      expect(dossierLu?.recue ?? -1).toBeGreaterThan(0);
+      expect(autresDossiers).toEqual([]);
+      for (const fin of ['compta/questions', 'quarantaine', 'abonnement/etat']) {
+        const ds = vers(fin);
+        expect(ds.length, fin).toBeGreaterThan(0);
+        for (const d of ds) expect(d.posee, `${fin} attend la réponse du dossier`).toBeLessThan(dossierLu?.recue ?? -1);
+      }
       expect(s1.ko).toBeLessThanOrEqual(1_300);
       expect(s1complet).toBeLessThanOrEqual(1_300);
       expect(s1.ms).toBeLessThan(15_000);

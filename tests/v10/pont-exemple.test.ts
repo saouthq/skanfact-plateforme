@@ -13,17 +13,12 @@
 //     pas, si l'entreprise ouverte en est une ; le compte se lit une fois pour les gestes d'un même instant.
 // Le parcours entier, à l'écran : tests/web/exemple.test.ts et tests/web/exemple-puis-vraie.test.ts.
 
-import fs from 'node:fs';
-import path from 'node:path';
-import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { chargerPont, type Routes } from './bac-pont.ts';
 
-const PONT = fs.readFileSync(path.join(import.meta.dirname, '../../web/public/plateforme/pont.js'), 'utf8');
 const ESSAI = '00000000-0000-4000-8000-0000000000e5';
 const VRAIE = '00000000-0000-4000-8000-0000000000a1';
 
-// `texte` : une réponse qui ne vient pas du serveur (un relais, le frontal), telle quelle.
-type Reponse = { statut: number; corps?: unknown; texte?: string };
 type Pont = {
   exemple: (o: { visite?: string }) => Promise<Record<string, unknown>>;
   quitterExemple: (o: { visite?: string }) => Promise<Record<string, unknown>>;
@@ -37,44 +32,8 @@ type Pont = {
   assistantDemande: () => boolean;
 };
 
-// Le point de contact chargé dans l'entreprise `ent`, devant un serveur qui répond par `routes` (« GET /v1/moi ») ; ce
-// qu'il ne connaît pas reste sans réponse, comme un serveur lent.
-function charger(ent: string, routes: Record<string, (corps: unknown) => Reponse>, donnees: Record<string, unknown> = {}) {
-  const stockage = new Map<string, string>([['skanfact.jeton', 'jeton']]);
-  const appels: { cle: string; corps: unknown }[] = [];
-  const ouverts: string[] = [];
-  const element = () => ({
-    style: {}, classList: { add: () => undefined, remove: () => undefined, toggle: () => undefined, contains: () => false },
-    setAttribute: () => undefined, appendChild: () => undefined, addEventListener: () => undefined, querySelector: () => null, querySelectorAll: () => [],
-  });
-  // Le poste : rien de gardé (l'ordinateur d'un autre), rien qui attende.
-  const poste: Record<string, unknown> = { garde: () => false, limite: () => null, lireCopie: async () => null, lireAttente: async () => null };
-  const bac: Record<string, unknown> = {
-    sessionStorage: { getItem: (k: string) => stockage.get(k) ?? null, setItem: (k: string, v: string) => { stockage.set(k, String(v)); }, removeItem: (k: string) => { stockage.delete(k); } },
-    localStorage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined },
-    location: { search: `?e=${ent}`, pathname: '/v10/', hash: '', replace: (u: string) => { ouverts.push(`remplace ${u}`); }, assign: (u: string) => { ouverts.push(u); }, reload: () => undefined },
-    document: { createElement: element, head: element(), body: element(), documentElement: element(), addEventListener: () => undefined, removeEventListener: () => undefined, querySelector: () => null, querySelectorAll: () => [] },
-    URLSearchParams, console, navigator: { onLine: true }, setTimeout, clearTimeout, setInterval: () => 0, clearInterval: () => undefined,
-    addEventListener: () => undefined, removeEventListener: () => undefined, matchMedia: () => ({ matches: false, addEventListener: () => undefined }),
-    MutationObserver: class { observe() { return undefined; } disconnect() { return undefined; } },
-    SkanPoste: new Proxy(poste, { get: (p, k) => (typeof k === 'string' && k in p ? p[k] : () => undefined) }),
-    __data: donnees,
-    fetch: (url: string, init?: { method?: string; body?: string }) => {
-      const cle = `${init?.method ?? 'GET'} ${url}`;
-      const route = routes[cle];
-      if (!route) return new Promise(() => undefined);
-      const corps = init?.body ? JSON.parse(init.body) : undefined;
-      appels.push({ cle, corps });
-      const r = route(corps);
-      return Promise.resolve({ status: r.statut, ok: r.statut >= 200 && r.statut < 300, text: async () => r.texte ?? JSON.stringify(r.corps ?? {}) });
-    },
-  };
-  bac.window = bac;
-  bac.self = bac;
-  vm.createContext(bac);
-  vm.runInContext(PONT, bac, { filename: 'pont.js' });
-  return { pont: bac.skanfact as Pont, stockage, appels, ouverts };
-}
+// Le point de contact chargé dans l'entreprise `ent` (le bac à sable : tests/v10/bac-pont.ts).
+const charger = (ent: string, routes: Routes, donnees: Record<string, unknown> = {}) => chargerPont<Pont>(ent, routes, donnees);
 const moi = (...entreprises: { id: string; essai: boolean }[]) => ({ 'GET /v1/moi': () => ({ statut: 200, corps: { email: 'nadia@exemple.tn', entreprises } }) });
 const lusDuCompte = (appels: { cle: string }[]) => appels.filter((a) => a.cle === 'GET /v1/moi').length;
 // Le dossier d'une entreprise, tel que le serveur le rend : `objets` (la racine, puis les listes).

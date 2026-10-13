@@ -6129,7 +6129,7 @@ prouver "un objet enregistré qui garde sa révision d'avant (le suivant fait un
   "$EC"
 prouver "le dossier ouvert sans que la page l'ait (rien ne se supprime plus)" web/public/plateforme/pont.js \
   "        adopter();
-        await chargerRemises();" "        await chargerRemises();" \
+        await chargerRemises(remisesLues);" "        await chargerRemises(remisesLues);" \
   "$EC"
 
 # ── Brique 113 : le tableau de bord du groupe (serveur/groupe.ts ; web/v10/groupe.txt) ──
@@ -10781,7 +10781,7 @@ prouver 'un renouvellement qui repart de la fin de l'"'"'essai' serveur/abonneme
   "$ABG2"
 AW1='l'"'"'essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'"'"'arrive au serveur'
 prouver 'la v10 qui ne lit pas l'"'"'abonnement' web/public/plateforme/pont.js \
-  '    licenceStatus: async () => /** @type {any} */ (window).SkanAbonnement.licence(await lireAbonnement()),
+  '    licenceStatus: async () => /** @type {any} */ (window).SkanAbonnement.licence(await abonnementPourLaV10()),
 ' '' \
   "$AW1"
 prouver 'la carte de l'"'"'essai qui mène à la licence de la v10' web/public/v10/app.js \
@@ -11092,6 +11092,41 @@ prouver "les chiffres des cartes jamais resserrés au téléphone" web/public/pl
   "    for (const c of document.querySelectorAll('.stats:not(.rangee) > .stat')) serrer(c);
 " "" \
   "$TEL"
+
+# ── La seconde ouverture tenue sur une connexion lente (13/10/2026 ; plateforme/pont.js, docs/leger.md, S2) ──
+# Ce que la page attend avant son premier dessin sans dépendre du dossier part avec lui : sans navigateur
+# (tests/v10/pont-ouverture.test.ts), et dans un vrai navigateur, sur la connexion lente (tests/web/leger.test.ts).
+OUV1="le dossier, les questions du cabinet, les remises et l'état de l'abonnement se demandent ensemble, avant la moindre réponse"
+OUV2="l'état de l'abonnement lu avec le dossier sert la première lecture de la v10, une fois ; les suivantes redemandent"
+OUV3="une lecture restée sans réponse au chargement ne passe pas pour l'état : la v10 redemande"
+OUV4="une lecture faite plus de quinze secondes avant la première de la v10 se redemande"
+OUV_QUESTIONS_AVANT="    const [r, questions] = await Promise.all([appel('GET', \`/dossier-v10\${depuis}\`), questionsDuCabinet()]);"
+OUV_QUESTIONS_APRES="    const r = await appel('GET', \`/dossier-v10\${depuis}\`);
+    const questions = await questionsDuCabinet();"
+prouver "les questions du cabinet demandées après la réponse du dossier" web/public/plateforme/pont.js \
+  "$OUV_QUESTIONS_AVANT" "$OUV_QUESTIONS_APRES" \
+  "$OUV1"
+prouver "les questions du cabinet après le dossier, sur la connexion lente" web/public/plateforme/pont.js \
+  "$OUV_QUESTIONS_AVANT" "$OUV_QUESTIONS_APRES" \
+  "$LG12"
+prouver "les remises demandées après la réponse du dossier" web/public/plateforme/pont.js \
+  "      const remisesLues = lireRemises();|||        await chargerRemises(remisesLues);" \
+  "|||        await chargerRemises(lireRemises());" \
+  "$OUV1"
+prouver "l'état de l'abonnement demandé après le chargement" web/public/plateforme/pont.js \
+  "      avancerAbonnement();" "" \
+  "$OUV1"
+prouver "l'état lu au chargement redemandé par la v10" web/public/plateforme/pont.js \
+  "SkanAbonnement.licence(await abonnementPourLaV10())," "SkanAbonnement.licence((await lireAbonnement(), abonnement))," \
+  "$OUV2"
+prouver "une lecture de l'abonnement restée sans réponse prise pour l'état" web/public/plateforme/pont.js \
+  "    if (!(a && Date.now() - a.le < 15_000 && await a.lu)) await lireAbonnement();" \
+  "    if (!(a && Date.now() - a.le < 15_000)) await lireAbonnement(); else await a.lu;" \
+  "$OUV3"
+prouver "une lecture de l'abonnement trop ancienne reprise par la v10" web/public/plateforme/pont.js \
+  "    if (!(a && Date.now() - a.le < 15_000 && await a.lu)) await lireAbonnement();" \
+  "    if (!(a && await a.lu)) await lireAbonnement();" \
+  "$OUV4"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

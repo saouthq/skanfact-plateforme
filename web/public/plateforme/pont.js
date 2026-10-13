@@ -306,10 +306,12 @@
   // Sans copie, ou quand le serveur ne peut pas compléter cette copie-là (une autre base, d'autres rôles), tout repart.
   /** @type {string} */ let marqueLue = '';
   /** @type {string} */ let profilLu = '';
+  // Les questions du cabinet ne dépendent pas du dossier : elles partent AVEC lui, pas après lui (docs/leger.md, S2). Sur
+  // une connexion lente, une demande qui attend la réponse d'une autre coûte un aller-retour de plus.
   async function relire() {
     const copie = poste.garde() ? (await poste.lireCopie(ent).catch(() => null))?.contenu : null;
     const depuis = copie && copie.marque && copie.profil ? `?depuis=${encodeURIComponent(copie.marque)}&profil=${encodeURIComponent(copie.profil)}` : '';
-    const r = await appel('GET', `/dossier-v10${depuis}`);
+    const [r, questions] = await Promise.all([appel('GET', `/dossier-v10${depuis}`), questionsDuCabinet()]);
     poserDroits(r.droits);
     autrui = r.autrui || {};
     /** @type {any[]} */
@@ -327,7 +329,7 @@
     vu = new Map();
     for (const o of objets) vu.set(`${o.collection}\u0000${o.cle}`, { json: JSON.stringify(o.contenu), rang: o.rang, revision: o.revision });
     const data = assembler(objets);
-    data.questionsCabinet = await questionsDuCabinet();
+    data.questionsCabinet = questions;
     questionsLues = data.questionsCabinet;
     garderLaCopie();
     return data;
@@ -765,7 +767,7 @@
     dessinerExport,
     dessinerAbonnement,
     // La licence de la v10, tirée de l'abonnement : sa pastille, sa carte d'essai, et sa porte de création (licenceBlock).
-    licenceStatus: async () => /** @type {any} */ (window).SkanAbonnement.licence(await lireAbonnement()),
+    licenceStatus: async () => /** @type {any} */ (window).SkanAbonnement.licence(await abonnementPourLaV10()),
     pastilleAbonnement: () => /** @type {any} */ (window).SkanAbonnement.pastille(abonnement),
     dessinerQuarantaine,
     dessinerPaiement,
@@ -796,6 +798,12 @@
       // Le code QR de la TTN sur la pièce imprimée (brique 83) : le moteur est là, on le branche.
       const qr = /** @type {any} */ (window).SkanQr;
       if (qr) qr.brancher();
+      // Ce que la page attend avant son premier dessin sans dépendre du dossier se demande AVANT lui, en même temps
+      // (docs/leger.md, S2) : l'état de l'abonnement (la v10 le lit juste avant de dessiner) et les remises des appareils
+      // retirés ; les questions du cabinet partent avec le dossier (`relire`). Demandées l'une après l'autre, elles
+      // coûtaient trois allers-retours, presque une seconde sur une connexion lente.
+      avancerAbonnement();
+      const remisesLues = lireRemises();
       const attente = await poste.lireAttente(ent).catch(() => null);
       await lireFileTickets();
       try {
@@ -806,7 +814,7 @@
         if (fileTickets.length) annoncerAttente();
         // La page reçoit ce dossier : elle a chacun de ses objets (brique 112).
         adopter();
-        await chargerRemises();
+        await chargerRemises(remisesLues);
         return { data, corruptFile: null };
       } catch (e) {
         if (/** @type {any} */ (e).statut === 404) return await plusOuverte();
@@ -1249,8 +1257,24 @@
   // chargement, chaque heure, au retour au premier plan) ; sans réponse du serveur, le dernier connu. Rien ne se ferme sur
   // ce qu'on ne sait pas : avant toute réponse, la v10 ne voit qu'une licence « libre ».
   /** @type {any} */ let abonnement = null;
+  // Vrai quand le serveur a répondu (l'état, ou le refus de le montrer) ; faux sans réponse : le dernier connu reste.
   async function lireAbonnement() {
-    try { abonnement = await appel('GET', '/abonnement/etat'); } catch (e) { if (/** @type {any} */ (e).statut === 403) abonnement = null; }
+    try { abonnement = await appel('GET', '/abonnement/etat'); return true; } catch (e) {
+      if (/** @type {any} */ (e).statut !== 403) return false;
+      abonnement = null;
+      return true;
+    }
+  }
+  // Au chargement, l'état se demande AVEC le dossier (`loadData`, docs/leger.md, S2) : la première lecture de la v10, juste
+  // avant son premier dessin, reprend cette réponse au lieu de reposer la question un aller-retour plus tard. Une seule
+  // fois, et fraîche (moins de quinze secondes : l'assistant d'une première ouverture peut durer) ; sans réponse, elle
+  // redemande. Les lectures suivantes (chaque heure, au retour au premier plan) redemandent toujours.
+  /** @type {{ le: number, lu: Promise<boolean> } | null} */ let abonnementAvance = null;
+  function avancerAbonnement() { abonnementAvance = { le: Date.now(), lu: lireAbonnement() }; }
+  async function abonnementPourLaV10() {
+    const a = abonnementAvance;
+    abonnementAvance = null;
+    if (!(a && Date.now() - a.le < 15_000 && await a.lu)) await lireAbonnement();
     return abonnement;
   }
   /** @param {HTMLElement} el */
@@ -1942,8 +1966,14 @@
   // À l'ouverture, en ligne : s'il y a des remises à décider, le bandeau le dit, et « Voir » mène au
   // panneau des Paramètres qui les montre ; le propriétaire (ou un administrateur) accepte ou rejette.
   /** @type {any[]} */ let remises = [];
-  async function chargerRemises() {
-    try { remises = (await appel('GET', '/quarantaine')).remises || []; } catch { remises = []; }
+  // Les remises qui attendent une décision ; un refus ou une panne : aucune.
+  /** @returns {Promise<any[]>} */
+  async function lireRemises() {
+    try { return (await appel('GET', '/quarantaine')).remises || []; } catch { return []; }
+  }
+  /** @param {Promise<any[]>} lues demandées au chargement, avec le dossier (`loadData`) */
+  async function chargerRemises(lues) {
+    remises = await lues;
     if (!remises.length) return;
     const n = remises.reduce((t, q) => t + compter(q.changements), 0);
     const qui = remises.length > 1 ? 'Des appareils retirés ont remis' : 'Un appareil retiré a remis';

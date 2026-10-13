@@ -12,7 +12,7 @@ connexions du navigateur.
 | | Seuil | Avant (mesuré) | Après (mesuré) |
 |---|---|---|---|
 | **S1** première ouverture de l'entreprise, rien de gardé | ≤ 1 300 Ko par le fil, utilisable en moins de 15 s | 10 727 Ko, 87 s | **947 Ko, 9,9 s** (copie pour le hors-ligne comprise : 949 Ko ; 05/10/2026, après L6. Le 01/10 : 1 242 Ko, 12,1 s ; le 05/10 avant L6 : 1 302 Ko) |
-| **S2** ouverture suivante | ≤ 30 Ko par le fil, utilisable en moins de 2 s | 4 199 Ko, 43 s | **4 Ko, 1,8 s** |
+| **S2** ouverture suivante | ≤ 30 Ko par le fil, utilisable en moins de 2 s | 4 199 Ko, 43 s | **5 Ko, 1,5 s** (13/10/2026 ; le 01/10 : 4 Ko, 1,8 s ; le 13/10 avant : 1,93 à 2,08 s, 2,23 s sur GitHub) |
 | **S3** tout envoi de plus de 1 Ko compressé | écrans et réponses de l'API | rien de compressé | brotli, sinon gzip |
 | **S4** le dossier ne se relit que pour ce qui a changé | sur « mon ordinateur » | tout le dossier à chaque ouverture | **fait** (brique 119) : 1 500 pièces, 695 Ko en entier, **1,2 Ko** après une pièce de plus (avant compression) |
 
@@ -79,6 +79,31 @@ son poids est fait de commentaires en français, dont le navigateur n'a que fair
 - **Mesuré** : S1 **947 Ko en 9,9 s** (949 Ko avec la copie gardée pour le hors-ligne) ; S2 inchangé (4 Ko, 1,8 s).
   Les deux autres leviers restent en réserve.
 
+## La seconde ouverture qui frôlait son seuil (13/10/2026)
+
+Le 13/10/2026, GitHub a mesuré S2 à **2,23 s** pour un seuil de 2 s. Mesuré sur un poste, trois fois chacun : 1,93 à
+2,00 s avant la console de l'équipe, 1,98 à 2,08 s après elle. La console n'y était pour rien : S2 avait glissé de
+1,8 s à près de 2 s au fil des lots, et une machine un peu plus lente passait au-dessus. Le plan a changé, pas le seuil.
+
+La chronologie de l'ouverture suivante (le relais note désormais chaque demande, `tests/lien-lent.ts`) : un aller-retour
+pour revalider la page, puis le dossier ; puis, **l'une après l'autre**, les questions du cabinet, les remises des
+appareils retirés, l'état de l'abonnement. Aucune des trois ne dépend du dossier, et chacune coûtait un aller-retour :
+0,3 s sur la connexion de référence.
+
+- **Ce que la page attend avant son premier dessin sans dépendre du dossier part avec lui** (`plateforme/pont.js`) :
+  les questions dans la même attente que le dossier (`relire`), les remises et l'état de l'abonnement dès le début du
+  chargement (`loadData`).
+- **L'état de l'abonnement lu au chargement sert la première lecture de la v10**, juste avant son premier dessin, au lieu
+  d'être redemandé : une fois, et s'il a moins de quinze secondes (l'assistant d'une première ouverture peut durer) ;
+  resté sans réponse, il se redemande. Les lectures suivantes (chaque heure, au retour au premier plan) redemandent
+  toujours.
+- **Mesuré** : S2 **1,47 à 1,55 s** (5 Ko), S1 11,3 s (11,9 à 12,4 s avant). Ce qui reste de S2 est la page elle-même :
+  la revalider (un aller-retour), lancer ses scripts, dessiner.
+
+Le test le vérifie demande par demande, en plus du seuil : dans `tests/web/leger.test.ts`, aucune de ces demandes ne
+part après la réponse du dossier ; dans `tests/v10/pont-ouverture.test.ts`, sans navigateur, les quatre partent avant la
+moindre réponse, et l'état lu au chargement ne sert qu'une fois, frais, et seulement s'il a eu sa réponse.
+
 ## Ce qui reste (et pourquoi)
 
 - **S4 sur l'ordinateur d'un autre** : sans copie gardée (la session ne vit que dans l'onglet), tout le dossier repart à
@@ -118,7 +143,9 @@ son poids est fait de commentaires en français, dont le navigateur n'a que fair
 `tests/web/leger.test.ts` : S3 (compression des écrans et de l'API, un petit envoi tel quel, l'empreinte et sa
 garde d'un an, la revalidation à vide, l'annonce des scripts) ; S1 et S2 sur la connexion lente, et ce que le poste
 garde dès la première visite (l'entreprise, pas le Cabinet). 15 preuves (`tests/preuves.sh`, brique 118), dont les
-trois du hors-ligne reciblées.
+trois du hors-ligne reciblées. Depuis le 13/10/2026, S2 vérifie aussi qu'aucune demande que la page attend avant son
+premier dessin ne part après la réponse du dossier ; `tests/v10/pont-ouverture.test.ts` le vérifie sans navigateur
+(7 preuves, section « La seconde ouverture tenue sur une connexion lente » ; deux plus anciennes reciblées sur le code déplacé).
 
 L6 (05/10/2026), dans le même fichier : un commentaire part, rien d'autre (un script joué avant et après rend la même
 chose : ce qui ressemble à un commentaire dans une chaîne, une expression régulière ou un gabarit en reste, « typeof/* */u »
