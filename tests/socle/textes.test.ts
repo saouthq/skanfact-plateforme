@@ -60,7 +60,8 @@ export function phrasesEnDur(): string[] {
       const texte = m[1] ?? horsExpressions(m[2] ?? '');
       if (!PHRASE.test(texte) || SQL.test(texte) || ALIAS.test(texte) || RANGEE.test(texte)) continue;
       const avant = code.slice(Math.max(0, (m.index ?? 0) - 40), m.index).replace(/\s+/g, ' ');
-      if (/(new (Error|RouteSansGeste|ConfigurationFausse)|console\.(log|error))\($/.test(avant)) continue;
+      // Ce qui part au journal du serveur (une panne, pour l'exploitant) n'est jamais montré à quelqu'un : pas une phrase.
+      if (/(new (Error|RouteSansGeste|ConfigurationFausse)|console\.(log|error)|noterPanne)\($/.test(avant)) continue;
       trouvees.push(`${path.relative(RACINE, f)} : ${texte.slice(0, 80)}`);
     }
   }
