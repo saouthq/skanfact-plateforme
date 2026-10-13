@@ -26,8 +26,9 @@ import * as jsqr from 'jsqr';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
-// La version que le serveur des tests annonce (donnée, pas lue dans git : les preuves tournent dans une copie sans lui).
-const VERSION = '2026.10.05 · 0a1b2c3';
+// La version que le serveur des tests annonce (donnée, pas lue dans git : les preuves tournent dans une copie sans lui) :
+// le numéro que l'envoi déclare, puis le début de son empreinte (serveur/ecrans.ts).
+const VERSION = '1.4.2 · 0a1b2c3';
 const titre = (cle: string, v: Record<string, string> = {}) => { const s = rendre(t(cle, v), 'fr'); return s.charAt(0).toUpperCase() + s.slice(1); };
 const phrase = (cle: string, v = {}) => rendre(motif(cle, v), 'fr');
 // La prose de la v10 se lit à la française (C.typoFr, 10.14.0) : une espace fine insécable devant « : ; ? ! » et »,
@@ -133,9 +134,10 @@ describe('le parcours, à la souris', () => {
     await assistant.waitFor({ state: 'detached' });
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await plusTard(p);
-    // Au pied du menu, la version du code qui tourne (le jour de l'envoi et son empreinte), jamais « vdev » : c'est ce
-    // qu'un testeur recopie quand il signale un problème (vu sur le serveur d'essai le 05/10/2026).
-    await expect.poll(() => p.locator('#app-version').innerText()).toBe(`v${VERSION}`);
+    // Au pied du menu, le numéro de la version qui tourne, jamais « vdev » : c'est ce qu'un testeur recopie quand il
+    // signale un problème (vu sur le serveur d'essai le 05/10/2026). L'envoi se lit au survol (13/10/2026 : « Vx.x.x »).
+    await expect.poll(() => p.locator('#app-version').innerText()).toBe('v1.4.2');
+    expect(await p.locator('#app-version').getAttribute('title')).toBe('Envoi 0a1b2c3');
     await p.screenshot({ path: path.join(PHOTOS, 'parcours-1-accueil.png') });
 
     // Une facture, dans l'éditeur de la v10 : le client se crée depuis l'éditeur, et revient choisi.

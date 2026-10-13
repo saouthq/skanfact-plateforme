@@ -13,7 +13,9 @@ import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 // La version que le serveur des tests annonce (donnée, pas lue dans git : les preuves tournent dans une copie sans lui).
-const VERSION = '2026.10.05 · 0a1b2c3';
+// Un numéro qui atteint ceux de la v10 (ses nouveautés vont jusqu'à 10.15.0) : sans la garde, elles s'ouvriraient. Un
+// numéro plus petit (1.x) ne prouverait rien — des données qui ne discriminent pas ne prouvent rien.
+const VERSION = '10.15.0 · 0a1b2c3';
 
 describe('les nouveautés de l\'application de bureau, sur la plateforme', () => {
   let navigateur: Browser;
@@ -60,7 +62,8 @@ describe('les nouveautés de l\'application de bureau, sur la plateforme', () =>
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
-    await expect.poll(() => p.locator('#app-version').innerText(), { timeout: 20_000 }).toBe(`v${VERSION}`);
+    await expect.poll(() => p.locator('#app-version').innerText(), { timeout: 20_000 }).toBe('v10.15.0');
+    expect(await p.locator('#app-version').getAttribute('title')).toBe('Envoi 0a1b2c3');
     // La carte attendrait un écran libre (une visite proposée la retarde d'une seconde et demie à la fois) : on laisse
     // passer ce temps, puis on regarde.
     for (const b of await p.getByRole('button', { name: 'Plus tard', exact: true }).all()) await b.click().catch(() => undefined);

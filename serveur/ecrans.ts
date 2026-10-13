@@ -12,22 +12,29 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { compresser, type Encodage } from './compression.ts';
+import { NUMERO } from './console/versions.ts';
 
 type Fichier = { mtime: number; taille: number; contenu: Buffer; empreinte: string; variantes: Map<Encodage, Buffer> };
 
 const empreinte = (b: Buffer) => createHash('sha256').update(b).digest('hex').slice(0, 16);
 
-// La version du code qui sert les écrans : le jour de son envoi et le début de son empreinte (« 2026.10.05 · a42f308 »),
-// lue une fois dans le dépôt. Elle s'écrit au pied du menu (05/10/2026 : on y lisait « vdev ») : c'est ce qu'un
-// testeur recopie quand il signale un problème. L'année d'abord : les nouveautés de la v10 (10.x) ne la dépassent
-// jamais, et ne se montrent pas. Sans dépôt lisible, « dev ».
+// La version du code qui sert les écrans : le numéro que son envoi déclare (« version » de son package.json, « 1.1.0 »,
+// le nom que la console donne à la version en service) et le début de son empreinte : « 1.1.0 · 879fcb2 », lue une fois
+// dans le dépôt. Le pied du menu dit « v1.1.0 », l'envoi au survol (05/10/2026 : on y lisait « vdev » ; 13/10/2026,
+// Skander : « je veux le numérotage normal, Vx.x.x »). Le numéro est celui du COMMIT, comme le suiveur le lit
+// (exploitation/suivre.ts), jamais celui d'un fichier retouché depuis. Un envoi sans numéro lisible : « dev · 879fcb2 » ;
+// sans dépôt lisible, « dev ».
 export function versionDuCode(dossier = import.meta.dirname): string {
+  const git = (...a: string[]) => execFileSync('git', ['-C', dossier, ...a], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  let court: string;
+  try { court = git('log', '-1', '--format=%h'); } catch { return 'dev'; }
+  if (!court) return 'dev';
+  let numero: string | null = null;
   try {
-    const [jour, court] = execFileSync('git', ['-C', dossier, 'log', '-1', '--format=%cs %h'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim().split(' ');
-    return jour && court ? `${jour.replaceAll('-', '.')} · ${court}` : 'dev';
-  } catch {
-    return 'dev';
-  }
+    const v = (JSON.parse(git('show', 'HEAD:package.json')) as { version?: unknown } | null)?.version;
+    numero = typeof v === 'string' && NUMERO.test(v) ? v : null;
+  } catch { /* un envoi sans package.json lisible : sans numéro */ }
+  return `${numero ?? 'dev'} · ${court}`;
 }
 
 export function fichiersDesEcrans(racine: string, version = 'dev') {

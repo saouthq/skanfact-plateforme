@@ -21,8 +21,9 @@ export type EtatSuiveur = {
 };
 
 const SHA = /^[0-9a-f]{40}$/;
-// Le même motif que le suiveur (exploitation/suivre.ts, NUMERO) : ce qu'il n'écrirait pas ne se lit pas.
-const NUMERO = /^\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[0-9a-z.]{1,20})?$/;
+// Le même motif que le suiveur (exploitation/suivre.ts, NUMERO) : ce qu'il n'écrirait pas ne se lit pas. Le pied du menu
+// de l'application des clients le lit aussi (serveur/ecrans.ts).
+export const NUMERO = /^\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[0-9a-z.]{1,20})?$/;
 const date = (x: unknown) => (typeof x === 'string' && Number.isFinite(Date.parse(x)) ? x : null);
 const sha = (x: unknown) => (typeof x === 'string' && SHA.test(x) ? x : null);
 const texte = (x: unknown, max: number) => (typeof x === 'string' && x.trim() ? x.trim().slice(0, max) : null);

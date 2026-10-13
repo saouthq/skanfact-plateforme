@@ -1141,9 +1141,13 @@
     achatOublier: pasEncore('L\'abonnement'),
     pontExporterBase: pasEncore('L\'export de la base de l\'éditeur'),
     updateCanaux: async () => null,
-    // La version au pied du menu : celle que le serveur a écrite dans la page (le jour de l'envoi et le début de son
-    // empreinte, serveur/ecrans.ts), la même que le code qui tourne ; sans elle, « dev » comme la v10 dans un navigateur.
-    updateVersion: async () => ({ version: document.querySelector('meta[name="skanfact-code"]')?.getAttribute('content') || 'dev', packaged: false, platform: 'web', macSigned: false }),
+    // La version au pied du menu : celle que le serveur a écrite dans la page (« 1.1.0 · 879fcb2 » : le numéro que l'envoi
+    // déclare, puis le début de son empreinte ; serveur/ecrans.ts), la même que le code qui tourne. Le menu dit le numéro
+    // (« v1.1.0 »), l'envoi se lit au survol ; sans rien, « dev » comme la v10 dans un navigateur.
+    updateVersion: async () => {
+      const [numero, envoi] = (document.querySelector('meta[name="skanfact-code"]')?.getAttribute('content') || 'dev').split(' · ');
+      return { version: numero || 'dev', envoi: envoi || null, packaged: false, platform: 'web', macSigned: false };
+    },
     // Les nouveautés de la v10 décrivent l'application de bureau (10.x) : la plateforme ne les montre pas.
     sansNouveautesV10: true,
     // Les données vivent sur le serveur, plus sur l'ordinateur : l'étape « Mettre tes données à l'abri »

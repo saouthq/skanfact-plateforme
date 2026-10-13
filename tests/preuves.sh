@@ -8009,7 +8009,18 @@ prouver "la date du timbre manquant écrite comme la base la range" serveur/vent
 
 # La version au pied du menu (serveur/ecrans.ts, plateforme/pont.js ; vu sur le vrai serveur le 05/10/2026 : « vdev »).
 prouver "la version du menu qui reste « vdev »" web/public/plateforme/pont.js \
-  "    updateVersion: async () => ({ version: document.querySelector" "    updateVersionOubliee: async () => ({ version: document.querySelector" \
+  "    updateVersion: async () => {" "    updateVersionOubliee: async () => {" \
+  "$CEP"
+# Le numéro au pied du menu (« v1.1.0 », 13/10/2026 : « Vx.x.x »), l'envoi au survol.
+prouver "le pied du menu qui redit l'envoi après le numéro" web/public/plateforme/pont.js \
+  "      return { version: numero || 'dev', envoi: envoi || null," "      return { version: [numero, envoi].filter(Boolean).join(' · ') || 'dev', envoi: envoi || null," \
+  "$CEP"
+prouver "l'envoi qui tourne oublié par le pont" web/public/plateforme/pont.js \
+  "      return { version: numero || 'dev', envoi: envoi || null," "      return { version: numero || 'dev', envoi: null," \
+  "$CEP"
+prouver "l'envoi qui tourne absent du survol du numéro" web/public/v10/app.js \
+  "      if (el && v.envoi) el.title = 'Envoi ' + v.envoi;
+" "" \
   "$CEP"
 prouver "la page servie sans la version de son code" serveur/ecrans.ts \
   "return versionnee.slice(0, apres) + marque + annonces" "return versionnee.slice(0, apres) + annonces" \
@@ -8020,12 +8031,18 @@ prouver "le serveur qui ne sert pas la version de son code" serveur/principal.ts
 prouver "la version donnée par l'environnement ignorée" serveur/principal.ts \
   "version: env.SKANFACT_VERSION ?? versionDuCode()," "version: versionDuCode()," \
   "$CEP"
-VDC="le jour de l'envoi (l'année d'abord) et le début de son empreinte ; « dev » sans dépôt"
-prouver "la version écrite comme un jour de la base" serveur/ecrans.ts \
-  "jour.replaceAll('-', '.')" "jour" \
+VDC="le numéro que l'envoi déclare et le début de son empreinte ; « dev » sans numéro lisible, ou sans dépôt"
+prouver "le numéro d'un package.json retouché au lieu de celui de l'envoi" serveur/ecrans.ts \
+  "JSON.parse(git('show', 'HEAD:package.json'))" "JSON.parse(fs.readFileSync(path.join(git('rev-parse', '--show-toplevel'), 'package.json'), 'utf8'))" \
+  "$VDC"
+prouver "le numéro cherché dans le dossier du serveur, pas à la racine du dépôt" serveur/ecrans.ts \
+  "git('show', 'HEAD:package.json')" "git('show', 'HEAD:./package.json')" \
   "$VDC"
 prouver "la version sans l'empreinte de l'envoi" serveur/ecrans.ts \
-  ' · ${court}`' '`' \
+  'return `${numero ?? '"'"'dev'"'"'} · ${court}`;' 'return `${numero ?? '"'"'dev'"'"'}`;' \
+  "$VDC"
+prouver "un numéro qui n'en est pas un, au pied du menu" serveur/ecrans.ts \
+  "numero = typeof v === 'string' && NUMERO.test(v) ? v : null;" "numero = typeof v === 'string' ? v : null;" \
   "$VDC"
 
 # Le fond de caisse proposé à l'ouverture : ce que le tiroir contient déjà (vu sur le vrai serveur le 05/10/2026 : la

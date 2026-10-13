@@ -23,7 +23,7 @@ import * as jsqr from 'jsqr';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
-const VERSION = '2026.10.06 · 0a1b2c3';
+const VERSION = '1.4.2 · 0a1b2c3';
 const titre = (cle: string, v: Record<string, string | number> = {}) => { const s = rendre(t(cle, v), 'fr'); return s.charAt(0).toUpperCase() + s.slice(1); };
 const phrase = (cle: string, v: Record<string, string | number> = {}) => rendre(motif(cle, v), 'fr');
 

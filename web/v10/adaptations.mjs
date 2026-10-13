@@ -29,6 +29,12 @@ export const ADAPTATIONS = [
   },
   {
     fichier: 'app.js',
+    pourquoi: 'le pied du menu dit le numéro de la version (« v1.1.0 », décidé par Skander le 13/10/2026 : « Vx.x.x ») ; l\'envoi qui tourne se lit au survol, pour qui signale un problème',
+    avant: "      upd.app = v; const el = $('#app-version'); if (el) el.textContent = 'v' + v.version;\n",
+    apres: "      upd.app = v; const el = $('#app-version'); if (el) el.textContent = 'v' + v.version;\n      // (plateforme) L'envoi qui tourne, au survol du numéro (serveur/ecrans.ts).\n      if (el && v.envoi) el.title = 'Envoi ' + v.envoi;\n",
+  },
+  {
+    fichier: 'app.js',
     pourquoi: 'le repli « navigateur » de la v10 reste le socle du point de contact ; le pont de la plateforme n\'en remplace que ce qu\'il fait autrement (les données viennent du serveur)',
     avant: '  const bridge = window.skanfact || {\n    _mem: null,',
     apres: '  const bridge = Object.assign({\n    _mem: null,',

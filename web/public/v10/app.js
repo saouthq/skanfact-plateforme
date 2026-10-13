@@ -21782,6 +21782,8 @@
     }
     bridge.updateVersion().then(v => {
       upd.app = v; const el = $('#app-version'); if (el) el.textContent = 'v' + v.version;
+      // (plateforme) L'envoi qui tourne, au survol du numéro (serveur/ecrans.ts).
+      if (el && v.envoi) el.title = 'Envoi ' + v.envoi;
       // Le repère se pose sur la VERSION INSTALLÉE, jamais sur le canal choisi : ce qui compte,
       // c'est ce qui tourne. Quelqu'un qui vient de décocher la case tourne encore sur une bêta.
       const tag = $('#beta-tag'); if (tag) tag.hidden = !C.estBeta(v.version);

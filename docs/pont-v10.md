@@ -171,7 +171,10 @@ impossible se voit, « 31122027 » devient 31/12/2027 et le serveur garde 2027-1
   `updateVersion` la lit : c'est ce qu'un testeur recopie quand il signale un problème. Les nouveautés de la v10
   décrivent l'application de bureau : la plateforme ne les montre jamais (`sansNouveautesV10` ; vu le même jour, la
   carte « Nouveau dans SkanFact 10.15.0 » s'ouvrait chez qui avait retenu « vdev »). Les tests donnent leur version au
-  serveur : les preuves tournent dans une copie sans git. Restent le journal des erreurs du serveur (`supportInfo`,
+  serveur : les preuves tournent dans une copie sans git. Depuis le 13/10/2026 (1.1.1 ; Skander : « je veux le
+  numérotage normal, Vx.x.x ») le pied du menu dit le NUMÉRO que l'envoi déclare (« v1.1.1 », la `version` de son
+  `package.json`, lue dans le commit comme le suiveur la lit), et l'envoi se lit au survol (« Envoi 879fcb2 ») : la
+  page porte « 1.1.1 · 879fcb2 », que `updateVersion` sépare. Restent le journal des erreurs du serveur (`supportInfo`,
   `supportErreur`) et l'historique des nouveautés de la plateforme (`changelog`).
 - **Le Cabinet** : repris à la brique 37 (`docs/cabinet.md`) ; ses gestes arrivent brique par
   brique (38 à 46).
