@@ -1726,3 +1726,10 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 @media (max-width: 1180px) { .c-accueil-bas { grid-template-columns: minmax(0, 1fr); } }
 /* Sur deux colonnes, la tuile large passe en dernier sur toute la rangée : les autres se rangent deux par deux sans trou. */
 @media (max-width: 1100px) { .c-tuile-large { grid-column: 1 / -1; order: 1; } }
+
+/* Au doigt (téléphone, écran tactile) : les liens des listes de l'aperçu d'un cabinet et des relances parties font
+   44 points de haut, comme les boutons. */
+@media (max-width: 860px), (pointer: coarse) {
+  .c-cab-lignes a, .c-cab-place-pied .c-fiche-vers, .c-relances-liste a { display: inline-flex; align-items: center; min-height: 44px; }
+  .c-cab-lignes li, .c-relances-liste li { padding-block: 2px; }
+}
