@@ -255,7 +255,7 @@ describe('les cabinets', () => {
 describe('les relances parties depuis hier (l\'accueil)', () => {
   it('celles des vingt-quatre dernières heures, nommées, la plus récente d\'abord ; ni avant, ni après l\'heure qu\'il est', () => {
     const maintenant = new Date('2026-10-13T08:00:00Z');
-    const liste = lireEntreprises([A, D, G], JOUR);
+    const liste = lireEntreprises([A, B, D, G], JOUR);
     const extras = lireExtras({ relances: [
       // A : la veille de la fin de son essai, partie cette nuit ; sa relance des sept jours, partie il y a six jours.
       { entreprise: A.id, echeance: '2026-10-15', rangs: { j7: '2026-10-07T07:00:00Z', j1: '2026-10-13T03:00:00Z' } },
