@@ -601,6 +601,7 @@ export interface BaseDeDonnees {
     archive_le: Date | null;
     destinataires: ColumnType<Json | null, string | null, string | null>;
     regles: ColumnType<Json | null, string | null, string | null>;
+    copies: ColumnType<Json | null, string | null, string | null>;
   };
   'plateforme.service_route': {
     jour: string;

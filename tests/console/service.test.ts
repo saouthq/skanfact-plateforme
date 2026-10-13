@@ -212,7 +212,9 @@ describe('ce que la veille confie à la base', () => {
       certificat: { titre: 'le certificat https expire dans 20 jours', grave: false, faire: 'b', depuis: '2026-10-12T08:00:00Z', vus: 1440, ditLe: '2026-10-12T08:00:00Z' },
     } }, { charge: 0.42, memoire: 37, processeurs: 4 });
     expect(x.releve).toEqual({ minute: '2026-10-13T08:37:00.000Z', repond: true, charge: 0.42, memoire: 37, processeurs: 4, disques: [{ point: '/', pourcent: 41 }],
-      version: '71061a0cee512e53', certificat: '2026-12-01', archiveLe: '2026-10-13T08:36:00Z', destinataires: null, regles: null });
+      version: '71061a0cee512e53', certificat: '2026-12-01', archiveLe: '2026-10-13T08:36:00Z', destinataires: null, regles: null,
+      // L'état des copies à cette minute : ce qui mesure ce qu'on perdrait si le site brûlait (docs/console.md C14).
+      copies: { archivage: { enMarche: true }, horsMachine: { regle: true, attenteDepuis: '2026-10-13T08:30:00Z' } } });
     // Le service n'a été vu qu'une fois sans réponse : ce n'est pas encore une alerte.
     expect(Object.keys(x.problemes)).toEqual(['certificat']);
     // Chaque problème confié porte sa règle (celle qu'on met en sourdine) et ses étapes (une veille.json d'avant n'en a pas).
@@ -237,6 +239,28 @@ describe('ce que la veille confie à la base', () => {
     expect(enRetard.nuits[0]?.sauvegarde).toMatchObject({ horsMachine: { ok: false } });
     const pasReglee = pourLaConsole({ ...releve, copies: { ...copies, horsMachine: { regle: false, plusVieuxEnAttente: null, dernierEchec: null } } }, { problemes: {} }, { charge: null, memoire: null, processeurs: null });
     expect(pasReglee.nuits[0]?.sauvegarde).toEqual({ le: '2026-10-13T01:16:00Z', ok: true });
+  });
+
+  it('la nuit porte ce que la sauvegarde et l\'exercice ont compté — des nombres, rien d\'autre', () => {
+    const exercice = { le: '2026-10-01T03:12:00Z', ok: true, secondes: 412, lignes: 1834215, migrations: 87, message: 'chemin /var/x', jusqua: '2026-09-30 23:59' };
+    const x = pourLaConsole({
+      ...releve, etat: { ...(releve.etat as NonNullable<Releve['etat']>), sauvegarde: { le: '2026-10-13T01:16:00Z', ok: true, lignes: 1834200, migrations: '87' } },
+      copies: { ...copies, restauration: exercice },
+    } as Releve, { problemes: {} }, { charge: null, memoire: null, processeurs: null });
+    // Un compte qui n'est pas un nombre entier n'est pas confié (une chaîne, un message, un chemin) : il manque.
+    expect(x.nuits.find(n => n.jour === '2026-10-13')?.sauvegarde).toEqual({ le: '2026-10-13T01:16:00Z', ok: true, lignes: 1834200,
+      horsMachine: { le: MAINTENANT.toISOString(), ok: true } });
+    expect(x.nuits.find(n => n.jour === '2026-10-01')?.restauration).toEqual({ le: '2026-10-01T03:12:00Z', ok: true, secondes: 412, lignes: 1834215, migrations: 87 });
+  });
+
+  it('l\'état des copies : ce que la veille n\'a pas lu vaut null, une attente ne compte que si la copie est réglée', () => {
+    const sans = pourLaConsole({ ...releve, copies: undefined } as unknown as Releve, { problemes: {} }, { charge: null, memoire: null, processeurs: null });
+    expect(sans.releve.copies).toBeNull();
+    const pasReglee = pourLaConsole({ ...releve, copies: { ...copies, archivage: null, horsMachine: { regle: false, plusVieuxEnAttente: '2026-10-13T08:30:00Z', dernierEchec: null } } } as unknown as Releve,
+      { problemes: {} }, { charge: null, memoire: null, processeurs: null });
+    expect(pasReglee.releve.copies).toEqual({ archivage: null, horsMachine: { regle: false, attenteDepuis: null } });
+    const illisible = pourLaConsole({ ...releve, copies: { ...copies, horsMachine: { regle: true, plusVieuxEnAttente: 'hier', dernierEchec: null } } }, { problemes: {} }, { charge: null, memoire: null, processeurs: null });
+    expect(illisible.releve.copies?.horsMachine.attenteDepuis).toBeNull();
   });
 
   it('la mémoire occupée se lit dans /proc/meminfo, caches rendus compris', () => {

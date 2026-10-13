@@ -30,6 +30,9 @@ const SQL = /^\s*(select|insert|update|delete|with|set|begin|commit|rollback|sav
 const ALIAS = /^[a-z_]+(\.[a-z_]+)? as [a-z_]+$/;
 // Une colonne rangée selon une langue donnée (« collection collate "C" » : un ordre qui ne dépend pas de la base).
 const RANGEE = /^[a-z_]+ collate "[A-Za-z_-]+"$/;
+// Une commande que la console compose pour la console du serveur (serveur/console/sauvegardes.ts) : elle se copie telle
+// quelle, dans aucune langue ; ce n'est pas une phrase.
+const COMMANDE = /^sudo (systemctl|bash) /;
 
 // Le texte d'un gabarit `…${x}…` sans ses expressions (qui sont du code).
 function horsExpressions(gabarit: string): string {
@@ -58,7 +61,7 @@ export function phrasesEnDur(): string[] {
     const code = sansCommentaires(fs.readFileSync(f, 'utf8'));
     for (const m of code.matchAll(LITTERAL)) {
       const texte = m[1] ?? horsExpressions(m[2] ?? '');
-      if (!PHRASE.test(texte) || SQL.test(texte) || ALIAS.test(texte) || RANGEE.test(texte)) continue;
+      if (!PHRASE.test(texte) || SQL.test(texte) || ALIAS.test(texte) || RANGEE.test(texte) || COMMANDE.test(texte)) continue;
       const avant = code.slice(Math.max(0, (m.index ?? 0) - 40), m.index).replace(/\s+/g, ' ');
       // Ce qui part au journal du serveur (une panne, pour l'exploitant) n'est jamais montré à quelqu'un : pas une phrase.
       if (/(new (Error|RouteSansGeste|ConfigurationFausse)|console\.(log|error)|noterPanne)\($/.test(avant)) continue;

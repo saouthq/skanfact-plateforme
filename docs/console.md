@@ -276,6 +276,26 @@ service (0086) » de `tests/console/console.test.ts` (contre la base) et `tests/
   les faits tiennent en une boîte et une commande défile au lieu de se casser au milieu d'un chemin.
 - Les trois tables sont à la plateforme : elles ne partent jamais avec l'export d'une entreprise (`CLASSEMENT`, « hors »).
 
+**C14. Les sauvegardes du service** (10 § 2.8 ; 06 § 4). `#/service/sauvegardes`, la direction et la technique.
+- **Quatre chiffres** : la sauvegarde de la nuit (faite et relue, ses lignes comptées), l'archivage à la minute, la copie
+  hors de la machine (son retard, ce qu'on perdrait si le site brûlait) et le dernier exercice de restauration.
+- **Ce qu'on promet de pouvoir reprendre** (06 § 4.1, écrit d'avance) : pour chaque malheur, la perte et le retour promis,
+  la mesure du jour et ce qui la prouve. **Une promesse ne se dit tenue qu'avec une mesure ET une preuve faite sur ce
+  serveur** (la base : l'archivage en marche et un exercice réussi sous l'heure ; une entreprise : une remise faite) ;
+  sans preuve, « à prouver ». Le site perdu n'est jamais tenu tant qu'il n'existe pas de site de secours ; le verrou de la
+  copie chez le fournisseur est « invérifiable d'ici ».
+- **Où sont les copies** (3-2-1-1), **nuit par nuit** (sauvegarde, lignes recomptées, copie de base, arrivée hors de la
+  machine à la minute où la veille l'a vue, exercice), **l'archivage** (le plus ancien point où revenir, le retard de la
+  copie heure par heure sur 24 heures contre son seuil), **les exercices** (durée, lignes, migrations, le prochain).
+- **La console ne touche jamais au serveur** : relancer un exercice, pousser la copie, remettre une entreprise sont des
+  commandes à copier dans la console du serveur. « Préparer une remise… » (la direction seule, parce qu'elle nomme le
+  client) vérifie le client, la minute (à l'heure de Tunis, couverte par les copies gardées, jamais future) et le motif
+  (entre apostrophes : rien ne s'y interprète), compose l'essai puis la remise, et entre au journal
+  (`service.remise`). La remise, faite sur le serveur, écrit sa minute dans la piste d'audit de l'entreprise
+  (`base/entreprise.ts remettre --minute`) ; l'écran dit qui l'avait préparée.
+- La veille range l'état des copies à chaque relevé (`service_releve.copies`, 0087) et garde la minute d'arrivée d'une
+  copie hors de la machine ; elle ne confie que des nombres (lignes, migrations, secondes), jamais un message ni un chemin.
+
 ## Mettre en route
 
 La personne crée d'abord son compte SkanFact, puis met en place le code de son téléphone (« Ton compte »,

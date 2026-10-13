@@ -9,6 +9,7 @@ import { ContexteConsole, panneDe, type Ctx, type Moi, type Role } from './conte
 import { Abonnements } from './ecrans/Abonnements.tsx';
 import { Accueil } from './ecrans/Accueil.tsx';
 import { Alertes } from './ecrans/Alertes.tsx';
+import { Sauvegardes } from './ecrans/Sauvegardes.tsx';
 import { Cabinet } from './ecrans/Cabinet.tsx';
 import { Cabinets } from './ecrans/Cabinets.tsx';
 import { Clients } from './ecrans/Clients.tsx';
@@ -40,8 +41,8 @@ function lireRoute(hash: string): Route {
   if (m[0] === 'cabinets' && m.length === 1) return { page: 'cabinets', params };
   if (m[0] === 'cabinets' && m.length === 2 && UUID.test(m[1] ?? '')) return { page: 'cabinet', id: m[1] ?? '', params };
   if (m.length === 1 && (m[0] === 'abonnements' || m[0] === 'journal' || m[0] === 'equipe' || m[0] === 'service')) return { page: m[0], params };
-  // Les vues du service : « #/service » (la vue d'ensemble), « #/service/alertes ».
-  if (m[0] === 'service' && m.length === 2 && m[1] === 'alertes') return { page: 'service', id: 'alertes', params };
+  // Les vues du service : « #/service » (la vue d'ensemble), « #/service/alertes », « #/service/sauvegardes ».
+  if (m[0] === 'service' && m.length === 2 && (m[1] === 'alertes' || m[1] === 'sauvegardes')) return { page: 'service', id: m[1], params };
   return { page: 'inconnue', params };
 }
 function useRoute(): Route {
@@ -165,7 +166,7 @@ function Page({ route, role }: { route: Route; role: Role }) {
     case 'abonnements': return <Abonnements vue={route.params.get('vue')} />;
     case 'journal': return <Journal entreprise={UUID.test(route.params.get('entreprise') ?? '') ? route.params.get('entreprise') : null} />;
     case 'equipe': return <Equipe />;
-    default: return route.id === 'alertes' ? <Alertes /> : <Service periode={route.params.get('periode')} />;
+    default: return route.id === 'alertes' ? <Alertes /> : route.id === 'sauvegardes' ? <Sauvegardes /> : <Service periode={route.params.get('periode')} />;
   }
 }
 

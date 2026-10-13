@@ -1177,6 +1177,80 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   .c-al-durees .c-pilule, .c-al-commande .c-btn { min-height: 44px; }
 }
 
+/* ── Les sauvegardes du service (C14) ─────────────────────────────────────────────────────────────────────────────── */
+/* Les quatre chiffres, sur la page claire : la tuile du service (faite pour la nuit) prend l'encre du papier, et le mot
+   la couleur de son état. */
+.c-sg-situation .c-sv-tuiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.c-sg-situation .c-sv-tuile { background: var(--c-papier); border-color: var(--c-trait); box-shadow: var(--c-ombre-carte); }
+.c-sg-situation .c-tuile-titre, .c-sg-situation .c-tuile-sous { color: var(--c-gris); }
+.c-sg-situation .c-sv-tuile-mot b { color: var(--c-encre); }
+.c-sg-situation .c-sv-tuile:has(.c-puce-urgent) { border-color: color-mix(in srgb, var(--c-rouge) 40%, var(--c-trait)); }
+.c-sg-situation .c-sv-tuile:has(.c-puce-urgent) .c-sv-tuile-mot b { color: var(--c-rouge-texte); }
+.c-sg-situation .c-sv-tuile:has(.c-puce-en_retard) .c-sv-tuile-mot b { color: var(--c-orange-texte); }
+.c-sg-table tbody th[scope="row"], .c-sg-table tfoot th[scope="row"] { font-size: 14px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--c-encre); text-align: start; vertical-align: top; }
+.c-sg-table th[scope="row"] b { display: block; font-weight: 600; }
+.c-sg-table th[scope="row"] .c-sous, .c-sg-table td .c-sous { display: block; font-size: 13px; font-weight: 400; color: var(--c-gris); }
+.c-sg-promesses .c-sg-table td:nth-child(4), .c-sg-promesses .c-sg-table td:nth-child(5) { min-width: 180px; }
+.c-sg-promesses .c-sg-table th[scope="row"] { min-width: 170px; }
+.c-sg-promesses .c-sg-table td:nth-child(2), .c-sg-promesses .c-sg-table td:nth-child(3), .c-sg-promesses .c-sg-table td:nth-child(6) { white-space: nowrap; }
+.c-sg-table tfoot th, .c-sg-table tfoot td { font-size: 13px; color: var(--c-gris); border-top: 1px solid var(--c-trait-fort); }
+.c-sg-copies-liste { list-style: none; margin: 0; padding: 0 26px 24px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.c-sg-copie { display: grid; grid-template-rows: auto 1fr auto; gap: 12px; padding: 16px; border-radius: 16px; border: 1px solid var(--c-trait); background: var(--c-papier-2); }
+.c-sg-copie-icone { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--c-gris-doux); color: var(--c-gris); }
+.c-sg-copie-en_place .c-sg-copie-icone { background: var(--c-doux); color: var(--c-doux-texte); }
+.c-sg-copie-en_retard .c-sg-copie-icone { background: var(--c-orange-doux); color: var(--c-orange-texte); }
+.c-sg-copie-manque .c-sg-copie-icone { background: var(--c-rouge-doux); color: var(--c-rouge-texte); }
+.c-sg-copie-texte { display: grid; gap: 4px; align-content: start; font-size: 14px; }
+.c-sg-copie-texte b { font-size: 15px; font-weight: 600; }
+.c-sg-copie .c-puce { justify-self: start; }
+.c-sg-marque { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; white-space: nowrap; }
+.c-sg-marque.c-ton-bon { color: var(--c-doux-texte); }
+.c-sg-marque.c-ton-grave { color: var(--c-rouge-texte); font-weight: 600; }
+.c-sg-hors { font-size: 14px; white-space: nowrap; color: var(--c-gris); }
+.c-sg-hors-en_attente { color: var(--c-orange-texte); font-weight: 600; }
+.c-sg-graphe { display: grid; gap: 10px; padding: 0 26px 20px; }
+.c-sg-graphe .c-sv-graphe-tete { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.c-sg-faits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0 26px 18px; }
+.c-sg-faits > div { display: grid; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--c-papier-2); border: 1px solid var(--c-trait); }
+.c-sg-faits dt { font-size: 12.5px; color: var(--c-gris); }
+.c-sg-faits dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.c-sg-geste { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0 26px 24px; padding-top: 16px; border-top: 1px solid var(--c-trait); }
+.c-sg-duo > *, .c-sg-geste > * { min-width: 0; }
+.c-sg-geste p { margin: 0; font-size: 14px; color: var(--c-gris); }
+.c-sg-vide { margin: 0 26px 24px; padding: 14px 16px; border-radius: 12px; background: var(--c-papier-2); border: 1px dashed var(--c-trait-fort); font-size: 14px; color: var(--c-gris); }
+.c-sg-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+.c-sg-etapes { margin: 0; padding: 0; list-style: none; display: grid; gap: 18px; }
+.c-sg-etapes li { display: grid; gap: 6px; }
+.c-sg-etapes li > span { font-size: 14px; color: var(--c-gris); }
+/* Une commande à copier ne se casse jamais au milieu d'un chemin : elle défile. */
+.c-sg-etapes .c-al-commande code { white-space: pre; overflow-wrap: normal; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--c-nuit-trait) transparent; }
+.c-sg-client { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--c-champ); }
+.c-sg-trouves { list-style: none; margin: 4px 0 0; padding: 4px; display: grid; border-radius: 12px; border: 1px solid var(--c-trait); background: var(--c-papier); }
+.c-sg-trouves button { width: 100%; text-align: start; min-height: 40px; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: var(--c-encre); font: inherit; cursor: pointer; }
+.c-sg-trouves button:hover, .c-sg-trouves button:focus-visible { background: var(--c-doux); color: var(--c-doux-texte); }
+/* L'archivage et les exercices côte à côte seulement quand leurs tableaux y tiennent sans défiler. */
+@media (max-width: 1560px) {
+  .c-sg-duo { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 1100px) {
+  .c-sg-situation .c-sv-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .c-sg-copies-liste { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+  /* Au téléphone, chaque promesse est une fiche : son malheur en tête, puis chaque colonne nommée. */
+  .c-sg-promesses .c-defile { overflow: visible; }
+  .c-sg-promesses .c-sg-table, .c-sg-promesses .c-sg-table tbody, .c-sg-promesses .c-sg-table tr, .c-sg-promesses .c-sg-table th, .c-sg-promesses .c-sg-table td { display: block; min-width: 0; white-space: normal; }
+  .c-sg-promesses .c-sg-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .c-sg-promesses .c-sg-table tr { padding: 14px 18px; border-top: 1px solid var(--c-trait); display: grid; gap: 8px; }
+  .c-sg-promesses .c-sg-table th, .c-sg-promesses .c-sg-table td { padding: 0; border: 0; text-align: start; }
+  .c-sg-promesses .c-sg-table td[data-col]::before { content: attr(data-col); display: block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c-gris); }
+  .c-sg-copies-liste { grid-template-columns: minmax(0, 1fr); padding: 0 18px 18px; }
+  .c-sg-graphe, .c-sg-faits { padding-inline: 18px; }
+  .c-sg-geste, .c-sg-vide { margin-inline: 18px; }
+  .c-sg-faits { grid-template-columns: minmax(0, 1fr); }
+  .c-sg-trouves button { min-height: 44px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }

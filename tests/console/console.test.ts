@@ -681,3 +681,63 @@ describe('les mesures du serveur', () => {
     } finally { await a.close(); }
   });
 });
+
+describe('les sauvegardes du service (0087, docs/console.md C14)', () => {
+  beforeAll(async () => {
+    await admin.query('truncate plateforme.service_releve, plateforme.service_nuit, plateforme.service_minute');
+  });
+  const t = (min: number) => new Date(Math.floor(horloge.getTime() / 60_000) * 60_000 - min * 60_000).toISOString();
+  const noter = (min: number, attente: string | null, nuits: unknown[] = []) => enTantQue(pool, null, (tx) => tx.query('select plateforme.noter_veille($1::jsonb, $2::jsonb, $3::jsonb)', [
+    JSON.stringify({ minute: t(min), repond: true, charge: null, memoire: null, processeurs: null, disques: [], version: 'abcdef1', certificat: null, archiveLe: t(min + 1),
+      destinataires: null, regles: null, copies: { archivage: { enMarche: true }, horsMachine: { regle: true, attenteDepuis: attente } } }), '{}', JSON.stringify(nuits)]));
+  const nuit = (min: number, ok: boolean) => ({ jour: t(0).slice(0, 10), sauvegarde: { le: t(600), ok: true, lignes: 1200, migrations: 87, horsMachine: { le: t(min), ok } },
+    copieDeBase: { le: t(580), ok: true } });
+
+  it('la base garde l\'état des copies de chaque relevé, et la minute où une copie est arrivée hors de la machine', async () => {
+    await noter(3, t(40), [nuit(3, false)]);
+    await noter(2, null, [nuit(2, true)]);
+    await noter(1, null, [nuit(1, true)]);
+    const r = await appeler('GET', '/console/service/sauvegardes', jT);
+    expect(r.statut).toBe(200);
+    const nuits = r.corps.nuits as { horsMachine: { le: string; ok: boolean } | null; sauvegarde: { lignes: number | null } }[];
+    // Arrivée à la deuxième minute, et pas à la troisième : la veille repose la nuit chaque minute, l'arrivée reste.
+    expect(nuits[0]?.horsMachine?.ok).toBe(true);
+    expect(Date.parse(nuits[0]?.horsMachine?.le ?? '')).toBe(Date.parse(t(2)));
+    expect(nuits[0]?.sauvegarde.lignes).toBe(1200);
+    // Le pire retard de l'heure : celui de la troisième minute (37 minutes, en secondes rangées, en minutes rendues).
+    const retards = r.corps.retards as { plusLong: number | null }[];
+    expect(Math.max(...retards.map((x) => x.plusLong ?? 0))).toBe(37);
+  });
+
+  it('la technique lit tout, sauf le détail des remises (il nomme le client) ; elle ne prépare pas une remise', async () => {
+    const r = await appeler('GET', '/console/service/sauvegardes', jT);
+    expect(r.corps.remises).toBeNull();
+    const { ent } = await entreprise('Atelier Remis');
+    expect((await appeler('POST', '/console/service/remise', jT, { entreprise: ent, minute: '2026-10-12 14:03', motif: 'un import' })).statut).toBe(403);
+  });
+
+  it('la direction prépare une remise : chaque refus nomme sa case ; faite, elle rend les deux commandes et entre au journal', async () => {
+    const { ent } = await entreprise('Atelier À Remettre');
+    const minute = (min: number) => new Date(Date.parse(t(min)) + 3_600_000).toISOString().slice(0, 16).replace('T', ' ');
+    const refus = await appeler('POST', '/console/service/remise', jD, { entreprise: ent, minute: '2026-02-31 14:03', motif: 'un import' });
+    expect(refus).toMatchObject({ statut: 400, corps: { champ: 'minute' } });
+    expect((await appeler('POST', '/console/service/remise', jD, { entreprise: ent, minute: minute(10), motif: 'un' })).corps.champ).toBe('motif');
+    const autre = '01a133c0-b805-7a3e-a711-7b49e8e43224';
+    // Un client que la base ne connaît pas (ou d'exemple) : c'est la base qui refuse, et le refus le dit.
+    const inconnu = await appeler('POST', '/console/service/remise', jD, { entreprise: autre, minute: minute(10), motif: 'un import' });
+    expect(inconnu.statut).toBe(403);
+    expect(inconnu.corps.motif).toBe('Cette entreprise n\'existe pas, ou c\'est une entreprise d\'exemple.');
+    const r = await appeler('POST', '/console/service/remise', jD, { entreprise: ent, minute: minute(10), motif: 'un import a doublé les factures' });
+    expect(r.statut).toBe(201);
+    expect(r.corps.essai).toBe(`sudo bash /opt/skanfact/depot/exploitation/remettre-entreprise.sh ${ent} "${minute(10)}" 'un import a doublé les factures'`);
+    expect(r.corps.remise).toBe(`${String(r.corps.essai)} --remettre`);
+    const g = (await admin.query("select role, entreprise, motif, apres from plateforme.geste_console where geste = 'service.remise' and entreprise = $1", [ent])).rows;
+    expect(g).toEqual([{ role: 'direction', entreprise: ent, motif: 'un import a doublé les factures', apres: { minute: minute(10) } }]);
+    // La remise faite sur le serveur (sa trace dans la piste d'audit de l'entreprise) se dit préparée par qui l'a préparée.
+    await admin.query(`insert into socle.audit (entreprise, geste, objet_type, objet_id, avant, apres) values ($1, 'socle.entreprise.remettre', 'entreprise', $1, '{}', $2)`,
+      [ent, JSON.stringify({ motif: 'un import a doublé les factures', minute: minute(10), numerosRetires: ['FAC-1', 'FAC-2'] })]);
+    const lu = await appeler('GET', '/console/service/sauvegardes', jD);
+    const remises = lu.corps.remises as { entreprise: string; nom: string; minute: string; numerosRetires: number; preparee: { par: string } | null }[];
+    expect(remises.find((x) => x.entreprise === ent)).toMatchObject({ nom: 'Atelier À Remettre', minute: minute(10), numerosRetires: 2, preparee: { par: direction.nom } });
+  });
+});

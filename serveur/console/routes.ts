@@ -13,7 +13,7 @@ import { aujourdhuiATunis } from '../reglements.ts';
 import { etatAbonnement, GRACE_JOURS, lireFaits, RELANCES, type Etat, type Faits } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, type GesteAbonnement, type LigneAbonnement } from '../abonnement/gestes.ts';
 import { motif, t } from '../../textes/index.ts';
-import { REGLES } from '../../exploitation/veille.ts';
+import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_MIN, REGLES, SAUVEGARDE_TROP_VIEILLE_H } from '../../exploitation/veille.ts';
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
 import { aDecider, CATEGORIES, categorie, chercher, inscriteCetteSemaine, lireEntreprises, lireVeille, rangerParUrgence, tableau, type Veille } from './decider.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
@@ -23,6 +23,10 @@ import {
   misesEnLigne, PERIODES, resume, serie, SEUILS_DU_SERVICE, SORTE_DU_GRAPHIQUE, traficRecent, trenteJours, TUILES, type Periode,
 } from './service.ts';
 import { enCours, histoire, lireAlertes, MINUTES_JUGEES, prevenus, regles, RYTHME, sujetDuService } from './alertes.ts';
+import {
+  CALENDRIER, COMMANDES, commandesRemise, copies, exercices, GARDE, horsDeLaMachine, lArchivage, laSauvegarde, leDernierExercice, lignesParNuit,
+  lireSauvegardes, nuits as nuitsGardees, pointLePlusAncien, promesses, retardsParHeure,
+} from './sauvegardes.ts';
 import type { RoleConsole } from './gestes.ts';
 import './textes.ts';
 
@@ -429,6 +433,54 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     traiter: async ({ corps }, tx) => {
       const id = await lireJson<string>(transaction(tx), 'select plateforme.console_demander_essai($1, $2) v', [corps.motif, maintenant()]);
       return { statut: 201, corps: { id } };
+    },
+  });
+
+  // ── Les sauvegardes du service (Console 3c, docs/console.md C14) ─────────────────────────────────────────────────────
+  // Ce qu'on promet de pouvoir reprendre et ce que la mesure en dit, où sont les copies, nuit par nuit, la copie hors de
+  // la machine heure par heure, les exercices, et les remises d'une entreprise (leur détail nomme le client : la direction
+  // seule). La console ne touche jamais au serveur : un geste y est une commande composée, à copier.
+  const lireLesSauvegardes = async (tx: Transaction, t: Date) => lireSauvegardes(await lireJson(tx, 'select plateforme.console_service_sauvegardes($1) v', [t.toISOString()]));
+  ajouter({
+    methode: 'GET', chemin: '/console/service/sauvegardes', geste: 'console.service.voir',
+    traiter: async ({ qui }, tx) => {
+      const t = maintenant();
+      const jour = aujourdhuiATunis(t);
+      const role = roleDe(qui);
+      const l = await lireLesSauvegardes(transaction(tx), t);
+      const v = lireVeilleDeLaBase(await lireJson(transaction(tx), 'select plateforme.console_service_veille($1) v', [depuisTrenteJours(jour)]));
+      const veille = await lireLaVeille(fichierVeille, t);
+      return {
+        corps: {
+          maintenant: t.toISOString(), aujourdhui: jour, role, veille, alertesEnCours: alertesOuvertes(v.alertes), briques: briques(v, jour, t, veille.etat === 'ok'),
+          situation: { sauvegarde: laSauvegarde(l, t), archivage: lArchivage(l), hors: horsDeLaMachine(l), exercice: leDernierExercice(l, t) },
+          promesses: promesses(l, t), copies: copies(l, t),
+          nuits: nuitsGardees(l, GARDE.nuits), lignes: lignesParNuit(l, GARDE.jours), retards: retardsParHeure(l, t),
+          pointLePlusAncien: pointLePlusAncien(l, t), exercices: exercices(l).slice(0, 12),
+          remisesFaites: l.remisesFaites, remises: l.remises,
+          calendrier: CALENDRIER, garde: GARDE, commandes: COMMANDES,
+          seuils: { sauvegardeH: SAUVEGARDE_TROP_VIEILLE_H, horsMachineMin: HORS_MACHINE_EN_RETARD_MIN, horsMachineGraveMin: HORS_MACHINE_GRAVE_MIN, exerciceJ: EXERCICE_TROP_VIEUX_J },
+        },
+      };
+    },
+  });
+  // Préparer la remise d'UNE entreprise à une minute : la console vérifie ce qu'elle peut (le client, la minute dans ce
+  // qu'on peut reprendre, le motif), note le geste au journal, et rend l'essai puis la remise à copier dans la console du
+  // serveur. Elle ne les exécute jamais.
+  ajouter({
+    methode: 'POST', chemin: '/console/service/remise', geste: 'console.service.remise',
+    corps: z.object({ entreprise: z.string().max(40), minute: z.string().max(20), motif: z.string().max(400) }),
+    traiter: async ({ corps }, tx) => {
+      const quand = maintenant();
+      const l = await lireLesSauvegardes(transaction(tx), quand);
+      const c = commandesRemise(corps, { depuis: pointLePlusAncien(l, quand), maintenant: quand });
+      if (!c.ok) {
+        const cle = `console.remise.${c.champ}_${c.raison}`;
+        return { statut: 400, corps: { motif: motif(cle), champ: c.champ, raison: t(cle) } };
+      }
+      // La base refuse une entreprise inconnue ou d'exemple, et note le geste (journal de la console et de l'entreprise).
+      await transaction(tx).query('select plateforme.console_preparer_remise($1, $2, $3)', [corps.entreprise, corps.minute, corps.motif.trim()]);
+      return { statut: 201, corps: { essai: c.essai, remise: c.remise } };
     },
   });
 

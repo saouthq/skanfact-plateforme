@@ -367,6 +367,9 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'cette règle est déjà en sourdine : lève la sourdine en cours d\'abord', cle: 'base.console.sourdine_deja', fr: 'cette règle est déjà en sourdine : lève la sourdine en cours d\'abord' },
   { base: 'cette sourdine est déjà finie', cle: 'base.console.sourdine_finie', fr: 'cette sourdine est déjà finie' },
   { base: 'une alerte d\'essai attend déjà son tour : la veille l\'envoie dans la minute', cle: 'base.console.essai_attend', fr: 'une alerte d\'essai attend déjà son tour : la veille l\'envoie dans la minute' },
+  // Les sauvegardes du service (0087, docs/console.md C14) : préparer la remise d'une entreprise.
+  { base: 'une remise demande son motif (trois caractères au moins) : il entre dans la piste d\'audit de l\'entreprise', cle: 'base.console.motif_remise', fr: 'une remise demande son motif (trois caractères au moins) : il entre dans la piste d\'audit de l\'entreprise' },
+  { base: 'la minute d\'une remise s\'écrit AAAA-MM-JJ HH:MM, à l\'heure de Tunis', cle: 'base.console.minute_remise', fr: 'la minute d\'une remise s\'écrit AAAA-MM-JJ HH:MM, à l\'heure de Tunis' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

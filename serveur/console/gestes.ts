@@ -30,6 +30,9 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   { code: 'console.service.voir', roles: [D, T], ecrit: false },
   // Les alertes du service : les prendre en charge, les mettre en sourdine, demander une alerte d'essai à la veille.
   { code: 'console.service.gerer', roles: [D, T], ecrit: true },
+  // Préparer la remise d'une entreprise (docs/console.md C14) : la direction seule, parce que l'écran nomme le client ; la
+  // console compose les commandes, elle ne les exécute jamais.
+  { code: 'console.service.remise', roles: [D], ecrit: true },
 ];
 
 export const GESTES_CONSOLE: ReadonlyMap<string, GesteConsole> = (() => {

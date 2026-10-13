@@ -14,6 +14,7 @@ declarerTextes({
   'geste.console.equipe.voir': 'voir l\'équipe SkanFact',
   'geste.console.equipe.gerer': 'gérer l\'équipe SkanFact',
   'geste.console.service.voir': 'voir l\'état du service',
+  'geste.console.service.remise': 'préparer la remise d\'une entreprise à une minute (la console compose les commandes, elle ne les exécute pas)',
   'geste.console.service.gerer': 'gérer les alertes du service (les prendre en charge, les mettre en sourdine, envoyer une alerte d\'essai)',
   // Les rôles de l'équipe SkanFact (03 § 5).
   'role.direction': 'direction',
@@ -24,6 +25,13 @@ declarerTextes({
   'console.role_refuse': 'ton rôle dans l\'équipe SkanFact ({role}) ne permet pas {de:geste}',
   'console.code_obligatoire': 'la console demande le code du téléphone, par SMS ou par une application, à chaque connexion. Mets-le en place dans l\'application, écran « Ton compte », puis reviens ici',
   // Les gestes : un motif, et rien d'écrasé.
+  // Préparer la remise d'une entreprise (docs/console.md C14) : chaque refus nomme sa case.
+  'console.remise.entreprise_introuvable': 'choisis le client dans la liste : il se désigne par son identifiant',
+  'console.remise.minute_illisible': 'la minute s\'écrit « 2026-10-12 14:03 », à l\'heure de Tunis, et doit exister au calendrier',
+  'console.remise.minute_futur': 'la minute visée est la dernière AVANT le dégât : elle est passée',
+  'console.remise.minute_trop_vieille': 'on ne peut revenir qu\'à une minute que les copies de base gardées couvrent (le plus ancien point est dit sur l\'écran)',
+  'console.remise.motif_court': 'une remise demande son motif, trois caractères au moins : il entre dans la piste d\'audit de l\'entreprise',
+  'console.remise.motif_illisible': 'le motif tient sur une ligne, trois cents caractères au plus',
   'console.motif_requis': 'un geste de la console demande son motif, trois caractères au moins : il reste dans son histoire',
   'console.abonnement_change': 'cet abonnement a changé depuis que tu l\'as ouvert : relis-le avant de refaire le geste',
 });

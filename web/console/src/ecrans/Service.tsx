@@ -240,8 +240,8 @@ function Disponibilite({ d }: { d: Donnees }) {
   );
 }
 
-type PropsTuile = { titre: string; etat?: EtatBrique; valeur: string; unite?: string; mot?: boolean; donnee?: boolean; sous: string; trait?: ReactNode };
-function Tuile({ titre: t, etat, valeur, unite, mot, donnee, sous, trait }: PropsTuile) {
+export type PropsTuile = { titre: string; etat?: EtatBrique; valeur: string; unite?: string; mot?: boolean; donnee?: boolean; sous: string; trait?: ReactNode };
+export function Tuile({ titre: t, etat, valeur, unite, mot, donnee, sous, trait }: PropsTuile) {
   return (
     <div className="c-sv-tuile">
       <div className="c-sv-tuile-tete"><span className="c-tuile-titre">{t}</span>{etat ? <EtatPuce etat={etat} /> : null}</div>
@@ -750,7 +750,7 @@ function LaMachine({ d }: { d: Donnees }) {
 // Le même sur chaque vue : le titre, l'état des briques en une ligne, l'heure du relevé et « Relire », puis un onglet par
 // vue qui existe (jamais un onglet vers un écran pas encore écrit). Celui des alertes porte le compte des alertes ouvertes,
 // en rouge si l'une est grave : la même fonction, côté serveur, sur chaque vue (C3).
-export type VueDuService = 'vue' | 'alertes';
+export type VueDuService = 'vue' | 'alertes' | 'sauvegardes';
 type PourEntete = { briques: Brique[]; maintenant: string; alertesEnCours: AlertesEnCours };
 export function EnteteService({ vue, d, relire, occupe }: { vue: VueDuService; d: PourEntete | null; relire: () => void; occupe: boolean }) {
   const a = d?.alertesEnCours;
@@ -760,7 +760,7 @@ export function EnteteService({ vue, d, relire, occupe }: { vue: VueDuService; d
         <div className="c-entete-texte">
           <span className="c-surtitre">{titre(`${K}.surtitre`)}</span>
           <div className="c-titre-ligne"><h1>{titre(`${K}.titre`)}</h1>{d ? <EtatGeneral briques={d.briques} /> : null}</div>
-          <p className="c-entete-sous">{phrase(vue === 'vue' ? `${K}.sous` : `${K}.al.sous`)}</p>
+          <p className="c-entete-sous">{phrase(vue === 'vue' ? `${K}.sous` : vue === 'alertes' ? `${K}.al.sous` : `${K}.sg.sous`)}</p>
         </div>
         <div className="c-entete-actions">
           {d ? <span className="c-sv-releve">{dire(`${K}.releve`, { heure: heureDe(d.maintenant) })}</span> : null}
@@ -778,6 +778,7 @@ export function EnteteService({ vue, d, relire, occupe }: { vue: VueDuService; d
             </>
           ) : null}
         </a>
+        <a href="#/service/sauvegardes" aria-current={vue === 'sauvegardes' ? 'page' : undefined}>{titre(`${K}.onglet.sauvegardes`)}</a>
       </nav>
     </>
   );

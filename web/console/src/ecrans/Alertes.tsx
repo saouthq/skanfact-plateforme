@@ -72,7 +72,7 @@ const depuisMinutes = (de: string, a: string) => (Date.parse(a) - Date.parse(de)
 // ── Copier une commande ─────────────────────────────────────────────────────────────────────────────────────────────
 // La commande se lit en entier et se sélectionne d'un clic ; « Copier » la pose dans le presse-papiers. Un navigateur qui
 // refuse le dit, sans perdre la commande : elle reste à sélectionner à la main.
-function Commande({ code }: { code: string }) {
+export function Commande({ code }: { code: string }) {
   const [copie, setCopie] = useState(false);
   useEffect(() => { if (!copie) return undefined; const t = setTimeout(() => setCopie(false), 2000); return () => clearTimeout(t); }, [copie]);
   const copier = () => {

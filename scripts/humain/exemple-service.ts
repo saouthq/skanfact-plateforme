@@ -166,6 +166,8 @@ function disqueVar(t: number): number {
   if (calme && t >= MAINTENANT - 40 * MIN) return 61;
   return aLaVersion + vite * (t - version);
 }
+// Les lignes de la base à un instant : un peu plus d'un million huit cent mille, deux mille quatre cents de plus par jour.
+const lignesA = (t: number) => 1_800_000 + Math.round(2_400 * (t - a(45, 0)) / JOUR);
 const disqueRacine = (t: number) => 38 + 4 * (t - a(29, 0)) / (MAINTENANT - a(29, 0));
 
 // ── Le relevé d'une minute, tel que exploitation/veiller.ts le ferait ────────────────────────────────────────────────
@@ -178,7 +180,9 @@ function releve(t: number): Releve {
     serviceRepond: !dedans(t, COUPURE),
     etat: {
       regardeLe: iso(Math.floor(t / (5 * MIN)) * 5 * MIN), version: versionA(t), echec: null, taches: [],
-      sauvegarde: sauvegarde === null ? null : { le: iso(sauvegarde), ok: sauvegarde !== SAUVEGARDE_RATEE },
+      // Ce que la vérification de la sauvegarde a compté en la remettant à part : la base grandit chaque nuit.
+      sauvegarde: sauvegarde === null ? null : sauvegarde === SAUVEGARDE_RATEE ? { le: iso(sauvegarde), ok: false }
+        : { le: iso(sauvegarde), ok: true, lignes: lignesA(sauvegarde), migrations: 87 },
     },
     disques: [{ point: '/', pourcent: Math.floor(disqueRacine(t)) }, { point: '/var', pourcent: Math.floor(disqueVar(t)) }],
     // Le certificat a été renouvelé avant la pose de la veille : il expire dans deux mois.
@@ -188,7 +192,8 @@ function releve(t: number): Releve {
       archivage: { enMarche: true, dernierReussi: iso(t - 40_000), dernierEchec: null },
       copieDeBase: copieDeBase === null ? null : { le: iso(copieDeBase), ok: true },
       // L'exercice du mois : il y a 38 jours, puis il y a 8 jours.
-      restauration: { le: iso(t >= a(8, 3, 30) ? a(8, 3, 30) : a(38, 3, 30)), ok: true },
+      restauration: t >= a(8, 3, 30) ? { le: iso(a(8, 3, 30)), ok: true, secondes: 1262, lignes: lignesA(a(8, 2, 19)), migrations: 87 }
+        : { le: iso(a(38, 3, 30)), ok: true, secondes: 1148, lignes: lignesA(a(38, 2, 19)), migrations: 85 },
       horsMachine: { regle: true, plusVieuxEnAttente: retard ? iso(retard[0]) : null, dernierEchec: retard ? iso(t - MIN) : null },
     },
   };

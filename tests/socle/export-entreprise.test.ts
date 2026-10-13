@@ -294,7 +294,7 @@ describe('remettre UNE entreprise par-dessus elle-même', () => {
       expect(apres.filter((t) => t.geste === 'essai.apres')).toHaveLength(1);
       const tracees = apres.filter((t) => t.geste === 'socle.entreprise.remettre');
       expect(tracees).toHaveLength(1);
-      expect(tracees[0]?.apres).toMatchObject({ motif: 'Une erreur de manipulation, le 12/10', numerosRetires: ['FAC-2026-777', 'FAC-2026-APRES'] });
+      expect(tracees[0]?.apres).toMatchObject({ motif: 'Une erreur de manipulation, le 12/10', minute: null, numerosRetires: ['FAC-2026-777', 'FAC-2026-APRES'] });
       // La voisine, au caractère près (sauf l'heure de l'export).
       expect(sansEnTete(await exporter(cible, B.ent))).toEqual(sansEnTete(voisine));
       // Les postes de A relisent tout : chaque objet porte la transaction de la remise, ce qui a disparu le dit, ce qui
@@ -317,6 +317,8 @@ describe('remettre UNE entreprise par-dessus elle-même', () => {
     try {
       await expect(remettre(cible, fichier, { motif: ' ' })).rejects.toThrow(/demande son motif/);
       await expect(remettre(cible, fichier, { motif: 'Essai' })).rejects.toThrow(/n'est pas dans cette base/);
+      // Une minute illisible ne part pas dans la piste d'audit.
+      await expect(remettre(cible, fichier, { motif: 'Essai', minute: '12/10 14h03' })).rejects.toThrow(/s'écrit « 2026-10-12 14:03 »/);
       const etatT = await aLEtatT(cible);
       await expect(restaurer(cible, etatT)).rejects.toThrow(/existe déjà[\s\S]*remettre/);
       await abimer(cible);
@@ -398,7 +400,8 @@ describe('remettre UNE entreprise par-dessus elle-même', () => {
 
       const essai = lancer(A.ent, '2026-10-12 14:03', motif);
       expect(essai.status, essai.stderr).toBe(0);
-      expect(essai.stdout).toMatch(/Essai de la remise/);
+      // L'essai dit l'état VISÉ — la minute demandée —, jamais l'heure où le fichier a été fait.
+      expect(essai.stdout).toMatch(/Essai de la remise à l'état du 2026-10-12 14:03 \(heure de Tunis\)/);
       expect(essai.stdout).toMatch(/FAC-2026-777, FAC-2026-APRES/);
       expect(essai.stdout).toMatch(/Rien n'a changé/);
       expect(fs.readFileSync(journal, 'utf8')).toBe('--jusqua 2026-10-12 14:03\narreter\n');
@@ -414,7 +417,9 @@ describe('remettre UNE entreprise par-dessus elle-même', () => {
       // Restaurée une seule fois (l'essai) ; le fichier, qui porte les données d'un client, ne reste pas.
       expect(fs.readFileSync(journal, 'utf8')).toBe('--jusqua 2026-10-12 14:03\narreter\n');
       expect(fs.existsSync(fichierEssai)).toBe(false);
-      expect((await cible.query(`select apres->>'motif' m from socle.audit where entreprise = $1 and geste = 'socle.entreprise.remettre'`, [A.ent])).rows).toEqual([{ m: motif }]);
+      // La piste d'audit dit le motif ET la minute retrouvée (la console en fait la colonne « remise à »).
+      expect((await cible.query(`select apres->>'motif' m, apres->>'minute' as minute from socle.audit where entreprise = $1 and geste = 'socle.entreprise.remettre'`, [A.ent])).rows)
+        .toEqual([{ m: motif, minute: '2026-10-12 14:03' }]);
     } finally {
       await cible.end();
       await aCote.end();

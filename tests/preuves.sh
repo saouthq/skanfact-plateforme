@@ -10570,7 +10570,7 @@ prouver 'la base d'"'"'à côté jamais jetée' exploitation/remettre-entreprise
   trap - EXIT' '  trap - EXIT' \
   "$RM3"
 prouver 'l'"'"'essai du script qui remet pour de vrai' exploitation/remettre-entreprise.sh \
-  'node base/entreprise.ts remettre "$FICHIER" "$MOTIF" --essayer)' 'node base/entreprise.ts remettre "$FICHIER" "$MOTIF")' \
+  'node base/entreprise.ts remettre "$FICHIER" "$MOTIF" --essayer --minute "$MINUTE")' 'node base/entreprise.ts remettre "$FICHIER" "$MOTIF" --minute "$MINUTE")' \
   "$RM3"
 prouver 'le fichier d'"'"'un client laissé après la remise' exploitation/remettre-entreprise.sh \
   '  rm -f "$FICHIER"
@@ -11427,20 +11427,20 @@ prouver 'une valeur dans un chemin gardée par la base' 'base/migrations/0085_se
   ' and route !~ '"'"'/[0-9][^/]*(/|$)'"'"'' \
   '' \
   'une route se garde par son modèle : une valeur dans un chemin, la base la refuse'
-prouver 'une alerte que la veille ne voit plus laissée ouverte' 'base/migrations/0086_service_alertes.sql' \
+prouver 'une alerte que la veille ne voit plus laissée ouverte' 'base/migrations/0087_service_sauvegardes.sql' \
   '    update plateforme.service_alerte a set fin = v_maintenant
      where a.fin is null and not (coalesce(p_problemes, '"'"'{}'"'"'::jsonb) ? a.cle);' \
   '    perform 1;' \
   'la veille : son relevé ; les alertes rapprochées de ce qu'"'"'elle voit, ouvertes, devenues graves, réglées ; la dernière nouvelle d'"'"'une nuit l'"'"'emporte'
-prouver 'une alerte dont la gravité ne suit pas la veille' 'base/migrations/0086_service_alertes.sql' \
+prouver 'une alerte dont la gravité ne suit pas la veille' 'base/migrations/0087_service_sauvegardes.sql' \
   '    update plateforme.service_alerte a set titre = p.value->>'"'"'titre'"'"', grave = (p.value->>'"'"'grave'"'"')::boolean,' \
   '    update plateforme.service_alerte a set titre = p.value->>'"'"'titre'"'"', grave = a.grave,' \
   'la veille : son relevé ; les alertes rapprochées de ce qu'"'"'elle voit, ouvertes, devenues graves, réglées ; la dernière nouvelle d'"'"'une nuit l'"'"'emporte'
-prouver 'la première nouvelle d'"'"'une nuit qui l'"'"'emporte' 'base/migrations/0086_service_alertes.sql' \
-  '  on conflict (jour) do update set sauvegarde = coalesce(excluded.sauvegarde, s.sauvegarde),' \
-  '  on conflict (jour) do update set sauvegarde = coalesce(s.sauvegarde, excluded.sauvegarde),' \
+prouver 'la première nouvelle d'"'"'une nuit qui l'"'"'emporte' 'base/migrations/0087_service_sauvegardes.sql' \
+  '      else coalesce(excluded.sauvegarde, s.sauvegarde) end,' \
+  '      else coalesce(s.sauvegarde, excluded.sauvegarde) end,' \
   'la veille : son relevé ; les alertes rapprochées de ce qu'"'"'elle voit, ouvertes, devenues graves, réglées ; la dernière nouvelle d'"'"'une nuit l'"'"'emporte'
-prouver 'un relevé ancien qui règle les alertes' 'base/migrations/0086_service_alertes.sql' \
+prouver 'un relevé ancien qui règle les alertes' 'base/migrations/0087_service_sauvegardes.sql' \
   '  if v_derniere is null or v_maintenant >= v_derniere then' \
   '  if true then' \
   'une nouvelle plus ancienne que la dernière garde son relevé sans rien régler ; une version qui revient est une seconde mise en ligne'
@@ -11641,7 +11641,7 @@ prouver 'un envoi rejoué écrit deux fois' 'base/migrations/0086_service_alerte
   'create unique index service_envoi_une_fois on' \
   'create index service_envoi_une_fois on' \
   'la veille écrit ce qui est parti, une fois ; un « réglé » d'"'"'une alerte jamais vue s'"'"'écrit fini ; la console lit tout'
-prouver 'la panne de la base jamais écrite dans ses alertes' 'base/migrations/0086_service_alertes.sql' \
+prouver 'la panne de la base jamais écrite dans ses alertes' 'base/migrations/0087_service_sauvegardes.sql' \
   '     where x->>'"'"'sorte'"'"' = '"'"'regle'"'"' and (x->>'"'"'depuis'"'"')::timestamptz <= (x->>'"'"'le'"'"')::timestamptz' \
   '     where x->>'"'"'sorte'"'"' = '"'"'jamais'"'"' and (x->>'"'"'depuis'"'"')::timestamptz <= (x->>'"'"'le'"'"')::timestamptz' \
   'la veille écrit ce qui est parti, une fois ; un « réglé » d'"'"'une alerte jamais vue s'"'"'écrit fini ; la console lit tout'
@@ -11661,7 +11661,7 @@ prouver 'un essai demandé deux fois' 'base/migrations/0086_service_alertes.sql'
   '  if exists (select 1 from plateforme.service_demande d where d.sorte = '"'"'essai'"'"' and d.faite_le is null) then' \
   '  if false then' \
   'l'"'"'essai : demandé une fois, lu par la veille, fait quand elle dit ce qui est parti'
-prouver 'une demande faite qui attend encore la veille' 'base/migrations/0086_service_alertes.sql' \
+prouver 'une demande faite qui attend encore la veille' 'base/migrations/0087_service_sauvegardes.sql' \
   '   where x->>'"'"'demande'"'"' = d.id::text and d.faite_le is null;' \
   '   where false;' \
   'l'"'"'essai : demandé une fois, lu par la veille, fait quand elle dit ce qui est parti'
@@ -11723,6 +11723,32 @@ prouver 'la prise en charge d'"'"'une alerte au journal sans sa règle' 'serveur
   ': typeof apres?.cle === '"'"'string'"'"' ? regleDe(apres.cle) : null;' \
   ': null;' \
   'la règle de la sourdine, celle de l'"'"'alerte prise en charge, l'"'"'essai ; et la fin prévue d'"'"'une sourdine'
+# Les sauvegardes du service (0087, docs/console.md C14).
+prouver 'une copie hors de la machine dont la minute d'"'"'arrivée se réécrit chaque minute' 'base/migrations/0087_service_sauvegardes.sql' \
+  "        then jsonb_set(excluded.sauvegarde, '{horsMachine}', s.sauvegarde->'horsMachine')" \
+  '        then excluded.sauvegarde' \
+  'la base garde l'"'"'état des copies de chaque relevé, et la minute où une copie est arrivée hors de la machine'
+prouver 'le détail des remises, qui nomme le client, lu par la technique' 'base/migrations/0087_service_sauvegardes.sql' \
+  "    'remises', case when v_role = 'direction' then (" \
+  "    'remises', case when true then (" \
+  'la technique lit tout, sauf le détail des remises'
+prouver 'un motif de remise dont une apostrophe casse la commande' 'serveur/console/sauvegardes.ts' \
+  "export const entreApostrophes = (s: string) => \`'\${s.replaceAll('\\'', '\\'\\\\\\'\\'')}'\`;" \
+  "export const entreApostrophes = (s: string) => \`'\${s}'\`;" \
+  'l'"'"'essai puis la remise, le motif entre apostrophes'
+prouver 'une promesse dite tenue sans exercice qui la prouve' 'serveur/console/sauvegardes.ts' \
+  "    : arch.etat === 'bon' && ex.etat === 'bon' && exerciceMinutes !== null ? 'tenue' : 'a_prouver';" \
+  "    : arch.etat === 'bon' ? 'tenue' : 'a_prouver';" \
+  'la base : tenue avec l'"'"'archivage en marche ET un exercice réussi sous l'"'"'heure'
+prouver 'une attente de la copie comptée alors qu'"'"'elle n'"'"'est pas réglée' 'exploitation/veille.ts' \
+  'attenteDepuis: r.copies.horsMachine.regle && ' \
+  'attenteDepuis: ' \
+  'l'"'"'état des copies : ce que la veille n'"'"'a pas lu vaut null'
+prouver 'la minute d'"'"'une remise absente de la piste d'"'"'audit' 'base/entreprise.ts' \
+  'JSON.stringify({ motif, minute, exporteLe' \
+  'JSON.stringify({ motif, exporteLe' \
+  'remettre-entreprise.sh : la base de la minute restaurée à côté puis jetée'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
