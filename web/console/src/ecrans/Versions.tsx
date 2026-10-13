@@ -292,7 +292,7 @@ function Taches({ d }: { d: Donnees }) {
           {d.taches.map((t) => (
             <li key={t.nom}>
               <span className="c-mono c-ve-numero">{t.numero}</span>
-              <div><b>{t.titre ? maj(t.titre) : t.nom}</b>{t.sortie ? <span className="c-sous c-mono" data-donnee>{t.sortie}</span> : null}</div>
+              <div><b data-donnee>{t.titre ? maj(t.titre) : t.nom}</b>{t.sortie ? <span className="c-sous c-mono" data-donnee>{t.sortie}</span> : null}</div>
               <span className="c-ve-tache-etat">
                 <EtatPuce etat={t.etat === 'passee' ? 'bon' : t.etat === 'echouee' ? 'grave' : 'nonmesure'} texte={titre(`${V}.t.etat.${t.etat}`)} />
                 {t.le ? <span className="c-sous">{jourCourt(t.le)}</span> : null}
@@ -359,7 +359,7 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
   const valeurs = { version: version ? nomDeVersion(version, d.numeros) : '', en_service: d.suiveur?.version ? nomDeVersion(d.suiveur.version, d.numeros) : '—',
     jusquAu: `${jourCourt(jusquAu)} ${heureDe(jusquAu)}` };
   return (
-    <Dialogue titre={titre(`${V}.g.${cle}.titre`, valeurs)} sous={version ? d.titres[version] ?? nomDeVersion(version, d.numeros) : undefined} fermer={fermer} occupe={occupe}
+    <Dialogue titre={titre(`${V}.g.${cle}.titre`, valeurs)} sous={version ? d.titres[version] ?? nomDeVersion(version, d.numeros) : undefined} sousDonnee fermer={fermer} occupe={occupe}
       pied={<>
         <Bouton ferme onClick={fermer} desactive={occupe}>{titre(`${V}.g.${cle}.garder`, valeurs)}</Bouton>
         <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre(`${V}.g.${cle}.bouton`, valeurs)}</Bouton>

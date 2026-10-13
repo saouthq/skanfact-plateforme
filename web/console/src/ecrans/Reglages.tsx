@@ -161,20 +161,20 @@ function Regles({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peu
               return (
                 <li key={r.id} className={r.aRelire ? 'c-rg-regle c-rg-regle-a-relire' : 'c-rg-regle'}>
                   <div className="c-rg-regle-tete">
-                    <div><b>{nomDeRegle(r)}</b> <code className="c-rg-code">{r.code}</code></div>
+                    <div><b {...(r.valeurLue.connue ? {} : { 'data-donnee': '' })}>{nomDeRegle(r)}</b> <code className="c-rg-code" data-donnee>{r.code}</code></div>
                     <Puce ton={e.ton}>{e.texte}</Puce>
                   </div>
                   <dl className="c-rg-chiffres">
-                    <div><dt>{titre(`${K}.r.valeur`)}</dt><dd>{r.valeurLue.connue ? dire(`${K}.r.valeur.${r.code.replace('.', '_')}`, { valeur: montant(r.valeurLue.texte) }) : r.valeurLue.texte}</dd></div>
+                    <div><dt>{titre(`${K}.r.valeur`)}</dt><dd>{r.valeurLue.connue ? dire(`${K}.r.valeur.${r.code.replace('.', '_')}`, { valeur: montant(r.valeurLue.texte) }) : <span data-donnee>{r.valeurLue.texte}</span>}</dd></div>
                     <div><dt>{titre(`${K}.r.vigueur`)}</dt><dd>{r.fin ? dire(`${K}.r.du_au`, { du: jour(r.debut), au: jour(r.fin) }) : dire(`${K}.r.depuis_sans_fin`, { du: jour(r.debut) })}</dd></div>
                     <div><dt>{titre(`${K}.r.posee`)}</dt><dd>{dire(`${K}.r.posee_le`, { jour: jour(jourDe(r.poseeLe)) })}</dd></div>
                   </dl>
-                  <p className="c-rg-source"><span className="c-champ-libelle">{titre(`${K}.r.source`)}</span> <span>« {r.source} »</span></p>
+                  <p className="c-rg-source"><span className="c-champ-libelle">{titre(`${K}.r.source`)}</span> <span>« <span data-donnee>{r.source}</span> »</span></p>
                   <p className={derniere ? 'c-rg-relue' : 'c-rg-relue c-rg-pas-relue'}>
                     {derniere ? phrase(derniere.avis === 'juste' ? `${K}.r.relue_juste` : `${K}.r.relue_corriger`,
                       { jour: jour(jourDe(derniere.le)), qui: derniere.reluePar, par: derniere.par })
                       : phrase(`${K}.r.jamais_relue`)}
-                    {derniere?.dit ? <span className="c-bloc">« {derniere.dit} »</span> : null}
+                    {derniere?.dit ? <span className="c-bloc">« <span data-donnee>{derniere.dit}</span> »</span> : null}
                   </p>
                   {avant.length ? (
                     <details className="c-rg-avant">
@@ -182,7 +182,7 @@ function Regles({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peu
                       <ul>
                         {avant.map((l) => (
                           <li key={l.le}>{phrase(l.avis === 'juste' ? `${K}.r.relue_juste` : `${K}.r.relue_corriger`, { jour: jour(jourDe(l.le)), qui: l.reluePar, par: l.par })}
-                            {l.dit ? ` « ${l.dit} »` : ''}</li>
+                            {l.dit ? <> « <span data-donnee>{l.dit}</span> »</> : null}</li>
                         ))}
                       </ul>
                     </details>
@@ -414,6 +414,7 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
   const remplace = g.sorte === 'ecrire' && d.message;
   return (
     <Dialogue titre={titre(`${K}.g.${g.sorte}.titre`, valeurs)} sous={g.sorte === 'relire' ? nomEtCode(g.regle) : g.sorte === 'retirer' ? g.message.texte : undefined}
+      sousDonnee={g.sorte === 'retirer' || (g.sorte === 'relire' && !g.regle.valeurLue.connue)}
       fermer={fermer} occupe={occupe}
       pied={<>
         <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>

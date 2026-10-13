@@ -719,3 +719,14 @@ disait le fichier écrit pour chaque facture (il l'est dès que la fiche de l'en
 envoi dite « signée avant l'envoi » (elle l'a été avant que l'envoi existe). Trouvé par la vérification avant l'envoi,
 et corrigé : l'écran Équipe sans le libellé des deux droits des réglages — le tableau des droits ne s'affichait plus du
 tout (un test relie désormais chaque droit du serveur à ses deux textes).
+
+La fin du service (3f), sur le même essai, en direction ; d'onglet en onglet à la souris ; en clair et en sombre ; à 1440
+et à 390. L'instrument de la console vit désormais en un exemplaire (`tests/web/instrument-console.ts`) et mesure aussi
+les incidents (un incident ouvert, ses huit fenêtres : un point, le compte rendu avec une suite, un autre incident, une
+fiche réflexe, repousser une suite, relire un compte rendu, annoncer une maintenance) et les versions (un retour demandé,
+un gel levé, leurs fenêtres), en langue factice comme en vrai. Corrigé : la barre d'onglets du service qui sautait à
+chaque clic — le compte des alertes disparaissait pendant la lecture de la vue suivante puis revenait (les onglets qui
+le suivent glissaient de 29 points, deux fois), et les vues sans période remontaient leurs onglets de deux points ; des
+données prises pour des textes du catalogue (le titre d'un incident sous ses fenêtres, la page d'état de la veille, le
+titre d'une tâche d'installation, le code, la valeur, la source et les relectures d'une règle commune — ces dernières
+ne se voyaient que si un autre fichier de tests avait posé une règle : l'instrument pose maintenant la sienne).

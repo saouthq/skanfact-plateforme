@@ -729,6 +729,17 @@
   siennes** (`qui = any(...)`, ou l'écart avant/après) : les fichiers de tests passent l'un après l'autre sur la MÊME
   base, dans un ordre qui change d'un lancement à l'autre ; un compte global tombait le jour où un écran passait avant.
   Chaque fichier nomme aussi ses membres à lui (deux « Karim Essai » au journal rendaient un clic ambigu).
+- **L'instrument de la console vit en un exemplaire** (`tests/web/instrument-console.ts`, `mesurerLaConsole`) : chaque
+  fichier lui donne ses écrans et sa façon de les ouvrir, et un écran PLEIN (un incident ouvert, un retour demandé) se
+  mesure dans le fichier qui sait le remplir. Un geste y trouve son bouton par la structure de l'écran, jamais par son
+  texte (en langue factice, le texte change). **Un écran mesuré vide laisse passer ses données non marquées** : le
+  registre des règles ne montrait ses codes et ses sources hors catalogue que si un autre fichier avait posé une règle —
+  l'instrument pose ce qu'il mesure. Une donnée affichée porte `data-donnee`, une fenêtre la dit (`titreDonnee`,
+  `sousDonnee`).
+- **Ce qu'un en-tête commun montre d'après la vue (le compte d'un onglet) se garde d'une vue à l'autre** : pendant que
+  la vue suivante se lit, l'onglet garde le compte qu'il montrait — sinon il disparaît puis revient, et les onglets qui
+  le suivent glissent sous le curseur à chaque clic. De même, une rangée qui montre un contrôle dans certaines vues
+  seulement (la période) garde sa hauteur dans les autres. Vu le 13/10/2026 sur le service, mesuré onglet par onglet.
 
 **Sécurité (sans exception)**
 - Dépôt **public** : jamais de secret, de jeton, de mot de passe réel ni de donnée de client. Les

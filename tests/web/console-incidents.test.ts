@@ -8,6 +8,8 @@
 //     avec son seul bouton principal, et l'incident passe dans les passés avec ses suites ;
 //   - une suite marquée faite quitte la liste et se compte ;
 //   - une fiche réflexe se lit en quatre temps ;
+//   - l'écran et ses fenêtres, un incident ouvert, mesurés par l'instrument de la console (en clair et en sombre, à
+//     l'ordinateur et au téléphone, et en langue factice) ;
 //   - au téléphone : rien ne déborde, et chaque cible se touche du doigt.
 
 import fs from 'node:fs';
@@ -21,6 +23,7 @@ import { ajouter as ajouterALEquipe } from '../../base/equipe.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { cliquer } from '../cliquer.ts';
+import { mesurerLaConsole, type EcranConsole } from './instrument-console.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const MDP = 'Un-bon-mot-de-passe';
@@ -57,6 +60,19 @@ describe('les incidents du service, à la souris', () => {
     const p = await cx.newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.goto(`${serveur.adresse}/console/#/service/incidents`);
+    await expect.poll(() => p.locator('.c-in-fiche').count(), { timeout: 20_000 }).toBe(9);
+    return p;
+  };
+  // Un écran de l'instrument : à une largeur, un thème et une langue ; lu quand ses neuf fiches réflexes sont là.
+  const ouvrirEcran = async (e: EcranConsole, o: { largeur: number; theme?: 'clair' | 'sombre'; factice?: boolean }) => {
+    const cx = await navigateur.newContext({ viewport: { width: o.largeur, height: o.largeur < 600 ? 844 : 900 }, locale: 'fr-FR' });
+    await cx.addInitScript(([j, t]) => {
+      sessionStorage.setItem('skanfact.console.jeton', j);
+      if (t) localStorage.setItem('skanfact.console.theme', t);
+    }, [jD, o.theme ?? null] as const);
+    const p = await cx.newPage();
+    p.on('pageerror', (x) => erreurs.push(x.message));
+    await p.goto(`${serveur.adresse}/console/${o.factice ? '?langue=factice' : ''}${e.hash}`);
     await expect.poll(() => p.locator('.c-in-fiche').count(), { timeout: 20_000 }).toBe(9);
     return p;
   };
@@ -118,6 +134,31 @@ describe('les incidents du service, à la souris', () => {
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);
+
+  it('un incident ouvert, en clair et en sombre, à l\'ordinateur et au téléphone : l\'instrument ne trouve rien ; en langue factice, tout vient du catalogue', async () => {
+    // Chaque geste trouve son bouton par la structure de l'écran : en langue factice, son texte change.
+    const fen = async (p: Page) => { await p.getByRole('dialog').waitFor(); };
+    const H = '#/service/incidents';
+    const ECRANS: EcranConsole[] = [
+      { nom: 'incidents-ouvert', hash: H },
+      { nom: 'incident-point', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-ouvert .c-in-ouvert-gestes button').first()); await fen(p); } },
+      // Le compte rendu, une suite ajoutée : sa ligne de saisie se mesure aussi.
+      { nom: 'incident-clore', hash: H, geste: async (p) => {
+        await cliquer(p.locator('.c-in-ouvert .c-in-ouvert-gestes button').nth(1)); await fen(p);
+        await cliquer(p.locator('[role="dialog"] .c-btn-petit:has(svg)').first());
+        await p.locator('[role="dialog"] fieldset').first().waitFor();
+      } },
+      { nom: 'incident-autre', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-ouverts-tete button')); await fen(p); } },
+      { nom: 'incident-fiche', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-fiche').first().locator('button').last()); await fen(p); } },
+      { nom: 'incident-repousser', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-suites-liste > li').first().locator('.c-in-suite-gestes button').first()); await fen(p); } },
+      { nom: 'incident-lire', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-table tbody tr').last().locator('button')); await fen(p); } },
+      { nom: 'incident-annoncer', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-maintenances .c-al-section-tete button')); await fen(p); } },
+    ];
+    const { faux, vus } = await mesurerLaConsole({ ecrans: ECRANS, ouvrir: ouvrirEcran, photos: path.join(RACINE, 'dist/photos') });
+    expect(faux).toEqual([]);
+    expect(vus).toBe(ECRANS.length * 4);
+    expect(erreurs).toEqual([]);
+  }, 300_000);
 
   it('un point vide se refuse ; écrit, il entre dans l\'histoire de l\'incident', async () => {
     const p = await ouvrir(jD);

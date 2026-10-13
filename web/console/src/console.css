@@ -1104,6 +1104,9 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 }
 .c-sv-direct-bouton:hover { background: color-mix(in srgb, var(--c-sarcelle) 22%, var(--c-papier)); }
 .c-sv-entete-titre { align-items: center; }
+/* La rangée du titre a la hauteur de la période (34 + 2 × 3 + 2 points), qu'elle la montre ou non : sans elle, les vues
+   sans période (alertes, incidents…) remontaient leurs onglets de deux points, et la barre bougeait à chaque clic. */
+@media (min-width: 561px) { .c-sv-entete-titre { min-height: 42px; } }
 /* La période en segments : un seul cadre, la période choisie en sombre. */
 .c-segments { display: inline-flex; gap: 2px; padding: 3px; border-radius: 13px; border: 1px solid var(--c-trait-fort); background: var(--c-papier); }
 .c-segments .c-pilule { min-height: 34px; min-width: 52px; justify-content: center; border: 0; border-radius: 10px; padding: 0 12px; background: transparent; }

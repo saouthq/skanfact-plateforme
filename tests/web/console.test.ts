@@ -34,7 +34,7 @@ import { aujourdhuiATunis } from '../../serveur/reglements.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { cliquer } from '../cliquer.ts';
 import { LISTE_GESTES_CONSOLE } from '../../serveur/console/gestes.ts';
-import { problemes } from '../instrument-rendu.ts';
+import { mesurerLaConsole, type EcranConsole } from './instrument-console.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -42,44 +42,6 @@ const MDP = 'Un-bon-mot-de-passe';
 // Le texte d'un écran, ses espaces (fines, insécables, retours) ramenées à une seule.
 const net = (t: string) => t.replace(/[\s\u202f\u00a0]+/g, ' ').trim();
 const jourCourt = (iso: string) => iso.split('-').reverse().join('/');
-
-// En langue factice, chaque texte visible vient du catalogue (⟦…⟧), sauf les données (data-donnee) ; chaque nom donné
-// aux lecteurs d'écran aussi (tests/web/rendu.test.ts).
-function horsCatalogue(): string[] {
-  const pb: string[] = [];
-  const marcheur = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  for (let n = marcheur.nextNode(); n; n = marcheur.nextNode()) {
-    const texte = (n.textContent ?? '').trim();
-    if (!/\p{L}{2,}/u.test(texte) || n.parentElement?.closest('[data-donnee], script, style')) continue;
-    if (!texte.includes('⟦')) pb.push(texte.slice(0, 60));
-  }
-  for (const el of document.querySelectorAll<HTMLElement>('[aria-label]')) {
-    if (!(el.getAttribute('aria-label') ?? '').includes('⟦')) pb.push(`aria-label « ${el.getAttribute('aria-label')} »`);
-  }
-  return pb;
-}
-
-// Ce que l'instrument de rendu ne mesure pas, et que le téléphone a montré : une carte de liste qui garde sa marge (elle
-// s'ajoutait à celle de son contenu : 36 points perdus de chaque côté au lieu de 18) ; deux noms de mois du petit
-// graphique d'une fiche qui se chevauchent (« 11/2512/26… »). Le texte d'un mois se mesure par son étendue, pas par sa
-// case : il en déborde.
-function auTelephone(): string[] {
-  const pb: string[] = [];
-  for (const c of document.querySelectorAll<HTMLElement>('.c-liste-carte, .c-decider')) {
-    const marge = getComputedStyle(c).paddingInlineStart;
-    if (marge !== '0px') pb.push(`une carte de liste garde sa marge (${marge}) : ${c.className}`);
-  }
-  const mois = [...document.querySelectorAll<HTMLElement>('.c-barre-mois')].filter((m) => getComputedStyle(m).visibility !== 'hidden').map((m) => {
-    const r = document.createRange();
-    r.selectNodeContents(m);
-    return r.getBoundingClientRect();
-  });
-  for (let i = 1; i < mois.length; i++) {
-    const a = mois[i - 1], b = mois[i];
-    if (a && b && b.left < a.right - 0.5) pb.push(`deux mois du graphique se chevauchent (le ${i}e et le ${i + 1}e)`);
-  }
-  return pb;
-}
 
 type Membre = { email: string; prenom: string; nom: string; secret: string };
 
@@ -553,6 +515,32 @@ describe('la console de l\'équipe, à la souris', () => {
     await fermer(p);
   }, 90_000);
 
+  it('les onglets du service ne bougent pas : ni d\'une vue à l\'autre, ni pendant qu\'une vue se lit', async () => {
+    const p = await ouvrir(await jetonConsole(direction), '#/service');
+    const onglets = p.locator('.c-sv-onglets a');
+    // L'onglet des alertes porte son compte (les deux alertes ouvertes de la veille) : c'est lui qui faisait glisser les
+    // suivants ; et la vue d'ensemble a sa période en face du titre, que les autres vues n'ont pas.
+    await expect.poll(() => p.locator('.c-sv-onglets .c-onglet-n').count(), { timeout: 15_000 }).toBe(1);
+    expect(await p.locator('.c-sv-periodes').count()).toBe(1);
+    const place = () => p.evaluate(() => [...document.querySelectorAll('.c-sv-onglets a')]
+      .map((a) => { const r = a.getBoundingClientRect(); return `${Math.round(r.left)}:${Math.round(r.top * 10) / 10}`; }).join(' '));
+    const depart = await place();
+    expect(await onglets.count()).toBe(8);
+    // Chaque vue se lit lentement : la barre se mesure pendant la lecture, puis une fois la vue lue.
+    await p.route('**/v1/console/service**', async (r) => { await new Promise((ok) => setTimeout(ok, 700)); await r.continue(); });
+    for (let i = 1; i < 8; i++) {
+      const lue = p.waitForResponse((r) => r.url().includes('/v1/console/service'));
+      await cliquer(onglets.nth(i));
+      await expect.poll(() => onglets.nth(i).getAttribute('aria-current')).toBe('page');
+      expect(await place(), `pendant la lecture de l'onglet ${i + 1}`).toBe(depart);
+      await lue;
+      await p.waitForTimeout(300);
+      expect(await place(), `l'onglet ${i + 1}, lu`).toBe(depart);
+    }
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 90_000);
+
   it('les abonnements : chaque carte ouvre la liste qu\'elle compte, du même nombre', async () => {
     const p = await ouvrir(await jetonConsole(direction), '#/abonnements');
     const compte = () => p.locator('#ab-liste .c-compte-titre').innerText().then(Number).catch(() => NaN);
@@ -651,7 +639,15 @@ describe('la console de l\'équipe, à la souris', () => {
 
   it('en clair et en sombre, à l\'ordinateur et au téléphone : l\'instrument ne trouve rien ; en langue factice, tout vient du catalogue', async () => {
     const jeton = await jetonConsole(direction);
-    const ECRANS: { nom: string; hash: string; geste?: (p: Page) => Promise<void> }[] = [
+    // Le registre des règles, que cette base laisse vide : une règle que la console ne sait pas nommer (son code, sa
+    // valeur, sa source sont des données) et deux relectures, la dernière avec ce que le comptable en a dit. Sans elle,
+    // l'onglet se mesure vide, et ce qu'il montre d'une règle ne se mesurait que si un autre fichier en avait posé une.
+    const regle = String((await admin.query(`insert into socle.regle_fiscale (code, valeur, debut, source)
+      values ('essai.console_instrument', '250', '2024-01-01', 'Une règle de l''instrument : à vérifier avec un comptable') returning id`)).rows[0]?.id);
+    for (const dit of ['Lue sans remarque.', 'Vérifie l\'article cité.']) {
+      exiger(await api('POST', `/console/reglages/regles/${regle}/relire`, jeton, { reluePar: 'Mehdi Gharbi, cabinet pilote', avis: 'a_corriger', dit, motif: 'relue au téléphone' }), 201);
+    }
+    const ECRANS: EcranConsole[] = [
       { nom: 'accueil', hash: '#/' },
       { nom: 'clients', hash: '#/clients' },
       { nom: 'fiche', hash: `#/clients/${enLecture}` },
@@ -671,6 +667,11 @@ describe('la console de l\'équipe, à la souris', () => {
       { nom: 'performances', hash: '#/service/performances' },
       { nom: 'travaux', hash: '#/service/travaux' },
       { nom: 'securite', hash: '#/service/securite' },
+      // Les incidents et les versions, dans l'état de cette base (le plus souvent rien d'ouvert, aucun suiveur) ; leurs
+      // états pleins se mesurent dans leurs propres parcours (console-incidents, console-versions), par le même instrument.
+      { nom: 'incidents', hash: '#/service/incidents' },
+      { nom: 'incident-ouvrir', hash: '#/service/incidents', geste: async (p) => { await cliquer(p.locator('.c-in-aucun button, .c-in-ouverts-tete button').first()); await p.getByRole('dialog').waitFor(); } },
+      { nom: 'versions', hash: '#/service/versions' },
       // Les réglages, chacun de leurs onglets : le tableau des formats officiels compte, au téléphone, en cartes.
       { nom: 'reglages', hash: '#/reglages' },
       { nom: 'reglages-regles', hash: '#/reglages?onglet=regles' },
@@ -679,33 +680,14 @@ describe('la console de l\'équipe, à la souris', () => {
       { nom: 'remise', hash: '#/service/sauvegardes', geste: async (p) => { await cliquer(p.locator('.c-sg-remises .c-al-section-tete button')); await p.getByRole('dialog').waitFor(); } },
       { nom: 'sourdine', hash: '#/service/alertes', geste: async (p) => { await cliquer(p.locator('.c-al-alerte').first().locator('.c-al-gestes button').last()); await p.getByRole('dialog').waitFor(); } },
     ];
-    const faux: string[] = [];
-    let vus = 0;
-    for (const largeur of [1440, 390]) {
-      for (const theme of ['clair', 'sombre'] as const) {
-        for (const e of [...ECRANS, ...(largeur < 600 ? [{ nom: 'menu', hash: '#/', geste: async (p: Page) => { await cliquer(p.locator('.c-menu-tel')); } }] : [])]) {
-          const p = await ouvrir(jeton, e.hash, { largeur, theme });
-          await expect.poll(() => p.evaluate(() => document.documentElement.dataset.theme)).toBe(theme);
-          if (e.geste) await e.geste(p);
-          await p.waitForTimeout(300);
-          const nom = `console-${e.nom}-${largeur}-${theme}`;
-          faux.push(...(await p.evaluate(problemes, [largeur < 600, largeur] as [boolean, number])).map((x) => `${nom} : ${x}`));
-          if (largeur < 600) faux.push(...(await p.evaluate(auTelephone)).map((x) => `${nom} : ${x}`));
-          await p.screenshot({ path: path.join(PHOTOS, `${nom}.png`), fullPage: true });
-          vus++;
-          await fermer(p);
-        }
-      }
-    }
-    // L'entrée, sans session, et chaque écran en langue factice.
-    for (const e of [{ nom: 'entree', hash: '#/' }, ...ECRANS]) {
-      const p = await ouvrir(e.nom === 'entree' ? null : jeton, e.hash, { factice: true });
-      if (e.geste) await e.geste(p);
-      await p.waitForTimeout(300);
-      faux.push(...(await p.evaluate(horsCatalogue)).map((x) => `console-${e.nom}-factice : hors catalogue : ${x}`));
-      faux.push(...(await p.evaluate(problemes, [false, 1440] as [boolean, number])).map((x) => `console-${e.nom}-factice : ${x}`));
-      await fermer(p);
-    }
+    const { faux, vus } = await mesurerLaConsole({
+      ecrans: ECRANS,
+      ouvrir: (e, o) => ouvrir(e.sansSession ? null : jeton, e.hash, o),
+      // Le menu n'existe qu'au téléphone ; l'entrée, sans session, se lit en langue factice.
+      telephone: [{ nom: 'menu', hash: '#/', geste: async (p) => { await cliquer(p.locator('.c-menu-tel')); } }],
+      factice: [{ nom: 'entree', hash: '#/', sansSession: true }],
+      photos: PHOTOS,
+    });
     expect(faux).toEqual([]);
     expect(vus).toBe(ECRANS.length * 4 + 2);
     expect(erreurs).toEqual([]);

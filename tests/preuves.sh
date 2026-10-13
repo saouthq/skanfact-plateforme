@@ -11099,7 +11099,7 @@ prouver 'l'"'"'aperçu du geste qui ne garde pas sa place' web/console/src/conso
   '.c-apercu-zone { display: grid; min-height: 140px; }' '.c-apercu-zone { display: grid; }' \
   "$CONSW4"
 prouver 'un clic à côté qui ferme la fenêtre' web/console/src/ui.tsx \
-  '    <div className="c-voile">' '    <div className="c-voile" onMouseDown={(e) => { if (e.target === e.currentTarget) fermerSiLibre.current(); }}>' \
+  '    <div className="c-voile">' '    <div className="c-voile" onMouseDown={(e) => { if (e.target === e.currentTarget) fermer(); }}>' \
   "$CONSW4"
 prouver 'la pastille de « À décider » qui ne se recompte pas après un geste' web/console/src/ecrans/Fiche.tsx \
   'fait={() => { setGeste(null); relire(); relireDecisions(); }}' 'fait={() => { setGeste(null); relire(); }}' \
@@ -12361,6 +12361,46 @@ prouver "le tableau des formats qui déborde au téléphone" web/console/src/con
   "  .c-rg-formats { min-width: 0; }
 " "" \
   "$RGW6"
+
+# L'en-tête du service et l'instrument de la console (Console 3f) : la barre d'onglets ne bouge ni d'une vue à l'autre
+# ni pendant qu'une vue se lit ; les incidents et les versions, en clair, en sombre, au téléphone et en langue factice ; ce
+# qu'une fenêtre, la page d'état, une tâche d'installation ou une règle montrent comme DONNÉE le disent.
+SVW1='les onglets du service ne bougent pas : ni d'"'"'une vue à l'"'"'autre, ni pendant qu'"'"'une vue se lit'
+INW1='un incident ouvert, en clair et en sombre, à l'"'"'ordinateur et au téléphone : l'"'"'instrument ne trouve rien ; en langue factice, tout vient du catalogue'
+VEW1='un retour demandé, un gel levé : en clair et en sombre, à l'"'"'ordinateur et au téléphone, l'"'"'instrument ne trouve rien ; en langue factice, tout vient du catalogue'
+prouver "le compte des alertes oublié pendant qu'une vue se lit" web/console/src/ecrans/Service.tsx \
+  'const a = d ? d.alertesEnCours : alertesLues;' 'const a = d ? d.alertesEnCours : null;' \
+  "$SVW1"
+prouver "la rangée du titre sans la hauteur de la période" web/console/src/console.css \
+  '@media (min-width: 561px) { .c-sv-entete-titre { min-height: 42px; } }' '' \
+  "$SVW1"
+prouver "le titre d'un incident, sous une fenêtre, pris pour un texte du catalogue" web/console/src/ecrans/Incidents.tsx \
+  '`${I}.point.titre`)} sous={`${i.ref} · ${maj(i.titre)}`} sousDonnee fermer=' '`${I}.point.titre`)} sous={`${i.ref} · ${maj(i.titre)}`} fermer=' \
+  "$INW1"
+prouver "le compte rendu relu, titré comme un texte du catalogue" web/console/src/ecrans/Incidents.tsx \
+  'titre={`${p.ref} · ${maj(p.titre)}`} titreDonnee sous=' 'titre={`${p.ref} · ${maj(p.titre)}`} sous=' \
+  "$INW1"
+prouver "la page d'état de la veille prise pour un texte du catalogue" web/console/src/ecrans/Incidents.tsx \
+  '<b data-donnee>{l.nom}</b><span data-donnee>{l.dit}</span>' '<b>{l.nom}</b><span>{l.dit}</span>' \
+  "$INW1"
+prouver "une fenêtre qui oublie de dire que son sous-titre est une donnée" web/console/src/ui.tsx \
+  "{sous ? <p className=\"c-dialogue-sous\" {...(sousDonnee ? { 'data-donnee': '' } : {})}>{sous}</p> : null}" '{sous ? <p className="c-dialogue-sous">{sous}</p> : null}' \
+  "$VEW1"
+prouver "le titre d'une tâche d'installation pris pour un texte du catalogue" web/console/src/ecrans/Versions.tsx \
+  '<div><b data-donnee>{t.titre ? maj(t.titre) : t.nom}</b>' '<div><b>{t.titre ? maj(t.titre) : t.nom}</b>' \
+  "$VEW1"
+prouver "le code d'une règle pris pour un texte du catalogue" web/console/src/ecrans/Reglages.tsx \
+  '<code className="c-rg-code" data-donnee>{r.code}</code>' '<code className="c-rg-code">{r.code}</code>' \
+  "$CONSW6"
+prouver "la source d'une règle prise pour un texte du catalogue" web/console/src/ecrans/Reglages.tsx \
+  '<span>« <span data-donnee>{r.source}</span> »</span></p>' '<span>« {r.source} »</span></p>' \
+  "$CONSW6"
+prouver "ce que dit la relecture d'une règle pris pour un texte du catalogue" web/console/src/ecrans/Reglages.tsx \
+  '<span className="c-bloc">« <span data-donnee>{derniere.dit}</span> »</span>' '<span className="c-bloc">« {derniere.dit} »</span>' \
+  "$CONSW6"
+prouver "une relecture plus ancienne dont la remarque passe pour un texte du catalogue" web/console/src/ecrans/Reglages.tsx \
+  '{l.dit ? <> « <span data-donnee>{l.dit}</span> »</> : null}</li>' "{l.dit ? \` « \${l.dit} »\` : ''}</li>" \
+  "$CONSW6"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

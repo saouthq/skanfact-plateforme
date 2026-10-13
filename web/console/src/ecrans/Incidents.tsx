@@ -235,7 +235,7 @@ function PageDEtat({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
             <b>{titre(`${I}.page.etat_de`)}</b>
             <span className="c-sous">{dire(`${I}.page.mis_a_jour`, { heure: heureDe(p.le) })}</span>
           </div>
-          <p className={`c-in-apercu-tout c-in-c-${p.tout.couleur}`}><span className="c-in-point" aria-hidden="true" />{p.tout.dit}</p>
+          <p className={`c-in-apercu-tout c-in-c-${p.tout.couleur}`}><span className="c-in-point" aria-hidden="true" /><span data-donnee>{p.tout.dit}</span></p>
           {p.annonce.incident ? (
             <div className={`c-in-apercu-annonce c-in-c-${p.annonce.incident.gravite === 'mineur' ? 'orange' : 'rouge'}`}>
               <b>{titre(`${I}.page.incident_${p.annonce.incident.gravite}`)}</b>
@@ -251,7 +251,7 @@ function PageDEtat({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
           ) : null}
           <ul>
             {p.lignes.map((l) => (
-              <li key={l.nom} className={`c-in-c-${l.couleur}`}><span className="c-in-point" aria-hidden="true" /><b>{l.nom}</b><span>{l.dit}</span></li>
+              <li key={l.nom} className={`c-in-c-${l.couleur}`}><span className="c-in-point" aria-hidden="true" /><b data-donnee>{l.nom}</b><span data-donnee>{l.dit}</span></li>
             ))}
           </ul>
         </div>
@@ -518,7 +518,7 @@ function FenetrePoint({ i, publicDemande, fermer, fait }: { i: Incident; publicD
       phrase(pub ? `${I}.point.fait_public` : `${I}.point.fait`));
   };
   return (
-    <Dialogue titre={titre(pub ? `${I}.point.titre_public` : `${I}.point.titre`)} sous={`${i.ref} · ${maj(i.titre)}`} fermer={fermer} occupe={e.occupe}
+    <Dialogue titre={titre(pub ? `${I}.point.titre_public` : `${I}.point.titre`)} sous={`${i.ref} · ${maj(i.titre)}`} sousDonnee fermer={fermer} occupe={e.occupe}
       pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={titre(pub ? `${I}.point.bouton_public` : `${I}.point.bouton`)} />}>
       <Zone libelle={titre(pub ? `${I}.point.texte_public` : `${I}.point.texte`)} aide={phrase(pub ? `${I}.point.aide_public` : `${I}.point.aide`)} valeur={texte}
         changer={setTexte} faute={e.faute('texte')} n={e.n} />
@@ -552,7 +552,7 @@ function FenetreMotif({ titreF, sous, points, chemin, corps, dit, bouton, sortie
     e.envoyer(chemin, { ...corps, motif: motif.trim() }, dit);
   };
   return (
-    <Dialogue titre={titreF} sous={sous} fermer={fermer} occupe={e.occupe} pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={bouton} {...(sortie ? { sortie } : {})} />}>
+    <Dialogue titre={titreF} sous={sous} sousDonnee fermer={fermer} occupe={e.occupe} pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={bouton} {...(sortie ? { sortie } : {})} />}>
       <div className="c-al-ce-qui-va">
         <span className="c-champ-libelle">{titre(`${K}.al.geste.ce_qui_va`)}</span>
         <ul>{points.map((x) => <li key={x}>{x}</li>)}</ul>
@@ -575,7 +575,7 @@ function FenetreRepousser({ s, d, fermer, fait }: { s: SuiteATenir; d: Donnees; 
     e.envoyer(`/console/service/suites/${s.id}/repousser`, { due, motif: motif.trim() }, phrase(`${I}.repousser.fait`, { jour: jourMois(due) }));
   };
   return (
-    <Dialogue titre={titre(`${I}.repousser.titre`)} sous={maj(s.titre)} fermer={fermer} occupe={e.occupe}
+    <Dialogue titre={titre(`${I}.repousser.titre`)} sous={maj(s.titre)} sousDonnee fermer={fermer} occupe={e.occupe}
       pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={titre(`${I}.repousser.bouton`)} />}>
       <Champ libelle={titre(`${I}.repousser.nouvelle`)} aide={phrase(`${I}.repousser.aide`, { jour: jourMois(s.due), n: s.repoussee })} type="date" valeur={due}
         changer={setDue} faute={e.faute('due')} n={e.n} />
@@ -622,7 +622,7 @@ function FenetreClore({ i, d, fermer, fait }: { i: Incident; d: Donnees; fermer:
     }, phrase(`${I}.clore.fait`, { ref: i.ref }));
   };
   return (
-    <Dialogue titre={titre(`${I}.clore.titre`)} sous={`${i.ref} · ${maj(i.titre)}`} fermer={fermer} occupe={e.occupe}
+    <Dialogue titre={titre(`${I}.clore.titre`)} sous={`${i.ref} · ${maj(i.titre)}`} sousDonnee fermer={fermer} occupe={e.occupe}
       pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={titre(`${I}.clore.bouton`)} />}>
       <p className="c-sous">{phrase(`${I}.clore.explique`)}</p>
       <Champ libelle={titre(`${I}.clore.fin`)} aide={phrase(`${I}.clore.fin_aide`)} type="datetime-local" valeur={fin} changer={setFin} faute={e.faute('fin')} n={e.n} />
@@ -688,7 +688,7 @@ function FenetreAnnoncer({ d, fermer, fait }: { d: Donnees; fermer: () => void; 
 
 function FenetreLire({ p, d, fermer }: { p: Passe; d: Donnees; fermer: () => void }) {
   return (
-    <Dialogue titre={`${p.ref} · ${maj(p.titre)}`} sous={maj(dire(`${I}.lire.sous`, { quand: jourHeure(p.ouvertLe, d.aujourdhui), duree: minutes(p.minutes), g: nomGravite(p.gravite) }))} fermer={fermer}
+    <Dialogue titre={`${p.ref} · ${maj(p.titre)}`} titreDonnee sous={maj(dire(`${I}.lire.sous`, { quand: jourHeure(p.ouvertLe, d.aujourdhui), duree: minutes(p.minutes), g: nomGravite(p.gravite) }))} fermer={fermer}
       pied={<Bouton onClick={fermer}>{titre('console.ecran.fermer')}</Bouton>}>
       {(['effet', 'cause', 'change'] as const).map((k) => (
         <div key={k} className="c-in-cr">

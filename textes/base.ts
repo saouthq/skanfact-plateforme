@@ -424,6 +424,7 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'une relecture dit qui l\'a faite : le nom du comptable et de son cabinet', cle: 'base.console.reglages_relue_par', fr: 'une relecture dit qui l\'a faite : le nom du comptable et de son cabinet' },
   { base: 'l\'avis d\'une relecture : juste telle quelle, ou à corriger', cle: 'base.console.reglages_avis', fr: 'l\'avis d\'une relecture : juste telle quelle, ou à corriger' },
   { base: 'cette règle n\'est pas au registre', cle: 'base.console.reglages_regle_inconnue', fr: 'cette règle n\'est pas au registre' },
+  { base: 'une relecture ne se modifie pas et ne s\'efface pas : on en note une nouvelle', cle: 'base.console.reglages_relecture_intouchable', fr: 'une relecture ne se modifie pas et ne s\'efface pas : on en note une nouvelle' },
   { base: 'afficher un message aux clients demande son motif (trois caractères au moins)', cle: 'base.console.reglages_motif_message', fr: 'afficher un message aux clients demande son motif (trois caractères au moins)' },
   { base: 'un message aux clients annonce une nouveauté ou une maintenance prévue', cle: 'base.console.reglages_message_sorte', fr: 'un message aux clients annonce une nouveauté ou une maintenance prévue' },
   { base: 'un message aux clients : de dix à deux cent quarante caractères', cle: 'base.console.reglages_message_longueur', fr: 'un message aux clients : de dix à deux cent quarante caractères' },

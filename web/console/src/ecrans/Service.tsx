@@ -832,11 +832,17 @@ function BandeauAlerte({ a, maintenant, grand }: { a: AlertesEnCours; maintenant
   );
 }
 
+// Le dernier compte d'alertes lu, d'une vue à l'autre : pendant qu'une vue se lit, son onglet « Alertes » garde le
+// compte qu'il montrait. Sans lui, le compte disparaît puis revient à chaque changement d'onglet, et les onglets qui le
+// suivent glissent de trente points sous le curseur, deux fois par clic.
+let alertesLues: AlertesEnCours | null = null;
+
 export function EnteteService({ vue, d, relire, occupe, periode }: {
   vue: VueDuService; d: PourEntete | null; relire: () => void; occupe: boolean;
   periode?: { valeur: Periode; choisir: (p: Periode) => void };
 }) {
-  const a = d?.alertesEnCours;
+  useEffect(() => { if (d) alertesLues = d.alertesEnCours; }, [d]);
+  const a = d ? d.alertesEnCours : alertesLues;
   return (
     <div className="c-sv-entete">
       <div className="c-sv-entete-haut">
@@ -871,7 +877,7 @@ export function EnteteService({ vue, d, relire, occupe, periode }: {
           </a>
         ))}
       </nav>
-      {d && a && vue !== 'alertes' ? <BandeauAlerte a={a} maintenant={d.maintenant} grand={vue === 'vue'} /> : null}
+      {d && vue !== 'alertes' ? <BandeauAlerte a={d.alertesEnCours} maintenant={d.maintenant} grand={vue === 'vue'} /> : null}
     </div>
   );
 }

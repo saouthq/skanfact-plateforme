@@ -5,6 +5,8 @@
 //   - revenir à la version d'avant : un motif trop court se refuse, le bouton ne bouge pas quand on retape ; fait, la
 //     consigne se lit, et la version quittée ne se propose plus pour un retour ;
 //   - geler puis lever le gel, chacun avec son motif ;
+//   - l'écran et ses fenêtres, un retour demandé et un gel levé dans les consignes, mesurés par l'instrument de la
+//     console (en clair et en sombre, à l'ordinateur et au téléphone, et en langue factice) ;
 //   - une fenêtre où l'on a tapé demande avant de jeter la saisie (Échap, la croix, « Annuler ») ;
 //   - au téléphone : rien ne déborde, l'historique se lit sans défilement de côté.
 
@@ -19,6 +21,7 @@ import { ajouter as ajouterALEquipe } from '../../base/equipe.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { cliquer } from '../cliquer.ts';
+import { mesurerLaConsole, type EcranConsole } from './instrument-console.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const MDP = 'Un-bon-mot-de-passe';
@@ -50,6 +53,19 @@ describe('les versions du service, à la souris', () => {
     const p = await cx.newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.goto(`${serveur.adresse}/console/#/service/versions`);
+    await expect.poll(() => p.locator('.c-ve-historique tbody tr').count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    return p;
+  };
+  // Un écran de l'instrument : à une largeur, un thème et une langue ; lu quand son historique est là.
+  const ouvrirEcran = async (e: EcranConsole, o: { largeur: number; theme?: 'clair' | 'sombre'; factice?: boolean }) => {
+    const cx = await navigateur.newContext({ viewport: { width: o.largeur, height: o.largeur < 600 ? 844 : 900 }, locale: 'fr-FR' });
+    await cx.addInitScript(([j, t]) => {
+      sessionStorage.setItem('skanfact.console.jeton', j);
+      if (t) localStorage.setItem('skanfact.console.theme', t);
+    }, [jD, o.theme ?? null] as const);
+    const p = await cx.newPage();
+    p.on('pageerror', (x) => erreurs.push(x.message));
+    await p.goto(`${serveur.adresse}/console/${o.factice ? '?langue=factice' : ''}${e.hash}`);
     await expect.poll(() => p.locator('.c-ve-historique tbody tr').count(), { timeout: 20_000 }).toBeGreaterThan(0);
     return p;
   };
@@ -140,6 +156,21 @@ describe('les versions du service, à la souris', () => {
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);
+
+  it('un retour demandé, un gel levé : en clair et en sombre, à l\'ordinateur et au téléphone, l\'instrument ne trouve rien ; en langue factice, tout vient du catalogue', async () => {
+    // Chaque geste trouve son bouton par la structure de l'écran : en langue factice, son texte change.
+    const fen = async (p: Page) => { await p.getByRole('dialog').waitFor(); };
+    const H = '#/service/versions';
+    const ECRANS: EcranConsole[] = [
+      { nom: 'versions-consignes', hash: H },
+      { nom: 'version-geler', hash: H, geste: async (p) => { await cliquer(p.locator('.c-ve-prochaine .c-ve-geste button').last()); await fen(p); } },
+      { nom: 'version-lever', hash: H, geste: async (p) => { await cliquer(p.locator('.c-ve-consignes .c-ve-geste button').first()); await fen(p); } },
+    ];
+    const { faux, vus } = await mesurerLaConsole({ ecrans: ECRANS, ouvrir: ouvrirEcran, photos: path.join(RACINE, 'dist/photos') });
+    expect(faux).toEqual([]);
+    expect(vus).toBe(ECRANS.length * 4);
+    expect(erreurs).toEqual([]);
+  }, 300_000);
 
   it('une fenêtre où l\'on a tapé demande avant de jeter la saisie ; sans rien taper, elle se ferme tout de suite', async () => {
     const p = await ouvrir();

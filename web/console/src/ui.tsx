@@ -263,8 +263,11 @@ export const saisieDe = (cadre: ParentNode | null | undefined) =>
 // Une fenêtre. Échap, la croix et son bouton « Annuler » (`ferme`) la referment ; si l'on y a TAPÉ quelque chose depuis
 // son ouverture, ils demandent d'abord « Abandonner cette saisie ? » — un motif d'une ligne ne se perd pas sur une touche.
 // L'instantané se prend après le montage : ce que la fenêtre préremplit n'est pas une saisie. Réussi, un geste referme la
-// fenêtre par son propre chemin, sans question.
-export function Dialogue({ titre: t, sous, fermer, occupe = false, children, pied }: { titre: string; sous?: string | undefined; fermer: () => void; occupe?: boolean; children: ReactNode; pied: ReactNode }) {
+// fenêtre par son propre chemin, sans question. Un titre ou un sous-titre qui est une DONNÉE (le titre d'un incident, le
+// nom d'un client) le dit (`titreDonnee`, `sousDonnee`) : il ne vient pas du catalogue des textes.
+export function Dialogue({ titre: t, sous, fermer, occupe = false, children, pied, titreDonnee = false, sousDonnee = false }: {
+  titre: string; sous?: string | undefined; fermer: () => void; occupe?: boolean; children: ReactNode; pied: ReactNode; titreDonnee?: boolean; sousDonnee?: boolean;
+}) {
   const id = useId();
   const cadre = useRef<HTMLDivElement>(null);
   const corps = useRef<HTMLDivElement>(null);
@@ -312,8 +315,8 @@ export function Dialogue({ titre: t, sous, fermer, occupe = false, children, pie
         <FermerDuDialogue.Provider value={fermerGarde}>
           <div className="c-dialogue-tete">
             <div>
-              <h2 id={`${id}-titre`}>{t}</h2>
-              {sous ? <p className="c-dialogue-sous">{sous}</p> : null}
+              <h2 id={`${id}-titre`} {...(titreDonnee ? { 'data-donnee': '' } : {})}>{t}</h2>
+              {sous ? <p className="c-dialogue-sous" {...(sousDonnee ? { 'data-donnee': '' } : {})}>{sous}</p> : null}
             </div>
             <button type="button" className="c-fermer" aria-label={titre('console.ecran.fermer')} onClick={fermerGarde}><Icone nom="croix" /></button>
           </div>
