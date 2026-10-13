@@ -267,6 +267,9 @@ describe('la console de l\'équipe, à la souris', () => {
     // Le problème grave du service passe en tête, marqué urgent.
     expect(net(await decider.first().innerText())).toContain('La copie hors machine de cette nuit n\'est pas arrivée');
     expect(net(await decider.first().locator('.c-puce').first().innerText())).toBe('Urgent');
+    // À côté, les relances que le serveur a envoyées seul depuis hier (ici aucune) : la colonne le dit.
+    await expect.poll(() => p.locator('.c-relances').innerText().then(net).catch(() => '')).toContain('Les relances parties depuis hier');
+    expect(net(await p.locator('.c-relances').innerText())).toContain('Aucune relance n\'est partie depuis hier');
     // Le filtre « Clients » ne garde que les clients.
     await cliquer(p.locator('.c-decider .c-pilule', { hasText: 'Clients' }));
     await expect.poll(async () => (await decider.allInnerTexts()).some((t) => t.includes('La copie hors machine'))).toBe(false);

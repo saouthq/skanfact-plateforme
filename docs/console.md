@@ -426,6 +426,13 @@ filtrent, puis la liste, C3) et ses collaborateurs.
 - **Pas encore** : ses factures et paiements, le support, le prix des dossiers qu'il tient (« ce qu'il paierait ») et
   le parrainage — ils demandent des briques ou des décisions qui n'existent pas encore.
 
+**C23. L'accueil, recalé sur sa maquette** (13/10/2026). Le tableau du matin ne montre plus deux tuiles « non mesuré » :
+une seule, sur deux places, dit ce qui n'est pas encore mesuré et pourquoi (l'encaissé du mois, le support), et rend la
+place aux chiffres (sur deux colonnes, elle passe en dernier). « À décider » tient les deux tiers ; à côté, **les
+relances parties depuis hier** : celles que le serveur a envoyées tout seul (la même table que l'écran Abonnements),
+nommées, la plus récente d'abord — pour que personne ne relance une seconde fois à la main. La technique ne les reçoit
+pas (elles nomment des clients). Un titre venu de la veille commence par sa majuscule.
+
 ## Mettre en route
 
 La personne crée d'abord son compte SkanFact, puis met en place le code de son téléphone (« Ton compte »,

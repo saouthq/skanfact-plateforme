@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { dire, phrase, titre } from '../langue.ts';
 import { useConsole, useLecture, type Role } from '../contexte.ts';
 import { dans, jourCourt, jourLong, quand } from '../temps.ts';
-import { Alerte, Bouton, Icone, Lien, Puce, Vide, type NomIcone, type TonPuce } from '../ui.tsx';
+import { Alerte, Bouton, Icone, Lien, maj, Puce, Vide, type NomIcone, type TonPuce } from '../ui.tsx';
 
 type Mesure = { mesure: true; n: number } | { mesure: false; raison: 'paiements_a_venir' | 'support_a_venir' };
 type Service = { etat: 'ok' } | { etat: 'problemes'; n: number; graves: number } | { etat: 'non_mesure'; raison: 'pas_de_veille' | 'veille_silencieuse'; derniere?: string };
@@ -21,7 +21,8 @@ export type Ligne =
   | { sorte: 'en_retard'; ouvre: 'fiche'; entreprise: Qui; echeance: string; lectureSeuleLe: string; jours: number; apresEssai: boolean }
   | { sorte: 'lecture_seule'; ouvre: 'fiche'; entreprise: Qui; depuis: string; raison: 'essai_termine' | 'non_renouvele' | 'resilie' | 'suspendu' }
   | { sorte: 'essai_sans_usage'; ouvre: 'fiche'; entreprise: Qui; jusquAu: string; jours: number; proprietaire: { nom: string; email: string } | null };
-type Accueil = { aujourdhui: string; role: Role; tableau: Partial<Tableau> & { service: Service }; decider: Ligne[] };
+type RelancePartie = { entreprise: Qui; rang: 'j15' | 'j7' | 'j1' | 'lecture_seule'; partieLe: string };
+type Accueil = { aujourdhui: string; role: Role; tableau: Partial<Tableau> & { service: Service }; decider: Ligne[]; relances?: RelancePartie[] };
 
 // ── Le tableau du matin ─────────────────────────────────────────────────────────────────────────────────────────────
 // `mot` : une valeur qui est un mot (« non mesuré », « rien à signaler ») et non un nombre : elle se dit en lettres.
@@ -67,8 +68,12 @@ function TableauDuMatin({ t, role, aujourdhui }: { t: Accueil['tableau']; role: 
             <Tuile titre={titre('console.ecran.tableau.actifs')} valeur={String(t.actifs.total)} sous={dire('console.ecran.tableau.actifs_sous', { e: t.actifs.essentiel, c: t.actifs.complet })} href="#/clients?etat=actif" />
             <Tuile titre={titre('console.ecran.tableau.en_retard')} valeur={String(t.enRetard ?? 0)} sous={titre('console.ecran.tableau.en_retard_sous')} href="#/clients?etat=en_retard" />
             <Tuile titre={titre('console.ecran.tableau.lecture_seule')} valeur={String(t.lectureSeule ?? 0)} sous={titre('console.ecran.tableau.lecture_seule_sous')} href="#/clients?etat=lecture_seule" />
-            <Tuile titre={titre('console.ecran.tableau.revenus')} valeur={dire('console.ecran.tableau.non_mesure')} sous={nonMesure(t.revenusDuMois)} mot="attente" />
-            <Tuile titre={titre('console.ecran.tableau.support')} valeur={dire('console.ecran.tableau.non_mesure')} sous={nonMesure(t.support)} mot="attente" />
+            {/* Ce que la console ne mesure pas encore : une seule tuile, qui dit chaque raison (C2), plutôt que deux « non mesuré ». */}
+            <div className="c-tuile c-tuile-large">
+              <span className="c-tuile-titre">{titre('console.ecran.tableau.pas_encore')}</span>
+              <span className="c-tuile-mot c-tuile-mot-attente">{dire('console.ecran.tableau.non_mesure')}</span>
+              <span className="c-tuile-sous">{titre('console.ecran.tableau.revenus')} : {nonMesure(t.revenusDuMois).toLowerCase()} · {titre('console.ecran.tableau.support')} : {nonMesure(t.support).toLowerCase()}</span>
+            </div>
           </>
         ) : null}
         {role !== 'support' ? <TuileService s={t.service} aujourdhui={aujourdhui} /> : null}
@@ -85,7 +90,7 @@ function voir(l: Ligne, aujourdhui: string): Vue {
   const fiche = (q: Qui) => `#/clients/${q.id}`;
   switch (l.sorte) {
     case 'service':
-      return { icone: 'serveur', titre: l.titre, desc: l.faire, meta: titre('console.ecran.decider.service_depuis', { quand: l.depuis ? quand(l.depuis, aujourdhui) : '—' }), urgence: l.grave ? 'urgent' : 'a_regarder', href: '#/service/alertes', bouton: titre('console.ecran.decider.ouvrir_alerte') };
+      return { icone: 'serveur', titre: maj(l.titre), desc: l.faire, meta: titre('console.ecran.decider.service_depuis', { quand: l.depuis ? quand(l.depuis, aujourdhui) : '—' }), urgence: l.grave ? 'urgent' : 'a_regarder', href: '#/service/alertes', bouton: titre('console.ecran.decider.ouvrir_alerte') };
     case 'veille_silencieuse':
       return { icone: 'alerte', titre: titre('console.ecran.decider.veille_titre'), desc: phrase('console.ecran.decider.veille', { quand: quand(l.derniere, aujourdhui) }), meta: null, urgence: 'urgent', href: '#/service', bouton: titre('console.ecran.decider.ouvrir_service') };
     case 'en_retard':
@@ -157,6 +162,33 @@ function ADecider({ lignes, role, aujourdhui }: { lignes: Ligne[]; role: Role; a
   );
 }
 
+// ── Les relances parties depuis hier ───────────────────────────────────────────────────────────────────────────────
+// Ce que le serveur a fait tout seul : la console le montre pour que personne ne relance une seconde fois à la main.
+function Relances({ liste, aujourdhui }: { liste: RelancePartie[]; aujourdhui: string }) {
+  return (
+    <section className="c-carte c-relances" aria-labelledby="relances-titre">
+      <h2 id="relances-titre">{titre('console.ecran.relances.titre')}</h2>
+      <p className="c-carte-sous">{phrase('console.ecran.relances.sous')}</p>
+      {liste.length ? (
+        <ul className="c-relances-liste">
+          {liste.map((r) => (
+            <li key={`${r.entreprise.id}-${r.rang}`}>
+              <div>
+                <a href={`#/clients/${r.entreprise.id}`}><b data-donnee>{r.entreprise.nom}</b></a>
+                <span className="c-sous">{maj(r.rang === 'j15' || r.rang === 'j7'
+                  ? dire('console.ecran.abonnements.rang_long.jours', { n: r.rang === 'j15' ? 15 : 7 })
+                  : dire(`console.ecran.abonnements.rang_long.${r.rang}`))}</span>
+              </div>
+              <span className="c-relances-quand">{titre('console.ecran.relances.partie')}<span className="c-sous">{maj(quand(r.partieLe, aujourdhui))}</span></span>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="c-relances-vide">{phrase('console.ecran.relances.vide')}</p>}
+      <p className="c-relances-pied">{phrase('console.ecran.relances.pied')}</p>
+    </section>
+  );
+}
+
 export function Accueil() {
   const { moi, compterDecisions } = useConsole();
   const [l, relire] = useLecture<Accueil>('/console/accueil');
@@ -179,7 +211,12 @@ export function Accueil() {
       {lu ? (
         <>
           <TableauDuMatin t={lu.tableau} role={lu.role} aujourdhui={aujourdhui} />
-          <ADecider lignes={lu.decider} role={lu.role} aujourdhui={aujourdhui} />
+          {lu.role === 'technique' ? <ADecider lignes={lu.decider} role={lu.role} aujourdhui={aujourdhui} /> : (
+            <div className="c-accueil-bas">
+              <ADecider lignes={lu.decider} role={lu.role} aujourdhui={aujourdhui} />
+              <Relances liste={lu.relances ?? []} aujourdhui={aujourdhui} />
+            </div>
+          )}
         </>
       ) : null}
     </>

@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { echeanceDe, etatAbonnement, plusJours, relanceDue } from '../../serveur/abonnement/etat.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from '../../serveur/console/cabinets.ts';
 import { lireEntreprises } from '../../serveur/console/decider.ts';
-import { annuel, cartes, lignesEcheances, lireExtras, lirePrix, relancesDe, vue, VUES, type LigneEcheance } from '../../serveur/console/echeances.ts';
+import { annuel, cartes, lignesEcheances, lireExtras, lirePrix, relancesDe, relancesRecentes, vue, VUES, type LigneEcheance } from '../../serveur/console/echeances.ts';
 
 const JOUR = '2026-10-13';
 let n = 0;
@@ -249,5 +249,28 @@ describe('les cabinets', () => {
     expect(chercherCabinets(lignesC, 'SONIA@').map((c) => c.nom)).toEqual(['Cabinet Nour']);
     expect(chercherCabinets(lignesC, '').length).toBe(2);
     expect(lireCabinets(null)).toEqual([]);
+  });
+});
+
+describe('les relances parties depuis hier (l\'accueil)', () => {
+  it('celles des vingt-quatre dernières heures, nommées, la plus récente d\'abord ; ni avant, ni après l\'heure qu\'il est', () => {
+    const maintenant = new Date('2026-10-13T08:00:00Z');
+    const liste = lireEntreprises([A, D, G], JOUR);
+    const extras = lireExtras({ relances: [
+      // A : la veille de la fin de son essai, partie cette nuit ; sa relance des sept jours, partie il y a six jours.
+      { entreprise: A.id, echeance: '2026-10-15', rangs: { j7: '2026-10-07T07:00:00Z', j1: '2026-10-13T03:00:00Z' } },
+      // D : quinze jours avant, partie hier à 09:00 (moins de vingt-quatre heures) ; G : il y a vingt-quatre heures et une minute.
+      { entreprise: D.id, echeance: '2026-10-20', rangs: { j15: '2026-10-12T09:00:00Z' } },
+      { entreprise: G.id, echeance: '2026-10-10', rangs: { lecture_seule: '2026-10-12T07:59:00Z' } },
+      // Une entreprise que la liste ne connaît pas (désactivée, hors du portefeuille lu) : rien à nommer.
+      { entreprise: id(999), echeance: '2026-10-14', rangs: { j1: '2026-10-13T04:00:00Z' } },
+      // Une heure dans le futur (horloge d'un autre serveur) : pas encore partie.
+      { entreprise: B.id, echeance: '2026-11-12', rangs: { j15: '2026-10-13T09:00:00Z' } },
+    ] });
+    expect(relancesRecentes(liste, extras, maintenant)).toEqual([
+      { entreprise: { id: A.id, nom: A.raisonSociale }, rang: 'j1', partieLe: '2026-10-13T03:00:00Z' },
+      { entreprise: { id: D.id, nom: D.raisonSociale }, rang: 'j15', partieLe: '2026-10-12T09:00:00Z' },
+    ]);
+    expect(relancesRecentes(liste, lireExtras(null), maintenant)).toEqual([]);
   });
 });

@@ -11894,6 +11894,19 @@ prouver "l'aperçu d'un cabinet qui tait les mandats proposés" web/console/src/
   "{parPlace('en_attente').length ? blocPlace('en_attente', true) : null}" '' \
   "$CONS2W2"
 
+# L'accueil recalé sur sa maquette (docs/console.md C23) : les relances parties depuis hier, à côté de « À décider ».
+AC1='celles des vingt-quatre dernières heures, nommées, la plus récente d'"'"'abord ; ni avant, ni après l'"'"'heure qu'"'"'il est'
+prouver "les relances de la nuit oubliées par l'accueil" serveur/console/echeances.ts \
+  'if (le && t >= debut && t <= fin) parties.push' 'if (le && t < debut && t <= fin) parties.push' \
+  "$AC1"
+prouver "une relance pas encore partie dite partie" serveur/console/echeances.ts \
+  'if (le && t >= debut && t <= fin) parties.push' 'if (le && t >= debut) parties.push' \
+  "$AC1"
+prouver "une relance nommée d'après une entreprise inconnue" serveur/console/echeances.ts \
+  '    if (!nom) continue;
+    for (const rang of RANGS) {' '    for (const rang of RANGS) {' \
+  "$AC1"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

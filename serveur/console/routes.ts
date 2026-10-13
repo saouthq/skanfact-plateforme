@@ -18,7 +18,7 @@ import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './con
 import { aDecider, CATEGORIES, categorie, chercher, inscriteCetteSemaine, lireEntreprises, lireVeille, rangerParUrgence, tableau, type Veille } from './decider.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
 import { comptesDesVues, dansLaVue, ligneClient, parAnDeLaSelection, trier, TRIS_CLIENTS, VUES_CLIENTS, type TriClients, type VueClients } from './clients.ts';
-import { annuel, AVENIR_JOURS, cartes, lignesEcheances, lireExtras, lirePrix, vue, VUES, type Vue } from './echeances.ts';
+import { annuel, AVENIR_JOURS, cartes, lignesEcheances, lireExtras, lirePrix, relancesRecentes, vue, VUES, type Vue } from './echeances.ts';
 import {
   alertesOuvertes, BUDGET_DU_GRAPHIQUE, bornes, briques, disponibilite, enLigne, ensemble, estPeriode, journal, joursDuService, lireVeilleDeLaBase,
   misesEnLigne, PERIODES, resume, serie, SEUILS_DU_SERVICE, SORTE_DU_GRAPHIQUE, traficRecent, trenteJours, TUILES, type Periode,
@@ -154,7 +154,10 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // La technique ne lit aucune donnée de client (03 § 5) : ni la liste, ni ses chiffres.
       const liste = role === 'technique' ? [] : lireEntreprises(await lireJson(transaction(tx), 'select plateforme.console_entreprises() v'), jour);
       const t = tableau(liste, veille, jour);
-      return { corps: { aujourdhui: jour, role, tableau: role === 'technique' ? { service: t.service } : t, decider: aDecider(liste, veille, jour, role) } };
+      // Les relances que le serveur a envoyées tout seul depuis hier (la même table que l'écran Abonnements).
+      const relances = role === 'technique' ? []
+        : relancesRecentes(liste, lireExtras(await lireJson(transaction(tx), 'select plateforme.console_echeances() v')), maintenant());
+      return { corps: { aujourdhui: jour, role, tableau: role === 'technique' ? { service: t.service } : t, decider: aDecider(liste, veille, jour, role), relances } };
     },
   });
 

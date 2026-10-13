@@ -156,6 +156,8 @@ describe('ce que chaque rôle lit', () => {
     const accueil = await appeler('GET', '/console/accueil', jT);
     expect(accueil.statut).toBe(200);
     expect(accueil.corps.tableau).toEqual({ service: { etat: 'non_mesure', raison: 'pas_de_veille' } });
+    // Ni les relances parties : elles nomment des clients.
+    expect(accueil.corps.relances).toEqual([]);
     expect((await appeler('GET', '/console/service', jT)).statut).toBe(200);
     expect((await appeler('GET', '/console/equipe', jS)).statut).toBe(403);
     expect((await appeler('GET', '/console/journal', jS)).statut).toBe(403);

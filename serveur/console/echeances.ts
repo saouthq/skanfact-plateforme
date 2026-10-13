@@ -221,3 +221,24 @@ export function annuel(lignes: LigneEcheance[], prix: Prix): Annuel {
   }
   return { montantHt: versTexte(total, 3), abonnements, mensuels, resilies, sansPrix };
 }
+
+// ── Les relances parties ces dernières vingt-quatre heures (l'accueil) ─────────────────────────────────────────────────
+// Celles que le serveur a envoyées tout seul (serveur/abonnement/relances.ts), lues dans la même table que l'écran
+// Abonnements : l'entreprise (son nom pour la nommer), le rang, l'instant. La plus récente d'abord.
+export type RelancePartie = { entreprise: { id: string; nom: string }; rang: Rang; partieLe: string };
+export const RELANCES_RECENTES_HEURES = 24;
+export function relancesRecentes(liste: Entreprise[], extras: Extras, maintenant: Date): RelancePartie[] {
+  const fin = maintenant.getTime(), debut = fin - RELANCES_RECENTES_HEURES * 3_600_000;
+  const noms = new Map(liste.map((e) => [e.id, e.raisonSociale]));
+  const parties: RelancePartie[] = [];
+  for (const [id, p] of extras.relances) {
+    const nom = noms.get(id);
+    if (!nom) continue;
+    for (const rang of RANGS) {
+      const le = p.rangs[rang];
+      const t = le ? Date.parse(le) : NaN;
+      if (le && t >= debut && t <= fin) parties.push({ entreprise: { id, nom }, rang, partieLe: le });
+    }
+  }
+  return parties.sort((a, b) => Date.parse(b.partieLe) - Date.parse(a.partieLe));
+}
