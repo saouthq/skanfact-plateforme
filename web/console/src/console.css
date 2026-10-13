@@ -150,6 +150,8 @@ a { color: var(--c-lien); text-underline-offset: 3px; }
 button { font: inherit; color: inherit; }
 :where(a, button, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid var(--c-anneau); outline-offset: 2px; }
 .c-mono { font-family: var(--c-chiffres); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+/* Un nombre dans le texte (un axe, une bulle, une jauge) : la police du texte, des chiffres qui s'alignent. */
+.c-num { font-variant-numeric: tabular-nums; }
 .c-cache { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .c-icone { flex: none; display: block; }
 [hidden] { display: none !important; }
@@ -601,6 +603,8 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-etat-service { display: flex; gap: 16px; align-items: center; }
 .c-etat-service h2 { font-size: 21px; }
 .c-ligne-sans-action { grid-template-columns: 44px minmax(0, 1fr); }
+/* Un problème de la veille porte un long « à faire » : son icône reste en face de son titre, pas au milieu du paragraphe. */
+.c-sv-problemes .c-ligne-decision { align-items: start; }
 @media (max-width: 860px) {
   .c-chiffres-cartes { grid-template-columns: minmax(0, 1fr); }
   .c-liste-alerte { padding-inline: 18px; }
@@ -720,6 +724,309 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   .c-vues-3 .c-vue:last-child { grid-column: span 2; }
   .c-entete-avatar { gap: 14px; }
   .c-entete-avatar > .c-avatar { width: 48px; height: 48px; border-radius: 13px; font-size: 16px; }
+}
+
+/* ── Les graphiques (graphes.tsx) : des états, des séries, des seuils ──────────────────────────────────────────────── */
+/* Les couleurs d'état ne servent qu'aux états (bon, à regarder, grave, non mesuré) ; une série a la sienne. Ce qui n'est
+   pas mesuré est hachuré : il se distingue sans la couleur. */
+:root {
+  --c-etat-bon: #0f9d8f;
+  --c-etat-attention: #e39a2b;
+  --c-etat-grave: #d63c3c;
+  --c-etat-non: #e3eae7;
+  --c-hachure: rgba(19, 33, 31, .13);
+  --c-serie-1: #0b7a70;
+  --c-serie-2: #7f9c96;
+  --c-seuil: #c2410c;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="clair"]) {
+    --c-etat-bon: #4fc8b8;
+    --c-etat-attention: #f0b45e;
+    --c-etat-grave: #f47c71;
+    --c-etat-non: #24363a;
+    --c-hachure: rgba(255, 255, 255, .12);
+    --c-serie-1: #7fe0d3;
+    --c-serie-2: #8ba19c;
+    --c-seuil: #fb923c;
+  }
+}
+:root[data-theme="sombre"] {
+  --c-etat-bon: #4fc8b8;
+  --c-etat-attention: #f0b45e;
+  --c-etat-grave: #f47c71;
+  --c-etat-non: #24363a;
+  --c-hachure: rgba(255, 255, 255, .12);
+  --c-serie-1: #7fe0d3;
+  --c-serie-2: #8ba19c;
+  --c-seuil: #fb923c;
+}
+:is(.c-case, .c-case-cle) { background-color: var(--c-etat-non); }
+:is(.c-case, .c-case-cle).c-ton-bon { background-color: var(--c-etat-bon); }
+:is(.c-case, .c-case-cle).c-ton-attention { background-color: var(--c-etat-attention); }
+:is(.c-case, .c-case-cle).c-ton-grave { background-color: var(--c-etat-grave); }
+:is(.c-case, .c-case-cle).c-ton-nonmesure { background-image: repeating-linear-gradient(135deg, var(--c-hachure) 0 1.5px, transparent 1.5px 5px); }
+/* Sans objet : rien n'était à faire ce jour-là — une case vide, cerclée, ni bonne ni mauvaise. */
+:is(.c-case, .c-case-cle).c-ton-sansobjet { background-color: transparent; box-shadow: inset 0 0 0 1px var(--c-trait-fort); }
+.c-case-cle { display: inline-block; flex: none; width: 12px; height: 12px; border-radius: 3px; }
+
+/* Une bande de cases : un jour, une nuit. Survolée ou prise au clavier, les autres cases s'effacent. */
+.c-bande { position: relative; border-radius: 6px; outline-offset: 4px; touch-action: pan-y; cursor: default; }
+.c-bande-cases { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 3px; height: 34px; }
+.c-bande-petite .c-bande-cases { height: 24px; gap: 2px; }
+.c-case { border-radius: 4px; transition: opacity .12s; }
+.c-bande-petite .c-case { border-radius: 3px; }
+.c-bande:hover .c-case:not(.c-vise), .c-bande:focus-visible .c-case:not(.c-vise) { opacity: .42; }
+
+/* La bulle : toujours sombre, dans les deux thèmes ; au-dessus d'une case, ou à côté du viseur d'une courbe. */
+.c-bulle {
+  position: absolute; bottom: calc(100% + 10px); z-index: 6; display: grid; gap: 5px; min-width: 176px; max-width: 290px; width: max-content;
+  padding: 10px 12px; border-radius: 12px; background: var(--c-nuit); color: var(--c-nuit-gris); border: 1px solid rgba(127, 224, 211, .2);
+  box-shadow: 0 12px 30px rgba(4, 12, 11, .28); font-size: 13px; line-height: 1.35; pointer-events: none;
+}
+.c-bulle-milieu { translate: -50% 0; }
+.c-bulle-debut { translate: -14px 0; }
+.c-bulle-fin { translate: calc(-100% + 14px) 0; }
+.c-bulle-droite, .c-bulle-gauche { top: 8px; bottom: auto; }
+.c-bulle-droite { translate: 14px 0; }
+.c-bulle-gauche { translate: calc(-100% - 14px) 0; }
+.c-bulle-titre { color: #fff; font-weight: 600; font-size: 13px; }
+.c-bulle-ligne { display: flex; align-items: center; gap: 8px; }
+.c-bulle-ligne > b { margin-inline-start: auto; padding-inline-start: 12px; color: #fff; font-weight: 500; }
+
+/* La clé d'une série : un trait comme celui de la courbe (plein, en tirets), jamais une seule couleur. */
+.c-cle { display: inline-block; flex: none; width: 18px; height: 0; border-top: 2.5px solid var(--c-serie-1); border-radius: 2px; }
+.c-cle-p50 { border-top: 2px dashed var(--c-serie-2); }
+.c-cle-seuil { border-top: 1.5px dashed var(--c-seuil); }
+.c-bulle :is(.c-cle-p95, .c-cle-trafic) { border-top-color: var(--c-menthe); }
+.c-bulle .c-cle-p50 { border-top-color: var(--c-nuit-gris); }
+
+/* Une courbe : le tracé étiré dans un SVG, les textes en HTML par-dessus. Les graduations vivent dans une marge à gauche
+   (--c-gouttiere) : un tracé ne passe jamais sur un chiffre ; l'axe du temps et des bâtons voisins s'alignent dessus. */
+.c-courbe { display: grid; gap: 8px; min-width: 0; --c-gouttiere: 0px; }
+.c-courbe-trace, .c-batons, .c-courbe-axe { margin-inline-start: var(--c-gouttiere); }
+.c-sv-graphe .c-courbe { --c-gouttiere: 56px; }
+/* Le cadre du focus reste en deçà des graduations (elles sont à 8 px du tracé) : il ne passe jamais sur un chiffre. */
+.c-courbe-trace { position: relative; margin-top: 16px; outline-offset: 3px; touch-action: pan-y; }
+.c-courbe-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.c-courbe-ligne { position: absolute; inset-inline: 0; height: 0; border-top: 1px solid var(--c-trait); }
+.c-courbe-ligne > span { position: absolute; inset-inline-end: 100%; bottom: 0; translate: 0 50%; padding-inline-end: 8px; font-size: 11.5px; line-height: 1; white-space: nowrap; color: var(--c-gris-2); }
+/* Les pas où trop peu de lectures ont été faites pour une courbe : un trait hachuré au pied, que la légende nomme. */
+.c-courbe-peu { position: absolute; bottom: 0; height: 6px; border-radius: 2px; pointer-events: none; opacity: .6; background-image: repeating-linear-gradient(135deg, var(--c-gris-2) 0 1.5px, transparent 1.5px 4.5px); }
+.c-cle-peu { display: inline-block; flex: none; width: 18px; height: 6px; border-radius: 2px; opacity: .6; background-image: repeating-linear-gradient(135deg, var(--c-gris-2) 0 1.5px, transparent 1.5px 4.5px); }
+.c-tracer { fill: none; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+.c-tracer-p95, .c-tracer-trafic { stroke: var(--c-serie-1); }
+.c-tracer-p50 { stroke: var(--c-serie-2); stroke-width: 1.6; stroke-dasharray: 5 4; }
+.c-aire { fill: color-mix(in srgb, var(--c-serie-1) 11%, transparent); }
+.c-seuil { position: absolute; inset-inline: 0; height: 0; border-top: 1.5px dashed var(--c-seuil); pointer-events: none; }
+.c-seuil > span { position: absolute; inset-inline-end: 0; bottom: 3px; padding-inline-start: 6px; font-size: 11.5px; font-weight: 600; line-height: 1; white-space: nowrap; color: var(--c-orange-texte); background: var(--c-papier); }
+.c-courbe-plage { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--c-etat-grave) 13%, transparent); border-inline: 1px solid color-mix(in srgb, var(--c-etat-grave) 45%, transparent); pointer-events: none; }
+.c-courbe-marque { position: absolute; top: 0; bottom: 0; width: 0; border-inline-start: 1px dashed var(--c-gris-2); pointer-events: none; }
+.c-courbe-marque > span {
+  position: absolute; bottom: 100%; translate: -50% -3px; padding: 1px 6px; border-radius: 6px; white-space: nowrap;
+  font-size: 11px; color: var(--c-gris); background: var(--c-gris-doux);
+}
+.c-marque-debut > span { translate: -4px -3px; }
+.c-marque-fin > span { translate: calc(-100% + 4px) -3px; }
+.c-courbe-viseur { position: absolute; top: 0; bottom: 0; width: 0; border-inline-start: 1px solid var(--c-trait-fort); pointer-events: none; }
+.c-courbe-point {
+  position: absolute; width: 10px; height: 10px; margin-inline-start: -5px; margin-bottom: -5px; border-radius: 50%;
+  background: var(--c-serie-1); box-shadow: 0 0 0 2px var(--c-papier); pointer-events: none;
+}
+.c-courbe-point-p50 { background: var(--c-serie-2); }
+/* Un pas mesuré seul entre deux trous : un point de la couleur de sa série, plus petit que celui que la souris pose. */
+.c-courbe-seul { position: absolute; width: 6px; height: 6px; margin-inline-start: -3px; margin-bottom: -3px; border-radius: 50%; background: var(--c-serie-1); pointer-events: none; }
+.c-courbe-seul-p50 { width: 5px; height: 5px; margin-inline-start: -2.5px; margin-bottom: -2.5px; background: var(--c-serie-2); }
+.c-courbe-axe { position: relative; height: 16px; }
+.c-courbe-axe > span { position: absolute; top: 0; translate: -50% 0; font-size: 11.5px; color: var(--c-gris-2); white-space: nowrap; }
+.c-courbe-axe > .c-axe-debut { translate: 0 0; }
+.c-courbe-axe > .c-axe-fin { translate: -100% 0; }
+.c-courbe-axe > .c-axe-tu { visibility: hidden; }
+
+/* Des bâtons : sous le seuil, discrets ; au-dessus, rouges ; à zéro, un trait ; sans requête, rien. Leurs classes sont les
+   leurs : « .c-colonne » est déjà la colonne d'une page (la fiche d'un client), et les deux règles se mêlaient. */
+.c-batons { position: relative; margin-top: 8px; outline-offset: 3px; touch-action: pan-y; }
+.c-batons-rangee { position: absolute; inset: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 3px; border-bottom: 1px solid var(--c-trait); }
+.c-baton { display: flex; align-items: flex-end; height: 100%; transition: opacity .12s; }
+.c-baton > span { width: 100%; border-radius: 3px 3px 0 0; background: var(--c-serie-2); }
+.c-baton-zero > span { height: 2px; border-radius: 1px; background: var(--c-trait-fort); }
+.c-baton-sans > span { height: 0; }
+.c-baton-haut > span { background: var(--c-etat-grave); }
+.c-batons:hover .c-baton:not(.c-vise), .c-batons:focus-visible .c-baton:not(.c-vise) { opacity: .45; }
+
+/* Un trait, la tendance d'une tuile (sur le sombre). */
+.c-trait { display: block; width: 100%; height: 34px; overflow: visible; }
+.c-trait-ligne { fill: none; stroke: var(--c-menthe); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.c-trait-aire { fill: rgba(127, 224, 211, .1); }
+.c-trait-seuil { stroke: #f5c58a; stroke-width: 1; stroke-dasharray: 3 3; opacity: .85; }
+
+/* ── Le service : en ce moment, trente jours, les requêtes, les briques, les nuits ──────────────────────────────── */
+.c-sv-etat {
+  display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 10px; border-radius: 999px;
+  font-size: 13.5px; font-weight: 600; background: var(--c-doux); color: var(--c-doux-texte);
+}
+.c-sv-etat-attention { background: var(--c-orange-doux); color: var(--c-orange-texte); }
+.c-sv-etat-grave { background: var(--c-rouge-doux); color: var(--c-rouge-texte); }
+.c-sv-etat-nonmesure { background: var(--c-gris-doux); color: var(--c-gris); }
+.c-sv-releve { color: var(--c-gris); font-size: 13.5px; }
+.c-sv-moment { display: flex; align-items: center; gap: 16px; padding: 18px 24px; }
+.c-sv-moment h2 { font-size: 19px; }
+.c-sv-moment-texte { display: grid; gap: 2px; min-width: 0; }
+.c-sv-moment .c-carte-sous { margin-top: 0; }
+.c-sv-pouls {
+  flex: none; width: 12px; height: 12px; margin-inline: 8px 4px; border-radius: 50%; background: var(--c-etat-bon);
+  animation: c-pouls 2.2s infinite;
+}
+@keyframes c-pouls {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-etat-bon) 55%, transparent); }
+  70% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--c-etat-bon) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-etat-bon) 0%, transparent); }
+}
+
+.c-sv-hero {
+  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 28px; padding: 26px 26px 24px; border-radius: 24px;
+  color: var(--c-nuit-texte); background-color: var(--c-nuit);
+  background-image: linear-gradient(var(--c-nuit-trait) 1px, transparent 1px); background-size: 100% 40px;
+  --c-etat-bon: #7fe0d3; --c-etat-attention: #f5c58a; --c-etat-grave: #ff8c80; --c-etat-non: rgba(255, 255, 255, .08); --c-hachure: rgba(255, 255, 255, .16);
+}
+.c-sv-hero .c-tuile-titre { margin: 0; font-family: var(--c-texte); }
+.c-sv-dispo { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.c-sv-dispo-chiffre { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 14px; }
+/* Les grands chiffres du service, en Bricolage comme la maquette : la police à chasse fixe écartait la virgule. */
+.c-sv-dispo-chiffre b { font-family: var(--c-titre); font-size: 54px; font-weight: 600; line-height: .95; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; color: #fff; }
+.c-sv-dispo-chiffre > span { font-size: 14px; color: var(--c-nuit-gris); }
+.c-sv-dispo-chiffre .c-sv-dispo-mot { font-family: var(--c-titre); font-size: 34px; font-weight: 600; line-height: 1.15; color: var(--c-nuit-gris); }
+.c-sv-dispo-phrase { display: grid; gap: 2px; font-size: 14.5px; color: var(--c-nuit-texte); }
+.c-sv-dispo-couverture { font-size: 13px; color: var(--c-nuit-gris); }
+.c-sv-axe { display: flex; justify-content: space-between; margin-top: -4px; font-size: 12px; color: var(--c-nuit-gris); }
+.c-sv-legende { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--c-nuit-gris); }
+.c-sv-legende li { display: inline-flex; align-items: center; gap: 7px; }
+.c-sv-legende b { font-weight: 500; color: #fff; }
+.c-sv-legende-claire { color: var(--c-gris); }
+.c-sv-legende-claire b { color: var(--c-encre); }
+.c-sv-exterieur {
+  display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; font-size: 13.5px;
+  color: var(--c-nuit-gris); background: rgba(255, 255, 255, .04); border: 1px dashed var(--c-nuit-trait);
+}
+.c-sv-exterieur .c-icone { margin-top: 2px; color: var(--c-menthe); }
+.c-sv-exterieur b { color: #fff; font-weight: 600; }
+.c-sv-tuiles-zone { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.c-sv-tuiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.c-sv-tuile { display: grid; gap: 8px; align-content: start; min-width: 0; padding: 16px; border-radius: 16px; background: var(--c-nuit-tuile); border: 1px solid var(--c-nuit-trait); }
+.c-sv-tuile-tete { display: flex; align-items: center; justify-content: space-between; gap: 6px 8px; flex-wrap: wrap; min-height: 26px; }
+.c-sv-tuile-valeur, .c-sv-tuile-mot { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.c-sv-tuile-valeur b { font-family: var(--c-titre); font-size: 29px; font-weight: 600; line-height: 1.05; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: #fff; }
+.c-sv-tuile-valeur b.c-mono { font-family: var(--c-chiffres); font-size: 26px; font-weight: 500; letter-spacing: 0; }
+.c-sv-tuile-valeur span { font-size: 13px; color: var(--c-nuit-gris); }
+.c-sv-tuile-mot b { font-family: var(--c-titre); font-size: 22px; font-weight: 600; line-height: 1.25; color: var(--c-nuit-gris); }
+.c-sv-hero .c-puce-actif { background: rgba(127, 224, 211, .14); color: var(--c-menthe); }
+.c-sv-hero .c-puce-en_retard { background: rgba(245, 197, 138, .15); color: #f5c58a; }
+.c-sv-hero .c-puce-urgent { background: rgba(255, 140, 128, .16); color: #ffa79e; }
+.c-sv-hero .c-puce-hors { background: rgba(255, 255, 255, .08); color: var(--c-nuit-gris); }
+
+.c-sv-requetes { display: grid; gap: 16px; }
+.c-sv-section-tete { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; }
+.c-sv-section-tete h2 { font-size: 22px; }
+.c-pilules.c-sv-periodes { padding: 0; flex-wrap: nowrap; }
+.c-sv-periodes .c-pilule { min-width: 58px; justify-content: center; }
+.c-sv-graphes { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 24px; align-items: start; transition: opacity .2s; }
+.c-sv-attente { opacity: .55; }
+.c-sv-graphe { display: grid; gap: 14px; }
+.c-sv-graphe-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; }
+/* Le titre prend la place qui reste et passe à la ligne chez lui : ce qui est à sa droite (le chiffre de l'heure, l'état)
+   ne descend jamais dessous selon la longueur d'une phrase — sinon la pastille change de place d'une période à l'autre. */
+.c-sv-graphe-tete > :first-child { flex: 1 1 0; min-width: 0; }
+.c-sv-graphe h3 { font-size: 18px; }
+.c-sv-graphe .c-carte-sous { margin-top: 2px; }
+/* La légende a toujours sa rangée, sous le titre : à côté de lui selon sa longueur, elle changerait de place (et le titre
+   de largeur) d'une période à l'autre. */
+.c-sv-cles { flex: 1 0 100%; list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--c-gris); }
+.c-sv-cles li { display: inline-flex; align-items: center; gap: 8px; }
+.c-sv-graphe-pied { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--c-trait); font-size: 14px; color: var(--c-gris); }
+.c-sv-graphe-pied .c-btn { margin-inline-end: -10px; }
+.c-sv-gros { display: grid; justify-items: end; text-align: end; }
+.c-sv-gros b { font-family: var(--c-titre); font-size: 24px; font-weight: 600; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.c-sv-gros span { font-size: 12.5px; color: var(--c-gris); }
+.c-sv-separe { height: 1px; margin-block: 6px; background: var(--c-trait); }
+.c-sv-note { font-size: 13px; color: var(--c-gris); }
+.c-sv-chiffres { max-height: 340px; overflow-y: auto; border: 1px solid var(--c-trait); border-radius: 14px; }
+.c-sv-chiffres .c-table th { position: sticky; top: 0; z-index: 1; background: var(--c-papier); }
+.c-sv-chiffres .c-table td { padding-block: 10px; white-space: nowrap; }
+.c-sv-rouge { color: var(--c-rouge-texte); font-weight: 600; }
+
+.c-sv-briques-liste { list-style: none; margin: 0; padding: 0; display: grid; }
+.c-sv-brique {
+  display: grid; grid-template-columns: 40px minmax(0, 1fr) minmax(260px, 1.9fr) 132px; gap: 12px 18px; align-items: center;
+  padding: 14px 0; border-top: 1px solid var(--c-trait);
+}
+.c-sv-brique:first-child { padding-top: 2px; border-top: 0; }
+:is(.c-sv-brique-icone, .c-sv-evt-icone) { display: grid; place-items: center; background: var(--c-gris-doux); color: var(--c-gris); }
+.c-sv-brique-icone { width: 40px; height: 40px; border-radius: 12px; }
+:is(.c-sv-brique-icone, .c-sv-evt-icone).c-ton-bon { background: var(--c-doux); color: var(--c-doux-texte); }
+:is(.c-sv-brique-icone, .c-sv-evt-icone).c-ton-attention { background: var(--c-orange-doux); color: var(--c-orange-texte); }
+:is(.c-sv-brique-icone, .c-sv-evt-icone).c-ton-grave { background: var(--c-rouge-doux); color: var(--c-rouge-texte); }
+.c-sv-brique-texte { display: grid; gap: 2px; min-width: 0; }
+.c-sv-brique-texte b { font-size: 15px; font-weight: 600; }
+.c-sv-brique-texte .c-sous { overflow-wrap: anywhere; }
+.c-sv-brique-etat { justify-self: end; }
+
+/* Le bas : ce qui vient de se passer (la plus longue), et à côté les nuits puis la machine, l'une sous l'autre — trois
+   colonnes de hauteurs si différentes laissaient un grand vide sous les nuits. */
+.c-sv-bas { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.c-sv-bas-pile { display: grid; gap: 24px; align-content: start; min-width: 0; }
+.c-sv-bas-carte { display: grid; gap: 12px; align-content: start; }
+.c-sv-bas-carte h2 { font-size: 19px; }
+.c-sv-bas-carte > .c-carte-sous { margin-top: -8px; }
+.c-sv-bas-carte .c-vide { padding: 8px 0; }
+.c-sv-bas-carte > .c-btn { justify-self: start; margin-inline-start: -10px; }
+.c-sv-nuits { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: center; margin-top: 4px; }
+.c-sv-nuits-nom { font-size: 12.5px; color: var(--c-gris); white-space: nowrap; }
+.c-sv-nuits-axe { display: flex; justify-content: space-between; margin-top: -2px; font-size: 12px; color: var(--c-gris-2); }
+.c-sv-nuits-resume { font-size: 14px; color: var(--c-gris); }
+.c-sv-evenements { list-style: none; margin: 0; padding: 0; display: grid; }
+.c-sv-evenements li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-top: 1px solid var(--c-trait); }
+.c-sv-evenements li:first-child { padding-top: 0; border-top: 0; }
+.c-sv-evt-icone { width: 30px; height: 30px; border-radius: 9px; }
+.c-sv-evt-texte { display: grid; gap: 2px; min-width: 0; }
+.c-sv-evt-quoi { font-size: 14px; overflow-wrap: anywhere; }
+.c-sv-evt-quoi b { font-weight: 600; }
+/* Une étape de la nuit qui a échoué : en rouge, et en gras — la couleur ne le dit jamais seule. */
+.c-sv-evt-echec { color: var(--c-rouge-texte); font-weight: 600; }
+.c-pilules.c-sv-filtres { padding: 0; gap: 6px; }
+.c-sv-filtres .c-pilule { min-height: 32px; padding: 0 12px; font-size: 13px; gap: 7px; }
+.c-sv-jauges { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.c-sv-jauges li { display: grid; gap: 6px; }
+.c-sv-jauge-tete { display: flex; justify-content: space-between; gap: 10px; font-size: 14.5px; font-weight: 600; }
+.c-sv-jauge-tete b { font-weight: 500; }
+.c-sv-jauge { position: relative; display: block; height: 8px; border-radius: 999px; background: var(--c-gris-doux); }
+.c-sv-jauge > span { position: absolute; inset-block: 0; inset-inline-start: 0; border-radius: 999px; background: var(--c-etat-bon); }
+.c-sv-jauge.c-ton-attention > span { background: var(--c-etat-attention); }
+.c-sv-jauge.c-ton-grave > span { background: var(--c-etat-grave); }
+.c-sv-jauge > i { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-inline-start: -1px; border-radius: 1px; background: var(--c-gris-2); }
+
+@media (max-width: 1100px) {
+  .c-sv-hero, .c-sv-graphes { grid-template-columns: minmax(0, 1fr); }
+  .c-sv-brique { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  .c-sv-brique > .c-bande { grid-column: 1 / -1; }
+}
+@media (max-width: 860px) {
+  .c-sv-moment { padding: 16px 18px; }
+  .c-sv-hero { gap: 20px; padding: 18px 14px 16px; border-radius: 20px; }
+  .c-sv-dispo-chiffre b { font-size: 42px; }
+  .c-sv-dispo-chiffre .c-sv-dispo-mot { font-size: 28px; }
+  .c-sv-tuiles { gap: 10px; }
+  .c-sv-tuile { padding: 12px; gap: 6px; border-radius: 14px; }
+  .c-sv-tuile-valeur b { font-size: 24px; }
+  .c-sv-tuile-mot b { font-size: 18px; }
+  .c-sv-section-tete h2 { font-size: 20px; }
+  .c-sv-periodes .c-pilule { min-height: 44px; }
+  .c-sv-bas { grid-template-columns: minmax(0, 1fr); }
+  .c-sv-graphe .c-courbe { --c-gouttiere: 46px; }
+  .c-sv-brique { grid-template-columns: 36px minmax(0, 1fr); gap: 10px 12px; }
+  .c-sv-brique-icone { width: 36px; height: 36px; border-radius: 10px; }
+  .c-sv-brique-etat { grid-column: 2; grid-row: 2; justify-self: start; }
+  .c-sv-brique > .c-bande { grid-row: 3; }
+  .c-sv-graphe-pied .c-btn { margin-inline-end: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

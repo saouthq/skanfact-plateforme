@@ -7805,7 +7805,7 @@ prouver "le serveur limité par autre chose que la limite par adresse" serveur/a
   "options.limiteurPublic ?? new Limiteur(LIMITES_PAR_ADRESSE)" "options.limiteurPublic ?? new Limiteur({ capacite: 1000, parSeconde: 1 })" \
   "$LA5"
 prouver "le programme serveur oublie le frontal déclaré" serveur/principal.ts \
-  ", { proxy: c.proxy });" ");" \
+  "{ proxy: c.proxy, collecte });" "{ collecte });" \
   "$LA5"
 prouver "la production démarre sans dire ses relais" serveur/principal.ts \
   "  if (environnement === 'production' && env.SKANFACT_PROXY === undefined) throw" "  if (false) throw" \
@@ -11274,6 +11274,245 @@ prouver "une lecture de l'abonnement trop ancienne reprise par la v10" web/publi
   "    if (!(a && Date.now() - a.le < 15_000 && await a.lu)) await lireAbonnement();" \
   "    if (!(a && await a.lu)) await lireAbonnement();" \
   "$OUV4"
+
+# Console 3 : les mesures du service (serveur/service), ce que la veille confie à la base (0085), ce que la console
+# en lit (serveur/console/service.ts) et la vue d'ensemble du service (web/console/src/ecrans/Service.tsx, graphes.tsx).
+prouver 'une durée égale à une borne rangée dans le seau suivant' 'serveur/service/mesures.ts' \
+  '    if ((SEAUX_MS[m] ?? Infinity) < ms) bas = m + 1; else haut = m;' \
+  '    if ((SEAUX_MS[m] ?? Infinity) <= ms) bas = m + 1; else haut = m;' \
+  'une durée tombe dans le premier seau dont la borne la contient ; une borne y entre'
+prouver 'un budget des listes qui n'"'"'est pas une borne de seau' 'serveur/service/mesures.ts' \
+  '  lecture: 300,' \
+  '  lecture: 310,' \
+  'chaque budget écrit est une borne de seau, et une sorte sans budget le dit'
+prouver 'le 95e centile pris une requête trop loin' 'serveur/service/mesures.ts' \
+  '  const rang = Math.max(1, Math.ceil(q * n));' \
+  '  const rang = Math.floor(q * n) + 1;' \
+  'le 95e centile est la borne du seau de la 95e requête sur cent ; sans requête, rien'
+prouver 'une durée égale au budget comptée au-dessus' 'serveur/service/mesures.ts' \
+  '  for (let k = 0; k <= i; k++) sous += h[k] ?? 0;' \
+  '  for (let k = 0; k < i; k++) sous += h[k] ?? 0;' \
+  '« sous le budget » se compte exactement, une durée égale au budget comprise'
+prouver 'deux minutes fusionnées par leur plus grand seau' 'serveur/service/mesures.ts' \
+  '  for (let i = 0; i < NB_SEAUX; i++) a[i] = (a[i] ?? 0) + (Number(b[i]) || 0);' \
+  '  for (let i = 0; i < NB_SEAUX; i++) a[i] = Math.max(a[i] ?? 0, Number(b[i]) || 0);' \
+  'deux minutes s'"'"'additionnent seau par seau'
+prouver 'un refus écrit compté comme une panne' 'serveur/service/mesures.ts' \
+  'export const estPanne = (statut: number) => statut >= 500;' \
+  'export const estPanne = (statut: number) => statut >= 400;' \
+  'une panne est un 5xx ; un refus écrit (4xx) n'"'"'en est pas une'
+prouver 'la console comptée avec les lectures' 'serveur/service/mesures.ts' \
+  '  if (chemin.startsWith('"'"'/console/'"'"')) return '"'"'console'"'"';
+' \
+  '' \
+  'la sorte suit la méthode, sauf les routes nommées ; la console est à part'
+prouver 'une route nommée pour sa sorte qui n'"'"'existe pas' 'serveur/service/mesures.ts' \
+  '  '"'"'GET /entreprises/:entreprise/compta/grand-livre'"'"': '"'"'comptes'"'"',' \
+  '  '"'"'GET /entreprises/:entreprise/compta/grand-livres'"'"': '"'"'comptes'"'"',' \
+  'chaque route nommée pour sa sorte existe parmi les routes du serveur'
+prouver 'une réponse rangée dans la minute d'"'"'à côté' 'serveur/service/collecte.ts' \
+  'export const debutMinute = (t: Date) => new Date(Math.floor(t.getTime() / 60_000) * 60_000).toISOString();' \
+  'export const debutMinute = (t: Date) => new Date(Math.round(t.getTime() / 60_000) * 60_000).toISOString();' \
+  'chaque réponse se range dans sa minute, son heure et son jour ; ce qui part se retire de la mémoire'
+prouver 'ce qui part gardé aussi en mémoire' 'serveur/service/collecte.ts' \
+  '    this.minutes = new Map(); this.heures = new Map(); this.jours = new Map();
+    return envoi;' \
+  '    return envoi;' \
+  'chaque réponse se range dans sa minute, son heure et son jour ; ce qui part se retire de la mémoire'
+prouver 'un envoi rendu qui remplace ce qui s'"'"'est noté depuis' 'serveur/service/collecte.ts' \
+  '  if (!c) { carte.set(k, { sorte: x.sorte, n: x.n, pannes: x.pannes, h: fusionner(histogrammeVide(), x.h) }); return; }' \
+  '  { carte.set(k, { sorte: x.sorte, n: x.n, pannes: x.pannes, h: fusionner(histogrammeVide(), x.h) }); return; }' \
+  'un envoi qui n'"'"'est pas parti revient, s'"'"'ajoute à ce qui s'"'"'est noté depuis, et ne garde que deux heures de minutes'
+prouver 'un envoi rendu qui garde toutes ses minutes' 'serveur/service/collecte.ts' \
+  '    for (const l of e.minutes) if (new Date(l.minute) >= limite) ajouterDans(this.minutes, cle(l.minute, l.sorte), l);' \
+  '    for (const l of e.minutes) ajouterDans(this.minutes, cle(l.minute, l.sorte), l);' \
+  'un envoi qui n'"'"'est pas parti revient, s'"'"'ajoute à ce qui s'"'"'est noté depuis, et ne garde que deux heures de minutes'
+prouver 'un envoi raté perdu' 'serveur/service/collecte.ts' \
+  '    collecte.rendre(envoi, maintenant);
+    return false;' \
+  '    return false;' \
+  'une base qui ne répond pas : l'"'"'envoi est gardé pour le tour suivant, jamais une exception'
+prouver 'le nom d'"'"'un exemplaire tel quel' 'serveur/service/collecte.ts' \
+  '  const nom = `${machine}:${port}`.replace(/[^A-Za-z0-9._:-]/g, '"'"'-'"'"').slice(0, 80);' \
+  '  const nom = `${machine}:${port}`;' \
+  'le nom d'"'"'un exemplaire : sa machine et son port, rien d'"'"'autre ; ce que la base refuse se remplace'
+prouver 'la période qui finit au début du pas en cours' 'serveur/console/service.ts' \
+  '  const fin = Math.floor(maintenant.getTime() / p.pas) * p.pas + p.pas;' \
+  '  const fin = Math.floor(maintenant.getTime() / p.pas) * p.pas;' \
+  'un point par pas, le dernier étant le pas en cours ; les bornes tombent sur le pas'
+prouver 'deux exemplaires d'"'"'une même minute dont le second écrase le premier' 'serveur/console/service.ts' \
+  '    if (deja) { deja.n += nombre(l[1]); deja.pannes += nombre(l[2]); fusionner(deja.h, h); } else parInstant.set(t, { n: nombre(l[1]), pannes: nombre(l[2]), h });' \
+  '    parInstant.set(t, { n: nombre(l[1]) + 0 * (deja?.n ?? 0), pannes: nombre(l[2]), h });' \
+  'un pas sans requête a son point, à zéro et sans temps de réponse ; deux exemplaires s'"'"'additionnent'
+prouver 'le pas en cours compté sur sa durée entière' 'serveur/console/service.ts' \
+  '    const duree = Math.max(1, Math.min(b.pas, maintenant.getTime() - t) / 60_000);' \
+  '    const duree = b.pas / 60_000;' \
+  'le pas en cours compte ses requêtes par minute sur ce qu'"'"'il a duré'
+prouver 'le trafic d'"'"'en ce moment compté avec la minute en cours' 'serveur/console/service.ts' \
+  '  const finies = points.filter((p) => Date.parse(p.debut) < enCours);' \
+  '  const finies = points.filter((p) => Date.parse(p.debut) <= enCours);' \
+  'le trafic d'"'"'en ce moment : les minutes FINIES de la dernière heure, jamais l'"'"'heure de l'"'"'horloge'
+prouver 'le plus lent pris parmi les plus rapides' 'serveur/console/service.ts' \
+  'lePlusLent: p95s.length ? Math.max(...p95s) : null' \
+  'lePlusLent: p95s.length ? Math.min(...p95s) : null' \
+  'le résumé : le plus lent, et les pas au-dessus du budget'
+prouver 'une série en un chiffre qui ne garde que son dernier pas' 'serveur/console/service.ts' \
+  '    n += nombre(l[1]); pannes += nombre(l[2]); fusionner(h, seaux(l[3]));' \
+  '    n += nombre(l[1]); pannes += nombre(l[2]); h.splice(0, h.length, ...seaux(l[3]));' \
+  'une série en un seul chiffre fusionne ses seaux : ce n'"'"'est jamais la moyenne des centiles de ses pas'
+prouver 'un centile tiré de trop peu de lectures' 'serveur/console/service.ts' \
+  '  const assez = lectures >= LECTURES_POUR_UN_CENTILE;' \
+  '  const assez = lectures > 0;' \
+  'sous vingt lectures, un pas n'"'"'a pas de centile : il dit combien il en a eu, et ne compte pas au-dessus du budget'
+prouver 'une minute non relevée comptée comme disponible' 'serveur/console/service.ts' \
+  '  return { mesurees, bas, taux: mesurees ? (mesurees - bas) / mesurees : null, coupures: v.coupures.length };' \
+  '  return { mesurees, bas, taux: (v.jours.length * 1440 - bas) / (v.jours.length * 1440), coupures: v.coupures.length };' \
+  'la disponibilité ne compte que les minutes relevées ; sans relevé, elle ne se dit pas'
+prouver 'un retour à une version qui avait déjà tourné dit mise en ligne' 'serveur/console/service.ts' \
+  'retour: triees.slice(0, k + 1).some((y) => y.version === x.version) }));' \
+  'retour: false }));' \
+  'une mise en ligne est une suite de relevés d'"'"'une version ; la plus ancienne tournait déjà, et un retour compte'
+prouver 'la version qui tournait déjà comptée comme une mise en ligne' 'serveur/console/service.ts' \
+  '  return triees.slice(1).map((x, k) =>' \
+  '  return triees.slice(0).map((x, k) =>' \
+  'une mise en ligne est une suite de relevés d'"'"'une version ; la plus ancienne tournait déjà, et un retour compte'
+prouver 'un jour sans relevé dit bon' 'serveur/console/service.ts' \
+  '    const etat: EtatJour = !j || j.mesurees === 0 ? '"'"'nonmesure'"'"' :' \
+  '    const etat: EtatJour = !j || j.mesurees === 0 ? '"'"'bon'"'"' :' \
+  'un jour sans relevé est non mesuré ; une coupure l'"'"'emporte ; une alerte grave le perturbe'
+prouver 'une alerte qui ne colore que son premier jour' 'serveur/console/service.ts' \
+  'jourDeTunis(a.fin ? new Date(a.fin) : maintenant) >= jour' \
+  'jourDeTunis(new Date(a.debut)) >= jour' \
+  'une alerte colore sa brique chaque jour où elle était ouverte, au jour de Tunis ; ouverte, elle fait son état'
+prouver 'le journal sans les mises en ligne' 'serveur/console/service.ts' \
+  '  for (const m of misesEnLigne(v)) e.push({ le: m.le, type: '"'"'version'"'"', version: m.version, retour: m.retour });
+' \
+  '' \
+  'ce qui vient de se passer : les alertes, chaque mise en ligne (un retour se dit), chaque nuit en une seule ligne'
+prouver 'une sauvegarde ratée dont la copie se dit arrivée' 'serveur/console/service.ts' \
+  '    const sansObjet = n.sauvegarde?.ok === false;' \
+  '    const sansObjet = false;' \
+  'ce qui vient de se passer : les alertes, chaque mise en ligne (un retour se dit), chaque nuit en une seule ligne'
+prouver 'une nuit datée de la vérification de sa copie' 'serveur/console/service.ts' \
+  '    const derniere = (datees.length ? datees : faites).at(-1);' \
+  '    const derniere = faites.at(-1);' \
+  'ce qui vient de se passer : les alertes, chaque mise en ligne (un retour se dit), chaque nuit en une seule ligne'
+prouver 'un problème de la veille sans brique' 'exploitation/veille.ts' \
+  '  { id: '"'"'certificat'"'"', cles: ['"'"'certificat'"'"'] },' \
+  '  { id: '"'"'certificat'"'"', cles: [] },' \
+  'chaque problème que la veille peut voir a sa brique'
+prouver 'un problème vu une seule fois confié à la base' 'exploitation/veille.ts' \
+  '    if (confirme(cle, e.vus)) problemes[cle] = { titre: e.titre, grave: e.grave, faire: e.faire, depuis: e.depuis };' \
+  '    problemes[cle] = { titre: e.titre, grave: e.grave, faire: e.faire, depuis: e.depuis };' \
+  'le relevé de la minute, et seulement les problèmes confirmés'
+prouver 'la copie hors machine dite arrivée quand une plus vieille attend' 'exploitation/veille.ts' \
+  'ok: !h.plusVieuxEnAttente || Date.parse(h.plusVieuxEnAttente) > Date.parse(s.le)' \
+  'ok: true' \
+  'chaque nuit à son jour de Tunis ; la sauvegarde est partie quand plus rien d'"'"'aussi vieux n'"'"'attend'
+prouver 'la mémoire comptée sans les caches que le système rend' 'exploitation/veille.ts' \
+  '  const total = kb('"'"'MemTotal'"'"'), dispo = kb('"'"'MemAvailable'"'"');' \
+  '  const total = kb('"'"'MemTotal'"'"'), dispo = kb('"'"'MemFree'"'"');' \
+  'la mémoire occupée se lit dans /proc/meminfo, caches rendus compris'
+prouver 'un problème de la veille montré avant d'"'"'être confirmé' 'serveur/console/decider.ts' \
+  '.filter(([cle, p]) => p && typeof p.titre === '"'"'string'"'"' && confirme(cle, typeof p.vus === '"'"'number'"'"' ? p.vus : Infinity))' \
+  '.filter(([cle, p]) => p && typeof p.titre === '"'"'string'"'"' && (cle === cle || confirme(cle, 0)))' \
+  'un problème de la veille qui n'"'"'est pas encore confirmé ne se montre pas (la page d'"'"'état et la base le taisent aussi)'
+prouver 'un envoi qui remplace la minute au lieu de s'"'"'y ajouter' 'base/migrations/0085_service.sql' \
+  '  on conflict (minute, exemplaire, sorte) do update
+    set n = s.n + excluded.n, pannes = s.pannes + excluded.pannes, seaux = plateforme.ajouter_seaux(s.seaux, excluded.seaux);' \
+  '  on conflict (minute, exemplaire, sorte) do update
+    set n = excluded.n, pannes = excluded.pannes, seaux = excluded.seaux;' \
+  'chaque envoi du serveur s'"'"'additionne à ce que la base a déjà : deux exemplaires, deux envois, une seule minute'
+prouver 'une valeur dans un chemin gardée par la base' 'base/migrations/0085_service.sql' \
+  ' and route !~ '"'"'/[0-9][^/]*(/|$)'"'"'' \
+  '' \
+  'une route se garde par son modèle : une valeur dans un chemin, la base la refuse'
+prouver 'une alerte que la veille ne voit plus laissée ouverte' 'base/migrations/0085_service.sql' \
+  '    update plateforme.service_alerte a set fin = v_maintenant
+     where a.fin is null and not (coalesce(p_problemes, '"'"'{}'"'"'::jsonb) ? a.cle);' \
+  '    perform 1;' \
+  'la veille : son relevé ; les alertes rapprochées de ce qu'"'"'elle voit, ouvertes, devenues graves, réglées ; la dernière nouvelle d'"'"'une nuit l'"'"'emporte'
+prouver 'une alerte dont la gravité ne suit pas la veille' 'base/migrations/0085_service.sql' \
+  '    update plateforme.service_alerte a set titre = p.value->>'"'"'titre'"'"', grave = (p.value->>'"'"'grave'"'"')::boolean,' \
+  '    update plateforme.service_alerte a set titre = p.value->>'"'"'titre'"'"', grave = a.grave,' \
+  'la veille : son relevé ; les alertes rapprochées de ce qu'"'"'elle voit, ouvertes, devenues graves, réglées ; la dernière nouvelle d'"'"'une nuit l'"'"'emporte'
+prouver 'la première nouvelle d'"'"'une nuit qui l'"'"'emporte' 'base/migrations/0085_service.sql' \
+  '  on conflict (jour) do update set sauvegarde = coalesce(excluded.sauvegarde, s.sauvegarde),' \
+  '  on conflict (jour) do update set sauvegarde = coalesce(s.sauvegarde, excluded.sauvegarde),' \
+  'la veille : son relevé ; les alertes rapprochées de ce qu'"'"'elle voit, ouvertes, devenues graves, réglées ; la dernière nouvelle d'"'"'une nuit l'"'"'emporte'
+prouver 'un relevé ancien qui règle les alertes' 'base/migrations/0085_service.sql' \
+  '  if v_derniere is null or v_maintenant >= v_derniere then' \
+  '  if true then' \
+  'une nouvelle plus ancienne que la dernière garde son relevé sans rien régler ; une version qui revient est une seconde mise en ligne'
+prouver 'ce que la veille a vu lisible hors de la console' 'base/migrations/0085_service.sql' \
+  'declare v_depuis_heure timestamptz := greatest(p_depuis, (select max(minute) from plateforme.service_releve) - interval '"'"'59 minutes'"'"');
+begin
+  perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'technique'"'"']);' \
+  'declare v_depuis_heure timestamptz := greatest(p_depuis, (select max(minute) from plateforme.service_releve) - interval '"'"'59 minutes'"'"');
+begin' \
+  'seules la direction et la technique lisent le service ; la base le refuse hors de la console ; le compte du serveur n'"'"'en lit aucune table'
+prouver 'les mesures lisibles par le compte du serveur' 'base/migrations/0085_service.sql' \
+  '  plateforme.console_service_serie(timestamptz, interval, text, text), plateforme.console_service_veille(timestamptz) to skanfact_app;' \
+  '  plateforme.console_service_serie(timestamptz, interval, text, text), plateforme.console_service_veille(timestamptz) to skanfact_app;
+grant select on plateforme.service_minute to skanfact_app;' \
+  'seules la direction et la technique lisent le service ; la base le refuse hors de la console ; le compte du serveur n'"'"'en lit aucune table'
+prouver 'une réponse notée par l'"'"'adresse appelée' 'serveur/app.ts' \
+  '      const modele = requete.routeOptions.url;' \
+  '      const modele = requete.url;' \
+  'chaque réponse de l'"'"'API se note par le modèle de sa route, jamais par l'"'"'adresse appelée ; un refus n'"'"'est pas une panne'
+prouver 'la documentation comptée comme du trafic' 'serveur/app.ts' \
+  '      if (chemin === '"'"'/documentation'"'"') return;
+' \
+  '' \
+  'chaque réponse de l'"'"'API se note par le modèle de sa route, jamais par l'"'"'adresse appelée ; un refus n'"'"'est pas une panne'
+prouver 'un nom de valeur qui porte un chiffre dans un texte de la console' 'web/console/src/textes.ts' \
+  '95 % des lectures en moins de {centile}' \
+  '95 % des lectures en moins de {p95}' \
+  'une valeur se nomme en lettres : un nom qui porte un chiffre ne se remplit jamais'
+prouver 'les textes de la console oubliés par le contrôle des valeurs' 'web/console/src/textes.ts' \
+  '
+declarerTextes({' \
+  '
+declarerTextes ({' \
+  'chaque fichier qui déclare des textes est lu, ceux des écrans compris'
+prouver 'des repères d'"'"'axe jamais éclaircis' 'web/console/src/graphes.tsx' \
+  '    const mesurer = () => eclaircir(Array.from(el.children) as HTMLElement[]);' \
+  '    const mesurer = () => undefined;' \
+  'sous chaque graphique, sur chaque période, à l'"'"'ordinateur et au téléphone : jamais un texte sur un autre, et des repères réguliers'
+prouver 'des repères éclaircis au plus pressé, irréguliers' 'web/console/src/graphes.tsx' \
+  '  let gardes: number[] = [];
+  for (let k = 1; k <= n; k++) {
+    gardes = [];
+    for (let j = n - 1; j >= 0; j -= k) gardes.unshift(j);
+    if (gardes.every((j, m) => m === 0 || bord[j] || bord[gardes[m - 1] ?? j] || !touche(gardes[m - 1] ?? j, j))) break;
+  }' \
+  '  const gardes: number[] = [n - 1];
+  for (let j = n - 2; j >= 0; j--) if (!touche(j, gardes[0] ?? j)) gardes.unshift(j);' \
+  'sous chaque graphique, sur chaque période, à l'"'"'ordinateur et au téléphone : jamais un texte sur un autre, et des repères réguliers'
+prouver 'un pas mesuré seul dessiné en trait' 'web/console/src/graphes.tsx' \
+  '  v.flatMap((val, i) => (val !== null && (v[i - 1] ?? null) === null && (v[i + 1] ?? null) === null ? [i] : []));' \
+  '  v.flatMap((): number[] => []);' \
+  'un pas mesuré seul est un point ; une mise en ligne et son retour dans un même pas se lisent dans l'"'"'ordre du temps'
+prouver 'les mises en ligne d'"'"'un pas dites de la plus récente à la plus ancienne' 'web/console/src/ecrans/Service.tsx' \
+  '  for (const m of [...d.misesEnLigne].sort((a, b) => Date.parse(a.le) - Date.parse(b.le))) {' \
+  '  for (const m of [...d.misesEnLigne].sort((a, b) => Date.parse(b.le) - Date.parse(a.le))) {' \
+  'un pas mesuré seul est un point ; une mise en ligne et son retour dans un même pas se lisent dans l'"'"'ordre du temps'
+prouver 'un retour dit comme une mise en ligne' 'web/console/src/ecrans/Service.tsx' \
+  'dire(`${K}.bulle.${v.retour ? '"'"'retour'"'"' : '"'"'mise_en_ligne'"'"'}`)' \
+  'dire(`${K}.bulle.mise_en_ligne`)' \
+  'un pas mesuré seul est un point ; une mise en ligne et son retour dans un même pas se lisent dans l'"'"'ordre du temps'
+prouver 'la pastille des pannes qui passe sous le titre' 'web/console/src/console.css' \
+  '.c-sv-graphe-tete > :first-child { flex: 1 1 0; min-width: 0; }' \
+  '' \
+  'la pastille des pannes reste sur la ligne de son titre, quelle que soit la période, jusqu'"'"'à la colonne la plus étroite'
+prouver 'un filtre du journal qui compte autre chose que ce qu'"'"'il montre' 'web/console/src/ecrans/Service.tsx' \
+  '{entier(f === '"'"'tout'"'"' ? d.journal.length : d.journal.filter((e) => e.type === f).length)}' \
+  '{entier(d.journal.length)}' \
+  'ce qui vient de se passer : chaque filtre compte ce qu'"'"'il montre ; une sauvegarde en échec n'"'"'a rien envoyé'
+prouver 'une sauvegarde ratée dont la copie se dit arrivée, à l'"'"'écran' 'serveur/console/service.ts' \
+  '    const sansObjet = n.sauvegarde?.ok === false;' \
+  '    const sansObjet = false;' \
+  'ce qui vient de se passer : chaque filtre compte ce qu'"'"'il montre ; une sauvegarde en échec n'"'"'a rien envoyé'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

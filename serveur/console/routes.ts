@@ -17,6 +17,10 @@ import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './con
 import { aDecider, CATEGORIES, categorie, chercher, inscriteCetteSemaine, lireEntreprises, lireVeille, rangerParUrgence, tableau, type Veille } from './decider.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
 import { annuel, AVENIR_JOURS, cartes, lignesEcheances, lireExtras, lirePrix, vue, VUES, type Vue } from './echeances.ts';
+import {
+  BUDGET_DU_GRAPHIQUE, bornes, briques, disponibilite, enLigne, ensemble, estPeriode, journal, joursDuService, lireVeilleDeLaBase,
+  misesEnLigne, PERIODES, resume, serie, SEUILS_DU_SERVICE, SORTE_DU_GRAPHIQUE, traficRecent, trenteJours, TUILES, type Periode,
+} from './service.ts';
 import type { RoleConsole } from './gestes.ts';
 import './textes.ts';
 
@@ -321,10 +325,39 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     },
   });
 
-  // ── Le service (10 § 2.8, première partie) : ce que la veille du serveur dit, chaque minute ──────────────────────────
+  // ── Le service (10 § 2.8 ; Console 3, docs/console.md C12) ─────────────────────────────────────────────────────────
+  // Ce que la veille dit à l'instant (son fichier), et ce que la base a gardé : les requêtes du serveur sur la période
+  // choisie et les dernières 24 heures, les relevés, les alertes et les nuits des trente derniers jours.
   ajouter({
     methode: 'GET', chemin: '/console/service', geste: 'console.service.voir',
-    traiter: async () => ({ corps: { veille: await lireLaVeille(fichierVeille, maintenant()) } }),
+    traiter: async ({ query }, tx) => {
+      const t = maintenant();
+      const jour = aujourdhuiATunis(t);
+      const periode: Periode = estPeriode(query.periode) ? query.periode : '24h';
+      // Une série, sur tous ses pas, et la même série en un seul chiffre (ses seaux fusionnés).
+      const lireSerie = async (p: { duree: number; pas: number; grain: 'minute' | 'heure' }) => {
+        const b = bornes(p, t);
+        const brut = await lireJson(transaction(tx), 'select plateforme.console_service_serie($1, $2::interval, $3, $4) v',
+          [b.depuis.toISOString(), `${b.pas / 1000} seconds`, b.grain, SORTE_DU_GRAPHIQUE]);
+        return { depuis: b.depuis.toISOString(), points: serie(brut, p, t), total: ensemble(brut) };
+      };
+      const grand = await lireSerie(PERIODES[periode]);
+      const dernierJour = await lireSerie(TUILES);
+      // Le trafic d'en ce moment se lit sur la dernière heure, minute par minute, quelle que soit la période choisie.
+      const derniereHeure = periode === '1h' ? grand : await lireSerie(PERIODES['1h']);
+      const v = lireVeilleDeLaBase(await lireJson(transaction(tx), 'select plateforme.console_service_veille($1) v', [`${trenteJours(jour)[0]}T00:00:00+01:00`]));
+      const veille = await lireLaVeille(fichierVeille, t);
+      return {
+        corps: {
+          maintenant: t.toISOString(), aujourdhui: jour, periode, budget: BUDGET_DU_GRAPHIQUE, seuils: SEUILS_DU_SERVICE, veille,
+          depuis: grand.depuis, pas: PERIODES[periode].pas, points: grand.points, resume: resume(grand.points), total: grand.total,
+          tuiles: dernierJour.points, total24h: dernierJour.total, trafic: traficRecent(derniereHeure.points, t),
+          disponibilite: disponibilite(v), jours: joursDuService(v, jour, t), coupures: v.coupures.slice(0, 10),
+          briques: briques(v, jour, t, veille.etat === 'ok'), nuits: v.nuits.slice(0, 14), exercice: v.exercice,
+          journal: journal(v), machine: v.machine, dernier: v.dernier, misesEnLigne: misesEnLigne(v), enLigne: enLigne(v),
+        },
+      };
+    },
   });
 
   return routes;

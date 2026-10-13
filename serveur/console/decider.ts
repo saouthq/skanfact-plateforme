@@ -4,6 +4,7 @@
 //   - C2 : rien n'est vert sans mesure. Ce que la console ne mesure pas encore se dit « non mesuré », avec la raison ;
 //   - une console où rien ne se passe affiche une liste vide, et le dit : elle n'invente pas de travail.
 
+import { confirme } from '../../exploitation/veille.ts';
 import { etatAbonnement, joursEntre, lireFaits, plusJours, type Etat, type Faits } from '../abonnement/etat.ts';
 import type { RoleConsole } from './gestes.ts';
 
@@ -84,8 +85,11 @@ export function lireVeille(contenu: string | null, modifieLe: Date | null, maint
   if (maintenant.getTime() - modifieLe.getTime() > VEILLE_SILENCIEUSE_MIN * 60_000) return { etat: 'silencieuse', derniere };
   let lu: unknown;
   try { lu = JSON.parse(contenu); } catch { return { etat: 'silencieuse', derniere }; }
+  // Seuls les problèmes CONFIRMÉS (exploitation/veille.ts, `confirme`) : un service qui revient avant la seconde minute
+  // n'est pas une alerte — ni à la page d'état, ni dans l'histoire que garde la base, ni ici. Un fichier qui ne compte
+  // pas les relevés (`vus` absent) dit ses problèmes tels quels.
   const problemes = Object.entries(((lu as { problemes?: unknown })?.problemes ?? {}) as Record<string, Record<string, unknown>>)
-    .filter(([, p]) => p && typeof p.titre === 'string')
+    .filter(([cle, p]) => p && typeof p.titre === 'string' && confirme(cle, typeof p.vus === 'number' ? p.vus : Infinity))
     .map(([cle, p]) => ({ cle, titre: String(p.titre), grave: p.grave === true, faire: String(p.faire ?? ''), depuis: String(p.depuis ?? '') }))
     .sort((a, b) => Number(b.grave) - Number(a.grave) || a.depuis.localeCompare(b.depuis));
   return { etat: 'ok', derniere, problemes };

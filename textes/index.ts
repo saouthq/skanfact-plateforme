@@ -5,6 +5,6 @@ import './socle.ts';
 
 export { reconnaitre, MESSAGES_DE_LA_BASE } from './base.ts';
 export {
-  clesDuCatalogue, declarerTextes, factice, langueDe, motif, rendre, rendreTout, t, Texte, texteConnu, texteFrancais,
+  clesDuCatalogue, declarerTextes, factice, langueDe, majuscule, motif, rendre, rendreTout, t, Texte, texteConnu, texteFrancais,
   type Langue, type Valeur, type Valeurs,
 } from './textes.ts';

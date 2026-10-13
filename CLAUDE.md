@@ -488,6 +488,20 @@
     sous le curseur) ; la liste et la fiche comptent les mêmes dossiers par la même règle (`placeDe`) ; la fiche d'une
     entreprise nomme son cabinet et y mène. Une adresse qui ne mène à rien le dit et mène à la liste : une 404 n'a pas de
     « Réessayer ». `maj()` met la majuscule à la première LETTRE, jamais après un chiffre (« 2 personnes »).
+  - **Le service mesuré** (Console 3, première partie, 13/10/2026 ; `docs/console.md` C12, `0085`, `serveur/service/`,
+    `serveur/console/service.ts`, purs) : le serveur se mesure à chaque réponse (requêtes, pannes, durée rangée dans
+    un des 47 seaux dont chaque budget est une borne), par MODÈLE de route — jamais une donnée de client, la base refuse
+    un chemin qui porte un nombre ; la base ADDITIONNE ce que chaque minute envoie (une base qui ne répond pas : on
+    garde deux heures, on renvoie) ; la veille y confie ses relevés, ses alertes CONFIRMÉES et ses nuits. **Un centile se
+    lit sur vingt lectures au moins**, sinon le pas dit « trop peu » ; **un pas mesuré seul est un point** ; la
+    disponibilité ne compte que les minutes relevées ; **le trafic d'en ce moment glisse sur les minutes finies** (l'heure
+    de l'horloge disait 0 à 9 h 01) ; une mise en ligne et un **retour** se disent dans l'ordre du temps ; une nuit est
+    UNE ligne, et la copie d'une sauvegarde en échec est « sans objet ». **Les repères d'un axe se mesurent dans la
+    page** (un sur k depuis le plus récent, huit points au moins entre deux) : éclaircir au plus pressé les rendait
+    irréguliers. **Une mise en page se mesure là où la place manque** : la pastille des pannes se teste aussi à 1101
+    points, la plus étroite des deux colonnes — à 1440 la place suffisait même sans la règle, et sa preuve restait
+    verte. Un texte du catalogue ne nomme ses valeurs qu'en lettres (`{p95}` ne se remplit jamais : un test lit tous
+    les catalogues) ; un titre qui commence par un nombre ne prend pas de majuscule (`majuscule`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

@@ -70,9 +70,15 @@ export function rendre(x: Texte, langue: Langue): string {
 
 // Majuscule à la première lettre, point final s'il n'y a pas déjà une ponctuation.
 function enPhrase(texte: string): string {
-  const i = texte.search(/\p{L}/u);
-  const debut = i < 0 ? texte : texte.slice(0, i) + texte.charAt(i).toUpperCase() + texte.slice(i + 1);
+  const debut = majuscule(texte);
   return /[.!?…]$/.test(debut) ? debut : `${debut}.`;
+}
+
+// La majuscule du début : sur la première lettre, sauf si un chiffre la précède — une phrase qui commence par un nombre
+// n'en prend pas (« 13 sauvegardes faites », « 95 % des requêtes » ; jamais « 13 Sauvegardes »).
+export function majuscule(texte: string): string {
+  const i = texte.search(/[\p{L}\p{N}]/u);
+  return i < 0 || !/\p{L}/u.test(texte.charAt(i)) ? texte : texte.slice(0, i) + texte.charAt(i).toUpperCase() + texte.slice(i + 1);
 }
 
 // La langue factice : chaque lettre accentuée, et 40 % de longueur en plus (l'anglais et les noms

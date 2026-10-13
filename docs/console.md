@@ -154,6 +154,60 @@ liste (C3). Les cabinets étaient une sorte d'organisation dans la liste des cli
 ligne de cabinet ne dit pas la même chose qu'une ligne d'entreprise (des dossiers, une équipe). La fiche d'un cabinet ne
 montre ni son prix, ni son parrainage, ni ses demandes de support, ni son journal : rien de tout cela n'existe encore.
 
+## Troisième partie : le service (Console 3, 13/10/2026)
+
+Le code : les mesures du serveur `serveur/service/mesures.ts` (pur) et `serveur/service/collecte.ts` (la collecte,
+branchée dans `serveur/app.ts` et `serveur/principal.ts`) ; la base `base/migrations/0085_service.sql` (`service_minute`,
+`service_heure`, `service_route`, `service_releve`, `service_alerte`, `service_nuit`, écrites par `noter_requetes` et
+`noter_veille`, lues par `console_service_serie` et `console_service_veille`) ; la veille qui y confie ce qu'elle
+relève (`exploitation/veille.ts`, `pourLaConsole` ; `exploitation/veiller.ts`) ; la lecture de la console
+`serveur/console/service.ts` (pure) et sa route `GET /console/service` ; l'écran `web/console/src/ecrans/Service.tsx`
+et ses graphiques `web/console/src/graphes.tsx`. Les tests : `tests/service/mesures.test.ts` et `collecte.test.ts`
+(purs), `tests/console/service.test.ts` (pur), les nouveaux cas de `tests/console/console.test.ts` (contre la base) et
+`tests/web/console-service.test.ts` (à la souris, sur des mesures envoyées par une vraie collecte).
+
+**C12. Le service** (10 § 2.8 ; 06 § 4 et § 7 ; VISION-ARCHITECTURE.md § 6 pour les budgets).
+- **Le serveur se mesure lui-même, à chaque réponse** : combien de requêtes, combien de pannes (un 5xx ; un refus écrit
+  n'en est pas une), et la durée de chacune, rangée dans un des 47 seaux (`SEAUX_MS`, un pas de 25 % au plus). Chaque
+  budget écrit (200 ms, 300 ms, 1 s) est une borne de seau : « 95 % sous le budget » se lit exactement, et une durée se
+  dit par la borne de son seau, jamais par un chiffre qu'on n'a pas mesuré. Deux histogrammes s'additionnent, jamais deux
+  moyennes. **Jamais une donnée de client** : une route se dit par son MODÈLE de chemin
+  (`GET /entreprises/:entreprise/ventes/factures`), et la base refuse un chemin qui porte un nombre ou un identifiant.
+- **Une sorte par route, et son budget** : lecture (300 ms), caisse (200 ms), comptes (1 s), dossier, écriture et
+  console (aucun budget écrit : on n'en invente pas un pour colorer un chiffre). Les routes dont la sorte n'est pas celle
+  de leur méthode sont écrites une fois (`SORTE_PAR_ROUTE`), et un test exige que chacune existe.
+- **Rien ne se perd entre deux envois, rien ne se compte deux fois** : chaque minute, ce qui s'est ajouté part dans la
+  base, qui l'ADDITIONNE ; une base qui ne répond pas, on garde et on renvoie (deux heures de minutes au plus) ; le
+  dernier envoi part à l'arrêt. Une minute perdue se dit « non mesurée », jamais zéro.
+- **La veille confie à la base ce qu'elle relève** (chaque minute) : le service répond-il, la charge, la mémoire, les
+  disques, les alertes CONFIRMÉES (un service qui revient avant la seconde minute n'est pas une alerte, ni à la page
+  d'état, ni dans l'histoire, ni à l'accueil de la console), et les nuits (la sauvegarde, la copie hors de la machine,
+  la copie de base, l'exercice de restauration). Une base qui ne répond pas n'arrête rien : la veille d'abord.
+- **Rien n'est vert sans mesure** (C2) : sans veille, « non mesuré » avec sa raison ; une veille muette depuis cinq
+  minutes, « la veille ne répond plus » ; une période sans lecture n'a pas de temps de réponse, et le dit.
+- **La disponibilité ne compte que les minutes relevées**, et dit sur combien elle porte ; un jour sans relevé est
+  « non mesuré », jamais « bon ». Elle est vue du serveur lui-même, et l'écran le dit : vu de l'extérieur, non mesuré.
+- **Un centile se lit sur au moins vingt lectures** (`LECTURES_POUR_UN_CENTILE`) : sous ce compte, le pas est une bande
+  hachurée « trop peu », jamais un pic. Un pas mesuré seul entre deux pas sans mesure est un **point**, sinon il
+  disparaîtrait.
+- **Le trafic d'en ce moment glisse sur les minutes FINIES de la dernière heure** (`traficRecent`) : l'heure de
+  l'horloge disait 0,0 requête par minute à 9 h 01.
+- **Une mise en ligne se repère sur les graphiques, dans l'ordre du temps**, et un **retour** à une version déjà vue se
+  dit « retour à », jamais « mise en ligne ».
+- **Ce qui vient de se passer** : les alertes ouvertes et réglées, chaque mise en ligne, et chaque nuit en UNE ligne
+  (ses étapes dans l'ordre du temps, datée de la dernière). Une sauvegarde en échec n'a rien envoyé hors de la machine :
+  sa copie est « sans objet », jamais « arrivée ». Quatre filtres, et chacun compte ce qu'il montre.
+- **Les repères d'un axe se mesurent dans la page** (`eclaircir`) : un sur k, depuis le plus récent, jamais deux à
+  moins de huit points ; ils restent réguliers, à l'ordinateur comme au téléphone.
+- **Une pastille d'état reste sur la ligne de son titre** : c'est le titre qui se replie, jusqu'à la plus étroite des
+  deux colonnes (1101 points), où le test la mesure.
+- **L'écran ne refait aucun calcul du serveur** : centiles, parts, état des jours et des briques arrivent faits ; il les
+  écrit, les range en graphiques, et les rend lisibles à la souris ET au clavier (chaque graphique se prend au clavier,
+  et les chiffres de la période se lisent aussi en tableau). Il se relit chaque minute tant que quelqu'un le regarde,
+  jamais pour une page oubliée.
+- **Ce que la veille écrit (un titre, ce qu'il faut faire, un disque, une version) est une donnée** : ses mots s'affichent
+  tels quels, avec la typographie de l'écran.
+
 ## Mettre en route
 
 La personne crée d'abord son compte SkanFact, puis met en place le code de son téléphone (« Ton compte »,
@@ -194,15 +248,17 @@ fait depuis l'écran « Équipe ». La console s'ouvre à `https://<le serveur>/
 
 ## Ce que le lot ne fait pas
 
-La suite de la console : les paiements et nos factures (14b), le support, le service complet (sauvegardes, file de
-travaux, incidents, page d'état, exercice de restauration), la mesure, les réglages de la plateforme, l'application de
-bureau (les licences de la v10), l'accès accordé par un client (48 heures, en lecture), et le filtre du journal par
-geste et par période.
+La suite de la console : les paiements et nos factures (14b), le support, la suite du service (ses alertes, ses
+sauvegardes, sa file de travaux, ses incidents et la page d'état, ses performances, sa sécurité, ses versions), la
+mesure, les réglages de la plateforme, l'application de bureau (les licences de la v10), l'accès accordé par un client
+(48 heures, en lecture), et le filtre du journal par geste et par période. Le service ne se voit encore que du serveur
+lui-même : aucune vérification de l'extérieur (06 § 7, depuis deux villes) ; l'écran le dit.
 
 ## À VÉRIFIER
 
 - Sur chaque serveur, la console lit `veille.json` : sinon son Service dit « non mesuré » (c'est la règle, pas une
-  panne), et la veille se vérifie à part.
+  panne), et la veille se vérifie à part. La veille confie aussi ses relevés à la base (`SKANFACT_BASE`, lue dans
+  `/etc/skanfact/serveur.env`) : sans elle, la disponibilité, les briques et les nuits restent « non mesurées ».
 - La TVA et le timbre fiscal de nos factures (14b, avec le comptable) : les montants des échéances restent hors taxes
   d'ici là.
 
@@ -224,3 +280,14 @@ Pièces » (une majuscule derrière un nombre, sur la liste des clients aussi) ;
 de 22 points ; la marge des cartes de liste comptée deux fois (36 points perdus de chaque côté, la liste des clients et
 « À décider » compris) ; les mois du graphique d'une fiche qui se chevauchaient (un mois sur deux, le mois en cours
 toujours nommé) ; un montant pris pour un texte du catalogue ; « Réessayer » sur une adresse qui ne mène à rien.
+
+La troisième partie, sur `scripts/humain/exemple-service.ts` (un mois de mesures passées par la vraie collecte et la
+vraie veille : une mise en ligne qui ralentit tout puis une coupure de 37 minutes, le retour à la version d'avant, une
+sauvegarde ratée, une copie hors de la machine en retard, un disque qui se remplit ; `--calme` : les deux dernières
+réglées), en direction ; sur chaque période ; en clair et en sombre ; à 1440 et à 390 ; à la souris et au
+clavier. Corrigé pendant le parcours : les repères d'un axe éclaircis au plus pressé (« mer. 7 jeu. 8 ven. 9 », puis un
+trou) ; la pastille des pannes qui sautait d'une période à l'autre, et la légende qui remontait à côté du titre sur
+trente jours ; « cette heure-ci » à 0,0 au début de chaque heure ; les mises en ligne d'un même pas dites à l'envers, et
+un retour dit comme une mise en ligne ; une sauvegarde ratée dont la copie se disait « arrivée hors de la machine » ;
+une nuit datée de l'heure où sa copie a été vérifiée ; un pas mesuré seul qui ne se dessinait pas ; le cadre du clavier
+posé sur les graduations ; « {p95} » écrit tel quel (une valeur nommée avec un chiffre ne se remplit jamais).

@@ -64,6 +64,19 @@ describe('« À décider »', () => {
     expect(aDecider(liste, ok, JOUR, 'direction').map((l) => (l.sorte === 'service' ? l.cle : l.sorte))).toEqual(['sauvegarde', 'en_retard', 'disque']);
   });
 
+  it('un problème de la veille qui n\'est pas encore confirmé ne se montre pas (la page d\'état et la base le taisent aussi)', () => {
+    const fichier = (vus: number | undefined) => JSON.stringify({ problemes: {
+      service: { titre: 'SkanFact ne répond plus', grave: true, faire: '', depuis: '2026-10-13T07:59:00Z', ...(vus === undefined ? {} : { vus, ditLe: null }) },
+      disque: { titre: 'Le disque est plein à 80 %', grave: false, faire: '', depuis: '2026-10-13T07:00:00Z', vus: 1, ditLe: '2026-10-13T07:00:00Z' },
+    } });
+    const cles = (contenu: string) => { const v = lireVeille(contenu, MAINTENANT, MAINTENANT); return v.etat === 'ok' ? v.problemes.map((p) => p.cle) : null; };
+    // Une seule minute sans réponse : un redémarrage, pas une panne (exploitation/veille.ts, CONFIRMATIONS).
+    expect(cles(fichier(1))).toEqual(['disque']);
+    expect(cles(fichier(2))).toEqual(['service', 'disque']);
+    // Un fichier qui ne compte pas les relevés dit ses problèmes tels quels.
+    expect(cles(fichier(undefined))).toEqual(['service', 'disque']);
+  });
+
   it('la technique ne lit que le service ; le support, que les clients', () => {
     const ok = lireVeille(JSON.stringify({ problemes: { disque: { titre: 'Disque', grave: true, faire: '', depuis: '' } } }), MAINTENANT, MAINTENANT);
     const liste = lireEntreprises([ligne({ essaiJusquAu: plusJours(JOUR, -2) })], JOUR);

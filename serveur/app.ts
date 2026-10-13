@@ -20,6 +20,7 @@ import { brancherAbonnement } from './abonnement/condition.ts';
 import { GESTES_CONSOLE } from './console/gestes.ts';
 import { quiEstConsole } from './console/connexion.ts';
 import { nomDuChamp, raison } from './validation.ts';
+import type { Collecte } from './service/collecte.ts';
 
 export type Requete<C> = { corps: C; params: Record<string, string>; query: Record<string, string>; qui: Qui | null; requete: FastifyRequest };
 
@@ -112,13 +113,18 @@ export function documentation(routes: Route<never>[]) {
   };
 }
 
+// Les méthodes que les routes déclarent (Route.methode) : la tête d'une lecture (HEAD), que Fastify ajoute seul, ne se
+// mesure pas.
+const METHODES_MESUREES = new Set(['GET', 'POST', 'PUT', 'DELETE']);
+
 // Les adresses de la machine elle-même.
 const MACHINE = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
 // `proxy` : combien de relais de confiance (le frontal) se tiennent devant le serveur. L'adresse de l'appelant se lit
 // alors dans ce qu'ils ajoutent (X-Forwarded-For) ; sans relais déclaré, elle ne s'y lit jamais : n'importe qui
 // pourrait y écrire l'adresse de son choix, et passer la limite par adresse.
-export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limiteur?: Limiteur; limiteurPublic?: Limiteur; proxy?: number } = {}): FastifyInstance {
+// `collecte` : les mesures du service (serveur/service/collecte.ts) ; sans elle, rien ne se mesure (un test).
+export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limiteur?: Limiteur; limiteurPublic?: Limiteur; proxy?: number; collecte?: Collecte } = {}): FastifyInstance {
   // Le démarrage échoue AVANT d'écouter si une seule route est mal déclarée.
   for (const r of routes) verifierDeclaration(r);
   // La lecture seule d'un abonnement (docs/abonnement.md) : la porte de tout serveur la porte, une fois.
@@ -155,6 +161,20 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
     reponse.header('content-encoding', encodage).removeHeader('content-length');
     return compresser(brut, encodage);
   });
+
+  // Les mesures du service (docs/console.md, C12) : chaque réponse d'une route de l'API se note, sa route par son MODÈLE
+  // de chemin (jamais l'adresse appelée), son statut, sa durée. Ni les écrans, ni une adresse qui ne mène à aucune route,
+  // ni la documentation (la veille la demande chaque minute pour savoir si le programme répond : ce n'est pas du trafic).
+  const collecte = options.collecte;
+  if (collecte) {
+    app.addHook('onResponse', async (requete, reponse) => {
+      const modele = requete.routeOptions.url;
+      if (!modele || !modele.startsWith(`${VERSION}/`) || !METHODES_MESUREES.has(requete.method)) return;
+      const chemin = modele.slice(VERSION.length);
+      if (chemin === '/documentation') return;
+      collecte.noter(requete.method, chemin, reponse.statusCode, reponse.elapsedTime, new Date());
+    });
+  }
 
   // La documentation de l'API, écrite depuis les routes elles-mêmes : jamais en retard sur elles.
   const doc = documentation(routes);

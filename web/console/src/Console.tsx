@@ -162,7 +162,7 @@ function Page({ route, role }: { route: Route; role: Role }) {
     case 'abonnements': return <Abonnements vue={route.params.get('vue')} />;
     case 'journal': return <Journal entreprise={UUID.test(route.params.get('entreprise') ?? '') ? route.params.get('entreprise') : null} />;
     case 'equipe': return <Equipe />;
-    default: return <Service />;
+    default: return <Service periode={route.params.get('periode')} />;
   }
 }
 

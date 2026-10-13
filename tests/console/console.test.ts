@@ -22,6 +22,7 @@ import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { aujourdhuiATunis } from '../../serveur/reglements.ts';
 import { routesSocle } from '../../serveur/routes/socle.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
+import { Collecte, envoyerMesures } from '../../serveur/service/collecte.ts';
 
 const MDP = 'Un-bon-mot-de-passe';
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
@@ -438,6 +439,12 @@ describe('les cabinets', () => {
 });
 
 describe('le service', () => {
+  // Les tables du service sont communes à toute la base de test : l'écran du service (tests/web/console-service.test.ts)
+  // y laisse ses mesures et ses versions. Ces cas partent de tables vides, sinon ils comptent celles des autres.
+  beforeAll(async () => {
+    await admin.query('truncate plateforme.service_minute, plateforme.service_heure, plateforme.service_route, plateforme.service_releve, plateforme.service_alerte, plateforme.service_nuit');
+  });
+
   it('la veille absente se dit « non mesuré » ; présente, ses problèmes ; silencieuse, elle le dit', async () => {
     expect((await appeler('GET', '/console/service', jT)).corps.veille).toEqual({ etat: 'absente' });
     fs.writeFileSync(veille, JSON.stringify({ problemes: { sauvegarde: { titre: 'La sauvegarde de la nuit manque', grave: true, faire: 'Relance-la.', depuis: new Date().toISOString(), vus: 3, ditLe: null } } }));
@@ -449,5 +456,113 @@ describe('le service', () => {
     fs.utimesSync(veille, vieux, vieux);
     expect((await appeler('GET', '/console/service', jT)).corps.veille).toMatchObject({ etat: 'silencieuse' });
     fs.rmSync(veille);
+  });
+
+  // Ce que le serveur et la veille confient à la base (0085), au nom du compte du serveur, hors de toute session.
+  const noterRequetes = (exemplaire: string, envoi: unknown) => enTantQue(pool, null, (tx) => tx.query('select plateforme.noter_requetes($1, $2::jsonb)', [exemplaire, JSON.stringify(envoi)]));
+  const noterVeille = (releve: unknown, problemes: unknown, nuits: unknown = []) =>
+    enTantQue(pool, null, (tx) => tx.query('select plateforme.noter_veille($1::jsonb, $2::jsonb, $3::jsonb)', [JSON.stringify(releve), JSON.stringify(problemes), JSON.stringify(nuits)]));
+  const seaux = (i: number, n: number) => { const h = new Array<number>(47).fill(0); h[i] = n; return h; };
+
+  it('chaque envoi du serveur s\'additionne à ce que la base a déjà : deux exemplaires, deux envois, une seule minute', async () => {
+    const minute = new Date(Math.floor(Date.now() / 60_000) * 60_000 - 5 * 60_000).toISOString();
+    const heure = new Date(Math.floor(Date.now() / 3_600_000) * 3_600_000).toISOString();
+    const jour = heure.slice(0, 10);
+    // Le seau 12 est celui de 30 ms, le seau 25 celui de 600 ms (serveur/service/mesures.ts).
+    const envoi = (n: number, pannes: number, i: number) => ({
+      minutes: [{ minute, sorte: 'lecture', n, pannes, h: seaux(i, n) }],
+      heures: [{ heure, sorte: 'lecture', n, pannes, h: seaux(i, n) }],
+      jours: [{ jour, route: 'GET /entreprises/:entreprise/ventes/factures', sorte: 'lecture', n, pannes, h: seaux(i, n) }],
+    });
+    await noterRequetes('machine-1:8080', envoi(40, 1, 12));
+    await noterRequetes('machine-1:8080', envoi(10, 0, 12));
+    await noterRequetes('machine-2:8080', envoi(50, 0, 25));
+    const lignes = (await admin.query('select exemplaire, n, pannes, seaux from plateforme.service_minute where minute = $1 order by exemplaire', [minute])).rows;
+    expect(lignes.map((l) => [l.exemplaire, l.n, l.pannes, l.seaux[12], l.seaux[25]])).toEqual([['machine-1:8080', 50, 1, 50, 0], ['machine-2:8080', 50, 0, 0, 50]]);
+    // La console additionne les exemplaires : cent requêtes, une panne, la moitié en 30 ms, l'autre en 600.
+    const r = await appeler('GET', '/console/service?periode=1h', jD);
+    expect(r.statut).toBe(200);
+    const point = (r.corps.points as { debut: string; n: number; pannes: number; p50: number | null; p95: number | null }[]).find((p) => p.debut === minute);
+    expect(point).toMatchObject({ n: 100, pannes: 1, p50: 30, p95: 600 });
+    expect(r.corps.budget).toBe(300);
+  });
+
+  it('une route se garde par son modèle : une valeur dans un chemin, la base la refuse', async () => {
+    const jour = new Date().toISOString().slice(0, 10);
+    const une = (route: string) => noterRequetes('machine-1:8080', { jours: [{ jour, route, sorte: 'lecture', n: 1, pannes: 0, h: seaux(1, 1) }] });
+    await expect(une('GET /entreprises/0192e8f0-1c2d-7e3f-8a9b-0c1d2e3f4a5b/ventes/factures')).rejects.toThrow(/service_route/);
+    await expect(une('GET /entreprises/:entreprise/compta/annuel/2026')).rejects.toThrow(/service_route/);
+    await expect(une('GET /entreprises/:entreprise/compta/annuel/:annee')).resolves.toBeDefined();
+  });
+
+  it('la veille : son relevé ; les alertes rapprochées de ce qu\'elle voit, ouvertes, devenues graves, réglées ; la dernière nouvelle d\'une nuit l\'emporte', async () => {
+    const t = (min: number) => new Date(Math.floor(Date.now() / 60_000) * 60_000 - min * 60_000).toISOString();
+    const releve = (min: number, repond = true) => ({ minute: t(min), repond, charge: 0.5, memoire: 40, processeurs: 2, disques: [{ point: '/', pourcent: 41 }], version: 'abcdef1', certificat: null, archiveLe: null });
+    const disque = (grave: boolean) => ({ 'disque:/': { titre: 'le disque / est plein à 80 %', grave, faire: 'Libère de la place.', depuis: t(4) } });
+    await noterVeille(releve(4), disque(false));
+    await noterVeille(releve(3), disque(true));
+    await noterVeille(releve(2, false), {}, [{ jour: '2026-10-13', sauvegarde: { le: '2026-10-13T01:16:00Z', ok: true, horsMachine: { le: t(2), ok: false } } }]);
+    await noterVeille(releve(1), disque(false), [{ jour: '2026-10-13', sauvegarde: { le: '2026-10-13T01:16:00Z', ok: true, horsMachine: { le: t(1), ok: true } } }]);
+    const alertes = (await admin.query('select grave, a_ete_grave, debut, fin from plateforme.service_alerte where cle = $1 order by debut', ['disque:/'])).rows;
+    // La première s'est ouverte à son début, est devenue grave, puis s'est réglée quand la veille ne la voyait plus ; la
+    // seconde vient de s'ouvrir, et n'a pas été grave.
+    expect(alertes.map((a) => [a.grave, a.a_ete_grave, a.fin === null])).toEqual([[true, true, false], [false, false, true]]);
+    expect(new Date(alertes[0].debut).toISOString()).toBe(t(4));
+    expect(new Date(alertes[0].fin).toISOString()).toBe(t(2));
+    const nuit = (await admin.query('select sauvegarde from plateforme.service_nuit where jour = $1', ['2026-10-13'])).rows[0];
+    expect(nuit.sauvegarde.horsMachine.ok).toBe(true);
+    const r = await appeler('GET', '/console/service', jT);
+    expect(r.corps.disponibilite).toMatchObject({ bas: 1 });
+    expect((r.corps.journal as { sorte: string }[]).length).toBeGreaterThanOrEqual(3);
+    expect(r.corps.dernier).toMatchObject({ version: 'abcdef1' });
+  });
+
+  it('une nouvelle plus ancienne que la dernière garde son relevé sans rien régler ; une version qui revient est une seconde mise en ligne', async () => {
+    const t = (min: number) => new Date(Math.floor(Date.now() / 60_000) * 60_000 - min * 60_000).toISOString();
+    const releve = (min: number, version: string) => ({ minute: t(min), repond: true, charge: null, memoire: null, processeurs: null, disques: [], version, certificat: null, archiveLe: null });
+    await noterVeille(releve(0, 'ccccccc'), { certificat: { titre: 'le certificat https expire dans 20 jours', grave: false, faire: 'Renouvelle-le.', depuis: t(0) } });
+    // Une horloge revenue en arrière : trois relevés d'il y a deux heures, sans problème. Ils se gardent ; l'alerte du
+    // certificat, ouverte par la dernière nouvelle, reste ouverte (la fermer à leur minute la fermerait avant son début).
+    await noterVeille(releve(120, 'aaaaaaa'), {});
+    await noterVeille(releve(119, 'bbbbbbb'), {});
+    await noterVeille(releve(118, 'aaaaaaa'), {});
+    const certificat = (await admin.query('select fin from plateforme.service_alerte where cle = $1', ['certificat'])).rows;
+    expect(certificat.map((a) => a.fin)).toEqual([null]);
+    expect((await admin.query('select count(*)::int n from plateforme.service_releve where minute = $1', [t(119)])).rows[0].n).toBe(1);
+    const r = await appeler('GET', '/console/service', jT);
+    const mises = (r.corps.misesEnLigne as { version: string; le: string }[]).map((m) => [m.version, new Date(m.le).toISOString()]);
+    // La plus ancienne suite (aaaaaaa, il y a deux heures) tournait déjà : seules les suivantes sont des mises en ligne.
+    expect(mises.slice(0, 2)).toEqual([['bbbbbbb', t(119)], ['aaaaaaa', t(118)]]);
+    // aaaaaaa avait déjà tourné : la route le dit retour.
+    expect((r.corps.misesEnLigne as { retour: boolean }[]).slice(0, 2).map((m) => m.retour)).toEqual([false, true]);
+    expect(r.corps.enLigne).toMatchObject({ version: 'ccccccc', vueArriver: true });
+  });
+
+  it('seules la direction et la technique lisent le service ; la base le refuse hors de la console ; le compte du serveur n\'en lit aucune table', async () => {
+    expect((await appeler('GET', '/console/service', jS)).statut).toBe(403);
+    expect((await appeler('GET', '/console/service', jD)).statut).toBe(200);
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_service_veille(now())'))).rejects.toThrow(/session de la console/);
+    await expect(enTantQue(pool, null, (tx) => tx.query('select * from plateforme.service_minute'))).rejects.toThrow(/permission/);
+    await expect(enTantQue(pool, null, (tx) => tx.query('select * from plateforme.service_alerte'))).rejects.toThrow(/permission/);
+  });
+});
+
+describe('les mesures du serveur', () => {
+  it('chaque réponse de l\'API se note par le modèle de sa route, jamais par l\'adresse appelée ; un refus n\'est pas une panne', async () => {
+    const collecte = new Collecte();
+    const a = creerApp(ctx, [...routesSocle(ctx), ...routesConsole(ctx, { veille })], { collecte });
+    await a.ready();
+    try {
+      await a.inject({ method: 'GET', url: `${VERSION}/moi` });
+      await a.inject({ method: 'GET', url: `${VERSION}/entreprises/0192e8f0-1c2d-7e3f-8a9b-0c1d2e3f4a5b/equipe` });
+      await a.inject({ method: 'GET', url: `${VERSION}/documentation` });
+      await a.inject({ method: 'GET', url: `${VERSION}/route-qui-n-existe-pas` });
+      const e = collecte.prendre();
+      expect(e.jours.map((j) => j.route).sort()).toEqual(['GET /entreprises/:entreprise/equipe', 'GET /moi']);
+      expect(e.jours.every((j) => j.pannes === 0 && j.sorte === 'lecture')).toBe(true);
+      expect(e.minutes.reduce((s, m) => s + m.n, 0)).toBe(2);
+      expect(JSON.stringify(e)).not.toContain('0192e8f0');
+      expect(await envoyerMesures(pool, 'machine-1:8080', collecte)).toBe(true);
+    } finally { await a.close(); }
   });
 });

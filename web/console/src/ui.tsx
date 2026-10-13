@@ -34,6 +34,10 @@ const DESSINS = {
   plus: <path d="M12 5v14M5 12h14" />,
   info: <><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.5" /><path d="M12 7.5v.5" /></>,
   relire: <><path d="M20 11a8 8 0 0 0-14.3-4.6L4 8.5" /><path d="M4 4v4.5h4.5" /><path d="M4 13a8 8 0 0 0 14.3 4.6L20 15.5" /><path d="M20 20v-4.5h-4.5" /></>,
+  version: <><path d="M12 18.5V5.5" /><path d="M6.5 11L12 5.5l5.5 5.5" /><path d="M5 20.5h14" /></>,
+  nuage: <path d="M7.5 18.5h9.5a4 4 0 0 0 .7-7.94 5.5 5.5 0 0 0-10.5-1.4A4.5 4.5 0 0 0 7.5 18.5z" />,
+  disque: <><rect x="3.5" y="5" width="17" height="14" rx="2.5" /><path d="M3.5 13.5h17" /><path d="M7.5 16.3h.01M10.5 16.3h.01" /></>,
+  retour: <><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 9" /><path d="M4.5 4.5V9H9" /></>,
 } as const;
 export type NomIcone = keyof typeof DESSINS;
 

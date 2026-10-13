@@ -36,11 +36,14 @@
 //                            pas branchée (et l'écran le dit)
 //   SKANFACT_VEILLE_FICHIER  ce que la veille du serveur écrit chaque minute (/var/lib/skanfact/veille.json par
 //                            défaut) : la console le lit ; absent, elle dit le service « non mesuré »
+//   SKANFACT_MESURES_MS      le rythme où le serveur range ses mesures dans la base (60 000 par défaut ;
+//                            serveur/service/collecte.ts)
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { creerApp } from './app.ts';
+import { creerApp, type Route } from './app.ts';
 import { courrielSmtp, type EnvoiCourriel } from './courriel.ts';
 import { emettreLesContrats } from './v10/contrats.ts';
 import { envoyerHttps, livrerAvis, type Envoyeur } from './avis.ts';
@@ -77,13 +80,14 @@ import { verifierEnAttente } from './v10/paiement.ts';
 import { routesV10 } from './v10/routes.ts';
 import { lirePartenaires, routesPartenaires, type Partenaire } from './partenaires.ts';
 import { KONNECT_PAR_DEFAUT } from './ventes/konnect.ts';
+import { Collecte, envoyerMesures, nomExemplaire } from './service/collecte.ts';
 
 export type Configuration = {
   base: string; environnement: 'test' | 'production'; port: number; hote: string; listeVolee: string;
   // Le fournisseur de SMS (0081) : aucun, ou WinSMS avec sa clé (de l'environnement, jamais du dépôt).
   sms: 'aucun' | { fournisseur: 'winsms'; cle: string; expediteur: string | null; adresse: string }; livreurMs: number; web: string; adresse: string | null; konnect: string; coffre: Buffer; verificationMs: number;
   digigo: { base: string; cle: string } | null;
-  ttn: string | null; ttnMs: number; contratsMs: number; alertesMs: number; relancesMs: number;
+  ttn: string | null; ttnMs: number; contratsMs: number; alertesMs: number; relancesMs: number; mesuresMs: number;
   lectures: number;
   partenaires: Partenaire[];
   // Combien de relais de confiance (le frontal) se tiennent devant le serveur (brique 142) : 0, le serveur est
@@ -166,6 +170,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     ttn, ttnMs: Number(env.SKANFACT_TTN_MS ?? 60_000), contratsMs: Number(env.SKANFACT_CONTRATS_MS ?? 3_600_000),
     alertesMs: Number(env.SKANFACT_ALERTES_MS ?? 60_000),
     relancesMs: Number(env.SKANFACT_RELANCES_MS ?? 3_600_000),
+    mesuresMs: Number(env.SKANFACT_MESURES_MS ?? 60_000),
     lectures, partenaires, proxy, version: env.SKANFACT_VERSION ?? versionDuCode(),
     courriel: smtp && de ? { smtp, de } : null,
     veille: env.SKANFACT_VEILLE_FICHIER ?? path.join(env.SKANFACT_ETAT ?? '/var/lib/skanfact', 'veille.json'),
@@ -219,6 +224,19 @@ export function servirLesEcrans(app: ReturnType<typeof creerApp>, dossier: strin
   });
 }
 
+// Toutes les routes du serveur, chaque module déclarant d'abord ses gestes : ce que le serveur sert, et ce qu'un test lit
+// sans le démarrer (le contexte n'est lu qu'au moment de servir).
+export function routesDuServeur(ctx: Contexte, options: { veille: string | null }): Route<never>[] {
+  declarerGestesVentes();
+  declarerGestesCaisse();
+  declarerGestesAchats();
+  declarerGestesPaie();
+  declarerGestesCompta();
+  declarerGestesMessagerie();
+  return [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx),
+    ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesAbonnement(), ...routesConsole(ctx, options)];
+}
+
 export async function demarrer(c: Configuration, dependances: { envoyer?: Envoyeur; courriel?: EnvoiCourriel; sms?: Contexte['sms'] } = {}): Promise<{ adresse: string; arreter: () => Promise<void> }> {
   const pool = creerPool(c.base);
   // L'adresse publique : réglée, sinon celle où le serveur écoute (connue une fois qu'il écoute).
@@ -231,13 +249,8 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   // Le relais des e-mails (un essai en donne un autre, qui garde ce qu'il reçoit) ; sans lui, aucun e-mail ne part.
   const envoiCourriel = dependances.courriel ?? (c.courriel ? courrielSmtp(c.courriel.smtp, c.courriel.de) : null);
   if (envoiCourriel) ctx.courriel = { envoi: envoiCourriel, adresse: () => publique };
-  declarerGestesVentes();
-  declarerGestesCaisse();
-  declarerGestesAchats();
-  declarerGestesPaie();
-  declarerGestesCompta();
-  declarerGestesMessagerie();
-  const app = creerApp(ctx, [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesAbonnement(), ...routesConsole(ctx, { veille: c.veille })], { proxy: c.proxy });
+  const collecte = new Collecte();
+  const app = creerApp(ctx, routesDuServeur(ctx, { veille: c.veille }), { proxy: c.proxy, collecte });
   servirLesEcrans(app, c.web, c.version);
   const adresse = await app.listen({ port: c.port, host: c.hote });
   if (!publique) publique = adresse;
@@ -306,6 +319,17 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   tourDesRelances();
   const relanceur = setInterval(tourDesRelances, c.relancesMs);
 
+  // Les mesures du service (docs/console.md, C12) : chaque minute, ce qui s'est ajouté part dans la base ; un envoi à la
+  // fois (une base lente ne les empile pas), et le dernier part à l'arrêt (une installation ne perd pas sa minute).
+  const exemplaire = nomExemplaire(os.hostname(), new URL(adresse).port);
+  let mesures: Promise<unknown> = Promise.resolve();
+  let enMesures = false;
+  const mesureur = setInterval(() => {
+    if (enMesures) return;
+    enMesures = true;
+    mesures = envoyerMesures(pool, exemplaire, collecte).finally(() => { enMesures = false; });
+  }, c.mesuresMs);
+
   return {
     adresse,
     arreter: async () => {
@@ -315,6 +339,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
       clearInterval(contrats);
       clearInterval(postier);
       clearInterval(relanceur);
+      clearInterval(mesureur);
       await tour;
       await verification;
       await tournee;
@@ -322,6 +347,8 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
       await alertes;
       await relances;
       await app.close();
+      await mesures;
+      await envoyerMesures(pool, exemplaire, collecte);
       await pool.end();
     },
   };

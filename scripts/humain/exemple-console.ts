@@ -137,11 +137,16 @@ await codeApplication(leila);
 await api('POST', '/cabinets', leila, { nom: 'Cabinet Nour' });
 await c.end();
 
-// La veille du serveur : deux problèmes, dont un grave.
+// La veille du serveur : deux problèmes, dont un grave, écrits comme elle les écrit (exploitation/veille.ts : la clé, le
+// titre en bas de casse, le nombre de relevés qui les ont vus). scripts/humain/exemple-service.ts réécrit ce fichier par
+// les vraies règles de la veille, avec le mois de mesures qui va avec.
 const veille = process.env.SKANFACT_VEILLE_FICHIER ?? `${TRAVAIL}/veille.json`;
+const ilYA = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
 fs.writeFileSync(veille, JSON.stringify({ problemes: {
-  disque: { titre: 'Le disque est plein à 82 %', grave: false, faire: 'Libère de la place, ou agrandis le disque avant 90 %.', depuis: new Date(Date.now() - 3 * 3600_000).toISOString() },
-  sauvegarde: { titre: 'La copie hors machine de cette nuit n\'est pas arrivée', grave: true, faire: 'Relance la sauvegarde, puis vérifie la copie.', depuis: new Date(Date.now() - 40 * 60_000).toISOString() },
+  'disque:/var': { titre: 'le disque /var est plein à 76 %', grave: false, vus: 180, ditLe: ilYA(180), depuis: ilYA(180),
+    faire: 'Au-delà, la base s\'arrête d\'écrire : libère de la place ou agrandis le disque chez l\'hébergeur (docs/mise-en-ligne.md, I).' },
+  'hors-machine': { titre: 'la copie hors de la machine est en retard de 96 minutes', grave: true, vus: 80, ditLe: ilYA(80), depuis: ilYA(80),
+    faire: 'Sur le serveur : sudo systemctl status skanfact-hors-machine ; le détail : /var/lib/skanfact/hors-machine/hors-machine.json (docs/mise-en-ligne.md, I).' },
 } }, null, 2));
 fs.writeFileSync(`${TRAVAIL}/comptes-console.txt`, [
   `console : ${adresse}/console/`, `mot de passe de tous : ${MDP}`,

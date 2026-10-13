@@ -532,6 +532,58 @@ export interface BaseDeDonnees {
     rang: string;
     partie_le: Date;
   };
+  'plateforme.service_alerte': {
+    id: Generated<string>;
+    cle: string;
+    titre: string;
+    grave: boolean;
+    a_ete_grave: boolean;
+    faire: Generated<string>;
+    debut: Date;
+    fin: Date | null;
+  };
+  'plateforme.service_heure': {
+    heure: Date;
+    exemplaire: string;
+    sorte: string;
+    n: number;
+    pannes: number;
+    seaux: number[];
+  };
+  'plateforme.service_minute': {
+    minute: Date;
+    exemplaire: string;
+    sorte: string;
+    n: number;
+    pannes: number;
+    seaux: number[];
+  };
+  'plateforme.service_nuit': {
+    jour: string;
+    sauvegarde: ColumnType<Json | null, string | null, string | null>;
+    copie_de_base: ColumnType<Json | null, string | null, string | null>;
+    restauration: ColumnType<Json | null, string | null, string | null>;
+  };
+  'plateforme.service_releve': {
+    minute: Date;
+    repond: boolean;
+    charge_cent: number | null;
+    memoire: number | null;
+    processeurs: number | null;
+    disques: ColumnType<Json, string | undefined, string>;
+    version: string | null;
+    certificat: string | null;
+    archive_le: Date | null;
+  };
+  'plateforme.service_route': {
+    jour: string;
+    exemplaire: string;
+    route: string;
+    sorte: string;
+    n: number;
+    pannes: number;
+    seaux: number[];
+  };
   'plateforme.session_console': {
     id: Generated<string>;
     utilisateur: string;
