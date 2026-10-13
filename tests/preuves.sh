@@ -11815,6 +11815,15 @@ prouver 'la date d'"'"'une échéance redite dans la colonne État' 'web/console
   "{e.etat.etat !== 'hors' ? <span className=\"c-sous c-sous-espace\">" \
   'les clients : chaque vue du métier ouvre la liste'
 
+prouver 'le pied des échéances qui redit le compte du titre' 'web/console/src/ecrans/Abonnements.tsx' \
+  '                {lu.total > PAGE ? (' \
+  '                {lu.total > 0 ? (' \
+  'les abonnements : chaque carte ouvre la liste qu'"'"'elle compte'
+prouver 'le revenu de l'"'"'année redit dans l'"'"'en-tête' 'web/console/src/ecrans/Abonnements.tsx' \
+  '      <header className="c-entete">' \
+  '      <header className="c-entete">{a ? <div className="c-entete-chiffre">{montant(a.montantHt)}</div> : null}' \
+  'les abonnements : chaque carte ouvre la liste qu'"'"'elle compte'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -646,10 +646,25 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-point-avenir { color: var(--c-lien); }
 .c-liste-tete { padding: 22px 26px 0; margin-bottom: 14px; }
 .c-echeances { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--c-trait); }
+/* Une échéance sur deux rangées (maquette Abonnements) : le jour, ce qui se passe et le montant ; dessous, ses relances
+   et sa fiche. La liste a la place de la maquette, et la colonne d'à côté garde ce qui revient chaque année. */
+.c-ab-corps { display: grid; grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr); gap: 20px; align-items: start; }
+.c-ab-cote { display: grid; gap: 16px; min-width: 0; }
+.c-ab-annuel h2, .c-ab-legende h2 { font-size: 17px; font-weight: 600; }
+.c-ab-annuel-valeur { margin: 12px 0 8px; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.c-ab-annuel-valeur b { font-size: 26px; font-weight: 500; }
+.c-ab-annuel-valeur small { font-size: 13px; font-weight: 600; color: var(--c-gris); }
+.c-ab-legende ul { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
+.c-ab-legende li { display: grid; justify-items: start; gap: 4px; font-size: 13px; line-height: 1.4; color: var(--c-gris); }
+.c-ab-cote .c-note { margin: 0; }
 .c-ech {
-  display: grid; grid-template-columns: 92px minmax(0, 1fr) 160px 236px auto; gap: 10px 20px; align-items: center;
-  padding: 14px 26px; border-bottom: 1px solid var(--c-trait);
+  display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; grid-template-areas: 'jour quoi montant' 'bas bas bas';
+  gap: 12px 18px; align-items: start; padding: 16px 24px; border-bottom: 1px solid var(--c-trait);
 }
+.c-ech-jour { grid-area: jour; }
+.c-ech-quoi { grid-area: quoi; }
+.c-ech-montant { grid-area: montant; }
+.c-ech-bas { grid-area: bas; display: flex; align-items: center; justify-content: space-between; gap: 10px 14px; flex-wrap: wrap; }
 .c-ech:last-child { border-bottom: 0; }
 .c-ech:hover { background: var(--c-papier-2); }
 .c-ech-jour { display: grid; gap: 1px; align-content: start; }
@@ -681,16 +696,17 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-relance-sautee { background: transparent; color: var(--c-gris-2); text-decoration: line-through; }
 .c-relance-manquee { background: var(--c-orange-doux); color: var(--c-orange-texte); }
 .c-legende { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--c-gris); }
+/* Six cartes tiennent sur une rangée jusqu'au portable : passées sur deux, elles repoussent la liste sous le bas de
+   l'écran. */
 @media (max-width: 1360px) {
+  .c-vues { gap: 10px; }
+  .c-vues .c-vue { padding: 14px 14px 12px; }
+}
+@media (max-width: 1180px) {
   .c-vues { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 1100px) {
-  .c-ech { grid-template-columns: 84px minmax(0, 1fr) auto; grid-template-areas: 'jour quoi action' 'jour montant montant' 'jour relances relances'; align-items: start; }
-  .c-ech-jour { grid-area: jour; }
-  .c-ech-quoi { grid-area: quoi; }
-  .c-ech-montant { grid-area: montant; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; text-align: start; }
-  .c-ech-relances { grid-area: relances; }
-  .c-ech-action { grid-area: action; }
+  .c-ab-corps { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 860px) {
   .c-entete-chiffre { flex: 1 1 100%; justify-items: start; text-align: start; }
@@ -700,7 +716,8 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   .c-vue-n { font-size: 24px; }
   .c-vue-sous { font-size: 12.5px; }
   .c-liste-tete { padding: 18px 18px 0; }
-  .c-ech { grid-template-columns: 72px minmax(0, 1fr); grid-template-areas: 'jour quoi' 'jour montant' 'jour relances' 'jour action'; gap: 8px 14px; padding: 14px 18px; }
+  .c-ech { grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: 'jour quoi' 'jour montant' 'bas bas'; gap: 8px 14px; padding: 14px 18px; }
+  .c-ech-montant { justify-items: start; text-align: start; }
   /* Au doigt, le nom de l'entreprise est une cible de 44 points, comme les liens des tableaux. */
   .c-ech-quoi a { display: inline-flex; align-items: center; min-height: 44px; }
   .c-ech-action { justify-self: start; }
@@ -1533,12 +1550,6 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
    portable, ils passent à la ligne plutôt que de pousser la dernière colonne hors du cadre. */
 @media (min-width: 1361px) {
   .c-cl-usage span, .c-cl-vu { white-space: nowrap; }
-}
-/* Les cinq cartes tiennent sur une rangée jusqu'au portable : passées sur deux, elles repoussent la liste sous le bas de
-   l'écran. */
-@media (max-width: 1360px) {
-  .c-vues-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
-  .c-vues-5 .c-vue { padding: 14px 14px 12px; }
 }
 @media (max-width: 1180px) {
   .c-vues-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }

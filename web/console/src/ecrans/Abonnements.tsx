@@ -1,8 +1,9 @@
 // Les abonnements (serveur/console/routes.ts, GET /console/abonnements ; serveur/console/echeances.ts) : ce qui vient,
 // ce qui presse, ce qui est fermé. Six cartes, chacune compte la liste qu'elle ouvre (C3) ; par défaut, les échéances
-// des trente prochains jours. Une ligne par entreprise : son jour, ce qui se passe, ce qu'un paiement coûterait (hors
-// taxes, au prix du jour), les relances de son échéance telles que le serveur les juge, et sa fiche, où sont les gestes.
-// L'écran ne recalcule rien : les états, les montants et l'état de chaque relance viennent du serveur.
+// des trente prochains jours. Une ligne par entreprise, sur deux rangées (maquette Abonnements) : son jour, ce qui se
+// passe, ce qu'un paiement coûterait (hors taxes, au prix du jour) ; dessous, les relances de son échéance telles que le
+// serveur les juge, et sa fiche, où sont les gestes. À côté de la liste : ce qui revient chaque année, ce que dit chaque
+// relance, et ce que le serveur fait seul. L'écran ne recalcule rien : états, montants et relances viennent du serveur.
 import { useEffect, useState, type ReactNode } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { CATEGORIES, offreEtPeriode, type Categorie, type Etat, type Faits } from '../abonnement.ts';
@@ -147,15 +148,17 @@ function LigneEcheance({ l, aujourdhui }: { l: Ligne; aujourdhui: string }) {
         {l.montantHt ? <b className="c-mono" data-donnee>{montant(l.montantHt)}</b> : <b className="c-mono c-ech-rien">—</b>}
         <span>{dire(l.montantHt ? `${K}.m.ht` : sansMontant(l.etat))}</span>
       </div>
-      <div className="c-ech-relances">
-        {l.relances.length ? (
-          <ul aria-label={titre(`${K}.relances`)}>
-            {l.relances.map((r) => <li key={r.rang}><PuceRelance etat={r.etat} mots={relanceEnMots(r, aujourdhui)}>{rangCourt(r.rang)}</PuceRelance></li>)}
-          </ul>
-        ) : <span className="c-ech-aucune">{dire(`${K}.relance.aucune`)}</span>}
-      </div>
-      <div className="c-ech-action">
-        <Lien href={`#/clients/${l.entreprise.id}`} petit etiquette={titre('console.ecran.clients.ouvrir_fiche', { nom: l.entreprise.nom })}>{titre('console.ecran.clients.ouvrir')}</Lien>
+      <div className="c-ech-bas">
+        <div className="c-ech-relances">
+          {l.relances.length ? (
+            <ul aria-label={titre(`${K}.relances`)}>
+              {l.relances.map((r) => <li key={r.rang}><PuceRelance etat={r.etat} mots={relanceEnMots(r, aujourdhui)}>{rangCourt(r.rang)}</PuceRelance></li>)}
+            </ul>
+          ) : <span className="c-ech-aucune">{dire(`${K}.relance.aucune`)}</span>}
+        </div>
+        <div className="c-ech-action">
+          <Lien href={`#/clients/${l.entreprise.id}`} petit etiquette={titre('console.ecran.clients.ouvrir_fiche', { nom: l.entreprise.nom })}>{titre('console.ecran.clients.ouvrir')}</Lien>
+        </div>
       </div>
     </li>
   );
@@ -185,18 +188,11 @@ export function Abonnements({ vue: vueDemandee }: { vue: string | null }) {
 
   return (
     <>
-      <header className="c-entete c-entete-chiffree">
+      <header className="c-entete">
         <div className="c-entete-texte">
           <h1>{titre(`${K}.titre`)}</h1>
           <p className="c-entete-sous">{phrase(`${K}.sous`)}</p>
         </div>
-        {a ? (
-          <div className="c-entete-chiffre">
-            <span className="c-entete-chiffre-titre">{titre(`${K}.annuel`)}</span>
-            <span className="c-entete-chiffre-valeur"><b className="c-mono" data-donnee>{montant(a.montantHt)}</b> <small>{dire(`${K}.annuel_ht`)}</small></span>
-            <span className="c-entete-chiffre-sous">{maj(annuelSous)}</span>
-          </div>
-        ) : null}
       </header>
       {l.etat === 'panne' ? <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}
@@ -211,37 +207,52 @@ export function Abonnements({ vue: vueDemandee }: { vue: string | null }) {
               </button>
             ))}
           </div>
+          <div className="c-ab-corps">
           <section className="c-carte c-liste-carte" aria-labelledby="ab-liste">
             <div className="c-carte-tete c-liste-tete">
               <div>
                 <h2 id="ab-liste">{titre(`${K}.liste.${montree}`, { jours })} <span className="c-compte-titre">{lu.total}</span></h2>
                 <p className="c-carte-sous">{phrase(`${K}.liste.${montree}_sous`)}</p>
               </div>
-              {lu.lignes.some((x) => x.relances.length) ? (
-                <span className="c-legende">
-                  <span>{titre(`${K}.legende`)}</span>
-                  {(['partie', 'a_partir', 'prevue', 'sautee', 'manquee'] as const).map((e) => <PuceRelance key={e} etat={e}>{dire(`${K}.legende.${e}`)}</PuceRelance>)}
-                </span>
-              ) : null}
             </div>
             {lu.total === 0 ? (
               <Vide icone="calendrier">{phrase(portefeuille === 0 ? `${K}.vide_tout` : montree === 'avenir' ? `${K}.vide.avenir` : `${K}.vide.liste`, { jours })}</Vide>
             ) : (
               <>
                 <ol className="c-echeances">{lu.lignes.map((x) => <LigneEcheance key={x.entreprise.id} l={x} aujourdhui={aujourdhui} />)}</ol>
-                <div className="c-liste-pied">
-                  <span>{phrase('console.ecran.clients.page', { debut: debut + 1, fin: debut + lu.lignes.length, total: lu.total })}</span>
-                  {lu.total > PAGE ? (
+                {/* Le compte est dans le titre : le pied ne se montre que pour tourner les pages, et dit lesquelles. */}
+                {lu.total > PAGE ? (
+                  <div className="c-liste-pied">
+                    <span>{phrase('console.ecran.clients.page', { debut: debut + 1, fin: debut + lu.lignes.length, total: lu.total })}</span>
                     <span className="c-liste-pied-boutons">
                       <Bouton petit desactive={debut === 0} onClick={() => setDebut(Math.max(0, debut - PAGE))}>{titre('console.ecran.clients.precedentes')}</Bouton>
                       <Bouton petit desactive={lu.suite === null} onClick={() => { if (lu.suite !== null) setDebut(lu.suite); }}>{titre('console.ecran.clients.suivantes')}</Bouton>
                     </span>
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
               </>
             )}
           </section>
-          <p className="c-note"><Icone nom="info" />{phrase(`${K}.regles`, { liste: liste(lu.regles.relances), grace: lu.regles.grace })}</p>
+          {/* À côté de la liste : ce qui revient chaque année ; ce que dit chaque puce de relance ; ce que le serveur fait seul. */}
+          <aside className="c-ab-cote" aria-label={titre(`${K}.cote`)}>
+            {a ? (
+              <section className="c-carte c-ab-annuel" aria-labelledby="ab-annuel">
+                <h2 id="ab-annuel">{titre(`${K}.annuel_titre`)}</h2>
+                <p className="c-ab-annuel-valeur"><b className="c-mono" data-donnee>{montant(a.montantHt)}</b> <small>{dire(`${K}.annuel_ht`)}</small></p>
+                <p className="c-carte-sous">{maj(annuelSous)}.</p>
+              </section>
+            ) : null}
+            <section className="c-carte c-ab-legende" aria-labelledby="ab-legende">
+              <h2 id="ab-legende">{titre(`${K}.legende`)}</h2>
+              <ul>
+                {(['partie', 'a_partir', 'prevue', 'sautee', 'manquee'] as const).map((e) => (
+                  <li key={e}><PuceRelance etat={e}>{dire(`${K}.legende.${e}`)}</PuceRelance><span>{dire(`${K}.legende.${e}_sous`)}</span></li>
+                ))}
+              </ul>
+            </section>
+            <p className="c-note"><Icone nom="info" />{phrase(`${K}.regles`, { liste: liste(lu.regles.relances), grace: lu.regles.grace })}</p>
+          </aside>
+          </div>
         </>
       ) : null}
     </>

@@ -365,6 +365,20 @@ comptent ensuite cette vue-là. La vue et l'ordre vivent dans l'adresse (`#/clie
   parrainage existe dans les faits de l'abonnement ; l'export de la sélection, le menu « … » d'une ligne et les filtres
   par type, offre et cabinet ne sont pas écrits.
 
+**C18. Abonnements, recalé sur sa maquette** (13/10/2026). La liste et, à côté, ce qui l'explique :
+- **Une échéance sur deux rangées** : le jour, ce qui se passe et le montant ; dessous, les relances de son échéance et
+  sa fiche. La liste prend la place de la maquette (deux tiers), la colonne d'à côté le reste ; sous 1100 points, elle
+  passe sous la liste.
+- **Ce qui revient chaque année** quitte l'en-tête pour la colonne d'à côté, une seule fois ; **les relances** y ont leur
+  légende, chaque puce avec sa phrase (partie : le jour et l'heure au survol ; part dans l'heure ; prévue ; sautée, une
+  plus proche de l'échéance part à sa place ; manquée, à regarder) ; puis **ce que le serveur fait seul** (les jours des
+  relances, la grâce, la lecture seule), lu dans ses règles.
+- **Le compte est dans le titre de la liste** : le pied ne se montre que pour tourner les pages.
+- **Les six cartes restent sur une rangée** jusqu'à 1180 points (la liste ne descend pas sous le bas d'un portable).
+- **Pas encore** : le montant « TVA et timbre compris » de la maquette attend la décision sur la TVA et le timbre
+  (À DÉCIDER) ; la console dit le montant hors taxes, au prix du jour. Le bouton « Appeler » attend un numéro de
+  téléphone que la fiche ne porte pas.
+
 ## Mettre en route
 
 La personne crée d'abord son compte SkanFact, puis met en place le code de son téléphone (« Ton compte »,

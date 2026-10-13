@@ -479,13 +479,20 @@ describe('la console de l\'équipe, à la souris', () => {
       expect(await carte.getAttribute('aria-pressed')).toBe('true');
       expect(await p.evaluate(() => location.hash)).toBe(`#/abonnements?vue=${v}`);
     }
+    // Ce qui revient chaque année vit à côté de la liste, une seule fois : l'en-tête ne le redit pas.
+    expect(net(await p.locator('.c-ab-annuel').innerText())).toMatch(/^Ce qui revient chaque année [\d ]+,\d{3} DT hors taxes /);
+    expect(await p.locator('.c-entete-chiffre').count()).toBe(0);
+    // Ce que dit chaque puce de relance se lit à côté : cinq états, chacun sa phrase.
+    expect(await p.locator('.c-ab-legende li').count()).toBe(5);
+    // Le compte est dans le titre de la liste : sur une page courte, aucun pied ne le redit.
+    expect(await p.locator('.c-liste-pied').count()).toBe(Number(await p.locator('#ab-liste .c-compte-titre').innerText()) > 50 ? 1 : 0);
     await fermer(p);
   }, 90_000);
 
   it('les cabinets : les onglets ne bougent pas ; la liste compte ce que la fiche montre ; la fiche d\'un client mène à son cabinet', async () => {
     const p = await ouvrir(await jetonConsole(support), '#/clients');
     const onglets = p.locator('.c-onglets');
-    await expect.poll(() => p.locator('.c-liste-pied').count(), { timeout: 15_000 }).toBe(1);
+    await expect.poll(() => p.locator('.c-liste-resume').count(), { timeout: 15_000 }).toBe(1);
     const yEntreprises = (await onglets.boundingBox())?.y ?? -1;
     // Passer aux cabinets : l'adresse suit, et les onglets restent sous le curseur (un même en-tête pour les deux).
     await cliquer(onglets.getByRole('link', { name: 'Cabinets', exact: true }));
