@@ -130,8 +130,10 @@ describe('les travaux et les envois du service, à la souris', () => {
     const p = await ouvrir(jD);
     await cliquer(p.locator('.c-tr-pilules').getByRole('button', { name: /Attendent l.entreprise/ }));
     await expect.poll(() => lignes(p).count()).toBe(3);
-    const retenue = net(await lignes(p).filter({ hasText: 'TTN' }).innerText());
-    expect(retenue).toContain('Retenue');
+    const ligne = lignes(p).filter({ hasText: 'TTN' });
+    // La pastille elle-même : « Retenue » se lit aussi dans la suite, qui ne dit pas l'état.
+    expect(net(await ligne.locator('.c-puce').innerText())).toBe('Retenue');
+    const retenue = net(await ligne.innerText());
     expect(retenue).toMatch(/compte de l.entreprise/);
     expect(retenue).toMatch(/corrige son compte El Fatoora/);
     await cliquer(p.locator('.c-tr-pilules').getByRole('button', { name: /Se réessaient seuls/ }));

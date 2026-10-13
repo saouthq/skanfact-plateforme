@@ -11996,8 +11996,8 @@ TRW1='l'"'"'onglet allumé, les quatre chiffres ; une TTN sans adresse est « pa
 TRW2='« N envois à regarder » filtre la liste au partenaire, et se retire ; deux envois de la même seconde font deux lignes'
 TRW3='« attendent l'"'"'entreprise » : un compte refusé se dit « retenue », avec sa suite ; une panne se réessaie seule'
 TRW5='au téléphone : rien ne déborde, et chaque envoi se lit en entier, sans défilement de côté'
-prouver "le facteur dit bon sans accès à la TTN" web/console/src/ecrans/Travaux.tsx \
-  "const etatFacteur: EtatBrique = !d.branches.ttn || !facteur" "const etatFacteur: EtatBrique = !facteur" \
+prouver "le facteur sans accès à la TTN qui ne le dit pas" web/console/src/ecrans/Travaux.tsx \
+  "valeur={!d.branches.ttn ? titre(\`\${T}.k.pas_branche\`)" "valeur={false ? titre(\`\${T}.k.pas_branche\`)" \
   "$TRW1"
 prouver "un partenaire qui ne filtre pas la liste" web/console/src/ecrans/Travaux.tsx \
   "const duPartenaire = d.aRegarder.filter((r) => !partenaire || DE_LA_SORTE[r.sorte] === partenaire);" "const duPartenaire = d.aRegarder;" \

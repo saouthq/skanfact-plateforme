@@ -982,6 +982,14 @@ describe('les travaux et les envois du service (0090, docs/console.md C25)', () 
     const brut = (await admin.query("select compte from plateforme.service_tour where nom = 'contrats'")).rows[0].compte;
     expect(brut).toEqual({ emises: 2 });
     expect(d.branches).toEqual({ ttn: false, courriel: false });
+    // Le serveur porte toujours le coffre de la TTN, même sans son adresse : ce n'est pas un accès.
+    const sansAdresse: Contexte = { ...ctx, ttn: { adresse: null, coffre: Buffer.alloc(32) } };
+    const autre = creerApp(sansAdresse, routesConsole(sansAdresse, { veille }));
+    await autre.ready();
+    try {
+      const r = await autre.inject({ method: 'GET', url: `${VERSION}/console/service/travaux`, headers: { authorization: `Bearer ${jT}` } });
+      expect((r.json() as Lu).branches.ttn).toBe(false);
+    } finally { await autre.close(); }
     expect(d.sansTrace).toEqual(['courriel', 'tej', 'cnss']);
   });
 
