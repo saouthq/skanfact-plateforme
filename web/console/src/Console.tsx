@@ -24,15 +24,18 @@ import { Fiche } from './ecrans/Fiche.tsx';
 import { Journal } from './ecrans/Journal.tsx';
 import { Reglages } from './ecrans/Reglages.tsx';
 import { Service } from './ecrans/Service.tsx';
+import { Support } from './ecrans/Support.tsx';
 import { Alerte, Avatar, Bouton, Icone, Toast, type NomIcone } from './ui.tsx';
 
 // ── Les écrans et leur adresse ──────────────────────────────────────────────────────────────────────────────────────
-type Page = 'accueil' | 'clients' | 'fiche' | 'cabinets' | 'cabinet' | 'abonnements' | 'journal' | 'equipe' | 'service' | 'reglages';
+type Page = 'accueil' | 'clients' | 'fiche' | 'cabinets' | 'cabinet' | 'abonnements' | 'support' | 'journal' | 'equipe' | 'service' | 'reglages';
 type Route = { page: Page | 'inconnue'; id?: string; params: URLSearchParams };
 const OUVRE: Record<Page, readonly Role[]> = {
   accueil: ['direction', 'support', 'technique'],
   clients: ['direction', 'support'], fiche: ['direction', 'support'], cabinets: ['direction', 'support'], cabinet: ['direction', 'support'],
   abonnements: ['direction', 'support'],
+  // Le support se lit et se répond à la direction et au support ; la technique ne lit aucune donnée de client (03 § 5).
+  support: ['direction', 'support'],
   journal: ['direction'], equipe: ['direction'], service: ['direction', 'technique'],
   // Les réglages se lisent au support (répondre à un client sur un prix) ; leurs gestes sont à la direction.
   reglages: ['direction', 'support'],
@@ -48,7 +51,7 @@ function lireRoute(hash: string): Route {
   if (m[0] === 'clients' && m.length === 2 && UUID.test(m[1] ?? '')) return { page: 'fiche', id: m[1] ?? '', params };
   if (m[0] === 'cabinets' && m.length === 1) return { page: 'cabinets', params };
   if (m[0] === 'cabinets' && m.length === 2 && UUID.test(m[1] ?? '')) return { page: 'cabinet', id: m[1] ?? '', params };
-  if (m.length === 1 && (m[0] === 'abonnements' || m[0] === 'journal' || m[0] === 'equipe' || m[0] === 'service' || m[0] === 'reglages')) return { page: m[0], params };
+  if (m.length === 1 && (m[0] === 'abonnements' || m[0] === 'support' || m[0] === 'journal' || m[0] === 'equipe' || m[0] === 'service' || m[0] === 'reglages')) return { page: m[0], params };
   // Les vues du service : « #/service » (la vue d'ensemble), « #/service/alertes », « #/service/incidents »,
   // « #/service/sauvegardes », « #/service/travaux », « #/service/securite », « #/service/versions », « #/service/performances ».
   if (m[0] === 'service' && m.length === 2 && (m[1] === 'alertes' || m[1] === 'incidents' || m[1] === 'sauvegardes' || m[1] === 'travaux' || m[1] === 'securite' || m[1] === 'versions' || m[1] === 'performances')) return { page: 'service', id: m[1], params };
@@ -91,12 +94,12 @@ function useTheme() {
 // ── La barre de gauche ──────────────────────────────────────────────────────────────────────────────────────────────
 type Entree = { page: Page; href: string; cle: string; icone: NomIcone };
 const GROUPES: { cle: string; entrees: Entree[] }[] = [
-  { cle: 'chaque_jour', entrees: [{ page: 'accueil', href: '#/', cle: 'decider', icone: 'decider' }, { page: 'clients', href: '#/clients', cle: 'clients', icone: 'clients' }, { page: 'abonnements', href: '#/abonnements', cle: 'abonnements', icone: 'calendrier' }] },
+  { cle: 'chaque_jour', entrees: [{ page: 'accueil', href: '#/', cle: 'decider', icone: 'decider' }, { page: 'clients', href: '#/clients', cle: 'clients', icone: 'clients' }, { page: 'abonnements', href: '#/abonnements', cle: 'abonnements', icone: 'calendrier' }, { page: 'support', href: '#/support', cle: 'support', icone: 'courriel' }] },
   { cle: 'la_plateforme', entrees: [{ page: 'service', href: '#/service', cle: 'service', icone: 'service' }, { page: 'reglages', href: '#/reglages', cle: 'reglages', icone: 'reglages' }] },
   { cle: 'l_equipe', entrees: [{ page: 'equipe', href: '#/equipe', cle: 'equipe', icone: 'equipe' }, { page: 'journal', href: '#/journal', cle: 'journal', icone: 'journal' }] },
 ];
 
-function Cote({ moi, page, decisions, sortir, theme }: { moi: Moi; page: Page | 'inconnue'; decisions: number | null; sortir: () => void; theme: ReturnType<typeof useTheme> }) {
+function Cote({ moi, page, decisions, support, sortir, theme }: { moi: Moi; page: Page | 'inconnue'; decisions: number | null; support: number | null; sortir: () => void; theme: ReturnType<typeof useTheme> }) {
   const [ouvert, setOuvert] = useState(false);
   useEffect(() => { setOuvert(false); }, [page]);
   const groupes = GROUPES.map((g) => ({ ...g, entrees: g.entrees.filter((e) => OUVRE[e.page].includes(moi.role)) })).filter((g) => g.entrees.length);
@@ -119,6 +122,7 @@ function Cote({ moi, page, decisions, sortir, theme }: { moi: Moi; page: Page | 
               <a key={e.page} href={e.href} aria-current={actif === e.page ? 'page' : undefined}>
                 <Icone nom={e.icone} />{titre(`console.ecran.nav.${e.cle}`)}
                 {e.page === 'accueil' && decisions ? <span className="c-nav-compte">{decisions}</span> : null}
+                {e.page === 'support' && support ? <span className="c-nav-compte" title={dire('console.ecran.nav.support_compte', { n: support })}>{support}</span> : null}
               </a>
             ))}
           </div>
@@ -194,6 +198,7 @@ function Page({ route, role }: { route: Route; role: Role }) {
     case 'cabinets': return <Cabinets q={route.params.get('q') ?? ''} />;
     case 'cabinet': return <Cabinet key={route.id} id={route.id ?? ''} onglet={route.params.get('onglet')} place={route.params.get('place')} />;
     case 'abonnements': return <Abonnements vue={route.params.get('vue')} />;
+    case 'support': return <Support demande={UUID.test(route.params.get('demande') ?? '') ? route.params.get('demande') : null} vue={route.params.get('vue')} />;
     case 'reglages': return <Reglages onglet={route.params.get('onglet')} />;
     case 'journal': return <Journal entreprise={UUID.test(route.params.get('entreprise') ?? '') ? route.params.get('entreprise') : null} qui={UUID.test(route.params.get('qui') ?? '') ? route.params.get('qui') : null} />;
     case 'equipe': return <Equipe />;
@@ -207,6 +212,7 @@ type Etat = { etat: 'lecture' } | { etat: 'entree'; message: string | null } | {
 export function Console() {
   const [etat, setEtat] = useState<Etat>(session.jeton() ? { etat: 'lecture' } : { etat: 'entree', message: null });
   const [decisions, setDecisions] = useState<number | null>(null);
+  const [support, setSupport] = useState<number | null>(null);
   const route = useRoute();
   const theme = useTheme();
   useEffect(() => { document.title = titre('console.ecran.onglet'); }, []);
@@ -223,7 +229,7 @@ export function Console() {
     })();
   }, [etat]);
 
-  const sortir = useCallback((message?: string) => { session.fermer(); setDecisions(null); setEtat({ etat: 'entree', message: message ?? null }); }, []);
+  const sortir = useCallback((message?: string) => { session.fermer(); setDecisions(null); setSupport(null); setEtat({ etat: 'entree', message: message ?? null }); }, []);
   const deconnecter = useCallback(() => {
     void appeler('POST', '/console/deconnexion').catch(() => undefined).finally(() => { sortir(); location.hash = '#/'; });
   }, [sortir]);
@@ -238,13 +244,13 @@ export function Console() {
     let vivant = true;
     void (async () => {
       try {
-        const r = await appeler<{ decider: unknown[] }>('GET', '/console/accueil');
-        if (vivant && r.statut === 200) setDecisions(r.corps.decider.length);
+        const r = await appeler<{ decider: unknown[]; tableau: { support?: { aRepondre: number } } }>('GET', '/console/accueil');
+        if (vivant && r.statut === 200) { setDecisions(r.corps.decider.length); setSupport(r.corps.tableau.support?.aRepondre ?? null); }
       } catch { /* le compte attendra la page suivante : rien d'autre n'en dépend */ }
     })();
     return () => { vivant = false; };
   }, [dedans, route.page, tourDecisions]);
-  const ctx = useMemo<Ctx | null>(() => (etat.etat === 'dedans' ? { moi: etat.moi, sortir, compterDecisions: setDecisions, relireDecisions } : null), [etat, sortir, relireDecisions]);
+  const ctx = useMemo<Ctx | null>(() => (etat.etat === 'dedans' ? { moi: etat.moi, sortir, compterDecisions: setDecisions, compterSupport: setSupport, relireDecisions } : null), [etat, sortir, relireDecisions]);
   useToucheRecherche(etat.etat === 'dedans' ? etat.moi.role : null, route.page);
 
   if (etat.etat === 'lecture') return <div className="c-centre"><p className="c-attente">{titre('console.ecran.lecture')}</p></div>;
@@ -261,7 +267,7 @@ export function Console() {
   return (
     <ContexteConsole.Provider value={ctx}>
       <div className="c-app">
-        <Cote moi={ctx.moi} page={route.page} decisions={decisions} sortir={deconnecter} theme={theme} />
+        <Cote moi={ctx.moi} page={route.page} decisions={decisions} support={support} sortir={deconnecter} theme={theme} />
         <div className="c-principal">
           {route.page === 'accueil' ? (
             <div className="c-haut">

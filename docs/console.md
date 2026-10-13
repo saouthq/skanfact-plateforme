@@ -52,8 +52,9 @@ Un écran hors du rôle dit « Cet écran n'est pas dans ton rôle », et le men
 
 **C3. L'accueil : le tableau du matin et « À décider »** (10 § 2.1, 2.2).
 - **Le tableau** : les inscriptions des sept derniers jours (aujourd'hui compris), les essais en cours, les abonnements
-  actifs par offre, les entreprises en retard, en lecture seule ; les revenus du mois et le support disent « non mesuré »
-  avec leur raison (les paiements viennent en 14b, le support ensuite) ; le service dit « non mesuré » sans veille ou
+  actifs par offre, les entreprises en retard, en lecture seule ; les revenus du mois disent « non mesuré »
+  avec leur raison (les paiements viennent en 14b) ; le support compte ses demandes ouvertes et celles qui attendent
+  notre réponse depuis plus de vingt-quatre heures (C29) ; le service dit « non mesuré » sans veille ou
   quand elle se tait, sinon ses problèmes. **Rien n'est vert sans mesure** (C2). **Chaque chiffre ouvre la liste qu'il
   compte, calculée par la même fonction** (C3) : « Inscriptions » ouvre les clients avec le filtre « inscrites ces 7
   derniers jours », qui se voit et se retire.
@@ -641,12 +642,39 @@ l'écran le dit en tête au support. Quatre onglets, l'adresse garde l'onglet (`
   allumées une à une, préparer un nouveau prix depuis l'écran, les modules et options, les remises et les offres de
   fondateur (14c), la colonne TTC (14b).
 
+## Quatrième partie : le support (Support S1, 13/10/2026)
+
+**C29. Le support** (10 § 2.7 ; base 0095 ; `docs/support.md`). `#/support`, dans « Chaque jour » : la direction et le
+support le lisent et y répondent ; la technique n'y lit rien. Les règles des demandes (qui lit quoi, ce qui part avec une
+demande, l'alerte par e-mail sans contenu) sont dans `docs/support.md` ; ici, l'écran.
+- **Deux colonnes, qui tiennent dans la fenêtre** (revu le 13/10/2026, à la demande de Skander : trois colonnes
+  serraient la conversation, et la réponse tombait sous le bas de l'écran). À gauche, la liste (les ouvertes, la plus
+  urgente en haut ; les closes à un clic), puis **une** carte « le client et la personne » : le client (son abonnement,
+  sa vie dans l'application, sa fiche, ses demandes) puis la personne (son nom, ses rôles, son adresse, la page et la
+  version d'où elle a écrit), et ce que le support ne voit pas (le dossier). À droite, large, la conversation : le sujet
+  dans ses mots, qui et d'où, où elle en est, puis les messages (le dernier en bas, sous les yeux) et la réponse. À
+  l'ordinateur, **la page ne défile pas** : la grille prend la hauteur qui reste sous l'en-tête (mesurée), chaque
+  colonne défile seule, et le dernier message, le champ et « Envoyer » restent à l'écran — à 1440×900 comme à 1280×800.
+  Au téléphone : la liste d'abord (aucune demande ne s'ouvre d'elle-même), choisir une demande amène sa conversation,
+  et chaque cible fait 44 points.
+- **La réponse** : les réponses types sont les articles de l'Aide du client (trois à l'écran ; celui de la page d'où il a
+  écrit d'abord) ; un clic joint l'article et, sur une réponse vide, pose « Bonjour {prénom}, » avec le curseur sur la
+  ligne vide ; tout autre article se joint en pied ; Ctrl + Entrée envoie. Un refus qui ne porte pas sur le texte (la
+  demande close entre-temps) relit l'écran, la réponse reste gardée.
+- **L'écran se relit toutes les trente secondes et au retour sur l'onglet**, avec la pastille de « À décider », sauf
+  **sous les doigts** (une fenêtre ouverte, une réponse en train de s'écrire). Une réponse commencée est **gardée par
+  demande** ; si la personne clôt la demande pendant qu'on écrit, l'écran le dit et « Rouvrir… » la rend.
+- **Clore** et **rouvrir** demandent un motif ; **noter une demande reçue ailleurs** se fait depuis l'onglet « Ses
+  demandes » de la fiche du client, au nom d'un membre actif de son entreprise. Chaque geste entre au journal, sans le
+  texte des messages.
+- **L'accueil et « À décider »** : une demande sans réponse depuis vingt-quatre heures est une décision (« Répondre »
+  ouvre la demande) ; la tuile du support, la barre, la fiche et la page comptent par la même fonction (`compter`).
+
 ## Ce que le lot ne fait pas
 
-La suite de la console : les paiements et nos factures (14b), le support, la suite du service (la
+La suite de la console : les paiements et nos factures (14b), l'accès au dossier accordé par un client (Support S2), la suite du service (la
 sécurité : l'accès d'urgence, bloquer une adresse, la chaîne du journal relue, la date des secrets ; le débit des travaux heure par heure, et les envois des e-mails, de la TEJ et de la CNSS, qui n'ont pas encore
-de trace), la mesure, la suite des réglages (les nouveautés allumées, préparer un prix ; C28), l'application de bureau (les licences de la v10), l'accès accordé par un client
-(48 heures, en lecture), et le filtre du journal par geste et par période. Le service ne se voit encore que du serveur
+de trace), la mesure, la suite des réglages (les nouveautés allumées, préparer un prix ; C28), l'application de bureau (les licences de la v10), et le filtre du journal par geste et par période. Le service ne se voit encore que du serveur
 lui-même : aucune vérification de l'extérieur (06 § 7, depuis deux villes) ; l'écran le dit.
 
 ## À VÉRIFIER

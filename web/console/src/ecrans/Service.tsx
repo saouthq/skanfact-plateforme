@@ -13,7 +13,7 @@
 // laissé ouvert sans personne, il ne tient pas la session de la console éveillée.
 import { Fragment, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { dire, phrase, selon, titre, typo } from '../langue.ts';
-import { useConsole, useLecture } from '../contexte.ts';
+import { useConsole, useLecture, useRelireQuandOnRegarde } from '../contexte.ts';
 import { Barres, Bande, Courbe, echelle, Trait, type Abscisse, type Case, type Contenu, type Ton } from '../graphes.tsx';
 import { decimal, duree, entier, minutes, pourCent } from '../nombres.ts';
 import { dans, heureDe, ilYA, jourCourt, jourMois, quand } from '../temps.ts';
@@ -112,18 +112,9 @@ export function EtatPuce({ etat, texte }: { etat: EtatBrique; texte?: string }) 
 export const enTitre = (s: string) => maj(typo(s));
 
 // ── Se relire tant que quelqu'un regarde ────────────────────────────────────────────────────────────────────────────
+// En pause (« Pause » de l'en-tête), l'écran garde sa dernière lecture.
 export function useRelireTantQueRegarde(relire: () => void) {
-  useEffect(() => {
-    let geste = Date.now();
-    const vu = () => { geste = Date.now(); };
-    const evenements = ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
-    for (const e of evenements) window.addEventListener(e, vu, { passive: true });
-    // En pause (« Pause » de l'en-tête), l'écran garde sa dernière lecture.
-    const minuterie = setInterval(() => {
-      if (!pause.lire() && document.visibilityState === 'visible' && Date.now() - geste < 5 * 60_000) relire();
-    }, 60_000);
-    return () => { clearInterval(minuterie); for (const e of evenements) window.removeEventListener(e, vu); };
-  }, [relire]);
+  useRelireQuandOnRegarde(relire, { attendre: () => pause.lire() });
 }
 
 // ── L'en-tête : l'état du service en une ligne ──────────────────────────────────────────────────────────────────────

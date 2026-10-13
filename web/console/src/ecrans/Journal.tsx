@@ -10,6 +10,7 @@ import { panneDe, refusDe, useApi, useConsole, useLecture, type Role } from '../
 import { heureDe, jourCourt, jourDe, jourLong, jourMois, joursEntre } from '../temps.ts';
 import { Alerte, Avatar, Bouton, maj, Puce, Vide } from '../ui.tsx';
 import { Changements } from './Fiche.tsx';
+import { refDemande } from './Support.tsx';
 
 type Ligne = {
   id: string; le: string; role: Role | null; geste: string; motif: string; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null;
@@ -35,6 +36,13 @@ function ChangeDuService({ geste, s }: { geste: string; s: NonNullable<Ligne['se
 }
 
 // Un geste des réglages porte sur une règle du registre (l'avis de qui l'a relue) ou sur le message aux clients (ses jours).
+// Un geste du support porte sur une demande (0095) : son numéro, qui l'ouvre dans l'écran Support.
+function LaDemande({ avant, apres }: { avant: Record<string, unknown> | null; apres: Record<string, unknown> | null }) {
+  const id = typeof apres?.demande === 'string' ? apres.demande : typeof avant?.demande === 'string' ? avant.demande : null;
+  const numero = typeof apres?.numero === 'number' ? apres.numero : typeof avant?.numero === 'number' ? avant.numero : null;
+  if (!id || numero === null) return null;
+  return <span className="c-changes"><a className="c-change" href={`#/support?demande=${id}`}>{titre('console.ecran.journal.sur_demande', { ref: refDemande(numero) })}</a></span>;
+}
 function SurLesReglages({ r }: { r: NonNullable<Ligne['reglages']> }) {
   return r.regle ? <a href="#/reglages?onglet=regles">{titre('console.ecran.journal.sur_regle_commune', { code: r.regle })}</a>
     : <a href="#/reglages?onglet=messages">{titre('console.ecran.journal.sur_message')}</a>;
@@ -45,8 +53,8 @@ function ChangeDesReglages({ r }: { r: NonNullable<Ligne['reglages']> }) {
   return t ? <span className="c-changes"><span className="c-change" data-donnee>{t}</span></span> : null;
 }
 
-// La famille d'un geste, lue dans son nom : l'abonnement d'un client, l'équipe, le service, les réglages.
-const FAMILLES = ['abonnement', 'equipe', 'service', 'reglages'] as const;
+// La famille d'un geste, lue dans son nom : l'abonnement d'un client, l'équipe, le service, les réglages, le support.
+const FAMILLES = ['abonnement', 'equipe', 'service', 'reglages', 'support'] as const;
 const familleDe = (geste: string) => FAMILLES.find((f) => geste.startsWith(`${f}.`)) ?? null;
 
 // Un jour comme on le dit : « Aujourd'hui · mardi 13 octobre », « Hier · lundi 12 octobre », « samedi 10 octobre » ; l'année
@@ -179,7 +187,8 @@ export function Journal({ entreprise, qui: quiDemande }: { entreprise: string | 
                                     : l.service ? <SurLeService s={l.service} /> : l.reglages ? <SurLesReglages r={l.reglages} /> : '—'}
                               </td>
                               <td><span className="c-jr-motif" data-donnee>{'«\u202f'}{l.motif}{'\u202f»'}</span></td>
-                              <td>{l.service ? <ChangeDuService geste={l.geste} s={l.service} /> : l.reglages ? <ChangeDesReglages r={l.reglages} /> : <Changements avant={l.avant} apres={l.apres} empile />}</td>
+                              <td>{l.service ? <ChangeDuService geste={l.geste} s={l.service} /> : l.reglages ? <ChangeDesReglages r={l.reglages} />
+                                : famille === 'support' ? <LaDemande avant={l.avant} apres={l.apres} /> : <Changements avant={l.avant} apres={l.apres} empile />}</td>
                             </tr>
                           );
                         })}

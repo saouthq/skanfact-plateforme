@@ -1,0 +1,275 @@
+Le support de SkanFact, dans l'application de l'entreprise (Support S1 ; docs/support.md ; serveur/support, migration
+0095 ; plateforme/support.js). Format : voir sans-paquets.mjs.
+
+« Signaler un problème » et « Proposer une amélioration » préparaient un e-mail dans la messagerie de l'appareil : en
+ligne, ils écrivent au support de SkanFact, dans l'application, et la réponse revient ICI (« Tes demandes au support »),
+pas dans une messagerie. Ce qui part avec une demande, compté et décidé : le sujet, le texte, la version de
+l'application et le NOM de la page où était la personne (celle d'avant l'Aide : c'est là qu'elle travaillait) ; rien de
+son dossier. Une réponse de l'équipe se signale par une pastille sur l'entrée « Aide » et par un bandeau en haut de chaque
+page ; l'e-mail qui prévient ne porte pas la réponse.
+
+── L'application de l'entreprise ──
+
+== index.html | l'écran du support et sa feuille se chargent après le message de SkanFact à ses clients
+-- avant
+  <script src="../plateforme/message.js"></script>
+  <link rel="stylesheet" href="../plateforme/message.css">
+-- après
+  <script src="../plateforme/message.js"></script>
+  <link rel="stylesheet" href="../plateforme/message.css">
+  <script src="../plateforme/support.js"></script>
+  <link rel="stylesheet" href="../plateforme/support.css">
+-- fin
+
+== index.html | l'entrée « Aide » porte la pastille d'une réponse du support à lire
+-- avant
+        <a href="#/aide" data-route="aide" class="foot-link"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.2a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4"/><path d="M12 17.5v.01"/></svg>Aide</a>
+-- après
+        <a href="#/aide" data-route="aide" class="foot-link"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.2a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4"/><path d="M12 17.5v.01"/></svg>Aide<span class="nav-count" id="nav-support" hidden></span></a>
+-- fin
+
+== core.js | la page « Tes demandes au support », hors du menu des modules : l'Aide y mène
+-- avant
+    { id: 'comptable', titre: 'Mon comptable', module: null, horsMenu: true,
+      quoi: 'Tes échanges avec ton cabinet comptable : ses messages, ses questions, les pièces qu\'il te demande.' },
+-- après
+    { id: 'comptable', titre: 'Mon comptable', module: null, horsMenu: true,
+      quoi: 'Tes échanges avec ton cabinet comptable : ses messages, ses questions, les pièces qu\'il te demande.' },
+    // (plateforme, Support S1) Les demandes au support de SkanFact et leurs réponses : l'Aide y mène.
+    { id: 'support', titre: 'Tes demandes au support', module: null, horsMenu: true,
+      quoi: 'Tes demandes à l\'équipe SkanFact et ses réponses : y répondre, dire que c\'est réglé.' },
+-- fin
+
+== app.js | la page « Tes demandes au support » a son nom, comme les autres pages
+-- avant
+    tresorerie: 'Trésorerie', stats: 'Statistiques', compta: 'Comptabilité', parametres: 'Paramètres', aide: 'Aide', doc: 'le document', licences: 'Licences', comptable: 'Mon comptable',
+-- après
+    tresorerie: 'Trésorerie', stats: 'Statistiques', compta: 'Comptabilité', parametres: 'Paramètres', aide: 'Aide', doc: 'le document', licences: 'Licences', comptable: 'Mon comptable', support: 'Tes demandes au support',
+-- fin
+
+== app.js | chaque page porte en haut le bandeau d'une réponse du support à lire, au-dessus du message de SkanFact
+-- avant
+    if (bridge.poserMessage) bridge.poserMessage(view);
+-- après
+    if (bridge.poserMessage) bridge.poserMessage(view);
+    // (plateforme, Support S1) Une réponse du support à lire : le bandeau passe au-dessus de tout (il appelle un geste).
+    if (bridge.support) bridge.support.poser(view);
+-- fin
+
+== app.js | en ligne, « Signaler un problème » écrit au support, dans l'application : la réponse revient ici
+-- avant
+  async function supportForm() {
+    let info = {};
+-- après
+  async function supportForm() {
+    // (plateforme, Support S1) En ligne, la demande part au support de SkanFact et la réponse revient dans l'application
+    // (« Tes demandes au support »), pas dans une messagerie ; il n'y a pas de journal de l'ordinateur à joindre.
+    if (bridge.support) return ecrireAuSupport('probleme');
+    let info = {};
+-- fin
+
+== app.js | en ligne, « Proposer une amélioration » passe par le même chemin : l'équipe la lit et y répond ici
+-- avant
+  async function ideeForm() {
+    let info = {};
+-- après
+  async function ideeForm() {
+    // (plateforme, Support S1) L'idée part au support de SkanFact, avec ses deux questions ; la réponse revient ici.
+    if (bridge.support) return ecrireAuSupport('idee');
+    let info = {};
+-- fin
+
+== app.js | l'Aide dit « Écrire au support », et mène à « Tes demandes au support » (sauf quand le retour y mène déjà : deux boutons au même nom, côte à côte)
+-- avant
+        <div class="actions">${backButton('#/dashboard', 'aide')}<button class="btn" id="aide-support">Signaler un problème</button>
+-- après
+        <div class="actions">${backButton('#/dashboard', 'aide')}${bridge.support && routeOf(backTarget('#/dashboard', 'aide')) !== 'support' ? '<button class="btn" id="aide-demandes">Tes demandes au support</button>' : ''}<button class="btn" id="aide-support">${bridge.support ? 'Écrire au support' : 'Signaler un problème'}</button>
+-- fin
+
+== app.js | « Tes demandes au support » s'ouvre depuis l'Aide
+-- avant
+    $('#aide-idee').onclick = ideeForm;
+  };
+-- après
+    $('#aide-idee').onclick = ideeForm;
+    if ($('#aide-demandes')) $('#aide-demandes').onclick = () => navigate('#/support');
+  };
+-- fin
+
+== app.js | la fenêtre « Écrire au support » et la page « Tes demandes au support »
+-- avant
+  // (plateforme, brique 113) Le groupe : les sociétés de la personne, leurs chiffres lus dans leurs livres au serveur.
+-- après
+  // (plateforme, Support S1) « Écrire au support » : la demande part à l'équipe SkanFact, la réponse revient ICI (« Tes
+  // demandes au support »), et un e-mail sans contenu prévient la personne. Ce qui part avec, compté et décidé : le
+  // sujet, le texte, la version de l'application et le NOM de la page où elle était — celle d'avant l'Aide, c'est là
+  // qu'elle travaillait ; jamais un identifiant, ni rien de son dossier.
+  let supportOuvert = null;
+  // Ce qui attend au support, relu par le démarrage (la pastille de l'Aide, le bandeau) ; après un envoi, tout de suite.
+  let relireSupport = () => {};
+  const PAGES_DU_SUPPORT = ['aide', 'parametres', 'support', 'guide'];
+  const pageDuSupport = () => {
+    const ici = routeOf(location.hash);
+    if (!PAGES_DU_SUPPORT.includes(ici)) return ici;
+    for (let i = navStack.length - 1; i >= 0; i--) { const r = routeOf(navStack[i]); if (!PAGES_DU_SUPPORT.includes(r)) return r; }
+    return ici;
+  };
+  async function ecrireAuSupport(genre) {
+    const idee = genre === 'idee';
+    let v = null;
+    try { v = await bridge.updateVersion(); } catch (_) { /* sans version, la demande part sans elle */ }
+    const version = v && v.version && v.version !== 'dev' ? `${v.version}${v.envoi ? '+' + v.envoi : ''}` : null;
+    const page = pageDuSupport();
+    const nomPage = PAGE_LABELS[page] || '';
+    const joint = [version ? `la version de SkanFact (v${h(v.version)})` : 'la version de SkanFact', nomPage ? `la page où tu étais (${h(nomPage)})` : ''].filter(Boolean).join(' et ');
+    modal(`<h2>${idee ? 'Proposer une amélioration' : 'Écrire au support'}</h2>
+      <p class="small">${idee
+        ? 'Dis ce qui te manque — même si ça te paraît petit : c\'est souvent le petit geste répété tous les lundis qui fait gagner le plus. L\'équipe SkanFact lit chaque idée et te répond ici.'
+        : 'Une question, ou quelque chose qui ne marche pas comme prévu : l\'équipe SkanFact te répond ici, dans SkanFact, en général dans la journée. Un e-mail te prévient que la réponse t\'attend.'}</p>
+      <form id="sup-form" novalidate>
+        ${idee ? `<label class="field obligatoire">${lbl('Ce que tu aimerais faire', 'support.ideeQuoi')}
+          <textarea id="sup-quoi" rows="3" maxlength="1800" placeholder="Ex. : envoyer la même relance à plusieurs clients d'un coup."></textarea></label>
+        <label class="field">${lbl('Comment tu fais aujourd\'hui', 'support.ideeAujourdhui')}
+          <textarea id="sup-auj" rows="3" maxlength="1800" placeholder="Ex. : je les ouvre un par un, ça me prend une demi-heure chaque lundi."></textarea></label>
+        <p class="small muted">Cette seconde question est celle qui sert le plus : elle dit le vrai problème, et pas seulement la solution imaginée.</p>`
+        : `<label class="field obligatoire">${lbl('Le sujet', 'support.sujet')}
+          <input id="sup-sujet" maxlength="140" autocomplete="off" placeholder="Ex. : l'émission d'une facture ne répond plus"></label>
+        <label class="field obligatoire">${lbl('Ce qui se passe', 'support.texte')}
+          <textarea id="sup-texte-demande" rows="5" maxlength="4000" placeholder="Ce que tu faisais, ce que tu attendais, ce qui s'est passé à la place. Une question ? Pose-la telle quelle."></textarea></label>`}
+      </form>
+      <div class="notes-md mt"><strong>Joint automatiquement</strong>
+        <p class="small">${joint} : c'est ce qui aide l'équipe à voir ce que tu vois.</p>
+        <p class="small muted">Rien d'autre : ni client, ni montant, ni document de ton entreprise.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" data-close>Annuler</button>
+        <button class="btn btn-primary" id="sup-send">Envoyer au support</button></div>`,
+      (root, close) => {
+        const bouton = $('#sup-send', root);
+        const envoyer = async () => {
+          if (bouton.disabled) return;
+          let sujet, texte;
+          if (idee) {
+            const quoi = $('#sup-quoi', root).value.trim();
+            if (quoi.length < 3) return refus($('#sup-quoi', root), 'Dis en une phrase ce que tu aimerais faire.');
+            const auj = $('#sup-auj', root).value.trim();
+            // Le sujet de l'idée : sa première ligne, sans balise, tenue dans les 140 signes d'un sujet.
+            const ligne = quoi.split('\n')[0].replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
+            sujet = `Une idée : ${ligne}`;
+            if (sujet.length > 140) sujet = sujet.slice(0, 139).trimEnd() + '…';
+            texte = `Ce que j'aimerais faire :\n${quoi}\n\nComment je fais aujourd'hui :\n${auj || '(non précisé)'}`;
+          } else {
+            sujet = $('#sup-sujet', root).value.trim();
+            texte = $('#sup-texte-demande', root).value.trim();
+            if (sujet.length < 3) return refus($('#sup-sujet', root), 'Donne un sujet à ta demande, en quelques mots : c\'est lui que l\'équipe lit en premier.');
+            if (/[<>]/.test(sujet)) return refus($('#sup-sujet', root), 'Le sujet s\'écrit sans les signes < et >.');
+            if (texte.length < 3) return refus($('#sup-texte-demande', root), 'Dis ce qui se passe : ce que tu faisais, ce que tu attendais. C\'est ce qui permet de t\'aider.');
+          }
+          bouton.disabled = true;
+          try {
+            const r = await bridge.support.ecrire({ sujet, texte, version, page: /^[a-z][a-z0-9_-]{0,39}$/.test(page) ? page : null });
+            close();
+            toast('Envoyé : l\'équipe SkanFact te répond ici, dans « Tes demandes au support ».');
+            void relireSupport();
+            navigate('#/support/' + encodeURIComponent(r.id));
+          } catch (e) { toast(plainError(e), true); bouton.disabled = false; }
+        };
+        bouton.onclick = envoyer;
+        $('#sup-form', root).onsubmit = e => { e.preventDefault(); void envoyer(); };
+      });
+  }
+  routes.support = (parts) => {
+    if (supportOuvert) { supportOuvert.arreter(); supportOuvert = null; }
+    const view = $('#view');
+    if (!bridge.support) {
+      view.innerHTML = '<div class="page-head"><h1>Tes demandes au support</h1></div><div class="panel"><p class="small muted">Le support de SkanFact se joint en ligne, depuis l\'application.</p></div>';
+      return;
+    }
+    view.innerHTML = '<div id="sup-racine"></div>';
+    supportOuvert = bridge.support.dessiner($('#sup-racine'), {
+      ecrire: () => ecrireAuSupport('question'),
+      choisie: parts && parts[0] ? decodeURIComponent(parts[0]) : null,
+      toast: (t, erreur) => toast(t, erreur),
+      ouvrirArticle: id => navigate('#/aide/' + id),
+    });
+  };
+  // (plateforme, brique 113) Le groupe : les sociétés de la personne, leurs chiffres lus dans leurs livres au serveur.
+-- fin
+
+== app.js | ce qui attend au support est relu toutes les minutes tant que la page est visible : la pastille de l'Aide et le bandeau
+-- avant
+      document.addEventListener('visibilitychange', () => { void suivreMessagerie(); });
+    }
+-- après
+      document.addEventListener('visibilitychange', () => { void suivreMessagerie(); });
+    }
+    // (plateforme, Support S1) Ce qui attend au support (une réponse de l'équipe à lire), relu toutes les minutes tant que
+    // la page est visible, et tout de suite après un envoi. Une personne sans rôle dans l'entreprise n'a pas de support
+    // ici : on ne redemande plus.
+    if (bridge.support) {
+      let sansSupport = false;
+      relireSupport = async () => {
+        if (sansSupport || document.visibilityState !== 'visible') return;
+        try { bridge.support.noter(await bridge.support.attente()); } catch (e) { if (e && e.statut === 403) { sansSupport = true; bridge.support.noter(null); } }
+      };
+      void relireSupport();
+      setInterval(() => { void relireSupport(); }, 60 * 1000);
+      document.addEventListener('visibilitychange', () => { void relireSupport(); });
+    }
+-- fin
+
+== guide.js | les bulles de la fenêtre « Écrire au support » disent où part la demande et où revient la réponse
+-- avant
+    'aide.ideeAujourdhui': { t: 'Comment tu fais aujourd\'hui', d: 'Ton détour actuel : les gestes répétés, le temps que ça prend. Facultatif, mais c\'est lui qui dit le vrai problème. Il part dans le même message, avec seulement la version de SkanFact.', a: 'support' },
+-- après
+    'aide.ideeAujourdhui': { t: 'Comment tu fais aujourd\'hui', d: 'Ton détour actuel : les gestes répétés, le temps que ça prend. Facultatif, mais c\'est lui qui dit le vrai problème. Il part dans le même message, avec seulement la version de SkanFact.', a: 'support' },
+    'support.sujet': { t: 'Le sujet', d: 'Ta demande en quelques mots : c\'est ce que l\'équipe lit en premier, et ce qui la nomme dans « Tes demandes au support ». Trois à cent quarante signes, sans < ni >.', a: 'support' },
+    'support.texte': { t: 'Ce qui se passe', d: 'Ce que tu faisais, où tu as cliqué, ce que tu attendais, ce qui s\'est passé à la place. Il part à l\'équipe SkanFact avec la version de l\'application et le nom de la page où tu étais, rien de ton dossier. La réponse revient ici, dans « Tes demandes au support ».', a: 'support' },
+    'support.ideeQuoi': { t: 'Ce que tu aimerais faire', d: 'Le besoin en une phrase, même s\'il te paraît petit. Il part à l\'équipe SkanFact avec la version de l\'application et le nom de la page où tu étais, rien de ton dossier ; sa réponse revient ici.', a: 'support' },
+    'support.ideeAujourdhui': { t: 'Comment tu fais aujourd\'hui', d: 'Ton détour actuel : les gestes répétés, le temps que ça prend. Facultatif, mais c\'est lui qui dit le vrai problème. Il part avec ton idée.', a: 'support' },
+-- fin
+
+== guide.js | l'article « Si quelque chose ne va pas », réécrit pour la plateforme : écrire au support et lire sa réponse ici (il décrivait le message préparé avec le journal de l'ordinateur)
+-- avant
+      id: 'support', title: 'Si quelque chose ne va pas', sub: 'Ce qu\'il faut faire, et ce qu\'il faut envoyer',
+      body: `
+<h3>L'application ne répond plus</h3>
+<p>Depuis la version 6.6.0, SkanFact <b>se surveille lui-même</b> : toutes les trois secondes, il vérifie que son interface répond encore. Si elle reste muette une douzaine de secondes, il note dans son journal <b>où le programme s'est arrêté</b>, interrompt ce qui tourne en boucle, et te propose de recharger.</p>
+<p>Pourquoi c'est important : un gel ne laisse normalement <b>aucune trace</b>. Rien ne plante, aucune erreur n'apparaît, les journaux restent vides — et la personne devant l'écran n'a rien à envoyer pour qu'on l'aide. C'est exactement ce qui est arrivé avec la version 5.1.0. Maintenant, un gel devient un rapport.</p>
+<p>Réponds <b>Recharger l'application</b> : tes données enregistrées ne risquent rien. Ce qui était en cours de saisie et jamais enregistré est perdu — il l'était déjà de toute façon.</p>
+
+<h3>Signaler un problème</h3>
+<p><b>Aide → Signaler un problème</b> prépare le message. Décris ce que tu faisais : c'est le seul élément qu'on ne peut pas deviner, et c'est celui qui permet de reproduire le problème — donc de le corriger.</p>
+<p>Le message emporte la version, ton système, et le journal technique. <b>Il ne contient aucune donnée de ton entreprise</b> : ni nom de client, ni montant, ni document. Le bouton « Voir le journal » te le montre avant.</p>
+
+<h3>Avant d'appeler à l'aide</h3>
+<ul>
+<li><b>Note la version</b> (en bas de la barre de gauche) et ce que tu faisais exactement.</li>
+<li><b>Fais une sauvegarde</b> (Paramètres → Données et sécurité) : ça ne coûte rien et ça protège tout.</li>
+<li>Si l'application refuse de démarrer, tes données sont toujours là : le fichier et les sauvegardes vivent dans le dossier indiqué dans Paramètres → Données et sécurité.</li>
+</ul>
+
+<h3>Ce qui n'est jamais perdu</h3>
+<p>Tes données sont un fichier sur ton disque, plus une sauvegarde par jour pendant 30 jours, plus les sauvegardes nommées que tu as prises. Même une application cassée ne les emporte pas : réinstaller SkanFact les retrouve telles quelles.</p>`
+-- après
+      id: 'support', title: 'Si quelque chose ne va pas', sub: 'Écrire au support, et où la réponse t\'attend',
+      body: `
+<h3>Écrire au support</h3>
+<p><b>Aide → Écrire au support</b> envoie ta demande à l'équipe SkanFact. Donne-lui un sujet court, puis dis ce qui se passe : ce que tu faisais, ce que tu attendais, ce qui s'est passé à la place. C'est le seul élément qu'on ne peut pas deviner, et c'est celui qui permet de reproduire le problème — donc de le corriger. Une simple question se pose de la même façon.</p>
+<p>La demande emporte la version de SkanFact et le nom de la page où tu étais. <b>Elle ne contient aucune donnée de ton entreprise</b> : ni nom de client, ni montant, ni document.</p>
+<p><b>Proposer une amélioration</b> passe par le même chemin : dis ce que tu aimerais faire, puis comment tu fais aujourd'hui — c'est la seconde réponse qui dit le vrai besoin.</p>
+
+<h3>La réponse</h3>
+<p>L'équipe te répond <b>ici, dans SkanFact</b>, en général dans la journée. Un bandeau te le dit en haut de l'écran, l'entrée « Aide » de la barre porte une pastille, et la réponse t'attend dans <b>Aide → Tes demandes au support</b>. Si tu n'es pas dans SkanFact à ce moment-là, un e-mail te prévient qu'une réponse t'attend : il ne contient pas la réponse elle-même, qui reste dans ton espace.</p>
+<p>Tu peux y répondre, ou dire <b>« C'est réglé »</b>. Une demande réglée se rouvre si tu y réécris. Tu ne vois que tes demandes : celles de tes collègues restent les leurs.</p>
+
+<h3>Avant d'écrire</h3>
+<ul>
+<li><b>Note ce que tu faisais exactement</b> : la page, le bouton, ce que tu attendais.</li>
+<li>La version est en bas de la barre de gauche ; ta demande l'emporte d'elle-même.</li>
+<li>Si une page ne répond plus, recharge-la : ce qui a été enregistré est sur le serveur de SkanFact, pas dans la page.</li>
+</ul>
+
+<h3>Ce qui n'est jamais perdu</h3>
+<p>Tes données vivent sur le serveur de SkanFact, pas sur cet appareil : fermer l'onglet, changer d'ordinateur ou perdre ton téléphone ne les emporte pas. Le propriétaire ou un administrateur en télécharge une copie complète quand il veut : Paramètres → Données et sécurité → « Toutes les données de l'entreprise ».</p>`
+-- fin

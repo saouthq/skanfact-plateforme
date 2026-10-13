@@ -70,6 +70,9 @@ import { declarerGestesPaie } from './paie/gestes.ts';
 import { routesPaie } from './paie/routes.ts';
 import { declarerGestesMessagerie } from './messagerie/gestes.ts';
 import { prevenirParCourriel } from './messagerie/postier.ts';
+import { prevenirDesReponses } from './support/postier.ts';
+import { declarerGestesSupport } from './support/gestes.ts';
+import { routesSupport } from './support/routes.ts';
 import { relancerLesAbonnements } from './abonnement/relances.ts';
 import { routesAbonnement } from './abonnement/routes.ts';
 import { routesConsole } from './console/routes.ts';
@@ -235,8 +238,9 @@ export function routesDuServeur(ctx: Contexte, options: { veille: string | null 
   declarerGestesPaie();
   declarerGestesCompta();
   declarerGestesMessagerie();
+  declarerGestesSupport();
   return [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx),
-    ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesAbonnement(), ...routesConsole(ctx, options),
+    ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesSupport(ctx), ...routesAbonnement(), ...routesConsole(ctx, options),
     ...routesMessageClients(ctx.maintenant)];
 }
 
@@ -300,14 +304,15 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   tourDesContrats();
   const contrats = setInterval(tourDesContrats, c.contratsMs);
 
-  // Les alertes par e-mail de la messagerie (lot messagerie) : chaque minute, qui a un message à lire depuis cinq
-  // minutes ; un seul tour à la fois, et rien sans relais d'e-mails.
+  // Les alertes par e-mail de la messagerie (lot messagerie) et du support (docs/support.md) : chaque minute, qui a un
+  // message ou une réponse à lire depuis cinq minutes ; un seul tour à la fois, et rien sans relais d'e-mails.
   let alertes: Promise<unknown> = Promise.resolve();
   let enAlertes = false;
   const postier = setInterval(() => {
     if (enAlertes || !ctx.courriel) return;
     enAlertes = true;
-    alertes = suivreTour(pool, 'postier', () => prevenirParCourriel(ctx)).catch((e: unknown) => { noterPanne('tâche prevenirParCourriel', e); }).finally(() => { enAlertes = false; });
+    alertes = suivreTour(pool, 'postier', async () => ({ alertes: await prevenirParCourriel(ctx) + await prevenirDesReponses(ctx) }))
+      .catch((e: unknown) => { noterPanne('tâche prevenirParCourriel', e); }).finally(() => { enAlertes = false; });
   }, c.alertesMs);
 
   // Les relances de l'abonnement (docs/abonnement.md) : au démarrage, puis chaque heure, les échéances proches ; un seul

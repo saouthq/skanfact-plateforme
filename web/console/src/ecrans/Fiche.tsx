@@ -17,6 +17,7 @@ import { dans, jourCourt, jourDe, quand } from '../temps.ts';
 import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
 import { organisationEnMots } from './Clients.tsx';
 import type { Place } from './Cabinets.tsx';
+import { depuisEnMots, etatEnMots, NoterDemande, refDemande, type LigneDemande } from './Support.tsx';
 
 type Geste = 'prolonger' | 'payer' | 'resilier' | 'annuler-resiliation' | 'suspendre' | 'reprendre' | 'offrir' | 'retirer-offert';
 type LigneAbo = { essai_jusqu_au: string; paye_jusqu_au: string | null; offre: Offre | null; periodicite: Periodicite | null; resilie_le: string | null; suspendu_le: string | null; offert: boolean };
@@ -28,14 +29,17 @@ type Donnees = {
   organisation: { id: string; type: string; nom: string }; tenuePar: string | null; faits: Faits; ligne: LigneAbo | null; etat: Etat; gestes: Geste[];
   membres: Membre[]; comptes: { etablissements: number; caisses: number; salaries: number; piecesCreees: number; piecesEmises: { mois: string; n: number }[] };
   prolongeDejaUneFois: boolean; evenements: Evenement[]; cabinets: CabinetDe[]; attend: Attente[];
+  // Ses demandes au support (0095), rangées par la fonction de l'écran Support (C3).
+  support: { comptes: { ouvertes: number; aRepondre: number }; ouvertes: LigneDemande[]; closes: LigneDemande[] };
 };
 // Les lignes d'« À décider » qui nomment ce client (serveur/console/decider.ts, aDecider) : celles d'un client seulement.
 type Attente =
   | { sorte: 'en_retard'; echeance: string; lectureSeuleLe: string; jours: number; apresEssai: boolean }
   | { sorte: 'lecture_seule'; depuis: string; raison: 'essai_termine' | 'non_renouvele' | 'resilie' | 'suspendu' }
-  | { sorte: 'essai_sans_usage'; jusquAu: string; jours: number; proprietaire: { nom: string; email: string } | null };
-export type OngletFiche = 'apercu' | 'abonnement' | 'membres' | 'journal';
-export const ONGLETS_FICHE: readonly OngletFiche[] = ['apercu', 'abonnement', 'membres', 'journal'];
+  | { sorte: 'essai_sans_usage'; jusquAu: string; jours: number; proprietaire: { nom: string; email: string } | null }
+  | { sorte: 'support'; demande: { id: string; numero: number; sujet: string }; demandeur: string; heures: number };
+export type OngletFiche = 'apercu' | 'abonnement' | 'membres' | 'support' | 'journal';
+export const ONGLETS_FICHE: readonly OngletFiche[] = ['apercu', 'abonnement', 'membres', 'support', 'journal'];
 
 const cleGeste = (g: Geste) => g.replace('-', '_');
 
@@ -234,6 +238,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
   const { moi, relireDecisions } = useConsole();
   const [l, relire] = useLecture<Donnees>(`/console/entreprises/${encodeURIComponent(id)}`, id);
   const [geste, setGeste] = useState<Geste | null>(null);
+  const [noter, setNoter] = useState(false);
   if (l.etat === 'lecture') return <p className="c-attente">{titre('console.ecran.lecture')}</p>;
   if (l.etat === 'panne') {
     return (
@@ -269,10 +274,11 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
   const ecrire = (m: { email: string }) => `mailto:${m.email}`;
   // L'onglet vit dans l'adresse : « précédent » y revient, un lien d'ailleurs peut y mener.
   const versOnglet = (o: OngletFiche) => `#/clients/${f.id}${o === 'apercu' ? '' : `?onglet=${o}`}`;
-  const onglets: { o: OngletFiche; n?: number }[] = [{ o: 'apercu' }, { o: 'abonnement' }, { o: 'membres', n: f.membres.length }, { o: 'journal', n: f.evenements.length }];
+  const onglets: { o: OngletFiche; n?: number }[] = [{ o: 'apercu' }, { o: 'abonnement' }, { o: 'membres', n: f.membres.length }, { o: 'support', n: f.support.comptes.ouvertes }, { o: 'journal', n: f.evenements.length }];
   // Le geste qui répond à une ligne de « Ce qui attend » : encaisser quand le rôle le permet, sinon prolonger ; écrire au
   // propriétaire d'un essai qui n'a pas servi. Le premier est vert : c'est l'étape suivante.
   const reponse = (a: Attente): { texte: string; geste?: Geste; href?: string } | null => {
+    if (a.sorte === 'support') return { texte: titre('console.ecran.decider.repondre'), href: `#/support?demande=${a.demande.id}` };
     if (a.sorte === 'essai_sans_usage') return a.proprietaire ? { texte: titre('console.ecran.fiche.attend.ecrire', { nom: a.proprietaire.nom }), href: ecrire(a.proprietaire) } : null;
     const g = f.gestes.includes('payer') ? 'payer' : f.gestes.includes('prolonger') ? 'prolonger' : null;
     return g ? { texte: titre(`console.ecran.geste.${cleGeste(g)}`), geste: g } : null;
@@ -305,7 +311,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
               const v = attenteEnMots(a, f.aujourdhui);
               const r = reponse(a);
               return (
-                <li key={a.sorte}>
+                <li key={a.sorte === 'support' ? `support-${a.demande.id}` : a.sorte}>
                   <span className={`c-ligne-icone c-${v.urgence}`}><Icone nom={v.icone} /></span>
                   <span className="c-fiche-attend-texte"><b>{v.titre}</b><span>{v.desc}</span></span>
                   {r?.geste ? <Bouton {...(i === 0 ? { ton: 'principal' as const } : {})} onClick={() => setGeste(r.geste ?? null)}>{r.texte}</Bouton>
@@ -455,6 +461,33 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
         </section>
       ) : null}
 
+      {onglet === 'support' ? (
+        <section className="c-carte c-liste-carte c-fiche-support" aria-labelledby="fiche-support">
+          <div className="c-carte-tete">
+            <div>
+              <h2 id="fiche-support">{titre('console.ecran.support.fiche.titre')}</h2>
+              <p className="c-carte-sous">{phrase('console.ecran.support.fiche.sous')}</p>
+            </div>
+            <Bouton petit icone="plus" onClick={() => setNoter(true)}>{titre('console.ecran.support.fiche.noter')}</Bouton>
+          </div>
+          {f.support.ouvertes.length + f.support.closes.length === 0 ? <Vide icone="courriel">{phrase('console.ecran.support.fiche.vide')}</Vide> : (
+            <ul className="c-fiche-demandes">
+              {[...f.support.ouvertes, ...f.support.closes].map((d) => {
+                const e = etatEnMots(d.etat);
+                return (
+                  <li key={d.id}>
+                    <a href={`#/support?demande=${d.id}`}>
+                      <span className="c-fiche-demande-haut"><span className="c-mono" data-donnee>{refDemande(d.numero)}</span><b data-donnee>{d.sujet}</b><Puce ton={e.ton}>{e.texte}</Puce></span>
+                      <span className="c-sous"><span data-donnee>{d.demandeur.nom}</span> · {dire(`console.ecran.support.canal.${d.canal}`)} · {depuisEnMots(d.etat, f.aujourdhui)}</span>
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      ) : null}
+
       {onglet === 'journal' ? (
         <section className="c-carte" aria-labelledby="fiche-histoire">
           <div className="c-carte-tete">
@@ -485,6 +518,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
         </section>
       ) : null}
       {geste ? <FenetreGeste geste={geste} fiche={f} role={moi.role} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); relireDecisions(); }} /> : null}
+      {noter ? <NoterDemande client={{ id: f.id, nom: f.raisonSociale }} fermer={() => setNoter(false)} /> : null}
     </>
   );
 }
@@ -500,6 +534,9 @@ function attenteEnMots(a: Attente, aujourdhui: string): { icone: NomIcone; titre
     case 'lecture_seule':
       return { icone: 'cadenas', titre: titre('console.ecran.fiche.attend.lecture_seule'), urgence: a.depuis === aujourdhui ? 'aujourdhui' : 'semaine',
         desc: phrase(`console.ecran.decider.lecture.${a.raison}`, { le: jourCourt(a.depuis) }) };
+    case 'support':
+      return { icone: 'courriel', titre: titre('console.ecran.fiche.attend.support', { n: a.heures }), urgence: 'aujourdhui',
+        desc: phrase('console.ecran.support.fiche.attend', { sujet: a.demande.sujet, qui: a.demandeur }) };
     default:
       return { icone: 'sablier', titre: titre('console.ecran.fiche.attend.essai_sans_usage'), urgence: a.jours <= 1 ? 'aujourdhui' : 'semaine',
         desc: phrase('console.ecran.decider.sans_usage', { le: jourCourt(a.jusquAu), dans: dans(a.jusquAu, aujourdhui) }) };

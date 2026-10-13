@@ -783,6 +783,17 @@
       dessiner: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, { ...o, appel, cote: 'entreprise' }),
       rangerAchat: (/** @type {string} */ message, /** @type {string} */ achat, /** @type {string} */ libelle) => appel('POST', `/messages/${encodeURIComponent(message)}/achat`, { achat, libelle }),
     },
+    // Le support de SkanFact (Support S1 ; plateforme/support.js ; serveur/support) : écrire une demande, ce qui attend
+    // (la pastille de l'Aide et le bandeau), et la page de ses demandes. Ce qui part avec une demande, compté et décidé :
+    // le sujet, le texte, la version de l'application et le NOM de la page où était la personne ; rien de son dossier.
+    support: {
+      attente: () => appel('GET', '/support/attente'),
+      ecrire: (/** @type {{ sujet: string, texte: string, version: string | null, page: string | null }} */ c) =>
+        appel('POST', '/support', { sujet: c.sujet, texte: c.texte, version: c.version, page: c.page }),
+      noter: (/** @type {unknown} */ a) => /** @type {any} */ (window).SkanSupport.noter(a),
+      poser: (/** @type {HTMLElement} */ view) => /** @type {any} */ (window).SkanSupport.poser(view),
+      dessiner: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanSupport.page(el, { ...o, appel }),
+    },
     // L'application de bureau (brique 138) : l'impression par l'agent local, seulement quand il est là.
     ...(/** @type {any} */ (window).skanfactBureau ? { dessinerImprimante, imprimerTicket: imprimerParAgent, ticketEncaisse } : {}),
     lienClient,

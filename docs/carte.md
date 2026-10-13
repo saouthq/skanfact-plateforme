@@ -510,6 +510,13 @@ vaut pour tout le dépôt.*
     pas glisser ses pilules** (`useHauteurGardee`) ; un menu de ligne s'ouvre vers le haut quand la place manque ; un
     refus s'efface dès qu'on corrige. Un test du veilleur tourne **avec la base** (sourdine, essai, base en panne puis
     revenue) : sans elle, rien ne prouvait le chemin qui compte.
+  - **Le support** (Support S1, 13/10/2026, 1.3.0 ; `docs/support.md`, `docs/console.md` C29, `0095`, `serveur/support/`,
+    `serveur/console/support.ts`, `web/public/plateforme/support.js`) : une demande appartient à une entreprise ET à la
+    personne qui la pose (ni un collègue, ni la voisine : la base le tient) ; elle n'emporte que le sujet, le texte, la
+    version et le NOM de la page ; l'alerte par e-mail ne porte rien de la réponse. **Une lecture se note par message, pas
+    par demande** (une seconde réponse ouverte à l'écran laissait la pastille allumée). La page de la console **tient
+    dans la fenêtre** (deux colonnes, chaque colonne défile seule) et **se relit quand on la regarde**, jamais sous les
+    doigts (`useRelireQuandOnRegarde`) ; une réponse commencée se garde par demande.
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

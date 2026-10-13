@@ -461,6 +461,9 @@
     // tient le dossier (plateforme/messagerie.js).
     { id: 'comptable', titre: 'Mon comptable', module: null, horsMenu: true,
       quoi: 'Tes échanges avec ton cabinet comptable : ses messages, ses questions, les pièces qu\'il te demande.' },
+    // (plateforme, Support S1) Les demandes au support de SkanFact et leurs réponses : l'Aide y mène.
+    { id: 'support', titre: 'Tes demandes au support', module: null, horsMenu: true,
+      quoi: 'Tes demandes à l\'équipe SkanFact et ses réponses : y répondre, dire que c\'est réglé.' },
     { id: 'parametres', titre: 'Paramètres', module: null, pied: true },
     { id: 'aide', titre: 'Aide', module: null, pied: true }
   ];

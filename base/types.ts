@@ -490,6 +490,25 @@ export interface BaseDeDonnees {
     envoye_le: Date | null;
     resolu_le: Date | null;
   };
+  'plateforme.demande_support': {
+    id: Generated<string>;
+    numero: Generated<number>;
+    entreprise: string;
+    demandeur: string;
+    canal: string;
+    sujet: string;
+    version: string | null;
+    page: string | null;
+    notee_par: string | null;
+    ouverte_le: Date;
+    suivie_par: string | null;
+    close_le: Date | null;
+    close_cote: string | null;
+    close_par: string | null;
+    close_motif: string | null;
+    lu_le: Date | null;
+    alerte_le: Date | null;
+  };
   'plateforme.equipe': {
     utilisateur: string;
     role: string;
@@ -533,6 +552,16 @@ export interface BaseDeDonnees {
     retire_par: string | null;
     retire_motif: string | null;
     remplace_par: string | null;
+  };
+  'plateforme.message_support': {
+    id: Generated<string>;
+    demande: string;
+    cote: string;
+    auteur: string;
+    note_par: string | null;
+    texte: string;
+    article: string | null;
+    ecrit_le: Date;
   };
   'plateforme.prix': {
     offre: string;

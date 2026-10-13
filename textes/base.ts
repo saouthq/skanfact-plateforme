@@ -436,6 +436,25 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'retirer un message demande son motif (trois caractères au moins)', cle: 'base.console.reglages_motif_retrait', fr: 'retirer un message demande son motif (trois caractères au moins)' },
   { base: 'ce message n\'existe pas', cle: 'base.console.reglages_message_inconnu', fr: 'ce message n\'existe pas' },
   { base: 'ce message n\'est plus affiché : il n\'y a rien à retirer', cle: 'base.console.reglages_message_fini', fr: 'ce message n\'est plus affiché : il n\'y a rien à retirer' },
+  // Le support (0095, docs/support.md) : les demandes, et ce que la console en fait.
+  { base: 'un message du support ne se modifie pas et ne s\'efface pas : on en écrit un autre', cle: 'base.support.message_intouchable', fr: 'un message du support ne se modifie pas et ne s\'efface pas : on en écrit un autre' },
+  { base: 'le support se joint par une personne de l\'entreprise', cle: 'base.support.personne', fr: 'le support se joint par une personne de l\'entreprise' },
+  { base: 'cette demande n\'existe pas, ou n\'est pas la tienne', cle: 'base.support.pas_la_tienne', fr: 'cette demande n\'existe pas, ou n\'est pas la tienne' },
+  { base: 'le sujet d\'une demande : de trois à cent quarante caractères', cle: 'base.support.sujet_longueur', fr: 'le sujet d\'une demande : de trois à cent quarante caractères' },
+  { base: 'le sujet d\'une demande s\'écrit sans balise', cle: 'base.support.sujet_balise', fr: 'le sujet d\'une demande s\'écrit sans balise' },
+  { base: 'une demande dit ce qui se passe : de trois à quatre mille caractères', cle: 'base.support.texte_longueur', fr: 'une demande dit ce qui se passe : de trois à quatre mille caractères' },
+  { base: 'un message au support : de un à quatre mille caractères', cle: 'base.support.message_longueur', fr: 'un message au support : de un à quatre mille caractères' },
+  { base: 'cette demande est déjà close', cle: 'base.support.deja_close', fr: 'cette demande est déjà close' },
+  { base: 'une demande notée a été reçue par e-mail, par WhatsApp ou au téléphone', cle: 'base.support.canal', fr: 'une demande notée a été reçue par e-mail, par WhatsApp ou au téléphone' },
+  { base: 'une demande notée dit ce que la personne a demandé : de trois à quatre mille caractères', cle: 'base.support.notee_longueur', fr: 'une demande notée dit ce que la personne a demandé : de trois à quatre mille caractères' },
+  { base: 'cette personne n\'est pas dans l\'équipe de cette entreprise : une demande se range au nom d\'une personne qui la lira', cle: 'base.support.pas_membre', fr: 'cette personne n\'est pas dans l\'équipe de cette entreprise : une demande se range au nom d\'une personne qui la lira' },
+  { base: 'une réponse : de trois à quatre mille caractères', cle: 'base.support.reponse_longueur', fr: 'une réponse : de trois à quatre mille caractères' },
+  { base: 'cet article de l\'Aide n\'existe pas', cle: 'base.support.article_inconnu', fr: 'cet article de l\'Aide n\'existe pas' },
+  { base: 'cette demande n\'existe pas', cle: 'base.support.inconnue', fr: 'cette demande n\'existe pas' },
+  { base: 'cette demande est close : rouvre-la pour y répondre', cle: 'base.support.close_repondre', fr: 'cette demande est close : rouvre-la pour y répondre' },
+  { base: 'clore une demande demande son motif (trois caractères au moins)', cle: 'base.support.motif_clore', fr: 'clore une demande demande son motif (trois caractères au moins)' },
+  { base: 'rouvrir une demande demande son motif (trois caractères au moins)', cle: 'base.support.motif_rouvrir', fr: 'rouvrir une demande demande son motif (trois caractères au moins)' },
+  { base: 'cette demande est encore ouverte', cle: 'base.support.encore_ouverte', fr: 'cette demande est encore ouverte' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

@@ -11859,7 +11859,7 @@ prouver 'une pilule de membre qui ne filtre pas le journal' 'web/console/src/ecr
 # par la même fonction, et se relit après un geste.
 FI1='le support : de 7 à 30 jours, dit à sa place ; un clic à côté ne ferme pas la fenêtre ; la pastille se recompte'
 prouver 'la fiche qui ne dit pas ce qui attend pour son client' 'serveur/console/routes.ts' \
-  "const attend = aDecider(liste, { etat: 'absente' }, jour, role);" \
+  "const attend = aDecider(liste, { etat: 'absente' }, jour, role, support.ouvertes, maintenant());" \
   'const attend: ReturnType<typeof aDecider> = [];' \
   "$FI1"
 prouver 'ce qui attend, dit avec le nom du client sur sa propre fiche' 'web/console/src/ecrans/Fiche.tsx' \
@@ -12413,6 +12413,178 @@ prouver "consignes-renvoi-mort" "CLAUDE.md" '`docs/carte.md`, puis son document'
 # La source de la v10 figée dans ce dépôt (13/10/2026, le dépôt skanfact archivé) : une retouche à la main de la source
 # échapperait à toute relecture (elle doit passer par une adaptation écrite) ; le test des empreintes la refuse.
 prouver "source-v10-retouchee" "web/v10/source/cabinet/cabcore.js" "// SkanFact Cabinet — la logique du comptable, sans Electron et sans DOM." "// SkanFact Cabinet — retouché à la main." "la source de la v10 est figée dans ce dépôt, telle qu'elle a été copiée, sans un fichier de plus"
+
+# Le support, première partie (Support S1 ; docs/support.md ; base 0095) : une demande et ses réponses, ce que chacun lit,
+# l'alerte par e-mail sans contenu ; la lecture de la console sans la base ; et les deux écrans à la souris (la page
+# Support de la console en deux colonnes qui tiennent dans la fenêtre, la page des demandes du client).
+SUP1='la demande emporte sa version et le nom de sa page ; le même envoi dans les cinq minutes rend la même demande'
+SUP2='un champ hors des bornes est refusé en le nommant ; ce qui part n'"'"'est jamais qu'"'"'un nom de page et une version'
+SUP3='l'"'"'équipe répond en citant un article de l'"'"'Aide ; la personne le lit, y répond, dit que c'"'"'est réglé, et la rouvre en réécrivant'
+SUP4='ni un collègue, ni la voisine, ni une autre entreprise de la même personne ; ni la console à la technique'
+SUP5='une demande reçue sur WhatsApp se range au nom d'"'"'une personne de l'"'"'entreprise, qui la lit ; clore et rouvrir demandent un motif'
+SUP6='une entreprise en lecture seule écrit quand même au support : c'"'"'est souvent là qu'"'"'on en a besoin'
+SUP7='ne porte rien de la réponse, part une fois cinq minutes après, à une adresse vérifiée d'"'"'une personne encore dans l'"'"'entreprise'
+SUP8='une adresse que personne n'"'"'a vérifiée, ou une personne qui a quitté l'"'"'entreprise, ne reçoit rien'
+SUPP1='nouvelle tant que l'"'"'équipe n'"'"'a rien dit ; à répondre quand le client a réécrit ; elle attend depuis le DERNIER mot du client'
+SUPP2='« sans réponse » commence à vingt-quatre heures pile, pas une de moins'
+SUPP3='la balle chez le client : elle attend depuis notre dernière réponse ; close : par qui, et quand'
+SUPP4='sans réponse d'"'"'abord (la plus ancienne), puis celles qui attendent notre réponse (la plus ancienne), puis celles qui attendent le client (la plus récente), puis les closes'
+SUPP5='ce que l'"'"'accueil et la barre comptent : les ouvertes, celles qui attendent notre réponse, les sans réponse, et la plus longue attente'
+SUPP6='une ligne illisible ne s'"'"'affiche pas ; un champ illisible vaut « rien », jamais une valeur devinée'
+SUPP7='l'"'"'article de la page d'"'"'abord, puis ceux qui partagent des mots avec la demande (sans accents, sans petits mots), quatre au plus'
+SUPW1='la personne écrit depuis l'"'"'Aide, et arrive sur sa demande'
+SUPW2='la console l'"'"'ouvre en deux colonnes qui tiennent dans la fenêtre : la conversation large, le champ et « Envoyer » à l'"'"'écran'
+SUPW3='une réponse type joint l'"'"'article et pose le début, le curseur sur la ligne vide ; Ctrl + Entrée envoie'
+SUPW4='la réponse se voit partout chez la personne ; lue, tout s'"'"'éteint, et une seconde réponse ouverte à l'"'"'écran aussi'
+SUPW5='la console se relit au retour sur l'"'"'onglet : la réponse de la personne arrive sans recharger'
+SUPW6='une réponse commencée survit à la clôture par la personne : l'"'"'écran le dit, et « Rouvrir… » la rend'
+SUPW7='au téléphone : la liste d'"'"'abord ; choisir une demande amène la conversation ; rien ne déborde, des deux côtés'
+SUPW8='l'"'"'instrument ne trouve rien : la page Support de la console, sa fenêtre et ses demandes closes ; la page des demandes du client'
+prouver 'un double envoi qui ouvre une seconde demande' base/migrations/0095_support.sql \
+  '     and d.ouverte_le > p_maintenant - interval '"'"'5 minutes'"'"'' '     and false' \
+  "$SUP1"
+prouver 'la version et la page perdues en route' serveur/support/routes.ts \
+  'corps.version || null, corps.page || null, maintenant()' 'null, null, maintenant()' \
+  "$SUP1"
+prouver 'une page qui porte un chemin acceptée' serveur/support/routes.ts \
+  '      page: z.string().trim().max(40).regex(/^([a-z][a-z0-9_-]*)?$/).nullable().default(null),' '      page: z.string().trim().max(40).nullable().default(null),' \
+  "$SUP2"
+prouver 'un champ de plus accepté avec la demande' serveur/support/routes.ts \
+  'regex(/^([a-z][a-z0-9_-]*)?$/).nullable().default(null),
+    }).strict(),' 'regex(/^([a-z][a-z0-9_-]*)?$/).nullable().default(null),
+    }),' \
+  "$SUP2"
+prouver 'la réponse qui part sans son article' base/migrations/0095_support.sql \
+  '    values (p_demande, '"'"'equipe'"'"', socle.moi(), v_texte, p_article, p_maintenant)' '    values (p_demande, '"'"'equipe'"'"', socle.moi(), v_texte, null, p_maintenant)' \
+  "$SUP3"
+prouver 'une réponse lue qui attend encore' base/migrations/0095_support.sql \
+  '  update plateforme.demande_support set lu_le = greatest(coalesce(lu_le, '"'"'-infinity'"'"'), p_maintenant) where id = v.id;' '  perform 1;' \
+  "$SUP3"
+prouver 'une demande close qui ne se rouvre pas quand la personne réécrit' base/migrations/0095_support.sql \
+  'set close_le = null, close_cote = null, close_par = null, close_motif = null,
+         lu_le' 'set
+         lu_le' \
+  "$SUP3"
+prouver 'l'"'"'équipe qui répond à une demande close' base/migrations/0095_support.sql \
+  '  if v.close_le is not null then perform socle.refus('"'"'cette demande est close : rouvre-la pour y répondre'"'"'); end if;
+' '' \
+  "$SUP3"
+prouver 'un collègue qui lit les demandes des autres' base/migrations/0095_support.sql \
+  '           where d.entreprise = p_entreprise and d.demandeur = socle.moi());
+end' '           where d.entreprise = p_entreprise);
+end' \
+  "$SUP4"
+prouver 'une demande atteinte par une autre entreprise de la même personne' base/migrations/0095_support.sql \
+  'where d.id = p_demande and d.demandeur = socle.moi() and d.entreprise = p_entreprise;' 'where d.id = p_demande and d.demandeur = socle.moi();' \
+  "$SUP4"
+prouver 'la technique qui lit le support' 'serveur/console/gestes.ts|||base/migrations/0095_support.sql' \
+  '  { code: '"'"'console.support.voir'"'"', roles: [D, S], ecrit: false },|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+  return jsonb_build_object(
+    '"'"'ouvertes'"'"'' '  { code: '"'"'console.support.voir'"'"', roles: [D, S, T], ecrit: false },|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']);
+  return jsonb_build_object(
+    '"'"'ouvertes'"'"'' \
+  "$SUP4"
+prouver 'une demande notée au nom d'"'"'une personne d'"'"'ailleurs' base/migrations/0095_support.sql \
+  '  if not exists (select 1 from socle.membre m where m.utilisateur = p_demandeur and m.entreprise = p_entreprise and m.actif) then' '  if false then' \
+  "$SUP5"
+prouver 'le texte de la demande notée au journal' base/migrations/0095_support.sql \
+  '    values (socle.moi(), v_role, '"'"'support.noter'"'"', p_entreprise, v_sujet, null,' '    values (socle.moi(), v_role, '"'"'support.noter'"'"', p_entreprise, v_texte, null,' \
+  "$SUP5"
+prouver 'une demande close par l'"'"'équipe deux fois' base/migrations/0095_support.sql \
+  '  if v.close_le is not null then perform socle.refus('"'"'cette demande est déjà close'"'"'); end if;
+  update plateforme.demande_support set close_le = p_maintenant, close_cote = '"'"'equipe'"'"'' '  update plateforme.demande_support set close_le = p_maintenant, close_cote = '"'"'equipe'"'"'' \
+  "$SUP5"
+prouver 'écrire au support fermé en lecture seule' serveur/abonnement/condition.ts \
+  '  '"'"'support.ecrire'"'"': '"'"'ouvert'"'"',' '  '"'"'support.ecrire'"'"': '"'"'ferme'"'"',' \
+  "$SUP6"
+prouver 'l'"'"'alerte qui repart à chaque tour' base/migrations/0095_support.sql \
+  '  update plateforme.demande_support set alerte_le = p_le where id = p_demande;' '  perform 1;' \
+  "$SUP7"
+prouver 'l'"'"'alerte avant les cinq minutes' base/migrations/0095_support.sql \
+  '                  and m.ecrit_le <= p_maintenant - p_delai
+' '' \
+  "$SUP7"
+prouver 'l'"'"'alerte à une adresse que personne n'"'"'a vérifiée' base/migrations/0095_support.sql \
+  '    join socle.utilisateur u on u.id = d.demandeur and u.adresse_verifiee_le is not null' '    join socle.utilisateur u on u.id = d.demandeur' \
+  "$SUP8"
+prouver 'l'"'"'alerte chez qui a quitté l'"'"'entreprise' base/migrations/0095_support.sql \
+  'and m.utilisateur = d.demandeur and m.actif
+' 'and m.utilisateur = d.demandeur
+' \
+  "$SUP8"
+prouver 'l'"'"'attente comptée depuis l'"'"'ouverture' serveur/console/support.ts \
+  '  const attendDepuis = l.dernierClientLe ?? l.ouverteLe;' '  const attendDepuis = l.ouverteLe;' \
+  "$SUPP1"
+prouver '« sans réponse » une heure trop tard' serveur/console/support.ts \
+  'sansReponse: heures >= SANS_REPONSE_HEURES' 'sansReponse: heures > SANS_REPONSE_HEURES' \
+  "$SUPP2"
+prouver 'une demande close prise pour une demande à répondre' serveur/console/support.ts \
+  '  if (l.close) return { etat: '"'"'close'"'"', le: l.close.le, cote: l.close.cote };
+' '' \
+  "$SUPP3"
+prouver 'les demandes qui attendent le client rangées de la plus ancienne' serveur/console/support.ts \
+  '    return (ra >= 2 ? -c : c) || a.numero - b.numero;' '    return c || a.numero - b.numero;' \
+  "$SUPP4"
+prouver 'une plus longue attente de zéro heure sans personne qui attend' serveur/console/support.ts \
+  '    attenteMax: a.length ? Math.max(...a.map((e) => e.heures)) : null,' '    attenteMax: a.length ? Math.max(...a.map((e) => e.heures)) : 0,' \
+  "$SUPP5"
+prouver 'une clôture sans son côté prise pour une clôture' serveur/console/support.ts \
+  '    close: c && texte(c.le) && closeCote ?' '    close: c && texte(c.le) ?' \
+  "$SUPP6"
+prouver 'les petits mots qui proposent un article' serveur/console/support.ts \
+  '.filter((m) => m.length >= 4 && !PETITS.has(m))' '.filter((m) => m.length >= 4)' \
+  "$SUPP7"
+prouver 'les accents qui séparent émettre d'"'"'emettre' serveur/console/support.ts \
+  't.normalize('"'"'NFD'"'"').replace(/\p{M}/gu, '"'"''"'"').toLowerCase()' 't.toLowerCase()' \
+  "$SUPP7"
+prouver 'la demande écrite qui ne mène pas à elle' web/public/v10/app.js \
+  'navigate('"'"'#/support/'"'"' + encodeURIComponent(r.id));' 'navigate('"'"'#/aide'"'"');' \
+  "$SUPW1"
+prouver 'la page Support qui ne tient plus dans la fenêtre' web/console/src/console.css \
+  '  .c-sp-grille { height: calc(100vh - var(--c-sp-haut, 220px) - 24px); min-height: 500px; grid-template-rows: minmax(0, 1fr); align-items: stretch; }' '' \
+  "$SUPW2"
+prouver 'le client sous la conversation, pas à côté' web/console/src/ecrans/Support.tsx \
+  '            {d ? <Cote d={d} client={lu.client} aujourdhui={lu.aujourdhui} /> : null}
+          </div>' '          </div>
+            {d ? <Cote d={d} client={lu.client} aujourdhui={lu.aujourdhui} /> : null}' \
+  "$SUPW2"
+prouver 'le curseur qui ne vient pas sur la ligne vide' web/console/src/ecrans/Support.tsx \
+  '      zone.setSelectionRange(ici + 2, ici + 2);
+' '' \
+  "$SUPW3"
+prouver 'Ctrl + Entrée qui n'"'"'envoie rien' web/console/src/ecrans/Support.tsx \
+  'faute={faute > 0} n={faute} touche={touche} />' 'faute={faute > 0} n={faute} />' \
+  "$SUPW3"
+prouver 'une seconde réponse à l'"'"'écran qui reste « à lire »' web/public/plateforme/support.js \
+  '      const cle = `${d.id}#${(d.messages || []).length}`;' '      const cle = d.id;' \
+  "$SUPW4"
+prouver 'la console qui ne se relit pas au retour sur l'"'"'onglet' web/console/src/ecrans/Support.tsx \
+  '  useRelireQuandOnRegarde(relireTout, { periode: 30_000, attendre: sousLesDoigts });
+' '' \
+  "$SUPW5"
+prouver 'l'"'"'écran qui se relit sous les doigts' web/console/src/ecrans/Support.tsx \
+  '  return !!zone && zone.value.trim() !== '"'"''"'"';' '  return false;' \
+  "$SUPW6"
+prouver 'la réponse commencée perdue à la réouverture' web/console/src/ecrans/Support.tsx \
+  'useState(() => brouillons.get(d.ligne.id)?.texte ?? '"'"''"'"')' 'useState('"'"''"'"')' \
+  "$SUPW6"
+prouver 'la réponse gardée que l'"'"'écran tait' web/console/src/ecrans/Support.tsx \
+  '{garde ? <>{'"'"' '"'"'}{phrase('"'"'console.ecran.support.brouillon_garde'"'"')}</> : null}' '' \
+  "$SUPW6"
+prouver 'une demande ouverte d'"'"'office au téléphone' web/console/src/ecrans/Support.tsx \
+  'if (!lu || choisie || window.matchMedia('"'"'(max-width: 860px)'"'"').matches) return;' 'if (!lu || choisie) return;' \
+  "$SUPW7"
+prouver 'la conversation choisie qui reste sous la liste au téléphone' web/console/src/ecrans/Support.tsx \
+  '    if (window.matchMedia('"'"'(max-width: 860px)'"'"').matches) document.getElementById('"'"'sp-fil'"'"')?.scrollIntoView({ block: '"'"'start'"'"' });
+' '' \
+  "$SUPW7"
+prouver 'les réponses types trop petites pour le doigt' web/console/src/console.css \
+  '  .c-sp-type, .c-sp-joint select { min-height: 44px; }
+' '' \
+  "$SUPW8"
+prouver 'les touches du raccourci écrites hors du catalogue' web/console/src/ecrans/Support.tsx \
+  '<kbd>{dire('"'"'console.ecran.support.touche_ctrl'"'"')}</kbd>' '<kbd>Ctrl</kbd>' \
+  "$SUPW8"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

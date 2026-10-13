@@ -3,16 +3,18 @@
 // mesure, ce que la console ne mesure pas encore le dit avec sa raison (C2) ; une console où rien ne se passe affiche une
 // liste vide, et le dit. La technique n'y lit que le service ; le support, que les clients.
 import { useEffect, useState } from 'react';
-import { dire, phrase, titre } from '../langue.ts';
+import { dire, phrase, selon, titre } from '../langue.ts';
 import { useConsole, useLecture, type Role } from '../contexte.ts';
 import { dans, jourCourt, jourLong, quand } from '../temps.ts';
 import { Alerte, Bouton, Icone, Lien, maj, Puce, Vide, type NomIcone, type TonPuce } from '../ui.tsx';
+import type { Canal } from './Support.tsx';
 
-type Mesure = { mesure: true; n: number } | { mesure: false; raison: 'paiements_a_venir' | 'support_a_venir' };
+type Mesure = { mesure: true; n: number } | { mesure: false; raison: 'paiements_a_venir' };
+type Support = { ouvertes: number; aRepondre: number; sansReponse: number; attenteMax: number | null };
 type Service = { etat: 'ok' } | { etat: 'problemes'; n: number; graves: number } | { etat: 'non_mesure'; raison: 'pas_de_veille' | 'veille_silencieuse'; derniere?: string };
 type Tableau = {
   entreprisesDeLaSemaine: number; essais: number; actifs: { total: number; essentiel: number; complet: number };
-  enRetard: number; lectureSeule: number; revenusDuMois: Mesure; support: Mesure; service: Service;
+  enRetard: number; lectureSeule: number; revenusDuMois: Mesure; support: Support; service: Service;
 };
 type Qui = { id: string; nom: string };
 export type Ligne =
@@ -20,7 +22,8 @@ export type Ligne =
   | { sorte: 'veille_silencieuse'; ouvre: 'service'; derniere: string }
   | { sorte: 'en_retard'; ouvre: 'fiche'; entreprise: Qui; echeance: string; lectureSeuleLe: string; jours: number; apresEssai: boolean }
   | { sorte: 'lecture_seule'; ouvre: 'fiche'; entreprise: Qui; depuis: string; raison: 'essai_termine' | 'non_renouvele' | 'resilie' | 'suspendu' }
-  | { sorte: 'essai_sans_usage'; ouvre: 'fiche'; entreprise: Qui; jusquAu: string; jours: number; proprietaire: { nom: string; email: string } | null };
+  | { sorte: 'essai_sans_usage'; ouvre: 'fiche'; entreprise: Qui; jusquAu: string; jours: number; proprietaire: { nom: string; email: string } | null }
+  | { sorte: 'support'; ouvre: 'support'; demande: { id: string; numero: number; sujet: string; canal: Canal }; entreprise: Qui; demandeur: string; heures: number; depuis: string };
 type RelancePartie = { entreprise: Qui; rang: 'j15' | 'j7' | 'j1' | 'lecture_seule'; partieLe: string };
 type Accueil = { aujourdhui: string; role: Role; tableau: Partial<Tableau> & { service: Service }; decider: Ligne[]; relances?: RelancePartie[] };
 
@@ -52,6 +55,15 @@ function TuileService({ s, aujourdhui }: { s: Service; aujourdhui: string }) {
   return <Tuile titre={t} valeur={dire('console.ecran.tableau.non_mesure')} sous={sous} href="#/service" mot="attente" />;
 }
 
+// Le support : les demandes ouvertes, et ce qui attend NOTRE réponse depuis plus de 24 h (la promesse au client). La tuile
+// ouvre l'écran Support, rangé par la même fonction (C3).
+function TuileSupport({ s }: { s: Support }) {
+  const suite = s.sansReponse ? selon(s.sansReponse, 'console.ecran.tableau.support_sans_reponse', { h: s.attenteMax ?? 24 })
+    : s.aRepondre ? selon(s.aRepondre, 'console.ecran.tableau.support_a_repondre') : dire('console.ecran.tableau.support_a_jour');
+  const sous = s.ouvertes === 0 ? titre('console.ecran.tableau.support_vide') : `${maj(selon(s.ouvertes, 'console.ecran.tableau.support_ouvertes'))} · ${suite}`;
+  return <Tuile titre={titre('console.ecran.tableau.support')} valeur={String(s.ouvertes)} sous={sous} href="#/support" {...(s.sansReponse ? { point: 'pb' as const } : {})} />;
+}
+
 function TableauDuMatin({ t, role, aujourdhui }: { t: Accueil['tableau']; role: Role; aujourdhui: string }) {
   const nonMesure = (m: Mesure | undefined) => (m && !m.mesure ? titre(`console.ecran.tableau.${m.raison}`) : '');
   return (
@@ -68,11 +80,12 @@ function TableauDuMatin({ t, role, aujourdhui }: { t: Accueil['tableau']; role: 
             <Tuile titre={titre('console.ecran.tableau.actifs')} valeur={String(t.actifs.total)} sous={dire('console.ecran.tableau.actifs_sous', { e: t.actifs.essentiel, c: t.actifs.complet })} href="#/clients?etat=actif" />
             <Tuile titre={titre('console.ecran.tableau.en_retard')} valeur={String(t.enRetard ?? 0)} sous={titre('console.ecran.tableau.en_retard_sous')} href="#/clients?etat=en_retard" />
             <Tuile titre={titre('console.ecran.tableau.lecture_seule')} valeur={String(t.lectureSeule ?? 0)} sous={titre('console.ecran.tableau.lecture_seule_sous')} href="#/clients?etat=lecture_seule" />
-            {/* Ce que la console ne mesure pas encore : une seule tuile, qui dit chaque raison (C2), plutôt que deux « non mesuré ». */}
-            <div className="c-tuile c-tuile-large">
-              <span className="c-tuile-titre">{titre('console.ecran.tableau.pas_encore')}</span>
+            {t.support ? <TuileSupport s={t.support} /> : null}
+            {/* Ce que la console ne mesure pas encore le dit, avec sa raison (C2) : jamais un zéro qui passerait pour une mesure. */}
+            <div className="c-tuile">
+              <span className="c-tuile-titre">{titre('console.ecran.tableau.revenus')}</span>
               <span className="c-tuile-mot c-tuile-mot-attente">{dire('console.ecran.tableau.non_mesure')}</span>
-              <span className="c-tuile-sous">{titre('console.ecran.tableau.revenus')} : {nonMesure(t.revenusDuMois).toLowerCase()} · {titre('console.ecran.tableau.support')} : {nonMesure(t.support).toLowerCase()}</span>
+              <span className="c-tuile-sous">{maj(nonMesure(t.revenusDuMois))}</span>
             </div>
           </>
         ) : null}
@@ -100,6 +113,10 @@ function voir(l: Ligne, aujourdhui: string): Vue {
     case 'lecture_seule':
       return { icone: 'cadenas', titre: titre('console.ecran.decider.lecture_titre', { nom: l.entreprise.nom }), desc: phrase(`console.ecran.decider.lecture.${l.raison}`, { le: jourCourt(l.depuis) }),
         meta: null, urgence: l.depuis === aujourdhui ? 'aujourdhui' : 'semaine', href: fiche(l.entreprise), bouton: titre('console.ecran.decider.ouvrir_fiche') };
+    case 'support':
+      return { icone: 'courriel', titre: titre('console.ecran.decider.support_titre', { nom: l.entreprise.nom, n: l.heures }),
+        desc: phrase('console.ecran.decider.support', { sujet: l.demande.sujet, canal: dire(`console.ecran.support.canal.${l.demande.canal}`), qui: l.demandeur }),
+        meta: titre('console.ecran.decider.support_depuis', { quand: quand(l.depuis, aujourdhui) }), urgence: 'aujourdhui', href: `#/support?demande=${l.demande.id}`, bouton: titre('console.ecran.decider.repondre') };
     default:
       return { icone: 'sablier', titre: titre('console.ecran.decider.sans_usage_titre', { nom: l.entreprise.nom }),
         desc: phrase('console.ecran.decider.sans_usage', { le: jourCourt(l.jusquAu), dans: dans(l.jusquAu, aujourdhui) }),
@@ -142,9 +159,9 @@ function ADecider({ lignes, role, aujourdhui }: { lignes: Ligne[]; role: Role; a
             {gardees.map((l) => {
               const v = voir(l, aujourdhui);
               const ton: TonPuce = v.urgence;
-              const donnee = l.sorte === 'service';
+              const donnee = l.sorte === 'service' || l.sorte === 'support';
               return (
-                <li key={l.sorte === 'service' ? `service-${l.cle}` : l.sorte === 'veille_silencieuse' ? 'veille' : `${l.sorte}-${l.entreprise.id}`} className="c-ligne-decision">
+                <li key={l.sorte === 'service' ? `service-${l.cle}` : l.sorte === 'veille_silencieuse' ? 'veille' : l.sorte === 'support' ? `support-${l.demande.id}` : `${l.sorte}-${l.entreprise.id}`} className="c-ligne-decision">
                   <span className={`c-ligne-icone c-${v.urgence}`}><Icone nom={v.icone} /></span>
                   <div className="c-ligne-texte">
                     <span className="c-ligne-titre"><span {...(donnee ? { 'data-donnee': true } : {})}>{v.titre}</span> <Puce ton={ton}>{titre(`console.ecran.urgence.${v.urgence}`)}</Puce></span>
@@ -190,10 +207,10 @@ function Relances({ liste, aujourdhui }: { liste: RelancePartie[]; aujourdhui: s
 }
 
 export function Accueil() {
-  const { moi, compterDecisions } = useConsole();
+  const { moi, compterDecisions, compterSupport } = useConsole();
   const [l, relire] = useLecture<Accueil>('/console/accueil');
   const lu = l.etat === 'lu' ? l.donnees : null;
-  useEffect(() => { if (lu) compterDecisions(lu.decider.length); }, [lu, compterDecisions]);
+  useEffect(() => { if (lu) { compterDecisions(lu.decider.length); compterSupport(lu.tableau.support?.aRepondre ?? null); } }, [lu, compterDecisions, compterSupport]);
   const prenom = moi.nom.split(/\s+/)[0] ?? moi.nom;
   const aujourdhui = lu?.aujourdhui ?? moi.aujourdhui;
   const n = lu?.decider.length ?? 0;

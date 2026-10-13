@@ -36,6 +36,7 @@ import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouver
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
 import { essaisEnCours, grille, lireReglages, registre, sujetDesReglages } from './reglages.ts';
 import { lireFormats, registreDesFormats } from './formats.ts';
+import { articleConnu, articlesDeLAide, CANAUX_NOTES, compter, etatDe, lireSupport, ranger, SANS_REPONSE_HEURES, suggererPour } from './support.ts';
 import { versionTeif } from '../v10/teif.ts';
 import { BUDGETS } from '../service/mesures.ts';
 import { LISTE_GESTES_CONSOLE, type RoleConsole } from './gestes.ts';
@@ -163,15 +164,17 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     methode: 'GET', chemin: '/console/accueil', geste: 'console.accueil.voir',
     traiter: async ({ qui }, tx) => {
       const role = roleDe(qui);
+      const instant = maintenant();
       const jour = aujourdhuiATunis();
-      const veille = await lireLaVeille(fichierVeille, maintenant());
-      // La technique ne lit aucune donnée de client (03 § 5) : ni la liste, ni ses chiffres.
+      const veille = await lireLaVeille(fichierVeille, instant);
+      // La technique ne lit aucune donnée de client (03 § 5) : ni la liste, ni ses chiffres, ni les demandes au support.
       const liste = role === 'technique' ? [] : lireEntreprises(await lireJson(transaction(tx), 'select plateforme.console_entreprises() v'), jour);
-      const t = tableau(liste, veille, jour);
+      const demandes = role === 'technique' ? [] : lireSupport(await lireJson(transaction(tx), 'select plateforme.console_support(null, null) v')).ouvertes;
+      const t = tableau(liste, veille, jour, demandes, instant);
       // Les relances que le serveur a envoyées tout seul depuis hier (la même table que l'écran Abonnements).
       const relances = role === 'technique' ? []
-        : relancesRecentes(liste, lireExtras(await lireJson(transaction(tx), 'select plateforme.console_echeances() v')), maintenant());
-      return { corps: { aujourdhui: jour, role, tableau: role === 'technique' ? { service: t.service } : t, decider: aDecider(liste, veille, jour, role), relances } };
+        : relancesRecentes(liste, lireExtras(await lireJson(transaction(tx), 'select plateforme.console_echeances() v')), instant);
+      return { corps: { aujourdhui: jour, role, tableau: role === 'technique' ? { service: t.service } : t, decider: aDecider(liste, veille, jour, role, demandes, instant), relances } };
     },
   });
 
@@ -226,8 +229,13 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // telle que l'accueil la lit, jamais une règle écrite une seconde fois pour la fiche.
       const role = roleDe(qui);
       const liste = lireEntreprises(await lireJson(transaction(tx), 'select plateforme.console_entreprises() v'), jour).filter((e) => e.id === id);
-      const attend = aDecider(liste, { etat: 'absente' }, jour, role);
-      return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true) } };
+      // Ses demandes au support, comptées par la même fonction que l'écran Support ; celles qui attendent depuis 24 h
+      // entrent dans « ce qui attend », comme à l'accueil.
+      const support = lireSupport(await lireJson(transaction(tx), 'select plateforme.console_support($1, null) v', [id]));
+      const attend = aDecider(liste, { etat: 'absente' }, jour, role, support.ouvertes, maintenant());
+      const instant = maintenant();
+      return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true),
+        support: { comptes: compter(support.ouvertes, instant), ouvertes: ranger(support.ouvertes, instant), closes: support.closes.map((l) => ({ ...l, etat: etatDe(l, instant) })) } } };
     },
   });
 
@@ -891,6 +899,86 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     traiter: async ({ params, corps }, tx) => {
       const instant = maintenant();
       await transaction(tx).query('select plateforme.console_retirer_message($1, $2, $3, $4::date)', [lireUuid(params.message), corps.motif, instant, aujourdhuiATunis(instant)]);
+      return { corps: { ok: true } };
+    },
+  });
+
+  // ── Le support (docs/support.md ; 0095) ─────────────────────────────────────────────────────────────────────────────
+  // Les demandes ouvertes, rangées (sans réponse depuis 24 h d'abord), puis les cent dernières closes ; celles d'un seul
+  // client si on le nomme (sa fiche). La demande ouverte à l'écran porte ses messages, de quoi joindre la personne, et la
+  // carte de son client — lue sur la MÊME liste que les clients (C3). Les réponses types : les articles de l'Aide que le
+  // client lit dans son application, jamais un second texte.
+  ajouter({
+    methode: 'GET', chemin: '/console/support', geste: 'console.support.voir',
+    traiter: async ({ query }, tx) => {
+      const x = transaction(tx);
+      const t = maintenant();
+      const jour = aujourdhuiATunis(t);
+      const entreprise = uuid.safeParse(query.entreprise).success ? query.entreprise : null;
+      const demande = uuid.safeParse(query.demande).success ? query.demande : null;
+      const s = lireSupport(await lireJson(x, 'select plateforme.console_support($1, $2) v', [entreprise, demande]));
+      const client = s.demande
+        ? lireEntreprises(await lireJson(x, 'select plateforme.console_entreprises() v'), jour).find((e) => e.id === s.demande?.ligne.entreprise.id) ?? null
+        : null;
+      return {
+        corps: {
+          aujourdhui: jour, maintenant: t.toISOString(), entreprise,
+          comptes: compter(s.ouvertes, t),
+          ouvertes: ranger(s.ouvertes, t), closes: s.closes.map((l) => ({ ...l, etat: etatDe(l, t) })),
+          demande: s.demande ? { ...s.demande, etat: etatDe(s.demande.ligne, t), suggestions: suggererPour(s.demande) } : null,
+          client: client ? {
+            id: client.id, nom: client.raisonSociale, etat: client.etat, faits: client.faits,
+            membres: client.membres, pieces: client.pieces, derniereActivite: client.derniereActivite, tenuePar: client.tenuePar,
+          } : null,
+          articles: articlesDeLAide(), regles: { sansReponseHeures: SANS_REPONSE_HEURES },
+        },
+      };
+    },
+  });
+  // Les personnes d'un client à qui une demande reçue ailleurs se rattache (elle la lira dans son application). Le chemin
+  // dit « :client » : « :entreprise » est réservé aux gestes d'une entreprise (serveur/app.ts).
+  ajouter({
+    methode: 'GET', chemin: '/console/support/personnes/:client', geste: 'console.support.voir',
+    traiter: async ({ params }, tx) => ({ corps: { personnes: await lireJson(transaction(tx), 'select plateforme.console_support_personnes($1) v', [lireUuid(params.client)]) } }),
+  });
+  const sujetDemande = z.string().trim().min(3, 'console.support.sujet_court').max(140, 'console.support.sujet_long').refine((v) => !/[<>]/.test(v), 'console.support.sans_balise');
+  ajouter({
+    methode: 'POST', chemin: '/console/support/demandes', geste: 'console.support.repondre',
+    corps: z.object({
+      entreprise: uuid, demandeur: uuid, canal: z.enum(CANAUX_NOTES as ['email', 'whatsapp', 'telephone']),
+      sujet: sujetDemande, texte: z.string().trim().min(3, 'console.support.texte_court').max(4000),
+    }),
+    traiter: async ({ corps }, tx) => {
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_noter_demande($1, $2, $3, $4, $5, $6) v',
+        [corps.entreprise, corps.demandeur, corps.canal, corps.sujet, corps.texte, maintenant()]);
+      return { statut: 201, corps: { id } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/support/demandes/:demande/repondre', geste: 'console.support.repondre',
+    corps: z.object({
+      texte: z.string().trim().min(3, 'console.support.reponse_courte').max(4000),
+      article: z.string().nullable().refine((a) => a === null || articleConnu(a), 'console.support.article_inconnu'),
+    }),
+    traiter: async ({ params, corps }, tx) => {
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_repondre_demande($1, $2, $3, $4) v',
+        [lireUuid(params.demande), corps.texte, corps.article, maintenant()]);
+      return { statut: 201, corps: { id } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/support/demandes/:demande/clore', geste: 'console.support.repondre',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_clore_demande($1, $2, $3)', [lireUuid(params.demande), corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/support/demandes/:demande/rouvrir', geste: 'console.support.repondre',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_rouvrir_demande($1, $2, $3)', [lireUuid(params.demande), corps.motif, maintenant()]);
       return { corps: { ok: true } };
     },
   });

@@ -11,13 +11,14 @@ import { declarerGestesCompta } from '../../serveur/compta/gestes.ts';
 import { declarerGestesMessagerie } from '../../serveur/messagerie/gestes.ts';
 import { declarerGestesPaie } from '../../serveur/paie/gestes.ts';
 import { GESTES } from '../../serveur/porte/gestes.ts';
+import { declarerGestesSupport } from '../../serveur/support/gestes.ts';
 import { declarerGestesVentes } from '../../serveur/ventes/gestes.ts';
 // Les gestes du dossier de la v10 se déclarent à l'import (serveur/v10/droits.ts), comme au démarrage du serveur.
 import '../../serveur/v10/droits.ts';
 
 describe('la lecture seule d\'un abonnement : une décision par geste qui écrit', () => {
   // Tous les modules, comme le serveur les déclare (serveur/principal.ts).
-  declarerGestesVentes(); declarerGestesCaisse(); declarerGestesAchats(); declarerGestesPaie(); declarerGestesCompta(); declarerGestesMessagerie();
+  declarerGestesVentes(); declarerGestesCaisse(); declarerGestesAchats(); declarerGestesPaie(); declarerGestesCompta(); declarerGestesMessagerie(); declarerGestesSupport();
   const ecrits = [...GESTES.values()].filter((g) => g.ecrit).map((g) => g.code);
 
   it('chaque geste qui écrit a sa décision', () => {

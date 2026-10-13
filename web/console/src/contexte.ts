@@ -7,7 +7,7 @@ import { appeler, ErreurReseau, session, type Reponse } from './api.ts';
 
 export type Role = 'direction' | 'support' | 'technique';
 export type Moi = { utilisateur: string; nom: string; email: string; role: Role; aujourdhui: string };
-export type Ctx = { moi: Moi; sortir: (message?: string) => void; compterDecisions: (n: number) => void; relireDecisions: () => void };
+export type Ctx = { moi: Moi; sortir: (message?: string) => void; compterDecisions: (n: number) => void; compterSupport: (n: number | null) => void; relireDecisions: () => void };
 
 export const ContexteConsole = createContext<Ctx | null>(null);
 export function useConsole(): Ctx {
@@ -64,4 +64,29 @@ export function useLecture<T>(chemin: string, cle: string = chemin): [Lecture<T>
   }, [api, chemin, cle, n]);
   const relire = useCallback(() => setN((x) => x + 1), []);
   return [lu.cle === cle ? lu.l : { etat: 'lecture' }, relire];
+}
+
+// Relire un écran tant que quelqu'un le regarde : toutes les `periode` ms quand la page est visible et qu'un geste y a
+// eu lieu depuis cinq minutes (un écran laissé ouvert la nuit ne relit pour personne), et dès qu'elle revient au premier
+// plan — c'est à ce moment qu'on vient voir ce qui a bougé. `attendre` garde la dernière lecture tant qu'il répond oui :
+// la « Pause » du service, une réponse en train de s'écrire (on ne relit pas sous les doigts).
+export function useRelireQuandOnRegarde(relire: () => void, { periode = 60_000, attendre = () => false }: { periode?: number; attendre?: () => boolean } = {}) {
+  const attendreRef = useRef(attendre);
+  attendreRef.current = attendre;
+  useEffect(() => {
+    let geste = Date.now();
+    const vu = () => { geste = Date.now(); };
+    const evenements = ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
+    for (const e of evenements) window.addEventListener(e, vu, { passive: true });
+    const minuterie = setInterval(() => {
+      if (!attendreRef.current() && document.visibilityState === 'visible' && Date.now() - geste < 5 * 60_000) relire();
+    }, periode);
+    const auRetour = () => { if (document.visibilityState === 'visible' && !attendreRef.current()) { geste = Date.now(); relire(); } };
+    document.addEventListener('visibilitychange', auRetour);
+    return () => {
+      clearInterval(minuterie);
+      document.removeEventListener('visibilitychange', auRetour);
+      for (const e of evenements) window.removeEventListener(e, vu);
+    };
+  }, [relire, periode]);
 }

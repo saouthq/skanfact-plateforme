@@ -247,9 +247,11 @@ describe('les clients', () => {
     const { ent, proprio } = await entreprise('Quincaillerie Fiche');
     const f = await fiche(jS, ent);
     expect(Object.keys(f).sort()).toEqual(['active', 'attend', 'aujourdhui', 'comptes', 'creeLe', 'devise', 'etat', 'evenements', 'faits', 'formeJuridique', 'gestes',
-      'id', 'ligne', 'matricule', 'membres', 'organisation', 'prolongeDejaUneFois', 'raisonSociale', 'tenuePar', 'cabinets'].sort());
+      'id', 'ligne', 'matricule', 'membres', 'organisation', 'prolongeDejaUneFois', 'raisonSociale', 'tenuePar', 'cabinets', 'support'].sort());
     // Aucun cabinet ne la suit : la liste est vide, pas absente. Un essai qui commence n'attend rien de la console.
     expect(f.cabinets).toEqual([]);
+    // Ses demandes au support (Support S1) : les lignes de la liste, jamais le texte des messages ; aucune, des zéros mesurés.
+    expect(f.support).toEqual({ comptes: { ouvertes: 0, aRepondre: 0, sansReponse: 0, attenteMax: null }, ouvertes: [], closes: [] });
     expect(f.attend).toEqual([]);
     expect(Object.keys(f.comptes as object).sort()).toEqual(['caisses', 'etablissements', 'piecesCreees', 'piecesEmises', 'salaries']);
     expect(f.membres).toEqual([expect.objectContaining({ nom: proprio.nom, email: proprio.email, roles: ['proprietaire'] })]);

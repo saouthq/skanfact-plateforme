@@ -593,6 +593,10 @@
     'aide.probleme': { t: 'Ce qui s\'est passé', d: 'Ce que tu faisais, où tu as cliqué, ce que tu attendais. Ce texte part dans un message à contact@skanfact.tn, avec la version et le journal technique. Le message s\'ouvre dans ta messagerie : rien ne part sans que tu l\'envoies.', a: 'support' },
     'aide.ideeQuoi': { t: 'Ce que tu aimerais faire', d: 'Le besoin en une phrase, même s\'il te paraît petit. Il part dans un message à contact@skanfact.tn, avec la version de SkanFact et rien d\'autre. Tu le relis dans ta messagerie avant de l\'envoyer.', a: 'support' },
     'aide.ideeAujourdhui': { t: 'Comment tu fais aujourd\'hui', d: 'Ton détour actuel : les gestes répétés, le temps que ça prend. Facultatif, mais c\'est lui qui dit le vrai problème. Il part dans le même message, avec seulement la version de SkanFact.', a: 'support' },
+    'support.sujet': { t: 'Le sujet', d: 'Ta demande en quelques mots : c\'est ce que l\'équipe lit en premier, et ce qui la nomme dans « Tes demandes au support ». Trois à cent quarante signes, sans < ni >.', a: 'support' },
+    'support.texte': { t: 'Ce qui se passe', d: 'Ce que tu faisais, où tu as cliqué, ce que tu attendais, ce qui s\'est passé à la place. Il part à l\'équipe SkanFact avec la version de l\'application et le nom de la page où tu étais, rien de ton dossier. La réponse revient ici, dans « Tes demandes au support ».', a: 'support' },
+    'support.ideeQuoi': { t: 'Ce que tu aimerais faire', d: 'Le besoin en une phrase, même s\'il te paraît petit. Il part à l\'équipe SkanFact avec la version de l\'application et le nom de la page où tu étais, rien de ton dossier ; sa réponse revient ici.', a: 'support' },
+    'support.ideeAujourdhui': { t: 'Comment tu fais aujourd\'hui', d: 'Ton détour actuel : les gestes répétés, le temps que ça prend. Facultatif, mais c\'est lui qui dit le vrai problème. Il part avec ton idée.', a: 'support' },
     'lic.tva': { t: 'TVA', d: 'Le taux de la ligne de la facture de licence. Il vient de la prestation du catalogue si tu en choisis une, sinon de ton régime, et il est gardé pour la facture d\'un changement d\'offre ou de quota. La clé n\'en porte rien. <em>À VÉRIFIER avec ton comptable.</em>' },
     'lic.remise': { t: 'Remise sur la facture', d: 'Le pourcentage retiré du HT de la facture de cette licence, pour un client parrainé. Proposé à 20 % à la première émission et à 0 au renouvellement. Il se pose sur le brouillon de facture comme une remise globale ; la clé n\'en porte rien.' },
     'lic.note': { t: 'Note interne', d: 'Un mot pour toi : d\'où vient le client, un geste accordé. <b>Attention : elle est écrite dans la clé signée</b>, et qui décode la clé peut la lire ; elle suit aussi la clé neuve d\'un renouvellement ou d\'un changement d\'offre. N\'y mets rien que le client ne doive pas voir.' },
@@ -1455,26 +1459,26 @@
 <p class="small muted">Chaque activité a ses taux de TVA et ses obligations. Ce que dit cette aide vaut pour le cas général : c'est le comptable de chacun qui tranche pour son entreprise.</p>`
     },
     {
-      id: 'support', title: 'Si quelque chose ne va pas', sub: 'Ce qu\'il faut faire, et ce qu\'il faut envoyer',
+      id: 'support', title: 'Si quelque chose ne va pas', sub: 'Écrire au support, et où la réponse t\'attend',
       body: `
-<h3>L'application ne répond plus</h3>
-<p>Depuis la version 6.6.0, SkanFact <b>se surveille lui-même</b> : toutes les trois secondes, il vérifie que son interface répond encore. Si elle reste muette une douzaine de secondes, il note dans son journal <b>où le programme s'est arrêté</b>, interrompt ce qui tourne en boucle, et te propose de recharger.</p>
-<p>Pourquoi c'est important : un gel ne laisse normalement <b>aucune trace</b>. Rien ne plante, aucune erreur n'apparaît, les journaux restent vides — et la personne devant l'écran n'a rien à envoyer pour qu'on l'aide. C'est exactement ce qui est arrivé avec la version 5.1.0. Maintenant, un gel devient un rapport.</p>
-<p>Réponds <b>Recharger l'application</b> : tes données enregistrées ne risquent rien. Ce qui était en cours de saisie et jamais enregistré est perdu — il l'était déjà de toute façon.</p>
+<h3>Écrire au support</h3>
+<p><b>Aide → Écrire au support</b> envoie ta demande à l'équipe SkanFact. Donne-lui un sujet court, puis dis ce qui se passe : ce que tu faisais, ce que tu attendais, ce qui s'est passé à la place. C'est le seul élément qu'on ne peut pas deviner, et c'est celui qui permet de reproduire le problème — donc de le corriger. Une simple question se pose de la même façon.</p>
+<p>La demande emporte la version de SkanFact et le nom de la page où tu étais. <b>Elle ne contient aucune donnée de ton entreprise</b> : ni nom de client, ni montant, ni document.</p>
+<p><b>Proposer une amélioration</b> passe par le même chemin : dis ce que tu aimerais faire, puis comment tu fais aujourd'hui — c'est la seconde réponse qui dit le vrai besoin.</p>
 
-<h3>Signaler un problème</h3>
-<p><b>Aide → Signaler un problème</b> prépare le message. Décris ce que tu faisais : c'est le seul élément qu'on ne peut pas deviner, et c'est celui qui permet de reproduire le problème — donc de le corriger.</p>
-<p>Le message emporte la version, ton système, et le journal technique. <b>Il ne contient aucune donnée de ton entreprise</b> : ni nom de client, ni montant, ni document. Le bouton « Voir le journal » te le montre avant.</p>
+<h3>La réponse</h3>
+<p>L'équipe te répond <b>ici, dans SkanFact</b>, en général dans la journée. Un bandeau te le dit en haut de l'écran, l'entrée « Aide » de la barre porte une pastille, et la réponse t'attend dans <b>Aide → Tes demandes au support</b>. Si tu n'es pas dans SkanFact à ce moment-là, un e-mail te prévient qu'une réponse t'attend : il ne contient pas la réponse elle-même, qui reste dans ton espace.</p>
+<p>Tu peux y répondre, ou dire <b>« C'est réglé »</b>. Une demande réglée se rouvre si tu y réécris. Tu ne vois que tes demandes : celles de tes collègues restent les leurs.</p>
 
-<h3>Avant d'appeler à l'aide</h3>
+<h3>Avant d'écrire</h3>
 <ul>
-<li><b>Note la version</b> (en bas de la barre de gauche) et ce que tu faisais exactement.</li>
-<li><b>Fais une sauvegarde</b> (Paramètres → Données et sécurité) : ça ne coûte rien et ça protège tout.</li>
-<li>Si l'application refuse de démarrer, tes données sont toujours là : le fichier et les sauvegardes vivent dans le dossier indiqué dans Paramètres → Données et sécurité.</li>
+<li><b>Note ce que tu faisais exactement</b> : la page, le bouton, ce que tu attendais.</li>
+<li>La version est en bas de la barre de gauche ; ta demande l'emporte d'elle-même.</li>
+<li>Si une page ne répond plus, recharge-la : ce qui a été enregistré est sur le serveur de SkanFact, pas dans la page.</li>
 </ul>
 
 <h3>Ce qui n'est jamais perdu</h3>
-<p>Tes données sont un fichier sur ton disque, plus une sauvegarde par jour pendant 30 jours, plus les sauvegardes nommées que tu as prises. Même une application cassée ne les emporte pas : réinstaller SkanFact les retrouve telles quelles.</p>`
+<p>Tes données vivent sur le serveur de SkanFact, pas sur cet appareil : fermer l'onglet, changer d'ordinateur ou perdre ton téléphone ne les emporte pas. Le propriétaire ou un administrateur en télécharge une copie complète quand il veut : Paramètres → Données et sécurité → « Toutes les données de l'entreprise ».</p>`
     },
     {
       id: 'vocabulaire', title: 'Le vocabulaire', sub: 'Les mots qu\'on emploie sans les expliquer',

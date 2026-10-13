@@ -1604,6 +1604,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-jr-famille-equipe { background: var(--c-violet-doux); color: var(--c-violet-texte); }
 .c-jr-famille-service { background: var(--c-gris-doux); color: var(--c-gris); }
 .c-jr-famille-reglages { background: var(--c-orange-doux); color: var(--c-orange-texte); }
+.c-jr-famille-support { background: var(--c-bleu-doux); color: var(--c-bleu-texte); }
 .c-jr-sur a { color: var(--c-lien); font-weight: 600; text-decoration: none; }
 .c-jr-sur a:hover { text-decoration: underline; }
 .c-jr-motif { color: var(--c-encre); }
@@ -2152,3 +2153,142 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-rg-format-alerte td:first-child { box-shadow: none; }
   .c-rg-format-alerte { border-inline-start: 3px solid var(--c-rouge); padding-inline-start: 10px; }
 }
+
+/* ── Le support (docs/support.md ; sa maquette) : la liste, la conversation, la carte du client ─────────────────────────
+   La conversation est le travail : elle prend la grande colonne. À sa gauche, la liste des demandes, et sous elle la
+   carte du client et de la personne de la demande ouverte (lue comme le détail de la ligne choisie). La maquette posait
+   la carte dans une troisième colonne : à la largeur réelle de la console, elle ramenait la conversation à 480 points,
+   le sujet sur deux lignes et les réponses types sur trois. Au téléphone, l'une sous l'autre : la liste, la conversation,
+   la carte. La conversation se lit comme un échange : la personne à gauche, en gris, l'équipe à droite, en sarcelle. */
+.c-sp-grille { display: grid; gap: 18px; align-items: start; grid-template-columns: 300px minmax(0, 1fr); }
+.c-sp-gauche { display: flex; flex-direction: column; gap: 18px; min-width: 0; min-height: 0; }
+.c-sp-liste { display: flex; flex-direction: column; min-width: 0; }
+.c-sp-liste-tete.c-pilules { padding: 16px 18px 12px; }
+.c-sp-liste-sous { margin: 0; padding: 0 18px 10px; font-size: 12.5px; color: var(--c-gris); }
+.c-sp-tickets { display: flex; flex-direction: column; }
+.c-sp-ticket {
+  display: flex; flex-direction: column; gap: 5px; padding: 14px 18px; border: 0; border-top: 1px solid var(--c-trait); background: var(--c-papier);
+  font: inherit; text-align: start; color: var(--c-encre); cursor: pointer; width: 100%;
+}
+.c-sp-ticket:hover { background: var(--c-papier-2); }
+.c-sp-ticket[aria-pressed="true"] { background: color-mix(in srgb, var(--c-sarcelle) 8%, var(--c-papier)); box-shadow: inset 3px 0 0 var(--c-lien); }
+.c-sp-ticket:focus-visible { outline: 2px solid var(--c-anneau); outline-offset: -2px; }
+.c-sp-ticket-haut { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.c-sp-ticket-haut b { font-size: 14.5px; min-width: 0; overflow-wrap: anywhere; }
+.c-sp-ticket-haut .c-puce { flex: none; }
+.c-sp-ticket-sujet { font-size: 13.5px; line-height: 1.45; overflow-wrap: anywhere; }
+.c-sp-ticket-meta { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--c-gris); }
+.c-sp-ticket-meta .c-icone { flex: none; }
+.c-sp-fil {
+  min-width: 0; display: flex; flex-direction: column; padding: 0; overflow: hidden;
+  background: var(--c-papier); border: 1px solid var(--c-trait); border-radius: var(--c-rayon); box-shadow: var(--c-ombre-carte); scroll-margin-top: 16px;
+}
+.c-sp-fil-vide { min-height: 160px; justify-content: center; }
+/* L'en-tête : le sujet, en titre, sur toute la largeur qu'il veut ; qui et d'où ; où elle en est ; le seul geste à droite. */
+.c-sp-fil-tete { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px 16px; padding: 18px 22px 16px; border-bottom: 1px solid var(--c-trait); }
+.c-sp-fil-quoi { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; }
+.c-sp-fil-tete h2 { font-size: 20px; line-height: 1.25; overflow-wrap: anywhere; }
+.c-sp-fil-sous { font-size: 13px; line-height: 1.5; color: var(--c-gris); }
+.c-sp-fil-sous .c-mono { font-size: 12.5px; }
+.c-sp-fil-etat { justify-self: start; max-width: 100%; white-space: normal; margin-top: 2px; }
+.c-sp-messages {
+  list-style: none; margin: 0; display: flex; flex-direction: column; gap: 16px; padding: 20px 22px;
+  max-height: max(280px, calc(100vh - 440px)); overflow-y: auto; overscroll-behavior: contain;
+}
+.c-sp-messages:focus-visible { outline: 2px solid var(--c-anneau); outline-offset: -2px; }
+.c-sp-msg { display: flex; flex-direction: column; gap: 6px; max-width: 86%; }
+.c-sp-msg-equipe { align-self: flex-end; align-items: flex-end; }
+.c-sp-msg-qui { font-size: 12px; color: var(--c-gris); }
+.c-sp-msg-qui b { color: var(--c-encre); }
+.c-sp-bulle {
+  padding: 13px 16px; border-radius: 4px 16px 16px 16px; background: var(--c-gris-doux); font-size: 15px; line-height: 1.55;
+  white-space: pre-line; overflow-wrap: anywhere;
+}
+.c-sp-msg-equipe .c-sp-bulle { border-radius: 16px 4px 16px 16px; background: var(--c-btn); color: var(--c-btn-texte); }
+.c-sp-article { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--c-lien); }
+.c-sp-close { padding: 0 22px 20px; }
+/* La réponse : les réponses types en une rangée, le champ, ce que la personne en verra ; en pied, l'article joint et
+   « Envoyer ». Le libellé du champ est lu, pas montré : l'invite (« Réponds à Lina… ») le dit déjà. */
+.c-sp-repondre { display: flex; flex-direction: column; gap: 12px; padding: 16px 22px 18px; border-top: 1px solid var(--c-trait); background: var(--c-papier-2); }
+.c-sp-types { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.c-sp-types-titre { font-size: 12.5px; font-weight: 600; color: var(--c-gris); margin-inline-end: 2px; }
+.c-sp-type {
+  min-height: 34px; max-width: 100%; padding: 0 12px; border-radius: 999px; border: 1px solid var(--c-trait-fort); background: var(--c-papier);
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--c-encre); cursor: pointer; text-align: start;
+}
+.c-sp-type > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-sp-type:hover { border-color: var(--c-lien); }
+.c-sp-type[aria-pressed="true"] { border-color: var(--c-lien); background: var(--c-doux); color: var(--c-doux-texte); }
+.c-sp-type:focus-visible { outline: 2px solid var(--c-anneau); outline-offset: 2px; }
+/* Le champ grandit avec ce qu'on écrit (jusqu'à 240 points), au lieu de cacher sa moitié derrière sa barre. */
+.c-sp-repondre textarea { min-height: 104px; max-height: 240px; field-sizing: content; resize: vertical; background: var(--c-papier); }
+.c-sp-repondre-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.c-sp-joint { display: inline-flex; align-items: center; gap: 8px; flex: 0 1 300px; min-width: 0; color: var(--c-gris); }
+.c-sp-joint .c-icone { flex: none; }
+.c-sp-joint select {
+  appearance: none; width: 100%; min-width: 0; min-height: 36px; padding: 0 34px 0 14px; border-radius: 999px; border: 1px solid var(--c-trait-fort);
+  background: var(--c-papier) no-repeat; color: var(--c-encre); font: inherit; font-size: 13px; font-weight: 600; text-overflow: ellipsis; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--c-gris) 50%), linear-gradient(135deg, var(--c-gris) 50%, transparent 50%);
+  background-position: calc(100% - 19px) 15px, calc(100% - 14px) 15px; background-size: 5px 5px;
+}
+.c-sp-joint select:hover { border-color: var(--c-lien); }
+.c-sp-joint select:focus-visible { outline: 2px solid var(--c-anneau); outline-offset: 2px; }
+.c-sp-touches { margin-inline-start: auto; font-size: 12px; color: var(--c-gris); white-space: nowrap; }
+.c-sp-touches kbd { font: inherit; font-weight: 600; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--c-trait-fort); background: var(--c-papier); color: var(--c-encre); }
+/* La carte du client et de la personne, sous la liste. */
+.c-sp-cote { min-width: 0; }
+.c-sp-contexte { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.c-sp-contexte > * { padding: 16px 18px; }
+.c-sp-contexte > * + * { border-top: 1px solid var(--c-trait); }
+.c-sp-client { display: flex; flex-direction: column; gap: 10px; }
+.c-sp-client-tete { display: flex; align-items: center; gap: 12px; }
+.c-sp-client-tete > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+.c-sp-client-tete b { font-size: 15.5px; overflow-wrap: anywhere; }
+.c-sp-client-tete > span:last-child > span { font-size: 13px; line-height: 1.45; color: var(--c-gris); }
+.c-sp-client-chiffres { font-size: 13px; line-height: 1.5; color: var(--c-gris); }
+.c-sp-liens { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.c-sp-liens > a:not(.c-btn) { font-size: 14px; font-weight: 600; }
+.c-sp-personne { display: flex; flex-direction: column; gap: 4px; }
+.c-sp-personne h3 { font-size: 11.5px; margin-bottom: 2px; }
+.c-sp-personne-nom { font-size: 14px; }
+.c-sp-personne > a { font-size: 13.5px; overflow-wrap: anywhere; }
+.c-sp-depuis { font-size: 12.5px; line-height: 1.45; color: var(--c-gris); }
+.c-sp-cache-dossier { margin: 0; display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.45; color: var(--c-gris); background: var(--c-papier-2); }
+.c-sp-cache-dossier .c-icone { flex: none; margin-top: 1px; color: var(--c-gris-2); }
+.c-sp-intro { margin: 0; color: var(--c-gris); font-size: 14.5px; line-height: 1.5; }
+/* Assez large et assez haut : l'écran tient dans la fenêtre, comme une messagerie. La grille prend ce qui reste sous
+   l'en-tête (--c-sp-haut, mesuré par l'écran) ; la conversation remplit sa colonne et ses messages défilent entre
+   l'en-tête de la demande et la réponse, qui reste à l'écran ; à gauche, la liste rétrécit et défile avant que la carte
+   du client ne sorte de l'écran. */
+@media (min-width: 861px) and (min-height: 600px) {
+  .c-page:has(> .c-sp-grille) { padding-bottom: 24px; }
+  .c-sp-grille { height: calc(100vh - var(--c-sp-haut, 220px) - 24px); min-height: 500px; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+  .c-sp-gauche { height: 100%; }
+  .c-sp-liste { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
+  .c-sp-cote { flex: none; }
+  .c-sp-fil { min-height: 0; }
+  .c-sp-messages { flex: 1 1 auto; min-height: 120px; max-height: none; }
+}
+@media (max-width: 860px) {
+  .c-sp-grille { grid-template-columns: minmax(0, 1fr); }
+  .c-sp-gauche { display: contents; }
+  .c-sp-liste { order: 1; }
+  .c-sp-fil { order: 2; }
+  .c-sp-cote { order: 3; }
+  .c-sp-messages { max-height: none; overflow: visible; }
+  .c-sp-msg { max-width: 94%; }
+  .c-sp-touches { display: none; }
+  .c-sp-repondre-pied > .c-btn { margin-inline-start: auto; }
+  /* Au doigt, chaque cible fait 44 points : les réponses types, l'article joint, les liens vers le client et la personne. */
+  .c-sp-type, .c-sp-joint select { min-height: 44px; }
+  .c-sp-liens > a:not(.c-btn), .c-sp-personne > a { display: flex; align-items: center; min-height: 44px; }
+}
+/* L'onglet « Ses demandes » de la fiche d'un client : une ligne par demande, qui s'ouvre dans l'écran Support. */
+.c-fiche-support .c-carte-tete { padding: 24px 26px 0; }
+.c-fiche-demandes { list-style: none; margin: 0; padding: 0; }
+.c-fiche-demandes li + li { border-top: 1px solid var(--c-trait); }
+.c-fiche-demandes a { display: grid; gap: 4px; padding: 14px 26px; color: var(--c-encre); text-decoration: none; }
+.c-fiche-demandes a:hover { background: var(--c-papier-2); }
+.c-fiche-demande-haut { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.c-fiche-demande-haut .c-mono { color: var(--c-gris); font-size: 12.5px; }
+.c-fiche-demande-haut b { overflow-wrap: anywhere; }

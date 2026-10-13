@@ -4,7 +4,7 @@
 //
 //   direction   tout : les clients, les abonnements, l'équipe, le journal, le service, les réglages ;
 //   support     « À décider », les clients, prolonger un essai (de 7 à 30 jours, une fois : la base le tient), lire les
-//               réglages ;
+//               réglages, répondre aux demandes de support ;
 //   technique   le service seulement : aucune donnée de client.
 
 import { texteConnu } from '../../textes/index.ts';
@@ -39,6 +39,10 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   // aux clients. Le support les lit (pour répondre à un client sur un prix) ; la direction seule les change.
   { code: 'console.reglages.voir', roles: [D, S], ecrit: false },
   { code: 'console.reglages.gerer', roles: [D], ecrit: true },
+  // Le support (docs/support.md) : lire les demandes des clients ; y répondre, noter une demande reçue ailleurs (un
+  // e-mail, un message WhatsApp, un appel), clore et rouvrir. La technique ne lit aucune donnée de client.
+  { code: 'console.support.voir', roles: [D, S], ecrit: false },
+  { code: 'console.support.repondre', roles: [D, S], ecrit: true },
 ];
 
 export const GESTES_CONSOLE: ReadonlyMap<string, GesteConsole> = (() => {

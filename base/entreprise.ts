@@ -146,6 +146,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   // haut de l'application de tous les clients. Communs à la plateforme, à aucune entreprise.
   'plateforme.relecture_regle': { classe: 'hors', raison: 'la relecture d\'une règle commune par un comptable : le registre de la plateforme, commun à toutes les entreprises' },
   'plateforme.message_clients': { classe: 'hors', raison: 'le message affiché à tous les clients, écrit par l\'équipe SkanFact : commun à la plateforme' },
+  'plateforme.demande_support': { classe: 'hors', raison: 'les demandes au support de SkanFact : la relation avec SkanFact, comme l\'abonnement ; chaque personne relit les siennes dans l\'application, et une remise ne les fait jamais revenir en arrière' },
+  'plateforme.message_support': { classe: 'hors', raison: 'les échanges avec le support de SkanFact, avec les réponses de son équipe : la relation avec SkanFact, comme l\'abonnement' },
   'socle.dossier_v10_retire': { classe: 'hors', raison: 'les traces de retrait servent la relecture des postes ; après une restauration, un poste relit tout' },
   // Ce qu'un appareil retiré a remis (0044) : à l'entreprise, décidé ou non.
   'socle.quarantaine': { classe: 'entreprise' },

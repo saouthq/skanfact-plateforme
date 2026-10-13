@@ -1,6 +1,6 @@
 // Les pièces des écrans de la console : les dessins, les boutons, les puces d'état, les champs, la fenêtre et le message
 // passager. Dessinés pour la console seulement (console.css) : l'application garde les siens.
-import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ToucheReact, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { phrase, titre } from './langue.ts';
 
@@ -32,6 +32,7 @@ const DESSINS = {
   sablier: <path d="M7 3h10M7 21h10M8 3c0 4 4 5.5 4 9s-4 5-4 9M16 3c0 4-4 5.5-4 9s4 5 4 9" />,
   serveur: <><rect x="3.5" y="4" width="17" height="7" rx="1.5" /><rect x="3.5" y="13" width="17" height="7" rx="1.5" /><path d="M7 7.5h.01M7 16.5h.01" /></>,
   plus: <path d="M12 5v14M5 12h14" />,
+  trombone: <path d="M20.5 11.2l-8.6 8.6a5.3 5.3 0 0 1-7.5-7.5l8.6-8.6a3.5 3.5 0 0 1 5 5l-8.6 8.6a1.8 1.8 0 0 1-2.5-2.5l7.9-7.9" />,
   info: <><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5.5" /><path d="M12 7.5v.5" /></>,
   relire: <><path d="M20 11a8 8 0 0 0-14.3-4.6L4 8.5" /><path d="M4 4v4.5h4.5" /><path d="M4 13a8 8 0 0 0 14.3 4.6L20 15.5" /><path d="M20 20v-4.5h-4.5" /></>,
   version: <><path d="M12 18.5V5.5" /><path d="M6.5 11L12 5.5l5.5 5.5" /><path d="M5 20.5h14" /></>,
@@ -223,15 +224,20 @@ export function Champ({ libelle, aide, faute = false, n, valeur, changer, type =
   );
 }
 
-export function Zone({ libelle, aide, faute = false, n, valeur, changer, premier, max = 500 }: Commun & { valeur: string; changer: (v: string) => void; premier?: boolean; max?: number }) {
+// `libelleCache` : le libellé reste lu (lecteur d'écran) mais ne s'affiche pas — quand l'invite dans le champ dit déjà ce qu'on
+// y écrit (« Réponds à Lina… »). `touche` reçoit les touches du champ (Ctrl + Entrée envoie).
+export function Zone({ libelle, aide, faute = false, n, valeur, changer, premier, max = 500, placeholder, libelleCache, touche }: Commun & {
+  valeur: string; changer: (v: string) => void; premier?: boolean; max?: number; placeholder?: string; libelleCache?: boolean;
+  touche?: (e: ToucheReact<HTMLTextAreaElement>) => void;
+}) {
   const f = useFaute<HTMLTextAreaElement>(faute, n);
   const id = useId();
   useEffect(() => { if (premier) f.ref.current?.focus(); }, [premier, f.ref]);
   return (
     <div className={['c-champ', f.rouge ? 'c-champ-faute' : ''].filter(Boolean).join(' ')}>
-      <label className="c-champ-libelle" htmlFor={id}>{libelle}</label>
+      <label className={libelleCache ? 'c-cache' : 'c-champ-libelle'} htmlFor={id}>{libelle}</label>
       <textarea ref={f.ref} id={id} value={valeur} rows={3} maxLength={max} aria-invalid={f.rouge || undefined} aria-describedby={aide ? `${id}-aide` : undefined}
-        onChange={(e) => { f.effacer(); changer(e.target.value); }} />
+        onChange={(e) => { f.effacer(); changer(e.target.value); }} {...(placeholder ? { placeholder } : {})} {...(touche ? { onKeyDown: touche } : {})} />
       {aide ? <span className="c-champ-aide" id={`${id}-aide`}>{aide}</span> : null}
     </div>
   );

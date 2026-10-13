@@ -18,6 +18,8 @@ declarerTextes({
   'geste.console.service.gerer': 'gérer les alertes et les incidents du service (prendre une alerte en charge, une sourdine, une alerte d\'essai ; ouvrir, suivre et clore un incident, ses suites ; annoncer une maintenance)',
   'geste.console.reglages.voir': 'voir les réglages de la plateforme (les prix, les règles communes, le message aux clients)',
   'geste.console.reglages.gerer': 'changer les réglages de la plateforme (noter la relecture d\'une règle, afficher ou retirer le message aux clients)',
+  'geste.console.support.voir': 'lire les demandes de support',
+  'geste.console.support.repondre': 'répondre à une demande de support (répondre, noter une demande reçue ailleurs, clore, rouvrir)',
   // Les rôles de l'équipe SkanFact (03 § 5).
   'role.direction': 'direction',
   'role.support': 'support',
@@ -41,4 +43,11 @@ declarerTextes({
   'console.versions.en_service_inconnue': 'le suiveur n\'a pas encore dit quelle version est en service : on ne peut pas revenir en arrière sans le savoir',
   'console.versions.retenir_en_service': 'cette version est en service : pour la quitter, reviens à une version d\'avant',
   'console.abonnement_change': 'cet abonnement a changé depuis que tu l\'as ouvert : relis-le avant de refaire le geste',
+  // Le support (docs/support.md) : chaque refus nomme sa case.
+  'console.support.sujet_court': 'le sujet dit en quelques mots ce que la personne demande : trois caractères au moins',
+  'console.support.sujet_long': 'le sujet tient sur une ligne : cent quarante caractères au plus',
+  'console.support.sans_balise': 'le sujet s\'écrit sans les signes < ni >',
+  'console.support.texte_court': 'note ce que la personne a demandé, avec ses mots : trois caractères au moins',
+  'console.support.reponse_courte': 'une réponse : trois caractères au moins',
+  'console.support.article_inconnu': 'cet article n\'est pas dans l\'Aide de l\'application : choisis-en un parmi les réponses types',
 });

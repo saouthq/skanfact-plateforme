@@ -7,6 +7,7 @@
 import { confirme } from '../../exploitation/veille.ts';
 import { etatAbonnement, joursEntre, lireFaits, plusJours, type Etat, type Faits } from '../abonnement/etat.ts';
 import type { RoleConsole } from './gestes.ts';
+import { compter, etatDe, type LigneDemande } from './support.ts';
 
 export type Entreprise = {
   id: string; raisonSociale: string; matricule: string | null; active: boolean; creeLe: string;
@@ -97,7 +98,7 @@ export function lireVeille(contenu: string | null, modifieLe: Date | null, maint
 
 // ── Le tableau du matin (§ 2.2) ──────────────────────────────────────────────────────────────────────────────────────
 // Une mesure : un nombre, ou « non mesuré » avec sa raison (C2).
-export type Mesure = { mesure: true; n: number } | { mesure: false; raison: 'paiements_a_venir' | 'support_a_venir' };
+export type Mesure = { mesure: true; n: number } | { mesure: false; raison: 'paiements_a_venir' };
 export type Tableau = {
   entreprisesDeLaSemaine: number;
   essais: number;
@@ -105,7 +106,9 @@ export type Tableau = {
   enRetard: number;
   lectureSeule: number;
   revenusDuMois: Mesure;
-  support: Mesure;
+  // Les demandes au support (0095) : ouvertes, celles qui attendent NOTRE réponse, et celles qui l'attendent depuis plus
+  // de vingt-quatre heures — comptées par la fonction de l'écran Support (C3).
+  support: { ouvertes: number; aRepondre: number; sansReponse: number; attenteMax: number | null };
   service: { etat: 'ok' } | { etat: 'problemes'; n: number; graves: number } | { etat: 'non_mesure'; raison: 'pas_de_veille' | 'veille_silencieuse'; derniere?: string };
 };
 
@@ -113,7 +116,7 @@ export type Tableau = {
 // des clients (« ?nouvelles=1 ») la montre, par cette seule règle (C3).
 export const inscriteCetteSemaine = (e: Entreprise, jour: string) => e.creeLe >= plusJours(jour, -6);
 
-export function tableau(liste: Entreprise[], veille: Veille, jour: string): Tableau {
+export function tableau(liste: Entreprise[], veille: Veille, jour: string, demandes: LigneDemande[] = [], maintenant: Date = new Date()): Tableau {
   const de = (c: Categorie) => liste.filter((e) => categorie(e) === c);
   const actifs = de('actif');
   return {
@@ -124,7 +127,7 @@ export function tableau(liste: Entreprise[], veille: Veille, jour: string): Tabl
     lectureSeule: de('lecture_seule').length,
     // Ce que la console ne mesure pas encore : jamais un zéro qui passerait pour une mesure.
     revenusDuMois: { mesure: false, raison: 'paiements_a_venir' },
-    support: { mesure: false, raison: 'support_a_venir' },
+    support: compter(demandes, maintenant),
     service: veille.etat === 'absente' ? { etat: 'non_mesure', raison: 'pas_de_veille' }
       : veille.etat === 'silencieuse' ? { etat: 'non_mesure', raison: 'veille_silencieuse', derniere: veille.derniere }
         : veille.problemes.length ? { etat: 'problemes', n: veille.problemes.length, graves: veille.problemes.filter((p) => p.grave).length } : { etat: 'ok' },
@@ -138,20 +141,32 @@ export type Ligne =
   | { sorte: 'veille_silencieuse'; ouvre: 'service'; derniere: string }
   | { sorte: 'en_retard'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; echeance: string; lectureSeuleLe: string; jours: number; apresEssai: boolean }
   | { sorte: 'lecture_seule'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; depuis: string; raison: string }
-  | { sorte: 'essai_sans_usage'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; jusquAu: string; jours: number; proprietaire: { nom: string; email: string } | null };
+  | { sorte: 'essai_sans_usage'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; jusquAu: string; jours: number; proprietaire: { nom: string; email: string } | null }
+  | { sorte: 'support'; ouvre: 'support'; demande: { id: string; numero: number; sujet: string; canal: LigneDemande['canal'] }; entreprise: { id: string; nom: string }; demandeur: string; heures: number; depuis: string };
 
 // Un essai qui finit dans trois jours sans avoir servi : pas une pièce créée (devis, facture, achat).
 export const ESSAI_SANS_USAGE_JOURS = 3;
 export const LECTURE_SEULE_DE_LA_SEMAINE = 7;
 
-// Qui lit quoi : la technique, le service seulement ; le support, les clients seulement ; la direction, tout.
-export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role: RoleConsole): Ligne[] {
+// Qui lit quoi : la technique, le service seulement ; le support, les clients seulement ; la direction, tout. Une demande
+// au support sans réponse depuis vingt-quatre heures passe juste après un service grave : un client attend, et la
+// promesse (« dans la journée ») est déjà tenue en retard ; la plus ancienne d'abord.
+export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role: RoleConsole, demandes: LigneDemande[] = [], maintenant: Date = new Date()): Ligne[] {
   const lignes: [number, number, Ligne][] = [];
   const service = role !== 'support';
   const clients = role !== 'technique';
   if (service && veille.etat === 'silencieuse') lignes.push([0, 0, { sorte: 'veille_silencieuse', ouvre: 'service', derniere: veille.derniere }]);
   if (service && veille.etat === 'ok') {
     for (const p of veille.problemes) lignes.push([p.grave ? 0 : 2, 0, { sorte: 'service', ouvre: 'service', ...p }]);
+  }
+  if (clients) {
+    for (const d of demandes) {
+      const e = etatDe(d, maintenant);
+      if ((e.etat === 'nouvelle' || e.etat === 'a_repondre') && e.sansReponse) {
+        lignes.push([0.5, -e.heures, { sorte: 'support', ouvre: 'support', demande: { id: d.id, numero: d.numero, sujet: d.sujet, canal: d.canal },
+          entreprise: { id: d.entreprise.id, nom: d.entreprise.nom }, demandeur: d.demandeur.nom, heures: e.heures, depuis: e.attendDepuis }]);
+      }
+    }
   }
   if (clients) {
     for (const e of liste) {

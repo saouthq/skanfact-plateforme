@@ -89,7 +89,8 @@ describe('le tableau du matin', () => {
   it('rien n\'est vert sans mesure : ce que la console ne mesure pas encore se dit, avec sa raison', () => {
     const t = tableau([], { etat: 'absente' }, JOUR);
     expect(t.revenusDuMois).toEqual({ mesure: false, raison: 'paiements_a_venir' });
-    expect(t.support).toEqual({ mesure: false, raison: 'support_a_venir' });
+    // Le support se mesure depuis la Support S1 : sans demande, des zéros (une mesure), et pas de « plus longue attente ».
+    expect(t.support).toEqual({ ouvertes: 0, aRepondre: 0, sansReponse: 0, attenteMax: null });
     expect(t.service).toEqual({ etat: 'non_mesure', raison: 'pas_de_veille' });
     expect(tableau([], lireVeille('{}', new Date(MAINTENANT.getTime() - 10 * 60_000), MAINTENANT), JOUR).service).toMatchObject({ etat: 'non_mesure', raison: 'veille_silencieuse' });
     expect(tableau([], veilleOk, JOUR).service).toEqual({ etat: 'ok' });

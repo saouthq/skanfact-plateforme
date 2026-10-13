@@ -36,6 +36,9 @@ export const POLITIQUE_LECTURE_SEULE: Record<string, Politique> = {
   'socle.abonnement.resilier': 'ouvert',
   'socle.cabinet.choisir': 'ouvert',
   'socle.support.autoriser': 'ouvert',
+  // Demander de l'aide au support de SkanFact (docs/support.md) ne crée rien dans le dossier, et c'est souvent ce qui
+  // fait sortir de la lecture seule.
+  'support.ecrire': 'ouvert',
   'socle.cles_api.gerer': 'ouvert',
   'socle.avis.gerer': 'ouvert',
   // Le dossier de la v10 : l'écran y retient la création avant le geste ; une modification reste permise (6.4.0 :

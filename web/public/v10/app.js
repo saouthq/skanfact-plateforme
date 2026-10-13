@@ -1896,7 +1896,7 @@
   const PAGE_LABELS = {
     dashboard: 'Accueil', devis: 'Devis', factures: 'Factures', relances: 'Relances', contrats: 'Facturation récurrente',
     contrat: 'le contrat', autres: 'Proforma, bons et contrats', clients: 'Clients', client: 'la fiche client', catalogue: 'Catalogue', listesprix: 'Listes de prix', listeprix: 'la liste de prix',
-    tresorerie: 'Trésorerie', stats: 'Statistiques', compta: 'Comptabilité', parametres: 'Paramètres', aide: 'Aide', doc: 'le document', licences: 'Licences', comptable: 'Mon comptable',
+    tresorerie: 'Trésorerie', stats: 'Statistiques', compta: 'Comptabilité', parametres: 'Paramètres', aide: 'Aide', doc: 'le document', licences: 'Licences', comptable: 'Mon comptable', support: 'Tes demandes au support',
     achats: 'Achats et dépenses', achat: 'l\'achat', fournisseurs: 'Fournisseurs', fournisseur: 'la fiche fournisseur',
     commandesf: 'Commandes fournisseurs', commandef: 'la commande fournisseur', reception: 'la réception',
     marges: 'Marges', affaire: 'l\'affaire', immos: 'Immobilisations', immo: 'l\'immobilisation', groupe: 'Le groupe',
@@ -2797,6 +2797,8 @@
     bandeauDemo(name);               // « ce ne sont pas tes données » — sur chaque page, en permanence
     // (plateforme) Le message de SkanFact à tous ses clients (0093), posé APRÈS l'exemple pour passer au-dessus de lui.
     if (bridge.poserMessage) bridge.poserMessage(view);
+    // (plateforme, Support S1) Une réponse du support à lire : le bandeau passe au-dessus de tout (il appelle un geste).
+    if (bridge.support) bridge.support.poser(view);
     bandeauModule(active);           // « cette page n'est pas dans ton menu » — et le bouton pour l'y mettre
     bandeauOffre(active);            // « ce module fait partie de l'offre Entreprise » — lecture libre, création fermée
     if (!pageCachee(name)) appelGuide(name); // « première fois sur cette page ? » — accrochée à « Guide-moi » (10.14.1)
@@ -15771,6 +15773,99 @@
       surAttente: a => majMessagerie({ ...(messagerieVue || {}), ...a }),
     });
   };
+  // (plateforme, Support S1) « Écrire au support » : la demande part à l'équipe SkanFact, la réponse revient ICI (« Tes
+  // demandes au support »), et un e-mail sans contenu prévient la personne. Ce qui part avec, compté et décidé : le
+  // sujet, le texte, la version de l'application et le NOM de la page où elle était — celle d'avant l'Aide, c'est là
+  // qu'elle travaillait ; jamais un identifiant, ni rien de son dossier.
+  let supportOuvert = null;
+  // Ce qui attend au support, relu par le démarrage (la pastille de l'Aide, le bandeau) ; après un envoi, tout de suite.
+  let relireSupport = () => {};
+  const PAGES_DU_SUPPORT = ['aide', 'parametres', 'support', 'guide'];
+  const pageDuSupport = () => {
+    const ici = routeOf(location.hash);
+    if (!PAGES_DU_SUPPORT.includes(ici)) return ici;
+    for (let i = navStack.length - 1; i >= 0; i--) { const r = routeOf(navStack[i]); if (!PAGES_DU_SUPPORT.includes(r)) return r; }
+    return ici;
+  };
+  async function ecrireAuSupport(genre) {
+    const idee = genre === 'idee';
+    let v = null;
+    try { v = await bridge.updateVersion(); } catch (_) { /* sans version, la demande part sans elle */ }
+    const version = v && v.version && v.version !== 'dev' ? `${v.version}${v.envoi ? '+' + v.envoi : ''}` : null;
+    const page = pageDuSupport();
+    const nomPage = PAGE_LABELS[page] || '';
+    const joint = [version ? `la version de SkanFact (v${h(v.version)})` : 'la version de SkanFact', nomPage ? `la page où tu étais (${h(nomPage)})` : ''].filter(Boolean).join(' et ');
+    modal(`<h2>${idee ? 'Proposer une amélioration' : 'Écrire au support'}</h2>
+      <p class="small">${idee
+        ? 'Dis ce qui te manque — même si ça te paraît petit : c\'est souvent le petit geste répété tous les lundis qui fait gagner le plus. L\'équipe SkanFact lit chaque idée et te répond ici.'
+        : 'Une question, ou quelque chose qui ne marche pas comme prévu : l\'équipe SkanFact te répond ici, dans SkanFact, en général dans la journée. Un e-mail te prévient que la réponse t\'attend.'}</p>
+      <form id="sup-form" novalidate>
+        ${idee ? `<label class="field obligatoire">${lbl('Ce que tu aimerais faire', 'support.ideeQuoi')}
+          <textarea id="sup-quoi" rows="3" maxlength="1800" placeholder="Ex. : envoyer la même relance à plusieurs clients d'un coup."></textarea></label>
+        <label class="field">${lbl('Comment tu fais aujourd\'hui', 'support.ideeAujourdhui')}
+          <textarea id="sup-auj" rows="3" maxlength="1800" placeholder="Ex. : je les ouvre un par un, ça me prend une demi-heure chaque lundi."></textarea></label>
+        <p class="small muted">Cette seconde question est celle qui sert le plus : elle dit le vrai problème, et pas seulement la solution imaginée.</p>`
+        : `<label class="field obligatoire">${lbl('Le sujet', 'support.sujet')}
+          <input id="sup-sujet" maxlength="140" autocomplete="off" placeholder="Ex. : l'émission d'une facture ne répond plus"></label>
+        <label class="field obligatoire">${lbl('Ce qui se passe', 'support.texte')}
+          <textarea id="sup-texte-demande" rows="5" maxlength="4000" placeholder="Ce que tu faisais, ce que tu attendais, ce qui s'est passé à la place. Une question ? Pose-la telle quelle."></textarea></label>`}
+      </form>
+      <div class="notes-md mt"><strong>Joint automatiquement</strong>
+        <p class="small">${joint} : c'est ce qui aide l'équipe à voir ce que tu vois.</p>
+        <p class="small muted">Rien d'autre : ni client, ni montant, ni document de ton entreprise.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" data-close>Annuler</button>
+        <button class="btn btn-primary" id="sup-send">Envoyer au support</button></div>`,
+      (root, close) => {
+        const bouton = $('#sup-send', root);
+        const envoyer = async () => {
+          if (bouton.disabled) return;
+          let sujet, texte;
+          if (idee) {
+            const quoi = $('#sup-quoi', root).value.trim();
+            if (quoi.length < 3) return refus($('#sup-quoi', root), 'Dis en une phrase ce que tu aimerais faire.');
+            const auj = $('#sup-auj', root).value.trim();
+            // Le sujet de l'idée : sa première ligne, sans balise, tenue dans les 140 signes d'un sujet.
+            const ligne = quoi.split('\n')[0].replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
+            sujet = `Une idée : ${ligne}`;
+            if (sujet.length > 140) sujet = sujet.slice(0, 139).trimEnd() + '…';
+            texte = `Ce que j'aimerais faire :\n${quoi}\n\nComment je fais aujourd'hui :\n${auj || '(non précisé)'}`;
+          } else {
+            sujet = $('#sup-sujet', root).value.trim();
+            texte = $('#sup-texte-demande', root).value.trim();
+            if (sujet.length < 3) return refus($('#sup-sujet', root), 'Donne un sujet à ta demande, en quelques mots : c\'est lui que l\'équipe lit en premier.');
+            if (/[<>]/.test(sujet)) return refus($('#sup-sujet', root), 'Le sujet s\'écrit sans les signes < et >.');
+            if (texte.length < 3) return refus($('#sup-texte-demande', root), 'Dis ce qui se passe : ce que tu faisais, ce que tu attendais. C\'est ce qui permet de t\'aider.');
+          }
+          bouton.disabled = true;
+          try {
+            const r = await bridge.support.ecrire({ sujet, texte, version, page: /^[a-z][a-z0-9_-]{0,39}$/.test(page) ? page : null });
+            close();
+            toast('Envoyé : l\'équipe SkanFact te répond ici, dans « Tes demandes au support ».');
+            void relireSupport();
+            navigate('#/support/' + encodeURIComponent(r.id));
+          } catch (e) { toast(plainError(e), true); bouton.disabled = false; }
+        };
+        bouton.onclick = envoyer;
+        $('#sup-form', root).onsubmit = e => { e.preventDefault(); void envoyer(); };
+      });
+  }
+  routes.support = (parts) => {
+    if (supportOuvert) { supportOuvert.arreter(); supportOuvert = null; }
+    const view = $('#view');
+    if (!bridge.support) {
+      view.innerHTML = '<div class="page-head"><h1>Tes demandes au support</h1></div><div class="panel"><p class="small muted">Le support de SkanFact se joint en ligne, depuis l\'application.</p></div>';
+      return;
+    }
+    view.innerHTML = '<div id="sup-racine"></div>';
+    supportOuvert = bridge.support.dessiner($('#sup-racine'), {
+      ecrire: () => ecrireAuSupport('question'),
+      choisie: parts && parts[0] ? decodeURIComponent(parts[0]) : null,
+      toast: (t, erreur) => toast(t, erreur),
+      ouvrirArticle: id => navigate('#/aide/' + id),
+    });
+  };
   // (plateforme, brique 113) Le groupe : les sociétés de la personne, leurs chiffres lus dans leurs livres au serveur.
   routes.groupe = async () => {
     const tete = `<div class="page-head"><h1>Le groupe ${info('groupe.page')}</h1><div class="actions">${backButton('#/dashboard')}</div></div>`;
@@ -19406,7 +19501,7 @@
 
     $('#view').innerHTML = `
       <div class="page-head"><h1>Aide</h1>
-        <div class="actions">${backButton('#/dashboard', 'aide')}<button class="btn" id="aide-support">Signaler un problème</button><button class="btn" id="aide-idee">Proposer une amélioration</button><button class="btn" id="aide-changelog">Nouveautés de la version</button></div></div>
+        <div class="actions">${backButton('#/dashboard', 'aide')}${bridge.support && routeOf(backTarget('#/dashboard', 'aide')) !== 'support' ? '<button class="btn" id="aide-demandes">Tes demandes au support</button>' : ''}<button class="btn" id="aide-support">${bridge.support ? 'Écrire au support' : 'Signaler un problème'}</button><button class="btn" id="aide-idee">Proposer une amélioration</button><button class="btn" id="aide-changelog">Nouveautés de la version</button></div></div>
       ${/* 10.12.0 — la phrase promettait « le ? en haut de chaque page » : aucune page n'en porte. Le
            bouton s'appelle « Guide-moi » depuis la 10.14.1 (poserGuideMoi) ; une phrase affichée que
            rien ne tient est un bug (7.3.0). */''}
@@ -19523,12 +19618,16 @@
     if ($('#aide-guide')) $('#aide-guide').onclick = () => navigate('#/guide');
     $('#aide-support').onclick = supportForm;
     $('#aide-idee').onclick = ideeForm;
+    if ($('#aide-demandes')) $('#aide-demandes').onclick = () => navigate('#/support');
   };
 
   // ---------- signaler un problème (6.6.0) ----------
   // Un rapport utile tient en trois choses : ce qui s'est passé, la version, et le journal technique.
   // Ce qu'il ne contient JAMAIS : un nom de client, un montant, une donnée d'entreprise.
   async function supportForm() {
+    // (plateforme, Support S1) En ligne, la demande part au support de SkanFact et la réponse revient dans l'application
+    // (« Tes demandes au support »), pas dans une messagerie ; il n'y a pas de journal de l'ordinateur à joindre.
+    if (bridge.support) return ecrireAuSupport('probleme');
     let info = {};
     try { info = await bridge.supportInfo(); } catch {}
     const tech = `SkanFact ${info.version || '?'} · ${info.platform || '?'} · Electron ${info.electron || '?'}`;
@@ -19577,6 +19676,8 @@
   // faut connaître, c'est le besoin qui l'a fait naître. La première question seule ferait écrire
   // « il faudrait un bouton X », sans jamais dire pourquoi.
   async function ideeForm() {
+    // (plateforme, Support S1) L'idée part au support de SkanFact, avec ses deux questions ; la réponse revient ici.
+    if (bridge.support) return ecrireAuSupport('idee');
     let info = {};
     try { info = await bridge.supportInfo(); } catch {}
     const tech = `SkanFact ${info.version || '?'} · ${info.platform || '?'}`;
@@ -21761,6 +21862,19 @@
       void suivreMessagerie();
       setInterval(suivreMessagerie, 30 * 1000);
       document.addEventListener('visibilitychange', () => { void suivreMessagerie(); });
+    }
+    // (plateforme, Support S1) Ce qui attend au support (une réponse de l'équipe à lire), relu toutes les minutes tant que
+    // la page est visible, et tout de suite après un envoi. Une personne sans rôle dans l'entreprise n'a pas de support
+    // ici : on ne redemande plus.
+    if (bridge.support) {
+      let sansSupport = false;
+      relireSupport = async () => {
+        if (sansSupport || document.visibilityState !== 'visible') return;
+        try { bridge.support.noter(await bridge.support.attente()); } catch (e) { if (e && e.statut === 403) { sansSupport = true; bridge.support.noter(null); } }
+      };
+      void relireSupport();
+      setInterval(() => { void relireSupport(); }, 60 * 1000);
+      document.addEventListener('visibilitychange', () => { void relireSupport(); });
     }
     if (licence && licence.commande) verifierAchat(false);
     // La copie de sauvegarde externe ne vit pas dans les données : on la lit une fois ici pour que
