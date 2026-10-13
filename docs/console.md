@@ -334,6 +334,37 @@ ouverte ne porte).
 - **La recherche d'un client** ne vit plus qu'en tête de l'accueil, comme la maquette (chaque liste a la sienne) ;
   **Ctrl K** (⌘ K sur un Mac) y mène de partout : sur l'accueil, dans ce champ ; ailleurs, dans celui de Clients.
 
+**C17. Clients, recalé sur sa maquette** (13/10/2026). Au-dessus de la liste, **cinq vues du métier**, chacune sa carte,
+son compte et sa phrase (`serveur/console/clients.ts`, `dansLaVue` — la même fonction compte la carte et filtre la liste
+qu'elle ouvre, C3) :
+- **tout le portefeuille** ;
+- **à appeler** : un essai qui finit dans la semaine sans une pièce émise, ou une grâce d'après l'essai sans offre
+  choisie — quelqu'un qui n'a pas vu ce que l'application lui apporte : un appel, pas une relance ;
+- **l'argent attendu** : une offre choisie, l'échéance passée, rien de payé (jamais la lecture seule : elle a sa puce) ;
+- **les silencieux** : en essai ou abonnés, jamais ouverts ou pas depuis dix jours — comptés en **jours de Tunis** ;
+- **tenus à convertir** : les dossiers qu'un cabinet tient pour son client, sans abonnement.
+
+Une carte est un raccourci : elle ouvre toute sa liste (la puce d'état choisie avant s'efface), et les puces d'état
+comptent ensuite cette vue-là. La vue et l'ordre vivent dans l'adresse (`#/clients?vue=a_appeler&tri=echeance`).
+- **Deux colonnes de plus.** **Échéance** : le prochain jour où quelque chose change (la fin de l'essai, la fin de la
+  période payée, le passage en lecture seule d'une grâce) et dans combien de jours ; ce qu'il change seulement quand la
+  puce ne le dit pas (« lecture seule dans 5 jours », « résilié, fin dans 12 jours »). Une entreprise déjà en lecture
+  seule n'en a plus : la colonne État dit depuis quand, et **la date ne s'écrit qu'une fois** (la colonne État ne redit
+  plus l'échéance ; la raison d'un « hors abonnement » est dans la colonne Abonnement). **Par an, HT** : ce qu'un
+  abonnement rapporte au prix du jour (un mensuel compte douze mois) ; une offre choisie pas encore payée se lit en gris,
+  « quand ce sera payé » ; sans offre ou sans prix du jour, « — », jamais un montant deviné.
+- **La ligne de compte** au-dessus du tableau : combien d'entreprises la liste montre, et ce que rapportent par an les
+  abonnements actifs de la sélection (ce qui est attendu n'y entre pas : il n'est pas encore payé). Le pied ne garde
+  que de quoi tourner les pages.
+- **Le tri** : le plus urgent d'abord (par défaut), l'échéance la plus proche, ce qui rapporte le plus, le nom, le plus
+  récemment ouvert. À égalité, l'urgence départage ; ce qui n'a pas de valeur (pas d'échéance, rien par an, jamais
+  ouvert) reste en bas.
+- **Huit colonnes tiennent dans le cadre** à 1440 et à 1280 points : sur un portable, « Ouvrir » ne garde que sa flèche
+  (son nom reste lu), et les cinq cartes restent sur une rangée.
+- **Pas encore** : la sixième carte de la maquette (« venus par un cabinet », la remise de parrainage) attend que le
+  parrainage existe dans les faits de l'abonnement ; l'export de la sélection, le menu « … » d'une ligne et les filtres
+  par type, offre et cabinet ne sont pas écrits.
+
 ## Mettre en route
 
 La personne crée d'abord son compte SkanFact, puis met en place le code de son téléphone (« Ton compte »,

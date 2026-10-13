@@ -10975,7 +10975,7 @@ prouver 'la fiche d'"'"'une entreprise d'"'"'exemple dans la console' base/migra
   'where e.id = p_entreprise and not e.essai;' 'where e.id = p_entreprise;' \
   "$CONSS8"
 prouver 'la liste des clients rangée par date, pas par urgence' serveur/console/routes.ts \
-  'const toutes = rangerParUrgence(lireEntreprises(await lireJson(transaction(tx), '"'"'select plateforme.console_entreprises() v'"'"'), jour), jour);' 'const toutes = lireEntreprises(await lireJson(transaction(tx), '"'"'select plateforme.console_entreprises() v'"'"'), jour);' \
+  'const toutes = rangerParUrgence(lireEntreprises(await lireJson(t, '"'"'select plateforme.console_entreprises() v'"'"'), jour), jour);' 'const toutes = lireEntreprises(await lireJson(t, '"'"'select plateforme.console_entreprises() v'"'"'), jour);' \
   "$CONSS8"
 prouver 'la semaine des inscriptions qui compte huit jours' serveur/console/decider.ts \
   'e.creeLe >= plusJours(jour, -6);' 'e.creeLe >= plusJours(jour, -7);' \
@@ -10984,7 +10984,7 @@ prouver 'la liste des inscriptions qui montre tout le monde' serveur/console/rou
   'const nouvelles = query.nouvelles === '"'"'1'"'"' ? toutes.filter((e) => inscriteCetteSemaine(e, jour)) : toutes;' 'const nouvelles = toutes;' \
   "$CONSS9"
 prouver 'les puces des inscriptions comptées sur toutes les entreprises' serveur/console/routes.ts \
-  '[c, cherchees.filter((e) => categorie(e) === c).length]' '[c, toutes.filter((e) => categorie(e) === c).length]' \
+  '[c, dansVue.filter((e) => categorie(e) === c).length]' '[c, toutes.filter((e) => categorie(e) === c).length]' \
   "$CONSS9"
 prouver 'le téléphone d'"'"'un membre dans la fiche de la console' base/migrations/0083_console.sql \
   'jsonb_build_object('"'"'nom'"'"', u.nom, '"'"'email'"'"', u.email, '"'"'roles'"'"', m.roles, '"'"'depuis'"'"', m.depuis,' 'jsonb_build_object('"'"'nom'"'"', u.nom, '"'"'email'"'"', u.email, '"'"'telephone'"'"', u.telephone, '"'"'roles'"'"', m.roles, '"'"'depuis'"'"', m.depuis,' \
@@ -11785,6 +11785,35 @@ prouver 'Ctrl K sans effet hors de l'"'"'accueil' 'web/console/src/Console.tsx' 
   "      if (page !== 'accueil' && page !== 'clients') location.hash = '#/clients';" \
   "      if (page === 'accueil') location.hash = '#/clients';" \
   'l'"'"'en-tête du service : l'"'"'alerte la plus urgente une fois'
+
+prouver 'un essai qui a servi, à appeler quand même' 'serveur/console/clients.ts' \
+  "(s.etat === 'essai' && s.jours <= ESSAI_QUI_FINIT_JOURS && e.pieces === 0)" \
+  "(s.etat === 'essai' && s.jours <= ESSAI_QUI_FINIT_JOURS)" \
+  'chaque vue garde exactement les entreprises de sa phrase'
+prouver 'un silence compté en jours UTC' 'serveur/console/clients.ts' \
+  'joursEntre(aujourdhuiATunis(new Date(e.derniereActivite)), jour) >= SILENCE_JOURS' \
+  'joursEntre(e.derniereActivite.slice(0, 10), jour) >= SILENCE_JOURS' \
+  'chaque vue garde exactement les entreprises de sa phrase'
+prouver 'un mensuel compté pour un seul mois' 'serveur/console/clients.ts' \
+  "periodicite === 'mensuel' ? p * 12n : p;" \
+  'p;' \
+  'un montant par an au prix du jour'
+prouver 'l'"'"'argent attendu compté dans ce que rapporte la sélection' 'serveur/console/clients.ts' \
+  '    if (!p || p.attendu) continue;' \
+  '    if (!p) continue;' \
+  'la sélection rapporte ce que rapportent ses abonnements actifs'
+prouver 'une ligne sans échéance en tête du tri' 'serveur/console/clients.ts' \
+  'a.k === b.k ? a.i - b.i : a.k === null ? 1 : -1' \
+  'a.k === b.k ? a.i - b.i : a.k === null ? -1 : 1' \
+  'l'"'"'échéance la plus proche d'"'"'abord'
+prouver 'une carte du métier qui n'"'"'ouvre pas sa vue' 'web/console/src/ecrans/Clients.tsx' \
+  '  const choisirVue = (v: VueClients) => { setVue(v); setEtat(null); setDebut(0); };' \
+  '  const choisirVue = (v: VueClients) => { void v; setEtat(null); setDebut(0); };' \
+  'les clients : chaque vue du métier ouvre la liste'
+prouver 'la date d'"'"'une échéance redite dans la colonne État' 'web/console/src/ecrans/Clients.tsx' \
+  "{e.etat.etat === 'lecture_seule' ? <span className=\"c-sous c-sous-espace\">" \
+  "{e.etat.etat !== 'hors' ? <span className=\"c-sous c-sous-espace\">" \
+  'les clients : chaque vue du métier ouvre la liste'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

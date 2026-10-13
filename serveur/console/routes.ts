@@ -17,6 +17,7 @@ import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_M
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
 import { aDecider, CATEGORIES, categorie, chercher, inscriteCetteSemaine, lireEntreprises, lireVeille, rangerParUrgence, tableau, type Veille } from './decider.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
+import { comptesDesVues, dansLaVue, ligneClient, parAnDeLaSelection, trier, TRIS_CLIENTS, VUES_CLIENTS, type TriClients, type VueClients } from './clients.ts';
 import { annuel, AVENIR_JOURS, cartes, lignesEcheances, lireExtras, lirePrix, vue, VUES, type Vue } from './echeances.ts';
 import {
   alertesOuvertes, BUDGET_DU_GRAPHIQUE, bornes, briques, disponibilite, enLigne, ensemble, estPeriode, journal, joursDuService, lireVeilleDeLaBase,
@@ -165,16 +166,29 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     methode: 'GET', chemin: '/console/entreprises', geste: 'console.clients.voir',
     traiter: async ({ query }, tx) => {
       const jour = aujourdhuiATunis();
-      const toutes = rangerParUrgence(lireEntreprises(await lireJson(transaction(tx), 'select plateforme.console_entreprises() v'), jour), jour);
+      const t = transaction(tx);
+      const toutes = rangerParUrgence(lireEntreprises(await lireJson(t, 'select plateforme.console_entreprises() v'), jour), jour);
+      const prix = lirePrix(await lireJson(t, 'select plateforme.prix_du_jour($1::date) v', [jour]));
       const nouvelles = query.nouvelles === '1' ? toutes.filter((e) => inscriteCetteSemaine(e, jour)) : toutes;
       const cherchees = chercher(nouvelles, String(query.q ?? ''));
-      const comptes = Object.fromEntries(CATEGORIES.map((c) => [c, cherchees.filter((e) => categorie(e) === c).length]));
+      // Les cartes du métier comptent la recherche ; les puces d'état comptent la carte choisie (C3 : chacune par la
+      // fonction qui filtre la liste qu'elle ouvre).
+      const vues = comptesDesVues(cherchees, jour);
+      const laVue: VueClients = VUES_CLIENTS.includes(query.vue as never) ? query.vue as VueClients : 'tout';
+      const dansVue = cherchees.filter((e) => dansLaVue(e, laVue, jour));
+      const comptes = Object.fromEntries(CATEGORIES.map((c) => [c, dansVue.filter((e) => categorie(e) === c).length]));
       const etat = CATEGORIES.includes(query.etat as never) ? query.etat : null;
-      const gardees = etat ? cherchees.filter((e) => categorie(e) === etat) : cherchees;
+      const tri: TriClients = TRIS_CLIENTS.includes(query.tri as never) ? query.tri as TriClients : 'urgence';
+      const gardees = trier(etat ? dansVue.filter((e) => categorie(e) === etat) : dansVue, tri, prix);
       const debut = Math.max(Number(query.debut ?? 0) || 0, 0);
       const n = limite(query);
-      const page = gardees.slice(debut, debut + n);
-      return { corps: { aujourdhui: jour, total: gardees.length, tous: cherchees.length, comptes, lignes: page, suite: debut + n < gardees.length ? debut + n : null } };
+      const page = gardees.slice(debut, debut + n).map((e) => ligneClient(e, prix));
+      return {
+        corps: {
+          aujourdhui: jour, total: gardees.length, tous: dansVue.length, vue: laVue, tri, vues, comptes, parAn: parAnDeLaSelection(gardees, prix),
+          lignes: page, suite: debut + n < gardees.length ? debut + n : null,
+        },
+      };
     },
   });
 

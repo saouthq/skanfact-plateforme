@@ -138,6 +138,12 @@ describe('la console de l\'équipe, à la souris', () => {
     [id, essaiDans, autre.payeDans ?? null, autre.offre ?? null, autre.offre ? 'annuel' : null]);
     return id;
   };
+  // Le nombre d'entreprises de la liste des clients, tel que sa ligne de compte le dit : « 1–50 sur 61 entreprises »,
+  // « 13 entreprises », « une entreprise ».
+  const totalClients = async (q: Page) => {
+    const t = net(await q.locator('.c-liste-resume b').first().innerText());
+    return Number(/sur (\d+)/.exec(t)?.[1] ?? /^(\d+) /.exec(t)?.[1] ?? (/^une /i.test(t) ? 1 : Number.NaN));
+  };
   // Une page de la console, à une largeur, un thème et une langue, avec la session d'un membre.
   const ouvrir = async (jeton: string | null, hash: string, o: { largeur?: number; theme?: 'clair' | 'sombre'; factice?: boolean } = {}) => {
     const largeur = o.largeur ?? 1440;
@@ -264,7 +270,7 @@ describe('la console de l\'équipe, à la souris', () => {
     await cliquer(p.locator('.c-decider .c-pilule', { hasText: 'Clients' }));
     await expect.poll(async () => (await decider.allInnerTexts()).some((t) => t.includes('La copie hors machine'))).toBe(false);
     // Un chiffre du tableau, et la liste qu'il ouvre : le même nombre.
-    const totalDe = async (q: Page) => Number(/sur (\d+)/.exec(net(await q.locator('.c-liste-pied').innerText()))?.[1]);
+    const totalDe = totalClients;
     for (const [tuile, adresse] of [['En lecture seule', 'etat=lecture_seule'], ['Inscriptions', 'nouvelles=1']] as const) {
       await p.goto(`${serveur.adresse}/console/#/`);
       const t = p.locator('a.c-tuile', { hasText: tuile });
@@ -281,6 +287,54 @@ describe('la console de l\'équipe, à la souris', () => {
     await expect.poll(() => totalDe(p).catch(() => NaN), { timeout: 15_000 }).toBeGreaterThan(nouvelles);
     await fermer(p);
     void enLecture;
+  }, 90_000);
+
+  it('les clients : chaque vue du métier ouvre la liste qu\'elle compte ; chaque ligne dit son échéance et ce qu\'elle rapporte ; le tri suit l\'adresse', async () => {
+    const p = await ouvrir(await jetonConsole(direction), '#/clients');
+    const carte = (v: string) => p.locator('.c-vue', { has: p.locator(`.c-point-v-${v}`) });
+    await expect.poll(() => carte('tout').getAttribute('aria-pressed'), { timeout: 15_000 }).toBe('true');
+    // Les cartes se comptent avec la liste : on attend qu'elles soient lues avant de les croire.
+    const nDe = (v: string) => carte(v).locator('.c-vue-n').innerText().then(Number);
+    await expect.poll(() => nDe('tout'), { timeout: 15_000 }).toBeGreaterThan(0);
+    await expect.poll(() => totalClients(p).catch(() => Number.NaN), { timeout: 15_000 }).toBe(await nDe('tout'));
+    // Les deux essais qui finissent dans deux jours sans une pièce sont à appeler ; la cordonnerie que tient le cabinet
+    // est à convertir. Chaque carte, cliquée : sa liste, lue au serveur pour CETTE vue, compte ce qu'elle annonçait.
+    for (const v of ['a_appeler', 'tenus', 'tout']) {
+      const n = await nDe(v);
+      expect(n).toBeGreaterThan(v === 'a_appeler' ? 1 : 0);
+      const lue = p.waitForResponse((r) => r.url().includes('/console/entreprises?') && (v === 'tout' ? !r.url().includes('vue=') : r.url().includes(`vue=${v}`)));
+      await cliquer(carte(v));
+      await lue;
+      await expect.poll(() => totalClients(p).catch(() => Number.NaN), { timeout: 15_000 }).toBe(n);
+      expect(await carte(v).getAttribute('aria-pressed')).toBe('true');
+      expect(await p.evaluate(() => location.hash)).toBe(v === 'tout' ? '#/clients' : `#/clients?vue=${v}`);
+    }
+    // La clinique abonnée : son renouvellement dans 160 jours, et 690 DT hors taxes par an au prix du jour. La pharmacie
+    // en lecture seule n'a plus d'échéance : la colonne État dit depuis quand, et la date n'est écrite qu'une fois.
+    // (La base des tests est commune : chaque ligne se trouve par la recherche, jamais par son rang.)
+    const ligne = async (nom: string) => {
+      await p.getByRole('searchbox').fill(nom);
+      const l = p.locator('.c-table-clients tbody tr', { hasText: nom });
+      await expect.poll(() => p.locator('.c-table-clients tbody tr').count().then(async (n) => n === 1 && await l.count() === 1), { timeout: 15_000 }).toBe(true);
+      return l;
+    };
+    const clinique = await ligne('Clinique Abonnée');
+    expect(net(await clinique.locator('.c-cl-echeance').innerText())).toBe(`${jourCourt(plusJours(aujourdhui, 160))} dans 160 jours`);
+    expect(net(await clinique.locator('.c-cl-par-an').innerText())).toBe('690,000 DT');
+    // Ce que rapporte la sélection : la clinique seule, abonnée à l'année au Complet.
+    expect(net(await p.locator('.c-liste-resume p').innerText())).toBe('Une entreprise · un abonnement actif dans la sélection : 690,000 DT hors taxes par an');
+    const pharmacie = await ligne('Pharmacie en Lecture Seule');
+    expect(net(await pharmacie.locator('.c-cl-echeance').innerText())).toBe('—');
+    expect(net(await pharmacie.innerText())).toContain(`Depuis le ${jourCourt(plusJours(aujourdhui, -1))}`);
+    const quincaillerie = await ligne('Quincaillerie de la Console');
+    expect(net(await quincaillerie.innerText()).split(jourCourt(plusJours(aujourdhui, 2))).length).toBe(2);
+    await p.getByRole('searchbox').fill('');
+    // Le tri par échéance : la plus proche d'abord, et l'adresse le garde.
+    await p.locator('.c-tri select').selectOption('echeance');
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/clients?tri=echeance');
+    const dates = async () => (await p.locator('.c-cl-echeance b').allInnerTexts()).map((t) => t.split('/').reverse().join('-'));
+    await expect.poll(async () => { const d = await dates(); return d.length > 1 && d.every((x, i) => i === 0 || (d[i - 1] ?? '') <= x); }, { timeout: 15_000 }).toBe(true);
+    await fermer(p);
   }, 90_000);
 
   it('la fiche : prolonger un essai, avec l\'aperçu du serveur et un motif ; la base, l\'histoire et le journal le disent', async () => {

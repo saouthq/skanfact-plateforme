@@ -182,7 +182,7 @@ function Page({ route, role }: { route: Route; role: Role }) {
   }
   switch (route.page) {
     case 'accueil': return <Accueil />;
-    case 'clients': return <Clients etat={route.params.get('etat')} q={route.params.get('q') ?? ''} nouvelles={route.params.get('nouvelles') === '1'} />;
+    case 'clients': return <Clients etat={route.params.get('etat')} q={route.params.get('q') ?? ''} nouvelles={route.params.get('nouvelles') === '1'} vue={route.params.get('vue')} tri={route.params.get('tri')} />;
     case 'fiche': return <Fiche key={route.id} id={route.id ?? ''} />;
     case 'cabinets': return <Cabinets q={route.params.get('q') ?? ''} />;
     case 'cabinet': return <Cabinet key={route.id} id={route.id ?? ''} />;

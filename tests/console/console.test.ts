@@ -196,6 +196,22 @@ describe('les clients', () => {
     const filtre = await appeler('GET', '/console/entreprises?etat=en_retard&limite=200', jD);
     expect(filtre.corps.total).toBe(comptes.en_retard);
     expect((filtre.corps.lignes as { id: string }[]).map((l) => l.id)).toContain(retard.ent);
+    // Les cartes du métier comptent la liste qu'elles ouvrent (C3) : l'essai fini sans offre choisie est « à appeler »,
+    // et les puces d'état comptent cette vue-là.
+    const vues = r.corps.vues as Record<string, number>;
+    expect(vues.tout).toBe(r.corps.total);
+    const aAppeler = await appeler('GET', '/console/entreprises?vue=a_appeler&limite=200', jD);
+    expect(aAppeler.corps.total).toBe(vues.a_appeler);
+    expect((aAppeler.corps.lignes as { id: string }[]).map((l) => l.id)).toContain(retard.ent);
+    expect(Object.values(aAppeler.corps.comptes as Record<string, number>).reduce((a, b) => a + b, 0)).toBe(vues.a_appeler);
+    // Chaque ligne dit son échéance — la fin de la grâce : l'essai fini il y a deux jours, sept jours de grâce, la lecture
+    // seule le lendemain — et rien par an tant qu'aucune offre n'est choisie.
+    const ligne = lignes.find((l) => l.id === retard.ent) as unknown as { echeance: string | null; parAn: unknown };
+    expect(ligne.echeance).toBe(plusJours(aujourdhui, 6));
+    expect(ligne.parAn).toBeNull();
+    // Un tri inconnu vaut l'urgence ; un tri connu est rendu tel quel.
+    expect((await appeler('GET', '/console/entreprises?tri=nimporte&limite=1', jD)).corps.tri).toBe('urgence');
+    expect((await appeler('GET', '/console/entreprises?tri=echeance&limite=1', jD)).corps.tri).toBe('echeance');
   });
 
   it('la tuile des inscriptions ouvre sa liste, du même compte : les sept derniers jours, aujourd\'hui compris', async () => {
