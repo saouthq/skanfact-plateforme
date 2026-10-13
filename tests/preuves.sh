@@ -12112,6 +12112,169 @@ prouver "un refus effacé à la frappe, qui fait remonter le bouton (incidents)"
   "        changer={setTexte} faute={e.faute('texte')}" "        changer={(v) => { setTexte(v); e.setRefus(null); }} faute={e.faute('texte')}" \
   "$GA2"
 
+# Les réglages de la plateforme (docs/console.md C28, base 0093) : la grille du jour, le registre des règles communes et
+# leurs relectures, le message aux clients (un à la fois, daté, retiré une fois), ce que l'application en lit, et le
+# refus d'une longue fenêtre qui reste lisible au-dessus des boutons (toutes les fenêtres de la console).
+RG1='chacun a la forme que la table exige (deux parties) : sinon le geste entier échoue'
+RG2='chacun a son libellé dans l'"'"'écran du journal (la clé que Journal.tsx lit)'
+RG3='la direction et le support lisent la grille, le registre et le message ; la technique non'
+RG4='noter la relecture d'"'"'une règle : la direction seule, avec son motif ; elle se lit à côté de la règle et ne s'"'"'efface pas'
+RG5='un message aux clients : la direction l'"'"'écrit, daté, trente jours au plus ; chaque refus nomme sa raison'
+RG6='jamais deux à la fois : un nouveau remplace celui qui s'"'"'affiche ou qui attend ; l'"'"'application lit celui du jour, sans qui ni pourquoi'
+RG7='retirer le message : la direction, avec son motif, une fois ; un message passé ne se retire pas'
+RG8='la base refuse hors d'"'"'une session de la console ; le message du jour se lit sans elle'
+RGP1='une ligne illisible ne s'"'"'affiche pas, plutôt que de s'"'"'afficher fausse'
+RGP2='le prix en vigueur est le dernier posé à cette date, avec son jour ; une case sans prix reste vide'
+RGP3='ce qui est à venir se range par date, et ne se compte pas dans la grille du jour'
+RGP4='les abonnés : seulement ceux dont une période payée court, par offre et périodicité ; un retard ne compte pas'
+RGP5='une règle connue se lit dans son unité ; une inconnue, par sa valeur brute, jamais avec une unité devinée'
+RGP6='en vigueur : commencée, et pas finie (la fin est le dernier jour où elle vaut)'
+RGP7='à relire : jamais relue, ou relue « à corriger » la dernière fois ; une règle finie ou à venir ne l'"'"'est pas'
+RGP8='la règle relue et l'"'"'avis ; le message écrit ou retiré par ses deux jours ; rien pour un autre geste'
+RGP9='le texte, sa sorte et ses deux jours ; jamais qui l'"'"'a écrit ni son motif ; rien de lisible, rien'
+RGW1='les offres et prix : la grille du jour, en dinars hors taxes, et la frise des échéances'
+RGW2='la relecture d'"'"'une règle : la fenêtre nomme la règle, l'"'"'avis se choisit, et la carte dit qui l'"'"'a relue'
+RGW3='un refus dans une longue fenêtre se lit au-dessus des boutons, et le champ refusé reste à l'"'"'écran'
+RGW4='écrire, remplacer, retirer : le bandeau du client suit ; « Plus tard » garde la place, un message neuf reparaît'
+RGW5='le support lit les réglages, sans aucun geste'
+RGW6='au téléphone : aucun onglet ne déborde'
+R93=base/migrations/0093_reglages.sql
+RGS=serveur/console/reglages.ts
+RGE=web/console/src/ecrans/Reglages.tsx
+prouver "un geste de trois parties, que la table du journal refuse" $R93 \
+  "v_role, 'reglages.message_affiche', btrim(p_motif)," "v_role, 'reglages.message.affiche', btrim(p_motif)," \
+  "$RG1"
+prouver "un geste des réglages sans libellé au journal" web/console/src/textes.ts \
+  "  'console.ecran.journal.g.reglages.message_retire': 'message aux clients retiré',
+" "" \
+  "$RG2"
+# Plusieurs gardes (la route, puis la base) : il faut toutes les retirer pour retrouver le défaut. La lecture en a trois :
+# la route, la lecture des réglages, et celle des entreprises (la grille compte les abonnés de chaque offre).
+prouver "la technique qui lit les réglages" "serveur/console/gestes.ts|||$R93|||base/migrations/0083_console.sql" \
+  "{ code: 'console.reglages.voir', roles: [D, S], ecrit: false },|||v_role text := plateforme.exiger_role_console(array['direction', 'support']);|||  perform plateforme.exiger_role_console(array['direction', 'support']);
+  return (select coalesce(jsonb_agg(jsonb_build_object(
+      'id', e.id, 'raisonSociale'" \
+  "{ code: 'console.reglages.voir', roles: [D, S, T], ecrit: false },|||v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);|||  perform plateforme.exiger_role_console(array['direction', 'support', 'technique']);
+  return (select coalesce(jsonb_agg(jsonb_build_object(
+      'id', e.id, 'raisonSociale'" \
+  "$RG3"
+prouver "le support qui écrit un message aux clients" "serveur/console/gestes.ts|||$R93" \
+  "{ code: 'console.reglages.gerer', roles: [D], ecrit: true },|||v_role text := plateforme.exiger_role_console(array['direction']); v_id uuid; v_texte" \
+  "{ code: 'console.reglages.gerer', roles: [D, S], ecrit: true },|||v_role text := plateforme.exiger_role_console(array['direction', 'support']); v_id uuid; v_texte" \
+  "$RG5"
+prouver "un message de trente et un jours" $R93 \
+  "  check (au <= du + 30),|||if p_au > p_du + 30 then" "  check (au <= du + 31),|||if p_au > p_du + 31 then" \
+  "$RG5"
+prouver "une relecture qu'on efface" $R93 \
+  "create trigger relecture_regle_intouchable before update or delete on plateforme.relecture_regle
+  for each row execute function plateforme.relecture_intouchable();" "" \
+  "$RG4"
+prouver "les relectures de la plus ancienne à la plus récente" $R93 \
+  "order by l.le desc, l.id desc" "order by l.le, l.id" \
+  "$RG4"
+prouver "un message neuf qui laisse l'ancien affiché" $R93 \
+  "  update plateforme.message_clients c set retire_le = p_maintenant, retire_par = socle.moi(), remplace_par = v_id
+   where c.id <> v_id and plateforme.message_en_cours(c, p_jour);" "" \
+  "$RG6"
+prouver "le message du jour qui lit un message remplacé" $R93 \
+  "   where m.retire_le is null and m.du <= p_jour and m.au >= p_jour" "   where m.du <= p_jour and m.au >= p_jour" \
+  "$RG6"
+prouver "un message retiré deux fois" $R93 \
+  "  if not plateforme.message_en_cours(v_m, p_jour) then perform socle.refus('ce message n''est plus affiché : il n''y a rien à retirer'); end if;" "" \
+  "$RG7"
+prouver "les réglages lus hors d'une session de la console" $R93 \
+  "v_role text := plateforme.exiger_role_console(array['direction', 'support']);" "v_role text := 'direction';" \
+  "$RG8"
+prouver "le message du jour fermé à l'application" $R93 \
+  "  plateforme.console_retirer_message(uuid, text, timestamptz, date), plateforme.message_du_jour(date) to skanfact_app;" \
+  "  plateforme.console_retirer_message(uuid, text, timestamptz, date) to skanfact_app;" \
+  "$RG8"
+prouver "le prix d'une offre inconnue affiché" $RGS \
+  "const offre = p.offre === 'essentiel' || p.offre === 'complet' ? p.offre : null;" "const offre = typeof p.offre === 'string' ? p.offre as Offre : null;" \
+  "$RGP1"
+prouver "un prix posé aujourd'hui qui n'est pas encore en vigueur" $RGS \
+  "x.periodicite === periodicite && x.aPartirDu <= aujourdhui)" "x.periodicite === periodicite && x.aPartirDu < aujourdhui)" \
+  "$RGP2"
+prouver "le premier prix posé pris pour celui en vigueur" $RGS \
+  ".sort((a, b) => (a.aPartirDu < b.aPartirDu ? 1 : -1))[0];" "[0];" \
+  "$RGP2"
+prouver "les prix à venir dans l'ordre où ils ont été posés" $RGS \
+  ".sort((a, b) => (a.aPartirDu === b.aPartirDu ? (a.periodicite < b.periodicite ? -1 : 1) : a.aPartirDu < b.aPartirDu ? -1 : 1))" "" \
+  "$RGP3"
+prouver "les abonnés comptés sans leur périodicité" $RGS \
+  "e.etat.offre === offre && e.etat.periodicite === periodicite).length;" "e.etat.offre === offre).length;" \
+  "$RGP4"
+prouver "une règle inconnue lue en millimes" $RGS \
+  "  const c = REGLES_CONNUES[code];" "  const c = REGLES_CONNUES[code] ?? REGLES_CONNUES['timbre.facture'];" \
+  "$RGP5"
+prouver "une règle qui finit aujourd'hui, déjà plus en vigueur" $RGS \
+  "(r.fin === null || r.fin >= aujourdhui)" "(r.fin === null || r.fin > aujourdhui)" \
+  "$RGP6"
+prouver "une règle relue « à corriger » une fois, à relire pour toujours" $RGS \
+  "(r.relectures[0]?.avis ?? 'a_corriger') === 'a_corriger'" "(r.relectures.length === 0 || r.relectures.some((l) => l.avis === 'a_corriger'))" \
+  "$RGP7"
+prouver "une règle finie à relire" $RGS \
+  "aRelire: regleEnVigueur(r, aujourdhui) && " "aRelire: " \
+  "$RGP7"
+prouver "un retrait lu dans le geste au lieu du message retiré" $RGS \
+  "const s = geste === 'reglages.message_retire' ? avant : apres;" "const s = apres;" \
+  "$RGP8"
+prouver "l'application qui lit qui a écrit le message, et son motif" serveur/console/message-clients.ts \
+  "  return { id: m.id, sorte, texte: m.texte, du, au };" "  return { ...m, id: m.id, sorte, texte: m.texte, du, au } as MessageClients;" \
+  "$RGP9"
+prouver "les prix en millimes à l'écran" $RGE \
+  "{l.annuel ? montant(l.annuel.ht) : '—'}" "{l.annuel ? l.annuel.ht : '—'}" \
+  "$RGW1"
+prouver "une règle inconnue nommée deux fois sous la fenêtre" $RGE \
+  'const nomEtCode = (r: Regle) => (r.valeurLue.connue ? `${nomDeRegle(r)} · ${r.code}` : r.code);' 'const nomEtCode = (r: Regle) => `${nomDeRegle(r)} · ${r.code}`;' \
+  "$RGW2"
+prouver "les avis d'une relecture en minuscules" $RGE \
+  'texte: titre(`${K}.g.relire.avis_juste`)|||texte: titre(`${K}.g.relire.avis_corriger`)' 'texte: dire(`${K}.g.relire.avis_juste`)|||texte: dire(`${K}.g.relire.avis_corriger`)' \
+  "$RGW2"
+prouver "le refus qui défile avec le corps de la fenêtre" web/console/src/console.css \
+  "  position: sticky; bottom: calc(var(--c-pied-h, 0px) + 12px); z-index: 1;" "  z-index: 1;" \
+  "$RGW3"
+prouver "le champ refusé laissé hors de l'écran" web/console/src/ui.tsx \
+  "    ref.current?.scrollIntoView({ block: 'nearest' });" "" \
+  "$RGW3"
+prouver "le champ refusé amené sous le pied de la fenêtre" web/console/src/console.css \
+  ".c-dialogue { scroll-padding-block: 16px calc(var(--c-pied-h, 0px) + var(--c-refus-h, 0px) + 16px); }" "" \
+  "$RGW3"
+prouver "la hauteur du refus oubliée : le champ passe dessous" web/console/src/ui.tsx \
+  '    c.style.setProperty('"'"'--c-refus-h'"'"', `${refus ? refus.offsetHeight + 12 : 0}px`);' "" \
+  "$RGW3"
+prouver "le refus caché derrière le pied de la fenêtre" web/console/src/ui.tsx \
+  '    c.style.setProperty('"'"'--c-pied-h'"'"', `${pied?.offsetHeight ?? 0}px`);' "" \
+  "$RGW3"
+prouver "« Plus tard » qui retire le bandeau" web/public/plateforme/message.js \
+  "      el.classList.add('sk-message-cache');
+      el.innerHTML = '<span class=\"sk-message-texte\">Message caché sur cet appareil : un nouveau message reparaîtra.</span>';" "      el.remove();" \
+  "$RGW4"
+prouver "« Plus tard » qui fait remonter la page sous le curseur" web/public/plateforme/message.js \
+  '      el.style.minHeight = `${el.getBoundingClientRect().height}px`;' "" \
+  "$RGW4"
+prouver "les deux sortes de message dans la même couleur" web/public/plateforme/message.js \
+  'el.className = `banner info sk-message sk-message-${m.sorte === '"'"'maintenance'"'"' ? '"'"'maintenance'"'"' : '"'"'nouveaute'"'"'}`;' "el.className = 'banner info sk-message';" \
+  "$RGW4"
+prouver "« Écrit par » fini d'un point après les deux-points" $RGE \
+  '{titre(`${K}.m.ecrit_par`, { nom: m.par' '{phrase(`${K}.m.ecrit_par`, { nom: m.par' \
+  "$RGW4"
+prouver "« aucun message » sous le message qui s'affiche" $RGE \
+  'phrase(d.message ? `${K}.m.passes_vide_premier` : `${K}.m.passes_vide`)' 'phrase(`${K}.m.passes_vide`)' \
+  "$RGW4"
+prouver "le motif d'un retrait sans le jour qu'il avance" $RGE \
+  'aide={phrase(`${K}.g.${g.sorte}.motif_aide`, valeurs)}' 'aide={phrase(`${K}.g.${g.sorte}.motif_aide`)}' \
+  "$RGW4"
+prouver "les jours prévus d'un message passé dits « affiché »" web/console/src/textes.ts \
+  "'console.ecran.reglages.m.col.quand': 'prévu'," "'console.ecran.reglages.m.col.quand': 'affiché'," \
+  "$RGW4"
+prouver "le support qui voit les gestes de la direction" $RGE \
+  "const peut = d?.role === 'direction';" "const peut = d?.role !== 'technique';" \
+  "$RGW5"
+prouver "la frise des échéances qui déborde au téléphone" web/console/src/console.css \
+  "grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }" "grid-template-columns: repeat(5, minmax(150px, 1fr)); gap: 10px; }" \
+  "$RGW6"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -2,8 +2,9 @@
 // troisième famille, à côté des gestes d'une entreprise et des gestes personnels : ils ne portent sur l'entreprise de
 // personne, et se jouent dans une session de la console, jamais dans une session de l'application.
 //
-//   direction   tout : les clients, les abonnements, l'équipe, le journal, le service ;
-//   support     « À décider », les clients, prolonger un essai (de 7 à 30 jours, une fois : la base le tient) ;
+//   direction   tout : les clients, les abonnements, l'équipe, le journal, le service, les réglages ;
+//   support     « À décider », les clients, prolonger un essai (de 7 à 30 jours, une fois : la base le tient), lire les
+//               réglages ;
 //   technique   le service seulement : aucune donnée de client.
 
 import { texteConnu } from '../../textes/index.ts';
@@ -34,6 +35,10 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   // Préparer la remise d'une entreprise (docs/console.md C14) : la direction seule, parce que l'écran nomme le client ; la
   // console compose les commandes, elle ne les exécute jamais.
   { code: 'console.service.remise', roles: [D], ecrit: true },
+  // Les réglages de la plateforme (docs/console.md C28) : la grille des prix, le registre des règles communes, le message
+  // aux clients. Le support les lit (pour répondre à un client sur un prix) ; la direction seule les change.
+  { code: 'console.reglages.voir', roles: [D, S], ecrit: false },
+  { code: 'console.reglages.gerer', roles: [D], ecrit: true },
 ];
 
 export const GESTES_CONSOLE: ReadonlyMap<string, GesteConsole> = (() => {

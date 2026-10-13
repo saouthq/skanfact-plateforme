@@ -539,6 +539,9 @@ fait depuis l'écran « Équipe ». La console s'ouvre à `https://<le serveur>/
   serveur neuf depuis la copie hors machine ; rien n'est prêt d'avance.
 - **Un second destinataire des alertes** : une seule adresse et un seul numéro sont prévenus ; s'ils ne répondent pas,
   personne d'autre ne le saura. L'écran des alertes le dit ; le second se règle sur le serveur (`exploitation/alertes.sh`).
+- **Le délai d'annonce d'un nouveau prix** (C28) : combien de jours avant qu'il ne s'applique, et comment les clients
+  en sont prévenus (un message aux clients, un e-mail). Aujourd'hui, un prix se pose en base, daté, et la console le
+  montre « à venir ».
 
 **C26. La sécurité du service** (10 § 2.8, 03 § 6 ; base 0091). `#/service/securite`, la direction et la technique. Ce
 que les règles de connexion ont fait, lu dans ce qu'elles écrivent déjà — **rien de neuf n'est enregistré** : quatre
@@ -588,11 +591,48 @@ et la technique. Ce que le suiveur a installé et ce qu'il va faire, lu dans l'�
   et les deux exemplaires n'existent pas encore et ne sont pas montrés ; relancer les preuves d'une version se fait sur
   GitHub, pas d'ici.
 
+**C28. Les réglages de la plateforme** (10 § 2.9 ; base 0093). `#/reglages`, dans « La plateforme » : la direction et
+le support le lisent (le support, pour répondre à un client sur un prix), **seule la direction y fait un geste**, et
+l'écran le dit en tête au support. Trois onglets, l'adresse garde l'onglet (`?onglet=regles`, `?onglet=messages`).
+- **Offres et prix** : la grille du jour, lue dans les prix datés (`plateforme.prix`, 0082) comme l'application des
+  clients les lit — chaque offre, à l'année et au mois, hors taxes, depuis quand ; ce qui est daté après aujourd'hui se
+  dit « à venir » sous l'offre, jamais dans la case ; une case sans prix posé reste « — ». Les abonnés de chaque offre se
+  comptent par le **même état** que la liste des clients (une période payée qui court ; un retard n'en est pas), l'essai
+  à part. La frise des échéances (les relances, l'échéance, la grâce, la lecture seule) vient du code qui les applique
+  (`serveur/abonnement`), jamais d'un chiffre recopié. **Rien ne s'y modifie** : un prix neuf se pose en base, daté
+  (À DÉCIDER : le délai d'annonce aux clients).
+- **Règles fiscales** : le registre des règles communes (`socle.regle_fiscale`, posé depuis `base/regles-communes.json`),
+  chacune avec sa valeur dans son unité quand on la connaît (le timbre : des millimes), son début, sa fin, sa source telle
+  qu'elle est écrite. **La relecture par un comptable s'écrit à côté de la règle, jamais dans la règle** (une règle ne se
+  modifie pas) : qui l'a relue (son nom et son cabinet, tels qu'on les écrit), son avis (juste telle quelle, ou à
+  corriger), ce qu'il en dit ; elle ne se modifie ni ne s'efface (la base le refuse), on en note une nouvelle. La plus
+  récente décide : une règle jamais relue, ou relue « à corriger », est **à relire** (l'onglet les compte). Au journal :
+  `reglages.relire`, la règle par son code et l'avis. Une règle se corrige dans le dépôt, par une nouvelle règle datée
+  avec sa source ; l'écran dit aussi ce qui n'est pas au registre (la paie, la TVA, la retenue, les échéances : chaque
+  entreprise les règle elle-même) et ce qu'on fait quand paraît une loi de finances.
+- **Messages aux clients** : le message affiché en haut de l'application de **tous** les clients
+  (`plateforme.message_clients`) — une nouveauté (vert d'eau) ou une maintenance prévue (bleu), une ou deux lignes sans
+  balise, daté du jour où il paraît au jour où il disparaît (au calendrier de Tunis, **trente jours au plus**, jamais
+  dans le passé). **Jamais plus d'un à la fois** : un nouveau remplace celui qui s'affiche ou qui attend, qui va dans les
+  messages passés (« remplacé le … par le suivant ») ; deux écrits au même instant ne se laissent pas l'un l'autre en
+  cours. Il se **retire** avec son motif ; fini, il ne se retire plus. La fenêtre montre ce que les clients verront,
+  pendant qu'on tape. Au journal : `reglages.message_affiche`, `reglages.message_retire`, avec leurs deux jours. Un
+  incident ne passe pas par ici : il se publie depuis Service · Incidents, sur la page d'état.
+- **Chez le client** (`web/public/plateforme/message.js`, posé par l'adaptation `web/v10/message-clients.txt`) : la
+  route `GET /entreprises/:entreprise/message` rend le message du jour — son texte, sa sorte et ses deux jours, **jamais
+  qui l'a écrit ni son motif**. Le pont le relit avec l'abonnement (au chargement, chaque heure, au retour au premier
+  plan) et le repose à chaque page, au-dessus du bandeau de l'exemple. « Plus tard » le cache **sur cet appareil, pour ce
+  message** : un message neuf reparaît. Le bandeau caché garde sa place jusqu'à la page suivante, avec sa phrase (« Message
+  caché sur cet appareil ») : il ne fait pas remonter la page sous le curseur.
+- Ce que l'écran ne fait pas encore : les formats officiels (El Fatoora, la déclaration employeur) et ce qu'il en
+  vérifie, les nouveautés allumées une à une, préparer un nouveau prix depuis l'écran, les modules et options, les
+  remises et les offres de fondateur (14c), la colonne TTC (14b).
+
 ## Ce que le lot ne fait pas
 
 La suite de la console : les paiements et nos factures (14b), le support, la suite du service (la
 sécurité : l'accès d'urgence, bloquer une adresse, la chaîne du journal relue, la date des secrets ; le débit des travaux heure par heure, et les envois des e-mails, de la TEJ et de la CNSS, qui n'ont pas encore
-de trace), la mesure, les réglages de la plateforme, l'application de bureau (les licences de la v10), l'accès accordé par un client
+de trace), la mesure, la suite des réglages (les formats officiels, les nouveautés allumées, préparer un prix ; C28), l'application de bureau (les licences de la v10), l'accès accordé par un client
 (48 heures, en lecture), et le filtre du journal par geste et par période. Le service ne se voit encore que du serveur
 lui-même : aucune vérification de l'extérieur (06 § 7, depuis deux villes) ; l'écran le dit.
 
@@ -645,3 +685,15 @@ alerte devenue grave dite comme un simple rappel ; l'enjeu du disque redit dans 
 sous chaque alerte de son histoire filtrée ; les pilules de l'histoire qui glissaient de 90 points sous la souris quand
 le filtre raccourcissait la liste au bas de la page ; au téléphone, les trois faits empilés sur 240 points et les
 commandes cassées au milieu d'un chemin (« skanfact-↵hors-machine »).
+
+Les réglages (C28), sur l'essai de la console, en direction puis en support ; un message écrit, remplacé puis retiré, et
+regardé dans l'application d'une entreprise de l'essai ; en sombre ; à la souris et au clavier. Corrigé pendant le
+parcours : le geste « reglages.message.ecrire » que la table du journal refusait (trois parties au lieu de deux : le
+message ne s'écrivait jamais, l'écran disait « le serveur a rencontré une erreur » ; un test lit désormais chaque geste
+des migrations, sa forme et son libellé) ; la phrase d'un refus qui tombait sous le bas d'une longue fenêtre (seul le
+cadre rouge du champ se voyait) — dans **toutes** les fenêtres de la console, elle reste au-dessus des boutons et le
+champ refusé s'arrête au-dessus d'elle ; « Pourquoi le retirer avant le {au} » écrit tel quel ; « 19:21:. » (un point
+derrière les deux-points) ; « Aucun message n'a encore été affiché » sous un message affiché ; « affiché du 13 au 20 »
+pour un message remplacé le 13 (la colonne dit « prévu ») ; une nouveauté et une maintenance de la même couleur chez le
+client (la maquette les distingue) ; « Plus tard » qui faisait remonter la page sous le curseur (le second clic d'un
+double clic tombait sur « + Nouvelle facture ») ; deux messages ou deux relectures du même instant rangés au hasard.

@@ -18,6 +18,7 @@ import { creerPool, enTantQue } from '../../serveur/base.ts';
 import { mettreEnPlaceCode, quiEst, type Contexte } from '../../serveur/connexion.ts';
 import { routesCabinet } from '../../serveur/cabinet/routes.ts';
 import { routesConsole } from '../../serveur/console/routes.ts';
+import { routesMessageClients } from '../../serveur/console/message-clients.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { aujourdhuiATunis } from '../../serveur/reglements.ts';
 import { routesSocle } from '../../serveur/routes/socle.ts';
@@ -82,7 +83,7 @@ let jD = '', jS = '', jT = '';
 
 beforeAll(async () => {
   await admin.connect();
-  app = creerApp(ctx, [...routesSocle(ctx), ...routesCabinet(ctx), ...routesConsole(ctx, { veille })]);
+  app = creerApp(ctx, [...routesSocle(ctx), ...routesCabinet(ctx), ...routesConsole(ctx, { veille }), ...routesMessageClients(() => horloge)]);
   await app.ready();
   direction = await membre('direction', 'direction');
   support = await membre('support', 'support');
@@ -1144,5 +1145,126 @@ describe('les versions du service (0092, docs/console.md C27)', () => {
     await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.suiveur_consignes()'))).rejects.toThrow(/permission/);
     await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_service_versions(now())'))).rejects.toThrow(/session de la console/);
     await expect(enTantQue(pool, direction.id, (tx) => tx.query(`select plateforme.console_versions_retenir('${D}', 'hors console', now())`))).rejects.toThrow(/session de la console/);
+  });
+});
+
+describe('les réglages de la plateforme (0093, docs/console.md C28)', () => {
+  const jour = () => aujourdhuiATunis(horloge);
+  let regle = '';
+  beforeAll(async () => {
+    regle = String((await admin.query(`insert into socle.regle_fiscale (code, valeur, debut, source)
+      values ('essai.reglages', '1000', '2023-01-01', 'Une source d''essai : à vérifier avec un comptable') returning id`)).rows[0]?.id);
+    await admin.query('delete from plateforme.message_clients');
+  });
+  const registreDe = async (jeton: string) => ((await appeler('GET', '/console/reglages', jeton)).corps.registre as
+    { id: string; code: string; aRelire: boolean; enVigueur: boolean; relectures: Record<string, unknown>[] }[]).find((r) => r.id === regle);
+
+  it('la direction et le support lisent la grille, le registre et le message ; la technique non', async () => {
+    expect((await appeler('GET', '/console/reglages', jT)).statut).toBe(403);
+    const r = await appeler('GET', '/console/reglages', jS);
+    expect(r.statut).toBe(200);
+    expect(r.corps).toMatchObject({ aujourdhui: jour(), role: 'support', message: null, passes: [] });
+    // La grille du jour : les deux offres, leurs prix posés en 0082, hors taxes en texte décimal (jamais des millimes).
+    expect(r.corps.grille).toEqual([
+      expect.objectContaining({ offre: 'essentiel', annuel: { ht: '390.000', depuis: '2026-09-28' }, mensuel: { ht: '39.000', depuis: '2026-09-28' } }),
+      expect.objectContaining({ offre: 'complet', annuel: { ht: '690.000', depuis: '2026-09-28' }, mensuel: { ht: '69.000', depuis: '2026-09-28' } }),
+    ]);
+    // La frise : l'essai et les relances viennent du code qui les applique (serveur/abonnement), jamais d'un chiffre recopié.
+    expect(r.corps.essai).toMatchObject({ jours: 30 });
+    expect((r.corps.echeance as { grace: number }).grace).toBeGreaterThan(0);
+    expect(await registreDe(jS)).toMatchObject({ code: 'essai.reglages', enVigueur: true, aRelire: true, relectures: [] });
+  });
+
+  it('noter la relecture d\'une règle : la direction seule, avec son motif ; elle se lit à côté de la règle et ne s\'efface pas', async () => {
+    const corps = { reluePar: 'Mehdi Gharbi, cabinet pilote', avis: 'a_corriger', dit: 'Vérifie l\'article cité.', motif: 'relue au téléphone' };
+    expect((await appeler('POST', `/console/reglages/regles/${regle}/relire`, jS, corps)).statut).toBe(403);
+    expect((await appeler('POST', `/console/reglages/regles/${regle}/relire`, jD, { ...corps, reluePar: 'MG' })).corps.champ).toBe('reluePar');
+    expect((await appeler('POST', `/console/reglages/regles/${regle}/relire`, jD, { ...corps, avis: 'peut-être' })).corps.champ).toBe('avis');
+    expect((await appeler('POST', `/console/reglages/regles/${regle}/relire`, jD, { ...corps, motif: 'ok' })).corps.champ).toBe('motif');
+    const inconnue = await appeler('POST', '/console/reglages/regles/01890000-0000-7000-8000-000000000000/relire', jD, corps);
+    expect(inconnue.statut).toBe(403);
+    expect(inconnue.corps.motif).toMatch(/n'est pas au registre/);
+    expect((await appeler('POST', `/console/reglages/regles/${regle}/relire`, jD, corps)).statut).toBe(201);
+    expect(await registreDe(jD)).toMatchObject({ aRelire: true, relectures: [{ reluePar: corps.reluePar, avis: 'a_corriger', dit: corps.dit, motif: corps.motif, par: direction.nom }] });
+    // Relue juste ensuite : la plus récente décide, elle n'est plus à relire ; la précédente reste.
+    expect((await appeler('POST', `/console/reglages/regles/${regle}/relire`, jD, { ...corps, avis: 'juste', dit: null, motif: 'corrigée et relue' })).statut).toBe(201);
+    const lu = await registreDe(jD);
+    expect(lu?.aRelire).toBe(false);
+    expect(lu?.relectures.map((l) => l.avis)).toEqual(['juste', 'a_corriger']);
+    await expect(admin.query('delete from plateforme.relecture_regle')).rejects.toThrow(/ne se modifie pas/);
+    await expect(admin.query('update plateforme.relecture_regle set avis = \'juste\'')).rejects.toThrow(/ne se modifie pas/);
+    // Au journal : la règle par son code, et l'avis.
+    const journal = (await appeler('GET', '/console/journal', jD)).corps.lignes as { geste: string; motif: string; reglages?: Record<string, unknown> }[];
+    expect(journal.find((l) => l.geste === 'reglages.relire' && l.motif === 'relue au téléphone')?.reglages)
+      .toEqual({ regle: 'essai.reglages', reluePar: corps.reluePar, avis: 'a_corriger', du: null, au: null });
+  });
+
+  it('un message aux clients : la direction l\'écrit, daté, trente jours au plus ; chaque refus nomme sa raison', async () => {
+    const j = jour();
+    const corps = { sorte: 'nouveaute', texte: 'La relance automatique des devis arrive.', du: j, au: plusJours(j, 7), motif: 'annonce de la relance' };
+    const refus = async (c: Record<string, unknown>) => (await appeler('POST', '/console/reglages/messages', jD, { ...corps, ...c })).corps;
+    expect((await appeler('POST', '/console/reglages/messages', jS, corps)).statut).toBe(403);
+    expect((await refus({ texte: 'Court' })).champ).toBe('texte');
+    expect((await refus({ sorte: 'incident' })).champ).toBe('sorte');
+    expect((await refus({ texte: 'Un <b>message</b> avec une balise' })).motif).toMatch(/sans balise/);
+    expect((await refus({ du: plusJours(j, -1) })).motif).toMatch(/ne paraît pas dans le passé/);
+    expect((await refus({ au: plusJours(j, -1) })).motif).toMatch(/disparaît après le jour où il paraît/);
+    expect((await refus({ au: plusJours(j, 31) })).motif).toMatch(/trente jours au plus/);
+    expect((await admin.query('select count(*)::int n from plateforme.message_clients')).rows[0]?.n).toBe(0);
+    // Trente jours pile : accepté.
+    const r = await appeler('POST', '/console/reglages/messages', jD, { ...corps, au: plusJours(j, 30) });
+    expect(r.statut).toBe(201);
+    const lu = await appeler('GET', '/console/reglages', jS);
+    expect(lu.corps.message).toMatchObject({ id: r.corps.id, sorte: 'nouveaute', texte: corps.texte, du: j, au: plusJours(j, 30), enCours: true, par: direction.nom, motif: corps.motif });
+  });
+
+  it('jamais deux à la fois : un nouveau remplace celui qui s\'affiche ou qui attend ; l\'application lit celui du jour, sans qui ni pourquoi', async () => {
+    const j = jour();
+    const { ent, proprio } = await entreprise('Lit Le Message');
+    const lire = async () => (await appeler('GET', `/entreprises/${ent}/message`, proprio.jeton)).corps.message;
+    const enCours = (await appeler('GET', '/console/reglages', jD)).corps.message as { id: string };
+    expect(await lire()).toEqual({ id: enCours.id, sorte: 'nouveaute', texte: 'La relance automatique des devis arrive.', du: j, au: plusJours(j, 30) });
+    // Un autre compte, hors de l'entreprise, ne passe pas par elle.
+    const autre = await personne('curieux');
+    expect((await appeler('GET', `/entreprises/${ent}/message`, autre.jeton)).statut).toBeGreaterThanOrEqual(403);
+    // Une maintenance qui paraîtra dans deux jours : elle remplace tout de suite celle d'aujourd'hui.
+    const futur = await appeler('POST', '/console/reglages/messages', jD,
+      { sorte: 'maintenance', texte: 'Maintenance dimanche de 22 h à 23 h.', du: plusJours(j, 2), au: plusJours(j, 4), motif: 'la maintenance' });
+    expect(futur.statut).toBe(201);
+    expect(await lire()).toBeNull();
+    const du2 = (await admin.query('select plateforme.message_du_jour($1::date) m', [plusJours(j, 2)])).rows[0]?.m;
+    expect(du2).toEqual({ id: futur.corps.id, sorte: 'maintenance', texte: 'Maintenance dimanche de 22 h à 23 h.', du: plusJours(j, 2), au: plusJours(j, 4) });
+    // Après son dernier jour, plus rien ; un message fini ne se retire plus.
+    expect((await admin.query('select plateforme.message_du_jour($1::date) m', [plusJours(j, 5)])).rows[0]?.m).toBeNull();
+    const lu = (await appeler('GET', '/console/reglages', jD)).corps;
+    expect(lu.message).toMatchObject({ id: futur.corps.id, enCours: true });
+    expect(lu.passes).toEqual([expect.objectContaining({ id: enCours.id, enCours: false, remplace: true, retirePar: direction.nom })]);
+    expect((await admin.query('select count(*)::int n from plateforme.message_clients where plateforme.message_en_cours(message_clients, $1::date)', [j])).rows[0]?.n).toBe(1);
+  });
+
+  it('retirer le message : la direction, avec son motif, une fois ; un message passé ne se retire pas', async () => {
+    const m = (await appeler('GET', '/console/reglages', jD)).corps.message as { id: string; du: string; au: string };
+    expect((await appeler('POST', `/console/reglages/messages/${m.id}/retirer`, jS, { motif: 'reportée' })).statut).toBe(403);
+    expect((await appeler('POST', `/console/reglages/messages/${m.id}/retirer`, jD, { motif: 'ok' })).corps.champ).toBe('motif');
+    expect((await appeler('POST', `/console/reglages/messages/${m.id}/retirer`, jD, { motif: 'maintenance reportée' })).statut).toBe(200);
+    const encore = await appeler('POST', `/console/reglages/messages/${m.id}/retirer`, jD, { motif: 'encore une fois' });
+    expect(encore.statut).toBe(403);
+    expect(encore.corps.motif).toMatch(/n'est plus affiché/);
+    expect((await appeler('POST', '/console/reglages/messages/01890000-0000-7000-8000-000000000000/retirer', jD, { motif: 'inconnu' })).corps.motif).toMatch(/n'existe pas/);
+    const lu = (await appeler('GET', '/console/reglages', jD)).corps;
+    expect(lu.message).toBeNull();
+    expect((lu.passes as Record<string, unknown>[])[0]).toMatchObject({ id: m.id, retirePar: direction.nom, retireMotif: 'maintenance reportée', remplace: false });
+    // Au journal : trois messages affichés, un retiré, chacun par ses deux jours.
+    const gestes = (await admin.query("select geste from plateforme.geste_console where geste like 'reglages.message%' order by le")).rows.map((g) => g.geste);
+    expect(gestes).toEqual(['reglages.message_affiche', 'reglages.message_affiche', 'reglages.message_retire']);
+    const journal = (await appeler('GET', '/console/journal', jD)).corps.lignes as { geste: string; reglages?: Record<string, unknown> }[];
+    expect(journal.find((l) => l.geste === 'reglages.message_retire')?.reglages).toMatchObject({ du: m.du, au: m.au });
+  });
+
+  it('la base refuse hors d\'une session de la console ; le message du jour se lit sans elle', async () => {
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_reglages(current_date)'))).rejects.toThrow(/session de la console/);
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query(`select plateforme.console_relire_regle('${regle}', 'Quelqu''un', 'juste', null, 'hors console', now())`))).rejects.toThrow(/session de la console/);
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_ecrire_message(\'nouveaute\', \'Hors de la console, refusé.\', current_date, current_date, \'hors console\', now(), current_date)'))).rejects.toThrow(/session de la console/);
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.message_du_jour(current_date)'))).resolves.toBeTruthy();
   });
 });

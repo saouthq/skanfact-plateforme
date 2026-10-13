@@ -22,17 +22,20 @@ import { Entree } from './ecrans/Entree.tsx';
 import { Equipe } from './ecrans/Equipe.tsx';
 import { Fiche } from './ecrans/Fiche.tsx';
 import { Journal } from './ecrans/Journal.tsx';
+import { Reglages } from './ecrans/Reglages.tsx';
 import { Service } from './ecrans/Service.tsx';
 import { Alerte, Avatar, Bouton, Icone, Toast, type NomIcone } from './ui.tsx';
 
 // ── Les écrans et leur adresse ──────────────────────────────────────────────────────────────────────────────────────
-type Page = 'accueil' | 'clients' | 'fiche' | 'cabinets' | 'cabinet' | 'abonnements' | 'journal' | 'equipe' | 'service';
+type Page = 'accueil' | 'clients' | 'fiche' | 'cabinets' | 'cabinet' | 'abonnements' | 'journal' | 'equipe' | 'service' | 'reglages';
 type Route = { page: Page | 'inconnue'; id?: string; params: URLSearchParams };
 const OUVRE: Record<Page, readonly Role[]> = {
   accueil: ['direction', 'support', 'technique'],
   clients: ['direction', 'support'], fiche: ['direction', 'support'], cabinets: ['direction', 'support'], cabinet: ['direction', 'support'],
   abonnements: ['direction', 'support'],
   journal: ['direction'], equipe: ['direction'], service: ['direction', 'technique'],
+  // Les réglages se lisent au support (répondre à un client sur un prix) ; leurs gestes sont à la direction.
+  reglages: ['direction', 'support'],
 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -45,7 +48,7 @@ function lireRoute(hash: string): Route {
   if (m[0] === 'clients' && m.length === 2 && UUID.test(m[1] ?? '')) return { page: 'fiche', id: m[1] ?? '', params };
   if (m[0] === 'cabinets' && m.length === 1) return { page: 'cabinets', params };
   if (m[0] === 'cabinets' && m.length === 2 && UUID.test(m[1] ?? '')) return { page: 'cabinet', id: m[1] ?? '', params };
-  if (m.length === 1 && (m[0] === 'abonnements' || m[0] === 'journal' || m[0] === 'equipe' || m[0] === 'service')) return { page: m[0], params };
+  if (m.length === 1 && (m[0] === 'abonnements' || m[0] === 'journal' || m[0] === 'equipe' || m[0] === 'service' || m[0] === 'reglages')) return { page: m[0], params };
   // Les vues du service : « #/service » (la vue d'ensemble), « #/service/alertes », « #/service/incidents »,
   // « #/service/sauvegardes », « #/service/travaux », « #/service/securite », « #/service/versions », « #/service/performances ».
   if (m[0] === 'service' && m.length === 2 && (m[1] === 'alertes' || m[1] === 'incidents' || m[1] === 'sauvegardes' || m[1] === 'travaux' || m[1] === 'securite' || m[1] === 'versions' || m[1] === 'performances')) return { page: 'service', id: m[1], params };
@@ -89,7 +92,7 @@ function useTheme() {
 type Entree = { page: Page; href: string; cle: string; icone: NomIcone };
 const GROUPES: { cle: string; entrees: Entree[] }[] = [
   { cle: 'chaque_jour', entrees: [{ page: 'accueil', href: '#/', cle: 'decider', icone: 'decider' }, { page: 'clients', href: '#/clients', cle: 'clients', icone: 'clients' }, { page: 'abonnements', href: '#/abonnements', cle: 'abonnements', icone: 'calendrier' }] },
-  { cle: 'la_plateforme', entrees: [{ page: 'service', href: '#/service', cle: 'service', icone: 'service' }] },
+  { cle: 'la_plateforme', entrees: [{ page: 'service', href: '#/service', cle: 'service', icone: 'service' }, { page: 'reglages', href: '#/reglages', cle: 'reglages', icone: 'reglages' }] },
   { cle: 'l_equipe', entrees: [{ page: 'equipe', href: '#/equipe', cle: 'equipe', icone: 'equipe' }, { page: 'journal', href: '#/journal', cle: 'journal', icone: 'journal' }] },
 ];
 
@@ -191,6 +194,7 @@ function Page({ route, role }: { route: Route; role: Role }) {
     case 'cabinets': return <Cabinets q={route.params.get('q') ?? ''} />;
     case 'cabinet': return <Cabinet key={route.id} id={route.id ?? ''} onglet={route.params.get('onglet')} place={route.params.get('place')} />;
     case 'abonnements': return <Abonnements vue={route.params.get('vue')} />;
+    case 'reglages': return <Reglages onglet={route.params.get('onglet')} />;
     case 'journal': return <Journal entreprise={UUID.test(route.params.get('entreprise') ?? '') ? route.params.get('entreprise') : null} qui={UUID.test(route.params.get('qui') ?? '') ? route.params.get('qui') : null} />;
     case 'equipe': return <Equipe />;
     default: return route.id === 'alertes' ? <Alertes /> : route.id === 'incidents' ? <Incidents /> : route.id === 'sauvegardes' ? <Sauvegardes /> : route.id === 'travaux' ? <Travaux /> : route.id === 'securite' ? <Securite /> : route.id === 'versions' ? <Versions /> : route.id === 'performances' ? <Performances periode={route.params.get('periode')} /> : <Service periode={route.params.get('periode')} />;

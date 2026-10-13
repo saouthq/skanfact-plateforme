@@ -520,6 +520,20 @@ export interface BaseDeDonnees {
     avant: ColumnType<Json | null, string | null, string | null>;
     apres: ColumnType<Json | null, string | null, string | null>;
   };
+  'plateforme.message_clients': {
+    id: Generated<string>;
+    sorte: string;
+    texte: string;
+    du: string;
+    au: string;
+    motif: string;
+    qui: string;
+    le: Date;
+    retire_le: Date | null;
+    retire_par: string | null;
+    retire_motif: string | null;
+    remplace_par: string | null;
+  };
   'plateforme.prix': {
     offre: string;
     periodicite: string;
@@ -531,6 +545,16 @@ export interface BaseDeDonnees {
     echeance: string;
     rang: string;
     partie_le: Date;
+  };
+  'plateforme.relecture_regle': {
+    id: Generated<string>;
+    regle: string;
+    relue_par: string;
+    avis: string;
+    dit: string | null;
+    motif: string;
+    qui: string;
+    le: Date;
   };
   'plateforme.service_alerte': {
     id: Generated<string>;

@@ -419,6 +419,22 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'lever une consigne demande son motif (trois caractères au moins)', cle: 'base.console.motif_lever_consigne', fr: 'lever une consigne demande son motif (trois caractères au moins)' },
   { base: 'cette consigne n\'existe pas', cle: 'base.console.consigne_inconnue', fr: 'cette consigne n\'existe pas' },
   { base: 'cette consigne n\'est plus en vigueur : il n\'y a rien à lever', cle: 'base.console.consigne_finie', fr: 'cette consigne n\'est plus en vigueur : il n\'y a rien à lever' },
+  // Les réglages de la plateforme (0093, docs/console.md C28) : la relecture d'une règle, le message aux clients.
+  { base: 'noter une relecture demande son motif (trois caractères au moins)', cle: 'base.console.reglages_motif_relecture', fr: 'noter une relecture demande son motif (trois caractères au moins)' },
+  { base: 'une relecture dit qui l\'a faite : le nom du comptable et de son cabinet', cle: 'base.console.reglages_relue_par', fr: 'une relecture dit qui l\'a faite : le nom du comptable et de son cabinet' },
+  { base: 'l\'avis d\'une relecture : juste telle quelle, ou à corriger', cle: 'base.console.reglages_avis', fr: 'l\'avis d\'une relecture : juste telle quelle, ou à corriger' },
+  { base: 'cette règle n\'est pas au registre', cle: 'base.console.reglages_regle_inconnue', fr: 'cette règle n\'est pas au registre' },
+  { base: 'afficher un message aux clients demande son motif (trois caractères au moins)', cle: 'base.console.reglages_motif_message', fr: 'afficher un message aux clients demande son motif (trois caractères au moins)' },
+  { base: 'un message aux clients annonce une nouveauté ou une maintenance prévue', cle: 'base.console.reglages_message_sorte', fr: 'un message aux clients annonce une nouveauté ou une maintenance prévue' },
+  { base: 'un message aux clients : de dix à deux cent quarante caractères', cle: 'base.console.reglages_message_longueur', fr: 'un message aux clients : de dix à deux cent quarante caractères' },
+  { base: 'un message aux clients s\'écrit sans balise', cle: 'base.console.reglages_message_balise', fr: 'un message aux clients s\'écrit sans balise' },
+  { base: 'un message aux clients dit le jour où il paraît et celui où il disparaît', cle: 'base.console.reglages_message_dates', fr: 'un message aux clients dit le jour où il paraît et celui où il disparaît' },
+  { base: 'un message aux clients ne paraît pas dans le passé : au plus tôt aujourd\'hui', cle: 'base.console.reglages_message_passe', fr: 'un message aux clients ne paraît pas dans le passé : au plus tôt aujourd\'hui' },
+  { base: 'un message aux clients disparaît après le jour où il paraît', cle: 'base.console.reglages_message_ordre', fr: 'un message aux clients disparaît après le jour où il paraît' },
+  { base: 'un message aux clients s\'affiche trente jours au plus : on le repose s\'il le faut', cle: 'base.console.reglages_message_duree', fr: 'un message aux clients s\'affiche trente jours au plus : on le repose s\'il le faut' },
+  { base: 'retirer un message demande son motif (trois caractères au moins)', cle: 'base.console.reglages_motif_retrait', fr: 'retirer un message demande son motif (trois caractères au moins)' },
+  { base: 'ce message n\'existe pas', cle: 'base.console.reglages_message_inconnu', fr: 'ce message n\'existe pas' },
+  { base: 'ce message n\'est plus affiché : il n\'y a rien à retirer', cle: 'base.console.reglages_message_fini', fr: 'ce message n\'est plus affiché : il n\'y a rien à retirer' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

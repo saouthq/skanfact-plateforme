@@ -43,6 +43,7 @@ const DESSINS = {
   copier: <><rect x="8.5" y="8.5" width="12" height="12" rx="2" /><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3" /></>,
   cloche: <><path d="M6 9.5a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15.5 6 9.5z" /><path d="M10 20.5a2.2 2.2 0 0 0 4 0" /></>,
   points: <><circle cx="5.5" cy="12" r="1.4" fill="currentColor" /><circle cx="12" cy="12" r="1.4" fill="currentColor" /><circle cx="18.5" cy="12" r="1.4" fill="currentColor" /></>,
+  reglages: <path d="M20 6h-7M9 6H4M20 12h-9M7 12H4M20 18h-5M11 18H4M13 4v4M7 10v4M15 16v4" />,
 } as const;
 export type NomIcone = keyof typeof DESSINS;
 
@@ -177,14 +178,17 @@ export function Avatar({ nom, nuit }: { nom: string; nuit?: boolean }) {
 
 // ── Les champs ──────────────────────────────────────────────────────────────────────────────────────────────────────
 type Commun = { libelle: string; aide?: string | undefined; faute?: boolean; n?: number };
-// Un champ refusé prend le focus et se montre en rouge, jusqu'à ce qu'on le touche.
+// Un champ refusé prend le focus et se montre en rouge, jusqu'à ce qu'on le touche. Il vient à l'écran par
+// `scrollIntoView`, qui respecte la marge que la fenêtre réserve à son pied et à son refus (Dialogue) : le champ ne
+// s'arrête jamais dessous.
 function useFaute<T extends HTMLElement>(faute: boolean, n: number | undefined) {
   const ref = useRef<T>(null);
   const [rouge, setRouge] = useState(false);
   useEffect(() => {
     if (!faute) return;
     setRouge(true);
-    ref.current?.focus();
+    ref.current?.focus({ preventScroll: true });
+    ref.current?.scrollIntoView({ block: 'nearest' });
   }, [faute, n]);
   return { ref, rouge, effacer: () => setRouge(false) };
 }
@@ -291,6 +295,17 @@ export function Dialogue({ titre: t, sous, fermer, occupe = false, children, pie
   }, [reprendre]);
   // La question pose le curseur sur « Reprendre la saisie » : Entrée ne jette rien par réflexe.
   useEffect(() => { if (question) cadre.current?.querySelector<HTMLElement>('.c-dialogue-question .c-btn-principal')?.focus(); }, [question]);
+  // Un refus se lit sans le chercher : dans une longue fenêtre, il reste juste au-dessus du pied (console.css) au lieu de
+  // tomber sous le bas, et le champ refusé, que le curseur rejoint, s'arrête au-dessus des deux. Mesuré à chaque dessin,
+  // AVANT que le champ prenne le curseur (les effets de mise en page passent avant les effets ordinaires des enfants).
+  useLayoutEffect(() => {
+    const c = cadre.current;
+    if (!c) return;
+    const pied = c.querySelector<HTMLElement>('.c-dialogue-pied');
+    const refus = corps.current?.querySelector<HTMLElement>(':scope > .c-alerte-danger');
+    c.style.setProperty('--c-pied-h', `${pied?.offsetHeight ?? 0}px`);
+    c.style.setProperty('--c-refus-h', `${refus ? refus.offsetHeight + 12 : 0}px`);
+  });
   return createPortal(
     <div className="c-voile">
       <div className="c-dialogue" role="dialog" aria-modal="true" aria-labelledby={`${id}-titre`} ref={cadre}>

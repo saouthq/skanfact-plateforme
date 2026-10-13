@@ -11,7 +11,7 @@ import type { Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { Introuvable, Perimee } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
-import { etatAbonnement, GRACE_JOURS, lireFaits, RELANCES, type Etat, type Faits } from '../abonnement/etat.ts';
+import { ESSAI_JOURS, etatAbonnement, GRACE_JOURS, lireFaits, RELANCES, type Etat, type Faits } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, type GesteAbonnement, type LigneAbonnement } from '../abonnement/gestes.ts';
 import { motif, rendre, t, type Valeurs } from '../../textes/index.ts';
 import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_MIN, REGLES, SAUVEGARDE_TROP_VIEILLE_H } from '../../exploitation/veille.ts';
@@ -34,6 +34,7 @@ import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, R
 import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe, taches, titreDeTache, versionDAvant, type EtatSuiveur } from './versions.ts';
 import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
+import { essaisEnCours, grille, lireReglages, registre, sujetDesReglages } from './reglages.ts';
 import { BUDGETS } from '../service/mesures.ts';
 import { LISTE_GESTES_CONSOLE, type RoleConsole } from './gestes.ts';
 import './textes.ts';
@@ -329,10 +330,12 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const lignes = await lireJson<{ curseur: string; id: string; geste: string; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null }[]>(transaction(tx),
         'select plateforme.console_journal($1, $2, $3::timestamptz, $4::uuid, $5) v', [qui, entreprise, m?.[1] ?? null, m?.[2] ?? null, n]);
       const derniere = lignes.at(-1);
-      // Le curseur ne sert qu'à la suite : il ne part pas avec chaque ligne. Un geste du service dit sur quoi il porte.
+      // Le curseur ne sert qu'à la suite : il ne part pas avec chaque ligne. Un geste du service, ou des réglages, dit sur quoi
+      // il porte.
       return {
         corps: {
-          lignes: lignes.map((l) => ({ ...l, curseur: undefined, service: sujetDuService(l.geste, l.avant, l.apres) ?? undefined })),
+          lignes: lignes.map((l) => ({ ...l, curseur: undefined, service: sujetDuService(l.geste, l.avant, l.apres) ?? undefined,
+            reglages: sujetDesReglages(l.geste, l.avant, l.apres) ?? undefined })),
           suite: lignes.length === n && derniere ? `${derniere.curseur}|${derniere.id}` : null,
         },
       };
@@ -829,6 +832,58 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     corps: z.object({ motif: motifGeste }),
     traiter: async ({ params, corps }, tx) => {
       await transaction(tx).query('select plateforme.console_annuler_maintenance($1, $2, $3)', [lireUuid(params.maintenance), corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+
+  // ── Les réglages de la plateforme (docs/console.md C28) ─────────────────────────────────────────────────────────────
+  // La grille des prix (datée), les abonnés de chaque offre (le même état que la liste des clients), les règles qui font
+  // l'échéance (tirées du code : les relances, la grâce, l'essai), le registre des règles communes avec ses relectures,
+  // et le message aux clients : celui en cours, puis les passés.
+  ajouter({
+    methode: 'GET', chemin: '/console/reglages', geste: 'console.reglages.voir',
+    traiter: async ({ qui }, tx) => {
+      const x = transaction(tx);
+      const jour = aujourdhuiATunis(maintenant());
+      const r = lireReglages(await lireJson(x, 'select plateforme.console_reglages($1::date) v', [jour]));
+      const entreprises = lireEntreprises(await lireJson(x, 'select plateforme.console_entreprises() v'), jour);
+      return {
+        corps: {
+          aujourdhui: jour, role: roleDe(qui),
+          grille: grille(r.prix, entreprises, jour), essai: { jours: ESSAI_JOURS, enCours: essaisEnCours(entreprises) },
+          echeance: { relances: RELANCES, grace: GRACE_JOURS },
+          registre: registre(r.regles, jour),
+          message: r.messages.find((m) => m.enCours) ?? null, passes: r.messages.filter((m) => !m.enCours).slice(0, 30),
+        },
+      };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/regles/:regle/relire', geste: 'console.reglages.gerer',
+    corps: z.object({ reluePar: z.string().trim().min(3).max(200), avis: z.enum(['juste', 'a_corriger']), dit: z.string().trim().max(1000).nullable(), motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_relire_regle($1, $2, $3, $4, $5, $6)',
+        [lireUuid(params.regle), corps.reluePar, corps.avis, corps.dit, corps.motif, maintenant()]);
+      return { statut: 201, corps: { ok: true } };
+    },
+  });
+  const jourIso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/messages', geste: 'console.reglages.gerer',
+    corps: z.object({ sorte: z.enum(['nouveaute', 'maintenance']), texte: z.string().trim().min(10).max(240), du: jourIso, au: jourIso, motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const instant = maintenant();
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_ecrire_message($1, $2, $3::date, $4::date, $5, $6, $7::date) v',
+        [corps.sorte, corps.texte, corps.du, corps.au, corps.motif, instant, aujourdhuiATunis(instant)]);
+      return { statut: 201, corps: { id } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/messages/:message/retirer', geste: 'console.reglages.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      const instant = maintenant();
+      await transaction(tx).query('select plateforme.console_retirer_message($1, $2, $3, $4::date)', [lireUuid(params.message), corps.motif, instant, aujourdhuiATunis(instant)]);
       return { corps: { ok: true } };
     },
   });

@@ -475,6 +475,15 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 /* Le pied reste sous les yeux quand une longue fenêtre défile : le bouton qui valide ce qu'on vient de taper ne se cherche
    pas sous le bas de l'écran. */
 .c-dialogue-pied { position: sticky; bottom: 0; z-index: 1; display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; padding: 16px 26px 22px; border-top: 1px solid var(--c-trait); background: var(--c-papier-2); }
+/* Un refus se lit sans le chercher : dans une longue fenêtre, il reste juste au-dessus du pied au lieu de tomber sous le
+   bas, sur un fond opaque (le rouge doux du thème sombre est translucide) et une marge de papier qui cache ce qui défile
+   derrière. Le pied et le refus sont mesurés par Dialogue (ui.tsx) : un champ qu'on amène à l'écran s'arrête au-dessus
+   des deux. Une fenêtre qui ne défile pas ne bouge pas. */
+.c-dialogue { scroll-padding-block: 16px calc(var(--c-pied-h, 0px) + var(--c-refus-h, 0px) + 16px); }
+.c-dialogue-corps > .c-alerte-danger {
+  position: sticky; bottom: calc(var(--c-pied-h, 0px) + 12px); z-index: 1;
+  background: linear-gradient(var(--c-rouge-doux), var(--c-rouge-doux)), var(--c-papier); box-shadow: 0 0 0 12px var(--c-papier);
+}
 /* La question avant de jeter une saisie : elle prend la place des boutons du pied, au même endroit (rien ne bouge
    ailleurs dans la fenêtre), la phrase à gauche, les deux gestes à droite. */
 .c-dialogue-question { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; inline-size: 100%; }
@@ -1591,6 +1600,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-jr-famille-abonnement { background: var(--c-doux); color: var(--c-doux-texte); }
 .c-jr-famille-equipe { background: var(--c-violet-doux); color: var(--c-violet-texte); }
 .c-jr-famille-service { background: var(--c-gris-doux); color: var(--c-gris); }
+.c-jr-famille-reglages { background: var(--c-orange-doux); color: var(--c-orange-texte); }
 .c-jr-sur a { color: var(--c-lien); font-weight: 600; text-decoration: none; }
 .c-jr-sur a:hover { text-decoration: underline; }
 .c-jr-motif { color: var(--c-encre); }
@@ -2057,4 +2067,59 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-ve-taches-liste > li { grid-template-columns: 2.6rem minmax(0, 1fr); }
   .c-ve-tache-etat { grid-column: 2; justify-items: start; }
   .c-ve-geste .c-btn { min-height: 44px; }
+}
+
+/* ── Les réglages de la plateforme (docs/console.md C28) ───────────────────────────────────────────────────────────── */
+.c-bloc { display: block; margin-top: 2px; }
+.c-rg { margin-top: 24px; }
+.c-rg .c-al-section-tete { padding: 0 0 16px; align-items: flex-start; }
+.c-rg > .c-sous { margin-top: 12px; max-width: 90ch; }
+.c-rg-montant { font-family: var(--c-chiffres); white-space: nowrap; }
+.c-rg-nowrap { white-space: nowrap; }
+.c-rg-avenir { display: block; margin-top: 6px; padding: 4px 10px; border-radius: 999px; width: fit-content; font-size: 13px;
+  background: var(--c-orange-doux); color: var(--c-orange-texte); }
+/* La frise d'une échéance : une étape par case, dans l'ordre du temps ; la couleur suit ce qui se ferme. */
+.c-rg-frise { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.c-rg-etape { display: grid; gap: 6px; align-content: start; padding: 12px 14px; border-radius: var(--c-rayon-sm); background: var(--c-papier-2);
+  border-block-start: 4px solid var(--c-trait-fort); }
+.c-rg-etape-quand { font-weight: 600; font-size: 14px; }
+.c-rg-etape-quoi { font-size: 13.5px; color: var(--c-gris); }
+.c-rg-etape-calme { border-block-start-color: var(--c-sarcelle); }
+.c-rg-etape-jour { border-block-start-color: var(--c-lien); }
+.c-rg-etape-grace { border-block-start-color: var(--c-orange); }
+.c-rg-etape-fin { border-block-start-color: var(--c-rouge); }
+/* Le registre : une règle par carte ; celle à relire porte son trait orange. */
+.c-rg-registre { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.c-rg-regle { display: grid; gap: 12px; padding: 16px 18px; border: 1px solid var(--c-trait); border-radius: var(--c-rayon-sm);
+  border-inline-start: 4px solid var(--c-sarcelle); }
+.c-rg-regle-a-relire { border-inline-start-color: var(--c-orange); }
+.c-rg-regle-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+.c-rg-code { font-family: var(--c-chiffres); font-size: 13px; color: var(--c-gris); }
+.c-rg-chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 20px; margin: 0; }
+.c-rg-chiffres dt { font-size: 12px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--c-gris); }
+.c-rg-chiffres dd { margin: 2px 0 0; }
+.c-rg-source { font-size: 14px; }
+.c-rg-relue { font-size: 14px; }
+.c-rg-pas-relue { color: var(--c-orange-texte); }
+.c-rg-avant summary { cursor: pointer; font-size: 13.5px; color: var(--c-lien); }
+.c-rg-avant ul { margin: 6px 0 0; padding-inline-start: 18px; font-size: 13.5px; color: var(--c-gris); display: grid; gap: 4px; }
+.c-rg-geste { display: flex; gap: 10px; flex-wrap: wrap; }
+.c-rg-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.c-rg-duo .c-rg { margin-top: 24px; }
+.c-rg-liste, .c-rg-etapes { margin: 0; padding-inline-start: 18px; display: grid; gap: 10px; font-size: 14.5px; }
+/* Le message aux clients : l'aperçu a la forme du bandeau de leur application. */
+.c-rg-actuel { display: grid; gap: 10px; }
+.c-rg-actuel-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+.c-rg-apercu { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--c-trait); }
+.c-rg-apercu-nouveaute { background: var(--c-doux); color: var(--c-doux-texte); }
+.c-rg-apercu-maintenance { background: var(--c-bleu-doux); color: var(--c-bleu-texte); }
+.c-rg-apercu-sorte { font-weight: 600; font-size: 13px; }
+.c-rg-apercu-texte { flex: 1 1 280px; min-width: 0; overflow-wrap: anywhere; }
+.c-rg-apercu-fermer { font-size: 13px; text-decoration: underline; opacity: .8; }
+.c-rg-dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) {
+  .c-rg-duo { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .c-rg-dates { grid-template-columns: minmax(0, 1fr); }
 }

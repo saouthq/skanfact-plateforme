@@ -16,6 +16,8 @@ declarerTextes({
   'geste.console.service.voir': 'voir l\'état du service',
   'geste.console.service.remise': 'préparer la remise d\'une entreprise à une minute (la console compose les commandes, elle ne les exécute pas)',
   'geste.console.service.gerer': 'gérer les alertes et les incidents du service (prendre une alerte en charge, une sourdine, une alerte d\'essai ; ouvrir, suivre et clore un incident, ses suites ; annoncer une maintenance)',
+  'geste.console.reglages.voir': 'voir les réglages de la plateforme (les prix, les règles communes, le message aux clients)',
+  'geste.console.reglages.gerer': 'changer les réglages de la plateforme (noter la relecture d\'une règle, afficher ou retirer le message aux clients)',
   // Les rôles de l'équipe SkanFact (03 § 5).
   'role.direction': 'direction',
   'role.support': 'support',

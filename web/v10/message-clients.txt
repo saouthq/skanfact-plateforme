@@ -1,0 +1,24 @@
+Le message de SkanFact à tous ses clients (docs/console.md C28 ; migration 0093 ; plateforme/message.js). La direction
+l'écrit dans la console (Réglages, « Messages aux clients ») : une nouveauté ou une maintenance prévue, datée, jamais plus
+d'une à la fois. Le pont le relit avec la licence (au chargement, chaque heure, au retour au premier plan) ; le routeur le
+repose en haut de chaque page, au-dessus du bandeau de l'exemple. Format : voir sans-paquets.mjs.
+
+== index.html | le dessin du message aux clients et sa feuille se chargent après ceux de l'abonnement
+-- avant
+  <script src="../plateforme/abonnement.js"></script>
+  <link rel="stylesheet" href="../plateforme/abonnement.css">
+-- après
+  <script src="../plateforme/abonnement.js"></script>
+  <link rel="stylesheet" href="../plateforme/abonnement.css">
+  <script src="../plateforme/message.js"></script>
+  <link rel="stylesheet" href="../plateforme/message.css">
+-- fin
+
+== app.js | chaque page porte le message de SkanFact en haut, au-dessus du bandeau de l'exemple
+-- avant
+    bandeauDemo(name);               // « ce ne sont pas tes données » — sur chaque page, en permanence
+-- après
+    bandeauDemo(name);               // « ce ne sont pas tes données » — sur chaque page, en permanence
+    // (plateforme) Le message de SkanFact à tous ses clients (0093), posé APRÈS l'exemple pour passer au-dessus de lui.
+    if (bridge.poserMessage) bridge.poserMessage(view);
+-- fin

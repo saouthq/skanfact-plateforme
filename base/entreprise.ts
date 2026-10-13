@@ -142,6 +142,10 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.service_consigne': { classe: 'hors', raison: 'les consignes données au suiveur des versions (geler, retenir, revenir) : l\'exploitation de la plateforme' },
   'plateforme.service_tour': { classe: 'hors', raison: 'le dernier passage de chaque tour du serveur (facteur, postier, relances) : l\'état de la plateforme' },
   'plateforme.service_maintenance': { classe: 'hors', raison: 'les maintenances annoncées sur la page d\'état : l\'histoire de la plateforme' },
+  // Les réglages (0093, docs/console.md C28) : la relecture d'une règle commune par un comptable, et le message affiché en
+  // haut de l'application de tous les clients. Communs à la plateforme, à aucune entreprise.
+  'plateforme.relecture_regle': { classe: 'hors', raison: 'la relecture d\'une règle commune par un comptable : le registre de la plateforme, commun à toutes les entreprises' },
+  'plateforme.message_clients': { classe: 'hors', raison: 'le message affiché à tous les clients, écrit par l\'équipe SkanFact : commun à la plateforme' },
   'socle.dossier_v10_retire': { classe: 'hors', raison: 'les traces de retrait servent la relecture des postes ; après une restauration, un poste relit tout' },
   // Ce qu'un appareil retiré a remis (0044) : à l'entreprise, décidé ou non.
   'socle.quarantaine': { classe: 'entreprise' },

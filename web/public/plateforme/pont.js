@@ -767,7 +767,11 @@
     dessinerExport,
     dessinerAbonnement,
     // La licence de la v10, tirée de l'abonnement : sa pastille, sa carte d'essai, et sa porte de création (licenceBlock).
-    licenceStatus: async () => /** @type {any} */ (window).SkanAbonnement.licence(await abonnementPourLaV10()),
+    licenceStatus: async () => {
+      void lireMessageClients();
+      return /** @type {any} */ (window).SkanAbonnement.licence(await abonnementPourLaV10());
+    },
+    poserMessage,
     pastilleAbonnement: () => /** @type {any} */ (window).SkanAbonnement.pastille(abonnement),
     dessinerQuarantaine,
     dessinerPaiement,
@@ -1279,6 +1283,16 @@
   }
   /** @param {HTMLElement} el */
   function dessinerAbonnement(el) { return /** @type {any} */ (window).SkanAbonnement.dessiner(el, { appel }); }
+  // ── Le message de SkanFact à ses clients (0093 ; message.js, docs/console.md C28) : relu avec la licence de la v10 (au
+  // chargement, chaque heure, au retour au premier plan), posé en haut de la page ouverte, puis de chaque page que le
+  // routeur dessine. Sans réponse du serveur, le dernier connu reste.
+  /** @type {{ id: string, sorte: string, texte: string } | null} */ let messageClients = null;
+  /** @param {HTMLElement | null} view */
+  function poserMessage(view) { if (view && /** @type {any} */ (window).SkanMessage) /** @type {any} */ (window).SkanMessage.poser(view, messageClients); }
+  async function lireMessageClients() {
+    try { messageClients = (await appel('GET', '/message')).message ?? null; } catch { /* sans réponse : le dernier connu reste */ }
+    poserMessage(document.getElementById('view'));
+  }
   // ── L'équipe (lot équipe, 0079 ; equipe.js) : qui y travaille, les invitations qui attendent, et les gestes de qui la
   // gère. Les appels portent sur CETTE entreprise ; la base refuse à qui n'est ni propriétaire ni administrateur.
   /** @param {HTMLElement} el @param {{ modal: any, toast: (t: string, erreur?: boolean) => void, confirmDialog: any, nom?: string }} v10 */

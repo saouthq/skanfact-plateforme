@@ -1,0 +1,18 @@
+/* Le message de SkanFact à tous ses clients (0093 ; message.js, docs/console.md C28) : le bandeau d'information de la v10
+   (`.banner.info`, clair comme sombre), avec sa sorte en pastille et un texte qui se lit comme une phrase, pas en gras. */
+.sk-message { justify-content: flex-start; flex-wrap: wrap; gap: 8px 14px; font-weight: 400; }
+.sk-message-sorte {
+  padding: 2px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 650; white-space: nowrap;
+  background: rgba(255, 255, 255, .7); border: 1px solid currentColor;
+}
+body.dark .sk-message-sorte { background: transparent; }
+/* Comme la maquette (Réglages · Messages) : une nouveauté dans le vert d'eau de SkanFact, une maintenance dans le bleu
+   d'information (`.banner.info`). Le texte vert foncé a sa jumelle claire en thème sombre. */
+.banner.info.sk-message-nouveaute { background: var(--primary-soft); color: #0b5f57; }
+body.dark .banner.info.sk-message-nouveaute { color: var(--primary-hover); }
+.sk-message-texte { flex: 1 1 280px; min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }
+.sk-message-plus-tard { margin-inline-start: auto; }
+/* Caché par « Plus tard » : la même place, une phrase grise, jusqu'à la page suivante (message.js). */
+/* Quatre classes : il passe devant le fond de `.banner.info` et du vert d'une nouveauté. */
+.banner.info.sk-message.sk-message-cache { align-items: center; background: transparent; border: 1px dashed var(--line); }
+.sk-message-cache .sk-message-texte { color: var(--muted); }

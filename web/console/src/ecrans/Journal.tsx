@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture, type Role } from '../contexte.ts';
-import { heureDe, jourDe, jourLong, jourMois, joursEntre } from '../temps.ts';
+import { heureDe, jourCourt, jourDe, jourLong, jourMois, joursEntre } from '../temps.ts';
 import { Alerte, Avatar, Bouton, maj, Puce, Vide } from '../ui.tsx';
 import { Changements } from './Fiche.tsx';
 
@@ -16,6 +16,8 @@ type Ligne = {
   qui: { id: string; nom: string } | null; entreprise: { id: string; raisonSociale: string } | null; membre: { id: string; nom: string } | null;
   // Un geste du service (serveur/console/alertes.ts, `sujetDuService`) : la règle visée, l'alerte d'essai, la fin prévue.
   service?: { regle: string | null; essai: boolean; fin: string | null };
+  // Un geste des réglages (serveur/console/reglages.ts, `sujetDesReglages`) : la règle relue et l'avis, ou les deux jours du message.
+  reglages?: { regle: string | null; reluePar: string | null; avis: 'juste' | 'a_corriger' | null; du: string | null; au: string | null };
 };
 type Page = { lignes: Ligne[]; suite: string | null };
 type Membre = { utilisateur: string; nom: string; actif: boolean };
@@ -32,8 +34,19 @@ function ChangeDuService({ geste, s }: { geste: string; s: NonNullable<Ligne['se
   return <span className="c-changes"><span className="c-change">{dire(`console.ecran.journal.${geste === 'service.sourdine' ? 'jusqua' : 'devait_courir'}`, { quand })}</span></span>;
 }
 
-// La famille d'un geste, lue dans son nom : l'abonnement d'un client, l'équipe, le service.
-const FAMILLES = ['abonnement', 'equipe', 'service'] as const;
+// Un geste des réglages porte sur une règle du registre (l'avis de qui l'a relue) ou sur le message aux clients (ses jours).
+function SurLesReglages({ r }: { r: NonNullable<Ligne['reglages']> }) {
+  return r.regle ? <a href="#/reglages?onglet=regles">{titre('console.ecran.journal.sur_regle_commune', { code: r.regle })}</a>
+    : <a href="#/reglages?onglet=messages">{titre('console.ecran.journal.sur_message')}</a>;
+}
+function ChangeDesReglages({ r }: { r: NonNullable<Ligne['reglages']> }) {
+  const t = r.regle && r.reluePar ? dire(`console.ecran.journal.relue_${r.avis === 'a_corriger' ? 'corriger' : 'juste'}`, { qui: r.reluePar })
+    : r.du && r.au ? dire('console.ecran.journal.du_au', { du: jourCourt(r.du), au: jourCourt(r.au) }) : null;
+  return t ? <span className="c-changes"><span className="c-change" data-donnee>{t}</span></span> : null;
+}
+
+// La famille d'un geste, lue dans son nom : l'abonnement d'un client, l'équipe, le service, les réglages.
+const FAMILLES = ['abonnement', 'equipe', 'service', 'reglages'] as const;
 const familleDe = (geste: string) => FAMILLES.find((f) => geste.startsWith(`${f}.`)) ?? null;
 
 // Un jour comme on le dit : « Aujourd'hui · mardi 13 octobre », « Hier · lundi 12 octobre », « samedi 10 octobre » ; l'année
@@ -163,10 +176,10 @@ export function Journal({ entreprise, qui: quiDemande }: { entreprise: string | 
                               <td className="c-jr-sur">
                                 {l.entreprise ? <a href={`#/clients/${l.entreprise.id}`} data-donnee>{l.entreprise.raisonSociale}</a>
                                   : l.membre ? <span data-donnee>{l.membre.nom}</span>
-                                    : l.service ? <SurLeService s={l.service} /> : '—'}
+                                    : l.service ? <SurLeService s={l.service} /> : l.reglages ? <SurLesReglages r={l.reglages} /> : '—'}
                               </td>
                               <td><span className="c-jr-motif" data-donnee>{'«\u202f'}{l.motif}{'\u202f»'}</span></td>
-                              <td>{l.service ? <ChangeDuService geste={l.geste} s={l.service} /> : <Changements avant={l.avant} apres={l.apres} empile />}</td>
+                              <td>{l.service ? <ChangeDuService geste={l.geste} s={l.service} /> : l.reglages ? <ChangeDesReglages r={l.reglages} /> : <Changements avant={l.avant} apres={l.apres} empile />}</td>
                             </tr>
                           );
                         })}

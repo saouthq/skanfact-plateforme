@@ -730,4 +730,6 @@ export const ADAPTATIONS = [
   ...lireFichier('debutant-2.txt'),
   // ── L'abonnement (12/10/2026 ; l'essai de 30 jours, la lecture seule, « Ton abonnement », docs/abonnement.md) ──
   ...lireFichier('abonnement-essai.txt'),
+  // ── Le message de SkanFact à tous ses clients (13/10/2026 ; la console, Réglages, docs/console.md C28) ──
+  ...lireFichier('message-clients.txt'),
 ];

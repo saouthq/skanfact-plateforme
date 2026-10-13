@@ -2795,6 +2795,8 @@
     if (!pageCachee(name)) Promise.resolve(dessine).then(() => bandeauOrdinateur(name), () => {});
     poserGuideMoi();                 // « Guide-moi » : ce qu'on peut faire sur cette page, et son article (10.14.1)
     bandeauDemo(name);               // « ce ne sont pas tes données » — sur chaque page, en permanence
+    // (plateforme) Le message de SkanFact à tous ses clients (0093), posé APRÈS l'exemple pour passer au-dessus de lui.
+    if (bridge.poserMessage) bridge.poserMessage(view);
     bandeauModule(active);           // « cette page n'est pas dans ton menu » — et le bouton pour l'y mettre
     bandeauOffre(active);            // « ce module fait partie de l'offre Entreprise » — lecture libre, création fermée
     if (!pageCachee(name)) appelGuide(name); // « première fois sur cette page ? » — accrochée à « Guide-moi » (10.14.1)

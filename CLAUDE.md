@@ -712,6 +712,12 @@
 - **Une fenêtre de la console où l'on a tapé demande avant de jeter la saisie** : son bouton d'annulation porte `ferme`
   (`Bouton ferme`), qui le fait passer par la garde de `Dialogue` comme Échap et la croix. Un refus de motif reste
   jusqu'au clic suivant (docs/console.md, « Décidé par délégation »).
+- **Un refus se lit au-dessus des boutons, même dans une longue fenêtre** : `Dialogue` colle la phrase du refus juste
+  au-dessus du pied et réserve sa hauteur au défilement ; le champ refusé vient à l'écran au-dessus d'elle, le curseur
+  dedans (`useFaute`). Vu le 13/10/2026 sur « Écrire un message » : le refus d'un motif tombait sous le bas de l'écran.
+- **Un geste du journal de la console a deux parties** (`reglages.message_retire`, jamais `reglages.message.retire`) :
+  la table les refuse, et le geste ENTIER échouait. `tests/console/journal.test.ts` lit toutes les migrations et
+  exige aussi le libellé de chaque geste dans l'écran du journal.
 
 **Sécurité (sans exception)**
 - Dépôt **public** : jamais de secret, de jeton, de mot de passe réel ni de donnée de client. Les

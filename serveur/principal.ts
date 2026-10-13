@@ -73,6 +73,7 @@ import { prevenirParCourriel } from './messagerie/postier.ts';
 import { relancerLesAbonnements } from './abonnement/relances.ts';
 import { routesAbonnement } from './abonnement/routes.ts';
 import { routesConsole } from './console/routes.ts';
+import { routesMessageClients } from './console/message-clients.ts';
 import { routesMessagerie } from './messagerie/routes.ts';
 import { declarerGestesVentes } from './ventes/gestes.ts';
 import { routesVentes } from './ventes/routes.ts';
@@ -235,7 +236,8 @@ export function routesDuServeur(ctx: Contexte, options: { veille: string | null 
   declarerGestesCompta();
   declarerGestesMessagerie();
   return [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx),
-    ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesAbonnement(), ...routesConsole(ctx, options)];
+    ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesAbonnement(), ...routesConsole(ctx, options),
+    ...routesMessageClients(ctx.maintenant)];
 }
 
 export async function demarrer(c: Configuration, dependances: { envoyer?: Envoyeur; courriel?: EnvoiCourriel; sms?: Contexte['sms'] } = {}): Promise<{ adresse: string; arreter: () => Promise<void> }> {
