@@ -1998,3 +1998,58 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-se-table td[data-libelle]::before { content: attr(data-libelle) ' : '; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); }
   .c-se-regard-pied .c-btn, .c-se-regard-pied .c-lien { min-height: 44px; }
 }
+
+/* ── Les versions du service (docs/console.md C27) ─────────────────────────────────────────────────────────────── */
+.c-ve-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; margin-top: 24px; }
+.c-ve-consignes, .c-ve-historique { margin-top: 24px; }
+:is(.c-ve-service, .c-ve-prochaine, .c-ve-consignes, .c-ve-historique, .c-ve-taches, .c-ve-machine) .c-al-section-tete { padding: 0 0 16px; align-items: flex-start; }
+.c-ve-version { display: inline-flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.c-ve-version > .c-mono { font-size: 13.5px; }
+.c-ve-titre-version { margin: 8px 0 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.c-ve-faits { margin: 0; display: grid; gap: 0; }
+.c-ve-faits > div { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: 16px; padding: 10px 0; border-top: 1px solid var(--c-trait); }
+.c-ve-faits > div:first-child { border-top: 0; padding-top: 0; }
+.c-ve-faits dt { color: var(--c-gris); font-size: 13px; }
+.c-ve-faits dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.c-ve-geste { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.c-ve-geste > .c-sous { flex: 1 1 16rem; margin: 0; }
+.c-ve-etapes { list-style: none; margin: 4px 0 0; padding: 0; display: grid; }
+.c-ve-etape { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 12px; padding: 10px 0; position: relative; }
+.c-ve-etape:not(:last-child)::after { content: ''; position: absolute; inset-inline-start: 6px; top: 26px; bottom: -6px; width: 2px; background: var(--c-trait); }
+.c-ve-point { width: 14px; height: 14px; border-radius: 50%; margin-top: 3px; border: 2px solid var(--c-gris); background: var(--c-papier); }
+.c-ve-etape-bon .c-ve-point { background: var(--c-sarcelle); border-color: var(--c-sarcelle); }
+.c-ve-etape-attention .c-ve-point { border-color: var(--c-orange); }
+.c-ve-etape-grave .c-ve-point { background: var(--c-rouge); border-color: var(--c-rouge); }
+.c-ve-etape > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.c-ve-etape > div > .c-sous { flex-basis: 100%; }
+.c-ve-consignes-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.c-ve-consignes-liste > li { border: 1px solid var(--c-trait); border-radius: 14px; padding: 12px 16px; display: grid; gap: 6px; }
+.c-ve-consigne-vive { border-color: var(--c-orange) !important; }
+.c-ve-consigne-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; justify-content: space-between; }
+.c-ve-consignes-liste .c-ve-geste { margin-top: 2px; }
+.c-ve-table td:first-child { min-width: 16rem; }
+.c-ve-nowrap { white-space: nowrap; }
+.c-ve-ligne { display: block; margin-top: 4px; }
+.c-ve-taches-liste { list-style: none; margin: 0; padding: 0; display: grid; }
+.c-ve-taches-liste > li { display: grid; grid-template-columns: 3rem minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 10px 0; border-top: 1px solid var(--c-trait); }
+.c-ve-taches-liste > li:first-child { border-top: 0; padding-top: 0; }
+.c-ve-taches-liste > li > div { display: grid; gap: 2px; min-width: 0; }
+.c-ve-numero { color: var(--c-gris); font-size: 13px; padding-top: 2px; }
+.c-ve-tache-etat { display: grid; justify-items: end; gap: 2px; }
+@media (max-width: 1100px) {
+  .c-ve-duo { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 860px) {
+  .c-ve-faits > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .c-ve-historique .c-defile { overflow: visible; }
+  .c-ve-table thead { display: none; }
+  .c-ve-table, .c-ve-table tbody, .c-ve-table tr, .c-ve-table td { display: block; }
+  .c-ve-table tr { padding: 14px 0; border-bottom: 1px solid var(--c-trait); display: grid; gap: 6px; }
+  .c-ve-table tr:last-child { border-bottom: 0; }
+  .c-ve-table td { padding: 0; border: 0; text-align: start; min-width: 0 !important; }
+  .c-ve-table td.c-droite { text-align: start; }
+  .c-ve-table td[data-libelle]::before { content: attr(data-libelle) ' : '; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); }
+  .c-ve-taches-liste > li { grid-template-columns: 2.6rem minmax(0, 1fr); }
+  .c-ve-tache-etat { grid-column: 2; justify-items: start; }
+  .c-ve-geste .c-btn { min-height: 44px; }
+}

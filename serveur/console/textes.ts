@@ -34,5 +34,9 @@ declarerTextes({
   'console.remise.motif_illisible': 'le motif tient sur une ligne, trois cents caractères au plus',
   'console.sans_balise': 'ce texte part sur la page d\'état publique : sans les signes < ni >',
   'console.motif_requis': 'un geste de la console demande son motif, trois caractères au moins : il reste dans son histoire',
+  // Les versions du service (docs/console.md C27).
+  'console.versions.hors_depot': 'le suiveur n\'installe qu\'une des trente dernières versions du dépôt : celle-ci n\'en est plus',
+  'console.versions.en_service_inconnue': 'le suiveur n\'a pas encore dit quelle version est en service : on ne peut pas revenir en arrière sans le savoir',
+  'console.versions.retenir_en_service': 'cette version est en service : pour la quitter, reviens à une version d\'avant',
   'console.abonnement_change': 'cet abonnement a changé depuis que tu l\'as ouvert : relis-le avant de refaire le geste',
 });

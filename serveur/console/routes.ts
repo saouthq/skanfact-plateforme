@@ -31,6 +31,7 @@ import {
 } from './sauvegardes.ts';
 import { attenteDe, etatTour, lireTravaux, PARTENAIRES, quatorzeJours, SANS_TRACE, TOURS } from './travaux.ts';
 import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
+import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe, taches, titreDeTache, versionDAvant, type EtatSuiveur } from './versions.ts';
 import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
 import { BUDGETS } from '../service/mesures.ts';
@@ -102,6 +103,12 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   const ajouter = <C>(r: Route<C>) => { routes.push(r as unknown as Route<never>); };
   const maintenant = () => (ctx.maintenant ?? (() => new Date()))();
   const fichierVeille = options.veille ?? null;
+  // L'état que le suiveur écrit à chaque tour (à côté de la page d'état, dans le dossier public : https://…/etat.json) :
+  // la version en service, les versions du dépôt, leur numéro (« 1.4.2 »), les consignes lues (C27).
+  const lireEtatDuSuiveur = async (): Promise<EtatSuiveur | null> => {
+    if (!fichierVeille) return null;
+    try { return lireEtatSuiveur(JSON.parse(await fs.readFile(path.join(path.dirname(fichierVeille), 'public', 'etat.json'), 'utf8'))); } catch { return null; }
+  };
   const roleDe = (qui: { console?: { role: RoleConsole } | undefined } | null): RoleConsole => {
     if (!qui?.console) throw new Error('session de la console attendue');
     return qui.console.role;
@@ -399,7 +406,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           tuiles: dernierJour.points, total24h: dernierJour.total, trafic: traficRecent(derniereHeure.points, t),
           disponibilite: disponibilite(v), jours: joursDuService(v, jour, t), coupures: v.coupures.slice(0, 10),
           briques: briques(v, jour, t, veille.etat === 'ok'), nuits: v.nuits.slice(0, 14), exercice: v.exercice,
-          journal: journal(v), machine: v.machine, dernier: v.dernier, misesEnLigne: misesEnLigne(v), enLigne: enLigne(v),
+          journal: journal(v), machine: v.machine, dernier: v.dernier, misesEnLigne: misesEnLigne(v), enLigne: enLigne(v), numeros: (await lireEtatDuSuiveur())?.numeros ?? {},
           alertesEnCours: alertesOuvertes(v.alertes),
         },
       };
@@ -426,6 +433,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           histoire: histoire(lu, t),
           // Ce que chaque règle a vu en dernier (la vue d'ensemble en tire les mêmes faits).
           faits: { dernier: v.dernier, nuit: v.nuits[0] ?? null, exercice: v.exercice, machine: v.machine.at(-1) ?? null, enLigne: enLigne(v), jour: joursDuService(v, jour, t).at(-1) ?? null },
+          numeros: (await lireEtatDuSuiveur())?.numeros ?? {},
         },
       };
     },
@@ -660,6 +668,93 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     traiter: async ({ params, corps }, tx) => {
       if (!/^[0-9a-f]{32}$/.test(params.compte ?? '')) throw new Introuvable();
       await transaction(tx).query('select plateforme.console_lever_attente($1, $2, $3)', [params.compte, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  // Les versions (C27) : l'état que le suiveur écrit à chaque tour (à côté de la page d'état, dans le dossier public :
+  // https://…/etat.json), la base (les migrations, les versions vues par la veille, les consignes), les tâches
+  // d'entretien du dépôt en service, et la machine (le système, Node, PostgreSQL, les correctifs automatiques).
+  const dossierTaches = path.join(import.meta.dirname, '../../exploitation/taches');
+  const lireTachesDuDepot = async () => {
+    const noms = await fs.readdir(dossierTaches).catch(() => [] as string[]);
+    return Promise.all(noms.filter((n) => /^\d{4}-[a-z0-9-]+\.sh$/.test(n)).map(async (nom) =>
+      ({ nom, titre: await fs.readFile(path.join(dossierTaches, nom), 'utf8').then(titreDeTache, () => null) })));
+  };
+  // Une date de fichier, ou null (le fichier n'existe pas ici : une machine de développement, un serveur sans correctifs).
+  const dateDe = async (f: string) => fs.stat(f).then((x) => x.mtime.toISOString(), () => null);
+  ajouter({
+    methode: 'GET', chemin: '/console/service/versions', geste: 'console.service.voir',
+    traiter: async ({ qui }, tx) => {
+      const instant = maintenant();
+      const jour = aujourdhuiATunis(instant);
+      const x = transaction(tx);
+      const v = lireVeilleDeLaBase(await lireJson(x, 'select plateforme.console_service_veille($1) v', [depuisTrenteJours(jour)]));
+      const b = lireVersionsDeLaBase(await lireJson(x, 'select plateforme.console_service_versions($1) v', [instant.toISOString()]));
+      const veille = await lireLaVeille(fichierVeille, instant);
+      const e = await lireEtatDuSuiveur();
+      const h = e ? historique(e, b) : [];
+      const redemarrage = await dateDe('/var/run/reboot-required');
+      const paquets = redemarrage ? await fs.readFile('/var/run/reboot-required.pkgs', 'utf8').then((t) => new Set(t.split('\n').filter(Boolean)).size, () => null) : null;
+      return {
+        corps: {
+          maintenant: instant.toISOString(), aujourdhui: jour, role: roleDe(qui), veille, alertesEnCours: alertesOuvertes(v.alertes), briques: briques(v, jour, instant, veille.etat === 'ok'),
+          suiveur: e ? {
+            version: e.version, installeeLe: e.installeeLe, regardeLe: e.regardeLe, derniere: e.derniere, echec: e.echec, verification: e.verification,
+            consignesLues: e.consignes?.lues ?? null, plan: e.plan,
+          } : null,
+          titres: Object.fromEntries((e?.commits ?? []).map((c) => [c.version, c.titre])), numeros: e?.numeros ?? {},
+          dansLeDepot: (e?.commits ?? []).map((c) => c.version),
+          historique: h, avant: e ? versionDAvant(h, e) : null, prochaine: e ? prochaine(e, b.consignes, instant) : null,
+          consignes: b.consignes, migrations: b.migrations.slice(0, 12),
+          taches: e ? taches(await lireTachesDuDepot(), e) : [],
+          machine: {
+            systeme: systemeDe(await fs.readFile('/etc/os-release', 'utf8').catch(() => null)), node: process.version, postgres: b.postgres,
+            correctifs: await dateDe('/var/lib/apt/periodic/unattended-upgrades-stamp'), redemarrage: redemarrage ? { depuis: redemarrage, paquets } : null,
+          },
+        },
+      };
+    },
+  });
+  const lireUuidConsigne = (x: string | undefined) => { if (!x || !uuid.safeParse(x).success) throw new Introuvable(); return x; };
+  // Les consignes : poser un gel, retenir une version, revenir à une version d'avant, en lever une. Revenir ne vise
+  // qu'une version que le suiveur sait installer (parmi les trente dernières du dépôt) ; la version quittée est celle que
+  // le suiveur dit en service.
+  const sha = z.string().regex(/^[0-9a-f]{40}$/);
+  const refusVersion = (cle: string) => ({ statut: 400, corps: { motif: motif(cle), champ: 'version', raison: t(cle) } });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/versions/geler', geste: 'console.service.gerer',
+    corps: z.object({ jusquAu: z.string().datetime({ offset: true }), motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_versions_geler($1, $2, $3)', [corps.jusquAu, corps.motif, maintenant()]);
+      return { statut: 201, corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/versions/retenir', geste: 'console.service.gerer',
+    corps: z.object({ version: sha, motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const e = await lireEtatDuSuiveur();
+      if (e && corps.version === e.version) return refusVersion('console.versions.retenir_en_service');
+      await transaction(tx).query('select plateforme.console_versions_retenir($1, $2, $3)', [corps.version, corps.motif, maintenant()]);
+      return { statut: 201, corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/versions/revenir', geste: 'console.service.gerer',
+    corps: z.object({ version: sha, motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const e = await lireEtatDuSuiveur();
+      if (!e?.version) return refusVersion('console.versions.en_service_inconnue');
+      if (!e.commits.some((c) => c.version === corps.version)) return refusVersion('console.versions.hors_depot');
+      await transaction(tx).query('select plateforme.console_versions_revenir($1, $2, $3, $4)', [corps.version, e.version, corps.motif, maintenant()]);
+      return { statut: 201, corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/versions/consignes/:consigne/lever', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_versions_lever($1, $2, $3)', [lireUuidConsigne(params.consigne), corps.motif, maintenant()]);
       return { corps: { ok: true } };
     },
   });

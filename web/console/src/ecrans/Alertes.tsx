@@ -11,6 +11,7 @@ import { dire, phrase, titre, typo } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
 import { duree, entier, minutes, pourCent } from '../nombres.ts';
 import { heureDe, jourDe, jourMois, quand } from '../temps.ts';
+import { nomDeVersion } from '../version.ts';
 import { Alerte, Bouton, Dialogue, Icone, maj, MenuLigne, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
 import { EnteteService, enTitre, faitDeRegle, ICONE_BRIQUE, useRelireTantQueRegarde, type AlertesEnCours, type Brique, type Faits, type IdBrique, type Veille } from './Service.tsx';
 
@@ -52,6 +53,7 @@ type Donnees = {
   enCours: EnCours[]; prevenus: Prevenus; rythme: { minutesService: number; rappelH: number; sourdineGraveH: number };
   regles: Regle[]; minutesJugees: { pannes: number; temps: number }; histoire: Passee[];
   faits: Omit<Faits, 'aujourdhui'> & { enLigne: { version: string; depuis: string | null; vueArriver: boolean } | null };
+  numeros?: Record<string, string>;
 };
 
 // ── Les mots ────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -307,7 +309,7 @@ function maintenant(r: Regle, d: Donnees): { texte: string; ton: 'grave' | 'atte
   if (r.id === 'pannes' && typeof r.lu?.part === 'number') return { texte: dire(`${A}.maintenant.pannes`, { part: pourCent(r.lu.part, 1), minutes: d.minutesJugees.pannes, n: entier(r.lu.n ?? 0) }), ton: 'calme' };
   if (r.id === 'temps' && typeof r.lu?.p95 === 'number') return { texte: dire(`${A}.maintenant.temps`, { duree: duree(r.lu.p95), n: entier(r.lu.lectures ?? 0) }), ton: 'calme' };
   if (r.id === 'base') return { texte: dire(`${A}.maintenant.base`), ton: 'calme' };
-  if (r.id === 'installation' && d.faits.enLigne) return { texte: dire(`${A}.maintenant.version`, { version: d.faits.enLigne.version.slice(0, 7) }), ton: 'calme' };
+  if (r.id === 'installation' && d.faits.enLigne) return { texte: dire(`${A}.maintenant.version`, { version: nomDeVersion(d.faits.enLigne.version, d.numeros) }), ton: 'calme' };
   const f = faitDeRegle(r.id, { ...d.faits, aujourdhui: d.aujourdhui });
   return f ? { texte: f.texte, ton: 'calme', ...(f.donnee ? { donnee: true } : {}) } : { texte: dire(`${A}.maintenant.rien`), ton: 'calme' };
 }

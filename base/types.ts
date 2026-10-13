@@ -547,6 +547,22 @@ export interface BaseDeDonnees {
     prise_le: Date | null;
     prise_motif: string | null;
   };
+  'plateforme.service_consigne': {
+    id: Generated<string>;
+    sorte: string;
+    version: string | null;
+    quitte: string | null;
+    jusqu_au: Date | null;
+    motif: string;
+    qui: string;
+    le: Date;
+    faite_le: Date | null;
+    faite_ok: boolean | null;
+    faite_raison: string | null;
+    levee_le: Date | null;
+    levee_par: string | null;
+    levee_motif: string | null;
+  };
   'plateforme.service_demande': {
     id: Generated<string>;
     sorte: string;
@@ -574,6 +590,44 @@ export interface BaseDeDonnees {
     n: number;
     pannes: number;
     seaux: number[];
+  };
+  'plateforme.service_incident': {
+    id: Generated<string>;
+    annee: number;
+    numero: number;
+    titre: string;
+    gravite: string;
+    fiche: string | null;
+    ouvert_le: Date;
+    ouvert_par: string;
+    public: string | null;
+    public_le: Date | null;
+    fin: Date | null;
+    clos_le: Date | null;
+    clos_par: string | null;
+    effet: string | null;
+    cause: string | null;
+    change: string | null;
+  };
+  'plateforme.service_incident_point': {
+    id: Generated<string>;
+    incident: string;
+    le: Date;
+    qui: string;
+    texte: string;
+    public: Generated<boolean>;
+    gravite: string | null;
+  };
+  'plateforme.service_maintenance': {
+    id: Generated<string>;
+    titre: string;
+    texte: string;
+    debut: Date;
+    fin: Date;
+    annoncee_le: Date;
+    annoncee_par: string;
+    annulee_le: Date | null;
+    annulee_par: string | null;
   };
   'plateforme.service_minute': {
     minute: Date;
@@ -621,6 +675,25 @@ export interface BaseDeDonnees {
     motif: string;
     levee_le: Date | null;
     levee_par: string | null;
+  };
+  'plateforme.service_suite': {
+    id: Generated<string>;
+    incident: string;
+    titre: string;
+    responsable: string;
+    due_le: string;
+    faite_le: Date | null;
+    faite_par: string | null;
+    repoussee: Generated<number>;
+  };
+  'plateforme.service_tour': {
+    nom: string;
+    dernier_le: Date;
+    duree_ms: number;
+    ok: boolean;
+    compte: ColumnType<Json, string | undefined, string>;
+    echec_le: Date | null;
+    echec: string | null;
   };
   'plateforme.session_console': {
     id: Generated<string>;

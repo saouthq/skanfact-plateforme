@@ -17,6 +17,7 @@ import { useConsole, useLecture } from '../contexte.ts';
 import { Barres, Bande, Courbe, echelle, Trait, type Abscisse, type Case, type Contenu, type Ton } from '../graphes.tsx';
 import { decimal, duree, entier, minutes, pourCent } from '../nombres.ts';
 import { dans, heureDe, ilYA, jourCourt, jourMois, quand } from '../temps.ts';
+import { nomDeVersion } from '../version.ts';
 import { Alerte, Bouton, Icone, Lien, maj, Puce, Vide, type NomIcone, type TonPuce } from '../ui.tsx';
 
 const K = 'console.ecran.service';
@@ -50,7 +51,7 @@ type Donnees = {
   briques: Brique[]; nuits: Nuit[]; exercice: { jour: string; restauration: Resultat } | null;
   journal: Evenement[];
   machine: Machine[]; dernier: { minute: string; version: string | null; certificat: string | null; archiveLe: string | null; regles: LuDesRequetes | null } | null;
-  misesEnLigne: { version: string; le: string; retour: boolean }[]; enLigne: { version: string; depuis: string | null; vueArriver: boolean } | null;
+  misesEnLigne: { version: string; le: string; retour: boolean }[]; numeros?: Record<string, string>; enLigne: { version: string; depuis: string | null; vueArriver: boolean } | null;
   alertesEnCours: AlertesEnCours;
 };
 // Ce que la veille a pu lire des requêtes à son dernier relevé (exploitation/veille.ts, `requetes`).
@@ -272,7 +273,7 @@ function Tuiles({ d }: { d: Donnees }) {
   const enLigne = d.enLigne;
   const mises = selon(d.misesEnLigne.length, `${K}.tuile.mises`);
   const version = enLigne
-    ? <Tuile titre={titre(`${K}.tuile.version`)} valeur={enLigne.version.slice(0, 7)} donnee
+    ? <Tuile titre={titre(`${K}.tuile.version`)} valeur={nomDeVersion(enLigne.version, d.numeros)} donnee
         sous={`${enLigne.depuis ? dire(`${K}.tuile.${enLigne.vueArriver ? 'version_depuis' : 'version_deja'}`, { quand: quand(enLigne.depuis, d.aujourdhui) }) : dire(`${K}.tuile.version_avant`)} · ${mises}`} />
     : <Tuile titre={titre(`${K}.tuile.version`)} etat="nonmesure" valeur={titre(`${K}.dispo.non_mesure`)} mot sous={phrase(`${K}.tuile.version_non`)} />;
   return (
@@ -300,7 +301,7 @@ function reperes(d: Donnees) {
   for (const m of [...d.misesEnLigne].sort((a, b) => Date.parse(a.le) - Date.parse(b.le))) {
     const i = pasDe(m.le);
     if (i < 0 || i >= n) continue;
-    parPas.set(i, [...(parPas.get(i) ?? []), { version: m.version.slice(0, 7), retour: m.retour }]);
+    parPas.set(i, [...(parPas.get(i) ?? []), { version: nomDeVersion(m.version, d.numeros), retour: m.retour }]);
   }
   const marques: { i: number; texte: string; versions: { version: string; retour: boolean }[] }[] = [];
   for (const [i, versions] of [...parPas].sort((a, b) => b[0] - a[0])) {
@@ -637,7 +638,7 @@ function LigneEvenement({ e, d }: { e: Evenement; d: Donnees }) {
       <li>
         <span className="c-sv-evt-icone c-ton-bon"><Icone nom={e.retour ? 'retour' : 'version'} taille={15} /></span>
         <div className="c-sv-evt-texte">
-          <span className="c-sv-evt-quoi"><b>{titre(`${K}.journal.${e.retour ? 'retour' : 'version'}`)}</b> <span className="c-mono" data-donnee>{e.version.slice(0, 7)}</span></span>
+          <span className="c-sv-evt-quoi"><b>{titre(`${K}.journal.${e.retour ? 'retour' : 'version'}`)}</b> <span className="c-mono" data-donnee>{nomDeVersion(e.version, d.numeros)}</span></span>
           {quandEtQuoi('')}
         </div>
       </li>
@@ -749,13 +750,14 @@ function LaMachine({ d }: { d: Donnees }) {
 // puis, sur les vues autres que les alertes, l'alerte ouverte la plus urgente en une ligne, qui mène à sa page. L'onglet
 // des alertes porte le compte des alertes ouvertes, en rouge si l'une est grave : la même fonction, côté serveur, sur
 // chaque vue (C3).
-export type VueDuService = 'vue' | 'alertes' | 'incidents' | 'securite' | 'sauvegardes' | 'travaux' | 'performances';
+export type VueDuService = 'vue' | 'alertes' | 'incidents' | 'securite' | 'versions' | 'sauvegardes' | 'travaux' | 'performances';
 type PourEntete = { briques: Brique[]; maintenant: string; alertesEnCours: AlertesEnCours };
 const ONGLETS: readonly { vue: VueDuService; href: string }[] = [
   { vue: 'vue', href: '#/service' }, { vue: 'performances', href: '#/service/performances' },
   { vue: 'sauvegardes', href: '#/service/sauvegardes' }, { vue: 'travaux', href: '#/service/travaux' },
   { vue: 'alertes', href: '#/service/alertes' },
   { vue: 'incidents', href: '#/service/incidents' }, { vue: 'securite', href: '#/service/securite' },
+  { vue: 'versions', href: '#/service/versions' },
 ];
 
 // La pause de la relecture : une seule pour toutes les vues (on passe d'un onglet à l'autre sans la perdre), le temps de

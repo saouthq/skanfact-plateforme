@@ -557,9 +557,34 @@ règles et leurs chiffres ; les clés qui peuvent commander le serveur ; l'équi
 - Ce que l'écran ne prétend pas : la chaîne du journal n'est **pas encore relue** (l'écran le dit) ; l'accès d'urgence,
   bloquer une adresse et la date des autres secrets n'existent pas encore et ne sont pas montrés.
 
+**C27. Les versions du service** (10 § 2.8 ; base 0092 ; docs/mise-en-ligne.md B7). `#/service/versions`, la direction
+et la technique. Ce que le suiveur a installé et ce qu'il va faire, lu dans l'état qu'il écrit à chaque tour
+(`etat.json`), dans la base (les migrations, les versions vues par la veille, les consignes) et sur la machine.
+- **Chaque version se nomme par son numéro** (« v1.4.2 », `version` de `package.json`, lu par le suiveur) ; son
+  identifiant de commit se lit au survol. Une version d'avant la numérotation se dit par son identifiant court.
+- **Quatre chiffres** : la version en service (et depuis quand), le dernier tour du suiveur (au-delà de six minutes de
+  silence : « plus rien ne s'installe », en grave), la prochaine et où elle en est, la dernière migration de la base.
+- **La version en service et celle d'avant** : installée quand, en combien de temps, par le suiveur ou par un retour
+  demandé, ses migrations ; « revenir à … » si celle d'avant est encore parmi les trente dernières du dépôt (la base,
+  elle, ne recule jamais : une migration ne se défait pas).
+- **La prochaine version**, étape par étape : envoyée au dépôt, la vérification de l'envoi, toutes les preuves (selon
+  ce que ce serveur attend), l'installation ici (prête, en attente, retenue, gelée, rouge).
+- **Trois consignes au suiveur**, chacune avec son motif et au journal (`versions.geler`, `versions.retenir`,
+  `versions.revenir`, `versions.lever`) : **geler** les installations jusqu'à une date (quatorze jours au plus ; un retour
+  passe quand même) ; **retenir** une version, avec celles d'avant elle (la suivante s'installera) ; **revenir** à une
+  version d'avant (la quittée est retenue, pour ne pas se réinstaller au tour suivant). Une consigne se lève avec son
+  motif ; un retour fait (ou impossible) se note par le suiveur, avec sa raison. Une version retenue ne se propose plus
+  pour un retour : on lève d'abord sa consigne.
+- **L'historique** des installations (les quarante dernières, réussies ou non, à quelle étape), complété de ce que la
+  veille a vu tourner ; **les tâches d'entretien** du dépôt et ce que le suiveur en a noté ; **la machine** (le système,
+  Node, PostgreSQL, les correctifs automatiques, un redémarrage demandé).
+- Ce que l'écran ne prétend pas : les versions installées chez nos clients (l'application de bureau), la pré-production
+  et les deux exemplaires n'existent pas encore et ne sont pas montrés ; relancer les preuves d'une version se fait sur
+  GitHub, pas d'ici.
+
 ## Ce que le lot ne fait pas
 
-La suite de la console : les paiements et nos factures (14b), le support, la suite du service (ses versions ; la
+La suite de la console : les paiements et nos factures (14b), le support, la suite du service (la
 sécurité : l'accès d'urgence, bloquer une adresse, la chaîne du journal relue, la date des secrets ; le débit des travaux heure par heure, et les envois des e-mails, de la TEJ et de la CNSS, qui n'ont pas encore
 de trace), la mesure, les réglages de la plateforme, l'application de bureau (les licences de la v10), l'accès accordé par un client
 (48 heures, en lecture), et le filtre du journal par geste et par période. Le service ne se voit encore que du serveur

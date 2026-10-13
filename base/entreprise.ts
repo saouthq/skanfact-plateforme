@@ -139,6 +139,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.service_incident': { classe: 'hors', raison: 'les incidents du service, toutes entreprises mêlées, et leur compte rendu : l\'histoire de la plateforme' },
   'plateforme.service_incident_point': { classe: 'hors', raison: 'les points d\'un incident du service, écrits par l\'équipe SkanFact' },
   'plateforme.service_suite': { classe: 'hors', raison: 'les suites promises par le compte rendu d\'un incident du service, confiées à l\'équipe SkanFact' },
+  'plateforme.service_consigne': { classe: 'hors', raison: 'les consignes données au suiveur des versions (geler, retenir, revenir) : l\'exploitation de la plateforme' },
   'plateforme.service_tour': { classe: 'hors', raison: 'le dernier passage de chaque tour du serveur (facteur, postier, relances) : l\'état de la plateforme' },
   'plateforme.service_maintenance': { classe: 'hors', raison: 'les maintenances annoncées sur la page d\'état : l\'histoire de la plateforme' },
   'socle.dossier_v10_retire': { classe: 'hors', raison: 'les traces de retrait servent la relecture des postes ; après une restauration, un poste relit tout' },

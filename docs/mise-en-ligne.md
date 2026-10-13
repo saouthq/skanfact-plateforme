@@ -100,6 +100,18 @@ propres au simulateur ont été contournés pour l'essai seulement (git refusait
 Docker empêchait les services de démarrer) ; le second a fait ajouter à l'installation le démarrage explicite de la
 base.
 
+**B7. Le numéro de version et les consignes** (13/10/2026, décidé par Skander : « le numérotage normal, Vx.y.z, plus
+pro »). Chaque version porte un **numéro**, `version` de `package.json` (« 1.4.2 ») : on relève le dernier chiffre pour
+un correctif, celui du milieu pour une fonction, le premier pour une rupture. Un envoi qui change autre chose que la
+documentation le relève : `npm run verifier:brique` refuse sinon (deux versions différentes porteraient le même nom).
+Le suiveur lit le numéro de chaque version qu'il nomme (`git show <commit>:package.json`, une fois par commit, gardé
+ensuite dans l'état) et la console dit « v1.4.2 » ; l'identifiant du commit reste ce qui désigne une version pour les
+gestes, et se lit au survol. Un commit d'avant la numérotation se dit par son identifiant court ; deux commits sous le
+même numéro (un envoi qui ne l'a pas relevé) se distinguent par le leur. La première version numérotée est **1.0.0**.
+La console donne aussi au suiveur trois **consignes** (onglet Versions, docs/console.md C27) : geler les installations
+pour une période, retenir une version (et celles d'avant elle), revenir à une version d'avant. Il les lit dans la base
+à chaque tour (`plateforme.suiveur_consignes()`, en root) ; base illisible, il fait comme sans consigne et l'état le dit.
+
 **B bis. Deux sortes de serveurs** (décidé par Skander le 12/10/2026), le second mot de la ligne d'installation :
 
 | | `essai` (par défaut) | `pilotes` |

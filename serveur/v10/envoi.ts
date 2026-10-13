@@ -65,7 +65,10 @@ async function unEnvoi(ctx: Contexte, adresse: string, coffre: Buffer, d: Du & {
       { statut: 'a_envoyer' | 'deposee'; essais: number } | undefined;
     if (!x) return null;
     const f = (await tx.query(`select g.xml, p.numero_texte from ventes.efacture_signee g join ventes.piece p on p.id = g.piece where g.piece = $1`, [d.piece])).rows[0] as
-      { xml: string; numero_texte: string };
+      { xml: string; numero_texte: string } | undefined;
+    // Une pièce en route sans fichier signé (une ligne posée à la main) ne se dépose pas, et ne bloque pas les autres :
+    // le bail la tient à l'écart le temps d'un tour, la file continue.
+    if (!f) return null;
     const compte = (await tx.query('select ventes.ttn_compte_scelle($1) v', [d.entreprise])).rows[0]?.v as Pris['compte'];
     return { ...x, xml: f.xml, numero: f.numero_texte, compte };
   });

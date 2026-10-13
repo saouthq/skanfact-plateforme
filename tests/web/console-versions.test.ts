@@ -1,0 +1,151 @@
+// « Versions » du service, à la souris (Console 3e ; docs/console.md C27 ; serveur/console/versions.ts ;
+// web/console/src/ecrans/Versions.tsx). L'état du suiveur s'écrit à côté de la veille, comme le suiveur l'écrit. Ce que
+// le parcours vérifie :
+//   - l'onglet allumé, les quatre chiffres, chaque version nommée par son numéro (« v1.1.0 »), l'identifiant au survol ;
+//   - revenir à la version d'avant : un motif trop court se refuse, le bouton ne bouge pas quand on retape ; fait, la
+//     consigne se lit, et la version quittée ne se propose plus pour un retour ;
+//   - geler puis lever le gel, chacun avec son motif ;
+//   - au téléphone : rien ne déborde, l'historique se lit sans défilement de côté.
+
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import pg from 'pg';
+import { chromium, type Browser, type Page } from 'playwright-core';
+import { build } from 'vite';
+import { afterAll, beforeAll, beforeEach, describe, expect, inject, it } from 'vitest';
+import { ajouter as ajouterALEquipe } from '../../base/equipe.ts';
+import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
+import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
+import { cliquer } from '../cliquer.ts';
+
+const RACINE = path.join(import.meta.dirname, '../..');
+const MDP = 'Un-bon-mot-de-passe';
+const net = (t: string) => t.replace(/[\s  ]+/g, ' ').trim();
+const sha = (c: string) => c.repeat(40).slice(0, 40);
+const [A, B, C, D] = ['a', 'b', 'c', 'd'].map(sha) as [string, string, string, string];
+
+describe('les versions du service, à la souris', () => {
+  let navigateur: Browser;
+  let serveur: Awaited<ReturnType<typeof demarrer>>;
+  const admin = new pg.Client({ connectionString: inject('pgAdmin') });
+  const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-console-versions-'));
+  const veille = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'web-console-versions-veille-')), 'veille.json');
+  const etat = path.join(path.dirname(veille), 'public', 'etat.json');
+  const erreurs: string[] = [];
+  let jD = '';
+
+  const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
+    const r = await fetch(`${serveur.adresse}/v1${chemin}`, {
+      method: methode, headers: { ...(jeton ? { authorization: `Bearer ${jeton}` } : {}), ...(corps === undefined ? {} : { 'content-type': 'application/json' }) },
+      ...(corps === undefined ? {} : { body: JSON.stringify(corps) }), signal: AbortSignal.timeout(20_000),
+    });
+    const texte = await r.text();
+    return { statut: r.status, corps: (texte ? JSON.parse(texte) : {}) as Record<string, unknown> };
+  };
+  const ouvrir = async (largeur = 1440) => {
+    const cx = await navigateur.newContext({ viewport: { width: largeur, height: largeur < 600 ? 844 : 900 }, locale: 'fr-FR' });
+    await cx.addInitScript((j) => { sessionStorage.setItem('skanfact.console.jeton', j); }, jD);
+    const p = await cx.newPage();
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/console/#/service/versions`);
+    await expect.poll(() => p.locator('.c-ve-historique tbody tr').count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    return p;
+  };
+  const fermer = (p: Page) => p.context().close();
+
+  beforeAll(async () => {
+    await admin.connect();
+    await admin.query('delete from plateforme.service_consigne');
+    fs.writeFileSync(veille, JSON.stringify({ problemes: {} }));
+    const t = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
+    fs.mkdirSync(path.dirname(etat), { recursive: true });
+    // C en service (1.0.1), B avant elle (1.0.0), D la prochaine (1.1.0), A d'avant la numérotation.
+    fs.writeFileSync(etat, JSON.stringify({
+      version: C, installeeLe: t(60), regardeLe: t(1), derniere: D, verification: 'toutes', echec: null, taches: [],
+      commits: [{ version: D, titre: 'La remise des avoirs', le: t(10), verification: 'vert', preuves: 'en_cours' },
+        { version: C, titre: 'La sécurité du service', le: t(70) }, { version: B, titre: 'Les travaux du service', le: t(300) },
+        { version: A, titre: 'Les incidents du service', le: t(900) }],
+      installations: [{ version: C, debut: t(62), fin: t(60), ok: true, etape: null, retour: false },
+        { version: B, debut: t(302), fin: t(300), ok: true, etape: null, retour: false },
+        { version: A, debut: t(902), fin: t(900), ok: true, etape: null, retour: false }],
+      consignes: null, numeros: { [B]: '1.0.0', [C]: '1.0.1', [D]: '1.1.0' },
+    }));
+    await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
+    serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_VEILLE_FICHIER: veille }), port: 0, web: dossier, livreurMs: 60_000 });
+    navigateur = await chromium.launch();
+    const email = `console-versions-${Date.now()}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Amira Essai', motDePasse: MDP });
+    const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', jeton, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '';
+    await ajouterALEquipe(admin, email, 'direction', 'essai des versions à la souris');
+    const r = await api('POST', '/console/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Essai', type: 'navigateur' } });
+    jD = String((await api('POST', '/console/connexion/code', undefined, { defi: r.corps.defi, code: codeTotp(depuisBase32(secret), Date.now()) })).corps.jeton);
+  }, 180_000);
+  afterAll(async () => {
+    await admin.query('delete from plateforme.service_consigne');
+    await navigateur?.close(); await serveur?.arreter(); await admin.end();
+    fs.rmSync(dossier, { recursive: true, force: true }); fs.rmSync(path.dirname(veille), { recursive: true, force: true });
+  });
+  beforeEach(() => { fs.utimesSync(veille, new Date(), new Date()); });
+
+  it('l\'onglet allumé, les quatre chiffres ; chaque version se nomme par son numéro, son identifiant au survol', async () => {
+    const p = await ouvrir();
+    expect(net(await p.locator('.c-sv-onglets [aria-current="page"]').innerText())).toBe('Versions');
+    expect(await p.locator('.c-tr-tuiles .c-sv-tuile').count()).toBe(4);
+    const service = p.locator('.c-ve-service .c-ve-titre-version b');
+    expect(net(await service.innerText())).toBe('v1.0.1');
+    expect(await service.getAttribute('title')).toBe(C);
+    expect(net(await p.locator('.c-ve-prochaine .c-ve-titre-version b').innerText())).toBe('v1.1.0');
+    // Une version d'avant la numérotation se dit par son identifiant court.
+    expect(net(await p.locator('.c-ve-historique tbody').innerText())).toContain(A.slice(0, 7));
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
+  it('revenir à la version d\'avant : un motif court se refuse, le bouton ne bouge pas ; fait, la consigne se lit', async () => {
+    const p = await ouvrir();
+    await cliquer(p.locator('.c-ve-service').getByRole('button', { name: /Revenir à v1\.0\.0/ }));
+    const f = p.locator('[role="dialog"]');
+    expect(net(await f.locator('h2, h1').first().innerText())).toBe('Revenir à v1.0.0');
+    await f.locator('textarea').fill('ok');
+    const bouton = f.getByRole('button', { name: 'Revenir à v1.0.0', exact: true });
+    await cliquer(bouton);
+    await expect.poll(() => f.locator('.c-alerte-danger').count()).toBe(1);
+    const avant = await bouton.boundingBox();
+    await f.locator('textarea').pressSequentially(' : la remise se trompe');
+    expect((await bouton.boundingBox())?.y).toBe(avant?.y);
+    await cliquer(bouton);
+    await expect.poll(async () => net(await p.locator('.c-ve-consignes').innerText())).toContain('Retour à v1.0.0, en quittant v1.0.1');
+    // La version quittée (retenue) ne se propose plus pour un retour.
+    expect(await p.locator('.c-ve-historique').getByRole('button', { name: /Y revenir/ }).count()).toBe(0);
+    const g = (await admin.query("select motif from plateforme.geste_console where geste = 'versions.revenir' order by le desc limit 1")).rows[0];
+    expect(g?.motif).toBe('ok : la remise se trompe');
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
+  it('geler les installations, puis lever le gel : chacun avec son motif', async () => {
+    const p = await ouvrir();
+    await cliquer(p.locator('.c-ve-prochaine').getByRole('button', { name: /Geler les installations/ }));
+    const f = p.locator('[role="dialog"]');
+    await f.locator('textarea').fill('les déclarations du mois');
+    await cliquer(f.getByRole('button', { name: /^Geler jusqu/ }));
+    await expect.poll(async () => net(await p.locator('main').innerText())).toMatch(/Les installations sont gelées jusqu.au .*« les déclarations du mois »/);
+    await cliquer(p.getByRole('button', { name: /Lever le gel/ }).first());
+    await f.locator('textarea').fill('elles sont parties');
+    await cliquer(f.getByRole('button', { name: 'Lever le gel', exact: true }));
+    await expect.poll(async () => net(await p.locator('main').innerText())).not.toMatch(/Les installations sont gelées/);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
+  it('au téléphone : rien ne déborde, l\'historique se lit sans défilement de côté', async () => {
+    const p = await ouvrir(390);
+    expect(await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+    expect(await p.locator('.c-ve-table').evaluate((t) => t.scrollWidth - (t.parentElement?.clientWidth ?? 0))).toBeLessThanOrEqual(0);
+    expect(await p.locator('.c-ve-table thead').isVisible()).toBe(false);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+});

@@ -11923,7 +11923,7 @@ prouver "un numéro d'incident qui saute" base/migrations/0089_service_incidents
 prouver "la page d'état qui annonce le moins grave" base/migrations/0089_service_incidents.sql \
   'order by plateforme.rang_gravite(i.gravite) desc, i.public_le desc limit 1' 'order by plateforme.rang_gravite(i.gravite), i.public_le desc limit 1' \
   "$IN1"
-prouver "une gravité qui redescend en silence" base/migrations/0089_service_incidents.sql \
+prouver "une gravité qui redescend en silence" base/migrations/0092_service_versions.sql \
   'if plateforme.rang_gravite(p_gravite) < plateforme.rang_gravite(v_i.gravite) then' 'if false then' \
   "$IN2"
 prouver "un message retiré deux fois sans le dire" base/migrations/0089_service_incidents.sql \
@@ -12046,6 +12046,50 @@ prouver "le refus effacé à la frappe, qui fait remonter le bouton" web/console
 prouver "l'équipe en tableau coupé au téléphone" web/console/src/console.css \
   "  .c-se-table thead { display: none; }" "" \
   "$SEW4"
+
+# Les versions du service (docs/console.md C27, base 0092) : les consignes du suiveur (retenir, geler, revenir), leur
+# journal, le numéro « v1.4.2 » que chaque version déclare, et ce qui ne bloque plus le facteur El Fatoora.
+VE1='une version retenue ne s'"'"'installe plus, ni aucune d'"'"'avant elle : on attend la suivante'
+VE2='un retour passe avant tout, gel compris ; une version inconnue, déjà en service ou sans le suiveur se dit sans rien installer'
+VE3='retenir, geler, revenir : chaque consigne a son motif, entre au journal, et le suiveur la lit'
+VE4='le suiveur lit le numéro d'"'"'un package.json ; ce qui n'"'"'en est pas un vaut null'
+VE5='un commit déjà lu ne se relit pas (même sans numéro) ; seul un commit neuf se lit, une fois'
+VE6='la console relit les numéros prudemment, et nomme une version par son numéro, sinon son identifiant court'
+VE7='le dépôt déclare un numéro que le suiveur sait lire'
+VE8='une gravité monte, elle ne descend pas ; retirer le message rend la page à la veille ; le journal garde le numéro'
+prouver "une version retenue qui laisse passer celles d'avant elle" exploitation/suivre.ts \
+  "if (i >= 0) for (const v of versions.slice(i)) exclues.add(v);" "if (i >= 0) exclues.add(r);" \
+  "$VE1"
+prouver "un gel qui passe avant le retour demandé" exploitation/suivre.ts \
+  "  if (c.retour) {
+    const v = c.retour.version;" "  if (c.gel && Date.parse(c.gel.jusquAu) > maintenant.getTime()) return { sorte: 'gel' };
+  if (c.retour) {
+    const v = c.retour.version;" \
+  "$VE2"
+prouver "retenir la version en service" serveur/console/routes.ts \
+  "if (e && corps.version === e.version) return refusVersion('console.versions.retenir_en_service');" "" \
+  "$VE3"
+prouver "un numéro de version qui n'en est pas un" exploitation/suivre.ts \
+  "return typeof v === 'string' && NUMERO.test(v) ? v : null;" "return typeof v === 'string' ? v : null;" \
+  "$VE4"
+prouver "chaque commit relu à chaque tour" exploitation/suivre.ts \
+  "const n = avant && Object.hasOwn(avant, v) ? avant[v] ?? null : lire(v);" "const n = lire(v);" \
+  "$VE5"
+prouver "une lecture ratée gardée comme « sans numéro »" exploitation/suivre.ts \
+  "    if (n !== undefined) r[v] = n;" "    r[v] = n ?? null;" \
+  "$VE5"
+prouver "deux commits sous le même numéro qu'on ne distingue plus" web/console/src/version.ts \
+  "return double ? \`v\${n} · \${sha.slice(0, 7)}\` : \`v\${n}\`;" "return \`v\${n}\`;" \
+  "$VE6"
+prouver "un numéro de l'état relu sans contrôle" serveur/console/versions.ts \
+  "SHA.test(x[0]) && typeof x[1] === 'string' && NUMERO.test(x[1])" "typeof x[1] === 'string'" \
+  "$VE6"
+prouver "le dépôt sans numéro de version" package.json \
+  '  "version": "1.0.0",' '' \
+  "$VE7"
+prouver "la gravité d'un incident absente du catalogue des textes" textes/base.ts \
+  '  { base: '"'"'une gravité monte, elle ne descend pas : l\'"'"'incident reste au moins %s'"'"', cle: '"'"'base.console.gravite_descend'"'"', fr: '"'"'une gravité monte, elle ne descend pas : l\'"'"'incident reste au moins {gravite}'"'"', valeurs: ['"'"'gravite'"'"'] },' "" \
+  "$VE8"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

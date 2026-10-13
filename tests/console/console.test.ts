@@ -853,7 +853,12 @@ describe('les incidents du service et la page d\'état (0089, docs/console.md C2
   it('une gravité monte, elle ne descend pas ; retirer le message rend la page à la veille ; le journal garde le numéro', async () => {
     const baisse = await appeler('POST', `/console/service/incidents/${id}/points`, jT, { texte: 'ça va mieux', public: false, gravite: 'mineur' });
     expect(baisse.statut).toBe(403);
-    expect(String(baisse.corps.motif)).toMatch(/ne descend pas/);
+    // La gravité se dit comme une valeur (0092 : format(), reconnu au catalogue), jamais collée au texte.
+    expect(baisse.corps.motif).toBe('Une gravité monte, elle ne descend pas : l\'incident reste au moins majeur.');
+    // Reconnue au catalogue, elle se traduit : dans la langue d'essai, plus un mot n'est celui de la base.
+    const factice = await app.inject({ method: 'POST', url: `${VERSION}/console/service/incidents/${id}/points`,
+      headers: { authorization: `Bearer ${jT}`, 'x-langue': 'factice' }, payload: { texte: 'ça va mieux', public: false, gravite: 'mineur' } });
+    expect(String(factice.json().motif)).not.toContain('descend pas');
     expect((await appeler('POST', `/console/service/incidents/${id}/points`, jT, { texte: 'La base aussi', public: false, gravite: 'critique' })).statut).toBe(201);
     expect((await lire()).ouverts[0]).toMatchObject({ gravite: 'critique' });
     expect((await appeler('POST', `/console/service/incidents/${id}/retirer`, jT, { motif: ' ' })).statut).toBe(400);
@@ -1059,5 +1064,85 @@ describe('la sécurité du service (0091, docs/console.md C26)', () => {
   it('la base refuse hors d\'une session de la console', async () => {
     await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_service_securite(now())'))).rejects.toThrow(/session de la console/);
     await expect(enTantQue(pool, direction.id, (tx) => tx.query("select plateforme.console_lever_attente('x', 'hors console', now())"))).rejects.toThrow(/session de la console/);
+  });
+});
+
+describe('les versions du service (0092, docs/console.md C27)', () => {
+  const sha = (c: string) => c.repeat(40).slice(0, 40);
+  const [A, B, C, D] = ['a', 'b', 'c', 'd'].map(sha) as [string, string, string, string];
+  const etat = path.join(path.dirname(veille), 'public', 'etat.json');
+  const consignes = async () => JSON.parse(String((await admin.query('select plateforme.suiveur_consignes()::text j')).rows[0].j)) as { gel: unknown; retenues: string[]; retour: { id: string; version: string } | null };
+
+  beforeAll(async () => {
+    fs.mkdirSync(path.dirname(etat), { recursive: true });
+    fs.writeFileSync(etat, JSON.stringify({
+      version: C, installeeLe: horloge.toISOString(), regardeLe: horloge.toISOString(), derniere: D, verification: 'toutes', echec: null, taches: [],
+      commits: [{ version: D, titre: 'La suivante', le: horloge.toISOString(), verification: 'vert', preuves: 'en_cours' },
+        { version: C, titre: 'En service', le: horloge.toISOString() }, { version: B, titre: 'D\'avant', le: horloge.toISOString() }],
+      installations: [{ version: C, debut: horloge.toISOString(), fin: horloge.toISOString(), ok: true, etape: null, retour: false }],
+      consignes: null, numeros: { [C]: '1.0.0', [D]: '1.1.0', [B]: 'pas-un-numero' },
+    }));
+    await admin.query('delete from plateforme.service_consigne');
+  });
+  afterAll(() => { fs.rmSync(etat, { force: true }); });
+
+  it('la direction et la technique lisent la version en service, la prochaine, la base et la machine ; le support non', async () => {
+    expect((await appeler('GET', '/console/service/versions', jS)).statut).toBe(403);
+    const r = await appeler('GET', '/console/service/versions', jT);
+    expect(r.statut).toBe(200);
+    expect(r.corps).toMatchObject({ suiveur: { version: C, verification: 'toutes' }, prochaine: { version: D, etat: 'attend_preuves' }, titres: { [C]: 'En service' } });
+    // Le numéro que chaque version déclare (package.json), relu prudemment : ce qui n'en est pas un ne passe pas.
+    expect(r.corps.numeros).toEqual({ [C]: '1.0.0', [D]: '1.1.0' });
+    expect((r.corps.migrations as { numero: number }[])[0]?.numero).toBeGreaterThanOrEqual(92);
+    expect((r.corps.machine as { node: string; postgres: string | null })).toMatchObject({ node: process.version });
+    expect((r.corps.machine as { postgres: string | null }).postgres).toMatch(/^\d+/);
+    // Les tâches du dépôt, avec leur titre.
+    expect((r.corps.taches as { numero: string; titre: string | null }[]).every((t) => t.titre)).toBe(true);
+  });
+
+  it('retenir, geler, revenir : chaque consigne a son motif, entre au journal, et le suiveur la lit', async () => {
+    expect((await appeler('POST', '/console/service/versions/retenir', jS, { version: D, motif: 'la remise se trompe' })).statut).toBe(403);
+    expect((await appeler('POST', '/console/service/versions/retenir', jT, { version: D, motif: 'ok' })).statut).toBe(400);
+    // Retenir la version en service n'a pas de sens : on revient en arrière.
+    expect((await appeler('POST', '/console/service/versions/retenir', jT, { version: C, motif: 'elle se trompe' })).corps.champ).toBe('version');
+    expect((await appeler('POST', '/console/service/versions/retenir', jT, { version: D, motif: 'la remise se trompe' })).statut).toBe(201);
+    expect((await appeler('POST', '/console/service/versions/retenir', jT, { version: D, motif: 'encore' })).statut).toBe(403);
+    expect((await consignes()).retenues).toEqual([D]);
+    const jusquAu = new Date(horloge.getTime() + 24 * 3_600_000).toISOString();
+    expect((await appeler('POST', '/console/service/versions/geler', jD, { jusquAu, motif: 'les déclarations du mois' })).statut).toBe(201);
+    expect((await appeler('POST', '/console/service/versions/geler', jD, { jusquAu, motif: 'un second gel' })).statut).toBe(403);
+    const trop = new Date(horloge.getTime() + 15 * 86_400_000).toISOString();
+    expect((await appeler('POST', '/console/service/versions/geler', jD, { jusquAu: trop, motif: 'trop long' })).statut).toBe(403);
+    expect((await consignes()).gel).toMatchObject({ motif: 'les déclarations du mois' });
+    // Revenir : à une version que le suiveur connaît, en quittant celle qu'il dit en service.
+    expect((await appeler('POST', '/console/service/versions/revenir', jT, { version: A, motif: 'C casse les remises' })).corps.champ).toBe('version');
+    expect((await appeler('POST', '/console/service/versions/revenir', jT, { version: B, motif: 'C casse les remises' })).statut).toBe(201);
+    expect((await appeler('POST', '/console/service/versions/revenir', jT, { version: B, motif: 'deux fois' })).statut).toBe(403);
+    const c = await consignes();
+    expect(c.retour?.version).toBe(B);
+    expect(c.retenues.sort()).toEqual([C, D].sort());
+    const gestes = (await admin.query("select geste, motif from plateforme.geste_console where geste like 'versions.%' order by le")).rows;
+    expect(gestes.map((g) => g.geste)).toEqual(['versions.retenir', 'versions.geler', 'versions.revenir']);
+    // Le suiveur note le retour fait : il ne le refait pas, et C reste retenue.
+    await admin.query('select plateforme.suiveur_noter_retour($1, true, $2)', [c.retour?.id, 'installee']);
+    expect((await consignes()).retour).toBeNull();
+    expect((await consignes()).retenues).toContain(C);
+  });
+
+  it('lever une consigne : son motif, au journal ; une consigne levée ne se lève plus', async () => {
+    const lu = (await appeler('GET', '/console/service/versions', jD)).corps.consignes as { id: string; sorte: string; enVigueur: boolean }[];
+    const gel = lu.find((x) => x.sorte === 'gel' && x.enVigueur);
+    expect(gel).toBeTruthy();
+    expect((await appeler('POST', `/console/service/versions/consignes/${gel?.id}/lever`, jD, { motif: 'les déclarations sont parties' })).statut).toBe(200);
+    expect((await consignes()).gel).toBeNull();
+    expect((await appeler('POST', `/console/service/versions/consignes/${gel?.id}/lever`, jD, { motif: 'encore' })).statut).toBe(403);
+    expect((await appeler('POST', '/console/service/versions/consignes/pas-un-id/lever', jD, { motif: 'encore' })).statut).toBe(404);
+    expect((await admin.query("select count(*)::int n from plateforme.geste_console where geste = 'versions.lever'")).rows[0].n).toBe(1);
+  });
+
+  it('le serveur ne lit pas les consignes du suiveur, et la base refuse hors d\'une session de la console', async () => {
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.suiveur_consignes()'))).rejects.toThrow(/permission/);
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_service_versions(now())'))).rejects.toThrow(/session de la console/);
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query(`select plateforme.console_versions_retenir('${D}', 'hors console', now())`))).rejects.toThrow(/session de la console/);
   });
 });

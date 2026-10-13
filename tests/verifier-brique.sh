@@ -19,8 +19,19 @@ etape "Types"; npm run -s types || exit 1
 etape "Lint"; npm run -s lint || exit 1
 etape "Contrôle éclair des preuves"; bash tests/verif-preuves.sh || exit 1
 
-etape "Tests ciblés (changés depuis $BASE)"
 changes="$( { git diff --name-only "$BASE" --; git ls-files --others --exclude-standard; } | sort -u)"
+
+# Le numéro de version (package.json, « 1.4.2 ») est celui que la console montre pour chaque version en service : un
+# envoi qui change autre chose que la documentation le relève (correctif 1.0.x, fonction 1.x.0, rupture x.0.0). Sans
+# lui, deux versions différentes porteraient le même nom (docs/mise-en-ligne.md B7).
+etape "Numéro de version"
+num() { node -e 'let s="";process.stdin.on("data",(d)=>{s+=d}).on("end",()=>{try{process.stdout.write(String(JSON.parse(s).version??""))}catch{}})'; }
+avant="$(git show "$BASE:package.json" 2>/dev/null | num)"; apres="$(num <package.json)"
+if [ -n "$changes" ] && grep -qvE '^docs/|\.md$' <<<"$changes" && [ "$avant" = "$apres" ]; then
+  echo "le numéro de version n'a pas bougé depuis $BASE (package.json : ${apres:-aucun}) : relève-le (correctif x.y.Z, fonction x.Y.0)" >&2; exit 1
+fi
+echo "${avant:-aucun} → $apres"
+etape "Tests ciblés (changés depuis $BASE)"
 choisis="$(
   while read -r f; do
     [ -f "$f" ] || continue

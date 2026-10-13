@@ -722,6 +722,10 @@
 - Branche **`main`** pour l'instant (dépôt neuf, pas encore de publication). Pas de PR sans demande.
 - Messages de commit en français, terminés par les lignes `Co-Authored-By` et `Claude-Session`
   fournies par la session. Aucun identifiant de modèle dans ce qui est envoyé.
+- **Chaque envoi relève le numéro de version** (`version` de `package.json`, « 1.4.2 » ; décidé par Skander le
+  13/10/2026) : correctif x.y.Z, fonction x.Y.0, rupture X.0.0. C'est le nom que la console donne à la version en
+  service ; `npm run verifier:brique` refuse un envoi qui change autre chose que la documentation sans l'avoir relevé
+  (docs/mise-en-ligne.md B7).
 
 ## Commandes
 
