@@ -12294,6 +12294,12 @@ prouver "le support qui voit les gestes de la direction" $RGE \
 prouver "la frise des échéances qui déborde au téléphone" web/console/src/console.css \
   "grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }" "grid-template-columns: repeat(5, minmax(150px, 1fr)); gap: 10px; }" \
   "$RGW6"
+# Un droit de la console sans son libellé dans l'écran Équipe : le tableau des droits ne s'affichait plus du tout
+# (trouvé le 13/10/2026 par la vérification avant l'envoi : « console.reglages.voir » ajouté sans ses textes).
+prouver "un droit de la console sans libellé dans l'écran Équipe" web/console/src/textes.ts \
+  "  'console.ecran.equipe.droit.console.reglages.gerer': 'noter la relecture d\\'une règle, écrire ou retirer le message aux clients',
+" "" \
+  "chaque droit que la route rend a son libellé et sa phrase"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

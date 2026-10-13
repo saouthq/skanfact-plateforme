@@ -6,6 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { LISTE_GESTES_CONSOLE } from '../../serveur/console/gestes.ts';
 import { texteConnu } from '../../textes/index.ts';
 import '../../web/console/src/textes.ts';
 
@@ -72,5 +73,20 @@ describe('les gestes du journal de la console', () => {
     expect(journal).toContain('titre(`console.ecran.journal.g.${l.geste.replaceAll(\'-\', \'_\')}`)');
     const sansLibelle = [...gestes].filter((g) => !texteConnu(`console.ecran.journal.g.${g.replaceAll('-', '_')}`));
     expect(sansLibelle).toEqual([]);
+  });
+});
+
+// Les droits de la console (serveur/console/gestes.ts) : l'écran Équipe en fait une ligne chacun, avec son libellé et sa
+// phrase. Un droit ajouté sans eux cassait le tableau entier (trouvé le 13/10/2026 : « console.reglages.voir » ajouté
+// avec l'écran Réglages, et l'écran Équipe ne montrait plus aucun droit).
+describe('les droits de la console, dans l\'écran Équipe', () => {
+  it('chaque droit que la route rend a son libellé et sa phrase (les clés que Equipe.tsx lit)', () => {
+    const equipe = fs.readFileSync(path.join(RACINE, 'web/console/src/ecrans/Equipe.tsx'), 'utf8');
+    expect(equipe).toContain('titre(`console.ecran.equipe.droit.${d.code}`)');
+    expect(equipe).toContain('phrase(`console.ecran.equipe.droit.${d.code}_sous`)');
+    const droits = LISTE_GESTES_CONSOLE.filter((g) => g.code !== 'console.session');
+    expect(droits.length).toBeGreaterThanOrEqual(12);
+    const sansTexte = droits.flatMap((g) => [`console.ecran.equipe.droit.${g.code}`, `console.ecran.equipe.droit.${g.code}_sous`]).filter((k) => !texteConnu(k));
+    expect(sansTexte).toEqual([]);
   });
 });

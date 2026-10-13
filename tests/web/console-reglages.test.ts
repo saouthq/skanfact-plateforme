@@ -92,12 +92,13 @@ describe('les réglages de la plateforme, à la souris', () => {
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_VEILLE_FICHIER: veille }), port: 0, web: dossier, livreurMs: 60_000 });
     navigateur = await chromium.launch();
-    jD = await membre('Amira Essai', 'direction');
-    jS = await membre('Karim Essai', 'support');
+    // Des noms à ce fichier : les autres écrans de la console écrivent dans la même base (le journal liste chacun).
+    jD = await membre('Amira Réglages', 'direction');
+    jS = await membre('Karim Réglages', 'support');
     const email = `client-reglages-${Date.now()}@exemple.tn`;
-    await api('POST', '/inscription', undefined, { email, nom: 'Lina Essai', motDePasse: MDP });
+    await api('POST', '/inscription', undefined, { email, nom: 'Lina Réglages', motDePasse: MDP });
     jClient = String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
-    ent = String((await api('POST', '/entreprises', jClient, { raisonSociale: 'Studio Lina Essai' })).corps.id);
+    ent = String((await api('POST', '/entreprises', jClient, { raisonSociale: 'Studio Lina Réglages' })).corps.id);
   }, 180_000);
   afterAll(async () => {
     // Aucun message ne reste affiché : les parcours suivants ouvrent l'application des clients sans lui.
@@ -133,7 +134,7 @@ describe('les réglages de la plateforme, à la souris', () => {
     await f.locator('textarea').last().fill('relue au téléphone');
     await cliquer(f.getByRole('button', { name: 'Noter la relecture', exact: true }));
     await expect.poll(() => f.count()).toBe(0);
-    await expect.poll(async () => net(await carte.innerText())).toMatch(/Relue le \d\d\/\d\d\/\d{4} par Mehdi Gharbi, cabinet pilote : à corriger\. Noté par Amira Essai\./);
+    await expect.poll(async () => net(await carte.innerText())).toMatch(/Relue le \d\d\/\d\d\/\d{4} par Mehdi Gharbi, cabinet pilote : à corriger\. Noté par Amira Réglages\./);
     expect(net(await carte.innerText())).toContain('« Vérifie l\'article cité. »');
     expect(erreurs).toEqual([]);
     await fermer(p);
@@ -187,7 +188,7 @@ describe('les réglages de la plateforme, à la souris', () => {
     await ecrire(p, 'La relance automatique des devis arrive dans SkanFact.', 'nouveaute', 'annonce de la relance');
     await expect.poll(async () => net(await p.locator('.c-rg-actuel').innerText())).toContain('La relance automatique des devis arrive dans SkanFact.');
     // Qui l'a écrit et pourquoi, sans point derrière les deux-points ; et pas encore de message passé.
-    expect(net(await p.locator('.c-rg-actuel').innerText())).toMatch(/Écrit par Amira Essai, aujourd'hui, \d\d:\d\d : « annonce de la relance »$/);
+    expect(net(await p.locator('.c-rg-actuel').innerText())).toMatch(/Écrit par Amira Réglages, aujourd'hui, \d\d:\d\d : « annonce de la relance »$/);
     expect(net(await p.locator('main').innerText())).toContain('Aucun message passé : celui d\'au-dessus est le premier.');
     let c = await client();
     const bandeau = c.locator('#view > .sk-message');

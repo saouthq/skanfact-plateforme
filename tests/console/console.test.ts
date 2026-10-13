@@ -1122,7 +1122,9 @@ describe('les versions du service (0092, docs/console.md C27)', () => {
     const c = await consignes();
     expect(c.retour?.version).toBe(B);
     expect(c.retenues.sort()).toEqual([C, D].sort());
-    const gestes = (await admin.query("select geste, motif from plateforme.geste_console where geste like 'versions.%' order by le")).rows;
+    // Les gestes de CE fichier : l'écran (tests/web/console-versions.test.ts) écrit les siens, avec ses comptes.
+    const gestes = (await admin.query("select geste, motif from plateforme.geste_console where geste like 'versions.%' and qui = any($1) order by le, id",
+      [[direction.id, technique.id]])).rows;
     expect(gestes.map((g) => g.geste)).toEqual(['versions.retenir', 'versions.geler', 'versions.revenir']);
     // Le suiveur note le retour fait : il ne le refait pas, et C reste retenue.
     await admin.query('select plateforme.suiveur_noter_retour($1, true, $2)', [c.retour?.id, 'installee']);
@@ -1138,7 +1140,8 @@ describe('les versions du service (0092, docs/console.md C27)', () => {
     expect((await consignes()).gel).toBeNull();
     expect((await appeler('POST', `/console/service/versions/consignes/${gel?.id}/lever`, jD, { motif: 'encore' })).statut).toBe(403);
     expect((await appeler('POST', '/console/service/versions/consignes/pas-un-id/lever', jD, { motif: 'encore' })).statut).toBe(404);
-    expect((await admin.query("select count(*)::int n from plateforme.geste_console where geste = 'versions.lever'")).rows[0].n).toBe(1);
+    expect((await admin.query("select count(*)::int n from plateforme.geste_console where geste = 'versions.lever' and qui = any($1)",
+      [[direction.id, technique.id]])).rows[0].n).toBe(1);
   });
 
   it('le serveur ne lit pas les consignes du suiveur, et la base refuse hors d\'une session de la console', async () => {
@@ -1255,7 +1258,9 @@ describe('les réglages de la plateforme (0093, docs/console.md C28)', () => {
     expect(lu.message).toBeNull();
     expect((lu.passes as Record<string, unknown>[])[0]).toMatchObject({ id: m.id, retirePar: direction.nom, retireMotif: 'maintenance reportée', remplace: false });
     // Au journal : trois messages affichés, un retiré, chacun par ses deux jours.
-    const gestes = (await admin.query("select geste from plateforme.geste_console where geste like 'reglages.message%' order by le")).rows.map((g) => g.geste);
+    // Les gestes de CE fichier : l'écran (tests/web/console-reglages.test.ts) écrit les siens, avec ses comptes.
+    const gestes = (await admin.query("select geste from plateforme.geste_console where geste like 'reglages.message%' and qui = $1 order by le, id",
+      [direction.id])).rows.map((g) => g.geste);
     expect(gestes).toEqual(['reglages.message_affiche', 'reglages.message_affiche', 'reglages.message_retire']);
     const journal = (await appeler('GET', '/console/journal', jD)).corps.lignes as { geste: string; reglages?: Record<string, unknown> }[];
     expect(journal.find((l) => l.geste === 'reglages.message_retire')?.reglages).toMatchObject({ du: m.du, au: m.au });
