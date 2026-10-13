@@ -2,7 +2,7 @@
 
 *30/09/2026, brique 93. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 (au lancement :
 « Prix par client ou par catégorie ») et `01-modele-de-donnees.md` § 5 (`liste_prix` : « prix par client ou par
-catégorie de client, avec dates d'effet »), dans le dépôt `skanfact`. Décisions prises par délégation, le
+catégorie de client, avec dates d'effet »). Décisions prises par délégation, le
 30/09/2026.*
 
 ## Ce que fait la brique 93

@@ -1,7 +1,6 @@
 # Le paiement en ligne
 
-*30/09/2026, brique 78. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 2.2 du
-dépôt `skanfact` (Konnect au lancement ; l'argent va chez l'entreprise ; la preuve auprès de Konnect ; le
+*30/09/2026, brique 78. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 2.2 (Konnect au lancement ; l'argent va chez l'entreprise ; la preuve auprès de Konnect ; le
 règlement qui se crée tout seul). Ce document dit ce qui en est fait ; toutes les décisions sont prises
 par délégation, le 30/09/2026. Il complète `docs/espace-client.md` (brique 77).*
 

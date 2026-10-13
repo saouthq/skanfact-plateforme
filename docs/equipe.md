@@ -1,7 +1,6 @@
 # L'équipe de l'entreprise
 
-*12/10/2026, lot équipe (« a » de la liste du 11/10). Le cadrage fait foi : `docs/cadrage/03-droits.md` du dépôt
-`skanfact` (§ 2, les rôles ; § 3, D3 à D7 ; § 4.1, qui compte comme utilisateur). Ce document dit ce qui en est fait ;
+*12/10/2026, lot équipe (« a » de la liste du 11/10). Le cadrage fait foi : `docs/cadrage/03-droits.md` (§ 2, les rôles ; § 3, D3 à D7 ; § 4.1, qui compte comme utilisateur). Ce document dit ce qui en est fait ;
 les décisions marquées « par délégation » sont prises le 12/10/2026.*
 
 Le serveur savait inviter, changer un rôle et retirer quelqu'un depuis la brique 46 (`0003`) ; **aucun écran ne le

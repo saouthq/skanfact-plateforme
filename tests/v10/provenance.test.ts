@@ -26,6 +26,23 @@ describe('la reprise du code v10', () => {
     }
   });
 
+  it('la source de la v10 est figée dans ce dépôt, telle qu\'elle a été copiée, sans un fichier de plus', () => {
+    // Depuis le 13/10/2026 la v10 n'a plus d'utilisateurs et son dépôt est archivé : la reprise lit web/v10/source.
+    // Une retouche passe par une adaptation écrite, jamais par la source (sinon elle échapperait à toute relecture).
+    const SOURCE = path.join(import.meta.dirname, '../../web/v10/source');
+    const origine = JSON.parse(fs.readFileSync(path.join(SOURCE, 'ORIGINE.json'), 'utf8')) as {
+      depot: string; branche: string; commit: string; fichiers: Record<string, string>;
+    };
+    expect(origine).toMatchObject({ depot: 'saouthq/skanfact', branche: 'beta', commit: provenance.commit });
+    const presents = (fs.readdirSync(SOURCE, { recursive: true }) as string[]).map((f) => f.split(path.sep).join('/'))
+      .filter((f) => f !== 'ORIGINE.json' && fs.statSync(path.join(SOURCE, f)).isFile()).sort();
+    expect(presents).toEqual(Object.keys(origine.fichiers).sort());
+    for (const f of presents) {
+      expect({ f, empreinte: createHash('sha256').update(fs.readFileSync(path.join(SOURCE, f))).digest('hex') })
+        .toEqual({ f, empreinte: origine.fichiers[f] });
+    }
+  });
+
   it('la reprise vient de la v10 publiée, et chaque adaptation écrite est dans le code repris', () => {
     expect(provenance).toMatchObject({ depot: 'saouthq/skanfact', branche: 'beta', adaptations: ADAPTATIONS.length });
     // Une adaptation laisse sa trace, ou une adaptation PLUS RÉCENTE du même fichier l'a réécrite exprès : son « avant »

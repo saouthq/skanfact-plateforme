@@ -112,9 +112,9 @@ vaut pour tout le dépôt.*
   `exploitation/sms.sh`) est facultatif (Skander, 12/10/2026 ; 0081) ; les messages à l'exploitant
   (`ConfigurationFausse`, `console.*`) sont hors du catalogue.
 - **L'application web EST le code de la v10** (Skander, 28/09/2026 : « récupérer le même code et
-  l'adapter », `VISION-ARCHITECTURE.md` § 4.8 du dépôt `skanfact`). Les fichiers de
-  `src/renderer` (branche `beta`) sont copiés TELS QUELS dans `web/public/v10` par
-  `npm run reprendre-v10 -- /chemin/de/skanfact` ; seules les retouches écrites dans
+  l'adapter », `VISION-ARCHITECTURE.md` § 4.8). Les fichiers de
+  `src/renderer` (branche `beta`, figés depuis le 13/10/2026 dans `web/v10/source`) sont copiés TELS QUELS dans
+  `web/public/v10` par `npm run reprendre-v10` ; seules les retouches écrites dans
   `web/v10/adaptations.mjs` (chacune avec sa raison) y sont appliquées, et
   `tests/v10/provenance.test.ts` refuse toute retouche à la main. La copie s'est faite une fois ;
   la plateforme est désormais la seule maison des écrans (une correction urgente de la v10 en

@@ -1,0 +1,836 @@
+/* Ce qui est propre au cabinet. Tout le reste vient de style.css, partagé avec l'app entreprise :
+   un comptable qui ouvre les deux doit voir la même famille de logiciel. */
+
+/* La bande de mois d'un dossier : douze cases, une couleur, rien à lire. C'est l'écran qui répond
+   à « où en est ce client ». */
+/* Les douze mois d'une année sur une GRILLE fixe, pas un `flex-wrap` : les colonnes tombent les
+   unes sous les autres d'une année à l'autre, donc « Mars 2025 » est au-dessus de « Mars 2026 » et
+   on compare deux exercices d'un coup d'oeil. Avec `flex`, chaque ligne se recalait sur son propre
+   contenu et rien ne s'alignait. */
+.mgrid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; flex: 1; min-width: 0; }
+.mcell {
+  border-radius: 10px; padding: 8px 10px; border: 1px solid var(--border);
+  background: var(--panel); text-align: start; font: inherit; cursor: default;
+  display: block; width: 100%; min-width: 0;
+}
+.mcell .m-lab { font-size: 11px; color: var(--muted); text-transform: capitalize; }
+.mcell .m-st { font-size: 12.5px; font-weight: 650; margin-top: 2px; }
+.mcell.complet { background: var(--success-soft); border-color: transparent; }
+.mcell.complet .m-st { color: var(--success); }
+.mcell.provisoire { background: var(--warning-soft); border-color: transparent; }
+.mcell.provisoire .m-st { color: var(--warning); }
+.mcell.manquant { background: var(--danger-soft); border-color: transparent; }
+.mcell.manquant .m-st { color: var(--danger); }
+.mcell.clickable { cursor: pointer; }
+.mcell.clickable:hover { box-shadow: 0 4px 14px rgba(20,40,60,.12); }
+.mcell.clickable:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* Un mois hors mission EXISTE et se voit — c'est lui qui explique pourquoi l'année commence en
+   mars. Il est en retrait, sans couleur d'état : il ne réclame rien et n'a pas de geste. */
+.mcell.hors { background: transparent; border-style: dashed; opacity: .55; }
+.mcell.hors .m-st { color: var(--muted); font-weight: 500; }
+.mcell[disabled] { opacity: .6; }
+/* Sur un portable, douze colonnes donneraient des cases de 60 px : on repasse à six, deux rangées
+   par année — l'alignement d'une année sur l'autre tient toujours. */
+@media (max-width: 1340px) {
+  .mgrid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+.dot-lvl { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-inline-end: 7px; background: var(--success); }
+.dot-lvl.warn { background: var(--warning); }
+.dot-lvl.danger { background: var(--danger); }
+
+.fingerprint { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; letter-spacing: .5px; }
+/* L'empreinte et son « Copier » sur une ligne : le bouton se lit comme appartenant à ce qu'il copie. */
+.empreinte-ligne { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
+
+/* Le résultat d'un import : une ligne par paquet, dite en français. */
+.imp-list { list-style: none; margin: 0; padding: 0; }
+.imp-list li { padding: 10px 0; border-top: 1px solid var(--border); font-size: 13.5px; }
+.imp-list li:first-child { border-top: none; }
+.imp-list .imp-err { color: var(--danger); }
+.imp-list .imp-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+/* Le voile de dépôt : il couvre toute la fenêtre dès qu'un fichier la survole. Le geste naturel est
+   d'attraper le paquet reçu par mail et de le lâcher n'importe où, pas de viser un cadre. */
+#drop-veil {
+  position: fixed; inset: 0; z-index: 800; display: flex; align-items: center; justify-content: center;
+  background: rgba(27,36,48,.45); backdrop-filter: blur(2px); pointer-events: none;
+}
+#drop-veil .drop-card {
+  background: var(--panel); border: 2px dashed var(--primary); border-radius: 18px;
+  padding: 40px 56px; text-align: center; box-shadow: 0 24px 70px rgba(20,40,60,.3);
+}
+#drop-veil svg { width: 40px; height: 40px; fill: none; stroke: var(--primary); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#drop-veil .drop-title { font-size: 17px; font-weight: 700; margin-top: 10px; }
+#drop-veil .drop-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+/* La marque du cabinet : ardoise et dossier, comme son icône. Les deux applications portaient la
+   même pastille vert d'eau, et une fois ouvertes plus rien ne les distinguait. */
+.brand-mark.cab { background: #33414f; display: flex; align-items: center; justify-content: center; }
+.brand-mark.cab svg { width: 19px; height: 19px; fill: none; stroke: #fff; stroke-width: 1.8; stroke-linejoin: round; }
+.lock-card .brand-mark.cab { width: 46px; height: 46px; border-radius: 13px; margin: 0 auto; }
+.lock-card .brand-mark.cab svg { width: 24px; height: 24px; }
+.brand-tag {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+  background: #33414f; color: #fff; border-radius: 5px; padding: 1px 5px; margin-inline-start: 3px; vertical-align: 2px;
+}
+
+/* L'écran de verrouillage : des étiquettes, un bouton pour relire, et l'avertissement qui compte
+   écrit comme un avertissement. */
+.lock-card .lock-field { width: 100%; text-align: start; margin-top: 4px; }
+/* Un champ sous une étiquette alignée à gauche commence à gauche : la règle partagée centre le
+   champ de l'écran de verrouillage (un champ seul, sans étiquette), et le curseur flottait au milieu
+   d'une case qui porte « Afficher » à sa droite (vu à la souris, 26/09). */
+.lock-card .lock-field input { text-align: start; }
+/* Le verdict de solidité appartient au champ de gauche : centré, il flottait entre les deux. */
+.lock-card #lock-strength { width: 100%; text-align: start; }
+.pw-wrap { position: relative; display: block; }
+.pw-wrap input { width: 100%; padding-inline-end: 82px; }
+.pw-eye {
+  position: absolute; inset-inline-end: 6px; top: 50%; transform: translateY(-50%);
+  background: transparent; border: none; color: var(--muted); font: inherit; font-size: 12px;
+  cursor: pointer; padding: 4px 8px; border-radius: 7px;
+}
+.pw-eye:hover { color: var(--primary); background: var(--primary-soft); }
+/* 10.14.0 — Tab passe par « Afficher » : il doit le MONTRER. Sans anneau, la frappe qui suivait
+   partait sur le bouton sans que rien à l'écran ne dise où était le curseur (vu à la souris). */
+.pw-eye:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; color: var(--primary); }
+/* Une case refusée se marque même quand elle vit dans l'enveloppe du bouton « Afficher » : la
+   règle partagée ne vise que l'enfant direct d'un `.field`. */
+.champ-faute > .pw-wrap > input { border-color: var(--danger) !important; box-shadow: 0 0 0 3px var(--danger-soft); }
+/* La ligne qui juge un mot de passe garde sa place AVANT d'avoir quelque chose à dire : née pendant
+   la frappe, elle poussait la confirmation de seize pixels sous le curseur (règle 10.12.0) — sur
+   l'écran de création comme dans « Changer le mot de passe ». */
+.ligne-reservee { display: block; min-block-size: 1lh; }
+.lock-warn { color: var(--danger); font-weight: 700; }
+/* Le texte courant de la carte est centré (titre, sous-titre) ; une phrase de trois lignes centrée
+   ne se lit pas. Tout ce qui est une PHRASE y revient à gauche. */
+.lock-card .lock-note { text-align: start; width: 100%; margin: 6px 0 16px; }
+/* Une note vide ne doit pas laisser son écart derrière elle. */
+.lock-card .lock-note:empty { display: none; }
+.lock-card .lock-note:empty + .btn { margin-top: 16px; }
+
+/* `.warn-box` et `.code-box` vivent dans la feuille partagée depuis la 10.12.0 : l'app entreprise
+   les posait sans que sa feuille les connaisse. */
+/* Un contrôle qui porte son geste : la phrase, puis le bouton, dans une rangée dont le `gap` décide
+   des deux écarts — posé dans la phrase, le bouton passait à la ligne collé sous elle (10.12.0). */
+/* `.ctrl-geste` vit dans la feuille partagée depuis la 10.14.1 : le fichier CNSS de l'app entreprise
+   pose ses refus et leurs gestes dans la même rangée. */
+/* `.ok-box` et `.info-box`, les deux soeurs de `.warn-box`, vivent aussi dans la feuille partagée
+   depuis la 10.14.0 : l'import depuis un tableur de l'app entreprise en a besoin. */
+/* 10.12.0 (U-11) — les quatre étapes d'une déclaration se lisent dans leur ORDRE : une rangée qui
+   passe à la ligne, des flèches entre les gestes, et une seule couleur, celle de l'étape suivante.
+   Le `gap` décide des deux écarts à la fois (règle 9.8.8, T-56) — jamais une espace de gabarit. */
+.dc-etapes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.dc-fleche { inline-size: 16px; block-size: 16px; flex: none; fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.dc-coche { color: var(--success); font-weight: 700; margin-inline-end: 5px; }
+.btn-primary .dc-coche { color: inherit; }
+.dc-motif { margin-block: 0 10px; }
+/* 10.14.1 (D1) — la date limite et le portail, au-dessus des étapes ; un montant qui se COPIE est un
+   bouton (bordure au repos, 9.4.2), en chiffres de même chasse pour que la colonne reste droite. */
+.dc-echeance { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-block: 0 10px; }
+.dc-echeance.retard > span:first-child { color: var(--warning); }
+.dc-copie-regle { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-block: 0 10px; }
+.dc-copie-regle select { inline-size: auto; }
+.btn.dc-copie { font-variant-numeric: tabular-nums; gap: 6px; }
+.dc-copie-i { inline-size: 13px; block-size: 13px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.4; opacity: .7; }
+/* U-14 — la raison d'une case vide se lit en entier, sous son libellé, jamais coupée. */
+.dc-raison { margin-block-start: 3px; max-inline-size: 72ch; white-space: normal; line-height: 1.45; }
+.dc-form tr.dc-rub th { text-align: start; font-size: 13px; font-weight: 650; padding-block: 12px 6px; background: var(--bg); text-transform: none; letter-spacing: 0; color: var(--text); position: static; }
+.dc-ar { font-weight: 400; color: var(--muted); margin-inline-start: 8px; font-size: 12px; }
+.dc-ref { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; margin-inline-end: 2px; }
+/* U-13 — des contrôles qui passent tiennent en une ligne : un bandeau vert de plus au-dessus des
+   chiffres n'apprenait rien. Seul un contrôle qui échoue garde un bandeau (orange, avec son geste). */
+/* Un état ACCOMPLI se dit sur une ligne, en gris, avec sa coche : pas dans un encadré vert qui
+   pèse autant qu'une alerte (U-13). Partagé par la Déclaration, l'Inventaire et la Révision. */
+/* L'avancement d'une révision et son étape suivante, sur la même ligne (U-11) : le chiffre dit où on
+   en est, le bouton à côté dit où aller. */
+.rv-avance { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
+.rv-avance .lead { margin: 0; }
+.ligne-ok { color: var(--muted); }
+.ligne-ok > span { color: var(--success); font-weight: 700; margin-inline-end: 4px; }
+/* Une réserve « À VÉRIFIER » posée sous le champ qu'elle concerne (U-20) : du texte, pas un libellé. */
+.champ-note { font-weight: 400; line-height: 1.45; margin: 0; }
+.err-inline { color: var(--danger); font-weight: 600; }
+.ok-inline { color: var(--success); font-weight: 600; }
+
+/* Dans une fenêtre modale, style.css met déjà ces boutons en ligne et à droite. Dans un PANNEAU,
+   la règle ne s'appliquait pas du tout : les boutons restaient collés au texte et le « ✓ enregistré »
+   passait sous le bouton. */
+.panel .modal-actions {
+  display: flex; align-items: center; gap: 10px; margin-top: 18px; flex-wrap: wrap;
+}
+/* « ✓ enregistré » posé à côté du bouton : le message passager au bas de l'écran recouvrait
+   justement le bouton Enregistrer des Réglages. */
+.saved { color: var(--success); font-size: 12.5px; font-weight: 600; }
+/* Dans un PANNEAU les boutons partent de la gauche : le « ✓ enregistré » posé AVANT eux les poussait
+   de sa largeur au moment où il apparaît — « Enregistrer les régimes » glissait de 84 px sous le
+   curseur (vu à la souris, 10.14.1 ; règle H-E1 : ce qui apparaît ne pousse rien). Il passe après.
+   Dans une fenêtre, la rangée part de la droite : le message qui naît devant ne déplace rien. */
+.panel .modal-actions > .saved { order: 1; }
+.grow { flex: 1; }
+.modal-actions.wrap { flex-wrap: wrap; }
+/* Un champ pour deux chiffres n'a pas besoin de la moitié de l'écran. */
+.field.narrow input { max-width: 120px; }
+
+.path { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; word-break: break-all; }
+.kv.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 24px; }
+@media (max-width: 1100px) { .kv.two { grid-template-columns: 1fr; } }
+
+/* Les mois groupés par année : une bande sans fin devient illisible au bout de deux ans. */
+.year-row { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 10px; }
+.year-lab { font-size: 12px; font-weight: 700; color: var(--muted); width: 38px; flex-shrink: 0; padding-top: 9px; }
+
+/* L'assistant de première utilisation. C'est le premier contact d'un comptable avec le produit :
+   il doit ressembler à un produit fini, pas à un formulaire de réglages avec un message passager. */
+#setup .wiz-card {
+  background: var(--panel); border-radius: 18px; box-shadow: var(--shadow);
+  width: 720px; max-width: 100%; padding: 32px 36px 26px; max-height: calc(100vh - var(--haut-fenetre) - 24px); display: flex; flex-direction: column;
+}
+#setup h1 { font-size: 23px; margin: 4px 0 16px; letter-spacing: -.4px; }
+#setup .wiz-body { overflow-y: auto; flex: 1; }
+#setup .wiz-dots { display: flex; gap: 6px; align-items: center; }
+/* `:not(.wiz-compte)` : la règle générale des pastilles vise TOUS les `span` de la barre, et elle
+   aurait réduit le compteur « Écran 2 sur 5 » à une barre de 26×4 px sans texte visible. Même
+   famille que le `th.r` (7.23.0) — le HTML est juste, c'est la feuille qui décide. */
+#setup .wiz-dots span:not(.wiz-compte) { width: 26px; height: 4px; border-radius: 3px; background: var(--border); }
+#setup .wiz-compte { font-size: 11.5px; color: var(--muted); margin-inline-end: 8px; white-space: nowrap; }
+#setup .wiz-dots span.on { background: var(--primary); }
+#setup .wiz-dots span.done { background: var(--primary-soft-2, var(--primary-soft)); }
+#setup .wiz-actions { display: flex; align-items: center; gap: 8px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); }
+#setup .wiz-steps { display: flex; flex-direction: column; gap: 10px; }
+#setup .wiz-step {
+  display: flex; align-items: center; gap: 14px; padding: 13px 15px;
+  border: 1px solid var(--border); border-radius: 12px;
+}
+#setup .wiz-step > div:first-child { flex: 1; min-width: 0; }
+#setup textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+@media (max-width: 760px) { #setup .wiz-step { flex-wrap: wrap; } }
+
+/* Le chiffre d'affaires du client, mois par mois. Les douze mois sont toujours dessinés : un
+   graphique réduit aux trois mois reçus n'apprend rien. */
+.ca-chart { margin-top: 4px; }
+.ca-bars { display: flex; align-items: flex-end; gap: 6px; height: 150px; }
+.ca-col { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; text-align: center; }
+.ca-col .ca-bar { background: var(--primary); border-radius: 5px 5px 0 0; min-height: 2px; transition: height .2s; }
+.ca-col.off .ca-bar { background: var(--ink-soft); }
+.ca-col .ca-v { font-size: 10px; color: var(--muted); font-variant-numeric: tabular-nums; margin-bottom: 3px; white-space: nowrap; overflow: hidden; }
+.ca-col .ca-m { font-size: 10.5px; color: var(--muted); margin-top: 5px; text-transform: capitalize; }
+.ca-col.off .ca-m { opacity: .5; }
+.ca-foot { display: flex; justify-content: space-between; align-items: baseline; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+
+/* Imprimer la fiche d'un client pour le dossier papier : la barre latérale, les boutons et les
+   bulles n'ont rien à y faire. */
+.print-only { display: none; }
+/* La fiche d'un dossier (9.2.2) : l'identité et l'état du dossier vivent dans l'en-tête, sous le
+   nom — pas dans un panneau à quatre tirets. */
+.d-ident { font-size: 13px; color: var(--muted); margin-block-start: 3px; line-height: 1.6; }
+/* Un manque qui se comble d'un clic : souligné en pointillé pour se distinguer du reste de la
+   ligne d'identité, qui n'est que du texte. Sans ce signe, un bouton au milieu d'une phrase grise
+   ne se voit pas — « un bouton se reconnaît AU REPOS » (Cabinet 1.0.0, 9.4.2). */
+.lien-manque {
+  background: none; border: none; padding: 0; font: inherit; color: var(--muted); cursor: pointer;
+  text-decoration: underline dotted; text-underline-offset: 3px;
+}
+.lien-manque:hover { color: var(--primary); }
+.d-etat { font-size: 13.5px; margin-top: 6px; line-height: 1.6; }
+
+/* 10.12.0 (U-01) — le retour vit sur la ligne du titre. Posé seul au-dessus, il coûtait une rangée
+   à chaque écran de la fiche : sur un portable, la grille de saisie commençait au bas de l'écran. */
+.fiche-titre { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.fiche-titre .btn-back { flex: none; }
+/* 10.14.1 — la fiche : le nom et ses gestes sur UNE rangée, l'identité et l'état sur une ligne pleine
+   largeur dessous. Le titre part d'une largeur nulle (`flex: 1 1 0`) : c'est ce qui garde les gestes
+   sur la rangée du nom — sinon la ligne d'état, longue, élargissait le titre et les gestes passaient
+   dessous (126 px d'en-tête à 1280 px). Un nom trop long passe à la ligne DANS le titre, les gestes
+   ne bougent pas. */
+.page-head.fiche-dossier { row-gap: 4px; }
+.fiche-dossier > .fiche-titre { flex: 1 1 0; min-width: 0; flex-wrap: nowrap; }
+.fiche-dossier > .fiche-titre h1 { min-width: 0; overflow-wrap: anywhere; }
+.fiche-dossier > .d-meta { flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 18px; }
+.fiche-dossier > .d-meta > .d-ident, .fiche-dossier > .d-meta > .d-etat { margin: 0; }
+
+/* La barre de la comptabilité : ce que je regarde (la période) et d'où ça vient (le livre ou les
+   paquets), sur UNE ligne. Elle remplace trois rangées — le titre « Comptabilité », les listes de
+   période, et un bandeau vert qui disait « Le livre de 2026 ». */
+.c-barre { margin-block-end: 12px; }
+/* Une rangée qui porte des GESTES n'est pas de la prose (T-56). Écrite avec des
+   `margin-inline-start` posés à la main, elle ne décidait que l'écart HORIZONTAL : au premier
+   passage à la ligne, « Relire les paquets reçus » se collait sous la case du brouillard, à zéro
+   pixel. Un `gap` de rangée flex décide des deux à la fois (9.8.3). */
+.c-livre { display: inline-flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; font-size: 13px; }
+.c-livre .check { margin: 0; }
+.c-alerte { padding-block: 8px; }
+.c-alerte-geste { margin-block-start: 8px; }
+
+/* 10.12.0 (U-06) — trois groupes, puis les écrans du groupe ouvert. Le premier niveau est un
+   contrôle SEGMENTÉ, pas une seconde rangée d'onglets : deux rangées de la même forme se lisent
+   comme une seule liste coupée en deux, ce qui était exactement le défaut. La barre reste en haut
+   quand on descend dans un long journal : on change d'écran sans remonter. */
+.c-nav {
+  display: flex; align-items: flex-end; gap: 6px 18px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--border); margin-block-end: 16px;
+  position: sticky; top: calc(-1 * var(--main-haut, 32px)); z-index: 4; background: var(--panel);
+  padding-block-start: 6px;
+}
+.c-nav .tabs { border-bottom: none; margin-block-end: 0; }
+/* Ce qu'on amène à l'écran s'arrête SOUS la barre collée, pas derrière elle (10.14.0) : sa hauteur est
+   mesurée par le code (`--c-nav-h`), car elle passe sur deux rangées sur un écran étroit. */
+main#view { --c-nav-h: 56px; }
+main:has(.c-nav) { scroll-padding-block-start: calc(var(--c-nav-h) + 10px); }
+.c-groupes {
+  display: inline-flex; flex: none; gap: 2px; padding: 3px; margin-block-end: 6px;
+  border: 1px solid var(--border); border-radius: 9px; background: var(--ink-soft);
+}
+.c-groupes button {
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; white-space: nowrap;
+  background: transparent; border: 1px solid transparent; border-radius: 6px; padding-block: 5px; padding-inline: 12px;
+}
+.c-groupes button:hover { color: var(--text); }
+.c-groupes button.active { background: var(--panel); color: var(--text); border-color: var(--border); box-shadow: 0 1px 2px rgba(0, 0, 0, .06); }
+.c-groupes button.active .tab-n { background: var(--primary-soft); color: var(--primary); }
+/* 10.12.0 (U-09) — une pièce commencée qui n'est pas enregistrée : un point orange sur l'onglet de
+   la fiche, sur le groupe et sur la Saisie. Orange, parce qu'il demande un geste (U-13).
+   Il vit HORS DU FLUX, dans le coin de l'onglet (H-2, trouvé en testant comme un humain) : posé à
+   la suite du libellé, il apparaissait à la PREMIÈRE frappe et poussait toute la rangée d'onglets
+   de 11 px, sous les yeux de qui tape. Rien ne bouge pendant la frappe (U-26). */
+#d-tabs button, .c-groupes button, #c-tabs button { position: relative; }
+.sa-sale {
+  position: absolute; inset-block-start: 3px; inset-inline-end: 3px;
+  color: var(--warning); font-size: 9px; line-height: 1; pointer-events: none;
+}
+/* Le compte rendu d'un geste (U-27) : des paragraphes et des listes, pas un bloc de texte brut. */
+.cr-corps p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.55; }
+.cr-liste { margin: 0 0 12px; padding-inline-start: 18px; font-size: 13px; line-height: 1.6; }
+
+@media print {
+  .sidebar, .page-head .actions, .btn-back, button.i, .filters, .row-actions, #toast, #drop-veil { display: none !important; }
+  /* La fiche imprimée reste la fiche ENTIÈRE : les onglets ne sont qu'un rangement d'écran. */
+  #d-tabs, .c-nav { display: none !important; }
+  section[data-onglet][hidden] { display: block !important; }
+  /* Même principe pour le grand livre : un compte replié à l'écran est un compte imprimé. Sans
+     cette ligne, un grand livre imprimé ne serait qu'une liste de soldes. */
+  details.gl-compte > *:not(summary) { display: block !important; }
+  details.gl-compte > summary { list-style: none; }
+  /* Une section repliée de l'Exercice s'imprime entière : un état financier replié à l'écran reste un état financier. */
+  details.pli > *:not(summary) { display: block !important; }
+  details.pli > summary::before, details.pli .pli-chiffre, .cl-somm { display: none !important; }
+  .print-only { display: block; margin-bottom: 14px; font-size: 11px; color: #666; }
+  body, #app, main#view { display: block; background: #fff; padding: 0; margin: 0; }
+  .panel { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; margin-bottom: 12px; }
+  .ca-bars { height: 110px; }
+  a[href]::after { content: ""; }
+}
+
+/* ---------------------------------------------------------------- le grand livre (9.4.5)
+   Un compte replié sur sa ligne de synthèse. Le `summary` est une VRAIE ligne de tableau à l'oeil :
+   le numéro et l'intitulé à gauche, les trois chiffres à droite, alignés d'un compte à l'autre —
+   c'est cet alignement qui fait qu'on lit la colonne « Solde » sans la chercher. */
+.gl-compte > summary {
+  cursor: pointer; display: flex; gap: 14px; align-items: baseline;
+  flex-wrap: wrap; list-style: none;
+}
+.gl-compte > summary::-webkit-details-marker { display: none; }
+.gl-compte > summary::before {
+  content: "▸"; color: var(--muted); font-size: 12px; margin-inline-end: 2px;
+}
+.gl-compte[open] > summary::before { content: "▾"; }
+.gl-compte > summary:hover { color: var(--primary); }
+/* `margin-inline-end: auto` et NON `justify-content: space-between` : le chevron ::before est un
+   troisième élément de la ligne, et « space-between » écartait les trois — le nom du compte
+   finissait CENTRÉ, flottant au milieu d'une ligne dont les deux bouts étaient occupés. C'est le
+   genre de chose qu'aucune sonde ne mesure et qu'une capture montre en une seconde. */
+.gl-nom { font-weight: 650; font-size: 15px; margin-inline-end: auto; }
+.gl-chiffres { display: flex; gap: 12px; align-items: baseline; font-size: 12.5px; flex-wrap: wrap; }
+/* Les trois chiffres tombent en COLONNES d'un compte à l'autre. Sans largeur minimale ils flottaient
+   selon la longueur du nombre, et « Solde » changeait de place à chaque ligne : on le cherchait à
+   chaque fois au lieu de descendre la colonne. */
+.gl-chiffres .gl-mv { min-width: 96px; text-align: end; }
+.gl-m { font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 132px; text-align: end; }
+.gl-m.gl-solde { min-width: 156px; }
+.gl-compte[open] > .scroll-x { margin-block-start: 10px; }
+/* Un compte replié est une LIGNE, pas une carte : le padding d'un panneau en faisait 81 px, et
+   vingt comptes repliés reprenaient la moitié de la hauteur qu'on venait de gagner. */
+.gl-compte:not([open]) { padding-block: 10px; }
+/* La suite d'un compte déplié (10.14.0, saturation) : la phrase qui dit où est le reste, et les deux gestes. */
+.gl-suite { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-block-start: 10px; }
+.gl-suite .small { flex: 1 1 320px; }
+
+/* Les échéances : une date lisible à gauche, ce qui manque à droite. Ce qui compte n'est pas la
+   date (le comptable la connaît) mais le nombre de clients dont il n'a pas les pièces. */
+.ech-list { display: flex; flex-direction: column; gap: 10px; }
+.ech { display: flex; gap: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; border-inline-start-width: 3px; }
+.ech.lvl-ok { border-inline-start-color: var(--success); }
+.ech.lvl-warn { border-inline-start-color: var(--warning); }
+.ech.lvl-danger { border-inline-start-color: var(--danger); }
+.ech-date { text-align: center; min-width: 46px; flex-shrink: 0; }
+.ech-j { font-size: 21px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.ech-m { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.ech-txt { flex: 1; min-width: 0; }
+.ech-lab { font-weight: 650; font-size: 14px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.ech-when { font-size: 11.5px; color: var(--muted); font-weight: 400; }
+.ech-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; font-size: 12.5px; }
+/* Les clients qui manquent, et le geste qui va avec : « Les relancer » était un lien souligné au
+   milieu d'une phrase. Un geste est un bouton (Cabinet 1.0.0, 9.4.2). */
+.ech-qui { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+/* Le pointage, séparé du reste par un filet : c'est un geste, pas une information de plus. */
+.ech-fin {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  margin-block-start: 8px; padding-block-start: 8px; border-block-start: 1px solid var(--border);
+}
+/* Une échéance pointée reste LISIBLE : on la grise un peu, on ne la barre pas. Elle sert encore —
+   c'est la trace de ce qui a été déposé, et elle se dépointe. */
+.ech-fait { opacity: .72; }
+.warn-inline { color: var(--warning); font-weight: 600; }
+
+.dot-lvl.hors { background: #9aa7b4; }
+.badge.b-hors { background: #eceff2; color: #5b6b7b; }
+body.dark .badge.b-hors { background: #2a3440; color: #9aa7b4; }
+.btn-ghost.danger:hover { color: var(--danger); background: var(--danger-soft); }
+
+/* Le panneau des mises à jour vit dans la feuille partagée depuis le 23/09/2026 (`.maj-*`, voir
+   src/renderer/majui.js) : les deux applications ont le même écran. */
+
+/* Reprendre un cabinet venu d'un autre ordinateur : les mêmes lignes que l'assistant, mais dans une
+   fenêtre. `#setup .wiz-step` est accroché à l'assistant, il ne s'applique pas ici — et réutiliser un
+   nom de la feuille partagée hériterait en silence de règles pensées pour l'autre application. */
+.reprise-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.reprise-row {
+  display: flex; align-items: center; gap: 14px; padding: 13px 15px;
+  border: 1px solid var(--border); border-radius: 12px;
+}
+.reprise-row > div:first-child { flex: 1; min-width: 0; }
+.reprise-row .btn { flex-shrink: 0; }
+@media (max-width: 760px) { .reprise-row { flex-wrap: wrap; } }
+
+/* Une écriture en BROUILLARD se distingue à l'œil, sans qu'on ait à lire une colonne (9.2.0).
+   L'italique et le fond estompé disent « pas encore de la comptabilité » ; la pastille dans la
+   colonne du numéro dit pourquoi elle n'en a pas. Une ligne contre-passée est barrée : elle reste
+   dans le journal — on ne l'efface jamais — mais elle ne compte plus.
+   Classes utilisées ET définies : une classe posée dans le HTML et absente de la feuille ne se voit
+   nulle part, et rien ne le signale (le défaut `.mono` de la 8.1.0). */
+tr.br-ligne td { font-style: italic; background: var(--info-soft); }
+tr.cp-ligne td { text-decoration: line-through; color: var(--muted); }
+/* Le MIROIR d'une contre-passation ou d'une extourne (T-34) : reconnaissable au repos, sans être
+   barré — c'est une validée à part entière, qui annule l'autre. */
+tr.cp-miroir td { background: var(--info-soft); }
+/* 10.12.0 (vu au test humain) — la colonne d'actions collante porte la TEINTE de sa ligne. Son fond
+   opaque, qui cache ce qui défile dessous (U-02), coupait la bande d'un miroir ou d'un brouillard
+   juste avant le bouton : la ligne paraissait finir avant son propre geste. */
+.scroll-x table.list tr.br-ligne td.row-actions,
+.scroll-x table.list tr.cp-miroir td.row-actions { background: var(--info-soft); }
+/* « + Ajouter une ligne » sous la grille de saisie (T-32) : un geste discret, aligné sur le début
+   de la grille, pour la souris. */
+.sa-ajout { margin-top: 6px; }
+/* La liste des comptes, sortie du tableau qui la rognait (T-33) : position fixe, calculée sur le
+   champ, au-dessus de tout ce qui défile. Et au-dessus des FENÊTRES (400 et plus, empilées) : la
+   contrepartie d'une ligne de relevé se choisit dans une fenêtre, et la liste s'ouvrait derrière elle,
+   floutée, impossible à cliquer (vu en guidant un débutant, 26/09). Sous la bulle « i » (900) et le
+   bandeau (950), qui se lisent par-dessus tout. */
+.sugg-pop.sugg-fixe { position: fixed; inset-inline-start: auto; top: auto; z-index: 850; }
+
+/* ---------------------------------------------------------------- la grille de saisie (9.3.0)
+   Toutes les classes sont préfixées `sa-` : une classe du cabinet ne peut pas porter un nom déjà
+   pris dans la feuille partagée, sinon elle hériterait en silence de règles écrites pour l'autre
+   application (règle 6.8.0, le défaut `.setup-card`). Un test l'exige.
+   Propriétés LOGIQUES (`padding-inline`, `margin-inline-start`) : c'est ce qui garde la porte de
+   l'arabe ouverte sans rien promettre (QUESTIONS.md, 15/09/2026). */
+.sa-tete { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-block-end: 12px; }
+.sa-tete .field { min-width: 130px; }
+.sa-tete .field.sa-grow { flex: 1; min-width: 220px; }
+/* 10.12.0 (U-01) — chaque champ a la largeur de ce qu'il contient. Sans elle, les quatre prenaient
+   la largeur de leur case intrinsèque (~220 px chacun), et à 1280 « Joindre » tombait sur une
+   rangée à lui, entre l'en-tête de la pièce et ses lignes. */
+.sa-tete .field.sa-j { flex: none; inline-size: 190px; }
+.sa-tete .field.sa-d { flex: none; inline-size: 130px; min-width: 0; }
+.sa-tete .field.sa-p { flex: none; inline-size: 150px; min-width: 0; }
+/* 10.12.0 (H-3 bis) — `.sa-tete input.sa-ko` (0,2,1) PERDAIT contre la règle générale des champs
+   (0,4,1, ses quatre `:not()`) : une date refusée n'est jamais devenue rouge, depuis que la marque
+   existe. Sixième fois que ce motif revient (7.23.0, 7.27.0, 7.30.0, 9.4.4, U-01) — mesuré dans
+   l'application (getComputedStyle), jamais vu à la relecture. L'identifiant l'emporte, comme pour
+   la grille. */
+#sa-tete input.sa-ko { border-color: var(--danger); }
+
+.sa-outils { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-block-end: 10px; }
+.sa-outils select { width: auto; }
+/* 10.14.1 — le montant d'un guide tient À CÔTÉ du guide. La règle générale des champs (100 %) le
+   jetait seul sur une rangée pleine largeur, sous la liste qu'il complète : on tapait un montant au
+   milieu de nulle part. */
+#sa-guide-montant { width: 160px; flex: none; }
+/* Et le sens d'une ligne de guide se LIT : la colonne serrée coupait « Débit » en « D. ». */
+#g-lignes select { min-width: 104px; }
+.sa-aide { flex: 1; min-width: 200px; text-align: end; }
+
+/* La grille elle-même. Les champs remplissent leur cellule et perdent leur bordure : ce qu'on
+   regarde en saisissant, c'est l'alignement des colonnes, pas cinquante rectangles. */
+.sa-grille td { padding-block: 2px; padding-inline: 6px; }
+.sa-grille input {
+  width: 100%; border: 1px solid transparent; background: transparent;
+  padding-block: 6px; padding-inline: 6px; border-radius: 6px; font-size: 13px;
+}
+.sa-grille input:focus { border-color: var(--primary); background: var(--panel); }
+.sa-grille input.sa-montant { font-variant-numeric: tabular-nums; }
+/* 10.14.1 — un montant se lit aligné à droite, dans une case comme dans une colonne. La classe `r`
+   des cases de la grille n'a jamais rien fait : la feuille ne connaît que `td.r` et `th.r`, et
+   « 250,000 » s'écrivait à GAUCHE sous un en-tête « Débit » aligné à droite, au-dessus d'un total
+   aligné à droite (le HTML est juste, c'est la feuille qui décide — 7.23.0, encore). */
+input.sa-montant, input.montant, td > input.r { text-align: end; font-variant-numeric: tabular-nums; }
+.sa-grille .sa-nom { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 10.12.0 (U-01) — la règle générale des champs porte quatre `:not()` et la ligne compacte des
+   tableaux deux classes : `.sa-grille input` et `.sa-grille td` PERDAIENT contre elles depuis la
+   9.3.0 (cinquième fois que ce motif revient, 7.23.0, 7.27.0, 7.30.0, 9.4.4). Les cases gardaient
+   leur bordure et leur rembourrage de champ ordinaire, et une ligne de grille faisait 55 px : six
+   lignes visibles sur un portable. L'identifiant de la grille l'emporte, et c'est voulu. */
+#sa-lignes td { padding-block: 2px; padding-inline: 4px; }
+#sa-lignes input {
+  font-size: 13px; padding-block: 6px; padding-inline: 8px; border: 1px solid transparent;
+  background: var(--ink-soft); border-radius: 6px; box-shadow: none;
+}
+/* 10.12.0 (H-3 bis, vu au test humain) — la règle du survol (1,1,2) battait celle du focus et celle
+   de l'erreur (1,1,1 chacune) : la case « 12a » perdait son rouge dès que la souris passait sur sa
+   ligne, c'est-à-dire au moment précis où l'on vient la corriger. Le survol ne touche plus ni la case
+   active ni la case refusée — l'exclusion est dans le sélecteur, pas dans une surenchère. */
+#sa-lignes tr:hover input:not(:focus):not(.sa-ko) { border-color: var(--border); }
+#sa-lignes input:focus { border-color: var(--primary); background: var(--panel); box-shadow: 0 0 0 3px rgba(15, 157, 143, .15); }
+#sa-lignes input.sa-ko { border-color: var(--danger); }
+/* 10.12.0 (U-26) — des largeurs FIXES. En largeur automatique, l'intitulé du compte qui apparaît
+   pendant la frappe faisait recalculer la grille à chaque caractère : les colonnes sautaient sous le
+   curseur. Le libellé prend ce qui reste. */
+.sa-grille { table-layout: fixed; width: 100%; }
+.sa-grille col.sa-c-compte { width: 120px; }
+.sa-grille col.sa-c-nom { width: 22%; }
+.sa-grille col.sa-c-mt { width: 132px; }
+.sa-grille col.sa-c-sup { width: 48px; }
+.sa-grille .sa-nom { max-width: none; }
+/* « Joindre » au bout de la ligne des champs, aligné sur le bas des cases. */
+.sa-tete .sa-joindre { flex: none; margin-block-end: 1px; }
+/* Les touches, sous la grille et repliables : un résumé qui se reconnaît comme un geste. */
+.sa-touches { margin-block: 10px 22px; }
+.sa-touches > summary { cursor: pointer; font-size: 12.5px; color: var(--muted); width: max-content; }
+.sa-touches > summary:hover { color: var(--text); }
+.sa-touches[open] > summary { margin-block-end: 6px; }
+/* La cellule qui porte le « ✕ » d'une ligne qu'on est en train de TAPER. Elle ne s'appelle pas
+   `row-actions` exprès : cette classe-là désigne les actions d'une ligne de LISTE, et un test
+   interdit qu'on y mette un pictogramme (7.29.0). Ici le « ✕ » est juste — on retire une ligne
+   d'une grille d'édition, pas on agit sur une pièce — mais ce n'est pas le même objet. */
+.sa-sup { width: 1%; }
+.sa-sup .btn { padding-inline: 8px; }
+
+.sa-pied {
+  display: flex; gap: 14px; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  margin-block-start: 12px; padding-block: 12px; padding-inline: 14px;
+  border: 1px solid var(--border); border-radius: 12px;
+}
+.sa-solde { font-size: 14px; font-variant-numeric: tabular-nums; }
+.sa-solde.ok { color: var(--success); }
+.sa-solde.ko { color: var(--danger); }
+.sa-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Le motif du refus, à côté du solde et AU-DESSUS des boutons. Il n'est ni rouge vif ni encadré :
+   pendant qu'on tape, « la date manque » est l'état NORMAL d'une pièce qu'on commence. */
+.sa-refus { font-size: 12.5px; color: var(--muted); margin-block-start: 4px; max-width: 46ch; }
+/* 10.14.0 — l'intitulé d'un compte NEUF pour le dossier : le nom qu'il prendra, lu dans le plan de
+   référence. L'italique le distingue d'un compte déjà au plan, sans en faire une alarme. */
+.sa-grille .sa-nom.sa-nom-neuf { font-style: italic; }
+/* L'étiquette des totaux en pied de grille : alignée au début, comme le reste de sa colonne. */
+.sa-grille tfoot .sa-tl { font-weight: 600; }
+.sa-grille tfoot tr:last-child td { color: var(--danger); }
+
+/* ---------------------------------------------------------------- les touches (9.4.5)
+   Un raccourci s'AFFICHE comme une touche. `kbd` vient de la feuille partagée ; ce qui est ici,
+   c'est la mise en ligne : la paire « ce que ça fait → la touche », et le champ qui se règle en
+   appuyant plutôt qu'en tapant le nom de la touche. */
+.kbd-aide { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+.kbd-paire { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.kbd-plus { color: var(--muted); font-size: 11px; margin-inline-start: 3px; }
+.touche-ligne { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+/* 10.14.0 — le champ est la zone où l'on APPUIE (« Changer… », puis « Appuie sur la touche… ») : la
+   touche elle-même se lit dessinée, à sa gauche. Assez large pour sa phrase au focus — et la largeur
+   porte la chaîne de `:not()` de la règle générale des champs (`width: 100%`), qui gagnait : la
+   largeur de ce champ ne s'était jamais appliquée (mesurée à 120 px, vue au test humain) ; et
+   `.field.narrow input` la plafonnait en plus à 120 px. */
+.touche-in { text-align: center; cursor: pointer; }
+input.touche-in:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]) { width: 22ch; max-width: none; flex: none; }
+.touche-in:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+/* La touche dessinée réserve sa largeur (celle de « Ctrl + ↵ Entrée ») : le champ de capture est à
+   sa droite, et une touche plus large le pousserait sous le curseur au moment où on appuie — ce qui
+   répond à un geste ne se déplace pas sous lui (10.12.0). Les champs s'alignent d'une rangée à l'autre. */
+.touche-vue { white-space: nowrap; display: inline-block; min-width: 8.5rem; }
+/* La colonne de sélection : au plus étroit, et sa case centrée sous l'en-tête qui la coche.
+   Cocher est un geste de masse — la colonne ne doit pas reprendre la largeur du nom du client. */
+/* Le chiffre seul, quand la courbe n'a pas de quoi être une courbe (9.4.9). Ce n'est pas un repli
+   au rabais : c'est la forme JUSTE de l'information quand on n'a que deux mois. */
+.ca-maigre { display: flex; gap: 20px; align-items: baseline; flex-wrap: wrap; }
+.ca-maigre .muted { max-width: 42ch; }
+.ca-somme { font-size: 24px; font-weight: 700; letter-spacing: -.4px; font-variant-numeric: tabular-nums; margin-block-start: 4px; }
+
+.sel-col { width: 1%; text-align: center; }
+.sel-col input { margin: 0; cursor: pointer; }
+
+/* Le geste qui allonge un tableau vit SOUS ce tableau, pas dans la barre qui clôt le panneau :
+   côte à côte, deux boutons de poids voisin laissent croire à deux façons d'enregistrer. */
+/* 10.0.0 — `.sous-table` portait un seul bouton partout : le jour où elle en a porté DEUX, ils se
+   sont retrouvés à 3,9 px l'un de l'autre, c'est-à-dire séparés par l'espace d'un gabarit et par
+   rien d'autre. Un `gap` décide de l'écart ; une espace entre deux balises ne décide de rien. */
+.sous-table { margin-block-start: 8px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* Les cartes de cycle de la révision (10.0.0). Elles reprennent `.stats.rangee` / `.stat` de la
+   feuille PARTAGÉE — mes premières classes (`.cards`, `.card`, `.card-on`) n'existaient nulle part,
+   et une classe posée par le code et inconnue de la feuille ne se voit nulle part (6.8.0, 8.1.0,
+   9.4.3). Ne restent ici que les deux choses que le composant ne sait pas faire : être un bouton,
+   et dire lequel est ouvert. */
+.cy-cartes { margin-block: 10px 14px; }
+.cy-carte { display: flex; flex-direction: column; gap: 2px; text-align: start; cursor: pointer;
+  font: inherit; color: inherit; transition: border-color .12s, box-shadow .12s; }
+.cy-carte:hover { border-color: var(--primary); }
+.cy-carte.cy-on { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+.cy-carte .val { font-size: 19px; }
+
+.sa-lot { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-block-end: 12px; }
+
+/* Les guides et la correspondance, dans les Réglages. Deux tableaux qu'on remplit à la main : ils
+   ont besoin de champs pleine cellule, comme la grille — et pas de la bordure de chaque `input`,
+   qui ferait une page de rectangles. */
+.sa-table input, .sa-table select { width: 100%; }
+.sa-table td { padding-block: 4px; padding-inline: 6px; vertical-align: top; }
+.sa-vide { color: var(--muted); font-size: 13px; padding-block: 10px; }
+
+/* L'étiquette d'une barre de filtres. Deux listes déroulantes nues au-dessus d'un livre-journal
+   ne disent pas ce qu'elles choisissent : « L'exercice / 2026 » pouvait tout aussi bien être un
+   filtre de journal. Le mot devant tranche, et il coûte trente pixels. */
+.filters .f-lab {
+  font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); margin-inline-end: 2px;
+}
+
+/* Un paragraphe d'introduction posé en tête de page courait sur 1 140 px : à 12,5 px et en gris,
+   la ligne est trop longue pour que l'œil retrouve la suivante. On le borne comme `.lead` le fait
+   depuis toujours dans la feuille partagée — même mesure, même raison. */
+#view p { max-width: 760px; }
+
+/* Le « Passer » de l'assistant : le seul `btn-ghost` du Cabinet qui n'a pas à porter de bordure —
+   il vit à côté du bouton principal et se lit comme l'échappatoire qu'il est. Il porte alors
+   l'autre signe exigé, une couleur qui n'est pas celle du texte courant. La règle est ici et non
+   dans la feuille partagée : `wiz-actions` est une classe du Cabinet. */
+.wiz-actions .btn-ghost { border-color: transparent; color: var(--muted); }
+
+/* ---------- le choix du thème (9.4.3) ----------
+   Trois cartes, pas une liste déroulante : une apparence se choisit en la VOYANT. Chaque carte
+   porte une maquette miniature — une barre latérale et une page — peinte aux couleurs du thème
+   qu'elle propose, y compris pour « Comme le système », dont la miniature est coupée en deux.
+   Les couleurs y sont écrites en dur, et c'est le seul endroit du projet où c'est juste : une
+   miniature du thème clair doit rester claire QUAND ON EST EN SOMBRE, sinon elle ne montre rien. */
+.theme-choix { display: flex; gap: 12px; flex-wrap: wrap; margin-block-start: 16px; }
+.theme-op {
+  flex: 1 1 180px; max-inline-size: 240px; display: grid; gap: 2px;
+  padding: 12px 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--panel); cursor: pointer; transition: border-color .12s, box-shadow .12s;
+}
+.theme-op:hover { border-color: #d5dbe3; }
+body.dark .theme-op:hover { border-color: #3c4654; }
+.theme-op.on { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(15, 157, 143, .15); }
+.theme-op input { position: absolute; opacity: 0; pointer-events: none; }
+.theme-op:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
+.theme-t { font-size: 13.5px; font-weight: 650; color: var(--text); margin-block-start: 8px; }
+.theme-s { font-size: 12px; color: var(--muted); }
+/* La miniature : un cadre, une colonne à gauche, une page à droite. */
+.theme-ap {
+  display: block; block-size: 58px; border-radius: 7px; overflow: hidden;
+  border: 1px solid var(--border); position: relative;
+}
+.theme-ap i, .theme-ap b { position: absolute; inset-block: 0; display: block; }
+.theme-ap i { inset-inline-start: 0; inline-size: 34%; }
+.theme-ap b { inset-inline-end: 0; inline-size: 66%; }
+.theme-ap[data-ap="light"] i { background: #ffffff; border-inline-end: 1px solid #e6eaf0; }
+.theme-ap[data-ap="light"] b { background: #f5f7fa; }
+.theme-ap[data-ap="dark"] i { background: #1a2029; border-inline-end: 1px solid #2a3340; }
+.theme-ap[data-ap="dark"] b { background: #12161c; }
+/* « Comme le système » : la moitié de chaque, en diagonale — c'est la façon la plus courte de dire
+   « l'un ou l'autre selon ton ordinateur » sans une phrase de plus. */
+.theme-ap[data-ap="auto"] i { background: linear-gradient(135deg, #ffffff 50%, #1a2029 50%); }
+.theme-ap[data-ap="auto"] b { background: linear-gradient(135deg, #f5f7fa 50%, #12161c 50%); }
+
+/* « Voir 4 autres lignes » — le bouton qui déplie le reste d'« À faire » (9.4.4). Il suit
+   directement la liste, et rien ne l'en séparait : il se collait à la dernière ligne, donc au texte
+   de l'alerte la plus urgente. Un geste collé à ce qu'il prolonge se lit comme une sixième ligne de
+   la liste, pas comme un bouton. */
+#todo-plus { margin-block-start: 10px; }
+
+/* ------------------------------------------------------------------ la production (9.9.0)
+   Une grille client × mois. Chaque case porte UNE pastille, et la pastille porte un signe en plus
+   de sa couleur : une couleur seule n'est pas une information (9.4.4) — ni pour qui distingue mal
+   le rouge du vert, ni sur une impression, ni pour qui découvre l'écran. */
+.prod-c { inline-size: 1%; padding-inline: 4px !important; }
+.prod-p {
+  display: inline-flex; align-items: center; justify-content: center;
+  inline-size: 20px; block-size: 20px; border-radius: 5px;
+  font-size: 12px; font-weight: 700; line-height: 1;
+  border: 1px solid var(--border); color: var(--muted); background: var(--panel);
+}
+.prod-recu   { background: #fdecec; border-color: #f3b9b9; color: #a12c2c; }
+.prod-saisi  { background: #fdecec; border-color: #e88; color: #9a1f1f; }
+.prod-revise { background: #fff6e5; border-color: #f0cf95; color: #8a5a06; }
+.prod-declare{ background: #eef4ff; border-color: #bcd0f5; color: #2b4f9e; }
+.prod-fini   { background: #e8f6ee; border-color: #a8dcc0; color: #1d6b42; }
+.prod-hors   { opacity: .45; border-color: transparent; background: transparent; }
+/* 10.12.0 (U-02) — un tableau de livre TIENT dans sa page : ses colonnes de texte (tiers, libellé,
+   intitulé) se PARTAGENT la place qui reste, et se tronquent — le texte entier reste au survol. À
+   leurs plafonds de 190 et 320 px, le livre-journal faisait 1 162 px dans un cadre de 1 079, et le
+   Crédit passait sous la colonne d'actions. `max-width: 0` est ce qui permet à une cellule de
+   descendre sous la largeur de son texte ; la largeur en % dit ce qu'elle reçoit du reste. */
+/* 10.12.0 (H-9) — avec un PLANCHER : à la fenêtre minimale (960 px), le tableau déborde de toute
+   façon (Pièce, Débit, Crédit et Actions ne se tronquent pas), et sans plancher le Tiers tombait à
+   49 px — « Cli… ». Serrer une colonne de texte n'a de sens que si ça fait TENIR le tableau ; quand
+   il défile quand même, on garde le texte lisible. Mesuré : à 1440 et à 1280, rien ne change. */
+#c-livres table.list:not(.sa-grille) td.tronq { max-width: 0; width: 22%; min-width: 90px; }
+#c-livres table.list:not(.sa-grille) td.tronq.lg { width: 34%; min-width: 120px; }
+/* 10.12.0 (vu au test humain de la Banque) — une ligne qui n'a QU'UNE colonne de texte lui donne
+   tout ce que les colonnes serrées laissent. Les parts de 22 et 34 % sont pensées pour le
+   livre-journal, qui partage sa place entre le tiers ET le libellé ; dans un tableau à une seule
+   colonne de texte — les suspens de la Banque, le grand livre, les états de l'Exercice — ce qui
+   restait partait en VIDE dans les colonnes de dates et de montants : « COMMISSION SUR VIREMENT
+   EMIS » tombait à « COMMISSI… » à côté de 108 px de blanc. Le sélecteur se DÉDUIT de la ligne
+   (`:has`), il ne se pose pas tableau par tableau : un tableau neuf à une seule colonne de texte en
+   profite le jour où il est écrit. Mesuré par `SONDE_TRONQUE` : plus aucun texte coupé à côté d'une
+   colonne vide, et aucune cellule qui passe à la ligne de plus. */
+#c-livres table.list:not(.sa-grille) tr:not(:has(> td.tronq ~ td.tronq)) > td.tronq { width: 100%; }
+/* « En face » garde son montant : la pièce se coupe, le montant jamais (T-12). */
+#c-livres td.tronq .face { display: flex; min-width: 0; }
+#c-livres td.tronq .face-p { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+#c-livres td.tronq .face-m { flex: none; margin-inline-start: 4px; }
+/* « 2 / 5 » : l'univers du compte, plus discret que le compte. */
+.stat .val-sur { font-weight: 600; color: var(--muted); font-size: .8em; }
+/* La liste des dossiers : la colonne Client est SOUPLE — elle prend ce que les chiffres laissent,
+   et le nom se tronque ; jamais sa pastille ni son badge. `max-width: 0` sur la cellule est ce qui
+   lui permet de descendre sous la largeur du texte (même mécanisme que les livres). */
+/* 10.12.0 (H-9, trouvé par `e2e:cabinet` sur dix dossiers) — et un PLANCHER. Sans lui, dès que la
+   colonne « Honoraires » apparaît, `max-width: 0` laissait la colonne descendre à 92 px : TOUS les
+   noms tombaient à quatre lettres (« Phar… », « Tran… »), pendant que le tableau défilait déjà sur
+   le côté — l'écrasement ne gagnait donc rien. L'exemple seul masque cette colonne : le test humain,
+   fait sur l'exemple, ne pouvait pas le voir. 220 px tiennent « Menuiserie Trabelsi SUARL ». */
+/* 10.12.0 (H-9 bis, trouvé par `e2e:cabinet-rendu`) — mais un plancher PREND de la place : posé
+   seul, il faisait déborder la liste de 29 px à 1280 et de 18 px à 1366 (le portable le plus
+   courant, qu'aucun instrument ne mesurait), et la colonne d'actions recouvrait « Reçu le ». La
+   place s'est trouvée ailleurs, sans rien retirer : le badge « provisoire » passe SOUS le mois quand
+   la ligne manque de place (`dl-mois`, le mois lui-même ne se coupe jamais), et les cellules gardent
+   12 px de marge au lieu de 16 au-dessus de 1340. Et la colonne Client ne réclame que 20 % : à 30 %,
+   elle prenait la place avant que « Dernier mois » ait la sienne, et le badge passait à la ligne sur
+   un écran où il tenait. Mesuré dans l'app, sur l'exemple : 1280, 1340, 1341, 1366, 1440, 1920 — le
+   tableau tient partout, aucun nom n'est coupé, le badge reste sur la ligne dès 1340. */
+.dl-table td.dl-client { max-width: 0; width: 20%; min-width: 220px; }
+.dl-table td.dl-mois { white-space: normal; }
+.dl-table td.dl-mois .badge { white-space: nowrap; }
+@media (min-width: 1341px) {
+  table.list.dl-table th, table.list.dl-table td { padding-inline: 12px; }
+}
+.dl-table .dl-cell { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.dl-table .dl-cell .dot-lvl { flex: none; margin-inline-end: 1px; }
+.dl-table .dl-cell .badge { flex: none; }
+.dl-table .dl-nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Le nom se tronque, le badge reste entier (U-29). */
+.prod-client { white-space: nowrap; }
+.prod-client .prod-nom { display: inline-block; max-inline-size: 220px; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+body.dark .prod-recu   { background: #3a1f20; border-color: #6a3436; color: #f0b4b4; }
+body.dark .prod-saisi  { background: #3a1f20; border-color: #7d3a3c; color: #f6bcbc; }
+body.dark .prod-revise { background: #3a2f18; border-color: #6d5726; color: #f0d29a; }
+body.dark .prod-declare{ background: #1e2a45; border-color: #3a5288; color: #bcd0f5; }
+body.dark .prod-fini   { background: #1c3527; border-color: #2f6045; color: #a8dcc0; }
+/* La légende : une rangée qui passe à la ligne, jamais six lignes empilées sous le tableau. */
+.prod-leg { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-block-start: 12px; align-items: center; }
+.prod-leg span { display: inline-flex; align-items: center; gap: 6px; }
+table.prod tbody tr { cursor: pointer; }
+
+/* ------------------------------------------------------------------ l'équipe (9.9.0) */
+/* La ligne de la personne qui travaille sur CE poste : un repère discret, pas une alarme. */
+tr.eq-moi > td { background: var(--primary-soft); }
+/* Le sélecteur « Je suis » vit DANS le bandeau, sous sa phrase : posé à côté, il se lisait comme
+   un filtre de la page. Un écart de rangée, pas une marge posée à la main — au premier passage à
+   la ligne, une marge horizontale seule ne décide de rien (T-56). */
+.mt-s { margin-block-start: 8px; }
+#eq-moi { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+/* 10.14.0 — la phrase prend toute la rangée : le sélecteur passe dessous, comme le dit la règle
+   ci-dessus, au lieu de se glisser à côté du nom. */
+#eq-moi > .eq-phrase { flex: 1 1 100%; }
+
+/* U-16 — sur la liasse, le MONTANT est le lien vers ses comptes. Il se reconnaît au repos (couleur et
+   soulignement pointillé), pas au survol : un bouton sans bordure ni couleur n'est pas un bouton. */
+.montant-lien { font: inherit; font-variant-numeric: tabular-nums; background: none; border: none; padding: 0;
+  color: var(--primary); cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.montant-lien:hover { text-decoration-style: solid; }
+.montant-lien:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 2px; }
+
+/* U-19 — une section de page qui se replie (l'Exercice : 3 037 px d'un bloc). Le titre reste un vrai
+   titre de panneau ; le chevron dit qu'il s'ouvre, et le chiffre de droite dit ce que la section
+   cache tant qu'elle est repliée — ouverte, il est dans la section, et le répéter ferait deux fois
+   le même chiffre à dix pixels d'écart. */
+details.pli > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; }
+details.pli > summary::-webkit-details-marker { display: none; }
+details.pli > summary::before { content: "▸"; color: var(--muted); font-size: 12px; }
+details.pli[open] > summary::before { content: "▾"; }
+details.pli > summary > h2 { margin: 0; }
+details.pli > summary:hover > h2 { color: var(--primary); }
+details.pli .pli-chiffre { margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+details.pli[open] .pli-chiffre { display: none; }
+details.pli[open] > summary { margin-block-end: 12px; }
+.cl-somm { flex-direction: row; margin: 0 0 4px; }
+
+/* U-19 — une fenêtre qui porte une grille de six colonnes (le modèle de liasse). Les largeurs
+   suivent ce que chaque colonne CONTIENT : « AC1 » tenait dans une case de 140 px pendant que le
+   libellé de la rubrique — la seule colonne qu'on lit — était coupé au milieu d'un mot. */
+.modal.cab-large { width: 1240px; }
+/* 10.12.0 (vu au test humain de la Banque) — une fenêtre qui porte un tableau de pièces : dans les
+   580 px ordinaires, le bouton « Rapprocher » de chaque ligne vivait derrière un défilement de côté.
+   Et dans une fenêtre comme dans le livre, une ligne qui n'a qu'UNE colonne de texte lui donne ce
+   que les colonnes serrées laissent — sans plancher, un libellé tomberait à zéro. */
+.modal.cab-moyen { width: 880px; }
+.modal table.list:not(.sa-liasse) tr:not(:has(> td.tronq ~ td.tronq)) > td.tronq { max-width: 0; width: 100%; min-width: 140px; }
+.sa-liasse { table-layout: fixed; width: 100%; }
+.sa-liasse th:nth-child(1) { width: 86px; }
+.sa-liasse th:nth-child(2) { width: 190px; }
+.sa-liasse th:nth-child(4) { width: 200px; }
+.sa-liasse th:nth-child(5) { width: 180px; }
+.sa-liasse th:nth-child(6) { width: 104px; }
+.sa-liasse th:nth-child(7) { width: 52px; }
+
+/* 10.12.0 (U-08) — le chemin d'un écran vide vers l'article qui l'explique. Un lien au milieu d'une
+   phrase garde la couleur de l'accent ET son soulignement, au repos : sans eux, c'est du texte
+   (Cabinet 1.0.0 — un bouton, ou un lien, se reconnaît au repos, jamais au survol). */
+a.lien-aide { color: var(--primary); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+a.lien-aide:hover, a.lien-aide:focus-visible { text-decoration-thickness: 2px; }
+
+/* 10.12.0 (vu au test humain) — une ligne de palette : le NOM de ce qu'on ouvre passe avant sa
+   précision. Le Cabinet pose `.sub` À CÔTÉ de `.main` (l'app entreprise l'imbrique dedans) : sous-
+   titre en largeur de contenu, le titre d'un article d'Aide tombait à « La banque et l… » pendant
+   que sa description s'étalait entière. Le titre prend sa largeur, la précision prend le reste et
+   se coupe, alignée à droite comme un chemin. */
+.palette .res .main:has(+ .sub) { flex: 0 1 auto; }
+.palette .res .main + .sub { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: end; }
+
+/* 10.14.0 (l'assistant, jusqu'au bout) — la place où la fenêtre du fichier d'appairage dit à qui le
+   message partira, puis ce qui est VRAIMENT parti. La réponse est plus longue que la question : sans
+   hauteur réservée, elle poussait les boutons sous le curseur au moment même du clic (H-E1, dans une
+   fenêtre). */
+.ap-etat { min-height: calc(4 * 1.55 * 13px + 22px); }
+/* Les deux états sont le MÊME encadré (annonce, puis réponse), de la même hauteur : quatre lignes
+   de `.info-box` / `.ok-box` (13 px, interligne 1,55, 11 px de marge intérieure en haut et en bas).
+   Une place réservée en `lh` sur la police du paragraphe laissait l'encadré de la réponse la
+   dépasser de 4 px — et les boutons descendaient sous le curseur au moment du clic (H-E1). */
+.ap-etat > div { min-height: inherit; box-sizing: border-box; }
+
+/* 10.14.1 — La fenêtre de réimport depuis un tableur. Le bilan peut nommer des dizaines de lignes
+   écartées : il défile dans la fenêtre, jamais la fenêtre hors de l'écran. */
+.imp-bilan { max-height: 55vh; overflow-y: auto; }
+.imp-liste { margin: 6px 0 0; padding-inline-start: 18px; }
+.imp-liste li + li { margin-block-start: 2px; }
+
+/* 10.14.1 — « Écrire depuis le relevé » : le mot retenu se voit et se corrige sur la ligne de sa
+   case, jamais en dessous (il pousserait les boutons sous le curseur). */
+.bf-retenir { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bf-retenir .check { margin: 0; }
+.bf-retenir .bf-motif { width: 150px; }
+/* L'intitulé du compte tapé : UNE ligne réservée, pour que la frappe ne fasse rien bouger. */
+.bf-nom { display: block; min-height: 1.4em; margin-top: 4px; }
+
+/* 10.14.1 (IMP-02) — l'aperçu d'une liste de clients collée : ce qui entrera, avant de valider. */
+.apercu-liste { margin-block-start: 8px; }
+.apercu-liste:empty { display: none; }
+.apercu-liste td.douteux { color: var(--warning); }

@@ -1,7 +1,6 @@
 # Les commandes livrées en plusieurs fois, et plusieurs bons de livraison en une facture
 
-*30/09/2026, brique 86. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 du
-dépôt `skanfact` (les commerces, grossistes et distributeurs, au lancement : « commandes clients livrées
+*30/09/2026, brique 86. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 (les commerces, grossistes et distributeurs, au lancement : « commandes clients livrées
 en plusieurs fois, reliquats suivis, plusieurs bons de livraison en une facture »). Ce document dit ce
 qui en est fait, décision par décision ; toutes sont prises par délégation, le 30/09/2026.*
 

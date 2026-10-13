@@ -1,0 +1,31 @@
+{
+  "depot": "saouthq/skanfact",
+  "branche": "beta",
+  "commit": "35bfb8c",
+  "copieLe": "2026-10-13",
+  "fichiers": {
+    "renderer/app.js": "853a70089a5e18d857c00250040f0903db44b1fd0d2f895f1dc018cd62e79c25",
+    "renderer/compta.js": "2b928b5a8ef6a92d5414ac3853d709424007af1675f2a6562643f574feb06c1f",
+    "renderer/core.js": "27275977631288e7039120e2237a14fb084e6ea386daee18041a9c942a2e0fc5",
+    "renderer/demo.js": "7831c54cb6ce833e60421c7f837510c3d722efdb94139db2e369ccb3b5fcc18a",
+    "renderer/guide.js": "6c80afbbba7dc3a286342505b7bb5271abf6c4540645f90ebf09cbd39918003d",
+    "renderer/index.html": "868af631cdd931bc3ea50a6ecc1f74a7ae1df6c7df49cc9ae83f143006d52af8",
+    "renderer/listes.js": "90b0298f6d69676294ce3d0df34358618b92eab7072de4f5f6a07b035aef9cfa",
+    "renderer/majui.js": "4e510979f9abb6e59386af4463d30fe25c6ac44ec04395294506d68d7b02ef7d",
+    "renderer/nouveautes.js": "71de9bce8598a3bd2df435d873eee02a7c64aa4d7273c3ac90c64cddc4b86225",
+    "renderer/onboarding.js": "4c3b3a43c9becbfa9b637174383cdf9d7214963debc24d84ea3bcf22f915c53a",
+    "renderer/placement.js": "2db5b35f4ea8674909daa6587f289ab09e0b95620c62434910e946b28a39d77e",
+    "renderer/reglages.js": "86f0b35f86e58c37a7c2e63524f452dd2f8bbb12a16667f2225e84d6502fcc8e",
+    "renderer/rowmenu.js": "9ce5fb1062efcca4890e4e0b93e0ae33feb6cfdd09a76e6a1484d2eadba5d146",
+    "renderer/style.css": "50186b8a6e2727addc9b34602e3e235fabdb206fa62ebd975cfa5f2c6a7fd012",
+    "renderer/teif.js": "87e7870460227508739bac49cf77e13c4435c2e7c1ddbaf99f4a9f31679b45d4",
+    "renderer/visite.js": "e2251e94b8ad0d3ea182d9ddff317e84bc71c4e552af4f613cc6040c0c925358",
+    "renderer/visites.js": "5257f0a95cd6ac80f9ff9ab687b7bb8850f2b037fccad6dfa1c23ad2859c934e",
+    "cabinet/app.js": "3b950575014cae1b93bc660c690621b75d913562eacb6e5424f47c9eb3cdeb50",
+    "cabinet/cabcore.js": "06f5512f834afd2c83b628e7046098adb87142366b55e060997f6ecda57f879b",
+    "cabinet/cabguide.js": "1e67903fbf69d9fcc479191b120e1ffc7106c8a9d65e4b7c55e017acb3308bd4",
+    "cabinet/cabinet.css": "87d227365f0446d8d2aa86cabb94724f8c65c37468fd47250c584ab55cc2b4a4",
+    "cabinet/cabvisites.js": "9db73831628753c5338a1ed28e2ccfa4adf2ed86ade3c8728756faae632ca461",
+    "cabinet/index.html": "c13070cc710286a5d8165646872c5ebd33068d39a516afcc7bf5d7bf7dc306e6"
+  }
+}

@@ -10,23 +10,24 @@ qu'une règle qui vaut pour TOUT le dépôt, en une ou deux lignes.*
 
 - **Propriétaire** : Skander Ben Amor (saouthq). **Français, tutoiement**, mots simples : il ne tape
   pas de commandes ; Claude fait le travail (code, tests, commits, envois) et l'explique sans jargon.
-- **Le cadrage fait foi, et il vit dans l'autre dépôt** : `saouthq/skanfact` (`/home/user/skanfact`, branche `beta`) :
-  `VISION-ARCHITECTURE.md`, `skanfact/docs/cadrage/` (01 modèle de données, 03 droits, 04 hors-ligne, 09 feuille de route,
-  12 pile technique…), son `CLAUDE.md` (court) et les leçons de la v10, qui valent ici
-  (`skanfact/docs/application-actuelle/CLAUDE-HISTORIQUE.md` : on y cherche une règle, on ne le relit pas). On **applique** le
-  cadrage ; une décision nouvelle s'écrit **là-bas**, avec sa date. Ce qui est incertain (fiscal, légal) s'écrit
-  « À VÉRIFIER ».
+- **Le cadrage fait foi, et il vit ici** (déménagé du dépôt `skanfact` le 13/10/2026) : `VISION-ARCHITECTURE.md`,
+  `docs/cadrage/` (01 modèle de données, 03 droits, 04 hors-ligne, 09 feuille de route, 12 pile technique… ; son
+  `README.md` porte le journal des décisions), `docs/etudes/`. On **applique** le cadrage ; une décision nouvelle s'écrit
+  dans ce journal, avec sa date. Les leçons de la v10 valent ici : `docs/lecons-v10.md` (on y cherche une règle, on ne
+  le relit pas). Ce qui est incertain (fiscal, légal) s'écrit « À VÉRIFIER ».
+- **Le dépôt `skanfact` est archivé** (13/10/2026 : personne n'utilise plus la v10). Une session s'ouvre sur CE dépôt ;
+  rien ici ne dépend plus de l'autre.
 - **Où on en est** : étape 1, le socle (le jalon J1 est atteint depuis le 28/09/2026). La plateforme porte déjà les
   ventes, les achats, la paie, les écritures et la clôture (le serveur fait foi ; le moteur, en entiers, tombe au
   millime de la v10) ; le Cabinet complet, sans paquets ; la caisse (tactile, sans réseau) ; le hors-ligne et le
   téléphone ; l'entrée, l'équipe, la messagerie, l'abonnement ; la console de l'équipe SkanFact. **Avant de toucher un
   domaine : sa ligne dans `docs/carte.md`, puis son document.**
-- **L'application web EST le code de la v10** (Skander, 28/09/2026) : `src/renderer` du dépôt `skanfact` (branche
-  `beta`) copié TEL QUEL dans `web/public/v10` par `npm run reprendre-v10 -- <dépôt skanfact>` ; une retouche n'existe
+- **L'application web EST le code de la v10** (Skander, 28/09/2026) : sa source, figée dans `web/v10/source`
+  (`ORIGINE.json` : beta@35bfb8c et l'empreinte de chaque fichier), copiée TELLE QUELLE dans `web/public/v10` par
+  `npm run reprendre-v10` ; une retouche n'existe
   que dans une adaptation (`web/v10/<sujet>.txt`, chargée par `web/v10/adaptations.mjs`, avec sa raison ;
   `tests/v10/provenance.test.ts` refuse toute retouche à la main). Le pont (`web/public/plateforme/pont.js`) remplace ce
   que la v10 demandait à l'ordinateur. Les écrans écrits pour la plateforme (l'entrée, la console) sont en React.
-  Aucun lien vivant avec le dépôt `skanfact`.
 - **Les serveurs** (`docs/mise-en-ligne.md`) : le serveur d'essai (`app.skanfact.tn`, données inventées seulement) suit
   `main` tout seul et n'installe qu'une version que GitHub a vérifiée en vert ; personne ne s'y connecte, sauf Claude
   par `scripts/serveur.sh '<commande>'` (clé de la session, hors dépôt) ; un réglage du serveur passe par une tâche
@@ -266,7 +267,7 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
 - Dépôt **public** : jamais de secret, de jeton, de mot de passe réel ni de donnée de client. Les
   mots de passe de test sont tirés au hasard à chaque lancement.
 - Jamais le nom ni le matricule de la société de Skander dans le code, les exemples ou les textes
-  (règle détaillée dans le `CLAUDE.md` de l'application).
+  (règle détaillée dans `docs/lecons-v10.md`).
 - Jamais une donnée de plus dans ce qui part vers un serveur tiers sans que la liste soit comptée et
   décidée.
 
@@ -293,7 +294,7 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
 | `npm run migrer` | Applique les migrations sur la base de `PG_ADMIN` |
 | `npm run entreprise -- exporter <id> <fichier>` / `restaurer <fichier>` | Exporte une entreprise, ou la restaure là où elle n'est pas (`PG_ADMIN`) |
 | `npm run types:base` | Réécrit `base/types.ts` à partir des migrations (base jetable sur `PG_ADMIN`) |
-| `npm run reprendre-v10 -- <dépôt skanfact>` | Recopie l'interface v10 (`src/renderer`, branche `beta`) dans `web/public/v10` et y applique `web/v10/adaptations.mjs` |
+| `npm run reprendre-v10` | Recopie l'interface v10 (sa source figée, `web/v10/source`) dans `web/public/v10` et y applique `web/v10/adaptations.mjs` |
 
 Les tests demandent aussi xmllint, Tesseract (avec le français) et Poppler (la facture électronique, la
 lecture des factures d'achat, brique 84) : `apt-get install -y libxml2-utils tesseract-ocr tesseract-ocr-fra

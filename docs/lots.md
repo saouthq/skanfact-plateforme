@@ -1,7 +1,7 @@
 # Les lots : numéro de lot et date de péremption
 
 *30/09/2026, brique 97. Le cadrage fait foi : `docs/cadrage/02-modules.md` (module Stock : « lots ») et
-`docs/cadrage/14-fonctions-et-integrations.md` (Stock au lancement) du dépôt `skanfact`. Décisions prises par
+`docs/cadrage/14-fonctions-et-integrations.md` (Stock au lancement). Décisions prises par
 délégation, le 30/09/2026.*
 
 ## Ce que fait la brique 97

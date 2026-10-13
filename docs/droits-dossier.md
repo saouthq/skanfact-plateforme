@@ -1,7 +1,6 @@
 # Les droits geste par geste dans le dossier
 
-*30/09/2026, brique 99. Le cadrage fait foi : `docs/cadrage/03-droits.md` § 2.1 (les gestes, module par module)
-du dépôt `skanfact`. Décisions prises par délégation, le 30/09/2026.*
+*30/09/2026, brique 99. Le cadrage fait foi : `docs/cadrage/03-droits.md` § 2.1 (les gestes, module par module). Décisions prises par délégation, le 30/09/2026.*
 
 ## Ce qui ne marchait pas
 

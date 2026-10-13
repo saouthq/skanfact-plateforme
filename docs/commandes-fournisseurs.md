@@ -1,7 +1,6 @@
 # Les commandes fournisseurs et leurs réceptions, même partielles
 
-*30/09/2026, briques 87 à 90. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 du
-dépôt `skanfact` (au lancement : « Côté achats : demande de prix, commande fournisseur, réception (même
+*30/09/2026, briques 87 à 90. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 (au lancement : « Côté achats : demande de prix, commande fournisseur, réception (même
 partielle), et la facture rapprochée de la réception (un écart de quantité ou de prix se signale) »).
 La brique 87 fait la commande, la réception et la facture saisie depuis les réceptions ; la brique 88
 signale les écarts ; la brique 89 fait la demande de prix, à un ou plusieurs fournisseurs ; la brique 90 les annonce dans « À faire ». Toutes les décisions sont prises par délégation, le

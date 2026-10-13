@@ -1,7 +1,6 @@
 # L'encours autorisé d'un client
 
-*30/09/2026, brique 91. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 du dépôt
-`skanfact` (au lancement : « Encours autorisé par client : au-delà, SkanFact avertit ou demande l'accord d'un
+*30/09/2026, brique 91. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 (au lancement : « Encours autorisé par client : au-delà, SkanFact avertit ou demande l'accord d'un
 responsable »). Cette brique fait l'avertissement ; l'accord d'un responsable viendra avec les droits geste par
 geste. Décisions prises par délégation, le 30/09/2026.*
 

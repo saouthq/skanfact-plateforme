@@ -1,7 +1,6 @@
 # Toutes les données de l'entreprise
 
-*12/10/2026, second envoi du lot « a » (« Télécharger toutes mes données »). Le cadrage fait foi : `docs/cadrage/03-droits.md`
-du dépôt `skanfact` (« Export complet » : le propriétaire et l'administrateur, qui prévient le propriétaire), `04` (« il
+*12/10/2026, second envoi du lot « a » (« Télécharger toutes mes données »). Le cadrage fait foi : `docs/cadrage/03-droits.md` (« Export complet » : le propriétaire et l'administrateur, qui prévient le propriétaire), `04` (« il
 doit contenir tout, pas ce que le poste a »), `07` (« jamais de données en otage » : l'export reste possible en lecture
 seule, à tout moment) et la vision § 10 (la réversibilité, un format ouvert). Les décisions marquées « par délégation »
 sont prises le 12/10/2026.*

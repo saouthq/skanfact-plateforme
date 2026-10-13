@@ -5,7 +5,7 @@ dit comment le Cabinet v10 devient celui de la plateforme, dans quel ordre, et p
 
 ## Où on en est
 
-- **Le Cabinet v10** (`src/cabinet/` du dépôt `skanfact`, branche `beta`) est une application de
+- **Le Cabinet v10** (`src/cabinet/` du dépôt `skanfact`, branche `beta`, archivé ; sa source figée vit dans `web/v10/source/cabinet`) est une application de
   bureau à part : ≈ 12 000 lignes d'écrans (`renderer/app.js`), son moteur (`cabcore.js`, et
   `compta.js` partagé avec l'entreprise), son magasin chiffré (`cabstore.js`) et ≈ 130 appels vers
   son processus principal (`preload.js` : `window.cabinet.*`). Le cabinet y tient, **dans ses propres

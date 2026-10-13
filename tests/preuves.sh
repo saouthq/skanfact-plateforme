@@ -12410,6 +12410,10 @@ prouver "consignes-catalogue-revenu" "CLAUDE.md" "## Les règles de ce dépôt" 
 ## Les règles de ce dépôt" "CLAUDE.md reste sous 32 000 octets : ce qu'une brique a appris va dans docs/carte.md"
 prouver "consignes-renvoi-mort" "CLAUDE.md" '`docs/carte.md`, puis son document' '`docs/carte-perdue.md`, puis son document' "chaque fichier que les consignes et la carte citent existe"
 
+# La source de la v10 figée dans ce dépôt (13/10/2026, le dépôt skanfact archivé) : une retouche à la main de la source
+# échapperait à toute relecture (elle doit passer par une adaptation écrite) ; le test des empreintes la refuse.
+prouver "source-v10-retouchee" "web/v10/source/cabinet/cabcore.js" "// SkanFact Cabinet — la logique du comptable, sans Electron et sans DOM." "// SkanFact Cabinet — retouché à la main." "la source de la v10 est figée dans ce dépôt, telle qu'elle a été copiée, sans un fichier de plus"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

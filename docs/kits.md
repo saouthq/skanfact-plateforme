@@ -1,6 +1,6 @@
 # Les kits
 
-*30/09/2026, brique 96. Le cadrage fait foi : `docs/cadrage/02-modules.md` du dépôt `skanfact` (module Stock :
+*30/09/2026, brique 96. Le cadrage fait foi : `docs/cadrage/02-modules.md` (module Stock :
 « recettes et kits (un article composé sort ses composants) »). Décisions prises par délégation, le 30/09/2026.*
 
 ## Ce que fait la brique 96

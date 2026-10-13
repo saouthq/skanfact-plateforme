@@ -1,7 +1,6 @@
 # Le hors-ligne sur la plateforme
 
-*30/09/2026, brique 72. Le cadrage fait foi : `docs/cadrage/04-hors-ligne-et-synchro.md` du dépôt
-`skanfact` (ce qui marche pendant une coupure, ce que le poste garde, la file d'envoi). Ce document dit
+*30/09/2026, brique 72. Le cadrage fait foi : `docs/cadrage/04-hors-ligne-et-synchro.md` (ce qui marche pendant une coupure, ce que le poste garde, la file d'envoi). Ce document dit
 ce qui en est fait, décision par décision.*
 
 ## Brique 72 : l'application installable, qui s'ouvre et se consulte sans réseau (fait le 30/09/2026)

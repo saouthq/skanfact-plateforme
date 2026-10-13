@@ -1,7 +1,6 @@
 # L'espace client
 
-*30/09/2026, brique 77. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 2.1 du
-dépôt `skanfact` (le client d'une entreprise ouvre un lien et voit, sans rien installer, ses pièces et ce
+*30/09/2026, brique 77. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 2.1 (le client d'une entreprise ouvre un lien et voit, sans rien installer, ses pièces et ce
 qu'il doit). Ce document dit ce qui en est fait, décision par décision ; toutes sont prises par
 délégation, le 30/09/2026.*
 

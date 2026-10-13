@@ -1,7 +1,6 @@
 # Le stock par dépôt, et les transferts
 
-*30/09/2026, briques 94 et 95. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 du dépôt
-`skanfact` (au lancement : « Stock par dépôt, transferts »). Décisions prises par délégation, le 30/09/2026.*
+*30/09/2026, briques 94 et 95. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 (au lancement : « Stock par dépôt, transferts »). Décisions prises par délégation, le 30/09/2026.*
 
 ## Ce que fait la brique 94
 

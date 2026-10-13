@@ -1,8 +1,7 @@
 # L'accord d'un responsable au-delà de l'encours
 
 *30/09/2026, brique 98. Le cadrage fait foi : `docs/cadrage/03-droits.md` D11 et § 2.3 (« Vendre au-delà de
-l'encours autorisé d'un client : P, A ; C et K : accord »), `docs/cadrage/14-fonctions-et-integrations.md` § 3.2
-du dépôt `skanfact`. Décisions prises par délégation, le 30/09/2026.*
+l'encours autorisé d'un client : P, A ; C et K : accord »), `docs/cadrage/14-fonctions-et-integrations.md` § 3.2. Décisions prises par délégation, le 30/09/2026.*
 
 ## Ce que fait la brique 98 (le serveur)
 

@@ -1,8 +1,7 @@
 # L'abonnement de l'entreprise
 
 *12/10/2026, lot « les fonctions qui manquent », première partie (14a). Le cadrage fait foi : `docs/cadrage/07-offres-et-prix.md`
-(l'essai, les offres, les prix, la lecture seule) et `10-console.md` § 2.4 (les gestes de SkanFact sur un abonnement) du
-dépôt `skanfact`. Ce document dit ce qui en est fait ; les décisions marquées « par délégation » sont prises le 12/10/2026.*
+(l'essai, les offres, les prix, la lecture seule) et `10-console.md` § 2.4 (les gestes de SkanFact sur un abonnement). Ce document dit ce qui en est fait ; les décisions marquées « par délégation » sont prises le 12/10/2026.*
 
 Avant ce lot, **rien ne s'arrêtait jamais** : une entreprise travaillait pour toujours sans rien payer, et l'écran parlait
 encore de la « licence » de la v10 de bureau (une clé qu'on colle), qui n'a pas de sens en ligne.

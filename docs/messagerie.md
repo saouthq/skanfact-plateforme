@@ -2,7 +2,7 @@
 
 *09/10/2026, lot messagerie. Décidée par Skander le 09/10/2026 sur deux maquettes validées : « Mon comptable »
 (l'entreprise) et « Les messages de tes clients » (le cabinet) ; le cadrage fait foi :
-`docs/cadrage/14-fonctions-et-integrations.md` § 2.4 du dépôt `skanfact`. Ce document dit ce qui en est fait, décision par
+`docs/cadrage/14-fonctions-et-integrations.md` § 2.4. Ce document dit ce qui en est fait, décision par
 décision ; celles marquées « par délégation » sont prises le 09/10/2026.*
 
 Le code : la base `base/migrations/0078_messagerie.sql` (schéma `messagerie`), le serveur `serveur/messagerie/`

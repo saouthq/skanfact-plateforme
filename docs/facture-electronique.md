@@ -1,7 +1,7 @@
 # La facture électronique (El Fatoora)
 
 *30/09/2026, briques 80 à 83. Le cadrage fait foi : `docs/cadrage/05-obligations-legales.md` § 3.1 et 3.8, et
-`VISION-ARCHITECTURE.md` § 5, du dépôt `skanfact`. Ce document dit ce qui en est fait ; les décisions sont
+`VISION-ARCHITECTURE.md` § 5. Ce document dit ce qui en est fait ; les décisions sont
 prises par délégation, le 30/09/2026.*
 
 ## Ce que fait la brique 80

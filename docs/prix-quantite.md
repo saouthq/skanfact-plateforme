@@ -1,7 +1,6 @@
 # Le prix par quantité
 
-*30/09/2026, brique 92. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 du dépôt
-`skanfact` (au lancement : « prix par quantité (à partir de 10, de 100…) »). Décisions prises par délégation,
+*30/09/2026, brique 92. Le cadrage fait foi : `docs/cadrage/14-fonctions-et-integrations.md` § 3.2 (au lancement : « prix par quantité (à partir de 10, de 100…) »). Décisions prises par délégation,
 le 30/09/2026.*
 
 ## Ce que fait la brique 92

@@ -1,7 +1,7 @@
 # La mise en ligne
 
 *Ce qu'il faut pour qu'un serveur SkanFact soit joignable sur internet. Le cadrage fait foi :
-`docs/cadrage/06-securite-et-hebergement.md` du dépôt `skanfact` (hébergement en Tunisie, site de secours,
+`docs/cadrage/06-securite-et-hebergement.md` (hébergement en Tunisie, site de secours,
 sauvegardes). Décisions prises par délégation de Skander, le 05/10/2026, sauf mention.*
 
 ## Où on en est (05/10/2026)
@@ -344,7 +344,7 @@ Le refus dit désormais la date comme on l'écrit (« 05/10/2026 », plus « 202
 
 ## H. Le relais d'e-mails : Resend (décidé par Skander le 09/10/2026, gardé pour les vraies données le 12/10/2026)
 
-L'étude est dans le dépôt `skanfact` (`docs/etudes/ENVOI-EMAILS.md`). Aucun service « tout prêt » n'annonce ses
+L'étude est dans `docs/etudes/ENVOI-EMAILS.md`. Aucun service « tout prêt » n'annonce ses
 serveurs en Tunisie. **Resend pour le serveur d'essai** (09/10/2026), puis **gardé aussi pour le serveur aux vraies
 données** (Skander, 12/10/2026 : « pour les mails finalement on garde Resend ») : le code de connexion part par e-mail
 par défaut (§ H bis), et **un serveur de production ne démarre pas sans relais d'e-mails** (`SKANFACT_SMTP`). Resend
@@ -353,7 +353,7 @@ garde ses données aux États-Unis : **À VÉRIFIER** l'autorisation de l'INPDP 
 
 **H1. Ce que fait Skander, une fois.** Les e-mails partent de **`ne-pas-repondre@send.skanfact.tn`** : le domaine
 `send.skanfact.tn` est déjà « Verified » chez Resend (celui de la console de la v10, qui y envoie les clés de licence
-depuis `licences@send.skanfact.tn` ; ses lignes DNS : dépôt `skanfact`, `plateforme/DNS-skanfact-tn.md`). Rien à
+depuis `licences@send.skanfact.tn` ; ses lignes DNS : dépôt `skanfact` (archivé), `plateforme/DNS-skanfact-tn.md`). Rien à
 ajouter chez Cloudflare (09/10/2026 : la capture de Resend envoyée par Skander le montre « Verified »).
 1. Chez Resend, « API Keys » → « Create API Key » : nom « serveur d'essai », permission **« Sending access »** (envoi
    seulement), domaine **`send.skanfact.tn`**. Une clé à part de celle de la console : chacune se retire sans l'autre.

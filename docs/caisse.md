@@ -2,8 +2,7 @@
 
 *01/10/2026, brique 115. Décidé par Skander le 01/10/2026 : la caisse commence maintenant (étape 4 avancée), parce que
 son homologation est le jalon le plus incertain. Le cadrage fait foi : `docs/cadrage/01-modele-de-donnees.md` § 10,
-`03-droits.md` § 2.1 (« Caisse »), `04-hors-ligne-et-synchro.md` § 3.1, `05-obligations-legales.md` § 3.7 du dépôt
-`skanfact`.*
+`03-droits.md` § 2.1 (« Caisse »), `04-hors-ligne-et-synchro.md` § 3.1, `05-obligations-legales.md` § 3.7.*
 
 ## Le cahier des charges de l'administration : À VÉRIFIER
 
