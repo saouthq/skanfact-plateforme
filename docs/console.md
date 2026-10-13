@@ -379,6 +379,31 @@ comptent ensuite cette vue-là. La vue et l'ordre vivent dans l'adresse (`#/clie
   (À DÉCIDER) ; la console dit le montant hors taxes, au prix du jour. Le bouton « Appeler » attend un numéro de
   téléphone que la fiche ne porte pas.
 
+**C19. Le journal, recalé sur sa maquette** (13/10/2026). **Qui se choisit d'un clic** : une pilule par membre de
+l'équipe, avec ses initiales, au lieu d'une liste déroulante. Chaque ligne dit **qui** (ses initiales, son nom, son rôle
+en clair), **le geste et sa famille** (abonnements, l'équipe, le service — lue dans le nom du geste), **sur quoi** (un
+lien), **le motif** entre guillemets, et **ce qui a changé** : chaque case sur ses lignes, la valeur d'avant barrée
+au-dessus de la nouvelle, jamais « — → … » pour une case qui était vide. **Un jour se dit comme on le dit** :
+« Aujourd'hui · mardi 13 octobre · 3 gestes », « Hier · … », l'année seulement quand ce n'est pas celle d'aujourd'hui ;
+le compte d'un jour ne s'écrit que s'il est entier (le dernier jour lu peut continuer dans la suite).
+- **Pas encore** : les cartes de la maquette (gestes de l'équipe, réservés à la direction, accès aux dossiers, le système
+  seul), la période, la recherche, le filtre par sorte de geste, l'onglet des accès aux dossiers et l'export — ils
+  demandent au serveur des comptes et des filtres qu'il ne rend pas encore.
+
+**C20. L'équipe, recalée sur sa maquette** (13/10/2026). Les boutons à droite du titre (une règle de l'en-tête, pour
+tous les écrans : le texte se resserre avant que les boutons passent dessous). Trois cartes — l'équipe, le code du
+téléphone, qui est en ligne — et **« À régler dans l'équipe »** quand quelqu'un n'a pas son code, avec **« Le lui
+rappeler… »** (un message à son adresse, depuis la messagerie de celui qui l'envoie : la console n'envoie rien). **Les
+membres** ont leur titre dans la carte ; « (toi) » à côté de son nom ; les gestes d'une ligne dans son menu à trois
+points (`MenuLigne`, le même que les règles des alertes). **Le menu se pose sur la fenêtre** (position fixe), plus
+dans le tableau : la carte d'une liste coupe ce qui la dépasse, et un menu ouvert vers le haut sur la deuxième ligne
+n'y montrait que sa moitié ; il se ferme quand la page bouge. **Ce que chaque rôle ouvre** est un tableau lu dans la
+liste des gestes du serveur (`serveur/console/gestes.ts`, rendue par `GET /console/equipe` dans `droits`) : écrit une
+seconde fois à l'écran, il dirait un jour autre chose que ce que le serveur laisse faire. Une nuance (le support
+prolonge un essai une fois par entreprise ; « À décider » ne lui montre que ses lignes) se dit à la place du « oui ».
+- **Pas encore** : les codes de secours, les appareils reconnus, les gestes des trente derniers jours (par membre et
+  en carte) et les invitations en attente — la base ne les compte pas encore pour la console.
+
 ## Mettre en route
 
 La personne crée d'abord son compte SkanFact, puis met en place le code de son téléphone (« Ton compte »,

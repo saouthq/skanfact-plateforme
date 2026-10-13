@@ -43,11 +43,26 @@ function valeurLisible(cle: string, v: unknown): string {
 // Les premiers événements (0082) écrivent leurs cases à la façon de l'API (« essaiJusquAu ») : on les lit comme celles
 // d'une ligne (« essai_jusqu_au »).
 const casesDe = (o: Record<string, unknown> | null) => (o ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k.replace(/[A-Z]/g, (l) => `_${l.toLowerCase()}`), v])) : null);
-export function Changements({ avant: avantBrut, apres: apresBrut }: { avant: Record<string, unknown> | null; apres: Record<string, unknown> | null }) {
+// `empile` (le journal, sa maquette) : chaque case sur ses lignes — son nom, la valeur d'avant barrée (s'il y en avait
+// une), la nouvelle dessous ; jamais « — → … » pour une case qui était vide.
+export function Changements({ avant: avantBrut, apres: apresBrut, empile }: { avant: Record<string, unknown> | null; apres: Record<string, unknown> | null; empile?: boolean }) {
   const avant = casesDe(avantBrut), apres = casesDe(apresBrut);
   const a = avant ?? {}, b = apres ?? {};
   const lignes = CASES.filter((c) => c in b && (avant === null ? b[c] !== null && b[c] !== false : a[c] !== b[c]) && !(c === 'actif' && b.actif === true && avant === null));
   if (!lignes.length) return null;
+  if (empile) {
+    return (
+      <span className="c-changes c-changes-empile">
+        {lignes.map((c) => (
+          <span key={c} className="c-change">
+            <span className="c-change-champ">{titre(`console.ecran.champ.${c}`)}</span>
+            {avant !== null && a[c] !== null && a[c] !== undefined ? <del data-donnee>{valeurLisible(c, a[c])}</del> : null}
+            <ins data-donnee>{valeurLisible(c, b[c])}</ins>
+          </span>
+        ))}
+      </span>
+    );
+  }
   return (
     <span className="c-changes">
       {lignes.map((c) => (

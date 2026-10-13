@@ -30,7 +30,7 @@ import {
 } from './sauvegardes.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
 import { BUDGETS } from '../service/mesures.ts';
-import type { RoleConsole } from './gestes.ts';
+import { LISTE_GESTES_CONSOLE, type RoleConsole } from './gestes.ts';
 import './textes.ts';
 
 const uuid = z.string().uuid();
@@ -323,7 +323,12 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   // ── L'équipe (10 § 2.10) ─────────────────────────────────────────────────────────────────────────────────────────────
   ajouter({
     methode: 'GET', chemin: '/console/equipe', geste: 'console.equipe.voir',
-    traiter: async (_r, tx) => ({ corps: { membres: await lireJson(transaction(tx), 'select plateforme.console_equipe($1) v', [maintenant()]) } }),
+    // `droits` : ce que chaque rôle ouvre, lu dans la liste des gestes (serveur/console/gestes.ts) — l'écran ne le recopie
+    // pas : écrit une seconde fois, il dirait un jour autre chose que ce que le serveur laisse faire.
+    traiter: async (_r, tx) => ({ corps: {
+      membres: await lireJson(transaction(tx), 'select plateforme.console_equipe($1) v', [maintenant()]),
+      droits: LISTE_GESTES_CONSOLE.filter((g) => g.code !== 'console.session').map((g) => ({ code: g.code, roles: g.roles })),
+    } }),
   });
   const role = z.enum(['direction', 'support', 'technique']);
   ajouter({

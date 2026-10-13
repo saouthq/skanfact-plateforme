@@ -33,6 +33,7 @@ import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { aujourdhuiATunis } from '../../serveur/reglements.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { cliquer } from '../cliquer.ts';
+import { LISTE_GESTES_CONSOLE } from '../../serveur/console/gestes.ts';
 import { problemes } from '../instrument-rendu.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
@@ -408,6 +409,72 @@ describe('la console de l\'équipe, à la souris', () => {
     await cliquer(p.locator('.c-menu > button'));
     expect(await p.locator('.c-menu-liste button').count()).toBe(0);
     expect(net(await p.locator('.c-menu-note').innerText())).toMatch(/une fois par entreprise/);
+    await fermer(p);
+  }, 90_000);
+
+  it('le journal : qui se choisit d\'un clic ; chaque geste porte sa famille ; l\'avant barré au-dessus de l\'après ; un jour se dit comme on le dit', async () => {
+    const p = await ouvrir(await jetonConsole(direction), '#/journal');
+    const lignes = p.locator('.c-table-journal tbody tr:not(.c-table-jour)');
+    await expect.poll(() => lignes.count(), { timeout: 15_000 }).toBeGreaterThan(0);
+    // Le jour d'aujourd'hui se nomme « Aujourd'hui · mardi 13 octobre », sans l'année du jour.
+    expect(net(await p.locator('.c-table-jour').first().innerText())).toMatch(/^Aujourd'hui · \S+ \d{1,2} \S+( · (un geste|\d+ gestes))?$/);
+    // La prolongation de la fiche : la famille « Abonnements », la fin d'essai d'avant barrée, la nouvelle dessous.
+    const prolongation = lignes.filter({ hasText: 'Essai prolongé' }).first();
+    expect(net(await prolongation.locator('.c-jr-famille').innerText())).toBe('Abonnements');
+    expect(await prolongation.locator('.c-changes-empile del').count()).toBeGreaterThan(0);
+    expect(net(await prolongation.innerText())).not.toContain('→');
+    // Qui se choisit d'un clic : seulement les gestes de ce membre, et sa pilule le dit.
+    const pilule = p.locator('.c-jr-qui .c-pilule', { hasText: support.nom });
+    const lue = p.waitForResponse((r) => r.url().includes('/console/journal?') && r.url().includes('qui='));
+    await cliquer(pilule);
+    await lue;
+    await expect.poll(() => pilule.getAttribute('aria-pressed')).toBe('true');
+    await expect.poll(async () => {
+      const qui = await p.locator('.c-jr-qui-cellule').allInnerTexts();
+      return qui.length > 0 && qui.every((t) => t.includes(support.nom));
+    }, { timeout: 15_000 }).toBe(true);
+    await fermer(p);
+  }, 90_000);
+
+  it('l\'équipe : ce que chaque rôle ouvre vient des gestes du serveur ; le menu d\'une ligne s\'ouvre entier, même au bas de l\'écran', async () => {
+    const jeton = await jetonConsole(direction);
+    // L'attendu vient de la liste des gestes elle-même, jamais de ce que la route en rend : c'est la route qu'on éprouve.
+    const lu = { droits: LISTE_GESTES_CONSOLE.filter((g) => g.code !== 'console.session') };
+    const p = await ouvrir(jeton, '#/equipe');
+    const droits = p.locator('.c-eq-droits tbody tr');
+    await expect.poll(() => droits.count(), { timeout: 15_000 }).toBe(lu.droits.length);
+    // Une ligne par geste du serveur, dans son ordre ; un « oui » là où le rôle l'a, un tiret sinon — et la nuance du
+    // support (prolonger un essai) à la place du « oui ».
+    for (const [i, d] of lu.droits.entries()) {
+      const cellules = droits.nth(i).locator('td');
+      for (const [j, r] of (['direction', 'support', 'technique'] as const).entries()) {
+        const t = net(await cellules.nth(j + 1).innerText());
+        if (!d.roles.includes(r)) expect(t).toBe('—');
+        else if (d.code === 'console.abonnement.prolonger' && r === 'support') expect(t).toContain('une fois par entreprise');
+        else if (d.code === 'console.accueil.voir' && r !== 'direction') expect(t).toContain('ses lignes');
+        else expect(t).toBe('Oui');
+      }
+    }
+    // Le menu de la ligne du support, amenée au bas d'un écran bas : il s'ouvre entier, rien ne le coupe (la carte du
+    // tableau coupait le menu ouvert vers le haut).
+    await p.setViewportSize({ width: 1440, height: 640 });
+    const ligne = p.locator('.c-table:not(.c-eq-droits) tbody tr', { hasText: support.nom });
+    const bouton = ligne.locator('.c-menu-btn');
+    await bouton.evaluate((e) => { const r = e.getBoundingClientRect(); window.scrollBy(0, r.bottom - window.innerHeight + 10); });
+    await cliquer(bouton);
+    const liste = p.locator('.c-menu-liste');
+    await expect.poll(() => liste.count()).toBe(1);
+    await p.waitForTimeout(150);
+    const entier = await liste.evaluate((m) => {
+      const r = m.getBoundingClientRect();
+      const coins = [[r.left + 6, r.top + 6], [r.right - 6, r.top + 6], [r.left + 6, r.bottom - 6], [r.right - 6, r.bottom - 6]];
+      return r.top >= 0 && r.bottom <= window.innerHeight && coins.every(([x, y]) => m.contains(document.elementFromPoint(x ?? 0, y ?? 0)));
+    });
+    expect(entier).toBe(true);
+    // « Ses gestes au journal » mène au journal de cette personne.
+    await cliquer(liste.getByRole('button', { name: /ses gestes au journal/i }));
+    await expect.poll(() => p.evaluate(() => location.hash)).toMatch(/^#\/journal\?qui=[0-9a-f-]{36}$/);
+    expect(erreurs).toEqual([]);
     await fermer(p);
   }, 90_000);
 

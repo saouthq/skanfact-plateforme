@@ -6,12 +6,12 @@
 //   - une alerte ne se règle jamais à la main : elle se lève quand la veille ne voit plus le problème ;
 //   - chaque geste (prendre en charge, sourdine, essai) dit ce qui va se passer, demande son motif et entre au journal ;
 //   - rien n'est vert sans mesure : une veille qui ne relève plus rend chaque règle « non lue », jamais « calme ».
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { dire, phrase, titre, typo } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
 import { duree, entier, minutes, pourCent } from '../nombres.ts';
 import { heureDe, jourDe, jourMois, quand } from '../temps.ts';
-import { Alerte, Bouton, Dialogue, Icone, maj, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
+import { Alerte, Bouton, Dialogue, Icone, maj, MenuLigne, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
 import { EnteteService, enTitre, faitDeRegle, ICONE_BRIQUE, useRelireTantQueRegarde, type AlertesEnCours, type Brique, type Faits, type IdBrique, type Veille } from './Service.tsx';
 
 const K = 'console.ecran.service';
@@ -312,57 +312,14 @@ function maintenant(r: Regle, d: Donnees): { texte: string; ton: 'grave' | 'atte
   return f ? { texte: f.texte, ton: 'calme', ...(f.donnee ? { donnee: true } : {}) } : { texte: dire(`${A}.maintenant.rien`), ton: 'calme' };
 }
 function MenuRegle({ r, faire, voirHistoire }: { r: Regle; faire: (g: Geste) => void; voirHistoire: () => void }) {
-  const [ouvert, setOuvert] = useState(false);
-  // Une règle du bas ouvre son menu vers le haut : dessous, il sortirait de la fenêtre, ou du tableau qui défile (qui le
-  // couperait).
-  const [haut, setHaut] = useState(false);
-  const zone = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const bouton = zone.current?.querySelector<HTMLElement>('button');
-    const liste = zone.current?.querySelector<HTMLElement>('.c-menu-liste');
-    if (!ouvert || !bouton || !liste) return;
-    const b = bouton.getBoundingClientRect();
-    const cadre = zone.current?.closest('.c-defile')?.getBoundingClientRect();
-    const h = liste.getBoundingClientRect().height + 12;
-    const dessous = Math.min(window.innerHeight, cadre?.bottom ?? Infinity) - b.bottom;
-    const dessus = b.top - Math.max(0, cadre?.top ?? 0);
-    setHaut(dessous < h && dessus > dessous);
-  }, [ouvert]);
-  useEffect(() => {
-    if (!ouvert) return undefined;
-    const ailleurs = (e: MouseEvent) => { if (!zone.current?.contains(e.target as Node)) setOuvert(false); };
-    const echap = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOuvert(false); zone.current?.querySelector<HTMLElement>('button')?.focus(); } };
-    document.addEventListener('mousedown', ailleurs);
-    document.addEventListener('keydown', echap);
-    // Le premier choix prend le clavier SANS faire défiler la page : sur la dernière ligne, le focus la faisait sauter de
-    // 440 points sous la souris (le menu s'ouvre vers le haut quand la place manque dessous, il reste à l'écran).
-    zone.current?.querySelector<HTMLElement>('.c-menu-liste button')?.focus({ preventScroll: true });
-    return () => { document.removeEventListener('mousedown', ailleurs); document.removeEventListener('keydown', echap); };
-  }, [ouvert]);
-  const choisir = (f: () => void) => () => { setOuvert(false); f(); };
   const grave = r.ouvertes.some((o) => o.grave);
   return (
-    <div className="c-menu" ref={zone}>
-      <button type="button" className="c-btn c-btn-petit c-al-menu-btn" aria-expanded={ouvert} aria-label={dire(`${A}.regles.menu`, { regle: nomRegle(r.id) })} onClick={() => setOuvert(!ouvert)}>
-        <Icone nom="menu" taille={17} />
-      </button>
-      {ouvert ? (
-        <div className={`c-menu-liste${haut ? ' c-menu-liste-haut' : ''}`}>
-          {r.sourdine ? (
-            <button type="button" onClick={choisir(() => faire({ sorte: 'lever', regle: r.id, sourdine: r.sourdine as Sourdine }))}>
-              <Icone nom="cloche" /><span className="c-al-action"><b>{titre(`${A}.regles.action.lever`)}</b><span>{phrase(`${A}.regles.action.lever_sous`)}</span></span>
-            </button>
-          ) : (
-            <button type="button" onClick={choisir(() => faire({ sorte: 'sourdine', regle: r.id, grave }))}>
-              <Icone nom="sourdine" /><span className="c-al-action"><b>{titre(`${A}.regles.action.sourdine`)}</b><span>{phrase(`${A}.regles.action.sourdine_sous`)}</span></span>
-            </button>
-          )}
-          <button type="button" onClick={choisir(voirHistoire)}>
-            <Icone nom="journal" /><span className="c-al-action"><b>{titre(`${A}.regles.action.histoire`)}</b><span>{phrase(`${A}.regles.action.histoire_sous`)}</span></span>
-          </button>
-        </div>
-      ) : null}
-    </div>
+    <MenuLigne etiquette={dire(`${A}.regles.menu`, { regle: nomRegle(r.id) })} actions={[
+      r.sourdine
+        ? { icone: 'cloche', titre: titre(`${A}.regles.action.lever`), sous: phrase(`${A}.regles.action.lever_sous`), faire: () => faire({ sorte: 'lever', regle: r.id, sourdine: r.sourdine as Sourdine }) }
+        : { icone: 'sourdine', titre: titre(`${A}.regles.action.sourdine`), sous: phrase(`${A}.regles.action.sourdine_sous`), faire: () => faire({ sorte: 'sourdine', regle: r.id, grave }) },
+      { icone: 'journal', titre: titre(`${A}.regles.action.histoire`), sous: phrase(`${A}.regles.action.histoire_sous`), faire: voirHistoire },
+    ]} />
   );
 }
 // Un filtre qui raccourcit une liste au bas de la page fait remonter la page : ses pilules glissaient de 90 px sous la

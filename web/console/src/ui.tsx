@@ -1,6 +1,6 @@
 // Les pièces des écrans de la console : les dessins, les boutons, les puces d'état, les champs, la fenêtre et le message
 // passager. Dessinés pour la console seulement (console.css) : l'application garde les siens.
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { titre } from './langue.ts';
 
@@ -42,6 +42,7 @@ const DESSINS = {
   sourdine: <><path d="M11 5.5L6.5 9H3.5v6h3l4.5 3.5z" /><path d="M21 9.5l-5 5M16 9.5l5 5" /></>,
   copier: <><rect x="8.5" y="8.5" width="12" height="12" rx="2" /><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3" /></>,
   cloche: <><path d="M6 9.5a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15.5 6 9.5z" /><path d="M10 20.5a2.2 2.2 0 0 0 4 0" /></>,
+  points: <><circle cx="5.5" cy="12" r="1.4" fill="currentColor" /><circle cx="12" cy="12" r="1.4" fill="currentColor" /><circle cx="18.5" cy="12" r="1.4" fill="currentColor" /></>,
 } as const;
 export type NomIcone = keyof typeof DESSINS;
 
@@ -76,6 +77,67 @@ export function Lien({ href, children, ton = 'secondaire', petit, fleche, icone,
     <a className={c} href={href} {...(etiquette ? { 'aria-label': etiquette } : {})}>
       {icone ? <Icone nom={icone} taille={17} /> : null}{children}{fleche ? <Icone nom="fleche" taille={17} /> : null}
     </a>
+  );
+}
+
+// ── Le menu d'une ligne (« … ») ─────────────────────────────────────────────────────────────────────────────────────
+// Les gestes d'une ligne de tableau derrière un bouton, chacun son icône, son nom et sa phrase (les règles des alertes,
+// les membres de l'équipe : un seul mécanisme). Une ligne du bas ouvre son menu vers le haut : dessous, il sortirait de
+// la fenêtre, ou du tableau qui défile (qui le couperait). Échap et un clic ailleurs le ferment.
+export type ActionLigne = { icone: NomIcone; titre: string; sous?: string; faire: () => void; danger?: boolean };
+export function MenuLigne({ etiquette, actions }: { etiquette: string; actions: ActionLigne[] }) {
+  const [ouvert, setOuvert] = useState(false);
+  // Le menu se pose sur la FENÊTRE (position fixe), jamais dans le tableau : la carte d'une liste coupe ce qui la dépasse,
+  // et un menu ouvert vers le haut sur la deuxième ligne n'y montrait que sa moitié. Dessous s'il tient, sinon dessus,
+  // et toujours dans l'écran.
+  const [place, setPlace] = useState<{ top: number; right: number; haut: boolean } | null>(null);
+  const zone = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (!ouvert) { setPlace(null); return; }
+    const bouton = zone.current?.querySelector<HTMLElement>('button');
+    const liste = zone.current?.querySelector<HTMLElement>('.c-menu-liste');
+    if (!bouton || !liste) return;
+    const b = bouton.getBoundingClientRect();
+    const h = liste.getBoundingClientRect().height;
+    const dessous = window.innerHeight - b.bottom - 6, dessus = b.top - 6;
+    const haut = dessous < h + 6 && dessus > dessous;
+    const top = haut ? b.top - 6 - h : b.bottom + 6;
+    setPlace({ top: Math.max(8, Math.min(top, window.innerHeight - h - 8)), right: Math.max(8, window.innerWidth - b.right), haut });
+  }, [ouvert]);
+  useEffect(() => {
+    if (!ouvert) return undefined;
+    const ailleurs = (e: MouseEvent) => { if (!zone.current?.contains(e.target as Node)) setOuvert(false); };
+    const echap = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOuvert(false); zone.current?.querySelector<HTMLElement>('button')?.focus(); } };
+    // Posé sur la fenêtre, le menu ne suit pas la page : il se ferme quand elle bouge.
+    const bouge = (e: Event) => { if (!(e.target instanceof Node && zone.current?.contains(e.target))) setOuvert(false); };
+    document.addEventListener('mousedown', ailleurs);
+    document.addEventListener('keydown', echap);
+    window.addEventListener('scroll', bouge, true);
+    window.addEventListener('resize', bouge);
+    // Le premier choix prend le clavier SANS faire défiler la page : sur la dernière ligne, le focus la faisait sauter de
+    // 440 points sous la souris.
+    zone.current?.querySelector<HTMLElement>('.c-menu-liste button')?.focus({ preventScroll: true });
+    return () => {
+      document.removeEventListener('mousedown', ailleurs); document.removeEventListener('keydown', echap);
+      window.removeEventListener('scroll', bouge, true); window.removeEventListener('resize', bouge);
+    };
+  }, [ouvert]);
+  return (
+    <div className="c-menu" ref={zone}>
+      <button type="button" className="c-menu-btn" aria-expanded={ouvert} aria-label={etiquette} onClick={() => setOuvert(!ouvert)}>
+        <Icone nom="points" taille={20} />
+      </button>
+      {ouvert ? (
+        <div className={`c-menu-liste c-menu-liste-fixe${place?.haut ? ' c-menu-liste-haut' : ''}`}
+          style={place ? { top: place.top, right: place.right } : { visibility: 'hidden' }}>
+          {actions.map((a) => (
+            <button key={a.titre} type="button" className={a.danger ? 'c-menu-danger' : undefined} onClick={() => { setOuvert(false); a.faire(); }}>
+              <Icone nom={a.icone} /><span className="c-menu-action"><b>{a.titre}</b>{a.sous ? <span>{a.sous}</span> : null}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 

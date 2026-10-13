@@ -67,7 +67,7 @@ describe('les alertes du service, à la souris', () => {
   const fenetre = (p: Page) => p.locator('[role="dialog"]');
   const toast = async (p: Page) => { await expect.poll(() => p.locator('#c-toast.c-montre').count()).toBe(1); return net(await p.locator('#c-toast').innerText()); };
   // Le menu d'une règle, par la ligne qui porte son nom.
-  const menuDe = (p: Page, nom: string) => p.locator('.c-al-regles tbody tr', { has: p.locator('b', { hasText: new RegExp(`^${nom}$`) }) }).locator('.c-al-menu-btn');
+  const menuDe = (p: Page, nom: string) => p.locator('.c-al-regles tbody tr', { has: p.locator('b', { hasText: new RegExp(`^${nom}$`) }) }).locator('.c-menu-btn');
 
   const maintenant = Math.floor(Date.now() / MIN) * MIN;
   const t = (min: number) => new Date(maintenant - min * MIN).toISOString();
@@ -142,7 +142,7 @@ describe('les alertes du service, à la souris', () => {
     const p = await ouvrir(await jetonConsole(direction));
     // La dernière ligne du tableau, amenée au bas de l'écran : son menu s'ouvre vers le haut plutôt que de sortir.
     // (Les règles prévues n'ont pas de menu : la dernière qui en a un.)
-    const derniere = p.locator('.c-al-regles tbody tr .c-al-menu-btn').last();
+    const derniere = p.locator('.c-al-regles tbody tr .c-menu-btn').last();
     await derniere.evaluate((e) => { const r = e.getBoundingClientRect(); window.scrollBy(0, r.bottom - window.innerHeight + 8); });
     const avant = await p.evaluate(() => window.scrollY);
     await cliquer(derniere);

@@ -11097,7 +11097,7 @@ prouver 'un tableau de la console qui fait déborder le téléphone' web/console
   '.c-defile { overflow-x: auto; position: relative; }' '.c-defile { overflow-x: auto; }' \
   "$CONSW6"
 prouver 'les noms de l'"'"'équipe pris pour des textes du catalogue' web/console/src/ecrans/Journal.tsx \
-  'texte: m.nom, donnee: true }))' 'texte: m.nom }))' \
+  '<Avatar nom={m.nom} /><span data-donnee>{m.nom}</span>' '<Avatar nom={m.nom} /><span>{m.nom}</span>' \
   "$CONSW6"
 prouver 'la console gardée par le service des écrans' web/public/sw.js \
   'u.pathname.startsWith('"'"'/v1/'"'"')
@@ -11682,14 +11682,12 @@ prouver 'un refus qui reste quand on écrit le motif' 'web/console/src/ecrans/Al
   'valeur={motif} changer={(v) => { setMotif(v); setRefus(null); }}' \
   'valeur={motif} changer={setMotif}' \
   'un seul bouton principal, qui passe à la suivante ; un motif vide se refuse, et le refus s'"'"'efface quand on écrit'
-prouver 'un menu de règle qui sort de l'"'"'écran' 'web/console/src/ecrans/Alertes.tsx' \
-  '    setHaut(dessous < h && dessus > dessous);' \
-  '    setHaut(false);' \
+prouver 'un menu de règle qui sort de l'"'"'écran' 'web/console/src/ui.tsx' \
+  '    setPlace({ top: Math.max(8, Math.min(top, window.innerHeight - h - 8)), right: Math.max(8, window.innerWidth - b.right), haut });' \
+  '    setPlace({ top: b.bottom + 6, right: Math.max(8, window.innerWidth - b.right), haut });' \
   'la sourdine d'"'"'une règle, depuis son menu : la même fin dans le message et sur la ligne ; le menu reste dans l'"'"'écran'
-prouver 'un menu de règle qui fait sauter la page sous la souris' 'web/console/src/ecrans/Alertes.tsx' \
-  '    zone.current?.querySelector<HTMLElement>('"'"'.c-menu-liste button'"'"')?.focus({ preventScroll: true });' \
-  '    zone.current?.querySelector<HTMLElement>('"'"'.c-menu-liste button'"'"')?.focus();' \
-  'la sourdine d'"'"'une règle, depuis son menu : la même fin dans le message et sur la ligne ; le menu reste dans l'"'"'écran'
+# (« un menu de règle qui fait sauter la page sous la souris » est retirée : le menu se pose sur la fenêtre depuis la
+# C20, il est toujours dans l'écran, et le focus n'a plus rien à faire défiler.)
 prouver 'le nom de la règle redit sous chaque alerte filtrée' 'web/console/src/ecrans/Alertes.tsx' \
   '{h.regle && !regle ? <span' \
   '{h.regle ? <span' \
@@ -11823,6 +11821,31 @@ prouver 'le revenu de l'"'"'année redit dans l'"'"'en-tête' 'web/console/src/e
   '      <header className="c-entete">' \
   '      <header className="c-entete">{a ? <div className="c-entete-chiffre">{montant(a.montantHt)}</div> : null}' \
   'les abonnements : chaque carte ouvre la liste qu'"'"'elle compte'
+
+prouver 'la valeur d'"'"'avant redite avec une flèche dans le journal' 'web/console/src/ecrans/Journal.tsx' \
+  '<Changements avant={l.avant} apres={l.apres} empile />' \
+  '<Changements avant={l.avant} apres={l.apres} />' \
+  'le journal : qui se choisit d'"'"'un clic'
+prouver 'le jour d'"'"'aujourd'"'"'hui écrit en date seule' 'web/console/src/ecrans/Journal.tsx' \
+  '  const n = joursEntre(jour, aujourdhui);' \
+  '  const n = 99 + joursEntre(jour, aujourdhui);' \
+  'le journal : qui se choisit d'"'"'un clic'
+prouver 'une pilule de membre qui ne filtre pas le journal' 'web/console/src/ecrans/Journal.tsx' \
+  'onClick={() => setQui(m.utilisateur)}' \
+  'onClick={() => setQui(qui)}' \
+  'le journal : qui se choisit d'"'"'un clic'
+
+# L'équipe recalée sur sa maquette (docs/console.md C20) : ce que chaque rôle ouvre se lit dans les gestes du serveur,
+# et le menu d'une ligne se pose sur la fenêtre (la carte du tableau le coupait).
+EQ1='l'"'"'équipe : ce que chaque rôle ouvre vient des gestes du serveur'
+prouver 'un rôle oublié dans ce que chaque rôle ouvre' 'serveur/console/routes.ts' \
+  'map((g) => ({ code: g.code, roles: g.roles }))' \
+  "map((g) => ({ code: g.code, roles: g.roles.filter((r) => r === 'direction') }))" \
+  "$EQ1"
+prouver 'un menu de ligne coupé par la carte de son tableau' 'web/console/src/ui.tsx' \
+  'className={`c-menu-liste c-menu-liste-fixe${' \
+  'className={`c-menu-liste${' \
+  "$EQ1"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

@@ -2,11 +2,13 @@
 // chaque geste de la console et de l'outil de l'exploitation, avec son auteur, son rôle, son motif, et ce qu'il a changé.
 // Rien ne s'y modifie ni ne s'y efface (la base le refuse). Le plus récent en haut, regroupé par jour ; les plus anciens
 // se demandent (la suite se lit à partir du dernier lu, jamais par numéro de page : une ligne neuve ne décale rien).
+// Recalé sur sa maquette : qui se choisit d'un clic (une pilule par membre), chaque geste porte sa famille, la valeur
+// d'avant se lit barrée au-dessus de la nouvelle, et un jour se nomme comme on le dit (« Aujourd'hui · mardi 13 octobre »).
 import { useCallback, useEffect, useState } from 'react';
-import { dire, phrase, titre } from '../langue.ts';
-import { panneDe, refusDe, useApi, useLecture, type Role } from '../contexte.ts';
-import { heureDe, jourDe, jourLong, jourMois } from '../temps.ts';
-import { Alerte, Bouton, Choix, Puce, Vide } from '../ui.tsx';
+import { dire, phrase, selon, titre } from '../langue.ts';
+import { panneDe, refusDe, useApi, useConsole, useLecture, type Role } from '../contexte.ts';
+import { heureDe, jourDe, jourLong, jourMois, joursEntre } from '../temps.ts';
+import { Alerte, Avatar, Bouton, maj, Puce, Vide } from '../ui.tsx';
 import { Changements } from './Fiche.tsx';
 
 type Ligne = {
@@ -30,10 +32,33 @@ function ChangeDuService({ geste, s }: { geste: string; s: NonNullable<Ligne['se
   return <span className="c-changes"><span className="c-change">{dire(`console.ecran.journal.${geste === 'service.sourdine' ? 'jusqua' : 'devait_courir'}`, { quand })}</span></span>;
 }
 
-export function Journal({ entreprise }: { entreprise: string | null }) {
+// La famille d'un geste, lue dans son nom : l'abonnement d'un client, l'équipe, le service.
+const FAMILLES = ['abonnement', 'equipe', 'service'] as const;
+const familleDe = (geste: string) => FAMILLES.find((f) => geste.startsWith(`${f}.`)) ?? null;
+
+// Un jour comme on le dit : « Aujourd'hui · mardi 13 octobre », « Hier · lundi 12 octobre », « samedi 10 octobre » ; l'année
+// seulement quand ce n'est pas celle d'aujourd'hui.
+function jourEnMots(jour: string, aujourdhui: string): string {
+  const long = jourLong(jour);
+  const sansAnnee = jour.slice(0, 4) === aujourdhui.slice(0, 4) ? long.replace(/\s\d{4}$/, '') : long;
+  const n = joursEntre(jour, aujourdhui);
+  return n === 0 ? `${maj(dire('console.ecran.temps.aujourdhui'))} · ${sansAnnee}` : n === 1 ? `${maj(dire('console.ecran.temps.hier'))} · ${sansAnnee}` : maj(sansAnnee);
+}
+
+export function Journal({ entreprise, qui: quiDemande }: { entreprise: string | null; qui: string | null }) {
   const api = useApi();
+  const { moi } = useConsole();
   const [equipe] = useLecture<{ membres: Membre[] }>('/console/equipe');
-  const [qui, setQui] = useState('');
+  const [qui, setQui] = useState(quiDemande ?? '');
+  // Un membre demandé d'ailleurs (« ses gestes au journal », dans l'équipe) remplace celui-ci ; l'adresse suit le choix.
+  useEffect(() => { setQui(quiDemande ?? ''); }, [quiDemande]);
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (entreprise) p.set('entreprise', entreprise);
+    if (qui) p.set('qui', qui);
+    const s = p.toString();
+    history.replaceState(null, '', `#/journal${s ? `?${s}` : ''}`);
+  }, [entreprise, qui]);
   const [lignes, setLignes] = useState<Ligne[] | null>(null);
   const [suite, setSuite] = useState<string | null>(null);
   const [panne, setPanne] = useState<string | null>(null);
@@ -76,9 +101,13 @@ export function Journal({ entreprise }: { entreprise: string | null }) {
       </header>
       <section className="c-carte c-liste-carte" aria-label={titre('console.ecran.journal.titre')}>
         <div className="c-liste-outils">
-          <div className="c-filtre-qui">
-            <Choix libelle={titre('console.ecran.journal.qui')} valeur={qui} changer={setQui}
-              options={[{ valeur: '', texte: titre('console.ecran.journal.toute_l_equipe') }, ...membres.map((m) => ({ valeur: m.utilisateur, texte: m.nom, donnee: true }))]} />
+          <div className="c-pilules c-jr-qui" role="group" aria-label={titre('console.ecran.journal.qui')}>
+            <button type="button" className="c-pilule" aria-pressed={qui === ''} onClick={() => setQui('')}>{titre('console.ecran.journal.toute_l_equipe')}</button>
+            {membres.map((m) => (
+              <button key={m.utilisateur} type="button" className="c-pilule" aria-pressed={qui === m.utilisateur} onClick={() => setQui(m.utilisateur)}>
+                <Avatar nom={m.nom} /><span data-donnee>{m.nom}</span>
+              </button>
+            ))}
           </div>
           {entreprise ? (
             <span className="c-titre-ligne">
@@ -92,7 +121,7 @@ export function Journal({ entreprise }: { entreprise: string | null }) {
           : lignes.length === 0 ? <Vide icone="journal">{phrase('console.ecran.journal.vide')}</Vide>
             : (
               <div className="c-defile">
-                <table className="c-table">
+                <table className="c-table c-table-journal">
                   <thead>
                     <tr>
                       <th scope="col">{titre('console.ecran.journal.colonne.heure')}</th>
@@ -103,28 +132,47 @@ export function Journal({ entreprise }: { entreprise: string | null }) {
                       <th scope="col">{titre('console.ecran.journal.colonne.change')}</th>
                     </tr>
                   </thead>
-                  {jours.map((j) => (
-                    <tbody key={j.jour}>
-                      <tr className="c-table-jour"><th scope="rowgroup" colSpan={6} data-donnee>{jourLong(j.jour)}</th></tr>
-                      {j.lignes.map((l) => (
-                        <tr key={l.id}>
-                          <td className="c-mono">{heureDe(l.le)}</td>
-                          <td>
-                            {l.qui ? <><b data-donnee>{l.qui.nom}</b>{l.role ? <span className="c-sous c-sous-espace"><Puce ton={l.role}>{dire(`console.ecran.role.${l.role}`)}</Puce></span> : null}</>
-                              : <span className="c-attente">{titre('console.ecran.journal.outil')}</span>}
-                          </td>
-                          <td><b>{titre(`console.ecran.journal.g.${l.geste.replaceAll('-', '_')}`)}</b></td>
-                          <td>
-                            {l.entreprise ? <a href={`#/clients/${l.entreprise.id}`} data-donnee>{l.entreprise.raisonSociale}</a>
-                              : l.membre ? <span data-donnee>{l.membre.nom}</span>
-                                : l.service ? <SurLeService s={l.service} /> : '—'}
-                          </td>
-                          <td><span className="c-motif" data-donnee>{'«\u202f'}{l.motif}{'\u202f»'}</span></td>
-                          <td>{l.service ? <ChangeDuService geste={l.geste} s={l.service} /> : <Changements avant={l.avant} apres={l.apres} />}</td>
+                  {jours.map((j, i) => {
+                    // Le compte d'un jour ne se dit que s'il est entier : le dernier jour lu peut continuer dans la suite.
+                    const entier = i < jours.length - 1 || suite === null;
+                    return (
+                      <tbody key={j.jour}>
+                        <tr className="c-table-jour">
+                          <th scope="rowgroup" colSpan={6}>
+                            <b data-donnee>{jourEnMots(j.jour, moi.aujourdhui)}</b>
+                            {entier ? <span>{' · '}{selon(j.lignes.length, 'console.ecran.journal.gestes')}</span> : null}
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  ))}
+                        {j.lignes.map((l) => {
+                          const famille = familleDe(l.geste);
+                          return (
+                            <tr key={l.id}>
+                              <td className="c-mono">{heureDe(l.le)}</td>
+                              <td>
+                                {l.qui ? (
+                                  <span className="c-jr-qui-cellule">
+                                    <Avatar nom={l.qui.nom} nuit={l.role === 'direction'} />
+                                    <span><b data-donnee>{l.qui.nom}</b>{l.role ? <span className="c-sous">{titre(`console.ecran.role.${l.role}`)}</span> : null}</span>
+                                  </span>
+                                ) : <span className="c-attente">{titre('console.ecran.journal.outil')}</span>}
+                              </td>
+                              <td>
+                                <b>{titre(`console.ecran.journal.g.${l.geste.replaceAll('-', '_')}`)}</b>
+                                {famille ? <span className="c-sous c-sous-espace"><span className={`c-jr-famille c-jr-famille-${famille}`}>{titre(`console.ecran.journal.famille.${famille}`)}</span></span> : null}
+                              </td>
+                              <td className="c-jr-sur">
+                                {l.entreprise ? <a href={`#/clients/${l.entreprise.id}`} data-donnee>{l.entreprise.raisonSociale}</a>
+                                  : l.membre ? <span data-donnee>{l.membre.nom}</span>
+                                    : l.service ? <SurLeService s={l.service} /> : '—'}
+                              </td>
+                              <td><span className="c-jr-motif" data-donnee>{'«\u202f'}{l.motif}{'\u202f»'}</span></td>
+                              <td>{l.service ? <ChangeDuService geste={l.geste} s={l.service} /> : <Changements avant={l.avant} apres={l.apres} empile />}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    );
+                  })}
                 </table>
               </div>
             )}

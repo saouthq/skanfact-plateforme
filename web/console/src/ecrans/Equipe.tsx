@@ -1,18 +1,27 @@
 // L'équipe SkanFact (10 § 2.10 ; serveur/console/routes.ts, /console/equipe ; 0083) : qui entre dans la console, avec
 // quel rôle, son code du téléphone (sans lui, la console ne s'ouvre pas), sa dernière connexion et où sa session est
 // ouverte. La direction ajoute, change un rôle, retire : chaque geste demande un motif et reste au journal. Jamais sur
-// soi-même, et l'équipe garde toujours quelqu'un à la direction (la base le tient).
+// soi-même, et l'équipe garde toujours quelqu'un à la direction (la base le tient). Recalé sur sa maquette : trois
+// cartes (l'équipe, le code du téléphone, qui est en ligne), « À régler dans l'équipe » quand quelqu'un n'entre pas
+// encore (avec de quoi le lui rappeler), les gestes d'une ligne dans son menu (le même que les règles des alertes,
+// MenuLigne), et ce que chaque rôle ouvre — lu dans la liste des gestes du serveur, jamais recopié ici.
 import { useState } from 'react';
-import { dire, phrase, titre } from '../langue.ts';
+import { dire, phrase, selon, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture, type Role } from '../contexte.ts';
 import { jourCourt, jourDe, quand } from '../temps.ts';
-import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, maj, Puce, toast, Zone } from '../ui.tsx';
+import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, MenuLigne, Puce, toast, Zone, type ActionLigne } from '../ui.tsx';
 
 type Membre = {
   utilisateur: string; nom: string; email: string; role: Role; actif: boolean; ajouteLe: string; retireLe: string | null;
   code: 'sms' | 'application' | null; moi: boolean; derniereConnexion: string | null; appareils: { nom: string; type: string }[];
 };
 const ROLES: readonly Role[] = ['direction', 'support', 'technique'];
+type Droit = { code: string; roles: Role[] };
+// Ce qu'un rôle ouvre seulement en partie : la nuance se dit à la place du « oui ».
+const NUANCES: Record<string, Partial<Record<Role, string>>> = {
+  'console.accueil.voir': { support: 'console.ecran.equipe.droit.console.accueil.voir.support', technique: 'console.ecran.equipe.droit.console.accueil.voir.technique' },
+  'console.abonnement.prolonger': { support: 'console.ecran.equipe.droit.console.abonnement.prolonger.support' },
+};
 type Geste = { sorte: 'ajouter' } | { sorte: 'role'; m: Membre } | { sorte: 'retirer'; m: Membre };
 
 function FenetreEquipe({ g, fermer, fait }: { g: Geste; fermer: () => void; fait: () => void }) {
@@ -70,14 +79,23 @@ function FenetreEquipe({ g, fermer, fait }: { g: Geste; fermer: () => void; fait
 
 export function Equipe() {
   const { moi } = useConsole();
-  const [l, relire] = useLecture<{ membres: Membre[] }>('/console/equipe');
+  const [l, relire] = useLecture<{ membres: Membre[]; droits: Droit[] }>('/console/equipe');
   const [geste, setGeste] = useState<Geste | null>(null);
   const membres = l.etat === 'lu' ? l.donnees.membres : [];
   const actifs = membres.filter((m) => m.actif);
   const retires = membres.filter((m) => !m.actif);
   const par = (r: Role) => actifs.filter((m) => m.role === r).length;
   const enLigne = actifs.filter((m) => m.appareils.length > 0).length;
-  const sansCode = actifs.filter((m) => !m.code).length;
+  const sansCode = actifs.filter((m) => !m.code);
+  // Les gestes d'une ligne : le journal de la personne ; et, sur un autre que soi, changer son rôle ou la retirer.
+  const actions = (m: Membre): ActionLigne[] => [
+    { icone: 'journal', titre: titre(m.moi ? 'console.ecran.equipe.mes_gestes' : 'console.ecran.equipe.ses_gestes'), sous: phrase('console.ecran.equipe.ses_gestes_sous'),
+      faire: () => { location.hash = `#/journal?qui=${m.utilisateur}`; } },
+    ...(m.moi ? [] : [
+      { icone: 'echange', titre: titre('console.ecran.equipe.changer_role'), sous: phrase('console.ecran.equipe.changer_sous'), faire: () => setGeste({ sorte: 'role', m }) },
+      { icone: 'sortir', titre: titre('console.ecran.equipe.retirer'), sous: phrase('console.ecran.equipe.retirer_sous'), faire: () => setGeste({ sorte: 'retirer', m }), danger: true },
+    ] satisfies ActionLigne[]),
+  ];
 
   return (
     <>
@@ -86,19 +104,60 @@ export function Equipe() {
           <h1>{titre('console.ecran.equipe.titre')}</h1>
           <p className="c-entete-sous">{phrase('console.ecran.equipe.sous')}</p>
         </div>
-        <div className="c-entete-actions"><Bouton ton="principal" icone="plus" onClick={() => setGeste({ sorte: 'ajouter' })}>{titre('console.ecran.equipe.ajouter')}</Bouton></div>
+        <div className="c-entete-actions">
+          <Lien href="#/journal" icone="journal">{titre('console.ecran.equipe.journal')}</Lien>
+          <Bouton ton="principal" icone="plus" onClick={() => setGeste({ sorte: 'ajouter' })}>{titre('console.ecran.equipe.ajouter')}</Bouton>
+        </div>
       </header>
       {l.etat === 'panne' ? <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}
       {l.etat === 'lu' ? (
         <>
-          <div className="c-chiffres c-chiffres-cartes">
-            <div className="c-carte c-chiffre"><span>{titre('console.ecran.equipe.membres')}</span><b>{actifs.length}</b>
-              <span>{phrase('console.ecran.equipe.membres_sous', { d: par('direction'), s: par('support'), t: par('technique') })}</span></div>
-            <div className="c-carte c-chiffre"><span>{titre('console.ecran.equipe.en_ligne')}</span><b>{enLigne}</b><span>{phrase('console.ecran.equipe.en_ligne_sous')}</span></div>
-            <div className={`c-carte c-chiffre${sansCode ? ' c-chiffre-attention' : ''}`}><span>{titre('console.ecran.equipe.sans_code')}</span><b>{sansCode}</b><span>{phrase('console.ecran.equipe.sans_code_sous')}</span></div>
+          <div className="c-eq-cartes">
+            <div className="c-carte c-eq-carte">
+              <span className="c-eq-carte-titre">{titre('console.ecran.equipe.membres')}</span>
+              <p className="c-eq-carte-n"><b>{actifs.length}</b> <small>{selon(actifs.length, 'console.ecran.equipe.personnes')}</small></p>
+              <span className="c-eq-carte-sous">{phrase('console.ecran.equipe.membres_sous', { d: par('direction'), s: par('support'), t: par('technique') })}</span>
+            </div>
+            <div className={`c-carte c-eq-carte${sansCode.length ? ' c-eq-carte-attention' : ''}`}>
+              <span className="c-eq-carte-titre">
+                {titre('console.ecran.equipe.code_titre')}
+                {sansCode.length ? <span className="c-eq-etat c-eq-etat-attention"><Icone nom="alerte" taille={14} />{selon(sansCode.length, 'console.ecran.equipe.code_a_mettre')}</span>
+                  : actifs.length ? <span className="c-eq-etat"><Icone nom="ok" taille={14} />{dire('console.ecran.equipe.code_tous')}</span> : null}
+              </span>
+              <p className="c-eq-carte-n"><b>{dire('console.ecran.equipe.code_sur', { avec: actifs.length - sansCode.length, n: actifs.length })}</b></p>
+              <span className="c-eq-carte-sous">{phrase('console.ecran.equipe.code_sous')}</span>
+            </div>
+            <div className="c-carte c-eq-carte">
+              <span className="c-eq-carte-titre">{titre('console.ecran.equipe.en_ligne')}</span>
+              <p className="c-eq-carte-n"><b>{enLigne}</b></p>
+              <span className="c-eq-carte-sous">{phrase('console.ecran.equipe.en_ligne_sous')}</span>
+            </div>
           </div>
-          <section className="c-carte c-liste-carte" aria-label={titre('console.ecran.equipe.titre')}>
+          {sansCode.length ? (
+            <section className="c-carte c-eq-regler" aria-labelledby="eq-regler">
+              <div className="c-carte-tete">
+                <h2 id="eq-regler">{titre('console.ecran.equipe.regler_titre')}</h2>
+                <span className="c-eq-etat c-eq-etat-attention">{selon(sansCode.length, 'console.ecran.equipe.a_regler')}</span>
+              </div>
+              <ul className="c-eq-regler-liste">
+                {sansCode.map((m) => (
+                  <li key={m.utilisateur}>
+                    <span className="c-eq-regler-icone" aria-hidden="true"><Icone nom="telephone" /></span>
+                    <span className="c-eq-regler-texte"><b>{dire('console.ecran.equipe.regler_code', { nom: m.nom })}</b><span>{phrase('console.ecran.equipe.sans_code_sous')}</span></span>
+                    <Lien href={`mailto:${m.email}?subject=${encodeURIComponent(maj(dire('console.ecran.equipe.rappeler_objet')))}`} petit>{titre('console.ecran.equipe.rappeler')}</Lien>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          <section className="c-carte c-liste-carte" aria-labelledby="eq-liste">
+            <div className="c-carte-tete c-eq-liste-tete">
+              <div>
+                <h2 id="eq-liste">{titre('console.ecran.equipe.liste_titre')}</h2>
+                <p className="c-carte-sous">{phrase('console.ecran.equipe.liste_sous')}</p>
+              </div>
+            </div>
             <div className="c-defile">
               <table className="c-table">
                 <thead>
@@ -116,7 +175,7 @@ export function Equipe() {
                       <td>
                         <div className="c-cellule-nom">
                           <Avatar nom={m.nom} nuit={m.role === 'direction'} />
-                          <div><span className="c-nom-ligne"><b data-donnee>{m.nom}</b>{m.moi ? <Puce ton="semaine">{dire('console.ecran.equipe.toi')}</Puce> : null}</span><span className="c-sous" data-donnee>{m.email}</span></div>
+                          <div><span className="c-nom-ligne"><b data-donnee>{m.nom}</b>{m.moi ? <b className="c-eq-toi">({dire('console.ecran.equipe.toi')})</b> : null}</span><span className="c-sous" data-donnee>{m.email}</span></div>
                         </div>
                       </td>
                       <td><Puce ton={m.role}>{titre(`console.ecran.role.${m.role}`)}</Puce></td>
@@ -125,44 +184,62 @@ export function Equipe() {
                         {maj(m.derniereConnexion ? quand(m.derniereConnexion, moi.aujourdhui) : dire('console.ecran.temps.jamais'))}
                         {m.appareils.length ? <span className="c-sous">{titre('console.ecran.equipe.ouvert_sur', { appareils: m.appareils.map((a) => a.nom).join(', ') })}</span> : null}
                       </td>
-                      <td className="c-droite">
-                        {m.moi ? null : (
-                          <span className="c-boutons-ligne">
-                            <Bouton petit onClick={() => setGeste({ sorte: 'role', m })} etiquette={titre('console.ecran.equipe.changer_role_de', { nom: m.nom })}>{titre('console.ecran.equipe.changer_role')}</Bouton>
-                            <Bouton petit ton="danger" onClick={() => setGeste({ sorte: 'retirer', m })} etiquette={titre('console.ecran.equipe.retirer_de', { nom: m.nom })}>{titre('console.ecran.equipe.retirer')}</Bouton>
-                          </span>
-                        )}
-                      </td>
+                      <td className="c-droite"><MenuLigne etiquette={titre('console.ecran.equipe.menu', { nom: m.nom })} actions={actions(m)} /></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </section>
-          <div className="c-grille-2">
-            <section className="c-carte" aria-labelledby="roles-titre">
-              <div className="c-carte-tete"><h2 id="roles-titre">{titre('console.ecran.equipe.roles_titre')}</h2></div>
-              <ul className="c-personnes c-roles">
-                {ROLES.map((r) => (
-                  <li key={r}><Puce ton={r}>{titre(`console.ecran.role.${r}`)}</Puce><span className="c-texte"><span>{phrase(`console.ecran.role_aide.${r}`)}</span></span></li>
+          <section className="c-carte c-liste-carte" aria-labelledby="roles-titre">
+            <div className="c-carte-tete c-eq-liste-tete">
+              <div>
+                <h2 id="roles-titre">{titre('console.ecran.equipe.roles_titre')}</h2>
+                <p className="c-carte-sous">{phrase('console.ecran.equipe.roles_sous')}</p>
+              </div>
+            </div>
+            <div className="c-defile">
+              <table className="c-table c-eq-droits">
+                <thead>
+                  <tr>
+                    <th scope="col">{titre('console.ecran.equipe.droit.colonne')}</th>
+                    {ROLES.map((r) => <th key={r} scope="col" className="c-eq-droit-col">{titre(`console.ecran.role.${r}`)}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {l.donnees.droits.map((d) => (
+                    <tr key={d.code}>
+                      <td className="c-eq-droit-quoi"><b>{titre(`console.ecran.equipe.droit.${d.code}`)}</b><span className="c-sous">{phrase(`console.ecran.equipe.droit.${d.code}_sous`)}</span></td>
+                      {ROLES.map((r) => {
+                        const nuance = NUANCES[d.code]?.[r];
+                        return (
+                          <td key={r}>
+                            {!d.roles.includes(r) ? <span className="c-eq-droit-non" aria-label={titre('console.ecran.equipe.droit.non')}>—</span>
+                              : nuance ? <span className="c-eq-droit c-eq-droit-nuance"><span aria-hidden="true">–</span>{dire(nuance)}</span>
+                                : <span className="c-eq-droit"><Icone nom="ok" taille={15} />{titre('console.ecran.equipe.droit.oui')}</span>}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+          {retires.length ? (
+            <section className="c-carte" aria-labelledby="retires-titre">
+              <div className="c-carte-tete"><h2 id="retires-titre">{titre('console.ecran.equipe.retires')}</h2></div>
+              <ul className="c-personnes">
+                {retires.map((m) => (
+                  <li key={m.utilisateur}>
+                    <Avatar nom={m.nom} />
+                    <div className="c-texte"><b data-donnee>{m.nom}</b><span data-donnee>{m.email}</span>
+                      <span>{titre(`console.ecran.role.${m.role}`)} · {dire('console.ecran.equipe.retire_le', { le: m.retireLe ? jourCourt(jourDe(m.retireLe)) : '—' })}</span></div>
+                  </li>
                 ))}
               </ul>
             </section>
-            {retires.length ? (
-              <section className="c-carte" aria-labelledby="retires-titre">
-                <div className="c-carte-tete"><h2 id="retires-titre">{titre('console.ecran.equipe.retires')}</h2></div>
-                <ul className="c-personnes">
-                  {retires.map((m) => (
-                    <li key={m.utilisateur}>
-                      <Avatar nom={m.nom} />
-                      <div className="c-texte"><b data-donnee>{m.nom}</b><span data-donnee>{m.email}</span>
-                        <span>{titre(`console.ecran.role.${m.role}`)} · {dire('console.ecran.equipe.retire_le', { le: m.retireLe ? jourCourt(jourDe(m.retireLe)) : '—' })}</span></div>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-          </div>
+          ) : null}
         </>
       ) : null}
       {geste ? <FenetreEquipe g={geste} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} /> : null}

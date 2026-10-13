@@ -187,7 +187,7 @@ function Page({ route, role }: { route: Route; role: Role }) {
     case 'cabinets': return <Cabinets q={route.params.get('q') ?? ''} />;
     case 'cabinet': return <Cabinet key={route.id} id={route.id ?? ''} />;
     case 'abonnements': return <Abonnements vue={route.params.get('vue')} />;
-    case 'journal': return <Journal entreprise={UUID.test(route.params.get('entreprise') ?? '') ? route.params.get('entreprise') : null} />;
+    case 'journal': return <Journal entreprise={UUID.test(route.params.get('entreprise') ?? '') ? route.params.get('entreprise') : null} qui={UUID.test(route.params.get('qui') ?? '') ? route.params.get('qui') : null} />;
     case 'equipe': return <Equipe />;
     default: return route.id === 'alertes' ? <Alertes /> : route.id === 'sauvegardes' ? <Sauvegardes /> : route.id === 'performances' ? <Performances periode={route.params.get('periode')} /> : <Service periode={route.params.get('periode')} />;
   }
