@@ -13,7 +13,7 @@
 //   - la technique : l'accueil et le service seulement ; « Clients » lui dit que ce n'est pas son rôle ;
 //   - les abonnements : chaque carte ouvre la liste qu'elle compte, du même nombre (C3) ;
 //   - les cabinets : passer d'un onglet à l'autre ne déplace pas les onglets ; la liste compte ce que la fiche montre ;
-//     une carte de la fiche filtre ses dossiers et le filtre se retire ; la fiche d'un client mène à son cabinet ; une
+//     l'aperçu d'un cabinet mène à ses dossiers filtrés, et le filtre se retire ; la fiche d'un client mène à son cabinet ; une
 //     adresse qui ne mène à aucun cabinet le dit, et mène à la liste ;
 //   - en clair et en sombre, à l'ordinateur (1440) et au téléphone (390) : l'instrument de rendu ne trouve rien, l'écran
 //     des alertes du service et la fenêtre d'une sourdine compris (de vraies alertes, posées par la porte de la veille) ;
@@ -592,18 +592,29 @@ describe('la console de l\'équipe, à la souris', () => {
     // Sa fiche : les trois cartes comptent la même chose que la liste, et ses trois dossiers.
     await cliquer(lignes.first().getByRole('link', { name: cabinet.nom, exact: true }));
     await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/cabinets/${cabinet.id}`);
+    // L'aperçu : chaque place nomme ses dossiers et mène à sa liste, filtrée.
+    const tenus = p.locator('section[aria-labelledby="cab-tenu"]');
+    await expect.poll(() => tenus.innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain('Cordonnerie de la Console');
+    expect(await p.locator('section[aria-labelledby="cab-en_attente"] li').count()).toBe(1);
+    await cliquer(tenus.getByRole('link', { name: 'Voir les dossiers qu\'il tient', exact: true }));
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/cabinets/${cabinet.id}?onglet=dossiers&place=tenu`);
     const cartes = p.locator('.c-vues .c-vue');
     await expect.poll(() => cartes.locator('.c-vue-n').allInnerTexts().then((t) => t.map(Number)), { timeout: 15_000 }).toEqual([1, 1, 1]);
     const dossiers = p.locator('section[aria-labelledby="cab-dossiers"] tbody tr');
-    expect(await dossiers.count()).toBe(3);
-    // Une carte filtre la liste ; le filtre se voit, et se retire.
-    await cliquer(cartes.nth(1));
+    // Arrivée filtrée : la carte allumée, une ligne, le compte du titre.
     await expect.poll(() => dossiers.count()).toBe(1);
+    expect(await cartes.nth(1).getAttribute('aria-pressed')).toBe('true');
     expect(net(await dossiers.first().innerText())).toContain('Cordonnerie de la Console');
     expect(net(await p.locator('#cab-dossiers .c-compte-titre').innerText())).toBe('1');
+    // Le filtre se voit, et se retire.
     await cliquer(p.getByRole('button', { name: 'Retirer ce filtre', exact: true }));
     await expect.poll(() => dossiers.count()).toBe(3);
     expect(await cartes.nth(1).getAttribute('aria-pressed')).toBe('false');
+    // Une carte filtre aussi la liste à elle seule, et se rallume pour la rendre entière.
+    await cliquer(cartes.nth(2));
+    await expect.poll(() => dossiers.count()).toBe(1);
+    await cliquer(cartes.nth(2));
+    await expect.poll(() => dossiers.count()).toBe(3);
     // La fiche du client nomme son cabinet, et y mène.
     await cliquer(dossiers.filter({ hasText: 'Librairie de la Console' }).getByRole('link', { name: 'Librairie de la Console', exact: true }));
     await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/clients/${cabinet.client}`);

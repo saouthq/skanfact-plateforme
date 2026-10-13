@@ -1662,3 +1662,47 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-fiche-attend li > .c-btn { grid-column: 1 / -1; justify-self: start; }
   .c-fiche-chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* La fiche d'un cabinet (C22) : un bandeau sombre (qui il est, ce qu'il paie), puis l'aperçu de ses places côte à côte. */
+.c-bandeau {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 320px); gap: 22px; align-items: center;
+  padding: 26px 28px; border-radius: var(--c-rayon); background: var(--c-nuit); color: var(--c-nuit-texte);
+  border: 1px solid var(--c-nuit-trait);
+}
+.c-bandeau > .c-avatar { width: 60px; height: 60px; border-radius: 16px; font-size: 19px; background: var(--c-papier); color: var(--c-nuit); }
+.c-bandeau-texte { display: grid; gap: 6px; min-width: 0; }
+.c-bandeau-texte h1 { margin: 0; color: var(--c-nuit-texte); font-size: clamp(26px, 3vw, 34px); text-wrap: balance; }
+.c-bandeau-puces { display: flex; flex-wrap: wrap; gap: 8px; }
+.c-bandeau-puce {
+  padding: 3px 11px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+  background: color-mix(in srgb, var(--c-menthe) 16%, transparent); color: var(--c-menthe); border: 1px solid color-mix(in srgb, var(--c-menthe) 35%, transparent);
+}
+.c-bandeau-sous { margin: 0; color: var(--c-nuit-gris); font-size: 14.5px; line-height: 1.5; }
+.c-bandeau-sous a { color: var(--c-nuit-texte); }
+.c-bandeau-paie { display: grid; gap: 6px; font-size: 13px; line-height: 1.45; color: var(--c-nuit-gris); }
+.c-bandeau-paie b { font-size: 14.5px; color: var(--c-nuit-texte); }
+.c-cab-apercu { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.c-cab-place { display: grid; padding: 0; overflow: hidden; }
+.c-cab-place-tete { padding: 22px 24px 14px; }
+.c-cab-place-tete h2 { margin: 0; }
+.c-cab-place-tete .c-carte-sous { margin: 4px 0 0; }
+.c-cab-lignes { list-style: none; margin: 0; padding: 0; }
+.c-cab-lignes li { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 24px; border-top: 1px solid var(--c-trait); }
+.c-cab-lignes a { color: var(--c-encre); text-decoration: none; min-width: 0; overflow-wrap: anywhere; }
+.c-cab-lignes a:hover { text-decoration: underline; }
+.c-cab-ligne-droite { display: flex; align-items: center; gap: 10px; flex: none; color: var(--c-gris); font-size: 13.5px; }
+.c-cab-place-vide { margin: 0; padding: 14px 24px 22px; color: var(--c-gris); font-size: 14px; border-top: 1px solid var(--c-trait); }
+.c-cab-place-pied { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 24px; border-top: 1px solid var(--c-trait); color: var(--c-gris); font-size: 14px; }
+.c-cab-place-pied .c-fiche-vers { margin: 0; }
+.c-note-titree > div { display: grid; gap: 3px; }
+.c-note-titree b { color: var(--c-encre); }
+@media (max-width: 1100px) {
+  .c-bandeau { grid-template-columns: auto minmax(0, 1fr); }
+  .c-bandeau-paie { grid-column: 1 / -1; padding-top: 14px; border-top: 1px solid var(--c-nuit-trait); }
+}
+@media (max-width: 860px) {
+  .c-cab-apercu { grid-template-columns: minmax(0, 1fr); }
+  .c-bandeau { padding: 20px; gap: 14px 16px; }
+  .c-bandeau > .c-avatar { width: 48px; height: 48px; border-radius: 13px; font-size: 16px; }
+  .c-cab-lignes li { flex-wrap: wrap; }
+}

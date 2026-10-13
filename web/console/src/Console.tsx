@@ -185,7 +185,7 @@ function Page({ route, role }: { route: Route; role: Role }) {
     case 'clients': return <Clients etat={route.params.get('etat')} q={route.params.get('q') ?? ''} nouvelles={route.params.get('nouvelles') === '1'} vue={route.params.get('vue')} tri={route.params.get('tri')} />;
     case 'fiche': return <Fiche key={route.id} id={route.id ?? ''} onglet={route.params.get('onglet')} />;
     case 'cabinets': return <Cabinets q={route.params.get('q') ?? ''} />;
-    case 'cabinet': return <Cabinet key={route.id} id={route.id ?? ''} />;
+    case 'cabinet': return <Cabinet key={route.id} id={route.id ?? ''} onglet={route.params.get('onglet')} place={route.params.get('place')} />;
     case 'abonnements': return <Abonnements vue={route.params.get('vue')} />;
     case 'journal': return <Journal entreprise={UUID.test(route.params.get('entreprise') ?? '') ? route.params.get('entreprise') : null} qui={UUID.test(route.params.get('qui') ?? '') ? route.params.get('qui') : null} />;
     case 'equipe': return <Equipe />;

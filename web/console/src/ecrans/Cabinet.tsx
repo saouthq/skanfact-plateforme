@@ -1,8 +1,9 @@
-// La fiche d'un cabinet (serveur/console/routes.ts, GET /console/cabinets/:id ; 0084) : qui il est et ce qu'il paie,
-// ses dossiers par place — trois cartes qui comptent chacune la liste qu'elles ouvrent (C3), la même règle que la liste
-// des cabinets — et qui y travaille. Un dossier s'y dit comme dans la liste des clients (son nom, son abonnement, son
+// La fiche d'un cabinet (serveur/console/routes.ts, GET /console/cabinets/:id ; 0084), recalée sur sa maquette : un
+// bandeau (qui il est, ce qu'il paie), puis des onglets dans l'adresse — l'aperçu (ses clients abonnés et les dossiers
+// qu'il tient, côte à côte, chacun menant à sa liste), ses dossiers par place — trois cartes qui comptent chacune la
+// liste qu'elles ouvrent (C3), la même règle que la liste des cabinets — et qui y travaille. Un dossier s'y dit comme dans la liste des clients (son nom, son abonnement, son
 // état), jamais son contenu : la console voit l'équipe d'un cabinet et la liste de ses dossiers, pas leurs livres.
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { abonnementEnMots, expliquer, puceDe, type Etat, type Faits } from '../abonnement.ts';
 import { useLecture } from '../contexte.ts';
@@ -19,6 +20,10 @@ type Collaborateur = { nom: string; email: string; roles: string[]; depuis: stri
 type Donnees = { aujourdhui: string; id: string; nom: string; creeLe: string; collaborateurs: Collaborateur[]; dossiers: Dossier[]; comptes: Record<Place, number> };
 
 const K = 'console.ecran.cabinet';
+export type OngletCabinet = 'apercu' | 'dossiers' | 'collaborateurs';
+export const ONGLETS_CABINET: readonly OngletCabinet[] = ['apercu', 'dossiers', 'collaborateurs'];
+// L'aperçu nomme trois dossiers par place ; le reste se compte et mène à la liste filtrée.
+const APERCU = 3;
 // Le premier jour d'un dossier pour le cabinet : celui de son mandat (un dossier tenu porte celui que sa création a
 // posé), sinon celui de sa création.
 const premierJour = (d: Dossier) => d.mandat?.debut ?? d.entreprise.creeLe;
@@ -33,10 +38,15 @@ function Fil({ nom }: { nom?: string }) {
   );
 }
 
-export function Cabinet({ id }: { id: string }) {
+export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { id: string; onglet: string | null; place: string | null }) {
   const [l, relire] = useLecture<Donnees>(`/console/cabinets/${encodeURIComponent(id)}`, id);
-  // Une carte allumée filtre la liste ; la rallumer, ou retirer le filtre, rend tous les dossiers.
-  const [place, setPlace] = useState<Place | null>(null);
+  // Une carte allumée filtre la liste ; la rallumer, ou retirer le filtre, rend tous les dossiers. L'aperçu y mène
+  // filtré (« ?place= »).
+  const placeAdresse = PLACES.includes(placeDemandee as Place) ? placeDemandee as Place : null;
+  const [place, setPlace] = useState<Place | null>(placeAdresse);
+  // Un lien de l'aperçu change l'adresse sans recréer l'écran : le filtre la suit.
+  useEffect(() => { setPlace(placeAdresse); }, [placeAdresse]);
+  const onglet: OngletCabinet = ONGLETS_CABINET.includes(ongletDemande as OngletCabinet) ? ongletDemande as OngletCabinet : 'apercu';
   if (l.etat === 'lecture') return <><Fil /><p className="c-attente">{titre('console.ecran.lecture')}</p></>;
   if (l.etat === 'panne') {
     return (
@@ -53,29 +63,93 @@ export function Cabinet({ id }: { id: string }) {
   const c = l.donnees;
   const montres = place ? c.dossiers.filter((d) => d.place === place) : c.dossiers;
   const associes = c.collaborateurs.filter((x) => x.roles.includes('supervision'));
+  // « Écrire » : à son premier associé (ou, à défaut, à qui y travaille).
+  const premier = associes[0] ?? c.collaborateurs[0] ?? null;
+  // L'onglet vit dans l'adresse : « précédent » y revient, l'aperçu mène à la liste filtrée.
+  const versOnglet = (o: OngletCabinet, p?: Place) => `#/cabinets/${c.id}${o === 'apercu' ? '' : `?onglet=${o}${p ? `&place=${p}` : ''}`}`;
+  const onglets: { o: OngletCabinet; n?: number }[] = [{ o: 'apercu' }, { o: 'dossiers', n: c.dossiers.length }, { o: 'collaborateurs', n: c.collaborateurs.length }];
+  const parPlace = (p: Place) => c.dossiers.filter((d) => d.place === p);
+  // Une place dans l'aperçu : ses premiers dossiers nommés (le nom mène à la fiche), le reste compté, et la liste.
+  const blocPlace = (p: Place, large = false): ReactNode => {
+    const tous = parPlace(p), vus = tous.slice(0, APERCU), reste = tous.length - vus.length;
+    return (
+      <section className={`c-carte c-cab-place${large ? ' c-cab-place-large' : ''}`} aria-labelledby={`cab-${p}`}>
+        <div className="c-cab-place-tete">
+          <h2 id={`cab-${p}`}>{titre(`${K}.apercu.${p}`)}</h2>
+          <p className="c-carte-sous">{tous.length} · {dire(`${K}.place_sous.${p}`)}</p>
+        </div>
+        {tous.length === 0 ? <p className="c-cab-place-vide">{phrase(`${K}.apercu_vide.${p}`)}</p> : (
+          <ul className="c-cab-lignes">
+            {vus.map((d) => {
+              const puce = puceDe(d.entreprise.etat);
+              return (
+                <li key={d.entreprise.id}>
+                  <a href={`#/clients/${d.entreprise.id}`}><b data-donnee>{d.entreprise.raisonSociale}</b></a>
+                  <span className="c-cab-ligne-droite">
+                    {p === 'client' ? <Puce ton={puce.ton}>{puce.texte}</Puce> : null}
+                    <span>{dire(`${K}.depuis`, { le: jourCourt(premierJour(d)) })}</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {tous.length ? (
+          <div className="c-cab-place-pied">
+            <span>{reste ? selon(reste, `${K}.et_autres`) : ''}</span>
+            <a href={versOnglet('dossiers', p)} className="c-fiche-vers">{titre(`${K}.vers_place.${p}`)}</a>
+          </div>
+        ) : null}
+      </section>
+    );
+  };
 
   return (
     <>
       <Fil nom={c.nom} />
-      <header className="c-entete c-entete-chiffree">
-        <div className="c-entete-texte c-entete-avatar">
-          <Avatar nom={c.nom} nuit />
-          <div className="c-entete-texte">
-            <span className="c-surtitre">{selon(c.dossiers.length, `${K}.surtitre`)}</span>
-            <h1 data-donnee>{c.nom}</h1>
-            <p className="c-entete-sous">
-              {associes.length ? <span data-donnee>{associes.map((a) => a.nom).join(', ')}</span> : maj(dire('console.ecran.cabinets.sans_associe'))}
-              {' · '}{dire(`${K}.inscrit`, { le: jourCourt(c.creeLe) })}
-            </p>
+      <header className="c-bandeau">
+        <Avatar nom={c.nom} />
+        <div className="c-bandeau-texte">
+          <div className="c-bandeau-puces">
+            <span className="c-bandeau-puce">{maj(selon(c.dossiers.length, `${K}.surtitre`))}</span>
           </div>
+          <h1 data-donnee>{c.nom}</h1>
+          <p className="c-bandeau-sous">
+            {associes.length ? <span data-donnee>{associes.map((a) => a.nom).join(', ')}</span> : maj(dire('console.ecran.cabinets.sans_associe'))}
+            {' · '}{dire(`${K}.inscrit`, { le: jourCourt(c.creeLe) })}
+            {premier ? <> · <a href={`mailto:${premier.email}`} data-donnee>{premier.email}</a></> : null}
+          </p>
         </div>
-        <div className="c-entete-chiffre">
-          <span className="c-entete-chiffre-titre">{titre(`${K}.paie_titre`)}</span>
-          <span className="c-entete-chiffre-valeur"><b>{titre(`${K}.paie`)}</b></span>
-          <span className="c-entete-chiffre-sous">{phrase(`${K}.paie_sous`)}</span>
+        <div className="c-bandeau-paie">
+          <b>{phrase(`${K}.paie_ligne`)}</b>
+          <span>{phrase(`${K}.paie_sous`)}</span>
         </div>
       </header>
 
+      <nav className="c-onglets" aria-label={titre(`${K}.onglets`)}>
+        {onglets.map(({ o, n }) => (
+          <a key={o} href={versOnglet(o)} aria-current={onglet === o ? 'page' : undefined}>
+            {titre(`${K}.onglet.${o}`)}{n ? <span className="c-onglet-n">{n}</span> : null}
+          </a>
+        ))}
+      </nav>
+
+      {onglet === 'apercu' ? (
+        <>
+          <div className="c-cab-apercu">
+            {blocPlace('client')}
+            {blocPlace('tenu')}
+          </div>
+          {parPlace('en_attente').length ? blocPlace('en_attente', true) : null}
+          <div className="c-note c-note-titree">
+            <Icone nom="cache" />
+            <div><b>{titre(`${K}.jamais_titre`)}</b><span>{phrase(`${K}.contenu`)}</span></div>
+          </div>
+        </>
+      ) : null}
+
+      {onglet === 'dossiers' ? (
+        <>
       <div className="c-vues c-vues-3" role="group" aria-label={titre(`${K}.filtrer`)}>
         {PLACES.map((p) => (
           <button key={p} type="button" className="c-vue" aria-pressed={place === p} onClick={() => setPlace(place === p ? null : p)}>
@@ -152,6 +226,10 @@ export function Cabinet({ id }: { id: string }) {
         )}
       </section>
 
+        </>
+      ) : null}
+
+      {onglet === 'collaborateurs' ? (
       <section className="c-carte c-liste-carte" aria-labelledby="cab-equipe">
         <div className="c-carte-tete c-liste-tete">
           <div>
@@ -192,8 +270,7 @@ export function Cabinet({ id }: { id: string }) {
           </div>
         )}
       </section>
-
-      <p className="c-note"><Icone nom="cache" />{phrase(`${K}.contenu`)}</p>
+      ) : null}
     </>
   );
 }

@@ -417,6 +417,15 @@ nom et son état ne se répètent pas dans la carte de son entreprise : ils sont
   échanges, « Noter un appel », l'accès à son dossier avec son accord, la procédure de reprise — ils demandent des
   briques qui n'existent pas encore (paiements, support, accès accordé).
 
+**C22. La fiche d'un cabinet, recalée sur sa maquette** (13/10/2026). **Un bandeau** sombre en tête : son nom, son
+nombre de dossiers, ses associés, sa date d'inscription, l'adresse de son premier associé, et ce qu'il paie aujourd'hui
+(rien, et pourquoi). Puis **des onglets**, dans l'adresse (`?onglet=`) : l'aperçu — ses clients abonnés et les dossiers
+qu'il tient, côte à côte, chacun nommant ses trois premiers et comptant le reste, et les mandats qu'on lui propose s'il y
+en a ; chaque carte mène à la liste de ses dossiers **déjà filtrée** (`?place=`) —, ses dossiers (les trois cartes qui
+filtrent, puis la liste, C3) et ses collaborateurs.
+- **Pas encore** : ses factures et paiements, le support, le prix des dossiers qu'il tient (« ce qu'il paierait ») et
+  le parrainage — ils demandent des briques ou des décisions qui n'existent pas encore.
+
 ## Mettre en route
 
 La personne crée d'abord son compte SkanFact, puis met en place le code de son téléphone (« Ton compte »,
@@ -430,7 +439,8 @@ sudo bash /opt/skanfact/depot/exploitation/equipe.sh retirer <adresse> "<motif>"
 
 Chaque geste de l'outil demande son motif et laisse sa ligne au journal (sans auteur : l'exploitation). L'outil sert à
 poser le premier membre, et à rendre la direction à quelqu'un si plus personne ne peut se connecter ; ensuite, tout se
-fait depuis l'écran « Équipe ». La console s'ouvre à `https://<le serveur>/console/`.
+fait depuis l'écran « Équipe ». La console s'ouvre à `https://<le serveur>/console/` ; sur le serveur d'essai, aussi à `https://console.skanfact.tn`
+(docs/mise-en-ligne.md, J).
 
 ## Décidé par délégation (13/10/2026)
 

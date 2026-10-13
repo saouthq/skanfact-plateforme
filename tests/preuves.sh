@@ -11882,6 +11882,18 @@ prouver "la console déplacée sur un serveur aux vraies données" exploitation/
   "grep -qx 'SKANFACT_ENVIRONNEMENT=test' \"\$REGLAGES\" \\" 'true \\' \
   "$CO4"
 
+# La fiche d'un cabinet recalée sur sa maquette (docs/console.md C22) : un bandeau, des onglets dans l'adresse ;
+# l'aperçu nomme ses dossiers par place et mène à la liste filtrée.
+prouver "l'aperçu d'un cabinet qui mène à ses dossiers sans les filtrer" web/console/src/ecrans/Cabinet.tsx \
+  'useEffect(() => { setPlace(placeAdresse); }, [placeAdresse]);' '' \
+  "$CONS2W2"
+prouver "l'aperçu d'un cabinet qui tait les dossiers qu'il tient" web/console/src/ecrans/Cabinet.tsx \
+  "{blocPlace('tenu')}" '' \
+  "$CONS2W2"
+prouver "l'aperçu d'un cabinet qui tait les mandats proposés" web/console/src/ecrans/Cabinet.tsx \
+  "{parPlace('en_attente').length ? blocPlace('en_attente', true) : null}" '' \
+  "$CONS2W2"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
