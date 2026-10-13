@@ -21,7 +21,7 @@ import { cliquer } from '../cliquer.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const MDP = 'Un-bon-mot-de-passe';
-const net = (t: string) => t.replace(/[\s  ]+/g, ' ').trim();
+const net = (t: string) => t.replace(/[\s\u202f\u00a0]+/g, ' ').trim();
 const sha = (c: string) => c.repeat(40).slice(0, 40);
 const [A, B, C, D] = ['a', 'b', 'c', 'd'].map(sha) as [string, string, string, string];
 
