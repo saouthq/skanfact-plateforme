@@ -43,6 +43,10 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   // e-mail, un message WhatsApp, un appel), clore et rouvrir. La technique ne lit aucune donnée de client.
   { code: 'console.support.voir', roles: [D, S], ecrit: false },
   { code: 'console.support.repondre', roles: [D, S], ecrit: true },
+  // L'accès au dossier d'un client (Support S2, docs/support.md ; 0096) : le DEMANDER avec son motif, le rendre (« J'ai
+  // fini »), et lire le dossier pendant qu'il court — en lecture seulement, ce que lit un membre « Lecture », chaque page
+  // tracée. C'est l'entreprise qui l'accorde ; la console ne fait que le demander.
+  { code: 'console.support.acces', roles: [D, S], ecrit: true },
 ];
 
 export const GESTES_CONSOLE: ReadonlyMap<string, GesteConsole> = (() => {

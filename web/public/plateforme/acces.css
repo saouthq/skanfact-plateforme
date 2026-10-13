@@ -1,0 +1,51 @@
+/* L'accès du support au dossier (Support S2 ; plateforme/acces.js). Les couleurs sont celles de la page (style.css), en
+   clair comme en sombre. Une demande qui attend une décision se voit (bord à gauche, la couleur de l'application) ; un
+   accès qui court se lit sans crier (gris) ; la lecture du support porte sa propre couleur, pour qu'on ne la prenne jamais
+   pour son propre dossier. */
+.acc-bandeau, .lec-bandeau {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 14px 18px; margin-bottom: 16px;
+  border-radius: 14px; border: 1px solid var(--border); background: var(--panel); color: var(--text);
+}
+.acc-bandeau.acc-demande { border-color: var(--primary); box-shadow: inset 4px 0 0 var(--primary); background: var(--primary-soft); }
+.acc-ic { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; background: var(--ink-soft); color: var(--muted); }
+.acc-demande .acc-ic { background: var(--primary); color: #fff; }
+.acc-texte { flex: 1 1 22em; min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 14px; line-height: 1.45; }
+.acc-texte b { font-size: 15px; overflow-wrap: anywhere; }
+.acc-sous { color: var(--muted); font-size: 13px; }
+.acc-gestes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* Sur un bandeau blanc, un bouton blanc sans bordure se lirait comme du texte : il garde son trait (la règle de la page
+   peint en blanc les boutons d'un bandeau, pensée pour un bandeau teinté). */
+.acc-bandeau .btn:not(.btn-primary):not(.btn-danger), .lec-bandeau .btn:not(.btn-primary):not(.btn-danger) { border: 1px solid var(--line); }
+
+/* La lecture du support : une bande ambrée, en haut de chaque page, qu'on ne confond pas avec son propre dossier. */
+.lec-bandeau { border-color: #d97706; box-shadow: inset 4px 0 0 #d97706; background: #fff7ed; }
+.lec-bandeau .acc-ic { background: #d97706; color: #fff; }
+body.dark .lec-bandeau { background: #2a1f12; border-color: #f59e0b; box-shadow: inset 4px 0 0 #f59e0b; }
+body.dark .lec-bandeau .acc-ic { background: #f59e0b; color: #1a1206; }
+.lec-ferme { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(15, 23, 42, .55); }
+.lec-ferme-carte {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px; max-width: 460px; padding: 24px; border-radius: 18px;
+  background: var(--panel); color: var(--text); box-shadow: 0 20px 50px rgba(0, 0, 0, .25);
+}
+.lec-ferme-carte h2 { margin: 0; font-size: 19px; }
+.lec-ferme-carte p { margin: 0; line-height: 1.5; }
+
+/* Le panneau « Le support de SkanFact » (Paramètres › L'équipe). */
+.acc-liste { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.acc-l { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); }
+.acc-l-demande { border-color: var(--primary); background: var(--primary-soft); }
+.acc-l-haut { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.acc-l-motif { font-size: 14px; line-height: 1.45; color: var(--muted); overflow-wrap: anywhere; }
+.acc-etat { flex: none; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--ink-soft); color: var(--muted); }
+.acc-etat-demande { background: var(--primary); color: #fff; }
+.acc-etat-actif { background: var(--primary-soft); color: var(--primary); }
+.acc-lu summary { cursor: pointer; font-size: 13px; font-weight: 600; min-height: 32px; display: flex; align-items: center; }
+.acc-lu ol { margin: 6px 0 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.acc-lu li { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+
+@media (max-width: 860px) {
+  .acc-bandeau, .lec-bandeau { padding: 12px 14px; }
+  .acc-gestes { width: 100%; }
+  /* Les boutons font déjà 44 points au téléphone (telephone.css) ; le résumé des pages lues, non. */
+  .acc-lu summary { min-height: 44px; }
+}

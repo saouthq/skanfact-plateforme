@@ -10,6 +10,7 @@ declarerTextes({
   'support.champ.sans_balise': 'le sujet s\'écrit sans les signes < ni >',
   'support.champ.texte_court': 'dis ce qui se passe : trois caractères au moins',
   'support.champ.message_vide': 'écris ton message avant de l\'envoyer',
+  'support.acces.heures': 'un accès s\'accorde pour un nombre d\'heures : une à quarante-huit',
   // L'alerte par e-mail d'une réponse : ni la réponse, ni son auteur, ni le nom de l'entreprise (décidé avec la
   // messagerie le 09/10/2026 : « une alerte e-mail sans contenu »).
   'support.alerte.objet': 'Le support de SkanFact t\'a répondu',

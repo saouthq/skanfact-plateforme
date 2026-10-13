@@ -477,6 +477,23 @@ export interface BaseDeDonnees {
     offert: Generated<boolean>;
     modifie_le: Generated<Date>;
   };
+  'plateforme.acces_support': {
+    id: Generated<string>;
+    entreprise: string;
+    demandeur: string;
+    demande: string | null;
+    motif: string;
+    demande_le: Date;
+    accorde_le: Date | null;
+    accorde_par: string | null;
+    heures: number | null;
+    fin: Date | null;
+    refuse_le: Date | null;
+    refuse_par: string | null;
+    retire_le: Date | null;
+    retire_par: string | null;
+    clos_le: Date | null;
+  };
   'plateforme.defi_console': {
     id: Generated<string>;
     utilisateur: string;
@@ -538,6 +555,12 @@ export interface BaseDeDonnees {
     motif: string;
     avant: ColumnType<Json | null, string | null, string | null>;
     apres: ColumnType<Json | null, string | null, string | null>;
+  };
+  'plateforme.lecture_support': {
+    id: Generated<string>;
+    acces: string;
+    page: string;
+    lu_le: Date;
   };
   'plateforme.message_clients': {
     id: Generated<string>;

@@ -517,6 +517,13 @@ vaut pour tout le dépôt.*
     par demande** (une seconde réponse ouverte à l'écran laissait la pastille allumée). La page de la console **tient
     dans la fenêtre** (deux colonnes, chaque colonne défile seule) et **se relit quand on la regarde**, jamais sous les
     doigts (`useRelireQuandOnRegarde`) ; une réponse commencée se garde par demande.
+  - **L'accès au dossier** (Support S2, 1.4.0 ; `docs/support.md`, `0096`, `serveur/support/acces.ts`,
+    `web/public/plateforme/acces.js`, le mode lecture de `pont.js`) : le support ne voit rien d'un dossier tant que le
+    client ne l'a pas **accordé** — il le DEMANDE (motif), le propriétaire ou un administrateur l'ACCORDE (1 à 48 heures)
+    ou le refuse, et le RETIRE quand il veut. La lecture est **la même application que le client**, ouverte depuis la
+    console, qui ne lit que ce que lit un membre « Lecture » (jamais la paie), n'écrit rien (ni au serveur, ni sur le
+    poste) et **note chaque page** (son nom, l'instant), que l'entreprise relit. L'état d'un accès se déduit de l'heure :
+    une fin passée n'a besoin de personne pour fermer la porte.
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

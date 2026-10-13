@@ -166,10 +166,11 @@ describe('le support, à la souris, des deux côtés', () => {
     await cliquer(type);
     expect(await type.getAttribute('aria-pressed')).toBe('true');
     const zone = p.locator('.c-sp-repondre textarea');
+    await expect.poll(() => zone.inputValue()).toMatch(/^Bonjour Lina,\n\n\n\nL'article de l'Aide «[\s\u202f].+[\s\u202f]» le montre pas à pas/);
     const v = await zone.inputValue();
-    expect(v).toMatch(/^Bonjour Lina,\n\n\n\nL'article de l'Aide «[\s\u202f].+[\s\u202f]» le montre pas à pas/);
-    // Le curseur attend dans la réponse, sur la ligne vide sous « Bonjour Lina, » ; l'article est joint en pied.
-    expect(await p.evaluate(() => {
+    // Le curseur attend dans la réponse, sur la ligne vide sous « Bonjour Lina, » ; l'article est joint en pied. Il s'y pose à
+    // l'image suivante (requestAnimationFrame) : on l'attend, sinon une machine lente lit le focus d'avant (CI, Node 24).
+    await expect.poll(() => p.evaluate(() => {
       const z = document.activeElement as HTMLTextAreaElement | null;
       return z?.tagName === 'TEXTAREA' ? [z.selectionStart, z.selectionEnd] : null;
     })).toEqual([v.indexOf('\n\n') + 2, v.indexOf('\n\n') + 2]);

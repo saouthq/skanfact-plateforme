@@ -651,7 +651,7 @@ demande, l'alerte par e-mail sans contenu) sont dans `docs/support.md` ; ici, l'
   serraient la conversation, et la réponse tombait sous le bas de l'écran). À gauche, la liste (les ouvertes, la plus
   urgente en haut ; les closes à un clic), puis **une** carte « le client et la personne » : le client (son abonnement,
   sa vie dans l'application, sa fiche, ses demandes) puis la personne (son nom, ses rôles, son adresse, la page et la
-  version d'où elle a écrit), et ce que le support ne voit pas (le dossier). À droite, large, la conversation : le sujet
+  version d'où elle a écrit). À droite, large, la conversation : le sujet
   dans ses mots, qui et d'où, où elle en est, puis les messages (le dernier en bas, sous les yeux) et la réponse. À
   l'ordinateur, **la page ne défile pas** : la grille prend la hauteur qui reste sous l'en-tête (mesurée), chaque
   colonne défile seule, et le dernier message, le champ et « Envoyer » restent à l'écran — à 1440×900 comme à 1280×800.
@@ -669,10 +669,20 @@ demande, l'alerte par e-mail sans contenu) sont dans `docs/support.md` ; ici, l'
   texte des messages.
 - **L'accueil et « À décider »** : une demande sans réponse depuis vingt-quatre heures est une décision (« Répondre »
   ouvre la demande) ; la tuile du support, la barre, la fiche et la page comptent par la même fonction (`compter`).
+- **L'accès au dossier** (Support S2, version 1.4.0 ; base 0096 ; les règles dans `docs/support.md`) : sous l'en-tête
+  de la conversation, une **bande d'une seule rangée** dit où en est l'accès au dossier de ce client — rien (« le
+  support ne voit pas son dossier sans son accord », « Demander l'accès… »), une demande qui attend (« Retirer ma
+  demande »), un accès qui court (« Accès au dossier jusqu'à… », ce qui reste, les pages lues, qui l'a accordé ;
+  « Ouvrir en lecture », « J'ai fini »), ou le dernier accès fermé (« Redemander… »). Son titre est caché : l'état dit
+  lui-même qu'il s'agit du dossier (vu le 14/10/2026 : sur deux rangées, à 1280×800, elle poussait « Envoyer » sous le
+  bord). « Envoyer » reste le seul bouton principal de l'écran. La **même** chose, en carte, au pied de l'onglet « Ses
+  demandes » de la fiche du client, où « Ouvrir le dossier (lecture) » est le geste principal (`AccesDossier`, un
+  composant pour les deux). « Demander l'accès » ouvre une fenêtre qui dit ce que le client verra
+  et attend un motif (3 à 300 caractères). Le journal : « accès au dossier demandé », « accès au dossier rendu ».
 
 ## Ce que le lot ne fait pas
 
-La suite de la console : les paiements et nos factures (14b), l'accès au dossier accordé par un client (Support S2), la suite du service (la
+La suite de la console : les paiements et nos factures (14b), la suite du service (la
 sécurité : l'accès d'urgence, bloquer une adresse, la chaîne du journal relue, la date des secrets ; le débit des travaux heure par heure, et les envois des e-mails, de la TEJ et de la CNSS, qui n'ont pas encore
 de trace), la mesure, la suite des réglages (les nouveautés allumées, préparer un prix ; C28), l'application de bureau (les licences de la v10), et le filtre du journal par geste et par période. Le service ne se voit encore que du serveur
 lui-même : aucune vérification de l'extérieur (06 § 7, depuis deux villes) ; l'écran le dit.

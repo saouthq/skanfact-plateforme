@@ -2799,6 +2799,10 @@
     if (bridge.poserMessage) bridge.poserMessage(view);
     // (plateforme, Support S1) Une réponse du support à lire : le bandeau passe au-dessus de tout (il appelle un geste).
     if (bridge.support) bridge.support.poser(view);
+    // (plateforme, Support S2) La demande d'accès de l'équipe SkanFact, ou l'accès qui court : en haut de tout (on y décide).
+    if (bridge.accesSupport) bridge.accesSupport.poser(view, { toast: (t, erreur) => toast(t, erreur) });
+    // (plateforme, Support S2) La lecture pour le support : la bande qui le dit, au-dessus de tout.
+    if (bridge.lecture) bridge.lecture.poser(view);
     bandeauModule(active);           // « cette page n'est pas dans ton menu » — et le bouton pour l'y mettre
     bandeauOffre(active);            // « ce module fait partie de l'offre Entreprise » — lecture libre, création fermée
     if (!pageCachee(name)) appelGuide(name); // « première fois sur cette page ? » — accrochée à « Guide-moi » (10.14.1)
@@ -8573,6 +8577,7 @@
     'p-cabinet': { onglet: 'envois', titre: 'Ton cabinet comptable', mots: 'cabinet comptable expert code confier mandat livres' },
     'p-export': { onglet: 'donnees', titre: 'Toutes les données de l\'entreprise', mots: 'export exporter telecharger donnees tout fichier copie sauvegarde json garder quitter partir recuperer reversibilite', visible: () => exportVisible() },
     'p-quarantaine': { onglet: 'donnees', titre: 'Remis par un appareil retiré', mots: 'appareil retire quarantaine remis hors ligne accepter rejeter changement attente', visible: () => !!(bridge.quarantaine && bridge.quarantaine()) },
+    'p-acces-support': { onglet: 'equipe', titre: 'Le support de SkanFact', mots: 'support skanfact acces dossier lecture accorder refuser retirer qui a regarde mes donnees pages lues equipe confidentialite', visible: () => equipeVisible() && !!bridge.accesSupport },
     'p-equipe': { onglet: 'equipe', titre: 'L\'équipe', mots: 'equipe inviter invitation collaborateur salarie vendeur commercial caissier caissiere magasinier comptabilite paie lecture acces role droits retirer membre personne', visible: () => equipeVisible() },
     'p-compte': { onglet: 'compte', titre: 'Ton compte', mots: 'compte adresse email e-mail courriel mot de passe changer code telephone authentification double secours activer desactiver appareil verifier', visible: () => !!bridge.dessinerCompte },
     'p-appareils': { onglet: 'compte', titre: 'Tes appareils', mots: 'appareil ordinateur telephone perdu vole retirer session connexion hors ligne copie', visible: () => !!bridge.dessinerAppareils },
@@ -18065,6 +18070,7 @@
 
       ${equipeVisible() ? `<section data-pane="equipe" hidden>
       ${panneau('p-equipe', info('set.equipe'))}<div id="equipe-panel"></div></div>
+      ${bridge.accesSupport ? `${panneau('p-acces-support', info('set.accesSupport'))}<div id="acces-panel"></div></div>` : ''}
       </section>` : ''}
 
       ${abonnementVisible() ? `<section data-pane="abonnement" hidden>
@@ -18406,6 +18412,7 @@
     if (bridge.dessinerQuarantaine && $('#quarantaine-panel')) bridge.dessinerQuarantaine($('#quarantaine-panel'));
     if (bridge.dessinerCompte && $('#compte-panel')) void bridge.dessinerCompte($('#compte-panel'), { modal, toast });
     if (bridge.dessinerEquipe && $('#equipe-panel')) void bridge.dessinerEquipe($('#equipe-panel'), { modal, toast, confirmDialog, nom: company().name });
+    if (bridge.accesSupport && $('#acces-panel')) bridge.accesSupport.dessiner($('#acces-panel'), { toast: (t, erreur) => toast(t, erreur), nomDePage: p => PAGE_LABELS[p] || p });
     if (bridge.dessinerAbonnement && $('#abonnement-panel')) void bridge.dessinerAbonnement($('#abonnement-panel'));
     if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));
     if (bridge.dessinerExport && $('#export-panel')) bridge.dessinerExport($('#export-panel'));
@@ -19191,6 +19198,9 @@
   function appelGuide(route) {
     // Sur « Me guider » et sur l'Aide, la page EST déjà l'invitation : la proposer encore serait du bruit.
     if (!data || Visite.enCours() || route === 'guide' || route === 'aide') return;
+    // (plateforme, Support S2) En lecture pour le support, la page n'est pas celle de qui la lit : aucune invitation (vue le
+    // 14/10/2026 par-dessus la fenêtre qui ferme la lecture).
+    if (bridge.lecture) return;
     const p = visitePage(route);
     const et = visitesEtat();
     if (!p || !et.proposer || et.faites[p.id] || (et.vues[route] || 0) >= VISITE_PROPOSEE_MAX) return;

@@ -11,6 +11,7 @@ import { z } from 'zod';
 import type { Route } from '../app.ts';
 import type { Contexte } from '../connexion.ts';
 import { Introuvable } from '../erreurs.ts';
+import { DUREES_PROPOSEES, HEURES_MAX, lireAcces } from './acces.ts';
 import './gestes.ts';
 import './textes.ts';
 
@@ -86,6 +87,38 @@ export function routesSupport(ctx: Contexte): Route<never>[] {
     traiter: async ({ params }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       await tx.query('select plateforme.support_reglee($1, $2, $3)', [params.entreprise ?? '', lireUuid(params.demande), maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+
+  // ── L'accès du support au dossier (Support S2 ; 0096) ───────────────────────────────────────────────────────────────
+  // Le propriétaire ou un administrateur (le geste socle.support.autoriser) : les demandes d'accès de l'équipe SkanFact,
+  // les accès qui courent, et chaque page lue. Il accorde (pour quelques heures, quarante-huit au plus), refuse, retire.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/acces-support', geste: 'socle.support.autoriser',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const t = maintenant();
+      const acces = lireAcces((await tx.query('select plateforme.acces_support_du_client($1, $2) v', [params.entreprise ?? '', t])).rows[0]?.v);
+      return { corps: { maintenant: t.toISOString(), acces, durees: DUREES_PROPOSEES } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/acces-support/:acces/repondre', geste: 'socle.support.autoriser',
+    corps: z.object({ accorder: z.boolean(), heures: z.number().int().min(1).max(HEURES_MAX).nullable().default(null) }).strict()
+      .refine((c) => !c.accorder || c.heures !== null, { message: 'support.acces.heures', path: ['heures'] }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      await tx.query('select plateforme.acces_support_repondre($1, $2, $3, $4, $5)',
+        [params.entreprise ?? '', lireUuid(params.acces), corps.accorder, corps.accorder ? corps.heures : null, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/acces-support/:acces/retirer', geste: 'socle.support.autoriser',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      await tx.query('select plateforme.acces_support_retirer($1, $2, $3)', [params.entreprise ?? '', lireUuid(params.acces), maintenant()]);
       return { corps: { ok: true } };
     },
   });

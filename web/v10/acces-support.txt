@@ -1,0 +1,77 @@
+L'accès du support de SkanFact au dossier (Support S2 ; docs/support.md ; serveur/support, migration 0096 ;
+plateforme/acces.js). Format : voir sans-paquets.mjs.
+
+Le support ne voit rien du dossier d'une entreprise (Support S1). Pour l'aider sur ses chiffres, un membre de l'équipe
+DEMANDE l'accès depuis la console, avec son motif ; le propriétaire ou un administrateur le voit en haut de chaque page,
+l'ACCORDE pour quelques heures (en lecture seulement) ou le refuse, et le RETIRE quand il veut. Chaque page lue est
+notée : « Le support de SkanFact », dans Paramètres › L'équipe, les montre. La même application, ouverte depuis la console
+(« ?support=… »), est la lecture du support : une bande ambrée en haut de chaque page dit à qui est ce dossier, jusqu'à
+quand, et que rien ne s'enregistre.
+
+── L'application de l'entreprise ──
+
+== index.html | l'accès du support et sa feuille se chargent après le support
+-- avant
+  <script src="../plateforme/support.js"></script>
+  <link rel="stylesheet" href="../plateforme/support.css">
+-- après
+  <script src="../plateforme/support.js"></script>
+  <link rel="stylesheet" href="../plateforme/support.css">
+  <script src="../plateforme/acces.js"></script>
+  <link rel="stylesheet" href="../plateforme/acces.css">
+-- fin
+
+== app.js | chaque page porte en haut la demande d'accès de l'équipe SkanFact (ou l'accès qui court) ; en lecture pour le support, la bande qui le dit
+-- avant
+    if (bridge.support) bridge.support.poser(view);
+-- après
+    if (bridge.support) bridge.support.poser(view);
+    // (plateforme, Support S2) La demande d'accès de l'équipe SkanFact, ou l'accès qui court : en haut de tout (on y décide).
+    if (bridge.accesSupport) bridge.accesSupport.poser(view, { toast: (t, erreur) => toast(t, erreur) });
+    // (plateforme, Support S2) La lecture pour le support : la bande qui le dit, au-dessus de tout.
+    if (bridge.lecture) bridge.lecture.poser(view);
+-- fin
+
+== app.js | « Le support de SkanFact » est un panneau de l'onglet de l'équipe, pour qui la gère ; il a son entrée (recherche des réglages, palette)
+-- avant
+    'p-equipe': { onglet: 'equipe', titre: 'L\'équipe',
+-- après
+    'p-acces-support': { onglet: 'equipe', titre: 'Le support de SkanFact', mots: 'support skanfact acces dossier lecture accorder refuser retirer qui a regarde mes donnees pages lues equipe confidentialite', visible: () => equipeVisible() && !!bridge.accesSupport },
+    'p-equipe': { onglet: 'equipe', titre: 'L\'équipe',
+-- fin
+
+== app.js | l'onglet de l'équipe : le panneau du support, sous l'équipe
+-- avant
+      ${panneau('p-equipe', info('set.equipe'))}<div id="equipe-panel"></div></div>
+-- après
+      ${panneau('p-equipe', info('set.equipe'))}<div id="equipe-panel"></div></div>
+      ${bridge.accesSupport ? `${panneau('p-acces-support', info('set.accesSupport'))}<div id="acces-panel"></div></div>` : ''}
+-- fin
+
+== app.js | le point de contact dessine le panneau du support quand les Paramètres s'ouvrent ; chaque page lue porte son nom
+-- avant
+    if (bridge.dessinerEquipe && $('#equipe-panel')) void bridge.dessinerEquipe($('#equipe-panel'), { modal, toast, confirmDialog, nom: company().name });
+-- après
+    if (bridge.dessinerEquipe && $('#equipe-panel')) void bridge.dessinerEquipe($('#equipe-panel'), { modal, toast, confirmDialog, nom: company().name });
+    if (bridge.accesSupport && $('#acces-panel')) bridge.accesSupport.dessiner($('#acces-panel'), { toast: (t, erreur) => toast(t, erreur), nomDePage: p => PAGE_LABELS[p] || p });
+-- fin
+
+== app.js | en lecture pour le support, la page n'invite pas à sa visite : elle n'est pas celle de qui la lit
+-- avant
+    if (!data || Visite.enCours() || route === 'guide' || route === 'aide') return;
+    const p = visitePage(route);
+-- après
+    if (!data || Visite.enCours() || route === 'guide' || route === 'aide') return;
+    // (plateforme, Support S2) En lecture pour le support, la page n'est pas celle de qui la lit : aucune invitation (vue le
+    // 14/10/2026 par-dessus la fenêtre qui ferme la lecture).
+    if (bridge.lecture) return;
+    const p = visitePage(route);
+-- fin
+
+== guide.js | la bulle du support de SkanFact
+-- avant
+    'data.dossiers': {
+-- après
+    'set.accesSupport': { t: 'Le support de SkanFact', d: 'L\'équipe SkanFact ne lit <b>jamais</b> ton dossier sans ton accord. Quand elle en a besoin pour t\'aider (« ma TVA de septembre ne tombe pas juste »), elle te le <b>demande</b>, avec son motif : la demande s\'affiche en haut de chaque page, pour toi et pour un administrateur.<br><br>Tu l\'accordes pour <b>2, 24 ou 48 heures</b>, en <b>lecture seulement</b> : la personne voit ce que voit un membre « Lecture » de ton équipe (jamais la paie), et ne peut rien modifier. <b>Chaque page</b> qu\'elle ouvre est notée ici, avec l\'heure. Tu retires l\'accès quand tu veux ; à la fin des heures, il se ferme tout seul.' },
+    'data.dossiers': {
+-- fin

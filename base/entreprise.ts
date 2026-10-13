@@ -148,6 +148,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.message_clients': { classe: 'hors', raison: 'le message affiché à tous les clients, écrit par l\'équipe SkanFact : commun à la plateforme' },
   'plateforme.demande_support': { classe: 'hors', raison: 'les demandes au support de SkanFact : la relation avec SkanFact, comme l\'abonnement ; chaque personne relit les siennes dans l\'application, et une remise ne les fait jamais revenir en arrière' },
   'plateforme.message_support': { classe: 'hors', raison: 'les échanges avec le support de SkanFact, avec les réponses de son équipe : la relation avec SkanFact, comme l\'abonnement' },
+  'plateforme.acces_support': { classe: 'hors', raison: 'les accès accordés au support de SkanFact : la relation avec SkanFact ; une remise ne fait jamais revenir un accès, ni n\'efface sa trace' },
+  'plateforme.lecture_support': { classe: 'hors', raison: 'les pages lues par le support pendant un accès : la trace que l\'entreprise relit, qu\'une remise ne touche pas' },
   'socle.dossier_v10_retire': { classe: 'hors', raison: 'les traces de retrait servent la relecture des postes ; après une restauration, un poste relit tout' },
   // Ce qu'un appareil retiré a remis (0044) : à l'entreprise, décidé ou non.
   'socle.quarantaine': { classe: 'entreprise' },

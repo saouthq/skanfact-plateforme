@@ -2255,17 +2255,36 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-sp-depuis { font-size: 12.5px; line-height: 1.45; color: var(--c-gris); }
 .c-sp-cache-dossier { margin: 0; display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.45; color: var(--c-gris); background: var(--c-papier-2); }
 .c-sp-cache-dossier .c-icone { flex: none; margin-top: 1px; color: var(--c-gris-2); }
+/* L'accès au dossier (Support S2 ; AccesDossier.tsx) : l'état, ce qui reste, et les gestes ; le même encart dans la carte
+   d'une demande et sous les demandes de la fiche. */
+.c-sp-acces { display: flex; flex-direction: column; gap: 8px; }
+.c-sp-acces .c-surtitre { margin: 0; }
+.c-sp-acces-quoi { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* La bande, sous l'en-tête de la conversation : le titre, ce qui en est, et les gestes, sur une ligne quand elle tient. */
+.c-sp-acces-bande { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 24px; border-bottom: 1px solid var(--c-trait); background: var(--c-papier-2); }
+.c-sp-acces-bande .c-surtitre { flex: none; }
+.c-sp-acces-bande .c-sp-acces-quoi { flex: 1 1 14em; gap: 2px; }
+.c-sp-acces-bande .c-sp-acces-gestes { flex: none; }
+.c-sp-acces-bande .c-sp-acces-etat { font-size: 13px; }
+.c-sp-acces-etat { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 14px; font-weight: 600; }
+.c-sp-acces-sous { margin: 0; display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; color: var(--c-gris); }
+.c-sp-acces-sous .c-icone { flex: none; margin-top: 1px; color: var(--c-gris-2); }
+.c-sp-acces-gestes { display: flex; flex-wrap: wrap; gap: 8px; }
+.c-carte > .c-sp-acces { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--c-trait); }
+/* Dans une carte de liste (« Ses demandes » de la fiche), les lignes portent leur propre marge : l'encart prend la même. */
+.c-liste-carte > .c-sp-acces { margin-top: 0; padding: 18px 26px 22px; }
 .c-sp-intro { margin: 0; color: var(--c-gris); font-size: 14.5px; line-height: 1.5; }
 /* Assez large et assez haut : l'écran tient dans la fenêtre, comme une messagerie. La grille prend ce qui reste sous
    l'en-tête (--c-sp-haut, mesuré par l'écran) ; la conversation remplit sa colonne et ses messages défilent entre
    l'en-tête de la demande et la réponse, qui reste à l'écran ; à gauche, la liste rétrécit et défile avant que la carte
-   du client ne sorte de l'écran. */
+   du client ne sorte de l'écran — sans jamais disparaître (vu le 13/10/2026 : l'encart « Son dossier » écrasait la liste
+   à ses deux pastilles) : passé deux demandes, c'est la carte du client qui défile. */
 @media (min-width: 861px) and (min-height: 600px) {
   .c-page:has(> .c-sp-grille) { padding-bottom: 24px; }
   .c-sp-grille { height: calc(100vh - var(--c-sp-haut, 220px) - 24px); min-height: 500px; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
   .c-sp-gauche { height: 100%; }
-  .c-sp-liste { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
-  .c-sp-cote { flex: none; }
+  .c-sp-liste { flex: 0 1 auto; min-height: min(220px, 40%); overflow-y: auto; }
+  .c-sp-cote { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
   .c-sp-fil { min-height: 0; }
   .c-sp-messages { flex: 1 1 auto; min-height: 120px; max-height: none; }
 }

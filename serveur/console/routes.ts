@@ -37,6 +37,8 @@ import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesR
 import { essaisEnCours, grille, lireReglages, registre, sujetDesReglages } from './reglages.ts';
 import { lireFormats, registreDesFormats } from './formats.ts';
 import { articleConnu, articlesDeLAide, CANAUX_NOTES, compter, etatDe, lireSupport, ranger, SANS_REPONSE_HEURES, suggererPour } from './support.ts';
+import { lireAcces, HEURES_MAX, PAGE } from '../support/acces.ts';
+import { filtrer } from '../v10/droits.ts';
 import { versionTeif } from '../v10/teif.ts';
 import { BUDGETS } from '../service/mesures.ts';
 import { LISTE_GESTES_CONSOLE, type RoleConsole } from './gestes.ts';
@@ -979,6 +981,69 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     corps: z.object({ motif: motifGeste }),
     traiter: async ({ params, corps }, tx) => {
       await transaction(tx).query('select plateforme.console_rouvrir_demande($1, $2, $3)', [lireUuid(params.demande), corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+
+  // ── L'accès au dossier d'un client (Support S2 ; docs/support.md ; 0096) ─────────────────────────────────────────────
+  // La console DEMANDE l'accès, avec son motif ; l'entreprise l'accorde (quelques heures, quarante-huit au plus), le
+  // refuse ou le retire, dans son application. Pendant qu'il court, celui qui l'a demandé lit le dossier en LECTURE, ce
+  // que lit un membre « Lecture » de l'entreprise, chaque page tracée ; personne chez SkanFact n'écrit dans les données
+  // d'un client (03 § 5). La base vérifie l'accès à chaque lecture : ces routes ne font que l'appeler.
+  ajouter({
+    methode: 'GET', chemin: '/console/support/acces', geste: 'console.support.voir',
+    traiter: async ({ query }, tx) => {
+      const client = uuid.safeParse(query.client).success ? query.client as string : null;
+      if (!client) throw new Introuvable();
+      const t = maintenant();
+      const acces = lireAcces(await lireJson(transaction(tx), 'select plateforme.console_acces_support($1, $2) v', [client, t]));
+      return { corps: { maintenant: t.toISOString(), acces, regles: { heuresMax: HEURES_MAX } } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/support/acces', geste: 'console.support.acces',
+    corps: z.object({
+      entreprise: uuid, demande: uuid.nullable().default(null),
+      motif: z.string().trim().min(3, 'console.support.acces_motif_court').max(300, 'console.support.acces_motif_long')
+        .refine((v) => !/[<>]/.test(v), 'console.support.acces_motif_balise'),
+    }).strict(),
+    traiter: async ({ corps }, tx) => {
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_demander_acces($1, $2, $3, $4) v',
+        [corps.entreprise, corps.demande, corps.motif, maintenant()]);
+      return { statut: 201, corps: { id } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/support/acces/:acces/clore', geste: 'console.support.acces',
+    traiter: async ({ params }, tx) => {
+      await transaction(tx).query('select plateforme.console_clore_acces($1, $2)', [lireUuid(params.acces), maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  // Lire le dossier pendant l'accès, tel que la page de l'application le lirait (le même découpage en objets), filtré
+  // par le rôle « Lecture » ; rien n'y est écrivable. `page` : le nom de la page ouverte, que la base trace.
+  ajouter({
+    methode: 'GET', chemin: '/console/support/acces/:acces/dossier', geste: 'console.support.acces',
+    traiter: async ({ params, query }, tx) => {
+      const page = typeof query.page === 'string' && PAGE.test(query.page) ? query.page : 'accueil';
+      const lu = await lireJson<{ entreprise: string; fin: string; nom: string; objets: { collection: string; cle: string; rang: number | null; contenu: unknown; revision: number }[] }>(
+        transaction(tx), 'select plateforme.support_dossier($1, $2, $3) v', [lireUuid(params.acces), page, maintenant()]);
+      const { objets, droits } = filtrer(['lecture'], lu.objets.map((o) => ({ ...o, revision: Number(o.revision) })));
+      return {
+        corps: {
+          entreprise: lu.entreprise, nom: lu.nom, fin: lu.fin, lecture: true, objets, marque: '', profil: '', autrui: {},
+          // En lecture : rien ne repart, quoi que le rôle « Lecture » permette un jour d'écrire.
+          droits: { ...droits, lectureSeule: [...new Set([...droits.lectureSeule, ...droits.ecrivables])].sort(), ecrivables: [], tout: false, responsable: false, caisse: false },
+        },
+      };
+    },
+  });
+  // La page ouverte (l'écran le dit à chaque page) : tracée, sauf une page relue dans la minute.
+  ajouter({
+    methode: 'POST', chemin: '/console/support/acces/:acces/page', geste: 'console.support.acces',
+    corps: z.object({ page: z.string().regex(PAGE) }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.support_noter_page($1, $2, $3)', [lireUuid(params.acces), corps.page, maintenant()]);
       return { corps: { ok: true } };
     },
   });

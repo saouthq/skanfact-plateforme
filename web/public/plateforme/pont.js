@@ -15,10 +15,22 @@
   'use strict';
   /** @type {string | null} */
   let jeton = null;
+  // La lecture pour le support (Support S2 ; docs/support.md ; 0096) : ouverte depuis la console, sur la même adresse
+  // qu'elle (« ?e=<entreprise>&support=<accès> »), quand l'entreprise l'a accordée. La session est celle de la console
+  // (l'onglet de la console l'a passée à celui-ci, jamais l'adresse), jamais celle de l'application ; le dossier se lit
+  // par la console, qui vérifie l'accès à CHAQUE lecture et trace la page ; rien ne s'écrit, rien ne se garde sur le
+  // poste (poste.js). Personne chez SkanFact n'écrit dans les données d'un client (03 § 5).
+  const accesLu = new URLSearchParams(location.search).get('support');
+  const LECTURE = accesLu !== null;
+  const EN_LECTURE = 'Lecture pour le support : rien ne s\'enregistre ici, et rien ne part chez le client.';
   // La session de l'onglet, ou celle gardée sur « mon ordinateur » (brique 72) : l'application se rouvre.
-  try { jeton = sessionStorage.getItem('skanfact.jeton') || localStorage.getItem('skanfact.jeton'); } catch { /* stockage refusé : pas de session */ }
+  try {
+    jeton = LECTURE ? sessionStorage.getItem('skanfact.console.jeton') : sessionStorage.getItem('skanfact.jeton') || localStorage.getItem('skanfact.jeton');
+  } catch { /* stockage refusé : pas de session */ }
   /** @type {any} */ const poste = /** @type {any} */ (window).SkanPoste;
   const ent = new URLSearchParams(location.search).get('e');
+  // La lecture sans session de la console, ou mal adressée : retour à la console, qui la rouvre.
+  if (LECTURE && (!jeton || !ent || !/^[0-9a-f-]{36}$/.test(ent) || !/^[0-9a-f-]{36}$/.test(accesLu))) { location.replace('/console/'); return; }
   // Sans session ou sans entreprise, retour à la connexion. Sans session, l'adresse demandée (le lien d'une facture
   // venu d'une console partenaire, brique 127) se garde dans l'onglet : la connexion y ramène.
   if (!jeton || !ent || !/^[0-9a-f-]{36}$/.test(ent)) {
@@ -39,8 +51,58 @@
     }
   }
 
+  // ── La lecture pour le support : le dossier, et rien d'autre ────────────────────────────────
+  // Le dossier se lit par la console ; tout autre appel est refusé ici, avant de partir (l'abonnement, le message aux
+  // clients, la quarantaine ont leur réponse « refusée », que l'écran tient déjà pour « rien à montrer »). Une lecture
+  // refusée (l'accès retiré, fini, échu) ferme la page sur sa raison.
+  /** @type {string | null} */ let lectureFin = null;
+  // Le nom de l'entreprise lue, tel que la console le montre (lu avec le dossier ; la fiche société peut être vide).
+  /** @type {string | null} */ let lectureNom = null;
+  // Le nom de la page ouverte, tel que la base le trace (« factures ») : le premier mot de l'adresse de la v10.
+  const pageLue = () => {
+    const m = /^#\/([a-z][a-z0-9_-]{0,39})/.exec(location.hash.toLowerCase());
+    return m && m[1] ? m[1] : 'accueil';
+  };
+  /** @param {string} motif */
+  function fermerLaLecture(motif) {
+    const w = /** @type {any} */ (window);
+    if (w.SkanLecture) w.SkanLecture.fermer(motif);
+  }
+  /** @param {string} methode @param {string} chemin */
+  async function appelLecture(methode, chemin) {
+    if (methode !== 'GET' || !/^\/dossier-v10(\?|$)/.test(chemin)) throw Object.assign(new Error(EN_LECTURE), { statut: 403, bouton: null, champ: null, lecture: true });
+    let r;
+    try {
+      r = await fetch(`/v1/console/support/acces/${accesLu}/dossier?page=${encodeURIComponent(pageLue())}`, { headers: { authorization: `Bearer ${jeton}` }, cache: 'no-store' });
+    } catch (e) {
+      throw Object.assign(new Error('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e }), { statut: 0 });
+    }
+    /** @type {any} */
+    const lu = lire(r, await r.text());
+    if (r.status === 401) { location.replace('/console/'); throw new Error('Ta session de la console est terminée : reconnecte-toi.'); }
+    if (!r.ok) {
+      const motif = typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.';
+      fermerLaLecture(motif);
+      throw Object.assign(new Error(motif), { statut: r.status === 404 ? 403 : r.status });
+    }
+    lectureFin = typeof lu.fin === 'string' ? lu.fin : null;
+    lectureNom = typeof lu.nom === 'string' && lu.nom ? lu.nom : lectureNom;
+    return lu;
+  }
+  // Chaque page ouverte se dit à la console, qui la trace (une page relue dans la minute ne se trace pas deux fois) ; un
+  // accès qui ne court plus ferme la page.
+  async function noterLaPage() {
+    try {
+      const r = await fetch(`/v1/console/support/acces/${accesLu}/page`, { method: 'POST', headers: { authorization: `Bearer ${jeton}`, 'content-type': 'application/json' }, body: JSON.stringify({ page: pageLue() }), cache: 'no-store' });
+      if (r.status === 401) { location.replace('/console/'); return; }
+      if (!r.ok) { /** @type {any} */ const lu = lire(r, await r.text()); fermerLaLecture(typeof lu.motif === 'string' ? lu.motif : EN_LECTURE); }
+    } catch { /* sans réseau : la lecture suivante le dira */ }
+  }
+  if (LECTURE) window.addEventListener('hashchange', () => { void noterLaPage(); });
+
   /** @param {string} methode @param {string} chemin @param {unknown} [corps] */
   async function appel(methode, chemin, corps) {
+    if (LECTURE) return appelLecture(methode, chemin);
     /** @type {Record<string, string>} */
     const entetes = { authorization: `Bearer ${jeton}` };
     if (corps !== undefined) entetes['content-type'] = 'application/json';
@@ -778,7 +840,7 @@
     dessinerServices,
     // La messagerie avec le cabinet (lot messagerie ; plateforme/messagerie.js) : ce qui attend (la pastille), le fil, et
     // l'achat où la photo d'un message a été rangée.
-    messagerie: {
+    messagerie: LECTURE ? null : {
       attente: () => appel('GET', '/messages/attente'),
       dessiner: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, { ...o, appel, cote: 'entreprise' }),
       rangerAchat: (/** @type {string} */ message, /** @type {string} */ achat, /** @type {string} */ libelle) => appel('POST', `/messages/${encodeURIComponent(message)}/achat`, { achat, libelle }),
@@ -786,13 +848,24 @@
     // Le support de SkanFact (Support S1 ; plateforme/support.js ; serveur/support) : écrire une demande, ce qui attend
     // (la pastille de l'Aide et le bandeau), et la page de ses demandes. Ce qui part avec une demande, compté et décidé :
     // le sujet, le texte, la version de l'application et le NOM de la page où était la personne ; rien de son dossier.
-    support: {
+    support: LECTURE ? null : {
       attente: () => appel('GET', '/support/attente'),
       ecrire: (/** @type {{ sujet: string, texte: string, version: string | null, page: string | null }} */ c) =>
         appel('POST', '/support', { sujet: c.sujet, texte: c.texte, version: c.version, page: c.page }),
       noter: (/** @type {unknown} */ a) => /** @type {any} */ (window).SkanSupport.noter(a),
       poser: (/** @type {HTMLElement} */ view) => /** @type {any} */ (window).SkanSupport.poser(view),
       dessiner: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanSupport.page(el, { ...o, appel }),
+    },
+    // L'accès du support au dossier (Support S2 ; plateforme/acces.js ; serveur/support) : le propriétaire ou un
+    // administrateur voit la demande de l'équipe, l'accorde pour quelques heures, la refuse, retire un accès qui court,
+    // et relit chaque page lue. Pour tout autre rôle, la base refuse (403) et l'écran ne montre rien.
+    accesSupport: LECTURE ? null : {
+      lire: () => appel('GET', '/acces-support'),
+      repondre: (/** @type {string} */ id, /** @type {boolean} */ accorder, /** @type {number | null} */ heures) =>
+        appel('POST', `/acces-support/${encodeURIComponent(id)}/repondre`, { accorder, heures }),
+      retirer: (/** @type {string} */ id) => appel('POST', `/acces-support/${encodeURIComponent(id)}/retirer`),
+      poser: (/** @type {HTMLElement} */ view, /** @type {any} */ o) => /** @type {any} */ (window).SkanAcces.poser(view, o),
+      dessiner: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanAcces.panneau(el, o),
     },
     // L'application de bureau (brique 138) : l'impression par l'agent local, seulement quand il est là.
     ...(/** @type {any} */ (window).skanfactBureau ? { dessinerImprimante, imprimerTicket: imprimerParAgent, ticketEncaisse } : {}),
@@ -844,7 +917,10 @@
         return { data: attente.contenu.data, corruptFile: null };
       }
     },
-    saveData: (/** @type {Record<string, unknown>} */ data) => enregistrer(data),
+    saveData: (/** @type {Record<string, unknown>} */ data) => (LECTURE ? Promise.reject(Object.assign(new Error(EN_LECTURE), { statut: 403 })) : enregistrer(data)),
+    // La lecture pour le support : l'accès, sa fin (lue avec le dossier), et le nom de la page (plateforme/lecture.js).
+    lecture: LECTURE ? { acces: accesLu, entreprise: ent, fin: () => lectureFin, nom: () => lectureNom, page: pageLue, noter: noterLaPage,
+      poser: (/** @type {HTMLElement} */ view) => /** @type {any} */ (window).SkanLecture.poser(view) } : null,
     dataPath: async () => 'Serveur SkanFact',
     setTitle: (/** @type {string} */ t) => { document.title = t; },
 
@@ -992,6 +1068,11 @@
     // Le tableau de bord du groupe (brique 113) : les sociétés de la personne, leurs chiffres lus dans leurs livres.
     groupe: async () => appelCompte('GET', '/moi/groupe'),
     listDossiers: async () => {
+      // En lecture pour le support : l'entreprise lue, et elle seule.
+      if (LECTURE) {
+        const nom = lectureNom || String((((/** @type {any} */ (window).__data) || {}).company || {}).name || '');
+        return { dossiers: [{ id: ent, name: nom, shared: false, dir: 'Lecture pour le support' }], current: ent, device: { name: '' }, retires: [] };
+      }
       let moi;
       try { moi = await lireMoi(); } catch (e) {
         // Une session ouverte par un code de caisse (brique 123) ne sert qu'à cette caisse : l'entreprise ouverte seulement.
@@ -1245,6 +1326,8 @@
   // Les appels du compte (hors entreprise) : la liste des entreprises, en créer une, se déconnecter.
   /** @param {string} methode @param {string} chemin @param {unknown} [corps] */
   async function appelCompte(methode, chemin, corps) {
+    // En lecture pour le support : rien du compte de celui qui lit ne passe par ici.
+    if (LECTURE) throw Object.assign(new Error(EN_LECTURE), { statut: 403, bouton: null, champ: null, lecture: true });
     /** @type {Record<string, string>} */
     const entetes = { authorization: `Bearer ${jeton}` };
     if (corps !== undefined) entetes['content-type'] = 'application/json';

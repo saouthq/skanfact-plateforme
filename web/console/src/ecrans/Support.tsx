@@ -8,6 +8,7 @@ import { dire, phrase, selon, titre } from '../langue.ts';
 import { abonnementEnMots, expliquer, type Etat, type Faits } from '../abonnement.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture, useRelireQuandOnRegarde } from '../contexte.ts';
 import { quand } from '../temps.ts';
+import { AccesDossier } from './AccesDossier.tsx';
 import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
 
 export type Canal = 'application' | 'email' | 'whatsapp' | 'telephone';
@@ -305,6 +306,9 @@ function Fil({ d, articles, brouillons, aujourdhui, relire }: { d: Demande; arti
         {e.etat === 'close' ? <Bouton petit onClick={() => setFenetre('rouvrir')}>{titre('console.ecran.support.rouvrir')}</Bouton>
           : <Bouton petit onClick={() => setFenetre('clore')}>{titre('console.ecran.support.clore')}</Bouton>}
       </div>
+      {/* Son dossier (Support S2) : sous l'en-tête, à portée de la conversation qui le motive — demander l'accès, le temps
+          qui reste, l'ouvrir en lecture. */}
+      <AccesDossier forme="bande" client={{ id: l.entreprise.id, nom: l.entreprise.nom }} demande={{ id: l.id, numero: l.numero }} aujourdhui={aujourdhui} />
       <ol className="c-sp-messages" aria-label={titre('console.ecran.support.conversation')} ref={liste} onScroll={defiler} tabIndex={0}>
         {d.messages.map((m) => (
           <li key={m.id} className={`c-sp-msg c-sp-msg-${m.cote}`}>
@@ -367,7 +371,6 @@ function Cote({ d, client, aujourdhui }: { d: Demande; client: Client | null; au
           {d.personne.email ? <a href={`mailto:${d.personne.email}`} data-donnee>{d.personne.email}</a> : null}
           {d.version ? <span className="c-sp-depuis">{maj(page ? dire('console.ecran.support.ecrite_depuis', { page, version: d.version }) : dire('console.ecran.support.ecrite_depuis_sans_page', { version: d.version }))}</span> : null}
         </section>
-        <p className="c-sp-cache-dossier"><Icone nom="cache" taille={15} /><span>{phrase('console.ecran.support.contenu')}</span></p>
       </div>
     </aside>
   );

@@ -23,8 +23,12 @@
   // la base juste après sa suppression, et la recréait : l'entrée disait « ce qu'il gardait […] est effacé » d'une base
   // encore là (vu par tests/web/appareils.test.ts : supprimée, puis recréée à la milliseconde suivante).
   let efface = false;
+  // La lecture pour le support (Support S2 ; docs/support.md) : la page lit le dossier d'un client par la console. Rien de
+  // ce client ne se garde sur ce poste, et rien de ce que ce poste garde (la copie de l'entreprise de celui qui lit, s'il
+  // en a une) ne s'efface ni ne se mélange : le poste fait comme s'il n'existait pas.
+  const enLecture = /[?&]support=[0-9a-f-]{36}(&|$)/.test(location.search);
   /** @returns {boolean} La session est gardée sur l'appareil : c'est « mon ordinateur ». */
-  const garde = () => { if (efface) return false; try { return !!localStorage.getItem('skanfact.jeton'); } catch { return false; } };
+  const garde = () => { if (efface || enLecture) return false; try { return !!localStorage.getItem('skanfact.jeton'); } catch { return false; } };
 
   /** @returns {Promise<IDBDatabase>} */
   const ouvrir = () => new Promise((ok, ko) => {
@@ -93,6 +97,7 @@
   const effacerAttente = async (id) => { await faire('attentes', 'readwrite', (s) => s.delete(id)); };
   // Tout ce que le poste garde : les copies, ce qui attend, la clé, et le souvenir de la dernière entreprise.
   async function effacer() {
+    if (enLecture) return;
     efface = true;
     try { localStorage.removeItem(DERNIERE); localStorage.removeItem('skanfact.poste_de'); } catch { /* rien à retirer */ }
     // Bloquée, la suppression attend que la lecture en cours se referme (quelques millisecondes) : on l'attend un
@@ -107,6 +112,7 @@
   // ce qui l'attendait, et le souvenir de l'avoir ouverte en dernier. Les autres entreprises restent.
   /** @param {string} id */
   async function effacerEntreprise(id) {
+    if (enLecture) return;
     await faire('copies', 'readwrite', (s) => s.delete(id));
     await faire('attentes', 'readwrite', (s) => s.delete(id));
     try { if (localStorage.getItem(DERNIERE) === id) localStorage.removeItem(DERNIERE); } catch { /* rien à retirer */ }

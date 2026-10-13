@@ -740,4 +740,6 @@ export const ADAPTATIONS = [
   ...lireFichier('message-clients.txt'),
   // ── Le support de SkanFact (13/10/2026 ; Support S1, docs/support.md) : écrire, lire la réponse ici ──
   ...lireFichier('support.txt'),
+  // ── L'accès du support au dossier (13/10/2026 ; Support S2, docs/support.md) : accorder, retirer, lire en lecture ──
+  ...lireFichier('acces-support.txt'),
 ];

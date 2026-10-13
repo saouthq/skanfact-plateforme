@@ -18,6 +18,7 @@ import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, Puce,
 import { organisationEnMots } from './Clients.tsx';
 import type { Place } from './Cabinets.tsx';
 import { depuisEnMots, etatEnMots, NoterDemande, refDemande, type LigneDemande } from './Support.tsx';
+import { AccesDossier } from './AccesDossier.tsx';
 
 type Geste = 'prolonger' | 'payer' | 'resilier' | 'annuler-resiliation' | 'suspendre' | 'reprendre' | 'offrir' | 'retirer-offert';
 type LigneAbo = { essai_jusqu_au: string; paye_jusqu_au: string | null; offre: Offre | null; periodicite: Periodicite | null; resilie_le: string | null; suspendu_le: string | null; offert: boolean };
@@ -485,6 +486,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
               })}
             </ul>
           )}
+          <AccesDossier client={{ id: f.id, nom: f.raisonSociale }} aujourdhui={f.aujourdhui} />
         </section>
       ) : null}
 

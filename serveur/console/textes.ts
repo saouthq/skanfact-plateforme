@@ -20,6 +20,7 @@ declarerTextes({
   'geste.console.reglages.gerer': 'changer les réglages de la plateforme (noter la relecture d\'une règle, afficher ou retirer le message aux clients)',
   'geste.console.support.voir': 'lire les demandes de support',
   'geste.console.support.repondre': 'répondre à une demande de support (répondre, noter une demande reçue ailleurs, clore, rouvrir)',
+  'geste.console.support.acces': 'demander l\'accès au dossier d\'un client et le lire pendant qu\'il court (en lecture seulement, chaque page tracée)',
   // Les rôles de l'équipe SkanFact (03 § 5).
   'role.direction': 'direction',
   'role.support': 'support',
@@ -47,6 +48,9 @@ declarerTextes({
   'console.support.sujet_court': 'le sujet dit en quelques mots ce que la personne demande : trois caractères au moins',
   'console.support.sujet_long': 'le sujet tient sur une ligne : cent quarante caractères au plus',
   'console.support.sans_balise': 'le sujet s\'écrit sans les signes < ni >',
+  'console.support.acces_motif_court': 'demander l\'accès dit pourquoi, au client qui le lira : trois caractères au moins',
+  'console.support.acces_motif_long': 'le motif tient en quelques lignes : trois cents caractères au plus',
+  'console.support.acces_motif_balise': 'le motif s\'écrit sans les signes < ni >',
   'console.support.texte_court': 'note ce que la personne a demandé, avec ses mots : trois caractères au moins',
   'console.support.reponse_courte': 'une réponse : trois caractères au moins',
   'console.support.article_inconnu': 'cet article n\'est pas dans l\'Aide de l\'application : choisis-en un parmi les réponses types',

@@ -4043,7 +4043,7 @@ prouver "la copie du poste gardée en clair" web/public/plateforme/poste.js \
   "    const chiffre = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await cle(), new TextEncoder().encode(JSON.stringify(contenu)));" "    const chiffre = new TextEncoder().encode(JSON.stringify(contenu)).buffer;" \
   "$HL1"
 prouver "une copie gardée sur l'ordinateur d'un autre" web/public/plateforme/poste.js \
-  "  const garde = () => { if (efface) return false; try { return !!localStorage.getItem('skanfact.jeton'); } catch { return false; } };" "  const garde = () => true;" \
+  "  const garde = () => { if (efface || enLecture) return false; try { return !!localStorage.getItem('skanfact.jeton'); } catch { return false; } };" "  const garde = () => true;" \
   "$HL2"
 prouver "la copie qui survit à la déconnexion" web/public/plateforme/poste.js \
   "      const r = indexedDB.deleteDatabase(BASE);" "      const r = {}; ok(undefined);" \
@@ -4085,7 +4085,7 @@ prouver "la session gardée après « Se déconnecter »" $PONT \
       await poste.effacer();" \
   "$HL1"
 prouver "la session du navigateur ignorée par l'application" $PONT \
-  "jeton = sessionStorage.getItem('skanfact.jeton') || localStorage.getItem('skanfact.jeton');" "jeton = sessionStorage.getItem('skanfact.jeton');" \
+  "sessionStorage.getItem('skanfact.jeton') || localStorage.getItem('skanfact.jeton');" "sessionStorage.getItem('skanfact.jeton');" \
   "$HL1"
 prouver "l'entrée qui, sans réseau, n'ouvre pas la copie" web/src/App.tsx \
   "      if (copie) { location.assign(\`/v10/?e=\${encodeURIComponent(copie)}\`); return; }
@@ -12591,6 +12591,147 @@ prouver 'les touches du raccourci écrites hors du catalogue' web/console/src/ec
 prouver 'le message de la sourdine qui tait son jour' web/console/src/ecrans/Alertes.tsx \
   '{ heure: moment(typeof finPosee === '"'"'string'"'"' ? finPosee : fin, d.aujourdhui) }' '{ heure: heureDe(typeof finPosee === '"'"'string'"'"' ? finPosee : fin) }' \
   'la sourdine d'"'"'une règle, depuis son menu : la même fin dans le message et sur la ligne ; le menu reste dans l'"'"'écran'
+
+
+
+
+
+# Le support, seconde partie (Support S2 ; docs/support.md ; base 0096) : l'accès au dossier d'un client, demandé par
+# la console, accordé ou refusé par l'entreprise, lu en lecture seulement et page par page ; la lecture prudente de ce
+# que la base rend ; et à la souris : la bande de la console, le bandeau et le panneau du client, la lecture du support.
+SAC1='la console demande avec son motif ; l'"'"'entreprise accorde ; celui qui a demandé lit ce que lit un membre « Lecture », chaque page tracée'
+SAC2='le propriétaire ou un administrateur ; ni un autre membre, ni la console ; la technique ne demande rien'
+SAC3='refusé, retiré, rendu : la lecture suivante est refusée en disant pourquoi ; une seule demande en cours à la fois'
+SAC4='une page lue ne se modifie pas et ne s'"'"'efface pas : c'"'"'est la trace que l'"'"'entreprise relit'
+SAC5='une ligne illisible ne s'"'"'affiche pas ; un accès « actif » sans sa fin n'"'"'est pas un accès qui court'
+SACW1='la console demande l'"'"'accès depuis la conversation, avec son motif ; l'"'"'encart dit qu'"'"'il attend'
+SACW2='la propriétaire voit la demande en haut de son application, et l'"'"'accorde pour deux heures ; la console le voit'
+SACW3='« Ouvrir le dossier (lecture) » : la bande le dit, les pièces se lisent, rien ne s'"'"'écrit ni ne se garde, chaque page est tracée'
+SACW4='la propriétaire voit les pages lues et retire l'"'"'accès ; la page suivante du support se ferme, et ce qu'"'"'elle montrait disparaît'
+SACW5='au téléphone, rien ne déborde et chaque bouton se touche ; l'"'"'instrument ne trouve rien, des deux côtés'
+prouver 'une demande pas encore accordée qui se lit' base/migrations/0096_acces_support.sql \
+  '    when a.accorde_le is not null and p_maintenant < a.fin then '"'"'actif'"'"'' '    when p_maintenant < coalesce(a.fin, '"'"'infinity'"'"') then '"'"'actif'"'"'' \
+  "$SAC1"
+prouver 'un accès échu qui se lit encore' base/migrations/0096_acces_support.sql \
+  '    when a.accorde_le is not null and p_maintenant < a.fin then '"'"'actif'"'"'' '    when a.accorde_le is not null then '"'"'actif'"'"'' \
+  "$SAC1"
+prouver 'la paie lue par le support' serveur/console/routes.ts \
+  '      const { objets, droits } = filtrer(['"'"'lecture'"'"'], lu.objets' '      const { objets, droits } = filtrer(['"'"'proprietaire'"'"'], lu.objets' \
+  "$SAC1"
+prouver 'une page relue dans la minute tracée deux fois' base/migrations/0096_acces_support.sql \
+  'where l.acces = v.id and l.page = p_page and l.lu_le > p_maintenant - interval '"'"'1 minute'"'"') then' 'where false) then' \
+  "$SAC1"
+prouver 'un collègue qui lit par l'"'"'accès d'"'"'un autre' base/migrations/0096_acces_support.sql \
+  '  if not found or v.demandeur <> socle.moi() then perform socle.refus('"'"'cet accès n'"'"''"'"'existe pas, ou n'"'"''"'"'est pas le tien'"'"'); end if;' '  if not found then perform socle.refus('"'"'cet accès n'"'"''"'"'existe pas, ou n'"'"''"'"'est pas le tien'"'"'); end if;' \
+  "$SAC1"
+prouver 'la demande d'"'"'accès au journal sans son motif' base/migrations/0096_acces_support.sql \
+  '    values (socle.moi(), v_role, '"'"'support.acces_demander'"'"', p_entreprise, v_motif, null,' '    values (socle.moi(), v_role, '"'"'support.acces_demander'"'"', p_entreprise, '"'"'accès demandé'"'"', null,' \
+  "$SAC1"
+prouver 'l'"'"'accord tracé sans ses heures' base/migrations/0096_acces_support.sql \
+  'case when p_accorder then jsonb_build_object('"'"'etat'"'"', '"'"'accorde'"'"', '"'"'heures'"'"', p_heures)' 'case when p_accorder then jsonb_build_object('"'"'etat'"'"', '"'"'accorde'"'"')' \
+  "$SAC1"
+prouver 'la lecture sans le nom de l'"'"'entreprise' serveur/console/routes.ts \
+  '          entreprise: lu.entreprise, nom: lu.nom, fin: lu.fin,' '          entreprise: lu.entreprise, fin: lu.fin,' \
+  "$SAC1"
+prouver 'un commercial qui accorde l'"'"'accès' 'serveur/porte/gestes.ts|||base/migrations/0096_acces_support.sql' \
+  '  { code: '"'"'socle.support.autoriser'"'"', module: '"'"'socle'"'"', horsCle: true, ecrit: true, prevenirProprietaire: true,
+    roles: { proprietaire: P, administrateur: P } },|||not (socle.mes_roles(p_entreprise) && array['"'"'proprietaire'"'"', '"'"'administrateur'"'"']::text[])' '  { code: '"'"'socle.support.autoriser'"'"', module: '"'"'socle'"'"', horsCle: true, ecrit: true, prevenirProprietaire: true,
+    roles: { proprietaire: P, administrateur: P, commercial: P } },|||not (socle.mes_roles(p_entreprise) && array['"'"'proprietaire'"'"', '"'"'administrateur'"'"', '"'"'commercial'"'"']::text[])' \
+  "$SAC2"
+prouver 'la technique qui demande l'"'"'accès' 'serveur/console/gestes.ts|||base/migrations/0096_acces_support.sql' \
+  '  { code: '"'"'console.support.acces'"'"', roles: [D, S], ecrit: true },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+  v_motif text' '  { code: '"'"'console.support.acces'"'"', roles: [D, S, T], ecrit: true },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']);
+  v_motif text' \
+  "$SAC2"
+prouver 'un accès de quarante-neuf heures' 'serveur/support/acces.ts|||base/migrations/0096_acces_support.sql' \
+  'export const HEURES_MAX = 48;|||p_heures > 48 then' 'export const HEURES_MAX = 49;|||p_heures > 49 then' \
+  "$SAC2"
+prouver 'un accès accordé sans durée' 'serveur/support/routes.ts|||base/migrations/0096_acces_support.sql' \
+  '      .refine((c) => !c.accorder || c.heures !== null, { message: '"'"'support.acces.heures'"'"', path: ['"'"'heures'"'"'] }),|||if p_heures is null or p_heures < 1' '      ,|||if p_heures < 1' \
+  "$SAC2"
+prouver 'une seconde réponse à la même demande' base/migrations/0096_acces_support.sql \
+  '  if plateforme.acces_support_etat(v, p_maintenant) <> '"'"'demande'"'"' then perform socle.refus('"'"'cette demande d'"'"''"'"'accès a déjà sa réponse'"'"'); end if;
+' '' \
+  "$SAC2"
+prouver 'deux demandes en cours à la fois' base/migrations/0096_acces_support.sql \
+  'and plateforme.acces_support_etat(a, p_maintenant) in ('"'"'demande'"'"', '"'"'actif'"'"')) then' 'and plateforme.acces_support_etat(a, p_maintenant) in ('"'"'aucun'"'"')) then' \
+  "$SAC3"
+prouver 'la demande de support d'"'"'une autre entreprise qui explique l'"'"'accès' base/migrations/0096_acces_support.sql \
+  'where d.id = p_demande and d.entreprise = p_entreprise;' 'where d.id = p_demande;' \
+  "$SAC3"
+prouver 'un accès retiré qui se lit encore' base/migrations/0096_acces_support.sql \
+  '    when a.retire_le is not null then '"'"'retire'"'"'
+' '' \
+  "$SAC3"
+prouver 'un accès rendu qui se lit encore' base/migrations/0096_acces_support.sql \
+  '    when a.clos_le is not null then '"'"'fini'"'"'
+' '' \
+  "$SAC3"
+prouver 'un accès rendu deux fois' base/migrations/0096_acces_support.sql \
+  '  if v_etat not in ('"'"'demande'"'"', '"'"'actif'"'"') then perform socle.refus('"'"'cet accès est déjà fermé'"'"'); end if;
+' '' \
+  "$SAC3"
+prouver 'le retrait sans trace chez l'"'"'entreprise' base/migrations/0096_acces_support.sql \
+  '  perform socle.tracer(p_entreprise, '"'"'socle.support.autoriser'"'"', '"'"'acces_support'"'"', p_acces, jsonb_build_object('"'"'etat'"'"', '"'"'actif'"'"', '"'"'fin'"'"', v.fin), jsonb_build_object('"'"'etat'"'"', '"'"'retire'"'"'));
+' '' \
+  "$SAC3"
+prouver 'une page lue qu'"'"'on efface' base/migrations/0096_acces_support.sql \
+  'create trigger lecture_support_intouchable before update or delete on' 'create trigger lecture_support_intouchable before update on' \
+  "$SAC4"
+prouver 'un accès dit actif sans sa fin' serveur/support/acces.ts \
+  '  if (etat === '"'"'actif'"'"' && !fin) return null;
+' '' \
+  "$SAC5"
+prouver 'une page lue qui porte un chemin' serveur/support/acces.ts \
+  '(texte(l.page) && PAGE.test(l.page as string) && instant(l.le)' '(texte(l.page) && instant(l.le)' \
+  "$SAC5"
+prouver 'la conversation sans l'"'"'accès au dossier' web/console/src/ecrans/Support.tsx \
+  '      <AccesDossier forme="bande" client={{ id: l.entreprise.id, nom: l.entreprise.nom }} demande={{ id: l.id, numero: l.numero }} aujourdhui={aujourdhui} />
+' '' \
+  "$SACW1"
+prouver 'une demande d'"'"'accès sans motif qui part' web/console/src/ecrans/AccesDossier.tsx \
+  '    if (motif.trim().length < 3) { setRefus(phrase('"'"'console.ecran.support.acces.motif_court'"'"')); setFaute((n) => n + 1); return; }
+' '' \
+  "$SACW1"
+prouver 'la demande d'"'"'accès qui n'"'"'apparaît pas en haut de l'"'"'application' web/public/v10/app.js \
+  '    if (bridge.accesSupport) bridge.accesSupport.poser(view, { toast: (t, erreur) => toast(t, erreur) });
+' '' \
+  "$SACW2"
+prouver 'un accès accordé pour une autre durée que celle cliquée' web/public/plateforme/acces.js \
+  'void repondre(String(b.dataset.accesAccorder), true, Number(b.dataset.heures), b);' 'void repondre(String(b.dataset.accesAccorder), true, 48, b);' \
+  "$SACW2"
+prouver 'la lecture sans sa bande' web/public/v10/app.js \
+  '    if (bridge.lecture) bridge.lecture.poser(view);
+' '' \
+  "$SACW3"
+prouver 'la lecture qui invite à la visite de la page' web/public/v10/app.js \
+  '    if (bridge.lecture) return;
+' '' \
+  "$SACW3"
+prouver 'la lecture qui enregistre' web/public/plateforme/pont.js \
+  '(LECTURE ? Promise.reject(Object.assign(new Error(EN_LECTURE), { statut: 403 })) : enregistrer(data))' 'enregistrer(data)' \
+  "$SACW3"
+prouver 'la lecture qui garde une copie sur le poste' web/public/plateforme/poste.js \
+  'if (efface || enLecture) return false;' 'if (efface) return false;' \
+  "$SACW3"
+prouver 'la messagerie du client branchée dans la lecture' web/public/plateforme/pont.js \
+  '    messagerie: LECTURE ? null : {' '    messagerie: {' \
+  "$SACW3"
+prouver 'une page ouverte en lecture qui n'"'"'est pas notée' web/public/plateforme/pont.js \
+  '  if (LECTURE) window.addEventListener('"'"'hashchange'"'"', () => { void noterLaPage(); });
+' '' \
+  "$SACW3"
+prouver 'la lecture qui reste ouverte après le retrait' web/public/plateforme/pont.js \
+  '      if (!r.ok) { /** @type {any} */ const lu = lire(r, await r.text()); fermerLaLecture(typeof lu.motif === '"'"'string'"'"' ? lu.motif : EN_LECTURE); }
+' '' \
+  "$SACW4"
+prouver 'le dossier qui reste lisible derrière la fermeture' web/public/plateforme/acces.js \
+  '    if (v) { v.innerHTML = '"'"''"'"'; v.setAttribute('"'"'inert'"'"', '"'"''"'"'); }
+' '' \
+  "$SACW4"
+prouver 'le panneau sans les pages lues' web/public/plateforme/acces.js \
+  '          ${lectures.length ? `<ol>${lectures.map((/** @type {any} */ l) => `<li><span>${esc(nom(l.page))}</span><span class="small muted">${esc(quand(l.le))}</span></li>`).join('"'"''"'"')}</ol>` : '"'"''"'"'}</details>` : '"'"''"'"'}' '          </details>` : '"'"''"'"'}' \
+  "$SACW4"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

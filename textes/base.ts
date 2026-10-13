@@ -455,6 +455,28 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'clore une demande demande son motif (trois caractères au moins)', cle: 'base.support.motif_clore', fr: 'clore une demande demande son motif (trois caractères au moins)' },
   { base: 'rouvrir une demande demande son motif (trois caractères au moins)', cle: 'base.support.motif_rouvrir', fr: 'rouvrir une demande demande son motif (trois caractères au moins)' },
   { base: 'cette demande est encore ouverte', cle: 'base.support.encore_ouverte', fr: 'cette demande est encore ouverte' },
+  // L'accès du support au dossier d'un client (0096, docs/support.md) : demandé, accordé ou refusé, retiré, lu.
+  { base: 'une lecture du support ne se modifie pas et ne s\'efface pas : c\'est la trace que l\'entreprise relit', cle: 'base.acces_support.lecture_intouchable', fr: 'une lecture du support ne se modifie pas et ne s\'efface pas : c\'est la trace que l\'entreprise relit' },
+  { base: 'demander l\'accès dit pourquoi : de trois à trois cents caractères', cle: 'base.acces_support.motif_longueur', fr: 'demander l\'accès dit pourquoi : de trois à trois cents caractères' },
+  { base: 'le motif s\'écrit sans les signes < ni >', cle: 'base.acces_support.motif_balise', fr: 'le motif s\'écrit sans les signes < ni >' },
+  { base: 'cette entreprise n\'existe pas', cle: 'base.acces_support.entreprise_inconnue', fr: 'cette entreprise n\'existe pas' },
+  { base: 'cette demande de support n\'est pas celle de cette entreprise', cle: 'base.acces_support.demande_autre', fr: 'cette demande de support n\'est pas celle de cette entreprise' },
+  { base: 'tu as déjà une demande en cours ou un accès actif sur ce dossier', cle: 'base.acces_support.deja_en_cours', fr: 'tu as déjà une demande en cours ou un accès actif sur ce dossier' },
+  { base: 'cet accès n\'existe pas', cle: 'base.acces_support.inconnu', fr: 'cet accès n\'existe pas' },
+  { base: 'seul celui qui l\'a demandé, ou la direction, rend cet accès', cle: 'base.acces_support.clore_qui', fr: 'seul celui qui l\'a demandé, ou la direction, rend cet accès' },
+  { base: 'cet accès est déjà fermé', cle: 'base.acces_support.deja_ferme', fr: 'cet accès est déjà fermé' },
+  { base: 'cette page n\'est pas un nom de page', cle: 'base.acces_support.page', fr: 'cette page n\'est pas un nom de page' },
+  { base: 'cet accès n\'existe pas, ou n\'est pas le tien', cle: 'base.acces_support.pas_le_tien', fr: 'cet accès n\'existe pas, ou n\'est pas le tien' },
+  { base: 'l\'entreprise n\'a pas encore accordé cet accès', cle: 'base.acces_support.pas_encore', fr: 'l\'entreprise n\'a pas encore accordé cet accès' },
+  { base: 'l\'entreprise a refusé cet accès', cle: 'base.acces_support.refuse', fr: 'l\'entreprise a refusé cet accès' },
+  { base: 'l\'entreprise a retiré cet accès', cle: 'base.acces_support.retire', fr: 'l\'entreprise a retiré cet accès' },
+  { base: 'cet accès est fini : ses heures sont passées', cle: 'base.acces_support.echu', fr: 'cet accès est fini : ses heures sont passées' },
+  { base: 'cet accès est fermé', cle: 'base.acces_support.ferme', fr: 'cet accès est fermé' },
+  { base: 'l\'accès du support se décide par le propriétaire ou un administrateur de l\'entreprise', cle: 'base.acces_support.qui_decide', fr: 'l\'accès du support se décide par le propriétaire ou un administrateur de l\'entreprise' },
+  { base: 'cette demande d\'accès n\'existe pas', cle: 'base.acces_support.demande_inconnue', fr: 'cette demande d\'accès n\'existe pas' },
+  { base: 'cette demande d\'accès a déjà sa réponse', cle: 'base.acces_support.deja_repondue', fr: 'cette demande d\'accès a déjà sa réponse' },
+  { base: 'un accès s\'accorde pour une à quarante-huit heures', cle: 'base.acces_support.heures', fr: 'un accès s\'accorde pour une à quarante-huit heures' },
+  { base: 'cet accès ne court plus', cle: 'base.acces_support.ne_court_plus', fr: 'cet accès ne court plus' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));
