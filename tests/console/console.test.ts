@@ -17,6 +17,7 @@ import { creerApp, RouteSansGeste, VERSION } from '../../serveur/app.ts';
 import { creerPool, enTantQue } from '../../serveur/base.ts';
 import { mettreEnPlaceCode, quiEst, type Contexte } from '../../serveur/connexion.ts';
 import { routesCabinet } from '../../serveur/cabinet/routes.ts';
+import { quiEstConsole } from '../../serveur/console/connexion.ts';
 import { routesConsole } from '../../serveur/console/routes.ts';
 import { routesMessageClients } from '../../serveur/console/message-clients.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
@@ -25,6 +26,7 @@ import { routesSocle } from '../../serveur/routes/socle.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { Collecte, envoyerMesures } from '../../serveur/service/collecte.ts';
 import { noterTour } from '../../serveur/service/tours.ts';
+import { versionTeif } from '../../serveur/v10/teif.ts';
 
 const MDP = 'Un-bon-mot-de-passe';
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
@@ -1271,5 +1273,84 @@ describe('les réglages de la plateforme (0093, docs/console.md C28)', () => {
     await expect(enTantQue(pool, direction.id, (tx) => tx.query(`select plateforme.console_relire_regle('${regle}', 'Quelqu''un', 'juste', null, 'hors console', now())`))).rejects.toThrow(/session de la console/);
     await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_ecrire_message(\'nouveaute\', \'Hors de la console, refusé.\', current_date, current_date, \'hors console\', now(), current_date)'))).rejects.toThrow(/session de la console/);
     await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.message_du_jour(current_date)'))).resolves.toBeTruthy();
+  });
+});
+
+describe('les formats officiels (0094, docs/console.md C28)', () => {
+  type Format = { code: string; version: string | null; branche: boolean | null; alerte: boolean; chiffres: Record<string, number | string | null> | null };
+  const formats = async (jeton = jS) => {
+    const r = await appeler('GET', '/console/reglages', jeton);
+    expect(r.statut).toBe(200);
+    return Object.fromEntries((r.corps.formats as Format[]).map((f) => [f.code, f])) as Record<string, Format>;
+  };
+  // Des factures électroniques posées par la base comme le serveur les écrit à l'émission (0049 à 0051) : le fichier, sa
+  // signature, son envoi à la TTN. Le reste de la pièce n'importe pas ici.
+  const soumise = (ent: string) => admin.query(`insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, '_racine', 'company', '{"efacture": true}')
+    on conflict (entreprise, collection, cle) do update set contenu = socle.dossier_v10.contenu || excluded.contenu`, [ent]);
+  const poser = async (ent: string, uid: string, pieces: { version: string; signee?: boolean; envoi?: { statut: string; retenue?: boolean } }[]) => {
+    const tiers = (await admin.query('insert into socle.tiers (entreprise, raison_sociale) values ($1, \'Client des formats\') returning id', [ent])).rows[0].id;
+    for (const [i, p] of pieces.entries()) {
+      const piece = (await admin.query(`insert into ventes.piece (entreprise, type, tiers, date_piece, echeance, net_a_payer, cree_par)
+        values ($1, 'facture', $2, current_date, current_date, 100, $3) returning id`, [ent, tiers, uid])).rows[0].id;
+      await admin.query(`insert into ventes.efacture (piece, entreprise, nom, xml, empreinte, version, ecrit_le, ecrit_par)
+        values ($1, $2, $3, '<TEIF/>', $4, $5, now(), $6)`, [piece, ent, `TEIF_${i}.xml`, 'a'.repeat(64), p.version, uid]);
+      if (!p.signee) continue;
+      const demande = (await admin.query(`insert into ventes.signature_demande (entreprise, pieces, identifiant, session, statut, cree_le, cree_par)
+        values ($1, $2, 'essai', 'essai', 'signee', now(), $3) returning id`, [ent, [piece], uid])).rows[0].id;
+      await admin.query(`insert into ventes.efacture_signee (piece, entreprise, xml, empreinte, demande, signe_le, signe_par)
+        values ($1, $2, '<TEIF/>', $3, $4, now(), $5)`, [piece, ent, 'b'.repeat(64), demande, uid]);
+      if (!p.envoi) continue;
+      const acceptee = p.envoi.statut === 'acceptee';
+      await admin.query(`insert into ventes.envoi_ttn (piece, entreprise, statut, prochain_essai, reference, xml_valide, accepte_le, motif, cree_le, cree_par)
+        values ($1, $2, $3, now(), $4, $5, $6, $7, now(), $8)`, [piece, ent, p.envoi.statut, acceptee ? 'REF-ESSAI' : null, acceptee ? '<TEIF/>' : null,
+        acceptee ? new Date() : null, p.envoi.retenue ? JSON.stringify({ cle: 'efacture.ttn_sans_compte', valeurs: {} }) : null, uid]);
+    }
+  };
+
+  it('ce que la plateforme a fait des formats, toutes entreprises mêlées ; une entreprise d\'essai n\'y compte pas', async () => {
+    // Des comptes : d'autres fichiers de tests écrivent des factures électroniques dans la même base. On lit l'écart.
+    const avant = await formats();
+    const { ent, proprio } = await entreprise('Formats Une');
+    await soumise(ent);
+    await poser(ent, proprio.id, [
+      { version: versionTeif(), signee: true, envoi: { statut: 'acceptee' } },
+      { version: versionTeif(), signee: true, envoi: { statut: 'a_envoyer', retenue: true } },
+      { version: versionTeif(), signee: true },
+      // Un fichier écrit sous une version d'avant : il reste tel quel, et se compte à part.
+      { version: '1.0.0' },
+    ]);
+    // Le bac à sable d'un développeur : soumis, signé, refusé par la TTN — rien de tout cela ne compte.
+    const dev = await personne('developpeur');
+    const essai = String((await appeler('POST', '/entreprises-essai', dev.jeton)).corps.id);
+    await soumise(essai);
+    await poser(essai, dev.id, [{ version: versionTeif(), signee: true, envoi: { statut: 'refusee' } }, { version: versionTeif() }]);
+    const apres = await formats();
+    const ecart = (code: string, k: string) => Number(apres[code]?.chiffres?.[k]) - Number(avant[code]?.chiffres?.[k]);
+    expect(apres.teif).toMatchObject({ version: versionTeif(), branche: null, alerte: avant.teif?.alerte });
+    expect(['fichiers', 'entreprises', 'soumises', 'autres'].map((k) => ecart('teif', k))).toEqual([4, 1, 1, 1]);
+    expect(apres.teif?.chiffres?.dernier).toBeTruthy();
+    expect(['signees', 'aSigner'].map((k) => ecart('signature', k))).toEqual([3, 1]);
+    expect(['acceptees', 'retenues', 'sansEnvoi', 'refusees', 'enRoute', 'deposees'].map((k) => ecart('ttn', k))).toEqual([1, 1, 1, 0, 0, 0]);
+    // Une pièce retenue demande un geste chez le client : la ligne de la TTN le dit. Ce serveur n'a ni l'adresse de la TTN
+    // ni celle de DigiGo : les deux le disent, leurs pièces attendent.
+    expect(apres.ttn).toMatchObject({ alerte: true, branche: false });
+    expect(apres.signature?.branche).toBe(false);
+    expect(apres.ttn?.chiffres?.derniereAcceptee).toBeTruthy();
+  });
+
+  it('la technique ne lit pas les formats, ni par la route ni dans la base ; hors d\'une session de la console, personne', async () => {
+    expect((await appeler('GET', '/console/reglages', jT)).statut).toBe(403);
+    expect((await formats(jD)).ttn).toBeTruthy();
+    // La base revérifie le rôle elle-même : dans la vraie session de la console de chacun.
+    const dans = async (jeton: string, qui: string) => {
+      const qc = await quiEstConsole(ctx, jeton);
+      return enTantQue(pool, qui, async (tx) => {
+        await tx.query('select set_config(\'app.session_console\', $1, true)', [qc?.session]);
+        return (await tx.query('select plateforme.console_formats() v')).rows[0]?.v;
+      });
+    };
+    await expect(dans(jT, technique.id)).rejects.toThrow(/ne permet pas ce geste/);
+    await expect(dans(jS, support.id)).resolves.toMatchObject({ ttn: expect.any(Object) });
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_formats()'))).rejects.toThrow(/session de la console/);
   });
 });

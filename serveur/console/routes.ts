@@ -35,6 +35,8 @@ import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe
 import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
 import { essaisEnCours, grille, lireReglages, registre, sujetDesReglages } from './reglages.ts';
+import { lireFormats, registreDesFormats } from './formats.ts';
+import { versionTeif } from '../v10/teif.ts';
 import { BUDGETS } from '../service/mesures.ts';
 import { LISTE_GESTES_CONSOLE, type RoleConsole } from './gestes.ts';
 import './textes.ts';
@@ -847,6 +849,10 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const jour = aujourdhuiATunis(maintenant());
       const r = lireReglages(await lireJson(x, 'select plateforme.console_reglages($1::date) v', [jour]));
       const entreprises = lireEntreprises(await lireJson(x, 'select plateforme.console_entreprises() v'), jour);
+      // Les formats officiels : le registre du code, ce que la plateforme en a fait (0094), et si ce serveur a l'adresse
+      // de la TTN et de DigiGo (sans elle, les pièces attendent).
+      const formats = registreDesFormats(lireFormats(await lireJson(x, 'select plateforme.console_formats() v')), { teif: versionTeif() },
+        { ttn: !!ctx.ttn?.adresse, digigo: !!ctx.efacture?.digigo });
       return {
         corps: {
           aujourdhui: jour, role: roleDe(qui),
@@ -854,6 +860,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           echeance: { relances: RELANCES, grace: GRACE_JOURS },
           registre: registre(r.regles, jour),
           message: r.messages.find((m) => m.enCours) ?? null, passes: r.messages.filter((m) => !m.enCours).slice(0, 30),
+          formats,
         },
       };
     },

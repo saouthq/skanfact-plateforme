@@ -57,6 +57,9 @@ export function manquesAvantNumero(doc: Json, client: Json | null, societe: Json
   return T().controleTeif({ ...doc, number: doc.number || 'A-EMETTRE', status: 'envoyée' }, client, societe).bloquants;
 }
 
+// La version du format que le code écrit (« 1.8.8 ») : la console la montre dans ses Réglages (docs/console.md C28).
+export const versionTeif = (): string => T().VERSION;
+
 export function fichierTeif(doc: Json, client: Json | null, societe: Json, facture: Json | null) {
   return { ...T().teifXml(doc, client, societe, { facture }), version: T().VERSION };
 }

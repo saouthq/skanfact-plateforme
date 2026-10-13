@@ -20,6 +20,7 @@ import { plusJours } from '../../serveur/abonnement/etat.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { aujourdhuiATunis } from '../../serveur/reglements.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
+import { versionTeif } from '../../serveur/v10/teif.ts';
 import { cliquer } from '../cliquer.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
@@ -246,8 +247,48 @@ describe('les réglages de la plateforme, à la souris', () => {
     await fermer(p);
   }, 60_000);
 
+  it('les formats officiels : chaque format, sa version et ce qui reste À VÉRIFIER ; une pièce retenue se compte sur l\'onglet et se dit en couleur', async () => {
+    // Une facture du client, écrite, signée, puis retenue (son compte TTN manque) : posée par la base comme l'émission et
+    // la signature l'écrivent (0049 à 0051).
+    const uid = (await admin.query('select utilisateur from socle.membre where entreprise = $1 limit 1', [ent])).rows[0].utilisateur;
+    const tiers = (await admin.query('insert into socle.tiers (entreprise, raison_sociale) values ($1, \'Client retenu\') returning id', [ent])).rows[0].id;
+    const piece = (await admin.query(`insert into ventes.piece (entreprise, type, tiers, date_piece, echeance, net_a_payer, cree_par)
+      values ($1, 'facture', $2, current_date, current_date, 100, $3) returning id`, [ent, tiers, uid])).rows[0].id;
+    await admin.query(`insert into ventes.efacture (piece, entreprise, nom, xml, empreinte, version, ecrit_le, ecrit_par)
+      values ($1, $2, 'TEIF_retenue.xml', '<TEIF/>', $3, $4, now(), $5)`, [piece, ent, 'a'.repeat(64), versionTeif(), uid]);
+    const demande = (await admin.query(`insert into ventes.signature_demande (entreprise, pieces, identifiant, session, statut, cree_le, cree_par)
+      values ($1, $2, 'essai', 'essai', 'signee', now(), $3) returning id`, [ent, [piece], uid])).rows[0].id;
+    await admin.query(`insert into ventes.efacture_signee (piece, entreprise, xml, empreinte, demande, signe_le, signe_par)
+      values ($1, $2, '<TEIF/>', $3, $4, now(), $5)`, [piece, ent, 'b'.repeat(64), demande, uid]);
+    await admin.query(`insert into ventes.envoi_ttn (piece, entreprise, statut, prochain_essai, motif, cree_le, cree_par)
+      values ($1, $2, 'a_envoyer', now(), $3, now(), $4)`, [piece, ent, JSON.stringify({ cle: 'efacture.ttn_sans_compte', valeurs: {} }), uid]);
+
+    const p = await console_(jD);
+    // L'onglet compte ce qui demande un geste chez un client (d'autres fichiers de tests en posent peut-être aussi).
+    const onglet = p.locator('.c-onglets a', { hasText: 'Formats officiels' });
+    await expect.poll(async () => Number(/(\d+)/.exec(net(await onglet.innerText()))?.[1] ?? 0)).toBeGreaterThanOrEqual(1);
+    await cliquer(onglet);
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/reglages?onglet=formats');
+    const lignes = p.locator('.c-rg-formats tbody tr');
+    await expect.poll(() => lignes.count(), { timeout: 15_000 }).toBe(8);
+    // L'en-tête dit les cinq questions de la maquette ; la version du fichier vient du code qui l'écrit.
+    expect((await p.locator('.c-rg-formats thead th').allTextContents()).map(net))
+      .toEqual(['Le format', 'Sa version', 'Ce que SkanFact en fait', 'Vérifié contre', 'Où on en est']);
+    expect(net(await lignes.nth(0).innerText())).toContain(`TEIF ${versionTeif()}`);
+    // Ce qui reste À VÉRIFIER se lit sur sa ligne, pour chaque format sauf l'export des écritures.
+    expect(await p.locator('.c-rg-formats .c-rg-verifier').count()).toBe(7);
+    expect(net(await lignes.filter({ hasText: 'L\'export des écritures' }).innerText())).not.toContain('À VÉRIFIER');
+    // L'envoi à la TTN : la pièce retenue en couleur d'alerte, et ce serveur qui n'a pas l'adresse de la TTN.
+    const ttn = lignes.filter({ hasText: 'L\'envoi à la TTN' });
+    expect(await ttn.getAttribute('class')).toContain('c-rg-format-alerte');
+    expect(net(await ttn.locator('.c-rg-format-geste').first().innerText())).toMatch(/^(Une retenue chez son entreprise|\d+ retenues chez leur entreprise)/);
+    expect(net(await ttn.innerText())).toContain('Ce serveur n\'a pas l\'adresse de la TTN : les pièces signées attendent.');
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
   it('au téléphone : aucun onglet ne déborde', async () => {
-    for (const onglet of ['', 'regles', 'messages']) {
+    for (const onglet of ['', 'regles', 'formats', 'messages']) {
       const p = await console_(jD, onglet, 390, 844);
       expect(await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), onglet || 'prix').toBeLessThanOrEqual(0);
       await fermer(p);

@@ -12301,6 +12301,67 @@ prouver "un droit de la console sans libellé dans l'écran Équipe" web/console
 " "" \
   "chaque droit que la route rend a son libellé et sa phrase"
 
+# Les formats officiels (C28, base 0094) : ce que la plateforme compte, le registre que le code déclare, et l'écran.
+FB1='ce que la plateforme a fait des formats, toutes entreprises mêlées ; une entreprise d'"'"'essai n'"'"'y compte pas'
+FB2='la technique ne lit pas les formats, ni par la route ni dans la base ; hors d'"'"'une session de la console, personne'
+FP1='ce que la base rend se lit prudemment : un compte illisible vaut 0, une date illisible rien, une version vide se tait'
+FP2='le registre suit l'"'"'ordre d'"'"'une facture (le fichier, sa signature, son envoi), puis les autres déclarations'
+FP3='le fichier TEIF : sa version vient du code qui l'"'"'écrit, et les fichiers d'"'"'une autre version se comptent à part'
+FP4='la signature et l'"'"'envoi disent si ce serveur a l'"'"'adresse du service ; une pièce retenue ou refusée demande un geste'
+FP6='chaque format nomme un document qui existe, et a ses phrases à l'"'"'écran (la clé que Reglages.tsx lit)'
+FW1='les formats officiels : chaque format, sa version et ce qui reste À VÉRIFIER ; une pièce retenue se compte sur l'"'"'onglet et se dit en couleur'
+R94=base/migrations/0094_formats.sql
+RFM=serveur/console/formats.ts
+prouver "les fichiers d'une entreprise d'essai comptés dans les formats" $R94 \
+  "f.entreprise where not e.essai)," "f.entreprise where true)," \
+  "$FB1"
+prouver "la refusée d'une entreprise d'essai comptée" $R94 \
+  "t.entreprise where not e.essai)" "t.entreprise where true)" \
+  "$FB1"
+prouver "une pièce retenue comptée en route" $R94 \
+  "'enRoute', count(*) filter (where t.statut = 'a_envoyer' and t.motif is null)," "'enRoute', count(*) filter (where t.statut = 'a_envoyer')," \
+  "$FB1"
+prouver "les pièces signées sans envoi qui ne se comptent pas" $R94 \
+  "'sansEnvoi', (select count(*) from ventes.efacture_signee s join socle.entreprise x on x.id = s.entreprise
+                             where not x.essai and not exists (select 1 from ventes.envoi_ttn t where t.piece = s.piece))," "'sansEnvoi', 0," \
+  "$FB1"
+# La route ne laisse pas passer la technique (gestes.ts) : seule la session de la console, dans la base, éprouve ce garde.
+prouver "la technique qui lit les formats dans la base" $R94 \
+  "perform plateforme.exiger_role_console(array['direction', 'support']);" "perform plateforme.exiger_role_console(array['direction', 'support', 'technique']);" \
+  "$FB2"
+prouver "une version sans nom ni fichier qui se compte" $RFM \
+  "typeof o.version === 'string' && o.version && compte(o.n) > 0 ? [" "typeof o.version === 'string' ? [" \
+  "$FP1"
+prouver "un compte négatif qui passe pour un compte" $RFM \
+  "Number.isSafeInteger(n) && n >= 0 ? n : 0;" "Number.isSafeInteger(n) ? n : 0;" \
+  "$FP1"
+prouver "les fichiers de la version en service comptés comme anciens" $RFM \
+  "autres: lu.versions.filter((v) => v.version !== code.teif).reduce((n, v) => n + v.n, 0) } };" "autres: lu.versions.reduce((n, v) => n + v.n, 0) } };" \
+  "$FP3"
+prouver "une pièce refusée par la TTN qui ne demande aucun geste" $RFM \
+  "alerte: lu.ttn.retenues + lu.ttn.refusees > 0," "alerte: lu.ttn.retenues > 0," \
+  "$FP4"
+prouver "la caisse qui ne dit plus ce qui reste à vérifier" $RFM \
+  "{ code: 'caisse', etat: 'non_homologue', aVerifier: true, doc: 'docs/caisse.md' }," "{ code: 'caisse', etat: 'non_homologue', aVerifier: false, doc: 'docs/caisse.md' }," \
+  "$FP2"
+prouver "un format qui renvoie à un document absent" $RFM \
+  "{ code: 'caisse', etat: 'non_homologue', aVerifier: true, doc: 'docs/caisse.md' }," "{ code: 'caisse', etat: 'non_homologue', aVerifier: true, doc: 'docs/caisse-homologuee.md' }," \
+  "$FP6"
+prouver "un format sans sa phrase à l'écran" web/console/src/textes.ts \
+  "  'console.ecran.reglages.f.tej.contre': 'rien : le cahier des charges officiel n\\'a pas encore été relu',
+" "" \
+  "$FP6"
+prouver "la ligne de la TTN qui ne dit pas la pièce retenue" $RGE \
+  "<tr key={f.code} className={f.alerte ? 'c-rg-format-alerte' : undefined}>" "<tr key={f.code}>" \
+  "$FW1"
+prouver "l'onglet des formats qui ne compte pas les pièces retenues" $RGE \
+  "const aRegarder = ttn ? Number(ttn.retenues ?? 0) + Number(ttn.refusees ?? 0) : 0;" "const aRegarder = 0;" \
+  "$FW1"
+prouver "le tableau des formats qui déborde au téléphone" web/console/src/console.css \
+  "  .c-rg-formats { min-width: 0; }
+" "" \
+  "$RGW6"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

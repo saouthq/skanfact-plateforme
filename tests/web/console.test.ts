@@ -671,6 +671,11 @@ describe('la console de l\'équipe, à la souris', () => {
       { nom: 'performances', hash: '#/service/performances' },
       { nom: 'travaux', hash: '#/service/travaux' },
       { nom: 'securite', hash: '#/service/securite' },
+      // Les réglages, chacun de leurs onglets : le tableau des formats officiels compte, au téléphone, en cartes.
+      { nom: 'reglages', hash: '#/reglages' },
+      { nom: 'reglages-regles', hash: '#/reglages?onglet=regles' },
+      { nom: 'reglages-formats', hash: '#/reglages?onglet=formats' },
+      { nom: 'reglages-messages', hash: '#/reglages?onglet=messages' },
       { nom: 'remise', hash: '#/service/sauvegardes', geste: async (p) => { await cliquer(p.locator('.c-sg-remises .c-al-section-tete button')); await p.getByRole('dialog').waitFor(); } },
       { nom: 'sourdine', hash: '#/service/alertes', geste: async (p) => { await cliquer(p.locator('.c-al-alerte').first().locator('.c-al-gestes button').last()); await p.getByRole('dialog').waitFor(); } },
     ];

@@ -14,8 +14,8 @@ import { Alerte, Bouton, Champ, Choix, Dialogue, maj, Puce, toast, Vide, Zone } 
 
 const K = 'console.ecran.reglages';
 
-export type OngletReglages = 'prix' | 'regles' | 'messages';
-export const ONGLETS_REGLAGES: readonly OngletReglages[] = ['prix', 'regles', 'messages'];
+export type OngletReglages = 'prix' | 'regles' | 'formats' | 'messages';
+export const ONGLETS_REGLAGES: readonly OngletReglages[] = ['prix', 'regles', 'formats', 'messages'];
 
 type Offre = 'essentiel' | 'complet';
 type Periodicite = 'annuel' | 'mensuel';
@@ -33,7 +33,12 @@ type Message = {
 type Donnees = {
   aujourdhui: string; role: 'direction' | 'support' | 'technique';
   grille: LigneGrille[]; essai: { jours: number; enCours: number }; echeance: { relances: number[]; grace: number };
-  registre: Regle[]; message: Message | null; passes: Message[];
+  registre: Regle[]; message: Message | null; passes: Message[]; formats: Format[];
+};
+type EtatFormat = 'en_place' | 'simule' | 'calcule' | 'pas_encore' | 'non_homologue';
+type Format = {
+  code: 'teif' | 'signature' | 'ttn' | 'tej' | 'cnss' | 'liasse' | 'ecritures' | 'caisse'; etat: EtatFormat; aVerifier: boolean; version: string | null;
+  chiffres: Record<string, number | string | null> | null; branche: boolean | null; alerte: boolean;
 };
 type Geste = { sorte: 'relire'; regle: Regle } | { sorte: 'ecrire' } | { sorte: 'retirer'; message: Message };
 
@@ -95,8 +100,8 @@ function Prix({ d }: { d: Donnees }) {
                         </span>
                       ))}
                     </td>
-                    <td className="c-droite c-rg-montant" data-libelle={titre(`${K}.p.col.an`)}>{l.annuel ? montant(l.annuel.ht) : '—'}</td>
-                    <td className="c-droite c-rg-montant" data-libelle={titre(`${K}.p.col.mois`)}>{l.mensuel ? montant(l.mensuel.ht) : '—'}</td>
+                    <td className="c-droite c-rg-montant" data-libelle={titre(`${K}.p.col.an`)}>{l.annuel ? <span data-donnee>{montant(l.annuel.ht)}</span> : '—'}</td>
+                    <td className="c-droite c-rg-montant" data-libelle={titre(`${K}.p.col.mois`)}>{l.mensuel ? <span data-donnee>{montant(l.mensuel.ht)}</span> : '—'}</td>
                     <td data-libelle={titre(`${K}.p.col.depuis`)}>{depuis ? dire(`${K}.p.depuis_le`, { jour: jour(depuis) }) : '—'}</td>
                     <td className="c-droite" data-libelle={titre(`${K}.p.col.abonnes`)}>
                       {selon(n, `${K}.p.entreprises`)}
@@ -214,6 +219,80 @@ function Regles({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peu
         </section>
       </div>
     </>
+  );
+}
+
+// ── Formats officiels ───────────────────────────────────────────────────────────────────────────────────────────────
+// Le registre que le code déclare (serveur/console/formats.ts) et ce que la plateforme en a fait : des comptes, toutes
+// entreprises ensemble. Ce qui demande un geste chez un client (une pièce retenue ou refusée par la TTN) se dit en
+// couleur ; un service dont ce serveur n'a pas l'adresse le dit, ses pièces attendent.
+const TON_FORMAT: Record<EtatFormat, 'actif' | 'a_regarder' | 'hors'> = {
+  en_place: 'actif', calcule: 'actif', simule: 'a_regarder', pas_encore: 'hors', non_homologue: 'hors',
+};
+// Ce que le format a fait, en phrases courtes ; seulement ce qui existe (« 3 acceptées », jamais « 0 refusée »).
+function chiffresDuFormat(f: Format, aujourdhui: string): { texte: string; alerte?: boolean }[] {
+  const c = f.chiffres ?? {};
+  const n = (k: string) => (typeof c[k] === 'number' ? c[k] as number : 0);
+  const compte = (k: string, cle: string) => selon(n(k), `${K}.f.${cle}`, { n: entier(n(k)) });
+  // Le dernier, accordé à ce qu'il date : un fichier écrit, une pièce signée, une pièce acceptée.
+  const dernier = (k: string) => (typeof c[k] === 'string' ? [{ texte: dire(`${K}.f.${f.code}.dernier`, { quand: quand(c[k] as string, aujourdhui) }) }] : []);
+  if (f.code === 'teif') {
+    return [{ texte: [compte('fichiers', 'teif.fichiers'), n('entreprises') ? compte('entreprises', 'teif.chez') : ''].filter(Boolean).join(' ') },
+      ...(n('autres') ? [{ texte: compte('autres', 'teif.autres') }] : []), ...dernier('dernier'), { texte: compte('soumises', 'teif.soumises') }];
+  }
+  if (f.code === 'signature') {
+    return [{ texte: compte('signees', 'signature.signees') }, ...(n('aSigner') ? [{ texte: compte('aSigner', 'signature.a_signer') }] : []), ...dernier('dernier')];
+  }
+  if (f.code === 'ttn') {
+    const lignes = ([['acceptees', 'acceptees', false], ['deposees', 'deposees', false], ['enRoute', 'en_route', false], ['sansEnvoi', 'sans_envoi', false],
+      ['retenues', 'retenues', true], ['refusees', 'refusees', true]] as const)
+      .filter(([k]) => n(k) > 0).map(([k, cle, alerte]) => ({ texte: compte(k, `ttn.${cle}`), alerte }));
+    return lignes.length ? [...lignes, ...dernier('derniereAcceptee')] : [{ texte: dire(`${K}.f.ttn.rien`) }];
+  }
+  return [];
+}
+function Formats({ d }: { d: Donnees }) {
+  return (
+    <section className="c-carte c-rg c-rg-formats-carte" aria-labelledby="rg-formats">
+      <div className="c-al-section-tete"><div>
+        <h2 id="rg-formats">{titre(`${K}.f.titre`)}</h2>
+        <p className="c-carte-sous">{phrase(`${K}.f.sous`)}</p>
+      </div></div>
+      <div className="c-defile">
+        <table className="c-table c-rg-formats">
+          <thead><tr>
+            <th scope="col">{titre(`${K}.f.col.format`)}</th><th scope="col">{titre(`${K}.f.col.version`)}</th>
+            <th scope="col">{titre(`${K}.f.col.fait`)}</th><th scope="col">{titre(`${K}.f.col.contre`)}</th><th scope="col">{titre(`${K}.f.col.etat`)}</th>
+          </tr></thead>
+          <tbody>
+            {d.formats.map((f) => {
+              const v = { version: f.version ?? '—' };
+              return (
+                <tr key={f.code} className={f.alerte ? 'c-rg-format-alerte' : undefined}>
+                  <td><b>{titre(`${K}.f.${f.code}.nom`)}</b><span className="c-sous c-bloc">{dire(`${K}.f.${f.code}.pour`)}</span></td>
+                  <td className="c-rg-nowrap" data-libelle={titre(`${K}.f.col.version`)}>{f.code === 'teif' ? dire(`${K}.f.teif.version`, v) : f.version ? <span data-donnee>{f.version}</span> : '—'}</td>
+                  <td data-libelle={titre(`${K}.f.col.fait`)}>{phrase(`${K}.f.${f.code}.fait`, v)}</td>
+                  <td data-libelle={titre(`${K}.f.col.contre`)}>{phrase(`${K}.f.${f.code}.contre`, v)}</td>
+                  <td data-libelle={titre(`${K}.f.col.etat`)}>
+                    <Puce ton={TON_FORMAT[f.etat]}>{dire(`${K}.f.etat.${f.etat}`)}</Puce>
+                    {chiffresDuFormat(f, d.aujourdhui).map((c) => (
+                      <span key={c.texte} className={c.alerte ? 'c-sous c-bloc c-rg-format-geste' : 'c-sous c-bloc'}>{maj(c.texte)}</span>
+                    ))}
+                    {f.branche !== null ? (
+                      <span className={f.branche ? 'c-sous c-bloc' : 'c-sous c-bloc c-rg-format-attend'}>
+                        {phrase(`${K}.f.branche.${f.code === 'ttn' ? 'ttn' : 'digigo'}_${f.branche ? 'oui' : 'non'}`)}
+                      </span>
+                    ) : null}
+                    {f.aVerifier ? <span className="c-sous c-bloc c-rg-verifier">{dire(`${K}.f.a_verifier`, { quoi: dire(`${K}.f.${f.code}.verifier`) })}</span> : null}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="c-sous">{phrase(`${K}.f.note`)}</p>
+    </section>
   );
 }
 
@@ -384,6 +463,9 @@ export function Reglages({ onglet: demande }: { onglet: string | null }) {
   const d = l.etat === 'lu' ? l.donnees : null;
   const peut = d?.role === 'direction';
   const aRelire = d ? d.registre.filter((r) => r.aRelire).length : 0;
+  // Les pièces qui demandent un geste chez un client : retenues ou refusées par la TTN.
+  const ttn = d?.formats.find((f) => f.code === 'ttn')?.chiffres;
+  const aRegarder = ttn ? Number(ttn.retenues ?? 0) + Number(ttn.refusees ?? 0) : 0;
   return (
     <>
       <header className="c-entete">
@@ -400,6 +482,9 @@ export function Reglages({ onglet: demande }: { onglet: string | null }) {
             {o === 'regles' && aRelire ? (
               <><span className="c-onglet-n" aria-hidden="true">{entier(aRelire)}</span><span className="c-cache">{selon(aRelire, `${K}.onglet.a_relire`)}</span></>
             ) : null}
+            {o === 'formats' && aRegarder ? (
+              <><span className="c-onglet-n" aria-hidden="true">{entier(aRegarder)}</span><span className="c-cache">{selon(aRegarder, `${K}.onglet.a_regarder`, { n: entier(aRegarder) })}</span></>
+            ) : null}
             {o === 'messages' && d?.message ? <span className="c-onglet-n" aria-hidden="true">1</span> : null}
           </a>
         ))}
@@ -408,6 +493,7 @@ export function Reglages({ onglet: demande }: { onglet: string | null }) {
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}
       {d && onglet === 'prix' ? <Prix d={d} /> : null}
       {d && onglet === 'regles' ? <Regles d={d} geste={setGeste} peut={peut} /> : null}
+      {d && onglet === 'formats' ? <Formats d={d} /> : null}
       {d && onglet === 'messages' ? <Messages d={d} geste={setGeste} peut={peut} /> : null}
       {geste && d ? <FenetreGeste g={geste} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} /> : null}
     </>

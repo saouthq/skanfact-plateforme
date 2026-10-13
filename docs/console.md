@@ -593,7 +593,8 @@ et la technique. Ce que le suiveur a installé et ce qu'il va faire, lu dans l'�
 
 **C28. Les réglages de la plateforme** (10 § 2.9 ; base 0093). `#/reglages`, dans « La plateforme » : la direction et
 le support le lisent (le support, pour répondre à un client sur un prix), **seule la direction y fait un geste**, et
-l'écran le dit en tête au support. Trois onglets, l'adresse garde l'onglet (`?onglet=regles`, `?onglet=messages`).
+l'écran le dit en tête au support. Quatre onglets, l'adresse garde l'onglet (`?onglet=regles`, `?onglet=formats`,
+`?onglet=messages`).
 - **Offres et prix** : la grille du jour, lue dans les prix datés (`plateforme.prix`, 0082) comme l'application des
   clients les lit — chaque offre, à l'année et au mois, hors taxes, depuis quand ; ce qui est daté après aujourd'hui se
   dit « à venir » sous l'offre, jamais dans la case ; une case sans prix posé reste « — ». Les abonnés de chaque offre se
@@ -610,6 +611,18 @@ l'écran le dit en tête au support. Trois onglets, l'adresse garde l'onglet (`?
   `reglages.relire`, la règle par son code et l'avis. Une règle se corrige dans le dépôt, par une nouvelle règle datée
   avec sa source ; l'écran dit aussi ce qui n'est pas au registre (la paie, la TVA, la retenue, les échéances : chaque
   entreprise les règle elle-même) et ce qu'on fait quand paraît une loi de finances.
+- **Formats officiels** (base 0094 ; `serveur/console/formats.ts`) : les fichiers que l'administration attend — la facture
+  électronique (TEIF), sa signature (XAdES, DigiGo), l'envoi à la TTN, les attestations de retenue (TEJ), la CNSS du
+  trimestre, la liasse, l'export des écritures, les tickets de caisse — chacun avec sa version, ce que SkanFact en fait,
+  contre quoi c'est vérifié, où on en est, et ce qui reste **À VÉRIFIER**, sur sa ligne. **Le registre s'écrit dans le
+  code**, à côté de ce qu'il décrit : un format change avec une nouvelle version, relue et prouvée, jamais depuis la
+  console ; la version du TEIF est celle du code qui écrit le fichier. Les chiffres viennent de la base
+  (`plateforme.console_formats`), toutes entreprises ensemble et sans les entreprises d'exemple : celles qui se disent
+  soumises, les fichiers écrits (ceux d'une version plus ancienne, gardés tels quels, comptés à part), les pièces signées
+  et celles qui attendent leur signature, et l'envoi à la TTN comme la liste des factures le dit à l'entreprise (en route,
+  retenue, déposée, acceptée, refusée, signée sans partir). **Jamais une pièce, un nom ni un montant.** Une pièce retenue
+  ou refusée demande un geste chez son client : l'onglet les compte, la ligne de la TTN le dit en couleur. Un service dont
+  ce serveur n'a pas l'adresse (la TTN, DigiGo) le dit : ses pièces attendent. Rien ne s'y modifie.
 - **Messages aux clients** : le message affiché en haut de l'application de **tous** les clients
   (`plateforme.message_clients`) — une nouveauté (vert d'eau) ou une maintenance prévue (bleu), une ou deux lignes sans
   balise, daté du jour où il paraît au jour où il disparaît (au calendrier de Tunis, **trente jours au plus**, jamais
@@ -624,15 +637,15 @@ l'écran le dit en tête au support. Trois onglets, l'adresse garde l'onglet (`?
   plan) et le repose à chaque page, au-dessus du bandeau de l'exemple. « Plus tard » le cache **sur cet appareil, pour ce
   message** : un message neuf reparaît. Le bandeau caché garde sa place jusqu'à la page suivante, avec sa phrase (« Message
   caché sur cet appareil ») : il ne fait pas remonter la page sous le curseur.
-- Ce que l'écran ne fait pas encore : les formats officiels (El Fatoora, la déclaration employeur) et ce qu'il en
-  vérifie, les nouveautés allumées une à une, préparer un nouveau prix depuis l'écran, les modules et options, les
-  remises et les offres de fondateur (14c), la colonne TTC (14b).
+- Ce que l'écran ne fait pas encore : la déclaration annuelle d'employeur au registre des formats, les nouveautés
+  allumées une à une, préparer un nouveau prix depuis l'écran, les modules et options, les remises et les offres de
+  fondateur (14c), la colonne TTC (14b).
 
 ## Ce que le lot ne fait pas
 
 La suite de la console : les paiements et nos factures (14b), le support, la suite du service (la
 sécurité : l'accès d'urgence, bloquer une adresse, la chaîne du journal relue, la date des secrets ; le débit des travaux heure par heure, et les envois des e-mails, de la TEJ et de la CNSS, qui n'ont pas encore
-de trace), la mesure, la suite des réglages (les formats officiels, les nouveautés allumées, préparer un prix ; C28), l'application de bureau (les licences de la v10), l'accès accordé par un client
+de trace), la mesure, la suite des réglages (les nouveautés allumées, préparer un prix ; C28), l'application de bureau (les licences de la v10), l'accès accordé par un client
 (48 heures, en lecture), et le filtre du journal par geste et par période. Le service ne se voit encore que du serveur
 lui-même : aucune vérification de l'extérieur (06 § 7, depuis deux villes) ; l'écran le dit.
 
@@ -697,3 +710,12 @@ derrière les deux-points) ; « Aucun message n'a encore été affiché » sous 
 pour un message remplacé le 13 (la colonne dit « prévu ») ; une nouveauté et une maintenance de la même couleur chez le
 client (la maquette les distingue) ; « Plus tard » qui faisait remonter la page sous le curseur (le second clic d'un
 double clic tombait sur « + Nouvelle facture ») ; deux messages ou deux relectures du même instant rangés au hasard.
+
+Les formats officiels (C28), sur le même essai (ses envois à la TTN, et six factures électroniques de deux entreprises
+soumises), en direction ; en sombre puis en clair ; à 1440 et à 390. Corrigé pendant le parcours : le nom d'un format sur
+trois lignes dans une colonne trop étroite ; « le dernier aujourd'hui, 19:25 » (la date s'accorde à ce qu'elle date : le
+dernier écrit, la dernière signée, la dernière acceptée) ; « 20 » et « 000 » séparés en fin de ligne ; une phrase qui
+disait le fichier écrit pour chaque facture (il l'est dès que la fiche de l'entreprise le permet) ; une pièce signée sans
+envoi dite « signée avant l'envoi » (elle l'a été avant que l'envoi existe). Trouvé par la vérification avant l'envoi,
+et corrigé : l'écran Équipe sans le libellé des deux droits des réglages — le tableau des droits ne s'affichait plus du
+tout (un test relie désormais chaque droit du serveur à ses deux textes).

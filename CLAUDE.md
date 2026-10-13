@@ -718,6 +718,17 @@
 - **Un geste du journal de la console a deux parties** (`reglages.message_retire`, jamais `reglages.message.retire`) :
   la table les refuse, et le geste ENTIER échouait. `tests/console/journal.test.ts` lit toutes les migrations et
   exige aussi le libellé de chaque geste dans l'écran du journal.
+- **Un droit de la console a son libellé et sa phrase dans l'écran Équipe** (`console.ecran.equipe.droit.<code>` et
+  `<code>_sous`) : sans eux, le tableau des droits ne s'affichait plus du tout (vu le 13/10/2026 par la vérification
+  avant l'envoi, avec les droits des réglages). `tests/console/journal.test.ts` relie chaque droit du serveur à ses textes.
+- **Le registre des formats officiels s'écrit dans le code** (`serveur/console/formats.ts`, C28), à côté de ce qu'il
+  décrit : un format change avec une nouvelle version, relue et prouvée, jamais depuis la console. Ses chiffres viennent
+  de la base (`plateforme.console_formats`, 0094) : des comptes, toutes entreprises ensemble, sans les entreprises
+  d'exemple, jamais une pièce, un nom ni un montant. Chaque phrase du registre se vérifie dans le code qu'elle décrit.
+- **Un test qui compte des lignes communes (le journal de la console, les messages aux clients) ne compte que les
+  siennes** (`qui = any(...)`, ou l'écart avant/après) : les fichiers de tests passent l'un après l'autre sur la MÊME
+  base, dans un ordre qui change d'un lancement à l'autre ; un compte global tombait le jour où un écran passait avant.
+  Chaque fichier nomme aussi ses membres à lui (deux « Karim Essai » au journal rendaient un clic ambigu).
 
 **Sécurité (sans exception)**
 - Dépôt **public** : jamais de secret, de jeton, de mot de passe réel ni de donnée de client. Les
