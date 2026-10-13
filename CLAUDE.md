@@ -455,9 +455,25 @@
     une facture d'achat), jamais une lecture, un export ni ce que la loi demande pour l'existant. **L'écran retient la
     création AVANT le geste**, à l'ouverture de l'éditeur ou de la caisse (`licenceBlock` de la v10 nourri par l'état) :
     un refus pris à « Enregistrer » jette la saisie. Les relances (15 j, 7 j, la veille, la lecture seule ; une fois par
-    échéance) ne disent pas le nom de l'entreprise. Les gestes de SkanFact (`exploitation/abonnement.sh`, en attendant
-    la console) exigent un motif et laissent un événement qu'on ne modifie ni n'efface ; l'entreprise ne voit jamais le
-    motif. Pas encore : le paiement en ligne (14b), ce qui distingue les offres (14c).
+    échéance) ne disent pas le nom de l'entreprise. Les gestes de SkanFact (`exploitation/abonnement.sh`, et la console
+    depuis Console 1, une seule règle : `serveur/abonnement/gestes.ts`) exigent un motif et laissent un événement qu'on
+    ne modifie ni n'efface ; l'entreprise ne voit jamais le motif. Pas encore : le paiement en ligne (14b), ce qui
+    distingue les offres (14c).
+  - **La console de l'équipe SkanFact** (Console 1, 13/10/2026 ; `docs/console.md`, `0083`, `serveur/console/`,
+    `web/console/`, servie sous `/console/`) : une connexion à part, réservée à l'équipe (`plateforme.equipe` : direction,
+    support, technique ; le premier membre par `exploitation/equipe.sh`), le code du téléphone **à chaque connexion**,
+    une session à elle (une heure sans geste, douze au plus) dont le jeton n'ouvre rien dans l'application ; à qui n'en
+    est pas, la réponse d'un mot de passe faux. **La base garde chaque fonction de la console** (`exiger_role_console` :
+    une session de la console ouverte, au membre actif, avec le rôle) **et le serveur aussi** (`GESTES_CONSOLE`, une
+    troisième famille de gestes, sous `/console/` et nulle part ailleurs) : une preuve qui veut ouvrir retire les deux
+    étages. L'accueil est **pur** (`decider.ts`) : chaque chiffre du tableau du matin ouvre la liste qu'il compte, par la
+    même fonction ; rien n'est vert sans mesure (« non mesuré », avec sa raison) ; une console où rien ne se passe
+    affiche une liste vide. La fiche d'un client dit la **liste fermée** (10 § 4 ; un test fixe ses clés), jamais le
+    contenu d'un dossier. Chaque geste sur un abonnement montre l'état d'après, exige un motif, refuse un abonnement
+    changé depuis la lecture et laisse son événement et sa ligne au journal, qu'on ne modifie ni n'efface ; le support
+    prolonge un essai de 7 à 30 jours, une fois. Les textes passent par `web/console/src/langue.ts` (la typographie
+    française à l'affichage) ; une fenêtre ne se ferme pas d'un clic à côté. Pas encore : paiements, nos factures,
+    support, le service complet, la mesure, les réglages, l'application de bureau, `console.skanfact.tn`.
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

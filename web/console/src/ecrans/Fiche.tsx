@@ -1,0 +1,388 @@
+// La fiche d'un client (serveur/console/routes.ts, GET /console/entreprises/:id ; 0083, console_entreprise) : qui il est,
+// son abonnement et son histoire (chaque geste, son motif, son auteur), les gestes que ton rôle permet AUJOURD'HUI, ses
+// membres, et des comptes. La liste fermée de la console (10 § 4) : jamais le contenu d'un dossier.
+//
+// Un geste (10 § 2.4) passe par sa fenêtre : ses paramètres, son motif, puis l'APERÇU de l'état d'après (le serveur le
+// calcule par la même règle que le geste, sans rien écrire), et seulement alors le geste. La ligne d'abonnement lue
+// part avec lui : changée entre-temps, le serveur refuse au lieu d'écraser (01 R15), et la fiche se relit.
+import { useEffect, useRef, useState } from 'react';
+import { dire, phrase, titre } from '../langue.ts';
+import { abonnementEnMots, expliquer, offreEtPeriode, puceDe, type Etat, type Faits, type Offre, type Periodicite } from '../abonnement.ts';
+import { panneDe, refusDe, useApi, useConsole, useLecture, type Role } from '../contexte.ts';
+import { jourCourt, quand } from '../temps.ts';
+import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
+import { organisationEnMots } from './Clients.tsx';
+
+type Geste = 'prolonger' | 'payer' | 'resilier' | 'annuler-resiliation' | 'suspendre' | 'reprendre' | 'offrir' | 'retirer-offert';
+type LigneAbo = { essai_jusqu_au: string; paye_jusqu_au: string | null; offre: Offre | null; periodicite: Periodicite | null; resilie_le: string | null; suspendu_le: string | null; offert: boolean };
+type Membre = { nom: string; email: string; roles: string[]; depuis: string; derniereConnexion: string | null };
+type Evenement = { id: string; le: string; nature: string; par: 'systeme' | 'exploitation'; motif: string | null; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null; qui: { nom: string; role: Role } | null };
+type Donnees = {
+  aujourdhui: string; id: string; raisonSociale: string; matricule: string | null; formeJuridique: string | null; active: boolean; devise: string; creeLe: string;
+  organisation: { id: string; type: string; nom: string }; tenuePar: string | null; faits: Faits; ligne: LigneAbo | null; etat: Etat; gestes: Geste[];
+  membres: Membre[]; comptes: { etablissements: number; caisses: number; salaries: number; piecesCreees: number; piecesEmises: { mois: string; n: number }[] };
+  prolongeDejaUneFois: boolean; evenements: Evenement[];
+};
+
+const cleGeste = (g: Geste) => g.replace('-', '_');
+
+// Ce qu'un geste a changé, case par case (« essai jusqu'au : 12/10/2026 → 26/10/2026 ») : les cases d'une ligne
+// d'abonnement, et ce que le geste retient (les jours ajoutés, la période payée).
+const CASES = ['essai_jusqu_au', 'paye_jusqu_au', 'offre', 'periodicite', 'resilie_le', 'suspendu_le', 'offert', 'role', 'actif', 'jours', 'debut', 'fin'] as const;
+function valeurLisible(cle: string, v: unknown): string {
+  if (v === null || v === undefined || v === '') return '—';
+  if (typeof v === 'boolean') return dire(v ? 'console.ecran.fiche.oui' : 'console.ecran.fiche.non');
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return jourCourt(v);
+  if (cle === 'offre' && (v === 'essentiel' || v === 'complet')) return dire(`console.ecran.abo.offre.${v}`);
+  if (cle === 'periodicite' && (v === 'annuel' || v === 'mensuel')) return dire(`console.ecran.abo.periodicite.${v}`);
+  if (cle === 'role' && typeof v === 'string') return titre(`console.ecran.role.${v}`);
+  return String(v);
+}
+// Les premiers événements (0082) écrivent leurs cases à la façon de l'API (« essaiJusquAu ») : on les lit comme celles
+// d'une ligne (« essai_jusqu_au »).
+const casesDe = (o: Record<string, unknown> | null) => (o ? Object.fromEntries(Object.entries(o).map(([k, v]) => [k.replace(/[A-Z]/g, (l) => `_${l.toLowerCase()}`), v])) : null);
+export function Changements({ avant: avantBrut, apres: apresBrut }: { avant: Record<string, unknown> | null; apres: Record<string, unknown> | null }) {
+  const avant = casesDe(avantBrut), apres = casesDe(apresBrut);
+  const a = avant ?? {}, b = apres ?? {};
+  const lignes = CASES.filter((c) => c in b && (avant === null ? b[c] !== null && b[c] !== false : a[c] !== b[c]) && !(c === 'actif' && b.actif === true && avant === null));
+  if (!lignes.length) return null;
+  return (
+    <span className="c-changes">
+      {lignes.map((c) => (
+        <span key={c} className="c-change">
+          {titre(`console.ecran.champ.${c}`)} : {c in a && avant !== null ? <><del data-donnee>{valeurLisible(c, a[c])}</del> → </> : null}<ins data-donnee>{valeurLisible(c, b[c])}</ins>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+// ── La fenêtre d'un geste ───────────────────────────────────────────────────────────────────────────────────────────
+type Apercu = { avant: Etat; apres: Etat; details: Record<string, unknown> };
+function FenetreGeste({ geste, fiche, role, fermer, fait }: { geste: Geste; fiche: Donnees; role: Role; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const support = role === 'support';
+  const [jours, setJours] = useState(support ? '14' : '30');
+  const [offre, setOffre] = useState<Offre>(fiche.faits.offre ?? 'essentiel');
+  const [periodicite, setPeriodicite] = useState<Periodicite>(fiche.faits.periodicite ?? 'annuel');
+  const [motif, setMotif] = useState('');
+  const [apercu, setApercu] = useState<Apercu | null>(null);
+  const [refus, setRefus] = useState<string | null>(null);
+  const [perimee, setPerimee] = useState(false);
+  const [occupe, setOccupe] = useState(false);
+  const [faute, setFaute] = useState(0);
+  const min = support ? 7 : 1, max = support ? 30 : 365;
+  const n = Number(jours);
+  const joursValides = geste !== 'prolonger' || (Number.isInteger(n) && n >= min && n <= max);
+  const chemin = `/console/entreprises/${fiche.id}/abonnement/${geste}`;
+  const corps = (apercuSeul: boolean) => ({
+    motif, ligne: fiche.ligne, ...(apercuSeul ? { apercu: true } : {}),
+    ...(geste === 'prolonger' ? { jours: n } : {}), ...(geste === 'payer' ? { offre, periodicite } : {}),
+  });
+
+  // L'aperçu se recalcule à chaque changement de paramètre : c'est le serveur qui le dit (la même règle que le geste).
+  const tour = useRef(0);
+  useEffect(() => {
+    if (!joursValides) { setApercu(null); return; }
+    const t = ++tour.current;
+    const minuteur = setTimeout(() => {
+      void (async () => {
+        try {
+          const r = await api<Apercu & { apercu: boolean }>('POST', chemin, corps(true));
+          if (!r || t !== tour.current) return;
+          if (r.statut === 200) { setApercu(r.corps); setRefus(null); } else { setApercu(null); setRefus(refusDe(r)); setPerimee(r.statut === 409); }
+        } catch (x) { if (t === tour.current) setRefus(panneDe(x)); }
+      })();
+    }, 250);
+    return () => clearTimeout(minuteur);
+  }, [jours, offre, periodicite, geste]);
+
+  const faire = () => {
+    if (motif.trim().length < 3) { setRefus(phrase('console.ecran.geste.motif_court')); setFaute((x) => x + 1); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const r = await api<{ fait: boolean }>('POST', chemin, corps(false));
+        if (!r) return;
+        if (r.statut === 200) { toast(phrase('console.ecran.geste.fait', { geste: dire(`console.ecran.journal.g.abonnement.${cleGeste(geste)}`) })); fait(); return; }
+        setRefus(refusDe(r));
+        setPerimee(r.statut === 409);
+        if (r.corps.champ === 'motif') setFaute((x) => x + 1);
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+
+  const nom = titre(`console.ecran.geste.${cleGeste(geste)}`);
+  const sous = phrase(geste === 'prolonger' && support ? 'console.ecran.geste.sous.prolonger_support' : `console.ecran.geste.sous.${cleGeste(geste)}`);
+  const cote = (etiquette: string, e: Etat) => {
+    const p = puceDe(e);
+    return (
+      <div className="c-apercu-cote">
+        <span>{etiquette}</span>
+        <Puce ton={p.ton}>{p.texte}</Puce>
+        <small>{expliquer(e, fiche.aujourdhui)}</small>
+      </div>
+    );
+  };
+  const details = apercu?.details ?? {};
+  return (
+    <Dialogue titre={nom} sous={sous} fermer={fermer} occupe={occupe}
+      pied={perimee
+        ? <><Bouton onClick={fermer}>{titre('console.ecran.annuler')}</Bouton><Bouton ton="principal" onClick={fait}>{titre('console.ecran.geste.relire')}</Bouton></>
+        : <><Bouton onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton><Bouton ton="principal" occupe={occupe} desactive={!apercu} onClick={faire}>{nom}</Bouton></>}>
+      {geste === 'prolonger' ? (
+        <Champ libelle={titre('console.ecran.geste.jours')} aide={dire('console.ecran.geste.jours_aide', { min, max })} type="number" inputMode="numeric" min={min} max={max} valeur={jours} changer={setJours} />
+      ) : null}
+      {geste === 'payer' ? (
+        <div className="c-champs-2">
+          <Choix libelle={titre('console.ecran.geste.offre')} valeur={offre} changer={(v) => setOffre(v as Offre)}
+            options={(['essentiel', 'complet'] as const).map((o) => ({ valeur: o, texte: dire(`console.ecran.abo.offre.${o}`) }))} />
+          <Choix libelle={titre('console.ecran.geste.periodicite')} valeur={periodicite} changer={(v) => setPeriodicite(v as Periodicite)}
+            options={(['annuel', 'mensuel'] as const).map((p) => ({ valeur: p, texte: titre(`console.ecran.abo.periodicite.${p}`) }))} />
+        </div>
+      ) : null}
+      <div className="c-champs">
+        <span className="c-champ-libelle">{titre('console.ecran.geste.apercu')}</span>
+        {/* L'aperçu garde sa place quoi qu'il dise (le calcul, un refus, des jours hors des bornes) : le motif, dessous,
+            ne bouge pas pendant qu'on tape le nombre de jours, et le clic suivant tombe là où on le vise. */}
+        <div className="c-apercu-zone">
+        {!joursValides ? (
+          <p className="c-apercu-attente c-apercu-refus">{phrase(support ? 'console.ecran.geste.jours_hors_support' : 'console.ecran.geste.jours_hors', { min, max })}</p>
+        ) : apercu ? (
+          <div className="c-apercu">
+            {cote(titre('console.ecran.geste.avant'), apercu.avant)}
+            <span className="c-fleche"><Icone nom="fleche" /></span>
+            {cote(titre('console.ecran.geste.apres'), apercu.apres)}
+            {typeof details.debut === 'string' && typeof details.fin === 'string'
+              ? <span className="c-apercu-details">{phrase('console.ecran.geste.periode', { debut: jourCourt(details.debut), fin: jourCourt(details.fin) })}</span> : null}
+            {typeof details.jours === 'number' ? <span className="c-apercu-details">{phrase('console.ecran.geste.ajoute', { n: details.jours })}</span> : null}
+          </div>
+        ) : refus ? <p className="c-apercu-attente c-apercu-refus">{refus}</p>
+          : <p className="c-apercu-attente">{phrase('console.ecran.geste.apercu_calcul')}</p>}
+        </div>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.geste.motif_aide')} valeur={motif} changer={setMotif} faute={faute > 0} n={faute} />
+      {refus && apercu ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+// ── Le menu des gestes ──────────────────────────────────────────────────────────────────────────────────────────────
+function MenuGestes({ gestes, choisir, raison }: { gestes: Geste[]; choisir: (g: Geste) => void; raison: string | null }) {
+  const [ouvert, setOuvert] = useState(false);
+  const zone = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ouvert) return;
+    const ailleurs = (e: MouseEvent) => { if (!zone.current?.contains(e.target as Node)) setOuvert(false); };
+    const echap = (e: KeyboardEvent) => { if (e.key === 'Escape') setOuvert(false); };
+    document.addEventListener('mousedown', ailleurs);
+    document.addEventListener('keydown', echap);
+    zone.current?.querySelector<HTMLElement>('.c-menu-liste button')?.focus();
+    return () => { document.removeEventListener('mousedown', ailleurs); document.removeEventListener('keydown', echap); };
+  }, [ouvert]);
+  return (
+    <div className="c-menu" ref={zone}>
+      {/* Vert seulement quand il y a un geste à faire : sans geste permis, le menu ne fait que dire pourquoi. */}
+      <button type="button" className={`c-btn${gestes.length ? ' c-btn-principal' : ''}`} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
+        {titre('console.ecran.fiche.gestes')}<Icone nom="bas" taille={17} />
+      </button>
+      {ouvert ? (
+        <div className="c-menu-liste">
+          <p className="c-menu-note">{gestes.length ? phrase('console.ecran.fiche.gestes_aide') : raison}</p>
+          {gestes.map((g) => (
+            <button key={g} type="button" onClick={() => { setOuvert(false); choisir(g); }}>{titre(`console.ecran.geste.${cleGeste(g)}`)}</button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// ── La fiche ────────────────────────────────────────────────────────────────────────────────────────────────────────
+export function Fiche({ id }: { id: string }) {
+  const { moi, relireDecisions } = useConsole();
+  const [l, relire] = useLecture<Donnees>(`/console/entreprises/${encodeURIComponent(id)}`, id);
+  const [geste, setGeste] = useState<Geste | null>(null);
+  if (l.etat === 'lecture') return <p className="c-attente">{titre('console.ecran.lecture')}</p>;
+  if (l.etat === 'panne') {
+    return (
+      <>
+        <nav className="c-fil" aria-label={titre('console.ecran.fiche.retour')}><a href="#/clients">{titre('console.ecran.fiche.retour')}</a></nav>
+        <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte>
+      </>
+    );
+  }
+  const f = l.donnees;
+  const puce = puceDe(f.etat);
+  const proprietaires = f.membres.filter((m) => m.roles.includes('proprietaire'));
+  const raisonSansGeste = f.faits.tenuParCabinet ? phrase('console.ecran.fiche.sans_geste.cabinet') : phrase('console.ecran.fiche.sans_geste.support');
+  const emises = f.comptes.piecesEmises;
+  const douzeMois = derniersMois(f.aujourdhui).map((mois) => ({ mois, n: emises.find((x) => x.mois === mois)?.n ?? 0 }));
+  const totalEmises = douzeMois.reduce((s, x) => s + x.n, 0);
+  const plusHaut = Math.max(1, ...douzeMois.map((x) => x.n));
+  const faits: [string, string][] = f.ligne ? [
+    [titre('console.ecran.fiche.f.essai'), jourCourt(f.ligne.essai_jusqu_au)],
+    [titre('console.ecran.fiche.f.paye'), jourCourt(f.ligne.paye_jusqu_au)],
+    [titre('console.ecran.fiche.f.offre'), f.ligne.offre && f.ligne.periodicite ? offreEtPeriode(f.ligne.offre, f.ligne.periodicite) : '—'],
+    [titre('console.ecran.fiche.f.resilie'), jourCourt(f.ligne.resilie_le)],
+    [titre('console.ecran.fiche.f.suspendu'), jourCourt(f.ligne.suspendu_le)],
+    [titre('console.ecran.fiche.f.offert'), titre(f.ligne.offert ? 'console.ecran.fiche.oui' : 'console.ecran.fiche.non')],
+  ] : [];
+
+  return (
+    <>
+      <nav className="c-fil" aria-label={titre('console.ecran.fiche.retour')}>
+        <a href="#/clients">{titre('console.ecran.fiche.retour')}</a><Icone nom="droite" taille={14} /><span data-donnee>{f.raisonSociale}</span>
+      </nav>
+      <header className="c-entete">
+        <div className="c-entete-texte">
+          <div className="c-titre-ligne"><h1 data-donnee>{f.raisonSociale}</h1><Puce ton={puce.ton}>{puce.texte}</Puce></div>
+          <p className="c-entete-sous">{maj(organisationEnMots(f.organisation))} · {dire('console.ecran.fiche.inscrite', { le: jourCourt(f.creeLe) })} · {abonnementEnMots(f.etat, f.faits)}</p>
+        </div>
+        <div className="c-entete-actions">
+          {moi.role === 'direction' ? <Lien href={`#/journal?entreprise=${f.id}`} icone="journal">{titre('console.ecran.fiche.voir_journal')}</Lien> : null}
+          <MenuGestes gestes={f.gestes} choisir={setGeste} raison={raisonSansGeste} />
+        </div>
+      </header>
+
+      <div className="c-grille-2">
+        <div className="c-colonne">
+          <section className="c-carte" aria-labelledby="fiche-abo">
+            <div className="c-carte-tete">
+              <div>
+                <h2 id="fiche-abo">{titre('console.ecran.fiche.abonnement')}</h2>
+                <p className="c-carte-sous">{maj(expliquer(f.etat, f.aujourdhui))}</p>
+              </div>
+              <Puce ton={puce.ton}>{puce.texte}</Puce>
+            </div>
+            {f.ligne ? (
+              <dl className="c-faits">{faits.map(([k, v]) => <div key={k}><dt>{k}</dt><dd className={/\d/.test(v) ? 'c-mono' : ''}>{v}</dd></div>)}</dl>
+            ) : <Alerte ton="info">{phrase('console.ecran.fiche.aucune_ligne')}</Alerte>}
+          </section>
+
+          <section className="c-carte" aria-labelledby="fiche-histoire">
+            <div className="c-carte-tete">
+              <div>
+                <h2 id="fiche-histoire">{titre('console.ecran.fiche.histoire')}</h2>
+                <p className="c-carte-sous">{phrase('console.ecran.fiche.histoire_sous')}</p>
+              </div>
+            </div>
+            {f.evenements.length ? (
+              <ol className="c-histoire">
+                {f.evenements.map((e) => (
+                  <li key={e.id}>
+                    <span className="c-histoire-quand">{maj(quand(e.le, f.aujourdhui))}</span>
+                    <div className="c-histoire-quoi">
+                      <b>{titre(`console.ecran.nature.${e.nature}`)}</b>
+                      <Changements avant={e.avant} apres={e.apres} />
+                      {e.motif ? <span className="c-motif" data-donnee>{'«\u202f'}{e.motif}{'\u202f»'}</span> : null}
+                      <span className="c-qui">
+                        {e.par === 'systeme' ? titre('console.ecran.fiche.par_systeme')
+                          : e.qui ? <><span data-donnee>{e.qui.nom}</span> · {dire(`console.ecran.role.${e.qui.role}`)}</> : titre('console.ecran.fiche.par_outil')}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : <Vide icone="journal">{phrase('console.ecran.fiche.histoire_vide')}</Vide>}
+          </section>
+
+          <section className="c-carte" aria-labelledby="fiche-comptes">
+            <div className="c-carte-tete">
+              <div>
+                <h2 id="fiche-comptes">{titre('console.ecran.fiche.comptes')}</h2>
+                <p className="c-carte-sous">{phrase('console.ecran.fiche.comptes_sous')}</p>
+              </div>
+            </div>
+            <div className="c-chiffres">
+              {([['pieces', f.comptes.piecesCreees], ['etablissements', f.comptes.etablissements], ['caisses', f.comptes.caisses], ['salaries', f.comptes.salaries]] as const).map(([k, v]) => (
+                <div key={k} className="c-chiffre"><span>{titre(`console.ecran.fiche.c.${k}`)}</span><b>{v}</b></div>
+              ))}
+            </div>
+            <div className="c-barres">
+              <div className="c-barres-tete">
+                <span>{titre('console.ecran.fiche.emises')}</span>
+                <span>{totalEmises ? dire('console.ecran.fiche.emises_total', { n: totalEmises }) : phrase('console.ecran.fiche.emises_aucune')}</span>
+              </div>
+              <div className="c-barres-graphe" role="img" aria-label={totalEmises ? dire('console.ecran.fiche.emises_total', { n: totalEmises }) : phrase('console.ecran.fiche.emises_aucune')}>
+                {douzeMois.map((x) => (
+                  <div key={x.mois} className="c-barre" title={`${moisCourt(x.mois)} : ${x.n}`}>
+                    <div className="c-barre-colonne"><span className={x.n ? '' : 'c-zero'} style={{ height: `${Math.max(2, Math.round((x.n / plusHaut) * 100))}%` }} /></div>
+                    <span className="c-barre-mois" data-donnee>{moisCourt(x.mois)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div className="c-colonne">
+          <section className="c-carte" aria-labelledby="fiche-parler">
+            <div className="c-carte-tete"><h2 id="fiche-parler">{titre('console.ecran.fiche.a_qui_parler')}</h2></div>
+            {proprietaires.length ? (
+              <ul className="c-personnes">
+                {proprietaires.map((m) => (
+                  <li key={m.email}>
+                    <Avatar nom={m.nom} />
+                    <div className="c-texte">
+                      <b data-donnee>{m.nom}</b>
+                      <span>{titre('console.ecran.fiche.proprietaire')} · <a href={`mailto:${m.email}`} data-donnee>{m.email}</a></span>
+                      <span>{titre(m.derniereConnexion ? 'console.ecran.fiche.connecte' : 'console.ecran.fiche.jamais_connecte', m.derniereConnexion ? { quand: quand(m.derniereConnexion, f.aujourdhui) } : {})}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="c-attente">{phrase('console.ecran.fiche.sans_proprietaire')}</p>}
+          </section>
+
+          <section className="c-carte" aria-labelledby="fiche-identite">
+            <div className="c-carte-tete"><h2 id="fiche-identite">{titre('console.ecran.fiche.identite')}</h2></div>
+            <dl className="c-faits">
+              <div><dt>{titre('console.ecran.fiche.i.matricule')}</dt><dd className="c-mono" data-donnee>{f.matricule ?? '—'}</dd></div>
+              <div><dt>{titre('console.ecran.fiche.i.forme')}</dt><dd data-donnee>{f.formeJuridique ?? '—'}</dd></div>
+              <div><dt>{titre('console.ecran.fiche.i.devise')}</dt><dd className="c-mono" data-donnee>{f.devise}</dd></div>
+              <div><dt>{titre('console.ecran.fiche.i.organisation')}</dt><dd>{maj(organisationEnMots(f.organisation))}</dd></div>
+              {f.tenuePar ? <div><dt>{titre('console.ecran.fiche.i.cabinet')}</dt><dd data-donnee>{f.tenuePar}</dd></div> : null}
+              <div><dt>{titre('console.ecran.fiche.i.etat')}</dt><dd>{titre(f.active ? 'console.ecran.fiche.active' : 'console.ecran.fiche.inactive')}</dd></div>
+            </dl>
+          </section>
+
+          <section className="c-carte" aria-labelledby="fiche-membres">
+            <div className="c-carte-tete">
+              <div>
+                <h2 id="fiche-membres">{titre('console.ecran.fiche.membres')} <span className="c-compte-titre">{f.membres.length}</span></h2>
+                <p className="c-carte-sous">{phrase('console.ecran.fiche.membres_sous')}</p>
+              </div>
+            </div>
+            <ul className="c-personnes">
+              {f.membres.map((m) => (
+                <li key={m.email}>
+                  <Avatar nom={m.nom} />
+                  <div className="c-texte">
+                    <b data-donnee>{m.nom}</b>
+                    <span data-donnee>{m.email}</span>
+                    <span>{m.roles.map((r) => dire(`role.${r}`)).join(', ')} · {dire('console.ecran.fiche.depuis', { le: jourCourt(m.depuis) })}</span>
+                    <span>{titre(m.derniereConnexion ? 'console.ecran.fiche.connecte' : 'console.ecran.fiche.jamais_connecte', m.derniereConnexion ? { quand: quand(m.derniereConnexion, f.aujourdhui) } : {})}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <p className="c-note"><Icone nom="cache" />{phrase('console.ecran.fiche.contenu')}</p>
+        </div>
+      </div>
+      {geste ? <FenetreGeste geste={geste} fiche={f} role={moi.role} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); relireDecisions(); }} /> : null}
+    </>
+  );
+}
+
+// Les douze derniers mois, du plus ancien au mois en cours (« 2025-11 » … « 2026-10 »), en jours de calendrier.
+function derniersMois(aujourdhui: string): string[] {
+  const a = Number(aujourdhui.slice(0, 4)), m = Number(aujourdhui.slice(5, 7));
+  return Array.from({ length: 12 }, (_, i) => {
+    const k = a * 12 + (m - 1) - (11 - i);
+    return `${Math.floor(k / 12)}-${String((k % 12) + 1).padStart(2, '0')}`;
+  });
+}
+const moisCourt = (mois: string) => `${mois.slice(5, 7)}/${mois.slice(2, 4)}`;

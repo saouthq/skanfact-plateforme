@@ -10774,8 +10774,10 @@ prouver 'un geste de l'"'"'exploitant sans motif' base/abonnement.ts \
 prouver 'un motif d'"'"'espaces accepté par la base' $AMG \
   '  motif text check (motif is null or length(btrim(motif)) >= 3),' '  motif text,' \
   "$ABG1"
-prouver 'un renouvellement qui repart de la fin de l'"'"'essai' base/abonnement.ts \
-  '        const p = prochainePeriode(faits, d.periodicite, jour);' '        const p = prochainePeriode({ ...faits, payeJusquAu: null }, d.periodicite, jour);' \
+# La règle des gestes vit dans serveur/abonnement/gestes.ts depuis la console (Console 1) : l'outil de l'exploitation et
+# la console la jouent tous les deux.
+prouver 'un renouvellement qui repart de la fin de l'"'"'essai' serveur/abonnement/gestes.ts \
+  '      const p = prochainePeriode(faits, d.periodicite, jour);' '      const p = prochainePeriode({ ...faits, payeJusquAu: null }, d.periodicite, jour);' \
   "$ABG2"
 AW1='l'"'"'essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'"'"'arrive au serveur'
 prouver 'la v10 qui ne lit pas l'"'"'abonnement' web/public/plateforme/pont.js \
@@ -10803,6 +10805,282 @@ prouver 'la fin de l'"'"'essai qui ne se dit en orange que trois jours avant' we
 prouver 'une trace d'"'"'abonnement qu'"'"'on efface' $AMG \
   'create trigger evenement_intouchable before update or delete on plateforme.evenement_abonnement' 'create trigger evenement_intouchable before update on plateforme.evenement_abonnement' \
   "$ABG3"
+
+# ── La console de l'équipe SkanFact (Console 1, 13/10/2026 ; migration 0083, docs/console.md) ──────────────────────────
+# « À décider », le tableau du matin et la liste des clients (purs), l'entrée, ce que chaque rôle lit, les gestes, l'équipe,
+# le service ; puis les écrans, à la souris. Une règle tenue à deux étages (le serveur et la base) se prouve en retirant
+# les deux : un seul ne fait rien tomber, et c'est voulu.
+CONSD1='une console où rien ne se passe affiche une liste vide'
+CONSD2='la grâce, la lecture seule de la semaine et l'"'"'essai sans usage, rangés par urgence'
+CONSD3='la veille : absente, pas de ligne ; silencieuse, une ligne ; ses problèmes graves passent en tête'
+CONSD4='la technique ne lit que le service ; le support, que les clients'
+CONSD5='rien n'"'"'est vert sans mesure : ce que la console ne mesure pas encore se dit, avec sa raison'
+CONSD6='chaque chiffre se compte comme la liste qu'"'"'il ouvre'
+CONSD7='le plus urgent en haut, et une recherche sans accents ni casse'
+CONSS1='seul un membre de l'"'"'équipe entre ; un autre compte reçoit la même réponse qu'"'"'un mot de passe faux'
+CONSS2='le code du téléphone à chaque connexion, même sur un appareil reconnu ; sans code en place, la console le dit'
+CONSS3='un jeton de la console n'"'"'ouvre pas l'"'"'application, un jeton de l'"'"'application n'"'"'ouvre pas la console'
+CONSS4='une session de la console tombe après une heure sans geste, et à la déconnexion'
+CONSS5='une route de la console vit sous /console/, et rien d'"'"'autre n'"'"'y vit'
+CONSS6='la technique ne lit aucun client : ni la liste, ni une fiche, ni leurs chiffres'
+CONSS7='la base refuse chaque fonction de la console hors d'"'"'une session de la console, même au nom d'"'"'un membre'
+CONSS8='la liste range par urgence, compte chaque état comme son filtre, et ne montre pas les entreprises d'"'"'exemple'
+CONSS9='la tuile des inscriptions ouvre sa liste, du même compte : les sept derniers jours, aujourd'"'"'hui compris'
+CONSS10='la fiche dit la liste fermée : qui, l'"'"'abonnement et son histoire, les membres, des comptes ; jamais le contenu d'"'"'un dossier'
+CONSS11='l'"'"'aperçu dit l'"'"'état d'"'"'après, sans rien écrire'
+CONSS12='le support prolonge un essai de 7 à 30 jours, une fois ; le reste est à la direction'
+CONSS13='un geste sans motif est refusé ; un geste fait laisse son événement et sa ligne au journal, avec son auteur'
+CONSS14='un abonnement changé depuis la lecture ne s'"'"'écrase pas'
+CONSS15='un geste de la console ne se modifie pas et ne s'"'"'efface pas'
+CONSS16='la direction ajoute, change et retire ; jamais sur soi-même, et toujours quelqu'"'"'un à la direction'
+CONSS17='un membre retiré ne se connecte plus, et ses sessions tombent'
+CONSS18='le premier membre se pose par l'"'"'outil de l'"'"'exploitation, avec son motif ; l'"'"'équipe garde toujours quelqu'"'"'un à la direction'
+CONSS19='la veille absente se dit « non mesuré » ; présente, ses problèmes ; silencieuse, elle le dit'
+CONSW1='l'"'"'entrée : le mot de passe puis le code du téléphone ; sans code en place, la raison, et aucun champ montré faux'
+CONSW2='l'"'"'accueil : le plus urgent en haut, ses filtres, et chaque chiffre ouvre la liste qu'"'"'il compte'
+CONSW3='la fiche : prolonger un essai, avec l'"'"'aperçu du serveur et un motif ; la base, l'"'"'histoire et le journal le disent'
+CONSW4='le support : de 7 à 30 jours, dit à sa place ; un clic à côté ne ferme pas la fenêtre ; la pastille se recompte'
+CONSW5='la technique : l'"'"'accueil et le service seulement ; les clients ne sont pas dans son rôle'
+CONSW6='en clair et en sombre, à l'"'"'ordinateur et au téléphone : l'"'"'instrument ne trouve rien ; en langue factice, tout vient du catalogue'
+CONSW7='le service des écrans de l'"'"'application ne garde jamais la console'
+prouver '« À décider » qui invente du travail : chaque essai à décider' serveur/console/decider.ts \
+  '      } else if (s.etat === '"'"'essai'"'"' && s.jours <= ESSAI_SANS_USAGE_JOURS && e.pieces === 0) {' '      } else if (s.etat === '"'"'essai'"'"') {' \
+  "$CONSD1"
+prouver '« À décider » rangé sans les jours qui restent' serveur/console/decider.ts \
+  '  return lignes.sort((a, b) => a[0] - b[0] || a[1] - b[1]).map(([, , l]) => l);' '  return lignes.sort((a, b) => a[0] - b[0]).map(([, , l]) => l);' \
+  "$CONSD2"
+prouver 'une lecture seule ancienne qui reste à décider' serveur/console/decider.ts \
+  's.raison !== '"'"'suspendu'"'"' && joursEntre(s.depuis, jour) < LECTURE_SEULE_DE_LA_SEMAINE) {' 's.raison !== '"'"'suspendu'"'"') {' \
+  "$CONSD2"
+prouver 'une suspension qui revient à décider' serveur/console/decider.ts \
+  'else if (s.etat === '"'"'lecture_seule'"'"' && s.raison !== '"'"'suspendu'"'"' && joursEntre' 'else if (s.etat === '"'"'lecture_seule'"'"' && joursEntre' \
+  "$CONSD2"
+prouver 'un essai qui a servi pris pour un essai sans usage' serveur/console/decider.ts \
+  ' && s.jours <= ESSAI_SANS_USAGE_JOURS && e.pieces === 0) {' ' && s.jours <= ESSAI_SANS_USAGE_JOURS) {' \
+  "$CONSD2"
+prouver 'l'"'"'essai sans usage annoncé dix jours avant' serveur/console/decider.ts \
+  'export const ESSAI_SANS_USAGE_JOURS = 3;' 'export const ESSAI_SANS_USAGE_JOURS = 10;' \
+  "$CONSD2"
+prouver 'la veille silencieuse prise pour vivante' serveur/console/decider.ts \
+  'export const VEILLE_SILENCIEUSE_MIN = 5;' 'export const VEILLE_SILENCIEUSE_MIN = 10;' \
+  "$CONSD3"
+prouver 'un petit problème du service rangé avec les graves' serveur/console/decider.ts \
+  'lignes.push([p.grave ? 0 : 2, 0, {' 'lignes.push([0, 0, {' \
+  "$CONSD3"
+prouver 'une veille silencieuse qui ne se dit pas' serveur/console/decider.ts \
+  '  if (service && veille.etat === '"'"'silencieuse'"'"') lignes.push([0, 0, { sorte: '"'"'veille_silencieuse'"'"', ouvre: '"'"'service'"'"', derniere: veille.derniere }]);
+' '' \
+  "$CONSD3"
+prouver 'le support qui lit le service' serveur/console/decider.ts \
+  '  const service = role !== '"'"'support'"'"';' '  const service = true;' \
+  "$CONSD4"
+prouver 'la technique qui lit les clients dans « À décider »' serveur/console/decider.ts \
+  '  const clients = role !== '"'"'technique'"'"';' '  const clients = true;' \
+  "$CONSD4"
+prouver 'des revenus à zéro qui passent pour une mesure' serveur/console/decider.ts \
+  '    revenusDuMois: { mesure: false, raison: '"'"'paiements_a_venir'"'"' },' '    revenusDuMois: { mesure: true, n: 0 },' \
+  "$CONSD5"
+prouver 'un service vert sans veille' serveur/console/decider.ts \
+  '    service: veille.etat === '"'"'absente'"'"' ? { etat: '"'"'non_mesure'"'"', raison: '"'"'pas_de_veille'"'"' }' '    service: veille.etat === '"'"'absente'"'"' ? { etat: '"'"'ok'"'"' }' \
+  "$CONSD5"
+prouver 'la tuile des inscriptions qui compte tout le monde' serveur/console/decider.ts \
+  '    entreprisesDeLaSemaine: liste.filter((e) => inscriteCetteSemaine(e, jour)).length,' '    entreprisesDeLaSemaine: liste.length,' \
+  "$CONSD6"
+prouver 'une recherche des clients qui tient aux accents' serveur/console/decider.ts \
+  'const plier = (t: string) => t.normalize('"'"'NFD'"'"').replace(/\p{M}/gu, '"'"''"'"').toLowerCase();' 'const plier = (t: string) => t.toLowerCase();' \
+  "$CONSD7"
+prouver 'la grâce rangée après les essais calmes' serveur/console/decider.ts \
+  '    case '"'"'en_retard'"'"': return [0, s.jours];' '    case '"'"'en_retard'"'"': return [5, s.jours];' \
+  "$CONSD7"
+prouver 'un client introuvable par l'"'"'adresse de son propriétaire' serveur/console/decider.ts \
+  'e.proprietaire?.nom ?? '"'"''"'"', e.proprietaire?.email ?? '"'"''"'"', e.tenuePar' 'e.proprietaire?.nom ?? '"'"''"'"', e.tenuePar' \
+  "$CONSD7"
+prouver 'une autre réponse à qui n'"'"'est pas de l'"'"'équipe' serveur/console/connexion.ts \
+  '    if (!estRoleConsole(role)) return { etat: '"'"'refuse'"'"', motif: motif('"'"'connexion.refusee'"'"'), champ: '"'"'motDePasse'"'"' };' '    if (!estRoleConsole(role)) return { etat: '"'"'refuse'"'"', motif: motif('"'"'connexion.refusee'"'"') };' \
+  "$CONSS1"
+prouver 'la console ouverte à qui n'"'"'est pas de l'"'"'équipe' serveur/console/connexion.ts \
+  '    if (!estRoleConsole(role)) return { etat: '"'"'refuse'"'"', motif: motif('"'"'connexion.refusee'"'"'), champ: '"'"'motDePasse'"'"' };
+' '' \
+  "$CONSS1"
+prouver 'la console ouverte sans code du téléphone' serveur/console/connexion.ts \
+  '    if (u.code_methode !== '"'"'sms'"'"' && u.code_methode !== '"'"'application'"'"') return { etat: '"'"'refuse'"'"', motif: motif('"'"'console.code_obligatoire'"'"') };
+' '' \
+  "$CONSS2"
+prouver 'le mot de passe dit faux à qui n'"'"'a pas de code' serveur/console/connexion.ts \
+  'return { etat: '"'"'refuse'"'"', motif: motif('"'"'console.code_obligatoire'"'"') };' 'return { etat: '"'"'refuse'"'"', motif: motif('"'"'console.code_obligatoire'"'"'), champ: '"'"'motDePasse'"'"' };' \
+  "$CONSS2"
+prouver 'un code d'"'"'application jamais vérifié' serveur/console/connexion.ts \
+  'verifierTotp(lu.code_secret ?? '"'"''"'"', saisi, maintenant.getTime());' 'true;' \
+  "$CONSS2"
+prouver 'un jeton de l'"'"'application qui ouvre la console' serveur/app.ts \
+  'const qc = jeton ? await quiEstConsole(ctx, jeton) : null;' 'const qc = jeton ? (await quiEstConsole(ctx, jeton)) ?? await (async () => { const q = await quiEst(ctx, jeton); return q ? { utilisateur: q.utilisateur, session: q.session, appareil: q.appareil, role: '"'"'direction'"'"' as const } : null; })() : null;' \
+  "$CONSS3"
+prouver 'une session de la console sans fin d'"'"'inaction' base/migrations/0083_console.sql \
+  '     and s.expire_le > p_maintenant and s.derniere_activite + interval '"'"'1 hour'"'"' > p_maintenant
+' '     and s.expire_le > p_maintenant
+' \
+  "$CONSS4"
+prouver 'la déconnexion de la console qui ne ferme rien' base/migrations/0083_console.sql \
+  '  update plateforme.session_console set fermee_le = p_maintenant
+   where id = nullif(' '  update plateforme.session_console set derniere_activite = p_maintenant
+   where id = nullif(' \
+  "$CONSS4"
+prouver 'une route de la console hors de /console/' serveur/app.ts \
+  '  if (deLaConsole !== sousConsole && !(r.geste === '"'"'public'"'"' && r.chemin.startsWith('"'"'/console/connexion'"'"'))) {' '  if (false) {' \
+  "$CONSS5"
+prouver 'la technique qui lit les clients, au serveur et dans la base' 'serveur/console/gestes.ts|||base/migrations/0083_console.sql' \
+  '  { code: '"'"'console.clients.voir'"'"', roles: [D, S], ecrit: false },|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+  return (select coalesce(jsonb_agg(jsonb_build_object(
+      '"'"'id'"'"', e.id, '"'"'raisonSociale'"'"'' '  { code: '"'"'console.clients.voir'"'"', roles: [D, S, T], ecrit: false },|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']);
+  return (select coalesce(jsonb_agg(jsonb_build_object(
+      '"'"'id'"'"', e.id, '"'"'raisonSociale'"'"'' \
+  "$CONSS6"
+prouver 'les chiffres des clients montrés à la technique' serveur/console/routes.ts \
+  'tableau: role === '"'"'technique'"'"' ? { service: t.service } : t,' 'tableau: t,' \
+  "$CONSS6"
+prouver 'la base qui prend n'"'"'importe quelle session du membre' base/migrations/0083_console.sql \
+  '     and s.id = nullif(current_setting('"'"'app.session_console'"'"', true), '"'"''"'"')::uuid
+' '' \
+  "$CONSS7"
+prouver 'une fonction de la console qui se passe de session' base/migrations/0083_console.sql \
+  '  if v is null then perform socle.refus('"'"'la console demande une session de la console : connecte-toi à la console'"'"'); end if;
+' '' \
+  "$CONSS7"
+prouver 'les entreprises d'"'"'exemple dans la liste de la console' base/migrations/0083_console.sql \
+  '   where not e.essai);' '   where true);' \
+  "$CONSS8"
+prouver 'la fiche d'"'"'une entreprise d'"'"'exemple dans la console' base/migrations/0083_console.sql \
+  'where e.id = p_entreprise and not e.essai;' 'where e.id = p_entreprise;' \
+  "$CONSS8"
+prouver 'la liste des clients rangée par date, pas par urgence' serveur/console/routes.ts \
+  'const toutes = rangerParUrgence(lireEntreprises(await lireJson(transaction(tx), '"'"'select plateforme.console_entreprises() v'"'"'), jour), jour);' 'const toutes = lireEntreprises(await lireJson(transaction(tx), '"'"'select plateforme.console_entreprises() v'"'"'), jour);' \
+  "$CONSS8"
+prouver 'la semaine des inscriptions qui compte huit jours' serveur/console/decider.ts \
+  'e.creeLe >= plusJours(jour, -6);' 'e.creeLe >= plusJours(jour, -7);' \
+  "$CONSS9"
+prouver 'la liste des inscriptions qui montre tout le monde' serveur/console/routes.ts \
+  'const nouvelles = query.nouvelles === '"'"'1'"'"' ? toutes.filter((e) => inscriteCetteSemaine(e, jour)) : toutes;' 'const nouvelles = toutes;' \
+  "$CONSS9"
+prouver 'les puces des inscriptions comptées sur toutes les entreprises' serveur/console/routes.ts \
+  '[c, cherchees.filter((e) => categorie(e) === c).length]' '[c, toutes.filter((e) => categorie(e) === c).length]' \
+  "$CONSS9"
+prouver 'le téléphone d'"'"'un membre dans la fiche de la console' base/migrations/0083_console.sql \
+  'jsonb_build_object('"'"'nom'"'"', u.nom, '"'"'email'"'"', u.email, '"'"'roles'"'"', m.roles, '"'"'depuis'"'"', m.depuis,' 'jsonb_build_object('"'"'nom'"'"', u.nom, '"'"'email'"'"', u.email, '"'"'telephone'"'"', u.telephone, '"'"'roles'"'"', m.roles, '"'"'depuis'"'"', m.depuis,' \
+  "$CONSS10"
+prouver 'un aperçu qui réclame le motif du geste' serveur/console/routes.ts \
+  '    if (corps.apercu) return { corps: { apercu: true, avant: etatAbonnement(faits, jour), apres: etatApres, details } };
+' '' \
+  "$CONSS11"
+prouver 'le support qui prolonge de 1 à 365 jours' base/migrations/0083_console.sql \
+  '    if v_jours is null or v_jours not between 7 and 30 then' '    if v_jours is null or v_jours not between 1 and 365 then' \
+  "$CONSS12"
+prouver 'le support qui prolonge deux fois' base/migrations/0083_console.sql \
+  '    if exists (select 1 from plateforme.evenement_abonnement v where v.entreprise = p_entreprise and v.nature = '"'"'essai_prolonge'"'"') then' '    if false then' \
+  "$CONSS12"
+prouver 'une seconde prolongation proposée au support' serveur/console/routes.ts \
+  'essaiOuSuite && ligne && !prolongeUneFois && !f.offert ? ['"'"'prolonger'"'"'] : []' 'essaiOuSuite && ligne && !f.offert ? ['"'"'prolonger'"'"'] : []' \
+  "$CONSS12"
+prouver 'le support qui suspend un abonnement' 'serveur/console/gestes.ts|||base/migrations/0083_console.sql|||base/migrations/0083_console.sql' \
+  '  { code: '"'"'console.abonnement.gerer'"'"', roles: [D], ecrit: true },|||  if v_role = '"'"'support'"'"' and p_geste <> '"'"'prolonger'"'"' then perform socle.refus('"'"'ton rôle dans l'"'"''"'"'équipe SkanFact ne permet pas ce geste'"'"'); end if;
+|||  if v_role = '"'"'support'"'"' then
+    if v_avant is null or' '  { code: '"'"'console.abonnement.gerer'"'"', roles: [D, S], ecrit: true },||||||  if v_role = '"'"'support'"'"' and p_geste = '"'"'prolonger'"'"' then
+    if v_avant is null or' \
+  "$CONSS12"
+prouver 'un geste sans motif laissé à la base' serveur/console/routes.ts \
+  '    if (corps.motif.trim().length < 3) return { statut: 400, corps: { motif: motif('"'"'console.motif_requis'"'"'), champ: '"'"'motif'"'"', raison: t('"'"'console.motif_requis'"'"') } };
+' '' \
+  "$CONSS13"
+prouver 'un geste d'"'"'abonnement sans auteur dans son histoire' base/migrations/0083_console.sql \
+  '    values (socle.moi(), v_role, '"'"'abonnement.'"'"' || p_geste, p_entreprise, v_evenement, btrim(p_motif),' '    values (socle.moi(), v_role, '"'"'abonnement.'"'"' || p_geste, p_entreprise, null, btrim(p_motif),' \
+  "$CONSS13"
+prouver 'un abonnement changé depuis la lecture, écrasé' serveur/console/routes.ts \
+  '    if (!memeLigne(ligne, lireLigne(corps.ligne))) throw new Perimee('"'"'console.abonnement_change'"'"');
+' '' \
+  "$CONSS14"
+prouver 'un geste de la console qu'"'"'on efface' base/migrations/0083_console.sql \
+  'create trigger geste_console_intouchable before update or delete on plateforme.geste_console' 'create trigger geste_console_intouchable before update on plateforme.geste_console' \
+  "$CONSS15"
+prouver 'changer son propre rôle dans l'"'"'équipe' base/migrations/0083_console.sql \
+  '  if p_membre = socle.moi() then perform socle.refus('"'"'personne ne change son propre rôle'"'"'); end if;
+' '' \
+  "$CONSS16"
+prouver 'se retirer soi-même de l'"'"'équipe' base/migrations/0083_console.sql \
+  '  if p_membre = socle.moi() then perform socle.refus('"'"'personne ne se retire soi-même de l'"'"''"'"'équipe SkanFact'"'"'); end if;
+' '' \
+  "$CONSS16"
+prouver 'une personne ajoutée deux fois à l'"'"'équipe' base/migrations/0083_console.sql \
+  '  if coalesce((v_avant->>'"'"'actif'"'"')::boolean, false) then' '  if false then' \
+  "$CONSS16"
+prouver 'un membre retiré qui se connecte encore' base/migrations/0083_console.sql \
+  '  select e.role from plateforme.equipe e where e.utilisateur = p_utilisateur and e.actif
+' '  select e.role from plateforme.equipe e where e.utilisateur = p_utilisateur
+' \
+  "$CONSS17"
+prouver 'les sessions d'"'"'un membre retiré qui restent ouvertes' 'base/migrations/0083_console.sql|||base/migrations/0083_console.sql' \
+  '  update plateforme.session_console set fermee_le = p_maintenant where utilisateur = p_membre and fermee_le is null;
+|||   where e.utilisateur = s.utilisateur and e.actif
+' '|||   where e.utilisateur = s.utilisateur
+' \
+  "$CONSS17"
+prouver 'un rôle inventé posé par l'"'"'outil de l'"'"'exploitation' base/equipe.ts \
+  '  if (!ROLES.includes(role)) throw new Error('"'"'le rôle est « direction », « support » ou « technique »'"'"');
+' '' \
+  "$CONSS18"
+prouver 'le premier membre posé sans sa ligne au journal' base/equipe.ts \
+  '    await client.query(`insert into plateforme.geste_console (geste, membre, motif, avant, apres) values ($1, $2, $3, $4, $5)`,
+      [avant?.actif ? '"'"'equipe.role'"'"' : '"'"'equipe.ajouter'"'"', u, motif.trim(), avant ? JSON.stringify(avant) : null, JSON.stringify({ role, actif: true })]);
+' '' \
+  "$CONSS18"
+prouver 'la dernière personne à la direction retirée par l'"'"'outil' base/equipe.ts \
+  '    if (avant.role === '"'"'direction'"'"' && directions === 1) throw new Error('"'"'l\'"'"'équipe garde toujours une personne à la direction : ajoute d\'"'"'abord quelqu\'"'"'un d\'"'"'autre'"'"');
+' '' \
+  "$CONSS18"
+prouver 'la veille qui ne vieillit jamais' serveur/console/routes.ts \
+  '    return lireVeille(contenu, s.mtime, maintenant);' '    return lireVeille(contenu, new Date(), maintenant);' \
+  "$CONSS19"
+prouver 'le mot de passe montré faux à qui n'"'"'a pas de code, à l'"'"'écran' web/console/src/ecrans/Entree.tsx \
+  'refuser(refusDe(r), r.corps.champ === '"'"'motDePasse'"'"' ? '"'"'motDePasse'"'"' : null)' 'refuser(refusDe(r), r.statut === 401 ? '"'"'motDePasse'"'"' : null)' \
+  "$CONSW1"
+prouver 'les refus du serveur sans l'"'"'espace fine' web/console/src/contexte.ts \
+  '  return typo(r.corps.motif);' '  return r.corps.motif;' \
+  "$CONSW1"
+prouver 'la tuile des inscriptions qui ouvre toute la liste' web/console/src/ecrans/Accueil.tsx \
+  'href="#/clients?nouvelles=1"' 'href="#/clients"' \
+  "$CONSW2"
+prouver 'le filtre des inscriptions qui ne se retire pas' web/console/src/ecrans/Clients.tsx \
+  'onClick={() => { setNouvelles(false); setDebut(0); }}' 'onClick={() => { setDebut(0); }}' \
+  "$CONSW2"
+prouver 'sans motif, le curseur qui ne va pas au motif' web/console/src/ecrans/Fiche.tsx \
+  'setRefus(phrase('"'"'console.ecran.geste.motif_court'"'"')); setFaute((x) => x + 1); return; }' 'setRefus(phrase('"'"'console.ecran.geste.motif_court'"'"')); return; }' \
+  "$CONSW3"
+prouver 'l'"'"'aperçu du geste qui ne garde pas sa place' web/console/src/console.css \
+  '.c-apercu-zone { display: grid; min-height: 140px; }' '.c-apercu-zone { display: grid; }' \
+  "$CONSW4"
+prouver 'un clic à côté qui ferme la fenêtre' web/console/src/ui.tsx \
+  '    <div className="c-voile">' '    <div className="c-voile" onMouseDown={(e) => { if (e.target === e.currentTarget) fermerSiLibre.current(); }}>' \
+  "$CONSW4"
+prouver 'la pastille de « À décider » qui ne se recompte pas après un geste' web/console/src/ecrans/Fiche.tsx \
+  'fait={() => { setGeste(null); relire(); relireDecisions(); }}' 'fait={() => { setGeste(null); relire(); }}' \
+  "$CONSW4"
+prouver 'le menu des gestes vert sans geste à faire' web/console/src/ecrans/Fiche.tsx \
+  'className={`c-btn${gestes.length ? '"'"' c-btn-principal'"'"' : '"'"''"'"'}`}' 'className="c-btn c-btn-principal"' \
+  "$CONSW4"
+prouver 'les bornes du support dites comme celles de la direction' web/console/src/ecrans/Fiche.tsx \
+  'phrase(support ? '"'"'console.ecran.geste.jours_hors_support'"'"' : '"'"'console.ecran.geste.jours_hors'"'"', { min, max })' 'phrase('"'"'console.ecran.geste.jours_hors'"'"', { min, max })' \
+  "$CONSW4"
+prouver 'les clients ouverts à la technique, à l'"'"'écran' web/console/src/Console.tsx \
+  '  clients: ['"'"'direction'"'"', '"'"'support'"'"'], fiche: ['"'"'direction'"'"', '"'"'support'"'"'],' '  clients: ['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"'], fiche: ['"'"'direction'"'"', '"'"'support'"'"'],' \
+  "$CONSW5"
+prouver 'un tableau de la console qui fait déborder le téléphone' web/console/src/console.css \
+  '.c-defile { overflow-x: auto; position: relative; }' '.c-defile { overflow-x: auto; }' \
+  "$CONSW6"
+prouver 'les noms de l'"'"'équipe pris pour des textes du catalogue' web/console/src/ecrans/Journal.tsx \
+  'texte: m.nom, donnee: true }))' 'texte: m.nom }))' \
+  "$CONSW6"
+prouver 'la console gardée par le service des écrans' web/public/sw.js \
+  'u.pathname.startsWith('"'"'/v1/'"'"')
+  || u.pathname === '"'"'/console'"'"' || u.pathname.startsWith('"'"'/console/'"'"');' 'u.pathname.startsWith('"'"'/v1/'"'"');' \
+  "$CONSW7"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

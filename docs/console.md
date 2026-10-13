@@ -1,0 +1,166 @@
+# La console de l'équipe SkanFact
+
+*13/10/2026, Console 1 (le lot « les fonctions qui manquent », deuxième partie). Le cadrage fait foi :
+`docs/cadrage/10-console.md` du dépôt `skanfact` (§ 1, § 2.1 à 2.4, § 2.8 pour une part, § 2.10, ses règles C1 à C3 et la
+liste fermée du § 4), avec `03` § 5 (les rôles) et `06` § 3 (la connexion). Les écrans suivent les maquettes validées par
+Skander. Ce document dit ce qui en est fait ; les décisions marquées « par délégation » sont prises le 13/10/2026.*
+
+Avant ce lot, **personne ne voyait les clients sans se connecter au serveur** : les gestes de SkanFact sur un abonnement
+passaient par un script en root (`exploitation/abonnement.sh`, `docs/abonnement.md`, A6), et rien ne disait le matin ce
+qui demandait une décision.
+
+Le code : la base `base/migrations/0083_console.sql` (l'équipe, les défis et les sessions de la console, le journal de ses
+gestes, les fonctions qui lisent les clients et font les gestes), l'outil du premier membre `base/equipe.ts` et
+`exploitation/equipe.sh` ; le serveur `serveur/console/` (`gestes.ts` les gestes et leurs rôles, `connexion.ts` l'entrée,
+`decider.ts` « À décider », le tableau du matin et la liste, pur, `routes.ts`, `textes.ts`), la règle de chaque geste
+sur un abonnement `serveur/abonnement/gestes.ts` (l'outil de l'exploitation et la console la jouent tous les deux), la
+session de la console à la porte (`serveur/app.ts`) ; les écrans `web/console/` (React, construits à part dans
+`dist/web/console`, servis sous `/console/`). Les tests : `tests/console/decider.test.ts` (pur),
+`tests/console/console.test.ts` (contre la base), `tests/web/console.test.ts` (à la souris : l'entrée, l'accueil, un
+geste, le support, la technique, puis chaque écran en clair et en sombre, à l'ordinateur et au téléphone, et en langue
+factice) ; soixante-neuf preuves.
+
+## Ce que fait le lot
+
+**C1. Qui entre, et comment** (10 § 1, 06 § 3).
+- **Seule l'équipe SkanFact** : une personne avec son compte SkanFact (celui de l'application) et un rôle dans
+  `plateforme.equipe` (la direction, le support, la technique). Le premier membre se pose par l'outil, sur le serveur
+  (« Mettre en route », plus bas) ; ensuite, la direction gère l'équipe depuis la console.
+- **L'entrée en deux temps** : l'adresse et le mot de passe (la même attente qui s'allonge après cinq erreurs que
+  l'application, et comptée avec elle : c'est le même mot de passe), puis le code du téléphone (SMS ou application) **à
+  chaque connexion, même sur un appareil reconnu** ; un code de secours le remplace, une fois. Sans code du téléphone en
+  place, la console le dit et renvoie à « Ton compte », sans marquer le mot de passe faux (il était bon).
+- **À qui n'est pas de l'équipe, la réponse d'un mot de passe faux**, champ compris : la console ne dit pas qui en fait
+  partie.
+- **Une session à elle** : son jeton n'ouvre rien dans l'application, celui de l'application n'ouvre pas la console. Une
+  heure sans geste, douze heures au plus ; « Se déconnecter » la ferme ; retirer un membre ferme ses sessions aussitôt.
+- **La base garde, et le serveur aussi.** Chaque fonction de la console vérifie qu'elle tourne dans une session de la
+  console, ouverte, à un membre encore actif, avec le rôle voulu (`exiger_role_console`) : une transaction de
+  l'application n'y ouvre rien, même au nom d'un membre de l'équipe. Le serveur refuse de son côté une route hors du rôle
+  (`GESTES_CONSOLE`, une troisième famille de gestes, qui vivent sous `/console/` et nulle part ailleurs). Les preuves
+  qui veulent ouvrir une porte retirent les deux étages : un seul ne fait rien tomber, et c'est voulu.
+
+**C2. Qui voit quoi** (03 § 5).
+
+| Rôle | Écrans | Gestes |
+|---|---|---|
+| Direction | tous | tous les gestes sur un abonnement, l'équipe |
+| Support | « À décider » (les clients), Clients et leur fiche | prolonger un essai, de 7 à 30 jours, une fois par entreprise |
+| Technique | « À décider » (le service), Service | aucun ; **aucune donnée de client**, ni la liste, ni une fiche, ni leurs chiffres |
+
+Un écran hors du rôle dit « Cet écran n'est pas dans ton rôle », et le menu ne le propose pas.
+
+**C3. L'accueil : le tableau du matin et « À décider »** (10 § 2.1, 2.2).
+- **Le tableau** : les inscriptions des sept derniers jours (aujourd'hui compris), les essais en cours, les abonnements
+  actifs par offre, les entreprises en retard, en lecture seule ; les revenus du mois et le support disent « non mesuré »
+  avec leur raison (les paiements viennent en 14b, le support ensuite) ; le service dit « non mesuré » sans veille ou
+  quand elle se tait, sinon ses problèmes. **Rien n'est vert sans mesure** (C2). **Chaque chiffre ouvre la liste qu'il
+  compte, calculée par la même fonction** (C3) : « Inscriptions » ouvre les clients avec le filtre « inscrites ces 7
+  derniers jours », qui se voit et se retire.
+- **« À décider »**, le plus urgent en haut : un problème grave du service, la veille qui se tait depuis plus de cinq
+  minutes, une entreprise en grâce (celle dont la lecture seule approche d'abord), une lecture seule de cette semaine
+  (pas une suspension : c'est une décision de SkanFact), un essai qui finit dans trois jours sans une pièce créée ; puis
+  les petits problèmes du service. Chaque ligne ouvre la fiche du client ou le Service ; les filtres gardent les clients
+  ou le service. **Une console où rien ne se passe affiche une liste vide**, et le dit : elle n'invente pas de travail.
+  La pastille de « À décider », dans le menu, se recompte après un geste.
+
+**C4. Les clients** (10 § 2.3).
+- **La liste** : le plus urgent en haut (la grâce qui finit, la lecture seule de la semaine, l'essai ou l'abonnement qui
+  finit bientôt, puis le reste), filtrée par état avec le compte de chaque état (la même fonction que le filtre), cherchée
+  sans accents ni casse (le nom, le matricule, l'organisation, le propriétaire et son adresse, le cabinet), paginée. Les
+  entreprises d'exemple (celle que chaque personne ouvre pour découvrir) n'y sont pas, et n'ont pas de fiche.
+- **La fiche dit la liste fermée du § 4**, et rien d'autre : qui elle est (raison sociale, matricule, forme, devise,
+  création, organisation, cabinet qui la tient), son abonnement (les faits, l'état déduit, son histoire avec le motif et
+  l'auteur de chaque geste de SkanFact), ses membres (nom, adresse, rôles, depuis quand, dernière connexion), des comptes
+  qui ne révèlent rien (établissements, caisses, salariés, pièces créées, pièces émises par mois sur douze mois).
+  **Jamais le contenu d'un dossier** : un test fixe la liste de ses clés, et un champ de plus le fait tomber.
+
+**C5. Les gestes sur un abonnement** (10 § 2.4, C1). Prolonger l'essai, payer (l'offre et la périodicité), résilier,
+annuler la résiliation, suspendre, reprendre, offrir, retirer l'offert : la règle de chacun est celle de l'outil de
+l'exploitation (`serveur/abonnement/gestes.ts`), en un seul endroit. Le menu ne propose que les gestes que le rôle peut
+faire aujourd'hui, et dit pourquoi quand il n'y en a pas. **L'état d'après se montre avant le geste**, calculé par le
+serveur ; **un motif est exigé** (trois caractères au moins) et reste dans l'histoire ; **un abonnement changé depuis
+qu'on l'a ouvert ne s'écrase pas** (« relis-le ») ; le geste laisse son événement et sa ligne au journal, liés.
+Le support prolonge un essai de 7 à 30 jours, une fois par entreprise ; hors des bornes, l'aperçu le dit à sa place et
+le geste s'éteint.
+
+**C6. Le journal** (C1) : chaque geste de la console et de l'outil de l'exploitation, qui (et avec quel rôle), quand,
+quoi, sur qui, pourquoi, et ce qu'il a changé ; filtré par personne et par entreprise ; le plus récent en haut, regroupé
+par jour ; la suite se demande à partir du dernier lu (une ligne neuve ne décale rien). **Rien ne s'y modifie ni ne s'y
+efface** : la base le refuse. La direction seule.
+
+**C7. L'équipe** (10 § 2.10) : la direction ajoute une personne qui a déjà son compte SkanFact, change son rôle, la
+retire, chaque fois avec un motif. **Jamais sur soi-même ; l'équipe garde toujours quelqu'un à la direction** (la base le
+tient). Un membre sans code du téléphone est signalé : la console le lui demandera. Un membre retiré ne s'efface pas :
+son nom reste sur ses gestes.
+
+**C8. Le service** (10 § 2.8, première partie) : ce que la veille du serveur (`exploitation/veiller.ts`) écrit chaque
+minute dans `/var/lib/skanfact/veille.json` (`SKANFACT_VEILLE_FICHIER`) : ses problèmes, les graves d'abord, avec ce
+qu'il faut faire. Sans veille (un poste de développement) : « non mesuré » ; une veille qui n'a rien écrit depuis plus de
+cinq minutes se dit silencieuse.
+
+**C9. Les écrans** suivent la DA des maquettes : le haut vert presque noir et quadrillé, Bricolage Grotesque pour les
+titres, Instrument Sans pour le texte, IBM Plex Mono pour les codes et les dates, des cartes arrondies ; en clair et en
+sombre (le choix se garde sur l'ordinateur), à l'ordinateur et au téléphone (des cibles de 44 px). Les textes viennent
+du catalogue (`web/console/src/textes.ts`, `serveur/console/textes.ts`), et **la typographie française se pose à
+l'affichage** (`web/console/src/langue.ts`) : une espace fine insécable devant « : ; ? ! » et dans les guillemets, et un
+nombre reste avec son deux-points ; sans elle, « : » commençait une ligne. **Une fenêtre ne se ferme pas d'un clic à
+côté** (Échap ou « Annuler ») : un motif tapé ne se perd pas. **Le service des écrans de l'application ne garde jamais la
+console** : un outil en ligne, rien n'en reste sur un poste.
+
+## Mettre en route
+
+La personne crée d'abord son compte SkanFact, puis met en place le code de son téléphone (« Ton compte »,
+dans l'application). Sur le serveur, en root :
+
+```
+sudo bash /opt/skanfact/depot/exploitation/equipe.sh voir
+sudo bash /opt/skanfact/depot/exploitation/equipe.sh ajouter <adresse> <direction|support|technique> "<motif>"
+sudo bash /opt/skanfact/depot/exploitation/equipe.sh retirer <adresse> "<motif>"
+```
+
+Chaque geste de l'outil demande son motif et laisse sa ligne au journal (sans auteur : l'exploitation). L'outil sert à
+poser le premier membre, et à rendre la direction à quelqu'un si plus personne ne peut se connecter ; ensuite, tout se
+fait depuis l'écran « Équipe ». La console s'ouvre à `https://<le serveur>/console/`.
+
+## Décidé par délégation (13/10/2026)
+
+- **Le code du téléphone à chaque connexion**, même sur un appareil reconnu : le cadrage demandait le code ET un appareil
+  reconnu ; un poste reconnu ne dispense de rien ici.
+- **Une session : une heure sans geste, douze heures au plus.**
+- **À qui n'est pas de l'équipe, la réponse d'un mot de passe faux.**
+- **Le support prolonge un essai de 7 à 30 jours, une fois par entreprise** ; une seconde prolongation, et tout le reste,
+  sont à la direction. « Offrir un mois » (un avoir sur la prochaine facture, 10 § 2.4) attend nos factures (14b).
+- **L'adresse : `/console/` du même serveur** pour l'instant ; `console.skanfact.tn` viendra par le frontal.
+- **« Inscriptions » compte les sept derniers jours, aujourd'hui compris**, et ouvre la liste avec ce filtre.
+- **Une fenêtre ne se ferme pas d'un clic à côté.**
+- **La console n'est pas l'API des partenaires** : ses routes n'entrent pas dans la documentation de l'API.
+
+## À DÉCIDER (Skander)
+
+- **Qui entre dans l'équipe, et avec quel rôle.** Le premier membre se pose sur le serveur des pilotes par l'outil, en
+  root : jamais par Claude.
+- **`console.skanfact.tn`** : le nom à créer dans le DNS, puis le frontal le branche.
+
+## Ce que le lot ne fait pas
+
+La suite de la console : les paiements et nos factures (14b), le support, le service complet (sauvegardes, file de
+travaux, incidents, page d'état, exercice de restauration), la mesure, les réglages de la plateforme, l'application de
+bureau (les licences de la v10), l'accès accordé par un client (48 heures, en lecture), et le filtre du journal par
+geste et par période.
+
+## À VÉRIFIER
+
+- Sur chaque serveur, la console lit `veille.json` : sinon son Service dit « non mesuré » (c'est la règle, pas une
+  panne), et la veille se vérifie à part.
+
+## Revu à la souris (13/10/2026)
+
+Sur l'essai de l'outil humain (`scripts/humain/exemple-console.ts` : une direction, un support, une technique sans code,
+huit entreprises dans chaque état, une veille qui signale deux problèmes ; `code-console.ts` donne le code du téléphone),
+en direction, en support et en technique ; en clair et en sombre ; à 1440 et à 390. Corrigé pendant le parcours : la
+fenêtre d'un geste qui sautait pendant qu'on tapait le nombre de jours (l'aperçu a sa place), et qu'un clic à côté
+fermait avec le motif tapé ; la pastille de « À décider » qui ne se recomptait pas après un geste ; le mot de passe
+marqué faux pour un membre sans code ; une phrase qui commençait par un nombre ; « : » seul en début de ligne ; un
+tableau qui faisait déborder le téléphone ; des cibles de moins de 44 px ; les noms de l'équipe pris pour des textes
+hors du catalogue dans le filtre du journal.

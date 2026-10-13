@@ -45,10 +45,13 @@ export async function problemes([cibles, W]: [boolean, number]): Promise<string[
       if (texte.length > 60 && r.width < 140 && getComputedStyle(el).display !== 'inline') pb.push(`texte écrasé en ${Math.round(r.width)} points : « ${texte.slice(0, 50)}… »`);
     }
   }
+  // Un texte caché aux yeux pour les lecteurs d'écran (un point de côté, découpé à rien : `clip-path: inset(50%)` ou
+  // `clip: rect(0 0 0 0)`) n'est pas un texte coupé : il n'est pas à l'écran du tout (la console, brique Console 1).
+  const cacheAuxYeux = (cs: CSSStyleDeclaration) => cs.clipPath === 'inset(50%)' || cs.clip === 'rect(0px, 0px, 0px, 0px)';
   for (const el of document.querySelectorAll<HTMLElement>('body *')) {
     if (!visible(el)) continue;
     const cs = getComputedStyle(el);
-    const coupe = ['hidden', 'clip'].includes(cs.overflowX) || cs.textOverflow === 'ellipsis';
+    const coupe = (['hidden', 'clip'].includes(cs.overflowX) || cs.textOverflow === 'ellipsis') && !cacheAuxYeux(cs);
     // Un champ de saisie défile sous le doigt : son texte n'est pas coupé.
     if (coupe && cs.textOverflow !== 'ellipsis' && !el.matches('input, textarea, select') && el.scrollWidth > el.clientWidth + 1 && !el.closest('table, .preview, .doc-page')) pb.push(`texte coupé : <${el.tagName.toLowerCase()}${el.className ? `.${String(el.className).split(' ').join('.')}` : ''}> ${(el.textContent || el.getAttribute('placeholder') || el.getAttribute('name') || el.id || '').slice(0, 60)}`);
     const r = el.getBoundingClientRect();

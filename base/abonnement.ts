@@ -15,17 +15,18 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { aujourdhuiATunis } from '../serveur/reglements.ts';
-import { etatAbonnement, jourEnFrancais, lireFaits, plusJours, prochainePeriode, type Etat, type Faits, type Offre, type Periodicite } from '../serveur/abonnement/etat.ts';
+import { etatAbonnement, jourEnFrancais, lireFaits, type Etat, type Faits, type Offre, type Periodicite } from '../serveur/abonnement/etat.ts';
+import { calculerGeste, type DemandeAbonnement, type GesteAbonnement, type LigneAbonnement } from '../serveur/abonnement/gestes.ts';
 
 type Client = pg.Client | pg.PoolClient;
-export type Geste = 'prolonger' | 'payer' | 'resilier' | 'annuler-resiliation' | 'suspendre' | 'reprendre' | 'offrir' | 'retirer-offert';
+export type Geste = GesteAbonnement;
 const NATURE: Record<Geste, string> = {
   prolonger: 'essai_prolonge', payer: 'paye', resilier: 'resilie', 'annuler-resiliation': 'resiliation_annulee',
   suspendre: 'suspendu', reprendre: 'repris', offrir: 'offert', 'retirer-offert': 'offert_retire',
 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-type Ligne = { essai_jusqu_au: string; paye_jusqu_au: string | null; offre: Offre | null; periodicite: Periodicite | null; resilie_le: string | null; suspendu_le: string | null; offert: boolean };
+type Ligne = LigneAbonnement;
 
 // La ligne d'abonnement (null : l'entreprise n'en a pas, posée sans lui par une restauration dans une autre base, qui
 // ne déclenche rien) et les faits que l'état lit.
@@ -57,65 +58,19 @@ const NATURES: Record<string, string> = {
   resiliation_annulee: 'résiliation annulée', suspendu: 'suspendu', repris: 'repris', offert: 'offert', offert_retire: 'plus offert',
 };
 
-export type Demande = { geste: Geste; motif: string; jours?: number; offre?: Offre; periodicite?: Periodicite };
+export type Demande = DemandeAbonnement;
 
-// Un geste, dans une transaction : la ligne relue sous verrou, la nouvelle écrite, l'événement posé. Rend l'état d'après.
+// Un geste, dans une transaction : la ligne relue sous verrou, la nouvelle calculée par la règle commune
+// (serveur/abonnement/gestes.ts, celle de la console), écrite, et l'événement posé. Rend l'état d'après.
 export async function faire(client: Client, entreprise: string, d: Demande, jour = aujourdhuiATunis()): Promise<Etat> {
   if (d.motif.trim().length < 3) throw new Error('un geste sur un abonnement demande son motif (trois caractères au moins) : il reste dans son histoire');
   await client.query('begin');
   try {
     const lu = await lire(client, entreprise, true);
-    const { faits } = lu;
-    // Sans ligne, seul « prolonger » a un sens : il ouvre l'essai, à partir d'aujourd'hui.
-    if (!lu.ligne && d.geste !== 'prolonger') throw new Error('cette entreprise n\'a pas d\'abonnement (une restauration dans une autre base) : ouvre-lui un essai d\'abord (« prolonger »)');
-    const ligne: Ligne = lu.ligne ?? { essai_jusqu_au: jour, paye_jusqu_au: null, offre: null, periodicite: null, resilie_le: null, suspendu_le: null, offert: false };
-    const apres: Ligne = { ...ligne };
-    const details: Record<string, unknown> = {};
-    switch (d.geste) {
-      case 'prolonger': {
-        const jours = d.jours ?? 0;
-        if (!Number.isInteger(jours) || jours < 1 || jours > 365) throw new Error('un essai se prolonge d\'un nombre entier de jours, de 1 à 365');
-        // À partir de la fin de l'essai, ou d'aujourd'hui s'il est déjà fini : un essai prolongé n'est jamais dans le passé.
-        apres.essai_jusqu_au = plusJours(ligne.essai_jusqu_au > jour ? ligne.essai_jusqu_au : jour, jours);
-        details.jours = jours;
-        if (!lu.ligne) await client.query('insert into plateforme.abonnement (entreprise, essai_jusqu_au) values ($1, $2)', [entreprise, apres.essai_jusqu_au]);
-        break;
-      }
-      case 'payer': {
-        if (d.offre !== 'essentiel' && d.offre !== 'complet') throw new Error('l\'offre est « essentiel » ou « complet »');
-        if (d.periodicite !== 'annuel' && d.periodicite !== 'mensuel') throw new Error('la périodicité est « annuel » ou « mensuel »');
-        const p = prochainePeriode(faits, d.periodicite, jour);
-        Object.assign(apres, { paye_jusqu_au: p.fin, offre: d.offre, periodicite: d.periodicite, resilie_le: null });
-        Object.assign(details, { debut: p.debut, fin: p.fin });
-        break;
-      }
-      case 'resilier':
-        if (ligne.resilie_le) throw new Error(`l'abonnement est déjà résilié (le ${jourEnFrancais(ligne.resilie_le)})`);
-        apres.resilie_le = jour;
-        break;
-      case 'annuler-resiliation':
-        if (!ligne.resilie_le) throw new Error('l\'abonnement n\'est pas résilié');
-        apres.resilie_le = null;
-        break;
-      case 'suspendre':
-        if (ligne.suspendu_le) throw new Error(`l'abonnement est déjà suspendu (le ${jourEnFrancais(ligne.suspendu_le)})`);
-        apres.suspendu_le = jour;
-        break;
-      case 'reprendre':
-        if (!ligne.suspendu_le) throw new Error('l\'abonnement n\'est pas suspendu');
-        apres.suspendu_le = null;
-        break;
-      case 'offrir':
-        if (ligne.offert) throw new Error('l\'abonnement est déjà offert');
-        apres.offert = true;
-        break;
-      case 'retirer-offert':
-        if (!ligne.offert) throw new Error('l\'abonnement n\'est pas offert');
-        apres.offert = false;
-        break;
-      default:
-        throw new Error('geste inconnu');
-    }
+    const ligne: Ligne | null = lu.ligne;
+    const { apres, details } = calculerGeste(ligne, lu.faits, d, jour);
+    // Sans ligne, « prolonger » ouvre l'essai, à partir d'aujourd'hui.
+    if (!ligne) await client.query('insert into plateforme.abonnement (entreprise, essai_jusqu_au) values ($1, $2)', [entreprise, apres.essai_jusqu_au]);
     await client.query(`update plateforme.abonnement set essai_jusqu_au = $2, paye_jusqu_au = $3, offre = $4, periodicite = $5, resilie_le = $6, suspendu_le = $7,
         offert = $8, modifie_le = now() where entreprise = $1`,
       [entreprise, apres.essai_jusqu_au, apres.paye_jusqu_au, apres.offre, apres.periodicite, apres.resilie_le, apres.suspendu_le, apres.offert]);

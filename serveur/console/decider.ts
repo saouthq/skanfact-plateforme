@@ -1,0 +1,166 @@
+// L'accueil de la console (skanfact docs/cadrage/10-console.md § 2.1 à 2.3 ; docs/console.md), pur : la liste des
+// clients avec leur état, le tableau du matin, et « À décider ». Trois règles :
+//   - C3 : un chiffre et la liste qu'il ouvre viennent de la MÊME fonction (`categorie`, `lireEntreprises`) ;
+//   - C2 : rien n'est vert sans mesure. Ce que la console ne mesure pas encore se dit « non mesuré », avec la raison ;
+//   - une console où rien ne se passe affiche une liste vide, et le dit : elle n'invente pas de travail.
+
+import { etatAbonnement, joursEntre, lireFaits, plusJours, type Etat, type Faits } from '../abonnement/etat.ts';
+import type { RoleConsole } from './gestes.ts';
+
+export type Entreprise = {
+  id: string; raisonSociale: string; matricule: string | null; active: boolean; creeLe: string;
+  organisation: { id: string; type: string; nom: string }; tenuePar: string | null;
+  proprietaire: { nom: string; email: string } | null; membres: number; derniereActivite: string | null; pieces: number;
+  faits: Faits; etat: Etat;
+};
+
+// Ce que la base rend (plateforme.console_entreprises), lu prudemment : un champ illisible vaut « rien », jamais une
+// valeur devinée ; l'état se déduit du jour de Tunis.
+export function lireEntreprises(brut: unknown, jour: string): Entreprise[] {
+  if (!Array.isArray(brut)) return [];
+  return brut.map((x: Record<string, unknown>) => {
+    const faits = lireFaits((x.faits ?? {}) as Record<string, unknown>);
+    const o = (x.organisation ?? {}) as Record<string, unknown>;
+    const p = x.proprietaire as Record<string, unknown> | null;
+    return {
+      id: String(x.id), raisonSociale: String(x.raisonSociale ?? ''), matricule: typeof x.matricule === 'string' ? x.matricule : null,
+      active: x.active !== false, creeLe: String(x.creeLe ?? ''),
+      organisation: { id: String(o.id ?? ''), type: String(o.type ?? ''), nom: String(o.nom ?? '') },
+      tenuePar: typeof x.tenuePar === 'string' ? x.tenuePar : null,
+      proprietaire: p && typeof p.nom === 'string' ? { nom: p.nom, email: String(p.email ?? '') } : null,
+      membres: Number(x.membres ?? 0), derniereActivite: typeof x.derniereActivite === 'string' ? x.derniereActivite : null,
+      pieces: Number(x.pieces ?? 0), faits, etat: etatAbonnement(faits, jour),
+    };
+  });
+}
+
+export type Categorie = Etat['etat'];
+export const CATEGORIES: readonly Categorie[] = ['essai', 'actif', 'en_retard', 'lecture_seule', 'hors'];
+export const categorie = (e: Entreprise): Categorie => e.etat.etat;
+
+// L'urgence d'un client, pour ranger la liste (« le plus urgent en haut ») : la grâce qui s'achève, la lecture seule de la
+// semaine, l'essai ou l'abonnement qui finit bientôt, puis le reste.
+export function urgence(e: Entreprise, jour: string): [number, number] {
+  const s = e.etat;
+  switch (s.etat) {
+    case 'en_retard': return [0, s.jours];
+    case 'lecture_seule': return joursEntre(s.depuis, jour) <= 7 ? [1, joursEntre(s.depuis, jour)] : [6, 0];
+    case 'essai': return s.jours <= 7 ? [2, s.jours] : [4, s.jours];
+    case 'actif': return s.jours <= 15 ? [3, s.jours] : [5, s.jours];
+    default: return [7, 0];
+  }
+}
+
+const comparerNoms = (a: Entreprise, b: Entreprise) => a.raisonSociale.localeCompare(b.raisonSociale, 'fr', { sensitivity: 'base' });
+export function rangerParUrgence(liste: Entreprise[], jour: string): Entreprise[] {
+  return [...liste].sort((a, b) => {
+    const [ra, ja] = urgence(a, jour), [rb, jb] = urgence(b, jour);
+    return ra - rb || ja - jb || comparerNoms(a, b);
+  });
+}
+
+// Chercher un client : son nom, son matricule, son organisation, son propriétaire (nom ou adresse). Sans les accents ni
+// la casse : « societe » trouve « Société ».
+const plier = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+export function chercher(liste: Entreprise[], texte: string): Entreprise[] {
+  const mots = plier(texte).split(/\s+/).filter(Boolean);
+  if (!mots.length) return liste;
+  return liste.filter((e) => {
+    const champ = plier([e.raisonSociale, e.matricule ?? '', e.organisation.nom, e.proprietaire?.nom ?? '', e.proprietaire?.email ?? '', e.tenuePar ?? ''].join(' '));
+    return mots.every((m) => champ.includes(m));
+  });
+}
+
+// ── La veille du serveur (exploitation/veiller.ts, chaque minute) ────────────────────────────────────────────────────
+export type SuiviVeille = { titre: string; grave: boolean; faire: string; depuis: string };
+// `absente` : aucune veille sur ce serveur (un poste de développement) ; `silencieuse` : elle a écrit, mais plus depuis
+// trop longtemps (elle ne veille plus) ; `ok` : son dernier passage est récent.
+export type Veille = { etat: 'absente' } | { etat: 'silencieuse'; derniere: string } | { etat: 'ok'; derniere: string; problemes: (SuiviVeille & { cle: string })[] };
+export const VEILLE_SILENCIEUSE_MIN = 5;
+
+export function lireVeille(contenu: string | null, modifieLe: Date | null, maintenant: Date): Veille {
+  if (contenu === null || modifieLe === null) return { etat: 'absente' };
+  const derniere = modifieLe.toISOString();
+  if (maintenant.getTime() - modifieLe.getTime() > VEILLE_SILENCIEUSE_MIN * 60_000) return { etat: 'silencieuse', derniere };
+  let lu: unknown;
+  try { lu = JSON.parse(contenu); } catch { return { etat: 'silencieuse', derniere }; }
+  const problemes = Object.entries(((lu as { problemes?: unknown })?.problemes ?? {}) as Record<string, Record<string, unknown>>)
+    .filter(([, p]) => p && typeof p.titre === 'string')
+    .map(([cle, p]) => ({ cle, titre: String(p.titre), grave: p.grave === true, faire: String(p.faire ?? ''), depuis: String(p.depuis ?? '') }))
+    .sort((a, b) => Number(b.grave) - Number(a.grave) || a.depuis.localeCompare(b.depuis));
+  return { etat: 'ok', derniere, problemes };
+}
+
+// ── Le tableau du matin (§ 2.2) ──────────────────────────────────────────────────────────────────────────────────────
+// Une mesure : un nombre, ou « non mesuré » avec sa raison (C2).
+export type Mesure = { mesure: true; n: number } | { mesure: false; raison: 'paiements_a_venir' | 'support_a_venir' };
+export type Tableau = {
+  entreprisesDeLaSemaine: number;
+  essais: number;
+  actifs: { total: number; essentiel: number; complet: number };
+  enRetard: number;
+  lectureSeule: number;
+  revenusDuMois: Mesure;
+  support: Mesure;
+  service: { etat: 'ok' } | { etat: 'problemes'; n: number; graves: number } | { etat: 'non_mesure'; raison: 'pas_de_veille' | 'veille_silencieuse'; derniere?: string };
+};
+
+// Une entreprise inscrite ces sept derniers jours, aujourd'hui compris : la tuile « Inscriptions » la compte, et la liste
+// des clients (« ?nouvelles=1 ») la montre, par cette seule règle (C3).
+export const inscriteCetteSemaine = (e: Entreprise, jour: string) => e.creeLe >= plusJours(jour, -6);
+
+export function tableau(liste: Entreprise[], veille: Veille, jour: string): Tableau {
+  const de = (c: Categorie) => liste.filter((e) => categorie(e) === c);
+  const actifs = de('actif');
+  return {
+    entreprisesDeLaSemaine: liste.filter((e) => inscriteCetteSemaine(e, jour)).length,
+    essais: de('essai').length,
+    actifs: { total: actifs.length, essentiel: actifs.filter((e) => e.faits.offre === 'essentiel').length, complet: actifs.filter((e) => e.faits.offre === 'complet').length },
+    enRetard: de('en_retard').length,
+    lectureSeule: de('lecture_seule').length,
+    // Ce que la console ne mesure pas encore : jamais un zéro qui passerait pour une mesure.
+    revenusDuMois: { mesure: false, raison: 'paiements_a_venir' },
+    support: { mesure: false, raison: 'support_a_venir' },
+    service: veille.etat === 'absente' ? { etat: 'non_mesure', raison: 'pas_de_veille' }
+      : veille.etat === 'silencieuse' ? { etat: 'non_mesure', raison: 'veille_silencieuse', derniere: veille.derniere }
+        : veille.problemes.length ? { etat: 'problemes', n: veille.problemes.length, graves: veille.problemes.filter((p) => p.grave).length } : { etat: 'ok' },
+  };
+}
+
+// ── À décider (§ 2.1) ────────────────────────────────────────────────────────────────────────────────────────────────
+// Chaque ligne dit ce qui demande une décision, et l'écran qu'elle ouvre (la fiche d'un client, le service).
+export type Ligne =
+  | { sorte: 'service'; ouvre: 'service'; cle: string; titre: string; faire: string; depuis: string; grave: boolean }
+  | { sorte: 'veille_silencieuse'; ouvre: 'service'; derniere: string }
+  | { sorte: 'en_retard'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; echeance: string; lectureSeuleLe: string; jours: number; apresEssai: boolean }
+  | { sorte: 'lecture_seule'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; depuis: string; raison: string }
+  | { sorte: 'essai_sans_usage'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; jusquAu: string; jours: number; proprietaire: { nom: string; email: string } | null };
+
+// Un essai qui finit dans trois jours sans avoir servi : pas une pièce créée (devis, facture, achat).
+export const ESSAI_SANS_USAGE_JOURS = 3;
+export const LECTURE_SEULE_DE_LA_SEMAINE = 7;
+
+// Qui lit quoi : la technique, le service seulement ; le support, les clients seulement ; la direction, tout.
+export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role: RoleConsole): Ligne[] {
+  const lignes: [number, number, Ligne][] = [];
+  const service = role !== 'support';
+  const clients = role !== 'technique';
+  if (service && veille.etat === 'silencieuse') lignes.push([0, 0, { sorte: 'veille_silencieuse', ouvre: 'service', derniere: veille.derniere }]);
+  if (service && veille.etat === 'ok') {
+    for (const p of veille.problemes) lignes.push([p.grave ? 0 : 2, 0, { sorte: 'service', ouvre: 'service', ...p }]);
+  }
+  if (clients) {
+    for (const e of liste) {
+      const s = e.etat;
+      const qui = { id: e.id, nom: e.raisonSociale };
+      if (s.etat === 'en_retard') lignes.push([1, s.jours, { sorte: 'en_retard', ouvre: 'fiche', entreprise: qui, echeance: s.echeance, lectureSeuleLe: s.lectureSeuleLe, jours: s.jours, apresEssai: s.apresEssai }]);
+      // Une suspension est une décision de SkanFact : elle n'a pas à revenir ici.
+      else if (s.etat === 'lecture_seule' && s.raison !== 'suspendu' && joursEntre(s.depuis, jour) < LECTURE_SEULE_DE_LA_SEMAINE) {
+        lignes.push([3, joursEntre(s.depuis, jour), { sorte: 'lecture_seule', ouvre: 'fiche', entreprise: qui, depuis: s.depuis, raison: s.raison }]);
+      } else if (s.etat === 'essai' && s.jours <= ESSAI_SANS_USAGE_JOURS && e.pieces === 0) {
+        lignes.push([4, s.jours, { sorte: 'essai_sans_usage', ouvre: 'fiche', entreprise: qui, jusquAu: s.jusquAu, jours: s.jours, proprietaire: e.proprietaire }]);
+      }
+    }
+  }
+  return lignes.sort((a, b) => a[0] - b[0] || a[1] - b[1]).map(([, , l]) => l);
+}

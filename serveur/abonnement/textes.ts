@@ -21,4 +21,16 @@ declarerTextes({
   'abonnement.relance.texte.abonnement': 'Bonjour,\n\nL\'abonnement à SkanFact d\'une de tes entreprises se termine le {date}. Pour continuer sans interruption, renouvelle-le dans SkanFact : Paramètres, puis Ton abonnement.\n\nAprès cette date, tout marche encore sept jours. Ensuite, l\'entreprise passe en lecture seule : tout se lit, s\'imprime et s\'exporte, mais rien de nouveau ne se crée. Tes données restent à toi, et tu peux tout exporter à tout moment.\n\n{lien}',
   'abonnement.relance.texte.lecture_seule': 'Bonjour,\n\nUne de tes entreprises est passée en lecture seule sur SkanFact le {date}. Tout se lit, s\'imprime et s\'exporte, mais rien de nouveau ne se crée. Pour la rouvrir, choisis une offre dans SkanFact : Paramètres, puis Ton abonnement.\n\nTes données restent à toi, et tu peux tout exporter à tout moment.\n\n{lien}',
   'abonnement.relance.bouton': 'Ouvrir SkanFact',
+  // Les gestes de SkanFact sur un abonnement (serveur/abonnement/gestes.ts : l'outil de l'exploitation et la console).
+  'abonnement.geste.sans_ligne': 'cette entreprise n\'a pas d\'abonnement (une restauration dans une autre base) : ouvre-lui d\'abord un essai (« prolonger »)',
+  'abonnement.geste.jours': 'un essai se prolonge d\'un nombre entier de jours, de 1 à 365',
+  'abonnement.geste.offre': 'l\'offre est « essentiel » ou « complet »',
+  'abonnement.geste.periodicite': 'la périodicité est « annuel » ou « mensuel »',
+  'abonnement.geste.deja_resilie': 'l\'abonnement est déjà résilié (le {le})',
+  'abonnement.geste.pas_resilie': 'l\'abonnement n\'est pas résilié',
+  'abonnement.geste.deja_suspendu': 'l\'abonnement est déjà suspendu (le {le})',
+  'abonnement.geste.pas_suspendu': 'l\'abonnement n\'est pas suspendu',
+  'abonnement.geste.deja_offert': 'l\'abonnement est déjà offert',
+  'abonnement.geste.pas_offert': 'l\'abonnement n\'est pas offert',
+  'abonnement.geste.inconnu': 'ce geste sur un abonnement n\'existe pas',
 });

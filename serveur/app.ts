@@ -17,6 +17,8 @@ import { choisirEncodage, compresser, compressible, SEUIL_COMPRESSION } from './
 import { GESTES, GESTES_PERSONNELS } from './porte/gestes.ts';
 import { peut } from './porte/porte.ts';
 import { brancherAbonnement } from './abonnement/condition.ts';
+import { GESTES_CONSOLE } from './console/gestes.ts';
+import { quiEstConsole } from './console/connexion.ts';
 import { nomDuChamp, raison } from './validation.ts';
 
 export type Requete<C> = { corps: C; params: Record<string, string>; query: Record<string, string>; qui: Qui | null; requete: FastifyRequest };
@@ -51,11 +53,17 @@ const PERSONNELS = new Set<string>(GESTES_PERSONNELS);
 
 function verifierDeclaration(r: Route<never>) {
   if (!r.geste) throw new RouteSansGeste(`la route ${r.methode} ${r.chemin} ne déclare aucun geste (03 D2)`);
-  const connu = GESTES.has(r.geste) || PERSONNELS.has(r.geste);
+  const deLaConsole = GESTES_CONSOLE.has(r.geste);
+  const connu = GESTES.has(r.geste) || PERSONNELS.has(r.geste) || deLaConsole;
   if (!connu) throw new RouteSansGeste(`la route ${r.methode} ${r.chemin} déclare un geste inconnu : ${r.geste}`);
   const parEntreprise = GESTES.has(r.geste);
   if (parEntreprise !== r.chemin.includes(':entreprise')) {
     throw new RouteSansGeste(`la route ${r.methode} ${r.chemin} : un geste d'entreprise porte :entreprise dans son chemin, et lui seul`);
+  }
+  // La console vit sous /console/ (docs/console.md), et rien d'autre n'y vit, sinon son entrée (publique).
+  const sousConsole = r.chemin.startsWith('/console/');
+  if (deLaConsole !== sousConsole && !(r.geste === 'public' && r.chemin.startsWith('/console/connexion'))) {
+    throw new RouteSansGeste(`la route ${r.methode} ${r.chemin} : un geste de la console vit sous /console/, et lui seul`);
   }
 }
 
@@ -81,7 +89,8 @@ function erreurVersReponse(e: unknown, reponse: FastifyReply, langue: Langue) {
 // (au catalogue), le corps attendu (tiré des mêmes vérifications que celles du serveur).
 export function documentation(routes: Route<never>[]) {
   const chemins: Record<string, Record<string, unknown>> = {};
-  for (const r of routes) {
+  // La console n'est pas l'API des partenaires : ses routes ne se décrivent pas ici (docs/console.md).
+  for (const r of routes.filter((x) => !x.chemin.startsWith('/console/'))) {
     const chemin = VERSION + r.chemin.replace(/:([a-z_]+)/g, '{$1}');
     const resume = GESTES.has(r.geste) ? t(`geste.${r.geste}`) : t(r.geste === 'public' ? 'doc.public' : 'doc.personnel');
     chemins[chemin] = {
@@ -192,6 +201,25 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
 
         // Toutes les autres routes demandent une session, ou une clé de l'API (03 § 8).
         const jeton = /^Bearer (.+)$/.exec(requete.headers.authorization ?? '')?.[1];
+
+        // La console (0083, docs/console.md) : SA session, jamais celle de l'application ni une clé de l'API. La
+        // transaction s'ouvre au nom du membre de l'équipe, avec sa session posée pour la base, qui revérifie le rôle.
+        const gesteConsole = GESTES_CONSOLE.get(r.geste);
+        if (gesteConsole) {
+          const qc = jeton ? await quiEstConsole(ctx, jeton) : null;
+          if (!qc) return envoyer(401, { motif: motif('console.connexion_requise'), bouton: 'console.connexion' });
+          if (!gesteConsole.roles.includes(qc.role)) {
+            return envoyer(403, { motif: motif('console.role_refuse', { role: t(`role.${qc.role}`), geste: t(`geste.${gesteConsole.code}`) }), qui: [], bouton: null });
+          }
+          const quiConsole: Qui = { utilisateur: qc.utilisateur, session: qc.session, appareil: qc.appareil, posteDUnAutre: false, codeAConfigurer: false, console: { role: qc.role } };
+          try {
+            const res = await enTantQue(ctx.pool, qc.utilisateur, async (tx) => {
+              await tx.query('select set_config(\'app.session_console\', $1, true)', [qc.session]);
+              return r.traiter({ corps: corps as never, params, query, qui: quiConsole, requete }, tx);
+            });
+            return envoyer(res.statut ?? 200, res.corps);
+          } catch (e) { return erreurVersReponse(e, reponse, langue); }
+        }
         const cle = jeton ? await cleValable(ctx, jeton) : null;
         // Les limites d'appels d'une clé (14 § 2.5), avant tout travail : un appel refusé ne coûte rien.
         if (cle) {

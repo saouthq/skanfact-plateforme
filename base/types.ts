@@ -477,6 +477,26 @@ export interface BaseDeDonnees {
     offert: Generated<boolean>;
     modifie_le: Generated<Date>;
   };
+  'plateforme.defi_console': {
+    id: Generated<string>;
+    utilisateur: string;
+    appareil: string;
+    methode: string;
+    code_empreinte: string | null;
+    cree_le: Date;
+    expire_le: Date;
+    erreurs: Generated<number>;
+    envois: Generated<number>;
+    envoye_le: Date | null;
+    resolu_le: Date | null;
+  };
+  'plateforme.equipe': {
+    utilisateur: string;
+    role: string;
+    actif: Generated<boolean>;
+    ajoute_le: Generated<Date>;
+    retire_le: Date | null;
+  };
   'plateforme.evenement_abonnement': {
     id: Generated<string>;
     entreprise: string;
@@ -484,6 +504,19 @@ export interface BaseDeDonnees {
     nature: string;
     par: string;
     motif: string | null;
+    avant: ColumnType<Json | null, string | null, string | null>;
+    apres: ColumnType<Json | null, string | null, string | null>;
+  };
+  'plateforme.geste_console': {
+    id: Generated<string>;
+    le: Generated<Date>;
+    qui: string | null;
+    role: string | null;
+    geste: string;
+    entreprise: string | null;
+    membre: string | null;
+    evenement: string | null;
+    motif: string;
     avant: ColumnType<Json | null, string | null, string | null>;
     apres: ColumnType<Json | null, string | null, string | null>;
   };
@@ -498,6 +531,17 @@ export interface BaseDeDonnees {
     echeance: string;
     rang: string;
     partie_le: Date;
+  };
+  'plateforme.session_console': {
+    id: Generated<string>;
+    utilisateur: string;
+    appareil: string;
+    jeton_empreinte: string;
+    ouverte_le: Date;
+    derniere_activite: Date;
+    expire_le: Date;
+    fermee_le: Date | null;
+    ip: string | null;
   };
   'socle.abonnement_avis': {
     id: Generated<string>;

@@ -7,7 +7,7 @@ dépôt `skanfact`. Ce document dit ce qui en est fait ; les décisions marquée
 Avant ce lot, **rien ne s'arrêtait jamais** : une entreprise travaillait pour toujours sans rien payer, et l'écran parlait
 encore de la « licence » de la v10 de bureau (une clé qu'on colle), qui n'a pas de sens en ligne.
 
-Le code : la base `base/migrations/0082_abonnement.sql` (le schéma `plateforme`, celui de la future console : l'abonnement,
+Le code : la base `base/migrations/0082_abonnement.sql` (le schéma `plateforme`, celui de la console : l'abonnement,
 ce qui lui est arrivé, les relances parties, les prix datés ; l'essai qui naît avec l'entreprise ; quatre lectures, chacune
 par une fonction), le serveur `serveur/abonnement/` (`etat.ts` déduit l'état, `condition.ts` la lecture seule à la porte,
 `relances.ts`, `routes.ts`, `textes.ts`), les gestes de l'exploitant `base/abonnement.ts` et `exploitation/abonnement.sh`,
@@ -78,7 +78,8 @@ suivant ; sans relais d'e-mails, rien ne part (l'état, lui, reste vrai). **Ce q
 (par délégation, comme l'alerte de la messagerie) : l'adresse, un objet, la date, l'adresse de l'application. **Ni le nom
 de l'entreprise** (« une de tes entreprises »), ni un identifiant, ni un montant.
 
-**A6. Les gestes de SkanFact, en attendant la console** (10 § 2.4), sur le serveur, en root :
+**A6. Les gestes de SkanFact** (10 § 2.4), depuis la console (`docs/console.md`, depuis Console 1) ou, sur le serveur,
+en root :
 
 ```
 sudo bash /opt/skanfact/depot/exploitation/abonnement.sh <entreprise> voir
@@ -122,7 +123,8 @@ arrondies ; vérifié en clair et en sombre.
   factures de l'abonnement préparées en brouillon chez SkanFact.
 - **14c** : ce qui distingue Essentiel et Complet (la paie, la comptabilité complète, les caisses, les établissements, le
   nombre d'utilisateurs, que rien ne compte encore).
-- **La console** (10) : voir les abonnements et faire ces gestes depuis un écran, avec la liste « À décider ».
+- **La console** (10) : voir les abonnements et faire ces gestes depuis un écran, avec la liste « À décider ». Faite
+  ensuite, en première partie (Console 1, `docs/console.md`).
 - Le prix gardé deux ans des cent premières entreprises (07, « les premiers clients ») : avec les factures, en 14b.
 - L'anglais des relances (avec son catalogue, vague 4).
 

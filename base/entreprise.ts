@@ -119,6 +119,11 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.evenement_abonnement': { classe: 'hors', raison: 'l\'histoire de l\'abonnement chez SkanFact, avec les notes de SkanFact' },
   'plateforme.relance_abonnement': { classe: 'hors', raison: 'les relances déjà parties : une remise ne les fait pas repartir' },
   'plateforme.prix': { classe: 'hors', raison: 'la grille de SkanFact, commune à toutes les entreprises' },
+  // La console (0083, docs/console.md) : l'équipe SkanFact, sa connexion et son journal. Rien de cela n'est à l'entreprise.
+  'plateforme.equipe': { classe: 'hors', raison: 'l\'équipe de SkanFact, commune à la plateforme' },
+  'plateforme.defi_console': { classe: 'hors', raison: 'un secret de connexion ne quitte jamais la plateforme' },
+  'plateforme.session_console': { classe: 'hors', raison: 'une session ouverte est une clé de connexion' },
+  'plateforme.geste_console': { classe: 'hors', raison: 'le journal de la console de SkanFact, avec ses notes : une remise ne le fait jamais revenir en arrière' },
   'socle.dossier_v10_retire': { classe: 'hors', raison: 'les traces de retrait servent la relecture des postes ; après une restauration, un poste relit tout' },
   // Ce qu'un appareil retiré a remis (0044) : à l'entreprise, décidé ou non.
   'socle.quarantaine': { classe: 'entreprise' },

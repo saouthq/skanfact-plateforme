@@ -3,6 +3,7 @@
 // se propose que si le serveur sait envoyer l'e-mail ; « Créer mon compte » est un vrai bouton (c'était un petit lien
 // gris que le débutant ne voyait pas). Un refus se dit en bas de l'écran et montre son champ.
 import { useEffect, useState } from 'react';
+import { nomDeCetAppareil } from '../appareil.ts';
 import { appeler, ErreurReseau, session } from '../api.ts';
 import { Bouton } from '../composants/Bouton.tsx';
 import { Case, Champ } from '../composants/Champ.tsx';
@@ -34,13 +35,6 @@ const rien = () => undefined;
 // Le contact de SkanFact, sur son site.
 export const AIDE = 'https://skanfact.tn/contact.html';
 
-// Le nom de cet appareil, lisible dans « Tes appareils » (brique 74) : « Chrome sur Windows ».
-export function nomDeCetAppareil() {
-  const n = navigator.userAgent;
-  const nav = /Edg\//.test(n) ? 'Edge' : /Firefox\//.test(n) ? 'Firefox' : /Chrome\//.test(n) ? 'Chrome' : /Safari\//.test(n) ? 'Safari' : 'Navigateur';
-  const os = /Android/.test(n) ? 'Android' : /iPhone|iPad/.test(n) ? 'iPhone' : /Windows/.test(n) ? 'Windows' : /Mac OS X|Macintosh/.test(n) ? 'Mac' : /Linux/.test(n) ? 'Linux' : '';
-  return os ? `${nav} sur ${os}` : nav;
-}
 
 // Ce que ce serveur sait faire à l'entrée, seulement avec un relais d'e-mails : le mot de passe oublié, et l'adresse
 // vérifiée par un code (0076).

@@ -34,6 +34,8 @@
 //   SKANFACT_LECTURES        combien de factures d'achat se lisent à la fois sur ce serveur (2 par défaut) ;
 //                            la lecture demande Tesseract (avec le français) et Poppler, sinon elle n'est
 //                            pas branchée (et l'écran le dit)
+//   SKANFACT_VEILLE_FICHIER  ce que la veille du serveur écrit chaque minute (/var/lib/skanfact/veille.json par
+//                            défaut) : la console le lit ; absent, elle dit le service « non mesuré »
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -66,6 +68,7 @@ import { declarerGestesMessagerie } from './messagerie/gestes.ts';
 import { prevenirParCourriel } from './messagerie/postier.ts';
 import { relancerLesAbonnements } from './abonnement/relances.ts';
 import { routesAbonnement } from './abonnement/routes.ts';
+import { routesConsole } from './console/routes.ts';
 import { routesMessagerie } from './messagerie/routes.ts';
 import { declarerGestesVentes } from './ventes/gestes.ts';
 import { routesVentes } from './ventes/routes.ts';
@@ -92,6 +95,9 @@ export type Configuration = {
   // La version du code, écrite dans chaque page et au pied du menu (serveur/ecrans.ts) : lue dans le dépôt, sauf si
   // l'environnement la donne (SKANFACT_VERSION).
   version: string;
+  // Le fichier où la veille du serveur écrit ce qu'elle voit chaque minute (exploitation/veiller.ts) : la console le lit
+  // (docs/console.md). Absent, la console dit le service « non mesuré ».
+  veille: string;
 };
 
 export class ConfigurationFausse extends Error {}
@@ -162,6 +168,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     relancesMs: Number(env.SKANFACT_RELANCES_MS ?? 3_600_000),
     lectures, partenaires, proxy, version: env.SKANFACT_VERSION ?? versionDuCode(),
     courriel: smtp && de ? { smtp, de } : null,
+    veille: env.SKANFACT_VEILLE_FICHIER ?? path.join(env.SKANFACT_ETAT ?? '/var/lib/skanfact', 'veille.json'),
   };
 }
 
@@ -230,7 +237,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   declarerGestesPaie();
   declarerGestesCompta();
   declarerGestesMessagerie();
-  const app = creerApp(ctx, [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesAbonnement()], { proxy: c.proxy });
+  const app = creerApp(ctx, [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx), ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesAbonnement(), ...routesConsole(ctx, { veille: c.veille })], { proxy: c.proxy });
   servirLesEcrans(app, c.web, c.version);
   const adresse = await app.listen({ port: c.port, host: c.hote });
   if (!publique) publique = adresse;

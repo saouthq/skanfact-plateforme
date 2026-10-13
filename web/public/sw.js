@@ -12,7 +12,10 @@ const CACHE = 'skanfact-ecrans-2';
 // jamais les deux, brique 118) et tout ce qu'elles chargent.
 const ENTREES = ['/'];
 
-const pasPourMoi = (u) => u.origin !== self.location.origin || u.pathname === '/v1' || u.pathname.startsWith('/v1/');
+// Ni l'API (/v1), ni la console de l'équipe SkanFact (/console, docs/console.md) : un outil en ligne, jamais gardé pour le
+// hors-ligne, et dont une page ne doit jamais retomber sur l'entrée de l'application.
+const pasPourMoi = (u) => u.origin !== self.location.origin || u.pathname === '/v1' || u.pathname.startsWith('/v1/')
+  || u.pathname === '/console' || u.pathname.startsWith('/console/');
 
 // Garder une page et ce qu'elle charge ; ce qui est déjà gardé à la même adresse ne repart pas ; l'ancienne version
 // d'un fichier de la page s'efface.

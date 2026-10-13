@@ -338,6 +338,24 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'un achat se nomme par son identifiant et son libellé', cle: 'base.messagerie.achat', fr: 'un achat se nomme par son identifiant et son libellé' },
   { base: 'ce message n\'a pas de fichier à ranger', cle: 'base.messagerie.rien_a_ranger', fr: 'ce message n\'a pas de fichier à ranger' },
   { base: 'seul le serveur note une alerte partie', cle: 'base.messagerie.alerte_serveur', fr: 'seul le serveur note une alerte partie' },
+  // La console de SkanFact (0083, docs/console.md) : sa session, ses rôles, son journal, ses gestes.
+  { base: 'un geste de la console ne se modifie pas et ne s\'efface pas', cle: 'base.console.geste_intouchable', fr: 'un geste de la console ne se modifie pas et ne s\'efface pas' },
+  { base: 'la console demande une session de la console : connecte-toi à la console', cle: 'base.console.session', fr: 'la console demande une session de la console : connecte-toi à la console' },
+  { base: 'ton rôle dans l\'équipe SkanFact ne permet pas ce geste', cle: 'base.console.role', fr: 'ton rôle dans l\'équipe SkanFact ne permet pas ce geste' },
+  { base: 'ce geste n\'existe pas dans la console', cle: 'base.console.geste_inconnu', fr: 'ce geste n\'existe pas dans la console' },
+  { base: 'un geste sur un abonnement demande son motif (trois caractères au moins) : il reste dans son histoire', cle: 'base.console.motif_abonnement', fr: 'un geste sur un abonnement demande son motif (trois caractères au moins) : il reste dans son histoire' },
+  { base: 'cette entreprise n\'existe pas, ou c\'est une entreprise d\'exemple', cle: 'base.console.entreprise', fr: 'cette entreprise n\'existe pas, ou c\'est une entreprise d\'exemple' },
+  { base: 'cet abonnement a changé depuis que tu l\'as ouvert : relis-le avant de refaire le geste', cle: 'base.console.abonnement_change', fr: 'cet abonnement a changé depuis que tu l\'as ouvert : relis-le avant de refaire le geste' },
+  { base: 'le support prolonge un essai, rien d\'autre : le reste se demande à la direction', cle: 'base.console.support_essai', fr: 'le support prolonge un essai, rien d\'autre : le reste se demande à la direction' },
+  { base: 'le support prolonge un essai de 7 à 30 jours : au-delà, la direction', cle: 'base.console.support_jours', fr: 'le support prolonge un essai de 7 à 30 jours : au-delà, la direction' },
+  { base: 'cet essai a déjà été prolongé une fois : une nouvelle prolongation se demande à la direction', cle: 'base.console.support_une_fois', fr: 'cet essai a déjà été prolongé une fois : une nouvelle prolongation se demande à la direction' },
+  { base: 'ce rôle n\'existe pas dans l\'équipe SkanFact', cle: 'base.console.role_inconnu', fr: 'ce rôle n\'existe pas dans l\'équipe SkanFact' },
+  { base: 'un geste sur l\'équipe demande son motif (trois caractères au moins)', cle: 'base.console.motif_equipe', fr: 'un geste sur l\'équipe demande son motif (trois caractères au moins)' },
+  { base: 'aucun compte SkanFact n\'a cette adresse : la personne crée d\'abord son compte sur l\'application', cle: 'base.console.compte_inconnu', fr: 'aucun compte SkanFact n\'a cette adresse : la personne crée d\'abord son compte sur l\'application' },
+  { base: 'cette personne fait déjà partie de l\'équipe SkanFact : change son rôle dans la liste', cle: 'base.console.deja_membre', fr: 'cette personne fait déjà partie de l\'équipe SkanFact : change son rôle dans la liste' },
+  { base: 'cette personne a déjà ce rôle', cle: 'base.console.meme_role', fr: 'cette personne a déjà ce rôle' },
+  { base: 'l\'équipe garde toujours une personne à la direction', cle: 'base.console.derniere_direction', fr: 'l\'équipe garde toujours une personne à la direction' },
+  { base: 'personne ne se retire soi-même de l\'équipe SkanFact', cle: 'base.console.soi_meme', fr: 'personne ne se retire soi-même de l\'équipe SkanFact' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

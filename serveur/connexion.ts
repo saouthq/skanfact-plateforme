@@ -20,6 +20,7 @@ import { enTantQue } from './base.ts';
 import { Refus } from './erreurs.ts';
 import { correspond, empreinte, verifierPolitique, verifierPourRien, type ListeVolee } from './mot-de-passe.ts';
 import type { Partenaire } from './partenaires.ts';
+import type { RoleConsole } from './console/gestes.ts';
 import { numeroMasque } from './sms.ts';
 import { adresseTotp, nouveauSecret, verifierTotp } from './totp.ts';
 import { motif, rendre, t, type Texte } from '../textes/index.ts';
@@ -282,6 +283,8 @@ export type Qui = {
   cle?: { id: string; gestes: string[] } | undefined;
   // Une session ouverte par un code de caisse (brique 123) : elle ne sert qu'à cette entreprise.
   caisseDe?: string | null | undefined;
+  // Une session de la CONSOLE (0083, docs/console.md) : un membre de l'équipe SkanFact, et son rôle.
+  console?: { role: RoleConsole } | undefined;
 };
 
 // Qui est derrière ce jeton ? `null` si la session est fermée, trop longtemps inactive, ou si son

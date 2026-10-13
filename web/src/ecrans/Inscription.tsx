@@ -13,7 +13,8 @@ import { Dessin, PageDouble, VitrineCompte, VitrineInvitation } from '../composa
 import { toast } from '../composants/Toast.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
-import { defiDe, nomDeCetAppareil, useOptions, type Defi } from './Connexion.tsx';
+import { nomDeCetAppareil } from '../appareil.ts';
+import { defiDe, useOptions, type Defi } from './Connexion.tsx';
 
 const rien = () => undefined;
 
