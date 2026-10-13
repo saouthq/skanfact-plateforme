@@ -136,6 +136,10 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.service_envoi': { classe: 'hors', raison: 'les messages de la veille à l\'équipe SkanFact (e-mail, SMS) : l\'histoire de la plateforme' },
   'plateforme.service_sourdine': { classe: 'hors', raison: 'les sourdines posées par l\'équipe SkanFact sur les règles de la veille, avec leur motif' },
   'plateforme.service_demande': { classe: 'hors', raison: 'les alertes d\'essai demandées depuis la console de SkanFact' },
+  'plateforme.service_incident': { classe: 'hors', raison: 'les incidents du service, toutes entreprises mêlées, et leur compte rendu : l\'histoire de la plateforme' },
+  'plateforme.service_incident_point': { classe: 'hors', raison: 'les points d\'un incident du service, écrits par l\'équipe SkanFact' },
+  'plateforme.service_suite': { classe: 'hors', raison: 'les suites promises par le compte rendu d\'un incident du service, confiées à l\'équipe SkanFact' },
+  'plateforme.service_maintenance': { classe: 'hors', raison: 'les maintenances annoncées sur la page d\'état : l\'histoire de la plateforme' },
   'socle.dossier_v10_retire': { classe: 'hors', raison: 'les traces de retrait servent la relecture des postes ; après une restauration, un poste relit tout' },
   // Ce qu'un appareil retiré a remis (0044) : à l'entreprise, décidé ou non.
   'socle.quarantaine': { classe: 'entreprise' },
