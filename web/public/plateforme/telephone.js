@@ -11,6 +11,10 @@
 //    sur un tableau d'au moins quatre colonnes, `data-label` (le titre de la colonne) sur chaque case, `data-tel`
 //    « titre » sur la première case qui nomme la ligne et « vide » sur une case sans rien. Les mêmes cases, dans le même
 //    ordre, avec les mêmes gestes : une ligne se touche, « Actions » s'ouvre, un titre de colonne trie.
+// 3. Les chiffres des cartes (13/10/2026). Au téléphone, deux cartes par rangée : un montant de huit chiffres
+//    (« 12 500,000 DT », le prix de vente d'un stock) dépassait de sa carte, qui le coupait. Un montant se lit d'un
+//    bloc, il ne passe pas à la ligne : trop long pour sa carte, il se resserre d'un cran, puis d'un second
+//    (`data-tel-serre`, telephone.css). Ce qui tient garde la taille de la v10.
 (function () {
   'use strict';
   function poserMenu() {
@@ -70,11 +74,26 @@
       }
     }
   }
+  // ── Les chiffres des cartes ──
+  // Le plus petit cran qui fait tenir le chiffre dans sa carte : rien, puis 1, puis 2 (au-delà, le dernier). C'est la
+  // CARTE qui se mesure : le chiffre, case de sa grille, s'élargit avec lui et ne déborde jamais de lui-même. Chaque
+  // essai se mesure avant l'affichage : on ne voit jamais le chiffre changer de taille.
+  /** @param {Element} carte */
+  function serrer(carte) {
+    const val = carte.querySelector(':scope > .val');
+    if (!val) return;
+    for (const cran of ['', '1', '2']) {
+      poser(val, 'data-tel-serre', cran);
+      if (carte.scrollWidth <= carte.clientWidth + 1) return;
+    }
+  }
+
   let prevu = 0;
   function passer() {
     prevu = 0;
     if (!TELEPHONE.matches) return;
     for (const t of document.querySelectorAll('table.list')) enCartes(/** @type {HTMLTableElement} */ (t));
+    for (const c of document.querySelectorAll('.stats:not(.rangee) > .stat')) serrer(c);
   }
   // Une liste se redessine souvent (un filtre, une page, une ligne réglée) : on repasse avant le prochain affichage,
   // une fois par image, et seulement au téléphone.

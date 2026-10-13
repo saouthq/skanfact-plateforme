@@ -76,6 +76,11 @@
      les douze mois d'un dossier sur trois rangées de quatre (sur deux de six, « hors mission » débordait). */
   .stats.rangee { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  /* Un chiffre trop long pour sa carte se resserre (telephone.js, `data-tel-serre`) : un montant ne passe pas à la
+     ligne, et sa carte ne le coupe plus (« 12 500,000 DT », le prix de vente d'un stock, à 390 points). */
+  .stat .val[data-tel-serre="1"] { font-size: 18px; }
+  .stat .val[data-tel-serre="2"] { font-size: 15px; }
 }
 
 /* La taille du doigt : au téléphone, et sur tout écran qu'on touche (une tablette au comptoir). */

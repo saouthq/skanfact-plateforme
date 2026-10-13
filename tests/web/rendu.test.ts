@@ -174,7 +174,9 @@ describe('l\'instrument de rendu des écrans', () => {
     const ligne = { label: 'Ciment gris 50 kg — livraison sur chantier', description: '', qty: 12, unit: 'sac', unitPrice: 25, vatRate: 19, itemId: 'ciment' };
     const ecrit = await api('POST', `/entreprises/${d.ent}/dossier-v10`, d.jeton, { changements: [
       { collection: 'clients', cle: client.id, rang: 9, revision: null, contenu: client },
-      { collection: 'catalog', cle: 'ciment', rang: 0, revision: null, contenu: { id: 'ciment', label: 'Ciment gris 50 kg', unit: 'sac', unitPrice: 25, vatRate: 19, tracked: true, initialQty: 100 } },
+      // Son prix de vente au catalogue fait un stock de « 12 500,000 DT » : huit chiffres, qui dépassaient de leur carte
+      // au téléphone (13/10/2026). À 25, le montant tenait avec les polices de GitHub, et le défaut ne se voyait pas.
+      { collection: 'catalog', cle: 'ciment', rang: 0, revision: null, contenu: { id: 'ciment', label: 'Ciment gris 50 kg', unit: 'sac', unitPrice: 125, vatRate: 19, tracked: true, initialQty: 100 } },
       { collection: 'documents', cle: 'dv1', rang: 0, revision: null, contenu: { id: 'dv1', type: 'devis', number: 'DEV-2026-001', status: 'envoyé', date: aujourdhui, clientId: client.id, createdAt: 1, lines: [ligne], discountRate: 0, withholdingRate: 0, payments: [] } },
       { collection: 'suppliers', cle: 's1', rang: 0, revision: null, contenu: { id: 's1', name: 'Les Ciments de Bizerte' } },
       { collection: 'purchases', cle: 'p1', rang: 0, revision: null, contenu: { id: 'p1', kind: 'facture', number: 'CB-2026-0457', supplierId: 's1', date: aujourdhui, createdAt: 1, lines: [{ ...ligne, unitPrice: 18, destination: 'stock' }], payments: [] } },

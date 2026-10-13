@@ -47,3 +47,14 @@ achat et d'une photo relue ; la première émission, « Ctrl K », « ta seule p
 1 024 × 768). `tests/web/livraisons.test.ts` (le panneau des livraisons en cartes), `tests/web/envois.test.ts`
 (« joins-le »). L'instrument de rendu (`tests/web/rendu.test.ts`, `cabinet-telephone.test.ts`) passe toutes les pages
 du quotidien avec les cartes. 24 preuves nouvelles, 4 reciblées (`tests/preuves.sh`, section « Le lot téléphone »).
+
+## Un chiffre trop long pour sa carte (13/10/2026)
+
+Au téléphone, les cartes de chiffres d'une page (`.stats`) vont deux par rangée, et une carte coupe ce qui la dépasse.
+Le prix de vente d'un stock dépassait de la sienne, et elle le coupait : sept chiffres (« 2 500,000 DT ») avec une
+police plus large que celles de GitHub (Inter, sur le poste d'essai), huit (« 12 500,000 DT ») avec toutes. Un montant
+se lit d'un bloc, il ne passe pas à la ligne : `telephone.js` le **resserre d'un cran**, puis d'un second s'il le faut
+(`data-tel-serre`, 18 puis 15 points) ; un chiffre qui tient garde la taille de la v10. C'est la carte qui se mesure,
+comme le fait l'instrument : le chiffre, case de sa grille, s'élargit avec lui et ne déborde jamais de lui-même. Le
+test (`tests/web/rendu.test.ts`) porte désormais ce stock de huit chiffres : à 25 dinars le sac, le montant tenait sur
+GitHub, et le défaut ne s'y voyait pas.

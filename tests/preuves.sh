@@ -11082,6 +11082,17 @@ prouver 'la console gardée par le service des écrans' web/public/sw.js \
   || u.pathname === '"'"'/console'"'"' || u.pathname.startsWith('"'"'/console/'"'"');' 'u.pathname.startsWith('"'"'/v1/'"'"');' \
   "$CONSW7"
 
+# ── Le téléphone : un chiffre trop long pour sa carte (13/10/2026 ; telephone.js, telephone.css) ──
+prouver "un montant de huit chiffres coupé par sa carte au téléphone" web/public/plateforme/telephone.css \
+  '  .stat .val[data-tel-serre="1"] { font-size: 18px; }
+  .stat .val[data-tel-serre="2"] { font-size: 15px; }
+' '' \
+  "$TEL"
+prouver "les chiffres des cartes jamais resserrés au téléphone" web/public/plateforme/telephone.js \
+  "    for (const c of document.querySelectorAll('.stats:not(.rangee) > .stat')) serrer(c);
+" "" \
+  "$TEL"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
