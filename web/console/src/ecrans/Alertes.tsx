@@ -528,7 +528,7 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
   return (
     <Dialogue titre={nom} sous={sous} fermer={fermer} occupe={occupe}
       pied={<>
-        <Bouton onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
         <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre(`${A}.geste.${g.sorte}.bouton`)}</Bouton>
       </>}>
       <div className="c-al-ce-qui-va">
@@ -549,7 +549,7 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
           <span className="c-champ-aide">{phrase(max < 1440 ? `${A}.geste.sourdine.duree_aide_grave` : `${A}.geste.sourdine.duree_aide`, { h: d.rythme.sourdineGraveH, heure: moment(fin, d.aujourdhui) })}</span>
         </div>
       ) : null}
-      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${A}.geste.${g.sorte}.motif_aide`)} valeur={motif} changer={(v) => { setMotif(v); setRefus(null); }} faute={faute > 0} n={faute} />
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${A}.geste.${g.sorte}.motif_aide`)} valeur={motif} changer={setMotif} faute={faute > 0} n={faute} />
       <p className="c-al-qui">{phrase(`${A}.geste.qui`, { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
       {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
     </Dialogue>

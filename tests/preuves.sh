@@ -11677,11 +11677,11 @@ prouver 'une règle pas branchée mise en sourdine' 'serveur/console/routes.ts' 
 prouver 'un bouton principal sur chaque alerte' 'web/console/src/ecrans/Alertes.tsx' \
   'principale={a.id === d.enCours.find((x) => !x.prise)?.id}' \
   'principale' \
-  'un seul bouton principal, qui passe à la suivante ; un motif vide se refuse, et le refus s'"'"'efface quand on écrit'
-prouver 'un refus qui reste quand on écrit le motif' 'web/console/src/ecrans/Alertes.tsx' \
-  'valeur={motif} changer={(v) => { setMotif(v); setRefus(null); }}' \
+  'un seul bouton principal, qui passe à la suivante ; un motif vide se refuse, et le refus reste jusqu'"'"'au clic suivant'
+prouver 'un refus effacé à la frappe, qui fait remonter le bouton (alertes)' 'web/console/src/ecrans/Alertes.tsx' \
   'valeur={motif} changer={setMotif}' \
-  'un seul bouton principal, qui passe à la suivante ; un motif vide se refuse, et le refus s'"'"'efface quand on écrit'
+  'valeur={motif} changer={(v) => { setMotif(v); setRefus(null); }}' \
+  'un seul bouton principal, qui passe à la suivante ; un motif vide se refuse, et le refus reste jusqu'"'"'au clic suivant'
 prouver 'un menu de règle qui sort de l'"'"'écran' 'web/console/src/ui.tsx' \
   '    setPlace({ top: Math.max(8, Math.min(top, window.innerHeight - h - 8)), right: Math.max(8, window.innerWidth - b.right), haut });' \
   '    setPlace({ top: b.bottom + 6, right: Math.max(8, window.innerWidth - b.right), haut });' \
@@ -12090,6 +12090,26 @@ prouver "le dépôt sans numéro de version" package.json \
 prouver "la gravité d'un incident absente du catalogue des textes" textes/base.ts \
   '  { base: '"'"'une gravité monte, elle ne descend pas : l\'"'"'incident reste au moins %s'"'"', cle: '"'"'base.console.gravite_descend'"'"', fr: '"'"'une gravité monte, elle ne descend pas : l\'"'"'incident reste au moins {gravite}'"'"', valeurs: ['"'"'gravite'"'"'] },' "" \
   "$VE8"
+
+# Une fenêtre remplie demande avant de jeter la saisie (docs/console.md, les fenêtres) : Échap, la croix et « Annuler »
+# passent par la même garde ; choisir dans une liste n'est pas taper ; le refus d'un motif reste jusqu'au clic suivant.
+GA1='une fenêtre où l'"'"'on a tapé demande avant de jeter la saisie ; sans rien taper, elle se ferme tout de suite'
+GA2='un point vide se refuse ; écrit, il entre dans l'"'"'histoire de l'"'"'incident'
+prouver "une saisie jetée sur Échap, sans question" web/console/src/ui.tsx \
+  "if (depart.current !== null && saisieDe(corps.current) !== depart.current) setQuestion(true);" "if (false) setQuestion(true);" \
+  "$GA1"
+prouver "« Annuler » qui contourne la garde de la fenêtre" web/console/src/ui.tsx \
+  "const clic = ferme && fermerLaFenetre ? fermerLaFenetre : onClick;" "const clic = onClick;" \
+  "$GA1"
+prouver "un choix dans une liste compté comme une saisie" web/console/src/ui.tsx \
+  "const CHAMPS_TAPES = 'input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=button]):not([type=submit]):not([type=range]), textarea';" "const CHAMPS_TAPES = 'input, textarea, select';" \
+  "$GA1"
+prouver "la question qui met le curseur sur « Abandonner »" web/console/src/ui.tsx \
+  "querySelector<HTMLElement>('.c-dialogue-question .c-btn-principal')?.focus()" "querySelector<HTMLElement>('.c-dialogue-question .c-btn')?.focus()" \
+  "$GA1"
+prouver "un refus effacé à la frappe, qui fait remonter le bouton (incidents)" web/console/src/ecrans/Incidents.tsx \
+  "        changer={setTexte} faute={e.faute('texte')}" "        changer={(v) => { setTexte(v); e.setRefus(null); }} faute={e.faute('texte')}" \
+  "$GA2"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

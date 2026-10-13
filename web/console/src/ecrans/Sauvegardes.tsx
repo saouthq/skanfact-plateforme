@@ -462,7 +462,7 @@ function FenetreRemise({ d, fermer, fait }: { d: Donnees; fermer: () => void; fa
   return (
     <Dialogue titre={titre(`${G}.r.f.titre`)} sous={phrase(`${G}.r.f.sous`)} fermer={fermer} occupe={occupe}
       pied={<>
-        <Bouton onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
         <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre(`${G}.r.f.composer`)}</Bouton>
       </>}>
       <div className="c-al-ce-qui-va">

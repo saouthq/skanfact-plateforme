@@ -1,8 +1,8 @@
 // Les pièces des écrans de la console : les dessins, les boutons, les puces d'état, les champs, la fenêtre et le message
 // passager. Dessinés pour la console seulement (console.css) : l'application garde les siens.
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { titre } from './langue.ts';
+import { phrase, titre } from './langue.ts';
 
 // ── Les dessins (24 × 24, un trait) ─────────────────────────────────────────────────────────────────────────────────
 const DESSINS = {
@@ -54,14 +54,21 @@ export function Icone({ nom, taille = 18 }: { nom: NomIcone; taille?: number }) 
 }
 
 // ── Les boutons ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// La fermeture gardée de la fenêtre où un bouton est posé (Dialogue) ; hors d'une fenêtre, rien.
+const FermerDuDialogue = createContext<(() => void) | null>(null);
 type PropsBouton = {
   children: ReactNode; ton?: 'principal' | 'secondaire' | 'discret' | 'danger'; petit?: boolean; large?: boolean; occupe?: boolean;
   desactive?: boolean; type?: 'button' | 'submit'; onClick?: () => void; icone?: NomIcone; fleche?: boolean; etiquette?: string; id?: string;
+  // Le bouton qui referme sa fenêtre sans rien faire (« Annuler », « Garder… ») : dans une fenêtre, il passe par la même
+  // garde que la croix et Échap (Dialogue) — une saisie tapée ne se jette pas sans qu'on le demande.
+  ferme?: boolean;
 };
-export function Bouton({ children, ton = 'secondaire', petit, large, occupe = false, desactive = false, type = 'button', onClick, icone, fleche, etiquette, id }: PropsBouton) {
+export function Bouton({ children, ton = 'secondaire', petit, large, occupe = false, desactive = false, type = 'button', onClick, icone, fleche, etiquette, id, ferme }: PropsBouton) {
   const c = ['c-btn', ton === 'secondaire' ? '' : `c-btn-${ton}`, petit ? 'c-btn-petit' : '', large ? 'c-btn-large' : ''].filter(Boolean).join(' ');
+  const fermerLaFenetre = useContext(FermerDuDialogue);
+  const clic = ferme && fermerLaFenetre ? fermerLaFenetre : onClick;
   return (
-    <button type={type} className={c} onClick={onClick} disabled={occupe || desactive} aria-busy={occupe || undefined}
+    <button type={type} className={c} onClick={clic} disabled={occupe || desactive} aria-busy={occupe || undefined}
       {...(etiquette ? { 'aria-label': etiquette } : {})} {...(id ? { id } : {})}>
       {icone ? <Icone nom={icone} taille={17} /> : null}
       {children}
@@ -243,31 +250,71 @@ export function Choix({ libelle, aide, valeur, changer, options }: Commun & { va
 // ── La fenêtre : un titre, sa phrase, le corps, et les boutons en pied. Échap, la croix ou « Annuler » la ferment (sauf
 // pendant un geste) ; un clic à côté, jamais : c'est le geste le plus accidentel, et il jetterait ce qu'on vient de taper
 // (un nombre de jours, un motif). Le curseur entre dans le premier champ, sinon sur « Fermer ».
+// Ce qu'on a tapé dans une fenêtre : ses champs de texte. Une liste, une case à cocher se CHOISISSENT : changer d'avis
+// n'y coûte qu'un clic, ils ne comptent pas (choisir n'est pas taper).
+const CHAMPS_TAPES = 'input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=button]):not([type=submit]):not([type=range]), textarea';
+export const saisieDe = (cadre: ParentNode | null | undefined) =>
+  JSON.stringify([...(cadre?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(CHAMPS_TAPES) ?? [])].map((c) => c.value));
+
+// Une fenêtre. Échap, la croix et son bouton « Annuler » (`ferme`) la referment ; si l'on y a TAPÉ quelque chose depuis
+// son ouverture, ils demandent d'abord « Abandonner cette saisie ? » — un motif d'une ligne ne se perd pas sur une touche.
+// L'instantané se prend après le montage : ce que la fenêtre préremplit n'est pas une saisie. Réussi, un geste referme la
+// fenêtre par son propre chemin, sans question.
 export function Dialogue({ titre: t, sous, fermer, occupe = false, children, pied }: { titre: string; sous?: string | undefined; fermer: () => void; occupe?: boolean; children: ReactNode; pied: ReactNode }) {
   const id = useId();
   const cadre = useRef<HTMLDivElement>(null);
-  const fermerSiLibre = useRef(fermer);
-  fermerSiLibre.current = () => { if (!occupe) fermer(); };
+  const corps = useRef<HTMLDivElement>(null);
+  const depart = useRef<string | null>(null);
+  const [question, setQuestion] = useState(false);
+  const enQuestion = useRef(false);
+  enQuestion.current = question;
+  const demander = useRef(fermer);
+  demander.current = () => {
+    if (occupe) return;
+    if (depart.current !== null && saisieDe(corps.current) !== depart.current) setQuestion(true);
+    else fermer();
+  };
+  const fermerGarde = useCallback(() => { demander.current(); }, []);
+  const reprendre = useCallback(() => {
+    setQuestion(false);
+    requestAnimationFrame(() => corps.current?.querySelector<HTMLElement>(CHAMPS_TAPES)?.focus());
+  }, []);
   useEffect(() => {
     const avant = document.activeElement as HTMLElement | null;
     const premier = cadre.current?.querySelector<HTMLElement>('input, textarea, select');
     (premier ?? cadre.current?.querySelector<HTMLElement>('.c-fermer'))?.focus();
-    const echap = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); fermerSiLibre.current(); } };
+    depart.current = saisieDe(corps.current);
+    // Échap pendant la question, c'est « reprendre » : la touche qui ferme ne jette jamais ce qu'on a tapé.
+    const echap = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); if (enQuestion.current) reprendre(); else demander.current(); } };
     document.addEventListener('keydown', echap);
     return () => { document.removeEventListener('keydown', echap); avant?.focus?.(); };
-  }, []);
+  }, [reprendre]);
+  // La question pose le curseur sur « Reprendre la saisie » : Entrée ne jette rien par réflexe.
+  useEffect(() => { if (question) cadre.current?.querySelector<HTMLElement>('.c-dialogue-question .c-btn-principal')?.focus(); }, [question]);
   return createPortal(
     <div className="c-voile">
       <div className="c-dialogue" role="dialog" aria-modal="true" aria-labelledby={`${id}-titre`} ref={cadre}>
-        <div className="c-dialogue-tete">
-          <div>
-            <h2 id={`${id}-titre`}>{t}</h2>
-            {sous ? <p className="c-dialogue-sous">{sous}</p> : null}
+        <FermerDuDialogue.Provider value={fermerGarde}>
+          <div className="c-dialogue-tete">
+            <div>
+              <h2 id={`${id}-titre`}>{t}</h2>
+              {sous ? <p className="c-dialogue-sous">{sous}</p> : null}
+            </div>
+            <button type="button" className="c-fermer" aria-label={titre('console.ecran.fermer')} onClick={fermerGarde}><Icone nom="croix" /></button>
           </div>
-          <button type="button" className="c-fermer" aria-label={titre('console.ecran.fermer')} onClick={() => fermerSiLibre.current()}><Icone nom="croix" /></button>
-        </div>
-        <div className="c-dialogue-corps">{children}</div>
-        <div className="c-dialogue-pied">{pied}</div>
+          <div className="c-dialogue-corps" ref={corps}>{children}</div>
+          <div className="c-dialogue-pied">
+            {question ? (
+              <div className="c-dialogue-question" role="alert">
+                <p><b>{titre('console.ecran.dialogue.abandonner_q')}</b> {phrase('console.ecran.dialogue.perdu')}</p>
+                <span className="c-dialogue-question-gestes">
+                  <Bouton onClick={fermer}>{titre('console.ecran.dialogue.abandonner')}</Bouton>
+                  <Bouton ton="principal" onClick={reprendre}>{titre('console.ecran.dialogue.reprendre')}</Bouton>
+                </span>
+              </div>
+            ) : pied}
+          </div>
+        </FermerDuDialogue.Provider>
       </div>
     </div>, document.body);
 }

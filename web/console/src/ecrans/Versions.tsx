@@ -361,7 +361,7 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
   return (
     <Dialogue titre={titre(`${V}.g.${cle}.titre`, valeurs)} sous={version ? d.titres[version] ?? nomDeVersion(version, d.numeros) : undefined} fermer={fermer} occupe={occupe}
       pied={<>
-        <Bouton onClick={fermer} desactive={occupe}>{titre(`${V}.g.${cle}.garder`, valeurs)}</Bouton>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre(`${V}.g.${cle}.garder`, valeurs)}</Bouton>
         <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre(`${V}.g.${cle}.bouton`, valeurs)}</Bouton>
       </>}>
       <div className="c-al-ce-qui-va">

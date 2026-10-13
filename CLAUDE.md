@@ -709,6 +709,9 @@
   variables de la v10. Un haut sombre reste sombre en thème sombre (un filet menthe le détache de son panneau).
   Exemples : `premiers-pas.css`, `messagerie.css`, `abonnement.css`. **Chaque écran se regarde en clair ET en sombre**,
   à la souris, avant d'être envoyé.
+- **Une fenêtre de la console où l'on a tapé demande avant de jeter la saisie** : son bouton d'annulation porte `ferme`
+  (`Bouton ferme`), qui le fait passer par la garde de `Dialogue` comme Échap et la croix. Un refus de motif reste
+  jusqu'au clic suivant (docs/console.md, « Décidé par délégation »).
 
 **Sécurité (sans exception)**
 - Dépôt **public** : jamais de secret, de jeton, de mot de passe réel ni de donnée de client. Les

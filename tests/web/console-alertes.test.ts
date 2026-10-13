@@ -111,7 +111,7 @@ describe('les alertes du service, à la souris', () => {
   });
   beforeEach(() => { fs.utimesSync(veille, new Date(), new Date()); });
 
-  it('un seul bouton principal, qui passe à la suivante ; un motif vide se refuse, et le refus s\'efface quand on écrit', async () => {
+  it('un seul bouton principal, qui passe à la suivante ; un motif vide se refuse, et le refus reste jusqu\'au clic suivant', async () => {
     const p = await ouvrir(await jetonConsole(direction));
     const cartes = p.locator('.c-al-alerte');
     // La plus grave d'abord : la copie, puis le disque.
@@ -126,9 +126,13 @@ describe('les alertes du service, à la souris', () => {
     const f = fenetre(p);
     await cliquer(f.getByRole('button', { name: 'Prendre en charge', exact: true }));
     await expect.poll(() => f.locator('.c-alerte-danger').count()).toBe(1);
-    await f.locator('textarea').fill('je relance l\'envoi');
-    expect(await f.locator('.c-alerte-danger').count()).toBe(0);
-    await cliquer(f.getByRole('button', { name: 'Prendre en charge', exact: true }));
+    // Le refus reste jusqu'au clic suivant : effacé à la frappe, il ferait remonter le bouton sous le curseur.
+    const bouton = f.getByRole('button', { name: 'Prendre en charge', exact: true });
+    const avant = await bouton.boundingBox();
+    await f.locator('textarea').pressSequentially('je relance l\'envoi');
+    expect(await f.locator('.c-alerte-danger').count()).toBe(1);
+    expect((await bouton.boundingBox())?.y).toBe(avant?.y);
+    await cliquer(bouton);
     expect(await toast(p)).toMatch(/^Alerte prise en charge/);
     await expect.poll(() => cartes.nth(0).locator('.c-al-faits').innerText().then(net)).toContain('Par toi');
     // Le bouton principal passe à la carte suivante, que personne n'a prise.

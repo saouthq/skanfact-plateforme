@@ -475,6 +475,11 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 /* Le pied reste sous les yeux quand une longue fenêtre défile : le bouton qui valide ce qu'on vient de taper ne se cherche
    pas sous le bas de l'écran. */
 .c-dialogue-pied { position: sticky; bottom: 0; z-index: 1; display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; padding: 16px 26px 22px; border-top: 1px solid var(--c-trait); background: var(--c-papier-2); }
+/* La question avant de jeter une saisie : elle prend la place des boutons du pied, au même endroit (rien ne bouge
+   ailleurs dans la fenêtre), la phrase à gauche, les deux gestes à droite. */
+.c-dialogue-question { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; inline-size: 100%; }
+.c-dialogue-question p { margin: 0; color: var(--c-encre); }
+.c-dialogue-question-gestes { display: flex; gap: 10px; flex-wrap: wrap; margin-inline-start: auto; }
 .c-fermer { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; border: 0; background: transparent; color: var(--c-gris); cursor: pointer; flex: none; }
 .c-fermer:hover { background: var(--c-gris-doux); color: var(--c-encre); }
 .c-apercu { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 14px; align-items: start; padding: 16px; border-radius: 14px; background: var(--c-papier-2); border: 1px solid var(--c-trait); }

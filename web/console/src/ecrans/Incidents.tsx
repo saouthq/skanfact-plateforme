@@ -456,7 +456,7 @@ function Qui() {
 function Pied({ fermer, occupe, envoyer, bouton, sortie }: { fermer: () => void; occupe: boolean; envoyer: () => void; bouton: string; sortie?: string }) {
   return (
     <>
-      <Bouton onClick={fermer} desactive={occupe}>{sortie ?? titre('console.ecran.annuler')}</Bouton>
+      <Bouton ferme onClick={fermer} desactive={occupe}>{sortie ?? titre('console.ecran.annuler')}</Bouton>
       <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{bouton}</Bouton>
     </>
   );
@@ -481,7 +481,7 @@ function FenetreOuvrir({ d, fermer, fait }: { d: Donnees; fermer: () => void; fa
   return (
     <Dialogue titre={titre(`${I}.ouvrir_f.nom`)} sous={phrase(`${I}.ouvrir_f.sous`)} fermer={fermer} occupe={e.occupe}
       pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={titre(`${I}.ouvrir_f.bouton`)} />}>
-      <Champ libelle={titre(`${I}.ouvrir_f.titre`)} aide={phrase(`${I}.ouvrir_f.titre_aide`)} valeur={t} changer={(v) => { setT(v); e.setRefus(null); }} faute={e.faute('titre')} n={e.n} />
+      <Champ libelle={titre(`${I}.ouvrir_f.titre`)} aide={phrase(`${I}.ouvrir_f.titre_aide`)} valeur={t} changer={setT} faute={e.faute('titre')} n={e.n} />
       <div className="c-champ">
         <span className="c-champ-libelle" id="in-grav">{titre(`${I}.ouvrir_f.gravite`)}</span>
         <div className="c-pilules c-in-pilules" role="group" aria-labelledby="in-grav">
@@ -497,8 +497,8 @@ function FenetreOuvrir({ d, fermer, fait }: { d: Donnees; fermer: () => void; fa
         <input type="checkbox" checked={publier} onChange={(x) => setPublier(x.target.checked)} />
         <span>{phrase(`${I}.ouvrir_f.publier`)}</span>
       </label>
-      {publier ? <Zone libelle={titre(`${I}.ouvrir_f.public`)} aide={phrase(`${I}.ouvrir_f.public_aide`)} valeur={pub} changer={(v) => { setPub(v); e.setRefus(null); }} faute={e.faute('public')} n={e.n} /> : null}
-      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${I}.ouvrir_f.motif_aide`)} valeur={motif} changer={(v) => { setMotif(v); e.setRefus(null); }} faute={e.faute('motif')} n={e.n} />
+      {publier ? <Zone libelle={titre(`${I}.ouvrir_f.public`)} aide={phrase(`${I}.ouvrir_f.public_aide`)} valeur={pub} changer={setPub} faute={e.faute('public')} n={e.n} /> : null}
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${I}.ouvrir_f.motif_aide`)} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
       <Qui />
       {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
     </Dialogue>
@@ -521,7 +521,7 @@ function FenetrePoint({ i, publicDemande, fermer, fait }: { i: Incident; publicD
     <Dialogue titre={titre(pub ? `${I}.point.titre_public` : `${I}.point.titre`)} sous={`${i.ref} · ${maj(i.titre)}`} fermer={fermer} occupe={e.occupe}
       pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={titre(pub ? `${I}.point.bouton_public` : `${I}.point.bouton`)} />}>
       <Zone libelle={titre(pub ? `${I}.point.texte_public` : `${I}.point.texte`)} aide={phrase(pub ? `${I}.point.aide_public` : `${I}.point.aide`)} valeur={texte}
-        changer={(v) => { setTexte(v); e.setRefus(null); }} faute={e.faute('texte')} n={e.n} />
+        changer={setTexte} faute={e.faute('texte')} n={e.n} />
       <label className="c-in-case">
         <input type="checkbox" checked={pub} onChange={(x) => setPub(x.target.checked)} />
         <span>{phrase(`${I}.point.case_public`)}</span>
@@ -557,7 +557,7 @@ function FenetreMotif({ titreF, sous, points, chemin, corps, dit, bouton, sortie
         <span className="c-champ-libelle">{titre(`${K}.al.geste.ce_qui_va`)}</span>
         <ul>{points.map((x) => <li key={x}>{x}</li>)}</ul>
       </div>
-      <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={(v) => { setMotif(v); e.setRefus(null); }} faute={e.faute('motif')} n={e.n} />
+      <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
       <Qui />
       {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
     </Dialogue>
@@ -578,8 +578,8 @@ function FenetreRepousser({ s, d, fermer, fait }: { s: SuiteATenir; d: Donnees; 
     <Dialogue titre={titre(`${I}.repousser.titre`)} sous={maj(s.titre)} fermer={fermer} occupe={e.occupe}
       pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={titre(`${I}.repousser.bouton`)} />}>
       <Champ libelle={titre(`${I}.repousser.nouvelle`)} aide={phrase(`${I}.repousser.aide`, { jour: jourMois(s.due), n: s.repoussee })} type="date" valeur={due}
-        changer={(v) => { setDue(v); e.setRefus(null); }} faute={e.faute('due')} n={e.n} />
-      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${I}.repousser.motif_aide`)} valeur={motif} changer={(v) => { setMotif(v); e.setRefus(null); }} faute={e.faute('motif')} n={e.n} />
+        changer={setDue} faute={e.faute('due')} n={e.n} />
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${I}.repousser.motif_aide`)} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
       <Qui />
       {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
     </Dialogue>
@@ -625,28 +625,28 @@ function FenetreClore({ i, d, fermer, fait }: { i: Incident; d: Donnees; fermer:
     <Dialogue titre={titre(`${I}.clore.titre`)} sous={`${i.ref} · ${maj(i.titre)}`} fermer={fermer} occupe={e.occupe}
       pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={titre(`${I}.clore.bouton`)} />}>
       <p className="c-sous">{phrase(`${I}.clore.explique`)}</p>
-      <Champ libelle={titre(`${I}.clore.fin`)} aide={phrase(`${I}.clore.fin_aide`)} type="datetime-local" valeur={fin} changer={(v) => { setFin(v); e.setRefus(null); }} faute={e.faute('fin')} n={e.n} />
-      <Zone libelle={titre(`${I}.clore.effet`)} aide={phrase(`${I}.clore.effet_aide`)} max={2000} valeur={effet} changer={(v) => { setEffet(v); e.setRefus(null); }} faute={e.faute('effet')} n={e.n} />
-      <Zone libelle={titre(`${I}.clore.cause`)} aide={phrase(`${I}.clore.cause_aide`)} max={2000} valeur={cause} changer={(v) => { setCause(v); e.setRefus(null); }} faute={e.faute('cause')} n={e.n} />
-      <Zone libelle={titre(`${I}.clore.change`)} aide={phrase(`${I}.clore.change_aide`)} max={2000} valeur={change} changer={(v) => { setChange(v); e.setRefus(null); }} faute={e.faute('change')} n={e.n} />
+      <Champ libelle={titre(`${I}.clore.fin`)} aide={phrase(`${I}.clore.fin_aide`)} type="datetime-local" valeur={fin} changer={setFin} faute={e.faute('fin')} n={e.n} />
+      <Zone libelle={titre(`${I}.clore.effet`)} aide={phrase(`${I}.clore.effet_aide`)} max={2000} valeur={effet} changer={setEffet} faute={e.faute('effet')} n={e.n} />
+      <Zone libelle={titre(`${I}.clore.cause`)} aide={phrase(`${I}.clore.cause_aide`)} max={2000} valeur={cause} changer={setCause} faute={e.faute('cause')} n={e.n} />
+      <Zone libelle={titre(`${I}.clore.change`)} aide={phrase(`${I}.clore.change_aide`)} max={2000} valeur={change} changer={setChange} faute={e.faute('change')} n={e.n} />
       <div className="c-champ c-in-suites-saisie" ref={suitesRef}>
         <span className="c-champ-libelle">{titre(`${I}.clore.suites`)}</span>
         <span className="c-champ-aide">{phrase(`${I}.clore.suites_aide`)}</span>
         {suitesS.map((s, k) => (
           <fieldset key={k} className="c-in-suite-saisie">
             <legend>{maj(dire(`${I}.clore.suite_n`, { n: k + 1 }))}</legend>
-            <Champ libelle={titre(`${I}.clore.suite_titre`)} valeur={s.titre} changer={(v) => { poser(k, { titre: v }); e.setRefus(null); }} faute={e.faute(`suite${k}`)} n={e.n} />
+            <Champ libelle={titre(`${I}.clore.suite_titre`)} valeur={s.titre} changer={(v) => { poser(k, { titre: v }); }} faute={e.faute(`suite${k}`)} n={e.n} />
             <div className="c-in-suite-saisie-ligne">
               <Choix libelle={titre(`${I}.clore.suite_qui`)} valeur={s.responsable} changer={(v) => poser(k, { responsable: v })}
                 options={d.equipe.map((x) => ({ valeur: x.id, texte: x.nom, donnee: true }))} />
-              <Champ libelle={titre(`${I}.clore.suite_due`)} type="date" valeur={s.due} changer={(v) => { poser(k, { due: v }); e.setRefus(null); }} />
+              <Champ libelle={titre(`${I}.clore.suite_due`)} type="date" valeur={s.due} changer={(v) => { poser(k, { due: v }); }} />
             </div>
             <Bouton petit ton="discret" onClick={() => setSuites((l) => l.filter((_, j) => j !== k))}>{titre(`${I}.clore.suite_retirer`)}</Bouton>
           </fieldset>
         ))}
         {suitesS.length < 20 ? <Bouton petit icone="plus" onClick={() => { ajoutee.current = true; setSuites((l) => [...l, { titre: '', responsable: moiDansLEquipe, due: '' }]); }}>{titre(`${I}.clore.suite_ajouter`)}</Bouton> : null}
       </div>
-      <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={(v) => { setMotif(v); e.setRefus(null); }} faute={e.faute('motif')} n={e.n} />
+      <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
       <Qui />
       {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
     </Dialogue>
@@ -673,13 +673,13 @@ function FenetreAnnoncer({ d, fermer, fait }: { d: Donnees; fermer: () => void; 
   return (
     <Dialogue titre={titre(`${I}.annoncer.titre`)} sous={phrase(`${I}.annoncer.sous`)} fermer={fermer} occupe={e.occupe}
       pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={titre(`${I}.annoncer.bouton`)} />}>
-      <Champ libelle={titre(`${I}.annoncer.quoi`)} aide={phrase(`${I}.annoncer.quoi_aide`)} valeur={t} changer={(v) => { setT(v); e.setRefus(null); }} faute={e.faute('titre')} n={e.n} />
-      <Zone libelle={titre(`${I}.annoncer.texte`)} aide={phrase(`${I}.annoncer.texte_aide`)} valeur={texte} changer={(v) => { setTexte(v); e.setRefus(null); }} faute={e.faute('texte')} n={e.n} />
+      <Champ libelle={titre(`${I}.annoncer.quoi`)} aide={phrase(`${I}.annoncer.quoi_aide`)} valeur={t} changer={setT} faute={e.faute('titre')} n={e.n} />
+      <Zone libelle={titre(`${I}.annoncer.texte`)} aide={phrase(`${I}.annoncer.texte_aide`)} valeur={texte} changer={setTexte} faute={e.faute('texte')} n={e.n} />
       <div className="c-in-suite-saisie-ligne">
-        <Champ libelle={titre(`${I}.annoncer.debut`)} type="datetime-local" valeur={debut} changer={(v) => { setDebut(v); e.setRefus(null); }} faute={e.faute('debut')} n={e.n} />
-        <Champ libelle={titre(`${I}.annoncer.fin`)} type="datetime-local" valeur={fin} changer={(v) => { setFin(v); e.setRefus(null); }} faute={e.faute('fin')} n={e.n} />
+        <Champ libelle={titre(`${I}.annoncer.debut`)} type="datetime-local" valeur={debut} changer={setDebut} faute={e.faute('debut')} n={e.n} />
+        <Champ libelle={titre(`${I}.annoncer.fin`)} type="datetime-local" valeur={fin} changer={setFin} faute={e.faute('fin')} n={e.n} />
       </div>
-      <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={(v) => { setMotif(v); e.setRefus(null); }} faute={e.faute('motif')} n={e.n} />
+      <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
       <Qui />
       {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
     </Dialogue>

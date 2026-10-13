@@ -125,9 +125,13 @@ describe('les incidents du service, à la souris', () => {
     const f = fenetre(p);
     await cliquer(f.getByRole('button', { name: 'Ajouter le point', exact: true }));
     await expect.poll(() => f.locator('.c-alerte-danger').count()).toBe(1);
-    await f.locator('textarea').fill('Le relais d\'e-mails répond de nouveau');
-    expect(await f.locator('.c-alerte-danger').count()).toBe(0);
-    await cliquer(f.getByRole('button', { name: 'Ajouter le point', exact: true }));
+    // Le refus reste jusqu'au clic suivant : effacé à la frappe, il ferait remonter le bouton sous le curseur.
+    const bouton = f.getByRole('button', { name: 'Ajouter le point', exact: true });
+    const avant = await bouton.boundingBox();
+    await f.locator('textarea').pressSequentially('Le relais d\'e-mails répond de nouveau');
+    expect(await f.locator('.c-alerte-danger').count()).toBe(1);
+    expect((await bouton.boundingBox())?.y).toBe(avant?.y);
+    await cliquer(bouton);
     expect(await toast(p)).toMatch(/^Point ajouté/);
     await expect.poll(() => p.locator('.c-in-points').innerText().then(net)).toContain('Le relais d\'e-mails répond de nouveau');
     expect(erreurs).toEqual([]);

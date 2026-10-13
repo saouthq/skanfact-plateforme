@@ -5,6 +5,7 @@
 //   - revenir à la version d'avant : un motif trop court se refuse, le bouton ne bouge pas quand on retape ; fait, la
 //     consigne se lit, et la version quittée ne se propose plus pour un retour ;
 //   - geler puis lever le gel, chacun avec son motif ;
+//   - une fenêtre où l'on a tapé demande avant de jeter la saisie (Échap, la croix, « Annuler ») ;
 //   - au téléphone : rien ne déborde, l'historique se lit sans défilement de côté.
 
 import fs from 'node:fs';
@@ -136,6 +137,36 @@ describe('les versions du service, à la souris', () => {
     await f.locator('textarea').fill('elles sont parties');
     await cliquer(f.getByRole('button', { name: 'Lever le gel', exact: true }));
     await expect.poll(async () => net(await p.locator('main').innerText())).not.toMatch(/Les installations sont gelées/);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
+  it('une fenêtre où l\'on a tapé demande avant de jeter la saisie ; sans rien taper, elle se ferme tout de suite', async () => {
+    const p = await ouvrir();
+    const f = p.locator('[role="dialog"]');
+    const ouvrirGel = () => cliquer(p.locator('.c-ve-prochaine').getByRole('button', { name: /Geler les installations/ }));
+    // Rien de tapé (la durée se CHOISIT dans une liste) : Échap ferme sans question.
+    await ouvrirGel();
+    await f.locator('select').selectOption({ index: 0 });
+    await p.keyboard.press('Escape');
+    await expect.poll(() => f.count()).toBe(0);
+    // Un motif tapé : Échap demande ; Échap encore, ou « Reprendre la saisie », rend la saisie intacte.
+    await ouvrirGel();
+    await f.locator('textarea').pressSequentially('la paie du mois');
+    await p.keyboard.press('Escape');
+    await expect.poll(() => f.locator('.c-dialogue-question').count()).toBe(1);
+    expect(net(await f.locator('.c-dialogue-question').innerText())).toMatch(/^Abandonner cette saisie \? Ce que tu viens de taper/);
+    // Le curseur est sur « Reprendre » : Entrée ne jette rien par réflexe.
+    expect(await p.evaluate(() => document.activeElement?.textContent)).toBe('Reprendre la saisie');
+    await p.keyboard.press('Escape');
+    await expect.poll(() => f.locator('.c-dialogue-question').count()).toBe(0);
+    expect(await f.locator('textarea').inputValue()).toBe('la paie du mois');
+    // « Annuler » passe par la même garde ; « Abandonner » referme pour de bon, sans geste ni consigne.
+    await cliquer(f.getByRole('button', { name: 'Ne pas geler', exact: true }));
+    await expect.poll(() => f.locator('.c-dialogue-question').count()).toBe(1);
+    await cliquer(f.getByRole('button', { name: 'Abandonner', exact: true }));
+    await expect.poll(() => f.count()).toBe(0);
+    expect((await admin.query("select count(*)::int n from plateforme.service_consigne where motif = 'la paie du mois'")).rows[0]?.n).toBe(0);
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);

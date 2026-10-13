@@ -516,7 +516,13 @@ fait depuis l'écran « Équipe ». La console s'ouvre à `https://<le serveur>/
   sont à la direction. « Offrir un mois » (un avoir sur la prochaine facture, 10 § 2.4) attend nos factures (14b).
 - **L'adresse : `/console/` du même serveur** ; sur le serveur d'essai, aussi `console.skanfact.tn`, par le frontal.
 - **« Inscriptions » compte les sept derniers jours, aujourd'hui compris**, et ouvre la liste avec ce filtre.
-- **Une fenêtre ne se ferme pas d'un clic à côté.**
+- **Une fenêtre ne se ferme pas d'un clic à côté. Et une fenêtre où l'on a TAPÉ demande avant de jeter la saisie**
+  (13/10/2026) : Échap, la croix et son bouton « Annuler » passent par la même garde (`Dialogue`, `Bouton ferme`) et
+  posent « Abandonner cette saisie ? » à la place des boutons, le curseur sur « Reprendre la saisie » (Entrée ne jette
+  rien ; Échap, encore, reprend). Choisir dans une liste n'est pas taper : une fenêtre où l'on n'a fait que choisir se
+  ferme sans question. L'instantané se prend à l'ouverture, ce que la fenêtre préremplit ne compte pas ; un geste réussi
+  la referme sans rien demander. **Le refus d'un motif reste jusqu'au clic suivant** : effacé à la frappe, il ferait
+  remonter les boutons sous le curseur.
 - **La console n'est pas l'API des partenaires** : ses routes n'entrent pas dans la documentation de l'API.
 - **Les montants des échéances sont hors taxes, au prix du jour** : la TVA et le timbre de nos factures viennent avec
   elles (14b). Aucune remise n'existe encore.

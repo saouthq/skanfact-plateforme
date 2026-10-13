@@ -156,8 +156,8 @@ function FenetreGeste({ geste, fiche, role, fermer, fait }: { geste: Geste; fich
   return (
     <Dialogue titre={nom} sous={sous} fermer={fermer} occupe={occupe}
       pied={perimee
-        ? <><Bouton onClick={fermer}>{titre('console.ecran.annuler')}</Bouton><Bouton ton="principal" onClick={fait}>{titre('console.ecran.geste.relire')}</Bouton></>
-        : <><Bouton onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton><Bouton ton="principal" occupe={occupe} desactive={!apercu} onClick={faire}>{nom}</Bouton></>}>
+        ? <><Bouton ferme onClick={fermer}>{titre('console.ecran.annuler')}</Bouton><Bouton ton="principal" onClick={fait}>{titre('console.ecran.geste.relire')}</Bouton></>
+        : <><Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton><Bouton ton="principal" occupe={occupe} desactive={!apercu} onClick={faire}>{nom}</Bouton></>}>
       {geste === 'prolonger' ? (
         <Champ libelle={titre('console.ecran.geste.jours')} aide={dire('console.ecran.geste.jours_aide', { min, max })} type="number" inputMode="numeric" min={min} max={max} valeur={jours} changer={setJours} />
       ) : null}
@@ -189,9 +189,9 @@ function FenetreGeste({ geste, fiche, role, fermer, fait }: { geste: Geste; fich
           : <p className="c-apercu-attente">{phrase('console.ecran.geste.apercu_calcul')}</p>}
         </div>
       </div>
-      {/* Un refus du geste (le motif trop court) se retire dès qu'on corrige le motif : il ne dit plus vrai. Celui de l'aperçu
-          (sans aperçu) reste : il ne dépend pas du motif. */}
-      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.geste.motif_aide')} valeur={motif} changer={(v) => { setMotif(v); if (apercu) setRefus(null); }} faute={faute > 0} n={faute} />
+      {/* Le refus du geste (le motif trop court) reste jusqu'au clic suivant : retiré à la frappe, il ferait remonter les
+          boutons sous le curseur au moment où l'on vise « Valider ». Le clic suivant le remplace ou referme la fenêtre. */}
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.geste.motif_aide')} valeur={motif} changer={setMotif} faute={faute > 0} n={faute} />
       {refus && apercu ? <Alerte ton="danger">{refus}</Alerte> : null}
     </Dialogue>
   );

@@ -240,7 +240,7 @@ function FenetreLever({ r, fermer, fait }: { r: ARegarder; fermer: () => void; f
   return (
     <Dialogue titre={titre(`${S}.l.titre`)} sous={r.qui ?? r.adresse ?? undefined} fermer={fermer} occupe={occupe}
       pied={<>
-        <Bouton onClick={fermer} desactive={occupe}>{titre(`${S}.l.garder`)}</Bouton>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre(`${S}.l.garder`)}</Bouton>
         <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre(`${S}.l.bouton`)}</Bouton>
       </>}>
       <div className="c-al-ce-qui-va">
