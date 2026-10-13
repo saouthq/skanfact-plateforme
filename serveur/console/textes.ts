@@ -14,6 +14,7 @@ declarerTextes({
   'geste.console.equipe.voir': 'voir l\'équipe SkanFact',
   'geste.console.equipe.gerer': 'gérer l\'équipe SkanFact',
   'geste.console.service.voir': 'voir l\'état du service',
+  'geste.console.service.gerer': 'gérer les alertes du service (les prendre en charge, les mettre en sourdine, envoyer une alerte d\'essai)',
   // Les rôles de l'équipe SkanFact (03 § 5).
   'role.direction': 'direction',
   'role.support': 'support',

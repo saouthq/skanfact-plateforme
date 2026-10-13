@@ -212,9 +212,21 @@ describe('ce que la veille confie à la base', () => {
       certificat: { titre: 'le certificat https expire dans 20 jours', grave: false, faire: 'b', depuis: '2026-10-12T08:00:00Z', vus: 1440, ditLe: '2026-10-12T08:00:00Z' },
     } }, { charge: 0.42, memoire: 37, processeurs: 4 });
     expect(x.releve).toEqual({ minute: '2026-10-13T08:37:00.000Z', repond: true, charge: 0.42, memoire: 37, processeurs: 4, disques: [{ point: '/', pourcent: 41 }],
-      version: '71061a0cee512e53', certificat: '2026-12-01', archiveLe: '2026-10-13T08:36:00Z' });
+      version: '71061a0cee512e53', certificat: '2026-12-01', archiveLe: '2026-10-13T08:36:00Z', destinataires: null, regles: null });
     // Le service n'a été vu qu'une fois sans réponse : ce n'est pas encore une alerte.
     expect(Object.keys(x.problemes)).toEqual(['certificat']);
+    // Chaque problème confié porte sa règle (celle qu'on met en sourdine) et ses étapes (une veille.json d'avant n'en a pas).
+    expect(x.problemes.certificat).toEqual({ titre: 'le certificat https expire dans 20 jours', grave: false, faire: 'b', etapes: [], regle: 'certificat', depuis: '2026-10-12T08:00:00Z' });
+  });
+
+  it('qui est prévenu, déjà masqué, et ce que les deux règles des requêtes ont lu', () => {
+    const destinataires = { courriel: { a: 'v•••@•••.tn', pret: true }, sms: null };
+    const lu = { pannes: { etat: 'calme' as const, part: 0, n: 252 }, temps: { etat: 'trop_peu' as const, p95: null, lectures: 4 } };
+    const x = pourLaConsole(releve, { problemes: {} }, { charge: null, memoire: null, processeurs: null }, { destinataires, lu });
+    expect(x.releve.destinataires).toEqual(destinataires);
+    expect(x.releve.regles).toEqual(lu);
+    // Rien d'entier : la base ne reçoit jamais une adresse ni un numéro.
+    expect(JSON.stringify(x)).not.toMatch(/@[a-z]/);
   });
 
   it('chaque nuit à son jour de Tunis ; la sauvegarde est partie quand plus rien d\'aussi vieux n\'attend', () => {

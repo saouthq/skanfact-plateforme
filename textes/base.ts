@@ -356,6 +356,17 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'cette personne a déjà ce rôle', cle: 'base.console.meme_role', fr: 'cette personne a déjà ce rôle' },
   { base: 'l\'équipe garde toujours une personne à la direction', cle: 'base.console.derniere_direction', fr: 'l\'équipe garde toujours une personne à la direction' },
   { base: 'personne ne se retire soi-même de l\'équipe SkanFact', cle: 'base.console.soi_meme', fr: 'personne ne se retire soi-même de l\'équipe SkanFact' },
+  // Les alertes du service (0086, docs/console.md C13) : la prise en charge, la sourdine, l'alerte d'essai.
+  { base: 'un geste sur une alerte demande son motif (trois caractères au moins)', cle: 'base.console.motif_alerte', fr: 'un geste sur une alerte demande son motif (trois caractères au moins)' },
+  { base: 'cette alerte n\'existe pas', cle: 'base.console.alerte_inconnue', fr: 'cette alerte n\'existe pas' },
+  { base: 'cette alerte est déjà réglée : il n\'y a plus rien à prendre en charge', cle: 'base.console.alerte_reglee', fr: 'cette alerte est déjà réglée : il n\'y a plus rien à prendre en charge' },
+  { base: 'tu as déjà pris cette alerte en charge', cle: 'base.console.alerte_deja_prise', fr: 'tu as déjà pris cette alerte en charge' },
+  { base: 'la veille n\'a pas de règle à ce nom', cle: 'base.console.regle_inconnue', fr: 'la veille n\'a pas de règle à ce nom' },
+  { base: 'une sourdine dure d\'un quart d\'heure à un jour', cle: 'base.console.sourdine_duree', fr: 'une sourdine dure d\'un quart d\'heure à un jour' },
+  { base: 'une alerte grave ne se met pas en sourdine plus de quatre heures', cle: 'base.console.sourdine_grave', fr: 'une alerte grave ne se met pas en sourdine plus de quatre heures' },
+  { base: 'cette règle est déjà en sourdine : lève la sourdine en cours d\'abord', cle: 'base.console.sourdine_deja', fr: 'cette règle est déjà en sourdine : lève la sourdine en cours d\'abord' },
+  { base: 'cette sourdine est déjà finie', cle: 'base.console.sourdine_finie', fr: 'cette sourdine est déjà finie' },
+  { base: 'une alerte d\'essai attend déjà son tour : la veille l\'envoie dans la minute', cle: 'base.console.essai_attend', fr: 'une alerte d\'essai attend déjà son tour : la veille l\'envoie dans la minute' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

@@ -15,8 +15,9 @@
 //   - les cabinets : passer d'un onglet à l'autre ne déplace pas les onglets ; la liste compte ce que la fiche montre ;
 //     une carte de la fiche filtre ses dossiers et le filtre se retire ; la fiche d'un client mène à son cabinet ; une
 //     adresse qui ne mène à aucun cabinet le dit, et mène à la liste ;
-//   - en clair et en sombre, à l'ordinateur (1440) et au téléphone (390) : l'instrument de rendu ne trouve rien ; en
-//     langue factice, chaque texte vient du catalogue ;
+//   - en clair et en sombre, à l'ordinateur (1440) et au téléphone (390) : l'instrument de rendu ne trouve rien, l'écran
+//     des alertes du service et la fenêtre d'une sourdine compris (de vraies alertes, posées par la porte de la veille) ;
+//     en langue factice, chaque texte vient du catalogue ;
 //   - le service des écrans de l'application ne garde jamais la console.
 
 import fs from 'node:fs';
@@ -190,6 +191,21 @@ describe('la console de l\'équipe, à la souris', () => {
       disque: { titre: 'Le disque est plein à 82 %', grave: false, faire: 'Libère de la place avant 90 %.', depuis: new Date(Date.now() - 3 * 3600_000).toISOString() },
       sauvegarde: { titre: 'La copie hors machine de cette nuit n\'est pas arrivée', grave: true, faire: 'Relance la sauvegarde, puis vérifie la copie.', depuis: new Date(Date.now() - 40 * 60_000).toISOString() },
     });
+    // Les alertes du service, par la porte de la veille : une grave et une à regarder, leurs étapes, ce qui est parti, et
+    // qui est prévenu (masqué). Les tables du service sont communes à la base de test : on part de tables vides.
+    await admin.query('truncate plateforme.service_releve, plateforme.service_alerte, plateforme.service_envoi, plateforme.service_sourdine, plateforme.service_demande');
+    const il = (min: number) => new Date(Math.floor(Date.now() / 60_000) * 60_000 - min * 60_000).toISOString();
+    await admin.query('select plateforme.noter_veille($1::jsonb, $2::jsonb, $3::jsonb, $4::jsonb)', [
+      JSON.stringify({ minute: il(1), repond: true, charge: 0.4, memoire: 40, processeurs: 2, disques: [{ point: '/var', pourcent: 82 }], version: 'abcdef1', certificat: null, archiveLe: null,
+        destinataires: { courriel: { a: 'e•••@•••.tn', pret: true }, sms: { a: '+216 •• ••• 456', pret: false } }, regles: { pannes: { etat: 'calme', part: 0, n: 40 }, temps: { etat: 'trop_peu', p95: null, lectures: 4 } } }),
+      JSON.stringify({
+        'hors-machine': { titre: 'la copie hors de la machine est en retard de 90 minutes', grave: true, regle: 'hors-machine', faire: 'f', depuis: il(90),
+          etapes: [{ texte: 'Sur le serveur, l\'état de la copie :', code: 'sudo systemctl status skanfact-hors-machine' }, { texte: 'La procédure : docs/mise-en-ligne.md, I.' }] },
+        'disque:/var': { titre: 'le disque /var est plein à 82 %', grave: false, regle: 'disques', faire: 'f', depuis: il(180),
+          etapes: [{ texte: 'Libère de la place. Ce qui le remplit :', code: 'sudo du -xhd1 /var | sort -h | tail -n 8' }] },
+      }), '[]',
+      JSON.stringify([{ le: il(90), sorte: 'nouveau', cle: 'hors-machine', titre: 't', depuis: il(90), grave: true, courriel: true, sms: false }]),
+    ]);
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_VEILLE_FICHIER: veille }), port: 0, web: dossier, livreurMs: 60_000 });
     navigateur = await chromium.launch();
     fs.mkdirSync(PHOTOS, { recursive: true });
@@ -446,6 +462,8 @@ describe('la console de l\'équipe, à la souris', () => {
       { nom: 'journal', hash: '#/journal' },
       { nom: 'equipe', hash: '#/equipe' },
       { nom: 'service', hash: '#/service' },
+      { nom: 'alertes', hash: '#/service/alertes' },
+      { nom: 'sourdine', hash: '#/service/alertes', geste: async (p) => { await cliquer(p.locator('.c-al-alerte').first().locator('.c-al-gestes button').last()); await p.getByRole('dialog').waitFor(); } },
     ];
     const faux: string[] = [];
     let vus = 0;

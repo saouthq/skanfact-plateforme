@@ -5,11 +5,9 @@
 // elle est « non mesurée » ; une période sans requête n'a pas de temps de réponse, et le dit.
 
 import { BRIQUES, briqueDe, CERTIFICAT_ALERTE_J, CERTIFICAT_GRAVE_J, DISQUE_ALERTE, DISQUE_GRAVE, type Brique } from '../../exploitation/veille.ts';
-import { BUDGETS, fusionner, histogrammeVide, partSous, quantile, SEUIL_PANNES, type Histogramme } from '../service/mesures.ts';
+import { BUDGETS, fusionner, histogrammeVide, LECTURES_POUR_UN_CENTILE, partSous, quantile, SEUIL_PANNES, type Histogramme } from '../service/mesures.ts';
 
-// Un centile se lit sur assez de requêtes : sous vingt, le « 95 % » serait la plus lente d'entre elles, et une seule
-// lecture lente la nuit dessinerait un pic au-dessus du budget. Le pas le dit (`lectures`), sans courbe.
-export const LECTURES_POUR_UN_CENTILE = 20;
+export { LECTURES_POUR_UN_CENTILE };
 
 // Les seuils que l'écran trace, tels qu'ils sont écrits une fois, là où la veille et le serveur les lisent (06 § 7) : la
 // console ne les recopie pas, elle les reçoit.
@@ -129,10 +127,11 @@ export type Nuit = { jour: string; sauvegarde: Resultat | null; horsMachine: Res
 type Resultat = { le: string; ok: boolean };
 export type Machine = { minute: string; repond: boolean; charge: number | null; memoire: number | null; processeurs: number | null; disques: { point: string; pourcent: number }[] };
 export type VeilleLue = {
-  jours: { jour: string; mesurees: number; bas: number }[];
+  // `requetes` : les minutes de ce jour où la veille a pu juger les requêtes (Console 3c).
+  jours: { jour: string; mesurees: number; bas: number; requetes: number }[];
   coupures: { debut: string; fin: string; minutes: number }[];
   machine: Machine[];
-  dernier: { minute: string; version: string | null; certificat: string | null; archiveLe: string | null } | null;
+  dernier: { minute: string; version: string | null; certificat: string | null; archiveLe: string | null; regles: Record<string, unknown> | null } | null;
   versions: { version: string; debut: string; fin: string }[];
   alertes: Alerte[];
   nuits: Nuit[];
@@ -152,14 +151,17 @@ export function lireVeilleDeLaBase(brut: unknown): VeilleLue {
   const d = b.dernier as Record<string, unknown> | null;
   const e = b.exercice as Record<string, unknown> | null;
   return {
-    jours: tableau(b.jours).filter(Array.isArray).map((l) => ({ jour: String(l[0]), mesurees: nombre(l[1]), bas: nombre(l[2]) })),
+    jours: tableau(b.jours).filter(Array.isArray).map((l) => ({ jour: String(l[0]), mesurees: nombre(l[1]), bas: nombre(l[2]), requetes: nombre(l[3]) })),
     coupures: tableau(b.coupures).filter(Array.isArray).map((l) => ({ debut: String(l[0]), fin: String(l[1]), minutes: nombre(l[2]) })),
     machine: tableau(b.machine).filter(Array.isArray).map((l) => ({
       minute: String(l[0]), repond: l[1] === true, charge: l[2] === null ? null : nombre(l[2]), memoire: l[3] === null ? null : nombre(l[3]),
       processeurs: l[4] === null ? null : nombre(l[4]),
       disques: tableau(l[5]).map((x: { point?: unknown; pourcent?: unknown }) => ({ point: String(x?.point ?? ''), pourcent: nombre(x?.pourcent) })),
     })),
-    dernier: d ? { minute: String(d.minute), version: texte(d.version), certificat: texte(d.certificat), archiveLe: texte(d.archiveLe) } : null,
+    dernier: d ? {
+      minute: String(d.minute), version: texte(d.version), certificat: texte(d.certificat), archiveLe: texte(d.archiveLe),
+      regles: d.regles && typeof d.regles === 'object' ? d.regles as Record<string, unknown> : null,
+    } : null,
     versions: tableau(b.versions).filter(Array.isArray).map((l) => ({ version: String(l[0]), debut: String(l[1]), fin: String(l[2]) })),
     alertes: tableau(b.alertes).map((a: Record<string, unknown>) => ({
       id: String(a.id), cle: String(a.cle), titre: String(a.titre ?? ''), grave: a.grave === true, aEteGrave: a.aEteGrave === true,
@@ -193,11 +195,13 @@ function alertesDuJour(alertes: Alerte[], jour: string, maintenant: Date) {
 export type EtatJour = 'bon' | 'perturbe' | 'coupure' | 'nonmesure';
 // Le jour du service : une coupure (au moins une minute relevée sans réponse), perturbé (une alerte grave, le service
 // répondant), bon (relevé, rien de grave), non mesuré (aucun relevé ce jour-là : la veille n'existait pas, ou se taisait).
+// L'alerte « le service ne répond plus » se compte déjà en coupure ; une base qui ne répond plus, elle, perturbe le jour
+// (le programme répond, mais toute demande échoue).
 export function joursDuService(v: VeilleLue, aujourdhui: string, maintenant: Date) {
   const parJour = new Map(v.jours.map((j) => [j.jour, j]));
   return trenteJours(aujourdhui).map((jour) => {
     const j = parJour.get(jour);
-    const graves = alertesDuJour(v.alertes, jour, maintenant).filter((a) => a.aEteGrave && a.brique !== 'programme');
+    const graves = alertesDuJour(v.alertes, jour, maintenant).filter((a) => a.aEteGrave && a.cle !== 'service');
     const etat: EtatJour = !j || j.mesurees === 0 ? 'nonmesure' : j.bas > 0 ? 'coupure' : graves.length ? 'perturbe' : 'bon';
     return { jour, etat, mesurees: j?.mesurees ?? 0, bas: j?.bas ?? 0, graves: graves.map((a) => a.titre) };
   });
@@ -232,12 +236,28 @@ export function enLigne(v: VeilleLue) {
   return { version: derniere.version, depuis: derniere.debut, vueArriver: triees.length > 1 };
 }
 
+// Les alertes ouvertes, et combien sont graves : le compte de l'onglet « Alertes », sur chaque vue du service, par cette
+// fonction seule (C3).
+export function alertesOuvertes(alertes: readonly { fin: string | null; grave: boolean }[]) {
+  const o = alertes.filter((a) => a.fin === null);
+  return { n: o.length, graves: o.filter((a) => a.grave).length };
+}
+
 export type EtatBrique = 'bon' | 'attention' | 'grave' | 'nonmesure';
+// Au dernier relevé, la veille a-t-elle pu juger les requêtes (une des deux règles calme ou en alerte) ? La nuit, trop
+// peu de requêtes : la brique ne se dit pas bonne, elle se dit non mesurée.
+export function requetesJugees(v: VeilleLue): boolean {
+  const r = v.dernier?.regles as Record<string, { etat?: unknown } | undefined> | null | undefined;
+  return ['pannes', 'temps'].some((k) => r?.[k]?.etat === 'calme' || r?.[k]?.etat === 'alerte');
+}
 // Chaque brique, jour par jour : grave ou à regarder si une de ses alertes était ouverte ce jour-là, bonne si la veille a
-// relevé ce jour-là sans rien lui reprocher, non mesurée sinon. Son état d'aujourd'hui suit les alertes ouvertes.
+// relevé ce jour-là sans rien lui reprocher, non mesurée sinon. Son état d'aujourd'hui suit les alertes ouvertes. Les
+// requêtes ne sont bonnes que les jours où la veille a pu les juger (avant la Console 3c, jamais : non mesurées).
 export function briques(v: VeilleLue, aujourdhui: string, maintenant: Date, veilleEnMarche: boolean) {
-  const mesure = new Set(v.jours.filter((j) => j.mesurees > 0).map((j) => j.jour));
+  const releves = new Set(v.jours.filter((j) => j.mesurees > 0).map((j) => j.jour));
+  const jugees = new Set(v.jours.filter((j) => j.requetes > 0).map((j) => j.jour));
   return BRIQUES.map((b) => {
+    const mesure = b.id === 'requetes' ? jugees : releves;
     const siennes = v.alertes.filter((a) => a.brique === b.id);
     const ouvertes = siennes.filter((a) => a.fin === null);
     const jours = trenteJours(aujourdhui).map((jour) => {
@@ -245,7 +265,8 @@ export function briques(v: VeilleLue, aujourdhui: string, maintenant: Date, veil
       const etat: EtatBrique = ce.some((a) => a.aEteGrave) ? 'grave' : ce.length ? 'attention' : mesure.has(jour) ? 'bon' : 'nonmesure';
       return { jour, etat, alertes: ce.map((a) => a.titre) };
     });
-    const etat: EtatBrique = !veilleEnMarche ? 'nonmesure' : ouvertes.some((a) => a.grave) ? 'grave' : ouvertes.length ? 'attention' : 'bon';
+    const etat: EtatBrique = !veilleEnMarche ? 'nonmesure' : ouvertes.some((a) => a.grave) ? 'grave' : ouvertes.length ? 'attention'
+      : b.id === 'requetes' && !requetesJugees(v) ? 'nonmesure' : 'bon';
     return { id: b.id, etat, jours, ouvertes: ouvertes.map((a) => ({ titre: a.titre, grave: a.grave, faire: a.faire, debut: a.debut })) };
   });
 }

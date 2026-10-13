@@ -57,12 +57,12 @@ function FenetreEquipe({ g, fermer, fait }: { g: Geste; fermer: () => void; fait
           {titre(g.sorte === 'ajouter' ? 'console.ecran.equipe.ajouter' : g.sorte === 'role' ? 'console.ecran.equipe.changer_role' : 'console.ecran.equipe.retirer')}
         </Bouton>
       </>}>
-      {g.sorte === 'ajouter' ? <Champ libelle={titre('console.ecran.equipe.email')} aide={phrase('console.ecran.equipe.email_aide')} type="email" inputMode="email" valeur={email} changer={setEmail} {...sur('email')} /> : null}
+      {g.sorte === 'ajouter' ? <Champ libelle={titre('console.ecran.equipe.email')} aide={phrase('console.ecran.equipe.email_aide')} type="email" inputMode="email" valeur={email} changer={(v) => { setEmail(v); setRefus(null); }} {...sur('email')} /> : null}
       {g.sorte !== 'retirer' ? (
         <Choix libelle={titre('console.ecran.equipe.role')} aide={phrase(`console.ecran.role_aide.${role}`)} valeur={role} changer={(v) => setRole(v as Role)}
           options={ROLES.filter((r) => g.sorte !== 'role' || r !== g.m.role).map((r) => ({ valeur: r, texte: titre(`console.ecran.role.${r}`) }))} />
       ) : null}
-      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.equipe.motif_aide')} valeur={motif} changer={setMotif} {...sur('motif')} />
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.equipe.motif_aide')} valeur={motif} changer={(v) => { setMotif(v); setRefus(null); }} {...sur('motif')} />
       {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
     </Dialogue>
   );

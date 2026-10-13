@@ -502,6 +502,19 @@
     points, la plus étroite des deux colonnes — à 1440 la place suffisait même sans la règle, et sa preuve restait
     verte. Un texte du catalogue ne nomme ses valeurs qu'en lettres (`{p95}` ne se remplit jamais : un test lit tous
     les catalogues) ; un titre qui commence par un nombre ne prend pas de majuscule (`majuscule`).
+  - **Les alertes du service** (Console 3c, 13/10/2026 ; `docs/console.md` C13, `0086`, `serveur/console/alertes.ts`,
+    pur) : l'alerte en cours dit ce qu'il faut faire **en étapes** (ce qu'on tape se copie d'un geste ; l'e-mail lit les
+    mêmes) ; **un problème qui DEVIENT grave se redit aussitôt, SMS compris** (`diteGrave` : sans lui, il attendait le
+    rappel des six heures). La console **ne touche jamais au serveur** : prendre en charge n'y change rien, la sourdine
+    se pose sur une RÈGLE (quatre heures au plus sur une alerte grave, la veille la borne aussi) et l'essai est une
+    DEMANDE que la veille lit la minute suivante. Ce qui est parti se dit « remis », jamais « reçu » ; **une panne de la
+    base s'écrit à son retour** (la veille garde ce que la base n'a pas pris) ; les destinataires n'arrivent à la base
+    que MASQUÉS. Deux règles neuves se jugent sur les mesures de la console (les pannes, le temps de réponse) : la minute
+    pas encore rangée ne se juge pas, une base pas lue ne règle rien. **La fin d'une sourdine se dit par le serveur qui
+    l'a posée**, jamais par l'estimation de la fenêtre. **Un filtre qui raccourcit une liste au bas de la page ne fait
+    pas glisser ses pilules** (`useHauteurGardee`) ; un menu de ligne s'ouvre vers le haut quand la place manque ; un
+    refus s'efface dès qu'on corrige. Un test du veilleur tourne **avec la base** (sourdine, essai, base en panne puis
+    revenue) : sans elle, rien ne prouvait le chemin qui compte.
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

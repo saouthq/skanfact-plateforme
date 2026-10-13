@@ -28,6 +28,8 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   { code: 'console.equipe.voir', roles: [D], ecrit: false },
   { code: 'console.equipe.gerer', roles: [D], ecrit: true },
   { code: 'console.service.voir', roles: [D, T], ecrit: false },
+  // Les alertes du service : les prendre en charge, les mettre en sourdine, demander une alerte d'essai à la veille.
+  { code: 'console.service.gerer', roles: [D, T], ecrit: true },
 ];
 
 export const GESTES_CONSOLE: ReadonlyMap<string, GesteConsole> = (() => {

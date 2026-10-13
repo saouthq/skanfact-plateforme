@@ -5,16 +5,30 @@
 import { useCallback, useEffect, useState } from 'react';
 import { dire, phrase, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useLecture, type Role } from '../contexte.ts';
-import { heureDe, jourDe, jourLong } from '../temps.ts';
+import { heureDe, jourDe, jourLong, jourMois } from '../temps.ts';
 import { Alerte, Bouton, Choix, Puce, Vide } from '../ui.tsx';
 import { Changements } from './Fiche.tsx';
 
 type Ligne = {
   id: string; le: string; role: Role | null; geste: string; motif: string; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null;
   qui: { id: string; nom: string } | null; entreprise: { id: string; raisonSociale: string } | null; membre: { id: string; nom: string } | null;
+  // Un geste du service (serveur/console/alertes.ts, `sujetDuService`) : la règle visée, l'alerte d'essai, la fin prévue.
+  service?: { regle: string | null; essai: boolean; fin: string | null };
 };
 type Page = { lignes: Ligne[]; suite: string | null };
 type Membre = { utilisateur: string; nom: string; actif: boolean };
+
+// Un geste du service porte sur une règle de la veille (la sourdine, la prise en charge d'une de ses alertes) ou sur
+// l'alerte d'essai ; une sourdine dit jusqu'à quand elle devait courir.
+function SurLeService({ s }: { s: NonNullable<Ligne['service']> }) {
+  if (s.regle) return <a href="#/service/alertes">{titre('console.ecran.journal.sur_regle', { nom: dire(`console.ecran.service.regle.${s.regle}.nom`) })}</a>;
+  return s.essai ? <a href="#/service/alertes">{titre('console.ecran.journal.sur_essai')}</a> : <>—</>;
+}
+function ChangeDuService({ geste, s }: { geste: string; s: NonNullable<Ligne['service']> }) {
+  if (!s.fin || (geste !== 'service.sourdine' && geste !== 'service.sourdine_levee')) return null;
+  const quand = dire('console.ecran.journal.le_a', { jour: jourMois(jourDe(s.fin)), heure: heureDe(s.fin) });
+  return <span className="c-changes"><span className="c-change">{dire(`console.ecran.journal.${geste === 'service.sourdine' ? 'jusqua' : 'devait_courir'}`, { quand })}</span></span>;
+}
 
 export function Journal({ entreprise }: { entreprise: string | null }) {
   const api = useApi();
@@ -102,10 +116,11 @@ export function Journal({ entreprise }: { entreprise: string | null }) {
                           <td><b>{titre(`console.ecran.journal.g.${l.geste.replaceAll('-', '_')}`)}</b></td>
                           <td>
                             {l.entreprise ? <a href={`#/clients/${l.entreprise.id}`} data-donnee>{l.entreprise.raisonSociale}</a>
-                              : l.membre ? <span data-donnee>{l.membre.nom}</span> : '—'}
+                              : l.membre ? <span data-donnee>{l.membre.nom}</span>
+                                : l.service ? <SurLeService s={l.service} /> : '—'}
                           </td>
                           <td><span className="c-motif" data-donnee>{'«\u202f'}{l.motif}{'\u202f»'}</span></td>
-                          <td><Changements avant={l.avant} apres={l.apres} /></td>
+                          <td>{l.service ? <ChangeDuService geste={l.geste} s={l.service} /> : <Changements avant={l.avant} apres={l.apres} />}</td>
                         </tr>
                       ))}
                     </tbody>

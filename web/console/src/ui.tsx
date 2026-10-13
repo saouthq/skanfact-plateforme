@@ -38,6 +38,10 @@ const DESSINS = {
   nuage: <path d="M7.5 18.5h9.5a4 4 0 0 0 .7-7.94 5.5 5.5 0 0 0-10.5-1.4A4.5 4.5 0 0 0 7.5 18.5z" />,
   disque: <><rect x="3.5" y="5" width="17" height="14" rx="2.5" /><path d="M3.5 13.5h17" /><path d="M7.5 16.3h.01M10.5 16.3h.01" /></>,
   retour: <><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 9" /><path d="M4.5 4.5V9H9" /></>,
+  echange: <><path d="M4 8h15" /><path d="M15 4l4 4-4 4" /><path d="M20 16H5" /><path d="M9 12l-4 4 4 4" /></>,
+  sourdine: <><path d="M11 5.5L6.5 9H3.5v6h3l4.5 3.5z" /><path d="M21 9.5l-5 5M16 9.5l5 5" /></>,
+  copier: <><rect x="8.5" y="8.5" width="12" height="12" rx="2" /><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3" /></>,
+  cloche: <><path d="M6 9.5a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15.5 6 9.5z" /><path d="M10 20.5a2.2 2.2 0 0 0 4 0" /></>,
 } as const;
 export type NomIcone = keyof typeof DESSINS;
 

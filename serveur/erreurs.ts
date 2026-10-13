@@ -49,3 +49,26 @@ export class Perimee extends Error {
   readonly texte: Texte;
   constructor(cle = 'commun.perimee') { const texte = motif(cle); super(rendre(texte, 'fr')); this.texte = texte; }
 }
+
+// Une panne laisse sa ligne dans le journal du programme (sa sortie d'erreur, que systemd range ; la veille y renvoie
+// quand les pannes dépassent un pour cent, exploitation/veille.ts). Avant la Console 3c, rien : Fastify, sans journal à
+// lui, jetait l'erreur d'une réponse 500 et celle d'une tâche de fond. La ligne dit OÙ (la route par son modèle, ou la
+// tâche), la sorte de l'erreur, son code et les objets de la base qu'elle nomme (une contrainte, une table, une
+// colonne), et les lieux du code d'où elle vient. Jamais son message : il peut citer une valeur (un identifiant mal
+// formé, la ligne qui heurte une contrainte), et un journal technique ne porte aucune donnée de client (06 S4).
+const NOM_SUR = /^[A-Za-z0-9_.:-]{1,80}$/;
+export function lignePanne(ou: string, e: unknown): string {
+  const err = (typeof e === 'object' && e !== null ? e : {}) as Record<string, unknown>;
+  const nom = typeof err.name === 'string' && NOM_SUR.test(err.name) ? err.name : typeof e;
+  const precisions = ['code', 'constraint', 'table', 'column']
+    .map((k) => [k, err[k]] as const)
+    .filter((x): x is readonly [string, string] => typeof x[1] === 'string' && NOM_SUR.test(x[1]))
+    .map(([k, v]) => `${k} ${v}`);
+  const lieux = typeof err.stack === 'string'
+    ? err.stack.split('\n').filter((l) => /^\s+at /.test(l)).map((l) => l.trim().slice(3)).filter((l) => !l.startsWith('node:')).slice(0, 4)
+    : [];
+  return [`panne : ${ou}`, [nom, ...precisions].join(', '), ...(lieux.length ? [lieux.join(' ← ')] : [])].join(' — ');
+}
+export function noterPanne(ou: string, e: unknown): void {
+  console.error(lignePanne(ou, e));
+}

@@ -485,6 +485,7 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-menu-liste button { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 12px; border-radius: 10px; border: 0; background: transparent; text-align: start; font-weight: 500; cursor: pointer; }
 .c-menu-liste button:hover, .c-menu-liste button:focus-visible { background: var(--c-doux); }
 .c-menu-liste .c-menu-note { padding: 8px 12px; font-size: 13px; color: var(--c-gris); }
+.c-menu-liste-haut { top: auto; bottom: calc(100% + 6px); }
 
 /* ── Le message passager ──────────────────────────────────────────────────────────────────────────────────────── */
 #c-toast {
@@ -1028,6 +1029,152 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   .c-sv-brique-etat { grid-column: 2; grid-row: 2; justify-self: start; }
   .c-sv-brique > .c-bande { grid-row: 3; }
   .c-sv-graphe-pied .c-btn { margin-inline-end: 0; }
+}
+
+/* ── Les vues du service : un onglet par vue, le compte des alertes ouvertes sur la sienne ─────────────────────── */
+.c-sv-onglets { margin-top: -4px; }
+.c-onglet-n {
+  display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 7px; margin-inline-start: 8px; border-radius: 999px;
+  background: var(--c-orange-doux); color: var(--c-orange-texte); font-family: var(--c-chiffres); font-size: 12px; font-weight: 600; letter-spacing: 0;
+}
+.c-onglet-n-grave { background: var(--c-rouge-doux); color: var(--c-rouge-texte); }
+
+/* ── Les alertes : celle en cours (un liseré de sa gravité), qui est prévenu, les règles, trente jours ─────────── */
+.c-al-alerte { position: relative; display: grid; gap: 14px; padding: 24px 28px 26px 32px; overflow: hidden; }
+.c-al-alerte::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 5px; background: var(--c-etat-attention); }
+.c-al-grave { border-color: color-mix(in srgb, var(--c-etat-grave) 38%, var(--c-trait)); }
+.c-al-grave::before { background: var(--c-etat-grave); }
+.c-al-attention { border-color: color-mix(in srgb, var(--c-etat-attention) 42%, var(--c-trait)); }
+.c-al-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; }
+.c-al-surtitre { display: inline-flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 600; color: var(--c-gris); }
+:is(.c-al-icone, .c-al-regle-icone) { display: grid; place-items: center; flex: none; background: var(--c-gris-doux); color: var(--c-gris); }
+.c-al-icone { width: 34px; height: 34px; border-radius: 10px; }
+:is(.c-al-icone, .c-al-regle-icone).c-ton-bon { background: var(--c-doux); color: var(--c-doux-texte); }
+:is(.c-al-icone, .c-al-regle-icone).c-ton-attention { background: var(--c-orange-doux); color: var(--c-orange-texte); }
+:is(.c-al-icone, .c-al-regle-icone).c-ton-grave { background: var(--c-rouge-doux); color: var(--c-rouge-texte); }
+.c-al-titre { font-size: 27px; line-height: 1.2; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.c-al-enjeu { max-width: 78ch; margin-top: -4px; color: var(--c-gris); font-size: 15px; }
+.c-al-faits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.c-al-faits > div { display: grid; gap: 3px; padding: 12px 14px; border-radius: 14px; background: var(--c-papier-2); border: 1px solid var(--c-trait); }
+.c-al-faits dt { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c-gris); }
+.c-al-faits dd { margin: 0; font-size: 15.5px; font-weight: 600; overflow-wrap: anywhere; }
+.c-al-faits .c-al-bon { color: var(--c-doux-texte); }
+.c-al-faits .c-al-manque { color: var(--c-orange-texte); }
+.c-al-corps { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 28px; margin-top: 6px; padding-top: 20px; border-top: 1px solid var(--c-trait); }
+.c-al-corps h3 { font-size: 17px; margin-bottom: 12px; }
+.c-al-faire { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.c-al-faire h3 { margin-bottom: -2px; }
+.c-al-etapes { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.c-al-etapes > li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; align-items: start; }
+.c-al-n { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--c-doux); color: var(--c-doux-texte); font-size: 13px; font-weight: 700; }
+.c-al-etape { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; padding-top: 3px; font-size: 14.5px; }
+/* Une commande : sur le sombre, comme dans une console ; elle se sélectionne d'un clic et se copie d'un geste. */
+.c-al-commande { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; border-radius: 12px; background: var(--c-nuit); color: var(--c-nuit-texte); }
+.c-al-commande code { flex: 1; min-width: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; user-select: all; }
+.c-al-commande .c-btn { flex: none; background: rgba(255, 255, 255, .08); border-color: var(--c-nuit-trait); color: var(--c-nuit-texte); }
+.c-al-commande .c-btn:hover { border-color: var(--c-menthe); }
+.c-al-gestes { display: flex; flex-wrap: wrap; gap: 10px; }
+.c-al-note, .c-al-avis { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: var(--c-gris); }
+.c-al-note .c-icone, .c-al-avis .c-icone { margin-top: 2px; }
+.c-al-chrono-zone { min-width: 0; }
+.c-al-chrono { list-style: none; margin: 0; padding: 0; display: grid; }
+.c-al-ev { position: relative; display: grid; grid-template-columns: 70px 14px minmax(0, 1fr); gap: 10px; padding-bottom: 16px; }
+.c-al-ev:last-child { padding-bottom: 0; }
+/* Le fil du temps : un trait sous chaque point, jusqu'au suivant. */
+.c-al-ev:not(:last-child)::after { content: ''; position: absolute; top: 20px; bottom: 2px; inset-inline-start: calc(70px + 10px + 6px); width: 2px; border-radius: 1px; background: var(--c-trait); }
+.c-al-ev-h { padding-top: 1px; text-align: end; font-size: 12.5px; color: var(--c-gris); }
+.c-al-ev-point { width: 14px; height: 14px; margin-top: 3px; border-radius: 50%; background: var(--c-gris-2); box-shadow: 0 0 0 4px var(--c-gris-doux); }
+.c-al-ev-grave .c-al-ev-point { background: var(--c-etat-grave); box-shadow: 0 0 0 4px var(--c-rouge-doux); }
+.c-al-ev-attention .c-al-ev-point { background: var(--c-etat-attention); box-shadow: 0 0 0 4px var(--c-orange-doux); }
+.c-al-ev-bon .c-al-ev-point { background: var(--c-etat-bon); box-shadow: 0 0 0 4px var(--c-doux); }
+/* Ce qui vient (le prochain rappel, la fin d'une sourdine) : un point creux, le texte en retrait. */
+.c-al-ev-futur .c-al-ev-point { background: var(--c-papier); box-shadow: inset 0 0 0 2px var(--c-trait-fort); }
+.c-al-ev-futur .c-al-ev-texte b { color: var(--c-gris); }
+.c-al-ev-texte { display: grid; gap: 3px; min-width: 0; font-size: 14px; }
+.c-al-ev-texte b { font-weight: 600; }
+.c-al-canaux { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px; }
+.c-al-canal { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--c-gris-doux); color: var(--c-gris); }
+.c-al-canal-ok { background: var(--c-doux); color: var(--c-doux-texte); }
+.c-al-canal-ko { background: var(--c-rouge-doux); color: var(--c-rouge-texte); }
+
+.c-al-duo { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.c-al-prevenus, .c-al-rythme { display: grid; gap: 14px; align-content: start; }
+.c-al-prevenus h2, .c-al-rythme h2 { font-size: 21px; }
+.c-al-moyens { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.c-al-moyens > li { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--c-trait); }
+.c-al-moyen-icone { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 10px; background: var(--c-doux); color: var(--c-doux-texte); }
+.c-al-moyen-non { background: var(--c-gris-doux); color: var(--c-gris); }
+.c-al-moyen-texte { display: grid; gap: 2px; min-width: 0; font-size: 14.5px; }
+.c-al-moyen-texte .c-mono { font-size: 13.5px; overflow-wrap: anywhere; }
+.c-al-avis-court { font-size: 13px; color: var(--c-orange-texte); }
+.c-al-lu { margin: -4px 0 0; }
+.c-al-essai { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; padding-block-start: 14px; border-block-start: 1px solid var(--c-trait); }
+.c-al-essai-texte { display: grid; gap: 6px; flex: 1 1 220px; }
+.c-al-essai p { margin: 0; font-size: 14px; }
+.c-al-rythme-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.c-al-rythme-liste > li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; align-items: start; }
+.c-al-rythme-liste div { display: grid; gap: 2px; font-size: 14px; color: var(--c-gris); }
+.c-al-rythme-liste b { color: var(--c-encre); font-weight: 600; }
+.c-al-rythme-icone { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--c-gris-doux); color: var(--c-gris); }
+
+.c-al-section-tete { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; padding: 24px 26px 16px; }
+.c-al-section-tete h2 { font-size: 21px; }
+.c-al-section-tete .c-carte-sous { max-width: 78ch; }
+.c-al-table td { font-size: 14px; }
+.c-al-regles .c-al-table td:nth-child(1) { min-width: 240px; }
+.c-al-regles .c-al-table td:nth-child(2) { min-width: 190px; max-width: 300px; }
+.c-al-regles .c-al-table td:nth-child(3) { min-width: 190px; max-width: 320px; }
+.c-al-histoire .c-al-table td:nth-child(2) { min-width: 260px; max-width: 440px; }
+.c-al-nw { white-space: nowrap; }
+.c-al-regle { display: flex; gap: 12px; align-items: flex-start; }
+.c-al-regle b { display: block; font-weight: 600; }
+.c-al-regle-icone { width: 30px; height: 30px; border-radius: 9px; margin-top: 1px; }
+.c-al-prevue td { color: var(--c-gris-2); }
+.c-al-prevue .c-al-regle b { color: var(--c-gris); }
+.c-al-maintenant { display: block; }
+.c-al-maintenant-grave { color: var(--c-rouge-texte); font-weight: 600; }
+.c-al-maintenant-attention { color: var(--c-orange-texte); font-weight: 600; }
+.c-al-maintenant-gris { color: var(--c-gris-2); }
+.c-al-sourdine { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 13px; color: var(--c-gris); }
+.c-al-menu-btn { padding: 0 10px; }
+.c-al-action { display: grid; gap: 1px; text-align: start; }
+.c-al-action b { font-weight: 600; }
+.c-al-action span { font-size: 12.5px; font-weight: 400; color: var(--c-gris); }
+.c-menu-liste button > .c-icone { color: var(--c-gris); }
+.c-al-filtre-regle { gap: 8px; }
+.c-al-histoire:focus { outline: none; }
+.c-al-histoire .c-liste-pied { justify-content: center; }
+
+/* La fenêtre d'un geste : ce qui va se passer, puis la durée et le motif. */
+.c-al-ce-qui-va { display: grid; gap: 8px; padding: 14px 16px; border-radius: 14px; background: var(--c-papier-2); border: 1px solid var(--c-trait); }
+.c-al-ce-qui-va ul { margin: 0; padding-inline-start: 18px; display: grid; gap: 6px; font-size: 14px; }
+.c-al-reprise { color: var(--c-orange-texte); font-weight: 600; }
+.c-al-durees { padding: 0; }
+.c-al-qui { font-size: 13px; color: var(--c-gris); }
+
+@media (max-width: 1100px) {
+  .c-al-corps, .c-al-duo { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 860px) {
+  .c-al-alerte { padding: 18px 16px 18px 22px; }
+  .c-al-titre { font-size: 22px; }
+  /* Au téléphone, les trois faits tiennent dans une seule boîte, une ligne chacun : trois boîtes empilées prenaient
+     240 px avant « Que faire ». */
+  .c-al-faits { grid-template-columns: minmax(0, 1fr); gap: 0; border: 1px solid var(--c-trait); border-radius: 14px; background: var(--c-papier-2); }
+  .c-al-faits > div { grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 12px; padding: 11px 14px; border: 0; border-radius: 0; background: none; }
+  .c-al-faits > div + div { border-block-start: 1px solid var(--c-trait); }
+  .c-al-faits dd { text-align: end; }
+  /* Une commande ne se casse pas au milieu d'un chemin (« skanfact-↵hors-machine » se lirait comme deux mots) : elle
+     défile, et « Copier » passe dessous. */
+  .c-al-commande { flex-wrap: wrap; padding: 10px; }
+  .c-al-commande code { flex-basis: 100%; white-space: pre; overflow-wrap: normal; overflow-x: auto; padding: 2px 4px 6px; scrollbar-width: thin; scrollbar-color: var(--c-nuit-trait) transparent; }
+  .c-al-ev { grid-template-columns: 56px 14px minmax(0, 1fr); }
+  .c-al-ev:not(:last-child)::after { inset-inline-start: calc(56px + 10px + 6px); }
+  .c-al-section-tete { padding: 18px 18px 12px; }
+  /* La date passe sur deux lignes : c'est l'alerte qu'on lit d'abord, elle garde la place. */
+  .c-al-histoire .c-al-table td:first-child { white-space: normal; min-width: 104px; }
+  .c-al-menu-btn { min-width: 44px; }
+  .c-al-durees .c-pilule, .c-al-commande .c-btn { min-height: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

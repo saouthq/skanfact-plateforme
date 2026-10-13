@@ -541,6 +541,31 @@ export interface BaseDeDonnees {
     faire: Generated<string>;
     debut: Date;
     fin: Date | null;
+    regle: string | null;
+    etapes: ColumnType<Json, string | undefined, string>;
+    prise_par: string | null;
+    prise_le: Date | null;
+    prise_motif: string | null;
+  };
+  'plateforme.service_demande': {
+    id: Generated<string>;
+    sorte: string;
+    le: Date;
+    qui: string;
+    motif: string;
+    faite_le: Date | null;
+  };
+  'plateforme.service_envoi': {
+    id: Generated<string>;
+    le: Date;
+    sorte: string;
+    cle: string | null;
+    titre: string | null;
+    depuis: Date | null;
+    grave: Generated<boolean>;
+    courriel: boolean | null;
+    sms: boolean | null;
+    demande: string | null;
   };
   'plateforme.service_heure': {
     heure: Date;
@@ -574,6 +599,8 @@ export interface BaseDeDonnees {
     version: string | null;
     certificat: string | null;
     archive_le: Date | null;
+    destinataires: ColumnType<Json | null, string | null, string | null>;
+    regles: ColumnType<Json | null, string | null, string | null>;
   };
   'plateforme.service_route': {
     jour: string;
@@ -583,6 +610,16 @@ export interface BaseDeDonnees {
     n: number;
     pannes: number;
     seaux: number[];
+  };
+  'plateforme.service_sourdine': {
+    id: Generated<string>;
+    regle: string;
+    debut: Date;
+    fin: Date;
+    qui: string;
+    motif: string;
+    levee_le: Date | null;
+    levee_par: string | null;
   };
   'plateforme.session_console': {
     id: Generated<string>;

@@ -547,6 +547,121 @@ describe('le service', () => {
   });
 });
 
+describe('les alertes du service (0086)', () => {
+  // Les alertes partent de tables vides : l'écran (tests/web/console-alertes.test.ts) y laisse les siennes.
+  beforeAll(async () => {
+    await admin.query('truncate plateforme.service_releve, plateforme.service_alerte, plateforme.service_envoi, plateforme.service_sourdine, plateforme.service_demande, plateforme.service_minute');
+  });
+  const t = (min: number) => new Date(Math.floor(horloge.getTime() / 60_000) * 60_000 - min * 60_000).toISOString();
+  const releve = (min: number) => ({ minute: t(min), repond: true, charge: null, memoire: null, processeurs: null, disques: [], version: 'abcdef1', certificat: null, archiveLe: null,
+    destinataires: { courriel: { a: 'v•••@•••.tn', pret: true }, sms: { a: '+216 •• ••• 456', pret: false } },
+    regles: { pannes: { etat: 'calme', part: 0, n: 252 }, temps: { etat: 'trop_peu', p95: null, lectures: 4 } } });
+  const noter = (min: number, problemes: unknown, envois: unknown[] = []) =>
+    enTantQue(pool, null, (tx) => tx.query('select plateforme.noter_veille($1::jsonb, $2::jsonb, $3::jsonb, $4::jsonb)', [JSON.stringify(releve(min)), JSON.stringify(problemes), '[]', JSON.stringify(envois)]));
+  const lire = async () => (await enTantQue(pool, null, (tx) => tx.query('select plateforme.veille_lire($1, 15) v', [horloge]))).rows[0].v as { sourdines: { regle: string }[]; demandes: { id: string; sorte: string }[]; minutes: unknown[] };
+  const disque = (grave: boolean) => ({ 'disque:/var': { titre: `le disque /var est plein à ${grave ? 92 : 80} %`, grave, faire: 'Libère de la place.', regle: 'disques',
+    etapes: [{ texte: 'Libère de la place. Ce qui le remplit :', code: 'sudo du -xhd1 /var | sort -h | tail -n 8' }], depuis: t(30) } });
+  const envoi = (min: number, x: Record<string, unknown>) => ({ le: t(min), sorte: 'nouveau', cle: 'disque:/var', titre: 'le disque /var est plein à 80 %', depuis: t(30), grave: false, courriel: true, sms: true, ...x });
+  // Les gestes de CE fichier : l'écran (tests/web/console-alertes.test.ts) écrit les siens, en même temps, avec ses comptes.
+  const gestes = async () => (await admin.query("select geste, motif, role, qui from plateforme.geste_console where geste like 'service.%' and qui = any($1) order by le, id",
+    [[direction.id, technique.id]])).rows;
+  let alerteId = '';
+
+  it('la veille écrit ce qui est parti, une fois ; un « réglé » d\'une alerte jamais vue s\'écrit fini ; la console lit tout', async () => {
+    await noter(30, disque(false), [envoi(30, {})]);
+    // La veille rejoue ce que la base n'avait pas pris : rien ne double.
+    await noter(29, disque(false), [envoi(30, {}), envoi(29, { sorte: 'rappel', grave: true, courriel: false, sms: false })]);
+    // Une panne de la base elle-même : la veille n'a pu dire que son retour (le relevé d'il y a trois minutes le porte).
+    await noter(3, disque(false), [{ le: t(20), sorte: 'regle', cle: 'base', titre: 'la base ne répond plus', depuis: t(25), grave: true, courriel: true, sms: true }]);
+    expect((await admin.query('select count(*)::int n from plateforme.service_envoi')).rows[0].n).toBe(3);
+    const base = (await admin.query("select debut, fin, a_ete_grave from plateforme.service_alerte where cle = 'base'")).rows;
+    expect(base.map((a) => [new Date(a.debut).toISOString(), new Date(a.fin).toISOString(), a.a_ete_grave])).toEqual([[t(25), t(20), true]]);
+    const r = await appeler('GET', '/console/service/alertes', jT);
+    expect(r.statut).toBe(200);
+    const enCours = r.corps.enCours as { id: string; regle: string; etapes: unknown[]; prochainRappel: string | null; chronologie: { sorte: string }[] }[];
+    expect(enCours).toHaveLength(1);
+    alerteId = enCours[0]?.id ?? '';
+    expect(enCours[0]).toMatchObject({ regle: 'disques', etapes: [{ texte: 'Libère de la place. Ce qui le remplit :', code: 'sudo du -xhd1 /var | sort -h | tail -n 8' }] });
+    // Le prochain rappel : six heures après le seul message REMIS (le rappel de 29 n'est parti par aucun moyen).
+    expect(enCours[0]?.prochainRappel).toBe(new Date(Date.parse(t(30)) + 6 * 3_600_000).toISOString());
+    expect(r.corps.prevenus).toMatchObject({ destinataires: { courriel: { a: 'v•••@•••.tn', pret: true }, sms: { a: '+216 •• ••• 456', pret: false } } });
+    expect((r.corps.histoire as { cle: string; reglee: string }[]).map((h) => [h.cle, h.reglee])).toEqual([['base', 'seule'], ['disque:/var', 'en_cours']]);
+    // Ce que les règles des requêtes ont lu au dernier relevé, récent ; sans relevé depuis cinq minutes, rien n'est lu.
+    expect((r.corps.regles as { id: string; etat: string }[]).find((x) => x.id === 'temps')?.etat).toBe('trop_peu');
+    horloge = new Date(horloge.getTime() + 6 * 60_000);
+    try {
+      expect(((await appeler('GET', '/console/service/alertes', jT)).corps.regles as { id: string; etat: string }[]).find((x) => x.id === 'temps')?.etat).toBe('non_lu');
+    } finally { horloge = new Date(horloge.getTime() - 6 * 60_000); }
+    expect(r.corps.alertesEnCours).toEqual({ n: 1, graves: 0 });
+  });
+
+  it('prendre en charge : avec son motif, une fois, jamais une alerte réglée ; le journal dit qui', async () => {
+    const sans = await appeler('POST', `/console/service/alertes/${alerteId}/prendre`, jT, { motif: ' ' });
+    expect([sans.statut, sans.corps.champ]).toEqual([400, 'motif']);
+    expect((await appeler('POST', `/console/service/alertes/${alerteId}/prendre`, jS, { motif: 'je regarde' })).statut).toBe(403);
+    expect((await appeler('POST', `/console/service/alertes/${alerteId}/prendre`, jT, { motif: 'je libère /var' })).statut).toBe(200);
+    const deux = await appeler('POST', `/console/service/alertes/${alerteId}/prendre`, jT, { motif: 'encore moi' });
+    expect(deux.statut).toBe(403);
+    expect(String(deux.corps.motif)).toMatch(/déjà pris cette alerte/);
+    // Quelqu'un d'autre la reprend : le journal dit qui l'avait.
+    expect((await appeler('POST', `/console/service/alertes/${alerteId}/prendre`, jD, { motif: 'je prends la suite' })).statut).toBe(200);
+    const r = await appeler('GET', '/console/service/alertes', jD);
+    expect((r.corps.enCours as { prise: unknown }[])[0]?.prise).toMatchObject({ par: direction.nom, motif: 'je prends la suite', moi: true });
+    expect((await appeler('POST', '/console/service/alertes/pas-un-id/prendre', jT, { motif: 'je regarde' })).statut).toBe(404);
+    const reglee = (await admin.query("select id from plateforme.service_alerte where cle = 'base'")).rows[0].id as string;
+    expect(String((await appeler('POST', `/console/service/alertes/${reglee}/prendre`, jT, { motif: 'trop tard' })).corps.motif)).toMatch(/déjà réglée/);
+    expect((await gestes()).map((g) => [g.geste, g.motif, g.role])).toEqual([['service.prendre', 'je libère /var', 'technique'], ['service.prendre', 'je prends la suite', 'direction']]);
+  });
+
+  it('la sourdine : d\'une règle qui prévient, un quart d\'heure à un jour, quatre heures au plus sur une alerte grave, une à la fois ; la veille la lit', async () => {
+    expect((await appeler('POST', '/console/service/sourdines', jT, { regle: 'exterieur', minutes: 60, motif: 'pas branchée' })).statut).toBe(404);
+    expect((await appeler('POST', '/console/service/sourdines', jT, { regle: 'disques', minutes: 10, motif: 'trop court' })).statut).toBe(400);
+    expect((await appeler('POST', '/console/service/sourdines', jS, { regle: 'disques', minutes: 60, motif: 'le support' })).statut).toBe(403);
+    // L'alerte devient grave : plus de quatre heures, refusé.
+    await noter(2, disque(true));
+    const long = await appeler('POST', '/console/service/sourdines', jT, { regle: 'disques', minutes: 480, motif: 'nettoyage de nuit' });
+    expect(long.statut).toBe(403);
+    expect(String(long.corps.motif)).toMatch(/plus de quatre heures/);
+    const ok = await appeler('POST', '/console/service/sourdines', jT, { regle: 'disques', minutes: 120, motif: 'nettoyage en cours' });
+    expect(ok.statut).toBe(201);
+    // La fin dite est celle que la base a posée, comptée sur la même heure.
+    const posee = (await admin.query('select id, fin from plateforme.service_sourdine')).rows;
+    expect(posee.map((x) => [x.id, new Date(x.fin).toISOString()])).toEqual([[ok.corps.id, ok.corps.fin]]);
+    expect(String((await appeler('POST', '/console/service/sourdines', jT, { regle: 'disques', minutes: 60, motif: 'encore' })).corps.motif)).toMatch(/déjà en sourdine/);
+    expect((await lire()).sourdines.map((x) => x.regle)).toEqual(['disques']);
+    const r = await appeler('GET', '/console/service/alertes', jT);
+    expect((r.corps.enCours as { sourdine: unknown }[])[0]?.sourdine).toMatchObject({ id: ok.corps.id, par: technique.nom, motif: 'nettoyage en cours' });
+    // La lever : la veille ne la lit plus ; la lever deux fois, refusé.
+    expect((await appeler('POST', `/console/service/sourdines/${String(ok.corps.id)}/lever`, jD, { motif: 'nettoyage fini' })).statut).toBe(200);
+    expect((await lire()).sourdines).toEqual([]);
+    expect(String((await appeler('POST', `/console/service/sourdines/${String(ok.corps.id)}/lever`, jD, { motif: 'encore' })).corps.motif)).toMatch(/déjà finie/);
+    expect((await gestes()).slice(2).map((g) => [g.geste, g.motif])).toEqual([['service.sourdine', 'nettoyage en cours'], ['service.sourdine_levee', 'nettoyage fini']]);
+  });
+
+  it('l\'essai : demandé une fois, lu par la veille, fait quand elle dit ce qui est parti', async () => {
+    const d = await appeler('POST', '/console/service/essai', jD, { motif: 'nouveau téléphone' });
+    expect(d.statut).toBe(201);
+    expect(String((await appeler('POST', '/console/service/essai', jD, { motif: 'encore' })).corps.motif)).toMatch(/attend déjà son tour/);
+    expect((await lire()).demandes).toEqual([{ id: d.corps.id, sorte: 'essai' }]);
+    // La veille la prend à sa minute suivante.
+    await noter(-1, disque(true), [{ le: t(-1), sorte: 'essai', cle: null, titre: null, depuis: null, grave: false, courriel: true, sms: false, demande: d.corps.id }]);
+    expect((await lire()).demandes).toEqual([]);
+    const r = await appeler('GET', '/console/service/alertes', jD);
+    const p = r.corps.prevenus as { dernierEssai: { le: string; courriel: boolean; sms: boolean }; essaiEnAttente: unknown };
+    expect([Date.parse(p.dernierEssai.le), p.dernierEssai.courriel, p.dernierEssai.sms, p.essaiEnAttente]).toEqual([Date.parse(t(-1)), true, false, null]);
+    expect((await gestes()).at(-1)).toMatchObject({ geste: 'service.essai', motif: 'nouveau téléphone', role: 'direction', qui: direction.id });
+  });
+
+  it('la base refuse chaque geste hors d\'une session de la console ; le compte du serveur ne lit aucune de ces tables', async () => {
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_sourdine($1, 60, $2, now())', ['disques', 'hors console']))).rejects.toThrow(/session de la console/);
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_demander_essai($1, now())', ['hors console']))).rejects.toThrow(/session de la console/);
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_service_alertes(now())'))).rejects.toThrow(/session de la console/);
+    for (const table of ['service_envoi', 'service_sourdine', 'service_demande']) {
+      await expect(enTantQue(pool, null, (tx) => tx.query(`select * from plateforme.${table}`)), table).rejects.toThrow(/permission/);
+    }
+  });
+});
+
 describe('les mesures du serveur', () => {
   it('chaque réponse de l\'API se note par le modèle de sa route, jamais par l\'adresse appelée ; un refus n\'est pas une panne', async () => {
     const collecte = new Collecte();

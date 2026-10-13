@@ -115,3 +115,7 @@ export const estPanne = (statut: number) => statut >= 500;
 // La part de pannes au-delà de laquelle le service ne va pas (06 § 7 : « taux d'erreurs au-dessus de 1 % pendant 5
 // minutes »). Écrite ici, une fois : la console la trace sur ses graphiques.
 export const SEUIL_PANNES = 0.01;
+// Un centile se lit sur assez de requêtes : sous vingt, le « 95 % » serait la plus lente d'entre elles, et une seule
+// lecture lente la nuit dessinerait un pic au-dessus du budget. La console le dit (« trop peu »), sans courbe ; la veille
+// ne juge pas le temps de réponse d'une minute qui en a moins.
+export const LECTURES_POUR_UN_CENTILE = 20;

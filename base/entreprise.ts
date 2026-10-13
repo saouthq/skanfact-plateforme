@@ -132,6 +132,10 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.service_releve': { classe: 'hors', raison: 'ce que la veille du serveur relève chaque minute (la machine, ses disques, ses copies) : l\'état de la plateforme' },
   'plateforme.service_alerte': { classe: 'hors', raison: 'les alertes de la veille du serveur : l\'histoire de la plateforme, qu\'une remise ne fait jamais revenir en arrière' },
   'plateforme.service_nuit': { classe: 'hors', raison: 'les sauvegardes de chaque nuit, de toute la base : l\'histoire de la plateforme' },
+  // Les alertes (0086, docs/console.md C13) : ce que la veille a envoyé, ses sourdines, les essais demandés par la console.
+  'plateforme.service_envoi': { classe: 'hors', raison: 'les messages de la veille à l\'équipe SkanFact (e-mail, SMS) : l\'histoire de la plateforme' },
+  'plateforme.service_sourdine': { classe: 'hors', raison: 'les sourdines posées par l\'équipe SkanFact sur les règles de la veille, avec leur motif' },
+  'plateforme.service_demande': { classe: 'hors', raison: 'les alertes d\'essai demandées depuis la console de SkanFact' },
   'socle.dossier_v10_retire': { classe: 'hors', raison: 'les traces de retrait servent la relecture des postes ; après une restauration, un poste relit tout' },
   // Ce qu'un appareil retiré a remis (0044) : à l'entreprise, décidé ou non.
   'socle.quarantaine': { classe: 'entreprise' },

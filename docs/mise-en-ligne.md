@@ -427,12 +427,15 @@ par la tâche d'entretien 0007) relève l'état du serveur et en tire les probl�
 | La copie de base absente, ratée ou de plus de 26 heures (quand l'archivage tourne) | oui | `sudo systemctl status skanfact-base` (C bis 2) |
 | L'exercice de restauration raté (grave) ou de plus de 35 jours | raté | `sudo systemctl status skanfact-restauration` (C bis 3) |
 | La copie hors de la machine en retard d'un quart d'heure (grave après une heure) ; pas réglée sur un serveur aux vraies données | après une heure | `sudo systemctl status skanfact-hors-machine` ; ou la régler (C bis 5) |
+| Des pannes (5xx) au-dessus de 1 % chacune des cinq dernières minutes mesurées (Console 3c : lu dans les mesures de la base) | à 10 % | `sudo journalctl -u skanfact --since "15 min ago" \| grep panne` ; la charge et la mémoire dans la console |
+| Moins de 95 % des listes et des fiches sous 300 ms, chacune des dix dernières minutes (vingt lectures au moins) | jamais | la machine d'abord (la console), puis `sudo journalctl -u skanfact -n 100` |
 
 **I2. Prévenir, sans bavarder.** Un problème qui apparaît part tout de suite par **e-mail** (par le relais du serveur,
 H : un seul e-mail par minute, qui dit tout et ce qu'il faut faire) et par **SMS** (WinSMS, H bis, s'il est branché :
 le nouveau, et ce qui est grave). Tant qu'il dure, un **rappel toutes les six heures** ; quand il est réglé, **un mot**
-(par SMS aussi s'il était grave). Rien n'est redit chaque minute. Une alerte qui n'est partie par **aucun** moyen se
-redit à la minute suivante. **Ce qui part**, compté et décidé : l'adresse et le mobile de l'exploitant, le nom du
+(par SMS aussi s'il était grave). Rien n'est redit chaque minute. **Un problème qui devient grave se redit aussitôt**,
+par SMS aussi (Console 3c) : il n'attend pas le rappel. Une alerte qui n'est partie par **aucun** moyen se redit à la
+minute suivante. **Ce qui part**, compté et décidé : l'adresse et le mobile de l'exploitant, le nom du
 serveur, ce qui ne va pas et ce qu'il faut faire ; jamais une donnée d'un client, jamais un message d'erreur (celui
 d'une migration peut citer une valeur).
 
@@ -450,9 +453,15 @@ aucune version, aucun chemin : c'est elle qu'on donne aux clients pendant un inc
 prévenu » que si l'alerte de chacun de ces problèmes est vraiment partie : un serveur sans destinataire (le serveur
 d'essai) ne le prétend pas.
 
-**I5. Ce qui reste** (cadrage `06` § 7) : une vérification **de l'extérieur**, depuis deux villes (un service qui
-regarde l'adresse publique : à choisir, et à compter dans les flux qui sortent, `05` § 4.3) ; les temps de réponse et le
-taux d'erreurs.
+**I5. Depuis la console** (Console 3c, `docs/console.md` C13) : l'équipe voit chaque alerte, ce qui est parti par
+chaque moyen, et ce qu'il faut faire ; elle peut **prendre une alerte en charge**, **mettre une règle en sourdine**
+(quatre heures au plus sur une alerte grave) et **demander une alerte d'essai**. La console ne touche jamais au
+serveur : la veille lit ces gestes dans la base à la minute suivante. Les destinataires ne s'y voient que masqués, et
+ne s'y règlent pas (I3).
+
+**I6. Ce qui reste** (cadrage `06` § 7) : une vérification **de l'extérieur**, depuis deux villes (un service qui
+regarde l'adresse publique : à choisir, et à compter dans les flux qui sortent, `05` § 4.3). Les temps de réponse et le
+taux d'erreurs se jugent depuis la Console 3c, du serveur lui-même.
 
 Code : `exploitation/veille.ts`, `exploitation/veiller.ts`, `exploitation/alertes.sh`, `exploitation/frontal.sh`,
 `exploitation/taches/0007-veille.sh`. Tests : `tests/exploitation/veille.test.ts` (les règles),

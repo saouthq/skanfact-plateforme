@@ -9,7 +9,7 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest, 
 import { z, type ZodType } from 'zod';
 import { langueDe, motif, rendre, rendreTout, t, type Langue } from '../textes/index.ts';
 import { enTantQue, type Transaction } from './base.ts';
-import { champDuRefus, texteDuRefus } from './erreurs.ts';
+import { champDuRefus, noterPanne, texteDuRefus } from './erreurs.ts';
 import { cleValable } from './cles.ts';
 import { Limiteur, LIMITES_PAR_ADRESSE } from './limites.ts';
 import { jetonDUnAppareilRetire, quiEst, remisParCeJeton, type Contexte, type Qui } from './connexion.ts';
@@ -82,7 +82,7 @@ function erreurVersReponse(e: unknown, reponse: FastifyReply, langue: Langue) {
   if (err.code === 'introuvable') return envoyer(404, { motif: motif('commun.introuvable') });
   // Changé ailleurs entre-temps (01 R15) : du serveur (Perimee), ou de la base (errcode SK409).
   if (err.code === 'perimee' || err.code === 'SK409') return envoyer(409, { motif: texteDuRefus(err), bouton: 'recharger' });
-  reponse.request.log.error(e);
+  noterPanne(`${reponse.request.method} ${reponse.request.routeOptions.url ?? '(sans route)'}`, e);
   return envoyer(500, { motif: motif('commun.erreur_serveur') });
 }
 

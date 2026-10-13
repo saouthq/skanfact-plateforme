@@ -17,7 +17,7 @@ import { useConsole, useLecture } from '../contexte.ts';
 import { Barres, Bande, Courbe, echelle, Trait, type Abscisse, type Case, type Contenu, type Ton } from '../graphes.tsx';
 import { decimal, duree, entier, minutes, pourCent } from '../nombres.ts';
 import { dans, heureDe, ilYA, jourCourt, jourMois, quand } from '../temps.ts';
-import { Alerte, Bouton, Icone, maj, Puce, Vide, type NomIcone, type TonPuce } from '../ui.tsx';
+import { Alerte, Bouton, Icone, Lien, maj, Puce, Vide, type NomIcone, type TonPuce } from '../ui.tsx';
 
 const K = 'console.ecran.service';
 type Periode = '1h' | '24h' | '7j' | '30j';
@@ -25,20 +25,20 @@ const PERIODES: readonly Periode[] = ['1h', '24h', '7j', '30j'];
 const estPeriode = (x: unknown): x is Periode => typeof x === 'string' && (PERIODES as readonly string[]).includes(x);
 
 type Probleme = { cle: string; titre: string; grave: boolean; faire: string; depuis: string };
-type Veille = { etat: 'absente' } | { etat: 'silencieuse'; derniere: string } | { etat: 'ok'; derniere: string; problemes: Probleme[] };
+export type Veille = { etat: 'absente' } | { etat: 'silencieuse'; derniere: string } | { etat: 'ok'; derniere: string; problemes: Probleme[] };
 type Point = { debut: string; n: number; pannes: number; parMinute: number; p50: number | null; p95: number | null; sousBudget: number | null; lectures: number };
 type Total = { n: number; pannes: number; partPannes: number | null; lectures: number; p50: number | null; p95: number | null; sousBudget: number | null };
-type IdBrique = 'programme' | 'mises-a-jour' | 'sauvegarde' | 'a-la-minute' | 'hors-machine' | 'restauration' | 'disques' | 'certificat';
-type EtatBrique = 'bon' | 'attention' | 'grave' | 'nonmesure';
-type Brique = { id: IdBrique; etat: EtatBrique; jours: { jour: string; etat: EtatBrique; alertes: string[] }[]; ouvertes: { titre: string; grave: boolean; faire: string; debut: string }[] };
-type Resultat = { le: string; ok: boolean };
-type Nuit = { jour: string; sauvegarde: Resultat | null; horsMachine: Resultat | null; copieDeBase: Resultat | null; restauration: Resultat | null };
+export type IdBrique = 'programme' | 'requetes' | 'mises-a-jour' | 'sauvegarde' | 'a-la-minute' | 'hors-machine' | 'restauration' | 'disques' | 'certificat';
+export type EtatBrique = 'bon' | 'attention' | 'grave' | 'nonmesure';
+export type Brique = { id: IdBrique; etat: EtatBrique; jours: { jour: string; etat: EtatBrique; alertes: string[] }[]; ouvertes: { titre: string; grave: boolean; faire: string; debut: string }[] };
+export type Resultat = { le: string; ok: boolean };
+export type Nuit = { jour: string; sauvegarde: Resultat | null; horsMachine: Resultat | null; copieDeBase: Resultat | null; restauration: Resultat | null };
 type Etape = 'copieDeBase' | 'sauvegarde' | 'horsMachine' | 'restauration';
 type Evenement =
   | { le: string; type: 'alerte'; sorte: 'ouverte' | 'reglee'; titre: string; grave: boolean; brique: IdBrique | null }
   | { le: string; type: 'version'; version: string; retour: boolean }
   | { le: string; type: 'nuit'; jour: string; etapes: { quoi: Etape; ok: boolean }[] };
-type Machine = { minute: string; repond: boolean; charge: number | null; memoire: number | null; processeurs: number | null; disques: { point: string; pourcent: number }[] };
+export type Machine = { minute: string; repond: boolean; charge: number | null; memoire: number | null; processeurs: number | null; disques: { point: string; pourcent: number }[] };
 type Donnees = {
   maintenant: string; aujourdhui: string; periode: Periode; budget: number;
   seuils: { pannes: number; disque: { alerte: number; grave: number }; certificat: { alerte: number; grave: number }; lectures: number };
@@ -49,9 +49,15 @@ type Donnees = {
   coupures: { debut: string; fin: string; minutes: number }[];
   briques: Brique[]; nuits: Nuit[]; exercice: { jour: string; restauration: Resultat } | null;
   journal: Evenement[];
-  machine: Machine[]; dernier: { minute: string; version: string | null; certificat: string | null; archiveLe: string | null } | null;
+  machine: Machine[]; dernier: { minute: string; version: string | null; certificat: string | null; archiveLe: string | null; regles: LuDesRequetes | null } | null;
   misesEnLigne: { version: string; le: string; retour: boolean }[]; enLigne: { version: string; depuis: string | null; vueArriver: boolean } | null;
+  alertesEnCours: AlertesEnCours;
 };
+// Ce que la veille a pu lire des requêtes à son dernier relevé (exploitation/veille.ts, `requetes`).
+type EtatLu = 'calme' | 'alerte' | 'trop_peu' | 'non_lu';
+export type LuDesRequetes = { pannes?: { etat: EtatLu; part: number | null; n: number }; temps?: { etat: EtatLu; p95: number | null; lectures: number } };
+// Les alertes ouvertes, et combien sont graves : le compte de l'onglet « Alertes » (serveur/console/service.ts).
+export type AlertesEnCours = { n: number; graves: number };
 
 // ── Le temps, à l'heure de Tunis ────────────────────────────────────────────────────────────────────────────────────
 const PARTIES = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Africa/Tunis', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
@@ -93,18 +99,18 @@ function abscisses(debuts: readonly string[], periode: Periode): Abscisse[] {
 const PUCE: Record<EtatBrique, TonPuce> = { bon: 'actif', attention: 'en_retard', grave: 'urgent', nonmesure: 'hors' };
 const ICONE_ETAT: Record<EtatBrique, NomIcone> = { bon: 'ok', attention: 'alerte', grave: 'alerte', nonmesure: 'info' };
 const TON_JOUR: Record<Donnees['jours'][number]['etat'], Ton> = { bon: 'bon', perturbe: 'attention', coupure: 'grave', nonmesure: 'nonmesure' };
-const ICONE_BRIQUE: Record<IdBrique, NomIcone> = {
-  programme: 'serveur', 'mises-a-jour': 'version', sauvegarde: 'base', 'a-la-minute': 'journal', 'hors-machine': 'nuage',
+export const ICONE_BRIQUE: Record<IdBrique, NomIcone> = {
+  programme: 'serveur', requetes: 'echange', 'mises-a-jour': 'version', sauvegarde: 'base', 'a-la-minute': 'journal', 'hors-machine': 'nuage',
   restauration: 'retour', disques: 'disque', certificat: 'cadenas',
 };
-function EtatPuce({ etat, texte }: { etat: EtatBrique; texte?: string }) {
+export function EtatPuce({ etat, texte }: { etat: EtatBrique; texte?: string }) {
   return <Puce ton={PUCE[etat]}>{texte ?? dire(`${K}.etat.${etat}`)}</Puce>;
 }
 // Ce que la veille écrit, à l'écran : ses mots, une majuscule s'il ouvre une ligne, et la typographie de l'écran.
-const enTitre = (s: string) => maj(typo(s));
+export const enTitre = (s: string) => maj(typo(s));
 
 // ── Se relire tant que quelqu'un regarde ────────────────────────────────────────────────────────────────────────────
-function useRelireTantQueRegarde(relire: () => void) {
+export function useRelireTantQueRegarde(relire: () => void) {
   useEffect(() => {
     let geste = Date.now();
     const vu = () => { geste = Date.now(); };
@@ -161,6 +167,8 @@ function EnCeMoment({ v, aujourdhui }: { v: Veille; aujourdhui: string }) {
           <h2 id="sv-moment">{titre(`${K}.problemes_titre`)} <span className="c-compte-titre">{v.problemes.length}</span></h2>
           <p className="c-carte-sous">{phrase(`${K}.ok`, { quand: ilYA(v.derniere) })}</p>
         </div>
+        {/* Ce qu'il faut faire, qui s'en occupe, ce qui est parti et à qui : la page des alertes. */}
+        <Lien href="#/service/alertes" petit fleche>{titre(`${K}.voir_alertes`)}</Lien>
       </div>
       <ul className="c-lignes">
         {v.problemes.map((p) => (
@@ -464,32 +472,54 @@ function TraficEtPannes({ d, periodeTexte }: { d: Donnees; periodeTexte: string 
 }
 
 // ── Les briques du service, jour par jour ───────────────────────────────────────────────────────────────────────────
-// Ce que chaque brique dit d'elle-même aujourd'hui : un fait relevé, sinon ce qu'elle surveille.
+// Ce que la veille a relevé de chaque règle, en une phrase : la vue d'ensemble le dit sous chaque brique, la page des
+// alertes dans la colonne « en ce moment » de chaque règle — une seule fonction pour les deux (C3). Rien de relevé : null,
+// et l'appelant dit ce que la règle surveille.
+export type Faits = {
+  aujourdhui: string; dernier: Donnees['dernier']; nuit: Nuit | null; exercice: Donnees['exercice']; machine: Machine | null;
+  jour: { mesurees: number; bas: number } | null;
+};
+export function faitDeRegle(regle: string, f: Faits): { texte: string; donnee?: boolean } | null {
+  const nuit = f.nuit;
+  const reussi = (r: Resultat) => dire(`${K}.fait.derniere_${r.ok ? 'ok' : 'echec'}`, { quand: quand(r.le, f.aujourdhui) });
+  switch (regle) {
+    case 'service':
+      return f.jour && f.jour.mesurees ? { texte: dire(`${K}.fait.programme`, { ok: entier(f.jour.mesurees - f.jour.bas), n: entier(f.jour.mesurees) }) } : null;
+    case 'requetes': {
+      // Ce que la veille a pu juger à son dernier relevé : les pannes sur leurs minutes, le 95e centile des listes et des
+      // fiches. La nuit, trop peu de requêtes : elle le dit, sans chiffre.
+      const r = f.dernier?.regles;
+      const juge = (e: EtatLu | undefined) => e === 'calme' || e === 'alerte';
+      const part = juge(r?.pannes?.etat) ? r?.pannes?.part ?? null : null;
+      const p95 = juge(r?.temps?.etat) ? r?.temps?.p95 ?? null : null;
+      if (part !== null && p95 !== null) return { texte: dire(`${K}.fait.requetes`, { pannes: pourCent(part, 1), duree: duree(p95) }) };
+      if (part !== null) return { texte: dire(`${K}.fait.requetes_pannes`, { pannes: pourCent(part, 1) }) };
+      return r?.pannes || r?.temps ? { texte: dire(`${K}.fait.requetes_peu`) } : null;
+    }
+    case 'sauvegarde': return nuit?.sauvegarde ? { texte: reussi(nuit.sauvegarde) } : null;
+    case 'copie-de-base': return nuit?.copieDeBase ? { texte: reussi(nuit.copieDeBase) } : null;
+    case 'archivage': return f.dernier?.archiveLe ? { texte: dire(`${K}.fait.archive`, { quand: quand(f.dernier.archiveLe, f.aujourdhui) }) } : null;
+    case 'hors-machine': return nuit?.horsMachine ? { texte: dire(`${K}.fait.hors_${nuit.horsMachine.ok ? 'ok' : 'retard'}`, { jour: jourCourt(nuit.jour) }) } : null;
+    case 'restauration': return f.exercice ? { texte: dire(`${K}.fait.exercice_${f.exercice.restauration.ok ? 'ok' : 'echec'}`, { jour: jourCourt(f.exercice.jour) }) } : null;
+    case 'disques': return f.machine?.disques.length ? { texte: f.machine.disques.map((x) => `${x.point} ${pourCent(x.pourcent / 100, 0)}`).join(' · '), donnee: true } : null;
+    case 'certificat': return f.dernier?.certificat ? { texte: dire(`${K}.fait.certificat`, { jour: jourCourt(f.dernier.certificat), dans: dans(f.dernier.certificat, f.aujourdhui) }) } : null;
+    default: return null;
+  }
+}
+// La règle qui dit le fait de chaque brique (une brique en couvre parfois plusieurs : la première parle pour elle).
+const REGLE_DE_LA_BRIQUE: Partial<Record<IdBrique, string>> = {
+  programme: 'service', requetes: 'requetes', sauvegarde: 'sauvegarde', 'a-la-minute': 'archivage', 'hors-machine': 'hors-machine',
+  restauration: 'restauration', disques: 'disques', certificat: 'certificat',
+};
+const faitsDe = (d: Donnees): Faits => ({
+  aujourdhui: d.aujourdhui, dernier: d.dernier, nuit: d.nuits[0] ?? null, exercice: d.exercice, machine: d.machine.at(-1) ?? null, jour: d.jours.at(-1) ?? null,
+});
+// Ce que chaque brique dit d'elle-même aujourd'hui : son alerte ouverte, sinon un fait relevé, sinon ce qu'elle surveille.
 function faitDe(b: Brique, d: Donnees): { texte: string; donnee?: boolean } {
   const ouverte = b.ouvertes[0];
   if (ouverte) return { texte: ouverte.titre, donnee: true };
-  const nuit = d.nuits[0];
-  const machine = d.machine.at(-1);
-  const aujourdhui = d.jours.at(-1);
-  switch (b.id) {
-    case 'programme':
-      return aujourdhui && aujourdhui.mesurees ? { texte: dire(`${K}.fait.programme`, { ok: entier(aujourdhui.mesurees - aujourdhui.bas), n: entier(aujourdhui.mesurees) }) } : { texte: dire(`${K}.brique.programme.quoi`) };
-    case 'sauvegarde':
-      if (!nuit?.sauvegarde) return { texte: dire(`${K}.brique.sauvegarde.quoi`) };
-      return { texte: dire(`${K}.fait.sauvegarde_${nuit.sauvegarde.ok ? 'ok' : 'echec'}`, { quand: quand(nuit.sauvegarde.le, d.aujourdhui) }) };
-    case 'a-la-minute':
-      return d.dernier?.archiveLe ? { texte: dire(`${K}.fait.archive`, { quand: quand(d.dernier.archiveLe, d.aujourdhui) }) } : { texte: dire(`${K}.brique.a-la-minute.quoi`) };
-    case 'hors-machine':
-      return nuit?.horsMachine ? { texte: dire(`${K}.fait.hors_${nuit.horsMachine.ok ? 'ok' : 'retard'}`, { jour: jourCourt(nuit.jour) }) } : { texte: dire(`${K}.brique.hors-machine.quoi`) };
-    case 'restauration':
-      return d.exercice ? { texte: dire(`${K}.fait.exercice_${d.exercice.restauration.ok ? 'ok' : 'echec'}`, { jour: jourCourt(d.exercice.jour) }) } : { texte: dire(`${K}.brique.restauration.quoi`) };
-    case 'disques':
-      return machine?.disques.length ? { texte: machine.disques.map((x) => `${x.point} ${pourCent(x.pourcent / 100, 0)}`).join(' · '), donnee: true } : { texte: dire(`${K}.brique.disques.quoi`) };
-    case 'certificat':
-      return d.dernier?.certificat ? { texte: dire(`${K}.fait.certificat`, { jour: jourCourt(d.dernier.certificat), dans: dans(d.dernier.certificat, d.aujourdhui) }) } : { texte: dire(`${K}.brique.certificat.quoi`) };
-    default:
-      return { texte: dire(`${K}.brique.${b.id}.quoi`) };
-  }
+  const regle = REGLE_DE_LA_BRIQUE[b.id];
+  return (regle ? faitDeRegle(regle, faitsDe(d)) : null) ?? { texte: dire(`${K}.brique.${b.id}.quoi`) };
 }
 
 function Briques({ d }: { d: Donnees }) {
@@ -716,6 +746,43 @@ function LaMachine({ d }: { d: Donnees }) {
   );
 }
 
+// ── L'en-tête du service, et ses vues ───────────────────────────────────────────────────────────────────────────────
+// Le même sur chaque vue : le titre, l'état des briques en une ligne, l'heure du relevé et « Relire », puis un onglet par
+// vue qui existe (jamais un onglet vers un écran pas encore écrit). Celui des alertes porte le compte des alertes ouvertes,
+// en rouge si l'une est grave : la même fonction, côté serveur, sur chaque vue (C3).
+export type VueDuService = 'vue' | 'alertes';
+type PourEntete = { briques: Brique[]; maintenant: string; alertesEnCours: AlertesEnCours };
+export function EnteteService({ vue, d, relire, occupe }: { vue: VueDuService; d: PourEntete | null; relire: () => void; occupe: boolean }) {
+  const a = d?.alertesEnCours;
+  return (
+    <>
+      <header className="c-entete">
+        <div className="c-entete-texte">
+          <span className="c-surtitre">{titre(`${K}.surtitre`)}</span>
+          <div className="c-titre-ligne"><h1>{titre(`${K}.titre`)}</h1>{d ? <EtatGeneral briques={d.briques} /> : null}</div>
+          <p className="c-entete-sous">{phrase(vue === 'vue' ? `${K}.sous` : `${K}.al.sous`)}</p>
+        </div>
+        <div className="c-entete-actions">
+          {d ? <span className="c-sv-releve">{dire(`${K}.releve`, { heure: heureDe(d.maintenant) })}</span> : null}
+          <Bouton icone="relire" onClick={relire} occupe={occupe}>{titre('console.ecran.relire')}</Bouton>
+        </div>
+      </header>
+      <nav className="c-onglets c-sv-onglets" aria-label={titre(`${K}.onglets`)}>
+        <a href="#/service" aria-current={vue === 'vue' ? 'page' : undefined}>{titre(`${K}.onglet.vue`)}</a>
+        <a href="#/service/alertes" aria-current={vue === 'alertes' ? 'page' : undefined}>
+          {titre(`${K}.onglet.alertes`)}
+          {a && a.n > 0 ? (
+            <>
+              <span className={`c-onglet-n${a.graves ? ' c-onglet-n-grave' : ''}`} aria-hidden="true">{entier(a.n)}</span>
+              <span className="c-cache">{selon(a.n, `${K}.onglet.alertes_n`)}</span>
+            </>
+          ) : null}
+        </a>
+      </nav>
+    </>
+  );
+}
+
 // ── L'écran ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 export function Service({ periode: demandee }: { periode: string | null }) {
   const { moi } = useConsole();
@@ -728,17 +795,7 @@ export function Service({ periode: demandee }: { periode: string | null }) {
   const periodeTexte = d ? dire(`${K}.periode.texte.${d.periode}`) : '';
   return (
     <>
-      <header className="c-entete">
-        <div className="c-entete-texte">
-          <span className="c-surtitre">{titre(`${K}.surtitre`)}</span>
-          <div className="c-titre-ligne"><h1>{titre(`${K}.titre`)}</h1>{d ? <EtatGeneral briques={d.briques} /> : null}</div>
-          <p className="c-entete-sous">{phrase(`${K}.sous`)}</p>
-        </div>
-        <div className="c-entete-actions">
-          {d ? <span className="c-sv-releve">{dire(`${K}.releve`, { heure: heureDe(d.maintenant) })}</span> : null}
-          <Bouton icone="relire" onClick={relire} occupe={enCours}>{titre('console.ecran.relire')}</Bouton>
-        </div>
-      </header>
+      <EnteteService vue="vue" d={d} relire={relire} occupe={enCours} />
       {l.etat === 'panne' ? <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}
       {d ? (

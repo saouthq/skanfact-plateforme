@@ -10305,10 +10305,10 @@ VE10="le SMS est court, ne dit que le nouveau et le grave, et finit par le lien"
 VE12="pendant un incident : ce qui ne marche pas, sans le message ni le chemin ; seulement ce qui est confirmé"
 VE13="le nom du serveur s'échappe"
 prouver "le service dit en panne dès le premier relevé (un redémarrage)" exploitation/veille.ts \
-  '{ service: 2 }' '{ service: 1 }' \
+  '{ service: 2, base: 2 }' '{ service: 1, base: 2 }' \
   "$VE6"
 prouver "un problème redit chaque minute" exploitation/veille.ts \
-  '} else if (e.ditLe !== null && maintenant.getTime() - Date.parse(e.ditLe) >= RAPPEL_H * 3_600_000) {' '} else if (e.ditLe !== null) {' \
+  'if ((devenuGrave || maintenant.getTime() - Date.parse(e.ditLe) >= RAPPEL_H * 3_600_000) && !tu) {' 'if (!tu) {' \
   "$VE7"
 prouver "le retour annoncé d'un problème que personne n'a entendu" exploitation/veille.ts \
   'if (!(cle in apres.problemes) && e.ditLe !== null) messages.push' 'if (!(cle in apres.problemes)) messages.push' \
@@ -10320,19 +10320,19 @@ prouver "le seuil du disque qui n'est pas celui du cadrage" exploitation/veille.
   'export const DISQUE_ALERTE = 75;' 'export const DISQUE_ALERTE = 85;' \
   "$VE2"
 prouver "une sauvegarde ratée passée sous silence" exploitation/veille.ts \
-  "  else if (!s.ok) p.push({ cle: 'sauvegarde', titre: 'la dernière sauvegarde de la base a échoué', grave: true, faire });" "  else if (!s.ok) void 0;" \
+  "    else if (!s.ok) p.push(probleme('sauvegarde', 'la dernière sauvegarde de la base a échoué', true, etapes));" "    else if (!s.ok) void 0;" \
   "$VE3"
 prouver "le suiveur muet jamais signalé" exploitation/veille.ts \
   'if (!Number.isFinite(silence) || silence > SUIVEUR_SILENCIEUX_MIN * 60_000) {' 'if (!Number.isFinite(silence)) {' \
   "$VE4"
 prouver "un certificat expiré qui n'est pas grave" exploitation/veille.ts \
-  '      grave: !Number.isFinite(jours) || jours < CERTIFICAT_GRAVE_J,' '      grave: false,' \
+  '      !Number.isFinite(jours) || jours < CERTIFICAT_GRAVE_J, [' '      false, [' \
   "$VE5"
 prouver "une alerte qui ne dit pas quoi faire" exploitation/veille.ts \
   '.\nQue faire : ${m.faire}`;' '.`;' \
   "$VE9"
 prouver "chaque rappel par SMS, même sans gravité" exploitation/veille.ts \
-  "  const parSms = messages.filter((m) => m.sorte === 'nouveau' || m.grave);" "  const parSms = messages;" \
+  "export const parSMS = (m: Message) => m.sorte === 'nouveau' || m.grave;" "export const parSMS = (m: Message) => m.sorte !== null;" \
   "$VE10"
 prouver "la page publique qui montre une panne pas encore confirmée" exploitation/veille.ts \
   '.filter(([c, e]) => confirme(c, e.vus))' '.filter(() => true)' \
@@ -10359,7 +10359,7 @@ prouver "l'essai des alertes réussi sans rien envoyer" exploitation/veiller.ts 
   'return p.courriel !== false && p.sms !== false && (p.courriel === true || p.sms === true);' 'return p.courriel !== false && p.sms !== false;' \
   "$VW4"
 prouver "la page d'état jamais écrite" exploitation/veiller.ts \
-  "  ecrire(path.join(ETAT, 'public', 'etat.html'), pageEtat(SERVEUR, r, garde));" "" \
+  "    ecrire(path.join(ETAT, 'public', 'etat.html'), pageEtat(SERVEUR, r, garde(aNoter)));" "" \
   "$VW5"
 prouver "la veille qui oublie d'une minute à l'autre" exploitation/veiller.ts \
   '  const avant = lire<Veille>(fichier, { problemes: {} });' '  const avant: Veille = { problemes: {} };' \
@@ -10501,7 +10501,7 @@ prouver 'la copie de base reprochée quand l'"'"'archivage ne tourne pas' exploi
     const b = c.copieDeBase;' \
   "$VC3"
 prouver 'un exercice de restauration raté qui n'"'"'est pas grave' exploitation/veille.ts \
-  'titre: '"'"'le dernier exercice de restauration a échoué'"'"', grave: true,' 'titre: '"'"'le dernier exercice de restauration a échoué'"'"', grave: false,' \
+  "'"'le dernier exercice de restauration a échoué'"'"', true, etapesE));' "'"'le dernier exercice de restauration a échoué'"'"', false, etapesE));' \
   "$VC4"
 prouver 'la copie hors machine en retard dite seulement après une heure' exploitation/veille.ts \
   'retard > HORS_MACHINE_EN_RETARD_MIN * 60_000' 'retard > HORS_MACHINE_GRAVE_MIN * 60_000' \
@@ -10510,10 +10510,10 @@ prouver 'la copie hors machine pas réglée, reprochée au serveur d'"'"'essai' 
   '} else if (!h.regle && r.production) {' '} else if (!h.regle) {' \
   "$VC5"
 prouver 'deux natures d'"'"'un problème des copies sous une seule clé' exploitation/veille.ts \
-  'cle: '"'"'hors-machine-reglage'"'"'' 'cle: '"'"'hors-machine'"'"'' \
+  'p.push(probleme('"'"'hors-machine-reglage'"'"',' 'p.push(probleme('"'"'hors-machine'"'"',' \
   "$VW7"
 prouver 'l'"'"'état des copies jamais lu par le veilleur' exploitation/veiller.ts \
-  ' copies: await copies(),' '' \
+  ', copies: await copies(base),' ',' \
   "$VW7"
 
 # La remise d'UNE entreprise par-dessus elle-même (lot « prêt pour les pilotes », 12/10/2026 ; 06 § 4.4).
@@ -11402,8 +11402,8 @@ prouver 'un problème de la veille sans brique' 'exploitation/veille.ts' \
   '  { id: '"'"'certificat'"'"', cles: [] },' \
   'chaque problème que la veille peut voir a sa brique'
 prouver 'un problème vu une seule fois confié à la base' 'exploitation/veille.ts' \
-  '    if (confirme(cle, e.vus)) problemes[cle] = { titre: e.titre, grave: e.grave, faire: e.faire, depuis: e.depuis };' \
-  '    problemes[cle] = { titre: e.titre, grave: e.grave, faire: e.faire, depuis: e.depuis };' \
+  '    if (confirme(cle, e.vus)) problemes[cle] = {' \
+  '    problemes[cle] = {' \
   'le relevé de la minute, et seulement les problèmes confirmés'
 prouver 'la copie hors machine dite arrivée quand une plus vieille attend' 'exploitation/veille.ts' \
   'ok: !h.plusVieuxEnAttente || Date.parse(h.plusVieuxEnAttente) > Date.parse(s.le)' \
@@ -11427,24 +11427,24 @@ prouver 'une valeur dans un chemin gardée par la base' 'base/migrations/0085_se
   ' and route !~ '"'"'/[0-9][^/]*(/|$)'"'"'' \
   '' \
   'une route se garde par son modèle : une valeur dans un chemin, la base la refuse'
-prouver 'une alerte que la veille ne voit plus laissée ouverte' 'base/migrations/0085_service.sql' \
+prouver 'une alerte que la veille ne voit plus laissée ouverte' 'base/migrations/0086_service_alertes.sql' \
   '    update plateforme.service_alerte a set fin = v_maintenant
      where a.fin is null and not (coalesce(p_problemes, '"'"'{}'"'"'::jsonb) ? a.cle);' \
   '    perform 1;' \
   'la veille : son relevé ; les alertes rapprochées de ce qu'"'"'elle voit, ouvertes, devenues graves, réglées ; la dernière nouvelle d'"'"'une nuit l'"'"'emporte'
-prouver 'une alerte dont la gravité ne suit pas la veille' 'base/migrations/0085_service.sql' \
+prouver 'une alerte dont la gravité ne suit pas la veille' 'base/migrations/0086_service_alertes.sql' \
   '    update plateforme.service_alerte a set titre = p.value->>'"'"'titre'"'"', grave = (p.value->>'"'"'grave'"'"')::boolean,' \
   '    update plateforme.service_alerte a set titre = p.value->>'"'"'titre'"'"', grave = a.grave,' \
   'la veille : son relevé ; les alertes rapprochées de ce qu'"'"'elle voit, ouvertes, devenues graves, réglées ; la dernière nouvelle d'"'"'une nuit l'"'"'emporte'
-prouver 'la première nouvelle d'"'"'une nuit qui l'"'"'emporte' 'base/migrations/0085_service.sql' \
+prouver 'la première nouvelle d'"'"'une nuit qui l'"'"'emporte' 'base/migrations/0086_service_alertes.sql' \
   '  on conflict (jour) do update set sauvegarde = coalesce(excluded.sauvegarde, s.sauvegarde),' \
   '  on conflict (jour) do update set sauvegarde = coalesce(s.sauvegarde, excluded.sauvegarde),' \
   'la veille : son relevé ; les alertes rapprochées de ce qu'"'"'elle voit, ouvertes, devenues graves, réglées ; la dernière nouvelle d'"'"'une nuit l'"'"'emporte'
-prouver 'un relevé ancien qui règle les alertes' 'base/migrations/0085_service.sql' \
+prouver 'un relevé ancien qui règle les alertes' 'base/migrations/0086_service_alertes.sql' \
   '  if v_derniere is null or v_maintenant >= v_derniere then' \
   '  if true then' \
   'une nouvelle plus ancienne que la dernière garde son relevé sans rien régler ; une version qui revient est une seconde mise en ligne'
-prouver 'ce que la veille a vu lisible hors de la console' 'base/migrations/0085_service.sql' \
+prouver 'ce que la veille a vu lisible hors de la console' 'base/migrations/0086_service_alertes.sql' \
   'declare v_depuis_heure timestamptz := greatest(p_depuis, (select max(minute) from plateforme.service_releve) - interval '"'"'59 minutes'"'"');
 begin
   perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'technique'"'"']);' \
@@ -11514,6 +11514,215 @@ prouver 'une sauvegarde ratée dont la copie se dit arrivée, à l'"'"'écran' '
   '    const sansObjet = false;' \
   'ce qui vient de se passer : chaque filtre compte ce qu'"'"'il montre ; une sauvegarde en échec n'"'"'a rien envoyé'
 
+# Console 3c : les alertes du service — la veille qui redit une aggravation, se tait sous une sourdine, juge les requêtes,
+# masque ses destinataires et note ce qui est parti (exploitation/veille.ts, veiller.ts) ; la base (0086) ; ce que la console
+# en range (serveur/console/alertes.ts) ; et l'écran des alertes (web/console/src/ecrans/Alertes.tsx).
+prouver 'un problème devenu grave qui attend le rappel des six heures' 'exploitation/veille.ts' \
+  '      const devenuGrave = p.grave && !e.diteGrave;' \
+  '      const devenuGrave = false;' \
+  'se redit aussitôt, par SMS aussi, sans attendre le rappel ; puis plus rien tant qu'"'"'il le reste'
+prouver 'une aggravation pas partie oubliée' 'exploitation/veille.ts' \
+  '    else if (m.sorte === '"'"'rappel'"'"' && e) garde.problemes[m.cle] = { ...e, ditLe: a?.ditLe ?? null, diteGrave: a ? (a.diteGrave ?? a.grave) : false };' \
+  '    else if (m.sorte === '"'"'rappel'"'"' && e) garde.problemes[m.cle] = { ...e, ditLe: a?.ditLe ?? null };' \
+  'pas parti : redit grave à la minute suivante ; une veille.json d'"'"'avant (sans « diteGrave ») vaut ce qu'"'"'elle était'
+prouver 'une veille.json d'"'"'avant prise pour dite grave' 'exploitation/veille.ts' \
+  '      diteGrave: deja ? (deja.diteGrave ?? deja.grave) : false,' \
+  '      diteGrave: deja ? (deja.diteGrave ?? true) : false,' \
+  'pas parti : redit grave à la minute suivante ; une veille.json d'"'"'avant (sans « diteGrave ») vaut ce qu'"'"'elle était'
+prouver 'l'"'"'e-mail qui ne dit pas « devenu grave »' 'exploitation/veille.ts' \
+  '${m.devenuGrave ? '"'"'Devenu grave'"'"' :' \
+  '${false ? '"'"'Devenu grave'"'"' :' \
+  'se redit aussitôt, par SMS aussi, sans attendre le rappel ; puis plus rien tant qu'"'"'il le reste'
+prouver 'une sourdine qui tait un problème grave sans fin' 'exploitation/veille.ts' \
+  '    && t < Math.min(Date.parse(s.fin), grave ? Date.parse(s.debut) + SOURDINE_GRAVE_MAX_H * 3_600_000 : Infinity));' \
+  '    && t < Date.parse(s.fin));' \
+  'tait une RÈGLE jusqu'"'"'à sa fin ; grave, jamais plus de quatre heures ; une autre règle parle'
+prouver 'une sourdine qui tait aussi la bonne nouvelle' 'exploitation/veille.ts' \
+  '    if (!(cle in apres.problemes) && e.ditLe !== null) messages.push(' \
+  '    if (!(cle in apres.problemes) && e.ditLe !== null && !enSourdine(sourdines, cle, e.grave, maintenant)) messages.push(' \
+  'un nouveau problème tu reste à dire : il se dit à la fin ; les rappels se taisent ; le « réglé » d'"'"'un problème dit part'
+prouver 'un nouveau problème tu compté comme dit' 'exploitation/veille.ts' \
+  '      if (!tu) { messages.push({ sorte: '"'"'nouveau'"'"', ...message }); e.ditLe = le; e.diteGrave = p.grave; }' \
+  '      if (!tu) messages.push({ sorte: '"'"'nouveau'"'"', ...message }); e.ditLe = le; e.diteGrave = p.grave;' \
+  'un nouveau problème tu reste à dire : il se dit à la fin ; les rappels se taisent ; le « réglé » d'"'"'un problème dit part'
+prouver 'la minute pas encore rangée jugée' 'exploitation/veille.ts' \
+  '  const derniere = Math.floor(maintenant.getTime() / 60_000) * 60_000 - (1 + RECUL_MINUTES) * 60_000;' \
+  '  const derniere = Math.floor(maintenant.getTime() / 60_000) * 60_000 - 60_000;' \
+  'les pannes : plus de 1 % chacune des cinq minutes ; grave à une sur dix ; la minute pas encore rangée ne compte pas'
+prouver 'une minute sans requête qui laisse juger les pannes' 'exploitation/veille.ts' \
+  '  const mesurees = cinq.every((m) => m !== null && m.n > 0);' \
+  '  const mesurees = cinq.some((m) => m !== null && m.n > 0);' \
+  'les pannes : plus de 1 % chacune des cinq minutes ; grave à une sur dix ; la minute pas encore rangée ne compte pas'
+prouver 'le temps jugé sur trop peu de lectures' 'exploitation/veille.ts' \
+  '  const assez = dix.every((m) => m !== null && total(m.lecture ?? []) >= LECTURES_POUR_UN_CENTILE);' \
+  '  const assez = dix.every((m) => m !== null && total(m.lecture ?? []) >= 1);' \
+  'le temps : moins de 95 % sous le budget chacune des dix minutes, avec assez de lectures ; jamais grave'
+prouver 'une base pas lue qui règle ce que les requêtes avaient ouvert' 'exploitation/veille.ts' \
+  '      return e ? [{ cle, titre: e.titre, grave: e.grave, faire: e.faire, etapes: e.etapes ?? [] }] : [];' \
+  '      return e ? [] : [];' \
+  'la base ne s'"'"'est pas lue : rien ne se juge, ce qui était ouvert le reste tel quel'
+prouver 'une famille de clés de la veille sans sa règle' 'exploitation/veille.ts' \
+  '  { id: '"'"'taches'"'"', brique: '"'"'mises-a-jour'"'"', cles: ['"'"'tache:'"'"'], seuils: {}, branchee: true },' \
+  '  { id: '"'"'taches'"'"', brique: '"'"'mises-a-jour'"'"', cles: ['"'"'taches'"'"'], seuils: {}, branchee: true },' \
+  'chaque clé que la veille peut poser a sa règle branchée ; les prévues n'"'"'en ont aucune'
+prouver 'une adresse d'"'"'alerte montrée entière' 'exploitation/veille.ts' \
+  '  return m ? `${m[1] ?? '"'"''"'"'}•••@•••${m[2] ?? '"'"''"'"'}` : '"'"'•••'"'"';' \
+  '  return x;' \
+  'une adresse et un numéro se montrent masqués : jamais entiers'
+prouver 'un numéro d'"'"'alerte montré entier' 'exploitation/veille.ts' \
+  '  return m && c.replace('"'"'+'"'"', '"'"''"'"').length >= 8 ? `${m[1] ?? '"'"''"'"'} •• ••• ${m[2] ?? '"'"''"'"'}`.trim() : '"'"'•••'"'"';' \
+  '  return c;' \
+  'une adresse et un numéro se montrent masqués : jamais entiers'
+prouver 'un rappel ordinaire noté comme parti par SMS' 'exploitation/veille.ts' \
+  'export const parSMS = (m: Message) => m.sorte === '"'"'nouveau'"'"' || m.grave;' \
+  'export const parSMS = (_m: Message) => true;' \
+  'chaque message garde ce que chaque moyen a rendu ; le SMS seulement là où il part ; deux cents en attente au plus'
+prouver 'des envois en attente sans borne' 'exploitation/veille.ts' \
+  'export const garderANoter = (envois: readonly Envoi[]) => envois.slice(-A_NOTER_MAX);' \
+  'export const garderANoter = (envois: readonly Envoi[]) => envois.slice(0);' \
+  'chaque message garde ce que chaque moyen a rendu ; le SMS seulement là où il part ; deux cents en attente au plus'
+prouver 'une commande collée à la phrase suivante dans l'"'"'e-mail' 'exploitation/veille.ts' \
+  '(e.code ? `${e.texte} ${e.code}.` : e.texte)' \
+  '(e.code ? `${e.texte} ${e.code}` : e.texte)' \
+  'chacun, avec sa gravité et ce qu'"'"'il faut faire ; les seuils sont ceux du document 06 § 7'
+prouver 'la veille qui ne lit pas les sourdines de la base' 'exploitation/veiller.ts' \
+  '    const sourdines = (lecture?.sourdines ?? avant.sourdines ?? [])' \
+  '    const sourdines = (avant.sourdines ?? [])' \
+  'une règle en sourdine ne prévient pas ; l'"'"'essai demandé part une fois ; tout se note dans la base, les destinataires masqués'
+prouver 'les destinataires confiés entiers à la base' 'exploitation/veiller.ts' \
+  '  const courriel = masquerCourriel(R.SKANFACT_ALERTE_COURRIEL), sms = masquerTelephone(R.SKANFACT_ALERTE_SMS);' \
+  '  const courriel = R.SKANFACT_ALERTE_COURRIEL ?? null, sms = masquerTelephone(R.SKANFACT_ALERTE_SMS);' \
+  'une règle en sourdine ne prévient pas ; l'"'"'essai demandé part une fois ; tout se note dans la base, les destinataires masqués'
+prouver 'l'"'"'essai demandé jamais envoyé' 'exploitation/veiller.ts' \
+  '    for (const d of lecture?.demandes ?? []) {' \
+  '    for (const d of [] as { id: string; sorte: string }[]) {' \
+  'une règle en sourdine ne prévient pas ; l'"'"'essai demandé part une fois ; tout se note dans la base, les destinataires masqués'
+prouver 'ce qui est parti pendant la panne de la base oublié' 'exploitation/veiller.ts' \
+  'garderANoter([...(avant.aNoter ?? []), ...envois])' \
+  'garderANoter([...envois])' \
+  'la base tombe : dite à la seconde minute ; ce qui est parti attend dans veille.json, et la base l'"'"'apprend à son retour'
+prouver 'une sourdine grave affichée au-delà de quatre heures' 'serveur/console/alertes.ts' \
+  '    const fin = Math.min(Date.parse(s.fin), grave ? Date.parse(s.debut) + SOURDINE_GRAVE_MAX_H * 3_600_000 : Infinity);' \
+  '    const fin = Date.parse(s.fin);' \
+  'la sourdine qui court ; avec une alerte grave ouverte, quatre heures au plus après son début'
+prouver 'le prochain rappel compté depuis un message pas parti' 'serveur/console/alertes.ts' \
+  '(e.sorte === '"'"'nouveau'"'"' || e.sorte === '"'"'rappel'"'"') && remis(e) && Date.parse(e.le) >= Date.parse(a.debut));' \
+  '(e.sorte === '"'"'nouveau'"'"' || e.sorte === '"'"'rappel'"'"') && Date.parse(e.le) >= Date.parse(a.debut));' \
+  'le prochain rappel : six heures après le dernier message REMIS de cette alerte ; rien de remis, rien à promettre'
+prouver 'des échecs de suite dits un par un' 'serveur/console/alertes.ts' \
+  '    if (precedent && !remis(m) && precedent.quoi === quoi' \
+  '    if (false && precedent && !remis(m) && precedent.quoi === quoi' \
+  'chaque message et ses moyens ; ce qui échoue de suite en une ligne ; devenue grave ; prise, sourdine, réglée'
+prouver 'une alerte devenue grave dite comme un simple rappel' 'serveur/console/alertes.ts' \
+  'm.sorte === '"'"'rappel'"'"' && m.grave && ditGrave === false ? '"'"'aggravee'"'"'' \
+  'false ? '"'"'aggravee'"'"'' \
+  'chaque message et ses moyens ; ce qui échoue de suite en une ligne ; devenue grave ; prise, sourdine, réglée'
+prouver 'la sourdine d'"'"'une autre règle dans la chronologie' 'serveur/console/alertes.ts' \
+  'lu.sourdines.filter((x) => x.regle === a.regle && Date.parse(x.debut) <= fin' \
+  'lu.sourdines.filter((x) => Date.parse(x.debut) <= fin' \
+  'chaque message et ses moyens ; ce qui échoue de suite en une ligne ; devenue grave ; prise, sourdine, réglée'
+prouver 'la moins grave des alertes en cours d'"'"'abord' 'serveur/console/alertes.ts' \
+  '.sort((x, y) => Number(y.grave) - Number(x.grave) || Date.parse(x.debut) - Date.parse(y.debut));' \
+  '.sort((x, y) => Date.parse(x.debut) - Date.parse(y.debut));' \
+  'la plus grave d'"'"'abord, puis la plus ancienne ; ses étapes, ou son texte d'"'"'avant les étapes'
+prouver 'une règle dite calme sans relevé récent' 'serveur/console/alertes.ts' \
+  '        : !recente ? '"'"'non_lu'"'"'' \
+  '        : false ? '"'"'non_lu'"'"'' \
+  'chaque règle : grave, à regarder, trop peu lue, calme, ou pas branchée ; rien de calme sans relevé récent'
+prouver 'une alerte prise en charge dite réglée seule' 'serveur/console/alertes.ts' \
+  'a.fin === null ? '"'"'en_cours'"'"' as const : a.prise ? '"'"'prise'"'"' as const : '"'"'seule'"'"' as const' \
+  'a.fin === null ? '"'"'en_cours'"'"' as const : '"'"'seule'"'"' as const' \
+  'l'"'"'histoire : la plus récente d'"'"'abord, sa durée, et comment elle s'"'"'est réglée'
+prouver 'une prise en charge lue sans sa date' 'serveur/console/alertes.ts' \
+  'prise: p && typeof p.par === '"'"'string'"'"' && date(p.le) ?' \
+  'prise: p && typeof p.par === '"'"'string'"'"' ?' \
+  'ce qui est mal formé tombe ; la règle d'"'"'une alerte d'"'"'avant se retrouve par sa clé ; une prise se lit entière ou pas'
+prouver 'un envoi rejoué écrit deux fois' 'base/migrations/0086_service_alertes.sql' \
+  'create unique index service_envoi_une_fois on' \
+  'create index service_envoi_une_fois on' \
+  'la veille écrit ce qui est parti, une fois ; un « réglé » d'"'"'une alerte jamais vue s'"'"'écrit fini ; la console lit tout'
+prouver 'la panne de la base jamais écrite dans ses alertes' 'base/migrations/0086_service_alertes.sql' \
+  '     where x->>'"'"'sorte'"'"' = '"'"'regle'"'"' and (x->>'"'"'depuis'"'"')::timestamptz <= (x->>'"'"'le'"'"')::timestamptz' \
+  '     where x->>'"'"'sorte'"'"' = '"'"'jamais'"'"' and (x->>'"'"'depuis'"'"')::timestamptz <= (x->>'"'"'le'"'"')::timestamptz' \
+  'la veille écrit ce qui est parti, une fois ; un « réglé » d'"'"'une alerte jamais vue s'"'"'écrit fini ; la console lit tout'
+prouver 'une alerte grave mise en sourdine huit heures' 'base/migrations/0086_service_alertes.sql' \
+  '  if p_minutes > 240 and exists (' \
+  '  if false and exists (' \
+  'la sourdine : d'"'"'une règle qui prévient, un quart d'"'"'heure à un jour, quatre heures au plus sur une alerte grave, une à la fois ; la veille la lit'
+prouver 'deux sourdines à la fois sur une règle' 'base/migrations/0086_service_alertes.sql' \
+  '  if exists (select 1 from plateforme.service_sourdine s where s.regle = p_regle and s.levee_le is null and s.fin > p_maintenant) then' \
+  '  if false then' \
+  'la sourdine : d'"'"'une règle qui prévient, un quart d'"'"'heure à un jour, quatre heures au plus sur une alerte grave, une à la fois ; la veille la lit'
+prouver 'une sourdine levée que la veille lit encore' 'base/migrations/0086_service_alertes.sql' \
+  'from plateforme.service_sourdine s where s.levee_le is null and s.debut <= p_maintenant' \
+  'from plateforme.service_sourdine s where s.debut <= p_maintenant' \
+  'la sourdine : d'"'"'une règle qui prévient, un quart d'"'"'heure à un jour, quatre heures au plus sur une alerte grave, une à la fois ; la veille la lit'
+prouver 'un essai demandé deux fois' 'base/migrations/0086_service_alertes.sql' \
+  '  if exists (select 1 from plateforme.service_demande d where d.sorte = '"'"'essai'"'"' and d.faite_le is null) then' \
+  '  if false then' \
+  'l'"'"'essai : demandé une fois, lu par la veille, fait quand elle dit ce qui est parti'
+prouver 'une demande faite qui attend encore la veille' 'base/migrations/0086_service_alertes.sql' \
+  '   where x->>'"'"'demande'"'"' = d.id::text and d.faite_le is null;' \
+  '   where false;' \
+  'l'"'"'essai : demandé une fois, lu par la veille, fait quand elle dit ce qui est parti'
+prouver 'une prise en charge refaite par la même personne' 'base/migrations/0086_service_alertes.sql' \
+  '  if v_a.prise_par = socle.moi() then perform socle.refus('"'"'tu as déjà pris cette alerte en charge'"'"'); end if;' \
+  '' \
+  'prendre en charge : avec son motif, une fois, jamais une alerte réglée ; le journal dit qui'
+prouver 'une règle pas branchée mise en sourdine' 'serveur/console/routes.ts' \
+  '      if (!REGLES_BRANCHEES.has(corps.regle)) throw new Introuvable();
+' \
+  '' \
+  'la sourdine : d'"'"'une règle qui prévient, un quart d'"'"'heure à un jour, quatre heures au plus sur une alerte grave, une à la fois ; la veille la lit'
+prouver 'un bouton principal sur chaque alerte' 'web/console/src/ecrans/Alertes.tsx' \
+  'principale={a.id === d.enCours.find((x) => !x.prise)?.id}' \
+  'principale' \
+  'un seul bouton principal, qui passe à la suivante ; un motif vide se refuse, et le refus s'"'"'efface quand on écrit'
+prouver 'un refus qui reste quand on écrit le motif' 'web/console/src/ecrans/Alertes.tsx' \
+  'valeur={motif} changer={(v) => { setMotif(v); setRefus(null); }}' \
+  'valeur={motif} changer={setMotif}' \
+  'un seul bouton principal, qui passe à la suivante ; un motif vide se refuse, et le refus s'"'"'efface quand on écrit'
+prouver 'un menu de règle qui sort de l'"'"'écran' 'web/console/src/ecrans/Alertes.tsx' \
+  '    setHaut(dessous < h && dessus > dessous);' \
+  '    setHaut(false);' \
+  'la sourdine d'"'"'une règle, depuis son menu : la même fin dans le message et sur la ligne ; le menu reste dans l'"'"'écran'
+prouver 'un menu de règle qui fait sauter la page sous la souris' 'web/console/src/ecrans/Alertes.tsx' \
+  '    zone.current?.querySelector<HTMLElement>('"'"'.c-menu-liste button'"'"')?.focus({ preventScroll: true });' \
+  '    zone.current?.querySelector<HTMLElement>('"'"'.c-menu-liste button'"'"')?.focus();' \
+  'la sourdine d'"'"'une règle, depuis son menu : la même fin dans le message et sur la ligne ; le menu reste dans l'"'"'écran'
+prouver 'le nom de la règle redit sous chaque alerte filtrée' 'web/console/src/ecrans/Alertes.tsx' \
+  '{h.regle && !regle ? <span' \
+  '{h.regle ? <span' \
+  '« Voir ses alertes passées » : l'"'"'histoire de la règle, sans redire son nom ; un filtre ne fait pas glisser ses pilules'
+prouver 'des pilules qui glissent sous la souris' 'web/console/src/ecrans/Alertes.tsx' \
+  '  return { zone, style: haut ? { minHeight: haut } : undefined, garder };' \
+  '  return { zone, style: undefined, garder };' \
+  '« Voir ses alertes passées » : l'"'"'histoire de la règle, sans redire son nom ; un filtre ne fait pas glisser ses pilules'
+prouver 'une commande cassée au milieu d'"'"'un chemin au téléphone' 'web/console/src/console.css' \
+  '  .c-al-commande code { flex-basis: 100%; white-space: pre; overflow-wrap: normal; overflow-x: auto;' \
+  '  .c-al-commande code { flex-basis: 100%; overflow-x: auto;' \
+  'au téléphone : rien ne déborde, les faits tiennent en une boîte, une commande défile dans sa carte'
+prouver 'une commande qui sort de sa carte' 'web/console/src/console.css' \
+  '.c-al-etape { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px;' \
+  '.c-al-etape { display: grid; gap: 8px;' \
+  'au téléphone : rien ne déborde, les faits tiennent en une boîte, une commande défile dans sa carte'
+prouver 'les faits en trois boîtes empilées au téléphone' 'web/console/src/console.css' \
+  '  .c-al-faits > div { grid-template-columns: auto minmax(0, 1fr); align-items: baseline; gap: 12px; padding: 11px 14px; border: 0; border-radius: 0; background: none; }' \
+  '' \
+  'au téléphone : rien ne déborde, les faits tiennent en une boîte, une commande défile dans sa carte'
+
+prouver 'un geste du service au journal sans ce sur quoi il porte' 'web/console/src/ecrans/Journal.tsx' \
+  '                                : l.service ? <SurLeService s={l.service} /> : '"'"'—'"'"'}' \
+  '                                : '"'"'—'"'"'}' \
+  'la sourdine d'"'"'une règle, depuis son menu : la même fin dans le message et sur la ligne ; le menu reste dans l'"'"'écran'
+prouver 'une sourdine levée qui dit au journal l'"'"'heure de sa levée pour sa fin prévue' 'serveur/console/alertes.ts' \
+  'fin: date((geste === '"'"'service.sourdine_levee'"'"' ? avant : apres)?.fin)' \
+  'fin: date(apres?.fin)' \
+  'la règle de la sourdine, celle de l'"'"'alerte prise en charge, l'"'"'essai ; et la fin prévue d'"'"'une sourdine'
+prouver 'la prise en charge d'"'"'une alerte au journal sans sa règle' 'serveur/console/alertes.ts' \
+  ': typeof apres?.cle === '"'"'string'"'"' ? regleDe(apres.cle) : null;' \
+  ': null;' \
+  'la règle de la sourdine, celle de l'"'"'alerte prise en charge, l'"'"'essai ; et la fin prévue d'"'"'une sourdine'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

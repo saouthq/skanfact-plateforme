@@ -44,7 +44,7 @@ function TuileService({ s, aujourdhui }: { s: Service; aujourdhui: string }) {
   if (s.etat === 'ok') return <Tuile titre={t} valeur={titre('console.ecran.tableau.service_ok')} sous={titre('console.ecran.tableau.service_ok_sous')} href="#/service" point="ok" mot="ok" />;
   if (s.etat === 'problemes') {
     const graves = s.graves === 0 ? dire('console.ecran.tableau.aucun_grave') : s.graves === 1 ? dire('console.ecran.tableau.un_grave') : dire('console.ecran.tableau.graves', { n: s.graves });
-    return <Tuile titre={t} valeur={String(s.n)} sous={`${titre(s.n === 1 ? 'console.ecran.tableau.probleme' : 'console.ecran.tableau.problemes')}, ${graves}`} href="#/service" point="pb" />;
+    return <Tuile titre={t} valeur={String(s.n)} sous={`${titre(s.n === 1 ? 'console.ecran.tableau.probleme' : 'console.ecran.tableau.problemes')}, ${graves}`} href="#/service/alertes" point="pb" />;
   }
   const sous = s.raison === 'pas_de_veille' ? titre('console.ecran.tableau.pas_de_veille')
     : titre('console.ecran.tableau.veille_silencieuse', { quand: s.derniere ? quand(s.derniere, aujourdhui) : '—' });
@@ -85,7 +85,7 @@ function voir(l: Ligne, aujourdhui: string): Vue {
   const fiche = (q: Qui) => `#/clients/${q.id}`;
   switch (l.sorte) {
     case 'service':
-      return { icone: 'serveur', titre: l.titre, desc: l.faire, meta: titre('console.ecran.decider.service_depuis', { quand: l.depuis ? quand(l.depuis, aujourdhui) : '—' }), urgence: l.grave ? 'urgent' : 'a_regarder', href: '#/service', bouton: titre('console.ecran.decider.ouvrir_service') };
+      return { icone: 'serveur', titre: l.titre, desc: l.faire, meta: titre('console.ecran.decider.service_depuis', { quand: l.depuis ? quand(l.depuis, aujourdhui) : '—' }), urgence: l.grave ? 'urgent' : 'a_regarder', href: '#/service/alertes', bouton: titre('console.ecran.decider.ouvrir_alerte') };
     case 'veille_silencieuse':
       return { icone: 'alerte', titre: titre('console.ecran.decider.veille_titre'), desc: phrase('console.ecran.decider.veille', { quand: quand(l.derniere, aujourdhui) }), meta: null, urgence: 'urgent', href: '#/service', bouton: titre('console.ecran.decider.ouvrir_service') };
     case 'en_retard':

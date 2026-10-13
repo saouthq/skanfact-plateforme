@@ -210,6 +210,72 @@ et ses graphiques `web/console/src/graphes.tsx`. Les tests : `tests/service/mesu
 - **Ce que la veille écrit (un titre, ce qu'il faut faire, un disque, une version) est une donnée** : ses mots s'affichent
   tels quels, avec la typographie de l'écran.
 
+**Les alertes** (Console 3c, 13/10/2026). Le code : la base `base/migrations/0086_service_alertes.sql` (`service_envoi`,
+`service_sourdine`, `service_demande` ; la règle, les étapes et la prise en charge d'une alerte ; qui est prévenu et ce
+que les règles des requêtes ont lu, au relevé ; `noter_veille` à quatre arguments, `veille_lire`, et pour la console
+`console_service_alertes`, `console_prendre_alerte`, `console_sourdine`, `console_lever_sourdine`,
+`console_demander_essai`) ; la veille (`exploitation/veille.ts` : `decider` avec les sourdines et l'aggravation,
+`requetes`, `REGLES`, `regleDe`, `masquerCourriel`, `masquerTelephone`, `envoisDe`, `garderANoter`, des étapes au lieu
+d'une phrase ; `exploitation/veiller.ts` : ce qu'elle lit de la base, ce qui attend dans `veille.json`) ; la lecture de
+la console `serveur/console/alertes.ts` (pure) et ses routes (`GET /console/service/alertes`,
+`POST /console/service/alertes/:alerte/prendre`, `POST /console/service/sourdines`,
+`POST /console/service/sourdines/:sourdine/lever`, `POST /console/service/essai`) ; l'écran
+`web/console/src/ecrans/Alertes.tsx`. Les tests : `tests/exploitation/veille.test.ts` et `tests/console/alertes.test.ts`
+(purs), `tests/exploitation/veiller.test.ts` (le veilleur lancé pour de vrai, avec la base), les cas « les alertes du
+service (0086) » de `tests/console/console.test.ts` (contre la base) et `tests/web/console-alertes.test.ts` (à la souris).
+
+**C13. Les alertes du service** (10 § 2.8 ; 06 § 7).
+- **L'alerte en cours dit ce qu'il faut faire, étape par étape**, et ce qu'on tape (une commande, un chemin) se copie
+  d'un geste ; l'e-mail lit les mêmes étapes, à la suite. La procédure écrite (`docs/mise-en-ligne.md`, I) est toujours
+  la dernière. L'enjeu (ce qu'on risque) se dit une fois, sous le titre : jamais redit dans une étape.
+- **Un problème qui DEVIENT grave se redit aussitôt, par SMS aussi** (la copie hors de la machine passe l'heure de
+  retard, le disque les 90 %) : sans cela il attendait le rappel des six heures, et l'exploitant croyait encore à une
+  simple alerte. Le rappel suivant part de l'aggravation. Un message qui n'est parti par aucun moyen se redit grave à la
+  minute suivante ; une `veille.json` d'avant (sans `diteGrave`) vaut ce qu'elle était. La chronologie le dit :
+  « devenue grave ».
+- **Qui s'en occupe** : la direction et la technique prennent une alerte en charge, avec un motif ; leur nom s'affiche et
+  le geste va au journal (`service.prendre`). Rien ne change sur le serveur : les rappels continuent. Une alerte réglée
+  ne se prend plus ; une alerte prise par quelqu'un d'autre se reprend (la fenêtre et le journal disent qui l'avait).
+  **Une alerte ne se marque jamais « réglée » à la main** : elle se lève quand la veille ne voit plus le problème.
+- **La sourdine se pose sur une RÈGLE, jamais sur une alerte** (« les disques » tait chaque disque) : d'un quart d'heure
+  à un jour, **quatre heures au plus quand la règle a une alerte grave** (la veille borne aussi une alerte qui le devient
+  pendant la sourdine), une à la fois. La règle regarde toujours : ce qu'elle voit reste dans la console et sur la page
+  d'état. Un problème qui se règle pendant la sourdine se dit s'il avait été dit (c'est une bonne nouvelle, et elle ferme
+  ce qu'on avait annoncé) ; à la fin, ce qui n'a jamais été dit se dit, et les rappels reprennent. Seules les règles
+  branchées se mettent en sourdine. **La fin dite est celle que le serveur a posée** (la fenêtre l'estimait à son
+  ouverture : une minute d'écart avec la chronologie). Levée avant sa fin, la veille prévient dès la minute suivante.
+  Journal : `service.sourdine`, `service.sourdine_levee`. **Au journal, un geste du service dit sur quoi il porte** (la
+  règle visée, l'alerte d'essai) et jusqu'à quand une sourdine devait courir — celle d'une sourdine levée est sa fin
+  PRÉVUE, gardée dans l'« avant » du geste (l'« après » porte la minute de la levée).
+- **La console ne touche jamais au serveur** : l'alerte d'essai est une DEMANDE que la veille lit la minute suivante,
+  envoie par chaque moyen réglé, et dont elle dit ce qui est parti ; une seule attend à la fois (`service.essai`).
+- **Ce qui est parti, message par message, et par quel moyen** : « remis » au relais d'e-mails ou à WinSMS, jamais
+  « reçu » (la veille n'en sait pas plus). Des échecs de suite (un relais en panne : la veille réessaie chaque minute)
+  se disent en une ligne, avec leur nombre. Ce que la base n'a pas pris attend dans `veille.json` (deux cents au plus) ;
+  **une panne de la base elle-même s'écrit à son retour**, finie, depuis son début : sans cela, la panne la plus grave
+  n'existait pas dans l'histoire. Le prochain rappel se compte depuis le dernier message REMIS.
+- **Qui est prévenu, MASQUÉ** (« v•••@•••.tn », « +216 •• ••• 456 ») : jamais une adresse ni un numéro entiers dans la
+  base, ni dans ce que la veille lui confie. Les destinataires se règlent sur le serveur (`exploitation/alertes.sh`),
+  jamais dans la console ; une adresse sans le relais d'e-mails, un numéro sans WinSMS, le disent : « rien ne part ».
+- **Deux règles lues dans la base, sur les mesures de la console** : les pannes (plus de 1 % chacune des cinq minutes,
+  grave à une sur dix) et le temps de réponse (moins de 95 % sous 300 ms chacune des dix minutes, avec vingt lectures au
+  moins ; jamais grave : lent n'est pas en panne). La minute en cours et celle d'avant ne se jugent pas (à moitié
+  rangées). Une minute sans requête ne juge rien (« trop peu », la nuit) ; une base pas lue ne règle rien de ce qui
+  était ouvert, et n'ouvre rien.
+- **Les règles de la veille, toutes** : quatorze branchées, six que 06 § 7 prévoit et que rien ne mesure encore
+  (« pas branchée » : la console le dit plutôt que d'afficher du vert). Chaque clé que la veille peut poser a sa règle
+  (un test les essaie toutes) ; ses seuils viennent des constantes du programme. **Rien n'est « calme » sans relevé
+  récent** (cinq minutes) : « non lu ».
+- **L'histoire des trente derniers jours** : chacune, sa gravité (celle qu'elle a eue), sa durée (« jusqu'à maintenant »
+  pour une ouverte), et comment elle s'est réglée — seule, après une prise en charge, ou pas encore. Elle se filtre par
+  règle depuis la ligne de la règle (« voir ses alertes passées »), sans redire le nom de la règle sous chaque alerte.
+- **L'écran** : un seul bouton principal (« Prendre en charge » de l'alerte la plus urgente que personne n'a prise ; il
+  passe à la suivante) ; un refus s'efface dès qu'on corrige (de même sur la fiche d'un client et dans l'équipe) ; un
+  menu de ligne s'ouvre vers le haut quand la place manque dessous, sans faire défiler la page ; **un filtre qui raccourcit une liste au bas de la
+  page ne fait pas glisser ses pilules** (la carte garde sa hauteur tant qu'on reste sur le même sujet) ; au téléphone,
+  les faits tiennent en une boîte et une commande défile au lieu de se casser au milieu d'un chemin.
+- Les trois tables sont à la plateforme : elles ne partent jamais avec l'export d'une entreprise (`CLASSEMENT`, « hors »).
+
 ## Mettre en route
 
 La personne crée d'abord son compte SkanFact, puis met en place le code de son téléphone (« Ton compte »,
@@ -247,11 +313,13 @@ fait depuis l'écran « Équipe ». La console s'ouvre à `https://<le serveur>/
 - **Qui entre dans l'équipe, et avec quel rôle.** Le premier membre se pose sur le serveur des pilotes par l'outil, en
   root : jamais par Claude.
 - **`console.skanfact.tn`** : le nom à créer dans le DNS, puis le frontal le branche.
+- **Un second destinataire des alertes** : une seule adresse et un seul numéro sont prévenus ; s'ils ne répondent pas,
+  personne d'autre ne le saura. L'écran des alertes le dit ; le second se règle sur le serveur (`exploitation/alertes.sh`).
 
 ## Ce que le lot ne fait pas
 
-La suite de la console : les paiements et nos factures (14b), le support, la suite du service (ses alertes, ses
-sauvegardes, sa file de travaux, ses incidents et la page d'état, ses performances, sa sécurité, ses versions), la
+La suite de la console : les paiements et nos factures (14b), le support, la suite du service (ses sauvegardes, sa file
+de travaux, ses incidents et la page d'état, ses performances, sa sécurité, ses versions), la
 mesure, les réglages de la plateforme, l'application de bureau (les licences de la v10), l'accès accordé par un client
 (48 heures, en lecture), et le filtre du journal par geste et par période. Le service ne se voit encore que du serveur
 lui-même : aucune vérification de l'extérieur (06 § 7, depuis deux villes) ; l'écran le dit.
@@ -293,3 +361,15 @@ trente jours ; « cette heure-ci » à 0,0 au début de chaque heure ; les mises
 un retour dit comme une mise en ligne ; une sauvegarde ratée dont la copie se disait « arrivée hors de la machine » ;
 une nuit datée de l'heure où sa copie a été vérifiée ; un pas mesuré seul qui ne se dessinait pas ; le cadre du clavier
 posé sur les graduations ; « {p95} » écrit tel quel (une valeur nommée avec un chiffre ne se remplit jamais).
+
+Les alertes (3c), sur le même essai rejoué avec `--suivre` (la veille continue minute par minute, et les gestes de la
+console lui arrivent pour de vrai : la sourdine se lit, l'essai part), en direction, à la fenêtre réelle de 1432 points
+et à 390 ; en sombre et en clair. Corrigé pendant le parcours : un refus de motif qui restait affiché une fois le motif
+corrigé (sur la fiche d'un client et dans l'équipe aussi) ; la fin d'une sourdine dite à une minute près entre le
+message et la chronologie (la fenêtre l'estimait, c'est le serveur qui la pose) ; deux boutons principaux à l'écran ; le
+menu de la dernière règle coupé par le bas de la page, puis qui faisait sauter la page de 440 points en s'ouvrant (son
+premier choix prenait le clavier en la faisant défiler) ; le tableau des règles qui débordait et cachait ses menus ; une
+alerte devenue grave dite comme un simple rappel ; l'enjeu du disque redit dans « que faire » ; le nom de la règle redit
+sous chaque alerte de son histoire filtrée ; les pilules de l'histoire qui glissaient de 90 points sous la souris quand
+le filtre raccourcissait la liste au bas de la page ; au téléphone, les trois faits empilés sur 240 points et les
+commandes cassées au milieu d'un chemin (« skanfact-↵hors-machine »).

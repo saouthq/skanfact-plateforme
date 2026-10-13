@@ -52,7 +52,7 @@ import { CLE_DU_COFFRE_D_ESSAI, cleDuCoffre, CoffreFaux } from './coffre.ts';
 import type { Contexte } from './connexion.ts';
 import { choisirEncodage, compressible, SEUIL_COMPRESSION } from './compression.ts';
 import { dejaGarde, fichiersDesEcrans, versionDuCode } from './ecrans.ts';
-import { Refus } from './erreurs.ts';
+import { noterPanne, Refus } from './erreurs.ts';
 import { listeDepuisFichier } from './mot-de-passe.ts';
 import { smsWinsms, WINSMS_PAR_DEFAUT } from './sms.ts';
 import { routesSocle } from './routes/socle.ts';
@@ -262,7 +262,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const minuterie = setInterval(() => {
     if (enCours) return;
     enCours = true;
-    tour = livrerAvis(pool, envoyer).catch((e: unknown) => { app.log.error(e); }).finally(() => { enCours = false; });
+    tour = livrerAvis(pool, envoyer).catch((e: unknown) => { noterPanne('tâche livrerAvis', e); }).finally(() => { enCours = false; });
   }, c.livreurMs);
 
   // Le filet du paiement en ligne (brique 78) : chaque minute, les demandes restées ouvertes se
@@ -272,7 +272,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const veilleur = setInterval(() => {
     if (verifie) return;
     verifie = true;
-    verification = verifierEnAttente(ctx).catch((e: unknown) => { app.log.error(e); }).finally(() => { verifie = false; });
+    verification = verifierEnAttente(ctx).catch((e: unknown) => { noterPanne('tâche verifierEnAttente', e); }).finally(() => { verifie = false; });
   }, c.verificationMs);
 
   // Le facteur de la TTN (brique 82) : les pièces signées à déposer, celles déposées à relire ; un seul
@@ -282,7 +282,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const facteur = setInterval(() => {
     if (enTournee || !c.ttn) return;
     enTournee = true;
-    tournee = envoyerALaTtn(ctx).catch((e: unknown) => { app.log.error(e); }).finally(() => { enTournee = false; });
+    tournee = envoyerALaTtn(ctx).catch((e: unknown) => { noterPanne('tâche envoyerALaTtn', e); }).finally(() => { enTournee = false; });
   }, c.ttnMs);
 
   // Les factures périodiques émises seules (brique 129) : au démarrage (un serveur redémarré plus souvent qu'une fois
@@ -292,7 +292,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const tourDesContrats = () => {
     if (enEcheances) return;
     enEcheances = true;
-    echeancier = emettreLesContrats(ctx).catch((e: unknown) => { app.log.error(e); }).finally(() => { enEcheances = false; });
+    echeancier = emettreLesContrats(ctx).catch((e: unknown) => { noterPanne('tâche emettreLesContrats', e); }).finally(() => { enEcheances = false; });
   };
   tourDesContrats();
   const contrats = setInterval(tourDesContrats, c.contratsMs);
@@ -304,7 +304,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const postier = setInterval(() => {
     if (enAlertes || !ctx.courriel) return;
     enAlertes = true;
-    alertes = prevenirParCourriel(ctx).catch((e: unknown) => { app.log.error(e); }).finally(() => { enAlertes = false; });
+    alertes = prevenirParCourriel(ctx).catch((e: unknown) => { noterPanne('tâche prevenirParCourriel', e); }).finally(() => { enAlertes = false; });
   }, c.alertesMs);
 
   // Les relances de l'abonnement (docs/abonnement.md) : au démarrage, puis chaque heure, les échéances proches ; un seul
@@ -314,7 +314,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const tourDesRelances = () => {
     if (enRelances || !ctx.courriel) return;
     enRelances = true;
-    relances = relancerLesAbonnements(ctx).catch((e: unknown) => { app.log.error(e); }).finally(() => { enRelances = false; });
+    relances = relancerLesAbonnements(ctx).catch((e: unknown) => { noterPanne('tâche relancerLesAbonnements', e); }).finally(() => { enRelances = false; });
   };
   tourDesRelances();
   const relanceur = setInterval(tourDesRelances, c.relancesMs);

@@ -13,18 +13,21 @@ import { aujourdhuiATunis } from '../reglements.ts';
 import { etatAbonnement, GRACE_JOURS, lireFaits, RELANCES, type Etat, type Faits } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, type GesteAbonnement, type LigneAbonnement } from '../abonnement/gestes.ts';
 import { motif, t } from '../../textes/index.ts';
+import { REGLES } from '../../exploitation/veille.ts';
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
 import { aDecider, CATEGORIES, categorie, chercher, inscriteCetteSemaine, lireEntreprises, lireVeille, rangerParUrgence, tableau, type Veille } from './decider.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
 import { annuel, AVENIR_JOURS, cartes, lignesEcheances, lireExtras, lirePrix, vue, VUES, type Vue } from './echeances.ts';
 import {
-  BUDGET_DU_GRAPHIQUE, bornes, briques, disponibilite, enLigne, ensemble, estPeriode, journal, joursDuService, lireVeilleDeLaBase,
+  alertesOuvertes, BUDGET_DU_GRAPHIQUE, bornes, briques, disponibilite, enLigne, ensemble, estPeriode, journal, joursDuService, lireVeilleDeLaBase,
   misesEnLigne, PERIODES, resume, serie, SEUILS_DU_SERVICE, SORTE_DU_GRAPHIQUE, traficRecent, trenteJours, TUILES, type Periode,
 } from './service.ts';
+import { enCours, histoire, lireAlertes, MINUTES_JUGEES, prevenus, regles, RYTHME, sujetDuService } from './alertes.ts';
 import type { RoleConsole } from './gestes.ts';
 import './textes.ts';
 
 const uuid = z.string().uuid();
+const REGLES_BRANCHEES = new Set(REGLES.filter((r) => r.branchee).map((r) => r.id));
 const motifGeste = z.string().trim().min(3, 'console.motif_requis').max(500);
 const LIMITE_MAX = 200;
 const limite = (q: Record<string, string>) => Math.min(Math.max(Number(q.limite ?? 50) || 50, 1), LIMITE_MAX);
@@ -284,11 +287,16 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const n = limite(query);
       const qui = uuid.safeParse(query.qui).success ? query.qui : null;
       const entreprise = uuid.safeParse(query.entreprise).success ? query.entreprise : null;
-      const lignes = await lireJson<{ curseur: string; id: string }[]>(transaction(tx), 'select plateforme.console_journal($1, $2, $3::timestamptz, $4::uuid, $5) v',
-        [qui, entreprise, m?.[1] ?? null, m?.[2] ?? null, n]);
+      const lignes = await lireJson<{ curseur: string; id: string; geste: string; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null }[]>(transaction(tx),
+        'select plateforme.console_journal($1, $2, $3::timestamptz, $4::uuid, $5) v', [qui, entreprise, m?.[1] ?? null, m?.[2] ?? null, n]);
       const derniere = lignes.at(-1);
-      // Le curseur ne sert qu'à la suite : il ne part pas avec chaque ligne.
-      return { corps: { lignes: lignes.map((l) => ({ ...l, curseur: undefined })), suite: lignes.length === n && derniere ? `${derniere.curseur}|${derniere.id}` : null } };
+      // Le curseur ne sert qu'à la suite : il ne part pas avec chaque ligne. Un geste du service dit sur quoi il porte.
+      return {
+        corps: {
+          lignes: lignes.map((l) => ({ ...l, curseur: undefined, service: sujetDuService(l.geste, l.avant, l.apres) ?? undefined })),
+          suite: lignes.length === n && derniere ? `${derniere.curseur}|${derniere.id}` : null,
+        },
+      };
     },
   });
 
@@ -355,8 +363,72 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           disponibilite: disponibilite(v), jours: joursDuService(v, jour, t), coupures: v.coupures.slice(0, 10),
           briques: briques(v, jour, t, veille.etat === 'ok'), nuits: v.nuits.slice(0, 14), exercice: v.exercice,
           journal: journal(v), machine: v.machine, dernier: v.dernier, misesEnLigne: misesEnLigne(v), enLigne: enLigne(v),
+          alertesEnCours: alertesOuvertes(v.alertes),
         },
       };
+    },
+  });
+
+  // ── Les alertes du service (Console 3c, docs/console.md C13) ─────────────────────────────────────────────────────────
+  // Ce qui est en cours et sa chronologie, qui est prévenu, le rythme, les règles de la veille et ce qu'elles voient,
+  // l'histoire des trente derniers jours. Le compte de l'onglet est celui des alertes ouvertes, la même règle que la vue
+  // d'ensemble (C3).
+  const depuisTrenteJours = (jour: string) => `${trenteJours(jour)[0]}T00:00:00+01:00`;
+  ajouter({
+    methode: 'GET', chemin: '/console/service/alertes', geste: 'console.service.voir',
+    traiter: async (_r, tx) => {
+      const t = maintenant();
+      const jour = aujourdhuiATunis(t);
+      const lu = lireAlertes(await lireJson(transaction(tx), 'select plateforme.console_service_alertes($1) v', [depuisTrenteJours(jour)]));
+      const v = lireVeilleDeLaBase(await lireJson(transaction(tx), 'select plateforme.console_service_veille($1) v', [depuisTrenteJours(jour)]));
+      const veille = await lireLaVeille(fichierVeille, t);
+      return {
+        corps: {
+          maintenant: t.toISOString(), aujourdhui: jour, veille, alertesEnCours: alertesOuvertes(lu.alertes), briques: briques(v, jour, t, veille.etat === 'ok'),
+          enCours: enCours(lu, t), prevenus: prevenus(lu), rythme: RYTHME, regles: regles(lu, t), minutesJugees: MINUTES_JUGEES,
+          histoire: histoire(lu, t),
+          // Ce que chaque règle a vu en dernier (la vue d'ensemble en tire les mêmes faits).
+          faits: { dernier: v.dernier, nuit: v.nuits[0] ?? null, exercice: v.exercice, machine: v.machine.at(-1) ?? null, enLigne: enLigne(v), jour: joursDuService(v, jour, t).at(-1) ?? null },
+        },
+      };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/alertes/:alerte/prendre', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!uuid.safeParse(params.alerte).success) throw new Introuvable();
+      await transaction(tx).query('select plateforme.console_prendre_alerte($1, $2, $3)', [params.alerte, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/sourdines', geste: 'console.service.gerer',
+    corps: z.object({ regle: z.string().regex(/^[a-z-]{1,40}$/), minutes: z.number().int().min(15).max(1440), motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      // La console ne met en sourdine que les règles de la veille qui préviennent (une règle pas branchée ne dit rien).
+      if (!REGLES_BRANCHEES.has(corps.regle)) throw new Introuvable();
+      const quand = maintenant();
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_sourdine($1, $2, $3, $4) v', [corps.regle, corps.minutes, corps.motif, quand]);
+      // Sa fin, comptée sur l'heure du serveur (celle que la base a posée) : l'écran la dit telle quelle.
+      return { statut: 201, corps: { id, fin: new Date(quand.getTime() + corps.minutes * 60_000).toISOString() } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/sourdines/:sourdine/lever', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!uuid.safeParse(params.sourdine).success) throw new Introuvable();
+      await transaction(tx).query('select plateforme.console_lever_sourdine($1, $2, $3)', [params.sourdine, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/essai', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_demander_essai($1, $2) v', [corps.motif, maintenant()]);
+      return { statut: 201, corps: { id } };
     },
   });
 

@@ -16,19 +16,30 @@
 //     16 h 20, un ralentissement plus court ;
 //   - le disque /var se remplit : nettoyé il y a 3 jours à 76 %, il repasse les 75 % depuis trois heures ;
 //   - en ce moment, la copie hors de la machine est en retard (grave). `--calme` : ces deux-là viennent de se régler.
+// Les alertes partent comme la veille les envoie (exploitation/veille.ts : alerte, envoisDe) à des destinataires inventés,
+// que la console ne voit que masqués ; le SMS de la coupure est refusé (le crédit WinSMS était épuisé), l'e-mail part.
 //
-//   PG_ADMIN=… SKANFACT_VEILLE_FICHIER=/tmp/skanfact-humain-plateforme/veille.json node scripts/humain/exemple-service.ts [--calme]
+// `--suivre` : ensuite, la veille continue minute par minute, comme son minuteur, tant qu'on ne l'arrête pas (Ctrl+C). Elle
+// lit la base comme la vraie (plateforme.veille_lire : les mesures, les sourdines et les essais demandés depuis la
+// console) et y écrit ce qu'elle voit et ce qui part ; le trafic de l'histoire continue avec elle. Les gestes de la
+// console sur les alertes s'essaient ainsi à la main, jusqu'à leur effet.
+//
+//   PG_ADMIN=… SKANFACT_VEILLE_FICHIER=/tmp/skanfact-humain-plateforme/veille.json node scripts/humain/exemple-service.ts [--calme] [--suivre]
 import fs from 'node:fs';
 import pg from 'pg';
-import { decider, pourLaConsole, problemes, retenir, type Machine, type Releve, type Veille } from '../../exploitation/veille.ts';
+import {
+  alerte, decider, envoisDe, masquerCourriel, masquerTelephone, pourLaConsole, problemes, requetes, retenir,
+  type Envoi as EnvoiVeille, type Machine, type MinuteMesuree, type Releve, type Sourdine, type Veille,
+} from '../../exploitation/veille.ts';
 import { Collecte, type Envoi } from '../../serveur/service/collecte.ts';
-import type { Sorte } from '../../serveur/service/mesures.ts';
+import { fusionner, histogrammeVide, type Sorte } from '../../serveur/service/mesures.ts';
 
 const admin = process.env.PG_ADMIN;
 if (!admin) throw new Error('PG_ADMIN manque : l\'adresse d\'un compte d\'administration PostgreSQL');
 const base = new URL(admin);
 base.pathname = '/skanfact_humain';
 const calme = process.argv.includes('--calme');
+const suivre = process.argv.includes('--suivre');
 const fichierVeille = process.env.SKANFACT_VEILLE_FICHIER ?? '/tmp/skanfact-humain-plateforme/veille.json';
 
 // ── Le hasard, d'une graine fixe (mulberry32) ────────────────────────────────────────────────────────────────────────
@@ -72,8 +83,8 @@ const versionA = (t: number) => VERSIONS.filter(([de]) => t >= de).at(-1)?.[1] ?
 // Les lenteurs : [début, fin, combien plus lent (au début, à la fin), part de pannes].
 const LENTEURS: [number, number, number, number, number][] = [
   [a(11, 21, 3), a(11, 21, 14), 1.6, 7, 0.04],
-  [a(4, 10, 5), a(4, 10, 43), 3.4, 3.4, 0.0],
-  [a(4, 10, 12), a(4, 10, 31), 1, 1, 0.025],
+  [a(4, 10, 5), a(4, 10, 43), 5, 5, 0.0],
+  [a(4, 10, 12), a(4, 10, 31), 1, 1, 0.06],
   [a(1, 16, 20), a(1, 16, 36), 2.3, 2.3, 0.006],
 ];
 function lenteur(t: number): { facteur: number; pannes: number } {
@@ -108,8 +119,9 @@ function activite(t: number): number {
   return v * semaine;
 }
 const DEBUT_REQUETES = Math.floor((MAINTENANT - 31 * JOUR) / HEURE) * HEURE;
-// Des requêtes par minute, au plus fort d'un jour ordinaire ; le mois en gagne un cinquième (des clients arrivent).
-const debit = (t: number) => 34 * activite(t) * (1 + 0.2 * (t - DEBUT_REQUETES) / (MAINTENANT - DEBUT_REQUETES));
+// Des requêtes par minute, au plus fort d'un jour ordinaire ; le mois en gagne un cinquième (des clients arrivent) :
+// assez de listes et de fiches, aux heures de bureau, pour que la veille juge leur temps de réponse (vingt par minute).
+const debit = (t: number) => 48 * activite(t) * (1 + 0.2 * Math.min(1, (t - DEBUT_REQUETES) / (MAINTENANT - DEBUT_REQUETES)));
 const PARTS: [Sorte, number][] = [['lecture', 64], ['ecriture', 15], ['caisse', 9], ['dossier', 6], ['comptes', 4], ['console', 2]];
 const ROUTES: Record<Sorte, readonly (readonly [string, number])[]> = {
   lecture: [['GET /entreprises/:entreprise/ventes', 30], ['GET /entreprises/:entreprise/clients', 16], ['GET /moi', 12],
@@ -182,64 +194,145 @@ function releve(t: number): Releve {
   };
 }
 
+// ── Le trafic d'une minute, noté comme le serveur le note ─────────────────────────────────────────────────────────────
+function trafic(collecte: Collecte, t: number): number {
+  if (dedans(t, COUPURE)) return 0;
+  const { facteur, pannes } = lenteur(t);
+  const bruit = Math.exp(0.15 * normale());
+  let n = 0;
+  for (const [sorte, part] of PARTS) {
+    const k = poisson((debit(t) * part / 100) * bruit);
+    for (let i = 0; i < k; i++) {
+      const [methode = 'GET', chemin = '/moi'] = choisir(ROUTES[sorte]).split(' ');
+      const statut = hasard() < pannes ? 500 : hasard() < 0.012 ? 409 : methode === 'GET' ? 200 : 201;
+      collecte.noter(methode, chemin, statut, duree(sorte, t, facteur), new Date(t + Math.floor(hasard() * MIN)));
+      n++;
+    }
+  }
+  return n;
+}
+
+// Ce que la base rend à la veille, minute par minute, toutes sortes additionnées (plateforme.veille_lire) : ses deux
+// règles des requêtes s'y jugent. Gardé ici pour tout le mois rejoué (la base, elle, ne garde que trois jours).
+type Mesuree = { minute: string; n: number; pannes: number; lecture: number[] | null };
+const mesurees = new Map<number, Mesuree>();
+function garderLesMinutes(envoi: Envoi) {
+  for (const l of envoi.minutes) {
+    const t = Date.parse(l.minute);
+    const m = mesurees.get(t) ?? { minute: l.minute, n: 0, pannes: 0, lecture: null };
+    m.n += l.n;
+    m.pannes += l.pannes;
+    if (l.sorte === 'lecture') m.lecture = fusionner(m.lecture ?? histogrammeVide(), l.h);
+    mesurees.set(t, m);
+  }
+}
+// Les quinze dernières minutes finies avant `t`, comme plateforme.veille_lire($1, 15).
+function quinzeMinutes(t: number): MinuteMesuree[] {
+  const fin = Math.floor(t / MIN) * MIN;
+  const r: MinuteMesuree[] = [];
+  for (let x = fin - 15 * MIN; x < fin; x += MIN) { const m = mesurees.get(x); if (m) r.push(m); }
+  return r;
+}
+
+// ── La veille, un tour, comme exploitation/veiller.ts (tour) le ferait ───────────────────────────────────────────────
+// Qui est prévenu : des destinataires inventés (exploitation/alertes.sh les règle sur un vrai serveur), que la console ne
+// voit que masqués. WinSMS refuse le SMS de la coupure.
+const SERVEUR = 'app.skanfact.tn';
+const DESTINATAIRES = {
+  courriel: { a: masquerCourriel('veille@exemple.tn') ?? '•••', pret: true },
+  sms: { a: masquerTelephone('+216 20 000 456') ?? '•••', pret: true },
+};
+const SMS_REFUSE: [number, number] = [COUPURE[0], COUPURE[0] + 5 * MIN];
+type Lu = { minutes: MinuteMesuree[]; sourdines: Sourdine[]; demandes: { id: string; sorte: string }[] };
+let enCours: Veille = { problemes: {} };
+function tourDeVeille(t: number, lu: Lu): [unknown, unknown, unknown, EnvoiVeille[]] {
+  const maintenant = new Date(t);
+  const r = releve(t);
+  const req = requetes(lu.minutes, maintenant, enCours);
+  const sourdines = lu.sourdines.filter((s) => Date.parse(s.fin) > t);
+  const { apres, messages } = decider(enCours, [...problemes(r), ...req.problemes], maintenant, sourdines);
+  const envois: EnvoiVeille[] = [];
+  let parti = true;
+  const a = alerte(SERVEUR, messages);
+  if (a) {
+    const p = { courriel: true, sms: a.sms ? !dedans(t, SMS_REFUSE) : null };
+    parti = p.courriel || p.sms === true;
+    envois.push(...envoisDe(messages, p, maintenant).filter((e) => e.sorte === 'regle' || e.courriel !== null || e.sms !== null));
+  }
+  for (const d of lu.demandes) {
+    if (d.sorte === 'essai') envois.push({ le: maintenant.toISOString(), sorte: 'essai', cle: null, titre: null, depuis: null, grave: false, courriel: true, sms: true, demande: d.id });
+  }
+  enCours = { ...retenir(enCours, apres, messages, parti), ...(sourdines.length ? { sourdines } : {}) };
+  const x = pourLaConsole(r, enCours, machine(t), { destinataires: DESTINATAIRES, lu: req.lu });
+  return [x.releve, x.problemes, x.nuits, envois];
+}
+
 // ── Écrire ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 const c = new pg.Client({ connectionString: base.toString() });
 await c.connect();
-await c.query('truncate plateforme.service_minute, plateforme.service_heure, plateforme.service_route, plateforme.service_releve, plateforme.service_alerte, plateforme.service_nuit');
+await c.query(`truncate plateforme.service_minute, plateforme.service_heure, plateforme.service_route, plateforme.service_releve,
+  plateforme.service_alerte, plateforme.service_nuit, plateforme.service_envoi, plateforme.service_sourdine, plateforme.service_demande`);
 // La veille rejouée dans l'ordre : une fonction de la session, qui appelle noter_veille minute après minute.
 await c.query(`create function pg_temp.rejouer_veille(p jsonb) returns void language plpgsql as $$
   declare x record;
   begin
     for x in select e.v from jsonb_array_elements(p) with ordinality e(v, i) order by e.i loop
-      perform plateforme.noter_veille(x.v->0, x.v->1, x.v->2);
+      perform plateforme.noter_veille(x.v->0, x.v->1, x.v->2, x.v->3);
     end loop;
   end $$`);
 
 // 1. Les requêtes, heure par heure, par la collecte du serveur. Les minutes de plus de trois jours ne partent pas : la base
-//    ne les garde pas.
+//    ne les garde pas (la veille rejouée les lit ici).
 const collecte = new Collecte();
-let requetes = 0;
+let requetesNotees = 0;
 for (let h = DEBUT_REQUETES; h < MAINTENANT; h += HEURE) {
-  for (let t = h; t < Math.min(h + HEURE, MAINTENANT); t += MIN) {
-    if (dedans(t, COUPURE)) continue;
-    const { facteur, pannes } = lenteur(t);
-    const bruit = Math.exp(0.15 * normale());
-    for (const [sorte, part] of PARTS) {
-      const n = poisson((debit(t) * part / 100) * bruit);
-      for (let i = 0; i < n; i++) {
-        const [methode = 'GET', chemin = '/moi'] = choisir(ROUTES[sorte]).split(' ');
-        const statut = hasard() < pannes ? 500 : hasard() < 0.012 ? 409 : methode === 'GET' ? 200 : 201;
-        collecte.noter(methode, chemin, statut, duree(sorte, t, facteur), new Date(t + Math.floor(hasard() * MIN)));
-        requetes++;
-      }
-    }
-  }
+  for (let t = h; t < Math.min(h + HEURE, MAINTENANT); t += MIN) requetesNotees += trafic(collecte, t);
   const envoi: Envoi = collecte.prendre();
+  garderLesMinutes(envoi);
   if (h + HEURE < MAINTENANT - 3 * JOUR) envoi.minutes = [];
   await c.query('select plateforme.noter_requetes($1, $2::jsonb)', ['vps-1:8080', JSON.stringify(envoi)]);
 }
 
 // 2. La veille, minute par minute, par ses règles ; envoyée jour par jour.
-let enCours: Veille = { problemes: {} };
 let lot: unknown[] = [];
 let releves = 0;
 const envoyer = async () => { if (lot.length) await c.query('select pg_temp.rejouer_veille($1::jsonb)', [JSON.stringify(lot)]); lot = []; };
 for (let t = VEILLE_POSEE; t <= MAINTENANT; t += MIN) {
   if (dedans(t, VEILLE_TUE)) continue;
-  const r = releve(t);
-  const { apres, messages } = decider(enCours, problemes(r), r.maintenant);
-  enCours = retenir(enCours, apres, messages, true);
-  const x = pourLaConsole(r, enCours, machine(t));
-  lot.push([x.releve, x.problemes, x.nuits]);
+  lot.push(tourDeVeille(t, { minutes: quinzeMinutes(t), sourdines: [], demandes: [] }));
   releves++;
   if (lot.length >= 1440) await envoyer();
 }
 await envoyer();
 
-const alertes = await c.query<{ ouvertes: string; finies: string }>(`select count(*) filter (where fin is null) ouvertes, count(*) filter (where fin is not null) finies from plateforme.service_alerte`);
-await c.end();
-
+const compte = await c.query<{ ouvertes: string; finies: string; envois: string }>(`select count(*) filter (where fin is null) ouvertes,
+  count(*) filter (where fin is not null) finies, (select count(*) from plateforme.service_envoi) envois from plateforme.service_alerte`);
 // Le fichier de la veille, comme elle l'écrit chaque minute : la console y lit « en ce moment ».
 fs.writeFileSync(fichierVeille, JSON.stringify(enCours, null, 2));
-console.log(`${requetes} requêtes, ${releves} relevés de la veille, ${alertes.rows[0]?.finies} alertes réglées et ${alertes.rows[0]?.ouvertes} ouvertes.`);
-console.log(`veille : ${fichierVeille} (touch le fichier chaque minute pour qu'elle reste « vivante »)`);
+console.log(`${requetesNotees} requêtes, ${releves} relevés de la veille, ${compte.rows[0]?.finies} alertes réglées et ${compte.rows[0]?.ouvertes} ouvertes, ${compte.rows[0]?.envois} messages partis.`);
+console.log(`veille : ${fichierVeille}${suivre ? '' : ' (touch le fichier chaque minute pour qu\'elle reste « vivante », ou relance avec --suivre)'}`);
+
+// 3. `--suivre` : la veille continue, chaque minute, avec le trafic de l'histoire.
+if (suivre) {
+  console.log('La veille suit l\'histoire minute par minute (Ctrl+C pour l\'arrêter).');
+  let derniere = MAINTENANT;
+  for (;;) {
+    const t = Math.floor(Date.now() / MIN) * MIN;
+    if (t > derniere) {
+      for (let x = derniere; x < t; x += MIN) trafic(collecte, x);
+      await c.query('select plateforme.noter_requetes($1, $2::jsonb)', ['vps-1:8080', JSON.stringify(collecte.prendre())]);
+      const l = (await c.query<{ l: { minutes: [string, number, number, number[] | null][]; sourdines: Sourdine[]; demandes: { id: string; sorte: string }[] } }>(
+        'select plateforme.veille_lire($1, 15) l', [new Date(t).toISOString()])).rows[0]?.l;
+      const lu: Lu = { minutes: (l?.minutes ?? []).map(([minute, n, pannes, lecture]) => ({ minute, n, pannes, lecture })), sourdines: l?.sourdines ?? [], demandes: l?.demandes ?? [] };
+      const v = tourDeVeille(t, lu);
+      await c.query('select plateforme.noter_veille($1::jsonb, $2::jsonb, $3::jsonb, $4::jsonb)', v.map((x) => JSON.stringify(x)));
+      fs.writeFileSync(fichierVeille, JSON.stringify(enCours, null, 2));
+      const heure = new Date(t + TUNIS).toISOString().slice(11, 16);
+      const dit = v[3].map((e) => `${e.sorte}${e.cle ? ` ${e.cle}` : ''}`).join(', ');
+      console.log(`${heure} : ${Object.keys(enCours.problemes).length} problème(s) suivi(s)${lu.sourdines.length ? `, ${lu.sourdines.length} sourdine(s)` : ''}${dit ? ` — parti : ${dit}` : ''}`);
+      derniere = t;
+    }
+    await new Promise((fin) => setTimeout(fin, 5_000));
+  }
+}
+await c.end();

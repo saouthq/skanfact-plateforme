@@ -163,7 +163,9 @@ function FenetreGeste({ geste, fiche, role, fermer, fait }: { geste: Geste; fich
           : <p className="c-apercu-attente">{phrase('console.ecran.geste.apercu_calcul')}</p>}
         </div>
       </div>
-      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.geste.motif_aide')} valeur={motif} changer={setMotif} faute={faute > 0} n={faute} />
+      {/* Un refus du geste (le motif trop court) se retire dès qu'on corrige le motif : il ne dit plus vrai. Celui de l'aperçu
+          (sans aperçu) reste : il ne dépend pas du motif. */}
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.geste.motif_aide')} valeur={motif} changer={(v) => { setMotif(v); if (apercu) setRefus(null); }} faute={faute > 0} n={faute} />
       {refus && apercu ? <Alerte ton="danger">{refus}</Alerte> : null}
     </Dialogue>
   );
@@ -179,7 +181,7 @@ function MenuGestes({ gestes, choisir, raison }: { gestes: Geste[]; choisir: (g:
     const echap = (e: KeyboardEvent) => { if (e.key === 'Escape') setOuvert(false); };
     document.addEventListener('mousedown', ailleurs);
     document.addEventListener('keydown', echap);
-    zone.current?.querySelector<HTMLElement>('.c-menu-liste button')?.focus();
+    zone.current?.querySelector<HTMLElement>('.c-menu-liste button')?.focus({ preventScroll: true });
     return () => { document.removeEventListener('mousedown', ailleurs); document.removeEventListener('keydown', echap); };
   }, [ouvert]);
   return (
