@@ -16,6 +16,7 @@ import { plusJours } from '../../serveur/abonnement/etat.ts';
 import { creerApp, RouteSansGeste, VERSION } from '../../serveur/app.ts';
 import { creerPool, enTantQue } from '../../serveur/base.ts';
 import { mettreEnPlaceCode, quiEst, type Contexte } from '../../serveur/connexion.ts';
+import { routesCabinet } from '../../serveur/cabinet/routes.ts';
 import { routesConsole } from '../../serveur/console/routes.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { aujourdhuiATunis } from '../../serveur/reglements.ts';
@@ -79,7 +80,7 @@ let jD = '', jS = '', jT = '';
 
 beforeAll(async () => {
   await admin.connect();
-  app = creerApp(ctx, [...routesSocle(ctx), ...routesConsole(ctx, { veille })]);
+  app = creerApp(ctx, [...routesSocle(ctx), ...routesCabinet(ctx), ...routesConsole(ctx, { veille })]);
   await app.ready();
   direction = await membre('direction', 'direction');
   support = await membre('support', 'support');
@@ -149,6 +150,8 @@ describe('ce que chaque rôle lit', () => {
     const { ent } = await entreprise('Atelier Technique');
     expect((await appeler('GET', '/console/entreprises', jT)).statut).toBe(403);
     expect((await appeler('GET', `/console/entreprises/${ent}`, jT)).statut).toBe(403);
+    expect((await appeler('GET', '/console/abonnements', jT)).statut).toBe(403);
+    expect((await appeler('GET', '/console/cabinets', jT)).statut).toBe(403);
     const accueil = await appeler('GET', '/console/accueil', jT);
     expect(accueil.statut).toBe(200);
     expect(accueil.corps.tableau).toEqual({ service: { etat: 'non_mesure', raison: 'pas_de_veille' } });
@@ -159,6 +162,8 @@ describe('ce que chaque rôle lit', () => {
 
   it('la base refuse chaque fonction de la console hors d\'une session de la console, même au nom d\'un membre', async () => {
     await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_entreprises()'))).rejects.toThrow(/session de la console/);
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_cabinets()'))).rejects.toThrow(/session de la console/);
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_echeances()'))).rejects.toThrow(/session de la console/);
     // Avec la session de l'application de ce membre, pas davantage.
     const qui = await quiEst(ctx, direction.jeton);
     await expect(enTantQue(pool, direction.id, async (tx) => {
@@ -219,7 +224,9 @@ describe('les clients', () => {
     const { ent, proprio } = await entreprise('Quincaillerie Fiche');
     const f = await fiche(jS, ent);
     expect(Object.keys(f).sort()).toEqual(['active', 'aujourdhui', 'comptes', 'creeLe', 'devise', 'etat', 'evenements', 'faits', 'formeJuridique', 'gestes',
-      'id', 'ligne', 'matricule', 'membres', 'organisation', 'prolongeDejaUneFois', 'raisonSociale', 'tenuePar'].sort());
+      'id', 'ligne', 'matricule', 'membres', 'organisation', 'prolongeDejaUneFois', 'raisonSociale', 'tenuePar', 'cabinets'].sort());
+    // Aucun cabinet ne la suit : la liste est vide, pas absente.
+    expect(f.cabinets).toEqual([]);
     expect(Object.keys(f.comptes as object).sort()).toEqual(['caisses', 'etablissements', 'piecesCreees', 'piecesEmises', 'salaries']);
     expect(f.membres).toEqual([expect.objectContaining({ nom: proprio.nom, email: proprio.email, roles: ['proprietaire'] })]);
     expect(Object.keys((f.membres as object[])[0] ?? {}).sort()).toEqual(['depuis', 'derniereConnexion', 'email', 'nom', 'roles']);
@@ -332,6 +339,101 @@ describe('l\'équipe', () => {
     // Seule à la direction, une personne ne se retire pas par l'outil non plus.
     const seule = await admin.query(`select u.email from plateforme.equipe e join socle.utilisateur u on u.id = e.utilisateur where e.role = 'direction' and e.actif`);
     if (seule.rows.length === 1) await expect(retirerDeLEquipe(admin, String(seule.rows[0].email), 'dernier')).rejects.toThrow(/toujours une personne à la direction/);
+  });
+});
+
+describe('les échéances des abonnements', () => {
+  it('chaque carte compte sa liste, comme le tableau du matin ; la grâce porte ses relances parties, la prolongation son auteur', async () => {
+    // Un essai prolongé par le support (le vrai geste), une entreprise en grâce relancée (les relances posées comme le
+    // serveur les pose), une entreprise qui paie l'Essentiel à l'année.
+    const prolonge = await entreprise('Essai Prolongé Par Le Support');
+    await finEssai(prolonge.ent, plusJours(aujourdhui, 3));
+    const avant = await fiche(jS, prolonge.ent);
+    expect((await appeler('POST', `/console/entreprises/${prolonge.ent}/abonnement/prolonger`, jS, { motif: 'il attend son comptable', ligne: avant.ligne, jours: 10 })).statut).toBe(200);
+    const grace = await entreprise('Négoce En Grâce');
+    const echeance = plusJours(aujourdhui, -2);
+    await finEssai(grace.ent, echeance);
+    await admin.query(`insert into plateforme.relance_abonnement (entreprise, echeance, rang, partie_le)
+      values ($1, $2, 'j15', now() - interval '17 days'), ($1, $2, 'j7', now() - interval '9 days'), ($1, $2, 'j1', now() - interval '3 days')`, [grace.ent, echeance]);
+    // Une relance d'une échéance plus ancienne ne compte pas pour celle d'aujourd'hui.
+    const relancee = await entreprise('Relancée Pour Une Ancienne Échéance');
+    await finEssai(relancee.ent, plusJours(aujourdhui, 5));
+    await admin.query(`insert into plateforme.relance_abonnement (entreprise, echeance, rang, partie_le) values ($1, $2, 'j7', now() - interval '20 days')`, [relancee.ent, plusJours(aujourdhui, -13)]);
+    const payeur = await entreprise('Atelier Qui Paie');
+    await admin.query(`update plateforme.abonnement set paye_jusqu_au = $2, offre = 'essentiel', periodicite = 'annuel' where entreprise = $1`, [payeur.ent, plusJours(aujourdhui, 100)]);
+
+    const r = await appeler('GET', '/console/abonnements?limite=200', jD);
+    expect(r.statut).toBe(200);
+    expect(r.corps.vue).toBe('avenir');
+    const cartes = r.corps.cartes as Record<string, { n: number }>;
+    // Chaque carte ouvre sa liste, du même compte (C3).
+    for (const v of ['avenir', 'essai', 'actif', 'en_retard', 'lecture_seule', 'hors']) {
+      expect((await appeler('GET', `/console/abonnements?vue=${v}&limite=1`, jD)).corps.total, v).toBe(cartes[v]?.n);
+    }
+    // Et le tableau du matin compte les mêmes états, sur la même liste.
+    const tableau = (await appeler('GET', '/console/accueil', jD)).corps.tableau as { essais: number; enRetard: number; lectureSeule: number; actifs: { total: number } };
+    expect([cartes.essai?.n, cartes.en_retard?.n, cartes.lecture_seule?.n, cartes.actif?.n]).toEqual([tableau.essais, tableau.enRetard, tableau.lectureSeule, tableau.actifs.total]);
+
+    type L = { entreprise: { id: string }; relances: { rang: string; partieLe: string | null; etat: string }[]; prolongation: { jours: number; motif: string; qui: { nom: string; role: string } } | null; montantHt: string | null };
+    const lire = async (v: string, ent: string) => ((await appeler('GET', `/console/abonnements?vue=${v}&limite=200`, jD)).corps.lignes as L[]).find((l) => l.entreprise.id === ent);
+    expect((await lire('en_retard', grace.ent))?.relances.map((x) => [x.rang, x.partieLe !== null, x.etat])).toEqual([
+      ['j15', true, 'partie'], ['j7', true, 'partie'], ['j1', true, 'partie'], ['lecture_seule', false, 'prevue'],
+    ]);
+    // Rien n'est parti pour l'échéance d'aujourd'hui, à cinq jours : celle des sept jours part au prochain passage, celle
+    // des quinze jours est sautée, la veille viendra.
+    expect((await lire('essai', relancee.ent))?.relances.map((x) => [x.rang, x.partieLe, x.etat])).toEqual([['j15', null, 'sautee'], ['j7', null, 'a_partir'], ['j1', null, 'prevue']]);
+    expect((await lire('essai', prolonge.ent))?.prolongation).toMatchObject({ jours: 10, motif: 'il attend son comptable', qui: { nom: support.nom, role: 'support' } });
+    expect((await lire('actif', payeur.ent))?.montantHt).toBe('390.000');
+    // Le support lit les échéances.
+    expect((await appeler('GET', '/console/abonnements?vue=en_retard', jS)).statut).toBe(200);
+  });
+});
+
+describe('les cabinets', () => {
+  it('la liste compte ce que la fiche montre ; un dossier s\'y dit comme dans la liste des clients ; la fiche du client nomme son cabinet', async () => {
+    // Un associé gère son cabinet avec le code du téléphone en place (son rôle l'exige).
+    const associe = await personne('associe');
+    expect((await appeler('POST', '/moi/code', associe.jeton, { methode: 'application' })).statut).toBeLessThan(300);
+    const cab = await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Ennour Console' });
+    expect(cab.statut, JSON.stringify(cab.corps)).toBe(201);
+    const cabinet = String(cab.corps.id);
+    // Un dossier qu'il tient, un client qui lui a donné son mandat (accepté), un autre qui le lui propose.
+    const tenu = await appeler('POST', `/cabinets/${cabinet}/dossiers`, associe.jeton, { raisonSociale: 'Cordonnerie El Bey Console' });
+    expect(tenu.statut, JSON.stringify(tenu.corps)).toBe(201);
+    const client = await entreprise('Boulangerie Essalem Console');
+    const m = await appeler('POST', `/entreprises/${client.ent}/mandat`, client.proprio.jeton, { codeCabinet: String(cab.corps.code) });
+    expect(m.statut, JSON.stringify(m.corps)).toBe(201);
+    expect((await appeler('POST', `/cabinets/${cabinet}/mandats/${String(m.corps.mandat)}/accepter`, associe.jeton)).statut).toBe(200);
+    const attente = await entreprise('Pharmacie En Attente Console');
+    expect((await appeler('POST', `/entreprises/${attente.ent}/mandat`, attente.proprio.jeton, { codeCabinet: String(cab.corps.code) })).statut).toBe(201);
+
+    const liste = await appeler('GET', '/console/cabinets?limite=200', jS);
+    expect(liste.statut).toBe(200);
+    const ligne = (liste.corps.lignes as { id: string; comptes: Record<string, number>; associes: { email: string }[]; collaborateurs: number }[]).find((c) => c.id === cabinet);
+    expect(ligne).toMatchObject({ comptes: { client: 1, tenu: 1, en_attente: 1 }, associes: [{ email: associe.email }], collaborateurs: 1 });
+    // La recherche trouve un cabinet par son associé.
+    expect(((await appeler('GET', `/console/cabinets?q=${encodeURIComponent(associe.email)}`, jS)).corps.lignes as { id: string }[]).map((c) => c.id)).toEqual([cabinet]);
+
+    const f = await appeler('GET', `/console/cabinets/${cabinet}`, jS);
+    expect(f.statut).toBe(200);
+    // La liste fermée (10 § 4) : son nom, ses collaborateurs, ses dossiers et leurs comptes ; rien d'autre.
+    expect(Object.keys(f.corps).sort()).toEqual(['aujourdhui', 'collaborateurs', 'comptes', 'creeLe', 'dossiers', 'id', 'nom']);
+    expect(Object.keys((f.corps.collaborateurs as object[])[0] ?? {}).sort()).toEqual(['depuis', 'derniereConnexion', 'email', 'nom', 'roles']);
+    expect(f.corps.comptes).toEqual(ligne?.comptes);
+    const dossiers = f.corps.dossiers as { place: string; mandat: { statut: string } | null; entreprise: { id: string; raisonSociale: string; etat: unknown } }[];
+    expect(dossiers.map((d) => [d.place, d.entreprise.raisonSociale, d.mandat?.statut])).toEqual([
+      ['client', 'Boulangerie Essalem Console', 'actif'], ['tenu', 'Cordonnerie El Bey Console', 'actif'], ['en_attente', 'Pharmacie En Attente Console', 'propose'],
+    ]);
+    // Une entreprise dit la même chose ici et dans la liste des clients.
+    const clients = (await appeler('GET', '/console/entreprises?limite=200', jS)).corps.lignes as { id: string; etat: unknown }[];
+    for (const d of dossiers) expect(d.entreprise.etat).toEqual(clients.find((c) => c.id === d.entreprise.id)?.etat);
+    // La fiche du client nomme son cabinet ; celle du dossier tenu, celui qui le tient.
+    expect((await fiche(jS, client.ent)).cabinets).toEqual([{ id: cabinet, nom: 'Cabinet Ennour Console', place: 'client', mandat: { statut: 'actif', debut: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) } }]);
+    expect(((await fiche(jS, String(tenu.corps.entreprise))).cabinets as { id: string; place: string }[]).map((c) => [c.id, c.place])).toEqual([[cabinet, 'tenu']]);
+    // Un identifiant qui n'est pas celui d'un cabinet : rien.
+    expect((await appeler('GET', `/console/cabinets/${client.ent}`, jS)).statut).toBe(404);
+    expect((await appeler('GET', '/console/cabinets/pas-un-id', jS)).statut).toBe(404);
+    expect((await appeler('GET', `/console/cabinets/${cabinet}`, jT)).statut).toBe(403);
   });
 });
 

@@ -528,6 +528,9 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   .c-chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 860px) {
+  /* Douze mois sur la largeur d'un téléphone : un nom de mois fait 33 points et une colonne 21, ils se chevauchaient
+     (« 11/2512/26… »). Un mois sur deux, en gardant le dernier — le mois en cours — toujours nommé. */
+  .c-barre:nth-child(odd) .c-barre-mois { visibility: hidden; }
   .c-filtre-actif button { width: 44px; height: 44px; }
   /* Au doigt, chaque lien est une cible de 44 points : la marque, le fil, les liens des tableaux et des personnes. */
   .c-marque { min-height: 44px; }
@@ -550,6 +553,9 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   .c-page { padding: 20px 16px 40px; gap: 20px; }
   .c-entete h1, .c-forme-corps h1 { font-size: 28px; }
   .c-carte { padding: 20px 18px; }
+  /* Une carte de liste porte ses marges sur ce qu'elle contient (outils, lignes, pied) : sans cette règle, celle du dessus
+     lui en rendait une seconde, et le téléphone perdait 36 points de chaque côté au lieu de 18. */
+  .c-carte.c-decider, .c-carte.c-liste-carte { padding: 0; }
   .c-decider .c-carte-tete, .c-pilules, .c-liste-outils { padding-inline: 18px; }
   .c-ligne-decision { grid-template-columns: 40px minmax(0, 1fr); padding: 16px 18px; }
   .c-ligne-decision .c-btn { grid-column: 2; justify-self: start; }
@@ -598,6 +604,122 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 @media (max-width: 860px) {
   .c-chiffres-cartes { grid-template-columns: minmax(0, 1fr); }
   .c-liste-alerte { padding-inline: 18px; }
+}
+
+/* ── Les abonnements : un chiffre de l'année, six cartes qui ouvrent chacune leur liste, la liste des échéances ─── */
+/* Le texte cède la place au chiffre de l'année avant de passer dessous : ils tiennent côte à côte jusqu'au portable. */
+.c-entete-chiffree { align-items: flex-start; }
+.c-entete-chiffree .c-entete-texte { flex: 1 1 480px; }
+.c-entete-chiffre {
+  flex: 0 1 340px; display: grid; gap: 2px; justify-items: end; text-align: end; padding: 14px 18px; border-radius: 16px;
+  background: var(--c-papier); border: 1px solid var(--c-trait); box-shadow: var(--c-ombre-carte);
+}
+.c-entete-chiffre-titre { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--c-gris); }
+.c-entete-chiffre-valeur b { font-size: 24px; font-weight: 500; }
+.c-entete-chiffre-valeur small { font-size: 13px; font-weight: 600; color: var(--c-gris); }
+.c-entete-chiffre-sous { font-size: 13px; line-height: 1.4; color: var(--c-gris); }
+.c-vues { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+/* Chaque carte prend trois rangées de la grille (son titre, son nombre, sa phrase) : un titre sur deux lignes descend
+   les nombres de TOUTE la rangée de cartes, jamais d'une seule. */
+.c-vue {
+  grid-row: span 3; display: grid; grid-template-rows: subgrid; align-content: start; row-gap: 6px; min-width: 0;
+  padding: 16px 16px 14px; border-radius: 18px; cursor: pointer; text-align: start;
+  border: 1.5px solid var(--c-trait); background: var(--c-papier); color: var(--c-encre); box-shadow: var(--c-ombre-carte);
+  transition: border-color .15s, background .15s;
+}
+.c-vue:hover { border-color: var(--c-gris-2); }
+.c-vue[aria-pressed="true"] { border-color: var(--c-lien); background: var(--c-doux); }
+.c-vue-titre { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c-gris); }
+.c-vue-titre .c-pilule-point { flex: none; margin-top: 4px; }
+.c-vue-n { font-family: var(--c-chiffres); font-size: 30px; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.c-vue-sous { font-size: 13px; line-height: 1.4; color: var(--c-gris); }
+.c-point-avenir { color: var(--c-lien); }
+.c-liste-tete { padding: 22px 26px 0; margin-bottom: 14px; }
+.c-echeances { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--c-trait); }
+.c-ech {
+  display: grid; grid-template-columns: 92px minmax(0, 1fr) 160px 236px auto; gap: 10px 20px; align-items: center;
+  padding: 14px 26px; border-bottom: 1px solid var(--c-trait);
+}
+.c-ech:last-child { border-bottom: 0; }
+.c-ech:hover { background: var(--c-papier-2); }
+.c-ech-jour { display: grid; gap: 1px; align-content: start; }
+.c-ech-jour time, .c-ech-jour b { font-size: 15px; font-weight: 600; }
+.c-ech-jour span { font-size: 12.5px; color: var(--c-gris); }
+.c-ech-jour-en_retard time { color: var(--c-orange-texte); }
+.c-ech-jour-lecture_seule time { color: var(--c-rouge-texte); }
+.c-ech-quoi { display: grid; gap: 3px; min-width: 0; }
+.c-ech-quoi a { justify-self: start; color: var(--c-encre); text-decoration: none; }
+.c-ech-quoi a:hover { color: var(--c-lien); text-decoration: underline; }
+.c-ech-quoi b { font-size: 15px; font-weight: 600; }
+.c-ech-texte { font-size: 13.5px; color: var(--c-gris); overflow-wrap: anywhere; }
+.c-ech-texte .c-motif { color: var(--c-encre); }
+.c-ech-montant { display: grid; gap: 2px; justify-items: end; text-align: end; }
+.c-ech-montant b { font-size: 14.5px; font-weight: 500; }
+.c-ech-montant span { font-size: 12px; color: var(--c-gris); }
+.c-ech-rien { color: var(--c-gris-2); }
+.c-ech-relances ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.c-ech-aucune { font-size: 13px; color: var(--c-gris-2); }
+.c-ech-action { justify-self: end; }
+/* Une relance : son état par une couleur ET un signe (une coche, un sablier, une alerte, un trait), jamais la couleur seule. */
+.c-relance {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  line-height: 1.35; white-space: nowrap; background: var(--c-gris-doux); color: var(--c-gris);
+}
+.c-relance-partie { background: var(--c-doux); color: var(--c-doux-texte); }
+.c-relance-a_partir { background: var(--c-papier); color: var(--c-encre); box-shadow: inset 0 0 0 1px var(--c-trait-fort); }
+.c-relance-prevue { background: transparent; color: var(--c-gris); box-shadow: inset 0 0 0 1px var(--c-trait); }
+.c-relance-sautee { background: transparent; color: var(--c-gris-2); text-decoration: line-through; }
+.c-relance-manquee { background: var(--c-orange-doux); color: var(--c-orange-texte); }
+.c-legende { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--c-gris); }
+@media (max-width: 1360px) {
+  .c-vues { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 1100px) {
+  .c-ech { grid-template-columns: 84px minmax(0, 1fr) auto; grid-template-areas: 'jour quoi action' 'jour montant montant' 'jour relances relances'; align-items: start; }
+  .c-ech-jour { grid-area: jour; }
+  .c-ech-quoi { grid-area: quoi; }
+  .c-ech-montant { grid-area: montant; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; text-align: start; }
+  .c-ech-relances { grid-area: relances; }
+  .c-ech-action { grid-area: action; }
+}
+@media (max-width: 860px) {
+  .c-entete-chiffre { flex: 1 1 100%; justify-items: start; text-align: start; }
+  .c-vues { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .c-vue { padding: 12px 14px; border-radius: 14px; }
+  .c-vue-titre { font-size: 11px; letter-spacing: .05em; }
+  .c-vue-n { font-size: 24px; }
+  .c-vue-sous { font-size: 12.5px; }
+  .c-liste-tete { padding: 18px 18px 0; }
+  .c-ech { grid-template-columns: 72px minmax(0, 1fr); grid-template-areas: 'jour quoi' 'jour montant' 'jour relances' 'jour action'; gap: 8px 14px; padding: 14px 18px; }
+  /* Au doigt, le nom de l'entreprise est une cible de 44 points, comme les liens des tableaux. */
+  .c-ech-quoi a { display: inline-flex; align-items: center; min-height: 44px; }
+  .c-ech-action { justify-self: start; }
+}
+
+/* ── Les cabinets : un second onglet sous « Clients », et la fiche d'un cabinet ──────────────────────────────────── */
+.c-onglets { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--c-trait); }
+.c-onglets a {
+  display: inline-flex; align-items: center; min-height: 46px; padding: 0 14px; margin-bottom: -1px;
+  border-bottom: 2.5px solid transparent; color: var(--c-gris); font-size: 14.5px; font-weight: 600; text-decoration: none;
+}
+.c-onglets a:hover { color: var(--c-lien); }
+.c-onglets a[aria-current="page"] { color: var(--c-lien); border-bottom-color: var(--c-lien); }
+.c-entete-avatar { display: flex; align-items: center; gap: 18px; }
+.c-entete-avatar > .c-avatar { width: 60px; height: 60px; border-radius: 16px; font-size: 19px; }
+.c-vues-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.c-point-client { color: var(--c-sarcelle); }
+.c-point-tenu { color: var(--c-violet-texte); }
+.c-point-en_attente { color: var(--c-gris-2); }
+/* Une adresse dans la ligne grise d'un nom : grise aussi, la couleur du lien au survol. */
+.c-cellule-nom .c-sous a { color: inherit; }
+.c-cellule-nom .c-sous a:hover { color: var(--c-lien); }
+/* Un compte nul se lit, mais en retrait : l'œil va aux colonnes qui comptent quelque chose. */
+.c-zero-texte { color: var(--c-gris-2); }
+@media (max-width: 860px) {
+  .c-vues-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .c-vues-3 .c-vue:last-child { grid-column: span 2; }
+  .c-entete-avatar { gap: 14px; }
+  .c-entete-avatar > .c-avatar { width: 48px; height: 48px; border-radius: 13px; font-size: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

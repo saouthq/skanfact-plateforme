@@ -12,6 +12,12 @@ export function jourCourt(iso: string | null | undefined): string {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : '—';
 }
 
+// « 13/10 », pour une colonne de dates proches (le jour entier se lit au survol, et « dans 3 jours » le situe).
+export function jourMois(iso: string | null | undefined): string {
+  const m = JOUR.exec(iso ?? '');
+  return m ? `${m[3]}/${m[2]}` : '—';
+}
+
 const utc = (iso: string) => { const m = JOUR.exec(iso); return m ? Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : Number.NaN; };
 export const joursEntre = (de: string, a: string) => Math.round((utc(a) - utc(de)) / 86_400_000);
 

@@ -71,8 +71,12 @@ export function Lien({ href, children, ton = 'secondaire', petit, fleche, icone,
   );
 }
 
-// Une majuscule en tête (un morceau de texte posé seul : une cellule, une puce).
-export const maj = (s: string) => { const i = s.search(/\p{L}/u); return i < 0 ? s : s.slice(0, i) + s.charAt(i).toUpperCase() + s.slice(i + 1); };
+// Une majuscule en tête (un morceau de texte posé seul : une cellule, une puce). Un texte qui commence par un nombre la
+// garde en minuscule : « 6 pièces », jamais « 6 Pièces ».
+export const maj = (s: string) => {
+  const i = s.search(/[\p{L}\p{N}]/u);
+  return i < 0 || !/\p{L}/u.test(s.charAt(i)) ? s : s.slice(0, i) + s.charAt(i).toUpperCase() + s.slice(i + 1);
+};
 
 // ── Une puce d'état (un point de couleur, un mot) ───────────────────────────────────────────────────────────────────
 export type TonPuce = 'essai' | 'actif' | 'en_retard' | 'lecture_seule' | 'hors' | 'urgent' | 'aujourdhui' | 'semaine' | 'a_regarder' | 'direction' | 'support' | 'technique';

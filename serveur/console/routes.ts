@@ -10,11 +10,13 @@ import type { Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { Introuvable, Perimee } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
-import { etatAbonnement, lireFaits, type Etat, type Faits } from '../abonnement/etat.ts';
+import { etatAbonnement, GRACE_JOURS, lireFaits, RELANCES, type Etat, type Faits } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, type GesteAbonnement, type LigneAbonnement } from '../abonnement/gestes.ts';
 import { motif, t } from '../../textes/index.ts';
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
 import { aDecider, CATEGORIES, categorie, chercher, inscriteCetteSemaine, lireEntreprises, lireVeille, rangerParUrgence, tableau, type Veille } from './decider.ts';
+import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
+import { annuel, AVENIR_JOURS, cartes, lignesEcheances, lireExtras, lirePrix, vue, VUES, type Vue } from './echeances.ts';
 import type { RoleConsole } from './gestes.ts';
 import './textes.ts';
 
@@ -174,7 +176,62 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const faits = lireFaits((fiche.faits ?? {}) as Record<string, unknown>);
       const etat = etatAbonnement(faits, jour);
       const ligne = lireLigne(fiche.ligne);
-      return { corps: { aujourdhui: jour, ...fiche, etat, gestes: gestesDisponibles(roleDe(qui), faits, ligne, etat, fiche.prolongeDejaUneFois === true) } };
+      // Les cabinets qui la suivent : la même liste que leur fiche à eux (C3).
+      const cabinets = cabinetsDe(id, lireCabinets(await lireJson(transaction(tx), 'select plateforme.console_cabinets() v')));
+      return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, gestes: gestesDisponibles(roleDe(qui), faits, ligne, etat, fiche.prolongeDejaUneFois === true) } };
+    },
+  });
+
+  // ── Les échéances des abonnements (10 § 2.4) ───────────────────────────────────────────────────────────────────────
+  // Sur la MÊME liste que les clients : chaque carte compte la liste qu'elle ouvre (C3). Ce qui vient dans les trente
+  // jours d'abord ; une vue par état sinon. Les montants hors taxes, au prix du jour ; la liste se pagine.
+  ajouter({
+    methode: 'GET', chemin: '/console/abonnements', geste: 'console.clients.voir',
+    traiter: async ({ query }, tx) => {
+      const t = transaction(tx);
+      const jour = aujourdhuiATunis();
+      const entreprises = lireEntreprises(await lireJson(t, 'select plateforme.console_entreprises() v'), jour);
+      const extras = lireExtras(await lireJson(t, 'select plateforme.console_echeances() v'));
+      const prix = lirePrix(await lireJson(t, 'select plateforme.prix_du_jour($1::date) v', [jour]));
+      const lignes = lignesEcheances(entreprises, extras, prix, jour);
+      const v: Vue = VUES.includes(query.vue as Vue) ? query.vue as Vue : 'avenir';
+      const gardees = vue(lignes, v, jour);
+      const debut = Math.max(Number(query.debut ?? 0) || 0, 0);
+      const n = limite(query);
+      // Les règles que l'écran dit (les jours des relances, la grâce, l'horizon de « à venir ») viennent d'ici : écrites une
+      // seconde fois dans les textes, elles divergeraient au premier réglage.
+      return { corps: { aujourdhui: jour, vue: v, cartes: cartes(lignes, jour), annuel: annuel(lignes, prix), total: gardees.length,
+        lignes: gardees.slice(debut, debut + n), suite: debut + n < gardees.length ? debut + n : null,
+        regles: { relances: RELANCES, grace: GRACE_JOURS, avenir: AVENIR_JOURS } } };
+    },
+  });
+
+  // ── Les cabinets (10 § 2.3) ──────────────────────────────────────────────────────────────────────────────────────────
+  // La liste compte ce que chaque fiche montre, par la même règle ; un dossier s'y dit comme dans la liste des clients.
+  ajouter({
+    methode: 'GET', chemin: '/console/cabinets', geste: 'console.clients.voir',
+    traiter: async ({ query }, tx) => {
+      const t = transaction(tx);
+      const jour = aujourdhuiATunis();
+      const connues = new Set(lireEntreprises(await lireJson(t, 'select plateforme.console_entreprises() v'), jour).map((e) => e.id));
+      const tous = lireCabinets(await lireJson(t, 'select plateforme.console_cabinets() v')).map((c) => ligneCabinet(c, connues));
+      const gardes = chercherCabinets(tous, String(query.q ?? ''));
+      const debut = Math.max(Number(query.debut ?? 0) || 0, 0);
+      const n = limite(query);
+      return { corps: { aujourdhui: jour, total: gardes.length, tous: tous.length, lignes: gardes.slice(debut, debut + n), suite: debut + n < gardes.length ? debut + n : null } };
+    },
+  });
+  ajouter({
+    methode: 'GET', chemin: '/console/cabinets/:id', geste: 'console.clients.voir',
+    traiter: async ({ params }, tx) => {
+      const id = params.id ?? '';
+      if (!uuid.safeParse(id).success) throw new Introuvable();
+      const t = transaction(tx);
+      const cabinet = lireCabinets(await lireJson(t, 'select plateforme.console_cabinets() v')).find((c) => c.id === id);
+      if (!cabinet) throw new Introuvable();
+      const jour = aujourdhuiATunis();
+      const entreprises = lireEntreprises(await lireJson(t, 'select plateforme.console_entreprises() v'), jour);
+      return { corps: { aujourdhui: jour, ...ficheCabinet(cabinet, entreprises) } };
     },
   });
 

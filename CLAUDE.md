@@ -478,6 +478,16 @@
     prolonge un essai de 7 à 30 jours, une fois. Les textes passent par `web/console/src/langue.ts` (la typographie
     française à l'affichage) ; une fenêtre ne se ferme pas d'un clic à côté. Pas encore : paiements, nos factures,
     support, le service complet, la mesure, les réglages, l'application de bureau, `console.skanfact.tn`.
+  - **Les échéances et les cabinets** (Console 2, 13/10/2026 ; `docs/console.md` C10-C11, `0084`,
+    `serveur/console/echeances.ts`, `serveur/console/cabinets.ts`, purs) : six cartes d'abonnements, **chacune ouvre la
+    liste qu'elle compte**, du même nombre (C3 ; un écart voulu à la maquette, où deux cartes ouvraient « À venir ») ; le
+    montant d'une échéance se dit hors taxes au prix du jour, jamais pour un essai (« — » avec sa raison). **Une relance
+    dit ce que le serveur fera** (partie, prévue, dans l'heure, sautée, manquée), et la règle est prouvée jour après jour
+    contre `relanceDue` : écrire l'état à côté de la règle d'envoi, c'est deux règles qui divergent. Les cabinets ont
+    leur onglet sous « Clients » (un en-tête commun : une phrase propre à chaque onglet faisait descendre les onglets
+    sous le curseur) ; la liste et la fiche comptent les mêmes dossiers par la même règle (`placeDe`) ; la fiche d'une
+    entreprise nomme son cabinet et y mène. Une adresse qui ne mène à rien le dit et mène à la liste : une 404 n'a pas de
+    « Réessayer ». `maj()` met la majuscule à la première LETTRE, jamais après un chiffre (« 2 personnes »).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

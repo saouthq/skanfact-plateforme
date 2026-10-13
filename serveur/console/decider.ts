@@ -36,7 +36,7 @@ export function lireEntreprises(brut: unknown, jour: string): Entreprise[] {
 
 export type Categorie = Etat['etat'];
 export const CATEGORIES: readonly Categorie[] = ['essai', 'actif', 'en_retard', 'lecture_seule', 'hors'];
-export const categorie = (e: Entreprise): Categorie => e.etat.etat;
+export const categorie = (e: { etat: Etat }): Categorie => e.etat.etat;
 
 // L'urgence d'un client, pour ranger la liste (« le plus urgent en haut ») : la grâce qui s'achève, la lecture seule de la
 // semaine, l'essai ou l'abonnement qui finit bientôt, puis le reste.

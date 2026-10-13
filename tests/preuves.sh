@@ -11104,6 +11104,131 @@ prouver 'la console gardée par le service des écrans' web/public/sw.js \
   || u.pathname === '"'"'/console'"'"' || u.pathname.startsWith('"'"'/console/'"'"');' 'u.pathname.startsWith('"'"'/v1/'"'"');' \
   "$CONSW7"
 
+# ── La console, deuxième partie : les échéances des abonnements et les cabinets (Console 2, 13/10/2026 ; migration 0084,
+# docs/console.md) ─────────────────────────────────────────────────────────────────────────────────────────────────────
+# Purs (les vues, les cartes, les relances, les cabinets), puis au serveur et dans la base, puis à la souris.
+CONS2E1='ce qui vient dans les trente jours, aujourd'"'"'hui compris : la fin d'"'"'un essai, la fin d'"'"'une période payée, rien d'"'"'autre'
+CONS2E2='une vue par état, chacune rangée : la plus proche d'"'"'abord, la lecture seule la plus récente d'"'"'abord'
+CONS2E3='chaque carte compte la liste qu'"'"'elle ouvre, et les cinq états refont le portefeuille'
+CONS2E4='le montant, hors taxes au prix du jour : ce qu'"'"'un paiement coûterait, jamais pour un essai, une résiliation ou une suspension'
+CONS2E5='ce qui revient chaque année : les actifs qui se renouvellent, le mensuel compté douze fois, sans les résiliés'
+CONS2E6='une relance ne compte que pour l'"'"'échéance d'"'"'aujourd'"'"'hui ; ni une résiliation, ni une suspension ne se relancent'
+CONS2E7='ce que l'"'"'écran dit d'"'"'une relance est ce que le serveur fera : jour après jour, celle qui est « à partir » est celle qui part'
+CONS2E8='ce qui se raconte : la prolongation d'"'"'un essai en cours, un « offert » qui l'"'"'est encore, une suspension qui dure'
+CONS2E9='ce que la base rend d'"'"'illisible vaut « rien », jamais une valeur devinée'
+CONS2C1='la liste compte ce que la fiche montre : les clients abonnés, les dossiers tenus, ceux qui attendent son accord'
+CONS2C2='une entreprise dit la même chose sur la fiche de son cabinet et dans la liste des clients ; et la fiche du client nomme ce cabinet'
+CONS2C3='chercher un cabinet : son nom, un associé, sans les accents ni la casse'
+CONS2D1='chaque carte compte sa liste, comme le tableau du matin ; la grâce porte ses relances parties, la prolongation son auteur'
+CONS2D2='la liste compte ce que la fiche montre ; un dossier s'"'"'y dit comme dans la liste des clients ; la fiche du client nomme son cabinet'
+CONS2W1='les abonnements : chaque carte ouvre la liste qu'"'"'elle compte, du même nombre'
+CONS2W2='les cabinets : les onglets ne bougent pas ; la liste compte ce que la fiche montre ; la fiche d'"'"'un client mène à son cabinet'
+prouver 'l'"'"'horizon de « à venir » qui oublie son dernier jour' serveur/console/echeances.ts \
+  'joursEntre(jour, l.etat.jusquAu) <= AVENIR_JOURS' 'joursEntre(jour, l.etat.jusquAu) < AVENIR_JOURS' \
+  "$CONS2E1"
+prouver 'la lecture seule la plus ancienne en tête de sa vue' serveur/console/echeances.ts \
+  'return (v === '"'"'lecture_seule'"'"' ? db.localeCompare(da) : da.localeCompare(db)) || comparerNoms(a, b);' 'return da.localeCompare(db) || comparerNoms(a, b);' \
+  "$CONS2E2"
+prouver 'une carte des essais qui compte autre chose que sa liste' serveur/console/echeances.ts \
+  'essai: { n: essai.length, semaine:' 'essai: { n: essai.filter((l) => l.etat.etat === '"'"'essai'"'"' && l.etat.jours <= AVENIR_JOURS).length, semaine:' \
+  "$CONS2E3"
+prouver 'un montant annoncé pour un abonnement résilié' serveur/console/echeances.ts \
+  'if (e.etat === '"'"'actif'"'"') return e.resilie ? null : prixDe(prix, e.offre, e.periodicite);' 'if (e.etat === '"'"'actif'"'"') return prixDe(prix, e.offre, e.periodicite);' \
+  "$CONS2E4"
+prouver 'un prix qui manque inventé à zéro' serveur/console/echeances.ts \
+  'p.get(`${offre}/${periodicite}`) ?? null;' 'p.get(`${offre}/${periodicite}`) ?? 0n;' \
+  "$CONS2E4"
+prouver 'le mensuel compté une seule fois dans l'"'"'année' serveur/console/echeances.ts \
+  'total += l.etat.periodicite === '"'"'mensuel'"'"' ? p * 12n : p;' 'total += p;' \
+  "$CONS2E5"
+prouver 'un résilié compté dans ce qui revient chaque année' serveur/console/echeances.ts \
+  'if (l.etat.resilie) { resilies++; continue; }' 'if (l.etat.resilie) resilies++;' \
+  "$CONS2E5"
+prouver 'une relance d'"'"'une échéance passée comptée pour celle d'"'"'aujourd'"'"'hui' serveur/console/echeances.ts \
+  'const rangs = partie && partie.echeance === echeance ? partie.rangs : {};' 'const rangs = partie ? partie.rangs : {};' \
+  "$CONS2E6"
+prouver 'une suspension relancée' serveur/console/echeances.ts \
+  'case '"'"'lecture_seule'"'"': return e.raison === '"'"'essai_termine'"'"' || e.raison === '"'"'non_renouvele'"'"' ? [lectureSeule(e.depuis)] : [];' 'case '"'"'lecture_seule'"'"': return [lectureSeule(e.depuis)];' \
+  "$CONS2E6"
+prouver 'une lecture seule passée dite encore « prévue »' serveur/console/echeances.ts \
+  'etat: partieLe ? '"'"'partie'"'"' : jour > prevueLe ? '"'"'manquee'"'"' : nonPartie(' 'etat: partieLe ? '"'"'partie'"'"' : nonPartie(' \
+  "$CONS2E6"
+prouver 'une relance moins pressante dite « à partir »' serveur/console/echeances.ts \
+  'plusPressantes.some((p) => p.partieLe !== null || p.prevueLe <= jour) ? '"'"'sautee'"'"'' 'plusPressantes.some((p) => p.partieLe !== null) ? '"'"'sautee'"'"'' \
+  "$CONS2E7"
+prouver 'une entreprise désactivée dite relancée' serveur/console/echeances.ts \
+  'const nonPartie = (etat: EtatRelance): EtatRelance => (active ? etat : '"'"'manquee'"'"');' 'const nonPartie = (etat: EtatRelance): EtatRelance => etat;' \
+  "$CONS2E7"
+prouver 'une prolongation racontée après la fin de l'"'"'essai' serveur/console/echeances.ts \
+  'prolongation: e.etat.etat === '"'"'essai'"'"' ? extras.prolongation.get(e.id) ?? null : null,' 'prolongation: extras.prolongation.get(e.id) ?? null,' \
+  "$CONS2E8"
+prouver 'une relance illisible lue quand même' serveur/console/echeances.ts \
+  'for (const rang of RANGS) if (typeof lus[rang] === '"'"'string'"'"') rangs[rang] = lus[rang];' 'for (const rang of RANGS) if (lus[rang] !== undefined) rangs[rang] = lus[rang] as string;' \
+  "$CONS2E9"
+prouver 'un dossier inconnu de la liste des clients compté pour son cabinet' serveur/console/cabinets.ts \
+  'comptes: compter(c.dossiers.filter((d) => connues.has(d.entreprise))),' 'comptes: compter(c.dossiers),' \
+  "$CONS2C1"
+prouver 'un mandat proposé compté comme un client abonné' serveur/console/cabinets.ts \
+  'd.mandat?.statut === '"'"'actif'"'"' ? '"'"'client'"'"' : '"'"'en_attente'"'"'' 'd.mandat ? '"'"'client'"'"' : '"'"'en_attente'"'"'' \
+  "$CONS2C1"
+prouver 'la fiche d'"'"'un cabinet qui dit d'"'"'un dossier plus que la liste fermée' serveur/console/cabinets.ts \
+  'mandat: d.mandat, entreprise: { id, raisonSociale, matricule, creeLe, faits, etat, pieces, derniereActivite } }];' 'mandat: d.mandat, entreprise: e }];' \
+  "$CONS2C2"
+prouver 'un cabinet introuvable par l'"'"'adresse de son associé' serveur/console/cabinets.ts \
+  '...c.associes.flatMap((a) => [a.nom, a.email])' '...c.associes.map((a) => a.nom)' \
+  "$CONS2C3"
+prouver 'les relances d'"'"'une échéance passée rendues pour celle d'"'"'aujourd'"'"'hui' 'base/migrations/0084_console_cabinets.sql|||serveur/console/echeances.ts' \
+  '                          where r.echeance = greatest(a.essai_jusqu_au, coalesce(a.paye_jusqu_au, a.essai_jusqu_au))
+|||const rangs = partie && partie.echeance === echeance ? partie.rangs : {};' '|||const rangs = partie ? partie.rangs : {};' \
+  "$CONS2D1"
+prouver 'la prolongation d'"'"'un essai rendue sans son auteur' base/migrations/0084_console_cabinets.sql \
+  ''"'"'qui'"'"', (select jsonb_build_object('"'"'nom'"'"', u.nom, '"'"'role'"'"', g.role) from plateforme.geste_console g' ''"'"'qui'"'"', (select null::jsonb from plateforme.geste_console g' \
+  "$CONS2D1"
+prouver 'la fiche d'"'"'un client qui ne nomme pas son cabinet' serveur/console/routes.ts \
+  'const cabinets = cabinetsDe(id, lireCabinets(await lireJson(transaction(tx), '"'"'select plateforme.console_cabinets() v'"'"')));' 'const cabinets: unknown[] = [];' \
+  "$CONS2D2"
+prouver 'une carte des abonnements qui n'"'"'ouvre pas sa liste' web/console/src/ecrans/Abonnements.tsx \
+  'aria-pressed={vue === v} onClick={() => choisir(v)}' 'aria-pressed={vue === v} onClick={() => undefined}' \
+  "$CONS2W1"
+prouver 'les onglets des clients qui descendent sous le curseur' web/console/src/ecrans/Cabinets.tsx \
+  '<p className="c-entete-sous">{phrase('"'"'console.ecran.clients.sous'"'"')}</p>' '<p className="c-entete-sous">{phrase(actif === '"'"'cabinets'"'"' ? '"'"'console.ecran.cabinets.titre'"'"' : '"'"'console.ecran.clients.sous'"'"')}</p>' \
+  "$CONS2W2"
+prouver 'la recherche des cabinets que l'"'"'adresse ne garde pas' web/console/src/ecrans/Cabinets.tsx \
+  'history.replaceState(null, '"'"''"'"', `#/cabinets${qLue ? `?q=${encodeURIComponent(qLue)}` : '"'"''"'"'}`);' 'history.replaceState(null, '"'"''"'"', '"'"'#/cabinets'"'"');' \
+  "$CONS2W2"
+prouver 'une carte de la fiche d'"'"'un cabinet qui ne filtre pas' web/console/src/ecrans/Cabinet.tsx \
+  'onClick={() => setPlace(place === p ? null : p)}' 'onClick={() => undefined}' \
+  "$CONS2W2"
+prouver 'le filtre d'"'"'une fiche de cabinet qui ne se retire pas' web/console/src/ecrans/Cabinet.tsx \
+  'onClick={() => setPlace(null)}><Icone nom="croix" taille={15} /></button>' 'onClick={() => undefined}><Icone nom="croix" taille={15} /></button>' \
+  "$CONS2W2"
+prouver 'une adresse sans cabinet qui propose « Réessayer »' web/console/src/ecrans/Cabinet.tsx \
+  '{l.statut === 404 ? (' '{false ? (' \
+  "$CONS2W2"
+prouver 'la fiche d'"'"'un client sans chemin vers son cabinet' web/console/src/ecrans/Fiche.tsx \
+  '<a href={`#/cabinets/${c.id}`}><b data-donnee>{c.nom}</b></a>' '<b data-donnee>{c.nom}</b>' \
+  "$CONS2W2"
+prouver '« 2 Personnes » : la majuscule derrière un nombre' web/console/src/ui.tsx \
+  '  const i = s.search(/[\p{L}\p{N}]/u);
+  return i < 0 || !/\p{L}/u.test(s.charAt(i)) ? s :' '  const i = s.search(/\p{L}/u);
+  return i < 0 ? s :' \
+  "$CONS2W2"
+prouver 'le nom d'"'"'une échéance trop petit pour le doigt' web/console/src/console.css \
+  '  .c-ech-quoi a { display: inline-flex; align-items: center; min-height: 44px; }
+' '' \
+  "$CONSW6"
+prouver 'le revenu de l'"'"'année pris pour un texte du catalogue' web/console/src/ecrans/Abonnements.tsx \
+  '<b className="c-mono" data-donnee>{montant(a.montantHt)}</b>' '<b className="c-mono">{montant(a.montantHt)}</b>' \
+  "$CONSW6"
+prouver 'une carte de liste qui garde sa marge au téléphone' web/console/src/console.css \
+  '  .c-carte.c-decider, .c-carte.c-liste-carte { padding: 0; }
+' '' \
+  "$CONSW6"
+prouver 'les mois du graphique qui se chevauchent au téléphone' web/console/src/console.css \
+  '  .c-barre:nth-child(odd) .c-barre-mois { visibility: hidden; }
+' '' \
+  "$CONSW6"
+
 # ── Le téléphone : un chiffre trop long pour sa carte (13/10/2026 ; telephone.js, telephone.css) ──
 prouver "un montant de huit chiffres coupé par sa carte au téléphone" web/public/plateforme/telephone.css \
   '  .stat .val[data-tel-serre="1"] { font-size: 18px; }

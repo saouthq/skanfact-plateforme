@@ -9,19 +9,21 @@ import { useEffect, useRef, useState } from 'react';
 import { dire, phrase, titre } from '../langue.ts';
 import { abonnementEnMots, expliquer, offreEtPeriode, puceDe, type Etat, type Faits, type Offre, type Periodicite } from '../abonnement.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture, type Role } from '../contexte.ts';
-import { jourCourt, quand } from '../temps.ts';
+import { jourCourt, jourDe, quand } from '../temps.ts';
 import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
 import { organisationEnMots } from './Clients.tsx';
+import type { Place } from './Cabinets.tsx';
 
 type Geste = 'prolonger' | 'payer' | 'resilier' | 'annuler-resiliation' | 'suspendre' | 'reprendre' | 'offrir' | 'retirer-offert';
 type LigneAbo = { essai_jusqu_au: string; paye_jusqu_au: string | null; offre: Offre | null; periodicite: Periodicite | null; resilie_le: string | null; suspendu_le: string | null; offert: boolean };
 type Membre = { nom: string; email: string; roles: string[]; depuis: string; derniereConnexion: string | null };
+type CabinetDe = { id: string; nom: string; place: Place; mandat: { statut: 'propose' | 'actif'; debut: string } | null };
 type Evenement = { id: string; le: string; nature: string; par: 'systeme' | 'exploitation'; motif: string | null; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null; qui: { nom: string; role: Role } | null };
 type Donnees = {
   aujourdhui: string; id: string; raisonSociale: string; matricule: string | null; formeJuridique: string | null; active: boolean; devise: string; creeLe: string;
   organisation: { id: string; type: string; nom: string }; tenuePar: string | null; faits: Faits; ligne: LigneAbo | null; etat: Etat; gestes: Geste[];
   membres: Membre[]; comptes: { etablissements: number; caisses: number; salaries: number; piecesCreees: number; piecesEmises: { mois: string; n: number }[] };
-  prolongeDejaUneFois: boolean; evenements: Evenement[];
+  prolongeDejaUneFois: boolean; evenements: Evenement[]; cabinets: CabinetDe[];
 };
 
 const cleGeste = (g: Geste) => g.replace('-', '_');
@@ -208,13 +210,18 @@ export function Fiche({ id }: { id: string }) {
     return (
       <>
         <nav className="c-fil" aria-label={titre('console.ecran.fiche.retour')}><a href="#/clients">{titre('console.ecran.fiche.retour')}</a></nav>
-        <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte>
+        {l.statut === 404 ? (
+          <section className="c-carte c-liste-carte">
+            <Vide icone="chercher"><span>{phrase('console.ecran.fiche.introuvable')}</span> <Lien href="#/clients" petit>{titre('console.ecran.fiche.vers_liste')}</Lien></Vide>
+          </section>
+        ) : <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte>}
       </>
     );
   }
   const f = l.donnees;
   const puce = puceDe(f.etat);
   const proprietaires = f.membres.filter((m) => m.roles.includes('proprietaire'));
+  const tient = f.cabinets.find((c) => c.place === 'tenu');
   const raisonSansGeste = f.faits.tenuParCabinet ? phrase('console.ecran.fiche.sans_geste.cabinet') : phrase('console.ecran.fiche.sans_geste.support');
   const emises = f.comptes.piecesEmises;
   const douzeMois = derniersMois(f.aujourdhui).map((mois) => ({ mois, n: emises.find((x) => x.mois === mois)?.n ?? 0 }));
@@ -335,6 +342,28 @@ export function Fiche({ id }: { id: string }) {
             ) : <p className="c-attente">{phrase('console.ecran.fiche.sans_proprietaire')}</p>}
           </section>
 
+          {f.cabinets.length ? (
+            <section className="c-carte" aria-labelledby="fiche-cabinets">
+              <div className="c-carte-tete">
+                <div>
+                  <h2 id="fiche-cabinets">{titre(f.cabinets.length > 1 ? 'console.ecran.fiche.cabinets_plusieurs' : 'console.ecran.fiche.cabinets')}</h2>
+                  <p className="c-carte-sous">{phrase('console.ecran.fiche.cabinets_sous')}</p>
+                </div>
+              </div>
+              <ul className="c-personnes">
+                {f.cabinets.map((c) => (
+                  <li key={c.id}>
+                    <Avatar nom={c.nom} nuit />
+                    <div className="c-texte">
+                      <a href={`#/cabinets/${c.id}`}><b data-donnee>{c.nom}</b></a>
+                      <span>{maj(c.mandat ? dire(`console.ecran.fiche.cabinet.${c.place}`, { le: jourCourt(c.mandat.debut) }) : dire(`console.ecran.fiche.cabinet.${c.place}_sans_date`))}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
           <section className="c-carte" aria-labelledby="fiche-identite">
             <div className="c-carte-tete"><h2 id="fiche-identite">{titre('console.ecran.fiche.identite')}</h2></div>
             <dl className="c-faits">
@@ -342,7 +371,7 @@ export function Fiche({ id }: { id: string }) {
               <div><dt>{titre('console.ecran.fiche.i.forme')}</dt><dd data-donnee>{f.formeJuridique ?? '—'}</dd></div>
               <div><dt>{titre('console.ecran.fiche.i.devise')}</dt><dd className="c-mono" data-donnee>{f.devise}</dd></div>
               <div><dt>{titre('console.ecran.fiche.i.organisation')}</dt><dd>{maj(organisationEnMots(f.organisation))}</dd></div>
-              {f.tenuePar ? <div><dt>{titre('console.ecran.fiche.i.cabinet')}</dt><dd data-donnee>{f.tenuePar}</dd></div> : null}
+              {f.tenuePar ? <div><dt>{titre('console.ecran.fiche.i.cabinet')}</dt><dd data-donnee>{tient ? <a href={`#/cabinets/${tient.id}`}>{f.tenuePar}</a> : f.tenuePar}</dd></div> : null}
               <div><dt>{titre('console.ecran.fiche.i.etat')}</dt><dd>{titre(f.active ? 'console.ecran.fiche.active' : 'console.ecran.fiche.inactive')}</dd></div>
             </dl>
           </section>
@@ -354,6 +383,7 @@ export function Fiche({ id }: { id: string }) {
                 <p className="c-carte-sous">{phrase('console.ecran.fiche.membres_sous')}</p>
               </div>
             </div>
+            {f.membres.length === 0 ? <p className="c-attente">{phrase(tient ? 'console.ecran.fiche.membres_vide_tenue' : 'console.ecran.fiche.membres_vide')}</p> : null}
             <ul className="c-personnes">
               {f.membres.map((m) => (
                 <li key={m.email}>
@@ -361,7 +391,7 @@ export function Fiche({ id }: { id: string }) {
                   <div className="c-texte">
                     <b data-donnee>{m.nom}</b>
                     <span data-donnee>{m.email}</span>
-                    <span>{m.roles.map((r) => dire(`role.${r}`)).join(', ')} · {dire('console.ecran.fiche.depuis', { le: jourCourt(m.depuis) })}</span>
+                    <span>{m.roles.map((r) => dire(`role.${r}`)).join(', ')} · {dire('console.ecran.fiche.depuis', { le: jourCourt(jourDe(m.depuis)) })}</span>
                     <span>{titre(m.derniereConnexion ? 'console.ecran.fiche.connecte' : 'console.ecran.fiche.jamais_connecte', m.derniereConnexion ? { quand: quand(m.derniereConnexion, f.aujourdhui) } : {})}</span>
                   </div>
                 </li>

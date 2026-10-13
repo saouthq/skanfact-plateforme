@@ -18,7 +18,7 @@ session de la console à la porte (`serveur/app.ts`) ; les écrans `web/console/
 `dist/web/console`, servis sous `/console/`). Les tests : `tests/console/decider.test.ts` (pur),
 `tests/console/console.test.ts` (contre la base), `tests/web/console.test.ts` (à la souris : l'entrée, l'accueil, un
 geste, le support, la technique, puis chaque écran en clair et en sombre, à l'ordinateur et au téléphone, et en langue
-factice) ; soixante-neuf preuves.
+factice) ; soixante-neuf preuves. La deuxième partie (les échéances et les cabinets, plus bas) en ajoute trente-trois.
 
 ## Ce que fait le lot
 
@@ -45,7 +45,7 @@ factice) ; soixante-neuf preuves.
 | Rôle | Écrans | Gestes |
 |---|---|---|
 | Direction | tous | tous les gestes sur un abonnement, l'équipe |
-| Support | « À décider » (les clients), Clients et leur fiche | prolonger un essai, de 7 à 30 jours, une fois par entreprise |
+| Support | « À décider » (les clients), Clients et leur fiche, les cabinets et leur fiche, les abonnements | prolonger un essai, de 7 à 30 jours, une fois par entreprise |
 | Technique | « À décider » (le service), Service | aucun ; **aucune donnée de client**, ni la liste, ni une fiche, ni leurs chiffres |
 
 Un écran hors du rôle dit « Cet écran n'est pas dans ton rôle », et le menu ne le propose pas.
@@ -108,6 +108,52 @@ nombre reste avec son deux-points ; sans elle, « : » commençait une ligne. **
 côté** (Échap ou « Annuler ») : un motif tapé ne se perd pas. **Le service des écrans de l'application ne garde jamais la
 console** : un outil en ligne, rien n'en reste sur un poste.
 
+## Deuxième partie : les échéances et les cabinets (Console 2, 13/10/2026)
+
+Le code : la base `base/migrations/0084_console_cabinets.sql` (`console_cabinets`, `console_echeances`, la direction et
+le support seulement) ; le serveur `serveur/console/echeances.ts` et `serveur/console/cabinets.ts` (purs), leurs routes
+dans `serveur/console/routes.ts` ; les écrans `web/console/src/ecrans/Abonnements.tsx`, `Cabinets.tsx` et
+`Cabinet.tsx`. Les tests : `tests/console/echeances.test.ts` (pur), les deux nouveaux cas de
+`tests/console/console.test.ts` (contre la base) et de `tests/web/console.test.ts` (à la souris).
+
+**C10. Les abonnements** (10 § 2.4).
+- **Un chiffre de l'année en tête** : ce qui revient chaque année, au prix du jour, hors taxes — les abonnements actifs
+  qui se renouvellent, un mensuel compté douze fois, sans les résiliés ; une offre sans prix du jour se compte à part,
+  jamais pour zéro.
+- **Six cartes, et chacune ouvre la liste qu'elle compte** (C3, par la même fonction `vue`) : « À venir » (la fin d'un
+  essai ou d'une période payée dans les trente jours, aujourd'hui compris), puis une par état. Les cinq états refont le
+  portefeuille. La vue vit dans l'adresse (`#/abonnements?vue=essai`).
+- **Une ligne par échéance** : le jour et dans combien de temps, ce qui se passe (la prolongation d'un essai avec son
+  motif et son auteur, un « offert », une suspension), le montant d'un paiement hors taxes au prix du jour — jamais
+  pour un essai, une résiliation ou une suspension, et « — » avec sa raison — et les relances.
+- **Une relance dit ce que le serveur fera** : partie, prévue, part dans l'heure, sautée (une plus pressante part à sa
+  place), manquée (l'échéance est passée sans elle, ou l'entreprise est désactivée). Seules comptent celles de
+  l'échéance d'AUJOURD'HUI : après une prolongation ou un paiement, les anciennes ne disent plus rien. La règle est
+  prouvée jour après jour contre celle des envois (`relanceDue`) : celle que l'écran dit « dans l'heure » est celle qui
+  part. Chaque état porte un signe en plus de sa couleur.
+- **Les règles se disent en pied**, lues au serveur (les jours des relances, la grâce) : écrites une seconde fois dans
+  les textes, elles divergeraient au premier réglage.
+
+**C11. Les cabinets** (10 § 2.3).
+- **Sous « Clients », deux onglets** : les entreprises et les cabinets, sous un même en-tête (une phrase propre à chaque
+  onglet changeait sa hauteur, et les onglets descendaient sous le curseur au moment du clic).
+- **La liste** : chaque cabinet, ses associés, ses clients abonnés (un mandat actif), ses dossiers tenus, ceux qui
+  attendent son accord (un mandat proposé), son équipe, sa dernière connexion ; cherchée par son nom ou par un associé
+  (nom ou adresse), sans accents ni casse ; paginée.
+- **La fiche** : qui il est, **ce qu'il paie aujourd'hui (rien** : ses clients paient leur abonnement, et le prix des
+  dossiers tenus n'est pas encore en place), trois cartes qui comptent ses dossiers par place et filtrent la liste, ses
+  dossiers (dits comme dans la liste des clients : leur nom et leur abonnement, jamais leurs livres), qui y travaille
+  (rôle, depuis quand, dernière connexion). La liste et la fiche comptent les mêmes dossiers, par la même règle
+  (`placeDe`) ; un dossier que la liste des clients ne connaît pas (une entreprise d'exemple) ne compte nulle part.
+- **La fiche d'une entreprise nomme son cabinet** (celui qui la tient, ou à qui elle a donné ou proposé son mandat), et
+  y mène ; « tenue par » aussi. Une adresse qui ne mène à aucun cabinet, ou à aucune entreprise, le dit et mène à la
+  liste (« Réessayer » n'y changerait rien).
+
+**Écarts aux maquettes, voulus.** Les cartes « Essai » et « Actif » ouvraient « À venir » : chacune ouvre ici sa propre
+liste (C3). Les cabinets étaient une sorte d'organisation dans la liste des clients : ils ont leur onglet, parce qu'une
+ligne de cabinet ne dit pas la même chose qu'une ligne d'entreprise (des dossiers, une équipe). La fiche d'un cabinet ne
+montre ni son prix, ni son parrainage, ni ses demandes de support, ni son journal : rien de tout cela n'existe encore.
+
 ## Mettre en route
 
 La personne crée d'abord son compte SkanFact, puis met en place le code de son téléphone (« Ton compte »,
@@ -135,6 +181,10 @@ fait depuis l'écran « Équipe ». La console s'ouvre à `https://<le serveur>/
 - **« Inscriptions » compte les sept derniers jours, aujourd'hui compris**, et ouvre la liste avec ce filtre.
 - **Une fenêtre ne se ferme pas d'un clic à côté.**
 - **La console n'est pas l'API des partenaires** : ses routes n'entrent pas dans la documentation de l'API.
+- **Les montants des échéances sont hors taxes, au prix du jour** : la TVA et le timbre de nos factures viennent avec
+  elles (14b). Aucune remise n'existe encore.
+- **« À venir » couvre trente jours, aujourd'hui compris** ; la carte d'arrivée est la sienne.
+- **Une relance d'une échéance passée ne compte plus** après une prolongation ou un paiement.
 
 ## À DÉCIDER (Skander)
 
@@ -153,6 +203,8 @@ geste et par période.
 
 - Sur chaque serveur, la console lit `veille.json` : sinon son Service dit « non mesuré » (c'est la règle, pas une
   panne), et la veille se vérifie à part.
+- La TVA et le timbre fiscal de nos factures (14b, avec le comptable) : les montants des échéances restent hors taxes
+  d'ici là.
 
 ## Revu à la souris (13/10/2026)
 
@@ -164,3 +216,11 @@ fermait avec le motif tapé ; la pastille de « À décider » qui ne se recompt
 marqué faux pour un membre sans code ; une phrase qui commençait par un nombre ; « : » seul en début de ligne ; un
 tableau qui faisait déborder le téléphone ; des cibles de moins de 44 px ; les noms de l'équipe pris pour des textes
 hors du catalogue dans le filtre du journal.
+
+La deuxième partie, sur le même essai (douze entreprises, deux cabinets : l'un avec ses deux collaborateurs, un client
+abonné, un dossier tenu et un mandat en attente, l'autre vide), en direction ; en clair et en sombre ; à 1440 et à 390.
+Corrigé pendant le parcours : les onglets qui descendaient de 24 points d'un onglet à l'autre ; « 2 Personnes » et « 6
+Pièces » (une majuscule derrière un nombre, sur la liste des clients aussi) ; au téléphone, le nom d'une échéance, cible
+de 22 points ; la marge des cartes de liste comptée deux fois (36 points perdus de chaque côté, la liste des clients et
+« À décider » compris) ; les mois du graphique d'une fiche qui se chevauchaient (un mois sur deux, le mois en cours
+toujours nommé) ; un montant pris pour un texte du catalogue ; « Réessayer » sur une adresse qui ne mène à rien.

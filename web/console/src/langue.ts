@@ -13,3 +13,6 @@ export { LANGUE };
 export const dire = (cle: string, valeurs: Valeurs = {}) => typo(direBrut(cle, valeurs));
 export const phrase = (cle: string, valeurs: Valeurs = {}) => typo(phraseBrute(cle, valeurs));
 export const titre = (cle: string, valeurs: Valeurs = {}) => typo(titreBrut(cle, valeurs));
+// Un compte nul, au singulier ou au pluriel : les clés `<cle>_0`, `<cle>_1` et `<cle>_n` (« aucun dossier », « un
+// dossier », « 4 dossiers »), `{n}` posé dans les trois.
+export const selon = (n: number, cle: string, valeurs: Valeurs = {}) => dire(`${cle}_${n === 0 ? '0' : n === 1 ? '1' : 'n'}`, { n, ...valeurs });

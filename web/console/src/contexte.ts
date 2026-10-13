@@ -42,7 +42,8 @@ export function useApi() {
 // Lire ce qu'un écran montre : en lecture, lu, ou en panne (et « Réessayer »). Relire garde ce qui est à l'écran tant
 // que la `cle` ne change pas (une recherche, un geste qui vient d'être fait) : rien ne clignote ; une autre clé (une
 // autre fiche) repart de zéro, jamais les données d'un autre client sous un nouveau titre.
-export type Lecture<T> = { etat: 'lecture' } | { etat: 'lu'; donnees: T; enCours: boolean } | { etat: 'panne'; texte: string };
+// `statut` : celui du refus (404 : ce qu'on cherche n'existe pas, « Réessayer » n'y changerait rien) ; absent d'une panne.
+export type Lecture<T> = { etat: 'lecture' } | { etat: 'lu'; donnees: T; enCours: boolean } | { etat: 'panne'; texte: string; statut?: number };
 export function useLecture<T>(chemin: string, cle: string = chemin): [Lecture<T>, () => void] {
   const api = useApi();
   const [n, setN] = useState(0);
@@ -54,7 +55,7 @@ export function useLecture<T>(chemin: string, cle: string = chemin): [Lecture<T>
       try {
         const r = await api<T>('GET', chemin);
         if (!actif || !r) return;
-        setLu({ cle, l: r.statut === 200 ? { etat: 'lu', donnees: r.corps, enCours: false } : { etat: 'panne', texte: refusDe(r) } });
+        setLu({ cle, l: r.statut === 200 ? { etat: 'lu', donnees: r.corps, enCours: false } : { etat: 'panne', texte: refusDe(r), statut: r.statut } });
       } catch (x) {
         if (actif) setLu({ cle, l: { etat: 'panne', texte: panneDe(x) } });
       }

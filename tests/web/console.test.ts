@@ -11,6 +11,10 @@
 //     un clic à côté ne ferme pas la fenêtre ; après son geste, la pastille de « À décider » se recompte, et le menu des
 //     gestes, vide, n'est plus le bouton principal ;
 //   - la technique : l'accueil et le service seulement ; « Clients » lui dit que ce n'est pas son rôle ;
+//   - les abonnements : chaque carte ouvre la liste qu'elle compte, du même nombre (C3) ;
+//   - les cabinets : passer d'un onglet à l'autre ne déplace pas les onglets ; la liste compte ce que la fiche montre ;
+//     une carte de la fiche filtre ses dossiers et le filtre se retire ; la fiche d'un client mène à son cabinet ; une
+//     adresse qui ne mène à aucun cabinet le dit, et mène à la liste ;
 //   - en clair et en sombre, à l'ordinateur (1440) et au téléphone (390) : l'instrument de rendu ne trouve rien ; en
 //     langue factice, chaque texte vient du catalogue ;
 //   - le service des écrans de l'application ne garde jamais la console.
@@ -53,6 +57,28 @@ function horsCatalogue(): string[] {
   return pb;
 }
 
+// Ce que l'instrument de rendu ne mesure pas, et que le téléphone a montré : une carte de liste qui garde sa marge (elle
+// s'ajoutait à celle de son contenu : 36 points perdus de chaque côté au lieu de 18) ; deux noms de mois du petit
+// graphique d'une fiche qui se chevauchent (« 11/2512/26… »). Le texte d'un mois se mesure par son étendue, pas par sa
+// case : il en déborde.
+function auTelephone(): string[] {
+  const pb: string[] = [];
+  for (const c of document.querySelectorAll<HTMLElement>('.c-liste-carte, .c-decider')) {
+    const marge = getComputedStyle(c).paddingInlineStart;
+    if (marge !== '0px') pb.push(`une carte de liste garde sa marge (${marge}) : ${c.className}`);
+  }
+  const mois = [...document.querySelectorAll<HTMLElement>('.c-barre-mois')].filter((m) => getComputedStyle(m).visibility !== 'hidden').map((m) => {
+    const r = document.createRange();
+    r.selectNodeContents(m);
+    return r.getBoundingClientRect();
+  });
+  for (let i = 1; i < mois.length; i++) {
+    const a = mois[i - 1], b = mois[i];
+    if (a && b && b.left < a.right - 0.5) pb.push(`deux mois du graphique se chevauchent (le ${i}e et le ${i + 1}e)`);
+  }
+  return pb;
+}
+
 type Membre = { email: string; prenom: string; nom: string; secret: string };
 
 describe('la console de l\'équipe, à la souris', () => {
@@ -91,11 +117,20 @@ describe('la console de l\'équipe, à la souris', () => {
     const c = await api('POST', '/console/connexion/code', undefined, { defi: r.corps.defi, code: code(m) });
     return String(c.corps.jeton);
   };
+  // Une personne inscrite et connectée à l'application : son adresse et son jeton.
+  const personne = async (sorte: string) => {
+    const email = `console-web-${sorte}-${Date.now()}-${++n}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: `${sorte} ${n}`, motDePasse: MDP });
+    return { email, jeton: String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton) };
+  };
+  const inscrite = async (sorte: string) => (await personne(sorte)).jeton;
+  const exiger = (r: { statut: number; corps: Record<string, unknown> }, statut: number) => {
+    if (r.statut !== statut) throw new Error(`attendu ${statut}, reçu ${r.statut} : ${JSON.stringify(r.corps)}`);
+    return r.corps;
+  };
   // Une entreprise inventée, et l'état de son abonnement posé comme le temps l'aurait fait.
   const entreprise = async (nom: string, essaiDans: number, autre: { payeDans?: number; offre?: 'essentiel' | 'complet' } = {}) => {
-    const email = `console-web-proprio-${Date.now()}-${++n}@exemple.tn`;
-    await api('POST', '/inscription', undefined, { email, nom: `Proprio ${n}`, motDePasse: MDP });
-    const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    const jeton = await inscrite('proprio');
     const id = String((await api('POST', '/entreprises', jeton, { raisonSociale: nom })).corps.id);
     await admin.query(`update plateforme.abonnement set essai_jusqu_au = current_date + $2::int,
         paye_jusqu_au = case when $3::int is null then null else current_date + $3::int end, offre = $4, periodicite = $5 where entreprise = $1`,
@@ -119,8 +154,34 @@ describe('la console de l\'équipe, à la souris', () => {
   const fermer = (p: Page) => p.context().close();
   const ecrire = (problemes: Record<string, unknown>) => fs.writeFileSync(veille, JSON.stringify({ problemes }));
 
+  // Un cabinet inventé : son associé (le code du téléphone en place, son rôle l'exige), un dossier qu'il tient, un client
+  // qui lui a donné son mandat, un autre qui le lui propose.
+  const cabinetSeul = async (nom: string) => {
+    const associe = await inscrite('associe');
+    exiger(await api('POST', '/moi/code', associe, { methode: 'application' }), 200);
+    return { associe, cab: exiger(await api('POST', '/cabinets', associe, { nom }), 201) };
+  };
+  const cabinetAvecDossiers = async (nom: string) => {
+    const { associe, cab } = await cabinetSeul(nom);
+    // Une collaboratrice invitée, qui accepte : l'équipe compte deux personnes.
+    const collab = await personne('collaboratrice');
+    const invitation = exiger(await api('POST', `/cabinets/${String(cab.id)}/invitations`, associe, { email: collab.email, role: 'revision' }), 201);
+    exiger(await api('POST', '/invitations/accepter', collab.jeton, { jeton: invitation.jeton }), 200);
+    const id = String(cab.id);
+    const tenu = String(exiger(await api('POST', `/cabinets/${id}/dossiers`, associe, { raisonSociale: 'Cordonnerie de la Console' }), 201).entreprise);
+    const client = await inscrite('proprio');
+    const ent = String((await api('POST', '/entreprises', client, { raisonSociale: 'Librairie de la Console' })).corps.id);
+    const mandat = String(exiger(await api('POST', `/entreprises/${ent}/mandat`, client, { codeCabinet: String(cab.code) }), 201).mandat);
+    exiger(await api('POST', `/cabinets/${id}/mandats/${mandat}/accepter`, associe), 200);
+    const attente = await inscrite('proprio');
+    const entAttente = String((await api('POST', '/entreprises', attente, { raisonSociale: 'Pressing de la Console' })).corps.id);
+    exiger(await api('POST', `/entreprises/${entAttente}/mandat`, attente, { codeCabinet: String(cab.code) }), 201);
+    return { id, nom, client: ent, tenu };
+  };
+
   let direction: Membre, support: Membre, technique: Membre, sansCode: Membre;
   let essaiCalme = '', essaiSupport = '', enLecture = '';
+  let cabinet: Awaited<ReturnType<typeof cabinetAvecDossiers>>;
 
   beforeAll(async () => {
     await admin.connect();
@@ -142,6 +203,9 @@ describe('la console de l\'équipe, à la souris', () => {
     // Inscrite il y a plus d'une semaine : hors de la tuile « Inscriptions », pour que retirer son filtre se voie.
     const ancienne = await entreprise('Clinique Abonnée', -200, { payeDans: 160, offre: 'complet' });
     await admin.query('update socle.entreprise set cree_le = cree_le - interval \'200 days\' where id = $1', [ancienne]);
+    cabinet = await cabinetAvecDossiers('Cabinet de la Console');
+    // Un second cabinet, sans dossier : la recherche a quelque chose à écarter.
+    await cabinetSeul('Fiduciaire Témoin');
   }, 180_000);
   afterAll(async () => {
     await navigateur?.close(); await serveur?.arreter(); await admin.end();
@@ -237,8 +301,8 @@ describe('la console de l\'équipe, à la souris', () => {
 
   it('le support : de 7 à 30 jours, dit à sa place ; un clic à côté ne ferme pas la fenêtre ; la pastille se recompte', async () => {
     const p = await ouvrir(await jetonConsole(support), `#/clients/${essaiSupport}`);
-    // Le support ne voit que ses écrans : « À décider » et « Clients ».
-    expect((await p.locator('.c-nav a').allInnerTexts()).map(net)).toEqual(expect.arrayContaining(['Clients']));
+    // Le support ne voit que ses écrans : « À décider », « Clients » et « Abonnements ».
+    expect((await p.locator('.c-nav a').allInnerTexts()).map(net)).toEqual(expect.arrayContaining(['Clients', 'Abonnements']));
     expect((await p.locator('.c-nav a').allInnerTexts()).map(net).some((t) => /Équipe|Journal|Service/.test(t))).toBe(false);
     const pastille = p.locator('.c-nav-compte');
     await expect.poll(() => pastille.innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^\d+$/);
@@ -290,12 +354,94 @@ describe('la console de l\'équipe, à la souris', () => {
     await fermer(p);
   }, 60_000);
 
+  it('les abonnements : chaque carte ouvre la liste qu\'elle compte, du même nombre', async () => {
+    const p = await ouvrir(await jetonConsole(direction), '#/abonnements');
+    const compte = () => p.locator('#ab-liste .c-compte-titre').innerText().then(Number).catch(() => NaN);
+    // La liste d'arrivée est celle de « À venir » : elle compte ce que dit sa carte.
+    const avenir = p.locator('.c-vue', { has: p.locator('.c-point-avenir') });
+    await expect.poll(() => avenir.getAttribute('aria-pressed'), { timeout: 15_000 }).toBe('true');
+    await expect.poll(compte, { timeout: 15_000 }).toBe(Number(await avenir.locator('.c-vue-n').innerText()));
+    // Chaque autre carte : sa liste, lue au serveur pour CETTE vue, compte ce que la carte annonçait.
+    for (const v of ['essai', 'actif', 'en_retard', 'lecture_seule', 'hors']) {
+      const carte = p.locator('.c-vue', { has: p.locator(`.c-point-${v}`) });
+      const n = Number(await carte.locator('.c-vue-n').innerText());
+      const lue = p.waitForResponse((r) => r.url().includes(`/console/abonnements?vue=${v}&`));
+      await cliquer(carte);
+      await lue;
+      await expect.poll(compte, { timeout: 15_000 }).toBe(n);
+      expect(await carte.getAttribute('aria-pressed')).toBe('true');
+      expect(await p.evaluate(() => location.hash)).toBe(`#/abonnements?vue=${v}`);
+    }
+    await fermer(p);
+  }, 90_000);
+
+  it('les cabinets : les onglets ne bougent pas ; la liste compte ce que la fiche montre ; la fiche d\'un client mène à son cabinet', async () => {
+    const p = await ouvrir(await jetonConsole(support), '#/clients');
+    const onglets = p.locator('.c-onglets');
+    await expect.poll(() => p.locator('.c-liste-pied').count(), { timeout: 15_000 }).toBe(1);
+    const yEntreprises = (await onglets.boundingBox())?.y ?? -1;
+    // Passer aux cabinets : l'adresse suit, et les onglets restent sous le curseur (un même en-tête pour les deux).
+    await cliquer(onglets.getByRole('link', { name: 'Cabinets', exact: true }));
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/cabinets');
+    await expect.poll(() => onglets.locator('[aria-current="page"]').innerText().then(net).catch(() => '')).toBe('Cabinets');
+    expect(Math.abs(((await onglets.boundingBox())?.y ?? 0) - yEntreprises)).toBeLessThan(1);
+    // Le cabinet, cherché par son nom parmi les autres : un client abonné, un dossier tenu, un en attente.
+    const lignes = p.locator('.c-table tbody tr');
+    await expect.poll(() => lignes.count(), { timeout: 15_000 }).toBeGreaterThan(1);
+    await p.locator('.c-liste-outils input[type="search"]').fill(cabinet.nom);
+    // La recherche se lit après la pause de la frappe, et l'adresse la garde.
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toBe(`#/cabinets?q=${encodeURIComponent(cabinet.nom)}`);
+    await expect.poll(() => lignes.count(), { timeout: 15_000 }).toBe(1);
+    expect(net(await lignes.first().innerText())).toContain(cabinet.nom);
+    const comptes = async (q: Page) => (await q.locator('.c-table tbody tr').first().locator('td.c-droite .c-mono').allInnerTexts()).map(Number);
+    expect(await comptes(p)).toEqual([1, 1, 1]);
+    // Un compte posé seul garde sa minuscule derrière le nombre : « 2 personnes », jamais « 2 Personnes ».
+    expect(net(await lignes.first().locator('td').nth(4).innerText())).toBe('2 personnes');
+    // Sa fiche : les trois cartes comptent la même chose que la liste, et ses trois dossiers.
+    await cliquer(lignes.first().getByRole('link', { name: cabinet.nom, exact: true }));
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/cabinets/${cabinet.id}`);
+    const cartes = p.locator('.c-vues .c-vue');
+    await expect.poll(() => cartes.locator('.c-vue-n').allInnerTexts().then((t) => t.map(Number)), { timeout: 15_000 }).toEqual([1, 1, 1]);
+    const dossiers = p.locator('section[aria-labelledby="cab-dossiers"] tbody tr');
+    expect(await dossiers.count()).toBe(3);
+    // Une carte filtre la liste ; le filtre se voit, et se retire.
+    await cliquer(cartes.nth(1));
+    await expect.poll(() => dossiers.count()).toBe(1);
+    expect(net(await dossiers.first().innerText())).toContain('Cordonnerie de la Console');
+    expect(net(await p.locator('#cab-dossiers .c-compte-titre').innerText())).toBe('1');
+    await cliquer(p.getByRole('button', { name: 'Retirer ce filtre', exact: true }));
+    await expect.poll(() => dossiers.count()).toBe(3);
+    expect(await cartes.nth(1).getAttribute('aria-pressed')).toBe('false');
+    // La fiche du client nomme son cabinet, et y mène.
+    await cliquer(dossiers.filter({ hasText: 'Librairie de la Console' }).getByRole('link', { name: 'Librairie de la Console', exact: true }));
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/clients/${cabinet.client}`);
+    const carteCabinet = p.locator('section[aria-labelledby="fiche-cabinets"]');
+    await expect.poll(() => carteCabinet.innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain('avec son mandat depuis le');
+    await cliquer(carteCabinet.getByRole('link', { name: cabinet.nom, exact: true }));
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/cabinets/${cabinet.id}`);
+    // Le dossier tenu : « tenue par » mène aussi au cabinet.
+    await p.goto(`${serveur.adresse}/console/#/clients/${cabinet.tenu}`);
+    await expect.poll(() => p.locator('section[aria-labelledby="fiche-identite"] a').getAttribute('href').catch(() => ''), { timeout: 15_000 }).toBe(`#/cabinets/${cabinet.id}`);
+    // Une adresse qui ne mène à aucun cabinet : la phrase, et le chemin vers la liste (pas « Réessayer »).
+    await p.goto(`${serveur.adresse}/console/#/cabinets/00000000-0000-4000-8000-000000000000`);
+    await expect.poll(() => p.locator('.c-vide').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain('Aucun cabinet à cette adresse');
+    expect(await p.getByRole('button', { name: 'Réessayer' }).count()).toBe(0);
+    await cliquer(p.getByRole('link', { name: 'Voir les cabinets', exact: true }));
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/cabinets');
+    await fermer(p);
+  }, 90_000);
+
   it('en clair et en sombre, à l\'ordinateur et au téléphone : l\'instrument ne trouve rien ; en langue factice, tout vient du catalogue', async () => {
     const jeton = await jetonConsole(direction);
     const ECRANS: { nom: string; hash: string; geste?: (p: Page) => Promise<void> }[] = [
       { nom: 'accueil', hash: '#/' },
       { nom: 'clients', hash: '#/clients' },
       { nom: 'fiche', hash: `#/clients/${enLecture}` },
+      { nom: 'fiche-cabinet-client', hash: `#/clients/${cabinet.client}` },
+      { nom: 'abonnements', hash: '#/abonnements' },
+      { nom: 'abonnements-essai', hash: '#/abonnements?vue=essai' },
+      { nom: 'cabinets', hash: '#/cabinets' },
+      { nom: 'cabinet', hash: `#/cabinets/${cabinet.id}` },
       { nom: 'geste', hash: `#/clients/${enLecture}`, geste: async (p) => { await cliquer(p.locator('.c-menu > button')); await cliquer(p.locator('.c-menu-liste button').first()); await p.getByRole('dialog').waitFor(); } },
       { nom: 'journal', hash: '#/journal' },
       { nom: 'equipe', hash: '#/equipe' },
@@ -312,6 +458,7 @@ describe('la console de l\'équipe, à la souris', () => {
           await p.waitForTimeout(300);
           const nom = `console-${e.nom}-${largeur}-${theme}`;
           faux.push(...(await p.evaluate(problemes, [largeur < 600, largeur] as [boolean, number])).map((x) => `${nom} : ${x}`));
+          if (largeur < 600) faux.push(...(await p.evaluate(auTelephone)).map((x) => `${nom} : ${x}`));
           await p.screenshot({ path: path.join(PHOTOS, `${nom}.png`), fullPage: true });
           vus++;
           await fermer(p);

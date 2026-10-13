@@ -8,6 +8,7 @@ import { abonnementEnMots, CATEGORIES, expliquer, puceDe, type Categorie, type E
 import { useConsole, useLecture } from '../contexte.ts';
 import { quand } from '../temps.ts';
 import { Alerte, Avatar, Bouton, Icone, Lien, maj, Puce, Vide } from '../ui.tsx';
+import { EnteteClients } from './Cabinets.tsx';
 
 export type Entreprise = {
   id: string; raisonSociale: string; matricule: string | null; active: boolean; creeLe: string;
@@ -62,12 +63,7 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
 
   return (
     <>
-      <header className="c-entete">
-        <div className="c-entete-texte">
-          <h1>{titre('console.ecran.clients.titre')}</h1>
-          <p className="c-entete-sous">{phrase('console.ecran.clients.sous')}</p>
-        </div>
-      </header>
+      <EnteteClients actif="entreprises" />
       {l.etat === 'panne' ? <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
       <section className="c-carte c-liste-carte" aria-label={titre('console.ecran.clients.titre')}>
         <div className="c-liste-outils">

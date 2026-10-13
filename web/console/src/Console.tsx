@@ -6,7 +6,10 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { dire, phrase, titre, typo } from './langue.ts';
 import { appeler, session } from './api.ts';
 import { ContexteConsole, panneDe, type Ctx, type Moi, type Role } from './contexte.ts';
+import { Abonnements } from './ecrans/Abonnements.tsx';
 import { Accueil } from './ecrans/Accueil.tsx';
+import { Cabinet } from './ecrans/Cabinet.tsx';
+import { Cabinets } from './ecrans/Cabinets.tsx';
 import { Clients } from './ecrans/Clients.tsx';
 import { Entree } from './ecrans/Entree.tsx';
 import { Equipe } from './ecrans/Equipe.tsx';
@@ -16,11 +19,12 @@ import { Service } from './ecrans/Service.tsx';
 import { Alerte, Avatar, Bouton, Icone, Toast, type NomIcone } from './ui.tsx';
 
 // ── Les écrans et leur adresse ──────────────────────────────────────────────────────────────────────────────────────
-type Page = 'accueil' | 'clients' | 'fiche' | 'journal' | 'equipe' | 'service';
+type Page = 'accueil' | 'clients' | 'fiche' | 'cabinets' | 'cabinet' | 'abonnements' | 'journal' | 'equipe' | 'service';
 type Route = { page: Page | 'inconnue'; id?: string; params: URLSearchParams };
 const OUVRE: Record<Page, readonly Role[]> = {
   accueil: ['direction', 'support', 'technique'],
-  clients: ['direction', 'support'], fiche: ['direction', 'support'],
+  clients: ['direction', 'support'], fiche: ['direction', 'support'], cabinets: ['direction', 'support'], cabinet: ['direction', 'support'],
+  abonnements: ['direction', 'support'],
   journal: ['direction'], equipe: ['direction'], service: ['direction', 'technique'],
 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -32,7 +36,9 @@ function lireRoute(hash: string): Route {
   if (m.length === 0) return { page: 'accueil', params };
   if (m[0] === 'clients' && m.length === 1) return { page: 'clients', params };
   if (m[0] === 'clients' && m.length === 2 && UUID.test(m[1] ?? '')) return { page: 'fiche', id: m[1] ?? '', params };
-  if (m.length === 1 && (m[0] === 'journal' || m[0] === 'equipe' || m[0] === 'service')) return { page: m[0], params };
+  if (m[0] === 'cabinets' && m.length === 1) return { page: 'cabinets', params };
+  if (m[0] === 'cabinets' && m.length === 2 && UUID.test(m[1] ?? '')) return { page: 'cabinet', id: m[1] ?? '', params };
+  if (m.length === 1 && (m[0] === 'abonnements' || m[0] === 'journal' || m[0] === 'equipe' || m[0] === 'service')) return { page: m[0], params };
   return { page: 'inconnue', params };
 }
 function useRoute(): Route {
@@ -72,7 +78,7 @@ function useTheme() {
 // ── La barre de gauche ──────────────────────────────────────────────────────────────────────────────────────────────
 type Entree = { page: Page; href: string; cle: string; icone: NomIcone };
 const GROUPES: { cle: string; entrees: Entree[] }[] = [
-  { cle: 'chaque_jour', entrees: [{ page: 'accueil', href: '#/', cle: 'decider', icone: 'decider' }, { page: 'clients', href: '#/clients', cle: 'clients', icone: 'clients' }] },
+  { cle: 'chaque_jour', entrees: [{ page: 'accueil', href: '#/', cle: 'decider', icone: 'decider' }, { page: 'clients', href: '#/clients', cle: 'clients', icone: 'clients' }, { page: 'abonnements', href: '#/abonnements', cle: 'abonnements', icone: 'calendrier' }] },
   { cle: 'la_plateforme', entrees: [{ page: 'service', href: '#/service', cle: 'service', icone: 'service' }] },
   { cle: 'l_equipe', entrees: [{ page: 'equipe', href: '#/equipe', cle: 'equipe', icone: 'equipe' }, { page: 'journal', href: '#/journal', cle: 'journal', icone: 'journal' }] },
 ];
@@ -81,7 +87,8 @@ function Cote({ moi, page, decisions, sortir, theme }: { moi: Moi; page: Page | 
   const [ouvert, setOuvert] = useState(false);
   useEffect(() => { setOuvert(false); }, [page]);
   const groupes = GROUPES.map((g) => ({ ...g, entrees: g.entrees.filter((e) => OUVRE[e.page].includes(moi.role)) })).filter((g) => g.entrees.length);
-  const actif = page === 'fiche' ? 'clients' : page;
+  // Une fiche, la liste des cabinets et la fiche d'un cabinet vivent sous « Clients » : les deux sortes de clients.
+  const actif = page === 'fiche' || page === 'cabinets' || page === 'cabinet' ? 'clients' : page;
   return (
     <aside className={`c-cote${ouvert ? ' c-ouvert' : ''}`}>
       <div className="c-cote-haut">
@@ -150,6 +157,9 @@ function Page({ route, role }: { route: Route; role: Role }) {
     case 'accueil': return <Accueil />;
     case 'clients': return <Clients etat={route.params.get('etat')} q={route.params.get('q') ?? ''} nouvelles={route.params.get('nouvelles') === '1'} />;
     case 'fiche': return <Fiche key={route.id} id={route.id ?? ''} />;
+    case 'cabinets': return <Cabinets q={route.params.get('q') ?? ''} />;
+    case 'cabinet': return <Cabinet key={route.id} id={route.id ?? ''} />;
+    case 'abonnements': return <Abonnements vue={route.params.get('vue')} />;
     case 'journal': return <Journal entreprise={UUID.test(route.params.get('entreprise') ?? '') ? route.params.get('entreprise') : null} />;
     case 'equipe': return <Equipe />;
     default: return <Service />;
