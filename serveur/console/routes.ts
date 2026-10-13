@@ -205,7 +205,12 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const ligne = lireLigne(fiche.ligne);
       // Les cabinets qui la suivent : la même liste que leur fiche à eux (C3).
       const cabinets = cabinetsDe(id, lireCabinets(await lireJson(transaction(tx), 'select plateforme.console_cabinets() v')));
-      return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, gestes: gestesDisponibles(roleDe(qui), faits, ligne, etat, fiche.prolongeDejaUneFois === true) } };
+      // Ce qui attend pour ce client : les lignes d'« À décider » qui le nomment, par la MÊME fonction (C3) — sur la liste
+      // telle que l'accueil la lit, jamais une règle écrite une seconde fois pour la fiche.
+      const role = roleDe(qui);
+      const liste = lireEntreprises(await lireJson(transaction(tx), 'select plateforme.console_entreprises() v'), jour).filter((e) => e.id === id);
+      const attend = aDecider(liste, { etat: 'absente' }, jour, role);
+      return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true) } };
     },
   });
 

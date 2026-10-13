@@ -11084,8 +11084,8 @@ prouver 'un clic à côté qui ferme la fenêtre' web/console/src/ui.tsx \
 prouver 'la pastille de « À décider » qui ne se recompte pas après un geste' web/console/src/ecrans/Fiche.tsx \
   'fait={() => { setGeste(null); relire(); relireDecisions(); }}' 'fait={() => { setGeste(null); relire(); }}' \
   "$CONSW4"
-prouver 'le menu des gestes vert sans geste à faire' web/console/src/ecrans/Fiche.tsx \
-  'className={`c-btn${gestes.length ? '"'"' c-btn-principal'"'"' : '"'"''"'"'}`}' 'className="c-btn c-btn-principal"' \
+prouver 'le menu des gestes vert à côté de l'"'"'étape suivante' web/console/src/ecrans/Fiche.tsx \
+  'className="c-btn c-fiche-gestes"' 'className="c-btn c-btn-principal c-fiche-gestes"' \
   "$CONSW4"
 prouver 'les bornes du support dites comme celles de la direction' web/console/src/ecrans/Fiche.tsx \
   'phrase(support ? '"'"'console.ecran.geste.jours_hors_support'"'"' : '"'"'console.ecran.geste.jours_hors'"'"', { min, max })' 'phrase('"'"'console.ecran.geste.jours_hors'"'"', { min, max })' \
@@ -11206,7 +11206,7 @@ prouver 'une adresse sans cabinet qui propose « Réessayer »' web/console/src/
   '{l.statut === 404 ? (' '{false ? (' \
   "$CONS2W2"
 prouver 'la fiche d'"'"'un client sans chemin vers son cabinet' web/console/src/ecrans/Fiche.tsx \
-  '<a href={`#/cabinets/${c.id}`}><b data-donnee>{c.nom}</b></a>' '<b data-donnee>{c.nom}</b>' \
+  '<a href={`#/cabinets/${c.id}`} className="c-fiche-vers">{titre('"'"'console.ecran.fiche.ouvrir_cabinet'"'"')}</a>' '' \
   "$CONS2W2"
 prouver '« 2 Personnes » : la majuscule derrière un nombre' web/console/src/ui.tsx \
   '  const i = s.search(/[\p{L}\p{N}]/u);
@@ -11834,6 +11834,18 @@ prouver 'une pilule de membre qui ne filtre pas le journal' 'web/console/src/ecr
   'onClick={() => setQui(m.utilisateur)}' \
   'onClick={() => setQui(qui)}' \
   'le journal : qui se choisit d'"'"'un clic'
+
+# La fiche d'un client recalée sur sa maquette (docs/console.md C21) : ce qui attend pour ce client vient d'« À décider »,
+# par la même fonction, et se relit après un geste.
+FI1='le support : de 7 à 30 jours, dit à sa place ; un clic à côté ne ferme pas la fenêtre ; la pastille se recompte'
+prouver 'la fiche qui ne dit pas ce qui attend pour son client' 'serveur/console/routes.ts' \
+  "const attend = aDecider(liste, { etat: 'absente' }, jour, role);" \
+  'const attend: ReturnType<typeof aDecider> = [];' \
+  "$FI1"
+prouver 'ce qui attend, dit avec le nom du client sur sa propre fiche' 'web/console/src/ecrans/Fiche.tsx' \
+  "titre: titre('console.ecran.fiche.attend.essai_sans_usage')," \
+  "titre: titre('console.ecran.decider.sans_usage_titre', { nom: 'Boulangerie du Support' })," \
+  "$FI1"
 
 # L'équipe recalée sur sa maquette (docs/console.md C20) : ce que chaque rôle ouvre se lit dans les gestes du serveur,
 # et le menu d'une ligne se pose sur la fenêtre (la carte du tableau le coupait).

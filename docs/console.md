@@ -404,6 +404,19 @@ prolonge un essai une fois par entreprise ; « À décider » ne lui montre que 
 - **Pas encore** : les codes de secours, les appareils reconnus, les gestes des trente derniers jours (par membre et
   en carte) et les invitations en attente — la base ne les compte pas encore pour la console.
 
+**C21. La fiche d'un client, recalée sur sa maquette** (13/10/2026). **« Ce qui attend, pour ce client »** en tête :
+les lignes d'« À décider » qui le nomment, calculées par la MÊME fonction (`aDecider`, sur la liste telle que l'accueil la
+lit — C3), dites sans son nom (c'est sa fiche) et avec le geste qui y répond : noter un paiement reçu (ou prolonger,
+selon le rôle) pour une échéance passée ou une lecture seule, écrire au propriétaire d'un essai qui n'a pas servi. **Le
+premier est le seul vert de la fiche** : le menu des gestes ne l'est plus jamais, et « Écrire… » est à côté de lui. Puis
+**des onglets**, dans l'adresse (`?onglet=`) : l'aperçu (son entreprise — son offre, son matricule, l'échéance en
+couleur quand elle presse —, ses comptes, à qui parler, son cabinet avec « Ouvrir la fiche du cabinet »), l'abonnement,
+les membres, et le journal de son abonnement (« Son histoire », avec « Ses gestes au journal » pour la direction). Son
+nom et son état ne se répètent pas dans la carte de son entreprise : ils sont en tête de la fiche.
+- **Pas encore** : un groupe de plusieurs entreprises sur une même fiche, les factures et paiements, le support et ses
+  échanges, « Noter un appel », l'accès à son dossier avec son accord, la procédure de reprise — ils demandent des
+  briques qui n'existent pas encore (paiements, support, accès accordé).
+
 ## Mettre en route
 
 La personne crée d'abord son compte SkanFact, puis met en place le code de son téléphone (« Ton compte »,

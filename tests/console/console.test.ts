@@ -240,10 +240,11 @@ describe('les clients', () => {
   it('la fiche dit la liste fermée : qui, l\'abonnement et son histoire, les membres, des comptes ; jamais le contenu d\'un dossier', async () => {
     const { ent, proprio } = await entreprise('Quincaillerie Fiche');
     const f = await fiche(jS, ent);
-    expect(Object.keys(f).sort()).toEqual(['active', 'aujourdhui', 'comptes', 'creeLe', 'devise', 'etat', 'evenements', 'faits', 'formeJuridique', 'gestes',
+    expect(Object.keys(f).sort()).toEqual(['active', 'attend', 'aujourdhui', 'comptes', 'creeLe', 'devise', 'etat', 'evenements', 'faits', 'formeJuridique', 'gestes',
       'id', 'ligne', 'matricule', 'membres', 'organisation', 'prolongeDejaUneFois', 'raisonSociale', 'tenuePar', 'cabinets'].sort());
-    // Aucun cabinet ne la suit : la liste est vide, pas absente.
+    // Aucun cabinet ne la suit : la liste est vide, pas absente. Un essai qui commence n'attend rien de la console.
     expect(f.cabinets).toEqual([]);
+    expect(f.attend).toEqual([]);
     expect(Object.keys(f.comptes as object).sort()).toEqual(['caisses', 'etablissements', 'piecesCreees', 'piecesEmises', 'salaries']);
     expect(f.membres).toEqual([expect.objectContaining({ nom: proprio.nom, email: proprio.email, roles: ['proprietaire'] })]);
     expect(Object.keys((f.membres as object[])[0] ?? {}).sort()).toEqual(['depuis', 'derniereConnexion', 'email', 'nom', 'roles']);

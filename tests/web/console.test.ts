@@ -356,9 +356,11 @@ describe('la console de l\'équipe, à la souris', () => {
     await cliquer(fenetre.locator('.c-dialogue-pied .c-btn-principal'));
     await expect.poll(() => p.locator('#c-toast').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe('C\'est fait : essai prolongé.');
     await expect.poll(() => fenetre.count()).toBe(0);
-    // La base, puis l'histoire de la fiche : le geste, le motif, l'auteur.
+    // La base, puis l'histoire de la fiche, dans son onglet « Journal » : le geste, le motif, l'auteur.
     const lu = (await admin.query('select essai_jusqu_au::text j from plateforme.abonnement where entreprise = $1', [essaiCalme])).rows[0] as { j: string };
     expect(lu.j).toBe(plusJours(finAvant, 30));
+    await cliquer(p.locator('.c-onglets a', { hasText: 'Journal' }));
+    await expect.poll(() => p.evaluate(() => location.hash)).toContain('onglet=journal');
     const premier = p.locator('.c-histoire li').first();
     await expect.poll(() => premier.innerText().then(net).catch(() => ''), { timeout: 10_000 }).toContain('Essai prolongé');
     expect(net(await premier.innerText())).toContain('Le client attend son comptable');
@@ -380,6 +382,14 @@ describe('la console de l\'équipe, à la souris', () => {
     const pastille = p.locator('.c-nav-compte');
     await expect.poll(() => pastille.innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^\d+$/);
     const avant = Number(await pastille.innerText());
+    // Ce qui attend pour ce client : la ligne d'« À décider » qui le nomme, sans son nom (c'est sa fiche), avec le geste
+    // qui y répond en vert — le seul vert de la fiche ; le menu des gestes ne l'est jamais.
+    const attend = p.locator('.c-fiche-attend li');
+    await expect.poll(() => attend.count(), { timeout: 10_000 }).toBe(1);
+    expect(net(await attend.innerText())).toContain('Un essai qui finit sans avoir servi');
+    expect(net(await attend.innerText())).not.toContain('Boulangerie du Support');
+    expect(await p.locator('main .c-btn-principal').count()).toBe(1);
+    expect(await attend.locator('.c-btn-principal').count()).toBe(1);
     await cliquer(p.locator('.c-menu > button'));
     expect(await p.locator('.c-menu-liste button').allInnerTexts()).toEqual(['Prolonger l\'essai']);
     await cliquer(p.locator('.c-menu-liste button', { hasText: 'Prolonger l\'essai' }));
@@ -402,8 +412,9 @@ describe('la console de l\'équipe, à la souris', () => {
     await motif.fill('Le client attend son comptable');
     await cliquer(fenetre.locator('.c-dialogue-pied .c-btn-principal'));
     await expect.poll(() => fenetre.count(), { timeout: 10_000 }).toBe(0);
-    // L'essai sans usage de la semaine n'est plus à décider : la pastille se recompte, sans changer de page.
+    // L'essai sans usage de la semaine n'est plus à décider : la pastille se recompte, et la fiche ne le dit plus.
     await expect.poll(() => pastille.innerText().then(Number).catch(() => 0), { timeout: 15_000 }).toBe(avant - 1);
+    await expect.poll(() => p.locator('.c-fiche-attend').count(), { timeout: 10_000 }).toBe(0);
     // Un second « prolonger » n'est plus permis au support : le menu le dit, et n'est plus le bouton principal.
     await expect.poll(() => p.locator('.c-menu > button').getAttribute('class'), { timeout: 10_000 }).not.toContain('c-btn-principal');
     await cliquer(p.locator('.c-menu > button'));
@@ -598,11 +609,12 @@ describe('la console de l\'équipe, à la souris', () => {
     await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/clients/${cabinet.client}`);
     const carteCabinet = p.locator('section[aria-labelledby="fiche-cabinets"]');
     await expect.poll(() => carteCabinet.innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain('avec son mandat depuis le');
-    await cliquer(carteCabinet.getByRole('link', { name: cabinet.nom, exact: true }));
+    expect(net(await carteCabinet.innerText())).toContain(cabinet.nom);
+    await cliquer(carteCabinet.getByRole('link', { name: 'Ouvrir la fiche du cabinet', exact: true }));
     await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/cabinets/${cabinet.id}`);
     // Le dossier tenu : « tenue par » mène aussi au cabinet.
     await p.goto(`${serveur.adresse}/console/#/clients/${cabinet.tenu}`);
-    await expect.poll(() => p.locator('section[aria-labelledby="fiche-identite"] a').getAttribute('href').catch(() => ''), { timeout: 15_000 }).toBe(`#/cabinets/${cabinet.id}`);
+    await expect.poll(() => p.locator('section[aria-labelledby="fiche-ent"] .c-fiche-ent a').getAttribute('href').catch(() => ''), { timeout: 15_000 }).toBe(`#/cabinets/${cabinet.id}`);
     // Une adresse qui ne mène à aucun cabinet : la phrase, et le chemin vers la liste (pas « Réessayer »).
     await p.goto(`${serveur.adresse}/console/#/cabinets/00000000-0000-4000-8000-000000000000`);
     await expect.poll(() => p.locator('.c-vide').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain('Aucun cabinet à cette adresse');

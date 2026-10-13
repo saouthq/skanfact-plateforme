@@ -2,6 +2,10 @@
 // son abonnement et son histoire (chaque geste, son motif, son auteur), les gestes que ton rôle permet AUJOURD'HUI, ses
 // membres, et des comptes. La liste fermée de la console (10 § 4) : jamais le contenu d'un dossier.
 //
+// Recalée sur sa maquette (docs/console.md C21) : « Ce qui attend, pour ce client » en tête (les lignes d'« À décider »
+// qui le nomment, par la même fonction, avec le geste qui y répond), puis des onglets — l'aperçu (son entreprise, ses
+// comptes, à qui parler, son cabinet), l'abonnement, les membres, le journal de son abonnement.
+//
 // Un geste (10 § 2.4) passe par sa fenêtre : ses paramètres, son motif, puis l'APERÇU de l'état d'après (le serveur le
 // calcule par la même règle que le geste, sans rien écrire), et seulement alors le geste. La ligne d'abonnement lue
 // part avec lui : changée entre-temps, le serveur refuse au lieu d'écraser (01 R15), et la fiche se relit.
@@ -9,8 +13,8 @@ import { useEffect, useRef, useState } from 'react';
 import { dire, phrase, titre } from '../langue.ts';
 import { abonnementEnMots, expliquer, offreEtPeriode, puceDe, type Etat, type Faits, type Offre, type Periodicite } from '../abonnement.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture, type Role } from '../contexte.ts';
-import { jourCourt, jourDe, quand } from '../temps.ts';
-import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
+import { dans, jourCourt, jourDe, quand } from '../temps.ts';
+import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
 import { organisationEnMots } from './Clients.tsx';
 import type { Place } from './Cabinets.tsx';
 
@@ -23,8 +27,15 @@ type Donnees = {
   aujourdhui: string; id: string; raisonSociale: string; matricule: string | null; formeJuridique: string | null; active: boolean; devise: string; creeLe: string;
   organisation: { id: string; type: string; nom: string }; tenuePar: string | null; faits: Faits; ligne: LigneAbo | null; etat: Etat; gestes: Geste[];
   membres: Membre[]; comptes: { etablissements: number; caisses: number; salaries: number; piecesCreees: number; piecesEmises: { mois: string; n: number }[] };
-  prolongeDejaUneFois: boolean; evenements: Evenement[]; cabinets: CabinetDe[];
+  prolongeDejaUneFois: boolean; evenements: Evenement[]; cabinets: CabinetDe[]; attend: Attente[];
 };
+// Les lignes d'« À décider » qui nomment ce client (serveur/console/decider.ts, aDecider) : celles d'un client seulement.
+type Attente =
+  | { sorte: 'en_retard'; echeance: string; lectureSeuleLe: string; jours: number; apresEssai: boolean }
+  | { sorte: 'lecture_seule'; depuis: string; raison: 'essai_termine' | 'non_renouvele' | 'resilie' | 'suspendu' }
+  | { sorte: 'essai_sans_usage'; jusquAu: string; jours: number; proprietaire: { nom: string; email: string } | null };
+export type OngletFiche = 'apercu' | 'abonnement' | 'membres' | 'journal';
+export const ONGLETS_FICHE: readonly OngletFiche[] = ['apercu', 'abonnement', 'membres', 'journal'];
 
 const cleGeste = (g: Geste) => g.replace('-', '_');
 
@@ -201,8 +212,9 @@ function MenuGestes({ gestes, choisir, raison }: { gestes: Geste[]; choisir: (g:
   }, [ouvert]);
   return (
     <div className="c-menu" ref={zone}>
-      {/* Vert seulement quand il y a un geste à faire : sans geste permis, le menu ne fait que dire pourquoi. */}
-      <button type="button" className={`c-btn${gestes.length ? ' c-btn-principal' : ''}`} aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
+      {/* Jamais vert : le vert de la fiche est l'étape suivante, dans « Ce qui attend » (sa maquette). Sans geste permis, le
+          menu ne fait que dire pourquoi. */}
+      <button type="button" className="c-btn c-fiche-gestes" aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>
         {titre('console.ecran.fiche.gestes')}<Icone nom="bas" taille={17} />
       </button>
       {ouvert ? (
@@ -218,7 +230,7 @@ function MenuGestes({ gestes, choisir, raison }: { gestes: Geste[]; choisir: (g:
 }
 
 // ── La fiche ────────────────────────────────────────────────────────────────────────────────────────────────────────
-export function Fiche({ id }: { id: string }) {
+export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: string | null }) {
   const { moi, relireDecisions } = useConsole();
   const [l, relire] = useLecture<Donnees>(`/console/entreprises/${encodeURIComponent(id)}`, id);
   const [geste, setGeste] = useState<Geste | null>(null);
@@ -236,8 +248,10 @@ export function Fiche({ id }: { id: string }) {
     );
   }
   const f = l.donnees;
+  const onglet: OngletFiche = ONGLETS_FICHE.includes(ongletDemande as OngletFiche) ? ongletDemande as OngletFiche : 'apercu';
   const puce = puceDe(f.etat);
   const proprietaires = f.membres.filter((m) => m.roles.includes('proprietaire'));
+  const premier = proprietaires[0] ?? null;
   const tient = f.cabinets.find((c) => c.place === 'tenu');
   const raisonSansGeste = f.faits.tenuParCabinet ? phrase('console.ecran.fiche.sans_geste.cabinet') : phrase('console.ecran.fiche.sans_geste.support');
   const emises = f.comptes.piecesEmises;
@@ -252,6 +266,17 @@ export function Fiche({ id }: { id: string }) {
     [titre('console.ecran.fiche.f.suspendu'), jourCourt(f.ligne.suspendu_le)],
     [titre('console.ecran.fiche.f.offert'), titre(f.ligne.offert ? 'console.ecran.fiche.oui' : 'console.ecran.fiche.non')],
   ] : [];
+  const ecrire = (m: { email: string }) => `mailto:${m.email}`;
+  // L'onglet vit dans l'adresse : « précédent » y revient, un lien d'ailleurs peut y mener.
+  const versOnglet = (o: OngletFiche) => `#/clients/${f.id}${o === 'apercu' ? '' : `?onglet=${o}`}`;
+  const onglets: { o: OngletFiche; n?: number }[] = [{ o: 'apercu' }, { o: 'abonnement' }, { o: 'membres', n: f.membres.length }, { o: 'journal', n: f.evenements.length }];
+  // Le geste qui répond à une ligne de « Ce qui attend » : encaisser quand le rôle le permet, sinon prolonger ; écrire au
+  // propriétaire d'un essai qui n'a pas servi. Le premier est vert : c'est l'étape suivante.
+  const reponse = (a: Attente): { texte: string; geste?: Geste; href?: string } | null => {
+    if (a.sorte === 'essai_sans_usage') return a.proprietaire ? { texte: titre('console.ecran.fiche.attend.ecrire', { nom: a.proprietaire.nom }), href: ecrire(a.proprietaire) } : null;
+    const g = f.gestes.includes('payer') ? 'payer' : f.gestes.includes('prolonger') ? 'prolonger' : null;
+    return g ? { texte: titre(`console.ecran.geste.${cleGeste(g)}`), geste: g } : null;
+  };
 
   return (
     <>
@@ -261,167 +286,224 @@ export function Fiche({ id }: { id: string }) {
       <header className="c-entete">
         <div className="c-entete-texte">
           <div className="c-titre-ligne"><h1 data-donnee>{f.raisonSociale}</h1><Puce ton={puce.ton}>{puce.texte}</Puce></div>
-          <p className="c-entete-sous">{maj(organisationEnMots(f.organisation))} · {dire('console.ecran.fiche.inscrite', { le: jourCourt(f.creeLe) })} · {abonnementEnMots(f.etat, f.faits)}</p>
+          <p className="c-entete-sous">{maj(organisationEnMots(f.organisation))} · {dire('console.ecran.fiche.inscrite', { le: jourCourt(f.creeLe) })}{premier ? <> · <span data-donnee>{premier.nom}</span></> : null}</p>
         </div>
         <div className="c-entete-actions">
-          {moi.role === 'direction' ? <Lien href={`#/journal?entreprise=${f.id}`} icone="journal">{titre('console.ecran.fiche.voir_journal')}</Lien> : null}
+          {premier ? <Lien href={ecrire(premier)}>{titre('console.ecran.fiche.ecrire_court')}</Lien> : null}
           <MenuGestes gestes={f.gestes} choisir={setGeste} raison={raisonSansGeste} />
         </div>
       </header>
 
-      <div className="c-grille-2">
-        <div className="c-colonne">
-          <section className="c-carte" aria-labelledby="fiche-abo">
-            <div className="c-carte-tete">
-              <div>
-                <h2 id="fiche-abo">{titre('console.ecran.fiche.abonnement')}</h2>
-                <p className="c-carte-sous">{maj(expliquer(f.etat, f.aujourdhui))}</p>
-              </div>
-              <Puce ton={puce.ton}>{puce.texte}</Puce>
-            </div>
-            {f.ligne ? (
-              <dl className="c-faits">{faits.map(([k, v]) => <div key={k}><dt>{k}</dt><dd className={/\d/.test(v) ? 'c-mono' : ''}>{v}</dd></div>)}</dl>
-            ) : <Alerte ton="info">{phrase('console.ecran.fiche.aucune_ligne')}</Alerte>}
-          </section>
+      {f.attend.length ? (
+        <section className="c-carte c-fiche-attend" aria-labelledby="fiche-attend">
+          <div className="c-fiche-attend-tete">
+            <h2 id="fiche-attend">{titre('console.ecran.fiche.attend.titre')}</h2>
+            <span>{dire('console.ecran.fiche.attend.sous')}</span>
+          </div>
+          <ul>
+            {f.attend.map((a, i) => {
+              const v = attenteEnMots(a, f.aujourdhui);
+              const r = reponse(a);
+              return (
+                <li key={a.sorte}>
+                  <span className={`c-ligne-icone c-${v.urgence}`}><Icone nom={v.icone} /></span>
+                  <span className="c-fiche-attend-texte"><b>{v.titre}</b><span>{v.desc}</span></span>
+                  {r?.geste ? <Bouton {...(i === 0 ? { ton: 'principal' as const } : {})} onClick={() => setGeste(r.geste ?? null)}>{r.texte}</Bouton>
+                    : r?.href ? <Lien href={r.href} {...(i === 0 ? { ton: 'principal' as const } : {})}>{r.texte}</Lien> : null}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
-          <section className="c-carte" aria-labelledby="fiche-histoire">
-            <div className="c-carte-tete">
-              <div>
-                <h2 id="fiche-histoire">{titre('console.ecran.fiche.histoire')}</h2>
-                <p className="c-carte-sous">{phrase('console.ecran.fiche.histoire_sous')}</p>
-              </div>
-            </div>
-            {f.evenements.length ? (
-              <ol className="c-histoire">
-                {f.evenements.map((e) => (
-                  <li key={e.id}>
-                    <span className="c-histoire-quand">{maj(quand(e.le, f.aujourdhui))}</span>
-                    <div className="c-histoire-quoi">
-                      <b>{titre(`console.ecran.nature.${e.nature}`)}</b>
-                      <Changements avant={e.avant} apres={e.apres} />
-                      {e.motif ? <span className="c-motif" data-donnee>{'«\u202f'}{e.motif}{'\u202f»'}</span> : null}
-                      <span className="c-qui">
-                        {e.par === 'systeme' ? titre('console.ecran.fiche.par_systeme')
-                          : e.qui ? <><span data-donnee>{e.qui.nom}</span> · {dire(`console.ecran.role.${e.qui.role}`)}</> : titre('console.ecran.fiche.par_outil')}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            ) : <Vide icone="journal">{phrase('console.ecran.fiche.histoire_vide')}</Vide>}
-          </section>
+      <nav className="c-onglets" aria-label={titre('console.ecran.fiche.onglets')}>
+        {onglets.map(({ o, n }) => (
+          <a key={o} href={versOnglet(o)} aria-current={onglet === o ? 'page' : undefined}>
+            {titre(`console.ecran.fiche.onglet.${o}`)}{n ? <span className="c-onglet-n">{n}</span> : null}
+          </a>
+        ))}
+      </nav>
 
-          <section className="c-carte" aria-labelledby="fiche-comptes">
-            <div className="c-carte-tete">
-              <div>
-                <h2 id="fiche-comptes">{titre('console.ecran.fiche.comptes')}</h2>
-                <p className="c-carte-sous">{phrase('console.ecran.fiche.comptes_sous')}</p>
+      {onglet === 'apercu' ? (
+        <div className="c-grille-2">
+          <div className="c-colonne">
+            <section className="c-carte" aria-labelledby="fiche-ent">
+              <div className="c-carte-tete"><h2 id="fiche-ent">{titre('console.ecran.fiche.son_entreprise')}</h2></div>
+              <div className={`c-fiche-ent c-fiche-ent-${f.etat.etat}`}>
+                {/* Son nom et son état sont en tête de la fiche : la carte dit ce qu'elle a de plus (sa maquette les répète pour
+                    un groupe de plusieurs entreprises, pas pour une seule). */}
+                <b className="c-fiche-ent-offre">{maj(abonnementEnMots(f.etat, f.faits))}</b>
+                <span className="c-fiche-ent-ids">
+                  {f.matricule ? <span className="c-mono" data-donnee>MF {f.matricule}</span> : <span>{titre('console.ecran.fiche.sans_matricule')}</span>}
+                  {f.formeJuridique ? <> · <span data-donnee>{f.formeJuridique}</span></> : null}
+                  {' · '}{dire('console.ecran.fiche.en_devise', { devise: f.devise })}
+                </span>
+                <span className="c-fiche-ent-quand">{maj(expliquer(f.etat, f.aujourdhui))}</span>
+                {f.tenuePar ? <span>{titre('console.ecran.fiche.i.cabinet')} <span data-donnee>{tient ? <a href={`#/cabinets/${tient.id}`}>{f.tenuePar}</a> : f.tenuePar}</span></span> : null}
+                {!f.active ? <span className="c-fiche-ent-quand">{titre('console.ecran.fiche.inactive_long')}</span> : null}
               </div>
-            </div>
-            <div className="c-chiffres">
-              {([['pieces', f.comptes.piecesCreees], ['etablissements', f.comptes.etablissements], ['caisses', f.comptes.caisses], ['salaries', f.comptes.salaries]] as const).map(([k, v]) => (
-                <div key={k} className="c-chiffre"><span>{titre(`console.ecran.fiche.c.${k}`)}</span><b>{v}</b></div>
-              ))}
-            </div>
-            <div className="c-barres">
-              <div className="c-barres-tete">
-                <span>{titre('console.ecran.fiche.emises')}</span>
-                <span>{totalEmises ? dire('console.ecran.fiche.emises_total', { n: totalEmises }) : phrase('console.ecran.fiche.emises_aucune')}</span>
-              </div>
-              <div className="c-barres-graphe" role="img" aria-label={totalEmises ? dire('console.ecran.fiche.emises_total', { n: totalEmises }) : phrase('console.ecran.fiche.emises_aucune')}>
-                {douzeMois.map((x) => (
-                  <div key={x.mois} className="c-barre" title={`${moisCourt(x.mois)} : ${x.n}`}>
-                    <div className="c-barre-colonne"><span className={x.n ? '' : 'c-zero'} style={{ height: `${Math.max(2, Math.round((x.n / plusHaut) * 100))}%` }} /></div>
-                    <span className="c-barre-mois" data-donnee>{moisCourt(x.mois)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <div className="c-colonne">
-          <section className="c-carte" aria-labelledby="fiche-parler">
-            <div className="c-carte-tete"><h2 id="fiche-parler">{titre('console.ecran.fiche.a_qui_parler')}</h2></div>
-            {proprietaires.length ? (
-              <ul className="c-personnes">
-                {proprietaires.map((m) => (
-                  <li key={m.email}>
-                    <Avatar nom={m.nom} />
-                    <div className="c-texte">
-                      <b data-donnee>{m.nom}</b>
-                      <span>{titre('console.ecran.fiche.proprietaire')} · <a href={`mailto:${m.email}`} data-donnee>{m.email}</a></span>
-                      <span>{titre(m.derniereConnexion ? 'console.ecran.fiche.connecte' : 'console.ecran.fiche.jamais_connecte', m.derniereConnexion ? { quand: quand(m.derniereConnexion, f.aujourdhui) } : {})}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : <p className="c-attente">{phrase('console.ecran.fiche.sans_proprietaire')}</p>}
-          </section>
-
-          {f.cabinets.length ? (
-            <section className="c-carte" aria-labelledby="fiche-cabinets">
-              <div className="c-carte-tete">
-                <div>
-                  <h2 id="fiche-cabinets">{titre(f.cabinets.length > 1 ? 'console.ecran.fiche.cabinets_plusieurs' : 'console.ecran.fiche.cabinets')}</h2>
-                  <p className="c-carte-sous">{phrase('console.ecran.fiche.cabinets_sous')}</p>
-                </div>
-              </div>
-              <ul className="c-personnes">
-                {f.cabinets.map((c) => (
-                  <li key={c.id}>
-                    <Avatar nom={c.nom} nuit />
-                    <div className="c-texte">
-                      <a href={`#/cabinets/${c.id}`}><b data-donnee>{c.nom}</b></a>
-                      <span>{maj(c.mandat ? dire(`console.ecran.fiche.cabinet.${c.place}`, { le: jourCourt(c.mandat.debut) }) : dire(`console.ecran.fiche.cabinet.${c.place}_sans_date`))}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
             </section>
-          ) : null}
 
-          <section className="c-carte" aria-labelledby="fiche-identite">
-            <div className="c-carte-tete"><h2 id="fiche-identite">{titre('console.ecran.fiche.identite')}</h2></div>
-            <dl className="c-faits">
-              <div><dt>{titre('console.ecran.fiche.i.matricule')}</dt><dd className="c-mono" data-donnee>{f.matricule ?? '—'}</dd></div>
-              <div><dt>{titre('console.ecran.fiche.i.forme')}</dt><dd data-donnee>{f.formeJuridique ?? '—'}</dd></div>
-              <div><dt>{titre('console.ecran.fiche.i.devise')}</dt><dd className="c-mono" data-donnee>{f.devise}</dd></div>
-              <div><dt>{titre('console.ecran.fiche.i.organisation')}</dt><dd>{maj(organisationEnMots(f.organisation))}</dd></div>
-              {f.tenuePar ? <div><dt>{titre('console.ecran.fiche.i.cabinet')}</dt><dd data-donnee>{tient ? <a href={`#/cabinets/${tient.id}`}>{f.tenuePar}</a> : f.tenuePar}</dd></div> : null}
-              <div><dt>{titre('console.ecran.fiche.i.etat')}</dt><dd>{titre(f.active ? 'console.ecran.fiche.active' : 'console.ecran.fiche.inactive')}</dd></div>
-            </dl>
-          </section>
-
-          <section className="c-carte" aria-labelledby="fiche-membres">
-            <div className="c-carte-tete">
-              <div>
-                <h2 id="fiche-membres">{titre('console.ecran.fiche.membres')} <span className="c-compte-titre">{f.membres.length}</span></h2>
-                <p className="c-carte-sous">{phrase('console.ecran.fiche.membres_sous')}</p>
+            <section className="c-carte" aria-labelledby="fiche-comptes">
+              <div className="c-carte-tete">
+                <h2 id="fiche-comptes">{titre('console.ecran.fiche.comptes')}</h2>
+                <span className="c-carte-coin">{dire('console.ecran.fiche.comptes_sous')}</span>
               </div>
+              <div className="c-chiffres c-fiche-chiffres">
+                {([
+                  ['pieces', f.comptes.piecesCreees, totalEmises ? dire('console.ecran.fiche.emises_sous', { n: totalEmises }) : dire('console.ecran.fiche.emises_aucune_court')],
+                  ['etablissements', f.comptes.etablissements, null], ['caisses', f.comptes.caisses, null], ['salaries', f.comptes.salaries, null],
+                ] as const).map(([k, v, sous]) => (
+                  <div key={k} className="c-chiffre"><span>{titre(`console.ecran.fiche.c.${k}`)}</span><b>{v}</b>{sous ? <small>{sous}</small> : null}</div>
+                ))}
+              </div>
+              {totalEmises ? (
+                <div className="c-barres">
+                  <div className="c-barres-tete"><span>{titre('console.ecran.fiche.emises')}</span></div>
+                  <div className="c-barres-graphe" role="img" aria-label={dire('console.ecran.fiche.emises_total', { n: totalEmises })}>
+                    {douzeMois.map((x) => (
+                      <div key={x.mois} className="c-barre" title={`${moisCourt(x.mois)} : ${x.n}`}>
+                        <div className="c-barre-colonne"><span className={x.n ? '' : 'c-zero'} style={{ height: `${Math.max(2, Math.round((x.n / plusHaut) * 100))}%` }} /></div>
+                        <span className="c-barre-mois" data-donnee>{moisCourt(x.mois)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          </div>
+
+          <div className="c-colonne">
+            <section className="c-carte" aria-labelledby="fiche-parler">
+              <div className="c-carte-tete"><h2 id="fiche-parler">{titre('console.ecran.fiche.a_qui_parler')}</h2></div>
+              {proprietaires.length ? (
+                <ul className="c-personnes">
+                  {proprietaires.map((m) => (
+                    <li key={m.email} className="c-fiche-parler">
+                      <div className="c-texte">
+                        <b data-donnee>{m.nom}</b>
+                        <span>{titre('console.ecran.fiche.proprietaire')}</span>
+                        <a href={ecrire(m)} data-donnee>{m.email}</a>
+                        <span>{titre(m.derniereConnexion ? 'console.ecran.fiche.connecte' : 'console.ecran.fiche.jamais_connecte', m.derniereConnexion ? { quand: quand(m.derniereConnexion, f.aujourdhui) } : {})}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="c-attente">{phrase('console.ecran.fiche.sans_proprietaire')}</p>}
+            </section>
+
+            {f.cabinets.length ? (
+              <section className="c-carte" aria-labelledby="fiche-cabinets">
+                <div className="c-carte-tete"><h2 id="fiche-cabinets">{titre(f.cabinets.length > 1 ? 'console.ecran.fiche.cabinets_plusieurs' : 'console.ecran.fiche.cabinets')}</h2></div>
+                <ul className="c-personnes">
+                  {f.cabinets.map((c) => (
+                    <li key={c.id}>
+                      <Avatar nom={c.nom} />
+                      <div className="c-texte">
+                        <b data-donnee>{c.nom}</b>
+                        <span>{maj(c.mandat ? dire(`console.ecran.fiche.cabinet.${c.place}`, { le: jourCourt(c.mandat.debut) }) : dire(`console.ecran.fiche.cabinet.${c.place}_sans_date`))}</span>
+                        <a href={`#/cabinets/${c.id}`} className="c-fiche-vers">{titre('console.ecran.fiche.ouvrir_cabinet')}</a>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            <p className="c-note"><Icone nom="cache" />{phrase('console.ecran.fiche.contenu')}</p>
+          </div>
+        </div>
+      ) : null}
+
+      {onglet === 'abonnement' ? (
+        <section className="c-carte" aria-labelledby="fiche-abo">
+          <div className="c-carte-tete">
+            <div>
+              <h2 id="fiche-abo">{titre('console.ecran.fiche.abonnement')}</h2>
+              <p className="c-carte-sous">{maj(expliquer(f.etat, f.aujourdhui))}</p>
             </div>
-            {f.membres.length === 0 ? <p className="c-attente">{phrase(tient ? 'console.ecran.fiche.membres_vide_tenue' : 'console.ecran.fiche.membres_vide')}</p> : null}
-            <ul className="c-personnes">
-              {f.membres.map((m) => (
-                <li key={m.email}>
-                  <Avatar nom={m.nom} />
-                  <div className="c-texte">
-                    <b data-donnee>{m.nom}</b>
-                    <span data-donnee>{m.email}</span>
-                    <span>{m.roles.map((r) => dire(`role.${r}`)).join(', ')} · {dire('console.ecran.fiche.depuis', { le: jourCourt(jourDe(m.depuis)) })}</span>
-                    <span>{titre(m.derniereConnexion ? 'console.ecran.fiche.connecte' : 'console.ecran.fiche.jamais_connecte', m.derniereConnexion ? { quand: quand(m.derniereConnexion, f.aujourdhui) } : {})}</span>
+          </div>
+          {f.ligne ? (
+            <dl className="c-faits">{faits.map(([k, v]) => <div key={k}><dt>{k}</dt><dd className={/\d/.test(v) ? 'c-mono' : ''}>{v}</dd></div>)}</dl>
+          ) : <Alerte ton="info">{phrase('console.ecran.fiche.aucune_ligne')}</Alerte>}
+        </section>
+      ) : null}
+
+      {onglet === 'membres' ? (
+        <section className="c-carte" aria-labelledby="fiche-membres">
+          <div className="c-carte-tete">
+            <div>
+              <h2 id="fiche-membres">{titre('console.ecran.fiche.membres')}</h2>
+              <p className="c-carte-sous">{phrase('console.ecran.fiche.membres_sous')}</p>
+            </div>
+          </div>
+          {f.membres.length === 0 ? <p className="c-attente">{phrase(tient ? 'console.ecran.fiche.membres_vide_tenue' : 'console.ecran.fiche.membres_vide')}</p> : null}
+          <ul className="c-personnes">
+            {f.membres.map((m) => (
+              <li key={m.email}>
+                <Avatar nom={m.nom} />
+                <div className="c-texte">
+                  <b data-donnee>{m.nom}</b>
+                  <span data-donnee>{m.email}</span>
+                  <span>{m.roles.map((r) => dire(`role.${r}`)).join(', ')} · {dire('console.ecran.fiche.depuis', { le: jourCourt(jourDe(m.depuis)) })}</span>
+                  <span>{titre(m.derniereConnexion ? 'console.ecran.fiche.connecte' : 'console.ecran.fiche.jamais_connecte', m.derniereConnexion ? { quand: quand(m.derniereConnexion, f.aujourdhui) } : {})}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {onglet === 'journal' ? (
+        <section className="c-carte" aria-labelledby="fiche-histoire">
+          <div className="c-carte-tete">
+            <div>
+              <h2 id="fiche-histoire">{titre('console.ecran.fiche.histoire')}</h2>
+              <p className="c-carte-sous">{phrase('console.ecran.fiche.histoire_sous')}</p>
+            </div>
+            {moi.role === 'direction' ? <Lien href={`#/journal?entreprise=${f.id}`} icone="journal" petit>{titre('console.ecran.fiche.voir_journal')}</Lien> : null}
+          </div>
+          {f.evenements.length ? (
+            <ol className="c-histoire">
+              {f.evenements.map((e) => (
+                <li key={e.id}>
+                  <span className="c-histoire-quand">{maj(quand(e.le, f.aujourdhui))}</span>
+                  <div className="c-histoire-quoi">
+                    <b>{titre(`console.ecran.nature.${e.nature}`)}</b>
+                    <Changements avant={e.avant} apres={e.apres} />
+                    {e.motif ? <span className="c-motif" data-donnee>{'« '}{e.motif}{' »'}</span> : null}
+                    <span className="c-qui">
+                      {e.par === 'systeme' ? titre('console.ecran.fiche.par_systeme')
+                        : e.qui ? <><span data-donnee>{e.qui.nom}</span> · {dire(`console.ecran.role.${e.qui.role}`)}</> : titre('console.ecran.fiche.par_outil')}
+                    </span>
                   </div>
                 </li>
               ))}
-            </ul>
-          </section>
-
-          <p className="c-note"><Icone nom="cache" />{phrase('console.ecran.fiche.contenu')}</p>
-        </div>
-      </div>
+            </ol>
+          ) : <Vide icone="journal">{phrase('console.ecran.fiche.histoire_vide')}</Vide>}
+        </section>
+      ) : null}
       {geste ? <FenetreGeste geste={geste} fiche={f} role={moi.role} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); relireDecisions(); }} /> : null}
     </>
   );
+}
+
+// Une ligne de « Ce qui attend » dite pour la fiche : sans le nom du client (c'est sa fiche), avec la phrase d'« À
+// décider » et son urgence.
+type UrgenceAttente = 'urgent' | 'aujourdhui' | 'semaine';
+function attenteEnMots(a: Attente, aujourdhui: string): { icone: NomIcone; titre: string; desc: string; urgence: UrgenceAttente & TonPuce } {
+  switch (a.sorte) {
+    case 'en_retard':
+      return { icone: 'calendrier', titre: titre('console.ecran.fiche.attend.en_retard'), urgence: a.jours <= 2 ? 'urgent' : 'semaine',
+        desc: phrase(a.apresEssai ? 'console.ecran.decider.retard_essai' : 'console.ecran.decider.retard_abonnement', { echeance: jourCourt(a.echeance), le: jourCourt(a.lectureSeuleLe), dans: dans(a.lectureSeuleLe, aujourdhui) }) };
+    case 'lecture_seule':
+      return { icone: 'cadenas', titre: titre('console.ecran.fiche.attend.lecture_seule'), urgence: a.depuis === aujourdhui ? 'aujourdhui' : 'semaine',
+        desc: phrase(`console.ecran.decider.lecture.${a.raison}`, { le: jourCourt(a.depuis) }) };
+    default:
+      return { icone: 'sablier', titre: titre('console.ecran.fiche.attend.essai_sans_usage'), urgence: a.jours <= 1 ? 'aujourdhui' : 'semaine',
+        desc: phrase('console.ecran.decider.sans_usage', { le: jourCourt(a.jusquAu), dans: dans(a.jusquAu, aujourdhui) }) };
+  }
 }
 
 // Les douze derniers mois, du plus ancien au mois en cours (« 2025-11 » … « 2026-10 »), en jours de calendrier.
