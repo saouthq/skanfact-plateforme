@@ -12084,8 +12084,9 @@ prouver "deux commits sous le même numéro qu'on ne distingue plus" web/console
 prouver "un numéro de l'état relu sans contrôle" serveur/console/versions.ts \
   "SHA.test(x[0]) && typeof x[1] === 'string' && NUMERO.test(x[1])" "typeof x[1] === 'string'" \
   "$VE6"
+# Sans nommer le numéro du jour (il change à chaque envoi) : la clé renommée, le dépôt n'en déclare plus.
 prouver "le dépôt sans numéro de version" package.json \
-  '  "version": "1.0.0",' '' \
+  '  "version": "' '  "version_": "' \
   "$VE7"
 prouver "la gravité d'un incident absente du catalogue des textes" textes/base.ts \
   '  { base: '"'"'une gravité monte, elle ne descend pas : l\'"'"'incident reste au moins %s'"'"', cle: '"'"'base.console.gravite_descend'"'"', fr: '"'"'une gravité monte, elle ne descend pas : l\'"'"'incident reste au moins {gravite}'"'"', valeurs: ['"'"'gravite'"'"'] },' "" \
