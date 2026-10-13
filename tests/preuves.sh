@@ -12243,7 +12243,7 @@ prouver "l'application qui lit qui a écrit le message, et son motif" serveur/co
   "  return { id: m.id, sorte, texte: m.texte, du, au };" "  return { ...m, id: m.id, sorte, texte: m.texte, du, au } as MessageClients;" \
   "$RGP9"
 prouver "les prix en millimes à l'écran" $RGE \
-  "{l.annuel ? montant(l.annuel.ht) : '—'}" "{l.annuel ? l.annuel.ht : '—'}" \
+  "{l.annuel ? <span data-donnee>{montant(l.annuel.ht)}</span> : '—'}" "{l.annuel ? <span data-donnee>{l.annuel.ht}</span> : '—'}" \
   "$RGW1"
 prouver "une règle inconnue nommée deux fois sous la fenêtre" $RGE \
   'const nomEtCode = (r: Regle) => (r.valeurLue.connue ? `${nomDeRegle(r)} · ${r.code}` : r.code);' 'const nomEtCode = (r: Regle) => `${nomDeRegle(r)} · ${r.code}`;' \
