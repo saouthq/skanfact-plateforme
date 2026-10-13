@@ -1102,7 +1102,7 @@ prouver "un SMS qui ne part pas, en silence" $SP \
   "envoyer: async () => { throw new Refus('connexion.sms_indisponible'" "envoyer: async () => { if (Date.now() > 0) return; throw new Refus('connexion.sms_indisponible'" \
   "un SMS ne part jamais en silence"
 prouver "un livreur qui ne tourne pas" $SP \
-  "    tour = livrerAvis(pool, envoyer)" "    tour = Promise.resolve()" \
+  "() => livrerAvis(pool, envoyer))" "() => Promise.resolve(0))" \
   "livre les avis dus à chaque tour"
 prouver "un programme qui écoute encore après son arrêt" $SP \
   "      await app.close();" "" \
@@ -11956,6 +11956,58 @@ prouver "« Publier » allumé sans incident ouvert" web/console/src/ecrans/Inci
 prouver "une annonce de la page d'état peinte en plein comme un point de couleur" exploitation/veille.ts \
   "i.gravite === 'mineur' ? 'a-orange' : 'a-rouge'" "i.gravite === 'mineur' ? 'orange' : 'rouge'" \
   "$IN7"
+
+# Les travaux et les envois du service (docs/console.md C25, base 0090) : une clé courte qui ne se répète pas, l'essai
+# qui n'envoie rien, le nom et le motif pour la direction seule, un motif disparu qui ne fait pas tomber la page, les
+# tours qui notent des nombres et la nature d'une erreur, une TTN branchée par son adresse.
+TR1='ce qui reste à regarder : une clé courte prise à la FIN de l'"'"'identifiant, qui attend quoi ; le nom et le motif pour la direction seule'
+TR2='les tours se notent par le serveur, leur échec par sa nature seule ; une TTN sans adresse n'"'"'est pas branchée'
+TR3='une panne se réessaie seule ; un refus, un compte retenu ou un échec attendent l'"'"'entreprise'
+TR4='passé à son rythme, en échec, arrêté après trois pas sans passage ; jamais vu, il n'"'"'a pas encore de trace'
+TR5='ne garde que des nombres nommés, et la nature d'"'"'une erreur, jamais son message'
+prouver "deux envois de la même seconde sous la même clé" base/migrations/0090_service_travaux.sql \
+  "upper(right(replace(v.piece::text, '-', ''), 8))" "upper(left(replace(v.piece::text, '-', ''), 8))" \
+  "$TR1"
+prouver "une entreprise d'essai à regarder" base/migrations/0090_service_travaux.sql \
+  "where not e.essai and ((v.statut in ('a_envoyer', 'deposee')" "where ((v.statut in ('a_envoyer', 'deposee')" \
+  "$TR1"
+prouver "le nom d'une entreprise montré à la technique" base/migrations/0090_service_travaux.sql \
+  "jsonb_build_object('id', v.entreprise, 'nom', case when v_role = 'direction'" "jsonb_build_object('id', v.entreprise, 'nom', case when true" \
+  "$TR1"
+prouver "le texte d'un motif montré à la technique" serveur/console/routes.ts \
+  "m && roleDe(qui) === 'direction' ? texteDuMotif(m) : null" "m ? texteDuMotif(m) : null" \
+  "$TR1"
+prouver "un motif disparu du catalogue qui fait tomber la page" serveur/console/routes.ts \
+  "try { return rendre(t(m.cle, m.valeurs as Valeurs), 'fr'); } catch { return null; }" "return rendre(t(m.cle, m.valeurs as Valeurs), 'fr');" \
+  "$TR1"
+prouver "une TTN sans adresse dite branchée" serveur/console/routes.ts \
+  "ttn: Boolean(ctx.ttn?.adresse)" "ttn: Boolean(ctx.ttn)" \
+  "$TR2"
+prouver "un texte gardé dans la trace d'un tour" serveur/service/tours.ts \
+  "typeof v === 'number' && Number.isInteger(v) && v >= 0" "v !== null" \
+  "$TR5"
+prouver "un compte TTN refusé qui « se réessaie seul »" serveur/console/travaux.ts \
+  "&& !(r.motif?.cle ?? '').includes('compte')) return 'seul';" ") return 'seul';" \
+  "$TR3"
+prouver "un tour dit arrêté une seconde trop tôt" serveur/console/travaux.ts \
+  "maintenant.getTime() - Date.parse(t.le) > ARRETE_APRES_PAS * pas" "maintenant.getTime() - Date.parse(t.le) >= ARRETE_APRES_PAS * pas - 1000" \
+  "$TR4"
+TRW1='l'"'"'onglet allumé, les quatre chiffres ; une TTN sans adresse est « pas branchée », jamais « bonne »'
+TRW2='« N envois à regarder » filtre la liste au partenaire, et se retire ; deux envois de la même seconde font deux lignes'
+TRW3='« attendent l'"'"'entreprise » : un compte refusé se dit « retenue », avec sa suite ; une panne se réessaie seule'
+TRW5='au téléphone : rien ne déborde, et chaque envoi se lit en entier, sans défilement de côté'
+prouver "le facteur dit bon sans accès à la TTN" web/console/src/ecrans/Travaux.tsx \
+  "const etatFacteur: EtatBrique = !d.branches.ttn || !facteur" "const etatFacteur: EtatBrique = !facteur" \
+  "$TRW1"
+prouver "un partenaire qui ne filtre pas la liste" web/console/src/ecrans/Travaux.tsx \
+  "const duPartenaire = d.aRegarder.filter((r) => !partenaire || DE_LA_SORTE[r.sorte] === partenaire);" "const duPartenaire = d.aRegarder;" \
+  "$TRW2"
+prouver "un compte refusé dit « en attente »" web/console/src/ecrans/Travaux.tsx \
+  "r.attente === 'entreprise' ? 'retenue' : r.statut" "r.attente === 'personne' ? 'retenue' : r.statut" \
+  "$TRW3"
+prouver "les envois en tableau coupé au téléphone" web/console/src/console.css \
+  "  .c-tr-table thead { display: none; }" "" \
+  "$TRW5"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

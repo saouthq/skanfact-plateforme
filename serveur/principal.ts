@@ -53,6 +53,7 @@ import type { Contexte } from './connexion.ts';
 import { choisirEncodage, compressible, SEUIL_COMPRESSION } from './compression.ts';
 import { dejaGarde, fichiersDesEcrans, versionDuCode } from './ecrans.ts';
 import { noterPanne, Refus } from './erreurs.ts';
+import { suivreTour } from './service/tours.ts';
 import { listeDepuisFichier } from './mot-de-passe.ts';
 import { smsWinsms, WINSMS_PAR_DEFAUT } from './sms.ts';
 import { routesSocle } from './routes/socle.ts';
@@ -262,7 +263,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const minuterie = setInterval(() => {
     if (enCours) return;
     enCours = true;
-    tour = livrerAvis(pool, envoyer).catch((e: unknown) => { noterPanne('tâche livrerAvis', e); }).finally(() => { enCours = false; });
+    tour = suivreTour(pool, 'livreur', () => livrerAvis(pool, envoyer)).catch((e: unknown) => { noterPanne('tâche livrerAvis', e); }).finally(() => { enCours = false; });
   }, c.livreurMs);
 
   // Le filet du paiement en ligne (brique 78) : chaque minute, les demandes restées ouvertes se
@@ -272,7 +273,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const veilleur = setInterval(() => {
     if (verifie) return;
     verifie = true;
-    verification = verifierEnAttente(ctx).catch((e: unknown) => { noterPanne('tâche verifierEnAttente', e); }).finally(() => { verifie = false; });
+    verification = suivreTour(pool, 'paiements', () => verifierEnAttente(ctx)).catch((e: unknown) => { noterPanne('tâche verifierEnAttente', e); }).finally(() => { verifie = false; });
   }, c.verificationMs);
 
   // Le facteur de la TTN (brique 82) : les pièces signées à déposer, celles déposées à relire ; un seul
@@ -282,7 +283,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const facteur = setInterval(() => {
     if (enTournee || !c.ttn) return;
     enTournee = true;
-    tournee = envoyerALaTtn(ctx).catch((e: unknown) => { noterPanne('tâche envoyerALaTtn', e); }).finally(() => { enTournee = false; });
+    tournee = suivreTour(pool, 'facteur', () => envoyerALaTtn(ctx)).catch((e: unknown) => { noterPanne('tâche envoyerALaTtn', e); }).finally(() => { enTournee = false; });
   }, c.ttnMs);
 
   // Les factures périodiques émises seules (brique 129) : au démarrage (un serveur redémarré plus souvent qu'une fois
@@ -292,7 +293,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const tourDesContrats = () => {
     if (enEcheances) return;
     enEcheances = true;
-    echeancier = emettreLesContrats(ctx).catch((e: unknown) => { noterPanne('tâche emettreLesContrats', e); }).finally(() => { enEcheances = false; });
+    echeancier = suivreTour(pool, 'contrats', () => emettreLesContrats(ctx)).catch((e: unknown) => { noterPanne('tâche emettreLesContrats', e); }).finally(() => { enEcheances = false; });
   };
   tourDesContrats();
   const contrats = setInterval(tourDesContrats, c.contratsMs);
@@ -304,7 +305,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const postier = setInterval(() => {
     if (enAlertes || !ctx.courriel) return;
     enAlertes = true;
-    alertes = prevenirParCourriel(ctx).catch((e: unknown) => { noterPanne('tâche prevenirParCourriel', e); }).finally(() => { enAlertes = false; });
+    alertes = suivreTour(pool, 'postier', () => prevenirParCourriel(ctx)).catch((e: unknown) => { noterPanne('tâche prevenirParCourriel', e); }).finally(() => { enAlertes = false; });
   }, c.alertesMs);
 
   // Les relances de l'abonnement (docs/abonnement.md) : au démarrage, puis chaque heure, les échéances proches ; un seul
@@ -314,7 +315,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const tourDesRelances = () => {
     if (enRelances || !ctx.courriel) return;
     enRelances = true;
-    relances = relancerLesAbonnements(ctx).catch((e: unknown) => { noterPanne('tâche relancerLesAbonnements', e); }).finally(() => { enRelances = false; });
+    relances = suivreTour(pool, 'relances', () => relancerLesAbonnements(ctx)).catch((e: unknown) => { noterPanne('tâche relancerLesAbonnements', e); }).finally(() => { enRelances = false; });
   };
   tourDesRelances();
   const relanceur = setInterval(tourDesRelances, c.relancesMs);
@@ -327,7 +328,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const mesureur = setInterval(() => {
     if (enMesures) return;
     enMesures = true;
-    mesures = envoyerMesures(pool, exemplaire, collecte).finally(() => { enMesures = false; });
+    mesures = suivreTour(pool, 'mesureur', () => envoyerMesures(pool, exemplaire, collecte)).catch(() => undefined).finally(() => { enMesures = false; });
   }, c.mesuresMs);
 
   return {

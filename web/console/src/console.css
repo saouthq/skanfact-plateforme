@@ -1887,3 +1887,63 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 @media (max-width: 860px), (pointer: coarse) {
   .c-in-lien { min-height: 44px; display: inline-flex; align-items: center; }
 }
+
+/* ── Travaux et envois (C25) ─────────────────────────────────────────────────────────────────────────────────────── */
+.c-tr-tuiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.c-tr-partenaires, .c-tr-liste, .c-tr-taches { margin-top: 24px; }
+:is(.c-tr-partenaires, .c-tr-liste, .c-tr-taches) .c-al-section-tete { padding: 0 0 16px; align-items: flex-start; }
+.c-tr-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.c-tr-partenaire { display: grid; gap: 12px; align-content: start; padding: 20px 22px; }
+.c-tr-partenaire h3 { font-size: 17px; }
+.c-tr-partenaire > button { justify-self: start; }
+.c-tr-compte { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.c-tr-compte b { font-family: var(--c-chiffres); font-variant-numeric: tabular-nums; font-size: 30px; color: var(--c-encre); }
+.c-tr-compte > span { color: var(--c-gris); }
+.c-tr-compte .c-etat-puce, .c-tr-compte > :last-child { margin-inline-start: auto; }
+.c-tr-barres { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 3px; height: 44px; align-items: end; }
+.c-tr-barre { display: flex; flex-direction: column-reverse; height: 100%; justify-content: flex-start; }
+.c-tr-barre-bon { display: block; background: var(--c-serie-1); border-radius: 3px 3px 0 0; min-height: 1px; }
+.c-tr-barre-refus { display: block; background: var(--c-rouge); border-radius: 3px 3px 0 0; margin-bottom: 1px; }
+.c-tr-barre:has(.c-tr-barre-refus) .c-tr-barre-bon { border-radius: 0; }
+.c-tr-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin: 0; }
+.c-tr-stats > div { display: grid; gap: 2px; }
+.c-tr-stats dt { color: var(--c-gris); font-size: 12.5px; }
+.c-tr-stats dd { margin: 0; font-family: var(--c-chiffres); font-variant-numeric: tabular-nums; font-size: 16px; color: var(--c-encre); }
+.c-tr-sans-trace { margin-top: 14px; }
+.c-tr-liste .c-pilules { padding: 0 0 16px; align-items: center; }
+.c-tr-liste .c-liste-pied { padding: 14px 0 0; margin-top: 14px; display: block; }
+.c-tr-table td:first-child b { display: block; }
+.c-tr-table td:first-child { min-width: 16ch; }
+.c-tr-ou { margin-top: 6px; max-width: 46ch; }
+.c-tr-taches-liste { list-style: none; margin: 0; padding: 0; display: grid; }
+/* La pastille a une colonne de largeur fixe : les noms des tâches partent tous du même bord, quel que soit leur état. */
+.c-tr-tache { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px 0; border-top: 1px solid var(--c-trait); }
+.c-tr-tache:first-child { border-top: 0; padding-top: 0; }
+.c-tr-tache > div { display: grid; gap: 2px; min-width: 0; }
+.c-tr-tache > .c-puce { justify-self: start; }
+.c-tr-mal { color: var(--c-rouge-texte); }
+.c-tr-rythme { white-space: nowrap; text-align: end; }
+@media (max-width: 1100px) {
+  .c-tr-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+  .c-tr-grille { grid-template-columns: minmax(0, 1fr); }
+  /* Au téléphone, chaque envoi est un bloc : le motif ne se cache pas derrière un défilement de côté. */
+  .c-tr-liste .c-defile { overflow: visible; }
+  .c-tr-table thead { display: none; }
+  .c-tr-table, .c-tr-table tbody, .c-tr-table tr, .c-tr-table td { display: block; }
+  .c-tr-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; padding: 14px 0; border-bottom: 1px solid var(--c-trait); }
+  .c-tr-table tr:last-child { border-bottom: 0; }
+  .c-tr-table td { padding: 0; border: 0; min-width: 0; }
+  .c-tr-table td:first-child { min-width: 0; }
+  .c-tr-table td:nth-child(2) { grid-column: 1 / -1; }
+  .c-tr-table td:nth-child(3) { grid-column: 1 / -1; }
+  .c-tr-table td:nth-child(4) { grid-column: 2; grid-row: 1; }
+  .c-tr-table td:nth-child(4)::before { content: attr(data-libelle) ' '; font-family: inherit; color: var(--c-gris); font-size: 12.5px; }
+  .c-tr-table td:nth-child(5) { grid-column: 1 / -1; color: var(--c-gris); }
+  .c-tr-table td a { display: inline-flex; align-items: center; min-height: 44px; }
+  .c-tr-tache { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; }
+  .c-tr-tache > .c-puce { grid-column: 2; grid-row: 1; }
+  .c-tr-tache > div { grid-column: 1; grid-row: 1 / span 2; }
+  .c-tr-rythme { grid-column: 2; grid-row: 2; }
+}

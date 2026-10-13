@@ -13,7 +13,7 @@ import { Introuvable, Perimee } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { etatAbonnement, GRACE_JOURS, lireFaits, RELANCES, type Etat, type Faits } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, type GesteAbonnement, type LigneAbonnement } from '../abonnement/gestes.ts';
-import { motif, t } from '../../textes/index.ts';
+import { motif, rendre, t, type Valeurs } from '../../textes/index.ts';
 import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_MIN, REGLES, SAUVEGARDE_TROP_VIEILLE_H } from '../../exploitation/veille.ts';
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
 import { aDecider, CATEGORIES, categorie, chercher, inscriteCetteSemaine, lireEntreprises, lireVeille, rangerParUrgence, tableau, type Veille } from './decider.ts';
@@ -29,6 +29,7 @@ import {
   CALENDRIER, COMMANDES, commandesRemise, copies, exercices, GARDE, horsDeLaMachine, lArchivage, laSauvegarde, leDernierExercice, lignesParNuit,
   lireSauvegardes, nuits as nuitsGardees, pointLePlusAncien, promesses, retardsParHeure,
 } from './sauvegardes.ts';
+import { attenteDe, etatTour, lireTravaux, PARTENAIRES, quatorzeJours, SANS_TRACE, TOURS } from './travaux.ts';
 import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
 import { BUDGETS } from '../service/mesures.ts';
@@ -591,6 +592,39 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           maintenances: maintenances(lu, misesEnLigne(v).filter((m) => m.le >= `${debut30}T00:00:00`), v.coupures, t),
           passes: { trente: passes(lu, `${debut30}T00:00:00+01:00`, mesure(debut30)), annee: passes(lu, `${debutAn}T00:00:00+01:00`, mesure(debutAn)), annee_n: Number(jour.slice(0, 4)) },
           fiches: fichesServies(lu), exercice: v.exercice, equipe: lu.equipe, fichesConnues: FICHES,
+        },
+      };
+    },
+  });
+  // ── Les travaux et les envois du service (Console 3e, docs/console.md C25) ────────────────────────────────────────────
+  // Ce que le serveur fait seul (ses tours) et ce qu'il envoie aux partenaires, quatorze jours chacun, et ce qui reste à
+  // regarder. Ni une pièce ni un montant ; le nom de l'entreprise pour la direction seule (la base le tait sinon).
+  const texteDuMotif = (m: { cle: string; valeurs: Record<string, unknown> }): string | null => {
+    try { return rendre(t(m.cle, m.valeurs as Valeurs), 'fr'); } catch { return null; }
+  };
+  ajouter({
+    methode: 'GET', chemin: '/console/service/travaux', geste: 'console.service.voir',
+    traiter: async ({ qui }, tx) => {
+      const instant = maintenant();
+      const jour = aujourdhuiATunis(instant);
+      const x = transaction(tx);
+      const v = lireVeilleDeLaBase(await lireJson(x, 'select plateforme.console_service_veille($1) v', [depuisTrenteJours(jour)]));
+      const lu = lireTravaux(await lireJson(x, 'select plateforme.console_service_travaux($1) v', [instant.toISOString()]));
+      const veille = await lireLaVeille(fichierVeille, instant);
+      return {
+        corps: {
+          maintenant: instant.toISOString(), aujourdhui: jour, role: roleDe(qui), veille, alertesEnCours: alertesOuvertes(v.alertes), briques: briques(v, jour, instant, veille.etat === 'ok'),
+          tours: TOURS.map((o) => ({ ...o, ...etatTour(o.nom, lu.tours, instant) })),
+          partenaires: PARTENAIRES.map((p) => ({ nom: p, jours: quatorzeJours(lu.partenaires[p], jour) })),
+          sansTrace: SANS_TRACE, ttn: lu.ttn,
+          // Le motif d'un refus peut citer ce que la TTN a lu (un matricule, un numéro) : en toutes lettres pour la direction,
+          // sa nature seule pour la technique. Un motif rangé par une version plus ancienne peut ne plus être au catalogue :
+          // il n'a pas de texte, et l'écran dit l'état de l'envoi (jamais une page en panne pour une ligne).
+          aRegarder: lu.aRegarder.map(({ motif: m, ...r }) => ({ ...r, attente: attenteDe({ ...r, motif: m }), motifCle: m?.cle ?? null,
+            motifTexte: m && roleDe(qui) === 'direction' ? texteDuMotif(m) : null })),
+          nuit: v.nuits.at(-1) ?? null, exercice: v.exercice, version: v.dernier?.version ?? null,
+          // La TTN est branchée par son adresse (le contexte porte toujours son coffre) ; le relais d'e-mails, par sa présence.
+          branches: { ttn: Boolean(ctx.ttn?.adresse), courriel: Boolean(ctx.courriel) },
         },
       };
     },

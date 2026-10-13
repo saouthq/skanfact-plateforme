@@ -465,6 +465,31 @@ geste demande son motif et entre au journal avec le numéro de l'incident.
   chacune : contenir, dire, réparer, écrire) disent quand chacune a servi pour la dernière fois ; trois portent un
   « à décider » ou un « à vérifier » (le site de secours, l'INPDP).
 
+**C25. Les travaux et les envois du service** (10 § 2.8 ; base 0090). `#/service/travaux`, la direction et la technique.
+Ce que le serveur fait seul, et ce qu'il envoie aux partenaires : quatre chiffres (ce qui attend son dépôt à la TTN, ce
+qui est parti aujourd'hui chez tous les partenaires comptés, ce qui reste à regarder, le dernier tour du facteur) ; une
+carte par partenaire qui laisse une trace (la TTN, la signature, les SMS, les paiements en ligne, les relances
+d'abonnement), quatorze jours, une barre par jour dont la part rouge est ce qui a été refusé ; la liste des **envois à
+regarder** ; les **tâches programmées**.
+- **Rien n'est inventé** : les e-mails, la TEJ et la CNSS n'ont pas de trace qu'on puisse compter ; l'écran les nomme
+  « sans trace », jamais à zéro. Une TTN sans adresse (le contexte porte toujours son coffre) ou des relances sans relais
+  d'e-mails sont « pas branchées », et leur tour ne tourne pas : jamais « bon ».
+- **Un envoi à regarder** : une facture TTN pas finie après un essai ou retenue, refusée cette semaine ; une signature
+  ou un paiement échoué cette semaine. Une entreprise d'essai n'est jamais à regarder. Il se dit par une **clé courte**
+  — la FIN de son identifiant : le début d'un uuidv7 est son heure, deux envois de la même seconde y porteraient la même
+  clé — jamais par sa pièce ni son montant. **Qui attend** : une panne se réessaie seule (« Prochain essai … ») ; un
+  refus, un compte El Fatoora retenu (« retenue », pas « en attente ») ou un échec attendent l'entreprise.
+- **Le nom de l'entreprise et le texte du motif sont pour la direction** ; la technique lit un numéro (E-xxxxxx) et la
+  nature du motif dite par la console. Un motif rangé par une version plus ancienne qui n'est plus au catalogue n'a pas
+  de texte : la page dit l'état de l'envoi, elle ne tombe pas pour une ligne.
+- **Chaque tour du serveur note son passage** (`plateforme.noter_tour`, sans identité) : son heure, sa durée, s'il a
+  réussi, et ce qu'il a fait en nombres nommés seulement ; un échec garde sa **nature** (un code, le nom d'une classe),
+  jamais son message, qui peut citer un client. Noter ne fait jamais échouer le tour. Un tour qui n'est pas passé depuis
+  trois fois son rythme s'est **arrêté** ; une tâche de la nuit pas faite depuis vingt-six heures (quarante jours pour
+  l'exercice de restauration) ne passe plus, même si sa dernière fois a réussi.
+- « N envois à regarder » d'un partenaire filtre la liste à lui seul, et se retire ; au téléphone, chaque envoi est un
+  bloc qui se lit en entier, sans défilement de côté.
+
 ## Mettre en route
 
 La personne crée d'abord son compte SkanFact, puis met en place le code de son téléphone (« Ton compte »,
@@ -511,9 +536,9 @@ fait depuis l'écran « Équipe ». La console s'ouvre à `https://<le serveur>/
 
 ## Ce que le lot ne fait pas
 
-La suite de la console : les paiements et nos factures (14b), le support, la suite du service (ses sauvegardes, sa file
-de travaux, ses incidents et la page d'état, sa sécurité, ses versions), la
-mesure, les réglages de la plateforme, l'application de bureau (les licences de la v10), l'accès accordé par un client
+La suite de la console : les paiements et nos factures (14b), le support, la suite du service (sa sécurité, ses
+versions ; le débit des travaux heure par heure, et les envois des e-mails, de la TEJ et de la CNSS, qui n'ont pas encore
+de trace), la mesure, les réglages de la plateforme, l'application de bureau (les licences de la v10), l'accès accordé par un client
 (48 heures, en lecture), et le filtre du journal par geste et par période. Le service ne se voit encore que du serveur
 lui-même : aucune vérification de l'extérieur (06 § 7, depuis deux villes) ; l'écran le dit.
 

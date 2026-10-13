@@ -23,6 +23,7 @@ import { aujourdhuiATunis } from '../../serveur/reglements.ts';
 import { routesSocle } from '../../serveur/routes/socle.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { Collecte, envoyerMesures } from '../../serveur/service/collecte.ts';
+import { noterTour } from '../../serveur/service/tours.ts';
 
 const MDP = 'Un-bon-mot-de-passe';
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
@@ -922,5 +923,71 @@ describe('les incidents du service et la page d\'état (0089, docs/console.md C2
     for (const table of ['service_incident', 'service_incident_point', 'service_suite', 'service_maintenance']) {
       await expect(enTantQue(pool, null, (tx) => tx.query(`select * from plateforme.${table}`)), table).rejects.toThrow(/permission/);
     }
+  });
+});
+
+describe('les travaux et les envois du service (0090, docs/console.md C25)', () => {
+  // Les envois se posent sans leur pièce (les liens sont suspendus le temps de l'écriture) : on ne lit ici que ce que la
+  // console en dit. Les entreprises sont celles de CE test : la table est partagée avec d'autres.
+  async function poser(lignes: { piece: string; ent: string; statut: string; essais: number; motif: unknown; par: string }[]) {
+    await admin.query('begin');
+    await admin.query('set local session_replication_role = replica');
+    for (const l of lignes) {
+      await admin.query(`insert into ventes.envoi_ttn(piece, entreprise, statut, essais, prochain_essai, depose_le, motif, cree_le, cree_par)
+        values ($1, $2, $3, $4, $5, null, $6, $7, $8)`, [l.piece, l.ent, l.statut, l.essais, new Date(horloge.getTime() + 600_000), l.motif, horloge, l.par]);
+    }
+    await admin.query('commit');
+  }
+  type Lu = { aRegarder: { cle: string; entreprise: { id: string; nom: string | null }; statut: string; attente: string; motifCle: string | null; motifTexte: string | null }[];
+    tours: { nom: string; etat: string; tour: { echec: string | null } | null }[]; branches: { ttn: boolean; courriel: boolean }; sansTrace: string[] };
+  const lire = async (j: string) => (await appeler('GET', '/console/service/travaux', j)).corps as Lu;
+
+  it('ce qui reste à regarder : une clé courte prise à la FIN de l\'identifiant, qui attend quoi ; le nom et le motif pour la direction seule', async () => {
+    const { ent, proprio } = await entreprise('Atelier Envois');
+    const dev = await personne('developpeur');
+    const essai = { ent: String((await appeler('POST', '/entreprises-essai', dev.jeton)).corps.id), proprio: dev };
+    // Deux pièces nées la même milliseconde (le début d'un uuidv7 est son heure) : deux clés différentes.
+    const a = '01a1d000-0000-7000-8000-00000000aaa1', b = '01a1d000-0000-7000-8000-00000000bbb2', c = '01a1d000-0000-7000-8000-00000000ccc3';
+    await poser([
+      { piece: a, ent, statut: 'deposee', essais: 2, motif: null, par: proprio.id },
+      { piece: b, ent, statut: 'a_envoyer', essais: 0, motif: { cle: 'ttn.compte_refuse', valeurs: { message: 'identifiant inconnu' } }, par: proprio.id },
+      // Un motif rangé par une version plus ancienne, qui n'est plus au catalogue : la page ne tombe pas pour lui.
+      { piece: c, ent, statut: 'refusee', essais: 1, motif: { cle: 'ttn.motif_disparu', valeurs: {} }, par: proprio.id },
+      { piece: '01a1d000-0000-7000-8000-00000000ddd4', ent: essai.ent, statut: 'deposee', essais: 3, motif: null, par: essai.proprio.id },
+    ]);
+    const d = await lire(jD);
+    const miens = d.aRegarder.filter((r) => r.entreprise.id === ent);
+    expect(miens.map((r) => r.cle).sort()).toEqual(['0000AAA1', '0000BBB2', '0000CCC3']);
+    expect(new Set(miens.map((r) => r.cle)).size).toBe(3);
+    const de = (cle: string) => miens.find((r) => r.cle.endsWith(cle));
+    expect(de('AAA1')).toMatchObject({ statut: 'deposee', attente: 'seul', motifTexte: null });
+    expect(de('BBB2')).toMatchObject({ attente: 'entreprise', motifCle: 'ttn.compte_refuse', entreprise: { nom: 'Atelier Envois' } });
+    expect(de('BBB2')?.motifTexte).toMatch(/identifiant inconnu/);
+    expect(de('CCC3')).toMatchObject({ statut: 'refusee', attente: 'entreprise', motifCle: 'ttn.motif_disparu', motifTexte: null });
+    // Une entreprise d'essai n'envoie rien : elle n'est jamais à regarder.
+    expect(d.aRegarder.some((r) => r.entreprise.id === essai.ent)).toBe(false);
+    // La technique : un numéro d'entreprise, jamais son nom ni le texte du motif.
+    const t = (await lire(jT)).aRegarder.filter((r) => r.entreprise.id === ent);
+    expect(t).toHaveLength(3);
+    expect(t.every((r) => r.entreprise.nom === null && r.motifTexte === null)).toBe(true);
+    expect(t.find((r) => r.cle.endsWith('BBB2'))?.motifCle).toBe('ttn.compte_refuse');
+  });
+
+  it('les tours se notent par le serveur, leur échec par sa nature seule ; une TTN sans adresse n\'est pas branchée', async () => {
+    await noterTour(pool, 'contrats', Date.now() - 50, true, { emises: 2, texte: 'jamais' }, null);
+    await noterTour(pool, 'paiements', Date.now(), false, null, 'ECONNREFUSED');
+    const d = await lire(jT);
+    expect(d.tours.find((x) => x.nom === 'contrats')).toMatchObject({ etat: 'bon' });
+    expect(d.tours.find((x) => x.nom === 'paiements')).toMatchObject({ etat: 'echec', tour: { echec: 'ECONNREFUSED' } });
+    const brut = (await admin.query("select compte from plateforme.service_tour where nom = 'contrats'")).rows[0].compte;
+    expect(brut).toEqual({ emises: 2 });
+    expect(d.branches).toEqual({ ttn: false, courriel: false });
+    expect(d.sansTrace).toEqual(['courriel', 'tej', 'cnss']);
+  });
+
+  it('seules la direction et la technique ; la base refuse hors d\'une session de la console ; le compte du serveur ne lit pas les tours', async () => {
+    expect((await appeler('GET', '/console/service/travaux', jS)).statut).toBe(403);
+    await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_service_travaux(now())'))).rejects.toThrow(/session de la console/);
+    await expect(enTantQue(pool, null, (tx) => tx.query('select * from plateforme.service_tour'))).rejects.toThrow(/permission/);
   });
 });

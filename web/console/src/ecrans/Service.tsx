@@ -749,11 +749,12 @@ function LaMachine({ d }: { d: Donnees }) {
 // puis, sur les vues autres que les alertes, l'alerte ouverte la plus urgente en une ligne, qui mène à sa page. L'onglet
 // des alertes porte le compte des alertes ouvertes, en rouge si l'une est grave : la même fonction, côté serveur, sur
 // chaque vue (C3).
-export type VueDuService = 'vue' | 'alertes' | 'incidents' | 'sauvegardes' | 'performances';
+export type VueDuService = 'vue' | 'alertes' | 'incidents' | 'sauvegardes' | 'travaux' | 'performances';
 type PourEntete = { briques: Brique[]; maintenant: string; alertesEnCours: AlertesEnCours };
 const ONGLETS: readonly { vue: VueDuService; href: string }[] = [
   { vue: 'vue', href: '#/service' }, { vue: 'performances', href: '#/service/performances' },
-  { vue: 'sauvegardes', href: '#/service/sauvegardes' }, { vue: 'alertes', href: '#/service/alertes' },
+  { vue: 'sauvegardes', href: '#/service/sauvegardes' }, { vue: 'travaux', href: '#/service/travaux' },
+  { vue: 'alertes', href: '#/service/alertes' },
   { vue: 'incidents', href: '#/service/incidents' },
 ];
 
