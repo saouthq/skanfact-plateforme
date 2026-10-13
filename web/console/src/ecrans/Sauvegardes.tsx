@@ -92,7 +92,7 @@ function Situation({ d }: { d: Donnees }) {
           x.ok && x.secondes != null ? dire(`${G}.k.exercice_duree`, { duree: minutes(Math.ceil(x.secondes / 60)) }) : null,
           dire(`${G}.k.exercice_prochain`, { quand: jourCourt(e.prochain.slice(0, 10)) })].filter(Boolean).join(' · ')} />;
   return (
-    <div className="c-sv-tuiles-zone c-sg-situation">
+    <div className="c-sv-tuiles-zone c-sv-claires c-sg-situation">
       <h2 className="c-tuile-titre c-sv-tuiles-titre">{titre(`${G}.situation`)}</h2>
       <div className="c-sv-tuiles">{sauvegarde}{archivage}{hors}{exercice}</div>
     </div>

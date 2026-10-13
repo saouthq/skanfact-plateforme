@@ -741,3 +741,48 @@ describe('les sauvegardes du service (0087, docs/console.md C14)', () => {
     expect(remises.find((x) => x.entreprise === ent)).toMatchObject({ nom: 'Atelier À Remettre', minute: minute(10), numerosRetires: 2, preparee: { par: direction.nom } });
   });
 });
+
+describe('les performances du service (0088, docs/console.md C15)', () => {
+  beforeAll(async () => {
+    await admin.query('truncate plateforme.service_minute, plateforme.service_heure, plateforme.service_route');
+  });
+  const noterRequetes = (exemplaire: string, envoi: unknown) => enTantQue(pool, null, (tx) => tx.query('select plateforme.noter_requetes($1, $2::jsonb)', [exemplaire, JSON.stringify(envoi)]));
+  const seaux = (parSeau: Record<number, number>) => Array.from({ length: 47 }, (_, i) => parSeau[i] ?? 0);
+  const minute = (min: number) => new Date(Math.floor(horloge.getTime() / 60_000) * 60_000 - min * 60_000).toISOString();
+  const jour = (j: number) => new Date(horloge.getTime() - j * 86_400_000).toISOString().slice(0, 10);
+
+  it('les routes de sept jours, les exemplaires de l\'heure, la base ; la période d\'avant ne compte que la sienne', async () => {
+    // Le seau 22 est celui de 300 ms, le seau 29 celui de 1,5 s : une lente (serveur/service/mesures.ts).
+    await noterRequetes('vps-1:8080', {
+      minutes: [{ minute: minute(4), sorte: 'lecture', n: 40, pannes: 1, h: seaux({ 22: 40 }) }, { minute: minute(90), sorte: 'lecture', n: 25, pannes: 0, h: seaux({ 22: 25 }) }],
+      jours: [
+        { jour: jour(0), route: 'GET /entreprises/:entreprise/compta/balance', sorte: 'comptes', n: 30, pannes: 1, h: seaux({ 22: 27, 29: 3 }) },
+        { jour: jour(2), route: 'GET /entreprises/:entreprise/compta/balance', sorte: 'comptes', n: 10, pannes: 0, h: seaux({ 22: 10 }) },
+        // Dix jours : hors des sept que l'écran regarde.
+        { jour: jour(10), route: 'GET /entreprises/:entreprise/ventes', sorte: 'lecture', n: 500, pannes: 0, h: seaux({ 22: 500 }) },
+      ],
+    });
+    await noterRequetes('vps-2:8080', { minutes: [{ minute: minute(3), sorte: 'lecture', n: 10, pannes: 0, h: seaux({ 22: 10 }) }] });
+    const r = await appeler('GET', '/console/service/performances?periode=1h', jT);
+    expect(r.statut).toBe(200);
+    const routes = r.corps.routes as { route: string; n: number; pannes: number; lentes: number; p95: number | null }[];
+    expect(routes).toEqual([expect.objectContaining({ route: 'GET /entreprises/:entreprise/compta/balance', n: 40, pannes: 1, lentes: 3, p95: 1500 })]);
+    const ex = r.corps.exemplaires as { nom: string; n: number; etat: string }[];
+    expect(ex.map((x) => [x.nom, x.n, x.etat])).toEqual([['vps-1:8080', 40, 'bon'], ['vps-2:8080', 10, 'bon']]);
+    expect(r.corps.base).toMatchObject({ connexions: expect.any(Number), maxConnexions: expect.any(Number), taille: expect.any(Number) });
+    const trafic = r.corps.trafic as { total: { n: number }; totalAvant: { n: number } | null; avant: unknown[] | null };
+    // L'heure du moment : cinquante requêtes ; celle d'avant : les vingt-cinq d'il y a 90 minutes, jamais les deux heures.
+    expect(trafic.total.n).toBe(50);
+    expect(trafic.totalAvant?.n).toBe(25);
+    expect(trafic.avant).toHaveLength(60);
+    // Trente jours : la période d'avant n'est plus gardée.
+    const mois = await appeler('GET', '/console/service/performances?periode=30j', jD);
+    expect((mois.corps.trafic as { avant: unknown; totalAvant: unknown })).toMatchObject({ avant: null, totalAvant: null });
+    expect((mois.corps.budgets as unknown[]).length).toBe(7);
+  });
+
+  it('le support ne lit pas les performances : c\'est la direction et la technique', async () => {
+    expect((await appeler('GET', '/console/service/performances', jS)).statut).toBe(403);
+    await expect(enTantQue(pool, null, (tx) => tx.query('select plateforme.console_service_performances(current_date, now())'))).rejects.toThrow();
+  });
+});

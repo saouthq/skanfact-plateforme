@@ -181,7 +181,9 @@ export function Abscisses({ abscisses }: { abscisses: readonly Abscisse[] }) {
 }
 
 // ── Une courbe (une ou plusieurs séries, un seuil, des repères) ─────────────────────────────────────────────────────
-export type Serie = { valeurs: readonly (number | null)[]; cle: 'p95' | 'p50' | 'trafic' };
+// « avant » : la même durée juste avant la période, en pointillé derrière la série du moment ; « pannes » : leur part,
+// en rouge, sous le trafic.
+export type Serie = { valeurs: readonly (number | null)[]; cle: 'p95' | 'p50' | 'trafic' | 'avant' | 'pannes' };
 export type Repere = { valeur: number; texte: string };
 type PropsCourbe = {
   series: readonly Serie[]; haut: number; graduations: readonly Repere[]; seuil?: Repere | null;

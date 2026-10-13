@@ -11749,6 +11749,27 @@ prouver 'la minute d'"'"'une remise absente de la piste d'"'"'audit' 'base/entre
   'JSON.stringify({ motif, exporteLe' \
   'remettre-entreprise.sh : la base de la minute restaurée à côté puis jetée'
 
+prouver 'la période d'"'"'avant comptée jusqu'"'"'à maintenant' 'serveur/console/routes.ts' \
+  '            totalAvant: avant ? avant.total : null,' \
+  '            totalAvant: lue ? lue.total : null,' \
+  'les routes de sept jours, les exemplaires de l'"'"'heure, la base'
+prouver 'les routes lues au-delà de sept jours' 'serveur/console/routes.ts' \
+  '      const sept = trenteJours(jour).slice(-7)[0] ?? jour;' \
+  '      const sept = trenteJours(jour).slice(-30)[0] ?? jour;' \
+  'les routes de sept jours, les exemplaires de l'"'"'heure, la base'
+prouver 'une lente comptée dès le seau d'"'"'une seconde' 'serveur/console/performances.ts' \
+  '  return h.slice(i + 1).reduce' \
+  '  return h.slice(i).reduce' \
+  'une lente a pris PLUS d'"'"'une seconde'
+prouver 'un budget jugé sur trop peu de requêtes' 'serveur/console/performances.ts' \
+  '    if (t.p95 === null || t.lectures < LECTURES_POUR_UN_CENTILE) return' \
+  '    if (t.p95 === null) return' \
+  'rien n'"'"'est vert sans une mesure'
+prouver 'un exemplaire tu qui « sert » encore' 'serveur/console/performances.ts' \
+  "      etat: (silence !== null && silence <= SILENCE_MIN ? 'bon' : 'attention') as EtatPart }];" \
+  "      etat: 'bon' as EtatPart }];" \
+  'vu dans les cinq dernières minutes, un exemplaire sert'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

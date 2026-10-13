@@ -464,6 +464,7 @@ describe('la console de l\'équipe, à la souris', () => {
       { nom: 'service', hash: '#/service' },
       { nom: 'alertes', hash: '#/service/alertes' },
       { nom: 'sauvegardes', hash: '#/service/sauvegardes' },
+      { nom: 'performances', hash: '#/service/performances' },
       { nom: 'remise', hash: '#/service/sauvegardes', geste: async (p) => { await cliquer(p.locator('.c-sg-remises .c-al-section-tete button')); await p.getByRole('dialog').waitFor(); } },
       { nom: 'sourdine', hash: '#/service/alertes', geste: async (p) => { await cliquer(p.locator('.c-al-alerte').first().locator('.c-al-gestes button').last()); await p.getByRole('dialog').waitFor(); } },
     ];

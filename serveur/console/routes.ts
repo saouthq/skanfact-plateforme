@@ -27,6 +27,8 @@ import {
   CALENDRIER, COMMANDES, commandesRemise, copies, exercices, GARDE, horsDeLaMachine, lArchivage, laSauvegarde, leDernierExercice, lignesParNuit,
   lireSauvegardes, nuits as nuitsGardees, pointLePlusAncien, promesses, retardsParHeure,
 } from './sauvegardes.ts';
+import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
+import { BUDGETS } from '../service/mesures.ts';
 import type { RoleConsole } from './gestes.ts';
 import './textes.ts';
 
@@ -481,6 +483,51 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // La base refuse une entreprise inconnue ou d'exemple, et note le geste (journal de la console et de l'entreprise).
       await transaction(tx).query('select plateforme.console_preparer_remise($1, $2, $3)', [corps.entreprise, corps.minute, corps.motif.trim()]);
       return { statut: 201, corps: { essai: c.essai, remise: c.remise } };
+    },
+  });
+
+  // ── Les performances du service (Console 3e, docs/console.md C15) ───────────────────────────────────────────────────
+  // Les budgets de la vision en face de la mesure, le temps de réponse sorte par sorte, le trafic contre la période
+  // d'avant, les routes du serveur sur sept jours, la base et les exemplaires du programme. Rien de neuf n'est relevé.
+  const lireUneSerie = async (tx: Transaction, p: { duree: number; pas: number; grain: 'minute' | 'heure' }, quand: Date, sorte: string) => {
+    const b = bornes(p, quand);
+    const brut = await lireJson(tx, 'select plateforme.console_service_serie($1, $2::interval, $3, $4) v', [b.depuis.toISOString(), `${b.pas / 1000} seconds`, b.grain, sorte]);
+    return { depuis: b.depuis.toISOString(), points: serie(brut, p, quand), total: ensemble(brut) };
+  };
+  ajouter({
+    methode: 'GET', chemin: '/console/service/performances', geste: 'console.service.voir',
+    traiter: async ({ query }, tx) => {
+      const t = maintenant();
+      const jour = aujourdhuiATunis(t);
+      const periode: Periode = estPeriode(query.periode) ? query.periode : '24h';
+      const p = PERIODES[periode];
+      const x = transaction(tx);
+      const sortes = Object.fromEntries(await Promise.all(SORTES_DESSINEES.map(async (s) => [s, await lireUneSerie(x, p, t, s)] as const)));
+      const lecture = sortes.lecture;
+      // La période d'avant, sur les mêmes pas : seulement si sa table la garde encore.
+      const lue = comparable(p) ? await lireUneSerie(x, p, new Date(t.getTime() - p.duree), 'lecture') : null;
+      const avant = lue ? periodeDAvant(lue.points, p.pas) : null;
+      const derniereHeure = periode === '1h' ? lecture : await lireUneSerie(x, PERIODES['1h'], t, 'lecture');
+      const sept = trenteJours(jour).slice(-7)[0] ?? jour;
+      const brut = await lireJson<Record<string, unknown>>(x, 'select plateforme.console_service_performances($1, $2) v', [sept, t.toISOString()]);
+      const v = lireVeilleDeLaBase(await lireJson(x, 'select plateforme.console_service_veille($1) v', [depuisTrenteJours(jour)]));
+      const veille = await lireLaVeille(fichierVeille, t);
+      const lesSortes = Object.fromEntries(SORTES_DESSINEES.map((s) => [s, { points: sortes[s]?.points.map((pt) => ({ debut: pt.debut, p95: pt.p95, p50: pt.p50, lectures: pt.lectures })) ?? [],
+        total: { lectures: sortes[s]?.total.lectures ?? 0, p95: sortes[s]?.total.p95 ?? null, p50: sortes[s]?.total.p50 ?? null } }]));
+      return {
+        corps: {
+          maintenant: t.toISOString(), aujourdhui: jour, periode, pas: p.pas, depuis: lecture?.depuis, veille, alertesEnCours: alertesOuvertes(v.alertes),
+          briques: briques(v, jour, t, veille.etat === 'ok'), seuils: SEUILS_DU_SERVICE,
+          budgets: budgets(Object.fromEntries(SORTES_DESSINEES.map((s) => [s, { lectures: sortes[s]?.total.lectures ?? 0, p95: sortes[s]?.total.p95 ?? null }]))),
+          sortes: lesSortes, budgetsDesSortes: Object.fromEntries(SORTES_DESSINEES.map((s) => [s, BUDGETS[s]])),
+          trafic: { points: lecture?.points.map((pt) => ({ debut: pt.debut, n: pt.n, pannes: pt.pannes, parMinute: pt.parMinute })) ?? [],
+            avant: avant ? avant.points : null,
+            total: { n: lecture?.total.n ?? 0, pannes: lecture?.total.pannes ?? 0, partPannes: lecture?.total.partPannes ?? null },
+            totalAvant: avant ? avant.total : null,
+            recent: traficRecent(derniereHeure?.points ?? [], t) },
+          routes: lesRoutes(brut.routes), routesDepuis: sept, exemplaires: exemplaires(brut.exemplaires, t), base: laBase(brut.base),
+        },
+      };
     },
   });
 

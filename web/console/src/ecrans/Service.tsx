@@ -20,9 +20,9 @@ import { dans, heureDe, ilYA, jourCourt, jourMois, quand } from '../temps.ts';
 import { Alerte, Bouton, Icone, Lien, maj, Puce, Vide, type NomIcone, type TonPuce } from '../ui.tsx';
 
 const K = 'console.ecran.service';
-type Periode = '1h' | '24h' | '7j' | '30j';
-const PERIODES: readonly Periode[] = ['1h', '24h', '7j', '30j'];
-const estPeriode = (x: unknown): x is Periode => typeof x === 'string' && (PERIODES as readonly string[]).includes(x);
+export type Periode = '1h' | '24h' | '7j' | '30j';
+export const PERIODES: readonly Periode[] = ['1h', '24h', '7j', '30j'];
+export const estPeriode = (x: unknown): x is Periode => typeof x === 'string' && (PERIODES as readonly string[]).includes(x);
 
 type Probleme = { cle: string; titre: string; grave: boolean; faire: string; depuis: string };
 export type Veille = { etat: 'absente' } | { etat: 'silencieuse'; derniere: string } | { etat: 'ok'; derniere: string; problemes: Probleme[] };
@@ -67,7 +67,7 @@ function parties(instant: string | number) {
 }
 const hm = (x: ReturnType<typeof parties>) => `${x.heure}:${x.minute}`;
 // Un pas d'une série : « lun. 12/10 · 09:20 → 09:30 » (une minute : « lun. 12/10 · 09:20 »).
-function titrePas(debut: string | number, pas: number): string {
+export function titrePas(debut: string | number, pas: number): string {
   const a = parties(debut);
   const tete = `${a.semaine} ${a.jour}/${a.mois} · ${hm(a)}`;
   return pas <= 60_000 ? tete : `${tete} → ${hm(parties(Number(new Date(debut)) + pas))}`;
@@ -77,7 +77,7 @@ const titreJour = (jour: string) => { const a = parties(`${jour}T12:00:00+01:00`
 
 // Les heures ou les jours nommés sous un graphique : un repère clair par période, jamais un texte sur un autre ; chacun à sa
 // place dans la période (de 0 à 1), sous une courbe comme sous des bâtons.
-function abscisses(debuts: readonly string[], periode: Periode): Abscisse[] {
+export function abscisses(debuts: readonly string[], periode: Periode): Abscisse[] {
   const res: Abscisse[] = [];
   let avant: ReturnType<typeof parties> | null = null;
   debuts.forEach((debut, i) => {
@@ -750,7 +750,7 @@ function LaMachine({ d }: { d: Donnees }) {
 // Le même sur chaque vue : le titre, l'état des briques en une ligne, l'heure du relevé et « Relire », puis un onglet par
 // vue qui existe (jamais un onglet vers un écran pas encore écrit). Celui des alertes porte le compte des alertes ouvertes,
 // en rouge si l'une est grave : la même fonction, côté serveur, sur chaque vue (C3).
-export type VueDuService = 'vue' | 'alertes' | 'sauvegardes';
+export type VueDuService = 'vue' | 'alertes' | 'sauvegardes' | 'performances';
 type PourEntete = { briques: Brique[]; maintenant: string; alertesEnCours: AlertesEnCours };
 export function EnteteService({ vue, d, relire, occupe }: { vue: VueDuService; d: PourEntete | null; relire: () => void; occupe: boolean }) {
   const a = d?.alertesEnCours;
@@ -760,7 +760,7 @@ export function EnteteService({ vue, d, relire, occupe }: { vue: VueDuService; d
         <div className="c-entete-texte">
           <span className="c-surtitre">{titre(`${K}.surtitre`)}</span>
           <div className="c-titre-ligne"><h1>{titre(`${K}.titre`)}</h1>{d ? <EtatGeneral briques={d.briques} /> : null}</div>
-          <p className="c-entete-sous">{phrase(vue === 'vue' ? `${K}.sous` : vue === 'alertes' ? `${K}.al.sous` : `${K}.sg.sous`)}</p>
+          <p className="c-entete-sous">{phrase(vue === 'vue' ? `${K}.sous` : vue === 'alertes' ? `${K}.al.sous` : vue === 'sauvegardes' ? `${K}.sg.sous` : `${K}.pf.sous`)}</p>
         </div>
         <div className="c-entete-actions">
           {d ? <span className="c-sv-releve">{dire(`${K}.releve`, { heure: heureDe(d.maintenant) })}</span> : null}
@@ -779,6 +779,7 @@ export function EnteteService({ vue, d, relire, occupe }: { vue: VueDuService; d
           ) : null}
         </a>
         <a href="#/service/sauvegardes" aria-current={vue === 'sauvegardes' ? 'page' : undefined}>{titre(`${K}.onglet.sauvegardes`)}</a>
+        <a href="#/service/performances" aria-current={vue === 'performances' ? 'page' : undefined}>{titre(`${K}.onglet.performances`)}</a>
       </nav>
     </>
   );

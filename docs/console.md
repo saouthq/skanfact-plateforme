@@ -296,6 +296,30 @@ service (0086) » de `tests/console/console.test.ts` (contre la base) et `tests/
 - La veille range l'état des copies à chaque relevé (`service_releve.copies`, 0087) et garde la minute d'arrivée d'une
   copie hors de la machine ; elle ne confie que des nombres (lignes, migrations, secondes), jamais un message ni un chemin.
 
+**C15. Les performances du service** (10 § 2.8 ; VISION-ARCHITECTURE.md § 6). `#/service/performances`, la direction et
+la technique. Rien de neuf n'est relevé : la console lit ce que le serveur et la base savent déjà (0088).
+- **La période en chiffres** (1 h, 24 h, 7 j, 30 j) : le 95e centile et la médiane des lectures, les requêtes par minute
+  (la dernière heure), les pannes, et les requêtes lentes (plus d'une seconde) des sept derniers jours.
+- **Les budgets de temps** écrits par la vision, en face du 95e centile mesuré : la part du budget (moins de 80 % bon,
+  jusqu'au budget « près du budget », au-delà dépassé) et la courbe de la période. **Rien n'est vert sans une mesure** :
+  trop peu de requêtes pour un centile (moins de vingt), un budget qui se mesure sur le poste du client (ouvrir
+  l'application, saisir une ligne) ou qu'aucune sorte ne sépare encore (la balance consolidée d'un cabinet, le
+  rattrapage d'une journée de coupure) se disent « non mesuré », avec leur raison.
+- **Le temps de réponse sorte par sorte** (listes et fiches, caisse, comptes), chacune sur son échelle avec son budget ;
+  **le trafic et les pannes** contre la période d'avant (la même durée, juste avant). Sur trente jours, la période d'avant
+  n'est plus gardée (les heures se gardent trente-cinq jours) : l'écran le dit, sans courbe à zéro. Les totaux de la
+  période d'avant ne comptent que ses pas, et son dernier pas se compte entier (`periodeDAvant`).
+- **Les routes du serveur sur sept jours** : par modèle de chemin (jamais une valeur, jamais un client), leurs appels,
+  médiane, 95e et 99e centiles, pannes et lentes ; triables, cherchables, filtrées par sorte. **Les requêtes lentes** se
+  comptent route par route ; **leur trace (où est passé le temps) n'est pas gardée**, l'écran le dit.
+- **La base PostgreSQL** (`pg_stat_database`, depuis sa dernière remise à zéro) : connexions, lu en mémoire, taille,
+  blocages mutuels, fichiers temporaires, transactions annulées — des nombres. Ce qui occupe la base requête par requête
+  n'est pas mesuré (`pg_stat_statements` n'est pas installé) ; la réplique non plus (il n'y en a pas).
+- **Les exemplaires du programme** qui ont envoyé leurs mesures dans l'heure : vu dans les cinq dernières minutes, il
+  sert ; plus loin, il s'est tu (arrêté, ou plus rien ne lui arrive : la console ne sait pas les distinguer). Leur
+  processeur et leur mémoire ne sont pas mesurés à part.
+- **Vu de l'extérieur : non mesuré**, et la décision qui manque (le service et les deux villes) est écrite à l'écran.
+
 ## Mettre en route
 
 La personne crée d'abord son compte SkanFact, puis met en place le code de son téléphone (« Ton compte »,
@@ -339,7 +363,7 @@ fait depuis l'écran « Équipe ». La console s'ouvre à `https://<le serveur>/
 ## Ce que le lot ne fait pas
 
 La suite de la console : les paiements et nos factures (14b), le support, la suite du service (ses sauvegardes, sa file
-de travaux, ses incidents et la page d'état, ses performances, sa sécurité, ses versions), la
+de travaux, ses incidents et la page d'état, sa sécurité, ses versions), la
 mesure, les réglages de la plateforme, l'application de bureau (les licences de la v10), l'accès accordé par un client
 (48 heures, en lecture), et le filtre du journal par geste et par période. Le service ne se voit encore que du serveur
 lui-même : aucune vérification de l'extérieur (06 § 7, depuis deux villes) ; l'écran le dit.

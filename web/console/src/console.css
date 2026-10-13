@@ -799,8 +799,11 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-cle { display: inline-block; flex: none; width: 18px; height: 0; border-top: 2.5px solid var(--c-serie-1); border-radius: 2px; }
 .c-cle-p50 { border-top: 2px dashed var(--c-serie-2); }
 .c-cle-seuil { border-top: 1.5px dashed var(--c-seuil); }
+.c-cle-avant { border-top: 2px dotted var(--c-gris-2); }
+.c-cle-pannes { border-top-color: var(--c-rouge); }
 .c-bulle :is(.c-cle-p95, .c-cle-trafic) { border-top-color: var(--c-menthe); }
 .c-bulle .c-cle-p50 { border-top-color: var(--c-nuit-gris); }
+.c-bulle .c-cle-avant { border-top-color: var(--c-nuit-gris); }
 
 /* Une courbe : le tracé étiré dans un SVG, les textes en HTML par-dessus. Les graduations vivent dans une marge à gauche
    (--c-gouttiere) : un tracé ne passe jamais sur un chiffre ; l'axe du temps et des bâtons voisins s'alignent dessus. */
@@ -818,7 +821,10 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-tracer { fill: none; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
 .c-tracer-p95, .c-tracer-trafic { stroke: var(--c-serie-1); }
 .c-tracer-p50 { stroke: var(--c-serie-2); stroke-width: 1.6; stroke-dasharray: 5 4; }
+.c-tracer-avant { stroke: var(--c-gris-2); stroke-width: 1.6; stroke-dasharray: 2 4; }
+.c-tracer-pannes { stroke: var(--c-rouge); stroke-width: 1.6; }
 .c-aire { fill: color-mix(in srgb, var(--c-serie-1) 11%, transparent); }
+.c-aire.c-aire-pannes { fill: color-mix(in srgb, var(--c-rouge) 9%, transparent); }
 .c-seuil { position: absolute; inset-inline: 0; height: 0; border-top: 1.5px dashed var(--c-seuil); pointer-events: none; }
 .c-seuil > span { position: absolute; inset-inline-end: 0; bottom: 3px; padding-inline-start: 6px; font-size: 11.5px; font-weight: 600; line-height: 1; white-space: nowrap; color: var(--c-orange-texte); background: var(--c-papier); }
 .c-courbe-plage { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--c-etat-grave) 13%, transparent); border-inline: 1px solid color-mix(in srgb, var(--c-etat-grave) 45%, transparent); pointer-events: none; }
@@ -835,9 +841,13 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   background: var(--c-serie-1); box-shadow: 0 0 0 2px var(--c-papier); pointer-events: none;
 }
 .c-courbe-point-p50 { background: var(--c-serie-2); }
+.c-courbe-point-avant { background: var(--c-gris-2); }
+.c-courbe-point-pannes { background: var(--c-rouge); }
 /* Un pas mesuré seul entre deux trous : un point de la couleur de sa série, plus petit que celui que la souris pose. */
 .c-courbe-seul { position: absolute; width: 6px; height: 6px; margin-inline-start: -3px; margin-bottom: -3px; border-radius: 50%; background: var(--c-serie-1); pointer-events: none; }
 .c-courbe-seul-p50 { width: 5px; height: 5px; margin-inline-start: -2.5px; margin-bottom: -2.5px; background: var(--c-serie-2); }
+.c-courbe-seul-avant { width: 5px; height: 5px; margin-inline-start: -2.5px; margin-bottom: -2.5px; background: var(--c-gris-2); }
+.c-courbe-seul-pannes { background: var(--c-rouge); }
 .c-courbe-axe { position: relative; height: 16px; }
 .c-courbe-axe > span { position: absolute; top: 0; translate: -50% 0; font-size: 11.5px; color: var(--c-gris-2); white-space: nowrap; }
 .c-courbe-axe > .c-axe-debut { translate: 0 0; }
@@ -1181,12 +1191,20 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 /* Les quatre chiffres, sur la page claire : la tuile du service (faite pour la nuit) prend l'encre du papier, et le mot
    la couleur de son état. */
 .c-sg-situation .c-sv-tuiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.c-sg-situation .c-sv-tuile { background: var(--c-papier); border-color: var(--c-trait); box-shadow: var(--c-ombre-carte); }
-.c-sg-situation .c-tuile-titre, .c-sg-situation .c-tuile-sous { color: var(--c-gris); }
-.c-sg-situation .c-sv-tuile-mot b { color: var(--c-encre); }
-.c-sg-situation .c-sv-tuile:has(.c-puce-urgent) { border-color: color-mix(in srgb, var(--c-rouge) 40%, var(--c-trait)); }
-.c-sg-situation .c-sv-tuile:has(.c-puce-urgent) .c-sv-tuile-mot b { color: var(--c-rouge-texte); }
-.c-sg-situation .c-sv-tuile:has(.c-puce-en_retard) .c-sv-tuile-mot b { color: var(--c-orange-texte); }
+/* Les tuiles claires (les sauvegardes, les performances) : la tuile du service, faite pour la nuit, sur le papier. */
+.c-sv-claires .c-sv-tuile { background: var(--c-papier); border-color: var(--c-trait); box-shadow: var(--c-ombre-carte); }
+.c-sv-claires .c-tuile-titre, .c-sv-claires .c-tuile-sous { color: var(--c-gris); }
+.c-sv-claires .c-sv-tuile-mot b, .c-sv-claires .c-sv-tuile-valeur b { color: var(--c-encre); }
+.c-sv-claires .c-sv-tuile-valeur span { color: var(--c-gris); }
+/* Sur le papier, l'état d'une tuile se lit en petit, à droite de son titre : il ne repousse pas le chiffre. */
+.c-sv-claires .c-sv-tuile-tete { flex-wrap: nowrap; align-items: flex-start; }
+.c-sv-claires .c-sv-tuile-tete .c-puce { flex: none; padding: 0; background: none; font-size: 12.5px; }
+.c-sv-claires .c-sv-tuile:has(.c-puce-urgent) { border-color: color-mix(in srgb, var(--c-rouge) 40%, var(--c-trait)); }
+.c-sv-claires .c-sv-tuile:has(.c-puce-urgent) :is(.c-sv-tuile-mot, .c-sv-tuile-valeur) b { color: var(--c-rouge-texte); }
+.c-sv-claires .c-sv-tuile:has(.c-puce-en_retard) :is(.c-sv-tuile-mot, .c-sv-tuile-valeur) b { color: var(--c-orange-texte); }
+.c-sv-claires .c-trait-ligne { stroke: var(--c-serie-1); }
+.c-sv-claires .c-trait-aire { fill: color-mix(in srgb, var(--c-serie-1) 11%, transparent); }
+.c-sv-claires .c-trait-seuil { stroke: var(--c-seuil); }
 .c-sg-table tbody th[scope="row"], .c-sg-table tfoot th[scope="row"] { font-size: 14px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--c-encre); text-align: start; vertical-align: top; }
 .c-sg-table th[scope="row"] b { display: block; font-weight: 600; }
 .c-sg-table th[scope="row"] .c-sous, .c-sg-table td .c-sous { display: block; font-size: 13px; font-weight: 400; color: var(--c-gris); }
@@ -1249,6 +1267,155 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   .c-sg-geste, .c-sg-vide { margin-inline: 18px; }
   .c-sg-faits { grid-template-columns: minmax(0, 1fr); }
   .c-sg-trouves button { min-height: 44px; }
+}
+
+/* ── Les performances du service (C15) ────────────────────────────────────────────────────────────────────────────── */
+/* La maquette (ServicePerformances) : des cartes denses, un titre de section de 19 px, les chiffres alignés à droite. */
+.c-pf { display: grid; gap: 20px; transition: opacity .2s; }
+.c-pf .c-carte h2, .c-pf-zone-tete h2 { font-size: 19px; }
+.c-pf-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.c-pf-chiffres .c-sv-tuiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.c-pf-chiffres .c-sv-tuile { padding: 14px 16px; gap: 6px; }
+.c-pf-chiffres .c-sv-tuile-valeur b { font-size: 28px; }
+.c-pf-chiffres-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px 24px; flex-wrap: wrap; }
+/* L'en-tête d'une carte : son titre, sa phrase, et à droite ce qui la règle. */
+.c-pf-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px 16px; padding: 20px 22px 12px; }
+.c-pf-tete > div { display: grid; gap: 4px; min-width: 0; }
+.c-pf-tete .c-carte-sous { max-width: 76ch; }
+.c-pf-zone-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 24px; flex-wrap: wrap; }
+.c-pf-legende { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--c-gris); }
+.c-pf-legende li { display: inline-flex; align-items: center; gap: 7px; }
+.c-pf-pastille { display: inline-block; width: 16px; height: 6px; border-radius: 99px; background: var(--c-gris-2); }
+.c-pf-pastille.c-pf-bon, .c-pf-b-bon .c-pf-jauge > span { background: var(--c-serie-1); }
+.c-pf-pastille.c-pf-attention, .c-pf-b-attention .c-pf-jauge > span { background: var(--c-orange); }
+.c-pf-pastille.c-pf-grave, .c-pf-b-grave .c-pf-jauge > span { background: var(--c-rouge); }
+.c-pf-gris { color: var(--c-gris); }
+.c-pf-table-budgets th[scope="row"] { min-width: 220px; }
+.c-pf-table-budgets td:nth-child(2), .c-pf-table-budgets td:nth-child(3), .c-pf-table-budgets td:nth-child(4), .c-pf-table-budgets td:nth-child(7) { white-space: nowrap; }
+.c-pf-table-budgets td:nth-child(5) { min-width: 210px; font-size: 13px; }
+.c-pf-mesure { font-weight: 600; }
+.c-pf-part { display: flex; align-items: center; gap: 12px; }
+.c-pf-part > span:last-child { min-width: 40px; text-align: end; font-size: 13px; color: var(--c-gris); }
+.c-pf-jauge { position: relative; flex: 1 1 auto; min-width: 90px; max-width: 160px; height: 8px; border-radius: 99px; background: var(--c-gris-doux); }
+.c-pf-jauge > span { position: absolute; inset-block: 0; inset-inline-start: 0; border-radius: 99px; }
+/* Le trait à 80 % : là où « tenu » devient « près du budget ». */
+.c-pf-jauge > i { position: absolute; inset-block: -2px; inset-inline-start: 80%; width: 1.5px; background: var(--c-gris-2); opacity: .55; }
+.c-pf-serie { width: 130px; }
+.c-pf-serie .c-trait { height: 24px; width: 120px; }
+.c-pf-serie .c-trait-ligne { stroke: var(--c-serie-1); }
+.c-pf-serie .c-trait-aire { fill: none; }
+.c-pf-serie .c-trait-seuil { stroke: var(--c-seuil); }
+.c-pf-b-nonmesure th[scope="row"] b { color: var(--c-gris); }
+.c-pf-sortes-zone { display: grid; gap: 12px; }
+.c-pf-sortes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.c-pf-sorte { gap: 10px; padding: 18px 18px 14px; }
+.c-pf-sorte .c-courbe { --c-gouttiere: 46px; }
+.c-pf-sorte-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.c-pf-sorte-tete h3 { font-size: 15.5px; }
+.c-pf-sorte-tete .c-carte-sous { font-size: 13px; }
+.c-pf-sorte-valeur { display: grid; justify-items: end; margin: 0; }
+.c-pf-sorte-valeur b { font-family: var(--c-titre); font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.c-pf-sorte-valeur span { font-size: 12px; color: var(--c-gris); }
+.c-pf-sorte-pied { margin: 0; padding-top: 10px; border-top: 1px solid var(--c-trait); font-size: 13px; color: var(--c-gris); }
+.c-pf-vide { margin: 0; }
+.c-pf-trafic { gap: 10px; }
+.c-pf-trafic .c-courbe { --c-gouttiere: 46px; }
+.c-pf-trafic-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px 20px; flex-wrap: wrap; }
+.c-pf-trafic-outils { display: flex; align-items: center; gap: 10px 18px; flex-wrap: wrap; }
+.c-pf-cles { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--c-encre); }
+.c-pf-cles li { display: inline-flex; align-items: center; gap: 8px; }
+.c-pf-comparer[aria-pressed="true"] { border-color: var(--c-serie-1); color: var(--c-doux-texte); background: var(--c-doux); }
+.c-pf-trafic-pied { display: flex; justify-content: space-between; gap: 6px 24px; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid var(--c-trait); font-size: 13px; color: var(--c-gris); }
+.c-pf-trafic-pied p { margin: 0; }
+.c-pf-chemin { display: inline-flex; align-items: baseline; gap: 8px; min-width: 0; }
+.c-pf-chemin code { font-size: 13px; color: var(--c-encre); }
+.c-pf-param { color: var(--c-gris-2); }
+/* Un morceau de chemin ne se coupe pas (« dossier-v10 » se lirait comme deux mots) : la ligne passe après une barre. */
+.c-pf-chemin code > span { white-space: nowrap; }
+.c-pf-methode { flex: none; padding: 1px 6px; border-radius: 6px; font-family: var(--c-chiffres); font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--c-gris); background: var(--c-gris-doux); }
+.c-pf-methode-get { color: var(--c-doux-texte); background: var(--c-doux); }
+.c-pf-methode-post, .c-pf-methode-put { color: var(--c-orange-texte); background: var(--c-orange-doux); }
+.c-pf-methode-delete { color: var(--c-rouge-texte); background: var(--c-rouge-doux); }
+.c-pf-lentes, .c-pf-base, .c-pf-exemplaires, .c-pf-exterieur { display: grid; align-content: start; padding: 0; }
+.c-pf-lentes-liste { list-style: none; margin: 0; padding: 0 22px 6px; display: grid; }
+.c-pf-lentes-liste li { display: grid; grid-template-columns: minmax(0, 1fr) 150px; align-items: center; gap: 14px; padding: 11px 0; border-top: 1px solid var(--c-trait); }
+.c-pf-lente-texte { display: grid; gap: 3px; min-width: 0; }
+.c-pf-lente-texte .c-sous { font-size: 12.5px; color: var(--c-gris); }
+.c-pf-lente-n { display: grid; gap: 6px; justify-items: end; }
+.c-pf-lente-n b { font-size: 13px; font-weight: 600; color: var(--c-encre); white-space: nowrap; }
+.c-pf-jauge-lente { width: 100%; max-width: none; height: 6px; }
+.c-pf-jauge-lente > span { background: var(--c-orange); opacity: .8; }
+.c-pf-non { display: flex; align-items: flex-start; gap: 8px; margin: 0; font-size: 13px; color: var(--c-gris); }
+.c-pf-non .c-icone { flex: none; margin-top: 2px; }
+.c-pf-lentes > .c-pf-non { margin: 6px 22px 20px; padding: 10px 12px; border-radius: 12px; background: var(--c-papier-2); }
+.c-pf-nons { display: grid; gap: 8px; margin: 4px 22px 20px; padding: 10px 12px; border-radius: 12px; background: var(--c-papier-2); }
+.c-pf-table-routes th[scope="row"] { font-size: 14px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--c-encre); text-align: start; vertical-align: top; min-width: 300px; }
+.c-pf-table-routes th[scope="row"] .c-sous { display: block; margin-top: 3px; font-size: 12.5px; font-weight: 400; color: var(--c-gris); }
+.c-pf-table-routes td { white-space: nowrap; vertical-align: top; }
+.c-pf-table-routes td .c-sous { display: block; font-size: 12px; color: var(--c-gris); }
+.c-pf-tri { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; cursor: pointer; }
+.c-pf-tri:hover, .c-pf-tri:focus-visible { color: var(--c-doux-texte); }
+th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
+.c-pf-fleche { font-size: 12px; color: var(--c-gris-2); }
+.c-pf-fleche-active { color: var(--c-doux-texte); }
+.c-pf-peu { font-family: var(--c-texte); font-size: 12.5px; color: var(--c-gris-2); }
+.c-pf-au-dessus { color: var(--c-orange-texte); font-weight: 600; }
+.c-pf-plus { justify-content: center; }
+.c-pf-outils { padding-top: 4px; }
+.c-pf-outils .c-recherche { flex: 0 1 300px; min-width: 220px; }
+.c-pf-routes-note { margin: 0 22px 20px; }
+.c-pf-cartes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0 22px 14px; }
+.c-pf-cartes > div { display: grid; gap: 3px; align-content: start; padding: 12px 14px; border-radius: 12px; background: var(--c-papier-2); border: 1px solid var(--c-trait); }
+.c-pf-cartes dt { font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c-gris); }
+.c-pf-cartes dd { margin: 0; display: flex; align-items: baseline; gap: 6px; }
+.c-pf-cartes dd b { font-family: var(--c-titre); font-size: 21px; font-weight: 600; }
+.c-pf-cartes dd span { font-size: 13px; color: var(--c-gris); }
+.c-pf-cartes > div > span { font-size: 12.5px; color: var(--c-gris); }
+.c-pf-cartes > .c-pf-carte-attention { border-color: color-mix(in srgb, var(--c-orange) 45%, var(--c-trait)); }
+.c-pf-cartes > .c-pf-carte-attention dd b { color: var(--c-orange-texte); }
+.c-pf-ex-liste { list-style: none; margin: 0; padding: 0 22px 6px; display: grid; }
+.c-pf-ex { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 22px; padding: 12px 0; border-top: 1px solid var(--c-trait); }
+.c-pf-ex-texte { display: grid; gap: 3px; font-size: 14px; min-width: 0; }
+.c-pf-ex-nom { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.c-pf-ex-nom b { font-size: 14px; font-weight: 600; }
+.c-pf-ex-texte .c-sous { font-size: 12.5px; color: var(--c-gris); }
+.c-pf-ex-chiffre { display: grid; justify-items: end; margin: 0; }
+.c-pf-ex-chiffre b { font-size: 15px; font-weight: 600; }
+.c-pf-ex-chiffre span { font-size: 12px; color: var(--c-gris); white-space: nowrap; }
+.c-pf-exterieur { border: 1.5px dashed var(--c-trait-fort); box-shadow: none; background: var(--c-papier); }
+.c-pf-exterieur-corps { display: grid; gap: 10px; padding: 0 22px 20px; font-size: 14px; }
+.c-pf-exterieur-corps p { margin: 0; }
+.c-pf-exterieur-corps ul { margin: 0; padding-inline-start: 20px; display: grid; gap: 4px; }
+.c-pf-decider { justify-self: start; padding: 5px 12px; border-radius: 99px; border: 1.5px dashed color-mix(in srgb, var(--c-orange) 55%, transparent); color: var(--c-orange-texte); font-size: 13px; font-weight: 600; }
+@media (max-width: 1400px) {
+  .c-pf-chiffres .c-sv-tuiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 1100px) {
+  .c-pf-chiffres .c-sv-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .c-pf-sortes, .c-pf-duo { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 860px) {
+  /* Au téléphone, chaque budget est une fiche : ce qu'on mesure en tête, puis chaque colonne nommée. */
+  .c-pf-budgets .c-defile { overflow: visible; }
+  .c-pf-table-budgets, .c-pf-table-budgets tbody, .c-pf-table-budgets tr, .c-pf-table-budgets th, .c-pf-table-budgets td { display: block; min-width: 0; white-space: normal; }
+  .c-pf-table-budgets thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .c-pf-table-budgets tr { padding: 14px 18px; border-top: 1px solid var(--c-trait); display: grid; gap: 8px; }
+  .c-pf-table-budgets th, .c-pf-table-budgets td { padding: 0; border: 0; text-align: start; }
+  .c-pf-table-budgets td.c-droite { text-align: start; }
+  .c-pf-table-budgets td[data-col]::before { content: attr(data-col); display: block; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c-gris); }
+  .c-pf-table-budgets td.c-pf-serie:empty { display: none; }
+  .c-pf-table-routes th[scope="row"] { min-width: 240px; }
+  .c-pf-tete { padding: 18px 18px 12px; }
+  .c-pf-lentes-liste, .c-pf-cartes, .c-pf-ex-liste, .c-pf-exterieur-corps { padding-inline: 18px; }
+  .c-pf-lentes-liste li { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .c-pf-lente-n { justify-items: start; }
+  .c-pf-nons, .c-pf-routes-note, .c-pf-lentes > .c-pf-non { margin-inline: 18px; }
+  .c-pf-cartes { grid-template-columns: minmax(0, 1fr); }
+  .c-pf-ex { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; }
+  .c-pf-ex-texte { grid-column: 1 / -1; }
+  .c-pf-ex-chiffre { justify-items: start; }
+  .c-pf-comparer { min-height: 44px; }
+  .c-pf-tri { min-height: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

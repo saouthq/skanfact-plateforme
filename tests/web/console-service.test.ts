@@ -235,4 +235,38 @@ describe('le service de la console, à la souris, sur de vraies mesures', () => 
     expect((await quoi.allInnerTexts()).map(net)).toEqual(['Retour à aaaaaaa', 'Mise en ligne : bbbbbbb']);
     await fermer(p);
   }, 60_000);
+
+  it('les performances : le budget des listes tenu, la route de la collecte comptée, triée, cherchée ; pas de comparaison sur trente jours', async () => {
+    const p = await ouvrir(await jetonConsole(direction), '#/service/performances');
+    const budgets = p.locator('section[aria-labelledby="pf-budgets"] tbody tr');
+    await expect.poll(() => budgets.count(), { timeout: 15_000 }).toBe(7);
+    // Les lectures de la collecte prennent 40 ms : le budget des listes (300 ms) est tenu ; ce qui se mesure sur le poste ne l'est pas.
+    expect(net(await budgets.first().innerText())).toMatch(/Afficher une liste.*côté serveur.*300 ms.*40 ms.*Tenu/);
+    expect(net(await budgets.last().innerText())).toMatch(/Non mesuré/);
+    // La route de la collecte, avec toutes ses lectures (30 × 41 + 5 + 30 + 5 + 25 × 41).
+    const routes = p.locator('section[aria-labelledby="pf-routes"]');
+    const ligne = routes.locator('tbody tr', { hasText: '/moi' });
+    expect(net(await ligne.innerText())).toContain('2 295');
+    // Trier par appels : la colonne le dit, une seconde fois renverse.
+    const appels = routes.getByRole('button', { name: 'Trier par « Appels »' });
+    await cliquer(appels);
+    await expect.poll(() => routes.locator('th[aria-sort]').innerText().then(net)).toMatch(/^appels/i);
+    expect(await routes.locator('th[aria-sort]').getAttribute('aria-sort')).toBe('descending');
+    await cliquer(appels);
+    expect(await routes.locator('th[aria-sort]').getAttribute('aria-sort')).toBe('ascending');
+    // Une recherche qui ne trouve rien le dit, et rend la liste d'un clic.
+    await routes.getByRole('searchbox').fill('aucune-route-ainsi');
+    await expect.poll(() => routes.innerText().then(net)).toContain('Aucune route ne correspond');
+    await cliquer(routes.getByRole('button', { name: 'Effacer la recherche' }));
+    await expect.poll(() => routes.locator('tbody tr', { hasText: '/moi' }).count()).toBe(1);
+    // Sur une heure, la période d'avant se compare ; sur trente jours, elle n'est plus gardée et l'écran le dit.
+    const trafic = p.locator('article[aria-labelledby="pf-trafic"]');
+    await periode(p, '1 h');
+    await expect.poll(() => trafic.getByRole('button', { name: 'Comparer à la période d\'avant' }).count()).toBe(1);
+    await periode(p, '30 j');
+    await expect.poll(() => trafic.innerText().then(net)).toContain('Pas de comparaison sur trente jours');
+    expect(await trafic.getByRole('button', { name: 'Comparer à la période d\'avant' }).count()).toBe(0);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
 });
