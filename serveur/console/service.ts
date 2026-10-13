@@ -237,10 +237,16 @@ export function enLigne(v: VeilleLue) {
 }
 
 // Les alertes ouvertes, et combien sont graves : le compte de l'onglet « Alertes », sur chaque vue du service, par cette
-// fonction seule (C3).
-export function alertesOuvertes(alertes: readonly { fin: string | null; grave: boolean }[]) {
+// fonction seule (C3). Avec elles, la plus urgente — une grave avant une autre, puis la plus ancienne : le bandeau d'une
+// ligne que chaque vue pose sous ses onglets (son titre, depuis quand), qui mène à la page des alertes. Et leurs clés :
+// la vue d'ensemble ne redit pas une alerte, elle ne montre que ce que la veille voit sans l'avoir encore confirmé.
+export function alertesOuvertes(alertes: readonly { cle: string; titre: string; fin: string | null; grave: boolean; debut: string }[]) {
   const o = alertes.filter((a) => a.fin === null);
-  return { n: o.length, graves: o.filter((a) => a.grave).length };
+  const p = [...o].sort((a, b) => Number(b.grave) - Number(a.grave) || Date.parse(a.debut) - Date.parse(b.debut))[0];
+  return {
+    n: o.length, graves: o.filter((a) => a.grave).length, cles: o.map((a) => a.cle),
+    premiere: p ? { titre: p.titre, grave: p.grave, debut: new Date(p.debut).toISOString() } : null,
+  };
 }
 
 export type EtatBrique = 'bon' | 'attention' | 'grave' | 'nonmesure';

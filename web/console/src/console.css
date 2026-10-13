@@ -255,6 +255,11 @@ button { font: inherit; color: inherit; }
   background: var(--c-papier); color: var(--c-encre); font: inherit; font-size: 15px;
 }
 .c-recherche input::placeholder { color: var(--c-gris-2); }
+.c-touche {
+  position: absolute; inset-inline-end: 12px; top: 50%; translate: 0 -50%; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--c-trait-fort);
+  background: var(--c-papier-2); color: var(--c-gris); font-family: var(--c-chiffres); font-size: 12px; pointer-events: none;
+}
+.c-haut .c-recherche input { padding-inline-end: 76px; }
 .c-trace { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 8px; color: var(--c-gris); font-size: 13.5px; }
 .c-trace .c-icone { color: var(--c-sarcelle); }
 .c-page { width: 100%; max-width: 1280px; padding: 28px 40px 56px; display: flex; flex-direction: column; gap: 24px; }
@@ -1041,8 +1046,68 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   .c-sv-graphe-pied .c-btn { margin-inline-end: 0; }
 }
 
+/* ── Les vues du service : l'en-tête commun (maquette Service) ─────────────────────────────────────────────────── */
+/* Le fil et, en face, « en direct » ; le titre et son état, en face la période ; les onglets ; l'alerte la plus urgente. */
+.c-sv-entete { display: grid; gap: 14px; }
+.c-sv-entete-haut { display: flex; align-items: center; justify-content: space-between; gap: 10px 20px; flex-wrap: wrap; min-height: 38px; }
+.c-fil [aria-current="page"] { color: var(--c-encre); font-weight: 600; }
+.c-sv-direct {
+  display: inline-flex; align-items: center; gap: 9px; padding: 4px 5px 4px 12px; border-radius: 999px;
+  border: 1px solid var(--c-trait); background: var(--c-papier); font-size: 13.5px; color: var(--c-gris);
+}
+.c-sv-direct-point {
+  flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--c-etat-bon);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-etat-bon) 22%, transparent);
+}
+.c-sv-direct-pause .c-sv-direct-point { background: var(--c-gris-2); box-shadow: 0 0 0 3px var(--c-gris-doux); }
+.c-sv-direct-texte { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.c-sv-direct-bouton {
+  min-height: 28px; padding: 0 11px; border-radius: 999px; border: 0; background: var(--c-doux); color: var(--c-doux-texte);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.c-sv-direct-bouton:hover { background: color-mix(in srgb, var(--c-sarcelle) 22%, var(--c-papier)); }
+.c-sv-entete-titre { align-items: center; }
+/* La période en segments : un seul cadre, la période choisie en sombre. */
+.c-segments { display: inline-flex; gap: 2px; padding: 3px; border-radius: 13px; border: 1px solid var(--c-trait-fort); background: var(--c-papier); }
+.c-segments .c-pilule { min-height: 34px; min-width: 52px; justify-content: center; border: 0; border-radius: 10px; padding: 0 12px; background: transparent; }
+.c-segments .c-pilule:hover { background: var(--c-gris-doux); }
+.c-segments .c-pilule[aria-pressed="true"] { background: var(--c-fort); color: var(--c-fort-texte); }
+.c-sv-onglets { margin-top: -2px; }
+/* L'alerte la plus urgente, en une ligne, sous les onglets : un liseré de sa gravité. */
+.c-sv-bandeau {
+  position: relative; display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; padding: 11px 18px 11px 22px; overflow: hidden;
+  border-radius: 14px; border: 1px solid color-mix(in srgb, var(--c-etat-attention) 42%, var(--c-trait)); background: var(--c-papier);
+}
+.c-sv-bandeau::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 4px; background: var(--c-etat-attention); }
+.c-sv-bandeau-grave { border-color: color-mix(in srgb, var(--c-etat-grave) 38%, var(--c-trait)); }
+.c-sv-bandeau-grave::before { background: var(--c-etat-grave); }
+.c-sv-bandeau-titre { font-size: 14.5px; }
+.c-sv-bandeau-quand { color: var(--c-gris); font-size: 13.5px; }
+.c-sv-bandeau-lien {
+  display: inline-flex; align-items: center; gap: 6px; margin-inline-start: auto; color: var(--c-lien); font-size: 14px; font-weight: 600; text-decoration: none;
+}
+.c-sv-bandeau-lien:hover { text-decoration: underline; }
+/* La même, en grand, sur la vue d'ensemble : la première chose à voir, son geste en bouton principal. */
+.c-sv-alerte {
+  position: relative; display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap; padding: 18px 22px 18px 26px; overflow: hidden;
+  border-radius: var(--c-rayon); border: 1px solid color-mix(in srgb, var(--c-etat-attention) 42%, var(--c-trait)); background: var(--c-papier); box-shadow: var(--c-ombre-carte);
+}
+.c-sv-alerte::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 5px; background: var(--c-etat-attention); }
+.c-sv-alerte-grave { border-color: color-mix(in srgb, var(--c-etat-grave) 38%, var(--c-trait)); }
+.c-sv-alerte-grave::before { background: var(--c-etat-grave); }
+.c-sv-alerte-texte { flex: 1 1 360px; display: grid; gap: 4px; min-width: 0; }
+.c-sv-alerte-tete { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
+.c-sv-alerte h2 { font-size: 17px; }
+.c-sv-alerte .c-carte-sous { margin-top: 0; }
+@media (max-width: 860px) {
+  .c-sv-entete-haut { align-items: flex-start; }
+  .c-sv-direct { flex-wrap: wrap; }
+  .c-sv-bandeau-lien { margin-inline-start: 0; min-height: 44px; }
+  .c-segments .c-pilule { min-height: 44px; }
+  .c-sv-direct-bouton { min-height: 44px; }
+}
+
 /* ── Les vues du service : un onglet par vue, le compte des alertes ouvertes sur la sienne ─────────────────────── */
-.c-sv-onglets { margin-top: -4px; }
 .c-onglet-n {
   display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 7px; margin-inline-start: 8px; border-radius: 999px;
   background: var(--c-orange-doux); color: var(--c-orange-texte); font-family: var(--c-chiffres); font-size: 12px; font-weight: 600; letter-spacing: 0;
@@ -1086,7 +1151,7 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-al-gestes { display: flex; flex-wrap: wrap; gap: 10px; }
 .c-al-note, .c-al-avis { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: var(--c-gris); }
 .c-al-note .c-icone, .c-al-avis .c-icone { margin-top: 2px; }
-.c-al-chrono-zone { min-width: 0; }
+.c-al-chrono-zone { min-width: 0; padding-inline-start: 26px; border-inline-start: 1px solid var(--c-trait); }
 .c-al-chrono { list-style: none; margin: 0; padding: 0; display: grid; }
 .c-al-ev { position: relative; display: grid; grid-template-columns: 70px 14px minmax(0, 1fr); gap: 10px; padding-bottom: 16px; }
 .c-al-ev:last-child { padding-bottom: 0; }
@@ -1164,6 +1229,7 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 
 @media (max-width: 1100px) {
   .c-al-corps, .c-al-duo { grid-template-columns: minmax(0, 1fr); }
+  .c-al-chrono-zone { padding-inline-start: 0; border-inline-start: 0; padding-top: 18px; border-top: 1px solid var(--c-trait); }
 }
 @media (max-width: 860px) {
   .c-al-alerte { padding: 18px 16px 18px 22px; }
@@ -1194,6 +1260,8 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 /* Les tuiles claires (les sauvegardes, les performances) : la tuile du service, faite pour la nuit, sur le papier. */
 .c-sv-claires .c-sv-tuile { background: var(--c-papier); border-color: var(--c-trait); box-shadow: var(--c-ombre-carte); }
 .c-sv-claires .c-tuile-titre, .c-sv-claires .c-tuile-sous { color: var(--c-gris); }
+/* Le titre d'une tuile claire tient sur sa ligne, à côté de son état (la maquette : « LA SAUVEGARDE DE LA NUIT ⊙ Bon »). */
+.c-sv-claires .c-tuile-titre { font-size: 11.5px; letter-spacing: .06em; }
 .c-sv-claires .c-sv-tuile-mot b, .c-sv-claires .c-sv-tuile-valeur b { color: var(--c-encre); }
 .c-sv-claires .c-sv-tuile-valeur span { color: var(--c-gris); }
 /* Sur le papier, l'état d'une tuile se lit en petit, à droite de son titre : il ne repousse pas le chiffre. */
@@ -1277,7 +1345,6 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-pf-chiffres .c-sv-tuiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .c-pf-chiffres .c-sv-tuile { padding: 14px 16px; gap: 6px; }
 .c-pf-chiffres .c-sv-tuile-valeur b { font-size: 28px; }
-.c-pf-chiffres-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px 24px; flex-wrap: wrap; }
 /* L'en-tête d'une carte : son titre, sa phrase, et à droite ce qui la règle. */
 .c-pf-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px 16px; padding: 20px 22px 12px; }
 .c-pf-tete > div { display: grid; gap: 4px; min-width: 0; }

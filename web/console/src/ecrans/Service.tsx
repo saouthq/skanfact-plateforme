@@ -11,7 +11,7 @@
 //     reste avec son unité).
 // L'écran se relit chaque minute tant que quelqu'un le regarde (la page visible, un geste dans les cinq dernières minutes) :
 // laissé ouvert sans personne, il ne tient pas la session de la console éveillée.
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { dire, phrase, selon, titre, typo } from '../langue.ts';
 import { useConsole, useLecture } from '../contexte.ts';
 import { Barres, Bande, Courbe, echelle, Trait, type Abscisse, type Case, type Contenu, type Ton } from '../graphes.tsx';
@@ -56,8 +56,9 @@ type Donnees = {
 // Ce que la veille a pu lire des requêtes à son dernier relevé (exploitation/veille.ts, `requetes`).
 type EtatLu = 'calme' | 'alerte' | 'trop_peu' | 'non_lu';
 export type LuDesRequetes = { pannes?: { etat: EtatLu; part: number | null; n: number }; temps?: { etat: EtatLu; p95: number | null; lectures: number } };
-// Les alertes ouvertes, et combien sont graves : le compte de l'onglet « Alertes » (serveur/console/service.ts).
-export type AlertesEnCours = { n: number; graves: number };
+// Les alertes ouvertes, et combien sont graves : le compte de l'onglet « Alertes » ; et la plus urgente, que le bandeau
+// de chaque vue nomme (serveur/console/service.ts).
+export type AlertesEnCours = { n: number; graves: number; cles: string[]; premiere: { titre: string; grave: boolean; debut: string } | null };
 
 // ── Le temps, à l'heure de Tunis ────────────────────────────────────────────────────────────────────────────────────
 const PARTIES = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Africa/Tunis', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
@@ -116,8 +117,9 @@ export function useRelireTantQueRegarde(relire: () => void) {
     const vu = () => { geste = Date.now(); };
     const evenements = ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
     for (const e of evenements) window.addEventListener(e, vu, { passive: true });
+    // En pause (« Pause » de l'en-tête), l'écran garde sa dernière lecture.
     const minuterie = setInterval(() => {
-      if (document.visibilityState === 'visible' && Date.now() - geste < 5 * 60_000) relire();
+      if (!pause.lire() && document.visibilityState === 'visible' && Date.now() - geste < 5 * 60_000) relire();
     }, 60_000);
     return () => { clearInterval(minuterie); for (const e of evenements) window.removeEventListener(e, vu); };
   }, [relire]);
@@ -136,7 +138,10 @@ function EtatGeneral({ briques }: { briques: Brique[] }) {
 }
 
 // ── En ce moment : ce que la veille voit à l'instant ────────────────────────────────────────────────────────────────
-function EnCeMoment({ v, aujourdhui }: { v: Veille; aujourdhui: string }) {
+// Une alerte ouverte se dit dans l'en-tête (son bandeau) : ici ne restent que la veille absente ou muette, et ce qu'elle
+// voit sans l'avoir encore confirmé en alerte (une clé qu'aucune alerte ouverte ne porte). Tout va bien : rien, l'état
+// des briques le dit déjà.
+function EnCeMoment({ v, aujourdhui, alertes }: { v: Veille; aujourdhui: string; alertes: AlertesEnCours }) {
   if (v.etat === 'absente' || v.etat === 'silencieuse') {
     const absente = v.etat === 'absente';
     return (
@@ -149,29 +154,20 @@ function EnCeMoment({ v, aujourdhui }: { v: Veille; aujourdhui: string }) {
       </section>
     );
   }
-  if (!v.problemes.length) {
-    return (
-      <section className="c-carte c-sv-moment" aria-labelledby="sv-moment">
-        <span className="c-sv-pouls" aria-hidden="true" />
-        <div className="c-sv-moment-texte">
-          <h2 id="sv-moment">{titre(`${K}.ok_titre`)}</h2>
-          <p className="c-carte-sous">{phrase(`${K}.ok`, { quand: ilYA(v.derniere) })}</p>
-        </div>
-      </section>
-    );
-  }
+  const restants = v.problemes.filter((p) => !alertes.cles.includes(p.cle));
+  if (!restants.length) return null;
   return (
     <section className="c-carte c-decider c-sv-problemes" aria-labelledby="sv-moment">
       <div className="c-carte-tete">
         <div>
-          <h2 id="sv-moment">{titre(`${K}.problemes_titre`)} <span className="c-compte-titre">{v.problemes.length}</span></h2>
-          <p className="c-carte-sous">{phrase(`${K}.ok`, { quand: ilYA(v.derniere) })}</p>
+          <h2 id="sv-moment">{titre(`${K}.problemes_titre`)} <span className="c-compte-titre">{restants.length}</span></h2>
+          <p className="c-carte-sous">{phrase(`${K}.problemes_sous`, { quand: ilYA(v.derniere) })}</p>
         </div>
         {/* Ce qu'il faut faire, qui s'en occupe, ce qui est parti et à qui : la page des alertes. */}
         <Lien href="#/service/alertes" petit fleche>{titre(`${K}.voir_alertes`)}</Lien>
       </div>
       <ul className="c-lignes">
-        {v.problemes.map((p) => (
+        {restants.map((p) => (
           <li key={p.cle} className="c-ligne-decision c-ligne-sans-action">
             <span className={`c-ligne-icone c-${p.grave ? 'urgent' : 'aujourdhui'}`}><Icone nom="alerte" /></span>
             <div className="c-ligne-texte">
@@ -747,41 +743,132 @@ function LaMachine({ d }: { d: Donnees }) {
 }
 
 // ── L'en-tête du service, et ses vues ───────────────────────────────────────────────────────────────────────────────
-// Le même sur chaque vue : le titre, l'état des briques en une ligne, l'heure du relevé et « Relire », puis un onglet par
-// vue qui existe (jamais un onglet vers un écran pas encore écrit). Celui des alertes porte le compte des alertes ouvertes,
-// en rouge si l'une est grave : la même fonction, côté serveur, sur chaque vue (C3).
+// Le même sur chaque vue, comme la maquette le pose : le fil (où l'on est) et, en face, l'écran « en direct » — relu il y
+// a combien, qu'on met en pause ; le titre et l'état des briques sur une ligne, et en face la période quand la vue en a
+// une ; un onglet par vue qui existe (jamais un onglet vers un écran pas encore écrit), dans l'ordre de la maquette ;
+// puis, sur les vues autres que les alertes, l'alerte ouverte la plus urgente en une ligne, qui mène à sa page. L'onglet
+// des alertes porte le compte des alertes ouvertes, en rouge si l'une est grave : la même fonction, côté serveur, sur
+// chaque vue (C3).
 export type VueDuService = 'vue' | 'alertes' | 'sauvegardes' | 'performances';
 type PourEntete = { briques: Brique[]; maintenant: string; alertesEnCours: AlertesEnCours };
-export function EnteteService({ vue, d, relire, occupe }: { vue: VueDuService; d: PourEntete | null; relire: () => void; occupe: boolean }) {
+const ONGLETS: readonly { vue: VueDuService; href: string }[] = [
+  { vue: 'vue', href: '#/service' }, { vue: 'performances', href: '#/service/performances' },
+  { vue: 'sauvegardes', href: '#/service/sauvegardes' }, { vue: 'alertes', href: '#/service/alertes' },
+];
+
+// La pause de la relecture : une seule pour toutes les vues (on passe d'un onglet à l'autre sans la perdre), le temps de
+// la page. En pause, l'écran ne se relit plus de lui-même ; « Reprendre » le relit tout de suite.
+let enPause = false;
+const abonnes = new Set<() => void>();
+const pause = {
+  lire: () => enPause,
+  abonner: (f: () => void) => { abonnes.add(f); return () => { abonnes.delete(f); }; },
+  poser: (v: boolean) => { enPause = v; for (const f of abonnes) f(); },
+};
+export const usePause = () => useSyncExternalStore(pause.abonner, pause.lire);
+
+// « Relu il y a 12 s » : compté depuis l'arrivée de la lecture sur ce poste (l'heure du serveur peut différer de la
+// sienne), à la seconde sous la minute.
+function EnDirect({ maintenant, relire, occupe }: { maintenant: string | null; relire: () => void; occupe: boolean }) {
+  const enPauseIci = usePause();
+  const [recuA, setRecuA] = useState(() => Date.now());
+  const [, battre] = useState(0);
+  useEffect(() => { setRecuA(Date.now()); }, [maintenant]);
+  useEffect(() => {
+    const m = setInterval(() => { if (document.visibilityState === 'visible') battre((n) => n + 1); }, 1000);
+    return () => clearInterval(m);
+  }, []);
+  const s = Math.max(0, Math.floor((Date.now() - recuA) / 1000));
+  const depuis = occupe ? dire(`${K}.direct.relecture`)
+    : s < 5 ? dire(`${K}.direct.relu_instant`) : s < 60 ? dire(`${K}.direct.relu_s`, { n: s }) : dire(`${K}.direct.relu_min`, { n: Math.floor(s / 60) });
+  return (
+    <div className={`c-sv-direct${enPauseIci ? ' c-sv-direct-pause' : ''}`} role="group" aria-label={titre(`${K}.direct.groupe`)}>
+      <span className="c-sv-direct-point" aria-hidden="true" />
+      <span className="c-sv-direct-texte" aria-live="polite">
+        {enPauseIci ? maj(dire(`${K}.direct.en_pause`, { heure: maintenant ? heureDe(maintenant) : '—' })) : `${maj(dire(`${K}.direct.en_direct`))} · ${depuis}`}
+      </span>
+      <button type="button" className="c-sv-direct-bouton" onClick={() => { const v = !enPauseIci; pause.poser(v); if (!v) relire(); }}>
+        {titre(`${K}.direct.${enPauseIci ? 'reprendre' : 'pause'}`)}
+      </button>
+    </div>
+  );
+}
+
+// L'alerte ouverte la plus urgente, en une ligne : sa gravité, son titre, depuis quand ; et, s'il y en a d'autres, leur
+// compte. Ce qu'il faut faire, qui s'en occupe et ce qui est parti vivent sur la page des alertes, où mène la ligne.
+// Sur la vue d'ensemble, la même alerte en grand : c'est la première chose à voir de la page, et son geste est l'étape
+// suivante de l'écran (le seul bouton principal).
+function BandeauAlerte({ a, maintenant, grand }: { a: AlertesEnCours; maintenant: string; grand: boolean }) {
+  const p = a.premiere;
+  if (!p) return null;
+  const depuis = Math.max(0, Math.round((Date.parse(maintenant) - Date.parse(p.debut)) / 60_000));
+  const quandEtAutres = `${dire(`${K}.bandeau.depuis`, { heure: heureDe(p.debut), duree: minutes(depuis) })}${a.n > 1 ? ` · ${selon(a.n - 1, `${K}.bandeau.autres`)}` : ''}`;
+  if (grand) {
+    return (
+      <section className={`c-sv-alerte c-sv-alerte-${p.grave ? 'grave' : 'attention'}`} aria-labelledby="sv-alerte">
+        <span className={`c-ligne-icone c-${p.grave ? 'urgent' : 'aujourdhui'}`}><Icone nom="alerte" /></span>
+        <div className="c-sv-alerte-texte">
+          <div className="c-sv-alerte-tete">
+            <Puce ton={p.grave ? 'urgent' : 'en_retard'}>{dire(`${K}.${p.grave ? 'grave' : 'a_regarder'}`)}</Puce>
+            <h2 id="sv-alerte" data-donnee>{enTitre(p.titre)}</h2>
+          </div>
+          <p className="c-carte-sous">{maj(quandEtAutres)}</p>
+        </div>
+        <Lien href="#/service/alertes" ton="principal" fleche>{titre(`${K}.bandeau.voir`)}</Lien>
+      </section>
+    );
+  }
+  return (
+    <section className={`c-sv-bandeau c-sv-bandeau-${p.grave ? 'grave' : 'attention'}`} aria-label={titre(`${K}.bandeau.titre`)}>
+      <Puce ton={p.grave ? 'urgent' : 'en_retard'}>{dire(`${K}.${p.grave ? 'grave' : 'a_regarder'}`)}</Puce>
+      <b className="c-sv-bandeau-titre" data-donnee>{enTitre(p.titre)}</b>
+      <span className="c-sv-bandeau-quand">{quandEtAutres}</span>
+      <a className="c-sv-bandeau-lien" href="#/service/alertes">{titre(`${K}.bandeau.voir`)}<Icone nom="fleche" taille={16} /></a>
+    </section>
+  );
+}
+
+export function EnteteService({ vue, d, relire, occupe, periode }: {
+  vue: VueDuService; d: PourEntete | null; relire: () => void; occupe: boolean;
+  periode?: { valeur: Periode; choisir: (p: Periode) => void };
+}) {
   const a = d?.alertesEnCours;
   return (
-    <>
-      <header className="c-entete">
-        <div className="c-entete-texte">
-          <span className="c-surtitre">{titre(`${K}.surtitre`)}</span>
-          <div className="c-titre-ligne"><h1>{titre(`${K}.titre`)}</h1>{d ? <EtatGeneral briques={d.briques} /> : null}</div>
-          <p className="c-entete-sous">{phrase(vue === 'vue' ? `${K}.sous` : vue === 'alertes' ? `${K}.al.sous` : vue === 'sauvegardes' ? `${K}.sg.sous` : `${K}.pf.sous`)}</p>
-        </div>
-        <div className="c-entete-actions">
-          {d ? <span className="c-sv-releve">{dire(`${K}.releve`, { heure: heureDe(d.maintenant) })}</span> : null}
-          <Bouton icone="relire" onClick={relire} occupe={occupe}>{titre('console.ecran.relire')}</Bouton>
-        </div>
+    <div className="c-sv-entete">
+      <div className="c-sv-entete-haut">
+        <nav className="c-fil" aria-label={titre(`${K}.fil`)}>
+          <a href="#/">{titre(`${K}.fil.console`)}</a><Icone nom="droite" taille={14} />
+          {vue === 'vue' ? <span>{titre(`${K}.fil.plateforme`)}</span> : <a href="#/service">{titre(`${K}.fil.service`)}</a>}
+          <Icone nom="droite" taille={14} />
+          <span aria-current="page">{titre(vue === 'vue' ? `${K}.fil.service` : `${K}.onglet.${vue}`)}</span>
+        </nav>
+        <EnDirect maintenant={d?.maintenant ?? null} relire={relire} occupe={occupe} />
+      </div>
+      <header className="c-entete c-sv-entete-titre">
+        <div className="c-titre-ligne"><h1>{titre(`${K}.titre`)}</h1>{d ? <EtatGeneral briques={d.briques} /> : null}</div>
+        {periode ? (
+          <div className="c-segments c-sv-periodes" role="group" aria-label={dire(`${K}.periode.groupe`)}>
+            {PERIODES.map((p) => (
+              <button key={p} type="button" className="c-pilule" aria-pressed={periode.valeur === p} onClick={() => periode.choisir(p)}>{dire(`${K}.periode.${p}`)}</button>
+            ))}
+          </div>
+        ) : null}
       </header>
       <nav className="c-onglets c-sv-onglets" aria-label={titre(`${K}.onglets`)}>
-        <a href="#/service" aria-current={vue === 'vue' ? 'page' : undefined}>{titre(`${K}.onglet.vue`)}</a>
-        <a href="#/service/alertes" aria-current={vue === 'alertes' ? 'page' : undefined}>
-          {titre(`${K}.onglet.alertes`)}
-          {a && a.n > 0 ? (
-            <>
-              <span className={`c-onglet-n${a.graves ? ' c-onglet-n-grave' : ''}`} aria-hidden="true">{entier(a.n)}</span>
-              <span className="c-cache">{selon(a.n, `${K}.onglet.alertes_n`)}</span>
-            </>
-          ) : null}
-        </a>
-        <a href="#/service/sauvegardes" aria-current={vue === 'sauvegardes' ? 'page' : undefined}>{titre(`${K}.onglet.sauvegardes`)}</a>
-        <a href="#/service/performances" aria-current={vue === 'performances' ? 'page' : undefined}>{titre(`${K}.onglet.performances`)}</a>
+        {ONGLETS.map((o) => (
+          <a key={o.vue} href={o.href} aria-current={vue === o.vue ? 'page' : undefined}>
+            {titre(`${K}.onglet.${o.vue}`)}
+            {o.vue === 'alertes' && a && a.n > 0 ? (
+              <>
+                <span className={`c-onglet-n${a.graves ? ' c-onglet-n-grave' : ''}`} aria-hidden="true">{entier(a.n)}</span>
+                <span className="c-cache">{selon(a.n, `${K}.onglet.alertes_n`)}</span>
+              </>
+            ) : null}
+          </a>
+        ))}
       </nav>
-    </>
+      {d && a && vue !== 'alertes' ? <BandeauAlerte a={a} maintenant={d.maintenant} grand={vue === 'vue'} /> : null}
+    </div>
   );
 }
 
@@ -797,28 +884,17 @@ export function Service({ periode: demandee }: { periode: string | null }) {
   const periodeTexte = d ? dire(`${K}.periode.texte.${d.periode}`) : '';
   return (
     <>
-      <EnteteService vue="vue" d={d} relire={relire} occupe={enCours} />
+      <EnteteService vue="vue" d={d} relire={relire} occupe={enCours} periode={{ valeur: periode, choisir: setPeriode }} />
       {l.etat === 'panne' ? <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}
       {d ? (
         <>
-          <EnCeMoment v={d.veille} aujourdhui={d.aujourdhui || moi.aujourdhui} />
+          <EnCeMoment v={d.veille} aujourdhui={d.aujourdhui || moi.aujourdhui} alertes={d.alertesEnCours} />
           <section className="c-sv-hero" aria-labelledby="sv-dispo">
             <Disponibilite d={d} />
             <Tuiles d={d} />
           </section>
-          <section className="c-sv-requetes" aria-labelledby="sv-requetes">
-            <div className="c-sv-section-tete">
-              <div>
-                <h2 id="sv-requetes">{titre(`${K}.requetes.titre`)}</h2>
-                <p className="c-carte-sous">{phrase(`${K}.requetes.sous`)}</p>
-              </div>
-              <div className="c-pilules c-sv-periodes" role="group" aria-label={dire(`${K}.periode.groupe`)}>
-                {PERIODES.map((p) => (
-                  <button key={p} type="button" className="c-pilule" aria-pressed={periode === p} onClick={() => setPeriode(p)}>{dire(`${K}.periode.${p}`)}</button>
-                ))}
-              </div>
-            </div>
+          <section className="c-sv-requetes" aria-label={titre(`${K}.requetes.titre`)}>
             <div className={`c-sv-graphes${enCours && d.periode !== periode ? ' c-sv-attente' : ''}`} aria-busy={enCours || undefined}>
               <TempsDeReponse d={d} periodeTexte={periodeTexte} />
               <TraficEtPannes d={d} periodeTexte={periodeTexte} />

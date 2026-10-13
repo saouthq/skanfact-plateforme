@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { BRIQUES, briqueDe, memoireOccupee, pourLaConsole, problemes, type Copies, type Releve } from '../../exploitation/veille.ts';
-import { bornes, briques, disponibilite, enLigne, ensemble, journal, joursDuService, lireVeilleDeLaBase, misesEnLigne, PERIODES, resume, serie, traficRecent, TUILES } from '../../serveur/console/service.ts';
+import { alertesOuvertes, bornes, briques, disponibilite, enLigne, ensemble, journal, joursDuService, lireVeilleDeLaBase, misesEnLigne, PERIODES, resume, serie, traficRecent, TUILES } from '../../serveur/console/service.ts';
 import { ajouter, histogrammeVide } from '../../serveur/service/mesures.ts';
 
 const MAINTENANT = new Date('2026-10-13T08:37:20Z'); // 09:37 à Tunis
@@ -193,6 +193,20 @@ describe('le service : ce que la veille a vu', () => {
     expect(cles.size).toBeGreaterThan(10);
     for (const c of cles) expect(briqueDe(c), c).not.toBeNull();
     expect(briqueDe('inconnue')).toBeNull();
+  });
+
+  it('le bandeau des vues nomme l\'alerte ouverte la plus urgente : une grave avant une plus ancienne, jamais une réglée', () => {
+    const a = (titre: string, grave: boolean, debut: string, fin: string | null = null) => ({ cle: titre.split(',')[0] ?? '', titre, grave, debut, fin });
+    const l = [
+      a('ancienne, à regarder', false, '2026-10-13T01:00:00Z'),
+      a('réglée, grave', true, '2026-10-12T22:00:00Z', '2026-10-12T23:00:00Z'),
+      a('récente, grave', true, '2026-10-13T08:00:00Z'),
+      a('plus ancienne, grave', true, '2026-10-13T03:00:00Z'),
+    ];
+    expect(alertesOuvertes(l)).toEqual({ n: 3, graves: 2, cles: ['ancienne', 'récente', 'plus ancienne'],
+      premiere: { titre: 'plus ancienne, grave', grave: true, debut: '2026-10-13T03:00:00.000Z' } });
+    expect(alertesOuvertes(l.filter((x) => !x.grave)).premiere?.titre).toBe('ancienne, à regarder');
+    expect(alertesOuvertes(l.filter((x) => x.fin !== null))).toEqual({ n: 0, graves: 0, cles: [], premiere: null });
   });
 });
 

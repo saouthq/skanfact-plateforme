@@ -6,7 +6,7 @@
 //     comparaison que la base ne garde plus se disent « non mesuré », avec leur raison ;
 //   - l'écran ne refait aucun calcul du serveur : les centiles, les parts et les états arrivent faits ;
 //   - ce que la vue d'ensemble montre déjà (la disponibilité, les briques, les nuits, la machine) ne se répète pas ici.
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { useLecture } from '../contexte.ts';
 import { Courbe, echelle, Trait, type Contenu } from '../graphes.tsx';
@@ -14,7 +14,7 @@ import { decimal, duree, entier, minutes, pourCent } from '../nombres.ts';
 import { jourCourt, quand } from '../temps.ts';
 import { Alerte, Bouton, Icone, maj, Puce, Vide, type TonPuce } from '../ui.tsx';
 import {
-  abscisses, EnteteService, estPeriode, PERIODES, titrePas, Tuile, useRelireTantQueRegarde, type AlertesEnCours, type Brique, type EtatBrique,
+  abscisses, EnteteService, estPeriode, titrePas, Tuile, useRelireTantQueRegarde, type AlertesEnCours, type Brique, type EtatBrique,
   type Periode, type Veille,
 } from './Service.tsx';
 
@@ -69,7 +69,7 @@ const echelleTemps = (valeurs: readonly (number | null)[], budget: number, crans
   echelle(Math.max(budget * 1.3, Math.min(budget * 4, ...valeurs.map((v) => v ?? 0))), crans);
 
 // ── La période en chiffres ──────────────────────────────────────────────────────────────────────────────────────────
-function Chiffres({ d, periodeTexte, pilules }: { d: Donnees; periodeTexte: string; pilules: ReactNode }) {
+function Chiffres({ d, periodeTexte }: { d: Donnees; periodeTexte: string }) {
   const t = d.sortes.lecture.total;
   const liste = d.budgets.find((b) => b.id === 'liste');
   const budgetLecture = d.budgetsDesSortes.lecture ?? 300;
@@ -91,11 +91,7 @@ function Chiffres({ d, periodeTexte, pilules }: { d: Donnees; periodeTexte: stri
   const nRoutes = d.routes.reduce((s, r) => s + r.n, 0);
   const lentes = d.routes.reduce((s, r) => s + r.lentes, 0);
   return (
-    <div className="c-sv-tuiles-zone c-sv-claires c-pf-chiffres">
-      <div className="c-pf-chiffres-tete">
-        <h2 className="c-tuile-titre c-sv-tuiles-titre">{maj(dire(`${P}.k.titre`, { periode: periodeTexte }))}</h2>
-        {pilules}
-      </div>
+    <section className="c-sv-claires c-pf-chiffres" aria-label={maj(dire(`${P}.k.titre`, { periode: periodeTexte }))}>
       <div className="c-sv-tuiles">
         {temps}
         {mediane}
@@ -104,7 +100,7 @@ function Chiffres({ d, periodeTexte, pilules }: { d: Donnees; periodeTexte: stri
         <Tuile titre={titre(`${P}.k.lentes`)} valeur={entier(lentes)} unite={dire(`${P}.k.lentes_unite`)}
           sous={selon(nRoutes, `${P}.k.lentes_sous`, { n: entier(nRoutes), jour: jourCourt(d.routesDepuis) })} />
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -583,18 +579,12 @@ export function Performances({ periode: demandee }: { periode: string | null }) 
   const periodeTexte = d ? dire(`${K}.periode.texte.${d.periode}`) : '';
   return (
     <>
-      <EnteteService vue="performances" d={d} relire={relire} occupe={enCours} />
+      <EnteteService vue="performances" d={d} relire={relire} occupe={enCours} periode={{ valeur: periode, choisir: setPeriode }} />
       {l.etat === 'panne' ? <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}
       {d ? (
         <div className={`c-pf${enCours && d.periode !== periode ? ' c-sv-attente' : ''}`} aria-busy={enCours || undefined}>
-          <Chiffres d={d} periodeTexte={periodeTexte} pilules={(
-            <div className="c-pilules c-sv-periodes" role="group" aria-label={dire(`${P}.periode`)}>
-              {PERIODES.map((p) => (
-                <button key={p} type="button" className="c-pilule" aria-pressed={periode === p} onClick={() => setPeriode(p)}>{dire(`${K}.periode.${p}`)}</button>
-              ))}
-            </div>
-          )} />
+          <Chiffres d={d} periodeTexte={periodeTexte} />
           <Budgets d={d} periodeTexte={periodeTexte} />
           <Sortes d={d} periodeTexte={periodeTexte} />
           <Trafic d={d} periodeTexte={periodeTexte} />

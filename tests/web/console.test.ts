@@ -154,6 +154,11 @@ describe('la console de l\'équipe, à la souris', () => {
   };
   const fermer = (p: Page) => p.context().close();
   const ecrire = (problemes: Record<string, unknown>) => fs.writeFileSync(veille, JSON.stringify({ problemes }));
+  // Ce que la veille voit à l'instant (son fichier) : deux problèmes qu'aucune alerte de la base ne porte encore.
+  const PROBLEMES = {
+    disque: { titre: 'Le disque est plein à 82 %', grave: false, faire: 'Libère de la place avant 90 %.', depuis: new Date(Date.now() - 3 * 3600_000).toISOString() },
+    sauvegarde: { titre: 'La copie hors machine de cette nuit n\'est pas arrivée', grave: true, faire: 'Relance la sauvegarde, puis vérifie la copie.', depuis: new Date(Date.now() - 40 * 60_000).toISOString() },
+  };
 
   // Un cabinet inventé : son associé (le code du téléphone en place, son rôle l'exige), un dossier qu'il tient, un client
   // qui lui a donné son mandat, un autre qui le lui propose.
@@ -187,10 +192,7 @@ describe('la console de l\'équipe, à la souris', () => {
   beforeAll(async () => {
     await admin.connect();
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
-    ecrire({
-      disque: { titre: 'Le disque est plein à 82 %', grave: false, faire: 'Libère de la place avant 90 %.', depuis: new Date(Date.now() - 3 * 3600_000).toISOString() },
-      sauvegarde: { titre: 'La copie hors machine de cette nuit n\'est pas arrivée', grave: true, faire: 'Relance la sauvegarde, puis vérifie la copie.', depuis: new Date(Date.now() - 40 * 60_000).toISOString() },
-    });
+    ecrire(PROBLEMES);
     // Les alertes du service, par la porte de la veille : une grave et une à regarder, leurs étapes, ce qui est parti, et
     // qui est prévenu (masqué). Les tables du service sont communes à la base de test : on part de tables vides.
     await admin.query('truncate plateforme.service_releve, plateforme.service_alerte, plateforme.service_envoi, plateforme.service_sourdine, plateforme.service_demande');
@@ -369,6 +371,41 @@ describe('la console de l\'équipe, à la souris', () => {
     expect((await api('GET', '/console/entreprises', jeton)).statut).toBe(403);
     await fermer(p);
   }, 60_000);
+
+  it('l\'en-tête du service : l\'alerte la plus urgente une fois, en grand puis en une ligne ; la pause ; Ctrl K mène aux clients', async () => {
+    const p = await ouvrir(await jetonConsole(direction), '#/service');
+    // La plus urgente des deux alertes ouvertes : la grave, en grand, avec son geste ; et le compte des autres.
+    const grande = p.locator('.c-sv-alerte');
+    await expect.poll(() => grande.count(), { timeout: 15_000 }).toBe(1);
+    expect(net(await grande.innerText())).toMatch(/^Grave La copie hors de la machine est en retard de 90 minutes Depuis \d\d:\d\d, il y a 1 h 3\d · une autre alerte ouverte Voir l'alerte$/);
+    // Ce que la veille voit et qu'aucune alerte ne porte encore se dit à part ; ce qui EST une alerte ouverte ne se redit pas.
+    expect(await p.locator('.c-sv-problemes .c-ligne-decision').count()).toBe(2);
+    ecrire({ 'hors-machine': { titre: 'la copie hors de la machine est en retard', grave: true, faire: 'f', depuis: new Date().toISOString() } });
+    try {
+      await p.reload();
+      await expect.poll(() => grande.count(), { timeout: 15_000 }).toBe(1);
+      expect(await p.locator('.c-sv-problemes').count()).toBe(0);
+    } finally { ecrire(PROBLEMES); }
+    // Sur une autre vue, la même alerte en une ligne, qui mène à sa page ; la page des alertes ne la redit pas.
+    await p.goto(`${serveur.adresse}/console/#/service/sauvegardes`);
+    const ligne = p.locator('.c-sv-bandeau');
+    await expect.poll(() => ligne.count(), { timeout: 15_000 }).toBe(1);
+    await cliquer(ligne.getByRole('link', { name: 'Voir l\'alerte', exact: true }));
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/service/alertes');
+    await expect.poll(() => p.locator('.c-al-alerte').count(), { timeout: 15_000 }).toBeGreaterThan(0);
+    expect(await ligne.count()).toBe(0);
+    // La pause : l'écran le dit, et « Reprendre » le rend en direct.
+    await cliquer(p.getByRole('button', { name: 'Pause', exact: true }));
+    expect(net(await p.locator('.c-sv-direct-texte').innerText())).toMatch(/^En pause · relu à \d\d:\d\d$/);
+    await cliquer(p.getByRole('button', { name: 'Reprendre', exact: true }));
+    expect(net(await p.locator('.c-sv-direct-texte').innerText())).toMatch(/^En direct · /);
+    // La recherche des clients ne vit qu'en tête de l'accueil ; Ctrl K y mène de partout.
+    expect(await p.locator('.c-haut').count()).toBe(0);
+    await p.keyboard.press('Control+k');
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/clients');
+    await expect.poll(() => p.evaluate(() => document.activeElement?.matches('.c-liste-outils input[type="search"]') ?? false)).toBe(true);
+    await fermer(p);
+  }, 90_000);
 
   it('les abonnements : chaque carte ouvre la liste qu\'elle compte, du même nombre', async () => {
     const p = await ouvrir(await jetonConsole(direction), '#/abonnements');

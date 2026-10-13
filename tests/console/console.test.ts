@@ -592,7 +592,9 @@ describe('les alertes du service (0086)', () => {
     try {
       expect(((await appeler('GET', '/console/service/alertes', jT)).corps.regles as { id: string; etat: string }[]).find((x) => x.id === 'temps')?.etat).toBe('non_lu');
     } finally { horloge = new Date(horloge.getTime() - 6 * 60_000); }
-    expect(r.corps.alertesEnCours).toEqual({ n: 1, graves: 0 });
+    // Le compte de l'onglet, et l'alerte que le bandeau d'une ligne nomme : la seule ouverte (la grave de la base est
+    // réglée : elle ne passe pas devant), avec son début.
+    expect(r.corps.alertesEnCours).toEqual({ n: 1, graves: 0, cles: ['disque:/var'], premiere: { titre: 'le disque /var est plein à 80 %', grave: false, debut: t(30) } });
   });
 
   it('prendre en charge : avec son motif, une fois, jamais une alerte réglée ; le journal dit qui', async () => {

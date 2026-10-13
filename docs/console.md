@@ -320,6 +320,20 @@ la technique. Rien de neuf n'est relevé : la console lit ce que le serveur et l
   processeur et leur mémoire ne sont pas mesurés à part.
 - **Vu de l'extérieur : non mesuré**, et la décision qui manque (le service et les deux villes) est écrite à l'écran.
 
+**C16. L'en-tête commun du service, et la coquille** (recalés sur les maquettes, 13/10/2026). Chaque vue du service
+porte le même en-tête : le fil (Console › La plateforme › Service, ou Console › Service › la vue), et en face l'écran
+**en direct** — « relu il y a 12 s », compté depuis l'arrivée de la lecture sur ce poste, et **Pause** (l'écran cesse
+de se relire de lui-même ; « Reprendre » le relit tout de suite ; la pause vaut pour toutes les vues, le temps de la
+page). Puis le titre et l'état des briques sur une ligne, et en face **la période** quand la vue en a une (la vue
+d'ensemble, les performances) ; les onglets dans l'ordre de la maquette (jamais un onglet vers un écran pas écrit) ; et,
+sur les vues autres que les alertes, **l'alerte ouverte la plus urgente en une ligne** (une grave avant une autre, puis
+la plus ancienne ; `alertesOuvertes`, la même fonction que le compte de l'onglet), qui mène à la page des alertes — en
+grand sur la vue d'ensemble, où son geste est le seul bouton principal. « En ce moment » ne redit plus une alerte : il
+ne montre que la veille absente ou muette, et ce qu'elle voit sans l'avoir encore confirmé (une clé qu'aucune alerte
+ouverte ne porte).
+- **La recherche d'un client** ne vit plus qu'en tête de l'accueil, comme la maquette (chaque liste a la sienne) ;
+  **Ctrl K** (⌘ K sur un Mac) y mène de partout : sur l'accueil, dans ce champ ; ailleurs, dans celui de Clients.
+
 ## Mettre en route
 
 La personne crée d'abord son compte SkanFact, puis met en place le code de son téléphone (« Ton compte »,

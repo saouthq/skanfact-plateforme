@@ -132,6 +132,9 @@ function Cote({ moi, page, decisions, sortir, theme }: { moi: Moi; page: Page | 
   );
 }
 
+// La recherche d'un client, en tête de l'accueil seulement (la maquette ne la pose nulle part ailleurs : chaque liste a
+// la sienne). Ctrl K (⌘ K sur un Mac) y mène de partout : sur l'accueil, dans ce champ ; ailleurs, dans celui de Clients.
+const SUR_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 function Recherche({ role }: { role: Role }) {
   const [q, setQ] = useState('');
   if (!OUVRE.clients.includes(role)) return <span />;
@@ -141,9 +144,27 @@ function Recherche({ role }: { role: Role }) {
       <label><span className="c-cache">{titre('console.ecran.chercher_label')}</span>
         <Icone nom="chercher" />
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={titre('console.ecran.chercher')} />
+        <kbd className="c-touche" aria-hidden="true">{dire(SUR_MAC ? 'console.ecran.chercher_touche_mac' : 'console.ecran.chercher_touche')}</kbd>
       </label>
     </form>
   );
+}
+function useToucheRecherche(role: Role | null, page: Route['page']) {
+  useEffect(() => {
+    if (!role || !OUVRE.clients.includes(role)) return undefined;
+    const viser = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== 'k') return;
+      e.preventDefault();
+      const champ = () => document.querySelector<HTMLInputElement>(page === 'accueil' ? '.c-recherche input' : '.c-page .c-liste-outils input[type="search"]');
+      if (page !== 'accueil' && page !== 'clients') location.hash = '#/clients';
+      // La page de Clients se dessine après le changement d'adresse : son champ se cherche quelques instants.
+      let essais = 0;
+      const poser = () => { const c = champ(); if (c) { c.focus(); c.select(); } else if (++essais < 40) requestAnimationFrame(poser); };
+      poser();
+    };
+    window.addEventListener('keydown', viser);
+    return () => window.removeEventListener('keydown', viser);
+  }, [role, page]);
 }
 
 function Page({ route, role }: { route: Route; role: Role }) {
@@ -216,6 +237,7 @@ export function Console() {
     return () => { vivant = false; };
   }, [dedans, route.page, tourDecisions]);
   const ctx = useMemo<Ctx | null>(() => (etat.etat === 'dedans' ? { moi: etat.moi, sortir, compterDecisions: setDecisions, relireDecisions } : null), [etat, sortir, relireDecisions]);
+  useToucheRecherche(etat.etat === 'dedans' ? etat.moi.role : null, route.page);
 
   if (etat.etat === 'lecture') return <div className="c-centre"><p className="c-attente">{titre('console.ecran.lecture')}</p></div>;
   if (etat.etat === 'panne') {
@@ -233,10 +255,12 @@ export function Console() {
       <div className="c-app">
         <Cote moi={ctx.moi} page={route.page} decisions={decisions} sortir={deconnecter} theme={theme} />
         <div className="c-principal">
-          <div className="c-haut">
-            <Recherche role={ctx.moi.role} />
-            <span className="c-trace"><Icone nom="cadenas" taille={16} />{phrase('console.ecran.trace')}</span>
-          </div>
+          {route.page === 'accueil' ? (
+            <div className="c-haut">
+              <Recherche role={ctx.moi.role} />
+              <span className="c-trace"><Icone nom="cadenas" taille={16} />{phrase('console.ecran.trace')}</span>
+            </div>
+          ) : null}
           <main className="c-page"><Page route={route} role={ctx.moi.role} /></main>
         </div>
       </div>

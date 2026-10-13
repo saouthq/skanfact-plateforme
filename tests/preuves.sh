@@ -11769,6 +11769,22 @@ prouver 'un exemplaire tu qui « sert » encore' 'serveur/console/performances.t
   "      etat: (silence !== null && silence <= SILENCE_MIN ? 'bon' : 'attention') as EtatPart }];" \
   "      etat: 'bon' as EtatPart }];" \
   'vu dans les cinq dernières minutes, un exemplaire sert'
+prouver 'le bandeau qui nomme la plus ancienne avant une grave' 'serveur/console/service.ts' \
+  '.sort((a, b) => Number(b.grave) - Number(a.grave) || Date.parse(a.debut) - Date.parse(b.debut))[0];' \
+  '.sort((a, b) => Date.parse(a.debut) - Date.parse(b.debut))[0];' \
+  'le bandeau des vues nomme l'"'"'alerte ouverte la plus urgente'
+prouver 'le bandeau qui nomme une alerte réglée' 'serveur/console/service.ts' \
+  '  const p = [...o].sort(' \
+  '  const p = [...alertes].sort(' \
+  'le bandeau des vues nomme l'"'"'alerte ouverte la plus urgente'
+prouver 'une alerte ouverte redite dans « En ce moment »' 'web/console/src/ecrans/Service.tsx' \
+  '  const restants = v.problemes.filter((p) => !alertes.cles.includes(p.cle));' \
+  '  const restants = v.problemes;' \
+  'l'"'"'en-tête du service : l'"'"'alerte la plus urgente une fois'
+prouver 'Ctrl K sans effet hors de l'"'"'accueil' 'web/console/src/Console.tsx' \
+  "      if (page !== 'accueil' && page !== 'clients') location.hash = '#/clients';" \
+  "      if (page === 'accueil') location.hash = '#/clients';" \
+  'l'"'"'en-tête du service : l'"'"'alerte la plus urgente une fois'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
