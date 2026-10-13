@@ -507,7 +507,7 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
         if (!r) return;
         if (r.statut === 200 || r.statut === 201) {
           const finPosee = (r.corps as { fin?: unknown }).fin;
-          toast(phrase(`${A}.geste.${g.sorte}.fait`, g.sorte === 'sourdine' ? { heure: heureDe(typeof finPosee === 'string' ? finPosee : fin) } : {}));
+          toast(phrase(`${A}.geste.${g.sorte}.fait`, g.sorte === 'sourdine' ? { heure: moment(typeof finPosee === 'string' ? finPosee : fin, d.aujourdhui) } : {}));
           fait();
           return;
         }

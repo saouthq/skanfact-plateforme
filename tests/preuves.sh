@@ -12586,6 +12586,12 @@ prouver 'les touches du raccourci écrites hors du catalogue' web/console/src/ec
   '<kbd>{dire('"'"'console.ecran.support.touche_ctrl'"'"')}</kbd>' '<kbd>Ctrl</kbd>' \
   "$SUPW8"
 
+# La fin d'une sourdine se dit avec son jour dans le message comme sur la ligne (vu sur GitHub le 13/10/2026 à 23:12 :
+# passé minuit, le message disait « 01:12 », la ligne « 14/10 01:12 »).
+prouver 'le message de la sourdine qui tait son jour' web/console/src/ecrans/Alertes.tsx \
+  '{ heure: moment(typeof finPosee === '"'"'string'"'"' ? finPosee : fin, d.aujourdhui) }' '{ heure: heureDe(typeof finPosee === '"'"'string'"'"' ? finPosee : fin) }' \
+  'la sourdine d'"'"'une règle, depuis son menu : la même fin dans le message et sur la ligne ; le menu reste dans l'"'"'écran'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

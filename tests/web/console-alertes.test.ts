@@ -164,12 +164,15 @@ describe('les alertes du service, à la souris', () => {
     await cliquer(menuDe(p, 'Les disques'));
     await cliquer(p.locator('.c-menu-liste').getByRole('button', { name: /la mettre en sourdine/i }));
     const f = fenetre(p);
-    await cliquer(f.getByRole('button', { name: '2 heures', exact: true }));
+    // Vingt-quatre heures : la fin tombe toujours un autre jour, et se dit avec son jour, quelle que soit l'heure de l'essai.
+    await cliquer(f.getByRole('button', { name: '24 heures', exact: true }));
     await f.locator('textarea').fill('nettoyage de /var en cours');
     await cliquer(f.getByRole('button', { name: 'Mettre en sourdine', exact: true }));
     const message = await toast(p);
-    const heure = /jusqu'à (\d{2}:\d{2})/.exec(message)?.[1];
-    expect(heure, message).toBeDefined();
+    // La fin se dit comme sur la ligne : l'heure, et son jour quand ce n'est pas aujourd'hui (passé minuit à Tunis, le
+    // message disait « 01:12 » pendant que la ligne disait « 14/10 01:12 » : vu sur GitHub, le 13/10/2026 à 23:12).
+    const heure = /jusqu'à (\d{2}\/\d{2} \d{2}:\d{2})/.exec(message)?.[1] ?? '';
+    expect(heure, message).not.toBe('');
     const ligne = p.locator('.c-al-regles tbody tr', { has: p.locator('b', { hasText: /^Les disques$/ }) });
     await expect.poll(() => ligne.innerText().then(net)).toContain(`en sourdine jusqu'à ${heure}`);
     // Sur la carte du disque, les rappels se taisent jusqu'à la même heure, et le bouton lève la sourdine.
@@ -182,7 +185,7 @@ describe('les alertes du service, à la souris', () => {
     await expect.poll(() => auJournal.innerText().then(net)).toContain('Règle mise en sourdine');
     const texteJournal = net(await auJournal.innerText());
     expect(texteJournal).toContain('La règle « les disques »');
-    expect(texteJournal).toMatch(new RegExp(`jusqu'au \\d{2}/\\d{2} à ${heure}`));
+    expect(texteJournal).toMatch(new RegExp(`jusqu'au \\d{2}/\\d{2} à ${heure.slice(-5)}`));
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 90_000);
