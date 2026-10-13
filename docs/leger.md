@@ -104,6 +104,12 @@ Le test le vérifie demande par demande, en plus du seuil : dans `tests/web/lege
 part après la réponse du dossier ; dans `tests/v10/pont-ouverture.test.ts`, sans navigateur, les quatre partent avant la
 moindre réponse, et l'état lu au chargement ne sert qu'une fois, frais, et seulement s'il a eu sa réponse.
 
+**Ce qui part en même temps que le dossier peut échouer après lui.** Sans réseau, sur l'ordinateur d'un autre, le
+dossier échoue, et la page dit pourquoi elle reste vide (« rien n'est gardé sur le poste ») ; puis une des lectures
+parties avec lui échouait à son tour, et son « Hors ligne depuis… » recouvrait la raison par « ce que tu vois reste à
+l'écran », sur un écran vide (vu par GitHub le 13/10/2026, `tests/web/hors-ligne.test.ts`). La page close par un message
+qui l'explique (`sansCopie`, `conclure`, dans `plateforme/poste.js`) ne se fait plus recouvrir.
+
 ## Ce qui reste (et pourquoi)
 
 - **S4 sur l'ordinateur d'un autre** : sans copie gardée (la session ne vit que dans l'onglet), tout le dossier repart à

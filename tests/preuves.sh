@@ -4062,6 +4062,12 @@ prouver "le retour du réseau qu'on n'entend pas" web/public/plateforme/poste.js
 prouver "l'écran vide sans un mot, hors ligne et sans copie" web/public/plateforme/poste.js \
   "    poser(\`<span><strong>\${motif.replace(" "    void (\`<span><strong>\${motif.replace(" \
   "$HL2"
+# La raison d'un écran vide ne se fait pas recouvrir : une lecture partie EN MÊME TEMPS que le dossier (docs/leger.md,
+# S2) échoue après lui, sans réseau, et son « Hors ligne depuis… » disait « ce que tu vois reste à l'écran » (13/10/2026).
+prouver "la raison d'un écran vide recouverte par « Hors ligne depuis… »" web/public/plateforme/poste.js \
+  "    if (close) return;
+" "" \
+  "$HL2"
 prouver "hors ligne, la copie du poste jamais ouverte" $PONT \
   "        if (!/** @type {any} */ (e).horsLigne) throw e;
         const copie = avecTicketsEnAttente(await lireLaCopie());" "        throw e;

@@ -184,6 +184,11 @@
 
   /** @type {number | null} */ let horsLigneDepuis = null;
   /** @type {number | null} */ let copieLue = null;
+  // La page close par un message qui l'explique (rien à montrer : `sansCopie` ; la fin : `conclure`) : plus rien ne le
+  // recouvre. Une lecture partie EN MÊME TEMPS que le dossier (docs/leger.md, S2) échoue parfois après lui, sans réseau :
+  // son « Hors ligne depuis… » disait « ce que tu vois reste à l'écran » sur un écran vide, à la place de la raison (vu
+  // le 13/10/2026 : « sur l'ordinateur d'un autre, rien n'est gardé » remplacé, tests/web/hors-ligne.test.ts).
+  let close = false;
   // Ce qui attend le réseau (brique 73) : s'il y en a, et combien de pièces ou de fiches (les réglages
   // du dossier qui changent avec elles ne se comptent pas : on dit ce que la personne a fait).
   let attend = false;
@@ -194,6 +199,7 @@
   // Le réseau manque : on le dit, avec ce qu'on voit (la copie de ce poste, et de quand) et ce qui attend.
   /** @param {{ copieLe?: number }} [o] */
   function horsLigne(o = {}) {
+    if (close) return;
     if (o.copieLe) copieLue = o.copieLe;
     if (horsLigneDepuis === null) horsLigneDepuis = Date.now();
     const vu = copieLue ? `Tu consultes la copie de ce poste, du ${jour(copieLue)} à ${heure(copieLue)}.` : 'Ce que tu vois reste à l\'écran.';
@@ -215,7 +221,7 @@
   function enLigne(serveur = true) {
     // Le serveur a répondu : les droits gardés hors ligne repartent pour 72 heures (04 § 7).
     if (serveur) try { localStorage.setItem(CONTACT, String(Date.now())); } catch { /* sans mémoire : pas de limite de durée */ }
-    if (horsLigneDepuis === null) return;
+    if (horsLigneDepuis === null || close) return;
     horsLigneDepuis = null;
     if (quandRevenu) quandRevenu();
     if (attend) { poser(`<span>Le réseau est revenu : ${enAttente === 1 ? 'ton changement part' : 'tes changements partent'}…</span>`, true); return; }
@@ -246,6 +252,7 @@
   // Ce qui clôt la page (brique 76), et le bouton qui continue, vers l'entrée.
   /** @param {string} texte */
   function conclure(texte) {
+    close = true;
     poser(`<span><strong>${esc(texte)}</strong></span><button type="button" id="poste-continuer">Continuer</button>`);
     const b = document.getElementById('poste-continuer');
     if (b) b.onclick = () => location.replace('/');
@@ -253,6 +260,7 @@
   // Hors ligne, sans rien à montrer : la raison, et le bouton qui réessaie.
   /** @param {string} motif */
   function sansCopie(motif) {
+    close = true;
     poser(`<span><strong>${motif.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)}</strong></span><button type="button" id="poste-reessayer">Réessayer</button>`);
     const b = document.getElementById('poste-reessayer');
     if (b) b.onclick = () => location.reload();
