@@ -131,9 +131,19 @@ describe('la console de l\'équipe, à la souris', () => {
     return r.corps;
   };
   // Une entreprise inventée, et l'état de son abonnement posé comme le temps l'aurait fait.
-  const entreprise = async (nom: string, essaiDans: number, autre: { payeDans?: number; offre?: 'essentiel' | 'complet' } = {}) => {
+  const entreprise = async (nom: string, essaiDans: number, autre: { payeDans?: number; offre?: 'essentiel' | 'complet'; emise?: boolean } = {}) => {
     const jeton = await inscrite('proprio');
     const id = String((await api('POST', '/entreprises', jeton, { raisonSociale: nom })).corps.id);
+    // Une facture émise aujourd'hui : sans pièce émise, la fiche ne dessine pas ses douze mois, et rien ne les mesure.
+    if (autre.emise) {
+      await api('GET', `/entreprises/${id}/dossier-v10`, jeton);
+      const client = { id: 'c1', name: 'Chantier Ennasr', address: 'Ennasr 2, Ariana' };
+      await api('POST', `/entreprises/${id}/dossier-v10`, jeton, { changements: [{ collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: client }] });
+      const r = await api('POST', `/entreprises/${id}/dossier-v10/emettre`, jeton, { document: { id: 'f0', type: 'facture', number: '', status: 'brouillon', date: new Date().toISOString().slice(0, 10), clientId: 'c1', createdAt: 1,
+        lines: [{ label: 'Ciment gris 50 kg', description: '', qty: 1, unit: 'sac', unitPrice: 25, vatRate: 19 }], discountRate: 0, withholdingRate: 0, applyStamp: false, currency: 'DT', payments: [] },
+      client, revision: null, rang: 0, netAPayer: '29.750' });
+      if (r.statut !== 200) throw new Error(`la facture du jeu n'est pas émise : ${JSON.stringify(r.corps)}`);
+    }
     await admin.query(`update plateforme.abonnement set essai_jusqu_au = current_date + $2::int,
         paye_jusqu_au = case when $3::int is null then null else current_date + $3::int end, offre = $4, periodicite = $5 where entreprise = $1`,
     [id, essaiDans, autre.payeDans ?? null, autre.offre ?? null, autre.offre ? 'annuel' : null]);
@@ -193,7 +203,7 @@ describe('la console de l\'équipe, à la souris', () => {
   };
 
   let direction: Membre, support: Membre, technique: Membre, sansCode: Membre;
-  let essaiCalme = '', essaiSupport = '', enLecture = '';
+  let essaiCalme = '', essaiSupport = '', enLecture = '', abonnee = '';
   let cabinet: Awaited<ReturnType<typeof cabinetAvecDossiers>>;
 
   beforeAll(async () => {
@@ -226,7 +236,8 @@ describe('la console de l\'équipe, à la souris', () => {
     essaiSupport = await entreprise('Boulangerie du Support', 2);
     enLecture = await entreprise('Pharmacie en Lecture Seule', -9);
     // Inscrite il y a plus d'une semaine : hors de la tuile « Inscriptions », pour que retirer son filtre se voie.
-    const ancienne = await entreprise('Clinique Abonnée', -200, { payeDans: 160, offre: 'complet' });
+    const ancienne = await entreprise('Clinique Abonnée', -200, { payeDans: 160, offre: 'complet', emise: true });
+    abonnee = ancienne;
     await admin.query('update socle.entreprise set cree_le = cree_le - interval \'200 days\' where id = $1', [ancienne]);
     cabinet = await cabinetAvecDossiers('Cabinet de la Console');
     // Un second cabinet, sans dossier : la recherche a quelque chose à écarter.
@@ -644,6 +655,8 @@ describe('la console de l\'équipe, à la souris', () => {
       { nom: 'accueil', hash: '#/' },
       { nom: 'clients', hash: '#/clients' },
       { nom: 'fiche', hash: `#/clients/${enLecture}` },
+      // Une fiche qui a émis : ses douze mois se dessinent, et se mesurent.
+      { nom: 'fiche-emises', hash: `#/clients/${abonnee}` },
       { nom: 'fiche-cabinet-client', hash: `#/clients/${cabinet.client}` },
       { nom: 'abonnements', hash: '#/abonnements' },
       { nom: 'abonnements-essai', hash: '#/abonnements?vue=essai' },
