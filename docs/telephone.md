@@ -58,3 +58,15 @@ se lit d'un bloc, il ne passe pas à la ligne : `telephone.js` le **resserre d'u
 comme le fait l'instrument : le chiffre, case de sa grille, s'élargit avec lui et ne déborde jamais de lui-même. Le
 test (`tests/web/rendu.test.ts`) porte désormais ce stock de huit chiffres : à 25 dinars le sac, le montant tenait sur
 GitHub, et le défaut ne s'y voyait pas.
+
+## « Tes premiers pas » du Cabinet (13/10/2026)
+
+Depuis le 09/10/2026, l'entreprise a le panneau de la plateforme (`.pp2`), avec sa mise en page du téléphone dans
+`premiers-pas.css` ; la règle de `telephone.css` (les boutons d'une étape SOUS son texte) ne sert plus qu'au Cabinet,
+dont le panneau est celui de la v10. Aucun test ne montrait plus ce panneau au téléphone : sa preuve restait verte, et
+les vérifications de nuit étaient rouges depuis le 10/10. Le test du Cabinet au téléphone ouvre désormais un cabinet
+qui commence (sa page Dossiers vide, dont « Tes premiers pas » est le corps) ; il a montré que le Cabinet poussait ses
+boutons à droite quand l'entreprise les aligne sur le texte (la maquette validée) : un seul dessin, aligné. La règle de
+l'entreprise a sa propre preuve, et celle de `telephone.css` ne vise plus que le Cabinet (`:not(.pp2)`) : posée sur
+toutes les listes, elle remplaçait celle de l'entreprise quand elle manquait, et sa preuve restait verte. Chaque
+panneau a sa règle, et une seule.

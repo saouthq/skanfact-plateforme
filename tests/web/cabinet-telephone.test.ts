@@ -105,4 +105,43 @@ describe('le Cabinet au téléphone', () => {
     expect(faux).toEqual([]);
     expect(vus).toBe(PAGES.length * 2);
   }, 400_000);
+
+  // « Tes premiers pas » du Cabinet : le corps de la page Dossiers tant qu'elle est vide (le cabinet du test précédent a
+  // des dossiers, et le panneau n'y est qu'une ligne de « À faire »). C'est celui de la v10 : celui de l'entreprise est
+  // celui de la plateforme (`.pp2`, sa mise en page du téléphone dans premiers-pas.css). Au téléphone, les boutons d'une
+  // étape passent sous son texte (telephone.css) ; à côté, ils lui laissaient 32 points, un mot par ligne (brique 105).
+  // Aucun test ne montrait plus ce panneau-là au téléphone depuis le 09/10/2026, et sa preuve restait verte (13/10/2026).
+  it('le Cabinet qui commence, au téléphone : « Tes premiers pas » ne déborde pas, et chaque étape garde son texte en entier', async () => {
+    const associe = await personne('debut');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Nour' })).corps.id);
+    const contexte = await navigateur.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, locale: 'fr-FR', isMobile: true, hasTouch: true });
+    await contexte.addInitScript((j) => sessionStorage.setItem('skanfact.jeton', j), associe);
+    const page = await contexte.newPage();
+    const erreurs: string[] = [];
+    page.on('pageerror', (x) => erreurs.push(x.message));
+    try {
+      await page.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossiers`);
+      const panneau = page.locator('#view .premiers-pas');
+      await panneau.locator('.pp-list li').first().waitFor({ timeout: 15_000 });
+      for (let i = 0; i < 3 && await page.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await page.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+      await page.waitForTimeout(300);
+      // La photo d'abord : un défaut se regarde.
+      await page.screenshot({ path: path.join(PHOTOS, 'cabinet-premiers-pas-390.png'), fullPage: true });
+      expect(await page.evaluate(problemes, [true, 390] as [boolean, number])).toEqual([]);
+      // Les boutons d'une étape passent sous son texte, alignés sur lui.
+      const deTravers = await panneau.evaluate((el) => {
+        const ecarts: string[] = [];
+        for (const li of el.querySelectorAll('.pp-list li')) {
+          const texte = li.querySelector('.pp-txt')?.getBoundingClientRect();
+          const bouton = li.querySelector('.pp-go > :first-child')?.getBoundingClientRect();
+          if (texte && bouton && (bouton.top < texte.bottom - 1 || Math.abs(bouton.left - texte.left) > 1)) ecarts.push(li.querySelector('strong')?.textContent ?? '');
+        }
+        return ecarts;
+      });
+      expect(deTravers).toEqual([]);
+      expect(erreurs).toEqual([]);
+    } finally {
+      await contexte.close();
+    }
+  }, 120_000);
 });

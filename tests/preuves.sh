@@ -6029,10 +6029,19 @@ prouver "la page qui ne dit pas sa largeur au téléphone" web/public/v10/index.
   '  <meta name="viewport" content="width=device-width, initial-scale=1">
 ' "" \
   "$TEL"
+# Les premiers pas de telephone.css ne servent plus qu'au Cabinet depuis le 09/10/2026 (celui de l'entreprise, `.pp2`, a
+# sa mise en page dans premiers-pas.css, prouvée plus bas) : la preuve restait verte contre les pages de l'entreprise,
+# et les nuits rouges depuis le 10/10. Reciblée le 13/10/2026 sur le Cabinet qui commence (tests/web/cabinet-telephone.test.ts).
+# La règle ne vise que le Cabinet (`:not(.pp2)`) : posée sur toutes les listes, elle couvrait l'entreprise quand la
+# sienne manquait, et la preuve de premiers-pas.css restait verte.
+CABPP="le Cabinet qui commence, au téléphone : « Tes premiers pas » ne déborde pas, et chaque étape garde son texte en entier"
 prouver "les premiers pas écrasés à côté de leurs boutons" web/public/plateforme/telephone.css \
-  "  .pp-list li { grid-template-columns: 26px minmax(0, 1fr); }
-  .pp-list li .pp-go { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; }" "" \
-  "$TEL"
+  "  .premiers-pas:not(.pp2) .pp-list li { grid-template-columns: 26px minmax(0, 1fr); }
+  .premiers-pas:not(.pp2) .pp-list li .pp-go { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; }" "" \
+  "$CABPP"
+prouver "au téléphone, les boutons d'une étape du Cabinet poussés à droite" web/public/plateforme/telephone.css \
+  "gap: 8px; justify-content: flex-start; }" "gap: 8px; }" \
+  "$CABPP"
 
 # ── Brique 106 : toutes les pages du quotidien au vrai téléphone (tests/web/rendu.test.ts) ──
 prouver "les en-têtes de colonne trop petits pour le doigt" web/public/plateforme/telephone.css \
@@ -9776,6 +9785,13 @@ prouver "au téléphone, les boutons d'une étape poussés à droite" $PPCSS \
   "$PPW3"
 prouver "au téléphone, le lien vers l'aide collé au bord du panneau" $PPCSS \
   "  .premiers-pas.pp2 > p { padding: 0 18px 18px; }" "  .premiers-pas.pp2 > p { padding: 0; }" \
+  "$PPW3"
+# Les boutons d'une étape à côté de son texte, comme à l'ordinateur (13/10/2026 : la preuve de telephone.css, faite pour
+# ce panneau-là avant lui, ne le voyait plus ; c'est cette règle-ci qui le tient, et celle de telephone.css ne vise plus
+# que le Cabinet : posée sur toutes les listes, elle la remplaçait quand elle manquait, et cette preuve restait verte).
+prouver "au téléphone, les premiers pas de l'entreprise écrasés à côté de leurs boutons" $PPCSS \
+  "  .premiers-pas.pp2 .pp-list li { grid-template-columns: 28px minmax(0, 1fr); }
+  .premiers-pas.pp2 .pp-list li .pp-go { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; }" "" \
   "$PPW3"
 prouver "la proposition au cabinet cachée sous une étape faite" $ASAPP \
   "\${e.fait && e.attente ? \`<span class=\"pp-attente\">" "\${e.fait && e.attente ? \`<span class=\"small pp-attente\">" \

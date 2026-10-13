@@ -67,10 +67,15 @@
   table.lines-edit.buy-lines td input, table.lines-edit.buy-lines td select { min-width: 72px; }
   table.lines-edit.buy-lines td:first-child input { min-width: 170px; }
 
-  /* « Tes premiers pas » (accueil) : les boutons d'une étape passent SOUS son texte. À côté, ils lui
-     laissaient 32 points : un mot par ligne (brique 105). */
-  .pp-list li { grid-template-columns: 26px minmax(0, 1fr); }
-  .pp-list li .pp-go { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; }
+  /* « Tes premiers pas » : les boutons d'une étape passent SOUS son texte, alignés sur lui. À côté, ils lui
+     laissaient 32 points : un mot par ligne (brique 105). Depuis le 09/10/2026, cette règle ne sert plus qu'au Cabinet
+     (son panneau est celui de la v10) : celui de l'entreprise (`.pp2`) a la sienne, la même, dans premiers-pas.css. Le
+     Cabinet poussait ses boutons à droite (le bord de la v10, à l'ordinateur) ; l'entreprise les aligne sur le texte
+     (la maquette validée par Skander) : un seul dessin (13/10/2026). Elle ne vise QUE le Cabinet (`:not(.pp2)`) :
+     posée sur toutes les listes, elle couvrait aussi l'entreprise quand sa propre règle manquait, et le défaut ne se
+     voyait plus. Chaque panneau a sa règle, et une seule. */
+  .premiers-pas:not(.pp2) .pp-list li { grid-template-columns: 26px minmax(0, 1fr); }
+  .premiers-pas:not(.pp2) .pp-list li .pp-go { grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; }
 
   /* Le Cabinet (brique 110) : les quatre compteurs du portefeuille sur deux rangées (en une seule, « 2 clie… ») ;
      les douze mois d'un dossier sur trois rangées de quatre (sur deux de six, « hors mission » débordait). */
