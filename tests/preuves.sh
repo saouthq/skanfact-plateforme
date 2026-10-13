@@ -10820,7 +10820,10 @@ prouver 'un renouvellement qui repart de la fin de l'"'"'essai' serveur/abonneme
   "$ABG2"
 AW1='l'"'"'essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'"'"'arrive au serveur'
 prouver 'la v10 qui ne lit pas l'"'"'abonnement' web/public/plateforme/pont.js \
-  '    licenceStatus: async () => /** @type {any} */ (window).SkanAbonnement.licence(await abonnementPourLaV10()),
+  '    licenceStatus: async () => {
+      void lireMessageClients();
+      return /** @type {any} */ (window).SkanAbonnement.licence(await abonnementPourLaV10());
+    },
 ' '' \
   "$AW1"
 prouver 'la carte de l'"'"'essai qui mène à la licence de la v10' web/public/v10/app.js \
@@ -11281,7 +11284,7 @@ prouver "l'état de l'abonnement demandé après le chargement" web/public/plate
   "      avancerAbonnement();" "" \
   "$OUV1"
 prouver "l'état lu au chargement redemandé par la v10" web/public/plateforme/pont.js \
-  "SkanAbonnement.licence(await abonnementPourLaV10())," "SkanAbonnement.licence((await lireAbonnement(), abonnement))," \
+  "SkanAbonnement.licence(await abonnementPourLaV10());" "SkanAbonnement.licence((await lireAbonnement(), abonnement));" \
   "$OUV2"
 prouver "une lecture de l'abonnement restée sans réponse prise pour l'état" web/public/plateforme/pont.js \
   "    if (!(a && Date.now() - a.le < 15_000 && await a.lu)) await lireAbonnement();" \
@@ -11727,8 +11730,8 @@ prouver 'les faits en trois boîtes empilées au téléphone' 'web/console/src/c
   'au téléphone : rien ne déborde, les faits tiennent en une boîte, une commande défile dans sa carte'
 
 prouver 'un geste du service au journal sans ce sur quoi il porte' 'web/console/src/ecrans/Journal.tsx' \
-  '                                : l.service ? <SurLeService s={l.service} /> : '"'"'—'"'"'}' \
-  '                                : '"'"'—'"'"'}' \
+  '                                    : l.service ? <SurLeService s={l.service} /> : l.reglages ? <SurLesReglages r={l.reglages} /> : '"'"'—'"'"'}' \
+  '                                    : l.reglages ? <SurLesReglages r={l.reglages} /> : '"'"'—'"'"'}' \
   'la sourdine d'"'"'une règle, depuis son menu : la même fin dans le message et sur la ligne ; le menu reste dans l'"'"'écran'
 prouver 'une sourdine levée qui dit au journal l'"'"'heure de sa levée pour sa fin prévue' 'serveur/console/alertes.ts' \
   'fin: date((geste === '"'"'service.sourdine_levee'"'"' ? avant : apres)?.fin)' \
