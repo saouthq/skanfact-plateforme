@@ -56,3 +56,9 @@ export function ilYA(instant: string, maintenant = Date.now()): string {
   if (min < 1) return dire('console.ecran.temps.a_l_instant');
   return dire('console.ecran.temps.minutes', { n: min });
 }
+
+// Un mois (« 2026-10 ») en mots : « octobre 2026 », ou « octobre » ; et précédé de « de », élidé devant une voyelle
+// (« d’avril », « d’août », « d’octobre » ; « de septembre »).
+export const moisEnMots = (m: string, annee = true) => new Intl.DateTimeFormat('fr-FR', { month: 'long', ...(annee ? { year: 'numeric' } : {}), timeZone: 'UTC' })
+  .format(new Date(`${m}-01T00:00:00Z`));
+export const deMois = (m: string, annee = true) => { const t = moisEnMots(m, annee); return /^[aeiouâéè]/i.test(t) ? `d\u2019${t}` : `de ${t}`; };

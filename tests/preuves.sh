@@ -10925,7 +10925,7 @@ prouver 'la technique qui lit les clients dans « À décider »' serveur/consol
   '  const clients = role !== '"'"'technique'"'"';' '  const clients = true;' \
   "$CONSD4"
 prouver 'des revenus à zéro qui passent pour une mesure' serveur/console/decider.ts \
-  '    revenusDuMois: { mesure: false, raison: '"'"'paiements_a_venir'"'"' },' '    revenusDuMois: { mesure: true, n: 0 },' \
+  '  revenus: Mesure = { mesure: false, raison: '"'"'editeur_absent'"'"' }): Tableau {' '  revenus: Mesure = { mesure: true, montant: '"'"'0.000'"'"', devise: '"'"'TND'"'"', reglements: 0 }): Tableau {' \
   "$CONSD5"
 prouver 'un service vert sans veille' serveur/console/decider.ts \
   '    service: veille.etat === '"'"'absente'"'"' ? { etat: '"'"'non_mesure'"'"', raison: '"'"'pas_de_veille'"'"' }' '    service: veille.etat === '"'"'absente'"'"' ? { etat: '"'"'ok'"'"' }' \
@@ -11745,8 +11745,8 @@ prouver 'les faits en trois boîtes empilées au téléphone' 'web/console/src/c
   'au téléphone : rien ne déborde, les faits tiennent en une boîte, une commande défile dans sa carte'
 
 prouver 'un geste du service au journal sans ce sur quoi il porte' 'web/console/src/ecrans/Journal.tsx' \
-  '                                    : l.service ? <SurLeService s={l.service} /> : l.reglages ? <SurLesReglages r={l.reglages} /> : '"'"'—'"'"'}' \
-  '                                    : l.reglages ? <SurLesReglages r={l.reglages} /> : '"'"'—'"'"'}' \
+  '                                    : l.service ? <SurLeService s={l.service} /> : l.reglages ? <SurLesReglages r={l.reglages} />' \
+  '                                    : l.reglages ? <SurLesReglages r={l.reglages} />' \
   'la sourdine d'"'"'une règle, depuis son menu : la même fin dans le message et sur la ligne ; le menu reste dans l'"'"'écran'
 prouver 'une sourdine levée qui dit au journal l'"'"'heure de sa levée pour sa fin prévue' 'serveur/console/alertes.ts' \
   'fin: date((geste === '"'"'service.sourdine_levee'"'"' ? avant : apres)?.fin)' \
@@ -13497,6 +13497,85 @@ prouver '« par an » sans la remise' serveur/console/clients.ts \
 prouver '« par an » remisé une fois sur douze au mois' serveur/console/clients.ts \
   '    return periodicite === '"'"'mensuel'"'"' ? p * 12n : p;' '    return periodicite === '"'"'mensuel'"'"' ? brut * 12n - (brut - p) : p;' \
   "$CL2"
+
+# Les paiements de nos factures et les coûts du mois (0108 ; docs/console.md C30 ; 1.17.0).
+PA2='la direction seule : le support ne lit ni l'"'"'écran, ni la tuile, ni ne saisit un coût'
+PA3='l'"'"'encaissé du mois, par moyen ; qui doit encore ; le même chiffre à l'"'"'accueil et par un second chemin'
+PA4='Konnect seulement avec la preuve du prestataire ; un règlement d'"'"'un autre mois n'"'"'entre pas dans celui-ci'
+PA5='trop payé : il se dit, jusqu'"'"'au remboursement ; le remboursement se déduit de l'"'"'encaissé et se dit à part'
+PA6='une facture préparée et pas encore émise attend dans SkanFact : elle ne doit rien encore'
+PA7='chaque case refusée se nomme ; la base revérifie'
+PA8='saisi d'"'"'après la facture reçue (le motif du journal), retiré avec un motif, jamais modifié ; ce qui reste suit'
+PA9='une autre devise ne s'"'"'additionne jamais au dinar : elle se dit à part'
+PA10='« en ligne » sans preuve n'"'"'est pas Konnect ; les autres moyens de la v10 se rangent dans « autrement »'
+PA11='trop payé, et annulée réglée quand même ; une facture soldée n'"'"'est nulle part'
+PA12='ce qui reste ne se dit qu'"'"'avec des coûts saisis, et en dinars'
+PA13='un mois demandé : réel, pas à venir'
+PW1='la direction seule : le support n'"'"'a ni l'"'"'entrée « Paiements » ni la tuile de l'"'"'encaissé'
+PW2='la tuile de l'"'"'accueil et le bandeau disent le même encaissé ; la facture qui doit encore mène à sa pièce'
+PW3='un coût : la case refusée se montre ; saisi, ce qui reste du mois se dit ; retiré, il reste barré'
+PW4='d'"'"'un mois à l'"'"'autre, les boutons ne bougent pas sous la souris ; au téléphone, rien ne déborde'
+prouver 'le support qui lit les paiements (le droit du serveur et la base)' 'serveur/console/gestes.ts|||base/migrations/0108_paiements.sql' \
+  '  { code: '"'"'console.paiements.voir'"'"', roles: [D], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);
+  v_editeur uuid;' '  { code: '"'"'console.paiements.voir'"'"', roles: [D, S], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+  v_editeur uuid;' \
+  "$PA2"
+prouver 'la tuile de l'"'"'encaissé montrée au support' serveur/console/routes.ts \
+  '      const t = role === '"'"'direction'"'"' ? { ...pourLeSupport, revenusDuMois } : pourLeSupport;' '      const t = { ...pourLeSupport, revenusDuMois };' \
+  "$PA2"
+prouver 'la tuile qui compte autre chose que l'"'"'écran' serveur/console/paiements.ts \
+  '  return { mesure: true, montant: versTexte(e.total, e.decimales), devise: e.devise, reglements: e.reglements };' '  return { mesure: true, montant: versTexte(e.parMoyen.virement, e.decimales), devise: e.devise, reglements: e.reglements };' \
+  "$PA3"
+prouver 'une autre devise additionnée au dinar' serveur/console/paiements.ts \
+  '    if (r.devise !== editeur.devise) {' '    if (r.devise === '"'"'XXX'"'"') {' \
+  "$PA9"
+prouver '« en ligne » cru Konnect sans la preuve' serveur/console/paiements.ts \
+  '  if (mode === '"'"'en_ligne'"'"') return prouve ? '"'"'konnect'"'"' : '"'"'autre'"'"';' '  if (mode === '"'"'en_ligne'"'"') return '"'"'konnect'"'"';' \
+  "$PA10"
+prouver 'la preuve d'"'"'un autre paiement en ligne qui vaut pour tous' base/migrations/0108_paiements.sql \
+  ' and l.reglement_v10 = r.ref_v10))' '))' \
+  "$PA4"
+prouver 'les règlements de tous les mois dans celui-ci' base/migrations/0108_paiements.sql \
+  '               where f.editeur = v_editeur and r.date_reglement between v_debut and v_fin),' '               where f.editeur = v_editeur),' \
+  "$PA4"
+prouver 'le trop payé jamais relu' base/migrations/0108_paiements.sql \
+  '                         - (select coalesce(sum(r.montant), 0) from ventes.reglement r where r.entreprise = p.entreprise and r.piece = p.id) <> 0) x),' '                         - (select coalesce(sum(r.montant), 0) from ventes.reglement r where r.entreprise = p.entreprise and r.piece = p.id) > 0) x),' \
+  "$PA5"
+prouver 'une facture annulée réglée dite simplement trop payée' serveur/console/paiements.ts \
+  '    if (enTrop > 0n) trop.push({ ...base, trop: versTexte(enTrop, o.decimales), annulee: o.net > 0n && solde.credite >= o.net });' '    if (enTrop > 0n) trop.push({ ...base, trop: versTexte(enTrop, o.decimales), annulee: false });' \
+  "$PA11"
+prouver 'une facture émise dite à émettre' base/migrations/0108_paiements.sql \
+  '                   and not exists (select 1 from ventes.piece p where p.entreprise = f.editeur and p.ref_v10 = f.piece_v10' '                   and exists (select 1 from ventes.piece p where p.entreprise = f.editeur and p.ref_v10 = f.piece_v10' \
+  "$PA6"
+prouver 'un nom de coût refusé sans nommer sa case' serveur/console/routes.ts \
+  '      if (libelle.length < 2 || libelle.length > 80) return refusDuChamp('"'"'libelle'"'"', '"'"'console.paiements.libelle_illisible'"'"');
+' '' \
+  "$PA7"
+prouver 'un coût qui se modifie' base/migrations/0108_paiements.sql \
+  '  raise exception '"'"'un coût saisi ne se modifie pas et ne s'"'"''"'"'efface pas : il se retire, puis se saisit de nouveau'"'"';' '  return coalesce(new, old);' \
+  "$PA8"
+prouver 'un coût retiré deux fois' base/migrations/0108_paiements.sql \
+  '  if v_c.retire_le is not null then perform socle.refus('"'"'ce coût est déjà retiré'"'"'); end if;
+' '' \
+  "$PA8"
+prouver 'ce qui reste dit sans aucun coût saisi' serveur/console/paiements.ts \
+  ' && gardes.length ? versTexte(e.total - total, 3) : null,' ' ? versTexte(e.total - total, 3) : null,' \
+  "$PA12"
+prouver 'un mois à venir demandé' serveur/console/paiements.ts \
+  '  return v > courant ? courant : v;' '  return v;' \
+  "$PA13"
+prouver 'le support qui a l'"'"'entrée « Paiements »' web/console/src/Console.tsx \
+  '  paiements: ['"'"'direction'"'"'],' '  paiements: ['"'"'direction'"'"', '"'"'support'"'"'],' \
+  "$PW1"
+prouver 'ce qui est déjà reçu tu' web/console/src/ecrans/Paiements.tsx \
+  '    !nul(d.paye) ? dire(`${K}.d.deja_paye`' '    !nul(d.credite) ? dire(`${K}.d.deja_paye`' \
+  "$PW2"
+prouver 'la case de la facture reçue refusée sans se montrer' web/console/src/ecrans/Paiements.tsx \
+  ' autoComplete="off" {...fauteDe('"'"'dApres'"'"')} />' ' autoComplete="off" />' \
+  "$PW3"
+prouver 'les boutons des mois qui bougent sous la souris' web/console/src/console.css \
+  '.c-pa-mois .c-btn { min-width: 8.6em; justify-content: center; }' '.c-pa-mois .c-btn { justify-content: center; }' \
+  "$PW4"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

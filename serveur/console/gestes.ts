@@ -2,7 +2,7 @@
 // troisième famille, à côté des gestes d'une entreprise et des gestes personnels : ils ne portent sur l'entreprise de
 // personne, et se jouent dans une session de la console, jamais dans une session de l'application.
 //
-//   direction   tout : les clients, les abonnements, l'équipe, le journal, le service, les réglages ;
+//   direction   tout : les clients, les abonnements, les paiements, l'équipe, le journal, le service, les réglages ;
 //   support     « À décider », les clients, prolonger un essai (de 7 à 30 jours, une fois : la base le tient), lire les
 //               réglages, répondre aux demandes de support ;
 //   technique   le service seulement : aucune donnée de client.
@@ -50,6 +50,10 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   // Nos factures (docs/abonnement.md B2) : préparer la facture d'un abonnement dans le dossier de l'entreprise SkanFact. La
   // direction seule, et au nom d'une personne propriétaire de cette entreprise (la base le revérifie).
   { code: 'console.factures.preparer', roles: [D], ecrit: true },
+  // Les paiements de nos factures et les coûts du mois (docs/console.md C30 ; 0108) : les comptes de SkanFact, la
+  // direction seule. Un règlement se note dans l'application de SkanFact, sur sa facture ; ici, les coûts.
+  { code: 'console.paiements.voir', roles: [D], ecrit: false },
+  { code: 'console.paiements.couts', roles: [D], ecrit: true },
 ];
 
 export const GESTES_CONSOLE: ReadonlyMap<string, GesteConsole> = (() => {

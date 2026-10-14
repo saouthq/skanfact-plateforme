@@ -567,6 +567,13 @@ vaut pour tout le dépôt.*
     (`plateforme.groupe`, `groupe_membre` ; la première abonnée paie le prix normal) et celle du cabinet (un mandat
     d'avant le premier paiement, pendant la durée de la règle), jamais additionnées (`plateforme.remise_de`) ; la facture
     porte celle de son premier jour sur tout son hors taxes (`tests/abonnement/remises.test.ts`, `remise.test.ts`).
+  - **Les paiements de nos factures** (1.17.0 ; `docs/console.md` C30, `0108`, `serveur/console/paiements.ts`, pur) :
+    l'écran Paiements de la console, la direction seule. L'encaissé d'un mois (les règlements de nos factures à leur
+    date, par moyen ; Konnect seulement prouvé ; une autre devise jamais additionnée), la tuile « encaissé ce mois » de
+    l'accueil par la même fonction ; qui doit encore et qui a trop payé, par la règle du solde de toutes les factures
+    (`moteur/reglements.ts`) ; les coûts du mois saisis à la main (`plateforme.cout_du_mois` : retirés, jamais modifiés)
+    et ce qui reste. La console ne note aucun règlement : il se note sur sa facture, dans l'application de SkanFact
+    (`tests/console/paiements.test.ts`, `tests/web/console-paiements.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

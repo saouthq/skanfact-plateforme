@@ -22,6 +22,8 @@ declarerTextes({
   'geste.console.support.repondre': 'répondre à une demande de support (répondre, noter une demande reçue ailleurs, clore, rouvrir)',
   'geste.console.support.acces': 'demander l\'accès au dossier d\'un client et le lire pendant qu\'il court (en lecture seulement, chaque page tracée)',
   'geste.console.factures.preparer': 'préparer la facture d\'un abonnement dans le dossier de l\'entreprise SkanFact',
+  'geste.console.paiements.voir': 'voir les paiements de nos factures et les coûts du mois',
+  'geste.console.paiements.couts': 'saisir ou retirer un coût du mois',
   // Les rôles de l'équipe SkanFact (03 § 5).
   'role.direction': 'direction',
   'role.support': 'support',
@@ -48,6 +50,12 @@ declarerTextes({
   // Préparer un prix (docs/abonnement.md C14) : chaque refus nomme sa case.
   'console.reglages.prix_illisible': 'le prix s\'écrit en dinars hors taxes, avec trois décimales au plus : « 420 » ou « 420,500 »',
   'console.reglages.jour_illisible': 'ce jour n\'existe pas au calendrier : choisis-en un dans le calendrier',
+  // Les coûts du mois (docs/console.md C30) : chaque refus nomme sa case.
+  'console.paiements.libelle_illisible': 'nomme le coût en deux à quatre-vingts caractères : « Serveurs en Tunisie », « SMS »',
+  'console.paiements.montant_illisible': 'le montant s\'écrit en dinars, toutes taxes comprises, avec trois décimales au plus : « 186 » ou « 186,500 »',
+  'console.paiements.d_apres_court': 'dis d\'après quelle facture reçue (le fournisseur, son numéro) : trois caractères au moins',
+  'console.paiements.d_apres_long': 'la facture reçue se dit en deux cents caractères au plus',
+  'console.paiements.mois_illisible': 'un coût se saisit pour le mois en cours ou un mois passé',
   // Le support (docs/support.md) : chaque refus nomme sa case.
   'console.support.sujet_court': 'le sujet dit en quelques mots ce que la personne demande : trois caractères au moins',
   'console.support.sujet_long': 'le sujet tient sur une ligne : cent quarante caractères au plus',

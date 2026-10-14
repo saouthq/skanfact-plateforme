@@ -89,7 +89,8 @@ describe('« À décider »', () => {
 describe('le tableau du matin', () => {
   it('rien n\'est vert sans mesure : ce que la console ne mesure pas encore se dit, avec sa raison', () => {
     const t = tableau([], { etat: 'absente' }, JOUR);
-    expect(t.revenusDuMois).toEqual({ mesure: false, raison: 'paiements_a_venir' });
+    // L'encaissé du mois (C30) : sans entreprise SkanFact désignée, rien ne s'encaisse par la plateforme — jamais un zéro.
+    expect(t.revenusDuMois).toEqual({ mesure: false, raison: 'editeur_absent' });
     // Le support se mesure depuis la Support S1 : sans demande, des zéros (une mesure), et pas de « plus longue attente ».
     expect(t.support).toEqual({ ouvertes: 0, aRepondre: 0, sansReponse: 0, attenteMax: null });
     expect(t.service).toEqual({ etat: 'non_mesure', raison: 'pas_de_veille' });

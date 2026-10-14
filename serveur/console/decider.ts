@@ -7,6 +7,7 @@
 import { confirme } from '../../exploitation/veille.ts';
 import { etatAbonnement, joursEntre, lireFaits, plusJours, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
 import type { RoleConsole } from './gestes.ts';
+import type { MesureEncaisse } from './paiements.ts';
 import { compter, etatDe, type LigneDemande } from './support.ts';
 
 export type Entreprise = {
@@ -103,8 +104,9 @@ export function lireVeille(contenu: string | null, modifieLe: Date | null, maint
 }
 
 // ── Le tableau du matin (§ 2.2) ──────────────────────────────────────────────────────────────────────────────────────
-// Une mesure : un nombre, ou « non mesuré » avec sa raison (C2).
-export type Mesure = { mesure: true; n: number } | { mesure: false; raison: 'paiements_a_venir' };
+// L'encaissé du mois (docs/console.md C30) : un montant, ou « non mesuré » avec sa raison (C2) — sans entreprise SkanFact
+// désignée, rien ne s'encaisse par la plateforme. La direction seule le lit (la route le retire pour le support).
+export type Mesure = MesureEncaisse;
 export type Tableau = {
   entreprisesDeLaSemaine: number;
   essais: number;
@@ -122,7 +124,8 @@ export type Tableau = {
 // des clients (« ?nouvelles=1 ») la montre, par cette seule règle (C3).
 export const inscriteCetteSemaine = (e: Entreprise, jour: string) => e.creeLe >= plusJours(jour, -6);
 
-export function tableau(liste: Entreprise[], veille: Veille, jour: string, demandes: LigneDemande[] = [], maintenant: Date = new Date()): Tableau {
+export function tableau(liste: Entreprise[], veille: Veille, jour: string, demandes: LigneDemande[] = [], maintenant: Date = new Date(),
+  revenus: Mesure = { mesure: false, raison: 'editeur_absent' }): Tableau {
   const de = (c: Categorie) => liste.filter((e) => categorie(e) === c);
   const actifs = de('actif');
   return {
@@ -131,8 +134,7 @@ export function tableau(liste: Entreprise[], veille: Veille, jour: string, deman
     actifs: { total: actifs.length, essentiel: actifs.filter((e) => e.faits.offre === 'essentiel').length, complet: actifs.filter((e) => e.faits.offre === 'complet').length },
     enRetard: de('en_retard').length,
     lectureSeule: de('lecture_seule').length,
-    // Ce que la console ne mesure pas encore : jamais un zéro qui passerait pour une mesure.
-    revenusDuMois: { mesure: false, raison: 'paiements_a_venir' },
+    revenusDuMois: revenus,
     support: compter(demandes, maintenant),
     service: veille.etat === 'absente' ? { etat: 'non_mesure', raison: 'pas_de_veille' }
       : veille.etat === 'silencieuse' ? { etat: 'non_mesure', raison: 'veille_silencieuse', derniere: veille.derniere }

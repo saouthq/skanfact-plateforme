@@ -122,6 +122,10 @@ dans `app.skanfact.tn`, comme n'importe quel client, et son comptable la voit pa
 - **Retenue à la source** faite par un client sur notre facture : si le `05` § 4.2 la confirme, le
   paiement est accepté **net de retenue**, et l'attestation est réclamée au client.
 
+*Fait en 1.17.0 (14/10/2026, `docs/console.md` C30) : l'encaissé du mois par moyen, qui doit encore, le trop payé, les
+règlements du mois et les coûts du mois. Le virement et le chèque se notent dans l'application de SkanFact, sur leur
+facture (§ 2.5) ; le relevé de la banque pointé attend une banque branchée, la retenue à la source le `05` § 4.2.*
+
 ### 2.7 Support
 
 - Une demande arrive par **e-mail** ou **WhatsApp** et se range sur la fiche du client.

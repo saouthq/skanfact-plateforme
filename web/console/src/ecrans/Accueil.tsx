@@ -6,15 +6,17 @@ import { useEffect, useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { useConsole, useLecture, type Role } from '../contexte.ts';
 import { dans, jourCourt, jourLong, quand } from '../temps.ts';
+import { montant } from '../argent.ts';
 import { Alerte, Bouton, Icone, Lien, maj, Puce, Vide, type NomIcone, type TonPuce } from '../ui.tsx';
 import type { Canal } from './Support.tsx';
 
-type Mesure = { mesure: true; n: number } | { mesure: false; raison: 'paiements_a_venir' };
+// L'encaissé du mois (docs/console.md C30) : un montant, ou « non mesuré » avec sa raison ; la direction seule le reçoit.
+type Mesure = { mesure: true; montant: string; devise: string; reglements: number } | { mesure: false; raison: 'editeur_absent' };
 type Support = { ouvertes: number; aRepondre: number; sansReponse: number; attenteMax: number | null };
 type Service = { etat: 'ok' } | { etat: 'problemes'; n: number; graves: number } | { etat: 'non_mesure'; raison: 'pas_de_veille' | 'veille_silencieuse'; derniere?: string };
 type Tableau = {
   entreprisesDeLaSemaine: number; essais: number; actifs: { total: number; essentiel: number; complet: number };
-  enRetard: number; lectureSeule: number; revenusDuMois: Mesure; support: Support; service: Service;
+  enRetard: number; lectureSeule: number; revenusDuMois?: Mesure; support: Support; service: Service;
 };
 type Qui = { id: string; nom: string };
 export type Ligne =
@@ -29,11 +31,12 @@ type Accueil = { aujourdhui: string; role: Role; tableau: Partial<Tableau> & { s
 
 // ── Le tableau du matin ─────────────────────────────────────────────────────────────────────────────────────────────
 // `mot` : une valeur qui est un mot (« non mesuré », « rien à signaler ») et non un nombre : elle se dit en lettres.
-function Tuile({ titre: t, valeur, sous, href, mot, point }: { titre: string; valeur: string; sous: string; href?: string; mot?: 'attente' | 'ok'; point?: 'ok' | 'pb' }) {
+// `donnee` : une valeur qui est une donnée (un montant), pas un texte du catalogue.
+function Tuile({ titre: t, valeur, sous, href, mot, point, donnee }: { titre: string; valeur: string; sous: string; href?: string; mot?: 'attente' | 'ok'; point?: 'ok' | 'pb'; donnee?: boolean }) {
   const corps = (
     <>
       <span className="c-tuile-titre">{t}</span>
-      <span className={mot ? `c-tuile-mot c-tuile-mot-${mot}` : 'c-tuile-valeur'}>
+      <span className={mot ? `c-tuile-mot c-tuile-mot-${mot}` : 'c-tuile-valeur'} {...(donnee ? { 'data-donnee': true } : {})}>
         {point ? <span className={`c-tuile-point${point === 'ok' ? ' c-ok' : ''}`} aria-hidden="true" /> : null}
         {valeur}
       </span>
@@ -64,8 +67,16 @@ function TuileSupport({ s }: { s: Support }) {
   return <Tuile titre={titre('console.ecran.tableau.support')} valeur={String(s.ouvertes)} sous={sous} href="#/support" {...(s.sansReponse ? { point: 'pb' as const } : {})} />;
 }
 
+// L'encaissé du mois : le même chiffre que l'écran Paiements, qu'elle ouvre (C3) ; sans entreprise SkanFact désignée, rien
+// ne s'encaisse par la plateforme, et la tuile le dit (C2), jamais un zéro.
+function TuileRevenus({ m }: { m: Mesure }) {
+  const t = titre('console.ecran.tableau.revenus');
+  if (!m.mesure) return <Tuile titre={t} valeur={dire('console.ecran.tableau.non_mesure')} sous={titre(`console.ecran.tableau.${m.raison}`)} href="#/reglages?onglet=factures" mot="attente" />;
+  const sous = m.reglements ? selon(m.reglements, 'console.ecran.tableau.revenus_reglements') : dire('console.ecran.tableau.revenus_aucun');
+  return <Tuile titre={t} valeur={m.devise === 'TND' ? montant(m.montant) : `${m.montant} ${m.devise}`} sous={maj(sous)} href="#/paiements" donnee />;
+}
+
 function TableauDuMatin({ t, role, aujourdhui }: { t: Accueil['tableau']; role: Role; aujourdhui: string }) {
-  const nonMesure = (m: Mesure | undefined) => (m && !m.mesure ? titre(`console.ecran.tableau.${m.raison}`) : '');
   return (
     <section className="c-matin" aria-labelledby="matin-titre">
       <div className="c-matin-tete">
@@ -81,12 +92,7 @@ function TableauDuMatin({ t, role, aujourdhui }: { t: Accueil['tableau']; role: 
             <Tuile titre={titre('console.ecran.tableau.en_retard')} valeur={String(t.enRetard ?? 0)} sous={titre('console.ecran.tableau.en_retard_sous')} href="#/clients?etat=en_retard" />
             <Tuile titre={titre('console.ecran.tableau.lecture_seule')} valeur={String(t.lectureSeule ?? 0)} sous={titre('console.ecran.tableau.lecture_seule_sous')} href="#/clients?etat=lecture_seule" />
             {t.support ? <TuileSupport s={t.support} /> : null}
-            {/* Ce que la console ne mesure pas encore le dit, avec sa raison (C2) : jamais un zéro qui passerait pour une mesure. */}
-            <div className="c-tuile">
-              <span className="c-tuile-titre">{titre('console.ecran.tableau.revenus')}</span>
-              <span className="c-tuile-mot c-tuile-mot-attente">{dire('console.ecran.tableau.non_mesure')}</span>
-              <span className="c-tuile-sous">{maj(nonMesure(t.revenusDuMois))}</span>
-            </div>
+            {t.revenusDuMois ? <TuileRevenus m={t.revenusDuMois} /> : null}
           </>
         ) : null}
         {role !== 'support' ? <TuileService s={t.service} aujourdhui={aujourdhui} /> : null}

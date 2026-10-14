@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { montant } from '../argent.ts';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture, type Role } from '../contexte.ts';
-import { heureDe, jourCourt, jourDe, jourLong, jourMois, joursEntre } from '../temps.ts';
+import { deMois, heureDe, jourCourt, jourDe, jourLong, jourMois, joursEntre, moisEnMots } from '../temps.ts';
 import { Alerte, Avatar, Bouton, maj, Puce, Vide } from '../ui.tsx';
 import { Changements } from './Fiche.tsx';
 import { refDemande } from './Support.tsx';
@@ -117,14 +117,28 @@ function ChangeDesReglages({ geste, r }: { geste: string; r: NonNullable<Ligne['
 }
 
 // La famille d'un geste, lue dans son nom : l'abonnement d'un client, l'équipe, le service, les réglages, le support, nos
-// factures, les groupes (0106).
-const FAMILLES = ['abonnement', 'equipe', 'service', 'reglages', 'support', 'factures', 'groupes'] as const;
+// factures, les groupes (0106), les paiements (0108).
+const FAMILLES = ['abonnement', 'equipe', 'service', 'reglages', 'support', 'factures', 'groupes', 'paiements'] as const;
 // Un geste sur un groupe (0106) : la société y entre (le groupe créé avec elle, s'il est neuf) ou en sort.
 function LeGroupe({ geste, avant, apres }: { geste: string; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null }) {
   const nom = typeof apres?.nom === 'string' ? apres.nom : typeof avant?.nom === 'string' ? avant.nom : null;
   if (!nom) return null;
   const cle = geste === 'groupes.sortie' ? 'groupe_hors' : apres?.cree === true ? 'groupe_cree' : 'groupe_dans';
   return <span className="c-changes"><span className="c-change" data-donnee>{maj(dire(`console.ecran.journal.${cle}`, { nom }))}</span></span>;
+}
+// Un coût du mois saisi ou retiré (0108) : son nom, son montant, son mois ; retiré, barré. Il porte sur les coûts de son
+// mois, que « Sur quoi » ouvre.
+const moisDuCout = (c: Record<string, unknown> | null) => (c && typeof c.mois === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(c.mois) ? c.mois : null);
+function SurLesCouts({ avant, apres }: { avant: Record<string, unknown> | null; apres: Record<string, unknown> | null }) {
+  const m = moisDuCout(apres ?? avant);
+  return m ? <a href={`#/paiements?mois=${m}`}>{titre('console.ecran.journal.sur_couts', { de_mois: deMois(m) })}</a> : <>—</>;
+}
+function LeCout({ avant, apres }: { avant: Record<string, unknown> | null; apres: Record<string, unknown> | null }) {
+  const c = apres ?? avant;
+  const m = moisDuCout(c);
+  if (!c || !m || typeof c.libelle !== 'string' || typeof c.montant !== 'string') return null;
+  const texte = `${c.libelle} · ${montant(c.montant)} · ${moisEnMots(m)}`;
+  return <span className="c-changes"><span className="c-change">{apres ? <ins data-donnee>{texte}</ins> : <del data-donnee>{texte}</del>}</span></span>;
 }
 const familleDe = (geste: string) => FAMILLES.find((f) => geste.startsWith(`${f}.`)) ?? null;
 
@@ -255,12 +269,14 @@ export function Journal({ entreprise, qui: quiDemande }: { entreprise: string | 
                               <td className="c-jr-sur">
                                 {l.entreprise ? <a href={`#/clients/${l.entreprise.id}`} data-donnee>{l.entreprise.raisonSociale}</a>
                                   : l.membre ? <span data-donnee>{l.membre.nom}</span>
-                                    : l.service ? <SurLeService s={l.service} /> : l.reglages ? <SurLesReglages r={l.reglages} /> : '—'}
+                                    : l.service ? <SurLeService s={l.service} /> : l.reglages ? <SurLesReglages r={l.reglages} />
+                                      : familleDe(l.geste) === 'paiements' ? <SurLesCouts avant={l.avant} apres={l.apres} /> : '—'}
                               </td>
                               <td><span className="c-jr-motif" data-donnee>{'«\u202f'}{l.motif}{'\u202f»'}</span></td>
                               <td>{l.service ? <ChangeDuService geste={l.geste} s={l.service} /> : l.reglages ? <ChangeDesReglages geste={l.geste} r={l.reglages} />
                                 : famille === 'support' ? <LaDemande avant={l.avant} apres={l.apres} />
-                                  : famille === 'groupes' ? <LeGroupe geste={l.geste} avant={l.avant} apres={l.apres} /> : <Changements avant={l.avant} apres={l.apres} empile />}</td>
+                                  : famille === 'groupes' ? <LeGroupe geste={l.geste} avant={l.avant} apres={l.apres} />
+                                    : famille === 'paiements' ? <LeCout avant={l.avant} apres={l.apres} /> : <Changements avant={l.avant} apres={l.apres} empile />}</td>
                             </tr>
                           );
                         })}

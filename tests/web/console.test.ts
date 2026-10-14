@@ -706,6 +706,8 @@ describe('la console de l\'équipe, à la souris', () => {
       { nom: 'facture-preparer', hash: `#/clients/${enLecture}?onglet=abonnement`, geste: async (p) => { await cliquer(p.locator('.c-fiche-attend .c-btn-principal')); await p.locator('.c-fa-net').waitFor(); } },
       { nom: 'abonnements', hash: '#/abonnements' },
       { nom: 'abonnements-essai', hash: '#/abonnements?vue=essai' },
+      // Les paiements de nos factures et les coûts du mois (C30).
+      { nom: 'paiements', hash: '#/paiements' },
       { nom: 'cabinets', hash: '#/cabinets' },
       { nom: 'cabinet', hash: `#/cabinets/${cabinet.id}` },
       { nom: 'geste', hash: `#/clients/${enLecture}`, geste: async (p) => { await cliquer(p.locator('.c-menu > button')); await cliquer(p.locator('.c-menu-liste button').first()); await p.getByRole('dialog').waitFor(); } },

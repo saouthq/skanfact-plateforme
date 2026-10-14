@@ -1611,6 +1611,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-jr-famille-support { background: var(--c-bleu-doux); color: var(--c-bleu-texte); }
 .c-jr-famille-factures { background: var(--c-doux); color: var(--c-doux-texte); }
 .c-jr-famille-groupes { background: var(--c-doux); color: var(--c-doux-texte); }
+.c-jr-famille-paiements { background: var(--c-bleu-doux); color: var(--c-bleu-texte); }
 .c-jr-sur a { color: var(--c-lien); font-weight: 600; text-decoration: none; }
 .c-jr-sur a:hover { text-decoration: underline; }
 .c-jr-motif { color: var(--c-encre); }
@@ -2436,3 +2437,106 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-gr-apercu-zone { min-height: 96px; }
 .c-gr-apercu { display: grid; gap: 8px; }
 .c-gr-apercu p { margin: 0; }
+
+/* Les paiements de nos factures (C29, maquette Paiements) : le mois en tête, une bande sombre qui dit l'encaissé et ses
+   moyens, puis ce qui reste à encaisser, ce qui a été trop payé et les règlements du mois ; à côté, les coûts du mois. */
+.c-pa-mois { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.c-pa-mois b { font-size: 15px; font-weight: 600; min-width: 9.5em; text-align: center; }
+/* Les deux boutons gardent leur largeur d'un mois à l'autre (« ‹ Août », « ‹ Septembre ») : un second clic tombe au même
+   endroit. */
+.c-pa-mois .c-btn { min-width: 8.6em; justify-content: center; }
+.c-pa-bande {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px 26px; align-items: center;
+  padding: 24px 28px; border-radius: var(--c-rayon); background: var(--c-nuit); color: var(--c-nuit-texte); border: 1px solid var(--c-nuit-trait);
+}
+.c-pa-bande-texte { display: grid; gap: 6px; min-width: 0; }
+.c-pa-bande h2 { margin: 0; font-size: 12.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--c-nuit-gris); }
+.c-pa-bande-total { margin: 0; font-family: var(--c-chiffres); font-size: clamp(28px, 3.4vw, 38px); font-weight: 500; line-height: 1.1; color: #fff; }
+.c-pa-bande-sous { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--c-nuit-gris); max-width: 62ch; }
+.c-pa-moyens { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 1fr); gap: 10px; }
+.c-pa-moyens li {
+  display: grid; gap: 4px; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--c-nuit-trait);
+  background: color-mix(in srgb, var(--c-nuit-2) 70%, transparent);
+}
+.c-pa-moyens span { font-size: 12.5px; color: var(--c-nuit-gris); }
+.c-pa-moyens b { font-size: 15px; font-weight: 500; color: var(--c-nuit-texte); white-space: nowrap; }
+.c-pa-gauche { display: grid; gap: 20px; min-width: 0; }
+.c-pa-lignes, .c-pa-recus { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--c-trait); }
+.c-pa-ligne {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'quoi montant' 'quoi action';
+  gap: 8px 18px; align-items: start; padding: 16px 24px; border-bottom: 1px solid var(--c-trait);
+}
+.c-pa-ligne:last-child, .c-pa-recu:last-child { border-bottom: 0; }
+.c-pa-ligne-retard { box-shadow: inset 3px 0 0 var(--c-orange-texte); }
+.c-pa-quoi { grid-area: quoi; display: grid; gap: 3px; min-width: 0; }
+.c-pa-quoi a { justify-self: start; color: var(--c-encre); text-decoration: none; }
+.c-pa-quoi a:hover { color: var(--c-lien); text-decoration: underline; }
+.c-pa-quoi b { font-size: 15px; font-weight: 600; }
+.c-pa-quoi .c-sous { font-size: 13px; overflow-wrap: anywhere; }
+.c-pa-etat { display: flex; align-items: flex-start; gap: 6px; font-size: 13.5px; line-height: 1.45; color: var(--c-gris); }
+.c-pa-etat .c-icone { flex: none; margin-top: 2px; }
+.c-pa-etat-retard { color: var(--c-orange-texte); }
+.c-pa-montant { grid-area: montant; display: grid; gap: 2px; justify-items: end; text-align: end; }
+.c-pa-montant b { font-size: 15px; font-weight: 500; white-space: nowrap; }
+.c-pa-montant span { font-size: 12px; color: var(--c-gris); }
+.c-pa-action { grid-area: action; justify-self: end; align-self: end; }
+.c-pa-emettre { margin: 0 24px 16px; padding: 12px 14px; border-radius: 12px; background: var(--c-papier-2); border: 1px dashed var(--c-trait-fort); }
+.c-pa-emettre p { margin: 0; display: flex; align-items: flex-start; gap: 8px; font-size: 13.5px; color: var(--c-gris); }
+.c-pa-emettre p .c-icone { flex: none; margin-top: 2px; }
+.c-pa-emettre ul { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.c-pa-emettre li { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; font-size: 14px; }
+.c-pa-emettre li a:not(.c-btn) { color: var(--c-encre); font-weight: 600; }
+.c-pa-emettre li .c-btn { margin-inline-start: auto; }
+.c-pa-recu {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr) 140px 210px; gap: 6px 16px; align-items: start;
+  padding: 13px 24px; border-bottom: 1px solid var(--c-trait);
+}
+.c-pa-recu time { font-size: 14px; font-weight: 600; padding-top: 1px; }
+.c-pa-recu .c-pa-quoi { grid-area: auto; }
+.c-pa-recu-montant { font-size: 14.5px; font-weight: 500; white-space: nowrap; text-align: end; }
+.c-pa-moyen { display: grid; grid-template-columns: auto 1fr; column-gap: 5px; align-items: start; font-size: 13.5px; font-weight: 600; color: var(--c-gris); }
+.c-pa-moyen:not(.c-pa-moyen-ok) { grid-template-columns: 1fr; }
+.c-pa-moyen-ok { color: var(--c-doux-texte); }
+.c-pa-moyen-ok .c-icone { margin-top: 2px; }
+.c-pa-moyen .c-sous { grid-column: 1 / -1; font-weight: 400; font-size: 12.5px; }
+.c-pa-couts { display: grid; gap: 12px; }
+.c-pa-couts h2 { font-size: 17px; font-weight: 600; margin: 0; }
+.c-pa-couts .c-carte-sous { margin: -6px 0 0; }
+.c-pa-couts-liste { list-style: none; margin: 0; padding: 0; display: grid; }
+.c-pa-couts-liste li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--c-trait); }
+.c-pa-cout-nom { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.c-pa-couts-liste .c-sous { font-size: 12.5px; overflow-wrap: anywhere; }
+.c-pa-couts-liste .c-btn { justify-self: end; }
+.c-pa-couts-liste b { font-size: 14px; font-weight: 500; white-space: nowrap; }
+.c-pa-couts-vide { margin: 0; font-size: 14px; color: var(--c-gris); }
+.c-pa-couts-total { display: flex; justify-content: space-between; gap: 12px; font-weight: 600; font-size: 14.5px; }
+.c-pa-couts-total b { font-weight: 600; }
+.c-pa-reste {
+  margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 12px 14px; border-radius: 12px;
+  background: var(--c-doux); color: var(--c-doux-texte); font-size: 14px; font-weight: 600;
+}
+.c-pa-reste b { font-size: 20px; font-weight: 600; white-space: nowrap; }
+.c-pa-reste .c-sous { font-weight: 400; color: inherit; opacity: .85; margin-top: 4px; }
+.c-pa-reste-moins { background: var(--c-orange-doux); color: var(--c-orange-texte); }
+.c-pa-retires { font-size: 13px; color: var(--c-gris); }
+.c-pa-retires summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; gap: 6px; list-style: none; }
+.c-pa-retires summary::-webkit-details-marker { display: none; }
+.c-pa-retires summary .c-icone { transition: transform .15s; }
+.c-pa-retires[open] summary .c-icone { transform: rotate(90deg); }
+.c-pa-retires ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 8px; }
+@media (max-width: 1100px) {
+  .c-pa-bande { grid-template-columns: minmax(0, 1fr); }
+  .c-pa-moyens { grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+}
+@media (max-width: 640px) {
+  .c-pa-bande { padding: 20px 18px; }
+  .c-pa-mois { width: 100%; justify-content: space-between; }
+  .c-pa-mois b { min-width: 0; order: -1; flex: 1 1 100%; text-align: start; }
+  .c-pa-ligne { padding: 14px 18px; grid-template-areas: 'quoi montant' 'action action'; }
+  .c-pa-action { justify-self: start; }
+  .c-pa-emettre { margin-inline: 18px; }
+  /* Le nom d'un client est une cible : 44 points au doigt, comme dans les échéances. */
+  .c-pa-quoi a, .c-pa-emettre li a:not(.c-btn) { display: inline-flex; align-items: center; min-height: 44px; }
+  .c-pa-recu { grid-template-columns: 52px minmax(0, 1fr) auto; padding: 12px 18px; }
+  .c-pa-moyen { grid-column: 2 / -1; }
+}

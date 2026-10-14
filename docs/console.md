@@ -720,9 +720,49 @@ demande, l'alerte par e-mail sans contenu) sont dans `docs/support.md` ; ici, l'
   composant pour les deux). « Demander l'accès » ouvre une fenêtre qui dit ce que le client verra
   et attend un motif (3 à 300 caractères). Le journal : « accès au dossier demandé », « accès au dossier rendu ».
 
+## Cinquième partie : les paiements (1.17.0, 14/10/2026)
+
+**C30. Les paiements de nos factures, et les coûts du mois** (10 § 2.2 et § 2.6 ; base 0108 ; la maquette Paiements).
+`#/paiements`, dans « Chaque jour », **la direction seule** : ce sont les comptes de SkanFact (le support répond à un
+client sur sa fiche, qui montre ses factures ; la technique ne lit aucune donnée de client). La console **ne note aucun
+règlement** : un virement, un chèque se notent dans l'application de SkanFact, sur leur facture (10 § 2.5, « la console
+ne refait pas ») ; l'abonnement suit tout seul (14b B4). D'ici, chaque ligne y mène.
+- **Un mois à la fois** : « ‹ Septembre », « Octobre 2026 », « Novembre › » (jamais un mois à venir) ; l'adresse le
+  garde (`#/paiements?mois=2026-09`). Les deux boutons gardent leur largeur d'un mois à l'autre : un second clic tombe
+  au même endroit.
+- **L'encaissé du mois**, dans une bande sombre : les règlements notés sur nos factures, **à leur date**, remboursements
+  déduits ; par Konnect, par virement, par chèque, autrement (espèces, carte, traite). **Konnect seulement avec la
+  preuve du prestataire** (le paiement en ligne prouvé, 0047) : un « en ligne » sans preuve se range dans « autrement ».
+  Dans la devise de l'entreprise SkanFact ; un règlement dans une autre devise se dit à part, **jamais additionné**. La
+  tuile « encaissé ce mois » de l'accueil dit le même montant, **par la même fonction** (`encaisseDuMois`), et y mène ;
+  sans entreprise SkanFact désignée, elle dit « non mesuré » et pourquoi (C2), jamais 0 ; le support ne la voit pas.
+- **À encaisser** : nos factures émises qui doivent encore, la plus en retard d'abord ; le reste, l'échéance (« à payer
+  avant le… », « en retard de 5 jours »), ce qui est **déjà venu en déduction** (« 20,000 DT déjà reçus », « un avoir de
+  11,900 DT déduit » : une facture corrigée par un avoir ne se dit pas « payée en partie »), et ce que devient
+  l'abonnement (« passe en lecture seule le 23/10 ») : qui appeler d'abord. « Noter son règlement » ouvre **sa** pièce
+  dans SkanFact, à côté ; c'est l'étape suivante de l'écran (le seul bouton vert). Au-dessus, les factures préparées
+  qui attendent d'être émises (« elles ne doivent rien encore »), avec « L'émettre ».
+- **Trop payé** (seulement s'il y en a) : ce qui dépasse le net moins les avoirs, et une facture annulée par ses avoirs
+  réglée quand même. Un trop-perçu ne se garde jamais en silence : il se rembourse (un règlement négatif) ou se déduit
+  par un avoir, dans SkanFact.
+- **Reçus en {mois}** : chaque règlement du mois, le plus récent d'abord (sa date, le client, la facture, la référence,
+  le montant, le moyen ; « Konnect a confirmé aujourd'hui, 02:24 »). La liste se pagine par cinquante.
+- **Les coûts du mois**, à côté : saisis à la main par la direction, **d'après la facture reçue** (le fournisseur et
+  son numéro : c'est le motif du journal), **toutes taxes comprises**, comme l'encaissé est ce qu'on a reçu. Un coût
+  **ne se modifie pas** et ne s'efface pas (la base le refuse) : il se **retire** avec son motif (il reste, barré, sous
+  la liste, avec qui et quand), puis se saisit de nouveau. Le mois se choisit (le mois en cours ou un des onze d'avant).
+  **Ce qui reste** (l'encaissé moins les coûts, le point mort de 13 § 7) ne se dit **que si le mois a des coûts
+  saisis** : sans eux, ce serait l'encaissé, un zéro qui passerait pour une mesure.
+- **Le journal** : « coût du mois saisi », « coût du mois retiré », la famille « paiements » ; « Sur quoi » ouvre les
+  coûts de leur mois.
+- **Décidé par délégation** (14/10/2026), à la place de la maquette : la colonne « À pointer » de la maquette lisait le
+  relevé de la banque ; **aucune banque n'est branchée**, et la console ne lit pas un relevé qu'on ne lui donne pas :
+  elle montre ce qui reste à encaisser, et l'écran le dit. La retenue à la source sur nos factures attend le `05` § 4.2
+  (**À VÉRIFIER**) : pas montrée.
+
 ## Ce que le lot ne fait pas
 
-La suite de la console : le paiement en ligne par l'abonné (14b, seconde partie ; nos factures sont faites, `docs/abonnement.md`), la suite du service (la
+La suite de la console : le relevé de la banque lu et pointé (aucune banque branchée ; les paiements, C30, montrent ce qui reste à encaisser), la retenue à la source sur nos factures (`05` § 4.2), la suite du service (la
 sécurité : l'accès d'urgence, bloquer une adresse, la chaîne du journal relue, la date des secrets ; le débit des travaux heure par heure, et les envois des e-mails, de la TEJ et de la CNSS, qui n'ont pas encore
 de trace), la mesure, la suite des réglages (les nouveautés allumées ; un prix se prépare depuis la 1.12.0, C28), et le filtre du journal par geste et par période. L'écran
 « Application de bureau » de la maquette (les licences, les postes, la fin de vie et le passage à la plateforme de la v10)
@@ -818,3 +858,13 @@ le suivent glissaient de 29 points, deux fois), et les vues sans période remont
 données prises pour des textes du catalogue (le titre d'un incident sous ses fenêtres, la page d'état de la veille, le
 titre d'une tâche d'installation, le code, la valeur, la source et les relectures d'une règle commune — ces dernières
 ne se voyaient que si un autre fichier de tests avait posé une règle : l'instrument pose maintenant la sienne).
+
+Les paiements (C30), sur l'essai de la console (l'entreprise SkanFact désignée, trois factures d'abonnement : une réglée
+par deux virements, une par Konnect prouvé, une corrigée par un avoir et qui doit encore, et un brouillon préparé), en
+direction ; en clair et en sombre ; à 1440 et à 390 ; à la souris et au clavier ; un coût saisi, refusé d'abord sans sa
+facture reçue, puis retiré. Corrigé pendant le parcours : une facture corrigée par un avoir dite « payée en partie », et
+son échéance qui disparaissait ; « ce qui reste » affiché sans aucun coût saisi ; les règlements du mois dont les
+colonnes se chevauchaient, puis dont les montants ne s'alignaient pas d'une ligne à l'autre ; le nom d'un coût sur trois
+lignes dans la colonne de côté ; les boutons des mois qui bougeaient sous la souris (« ‹ Août », « ‹ Septembre ») ; « ce
+mois-ci » et « le même chiffre que le tableau du matin » dits d'un mois passé ; « les coûts de octobre » (« d'octobre ») ;
+le curseur posé sur le mois au lieu du nom du coût ; « un coût retiré » sans majuscule ni flèche.

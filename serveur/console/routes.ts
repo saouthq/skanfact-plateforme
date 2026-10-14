@@ -34,6 +34,7 @@ import {
   lireSauvegardes, nuits as nuitsGardees, pointLePlusAncien, promesses, retardsParHeure,
 } from './sauvegardes.ts';
 import { attenteDe, etatTour, lireTravaux, PARTENAIRES, quatorzeJours, SANS_TRACE, TOURS } from './travaux.ts';
+import { couts, encaisse, encaisseDuMois, lirePaiements, moisDemande, MOYENS, ouvertes } from './paiements.ts';
 import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
 import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe, taches, titreDeTache, versionDAvant, type EtatSuiveur } from './versions.ts';
 import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
@@ -195,7 +196,11 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // La technique ne lit aucune donnée de client (03 § 5) : ni la liste, ni ses chiffres, ni les demandes au support.
       const liste = role === 'technique' ? [] : await lesEntreprises(transaction(tx), jour);
       const demandes = role === 'technique' ? [] : lireSupport(await lireJson(transaction(tx), 'select plateforme.console_support(null, null) v')).ouvertes;
-      const t = tableau(liste, veille, jour, demandes, instant);
+      // L'encaissé du mois : la direction seule le lit (les comptes de SkanFact), par la fonction de l'écran Paiements (C3).
+      const revenus = role === 'direction'
+        ? encaisseDuMois(lirePaiements(await lireJson(transaction(tx), 'select plateforme.console_paiements($1::date) v', [`${jour.slice(0, 7)}-01`]))) : undefined;
+      const { revenusDuMois, ...pourLeSupport } = tableau(liste, veille, jour, demandes, instant, revenus);
+      const t = role === 'direction' ? { ...pourLeSupport, revenusDuMois } : pourLeSupport;
       // Les relances que le serveur a envoyées tout seul depuis hier (la même table que l'écran Abonnements).
       const relances = role === 'technique' ? []
         : relancesRecentes(liste, lireExtras(await lireJson(transaction(tx), 'select plateforme.console_echeances() v')), instant);
@@ -1164,6 +1169,64 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     traiter: async ({ params, corps }, tx) => {
       const instant = maintenant();
       await transaction(tx).query('select plateforme.console_retirer_message($1, $2, $3, $4::date)', [lireUuid(params.message), corps.motif, instant, aujourdhuiATunis(instant)]);
+      return { corps: { ok: true } };
+    },
+  });
+
+  // ── Les paiements de nos factures, et les coûts du mois (docs/console.md C30 ; 0108) ───────────────────────────────
+  // Le mois demandé (« 2026-10 ») ; par défaut, celui d'aujourd'hui. L'encaissé par la MÊME fonction que la tuile de
+  // l'accueil (C3) ; qui doit et qui a trop payé, avec l'état de chaque abonnement (la même liste que les clients) ; les
+  // règlements du mois se paginent. Un règlement se note dans l'application de SkanFact : d'ici, le lien qui l'ouvre.
+  ajouter({
+    methode: 'GET', chemin: '/console/paiements', geste: 'console.paiements.voir',
+    traiter: async ({ query }, tx) => {
+      const x = transaction(tx);
+      const jour = aujourdhuiATunis();
+      const mois = moisDemande(query.mois, jour);
+      const p = lirePaiements(await lireJson(x, 'select plateforme.console_paiements($1::date) v', [`${mois}-01`]));
+      const e = p.editeur ? encaisse(p.recus, p.editeur) : null;
+      const { doivent, trop } = ouvertes(p.ouvertes, await lesEntreprises(x, jour), jour);
+      const debut = Math.max(Number(query.debut ?? 0) || 0, 0);
+      const n = limite(query);
+      return {
+        corps: {
+          aujourdhui: jour, mois, courant: mois === jour.slice(0, 7), editeur: p.editeur,
+          encaisse: e ? {
+            devise: e.devise, total: versTexte(e.total, e.decimales), rembourse: versTexte(e.rembourse, e.decimales), reglements: e.reglements,
+            parMoyen: Object.fromEntries(MOYENS.map((m) => [m, versTexte(e.parMoyen[m], e.decimales)])),
+            autresDevises: e.autresDevises.map((a) => ({ devise: a.devise, total: versTexte(a.total, a.decimales) })),
+          } : null,
+          recus: { total: p.recus.length, lignes: p.recus.slice(debut, debut + n).map((r) => ({ ...r, montant: versTexte(r.montant, r.decimales) })),
+            suite: debut + n < p.recus.length ? debut + n : null },
+          doivent, trop, aEmettre: p.aEmettre, couts: couts(p.couts, e),
+        },
+      };
+    },
+  });
+  // Saisir un coût du mois : chaque case refusée se nomme ; la base revérifie tout.
+  ajouter({
+    methode: 'POST', chemin: '/console/paiements/couts', geste: 'console.paiements.couts',
+    corps: z.object({ mois: z.string().max(10), libelle: z.string().max(200), montant: z.string().max(40), dApres: z.string().max(400) }),
+    traiter: async ({ corps }, tx) => {
+      const instant = maintenant();
+      const jour = aujourdhuiATunis(instant);
+      const libelle = corps.libelle.trim(), dApres = corps.dApres.trim();
+      if (libelle.length < 2 || libelle.length > 80) return refusDuChamp('libelle', 'console.paiements.libelle_illisible');
+      const montant = prixTape(corps.montant);
+      if (montant === null || montant <= 0n || montant > 1_000_000_000_000n) return refusDuChamp('montant', 'console.paiements.montant_illisible');
+      if (dApres.length < 3) return refusDuChamp('dApres', 'console.paiements.d_apres_court');
+      if (dApres.length > 200) return refusDuChamp('dApres', 'console.paiements.d_apres_long');
+      if (moisDemande(corps.mois, jour) !== corps.mois) return refusDuChamp('mois', 'console.paiements.mois_illisible');
+      await transaction(tx).query('select plateforme.console_ajouter_cout($1::date, $2, $3::bigint, $4, $5::date)',
+        [`${corps.mois}-01`, libelle, montant.toString(), dApres, jour]);
+      return { statut: 201, corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/paiements/couts/:cout/retirer', geste: 'console.paiements.couts',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_retirer_cout($1, $2)', [lireUuid(params.cout), corps.motif]);
       return { corps: { ok: true } };
     },
   });
