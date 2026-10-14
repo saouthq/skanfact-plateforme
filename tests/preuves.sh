@@ -10773,7 +10773,7 @@ prouver 'le détail de l'"'"'abonnement ouvert à tous les rôles' "serveur/abon
 prouver 'le motif d'"'"'un geste de SkanFact montré à l'"'"'entreprise' $AMG \
   "jsonb_build_object('le', v.le, 'nature', v.nature, 'apres', v.apres)" "jsonb_build_object('le', v.le, 'nature', v.nature, 'apres', v.apres, 'motif', v.motif)" \
   "$AB3"
-prouver 'les faits d'"'"'un abonnement lus par une personne d'"'"'ailleurs' $AMG \
+prouver 'les faits d'"'"'un abonnement lus par une personne d'"'"'ailleurs' base/migrations/0099_offre_compte.sql \
   '   where e.id = p_entreprise and e.id in (select socle.mes_entreprises())' '   where e.id = p_entreprise' \
   "$AB4"
 prouver 'la lecture seule jamais branchée à la porte' serveur/app.ts \
@@ -11015,19 +11015,19 @@ prouver 'le téléphone d'"'"'un membre dans la fiche de la console' base/migrat
   'jsonb_build_object('"'"'nom'"'"', u.nom, '"'"'email'"'"', u.email, '"'"'roles'"'"', m.roles, '"'"'depuis'"'"', m.depuis,' 'jsonb_build_object('"'"'nom'"'"', u.nom, '"'"'email'"'"', u.email, '"'"'telephone'"'"', u.telephone, '"'"'roles'"'"', m.roles, '"'"'depuis'"'"', m.depuis,' \
   "$CONSS10"
 prouver 'un aperçu qui réclame le motif du geste' serveur/console/routes.ts \
-  '    if (corps.apercu) return { corps: { apercu: true, avant: etatAbonnement(faits, jour), apres: etatApres, details } };
+  '    if (corps.apercu) return { corps: { apercu: true, avant: etatAbonnement(faits, jour), apres: etatApres, details, modules: apres.modules } };
 ' '' \
   "$CONSS11"
-prouver 'le support qui prolonge de 1 à 365 jours' base/migrations/0083_console.sql \
+prouver 'le support qui prolonge de 1 à 365 jours' base/migrations/0099_offre_compte.sql \
   '    if v_jours is null or v_jours not between 7 and 30 then' '    if v_jours is null or v_jours not between 1 and 365 then' \
   "$CONSS12"
-prouver 'le support qui prolonge deux fois' base/migrations/0083_console.sql \
+prouver 'le support qui prolonge deux fois' base/migrations/0099_offre_compte.sql \
   '    if exists (select 1 from plateforme.evenement_abonnement v where v.entreprise = p_entreprise and v.nature = '"'"'essai_prolonge'"'"') then' '    if false then' \
   "$CONSS12"
 prouver 'une seconde prolongation proposée au support' serveur/console/routes.ts \
   'essaiOuSuite && ligne && !prolongeUneFois && !f.offert ? ['"'"'prolonger'"'"'] : []' 'essaiOuSuite && ligne && !f.offert ? ['"'"'prolonger'"'"'] : []' \
   "$CONSS12"
-prouver 'le support qui suspend un abonnement' 'serveur/console/gestes.ts|||base/migrations/0083_console.sql|||base/migrations/0083_console.sql' \
+prouver 'le support qui suspend un abonnement' 'serveur/console/gestes.ts|||base/migrations/0099_offre_compte.sql|||base/migrations/0099_offre_compte.sql' \
   '  { code: '"'"'console.abonnement.gerer'"'"', roles: [D], ecrit: true },|||  if v_role = '"'"'support'"'"' and p_geste <> '"'"'prolonger'"'"' then perform socle.refus('"'"'ton rôle dans l'"'"''"'"'équipe SkanFact ne permet pas ce geste'"'"'); end if;
 |||  if v_role = '"'"'support'"'"' then
     if v_avant is null or' '  { code: '"'"'console.abonnement.gerer'"'"', roles: [D, S], ecrit: true },||||||  if v_role = '"'"'support'"'"' and p_geste = '"'"'prolonger'"'"' then
@@ -11037,7 +11037,7 @@ prouver 'un geste sans motif laissé à la base' serveur/console/routes.ts \
   '    if (corps.motif.trim().length < 3) return { statut: 400, corps: { motif: motif('"'"'console.motif_requis'"'"'), champ: '"'"'motif'"'"', raison: t('"'"'console.motif_requis'"'"') } };
 ' '' \
   "$CONSS13"
-prouver 'un geste d'"'"'abonnement sans auteur dans son histoire' base/migrations/0083_console.sql \
+prouver 'un geste d'"'"'abonnement sans auteur dans son histoire' base/migrations/0099_offre_compte.sql \
   '    values (socle.moi(), v_role, '"'"'abonnement.'"'"' || p_geste, p_entreprise, v_evenement, btrim(p_motif),' '    values (socle.moi(), v_role, '"'"'abonnement.'"'"' || p_geste, p_entreprise, null, btrim(p_motif),' \
   "$CONSS13"
 prouver 'un abonnement changé depuis la lecture, écrasé' serveur/console/routes.ts \
@@ -11100,10 +11100,10 @@ prouver 'le filtre des inscriptions qui ne se retire pas' web/console/src/ecrans
 # Deux fenêtres de la fiche portent cette ligne (le geste, et la facture depuis 14b) : celle du geste se désigne par ce
 # qui la précède.
 prouver 'sans motif, le curseur qui ne va pas au motif' web/console/src/ecrans/Fiche.tsx \
-  '  }, [jours, offre, periodicite, geste]);
+  '  }, [jours, offre, periodicite, module, geste]);
 
   const faire = () => {
-    if (motif.trim().length < 3) { setRefus(phrase('"'"'console.ecran.geste.motif_court'"'"')); setFaute((x) => x + 1); return; }' '  }, [jours, offre, periodicite, geste]);
+    if (motif.trim().length < 3) { setRefus(phrase('"'"'console.ecran.geste.motif_court'"'"')); setFaute((x) => x + 1); return; }' '  }, [jours, offre, periodicite, module, geste]);
 
   const faire = () => {
     if (motif.trim().length < 3) { setRefus(phrase('"'"'console.ecran.geste.motif_court'"'"')); return; }' \
@@ -12782,7 +12782,7 @@ prouver 'l'"'"'entreprise SkanFact qui change après une facture préparée' 'ba
 prouver 'une facture préparée par qui n'"'"'est pas propriétaire de l'"'"'entreprise SkanFact' 'base/migrations/0097_nos_factures.sql' \
   '  if not exists (select 1 from socle.membre m where m.entreprise = v and m.utilisateur = socle.moi() and m.actif and '"'"'proprietaire'"'"' = any(m.roles)) then' '  if false then' \
   "$NF2"
-prouver 'la préparation d'"'"'une facture au journal en « période payée »' 'base/migrations/0097_nos_factures.sql' \
+prouver 'la préparation d'"'"'une facture au journal en « période payée »' 'base/migrations/0099_offre_compte.sql' \
   ''"'"'factureDu'"'"', p_debut, '"'"'factureAu'"'"', p_fin,' ''"'"'debut'"'"', p_debut, '"'"'fin'"'"', p_fin,' \
   "$NF2"
 prouver 'une facture préparée deux fois pour la même période' 'serveur/abonnement/factures.ts' \
@@ -12876,7 +12876,7 @@ prouver 'une immobilisation nouvelle acceptée en Essentiel' serveur/abonnement/
   "  compta: ['assets']," "  compta: []," \
   "$OF1"
 prouver 'la paie qui reste fermée en Complet' serveur/abonnement/offre.ts \
-  "=== 'essentiel' ? [...MODULES_DE_COMPLET] : [];" "!== null ? [...MODULES_DE_COMPLET] : [];" \
+  "=== 'essentiel' ? MODULES_DE_COMPLET.filter((m) => !(f.modules ?? []).includes(m)) : [];" "!== null ? MODULES_DE_COMPLET.filter((m) => !(f.modules ?? []).includes(m)) : [];" \
   "$OF1"
 prouver 'la grâce qui rouvre la paie d'"'"'un abonné Essentiel' serveur/abonnement/offre.ts \
   "  if (e.etat === 'en_retard' && !e.apresEssai) return f.offre;
@@ -12900,6 +12900,58 @@ prouver 'le formulaire du salarié ouvert avant la porte' web/public/v10/app.js 
 prouver 'le bandeau d'"'"'un module fermé qui ne nomme pas Complet' web/public/v10/app.js \
   "fait partie de l'offre Complet : tu peux tout lire ici" "fait partie de l'offre Entreprise : tu peux tout lire ici" \
   "$OFW"
+
+# Ce que l'offre compte (abonnement 14c, deuxième partie ; docs/abonnement.md, « 14c » ; 0099) : un module acheté seul
+# s'ouvre chez le client, une fois, jamais sur Complet ; la facture compte ce qui dépasse (les utilisateurs sauf la caisse
+# seule, les salariés présents) et chaque module, la pièce l'écrit, la base rejoue le total ; le client lit les prix des
+# ajouts avant de les payer, et plus jamais « jamais par utilisateur ».
+OC1='un module acheté seul sur Essentiel : la direction l'"'"'ouvre avec son motif, il s'"'"'ouvre chez le client, et se retire ; Complet le contient déjà'
+OC2='la facture compte ce qui dépasse l'"'"'offre et les modules achetés, au prix du jour de chaque ligne ; l'"'"'aperçu le dit, la pièce l'"'"'écrit, la base le rejoue'
+OCW='la direction ouvre la paie seule, la facture compte ce qui dépasse ; le client voit sa paie ouverte et les prix de ce qui s'"'"'ajoute'
+prouver 'un module acheté qui reste fermé chez le client' serveur/abonnement/offre.ts \
+  "MODULES_DE_COMPLET.filter((m) => !(f.modules ?? []).includes(m))" "[...MODULES_DE_COMPLET]" \
+  "$OC1"
+prouver 'un module acheté deux fois' serveur/abonnement/gestes.ts \
+  "      if (avant.modules.includes(d.module)) throw new Refus('abonnement.geste.module_deja', { valeurs: { module: t(\`abonnement.module.\${d.module}\`) } });
+" '' \
+  "$OC1"
+prouver 'un module acheté sur Complet, qui le contient déjà' serveur/abonnement/gestes.ts \
+  "      if (avant.offre === 'complet') throw new Refus('abonnement.geste.module_complet');
+" '' \
+  "$OC1"
+prouver 'la ligne d'"'"'abonnement lue sans ses modules' base/migrations/0099_offre_compte.sql \
+  "'offert', a.offert, 'modules', to_jsonb(a.modules)) end" "'offert', a.offert) end" \
+  "$OC1"
+prouver 'l'"'"'aperçu d'"'"'un module qui ne dit pas les modules d'"'"'après' serveur/console/routes.ts \
+  'apres: etatApres, details, modules: apres.modules } };' 'apres: etatApres, details } };' \
+  "$OC1"
+prouver 'les prix des ajouts cachés au client' serveur/abonnement/routes.ts \
+  'etat, prix, options, historique,' 'etat, prix, historique,' \
+  "$OC1"
+prouver 'la caissière seule comptée comme utilisateur' base/migrations/0099_offre_compte.sql \
+  "where m.entreprise = p_entreprise and m.actif
+                and not (m.roles <@ array['caissier', 'serveur']::text[]))::int utilisateurs," "where m.entreprise = p_entreprise and m.actif)::int utilisateurs," \
+  "$OC2"
+prouver 'un salarié sorti compté sur la facture' base/migrations/0099_offre_compte.sql \
+  "and d.collection = 'employees'
+                and coalesce(nullif(d.contenu->>'endDate', ''), '9999-12-31') >= to_char(p_jour, 'YYYY-MM-DD'))::int salaries," "and d.collection = 'employees')::int salaries," \
+  "$OC2"
+prouver 'un total que la base ne rejoue pas' base/migrations/0099_offre_compte.sql \
+  "  if v_prix is null or v_prix + coalesce((select sum((l->>'quantite')::bigint * (l->>'prixHt')::bigint) from jsonb_array_elements(v_lignes) l), 0) <> p_montant_ht then" "  if v_prix is null or v_prix > p_montant_ht then" \
+  "$OC2"
+prouver 'les ajouts absents de la pièce' serveur/abonnement/factures.ts \
+  '    }, ...enPlus],' '    }],' \
+  "$OC2"
+prouver 'la console qui ne propose pas le module acheté seul' serveur/console/routes.ts \
+  "  if (!f.offert && ligne.offre !== 'complet' && ligne.modules.length < 2) g.push('ouvrir-module');
+" '' \
+  "$OCW"
+prouver 'la carte Essentiel qui ignore la paie achetée' web/public/plateforme/abonnement.js \
+  'esc(ceQuiResteDansComplet(a.modules))' 'esc(ceQuiResteDansComplet([]))' \
+  "$OCW"
+prouver 'un prix « jamais par utilisateur » que la facture dément' web/public/plateforme/abonnement.js \
+  "<p>Un prix par entreprise, hors taxes : la TVA s'ajoute.</p>" "<p>Un prix par entreprise, jamais par utilisateur. Hors taxes : la TVA s'ajoute.</p>" \
+  "$OCW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

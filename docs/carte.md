@@ -423,7 +423,7 @@ vaut pour tout le dépôt.*
     lien se montre une fois et part par les moyens de qui invite (copier, WhatsApp, sa messagerie) : le serveur
     n'envoie RIEN. Qui ouvre le lien sans compte voit où il va, qui l'invite et l'adresse réservée
     (`POST /invitations/apercu`, public, `socle.apercu_invitation`) et arrive sur « Créer un compte », l'adresse remplie.
-    Pas faits : le prix à la quatrième personne (l'abonnement ne compte pas encore les utilisateurs) ; le drapeau
+    Pas faits : l'avertissement avant la quatrième personne (la facture la compte depuis 14c-2, 1.8.0) ; le drapeau
     `prevenirProprietaire` des gestes n'a aucun lecteur.
   - **Toutes les données de l'entreprise** (même lot, 12/10/2026 ; `docs/export-complet.md`, `0080`) : « Télécharger toutes
     les données », en tête de l'onglet « Données et sécurité », pour le propriétaire et un administrateur. Le fichier est
@@ -545,6 +545,12 @@ vaut pour tout le dépôt.*
     serveur refuse lui-même un salarié, un bulletin, une absence, une avance ou une immobilisation nouveaux ; l'écran
     retient la création à l'ouverture du formulaire (les portes de la v10, 7.33.0, avec les mots de l'abonnement). Ce que
     la loi demande n'est dans aucun module fermé ; le cabinet sous mandat a toujours la paie et la comptabilité (02 § 8).
+  - **Ce que l'offre compte** (abonnement 14c, deuxième partie, 1.8.0 ; `docs/abonnement.md` « 14c », `0099`) : un
+    module acheté seul sur Essentiel (la paie, la comptabilité complète) est un geste de la direction dans la console,
+    avec son motif ; la facture de l'abonnement compte, le jour où elle se prépare, ce qui dépasse l'offre (utilisateurs
+    sauf caisse ou salle seules, caisses, établissements, salariés présents) et chaque module acheté, au prix du jour de
+    sa ligne (`plateforme.prix_option` ; au mois, un dixième de l'année) ; la base rejoue le total. Le client lit ces
+    prix sous les offres de « Ton abonnement » avant de les payer.
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

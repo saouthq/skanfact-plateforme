@@ -42,21 +42,46 @@ export function periodeDeLaFacture(faits: Faits, periodicite: Periodicite, jour:
 // deux postes, deux membres de l'équipe n'en font jamais deux.
 export const clePiece = (abonne: string, debut: string) => `abonnement-${abonne}-${debut}`;
 
-// La pièce, telle que la v10 l'écrit (le formulaire d'une facture) : une ligne, le prix hors taxes du jour, la TVA de
-// l'entreprise SkanFact (son régime et son taux, `defaultVat` : aucun taux écrit ici), le timbre selon la fiche du
-// client, comme pour toute facture. Le dinar : la grille des prix est en dinars.
+// Ce qui s'ajoute à l'offre sur la facture (14c ; 0099, plateforme.lignes_en_plus) : un module acheté seul, ou ce qui
+// dépasse l'offre (les utilisateurs, les salariés, les caisses, les établissements), compté par la base le jour de la
+// préparation, au prix du jour de sa ligne.
+export type LigneEnPlus = { option: string; quantite: number; compte: number; inclus: number; prixHt: bigint };
+export function lireLignesEnPlus(brut: unknown): LigneEnPlus[] {
+  const entier = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : 0);
+  return (Array.isArray(brut) ? brut : []).flatMap((x) => {
+    const l = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>;
+    const prix = typeof l.prixHt === 'string' && /^\d+$/.test(l.prixHt) ? BigInt(l.prixHt) : null;
+    const option = typeof l.option === 'string' ? l.option : '';
+    return option && prix !== null && entier(l.quantite) > 0
+      ? [{ option, quantite: entier(l.quantite), compte: entier(l.compte), inclus: entier(l.inclus), prixHt: prix }] : [];
+  });
+}
+// Le total hors taxes : l'offre, et chaque ligne en plus (sa quantité à son prix), en millimes.
+export const totalHt = (prixHt: bigint, enPlus: readonly LigneEnPlus[]) => enPlus.reduce((s, l) => s + BigInt(l.quantite) * l.prixHt, prixHt);
+
+// La pièce, telle que la v10 l'écrit (le formulaire d'une facture) : la ligne de l'offre au prix hors taxes du jour, puis
+// une ligne par module acheté ou par ce qui dépasse l'offre ; la TVA de l'entreprise SkanFact (son régime et son taux,
+// `defaultVat` : aucun taux écrit ici), le timbre selon la fiche du client, comme pour toute facture. Le dinar : la
+// grille des prix est en dinars.
 export function pieceDAbonnement(o: {
   cle: string; client: Json; offre: Offre; periodicite: Periodicite; debut: string; fin: string; echeance: string; jour: string;
-  prixHt: bigint; societe: Json;
+  prixHt: bigint; societe: Json; enPlus?: readonly LigneEnPlus[];
 }): Json {
+  const tva = C().defaultVat(commeLEcran(o.societe));
+  const periode = enFrancais('abonnement.facture.periode', { du: jourEnFrancais(o.debut), au: jourEnFrancais(o.fin) });
+  const enPlus = (o.enPlus ?? []).map((l) => ({
+    label: enFrancais(`abonnement.facture.option.${l.option}`),
+    description: l.option.startsWith('module_') ? periode
+      : enFrancais('abonnement.facture.au_dela', { compte: String(l.compte), inclus: String(l.inclus), du: jourEnFrancais(o.debut), au: jourEnFrancais(o.fin) }),
+    unit: '', qty: l.quantite, unitPrice: enNombreV10(versTexte(l.prixHt, 3)), vatRate: tva,
+  }));
   return {
     id: o.cle, type: 'facture', number: '', status: 'brouillon', date: o.jour, dueDate: o.echeance,
     clientId: o.client.id, subject: enFrancais('abonnement.facture.objet', { du: jourEnFrancais(o.debut), au: jourEnFrancais(o.fin) }), reference: '',
     lines: [{
       label: enFrancais('abonnement.facture.ligne', { offre: enFrancais(`abonnement.facture.offre.${o.offre}`), periodicite: enFrancais(`abonnement.facture.periodicite.${o.periodicite}`) }),
-      description: enFrancais('abonnement.facture.periode', { du: jourEnFrancais(o.debut), au: jourEnFrancais(o.fin) }), unit: '', qty: 1,
-      unitPrice: enNombreV10(versTexte(o.prixHt, 3)), vatRate: C().defaultVat(commeLEcran(o.societe)),
-    }],
+      description: periode, unit: '', qty: 1, unitPrice: enNombreV10(versTexte(o.prixHt, 3)), vatRate: tva,
+    }, ...enPlus],
     discountRate: 0, withholdingRate: 0, applyStamp: !(o.client.stampExempt === true), notes: '', payments: [],
     lang: 'fr', currency: 'DT', exchangeRate: '', createdAt: Date.now(),
   };
@@ -76,12 +101,15 @@ const lire = async (tx: Transaction, entreprise: string, collection: string, cle
 
 export type Abonne = { id: string; raisonSociale: string; matricule: string | null; email: string | null };
 export type FacturePreparee = { cle: string; editeur: string; offre: Offre; periodicite: Periodicite; debut: string; fin: string; echeance: string;
-  montantHt: string; ceQueDira: ReturnType<typeof ceQueDiraLaFacture>; client: string };
+  montantHt: string; ceQueDira: ReturnType<typeof ceQueDiraLaFacture>; client: string;
+  // L'offre au prix du jour, et ce qui s'ajoute (14c), pour que l'aperçu dise chaque ligne avant le geste.
+  prixOffreHt: string; enPlus: { option: string; quantite: number; compte: number; inclus: number; prixHt: string; totalHt: string }[] };
 
 // Préparer (ou, `apercu`, seulement montrer) la facture d'une période. Au nom de la personne, dans la transaction de la
 // console : la base vérifie qu'elle est propriétaire de l'entreprise SkanFact.
 export async function preparerFacture(tx: Transaction, utilisateur: string, abonne: Abonne, faits: Faits,
-  voulue: { offre: Offre; periodicite: Periodicite }, prix: bigint | null, jour: string, o: { apercu: boolean; motif: string }): Promise<FacturePreparee> {
+  voulue: { offre: Offre; periodicite: Periodicite }, prix: bigint | null, jour: string, o: { apercu: boolean; motif: string },
+  enPlus: readonly LigneEnPlus[] = []): Promise<FacturePreparee> {
   const editeur = String((await tx.query('select plateforme.editeur_de_mes_factures() v')).rows[0]?.v);
   if (editeur === abonne.id) throw new Refus('abonnement.facture.editeur_lui_meme');
   if (prix === null) throw new Refus('abonnement.facture.sans_prix');
@@ -103,9 +131,11 @@ export async function preparerFacture(tx: Transaction, utilisateur: string, abon
   const client: Json = fiche?.contenu ?? {
     id: randomUUID(), name: abonne.raisonSociale, matricule: abonne.matricule ?? '', address: '', email: abonne.email ?? '', phone: '', currency: '',
   };
-  const piece = pieceDAbonnement({ cle, client, offre: voulue.offre, periodicite: voulue.periodicite, debut, fin, echeance, jour, prixHt: prix, societe });
+  const piece = pieceDAbonnement({ cle, client, offre: voulue.offre, periodicite: voulue.periodicite, debut, fin, echeance, jour, prixHt: prix, societe, enPlus });
+  const total = totalHt(prix, enPlus);
   const resultat: FacturePreparee = { cle, editeur, offre: voulue.offre, periodicite: voulue.periodicite, debut, fin, echeance,
-    montantHt: versTexte(prix, 3), ceQueDira: ceQueDiraLaFacture(piece, societe), client: String(client.id) };
+    montantHt: versTexte(total, 3), ceQueDira: ceQueDiraLaFacture(piece, societe), client: String(client.id),
+    prixOffreHt: versTexte(prix, 3), enPlus: enPlus.map((l) => ({ ...l, prixHt: versTexte(l.prixHt, 3), totalHt: versTexte(BigInt(l.quantite) * l.prixHt, 3) })) };
   if (o.apercu) return resultat;
   if (!fiche) {
     const { n } = (await tx.query("select count(*)::int n from socle.dossier_v10 where entreprise = $1 and collection = 'clients'", [editeur])).rows[0] as { n: number };
@@ -113,7 +143,7 @@ export async function preparerFacture(tx: Transaction, utilisateur: string, abon
   }
   await appliquer(tx, editeur, utilisateur, [{ collection: 'documents', cle, rang: null, revision: null, contenu: piece }], { serveur: true });
   await tx.query('select plateforme.console_noter_facture($1, $2, $3, $4, $5, $6::date, $7::date, $8::bigint, $9, $10::date)',
-    [abonne.id, cle, String(client.id), voulue.offre, voulue.periodicite, debut, fin, prix.toString(), o.motif, jour]);
+    [abonne.id, cle, String(client.id), voulue.offre, voulue.periodicite, debut, fin, total.toString(), o.motif, jour]);
   return resultat;
 }
 

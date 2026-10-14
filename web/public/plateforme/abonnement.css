@@ -66,6 +66,21 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 .abo-inclus li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 14px; line-height: 1.4; color: var(--text); }
 .abo-inclus svg { width: 18px; height: 18px; margin-top: 1px; fill: none; stroke: var(--primary); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 
+/* ── Au-delà de l'offre (14c) : ce que chaque ligne compte à gauche, son prix à droite, à la même place d'une ligne à
+   l'autre ── */
+.abo-plus { display: flex; flex-direction: column; gap: 10px; padding: 18px 22px; border-radius: 16px; border: 1px solid var(--border); background: var(--panel); }
+.abo-plus-tete { display: flex; flex-direction: column; gap: 4px; }
+.abo-plus-tete h4 { font-family: var(--abo-titre); font-weight: 650; font-size: 16px; color: var(--text); }
+.abo-plus-tete p { font-size: 13px; line-height: 1.5; color: var(--muted); }
+.abo-plus-liste { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }
+.abo-plus-liste li { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 10px 0; border-top: 1px solid var(--border); }
+.abo-plus-quoi, .abo-plus-prix { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.abo-plus-quoi b { font-size: 14px; font-weight: 600; color: var(--text); }
+.abo-plus-quoi span, .abo-plus-prix span { font-size: 12.5px; color: var(--muted); }
+.abo-plus-prix { text-align: end; flex: none; }
+.abo-plus-prix b { font-size: 14px; font-weight: 650; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.abo-plus-prix span { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
 /* ── T'abonner : la carte sarcelle, et l'adresse qui se clique ── */
 .abo-payer { display: flex; align-items: flex-start; gap: 16px; padding: 20px 24px; border-radius: 20px; background: var(--primary-soft); border: 1px solid transparent; }
 .abo-payer-ico { flex: none; width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--abo-nuit); }
@@ -129,7 +144,11 @@ iframe.abo-piece { width: 100%; height: 75vh; border: 1px solid var(--border); b
   .abo-etapes { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 720px) {
-  .abo-offres { grid-template-columns: minmax(0, 1fr); }
+  .abo-offres, .abo-plus-liste { grid-template-columns: minmax(0, 1fr); }
+  /* Au téléphone, une ligne en plus se lit de haut en bas : ce qu'elle compte, puis son prix. */
+  .abo-plus { padding: 16px 18px; }
+  .abo-plus-liste li { flex-direction: column; align-items: stretch; gap: 4px; }
+  .abo-plus-prix { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; text-align: start; }
   .abo-tete { padding: 22px 20px; }
   .abo-tete h3 { font-size: 22px; }
   /* Au téléphone, une facture est une carte : la pièce, puis le montant et l'état, puis les gestes, de toute la largeur. */

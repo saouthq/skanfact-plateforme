@@ -1,7 +1,8 @@
 // Ce qu'une offre ouvre (14c ; docs/abonnement.md, « 14c » ; skanfact docs/cadrage/07-offres-et-prix.md, 02 § 1, § 6
 // et § 8).
 //
-// Essentiel ne contient ni la paie ni la comptabilité complète : ces deux modules y sont FERMÉS. Fermé ne cache rien
+// Essentiel ne contient ni la paie ni la comptabilité complète : ces deux modules y sont FERMÉS, sauf achetés seuls
+// (14c, deuxième partie : un geste de SkanFact, plateforme.abonnement.modules). Fermé ne cache rien
 // (02 § 1 : une offre ne masque jamais rien) : tout ce qui existe se lit, s'imprime, s'exporte et se corrige ; rien de
 // NEUF ne s'y crée (02 § 6 ; la v10, 7.33.0). Tout le reste ouvre tout : l'essai, Complet, un abonnement offert, ce
 // qu'on ne connaît pas (rien ne se ferme sur ce qu'on ignore). La lecture seule, elle, a sa propre porte (condition.ts).
@@ -13,10 +14,10 @@ import type { Transaction } from '../base.ts';
 import { Refus } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { faitsDe } from './condition.ts';
-import { etatAbonnement, type Etat, type Faits, type Offre } from './etat.ts';
+import { etatAbonnement, type Etat, type Faits, type ModuleAchete, type Offre } from './etat.ts';
 import './textes.ts';
 
-export type ModuleDeLOffre = 'paie' | 'compta';
+export type ModuleDeLOffre = ModuleAchete;
 export const MODULES_DE_COMPLET: readonly ModuleDeLOffre[] = ['paie', 'compta'];
 
 // Les parties du dossier où un module fermé ne crée plus rien. La comptabilité complète n'y ferme que les
@@ -38,7 +39,8 @@ export function offreQuiDecide(f: Faits, e: Etat): Offre | null {
 
 export function modulesFermes(f: Faits | null, jour: string): ModuleDeLOffre[] {
   if (!f) return [];
-  return offreQuiDecide(f, etatAbonnement(f, jour)) === 'essentiel' ? [...MODULES_DE_COMPLET] : [];
+  // Un module acheté seul sur Essentiel (14c, deuxième partie) y est ouvert.
+  return offreQuiDecide(f, etatAbonnement(f, jour)) === 'essentiel' ? MODULES_DE_COMPLET.filter((m) => !(f.modules ?? []).includes(m)) : [];
 }
 
 // Pour la personne qui agit : qui n'agit ici que par son cabinet (le mandat) a tout.

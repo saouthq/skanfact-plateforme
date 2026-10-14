@@ -52,6 +52,9 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
       // Les prix hors taxes, en texte décimal (l'argent ne sort jamais en millimes bruts).
       const prix = ((await tx.query('select plateforme.prix_du_jour($1::date) p', [jour])).rows[0].p as { offre: string; periodicite: string; montantHt: string }[])
         .map((p) => ({ ...p, montantHt: versTexte(BigInt(p.montantHt), 3) }));
+      // Ce qui s'ajoute à l'offre (14c), au prix du jour : lu ici AVANT d'arriver sur une facture.
+      const options = ((await tx.query('select plateforme.prix_options_du_jour($1::date) p', [jour])).rows[0].p as { option: string; periodicite: string; montantHt: string }[])
+        .map((p) => ({ ...p, montantHt: versTexte(BigInt(p.montantHt), 3) }));
       const historique = (await tx.query('select plateforme.historique_abonnement($1) h', [ent])).rows[0].h as { le: string; nature: string; apres: unknown }[];
       // Ses factures : chaque pièce telle que son client la lit (les listes fermées de l'espace client), et la période
       // qu'elle paie. Sans facture émise, rien d'autre ne part (ni la fiche de l'entreprise SkanFact, ni la sienne).
@@ -61,7 +64,8 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
         pieces: lu.pieces.map((p) => ({ ...vueDePiece(p, lu.paiement === true, jour), periode: lirePeriode(p.periode) })),
       };
       // `enLigne` : une facture de SkanFact se règle-t-elle en ligne (ce que dit « T'abonner », avant toute facture).
-      return { corps: { aujourdhui: jour, etat, prix, historique, factures, enLigne: lu.paiement === true } };
+      // `modules` : ceux achetés seuls sur Essentiel (14c), que la carte de l'offre dit.
+      return { corps: { aujourdhui: jour, etat, prix, options, historique, factures, enLigne: lu.paiement === true, modules: f?.modules ?? [] } };
     },
   });
 

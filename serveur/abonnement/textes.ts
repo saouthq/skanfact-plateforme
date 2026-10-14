@@ -37,6 +37,13 @@ declarerTextes({
   'abonnement.geste.deja_offert': 'l\'abonnement est déjà offert',
   'abonnement.geste.pas_offert': 'l\'abonnement n\'est pas offert',
   'abonnement.geste.inconnu': 'ce geste sur un abonnement n\'existe pas',
+  // Les modules achetés seuls sur Essentiel (14c ; 0099).
+  'abonnement.module.paie': 'la paie',
+  'abonnement.module.compta': 'la comptabilité complète',
+  'abonnement.geste.module': 'le module est « paie » ou « compta »',
+  'abonnement.geste.module_complet': 'l\'offre Complet contient déjà la paie et la comptabilité complète : rien à acheter',
+  'abonnement.geste.module_deja': '{module} est déjà achetée pour cet abonnement',
+  'abonnement.geste.module_pas': '{module} n\'est pas achetée pour cet abonnement',
   // Nos factures (docs/abonnement.md B1–B4).
   'abonnement.facture.tenu_par_cabinet': 'ce dossier est tenu par un cabinet : c\'est le cabinet qui le paie, et sa facture viendra avec l\'abonnement des cabinets',
   'abonnement.facture.editeur_lui_meme': 'l\'entreprise SkanFact ne se facture pas à elle-même',
@@ -51,6 +58,14 @@ declarerTextes({
   'abonnement.facture.offre.complet': 'Complet',
   'abonnement.facture.periodicite.annuel': 'annuel',
   'abonnement.facture.periodicite.mensuel': 'mensuel',
+  // Ce qui s'ajoute à l'offre sur la facture (14c ; 0099).
+  'abonnement.facture.option.module_paie': 'Module Paie (acheté seul sur Essentiel)',
+  'abonnement.facture.option.module_compta': 'Module Comptabilité complète (acheté seul sur Essentiel)',
+  'abonnement.facture.option.utilisateur': 'Utilisateur au-delà de l\'offre',
+  'abonnement.facture.option.salarie': 'Salarié au-delà de l\'offre',
+  'abonnement.facture.option.caisse': 'Caisse au-delà de l\'offre',
+  'abonnement.facture.option.etablissement': 'Établissement au-delà de l\'offre',
+  'abonnement.facture.au_dela': '{compte} au total, dont {inclus} dans l\'offre ; du {du} au {au}',
   // L'abonné règle sa facture (docs/abonnement.md B5).
   'abonnement.facture.inconnue': 'cette facture n\'est pas une facture émise de ton abonnement',
 });

@@ -121,8 +121,8 @@ arrondies ; vérifié en clair et en sombre.
 
 - **14b** : payer en ligne (le Konnect de l'éditeur, `docs/paiement-en-ligne.md` pour celui des entreprises), et les
   factures de l'abonnement préparées en brouillon chez SkanFact.
-- **14c** (sa première partie est faite, plus bas) : ce qui distingue Essentiel et Complet (la paie, la comptabilité complète, les caisses, les établissements, le
-  nombre d'utilisateurs, que rien ne compte encore).
+- **14c** (ses deux premières parties sont faites, plus bas) : ce qui distingue Essentiel et Complet (la paie, la
+  comptabilité complète, les caisses, les établissements, le nombre d'utilisateurs).
 - **La console** (10) : voir les abonnements et faire ces gestes depuis un écran, avec la liste « À décider ». Faite
   ensuite, en première partie (Console 1, `docs/console.md`).
 - Le prix gardé deux ans des cent premières entreprises (07, « les premiers clients ») : avec les factures, en 14b.
@@ -236,8 +236,68 @@ utilisateurs (3, puis + 30 DT ; `03` § 4.1, avec l'avertissement AVANT la quatr
 comptabilité complète + 150 DT) et leurs lignes sur la facture de l'abonnement ; passer à Complet en libre-service (on
 écrit à contact@skanfact.tn, comme en 14a).
 
-**À DÉCIDER (Skander)** : le prix au mois d'un module acheté seul (`07` ne donne que l'année ; 15 DT par mois serait le
-rapport des offres, 390/39).
+Le prix au mois d'un module acheté seul (`07` ne donne que l'année) : décidé avec la deuxième partie, plus bas.
+
+## 14c — Ce que l'offre compte (deuxième partie, 14/10/2026)
+
+*Le prix au mois de chaque ajout : un dixième de son prix à l'année, le rapport des offres (390/39) ; proposé le
+14/10/2026 (15 DT par mois pour un module), accepté d'un « go » de Skander le même jour. Le reste suit la grille de `07`
+(« Au-delà de l'offre ») et `03` § 4.1 (qui compte comme utilisateur).*
+
+**C6. Un module acheté seul sur Essentiel** (la paie, la comptabilité complète) est un geste de la direction dans la
+console (« Ouvrir un module acheté seul », « Retirer un module acheté seul »), avec son motif, son histoire et sa ligne
+au journal, comme les autres gestes sur l'abonnement (une seule règle : `serveur/abonnement/gestes.ts`). Il s'ouvre
+aussitôt chez le client (C1 suit `plateforme.abonnement.modules`) ; sa ligne vient sur la prochaine facture. Complet le
+contient déjà : refusé, en le disant. L'aperçu du geste dit les modules d'après (l'état, lui, ne change pas). Rien ne
+s'achète en libre-service : on écrit à contact@skanfact.tn, comme en 14a.
+
+**C7. La facture compte**, le jour où elle se prépare et pour la période qu'elle paie (`plateforme.lignes_en_plus`,
+`0099`) :
+- les **utilisateurs** : les membres actifs, sauf qui n'a que la caisse ou le service en salle (`07`, `03` § 4.1 ; le
+  cabinet n'est pas membre, il ne compte jamais) ; Essentiel en comprend 3, Complet sans limite ;
+- les **caisses** actives (1 en Essentiel, 2 en Complet) et les **établissements** actifs (1 / 2) ;
+- les **salariés** présents (sans date de sortie, ou sortis après le jour de la facture), quand la paie est là : 10 avec
+  la paie achetée sur Essentiel, 20 en Complet ;
+- chaque **module acheté seul**.
+
+Chaque ligne est au prix du jour de sa ligne (`plateforme.prix_option`, daté comme `plateforme.prix`). Une ligne sans
+prix posé refuse la facture : rien n'est inventé. La base rejoue le total à l'enregistrement (`console_noter_facture`) :
+un total qui n'est pas celui du jour est refusé, et le journal garde les lignes en plus (leur nom, leur quantité). La
+pièce, dans le dossier de SkanFact, porte une ligne par ajout (« Utilisateur au-delà de l'offre — 4 au total, dont 3
+dans l'offre ; du … au … »).
+
+| Ajout (HT) | À l'année | Au mois |
+|---|---|---|
+| Utilisateur au-delà de l'offre (Essentiel) | 30 DT | 3 DT |
+| Caisse au-delà de l'offre | 120 DT | 12 DT |
+| Établissement au-delà de l'offre | 120 DT | 12 DT |
+| Salarié au-delà de l'offre (avec la paie) | 12 DT | 1,200 DT |
+| La paie, achetée seule sur Essentiel | 150 DT | 15 DT |
+| La comptabilité complète, achetée seule sur Essentiel | 150 DT | 15 DT |
+
+**C8. Le client voit les prix AVANT** de les payer : sous les offres de « Ton abonnement », « Au-delà de ce que l'offre
+comprend » liste chaque ajout, ce que chaque offre en comprend, et son prix du jour (`plateforme.prix_options_du_jour`),
+avec qui compte comme utilisateur. « Un prix par entreprise, jamais par utilisateur » ne s'affiche plus (l'écran, la
+bulle d'aide, la console) : ce n'était plus vrai. Le principe de `07` reste (le prix est celui de l'entreprise, un
+utilisateur de plus coûte peu).
+
+**Ce que 14c-2a ne fait pas** (14c-2b) : l'avertissement AVANT la quatrième invitation en Essentiel (`03` § 4.1 : ce
+qu'elle coûtera, « Inviter quand même ») ; « Ton abonnement » qui compte ce qui est pris (utilisateurs 4/3, caisses,
+établissements, salariés) ; la grille des ajouts dans les Réglages de la console ; passer à Complet en libre-service.
+
+## Revu à la souris (14/10/2026, 14c deuxième partie)
+
+Sur l'essai de l'outil humain, dans la console (Amira, direction) : la Librairie Al Kitab, « Ouvrir un module acheté
+seul » (la paie), l'aperçu qui dit les modules d'après, la fiche « Modules achetés seuls : Paie », son histoire avec le
+motif ; l'Atelier Mejri, la paie ouverte, quatre invités (un commercial, une magasinière, un caissier qui lit aussi, une
+caissière seule) et douze salariés dont un sorti : « Préparer la facture… » dit 39 + 15 (la paie) + 3 (un utilisateur
+au-delà de trois, sur quatre comptés) + 1,200 (un salarié au-delà de dix, sur onze) = 58,200 DT HT, 70,258 DT à payer ;
+le brouillon, dans le dossier de SkanFact, porte les quatre lignes et leur période. Chez Walid : la paie s'ouvre (plus de
+cadenas, le formulaire du salarié s'ouvre), les immobilisations restent fermées ; la carte Essentiel dit que la paie est
+achetée ; l'histoire « Module acheté (la paie) » ; « Au-delà de ce que l'offre comprend » à l'ordinateur et au téléphone.
+Corrigé pendant le parcours : l'aperçu du geste ne disait rien du module (l'état ne change pas) ; « jamais par
+utilisateur », devenu faux, et les prix des ajouts, que le client ne voyait nulle part avant de les payer ; au
+téléphone, la liste des ajouts en colonne de mots coupés.
 
 ## Revu à la souris (14/10/2026, 14c première partie)
 

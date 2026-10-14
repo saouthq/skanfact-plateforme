@@ -476,6 +476,7 @@ export interface BaseDeDonnees {
     suspendu_le: string | null;
     offert: Generated<boolean>;
     modifie_le: Generated<Date>;
+    modules: Generated<string[]>;
   };
   'plateforme.acces_support': {
     id: Generated<string>;
@@ -610,6 +611,12 @@ export interface BaseDeDonnees {
   };
   'plateforme.prix': {
     offre: string;
+    periodicite: string;
+    a_partir_du: string;
+    montant_ht: bigint;
+  };
+  'plateforme.prix_option': {
+    option: string;
     periodicite: string;
     a_partir_du: string;
     montant_ht: bigint;

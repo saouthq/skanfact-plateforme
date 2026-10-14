@@ -488,6 +488,8 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'le prix n\'est pas celui du jour : relis-le avant de préparer la facture', cle: 'base.factures.prix_du_jour', fr: 'le prix n\'est pas celui du jour : relis-le avant de préparer la facture' },
   { base: 'la facture préparée manque au dossier de l\'entreprise SkanFact : %s', cle: 'base.factures.piece_absente', fr: 'la facture préparée manque au dossier de l\'entreprise SkanFact : {piece}', valeurs: ['piece'] },
   { base: 'cette facture est déjà payée : elle ne se refait pas', cle: 'base.factures.deja_payee', fr: 'cette facture est déjà payée : elle ne se refait pas' },
+  // Ce qui s'ajoute à l'offre sur la facture (0099, docs/abonnement.md « 14c »).
+  { base: 'aucun prix n\'est posé pour cette ligne de la facture : %s', cle: 'base.factures.option_sans_prix', fr: 'aucun prix n\'est posé pour cette ligne de la facture : {option}', valeurs: ['option'] },
   // L'abonné lit et règle ses factures (0098, docs/abonnement.md B5).
   { base: 'les factures de l\'abonnement se lisent et se règlent par le propriétaire ou un administrateur de l\'entreprise', cle: 'base.factures.qui_lit', fr: 'les factures de l\'abonnement se lisent et se règlent par le propriétaire ou un administrateur de l\'entreprise' },
 ];

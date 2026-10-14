@@ -1,0 +1,161 @@
+// Ce que l'offre compte, à la souris (14c, deuxième partie ; docs/abonnement.md, « 14c » ; 0099). Ce que le parcours
+// vérifie, écran ET serveur :
+//   - la console : « Ouvrir un module acheté seul » dit AVANT le geste les modules d'après ; fait, la fiche les écrit ;
+//   - « Préparer la facture… » d'une Essentiel au mois avec la paie achetée, quatre utilisateurs comptés (une caissière
+//     seule ne compte pas) et onze salariés présents (le sorti ne compte pas) : l'aperçu dit chaque ligne, son compte et
+//     le net à payer ; préparée, la base garde le total ;
+//   - l'application du client : la paie s'ouvre (plus de cadenas), la comptabilité complète reste fermée ; la carte
+//     Essentiel dit ce qui est acheté ; sous les offres, ce qui s'ajoute et son prix du jour ; l'histoire dit le module ;
+//     nulle part « jamais par utilisateur » (ce n'est plus vrai).
+
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import pg from 'pg';
+import { chromium, type Browser, type Page } from 'playwright-core';
+import { build } from 'vite';
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { faire } from '../../base/abonnement.ts';
+import { ajouter as ajouterALEquipe } from '../../base/equipe.ts';
+import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
+import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
+import { cliquer } from '../cliquer.ts';
+
+const RACINE = path.join(import.meta.dirname, '../..');
+const PHOTOS = path.join(RACINE, 'dist/photos');
+const MDP = 'Un-bon-mot-de-passe';
+const net = (t: string) => t.replace(/[\s\u202f\u00a0]+/g, ' ').trim();
+
+describe('ce que l\'offre compte, à la souris', () => {
+  let navigateur: Browser;
+  let serveur: Awaited<ReturnType<typeof demarrer>>;
+  const admin = new pg.Client({ connectionString: inject('pgAdmin') });
+  const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-offre-compte-'));
+  const erreurs: string[] = [];
+  let n = 0;
+  beforeAll(async () => {
+    await admin.connect();
+    await admin.query(`insert into socle.regle_fiscale (code, valeur, debut, source)
+      select 'timbre.facture', '1000', '2000-01-01', 'Règle d''essai des tests' where not exists (select 1 from socle.regle_fiscale where code = 'timbre.facture')`);
+    await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
+    serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
+    navigateur = await chromium.launch();
+    fs.mkdirSync(PHOTOS, { recursive: true });
+  }, 120_000);
+  afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); await admin.end(); fs.rmSync(dossier, { recursive: true, force: true }); });
+
+  const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
+    const r = await fetch(`${serveur.adresse}/v1${chemin}`, {
+      method: methode, headers: { ...(jeton ? { authorization: `Bearer ${jeton}` } : {}), ...(corps === undefined ? {} : { 'content-type': 'application/json' }) },
+      ...(corps === undefined ? {} : { body: JSON.stringify(corps) }), signal: AbortSignal.timeout(20_000),
+    });
+    const texte = await r.text();
+    return { statut: r.status, corps: (texte ? JSON.parse(texte) : {}) as Record<string, unknown> };
+  };
+  const personne = async (sorte: string) => {
+    const email = `offre-compte-web-${sorte}-${Date.now()}-${++n}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: `${sorte} ${n}`, motDePasse: MDP });
+    return { email, jeton: String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton) };
+  };
+  // La direction : son compte de l'application (propriétaire de l'entreprise SkanFact) et son jeton de la console.
+  const direction = async () => {
+    const p = await personne('amira');
+    const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', p.jeton, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '';
+    await ajouterALEquipe(admin, p.email, 'direction', 'essai de 14c à la souris');
+    const r = await api('POST', '/console/connexion', undefined, { email: p.email, motDePasse: MDP, appareil: { nom: 'Essai', type: 'navigateur' } });
+    const c = await api('POST', '/console/connexion/code', undefined, { defi: r.corps.defi, code: codeTotp(depuisBase32(secret), Date.now()) });
+    return { appli: p.jeton, console: String(c.corps.jeton) };
+  };
+  const plusTard = async (p: Page) => {
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
+      await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
+    }
+  };
+
+  it('la direction ouvre la paie seule, la facture compte ce qui dépasse ; le client voit sa paie ouverte et les prix de ce qui s\'ajoute', async () => {
+    const amira = await direction();
+    // L'entreprise SkanFact, d'où partent nos factures.
+    const editeur = String((await api('POST', '/entreprises', amira.appli, { raisonSociale: 'SkanFact Éditions SARL' })).corps.id);
+    await admin.query('delete from plateforme.facture_abonnement');
+    await admin.query('delete from plateforme.editeur');
+    expect((await api('POST', '/console/reglages/factures/editeur', amira.console, { entreprise: editeur, motif: 'Nos factures naissent ici' })).statut).toBe(200);
+    await api('GET', `/entreprises/${editeur}/dossier-v10`, amira.appli);
+    // Sonia, en Essentiel au mois, et son équipe : quatre utilisateurs comptés, la caissière seule ne compte pas.
+    const sonia = await personne('sonia');
+    const ent = String((await api('POST', '/entreprises', sonia.jeton, { raisonSociale: 'Atelier Mejri' })).corps.id);
+    await faire(admin, ent, { geste: 'payer', offre: 'essentiel', periodicite: 'mensuel', motif: 'virement reçu' });
+    for (const roles of [['commercial'], ['magasinier'], ['caissier', 'lecture'], ['caissier']]) {
+      const m = await personne('membre');
+      const inv = await api('POST', `/entreprises/${ent}/invitations`, sonia.jeton, { email: m.email, roles });
+      expect((await api('POST', '/invitations/accepter', m.jeton, { jeton: String(inv.corps.jeton) })).statut).toBe(200);
+    }
+
+    // ── La console : la paie, achetée seule ──────────────────────────────────────────────────────────────────────────
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await cx.addInitScript((j) => { sessionStorage.setItem('skanfact.console.jeton', j); }, amira.console);
+    const c = await cx.newPage();
+    c.on('pageerror', (e) => erreurs.push(e.message));
+    await c.goto(`${serveur.adresse}/console/#/clients/${ent}?onglet=abonnement`);
+    await expect.poll(() => c.locator('h1').first().innerText().catch(() => ''), { timeout: 20_000 }).toBe('Atelier Mejri');
+    await cliquer(c.locator('.c-menu > button'));
+    await cliquer(c.locator('.c-menu-liste button', { hasText: 'Ouvrir un module acheté seul' }));
+    const fenetre = c.getByRole('dialog');
+    await expect.poll(() => fenetre.locator('.c-apercu-details').innerText().then(net).catch(() => ''), { timeout: 10_000 })
+      .toBe('Modules achetés seuls après le geste : Paie.');
+    await fenetre.getByLabel('Motif', { exact: true }).fill('Sonia lance la paie de ses ouvriers');
+    await cliquer(fenetre.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => fenetre.count(), { timeout: 10_000 }).toBe(0);
+    await expect.poll(() => c.locator('.c-faits').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toContain('Modules achetés seuls Paie');
+
+    // Onze salariés présents et un sorti, entrés maintenant que la paie est ouverte ; et un client (une entreprise qui
+    // travaille déjà : l'assistant de démarrage ne s'ouvre pas sur elle).
+    const changements = [...Array.from({ length: 12 }, (_, i) => ({ collection: 'employees', cle: `sal-${i + 1}`, rang: null, revision: null,
+      contenu: { id: `sal-${i + 1}`, name: `Salarié ${i + 1}`, grossSalary: 1180 + i * 15, hireDate: '2025-03-01', ...(i === 11 ? { endDate: '2026-01-31' } : {}) } })),
+    { collection: 'clients', cle: 'cl-1', rang: 0, revision: null, contenu: { id: 'cl-1', name: 'Menuiserie Ennour' } }];
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, sonia.jeton, { changements })).statut).toBe(200);
+
+    // ── La facture : chaque ligne, son compte, et le net ─────────────────────────────────────────────────────────────
+    await c.reload();
+    const factures = c.locator('section[aria-labelledby="fiche-factures"]');
+    await cliquer(factures.getByRole('button', { name: /Préparer la facture/ }));
+    const f = c.getByRole('dialog');
+    await expect.poll(() => f.locator('.c-fa-lignes li').allInnerTexts().then((t) => t.map(net)).catch(() => []), { timeout: 10_000 }).toEqual([
+      'Essentiel, au mois 39,000 DT',
+      'Module paie (acheté seul) 15,000 DT',
+      'Utilisateurs au-delà de l\'offre 4 comptés, 3 dans l\'offre : 1 × 3,000 DT. 3,000 DT',
+      'Salariés au-delà de l\'offre 11 comptés, 10 dans l\'offre : 1 × 1,200 DT. 1,200 DT',
+    ]);
+    expect(net(await f.locator('.c-fa-net').innerText())).toContain('70,258 DT');
+    await c.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'offre-compte-1-facture.png') });
+    await f.getByLabel('Motif', { exact: true }).fill('Échéance du mois, avec la paie et l\'équipe');
+    await cliquer(f.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => f.count(), { timeout: 10_000 }).toBe(0);
+    expect((await admin.query('select montant_ht::text m from plateforme.facture_abonnement where entreprise = $1', [ent])).rows).toEqual([{ m: '58200' }]);
+    await cx.close();
+
+    // ── L'application de Sonia : la paie ouverte, la comptabilité complète fermée, les prix de ce qui s'ajoute ─────────
+    const ax = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await ax.addInitScript((x) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', x); }, sonia.jeton);
+    const p = await ax.newPage();
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/paie`);
+    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 20_000 }).not.toBe('');
+    await plusTard(p);
+    expect(await p.locator('.sidebar a[data-route="paie"] .nav-lock').count()).toBe(0);
+    expect(await p.locator('.offre-banner').count()).toBe(0);
+    expect(await p.locator('.sidebar .nav-lock').count()).toBeGreaterThan(0);
+    await p.evaluate(() => { location.hash = '#/parametres'; });
+    await cliquer(p.locator('#set-tabs [data-tab="abonnement"]'));
+    await expect.poll(() => p.locator('.abo-offre.courante .abo-pas').innerText().then(net).catch(() => ''), { timeout: 15_000 })
+      .toBe('La paie est achetée en plus d\'Essentiel. La comptabilité complète est dans Complet : ce qui existe se lit, mais rien de nouveau ne s\'y crée.');
+    const plus = p.locator('#abo-plus li');
+    expect((await plus.evaluateAll((e) => e.map((x) => (x as HTMLElement).dataset.option)))).toEqual(['utilisateur', 'caisse', 'etablissement', 'salarie', 'module_paie', 'module_compta']);
+    expect(net(await plus.first().innerText())).toBe('Un utilisateur de plus Essentiel en comprend trois ; Complet, sans limite. 30 DT HT par an ou 3 DT HT par mois');
+    expect(net(await p.locator('.abo-histoire li').first().innerText())).toContain('Module acheté (la paie)');
+    expect(net(await p.locator('#abonnement-panel').innerText())).not.toContain('jamais par utilisateur');
+    await p.locator('#abo-plus').scrollIntoViewIfNeeded();
+    await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'offre-compte-2-au-dela.png') });
+    await ax.close();
+    expect(erreurs).toEqual([]);
+  }, 150_000);
+});

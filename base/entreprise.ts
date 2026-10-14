@@ -119,6 +119,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.evenement_abonnement': { classe: 'hors', raison: 'l\'histoire de l\'abonnement chez SkanFact, avec les notes de SkanFact' },
   'plateforme.relance_abonnement': { classe: 'hors', raison: 'les relances déjà parties : une remise ne les fait pas repartir' },
   'plateforme.prix': { classe: 'hors', raison: 'la grille de SkanFact, commune à toutes les entreprises' },
+  'plateforme.prix_option': { classe: 'hors', raison: 'les prix de ce qui s\'ajoute à une offre (14c) : la grille de SkanFact, commune à toutes les entreprises' },
   // La console (0083, docs/console.md) : l'équipe SkanFact, sa connexion et son journal. Rien de cela n'est à l'entreprise.
   'plateforme.equipe': { classe: 'hors', raison: 'l\'équipe de SkanFact, commune à la plateforme' },
   'plateforme.defi_console': { classe: 'hors', raison: 'un secret de connexion ne quitte jamais la plateforme' },

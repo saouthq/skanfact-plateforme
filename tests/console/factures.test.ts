@@ -157,7 +157,7 @@ describe('nos factures', () => {
     expect(String(encore.corps.motif)).toMatch(/déjà préparée/);
     // Le journal de la console et la fiche : préparée, à émettre ; et l'entreprise SkanFact ne se change plus.
     const g = (await admin.query("select motif, apres from plateforme.geste_console where geste = 'factures.preparer' and entreprise = $1", [b.id])).rows;
-    expect(g).toEqual([{ motif: 'Premier abonnement annuel', apres: { offre: 'complet', periodicite: 'annuel', factureDu: debut, factureAu: fin, montantHt: '690.000' } }]);
+    expect(g).toEqual([{ motif: 'Premier abonnement annuel', apres: { offre: 'complet', periodicite: 'annuel', factureDu: debut, factureAu: fin, montantHt: '690.000', enPlus: [] } }]);
     const fiche = (await appeler('GET', `/console/entreprises/${b.id}`, direction.console)).corps.factures as { lignes: { etat: string; piece: string; ecran: string }[]; editeur: object };
     expect(fiche.lignes).toMatchObject([{ etat: 'a_emettre', piece: cle, ecran: `/v10/?e=${editeur}#/doc/${cle}` }]);
     // La liste fermée : une ligne dit la facture (son état, ses montants, où l'ouvrir), l'entreprise SkanFact qui elle est ;

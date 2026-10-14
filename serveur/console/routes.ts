@@ -11,9 +11,9 @@ import type { Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { Introuvable, Perimee } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
-import { ESSAI_JOURS, etatAbonnement, GRACE_JOURS, lireFaits, RELANCES, type Etat, type Faits } from '../abonnement/etat.ts';
+import { ESSAI_JOURS, etatAbonnement, GRACE_JOURS, lireFaits, lireModules, RELANCES, type Etat, type Faits } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, type GesteAbonnement, type LigneAbonnement } from '../abonnement/gestes.ts';
-import { lireFacturesAbonnement, preparerFacture } from '../abonnement/factures.ts';
+import { lireFacturesAbonnement, lireLignesEnPlus, preparerFacture } from '../abonnement/factures.ts';
 import { motif, rendre, t, type Valeurs } from '../../textes/index.ts';
 import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_MIN, REGLES, SAUVEGARDE_TROP_VIEILLE_H } from '../../exploitation/veille.ts';
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
@@ -75,16 +75,17 @@ function lireLigne(x: unknown): LigneAbonnement | null {
     essai_jusqu_au: essai, paye_jusqu_au: jour(l.paye_jusqu_au),
     offre: l.offre === 'essentiel' || l.offre === 'complet' ? l.offre : null,
     periodicite: l.periodicite === 'annuel' || l.periodicite === 'mensuel' ? l.periodicite : null,
-    resilie_le: jour(l.resilie_le), suspendu_le: jour(l.suspendu_le), offert: l.offert === true,
+    resilie_le: jour(l.resilie_le), suspendu_le: jour(l.suspendu_le), offert: l.offert === true, modules: lireModules(l.modules),
   };
 }
+// Deux lignes pareilles : chaque champ, et les modules achetés (une liste) un par un.
 const memeLigne = (a: LigneAbonnement | null, b: LigneAbonnement | null) =>
-  (a === null || b === null) ? a === b : (Object.keys(a) as (keyof LigneAbonnement)[]).every((k) => a[k] === b[k]);
+  (a === null || b === null) ? a === b : (Object.keys(a) as (keyof LigneAbonnement)[]).every((k) => JSON.stringify(a[k]) === JSON.stringify(b[k]));
 
 // Les faits d'après un geste, pour dire l'état d'après AVANT de le faire.
 const faitsApres = (f: Faits, l: LigneAbonnement): Faits => lireFaits({
   connu: true, essaiJusquAu: l.essai_jusqu_au, payeJusquAu: l.paye_jusqu_au, offre: l.offre, periodicite: l.periodicite,
-  resilieLe: l.resilie_le, suspenduLe: l.suspendu_le, offert: l.offert, bacASable: f.bacASable, tenuParCabinet: f.tenuParCabinet,
+  resilieLe: l.resilie_le, suspenduLe: l.suspendu_le, offert: l.offert, bacASable: f.bacASable, tenuParCabinet: f.tenuParCabinet, modules: l.modules,
 });
 
 // Les gestes qu'un rôle peut faire sur cet abonnement, AUJOURD'HUI : l'écran ne propose que ceux-là (la base, elle,
@@ -102,6 +103,9 @@ export function gestesDisponibles(role: RoleConsole, f: Faits, ligne: LigneAbonn
   if (!ligne.suspendu_le && !f.offert) g.push('suspendre');
   if (ligne.suspendu_le) g.push('reprendre');
   g.push(f.offert ? 'retirer-offert' : 'offrir');
+  // Un module acheté seul (14c) : sur ce qui n'est ni Complet ni offert ; se retire tant qu'il en reste un.
+  if (!f.offert && ligne.offre !== 'complet' && ligne.modules.length < 2) g.push('ouvrir-module');
+  if (ligne.modules.length) g.push('fermer-module');
   return g;
 }
 
@@ -303,7 +307,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   const corpsGeste = z.object({
     motif: z.string().max(500), ligne: z.unknown(), apercu: z.boolean().optional(),
     jours: z.number().int().min(1).max(365).optional(), offre: z.enum(['essentiel', 'complet']).optional(),
-    periodicite: z.enum(['annuel', 'mensuel']).optional(),
+    periodicite: z.enum(['annuel', 'mensuel']).optional(), module: z.enum(['paie', 'compta']).optional(),
   });
   const jouer = async (tx: Transaction, id: string, geste: GesteAbonnement, corps: z.infer<typeof corpsGeste>) => {
     if (!uuid.safeParse(id).success) throw new Introuvable();
@@ -313,9 +317,10 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     const ligne = lireLigne(fiche.ligne);
     if (!memeLigne(ligne, lireLigne(corps.ligne))) throw new Perimee('console.abonnement_change');
     const faits = lireFaits((fiche.faits ?? {}) as Record<string, unknown>);
-    const { apres, details } = calculerGeste(ligne, faits, { geste, motif: corps.motif, jours: corps.jours, offre: corps.offre, periodicite: corps.periodicite }, jour);
+    const { apres, details } = calculerGeste(ligne, faits, { geste, motif: corps.motif, jours: corps.jours, offre: corps.offre, periodicite: corps.periodicite, module: corps.module }, jour);
     const etatApres = etatAbonnement(faitsApres(faits, apres), jour);
-    if (corps.apercu) return { corps: { apercu: true, avant: etatAbonnement(faits, jour), apres: etatApres, details } };
+    // Un module ouvert ou retiré ne change pas l'état : l'aperçu dit aussi la liste des modules d'après.
+    if (corps.apercu) return { corps: { apercu: true, avant: etatAbonnement(faits, jour), apres: etatApres, details, modules: apres.modules } };
     // Le motif reste dans l'histoire de l'abonnement (C1) : l'aperçu s'en passe, le geste jamais.
     if (corps.motif.trim().length < 3) return { statut: 400, corps: { motif: motif('console.motif_requis'), champ: 'motif', raison: t('console.motif_requis') } };
     await tx.query('select plateforme.console_poser_abonnement($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb, $7::date)',
@@ -351,12 +356,14 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       if (!corps.apercu && corps.motif.trim().length < 3) return { statut: 400, corps: { motif: motif('console.motif_requis'), champ: 'motif', raison: t('console.motif_requis') } };
       const jour = aujourdhuiATunis(maintenant());
       const prix = lirePrix(await lireJson(x, 'select plateforme.prix_du_jour($1::date) v', [jour])).get(`${corps.offre}/${corps.periodicite}`) ?? null;
+      // Ce qui s'ajoute à l'offre (14c) : la base le compte, au jour de la préparation, et le rejouera en notant la facture.
+      const enPlus = lireLignesEnPlus(await lireJson(x, 'select plateforme.console_lignes_facture($1, $2, $3, $4::date) v', [id, corps.offre, corps.periodicite, jour]));
       const membres = Array.isArray(fiche.membres) ? fiche.membres as { email?: unknown; roles?: unknown }[] : [];
       const proprio = membres.find((m) => Array.isArray(m.roles) && m.roles.includes('proprietaire'));
       const facture = await preparerFacture(x, qui.utilisateur, {
         id, raisonSociale: String(fiche.raisonSociale ?? ''), matricule: typeof fiche.matricule === 'string' ? fiche.matricule : null,
         email: typeof proprio?.email === 'string' ? proprio.email : null,
-      }, faits, { offre: corps.offre, periodicite: corps.periodicite }, prix, jour, { apercu: corps.apercu === true, motif: corps.motif.trim() });
+      }, faits, { offre: corps.offre, periodicite: corps.periodicite }, prix, jour, { apercu: corps.apercu === true, motif: corps.motif.trim() }, enPlus);
       return { statut: corps.apercu ? 200 : 201, corps: { apercu: corps.apercu === true, facture } };
     },
   });

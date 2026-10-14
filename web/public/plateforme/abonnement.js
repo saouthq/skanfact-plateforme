@@ -66,8 +66,30 @@
     complet: { nom: 'Complet', pour: 'Pour une entreprise qui paie des salariés et tient sa comptabilité.', inclus: [
       'Tout Essentiel', 'La paie, jusqu\'à vingt salariés', 'La comptabilité complète', 'Deux caisses', 'Des utilisateurs sans limite, deux établissements'] },
   });
+  // Ce qui s'ajoute à l'offre (14c ; skanfact docs/cadrage/07-offres-et-prix.md, « Au-delà de l'offre ») : ce que chaque
+  // ligne compte, et ce que chaque offre en comprend déjà. Les prix sont ceux du jour, lus au serveur ; une ligne sans
+  // prix ne s'affiche pas.
+  const EN_PLUS = /** @type {{ option: string, nom: string, compris: string }[]} */ ([
+    { option: 'utilisateur', nom: 'Un utilisateur de plus', compris: 'Essentiel en comprend trois ; Complet, sans limite.' },
+    { option: 'caisse', nom: 'Une caisse de plus', compris: 'Essentiel en comprend une ; Complet, deux.' },
+    { option: 'etablissement', nom: 'Un établissement de plus', compris: 'Essentiel en comprend un ; Complet, deux.' },
+    { option: 'salarie', nom: 'Un salarié de plus', compris: 'La paie en comprend dix sur Essentiel, vingt sur Complet.' },
+    { option: 'module_paie', nom: 'La paie, seule', compris: 'Sur Essentiel ; Complet la contient.' },
+    { option: 'module_compta', nom: 'La comptabilité complète, seule', compris: 'Sur Essentiel ; Complet la contient.' },
+  ]);
   /** @param {string | undefined} o */
   const nomOffre = (o) => (o && OFFRES[o] ? OFFRES[o].nom : 'Abonnement');
+
+  // Sur la carte Essentiel (14c) : ce qui reste dans Complet, sauf ce qui a été acheté seul.
+  /** @param {unknown} modules */
+  function ceQuiResteDansComplet(modules) {
+    const achetes = Array.isArray(modules) ? modules : [];
+    const paie = achetes.includes('paie'), compta = achetes.includes('compta');
+    if (paie && compta) return 'La paie et la comptabilité complète sont achetées en plus d\'Essentiel.';
+    if (paie) return 'La paie est achetée en plus d\'Essentiel. La comptabilité complète est dans Complet : ce qui existe se lit, mais rien de nouveau ne s\'y crée.';
+    if (compta) return 'La comptabilité complète est achetée en plus d\'Essentiel. La paie est dans Complet : ce qui existe se lit, mais rien de nouveau ne s\'y crée.';
+    return 'La paie et la comptabilité complète sont dans Complet : ce qui existe se lit, mais rien de nouveau ne s\'y crée.';
+  }
 
   // Pourquoi l'entreprise est en lecture seule, en une phrase.
   /** @param {Etat} e */
@@ -163,7 +185,10 @@
   const NATURES = /** @type {Record<string, string>} */ ({
     essai_commence: 'Essai commencé', essai_prolonge: 'Essai prolongé', paye: 'Paiement reçu', resilie: 'Résilié', resiliation_annulee: 'Résiliation annulée',
     suspendu: 'Suspendu par SkanFact', repris: 'Repris', offert: 'Offert par SkanFact', offert_retire: 'Ce n\'est plus offert',
+    module_ouvert: 'Module acheté', module_ferme: 'Module retiré',
   });
+  // Les modules achetés seuls sur Essentiel (14c), comme on les nomme.
+  const NOMS_MODULES = /** @type {Record<string, string>} */ ({ paie: 'la paie', compta: 'la comptabilité complète' });
   // Ce qu'un événement a changé, en quelques mots (jamais le motif : c'est une note de SkanFact).
   /** @param {{ nature: string, apres: any }} v */
   function apresEnClair(v) {
@@ -171,6 +196,7 @@
     if ((v.nature === 'essai_commence' || v.nature === 'essai_prolonge') && (a.essaiJusquAu || a.essai_jusqu_au)) return `jusqu'au ${jour(a.essaiJusquAu || a.essai_jusqu_au)}`;
     // Payé par une facture de SkanFact (14b) : elle se nomme, on la retrouve dans « Tes factures ».
     if (v.nature === 'paye' && a.paye_jusqu_au) return `${nomOffre(a.offre)}, jusqu'au ${jour(a.paye_jusqu_au)}${a.facture ? `, facture ${a.facture}` : ''}`;
+    if ((v.nature === 'module_ouvert' || v.nature === 'module_ferme') && NOMS_MODULES[a.module]) return NOMS_MODULES[a.module];
     return '';
   }
 
@@ -299,7 +325,7 @@
 
   /** @param {HTMLElement} el @param {Outils} o */
   async function dessiner(el, o) {
-    /** @type {{ aujourdhui: string, etat: Etat, prix: { offre: string, periodicite: string, montantHt: string }[], historique: { le: string, nature: string, apres: any }[], factures: FacturesAbo | null, enLigne?: boolean }} */
+    /** @type {{ aujourdhui: string, etat: Etat, prix: { offre: string, periodicite: string, montantHt: string }[], options?: { option: string, periodicite: string, montantHt: string }[], historique: { le: string, nature: string, apres: any }[], factures: FacturesAbo | null, enLigne?: boolean, modules?: string[] }} */
     let a;
     try { a = await o.appel('GET', '/abonnement'); } catch (x) {
       el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p><button type="button" class="btn btn-sm" id="abo-relire">Réessayer</button>`;
@@ -320,8 +346,16 @@
         ${an ? `<p class="abo-prix"><b>${esc(montant(an).replace(/\u00a0DT$/, ''))}</b><span>DT HT par an</span></p>` : ''}
         ${mois ? `<p class="abo-mois">ou ${esc(montant(mois))} HT par mois</p>` : ''}
         <ul class="abo-inclus">${o.inclus.map((i) => `<li>${ICONE_COCHE}<span>${esc(i)}</span></li>`).join('')}</ul>
-        ${courante && k === 'essentiel' ? '<p class="abo-pas">La paie et la comptabilité complète sont dans Complet : ce qui existe se lit, mais rien de nouveau ne s\'y crée.</p>' : ''}
+        ${courante && k === 'essentiel' ? `<p class="abo-pas">${esc(ceQuiResteDansComplet(a.modules))}</p>` : ''}
       </article>`;
+    }).join('');
+    /** @param {string} option @param {string} periodicite */
+    const prixOption = (option, periodicite) => ((a.options || []).find((p) => p.option === option && p.periodicite === periodicite) || {}).montantHt;
+    const enPlus = EN_PLUS.map((l) => {
+      const an = prixOption(l.option, 'annuel'), mois = prixOption(l.option, 'mensuel');
+      if (!an && !mois) return '';
+      return `<li data-option="${l.option}"><span class="abo-plus-quoi"><b>${esc(l.nom)}</b><span>${esc(l.compris)}</span></span>
+        <span class="abo-plus-prix">${an ? `<b>${esc(montant(an))} HT par an</b>` : ''}${mois ? `<span>${an ? 'ou ' : ''}${esc(montant(mois))} HT par mois</span>` : ''}</span></li>`;
     }).join('');
     const histoire = a.historique.map((v) => `<li><span class="abo-quand">${esc(jour(String(v.le).slice(0, 10)))}</span><span>${esc(NATURES[v.nature] || v.nature)}${apresEnClair(v) ? ` <span class="muted">(${esc(apresEnClair(v))})</span>` : ''}</span></li>`).join('');
     const sujet = encodeURIComponent(a.etat.etat === 'actif' ? 'Mon abonnement SkanFact' : 'M\'abonner à SkanFact');
@@ -346,8 +380,13 @@
       </section>
       ${aFaire ? factures : ''}
       ${a.etat.etat === 'hors' ? '' : `<div class="abo-section">
-        <div class="abo-section-tete"><h3>Les offres</h3><p>Un prix par entreprise, jamais par utilisateur. Hors taxes : la TVA s'ajoute.</p></div>
+        <div class="abo-section-tete"><h3>Les offres</h3><p>Un prix par entreprise, hors taxes : la TVA s'ajoute.</p></div>
         <div class="abo-offres">${offres}</div>
+        ${enPlus ? `<div class="abo-plus" id="abo-plus">
+          <div class="abo-plus-tete"><h4>Au-delà de ce que l'offre comprend</h4>
+            <p>Compté le jour où ta facture se prépare, pour la période qu'elle paie. Un utilisateur, c'est un membre de ton équipe, sauf qui ne travaille qu'à la caisse ou en salle ; un salarié compte tant qu'il n'est pas sorti.</p></div>
+          <ul class="abo-plus-liste">${enPlus}</ul>
+        </div>` : ''}
       </div>
       <section class="abo-payer" id="abo-payer">
         <span class="abo-payer-ico">${ICONE_MAIL}</span>

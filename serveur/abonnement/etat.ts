@@ -21,6 +21,8 @@ export const RELANCES = [15, 7, 1] as const;
 
 export type Offre = 'essentiel' | 'complet';
 export type Periodicite = 'annuel' | 'mensuel';
+// Les modules achetés seuls sur Essentiel (14c ; 0099) : la paie, la comptabilité complète.
+export type ModuleAchete = 'paie' | 'compta';
 export type Faits = {
   connu: boolean;
   essaiJusquAu: string | null;
@@ -32,6 +34,7 @@ export type Faits = {
   offert: boolean;
   bacASable: boolean;
   tenuParCabinet: boolean;
+  modules?: readonly ModuleAchete[];
 };
 
 export type Etat =
@@ -70,8 +73,13 @@ export function lireFaits(f: Record<string, unknown>): Faits {
     periodicite: f.periodicite === 'annuel' || f.periodicite === 'mensuel' ? f.periodicite : null,
     resilieLe: jour(f.resilieLe), suspenduLe: jour(f.suspenduLe), offert: f.offert === true,
     bacASable: f.bacASable === true, tenuParCabinet: f.tenuParCabinet === true,
+    modules: lireModules(f.modules),
   };
 }
+
+// Les modules achetés, lus prudemment : la paie, la comptabilité complète, rien d'autre.
+export const lireModules = (v: unknown): ModuleAchete[] =>
+  (Array.isArray(v) ? v : []).filter((m): m is ModuleAchete => m === 'paie' || m === 'compta');
 
 // Le dernier jour couvert : l'essai, ou la période payée si elle va plus loin.
 export function echeanceDe(f: Faits): string | null {
