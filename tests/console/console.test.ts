@@ -247,7 +247,11 @@ describe('les clients', () => {
     const { ent, proprio } = await entreprise('Quincaillerie Fiche');
     const f = await fiche(jS, ent);
     expect(Object.keys(f).sort()).toEqual(['active', 'attend', 'aujourdhui', 'comptes', 'creeLe', 'devise', 'etat', 'evenements', 'faits', 'formeJuridique', 'gestes',
-      'id', 'ligne', 'matricule', 'membres', 'organisation', 'prolongeDejaUneFois', 'raisonSociale', 'tenuePar', 'cabinets', 'support', 'factures'].sort());
+      'id', 'ligne', 'matricule', 'membres', 'organisation', 'prolongeDejaUneFois', 'raisonSociale', 'tenuePar', 'cabinets', 'support', 'factures', 'groupe'].sort());
+    // Son groupe et sa remise (0106) : aucun groupe, aucune société de la même propriétaire, aucune remise ; la règle du
+    // groupe et le premier jour de sa prochaine période (le lendemain de son essai).
+    expect(f.groupe).toMatchObject({ groupe: null, voisines: [], tauxGroupe: 20, remise: null, prochaine: plusJours((f.ligne as { essai_jusqu_au: string }).essai_jusqu_au, 1) });
+    expect(Object.keys(f.groupe as object).sort()).toEqual(['groupe', 'groupes', 'prochaine', 'remise', 'tauxGroupe', 'voisines']);
     // Nos factures (14b) : celles que SkanFact lui adresse, jamais une pièce de son dossier ; aucune pour un essai qui
     // commence (le détail d'une ligne : tests/console/factures.test.ts).
     const fa = f.factures as { lignes: unknown[]; editeur: unknown };
@@ -1214,7 +1218,7 @@ describe('les réglages de la plateforme (0093, docs/console.md C28)', () => {
     // Au journal : la règle par son code, et l'avis.
     const journal = (await appeler('GET', '/console/journal', jD)).corps.lignes as { geste: string; motif: string; reglages?: Record<string, unknown> }[];
     expect(journal.find((l) => l.geste === 'reglages.relire' && l.motif === 'relue au téléphone')?.reglages)
-      .toEqual({ regle: 'essai.reglages', reluePar: corps.reluePar, avis: 'a_corriger', du: null, au: null, prix: null, preavis: null, regleAbonnement: null, contenu: null });
+      .toEqual({ regle: 'essai.reglages', reluePar: corps.reluePar, avis: 'a_corriger', du: null, au: null, prix: null, preavis: null, regleAbonnement: null, contenu: null, remise: null });
   });
 
   it('un message aux clients : la direction l\'écrit, daté, trente jours au plus ; chaque refus nomme sa raison', async () => {

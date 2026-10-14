@@ -26,6 +26,7 @@ type Ligne = {
     preavis: { avant: number | null; apres: number | null } | null;
     regleAbonnement?: { code: 'essai' | 'grace' | 'relances'; avant: number[] | null; apres: number[] | null } | null;
     contenu?: { offre: 'essentiel' | 'complet'; quoi: 'caisses' | 'etablissements' | 'salaries' | 'paie' | 'compta'; aPartirDu: string | null; avant: number | null; apres: number | null } | null;
+    remise?: { code: 'groupe' | 'cabinet'; aPartirDu: string | null; avant: { taux: number; mois: number | null } | null; apres: { taux: number; mois: number | null } | null } | null;
   };
 };
 type Page = { lignes: Ligne[]; suite: string | null };
@@ -57,6 +58,7 @@ function SurLesReglages({ r }: { r: NonNullable<Ligne['reglages']> }) {
   if (r.prix) return <a href="#/reglages">{titre('console.ecran.journal.sur_prix', { quoi: nomDuPrix(r.prix.quoi), periode: dire(`console.ecran.reglages.p.periode.${r.prix.periodicite}`) })}</a>;
   if (r.preavis) return <a href="#/reglages">{titre('console.ecran.journal.sur_preavis')}</a>;
   if (r.regleAbonnement) return <a href="#/reglages">{titre(`console.ecran.journal.sur_regle_abo.${r.regleAbonnement.code}`)}</a>;
+  if (r.remise) return <a href="#/reglages">{titre(`console.ecran.journal.sur_remise.${r.remise.code}`)}</a>;
   if (r.contenu) return <a href="#/reglages">{titre('console.ecran.journal.sur_contenu', { offre: dire(`console.ecran.reglages.p.offre.${r.contenu.offre}`), quoi: dire(`console.ecran.reglages.c.quoi.${r.contenu.quoi}`) })}</a>;
   return r.regle ? <a href="#/reglages?onglet=regles">{titre('console.ecran.journal.sur_regle_commune', { code: r.regle })}</a>
     : <a href="#/reglages?onglet=messages">{titre('console.ecran.journal.sur_message')}</a>;
@@ -95,14 +97,35 @@ function ChangeDesReglages({ geste, r }: { geste: string; r: NonNullable<Ligne['
       </span></span>
     );
   }
+  // Une remise (0106) : comme un prix, celle d'avant barrée, la nouvelle à sa date ; retirée, celle qui est retirée (à
+  // sa date) barrée, celle qui reste.
+  if (r.remise) {
+    const x = r.remise;
+    const date = x.aPartirDu ? ` ${dire('console.ecran.journal.a_partir_du', { jour: jourCourt(x.aPartirDu) })}` : '';
+    const retire = geste === 'reglages.remise_retiree';
+    const dit = (v: { taux: number; mois: number | null } | null) => (v === null ? '—' : x.code === 'cabinet' && v.mois !== null
+      ? dire('console.ecran.reglages.rm.taux_mois', { taux: v.taux, mois: selon(v.mois, 'console.ecran.reglages.rm.mois') }) : dire('console.ecran.reglages.rm.taux', { taux: v.taux }));
+    return (
+      <span className="c-changes"><span className="c-change">
+        <del data-donnee>{dit(x.avant)}{retire ? date : ''}</del> → <ins data-donnee>{dit(x.apres)}{retire ? '' : date}</ins>
+      </span></span>
+    );
+  }
   const t = r.regle && r.reluePar ? dire(`console.ecran.journal.relue_${r.avis === 'a_corriger' ? 'corriger' : 'juste'}`, { qui: r.reluePar })
     : r.du && r.au ? dire('console.ecran.journal.du_au', { du: jourCourt(r.du), au: jourCourt(r.au) }) : null;
   return t ? <span className="c-changes"><span className="c-change" data-donnee>{t}</span></span> : null;
 }
 
 // La famille d'un geste, lue dans son nom : l'abonnement d'un client, l'équipe, le service, les réglages, le support, nos
-// factures.
-const FAMILLES = ['abonnement', 'equipe', 'service', 'reglages', 'support', 'factures'] as const;
+// factures, les groupes (0106).
+const FAMILLES = ['abonnement', 'equipe', 'service', 'reglages', 'support', 'factures', 'groupes'] as const;
+// Un geste sur un groupe (0106) : la société y entre (le groupe créé avec elle, s'il est neuf) ou en sort.
+function LeGroupe({ geste, avant, apres }: { geste: string; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null }) {
+  const nom = typeof apres?.nom === 'string' ? apres.nom : typeof avant?.nom === 'string' ? avant.nom : null;
+  if (!nom) return null;
+  const cle = geste === 'groupes.sortie' ? 'groupe_hors' : apres?.cree === true ? 'groupe_cree' : 'groupe_dans';
+  return <span className="c-changes"><span className="c-change" data-donnee>{maj(dire(`console.ecran.journal.${cle}`, { nom }))}</span></span>;
+}
 const familleDe = (geste: string) => FAMILLES.find((f) => geste.startsWith(`${f}.`)) ?? null;
 
 // Un jour comme on le dit : « Aujourd'hui · mardi 13 octobre », « Hier · lundi 12 octobre », « samedi 10 octobre » ; l'année
@@ -236,7 +259,8 @@ export function Journal({ entreprise, qui: quiDemande }: { entreprise: string | 
                               </td>
                               <td><span className="c-jr-motif" data-donnee>{'«\u202f'}{l.motif}{'\u202f»'}</span></td>
                               <td>{l.service ? <ChangeDuService geste={l.geste} s={l.service} /> : l.reglages ? <ChangeDesReglages geste={l.geste} r={l.reglages} />
-                                : famille === 'support' ? <LaDemande avant={l.avant} apres={l.apres} /> : <Changements avant={l.avant} apres={l.apres} empile />}</td>
+                                : famille === 'support' ? <LaDemande avant={l.avant} apres={l.apres} />
+                                  : famille === 'groupes' ? <LeGroupe geste={l.geste} avant={l.avant} apres={l.apres} /> : <Changements avant={l.avant} apres={l.apres} empile />}</td>
                             </tr>
                           );
                         })}

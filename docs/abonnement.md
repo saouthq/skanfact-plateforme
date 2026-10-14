@@ -387,8 +387,68 @@ Ce que 1.14.0 ne fait pas : l'e-mail qui annonce un changement aux abonnés conc
 de la porte qui dit « fait partie de l'offre Complet » suppose encore que Complet contient la paie et la comptabilité
 complète (vrai au départ ; à revoir si la direction les en retire).
 
+**C17. Les remises : celle du groupe et celle du cabinet, jamais additionnées** (1.15.0 ; `0106` ; `07` « Les groupes »
+et « Parrainage », décisions de Skander du 14/10/2026). Deux remises, réglées dans Réglages › Offres et prix, « Les
+remises », comme un prix : leur taux (de 0 à 90 %), et pour le cabinet sa durée (de 1 à 60 mois) se préparent au plus tôt
+après le préavis d'un prix, une seule à venir par remise, jamais l'identique ; elles se retirent avant leur date ; en
+vigueur, la base refuse de les changer ou de les effacer (`plateforme.regle_remise`, départ : 20 % et 20 % pendant 12
+mois ; journal `reglages.remise_preparee` / `remise_retiree`).
+- **Le groupe se déclare** dans la fiche d'un client, onglet « L'abonnement », carte « Groupe et remise », par la
+  direction et avec son motif : créer un groupe (son nom, qui paraît dans la note de la facture ; les sociétés de la
+  même propriétaire proposées, cochées ; une autre se cherche par son nom, son matricule ou son propriétaire), y mettre
+  une société, l'en retirer. Une société n'est que dans un groupe à la fois ; elle y entre et en sort le jour du geste
+  (journal `groupes.entree` / `groupes.sortie`, sur sa fiche). Chaque geste montre d'abord **l'aperçu** : les sociétés
+  du groupe après lui, la première abonnée d'abord, « Prix normal » ou « −20 % » (`plateforme.console_groupe_apercu`).
+- **La première abonnée paie le prix normal** : la société du groupe dont la première période payée est la plus
+  ancienne (à égalité, la plus ancienne créée) ; les autres ont la remise pour chaque période qui commence pendant
+  qu'elles sont dans le groupe. Tant qu'aucune n'a payé, chacune paierait le prix normal ; une société qui n'a jamais
+  payé compte sa première période à partir de celle qu'on facture.
+- **Le cabinet** : un client qui a confié son dossier à un cabinet (un mandat accepté, en cours ou arrêté depuis) qui
+  commence **avant son premier paiement** a la remise pour chaque période qui commence dans la durée de la règle depuis
+  sa première période payée (choix par délégation du 14/10/2026, Skander ayant demandé « c'est quoi le mieux ? » : un
+  fait que la plateforme connaît, fait par le client lui-même, qui ne se fabrique pas après coup). Reprendre un dossier
+  que le cabinet tenait déjà n'existe pas encore : il s'y branchera.
+- **Jamais additionnées** : la plus forte s'applique (à égalité, celle du groupe, qui dure), l'autre se dit à côté
+  (`plateforme.remise_de`).
+- **La facture d'une période porte la remise de son premier jour, sur tout son hors taxes** (l'offre et ce qui
+  s'ajoute) : la pièce de la v10 la porte comme sa remise globale (`discountRate`), avec une note qui dit laquelle et
+  pourquoi ; arrondie au millime le plus proche, le même chiffre au serveur, dans la base et dans la pièce (« deux
+  chemins, un chiffre », `tests/abonnement/remise.test.ts`) ; la base la rejoue en notant la facture et la garde
+  (`facture_abonnement.remise_*`). L'aperçu de « Préparer la facture » dit la ligne de remise, sa raison et son montant.
+- **Qui le lit** : la fiche dit la remise de la prochaine période et pourquoi (« −20 % sur sa prochaine facture »,
+  « Remise de groupe (Famille Kitab) : Librairie Al Kitab, la première société abonnée du groupe, paie le prix
+  normal. ») ; les échéances et le revenu annuel de « Abonnements » la déduisent et le disent ; le client la lit dans
+  « Ton abonnement », au-dessus des offres, sans le nom d'une autre société (`plateforme.ma_remise`), et sait que les
+  prix des cartes sont ceux d'avant la remise.
+Ce que 1.15.0 ne fait pas : un e-mail qui annonce une remise (ou sa fin) au client ; la remise d'un dossier repris d'un
+cabinet ; les places de fondateur (96e).
+
 **Ce que 14c ne fait pas** : passer à Complet ou acheter un module en libre-service (on écrit à contact@skanfact.tn,
 comme en 14a).
+
+## Revu à la souris (14/10/2026, C17 : les remises)
+
+Sur l'essai de l'outil humain, la base passée en `0106`, dans la console (Amira, direction). Une seconde société pour
+Walid, « Papeterie Al Kitab » ; sa fiche, onglet « L'abonnement » : « Aucune remise sur sa prochaine facture. Elle n'est
+dans aucun groupe, et aucun cabinet ne l'a amenée avant son premier paiement. », et « Les autres sociétés de Walid
+Kitab, dans aucun groupe : Librairie Al Kitab ». « Créer un groupe » : le nom tapé, la Librairie cochée d'avance, « Café
+El Medina » trouvé en tapant « medina » (sans accent) et ajouté puis décoché ; l'aperçu suit chaque case : Librairie Al
+Kitab (première période payée : 24/10/2026) « Prix normal », Papeterie « −20 % ». Créé : « −20 % sur sa prochaine
+facture », avec la raison ; « Retirer du groupe » montre ce qui suivrait (« Librairie Al Kitab reste seule dans le
+groupe : elle paie le prix normal ») et s'annule à Échap. « Préparer la facture… » : Complet à l'année 690,000, « Remise
+de groupe (20 %) » −138,000 et sa raison, hors taxes 552,000, TVA 104,880, net 657,880. Réglages : « Les remises » (20 %
+sans limite, 20 % pendant 12 mois, qui les a posées) ; la remise du cabinet préparée à 15 % (« 20 % pendant 12 mois →
+15 % pendant 12 mois »), à venir avec qui et pourquoi, retirée ; le journal dit les deux gestes, de quoi à quoi, et les
+deux entrées dans le groupe. Chez Walid, « Ton abonnement » de la Papeterie : « −20 % sur ta prochaine facture » et sa
+raison au-dessus des offres. Au téléphone, la carte se lit d'une colonne. Corrigé pendant le parcours : la fiche d'un
+client tombait quand l'entreprise SkanFact n'était pas désignée (la base l'exigeait pour écarter SkanFact des voisines :
+elle se lit maintenant sans l'exiger) ; « Dans aucun groupe » qui répétait la phrase du dessus ; les sociétés proposées
+nommées par leur propriétaire (« Les autres sociétés de Walid Kitab ») et en majuscule ; les cases à cocher décalées
+sous leur texte (elles prenaient le style des champs) ; « abonnée depuis le 24/10/2026 » pour une date à venir (« première
+période payée : … ») ; la pastille « Groupes » du journal sans couleur ; « tant qu'elle est dans le groupe » trop long
+(« sans limite ») ; la durée du cabinet qui poussait la date sur une autre ligne (elle vient dessous), et qui, remplie
+d'avance, faisait demander « ce que tu viens de taper sera perdu » sans rien avoir tapé (vide, elle garde celle
+d'aujourd'hui).
 
 ## Revu à la souris (14/10/2026, C16 : ce que chaque offre comprend)
 

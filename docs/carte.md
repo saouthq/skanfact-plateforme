@@ -563,6 +563,10 @@ vaut pour tout le dépôt.*
     Depuis 1.14.0 (`0105`), ce que chaque offre comprend (caisses, établissements, salariés, la paie, la comptabilité
     complète) est daté dans `plateforme.contenu_offre` et se change dans la console comme un prix ; la facture et la
     porte des modules lisent le contenu du premier jour de la période (`tests/abonnement/contenu.test.ts`).
+    Depuis 1.15.0 (`0106`), deux remises datées (`plateforme.regle_remise`) : celle d'un groupe déclaré dans la console
+    (`plateforme.groupe`, `groupe_membre` ; la première abonnée paie le prix normal) et celle du cabinet (un mandat
+    d'avant le premier paiement, pendant la durée de la règle), jamais additionnées (`plateforme.remise_de`) ; la facture
+    porte celle de son premier jour sur tout son hors taxes (`tests/abonnement/remises.test.ts`, `remise.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

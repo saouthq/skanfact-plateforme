@@ -1609,6 +1609,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-jr-famille-reglages { background: var(--c-orange-doux); color: var(--c-orange-texte); }
 .c-jr-famille-support { background: var(--c-bleu-doux); color: var(--c-bleu-texte); }
 .c-jr-famille-factures { background: var(--c-doux); color: var(--c-doux-texte); }
+.c-jr-famille-groupes { background: var(--c-doux); color: var(--c-doux-texte); }
 .c-jr-sur a { color: var(--c-lien); font-weight: 600; text-decoration: none; }
 .c-jr-sur a:hover { text-decoration: underline; }
 .c-jr-motif { color: var(--c-encre); }
@@ -2397,3 +2398,40 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-fa-montants dd { margin: 0; font-variant-numeric: tabular-nums; }
 .c-fa-net { border-top: 1px solid var(--c-trait); padding-top: 6px; font-weight: 700; }
 .c-fa-net dt { color: inherit; }
+/* La remise d'une facture d'abonnement (0106) : une ligne en moins, sa raison dessous. */
+.c-fa-remise [data-donnee] { color: var(--c-doux-texte); }
+
+/* Son groupe et sa remise (0106) : la remise de sa prochaine période en tête, puis le groupe, la première abonnée
+   d'abord ; les sociétés du même propriétaire, proposées. */
+.c-fiche-groupe { display: grid; gap: 16px; }
+.c-fiche-groupe .c-carte-tete { margin-bottom: 0; }
+.c-gr-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.c-gr-remise { display: grid; gap: 4px; padding: 14px 18px; border: 1px solid var(--c-trait); border-radius: 14px; font-size: 14px; color: var(--c-gris); }
+.c-gr-remise b { font-family: var(--c-titre); font-size: 16px; font-weight: 600; color: var(--c-encre); }
+.c-gr-remise-oui { background: var(--c-doux); border-color: color-mix(in srgb, var(--c-sarcelle) 35%, transparent); color: var(--c-doux-texte); }
+.c-gr-remise-oui b { color: var(--c-doux-texte); }
+.c-gr-aussi { font-size: 13px; }
+.c-gr-nom { margin: 0 0 4px; display: flex; flex-wrap: wrap; gap: 2px 12px; align-items: baseline; }
+.c-gr-nom > span { color: var(--c-gris); font-size: 13.5px; }
+.c-gr-membres { list-style: none; margin: 0; padding: 0; display: grid; }
+.c-gr-membres li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--c-trait); }
+.c-gr-membres li:first-child { border-top: 0; }
+.c-gr-membre { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
+.c-gr-membre b, .c-gr-membre a { font-weight: 600; overflow-wrap: anywhere; }
+.c-gr-membre small { flex-basis: 100%; color: var(--c-gris); font-size: 13px; }
+.c-gr-ici { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--c-gris-doux); color: var(--c-gris); }
+.c-gr-aucun, .c-gr-note { margin: 0; }
+.c-gr-voisines { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--c-trait); }
+.c-gr-voisines ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.c-gr-voisines li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; }
+/* Sa fenêtre : les sociétés cochées, la recherche d'une autre, et l'aperçu de qui paiera quoi. */
+.c-gr-societes { display: grid; gap: 8px; }
+.c-gr-cases { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.c-gr-cases small { color: var(--c-gris); font-size: 12.5px; }
+.c-gr-chercher { display: grid; gap: 6px; }
+.c-gr-chercher > p { margin: 0; }
+.c-gr-trouvees { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.c-gr-trouvees li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 6px 6px 12px; border: 1px solid var(--c-trait); border-radius: 10px; }
+.c-gr-apercu-zone { min-height: 96px; }
+.c-gr-apercu { display: grid; gap: 8px; }
+.c-gr-apercu p { margin: 0; }

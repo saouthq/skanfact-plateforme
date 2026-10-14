@@ -39,6 +39,17 @@ type Donnees = {
   support: { comptes: { ouvertes: number; aRepondre: number }; ouvertes: LigneDemande[]; closes: LigneDemande[] };
   // Ses factures d'abonnement (docs/abonnement.md B2–B4), et l'entreprise SkanFact où elles naissent.
   factures: { lignes: LigneFacture[]; editeur: { entreprise: string; raisonSociale: string; proprietaire: boolean } | null };
+  // Son groupe, les sociétés de la même propriétaire, et la remise de sa prochaine période (0106, docs/abonnement.md C17).
+  groupe: GroupeDe;
+};
+// La remise d'une période (serveur/abonnement/remise.ts) : la plus forte des deux ; `aussi`, l'autre, qui ne s'ajoute pas.
+type RemiseSeule = { nature: 'groupe' | 'cabinet'; taux: number; groupe: string | null; premiere: string | null; cabinet: string | null; jusquAu: string | null };
+type Remise = RemiseSeule & { aussi: RemiseSeule | null };
+type MembreGroupe = { entreprise: string; raisonSociale: string; premierePeriode: string | null };
+type GroupeDe = {
+  groupe: { id: string; nom: string; depuis: string; motif: string; membres: (MembreGroupe & { depuis: string })[] } | null;
+  voisines: { entreprise: string; raisonSociale: string }[]; groupes: { id: string; nom: string; membres: number }[];
+  tauxGroupe: number; remise: Remise | null; prochaine: string;
 };
 type EtatFacture = 'a_emettre' | 'supprimee' | 'payee' | 'annulee' | 'partielle' | 'en_retard' | 'a_payer';
 type LigneFacture = {
@@ -64,7 +75,7 @@ const cleGeste = (g: Geste) => g.replace('-', '_');
 // Ce qu'un geste a changé, case par case (« essai jusqu'au : 12/10/2026 → 26/10/2026 ») : les cases d'une ligne
 // d'abonnement, et ce que le geste retient (les jours ajoutés, la période payée, celle d'une facture préparée).
 const CASES = ['essai_jusqu_au', 'paye_jusqu_au', 'offre', 'periodicite', 'resilie_le', 'suspendu_le', 'offert', 'modules', 'role', 'actif', 'jours', 'debut', 'fin',
-  'facture_du', 'facture_au', 'montant_ht'] as const;
+  'facture_du', 'facture_au', 'montant_ht', 'remise'] as const;
 // Les modules achetés, en mots (« Paie, Comptabilité complète ») ; aucun : « — ».
 const nomsModules = (v: unknown) => (Array.isArray(v) ? v.filter((m): m is ModuleAchete => m === 'paie' || m === 'compta').map((m) => titre(`console.ecran.abo.module.${m}`)).join(', ') : '');
 function valeurLisible(cle: string, v: unknown): string {
@@ -76,6 +87,13 @@ function valeurLisible(cle: string, v: unknown): string {
   if (cle === 'role' && typeof v === 'string') return titre(`console.ecran.role.${v}`);
   if (cle === 'montant_ht' && typeof v === 'string') return montant(v);
   if (cle === 'modules') return nomsModules(v) || '—';
+  // La remise d'une facture préparée (0106) : laquelle, son taux, son montant.
+  if (cle === 'remise' && v && typeof v === 'object') {
+    const r = v as { nature?: unknown; taux?: unknown; montantHt?: unknown };
+    if ((r.nature === 'groupe' || r.nature === 'cabinet') && typeof r.taux === 'number' && typeof r.montantHt === 'string') {
+      return `${dire(`console.ecran.fiche.fa.remise.${r.nature}`, { taux: r.taux })} : ${montant(`-${r.montantHt}`)}`;
+    }
+  }
   return String(v);
 }
 // Les premiers événements (0082) écrivent leurs cases à la façon de l'API (« essaiJusquAu ») : on les lit comme celles
@@ -247,6 +265,8 @@ type FactureApercu = {
   ceQueDira: { ht: string; tva: string; timbre: string; ttc: string; net: string };
   // L'offre au prix du jour, et ce qui s'ajoute (14c) : un module acheté seul, ou ce qui dépasse l'offre.
   prixOffreHt: string; enPlus: { option: string; quantite: number; compte: number; inclus: number; prixHt: string; totalHt: string }[];
+  // La remise de la période (0106), sur tout le hors taxes, et son montant.
+  brutHt: string; remise: (Remise & { montantHt: string }) | null;
 };
 function FenetreFacture({ fiche, fermer, fait }: { fiche: Donnees; fermer: () => void; fait: () => void }) {
   const api = useApi();
@@ -317,6 +337,13 @@ function FenetreFacture({ fiche, fermer, fait }: { fiche: Donnees; fermer: () =>
                     <span data-donnee>{montant(l.totalHt)}</span>
                   </li>
                 ))}
+                {/* La remise de la période (0106) : laquelle, pourquoi, et son montant, sur tout ce qui précède. */}
+                {apercu.remise ? (
+                  <li className="c-fa-remise">
+                    <span>{titre(`console.ecran.fiche.fa.remise.${apercu.remise.nature}`, { taux: apercu.remise.taux })}<small>{pourquoiRemise(apercu.remise)}</small></span>
+                    <span data-donnee>{montant(`-${apercu.remise.montantHt}`)}</span>
+                  </li>
+                ) : null}
               </ul>
               <dl className="c-fa-montants">
                 <div><dt>{titre('console.ecran.fiche.fa.ht')}</dt><dd data-donnee>{montant(c.ht)}</dd></div>
@@ -394,6 +421,236 @@ function SesFactures({ f, role, preparer }: { f: Donnees; role: Role; preparer: 
   );
 }
 
+// ── Son groupe et sa remise (docs/abonnement.md C17 ; 0106) ─────────────────────────────────────────────────────────
+// La remise de sa prochaine période et pourquoi (la plus forte des deux, jamais leur somme), puis son groupe : les
+// sociétés dans l'ordre de leur première période payée, la première au prix normal. La direction crée un groupe, y met
+// une société ou l'en retire, chaque fois avec son motif et l'aperçu de qui paiera quoi.
+const pourquoiRemise = (r: RemiseSeule) => (r.nature === 'groupe'
+  ? phrase('console.ecran.fiche.gr.pourquoi.groupe', { groupe: r.groupe ?? '—', premiere: r.premiere ?? '—' })
+  : phrase('console.ecran.fiche.gr.pourquoi.cabinet', { cabinet: r.cabinet ?? '—', jour: jourCourt(r.jusquAu) }));
+// Qui a la remise de groupe dans une liste rangée (la première abonnée d'abord) : toutes sauf la première, dès qu'une
+// société du groupe a payé ; tant qu'aucune n'a payé, chacune paierait le prix normal.
+const aLaRemise = (membres: MembreGroupe[], i: number, taux: number) => taux > 0 && i > 0 && membres[0]?.premierePeriode != null;
+
+function MembresDuGroupe({ membres, taux, ici, liens }: { membres: MembreGroupe[]; taux: number; ici: string; liens: boolean }) {
+  return (
+    <ul className="c-gr-membres">
+      {membres.map((m, i) => (
+        <li key={m.entreprise}>
+          <span className="c-gr-membre">
+            {m.entreprise === ici || !liens ? <b data-donnee>{m.raisonSociale}</b> : <a href={`#/clients/${m.entreprise}?onglet=abonnement`} data-donnee>{m.raisonSociale}</a>}
+            {m.entreprise === ici ? <span className="c-gr-ici">{dire('console.ecran.fiche.gr.cette_fiche')}</span> : null}
+            <small>{m.premierePeriode ? titre('console.ecran.fiche.gr.abonnee', { jour: jourCourt(m.premierePeriode) }) : titre('console.ecran.fiche.gr.pas_abonnee')}</small>
+          </span>
+          {aLaRemise(membres, i, taux) ? <Puce ton="actif">{dire('console.ecran.fiche.gr.moins', { taux })}</Puce> : <Puce ton="hors">{dire('console.ecran.fiche.gr.prix_normal')}</Puce>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+type GesteGroupe = { sorte: 'creer' } | { sorte: 'entrer'; entreprise: { id: string; nom: string }; groupe: { id: string; nom: string } | null } | { sorte: 'sortir' };
+
+function GroupeEtRemise({ f, role, faire }: { f: Donnees; role: Role; faire: (g: GesteGroupe) => void }) {
+  const g = f.groupe;
+  const r = g.remise;
+  const direction = role === 'direction';
+  const membres = g.groupe?.membres ?? [];
+  const premiere = membres[0]?.entreprise === f.id && membres[0]?.premierePeriode != null;
+  const dans = g.groupe ? { id: g.groupe.id, nom: g.groupe.nom } : null;
+  // Les sociétés proposées sont celles de sa propriétaire : la carte la nomme.
+  const proprietaire = f.membres.find((m) => m.roles.includes('proprietaire'))?.nom ?? null;
+  // Sans remise : pourquoi, en une phrase (la première du groupe, un taux à 0 dans les Réglages, ni groupe ni cabinet).
+  const sansRemise = g.groupe && g.tauxGroupe === 0 ? phrase('console.ecran.fiche.gr.taux_zero')
+    : g.groupe && premiere ? phrase('console.ecran.fiche.gr.sans_remise_premiere')
+      : g.groupe ? phrase('console.ecran.fiche.gr.personne')
+        : phrase('console.ecran.fiche.gr.sans_remise_pourquoi');
+  return (
+    <section className="c-carte c-fiche-groupe" aria-labelledby="fiche-groupe">
+      <div className="c-carte-tete">
+        <div>
+          <h2 id="fiche-groupe">{titre('console.ecran.fiche.gr.titre')}</h2>
+          <p className="c-carte-sous">{phrase('console.ecran.fiche.gr.sous', { jour: jourCourt(g.prochaine) })}</p>
+        </div>
+        {direction ? (
+          <div className="c-gr-actions">
+            {g.groupe ? <Bouton petit onClick={() => faire({ sorte: 'sortir' })}>{titre('console.ecran.fiche.gr.sortir')}</Bouton> : <>
+              {g.groupes.length ? <Bouton petit onClick={() => faire({ sorte: 'entrer', entreprise: { id: f.id, nom: f.raisonSociale }, groupe: null })}>{titre('console.ecran.fiche.gr.rejoindre')}</Bouton> : null}
+              <Bouton petit icone="plus" onClick={() => faire({ sorte: 'creer' })}>{titre('console.ecran.fiche.gr.creer')}</Bouton>
+            </>}
+          </div>
+        ) : null}
+      </div>
+      <div className={`c-gr-remise${r ? ' c-gr-remise-oui' : ''}`}>
+        <b>{r ? dire('console.ecran.fiche.gr.remise', { taux: r.taux }) : titre('console.ecran.fiche.gr.sans_remise')}</b>
+        <span>{r ? pourquoiRemise(r) : sansRemise}</span>
+        {r?.aussi ? <span className="c-gr-aussi">{phrase('console.ecran.fiche.gr.aussi', { nature: dire(`console.ecran.fiche.gr.nature.${r.aussi.nature}`), taux: r.aussi.taux })}</span> : null}
+      </div>
+      {g.groupe ? (
+        <div className="c-gr-groupe">
+          <p className="c-gr-nom"><b data-donnee>{titre('console.ecran.fiche.gr.dans', { nom: g.groupe.nom })}</b>
+            <span>{dire('console.ecran.fiche.gr.depuis', { jour: jourCourt(g.groupe.depuis) })} · <span data-donnee>{g.groupe.motif}</span></span></p>
+          <MembresDuGroupe membres={membres} taux={g.tauxGroupe} ici={f.id} liens />
+        </div>
+      ) : r ? <p className="c-sous c-gr-aucun">{phrase('console.ecran.fiche.gr.aucun')}</p> : null}
+      {g.voisines.length ? (
+        <div className="c-gr-voisines">
+          <span className="c-sous">{proprietaire ? titre(g.groupe ? 'console.ecran.fiche.gr.voisines_hors' : 'console.ecran.fiche.gr.voisines', { nom: proprietaire })
+            : titre(g.groupe ? 'console.ecran.fiche.gr.voisines_hors_sans' : 'console.ecran.fiche.gr.voisines_sans')}</span>
+          <ul>
+            {g.voisines.map((v) => (
+              <li key={v.entreprise}>
+                <a href={`#/clients/${v.entreprise}?onglet=abonnement`} data-donnee>{v.raisonSociale}</a>
+                {direction && dans ? <Bouton petit onClick={() => faire({ sorte: 'entrer', entreprise: { id: v.entreprise, nom: v.raisonSociale }, groupe: dans })}>
+                  {titre('console.ecran.fiche.gr.ajouter')}</Bouton> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {!direction ? <p className="c-sous c-gr-note">{phrase('console.ecran.fiche.gr.direction')}</p> : null}
+    </section>
+  );
+}
+
+type ApercuGroupe = { taux: number; membres: MembreGroupe[] };
+type Trouvee = { id: string; raisonSociale: string };
+function FenetreGroupe({ fiche, geste, fermer, fait }: { fiche: Donnees; geste: GesteGroupe; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const g = fiche.groupe;
+  const [nom, setNom] = useState('');
+  // Les sociétés de la même propriétaire sont proposées, cochées : c'est le cas courant ; une autre se cherche.
+  const [cochees, setCochees] = useState<string[]>(() => g.voisines.map((v) => v.entreprise));
+  const [autres, setAutres] = useState<Trouvee[]>([]);
+  const [cherche, setCherche] = useState('');
+  const [trouvees, setTrouvees] = useState<Trouvee[] | null>(null);
+  const [groupe, setGroupe] = useState(geste.sorte === 'entrer' ? geste.groupe?.id ?? g.groupes[0]?.id ?? '' : '');
+  const [motif, setMotif] = useState('');
+  const [apercu, setApercu] = useState<ApercuGroupe | null>(null);
+  const [refus, setRefus] = useState<string | null>(null);
+  const [champ, setChamp] = useState<{ nom: string; n: number } | null>(null);
+  const [occupe, setOccupe] = useState(false);
+  const entrent = geste.sorte === 'creer' ? [fiche.id, ...cochees] : geste.sorte === 'entrer' ? [geste.entreprise.id] : [];
+  const cle = JSON.stringify([groupe, entrent]);
+  const tour = useRef(0);
+  useEffect(() => {
+    const t = ++tour.current;
+    const minuteur = setTimeout(() => {
+      void (async () => {
+        try {
+          const corps = geste.sorte === 'creer' ? { groupe: null, entrent, sort: null }
+            : geste.sorte === 'entrer' ? { groupe: groupe || null, entrent, sort: null } : { groupe: g.groupe?.id ?? null, entrent: [], sort: fiche.id };
+          if (geste.sorte === 'entrer' && !groupe) { setApercu(null); return; }
+          const r = await api<ApercuGroupe>('POST', '/console/groupes/apercu', corps);
+          if (!r || t !== tour.current) return;
+          if (r.statut === 200) { setApercu(r.corps); setRefus(null); } else { setApercu(null); setRefus(refusDe(r)); }
+        } catch (x) { if (t === tour.current) setRefus(panneDe(x)); }
+      })();
+    }, 250);
+    return () => clearTimeout(minuteur);
+  }, [cle]);
+  // Chercher une autre société : par la liste des clients (son nom, son matricule, son propriétaire).
+  useEffect(() => {
+    if (geste.sorte !== 'creer' || cherche.trim().length < 2) { setTrouvees(null); return; }
+    let vivant = true;
+    const minuteur = setTimeout(() => {
+      void (async () => {
+        try {
+          const r = await api<{ lignes: Trouvee[] }>('GET', `/console/entreprises?q=${encodeURIComponent(cherche.trim())}&limite=6`);
+          if (r && vivant && r.statut === 200) setTrouvees(r.corps.lignes.map((l) => ({ id: l.id, raisonSociale: l.raisonSociale })));
+        } catch { /* la recherche se retente à la frappe suivante */ }
+      })();
+    }, 250);
+    return () => { vivant = false; clearTimeout(minuteur); };
+  }, [cherche]);
+  const refuser = (texte: string, nomChamp: string) => { setRefus(texte); setChamp((c) => ({ nom: nomChamp, n: (c?.n ?? 0) + 1 })); };
+  const envoyer = () => {
+    if (geste.sorte === 'creer' && nom.trim().length < 2) { refuser(phrase('console.ecran.fiche.gr.f.nom_court'), 'nom'); return; }
+    if (geste.sorte === 'creer' && entrent.length < 2) { refuser(phrase('console.ecran.fiche.gr.f.deux'), 'societes'); return; }
+    if (geste.sorte === 'entrer' && !groupe) { refuser(phrase('console.ecran.fiche.gr.f.choisir_groupe'), 'groupe'); return; }
+    if (motif.trim().length < 3) { refuser(phrase('console.ecran.geste.motif_court'), 'motif'); return; }
+    const [chemin, corps, dit] = geste.sorte === 'creer'
+      ? ['/console/groupes', { nom: nom.trim(), entreprises: entrent, motif: motif.trim() }, phrase('console.ecran.fiche.gr.f.fait_creer', { nom: nom.trim(), n: entrent.length })]
+      : geste.sorte === 'entrer'
+        ? [`/console/entreprises/${geste.entreprise.id}/groupe`, { groupe, motif: motif.trim() },
+          phrase('console.ecran.fiche.gr.f.fait_entrer', { nom: geste.entreprise.nom, groupe: g.groupes.find((x) => x.id === groupe)?.nom ?? geste.groupe?.nom ?? '' })]
+        : [`/console/entreprises/${fiche.id}/groupe/sortir`, { motif: motif.trim() }, phrase('console.ecran.fiche.gr.f.fait_sortir', { nom: fiche.raisonSociale, groupe: g.groupe?.nom ?? '' })];
+    void (async () => {
+      setOccupe(true);
+      try {
+        const r = await api('POST', chemin, corps);
+        if (!r) return;
+        if (r.statut === 200 || r.statut === 201) { toast(dit); fait(); return; }
+        setRefus(refusDe(r));
+        if (typeof r.corps.champ === 'string') setChamp((c) => ({ nom: r.corps.champ as string, n: (c?.n ?? 0) + 1 }));
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  const faute = (n: string) => champ?.nom === n;
+  const cocher = (id: string, oui: boolean) => setCochees((c) => (oui ? [...c, id] : c.filter((x) => x !== id)));
+  const proposees = [...g.voisines.map((v) => ({ id: v.entreprise, raisonSociale: v.raisonSociale, voisine: true })), ...autres.map((a) => ({ ...a, voisine: false }))];
+  const dejaLa = new Set([fiche.id, ...proposees.map((p) => p.id)]);
+  const titreF = geste.sorte === 'creer' ? titre('console.ecran.fiche.gr.f.titre_creer')
+    : geste.sorte === 'sortir' ? titre('console.ecran.fiche.gr.f.titre_sortir')
+      : titre(geste.groupe ? 'console.ecran.fiche.gr.f.titre_ajouter' : 'console.ecran.fiche.gr.f.titre_entrer', { nom: geste.entreprise.nom });
+  const sous = geste.sorte === 'creer' ? phrase('console.ecran.fiche.gr.f.sous_creer')
+    : geste.sorte === 'sortir' ? phrase('console.ecran.fiche.gr.f.sous_sortir', { nom: fiche.raisonSociale, groupe: g.groupe?.nom ?? '' })
+      : phrase('console.ecran.fiche.gr.f.sous_entrer', { nom: geste.entreprise.nom });
+  const ici = geste.sorte === 'entrer' ? geste.entreprise.id : fiche.id;
+  const seule = geste.sorte === 'sortir' && apercu?.membres.length === 1 ? apercu.membres[0] : null;
+  return (
+    <Dialogue titre={titreF} sous={sous} fermer={fermer} occupe={occupe}
+      pied={<><Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre(`console.ecran.fiche.gr.f.bouton.${geste.sorte}`)}</Bouton></>}>
+      {geste.sorte === 'creer' ? <>
+        <Champ libelle={titre('console.ecran.fiche.gr.f.nom')} aide={phrase('console.ecran.fiche.gr.f.nom_aide')} valeur={nom} changer={setNom} faute={faute('nom')} n={champ?.n ?? 0} premier />
+        <div className="c-gr-societes">
+          <span className="c-champ-libelle" id="gr-societes">{titre('console.ecran.fiche.gr.f.societes')}</span>
+          <ul className="c-gr-cases" aria-labelledby="gr-societes">
+            <li><label className="c-in-case"><input type="checkbox" checked disabled /><span><b data-donnee>{fiche.raisonSociale}</b> <small>{dire('console.ecran.fiche.gr.cette_fiche')}</small></span></label></li>
+            {proposees.map((p) => (
+              <li key={p.id}><label className="c-in-case"><input type="checkbox" checked={cochees.includes(p.id)} onChange={(x) => cocher(p.id, x.target.checked)} />
+                <span><span data-donnee>{p.raisonSociale}</span>{p.voisine ? <> <small>{dire('console.ecran.fiche.gr.f.meme_proprietaire')}</small></> : null}</span></label></li>
+            ))}
+          </ul>
+        </div>
+        <div className="c-gr-chercher">
+          <Champ libelle={titre('console.ecran.fiche.gr.f.chercher')} aide={phrase('console.ecran.fiche.gr.f.chercher_aide')} valeur={cherche} changer={setCherche} />
+          {trouvees ? (
+            trouvees.filter((t) => !dejaLa.has(t.id)).length ? (
+              <ul className="c-gr-trouvees">
+                {trouvees.filter((t) => !dejaLa.has(t.id)).map((t) => (
+                  <li key={t.id}><span data-donnee>{t.raisonSociale}</span>
+                    <Bouton petit icone="plus" onClick={() => { setAutres((a) => [...a, t]); cocher(t.id, true); setCherche(''); }}>{titre('console.ecran.fiche.gr.f.ajouter')}</Bouton></li>
+                ))}
+              </ul>
+            ) : <p className="c-sous">{phrase('console.ecran.fiche.gr.f.aucune_trouvee')}</p>
+          ) : null}
+        </div>
+      </> : null}
+      {geste.sorte === 'entrer' && !geste.groupe ? (
+        <Choix libelle={titre('console.ecran.fiche.gr.f.groupe')} valeur={groupe} changer={setGroupe}
+          options={g.groupes.map((x) => ({ valeur: x.id, texte: dire('console.ecran.fiche.gr.f.groupe_option', { nom: x.nom, n: x.membres }), donnee: true }))} />
+      ) : null}
+      <div className="c-champs">
+        <span className="c-champ-libelle">{titre('console.ecran.fiche.gr.f.apres')}</span>
+        <div className="c-apercu-zone c-gr-apercu-zone">
+          {apercu ? (
+            <div className="c-gr-apercu">
+              {apercu.membres.length ? <MembresDuGroupe membres={apercu.membres} taux={apercu.taux} ici={ici} liens={false} /> : null}
+              {geste.sorte === 'sortir' ? <p className="c-sous">{phrase('console.ecran.fiche.gr.f.sortie_dit', { nom: fiche.raisonSociale, jour: jourCourt(g.prochaine) })}</p> : null}
+              {seule ? <p className="c-sous">{phrase('console.ecran.fiche.gr.f.seule', { nom: seule.raisonSociale })}</p> : null}
+            </div>
+          ) : refus && !apercu ? <p className="c-apercu-attente c-apercu-refus">{refus}</p>
+            : <p className="c-apercu-attente">{phrase('console.ecran.geste.apercu_calcul')}</p>}
+        </div>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.fiche.gr.f.motif_aide')} valeur={motif} changer={setMotif} faute={faute('motif')} n={champ?.n ?? 0} />
+      {refus && apercu ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
 // ── Le menu des gestes ──────────────────────────────────────────────────────────────────────────────────────────────
 function MenuGestes({ gestes, choisir, raison }: { gestes: Geste[]; choisir: (g: Geste) => void; raison: string | null }) {
   const [ouvert, setOuvert] = useState(false);
@@ -433,9 +690,10 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
   const [geste, setGeste] = useState<Geste | null>(null);
   const [noter, setNoter] = useState(false);
   const [facture, setFacture] = useState(false);
+  const [gesteGroupe, setGesteGroupe] = useState<GesteGroupe | null>(null);
   // La fiche envoie émettre sa facture dans l'application de SkanFact, dans un autre onglet : en revenant, elle dit ce
   // qui a bougé (émise, réglée, l'abonnement qui suit). Jamais sous une fenêtre ouverte : on ne relit pas sous les doigts.
-  useRelireQuandOnRegarde(relire, { attendre: () => geste !== null || noter || facture });
+  useRelireQuandOnRegarde(relire, { attendre: () => geste !== null || noter || facture || gesteGroupe !== null });
   if (l.etat === 'lecture') return <p className="c-attente">{titre('console.ecran.lecture')}</p>;
   if (l.etat === 'panne') {
     return (
@@ -639,6 +897,8 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
           ) : <Alerte ton="info">{phrase('console.ecran.fiche.aucune_ligne')}</Alerte>}
         </section>
       ) : null}
+      {onglet === 'abonnement' ? <GroupeEtRemise f={f} role={moi.role} faire={setGesteGroupe} /> : null}
+      {gesteGroupe ? <FenetreGroupe fiche={f} geste={gesteGroupe} fermer={() => setGesteGroupe(null)} fait={() => { setGesteGroupe(null); relire(); }} /> : null}
       {onglet === 'abonnement' ? <SesFactures f={f} role={moi.role} preparer={() => setFacture(true)} /> : null}
       {facture ? <FenetreFacture fiche={f} fermer={() => setFacture(false)} fait={() => { setFacture(false); relire(); }} /> : null}
 

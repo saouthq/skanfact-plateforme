@@ -199,6 +199,33 @@ export function lireContenuOffres(brut: unknown): { duJour: Record<Offre, Conten
   };
 }
 
+// Les remises (0106) : celle du groupe et celle du cabinet telles qu'elles valent aujourd'hui (un taux en pourcent ; pour
+// le cabinet, sa durée en mois), qui les a posées et pourquoi ; ce qui est préparé ; combien de sociétés sont en groupe.
+export const CODES_REMISE = ['groupe', 'cabinet'] as const;
+export type CodeRemise = typeof CODES_REMISE[number];
+export type RegleRemise = { taux: number; mois: number | null; aPartirDu: string; motif: string; par: string | null; le: string | null };
+export type RemisesLues = { duJour: Record<CodeRemise, RegleRemise | null>; aVenir: (RegleRemise & { code: CodeRemise })[]; groupes: number; enGroupe: number };
+const regleRemise = (x: Record<string, unknown>): RegleRemise | null => {
+  const taux = typeof x.taux === 'number' && Number.isInteger(x.taux) && x.taux >= 0 && x.taux <= 90 ? x.taux : null;
+  const mois = typeof x.mois === 'number' && Number.isInteger(x.mois) && x.mois > 0 ? x.mois : null;
+  const aPartirDu = jour(x.aPartirDu), motif = texte(x.motif);
+  return taux !== null && aPartirDu && motif ? { taux, mois, aPartirDu, motif, par: texte(x.par), le: date(x.le) } : null;
+};
+export function lireRemises(brut: unknown): RemisesLues {
+  const b = objet(brut);
+  const duJour = objet(b.duJour);
+  const compte = (x: unknown) => (typeof x === 'number' && Number.isInteger(x) && x >= 0 ? x : 0);
+  return {
+    duJour: { groupe: regleRemise(objet(duJour.groupe)), cabinet: regleRemise(objet(duJour.cabinet)) },
+    aVenir: tableau(b.aVenir).flatMap((x) => {
+      const code = (CODES_REMISE as readonly unknown[]).includes(x.code) ? x.code as CodeRemise : null;
+      const r = regleRemise(x);
+      return code && r ? [{ ...r, code }] : [];
+    }),
+    groupes: compte(b.groupes), enGroupe: compte(b.enGroupe),
+  };
+}
+
 // Les lignes d'une grille (offres ou ajouts), leurs prix à venir dits avec qui les a préparés et pourquoi.
 export function preparesPar<L extends { aVenir: AVenir[] }>(lignes: L[], quoi: (l: L) => QuoiPrix, prepares: Prepare[]): L[] {
   return lignes.map((l) => ({
@@ -259,6 +286,7 @@ export type SujetDesReglages = {
   preavis: { avant: number | null; apres: number | null } | null;
   regleAbonnement: { code: CodeRegle; avant: number[] | null; apres: number[] | null } | null;
   contenu: { offre: Offre; quoi: QuoiContenu; aPartirDu: string | null; avant: number | null; apres: number | null } | null;
+  remise: { code: CodeRemise; aPartirDu: string | null; avant: { taux: number; mois: number | null } | null; apres: { taux: number; mois: number | null } | null } | null;
 };
 const dinars = (x: unknown) => (typeof x === 'string' && /^\d+\.\d{3}$/.test(x) ? x : null);
 const jours = (x: unknown) => (typeof x === 'number' && Number.isInteger(x) && x >= 0 ? x : null);
@@ -271,6 +299,19 @@ function contenuDuGeste(geste: string, avant: Record<string, unknown> | null, ap
   if (!offre || !quoi) return null;
   const date = geste === 'reglages.contenu_retire' ? avant?.aPartirDu : apres?.aPartirDu;
   return { offre, quoi, aPartirDu: jour(date), avant: entierPositif(avant?.nombre), apres: entierPositif(apres?.nombre) };
+}
+// Une remise préparée : de celle d'aujourd'hui à la nouvelle, à sa date. Retirée : celle qui est retirée (à sa date), et
+// celle qui reste.
+function remiseDuGeste(geste: string, avant: Record<string, unknown> | null, apres: Record<string, unknown> | null): SujetDesReglages['remise'] {
+  if (geste !== 'reglages.remise_preparee' && geste !== 'reglages.remise_retiree') return null;
+  const code = (CODES_REMISE as readonly unknown[]).includes(apres?.code) ? apres?.code as CodeRemise : null;
+  if (!code) return null;
+  const valeur = (x: Record<string, unknown> | null) => {
+    const taux = jours(x?.taux);
+    return taux === null ? null : { taux, mois: jours(x?.mois) };
+  };
+  const date = geste === 'reglages.remise_retiree' ? avant?.aPartirDu : apres?.aPartirDu;
+  return { code, aPartirDu: jour(date), avant: valeur(avant), apres: valeur(apres) };
 }
 const listeDeJours = (x: unknown) => (Array.isArray(x) && x.length && x.every((n) => jours(n) !== null) ? x as number[] : null);
 export function sujetDesReglages(geste: string, avant: Record<string, unknown> | null, apres: Record<string, unknown> | null): SujetDesReglages | null {
@@ -289,5 +330,6 @@ export function sujetDesReglages(geste: string, avant: Record<string, unknown> |
     regleAbonnement: geste === 'reglages.regle_abonnement' && (CODES_REGLE as readonly unknown[]).includes(apres?.code)
       ? { code: apres?.code as CodeRegle, avant: listeDeJours(avant?.jours), apres: listeDeJours(apres?.jours) } : null,
     contenu: contenuDuGeste(geste, avant, apres),
+    remise: remiseDuGeste(geste, avant, apres),
   };
 }

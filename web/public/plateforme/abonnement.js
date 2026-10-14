@@ -414,9 +414,21 @@
     /** @type {HTMLElement} */ (el.querySelector('.abo-vue-piece')).scrollIntoView({ block: 'start' });
   }
 
+  // La remise de sa prochaine période (0106 ; docs/abonnement.md C17) : laquelle, et pourquoi. Jamais le nom d'une autre
+  // société (la base ne le rend pas) ; les prix des cartes restent ceux de la grille, avant la remise.
+  /** @typedef {{ nature: 'groupe' | 'cabinet', taux: number, groupe: string | null, cabinet: string | null, jusquAu: string | null }} Remise */
+  /** @param {Remise} r */
+  function remiseEnClair(r) {
+    const pourquoi = r.nature === 'groupe'
+      ? `Remise de groupe${r.groupe ? ` (${r.groupe})` : ''} : la première société abonnée du groupe paie le prix normal, les suivantes ont la remise.`
+      : `Ton entreprise est venue par son cabinet${r.cabinet ? `, ${r.cabinet}` : ''} : la remise vaut pour chaque période qui commence${r.jusquAu ? ` au plus tard le ${jour(r.jusquAu)}` : ' dans sa première année'}.`;
+    return `<div class="abo-remise" id="abo-remise"><b>−${r.taux} % sur ta prochaine facture</b><span>${esc(pourquoi)}</span>
+      <span>Elle porte sur tout le hors taxes de la facture, l'offre et ce qui s'ajoute. Les prix ci-dessous sont ceux d'avant la remise.</span></div>`;
+  }
+
   /** @param {HTMLElement} el @param {Outils} o */
   async function dessiner(el, o) {
-    /** @type {{ aujourdhui: string, etat: Etat, prix: { offre: string, periodicite: string, montantHt: string }[], options?: { option: string, periodicite: string, montantHt: string }[], aVenir?: { quoi: string, periodicite: string, aPartirDu: string, montantHt: string }[], compte?: { offre: string, comptes: Record<string, number>, inclus: Record<string, number | null> } | null, historique: { le: string, nature: string, apres: any }[], factures: FacturesAbo | null, enLigne?: boolean, modules?: string[], regles?: { essai?: number | null, grace?: number | null, relances?: number[] }, contenu?: { duJour?: Contenus, aVenir?: { offre: string, quoi: string, nombre: number, aPartirDu: string }[] }, fermes?: string[] }} */
+    /** @type {{ aujourdhui: string, etat: Etat, prix: { offre: string, periodicite: string, montantHt: string }[], options?: { option: string, periodicite: string, montantHt: string }[], aVenir?: { quoi: string, periodicite: string, aPartirDu: string, montantHt: string }[], compte?: { offre: string, comptes: Record<string, number>, inclus: Record<string, number | null> } | null, historique: { le: string, nature: string, apres: any }[], factures: FacturesAbo | null, enLigne?: boolean, modules?: string[], regles?: { essai?: number | null, grace?: number | null, relances?: number[] }, contenu?: { duJour?: Contenus, aVenir?: { offre: string, quoi: string, nombre: number, aPartirDu: string }[] }, fermes?: string[], remise?: Remise | null }} */
     let a;
     try { a = await o.appel('GET', '/abonnement'); } catch (x) {
       el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p><button type="button" class="btn btn-sm" id="abo-relire">Réessayer</button>`;
@@ -505,6 +517,7 @@
       ${aFaire ? factures : ''}
       ${a.etat.etat === 'hors' ? '' : `<div class="abo-section">
         <div class="abo-section-tete"><h3>Les offres</h3><p>Un prix par entreprise, jamais par utilisateur. Hors taxes : la TVA s'ajoute.${(a.aVenir || []).length || changements.length ? ' Un changement annoncé vaut pour les périodes qui commencent à sa date : celle qui court garde son prix et ce qu\'elle comprend.' : ''}</p></div>
+        ${a.remise ? remiseEnClair(a.remise) : ''}
         <div class="abo-offres${avecAnnonces ? ' avec-avenir' : ''}">${offres}</div>
         ${enPlus ? `<div class="abo-plus" id="abo-plus">
           <div class="abo-plus-tete"><h4>Au-delà de ce que l'offre comprend</h4>

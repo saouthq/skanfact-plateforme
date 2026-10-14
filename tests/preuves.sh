@@ -12784,7 +12784,7 @@ prouver 'l'"'"'entreprise SkanFact qui change après une facture préparée' 'ba
 prouver 'une facture préparée par qui n'"'"'est pas propriétaire de l'"'"'entreprise SkanFact' 'base/migrations/0097_nos_factures.sql' \
   '  if not exists (select 1 from socle.membre m where m.entreprise = v and m.utilisateur = socle.moi() and m.actif and '"'"'proprietaire'"'"' = any(m.roles)) then' '  if false then' \
   "$NF2"
-prouver 'la préparation d'"'"'une facture au journal en « période payée »' 'base/migrations/0103_prix_prepares.sql' \
+prouver 'la préparation d'"'"'une facture au journal en « période payée »' 'base/migrations/0106_remises.sql' \
   ''"'"'factureDu'"'"', p_debut, '"'"'factureAu'"'"', p_fin,' ''"'"'debut'"'"', p_debut, '"'"'fin'"'"', p_fin,' \
   "$NF2"
 prouver 'une facture préparée deux fois pour la même période' 'serveur/abonnement/factures.ts' \
@@ -12940,8 +12940,8 @@ prouver 'un salarié sorti compté sur la facture' base/migrations/0102_utilisat
   "and d.collection = 'employees'
                    and coalesce(nullif(d.contenu->>'endDate', ''), '9999-12-31') >= to_char(p_jour, 'YYYY-MM-DD'))::int," "and d.collection = 'employees')::int," \
   "$OC2"
-prouver 'un total que la base ne rejoue pas' base/migrations/0103_prix_prepares.sql \
-  "  if v_prix is null or v_prix + coalesce((select sum((l->>'quantite')::bigint * (l->>'prixHt')::bigint) from jsonb_array_elements(v_lignes) l), 0) <> p_montant_ht then" "  if v_prix is null or v_prix > p_montant_ht then" \
+prouver 'un total que la base ne rejoue pas' base/migrations/0106_remises.sql \
+  "  if v_prix is null or v_brut - v_remise_ht <> p_montant_ht then" "  if v_prix is null or v_prix > p_montant_ht then" \
   "$OC2"
 prouver 'les ajouts absents de la pièce' serveur/abonnement/factures.ts \
   '    }, ...enPlus],' '    }],' \
@@ -13058,7 +13058,7 @@ prouver 'la plus ancienne règle de l'"'"'abonnement prise pour celle du jour' b
 prouver 'les lignes en plus au prix du jour de la préparation' base/migrations/0105_contenu_offres.sql \
   'p.periodicite = p_periodicite and p.a_partir_du <= p_prix_au order by' 'p.periodicite = p_periodicite and p.a_partir_du <= p_jour order by' \
   "$PX3"
-prouver 'une facture rejouée au prix du jour de la préparation' base/migrations/0103_prix_prepares.sql \
+prouver 'une facture rejouée au prix du jour de la préparation' base/migrations/0106_remises.sql \
   '   where x.offre = p_offre and x.periodicite = p_periodicite and x.a_partir_du <= p_debut order by x.a_partir_du desc limit 1;
   v_lignes := plateforme.lignes_en_plus(p_entreprise, p_offre, p_periodicite, p_jour, p_debut);' '   where x.offre = p_offre and x.periodicite = p_periodicite and x.a_partir_du <= p_jour order by x.a_partir_du desc limit 1;
   v_lignes := plateforme.lignes_en_plus(p_entreprise, p_offre, p_periodicite, p_jour, p_jour);' \
@@ -13288,7 +13288,7 @@ prouver 'la carte d'"'"'une offre qui ne lit pas ses nombres' web/public/platefo
   'inclusDe(k, contenus[/** @type {'"'"'essentiel'"'"' | '"'"'complet'"'"'} */ (k)] || {})' 'inclusDe(k, {})' \
   "$CTCW"
 prouver 'la carte de l'"'"'offre qui ne dit pas ce qu'"'"'elle ferme' serveur/abonnement/routes.ts \
-  'contenu, fermes: modulesFermes(f, jour) } };' 'contenu, fermes: [] } };' \
+  'contenu, fermes: modulesFermes(f, jour),' 'contenu, fermes: [],' \
   "$CTCO"
 prouver 'ce que les offres comprennent écrit en dur sous les ajouts de la console' web/console/src/ecrans/Reglages.tsx \
   '{comprisDe(l.option, d.contenu.duJour)}' '{phrase(`${K}.a.compris.inconnu`)}' \
@@ -13328,6 +13328,152 @@ prouver 'ce que chaque offre comprend en tableau au téléphone, Complet caché 
   .c-rg-contenu .c-rg-avenir-droite { margin-inline-start: 0; }
 ' '' \
   "$CTTEL"
+
+# Les remises (0106 ; docs/abonnement.md C17) : celle du groupe et celle du cabinet, jamais additionnées.
+RM1='la direction prépare un changement de remise après le préavis ; il se retire avant sa date ; une remise en vigueur ne bouge jamais'
+RM2='la direction déclare le groupe ; la remise suit la première période payée, pas la création ; une société entre et sort à son jour'
+RM3='un mandat d'"'"'avant le premier paiement donne la remise pour les périodes qui commencent dans les mois de la règle ; d'"'"'après, rien'
+RM4='l'"'"'aperçu dit la remise et son montant ; le brouillon la porte (taux, note) ; la base la rejoue et la garde'
+RMU='le serveur, la base et la pièce de la v10 retirent le même millime'
+RML='une remise illisible ne s'"'"'applique pas ; l'"'"'autre, qui ne s'"'"'ajoute pas, se lit à côté'
+RMR='celle du jour pour chacune, ce qui est préparé, combien de sociétés en groupe ; une ligne illisible ne se lit pas'
+RMF='la fiche dit la liste fermée : qui, l'"'"'abonnement et son histoire, les membres, des comptes ; jamais le contenu d'"'"'un dossier'
+RME='la remise de la prochaine période (0106) : déduite du montant et du revenu annuel, et dite ; jamais pour qui n'"'"'a pas de montant'
+RMW='les remises : préparées avec leur aperçu, retirées avant leur date ; un groupe se déclare depuis la fiche, le client lit sa remise'
+prouver 'une remise sans préavis' base/migrations/0106_remises.sql \
+  '  if p_a_partir_du is null or p_a_partir_du < p_jour + v_preavis then
+    perform socle.refus(format('"'"'une nouvelle remise' '  if p_a_partir_du is null or p_a_partir_du < p_jour then
+    perform socle.refus(format('"'"'une nouvelle remise' \
+  "$RM1"
+prouver 'deux changements à venir sur la même remise' base/migrations/0106_remises.sql \
+  '  if exists (select 1 from plateforme.regle_remise r where r.code = p_code and r.a_partir_du > p_jour) then' '  if false then' \
+  "$RM1"
+prouver 'une remise qui ne change rien' base/migrations/0106_remises.sql \
+  '  if (v_avant->>'"'"'taux'"'"')::int = p_taux and (v_avant->>'"'"'mois'"'"')::int is not distinct from p_mois then' '  if false then' \
+  "$RM1"
+prouver 'la remise du cabinet sans sa durée' base/migrations/0106_remises.sql \
+  '  if (p_code = '"'"'cabinet'"'"') <> (p_mois is not null) or (p_mois is not null and (p_mois < 1 or p_mois > 60)) then' '  if p_mois is not null and (p_mois < 1 or p_mois > 60) then' \
+  "$RM1"
+prouver 'une remise en vigueur qu'"'"'on retire' base/migrations/0106_remises.sql \
+  '  if p_a_partir_du <= p_jour then perform socle.refus('"'"'cette remise est déjà en vigueur : elle ne se retire plus ; prépare-en une nouvelle'"'"'); end if;' '' \
+  "$RM1"
+prouver 'une remise en vigueur que la base laisse effacer' base/migrations/0106_remises.sql \
+  '  if old.a_partir_du <= (now() at time zone '"'"'Africa/Tunis'"'"')::date then
+    raise exception '"'"'une règle de remise en vigueur' '  if false then
+    raise exception '"'"'une règle de remise en vigueur' \
+  "$RM1"
+prouver 'un changement de remise sans sa ligne au journal' base/migrations/0106_remises.sql \
+  '    values (socle.moi(), v_role, '"'"'reglages.remise_preparee'"'"', btrim(p_motif),' '    values (socle.moi(), v_role, '"'"'reglages.remise'"'"', btrim(p_motif),' \
+  "$RM1"
+prouver 'la première abonnée lue à la création, pas à la première période payée' base/migrations/0106_remises.sql \
+  '     order by coalesce(plateforme.premiere_periode(m.entreprise), case when m.entreprise = p_entreprise then p_debut end) nulls last,
+              e.cree_le, e.id' '     order by e.cree_le, e.id' \
+  "$RM2"
+prouver 'une remise de groupe pour une période d'"'"'avant l'"'"'entrée' base/migrations/0106_remises.sql \
+  '   where m.entreprise = p_entreprise and m.depuis <= p_debut and (m.retire_le is null or p_debut < m.retire_le)' '   where m.entreprise = p_entreprise and (m.retire_le is null or p_debut < m.retire_le)' \
+  "$RM2"
+prouver 'une société sortie du groupe qui y compte encore' base/migrations/0106_remises.sql \
+  '     where m.groupe = v_membre.groupe and m.depuis <= p_debut and (m.retire_le is null or p_debut < m.retire_le)' '     where m.groupe = v_membre.groupe' \
+  "$RM2"
+prouver 'une société dans deux groupes' base/migrations/0106_remises.sql \
+  '  if exists (select 1 from plateforme.groupe_membre m where m.entreprise = p_entreprise and m.retire_le is null) then
+    perform socle.refus('"'"'cette société est déjà dans un groupe' '  if false then
+    perform socle.refus('"'"'cette société est déjà dans un groupe' \
+  "$RM2"
+prouver 'une société déjà en groupe proposée comme voisine' base/migrations/0106_remises.sql \
+  '                    and not exists (select 1 from plateforme.groupe_membre m where m.entreprise = e.id and m.retire_le is null)
+' '' \
+  "$RM2"
+prouver 'la fiche d'"'"'un client qui exige l'"'"'entreprise SkanFact désignée' base/migrations/0106_remises.sql \
+  '                  where e.id <> p_entreprise and not e.essai and e.id is distinct from (select d.entreprise from plateforme.editeur d)' '                  where e.id <> p_entreprise and not e.essai and e.id is distinct from plateforme.editeur_de_mes_factures()' \
+  "$RM2"
+prouver '« Ton abonnement » qui dit tout de la remise' serveur/abonnement/routes.ts \
+  'remise: remise ? { nature: remise.nature, taux: remise.taux, groupe: remise.groupe, cabinet: remise.cabinet, jusquAu: remise.jusquAu } : null' 'remise' \
+  "$RM2"
+prouver 'la remise du cabinet pour un mandat d'"'"'après le premier paiement' base/migrations/0106_remises.sql \
+  ' and (v_paiement is null or d.debut <= v_paiement)' '' \
+  "$RM3"
+prouver 'la remise du cabinet pour un mandat seulement proposé' base/migrations/0106_remises.sql \
+  'd.statut in ('"'"'actif'"'"', '"'"'termine'"'"')' 'd.statut in ('"'"'actif'"'"', '"'"'termine'"'"', '"'"'propose'"'"')' \
+  "$RM3"
+prouver 'la première année comptée depuis la période facturée' base/migrations/0106_remises.sql \
+  '  v_premiere date := coalesce(plateforme.premiere_periode(p_entreprise), p_debut);' '  v_premiere date := p_debut;' \
+  "$RM3"
+prouver 'la remise du groupe toujours, même plus faible' base/migrations/0106_remises.sql \
+  '  if (v_c->>'"'"'taux'"'"')::int > (v_g->>'"'"'taux'"'"')::int then return v_c || jsonb_build_object('"'"'aussi'"'"', v_g); end if;' '' \
+  "$RM3"
+prouver 'le dernier jour de la remise du cabinet compté un jour trop loin' base/migrations/0106_remises.sql \
+  ''"'"'jusquAu'"'"', v_fin - 1);' ''"'"'jusquAu'"'"', v_fin);' \
+  "$RM3"
+prouver 'la base qui rejoue la facture sans sa remise' base/migrations/0106_remises.sql \
+  '  if v_prix is null or v_brut - v_remise_ht <> p_montant_ht then' '  if v_prix is null or v_brut <> p_montant_ht then' \
+  "$RM4"
+prouver 'l'"'"'aperçu de la facture sans la remise' serveur/console/routes.ts \
+  '{ apercu: corps.apercu === true, motif: corps.motif.trim() }, enPlus, remise);' '{ apercu: corps.apercu === true, motif: corps.motif.trim() }, enPlus);' \
+  "$RM4"
+prouver 'la pièce sans sa remise' serveur/abonnement/factures.ts \
+  'discountRate: o.remise?.taux ?? 0,' 'discountRate: 0,' \
+  "$RMU"
+prouver 'la remise arrondie vers le bas au serveur' serveur/abonnement/remise.ts \
+  '(base * BigInt(taux) + 50n) / 100n' '(base * BigInt(taux)) / 100n' \
+  "$RMU"
+prouver 'la remise arrondie vers le bas dans la base' base/migrations/0106_remises.sql \
+  'language sql immutable as $$ select (p_base * p_taux + 50) / 100 $$;' 'language sql immutable as $$ select (p_base * p_taux) / 100 $$;' \
+  "$RMU"
+prouver 'une remise à zéro lue comme une remise' serveur/abonnement/remise.ts \
+  'r.taux > 0 && r.taux <= 90' 'r.taux >= 0 && r.taux <= 90' \
+  "$RML"
+prouver 'l'"'"'autre remise oubliée' serveur/abonnement/remise.ts \
+  '  return { ...r, aussi: lireUne((brut as Record<string, unknown>).aussi) };' '  return { ...r, aussi: null };' \
+  "$RML"
+prouver 'une remise retirée datée au journal comme ce qui reste' serveur/console/reglages.ts \
+  '  const date = geste === '"'"'reglages.remise_retiree'"'"' ? avant?.aPartirDu : apres?.aPartirDu;' '  const date = apres?.aPartirDu;' \
+  "$CTCJ"
+prouver 'une remise inconnue que le journal nomme' serveur/console/reglages.ts \
+  '  const code = (CODES_REMISE as readonly unknown[]).includes(apres?.code) ? apres?.code as CodeRemise : null;' '  const code = apres?.code as CodeRemise;' \
+  "$CTCJ"
+prouver 'une remise au-delà de 90 % lue' serveur/console/reglages.ts \
+  'x.taux >= 0 && x.taux <= 90 ? x.taux : null' 'x.taux >= 0 ? x.taux : null' \
+  "$RMR"
+prouver 'la fiche sans son groupe' serveur/console/routes.ts \
+  'groupe: { ...groupe, prochaine }, ' '' \
+  "$RMF"
+prouver 'les échéances sans la remise' serveur/console/echeances.ts \
+  '    const remise = m === null ? undefined : remises.get(e.id);' '    const remise = undefined as Remise | undefined;' \
+  "$RME"
+prouver 'le revenu annuel sans la remise' serveur/console/echeances.ts \
+  '    const p = apresRemise(brut, remises.get(l.entreprise.id));' '    const p = brut;' \
+  "$RME"
+prouver 'la durée remplie d'"'"'avance : choisir la remise du cabinet passe pour taper' web/console/src/ecrans/Reglages.tsx \
+  '  const [mois, setMois] = useState('"'"''"'"');' '  const [mois, setMois] = useState(String(d.remises.duJour.cabinet?.mois ?? 12));' \
+  "$RMW"
+prouver 'la durée du cabinet qui pousse la date' 'web/console/src/ecrans/Reglages.tsx|||web/console/src/ecrans/Reglages.tsx' \
+  '        <Champ libelle={titre(`${K}.g.prix.date`)} type="date" min={plusTot} valeur={date} changer={setDate} {...fauteDe('"'"'date'"'"')}
+          aide={phrase(`${K}.g.contenu.date_aide`, { jour: jour(plusTot) })} />
+      </div>
+      {/* La durée|||      {code === '"'"'cabinet'"'"' ? (
+        <div className="c-rg-dates">
+          <Champ libelle={titre(`${K}.g.remise.mois`)}' '        {code === '"'"'cabinet'"'"' ? <Champ libelle={titre(`${K}.g.remise.mois`)} valeur={mois} changer={setMois} /> : null}
+        <Champ libelle={titre(`${K}.g.prix.date`)} type="date" min={plusTot} valeur={date} changer={setDate} {...fauteDe('"'"'date'"'"')}
+          aide={phrase(`${K}.g.contenu.date_aide`, { jour: jour(plusTot) })} />
+      </div>
+      {/* La durée|||      {false ? (
+        <div className="c-rg-dates">
+          <Champ libelle={titre(`${K}.g.remise.mois`)}' \
+  "$RMW"
+prouver 'une remise retirée dite au journal comme préparée' web/console/src/ecrans/Journal.tsx \
+  '    const retire = geste === '"'"'reglages.remise_retiree'"'"';' '    const retire = geste === '"'"'reglages.remise_preparee'"'"';' \
+  "$RMW"
+prouver 'l'"'"'aperçu d'"'"'un groupe où toutes ont la remise' web/console/src/ecrans/Fiche.tsx \
+  'const aLaRemise = (membres: MembreGroupe[], i: number, taux: number) => taux > 0 && i > 0 && membres[0]?.premierePeriode != null;' 'const aLaRemise = (membres: MembreGroupe[], i: number, taux: number) => taux > 0 && membres.length > i;' \
+  "$RMW"
+prouver 'les sociétés de la même propriétaire proposées décochées' web/console/src/ecrans/Fiche.tsx \
+  '  const [cochees, setCochees] = useState<string[]>(() => g.voisines.map((v) => v.entreprise));' '  const [cochees, setCochees] = useState<string[]>([]);' \
+  "$RMW"
+prouver '« Ton abonnement » qui tait la remise' web/public/plateforme/abonnement.js \
+  '        ${a.remise ? remiseEnClair(a.remise) : '"'"''"'"'}
+' '' \
+  "$RMW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

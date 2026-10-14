@@ -68,12 +68,12 @@ describe('les réglages de la plateforme, à la souris', () => {
     return p;
   };
   // L'application du client, sur l'accueil de son entreprise.
-  const client = async () => {
+  const client = async (e = ent) => {
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jClient);
     const p = await cx.newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
-    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
+    await p.goto(`${serveur.adresse}/v10/?e=${e}#/dashboard`);
     await expect.poll(() => p.locator('#view .page-head h1').count(), { timeout: 20_000 }).toBeGreaterThan(0);
     return p;
   };
@@ -113,6 +113,7 @@ describe('les réglages de la plateforme, à la souris', () => {
     await admin.query('delete from plateforme.prix where a_partir_du > (now() at time zone \'Africa/Tunis\')::date');
     await admin.query('delete from plateforme.prix_option where a_partir_du > (now() at time zone \'Africa/Tunis\')::date');
     await admin.query('delete from plateforme.contenu_offre where a_partir_du > (now() at time zone \'Africa/Tunis\')::date');
+    await admin.query('delete from plateforme.regle_remise where a_partir_du > (now() at time zone \'Africa/Tunis\')::date');
     await reposerLesReglesDeDepart(admin, aujourdhuiATunis());
     await navigateur?.close(); await serveur?.arreter(); await admin.end();
     fs.rmSync(dossier, { recursive: true, force: true }); fs.rmSync(path.dirname(veille), { recursive: true, force: true });
@@ -325,6 +326,88 @@ describe('les réglages de la plateforme, à la souris', () => {
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 120_000);
+
+  it('les remises : préparées avec leur aperçu, retirées avant leur date ; un groupe se déclare depuis la fiche, le client lit sa remise', async () => {
+    const p = await console_(jD);
+    const plusTot = plusJours(aujourdhuiATunis(), 30);
+    const enFrancais = (j: string) => `${j.slice(8, 10)}/${j.slice(5, 7)}/${j.slice(0, 4)}`;
+    const section = p.locator('section[aria-labelledby="rg-remises"]');
+    // Les deux remises du jour : leur taux, leur durée.
+    expect(net(await section.locator('tr[data-code="groupe"]').innerText())).toMatch(/^Remise de groupe Dès la deuxième société d'un groupe déclaré dans la fiche d'un client : .* 20 % sans limite$/);
+    expect(net(await section.locator('tr[data-code="cabinet"]').innerText())).toMatch(/^Remise du cabinet Pour un client venu par son cabinet : .* 20 % 12 mois$/);
+    // Préparer : celle du cabinet, 25 % pendant 6 mois. Le taux et la date ne bougent pas quand la durée apparaît.
+    await cliquer(section.getByRole('button', { name: 'Préparer un changement…' }));
+    const f = p.locator('[role="dialog"]');
+    expect(net(await f.locator('.c-rg-prix-zone').innerText())).toBe('Écris le nouveau taux : l\'aperçu dira ce qui change.');
+    const place = async () => [(await f.getByLabel('Taux (%)').boundingBox())?.y, (await f.getByLabel('À partir du').boundingBox())?.y];
+    const avant = await place();
+    await f.getByLabel('La remise', { exact: true }).selectOption('cabinet');
+    expect(await place()).toEqual(avant);
+    // Choisir n'est pas taper : la durée part vide (celle d'aujourd'hui, en indication).
+    expect(await f.getByLabel('Durée (mois)').inputValue()).toBe('');
+    expect(await f.getByLabel('Durée (mois)').getAttribute('placeholder')).toBe('12');
+    await f.getByLabel('Taux (%)').fill('25');
+    await f.getByLabel('Durée (mois)').fill('6');
+    expect(net(await f.locator('.c-rg-prix-zone').innerText())).toBe(`Remise du cabinet : 20 % pendant 12 mois → 25 % pendant 6 mois Elle vaudra pour les clients venus par leur cabinet, sur chaque période qui commence à partir du ${enFrancais(plusTot)}, dans la durée comptée depuis leur première période payée.`);
+    expect(await f.getByLabel('À partir du').inputValue()).toBe(plusTot);
+    await f.locator('textarea').fill('Vingt-cinq pour cent, six mois');
+    await cliquer(f.getByRole('button', { name: 'Préparer ce changement', exact: true }));
+    await expect.poll(() => f.count(), { timeout: 10_000 }).toBe(0);
+    // À venir : sous la remise, et sous la grille avec qui l'a préparé et pourquoi.
+    await expect.poll(() => section.locator('tr[data-code="cabinet"] .c-rg-avenir').innerText().then(net).catch(() => ''), { timeout: 10_000 })
+      .toBe(`→ 25 % pendant 6 mois le ${enFrancais(plusTot)}`);
+    const venir = section.locator('.c-rg-venir[data-code="cabinet"]');
+    expect(net(await venir.innerText()))
+      .toMatch(new RegExp(`^À venir : remise du cabinet, 25 % pendant 6 mois à partir du ${enFrancais(plusTot)} Préparé par Amira Réglages, aujourd'hui, \\d\\d:\\d\\d : « Vingt-cinq pour cent, six mois » Le retirer avant sa date…$`));
+    // Une remise déjà préparée : l'aperçu le dit, et le bouton attend.
+    await cliquer(section.getByRole('button', { name: 'Préparer un changement…' }));
+    await f.getByLabel('La remise', { exact: true }).selectOption('cabinet');
+    expect(net(await f.locator('.c-rg-prix-zone').innerText())).toBe(`Un changement de cette remise est déjà préparé, à partir du ${enFrancais(plusTot)} : retire-le avant d'en préparer un autre.`);
+    expect(await f.getByRole('button', { name: 'Préparer ce changement', exact: true }).isDisabled()).toBe(true);
+    await p.keyboard.press('Escape');
+    await expect.poll(() => f.count()).toBe(0);
+    // Retiré avant sa date ; le journal dit sur quoi, de quoi à quoi.
+    await cliquer(venir.getByRole('button', { name: 'Le retirer avant sa date…' }));
+    await f.locator('textarea').fill('Remise repoussée');
+    await cliquer(f.getByRole('button', { name: 'Retirer ce changement', exact: true }));
+    await expect.poll(() => venir.count(), { timeout: 10_000 }).toBe(0);
+    await p.goto(`${serveur.adresse}/console/#/journal`);
+    const auJournal = (motif: string) => p.locator('tr').filter({ hasText: motif }).first().innerText().then(net).catch(() => '');
+    await expect.poll(() => auJournal('Vingt-cinq pour cent, six mois'), { timeout: 15_000 })
+      .toContain(`Changement de remise préparé Réglages La remise du cabinet « Vingt-cinq pour cent, six mois » 20 % pendant 12 mois → 25 % pendant 6 mois à partir du ${enFrancais(plusTot)}`);
+    expect(await auJournal('Remise repoussée'))
+      .toContain(`Changement de remise retiré Réglages La remise du cabinet « Remise repoussée » 25 % pendant 6 mois à partir du ${enFrancais(plusTot)} → 20 % pendant 12 mois`);
+
+    // Un groupe : la seconde société de Lina, depuis sa fiche. Le Studio a payé le premier : il garde le prix normal.
+    const atelier = String((await api('POST', '/entreprises', jClient, { raisonSociale: 'Atelier Lina Réglages' })).corps.id);
+    await admin.query(`insert into plateforme.evenement_abonnement (entreprise, nature, par, motif, apres) values ($1, 'paye', 'exploitation', 'paiement des essais', '{"debut": "2026-01-01"}')`, [ent]);
+    await p.goto(`${serveur.adresse}/console/#/clients/${atelier}?onglet=abonnement`);
+    const carte = p.locator('section[aria-labelledby="fiche-groupe"]');
+    await expect.poll(() => carte.locator('.c-gr-remise').innerText().then(net).catch(() => ''), { timeout: 15_000 })
+      .toBe('Aucune remise sur sa prochaine facture Elle n\'est dans aucun groupe, et aucun cabinet ne l\'a amenée avant son premier paiement.');
+    expect(net(await carte.locator('.c-gr-voisines').innerText())).toBe('Les autres sociétés de Lina Réglages, dans aucun groupe : Studio Lina Réglages');
+    await cliquer(carte.getByRole('button', { name: 'Créer un groupe' }));
+    expect(await f.locator('.c-gr-cases input[type="checkbox"]').evaluateAll((e) => e.map((x) => [(x as HTMLInputElement).checked, (x as HTMLInputElement).disabled])))
+      .toEqual([[true, true], [true, false]]);
+    // L'aperçu, avant le geste : la première abonnée d'abord, au prix normal.
+    await expect.poll(() => f.locator('.c-gr-apercu li').allInnerTexts().then((t) => t.map(net)), { timeout: 10_000 })
+      .toEqual(['Studio Lina Réglages Première période payée : 01/01/2026 Prix normal', 'Atelier Lina Réglages cette fiche Pas encore abonnée −20 %']);
+    await f.getByLabel('Nom du groupe').fill('Les ateliers de Lina');
+    await f.locator('textarea').fill('Les deux sociétés de Lina');
+    await cliquer(f.getByRole('button', { name: 'Créer le groupe', exact: true }));
+    await expect.poll(() => f.count(), { timeout: 10_000 }).toBe(0);
+    await expect.poll(() => carte.locator('.c-gr-remise').innerText().then(net).catch(() => ''), { timeout: 10_000 })
+      .toBe('−20 % sur sa prochaine facture Remise de groupe (Les ateliers de Lina) : Studio Lina Réglages, la première société abonnée du groupe, paie le prix normal.');
+    // Le client de l'Atelier lit sa remise et pourquoi, au-dessus des offres.
+    const c = await client(atelier);
+    await c.evaluate(() => { location.hash = '#/parametres'; });
+    await cliquer(c.locator('#set-tabs [data-tab="abonnement"]'));
+    await expect.poll(() => c.locator('#abo-remise').innerText().then(net).catch(() => ''), { timeout: 15_000 })
+      .toBe('−20 % sur ta prochaine facture Remise de groupe (Les ateliers de Lina) : la première société abonnée du groupe paie le prix normal, les suivantes ont la remise. Elle porte sur tout le hors taxes de la facture, l\'offre et ce qui s\'ajoute. Les prix ci-dessous sont ceux d\'avant la remise.');
+    await fermer(c);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 150_000);
 
   it('une règle de l\'abonnement : la grâce se change à la souris, avec son aperçu ; le client et le journal la disent', async () => {
     const p = await console_(jD);

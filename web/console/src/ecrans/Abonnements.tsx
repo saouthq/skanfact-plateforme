@@ -21,6 +21,8 @@ type Relance = { rang: Rang; prevueLe: string; partieLe: string | null; etat: Et
 type Ligne = {
   entreprise: { id: string; nom: string }; tenuePar: string | null; etat: Etat; faits: Faits; date: string | null;
   pieces: number; derniereActivite: string | null; montantHt: string | null; relances: Relance[];
+  // La remise de sa prochaine période (0106), déjà déduite du montant.
+  remise: { nature: 'groupe' | 'cabinet'; taux: number } | null;
   prolongation: Evenement | null; offert: Evenement | null; suspension: Evenement | null;
 };
 type Cartes = {
@@ -146,7 +148,7 @@ function LigneEcheance({ l, aujourdhui }: { l: Ligne; aujourdhui: string }) {
       </div>
       <div className="c-ech-montant">
         {l.montantHt ? <b className="c-mono" data-donnee>{montant(l.montantHt)}</b> : <b className="c-mono c-ech-rien">—</b>}
-        <span>{dire(l.montantHt ? `${K}.m.ht` : sansMontant(l.etat))}</span>
+        <span>{l.montantHt && l.remise ? dire(`${K}.m.ht_remise.${l.remise.nature}`, { taux: l.remise.taux }) : dire(l.montantHt ? `${K}.m.ht` : sansMontant(l.etat))}</span>
       </div>
       <div className="c-ech-bas">
         <div className="c-ech-relances">

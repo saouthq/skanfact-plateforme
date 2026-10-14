@@ -15,13 +15,15 @@ import { aujourdhuiATunis } from '../reglements.ts';
 import { etatAbonnement, lireFaits, lireModules, lireRegles, plusJours, regleAu, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, type GesteAbonnement, type LigneAbonnement } from '../abonnement/gestes.ts';
 import { lireFacturesAbonnement, lireLignesEnPlus, periodeDeLaFacture, preparerFacture } from '../abonnement/factures.ts';
+import { lireRemise } from '../abonnement/remise.ts';
+import { lireApercuGroupe, lireGroupeDe } from './groupes.ts';
 import { motif, rendre, t, type Valeurs } from '../../textes/index.ts';
 import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_MIN, REGLES, SAUVEGARDE_TROP_VIEILLE_H } from '../../exploitation/veille.ts';
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
 import { aDecider, CATEGORIES, categorie, chercher, inscriteCetteSemaine, lireEntreprises, lireVeille, rangerParUrgence, tableau, type Veille } from './decider.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
 import { comptesDesVues, dansLaVue, ligneClient, parAnDeLaSelection, trier, TRIS_CLIENTS, VUES_CLIENTS, type TriClients, type VueClients } from './clients.ts';
-import { annuel, AVENIR_JOURS, cartes, lignesEcheances, lireExtras, lirePrix, relancesRecentes, vue, VUES, type Vue } from './echeances.ts';
+import { annuel, AVENIR_JOURS, cartes, lignesEcheances, lireExtras, lirePrix, lireRemisesEcheances, relancesRecentes, vue, VUES, type Vue } from './echeances.ts';
 import {
   alertesOuvertes, BUDGET_DU_GRAPHIQUE, bornes, briques, disponibilite, enLigne, ensemble, estPeriode, journal, joursDuService, lireVeilleDeLaBase,
   misesEnLigne, PERIODES, resume, serie, SEUILS_DU_SERVICE, SORTE_DU_GRAPHIQUE, traficRecent, trenteJours, TUILES, type Periode,
@@ -37,7 +39,7 @@ import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe
 import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
 import {
-  ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, lireReglesAbonnement, CODES_REGLE, lireContenuOffres, QUOI_CONTENU, preparesPar, QUOI_PRIX, registre, sujetDesReglages, type QuoiPrix,
+  ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, lireReglesAbonnement, CODES_REGLE, lireContenuOffres, lireRemises, CODES_REMISE, QUOI_CONTENU, preparesPar, QUOI_PRIX, registre, sujetDesReglages, type QuoiPrix,
 } from './reglages.ts';
 import { lireFormats, registreDesFormats } from './formats.ts';
 import { articleConnu, articlesDeLAide, CANAUX_NOTES, compter, etatDe, lireSupport, ranger, SANS_REPONSE_HEURES, suggererPour } from './support.ts';
@@ -260,7 +262,11 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // Ses factures d'abonnement (docs/abonnement.md B2–B4), et l'entreprise SkanFact où elles naissent.
       const nos = await lireJson<{ editeur: Record<string, unknown> | null }>(transaction(tx), 'select plateforme.console_editeur() v');
       const factures = { lignes: lireFacturesAbonnement(await lireJson(transaction(tx), 'select plateforme.console_factures_abonnement($1) v', [id]), jour), editeur: nos?.editeur ?? null };
-      return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, factures, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true),
+      // Son groupe, les sociétés de la même propriétaire, et la remise de sa prochaine période (0106) : la période que la
+      // prochaine facture paierait, par la même règle que la facture.
+      const prochaine = periodeDeLaFacture(faits, faits.periodicite ?? 'annuel', jour).debut;
+      const groupe = lireGroupeDe(await lireJson(transaction(tx), 'select plateforme.console_groupe_de($1, $2::date, $3::date) v', [id, jour, prochaine]));
+      return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, factures, groupe: { ...groupe, prochaine }, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true),
         support: { comptes: compter(support.ouvertes, instant), ouvertes: ranger(support.ouvertes, instant), closes: support.closes.map((l) => ({ ...l, etat: etatDe(l, instant) })) } } };
     },
   });
@@ -276,14 +282,16 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const entreprises = await lesEntreprises(t, jour);
       const extras = lireExtras(await lireJson(t, 'select plateforme.console_echeances() v'));
       const prix = lirePrix(await lireJson(t, 'select plateforme.prix_du_jour($1::date) v', [jour]));
-      const lignes = lignesEcheances(entreprises, extras, prix, jour);
+      // La remise de la prochaine période de chaque entreprise (0106), comme sa facture la comptera.
+      const remises = lireRemisesEcheances(await lireJson(t, 'select plateforme.console_remises_echeances() v'));
+      const lignes = lignesEcheances(entreprises, extras, prix, jour, remises);
       const v: Vue = VUES.includes(query.vue as Vue) ? query.vue as Vue : 'avenir';
       const gardees = vue(lignes, v, jour);
       const debut = Math.max(Number(query.debut ?? 0) || 0, 0);
       const n = limite(query);
       // Les règles que l'écran dit (les jours des relances, la grâce, l'horizon de « à venir ») viennent d'ici : écrites une
       // seconde fois dans les textes, elles divergeraient au premier réglage.
-      return { corps: { aujourdhui: jour, vue: v, cartes: cartes(lignes, jour), annuel: annuel(lignes, prix), total: gardees.length,
+      return { corps: { aujourdhui: jour, vue: v, cartes: cartes(lignes, jour), annuel: annuel(lignes, prix, remises), total: gardees.length,
         lignes: gardees.slice(debut, debut + n), suite: debut + n < gardees.length ? debut + n : null,
         regles: reglesDuJour(await lireLesRegles(t), jour) } };
     },
@@ -381,14 +389,54 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // période, et le rejouera en notant la facture.
       const enPlus = lireLignesEnPlus(await lireJson(x, 'select plateforme.console_lignes_facture($1, $2, $3, $4::date, $5::date) v',
         [id, corps.offre, corps.periodicite, jour, debut]));
+      // La remise de la période (0106) : celle de son premier jour, que la base rejouera en notant la facture.
+      const remise = lireRemise(await lireJson(x, 'select plateforme.console_remise($1, $2::date) v', [id, debut]));
       const membres = Array.isArray(fiche.membres) ? fiche.membres as { email?: unknown; roles?: unknown }[] : [];
       const proprio = membres.find((m) => Array.isArray(m.roles) && m.roles.includes('proprietaire'));
       const facture = await preparerFacture(x, qui.utilisateur, {
         id, raisonSociale: String(fiche.raisonSociale ?? ''), matricule: typeof fiche.matricule === 'string' ? fiche.matricule : null,
         email: typeof proprio?.email === 'string' ? proprio.email : null,
-      }, faits, { offre: corps.offre, periodicite: corps.periodicite }, prix, jour, { apercu: corps.apercu === true, motif: corps.motif.trim() }, enPlus);
+      }, faits, { offre: corps.offre, periodicite: corps.periodicite }, prix, jour, { apercu: corps.apercu === true, motif: corps.motif.trim() }, enPlus, remise);
       return { statut: corps.apercu ? 200 : 201, corps: { apercu: corps.apercu === true, facture,
         prixAujourdhuiHt: aujourdhui !== null && prix !== null && aujourdhui !== prix ? versTexte(aujourdhui, 3) : null } };
+    },
+  });
+
+  // ── Les groupes (0106) : la direction relie des sociétés, avec un motif ; chacune entre et sort à son jour ─────────────
+  ajouter({
+    methode: 'POST', chemin: '/console/groupes', geste: 'console.abonnement.gerer',
+    corps: z.object({ nom: z.string().trim().min(2).max(120), entreprises: z.array(uuid).min(2).max(50), motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_creer_groupe($1, $2::uuid[], $3, $4::date) v',
+        [corps.nom, corps.entreprises, corps.motif, aujourdhuiATunis(maintenant())]);
+      return { statut: 201, corps: { id } };
+    },
+  });
+  // L'aperçu d'un de ces gestes, sans rien écrire : qui sera dans le groupe, la première d'abord (elle paie le prix normal).
+  ajouter({
+    methode: 'POST', chemin: '/console/groupes/apercu', geste: 'console.abonnement.gerer',
+    corps: z.object({ groupe: uuid.nullable(), entrent: z.array(uuid).max(50), sort: uuid.nullable() }),
+    traiter: async ({ corps }, tx) => ({
+      corps: lireApercuGroupe(await lireJson(transaction(tx), 'select plateforme.console_groupe_apercu($1, $2::uuid[], $3, $4::date) v',
+        [corps.groupe, corps.entrent, corps.sort, aujourdhuiATunis(maintenant())])),
+    }),
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/entreprises/:id/groupe', geste: 'console.abonnement.gerer',
+    corps: z.object({ groupe: uuid, motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!uuid.safeParse(params.id).success) throw new Introuvable();
+      await transaction(tx).query('select plateforme.console_entrer_groupe($1, $2, $3, $4::date)', [corps.groupe, params.id, corps.motif, aujourdhuiATunis(maintenant())]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/entreprises/:id/groupe/sortir', geste: 'console.abonnement.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!uuid.safeParse(params.id).success) throw new Introuvable();
+      await transaction(tx).query('select plateforme.console_sortir_groupe($1, $2, $3::date)', [params.id, corps.motif, aujourdhuiATunis(maintenant())]);
+      return { corps: { ok: true } };
     },
   });
 
@@ -926,6 +974,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const regles = lireReglesAbonnement(await lireJson(x, 'select plateforme.console_regles_abonnement($1::date) v', [jour]));
       // Ce que chaque offre comprend (0105) : le contenu du jour et ce qui est préparé.
       const contenu = lireContenuOffres(await lireJson(x, 'select plateforme.console_contenu_offres($1::date) v', [jour]));
+      // Les remises (0106) : celle du groupe et celle du cabinet, ce qui est préparé, et combien de sociétés sont en groupe.
+      const remises = lireRemises(await lireJson(x, 'select plateforme.console_remises($1::date) v', [jour]));
       // Les formats officiels : le registre du code, ce que la plateforme en a fait (0094), et si ce serveur a l'adresse
       // de la TTN et de DigiGo (sans elle, les pièces attendent).
       const formats = registreDesFormats(lireFormats(await lireJson(x, 'select plateforme.console_formats() v')), { teif: versionTeif() },
@@ -944,6 +994,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
             enGrace: entreprises.filter((e) => e.etat.etat === 'en_retard').length },
           regles,
           contenu,
+          remises,
           registre: registre(r.regles, jour),
           message: r.messages.find((m) => m.enCours) ?? null, passes: r.messages.filter((m) => !m.enCours).slice(0, 30),
           formats,
@@ -1059,6 +1110,27 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const instant = maintenant();
       await transaction(tx).query('select plateforme.console_retirer_contenu($1, $2, $3::date, $4, $5, $6::date)',
         [corps.offre, corps.quoi, corps.aPartirDu, corps.motif, instant, aujourdhuiATunis(instant)]);
+      return { corps: { ok: true } };
+    },
+  });
+  // Une remise (0106) : préparée comme un prix, avec le préavis, puis retirée avant sa date si besoin.
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/remise', geste: 'console.reglages.gerer',
+    corps: z.object({ code: z.enum(CODES_REMISE), taux: z.number().int().min(0).max(90), mois: z.number().int().min(1).max(60).nullable(), aPartirDu: jourIso, motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const instant = maintenant();
+      await transaction(tx).query('select plateforme.console_preparer_remise($1, $2, $3, $4::date, $5, $6, $7::date)',
+        [corps.code, corps.taux, corps.mois, corps.aPartirDu, corps.motif, instant, aujourdhuiATunis(instant)]);
+      return { statut: 201, corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/remise/retirer', geste: 'console.reglages.gerer',
+    corps: z.object({ code: z.enum(CODES_REMISE), aPartirDu: jourIso, motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const instant = maintenant();
+      await transaction(tx).query('select plateforme.console_retirer_remise($1, $2::date, $3, $4, $5::date)',
+        [corps.code, corps.aPartirDu, corps.motif, instant, aujourdhuiATunis(instant)]);
       return { corps: { ok: true } };
     },
   });

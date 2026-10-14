@@ -625,7 +625,16 @@ l'écran le dit en tête au support. Quatre onglets, l'adresse garde l'onglet (`
   `plateforme.console_ajouts`) : chaque ajout que la facture compte (une caisse, un établissement, un salarié de plus,
   la paie ou la comptabilité complète achetée seule ; jamais un utilisateur, sans limite depuis 1.11.0), ce que chaque offre en comprend (lu dans le contenu du jour),
   ses prix datés (`plateforme.prix_option`) rangés comme ceux des offres, et pour un module, les abonnés du jour dont
-  l'offre ne le contient pas et qui l'ont acheté (le même état que la liste des clients). Sous la frise, **« Nos factures »** (14b, 1.5.0 ; `docs/abonnement.md`
+  l'offre ne le contient pas et qui l'ont acheté (le même état que la liste des clients). Puis **« Les remises »**
+  (1.15.0 ; `0106` ; `docs/abonnement.md` C17) : celle du groupe (son taux, sans limite de durée, et combien de sociétés
+  sont dans un groupe) et celle du cabinet (son taux et sa durée en mois), chacune avec qui l'a posée et pourquoi ; un
+  changement se prépare comme un prix (« Préparer un changement… » : la remise, le taux et la date sur une ligne, la
+  durée du cabinet dessous, vide pour garder celle d'aujourd'hui ; même préavis), se dit sous sa remise (« → 25 % pendant
+  6 mois le … ») et sous la grille, et se retire avant sa date. Dans la **fiche d'un client**, onglet « L'abonnement »,
+  la carte **« Groupe et remise »** dit la remise de sa prochaine période et pourquoi, son groupe (la première abonnée
+  d'abord, « Prix normal » ou « −20 % ») et les autres sociétés de sa propriétaire ; la direction y crée un groupe, y met
+  une société ou l'en retire, toujours avec l'aperçu de qui paiera quoi, puis son motif (journal `groupes.entree`,
+  `groupes.sortie`) ; le support la lit. Sous la frise, **« Nos factures »** (14b, 1.5.0 ; `docs/abonnement.md`
   B1) : l'entreprise SkanFact où nos factures naissent, désignée une fois par sa propriétaire de la direction (motif,
   journal `factures.editeur`), avec qui l'a désignée et combien de factures y sont préparées ; elle se change tant
   qu'aucune ne l'est.

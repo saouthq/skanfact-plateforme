@@ -20,6 +20,8 @@ import { nettoyerClient, nettoyerSociete, vueDePiece, type PieceLue } from '../v
 import { echeanceDe, estJour, etatAbonnement, graceDe, joursEntre, relancesDu, type Etat, type Faits } from './etat.ts';
 import { faitsDe } from './condition.ts';
 import { ceQueLOffreCompte, modulesFermes, modulesFermesPourMoi } from './offre.ts';
+import { periodeDeLaFacture } from './factures.ts';
+import { lireRemise } from './remise.ts';
 import './textes.ts';
 
 // Ce que la base rend des factures de l'abonné (plateforme.mes_factures_abonnement) : les pièces, et, s'il y en a, les
@@ -101,8 +103,13 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
       // `fermes` : les modules que son abonnement ne contient pas (la même fonction que la porte), que la carte de son
       // offre dit.
       const contenu = (await tx.query('select plateforme.contenu_offres_pour_abonne($1::date) c', [jour])).rows[0].c as ContenuPourAbonne;
+      // `remise` : celle de sa prochaine période (0106 : son groupe, ou son cabinet la première année), la plus forte, que
+      // l'onglet dit avec sa raison ; rien pour qui ne gère pas l'abonnement (la base ne rend rien).
+      const prochaine = f ? periodeDeLaFacture(f, f.periodicite ?? 'annuel', jour).debut : null;
+      const remise = prochaine ? lireRemise((await tx.query('select plateforme.ma_remise($1, $2::date) r', [ent, prochaine])).rows[0]?.r) : null;
       return { corps: { aujourdhui: jour, etat, prix, options, aVenir, historique, factures, enLigne: lu.paiement === true, modules: f?.modules ?? [],
-        compte: await ceQueLOffreCompte(tx, ent, jour), regles: reglesPourMoi(f, historique, jour), contenu, fermes: modulesFermes(f, jour) } };
+        compte: await ceQueLOffreCompte(tx, ent, jour), regles: reglesPourMoi(f, historique, jour), contenu, fermes: modulesFermes(f, jour),
+        remise: remise ? { nature: remise.nature, taux: remise.taux, groupe: remise.groupe, cabinet: remise.cabinet, jusquAu: remise.jusquAu } : null } };
     },
   });
 

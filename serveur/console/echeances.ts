@@ -5,11 +5,12 @@
 // d'échéance. Les relances sont celles qui sont parties pour l'échéance d'AUJOURD'HUI, jamais pour une échéance passée.
 //
 // Les montants sont HORS TAXES, au prix du jour (plateforme.prix_du_jour), en texte exact : la TVA et le timbre de nos
-// factures se décident avec le comptable (14b), et un montant qu'on ne sait pas encore dire ne s'invente pas (C2). Aucune
-// remise n'existe encore (le prix gardé des fondateurs vient avec nos factures) : le prix du jour est celui qu'on paie.
+// factures se décident avec le comptable (14b), et un montant qu'on ne sait pas encore dire ne s'invente pas (C2). La
+// remise de la prochaine période (0106 : celle du groupe ou du cabinet, la plus forte) s'y applique, et se dit.
 
 import { versTexte } from '../../moteur/argent.ts';
 import { echeanceDe, joursDuRang, joursEntre, plusJours, relancesDu, type Etat, type Faits, type Offre, type Periodicite, type Rang } from '../abonnement/etat.ts';
+import { lireRemise, montantRemise, type NatureRemise, type Remise } from '../abonnement/remise.ts';
 import { categorie, CATEGORIES, LECTURE_SEULE_DE_LA_SEMAINE, type Categorie, type Entreprise } from './decider.ts';
 
 // « Les échéances des 30 prochains jours » ; une semaine, pour les sous-titres des cartes (la lecture seule « de la
@@ -76,7 +77,7 @@ export type Relance = { rang: Rang; prevueLe: string; partieLe: string | null; e
 export type LigneEcheance = {
   entreprise: { id: string; nom: string }; organisation: Entreprise['organisation']; tenuePar: string | null;
   etat: Etat; faits: Faits; date: string | null; creeLe: string; pieces: number; derniereActivite: string | null;
-  montantHt: string | null; relances: Relance[];
+  montantHt: string | null; remise: { nature: NatureRemise; taux: number } | null; relances: Relance[];
   prolongation: Evenement | null; offert: Evenement | null; suspension: Evenement | null;
 };
 
@@ -140,13 +141,28 @@ export function relancesDe(e: Etat, f: Faits, partie: Parties | undefined, jour:
   }
 }
 
-export function lignesEcheances(liste: Entreprise[], extras: Extras, prix: Prix, jour: string): LigneEcheance[] {
+// La remise de la prochaine période de chaque entreprise (plateforme.console_remises_echeances), lue prudemment.
+export type Remises = Map<string, Remise>;
+export function lireRemisesEcheances(brut: unknown): Remises {
+  const r: Remises = new Map();
+  if (!brut || typeof brut !== 'object' || Array.isArray(brut)) return r;
+  for (const [id, v] of Object.entries(brut as Record<string, unknown>)) {
+    const remise = lireRemise(v);
+    if (remise) r.set(id, remise);
+  }
+  return r;
+}
+// Un montant après la remise de l'entreprise, s'il y en a une.
+const apresRemise = (m: bigint, remise: Remise | undefined) => (remise ? m - montantRemise(m, remise.taux) : m);
+
+export function lignesEcheances(liste: Entreprise[], extras: Extras, prix: Prix, jour: string, remises: Remises = new Map()): LigneEcheance[] {
   return liste.map((e) => {
     const m = montantDe(e.etat, e.faits, prix);
+    const remise = m === null ? undefined : remises.get(e.id);
     return {
       entreprise: { id: e.id, nom: e.raisonSociale }, organisation: e.organisation, tenuePar: e.tenuePar,
       etat: e.etat, faits: e.faits, date: dateDe(e.etat), creeLe: e.creeLe, pieces: e.pieces, derniereActivite: e.derniereActivite,
-      montantHt: m === null ? null : versTexte(m, 3), relances: relancesDe(e.etat, e.faits, extras.relances.get(e.id), jour, e.active),
+      montantHt: m === null ? null : versTexte(apresRemise(m, remise), 3), remise: remise ? { nature: remise.nature, taux: remise.taux } : null, relances: relancesDe(e.etat, e.faits, extras.relances.get(e.id), jour, e.active),
       // Une prolongation ne se raconte que pendant l'essai qu'elle prolonge ; un « offert », tant qu'il l'est ; une
       // suspension, tant qu'elle dure.
       prolongation: e.etat.etat === 'essai' ? extras.prolongation.get(e.id) ?? null : null,
@@ -208,16 +224,18 @@ export function cartes(lignes: LigneEcheance[], jour: string): Cartes {
 }
 
 // ── Ce qui revient chaque année ──────────────────────────────────────────────────────────────────────────────────────
-// Les abonnements actifs qui se renouvellent (une résiliation n'y est pas), au prix du jour, hors taxes : un mensuel
-// compte douze mois. Une offre sans prix du jour ne s'invente pas : elle se compte à part.
+// Les abonnements actifs qui se renouvellent (une résiliation n'y est pas), au prix du jour, hors taxes, après la remise
+// de leur prochaine période : un mensuel compte douze mois. Une offre sans prix du jour ne s'invente pas : elle se compte
+// à part.
 export type Annuel = { montantHt: string; abonnements: number; mensuels: number; resilies: number; sansPrix: number };
-export function annuel(lignes: LigneEcheance[], prix: Prix): Annuel {
+export function annuel(lignes: LigneEcheance[], prix: Prix, remises: Remises = new Map()): Annuel {
   let total = 0n, abonnements = 0, mensuels = 0, resilies = 0, sansPrix = 0;
   for (const l of lignes) {
     if (l.etat.etat !== 'actif') continue;
     if (l.etat.resilie) { resilies++; continue; }
-    const p = prixDe(prix, l.etat.offre, l.etat.periodicite);
-    if (p === null) { sansPrix++; continue; }
+    const brut = prixDe(prix, l.etat.offre, l.etat.periodicite);
+    if (brut === null) { sansPrix++; continue; }
+    const p = apresRemise(brut, remises.get(l.entreprise.id));
     total += l.etat.periodicite === 'mensuel' ? p * 12n : p;
     abonnements++;
     if (l.etat.periodicite === 'mensuel') mensuels++;

@@ -160,7 +160,7 @@ describe('ce que l\'offre compte', () => {
     const lu = (await admin.query('select f.montant_ht::text m, d.contenu from plateforme.facture_abonnement f join socle.dossier_v10 d on d.entreprise = f.editeur and d.collection = \'documents\' and d.cle = f.piece_v10 where f.entreprise = $1', [ent])).rows[0] as { m: string; contenu: { lines: Corps[] } };
     expect(lu.m).toBe('552000');
     expect(lu.contenu.lines.map((l) => [l.label, l.qty])).toEqual([
-      ['SkanFact Essentiel — abonnement annuel', 1], ['Module Paie (acheté seul sur Essentiel)', 1], ['Salarié au-delà de l\'offre', 1]]);
+      ['SkanFact Essentiel — abonnement annuel', 1], ['Module Paie (acheté seul)', 1], ['Salarié au-delà de l\'offre', 1]]);
     expect(lu.contenu.lines[2]?.description).toMatch(/^11 au total, dont 10 dans l'offre ; du /);
     const g = (await admin.query("select apres from plateforme.geste_console where geste = 'factures.preparer' and entreprise = $1", [ent])).rows[0]?.apres as Corps;
     expect(g.enPlus).toEqual([{ option: 'module_paie', quantite: 1 }, { option: 'salarie', quantite: 1 }]);

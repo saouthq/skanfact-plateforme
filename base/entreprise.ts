@@ -122,6 +122,9 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.prix_option': { classe: 'hors', raison: 'les prix de ce qui s\'ajoute à une offre (14c) : la grille de SkanFact, commune à toutes les entreprises' },
   'plateforme.regle_abonnement': { classe: 'hors', raison: 'les règles de l\'abonnement (le préavis d\'un nouveau prix, 0103) : celles de SkanFact, communes à toutes les entreprises' },
   'plateforme.contenu_offre': { classe: 'hors', raison: 'ce que chaque offre comprend (0105) : la grille de SkanFact, commune à toutes les entreprises' },
+  'plateforme.regle_remise': { classe: 'hors', raison: 'les règles des remises (0106) : celles de SkanFact, communes à toutes les entreprises' },
+  'plateforme.groupe': { classe: 'hors', raison: 'les groupes que SkanFact a déclarés pour ses remises (0106) : une note commerciale de SkanFact' },
+  'plateforme.groupe_membre': { classe: 'hors', raison: 'qui est dans quel groupe, depuis quand, et pourquoi (0106) : une note commerciale de SkanFact' },
   // La console (0083, docs/console.md) : l'équipe SkanFact, sa connexion et son journal. Rien de cela n'est à l'entreprise.
   'plateforme.equipe': { classe: 'hors', raison: 'l\'équipe de SkanFact, commune à la plateforme' },
   'plateforme.defi_console': { classe: 'hors', raison: 'un secret de connexion ne quitte jamais la plateforme' },

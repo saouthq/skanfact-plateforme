@@ -63,12 +63,14 @@ declarerTextes({
   'abonnement.facture.periodicite.annuel': 'annuel',
   'abonnement.facture.periodicite.mensuel': 'mensuel',
   // Ce qui s'ajoute à l'offre sur la facture (14c ; 0099).
-  'abonnement.facture.option.module_paie': 'Module Paie (acheté seul sur Essentiel)',
-  'abonnement.facture.option.module_compta': 'Module Comptabilité complète (acheté seul sur Essentiel)',
+  'abonnement.facture.option.module_paie': 'Module Paie (acheté seul)',
+  'abonnement.facture.option.module_compta': 'Module Comptabilité complète (acheté seul)',
   'abonnement.facture.option.salarie': 'Salarié au-delà de l\'offre',
   'abonnement.facture.option.caisse': 'Caisse au-delà de l\'offre',
   'abonnement.facture.option.etablissement': 'Établissement au-delà de l\'offre',
   'abonnement.facture.au_dela': '{compte} au total, dont {inclus} dans l\'offre ; du {du} au {au}',
+  'abonnement.facture.remise.groupe': 'Remise de groupe de {taux} % ({groupe}) : la première société abonnée du groupe paie le prix normal.',
+  'abonnement.facture.remise.cabinet': 'Remise de {taux} % la première année : client venu par le cabinet {cabinet}.',
   // L'abonné règle sa facture (docs/abonnement.md B5).
   'abonnement.facture.inconnue': 'cette facture n\'est pas une facture émise de ton abonnement',
 });

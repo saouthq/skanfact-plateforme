@@ -70,6 +70,15 @@ chacune des suivantes (confirmé par Skander le 14/10/2026).
 **Les remises ne s'additionnent pas** (Skander, 14/10/2026) : une société qui aurait droit à deux remises (le groupe
 et le parrainage de son cabinet) a la plus forte, jamais leur somme.
 
+Précisé par Skander le 14/10/2026 (fait en 1.15.0, `docs/abonnement.md` C17) :
+- **le groupe se déclare dans la console**, par la direction, avec son motif (rien ne se devine) ; la console propose
+  les sociétés qui ont la même propriétaire, et en trouve une autre par son nom, son matricule ou son propriétaire. Une
+  société n'est que dans un groupe à la fois ; elle y entre et en sort à son jour ;
+- **la première abonnée paie le prix normal** : la société du groupe dont la première période payée est la plus
+  ancienne ; les autres ont la remise, pour chaque période qui commence pendant qu'elles sont dans le groupe ;
+- **la remise porte sur toute la facture hors taxes** : l'offre et ce qui s'y ajoute (modules achetés seuls, caisses,
+  établissements, salariés au-delà de l'offre) ; arrondie au millime le plus proche, comme la remise d'une pièce de la v10.
+
 ## Les cabinets comptables
 
 | Ce que le cabinet a | Prix |
@@ -86,6 +95,15 @@ venir ses clients, et le client a intérêt à rejoindre son dossier.
 **Parrainage** : un client qui arrive par son cabinet (avec le code du cabinet) a **− 20 % la première année**
 (confirmé par Skander le 14/10/2026, puis le prix normal). **Jamais de commission versée au comptable** (déontologie,
 décision de la 7.33.0, **À VÉRIFIER** avec l'Ordre).
+
+Comment SkanFact sait qu'un client « arrive par son cabinet » : Skander a demandé le 14/10/2026 ce qui était le mieux ;
+choisi par délégation (fait en 1.15.0) : **un client confie son dossier à un cabinet avec le code du cabinet AVANT son
+premier paiement** (le mandat accepté, en cours ou arrêté depuis). C'est un fait que la plateforme connaît déjà (le
+mandat, avec sa date), que le client a fait lui-même (rien à déclarer ni à contrôler à la main), et qui ne se fabrique
+pas après coup : un client déjà abonné qui confie ensuite son dossier n'est pas « venu par » son cabinet. La première
+année se compte depuis sa première période payée : chaque période qui commence dans les douze mois a la remise.
+Reprendre un dossier que le cabinet tenait déjà (un client qui devient abonné, plus haut) n'existe pas encore dans la
+plateforme ; il s'y branchera quand il existera.
 
 ## Après l'essai, et en cas d'impayé
 
@@ -113,7 +131,8 @@ se prend au prix de son premier jour) ; l'essai, la grâce et les rappels (1.13.
 création de l'entreprise, la grâce d'une échéance est celle de son lendemain : une règle changée ne touche jamais ce
 qui a commencé) ; ce que chaque offre comprend (1.14.0, 14/10/2026 ; un changement se prépare avec le préavis d'un
 prix, choix de Claude à confirmer par Skander, et une période garde ce qu'elle comprend, sur sa facture comme pour ses
-modules). La suite, dans cet ordre : les remises ; les places de fondateur.
+modules) ; les remises (1.15.0, 14/10/2026 ; leur taux, et pour le cabinet sa durée en mois, se préparent avec le
+préavis d'un prix ; la facture d'une période porte la remise de son premier jour). La suite : les places de fondateur.
 
 ## Les premiers clients (fondateurs)
 

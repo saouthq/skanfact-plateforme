@@ -6,7 +6,7 @@ import type { Etat } from '../../serveur/abonnement/etat.ts';
 import type { Entreprise } from '../../serveur/console/decider.ts';
 import { lireMessageClients } from '../../serveur/console/message-clients.ts';
 import {
-  ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, preparesPar, registre, regleEnVigueur, sujetDesReglages,
+  ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, lireRemises, preparesPar, registre, regleEnVigueur, sujetDesReglages,
   valeurDeRegle, type PrixLu, type RegleLue,
 } from '../../serveur/console/reglages.ts';
 
@@ -159,12 +159,12 @@ describe('le registre des règles communes', () => {
 describe('au journal, un geste des réglages dit sur quoi il porte', () => {
   it('la règle relue et l\'avis ; le message écrit ou retiré par ses deux jours ; le prix préparé ou retiré, et le préavis ; rien pour un autre geste', () => {
     expect(sujetDesReglages('reglages.relire', null, { regle: 'timbre.facture', debut: '2023-01-01', reluePar: 'Mehdi Gharbi', avis: 'a_corriger' }))
-      .toEqual({ regle: 'timbre.facture', reluePar: 'Mehdi Gharbi', avis: 'a_corriger', du: null, au: null, prix: null, preavis: null, regleAbonnement: null, contenu: null });
+      .toEqual({ regle: 'timbre.facture', reluePar: 'Mehdi Gharbi', avis: 'a_corriger', du: null, au: null, prix: null, preavis: null, regleAbonnement: null, contenu: null, remise: null });
     expect(sujetDesReglages('reglages.message_affiche', null, { message: 'm', sorte: 'nouveaute', du: '2026-10-13', au: '2026-10-20' }))
-      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-20', prix: null, preavis: null, regleAbonnement: null, contenu: null });
+      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-20', prix: null, preavis: null, regleAbonnement: null, contenu: null, remise: null });
     // Retiré : les jours viennent de ce qu'il était (avant), pas du retrait.
     expect(sujetDesReglages('reglages.message_retire', { message: 'm', texte: 't', du: '2026-10-13', au: '2026-10-19' }, { retire: '2026-10-14T09:00:00Z' }))
-      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-19', prix: null, preavis: null, regleAbonnement: null, contenu: null });
+      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-19', prix: null, preavis: null, regleAbonnement: null, contenu: null, remise: null });
     expect(sujetDesReglages('versions.geler', null, { jusquAu: '2026-10-20' })).toBeNull();
     // Un prix préparé : de l'ancien au nouveau, à sa date (celle de l'après). Retiré : la date est celle du prix retiré.
     expect(sujetDesReglages('reglages.prix_prepare', { quoi: 'essentiel', periodicite: 'annuel', montantHt: '390.000' },
@@ -195,6 +195,32 @@ describe('au journal, un geste des réglages dit sur quoi il porte', () => {
       .toEqual({ offre: 'complet', quoi: 'paie', aPartirDu: '2026-12-01', avant: 0, apres: 1 });
     expect(sujetDesReglages('reglages.contenu_prepare', null, { offre: 'essentiel', quoi: 'utilisateurs', nombre: 3 })?.contenu).toBeNull();
     expect(sujetDesReglages('reglages.preavis', { jours: 30 }, { jours: 10 })?.contenu).toBeNull();
+    // Une remise (0106) : préparée, de celle d'aujourd'hui à la nouvelle, à sa date ; retirée, celle qui est retirée à sa
+    // date, et celle qui reste ; une remise inconnue ne se dit pas.
+    expect(sujetDesReglages('reglages.remise_preparee', { code: 'cabinet', taux: 20, mois: 12 }, { code: 'cabinet', taux: 25, mois: 6, aPartirDu: '2026-11-13' })?.remise)
+      .toEqual({ code: 'cabinet', aPartirDu: '2026-11-13', avant: { taux: 20, mois: 12 }, apres: { taux: 25, mois: 6 } });
+    expect(sujetDesReglages('reglages.remise_retiree', { code: 'groupe', taux: 15, mois: null, aPartirDu: '2026-12-01' }, { code: 'groupe', taux: 20, mois: null })?.remise)
+      .toEqual({ code: 'groupe', aPartirDu: '2026-12-01', avant: { taux: 15, mois: null }, apres: { taux: 20, mois: null } });
+    expect(sujetDesReglages('reglages.remise_preparee', null, { code: 'parrainage', taux: 10, aPartirDu: '2026-11-13' })?.remise).toBeNull();
+    expect(sujetDesReglages('reglages.contenu_prepare', null, { offre: 'essentiel', quoi: 'caisses', nombre: 2, aPartirDu: '2026-11-13' })?.remise).toBeNull();
+  });
+});
+
+describe('les remises lues', () => {
+  it('celle du jour pour chacune, ce qui est préparé, combien de sociétés en groupe ; une ligne illisible ne se lit pas', () => {
+    const lues = lireRemises({
+      duJour: { groupe: { taux: 20, mois: null, aPartirDu: '2000-01-01', motif: 'La remise de départ', par: null, le: '2026-10-14T08:00:00Z' },
+        cabinet: { taux: 95, mois: 12, aPartirDu: '2000-01-01', motif: 'Illisible' } },
+      aVenir: [{ code: 'cabinet', taux: 25, mois: 6, aPartirDu: '2026-11-13', motif: 'Plus forte', par: 'Amira', le: '2026-10-14T09:00:00Z' },
+        { code: 'parrainage', taux: 10, mois: null, aPartirDu: '2026-11-13', motif: 'Inconnue' }],
+      groupes: 2, enGroupe: 5,
+    });
+    expect(lues).toEqual({
+      duJour: { groupe: { taux: 20, mois: null, aPartirDu: '2000-01-01', motif: 'La remise de départ', par: null, le: '2026-10-14T08:00:00Z' }, cabinet: null },
+      aVenir: [{ code: 'cabinet', taux: 25, mois: 6, aPartirDu: '2026-11-13', motif: 'Plus forte', par: 'Amira', le: '2026-10-14T09:00:00Z' }],
+      groupes: 2, enGroupe: 5,
+    });
+    expect(lireRemises(null)).toEqual({ duJour: { groupe: null, cabinet: null }, aVenir: [], groupes: 0, enGroupe: 0 });
   });
 });
 

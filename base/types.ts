@@ -575,6 +575,9 @@ export interface BaseDeDonnees {
     prepare_par: string;
     payee_le: Date | null;
     evenement: string | null;
+    remise_nature: string | null;
+    remise_taux: Generated<number>;
+    remise_ht: Generated<bigint>;
   };
   'plateforme.geste_console': {
     id: Generated<string>;
@@ -588,6 +591,25 @@ export interface BaseDeDonnees {
     motif: string;
     avant: ColumnType<Json | null, string | null, string | null>;
     apres: ColumnType<Json | null, string | null, string | null>;
+  };
+  'plateforme.groupe': {
+    id: Generated<string>;
+    nom: string;
+    motif: string;
+    qui: string | null;
+    le: Generated<Date>;
+  };
+  'plateforme.groupe_membre': {
+    id: Generated<string>;
+    groupe: string;
+    entreprise: string;
+    depuis: string;
+    motif: string;
+    qui: string | null;
+    le: Generated<Date>;
+    retire_le: string | null;
+    retire_motif: string | null;
+    retire_par: string | null;
   };
   'plateforme.lecture_support': {
     id: Generated<string>;
@@ -641,6 +663,16 @@ export interface BaseDeDonnees {
     id: Generated<string>;
     code: string;
     jours: number[];
+    a_partir_du: string;
+    motif: string;
+    qui: string | null;
+    le: Generated<Date>;
+  };
+  'plateforme.regle_remise': {
+    id: Generated<string>;
+    code: string;
+    taux: number;
+    mois: number | null;
     a_partir_du: string;
     motif: string;
     qui: string | null;
