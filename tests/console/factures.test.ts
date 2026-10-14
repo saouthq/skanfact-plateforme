@@ -5,7 +5,11 @@
 //     fiche du client et le brouillon dans le dossier de l'entreprise SkanFact, au nom de la personne ; une seule pièce
 //     par abonné et par période, et le prix est celui du jour ;
 //   - la facture s'émet dans l'application de SkanFact, comme toute facture ; réglée en entier — et seulement alors —,
-//     elle paie l'abonnement jusqu'à la fin de SA période, une fois, par un événement du système qui la nomme.
+//     elle paie l'abonnement jusqu'à la fin de SA période, une fois, par un événement du système qui la nomme ;
+//   - l'argent juste (0113) : un mois offert va sur la prochaine facture (le support aussi, un sur douze mois) ; un
+//     paiement reçu hors de la plateforme dit sa preuve et compte dans l'encaissé ; un module ouvert en cours se rattrape
+//     au prorata, un module retiré part au renouvellement ; le renouvellement dit partout le chiffre de la facture ; une
+//     facture payée puis défaite arrive dans « À décider ».
 
 import path from 'node:path';
 import os from 'node:os';
@@ -240,5 +244,167 @@ describe('nos factures', () => {
     expect(Number((await admin.query("select count(*) n from plateforme.evenement_abonnement where entreprise = $1 and nature = 'paye'", [b.id])).rows[0].n)).toBe(0);
     const ligne = ((await appeler('GET', `/console/entreprises/${b.id}`, direction.console)).corps.factures as { lignes: { etat: string; payeeLe: string | null }[] }).lignes[0];
     expect(ligne).toMatchObject({ etat: 'annulee', payeeLe: null });
+  });
+});
+
+describe('l\'argent juste (0113)', () => {
+  // La preuve d'un paiement reçu hors de la plateforme, telle que la console la tape.
+  const recu = (montant: string, moyen = 'cheque') => ({ facture: 'F-2026-118', montant, moyen, le: jour });
+  const fiche = async (ent: string, jeton = direction.console) => (await appeler('GET', `/console/entreprises/${ent}`, jeton)).corps;
+  const geste = async (ent: string, g: string, corps: Corps, jeton = direction.console) =>
+    appeler('POST', `/console/entreprises/${ent}/abonnement/${g}`, jeton, { ligne: (await fiche(ent)).ligne, ...corps });
+  const ligne = async (ent: string) => (await fiche(ent)).ligne as Corps;
+  // Émettre dans SkanFact la facture préparée d'une période, puis la régler en entier.
+  async function emettreEtRegler(ent: string, debut: string, net: string) {
+    const cle = `abonnement-${ent}-${debut}`;
+    let objets = await dossier(editeur, direction.appli);
+    const brouillon = objets.find((o) => o.collection === 'documents' && o.cle === cle);
+    const client = objets.find((o) => o.collection === 'clients' && o.cle === brouillon?.contenu.clientId)?.contenu;
+    const e = await appeler('POST', `/entreprises/${editeur}/dossier-v10/emettre`, direction.appli, { document: brouillon?.contenu, client, revision: brouillon?.revision, rang: brouillon?.rang ?? null, netAPayer: net });
+    expect(e.statut, JSON.stringify(e.corps)).toBe(200);
+    objets = await dossier(editeur, direction.appli);
+    const d = objets.find((o) => o.collection === 'documents' && o.cle === cle);
+    const r = await appeler('POST', `/entreprises/${editeur}/dossier-v10`, direction.appli,
+      { changements: [{ collection: 'documents', cle, rang: d?.rang ?? null, revision: d?.revision, contenu: { ...d?.contenu, payments: [{ id: `p-${ent}`, date: jour, amount: { '~n': net }, method: 'virement' }] } }] });
+    expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+    return { cle, client, contenu: d?.contenu };
+  }
+
+  it('un mois offert va sur la prochaine facture, qui couvre un mois de plus au même prix et le dit ; le support en offre un sur douze mois', async () => {
+    const b = await abonnee('Librairie au Mois Offert', 3);
+    // Essentiel au mois, payé d'un chèque : du lendemain de l'essai, pour un mois.
+    const debut1 = plusJours(jour, 4);
+    const fin1 = plusJours(plusMois(debut1, 1), -1);
+    expect((await geste(b.id, 'payer', { motif: 'chèque reçu', offre: 'essentiel', periodicite: 'mensuel', paiement: recu('47,41') })).statut).toBe(200);
+    // Le support offre le mois : rien ne s'allonge aujourd'hui, il attend la prochaine facture.
+    const offert = await geste(b.id, 'offrir-mois', { motif: 'geste après la panne' }, support.console);
+    expect(offert.statut, JSON.stringify(offert.corps)).toBe(200);
+    expect(await ligne(b.id)).toMatchObject({ paye_jusqu_au: fin1, mois_offerts: 1 });
+    const second = await geste(b.id, 'offrir-mois', { motif: 'encore un' }, support.console);
+    expect(second.statut).toBe(403);
+    expect(String(second.corps.motif)).toMatch(/un seul à la fois/);
+    // La facture suivante le porte : deux mois au prix d'un, et sa période le dit.
+    const debut2 = plusJours(fin1, 1);
+    const fin2 = plusJours(plusMois(debut2, 2), -1);
+    const apercu = await appeler('POST', `/console/entreprises/${b.id}/factures`, direction.console, { offre: 'essentiel', periodicite: 'mensuel', motif: '', apercu: true });
+    expect(apercu.corps.facture).toMatchObject({ debut: debut2, fin: fin2, moisOffert: true, montantHt: '39.000' });
+    expect((await appeler('POST', `/console/entreprises/${b.id}/factures`, direction.console, { offre: 'essentiel', periodicite: 'mensuel', motif: 'Le mois suivant' })).statut).toBe(201);
+    expect(await ligne(b.id)).toMatchObject({ mois_offerts: 0 });
+    const fa = (await admin.query('select client_v10, mois_offert from plateforme.facture_abonnement where entreprise = $1', [b.id])).rows[0] as { client_v10: string; mois_offert: boolean };
+    expect(fa.mois_offert).toBe(true);
+    // La base garde le mois sur sa facture : la noter de nouveau sans lui est refusé.
+    const session = (await admin.query(`select s.id, s.utilisateur from plateforme.session_console s join socle.utilisateur u on u.id = s.utilisateur
+      where u.email = $1 and s.fermee_le is null order by s.ouverte_le desc limit 1`, [direction.email])).rows[0] as { id: string; utilisateur: string };
+    const k = await pool.connect();
+    try {
+      await k.query('begin');
+      await k.query("select set_config('app.utilisateur', $1, true), set_config('app.session_console', $2, true)", [session.utilisateur, session.id]);
+      await expect(k.query('select plateforme.console_noter_facture($1, $2, $3, $4, $5, $6::date, $7::date, $8::bigint, $9, $10::date, false)',
+        [b.id, `abonnement-${b.id}-${debut2}`, fa.client_v10, 'essentiel', 'mensuel', debut2, plusJours(plusMois(debut2, 1), -1), '39000', 'sans le mois offert', jour]))
+        .rejects.toThrow(/un mois offert attend cette facture/);
+    } finally { await k.query('rollback'); k.release(); }
+    const { contenu } = await emettreEtRegler(b.id, debut2, '47.410');
+    expect(String((contenu?.lines as Corps[])[0]?.description)).toMatch(/dont un mois offert/);
+    expect(await ligne(b.id)).toMatchObject({ paye_jusqu_au: fin2, mois_offerts: 0 });
+    // Un mois a été offert ces douze derniers mois : le support n'en offre pas un autre ; la direction, si.
+    const encore = await geste(b.id, 'offrir-mois', { motif: 'un autre geste' }, support.console);
+    expect(encore.statut).toBe(403);
+    expect(String(encore.corps.motif)).toMatch(/douze derniers mois/);
+    expect((await geste(b.id, 'offrir-mois', { motif: 'la direction l\'accorde' })).statut).toBe(200);
+  });
+
+  it('un paiement reçu hors de la plateforme dit sa preuve, case par case ; Paiements le compte dans l\'encaissé de son jour, sous son moyen', async () => {
+    const b = await abonnee('Garage Payé Ailleurs', 2);
+    const payer = (paiement: unknown) => geste(b.id, 'payer', { motif: 'virement reçu', offre: 'essentiel', periodicite: 'annuel', paiement });
+    for (const [paiement, champ] of [[undefined, 'facture'], [{ ...recu('465,1'), facture: ' ' }, 'facture'], [recu('465,1O'), 'montant'], [recu('0'), 'montant'],
+      [{ ...recu('465,1'), moyen: 'traite' }, 'moyen'], [{ ...recu('465,1'), le: plusJours(jour, 1) }, 'le'], [{ ...recu('465,1'), le: '2026-02-30' }, 'le']] as const) {
+      const r = await payer(paiement);
+      expect(r.statut, JSON.stringify(paiement)).toBe(400);
+      expect(r.corps.champ).toBe(champ);
+    }
+    expect((await ligne(b.id)).paye_jusqu_au).toBeNull();
+    const avant = (await appeler('GET', '/console/paiements', direction.console)).corps as { encaisse: { parMoyen: Record<string, string> }; horsPlateforme: { total: number } };
+    expect((await payer(recu('465,1', 'virement'))).statut).toBe(200);
+    const apres = (await appeler('GET', '/console/paiements', direction.console)).corps as { encaisse: { parMoyen: Record<string, string> };
+      horsPlateforme: { total: number; lignes: { facture: string; montant: string; moyen: string; date: string; entreprise: { id: string } }[] } };
+    expect(apres.horsPlateforme.total).toBe(avant.horsPlateforme.total + 1);
+    expect(apres.horsPlateforme.lignes.find((l) => l.entreprise.id === b.id)).toMatchObject({ facture: 'F-2026-118', montant: '465.100', moyen: 'virement', date: jour });
+    // 465,100 de plus par virement.
+    const enMillimes = (v: string | undefined) => BigInt((v ?? '0').replace('.', ''));
+    expect(enMillimes(apres.encaisse.parMoyen.virement) - enMillimes(avant.encaisse.parMoyen.virement)).toBe(465100n);
+    // La base, elle aussi : un paiement sans sa preuve ne s'écrit pas, quel que soit le chemin.
+    const session = (await admin.query(`select s.id, s.utilisateur from plateforme.session_console s join socle.utilisateur u on u.id = s.utilisateur
+      where u.email = $1 and s.fermee_le is null order by s.ouverte_le desc limit 1`, [direction.email])).rows[0] as { id: string; utilisateur: string };
+    const l = await ligne(b.id);
+    const k = await pool.connect();
+    try {
+      await k.query('begin');
+      await k.query("select set_config('app.utilisateur', $1, true), set_config('app.session_console', $2, true)", [session.utilisateur, session.id]);
+      await expect(k.query('select plateforme.console_poser_abonnement($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb, $7::date)',
+        [b.id, 'payer', 'sans preuve', JSON.stringify(l), JSON.stringify({ ...l, paye_jusqu_au: '2099-01-01' }), JSON.stringify({ debut: jour, fin: '2099-01-01' }), jour]))
+        .rejects.toThrow(/rien n'est payé/);
+    } finally { await k.query('rollback'); k.release(); }
+  });
+
+  it('un module ouvert en cours se rattrape au prorata sur la prochaine facture ; retiré, il part au renouvellement ; l\'échéance dit le chiffre de la facture', async () => {
+    const b = await abonnee('Atelier Rattrapé', 3);
+    // Essentiel à l'année, une période payée depuis dix jours : du J−10 au J+264, 275 jours (la grille a un prix à son
+    // premier jour).
+    const debut = plusJours(jour, -10);
+    const fin = plusJours(jour, 264);
+    await admin.query(`update plateforme.abonnement set essai_jusqu_au = $2::date - 1, paye_jusqu_au = $3, offre = 'essentiel', periodicite = 'annuel' where entreprise = $1`, [b.id, debut, fin]);
+    await admin.query(`insert into plateforme.evenement_abonnement (entreprise, nature, par, motif, avant, apres) values ($1, 'paye', 'exploitation', 'virement d''il y a dix jours', null, $2)`,
+      [b.id, JSON.stringify({ debut, fin })]);
+    expect((await geste(b.id, 'ouvrir-module', { motif: 'il lance sa paie', module: 'compta' })).statut).toBe(200);
+    const facture = async () => ((await appeler('POST', `/console/entreprises/${b.id}/factures`, direction.console, { offre: 'essentiel', periodicite: 'annuel', motif: '', apercu: true })).corps.facture as
+      { montantHt: string; enPlus: { option: string; compte: number; inclus: number; prixHt: string; du?: string; au?: string }[] });
+    // Ouvert aujourd'hui : 265 jours servis sur 275, au prix de l'année (150 DT) : 144,545 DT, une fois ; l'année suivante
+    // le compte en entier.
+    let f = await facture();
+    expect(f.enPlus).toEqual(expect.arrayContaining([
+      expect.objectContaining({ option: 'module_compta', prixHt: '150.000' }),
+      expect.objectContaining({ option: 'rattrapage_compta', compte: 265, inclus: 275, prixHt: '144.545', du: jour, au: fin })]));
+    expect(f.montantHt).toBe('684.545');
+    // Deux chemins, un chiffre : l'échéance dit la prochaine facture ; « par an » de la liste, sans le rattrapage.
+    const echeances = (await appeler('GET', '/console/abonnements?vue=actif&limite=200', direction.console)).corps as { lignes: { entreprise: { id: string }; montantHt: string | null }[] };
+    expect(echeances.lignes.find((l) => l.entreprise.id === b.id)?.montantHt).toBe('684.545');
+    const liste = (await appeler('GET', `/console/entreprises?q=${encodeURIComponent('Atelier Rattrapé')}&limite=50`, direction.console)).corps as { lignes: { societes: { id: string; parAn: { montantHt: string } | null }[] }[] };
+    expect(liste.lignes.flatMap((o) => o.societes).find((e) => e.id === b.id)?.parAn?.montantHt).toBe('540.000');
+    // Retiré : il reste ouvert jusqu'au J+264 ; la prochaine facture ne le compte plus, le rattrapage de cette année reste.
+    expect((await geste(b.id, 'fermer-module', { motif: 'la paie attendra', module: 'compta' })).statut).toBe(200);
+    expect(await ligne(b.id)).toMatchObject({ modules: ['compta'], modules_a_retirer: ['compta'] });
+    f = await facture();
+    expect(f.enPlus.map((l) => l.option)).toEqual(['rattrapage_compta']);
+    expect(f.montantHt).toBe('534.545');
+    // Rouvert avant de partir : le retrait s'annule ; ce n'est pas un second achat.
+    expect((await geste(b.id, 'ouvrir-module', { motif: 'finalement oui', module: 'compta' })).statut).toBe(200);
+    expect(await ligne(b.id)).toMatchObject({ modules: ['compta'], modules_a_retirer: [] });
+    expect((await facture()).montantHt).toBe('684.545');
+  });
+
+  it('une facture payée puis défaite par son avoir arrive dans « À décider » et dans Paiements : l\'abonnement a couru sur elle', async () => {
+    const b = await abonnee('Pharmacie Défaite', 2);
+    const debut = plusJours(jour, 3);
+    expect((await appeler('POST', `/console/entreprises/${b.id}/factures`, direction.console, { offre: 'essentiel', periodicite: 'mensuel', motif: 'Abonnement mensuel' })).statut).toBe(201);
+    const { cle, client } = await emettreEtRegler(b.id, debut, '47.410');
+    expect((await ligne(b.id)).paye_jusqu_au).toBe(plusJours(plusMois(debut, 1), -1));
+    const accueil = async () => ((await appeler('GET', '/console/accueil', direction.console)).corps.decider as { sorte: string; entreprise?: { id: string } }[])
+      .filter((l) => l.entreprise?.id === b.id).map((l) => l.sorte);
+    expect(await accueil()).not.toContain('facture_defaite');
+    const avoir = {
+      id: `avoir-${b.id}`, type: 'avoir', number: '', date: jour, clientId: (client as Corps).id, creditOf: cle, creditReason: 'Abonnement annulé', status: 'brouillon',
+      lines: [{ label: 'SkanFact Essentiel — abonnement mensuel', description: '', qty: 1, unit: '', unitPrice: 39, vatRate: 19 }],
+      discountRate: 0, applyStamp: true, withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [],
+    };
+    expect((await appeler('POST', `/entreprises/${editeur}/dossier-v10`, direction.appli, { changements: [{ collection: 'documents', cle: avoir.id, rang: null, revision: null, contenu: avoir }] })).statut).toBe(200);
+    const ea = await appeler('POST', `/entreprises/${editeur}/dossier-v10/emettre-avoir`, direction.appli, { document: avoir, client, revision: 1, rang: null, netAPayer: '47.410' });
+    expect(ea.statut, JSON.stringify(ea.corps)).toBe(200);
+    // Une seule ligne : la facture défaite par son avoir, qui dit ce qui est à rendre — pas un trop-perçu à part.
+    expect(await accueil()).toEqual(['facture_defaite']);
+    const p = (await appeler('GET', '/console/paiements', direction.console)).corps as { defaites: { entreprise: { id: string }; fin: string; cause: string }[] };
+    expect(p.defaites.find((d) => d.entreprise.id === b.id)).toMatchObject({ fin: plusJours(plusMois(debut, 1), -1), cause: 'avoir' });
+    // Le support ne lit pas l'argent de SkanFact.
+    const auSupport = ((await appeler('GET', '/console/accueil', support.console)).corps.decider as { sorte: string }[]).map((l) => l.sorte);
+    expect(auSupport).not.toContain('facture_defaite');
   });
 });

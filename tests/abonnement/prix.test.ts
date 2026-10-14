@@ -28,6 +28,9 @@ import { routesV10 } from '../../serveur/v10/routes.ts';
 import { declarerGestesVentes } from '../../serveur/ventes/gestes.ts';
 import { routesVentes } from '../../serveur/ventes/routes.ts';
 
+// La preuve d'un paiement reçu hors de la plateforme (0113), telle que la console la tape.
+const RECU_CONSOLE = { facture: 'F-2020-001', montant: '390', moyen: 'virement', le: '2020-01-01' };
+
 const MDP = 'Un-bon-mot-de-passe';
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 const pool = creerPool(inject('pgApp'));
@@ -152,7 +155,7 @@ describe('un nouveau prix, préparé dans la console', () => {
     const p = await inscrire('ines');
     const loin = String((await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'Clinique Loin' })).corps.id);
     for (const motif of ['première année', 'deuxième année']) {
-      expect((await geste(loin, 'payer', { motif, ligne: await ligneDe(loin), offre: 'complet', periodicite: 'annuel' })).statut).toBe(200);
+      expect((await geste(loin, 'payer', { paiement: RECU_CONSOLE, motif, ligne: await ligneDe(loin), offre: 'complet', periodicite: 'annuel' })).statut).toBe(200);
     }
     // Vingt et un salariés présents : un au-delà des vingt de Complet, sur la facture de la troisième année.
     for (let i = 1; i <= 21; i++) {
@@ -160,7 +163,7 @@ describe('un nouveau prix, préparé dans la console', () => {
         [loin, 'employees', `s${i}`, i, JSON.stringify({ id: `s${i}`, name: `Salarié ${i}`, endDate: '' })]);
     }
     const proche = String((await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'Clinique Proche' })).corps.id);
-    expect((await geste(proche, 'payer', { motif: 'le mois', ligne: await ligneDe(proche), offre: 'complet', periodicite: 'mensuel' })).statut).toBe(200);
+    expect((await geste(proche, 'payer', { paiement: RECU_CONSOLE, motif: 'le mois', ligne: await ligneDe(proche), offre: 'complet', periodicite: 'mensuel' })).statut).toBe(200);
     const date = plusJours(jour, 400);
     for (const [quoi, periodicite, montant] of [['complet', 'annuel', '750'], ['complet', 'mensuel', '75'], ['salarie', 'annuel', '15']] as const) {
       expect((await prix({ quoi, periodicite, montant, aPartirDu: date, motif: 'nouvelle grille' })).statut).toBe(201);
@@ -190,7 +193,7 @@ describe('un nouveau prix, préparé dans la console', () => {
     try {
       await k.query('begin');
       await k.query("select set_config('app.utilisateur', $1, true), set_config('app.session_console', $2, true)", [qui?.utilisateur, session.id]);
-      await expect(k.query('select plateforme.console_noter_facture($1, $2, $3, $4, $5, $6::date, $7::date, $8::bigint, $9, $10::date)',
+      await expect(k.query('select plateforme.console_noter_facture($1, $2, $3, $4, $5, $6::date, $7::date, $8::bigint, $9, $10::date, false)',
         [loin, fa.piece_v10, fa.client_v10, 'complet', 'annuel', fa.debut, fa.fin, '702000', 'au prix d\'aujourd\'hui', jour])).rejects.toThrow(/premier jour de la période/);
     } finally { await k.query('rollback'); k.release(); }
   });

@@ -32,23 +32,30 @@ export function horsCatalogue(): string[] {
 }
 
 // Ce que l'instrument de rendu ne mesure pas, et que le téléphone a montré : une carte de liste qui garde sa marge (elle
-// s'ajoutait à celle de son contenu : 36 points perdus de chaque côté au lieu de 18) ; deux noms de mois du petit
-// graphique d'une fiche qui se chevauchent (« 11/2512/26… »). Le texte d'un mois se mesure par son étendue, pas par sa
-// case : il en déborde.
+// s'ajoutait à celle de son contenu : 36 points perdus de chaque côté au lieu de 18). (Le petit graphique des mois d'une
+// fiche, qu'il mesurait aussi, a quitté la fiche en 1.19.0.)
 export function auTelephone(): string[] {
   const pb: string[] = [];
   for (const c of document.querySelectorAll<HTMLElement>('.c-liste-carte, .c-decider')) {
     const marge = getComputedStyle(c).paddingInlineStart;
     if (marge !== '0px') pb.push(`une carte de liste garde sa marge (${marge}) : ${c.className}`);
   }
-  const mois = [...document.querySelectorAll<HTMLElement>('.c-barre-mois')].filter((m) => getComputedStyle(m).visibility !== 'hidden').map((m) => {
+  return pb;
+}
+
+// Un chiffre tient dans sa tuile, à toutes les largeurs (vu le 14/10/2026 : « 751,700 DT » débordait de 18 points au
+// téléphone, sur la tuile voisine). Le texte se mesure par son étendue, pas par sa case : il en déborde sans qu'elle
+// grandisse.
+export function chiffresDansLeurTuile(): string[] {
+  const pb: string[] = [];
+  for (const v of document.querySelectorAll<HTMLElement>('.c-tuile-valeur')) {
+    const t = v.closest<HTMLElement>('.c-tuile');
+    if (!t) continue;
     const r = document.createRange();
-    r.selectNodeContents(m);
-    return r.getBoundingClientRect();
-  });
-  for (let i = 1; i < mois.length; i++) {
-    const a = mois[i - 1], b = mois[i];
-    if (a && b && b.left < a.right - 0.5) pb.push(`deux mois du graphique se chevauchent (le ${i}e et le ${i + 1}e)`);
+    r.selectNodeContents(v);
+    const bord = t.getBoundingClientRect().right - Number(getComputedStyle(t).paddingInlineEnd.replace('px', ''));
+    const depasse = r.getBoundingClientRect().right - bord;
+    if (depasse > 0.5) pb.push(`« ${v.textContent?.trim() ?? ''} » dépasse sa tuile de ${Math.round(depasse)} points`);
   }
   return pb;
 }
@@ -69,6 +76,7 @@ export async function mesurerLaConsole(o: { ecrans: EcranConsole[]; ouvrir: Ouvr
         await p.waitForTimeout(300);
         const nom = `console-${e.nom}-${largeur}-${theme}`;
         faux.push(...(await p.evaluate(problemes, [largeur < 600, largeur] as [boolean, number])).map((x) => `${nom} : ${x}`));
+        faux.push(...(await p.evaluate(chiffresDansLeurTuile)).map((x) => `${nom} : ${x}`));
         if (largeur < 600) faux.push(...(await p.evaluate(auTelephone)).map((x) => `${nom} : ${x}`));
         if (o.photos) await p.screenshot({ path: path.join(o.photos, `${nom}.png`), fullPage: true });
         vus++;

@@ -94,8 +94,8 @@ Les gestes de `00` § 3, chacun avec **confirmation, motif et trace** :
 | Geste | Qui | Ce qui se passe |
 |---|---|---|
 | Prolonger un essai | Support, Direction | De 7 à 30 jours, une fois par entreprise sans l'accord de la direction |
-| Offrir un mois | Support, Direction | Un **avoir** sur la prochaine facture, jamais une facture effacée (`01` R6) |
-| Ajouter ou retirer un module, changer d'offre | Direction | Prorata calculé et montré **avant** ; la facture ou l'avoir part tout seul |
+| Offrir un mois | Support, Direction | Un mois de calendrier de plus sur la **prochaine facture**, au même prix, qu'elle dit ; jamais une facture effacée (`01` R6). Le support : un par entreprise sur douze mois (1.20.0, voir ci-dessous) |
+| Ajouter ou retirer un module, changer d'offre | Direction | Montré **avant** le geste. Un module ouvert se rattrape au prorata sur la prochaine facture ; retiré, il reste jusqu'à la fin de la période payée ; une offre change à l'échéance (1.20.0) |
 | Passer en lecture seule, réactiver | Direction | Jamais de données en otage : la lecture et l'export restent (`07`) |
 | Résilier | Direction | Idem ; les données sont gardées selon le `05` § 3.8 |
 | Rembourser | Direction | Un avoir, puis le remboursement, rapproché comme un paiement (10.9.0 : trop-perçu) |
@@ -103,6 +103,15 @@ Les gestes de `00` § 3, chacun avec **confirmation, motif et trace** :
 **Les relances** partent toutes seules : **15 jours, 7 jours et la veille** de l'échéance, puis **7
 jours de grâce** avant la lecture seule (`07`). Aucun prélèvement automatique : chaque échéance se
 paie en un clic (Konnect) ou par virement.
+
+*Fait en 1.20.0 (14/10/2026, `docs/console.md` C36, plateforme `docs/abonnement.md` C18), après l'audit du code :
+**offrir un mois** ne passe pas par un avoir — la prochaine facture couvre un mois de plus au même prix et le dit, sans
+avoir à émettre (choisi par délégation ; son traitement fiscal **À VÉRIFIER** avec le comptable) ; le support l'offre
+aussi, une fois par entreprise sur douze mois (Skander). **Un module** ouvert en cours de période se rattrape au prorata
+des jours sur la prochaine facture ; retiré, il reste ouvert jusqu'à la fin de la période payée (rien à rembourser). Le
+prorata immédiat d'un **changement d'offre** n'est pas fait : il vaut à l'échéance (**À VÉRIFIER**). **Un paiement reçu
+hors de la plateforme** dit sa preuve (la facture faite ailleurs, le montant, le moyen, le jour), sans quoi rien n'est
+payé. Le montant d'un renouvellement se dit partout par la règle de la facture.*
 
 ### 2.5 Nos factures
 
@@ -265,3 +274,4 @@ le client (§ 2.7). Un test vérifie que les écrans de la console ne lisent que
 | 28/09/2026 (proposé) | Nos factures sont celles de l'entreprise SkanFact sur la plateforme ; la console ne refait ni factures, ni aide, ni règles |
 | 28/09/2026 (proposé) | Les données personnelles de la D1 actuelle sont reprises en Tunisie puis effacées de la D1 |
 | 28/09/2026 (relecture) | La liste fermée du § 4 compte aussi les SMS envoyés, les documents lus, les appels à l'API et les intégrations allumées, sans leur contenu |
+| 14/10/2026 | Un mois offert va sur la **prochaine facture** (un mois de plus au même prix, qu'elle dit), et non plus un avoir ; le support l'offre aussi, une fois par entreprise sur douze mois (Skander) ; un module ouvert se rattrape au prorata sur la prochaine facture, retiré il part au renouvellement ; un paiement reçu hors de la plateforme dit sa preuve. Le traitement fiscal du mois offert et du rattrapage est **À VÉRIFIER** |

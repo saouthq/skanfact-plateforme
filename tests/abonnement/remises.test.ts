@@ -289,7 +289,7 @@ describe('la facture d\'une période porte la remise de son premier jour, sur to
       try {
         await k.query('begin');
         await k.query("select set_config('app.utilisateur', $1, true), set_config('app.session_console', $2, true)", [session.utilisateur, session.id]);
-        await k.query(`select plateforme.console_noter_facture($1, $2, $3, 'complet', 'annuel', $4::date, $5::date, $6, 'Rejouer la facture', $7::date)`,
+        await k.query(`select plateforme.console_noter_facture($1, $2, $3, 'complet', 'annuel', $4::date, $5::date, $6, 'Rejouer la facture', $7::date, false)`,
           [fille, `abonnement-${fille}-${debut}`, String(piece.clientId), debut, plusJours(plusMois(debut, 12), -1), montant, jour]);
       } finally { await k.query('rollback'); k.release(); }
     };

@@ -24,6 +24,9 @@ import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { cliquer } from '../cliquer.ts';
 
+// La preuve d'un paiement reçu hors de la plateforme (0113) : sans elle, rien n'est payé.
+const RECU = { facture: 'F-2020-001', montant: 390000n, moyen: 'virement' as const, le: '2020-01-01' };
+
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
 const MDP = 'Un-bon-mot-de-passe';
@@ -86,7 +89,7 @@ describe('ce que l\'offre compte, à la souris', () => {
     // Sonia, en Essentiel au mois, et son équipe de cinq : personne ne s'en compte (0102).
     const sonia = await personne('sonia');
     const ent = String((await api('POST', '/entreprises', sonia.jeton, { raisonSociale: 'Atelier Mejri' })).corps.id);
-    await faire(admin, ent, { geste: 'payer', offre: 'essentiel', periodicite: 'mensuel', motif: 'virement reçu' });
+    await faire(admin, ent, { geste: 'payer', paiement: RECU, offre: 'essentiel', periodicite: 'mensuel', motif: 'virement reçu' });
     for (const roles of [['commercial'], ['magasinier'], ['caissier', 'lecture'], ['caissier']]) {
       const m = await personne('membre');
       const inv = await api('POST', `/entreprises/${ent}/invitations`, sonia.jeton, { email: m.email, roles });
@@ -104,7 +107,7 @@ describe('ce que l\'offre compte, à la souris', () => {
     await cliquer(c.locator('.c-menu-liste button', { hasText: 'Ouvrir un module acheté seul' }));
     const fenetre = c.getByRole('dialog');
     await expect.poll(() => fenetre.locator('.c-apercu-details').innerText().then(net).catch(() => ''), { timeout: 10_000 })
-      .toBe('Modules achetés seuls après le geste : Paie.');
+      .toBe('Le module Paie s\'ouvre aujourd\'hui ; la prochaine facture rattrape les jours de la période payée qui court.');
     await fenetre.getByLabel('Motif', { exact: true }).fill('Sonia lance la paie de ses ouvriers');
     await cliquer(fenetre.locator('.c-dialogue-pied .c-btn-principal'));
     await expect.poll(() => fenetre.count(), { timeout: 10_000 }).toBe(0);
@@ -117,22 +120,30 @@ describe('ce que l\'offre compte, à la souris', () => {
     { collection: 'clients', cle: 'cl-1', rang: 0, revision: null, contenu: { id: 'cl-1', name: 'Menuiserie Ennour' } }];
     expect((await api('POST', `/entreprises/${ent}/dossier-v10`, sonia.jeton, { changements })).statut).toBe(200);
 
-    // ── La facture : chaque ligne, son compte, et le net ─────────────────────────────────────────────────────────────
+    // ── La facture : chaque ligne, son compte, et le net (dans l'onglet « Factures » de la fiche, depuis la 1.19.0) ─────
+    await c.goto(`${serveur.adresse}/console/#/clients/${ent}?onglet=factures`);
     await c.reload();
     const factures = c.locator('section[aria-labelledby="fiche-factures"]');
     await cliquer(factures.getByRole('button', { name: /Préparer la facture/ }));
     const f = c.getByRole('dialog');
-    await expect.poll(() => f.locator('.c-fa-lignes li').allInnerTexts().then((t) => t.map(net)).catch(() => []), { timeout: 10_000 }).toEqual([
+    const lignesF = () => f.locator('.c-fa-lignes li').allInnerTexts().then((t) => t.map(net)).catch(() => [] as string[]);
+    await expect.poll(async () => (await lignesF()).length, { timeout: 10_000 }).toBe(4);
+    const lignes = await lignesF();
+    expect(lignes.slice(0, 3)).toEqual([
       'Essentiel, au mois 39,000 DT',
       'Module paie (acheté seul) 15,000 DT',
       'Salariés au-delà de l\'offre 11 comptés, 10 dans l\'offre : 1 × 1,200 DT. 1,200 DT',
     ]);
-    expect(net(await f.locator('.c-fa-net').innerText())).toContain('66,688 DT');
+    // La paie s'est ouverte après le paiement de la période qui court, qui ne la comptait pas (0113) : la facture rattrape
+    // ses jours — ici tous, la période n'ayant pas commencé. Ses dates suivent le jour du test.
+    expect(lignes[3]).toMatch(/^Module paie, ouvert en cours de période \(rattrapage\) (\d+) jours sur \1, du \d\d\/\d\d\/\d{4} au \d\d\/\d\d\/\d{4}\. 15,000 DT$/);
+    // (39 + 15 + 1,200 + 15) × 1,19 + 1 de timbre.
+    expect(net(await f.locator('.c-fa-net').innerText())).toContain('84,538 DT');
     await c.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'offre-compte-1-facture.png') });
     await f.getByLabel('Motif', { exact: true }).fill('Échéance du mois, avec la paie et l\'équipe');
     await cliquer(f.locator('.c-dialogue-pied .c-btn-principal'));
     await expect.poll(() => f.count(), { timeout: 10_000 }).toBe(0);
-    expect((await admin.query('select montant_ht::text m from plateforme.facture_abonnement where entreprise = $1', [ent])).rows).toEqual([{ m: '55200' }]);
+    expect((await admin.query('select montant_ht::text m from plateforme.facture_abonnement where entreprise = $1', [ent])).rows).toEqual([{ m: '70200' }]);
     await cx.close();
 
     // ── L'application de Sonia : la paie ouverte, la comptabilité complète fermée, les prix de ce qui s'ajoute ─────────
@@ -164,7 +175,7 @@ describe('ce que l\'offre compte, à la souris', () => {
   it('l\'équipe n\'annonce aucun prix, même grande ; « Ton abonnement » dit ce qui est pris, sans ligne pour les utilisateurs', async () => {
     const walid = await personne('walid');
     const ent = String((await api('POST', '/entreprises', walid.jeton, { raisonSociale: 'Librairie Comptée' })).corps.id);
-    await faire(admin, ent, { geste: 'payer', offre: 'essentiel', periodicite: 'annuel', motif: 'virement reçu' });
+    await faire(admin, ent, { geste: 'payer', paiement: RECU, offre: 'essentiel', periodicite: 'annuel', motif: 'virement reçu' });
     // Un client : une entreprise qui travaille déjà (l'assistant de démarrage ne s'ouvre pas sur elle).
     await api('GET', `/entreprises/${ent}/dossier-v10`, walid.jeton);
     await api('POST', `/entreprises/${ent}/dossier-v10`, walid.jeton, { changements: [{ collection: 'clients', cle: 'cl-1', rang: 0, revision: null, contenu: { id: 'cl-1', name: 'École Ennour' } }] });

@@ -26,6 +26,10 @@ type Doit = {
 type Trop = { entreprise: Qui; numero: string | null; piece: string; ecran: string; devise: string; trop: string; annulee: boolean };
 type AEmettre = { piece: string; debut: string; fin: string; prepareLe: string; entreprise: Qui; ecran: string };
 type Cout = { id: string; libelle: string; montant: string; dApres: string; saisiLe: string; saisiPar: string | null; retireLe: string | null; retirePar: string | null };
+// Un paiement reçu hors de la plateforme (0113), noté sur une fiche d'après une facture faite ailleurs.
+type Hors = { id: string; date: string; montant: string; moyen: 'virement' | 'cheque' | 'especes'; facture: string; entreprise: Qui; noteLe: string; par: string | null };
+// Une de nos factures payée, puis défaite (son règlement retiré, un avoir qui l'annule) : l'abonnement a couru sur elle.
+type Defaite = { piece: string; numero: string | null; payeeLe: string; debut: string; fin: string; entreprise: Qui; ecran: string; cause: 'avoir' | 'reglement' };
 type Donnees = {
   aujourdhui: string; mois: string; courant: boolean;
   editeur: { entreprise: string; raisonSociale: string; devise: string } | null;
@@ -33,6 +37,8 @@ type Donnees = {
   recus: { total: number; lignes: Recu[]; suite: number | null };
   doivent: Doit[]; trop: Trop[]; aEmettre: AEmettre[];
   couts: { lignes: Cout[]; total: string; reste: string | null };
+  horsPlateforme: { total: number; lignes: Hors[]; suite: number | null };
+  defaites: Defaite[];
 };
 const K = 'console.ecran.paiements';
 const PAGE = 50;
@@ -244,13 +250,14 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
   const courant = moi.aujourdhui.slice(0, 7);
   const [mois, setMois] = useState(moisLu(moisDemande, courant));
   const [debut, setDebut] = useState(0);
+  const [debutHors, setDebutHors] = useState(0);
   const [fenetre, setFenetre] = useState<{ sorte: 'cout' } | { sorte: 'retirer'; c: Cout } | null>(null);
-  useEffect(() => { setMois(moisLu(moisDemande, courant)); setDebut(0); }, [moisDemande]);
+  useEffect(() => { setMois(moisLu(moisDemande, courant)); setDebut(0); setDebutHors(0); }, [moisDemande]);
   useEffect(() => { history.replaceState(null, '', `#/paiements${mois === courant ? '' : `?mois=${mois}`}`); }, [mois]);
-  const [l, relire] = useLecture<Donnees>(`/console/paiements?mois=${mois}&limite=${PAGE}&debut=${debut}`, 'paiements');
+  const [l, relire] = useLecture<Donnees>(`/console/paiements?mois=${mois}&limite=${PAGE}&debut=${debut}&debutHors=${debutHors}`, 'paiements');
   const d = l.etat === 'lu' ? l.donnees : null;
   const aujourdhui = d?.aujourdhui ?? moi.aujourdhui;
-  const aller = (m: string) => { setMois(m); setDebut(0); };
+  const aller = (m: string) => { setMois(m); setDebut(0); setDebutHors(0); };
   const fait = () => { setFenetre(null); relire(); };
   // L'étape suivante, calculée : noter le règlement le plus en retard ; sinon, saisir les coûts d'un mois qui n'en a pas.
   const premierDoit = d?.doivent[0] ?? null;
@@ -345,6 +352,21 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
                   ))}
                 </ol>
               ), d.trop.length) : null}
+              {d.defaites.length ? section('pa-defaites', titre(`${K}.defaites.titre`), phrase(`${K}.defaites.sous`), (
+                <ol className="c-pa-lignes">
+                  {d.defaites.map((x) => (
+                    <li key={x.piece} className="c-pa-ligne">
+                      <div className="c-pa-quoi">
+                        <a href={`#/clients/${x.entreprise.id}?onglet=factures`}><b data-donnee>{x.entreprise.nom}</b></a>
+                        <span className="c-sous">{x.numero ?? '—'} · {dire(`${K}.defaites.ligne_${x.cause}`, { le: jourCourt(jourDe(x.payeeLe)), fin: jourCourt(x.fin) })}</span>
+                      </div>
+                      <div className="c-pa-action">
+                        <Lien href={x.ecran} ailleurs petit etiquette={titre(`${K}.t.ouvrir_de`, { numero: x.numero ?? '—', nom: x.entreprise.nom })}>{titre(`${K}.t.ouvrir`)}</Lien>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              ), d.defaites.length) : null}
               {section('pa-recus', titre(`${K}.r.titre`, { mois: moisEnMots(d.mois, false) }), phrase(`${K}.r.sous`), (
                 d.recus.total === 0 ? <Vide icone="calendrier">{phrase(`${K}.r.vide`, { mois: nomMois })}</Vide> : (
                   <>
@@ -361,6 +383,32 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
                   </>
                 )
               ), d.recus.total)}
+              {d.horsPlateforme.total ? section('pa-hors', titre(`${K}.hors.titre`), phrase(`${K}.hors.sous`), (
+                <>
+                  <ol className="c-pa-recus">
+                    {d.horsPlateforme.lignes.map((h) => (
+                      <li key={h.id} className="c-pa-recu">
+                        <time className="c-mono" dateTime={h.date} title={jourCourt(h.date)}>{jourMois(h.date)}</time>
+                        <div className="c-pa-quoi">
+                          <a href={`#/clients/${h.entreprise.id}`}><b data-donnee>{h.entreprise.nom}</b></a>
+                          <span className="c-sous"><span data-donnee>{h.facture}</span>{h.par ? <> · {dire(`${K}.hors.par`, { qui: h.par })}</> : null}</span>
+                        </div>
+                        <b className="c-mono c-pa-recu-montant" data-donnee>{montant(h.montant)}</b>
+                        <span className="c-pa-moyen">{titre(`console.ecran.geste.recu.moyen.${h.moyen}`)}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  {d.horsPlateforme.total > PAGE ? (
+                    <div className="c-liste-pied">
+                      <span>{phrase('console.ecran.clients.page', { debut: debutHors + 1, fin: debutHors + d.horsPlateforme.lignes.length, total: d.horsPlateforme.total })}</span>
+                      <span className="c-liste-pied-boutons">
+                        <Bouton petit desactive={debutHors === 0} onClick={() => setDebutHors(Math.max(0, debutHors - PAGE))}>{titre('console.ecran.clients.precedentes')}</Bouton>
+                        <Bouton petit desactive={d.horsPlateforme.suite === null} onClick={() => { if (d.horsPlateforme.suite !== null) setDebutHors(d.horsPlateforme.suite); }}>{titre('console.ecran.clients.suivantes')}</Bouton>
+                      </span>
+                    </div>
+                  ) : null}
+                </>
+              ), d.horsPlateforme.total) : null}
             </div>
             <aside className="c-ab-cote" aria-label={titre(`${K}.cote`)}>
               <Couts d={d} principal={coutsAFaire} ajouter={() => setFenetre({ sorte: 'cout' })} retirer={(c) => setFenetre({ sorte: 'retirer', c })} />

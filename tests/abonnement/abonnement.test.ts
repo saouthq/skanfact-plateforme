@@ -27,6 +27,9 @@ import { routesSocle } from '../../serveur/routes/socle.ts';
 import { declarerGestesVentes } from '../../serveur/ventes/gestes.ts';
 import { routesVentes } from '../../serveur/ventes/routes.ts';
 
+// La preuve d'un paiement reçu hors de la plateforme (0113) : sans elle, rien n'est payé.
+const RECU = { facture: 'F-2020-001', montant: 390000n, moyen: 'virement' as const, le: '2020-01-01' };
+
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 const exploitant = new pg.Client({ connectionString: inject('pgAdmin') });
 const pool = creerPool(inject('pgApp'));
@@ -185,7 +188,7 @@ describe('la lecture seule', () => {
   });
 
   it('un paiement rouvre tout, aussitôt', async () => {
-    await faire(exploitant, E.ent, { geste: 'payer', offre: 'essentiel', periodicite: 'annuel', motif: 'virement reçu' });
+    await faire(exploitant, E.ent, { geste: 'payer', paiement: RECU, offre: 'essentiel', periodicite: 'annuel', motif: 'virement reçu' });
     const r = await appeler('POST', `/entreprises/${E.ent}/ventes/${facture}/emettre`, E.proprio.jeton);
     expect(r.statut, JSON.stringify(r.corps)).toBe(200);
   });
@@ -258,12 +261,12 @@ describe('les relances', () => {
 describe('les gestes de l\'exploitant', () => {
   it('chacun pose son événement, avec son motif ; un motif vide est refusé', async () => {
     const { ent } = await entreprise('Gestes');
-    await expect(faire(exploitant, ent, { geste: 'payer', offre: 'complet', periodicite: 'mensuel', motif: ' ' })).rejects.toThrow(/demande son motif/);
+    await expect(faire(exploitant, ent, { geste: 'payer', paiement: RECU, offre: 'complet', periodicite: 'mensuel', motif: ' ' })).rejects.toThrow(/demande son motif/);
     // Et la base le refuse aussi, par qui que ce soit (un motif d'espaces n'en est pas un).
     await expect(admin.query('insert into plateforme.evenement_abonnement (entreprise, nature, par, motif) values ($1, \'paye\', \'exploitation\', \'  \')', [ent])).rejects.toThrow(/motif_check/);
     // Payé pendant l'essai : un mois de calendrier qui commence le lendemain de la fin de l'essai (aucun jour d'essai perdu).
     const debut = plusJours(aujourdhui, 31);
-    expect(await faire(exploitant, ent, { geste: 'payer', offre: 'complet', periodicite: 'mensuel', motif: 'chèque n° 12' }))
+    expect(await faire(exploitant, ent, { geste: 'payer', paiement: RECU, offre: 'complet', periodicite: 'mensuel', motif: 'chèque n° 12' }))
       .toMatchObject({ etat: 'actif', offre: 'complet', periodicite: 'mensuel', jusquAu: plusJours(plusMois(debut, 1), -1) });
     expect(await faire(exploitant, ent, { geste: 'resilier', motif: 'demande du client' })).toMatchObject({ etat: 'actif', resilie: true });
     expect(await faire(exploitant, ent, { geste: 'annuler-resiliation', motif: 'il reste' })).toMatchObject({ etat: 'actif', resilie: false });
@@ -282,9 +285,9 @@ describe('les gestes de l\'exploitant', () => {
 
   it('un renouvellement à l\'année prend la suite de la période payée', async () => {
     const { ent } = await entreprise('Annuel');
-    await faire(exploitant, ent, { geste: 'payer', offre: 'essentiel', periodicite: 'mensuel', motif: 'virement' });
+    await faire(exploitant, ent, { geste: 'payer', paiement: RECU, offre: 'essentiel', periodicite: 'mensuel', motif: 'virement' });
     const premiere = plusJours(plusMois(plusJours(aujourdhui, 31), 1), -1);
-    const e = await faire(exploitant, ent, { geste: 'payer', offre: 'essentiel', periodicite: 'annuel', motif: 'virement, à l\'année' });
+    const e = await faire(exploitant, ent, { geste: 'payer', paiement: RECU, offre: 'essentiel', periodicite: 'annuel', motif: 'virement, à l\'année' });
     const ligne = (await admin.query('select paye_jusqu_au::text p, periodicite from plateforme.abonnement where entreprise = $1', [ent])).rows[0];
     expect(ligne).toEqual({ p: plusJours(plusMois(plusJours(premiere, 1), 12), -1), periodicite: 'annuel' });
     expect(e).toMatchObject({ etat: 'actif', jusquAu: ligne.p });

@@ -160,7 +160,7 @@ describe('la liste des clients, à la souris', () => {
     const menu = p.locator('.c-menu-liste');
     await expect.poll(() => menu.count(), { timeout: 10_000 }).toBe(1);
     expect((await menu.locator('button b').allInnerTexts()).map(net)).toEqual(['Prolonger l\'essai…', 'Noter un appel…', 'Écrire au contact…', 'Demander l\'accès au dossier…']);
-    expect(net(await menu.locator('.c-menu-note').innerText())).toBe('Le support prolonge un essai, une fois par entreprise ; changer d\'offre, prolonger une grâce, réactiver, résilier : la direction.');
+    expect(net(await menu.locator('.c-menu-note').innerText())).toBe('Le support prolonge un essai, une fois par entreprise, et offre un mois, un sur douze mois ; changer d\'offre, prolonger une grâce, réactiver, résilier : la direction.');
     await fermer(p);
     // La direction, elle, l'a, en haut à droite.
     const d = await ouvrir(jD, recherche);

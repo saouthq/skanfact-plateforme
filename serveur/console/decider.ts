@@ -5,9 +5,10 @@
 //   - une console où rien ne se passe affiche une liste vide, et le dit : elle n'invente pas de travail.
 
 import { confirme } from '../../exploitation/veille.ts';
-import { etatAbonnement, joursEntre, lireFaits, plusJours, type Delai, type Etat, type Faits, type OffreSuivante, type Regles } from '../abonnement/etat.ts';
+import { etatAbonnement, joursEntre, lireFaits, plusJours, type Delai, type Etat, type Faits, type ModuleAchete, type OffreSuivante, type Regles } from '../abonnement/etat.ts';
+import { aujourdhuiATunis } from '../reglements.ts';
 import type { RoleConsole } from './gestes.ts';
-import type { MesureEncaisse } from './paiements.ts';
+import type { AEmettre, Defaite, MesureEncaisse, Trop } from './paiements.ts';
 import { compter, etatDe, type LigneDemande } from './support.ts';
 
 export type Entreprise = {
@@ -27,13 +28,16 @@ export type Entreprise = {
 // La facture d'abonnement qui attend (préparée, pas encore payée) : son offre, son état, ce qu'il en reste à payer et
 // d'ici quand. `reste` est vide tant qu'elle n'est pas émise (elle attend dans le dossier de SkanFact).
 export type FactureQuiAttend = { offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel'; etat: string; reste: string | null; devise: string | null; echeance: string | null };
-export type EnPlus = { piecesMois: number; essaiJours: number | null; prolonge: number; prolongeUneFois: boolean; attend: FactureQuiAttend | null };
+// `moisOffertRecent` (0113) : un mois lui a été offert ces douze derniers mois (le support n'en offre pas un second).
+export type EnPlus = { piecesMois: number; essaiJours: number | null; prolonge: number; prolongeUneFois: boolean; moisOffertRecent?: boolean; attend: FactureQuiAttend | null };
 
 // Ce que la base rend (plateforme.console_entreprises), lu prudemment : un champ illisible vaut « rien », jamais une
 // valeur devinée ; l'état se déduit du jour de Tunis, avec les règles de l'abonnement (la grâce, les relances : 0104),
 // lues une fois pour toute la liste.
-// `enPlus` : le délai d'une échéance et l'offre de la prochaine (0111), par entreprise.
-export function lireEntreprises(brut: unknown, jour: string, regles: Regles, enPlus: ReadonlyMap<string, { delai: Delai | null; offreSuivante: OffreSuivante | null }> = new Map()): Entreprise[] {
+// `enPlus` : le délai d'une échéance et l'offre de la prochaine (0111), le mois offert qui attend et les modules qui
+// partent (0113), par entreprise.
+export type FaitsEnPlus = { delai: Delai | null; offreSuivante: OffreSuivante | null; moisOffert?: boolean; modulesARetirer?: readonly ModuleAchete[] };
+export function lireEntreprises(brut: unknown, jour: string, regles: Regles, enPlus: ReadonlyMap<string, FaitsEnPlus> = new Map()): Entreprise[] {
   if (!Array.isArray(brut)) return [];
   return brut.map((x: Record<string, unknown>) => {
     const faits = { ...lireFaits((x.faits ?? {}) as Record<string, unknown>), regles, ...(enPlus.get(String(x.id)) ?? {}) };
@@ -158,7 +162,18 @@ export type Ligne =
   | { sorte: 'en_retard'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; echeance: string; lectureSeuleLe: string; jours: number; apresEssai: boolean }
   | { sorte: 'lecture_seule'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; depuis: string; raison: string }
   | { sorte: 'essai_sans_usage'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; jusquAu: string; jours: number; proprietaire: { nom: string; email: string } | null }
-  | { sorte: 'support'; ouvre: 'support'; demande: { id: string; numero: number; sujet: string; canal: LigneDemande['canal'] }; entreprise: { id: string; nom: string }; demandeur: string; heures: number; depuis: string };
+  | { sorte: 'support'; ouvre: 'support'; demande: { id: string; numero: number; sujet: string; canal: LigneDemande['canal'] }; entreprise: { id: string; nom: string }; demandeur: string; heures: number; depuis: string }
+  // L'argent (0113), pour la direction : une de nos factures payée puis défaite (l'abonnement a couru sur elle), une
+  // facture préparée qui attend d'être émise, un trop-perçu à rembourser ou à garder.
+  // Une facture défaite par un avoir et payée quand même : une seule ligne, qui dit aussi ce qui est à rendre (`trop`).
+  | { sorte: 'facture_defaite'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; numero: string | null; payeeLe: string; fin: string; ecran: string;
+      cause: 'avoir' | 'reglement'; trop: string | null }
+  | { sorte: 'a_emettre'; ouvre: 'facture'; entreprise: { id: string; nom: string }; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
+  | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: { id: string; nom: string }; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string };
+// Ce que Paiements sait de l'argent qui attend une décision (serveur/console/paiements.ts, par ses fonctions).
+export type Argent = { defaites: readonly Defaite[]; aEmettre: readonly AEmettre[]; trop: readonly Trop[] };
+// Une facture préparée attend d'être émise : au-delà de deux jours, elle demande un geste (l'émettre, ou la supprimer).
+export const A_EMETTRE_JOURS = 2;
 
 // Un essai qui finit dans trois jours sans avoir servi : pas une pièce créée (devis, facture, achat).
 export const ESSAI_SANS_USAGE_JOURS = 3;
@@ -167,10 +182,33 @@ export const LECTURE_SEULE_DE_LA_SEMAINE = 7;
 // Qui lit quoi : la technique, le service seulement ; le support, les clients seulement ; la direction, tout. Une demande
 // au support sans réponse depuis vingt-quatre heures passe juste après un service grave : un client attend, et la
 // promesse (« dans la journée ») est déjà tenue en retard ; la plus ancienne d'abord.
-export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role: RoleConsole, demandes: LigneDemande[] = [], maintenant: Date = new Date()): Ligne[] {
+// L'argent (`argent`) : la direction seule, et pour les entreprises de la liste (la fiche passe la sienne).
+export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role: RoleConsole, demandes: LigneDemande[] = [], maintenant: Date = new Date(),
+  argent: Argent | null = null): Ligne[] {
   const lignes: [number, number, Ligne][] = [];
   const service = role !== 'support';
   const clients = role !== 'technique';
+  if (role === 'direction' && argent) {
+    const ici = new Set(liste.map((e) => e.id));
+    // Une facture payée puis annulée par un avoir a aussi un trop-perçu : c'est le même événement, une seule décision.
+    const tropDe = new Map(argent.trop.map((t) => [t.piece, t.trop]));
+    const defaites = new Set(argent.defaites.map((d) => d.piece));
+    for (const d of argent.defaites) {
+      if (ici.has(d.entreprise.id)) lignes.push([1.5, 0, { sorte: 'facture_defaite', ouvre: 'fiche', entreprise: d.entreprise, numero: d.numero, payeeLe: d.payeeLe, fin: d.fin, ecran: d.ecran,
+        cause: d.cause, trop: tropDe.get(d.piece) ?? null }]);
+    }
+    for (const a of argent.aEmettre) {
+      // Le jour de Tunis où elle a été préparée (un instant n'est pas un jour).
+      const instant = new Date(a.prepareLe);
+      if (!ici.has(a.entreprise.id) || Number.isNaN(instant.getTime())) continue;
+      const le = aujourdhuiATunis(instant);
+      const jours = joursEntre(le, jour);
+      if (jours >= A_EMETTRE_JOURS) lignes.push([2.5, -jours, { sorte: 'a_emettre', ouvre: 'facture', entreprise: a.entreprise, debut: a.debut, fin: a.fin, prepareLe: le, jours, ecran: a.ecran }]);
+    }
+    for (const t of argent.trop) {
+      if (ici.has(t.entreprise.id) && !defaites.has(t.piece)) lignes.push([3.5, 0, { sorte: 'trop_percu', ouvre: 'paiements', entreprise: t.entreprise, numero: t.numero, trop: t.trop, devise: t.devise, annulee: t.annulee, ecran: t.ecran }]);
+    }
+  }
   if (service && veille.etat === 'silencieuse') lignes.push([0, 0, { sorte: 'veille_silencieuse', ouvre: 'service', derniere: veille.derniere }]);
   if (service && veille.etat === 'ok') {
     for (const p of veille.problemes) lignes.push([p.grave ? 0 : 2, 0, { sorte: 'service', ouvre: 'service', ...p }]);

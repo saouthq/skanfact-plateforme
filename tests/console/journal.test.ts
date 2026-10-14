@@ -58,10 +58,12 @@ describe('les gestes du journal de la console', () => {
     expect(gestes.size).toBeGreaterThanOrEqual(20);
     for (const g of ['equipe.ajouter', 'service.incident_ouvert', 'versions.revenir', 'reglages.relire']) expect(gestes).toContain(g);
     // Le seul geste calculé : celui d'un abonnement (« abonnement. » suivi du geste choisi, 0083), redéfini en 0099 avec
-    // les modules achetés seuls (14c), puis en 0111 avec le délai, le mois offert et l'offre suivante.
+    // les modules achetés seuls (14c), puis en 0111 avec le délai, le mois offert et l'offre suivante, puis en 0113 avec
+    // la preuve d'un paiement reçu et le mois offert du support.
     expect(calcules).toEqual([expect.stringMatching(/^0083_console\.sql : 'abonnement\.' \|\| p_geste$/),
       expect.stringMatching(/^0099_offre_compte\.sql : 'abonnement\.' \|\| p_geste$/),
-      expect.stringMatching(/^0111_gestes_abonnement\.sql : 'abonnement\.' \|\| p_geste$/)]);
+      expect.stringMatching(/^0111_gestes_abonnement\.sql : 'abonnement\.' \|\| p_geste$/),
+      expect.stringMatching(/^0113_argent_juste\.sql : 'abonnement\.' \|\| p_geste$/)]);
   });
 
   it('chacun a la forme que la table exige (deux parties) : sinon le geste entier échoue', () => {

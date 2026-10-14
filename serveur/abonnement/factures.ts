@@ -34,8 +34,9 @@ const enFrancais = (cle: string, valeurs?: Record<string, string>) => rendre(t(c
 // La période que la facture paie : la MÊME règle que « Noter un paiement » (prochainePeriode) — la suite de l'échéance,
 // ou aujourd'hui si la lecture seule a commencé. Elle se règle avant son premier jour : son échéance est la veille, ou
 // aujourd'hui quand elle commence aujourd'hui.
-export function periodeDeLaFacture(faits: Faits, periodicite: Periodicite, jour: string): { debut: string; fin: string; echeance: string } {
-  const p = prochainePeriode(faits, periodicite, jour);
+// Un mois offert (0113) : la période en couvre un de plus, au même prix.
+export function periodeDeLaFacture(faits: Faits, periodicite: Periodicite, jour: string, moisOffert = false): { debut: string; fin: string; echeance: string } {
+  const p = prochainePeriode(faits, periodicite, jour, moisOffert);
   return { ...p, echeance: p.debut > jour ? plusJours(p.debut, -1) : jour };
 }
 
@@ -46,7 +47,10 @@ export const clePiece = (abonne: string, debut: string) => `abonnement-${abonne}
 // Ce qui s'ajoute à l'offre sur la facture (14c ; 0099, plateforme.lignes_en_plus) : un module acheté seul, ou ce qui
 // dépasse l'offre (les utilisateurs, les salariés, les caisses, les établissements), compté par la base le jour de la
 // préparation, au prix du jour de sa ligne.
-export type LigneEnPlus = { option: string; quantite: number; compte: number; inclus: number; prixHt: bigint };
+// Un rattrapage (0113, plateforme.rattrapage_modules) : un module ouvert pendant la période payée qui court, au prorata de
+// ses jours (`compte` jours sur `inclus`, `du` → `au`).
+export type LigneEnPlus = { option: string; quantite: number; compte: number; inclus: number; prixHt: bigint; du?: string; au?: string };
+const estJourIso = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
 export function lireLignesEnPlus(brut: unknown): LigneEnPlus[] {
   const entier = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : 0);
   return (Array.isArray(brut) ? brut : []).flatMap((x) => {
@@ -54,13 +58,20 @@ export function lireLignesEnPlus(brut: unknown): LigneEnPlus[] {
     const prix = typeof l.prixHt === 'string' && /^\d+$/.test(l.prixHt) ? BigInt(l.prixHt) : null;
     const option = typeof l.option === 'string' ? l.option : '';
     return option && prix !== null && entier(l.quantite) > 0
-      ? [{ option, quantite: entier(l.quantite), compte: entier(l.compte), inclus: entier(l.inclus), prixHt: prix }] : [];
+      ? [{ option, quantite: entier(l.quantite), compte: entier(l.compte), inclus: entier(l.inclus), prixHt: prix,
+        ...(estJourIso(l.du) && estJourIso(l.au) ? { du: l.du, au: l.au } : {}) }] : [];
   });
 }
 // Le total hors taxes : l'offre, et chaque ligne en plus (sa quantité à son prix), en millimes ; puis la remise de la
 // période (0106), sur ce total, au millime le plus proche.
 export const totalHt = (prixHt: bigint, enPlus: readonly LigneEnPlus[]) => enPlus.reduce((s, l) => s + BigInt(l.quantite) * l.prixHt, prixHt);
 export const netHt = (brut: bigint, remise: Remise | null) => brut - (remise ? montantRemise(brut, remise.taux) : 0n);
+// Ce qu'une période coûte hors taxes, par CETTE règle : la facture la prépare ainsi, et la console le redit (la liste, les
+// échéances, la fiche : serveur/console/renouvellements.ts). `sansRattrapage` : ce qui revient à chaque période — le
+// rattrapage d'un module ouvert en cours (0113) ne se paie qu'une fois.
+export const estRattrapage = (l: LigneEnPlus) => l.option.startsWith('rattrapage_');
+export const htDeLaPeriode = (prixHt: bigint, enPlus: readonly LigneEnPlus[], remise: Remise | null, sansRattrapage = false) =>
+  netHt(totalHt(prixHt, sansRattrapage ? enPlus.filter((l) => !estRattrapage(l)) : enPlus), remise);
 
 // La pièce, telle que la v10 l'écrit (le formulaire d'une facture) : la ligne de l'offre au prix hors taxes du jour, puis
 // une ligne par module acheté ou par ce qui dépasse l'offre ; la TVA de l'entreprise SkanFact (son régime et son taux,
@@ -69,14 +80,17 @@ export const netHt = (brut: bigint, remise: Remise | null) => brut - (remise ? m
 // et une note qui dit laquelle et pourquoi.
 export function pieceDAbonnement(o: {
   cle: string; client: Json; offre: Offre; periodicite: Periodicite; debut: string; fin: string; echeance: string; jour: string;
-  prixHt: bigint; societe: Json; enPlus?: readonly LigneEnPlus[]; remise?: Remise | null;
+  prixHt: bigint; societe: Json; enPlus?: readonly LigneEnPlus[]; remise?: Remise | null; moisOffert?: boolean;
 }): Json {
   const tva = C().defaultVat(commeLEcran(o.societe));
-  const periode = enFrancais('abonnement.facture.periode', { du: jourEnFrancais(o.debut), au: jourEnFrancais(o.fin) });
+  // La période de la facture ; avec le mois offert, elle le dit (« dont un mois offert ») : la trace est sur la pièce.
+  const periode = enFrancais(o.moisOffert ? 'abonnement.facture.periode_offert' : 'abonnement.facture.periode', { du: jourEnFrancais(o.debut), au: jourEnFrancais(o.fin) });
   const enPlus = (o.enPlus ?? []).map((l) => ({
     label: enFrancais(`abonnement.facture.option.${l.option}`),
-    description: l.option.startsWith('module_') ? periode
-      : enFrancais('abonnement.facture.au_dela', { compte: String(l.compte), inclus: String(l.inclus), du: jourEnFrancais(o.debut), au: jourEnFrancais(o.fin) }),
+    description: l.du && l.au
+      ? enFrancais('abonnement.facture.rattrapage', { du: jourEnFrancais(l.du), au: jourEnFrancais(l.au), jours: String(l.compte), sur: String(l.inclus) })
+      : l.option.startsWith('module_') ? periode
+        : enFrancais('abonnement.facture.au_dela', { compte: String(l.compte), inclus: String(l.inclus), du: jourEnFrancais(o.debut), au: jourEnFrancais(o.fin) }),
     unit: '', qty: l.quantite, unitPrice: enNombreV10(versTexte(l.prixHt, 3)), vatRate: tva,
   }));
   return {
@@ -114,7 +128,9 @@ export type FacturePreparee = { cle: string; editeur: string; offre: Offre; peri
   // L'offre au prix du jour, et ce qui s'ajoute (14c), pour que l'aperçu dise chaque ligne avant le geste ; le total avant
   // la remise, et la remise (0106).
   prixOffreHt: string; enPlus: { option: string; quantite: number; compte: number; inclus: number; prixHt: string; totalHt: string }[];
-  brutHt: string; remise: (Remise & { montantHt: string }) | null };
+  brutHt: string; remise: (Remise & { montantHt: string }) | null;
+  // Le mois offert que la facture porte (0113) : sa période en couvre un de plus.
+  moisOffert: boolean };
 
 // Préparer (ou, `apercu`, seulement montrer) la facture d'une période. Au nom de la personne, dans la transaction de la
 // console : la base vérifie qu'elle est propriétaire de l'entreprise SkanFact.
@@ -124,8 +140,12 @@ export async function preparerFacture(tx: Transaction, utilisateur: string, abon
   const editeur = String((await tx.query('select plateforme.editeur_de_mes_factures() v')).rows[0]?.v);
   if (editeur === abonne.id) throw new Refus('abonnement.facture.editeur_lui_meme');
   if (prix === null) throw new Refus('abonnement.facture.sans_prix');
-  const { debut, fin, echeance } = periodeDeLaFacture(faits, voulue.periodicite, jour);
-  const cle = clePiece(abonne.id, debut);
+  const cle = clePiece(abonne.id, periodeDeLaFacture(faits, voulue.periodicite, jour).debut);
+  // Le mois offert (0113) : il attend sur l'abonnement, ou cette facture le portait déjà (préparée de nouveau) — la
+  // prochaine facture le porte, toujours (la base le revérifie).
+  const factures = (await tx.query('select plateforme.console_factures_abonnement($1) v', [abonne.id])).rows[0]?.v as { client?: string; editeur?: string; piece?: string; moisOffert?: boolean }[] | null;
+  const moisOffert = faits.moisOffert === true || (factures ?? []).some((f) => f.piece === cle && f.moisOffert === true);
+  const { debut, fin, echeance } = periodeDeLaFacture(faits, voulue.periodicite, jour, moisOffert);
   await dossierPret(tx, editeur, utilisateur);
   const societe = (await lire(tx, editeur, '_racine', 'company'))?.contenu ?? {};
   // La pièce de cette période existe déjà : émise, elle ne se refait pas ; en brouillon, elle attend dans SkanFact.
@@ -136,27 +156,26 @@ export async function preparerFacture(tx: Transaction, utilisateur: string, abon
   }
   // La fiche du client : celle des factures d'avant si elle est encore au dossier (ce que SkanFact y a complété reste),
   // sinon une fiche neuve, avec ce que la plateforme sait de l'abonné.
-  const factures = (await tx.query('select plateforme.console_factures_abonnement($1) v', [abonne.id])).rows[0]?.v as { client?: string; editeur?: string }[] | null;
   const avant = (factures ?? []).find((f) => f.editeur === editeur && typeof f.client === 'string')?.client ?? null;
   const fiche = avant ? await lire(tx, editeur, 'clients', avant) : undefined;
   const client: Json = fiche?.contenu ?? {
     id: randomUUID(), name: abonne.raisonSociale, matricule: abonne.matricule ?? '', address: '', email: abonne.email ?? '', phone: '', currency: '',
   };
-  const piece = pieceDAbonnement({ cle, client, offre: voulue.offre, periodicite: voulue.periodicite, debut, fin, echeance, jour, prixHt: prix, societe, enPlus, remise });
+  const piece = pieceDAbonnement({ cle, client, offre: voulue.offre, periodicite: voulue.periodicite, debut, fin, echeance, jour, prixHt: prix, societe, enPlus, remise, moisOffert });
   const brut = totalHt(prix, enPlus);
-  const total = netHt(brut, remise);
+  const total = htDeLaPeriode(prix, enPlus, remise);
   const resultat: FacturePreparee = { cle, editeur, offre: voulue.offre, periodicite: voulue.periodicite, debut, fin, echeance,
     montantHt: versTexte(total, 3), ceQueDira: ceQueDiraLaFacture(piece, societe), client: String(client.id),
     prixOffreHt: versTexte(prix, 3), enPlus: enPlus.map((l) => ({ ...l, prixHt: versTexte(l.prixHt, 3), totalHt: versTexte(BigInt(l.quantite) * l.prixHt, 3) })),
-    brutHt: versTexte(brut, 3), remise: remise ? { ...remise, montantHt: versTexte(brut - total, 3) } : null };
+    brutHt: versTexte(brut, 3), remise: remise ? { ...remise, montantHt: versTexte(brut - total, 3) } : null, moisOffert };
   if (o.apercu) return resultat;
   if (!fiche) {
     const { n } = (await tx.query("select count(*)::int n from socle.dossier_v10 where entreprise = $1 and collection = 'clients'", [editeur])).rows[0] as { n: number };
     await appliquer(tx, editeur, utilisateur, [{ collection: 'clients', cle: String(client.id), rang: n, revision: null, contenu: client }], { serveur: true });
   }
   await appliquer(tx, editeur, utilisateur, [{ collection: 'documents', cle, rang: null, revision: null, contenu: piece }], { serveur: true });
-  await tx.query('select plateforme.console_noter_facture($1, $2, $3, $4, $5, $6::date, $7::date, $8::bigint, $9, $10::date)',
-    [abonne.id, cle, String(client.id), voulue.offre, voulue.periodicite, debut, fin, total.toString(), o.motif, jour]);
+  await tx.query('select plateforme.console_noter_facture($1, $2, $3, $4, $5, $6::date, $7::date, $8::bigint, $9, $10::date, $11)',
+    [abonne.id, cle, String(client.id), voulue.offre, voulue.periodicite, debut, fin, total.toString(), o.motif, jour, moisOffert]);
   return resultat;
 }
 

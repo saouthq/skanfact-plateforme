@@ -9,7 +9,7 @@
 
 import { cabinetDe, dansLaVue, deLOffre, parAn, type Filtres, type OffreClient, type VueClients } from './clients.ts';
 import { urgence, type Entreprise } from './decider.ts';
-import type { Prix } from './echeances.ts';
+import type { Renouvellements } from './renouvellements.ts';
 import type { LigneCabinet } from './cabinets.ts';
 import { versTexte } from '../../moteur/argent.ts';
 
@@ -138,10 +138,10 @@ const echeanceDeLigne = (o: Organisation): string | null => {
   const s = e.etat;
   return s.etat === 'essai' || s.etat === 'actif' ? s.jusquAu : s.etat === 'en_retard' ? s.lectureSeuleLe : null;
 };
-export function parAnDeLaLigne(o: Organisation, prix: Prix): { actif: bigint; attendu: bigint } {
+export function parAnDeLaLigne(o: Organisation, r: Renouvellements): { actif: bigint; attendu: bigint } {
   let actif = 0n, attendu = 0n;
   for (const e of o.societes) {
-    const p = parAn(e, prix);
+    const p = parAn(e, r);
     if (!p) continue;
     const m = BigInt(p.montantHt.replace('.', ''));
     if (p.attendu) attendu += m; else actif += m;
@@ -153,7 +153,7 @@ export const vuDeLaLigne = (o: Organisation): string | null => {
   const v = [...o.societes.map((e) => e.derniereActivite), o.cabinet?.derniereActivite ?? null].filter((x): x is string => !!x).map((x) => new Date(x).toISOString());
   return v.length ? v.sort().at(-1) ?? null : null;
 };
-export function trierOrg(liste: readonly Organisation[], tri: TriOrg, prix: Prix, jour: string): Organisation[] {
+export function trierOrg(liste: readonly Organisation[], tri: TriOrg, r: Renouvellements, jour: string): Organisation[] {
   const urg = (o: Organisation): [number, number] => { const e = principale(o); return e ? urgence(e, jour) : [9, 0]; };
   const parUrgence = [...liste].sort((a, b) => {
     const [ra, ja] = urg(a), [rb, jb] = urg(b);
@@ -163,7 +163,7 @@ export function trierOrg(liste: readonly Organisation[], tri: TriOrg, prix: Prix
   const cle = (o: Organisation): string | bigint | null => {
     switch (tri) {
       case 'echeance': return echeanceDeLigne(o);
-      case 'par_an': { const p = parAnDeLaLigne(o, prix); return p.actif + p.attendu || null; }
+      case 'par_an': { const p = parAnDeLaLigne(o, r); return p.actif + p.attendu || null; }
       case 'usage': return BigInt(usageDeLaLigne(o));
       case 'nom': return o.nom;
       case 'vu': return vuDeLaLigne(o);
@@ -178,10 +178,10 @@ export function trierOrg(liste: readonly Organisation[], tri: TriOrg, prix: Prix
   }).map((x) => x.o);
 }
 // Ce que rapportent par an les abonnements actifs de la sélection (sur toutes ses pages).
-export function parAnDesLignes(liste: readonly Organisation[], prix: Prix): { montantHt: string; abonnements: number } {
+export function parAnDesLignes(liste: readonly Organisation[], r: Renouvellements): { montantHt: string; abonnements: number } {
   let total = 0n, abonnements = 0;
   for (const o of liste) for (const e of o.societes) {
-    const p = parAn(e, prix);
+    const p = parAn(e, r);
     if (!p || p.attendu) continue;
     total += BigInt(p.montantHt.replace('.', ''));
     abonnements++;

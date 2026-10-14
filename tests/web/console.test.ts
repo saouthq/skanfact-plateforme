@@ -479,13 +479,14 @@ describe('la console de l\'équipe, à la souris', () => {
     const droits = p.locator('.c-eq-droits tbody tr');
     await expect.poll(() => droits.count(), { timeout: 15_000 }).toBe(lu.droits.length);
     // Une ligne par geste du serveur, dans son ordre ; un « oui » là où le rôle l'a, un tiret sinon — et la nuance du
-    // support (prolonger un essai) à la place du « oui ».
+    // support (prolonger un essai ; offrir un mois, 0113) à la place du « oui ».
     for (const [i, d] of lu.droits.entries()) {
       const cellules = droits.nth(i).locator('td');
       for (const [j, r] of (['direction', 'support', 'technique'] as const).entries()) {
         const t = net(await cellules.nth(j + 1).innerText());
         if (!d.roles.includes(r)) expect(t).toBe('—');
         else if (d.code === 'console.abonnement.prolonger' && r === 'support') expect(t).toContain('une fois par entreprise');
+        else if (d.code === 'console.abonnement.offrir_mois' && r === 'support') expect(t).toContain('un par entreprise sur douze mois');
         else if (d.code === 'console.accueil.voir' && r !== 'direction') expect(t).toContain('ses lignes');
         else expect(t).toBe('Oui');
       }
@@ -684,6 +685,12 @@ describe('la console de l\'équipe, à la souris', () => {
     for (const dit of ['Lue sans remarque.', 'Vérifie l\'article cité.']) {
       exiger(await api('POST', `/console/reglages/regles/${regle}/relire`, jeton, { reluePar: 'Mehdi Gharbi, cabinet pilote', avis: 'a_corriger', dit, motif: 'relue au téléphone' }), 201);
     }
+    // Un encaissé du mois long (1 234 567,890 DT, un paiement reçu hors de la plateforme, à l'entreprise SkanFact désignée
+    // plus haut) : son chiffre se mesure dans sa tuile, à chaque largeur (vu le 14/10/2026 : il débordait au téléphone).
+    const editeur = String((await admin.query('select entreprise from plateforme.editeur')).rows[0]?.entreprise ?? '');
+    expect(editeur).not.toBe('');
+    await admin.query(`insert into plateforme.evenement_abonnement (entreprise, nature, par, motif, avant, apres) values ($1, 'paye', 'exploitation', 'reçu ailleurs', null, $2)`,
+      [editeur, JSON.stringify({ facture: 'F-INSTRUMENT', montant: '1234567890', moyen: 'virement', le: aujourdhuiATunis(), editeur })]);
     const ECRANS: EcranConsole[] = [
       { nom: 'accueil', hash: '#/' },
       { nom: 'clients', hash: '#/clients' },

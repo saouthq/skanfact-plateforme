@@ -10737,7 +10737,7 @@ prouver 'un paiement fait pendant la grâce qui laisse un trou' $AET \
   '  const debut = jour <= plusJours(echeance, graceDe(f, echeance) ?? 0) ? plusJours(echeance, 1) : jour;' '  const debut = jour <= echeance ? plusJours(echeance, 1) : jour;' \
   "$AP2"
 prouver 'une période qui déborde d'"'"'un jour sur la suivante' $AET \
-  "  return { debut, fin: plusJours(plusMois(debut, periodicite === 'annuel' ? 12 : 1), -1) };" "  return { debut, fin: plusMois(debut, periodicite === 'annuel' ? 12 : 1) };" \
+  "  return { debut, fin: plusJours(plusMois(debut, (periodicite === 'annuel' ? 12 : 1) + (moisOffert ? 1 : 0)), -1) };" "  return { debut, fin: plusMois(debut, (periodicite === 'annuel' ? 12 : 1) + (moisOffert ? 1 : 0)) };" \
   "$AP3"
 prouver 'le 31 janvier plus un mois qui tombe en mars' $AET \
   '  return versJour(Date.UTC(annee, mois, Math.min(d, dernier)));' '  return versJour(Date.UTC(annee, mois, d + 0 * dernier));' \
@@ -10821,7 +10821,7 @@ prouver 'un motif d'"'"'espaces accepté par la base' $AMG \
 # La règle des gestes vit dans serveur/abonnement/gestes.ts depuis la console (Console 1) : l'outil de l'exploitation et
 # la console la jouent tous les deux.
 prouver 'un renouvellement qui repart de la fin de l'"'"'essai' serveur/abonnement/gestes.ts \
-  '      const p = prochainePeriode(faits, d.periodicite, jour);' '      const p = prochainePeriode({ ...faits, payeJusquAu: null }, d.periodicite, jour);' \
+  '      const p = prochainePeriode(faits, d.periodicite, jour, offert);' '      const p = prochainePeriode({ ...faits, payeJusquAu: null }, d.periodicite, jour, offert);' \
   "$ABG2"
 AW1='l'"'"'essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'"'"'arrive au serveur'
 prouver 'la v10 qui ne lit pas l'"'"'abonnement' web/public/plateforme/pont.js \
@@ -10975,24 +10975,13 @@ prouver 'la déconnexion de la console qui ne ferme rien' base/migrations/0083_c
 prouver 'une route de la console hors de /console/' serveur/app.ts \
   '  if (deLaConsole !== sousConsole && !(r.geste === '"'"'public'"'"' && r.chemin.startsWith('"'"'/console/connexion'"'"'))) {' '  if (false) {' \
   "$CONSS5"
-# La liste lit aussi les remises des échéances (0106) et les entreprises venues par un cabinet (0107), gardées pour la
-# direction et le support : la preuve les ouvre aussi, sinon la technique reste refusée par elles et le test ne peut plus
-# tomber (vu le 14/10/2026, rouge de 1.17.0).
-prouver "la technique qui lit les clients, au serveur et dans la base" "serveur/console/gestes.ts|||base/migrations/0083_console.sql|||base/migrations/0106_remises.sql|||base/migrations/0107_venues_par_cabinet.sql" \
-  "  { code: 'console.clients.voir', roles: [D, S], ecrit: false },|||  perform plateforme.exiger_role_console(array['direction', 'support']);
-  return (select coalesce(jsonb_agg(jsonb_build_object(
-      'id', e.id, 'raisonSociale'|||create function plateforme.console_remises_echeances() returns jsonb
-language plpgsql stable security definer set search_path = pg_catalog, socle, plateforme as \$\$
-declare v_role text := plateforme.exiger_role_console(array['direction', 'support']);|||create function plateforme.console_venues_par_cabinet() returns jsonb
-language plpgsql stable security definer set search_path = pg_catalog, socle, plateforme as \$\$
-declare v_role text := plateforme.exiger_role_console(array['direction', 'support']);" \
-  "  { code: 'console.clients.voir', roles: [D, S, T], ecrit: false },|||  perform plateforme.exiger_role_console(array['direction', 'support', 'technique']);
-  return (select coalesce(jsonb_agg(jsonb_build_object(
-      'id', e.id, 'raisonSociale'|||create function plateforme.console_remises_echeances() returns jsonb
-language plpgsql stable security definer set search_path = pg_catalog, socle, plateforme as \$\$
-declare v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);|||create function plateforme.console_venues_par_cabinet() returns jsonb
-language plpgsql stable security definer set search_path = pg_catalog, socle, plateforme as \$\$
-declare v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);" \
+# La liste lit une dizaine de fonctions de la base, chacune gardée pour la direction et le support (0083 à 0113) : ouvrir
+# chaque garde à la main laissait la preuve en retard d'une fonction à chaque lot (rouges de 1.17.0 et de 1.19.0, la
+# technique encore refusée par une garde neuve). Le défaut se pose donc dans la garde commune (exiger_role_console, 0083) :
+# la technique y passe partout où passe le support ; et la route s'ouvre à elle.
+prouver "la technique qui lit les clients, au serveur et dans la base" "serveur/console/gestes.ts|||base/migrations/0083_console.sql" \
+  "  { code: 'console.clients.voir', roles: [D, S], ecrit: false },|||  if not (v = any(p_roles)) then perform" \
+  "  { code: 'console.clients.voir', roles: [D, S, T], ecrit: false },|||  if not (v = any(p_roles) or (v = 'technique' and 'support' = any(p_roles))) then perform" \
   "$CONSS6"
 prouver 'les chiffres des clients montrés à la technique' serveur/console/routes.ts \
   'tableau: role === '"'"'technique'"'"' ? { service: t.service } : t,' 'tableau: t,' \
@@ -11027,29 +11016,29 @@ prouver 'le téléphone d'"'"'un membre dans la fiche de la console' base/migrat
   'jsonb_build_object('"'"'nom'"'"', u.nom, '"'"'email'"'"', u.email, '"'"'roles'"'"', m.roles, '"'"'depuis'"'"', m.depuis,' 'jsonb_build_object('"'"'nom'"'"', u.nom, '"'"'email'"'"', u.email, '"'"'telephone'"'"', u.telephone, '"'"'roles'"'"', m.roles, '"'"'depuis'"'"', m.depuis,' \
   "$CONSS10"
 prouver 'un aperçu qui réclame le motif du geste' serveur/console/routes.ts \
-  '    if (corps.apercu) return { corps: { apercu: true, avant: etatAbonnement(faits, jour), apres: etatApres, details, modules: apres.modules } };
+  '    if (corps.apercu) return { corps: { apercu: true, avant: etatAbonnement(faits, jour), apres: etatApres, details, modules: apres.modules, modulesARetirer: apres.modules_a_retirer ?? [] } };
 ' '' \
   "$CONSS11"
-prouver 'le support qui prolonge de 1 à 365 jours' base/migrations/0111_gestes_abonnement.sql \
+prouver 'le support qui prolonge de 1 à 365 jours' base/migrations/0113_argent_juste.sql \
   '    if v_jours is null or v_jours not between 7 and 30 then' '    if v_jours is null or v_jours not between 1 and 365 then' \
   "$CONSS12"
-prouver 'le support qui prolonge deux fois' base/migrations/0111_gestes_abonnement.sql \
+prouver 'le support qui prolonge deux fois' base/migrations/0113_argent_juste.sql \
   '    if exists (select 1 from plateforme.evenement_abonnement v where v.entreprise = p_entreprise and v.nature = '"'"'essai_prolonge'"'"') then' '    if false then' \
   "$CONSS12"
 prouver 'une seconde prolongation proposée au support' serveur/console/routes.ts \
-  'essaiOuSuite && ligne && !prolongeUneFois && !f.offert ? ['"'"'prolonger'"'"'] : []' 'essaiOuSuite && ligne && !f.offert ? ['"'"'prolonger'"'"'] : []' \
+  'essaiOuSuite && ligne && !prolongeUneFois && !f.offert ? ['"'"'prolonger'"'"' as const] : []' 'essaiOuSuite && ligne && !f.offert ? ['"'"'prolonger'"'"' as const] : []' \
   "$CONSS12"
-prouver 'le support qui suspend un abonnement' 'serveur/console/gestes.ts|||base/migrations/0111_gestes_abonnement.sql|||base/migrations/0111_gestes_abonnement.sql' \
-  '  { code: '"'"'console.abonnement.gerer'"'"', roles: [D], ecrit: true },|||  if v_role = '"'"'support'"'"' and p_geste <> '"'"'prolonger'"'"' then perform socle.refus('"'"'ton rôle dans l'"'"''"'"'équipe SkanFact ne permet pas ce geste'"'"'); end if;
-|||  if v_role = '"'"'support'"'"' then
-    if v_avant is null or' '  { code: '"'"'console.abonnement.gerer'"'"', roles: [D, S], ecrit: true },||||||  if v_role = '"'"'support'"'"' and p_geste = '"'"'prolonger'"'"' then
-    if v_avant is null or' \
+prouver 'le support qui suspend un abonnement' 'serveur/console/gestes.ts|||base/migrations/0113_argent_juste.sql' \
+  '  { code: '"'"'console.abonnement.gerer'"'"', roles: [D], ecrit: true },|||  if v_role = '"'"'support'"'"' and p_geste not in ('"'"'prolonger'"'"', '"'"'offrir-mois'"'"') then
+    perform socle.refus('"'"'ton rôle dans l'"'"''"'"'équipe SkanFact ne permet pas ce geste'"'"');
+  end if;
+' '  { code: '"'"'console.abonnement.gerer'"'"', roles: [D, S], ecrit: true },|||' \
   "$CONSS12"
 prouver 'un geste sans motif laissé à la base' serveur/console/routes.ts \
   '    if (corps.motif.trim().length < 3) return { statut: 400, corps: { motif: motif('"'"'console.motif_requis'"'"'), champ: '"'"'motif'"'"', raison: t('"'"'console.motif_requis'"'"') } };
 ' '' \
   "$CONSS13"
-prouver 'un geste d'"'"'abonnement sans auteur dans son histoire' base/migrations/0111_gestes_abonnement.sql \
+prouver 'un geste d'"'"'abonnement sans auteur dans son histoire' base/migrations/0113_argent_juste.sql \
   '    values (socle.moi(), v_role, '"'"'abonnement.'"'"' || p_geste, p_entreprise, v_evenement, btrim(p_motif),' '    values (socle.moi(), v_role, '"'"'abonnement.'"'"' || p_geste, p_entreprise, null, btrim(p_motif),' \
   "$CONSS13"
 prouver 'un abonnement changé depuis la lecture, écrasé' serveur/console/routes.ts \
@@ -11112,13 +11101,7 @@ prouver 'le filtre des inscriptions qui ne se retire pas' web/console/src/ecrans
 # Deux fenêtres de la fiche portent cette ligne (le geste, et la facture depuis 14b) : celle du geste se désigne par ce
 # qui la précède.
 prouver 'sans motif, le curseur qui ne va pas au motif' web/console/src/ecrans/Fiche.tsx \
-  '  }, [jours, offre, periodicite, module, geste]);
-
-  const faire = () => {
-    if (motif.trim().length < 3) { setRefus(phrase('"'"'console.ecran.geste.motif_court'"'"')); setFaute((x) => x + 1); return; }' '  }, [jours, offre, periodicite, module, geste]);
-
-  const faire = () => {
-    if (motif.trim().length < 3) { setRefus(phrase('"'"'console.ecran.geste.motif_court'"'"')); return; }' \
+  '    if (geste !== '"'"'payer'"'"' && motif.trim().length < 3) { setRefus(phrase('"'"'console.ecran.geste.motif_court'"'"')); fauter('"'"'motif'"'"'); return; }' '    if (geste !== '"'"'payer'"'"' && motif.trim().length < 3) { setRefus(phrase('"'"'console.ecran.geste.motif_court'"'"')); return; }' \
   "$CONSW3"
 prouver 'l'"'"'aperçu du geste qui ne garde pas sa place' web/console/src/console.css \
   '.c-apercu-zone { display: grid; min-height: 140px; }' '.c-apercu-zone { display: grid; }' \
@@ -11155,7 +11138,7 @@ prouver 'la console gardée par le service des écrans' web/public/sw.js \
 CONS2E1='ce qui vient dans les trente jours, aujourd'"'"'hui compris : la fin d'"'"'un essai, la fin d'"'"'une période payée, rien d'"'"'autre'
 CONS2E2='une vue par état, chacune rangée : la plus proche d'"'"'abord, la lecture seule la plus récente d'"'"'abord'
 CONS2E3='chaque carte compte la liste qu'"'"'elle ouvre, et les cinq états refont le portefeuille'
-CONS2E4='le montant, hors taxes au prix du jour : ce qu'"'"'un paiement coûterait, jamais pour un essai, une résiliation ou une suspension'
+CONS2E4='le montant, hors taxes : celui de la prochaine facture, jamais pour un essai, une résiliation ou une suspension'
 CONS2E5='ce qui revient chaque année : les actifs qui se renouvellent, le mensuel compté douze fois, sans les résiliés'
 CONS2E6='une relance ne compte que pour l'"'"'échéance d'"'"'aujourd'"'"'hui ; ni une résiliation, ni une suspension ne se relancent'
 CONS2E7='ce que l'"'"'écran dit d'"'"'une relance est ce que le serveur fera : jour après jour, celle qui est « à partir » est celle qui part'
@@ -11177,14 +11160,15 @@ prouver 'la lecture seule la plus ancienne en tête de sa vue' serveur/console/e
 prouver 'une carte des essais qui compte autre chose que sa liste' serveur/console/echeances.ts \
   'essai: { n: essai.length, semaine:' 'essai: { n: essai.filter((l) => l.etat.etat === '"'"'essai'"'"' && l.etat.jours <= AVENIR_JOURS).length, semaine:' \
   "$CONS2E3"
-prouver 'un montant annoncé pour un abonnement résilié' serveur/console/echeances.ts \
-  'if (e.etat === '"'"'actif'"'"') return e.resilie ? null : prixDe(prix, e.offre, e.periodicite);' 'if (e.etat === '"'"'actif'"'"') return prixDe(prix, e.offre, e.periodicite);' \
+prouver 'un montant annoncé pour un abonnement résilié' serveur/console/renouvellements.ts \
+  '  const attendu = s.etat === '"'"'actif'"'"' ? (s.resilie ? null : false)' '  const attendu = s.etat === '"'"'actif'"'"' ? false' \
   "$CONS2E4"
-prouver 'un prix qui manque inventé à zéro' serveur/console/echeances.ts \
-  'p.get(`${offre}/${periodicite}`) ?? null;' 'p.get(`${offre}/${periodicite}`) ?? 0n;' \
+prouver 'un prix qui manque inventé à zéro' serveur/console/renouvellements.ts \
+  '    if (typeof r.prixHt !== '"'"'string'"'"' || !/^\d+$/.test(r.prixHt)) return [d.entreprise, null];
+    const prixHt = BigInt(r.prixHt), ' '    const prixHt = BigInt(typeof r.prixHt === '"'"'string'"'"' && /^\d+$/.test(r.prixHt) ? r.prixHt : '"'"'0'"'"'), ' \
   "$CONS2E4"
-prouver 'le mensuel compté une seule fois dans l'"'"'année' serveur/console/echeances.ts \
-  'total += l.etat.periodicite === '"'"'mensuel'"'"' ? p * 12n : p;' 'total += p;' \
+prouver 'le mensuel compté une seule fois dans l'"'"'année' serveur/console/renouvellements.ts \
+  'parAnHt: d.periodicite === '"'"'mensuel'"'"' ? unePeriode * 12n : unePeriode }];' 'parAnHt: unePeriode }];' \
   "$CONS2E5"
 prouver 'un résilié compté dans ce qui revient chaque année' serveur/console/echeances.ts \
   'if (l.etat.resilie) { resilies++; continue; }' 'if (l.etat.resilie) resilies++;' \
@@ -11266,12 +11250,13 @@ prouver 'une carte de liste qui garde sa marge au téléphone' web/console/src/c
   '  .c-carte.c-decider, .c-carte.c-liste-carte { padding: 0; }
 ' '' \
   "$CONSW6"
-prouver 'les mois du graphique qui se chevauchent au téléphone' web/console/src/console.css \
-  '  .c-barre:nth-child(odd) .c-barre-mois { visibility: hidden; }
-' '' \
-  "$CONSW6"
 
 # ── Le téléphone : un chiffre trop long pour sa carte (13/10/2026 ; telephone.js, telephone.css) ──
+prouver 'un montant plus large que sa tuile' 'web/console/src/console.css' \
+  '.c-tuile:has(.c-tuile-ajuste) { container-type: inline-size; }
+' \
+  '' \
+  "$CONSW6"
 prouver "un montant de huit chiffres coupé par sa carte au téléphone" web/public/plateforme/telephone.css \
   '  .stat .val[data-tel-serre="1"] { font-size: 18px; }
   .stat .val[data-tel-serre="2"] { font-size: 15px; }
@@ -11836,10 +11821,147 @@ prouver 'un silence compté en jours UTC' 'serveur/console/clients.ts' \
   'joursEntre(aujourdhuiATunis(new Date(e.derniereActivite)), jour) >= SILENCE_JOURS' \
   'joursEntre(e.derniereActivite.slice(0, 10), jour) >= SILENCE_JOURS' \
   'chaque vue garde exactement les entreprises de sa phrase'
-prouver 'un mensuel compté pour un seul mois' 'serveur/console/clients.ts' \
-  "periodicite === 'mensuel' ? p * 12n : p;" \
-  'p;' \
-  'un montant par an au prix du jour'
+prouver 'un mensuel compté pour un seul mois' 'serveur/console/renouvellements.ts' \
+  'parAnHt: d.periodicite === '"'"'mensuel'"'"' ? unePeriode * 12n : unePeriode }];' \
+  'parAnHt: unePeriode }];' \
+  'un montant par an, hors taxes, par la règle de la facture'
+# L'argent juste (0113) : le mois offert, le paiement reçu, le rattrapage d'un module, la facture défaite, l'argent dans
+# « À décider », le renouvellement compté par la règle de la facture.
+AJ1='un mois offert va sur la prochaine facture, qui couvre un mois de plus au même prix et le dit ; le support en offre un sur douze mois'
+AJ2='un paiement reçu hors de la plateforme dit sa preuve, case par case ; Paiements le compte dans l'"'"'encaissé de son jour, sous son moyen'
+AJ3='un module ouvert en cours se rattrape au prorata sur la prochaine facture ; retiré, il part au renouvellement ; l'"'"'échéance dit le chiffre de la facture'
+AJ4='une facture payée puis défaite par son avoir arrive dans « À décider » et dans Paiements : l'"'"'abonnement a couru sur elle'
+AJ5='la direction seule, pour les entreprises de la liste : payée puis défaite d'"'"'abord, puis ce qui attend d'"'"'être émis depuis deux jours, puis les trop-perçus'
+AJ6='la période et l'"'"'offre de la prochaine facture : la suite de l'"'"'échéance, ou aujourd'"'"'hui après la grâce ; rien pour ce qui ne se renouvelle pas'
+AJ7='ce qui s'"'"'ajoute à l'"'"'offre compte, chaque année ; le rattrapage d'"'"'un module ouvert en cours, une fois, sur la prochaine facture'
+AJ8='l'"'"'offre changée pour la prochaine échéance (0111) est celle que la facture portera'
+AJ9='un prix qui manque, une ligne illisible : rien, jamais un montant deviné'
+prouver 'le support qui offre un second mois dans l'"'"'année' 'base/migrations/0113_argent_juste.sql' \
+  '    if v_role = '"'"'support'"'"' and exists (select 1 from plateforme.evenement_abonnement v where v.entreprise = p_entreprise and v.nature = '"'"'mois_offert'"'"'' \
+  '    if false and exists (select 1 from plateforme.evenement_abonnement v where v.entreprise = p_entreprise and v.nature = '"'"'mois_offert'"'"'' \
+  "$AJ1"
+prouver 'une facture notée sans le mois offert qui l'"'"'attend' 'base/migrations/0113_argent_juste.sql' \
+  '  if not p_mois_offert and ((v_deja and v_f.mois_offert) or coalesce(v_a.mois_offerts, 0) = 1) then
+    perform socle.refus('"'"'un mois offert attend cette facture : elle le porte'"'"');
+  end if;
+' \
+  '' \
+  "$AJ1"
+prouver 'un mois offert qui attend encore après sa facture' 'base/migrations/0113_argent_juste.sql' \
+  '  if p_mois_offert and coalesce(v_a.mois_offerts, 0) = 1 then
+    update plateforme.abonnement set mois_offerts = 0' \
+  '  if false then
+    update plateforme.abonnement set mois_offerts = 0' \
+  "$AJ1"
+prouver 'la facture d'"'"'un mois offert qui couvre une période ordinaire' 'base/migrations/0113_argent_juste.sql' \
+  ' + case when p_mois_offert then 1 else 0 end))::date - 1;' \
+  '))::date - 1;' \
+  "$AJ1"
+prouver 'une facture qui tait son mois offert' 'serveur/abonnement/factures.ts' \
+  'o.moisOffert ? '"'"'abonnement.facture.periode_offert'"'"' : '"'"'abonnement.facture.periode'"'"'' \
+  ''"'"'abonnement.facture.periode'"'"'' \
+  "$AJ1"
+prouver 'un montant reçu à zéro accepté par le serveur' 'serveur/console/routes.ts' \
+  'if (montant === null || montant <= 0n || montant > 1_000_000_000_000n) return refusDuChamp('"'"'montant'"'"', '"'"'console.recu.montant'"'"');' \
+  'if (montant === null || montant > 1_000_000_000_000n) return refusDuChamp('"'"'montant'"'"', '"'"'console.recu.montant'"'"');' \
+  "$AJ2"
+prouver 'un jour de paiement qui n'"'"'existe pas au calendrier' 'serveur/console/routes.ts' \
+  'if (!/^\d{4}-\d{2}-\d{2}$/.test(le) || !jourExiste(le) || le > jour) return' \
+  'if (!/^\d{4}-\d{2}-\d{2}$/.test(le) || le > jour) return' \
+  "$AJ2"
+prouver 'un paiement sans sa preuve écrit par la base' 'base/migrations/0113_argent_juste.sql' \
+  '  if p_geste = '"'"'payer'"'"' then
+    if length(btrim(' \
+  '  if false then
+    if length(btrim(' \
+  "$AJ2"
+prouver 'un paiement reçu absent de Paiements' 'base/migrations/0113_argent_juste.sql' \
+  '                       where v.nature = '"'"'paye'"'"' and v.par = '"'"'exploitation'"'"' and v.apres->>'"'"'le'"'"'' \
+  '                       where false and v.nature = '"'"'paye'"'"' and v.par = '"'"'exploitation'"'"' and v.apres->>'"'"'le'"'"'' \
+  "$AJ2"
+prouver 'un paiement reçu hors de l'"'"'encaissé du mois' 'serveur/console/paiements.ts' \
+  ',
+    ...hors.map((h) => ({ montant: h.montant, devise: '"'"'TND'"'"', decimales: 3, moyen: h.moyen === '"'"'especes'"'"' ? '"'"'autre'"'"' as const : h.moyen }))];' \
+  '];' \
+  "$AJ2"
+prouver 'un module ouvert en cours qui ne se rattrape pas' 'base/migrations/0113_argent_juste.sql' \
+  '       and v.le > v_depuis and (v.le at time zone v_fuseau)::date <= v_fin' \
+  '       and false' \
+  "$AJ3"
+prouver 'le rattrapage compté sur toute la période' 'base/migrations/0113_argent_juste.sql' \
+  '    v_jours := v_fin - greatest(v_m.ouvert_le, v_debut) + 1;' \
+  '    v_jours := v_fin - v_debut + 1;' \
+  "$AJ3"
+prouver 'un module retiré encore compté sur la prochaine facture' 'base/migrations/0113_argent_juste.sql' \
+  'where not (m = any(coalesce(v_a.modules_a_retirer, '"'"'{}'"'"'))) order by m);' \
+  'where true order by m);' \
+  "$AJ3"
+prouver 'l'"'"'échéance qui dit l'"'"'offre seule' 'serveur/console/renouvellements.ts' \
+  'periodeHt: htDeLaPeriode(prixHt, enPlus, remise),' \
+  'periodeHt: htDeLaPeriode(prixHt, [], remise),' \
+  "$AJ3"
+prouver 'une facture défaite absente de Paiements' 'base/migrations/0113_argent_juste.sql' \
+  '                 where f.editeur = v_editeur and f.payee_le is not null
+' \
+  '                 where false and f.editeur = v_editeur and f.payee_le is not null
+' \
+  "$AJ4"
+prouver 'une facture défaite qu'"'"'« À décider » ne voit pas' 'serveur/console/routes.ts' \
+  'const argent = paiements ? argentADecider(paiements, liste, jour) : null;' \
+  'const argent = null;' \
+  "$AJ4"
+prouver 'l'"'"'argent de SkanFact montré au support' 'serveur/console/decider.ts' \
+  '  if (role === '"'"'direction'"'"' && argent) {' \
+  '  if (role !== '"'"'technique'"'"' && argent) {' \
+  "$AJ5"
+prouver 'le trop-perçu d'"'"'une autre entreprise sur la liste' 'serveur/console/decider.ts' \
+  '      if (ici.has(t.entreprise.id) && !defaites.has(t.piece)) lignes.push([3.5,' \
+  '      if (!defaites.has(t.piece)) lignes.push([3.5,' \
+  "$AJ5"
+prouver 'une facture préparée comptée au jour UTC' 'serveur/console/decider.ts' \
+  '      const le = aujourdhuiATunis(instant);' \
+  '      const le = instant.toISOString().slice(0, 10);' \
+  "$AJ5"
+prouver 'une facture préparée d'"'"'hier qui demande déjà un geste' 'serveur/console/decider.ts' \
+  '      if (jours >= A_EMETTRE_JOURS) lignes.push(' \
+  '      if (jours >= 1) lignes.push(' \
+  "$AJ5"
+prouver 'la facture défaite rangée après le reste' 'serveur/console/decider.ts' \
+  'lignes.push([1.5, 0, { sorte: '"'"'facture_defaite'"'"'' \
+  'lignes.push([3.9, 0, { sorte: '"'"'facture_defaite'"'"'' \
+  "$AJ5"
+prouver 'une facture défaite et son trop-perçu dits deux fois' 'serveur/console/decider.ts' \
+  '      if (ici.has(t.entreprise.id) && !defaites.has(t.piece)) lignes.push([3.5,' \
+  '      if (ici.has(t.entreprise.id)) lignes.push([3.5,' \
+  "$AJ5"
+prouver 'une facture défaite qui tait ce qui est à rendre' 'serveur/console/decider.ts' \
+  'cause: d.cause, trop: tropDe.get(d.piece) ?? null }]);' \
+  'cause: d.cause, trop: null }]);' \
+  "$AJ5"
+prouver 'une facture annulée par un avoir dite au règlement retiré' 'base/migrations/0113_argent_juste.sql' \
+  ''"'"'cause'"'"', case when s.avoirs >= p.net_a_payer then '"'"'avoir'"'"' else '"'"'reglement'"'"' end)' \
+  ''"'"'cause'"'"', '"'"'reglement'"'"')' \
+  "$AJ4"
+prouver 'une grâce qui ne se renouvelle pas' 'serveur/console/renouvellements.ts' \
+  '    : s.etat === '"'"'en_retard'"'"' || (s.etat === '"'"'lecture_seule'"'"' && s.raison === '"'"'non_renouvele'"'"') ? true : null;' \
+  '    : (s.etat === '"'"'lecture_seule'"'"' && s.raison === '"'"'non_renouvele'"'"') ? true : null;' \
+  "$AJ6"
+prouver 'le rattrapage compté chaque année' 'serveur/console/renouvellements.ts' \
+  '    const unePeriode = htDeLaPeriode(prixHt, enPlus, remise, true);' \
+  '    const unePeriode = htDeLaPeriode(prixHt, enPlus, remise, false);' \
+  "$AJ7"
+prouver 'ce qui s'"'"'ajoute oublié de la prochaine facture' 'serveur/console/renouvellements.ts' \
+  'periodeHt: htDeLaPeriode(prixHt, enPlus, remise),' \
+  'periodeHt: prixHt,' \
+  "$AJ7"
+prouver 'l'"'"'offre changée oubliée le jour où elle commence' 'serveur/console/renouvellements.ts' \
+  'debut >= f.offreSuivante.aPartirDu ?' \
+  'debut > f.offreSuivante.aPartirDu ?' \
+  "$AJ8"
+prouver 'un prix illisible lu quand même' 'serveur/console/renouvellements.ts' \
+  '    if (typeof r.prixHt !== '"'"'string'"'"' || !/^\d+$/.test(r.prixHt)) return [d.entreprise, null];' \
+  '    if (typeof r.prixHt !== '"'"'string'"'"') return [d.entreprise, null];' \
+  "$AJ9"
 prouver 'l'"'"'argent attendu compté dans ce que rapporte la sélection' 'serveur/console/clients.ts' \
   '    if (!p || p.attendu) continue;' \
   '    if (!p) continue;' \
@@ -11883,7 +12005,7 @@ prouver 'une pilule de membre qui ne filtre pas le journal' 'web/console/src/ecr
 # par la même fonction, et se relit après un geste.
 FI1='le support : de 7 à 30 jours, dit à sa place ; un clic à côté ne ferme pas la fenêtre ; la pastille se recompte'
 prouver 'la fiche qui ne dit pas ce qui attend pour son client' 'serveur/console/routes.ts' \
-  "const attend = aDecider(liste, { etat: 'absente' }, jour, role, support.ouvertes, maintenant());" \
+  "const attend = aDecider(liste, { etat: 'absente' }, jour, role, support.ouvertes, maintenant(), argent);" \
   'const attend: ReturnType<typeof aDecider> = [];' \
   "$FI1"
 prouver 'ce qui attend, dit avec le nom du client sur sa propre fiche' 'web/console/src/ecrans/Fiche.tsx' \
@@ -12192,31 +12314,13 @@ prouver "un geste des réglages sans libellé au journal" web/console/src/textes
   "  'console.ecran.journal.g.reglages.message_retire': 'message aux clients retiré',
 " "" \
   "$RG2"
-# Plusieurs gardes (la route, puis la base) : il faut toutes les retirer pour retrouver le défaut. La lecture en a cinq :
-# la route, la lecture des réglages, celle des entreprises (la grille compte les abonnés de chaque offre), celle des
-# formats officiels (0094) et celle de l'entreprise SkanFact (« Nos factures », 0097).
-# La route lit aussi les ajouts (0101), les prix préparés (0103), les règles de l'abonnement (0104), le contenu des
-# offres (0105) et les remises (0106), chacune gardée pour la direction et le support : la preuve les ouvre toutes, sinon la
-# technique reste refusée par une garde oubliée et le test ne peut plus tomber (vu le 14/10/2026, rouge de 1.17.0).
-prouver "la technique qui lit les réglages" "serveur/console/gestes.ts|||$R93|||base/migrations/0083_console.sql|||base/migrations/0094_formats.sql|||base/migrations/0097_nos_factures.sql|||base/migrations/0101_reglages_ajouts.sql|||base/migrations/0103_prix_prepares.sql|||base/migrations/0104_regles_abonnement.sql|||base/migrations/0105_contenu_offres.sql|||base/migrations/0106_remises.sql" \
-  "{ code: 'console.reglages.voir', roles: [D, S], ecrit: false },|||v_role text := plateforme.exiger_role_console(array['direction', 'support']);|||  perform plateforme.exiger_role_console(array['direction', 'support']);
-  return (select coalesce(jsonb_agg(jsonb_build_object(
-      'id', e.id, 'raisonSociale'|||  perform plateforme.exiger_role_console(array['direction', 'support']);
-  return jsonb_build_object(
-    -- Soumises|||  perform plateforme.exiger_role_console(array['direction', 'support']);
-  return jsonb_build_object(
-    'editeur'|||  v_role text := plateforme.exiger_role_console(array['direction', 'support']);|||declare v_role text := plateforme.exiger_role_console(array['direction', 'support']);|||declare v_role text := plateforme.exiger_role_console(array['direction', 'support']);|||declare v_role text := plateforme.exiger_role_console(array['direction', 'support']);|||create function plateforme.console_remises(p_jour date) returns jsonb
-language plpgsql stable security definer set search_path = pg_catalog, socle, plateforme as \$\$
-declare v_role text := plateforme.exiger_role_console(array['direction', 'support']);" \
-  "{ code: 'console.reglages.voir', roles: [D, S, T], ecrit: false },|||v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);|||  perform plateforme.exiger_role_console(array['direction', 'support', 'technique']);
-  return (select coalesce(jsonb_agg(jsonb_build_object(
-      'id', e.id, 'raisonSociale'|||  perform plateforme.exiger_role_console(array['direction', 'support', 'technique']);
-  return jsonb_build_object(
-    -- Soumises|||  perform plateforme.exiger_role_console(array['direction', 'support', 'technique']);
-  return jsonb_build_object(
-    'editeur'|||  v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);|||declare v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);|||declare v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);|||declare v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);|||create function plateforme.console_remises(p_jour date) returns jsonb
-language plpgsql stable security definer set search_path = pg_catalog, socle, plateforme as \$\$
-declare v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);" \
+# Plusieurs gardes (la route, puis la base) : il faut toutes les retirer pour retrouver le défaut. La route lit une dizaine
+# de fonctions, chacune gardée pour la direction et le support : le défaut se pose dans leur garde commune
+# (exiger_role_console, 0083), sinon une garde neuve laisse la technique refusée et le test ne peut plus tomber (rouges de
+# 1.17.0 et de 1.19.0).
+prouver "la technique qui lit les réglages" "serveur/console/gestes.ts|||base/migrations/0083_console.sql" \
+  "{ code: 'console.reglages.voir', roles: [D, S], ecrit: false },|||  if not (v = any(p_roles)) then perform" \
+  "{ code: 'console.reglages.voir', roles: [D, S, T], ecrit: false },|||  if not (v = any(p_roles) or (v = 'technique' and 'support' = any(p_roles))) then perform" \
   "$RG3"
 prouver "le support qui écrit un message aux clients" "serveur/console/gestes.ts|||$R93" \
   "{ code: 'console.reglages.gerer', roles: [D], ecrit: true },|||v_role text := plateforme.exiger_role_console(array['direction']); v_id uuid; v_texte" \
@@ -12800,23 +12904,23 @@ prouver 'l'"'"'entreprise SkanFact qui change après une facture préparée' 'ba
 prouver 'une facture préparée par qui n'"'"'est pas propriétaire de l'"'"'entreprise SkanFact' 'base/migrations/0097_nos_factures.sql' \
   '  if not exists (select 1 from socle.membre m where m.entreprise = v and m.utilisateur = socle.moi() and m.actif and '"'"'proprietaire'"'"' = any(m.roles)) then' '  if false then' \
   "$NF2"
-prouver 'la préparation d'"'"'une facture au journal en « période payée »' 'base/migrations/0106_remises.sql' \
+prouver 'la préparation d'"'"'une facture au journal en « période payée »' 'base/migrations/0113_argent_juste.sql' \
   ''"'"'factureDu'"'"', p_debut, '"'"'factureAu'"'"', p_fin,' ''"'"'debut'"'"', p_debut, '"'"'fin'"'"', p_fin,' \
   "$NF2"
 prouver 'une facture préparée deux fois pour la même période' 'serveur/abonnement/factures.ts' \
   '  if (deja) {' '  if (false && deja) {' \
   "$NF2"
-prouver 'une facture réglée en partie qui paie l'"'"'abonnement' 'base/migrations/0097_nos_factures.sql' \
+prouver 'une facture réglée en partie qui paie l'"'"'abonnement' 'base/migrations/0113_argent_juste.sql' \
   '  if v_p.net_a_payer <= 0 or v_avoirs >= v_p.net_a_payer or v_p.net_a_payer - v_avoirs - v_reglements > 0 then return null; end if;' '  if v_p.net_a_payer <= 0 or v_avoirs >= v_p.net_a_payer then return null; end if;' \
   "$NF3"
-prouver 'une facture que son avoir annule et qui paie l'"'"'abonnement' 'base/migrations/0097_nos_factures.sql' \
+prouver 'une facture que son avoir annule et qui paie l'"'"'abonnement' 'base/migrations/0113_argent_juste.sql' \
   '  if v_p.net_a_payer <= 0 or v_avoirs >= v_p.net_a_payer or v_p.net_a_payer - v_avoirs - v_reglements > 0 then return null; end if;' '  if v_p.net_a_payer <= 0 or v_p.net_a_payer - v_avoirs - v_reglements > 0 then return null; end if;' \
   "$NF4"
 prouver 'une facture d'"'"'abonnement réglée qui ne paie rien' 'serveur/v10/dossier.ts' \
   '  if (paiements.length && cle.startsWith('"'"'abonnement-'"'"')) await tx.query('"'"'select plateforme.abonnement_paye_par_facture($1, $2)'"'"', [entreprise, cle]);
 ' '' \
   "$NF3"
-prouver 'une facture réglée qui paie l'"'"'abonnement deux fois' 'base/migrations/0097_nos_factures.sql|||base/migrations/0097_nos_factures.sql' \
+prouver 'une facture réglée qui paie l'"'"'abonnement deux fois' 'base/migrations/0113_argent_juste.sql|||base/migrations/0113_argent_juste.sql' \
   '  if not found or v_f.payee_le is not null then return null; end if;|||  if not found or (v_ligne.paye_jusqu_au is not null and v_ligne.paye_jusqu_au >= v_f.fin) then return null; end if;' '  if not found then return null; end if;|||  if not found then return null; end if;' \
   "$NF3"
 
@@ -12937,11 +13041,11 @@ prouver 'un module acheté sur Complet, qui le contient déjà' serveur/abonneme
   "      if (avant.offre === 'complet') throw new Refus('abonnement.geste.module_complet');
 " '' \
   "$OC1"
-prouver 'la ligne d'"'"'abonnement lue sans ses modules' base/migrations/0111_gestes_abonnement.sql \
+prouver 'la ligne d'"'"'abonnement lue sans ses modules' base/migrations/0113_argent_juste.sql \
   "'offert', a.offert, 'modules', to_jsonb(a.modules)," "'offert', a.offert," \
   "$OC1"
 prouver 'l'"'"'aperçu d'"'"'un module qui ne dit pas les modules d'"'"'après' serveur/console/routes.ts \
-  'apres: etatApres, details, modules: apres.modules } };' 'apres: etatApres, details } };' \
+  'apres: etatApres, details, modules: apres.modules, modulesARetirer: apres.modules_a_retirer ?? [] } };' 'apres: etatApres, details } };' \
   "$OC1"
 prouver 'les prix des ajouts cachés au client' serveur/abonnement/routes.ts \
   'etat, prix, options, aVenir, historique,' 'etat, prix, aVenir, historique,' \
@@ -12956,14 +13060,14 @@ prouver 'un salarié sorti compté sur la facture' base/migrations/0102_utilisat
   "and d.collection = 'employees'
                    and coalesce(nullif(d.contenu->>'endDate', ''), '9999-12-31') >= to_char(p_jour, 'YYYY-MM-DD'))::int," "and d.collection = 'employees')::int," \
   "$OC2"
-prouver 'un total que la base ne rejoue pas' base/migrations/0106_remises.sql \
+prouver 'un total que la base ne rejoue pas' base/migrations/0113_argent_juste.sql \
   "  if v_prix is null or v_brut - v_remise_ht <> p_montant_ht then" "  if v_prix is null or v_prix > p_montant_ht then" \
   "$OC2"
 prouver 'les ajouts absents de la pièce' serveur/abonnement/factures.ts \
   '    }, ...enPlus],' '    }],' \
   "$OC2"
 prouver 'la console qui ne propose pas le module acheté seul' serveur/console/routes.ts \
-  "  if (!f.offert && ligne.offre !== 'complet' && ligne.modules.length < 2) g.push('ouvrir-module');
+  "  if (!f.offert && ligne.offre !== 'complet' && (ligne.modules.length < 2 || partent.length > 0)) g.push('ouvrir-module');
 " '' \
   "$OCW"
 prouver 'la carte Essentiel qui ignore la paie achetée' web/public/plateforme/abonnement.js \
@@ -13071,10 +13175,10 @@ prouver 'la plus ancienne règle de l'"'"'abonnement prise pour celle du jour' b
    order by r.a_partir_du desc, r.le desc, r.id desc limit 1' '  select r.jours from plateforme.regle_abonnement r where r.code = p_code and r.a_partir_du <= p_jour
    order by r.a_partir_du, r.le, r.id limit 1' \
   "$PX2"
-prouver 'les lignes en plus au prix du jour de la préparation' base/migrations/0105_contenu_offres.sql \
+prouver 'les lignes en plus au prix du jour de la préparation' base/migrations/0113_argent_juste.sql \
   'p.periodicite = p_periodicite and p.a_partir_du <= p_prix_au order by' 'p.periodicite = p_periodicite and p.a_partir_du <= p_jour order by' \
   "$PX3"
-prouver 'une facture rejouée au prix du jour de la préparation' base/migrations/0106_remises.sql \
+prouver 'une facture rejouée au prix du jour de la préparation' base/migrations/0113_argent_juste.sql \
   '   where x.offre = p_offre and x.periodicite = p_periodicite and x.a_partir_du <= p_debut order by x.a_partir_du desc limit 1;
   v_lignes := plateforme.lignes_en_plus(p_entreprise, p_offre, p_periodicite, p_jour, p_debut);' '   where x.offre = p_offre and x.periodicite = p_periodicite and x.a_partir_du <= p_jour order by x.a_partir_du desc limit 1;
   v_lignes := plateforme.lignes_en_plus(p_entreprise, p_offre, p_periodicite, p_jour, p_jour);' \
@@ -13272,10 +13376,8 @@ prouver 'le motif d'"'"'un changement lu par le client' base/migrations/0105_con
 prouver '« Ton abonnement » sans ce que les offres comprennent' serveur/abonnement/routes.ts \
   'regles: reglesPourMoi(f, historique, jour), contenu, fermes:' 'regles: reglesPourMoi(f, historique, jour), fermes:' \
   "$CTC1"
-prouver 'la facture comptée au contenu d'"'"'aujourd'"'"'hui' base/migrations/0105_contenu_offres.sql \
-  '  v_contenu jsonb := plateforme.contenu_du_jour(p_offre, p_prix_au);
-  v_inclus jsonb := plateforme.inclus_de_l_offre(p_offre, v_modules, p_prix_au);' '  v_contenu jsonb := plateforme.contenu_du_jour(p_offre, p_jour);
-  v_inclus jsonb := plateforme.inclus_de_l_offre(p_offre, v_modules, p_jour);' \
+prouver 'la facture comptée au contenu d'"'"'aujourd'"'"'hui' base/migrations/0113_argent_juste.sql \
+  '  v_contenu jsonb := plateforme.contenu_du_jour(p_offre, p_prix_au);|||  v_inclus := plateforme.inclus_de_l_offre(p_offre, v_modules, p_prix_au);' '  v_contenu jsonb := plateforme.contenu_du_jour(p_offre, p_jour);|||  v_inclus := plateforme.inclus_de_l_offre(p_offre, v_modules, p_jour);' \
   "$CTC2"
 prouver 'la porte qui lit le contenu du jour au milieu d'"'"'une période' serveur/abonnement/offre.ts \
   '  const au = debutDeLaPeriode(f) ?? jour;' '  const au = jour;' \
@@ -13421,7 +13523,7 @@ prouver 'la remise du groupe toujours, même plus faible' base/migrations/0106_r
 prouver 'le dernier jour de la remise du cabinet compté un jour trop loin' base/migrations/0106_remises.sql \
   ''"'"'jusquAu'"'"', v_fin - 1);' ''"'"'jusquAu'"'"', v_fin);' \
   "$RM3"
-prouver 'la base qui rejoue la facture sans sa remise' base/migrations/0106_remises.sql \
+prouver 'la base qui rejoue la facture sans sa remise' base/migrations/0113_argent_juste.sql \
   '  if v_prix is null or v_brut - v_remise_ht <> p_montant_ht then' '  if v_prix is null or v_brut <> p_montant_ht then' \
   "$RM4"
 prouver 'l'"'"'aperçu de la facture sans la remise' serveur/console/routes.ts \
@@ -13454,11 +13556,11 @@ prouver 'une remise au-delà de 90 % lue' serveur/console/reglages.ts \
 prouver 'la fiche sans son groupe' serveur/console/routes.ts \
   'groupe: { ...groupe, prochaine }, ' '' \
   "$RMF"
-prouver 'les échéances sans la remise' serveur/console/echeances.ts \
-  '    const remise = m === null ? undefined : remises.get(e.id);' '    const remise = undefined as Remise | undefined;' \
+prouver 'les échéances sans la remise' serveur/console/renouvellements.ts \
+  '      periodeHt: htDeLaPeriode(prixHt, enPlus, remise), ' '      periodeHt: htDeLaPeriode(prixHt, enPlus, null), ' \
   "$RME"
-prouver 'le revenu annuel sans la remise' serveur/console/echeances.ts \
-  '    const p = apresRemise(brut, remises.get(l.entreprise.id));' '    const p = brut;' \
+prouver 'le revenu annuel sans la remise' serveur/console/renouvellements.ts \
+  '    const unePeriode = htDeLaPeriode(prixHt, enPlus, remise, true);' '    const unePeriode = htDeLaPeriode(prixHt, enPlus, null, true);' \
   "$RME"
 prouver 'la durée remplie d'"'"'avance : choisir la remise du cabinet passe pour taper' web/console/src/ecrans/Reglages.tsx \
   '  const [mois, setMois] = useState('"'"''"'"');' '  const [mois, setMois] = useState(String(d.remises.duJour.cabinet?.mois ?? 12));' \
@@ -13507,11 +13609,11 @@ prouver 'un client venu par son cabinet après son premier paiement' base/migrat
 prouver 'un mandat seulement proposé qui fait une venue' base/migrations/0107_venues_par_cabinet.sql \
   'd.statut in ('"'"'actif'"'"', '"'"'termine'"'"')' 'd.statut in ('"'"'actif'"'"', '"'"'termine'"'"', '"'"'propose'"'"')' \
   "$RM3"
-prouver '« par an » sans la remise' serveur/console/clients.ts \
-  '    const p = e.remise ? brut - montantRemise(brut, e.remise.taux) : brut;' '    const p = brut;' \
+prouver '« par an » sans la remise' serveur/console/renouvellements.ts \
+  '    const unePeriode = htDeLaPeriode(prixHt, enPlus, remise, true);' '    const unePeriode = htDeLaPeriode(prixHt, enPlus, null, true);' \
   "$CL2"
-prouver '« par an » remisé une fois sur douze au mois' serveur/console/clients.ts \
-  '    return periodicite === '"'"'mensuel'"'"' ? p * 12n : p;' '    return periodicite === '"'"'mensuel'"'"' ? brut * 12n - (brut - p) : p;' \
+prouver '« par an » remisé une fois sur douze au mois' serveur/console/renouvellements.ts \
+  'parAnHt: d.periodicite === '"'"'mensuel'"'"' ? unePeriode * 12n : unePeriode }];' 'parAnHt: d.periodicite === '"'"'mensuel'"'"' ? htDeLaPeriode(prixHt, enPlus, null, true) * 11n + unePeriode : unePeriode }];' \
   "$CL2"
 
 # Les paiements de nos factures et les coûts du mois (0108 ; docs/console.md C30 ; 1.17.0).
@@ -13531,7 +13633,7 @@ PW1='la direction seule : le support n'"'"'a ni l'"'"'entrée « Paiements » ni
 PW2='la tuile de l'"'"'accueil et le bandeau disent le même encaissé ; la facture qui doit encore mène à sa pièce'
 PW3='un coût : la case refusée se montre ; saisi, ce qui reste du mois se dit ; retiré, il reste barré'
 PW4='d'"'"'un mois à l'"'"'autre, les boutons ne bougent pas sous la souris ; au téléphone, rien ne déborde'
-prouver 'le support qui lit les paiements (le droit du serveur et la base)' 'serveur/console/gestes.ts|||base/migrations/0108_paiements.sql' \
+prouver 'le support qui lit les paiements (le droit du serveur et la base)' 'serveur/console/gestes.ts|||base/migrations/0113_argent_juste.sql' \
   '  { code: '"'"'console.paiements.voir'"'"', roles: [D], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);
   v_editeur uuid;' '  { code: '"'"'console.paiements.voir'"'"', roles: [D, S], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
   v_editeur uuid;' \
@@ -13542,25 +13644,30 @@ prouver 'la tuile de l'"'"'encaissé montrée au support' serveur/console/routes
 prouver 'la tuile qui compte autre chose que l'"'"'écran' serveur/console/paiements.ts \
   '  return { mesure: true, montant: versTexte(e.total, e.decimales), devise: e.devise, reglements: e.reglements };' '  return { mesure: true, montant: versTexte(e.parMoyen.virement, e.decimales), devise: e.devise, reglements: e.reglements };' \
   "$PA3"
+prouver 'un paiement reçu compté dans l'"'"'encaissé d'"'"'une autre entreprise SkanFact' 'base/migrations/0113_argent_juste.sql' \
+  'v_debut and v_fin
+                         and v.apres->>'"'"'editeur'"'"' = v_editeur::text),' \
+  'v_debut and v_fin),' \
+  "$PA3"
 prouver 'une autre devise additionnée au dinar' serveur/console/paiements.ts \
   '    if (r.devise !== editeur.devise) {' '    if (r.devise === '"'"'XXX'"'"') {' \
   "$PA9"
 prouver '« en ligne » cru Konnect sans la preuve' serveur/console/paiements.ts \
   '  if (mode === '"'"'en_ligne'"'"') return prouve ? '"'"'konnect'"'"' : '"'"'autre'"'"';' '  if (mode === '"'"'en_ligne'"'"') return '"'"'konnect'"'"';' \
   "$PA10"
-prouver 'la preuve d'"'"'un autre paiement en ligne qui vaut pour tous' base/migrations/0108_paiements.sql \
+prouver 'la preuve d'"'"'un autre paiement en ligne qui vaut pour tous' base/migrations/0113_argent_juste.sql \
   ' and l.reglement_v10 = r.ref_v10))' '))' \
   "$PA4"
-prouver 'les règlements de tous les mois dans celui-ci' base/migrations/0108_paiements.sql \
+prouver 'les règlements de tous les mois dans celui-ci' base/migrations/0113_argent_juste.sql \
   '               where f.editeur = v_editeur and r.date_reglement between v_debut and v_fin),' '               where f.editeur = v_editeur),' \
   "$PA4"
-prouver 'le trop payé jamais relu' base/migrations/0108_paiements.sql \
+prouver 'le trop payé jamais relu' base/migrations/0113_argent_juste.sql \
   '                         - (select coalesce(sum(r.montant), 0) from ventes.reglement r where r.entreprise = p.entreprise and r.piece = p.id) <> 0) x),' '                         - (select coalesce(sum(r.montant), 0) from ventes.reglement r where r.entreprise = p.entreprise and r.piece = p.id) > 0) x),' \
   "$PA5"
 prouver 'une facture annulée réglée dite simplement trop payée' serveur/console/paiements.ts \
   '    if (enTrop > 0n) trop.push({ ...base, trop: versTexte(enTrop, o.decimales), annulee: o.net > 0n && solde.credite >= o.net });' '    if (enTrop > 0n) trop.push({ ...base, trop: versTexte(enTrop, o.decimales), annulee: false });' \
   "$PA11"
-prouver 'une facture émise dite à émettre' base/migrations/0108_paiements.sql \
+prouver 'une facture émise dite à émettre' base/migrations/0113_argent_juste.sql \
   '                   and not exists (select 1 from ventes.piece p where p.entreprise = f.editeur and p.ref_v10 = f.piece_v10' '                   and exists (select 1 from ventes.piece p where p.entreprise = f.editeur and p.ref_v10 = f.piece_v10' \
   "$PA6"
 prouver 'un nom de coût refusé sans nommer sa case' serveur/console/routes.ts \
@@ -13680,11 +13787,11 @@ prouver 'le journal d'"'"'un export qui perd ses filtres' 'base/migrations/0110_
   ''"'"'filtres'"'"', coalesce(p_filtres, '"'"'{}'"'"'::jsonb)' \
   ''"'"'filtres'"'"', '"'"'{}'"'"'::jsonb' \
   "$CL1"
-prouver 'un essai déjà prolongé que le menu du support propose encore de prolonger' 'base/migrations/0110_clients.sql' \
+prouver 'un essai déjà prolongé que le menu du support propose encore de prolonger' 'base/migrations/0113_argent_juste.sql' \
   ''"'"'prolongeUneFois'"'"', exists (' \
   ''"'"'prolongeUneFois'"'"', false and exists (' \
   "$CL1"
-prouver 'la durée d'"'"'un essai lue de sa fin d'"'"'aujourd'"'"'hui' 'base/migrations/0110_clients.sql' \
+prouver 'la durée d'"'"'un essai lue de sa fin d'"'"'aujourd'"'"'hui' 'base/migrations/0113_argent_juste.sql' \
   'select (v.apres ->> '"'"'essaiJusquAu'"'"')::date - (v.le at time zone e.fuseau)::date from' \
   'select (select a.essai_jusqu_au from plateforme.abonnement a where a.entreprise = e.id) - (v.le at time zone e.fuseau)::date from' \
   "$CL1"
@@ -13719,6 +13826,10 @@ prouver 'une option d'"'"'offre qui compte toute la liste' 'serveur/console/clie
 prouver 'le menu d'"'"'une ligne qui propose payer, offrir et les modules' 'serveur/console/routes.ts' \
   '  return GESTES_DE_LA_LISTE.filter((g) => permis.includes(g));' \
   '  return permis;' \
+  "$CL5"
+prouver 'le support à qui la liste propose un second mois dans l'"'"'année' 'serveur/console/routes.ts' \
+  '...(moisPossible && !moisOffertRecent ? ['"'"'offrir-mois'"'"' as const] : [])' \
+  '...(moisPossible ? ['"'"'offrir-mois'"'"' as const] : [])' \
   "$CL5"
 prouver 'la date d'"'"'une échéance écrite deux fois sur sa ligne' 'web/console/src/ecrans/Clients.tsx' \
   'e.vues.includes('"'"'a_appeler'"'"') ? `${dire(`${N}.fin_essai`)} · ${dire(`${N}.rien_fait`)}`' \
@@ -13764,7 +13875,7 @@ CCO3='la recherche lit la ligne et ses sociétés : la ville, un numéro de soci
 CCO4='ce qu'"'"'une ligne rapporte est la somme de ses sociétés, payé et attendu à part ; son usage, la somme des pièces du mois'
 CCG1='un délai ne vaut que pour son échéance, et jamais pour raccourcir la grâce'
 CCG2='de 1 à 60 jours, en grâce ou en lecture seule après une échéance manquée ; jamais sur un abonné qui court ni une suspension'
-CCG3='à un abonné qui court seulement : ni un essai, ni une résiliation qui court à sa fin'
+CCG3='un seul mois attend à la fois ; ni un essai, ni une résiliation, ni une suspension'
 CCG4='à la prochaine échéance ; revenir à l'"'"'offre qui court efface le changement prévu'
 CLW5='noter un appel depuis le menu : la fenêtre s'"'"'ouvre sur la liste, puis la fiche dit le dernier échange et la note'
 prouver 'une note d'"'"'appel au journal sans motif' 'base/migrations/0110_clients.sql' \
@@ -13804,9 +13915,10 @@ prouver 'un délai de plus de soixante jours' 'serveur/abonnement/gestes.ts' \
   'jours < 1 || jours > 365)' \
   "$CCG2"
 prouver 'un mois offert à une résiliation' 'serveur/abonnement/gestes.ts' \
-  '      if (avant.resilie_le) throw new Refus('"'"'abonnement.geste.mois_resilie'"'"');
+  '      if (avant.resilie_le || avant.suspendu_le) throw new Refus('"'"'abonnement.geste.mois_resilie'"'"');
 ' \
-  '' \
+  '      if (avant.suspendu_le) throw new Refus('"'"'abonnement.geste.mois_resilie'"'"');
+' \
   "$CCG3"
 prouver 'un changement d'"'"'offre que l'"'"'histoire dit fait tout de suite' 'serveur/abonnement/gestes.ts' \
   '      details.aPartirDu = aPartirDu;' \
@@ -13816,6 +13928,104 @@ prouver 'un changement d'"'"'offre tout de suite au lieu de l'"'"'échéance' 's
   '      const aPartirDu = plusJours(echeance, 1);' \
   '      const aPartirDu = jour;' \
   "$CCG4"
+# Le mois offert, le paiement reçu, le module qui part (0113) : chaque règle du geste, et les délais de 0111.
+CCG5='sur la prochaine facture, qui couvre un mois de calendrier de plus au même prix ; rien ne s'"'"'allonge avant elle'
+CCG6='dit sa preuve, et la garde dans son histoire ; sans elle, rien n'"'"'est payé'
+CCG7='consomme le mois offert qui l'"'"'attendait : la période couvre un mois de plus'
+CCG8='applique le renouvellement : le module qui partait part, l'"'"'offre changée ne se redit plus'
+CCG9='retiré pendant une période payée, il reste jusqu'"'"'à sa fin et part le lendemain ; sans période payée, tout de suite'
+CCG10='rouvert avant de partir : le retrait prévu s'"'"'annule, ce n'"'"'est pas un achat'
+CCG11='en grâce : la lecture seule recule de ces jours, à partir de son jour prévu'
+CCG12='en lecture seule après l'"'"'essai : tout se rouvre aujourd'"'"'hui, jusqu'"'"'au dernier de ces jours'
+CCG13='jamais sans offre, ni sur une résiliation, ni pour l'"'"'offre qui court déjà'
+prouver 'un mois offert qui annonce la période sans le mois' 'serveur/abonnement/gestes.ts' \
+  '      const p = prochainePeriode(faits, periodicite, jour, true);' \
+  '      const p = prochainePeriode(faits, periodicite, jour, false);' \
+  "$CCG5"
+prouver 'un mois offert qui allonge la période payée tout de suite' 'serveur/abonnement/gestes.ts' \
+  '      apres.mois_offerts = 1;
+' \
+  '      Object.assign(apres, { mois_offerts: 1, paye_jusqu_au: prochainePeriode(faits, avant.periodicite, jour, true).fin });
+' \
+  "$CCG5"
+prouver 'un paiement reçu sans sa preuve' 'serveur/abonnement/gestes.ts' \
+  '      if (!d.apercu && (!r ||' \
+  '      if (false && (!r ||' \
+  "$CCG6"
+prouver 'l'"'"'aperçu d'"'"'un paiement qui exige la preuve' 'serveur/abonnement/gestes.ts' \
+  '      if (!d.apercu && (!r ||' \
+  '      if ((!r ||' \
+  "$CCG6"
+prouver 'un numéro de facture de plus de quarante caractères' 'serveur/abonnement/gestes.ts' \
+  '!r.facture.trim() || r.facture.trim().length > 40 ||' \
+  '!r.facture.trim() ||' \
+  "$CCG6"
+prouver 'un paiement reçu d'"'"'un jour à venir' 'serveur/abonnement/gestes.ts' \
+  ' || r.le > jour)) throw' \
+  ')) throw' \
+  "$CCG6"
+prouver 'la preuve d'"'"'un paiement qui manque à son histoire' 'serveur/abonnement/gestes.ts' \
+  '...(r ? { facture: r.facture.trim(), montant: r.montant.toString(), moyen: r.moyen, le: r.le } : {}),' \
+  '' \
+  "$CCG6"
+prouver 'un paiement qui laisse le mois offert attendre encore' 'serveur/abonnement/gestes.ts' \
+  'resilie_le: null, ...(offert ? { mois_offerts: 0 } : {}) });' \
+  'resilie_le: null });' \
+  "$CCG7"
+prouver 'un paiement qui oublie le mois offert' 'serveur/abonnement/gestes.ts' \
+  '      const p = prochainePeriode(faits, d.periodicite, jour, offert);' \
+  '      const p = prochainePeriode(faits, d.periodicite, jour, false);' \
+  "$CCG7"
+prouver 'un renouvellement qui garde le module qui partait' 'serveur/abonnement/gestes.ts' \
+  '  apres.modules = apres.modules.filter((m) => !partent.includes(m));
+' \
+  '' \
+  "$CCG8"
+prouver 'l'"'"'offre changée qui se redit le jour où elle commence' 'serveur/abonnement/gestes.ts' \
+  'debut >= apres.suivante_a_partir_du)' \
+  'debut > apres.suivante_a_partir_du)' \
+  "$CCG8"
+prouver 'un module retiré tout de suite pendant une période payée' 'serveur/abonnement/gestes.ts' \
+  '      if (e.etat === '"'"'actif'"'"') {
+        apres.modules_a_retirer' \
+  '      if (false) {
+        apres.modules_a_retirer' \
+  "$CCG9"
+prouver 'un module qui part le dernier jour payé' 'serveur/abonnement/gestes.ts' \
+  'auRenouvellement: plusJours(e.jusquAu, 1) });' \
+  'auRenouvellement: e.jusquAu });' \
+  "$CCG9"
+prouver 'un module retiré deux fois' 'serveur/abonnement/gestes.ts' \
+  '      if (partent.includes(d.module)) throw new Refus('"'"'abonnement.geste.module_part_deja'"'"'' \
+  '      if (false) throw new Refus('"'"'abonnement.geste.module_part_deja'"'"'' \
+  "$CCG9"
+prouver 'un module rouvert qui garde son retrait prévu' 'serveur/abonnement/gestes.ts' \
+  '        apres.modules_a_retirer = partent.filter((m) => m !== d.module);
+' \
+  '' \
+  "$CCG10"
+prouver 'un module qui part, rouvert comme s'"'"'il était déjà là' 'serveur/abonnement/gestes.ts' \
+  '      if (avant.modules.includes(d.module) && partent.includes(d.module)) {' \
+  '      if (false) {' \
+  "$CCG10"
+prouver 'un délai en grâce compté depuis aujourd'"'"'hui' 'serveur/abonnement/gestes.ts' \
+  '      const depuis = e.etat === '"'"'en_retard'"'"' ? plusJours(e.lectureSeuleLe, -1) : plusJours(jour, -1);' \
+  '      const depuis = e.etat === '"'"'en_retard'"'"' ? plusJours(jour, -1) : plusJours(jour, -1);' \
+  "$CCG11"
+prouver 'un délai en lecture seule qui donne un jour de trop' 'serveur/abonnement/gestes.ts' \
+  '      const depuis = e.etat === '"'"'en_retard'"'"' ? plusJours(e.lectureSeuleLe, -1) : plusJours(jour, -1);' \
+  '      const depuis = e.etat === '"'"'en_retard'"'"' ? plusJours(e.lectureSeuleLe, -1) : jour;' \
+  "$CCG12"
+prouver 'un changement d'"'"'offre sur une résiliation' 'serveur/abonnement/gestes.ts' \
+  '      if (avant.resilie_le) throw new Refus('"'"'abonnement.geste.changer_resilie'"'"');
+' \
+  '' \
+  "$CCG13"
+prouver 'un changement vers l'"'"'offre qui court déjà' 'serveur/abonnement/gestes.ts' \
+  '      if (memes && !avant.suivante_offre) throw new Refus('"'"'abonnement.geste.changer_meme'"'"');
+' \
+  '' \
+  "$CCG13"
 prouver 'la reprise confirmée par qui l'"'"'a ouverte' 'base/migrations/0112_reprise.sql' \
   '  if r.ouverte_par = socle.moi() then' \
   '  if false then' \

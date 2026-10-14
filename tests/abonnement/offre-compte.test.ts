@@ -28,6 +28,9 @@ import { routesV10 } from '../../serveur/v10/routes.ts';
 import { declarerGestesVentes } from '../../serveur/ventes/gestes.ts';
 import { routesVentes } from '../../serveur/ventes/routes.ts';
 
+// La preuve d'un paiement reçu hors de la plateforme (0113), telle que la console la tape.
+const RECU_CONSOLE = { facture: 'F-2020-001', montant: '390', moyen: 'virement', le: '2020-01-01' };
+
 const MDP = 'Un-bon-mot-de-passe';
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 const pool = creerPool(inject('pgApp'));
@@ -91,7 +94,7 @@ describe('ce que l\'offre compte', () => {
   it('un module acheté seul sur Essentiel : la direction l\'ouvre avec son motif, il s\'ouvre chez le client, et se retire ; Complet le contient déjà', async () => {
     const p = await inscrire('nadia');
     const ent = String((await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'Atelier Modules' })).corps.id);
-    expect((await geste(ent, 'payer', { motif: 'virement reçu', ligne: await ligneDe(ent), offre: 'essentiel', periodicite: 'annuel' })).statut).toBe(200);
+    expect((await geste(ent, 'payer', { paiement: RECU_CONSOLE, motif: 'virement reçu', ligne: await ligneDe(ent), offre: 'essentiel', periodicite: 'annuel' })).statut).toBe(200);
     expect(await fermes(ent, p.jeton)).toEqual(['paie', 'compta']);
     // Sans motif, rien ; puis la paie, achetée seule.
     expect((await geste(ent, 'ouvrir-module', { motif: '', ligne: await ligneDe(ent), module: 'paie' })).statut).toBe(400);
@@ -120,11 +123,13 @@ describe('ce que l\'offre compte', () => {
     expect(options.map((o) => o.option)).not.toContain('utilisateur');
     expect(options).toContainEqual({ option: 'salarie', periodicite: 'mensuel', montantHt: '1.200' });
     expect(JSON.stringify(histoire)).not.toContain('commande de la paie');
-    // Retiré : la paie se referme à la création.
+    // Retirée pendant une période payée (0113) : la paie reste ouverte jusqu'à son renouvellement, puis part ; rien n'est
+    // perdu, rien n'est à rembourser.
     expect((await geste(ent, 'fermer-module', { motif: 'paie arrêtée', ligne: await ligneDe(ent), module: 'paie' })).statut).toBe(200);
-    expect(await fermes(ent, p.jeton)).toEqual(['paie', 'compta']);
+    expect(await fermes(ent, p.jeton)).toEqual(['compta']);
+    expect(await ligneDe(ent)).toMatchObject({ modules: ['paie'], modules_a_retirer: ['paie'] });
     // Complet : rien à acheter.
-    expect((await geste(ent, 'payer', { motif: 'passe à Complet', ligne: await ligneDe(ent), offre: 'complet', periodicite: 'annuel' })).statut).toBe(200);
+    expect((await geste(ent, 'payer', { paiement: RECU_CONSOLE, motif: 'passe à Complet', ligne: await ligneDe(ent), offre: 'complet', periodicite: 'annuel' })).statut).toBe(200);
     const complet = await geste(ent, 'ouvrir-module', { motif: 'la compta', ligne: await ligneDe(ent), module: 'compta' });
     expect(complet.statut).toBe(403);
     expect(String(complet.corps.motif)).toMatch(/Complet contient déjà/);
@@ -173,7 +178,7 @@ describe('ce que l\'offre compte', () => {
     try {
       await k.query('begin');
       await k.query("select set_config('app.utilisateur', $1, true), set_config('app.session_console', $2, true)", [session.utilisateur, session.id]);
-      await expect(k.query('select plateforme.console_noter_facture($1, $2, $3, $4, $5, $6::date, $7::date, $8::bigint, $9, $10::date)',
+      await expect(k.query('select plateforme.console_noter_facture($1, $2, $3, $4, $5, $6::date, $7::date, $8::bigint, $9, $10::date, false)',
         [ent, fa.piece_v10, fa.client_v10, 'essentiel', 'annuel', fa.debut, fa.fin, '390000', 'sans les lignes en plus', jour])).rejects.toThrow(/pas celui de la grille au premier jour de la période/);
     } finally { await k.query('rollback'); k.release(); }
   });
@@ -186,7 +191,7 @@ describe('ce que l\'offre compte', () => {
     const facture = async () => ((await appeler('POST', `/console/entreprises/${ent}/factures`, amira.console, { offre: 'essentiel', periodicite: 'annuel', motif: '', apercu: true })).corps.facture as { enPlus: Corps[] }).enPlus;
     // Pendant l'essai, rien ne se compte : rien ne se facture.
     expect(await compte()).toBeNull();
-    expect((await geste(ent, 'payer', { motif: 'virement reçu', ligne: await ligneDe(ent), offre: 'essentiel', periodicite: 'annuel' })).statut).toBe(200);
+    expect((await geste(ent, 'payer', { paiement: RECU_CONSOLE, motif: 'virement reçu', ligne: await ligneDe(ent), offre: 'essentiel', periodicite: 'annuel' })).statut).toBe(200);
     // Une équipe qui grandit et des invitations qui attendent : rien ne s'en compte, ni à l'écran ni sur la facture (0102).
     const vendeur = await membre(ent, p.jeton, ['commercial']);
     for (const roles of [['magasinier'], ['lecture'], ['caissier']]) await membre(ent, p.jeton, roles);
@@ -218,7 +223,7 @@ describe('ce que l\'offre compte', () => {
     expect(apres).toMatchObject({ comptes: { salaries: 11 }, inclus: { salaries: 10 } });
     expect((await facture()).find((l) => l.option === 'salarie')).toMatchObject({ compte: apres?.comptes.salaries, inclus: 10, quantite: 1 });
     // Complet : deux caisses, deux établissements, vingt salariés.
-    expect((await geste(ent, 'payer', { motif: 'passe à Complet', ligne: await ligneDe(ent), offre: 'complet', periodicite: 'annuel' })).statut).toBe(200);
+    expect((await geste(ent, 'payer', { paiement: RECU_CONSOLE, motif: 'passe à Complet', ligne: await ligneDe(ent), offre: 'complet', periodicite: 'annuel' })).statut).toBe(200);
     expect((await compte())?.inclus).toEqual({ caisses: 2, etablissements: 2, salaries: 20 });
   });
 });

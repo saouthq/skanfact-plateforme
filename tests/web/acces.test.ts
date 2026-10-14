@@ -133,11 +133,13 @@ describe('l\'accès du support au dossier, à la souris, des deux côtés', () =
     expect(await b.locator('[data-acces-accorder]').allInnerTexts()).toEqual(['Accorder pour 2 heures', 'Accorder 24 heures', 'Accorder 48 heures']);
     await cliquer(b.getByRole('button', { name: 'Accorder pour 2 heures' }));
     await expect.poll(() => c.locator('.acc-bandeau.acc-actif').count(), { timeout: 10_000 }).toBe(1);
-    expect(net(await c.locator('.acc-bandeau.acc-actif').innerText())).toMatch(/Karim, du support SkanFact, peut lire ton dossier jusqu'à \d\d:\d\d Aucune page lue/);
+    // Accordé après 22 h, l'accès finit le lendemain, et chaque côté le dit (rouge de GitHub du 14/10/2026, lancé à 22 h 40) :
+    // les deux formes sont justes.
+    expect(net(await c.locator('.acc-bandeau.acc-actif').innerText())).toMatch(/Karim, du support SkanFact, peut lire ton dossier jusqu'à (demain, )?\d\d:\d\d Aucune page lue/);
     // La console, au retour sur l'onglet : l'accès court.
     const p = console1 ?? await consoleSur(`#/support?demande=${demande}`);
     await p.reload();
-    await expect.poll(async () => net(await bande(p).innerText()), { timeout: 15_000 }).toMatch(/Accès au dossier Jusqu'à \d\d:\d\d Encore 1 h 5\d · aucune page lue · accordé par Lina Acces/);
+    await expect.poll(async () => net(await bande(p).innerText()), { timeout: 15_000 }).toMatch(/Accès au dossier Jusqu'(à|au .{1,20} à) \d\d:\d\d Encore 1 h 5\d · aucune page lue · accordé par Lina Acces/);
     // Sur un portable (1280×800), la bande d'un accès qui court tient sur une rangée : « Envoyer » reste à l'écran, la
     // page ne défile pas (vu le 14/10/2026 : sur deux rangées, elle poussait la réponse sous le bord).
     const petit = await consoleSur(`#/support?demande=${demande}`, 1280, 800);
@@ -171,7 +173,7 @@ describe('l\'accès du support au dossier, à la souris, des deux côtés', () =
     await expect.poll(() => lecture.locator('.lec-bandeau').count(), { timeout: 20_000 }).toBe(1);
     expect(lecture.url()).toContain(`support=${acces}`);
     // Le nom que la console montre (lu avec le dossier) : la fiche société de ce dossier est vide.
-    expect(net(await lecture.locator('.lec-bandeau').innerText())).toMatch(/Lecture pour le support : le dossier de Studio Lina Acces Accordé jusqu'à \d\d:\d\d \(il reste 1 h 5\d\)\. Rien de ce que tu fais ici ne s'enregistre/);
+    expect(net(await lecture.locator('.lec-bandeau').innerText())).toMatch(/Lecture pour le support : le dossier de Studio Lina Acces Accordé jusqu'à (demain, )?\d\d:\d\d \(il reste 1 h 5\d\)\. Rien de ce que tu fais ici ne s'enregistre/);
     // Les clients du dossier se lisent.
     await lecture.evaluate(() => { location.hash = '#/clients'; });
     await expect.poll(async () => net(await lecture.locator('#view').innerText()), { timeout: 15_000 }).toContain('Hôtel Dar El Marsa');
@@ -205,7 +207,7 @@ describe('l\'accès du support au dossier, à la souris, des deux côtés', () =
     await expect.poll(() => c.locator('.acc-bandeau.acc-actif').count(), { timeout: 15_000 }).toBe(1);
     await cliquer(c.locator('.acc-bandeau').getByRole('button', { name: 'Voir ce qu\'il a lu' }));
     const panneau = c.locator('#p-acces-support');
-    await expect.poll(async () => net(await panneau.innerText()), { timeout: 15_000 }).toMatch(/Karim Accès en cours, jusqu'à \d\d:\d\d.*accordé pour 2 heures par Lina Acces/);
+    await expect.poll(async () => net(await panneau.innerText()), { timeout: 15_000 }).toMatch(/Karim Accès en cours, jusqu'à (demain, )?\d\d:\d\d.*accordé pour 2 heures par Lina Acces/);
     // Les pages notées, dans l'ordre, par leur nom dans l'application : celles de la base, ni plus ni moins (une page
     // relue dans la minute ne se note qu'une fois : l'accueil rouvert ici ne s'ajoute que si la minute est passée).
     const notees = (await admin.query('select page from plateforme.lecture_support where acces = $1 order by lu_le, id', [acces])).rows.map((r) => r.page as string);
@@ -239,9 +241,11 @@ describe('l\'accès du support au dossier, à la souris, des deux côtés', () =
     const ECRANS: EcranConsole[] = [
       { nom: 'acces-attente', hash: `#/support?demande=${demande}` },
       { nom: 'acces-fiche', hash: `#/clients/${ent}?onglet=support` },
-      { nom: 'acces-demander', hash: `#/clients/${ent}?onglet=support`, geste: async (q) => { await cliquer(q.locator('.c-sp-acces-carte .c-sp-acces-gestes button').first()); await q.getByRole('dialog').waitFor(); } },
+      { nom: 'acces-demander', hash: `#/clients/${ent}?onglet=support`, geste: async (q) => { await cliquer(q.locator('.c-sp-acces .c-sp-acces-gestes button')); await q.getByRole('dialog').waitFor(); } },
     ];
     // La fenêtre « demander » ne s'ouvre que sans demande en cours : celle-ci se retire avant de mesurer l'écran qui l'ouvre.
+    // Son bouton est le seul geste de l'encart d'un dossier fermé (la fiche le montre en bande depuis 1.19.0 ; en langue
+    // factice, son nom change).
     const { faux, vus } = await mesurerLaConsole({
       ecrans: ECRANS.slice(0, 2),
       ouvrir: (e, o) => consoleSur(e.hash, o.largeur, o.largeur < 600 ? 844 : 900, o.theme, o.factice),

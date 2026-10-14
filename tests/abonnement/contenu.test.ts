@@ -34,6 +34,9 @@ import { declarerGestesVentes } from '../../serveur/ventes/gestes.ts';
 import { routesVentes } from '../../serveur/ventes/routes.ts';
 import { REGLES_DE_DEPART } from '../regles-de-depart.ts';
 
+// La preuve d'un paiement reçu hors de la plateforme (0113), telle que la console la tape.
+const RECU_CONSOLE = { facture: 'F-2020-001', montant: '390', moyen: 'virement', le: '2020-01-01' };
+
 const MDP = 'Un-bon-mot-de-passe';
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 const pool = creerPool(inject('pgApp'));
@@ -165,7 +168,7 @@ describe('ce que chaque offre comprend, réglé dans la console', () => {
     const p = await inscrire('ines');
     const clinique = async (nom: string, payeJusquAu: string) => {
       const ent = String((await appeler('POST', '/entreprises', p.jeton, { raisonSociale: nom })).corps.id);
-      expect((await geste(ent, 'payer', { motif: 'le mois', ligne: await ligneDe(ent), offre: 'complet', periodicite: 'mensuel' })).statut).toBe(200);
+      expect((await geste(ent, 'payer', { paiement: RECU_CONSOLE, motif: 'le mois', ligne: await ligneDe(ent), offre: 'complet', periodicite: 'mensuel' })).statut).toBe(200);
       // L'essai fini depuis longtemps : l'échéance est celle de la période payée.
       await admin.query('update plateforme.abonnement set paye_jusqu_au = $2, essai_jusqu_au = $3 where entreprise = $1', [ent, payeJusquAu, plusJours(jour, -60)]);
       for (let i = 1; i <= 21; i++) {
@@ -195,7 +198,7 @@ describe('ce que chaque offre comprend, réglé dans la console', () => {
     const p = await inscrire('sami');
     const qui = await quiEst(ctx, p.jeton);
     const ent = String((await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'Atelier Daté' })).corps.id);
-    expect((await geste(ent, 'payer', { motif: 'l\'année', ligne: await ligneDe(ent), offre: 'essentiel', periodicite: 'annuel' })).statut).toBe(200);
+    expect((await geste(ent, 'payer', { paiement: RECU_CONSOLE, motif: 'l\'année', ligne: await ligneDe(ent), offre: 'essentiel', periodicite: 'annuel' })).statut).toBe(200);
     // Les faits que la base rend à la propriétaire portent l'histoire du contenu ; la porte se calcule un jour donné.
     const faitsSi = async (payeJusquAu: string): Promise<Faits> => {
       await admin.query('update plateforme.abonnement set paye_jusqu_au = $2, essai_jusqu_au = $3 where entreprise = $1', [ent, payeJusquAu, plusJours(jour, -60)]);

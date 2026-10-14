@@ -22,6 +22,7 @@ import { AccesDossier } from './AccesDossier.tsx';
 import { contexteDe, EcrireAuContact, NoterAppel, resultatEnMots, type ResultatAppel } from './Echanges.tsx';
 import { montant } from '../argent.ts';
 import { CarteReprise, repriseEnCours, type Reprise } from './Reprise.tsx';
+import { defaiteEnMots } from './Accueil.tsx';
 
 export type Geste = 'prolonger' | 'payer' | 'resilier' | 'annuler-resiliation' | 'suspendre' | 'reprendre' | 'offrir' | 'retirer-offert' | 'ouvrir-module' | 'fermer-module'
   | 'accorder-delai' | 'offrir-mois' | 'changer-offre';
@@ -29,7 +30,9 @@ export type Geste = 'prolonger' | 'payer' | 'resilier' | 'annuler-resiliation' |
 type ModuleAchete = 'paie' | 'compta';
 const MODULES: readonly ModuleAchete[] = ['paie', 'compta'];
 type LigneAbo = { essai_jusqu_au: string; paye_jusqu_au: string | null; offre: Offre | null; periodicite: Periodicite | null; resilie_le: string | null; suspendu_le: string | null; offert: boolean;
-  modules?: ModuleAchete[]; delai_echeance?: string | null; delai_jusqu_au?: string | null; suivante_offre?: Offre | null; suivante_periodicite?: Periodicite | null; suivante_a_partir_du?: string | null };
+  modules?: ModuleAchete[]; delai_echeance?: string | null; delai_jusqu_au?: string | null; suivante_offre?: Offre | null; suivante_periodicite?: Periodicite | null; suivante_a_partir_du?: string | null;
+  // 0113 : le mois offert qui attend la prochaine facture, les modules qui partent au renouvellement.
+  mois_offerts?: number; modules_a_retirer?: ModuleAchete[] };
 type Membre = { nom: string; email: string; roles: string[]; depuis: string; derniereConnexion: string | null };
 type CabinetDe = { id: string; nom: string; place: Place; mandat: { statut: 'propose' | 'actif'; debut: string } | null };
 type Evenement = { id: string; le: string; nature: string; par: 'systeme' | 'exploitation'; motif: string | null; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null; qui: { nom: string; role: Role } | null };
@@ -54,6 +57,8 @@ type Donnees = {
   delai: { echeance: string; jusquAu: string } | null;
   // La procédure de reprise en cours, ou la dernière (0112) : la direction seule la reçoit.
   reprise: Reprise | null;
+  // Ce que sa prochaine facture coûtera (0113), par la règle de la facture : le même chiffre que la liste et les échéances.
+  prochaineFacture: { debut: string; montantHt: string } | null;
 };
 // La remise d'une période (serveur/abonnement/remise.ts) : la plus forte des deux ; `aussi`, l'autre, qui ne s'ajoute pas.
 type RemiseSeule = { nature: 'groupe' | 'cabinet'; taux: number; groupe: string | null; premiere: string | null; cabinet: string | null; jusquAu: string | null };
@@ -79,7 +84,11 @@ type Attente =
   | { sorte: 'en_retard'; echeance: string; lectureSeuleLe: string; jours: number; apresEssai: boolean }
   | { sorte: 'lecture_seule'; depuis: string; raison: 'essai_termine' | 'non_renouvele' | 'resilie' | 'suspendu' }
   | { sorte: 'essai_sans_usage'; jusquAu: string; jours: number; proprietaire: { nom: string; email: string } | null }
-  | { sorte: 'support'; demande: { id: string; numero: number; sujet: string }; demandeur: string; heures: number };
+  | { sorte: 'support'; demande: { id: string; numero: number; sujet: string }; demandeur: string; heures: number }
+  // L'argent (0113), pour la direction.
+  | { sorte: 'facture_defaite'; numero: string | null; payeeLe: string; fin: string; ecran: string; cause: 'avoir' | 'reglement'; trop: string | null }
+  | { sorte: 'a_emettre'; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
+  | { sorte: 'trop_percu'; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string };
 export type OngletFiche = 'apercu' | 'abonnement' | 'factures' | 'support' | 'membres' | 'journal';
 export const ONGLETS_FICHE: readonly OngletFiche[] = ['apercu', 'abonnement', 'factures', 'support', 'membres', 'journal'];
 
@@ -88,7 +97,9 @@ const cleGeste = (g: Geste) => g.replace('-', '_');
 // Ce qu'un geste a changé, case par case (« essai jusqu'au : 12/10/2026 → 26/10/2026 ») : les cases d'une ligne
 // d'abonnement, et ce que le geste retient (les jours ajoutés, la période payée, celle d'une facture préparée).
 const CASES = ['essai_jusqu_au', 'paye_jusqu_au', 'offre', 'periodicite', 'resilie_le', 'suspendu_le', 'offert', 'modules', 'role', 'actif', 'jours', 'debut', 'fin',
-  'facture_du', 'facture_au', 'montant_ht', 'remise', 'delai_echeance', 'delai_jusqu_au', 'suivante_offre', 'suivante_periodicite', 'suivante_a_partir_du'] as const;
+  'facture_du', 'facture_au', 'montant_ht', 'remise', 'delai_echeance', 'delai_jusqu_au', 'suivante_offre', 'suivante_periodicite', 'suivante_a_partir_du',
+  // 0113 : le paiement reçu et sa preuve, le mois offert, les modules qui partent.
+  'facture', 'montant', 'moyen', 'le', 'mois_offert', 'mois_offerts', 'du', 'au', 'modules_a_retirer', 'au_renouvellement'] as const;
 // Les modules achetés, en mots (« Paie, Comptabilité complète ») ; aucun : « — ».
 const nomsModules = (v: unknown) => (Array.isArray(v) ? v.filter((m): m is ModuleAchete => m === 'paie' || m === 'compta').map((m) => titre(`console.ecran.abo.module.${m}`)).join(', ') : '');
 function valeurLisible(cle: string, v: unknown): string {
@@ -99,7 +110,11 @@ function valeurLisible(cle: string, v: unknown): string {
   if ((cle === 'periodicite' || cle === 'suivante_periodicite') && (v === 'annuel' || v === 'mensuel')) return dire(`console.ecran.abo.periodicite.${v}`);
   if (cle === 'role' && typeof v === 'string') return titre(`console.ecran.role.${v}`);
   if (cle === 'montant_ht' && typeof v === 'string') return montant(v);
-  if (cle === 'modules') return nomsModules(v) || '—';
+  if (cle === 'modules' || cle === 'modules_a_retirer') return nomsModules(v) || '—';
+  // Un montant reçu (0113) : des millimes, en texte.
+  if (cle === 'montant' && typeof v === 'string' && /^\d+$/.test(v)) return montant(`${v.slice(0, -3) || '0'}.${v.slice(-3).padStart(3, '0')}`);
+  if (cle === 'moyen' && (v === 'virement' || v === 'cheque' || v === 'especes')) return dire(`console.ecran.geste.recu.moyen.${v}`);
+  if (cle === 'mois_offerts' && typeof v === 'number') return dire(v > 0 ? 'console.ecran.fiche.oui' : 'console.ecran.fiche.non');
   // La remise d'une facture préparée (0106) : laquelle, son taux, son montant.
   if (cle === 'remise' && v && typeof v === 'object') {
     const r = v as { nature?: unknown; taux?: unknown; montantHt?: unknown };
@@ -147,7 +162,10 @@ export function Changements({ avant: avantBrut, apres: apresBrut, empile }: { av
 }
 
 // ── La fenêtre d'un geste ───────────────────────────────────────────────────────────────────────────────────────────
-type Apercu = { avant: Etat; apres: Etat; details: Record<string, unknown>; modules?: ModuleAchete[] };
+type Apercu = { avant: Etat; apres: Etat; details: Record<string, unknown>; modules?: ModuleAchete[]; modulesARetirer?: ModuleAchete[] };
+// Un paiement reçu hors de la plateforme (0113) : son moyen.
+type MoyenRecu = 'virement' | 'cheque' | 'especes';
+const MOYENS_RECUS: readonly MoyenRecu[] = ['virement', 'cheque', 'especes'];
 function FenetreGeste({ geste, fiche, role, fermer, fait }: { geste: Geste; fiche: Donnees; role: Role; fermer: () => void; fait: () => void }) {
   const api = useApi();
   const support = role === 'support';
@@ -155,16 +173,26 @@ function FenetreGeste({ geste, fiche, role, fermer, fait }: { geste: Geste; fich
   // Changer d'offre propose d'abord l'autre offre, au même rythme.
   const [offre, setOffre] = useState<Offre>(geste === 'changer-offre' ? (fiche.faits.offre === 'complet' ? 'essentiel' : 'complet') : fiche.faits.offre ?? 'essentiel');
   const [periodicite, setPeriodicite] = useState<Periodicite>(fiche.faits.periodicite ?? 'annuel');
-  // Le module à ouvrir (un qui ne l'est pas encore) ou à retirer (un qui l'est).
+  // Le module à ouvrir (un qui ne l'est pas encore, ou qui allait partir) ou à retirer (un qui l'est et ne part pas déjà).
   const achetes = fiche.ligne?.modules ?? [];
-  const choixModules = geste === 'fermer-module' ? MODULES.filter((m) => achetes.includes(m)) : MODULES.filter((m) => !achetes.includes(m));
+  const partent = fiche.ligne?.modules_a_retirer ?? [];
+  const choixModules = geste === 'fermer-module' ? MODULES.filter((m) => achetes.includes(m) && !partent.includes(m))
+    : MODULES.filter((m) => !achetes.includes(m) || partent.includes(m));
   const [module, setModule] = useState<ModuleAchete>(choixModules[0] ?? 'paie');
+  // La preuve d'un paiement reçu hors de la plateforme (0113) : la facture faite ailleurs, le montant, le moyen, le jour.
+  const [facture, setFacture] = useState('');
+  const [recu, setRecu] = useState('');
+  const [moyen, setMoyen] = useState<MoyenRecu>('virement');
+  const [le, setLe] = useState(fiche.aujourdhui);
   const [motif, setMotif] = useState('');
   const [apercu, setApercu] = useState<Apercu | null>(null);
   const [refus, setRefus] = useState<string | null>(null);
   const [perimee, setPerimee] = useState(false);
   const [occupe, setOccupe] = useState(false);
-  const [faute, setFaute] = useState(0);
+  // La case fautive (le motif, une case de la preuve d'un paiement) : elle se montre, rouge, et prend le curseur.
+  const [faute, setFaute] = useState<{ champ: string; n: number } | null>(null);
+  const fauter = (champ: string) => setFaute((f) => ({ champ, n: (f?.n ?? 0) + 1 }));
+  const fauteDe = (champ: string) => ({ faute: faute?.champ === champ, n: faute?.champ === champ ? faute.n : 0 });
   // Un délai : de 1 à 60 jours (serveur/abonnement/gestes.ts, DELAI_MAX_JOURS).
   const min = support ? 7 : 1, max = geste === 'accorder-delai' ? 60 : support ? 30 : 365;
   const n = Number(jours);
@@ -175,6 +203,7 @@ function FenetreGeste({ geste, fiche, role, fermer, fait }: { geste: Geste; fich
     motif, ligne: fiche.ligne, ...(apercuSeul ? { apercu: true } : {}),
     ...(avecJours ? { jours: n } : {}), ...(geste === 'payer' || geste === 'changer-offre' ? { offre, periodicite } : {}),
     ...(geste === 'ouvrir-module' || geste === 'fermer-module' ? { module } : {}),
+    ...(geste === 'payer' && !apercuSeul ? { paiement: { facture, montant: recu, moyen, le } } : {}),
   });
 
   // L'aperçu se recalcule à chaque changement de paramètre : c'est le serveur qui le dit (la même règle que le geste).
@@ -195,23 +224,34 @@ function FenetreGeste({ geste, fiche, role, fermer, fait }: { geste: Geste; fich
   }, [jours, offre, periodicite, module, geste]);
 
   const faire = () => {
-    if (motif.trim().length < 3) { setRefus(phrase('console.ecran.geste.motif_court')); setFaute((x) => x + 1); return; }
+    // Un paiement : le serveur relit sa preuve case par case, de haut en bas, puis le motif ; il dit la case fautive.
+    if (geste !== 'payer' && motif.trim().length < 3) { setRefus(phrase('console.ecran.geste.motif_court')); fauter('motif'); return; }
     void (async () => {
       setOccupe(true);
       try {
         const r = await api<{ fait: boolean }>('POST', chemin, corps(false));
         if (!r) return;
-        if (r.statut === 200) { toast(phrase('console.ecran.geste.fait', { geste: dire(`console.ecran.journal.g.abonnement.${cleGeste(geste)}`) })); fait(); return; }
+        if (r.statut === 200) {
+          // Un module qui part au renouvellement n'est pas retiré aujourd'hui, un retrait annulé n'est pas un achat : la
+          // confirmation dit ce qui s'est passé.
+          const d = apercu?.details ?? {};
+          const nomModule = titre(`console.ecran.abo.module.${module}`);
+          toast(geste === 'fermer-module' && typeof d.jusquAu === 'string' ? phrase('console.ecran.geste.fait_module_part', { module: nomModule, le: jourCourt(d.jusquAu) })
+            : geste === 'ouvrir-module' && d.annuleRetrait === true ? phrase('console.ecran.geste.fait_retrait_annule', { module: nomModule })
+              : phrase('console.ecran.geste.fait', { geste: dire(`console.ecran.journal.g.abonnement.${cleGeste(geste)}`) }));
+          fait(); return;
+        }
         setRefus(refusDe(r));
         setPerimee(r.statut === 409);
-        if (r.corps.champ === 'motif') setFaute((x) => x + 1);
+        if (typeof r.corps.champ === 'string') fauter(r.corps.champ);
       } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
     })();
   };
 
   // Le nom du menu qui l'a ouverte (« Réactiver » en lecture seule, « Prolonger la grâce » pendant la grâce).
   const nom = nomDuGeste(geste, fiche.etat);
-  const sous = phrase(geste === 'prolonger' && support ? 'console.ecran.geste.sous.prolonger_support' : `console.ecran.geste.sous.${cleGeste(geste)}`);
+  const sous = phrase(geste === 'prolonger' && support ? 'console.ecran.geste.sous.prolonger_support'
+    : geste === 'offrir-mois' && support ? 'console.ecran.geste.sous.offrir_mois_support' : `console.ecran.geste.sous.${cleGeste(geste)}`);
   const cote = (etiquette: string, e: Etat) => {
     const p = puceDe(e);
     return (
@@ -239,6 +279,19 @@ function FenetreGeste({ geste, fiche, role, fermer, fait }: { geste: Geste; fich
             options={(['annuel', 'mensuel'] as const).map((p) => ({ valeur: p, texte: titre(`console.ecran.abo.periodicite.${p}`) }))} />
         </div>
       ) : null}
+      {geste === 'payer' ? (
+        <>
+          <div className="c-champs-2">
+            <Champ libelle={titre('console.ecran.geste.recu.facture')} valeur={facture} changer={setFacture} autoComplete="off" {...fauteDe('facture')} />
+            <Champ libelle={titre('console.ecran.geste.recu.montant')} aide={phrase('console.ecran.geste.recu.montant_aide')} inputMode="decimal" autoComplete="off" valeur={recu} changer={setRecu} {...fauteDe('montant')} />
+          </div>
+          <div className="c-champs-2">
+            <Choix libelle={titre('console.ecran.geste.recu.moyen')} valeur={moyen} changer={(v) => setMoyen(v as MoyenRecu)}
+              options={MOYENS_RECUS.map((m) => ({ valeur: m, texte: titre(`console.ecran.geste.recu.moyen.${m}`) }))} />
+            <Champ libelle={titre('console.ecran.geste.recu.le')} type="date" max={fiche.aujourdhui} valeur={le} changer={setLe} {...fauteDe('le')} />
+          </div>
+        </>
+      ) : null}
       {geste === 'ouvrir-module' || geste === 'fermer-module' ? (
         <Choix libelle={titre('console.ecran.geste.module')} aide={geste === 'ouvrir-module' ? phrase('console.ecran.geste.module_aide') : undefined} valeur={module}
           changer={(v) => setModule(v as ModuleAchete)} options={choixModules.map((m) => ({ valeur: m, texte: titre(`console.ecran.abo.module.${m}`) }))} />
@@ -252,18 +305,31 @@ function FenetreGeste({ geste, fiche, role, fermer, fait }: { geste: Geste; fich
           <p className="c-apercu-attente c-apercu-refus">{phrase(support ? 'console.ecran.geste.jours_hors_support' : 'console.ecran.geste.jours_hors', { min, max })}</p>
         ) : apercu ? (
           <div className="c-apercu">
-            {cote(titre('console.ecran.geste.avant'), apercu.avant)}
-            <span className="c-fleche"><Icone nom="fleche" /></span>
-            {cote(titre('console.ecran.geste.apres'), apercu.apres)}
+            {/* Un geste qui ne change rien aujourd'hui (un mois offert, un module, une offre à l'échéance) : une colonne, pas
+                deux pareilles ; ce qu'il fait se dit dessous. */}
+            {JSON.stringify(apercu.avant) === JSON.stringify(apercu.apres) ? cote(titre('console.ecran.geste.inchange'), apercu.avant) : <>
+              {cote(titre('console.ecran.geste.avant'), apercu.avant)}
+              <span className="c-fleche"><Icone nom="fleche" /></span>
+              {cote(titre('console.ecran.geste.apres'), apercu.apres)}
+            </>}
             {typeof details.debut === 'string' && typeof details.fin === 'string'
-              ? <span className="c-apercu-details">{phrase('console.ecran.geste.periode', { debut: jourCourt(details.debut), fin: jourCourt(details.fin) })}</span> : null}
+              ? <span className="c-apercu-details">{phrase(details.moisOffert === true ? 'console.ecran.geste.periode_offert' : 'console.ecran.geste.periode', { debut: jourCourt(details.debut), fin: jourCourt(details.fin) })}</span> : null}
+            {/* Un mois offert ne change rien aujourd'hui : l'état d'après est celui d'avant ; ce qu'il fait se dit dessous. */}
+            {geste === 'offrir-mois' && typeof details.du === 'string' && typeof details.au === 'string'
+              ? <span className="c-apercu-details">{phrase('console.ecran.geste.mois_sur_facture', { du: jourCourt(details.du), au: jourCourt(details.au) })}</span> : null}
             {typeof details.jours === 'number' && geste === 'prolonger' ? <span className="c-apercu-details">{phrase('console.ecran.geste.ajoute', { n: details.jours })}</span> : null}
-            {/* Un délai, un mois offert : la colonne « après le geste » dit déjà la nouvelle date ; une offre qui change à
-                l'échéance, non (l'état ne change pas aujourd'hui) : elle se dit dessous. */}
+            {/* Un délai : la colonne « après le geste » dit déjà la nouvelle date ; une offre qui change à l'échéance, non
+                (l'état ne change pas aujourd'hui) : elle se dit dessous. */}
             {geste === 'changer-offre' && typeof details.aPartirDu === 'string' ? <span className="c-apercu-details">{phrase('console.ecran.geste.offre_des', {
               offre: offreEtPeriode(offre, periodicite), le: jourCourt(details.aPartirDu) })}</span> : null}
-            {(geste === 'ouvrir-module' || geste === 'fermer-module') && apercu.modules
-              ? <span className="c-apercu-details">{phrase('console.ecran.geste.modules_apres', { modules: nomsModules(apercu.modules) || dire('console.ecran.geste.aucun_module') })}</span> : null}
+            {/* Un module (0113) : un retrait prévu annulé, un module qui part au renouvellement, un achat que la prochaine
+                facture rattrape ; sinon, la liste des modules d'après. */}
+            {(geste === 'ouvrir-module' || geste === 'fermer-module') && apercu.modules ? (
+              <span className="c-apercu-details">{details.annuleRetrait === true ? phrase('console.ecran.geste.module_retrait_annule', { module: titre(`console.ecran.abo.module.${module}`) })
+                : typeof details.jusquAu === 'string' && typeof details.auRenouvellement === 'string' ? phrase('console.ecran.geste.module_jusqu', { module: titre(`console.ecran.abo.module.${module}`), le: jourCourt(details.jusquAu) })
+                  : geste === 'ouvrir-module' && apercu.avant.etat === 'actif' ? phrase('console.ecran.geste.module_rattrape', { module: titre(`console.ecran.abo.module.${module}`) })
+                    : phrase('console.ecran.geste.modules_apres', { modules: nomsModules(apercu.modules) || dire('console.ecran.geste.aucun_module') })}</span>
+            ) : null}
           </div>
         ) : refus ? <p className="c-apercu-attente c-apercu-refus">{refus}</p>
           : <p className="c-apercu-attente">{phrase('console.ecran.geste.apercu_calcul')}</p>}
@@ -271,7 +337,7 @@ function FenetreGeste({ geste, fiche, role, fermer, fait }: { geste: Geste; fich
       </div>
       {/* Le refus du geste (le motif trop court) reste jusqu'au clic suivant : retiré à la frappe, il ferait remonter les
           boutons sous le curseur au moment où l'on vise « Valider ». Le clic suivant le remplace ou referme la fenêtre. */}
-      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.geste.motif_aide')} valeur={motif} changer={setMotif} faute={faute > 0} n={faute} />
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.geste.motif_aide')} valeur={motif} changer={setMotif} {...fauteDe('motif')} />
       {refus && apercu ? <Alerte ton="danger">{refus}</Alerte> : null}
     </Dialogue>
   );
@@ -285,9 +351,11 @@ type FactureApercu = {
   editeur: string; offre: Offre; periodicite: Periodicite; debut: string; fin: string; echeance: string; montantHt: string;
   ceQueDira: { ht: string; tva: string; timbre: string; ttc: string; net: string };
   // L'offre au prix du jour, et ce qui s'ajoute (14c) : un module acheté seul, ou ce qui dépasse l'offre.
-  prixOffreHt: string; enPlus: { option: string; quantite: number; compte: number; inclus: number; prixHt: string; totalHt: string }[];
+  prixOffreHt: string; enPlus: { option: string; quantite: number; compte: number; inclus: number; prixHt: string; totalHt: string; du?: string; au?: string }[];
   // La remise de la période (0106), sur tout le hors taxes, et son montant.
   brutHt: string; remise: (Remise & { montantHt: string }) | null;
+  // Le mois offert qu'elle porte (0113) : sa période en couvre un de plus.
+  moisOffert?: boolean;
 };
 function FenetreFacture({ fiche, fermer, fait }: { fiche: Donnees; fermer: () => void; fait: () => void }) {
   const api = useApi();
@@ -346,15 +414,16 @@ function FenetreFacture({ fiche, fermer, fait }: { fiche: Donnees; fermer: () =>
         <div className="c-apercu-zone">
           {apercu && c ? (
             <div className="c-fa-apercu">
-              <p>{phrase('console.ecran.fiche.fa.periode', { debut: jourCourt(apercu.debut), fin: jourCourt(apercu.fin), avant: jourCourt(apercu.echeance) })}</p>
+              <p>{phrase(apercu.moisOffert ? 'console.ecran.fiche.fa.periode_offert' : 'console.ecran.fiche.fa.periode', { debut: jourCourt(apercu.debut), fin: jourCourt(apercu.fin), avant: jourCourt(apercu.echeance) })}</p>
               {aujourdhui ? <p className="c-sous">{phrase('console.ecran.fiche.fa.nouveau_prix', { jour: jourCourt(apercu.debut), prix: montant(aujourdhui) })}</p> : null}
               {/* Ses lignes, hors taxes : l'offre, puis ce qui s'ajoute (14c), chacune avec sa quantité et ce qui l'explique. */}
               <ul className="c-fa-lignes">
                 <li><span>{offreEtPeriode(apercu.offre, apercu.periodicite)}</span><span data-donnee>{montant(apercu.prixOffreHt)}</span></li>
                 {apercu.enPlus.map((l) => (
                   <li key={l.option}>
-                    <span>{titre(`console.ecran.fiche.fa.option.${l.option}`)}{l.option.startsWith('module_') ? null
-                      : <small>{phrase('console.ecran.fiche.fa.au_dela', { compte: l.compte, inclus: l.inclus, n: l.quantite, prix: montant(l.prixHt) })}</small>}</span>
+                    <span>{titre(`console.ecran.fiche.fa.option.${l.option}`)}{l.du && l.au ? <small>{phrase('console.ecran.fiche.fa.rattrapage', { jours: l.compte, sur: l.inclus, du: jourCourt(l.du), au: jourCourt(l.au) })}</small>
+                      : l.option.startsWith('module_') ? null
+                        : <small>{phrase('console.ecran.fiche.fa.au_dela', { compte: l.compte, inclus: l.inclus, n: l.quantite, prix: montant(l.prixHt) })}</small>}</span>
                     <span data-donnee>{montant(l.totalHt)}</span>
                   </li>
                 ))}
@@ -801,6 +870,9 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
   const reponse = (a: Attente): { texte: string; geste?: Geste; href?: string; ailleurs?: boolean; faire?: () => void } | null => {
     if (a.sorte === 'support') return { texte: titre('console.ecran.decider.repondre'), href: `#/support?demande=${a.demande.id}` };
     if (a.sorte === 'essai_sans_usage') return a.proprietaire ? { texte: titre('console.ecran.fiche.attend.ecrire', { nom: a.proprietaire.nom }), href: ecrire(a.proprietaire) } : null;
+    // L'argent (0113) : la facture s'ouvre dans l'application de SkanFact ; un trop-perçu, dans Paiements.
+    if (a.sorte === 'facture_defaite' || a.sorte === 'a_emettre') return { texte: titre('console.ecran.decider.ouvrir_facture'), href: a.ecran, ailleurs: true };
+    if (a.sorte === 'trop_percu') return { texte: titre('console.ecran.decider.ouvrir_paiements'), href: '#/paiements' };
     if (facturer && ouverte) return { texte: titre(ouverte.etat === 'a_emettre' ? 'console.ecran.fiche.attend.emettre' : 'console.ecran.fiche.attend.sa_facture'), href: ouverte.ecran, ailleurs: true };
     if (facturer) return { texte: titre('console.ecran.fiche.attend.preparer'), faire: () => setFacture(true) };
     const g = f.gestes.includes('payer') ? 'payer' : f.gestes.includes('prolonger') ? 'prolonger' : null;
@@ -842,7 +914,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
               const v = attenteEnMots(a, f.aujourdhui);
               const r = reponse(a);
               return (
-                <li key={a.sorte === 'support' ? `support-${a.demande.id}` : a.sorte}>
+                <li key={a.sorte === 'support' ? `support-${a.demande.id}` : a.sorte === 'facture_defaite' || a.sorte === 'a_emettre' || a.sorte === 'trop_percu' ? `${a.sorte}-${a.ecran}` : a.sorte}>
                   <span className={`c-ligne-icone c-${v.urgence}`}><Icone nom={v.icone} /></span>
                   <span className="c-fiche-attend-texte"><b>{v.titre}</b><span>{v.desc}</span></span>
                   {r?.geste || r?.faire ? <Bouton {...(i === 0 ? { ton: 'principal' as const } : {})} onClick={() => (r.faire ? r.faire() : setGeste(r.geste ?? null))}>{r.texte}</Bouton>
@@ -876,6 +948,13 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
                 <span className="c-fiche-ent-quand">{maj(expliquer(f.etat, f.aujourdhui))}</span>
                 {f.offreSuivante ? <span className="c-fiche-ent-note">{phrase('console.ecran.fiche.offre_suivante', { offre: offreEtPeriode(f.offreSuivante.offre, f.offreSuivante.periodicite), le: jourCourt(f.offreSuivante.aPartirDu) })}</span> : null}
                 {f.delai && f.etat.etat === 'en_retard' ? <span className="c-fiche-ent-note">{phrase('console.ecran.fiche.delai')}</span> : null}
+                {/* 0113 : ce que la prochaine facture coûtera (le chiffre de la liste et des échéances), le mois offert qui
+                    l'attend, les modules qui partent au renouvellement. */}
+                {f.prochaineFacture ? <span className="c-fiche-ent-note">{phrase(f.ligne?.mois_offerts ? 'console.ecran.fiche.prochaine_facture_offert' : 'console.ecran.fiche.prochaine_facture',
+                  { montant: montant(f.prochaineFacture.montantHt), le: jourCourt(f.prochaineFacture.debut) })}</span>
+                  : f.ligne?.mois_offerts ? <span className="c-fiche-ent-note">{phrase('console.ecran.fiche.mois_offert')}</span> : null}
+                {f.ligne?.paye_jusqu_au ? (f.ligne.modules_a_retirer ?? []).map((m) => (
+                  <span key={`part-${m}`} className="c-fiche-ent-note">{phrase('console.ecran.fiche.module_part', { module: titre(`console.ecran.abo.module.${m}`), le: jourCourt(f.ligne?.paye_jusqu_au) })}</span>)) : null}
                 {f.enPlus?.prolonge ? <span className="c-fiche-ent-note">{phrase('console.ecran.fiche.prolonge', { n: f.enPlus.prolonge })}</span> : null}
                 {f.tenuePar ? <span>{titre('console.ecran.fiche.i.cabinet')} <span data-donnee>{tient ? <a href={`#/cabinets/${tient.id}`}>{f.tenuePar}</a> : f.tenuePar}</span></span> : null}
                 {!f.active ? <span className="c-fiche-ent-quand">{titre('console.ecran.fiche.inactive_long')}</span> : null}
@@ -1131,6 +1210,15 @@ function attenteEnMots(a: Attente, aujourdhui: string): { icone: NomIcone; titre
     case 'support':
       return { icone: 'courriel', titre: titre('console.ecran.fiche.attend.support', { n: a.heures }), urgence: 'aujourdhui',
         desc: phrase('console.ecran.support.fiche.attend', { sujet: a.demande.sujet, qui: a.demandeur }) };
+    case 'facture_defaite':
+      return { icone: 'alerte', titre: titre('console.ecran.fiche.attend.defaite_titre'), urgence: 'aujourdhui',
+        desc: defaiteEnMots(a) };
+    case 'a_emettre':
+      return { icone: 'calendrier', titre: titre('console.ecran.fiche.attend.a_emettre_titre'), urgence: 'semaine',
+        desc: phrase('console.ecran.decider.a_emettre', { le: jourCourt(a.prepareLe), debut: jourCourt(a.debut), fin: jourCourt(a.fin) }) };
+    case 'trop_percu':
+      return { icone: 'alerte', titre: titre('console.ecran.fiche.attend.trop_titre', { montant: montant(a.trop) }), urgence: 'semaine',
+        desc: phrase(a.annulee ? 'console.ecran.decider.trop_annulee' : 'console.ecran.decider.trop', { numero: a.numero ?? dire('console.ecran.decider.sans_numero') }) };
     default:
       return { icone: 'sablier', titre: titre('console.ecran.fiche.attend.essai_sans_usage'), urgence: a.jours <= 1 ? 'aujourdhui' : 'semaine',
         desc: phrase('console.ecran.decider.sans_usage', { le: jourCourt(a.jusquAu), dans: dans(a.jusquAu, aujourdhui) }) };

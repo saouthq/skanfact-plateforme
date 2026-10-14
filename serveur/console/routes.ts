@@ -13,7 +13,7 @@ import type { Contexte } from '../connexion.ts';
 import { Introuvable, Perimee } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { etatAbonnement, lireDelai, lireFaits, lireModules, lireOffreSuivante, lireRegles, plusJours, regleAu, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
-import { calculerGeste, GESTES_ABONNEMENT, type GesteAbonnement, type LigneAbonnement } from '../abonnement/gestes.ts';
+import { calculerGeste, GESTES_ABONNEMENT, MOYENS_RECUS, type GesteAbonnement, type LigneAbonnement, type PaiementRecu } from '../abonnement/gestes.ts';
 import { lireFacturesAbonnement, lireLignesEnPlus, periodeDeLaFacture, preparerFacture } from '../abonnement/factures.ts';
 import { lireRemise } from '../abonnement/remise.ts';
 import { lireApercuGroupe, lireGroupeDe } from './groupes.ts';
@@ -22,6 +22,7 @@ import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_M
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
 import { aDecider, CATEGORIES, inscriteCetteSemaine, lireEntreprises, lireVeille, tableau, type Entreprise, type Veille } from './decider.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
+import { renouvellementsDe } from './renouvellements.ts';
 import { avecEnPlus, avecVenues, lireEnPlus, dansLaVue, ligneClient, ligneExport, TRIS_CLIENTS, VUES_CLIENTS, type VueClients } from './clients.ts';
 import { categorieOrg, chercherOrg, lireFiltresOrg, optionsDesFiltresOrg, orgDansLaVue, orgDansLesFiltres, organisations, parAnDeLaLigne, parAnDesLignes, trierOrg,
   usageDeLaLigne, vuDeLaLigne, type TriOrg } from './organisations.ts';
@@ -37,7 +38,7 @@ import {
   lireSauvegardes, nuits as nuitsGardees, pointLePlusAncien, promesses, retardsParHeure,
 } from './sauvegardes.ts';
 import { attenteDe, etatTour, lireTravaux, PARTENAIRES, quatorzeJours, SANS_TRACE, TOURS } from './travaux.ts';
-import { couts, encaisse, encaisseDuMois, lirePaiements, moisDemande, MOYENS, ouvertes } from './paiements.ts';
+import { argentADecider, couts, encaisse, encaisseDuMois, lirePaiements, moisDemande, MOYENS, ouvertes } from './paiements.ts';
 import { dansLeFiltre, etatTtn, FILTRES, ligne, lireNosFactures, resume as resumeDesFactures, type Filtre } from './nosfactures.ts';
 import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
 import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe, taches, titreDeTache, versionDAvant, type EtatSuiveur } from './versions.ts';
@@ -91,6 +92,8 @@ function lireLigne(x: unknown): LigneAbonnement | null {
     suivante_offre: l.suivante_offre === 'essentiel' || l.suivante_offre === 'complet' ? l.suivante_offre : null,
     suivante_periodicite: l.suivante_periodicite === 'annuel' || l.suivante_periodicite === 'mensuel' ? l.suivante_periodicite : null,
     suivante_a_partir_du: jour(l.suivante_a_partir_du),
+    // 0113 : le mois offert qui attend la prochaine facture, les modules qui partent au renouvellement.
+    mois_offerts: l.mois_offerts === 1 ? 1 : 0, modules_a_retirer: lireModules(l.modules_a_retirer),
   };
 }
 // Deux lignes pareilles : chaque champ, et les modules achetés (une liste) un par un.
@@ -103,6 +106,7 @@ const faitsApres = (f: Faits, l: LigneAbonnement): Faits => ({ ...lireFaits({
   resilieLe: l.resilie_le, suspenduLe: l.suspendu_le, offert: l.offert, bacASable: f.bacASable, tenuParCabinet: f.tenuParCabinet, modules: l.modules,
   delai: l.delai_jusqu_au ? { echeance: l.delai_echeance, jusquAu: l.delai_jusqu_au } : null,
   offreSuivante: l.suivante_offre ? { offre: l.suivante_offre, periodicite: l.suivante_periodicite, aPartirDu: l.suivante_a_partir_du } : null,
+  moisOffert: (l.mois_offerts ?? 0) > 0, modulesARetirer: l.modules_a_retirer ?? [],
 }), regles: f.regles });
 
 // Ce que l'écran des échéances dit des règles : les relances d'aujourd'hui, la grâce d'une échéance qui tomberait
@@ -113,11 +117,13 @@ const reglesDuJour = (r: Regles, jour: string) =>
 // Les règles de l'abonnement (0104 : la grâce, les relances, datées), lues une fois par requête : la console les ajoute
 // aux faits de chaque entreprise, comme la base le fait pour l'application (plateforme.faits_abonnement).
 const lireLesRegles = async (x: Transaction): Promise<Regles> => lireRegles(await lireJson(x, 'select plateforme.regles_abonnement_histoire() v'));
-// Le délai d'une échéance et l'offre de la prochaine (0111), posés sur les faits de chaque entreprise avant que l'état
-// s'en déduise : la porte (plateforme.faits_abonnement) les lit de la même façon.
+// Le délai d'une échéance et l'offre de la prochaine (0111), le mois offert qui attend et les modules qui partent (0113),
+// posés sur les faits de chaque entreprise avant que l'état s'en déduise : la porte (plateforme.faits_abonnement) les lit
+// de la même façon.
 const lesFaitsEnPlus = async (x: Transaction) => {
   const b = await lireJson<Record<string, Record<string, unknown>>>(x, 'select plateforme.console_faits_en_plus() v');
-  return new Map(Object.entries(b ?? {}).map(([id, v]) => [id, { delai: lireDelai(v?.delai), offreSuivante: lireOffreSuivante(v?.offreSuivante) }]));
+  return new Map(Object.entries(b ?? {}).map(([id, v]) => [id, { delai: lireDelai(v?.delai), offreSuivante: lireOffreSuivante(v?.offreSuivante),
+    moisOffert: v?.moisOffert === true, modulesARetirer: lireModules(v?.modulesARetirer) }]));
 };
 const lesEntreprises = async (x: Transaction, jour: string) =>
   lireEntreprises(await lireJson(x, 'select plateforme.console_entreprises() v'), jour, await lireLesRegles(x), await lesFaitsEnPlus(x));
@@ -125,11 +131,18 @@ const faitsDeLaFiche = async (x: Transaction, fiche: Record<string, unknown>): P
   ({ ...lireFaits((fiche.faits ?? {}) as Record<string, unknown>), regles: await lireLesRegles(x), ...((await lesFaitsEnPlus(x)).get(String(fiche.id)) ?? {}) });
 
 // Les gestes qu'un rôle peut faire sur cet abonnement, AUJOURD'HUI : l'écran ne propose que ceux-là (la base, elle,
-// refuse les autres). Le support prolonge un essai, une fois ; le reste est à la direction.
-export function gestesDisponibles(role: RoleConsole, f: Faits, ligne: LigneAbonnement | null, e: Etat, prolongeUneFois: boolean): GesteAbonnement[] {
+// refuse les autres). Le support prolonge un essai, une fois, et offre un mois, un sur douze mois (0113) ; le reste est
+// à la direction.
+export function gestesDisponibles(role: RoleConsole, f: Faits, ligne: LigneAbonnement | null, e: Etat, prolongeUneFois: boolean, moisOffertRecent = false): GesteAbonnement[] {
   if (role === 'technique' || f.bacASable || f.tenuParCabinet) return [];
   const essaiOuSuite = !ligne || e.etat === 'essai' || (e.etat === 'en_retard' && e.apresEssai) || (e.etat === 'lecture_seule' && e.raison === 'essai_termine');
-  if (role === 'support') return essaiOuSuite && ligne && !prolongeUneFois && !f.offert ? ['prolonger'] : [];
+  // Un mois offert va sur la prochaine facture (calculerGeste, 'offrir-mois') : à un abonné dont l'offre est choisie, qui
+  // se renouvelle, sans un mois qui attend déjà.
+  const moisPossible = !!ligne && !f.offert && !!ligne.offre && !!ligne.periodicite && e.etat !== 'hors' && e.etat !== 'essai'
+    && !ligne.resilie_le && !ligne.suspendu_le && !(ligne.mois_offerts ?? 0);
+  if (role === 'support') {
+    return [...(essaiOuSuite && ligne && !prolongeUneFois && !f.offert ? ['prolonger' as const] : []), ...(moisPossible && !moisOffertRecent ? ['offrir-mois' as const] : [])];
+  }
   if (!ligne) return ['prolonger'];
   const g: GesteAbonnement[] = [];
   if (essaiOuSuite && !f.offert) g.push('prolonger');
@@ -140,12 +153,14 @@ export function gestesDisponibles(role: RoleConsole, f: Faits, ligne: LigneAbonn
   if (ligne.suspendu_le) g.push('reprendre');
   g.push(f.offert ? 'retirer-offert' : 'offrir');
   // Un module acheté seul (14c) : sur ce qui n'est ni Complet ni offert ; se retire tant qu'il en reste un.
-  if (!f.offert && ligne.offre !== 'complet' && ligne.modules.length < 2) g.push('ouvrir-module');
-  if (ligne.modules.length) g.push('fermer-module');
+  // Un module qui part au renouvellement (0113) se rouvre ; un module ne se retire pas deux fois.
+  const partent = ligne.modules_a_retirer ?? [];
+  if (!f.offert && ligne.offre !== 'complet' && (ligne.modules.length < 2 || partent.length > 0)) g.push('ouvrir-module');
+  if (ligne.modules.some((m) => !partent.includes(m))) g.push('fermer-module');
   // 0111 : un délai à qui est en grâce ou en lecture seule après une échéance manquée ; un mois offert à un abonnement
   // payé qui court ; une autre offre à la prochaine échéance d'un abonné.
   if (!f.offert && (e.etat === 'en_retard' || (e.etat === 'lecture_seule' && (e.raison === 'essai_termine' || e.raison === 'non_renouvele')))) g.push('accorder-delai');
-  if (!f.offert && e.etat === 'actif' && !ligne.resilie_le) g.push('offrir-mois');
+  if (moisPossible) g.push('offrir-mois');
   if (!f.offert && ligne.offre && ligne.periodicite && !ligne.resilie_le && (e.etat === 'actif' || e.etat === 'en_retard')) g.push('changer-offre');
   return g;
 }
@@ -158,8 +173,9 @@ const GESTES_DE_LA_LISTE: readonly GesteAbonnement[] = ['prolonger', 'accorder-d
 export function gestesDeLaListe(role: RoleConsole, e: Entreprise): GesteAbonnement[] {
   const f = e.faits;
   const ligne: LigneAbonnement | null = f.connu ? { essai_jusqu_au: f.essaiJusquAu ?? '', paye_jusqu_au: f.payeJusquAu, offre: f.offre, periodicite: f.periodicite,
-    resilie_le: f.resilieLe, suspendu_le: f.suspenduLe, offert: f.offert, modules: [...(f.modules ?? [])], suivante_offre: f.offreSuivante?.offre ?? null } : null;
-  const permis = gestesDisponibles(role, f, ligne, e.etat, e.enPlus?.prolongeUneFois ?? false);
+    resilie_le: f.resilieLe, suspendu_le: f.suspenduLe, offert: f.offert, modules: [...(f.modules ?? [])], suivante_offre: f.offreSuivante?.offre ?? null,
+    mois_offerts: f.moisOffert ? 1 : 0, modules_a_retirer: [...(f.modulesARetirer ?? [])] } : null;
+  const permis = gestesDisponibles(role, f, ligne, e.etat, e.enPlus?.prolongeUneFois ?? false, e.enPlus?.moisOffertRecent ?? false);
   return GESTES_DE_LA_LISTE.filter((g) => permis.includes(g));
 }
 
@@ -231,15 +247,17 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // La technique ne lit aucune donnée de client (03 § 5) : ni la liste, ni ses chiffres, ni les demandes au support.
       const liste = role === 'technique' ? [] : await lesEntreprises(transaction(tx), jour);
       const demandes = role === 'technique' ? [] : lireSupport(await lireJson(transaction(tx), 'select plateforme.console_support(null, null) v')).ouvertes;
-      // L'encaissé du mois : la direction seule le lit (les comptes de SkanFact), par la fonction de l'écran Paiements (C3).
-      const revenus = role === 'direction'
-        ? encaisseDuMois(lirePaiements(await lireJson(transaction(tx), 'select plateforme.console_paiements($1::date) v', [`${jour.slice(0, 7)}-01`]))) : undefined;
+      // L'encaissé du mois : la direction seule le lit (les comptes de SkanFact), par la fonction de l'écran Paiements (C3) ;
+      // et l'argent qui attend une décision (0113), par ses fonctions aussi.
+      const paiements = role === 'direction' ? lirePaiements(await lireJson(transaction(tx), 'select plateforme.console_paiements($1::date) v', [`${jour.slice(0, 7)}-01`])) : null;
+      const revenus = paiements ? encaisseDuMois(paiements) : undefined;
+      const argent = paiements ? argentADecider(paiements, liste, jour) : null;
       const { revenusDuMois, ...pourLeSupport } = tableau(liste, veille, jour, demandes, instant, revenus);
       const t = role === 'direction' ? { ...pourLeSupport, revenusDuMois } : pourLeSupport;
       // Les relances que le serveur a envoyées tout seul depuis hier (la même table que l'écran Abonnements).
       const relances = role === 'technique' ? []
         : relancesRecentes(liste, lireExtras(await lireJson(transaction(tx), 'select plateforme.console_echeances() v')), instant);
-      return { corps: { aujourdhui: jour, role, tableau: role === 'technique' ? { service: t.service } : t, decider: aDecider(liste, veille, jour, role, demandes, instant), relances } };
+      return { corps: { aujourdhui: jour, role, tableau: role === 'technique' ? { service: t.service } : t, decider: aDecider(liste, veille, jour, role, demandes, instant, argent), relances } };
     },
   });
 
@@ -256,7 +274,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     const entreprises = avecEnPlus(avecVenues(await lesEntreprises(t, jour), await lireJson(t, 'select plateforme.console_venues_par_cabinet() v'),
       lireRemisesEcheances(await lireJson(t, 'select plateforme.console_remises_echeances() v'))),
     lireEnPlus(await lireJson(t, 'select plateforme.console_clients_en_plus($1::date) v', [jour]), jour));
-    const prix = lirePrix(await lireJson(t, 'select plateforme.prix_du_jour($1::date) v', [jour]));
+    // Ce que chaque renouvellement coûtera, par la règle de la facture (0113), en un passage.
+    const renouvellements = await renouvellementsDe(t, entreprises, jour);
     // Le numéro, la ville, le téléphone de chaque entreprise ; les groupes de la console ce jour-là ; les cabinets (0110).
     const id = lireIdentites(await lireJson(t, 'select plateforme.console_identites($1::date) v', [jour]));
     const connues = new Set(entreprises.map((e) => e.id));
@@ -277,8 +296,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     const comptes = Object.fromEntries(CATEGORIES.map((c) => [c, dansVue.filter((o) => categorieOrg(o) === c).length]));
     const etat = CATEGORIES.includes(query.etat as never) ? query.etat as string : null;
     const tri: TriOrg = TRIS_CLIENTS.includes(query.tri as never) ? query.tri as TriOrg : 'urgence';
-    const gardees = trierOrg(etat ? dansVue.filter((o) => categorieOrg(o) === etat) : dansVue, tri, prix, jour);
-    return { prix, filtres, options, vues, laVue, dansVue, comptes, tri, gardees, identites: id.entreprises };
+    const gardees = trierOrg(etat ? dansVue.filter((o) => categorieOrg(o) === etat) : dansVue, tri, renouvellements, jour);
+    return { renouvellements, filtres, options, vues, laVue, dansVue, comptes, tri, gardees, identites: id.entreprises };
   }
   ajouter({
     methode: 'GET', chemin: '/console/entreprises', geste: 'console.clients.voir',
@@ -292,19 +311,19 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // vues du métier où elle se range (« n'a encore rien fait », « pas vue depuis dix jours » : la phrase et la carte qui
       // la compte, par la même fonction), les gestes de son menu, son numéro, sa ville.
       const page = s.gardees.slice(debut, debut + n).map((o) => {
-        const p = parAnDeLaLigne(o, s.prix);
+        const p = parAnDeLaLigne(o, s.renouvellements);
         return {
           id: o.id, sorte: o.sorte, numero: o.numero, nom: o.nom, ville: o.ville, cabinet: o.cabinet,
           parAnHt: p.actif ? versTexte(p.actif, 3) : null, attenduHt: p.attendu ? versTexte(p.attendu, 3) : null,
           usage: usageDeLaLigne(o), vu: vuDeLaLigne(o),
-          societes: o.societes.map((e) => ({ ...ligneClient(e, s.prix), numero: s.identites.get(e.id)?.numero ?? null, ville: s.identites.get(e.id)?.ville ?? null,
+          societes: o.societes.map((e) => ({ ...ligneClient(e, s.renouvellements), numero: s.identites.get(e.id)?.numero ?? null, ville: s.identites.get(e.id)?.ville ?? null,
             vues: VUES_CLIENTS.filter((v) => v !== 'tout' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e) })),
         };
       });
       return {
         corps: {
           aujourdhui: jour, total: s.gardees.length, tous: s.dansVue.length, vue: s.laVue, tri: s.tri, vues: s.vues, comptes: s.comptes,
-          filtres: s.filtres, options: s.options, parAn: parAnDesLignes(s.gardees, s.prix),
+          filtres: s.filtres, options: s.options, parAn: parAnDesLignes(s.gardees, s.renouvellements),
           lignes: page, suite: debut + n < s.gardees.length ? debut + n : null,
         },
       };
@@ -321,7 +340,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const jour = aujourdhuiATunis();
       const f = corps.filtres ?? {};
       const s = await selectionClients(transaction(tx), jour, f);
-      const lignes = s.gardees.flatMap((o) => o.societes.map((e) => ({ ...ligneExport(e, s.prix), numero: s.identites.get(e.id)?.numero ?? null,
+      const lignes = s.gardees.flatMap((o) => o.societes.map((e) => ({ ...ligneExport(e, s.renouvellements), numero: s.identites.get(e.id)?.numero ?? null,
         ville: s.identites.get(e.id)?.ville ?? null, groupe: o.sorte === 'groupe' ? o.nom : null })));
       const gardes = Object.fromEntries(['q', 'nouvelles', 'type', 'offre', 'cabinet', 'vue', 'etat', 'tri'].filter((k) => typeof f[k] === 'string' && f[k] !== '').map((k) => [k, f[k]]));
       await transaction(tx).query('select plateforme.console_noter_export($1, $2, $3, $4)', ['clients', lignes.length, JSON.stringify(gardes), corps.motif.trim()]);
@@ -349,7 +368,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // Ses demandes au support, comptées par la même fonction que l'écran Support ; celles qui attendent depuis 24 h
       // entrent dans « ce qui attend », comme à l'accueil.
       const support = lireSupport(await lireJson(transaction(tx), 'select plateforme.console_support($1, null) v', [id]));
-      const attend = aDecider(liste, { etat: 'absente' }, jour, role, support.ouvertes, maintenant());
+      const argent = role === 'direction'
+        ? argentADecider(lirePaiements(await lireJson(transaction(tx), 'select plateforme.console_paiements($1::date) v', [`${jour.slice(0, 7)}-01`])), liste, jour) : null;
+      const attend = aDecider(liste, { etat: 'absente' }, jour, role, support.ouvertes, maintenant(), argent);
       const instant = maintenant();
       // Ses factures d'abonnement (docs/abonnement.md B2–B4), et l'entreprise SkanFact où elles naissent.
       const nos = await lireJson<{ editeur: Record<string, unknown> | null }>(transaction(tx), 'select plateforme.console_editeur() v');
@@ -363,10 +384,13 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const identite = lireIdentites(await lireJson(transaction(tx), 'select plateforme.console_identites($1::date) v', [jour])).entreprises.get(id) ?? null;
       const notes = lireNotesAppel(await lireJson(transaction(tx), 'select plateforme.console_notes_appel($1) v', [id]));
       const enPlus = lireEnPlus(await lireJson(transaction(tx), 'select plateforme.console_clients_en_plus($1::date) v', [jour]), jour).get(id) ?? null;
-      return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, factures, groupe: { ...groupe, prochaine }, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true),
+      // Ce que sa prochaine facture coûtera (0113), par la règle de la facture : le chiffre de la liste et des échéances.
+      const r = (await renouvellementsDe(transaction(tx), liste, jour)).get(id) ?? null;
+      return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, factures, groupe: { ...groupe, prochaine }, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true, enPlus?.moisOffertRecent ?? false),
         identite, notes, enPlus, offreSuivante: faits.offreSuivante ?? null, delai: faits.delai ?? null,
         // La procédure de reprise en cours, ou la dernière (0112) : la direction seule la voit.
         reprise: role === 'direction' ? await lireJson(transaction(tx), 'select plateforme.console_reprise($1, $2::date) v', [id, jour]) : null,
+        prochaineFacture: r ? { debut: r.debut, montantHt: versTexte(r.periodeHt, 3) } : null,
         support: { comptes: compter(support.ouvertes, instant), ouvertes: ranger(support.ouvertes, instant), closes: support.closes.map((l) => ({ ...l, etat: etatDe(l, instant) })) } } };
     },
   });
@@ -455,12 +479,12 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const o = s.gardees.find((x) => x.id === id && x.sorte === 'groupe');
       if (!o) throw new Introuvable();
       const role = roleDe(qui);
-      const p = parAnDeLaLigne(o, s.prix);
+      const p = parAnDeLaLigne(o, s.renouvellements);
       return {
         corps: {
           aujourdhui: jour, id: o.id, numero: o.numero, nom: o.nom, ville: o.ville, parAnHt: p.actif ? versTexte(p.actif, 3) : null, attenduHt: p.attendu ? versTexte(p.attendu, 3) : null,
           usage: usageDeLaLigne(o), vu: vuDeLaLigne(o),
-          societes: o.societes.map((e) => ({ ...ligneClient(e, s.prix), numero: s.identites.get(e.id)?.numero ?? null, ville: s.identites.get(e.id)?.ville ?? null,
+          societes: o.societes.map((e) => ({ ...ligneClient(e, s.renouvellements), numero: s.identites.get(e.id)?.numero ?? null, ville: s.identites.get(e.id)?.ville ?? null,
             telephone: s.identites.get(e.id)?.telephone ?? null, dernierAppel: s.identites.get(e.id)?.dernierAppel ?? null,
             vues: VUES_CLIENTS.filter((v) => v !== 'tout' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e) })),
         },
@@ -470,7 +494,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
 
   // ── Les échéances des abonnements (10 § 2.4) ───────────────────────────────────────────────────────────────────────
   // Sur la MÊME liste que les clients : chaque carte compte la liste qu'elle ouvre (C3). Ce qui vient dans les trente
-  // jours d'abord ; une vue par état sinon. Les montants hors taxes, au prix du jour ; la liste se pagine.
+  // jours d'abord ; une vue par état sinon. Les montants hors taxes, ceux de la prochaine facture ; la liste se pagine.
   ajouter({
     methode: 'GET', chemin: '/console/abonnements', geste: 'console.clients.voir',
     traiter: async ({ query }, tx) => {
@@ -478,17 +502,16 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const jour = aujourdhuiATunis();
       const entreprises = await lesEntreprises(t, jour);
       const extras = lireExtras(await lireJson(t, 'select plateforme.console_echeances() v'));
-      const prix = lirePrix(await lireJson(t, 'select plateforme.prix_du_jour($1::date) v', [jour]));
-      // La remise de la prochaine période de chaque entreprise (0106), comme sa facture la comptera.
-      const remises = lireRemisesEcheances(await lireJson(t, 'select plateforme.console_remises_echeances() v'));
-      const lignes = lignesEcheances(entreprises, extras, prix, jour, remises);
+      // Ce que chaque prochaine facture dira (0113), par la règle de la facture : la liste des clients dit le même chiffre.
+      const renouvellements = await renouvellementsDe(t, entreprises, jour);
+      const lignes = lignesEcheances(entreprises, extras, renouvellements, jour);
       const v: Vue = VUES.includes(query.vue as Vue) ? query.vue as Vue : 'avenir';
       const gardees = vue(lignes, v, jour);
       const debut = Math.max(Number(query.debut ?? 0) || 0, 0);
       const n = limite(query);
       // Les règles que l'écran dit (les jours des relances, la grâce, l'horizon de « à venir ») viennent d'ici : écrites une
       // seconde fois dans les textes, elles divergeraient au premier réglage.
-      return { corps: { aujourdhui: jour, vue: v, cartes: cartes(lignes, jour), annuel: annuel(lignes, prix, remises), total: gardees.length,
+      return { corps: { aujourdhui: jour, vue: v, cartes: cartes(lignes, jour), annuel: annuel(lignes, renouvellements), total: gardees.length,
         lignes: gardees.slice(debut, debut + n), suite: debut + n < gardees.length ? debut + n : null,
         regles: reglesDuJour(await lireLesRegles(t), jour) } };
     },
@@ -525,11 +548,26 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
 
   // ── Un geste sur l'abonnement (10 § 2.4) : l'aperçu d'abord (ce que deviendra l'état), puis le geste ──────────────────
   // `ligne` : la ligne d'abonnement que l'écran a lue. Changée depuis, le geste se refuse (01 R15) : on relit d'abord.
+  // `paiement` (0113) : un paiement reçu hors de la plateforme dit sa facture faite ailleurs, le montant reçu en dinars,
+  // son moyen et son jour ; l'aperçu s'en passe, le geste jamais.
   const corpsGeste = z.object({
     motif: z.string().max(500), ligne: z.unknown(), apercu: z.boolean().optional(),
     jours: z.number().int().min(1).max(365).optional(), offre: z.enum(['essentiel', 'complet']).optional(),
     periodicite: z.enum(['annuel', 'mensuel']).optional(), module: z.enum(['paie', 'compta']).optional(),
+    paiement: z.object({ facture: z.string().max(200), montant: z.string().max(40), moyen: z.string().max(20), le: z.string().max(20) }).optional(),
   });
+  // La preuve d'un paiement reçu, lue case par case : un refus nomme la sienne.
+  const lirePaiementRecu = (p: z.infer<typeof corpsGeste>['paiement'], jour: string): PaiementRecu | ReturnType<typeof refusDuChamp> => {
+    const facture = (p?.facture ?? '').trim();
+    if (!facture || facture.length > 40) return refusDuChamp('facture', 'console.recu.facture');
+    const montant = prixTape(p?.montant ?? '');
+    if (montant === null || montant <= 0n || montant > 1_000_000_000_000n) return refusDuChamp('montant', 'console.recu.montant');
+    const moyen = MOYENS_RECUS.find((m) => m === p?.moyen);
+    if (!moyen) return refusDuChamp('moyen', 'console.recu.moyen');
+    const le = p?.le ?? '';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(le) || !jourExiste(le) || le > jour) return refusDuChamp('le', 'console.recu.jour');
+    return { facture, montant, moyen, le };
+  };
   const jouer = async (tx: Transaction, id: string, geste: GesteAbonnement, corps: z.infer<typeof corpsGeste>) => {
     if (!uuid.safeParse(id).success) throw new Introuvable();
     const fiche = await lireJson<Record<string, unknown> | null>(tx, 'select plateforme.console_entreprise($1) v', [id]);
@@ -538,10 +576,18 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     const ligne = lireLigne(fiche.ligne);
     if (!memeLigne(ligne, lireLigne(corps.ligne))) throw new Perimee('console.abonnement_change');
     const faits = await faitsDeLaFiche(tx, fiche);
-    const { apres, details } = calculerGeste(ligne, faits, { geste, motif: corps.motif, jours: corps.jours, offre: corps.offre, periodicite: corps.periodicite, module: corps.module }, jour);
+    let paiement: PaiementRecu | undefined;
+    if (geste === 'payer' && !corps.apercu) {
+      const p = lirePaiementRecu(corps.paiement, jour);
+      if ('statut' in p) return p;
+      paiement = p;
+    }
+    const { apres, details } = calculerGeste(ligne, faits, { geste, motif: corps.motif, jours: corps.jours, offre: corps.offre, periodicite: corps.periodicite,
+      module: corps.module, paiement, apercu: corps.apercu === true }, jour);
     const etatApres = etatAbonnement(faitsApres(faits, apres), jour);
-    // Un module ouvert ou retiré ne change pas l'état : l'aperçu dit aussi la liste des modules d'après.
-    if (corps.apercu) return { corps: { apercu: true, avant: etatAbonnement(faits, jour), apres: etatApres, details, modules: apres.modules } };
+    // Un module ouvert ou retiré ne change pas l'état : l'aperçu dit aussi la liste des modules d'après, et ceux qui partent
+    // au renouvellement.
+    if (corps.apercu) return { corps: { apercu: true, avant: etatAbonnement(faits, jour), apres: etatApres, details, modules: apres.modules, modulesARetirer: apres.modules_a_retirer ?? [] } };
     // Le motif reste dans l'histoire de l'abonnement (C1) : l'aperçu s'en passe, le geste jamais.
     if (corps.motif.trim().length < 3) return { statut: 400, corps: { motif: motif('console.motif_requis'), champ: 'motif', raison: t('console.motif_requis') } };
     await tx.query('select plateforme.console_poser_abonnement($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb, $7::date)',
@@ -551,6 +597,11 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   ajouter({
     methode: 'POST', chemin: '/console/entreprises/:id/abonnement/prolonger', geste: 'console.abonnement.prolonger', corps: corpsGeste,
     traiter: async ({ params, corps }, tx) => jouer(transaction(tx), params.id ?? '', 'prolonger', corps),
+  });
+  // Offrir un mois (0113) : le support aussi, un par entreprise sur douze mois (la base le revérifie).
+  ajouter({
+    methode: 'POST', chemin: '/console/entreprises/:id/abonnement/offrir-mois', geste: 'console.abonnement.offrir_mois', corps: corpsGeste,
+    traiter: async ({ params, corps }, tx) => jouer(transaction(tx), params.id ?? '', 'offrir-mois', corps),
   });
   ajouter({
     methode: 'POST', chemin: '/console/entreprises/:id/abonnement/:geste', geste: 'console.abonnement.gerer', corps: corpsGeste,
@@ -1373,9 +1424,10 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const jour = aujourdhuiATunis();
       const mois = moisDemande(query.mois, jour);
       const p = lirePaiements(await lireJson(x, 'select plateforme.console_paiements($1::date) v', [`${mois}-01`]));
-      const e = p.editeur ? encaisse(p.recus, p.editeur) : null;
+      const e = p.editeur ? encaisse(p.recus, p.editeur, p.horsPlateforme) : null;
       const { doivent, trop } = ouvertes(p.ouvertes, await lesEntreprises(x, jour), jour);
       const debut = Math.max(Number(query.debut ?? 0) || 0, 0);
+      const debutHors = Math.max(Number(query.debutHors ?? 0) || 0, 0);
       const n = limite(query);
       return {
         corps: {
@@ -1388,6 +1440,10 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           recus: { total: p.recus.length, lignes: p.recus.slice(debut, debut + n).map((r) => ({ ...r, montant: versTexte(r.montant, r.decimales) })),
             suite: debut + n < p.recus.length ? debut + n : null },
           doivent, trop, aEmettre: p.aEmettre, couts: couts(p.couts, e),
+          // Reçus hors de la plateforme ce mois (0113), et nos factures payées puis défaites (tout mois confondu).
+          horsPlateforme: { total: p.horsPlateforme.length, lignes: p.horsPlateforme.slice(debutHors, debutHors + n).map((h) => ({ ...h, montant: versTexte(h.montant, 3) })),
+            suite: debutHors + n < p.horsPlateforme.length ? debutHors + n : null },
+          defaites: p.defaites,
         },
       };
     },

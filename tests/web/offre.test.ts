@@ -16,6 +16,9 @@ import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { faire } from '../../base/abonnement.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 
+// La preuve d'un paiement reçu hors de la plateforme (0113) : sans elle, rien n'est payé.
+const RECU = { facture: 'F-2020-001', montant: 390000n, moyen: 'virement' as const, le: '2020-01-01' };
+
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
 const net = (t: string) => t.replace(/[\s\u202f\u00a0]+/g, ' ').trim();
@@ -67,7 +70,7 @@ describe('ce que l\'offre ouvre, à la souris', () => {
     await api('POST', '/inscription', undefined, { email, nom: 'Nadia', motDePasse: 'Un-bon-mot-de-passe' });
     const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
     const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Atelier en Essentiel' })).corps.id);
-    await faire(exploitant, ent, { geste: 'payer', offre: 'essentiel', periodicite: 'annuel', motif: 'virement reçu' });
+    await faire(exploitant, ent, { geste: 'payer', paiement: RECU, offre: 'essentiel', periodicite: 'annuel', motif: 'virement reçu' });
 
     // ── La paie : le cadenas, le bandeau d'entrée, et la porte AVANT la saisie ─────────────────────────────────────────
     const p = await ouvrir(jeton, ent, '#/paie');
@@ -97,7 +100,7 @@ describe('ce que l\'offre ouvre, à la souris', () => {
     expect(await p.locator('#c-tabs button.active').getAttribute('data-tab')).not.toBe('grandlivre');
 
     // ── Passée à Complet : plus de cadenas, le formulaire s'ouvre ─────────────────────────────────────────────────────
-    await faire(exploitant, ent, { geste: 'payer', offre: 'complet', periodicite: 'annuel', motif: 'passe à Complet' });
+    await faire(exploitant, ent, { geste: 'payer', paiement: RECU, offre: 'complet', periodicite: 'annuel', motif: 'passe à Complet' });
     const q = await ouvrir(jeton, ent, '#/paie');
     expect(await q.locator('.sidebar a[data-route="paie"] .nav-lock').count()).toBe(0);
     expect(await q.locator('.offre-banner').count()).toBe(0);

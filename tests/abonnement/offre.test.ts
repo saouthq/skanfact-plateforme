@@ -28,6 +28,9 @@ import { routesV10 } from '../../serveur/v10/routes.ts';
 import { declarerGestesVentes } from '../../serveur/ventes/gestes.ts';
 import { routesVentes } from '../../serveur/ventes/routes.ts';
 
+// La preuve d'un paiement reçu hors de la plateforme (0113) : sans elle, rien n'est payé.
+const RECU = { facture: 'F-2020-001', montant: 390000n, moyen: 'virement' as const, le: '2020-01-01' };
+
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 const exploitant = new pg.Client({ connectionString: inject('pgAdmin') });
 const pool = creerPool(inject('pgApp'));
@@ -70,7 +73,7 @@ describe('ce que l\'offre ouvre', () => {
     expect(await fermes(ent, p.jeton)).toEqual([]);
     expect((await ecrire(ent, p.jeton, [nouveau('employees', 'sal-1', SALARIE), nouveau('assets', 'immo-1', { label: 'Four', amount: 4200 })])).statut).toBe(200);
     // Essentiel payé : la paie et la comptabilité complète se ferment.
-    await faire(exploitant, ent, { geste: 'payer', offre: 'essentiel', periodicite: 'annuel', motif: 'virement reçu' });
+    await faire(exploitant, ent, { geste: 'payer', paiement: RECU, offre: 'essentiel', periodicite: 'annuel', motif: 'virement reçu' });
     expect(await fermes(ent, p.jeton)).toEqual(['paie', 'compta']);
     for (const [collection, module] of [['employees', 'paie'], ['payslips', 'paie'], ['leaves', 'paie'], ['advances', 'paie'], ['socialFilings', 'paie'], ['assets', 'compta']]) {
       const r = await ecrire(ent, p.jeton, [nouveau(collection ?? '', `${collection}-neuf`)]);
@@ -94,7 +97,7 @@ describe('ce que l\'offre ouvre', () => {
     expect((await appeler('GET', `/entreprises/${ent}/abonnement/etat`, p.jeton)).corps).toMatchObject({ etat: 'en_retard', fermes: ['paie', 'compta'] });
     expect((await ecrire(ent, p.jeton, [nouveau('employees', 'sal-3', SALARIE)])).statut).toBe(403);
     // Complet ouvre tout.
-    await faire(exploitant, ent, { geste: 'payer', offre: 'complet', periodicite: 'mensuel', motif: 'passe à Complet' });
+    await faire(exploitant, ent, { geste: 'payer', paiement: RECU, offre: 'complet', periodicite: 'mensuel', motif: 'passe à Complet' });
     expect(await fermes(ent, p.jeton)).toEqual([]);
     expect((await ecrire(ent, p.jeton, [nouveau('employees', 'sal-3', SALARIE), nouveau('assets', 'immo-2', { label: 'Camion', amount: 38000 })])).statut).toBe(200);
   });
@@ -107,7 +110,7 @@ describe('ce que l\'offre ouvre', () => {
     const mandat = String((await appeler('POST', `/entreprises/${ent}/mandat`, client.jeton, { codeCabinet: String(c.corps.code) })).corps.mandat);
     await appeler('POST', `/cabinets/${String(c.corps.id)}/mandats/${mandat}/accepter`, associe.jeton);
     expect((await appeler('PUT', `/entreprises/${ent}/mandat/perimetre`, client.jeton, { perimetre: ['comptabilite', 'paie'] })).statut).toBe(200);
-    await faire(exploitant, ent, { geste: 'payer', offre: 'essentiel', periodicite: 'annuel', motif: 'virement reçu' });
+    await faire(exploitant, ent, { geste: 'payer', paiement: RECU, offre: 'essentiel', periodicite: 'annuel', motif: 'virement reçu' });
     expect(await fermes(ent, client.jeton)).toEqual(['paie', 'compta']);
     const r = await appeler('POST', `/entreprises/${ent}/paie/dossier`, associe.jeton, { changements: [nouveau('employees', 'sal-1', SALARIE)] });
     expect(r.statut, JSON.stringify(r.corps)).toBe(200);

@@ -1,13 +1,15 @@
 // Les gestes de 0111 sur l'abonnement (serveur/abonnement/gestes.ts ; serveur/abonnement/etat.ts ; la maquette Clients) :
 //   - accorder un délai (« Prolonger la grâce », « Réactiver ») : la lecture seule recule, pour SON échéance seulement ;
-//   - offrir un mois : la période payée s'allonge d'un mois de calendrier, sans facture ;
-//   - changer d'offre : à la prochaine échéance, la période payée allant au bout avec l'offre payée.
+//   - offrir un mois (0113) : sur la prochaine facture, qui couvre un mois de plus au même prix ; rien ne s'allonge avant ;
+//   - changer d'offre : à la prochaine échéance, la période payée allant au bout avec l'offre payée ;
+//   - un paiement reçu (0113) : sa preuve, le mois offert qu'il consomme, ce que le renouvellement applique ;
+//   - un module (0113) : retiré pendant une période payée, il part au renouvellement ; rouvert, le retrait s'annule.
 // Les dates des assertions sont comptées à la main sur le calendrier, jamais recopiées du code.
 
 import { describe, expect, it } from 'vitest';
 import { etatAbonnement, type Faits } from '../../serveur/abonnement/etat.ts';
 import { calculerGeste, DELAI_MAX_JOURS, type DemandeAbonnement, type LigneAbonnement } from '../../serveur/abonnement/gestes.ts';
-import { motif, rendre, type Valeurs } from '../../textes/index.ts';
+import { motif, rendre, t, type Valeurs } from '../../textes/index.ts';
 import { REGLES_DE_DEPART } from '../regles-de-depart.ts';
 
 // Une entreprise créée le 12/10/2026 : trente jours d'essai, jusqu'au 11/11/2026 ; sept jours de grâce, la lecture seule
@@ -64,18 +66,74 @@ describe('accorder un délai', () => {
 });
 
 describe('offrir un mois', () => {
-  it('la période payée court un mois de calendrier de plus, la fin d\'un mois court comprise', () => {
-    // Payé jusqu'au 11/11/2027 : un mois offert, jusqu'au 11/12/2027.
+  it('sur la prochaine facture, qui couvre un mois de calendrier de plus au même prix ; rien ne s\'allonge avant elle', () => {
+    // Payé jusqu'au 11/11/2027, à l'année : la facture suivante couvrira du 12/11/2027 au 11/12/2028 (treize mois) ; la
+    // période payée ne bouge pas.
     expect(geste(PAYEE, { geste: 'offrir-mois' }, '2026-12-01')).toEqual({
-      apres: { ...ligneDe(PAYEE), paye_jusqu_au: '2027-12-11' }, details: { de: '2027-11-11', a: '2027-12-11' } });
-    // Payé jusqu'au 31/01/2027 (le mois de janvier) : le mois offert est février, jusqu'au 28/02/2027.
+      apres: { ...ligneDe(PAYEE), mois_offerts: 1 }, details: { du: '2027-11-12', au: '2028-12-11' } });
+    // Payé jusqu'au 31/01/2027, au mois : la facture de février couvrira février et mars, jusqu'au 31/03/2027.
     const janvier = avec({ payeJusquAu: '2027-01-31', offre: 'complet', periodicite: 'mensuel' });
-    expect(geste(janvier, { geste: 'offrir-mois' }, '2027-01-15').apres.paye_jusqu_au).toBe('2027-02-28');
+    expect(geste(janvier, { geste: 'offrir-mois' }, '2027-01-15').details).toEqual({ du: '2027-02-01', au: '2027-03-31' });
   });
 
-  it('à un abonné qui court seulement : ni un essai, ni une résiliation qui court à sa fin', () => {
+  it('un seul mois attend à la fois ; ni un essai, ni une résiliation, ni une suspension', () => {
+    expect(() => calculerGeste({ ...ligneDe(PAYEE), mois_offerts: 1 }, PAYEE, { motif: 'essai', geste: 'offrir-mois' }, '2026-12-01')).toThrow(refus('abonnement.geste.mois_deja'));
     expect(() => geste(ESSAI, { geste: 'offrir-mois' }, '2026-10-20')).toThrow(refus('abonnement.geste.mois_actif'));
     expect(() => geste(avec({ ...PAYEE, resilieLe: '2026-11-30' }), { geste: 'offrir-mois' }, '2026-12-01')).toThrow(refus('abonnement.geste.mois_resilie'));
+    expect(() => geste(avec({ ...PAYEE, suspenduLe: '2026-11-30' }), { geste: 'offrir-mois' }, '2026-12-01')).toThrow(refus('abonnement.geste.mois_resilie'));
+  });
+});
+
+describe('un paiement reçu hors de la plateforme', () => {
+  // La facture faite ailleurs, le montant reçu (2 380,500 DT), son moyen, son jour.
+  const RECU = { facture: 'F-2026-118', montant: 2380500n, moyen: 'cheque' as const, le: '2026-11-30' };
+
+  it('dit sa preuve, et la garde dans son histoire ; sans elle, rien n\'est payé', () => {
+    const { apres, details } = geste(PAYEE, { geste: 'payer', offre: 'essentiel', periodicite: 'annuel', paiement: RECU }, '2026-12-01');
+    expect(apres.paye_jusqu_au).toBe('2028-11-11');
+    expect(details).toEqual({ debut: '2027-11-12', fin: '2028-11-11', facture: 'F-2026-118', montant: '2380500', moyen: 'cheque', le: '2026-11-30' });
+    const sans = (p: Partial<typeof RECU> | undefined) => () => geste(PAYEE, { geste: 'payer', offre: 'essentiel', periodicite: 'annuel',
+      ...(p ? { paiement: { ...RECU, ...p } } : {}) }, '2026-12-01');
+    for (const p of [undefined, { facture: '  ' }, { facture: 'F'.repeat(41) }, { montant: 0n }, { moyen: 'traite' as never }, { le: '2026-12-02' }, { le: '30/11/2026' }]) {
+      expect(sans(p)).toThrow(refus('abonnement.geste.paiement_preuve'));
+    }
+    // L'aperçu se calcule avant que la preuve soit tapée : la période ne dépend pas d'elle.
+    expect(calculerGeste(ligneDe(PAYEE), PAYEE, { motif: '', geste: 'payer', offre: 'essentiel', periodicite: 'annuel', apercu: true }, '2026-12-01').apres.paye_jusqu_au)
+      .toBe('2028-11-11');
+  });
+
+  it('consomme le mois offert qui l\'attendait : la période couvre un mois de plus', () => {
+    const { apres, details } = calculerGeste({ ...ligneDe(PAYEE), mois_offerts: 1 }, PAYEE,
+      { motif: 'essai', geste: 'payer', offre: 'essentiel', periodicite: 'annuel', paiement: RECU }, '2026-12-01');
+    expect(apres).toMatchObject({ paye_jusqu_au: '2028-12-11', mois_offerts: 0 });
+    expect(details).toMatchObject({ debut: '2027-11-12', fin: '2028-12-11', moisOffert: true });
+  });
+
+  it('applique le renouvellement : le module qui partait part, l\'offre changée ne se redit plus', () => {
+    const ligne: LigneAbonnement = { ...ligneDe(PAYEE), modules: ['compta', 'paie'], modules_a_retirer: ['paie'],
+      suivante_offre: 'complet', suivante_periodicite: 'annuel', suivante_a_partir_du: '2027-11-12' };
+    const { apres } = calculerGeste(ligne, PAYEE, { motif: 'essai', geste: 'payer', offre: 'complet', periodicite: 'annuel', paiement: RECU }, '2026-12-01');
+    expect(apres).toMatchObject({ offre: 'complet', modules: ['compta'], modules_a_retirer: [], suivante_offre: null, suivante_periodicite: null, suivante_a_partir_du: null });
+  });
+});
+
+describe('un module acheté seul', () => {
+  const AVEC_PAIE: LigneAbonnement = { ...ligneDe(PAYEE), modules: ['paie'] };
+
+  it('retiré pendant une période payée, il reste jusqu\'à sa fin et part le lendemain ; sans période payée, tout de suite', () => {
+    const { apres, details } = calculerGeste(AVEC_PAIE, PAYEE, { motif: 'essai', geste: 'fermer-module', module: 'paie' }, '2026-12-01');
+    expect(apres).toMatchObject({ modules: ['paie'], modules_a_retirer: ['paie'] });
+    expect(details).toEqual({ module: 'paie', jusquAu: '2027-11-11', auRenouvellement: '2027-11-12' });
+    expect(() => calculerGeste(apres, PAYEE, { motif: 'essai', geste: 'fermer-module', module: 'paie' }, '2026-12-01'))
+      .toThrow(refus('abonnement.geste.module_part_deja', { module: t('abonnement.module.paie') }));
+    // À l'essai, rien n'est payé : il part tout de suite.
+    expect(calculerGeste({ ...ligneDe(ESSAI), modules: ['paie'] }, ESSAI, { motif: 'essai', geste: 'fermer-module', module: 'paie' }, '2026-10-20').apres.modules).toEqual([]);
+  });
+
+  it('rouvert avant de partir : le retrait prévu s\'annule, ce n\'est pas un achat', () => {
+    const { apres, details } = calculerGeste({ ...AVEC_PAIE, modules_a_retirer: ['paie'] }, PAYEE, { motif: 'essai', geste: 'ouvrir-module', module: 'paie' }, '2026-12-01');
+    expect(apres).toMatchObject({ modules: ['paie'], modules_a_retirer: [] });
+    expect(details).toEqual({ module: 'paie', annuleRetrait: true });
   });
 });
 

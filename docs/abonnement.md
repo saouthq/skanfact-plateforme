@@ -426,6 +426,35 @@ cabinet. Les places de fondateur, prévues ensuite, sont abandonnées (Skander, 
 **Ce que 14c ne fait pas** : passer à Complet ou acheter un module en libre-service (on écrit à contact@skanfact.tn,
 comme en 14a).
 
+**C18. L'argent juste** (1.20.0 ; `0113` ; l'audit du 14/10/2026 ; Skander : « le support peut le faire » pour le mois
+offert, et pour le reste « décide à ma place ce qui est le mieux d'après notre projet »). Quatre règles, en un seul
+endroit chacune (`serveur/abonnement/gestes.ts`, `serveur/abonnement/factures.ts`, la base qui les revérifie) :
+- **Offrir un mois va sur la prochaine facture** : elle couvre un mois de calendrier de plus, **au même prix**, et le dit
+  (« Du 12/11/2027 au 11/12/2028, dont un mois offert »). Rien ne s'allonge avant elle : un mois offert n'est jamais une
+  gratuité sans fin, et il laisse sa trace sur une pièce. **Un seul attend à la fois** (`abonnement.mois_offerts`, 0 ou
+  1) ; la facture préparée le consomme (`facture_abonnement.mois_offert`), comme un paiement noté. À un abonné dont
+  l'offre est choisie, qui se renouvelle (ni résilié, ni suspendu) : en cours, en grâce ou non renouvelé — pour celui-ci,
+  c'est un geste pour qu'il revienne. **Le support l'offre aussi** (Skander, 14/10/2026), **une fois par entreprise sur
+  douze mois** ; au-delà, la direction. Le cadrage disait « un avoir sur la prochaine facture » (`10` § 2.4) : choisi par
+  délégation, une période plus longue au même prix, sans avoir à émettre — son traitement fiscal est **À VÉRIFIER** avec
+  le comptable.
+- **Un paiement reçu hors de la plateforme** (une facture faite ailleurs, réglée par virement, chèque ou espèces) **dit
+  sa preuve** : le numéro de cette facture, le montant reçu, son moyen et son jour (aujourd'hui ou avant). Sans elle,
+  rien n'est payé (le serveur, puis la base). Paiements le compte dans l'encaissé de son jour, sous son moyen (des
+  espèces, sous « autrement »), et le liste à part ; le journal et l'histoire de l'abonnement le gardent.
+- **Un module acheté s'ouvre tout de suite ; la prochaine facture rattrape**, au prorata des jours, la période payée qui
+  courait quand il s'est ouvert (`plateforme.rattrapage_modules` : le prix de la période × jours utilisés ÷ jours de la
+  période, au millime le plus proche ; une fois). **Un module retiré pendant une période payée reste ouvert jusqu'à sa
+  fin**, puis part : rien n'est perdu, rien n'est à rembourser, et la facture suivante ne le compte plus. Le rouvrir avant
+  annule le retrait. Le rattrapage (sa règle fiscale) est **À VÉRIFIER** avec le comptable.
+- **Le renouvellement applique ce qui était prévu** : le module qui part, l'offre changée pour l'échéance (0111), que
+  rien n'appliquait.
+- **Un seul chiffre** : ce que la prochaine facture coûtera se calcule par la règle de la facture (le prix du premier jour
+  de sa période, ce qui s'y ajoute, la remise de la période, l'offre choisie pour l'échéance), en un passage pour toute la
+  liste (`plateforme.console_renouvellements`, `serveur/console/renouvellements.ts`). La liste des clients (par an), les
+  échéances (le montant, « Ce qui revient chaque année »), la fiche (« Prochaine facture : … ») disent ce chiffre-là ; un
+  mensuel compte douze mois, sans le rattrapage qui ne se paie qu'une fois.
+
 ## Revu à la souris (14/10/2026, C17 : les remises)
 
 Sur l'essai de l'outil humain, la base passée en `0106`, dans la console (Amira, direction). Une seconde société pour

@@ -1,6 +1,6 @@
 // La liste des clients recalée sur sa maquette, pure (serveur/console/clients.ts ; docs/console.md C17) : chaque vue du
-// métier compte la liste qu'elle ouvre ; un silence se compte en jours de Tunis ; un montant par an se dit au prix du
-// jour, hors taxes, jamais inventé, et ce qui n'est pas encore payé se dit « attendu » sans compter dans ce que la
+// métier compte la liste qu'elle ouvre ; un silence se compte en jours de Tunis ; un montant par an se dit par la règle
+// de la facture, hors taxes, jamais inventé, et ce qui n'est pas encore payé se dit « attendu » sans compter dans ce que la
 // sélection rapporte ; l'échéance est le prochain jour où quelque chose change ; les tris gardent l'urgence pour
 // départager et mettent en bas ce qui n'a pas de valeur. Les dates et les montants sont comptés à la main.
 
@@ -12,6 +12,8 @@ import { categorieOrg, chercherOrg, lireFiltresOrg, optionsDesFiltresOrg, orgDan
   usageDeLaLigne, vuDeLaLigne, type Organisation } from '../../serveur/console/organisations.ts';
 import { lireEntreprises, rangerParUrgence } from '../../serveur/console/decider.ts';
 import { annuel, lignesEcheances, lireExtras, lirePrix, lireRemisesEcheances } from '../../serveur/console/echeances.ts';
+import { aRenouveler, lireRenouvellements } from '../../serveur/console/renouvellements.ts';
+import { auPrix } from './au-prix.ts';
 
 const JOUR = '2026-10-13';
 let n = 0;
@@ -56,6 +58,8 @@ const BRUT = [
 const LISTE = avecVenues(lireEntreprises(BRUT, JOUR, REGLES_DE_DEPART), {
   [id(8)]: { cabinet: 'Cabinet Nour', depuis: '2026-01-05' }, [id(12)]: { cabinet: 'Cabinet Nour', depuis: '2026-02-01' }, [id(9)]: { cabinet: '', depuis: '2026-01-01' },
 });
+// Ce que chaque renouvellement coûtera, par la règle de la facture, à ces prix-là.
+const R = auPrix(LISTE, JOUR, PRIX);
 function nom(lettre: string) {
   const e = LISTE.find((x) => x.raisonSociale.startsWith(`${lettre} `));
   if (!e) throw new Error(`pas d'entreprise ${lettre}`);
@@ -93,25 +97,25 @@ describe('Clients : l\'échéance et ce que rapporte chaque ligne', () => {
     expect(echeanceDe(nom('L'))).toBeNull();
   });
 
-  it('un montant par an au prix du jour, hors taxes ; ce qui n\'est pas payé est attendu ; rien ne s\'invente', () => {
-    expect(parAn(nom('H'), PRIX)).toEqual({ montantHt: '468.000', attendu: false, remise: null }); // 39 DT × 12 mois
-    expect(parAn(nom('I'), PRIX)).toEqual({ montantHt: '690.000', attendu: false, remise: null });
-    expect(parAn(nom('F'), PRIX)).toEqual({ montantHt: '390.000', attendu: true, remise: null });
-    expect(parAn(nom('G'), PRIX)).toEqual({ montantHt: '390.000', attendu: true, remise: null });
-    expect(parAn(nom('K'), PRIX)).toEqual({ montantHt: '828.000', attendu: true, remise: null }); // 69 DT × 12 mois
+  it('un montant par an, hors taxes, par la règle de la facture ; ce qui n\'est pas payé est attendu ; rien ne s\'invente', () => {
+    expect(parAn(nom('H'), R)).toEqual({ montantHt: '468.000', attendu: false, remise: null }); // 39 DT × 12 mois
+    expect(parAn(nom('I'), R)).toEqual({ montantHt: '690.000', attendu: false, remise: null });
+    expect(parAn(nom('F'), R)).toEqual({ montantHt: '390.000', attendu: true, remise: null });
+    expect(parAn(nom('G'), R)).toEqual({ montantHt: '390.000', attendu: true, remise: null });
+    expect(parAn(nom('K'), R)).toEqual({ montantHt: '828.000', attendu: true, remise: null }); // 69 DT × 12 mois
     // Un résilié ne se renouvelle pas ; un essai sans offre, un dossier tenu ne rapportent rien de dit.
-    expect(parAn(nom('J'), PRIX)).toBeNull();
-    expect(parAn(nom('A'), PRIX)).toBeNull();
-    expect(parAn(nom('L'), PRIX)).toBeNull();
+    expect(parAn(nom('J'), R)).toBeNull();
+    expect(parAn(nom('A'), R)).toBeNull();
+    expect(parAn(nom('L'), R)).toBeNull();
     // Sans prix du jour pour son offre, rien : jamais un zéro ni un montant deviné.
-    expect(parAn(nom('I'), lirePrix([{ offre: 'essentiel', periodicite: 'annuel', montantHt: '390000' }]))).toBeNull();
-    expect(ligneClient(nom('H'), PRIX)).toMatchObject({ echeance: '2026-10-20', parAn: { montantHt: '468.000', attendu: false } });
+    expect(parAn(nom('I'), auPrix(LISTE, JOUR, lirePrix([{ offre: 'essentiel', periodicite: 'annuel', montantHt: '390000' }])))).toBeNull();
+    expect(ligneClient(nom('H'), R)).toMatchObject({ echeance: '2026-10-20', parAn: { montantHt: '468.000', attendu: false } });
   });
 
   it('la sélection rapporte ce que rapportent ses abonnements actifs, sans ce qui est attendu', () => {
     // H 468 + I 690 ; F, G, K sont attendus, J est résilié.
-    expect(parAnDeLaSelection(LISTE, PRIX)).toEqual({ montantHt: '1158.000', abonnements: 2 });
-    expect(parAnDeLaSelection(LISTE.filter((e) => dansLaVue(e, 'argent', JOUR)), PRIX)).toEqual({ montantHt: '0.000', abonnements: 0 });
+    expect(parAnDeLaSelection(LISTE, R)).toEqual({ montantHt: '1158.000', abonnements: 2 });
+    expect(parAnDeLaSelection(LISTE.filter((e) => dansLaVue(e, 'argent', JOUR)), R)).toEqual({ montantHt: '0.000', abonnements: 0 });
   });
 });
 
@@ -120,22 +124,64 @@ describe('Clients : la remise de la prochaine période (0106)', () => {
     const remises = lireRemisesEcheances({ [id(8)]: { nature: 'groupe', taux: 17, groupe: 'Famille' }, [id(9)]: { nature: 'cabinet', taux: 20, cabinet: 'Cabinet Nour' } });
     const liste = avecVenues(lireEntreprises(BRUT, JOUR, REGLES_DE_DEPART), {}, remises);
     const de = (lettre: string) => liste.find((e) => e.raisonSociale.startsWith(`${lettre} `)) as (typeof liste)[number];
+    const RR = auPrix(liste, JOUR, PRIX, remises);
     // H : (39,000 − 17 % = 32,370) × 12 = 388,440 ; I : 690,000 − 20 % = 552,000.
-    expect(parAn(de('H'), PRIX)).toEqual({ montantHt: '388.440', attendu: false, remise: { nature: 'groupe', taux: 17 } });
-    expect(parAn(de('I'), PRIX)).toEqual({ montantHt: '552.000', attendu: false, remise: { nature: 'cabinet', taux: 20 } });
-    expect(parAnDeLaSelection(liste, PRIX)).toEqual({ montantHt: '940.440', abonnements: 2 });
+    expect(parAn(de('H'), RR)).toEqual({ montantHt: '388.440', attendu: false, remise: { nature: 'groupe', taux: 17 } });
+    expect(parAn(de('I'), RR)).toEqual({ montantHt: '552.000', attendu: false, remise: { nature: 'cabinet', taux: 20 } });
+    expect(parAnDeLaSelection(liste, RR)).toEqual({ montantHt: '940.440', abonnements: 2 });
     // Le même chiffre que les échéances, sur les mêmes entreprises et les mêmes remises.
-    expect(annuel(lignesEcheances(lireEntreprises(BRUT, JOUR, REGLES_DE_DEPART), lireExtras({}), PRIX, JOUR, remises), PRIX, remises).montantHt).toBe('940.440');
+    expect(annuel(lignesEcheances(lireEntreprises(BRUT, JOUR, REGLES_DE_DEPART), lireExtras({}), RR, JOUR), RR).montantHt).toBe('940.440');
+  });
+});
+
+describe('Clients : le renouvellement, par la règle de la facture (0113)', () => {
+  it('la période et l\'offre de la prochaine facture : la suite de l\'échéance, ou aujourd\'hui après la grâce ; rien pour ce qui ne se renouvelle pas', () => {
+    // G, échue le 08/10, est encore en grâce : sa facture part du 09/10. K, en lecture seule, repart d'aujourd'hui.
+    expect(aRenouveler(nom('G'), JOUR)).toMatchObject({ offre: 'essentiel', periodicite: 'annuel', debut: '2026-10-09', attendu: true });
+    expect(aRenouveler(nom('K'), JOUR)).toMatchObject({ offre: 'complet', periodicite: 'mensuel', debut: JOUR, attendu: true });
+    expect(aRenouveler(nom('H'), JOUR)).toMatchObject({ debut: '2026-10-21', attendu: false });
+    for (const l of 'ABEJLM') expect(aRenouveler(nom(l), JOUR)).toBeNull();
+  });
+
+  it('ce qui s\'ajoute à l\'offre compte, chaque année ; le rattrapage d\'un module ouvert en cours, une fois, sur la prochaine facture', () => {
+    const h = nom('H');
+    const r = auPrix(LISTE, JOUR, PRIX, new Map(), { [h.id]: [
+      { option: 'module_paie', quantite: 1, compte: 1, inclus: 0, prixHt: '15000' },
+      { option: 'rattrapage_paie', quantite: 1, compte: 10, inclus: 31, prixHt: '4839', du: '2026-10-11', au: '2026-10-20' }] });
+    // La facture : 39,000 + 15,000 + 4,839 ; chaque année : (39,000 + 15,000) × 12, sans le rattrapage.
+    expect(r.get(h.id)).toMatchObject({ periodeHt: 58839n, parAnHt: 648000n });
+    expect(parAn(h, r)?.montantHt).toBe('648.000');
+    const lignes = lignesEcheances(LISTE, lireExtras({}), r, JOUR);
+    expect(lignes.find((l) => l.entreprise.id === h.id)?.montantHt).toBe('58.839');
+    expect(annuel(lignes, r).montantHt).toBe(parAnDeLaSelection(LISTE, r).montantHt);
+  });
+
+  it('l\'offre changée pour la prochaine échéance (0111) est celle que la facture portera', () => {
+    const brut = brute('N · Essentiel à l\'année, passe au Complet mensuel', { payeJusquAu: '2026-10-20', offre: 'essentiel', periodicite: 'annuel' });
+    const [e] = lireEntreprises([brut], JOUR, REGLES_DE_DEPART, new Map([[brut.id, { delai: null,
+      offreSuivante: { offre: 'complet' as const, periodicite: 'mensuel' as const, aPartirDu: '2026-10-21' } }]]));
+    const n = e as NonNullable<typeof e>;
+    expect(aRenouveler(n, JOUR)).toMatchObject({ offre: 'complet', periodicite: 'mensuel', debut: '2026-10-21' });
+    expect(parAn(n, auPrix([n], JOUR, PRIX))?.montantHt).toBe('828.000');
+  });
+
+  it('un prix qui manque, une ligne illisible : rien, jamais un montant deviné', () => {
+    const i = nom('I');
+    const d = aRenouveler(i, JOUR);
+    if (!d) throw new Error('I se renouvelle');
+    expect(lireRenouvellements([d], { [i.id]: { incalculable: true } }).get(i.id)).toBeNull();
+    expect(lireRenouvellements([d], { [i.id]: { prixHt: '690,000' } }).get(i.id)).toBeNull();
+    expect(lireRenouvellements([d], {}).get(i.id)).toBeNull();
   });
 });
 
 describe('Clients : les tris', () => {
   const urgence = rangerParUrgence(LISTE, JOUR);
   it('« le plus urgent d\'abord » est l\'ordre reçu, intact', () => {
-    expect(lettres(trier(urgence, 'urgence', PRIX))).toBe(lettres(urgence));
+    expect(lettres(trier(urgence, 'urgence', R))).toBe(lettres(urgence));
   });
   it('l\'échéance la plus proche d\'abord, sans échéance en bas ; à égalité, l\'urgence départage', () => {
-    const t = trier(urgence, 'echeance', PRIX);
+    const t = trier(urgence, 'echeance', R);
     // A et B le 15/10, G le 16/10, E et F le 18/10 (grâce du 10/10), C le 20/10 avec H, D le 21/10, J le 25/10, I en 2027.
     expect(t.slice(0, 2).map((e) => e.raisonSociale.charAt(0)).sort().join('')).toBe('AB');
     expect(t.map((e) => echeanceDe(e))).toEqual([...t.map((e) => echeanceDe(e))].sort((a, b) => (a === null ? 1 : b === null ? -1 : a < b ? -1 : a > b ? 1 : 0)));
@@ -144,11 +190,11 @@ describe('Clients : les tris', () => {
     expect(lettres(t.filter((e) => echeanceDe(e) === '2026-10-15'))).toBe(lettres(ab));
   });
   it('ce qui rapporte le plus d\'abord, attendu compris ; rien en bas', () => {
-    expect(lettres(trier(urgence, 'par_an', PRIX)).slice(0, 5)).toBe('KIH' + lettres(urgence.filter((e) => 'FG'.includes(e.raisonSociale.charAt(0)))));
+    expect(lettres(trier(urgence, 'par_an', R)).slice(0, 5)).toBe('KIH' + lettres(urgence.filter((e) => 'FG'.includes(e.raisonSociale.charAt(0)))));
   });
   it('le nom dans l\'ordre de lecture ; le plus récemment ouvert d\'abord, jamais ouvert en bas', () => {
-    expect(lettres(trier(urgence, 'nom', PRIX))).toBe('ABCDEFGHIJKLM');
-    const vu = trier(urgence, 'vu', PRIX);
+    expect(lettres(trier(urgence, 'nom', R))).toBe('ABCDEFGHIJKLM');
+    const vu = trier(urgence, 'vu', R);
     expect(lettres(vu).slice(-3)).toBe('IHD');
   });
 });
@@ -175,7 +221,7 @@ describe('Clients : ce que chaque ligne dit en plus (0110)', () => {
     [id(5)]: { factures: [facture('2026-10-15', '47410', { emise: false })] },
   }, JOUR);
   it('lit prudemment : un nombre illisible vaut zéro, une durée illisible n\'existe pas', () => {
-    expect(enPlus.get(id(1))).toEqual({ piecesMois: 4, essaiJours: 30, prolonge: 0, prolongeUneFois: false, attend: null });
+    expect(enPlus.get(id(1))).toEqual({ piecesMois: 4, essaiJours: 30, prolonge: 0, prolongeUneFois: false, moisOffertRecent: false, attend: null });
     expect(enPlus.get(id(4))).toMatchObject({ piecesMois: 0, essaiJours: null, prolonge: 0, prolongeUneFois: false, attend: null });
   });
   it('la facture qui attend : la plus ancienne pas encore réglée, avec ce qu\'il en reste — jamais une payée ni une annulée', () => {
@@ -190,9 +236,9 @@ describe('Clients : ce que chaque ligne dit en plus (0110)', () => {
     expect(dans('a_appeler')).toBe('CE');
     expect(dans('argent')).toBe('AFG');
     // Sans ce qu'elle dit en plus, une ligne n'a rien émis ce mois : I (9), H (2), puis les autres dans l'ordre reçu.
-    expect(lettres(trier(liste, 'usage', PRIX)).slice(0, 2)).toBe('IH');
+    expect(lettres(trier(liste, 'usage', R)).slice(0, 2)).toBe('IH');
     // L'export dit les pièces du mois, comme la colonne.
-    expect(ligneExport(liste.find((e) => e.id === nom('I').id) as (typeof liste)[number], PRIX).pieces).toBe(9);
+    expect(ligneExport(liste.find((e) => e.id === nom('I').id) as (typeof liste)[number], R).pieces).toBe(9);
   });
 });
 
@@ -221,12 +267,17 @@ describe('Clients : les gestes du menu d\'une ligne', () => {
     expect(gestesDeLaListe('support', e('A', { enPlus: { piecesMois: 0, essaiJours: 30, prolonge: 7, prolongeUneFois: true, attend: null } }))).toEqual([]);
     expect(gestesDeLaListe('direction', e('A'))).toEqual(['prolonger', 'suspendre']);
     // 0111 : un abonné qui paie se voit offrir un mois ou changer d'offre (à son échéance) ; la grâce, un délai (sans offre :
-    // pas d'offre à changer) ; la lecture seule après une échéance manquée, un délai (« Réactiver ») ; le support, rien de tout cela.
+    // pas d'offre à changer) ; la lecture seule après une échéance manquée, un délai (« Réactiver »). 0113 : un mois offert
+    // va sur la prochaine facture, celle qu'un abonné en grâce ou non renouvelé doit encore — un geste pour qu'il revienne.
     expect(gestesDeLaListe('direction', e('I'))).toEqual(['offrir-mois', 'changer-offre', 'suspendre', 'resilier']);
-    expect(gestesDeLaListe('support', e('I'))).toEqual([]);
+    // Le support offre un mois (0113), un par entreprise sur douze mois ; la direction, sans compter.
+    expect(gestesDeLaListe('support', e('I'))).toEqual(['offrir-mois']);
+    const offertRecemment = (l: string) => e(l, { enPlus: { piecesMois: 0, essaiJours: null, prolonge: 0, prolongeUneFois: false, moisOffertRecent: true, attend: null } });
+    expect(gestesDeLaListe('support', offertRecemment('I'))).toEqual([]);
+    expect(gestesDeLaListe('direction', offertRecemment('I'))).toContain('offrir-mois');
     expect(gestesDeLaListe('direction', e('E'))).toEqual(['prolonger', 'accorder-delai', 'suspendre']);
-    expect(gestesDeLaListe('direction', e('G'))).toEqual(['accorder-delai', 'changer-offre', 'suspendre']);
-    expect(gestesDeLaListe('direction', e('K'))).toEqual(['accorder-delai', 'suspendre']);
+    expect(gestesDeLaListe('direction', e('G'))).toEqual(['accorder-delai', 'offrir-mois', 'changer-offre', 'suspendre']);
+    expect(gestesDeLaListe('direction', e('K'))).toEqual(['accorder-delai', 'offrir-mois', 'suspendre']);
     expect(gestesDeLaListe('direction', e('J'))).toEqual(['annuler-resiliation', 'suspendre']);
     expect(gestesDeLaListe('direction', e('L'))).toEqual([]);
     expect(gestesDeLaListe('direction', e('M'))).toEqual(['retirer-offert']);
@@ -258,7 +309,7 @@ describe('Clients : une ligne par organisation (0110)', () => {
     expect(lignes.at(-1)).toMatchObject({ id: 'c1', sorte: 'cabinet', numero: 'C-0001', societes: [] });
     expect(categorieOrg(lignes.at(-1) as Organisation)).toBe('hors');
     // Par l'urgence de la liste, le groupe se range avec ce qui est en grâce, et le cabinet, sans échéance, en bas.
-    const ordre = trierOrg(lignes, 'urgence', PRIX, JOUR);
+    const ordre = trierOrg(lignes, 'urgence', R, JOUR);
     expect(ordre.findIndex((o) => o.id === 'g1')).toBeLessThan(ordre.findIndex((o) => o.id === nom('A').id));
     expect(ordre.at(-1)?.id).toBe('c1');
   });
@@ -293,8 +344,8 @@ describe('Clients : une ligne par organisation (0110)', () => {
   it('ce qu\'une ligne rapporte est la somme de ses sociétés, payé et attendu à part ; son usage, la somme des pièces du mois', () => {
     // G : Essentiel à l'année, échue, pas payée : 390,000 attendus ; K, Complet au mois, non renouvelé : 12 × 69,000 =
     // 828,000 attendus ; B, à l'essai sans offre : rien. Rien de payé.
-    expect(parAnDeLaLigne(ligne('g1') as Organisation, PRIX)).toEqual({ actif: 0n, attendu: 390000n + 828000n });
-    expect(parAnDeLaLigne(ligne(nom('I').id) as Organisation, PRIX)).toEqual({ actif: BigInt(parAn(nom('I'), PRIX)?.montantHt.replace('.', '') ?? '0'), attendu: 0n });
+    expect(parAnDeLaLigne(ligne('g1') as Organisation, R)).toEqual({ actif: 0n, attendu: 390000n + 828000n });
+    expect(parAnDeLaLigne(ligne(nom('I').id) as Organisation, R)).toEqual({ actif: BigInt(parAn(nom('I'), R)?.montantHt.replace('.', '') ?? '0'), attendu: 0n });
     const avec = organisations(avecEnPlus(LISTE, new Map([[nom('B').id, { piecesMois: 4, essaiJours: 30, prolonge: 0, prolongeUneFois: false, attend: null }],
       [nom('G').id, { piecesMois: 3, essaiJours: null, prolonge: 0, prolongeUneFois: false, attend: null }]])), JOUR, identites, groupes, [], new Map());
     expect(usageDeLaLigne(avec.find((o) => o.id === 'g1') as Organisation)).toBe(7);

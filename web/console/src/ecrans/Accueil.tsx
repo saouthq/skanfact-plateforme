@@ -2,10 +2,10 @@
 // par le serveur et dites ici telles quelles : chaque chiffre ouvre la liste qu'il compte (C3) ; rien n'est vert sans
 // mesure, ce que la console ne mesure pas encore le dit avec sa raison (C2) ; une console où rien ne se passe affiche une
 // liste vide, et le dit. La technique n'y lit que le service ; le support, que les clients.
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { useConsole, useLecture, type Role } from '../contexte.ts';
-import { dans, jourCourt, jourLong, quand } from '../temps.ts';
+import { dans, jourCourt, jourDe, jourLong, quand } from '../temps.ts';
 import { montant } from '../argent.ts';
 import { Alerte, Bouton, Icone, Lien, maj, Puce, Vide, type NomIcone, type TonPuce } from '../ui.tsx';
 import type { Canal } from './Support.tsx';
@@ -25,18 +25,24 @@ export type Ligne =
   | { sorte: 'en_retard'; ouvre: 'fiche'; entreprise: Qui; echeance: string; lectureSeuleLe: string; jours: number; apresEssai: boolean }
   | { sorte: 'lecture_seule'; ouvre: 'fiche'; entreprise: Qui; depuis: string; raison: 'essai_termine' | 'non_renouvele' | 'resilie' | 'suspendu' }
   | { sorte: 'essai_sans_usage'; ouvre: 'fiche'; entreprise: Qui; jusquAu: string; jours: number; proprietaire: { nom: string; email: string } | null }
-  | { sorte: 'support'; ouvre: 'support'; demande: { id: string; numero: number; sujet: string; canal: Canal }; entreprise: Qui; demandeur: string; heures: number; depuis: string };
+  | { sorte: 'support'; ouvre: 'support'; demande: { id: string; numero: number; sujet: string; canal: Canal }; entreprise: Qui; demandeur: string; heures: number; depuis: string }
+  // L'argent (0113), pour la direction : une facture payée puis défaite, une facture qui attend d'être émise, un trop-perçu.
+  | { sorte: 'facture_defaite'; ouvre: 'fiche'; entreprise: Qui; numero: string | null; payeeLe: string; fin: string; ecran: string; cause: 'avoir' | 'reglement'; trop: string | null }
+  | { sorte: 'a_emettre'; ouvre: 'facture'; entreprise: Qui; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
+  | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: Qui; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string };
 type RelancePartie = { entreprise: Qui; rang: 'j15' | 'j7' | 'j1' | 'lecture_seule'; partieLe: string };
 type Accueil = { aujourdhui: string; role: Role; tableau: Partial<Tableau> & { service: Service }; decider: Ligne[]; relances?: RelancePartie[] };
 
 // ── Le tableau du matin ─────────────────────────────────────────────────────────────────────────────────────────────
 // `mot` : une valeur qui est un mot (« non mesuré », « rien à signaler ») et non un nombre : elle se dit en lettres.
 // `donnee` : une valeur qui est une donnée (un montant), pas un texte du catalogue.
-function Tuile({ titre: t, valeur, sous, href, mot, point, donnee }: { titre: string; valeur: string; sous: string; href?: string; mot?: 'attente' | 'ok'; point?: 'ok' | 'pb'; donnee?: boolean }) {
+// `ajuste` : un montant, dont la taille suit la longueur pour tenir dans la tuile.
+function Tuile({ titre: t, valeur, sous, href, mot, point, donnee, ajuste }: { titre: string; valeur: string; sous: string; href?: string; mot?: 'attente' | 'ok'; point?: 'ok' | 'pb'; donnee?: boolean; ajuste?: boolean }) {
   const corps = (
     <>
       <span className="c-tuile-titre">{t}</span>
-      <span className={mot ? `c-tuile-mot c-tuile-mot-${mot}` : 'c-tuile-valeur'} {...(donnee ? { 'data-donnee': true } : {})}>
+      <span className={mot ? `c-tuile-mot c-tuile-mot-${mot}` : ajuste ? 'c-tuile-valeur c-tuile-ajuste' : 'c-tuile-valeur'} {...(donnee ? { 'data-donnee': true } : {})}
+        {...(ajuste ? { style: { '--n': valeur.length } as CSSProperties } : {})}>
         {point ? <span className={`c-tuile-point${point === 'ok' ? ' c-ok' : ''}`} aria-hidden="true" /> : null}
         {valeur}
       </span>
@@ -73,7 +79,7 @@ function TuileRevenus({ m }: { m: Mesure }) {
   const t = titre('console.ecran.tableau.revenus');
   if (!m.mesure) return <Tuile titre={t} valeur={dire('console.ecran.tableau.non_mesure')} sous={titre(`console.ecran.tableau.${m.raison}`)} href="#/reglages?onglet=factures" mot="attente" />;
   const sous = m.reglements ? selon(m.reglements, 'console.ecran.tableau.revenus_reglements') : dire('console.ecran.tableau.revenus_aucun');
-  return <Tuile titre={t} valeur={m.devise === 'TND' ? montant(m.montant) : `${m.montant} ${m.devise}`} sous={maj(sous)} href="#/paiements" donnee />;
+  return <Tuile titre={t} valeur={m.devise === 'TND' ? montant(m.montant) : `${m.montant} ${m.devise}`} sous={maj(sous)} href="#/paiements" donnee ajuste />;
 }
 
 function TableauDuMatin({ t, role, aujourdhui }: { t: Accueil['tableau']; role: Role; aujourdhui: string }) {
@@ -103,7 +109,15 @@ function TableauDuMatin({ t, role, aujourdhui }: { t: Accueil['tableau']; role: 
 
 // ── « À décider » ───────────────────────────────────────────────────────────────────────────────────────────────────
 type Urgence = 'urgent' | 'aujourdhui' | 'semaine' | 'a_regarder';
-type Vue = { icone: NomIcone; titre: string; desc: string; meta: string | null; urgence: Urgence; href: string; bouton: string };
+type Vue = { icone: NomIcone; titre: string; desc: string; meta: string | null; urgence: Urgence; href: string; bouton: string; ailleurs?: boolean };
+
+// Une facture payée puis défaite, en mots : sa cause dit le geste (0113). Annulée par un avoir et payée quand même, elle
+// dit aussi ce qui est à rendre : une seule ligne pour un seul événement.
+export function defaiteEnMots(l: { numero: string | null; payeeLe: string; fin: string; cause: 'avoir' | 'reglement'; trop: string | null }): string {
+  const v = { numero: l.numero ?? dire('console.ecran.decider.sans_numero'), le: jourCourt(jourDe(l.payeeLe)), fin: jourCourt(l.fin) };
+  if (l.cause === 'reglement') return phrase('console.ecran.decider.defaite', v);
+  return l.trop ? phrase('console.ecran.decider.defaite_avoir_trop', { ...v, montant: montant(l.trop) }) : phrase('console.ecran.decider.defaite_avoir', v);
+}
 
 function voir(l: Ligne, aujourdhui: string): Vue {
   const fiche = (q: Qui) => `#/clients/${q.id}`;
@@ -119,6 +133,18 @@ function voir(l: Ligne, aujourdhui: string): Vue {
     case 'lecture_seule':
       return { icone: 'cadenas', titre: titre('console.ecran.decider.lecture_titre', { nom: l.entreprise.nom }), desc: phrase(`console.ecran.decider.lecture.${l.raison}`, { le: jourCourt(l.depuis) }),
         meta: null, urgence: l.depuis === aujourdhui ? 'aujourdhui' : 'semaine', href: fiche(l.entreprise), bouton: titre('console.ecran.decider.ouvrir_fiche') };
+    case 'facture_defaite':
+      return { icone: 'alerte', titre: titre('console.ecran.decider.defaite_titre', { nom: l.entreprise.nom }),
+        desc: defaiteEnMots(l),
+        meta: null, urgence: 'aujourdhui', href: `${fiche(l.entreprise)}?onglet=factures`, bouton: titre('console.ecran.decider.ouvrir_fiche') };
+    case 'a_emettre':
+      return { icone: 'calendrier', titre: titre('console.ecran.decider.a_emettre_titre', { nom: l.entreprise.nom }),
+        desc: phrase('console.ecran.decider.a_emettre', { le: jourCourt(l.prepareLe), debut: jourCourt(l.debut), fin: jourCourt(l.fin) }),
+        meta: null, urgence: l.debut <= aujourdhui ? 'aujourdhui' : 'semaine', href: l.ecran, bouton: titre('console.ecran.decider.ouvrir_facture'), ailleurs: true };
+    case 'trop_percu':
+      return { icone: 'alerte', titre: titre('console.ecran.decider.trop_titre', { nom: l.entreprise.nom, montant: montant(l.trop) }),
+        desc: phrase(l.annulee ? 'console.ecran.decider.trop_annulee' : 'console.ecran.decider.trop', { numero: l.numero ?? dire('console.ecran.decider.sans_numero') }),
+        meta: null, urgence: 'a_regarder', href: '#/paiements', bouton: titre('console.ecran.decider.ouvrir_paiements') };
     case 'support':
       return { icone: 'courriel', titre: titre('console.ecran.decider.support_titre', { nom: l.entreprise.nom, n: l.heures }),
         desc: phrase('console.ecran.decider.support', { sujet: l.demande.sujet, canal: dire(`console.ecran.support.canal.${l.demande.canal}`), qui: l.demandeur }),
@@ -167,14 +193,15 @@ function ADecider({ lignes, role, aujourdhui }: { lignes: Ligne[]; role: Role; a
               const ton: TonPuce = v.urgence;
               const donnee = l.sorte === 'service' || l.sorte === 'support';
               return (
-                <li key={l.sorte === 'service' ? `service-${l.cle}` : l.sorte === 'veille_silencieuse' ? 'veille' : l.sorte === 'support' ? `support-${l.demande.id}` : `${l.sorte}-${l.entreprise.id}`} className="c-ligne-decision">
+                <li key={l.sorte === 'service' ? `service-${l.cle}` : l.sorte === 'veille_silencieuse' ? 'veille' : l.sorte === 'support' ? `support-${l.demande.id}`
+                  : l.sorte === 'facture_defaite' || l.sorte === 'a_emettre' || l.sorte === 'trop_percu' ? `${l.sorte}-${l.ecran}` : `${l.sorte}-${l.entreprise.id}`} className="c-ligne-decision">
                   <span className={`c-ligne-icone c-${v.urgence}`}><Icone nom={v.icone} /></span>
                   <div className="c-ligne-texte">
                     <span className="c-ligne-titre"><span {...(donnee ? { 'data-donnee': true } : {})}>{v.titre}</span> <Puce ton={ton}>{titre(`console.ecran.urgence.${v.urgence}`)}</Puce></span>
                     <span className="c-ligne-desc" {...(donnee ? { 'data-donnee': true } : {})}>{v.desc}</span>
                     {v.meta ? <span className="c-ligne-meta">{v.meta}</span> : null}
                   </div>
-                  <Lien href={v.href} ton={v.urgence === 'urgent' ? 'principal' : 'secondaire'} petit fleche>{v.bouton}</Lien>
+                  <Lien href={v.href} ton={v.urgence === 'urgent' ? 'principal' : 'secondaire'} petit fleche {...(v.ailleurs ? { ailleurs: true } : {})}>{v.bouton}</Lien>
                 </li>
               );
             })}

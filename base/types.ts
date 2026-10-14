@@ -482,6 +482,8 @@ export interface BaseDeDonnees {
     suivante_offre: string | null;
     suivante_periodicite: string | null;
     suivante_a_partir_du: string | null;
+    mois_offerts: Generated<number>;
+    modules_a_retirer: Generated<string[]>;
   };
   'plateforme.acces_support': {
     id: Generated<string>;
@@ -594,6 +596,7 @@ export interface BaseDeDonnees {
     remise_nature: string | null;
     remise_taux: Generated<number>;
     remise_ht: Generated<bigint>;
+    mois_offert: Generated<boolean>;
   };
   'plateforme.geste_console': {
     id: Generated<string>;

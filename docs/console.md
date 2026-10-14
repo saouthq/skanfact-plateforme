@@ -893,9 +893,8 @@ la direction seule).
   échéance manquée) : de 1 à 60 jours ; la lecture seule recule jusqu'au lendemain du dernier jour. **Le délai ne vaut que
   pour SON échéance** : payée, elle change, et il s'éteint ; il ne raccourcit jamais une grâce. Ni une suspension ni une
   résiliation (elles ont leur geste).
-- **Offrir un mois** (à un abonné qui court, pas à une résiliation) : la période payée s'allonge d'un mois de calendrier
-  (payé jusqu'au 31/01 : jusqu'au 28/02), **sans facture ni avoir**. **Le support ne l'a pas** (la maquette le lui donne :
-  **À DÉCIDER** avec Skander).
+- **Offrir un mois** : remplacé en 1.20.0 (C36 ; `docs/abonnement.md` C18) — il va sur la prochaine facture, et le
+  support l'offre aussi.
 - **Changer d'offre** : **à la prochaine échéance** ; la période payée va au bout avec l'offre payée, rien n'est
   refacturé avant ; choisir l'offre qui court efface un changement prévu. Le prorata immédiat de la maquette (une facture
   ou un avoir tout de suite) **n'est pas fait** : sa règle fiscale est **À VÉRIFIER**.
@@ -922,6 +921,39 @@ chaque pièce, et « Confirmer la reprise » en vert seulement quand tout est co
 procédure, la carte « Plus rare » attend dans la colonne de droite ; une procédure en cours vient sous « Son entreprise ».
 Les choix d'une fenêtre (la cause d'une reprise, comment s'est passé un appel) sont des pastilles qui se cochent **comme
 des boutons radio** : la touche Tab entre sur la cochée, les flèches cochent la voisine.
+
+**C36. L'argent juste, dans la console** (1.20.0 ; base 0113 ; `docs/abonnement.md` C18 ; l'audit du 14/10/2026).
+- **Offrir un mois** : la direction **et le support** (geste `console.abonnement.offrir_mois`), un par entreprise sur
+  douze mois pour le support ; la fenêtre dit la période que la prochaine facture couvrira, la fiche « un mois de plus
+  offert » à côté de sa prochaine facture. Un second ne se propose pas tant que le premier attend.
+- **Noter un paiement reçu** (la direction) : l'offre, la périodicité, puis **la preuve** — le n° de la facture faite
+  ailleurs, le montant reçu (en dinars, toutes taxes comprises), le moyen, le jour — et le motif ; un refus nomme sa case,
+  de haut en bas. **Paiements** compte ces paiements dans l'encaissé de leur jour et les liste dans « Reçus hors de la
+  plateforme » (qui l'a noté) ; la phrase de l'encaissé dit « règlements reçus », plus « notés sur nos factures ».
+- **Les modules** : « Retirer un module acheté » pendant une période payée dit jusqu'à quand il reste ouvert et la fiche
+  le rappelle ; « Ouvrir un module » propose de rouvrir celui qui allait partir (le retrait s'annule) ; un module qui
+  part déjà ne se retire pas deux fois. La confirmation dit ce qui s'est passé, pas « module retiré » quand il reste.
+- **Une fenêtre dont le geste ne change rien aujourd'hui** (un mois offert, un module, une offre à l'échéance) montre une
+  seule colonne, « aujourd'hui, et après le geste », et dessous ce qu'il fait ; jamais deux colonnes pareilles.
+- **Le renouvellement** se lit partout au même chiffre (la règle de la facture) : « par an » dans la liste, le montant
+  des échéances (« hors taxes, sa prochaine facture », et « en Complet, au mois » quand l'offre choisie pour l'échéance
+  n'est pas celle qui court), « Ce qui revient chaque année », « Prochaine facture : … » sur la fiche.
+- **« À décider » dit l'argent qui attend** (la direction seule, par les fonctions de Paiements) : une de nos factures
+  **payée, puis défaite** — sa cause dit le geste : son règlement retiré (relancer le paiement, ou retirer la période) ;
+  un avoir qui l'annule en entier (retirer la période, ou faire une nouvelle facture), et, payée quand même, la somme à
+  rendre dans la même ligne (rembourser et retirer la période, ou garder la somme pour une nouvelle facture : un seul
+  événement, une seule ligne, jamais une seconde pour son trop-perçu) ; une facture préparée qui **attend d'être émise**
+  depuis deux jours ou plus ; un **trop-perçu** (le rembourser, ou garder la somme pour la prochaine facture). Chaque
+  ligne s'ouvre sur l'écran qui la règle (la facture dans SkanFact, la fiche, Paiements) ; la fiche d'un client montre
+  les siennes dans « Ce qui attend ». Paiements montre aussi « Payées, puis défaites », chacune avec sa cause.
+- **Un avoir qui reprend tout sauf le timbre** (un avoir de SkanFact ne coche pas le timbre fiscal d'office) laisse la
+  facture « payée, avec un trop-perçu » : « À décider » le dit comme un trop-perçu, pas comme une facture défaite, et
+  l'abonnement continue de courir sur elle. Le timbre d'un avoir est **À VÉRIFIER** avec le comptable ; s'il ne se
+  reprend jamais, la règle « annulée » (avoirs ≥ net, `moteur/reglements.ts`) devra compter sans lui.
+- **Un paiement reçu hors de la plateforme est à l'entreprise SkanFact du jour** (sa preuve la nomme) : l'encaissé d'une
+  autre entreprise SkanFact (un autre essai de la même base) ne le compte pas.
+- Ce que 1.20.0 ne fait pas : « Ton abonnement » du client ne dit pas encore le mois offert qui l'attend (sa prochaine
+  facture le dira) ; les factures refusées par la TTN restent dans « Nos factures » (C31), pas dans « À décider ».
 
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
@@ -1056,3 +1088,36 @@ pendant le parcours, avec un œil de designer :
   alignés ; l'en-tête d'une société d'un groupe disait « Entreprise seule » ;
 - la règle du support dite de deux façons (la liste, la fiche) ; la carte « Tout le portefeuille » qui comptait une
   recherche.
+
+## Revu à la souris et au clavier (14/10/2026, 1.20.0 : l'argent juste)
+
+Sur l'essai de l'outil humain, la base passée en `0113`, dans la console : Amira (direction) et Karim (support), en clair
+et en sombre, à 1440 et à 390. Le support offre un mois (la fenêtre dit la période que la prochaine facture couvrira),
+puis ne s'en voit plus proposer un second ; la direction note un paiement reçu hors de la plateforme, refusé d'abord
+case par case (le numéro de facture, le montant, le moyen, le jour), puis noté : le journal et Paiements le disent ;
+un module retiré pendant la période payée, puis rouvert ; la ligne « une facture attend d'être émise » à l'accueil ;
+les montants de l'écran Abonnements, dont « Ce qui revient chaque année » refait à la main (la somme exacte des
+lignes) ; puis, dans l'application de SkanFact, deux avoirs comme la direction les ferait : l'un qui reprend tout sauf
+le timbre (la console le dit en trop-perçu), l'autre complet sur une facture payée (la console la dit défaite, avec ce
+qui est à rendre) ; l'accueil, la fiche du client et Paiements en clair et en sombre, à 1440 et à 390. Corrigé pendant
+le parcours, avec un œil de designer :
+- une fenêtre dont le geste ne change rien aujourd'hui (un mois offert, un module) montrait deux colonnes identiques,
+  « aujourd'hui » et « après le geste » : une seule colonne, et dessous ce que le geste fait ;
+- la fiche disait deux fois la prochaine facture (deux lignes l'une sous l'autre) ;
+- la case « Moyen » du paiement reçu, plus basse que ses voisines, et une fenêtre plus haute que l'écran à 1440×900 ;
+- « Paie reste ouvert… » (« le module Paie reste ouvert… ») ; une confirmation « module retiré » quand il reste ouvert
+  jusqu'à la fin de sa période, et « module acheté » pour une réouverture ; au journal, « module acheté » pour un
+  module rouvert (« module ouvert ») ;
+- « La facture de Atelier… » à l'accueil (« Atelier Mejri : une facture… ») ;
+- « au prix du jour » là où le montant suit la règle de la facture ; « règlements notés sur nos factures » quand
+  l'encaissé compte aussi les paiements reçus ailleurs (« règlements reçus ») ;
+- une facture payée puis annulée par un avoir faisait deux lignes dans « À décider » (« payée, puis défaite » et « a payé
+  47,410 DT de trop »), avec deux conseils différents : une seule ligne, qui dit la somme à rendre ;
+- « son règlement a été retiré, ou un avoir l'annule » : la console le savait, la ligne dit maintenant laquelle, et le
+  geste qui va avec (« relance le paiement » n'a pas de sens pour une facture annulée) ;
+- « 4 règlements reçus, encaissés et pas facturés » se lisait comme des règlements jamais facturés : « l'argent arrivé,
+  pas ce qui est facturé » ;
+- au téléphone, le chiffre de l'encaissé (« 751,700 DT ») débordait de 18 points sur la tuile voisine : sa taille suit
+  maintenant sa longueur et la largeur de la tuile, et l'instrument de la console mesure chaque chiffre dans sa tuile,
+  sur un encaissé de 1 234 567,890 DT ;
+- au téléphone, « Par chèque » restait seul sur sa rangée : le dernier moyen prend toute la largeur.

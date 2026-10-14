@@ -2,17 +2,18 @@
 // liste — tout le portefeuille, ceux à appeler, l'argent attendu, les silencieux, les dossiers qu'un cabinet tient sans
 // abonnement, ceux venus par un cabinet —, l'échéance de chaque ligne et ce qu'elle rapporte par an. Deux règles :
 //   - C3 : chaque carte compte la liste qu'elle ouvre, par la même fonction (`dansLaVue`) ;
-//   - un montant qu'on ne sait pas dire ne s'invente pas : sans offre choisie ou sans prix du jour, rien (« — »).
-// Les montants sont hors taxes, au prix du jour, en texte exact ; un mensuel compte douze mois (comme « Ce qui revient
+//   - un montant qu'on ne sait pas dire ne s'invente pas : sans offre choisie ou sans prix, rien (« — »).
+// Les montants sont hors taxes, par la règle de la facture (serveur/console/renouvellements.ts : le prix du premier jour
+// de la période, ce qui s'y ajoute, la remise), en texte exact ; un mensuel compte douze mois (comme « Ce qui revient
 // chaque année », serveur/console/echeances.ts).
 
 import { versTexte } from '../../moteur/argent.ts';
-import { joursEntre, type Offre, type Periodicite } from '../abonnement/etat.ts';
+import { joursEntre } from '../abonnement/etat.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import type { EnPlus, Entreprise, FactureQuiAttend } from './decider.ts';
-import { dateDe, type Prix, type Remises } from './echeances.ts';
-import { montantRemise } from '../abonnement/remise.ts';
+import { dateDe, type Remises } from './echeances.ts';
 import { lireFacturesAbonnement } from '../abonnement/factures.ts';
+import type { Renouvellements } from './renouvellements.ts';
 
 export type VueClients = 'tout' | 'a_appeler' | 'argent' | 'silencieux' | 'tenus' | 'cabinet';
 export const VUES_CLIENTS: readonly VueClients[] = ['tout', 'a_appeler', 'argent', 'silencieux', 'tenus', 'cabinet'];
@@ -72,43 +73,30 @@ export function lireEnPlus(brut: unknown, jour: string): Map<string, EnPlus> {
     const f = lireFacturesAbonnement(r.factures, jour).filter((x) => x.payeeLe === null && ATTEND.has(x.etat))
       .sort((a, c) => (a.debut < c.debut ? -1 : a.debut > c.debut ? 1 : 0))[0];
     const attend: FactureQuiAttend | null = f ? { offre: f.offre, periodicite: f.periodicite, etat: f.etat, reste: f.reste, devise: f.devise, echeance: f.echeance } : null;
-    m.set(id, { piecesMois: n(r.piecesMois), essaiJours: n(r.essaiJours) || null, prolonge: n(r.prolonge), prolongeUneFois: r.prolongeUneFois === true, attend });
+    m.set(id, { piecesMois: n(r.piecesMois), essaiJours: n(r.essaiJours) || null, prolonge: n(r.prolonge), prolongeUneFois: r.prolongeUneFois === true,
+      moisOffertRecent: r.moisOffertRecent === true, attend });
   }
   return m;
 }
 export const avecEnPlus = <E extends Entreprise>(liste: readonly E[], enPlus: Map<string, EnPlus>): E[] =>
-  liste.map((e) => ({ ...e, enPlus: enPlus.get(e.id) ?? { piecesMois: 0, essaiJours: null, prolonge: 0, prolongeUneFois: false, attend: null } }));
+  liste.map((e) => ({ ...e, enPlus: enPlus.get(e.id) ?? { piecesMois: 0, essaiJours: null, prolonge: 0, prolongeUneFois: false, moisOffertRecent: false, attend: null } }));
 
 export function comptesDesVues(liste: readonly Entreprise[], jour: string): Record<VueClients, number> {
   return Object.fromEntries(VUES_CLIENTS.map((v) => [v, liste.filter((e) => dansLaVue(e, v, jour)).length])) as Record<VueClients, number>;
 }
 
-// Ce qu'une ligne rapporte par an, hors taxes, au prix du jour : un abonnement qui se renouvelle ; ou, `attendu`, ce que
-// rapportera une offre choisie quand elle sera payée (la grâce, une période non renouvelée). Rien pour un essai sans offre,
-// une résiliation, une suspension ou ce qui n'a pas d'échéance. La remise de sa prochaine période (0106) se déduit de
-// chaque période, comme dans « Ce qui revient chaque année » (serveur/console/echeances.ts) : les deux écrans disent le
-// même chiffre.
+// Ce qu'une ligne rapporte par an, hors taxes : un abonnement qui se renouvelle ; ou, `attendu`, ce que rapportera une
+// offre choisie quand elle sera payée (la grâce, une période non renouvelée). Rien pour un essai sans offre, une
+// résiliation, une suspension ou ce qui n'a pas d'échéance. Le chiffre est celui de son renouvellement (la règle de la
+// facture, serveur/console/renouvellements.ts), comme dans « Ce qui revient chaque année » : les écrans disent le même.
 export type ParAn = { montantHt: string; attendu: boolean; remise: { nature: 'groupe' | 'cabinet'; taux: number } | null };
-function enMillimes(e: Entreprise, prix: Prix): { m: bigint; attendu: boolean } | null {
-  const s = e.etat;
-  const surUnAn = (offre: Offre, periodicite: Periodicite) => {
-    const brut = prix.get(`${offre}/${periodicite}`);
-    if (brut === undefined) return null;
-    const p = e.remise ? brut - montantRemise(brut, e.remise.taux) : brut;
-    return periodicite === 'mensuel' ? p * 12n : p;
-  };
-  if (s.etat === 'actif') {
-    const m = s.resilie ? null : surUnAn(s.offre, s.periodicite);
-    return m === null ? null : { m, attendu: false };
-  }
-  const attendue = s.etat === 'en_retard' || (s.etat === 'lecture_seule' && s.raison === 'non_renouvele');
-  if (!attendue || !e.faits.offre || !e.faits.periodicite) return null;
-  const m = surUnAn(e.faits.offre, e.faits.periodicite);
-  return m === null ? null : { m, attendu: true };
+function enMillimes(e: Entreprise, r: Renouvellements): { m: bigint; attendu: boolean } | null {
+  const x = r.get(e.id);
+  return x ? { m: x.parAnHt, attendu: x.attendu } : null;
 }
-export function parAn(e: Entreprise, prix: Prix): ParAn | null {
-  const p = enMillimes(e, prix);
-  return p ? { montantHt: versTexte(p.m, 3), attendu: p.attendu, remise: e.remise ?? null } : null;
+export function parAn(e: Entreprise, r: Renouvellements): ParAn | null {
+  const x = r.get(e.id);
+  return x ? { montantHt: versTexte(x.parAnHt, 3), attendu: x.attendu, remise: x.remise ? { nature: x.remise.nature, taux: x.remise.taux } : null } : null;
 }
 
 // L'échéance d'une ligne : le prochain jour où quelque chose change pour elle — la fin de l'essai, la fin de la période
@@ -117,7 +105,7 @@ export function parAn(e: Entreprise, prix: Prix): ParAn | null {
 export const echeanceDe = (e: Entreprise): string | null => (e.etat.etat === 'lecture_seule' ? null : dateDe(e.etat));
 
 // Une ligne de la liste : l'entreprise telle qu'elle est lue, son échéance et ce qu'elle rapporte par an.
-export const ligneClient = (e: Entreprise, prix: Prix) => ({ ...e, echeance: echeanceDe(e), parAn: parAn(e, prix) });
+export const ligneClient = (e: Entreprise, r: Renouvellements) => ({ ...e, echeance: echeanceDe(e), parAn: parAn(e, r) });
 
 // L'ordre de la liste. Par défaut le plus urgent d'abord (rangerParUrgence, serveur/console/decider.ts) ; les autres
 // ordres trient CETTE liste d'un tri stable : à égalité, l'urgence départage. Ce qui n'a pas de valeur (pas d'échéance,
@@ -125,12 +113,12 @@ export const ligneClient = (e: Entreprise, prix: Prix) => ({ ...e, echeance: ech
 export type TriClients = 'urgence' | 'echeance' | 'par_an' | 'usage' | 'nom' | 'vu';
 export const TRIS_CLIENTS: readonly TriClients[] = ['urgence', 'echeance', 'par_an', 'usage', 'nom', 'vu'];
 const NOMS = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
-export function trier(liste: readonly Entreprise[], tri: TriClients, prix: Prix): Entreprise[] {
+export function trier(liste: readonly Entreprise[], tri: TriClients, r: Renouvellements): Entreprise[] {
   if (tri === 'urgence') return [...liste];
   const cle = (e: Entreprise): string | bigint | null => {
     switch (tri) {
       case 'echeance': return echeanceDe(e);
-      case 'par_an': return enMillimes(e, prix)?.m ?? null;
+      case 'par_an': return enMillimes(e, r)?.m ?? null;
       // L'usage : les pièces émises du mois (le même compte que la colonne « Usage »).
       case 'usage': return BigInt(e.enPlus?.piecesMois ?? 0);
       case 'nom': return e.raisonSociale;
@@ -148,10 +136,10 @@ export function trier(liste: readonly Entreprise[], tri: TriClients, prix: Prix)
 }
 
 // Ce que rapportent par an les abonnements actifs de la sélection (pas ce qui est attendu : il n'est pas encore payé).
-export function parAnDeLaSelection(liste: readonly Entreprise[], prix: Prix): { montantHt: string; abonnements: number } {
+export function parAnDeLaSelection(liste: readonly Entreprise[], r: Renouvellements): { montantHt: string; abonnements: number } {
   let total = 0n, abonnements = 0;
   for (const e of liste) {
-    const p = enMillimes(e, prix);
+    const p = enMillimes(e, r);
     if (!p || p.attendu) continue;
     total += p.m;
     abonnements++;
@@ -197,8 +185,8 @@ export function optionsDesFiltres(liste: readonly Entreprise[], f: Filtres) {
 
 // Une ligne de l'export (Exporter la sélection) : ce que la liste montre, en colonnes, sans rien de plus — pas le contenu
 // d'un dossier ; le propriétaire et son adresse, pour le joindre. Les montants hors taxes, en texte exact.
-export function ligneExport(e: Entreprise, prix: Prix) {
-  const p = parAn(e, prix);
+export function ligneExport(e: Entreprise, r: Renouvellements) {
+  const p = parAn(e, r);
   return {
     entreprise: e.raisonSociale, matricule: e.matricule, organisation: e.organisation.type === 'groupe' || e.organisation.type === 'cabinet' ? e.organisation.nom : null,
     typeOrganisation: e.organisation.type, cabinet: cabinetDe(e), offre: e.faits.offre, periodicite: e.faits.periodicite, etat: e.etat.etat,

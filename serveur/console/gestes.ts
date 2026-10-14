@@ -24,6 +24,8 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   { code: 'console.accueil.voir', roles: [D, S, T], ecrit: false },
   { code: 'console.clients.voir', roles: [D, S], ecrit: false },
   { code: 'console.abonnement.prolonger', roles: [D, S], ecrit: true },
+  // Offrir un mois (0113) : le support aussi, un par entreprise sur douze mois ; il va sur la prochaine facture.
+  { code: 'console.abonnement.offrir_mois', roles: [D, S], ecrit: true },
   { code: 'console.abonnement.gerer', roles: [D], ecrit: true },
   { code: 'console.journal.voir', roles: [D], ecrit: false },
   { code: 'console.equipe.voir', roles: [D], ecrit: false },

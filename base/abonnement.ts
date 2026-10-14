@@ -1,13 +1,14 @@
 // Les gestes de l'exploitation sur l'abonnement d'une entreprise (docs/abonnement.md ; skanfact docs/cadrage/10-console.md
-// § 2.4) : prolonger un essai, noter un paiement reçu par virement ou par chèque, résilier (et l'annuler), suspendre
-// (et reprendre), offrir (et le retirer), ouvrir et fermer un module acheté seul sur Essentiel (14c). Avec un compte d'administration, jamais par le serveur web : la console
+// § 2.4) : prolonger un essai, noter un paiement reçu hors de la plateforme (sa facture faite ailleurs, son montant, son
+// moyen, son jour : 0113), résilier (et l'annuler), suspendre (et reprendre), offrir (et le retirer), offrir un mois sur la
+// prochaine facture, ouvrir et fermer un module acheté seul sur Essentiel (14c). Avec un compte d'administration, jamais par le serveur web : la console
 // appellera les mêmes fonctions. Chaque geste demande un MOTIF et laisse son événement (plateforme.evenement_abonnement :
 // quoi, quand, avant, après, pourquoi), qui ne se modifie pas et ne s'efface pas.
 //
 //   PG_ADMIN=… node base/abonnement.ts <entreprise> voir
 //   PG_ADMIN=… node base/abonnement.ts <entreprise> prolonger <jours> "<motif>"
-//   PG_ADMIN=… node base/abonnement.ts <entreprise> payer <essentiel|complet> <annuel|mensuel> "<motif>"
-//   PG_ADMIN=… node base/abonnement.ts <entreprise> resilier|annuler-resiliation|suspendre|reprendre|offrir|retirer-offert "<motif>"
+//   PG_ADMIN=… node base/abonnement.ts <entreprise> payer <essentiel|complet> <annuel|mensuel> <facture> <montant en dinars> <virement|cheque|especes> <AAAA-MM-JJ> "<motif>"
+//   PG_ADMIN=… node base/abonnement.ts <entreprise> resilier|annuler-resiliation|suspendre|reprendre|offrir|retirer-offert|offrir-mois "<motif>"
 //   PG_ADMIN=… node base/abonnement.ts <entreprise> ouvrir-module|fermer-module <paie|compta> "<motif>"
 //
 // Sur un serveur : exploitation/abonnement.sh, avec les mêmes arguments.
@@ -17,7 +18,8 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { aujourdhuiATunis } from '../serveur/reglements.ts';
 import { etatAbonnement, jourEnFrancais, lireFaits, lireModules, type Etat, type Faits, type ModuleAchete, type Offre, type Periodicite } from '../serveur/abonnement/etat.ts';
-import { calculerGeste, type DemandeAbonnement, type GesteAbonnement, type LigneAbonnement } from '../serveur/abonnement/gestes.ts';
+import { calculerGeste, type DemandeAbonnement, type GesteAbonnement, type LigneAbonnement, type MoyenRecu } from '../serveur/abonnement/gestes.ts';
+import { depuisTexte } from '../moteur/argent.ts';
 
 type Client = pg.Client | pg.PoolClient;
 export type Geste = GesteAbonnement;
@@ -38,17 +40,19 @@ async function lire(client: Client, entreprise: string, pourModifier: boolean): 
   const e = (await client.query('select essai, tenue_par is not null tenu from socle.entreprise where id = $1', [entreprise])).rows[0];
   if (!e) throw new Error('cette entreprise n\'est pas dans cette base');
   const r = (await client.query(`select essai_jusqu_au::text, paye_jusqu_au::text, offre, periodicite, resilie_le::text, suspendu_le::text, offert, modules,
-        delai_echeance::text, delai_jusqu_au::text, suivante_offre, suivante_periodicite, suivante_a_partir_du::text
+        delai_echeance::text, delai_jusqu_au::text, suivante_offre, suivante_periodicite, suivante_a_partir_du::text, mois_offerts, modules_a_retirer
       from plateforme.abonnement where entreprise = $1 ${pourModifier ? 'for update' : ''}`, [entreprise])).rows[0];
   const ligne: Ligne | null = r ? { essai_jusqu_au: r.essai_jusqu_au, paye_jusqu_au: r.paye_jusqu_au, offre: r.offre, periodicite: r.periodicite,
     resilie_le: r.resilie_le, suspendu_le: r.suspendu_le, offert: r.offert, modules: lireModules(r.modules),
     delai_echeance: r.delai_echeance, delai_jusqu_au: r.delai_jusqu_au, suivante_offre: r.suivante_offre, suivante_periodicite: r.suivante_periodicite,
-    suivante_a_partir_du: r.suivante_a_partir_du } : null;
-  // Les mêmes faits que la porte (plateforme.faits_abonnement) : le délai d'une échéance, l'offre de la prochaine (0111).
+    suivante_a_partir_du: r.suivante_a_partir_du, mois_offerts: r.mois_offerts, modules_a_retirer: lireModules(r.modules_a_retirer) } : null;
+  // Les mêmes faits que la porte (plateforme.faits_abonnement) : le délai d'une échéance, l'offre de la prochaine (0111), le
+  // mois offert qui attend, les modules qui partent (0113).
   const faits = lireFaits({ connu: ligne !== null, essaiJusquAu: ligne?.essai_jusqu_au, payeJusquAu: ligne?.paye_jusqu_au, offre: ligne?.offre, periodicite: ligne?.periodicite,
     resilieLe: ligne?.resilie_le, suspenduLe: ligne?.suspendu_le, offert: ligne?.offert, bacASable: e.essai, tenuParCabinet: e.tenu, modules: ligne?.modules,
     delai: r?.delai_jusqu_au ? { echeance: r.delai_echeance, jusquAu: r.delai_jusqu_au } : null,
-    offreSuivante: r?.suivante_offre ? { offre: r.suivante_offre, periodicite: r.suivante_periodicite, aPartirDu: r.suivante_a_partir_du } : null });
+    offreSuivante: r?.suivante_offre ? { offre: r.suivante_offre, periodicite: r.suivante_periodicite, aPartirDu: r.suivante_a_partir_du } : null,
+    moisOffert: (r?.mois_offerts ?? 0) > 0, modulesARetirer: r?.modules_a_retirer });
   return { ligne, faits };
 }
 
@@ -84,10 +88,13 @@ export async function faire(client: Client, entreprise: string, d: Demande, jour
     if (!ligne) await client.query('insert into plateforme.abonnement (entreprise, essai_jusqu_au) values ($1, $2)', [entreprise, apres.essai_jusqu_au]);
     await client.query(`update plateforme.abonnement set essai_jusqu_au = $2, paye_jusqu_au = $3, offre = $4, periodicite = $5, resilie_le = $6, suspendu_le = $7,
         offert = $8, modules = $9, delai_echeance = $10, delai_jusqu_au = $11, suivante_offre = $12, suivante_periodicite = $13, suivante_a_partir_du = $14,
-        modifie_le = now() where entreprise = $1`,
+        mois_offerts = $15, modules_a_retirer = $16, modifie_le = now() where entreprise = $1`,
       [entreprise, apres.essai_jusqu_au, apres.paye_jusqu_au, apres.offre, apres.periodicite, apres.resilie_le, apres.suspendu_le, apres.offert, apres.modules,
-        apres.delai_echeance ?? null, apres.delai_jusqu_au ?? null, apres.suivante_offre ?? null, apres.suivante_periodicite ?? null, apres.suivante_a_partir_du ?? null]);
-    await client.query(`insert into plateforme.evenement_abonnement (entreprise, nature, par, motif, avant, apres) values ($1, $2, 'exploitation', $3, $4, $5)`,
+        apres.delai_echeance ?? null, apres.delai_jusqu_au ?? null, apres.suivante_offre ?? null, apres.suivante_periodicite ?? null, apres.suivante_a_partir_du ?? null,
+        apres.mois_offerts ?? 0, apres.modules_a_retirer ?? []]);
+    // Un paiement reçu est à l'entreprise SkanFact du jour (0113) : Paiements le compte dans son encaissé.
+    await client.query(`insert into plateforme.evenement_abonnement (entreprise, nature, par, motif, avant, apres) values ($1, $2, 'exploitation', $3, $4,
+        $5::jsonb || case when $2 = 'paye' then jsonb_build_object('editeur', (select d.entreprise from plateforme.editeur d)) else '{}'::jsonb end)`,
       [entreprise, lu.ligne ? NATURE[d.geste] : 'essai_commence', d.motif.trim(), lu.ligne ? JSON.stringify(ligne) : null, JSON.stringify({ ...apres, ...details })]);
     await client.query('commit');
     return (await voir(client, entreprise, jour)).etat;
@@ -96,6 +103,9 @@ export async function faire(client: Client, entreprise: string, d: Demande, jour
     throw e;
   }
 }
+
+// Un montant tapé en dinars (« 2380 », « 2380,500 ») en millimes ; illisible : zéro, que le geste refuse.
+const montantTape = (v: string): bigint => { try { return depuisTexte(v.replace(/\s/g, '').replace(',', '.'), 3); } catch { return 0n; } };
 
 const resteJours = (n: number) => (n <= 0 ? 'dernier jour' : `encore ${n} jour${n > 1 ? 's' : ''}`);
 // L'état, en une phrase pour l'exploitation.
@@ -113,11 +123,12 @@ export function phrase(e: Etat): string {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [entreprise = '', geste = '', ...reste] = process.argv.slice(2);
   const adresse = process.env.PG_ADMIN;
-  const USAGE = 'PG_ADMIN=… node base/abonnement.ts <entreprise> voir | prolonger <jours> "<motif>" | payer <essentiel|complet> <annuel|mensuel> "<motif>"'
-    + ' | resilier | annuler-resiliation | suspendre | reprendre | offrir | retirer-offert "<motif>" | ouvrir-module|fermer-module <paie|compta> "<motif>"';
-  const simples = ['resilier', 'annuler-resiliation', 'suspendre', 'reprendre', 'offrir', 'retirer-offert'];
+  const USAGE = 'PG_ADMIN=… node base/abonnement.ts <entreprise> voir | prolonger <jours> "<motif>"'
+    + ' | payer <essentiel|complet> <annuel|mensuel> <facture> <montant en dinars> <virement|cheque|especes> <AAAA-MM-JJ> "<motif>"'
+    + ' | resilier | annuler-resiliation | suspendre | reprendre | offrir | retirer-offert | offrir-mois "<motif>" | ouvrir-module|fermer-module <paie|compta> "<motif>"';
+  const simples = ['resilier', 'annuler-resiliation', 'suspendre', 'reprendre', 'offrir', 'retirer-offert', 'offrir-mois'];
   const modules = ['ouvrir-module', 'fermer-module'];
-  const valable = geste === 'voir' ? reste.length === 0 : geste === 'prolonger' || modules.includes(geste) ? reste.length === 2 : geste === 'payer' ? reste.length === 3
+  const valable = geste === 'voir' ? reste.length === 0 : geste === 'prolonger' || modules.includes(geste) ? reste.length === 2 : geste === 'payer' ? reste.length === 7
     : simples.includes(geste) && reste.length === 1;
   if (!adresse || !valable) { console.error(USAGE); process.exit(1); }
   const client = new pg.Client({ connectionString: adresse });
@@ -129,7 +140,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       for (const e of v.evenements) console.log(`  ${e.le}  ${NATURES[e.nature] ?? e.nature} (${e.par === 'systeme' ? 'SkanFact' : 'exploitation'})${e.motif ? ` : ${e.motif}` : ''}`);
     } else {
       const d: Demande = geste === 'prolonger' ? { geste, jours: Number(reste[0]), motif: reste[1] ?? '' }
-        : geste === 'payer' ? { geste, offre: reste[0] as Offre, periodicite: reste[1] as Periodicite, motif: reste[2] ?? '' }
+        : geste === 'payer' ? { geste, offre: reste[0] as Offre, periodicite: reste[1] as Periodicite, motif: reste[6] ?? '',
+          paiement: { facture: reste[2] ?? '', montant: montantTape(reste[3] ?? ''), moyen: reste[4] as MoyenRecu, le: reste[5] ?? '' } }
           : modules.includes(geste) ? { geste: geste as Geste, module: reste[0] as ModuleAchete, motif: reste[1] ?? '' }
           : { geste: geste as Geste, motif: reste[0] ?? '' };
       console.log(`Fait. ${phrase(await faire(client, entreprise, d))}`);

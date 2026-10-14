@@ -9,7 +9,8 @@ declarerTextes({
   'geste.console.accueil.voir': 'voir l\'accueil de la console',
   'geste.console.clients.voir': 'voir les clients et leurs abonnements',
   'geste.console.abonnement.prolonger': 'prolonger un essai',
-  'geste.console.abonnement.gerer': 'gérer un abonnement (paiement, résiliation, suspension, abonnement offert)',
+  'geste.console.abonnement.offrir_mois': 'offrir un mois sur la prochaine facture',
+  'geste.console.abonnement.gerer': 'gérer un abonnement (paiement reçu, résiliation, suspension, abonnement offert)',
   'geste.console.journal.voir': 'lire le journal de la console',
   'geste.console.equipe.voir': 'voir l\'équipe SkanFact',
   'geste.console.equipe.gerer': 'gérer l\'équipe SkanFact',
@@ -56,6 +57,11 @@ declarerTextes({
   'console.versions.en_service_inconnue': 'le suiveur n\'a pas encore dit quelle version est en service : on ne peut pas revenir en arrière sans le savoir',
   'console.versions.retenir_en_service': 'cette version est en service : pour la quitter, reviens à une version d\'avant',
   'console.abonnement_change': 'cet abonnement a changé depuis que tu l\'as ouvert : relis-le avant de refaire le geste',
+  // Un paiement reçu hors de la plateforme (0113) : chaque refus nomme sa case.
+  'console.recu.facture': 'dis le numéro de la facture faite ailleurs que ce paiement règle : quarante caractères au plus',
+  'console.recu.montant': 'le montant reçu s\'écrit en dinars, toutes taxes comprises, avec trois décimales au plus : « 2 380 » ou « 2 380,500 »',
+  'console.recu.moyen': 'dis comment l\'argent est arrivé : un virement, un chèque ou des espèces',
+  'console.recu.jour': 'le jour du paiement est aujourd\'hui ou un jour passé, qui existe au calendrier',
   // Préparer un prix (docs/abonnement.md C14) : chaque refus nomme sa case.
   'console.reglages.prix_illisible': 'le prix s\'écrit en dinars hors taxes, avec trois décimales au plus : « 420 » ou « 420,500 »',
   'console.reglages.jour_illisible': 'ce jour n\'existe pas au calendrier : choisis-en un dans le calendrier',

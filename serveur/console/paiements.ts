@@ -6,8 +6,9 @@
 //   - qui doit encore, et qui a trop payé : le solde de chaque facture par la règle de toutes les factures
 //     (moteur/reglements.ts), jamais une seconde fois ;
 //   - les coûts du mois, et ce qui reste quand on les retire de l'encaissé (le point mort, 13 § 7).
-// La console ne note aucun règlement : il se note dans l'application de SkanFact, sur sa facture (10 § 2.5) ; d'ici, le
-// lien qui l'ouvre.
+// La console ne note aucun règlement d'une de nos factures : il se note dans l'application de SkanFact, sur sa facture
+// (10 § 2.5) ; d'ici, le lien qui l'ouvre. Un paiement reçu hors de la plateforme (une facture faite ailleurs, 0113) est
+// un geste sur l'abonnement, avec sa preuve : il compte dans l'encaissé de son jour, sous son moyen.
 
 import { soldeFacture, statutFacture } from '../../moteur/reglements.ts';
 import { versTexte } from '../../moteur/argent.ts';
@@ -32,7 +33,14 @@ export type Cout = {
   retireLe: string | null; retirePar: string | null;
 };
 export type Editeur = { entreprise: string; raisonSociale: string; devise: string; decimales: number };
-export type Paiements = { mois: string; editeur: Editeur | null; recus: Recu[]; ouvertes: Ouverte[]; aEmettre: AEmettre[]; couts: Cout[] };
+// Un paiement reçu hors de la plateforme (0113) : en millimes de dinar, la facture faite ailleurs, son moyen, son jour.
+export type MoyenHors = 'virement' | 'cheque' | 'especes';
+export type HorsPlateforme = { id: string; date: string; montant: bigint; moyen: MoyenHors; facture: string; entreprise: Qui; noteLe: string; par: string | null };
+// Une de nos factures payée — l'abonnement a couru sur elle —, puis défaite : son règlement retiré, ou un avoir qui l'annule.
+// `cause` : un avoir qui l'annule, ou un règlement retiré — elles ne demandent pas le même geste.
+export type Defaite = { piece: string; numero: string | null; payeeLe: string; debut: string; fin: string; entreprise: Qui; ecran: string; cause: 'avoir' | 'reglement' };
+export type Paiements = { mois: string; editeur: Editeur | null; recus: Recu[]; ouvertes: Ouverte[]; aEmettre: AEmettre[]; couts: Cout[];
+  horsPlateforme: HorsPlateforme[]; defaites: Defaite[] };
 
 // L'écran d'une pièce dans l'application de SkanFact (son dossier, la pièce ouverte) : la même adresse que la fiche.
 export const ecranDeLaPiece = (editeur: string, piece: string) => `/v10/?e=${editeur}#/doc/${encodeURIComponent(piece)}`;
@@ -89,21 +97,37 @@ export function lirePaiements(brut: unknown): Paiements {
     if (!id || !libelle || montant === null || montant <= 0n || !dApres) continue;
     couts.push({ id, libelle, montant, dApres, saisiLe: String(c.saisiLe ?? ''), saisiPar: texte(c.saisiPar), retireLe: texte(c.retireLe), retirePar: texte(c.retirePar) });
   }
-  return { mois: typeof x.mois === 'string' ? x.mois : '', editeur, recus, ouvertes, aEmettre, couts };
+  const horsPlateforme: HorsPlateforme[] = [];
+  for (const h of Array.isArray(x.horsPlateforme) ? x.horsPlateforme as Record<string, unknown>[] : []) {
+    const id = texte(h.id), date = jour(h.date), montant = entier(h.montant), facture = texte(h.facture), entreprise = quiDe(h.entreprise);
+    const moyen = h.moyen === 'virement' || h.moyen === 'cheque' || h.moyen === 'especes' ? h.moyen : null;
+    if (!id || !date || montant === null || montant <= 0n || !facture || !entreprise || !moyen) continue;
+    horsPlateforme.push({ id, date, montant, moyen, facture, entreprise, noteLe: String(h.noteLe ?? ''), par: texte(h.par) });
+  }
+  const defaites: Defaite[] = [];
+  for (const d of Array.isArray(x.defaites) ? x.defaites as Record<string, unknown>[] : []) {
+    const piece = texte(d.piece), ed2 = texte(d.editeur), payeeLe = texte(d.payeeLe), debut = jour(d.debut), fin = jour(d.fin), entreprise = quiDe(d.entreprise);
+    if (!piece || !ed2 || !payeeLe || !debut || !fin || !entreprise) continue;
+    defaites.push({ piece, numero: texte(d.numero), payeeLe, debut, fin, entreprise, ecran: ecranDeLaPiece(ed2, piece), cause: d.cause === 'avoir' ? 'avoir' : 'reglement' });
+  }
+  return { mois: typeof x.mois === 'string' ? x.mois : '', editeur, recus, ouvertes, aEmettre, couts, horsPlateforme, defaites };
 }
 
 // ── L'encaissé d'un mois ─────────────────────────────────────────────────────────────────────────────────────────────
 // Dans la devise de l'entreprise SkanFact : le total (les remboursements déduits), par moyen, et ce qui a été remboursé.
-// Les règlements d'une autre devise, chacun dans la sienne, à part.
+// Les règlements d'une autre devise, chacun dans la sienne, à part. Les paiements reçus hors de la plateforme (en
+// dinars) y entrent sous leur moyen ; des espèces, sous « autre ».
 export type Encaisse = {
   devise: string; decimales: number; total: bigint; parMoyen: Record<Moyen, bigint>; rembourse: bigint; reglements: number;
   autresDevises: { devise: string; decimales: number; total: bigint }[];
 };
-export function encaisse(recus: Recu[], editeur: Editeur): Encaisse {
+export function encaisse(recus: Recu[], editeur: Editeur, hors: readonly HorsPlateforme[] = []): Encaisse {
   const parMoyen = Object.fromEntries(MOYENS.map((m) => [m, 0n])) as Record<Moyen, bigint>;
   let total = 0n, rembourse = 0n, reglements = 0;
   const autres = new Map<string, { devise: string; decimales: number; total: bigint }>();
-  for (const r of recus) {
+  const tous = [...recus.map((r) => ({ montant: r.montant, devise: r.devise, decimales: r.decimales, moyen: r.moyen })),
+    ...hors.map((h) => ({ montant: h.montant, devise: 'TND', decimales: 3, moyen: h.moyen === 'especes' ? 'autre' as const : h.moyen }))];
+  for (const r of tous) {
     if (r.devise !== editeur.devise) {
       const a = autres.get(r.devise) ?? { devise: r.devise, decimales: r.decimales, total: 0n };
       a.total += r.montant;
@@ -123,7 +147,7 @@ export function encaisse(recus: Recu[], editeur: Editeur): Encaisse {
 export type MesureEncaisse = { mesure: true; montant: string; devise: string; reglements: number } | { mesure: false; raison: 'editeur_absent' };
 export function encaisseDuMois(p: Paiements): MesureEncaisse {
   if (!p.editeur) return { mesure: false, raison: 'editeur_absent' };
-  const e = encaisse(p.recus, p.editeur);
+  const e = encaisse(p.recus, p.editeur, p.horsPlateforme);
   return { mesure: true, montant: versTexte(e.total, e.decimales), devise: e.devise, reglements: e.reglements };
 }
 
@@ -159,6 +183,11 @@ export function ouvertes(liste: Ouverte[], entreprises: Entreprise[], aujourdhui
   doivent.sort((a, b) => (b.retard ?? -1) - (a.retard ?? -1) || (a.echeance ?? '9').localeCompare(b.echeance ?? '9') || a.entreprise.nom.localeCompare(b.entreprise.nom));
   return { doivent, trop };
 }
+
+// L'argent qui attend une décision (« À décider », 0113) : les factures payées puis défaites, celles qui attendent d'être
+// émises, les trop-perçus — par les fonctions de cet écran, jamais une seconde règle.
+export const argentADecider = (p: Paiements, entreprises: Entreprise[], aujourdhui: string) =>
+  ({ defaites: p.defaites, aEmettre: p.aEmettre, trop: ouvertes(p.ouvertes, entreprises, aujourdhui).trop });
 
 // ── Les coûts du mois, et ce qui reste ───────────────────────────────────────────────────────────────────────────────
 // Les coûts sont en millimes de dinar : ce qui reste ne se calcule que si l'encaissé est en dinars aussi, et seulement

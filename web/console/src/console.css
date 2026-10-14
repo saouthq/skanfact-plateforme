@@ -332,6 +332,10 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-tuile-titre { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--c-nuit-gris); }
 .c-tuile-valeur { font-family: var(--c-chiffres); font-size: 34px; font-weight: 500; line-height: 1.15; color: #fff; display: flex; align-items: center; gap: 10px; }
 .c-tuile-sous { font-size: 13.5px; color: var(--c-nuit-gris); }
+/* Un montant suit sa longueur : jamais plus large que sa tuile (vu le 14/10/2026 : « 751,700 DT » débordait de 18 points
+   au téléphone, sur la tuile voisine). `--n` : son nombre de caractères ; un caractère des chiffres fait .6 de sa taille. */
+.c-tuile:has(.c-tuile-ajuste) { container-type: inline-size; }
+.c-tuile-valeur.c-tuile-ajuste { font-size: min(34px, calc(100cqi / (var(--n) * .62))); }
 .c-tuile-point { width: 11px; height: 11px; border-radius: 50%; background: #f87171; flex: none; }
 .c-tuile-point.c-ok { background: var(--c-menthe); }
 .c-tuile-mot { font-family: var(--c-titre); font-size: 24px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.25; display: flex; align-items: center; gap: 10px; min-height: 39px; }
@@ -421,14 +425,6 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-chiffre { display: grid; gap: 2px; align-content: start; }
 .c-chiffre span { font-size: 13px; color: var(--c-gris); }
 .c-chiffre b { font-family: var(--c-chiffres); font-size: 26px; font-weight: 500; }
-.c-barres { display: grid; gap: 8px; margin-top: 20px; }
-.c-barres-tete { display: flex; justify-content: space-between; gap: 12px; font-size: 13.5px; color: var(--c-gris); flex-wrap: wrap; }
-.c-barres-graphe { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; align-items: end; height: 96px; }
-.c-barre { display: grid; grid-template-rows: 1fr auto; gap: 6px; height: 100%; }
-.c-barre-colonne { display: flex; align-items: flex-end; }
-.c-barre-colonne span { display: block; width: 100%; min-height: 2px; border-radius: 4px 4px 0 0; background: var(--c-sarcelle); }
-.c-barre-colonne span.c-zero { background: var(--c-trait-fort); }
-.c-barre-mois { font-family: var(--c-chiffres); font-size: 11px; color: var(--c-gris-2); text-align: center; }
 .c-histoire { list-style: none; margin: 0; padding: 0; display: grid; }
 .c-histoire li { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-top: 1px solid var(--c-trait); }
 .c-histoire li:first-child { border-top: 0; padding-top: 0; }
@@ -478,7 +474,8 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-oeil { position: absolute; inset-inline-end: 6px; top: 50%; translate: 0 -50%; min-height: 36px; padding: 0 12px; border-radius: 9px; border: 0; background: transparent; color: var(--c-lien); font-weight: 600; font-size: 13.5px; cursor: pointer; }
 .c-oeil:hover { background: var(--c-doux); }
 .c-champs { display: grid; gap: 18px; }
-.c-champs-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+/* Deux cases côte à côte gardent chacune sa hauteur : l'aide de l'une n'étire pas l'autre (la liste du moyen à côté du jour). */
+.c-champs-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
 
 /* ── Les fenêtres ─────────────────────────────────────────────────────────────────────────────────────────────── */
 /* Ancrée en haut, jamais centrée : une fenêtre centrée se recentre quand son contenu change de hauteur, et ce qu'on allait
@@ -580,9 +577,6 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   .c-chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 860px) {
-  /* Douze mois sur la largeur d'un téléphone : un nom de mois fait 33 points et une colonne 21, ils se chevauchaient
-     (« 11/2512/26… »). Un mois sur deux, en gardant le dernier — le mois en cours — toujours nommé. */
-  .c-barre:nth-child(odd) .c-barre-mois { visibility: hidden; }
   .c-filtre-actif button { width: 44px; height: 44px; }
   /* Au doigt, chaque lien est une cible de 44 points : la marque, le fil, les liens des tableaux et des personnes. */
   .c-marque { min-height: 44px; }
@@ -619,6 +613,7 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   .c-tuile { min-height: 0; padding: 12px 14px; gap: 4px; border-radius: 14px; }
   .c-tuile-titre { font-size: 11px; letter-spacing: .06em; }
   .c-tuile-valeur { font-size: 26px; }
+  .c-tuile-valeur.c-tuile-ajuste { font-size: min(26px, calc(100cqi / (var(--n) * .62))); }
   .c-tuile-mot { font-size: 18px; min-height: 30px; }
   .c-tuile-sous { font-size: 12.5px; line-height: 1.4; }
   .c-matin { padding: 18px 14px 16px; border-radius: 20px; }
@@ -1634,6 +1629,8 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-cl-num { min-width: 34px; height: 34px; padding: 0 8px; border-radius: 10px; border: 1px solid var(--c-trait-fort); background: var(--c-papier); color: var(--c-encre); font: inherit; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; }
 .c-cl-num:hover { border-color: var(--c-gris-2); }
 .c-cl-num[aria-current="page"] { border-color: var(--c-fort); background: var(--c-fort); color: var(--c-fort-texte); }
+/* Au doigt, un numéro de page se touche (44 px) : vu rouge sur GitHub le 14/10/2026, quand la liste passait deux pages. */
+@media (max-width: 860px), (pointer: coarse) { .c-cl-num { min-width: 44px; height: 44px; } }
 .c-cl-saut { min-width: 20px; text-align: center; color: var(--c-gris); }
 .c-cl-notes { margin: 0; display: flex; flex-wrap: wrap; gap: 6px 28px; font-size: 12.5px; line-height: 1.55; color: var(--c-gris); }
 .c-cl-notes > span:first-child { flex: 1 1 360px; }
@@ -2585,6 +2582,9 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 }
 @media (max-width: 640px) {
   .c-pa-bande { padding: 20px 18px; }
+  /* Deux moyens par rangée ; le dernier, seul sur la sienne, en prend toute la largeur. */
+  .c-pa-moyens { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .c-pa-moyens li:last-child:nth-child(2n + 1) { grid-column: 1 / -1; }
   .c-mois { width: 100%; justify-content: space-between; }
   .c-mois b { min-width: 0; order: -1; flex: 1 1 100%; text-align: start; }
   .c-pa-ligne { padding: 14px 18px; grid-template-areas: 'quoi montant' 'action action'; }

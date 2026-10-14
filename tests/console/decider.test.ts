@@ -122,3 +122,39 @@ describe('la liste des clients', () => {
     expect(chercher(liste, presse.proprietaire.email).map((e) => e.raisonSociale)).toEqual(['Quincaillerie El Amel']);
   });
 });
+
+describe('« À décider » : l\'argent qui attend (0113)', () => {
+  const a = ligne({ payeJusquAu: plusJours(JOUR, 200), offre: 'essentiel', periodicite: 'annuel' });
+  const b = ligne({ payeJusquAu: plusJours(JOUR, 100), offre: 'complet', periodicite: 'mensuel' });
+  const liste = lireEntreprises([a, b], JOUR, REGLES_DE_DEPART);
+  const qui = (x: { id: string; raisonSociale: string }) => ({ id: x.id, nom: x.raisonSociale });
+  const ecran = (piece: string) => `/v10/?e=ed#/doc/${piece}`;
+  const argent = {
+    // Payée, puis annulée par un avoir : elle a aussi un trop-perçu (plus bas), qui ne fait pas une seconde ligne.
+    defaites: [{ piece: 'f1', numero: 'FAC-2026-001', payeeLe: '2026-09-02T10:00:00Z', debut: '2026-09-03', fin: '2026-10-02', entreprise: qui(b), ecran: ecran('f1'), cause: 'avoir' as const }],
+    aEmettre: [
+      // Préparée le 11/10 à 22 h 30 en UTC : le 11/10 à Tunis (23 h 30), deux jours avant le 13/10 — elle attend.
+      { piece: 'f2', debut: '2026-10-20', fin: '2027-10-19', prepareLe: '2026-10-11T22:30:00Z', entreprise: qui(a), ecran: ecran('f2') },
+      // Le 11/10 à 23 h 30 en UTC, c'est déjà le 12/10 à Tunis : un jour seulement, elle n'attend pas encore.
+      { piece: 'f3', debut: '2026-10-20', fin: '2026-11-19', prepareLe: '2026-10-11T23:30:00Z', entreprise: qui(b), ecran: ecran('f3') },
+    ],
+    trop: [{ entreprise: qui(a), numero: 'FAC-2026-004', piece: 'f4', ecran: ecran('f4'), devise: 'TND', trop: '12.345', annulee: false },
+      { entreprise: qui(b), numero: 'FAC-2026-001', piece: 'f1', ecran: ecran('f1'), devise: 'TND', trop: '47.410', annulee: true },
+      // Une entreprise hors de la liste (une autre fiche) : sa ligne ne vient pas.
+      { entreprise: { id: 'ailleurs', nom: 'Ailleurs' }, numero: null, piece: 'f5', ecran: ecran('f5'), devise: 'TND', trop: '1.000', annulee: true }],
+  };
+
+  it('la direction seule, pour les entreprises de la liste : payée puis défaite d\'abord, puis ce qui attend d\'être émis depuis deux jours, puis les trop-perçus', () => {
+    const d = aDecider(liste, veilleOk, JOUR, 'direction', [], MAINTENANT, argent);
+    expect(d.map((l) => [l.sorte, 'entreprise' in l ? l.entreprise.nom : null])).toEqual([
+      ['facture_defaite', b.raisonSociale], ['a_emettre', a.raisonSociale], ['trop_percu', a.raisonSociale]]);
+    expect(d.find((l) => l.sorte === 'a_emettre')).toMatchObject({ prepareLe: '2026-10-11', jours: 2, ecran: ecran('f2') });
+    // La facture défaite par un avoir dit sa cause et ce qui est à rendre ; son trop-perçu n'a pas sa propre ligne.
+    expect(d.find((l) => l.sorte === 'facture_defaite')).toMatchObject({ cause: 'avoir', trop: '47.410' });
+    expect(aDecider(liste, veilleOk, JOUR, 'support', [], MAINTENANT, argent)).toEqual([]);
+    expect(aDecider(liste, veilleOk, JOUR, 'technique', [], MAINTENANT, argent)).toEqual([]);
+    // La fiche d'une entreprise : seulement les siennes.
+    const seule = lireEntreprises([b], JOUR, REGLES_DE_DEPART);
+    expect(aDecider(seule, { etat: 'absente' }, JOUR, 'direction', [], MAINTENANT, argent).map((l) => l.sorte)).toEqual(['facture_defaite']);
+  });
+});

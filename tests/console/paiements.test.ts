@@ -153,6 +153,10 @@ describe('les paiements de nos factures', () => {
 
   it('l\'encaissé du mois, par moyen ; qui doit encore ; le même chiffre à l\'accueil et par un second chemin', async () => {
     expect((await appeler('POST', '/console/reglages/factures/editeur', direction.console, { entreprise: editeur, motif: 'Nos factures naissent ici' })).statut).toBe(200);
+    // Un paiement reçu hors de la plateforme sous une AUTRE entreprise SkanFact (un autre essai de la même base) : l'argent
+    // est à elle, il n'entre pas dans cet encaissé (0113 ; vu le 14/10/2026, les paiements des autres fichiers de tests).
+    await admin.query(`insert into plateforme.evenement_abonnement (entreprise, nature, par, motif, avant, apres) values ($1, 'paye', 'exploitation', 'reçu ailleurs', null, $2)`,
+      [editeur, JSON.stringify({ facture: 'F-AILLEURS', montant: '999000', moyen: 'virement', le: jour, editeur: '01890000-0000-7000-8000-000000000000' })]);
     expect(await tuile()).toEqual({ mesure: true, montant: '0.000', devise: 'TND', reglements: 0 });
     const a = await factureEmise('Atelier Paiements');
     // Émise, pas réglée : elle doit tout, à payer avant son échéance (la veille de sa période).

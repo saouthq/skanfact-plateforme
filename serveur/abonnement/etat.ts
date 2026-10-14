@@ -44,6 +44,9 @@ export type Faits = {
   delai?: { echeance: string; jusquAu: string } | null;
   // L'offre de la prochaine échéance (0111 : « Changer d'offre ») : la période payée va au bout avec l'offre payée.
   offreSuivante?: { offre: Offre; periodicite: Periodicite; aPartirDu: string } | null;
+  // Un mois offert qui attend la prochaine facture (0113), et les modules qui partent au renouvellement.
+  moisOffert?: boolean;
+  modulesARetirer?: readonly ModuleAchete[];
 };
 export type ContenuDesOffres = Partial<Record<Offre, Partial<Record<ModuleAchete, RegleDatee[]>>>>;
 
@@ -102,6 +105,7 @@ export function lireFaits(f: Record<string, unknown>): Faits {
     bacASable: f.bacASable === true, tenuParCabinet: f.tenuParCabinet === true,
     modules: lireModules(f.modules), regles: lireRegles(f.regles), contenu: lireContenu(f.contenu),
     delai: lireDelai(f.delai), offreSuivante: lireOffreSuivante(f.offreSuivante),
+    moisOffert: f.moisOffert === true, modulesARetirer: lireModules(f.modulesARetirer),
   };
 }
 const objetDe = (v: unknown): Record<string, unknown> | null => (v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : null);
@@ -213,8 +217,10 @@ export function relanceDue(f: Faits, jour: string, parties: { echeance: string; 
 // La période qu'un paiement couvre : elle commence le lendemain de l'échéance si on paie avant la fin de la grâce
 // (rien ne s'interrompt, et les jours de grâce font partie de la période), sinon le jour du paiement.
 // Une grâce inconnue n'en compte aucune : la période commence le jour du paiement, sans faire payer des jours passés.
-export function prochainePeriode(f: Faits, periodicite: Periodicite, jour: string): { debut: string; fin: string } {
+// `moisOffert` (0113) : la période porte un mois offert, elle en couvre un de plus au même prix (la base le recompte de
+// la même façon : des mois de calendrier, la fin d'un mois court gardée).
+export function prochainePeriode(f: Faits, periodicite: Periodicite, jour: string, moisOffert = false): { debut: string; fin: string } {
   const echeance = echeanceDe(f) ?? plusJours(jour, -1);
   const debut = jour <= plusJours(echeance, graceDe(f, echeance) ?? 0) ? plusJours(echeance, 1) : jour;
-  return { debut, fin: plusJours(plusMois(debut, periodicite === 'annuel' ? 12 : 1), -1) };
+  return { debut, fin: plusJours(plusMois(debut, (periodicite === 'annuel' ? 12 : 1) + (moisOffert ? 1 : 0)), -1) };
 }

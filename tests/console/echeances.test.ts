@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { REGLES_DE_DEPART } from '../regles-de-depart.ts';
+import { auPrix } from './au-prix.ts';
 import { echeanceDe, etatAbonnement, plusJours, relanceDue } from '../../serveur/abonnement/etat.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from '../../serveur/console/cabinets.ts';
 import { lireEntreprises } from '../../serveur/console/decider.ts';
@@ -69,7 +70,9 @@ const EXTRAS = {
 };
 
 const liste = lireEntreprises(TOUTES, JOUR, REGLES_DE_DEPART);
-const lignes = lignesEcheances(liste, lireExtras(EXTRAS), lirePrix(PRIX), JOUR);
+// Ce que chaque prochaine facture dira, par la règle de la facture, à ces prix-là.
+const R = auPrix(liste, JOUR, lirePrix(PRIX));
+const lignes = lignesEcheances(liste, lireExtras(EXTRAS), R, JOUR);
 const nomsDe = (l: LigneEcheance[]) => l.map((x) => x.entreprise.nom);
 const de = (e: { id: string }) => lignes.find((l) => l.entreprise.id === e.id) as LigneEcheance;
 
@@ -104,32 +107,33 @@ describe('les échéances des abonnements', () => {
     });
   });
 
-  it('le montant, hors taxes au prix du jour : ce qu\'un paiement coûterait, jamais pour un essai, une résiliation ou une suspension', () => {
+  it('le montant, hors taxes : celui de la prochaine facture, jamais pour un essai, une résiliation ou une suspension', () => {
     expect(Object.fromEntries(lignes.map((l) => [l.entreprise.nom.slice(0, 1), l.montantHt]))).toEqual({
       A: null, B: null, C: null, D: '39.000', E: '690.000', F: null, G: null, H: '390.000', I: null, J: '69.000', K: null, L: null, M: null, N: null,
     });
     // Un prix qui manque ne s'invente pas.
-    const sansComplet = lignesEcheances(liste, lireExtras(EXTRAS), lirePrix(PRIX.filter((p) => p.offre !== 'complet')), JOUR);
+    const sansComplet = lignesEcheances(liste, lireExtras(EXTRAS), auPrix(liste, JOUR, lirePrix(PRIX.filter((p) => p.offre !== 'complet'))), JOUR);
     expect(sansComplet.find((l) => l.entreprise.id === J.id)?.montantHt).toBeNull();
   });
 
   it('ce qui revient chaque année : les actifs qui se renouvellent, le mensuel compté douze fois, sans les résiliés', () => {
     // D : 39,000 × 12 = 468,000 ; E : 690,000. F est résilié.
-    expect(annuel(lignes, lirePrix(PRIX))).toEqual({ montantHt: '1158.000', abonnements: 2, mensuels: 1, resilies: 1, sansPrix: 0 });
+    expect(annuel(lignes, R)).toEqual({ montantHt: '1158.000', abonnements: 2, mensuels: 1, resilies: 1, sansPrix: 0 });
     // Sans le prix du Complet à l'année, E se compte à part, il ne vaut pas zéro en silence.
-    expect(annuel(lignes, lirePrix(PRIX.filter((p) => !(p.offre === 'complet' && p.periodicite === 'annuel'))))).toEqual({ montantHt: '468.000', abonnements: 1, mensuels: 1, resilies: 1, sansPrix: 1 });
+    expect(annuel(lignes, auPrix(liste, JOUR, lirePrix(PRIX.filter((p) => !(p.offre === 'complet' && p.periodicite === 'annuel')))))).toEqual({ montantHt: '468.000', abonnements: 1, mensuels: 1, resilies: 1, sansPrix: 1 });
   });
 
   it('la remise de la prochaine période (0106) : déduite du montant et du revenu annuel, et dite ; jamais pour qui n\'a pas de montant', () => {
     const remises = lireRemisesEcheances({ [D.id]: { nature: 'groupe', taux: 17, groupe: 'Famille' }, [E.id]: { nature: 'cabinet', taux: 15, cabinet: 'Cabinet' },
       [A.id]: { nature: 'groupe', taux: 20, groupe: 'Famille' }, [H.id]: { nature: 'parrainage', taux: 10 } });
-    const avec = lignesEcheances(liste, lireExtras(EXTRAS), lirePrix(PRIX), JOUR, remises);
+    const RR = auPrix(liste, JOUR, lirePrix(PRIX), remises);
+    const avec = lignesEcheances(liste, lireExtras(EXTRAS), RR, JOUR);
     const ligne = (e: { id: string }) => avec.find((l) => l.entreprise.id === e.id);
     // D : 39,000 − 17 % (6,630) = 32,370 ; E : 690,000 − 15 % (103,500) = 586,500 ; H : une remise illisible ne s'applique pas.
     expect([ligne(D), ligne(E), ligne(H), ligne(A)].map((l) => [l?.montantHt, l?.remise])).toEqual([
       ['32.370', { nature: 'groupe', taux: 17 }], ['586.500', { nature: 'cabinet', taux: 15 }], ['390.000', null], [null, null]]);
     // Chaque année : 32,370 × 12 + 586,500 = 974,940.
-    expect(annuel(avec, lirePrix(PRIX), remises)).toEqual({ montantHt: '974.940', abonnements: 2, mensuels: 1, resilies: 1, sansPrix: 0 });
+    expect(annuel(avec, RR)).toEqual({ montantHt: '974.940', abonnements: 2, mensuels: 1, resilies: 1, sansPrix: 0 });
   });
 
   it('une relance ne compte que pour l\'échéance d\'aujourd\'hui ; ni une résiliation, ni une suspension ne se relancent', () => {

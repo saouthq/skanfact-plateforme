@@ -254,7 +254,7 @@ describe('les clients', () => {
     const fin = String((f.faits as { essaiJusquAu: string }).essaiJusquAu);
     // Un essai qui commence aujourd'hui (0110) : sa durée telle qu'il a commencé, rien de prolongé, aucune pièce émise ce
     // mois, aucune facture qui attend ; il n'est dans aucune vue du métier.
-    expect((await ligneDe(jS))?.enPlus).toEqual({ piecesMois: 0, essaiJours: joursEntre(aujourdhui, fin), prolonge: 0, prolongeUneFois: false, attend: null });
+    expect((await ligneDe(jS))?.enPlus).toEqual({ piecesMois: 0, essaiJours: joursEntre(aujourdhui, fin), prolonge: 0, prolongeUneFois: false, moisOffertRecent: false, attend: null });
     expect((await ligneDe(jS))?.vues).toEqual([]);
     // Le menu « … » : les gestes de sa fiche, par la même règle — le support prolonge (une fois) ; la direction prolonge
     // et passe en lecture seule. Payer, offrir, un module restent sur la fiche.
@@ -289,8 +289,8 @@ describe('les clients', () => {
     expect(Object.keys(f).sort()).toEqual(['active', 'attend', 'aujourdhui', 'comptes', 'creeLe', 'devise', 'etat', 'evenements', 'faits', 'formeJuridique', 'gestes',
       'id', 'ligne', 'matricule', 'membres', 'organisation', 'prolongeDejaUneFois', 'raisonSociale', 'tenuePar', 'cabinets', 'support', 'factures', 'groupe',
       // 0110–0112 : son numéro et sa ville, nos notes d'appel, ce que la liste dit en plus, l'offre suivante, le délai, la
-      // procédure de reprise (la direction seule ; au support : rien).
-      'identite', 'notes', 'enPlus', 'offreSuivante', 'delai', 'reprise'].sort());
+      // procédure de reprise (la direction seule ; au support : rien). 0113 : ce que sa prochaine facture coûtera.
+      'identite', 'notes', 'enPlus', 'offreSuivante', 'delai', 'reprise', 'prochaineFacture'].sort());
     expect(f.reprise).toBeNull();
     // Son groupe et sa remise (0106) : aucun groupe, aucune société de la même propriétaire, aucune remise ; la règle du
     // groupe et le premier jour de sa prochaine période (le lendemain de son essai).
@@ -503,9 +503,13 @@ describe('les cabinets', () => {
     expect(dossiers.map((d) => [d.place, d.entreprise.raisonSociale, d.mandat?.statut])).toEqual([
       ['client', 'Boulangerie Essalem Console', 'actif'], ['tenu', 'Cordonnerie El Bey Console', 'actif'], ['en_attente', 'Pharmacie En Attente Console', 'propose'],
     ]);
-    // Une entreprise dit la même chose ici et dans la liste des clients.
-    const clients = ((await appeler('GET', '/console/entreprises?limite=200', jS)).corps.lignes as { societes: { id: string; etat: unknown }[] }[]).flatMap((o) => o.societes);
-    for (const d of dossiers) expect(d.entreprise.etat).toEqual(clients.find((c) => c.id === d.entreprise.id)?.etat);
+    // Une entreprise dit la même chose ici et dans la liste des clients (cherchée par son nom : la liste d'une base de
+    // tests passe deux cents lignes, et la première page ne la montre pas forcément).
+    for (const d of dossiers) {
+      const trouvees = ((await appeler('GET', `/console/entreprises?q=${encodeURIComponent(d.entreprise.raisonSociale)}&limite=50`, jS)).corps.lignes as { societes: { id: string; etat: unknown }[] }[])
+        .flatMap((o) => o.societes);
+      expect(d.entreprise.etat).toEqual(trouvees.find((c) => c.id === d.entreprise.id)?.etat);
+    }
     // La fiche du client nomme son cabinet ; celle du dossier tenu, celui qui le tient.
     expect((await fiche(jS, client.ent)).cabinets).toEqual([{ id: cabinet, nom: 'Cabinet Ennour Console', place: 'client', mandat: { statut: 'actif', debut: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) } }]);
     expect(((await fiche(jS, String(tenu.corps.entreprise))).cabinets as { id: string; place: string }[]).map((c) => [c.id, c.place])).toEqual([[cabinet, 'tenu']]);

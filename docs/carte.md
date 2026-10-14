@@ -598,6 +598,15 @@ vaut pour tout le dépôt.*
     clavier comme sur le Mac (`parcourirMenu`, le menu « … » et « Gestes ▾ »), en sections par société (`section`) ; des
     pastilles qui se cochent comme des boutons radio (`Pilules`) ; le client nommé au-dessus du titre d'une fenêtre
     (`Dialogue`, `pour`).
+  - **L'argent juste** (1.20.0 ; `docs/abonnement.md` C18, `docs/console.md` C36, `0113`) : un mois offert sur la
+    prochaine facture (`abonnement.mois_offerts`, `facture_abonnement.mois_offert`), le support une fois sur douze mois ;
+    un paiement reçu hors de la plateforme et sa preuve (`MOYENS_RECUS`, `console_paiements.horsPlateforme`) ; le
+    rattrapage au prorata d'un module ouvert en cours (`plateforme.rattrapage_modules`) et le module retiré qui part au
+    renouvellement (`modules_a_retirer`) ; un renouvellement compté par la règle de la facture, en un passage
+    (`plateforme.console_renouvellements`, `serveur/console/renouvellements.ts`, `htDeLaPeriode`) ; l'argent qui attend
+    dans « À décider » (`aDecider`, `argentADecider` : payée puis défaite, à émettre, trop-perçu)
+    (`tests/abonnement/gestes-0111.test.ts`, `tests/console/factures.test.ts`, `tests/console/clients.test.ts`,
+    `tests/console/decider.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

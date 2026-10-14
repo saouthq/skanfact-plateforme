@@ -6,7 +6,7 @@
 
 import { t } from '../../textes/index.ts';
 import { Refus } from '../erreurs.ts';
-import { echeanceDe, etatAbonnement, jourEnFrancais, plusJours, plusMois, prochainePeriode, type Faits, type ModuleAchete, type Offre, type Periodicite } from './etat.ts';
+import { echeanceDe, etatAbonnement, jourEnFrancais, plusJours, prochainePeriode, type Faits, type ModuleAchete, type Offre, type Periodicite } from './etat.ts';
 import './textes.ts';
 
 export type GesteAbonnement = 'prolonger' | 'payer' | 'resilier' | 'annuler-resiliation' | 'suspendre' | 'reprendre' | 'offrir' | 'retirer-offert'
@@ -23,10 +23,29 @@ export type LigneAbonnement = {
   // 0111 : le délai d'une échéance, et l'offre de la prochaine (absents d'une ligne d'avant : gardés tels quels).
   delai_echeance?: string | null; delai_jusqu_au?: string | null;
   suivante_offre?: Offre | null; suivante_periodicite?: Periodicite | null; suivante_a_partir_du?: string | null;
+  // 0113 : le mois offert qui attend la prochaine facture, les modules qui partent au renouvellement.
+  mois_offerts?: number; modules_a_retirer?: ModuleAchete[];
 };
 
+// Un paiement reçu hors de la plateforme (0113) : la facture faite ailleurs, le montant reçu en millimes, son moyen, son
+// jour. Sans eux, rien n'est payé.
+export type MoyenRecu = 'virement' | 'cheque' | 'especes';
+export const MOYENS_RECUS: readonly MoyenRecu[] = ['virement', 'cheque', 'especes'];
+export type PaiementRecu = { facture: string; montant: bigint; moyen: MoyenRecu; le: string };
+
+// `apercu` : l'aperçu d'un paiement se calcule avant que sa preuve soit tapée (la période ne dépend pas d'elle) ; le geste,
+// jamais sans elle.
 export type DemandeAbonnement = { geste: GesteAbonnement; motif: string; jours?: number | undefined; offre?: Offre | undefined; periodicite?: Periodicite | undefined;
-  module?: ModuleAchete | undefined };
+  module?: ModuleAchete | undefined; paiement?: PaiementRecu | undefined; apercu?: boolean | undefined };
+
+// Ce qu'un renouvellement payé applique (0113) : les modules retirés partent, l'offre changée (0111) ne se redit plus
+// quand la période payée commence à son jour. La même règle que la base (plateforme.abonnement_paye_par_facture).
+function auRenouvellement(apres: LigneAbonnement, debut: string): void {
+  const partent = apres.modules_a_retirer ?? [];
+  apres.modules = apres.modules.filter((m) => !partent.includes(m));
+  apres.modules_a_retirer = [];
+  if (apres.suivante_a_partir_du && debut >= apres.suivante_a_partir_du) Object.assign(apres, { suivante_offre: null, suivante_periodicite: null, suivante_a_partir_du: null });
+}
 
 // Ce que le geste fait : la ligne d'après, et ce qu'il faut en retenir dans son histoire (les jours ajoutés, la période
 // payée). `ligne` vaut null quand l'entreprise n'a pas d'abonnement (une restauration dans une autre base) : seul
@@ -34,7 +53,7 @@ export type DemandeAbonnement = { geste: GesteAbonnement; motif: string; jours?:
 export function calculerGeste(ligne: LigneAbonnement | null, faits: Faits, d: DemandeAbonnement, jour: string): { apres: LigneAbonnement; details: Record<string, unknown> } {
   if (!ligne && d.geste !== 'prolonger') throw new Refus('abonnement.geste.sans_ligne');
   const avant: LigneAbonnement = ligne ?? { essai_jusqu_au: jour, paye_jusqu_au: null, offre: null, periodicite: null, resilie_le: null, suspendu_le: null, offert: false, modules: [] };
-  const apres: LigneAbonnement = { ...avant, modules: [...avant.modules] };
+  const apres: LigneAbonnement = { ...avant, modules: [...avant.modules], ...(avant.modules_a_retirer ? { modules_a_retirer: [...avant.modules_a_retirer] } : {}) };
   const details: Record<string, unknown> = {};
   switch (d.geste) {
     case 'prolonger': {
@@ -45,12 +64,20 @@ export function calculerGeste(ligne: LigneAbonnement | null, faits: Faits, d: De
       details.jours = jours;
       break;
     }
+    // Un paiement reçu hors de la plateforme (une facture faite ailleurs) : il paie la période qui vient, comme une facture
+    // de la plateforme — le mois offert qui l'attendait compris, et ce que le renouvellement applique.
     case 'payer': {
       if (d.offre !== 'essentiel' && d.offre !== 'complet') throw new Refus('abonnement.geste.offre');
       if (d.periodicite !== 'annuel' && d.periodicite !== 'mensuel') throw new Refus('abonnement.geste.periodicite');
-      const p = prochainePeriode(faits, d.periodicite, jour);
-      Object.assign(apres, { paye_jusqu_au: p.fin, offre: d.offre, periodicite: d.periodicite, resilie_le: null });
-      Object.assign(details, { debut: p.debut, fin: p.fin });
+      const r = d.paiement;
+      if (!d.apercu && (!r || !r.facture.trim() || r.facture.trim().length > 40 || r.montant <= 0n || !MOYENS_RECUS.includes(r.moyen)
+        || !/^\d{4}-\d{2}-\d{2}$/.test(r.le) || r.le > jour)) throw new Refus('abonnement.geste.paiement_preuve');
+      const offert = (avant.mois_offerts ?? 0) > 0;
+      const p = prochainePeriode(faits, d.periodicite, jour, offert);
+      Object.assign(apres, { paye_jusqu_au: p.fin, offre: d.offre, periodicite: d.periodicite, resilie_le: null, ...(offert ? { mois_offerts: 0 } : {}) });
+      auRenouvellement(apres, p.debut);
+      Object.assign(details, { debut: p.debut, fin: p.fin, ...(r ? { facture: r.facture.trim(), montant: r.montant.toString(), moyen: r.moyen, le: r.le } : {}),
+        ...(offert ? { moisOffert: true } : {}) });
       break;
     }
     case 'resilier':
@@ -77,21 +104,39 @@ export function calculerGeste(ligne: LigneAbonnement | null, faits: Faits, d: De
       if (!avant.offert) throw new Refus('abonnement.geste.pas_offert');
       apres.offert = false;
       break;
-    // Un module acheté seul sur Essentiel (14c) : il s'ouvre à l'abonnement, et sa ligne vient sur la prochaine facture.
-    // Complet le contient déjà : rien à acheter.
+    // Un module acheté seul sur Essentiel (14c) : il s'ouvre tout de suite ; sa ligne vient sur la prochaine facture, qui
+    // rattrape au prorata les jours de la période payée qui court (0113, plateforme.rattrapage_modules). Complet le
+    // contient déjà : rien à acheter. Rouvrir un module qui allait partir annule son retrait (ce n'est pas un achat).
     case 'ouvrir-module': {
       if (d.module !== 'paie' && d.module !== 'compta') throw new Refus('abonnement.geste.module');
       if (avant.offre === 'complet') throw new Refus('abonnement.geste.module_complet');
+      const partent = avant.modules_a_retirer ?? [];
+      if (avant.modules.includes(d.module) && partent.includes(d.module)) {
+        apres.modules_a_retirer = partent.filter((m) => m !== d.module);
+        Object.assign(details, { module: d.module, annuleRetrait: true });
+        break;
+      }
       if (avant.modules.includes(d.module)) throw new Refus('abonnement.geste.module_deja', { valeurs: { module: t(`abonnement.module.${d.module}`) } });
       apres.modules = [...avant.modules, d.module].sort();
       details.module = d.module;
       break;
     }
+    // Retirer un module : pendant une période payée, il reste jusqu'au renouvellement (rien n'est perdu, rien n'est à
+    // rembourser) et la facture suivante ne le compte plus ; sans période payée qui court, il part tout de suite.
     case 'fermer-module': {
       if (d.module !== 'paie' && d.module !== 'compta') throw new Refus('abonnement.geste.module');
       if (!avant.modules.includes(d.module)) throw new Refus('abonnement.geste.module_pas', { valeurs: { module: t(`abonnement.module.${d.module}`) } });
-      apres.modules = avant.modules.filter((m) => m !== d.module);
-      details.module = d.module;
+      const partent = avant.modules_a_retirer ?? [];
+      if (partent.includes(d.module)) throw new Refus('abonnement.geste.module_part_deja', { valeurs: { module: t(`abonnement.module.${d.module}`) } });
+      const e = etatAbonnement(faits, jour);
+      if (e.etat === 'actif') {
+        apres.modules_a_retirer = [...partent, d.module].sort();
+        // Il sert jusqu'au dernier jour payé, et part le lendemain.
+        Object.assign(details, { module: d.module, jusquAu: e.jusquAu, auRenouvellement: plusJours(e.jusquAu, 1) });
+      } else {
+        apres.modules = avant.modules.filter((m) => m !== d.module);
+        details.module = d.module;
+      }
       break;
     }
     // Un délai (« Prolonger la grâce », « Réactiver ») : en grâce, la lecture seule recule de ces jours ; en lecture seule
@@ -109,14 +154,19 @@ export function calculerGeste(ligne: LigneAbonnement | null, faits: Faits, d: De
       Object.assign(details, { jours, jusquAu: plusJours(depuis, jours) });
       break;
     }
-    // Un mois offert : la période payée s'allonge d'un mois (sans facture ni avoir : rien n'est vendu pour ce mois).
+    // Un mois offert (0113 ; skanfact docs/cadrage/10-console.md § 2.4) : SUR LA PROCHAINE FACTURE, qui couvre un mois de
+    // plus au même prix et le dit. Rien ne s'allonge avant elle. À un abonné dont l'offre est choisie et qui se renouvelle
+    // (ni une résiliation, ni une suspension) ; un seul mois attend à la fois.
     case 'offrir-mois': {
       const e = etatAbonnement(faits, jour);
-      if (e.etat !== 'actif' || !avant.paye_jusqu_au) throw new Refus('abonnement.geste.mois_actif');
-      if (avant.resilie_le) throw new Refus('abonnement.geste.mois_resilie');
-      // Un mois de calendrier après la fin : du 24/10 au 23/11 payé, le 23/12 ; la fin d'un mois court reste juste.
-      apres.paye_jusqu_au = plusJours(plusMois(plusJours(avant.paye_jusqu_au, 1), 1), -1);
-      Object.assign(details, { de: avant.paye_jusqu_au, a: apres.paye_jusqu_au });
+      if (!avant.offre || !avant.periodicite || e.etat === 'hors' || e.etat === 'essai') throw new Refus('abonnement.geste.mois_actif');
+      if (avant.resilie_le || avant.suspendu_le) throw new Refus('abonnement.geste.mois_resilie');
+      if ((avant.mois_offerts ?? 0) > 0) throw new Refus('abonnement.geste.mois_deja');
+      apres.mois_offerts = 1;
+      // La période que cette prochaine facture couvrira : celle d'une facture préparée aujourd'hui, un mois de plus.
+      const periodicite = avant.suivante_offre && avant.suivante_periodicite ? avant.suivante_periodicite : avant.periodicite;
+      const p = prochainePeriode(faits, periodicite, jour, true);
+      Object.assign(details, { du: p.debut, au: p.fin });
       break;
     }
     // Changer d'offre : à la prochaine échéance (la période payée va au bout avec l'offre payée). Revenir à l'offre qui
