@@ -165,8 +165,8 @@ describe('les paiements de nos factures, à la souris', () => {
 
   it('d\'un mois à l\'autre, les boutons ne bougent pas sous la souris ; au téléphone, rien ne déborde', async () => {
     const p = await ouvrir(jD, '#/paiements');
-    await expect.poll(() => p.locator('.c-pa-mois').count(), { timeout: 15_000 }).toBe(1);
-    const avant = p.locator('.c-pa-mois button').first();
+    await expect.poll(() => p.locator('.c-mois').count(), { timeout: 15_000 }).toBe(1);
+    const avant = p.locator('.c-mois button').first();
     const ou = await avant.boundingBox();
     await cliquer(avant);
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 10_000 }).toMatch(/^#\/paiements\?mois=\d{4}-\d{2}$/);

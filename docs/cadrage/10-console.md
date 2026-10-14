@@ -113,6 +113,10 @@ l'entreprise SkanFact et en déclenche l'émission à chaque renouvellement. Ska
 dans `app.skanfact.tn`, comme n'importe quel client, et son comptable la voit par son mandat (`00`
 § 3).
 
+*Fait en 1.18.0 (14/10/2026, `docs/console.md` C31) : l'écran « Nos factures » — celles d'un mois et leurs avoirs, où
+chacune en est à la TTN (une refusée en tête, avec ce que la TTN a répondu), leur paiement, le résumé et quatre filtres ;
+chaque pièce s'ouvre dans SkanFact. Une pièce sans fichier dit pourquoi et mène à la fiche de l'entreprise SkanFact.*
+
 ### 2.6 Paiements
 
 - **Konnect** : reconnu tout seul, avec la **preuve reposée au prestataire** (10.9.0 : on ne croit pas

@@ -53,6 +53,9 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   // Les paiements de nos factures et les coûts du mois (docs/console.md C30 ; 0108) : les comptes de SkanFact, la
   // direction seule. Un règlement se note dans l'application de SkanFact, sur sa facture ; ici, les coûts.
   { code: 'console.paiements.voir', roles: [D], ecrit: false },
+  // Nos factures (docs/console.md C31 ; 0109) : celles que l'entreprise SkanFact a émises, leur dépôt à la TTN, leur
+  // paiement ; la direction seule. Elles s'émettent et se corrigent dans l'application de SkanFact.
+  { code: 'console.factures.voir', roles: [D], ecrit: false },
   { code: 'console.paiements.couts', roles: [D], ecrit: true },
 ];
 

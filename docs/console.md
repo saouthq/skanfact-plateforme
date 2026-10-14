@@ -760,6 +760,48 @@ ne refait pas ») ; l'abonnement suit tout seul (14b B4). D'ici, chaque ligne y 
   elle montre ce qui reste à encaisser, et l'écran le dit. La retenue à la source sur nos factures attend le `05` § 4.2
   (**À VÉRIFIER**) : pas montrée.
 
+## Sixième partie : nos factures (1.18.0, 14/10/2026)
+
+**C31. Nos factures** (10 § 2.5 ; base 0109 ; la maquette Nos factures). `#/nos-factures`, dans un groupe à part de la
+barre, « Notre entreprise », **la direction seule** (comme les paiements : ce sont les comptes de SkanFact). Les
+factures d'abonnement que l'entreprise SkanFact a émises dans un mois, et les avoirs qui les corrigent ; rien d'autre de
+son dossier. La console **les montre, ne les refait pas** : chaque numéro ouvre sa pièce dans l'application de SkanFact,
+à côté, et « Ouvrir notre entreprise dans SkanFact » ouvre le dossier entier.
+- **Un mois à la fois**, avec le même sélecteur que les paiements (`web/console/src/mois.tsx`) ; l'adresse garde le mois
+  et le filtre (`#/nos-factures?mois=2026-09&filtre=refusees`).
+- **Le résumé** : combien de factures (et d'avoirs), le **montant émis** et celui des avoirs, **ce qui reste à
+  encaisser** de ces factures (le reste de chacune, par la règle de toutes les factures ; « tout est encaissé » quand
+  rien ne reste), et **la TTN** en une barre et une phrase (« 3 acceptées · une déposée, en attente de la TTN · une
+  refusée »). Dans la devise de l'entreprise SkanFact ; une pièce d'une autre devise se dit à part, jamais additionnée.
+- **Où chaque pièce en est hors du dossier**, dans l'ordre d'une facture : pas de fichier de facture électronique, à
+  signer, signée à envoyer, déposée (en attente), acceptée, refusée. Le dépôt dit son état ; sans dépôt, la signature ;
+  sans elle, le fichier (`etatTtn`).
+- **Une refusée vient en tête**, dans une carte : ce qu'elle était, si elle est déjà payée, **ce que la TTN a répondu**
+  (ses accusés, tels quels), et « Ouvrir sa facture dans SkanFact ». Ce que la TTN demande après un refus (refaire la
+  facture, ou la renvoyer corrigée) : **À VÉRIFIER**, et la carte le dit.
+- **Ce qui attend un geste, avec sa raison** : des pièces **sans fichier** quand la fiche de l'entreprise SkanFact ne la
+  dit pas soumise à la facture électronique (une pièce s'émet alors sans fichier quand une fiche ne le permet pas : le
+  matricule, l'identifiant du client ; soumise, plus aucune ne s'émet sans lui) → « Ouvrir sa fiche dans SkanFact » ;
+  qui est soumis et depuis quand : **À VÉRIFIER** avec le comptable de SkanFact (loi de finances 2026, art. 53). Des
+  pièces **à signer** → « Les signer dans SkanFact » (la liste des factures, « Signer les N pièces en attente… »).
+  **Un seul bouton principal** : la première de ces étapes (une refusée, puis la fiche, puis la signature).
+- **La liste**, la plus récente d'abord, avec les noms de ses colonnes (pièce, client et période, montant, TTN,
+  paiement) : le numéro et sa date, le client (sa fiche) et ce que la pièce paie (l'offre, la périodicité, la période ;
+  un avoir dit la facture qu'il corrige), le montant (un avoir en moins), la TTN, le paiement (« payée », « à payer
+  avant le… », « en partie : reste… », « en retard depuis le… » ; un avoir : « déduit de FAC-… »). Quatre filtres :
+  toutes, refusées par la TTN, pas encore acceptées, pas encore payées ; **chacun compte ce qu'il ouvre, par la fonction
+  qui filtre** (`dansLeFiltre`, C3). La liste se pagine par cinquante. Au téléphone, une ligne se lit comme un courrier
+  (le numéro et sa date, le montant en face ; le client ; la TTN ; le paiement) et les noms des colonnes s'effacent.
+- **Un mois sans pièce ne dit qu'une chose** : « Aucune facture émise en septembre 2026. » (ni résumé à zéro, ni
+  filtres vides).
+
+**La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
+d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
+à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
+la marque et la carte de la personne restent à leur place), les boutons à 38, les cartes à 20 × 24 de marge, les
+cellules des tableaux à 11 × 12, la page à 24 × 32 et jusqu'à 1 440 points de large. **Le téléphone garde ses cibles de
+44 points.**
+
 ## Ce que le lot ne fait pas
 
 La suite de la console : le relevé de la banque lu et pointé (aucune banque branchée ; les paiements, C30, montrent ce qui reste à encaisser), la retenue à la source sur nos factures (`05` § 4.2), la suite du service (la

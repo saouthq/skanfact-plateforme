@@ -143,7 +143,7 @@ body {
   background: var(--c-fond);
   color: var(--c-encre);
   font-family: var(--c-texte);
-  font-size: 15px;
+  font-size: 14.5px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -162,9 +162,9 @@ button { font: inherit; color: inherit; }
 /* ── Les boutons ───────────────────────────────────────────────────────────────────────────────────────────────── */
 .c-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  min-height: 42px; padding: 0 18px; border-radius: var(--c-rayon-sm);
+  min-height: 38px; padding: 0 16px; border-radius: var(--c-rayon-sm);
   border: 1px solid var(--c-trait-fort); background: var(--c-papier); color: var(--c-encre);
-  font-weight: 600; font-size: 14.5px; line-height: 1.2; cursor: pointer; text-decoration: none; white-space: nowrap;
+  font-weight: 600; font-size: 14px; line-height: 1.2; cursor: pointer; text-decoration: none; white-space: nowrap;
   transition: background .15s, border-color .15s, color .15s;
 }
 .c-btn:hover { border-color: var(--c-gris-2); }
@@ -175,7 +175,7 @@ button { font: inherit; color: inherit; }
 .c-btn-discret:hover { border-color: transparent; background: var(--c-doux); }
 .c-btn-danger { color: var(--c-rouge-texte); border-color: color-mix(in srgb, var(--c-rouge) 45%, transparent); }
 .c-btn-danger:hover { background: var(--c-rouge-doux); border-color: var(--c-rouge); }
-.c-btn-petit { min-height: 36px; padding: 0 12px; font-size: 13.5px; border-radius: 10px; }
+.c-btn-petit { min-height: 32px; padding: 0 12px; font-size: 13.5px; border-radius: 10px; }
 .c-btn-large { width: 100%; min-height: 52px; font-size: 16px; }
 .c-btn[aria-busy="true"] { cursor: progress; }
 
@@ -198,16 +198,16 @@ button { font: inherit; color: inherit; }
 .c-puce-direction::before, .c-puce-support::before, .c-puce-technique::before { display: none; }
 
 /* ── La coquille : la barre de gauche, sombre, et la page ─────────────────────────────────────────────────────── */
-.c-app { display: grid; grid-template-columns: 264px minmax(0, 1fr); min-height: 100vh; min-height: 100dvh; }
+.c-app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; min-height: 100dvh; }
 .c-cote {
   position: sticky; top: 0; height: 100vh; height: 100dvh; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 8px; padding: 22px 16px 16px;
+  display: flex; flex-direction: column; gap: 6px; padding: 18px 12px 12px;
   background-color: var(--c-nuit);
   background-image: linear-gradient(var(--c-nuit-trait) 1px, transparent 1px);
   background-size: 100% 40px;
   color: var(--c-nuit-texte);
 }
-.c-marque { display: flex; align-items: center; gap: 12px; padding: 0 6px 14px; text-decoration: none; color: inherit; }
+.c-marque { display: flex; align-items: center; gap: 12px; padding: 0 8px 10px; text-decoration: none; color: inherit; }
 .c-marque-s {
   display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; flex: none;
   background: var(--c-sarcelle); color: #fff; font-family: var(--c-titre); font-weight: 700; font-size: 19px;
@@ -219,10 +219,19 @@ button { font: inherit; color: inherit; }
   color: var(--c-menthe); font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
 }
 .c-nav { display: flex; flex-direction: column; gap: 2px; }
-.c-nav-groupe { margin: 16px 8px 6px; font-size: 11.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--c-nuit-gris); }
+/* Seule la liste des écrans défile quand la fenêtre est basse : la marque en haut et la carte de la personne (le thème,
+   « Se déconnecter ») restent à leur place. Le retrait de côté garde le contour du clavier entier. */
+.c-cote > .c-nav {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; margin-inline: -6px; padding: 0 6px 20px;
+  scrollbar-width: thin; scrollbar-color: var(--c-nuit-trait) transparent;
+  /* Ce qui continue sous la carte s'efface : la liste se lit comme une liste qui défile. Tout en bas, le dernier écran
+     sort de l'effacement (la marge du bas le porte). */
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+}
+.c-nav-groupe { margin: 14px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--c-nuit-gris); }
 .c-nav a {
-  display: flex; align-items: center; gap: 12px; min-height: 42px; padding: 0 12px; border-radius: 11px;
-  color: var(--c-nuit-texte); text-decoration: none; font-weight: 500;
+  display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px; border-radius: 10px;
+  color: var(--c-nuit-texte); text-decoration: none; font-weight: 500; font-size: 14.5px;
 }
 .c-nav a:hover { background: rgba(127, 224, 211, .08); }
 .c-nav a[aria-current="page"] { background: rgba(127, 224, 211, .14); color: #fff; font-weight: 600; }
@@ -233,14 +242,14 @@ button { font: inherit; color: inherit; }
   background: var(--c-menthe); color: var(--c-nuit); font-family: var(--c-chiffres); font-size: 12px; font-weight: 600;
 }
 .c-nav-point { margin-inline-start: auto; width: 8px; height: 8px; border-radius: 50%; background: #f87171; }
-.c-moi { margin-top: auto; display: grid; gap: 10px; padding: 14px; border-radius: 14px; background: rgba(255, 255, 255, .05); border: 1px solid var(--c-nuit-trait); }
+.c-moi { margin-top: auto; display: grid; gap: 8px; padding: 12px; border-radius: 14px; background: rgba(255, 255, 255, .05); border: 1px solid var(--c-nuit-trait); }
 .c-moi-qui { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .c-moi-qui > div { min-width: 0; }
 .c-moi-qui b { display: block; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .c-moi-qui > div > span { display: block; font-size: 12.5px; color: var(--c-nuit-gris); }
 .c-moi-actions { display: flex; gap: 8px; }
 .c-moi-actions button {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 0 12px; border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 34px; padding: 0 12px; border-radius: 10px;
   border: 1px solid var(--c-nuit-trait); background: transparent; color: var(--c-nuit-texte); font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
 .c-moi-actions button:hover { background: rgba(127, 224, 211, .1); }
@@ -265,14 +274,14 @@ button { font: inherit; color: inherit; }
 .c-haut .c-recherche input { padding-inline-end: 76px; }
 .c-trace { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 8px; color: var(--c-gris); font-size: 13.5px; }
 .c-trace .c-icone { color: var(--c-sarcelle); }
-.c-page { width: 100%; max-width: 1280px; padding: 28px 40px 56px; display: flex; flex-direction: column; gap: 24px; }
+.c-page { width: 100%; max-width: 1440px; padding: 24px 32px 48px; display: flex; flex-direction: column; gap: 18px; }
 
 /* ── L'en-tête d'une page ─────────────────────────────────────────────────────────────────────────────────────── */
 .c-entete { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
 .c-entete-texte { display: grid; gap: 8px; min-width: 0; max-width: 820px; flex: 1 1 380px; }
 .c-surtitre { font-size: 12.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--c-lien); }
-.c-entete h1 { font-size: 36px; line-height: 1.1; }
-.c-entete-sous { color: var(--c-gris); font-size: 16px; }
+.c-entete h1 { font-size: 32px; line-height: 1.1; }
+.c-entete-sous { color: var(--c-gris); font-size: 15px; }
 .c-entete-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .c-fil { display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--c-gris); }
 .c-fil a { color: var(--c-gris); text-decoration: none; }
@@ -280,9 +289,9 @@ button { font: inherit; color: inherit; }
 .c-titre-ligne { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 
 /* ── Les cartes ───────────────────────────────────────────────────────────────────────────────────────────────── */
-.c-carte { background: var(--c-papier); border: 1px solid var(--c-trait); border-radius: var(--c-rayon); box-shadow: var(--c-ombre-carte); padding: 24px 26px; min-width: 0; }
-.c-carte-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
-.c-carte-tete h2 { font-size: 21px; display: flex; align-items: center; gap: 10px; }
+.c-carte { background: var(--c-papier); border: 1px solid var(--c-trait); border-radius: var(--c-rayon); box-shadow: var(--c-ombre-carte); padding: 20px 24px; min-width: 0; }
+.c-carte-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.c-carte-tete h2 { font-size: 19px; display: flex; align-items: center; gap: 10px; }
 .c-carte-sous { color: var(--c-gris); font-size: 14px; margin-top: 4px; }
 .c-compte-titre {
   display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 8px; border-radius: 999px;
@@ -293,7 +302,7 @@ button { font: inherit; color: inherit; }
 
 /* ── Le tableau du matin (sombre, dans les deux thèmes) ───────────────────────────────────────────────────────── */
 .c-matin {
-  border-radius: 24px; padding: 26px 26px 24px; color: var(--c-nuit-texte);
+  border-radius: 24px; padding: 24px 24px 24px; color: var(--c-nuit-texte);
   background-color: var(--c-nuit);
   background-image: linear-gradient(var(--c-nuit-trait) 1px, transparent 1px);
   background-size: 100% 40px;
@@ -331,10 +340,10 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 
 /* ── « À décider » ─────────────────────────────────────────────────────────────────────────────────────────────── */
 .c-decider { padding: 0; overflow: hidden; }
-.c-decider .c-carte-tete { padding: 24px 26px 0; margin-bottom: 14px; }
-.c-pilules { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 26px 18px; }
+.c-decider .c-carte-tete { padding: 20px 24px 0; margin-bottom: 12px; }
+.c-pilules { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 24px 14px; }
 .c-pilule {
-  display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 14px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 13px; border-radius: 999px;
   border: 1px solid var(--c-trait-fort); background: var(--c-papier); color: var(--c-encre); font-weight: 600; font-size: 14px; cursor: pointer;
 }
 .c-pilule:hover { border-color: var(--c-gris-2); }
@@ -348,7 +357,7 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-point-lecture_seule { color: var(--c-rouge); }
 .c-pilule[aria-pressed="true"] .c-pilule-point { color: var(--c-fort-n); }
 .c-lignes { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--c-trait); }
-.c-ligne-decision { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 18px 26px; border-bottom: 1px solid var(--c-trait); }
+.c-ligne-decision { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 14px 24px; border-bottom: 1px solid var(--c-trait); }
 .c-ligne-decision:last-child { border-bottom: 0; }
 .c-ligne-icone { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--c-gris-doux); color: var(--c-gris); }
 .c-ligne-icone.c-urgent { background: var(--c-rouge-doux); color: var(--c-rouge-texte); }
@@ -364,12 +373,12 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 /* Repère de position : une étiquette cachée (.c-cache, en absolu) d'un en-tête de colonne reste dans le cadre qui défile ;
    sans lui, elle se plaçait par rapport à la page entière et l'élargissait au téléphone (775 points pour 390). */
 .c-defile { overflow-x: auto; position: relative; }
-.c-table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.c-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .c-table th {
   text-align: start; font-size: 12px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--c-gris);
-  padding: 12px 14px; border-bottom: 1px solid var(--c-trait); white-space: nowrap;
+  padding: 10px 12px; border-bottom: 1px solid var(--c-trait); white-space: nowrap;
 }
-.c-table td { padding: 14px; border-bottom: 1px solid var(--c-trait); vertical-align: top; }
+.c-table td { padding: 11px 12px; border-bottom: 1px solid var(--c-trait); vertical-align: top; }
 .c-table tr:last-child td { border-bottom: 0; }
 .c-table tbody tr:hover td { background: var(--c-papier-2); }
 .c-table .c-droite { text-align: end; }
@@ -384,10 +393,10 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   background: var(--c-doux); color: var(--c-doux-texte); font-family: var(--c-titre); font-weight: 700; font-size: 14px; letter-spacing: .02em;
 }
 .c-avatar-nuit { background: var(--c-menthe); color: var(--c-nuit); }
-.c-liste-pied { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 26px; border-top: 1px solid var(--c-trait); color: var(--c-gris); font-size: 14px; flex-wrap: wrap; }
+.c-liste-pied { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; border-top: 1px solid var(--c-trait); color: var(--c-gris); font-size: 14px; flex-wrap: wrap; }
 .c-liste-pied-boutons { display: flex; gap: 8px; }
 .c-liste-carte { padding: 0; overflow: hidden; }
-.c-liste-outils { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding: 20px 26px 16px; }
+.c-liste-outils { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding: 16px 24px 12px; }
 .c-liste-outils .c-pilules { padding: 0; }
 .c-liste-outils .c-recherche { flex: 1 1 320px; }
 /* Un filtre venu d'ailleurs (la tuile « Inscriptions ») se voit, et se retire d'un clic. */
@@ -433,9 +442,9 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-note .c-icone { color: var(--c-gris-2); margin-top: 2px; }
 
 /* ── Les messages : ce qui est vide, ce qui ne va pas ─────────────────────────────────────────────────────────── */
-.c-vide { display: flex; gap: 14px; align-items: center; padding: 28px 26px; color: var(--c-gris); }
+.c-vide { display: flex; gap: 14px; align-items: center; padding: 28px 24px; color: var(--c-gris); }
 .c-vide-icone { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--c-doux); color: var(--c-doux-texte); flex: none; }
-.c-alerte { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; font-size: 14.5px; }
+.c-alerte { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: 14px; font-size: 14px; }
 .c-alerte .c-icone { margin-top: 2px; }
 .c-alerte-danger { background: var(--c-rouge-doux); color: var(--c-rouge-texte); }
 .c-alerte-attention { background: var(--c-orange-doux); color: var(--c-orange-texte); }
@@ -471,13 +480,13 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   width: min(600px, 100%); max-height: calc(100dvh - max(20px, 8vh) - 20px); overflow-y: auto; border-radius: var(--c-rayon);
   background: var(--c-papier); color: var(--c-encre); border: 1px solid var(--c-trait); box-shadow: 0 24px 60px rgba(4, 12, 11, .3);
 }
-.c-dialogue-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 24px 26px 0; }
+.c-dialogue-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 24px 24px 0; }
 .c-dialogue-tete h2 { font-size: 22px; }
 .c-dialogue-sous { color: var(--c-gris); margin-top: 6px; font-size: 14.5px; }
-.c-dialogue-corps { padding: 20px 26px; display: grid; gap: 18px; }
+.c-dialogue-corps { padding: 20px 24px; display: grid; gap: 18px; }
 /* Le pied reste sous les yeux quand une longue fenêtre défile : le bouton qui valide ce qu'on vient de taper ne se cherche
    pas sous le bas de l'écran. */
-.c-dialogue-pied { position: sticky; bottom: 0; z-index: 1; display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; padding: 16px 26px 22px; border-top: 1px solid var(--c-trait); background: var(--c-papier-2); }
+.c-dialogue-pied { position: sticky; bottom: 0; z-index: 1; display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; padding: 16px 24px 22px; border-top: 1px solid var(--c-trait); background: var(--c-papier-2); }
 /* Un refus se lit sans le chercher : dans une longue fenêtre, il reste juste au-dessus du pied au lieu de tomber sous le
    bas, sur un fond opaque (le rouge doux du thème sombre est translucide) et une marge de papier qui cache ce qui défile
    derrière. Le pied et le refus sont mesurés par Dialogue (ui.tsx) : un champ qu'on amène à l'écran s'arrête au-dessus
@@ -628,7 +637,7 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid var(--c-trait); text-align: start;
 }
 .c-filtre-qui { min-width: 260px; }
-.c-liste-alerte { padding: 0 26px 16px; }
+.c-liste-alerte { padding: 0 24px 16px; }
 .c-etat-service { display: flex; gap: 16px; align-items: center; }
 .c-etat-service h2 { font-size: 21px; }
 .c-ligne-sans-action { grid-template-columns: 44px minmax(0, 1fr); }
@@ -655,19 +664,19 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 /* Chaque carte prend trois rangées de la grille (son titre, son nombre, sa phrase) : un titre sur deux lignes descend
    les nombres de TOUTE la rangée de cartes, jamais d'une seule. */
 .c-vue {
-  grid-row: span 3; display: grid; grid-template-rows: subgrid; align-content: start; row-gap: 6px; min-width: 0;
-  padding: 16px 16px 14px; border-radius: 18px; cursor: pointer; text-align: start;
+  grid-row: span 3; display: grid; grid-template-rows: subgrid; align-content: start; row-gap: 4px; min-width: 0;
+  padding: 13px 14px 12px; border-radius: 16px; cursor: pointer; text-align: start;
   border: 1.5px solid var(--c-trait); background: var(--c-papier); color: var(--c-encre); box-shadow: var(--c-ombre-carte);
   transition: border-color .15s, background .15s;
 }
 .c-vue:hover { border-color: var(--c-gris-2); }
 .c-vue[aria-pressed="true"] { border-color: var(--c-lien); background: var(--c-doux); }
-.c-vue-titre { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c-gris); }
+.c-vue-titre { display: flex; align-items: flex-start; gap: 7px; font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--c-gris); }
 .c-vue-titre .c-pilule-point { flex: none; margin-top: 4px; }
-.c-vue-n { font-family: var(--c-chiffres); font-size: 30px; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.c-vue-sous { font-size: 13px; line-height: 1.4; color: var(--c-gris); }
+.c-vue-n { font-family: var(--c-chiffres); font-size: 26px; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.c-vue-sous { font-size: 12.5px; line-height: 1.35; color: var(--c-gris); }
 .c-point-avenir { color: var(--c-lien); }
-.c-liste-tete { padding: 22px 26px 0; margin-bottom: 14px; }
+.c-liste-tete { padding: 18px 24px 0; margin-bottom: 10px; }
 .c-echeances { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--c-trait); }
 /* Une échéance sur deux rangées (maquette Abonnements) : le jour, ce qui se passe et le montant ; dessous, ses relances
    et sa fiche. La liste a la place de la maquette, et la colonne d'à côté garde ce qui revient chaque année. */
@@ -940,7 +949,7 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 }
 
 .c-sv-hero {
-  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 28px; padding: 26px 26px 24px; border-radius: 24px;
+  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 28px; padding: 24px 24px 24px; border-radius: 24px;
   color: var(--c-nuit-texte); background-color: var(--c-nuit);
   background-image: linear-gradient(var(--c-nuit-trait) 1px, transparent 1px); background-size: 100% 40px;
   --c-etat-bon: #7fe0d3; --c-etat-attention: #f5c58a; --c-etat-grave: #ff8c80; --c-etat-non: rgba(255, 255, 255, .08); --c-hachure: rgba(255, 255, 255, .16);
@@ -1132,7 +1141,7 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-sv-bandeau-lien:hover { text-decoration: underline; }
 /* La même, en grand, sur la vue d'ensemble : la première chose à voir, son geste en bouton principal. */
 .c-sv-alerte {
-  position: relative; display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap; padding: 18px 22px 18px 26px; overflow: hidden;
+  position: relative; display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap; padding: 18px 22px 18px 24px; overflow: hidden;
   border-radius: var(--c-rayon); border: 1px solid color-mix(in srgb, var(--c-etat-attention) 42%, var(--c-trait)); background: var(--c-papier); box-shadow: var(--c-ombre-carte);
 }
 .c-sv-alerte::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 5px; background: var(--c-etat-attention); }
@@ -1158,7 +1167,7 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-onglet-n-grave { background: var(--c-rouge-doux); color: var(--c-rouge-texte); }
 
 /* ── Les alertes : celle en cours (un liseré de sa gravité), qui est prévenu, les règles, trente jours ─────────── */
-.c-al-alerte { position: relative; display: grid; gap: 14px; padding: 24px 28px 26px 32px; overflow: hidden; }
+.c-al-alerte { position: relative; display: grid; gap: 14px; padding: 24px 28px 24px 32px; overflow: hidden; }
 .c-al-alerte::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 5px; background: var(--c-etat-attention); }
 .c-al-grave { border-color: color-mix(in srgb, var(--c-etat-grave) 38%, var(--c-trait)); }
 .c-al-grave::before { background: var(--c-etat-grave); }
@@ -1194,7 +1203,7 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-al-gestes { display: flex; flex-wrap: wrap; gap: 10px; }
 .c-al-note, .c-al-avis { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: var(--c-gris); }
 .c-al-note .c-icone, .c-al-avis .c-icone { margin-top: 2px; }
-.c-al-chrono-zone { min-width: 0; padding-inline-start: 26px; border-inline-start: 1px solid var(--c-trait); }
+.c-al-chrono-zone { min-width: 0; padding-inline-start: 24px; border-inline-start: 1px solid var(--c-trait); }
 .c-al-chrono { list-style: none; margin: 0; padding: 0; display: grid; }
 .c-al-ev { position: relative; display: grid; grid-template-columns: 70px 14px minmax(0, 1fr); gap: 10px; padding-bottom: 16px; }
 .c-al-ev:last-child { padding-bottom: 0; }
@@ -1235,7 +1244,7 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-al-rythme-liste b { color: var(--c-encre); font-weight: 600; }
 .c-al-rythme-icone { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--c-gris-doux); color: var(--c-gris); }
 
-.c-al-section-tete { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; padding: 24px 26px 16px; }
+.c-al-section-tete { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; padding: 24px 24px 16px; }
 .c-al-section-tete h2 { font-size: 21px; }
 .c-al-section-tete .c-carte-sous { max-width: 78ch; }
 .c-al-table td { font-size: 14px; }
@@ -1332,7 +1341,7 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-sg-promesses .c-sg-table th[scope="row"] { min-width: 170px; }
 .c-sg-promesses .c-sg-table td:nth-child(2), .c-sg-promesses .c-sg-table td:nth-child(3), .c-sg-promesses .c-sg-table td:nth-child(6) { white-space: nowrap; }
 .c-sg-table tfoot th, .c-sg-table tfoot td { font-size: 13px; color: var(--c-gris); border-top: 1px solid var(--c-trait-fort); }
-.c-sg-copies-liste { list-style: none; margin: 0; padding: 0 26px 24px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.c-sg-copies-liste { list-style: none; margin: 0; padding: 0 24px 24px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .c-sg-copie { display: grid; grid-template-rows: auto 1fr auto; gap: 12px; padding: 16px; border-radius: 16px; border: 1px solid var(--c-trait); background: var(--c-papier-2); }
 .c-sg-copie-icone { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--c-gris-doux); color: var(--c-gris); }
 .c-sg-copie-en_place .c-sg-copie-icone { background: var(--c-doux); color: var(--c-doux-texte); }
@@ -1346,16 +1355,16 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-sg-marque.c-ton-grave { color: var(--c-rouge-texte); font-weight: 600; }
 .c-sg-hors { font-size: 14px; white-space: nowrap; color: var(--c-gris); }
 .c-sg-hors-en_attente { color: var(--c-orange-texte); font-weight: 600; }
-.c-sg-graphe { display: grid; gap: 10px; padding: 0 26px 20px; }
+.c-sg-graphe { display: grid; gap: 10px; padding: 0 24px 20px; }
 .c-sg-graphe .c-sv-graphe-tete { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-.c-sg-faits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0 26px 18px; }
+.c-sg-faits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0 24px 18px; }
 .c-sg-faits > div { display: grid; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--c-papier-2); border: 1px solid var(--c-trait); }
 .c-sg-faits dt { font-size: 12.5px; color: var(--c-gris); }
 .c-sg-faits dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
-.c-sg-geste { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0 26px 24px; padding-top: 16px; border-top: 1px solid var(--c-trait); }
+.c-sg-geste { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0 24px 24px; padding-top: 16px; border-top: 1px solid var(--c-trait); }
 .c-sg-duo > *, .c-sg-geste > * { min-width: 0; }
 .c-sg-geste p { margin: 0; font-size: 14px; color: var(--c-gris); }
-.c-sg-vide { margin: 0 26px 24px; padding: 14px 16px; border-radius: 12px; background: var(--c-papier-2); border: 1px dashed var(--c-trait-fort); font-size: 14px; color: var(--c-gris); }
+.c-sg-vide { margin: 0 24px 24px; padding: 14px 16px; border-radius: 12px; background: var(--c-papier-2); border: 1px dashed var(--c-trait-fort); font-size: 14px; color: var(--c-gris); }
 .c-sg-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
 .c-sg-etapes { margin: 0; padding: 0; list-style: none; display: grid; gap: 18px; }
 .c-sg-etapes li { display: grid; gap: 6px; }
@@ -1548,7 +1557,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 /* Le compte des lignes et ce qu'elles rapportent, juste au-dessus du tableau, avec l'ordre choisi à droite. */
 .c-liste-resume {
   display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap;
-  padding: 12px 26px; border-top: 1px solid var(--c-trait); color: var(--c-gris); font-size: 14px;
+  padding: 12px 24px; border-top: 1px solid var(--c-trait); color: var(--c-gris); font-size: 14px;
 }
 .c-liste-resume p { margin: 0; }
 .c-liste-resume b { color: var(--c-encre); font-weight: 600; }
@@ -1696,7 +1705,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 /* La fiche d'un cabinet (C22) : un bandeau sombre (qui il est, ce qu'il paie), puis l'aperçu de ses places côte à côte. */
 .c-bandeau {
   display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 320px); gap: 22px; align-items: center;
-  padding: 26px 28px; border-radius: var(--c-rayon); background: var(--c-nuit); color: var(--c-nuit-texte);
+  padding: 24px 28px; border-radius: var(--c-rayon); background: var(--c-nuit); color: var(--c-nuit-texte);
   border: 1px solid var(--c-nuit-trait);
 }
 .c-bandeau > .c-avatar { width: 60px; height: 60px; border-radius: 16px; font-size: 19px; background: var(--c-papier); color: var(--c-nuit); }
@@ -1844,8 +1853,8 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-in-maint-annulee { color: var(--c-gris); font-weight: 500; }
 .c-in-maint-coupure { color: var(--c-orange-texte); }
 .c-in-passes .c-al-section-tete { padding-bottom: 12px; }
-.c-in-periodes { margin: 0 26px 16px; }
-.c-in-chiffres { display: grid; grid-template-columns: repeat(4, auto) minmax(0, 1fr); gap: 8px 28px; align-items: center; margin: 0 26px 8px; padding: 14px 18px; border-radius: 14px; background: var(--c-fond); }
+.c-in-periodes { margin: 0 24px 16px; }
+.c-in-chiffres { display: grid; grid-template-columns: repeat(4, auto) minmax(0, 1fr); gap: 8px 28px; align-items: center; margin: 0 24px 8px; padding: 14px 18px; border-radius: 14px; background: var(--c-fond); }
 .c-in-chiffres > div { display: grid; gap: 2px; }
 .c-in-chiffres > div > span { font-size: 13px; color: var(--c-gris); white-space: nowrap; }
 .c-in-chiffres > div > b { font-family: var(--c-chiffres); font-size: 22px; font-weight: 500; }
@@ -2324,7 +2333,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-sp-acces-gestes { display: flex; flex-wrap: wrap; gap: 8px; }
 .c-carte > .c-sp-acces { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--c-trait); }
 /* Dans une carte de liste (« Ses demandes » de la fiche), les lignes portent leur propre marge : l'encart prend la même. */
-.c-liste-carte > .c-sp-acces { margin-top: 0; padding: 18px 26px 22px; }
+.c-liste-carte > .c-sp-acces { margin-top: 0; padding: 18px 24px 22px; }
 .c-sp-intro { margin: 0; color: var(--c-gris); font-size: 14.5px; line-height: 1.5; }
 /* Assez large et assez haut : l'écran tient dans la fenêtre, comme une messagerie. La grille prend ce qui reste sous
    l'en-tête (--c-sp-haut, mesuré par l'écran) ; la conversation remplit sa colonne et ses messages défilent entre
@@ -2355,21 +2364,21 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-sp-liens > a:not(.c-btn), .c-sp-personne > a { display: flex; align-items: center; min-height: 44px; }
 }
 /* L'onglet « Ses demandes » de la fiche d'un client : une ligne par demande, qui s'ouvre dans l'écran Support. */
-.c-fiche-support .c-carte-tete, .c-fiche-factures .c-carte-tete { padding: 24px 26px 0; }
+.c-fiche-support .c-carte-tete, .c-fiche-factures .c-carte-tete { padding: 24px 24px 0; }
 .c-fiche-demandes { list-style: none; margin: 0; padding: 0; }
 .c-fiche-demandes li + li { border-top: 1px solid var(--c-trait); }
-.c-fiche-demandes a { display: grid; gap: 4px; padding: 14px 26px; color: var(--c-encre); text-decoration: none; }
+.c-fiche-demandes a { display: grid; gap: 4px; padding: 14px 24px; color: var(--c-encre); text-decoration: none; }
 .c-fiche-demandes a:hover { background: var(--c-papier-2); }
 .c-fiche-demande-haut { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .c-fiche-demande-haut .c-mono { color: var(--c-gris); font-size: 12.5px; }
 .c-fiche-demande-haut b { overflow-wrap: anywhere; }
 
 /* ── Ses factures SkanFact (fiche d'un client ; docs/abonnement.md B2–B4) ─────────────────────────────────────────────── */
-.c-fa-note { margin: 0 26px 14px; }
+.c-fa-note { margin: 0 24px 14px; }
 .c-fa-table td:last-child { white-space: nowrap; }
-.c-fa-table th:first-child, .c-fa-table td:first-child { padding-inline-start: 26px; }
+.c-fa-table th:first-child, .c-fa-table td:first-child { padding-inline-start: 24px; }
 .c-fa-table td:nth-child(2) { white-space: nowrap; }
-.c-fa-table th:last-child, .c-fa-table td:last-child { padding-inline-end: 26px; }
+.c-fa-table th:last-child, .c-fa-table td:last-child { padding-inline-end: 24px; }
 /* Au téléphone, une facture par carte : son numéro, puis chaque case nommée, et le bouton qui l'ouvre — jamais un tableau
    qui défile de côté et cache l'état et le geste derrière le bord. */
 @media (max-width: 860px) {
@@ -2440,11 +2449,11 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 
 /* Les paiements de nos factures (C29, maquette Paiements) : le mois en tête, une bande sombre qui dit l'encaissé et ses
    moyens, puis ce qui reste à encaisser, ce qui a été trop payé et les règlements du mois ; à côté, les coûts du mois. */
-.c-pa-mois { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.c-pa-mois b { font-size: 15px; font-weight: 600; min-width: 9.5em; text-align: center; }
+.c-mois { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.c-mois b { font-size: 15px; font-weight: 600; min-width: 9.5em; text-align: center; }
 /* Les deux boutons gardent leur largeur d'un mois à l'autre (« ‹ Août », « ‹ Septembre ») : un second clic tombe au même
    endroit. */
-.c-pa-mois .c-btn { min-width: 8.6em; justify-content: center; }
+.c-mois .c-btn { min-width: 8.6em; justify-content: center; }
 .c-pa-bande {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px 26px; align-items: center;
   padding: 24px 28px; border-radius: var(--c-rayon); background: var(--c-nuit); color: var(--c-nuit-texte); border: 1px solid var(--c-nuit-trait);
@@ -2489,7 +2498,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-pa-emettre li .c-btn { margin-inline-start: auto; }
 .c-pa-recu {
   display: grid; grid-template-columns: 64px minmax(0, 1fr) 140px 210px; gap: 6px 16px; align-items: start;
-  padding: 13px 24px; border-bottom: 1px solid var(--c-trait);
+  padding: 11px 24px; border-bottom: 1px solid var(--c-trait);
 }
 .c-pa-recu time { font-size: 14px; font-weight: 600; padding-top: 1px; }
 .c-pa-recu .c-pa-quoi { grid-area: auto; }
@@ -2530,8 +2539,8 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 }
 @media (max-width: 640px) {
   .c-pa-bande { padding: 20px 18px; }
-  .c-pa-mois { width: 100%; justify-content: space-between; }
-  .c-pa-mois b { min-width: 0; order: -1; flex: 1 1 100%; text-align: start; }
+  .c-mois { width: 100%; justify-content: space-between; }
+  .c-mois b { min-width: 0; order: -1; flex: 1 1 100%; text-align: start; }
   .c-pa-ligne { padding: 14px 18px; grid-template-areas: 'quoi montant' 'action action'; }
   .c-pa-action { justify-self: start; }
   .c-pa-emettre { margin-inline: 18px; }
@@ -2539,4 +2548,85 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-pa-quoi a, .c-pa-emettre li a:not(.c-btn) { display: inline-flex; align-items: center; min-height: 44px; }
   .c-pa-recu { grid-template-columns: 52px minmax(0, 1fr) auto; padding: 12px 18px; }
   .c-pa-moyen { grid-column: 2 / -1; }
+}
+
+/* Nos factures (C31, maquette « Nos factures ») : le mois en chiffres (combien, le montant émis, la TTN en une barre et
+   en mots), les refusées en tête, puis chaque pièce sur une ligne : le numéro, le client et ce qu'elle paie, le montant,
+   la TTN, le paiement. */
+.c-nf-ouvrir { margin: -6px 0 0; }
+.c-nf-resume { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 14px 36px; align-items: start; }
+.c-nf-resume > div { display: grid; gap: 4px; min-width: 0; }
+.c-nf-etiquette { font-size: 12.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c-gris); }
+.c-nf-grand { font-size: 24px; font-weight: 600; line-height: 1.15; white-space: nowrap; }
+.c-nf-grand.c-mono { font-weight: 500; }
+.c-nf-barre { display: flex; gap: 2px; height: 10px; border-radius: 999px; overflow: hidden; background: var(--c-gris-doux); margin: 6px 0 2px; }
+.c-nf-barre span { min-width: 6px; }
+.c-nf-barre-acceptee { background: var(--c-lien); }
+.c-nf-barre-deposee, .c-nf-barre-a_envoyer { background: color-mix(in srgb, var(--c-lien) 45%, var(--c-gris-doux)); }
+.c-nf-barre-a_signer, .c-nf-barre-sans_fichier { background: var(--c-trait-fort); }
+.c-nf-barre-refusee { background: var(--c-rouge); }
+.c-nf-refus {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(220px, auto); gap: 14px 18px; align-items: start;
+  padding: 20px 22px; border-radius: var(--c-rayon); background: var(--c-orange-doux); border: 1px solid color-mix(in srgb, var(--c-orange-texte) 30%, transparent);
+}
+.c-nf-refus-icone { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--c-papier); color: var(--c-rouge-texte); }
+.c-nf-refus-texte { display: grid; gap: 6px; min-width: 0; }
+.c-nf-refus h2 { margin: 0; font-size: 17px; font-weight: 600; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.c-nf-quand { font-size: 12.5px; font-weight: 600; color: var(--c-orange-texte); }
+.c-nf-refus p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--c-encre); overflow-wrap: anywhere; }
+.c-nf-refus p a { color: var(--c-encre); font-weight: 600; }
+.c-nf-verifier { justify-self: start; padding: 3px 10px; border-radius: 9px; font-size: 12.5px !important; font-weight: 600; color: var(--c-orange-texte) !important;
+  background: var(--c-papier); border: 1px solid color-mix(in srgb, var(--c-orange-texte) 35%, transparent); }
+.c-nf-refus-action { justify-self: end; }
+.c-nf-lignes { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--c-trait); }
+/* Les noms des colonnes, comme la maquette : la même grille que les lignes, au-dessus d'elles ; quand la largeur manque,
+   chaque ligne se lit seule et ils disparaissent. */
+.c-nf-ligne.c-nf-entete { padding-block: 9px; border-top: 1px solid var(--c-trait); font-size: 12px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--c-gris); }
+.c-nf-entete + .c-nf-lignes { border-top: 0; }
+.c-nf-liste-tete { align-items: baseline; }
+.c-nf-liste-tete .c-carte-sous { margin-top: 0; }
+.c-nf-entete .c-nf-montant { font-family: var(--c-texte); font-size: 12px; font-weight: 600; }
+.c-nf-ligne {
+  display: grid; grid-template-columns: 120px minmax(0, 1fr) 130px 190px 190px; gap: 6px 16px; align-items: start;
+  padding: 11px 24px; border-bottom: 1px solid var(--c-trait);
+}
+.c-nf-ligne:last-child { border-bottom: 0; }
+.c-nf-ligne-refusee { box-shadow: inset 3px 0 0 var(--c-rouge); }
+.c-nf-piece, .c-nf-qui { display: grid; gap: 2px; min-width: 0; }
+.c-nf-piece a { justify-self: start; font-size: 14px; font-weight: 600; color: var(--c-lien); }
+.c-nf-qui a { justify-self: start; color: var(--c-encre); text-decoration: none; }
+.c-nf-qui a:hover { color: var(--c-lien); text-decoration: underline; }
+.c-nf-qui b { font-size: 14.5px; font-weight: 600; }
+.c-nf-qui .c-sous, .c-nf-piece .c-sous { font-size: 12.5px; overflow-wrap: anywhere; }
+.c-nf-montant { font-size: 14.5px; font-weight: 500; text-align: end; white-space: nowrap; }
+.c-nf-etat { display: flex; align-items: flex-start; gap: 5px; font-size: 13.5px; line-height: 1.4; color: var(--c-gris); }
+.c-nf-etat .c-icone { flex: none; margin-top: 1px; }
+.c-nf-ttn-acceptee, .c-nf-p-payee { color: var(--c-doux-texte); font-weight: 600; }
+.c-nf-ttn-refusee, .c-nf-p-en_retard { color: var(--c-rouge-texte); font-weight: 600; }
+.c-nf-pied { color: var(--c-gris); font-size: 13px; }
+.c-nf-encaisse { display: inline-flex; align-items: center; gap: 5px; color: var(--c-doux-texte); font-weight: 600; }
+.c-alerte .c-nf-alerte-titre { display: block; margin-bottom: 2px; }
+.c-alerte .c-nf-verifier { display: block; width: fit-content; margin-top: 8px; }
+@media (max-width: 1180px) {
+  .c-nf-ligne { grid-template-columns: 110px minmax(0, 1fr) 120px; }
+  .c-nf-ligne .c-nf-etat { grid-column: 2 / -1; }
+  .c-nf-entete { display: none; }
+}
+@media (max-width: 860px) {
+  .c-nf-resume { grid-template-columns: minmax(0, 1fr); }
+  .c-nf-refus { grid-template-columns: auto minmax(0, 1fr); }
+  .c-nf-refus-action { grid-column: 1 / -1; justify-self: start; }
+}
+@media (max-width: 640px) {
+  /* Au doigt, une ligne se lit comme un courrier : le numéro et sa date, le montant en face ; le client et ce que la
+     pièce paie ; puis la TTN et le paiement. Les deux liens gardent leurs 44 points. */
+  .c-nf-ligne { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "piece montant" "qui qui" "ttn ttn" "paie paie"; gap: 0 12px; padding: 8px 18px 12px; }
+  .c-nf-ligne .c-nf-piece { grid-area: piece; display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; }
+  .c-nf-ligne .c-nf-montant { grid-area: montant; align-self: center; }
+  .c-nf-ligne .c-nf-qui { grid-area: qui; gap: 0; }
+  .c-nf-ligne .c-nf-qui a { margin-block: -6px 0; }
+  .c-nf-ligne .c-nf-etat-ttn { grid-area: ttn; margin-top: 6px; }
+  .c-nf-ligne .c-nf-etat-paie { grid-area: paie; margin-top: 4px; }
+  .c-nf-piece a, .c-nf-qui a { display: inline-flex; align-items: center; min-height: 44px; }
+  .c-nf-ouvrir .c-btn { max-width: 100%; white-space: normal; text-align: start; }
 }

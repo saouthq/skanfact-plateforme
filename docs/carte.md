@@ -574,6 +574,12 @@ vaut pour tout le dépôt.*
     (`moteur/reglements.ts`) ; les coûts du mois saisis à la main (`plateforme.cout_du_mois` : retirés, jamais modifiés)
     et ce qui reste. La console ne note aucun règlement : il se note sur sa facture, dans l'application de SkanFact
     (`tests/console/paiements.test.ts`, `tests/web/console-paiements.test.ts`).
+  - **Nos factures** (1.18.0 ; `docs/console.md` C31, `0109`, `serveur/console/nosfactures.ts`, pur) : l'écran de la
+    console, la direction seule. Les factures d'abonnement émises d'un mois et les avoirs qui les corrigent ; où chacune
+    en est hors du dossier (le fichier, la signature, le dépôt, acceptée ou refusée et ce que la TTN a répondu) ; son
+    paiement par la règle de toutes les factures ; le résumé et les filtres comptés par la fonction qui filtre ; si la
+    fiche de l'entreprise SkanFact la dit soumise à la facture électronique. Le sélecteur de mois est commun aux
+    paiements (`web/console/src/mois.tsx`) (`tests/console/nosfactures.test.ts`, `tests/web/console-nosfactures.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

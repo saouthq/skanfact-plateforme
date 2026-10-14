@@ -9,6 +9,7 @@ import type { Etat } from '../abonnement.ts';
 import { montant } from '../argent.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
 import { dans, deMois, jourCourt, jourDe, jourMois, moisEnMots, quand } from '../temps.ts';
+import { MoisNav, moisLu, moisVoisin } from '../mois.tsx';
 import { Alerte, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, toast, Vide, Zone } from '../ui.tsx';
 
 type Qui = { id: string; nom: string };
@@ -36,12 +37,6 @@ type Donnees = {
 const K = 'console.ecran.paiements';
 const PAGE = 50;
 
-// Le mois d'avant, le mois d'après (« 2026-10 »).
-function moisVoisin(m: string, pas: number): string {
-  const [a = 2026, n = 1] = m.split('-').map(Number);
-  const d = new Date(Date.UTC(a, n - 1 + pas, 1));
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
-}
 // Un montant d'une autre devise que le dinar : son code, jamais « DT ».
 const enDevise = (t: string, devise: string) => (devise === 'TND' ? montant(t) : `${montant(t).replace(/\u00a0DT$/, '')}\u00a0${devise}`);
 const nul = (t: string) => /^-?0+(\.0+)?$/.test(t);
@@ -247,11 +242,10 @@ function FenetreRetirer({ c, mois, fermer, fait }: { c: Cout; mois: string; ferm
 export function Paiements({ mois: moisDemande }: { mois: string | null }) {
   const { moi } = useConsole();
   const courant = moi.aujourdhui.slice(0, 7);
-  const lu1 = (m: string | null) => (m && /^\d{4}-(0[1-9]|1[0-2])$/.test(m) && m <= courant ? m : courant);
-  const [mois, setMois] = useState(lu1(moisDemande));
+  const [mois, setMois] = useState(moisLu(moisDemande, courant));
   const [debut, setDebut] = useState(0);
   const [fenetre, setFenetre] = useState<{ sorte: 'cout' } | { sorte: 'retirer'; c: Cout } | null>(null);
-  useEffect(() => { setMois(lu1(moisDemande)); setDebut(0); }, [moisDemande]);
+  useEffect(() => { setMois(moisLu(moisDemande, courant)); setDebut(0); }, [moisDemande]);
   useEffect(() => { history.replaceState(null, '', `#/paiements${mois === courant ? '' : `?mois=${mois}`}`); }, [mois]);
   const [l, relire] = useLecture<Donnees>(`/console/paiements?mois=${mois}&limite=${PAGE}&debut=${debut}`, 'paiements');
   const d = l.etat === 'lu' ? l.donnees : null;
@@ -284,15 +278,7 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
           <h1>{titre(`${K}.titre`)}</h1>
           <p className="c-entete-sous">{phrase(`${K}.sous`)}</p>
         </div>
-        <nav className="c-pa-mois" aria-label={titre(`${K}.mois.choisir`)}>
-          <Bouton petit etiquette={titre(`${K}.mois.avant`, { mois: moisEnMots(moisVoisin(mois, -1)) })} onClick={() => aller(moisVoisin(mois, -1))}>
-            ‹ <span data-donnee>{maj(moisEnMots(moisVoisin(mois, -1), false))}</span>
-          </Bouton>
-          <b aria-live="polite" data-donnee>{maj(moisEnMots(mois))}</b>
-          <Bouton petit desactive={mois >= courant} etiquette={titre(`${K}.mois.apres`, { mois: moisEnMots(moisVoisin(mois, 1)) })} onClick={() => aller(moisVoisin(mois, 1))}>
-            <span data-donnee>{maj(moisEnMots(moisVoisin(mois, 1), false))}</span> ›
-          </Bouton>
-        </nav>
+        <MoisNav mois={mois} courant={courant} aller={aller} />
       </header>
       {l.etat === 'panne' ? <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}

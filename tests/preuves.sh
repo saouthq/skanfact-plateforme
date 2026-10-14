@@ -13593,8 +13593,73 @@ prouver 'la case de la facture reçue refusée sans se montrer' web/console/src/
   ' autoComplete="off" {...fauteDe('"'"'dApres'"'"')} />' ' autoComplete="off" />' \
   "$PW3"
 prouver 'les boutons des mois qui bougent sous la souris' web/console/src/console.css \
-  '.c-pa-mois .c-btn { min-width: 8.6em; justify-content: center; }' '.c-pa-mois .c-btn { justify-content: center; }' \
+  '.c-mois .c-btn { min-width: 8.6em; justify-content: center; }' '.c-mois .c-btn { justify-content: center; }' \
   "$PW4"
+
+# Nos factures et la densité de la console (0109 ; docs/console.md C31 ; 1.18.0).
+NF1="la direction seule : ni le support, ni la technique"
+NF3="chaque pièce dit où elle en est hors du dossier, dans l'ordre d'une facture ; refusée, elle dit ce que la TTN a répondu"
+NF4="un avoir corrige sa facture : il ne se paie pas, il en déduit ; la facture dit ce qui lui reste"
+NF5="le résumé et les filtres : chacun compté par la fonction qui filtre ; le montant, aussi par un second chemin"
+NF6="la fiche de l'entreprise SkanFact soumise à la facture électronique : l'écran le sait"
+NFW2="la refusée en tête, avec la réponse de la TTN et le seul bouton principal ; la pièce sans fichier dit pourquoi"
+NFW3="chaque filtre montre autant de lignes que sa pastille en compte, et se garde dans l'adresse"
+NFW4="à une fenêtre basse, seule la liste de la barre défile : la carte de la personne et « Se déconnecter » restent visibles"
+NFW5="un mois sans pièce ne dit qu'une chose ; au téléphone, rien ne déborde et les noms des colonnes s'effacent"
+prouver "le support et la technique qui lisent nos factures (le droit du serveur et la base)" "serveur/console/gestes.ts|||base/migrations/0109_nos_factures.sql" \
+  "  { code: 'console.factures.voir', roles: [D], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['direction']);" \
+  "  { code: 'console.factures.voir', roles: [D, S, T], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);" \
+  "$NF1"
+prouver "une pièce signée qui se dit encore à signer" "serveur/console/nosfactures.ts" \
+  "  if (p.signee) return 'a_envoyer';
+" \
+  "" \
+  "$NF3"
+prouver "la réponse de la TTN noyée dans une phrase" "serveur/console/nosfactures.ts" \
+  "m.cle === 'ttn.refusee' && typeof m.valeurs.accuses" \
+  "m.cle === 'jamais' && typeof m.valeurs.accuses" \
+  "$NF3"
+prouver "une facture corrigée par un avoir dite payée en partie" "serveur/console/nosfactures.ts" \
+  "const etat = statut === 'partielle' && solde.paye <= 0n ?" \
+  "const etat = false ?" \
+  "$NF4"
+prouver "une acceptée comptée « pas encore acceptée »" "serveur/console/nosfactures.ts" \
+  "return e !== 'acceptee' && e !== 'refusee';" \
+  "return e !== 'refusee';" \
+  "$NF5"
+prouver "le montant émis qui ajoute les avoirs" "serveur/console/nosfactures.ts" \
+  "} else montantAvoirs += p.net;" \
+  "} else { montantAvoirs += p.net; montant += p.net; }" \
+  "$NF5"
+prouver "une pastille qui compte tout au lieu de ce qu'elle ouvre" "serveur/console/routes.ts" \
+  "comptes: Object.fromEntries(FILTRES.map((f) => [f, n.pieces.filter((p) => dansLeFiltre(p, f, jour)).length]))," \
+  "comptes: Object.fromEntries(FILTRES.map((f) => [f, n.pieces.length]))," \
+  "$NF5"
+prouver "la fiche soumise qui ne se lit pas" "serveur/console/nosfactures.ts" \
+  "soumise: ed.soumise === true" \
+  "soumise: false" \
+  "$NF6"
+prouver "deux boutons principaux sur nos factures" "web/console/src/ecrans/NosFactures.tsx" \
+  "{...(etape === 'fiche' ? { ton: 'principal' as const } : {})}" \
+  "{...({ ton: 'principal' as const })}" \
+  "$NFW2"
+prouver "les lignes qui ne suivent pas leur pastille" "web/console/src/ecrans/NosFactures.tsx" \
+  "onClick={() => { setFiltre(f); setDebut(0); }}" \
+  "onClick={() => { setDebut(0); }}" \
+  "$NFW3"
+prouver "la barre de gauche qui ne défile plus seule" "web/console/src/console.css" \
+  "  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;" \
+  "  flex: none; overscroll-behavior: contain;" \
+  "$NFW4"
+prouver "un mois vide qui montre un résumé à zéro" "web/console/src/ecrans/NosFactures.tsx" \
+  "{r && d.editeur && pieces ? (" \
+  "{r && d.editeur ? (" \
+  "$NFW5"
+prouver "les noms des colonnes au téléphone" "web/console/src/console.css" \
+  "  .c-nf-entete { display: none; }
+" \
+  "" \
+  "$NFW5"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

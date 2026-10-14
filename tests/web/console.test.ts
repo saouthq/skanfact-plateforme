@@ -708,6 +708,8 @@ describe('la console de l\'équipe, à la souris', () => {
       { nom: 'abonnements-essai', hash: '#/abonnements?vue=essai' },
       // Les paiements de nos factures et les coûts du mois (C30).
       { nom: 'paiements', hash: '#/paiements' },
+      // Nos factures : celles de l'entreprise SkanFact, la TTN, leur paiement (C31).
+      { nom: 'nos-factures', hash: '#/nos-factures' },
       { nom: 'cabinets', hash: '#/cabinets' },
       { nom: 'cabinet', hash: `#/cabinets/${cabinet.id}` },
       { nom: 'geste', hash: `#/clients/${enLecture}`, geste: async (p) => { await cliquer(p.locator('.c-menu > button')); await cliquer(p.locator('.c-menu-liste button').first()); await p.getByRole('dialog').waitFor(); } },

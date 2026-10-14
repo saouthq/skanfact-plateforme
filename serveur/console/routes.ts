@@ -35,6 +35,7 @@ import {
 } from './sauvegardes.ts';
 import { attenteDe, etatTour, lireTravaux, PARTENAIRES, quatorzeJours, SANS_TRACE, TOURS } from './travaux.ts';
 import { couts, encaisse, encaisseDuMois, lirePaiements, moisDemande, MOYENS, ouvertes } from './paiements.ts';
+import { dansLeFiltre, etatTtn, FILTRES, ligne, lireNosFactures, resume as resumeDesFactures, type Filtre } from './nosfactures.ts';
 import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
 import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe, taches, titreDeTache, versionDAvant, type EtatSuiveur } from './versions.ts';
 import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
@@ -1199,6 +1200,30 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           recus: { total: p.recus.length, lignes: p.recus.slice(debut, debut + n).map((r) => ({ ...r, montant: versTexte(r.montant, r.decimales) })),
             suite: debut + n < p.recus.length ? debut + n : null },
           doivent, trop, aEmettre: p.aEmettre, couts: couts(p.couts, e),
+        },
+      };
+    },
+  });
+  // ── Nos factures (docs/console.md C31 ; 0109) ─────────────────────────────────────────────────────────────────────
+  // Celles d'un mois (« 2026-10 ») et les avoirs qui les corrigent : la pièce, le client, ce qu'elle paie, la TTN (le
+  // motif d'un refus, en mots), le paiement ; le résumé et les filtres comptés par la fonction qui filtre (C3).
+  ajouter({
+    methode: 'GET', chemin: '/console/nos-factures', geste: 'console.factures.voir',
+    traiter: async ({ query }, tx) => {
+      const jour = aujourdhuiATunis();
+      const mois = moisDemande(query.mois, jour);
+      const n = lireNosFactures(await lireJson(transaction(tx), 'select plateforme.console_nos_factures($1::date) v', [`${mois}-01`]));
+      const filtre: Filtre = FILTRES.includes(query.filtre as Filtre) ? query.filtre as Filtre : 'toutes';
+      const gardees = n.pieces.filter((p) => dansLeFiltre(p, filtre, jour));
+      const debut = Math.max(Number(query.debut ?? 0) || 0, 0);
+      const nb = limite(query);
+      return {
+        corps: {
+          aujourdhui: jour, mois, courant: mois === jour.slice(0, 7), editeur: n.editeur, resume: resumeDesFactures(n, jour), filtre,
+          comptes: Object.fromEntries(FILTRES.map((f) => [f, n.pieces.filter((p) => dansLeFiltre(p, f, jour)).length])),
+          // Les refusées du mois, en tête : chacune attend un geste dans SkanFact.
+          refusees: n.pieces.filter((p) => etatTtn(p) === 'refusee').map((p) => ligne(p, jour, texteDuMotif)),
+          total: gardees.length, lignes: gardees.slice(debut, debut + nb).map((p) => ligne(p, jour, texteDuMotif)), suite: debut + nb < gardees.length ? debut + nb : null,
         },
       };
     },
