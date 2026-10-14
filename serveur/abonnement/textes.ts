@@ -39,4 +39,12 @@ declarerTextes({
   'abonnement.facture.sans_prix': 'aucun prix du jour pour cette offre et cette périodicité : la grille se règle dans les Réglages de la console',
   'abonnement.facture.deja_emise': 'la facture de cette période est déjà émise ({numero}) : elle ne se refait pas',
   'abonnement.facture.deja_preparee': 'la facture de cette période est déjà préparée : elle attend son émission dans SkanFact (pour la refaire, supprime d\'abord son brouillon)',
+  // Ce que la facture d'un abonnement écrit (en français : sa langue).
+  'abonnement.facture.objet': 'Abonnement SkanFact du {du} au {au}',
+  'abonnement.facture.ligne': 'SkanFact {offre} — abonnement {periodicite}',
+  'abonnement.facture.periode': 'Du {du} au {au}',
+  'abonnement.facture.offre.essentiel': 'Essentiel',
+  'abonnement.facture.offre.complet': 'Complet',
+  'abonnement.facture.periodicite.annuel': 'annuel',
+  'abonnement.facture.periodicite.mensuel': 'mensuel',
 });

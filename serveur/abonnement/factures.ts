@@ -8,6 +8,7 @@
 import { randomUUID } from 'node:crypto';
 import { versTexte } from '../../moteur/argent.ts';
 import { soldeFacture, statutFacture, type StatutFacture } from '../../moteur/reglements.ts';
+import { rendre, t } from '../../textes/index.ts';
 import type { Transaction } from '../base.ts';
 import { Refus } from '../erreurs.ts';
 import { appliquer, dossierPret } from '../v10/dossier.ts';
@@ -26,8 +27,8 @@ const C = () => codeDeLEcran<Core>('core.js');
 // l'application les pose en ouvrant le dossier (`migrateData`) — sinon l'aperçu dirait un autre chiffre qu'elle.
 const commeLEcran = (societe: Json): Json => (C().migrateData({ company: commeLaV10(societe) }).company ?? {}) as Json;
 
-export const NOMS_OFFRE: Record<Offre, string> = { essentiel: 'Essentiel', complet: 'Complet' };
-export const NOMS_PERIODICITE: Record<Periodicite, string> = { annuel: 'annuel', mensuel: 'mensuel' };
+// Ce que la pièce écrit, du catalogue (14 § 5), en français : la facture est en français (`lang`).
+const enFrancais = (cle: string, valeurs?: Record<string, string>) => rendre(t(cle, valeurs), 'fr');
 
 // La période que la facture paie : la MÊME règle que « Noter un paiement » (prochainePeriode) — la suite de l'échéance,
 // ou aujourd'hui si la lecture seule a commencé. Elle se règle avant son premier jour : son échéance est la veille, ou
@@ -50,10 +51,10 @@ export function pieceDAbonnement(o: {
 }): Json {
   return {
     id: o.cle, type: 'facture', number: '', status: 'brouillon', date: o.jour, dueDate: o.echeance,
-    clientId: o.client.id, subject: `Abonnement SkanFact du ${jourEnFrancais(o.debut)} au ${jourEnFrancais(o.fin)}`, reference: '',
+    clientId: o.client.id, subject: enFrancais('abonnement.facture.objet', { du: jourEnFrancais(o.debut), au: jourEnFrancais(o.fin) }), reference: '',
     lines: [{
-      label: `SkanFact ${NOMS_OFFRE[o.offre]} — abonnement ${NOMS_PERIODICITE[o.periodicite]}`,
-      description: `Du ${jourEnFrancais(o.debut)} au ${jourEnFrancais(o.fin)}`, unit: '', qty: 1,
+      label: enFrancais('abonnement.facture.ligne', { offre: enFrancais(`abonnement.facture.offre.${o.offre}`), periodicite: enFrancais(`abonnement.facture.periodicite.${o.periodicite}`) }),
+      description: enFrancais('abonnement.facture.periode', { du: jourEnFrancais(o.debut), au: jourEnFrancais(o.fin) }), unit: '', qty: 1,
       unitPrice: enNombreV10(versTexte(o.prixHt, 3)), vatRate: C().defaultVat(commeLEcran(o.societe)),
     }],
     discountRate: 0, withholdingRate: 0, applyStamp: !(o.client.stampExempt === true), notes: '', payments: [],

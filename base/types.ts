@@ -526,6 +526,12 @@ export interface BaseDeDonnees {
     lu_le: Date | null;
     alerte_le: Date | null;
   };
+  'plateforme.editeur': {
+    seul: Generated<boolean>;
+    entreprise: string;
+    pose_le: Generated<Date>;
+    pose_par: string;
+  };
   'plateforme.equipe': {
     utilisateur: string;
     role: string;
@@ -542,6 +548,22 @@ export interface BaseDeDonnees {
     motif: string | null;
     avant: ColumnType<Json | null, string | null, string | null>;
     apres: ColumnType<Json | null, string | null, string | null>;
+  };
+  'plateforme.facture_abonnement': {
+    id: Generated<string>;
+    entreprise: string;
+    editeur: string;
+    piece_v10: string;
+    client_v10: string;
+    offre: string;
+    periodicite: string;
+    debut: string;
+    fin: string;
+    montant_ht: bigint;
+    prepare_le: Generated<Date>;
+    prepare_par: string;
+    payee_le: Date | null;
+    evenement: string | null;
   };
   'plateforme.geste_console': {
     id: Generated<string>;

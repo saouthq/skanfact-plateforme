@@ -148,7 +148,7 @@ begin
   if v_prix is null or v_prix <> p_montant_ht then perform socle.refus('le prix n''est pas celui du jour : relis-le avant de préparer la facture'); end if;
   if not exists (select 1 from socle.dossier_v10 d where d.entreprise = v_editeur and d.collection = 'documents' and d.cle = p_piece_v10)
      or not exists (select 1 from socle.dossier_v10 d where d.entreprise = v_editeur and d.collection = 'clients' and d.cle = p_client_v10) then
-    raise exception 'la facture préparée manque au dossier de l''entreprise SkanFact : %', p_piece_v10;
+    perform socle.refus(format('la facture préparée manque au dossier de l''entreprise SkanFact : %s', p_piece_v10));
   end if;
   select * into v_f from plateforme.facture_abonnement f where f.editeur = v_editeur and f.piece_v10 = p_piece_v10 for update;
   if found and (v_f.entreprise <> p_entreprise or v_f.payee_le is not null) then

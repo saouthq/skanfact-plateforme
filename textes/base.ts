@@ -477,6 +477,17 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'cette demande d\'accès a déjà sa réponse', cle: 'base.acces_support.deja_repondue', fr: 'cette demande d\'accès a déjà sa réponse' },
   { base: 'un accès s\'accorde pour une à quarante-huit heures', cle: 'base.acces_support.heures', fr: 'un accès s\'accorde pour une à quarante-huit heures' },
   { base: 'cet accès ne court plus', cle: 'base.acces_support.ne_court_plus', fr: 'cet accès ne court plus' },
+  // Nos factures (0097, docs/abonnement.md B1–B4) : l'entreprise SkanFact, désignée une fois ; la facture d'une période.
+  { base: 'l\'entreprise SkanFact n\'est pas désignée : la direction la désigne dans les Réglages, « Nos factures »', cle: 'base.factures.editeur_absent', fr: 'l\'entreprise SkanFact n\'est pas désignée : la direction la désigne dans les Réglages, « Nos factures »' },
+  { base: 'nos factures s\'écrivent au nom du propriétaire de l\'entreprise SkanFact : tu ne l\'es pas', cle: 'base.factures.pas_proprietaire', fr: 'nos factures s\'écrivent au nom du propriétaire de l\'entreprise SkanFact : tu ne l\'es pas' },
+  { base: 'un geste de la console demande son motif (trois caractères au moins) : il reste dans le journal', cle: 'base.console.motif_geste', fr: 'un geste de la console demande son motif (trois caractères au moins) : il reste dans le journal' },
+  { base: 'nos factures naissent dans une entreprise dont tu es propriétaire : ce n\'est pas le cas de celle-ci', cle: 'base.factures.editeur_pas_a_toi', fr: 'nos factures naissent dans une entreprise dont tu es propriétaire : ce n\'est pas le cas de celle-ci' },
+  { base: 'c\'est déjà l\'entreprise de nos factures', cle: 'base.factures.deja_editeur', fr: 'c\'est déjà l\'entreprise de nos factures' },
+  { base: 'des factures sont déjà préparées dans l\'entreprise SkanFact désignée : elles y vivent, et elle ne se change plus', cle: 'base.factures.editeur_fige', fr: 'des factures sont déjà préparées dans l\'entreprise SkanFact désignée : elles y vivent, et elle ne se change plus' },
+  { base: 'l\'entreprise SkanFact ne se facture pas à elle-même', cle: 'base.factures.editeur_lui_meme', fr: 'l\'entreprise SkanFact ne se facture pas à elle-même' },
+  { base: 'le prix n\'est pas celui du jour : relis-le avant de préparer la facture', cle: 'base.factures.prix_du_jour', fr: 'le prix n\'est pas celui du jour : relis-le avant de préparer la facture' },
+  { base: 'la facture préparée manque au dossier de l\'entreprise SkanFact : %s', cle: 'base.factures.piece_absente', fr: 'la facture préparée manque au dossier de l\'entreprise SkanFact : {piece}', valeurs: ['piece'] },
+  { base: 'cette facture est déjà payée : elle ne se refait pas', cle: 'base.factures.deja_payee', fr: 'cette facture est déjà payée : elle ne se refait pas' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));
