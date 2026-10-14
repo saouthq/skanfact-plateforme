@@ -11092,8 +11092,16 @@ prouver 'la tuile des inscriptions qui ouvre toute la liste' web/console/src/ecr
 prouver 'le filtre des inscriptions qui ne se retire pas' web/console/src/ecrans/Clients.tsx \
   'onClick={() => { setNouvelles(false); setDebut(0); }}' 'onClick={() => { setDebut(0); }}' \
   "$CONSW2"
+# Deux fenêtres de la fiche portent cette ligne (le geste, et la facture depuis 14b) : celle du geste se désigne par ce
+# qui la précède.
 prouver 'sans motif, le curseur qui ne va pas au motif' web/console/src/ecrans/Fiche.tsx \
-  'setRefus(phrase('"'"'console.ecran.geste.motif_court'"'"')); setFaute((x) => x + 1); return; }' 'setRefus(phrase('"'"'console.ecran.geste.motif_court'"'"')); return; }' \
+  '  }, [jours, offre, periodicite, geste]);
+
+  const faire = () => {
+    if (motif.trim().length < 3) { setRefus(phrase('"'"'console.ecran.geste.motif_court'"'"')); setFaute((x) => x + 1); return; }' '  }, [jours, offre, periodicite, geste]);
+
+  const faire = () => {
+    if (motif.trim().length < 3) { setRefus(phrase('"'"'console.ecran.geste.motif_court'"'"')); return; }' \
   "$CONSW3"
 prouver 'l'"'"'aperçu du geste qui ne garde pas sa place' web/console/src/console.css \
   '.c-apercu-zone { display: grid; min-height: 140px; }' '.c-apercu-zone { display: grid; }' \
@@ -12297,7 +12305,7 @@ prouver "la frise des échéances qui déborde au téléphone" web/console/src/c
 # Un droit de la console sans son libellé dans l'écran Équipe : le tableau des droits ne s'affichait plus du tout
 # (trouvé le 13/10/2026 par la vérification avant l'envoi : « console.reglages.voir » ajouté sans ses textes).
 prouver "un droit de la console sans libellé dans l'écran Équipe" web/console/src/textes.ts \
-  "  'console.ecran.equipe.droit.console.reglages.gerer': 'noter la relecture d\\'une règle, écrire ou retirer le message aux clients',
+  "  'console.ecran.equipe.droit.console.reglages.gerer': 'noter la relecture d\\'une règle, écrire ou retirer le message aux clients, désigner l\\'entreprise SkanFact',
 " "" \
   "chaque droit que la route rend a son libellé et sa phrase"
 
