@@ -111,8 +111,9 @@ describe('l\'accès du support au dossier, à la souris, des deux côtés', () =
     // Un motif vide est refusé, en le disant.
     await cliquer(fenetre.getByRole('button', { name: 'Envoyer la demande' }));
     await expect.poll(async () => net(await fenetre.innerText())).toContain('trois caractères au moins');
-    // Le refus se dit sur le champ, sans aller-retour au serveur : il est marqué, et rien n'est parti.
-    expect(await fenetre.locator('textarea').getAttribute('aria-invalid')).toBe('true');
+    // Le refus se dit sur le champ, sans aller-retour au serveur : il est marqué, et rien n'est parti. Le champ se marque un
+    // rendu après la phrase (ui.tsx, useFaute) : on l'attend, sinon une machine lente le lit entre les deux.
+    await expect.poll(() => fenetre.locator('textarea').getAttribute('aria-invalid')).toBe('true');
     expect((await admin.query('select count(*)::int n from plateforme.acces_support where entreprise = $1', [ent])).rows[0]?.n).toBe(0);
     await fenetre.locator('textarea').fill(MOTIF);
     await cliquer(fenetre.getByRole('button', { name: 'Envoyer la demande' }));

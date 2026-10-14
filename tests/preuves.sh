@@ -12176,15 +12176,24 @@ prouver "un geste des réglages sans libellé au journal" web/console/src/textes
   "  'console.ecran.journal.g.reglages.message_retire': 'message aux clients retiré',
 " "" \
   "$RG2"
-# Plusieurs gardes (la route, puis la base) : il faut toutes les retirer pour retrouver le défaut. La lecture en a trois :
-# la route, la lecture des réglages, et celle des entreprises (la grille compte les abonnés de chaque offre).
-prouver "la technique qui lit les réglages" "serveur/console/gestes.ts|||$R93|||base/migrations/0083_console.sql" \
+# Plusieurs gardes (la route, puis la base) : il faut toutes les retirer pour retrouver le défaut. La lecture en a cinq :
+# la route, la lecture des réglages, celle des entreprises (la grille compte les abonnés de chaque offre), celle des
+# formats officiels (0094) et celle de l'entreprise SkanFact (« Nos factures », 0097).
+prouver "la technique qui lit les réglages" "serveur/console/gestes.ts|||$R93|||base/migrations/0083_console.sql|||base/migrations/0094_formats.sql|||base/migrations/0097_nos_factures.sql" \
   "{ code: 'console.reglages.voir', roles: [D, S], ecrit: false },|||v_role text := plateforme.exiger_role_console(array['direction', 'support']);|||  perform plateforme.exiger_role_console(array['direction', 'support']);
   return (select coalesce(jsonb_agg(jsonb_build_object(
-      'id', e.id, 'raisonSociale'" \
+      'id', e.id, 'raisonSociale'|||  perform plateforme.exiger_role_console(array['direction', 'support']);
+  return jsonb_build_object(
+    -- Soumises|||  perform plateforme.exiger_role_console(array['direction', 'support']);
+  return jsonb_build_object(
+    'editeur'" \
   "{ code: 'console.reglages.voir', roles: [D, S, T], ecrit: false },|||v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);|||  perform plateforme.exiger_role_console(array['direction', 'support', 'technique']);
   return (select coalesce(jsonb_agg(jsonb_build_object(
-      'id', e.id, 'raisonSociale'" \
+      'id', e.id, 'raisonSociale'|||  perform plateforme.exiger_role_console(array['direction', 'support', 'technique']);
+  return jsonb_build_object(
+    -- Soumises|||  perform plateforme.exiger_role_console(array['direction', 'support', 'technique']);
+  return jsonb_build_object(
+    'editeur'" \
   "$RG3"
 prouver "le support qui écrit un message aux clients" "serveur/console/gestes.ts|||$R93" \
   "{ code: 'console.reglages.gerer', roles: [D], ecrit: true },|||v_role text := plateforme.exiger_role_console(array['direction']); v_id uuid; v_texte" \
