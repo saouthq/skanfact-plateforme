@@ -607,7 +607,7 @@ describe('la console de l\'équipe, à la souris', () => {
       expect(await p.evaluate(() => location.hash)).toBe(`#/abonnements?vue=${v}`);
     }
     // Ce qui revient chaque année vit à côté de la liste, une seule fois : l'en-tête ne le redit pas.
-    expect(net(await p.locator('.c-ab-annuel').innerText())).toMatch(/^Ce qui revient chaque année [\d ]+,\d{3} DT hors taxes /);
+    expect(net(await p.locator('.c-ab-annuel').innerText())).toMatch(/^Ce qui revient chaque année [\d ]+,\d{3} DT hors taxes, remises déduites /);
     expect(await p.locator('.c-entete-chiffre').count()).toBe(0);
     // Ce que dit chaque puce de relance se lit à côté : cinq états, chacun sa phrase.
     expect(await p.locator('.c-ab-legende li').count()).toBe(5);
