@@ -9718,6 +9718,7 @@ PP7="le panneau quitte l'accueil quand le métier est fait : ni le code recomman
 PPW1="après la porte et l'assistant : le panneau de la maquette, la suite mise en avant, chaque bouton mène où il dit, et ce qui se fait ailleurs se coche au retour"
 PPW2="une adresse que le serveur sait vérifier passe en tête ; une activité laissée de côté se choisit en revoyant l'assistant"
 PPW3="au téléphone : le panneau ne déborde pas, et chaque bouton se touche du doigt"
+PPW4="sans relais d'e-mails, « Protège ton compte » reste à faire, « Choisir mon code » mène au choix du code dans Ton compte, et un code activé la coche"
 prouver "le RIB réclamé à un commerce" $PPJS \
   "    if (C.ribAttendu(c)) {" "    if (true) {" \
   "$PP2"
@@ -9757,9 +9758,11 @@ prouver "les premiers pas proposés dans l'exemple" $PPJS \
 prouver "une suite proposée dans l'exemple" $PPJS \
   "const suivante = exemple ? null : " "const suivante = " \
   "$PP7"
+# Depuis le code par e-mail par défaut (0081), un serveur qui envoie des e-mails coche l'étape sans le code : la preuve
+# vit sur le serveur sans relais, où seul le code la coche.
 prouver "le code du téléphone lu comme absent" web/public/plateforme/pont.js \
   "codeActif: !!moi.code_methode" "codeActif: false" \
-  "$PPW1"
+  "$PPW4"
 prouver "le cabinet choisi jamais lu" web/public/plateforme/pont.js \
   "mandat: m ? String(m.statut || '') : null" "mandat: null" \
   "$PPW1"
@@ -10763,8 +10766,9 @@ prouver 'un essai de vingt-neuf jours' $AMG \
 prouver 'l'"'"'état de l'"'"'abonnement réservé à qui le gère' serveur/abonnement/routes.ts \
   "chemin: '/entreprises/:entreprise/abonnement/etat', geste: 'socle.accueil.voir'," "chemin: '/entreprises/:entreprise/abonnement/etat', geste: 'socle.abonnement.voir'," \
   "$AB2"
-prouver 'le détail de l'"'"'abonnement ouvert à tous les rôles' serveur/abonnement/routes.ts \
-  "chemin: '/entreprises/:entreprise/abonnement', geste: 'socle.abonnement.voir'," "chemin: '/entreprises/:entreprise/abonnement', geste: 'socle.accueil.voir'," \
+# Deux gardes depuis 14b (0098) : la route, et la base qui ne rend les factures qu'à qui gère l'abonnement.
+prouver 'le détail de l'"'"'abonnement ouvert à tous les rôles' "serveur/abonnement/routes.ts|||base/migrations/0098_mes_factures.sql" \
+  "chemin: '/entreprises/:entreprise/abonnement', geste: 'socle.abonnement.voir',|||or not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur']::text[])" "chemin: '/entreprises/:entreprise/abonnement', geste: 'socle.accueil.voir',|||" \
   "$AB3"
 prouver 'le motif d'"'"'un geste de SkanFact montré à l'"'"'entreprise' $AMG \
   "jsonb_build_object('le', v.le, 'nature', v.nature, 'apres', v.apres)" "jsonb_build_object('le', v.le, 'nature', v.nature, 'apres', v.apres, 'motif', v.motif)" \

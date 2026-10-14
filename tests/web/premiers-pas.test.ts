@@ -170,7 +170,7 @@ describe('les premiers pas de la plateforme, à la souris', () => {
     await p.context().close();
   }, 120_000);
 
-  it('sans relais d\'e-mails, « Protège ton compte » reste à faire, et « Choisir mon code » mène au choix du code dans Ton compte', async () => {
+  it('sans relais d\'e-mails, « Protège ton compte » reste à faire, « Choisir mon code » mène au choix du code dans Ton compte, et un code activé la coche', async () => {
     const email = `nour-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Nour', motDePasse: 'Un-bon-mot-de-passe' });
     // Ce serveur n'envoie pas d'e-mails : la connexion n'en demande aucun.
@@ -187,6 +187,13 @@ describe('les premiers pas de la plateforme, à la souris', () => {
     await code.getByRole('button', { name: 'Choisir mon code', exact: true }).click();
     await p.locator('#cpt-code').waitFor({ timeout: 15_000 });
     expect(await p.locator('#cpt-etat').innerText()).toBe('Mot de passe seul');
+    // Le code de l'application activé : de retour à l'accueil, l'étape est faite (c'est le code qui la coche ici, pas
+    // l'e-mail, que ce serveur n'envoie pas).
+    expect((await api('POST', '/moi/code', jeton, { methode: 'application' })).statut).toBe(200);
+    await p.goto(`${sansCourriel.adresse}/v10/?e=${ent}#/dashboard`);
+    await p.reload();
+    await panneau(p).waitFor({ timeout: 20_000 });
+    await expect.poll(() => ligne(p, 'Protège ton compte').getAttribute('class'), { timeout: 15_000 }).toContain('fait');
     expect(erreurs).toEqual([]);
     await p.context().close();
   }, 120_000);
