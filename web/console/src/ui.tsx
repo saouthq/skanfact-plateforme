@@ -1,6 +1,6 @@
 // Les pièces des écrans de la console : les dessins, les boutons, les puces d'état, les champs, la fenêtre et le message
 // passager. Dessinés pour la console seulement (console.css) : l'application garde les siens.
-import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ToucheReact, type ReactNode } from 'react';
+import { createContext, Fragment, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ToucheReact, type MouseEvent as SourisReact, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { phrase, titre } from './langue.ts';
 
@@ -44,6 +44,7 @@ const DESSINS = {
   retour: <><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3L4.5 9" /><path d="M4.5 4.5V9H9" /></>,
   echange: <><path d="M4 8h15" /><path d="M15 4l4 4-4 4" /><path d="M20 16H5" /><path d="M9 12l-4 4 4 4" /></>,
   sourdine: <><path d="M11 5.5L6.5 9H3.5v6h3l4.5 3.5z" /><path d="M21 9.5l-5 5M16 9.5l5 5" /></>,
+  telecharger: <><path d="M12 4v11" /><path d="M7.5 10.5L12 15l4.5-4.5" /><path d="M5 19.5h14" /></>,
   copier: <><rect x="8.5" y="8.5" width="12" height="12" rx="2" /><path d="M15.5 8.5V5.5a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3" /></>,
   cloche: <><path d="M6 9.5a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15.5 6 9.5z" /><path d="M10 20.5a2.2 2.2 0 0 0 4 0" /></>,
   points: <><circle cx="5.5" cy="12" r="1.4" fill="currentColor" /><circle cx="12" cy="12" r="1.4" fill="currentColor" /><circle cx="18.5" cy="12" r="1.4" fill="currentColor" /></>,
@@ -93,12 +94,36 @@ export function Lien({ href, children, ton = 'secondaire', petit, fleche, icone,
   );
 }
 
+// ── Parcourir un menu ───────────────────────────────────────────────────────────────────────────────────────────────
+// Un menu se parcourt au clavier comme sur le Mac : les flèches passent d'un choix à l'autre (le dernier mène au premier),
+// Début et Fin vont aux bouts. La souris et le clavier partagent UNE sélection : le choix sous la souris prend le focus,
+// et seul le focus surligne (deux choix surlignés à la fois laissaient deviner lequel Entrée lancerait).
+export const parcourirMenu = {
+  onKeyDown: (e: ToucheReact<HTMLElement>) => {
+    const choix = [...e.currentTarget.querySelectorAll<HTMLElement>('button')];
+    const i = choix.indexOf(document.activeElement as HTMLElement);
+    const vers = { ArrowDown: i + 1, ArrowUp: i < 0 ? choix.length - 1 : i - 1, Home: 0, End: choix.length - 1 }[e.key];
+    if (vers === undefined || !choix.length) return;
+    e.preventDefault();
+    choix[(vers + choix.length) % choix.length]?.focus({ preventScroll: true });
+  },
+  onMouseMove: (e: SourisReact<HTMLElement>) => {
+    const b = (e.target as HTMLElement).closest('button');
+    if (b && b !== document.activeElement) b.focus({ preventScroll: true });
+  },
+};
+
 // ── Le menu d'une ligne (« … ») ─────────────────────────────────────────────────────────────────────────────────────
 // Les gestes d'une ligne de tableau derrière un bouton, chacun son icône, son nom et sa phrase (les règles des alertes,
 // les membres de l'équipe : un seul mécanisme). Une ligne du bas ouvre son menu vers le haut : dessous, il sortirait de
 // la fenêtre, ou du tableau qui défile (qui le couperait). Échap et un clic ailleurs le ferment.
-export type ActionLigne = { icone: NomIcone; titre: string; sous?: string; faire: () => void; danger?: boolean };
-export function MenuLigne({ etiquette, actions }: { etiquette: string; actions: ActionLigne[] }) {
+// `trait` : un trait le sépare du groupe d'avant (ce qui détruit vient après le reste) ; `note`, sous le dernier choix, ce
+// que ce rôle ne peut pas faire ici et qui le fait.
+// `donnee` : la phrase sous le nom est une donnée (un nom, une adresse), à masquer sur une capture comme les autres.
+// `section` : le nom d'une société, dit une fois en tête de ses gestes (le menu d'un groupe).
+export type ActionLigne = { icone?: NomIcone; titre: string; sous?: string; faire: () => void; danger?: boolean; trait?: boolean; donnee?: boolean; section?: string };
+// `libelle` : un bouton nommé (« Gestes ▾ », en tête d'une fiche) au lieu des trois points d'une ligne.
+export function MenuLigne({ etiquette, actions, note, libelle }: { etiquette: string; actions: ActionLigne[]; note?: string | null; libelle?: string }) {
   const [ouvert, setOuvert] = useState(false);
   // Le menu se pose sur la FENÊTRE (position fixe), jamais dans le tableau : la carte d'une liste coupe ce qui la dépasse,
   // et un menu ouvert vers le haut sur la deuxième ligne n'y montrait que sa moitié. Dessous s'il tient, sinon dessus,
@@ -131,27 +156,43 @@ export function MenuLigne({ etiquette, actions }: { etiquette: string; actions: 
     document.addEventListener('keydown', echap);
     window.addEventListener('scroll', placer, true);
     window.addEventListener('resize', placer);
-    // Le premier choix prend le clavier SANS faire défiler la page : sur la dernière ligne, le focus la faisait sauter de
-    // 440 points sous la souris.
-    zone.current?.querySelector<HTMLElement>('.c-menu-liste button')?.focus({ preventScroll: true });
     return () => {
       document.removeEventListener('mousedown', ailleurs); document.removeEventListener('keydown', echap);
       window.removeEventListener('scroll', placer, true); window.removeEventListener('resize', placer);
     };
   }, [ouvert, placer]);
+  // Le premier choix prend le clavier une fois le menu POSÉ (une liste encore cachée, le temps de mesurer sa place,
+  // refuse le focus : il restait sur le bouton et les flèches ne menaient nulle part), et SANS faire défiler la page :
+  // sur la dernière ligne, le focus la faisait sauter de 440 points sous la souris. Une fois par ouverture : le menu
+  // qui suit son bouton quand la page défile ne reprend pas le clavier.
+  const pose = place !== null;
+  useEffect(() => {
+    if (pose) zone.current?.querySelector<HTMLElement>('.c-menu-liste button')?.focus({ preventScroll: true });
+  }, [pose]);
   return (
     <div className="c-menu" ref={zone}>
-      <button type="button" className="c-menu-btn" aria-expanded={ouvert} aria-label={etiquette} onClick={() => setOuvert(!ouvert)}>
-        <Icone nom="points" taille={20} />
-      </button>
+      {libelle ? (
+        <button type="button" className="c-btn c-fiche-gestes" aria-expanded={ouvert} aria-label={etiquette} onClick={() => setOuvert(!ouvert)}>
+          {libelle}<Icone nom="bas" taille={17} />
+        </button>
+      ) : (
+        <button type="button" className="c-menu-btn" aria-expanded={ouvert} aria-label={etiquette} onClick={() => setOuvert(!ouvert)}>
+          <Icone nom="points" taille={20} />
+        </button>
+      )}
       {ouvert ? (
         <div className={`c-menu-liste c-menu-liste-fixe${place?.haut ? ' c-menu-liste-haut' : ''}`}
-          style={place ? { top: place.top, right: place.right } : { visibility: 'hidden' }}>
-          {actions.map((a) => (
-            <button key={a.titre} type="button" className={a.danger ? 'c-menu-danger' : undefined} onClick={() => { setOuvert(false); a.faire(); }}>
-              <Icone nom={a.icone} /><span className="c-menu-action"><b>{a.titre}</b>{a.sous ? <span>{a.sous}</span> : null}</span>
-            </button>
+          style={place ? { top: place.top, right: place.right } : { visibility: 'hidden' }} {...parcourirMenu}>
+          {actions.map((a, i) => (
+            <Fragment key={`${a.section ?? ''}|${a.titre}`}>
+              {a.section && a.section !== actions[i - 1]?.section ? <p className={`c-menu-section${i > 0 ? ' c-menu-trait' : ''}`} data-donnee>{a.section}</p> : null}
+              <button type="button" className={[a.danger ? 'c-menu-danger' : '', a.trait ? 'c-menu-trait' : ''].filter(Boolean).join(' ') || undefined}
+                onClick={() => { setOuvert(false); a.faire(); }}>
+                {a.icone ? <Icone nom={a.icone} /> : null}<span className="c-menu-action"><b>{a.titre}</b>{a.sous ? <span {...(a.donnee ? { 'data-donnee': true } : {})}>{a.sous}</span> : null}</span>
+              </button>
+            </Fragment>
           ))}
+          {note ? <p className="c-menu-note">{note}</p> : null}
         </div>
       ) : null}
     </div>
@@ -230,6 +271,35 @@ export function Champ({ libelle, aide, faute = false, n, valeur, changer, type =
   );
 }
 
+// Un choix parmi quelques-uns, en pilules qui se cochent (role="radio") : comme les boutons radio du Mac, une seule prend
+// la touche Tab (la cochée, sinon la première) et les flèches passent à la voisine en la cochant (Début et Fin, aux
+// bouts). `faute` : rien n'est coché alors qu'il le faut, le contour rougit.
+export function Pilules<T extends string>({ libelle, valeur, choix, changer, faute = false }: {
+  libelle: string; valeur: T | null; choix: readonly { valeur: T; texte: string }[]; changer: (v: T) => void; faute?: boolean;
+}) {
+  const fleches = (e: ToucheReact<HTMLDivElement>) => {
+    const i = choix.findIndex((c) => c.valeur === valeur), n = choix.length;
+    const pas = ({ ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 } as Record<string, number>)[e.key];
+    const j = e.key === 'Home' ? 0 : e.key === 'End' ? n - 1 : pas === undefined ? null : i < 0 ? (pas > 0 ? 0 : n - 1) : (i + pas + n) % n;
+    const c = j === null ? undefined : choix[j];
+    if (j === null || !c) return;
+    e.preventDefault();
+    changer(c.valeur);
+    e.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')[j]?.focus();
+  };
+  return (
+    <div className="c-champ" role="radiogroup" aria-label={libelle}>
+      <span className="c-champ-libelle">{libelle}</span>
+      <div className="c-ech-choix" onKeyDown={fleches}>
+        {choix.map((c, k) => (
+          <button key={c.valeur} type="button" role="radio" aria-checked={valeur === c.valeur} tabIndex={valeur === c.valeur || (valeur === null && k === 0) ? 0 : -1}
+            className={`c-pilule${faute && valeur === null ? ' c-pilule-faute' : ''}`} onClick={() => changer(c.valeur)}>{c.texte}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // `libelleCache` : le libellé reste lu (lecteur d'écran) mais ne s'affiche pas — quand l'invite dans le champ dit déjà ce qu'on
 // y écrit (« Réponds à Lina… »). `touche` reçoit les touches du champ (Ctrl + Entrée envoie).
 export function Zone({ libelle, aide, faute = false, n, valeur, changer, premier, max = 500, placeholder, libelleCache, touche }: Commun & {
@@ -280,8 +350,10 @@ export const saisieDe = (cadre: ParentNode | null | undefined) =>
 // L'instantané se prend après le montage : ce que la fenêtre préremplit n'est pas une saisie. Réussi, un geste referme la
 // fenêtre par son propre chemin, sans question. Un titre ou un sous-titre qui est une DONNÉE (le titre d'un incident, le
 // nom d'un client) le dit (`titreDonnee`, `sousDonnee`) : il ne vient pas du catalogue des textes.
-export function Dialogue({ titre: t, sous, fermer, occupe = false, children, pied, titreDonnee = false, sousDonnee = false }: {
-  titre: string; sous?: string | undefined; fermer: () => void; occupe?: boolean; children: ReactNode; pied: ReactNode; titreDonnee?: boolean; sousDonnee?: boolean;
+// `pour` : le client que la fenêtre touche, dit au-dessus du titre (une donnée). Ouverte d'une liste ou d'un groupe, elle
+// ne laisse pas deviner sur quelle société le geste tombera.
+export function Dialogue({ titre: t, sous, pour, fermer, occupe = false, children, pied, titreDonnee = false, sousDonnee = false }: {
+  titre: string; sous?: string | undefined; pour?: string | undefined; fermer: () => void; occupe?: boolean; children: ReactNode; pied: ReactNode; titreDonnee?: boolean; sousDonnee?: boolean;
 }) {
   const id = useId();
   const cadre = useRef<HTMLDivElement>(null);
@@ -330,6 +402,7 @@ export function Dialogue({ titre: t, sous, fermer, occupe = false, children, pie
         <FermerDuDialogue.Provider value={fermerGarde}>
           <div className="c-dialogue-tete">
             <div>
+              {pour ? <p className="c-dialogue-pour" data-donnee>{pour}</p> : null}
               <h2 id={`${id}-titre`} {...(titreDonnee ? { 'data-donnee': '' } : {})}>{t}</h2>
               {sous ? <p className="c-dialogue-sous" {...(sousDonnee ? { 'data-donnee': '' } : {})}>{sous}</p> : null}
             </div>

@@ -20,9 +20,11 @@ export function EntrepriseNeuve({ depuis, retour, visite, creee, deconnecte }: {
   const g = useGeste(deconnecte);
   const [raison, setRaison] = useState('');
   const [matricule, setMatricule] = useState('');
+  // Sa ville, facultative (0110) : l'équipe SkanFact la lit sur sa fiche pour le reconnaître au téléphone.
+  const [ville, setVille] = useState('');
   const exemple = depuis === 'exemple';
   const creer = () => g.geste(async () => {
-    const r = await g.api<{ id: string }>('POST', '/entreprises', { raisonSociale: raison.trim(), ...(matricule.trim() ? { matriculeFiscal: matricule.trim() } : {}) });
+    const r = await g.api<{ id: string }>('POST', '/entreprises', { raisonSociale: raison.trim(), ...(matricule.trim() ? { matriculeFiscal: matricule.trim() } : {}), ...(ville.trim() ? { ville: ville.trim() } : {}) });
     if (!r) return;
     if (r.statut !== 201) { g.refuser(refusDe(r)); return; }
     creee(r.corps.id, visite);
@@ -41,6 +43,7 @@ export function EntrepriseNeuve({ depuis, retour, visite, creee, deconnecte }: {
             dessous={<div className="ent-exemples"><span>{phrase('ecran.porte.raison_patente')}</span><span>{phrase('ecran.porte.raison_societe')}</span></div>} {...g.sur('raisonSociale')} />
           <Champ libelle={titre('ecran.porte.matricule')} aide={phrase('ecran.porte.matricule_aide')} valeur={matricule} changer={setMatricule} placeholder="1234567A/A/M/000"
             dessous={<AideMatricule matricule={matricule} />} {...g.sur('matriculeFiscal')} />
+          <Champ libelle={titre('ecran.porte.ville')} aide={phrase('ecran.porte.ville_aide')} valeur={ville} changer={setVille} autoComplete="address-level2" {...g.sur('ville')} />
           <Bouton principal type="submit" occupe={g.occupe}>{titre(exemple ? 'ecran.vraie.creer' : 'ecran.vraie.creer_nouvelle')}<Dessin id="fleche" /></Bouton>
         </form>
         <ApercuEntete raison={raison} matricule={matricule} note={phrase(exemple ? 'ecran.vraie.apercu_note' : 'ecran.porte.apercu_note')} />

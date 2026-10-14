@@ -5,7 +5,7 @@
 //   - une console où rien ne se passe affiche une liste vide, et le dit : elle n'invente pas de travail.
 
 import { confirme } from '../../exploitation/veille.ts';
-import { etatAbonnement, joursEntre, lireFaits, plusJours, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
+import { etatAbonnement, joursEntre, lireFaits, plusJours, type Delai, type Etat, type Faits, type OffreSuivante, type Regles } from '../abonnement/etat.ts';
 import type { RoleConsole } from './gestes.ts';
 import type { MesureEncaisse } from './paiements.ts';
 import { compter, etatDe, type LigneDemande } from './support.ts';
@@ -20,15 +20,23 @@ export type Entreprise = {
   venuePar?: { cabinet: string; depuis: string } | null;
   // La remise de sa prochaine période (0106), que « par an » déduit comme les échéances (la liste des clients seulement).
   remise?: { nature: 'groupe' | 'cabinet'; taux: number } | null;
+  // Ce que la liste des clients dit en plus de chaque ligne (0110 ; serveur/console/clients.ts, avecEnPlus) : les pièces
+  // émises du mois, les jours ajoutés à son essai, la facture d'abonnement qui attend son paiement. Ailleurs, absent.
+  enPlus?: EnPlus;
 };
+// La facture d'abonnement qui attend (préparée, pas encore payée) : son offre, son état, ce qu'il en reste à payer et
+// d'ici quand. `reste` est vide tant qu'elle n'est pas émise (elle attend dans le dossier de SkanFact).
+export type FactureQuiAttend = { offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel'; etat: string; reste: string | null; devise: string | null; echeance: string | null };
+export type EnPlus = { piecesMois: number; essaiJours: number | null; prolonge: number; prolongeUneFois: boolean; attend: FactureQuiAttend | null };
 
 // Ce que la base rend (plateforme.console_entreprises), lu prudemment : un champ illisible vaut « rien », jamais une
 // valeur devinée ; l'état se déduit du jour de Tunis, avec les règles de l'abonnement (la grâce, les relances : 0104),
 // lues une fois pour toute la liste.
-export function lireEntreprises(brut: unknown, jour: string, regles: Regles): Entreprise[] {
+// `enPlus` : le délai d'une échéance et l'offre de la prochaine (0111), par entreprise.
+export function lireEntreprises(brut: unknown, jour: string, regles: Regles, enPlus: ReadonlyMap<string, { delai: Delai | null; offreSuivante: OffreSuivante | null }> = new Map()): Entreprise[] {
   if (!Array.isArray(brut)) return [];
   return brut.map((x: Record<string, unknown>) => {
-    const faits = { ...lireFaits((x.faits ?? {}) as Record<string, unknown>), regles };
+    const faits = { ...lireFaits((x.faits ?? {}) as Record<string, unknown>), regles, ...(enPlus.get(String(x.id)) ?? {}) };
     const o = (x.organisation ?? {}) as Record<string, unknown>;
     const p = x.proprietaire as Record<string, unknown> | null;
     return {

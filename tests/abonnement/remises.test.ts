@@ -225,8 +225,9 @@ describe('le cabinet : la remise de la première année, jamais additionnée à 
     expect(await remiseDe(propose, '2026-09-01')).toBeNull();
     // La liste des clients les voit par la même règle : la vue « venus par un cabinet » (0107) garde le garage venu par
     // son cabinet, jamais celui que le cabinet a rejoint après son premier paiement, ni celui d'un mandat seulement proposé.
-    const venus = (await appeler('GET', '/console/entreprises?vue=cabinet&limite=200', karim.console)).corps as { lignes: { id: string; venuePar: Corps | null }[]; vues: Corps };
-    expect(venus.lignes.find((l) => l.id === venue)?.venuePar).toEqual({ cabinet: 'Cabinet Remise', depuis: '2026-02-01' });
+    // Une ligne par organisation (0110) : une entreprise seule porte son id, et sa société dit par qui elle est venue.
+    const venus = (await appeler('GET', '/console/entreprises?vue=cabinet&limite=200', karim.console)).corps as { lignes: { id: string; societes: { venuePar: Corps | null }[] }[]; vues: Corps };
+    expect(venus.lignes.find((l) => l.id === venue)?.societes[0]?.venuePar).toEqual({ cabinet: 'Cabinet Remise', depuis: '2026-02-01' });
     expect(venus.lignes.map((l) => l.id)).not.toContain(tard);
     expect(venus.lignes.map((l) => l.id)).not.toContain(propose);
     expect(venus.vues.cabinet).toBe(venus.lignes.length);

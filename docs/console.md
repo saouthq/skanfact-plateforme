@@ -795,6 +795,134 @@ son dossier. La console **les montre, ne les refait pas** : chaque numéro ouvre
 - **Un mois sans pièce ne dit qu'une chose** : « Aucune facture émise en septembre 2026. » (ni résumé à zéro, ni
   filtres vides).
 
+**C32. La liste des clients, sans écart avec sa maquette** (14/10/2026 ; base 0110 ; la maquette Clients, comparée
+pleine page à la console). Le premier des lots qui ramènent chaque écran déjà fait à zéro écart avec sa maquette (les
+suivants : le numéro de client, la ville et une ligne par organisation — groupes, cabinets ; la fiche ; nos échanges ;
+les gestes qui manquent ; la procédure de reprise).
+- **L'en-tête** dit ce qu'est une ligne, et porte **« Exporter la sélection… »** en haut à droite (la direction seule).
+- **Les filtres** sous les puces d'état : la recherche (nom, matricule, contact, e-mail, groupe, cabinet), le type
+  (entreprises seules, groupes, dossiers tenus), l'offre (Essentiel, Complet, pas d'offre), le cabinet qui la suit
+  (celui qui tient son dossier, sinon celui par qui elle est venue). **Chaque option dit son compte, compté sur ce que
+  les deux autres filtres laissent, par la fonction qui filtre** (C3) ; « Effacer les filtres » défait tout d'un geste ;
+  l'adresse garde la sélection. Une vue qui demande un mot de plus (silencieux, tenus à convertir) le dit sous les
+  filtres.
+- **Une ligne dit sa date une seule fois** (Skander, les répétitions retirées des maquettes) : la colonne Échéance porte
+  le jour et « dans 3 j », en orange à trois jours ou moins, ou « — en lecture seule », « — sans échéance » ; sous la puce
+  d'état, **ce qui arrive ce jour-là** : la fin de l'essai (« n'a encore rien fait » quand il est à appeler, par la
+  fonction de la carte), « 47,410 DT à payer » quand sa facture attend, « passe en lecture seule · aucune offre
+  choisie », le renouvellement du mois ou de l'année, « depuis le… · essai fini sans offre ». La colonne Abonnement dit
+  l'offre et ce qui la précise (« Essai, 30 jours · tout ouvert », « prolongé de 14 jours », « Essai · Essentiel
+  choisi · au mois, dès la fin de l'essai », « Pas abonné · tenu par… »), et la remise de sa prochaine période en
+  étiquette (jamais sur ce qui n'a pas de période). La durée d'un essai est celle qu'il avait **en commençant** (son
+  premier événement), jamais recalculée d'une règle d'aujourd'hui.
+- **« Usage d'octobre »** : les pièces émises du mois (au jour de l'entreprise, comme sa fiche), en orange quand il n'y
+  en a aucune ; un dossier tenu dit « tenu par le cabinet ». Le tri « usage » trie par ce compte, l'export aussi.
+  **« Vu »** en orange pour un client silencieux (la fonction de la carte).
+- Ce que la liste dit en plus de chaque ligne se lit **en un passage pour toute la liste**
+  (`plateforme.console_clients_en_plus`, jamais une lecture par ligne) : les pièces du mois, la durée de l'essai et ce
+  qui l'a prolongé, et **la facture qui attend** (la plus ancienne préparée et pas encore réglée, son reste par la règle
+  de toutes les factures). Un essai dont la facture attend est dans **« l'argent attendu »**, plus « à appeler ».
+- **Le menu « … »** de chaque ligne (un nom et sa phrase, sans icône, comme la maquette) : « Pointer son paiement »
+  quand une facture attend (il ouvre Paiements), puis **les gestes que sa fiche proposerait, par la même règle**
+  (`gestesDisponibles`, sur la ligne d'abonnement que ses faits décrivent) — prolonger l'essai, réactiver, annuler la
+  résiliation, et les gestes de C34 ; puis, après un trait, nos échanges (« Noter un appel… », « Écrire au contact… »,
+  C33) ; après un trait et en rouge, ce qui détruit (passer en lecture seule, résilier, retirer l'abonnement offert) — et
+  « Demander l'accès au dossier… ». **Chaque geste a le même nom partout** (le menu de la liste, celui de la fiche, le
+  titre et le bouton de sa fenêtre : « Prolonger la grâce… », « Réactiver… »). Le menu se parcourt **au clavier comme sur
+  le Mac** : il prend le clavier en s'ouvrant, les flèches passent d'un choix à l'autre, Début et Fin vont aux bouts,
+  Échap rend le clavier au bouton ; la souris et le clavier partagent une seule sélection. Payer, offrir, un module restent sur la fiche, où se lit ce qu'ils
+  changent. **Un geste ouvre la fenêtre de la fiche SUR la liste** (rien ne fait perdre sa place), sur la fiche relue à
+  cet instant : la ligne d'abonnement lue part avec le geste (01 R15). **Chaque fenêtre qui touche un client le nomme
+  au-dessus de son titre** (« LIBRAIRIE AL KITAB · E-0005 ») : ouverte d'une liste ou d'un groupe, elle ne laisse pas
+  deviner sur quelle société le geste tombera. Au support, le menu de la liste et celui de la fiche disent **la même
+  phrase** de ce qui revient à la direction.
+- **La première carte** se dit « Tout le portefeuille » sans recherche ni filtre, **« Toute la sélection »** avec : les
+  cartes comptent la recherche et les filtres (C3), son nom ne dit pas le contraire.
+- **Exporter la sélection** : la direction seule, avec son motif ; le fichier est **la liste telle qu'elle est filtrée,
+  toutes ses pages** (la même fonction que l'écran : ce qui s'exporte est ce qui se voit), pour un tableur (le
+  point-virgule et la virgule décimale), téléchargé sur l'ordinateur — il ne part nulle part. Le journal garde le motif,
+  le nombre de lignes et les filtres, **jamais les lignes** (`plateforme.console_noter_export`).
+- **Les pages** : « Page 1 sur 6 », 25 par page (50, 100 au choix), « Précédente », les numéros (la première, la
+  dernière, celles autour), « Suivante ». La note sous la carte dit ce que compte « Par an, HT » ; la TVA et le timbre
+  restent **À VÉRIFIER**.
+- **Ce que la maquette dit et que la console ne reprend pas** : les places de fondateur (abandonnées le 14/10/2026) ;
+  le prorata d'un changement d'offre (C34) ; « Place occupée », « SMS envoyés », « Documents lus », « Appels à l'API » et
+  les intégrations allumées de la fiche, dits **« pas encore mesuré »** (C2) tant que rien ne les mesure.
+
+**C33. Qui est le client, et nos échanges avec lui** (14/10/2026 ; base 0110 ; les maquettes Clients et Fiche).
+- **Un numéro de client**, donné à la création et jamais repris : E-0001 pour une entreprise, G-01 pour un groupe de la
+  console, C-0001 pour un cabinet (`plateforme.numero_client`, une suite par sorte ; les entreprises d'exemple n'en ont
+  pas). On se le dit au téléphone ; la recherche le trouve.
+- **La ville**, facultative, se dit à la création de l'entreprise (« Ton entreprise » : « facultative : là où est ton
+  entreprise ») ; la console la montre, **rien ne la devine** d'une adresse écrite librement (`socle.entreprise.ville`,
+  `socle.poser_ville` : la propriétaire ou un administrateur, sans balise, 2 à 60 caractères). **La changer ensuite,
+  depuis Paramètres, reste à faire** ; et l'étape suivante (« Où te joindre ? ») redemande l'adresse « puis code postal
+  et ville » : la ville se tape deux fois (**À DÉCIDER** avec Skander : la garder ainsi, ou la tirer de l'adresse).
+- **Une ligne par organisation** (`serveur/console/organisations.ts`, pur) : une entreprise seule, **un groupe** (ses
+  sociétés ensemble, la plus urgente d'abord par l'urgence de la liste ; la ligne prend son état, dit « Essentiel +
+  Complet », la remise de groupe, et son menu porte les gestes de chaque société, nommée), un dossier qu'un cabinet tient
+  sans abonnement, **un cabinet** (ses dossiers, ses collaborateurs ; dans « tout » seulement). Les vues, les puces, les
+  filtres et leurs comptes portent sur des lignes, par la fonction qui filtre (C3) ; une vue garde une ligne quand une de
+  ses sociétés y est. L'export, lui, garde une ligne par entreprise (avec son numéro, sa ville et son groupe).
+- **La fiche d'un groupe** (`#/clients/groupe/<id>`, `GET /console/groupes/:id`) : ses sociétés côte à côte, chacune
+  comme la liste la dit et menant à **sa** fiche (chacune garde son abonnement, sa facture, son journal) ; ce que le
+  groupe rapporte par an, ses pièces du mois, ses membres ; à qui parler ; « Gestes ▾ », le menu de ses sociétés,
+  **chacune en tête de ses gestes** (une section par société, jamais « (Société) » répété sur chaque ligne). La fiche
+  d'une de ses sociétés dit « Dans le groupe Famille Kitab » (un lien) et son fil passe par le groupe.
+- **Plus de liste des cabinets à part** : un cabinet est une ligne de la liste des clients (sa maquette) ;
+  `#/cabinets` mène à `#/clients?type=cabinets`, et la fiche d'un cabinet revient à « Clients ».
+- **La fiche** suit la maquette : l'en-tête dit l'organisation, la ville, l'inscription et la propriétaire ; les onglets
+  « Aperçu », « Abonnement », « Factures et paiements », « Support et échanges », « Membres », « Journal » ; « Son
+  entreprise » (numéro et matricule, l'offre, ce qui va se passer, l'offre suivante, le délai accordé, l'essai prolongé,
+  ses modules, établissements, caisses, salariés) ; **huit comptes** (pièces émises du mois et du mois d'avant, membres,
+  salariés, caisses · établissements ; SMS, place occupée, documents lus, appels à l'API : « pas encore mesuré ») ;
+  « À qui parler » avec **le téléphone vérifié de la propriétaire** (celui de ses codes de connexion, jamais un autre) ;
+  le cabinet et son parrainage ; « Son dossier, avec son accord ».
+- **Noter un appel** (la direction et le support, depuis la fiche ou le menu d'une ligne) : comment il s'est passé (on
+  s'est parlé, pas de réponse, message laissé) et, quand on s'est parlé, ce qui s'est dit en deux lignes. La note se range
+  dans « Nos échanges » ; **elle ne part jamais chez le client** et **ne se modifie ni ne s'efface** (on en écrit une
+  autre). Le journal dit comment l'appel s'est passé, jamais ce qui s'est dit. « Dernier échange : … » à « À qui parler ».
+- **Écrire au contact** : le message **s'ouvre dans l'application** de la personne choisie (la propriétaire d'abord),
+  comme une demande au support que SkanFact commence (canal « skanfact ») ; l'alerte par e-mail la prévient **sans le
+  texte** ; sa réponse revient dans le Support. L'objet et le début se proposent selon où en est son abonnement (essai,
+  retard, lecture seule) : un brouillon qu'on relit. Le journal garde l'objet, jamais le texte.
+
+**C34. Les gestes qui manquaient** (14/10/2026 ; base 0111 ; `serveur/abonnement/gestes.ts`, la règle en un seul endroit ;
+la direction seule).
+- **Accorder un délai** (« Prolonger la grâce… » pendant la grâce, « Réactiver… » en lecture seule après un essai ou une
+  échéance manquée) : de 1 à 60 jours ; la lecture seule recule jusqu'au lendemain du dernier jour. **Le délai ne vaut que
+  pour SON échéance** : payée, elle change, et il s'éteint ; il ne raccourcit jamais une grâce. Ni une suspension ni une
+  résiliation (elles ont leur geste).
+- **Offrir un mois** (à un abonné qui court, pas à une résiliation) : la période payée s'allonge d'un mois de calendrier
+  (payé jusqu'au 31/01 : jusqu'au 28/02), **sans facture ni avoir**. **Le support ne l'a pas** (la maquette le lui donne :
+  **À DÉCIDER** avec Skander).
+- **Changer d'offre** : **à la prochaine échéance** ; la période payée va au bout avec l'offre payée, rien n'est
+  refacturé avant ; choisir l'offre qui court efface un changement prévu. Le prorata immédiat de la maquette (une facture
+  ou un avoir tout de suite) **n'est pas fait** : sa règle fiscale est **À VÉRIFIER**.
+- Chaque geste montre l'état d'après avant d'être fait, demande son motif, entre au journal et dans l'histoire de
+  l'abonnement (« délai accordé », « mois offert », « offre changée »).
+
+**C35. La procédure de reprise d'une entreprise** (14/10/2026 ; base 0112 ; `web/console/src/ecrans/Reprise.tsx` ; la
+maquette Fiche, « Plus rare : la procédure de reprise »). Quand la propriétaire n'est plus joignable (départ, décès,
+cession, conflit d'associés), l'entreprise change de propriétaire **sur pièces, jamais sur un simple appel**. La
+direction seule, en trois temps :
+1. **Ouvrir** : la cause, le repreneur (son nom, l'adresse de son compte SkanFact), le motif. La propriétaire actuelle est
+   **prévenue dans son application** (une demande que SkanFact commence ; l'e-mail d'alerte ne porte pas le texte) et a
+   **quinze jours pour s'y opposer** (**À VÉRIFIER** : le délai) ; la date limite est celle que la base pose.
+2. **Les pièces** : l'acte de décès ou de cession, le registre du commerce, la pièce d'identité du repreneur. On note
+   qu'elles sont **vues, par qui et quand — jamais les fichiers**. Une opposition reçue se note (avec son motif) et
+   **clôt** la procédure ; la direction peut aussi la clore sans reprise.
+3. **Confirmer** : **l'autre membre de la direction**, jamais celui qui l'a ouverte, une fois les trois pièces vues et le
+   délai passé, le repreneur ayant son compte à cette adresse. Le repreneur devient propriétaire ; **l'ancienne
+   propriétaire quitte l'équipe** (**À VÉRIFIER** selon la cause : une cession, un décès, un conflit). **Rien du dossier
+   ne bouge** : ni pièce, ni écriture. Le changement entre au journal de la console **et à celui de l'entreprise**.
+La carte de la fiche dit à chaque instant ce qui manque encore : une liste « Avant de confirmer » qui se coche (les
+pièces, n sur 3 ; le délai ; le compte du repreneur ; un autre membre de la direction), le bouton qui débloque à côté de
+chaque pièce, et « Confirmer la reprise » en vert seulement quand tout est coché ; une procédure à la fois. Sans
+procédure, la carte « Plus rare » attend dans la colonne de droite ; une procédure en cours vient sous « Son entreprise ».
+Les choix d'une fenêtre (la cause d'une reprise, comment s'est passé un appel) sont des pastilles qui se cochent **comme
+des boutons radio** : la touche Tab entre sur la cochée, les flèches cochent la voisine.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
@@ -910,3 +1038,21 @@ colonnes se chevauchaient, puis dont les montants ne s'alignaient pas d'une lign
 lignes dans la colonne de côté ; les boutons des mois qui bougeaient sous la souris (« ‹ Août », « ‹ Septembre ») ; « ce
 mois-ci » et « le même chiffre que le tableau du matin » dits d'un mois passé ; « les coûts de octobre » (« d'octobre ») ;
 le curseur posé sur le mois au lieu du nom du coût ; « un coût retiré » sans majuscule ni flèche.
+
+## Revu à la souris et au clavier (14/10/2026, lot Clients)
+
+La liste, la fiche (chaque onglet), la fiche d'un groupe, chaque fenêtre de geste et de reprise, en direction et en
+support, en clair et en sombre, à 1440 et à 390, et la création d'une entreprise avec sa ville côté client. Corrigé
+pendant le parcours, avec un œil de designer :
+- le menu « … » et « Gestes ▾ » ne répondaient qu'à la touche Tab (le clavier restait sur le bouton : la liste encore
+  cachée, le temps de mesurer sa place, refusait le focus) ; deux choix surlignés à la fois (la souris, le clavier) ;
+  la note du bas alignée à droite, héritée de la cellule ;
+- une fenêtre ouverte d'un groupe ne disait pas sur quelle société le geste tombait ; « Il le voit dans « Ton
+  abonnement » » ne disait pas qui ;
+- le nom lu du bouton « … » : « Ouvrir et gestes {pour:nom} », une valeur que le catalogue ne remplit pas (le test
+  `catalogue-valeurs` la refuse : il n'avait pas été relancé) ;
+- les pastilles d'un appel et d'une reprise, que les flèches ne cochaient pas ;
+- l'onglet « Support et échanges » : « Nos échanges » sans marge, « Son dossier » dit deux fois, les deux vides pas
+  alignés ; l'en-tête d'une société d'un groupe disait « Entreprise seule » ;
+- la règle du support dite de deux façons (la liste, la fiche) ; la carte « Tout le portefeuille » qui comptait une
+  recherche.

@@ -477,6 +477,11 @@ export interface BaseDeDonnees {
     offert: Generated<boolean>;
     modifie_le: Generated<Date>;
     modules: Generated<string[]>;
+    delai_echeance: string | null;
+    delai_jusqu_au: string | null;
+    suivante_offre: string | null;
+    suivante_periodicite: string | null;
+    suivante_a_partir_du: string | null;
   };
   'plateforme.acces_support': {
     id: Generated<string>;
@@ -652,6 +657,20 @@ export interface BaseDeDonnees {
     article: string | null;
     ecrit_le: Date;
   };
+  'plateforme.note_appel': {
+    id: Generated<string>;
+    entreprise: string;
+    resultat: string;
+    resume: string | null;
+    qui: string;
+    le: Generated<Date>;
+  };
+  'plateforme.numero_client': {
+    objet: string;
+    sorte: string;
+    numero: number;
+    donne_le: Generated<Date>;
+  };
   'plateforme.prix': {
     offre: string;
     periodicite: string;
@@ -704,6 +723,26 @@ export interface BaseDeDonnees {
     motif: string;
     qui: string;
     le: Date;
+  };
+  'plateforme.reprise': {
+    id: Generated<string>;
+    entreprise: string;
+    cause: string;
+    repreneur_nom: string;
+    repreneur_email: string;
+    motif: string;
+    ouverte_par: string;
+    ouverte_le: Date;
+    proprietaire: string | null;
+    demande: string | null;
+    opposition_jusqu_au: string;
+    pieces: ColumnType<Json, string | undefined, string>;
+    opposee_le: Date | null;
+    appliquee_le: Date | null;
+    appliquee_par: string | null;
+    close_le: Date | null;
+    close_par: string | null;
+    close_motif: string | null;
   };
   'plateforme.service_alerte': {
     id: Generated<string>;
@@ -1037,6 +1076,7 @@ export interface BaseDeDonnees {
     cree_le: Generated<Date>;
     essai: Generated<boolean>;
     tenue_par: string | null;
+    ville: string | null;
   };
   'socle.etablissement': {
     id: Generated<string>;

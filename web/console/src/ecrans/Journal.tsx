@@ -118,7 +118,7 @@ function ChangeDesReglages({ geste, r }: { geste: string; r: NonNullable<Ligne['
 
 // La famille d'un geste, lue dans son nom : l'abonnement d'un client, l'équipe, le service, les réglages, le support, nos
 // factures, les groupes (0106), les paiements (0108).
-const FAMILLES = ['abonnement', 'equipe', 'service', 'reglages', 'support', 'factures', 'groupes', 'paiements'] as const;
+const FAMILLES = ['abonnement', 'equipe', 'service', 'reglages', 'support', 'factures', 'groupes', 'paiements', 'clients'] as const;
 // Un geste sur un groupe (0106) : la société y entre (le groupe créé avec elle, s'il est neuf) ou en sort.
 function LeGroupe({ geste, avant, apres }: { geste: string; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null }) {
   const nom = typeof apres?.nom === 'string' ? apres.nom : typeof avant?.nom === 'string' ? avant.nom : null;

@@ -237,6 +237,8 @@ declarerTextes({
   'ecran.porte.raison_societe': 'une société ? Son nom avec sa forme, par exemple « Gharbi Informatique SARL »',
   'ecran.porte.matricule': 'matricule fiscal',
   'ecran.porte.matricule_aide': 'il est obligatoire sur une facture en Tunisie : si tu ne l\'as pas encore, laisse vide et complète-le avant ta première facture',
+  'ecran.porte.ville': 'ville',
+  'ecran.porte.ville_aide': 'facultative : là où est ton entreprise (Sfax, Sousse…). Notre équipe s\'en sert pour te reconnaître quand tu nous appelles',
   'ecran.porte.facultatif': 'facultatif pour l\'instant',
   'ecran.porte.mf_ou': 'il est sur ta carte d\'identification fiscale (ou ta patente), sous la forme 1234567A/A/M/000. Pas encore ? Laisse vide et complète-le avant ta première facture',
   'ecran.porte.mf_ok': 'matricule complet : il s\'imprimera sur chaque facture',

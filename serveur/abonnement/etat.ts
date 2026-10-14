@@ -39,6 +39,11 @@ export type Faits = {
   // Ce que chaque offre contient des modules qui s'achètent seuls (0105), daté : 1 compris, 0 non. Absent : inconnu,
   // et rien ne se ferme sur ce qu'on ne connaît pas.
   contenu?: ContenuDesOffres;
+  // Un délai que la direction a accordé pour une échéance (0111 : « Prolonger la grâce », « Réactiver ») : la lecture
+  // seule recule jusqu'au lendemain de `jusquAu`. Il ne vaut que pour SON échéance : payée, elle change, et il s'éteint.
+  delai?: { echeance: string; jusquAu: string } | null;
+  // L'offre de la prochaine échéance (0111 : « Changer d'offre ») : la période payée va au bout avec l'offre payée.
+  offreSuivante?: { offre: Offre; periodicite: Periodicite; aPartirDu: string } | null;
 };
 export type ContenuDesOffres = Partial<Record<Offre, Partial<Record<ModuleAchete, RegleDatee[]>>>>;
 
@@ -96,7 +101,20 @@ export function lireFaits(f: Record<string, unknown>): Faits {
     resilieLe: jour(f.resilieLe), suspenduLe: jour(f.suspenduLe), offert: f.offert === true,
     bacASable: f.bacASable === true, tenuParCabinet: f.tenuParCabinet === true,
     modules: lireModules(f.modules), regles: lireRegles(f.regles), contenu: lireContenu(f.contenu),
+    delai: lireDelai(f.delai), offreSuivante: lireOffreSuivante(f.offreSuivante),
   };
+}
+const objetDe = (v: unknown): Record<string, unknown> | null => (v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : null);
+export type Delai = { echeance: string; jusquAu: string };
+export type OffreSuivante = { offre: Offre; periodicite: Periodicite; aPartirDu: string };
+export function lireDelai(v: unknown): Delai | null {
+  const o = objetDe(v);
+  return o && estJour(o.echeance) && estJour(o.jusquAu) && o.jusquAu >= o.echeance ? { echeance: o.echeance, jusquAu: o.jusquAu } : null;
+}
+export function lireOffreSuivante(v: unknown): OffreSuivante | null {
+  const o = objetDe(v);
+  return o && (o.offre === 'essentiel' || o.offre === 'complet') && (o.periodicite === 'annuel' || o.periodicite === 'mensuel') && estJour(o.aPartirDu)
+    ? { offre: o.offre, periodicite: o.periodicite, aPartirDu: o.aPartirDu } : null;
 }
 
 // L'histoire du contenu des offres telle que la base la rend (0105), lue comme celle des règles.
@@ -157,7 +175,9 @@ export function etatAbonnement(f: Faits, jour: string): Etat {
   // Une grâce qu'on ne connaît pas ne ferme rien.
   const grace = graceDe(f, echeance);
   if (grace === null) return { etat: 'hors', raison: 'inconnu' };
-  const lectureSeuleLe = plusJours(echeance, grace + 1);
+  // Un délai accordé pour CETTE échéance recule la lecture seule (il ne l'avance jamais).
+  const normale = plusJours(echeance, grace + 1);
+  const lectureSeuleLe = f.delai && f.delai.echeance === echeance && plusJours(f.delai.jusquAu, 1) > normale ? plusJours(f.delai.jusquAu, 1) : normale;
   const apresEssai = !f.payeJusquAu || f.payeJusquAu < (f.essaiJusquAu ?? echeance);
   if (jour < lectureSeuleLe) return { etat: 'en_retard', echeance, lectureSeuleLe, jours: joursEntre(jour, lectureSeuleLe), apresEssai };
   return { etat: 'lecture_seule', depuis: lectureSeuleLe, raison: apresEssai ? 'essai_termine' : 'non_renouvele' };

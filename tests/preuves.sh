@@ -10697,7 +10697,7 @@ prouver 'le dernier jour de l'"'"'essai déjà compté en retard' $AET \
   '  if (jour <= echeance) {' '  if (jour < echeance) {' \
   "$AE2"
 prouver 'six jours de grâce au lieu de sept' $AET \
-  '  const lectureSeuleLe = plusJours(echeance, grace + 1);' '  const lectureSeuleLe = plusJours(echeance, grace);' \
+  '  const normale = plusJours(echeance, grace + 1);' '  const normale = plusJours(echeance, grace);' \
   "$AE3"
 prouver 'une période payée échue qui se dit « essai terminé »' $AET \
   '  const apresEssai = !f.payeJusquAu || f.payeJusquAu < (f.essaiJusquAu ?? echeance);' '  const apresEssai = true;' \
@@ -10773,7 +10773,7 @@ prouver 'le détail de l'"'"'abonnement ouvert à tous les rôles' "serveur/abon
 prouver 'le motif d'"'"'un geste de SkanFact montré à l'"'"'entreprise' $AMG \
   "jsonb_build_object('le', v.le, 'nature', v.nature, 'apres', v.apres)" "jsonb_build_object('le', v.le, 'nature', v.nature, 'apres', v.apres, 'motif', v.motif)" \
   "$AB3"
-prouver 'les faits d'"'"'un abonnement lus par une personne d'"'"'ailleurs' base/migrations/0105_contenu_offres.sql \
+prouver 'les faits d'"'"'un abonnement lus par une personne d'"'"'ailleurs' base/migrations/0111_gestes_abonnement.sql \
   '   where e.id = p_entreprise and e.id in (select socle.mes_entreprises())' '   where e.id = p_entreprise' \
   "$AB4"
 prouver 'la lecture seule jamais branchée à la porte' serveur/app.ts \
@@ -11011,17 +11011,17 @@ prouver 'les entreprises d'"'"'exemple dans la liste de la console' base/migrati
 prouver 'la fiche d'"'"'une entreprise d'"'"'exemple dans la console' base/migrations/0083_console.sql \
   'where e.id = p_entreprise and not e.essai;' 'where e.id = p_entreprise;' \
   "$CONSS8"
-prouver 'la liste des clients rangée par date, pas par urgence' 'serveur/console/routes.ts|||serveur/console/routes.ts' \
-  'const toutes = rangerParUrgence(avecVenues(|||console_remises_echeances() v'"'"'))), jour);' 'const toutes = avecVenues(|||console_remises_echeances() v'"'"')));' \
+prouver 'la liste des clients rangée par date, pas par urgence' 'serveur/console/organisations.ts' \
+  '  if (tri === '"'"'urgence'"'"') return parUrgence;' '  if (tri === '"'"'urgence'"'"') return [...liste];' \
   "$CONSS8"
 prouver 'la semaine des inscriptions qui compte huit jours' serveur/console/decider.ts \
   'e.creeLe >= plusJours(jour, -6);' 'e.creeLe >= plusJours(jour, -7);' \
   "$CONSS9"
 prouver 'la liste des inscriptions qui montre tout le monde' serveur/console/routes.ts \
-  'const nouvelles = query.nouvelles === '"'"'1'"'"' ? toutes.filter((e) => inscriteCetteSemaine(e, jour)) : toutes;' 'const nouvelles = toutes;' \
+  'const nouvelles = query.nouvelles === '"'"'1'"'"' ? toutes.filter((o) => o.societes.some((e) => inscriteCetteSemaine(e, jour))) : toutes;' 'const nouvelles = toutes;' \
   "$CONSS9"
 prouver 'les puces des inscriptions comptées sur toutes les entreprises' serveur/console/routes.ts \
-  '[c, dansVue.filter((e) => categorie(e) === c).length]' '[c, toutes.filter((e) => categorie(e) === c).length]' \
+  '[c, dansVue.filter((o) => categorieOrg(o) === c).length]' '[c, toutes.filter((o) => categorieOrg(o) === c).length]' \
   "$CONSS9"
 prouver 'le téléphone d'"'"'un membre dans la fiche de la console' base/migrations/0083_console.sql \
   'jsonb_build_object('"'"'nom'"'"', u.nom, '"'"'email'"'"', u.email, '"'"'roles'"'"', m.roles, '"'"'depuis'"'"', m.depuis,' 'jsonb_build_object('"'"'nom'"'"', u.nom, '"'"'email'"'"', u.email, '"'"'telephone'"'"', u.telephone, '"'"'roles'"'"', m.roles, '"'"'depuis'"'"', m.depuis,' \
@@ -11030,16 +11030,16 @@ prouver 'un aperçu qui réclame le motif du geste' serveur/console/routes.ts \
   '    if (corps.apercu) return { corps: { apercu: true, avant: etatAbonnement(faits, jour), apres: etatApres, details, modules: apres.modules } };
 ' '' \
   "$CONSS11"
-prouver 'le support qui prolonge de 1 à 365 jours' base/migrations/0099_offre_compte.sql \
+prouver 'le support qui prolonge de 1 à 365 jours' base/migrations/0111_gestes_abonnement.sql \
   '    if v_jours is null or v_jours not between 7 and 30 then' '    if v_jours is null or v_jours not between 1 and 365 then' \
   "$CONSS12"
-prouver 'le support qui prolonge deux fois' base/migrations/0099_offre_compte.sql \
+prouver 'le support qui prolonge deux fois' base/migrations/0111_gestes_abonnement.sql \
   '    if exists (select 1 from plateforme.evenement_abonnement v where v.entreprise = p_entreprise and v.nature = '"'"'essai_prolonge'"'"') then' '    if false then' \
   "$CONSS12"
 prouver 'une seconde prolongation proposée au support' serveur/console/routes.ts \
   'essaiOuSuite && ligne && !prolongeUneFois && !f.offert ? ['"'"'prolonger'"'"'] : []' 'essaiOuSuite && ligne && !f.offert ? ['"'"'prolonger'"'"'] : []' \
   "$CONSS12"
-prouver 'le support qui suspend un abonnement' 'serveur/console/gestes.ts|||base/migrations/0099_offre_compte.sql|||base/migrations/0099_offre_compte.sql' \
+prouver 'le support qui suspend un abonnement' 'serveur/console/gestes.ts|||base/migrations/0111_gestes_abonnement.sql|||base/migrations/0111_gestes_abonnement.sql' \
   '  { code: '"'"'console.abonnement.gerer'"'"', roles: [D], ecrit: true },|||  if v_role = '"'"'support'"'"' and p_geste <> '"'"'prolonger'"'"' then perform socle.refus('"'"'ton rôle dans l'"'"''"'"'équipe SkanFact ne permet pas ce geste'"'"'); end if;
 |||  if v_role = '"'"'support'"'"' then
     if v_avant is null or' '  { code: '"'"'console.abonnement.gerer'"'"', roles: [D, S], ecrit: true },||||||  if v_role = '"'"'support'"'"' and p_geste = '"'"'prolonger'"'"' then
@@ -11049,7 +11049,7 @@ prouver 'un geste sans motif laissé à la base' serveur/console/routes.ts \
   '    if (corps.motif.trim().length < 3) return { statut: 400, corps: { motif: motif('"'"'console.motif_requis'"'"'), champ: '"'"'motif'"'"', raison: t('"'"'console.motif_requis'"'"') } };
 ' '' \
   "$CONSS13"
-prouver 'un geste d'"'"'abonnement sans auteur dans son histoire' base/migrations/0099_offre_compte.sql \
+prouver 'un geste d'"'"'abonnement sans auteur dans son histoire' base/migrations/0111_gestes_abonnement.sql \
   '    values (socle.moi(), v_role, '"'"'abonnement.'"'"' || p_geste, p_entreprise, v_evenement, btrim(p_motif),' '    values (socle.moi(), v_role, '"'"'abonnement.'"'"' || p_geste, p_entreprise, null, btrim(p_motif),' \
   "$CONSS13"
 prouver 'un abonnement changé depuis la lecture, écrasé' serveur/console/routes.ts \
@@ -11167,7 +11167,7 @@ CONS2C3='chercher un cabinet : son nom, un associé, sans les accents ni la cass
 CONS2D1='chaque carte compte sa liste, comme le tableau du matin ; la grâce porte ses relances parties, la prolongation son auteur'
 CONS2D2='la liste compte ce que la fiche montre ; un dossier s'"'"'y dit comme dans la liste des clients ; la fiche du client nomme son cabinet'
 CONS2W1='les abonnements : chaque carte ouvre la liste qu'"'"'elle compte, du même nombre'
-CONS2W2='les cabinets : les onglets ne bougent pas ; la liste compte ce que la fiche montre ; la fiche d'"'"'un client mène à son cabinet'
+CONS2W2='les cabinets : une ligne de la liste des clients, comptée comme sa fiche ; la fiche d'"'"'un client mène à son cabinet'
 prouver 'l'"'"'horizon de « à venir » qui oublie son dernier jour' serveur/console/echeances.ts \
   'joursEntre(jour, l.etat.jusquAu) <= AVENIR_JOURS' 'joursEntre(jour, l.etat.jusquAu) < AVENIR_JOURS' \
   "$CONS2E1"
@@ -11235,11 +11235,8 @@ prouver 'la fiche d'"'"'un client qui ne nomme pas son cabinet' serveur/console/
 prouver 'une carte des abonnements qui n'"'"'ouvre pas sa liste' web/console/src/ecrans/Abonnements.tsx \
   'aria-pressed={vue === v} onClick={() => choisir(v)}' 'aria-pressed={vue === v} onClick={() => undefined}' \
   "$CONS2W1"
-prouver 'les onglets des clients qui descendent sous le curseur' web/console/src/ecrans/Cabinets.tsx \
-  '<p className="c-entete-sous">{phrase('"'"'console.ecran.clients.sous'"'"')}</p>' '<p className="c-entete-sous">{phrase(actif === '"'"'cabinets'"'"' ? '"'"'console.ecran.cabinets.titre'"'"' : '"'"'console.ecran.clients.sous'"'"')}</p>' \
-  "$CONS2W2"
-prouver 'la recherche des cabinets que l'"'"'adresse ne garde pas' web/console/src/ecrans/Cabinets.tsx \
-  'history.replaceState(null, '"'"''"'"', `#/cabinets${qLue ? `?q=${encodeURIComponent(qLue)}` : '"'"''"'"'}`);' 'history.replaceState(null, '"'"''"'"', '"'"'#/cabinets'"'"');' \
+prouver 'l'"'"'ancienne adresse des cabinets qui ne mène plus à rien' web/console/src/Console.tsx \
+  'if (m[0] === '"'"'cabinets'"'"' && m.length === 1) return { page: '"'"'clients'"'"',' 'if (m[0] === '"'"'cabinets'"'"' && m.length === 9) return { page: '"'"'clients'"'"',' \
   "$CONS2W2"
 prouver 'une carte de la fiche d'"'"'un cabinet qui ne filtre pas' web/console/src/ecrans/Cabinet.tsx \
   'onClick={() => setPlace(place === p ? null : p)}' 'onClick={() => undefined}' \
@@ -11832,8 +11829,8 @@ prouver 'Ctrl K sans effet hors de l'"'"'accueil' 'web/console/src/Console.tsx' 
   'l'"'"'en-tête du service : l'"'"'alerte la plus urgente une fois'
 
 prouver 'un essai qui a servi, à appeler quand même' 'serveur/console/clients.ts' \
-  "(s.etat === 'essai' && s.jours <= ESSAI_QUI_FINIT_JOURS && e.pieces === 0)" \
-  "(s.etat === 'essai' && s.jours <= ESSAI_QUI_FINIT_JOURS)" \
+  "(s.etat === 'essai' && s.jours <= ESSAI_QUI_FINIT_JOURS && e.pieces === 0 && !e.enPlus?.attend)" \
+  "(s.etat === 'essai' && s.jours <= ESSAI_QUI_FINIT_JOURS && !e.enPlus?.attend)" \
   'chaque vue garde exactement les entreprises de sa phrase'
 prouver 'un silence compté en jours UTC' 'serveur/console/clients.ts' \
   'joursEntre(aujourdhuiATunis(new Date(e.derniereActivite)), jour) >= SILENCE_JOURS' \
@@ -11855,9 +11852,9 @@ prouver 'une carte du métier qui n'"'"'ouvre pas sa vue' 'web/console/src/ecran
   '  const choisirVue = (v: VueClients) => { setVue(v); setEtat(null); setDebut(0); };' \
   '  const choisirVue = (v: VueClients) => { void v; setEtat(null); setDebut(0); };' \
   'les clients : chaque vue du métier ouvre la liste'
-prouver 'la date d'"'"'une échéance redite dans la colonne État' 'web/console/src/ecrans/Clients.tsx' \
-  "{e.etat.etat === 'lecture_seule' ? <span className=\"c-sous c-sous-espace\">" \
-  "{e.etat.etat !== 'hors' ? <span className=\"c-sous c-sous-espace\">" \
+prouver 'la date de la lecture seule redite dans la colonne Échéance' 'web/console/src/ecrans/Clients.tsx' \
+  "{dire(e?.etat.etat === 'lecture_seule' ? 'console.ecran.clients.ech.en_lecture' : 'console.ecran.clients.ech.sans')}" \
+  "{e?.etat.etat === 'lecture_seule' ? \`depuis le \${jourCourt(e.etat.depuis)}\` : dire('console.ecran.clients.ech.sans')}" \
   'les clients : chaque vue du métier ouvre la liste'
 
 prouver 'le pied des échéances qui redit le compte du titre' 'web/console/src/ecrans/Abonnements.tsx' \
@@ -12940,8 +12937,8 @@ prouver 'un module acheté sur Complet, qui le contient déjà' serveur/abonneme
   "      if (avant.offre === 'complet') throw new Refus('abonnement.geste.module_complet');
 " '' \
   "$OC1"
-prouver 'la ligne d'"'"'abonnement lue sans ses modules' base/migrations/0099_offre_compte.sql \
-  "'offert', a.offert, 'modules', to_jsonb(a.modules)) end" "'offert', a.offert) end" \
+prouver 'la ligne d'"'"'abonnement lue sans ses modules' base/migrations/0111_gestes_abonnement.sql \
+  "'offert', a.offert, 'modules', to_jsonb(a.modules)," "'offert', a.offert," \
   "$OC1"
 prouver 'l'"'"'aperçu d'"'"'un module qui ne dit pas les modules d'"'"'après' serveur/console/routes.ts \
   'apres: etatApres, details, modules: apres.modules } };' 'apres: etatApres, details } };' \
@@ -13204,7 +13201,7 @@ prouver "« Ton abonnement » qui dit l'essai de la règle d'aujourd'hui" serveu
   '    essai: commence && estJour(jusquAu) && jusquAu > commence ? joursEntre(commence, jusquAu) : null,' '    essai: 30,' \
   "$RG4"
 prouver 'la console qui lit les faits sans les règles' serveur/console/routes.ts \
-  '  ({ ...lireFaits((fiche.faits ?? {}) as Record<string, unknown>), regles: await lireLesRegles(x) });' '  lireFaits((fiche.faits ?? {}) as Record<string, unknown>);' \
+  'regles: await lireLesRegles(x), ...((await lesFaitsEnPlus(x))' '...((await lesFaitsEnPlus(x))' \
   "$RG2"
 prouver 'les relances prévues de la mise en place écrites en dur' serveur/console/echeances.ts \
   '  const jours = [...new Set([...relancesDu(f, jour), ' '  const jours = [...new Set([15, 7, 1, ' \
@@ -13286,7 +13283,7 @@ prouver 'la porte qui lit le contenu du jour au milieu d'"'"'une période' serve
 prouver 'un contenu inconnu qui ferme quand même' serveur/abonnement/offre.ts \
   'regleAu(f.contenu?.[offre]?.[m] ?? [], au)?.[0] === 0' '(regleAu(f.contenu?.[offre]?.[m] ?? [], au)?.[0] ?? 0) === 0' \
   "$CTC3"
-prouver 'les faits de l'"'"'abonnement sans l'"'"'histoire du contenu' base/migrations/0105_contenu_offres.sql \
+prouver 'les faits de l'"'"'abonnement sans l'"'"'histoire du contenu' base/migrations/0111_gestes_abonnement.sql \
   '    '"'"'regles'"'"', plateforme.regles_abonnement_histoire(), '"'"'contenu'"'"', plateforme.contenu_histoire())' '    '"'"'regles'"'"', plateforme.regles_abonnement_histoire())' \
   "$CTC3"
 prouver 'un module acheté compté chez Essentiel seulement' serveur/console/reglages.ts \
@@ -13660,6 +13657,222 @@ prouver "les noms des colonnes au téléphone" "web/console/src/console.css" \
 " \
   "" \
   "$NFW5"
+
+# La liste des clients sans écart avec sa maquette (0110 ; docs/console.md C32 ; 1.19.0).
+CL0='lit prudemment : un nombre illisible vaut zéro, une durée illisible n'"'"'existe pas'
+CL1='chaque ligne dit la durée de son essai, ce qui l'"'"'a prolongé, ses vues et les gestes de son menu ; l'"'"'export est à la direction, motif au journal'
+CL2='la facture qui attend : la plus ancienne pas encore réglée, avec ce qu'"'"'il en reste — jamais une payée ni une annulée'
+CL3='un essai dont la facture attend est dans « l'"'"'argent attendu », plus « à appeler » ; l'"'"'usage trie par les pièces du mois'
+CL4='le type, l'"'"'offre et le cabinet ; chaque option compte ce que les deux autres filtres laissent (C3)'
+CL5='ceux de sa fiche, par la même règle, sans ceux qui demandent la fiche (payer, offrir, un module)'
+CLW0='les clients : chaque vue du métier ouvre la liste qu'"'"'elle compte ; chaque ligne dit son échéance et ce qu'"'"'elle rapporte ; le tri suit l'"'"'adresse'
+CLW1='les pages : la première, les numéros, la seconde, et la taille d'"'"'une page'
+CLW2='le menu d'"'"'une ligne : les gestes permis, ce qui détruit après un trait ; un geste s'"'"'ouvre sur la liste et la ligne le dit'
+CLW3='le support : prolonger et demander l'"'"'accès, la note de ce qui revient à la direction ; jamais l'"'"'export'
+CLW4='en clair et en sombre, à l'"'"'ordinateur et au téléphone : l'"'"'instrument ne trouve rien ; en langue factice, tout vient du catalogue'
+prouver 'le support qui exporte la liste des clients (le droit du serveur et la base)' 'serveur/console/gestes.ts|||base/migrations/0110_clients.sql' \
+  '  { code: '"'"'console.clients.exporter'"'"', roles: [D], ecrit: true },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);
+  v_id uuid;' \
+  '  { code: '"'"'console.clients.exporter'"'"', roles: [D, S], ecrit: true },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+  v_id uuid;' \
+  "$CL1"
+prouver 'le journal d'"'"'un export qui perd ses filtres' 'base/migrations/0110_clients.sql' \
+  ''"'"'filtres'"'"', coalesce(p_filtres, '"'"'{}'"'"'::jsonb)' \
+  ''"'"'filtres'"'"', '"'"'{}'"'"'::jsonb' \
+  "$CL1"
+prouver 'un essai déjà prolongé que le menu du support propose encore de prolonger' 'base/migrations/0110_clients.sql' \
+  ''"'"'prolongeUneFois'"'"', exists (' \
+  ''"'"'prolongeUneFois'"'"', false and exists (' \
+  "$CL1"
+prouver 'la durée d'"'"'un essai lue de sa fin d'"'"'aujourd'"'"'hui' 'base/migrations/0110_clients.sql' \
+  'select (v.apres ->> '"'"'essaiJusquAu'"'"')::date - (v.le at time zone e.fuseau)::date from' \
+  'select (select a.essai_jusqu_au from plateforme.abonnement a where a.entreprise = e.id) - (v.le at time zone e.fuseau)::date from' \
+  "$CL1"
+prouver 'une durée d'"'"'essai illisible lue comme un nombre' 'serveur/console/clients.ts' \
+  'essaiJours: n(r.essaiJours) || null,' \
+  'essaiJours: Number(r.essaiJours) || 30,' \
+  "$CL0"
+prouver 'la facture qui attend : la plus récente au lieu de la plus ancienne' 'serveur/console/clients.ts' \
+  '.sort((a, c) => (a.debut < c.debut ? -1 : a.debut > c.debut ? 1 : 0))[0];' \
+  '.sort((a, c) => (a.debut < c.debut ? 1 : -1))[0];' \
+  "$CL2"
+prouver 'une facture annulée par son avoir qui attend encore' 'serveur/console/clients.ts' \
+  'const ATTEND = new Set(['"'"'a_emettre'"'"', '"'"'a_payer'"'"', '"'"'en_retard'"'"', '"'"'partielle'"'"']);' \
+  'const ATTEND = new Set(['"'"'a_emettre'"'"', '"'"'a_payer'"'"', '"'"'en_retard'"'"', '"'"'partielle'"'"', '"'"'annulee'"'"']);' \
+  "$CL0"
+prouver 'un essai dont la facture attend, encore « à appeler »' 'serveur/console/clients.ts' \
+  ' && e.pieces === 0 && !e.enPlus?.attend)' \
+  ' && e.pieces === 0)' \
+  "$CL3"
+prouver 'un essai dont la facture attend, absent de « l'"'"'argent attendu »' 'serveur/console/clients.ts' \
+  ' || ((s.etat === '"'"'essai'"'"' || s.etat === '"'"'en_retard'"'"') && !!e.enPlus?.attend);' \
+  ';' \
+  "$CL3"
+prouver 'l'"'"'usage trié par toutes les pièces au lieu de celles du mois' 'serveur/console/clients.ts' \
+  'case '"'"'usage'"'"': return BigInt(e.enPlus?.piecesMois ?? 0);' \
+  'case '"'"'usage'"'"': return BigInt(e.pieces);' \
+  "$CL3"
+prouver 'une option d'"'"'offre qui compte toute la liste' 'serveur/console/clients.ts' \
+  'const lt = sans('"'"'type'"'"'), lo = sans('"'"'offre'"'"'), lc = sans('"'"'cabinet'"'"');' \
+  'const lt = sans('"'"'type'"'"'), lo = [...liste], lc = sans('"'"'cabinet'"'"');' \
+  "$CL4"
+prouver 'le menu d'"'"'une ligne qui propose payer, offrir et les modules' 'serveur/console/routes.ts' \
+  '  return GESTES_DE_LA_LISTE.filter((g) => permis.includes(g));' \
+  '  return permis;' \
+  "$CL5"
+prouver 'la date d'"'"'une échéance écrite deux fois sur sa ligne' 'web/console/src/ecrans/Clients.tsx' \
+  'e.vues.includes('"'"'a_appeler'"'"') ? `${dire(`${N}.fin_essai`)} · ${dire(`${N}.rien_fait`)}`' \
+  'e.vues.includes('"'"'a_appeler'"'"') ? `${dire(`${N}.fin_essai`)} ${jourCourt(s.jusquAu)} · ${dire(`${N}.rien_fait`)}`' \
+  "$CLW0"
+prouver 'la taille d'"'"'une page qui ne change rien' 'web/console/src/ecrans/Clients.tsx' \
+  'onChange={(e) => { setTaille(Number(e.target.value)); setDebut(0); }}' \
+  'onChange={() => { setDebut(0); }}' \
+  "$CLW1"
+prouver 'un tableau plus large que son cadre (le nom des entreprises sans limite)' 'web/console/src/console.css' \
+  '.c-table-clients .c-cellule-nom { min-width: 170px; max-width: 200px; }' \
+  '.c-table-clients .c-cellule-nom { min-width: 320px; }' \
+  "$CLW1"
+prouver 'un geste du menu qui quitte la liste pour la fiche' 'web/console/src/ecrans/Clients.tsx' \
+  'geste: (g) => setGeste({ id: x.id, geste: g })' \
+  'geste: () => { location.hash = `#/clients/${x.id}`; }' \
+  "$CLW2"
+prouver 'ce qui détruit, sans son trait dans le menu' 'web/console/src/ecrans/Clients.tsx' \
+  'map((g, i) => ({ ...action(g), trait: i === 0 && out.length > 0 }))' \
+  'map((g) => ({ ...action(g), trait: false }))' \
+  "$CLW2"
+prouver 'le support qui voit « Exporter la sélection »' 'web/console/src/ecrans/Clients.tsx' \
+  'action={direction && lu && lu.total > 0' \
+  'action={lu && lu.total > 0' \
+  "$CLW3"
+prouver 'le menu du support sans la note de ce qui revient à la direction' 'web/console/src/ecrans/Clients.tsx' \
+  'const reserve = direction ? null : phrase('"'"'console.ecran.clients.m.reserve'"'"');' \
+  'const reserve = null;' \
+  "$CLW3"
+prouver 'la recherche des clients trop basse pour un doigt' 'web/console/src/console.css' \
+  '  .c-cl-filtres .c-recherche input, .c-cl-taille .c-select { height: 44px; min-height: 44px; }
+' \
+  '' \
+  "$CLW4"
+
+
+# Qui est le client, nos échanges, les gestes qui manquaient, la reprise (0110–0112 ; docs/console.md C33–C35 ; 1.19.0).
+CCE1='un appel se note par la direction ou le support, se range sur sa fiche, entre au journal sans ce qui s'"'"'est dit, et ne se réécrit pas'
+CCE2='un message au contact s'"'"'ouvre dans son application, à une personne de son équipe, comme une demande que SkanFact commence'
+CCE3='ouverte par la direction, la propriétaire prévenue, les pièces vues, le délai passé, confirmée par l'"'"'autre : le repreneur devient propriétaire'
+CCO1='un groupe réunit ses sociétés, la plus urgente d'"'"'abord par l'"'"'urgence de la liste ; chaque autre entreprise a sa ligne ; le cabinet en dernier'
+CCO3='la recherche lit la ligne et ses sociétés : la ville, un numéro de société, l'"'"'associé d'"'"'un cabinet ; sans accents ni casse'
+CCO4='ce qu'"'"'une ligne rapporte est la somme de ses sociétés, payé et attendu à part ; son usage, la somme des pièces du mois'
+CCG1='un délai ne vaut que pour son échéance, et jamais pour raccourcir la grâce'
+CCG2='de 1 à 60 jours, en grâce ou en lecture seule après une échéance manquée ; jamais sur un abonné qui court ni une suspension'
+CCG3='à un abonné qui court seulement : ni un essai, ni une résiliation qui court à sa fin'
+CCG4='à la prochaine échéance ; revenir à l'"'"'offre qui court efface le changement prévu'
+CLW5='noter un appel depuis le menu : la fenêtre s'"'"'ouvre sur la liste, puis la fiche dit le dernier échange et la note'
+prouver 'une note d'"'"'appel au journal sans motif' 'base/migrations/0110_clients.sql' \
+  'case p_resultat when '"'"'parle'"'"' then '"'"'appel : on s'"'"''"'"'est parlé'"'"' when '"'"'sans_reponse'"'"' then '"'"'appel : pas de réponse'"'"' else '"'"'appel : message laissé'"'"' end,' \
+  'null,' \
+  "$CCE1"
+prouver 'une note d'"'"'appel qui se réécrit' 'base/migrations/0110_clients.sql' \
+  '  raise exception '"'"'une note d'"'"''"'"'appel ne se modifie pas et ne s'"'"''"'"'efface pas : on en écrit une autre'"'"';' \
+  '  return new;' \
+  "$CCE1"
+prouver 'un message au contact à quelqu'"'"'un hors de son équipe' 'base/migrations/0110_clients.sql' \
+  '  if not exists (select 1 from socle.membre m where m.utilisateur = p_destinataire and m.entreprise = p_entreprise and m.actif) then' \
+  '  if false then' \
+  "$CCE2"
+prouver 'les sociétés d'"'"'un groupe rangées par leur nom, pas par leur urgence' 'serveur/console/organisations.ts' \
+  '    return ua - ub || ja - jb || a.raisonSociale.localeCompare(b.raisonSociale, '"'"'fr'"'"', { sensitivity: '"'"'base'"'"' });' \
+  '    return a.raisonSociale.localeCompare(b.raisonSociale, '"'"'fr'"'"', { sensitivity: '"'"'base'"'"' });' \
+  "$CCO1"
+prouver 'la recherche qui ne lit pas les associés d'"'"'un cabinet' 'serveur/console/organisations.ts' \
+  '      ...(o.cabinet?.associes.flatMap((a) => [a.nom, a.email]) ?? [])].join('"'"' '"'"'));' \
+  '      ].join('"'"' '"'"'));' \
+  "$CCO3"
+prouver 'l'"'"'attendu d'"'"'un groupe compté comme payé' 'serveur/console/organisations.ts' \
+  '    if (p.attendu) attendu += m; else actif += m;' \
+  '    actif += m;' \
+  "$CCO4"
+prouver 'un délai qui vaut pour une autre échéance' 'serveur/abonnement/etat.ts' \
+  'f.delai && f.delai.echeance === echeance && plusJours(f.delai.jusquAu, 1) > normale ?' \
+  'f.delai && plusJours(f.delai.jusquAu, 1) > normale ?' \
+  "$CCG1"
+prouver 'un délai qui raccourcit la grâce' 'serveur/abonnement/etat.ts' \
+  'f.delai.echeance === echeance && plusJours(f.delai.jusquAu, 1) > normale ?' \
+  'f.delai.echeance === echeance ?' \
+  "$CCG1"
+prouver 'un délai de plus de soixante jours' 'serveur/abonnement/gestes.ts' \
+  'jours < 1 || jours > DELAI_MAX_JOURS)' \
+  'jours < 1 || jours > 365)' \
+  "$CCG2"
+prouver 'un mois offert à une résiliation' 'serveur/abonnement/gestes.ts' \
+  '      if (avant.resilie_le) throw new Refus('"'"'abonnement.geste.mois_resilie'"'"');
+' \
+  '' \
+  "$CCG3"
+prouver 'un changement d'"'"'offre que l'"'"'histoire dit fait tout de suite' 'serveur/abonnement/gestes.ts' \
+  '      details.aPartirDu = aPartirDu;' \
+  '      Object.assign(details, { aPartirDu, offre: d.offre, periodicite: d.periodicite });' \
+  "$CCG4"
+prouver 'un changement d'"'"'offre tout de suite au lieu de l'"'"'échéance' 'serveur/abonnement/gestes.ts' \
+  '      const aPartirDu = plusJours(echeance, 1);' \
+  '      const aPartirDu = jour;' \
+  "$CCG4"
+prouver 'la reprise confirmée par qui l'"'"'a ouverte' 'base/migrations/0112_reprise.sql' \
+  '  if r.ouverte_par = socle.moi() then' \
+  '  if false then' \
+  "$CCE3"
+prouver 'la reprise confirmée avant la fin du délai d'"'"'opposition' 'base/migrations/0112_reprise.sql' \
+  '  if v_jour <= r.opposition_jusqu_au then' \
+  '  if false then' \
+  "$CCE3"
+prouver 'la reprise confirmée sur une seule pièce' 'base/migrations/0112_reprise.sql' \
+  '  if not (r.pieces ? '"'"'acte'"'"' and r.pieces ? '"'"'registre'"'"' and r.pieces ? '"'"'identite'"'"') then' \
+  '  if not (r.pieces ? '"'"'acte'"'"') then' \
+  "$CCE3"
+prouver 'l'"'"'ancienne propriétaire qui reste dans l'"'"'équipe après la reprise' 'base/migrations/0112_reprise.sql' \
+  '  update socle.membre set actif = false' \
+  '  update socle.membre set actif = true' \
+  "$CCE3"
+prouver 'la reprise absente du journal de l'"'"'entreprise' 'base/migrations/0112_reprise.sql' \
+  '  perform socle.tracer(r.entreprise, '"'"'socle.propriete.reprise'"'"',' \
+  '  perform socle.tracer(r.entreprise, '"'"'socle.propriete.autre'"'"',' \
+  "$CCE3"
+prouver 'le message de la reprise sans sa date limite' 'base/migrations/0112_reprise.sql' \
+  'replace(btrim(p_texte), '"'"'%JUSQU_AU%'"'"', to_char(v_jour + 15, '"'"'DD/MM/YYYY'"'"'))' \
+  'btrim(p_texte)' \
+  "$CCE3"
+prouver 'le support qui lit la reprise sur la fiche' 'serveur/console/routes.ts' \
+  '        reprise: role === '"'"'direction'"'"' ? await lireJson(transaction(tx), '"'"'select plateforme.console_reprise($1, $2::date) v'"'"', [id, jour]) : null,' \
+  '        reprise: await lireJson(transaction(tx), '"'"'select plateforme.console_reprise($1, $2::date) v'"'"', [id, jour]),' \
+  "$CCE3"
+prouver '« Noter un appel » absent du menu d'"'"'une ligne' 'web/console/src/ecrans/Clients.tsx' \
+  '    out.push({ titre: titre('"'"'console.ecran.clients.m.appel'"'"'),' \
+  '    if (role === '"'"'personne'"'"') out.push({ titre: titre('"'"'console.ecran.clients.m.appel'"'"'),' \
+  "$CLW2"
+prouver '« Noter un appel » du menu qui n'"'"'ouvre rien' 'web/console/src/ecrans/Clients.tsx' \
+  'appel: () => setAppel({ id: x.id, nom: x.raisonSociale })' \
+  'appel: () => undefined' \
+  "$CLW5"
+CLW6='au clavier, comme sur le Mac : le menu se parcourt aux flèches, la fenêtre nomme son client, les pastilles se cochent aux flèches'
+prouver 'le menu qui laisse le clavier sur son bouton' 'web/console/src/ui.tsx' \
+  '    if (pose) zone.current?.querySelector<HTMLElement>('"'"'.c-menu-liste button'"'"')?.focus({ preventScroll: true });' \
+  '    if (pose) void zone.current;' \
+  "$CLW6"
+prouver 'les flèches qui ne parcourent pas un menu' 'web/console/src/ui.tsx' \
+  '    choix[(vers + choix.length) % choix.length]?.focus({ preventScroll: true });' \
+  '    void vers;' \
+  "$CLW6"
+prouver 'le nom du bouton « … » avec une valeur que le catalogue ne remplit pas' 'web/console/src/textes.ts' \
+  '  '"'"'console.ecran.clients.menu'"'"': '"'"'les gestes pour {nom}'"'"',' \
+  '  '"'"'console.ecran.clients.menu'"'"': '"'"'les gestes {pour:nom}'"'"',' \
+  "$CLW6"
+prouver 'la fenêtre d'"'"'un appel qui ne nomme pas son client' 'web/console/src/ecrans/Echanges.tsx' \
+  '    <Dialogue titre={titre(`${K}.appel.titre`)} pour={client.nom} fermer={fermer}' \
+  '    <Dialogue titre={titre(`${K}.appel.titre`)} fermer={fermer}' \
+  "$CLW6"
+prouver 'des pastilles que les flèches ne cochent pas' 'web/console/src/ui.tsx' \
+  '      <div className="c-ech-choix" onKeyDown={fleches}>' \
+  '      <div className="c-ech-choix">' \
+  "$CLW6"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

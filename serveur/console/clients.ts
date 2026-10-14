@@ -9,9 +9,10 @@
 import { versTexte } from '../../moteur/argent.ts';
 import { joursEntre, type Offre, type Periodicite } from '../abonnement/etat.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
-import type { Entreprise } from './decider.ts';
+import type { EnPlus, Entreprise, FactureQuiAttend } from './decider.ts';
 import { dateDe, type Prix, type Remises } from './echeances.ts';
 import { montantRemise } from '../abonnement/remise.ts';
+import { lireFacturesAbonnement } from '../abonnement/factures.ts';
 
 export type VueClients = 'tout' | 'a_appeler' | 'argent' | 'silencieux' | 'tenus' | 'cabinet';
 export const VUES_CLIENTS: readonly VueClients[] = ['tout', 'a_appeler', 'argent', 'silencieux', 'tenus', 'cabinet'];
@@ -25,9 +26,12 @@ export function dansLaVue(e: Entreprise, v: VueClients, jour: string): boolean {
     case 'tout': return true;
     // Un essai qui finit dans la semaine sans une pièce émise, ou une grâce d'après l'essai sans offre choisie : quelqu'un
     // qui n'a pas encore vu ce que l'application lui apporte. C'est un appel, pas une relance.
-    case 'a_appeler': return (s.etat === 'essai' && s.jours <= ESSAI_QUI_FINIT_JOURS && e.pieces === 0) || (s.etat === 'en_retard' && s.apresEssai && e.faits.offre === null);
-    // Une offre choisie, l'échéance passée, rien encore de payé : l'argent qu'on attend.
-    case 'argent': return s.etat === 'en_retard' && e.faits.offre !== null;
+    // Un essai qui a déjà choisi son offre (sa facture attend) n'est pas à appeler : il est dans « l'argent attendu ».
+    case 'a_appeler': return (s.etat === 'essai' && s.jours <= ESSAI_QUI_FINIT_JOURS && e.pieces === 0 && !e.enPlus?.attend)
+      || (s.etat === 'en_retard' && s.apresEssai && e.faits.offre === null && !e.enPlus?.attend);
+    // Une offre choisie, pas encore payée : sa facture attend (pendant l'essai ou après l'échéance), ou l'échéance d'une
+    // offre est passée sans paiement. L'argent qu'on attend.
+    case 'argent': return (s.etat === 'en_retard' && e.faits.offre !== null) || ((s.etat === 'essai' || s.etat === 'en_retard') && !!e.enPlus?.attend);
     // En essai ou abonné, et personne ne l'a ouvert depuis dix jours — ou jamais.
     case 'silencieux': return (s.etat === 'essai' || s.etat === 'actif')
       && (e.derniereActivite === null || joursEntre(aujourdhuiATunis(new Date(e.derniereActivite)), jour) >= SILENCE_JOURS);
@@ -53,6 +57,27 @@ export function avecVenues<E extends Entreprise>(liste: readonly E[], brut: unkn
     return { ...e, venuePar, remise: r2 ? { nature: r2.nature, taux: r2.taux } : null };
   });
 }
+
+// Ce que la liste dit en plus de chaque ligne (plateforme.console_clients_en_plus, 0110), lu prudemment et posé sur la
+// liste. La facture qui attend : la plus ancienne des factures d'abonnement préparées et pas encore réglées, son état
+// déduit par la fonction de la fiche (lireFacturesAbonnement) — une facture payée, annulée par ses avoirs ou dont le
+// brouillon est supprimé n'attend plus rien.
+const ATTEND = new Set(['a_emettre', 'a_payer', 'en_retard', 'partielle']);
+export function lireEnPlus(brut: unknown, jour: string): Map<string, EnPlus> {
+  const b = brut && typeof brut === 'object' && !Array.isArray(brut) ? brut as Record<string, unknown> : {};
+  const m = new Map<string, EnPlus>();
+  for (const [id, v] of Object.entries(b)) {
+    const r = v && typeof v === 'object' ? v as Record<string, unknown> : {};
+    const n = (x: unknown) => (typeof x === 'number' && Number.isInteger(x) && x >= 0 ? x : 0);
+    const f = lireFacturesAbonnement(r.factures, jour).filter((x) => x.payeeLe === null && ATTEND.has(x.etat))
+      .sort((a, c) => (a.debut < c.debut ? -1 : a.debut > c.debut ? 1 : 0))[0];
+    const attend: FactureQuiAttend | null = f ? { offre: f.offre, periodicite: f.periodicite, etat: f.etat, reste: f.reste, devise: f.devise, echeance: f.echeance } : null;
+    m.set(id, { piecesMois: n(r.piecesMois), essaiJours: n(r.essaiJours) || null, prolonge: n(r.prolonge), prolongeUneFois: r.prolongeUneFois === true, attend });
+  }
+  return m;
+}
+export const avecEnPlus = <E extends Entreprise>(liste: readonly E[], enPlus: Map<string, EnPlus>): E[] =>
+  liste.map((e) => ({ ...e, enPlus: enPlus.get(e.id) ?? { piecesMois: 0, essaiJours: null, prolonge: 0, prolongeUneFois: false, attend: null } }));
 
 export function comptesDesVues(liste: readonly Entreprise[], jour: string): Record<VueClients, number> {
   return Object.fromEntries(VUES_CLIENTS.map((v) => [v, liste.filter((e) => dansLaVue(e, v, jour)).length])) as Record<VueClients, number>;
@@ -97,8 +122,8 @@ export const ligneClient = (e: Entreprise, prix: Prix) => ({ ...e, echeance: ech
 // L'ordre de la liste. Par défaut le plus urgent d'abord (rangerParUrgence, serveur/console/decider.ts) ; les autres
 // ordres trient CETTE liste d'un tri stable : à égalité, l'urgence départage. Ce qui n'a pas de valeur (pas d'échéance,
 // rien par an, jamais ouvert) va toujours en bas, dans les deux sens de lecture.
-export type TriClients = 'urgence' | 'echeance' | 'par_an' | 'nom' | 'vu';
-export const TRIS_CLIENTS: readonly TriClients[] = ['urgence', 'echeance', 'par_an', 'nom', 'vu'];
+export type TriClients = 'urgence' | 'echeance' | 'par_an' | 'usage' | 'nom' | 'vu';
+export const TRIS_CLIENTS: readonly TriClients[] = ['urgence', 'echeance', 'par_an', 'usage', 'nom', 'vu'];
 const NOMS = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 export function trier(liste: readonly Entreprise[], tri: TriClients, prix: Prix): Entreprise[] {
   if (tri === 'urgence') return [...liste];
@@ -106,6 +131,8 @@ export function trier(liste: readonly Entreprise[], tri: TriClients, prix: Prix)
     switch (tri) {
       case 'echeance': return echeanceDe(e);
       case 'par_an': return enMillimes(e, prix)?.m ?? null;
+      // L'usage : les pièces émises du mois (le même compte que la colonne « Usage »).
+      case 'usage': return BigInt(e.enPlus?.piecesMois ?? 0);
       case 'nom': return e.raisonSociale;
       case 'vu': return e.derniereActivite === null ? null : new Date(e.derniereActivite).toISOString();
     }
@@ -130,4 +157,53 @@ export function parAnDeLaSelection(liste: readonly Entreprise[], prix: Prix): { 
     abonnements++;
   }
   return { montantHt: versTexte(total, 3), abonnements };
+}
+
+// Les filtres de la ligne d'outils (la maquette Clients) : le type d'organisation, l'offre choisie, le cabinet qui la suit.
+// Chaque option dit son compte, compté sur la liste que filtrent les deux autres, par la fonction qui filtre (C3).
+export type TypeClient = 'seules' | 'groupes' | 'tenues';
+export const TYPES_CLIENTS: readonly TypeClient[] = ['seules', 'groupes', 'tenues'];
+export type OffreClient = 'essentiel' | 'complet' | 'aucune';
+export const OFFRES_CLIENTS: readonly OffreClient[] = ['essentiel', 'complet', 'aucune'];
+export type Filtres = { type: TypeClient | null; offre: OffreClient | null; cabinet: string | null };
+// Un dossier qu'un cabinet tient : son mandat, ou une organisation de cabinet.
+const tenue = (e: Entreprise) => e.tenuePar !== null || e.organisation.type === 'cabinet';
+export function duType(e: Entreprise, t: TypeClient): boolean {
+  if (t === 'groupes') return e.organisation.type === 'groupe';
+  if (t === 'tenues') return tenue(e);
+  return e.organisation.type !== 'groupe' && !tenue(e);
+}
+export const deLOffre = (e: Entreprise, o: OffreClient) => (o === 'aucune' ? e.faits.offre === null : e.faits.offre === o);
+// Le cabinet qui suit une entreprise : celui qui tient son dossier, sinon celui par qui elle est venue.
+export const cabinetDe = (e: Entreprise): string | null => e.tenuePar ?? e.venuePar?.cabinet ?? null;
+export const dansLesFiltres = (e: Entreprise, f: Filtres) =>
+  (!f.type || duType(e, f.type)) && (!f.offre || deLOffre(e, f.offre)) && (!f.cabinet || cabinetDe(e) === f.cabinet);
+export function lireFiltres(q: Record<string, unknown>): Filtres {
+  const type = TYPES_CLIENTS.includes(q.type as TypeClient) ? q.type as TypeClient : null;
+  const offre = OFFRES_CLIENTS.includes(q.offre as OffreClient) ? q.offre as OffreClient : null;
+  const cabinet = typeof q.cabinet === 'string' && q.cabinet.trim() !== '' ? q.cabinet.trim().slice(0, 200) : null;
+  return { type, offre, cabinet };
+}
+export function optionsDesFiltres(liste: readonly Entreprise[], f: Filtres) {
+  const sans = (k: keyof Filtres) => liste.filter((e) => dansLesFiltres(e, { ...f, [k]: null }));
+  const lt = sans('type'), lo = sans('offre'), lc = sans('cabinet');
+  const noms = [...new Set(lc.map(cabinetDe).filter((c): c is string => c !== null))].sort(NOMS.compare);
+  return {
+    type: Object.fromEntries(TYPES_CLIENTS.map((t) => [t, lt.filter((e) => duType(e, t)).length])) as Record<TypeClient, number>,
+    offre: Object.fromEntries(OFFRES_CLIENTS.map((o) => [o, lo.filter((e) => deLOffre(e, o)).length])) as Record<OffreClient, number>,
+    cabinet: noms.map((nom) => ({ nom, n: lc.filter((e) => cabinetDe(e) === nom).length })),
+  };
+}
+
+// Une ligne de l'export (Exporter la sélection) : ce que la liste montre, en colonnes, sans rien de plus — pas le contenu
+// d'un dossier ; le propriétaire et son adresse, pour le joindre. Les montants hors taxes, en texte exact.
+export function ligneExport(e: Entreprise, prix: Prix) {
+  const p = parAn(e, prix);
+  return {
+    entreprise: e.raisonSociale, matricule: e.matricule, organisation: e.organisation.type === 'groupe' || e.organisation.type === 'cabinet' ? e.organisation.nom : null,
+    typeOrganisation: e.organisation.type, cabinet: cabinetDe(e), offre: e.faits.offre, periodicite: e.faits.periodicite, etat: e.etat.etat,
+    echeance: echeanceDe(e), parAnHt: p && !p.attendu ? p.montantHt : null, attenduHt: p && p.attendu ? p.montantHt : null,
+    pieces: e.enPlus?.piecesMois ?? 0, membres: e.membres, proprietaire: e.proprietaire?.nom ?? null, email: e.proprietaire?.email ?? null,
+    inscriteLe: e.creeLe.slice(0, 10), derniereActivite: e.derniereActivite,
+  };
 }

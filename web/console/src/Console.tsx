@@ -16,10 +16,10 @@ import { Versions } from './ecrans/Versions.tsx';
 import { Sauvegardes } from './ecrans/Sauvegardes.tsx';
 import { Performances } from './ecrans/Performances.tsx';
 import { Cabinet } from './ecrans/Cabinet.tsx';
-import { Cabinets } from './ecrans/Cabinets.tsx';
 import { Clients } from './ecrans/Clients.tsx';
 import { Entree } from './ecrans/Entree.tsx';
 import { Equipe } from './ecrans/Equipe.tsx';
+import { FicheGroupe } from './ecrans/FicheGroupe.tsx';
 import { Fiche } from './ecrans/Fiche.tsx';
 import { Journal } from './ecrans/Journal.tsx';
 import { NosFactures } from './ecrans/NosFactures.tsx';
@@ -30,11 +30,11 @@ import { Support } from './ecrans/Support.tsx';
 import { Alerte, Avatar, Bouton, Icone, Toast, type NomIcone } from './ui.tsx';
 
 // ── Les écrans et leur adresse ──────────────────────────────────────────────────────────────────────────────────────
-type Page = 'accueil' | 'clients' | 'fiche' | 'cabinets' | 'cabinet' | 'abonnements' | 'paiements' | 'nosfactures' | 'support' | 'journal' | 'equipe' | 'service' | 'reglages';
+type Page = 'accueil' | 'clients' | 'fiche' | 'groupe' | 'cabinet' | 'abonnements' | 'paiements' | 'nosfactures' | 'support' | 'journal' | 'equipe' | 'service' | 'reglages';
 type Route = { page: Page | 'inconnue'; id?: string; params: URLSearchParams };
 const OUVRE: Record<Page, readonly Role[]> = {
   accueil: ['direction', 'support', 'technique'],
-  clients: ['direction', 'support'], fiche: ['direction', 'support'], cabinets: ['direction', 'support'], cabinet: ['direction', 'support'],
+  clients: ['direction', 'support'], fiche: ['direction', 'support'], groupe: ['direction', 'support'], cabinet: ['direction', 'support'],
   abonnements: ['direction', 'support'],
   // Les paiements de nos factures et les coûts du mois : les comptes de SkanFact, la direction seule (docs/console.md C30).
   paiements: ['direction'],
@@ -55,7 +55,11 @@ function lireRoute(hash: string): Route {
   if (m.length === 0) return { page: 'accueil', params };
   if (m[0] === 'clients' && m.length === 1) return { page: 'clients', params };
   if (m[0] === 'clients' && m.length === 2 && UUID.test(m[1] ?? '')) return { page: 'fiche', id: m[1] ?? '', params };
-  if (m[0] === 'cabinets' && m.length === 1) return { page: 'cabinets', params };
+  // La fiche d'un groupe (« #/clients/groupe/<id> ») : ses sociétés ensemble.
+  if (m[0] === 'clients' && m.length === 3 && m[1] === 'groupe' && UUID.test(m[2] ?? '')) return { page: 'groupe', id: m[2] ?? '', params };
+  // Les cabinets sont des lignes de la liste des clients (la maquette Clients) : l'ancienne adresse de leur liste y mène,
+  // filtrée sur eux, la recherche gardée.
+  if (m[0] === 'cabinets' && m.length === 1) return { page: 'clients', params: new URLSearchParams([['type', 'cabinets'], ...(params.get('q') ? [['q', params.get('q') ?? '']] : [])]) };
   if (m[0] === 'cabinets' && m.length === 2 && UUID.test(m[1] ?? '')) return { page: 'cabinet', id: m[1] ?? '', params };
   if (m.length === 1 && m[0] === 'nos-factures') return { page: 'nosfactures', params };
   if (m.length === 1 && (m[0] === 'abonnements' || m[0] === 'paiements' || m[0] === 'support' || m[0] === 'journal' || m[0] === 'equipe' || m[0] === 'service' || m[0] === 'reglages')) return { page: m[0], params };
@@ -111,8 +115,8 @@ function Cote({ moi, page, decisions, support, sortir, theme }: { moi: Moi; page
   const [ouvert, setOuvert] = useState(false);
   useEffect(() => { setOuvert(false); }, [page]);
   const groupes = GROUPES.map((g) => ({ ...g, entrees: g.entrees.filter((e) => OUVRE[e.page].includes(moi.role)) })).filter((g) => g.entrees.length);
-  // Une fiche, la liste des cabinets et la fiche d'un cabinet vivent sous « Clients » : les deux sortes de clients.
-  const actif = page === 'fiche' || page === 'cabinets' || page === 'cabinet' ? 'clients' : page;
+  // Une fiche, celle d'un groupe et celle d'un cabinet vivent sous « Clients ».
+  const actif = page === 'fiche' || page === 'groupe' || page === 'cabinet' ? 'clients' : page;
   return (
     <aside className={`c-cote${ouvert ? ' c-ouvert' : ''}`}>
       <div className="c-cote-haut">
@@ -201,9 +205,10 @@ function Page({ route, role }: { route: Route; role: Role }) {
   }
   switch (route.page) {
     case 'accueil': return <Accueil />;
-    case 'clients': return <Clients etat={route.params.get('etat')} q={route.params.get('q') ?? ''} nouvelles={route.params.get('nouvelles') === '1'} vue={route.params.get('vue')} tri={route.params.get('tri')} />;
+    case 'clients': return <Clients etat={route.params.get('etat')} q={route.params.get('q') ?? ''} nouvelles={route.params.get('nouvelles') === '1'} vue={route.params.get('vue')} tri={route.params.get('tri')}
+      type={route.params.get('type')} offre={route.params.get('offre')} cabinet={route.params.get('cabinet')} />;
     case 'fiche': return <Fiche key={route.id} id={route.id ?? ''} onglet={route.params.get('onglet')} />;
-    case 'cabinets': return <Cabinets q={route.params.get('q') ?? ''} />;
+    case 'groupe': return <FicheGroupe key={route.id} id={route.id ?? ''} />;
     case 'cabinet': return <Cabinet key={route.id} id={route.id ?? ''} onglet={route.params.get('onglet')} place={route.params.get('place')} />;
     case 'abonnements': return <Abonnements vue={route.params.get('vue')} />;
     case 'paiements': return <Paiements mois={route.params.get('mois')} />;

@@ -6,7 +6,10 @@
 
 import { describe, expect, it } from 'vitest';
 import { REGLES_DE_DEPART } from '../regles-de-depart.ts';
-import { avecVenues, comptesDesVues, dansLaVue, echeanceDe, ligneClient, parAn, parAnDeLaSelection, trier, VUES_CLIENTS } from '../../serveur/console/clients.ts';
+import { avecEnPlus, avecVenues, cabinetDe, comptesDesVues, dansLaVue, dansLesFiltres, duType, echeanceDe, ligneClient, ligneExport, lireEnPlus, lireFiltres, optionsDesFiltres, parAn, parAnDeLaSelection, trier, VUES_CLIENTS } from '../../serveur/console/clients.ts';
+import { gestesDeLaListe } from '../../serveur/console/routes.ts';
+import { categorieOrg, chercherOrg, lireFiltresOrg, optionsDesFiltresOrg, orgDansLaVue, orgDansLesFiltres, organisations, parAnDeLaLigne, SANS_CABINET, trierOrg,
+  usageDeLaLigne, vuDeLaLigne, type Organisation } from '../../serveur/console/organisations.ts';
 import { lireEntreprises, rangerParUrgence } from '../../serveur/console/decider.ts';
 import { annuel, lignesEcheances, lireExtras, lirePrix, lireRemisesEcheances } from '../../serveur/console/echeances.ts';
 
@@ -147,5 +150,155 @@ describe('Clients : les tris', () => {
     expect(lettres(trier(urgence, 'nom', PRIX))).toBe('ABCDEFGHIJKLM');
     const vu = trier(urgence, 'vu', PRIX);
     expect(lettres(vu).slice(-3)).toBe('IHD');
+  });
+});
+
+// Une facture d'abonnement telle que la base la rend (plateforme.console_factures_abonnement) : émise, son net en
+// millimes, ses avoirs et ses règlements.
+function facture(debut: string, net: string, o: { echeance?: string; reglements?: string[]; avoirs?: string[]; payeeLe?: string | null; emise?: boolean } = {}) {
+  return {
+    id: `f-${debut}`, editeur: 'e', piece: `p-${debut}`, client: 'c', offre: 'essentiel', periodicite: 'mensuel', debut, fin: debut, montantHt: '39000',
+    prepareLe: '2026-10-01T08:00:00Z', preparePar: 'Nadia', payeeLe: o.payeeLe ?? null, dansLeDossier: true, numero: o.emise === false ? null : 'FAC-1',
+    emise: o.emise ?? true, echeance: o.echeance ?? '2026-10-20', devise: 'TND', decimales: 3, net, avoirs: o.avoirs ?? [], reglements: o.reglements ?? [],
+  };
+}
+
+describe('Clients : ce que chaque ligne dit en plus (0110)', () => {
+  const enPlus = lireEnPlus({
+    [id(1)]: { piecesMois: 4, essaiJours: 30, prolonge: 0, prolongeUneFois: false, factures: [] },
+    // A : une facture payée (rien n'attend) et une facture qui attend, réglée en partie : il en reste 17,410.
+    [id(2)]: { piecesMois: 0, essaiJours: 30, prolonge: 14, prolongeUneFois: true, factures: [facture('2026-09-01', '46410', { reglements: ['46410'], payeeLe: '2026-09-02T08:00:00Z' }), facture('2026-10-15', '47410', { reglements: ['30000'] })] },
+    // B : deux factures qui attendent ; la plus ancienne d'abord. C : seulement une facture annulée par son avoir.
+    [id(3)]: { piecesMois: 2, factures: [facture('2026-11-15', '47410'), facture('2026-10-15', '47410', { echeance: '2026-10-15' })] },
+    [id(4)]: { piecesMois: -3, essaiJours: 'trente', factures: [facture('2026-10-15', '47410', { avoirs: ['47410'] })] },
+    // D : préparée, pas encore émise : elle attend, sans reste ni échéance de pièce.
+    [id(5)]: { factures: [facture('2026-10-15', '47410', { emise: false })] },
+  }, JOUR);
+  it('lit prudemment : un nombre illisible vaut zéro, une durée illisible n\'existe pas', () => {
+    expect(enPlus.get(id(1))).toEqual({ piecesMois: 4, essaiJours: 30, prolonge: 0, prolongeUneFois: false, attend: null });
+    expect(enPlus.get(id(4))).toMatchObject({ piecesMois: 0, essaiJours: null, prolonge: 0, prolongeUneFois: false, attend: null });
+  });
+  it('la facture qui attend : la plus ancienne pas encore réglée, avec ce qu\'il en reste — jamais une payée ni une annulée', () => {
+    expect(enPlus.get(id(2))?.attend).toEqual({ offre: 'essentiel', periodicite: 'mensuel', etat: 'partielle', reste: '17.410', devise: 'TND', echeance: '2026-10-20' });
+    expect(enPlus.get(id(3))?.attend).toMatchObject({ reste: '47.410', echeance: '2026-10-15' });
+    expect(enPlus.get(id(5))?.attend).toMatchObject({ etat: 'a_emettre', reste: null });
+  });
+  it('un essai dont la facture attend est dans « l\'argent attendu », plus « à appeler » ; l\'usage trie par les pièces du mois', () => {
+    const liste = avecEnPlus(LISTE, new Map([[nom('A').id, { piecesMois: 0, essaiJours: 30, prolonge: 0, prolongeUneFois: false, attend: { offre: 'essentiel' as const, periodicite: 'mensuel' as const, etat: 'a_payer', reste: '47.410', devise: 'TND', echeance: '2026-10-15' } }],
+      [nom('I').id, { piecesMois: 9, essaiJours: null, prolonge: 0, prolongeUneFois: false, attend: null }], [nom('H').id, { piecesMois: 2, essaiJours: null, prolonge: 0, prolongeUneFois: false, attend: null }]]));
+    const dans = (v: (typeof VUES_CLIENTS)[number]) => lettres(liste.filter((e) => dansLaVue(e, v, JOUR)));
+    expect(dans('a_appeler')).toBe('CE');
+    expect(dans('argent')).toBe('AFG');
+    // Sans ce qu'elle dit en plus, une ligne n'a rien émis ce mois : I (9), H (2), puis les autres dans l'ordre reçu.
+    expect(lettres(trier(liste, 'usage', PRIX)).slice(0, 2)).toBe('IH');
+    // L'export dit les pièces du mois, comme la colonne.
+    expect(ligneExport(liste.find((e) => e.id === nom('I').id) as (typeof liste)[number], PRIX).pieces).toBe(9);
+  });
+});
+
+describe('Clients : les filtres de la ligne d\'outils', () => {
+  it('le type, l\'offre et le cabinet ; chaque option compte ce que les deux autres filtres laissent (C3)', () => {
+    expect(duType(nom('L'), 'tenues')).toBe(false); // tenuParCabinet dans ses faits, mais aucun cabinet nommé
+    const liste = LISTE.map((e) => (e.raisonSociale.startsWith('L ') ? { ...e, tenuePar: 'Cabinet Nour' } : e));
+    const l = (lettre: string) => liste.find((e) => e.raisonSociale.startsWith(`${lettre} `)) as (typeof liste)[number];
+    expect(duType(l('L'), 'tenues')).toBe(true);
+    expect(cabinetDe(l('L'))).toBe('Cabinet Nour');
+    expect(cabinetDe(l('H'))).toBe('Cabinet Nour'); // venue par lui
+    const f = lireFiltres({ offre: 'essentiel', cabinet: 'Cabinet Nour', type: 'nimporte' });
+    expect(f).toEqual({ type: null, offre: 'essentiel', cabinet: 'Cabinet Nour' });
+    expect(lettres(liste.filter((e) => dansLesFiltres(e, f)))).toBe('H');
+    const o = optionsDesFiltres(liste, f);
+    // L'offre Essentiel avec le cabinet : H ; Complet : aucune ; sans offre : L. Le cabinet, sur les Essentiel : H seul.
+    expect(o.offre).toEqual({ essentiel: 1, complet: 0, aucune: 1 });
+    expect(o.cabinet).toEqual([{ nom: 'Cabinet Nour', n: 1 }]);
+  });
+});
+
+describe('Clients : les gestes du menu d\'une ligne', () => {
+  const e = (lettre: string, autre: Partial<(typeof LISTE)[number]> = {}) => ({ ...nom(lettre), enPlus: { piecesMois: 0, essaiJours: 30, prolonge: 0, prolongeUneFois: false, attend: null }, ...autre });
+  it('ceux de sa fiche, par la même règle, sans ceux qui demandent la fiche (payer, offrir, un module)', () => {
+    expect(gestesDeLaListe('support', e('A'))).toEqual(['prolonger']);
+    expect(gestesDeLaListe('support', e('A', { enPlus: { piecesMois: 0, essaiJours: 30, prolonge: 7, prolongeUneFois: true, attend: null } }))).toEqual([]);
+    expect(gestesDeLaListe('direction', e('A'))).toEqual(['prolonger', 'suspendre']);
+    // 0111 : un abonné qui paie se voit offrir un mois ou changer d'offre (à son échéance) ; la grâce, un délai (sans offre :
+    // pas d'offre à changer) ; la lecture seule après une échéance manquée, un délai (« Réactiver ») ; le support, rien de tout cela.
+    expect(gestesDeLaListe('direction', e('I'))).toEqual(['offrir-mois', 'changer-offre', 'suspendre', 'resilier']);
+    expect(gestesDeLaListe('support', e('I'))).toEqual([]);
+    expect(gestesDeLaListe('direction', e('E'))).toEqual(['prolonger', 'accorder-delai', 'suspendre']);
+    expect(gestesDeLaListe('direction', e('G'))).toEqual(['accorder-delai', 'changer-offre', 'suspendre']);
+    expect(gestesDeLaListe('direction', e('K'))).toEqual(['accorder-delai', 'suspendre']);
+    expect(gestesDeLaListe('direction', e('J'))).toEqual(['annuler-resiliation', 'suspendre']);
+    expect(gestesDeLaListe('direction', e('L'))).toEqual([]);
+    expect(gestesDeLaListe('direction', e('M'))).toEqual(['retirer-offert']);
+    expect(gestesDeLaListe('technique', e('I'))).toEqual([]);
+  });
+});
+
+describe('Clients : une ligne par organisation (0110)', () => {
+  // Un groupe que la console a déclaré : B (essai), G (en grâce), K (lecture seule depuis le 28/09) ; leur numéro et leur
+  // ville ; un cabinet. Le reste : une ligne par entreprise, L en dossier tenu.
+  const identites = new Map([[nom('B').id, { numero: 'E-0002', ville: 'Sfax' }], [nom('G').id, { numero: 'E-0007', ville: 'Sfax' }],
+    [nom('K').id, { numero: 'E-0011', ville: null }], [nom('A').id, { numero: 'E-0001', ville: 'Sousse' }]]);
+  const groupes = new Map([['g1', { numero: 'G-0001', nom: 'Groupe Essai', membres: [nom('B').id, nom('G').id, nom('K').id] }]]);
+  const cabinet = { id: 'c1', nom: 'Cabinet Ennour', creeLe: '2026-01-01', associes: [{ nom: 'Sonia Associée', email: 'sonia@cabinet.tn' }], collaborateurs: 3,
+    comptes: { client: 2, tenu: 1, en_attente: 0 }, derniereActivite: '2026-10-12T10:00:00Z' };
+  const lignes = organisations(LISTE, JOUR, identites, groupes, [cabinet], new Map([['c1', 'C-0001']]));
+  const ligne = (id: string) => lignes.find((o) => o.id === id);
+
+  it('un groupe réunit ses sociétés, la plus urgente d\'abord par l\'urgence de la liste ; chaque autre entreprise a sa ligne ; le cabinet en dernier', () => {
+    expect(lignes).toHaveLength(13 - 3 + 1 + 1);
+    const g = ligne('g1');
+    expect(g).toMatchObject({ sorte: 'groupe', numero: 'G-0001', nom: 'Groupe Essai', ville: 'Sfax' });
+    // G, en grâce, passe devant B, dont l'essai finit dans deux jours, et devant K, en lecture seule depuis quinze jours
+    // (plus rien ne presse) : le groupe dit « en retard ».
+    expect(lettres(g?.societes ?? [])).toBe('GBK');
+    expect(categorieOrg(g as Organisation)).toBe('en_retard');
+    expect(ligne(nom('A').id)).toMatchObject({ sorte: 'entreprise', numero: 'E-0001', ville: 'Sousse' });
+    expect(ligne(nom('L').id)?.sorte).toBe('tenu');
+    expect(lignes.at(-1)).toMatchObject({ id: 'c1', sorte: 'cabinet', numero: 'C-0001', societes: [] });
+    expect(categorieOrg(lignes.at(-1) as Organisation)).toBe('hors');
+    // Par l'urgence de la liste, le groupe se range avec ce qui est en grâce, et le cabinet, sans échéance, en bas.
+    const ordre = trierOrg(lignes, 'urgence', PRIX, JOUR);
+    expect(ordre.findIndex((o) => o.id === 'g1')).toBeLessThan(ordre.findIndex((o) => o.id === nom('A').id));
+    expect(ordre.at(-1)?.id).toBe('c1');
+  });
+
+  it('une vue garde une ligne quand une de ses sociétés y est ; les filtres et leurs comptes portent sur des lignes (C3)', () => {
+    const dans = (v: (typeof VUES_CLIENTS)[number]) => lignes.filter((o) => orgDansLaVue(o, v, JOUR)).map((o) => o.nom.charAt(0)).join('');
+    // L'argent attendu : F seule, et le groupe (G y est). À appeler : A, C, E — pas le groupe (B a servi).
+    expect(dans('argent')).toBe('GF');
+    expect(dans('a_appeler')).toBe('ACE');
+    expect(dans('tenus')).toBe('L');
+    expect(lignes.filter((o) => orgDansLaVue(o, 'tout', JOUR))).toHaveLength(lignes.length);
+    const f = lireFiltresOrg({ type: 'groupes', offre: 'nimporte' });
+    expect(f).toEqual({ type: 'groupes', offre: null, cabinet: null });
+    expect(lignes.filter((o) => orgDansLesFiltres(o, f)).map((o) => o.id)).toEqual(['g1']);
+    // Complet : le groupe (K) et I. Chaque compte d'option refait la liste qu'il ouvre.
+    const o = optionsDesFiltresOrg(lignes, lireFiltresOrg({}));
+    expect(o.type).toEqual({ seules: 9, groupes: 1, tenues: 1, cabinets: 1 });
+    expect(lignes.filter((x) => orgDansLesFiltres(x, lireFiltresOrg({ offre: 'complet' }))).map((x) => x.nom.charAt(0))).toEqual(['G', 'I']);
+    expect(o.offre.complet).toBe(2);
+    for (const c of o.cabinet) expect(lignes.filter((x) => orgDansLesFiltres(x, lireFiltresOrg({ cabinet: c.nom })))).toHaveLength(c.n);
+    expect(lignes.filter((x) => orgDansLesFiltres(x, lireFiltresOrg({ cabinet: SANS_CABINET })))).toHaveLength(o.sansCabinet);
+    expect(o.cabinet.map((c) => c.nom)).toContain('Cabinet Ennour');
+  });
+
+  it('la recherche lit la ligne et ses sociétés : la ville, un numéro de société, l\'associé d\'un cabinet ; sans accents ni casse', () => {
+    expect(chercherOrg(lignes, 'SFAX', identites).map((o) => o.id)).toEqual(['g1']);
+    expect(chercherOrg(lignes, 'e-0007', identites).map((o) => o.id)).toEqual(['g1']);
+    expect(chercherOrg(lignes, 'sonia associee', identites).map((o) => o.id)).toEqual(['c1']);
+    expect(chercherOrg(lignes, 'sousse essai', identites).map((o) => o.id)).toEqual([nom('A').id]);
+  });
+
+  it('ce qu\'une ligne rapporte est la somme de ses sociétés, payé et attendu à part ; son usage, la somme des pièces du mois', () => {
+    // G : Essentiel à l'année, échue, pas payée : 390,000 attendus ; K, Complet au mois, non renouvelé : 12 × 69,000 =
+    // 828,000 attendus ; B, à l'essai sans offre : rien. Rien de payé.
+    expect(parAnDeLaLigne(ligne('g1') as Organisation, PRIX)).toEqual({ actif: 0n, attendu: 390000n + 828000n });
+    expect(parAnDeLaLigne(ligne(nom('I').id) as Organisation, PRIX)).toEqual({ actif: BigInt(parAn(nom('I'), PRIX)?.montantHt.replace('.', '') ?? '0'), attendu: 0n });
+    const avec = organisations(avecEnPlus(LISTE, new Map([[nom('B').id, { piecesMois: 4, essaiJours: 30, prolonge: 0, prolongeUneFois: false, attend: null }],
+      [nom('G').id, { piecesMois: 3, essaiJours: null, prolonge: 0, prolongeUneFois: false, attend: null }]])), JOUR, identites, groupes, [], new Map());
+    expect(usageDeLaLigne(avec.find((o) => o.id === 'g1') as Organisation)).toBe(7);
+    // La dernière activité d'un groupe : la plus récente de ses sociétés.
+    expect(vuDeLaLigne(ligne('g1') as Organisation)).toBe('2026-10-12T09:00:00.000Z');
   });
 });

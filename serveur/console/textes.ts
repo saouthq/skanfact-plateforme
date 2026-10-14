@@ -25,6 +25,14 @@ declarerTextes({
   'geste.console.paiements.voir': 'voir les paiements de nos factures et les coûts du mois',
   'geste.console.factures.voir': 'voir nos factures, leur dépôt à la TTN et leur paiement',
   'geste.console.paiements.couts': 'saisir ou retirer un coût du mois',
+  'geste.console.clients.exporter': 'exporter la sélection de la liste des clients',
+  'geste.console.clients.appeler': 'noter un appel sur la fiche d\'un client',
+  'geste.console.clients.ecrire': 'écrire au contact d\'un client, dans son application',
+  'geste.console.clients.reprise': 'mener la procédure de reprise d\'une entreprise (l\'ouvrir, noter les pièces vues, la clore, la confirmer)',
+  // Le message à la propriétaire quand une procédure de reprise s'ouvre (0112) : dans son application, l'alerte par e-mail
+  // sans le texte. « %JUSQU_AU% » : la date que la base pose.
+  'console.reprise.sujet': 'Une demande de reprise de {entreprise}',
+  'console.reprise.texte': 'Bonjour,\n\n{repreneur} nous demande de devenir propriétaire de {entreprise} dans SkanFact. Rien ne change tant que nous n\'avons pas vérifié les pièces (l\'acte, le registre du commerce, sa pièce d\'identité), et un second membre de notre direction confirme avant que quoi que ce soit ne s\'applique.\n\nSi tu t\'y opposes, réponds simplement à ce message avant le {jusquAu} inclus : la procédure s\'arrête.\n\nL\'équipe SkanFact',
   // Les rôles de l'équipe SkanFact (03 § 5).
   'role.direction': 'direction',
   'role.support': 'support',

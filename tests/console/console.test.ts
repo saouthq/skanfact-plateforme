@@ -12,7 +12,7 @@ import type { FastifyInstance } from 'fastify';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { ajouter as ajouterALEquipe, retirer as retirerDeLEquipe, voir as voirLEquipe } from '../../base/equipe.ts';
-import { plusJours } from '../../serveur/abonnement/etat.ts';
+import { joursEntre, plusJours } from '../../serveur/abonnement/etat.ts';
 import { creerApp, RouteSansGeste, VERSION } from '../../serveur/app.ts';
 import { creerPool, enTantQue } from '../../serveur/base.ts';
 import { mettreEnPlaceCode, quiEst, type Contexte } from '../../serveur/connexion.ts';
@@ -192,12 +192,14 @@ describe('les clients', () => {
     await entreprise('Atelier Plus Récent');
     const r = await appeler('GET', '/console/entreprises?limite=200', jD);
     expect(r.statut).toBe(200);
-    const lignes = r.corps.lignes as { id: string; etat: { etat: string } }[];
+    // Une ligne par organisation (0110) : une entreprise seule porte son id, et sa société dit son état.
+    const lignes = r.corps.lignes as { id: string; sorte: string; societes: { id: string; etat: { etat: string }; echeance: string | null; parAn: unknown }[] }[];
     expect(lignes.some((l) => l.id === exemple)).toBe(false);
     expect(lignes.some((l) => l.id === retard.ent)).toBe(true);
     // Une entreprise d'exemple n'a pas de fiche dans la console.
     expect((await appeler('GET', `/console/entreprises/${exemple}`, jD)).statut).toBe(404);
-    expect(lignes[0]?.etat.etat).toBe('en_retard');
+    expect(lignes[0]?.societes[0]?.etat.etat).toBe('en_retard');
+    expect(lignes.find((l) => l.id === retard.ent)?.sorte).toBe('entreprise');
     const comptes = r.corps.comptes as Record<string, number>;
     const filtre = await appeler('GET', '/console/entreprises?etat=en_retard&limite=200', jD);
     expect(filtre.corps.total).toBe(comptes.en_retard);
@@ -212,7 +214,7 @@ describe('les clients', () => {
     expect(Object.values(aAppeler.corps.comptes as Record<string, number>).reduce((a, b) => a + b, 0)).toBe(vues.a_appeler);
     // Chaque ligne dit son échéance — la fin de la grâce : l'essai fini il y a deux jours, sept jours de grâce, la lecture
     // seule le lendemain — et rien par an tant qu'aucune offre n'est choisie.
-    const ligne = lignes.find((l) => l.id === retard.ent) as unknown as { echeance: string | null; parAn: unknown };
+    const ligne = lignes.find((l) => l.id === retard.ent)?.societes[0] as { echeance: string | null; parAn: unknown };
     expect(ligne.echeance).toBe(plusJours(aujourdhui, 6));
     expect(ligne.parAn).toBeNull();
     // Un tri inconnu vaut l'urgence ; un tri connu est rendu tel quel.
@@ -243,11 +245,53 @@ describe('les clients', () => {
     expect(Object.values(comptes).reduce((a, b) => a + b, 0)).toBe(r.corps.tous);
   });
 
+  it('chaque ligne dit la durée de son essai, ce qui l\'a prolongé, ses vues et les gestes de son menu ; l\'export est à la direction, motif au journal', async () => {
+    const { ent } = await entreprise('Menuiserie Du Menu');
+    type S = { id: string; raisonSociale: string; enPlus: Record<string, unknown>; vues: string[]; gestes: string[] };
+    type L = { id: string; societes: S[] };
+    const ligneDe = async (jeton: string) => ((await appeler('GET', '/console/entreprises?q=menuiserie%20du%20menu&limite=50', jeton)).corps.lignes as L[]).find((l) => l.id === ent)?.societes[0];
+    const f = await fiche(jS, ent);
+    const fin = String((f.faits as { essaiJusquAu: string }).essaiJusquAu);
+    // Un essai qui commence aujourd'hui (0110) : sa durée telle qu'il a commencé, rien de prolongé, aucune pièce émise ce
+    // mois, aucune facture qui attend ; il n'est dans aucune vue du métier.
+    expect((await ligneDe(jS))?.enPlus).toEqual({ piecesMois: 0, essaiJours: joursEntre(aujourdhui, fin), prolonge: 0, prolongeUneFois: false, attend: null });
+    expect((await ligneDe(jS))?.vues).toEqual([]);
+    // Le menu « … » : les gestes de sa fiche, par la même règle — le support prolonge (une fois) ; la direction prolonge
+    // et passe en lecture seule. Payer, offrir, un module restent sur la fiche.
+    expect((await ligneDe(jS))?.gestes).toEqual(['prolonger']);
+    expect((await ligneDe(jD))?.gestes).toEqual(['prolonger', 'suspendre']);
+    expect((await appeler('POST', `/console/entreprises/${ent}/abonnement/prolonger`, jS, { motif: 'il finit sa saisie', ligne: f.ligne, jours: 10 })).statut).toBe(200);
+    // Prolongé : la ligne le dit, sa durée de départ ne bouge pas, et le support n'a plus rien à proposer dans le menu.
+    const apres = await ligneDe(jS);
+    expect(apres?.enPlus).toMatchObject({ essaiJours: joursEntre(aujourdhui, fin), prolonge: 10, prolongeUneFois: true });
+    expect(apres?.gestes).toEqual([]);
+
+    // Exporter la sélection : jamais le support ; jamais sans motif ; ce qui s'exporte est ce que la liste montre, et le
+    // journal garde le motif, le nombre de lignes et les filtres — jamais les lignes.
+    const filtres = { q: 'menuiserie du menu', etat: 'essai' };
+    expect((await appeler('POST', '/console/entreprises/export', jS, { motif: 'pour voir', filtres })).statut).toBe(403);
+    const sans = await appeler('POST', '/console/entreprises/export', jD, { motif: ' ', filtres });
+    expect(sans.statut).toBe(400);
+    expect(sans.corps.champ).toBe('motif');
+    const ex = await appeler('POST', '/console/entreprises/export', jD, { motif: 'liste pour la réunion', filtres });
+    expect(ex.statut, JSON.stringify(ex.corps)).toBe(201);
+    const vue = (await appeler('GET', '/console/entreprises?q=menuiserie%20du%20menu&etat=essai&limite=50', jD)).corps.lignes as L[];
+    const lignes = ex.corps.lignes as { entreprise: string; pieces: number; email: string | null }[];
+    expect(lignes.map((l) => l.entreprise)).toEqual(vue.flatMap((l) => l.societes.map((x) => x.raisonSociale)));
+    expect(lignes.length).toBeGreaterThan(0);
+    const { rows } = await admin.query("select g.motif, g.apres, g.role from plateforme.geste_console g where g.geste = 'clients.exporte' order by g.le desc limit 1");
+    expect(rows[0]).toEqual({ motif: 'liste pour la réunion', role: 'direction', apres: { lignes: lignes.length, filtres } });
+  });
+
   it('la fiche dit la liste fermée : qui, l\'abonnement et son histoire, les membres, des comptes ; jamais le contenu d\'un dossier', async () => {
     const { ent, proprio } = await entreprise('Quincaillerie Fiche');
     const f = await fiche(jS, ent);
     expect(Object.keys(f).sort()).toEqual(['active', 'attend', 'aujourdhui', 'comptes', 'creeLe', 'devise', 'etat', 'evenements', 'faits', 'formeJuridique', 'gestes',
-      'id', 'ligne', 'matricule', 'membres', 'organisation', 'prolongeDejaUneFois', 'raisonSociale', 'tenuePar', 'cabinets', 'support', 'factures', 'groupe'].sort());
+      'id', 'ligne', 'matricule', 'membres', 'organisation', 'prolongeDejaUneFois', 'raisonSociale', 'tenuePar', 'cabinets', 'support', 'factures', 'groupe',
+      // 0110–0112 : son numéro et sa ville, nos notes d'appel, ce que la liste dit en plus, l'offre suivante, le délai, la
+      // procédure de reprise (la direction seule ; au support : rien).
+      'identite', 'notes', 'enPlus', 'offreSuivante', 'delai', 'reprise'].sort());
+    expect(f.reprise).toBeNull();
     // Son groupe et sa remise (0106) : aucun groupe, aucune société de la même propriétaire, aucune remise ; la règle du
     // groupe et le premier jour de sa prochaine période (le lendemain de son essai).
     expect(f.groupe).toMatchObject({ groupe: null, voisines: [], tauxGroupe: 20, remise: null, prochaine: plusJours((f.ligne as { essai_jusqu_au: string }).essai_jusqu_au, 1) });
@@ -460,7 +504,7 @@ describe('les cabinets', () => {
       ['client', 'Boulangerie Essalem Console', 'actif'], ['tenu', 'Cordonnerie El Bey Console', 'actif'], ['en_attente', 'Pharmacie En Attente Console', 'propose'],
     ]);
     // Une entreprise dit la même chose ici et dans la liste des clients.
-    const clients = (await appeler('GET', '/console/entreprises?limite=200', jS)).corps.lignes as { id: string; etat: unknown }[];
+    const clients = ((await appeler('GET', '/console/entreprises?limite=200', jS)).corps.lignes as { societes: { id: string; etat: unknown }[] }[]).flatMap((o) => o.societes);
     for (const d of dossiers) expect(d.entreprise.etat).toEqual(clients.find((c) => c.id === d.entreprise.id)?.etat);
     // La fiche du client nomme son cabinet ; celle du dossier tenu, celui qui le tient.
     expect((await fiche(jS, client.ent)).cabinets).toEqual([{ id: cabinet, nom: 'Cabinet Ennour Console', place: 'client', mandat: { statut: 'actif', debut: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) } }]);

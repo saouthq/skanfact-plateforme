@@ -57,6 +57,14 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   // paiement ; la direction seule. Elles s'émettent et se corrigent dans l'application de SkanFact.
   { code: 'console.factures.voir', roles: [D], ecrit: false },
   { code: 'console.paiements.couts', roles: [D], ecrit: true },
+  // Exporter la sélection de la liste des clients (docs/console.md C32 ; 0110) : des données de personnes qui quittent la
+  // console ; la direction seule, avec son motif, au journal.
+  { code: 'console.clients.exporter', roles: [D], ecrit: true },
+  { code: 'console.clients.appeler', roles: [D, S], ecrit: true },
+  { code: 'console.clients.ecrire', roles: [D, S], ecrit: true },
+  // La procédure de reprise d'une entreprise (docs/console.md C34 ; 0112) : changer de propriétaire sur pièces ; la
+  // direction seule, et l'autre membre de la direction confirme.
+  { code: 'console.clients.reprise', roles: [D], ecrit: true },
 ];
 
 export const GESTES_CONSOLE: ReadonlyMap<string, GesteConsole> = (() => {

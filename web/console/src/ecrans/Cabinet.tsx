@@ -31,8 +31,7 @@ const premierJour = (d: Dossier) => d.mandat?.debut ?? d.entreprise.creeLe;
 function Fil({ nom }: { nom?: string }) {
   return (
     <nav className="c-fil" aria-label={titre(`${K}.retour`)}>
-      <a href="#/clients">{titre('console.ecran.fiche.retour')}</a><Icone nom="droite" taille={14} />
-      <a href="#/cabinets">{titre(`${K}.retour`)}</a>
+      <a href="#/clients">{titre('console.ecran.fiche.retour')}</a>
       {nom ? <><Icone nom="droite" taille={14} /><span data-donnee>{nom}</span></> : null}
     </nav>
   );
@@ -54,7 +53,7 @@ export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { i
         <Fil />
         {l.statut === 404 ? (
           <section className="c-carte c-liste-carte">
-            <Vide icone="chercher"><span>{phrase(`${K}.introuvable`)}</span> <Lien href="#/cabinets" petit>{titre(`${K}.vers_liste`)}</Lien></Vide>
+            <Vide icone="chercher"><span>{phrase(`${K}.introuvable`)}</span> <Lien href="#/clients?type=cabinets" petit>{titre(`${K}.vers_liste`)}</Lien></Vide>
           </section>
         ) : <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte>}
       </>

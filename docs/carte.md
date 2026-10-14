@@ -580,6 +580,24 @@ vaut pour tout le dépôt.*
     paiement par la règle de toutes les factures ; le résumé et les filtres comptés par la fonction qui filtre ; si la
     fiche de l'entreprise SkanFact la dit soumise à la facture électronique. Le sélecteur de mois est commun aux
     paiements (`web/console/src/mois.tsx`) (`tests/console/nosfactures.test.ts`, `tests/web/console-nosfactures.test.ts`).
+  - **La liste des clients sans écart avec sa maquette** (1.19.0 ; `docs/console.md` C32, `0110`,
+    `serveur/console/clients.ts`, pur) : les filtres comptés par la fonction qui filtre, ce que chaque ligne dit en plus
+    lu en un passage (`plateforme.console_clients_en_plus` : pièces émises du mois, durée de l'essai et ce qui l'a
+    prolongé, facture qui attend), une date écrite une fois par ligne, le menu « … » avec les gestes de la fiche par la
+    même règle (`gestesDeLaListe`) et leur fenêtre posée sur la liste, l'export de la sélection (la direction, motif au
+    journal, jamais les lignes), les pages numérotées (`tests/console/clients.test.ts`, `tests/console/console.test.ts`,
+    `tests/web/console-clients.test.ts`).
+  - **Qui est le client, nos échanges, les gestes qui manquaient, la reprise** (1.19.0 ; `docs/console.md` C33–C35) :
+    le numéro de client et la ville (`0110`, `plateforme.numero_client`, `socle.poser_ville`) ; une ligne par organisation
+    (`serveur/console/organisations.ts`, pur : entreprise seule, groupe, dossier tenu, cabinet) et la fiche d'un groupe
+    (`web/console/src/ecrans/FicheGroupe.tsx`) ; les notes d'appel, intouchables, et le message au contact dans son
+    application (`plateforme.note_appel`, `web/console/src/ecrans/Echanges.tsx`) ; accorder un délai, offrir un mois,
+    changer d'offre (`0111`, la règle dans `serveur/abonnement/gestes.ts`) ; la procédure de reprise sur pièces, confirmée
+    par l'autre membre de la direction (`0112`, `web/console/src/ecrans/Reprise.tsx`) (`tests/abonnement/gestes-0111.test.ts`,
+    `tests/console/echanges.test.ts`). Les pièces communes de `web/console/src/ui.tsx` : un menu qui se parcourt au
+    clavier comme sur le Mac (`parcourirMenu`, le menu « … » et « Gestes ▾ »), en sections par société (`section`) ; des
+    pastilles qui se cochent comme des boutons radio (`Pilules`) ; le client nommé au-dessus du titre d'une fenêtre
+    (`Dialogue`, `pour`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

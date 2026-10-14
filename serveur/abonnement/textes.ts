@@ -41,6 +41,13 @@ declarerTextes({
   'abonnement.geste.deja_offert': 'l\'abonnement est déjà offert',
   'abonnement.geste.pas_offert': 'l\'abonnement n\'est pas offert',
   'abonnement.geste.inconnu': 'ce geste sur un abonnement n\'existe pas',
+  'abonnement.geste.delai_jours': 'un délai se donne en jours entiers, de 1 à {max}',
+  'abonnement.geste.delai_etat': 'un délai se donne à une entreprise en grâce, ou en lecture seule après un essai ou une échéance manquée : une suspension se reprend, une résiliation s\'annule',
+  'abonnement.geste.mois_actif': 'un mois s\'offre à un abonnement payé qui court',
+  'abonnement.geste.mois_resilie': 'cet abonnement est résilié : un mois offert ne le prolongerait pas, annule d\'abord la résiliation',
+  'abonnement.geste.changer_sans_offre': 'changer d\'offre se fait sur un abonnement payé : pour un essai, l\'offre se choisit en préparant sa facture',
+  'abonnement.geste.changer_resilie': 'cet abonnement est résilié : il n\'a plus de prochaine échéance, annule d\'abord la résiliation',
+  'abonnement.geste.changer_meme': 'c\'est déjà son offre : choisis-en une autre',
   // Les modules achetés seuls sur Essentiel (14c ; 0099).
   'abonnement.module.paie': 'la paie',
   'abonnement.module.compta': 'la comptabilité complète',

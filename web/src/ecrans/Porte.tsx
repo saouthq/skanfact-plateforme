@@ -20,6 +20,8 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte }: { creee: (e
   const [raison, setRaison] = useState('');
   const [nomCabinet, setNomCabinet] = useState('');
   const [matricule, setMatricule] = useState('');
+  // Sa ville, facultative (0110) : l'équipe SkanFact la lit sur sa fiche pour le reconnaître au téléphone.
+  const [ville, setVille] = useState('');
 
   // Découvrir : l'écran « On prépare l'exemple » (lot onboarding ; ExemplePrepare.tsx) crée l'entreprise d'essai, la
   // remplit de l'exemple en disant où il en est, puis ouvre la découverte sur elle : plus de page blanche ni d'attente
@@ -27,7 +29,7 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte }: { creee: (e
   // Créée, l'entreprise ouvre l'assistant de démarrage (lot onboarding : « Où te joindre ? », puis l'activité, la TVA et le
   // menu), qui voyage jusqu'à sa page comme la visite de la découverte (pont.js, `assistantDemande`).
   const creer = () => g.geste(async () => {
-    const r = await g.api<{ id: string }>('POST', '/entreprises', { raisonSociale: raison.trim(), ...(matricule.trim() ? { matriculeFiscal: matricule.trim() } : {}) });
+    const r = await g.api<{ id: string }>('POST', '/entreprises', { raisonSociale: raison.trim(), ...(matricule.trim() ? { matriculeFiscal: matricule.trim() } : {}), ...(ville.trim() ? { ville: ville.trim() } : {}) });
     if (!r) return;
     if (r.statut !== 201) { g.refuser(refusDe(r)); return; }
     try { sessionStorage.setItem('skanfact.assistant', r.corps.id); } catch { /* sans stockage : l'entreprise s'ouvre sur ses premiers pas */ }
@@ -62,6 +64,7 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte }: { creee: (e
               dessous={<div className="ent-exemples"><span>{phrase('ecran.porte.raison_patente')}</span><span>{phrase('ecran.porte.raison_societe')}</span></div>} {...g.sur('raisonSociale')} />
             <Champ libelle={titre('ecran.porte.matricule')} aide={phrase('ecran.porte.matricule_aide')} valeur={matricule} changer={setMatricule} placeholder="1234567A/A/M/000"
               dessous={<AideMatricule matricule={matricule} />} {...g.sur('matriculeFiscal')} />
+            <Champ libelle={titre('ecran.porte.ville')} aide={phrase('ecran.porte.ville_aide')} valeur={ville} changer={setVille} autoComplete="address-level2" {...g.sur('ville')} />
             <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.porte.creer')}<Dessin id="fleche" /></Bouton>
           </form>
           <ApercuEntete raison={raison} matricule={matricule} note={phrase('ecran.porte.apercu_note')} />

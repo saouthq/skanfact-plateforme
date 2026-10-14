@@ -350,7 +350,7 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
   // ── L'entreprise ────────────────────────────────────────────────────────────────────────────
   ajouter({
     methode: 'POST', chemin: '/entreprises', geste: 'compte.entreprise.creer',
-    corps: z.object({ raisonSociale: z.string().min(1).max(200), matriculeFiscal: z.string().max(40).optional() }),
+    corps: z.object({ raisonSociale: z.string().min(1).max(200), matriculeFiscal: z.string().max(40).optional(), ville: z.string().max(60).optional() }),
     traiter: async ({ corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       // Le matricule, écrit comme on le recopie, se garde sous sa forme lisible ; mal formé, il se refuse sur son champ ;
@@ -359,6 +359,8 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       const matricule = matriculeCanonique(corps.matriculeFiscal);
       if (matricule === undefined) return refusDuMatricule(corps.matriculeFiscal);
       const id = (await tx.query('select socle.creer_entreprise($1, $2) id', [corps.raisonSociale, matricule])).rows[0].id;
+      // Sa ville, facultative (0110) : la console la montre, rien ne la devine d'une adresse.
+      if (corps.ville?.trim()) await tx.query('select socle.poser_ville($1, $2)', [id, corps.ville.trim()]);
       await tx.query(`select socle.tracer($1, 'socle.entreprise.creer', 'entreprise', $1, null, $2)`, [id, JSON.stringify({ raisonSociale: corps.raisonSociale })]);
       return { statut: 201, corps: { id } };
     },

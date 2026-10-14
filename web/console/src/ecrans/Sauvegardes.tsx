@@ -448,7 +448,7 @@ function FenetreRemise({ d, fermer, fait }: { d: Donnees; fermer: () => void; fa
   };
   if (commandes) {
     return (
-      <Dialogue titre={titre(`${G}.r.f.composees`)} sous={client?.raisonSociale} sousDonnee fermer={fait}
+      <Dialogue titre={titre(`${G}.r.f.composees`)} pour={client?.raisonSociale} fermer={fait}
         pied={<Bouton ton="principal" onClick={fait}>{titre('console.ecran.fermer')}</Bouton>}>
         <ol className="c-sg-etapes">
           <li><b>{titre(`${G}.r.f.etape_essai`)}</b><span>{phrase(`${G}.r.f.etape_essai_sous`)}</span><Commande code={commandes.essai} /></li>

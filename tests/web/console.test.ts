@@ -302,13 +302,14 @@ describe('la console de l\'équipe, à la souris', () => {
       return l;
     };
     const clinique = await ligne('Clinique Abonnée');
-    expect(net(await clinique.locator('.c-cl-echeance').innerText())).toBe(`${jourCourt(plusJours(aujourdhui, 160))} dans 160 jours`);
+    expect(net(await clinique.locator('.c-cl-echeance').innerText())).toBe(`${jourCourt(plusJours(aujourdhui, 160))} dans 160 j`);
     expect(net(await clinique.locator('.c-cl-par-an').innerText())).toBe('690,000 DT');
     // Ce que rapporte la sélection : la clinique seule, abonnée à l'année au Complet.
-    expect(net(await p.locator('.c-liste-resume p').innerText())).toBe('Une entreprise · un abonnement actif dans la sélection : 690,000 DT hors taxes par an');
+    expect(net(await p.locator('.c-liste-resume p').innerText())).toBe('Une organisation · un abonnement actif dans la sélection : 690,000 DT hors taxes par an');
     const pharmacie = await ligne('Pharmacie en Lecture Seule');
-    expect(net(await pharmacie.locator('.c-cl-echeance').innerText())).toBe('—');
-    expect(net(await pharmacie.innerText())).toContain(`Depuis le ${jourCourt(plusJours(aujourdhui, -1))}`);
+    expect(net(await pharmacie.locator('.c-cl-echeance').innerText())).toBe('— en lecture seule');
+    expect(net(await pharmacie.innerText())).toContain(`depuis le ${jourCourt(plusJours(aujourdhui, -1))}`);
+    expect(net(await pharmacie.innerText()).split(jourCourt(plusJours(aujourdhui, -1))).length).toBe(2);
     const quincaillerie = await ligne('Quincaillerie de la Console');
     expect(net(await quincaillerie.innerText()).split(jourCourt(plusJours(aujourdhui, 2))).length).toBe(2);
     await p.getByRole('searchbox').fill('');
@@ -375,7 +376,7 @@ describe('la console de l\'équipe, à la souris', () => {
     await expect.poll(() => fenetre.count(), { timeout: 10_000 }).toBe(0);
     await expect.poll(() => carte.innerText().then(net).catch(() => ''), { timeout: 10_000 }).toContain('SkanFact Éditions SARL');
     // Une échéance passée : le vert de « Ce qui attend » est SA facture, plus « Noter un paiement reçu ».
-    await p.goto(`${serveur.adresse}/console/#/clients/${aFacturer}?onglet=abonnement`);
+    await p.goto(`${serveur.adresse}/console/#/clients/${aFacturer}?onglet=factures`);
     const vert = p.locator('.c-fiche-attend .c-btn-principal');
     await expect.poll(() => vert.innerText().then(net).catch(() => ''), { timeout: 15_000 }).toMatch(/^Préparer sa facture/);
     await cliquer(vert);
@@ -414,7 +415,7 @@ describe('la console de l\'équipe, à la souris', () => {
     expect(await p.locator('main .c-btn-principal').count()).toBe(1);
     expect(await attend.locator('.c-btn-principal').count()).toBe(1);
     await cliquer(p.locator('.c-menu > button'));
-    expect(await p.locator('.c-menu-liste button').allInnerTexts()).toEqual(['Prolonger l\'essai']);
+    expect(await p.locator('.c-menu-liste button').allInnerTexts()).toEqual(['Prolonger l\'essai…']);
     await cliquer(p.locator('.c-menu-liste button', { hasText: 'Prolonger l\'essai' }));
     const fenetre = p.getByRole('dialog');
     const motif = fenetre.getByLabel('Motif', { exact: true });
@@ -616,28 +617,17 @@ describe('la console de l\'équipe, à la souris', () => {
     await fermer(p);
   }, 90_000);
 
-  it('les cabinets : les onglets ne bougent pas ; la liste compte ce que la fiche montre ; la fiche d\'un client mène à son cabinet', async () => {
-    const p = await ouvrir(await jetonConsole(support), '#/clients');
-    const onglets = p.locator('.c-onglets');
-    await expect.poll(() => p.locator('.c-liste-resume').count(), { timeout: 15_000 }).toBe(1);
-    const yEntreprises = (await onglets.boundingBox())?.y ?? -1;
-    // Passer aux cabinets : l'adresse suit, et les onglets restent sous le curseur (un même en-tête pour les deux).
-    await cliquer(onglets.getByRole('link', { name: 'Cabinets', exact: true }));
-    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/cabinets');
-    await expect.poll(() => onglets.locator('[aria-current="page"]').innerText().then(net).catch(() => '')).toBe('Cabinets');
-    expect(Math.abs(((await onglets.boundingBox())?.y ?? 0) - yEntreprises)).toBeLessThan(1);
-    // Le cabinet, cherché par son nom parmi les autres : un client abonné, un dossier tenu, un en attente.
-    const lignes = p.locator('.c-table tbody tr');
-    await expect.poll(() => lignes.count(), { timeout: 15_000 }).toBeGreaterThan(1);
-    await p.locator('.c-liste-outils input[type="search"]').fill(cabinet.nom);
-    // La recherche se lit après la pause de la frappe, et l'adresse la garde.
-    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toBe(`#/cabinets?q=${encodeURIComponent(cabinet.nom)}`);
-    await expect.poll(() => lignes.count(), { timeout: 15_000 }).toBe(1);
-    expect(net(await lignes.first().innerText())).toContain(cabinet.nom);
-    const comptes = async (q: Page) => (await q.locator('.c-table tbody tr').first().locator('td.c-droite .c-mono').allInnerTexts()).map(Number);
-    expect(await comptes(p)).toEqual([1, 1, 1]);
-    // Un compte posé seul garde sa minuscule derrière le nombre : « 2 personnes », jamais « 2 Personnes ».
-    expect(net(await lignes.first().locator('td').nth(4).innerText())).toBe('2 personnes');
+  it('les cabinets : une ligne de la liste des clients, comptée comme sa fiche ; la fiche d\'un client mène à son cabinet', async () => {
+    // L'ancienne adresse de la liste des cabinets ouvre la liste des clients, filtrée sur eux : une seule liste, où un cabinet
+    // est une ligne comme les autres (la maquette Clients).
+    const p = await ouvrir(await jetonConsole(support), '#/cabinets');
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toBe('#/clients?type=cabinets');
+    const lignes = p.locator('.c-table-clients tbody tr');
+    await p.getByRole('searchbox').fill(cabinet.nom);
+    await expect.poll(() => lignes.count().then(async (n) => n === 1 && net(await lignes.first().innerText()).includes(cabinet.nom)), { timeout: 15_000 }).toBe(true);
+    // Ses dossiers comptés comme sa fiche les compte : un client abonné, un dossier qu'il tient ; deux personnes.
+    expect(net(await lignes.first().locator('.c-cl-abo').innerText())).toBe('Cabinet, gratuit un client abonné · un dossier tenu');
+    expect(net(await lignes.first().locator('.c-cl-usage').innerText())).toBe('2 dossiers 2 collaborateurs');
     // Sa fiche : les trois cartes comptent la même chose que la liste, et ses trois dossiers.
     await cliquer(lignes.first().getByRole('link', { name: cabinet.nom, exact: true }));
     await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/cabinets/${cabinet.id}`);
@@ -680,7 +670,7 @@ describe('la console de l\'équipe, à la souris', () => {
     await expect.poll(() => p.locator('.c-vide').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain('Aucun cabinet à cette adresse');
     expect(await p.getByRole('button', { name: 'Réessayer' }).count()).toBe(0);
     await cliquer(p.getByRole('link', { name: 'Voir les cabinets', exact: true }));
-    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/cabinets');
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/clients?type=cabinets');
     await fermer(p);
   }, 90_000);
 
@@ -702,7 +692,7 @@ describe('la console de l\'équipe, à la souris', () => {
       { nom: 'fiche-emises', hash: `#/clients/${abonnee}` },
       { nom: 'fiche-cabinet-client', hash: `#/clients/${cabinet.client}` },
       // Nos factures (14b) : une facture à émettre sur sa fiche, et la fenêtre qui en prépare une, avec son aperçu.
-      { nom: 'fiche-factures', hash: `#/clients/${aFacturer}?onglet=abonnement` },
+      { nom: 'fiche-factures', hash: `#/clients/${aFacturer}?onglet=factures` },
       { nom: 'facture-preparer', hash: `#/clients/${enLecture}?onglet=abonnement`, geste: async (p) => { await cliquer(p.locator('.c-fiche-attend .c-btn-principal')); await p.locator('.c-fa-net').waitFor(); } },
       { nom: 'abonnements', hash: '#/abonnements' },
       { nom: 'abonnements-essai', hash: '#/abonnements?vue=essai' },
@@ -710,7 +700,7 @@ describe('la console de l\'équipe, à la souris', () => {
       { nom: 'paiements', hash: '#/paiements' },
       // Nos factures : celles de l'entreprise SkanFact, la TTN, leur paiement (C31).
       { nom: 'nos-factures', hash: '#/nos-factures' },
-      { nom: 'cabinets', hash: '#/cabinets' },
+      { nom: 'cabinets', hash: '#/clients?type=cabinets' },
       { nom: 'cabinet', hash: `#/cabinets/${cabinet.id}` },
       { nom: 'geste', hash: `#/clients/${enLecture}`, geste: async (p) => { await cliquer(p.locator('.c-menu > button')); await cliquer(p.locator('.c-menu-liste button').first()); await p.getByRole('dialog').waitFor(); } },
       { nom: 'journal', hash: '#/journal' },

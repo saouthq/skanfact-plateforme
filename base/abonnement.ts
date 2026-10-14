@@ -25,6 +25,7 @@ const NATURE: Record<Geste, string> = {
   prolonger: 'essai_prolonge', payer: 'paye', resilier: 'resilie', 'annuler-resiliation': 'resiliation_annulee',
   suspendre: 'suspendu', reprendre: 'repris', offrir: 'offert', 'retirer-offert': 'offert_retire',
   'ouvrir-module': 'module_ouvert', 'fermer-module': 'module_ferme',
+  'accorder-delai': 'delai_accorde', 'offrir-mois': 'mois_offert', 'changer-offre': 'offre_changee',
 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -36,12 +37,18 @@ async function lire(client: Client, entreprise: string, pourModifier: boolean): 
   if (!UUID.test(entreprise)) throw new Error('l\'entreprise se désigne par son identifiant (8-4-4-4-12)');
   const e = (await client.query('select essai, tenue_par is not null tenu from socle.entreprise where id = $1', [entreprise])).rows[0];
   if (!e) throw new Error('cette entreprise n\'est pas dans cette base');
-  const r = (await client.query(`select essai_jusqu_au::text, paye_jusqu_au::text, offre, periodicite, resilie_le::text, suspendu_le::text, offert, modules
+  const r = (await client.query(`select essai_jusqu_au::text, paye_jusqu_au::text, offre, periodicite, resilie_le::text, suspendu_le::text, offert, modules,
+        delai_echeance::text, delai_jusqu_au::text, suivante_offre, suivante_periodicite, suivante_a_partir_du::text
       from plateforme.abonnement where entreprise = $1 ${pourModifier ? 'for update' : ''}`, [entreprise])).rows[0];
   const ligne: Ligne | null = r ? { essai_jusqu_au: r.essai_jusqu_au, paye_jusqu_au: r.paye_jusqu_au, offre: r.offre, periodicite: r.periodicite,
-    resilie_le: r.resilie_le, suspendu_le: r.suspendu_le, offert: r.offert, modules: lireModules(r.modules) } : null;
+    resilie_le: r.resilie_le, suspendu_le: r.suspendu_le, offert: r.offert, modules: lireModules(r.modules),
+    delai_echeance: r.delai_echeance, delai_jusqu_au: r.delai_jusqu_au, suivante_offre: r.suivante_offre, suivante_periodicite: r.suivante_periodicite,
+    suivante_a_partir_du: r.suivante_a_partir_du } : null;
+  // Les mêmes faits que la porte (plateforme.faits_abonnement) : le délai d'une échéance, l'offre de la prochaine (0111).
   const faits = lireFaits({ connu: ligne !== null, essaiJusquAu: ligne?.essai_jusqu_au, payeJusquAu: ligne?.paye_jusqu_au, offre: ligne?.offre, periodicite: ligne?.periodicite,
-    resilieLe: ligne?.resilie_le, suspenduLe: ligne?.suspendu_le, offert: ligne?.offert, bacASable: e.essai, tenuParCabinet: e.tenu, modules: ligne?.modules });
+    resilieLe: ligne?.resilie_le, suspenduLe: ligne?.suspendu_le, offert: ligne?.offert, bacASable: e.essai, tenuParCabinet: e.tenu, modules: ligne?.modules,
+    delai: r?.delai_jusqu_au ? { echeance: r.delai_echeance, jusquAu: r.delai_jusqu_au } : null,
+    offreSuivante: r?.suivante_offre ? { offre: r.suivante_offre, periodicite: r.suivante_periodicite, aPartirDu: r.suivante_a_partir_du } : null });
   return { ligne, faits };
 }
 
@@ -59,6 +66,7 @@ const NATURES: Record<string, string> = {
   essai_commence: 'essai commencé', essai_prolonge: 'essai prolongé', paye: 'paiement noté', resilie: 'résilié',
   resiliation_annulee: 'résiliation annulée', suspendu: 'suspendu', repris: 'repris', offert: 'offert', offert_retire: 'plus offert',
   module_ouvert: 'module acheté', module_ferme: 'module retiré',
+  delai_accorde: 'délai accordé', mois_offert: 'mois offert', offre_changee: 'offre changée à la prochaine échéance',
 };
 
 export type Demande = DemandeAbonnement;
@@ -75,8 +83,10 @@ export async function faire(client: Client, entreprise: string, d: Demande, jour
     // Sans ligne, « prolonger » ouvre l'essai, à partir d'aujourd'hui.
     if (!ligne) await client.query('insert into plateforme.abonnement (entreprise, essai_jusqu_au) values ($1, $2)', [entreprise, apres.essai_jusqu_au]);
     await client.query(`update plateforme.abonnement set essai_jusqu_au = $2, paye_jusqu_au = $3, offre = $4, periodicite = $5, resilie_le = $6, suspendu_le = $7,
-        offert = $8, modules = $9, modifie_le = now() where entreprise = $1`,
-      [entreprise, apres.essai_jusqu_au, apres.paye_jusqu_au, apres.offre, apres.periodicite, apres.resilie_le, apres.suspendu_le, apres.offert, apres.modules]);
+        offert = $8, modules = $9, delai_echeance = $10, delai_jusqu_au = $11, suivante_offre = $12, suivante_periodicite = $13, suivante_a_partir_du = $14,
+        modifie_le = now() where entreprise = $1`,
+      [entreprise, apres.essai_jusqu_au, apres.paye_jusqu_au, apres.offre, apres.periodicite, apres.resilie_le, apres.suspendu_le, apres.offert, apres.modules,
+        apres.delai_echeance ?? null, apres.delai_jusqu_au ?? null, apres.suivante_offre ?? null, apres.suivante_periodicite ?? null, apres.suivante_a_partir_du ?? null]);
     await client.query(`insert into plateforme.evenement_abonnement (entreprise, nature, par, motif, avant, apres) values ($1, $2, 'exploitation', $3, $4, $5)`,
       [entreprise, lu.ligne ? NATURE[d.geste] : 'essai_commence', d.motif.trim(), lu.ligne ? JSON.stringify(ligne) : null, JSON.stringify({ ...apres, ...details })]);
     await client.query('commit');

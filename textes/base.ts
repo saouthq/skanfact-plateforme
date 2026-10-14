@@ -563,6 +563,38 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'un coût se saisit pour le mois en cours ou un mois passé', cle: 'base.couts.mois', fr: 'un coût se saisit pour le mois en cours ou un mois passé' },
   { base: 'ce coût n\'existe pas', cle: 'base.couts.inconnu', fr: 'ce coût n\'existe pas' },
   { base: 'ce coût est déjà retiré', cle: 'base.couts.deja_retire', fr: 'ce coût est déjà retiré' },
+  // Exporter la sélection de la liste des clients (0110).
+  { base: 'cet export n\'existe pas', cle: 'base.export.inconnu', fr: 'cet export n\'existe pas' },
+  // Le numéro, la ville, nos échanges avec un client (0110).
+  { base: 'le jour de la liste manque', cle: 'base.clients.jour', fr: 'le jour de la liste manque' },
+  { base: 'seuls la propriétaire et un administrateur disent où est l\'entreprise', cle: 'base.ville.droit', fr: 'seuls la propriétaire et un administrateur disent où est l\'entreprise' },
+  { base: 'une ville s\'écrit en deux à soixante caractères, sans balise', cle: 'base.ville.forme', fr: 'une ville s\'écrit en deux à soixante caractères, sans balise' },
+  { base: 'un appel s\'est passé ainsi : on s\'est parlé, pas de réponse, ou message laissé', cle: 'base.appel.resultat', fr: 'un appel s\'est passé ainsi : on s\'est parlé, pas de réponse, ou message laissé' },
+  { base: 'un appel où l\'on s\'est parlé dit en deux lignes ce qui s\'est dit', cle: 'base.appel.resume', fr: 'un appel où l\'on s\'est parlé dit en deux lignes ce qui s\'est dit' },
+  { base: 'une note d\'appel tient en mille caractères au plus', cle: 'base.appel.longueur', fr: 'une note d\'appel tient en mille caractères au plus' },
+  { base: 'une note d\'appel ne se modifie pas et ne s\'efface pas : on en écrit une autre', cle: 'base.appel.intouchable', fr: 'une note d\'appel ne se modifie pas et ne s\'efface pas : on en écrit une autre' },
+  { base: 'l\'objet d\'un message : de trois à cent quarante caractères', cle: 'base.ecrire.objet', fr: 'l\'objet d\'un message : de trois à cent quarante caractères' },
+  { base: 'l\'objet d\'un message s\'écrit sans balise', cle: 'base.ecrire.objet_balise', fr: 'l\'objet d\'un message s\'écrit sans balise' },
+  { base: 'un message dit quelque chose : de trois à quatre mille caractères', cle: 'base.ecrire.texte', fr: 'un message dit quelque chose : de trois à quatre mille caractères' },
+  { base: 'cette personne n\'est pas dans l\'équipe de cette entreprise : un message va à une personne qui le lira', cle: 'base.ecrire.destinataire', fr: 'cette personne n\'est pas dans l\'équipe de cette entreprise : un message va à une personne qui le lira' },
+  // La procédure de reprise d'une entreprise (0112).
+  { base: 'une reprise a sa cause : décès, cession, départ ou conflit d\'associés', cle: 'base.reprise.cause', fr: 'une reprise a sa cause : décès, cession, départ ou conflit d\'associés' },
+  { base: 'le repreneur se nomme : son nom et son prénom', cle: 'base.reprise.nom', fr: 'le repreneur se nomme : son nom et son prénom' },
+  { base: 'l\'adresse du repreneur ne ressemble pas à une adresse : nom@domaine.tn', cle: 'base.reprise.email', fr: 'l\'adresse du repreneur ne ressemble pas à une adresse : nom@domaine.tn' },
+  { base: 'une reprise dit pourquoi : le motif, en quelques mots', cle: 'base.reprise.motif', fr: 'une reprise dit pourquoi : le motif, en quelques mots' },
+  { base: 'une procédure de reprise est déjà en cours pour cette entreprise : on la mène au bout ou on la clôt', cle: 'base.reprise.deja', fr: 'une procédure de reprise est déjà en cours pour cette entreprise : on la mène au bout ou on la clôt' },
+  { base: 'le repreneur est déjà propriétaire de cette entreprise : il n\'y a rien à reprendre', cle: 'base.reprise.deja_proprietaire', fr: 'le repreneur est déjà propriétaire de cette entreprise : il n\'y a rien à reprendre' },
+  { base: 'le message à la propriétaire manque', cle: 'base.reprise.message', fr: 'le message à la propriétaire manque' },
+  { base: 'cette procédure de reprise n\'existe pas', cle: 'base.reprise.inconnue', fr: 'cette procédure de reprise n\'existe pas' },
+  { base: 'cette reprise est déjà appliquée', cle: 'base.reprise.appliquee', fr: 'cette reprise est déjà appliquée' },
+  { base: 'cette procédure de reprise est close : on en ouvre une autre au besoin', cle: 'base.reprise.close', fr: 'cette procédure de reprise est close : on en ouvre une autre au besoin' },
+  { base: 'une pièce de la reprise : l\'acte, le registre du commerce ou la pièce d\'identité du repreneur', cle: 'base.reprise.piece', fr: 'une pièce de la reprise : l\'acte, le registre du commerce ou la pièce d\'identité du repreneur' },
+  { base: 'cette pièce est déjà notée comme vue', cle: 'base.reprise.piece_vue', fr: 'cette pièce est déjà notée comme vue' },
+  { base: 'clore une reprise dit pourquoi : le motif, en quelques mots', cle: 'base.reprise.clore_motif', fr: 'clore une reprise dit pourquoi : le motif, en quelques mots' },
+  { base: 'l\'autre membre de la direction confirme une reprise : pas celui qui l\'a ouverte', cle: 'base.reprise.autre', fr: 'l\'autre membre de la direction confirme une reprise : pas celui qui l\'a ouverte' },
+  { base: 'les trois pièces ne sont pas toutes vues : l\'acte, le registre du commerce, la pièce d\'identité du repreneur', cle: 'base.reprise.pieces', fr: 'les trois pièces ne sont pas toutes vues : l\'acte, le registre du commerce, la pièce d\'identité du repreneur' },
+  { base: 'le repreneur n\'a pas encore de compte SkanFact à cette adresse : il le crée (c\'est gratuit), puis on confirme', cle: 'base.reprise.compte', fr: 'le repreneur n\'a pas encore de compte SkanFact à cette adresse : il le crée (c\'est gratuit), puis on confirme' },
+  { base: 'le délai d\'opposition court jusqu\'au %s inclus : la reprise se confirme après', cle: 'base.reprise.delai', fr: 'le délai d\'opposition court jusqu\'au {jour} inclus : la reprise se confirme après', valeurs: ['jour'] },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

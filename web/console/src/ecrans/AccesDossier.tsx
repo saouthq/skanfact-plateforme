@@ -35,7 +35,7 @@ function resteEnMots(min: number): string {
 // passe à celui qu'on ouvre ; jamais dans l'adresse).
 export const adresseDeLecture = (a: Pick<Acces, 'id' | 'entreprise'>) => `/v10/?e=${encodeURIComponent(a.entreprise)}&support=${encodeURIComponent(a.id)}#/dashboard`;
 
-function Demander({ client, demande, fermer, fait }: { client: { id: string; nom: string }; demande: { id: string; numero: number } | null; fermer: () => void; fait: () => void }) {
+export function Demander({ client, demande, fermer, fait }: { client: { id: string; nom: string }; demande: { id: string; numero: number } | null; fermer: () => void; fait: () => void }) {
   const api = useApi();
   const { moi } = useConsole();
   const [motif, setMotif] = useState('');
@@ -56,7 +56,7 @@ function Demander({ client, demande, fermer, fait }: { client: { id: string; nom
     })();
   };
   return (
-    <Dialogue titre={titre('console.ecran.support.acces.demander_titre')} sous={client.nom} sousDonnee fermer={fermer} occupe={occupe}
+    <Dialogue titre={titre('console.ecran.support.acces.demander_titre')} pour={client.nom} fermer={fermer} occupe={occupe}
       pied={<>
         <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
         <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre('console.ecran.support.acces.envoyer')}</Bouton>
@@ -73,7 +73,9 @@ function Demander({ client, demande, fermer, fait }: { client: { id: string; nom
 }
 
 // `bande` : sous l'en-tête d'une conversation (l'écran Support), sur une ligne ; `carte` : sous les demandes de la fiche.
-export function AccesDossier({ client, demande = null, aujourdhui, forme = 'carte' }: { client: { id: string; nom: string }; demande?: { id: string; numero: number } | null; aujourdhui: string; forme?: 'bande' | 'carte' }) {
+// `invite` : la phrase d'avant toute demande, propre à l'endroit (la fiche nomme à qui on demande ; le Support rappelle
+// qu'on ne voit que ce que le client a écrit).
+export function AccesDossier({ client, demande = null, aujourdhui, forme = 'carte', invite }: { client: { id: string; nom: string }; demande?: { id: string; numero: number } | null; aujourdhui: string; forme?: 'bande' | 'carte'; invite?: string }) {
   const api = useApi();
   const [lu, relire] = useLecture<Lu>(`/console/support/acces?client=${encodeURIComponent(client.id)}`);
   const [fenetre, setFenetre] = useState(false);
@@ -140,7 +142,7 @@ export function AccesDossier({ client, demande = null, aujourdhui, forme = 'cart
   } else {
     // Après un premier accès, ce qui s'est passé dit déjà que le dossier est fermé : une ligne, pas deux.
     quoi = ferme ? <span className="c-sp-acces-sous c-sp-acces-dernier"><Icone nom="cache" taille={15} /><span>{dernierEnMots(ferme, aujourdhui)}</span></span>
-      : <span className="c-sp-acces-sous"><Icone nom="cache" taille={15} /><span>{phrase('console.ecran.support.contenu')}</span></span>;
+      : <span className="c-sp-acces-sous"><Icone nom="cache" taille={15} /><span>{invite ?? phrase('console.ecran.support.contenu')}</span></span>;
     gestes = <Bouton petit onClick={() => setFenetre(true)}>{titre(ferme ? 'console.ecran.support.acces.redemander' : 'console.ecran.support.acces.demander')}</Bouton>;
   }
   return (

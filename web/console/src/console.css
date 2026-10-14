@@ -399,6 +399,14 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-liste-outils { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding: 16px 24px 12px; }
 .c-liste-outils .c-pilules { padding: 0; }
 .c-liste-outils .c-recherche { flex: 1 1 320px; }
+/* La ligne des filtres de la liste des clients (la maquette Clients) : la recherche prend la place qui reste, puis le type,
+   l'offre et le cabinet, chacun avec le compte de chaque option ; « Effacer les filtres » au bout, seulement s'il y a
+   quelque chose à effacer. Sur un écran étroit, chaque filtre prend sa ligne. */
+.c-cl-filtres { display: flex; flex: 1 1 100%; gap: 10px; flex-wrap: wrap; align-items: center; }
+.c-cl-filtres .c-recherche { flex: 1 1 280px; min-width: 220px; }
+.c-cl-filtres .c-recherche input { height: 40px; border-radius: 12px; }
+.c-cl-filtre { flex: 0 1 auto; min-width: 0; }
+.c-cl-filtre .c-select { height: 40px; max-width: 260px; }
 /* Un filtre venu d'ailleurs (la tuile « Inscriptions ») se voit, et se retire d'un clic. */
 .c-filtre-actif { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 14px; border-radius: 999px; background: var(--c-fort); color: var(--c-fort-texte); font-weight: 600; font-size: 13.5px; }
 .c-filtre-actif button { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
@@ -483,6 +491,7 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-dialogue-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 24px 24px 0; }
 .c-dialogue-tete h2 { font-size: 22px; }
 .c-dialogue-sous { color: var(--c-gris); margin-top: 6px; font-size: 14.5px; }
+.c-dialogue-pour { margin: 0 0 4px; font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c-gris); }
 .c-dialogue-corps { padding: 20px 24px; display: grid; gap: 18px; }
 /* Le pied reste sous les yeux quand une longue fenêtre défile : le bouton qui valide ce qu'on vient de taper ne se cherche
    pas sous le bas de l'écran. */
@@ -516,9 +525,12 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-menu-liste {
   position: absolute; inset-inline-end: 0; top: calc(100% + 6px); z-index: 20; min-width: 260px; padding: 6px; border-radius: 14px;
   background: var(--c-papier); border: 1px solid var(--c-trait); box-shadow: 0 16px 40px rgba(4, 12, 11, .16); display: grid; gap: 2px;
+  /* Posé dans la cellule des gestes, alignée à droite : le menu se lit, lui, depuis la gauche (la note du bas comprise). */
+  text-align: start;
 }
 .c-menu-liste button { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 12px; border-radius: 10px; border: 0; background: transparent; text-align: start; font-weight: 500; cursor: pointer; }
-.c-menu-liste button:hover, .c-menu-liste button:focus-visible { background: var(--c-doux); }
+/* Seul le focus surligne : le choix sous la souris le prend (parcourirMenu), un seul choix est surligné à la fois. */
+.c-menu-liste button:focus { background: var(--c-doux); }
 .c-menu-liste .c-menu-note { padding: 8px 12px; font-size: 13px; color: var(--c-gris); }
 .c-menu-liste-haut { top: auto; bottom: calc(100% + 6px); }
 /* Le menu d'une ligne, posé sur la fenêtre (MenuLigne) : sa place vient du bouton, pas de son parent. */
@@ -589,6 +601,8 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   .c-nav a, .c-moi-actions button { min-height: 44px; }
   .c-haut { padding: 16px 16px 0; }
   .c-recherche { flex: 1 1 100%; }
+  .c-cl-filtre, .c-cl-filtre .c-select { flex: 1 1 100%; max-width: none; width: 100%; min-height: 44px; }
+  .c-cl-filtres .c-recherche input, .c-cl-taille .c-select { height: 44px; min-height: 44px; }
   .c-trace { display: none; }
   .c-page { padding: 20px 16px 40px; gap: 20px; }
   .c-entete h1, .c-forme-corps h1 { font-size: 28px; }
@@ -1594,8 +1608,40 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 /* Un compte et un moment se lisent d'un trait (« un membre », « aujourd'hui, 08:12 ») quand la place le permet ; sur un
    portable, ils passent à la ligne plutôt que de pousser la dernière colonne hors du cadre. */
 @media (min-width: 1361px) {
-  .c-cl-usage span, .c-cl-vu { white-space: nowrap; }
+  .c-cl-usage > span:first-child, .c-cl-vu { white-space: nowrap; }
 }
+/* Une phrase sous un compte (« aucun membre : le cabinet y travaille ») passe à la ligne : jamais elle n'élargit la colonne. */
+.c-cl-usage .c-sous { max-width: 150px; }
+/* La liste des clients recalée sur sa maquette (C32) : le point d'une carte de vue à droite de son titre ; l'aide d'une
+   vue sous les filtres ; la remise de la prochaine période en étiquette sous l'abonnement ; « Ouvrir » et « … » sur une
+   ligne ; le pied, la page et sa taille à gauche, les numéros à droite ; la note sous la carte. */
+.c-vue-titre { justify-content: space-between; }
+.c-cl-aide { display: flex; align-items: flex-start; gap: 8px; flex: 1 1 100%; margin: 0; font-size: 13px; line-height: 1.5; color: var(--c-encre); }
+.c-cl-aide > .c-icone { flex: none; margin-top: 2px; color: var(--c-lien); }
+.c-cl-abo, .c-cl-etat { min-width: 124px; }
+.c-table-clients .c-cellule-nom { min-width: 170px; max-width: 200px; }
+.c-cl-abo > b { display: block; font-weight: 600; }
+.c-cl-remise { display: inline-flex; align-items: center; min-height: 20px; margin-top: 4px; padding: 0 7px; border-radius: 6px; background: var(--c-doux); color: var(--c-doux-texte); font-size: 11.5px; font-weight: 700; line-height: 1.3; }
+.c-cl-boutons { flex-wrap: nowrap; align-items: center; gap: 6px; }
+.c-cl-pages { background: var(--c-papier-2); border-radius: 0 0 var(--c-rayon) var(--c-rayon); font-size: 13px; }
+.c-cl-taille { display: inline-flex; align-items: center; gap: 10px; font-variant-numeric: tabular-nums; }
+.c-cl-taille label { display: inline-flex; align-items: center; gap: 6px; }
+.c-cl-taille .c-select { min-height: 32px; height: 32px; padding-inline: 8px 30px; background-position: calc(100% - 16px) 13px, calc(100% - 11px) 13px; font-size: 13px; }
+@media (max-width: 860px) {
+  .c-cl-taille .c-select { min-height: 44px; height: 44px; background-position: calc(100% - 16px) 19px, calc(100% - 11px) 19px; }
+}
+.c-cl-pages .c-liste-pied-boutons { flex-wrap: wrap; gap: 6px; align-items: center; }
+.c-cl-num { min-width: 34px; height: 34px; padding: 0 8px; border-radius: 10px; border: 1px solid var(--c-trait-fort); background: var(--c-papier); color: var(--c-encre); font: inherit; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; }
+.c-cl-num:hover { border-color: var(--c-gris-2); }
+.c-cl-num[aria-current="page"] { border-color: var(--c-fort); background: var(--c-fort); color: var(--c-fort-texte); }
+.c-cl-saut { min-width: 20px; text-align: center; color: var(--c-gris); }
+.c-cl-notes { margin: 0; display: flex; flex-wrap: wrap; gap: 6px 28px; font-size: 12.5px; line-height: 1.55; color: var(--c-gris); }
+.c-cl-notes > span:first-child { flex: 1 1 360px; }
+.c-cl-notes > span:last-child { flex: 1 1 420px; }
+.c-cl-sans-menu { display: inline-block; width: 34px; }
+.c-cl-verifier { font-weight: 600; color: var(--c-orange-texte); }
+.c-menu-liste button.c-menu-trait { border-top: 1px solid var(--c-trait); border-radius: 0 0 10px 10px; margin-top: 2px; }
+.c-menu-liste .c-menu-note { border-top: 1px solid var(--c-trait); margin: 2px 0 0; font-size: 12px; line-height: 1.4; }
 @media (max-width: 1180px) {
   .c-vues-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
@@ -2630,3 +2676,76 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-nf-piece a, .c-nf-qui a { display: inline-flex; align-items: center; min-height: 44px; }
   .c-nf-ouvrir .c-btn { max-width: 100%; white-space: normal; text-align: start; }
 }
+
+/* ── Le lot Clients : la fiche (son entreprise, ses huit comptes, à qui parler), nos échanges, la fiche d'un groupe, la
+   procédure de reprise (la maquette Fiche ; docs/console.md C32–C34). ─────────────────────────────────────────────── */
+.c-fiche-ent-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.c-fiche-ent-tete b { font-size: 15px; font-weight: 600; }
+.c-fiche-ent-tete a { color: inherit; text-decoration: none; }
+.c-fiche-ent-tete a:hover { text-decoration: underline; }
+.c-fiche-ent-note { font-size: 13px; color: var(--c-gris); }
+.c-fiche-puces { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.c-fiche-puce { display: inline-flex; align-items: center; min-height: 24px; padding: 0 9px; border-radius: 999px; background: var(--c-gris-doux); color: var(--c-texte); font-size: 12.5px; }
+.c-fiche-chiffres-8 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px 16px; }
+.c-fiche-chiffres .c-chiffre b.c-cl-rien { color: var(--c-gris-2); }
+.c-fiche-chiffres .c-chiffre b.c-chiffre-texte { font-size: 17px; line-height: 1.3; }
+.c-fiche-comptes-pied { margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--c-trait); font-size: 13px; color: var(--c-gris); }
+.c-personnes .c-texte > span.c-fiche-tel { color: var(--c-encre); font-size: 14px; }
+.c-fiche-parler-gestes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.c-fiche-dernier { margin: 10px 0 0; font-size: 13px; color: var(--c-gris); }
+.c-fiche-notes .c-motif { font-style: normal; white-space: pre-line; }
+/* « Nos échanges » est une carte à marges : son vide s'aligne sur son titre, comme celui des demandes au-dessus. */
+.c-fiche-echanges > .c-vide { padding-inline: 0; padding-bottom: 4px; }
+/* Les choix d'un appel, d'une cause : des pilules qui se cochent (role="radio"). */
+.c-ech-choix { display: flex; flex-wrap: wrap; gap: 8px; }
+.c-pilule[aria-checked="true"] { background: var(--c-fort); border-color: var(--c-fort); color: var(--c-fort-texte); }
+.c-pilule-faute { border-color: var(--c-rouge); }
+/* La fiche d'un groupe : ses sociétés côte à côte, deux par ligne. */
+.c-groupe-societes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.c-groupe-societes > :only-child { grid-column: 1 / -1; }
+.c-groupe-societes .c-cl-remise { justify-self: start; }
+/* La procédure de reprise. */
+.c-reprise { display: flex; flex-direction: column; gap: 8px; padding: 16px 20px; }
+.c-reprise-titre { font-size: 14px; font-weight: 600; }
+.c-reprise-texte { font-size: 12.5px; line-height: 1.5; color: var(--c-gris); }
+.c-reprise-en-cours { gap: 14px; padding: 20px 24px; border-color: color-mix(in srgb, var(--c-orange) 45%, transparent); }
+.c-reprise-en-cours .c-carte-tete { margin-bottom: 0; }
+.c-reprise-faits { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.c-reprise-faits dd { font-weight: 500; }
+.c-reprise-note { display: block; margin-top: 2px; font-size: 12.5px; font-weight: 400; color: var(--c-orange-texte); }
+.c-reprise-pieces { display: grid; gap: 8px; }
+.c-reprise-pieces ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.c-reprise-pieces li { display: flex; align-items: center; gap: 12px; }
+.c-reprise-pieces .c-ligne-icone { width: 36px; height: 36px; border-radius: 10px; flex: none; }
+.c-reprise-piece { display: grid; gap: 1px; flex: 1 1 auto; min-width: 0; }
+.c-reprise-piece b { font-weight: 600; font-size: 14px; }
+.c-reprise-piece small { font-size: 12.5px; color: var(--c-gris); }
+.c-reprise-pieces > .c-reprise-note { color: var(--c-gris); }
+.c-reprise-gestes { justify-content: flex-start; }
+.c-ligne-icone.c-ok { background: color-mix(in srgb, var(--c-sarcelle) 14%, transparent); color: var(--c-sarcelle); }
+@media (max-width: 860px) {
+  .c-fiche-chiffres-8 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .c-groupe-societes { grid-template-columns: minmax(0, 1fr); }
+  .c-reprise-pieces li { flex-wrap: wrap; }
+  .c-reprise-gestes .c-btn, .c-fiche-parler-gestes .c-btn { min-height: 44px; }
+}
+/* La liste des clients : un numéro ne se coupe pas ; « en lecture seule » tient sur sa ligne ; un groupe, en sombre (la
+   maquette). */
+.c-insecable { white-space: nowrap; }
+.c-cl-echeance .c-sous { white-space: nowrap; }
+.c-table-clients .c-avatar-nuit { background: var(--c-nuit); color: var(--c-nuit-texte); }
+/* La liste « avant de confirmer » d'une reprise : une case cochée par condition remplie. */
+.c-reprise-avant { display: grid; gap: 8px; padding: 14px 16px; border-radius: 14px; background: var(--c-papier-2); border: 1px solid var(--c-trait); }
+.c-reprise-avant ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 14px; }
+.c-reprise-avant li { display: flex; align-items: flex-start; gap: 10px; color: var(--c-texte); }
+.c-reprise-avant li.c-reprise-ok { color: var(--c-gris); }
+.c-reprise-coche { flex: none; display: grid; place-items: center; width: 20px; height: 20px; margin-top: 1px; border-radius: 6px; border: 1.5px solid var(--c-trait-fort); }
+.c-reprise-ok .c-reprise-coche { background: var(--c-sarcelle); border-color: var(--c-sarcelle); color: #fff; }
+/* L'accès au dossier, dans la carte de la fiche : le texte et son bouton, sans le cadre de la bande du Support. */
+.c-fiche-acces .c-sp-acces-bande { flex-direction: column; align-items: flex-start; gap: 10px; padding: 0; border: 0; background: none; }
+.c-fiche-acces .c-sp-acces-bande .c-sp-acces-sous { font-size: 13.5px; }
+.c-fiche-acces .c-sp-acces-bande .c-sp-acces-quoi { flex: none; }
+/* Écrire au contact : le brouillon se lit en entier, sans défiler dans la case. */
+.c-ech-message textarea { min-height: 200px; }
+/* Le menu d'un groupe : le nom de chaque société en tête de ses gestes. */
+.c-menu-section { margin: 0; padding: 10px 12px 4px; font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c-gris); }

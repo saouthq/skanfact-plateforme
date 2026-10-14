@@ -155,7 +155,7 @@ export function NoterDemande({ client, fermer }: { client: { id: string; nom: st
   };
   const k = 'console.ecran.support.g.noter';
   return (
-    <Dialogue titre={titre(`${k}.titre`)} sous={client.nom} sousDonnee fermer={fermer} occupe={occupe}
+    <Dialogue titre={titre(`${k}.titre`)} pour={client.nom} fermer={fermer} occupe={occupe}
       pied={<>
         <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
         <Bouton ton="principal" occupe={occupe} desactive={personnes.etat === 'lu' && !liste.length} onClick={envoyer}>{titre(`${k}.bouton`)}</Bouton>

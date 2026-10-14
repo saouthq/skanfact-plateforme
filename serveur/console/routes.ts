@@ -12,7 +12,7 @@ import type { Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { Introuvable, Perimee } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
-import { etatAbonnement, lireFaits, lireModules, lireRegles, plusJours, regleAu, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
+import { etatAbonnement, lireDelai, lireFaits, lireModules, lireOffreSuivante, lireRegles, plusJours, regleAu, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, type GesteAbonnement, type LigneAbonnement } from '../abonnement/gestes.ts';
 import { lireFacturesAbonnement, lireLignesEnPlus, periodeDeLaFacture, preparerFacture } from '../abonnement/factures.ts';
 import { lireRemise } from '../abonnement/remise.ts';
@@ -20,9 +20,12 @@ import { lireApercuGroupe, lireGroupeDe } from './groupes.ts';
 import { motif, rendre, t, type Valeurs } from '../../textes/index.ts';
 import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_MIN, REGLES, SAUVEGARDE_TROP_VIEILLE_H } from '../../exploitation/veille.ts';
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
-import { aDecider, CATEGORIES, categorie, chercher, inscriteCetteSemaine, lireEntreprises, lireVeille, rangerParUrgence, tableau, type Veille } from './decider.ts';
+import { aDecider, CATEGORIES, inscriteCetteSemaine, lireEntreprises, lireVeille, tableau, type Entreprise, type Veille } from './decider.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
-import { avecVenues, comptesDesVues, dansLaVue, ligneClient, parAnDeLaSelection, trier, TRIS_CLIENTS, VUES_CLIENTS, type TriClients, type VueClients } from './clients.ts';
+import { avecEnPlus, avecVenues, lireEnPlus, dansLaVue, ligneClient, ligneExport, TRIS_CLIENTS, VUES_CLIENTS, type VueClients } from './clients.ts';
+import { categorieOrg, chercherOrg, lireFiltresOrg, optionsDesFiltresOrg, orgDansLaVue, orgDansLesFiltres, organisations, parAnDeLaLigne, parAnDesLignes, trierOrg,
+  usageDeLaLigne, vuDeLaLigne, type TriOrg } from './organisations.ts';
+import { lireIdentites, lireNotesAppel } from './identites.ts';
 import { annuel, AVENIR_JOURS, cartes, lignesEcheances, lireExtras, lirePrix, lireRemisesEcheances, relancesRecentes, vue, VUES, type Vue } from './echeances.ts';
 import {
   alertesOuvertes, BUDGET_DU_GRAPHIQUE, bornes, briques, disponibilite, enLigne, ensemble, estPeriode, journal, joursDuService, lireVeilleDeLaBase,
@@ -83,6 +86,11 @@ function lireLigne(x: unknown): LigneAbonnement | null {
     offre: l.offre === 'essentiel' || l.offre === 'complet' ? l.offre : null,
     periodicite: l.periodicite === 'annuel' || l.periodicite === 'mensuel' ? l.periodicite : null,
     resilie_le: jour(l.resilie_le), suspendu_le: jour(l.suspendu_le), offert: l.offert === true, modules: lireModules(l.modules),
+    // 0111 : le délai d'une échéance, l'offre de la prochaine.
+    delai_echeance: jour(l.delai_echeance), delai_jusqu_au: jour(l.delai_jusqu_au),
+    suivante_offre: l.suivante_offre === 'essentiel' || l.suivante_offre === 'complet' ? l.suivante_offre : null,
+    suivante_periodicite: l.suivante_periodicite === 'annuel' || l.suivante_periodicite === 'mensuel' ? l.suivante_periodicite : null,
+    suivante_a_partir_du: jour(l.suivante_a_partir_du),
   };
 }
 // Deux lignes pareilles : chaque champ, et les modules achetés (une liste) un par un.
@@ -93,6 +101,8 @@ const memeLigne = (a: LigneAbonnement | null, b: LigneAbonnement | null) =>
 const faitsApres = (f: Faits, l: LigneAbonnement): Faits => ({ ...lireFaits({
   connu: true, essaiJusquAu: l.essai_jusqu_au, payeJusquAu: l.paye_jusqu_au, offre: l.offre, periodicite: l.periodicite,
   resilieLe: l.resilie_le, suspenduLe: l.suspendu_le, offert: l.offert, bacASable: f.bacASable, tenuParCabinet: f.tenuParCabinet, modules: l.modules,
+  delai: l.delai_jusqu_au ? { echeance: l.delai_echeance, jusquAu: l.delai_jusqu_au } : null,
+  offreSuivante: l.suivante_offre ? { offre: l.suivante_offre, periodicite: l.suivante_periodicite, aPartirDu: l.suivante_a_partir_du } : null,
 }), regles: f.regles });
 
 // Ce que l'écran des échéances dit des règles : les relances d'aujourd'hui, la grâce d'une échéance qui tomberait
@@ -103,10 +113,16 @@ const reglesDuJour = (r: Regles, jour: string) =>
 // Les règles de l'abonnement (0104 : la grâce, les relances, datées), lues une fois par requête : la console les ajoute
 // aux faits de chaque entreprise, comme la base le fait pour l'application (plateforme.faits_abonnement).
 const lireLesRegles = async (x: Transaction): Promise<Regles> => lireRegles(await lireJson(x, 'select plateforme.regles_abonnement_histoire() v'));
+// Le délai d'une échéance et l'offre de la prochaine (0111), posés sur les faits de chaque entreprise avant que l'état
+// s'en déduise : la porte (plateforme.faits_abonnement) les lit de la même façon.
+const lesFaitsEnPlus = async (x: Transaction) => {
+  const b = await lireJson<Record<string, Record<string, unknown>>>(x, 'select plateforme.console_faits_en_plus() v');
+  return new Map(Object.entries(b ?? {}).map(([id, v]) => [id, { delai: lireDelai(v?.delai), offreSuivante: lireOffreSuivante(v?.offreSuivante) }]));
+};
 const lesEntreprises = async (x: Transaction, jour: string) =>
-  lireEntreprises(await lireJson(x, 'select plateforme.console_entreprises() v'), jour, await lireLesRegles(x));
+  lireEntreprises(await lireJson(x, 'select plateforme.console_entreprises() v'), jour, await lireLesRegles(x), await lesFaitsEnPlus(x));
 const faitsDeLaFiche = async (x: Transaction, fiche: Record<string, unknown>): Promise<Faits> =>
-  ({ ...lireFaits((fiche.faits ?? {}) as Record<string, unknown>), regles: await lireLesRegles(x) });
+  ({ ...lireFaits((fiche.faits ?? {}) as Record<string, unknown>), regles: await lireLesRegles(x), ...((await lesFaitsEnPlus(x)).get(String(fiche.id)) ?? {}) });
 
 // Les gestes qu'un rôle peut faire sur cet abonnement, AUJOURD'HUI : l'écran ne propose que ceux-là (la base, elle,
 // refuse les autres). Le support prolonge un essai, une fois ; le reste est à la direction.
@@ -126,7 +142,25 @@ export function gestesDisponibles(role: RoleConsole, f: Faits, ligne: LigneAbonn
   // Un module acheté seul (14c) : sur ce qui n'est ni Complet ni offert ; se retire tant qu'il en reste un.
   if (!f.offert && ligne.offre !== 'complet' && ligne.modules.length < 2) g.push('ouvrir-module');
   if (ligne.modules.length) g.push('fermer-module');
+  // 0111 : un délai à qui est en grâce ou en lecture seule après une échéance manquée ; un mois offert à un abonnement
+  // payé qui court ; une autre offre à la prochaine échéance d'un abonné.
+  if (!f.offert && (e.etat === 'en_retard' || (e.etat === 'lecture_seule' && (e.raison === 'essai_termine' || e.raison === 'non_renouvele')))) g.push('accorder-delai');
+  if (!f.offert && e.etat === 'actif' && !ligne.resilie_le) g.push('offrir-mois');
+  if (!f.offert && ligne.offre && ligne.periodicite && !ligne.resilie_le && (e.etat === 'actif' || e.etat === 'en_retard')) g.push('changer-offre');
   return g;
+}
+
+// Les gestes du menu « … » d'une ligne de la liste des clients (la maquette Clients) : ceux que sa fiche proposerait, par
+// la MÊME règle (gestesDisponibles), sur la ligne d'abonnement que ses faits décrivent ; seulement ceux qui se font sans
+// lire la fiche (payer, offrir, un module : sur la fiche, où se lit ce qu'ils changent).
+const GESTES_DE_LA_LISTE: readonly GesteAbonnement[] = ['prolonger', 'accorder-delai', 'reprendre', 'offrir-mois', 'changer-offre', 'annuler-resiliation',
+  'suspendre', 'resilier', 'retirer-offert'];
+export function gestesDeLaListe(role: RoleConsole, e: Entreprise): GesteAbonnement[] {
+  const f = e.faits;
+  const ligne: LigneAbonnement | null = f.connu ? { essai_jusqu_au: f.essaiJusquAu ?? '', paye_jusqu_au: f.payeJusquAu, offre: f.offre, periodicite: f.periodicite,
+    resilie_le: f.resilieLe, suspendu_le: f.suspenduLe, offert: f.offert, modules: [...(f.modules ?? [])], suivante_offre: f.offreSuivante?.offre ?? null } : null;
+  const permis = gestesDisponibles(role, f, ligne, e.etat, e.enPlus?.prolongeUneFois ?? false);
+  return GESTES_DE_LA_LISTE.filter((g) => permis.includes(g));
 }
 
 export function routesConsole(ctx: Contexte, options: { veille?: string | null } = {}): Route<never>[] {
@@ -213,36 +247,85 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   // La liste se range par urgence, se filtre par état (avec le compte de chaque état, calculé par la même fonction) et se
   // cherche ; elle se pagine. « nouvelles=1 » : les seules inscrites de la semaine, la liste que la tuile « Inscriptions »
   // compte (les comptes des états portent alors sur elles).
+  // La sélection de la liste, telle que l'écran la montre (les inscrites de la semaine, la recherche, les filtres, la vue,
+  // la puce d'état, l'ordre) : l'écran et l'export la lisent par CETTE fonction — ce qui s'exporte est ce qui se voit.
+  async function selectionClients(t: ReturnType<typeof transaction>, jour: string, query: Record<string, unknown>) {
+    // Celles venues par un cabinet (0107), pour la sixième vue ; la remise de la prochaine période de chacune (0106), que
+    // « par an » déduit comme les échéances ; et ce que chaque ligne dit en plus (0110 : les pièces émises du mois,
+    // l'essai prolongé, la facture qui attend).
+    const entreprises = avecEnPlus(avecVenues(await lesEntreprises(t, jour), await lireJson(t, 'select plateforme.console_venues_par_cabinet() v'),
+      lireRemisesEcheances(await lireJson(t, 'select plateforme.console_remises_echeances() v'))),
+    lireEnPlus(await lireJson(t, 'select plateforme.console_clients_en_plus($1::date) v', [jour]), jour));
+    const prix = lirePrix(await lireJson(t, 'select plateforme.prix_du_jour($1::date) v', [jour]));
+    // Le numéro, la ville, le téléphone de chaque entreprise ; les groupes de la console ce jour-là ; les cabinets (0110).
+    const id = lireIdentites(await lireJson(t, 'select plateforme.console_identites($1::date) v', [jour]));
+    const connues = new Set(entreprises.map((e) => e.id));
+    const cabinets = lireCabinets(await lireJson(t, 'select plateforme.console_cabinets() v')).map((c) => ligneCabinet(c, connues));
+    // Une ligne par organisation : un groupe, une entreprise seule, un dossier tenu, un cabinet.
+    const toutes = organisations(entreprises, jour, id.entreprises, id.groupes, cabinets, id.cabinets);
+    const nouvelles = query.nouvelles === '1' ? toutes.filter((o) => o.societes.some((e) => inscriteCetteSemaine(e, jour))) : toutes;
+    const cherchees = chercherOrg(nouvelles, String(query.q ?? ''), id.entreprises);
+    // Les filtres de la ligne d'outils (le type, l'offre, le cabinet), chaque option comptée sur ce que filtrent les autres.
+    const filtres = lireFiltresOrg(query);
+    const options = optionsDesFiltresOrg(cherchees, filtres);
+    const filtrees = cherchees.filter((o) => orgDansLesFiltres(o, filtres));
+    // Les cartes du métier comptent la recherche et les filtres ; les puces d'état comptent la carte choisie (C3 : chacune
+    // par la fonction qui filtre la liste qu'elle ouvre).
+    const vues = Object.fromEntries(VUES_CLIENTS.map((v) => [v, filtrees.filter((o) => orgDansLaVue(o, v, jour)).length])) as Record<VueClients, number>;
+    const laVue: VueClients = VUES_CLIENTS.includes(query.vue as never) ? query.vue as VueClients : 'tout';
+    const dansVue = filtrees.filter((o) => orgDansLaVue(o, laVue, jour));
+    const comptes = Object.fromEntries(CATEGORIES.map((c) => [c, dansVue.filter((o) => categorieOrg(o) === c).length]));
+    const etat = CATEGORIES.includes(query.etat as never) ? query.etat as string : null;
+    const tri: TriOrg = TRIS_CLIENTS.includes(query.tri as never) ? query.tri as TriOrg : 'urgence';
+    const gardees = trierOrg(etat ? dansVue.filter((o) => categorieOrg(o) === etat) : dansVue, tri, prix, jour);
+    return { prix, filtres, options, vues, laVue, dansVue, comptes, tri, gardees, identites: id.entreprises };
+  }
   ajouter({
     methode: 'GET', chemin: '/console/entreprises', geste: 'console.clients.voir',
-    traiter: async ({ query }, tx) => {
+    traiter: async ({ query, qui }, tx) => {
       const jour = aujourdhuiATunis();
-      const t = transaction(tx);
-      // Celles venues par un cabinet (0107), pour la sixième vue ;
-      // et la remise de la prochaine période de chacune (0106), que « par an » déduit comme les échéances.
-      const toutes = rangerParUrgence(avecVenues(await lesEntreprises(t, jour), await lireJson(t, 'select plateforme.console_venues_par_cabinet() v'),
-        lireRemisesEcheances(await lireJson(t, 'select plateforme.console_remises_echeances() v'))), jour);
-      const prix = lirePrix(await lireJson(t, 'select plateforme.prix_du_jour($1::date) v', [jour]));
-      const nouvelles = query.nouvelles === '1' ? toutes.filter((e) => inscriteCetteSemaine(e, jour)) : toutes;
-      const cherchees = chercher(nouvelles, String(query.q ?? ''));
-      // Les cartes du métier comptent la recherche ; les puces d'état comptent la carte choisie (C3 : chacune par la
-      // fonction qui filtre la liste qu'elle ouvre).
-      const vues = comptesDesVues(cherchees, jour);
-      const laVue: VueClients = VUES_CLIENTS.includes(query.vue as never) ? query.vue as VueClients : 'tout';
-      const dansVue = cherchees.filter((e) => dansLaVue(e, laVue, jour));
-      const comptes = Object.fromEntries(CATEGORIES.map((c) => [c, dansVue.filter((e) => categorie(e) === c).length]));
-      const etat = CATEGORIES.includes(query.etat as never) ? query.etat : null;
-      const tri: TriClients = TRIS_CLIENTS.includes(query.tri as never) ? query.tri as TriClients : 'urgence';
-      const gardees = trier(etat ? dansVue.filter((e) => categorie(e) === etat) : dansVue, tri, prix);
+      const role = roleDe(qui);
+      const s = await selectionClients(transaction(tx), jour, query);
       const debut = Math.max(Number(query.debut ?? 0) || 0, 0);
       const n = limite(query);
-      const page = gardees.slice(debut, debut + n).map((e) => ligneClient(e, prix));
+      // Chaque ligne : ce qu'elle est, ce qu'elle rapporte, et chacune de ses sociétés telle que la liste la dit — les
+      // vues du métier où elle se range (« n'a encore rien fait », « pas vue depuis dix jours » : la phrase et la carte qui
+      // la compte, par la même fonction), les gestes de son menu, son numéro, sa ville.
+      const page = s.gardees.slice(debut, debut + n).map((o) => {
+        const p = parAnDeLaLigne(o, s.prix);
+        return {
+          id: o.id, sorte: o.sorte, numero: o.numero, nom: o.nom, ville: o.ville, cabinet: o.cabinet,
+          parAnHt: p.actif ? versTexte(p.actif, 3) : null, attenduHt: p.attendu ? versTexte(p.attendu, 3) : null,
+          usage: usageDeLaLigne(o), vu: vuDeLaLigne(o),
+          societes: o.societes.map((e) => ({ ...ligneClient(e, s.prix), numero: s.identites.get(e.id)?.numero ?? null, ville: s.identites.get(e.id)?.ville ?? null,
+            vues: VUES_CLIENTS.filter((v) => v !== 'tout' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e) })),
+        };
+      });
       return {
         corps: {
-          aujourdhui: jour, total: gardees.length, tous: dansVue.length, vue: laVue, tri, vues, comptes, parAn: parAnDeLaSelection(gardees, prix),
-          lignes: page, suite: debut + n < gardees.length ? debut + n : null,
+          aujourdhui: jour, total: s.gardees.length, tous: s.dansVue.length, vue: s.laVue, tri: s.tri, vues: s.vues, comptes: s.comptes,
+          filtres: s.filtres, options: s.options, parAn: parAnDesLignes(s.gardees, s.prix),
+          lignes: page, suite: debut + n < s.gardees.length ? debut + n : null,
         },
       };
+    },
+  });
+  // Exporter la sélection (la maquette Clients) : la direction seule, avec son motif ; le geste s'écrit au journal (le
+  // nombre de lignes et les filtres, jamais les lignes), puis la sélection revient, toutes ses pages, une ligne par
+  // entreprise (une ligne de groupe en donne autant que de sociétés ; un cabinet, aucune).
+  ajouter({
+    methode: 'POST', chemin: '/console/entreprises/export', geste: 'console.clients.exporter',
+    corps: z.object({ motif: z.string().max(400), filtres: z.record(z.string(), z.string().max(200)).optional() }),
+    traiter: async ({ corps }, tx) => {
+      if (corps.motif.trim().length < 3) return refusDuChamp('motif', 'console.motif_requis');
+      const jour = aujourdhuiATunis();
+      const f = corps.filtres ?? {};
+      const s = await selectionClients(transaction(tx), jour, f);
+      const lignes = s.gardees.flatMap((o) => o.societes.map((e) => ({ ...ligneExport(e, s.prix), numero: s.identites.get(e.id)?.numero ?? null,
+        ville: s.identites.get(e.id)?.ville ?? null, groupe: o.sorte === 'groupe' ? o.nom : null })));
+      const gardes = Object.fromEntries(['q', 'nouvelles', 'type', 'offre', 'cabinet', 'vue', 'etat', 'tri'].filter((k) => typeof f[k] === 'string' && f[k] !== '').map((k) => [k, f[k]]));
+      await transaction(tx).query('select plateforme.console_noter_export($1, $2, $3, $4)', ['clients', lignes.length, JSON.stringify(gardes), corps.motif.trim()]);
+      return { statut: 201, corps: { aujourdhui: jour, lignes } };
     },
   });
 
@@ -275,8 +358,113 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // prochaine facture paierait, par la même règle que la facture.
       const prochaine = periodeDeLaFacture(faits, faits.periodicite ?? 'annuel', jour).debut;
       const groupe = lireGroupeDe(await lireJson(transaction(tx), 'select plateforme.console_groupe_de($1, $2::date, $3::date) v', [id, jour, prochaine]));
+      // Son numéro, sa ville, le téléphone vérifié de sa propriétaire, son dernier appel (0110) ; ses notes d'appel ; ce
+      // que la liste dit en plus d'elle (les pièces émises du mois, l'essai, la facture qui attend), par les mêmes lectures.
+      const identite = lireIdentites(await lireJson(transaction(tx), 'select plateforme.console_identites($1::date) v', [jour])).entreprises.get(id) ?? null;
+      const notes = lireNotesAppel(await lireJson(transaction(tx), 'select plateforme.console_notes_appel($1) v', [id]));
+      const enPlus = lireEnPlus(await lireJson(transaction(tx), 'select plateforme.console_clients_en_plus($1::date) v', [jour]), jour).get(id) ?? null;
       return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, factures, groupe: { ...groupe, prochaine }, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true),
+        identite, notes, enPlus, offreSuivante: faits.offreSuivante ?? null, delai: faits.delai ?? null,
+        // La procédure de reprise en cours, ou la dernière (0112) : la direction seule la voit.
+        reprise: role === 'direction' ? await lireJson(transaction(tx), 'select plateforme.console_reprise($1, $2::date) v', [id, jour]) : null,
         support: { comptes: compter(support.ouvertes, instant), ouvertes: ranger(support.ouvertes, instant), closes: support.closes.map((l) => ({ ...l, etat: etatDe(l, instant) })) } } };
+    },
+  });
+
+  // ── Nos échanges avec un client (0110 ; la maquette Fiche) ─────────────────────────────────────────────────────────
+  // Noter un appel : comment il s'est passé, ce qui s'est dit ; rangé sur sa fiche, il ne part jamais chez le client.
+  ajouter({
+    methode: 'POST', chemin: '/console/entreprises/:id/appels', geste: 'console.clients.appeler',
+    corps: z.object({ resultat: z.enum(['parle', 'sans_reponse', 'message_laisse']), resume: z.string().max(1000).optional() }),
+    traiter: async ({ params, corps }, tx) => {
+      const id = params.id ?? '';
+      if (!uuid.safeParse(id).success) throw new Introuvable();
+      const r = await transaction(tx).query('select plateforme.console_noter_appel($1, $2, $3, $4) id', [id, corps.resultat, corps.resume ?? null, maintenant()]);
+      return { statut: 201, corps: { id: String(r.rows[0]?.id) } };
+    },
+  });
+  // Écrire au contact : un message que la personne lit dans son application (une demande au support que SkanFact
+  // commence) ; l'alerte des réponses du support la prévient par e-mail, sans le texte.
+  ajouter({
+    methode: 'POST', chemin: '/console/entreprises/:id/ecrire', geste: 'console.clients.ecrire',
+    corps: z.object({ destinataire: uuid, sujet: z.string().max(140), texte: z.string().max(4000) }),
+    traiter: async ({ params, corps }, tx) => {
+      const id = params.id ?? '';
+      if (!uuid.safeParse(id).success) throw new Introuvable();
+      const r = await transaction(tx).query('select plateforme.console_ecrire_au_contact($1, $2, $3, $4, $5) id', [id, corps.destinataire, corps.sujet, corps.texte, maintenant()]);
+      return { statut: 201, corps: { demande: String(r.rows[0]?.id) } };
+    },
+  });
+  // ── La procédure de reprise d'une entreprise (docs/console.md C34 ; 0112 ; la maquette Fiche) ──────────────────────
+  // Changer de propriétaire sur pièces, jamais sur un appel : la direction l'ouvre (la propriétaire est prévenue dans son
+  // application et a quinze jours pour s'y opposer), note les pièces vues, et l'AUTRE membre de la direction confirme.
+  ajouter({
+    methode: 'POST', chemin: '/console/entreprises/:id/reprises', geste: 'console.clients.reprise',
+    corps: z.object({ cause: z.enum(['deces', 'cession', 'depart', 'conflit']), nom: z.string().max(120), email: z.string().max(254), motif: z.string().max(500) }),
+    traiter: async ({ params, corps }, tx) => {
+      const id = params.id ?? '';
+      if (!uuid.safeParse(id).success) throw new Introuvable();
+      const fiche = await lireJson<{ raisonSociale?: unknown } | null>(transaction(tx), 'select plateforme.console_entreprise($1) v', [id]);
+      if (!fiche) throw new Introuvable();
+      // Le message part sous le nom de l'entreprise et du repreneur ; la date limite, c'est la base qui la pose.
+      const valeurs = { entreprise: String(fiche.raisonSociale ?? ''), repreneur: corps.nom.trim(), jusquAu: '%JUSQU_AU%' };
+      const sujet = rendre(t('console.reprise.sujet', valeurs), 'fr').replace(/[<>]/g, '').slice(0, 140);
+      const r = await transaction(tx).query('select plateforme.console_ouvrir_reprise($1, $2, $3, $4, $5, $6, $7, $8) id',
+        [id, corps.cause, corps.nom, corps.email, corps.motif, sujet, rendre(t('console.reprise.texte', valeurs), 'fr'), maintenant()]);
+      return { statut: 201, corps: { id: String(r.rows[0]?.id) } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/reprises/:id/pieces', geste: 'console.clients.reprise',
+    corps: z.object({ piece: z.enum(['acte', 'registre', 'identite']) }),
+    traiter: async ({ params, corps }, tx) => {
+      const id = params.id ?? '';
+      if (!uuid.safeParse(id).success) throw new Introuvable();
+      await transaction(tx).query('select plateforme.console_piece_reprise($1, $2, $3)', [id, corps.piece, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/reprises/:id/clore', geste: 'console.clients.reprise',
+    corps: z.object({ opposition: z.boolean(), motif: z.string().max(500) }),
+    traiter: async ({ params, corps }, tx) => {
+      const id = params.id ?? '';
+      if (!uuid.safeParse(id).success) throw new Introuvable();
+      await transaction(tx).query('select plateforme.console_clore_reprise($1, $2, $3, $4)', [id, corps.opposition, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/reprises/:id/confirmer', geste: 'console.clients.reprise',
+    traiter: async ({ params }, tx) => {
+      const id = params.id ?? '';
+      if (!uuid.safeParse(id).success) throw new Introuvable();
+      await transaction(tx).query('select plateforme.console_appliquer_reprise($1, $2)', [id, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  // La fiche d'un groupe (la maquette Fiche, « Groupe Gharbi ») : ses sociétés comme la liste les dit, chacune avec son
+  // numéro et sa ville, l'état le plus urgent en tête. Chaque société garde sa fiche à elle.
+  ajouter({
+    methode: 'GET', chemin: '/console/groupes/:id', geste: 'console.clients.voir',
+    traiter: async ({ params, qui, query }, tx) => {
+      const id = params.id ?? '';
+      if (!uuid.safeParse(id).success) throw new Introuvable();
+      const jour = aujourdhuiATunis();
+      const s = await selectionClients(transaction(tx), jour, { ...query, q: '', vue: '', etat: '', type: '', offre: '', cabinet: '', nouvelles: '' });
+      const o = s.gardees.find((x) => x.id === id && x.sorte === 'groupe');
+      if (!o) throw new Introuvable();
+      const role = roleDe(qui);
+      const p = parAnDeLaLigne(o, s.prix);
+      return {
+        corps: {
+          aujourdhui: jour, id: o.id, numero: o.numero, nom: o.nom, ville: o.ville, parAnHt: p.actif ? versTexte(p.actif, 3) : null, attenduHt: p.attendu ? versTexte(p.attendu, 3) : null,
+          usage: usageDeLaLigne(o), vu: vuDeLaLigne(o),
+          societes: o.societes.map((e) => ({ ...ligneClient(e, s.prix), numero: s.identites.get(e.id)?.numero ?? null, ville: s.identites.get(e.id)?.ville ?? null,
+            telephone: s.identites.get(e.id)?.telephone ?? null, dernierAppel: s.identites.get(e.id)?.dernierAppel ?? null,
+            vues: VUES_CLIENTS.filter((v) => v !== 'tout' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e) })),
+        },
+      };
     },
   });
 
