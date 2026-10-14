@@ -6,8 +6,8 @@
 //   - la GRÂCE d'une échéance est celle de son lendemain : une grâce commencée garde sa durée, une échéance d'après a la
 //     nouvelle ; l'état, « Ton abonnement » et l'e-mail de relance disent la même ;
 //   - les RELANCES qui partent un jour sont celles de la règle de ce jour-là.
-// Les règles posées ici ne s'effacent pas (la base le refuse) : à la fin, les règles de départ sont reposées, datées
-// d'aujourd'hui, pour les fichiers de test qui suivent.
+// Les règles posées ici ne s'effacent pas (la base le refuse) : avant et après, les règles de départ sont reposées,
+// datées d'aujourd'hui, quel que soit ce qu'un autre fichier de test a posé avant.
 
 import path from 'node:path';
 import os from 'node:os';
@@ -27,6 +27,7 @@ import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { aujourdhuiATunis } from '../../serveur/reglements.ts';
 import { routesSocle } from '../../serveur/routes/socle.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
+import { reposerLesReglesDeDepart } from '../regles-de-depart.ts';
 
 const MDP = 'Un-bon-mot-de-passe';
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
@@ -79,17 +80,14 @@ const dernierGeste = async () => (await admin.query(`select avant, apres, motif 
 
 beforeAll(async () => {
   await admin.connect();
+  await reposerLesReglesDeDepart(admin, jour);
   app = creerApp(ctx, [...routesSocle(ctx), ...routesConsole(ctx, { veille }), ...routesAbonnement(ctx)]);
   await app.ready();
   amira = await membre('amira', 'direction');
   karim = await membre('karim', 'support');
 });
-// Les règles de départ, reposées pour la suite (une règle posée ne s'efface pas : la plus récente du jour l'emporte).
 afterAll(async () => {
-  await admin.query(`insert into plateforme.regle_abonnement (code, jours, a_partir_du, motif, le) values
-    ('essai', '{30}', $1, 'Retour à la règle de départ après les essais', clock_timestamp()),
-    ('grace', '{7}', $1, 'Retour à la règle de départ après les essais', clock_timestamp()),
-    ('relances', '{15,7,1}', $1, 'Retour à la règle de départ après les essais', clock_timestamp())`, [jour]);
+  await reposerLesReglesDeDepart(admin, jour);
   await app.close(); await admin.end(); await pool.end();
 });
 

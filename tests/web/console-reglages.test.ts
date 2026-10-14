@@ -24,6 +24,7 @@ import { aujourdhuiATunis } from '../../serveur/reglements.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { versionTeif } from '../../serveur/v10/teif.ts';
 import { cliquer } from '../cliquer.ts';
+import { reposerLesReglesDeDepart } from '../regles-de-depart.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const MDP = 'Un-bon-mot-de-passe';
@@ -90,6 +91,8 @@ describe('les réglages de la plateforme, à la souris', () => {
   beforeAll(async () => {
     await admin.connect();
     await admin.query('delete from plateforme.message_clients');
+    // Les règles de l'abonnement telles que la migration les a posées : un autre fichier de test a pu en poser d'autres.
+    await reposerLesReglesDeDepart(admin, aujourdhuiATunis());
     await admin.query(`insert into socle.regle_fiscale (code, valeur, debut, source) values ($1, '250', '2024-01-01', 'Une règle d''essai : à vérifier avec un comptable')`, [CODE]);
     fs.writeFileSync(veille, JSON.stringify({ problemes: {} }));
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
@@ -109,6 +112,7 @@ describe('les réglages de la plateforme, à la souris', () => {
     await admin.query('delete from plateforme.message_clients');
     await admin.query('delete from plateforme.prix where a_partir_du > (now() at time zone \'Africa/Tunis\')::date');
     await admin.query('delete from plateforme.prix_option where a_partir_du > (now() at time zone \'Africa/Tunis\')::date');
+    await reposerLesReglesDeDepart(admin, aujourdhuiATunis());
     await navigateur?.close(); await serveur?.arreter(); await admin.end();
     fs.rmSync(dossier, { recursive: true, force: true }); fs.rmSync(path.dirname(veille), { recursive: true, force: true });
   });
