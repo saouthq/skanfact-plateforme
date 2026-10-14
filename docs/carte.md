@@ -553,6 +553,7 @@ vaut pour tout le dépôt.*
     prix sous les offres de « Ton abonnement » avant de les payer. Depuis 1.9.0 (`0100`), ce que l'entreprise utilise et
     ce que l'offre comprend se comptent en une fonction que la facture et l'écran lisent toutes deux : « Ton abonnement »
     dit ce qui est pris, et « L'équipe » prévient avant l'invitation qui coûtera un utilisateur de plus (03 § 4.1).
+    Depuis 1.10.0 (`0101`), la console lit cette grille dans Réglages › Offres et prix, avec les modules achetés.
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

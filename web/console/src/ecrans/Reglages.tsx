@@ -21,6 +21,9 @@ type Offre = 'essentiel' | 'complet';
 type Periodicite = 'annuel' | 'mensuel';
 type Case = { ht: string; depuis: string } | null;
 type LigneGrille = { offre: Offre; annuel: Case; mensuel: Case; aVenir: { periodicite: Periodicite; ht: string; aPartirDu: string }[]; abonnes: { annuel: number; mensuel: number } };
+// Ce qui s'ajoute à l'offre (14c) : ses prix datés, et pour un module, les abonnés d'aujourd'hui qui l'ont acheté.
+type Ajout = 'utilisateur' | 'caisse' | 'etablissement' | 'salarie' | 'module_paie' | 'module_compta';
+type LigneAjout = { option: Ajout; annuel: Case; mensuel: Case; aVenir: { periodicite: Periodicite; ht: string; aPartirDu: string }[]; achetes: number | null };
 type Relecture = { reluePar: string; avis: 'juste' | 'a_corriger'; dit: string | null; motif: string; par: string; le: string };
 type Regle = {
   id: string; code: string; debut: string; fin: string | null; source: string; poseeLe: string; relectures: Relecture[];
@@ -32,7 +35,7 @@ type Message = {
 };
 type Donnees = {
   aujourdhui: string; role: 'direction' | 'support' | 'technique';
-  grille: LigneGrille[]; essai: { jours: number; enCours: number }; echeance: { relances: number[]; grace: number };
+  grille: LigneGrille[]; ajouts: LigneAjout[]; essai: { jours: number; enCours: number }; echeance: { relances: number[]; grace: number };
   registre: Regle[]; message: Message | null; passes: Message[]; formats: Format[];
   factures: NosFactures;
 };
@@ -59,6 +62,11 @@ const plusJours = (j: string, n: number) => {
 const nomDeRegle = (r: Regle) => (r.valeurLue.connue ? titre(`${K}.r.nom.${r.code.replace('.', '_')}`) : r.code);
 // Sous le titre d'une fenêtre : le nom de la règle ET son code (le code seul, pour une règle qu'on ne sait pas nommer).
 const nomEtCode = (r: Regle) => (r.valeurLue.connue ? `${nomDeRegle(r)} · ${r.code}` : r.code);
+
+// La case d'un prix dans une grille : le montant en dinars, ou « — » quand aucun n'est posé (jamais un prix deviné).
+function CasePrix({ c }: { c: Case }) {
+  return c ? <span data-donnee>{montant(c.ht)}</span> : <>—</>;
+}
 
 // ── Offres et prix ──────────────────────────────────────────────────────────────────────────────────────────────────
 function Prix({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut: boolean }) {
@@ -107,8 +115,8 @@ function Prix({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut:
                         </span>
                       ))}
                     </td>
-                    <td className="c-droite c-rg-montant" data-libelle={titre(`${K}.p.col.an`)}>{l.annuel ? <span data-donnee>{montant(l.annuel.ht)}</span> : '—'}</td>
-                    <td className="c-droite c-rg-montant" data-libelle={titre(`${K}.p.col.mois`)}>{l.mensuel ? <span data-donnee>{montant(l.mensuel.ht)}</span> : '—'}</td>
+                    <td className="c-droite c-rg-montant" data-libelle={titre(`${K}.p.col.an`)}><CasePrix c={l.annuel} /></td>
+                    <td className="c-droite c-rg-montant" data-libelle={titre(`${K}.p.col.mois`)}><CasePrix c={l.mensuel} /></td>
                     <td data-libelle={titre(`${K}.p.col.depuis`)}>{depuis ? dire(`${K}.p.depuis_le`, { jour: jour(depuis) }) : '—'}</td>
                     <td className="c-droite" data-libelle={titre(`${K}.p.col.abonnes`)}>
                       {selon(n, `${K}.p.entreprises`)}
@@ -125,6 +133,7 @@ function Prix({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut:
         <p className="c-sous">{phrase(`${K}.p.note`)}</p>
         <p className="c-sous">{phrase(`${K}.p.changer`)}</p>
       </section>
+      <Ajouts d={d} />
       <section className="c-carte c-rg" aria-labelledby="rg-echeance">
         <div className="c-al-section-tete"><div>
           <h2 id="rg-echeance">{titre(`${K}.p.f.titre`)}</h2>
@@ -141,6 +150,53 @@ function Prix({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut:
       </section>
       <NosFacturesCarte f={d.factures} aujourdhui={d.aujourdhui} geste={geste} peut={peut} />
     </>
+  );
+}
+
+// Ce qui s'ajoute à l'offre (14c ; docs/abonnement.md C7) : la grille que l'application montre sous les offres et que la
+// facture compte, datée comme celle des offres ; pour un module acheté seul, combien d'abonnés l'ont aujourd'hui.
+function Ajouts({ d }: { d: Donnees }) {
+  return (
+    <section className="c-carte c-rg c-rg-ajouts-carte" aria-labelledby="rg-ajouts">
+      <div className="c-al-section-tete"><div>
+        <h2 id="rg-ajouts">{titre(`${K}.a.titre`)}</h2>
+        <p className="c-carte-sous">{phrase(`${K}.a.sous`)}</p>
+      </div></div>
+      <div className="c-defile">
+        <table className="c-table c-rg-grille c-rg-ajouts">
+          <thead><tr>
+            <th scope="col">{titre(`${K}.a.col.ajout`)}</th>
+            <th scope="col" className="c-droite">{titre(`${K}.p.col.an`)}</th>
+            <th scope="col" className="c-droite">{titre(`${K}.p.col.mois`)}</th>
+            <th scope="col">{titre(`${K}.p.col.depuis`)}</th>
+            <th scope="col" className="c-droite">{titre(`${K}.a.col.achetes`)}</th>
+          </tr></thead>
+          <tbody>
+            {d.ajouts.map((l) => {
+              const depuis = [l.annuel?.depuis, l.mensuel?.depuis].filter((x): x is string => !!x).sort()[0] ?? null;
+              return (
+                <tr key={l.option} data-option={l.option}>
+                  <td>
+                    <b>{titre(`${K}.a.nom.${l.option}`)}</b>
+                    <span className="c-sous c-bloc">{phrase(`${K}.a.compris.${l.option}`)}</span>
+                    {l.aVenir.map((v) => (
+                      <span key={`${v.periodicite}${v.aPartirDu}`} className="c-rg-avenir">
+                        {phrase(`${K}.p.a_venir`, { prix: montant(v.ht), periode: dire(`${K}.p.periode.${v.periodicite}`), jour: jour(v.aPartirDu) })}
+                      </span>
+                    ))}
+                  </td>
+                  <td className="c-droite c-rg-montant" data-libelle={titre(`${K}.p.col.an`)}><CasePrix c={l.annuel} /></td>
+                  <td className="c-droite c-rg-montant" data-libelle={titre(`${K}.p.col.mois`)}><CasePrix c={l.mensuel} /></td>
+                  <td className="c-rg-nowrap" data-libelle={titre(`${K}.p.col.depuis`)}>{depuis ? dire(`${K}.p.depuis_le`, { jour: jour(depuis) }) : '—'}</td>
+                  <td className="c-droite" data-libelle={titre(`${K}.a.col.achetes`)}>{l.achetes === null ? '—' : selon(l.achetes, `${K}.p.entreprises`)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="c-sous">{phrase(`${K}.a.note`)}</p>
+    </section>
   );
 }
 

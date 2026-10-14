@@ -12237,7 +12237,7 @@ prouver "le prix d'une offre inconnue affiché" $RGS \
   "const offre = p.offre === 'essentiel' || p.offre === 'complet' ? p.offre : null;" "const offre = typeof p.offre === 'string' ? p.offre as Offre : null;" \
   "$RGP1"
 prouver "un prix posé aujourd'hui qui n'est pas encore en vigueur" $RGS \
-  "x.periodicite === periodicite && x.aPartirDu <= aujourdhui)" "x.periodicite === periodicite && x.aPartirDu < aujourdhui)" \
+  "  const p = dates.filter((x) => x.aPartirDu <= aujourdhui)" "  const p = dates.filter((x) => x.aPartirDu < aujourdhui)" \
   "$RGP2"
 prouver "le premier prix posé pris pour celui en vigueur" $RGS \
   ".sort((a, b) => (a.aPartirDu < b.aPartirDu ? 1 : -1))[0];" "[0];" \
@@ -12267,7 +12267,7 @@ prouver "l'application qui lit qui a écrit le message, et son motif" serveur/co
   "  return { id: m.id, sorte, texte: m.texte, du, au };" "  return { ...m, id: m.id, sorte, texte: m.texte, du, au } as MessageClients;" \
   "$RGP9"
 prouver "les prix en millimes à l'écran" $RGE \
-  "{l.annuel ? <span data-donnee>{montant(l.annuel.ht)}</span> : '—'}" "{l.annuel ? <span data-donnee>{l.annuel.ht}</span> : '—'}" \
+  "  return c ? <span data-donnee>{montant(c.ht)}</span> : <>—</>;" "  return c ? <span data-donnee>{c.ht}</span> : <>—</>;" \
   "$RGW1"
 prouver "une règle inconnue nommée deux fois sous la fenêtre" $RGE \
   'const nomEtCode = (r: Regle) => (r.valeurLue.connue ? `${nomDeRegle(r)} · ${r.code}` : r.code);' 'const nomEtCode = (r: Regle) => `${nomDeRegle(r)} · ${r.code}`;' \
@@ -13002,6 +13002,20 @@ prouver 'ce qui est pris absent de « Ton abonnement »' serveur/abonnement/rout
 prouver 'une caisse « compris »' web/public/plateforme/abonnement.js \
   "mot: ['caisse', 'caisses'], feminin: true }," "mot: ['caisse', 'caisses'] }," \
   "$ODW"
+
+# Ce qui s'ajoute à l'offre, lu dans les Réglages de la console (abonnement 14c, fin ; 0101) : un module acheté se compte
+# chez les abonnés Essentiel du jour seulement ; la carte se voit. Le prix du jour d'un ajout passe par la fonction de la
+# grille des offres (enVigueurParmi), que ses preuves tiennent.
+RGA1='chaque ajout, dans l'"'"'ordre de l'"'"'application, avec son prix en vigueur et ce qui est à venir ; une case sans prix reste vide'
+RGA2='un module acheté seul : les abonnés Essentiel du jour qui l'"'"'ont, jamais un retard ni Complet'
+prouver 'un module compté chez un abonné en retard ou passé à Complet' serveur/console/reglages.ts \
+  "  const abonnes = new Set(entreprises.filter((e) => e.etat.etat === 'actif' && e.etat.offre === 'essentiel').map((e) => e.id));" \
+  "  const abonnes = new Set(entreprises.map((e) => e.id));" \
+  "$RGA2"
+prouver 'la grille des ajouts absente des Réglages' web/console/src/ecrans/Reglages.tsx \
+  '      <Ajouts d={d} />
+' '' \
+  'les offres et prix : la grille du jour, en dinars hors taxes, et la frise des échéances'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

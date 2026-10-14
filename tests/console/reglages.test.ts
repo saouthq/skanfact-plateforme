@@ -6,10 +6,10 @@ import type { Etat } from '../../serveur/abonnement/etat.ts';
 import type { Entreprise } from '../../serveur/console/decider.ts';
 import { lireMessageClients } from '../../serveur/console/message-clients.ts';
 import {
-  essaisEnCours, grille, lireReglages, registre, regleEnVigueur, sujetDesReglages, valeurDeRegle, type PrixLu, type RegleLue,
+  essaisEnCours, grille, grilleAjouts, lireAjouts, lireReglages, registre, regleEnVigueur, sujetDesReglages, valeurDeRegle, type PrixLu, type RegleLue,
 } from '../../serveur/console/reglages.ts';
 
-const entreprise = (etat: Etat) => ({ etat }) as unknown as Entreprise;
+const entreprise = (etat: Etat, id = '') => ({ etat, id }) as unknown as Entreprise;
 const actif = (offre: 'essentiel' | 'complet', periodicite: 'annuel' | 'mensuel'): Etat =>
   ({ etat: 'actif', offre, periodicite, jusquAu: '2027-01-01', jours: 80, resilie: false });
 
@@ -73,6 +73,43 @@ describe('la grille du jour', () => {
     expect(g[0]?.abonnes).toEqual({ annuel: 2, mensuel: 0 });
     expect(g[1]?.abonnes).toEqual({ annuel: 0, mensuel: 1 });
     expect(essaisEnCours(entreprises)).toBe(1);
+  });
+});
+
+describe('ce qui s\'ajoute à l\'offre (14c)', () => {
+  const brut = {
+    options: [
+      // L'ancien prix d'abord : sans tri, c'est lui qu'on prendrait.
+      { option: 'utilisateur', periodicite: 'annuel', aPartirDu: '2026-01-01', montantHt: '25000' },
+      { option: 'utilisateur', periodicite: 'annuel', aPartirDu: '2026-09-28', montantHt: '30000' },
+      { option: 'utilisateur', periodicite: 'mensuel', aPartirDu: '2026-09-28', montantHt: '3000' },
+      { option: 'module_paie', periodicite: 'annuel', aPartirDu: '2026-09-28', montantHt: '150000' },
+      { option: 'salarie', periodicite: 'mensuel', aPartirDu: '2026-09-28', montantHt: '1200' },
+      // À venir ; puis des lignes illisibles, qui ne s'affichent pas.
+      { option: 'caisse', periodicite: 'annuel', aPartirDu: '2027-01-01', montantHt: '130000' },
+      { option: 'imprimante', periodicite: 'annuel', aPartirDu: '2026-09-28', montantHt: '1000' },
+      { option: 'caisse', periodicite: 'annuel', aPartirDu: '2026-09-28', montantHt: '120.5' },
+    ],
+    modules: [{ entreprise: 'e1', modules: ['paie'] }, { entreprise: 'e2', modules: ['paie', 'compta'] }, { entreprise: 'e3', modules: ['paie'] },
+      { entreprise: 'e4', modules: ['compta'] }, { entreprise: null, modules: ['paie'] }],
+  };
+  // e1 et e2 : Essentiel, une période court ; e3 : en retard ; e4 : passée à Complet (le module ne s'y achète pas).
+  const entreprises = [entreprise(actif('essentiel', 'annuel'), 'e1'), entreprise(actif('essentiel', 'mensuel'), 'e2'),
+    entreprise({ etat: 'en_retard', echeance: '2026-10-01', lectureSeuleLe: '2026-10-15', jours: 2, apresEssai: false }, 'e3'),
+    entreprise(actif('complet', 'annuel'), 'e4')];
+
+  it('chaque ajout, dans l\'ordre de l\'application, avec son prix en vigueur et ce qui est à venir ; une case sans prix reste vide', () => {
+    const g = grilleAjouts(lireAjouts(brut), entreprises, '2026-10-13');
+    expect(g.map((l) => l.option)).toEqual(['utilisateur', 'caisse', 'etablissement', 'salarie', 'module_paie', 'module_compta']);
+    expect(g[0]).toMatchObject({ annuel: { ht: '30.000', depuis: '2026-09-28' }, mensuel: { ht: '3.000', depuis: '2026-09-28' }, achetes: null });
+    expect(g[1]).toMatchObject({ annuel: null, mensuel: null, aVenir: [{ periodicite: 'annuel', ht: '130.000', aPartirDu: '2027-01-01' }] });
+    expect(g[3]).toMatchObject({ annuel: null, mensuel: { ht: '1.200', depuis: '2026-09-28' } });
+  });
+
+  it('un module acheté seul : les abonnés Essentiel du jour qui l\'ont, jamais un retard ni Complet', () => {
+    const g = grilleAjouts(lireAjouts(brut), entreprises, '2026-10-13');
+    expect(g.find((l) => l.option === 'module_paie')?.achetes).toBe(2);
+    expect(g.find((l) => l.option === 'module_compta')?.achetes).toBe(1);
   });
 });
 

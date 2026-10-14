@@ -2156,6 +2156,15 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-rg-formats td[data-libelle]::before { content: attr(data-libelle) ' : '; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); }
   .c-rg-format-alerte td:first-child { box-shadow: none; }
   .c-rg-format-alerte { border-inline-start: 3px solid var(--c-rouge); padding-inline-start: 10px; }
+  /* Les ajouts (14c) : une fiche par ajout, son nom et ce qui est compris d'abord, puis chaque chiffre avec son nom. */
+  .c-rg-ajouts-carte .c-defile { overflow: visible; }
+  .c-rg-ajouts { min-width: 0; }
+  .c-rg-ajouts thead { display: none; }
+  .c-rg-ajouts, .c-rg-ajouts tbody, .c-rg-ajouts tr, .c-rg-ajouts td { display: block; }
+  .c-rg-ajouts tr { padding: 14px 0; border-bottom: 1px solid var(--c-trait); display: grid; gap: 6px; }
+  .c-rg-ajouts tr:last-child { border-bottom: 0; }
+  .c-rg-ajouts td, .c-rg-ajouts td.c-droite { padding: 0; border: 0; min-width: 0 !important; text-align: start; }
+  .c-rg-ajouts td[data-libelle]::before { content: attr(data-libelle) ' : '; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); }
 }
 
 /* ── Le support (docs/support.md ; sa maquette) : la liste, la conversation, la carte du client ─────────────────────────

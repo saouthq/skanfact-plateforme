@@ -606,7 +606,11 @@ l'écran le dit en tête au support. Quatre onglets, l'adresse garde l'onglet (`
   comptent par le **même état** que la liste des clients (une période payée qui court ; un retard n'en est pas), l'essai
   à part. La frise des échéances (les relances, l'échéance, la grâce, la lecture seule) vient du code qui les applique
   (`serveur/abonnement`), jamais d'un chiffre recopié. **Rien ne s'y modifie** : un prix neuf se pose en base, daté
-  (À DÉCIDER : le délai d'annonce aux clients). Sous la frise, **« Nos factures »** (14b, 1.5.0 ; `docs/abonnement.md`
+  (À DÉCIDER : le délai d'annonce aux clients). Sous la grille, **« Ce qui s'ajoute à l'offre »** (14c, 1.10.0 ; `0101`,
+  `plateforme.console_ajouts`) : chaque ajout que la facture compte (un utilisateur, une caisse, un établissement, un
+  salarié de plus, la paie ou la comptabilité complète achetée seule), ce que chaque offre en comprend, ses prix datés
+  (`plateforme.prix_option`) rangés comme ceux des offres, et pour un module, les abonnés Essentiel du jour qui l'ont
+  acheté (le même état que la liste des clients). Sous la frise, **« Nos factures »** (14b, 1.5.0 ; `docs/abonnement.md`
   B1) : l'entreprise SkanFact où nos factures naissent, désignée une fois par sa propriétaire de la direction (motif,
   journal `factures.editeur`), avec qui l'a désignée et combien de factures y sont préparées ; elle se change tant
   qu'aucune ne l'est.
@@ -646,8 +650,8 @@ l'écran le dit en tête au support. Quatre onglets, l'adresse garde l'onglet (`
   message** : un message neuf reparaît. Le bandeau caché garde sa place jusqu'à la page suivante, avec sa phrase (« Message
   caché sur cet appareil ») : il ne fait pas remonter la page sous le curseur.
 - Ce que l'écran ne fait pas encore : la déclaration annuelle d'employeur au registre des formats, les nouveautés
-  allumées une à une, préparer un nouveau prix depuis l'écran, la grille des ajouts (posée en base depuis 14c-2 :
-  `plateforme.prix_option`, datée ; son écran n'est pas fait), les remises et les offres de fondateur, la colonne TTC (14b).
+  allumées une à une, préparer un nouveau prix depuis l'écran (une offre ou un ajout), les remises et les offres de
+  fondateur, la colonne TTC (14b).
 
 ## Quatrième partie : le support (Support S1, 13/10/2026)
 
@@ -764,6 +768,12 @@ disait le fichier écrit pour chaque facture (il l'est dès que la fiche de l'en
 envoi dite « signée avant l'envoi » (elle l'a été avant que l'envoi existe). Trouvé par la vérification avant l'envoi,
 et corrigé : l'écran Équipe sans le libellé des deux droits des réglages — le tableau des droits ne s'affichait plus du
 tout (un test relie désormais chaque droit du serveur à ses deux textes).
+
+Ce qui s'ajoute à l'offre (C28, 14c, 1.10.0), sur le même essai, en direction : les six ajouts, ce que chaque offre en
+comprend, leurs prix du 28/09/2026, et « la paie, achetée seule : 2 entreprises » (la Librairie Al Kitab et l'Atelier
+Mejri, toutes deux en Essentiel) ; à 1440 et à 390. Corrigé pendant le parcours : « depuis le 28/09/2026 » coupé sur
+deux lignes ; au téléphone, un tableau qui débordait (une fiche par ajout, comme les formats officiels), puis ses
+chiffres alignés à droite sous des textes alignés à gauche.
 
 La fin du service (3f), sur le même essai, en direction ; d'onglet en onglet à la souris ; en clair et en sombre ; à 1440
 et à 390. L'instrument de la console vit désormais en un exemplaire (`tests/web/instrument-console.ts`) et mesure aussi

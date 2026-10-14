@@ -111,9 +111,16 @@ describe('les réglages de la plateforme, à la souris', () => {
   it('les offres et prix : la grille du jour, en dinars hors taxes, et la frise des échéances', async () => {
     const p = await console_(jD);
     expect(net(await p.locator('.c-onglets [aria-current="page"]').innerText())).toBe('Offres et prix');
-    const grille = net(await p.locator('.c-rg-grille').innerText());
+    const grille = net(await p.locator('section[aria-labelledby="rg-grille"] table').innerText());
     expect(grille).toMatch(/Essentiel.*390,000 DT.*39,000 DT/);
     expect(grille).toMatch(/Complet.*690,000 DT.*69,000 DT/);
+    // Ce qui s'ajoute à l'offre (14c) : chaque ajout, ce que les offres en comprennent, ses prix du jour.
+    const ajout = async (option: string) => net(await p.locator(`section[aria-labelledby="rg-ajouts"] tr[data-option="${option}"]`).innerText());
+    expect(await p.locator('section[aria-labelledby="rg-ajouts"] tbody tr').evaluateAll((e) => e.map((x) => (x as HTMLElement).dataset.option)))
+      .toEqual(['utilisateur', 'caisse', 'etablissement', 'salarie', 'module_paie', 'module_compta']);
+    expect(await ajout('utilisateur')).toMatch(/^Un utilisateur de plus Essentiel en comprend 3, sauf qui ne travaille qu'à la caisse ou en salle ; Complet, sans limite\. 30,000 DT 3,000 DT depuis le 28\/09\/2026 —$/);
+    expect(await ajout('salarie')).toMatch(/12,000 DT 1,200 DT/);
+    expect(await ajout('module_paie')).toMatch(/150,000 DT 15,000 DT depuis le 28\/09\/2026 (aucune|une entreprise|\d+ entreprises)$/);
     expect(await p.locator('.c-rg-frise li').count()).toBeGreaterThanOrEqual(4);
     expect(erreurs).toEqual([]);
     await fermer(p);

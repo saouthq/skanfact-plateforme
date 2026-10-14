@@ -35,7 +35,7 @@ import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, R
 import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe, taches, titreDeTache, versionDAvant, type EtatSuiveur } from './versions.ts';
 import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
-import { essaisEnCours, grille, lireReglages, registre, sujetDesReglages } from './reglages.ts';
+import { essaisEnCours, grille, grilleAjouts, lireAjouts, lireReglages, registre, sujetDesReglages } from './reglages.ts';
 import { lireFormats, registreDesFormats } from './formats.ts';
 import { articleConnu, articlesDeLAide, CANAUX_NOTES, compter, etatDe, lireSupport, ranger, SANS_REPONSE_HEURES, suggererPour } from './support.ts';
 import { lireAcces, HEURES_MAX, PAGE } from '../support/acces.ts';
@@ -904,6 +904,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
         corps: {
           aujourdhui: jour, role: roleDe(qui),
           grille: grille(r.prix, entreprises, jour), essai: { jours: ESSAI_JOURS, enCours: essaisEnCours(entreprises) },
+          // Ce qui s'ajoute à l'offre (14c) : ses prix datés, et les modules achetés seuls par les abonnés d'aujourd'hui.
+          ajouts: grilleAjouts(lireAjouts(await lireJson(x, 'select plateforme.console_ajouts($1::date) v', [jour])), entreprises, jour),
           echeance: { relances: RELANCES, grace: GRACE_JOURS },
           registre: registre(r.regles, jour),
           message: r.messages.find((m) => m.enCours) ?? null, passes: r.messages.filter((m) => !m.enCours).slice(0, 30),

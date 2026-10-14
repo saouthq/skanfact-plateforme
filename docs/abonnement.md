@@ -299,9 +299,12 @@ utilise aujourd'hui sur ce que son offre comprend (« Aujourd'hui : 4 utilisateu
 orange quand ça dépasse) ; un module acheté seul le dit. Les invitations n'y comptent pas : la facture ne les compte
 jamais.
 
-**Ce que 14c-2 ne fait pas** : la grille des ajouts dans les Réglages de la console (elle vit en base, datée, comme les
-prix des offres) ; passer à Complet ou acheter un module en libre-service (on écrit à contact@skanfact.tn, comme en
-14a).
+**C12. La console lit la grille des ajouts** (1.10.0 ; `0101`) : Réglages › Offres et prix, sous la grille des offres,
+chaque ajout, ce que chaque offre en comprend, ses prix datés (en vigueur, à venir) et, pour un module, les abonnés
+Essentiel du jour qui l'ont acheté. Rien ne s'y modifie : un prix neuf se pose en base, daté, comme celui d'une offre.
+
+**Ce que 14c ne fait pas** : passer à Complet ou acheter un module en libre-service (on écrit à contact@skanfact.tn,
+comme en 14a).
 
 ## Revu à la souris (14/10/2026, 14c deuxième partie, b)
 

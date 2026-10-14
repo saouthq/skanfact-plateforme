@@ -66,12 +66,16 @@ export type AVenir = { periodicite: Periodicite; ht: string; aPartirDu: string }
 export type LigneGrille = { offre: Offre; annuel: Case; mensuel: Case; aVenir: AVenir[]; abonnes: { annuel: number; mensuel: number } };
 export const OFFRES: readonly Offre[] = ['essentiel', 'complet'];
 
+// Le prix en vigueur d'une liste de prix datés (ceux d'une offre ou d'un ajout, à une périodicité) : le dernier posé à
+// cette date, et depuis quand — la même règle pour les offres et pour les ajouts.
+function enVigueurParmi(dates: readonly { aPartirDu: string; montantHt: bigint }[], aujourdhui: string): Case {
+  const p = dates.filter((x) => x.aPartirDu <= aujourdhui).sort((a, b) => (a.aPartirDu < b.aPartirDu ? 1 : -1))[0];
+  return p ? { ht: versTexte(p.montantHt, 3), depuis: p.aPartirDu } : null;
+}
+
 export function grille(prix: PrixLu[], entreprises: Entreprise[], aujourdhui: string): LigneGrille[] {
-  const enVigueur = (offre: Offre, periodicite: Periodicite): Case => {
-    const p = prix.filter((x) => x.offre === offre && x.periodicite === periodicite && x.aPartirDu <= aujourdhui)
-      .sort((a, b) => (a.aPartirDu < b.aPartirDu ? 1 : -1))[0];
-    return p ? { ht: versTexte(p.montantHt, 3), depuis: p.aPartirDu } : null;
-  };
+  const enVigueur = (offre: Offre, periodicite: Periodicite) =>
+    enVigueurParmi(prix.filter((x) => x.offre === offre && x.periodicite === periodicite), aujourdhui);
   const abonnes = (offre: Offre, periodicite: Periodicite) =>
     entreprises.filter((e) => e.etat.etat === 'actif' && e.etat.offre === offre && e.etat.periodicite === periodicite).length;
   return OFFRES.map((offre) => ({
@@ -82,6 +86,47 @@ export function grille(prix: PrixLu[], entreprises: Entreprise[], aujourdhui: st
       .sort((a, b) => (a.aPartirDu === b.aPartirDu ? (a.periodicite < b.periodicite ? -1 : 1) : a.aPartirDu < b.aPartirDu ? -1 : 1))
       .map((x) => ({ periodicite: x.periodicite, ht: versTexte(x.montantHt, 3), aPartirDu: x.aPartirDu })),
     abonnes: { annuel: abonnes(offre, 'annuel'), mensuel: abonnes(offre, 'mensuel') },
+  }));
+}
+
+// ── Ce qui s'ajoute à l'offre (14c ; 0099, 0101) ──────────────────────────────────────────────────────────────────────
+// Ses prix datés, rangés comme ceux des offres : en vigueur à chaque périodicité, et à venir. Pour un module acheté seul,
+// les abonnés d'aujourd'hui qui l'ont acheté — Essentiel, d'après le même état que la liste des clients (Complet le
+// contient : il ne s'y achète pas). Une option que la base ne connaît pas ne s'affiche pas.
+export const AJOUTS = ['utilisateur', 'caisse', 'etablissement', 'salarie', 'module_paie', 'module_compta'] as const;
+export type Ajout = typeof AJOUTS[number];
+export type OptionLue = { option: Ajout; periodicite: Periodicite; aPartirDu: string; montantHt: bigint };
+export type AjoutsLus = { options: OptionLue[]; modules: { entreprise: string; modules: string[] }[] };
+export function lireAjouts(brut: unknown): AjoutsLus {
+  const b = objet(brut);
+  return {
+    options: tableau(b.options).flatMap((p): OptionLue[] => {
+      const option = (AJOUTS as readonly unknown[]).includes(p.option) ? p.option as Ajout : null;
+      const periodicite = p.periodicite === 'annuel' || p.periodicite === 'mensuel' ? p.periodicite : null;
+      const aPartirDu = jour(p.aPartirDu), montantHt = millimes(p.montantHt);
+      return option && periodicite && aPartirDu && montantHt !== null ? [{ option, periodicite, aPartirDu, montantHt }] : [];
+    }),
+    modules: tableau(b.modules).flatMap((m) => {
+      const entreprise = texte(m.entreprise);
+      const modules = Array.isArray(m.modules) ? m.modules.filter((x): x is string => typeof x === 'string') : [];
+      return entreprise ? [{ entreprise, modules }] : [];
+    }),
+  };
+}
+export type LigneAjout = { option: Ajout; annuel: Case; mensuel: Case; aVenir: AVenir[]; achetes: number | null };
+export function grilleAjouts(a: AjoutsLus, entreprises: Entreprise[], aujourdhui: string): LigneAjout[] {
+  const enVigueur = (option: Ajout, periodicite: Periodicite) =>
+    enVigueurParmi(a.options.filter((x) => x.option === option && x.periodicite === periodicite), aujourdhui);
+  const abonnes = new Set(entreprises.filter((e) => e.etat.etat === 'actif' && e.etat.offre === 'essentiel').map((e) => e.id));
+  const achetes = (module: string) => a.modules.filter((m) => abonnes.has(m.entreprise) && m.modules.includes(module)).length;
+  return AJOUTS.map((option) => ({
+    option,
+    annuel: enVigueur(option, 'annuel'),
+    mensuel: enVigueur(option, 'mensuel'),
+    aVenir: a.options.filter((x) => x.option === option && x.aPartirDu > aujourdhui)
+      .sort((x, y) => (x.aPartirDu === y.aPartirDu ? (x.periodicite < y.periodicite ? -1 : 1) : x.aPartirDu < y.aPartirDu ? -1 : 1))
+      .map((x) => ({ periodicite: x.periodicite, ht: versTexte(x.montantHt, 3), aPartirDu: x.aPartirDu })),
+    achetes: option === 'module_paie' ? achetes('paie') : option === 'module_compta' ? achetes('compta') : null,
   }));
 }
 
