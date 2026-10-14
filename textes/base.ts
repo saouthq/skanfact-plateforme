@@ -554,6 +554,15 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'ce changement n\'existe pas, ou il a déjà été retiré : relis le contenu des offres', cle: 'base.contenu_offre.introuvable', fr: 'ce changement n\'existe pas, ou il a déjà été retiré : relis le contenu des offres' },
   { base: 'ce contenu est déjà en vigueur : il ne se retire plus ; prépare-en un nouveau', cle: 'base.contenu_offre.deja_en_vigueur', fr: 'ce contenu est déjà en vigueur : il ne se retire plus ; prépare-en un nouveau' },
   { base: 'le total n\'est pas celui de la grille au premier jour de la période : relis-le avant de préparer la facture', cle: 'base.factures.prix_premier_jour', fr: 'le total n\'est pas celui de la grille au premier jour de la période : relis-le avant de préparer la facture' },
+  // Les coûts du mois, dans les paiements de la console (0108).
+  { base: 'un coût saisi ne se modifie pas et ne s\'efface pas : il se retire, puis se saisit de nouveau', cle: 'base.couts.intouchable', fr: 'un coût saisi ne se modifie pas et ne s\'efface pas : il se retire, puis se saisit de nouveau' },
+  { base: 'un coût se saisit d\'après la facture reçue : dis laquelle (trois caractères au moins), elle reste dans le journal', cle: 'base.couts.d_apres', fr: 'un coût se saisit d\'après la facture reçue : dis laquelle (trois caractères au moins), elle reste dans le journal' },
+  { base: 'la facture reçue se dit en deux cents caractères au plus', cle: 'base.couts.d_apres_longueur', fr: 'la facture reçue se dit en deux cents caractères au plus' },
+  { base: 'un coût se nomme en deux à quatre-vingts caractères', cle: 'base.couts.libelle', fr: 'un coût se nomme en deux à quatre-vingts caractères' },
+  { base: 'le montant d\'un coût est positif, et d\'un milliard de dinars au plus', cle: 'base.couts.montant', fr: 'le montant d\'un coût est positif, et d\'un milliard de dinars au plus' },
+  { base: 'un coût se saisit pour le mois en cours ou un mois passé', cle: 'base.couts.mois', fr: 'un coût se saisit pour le mois en cours ou un mois passé' },
+  { base: 'ce coût n\'existe pas', cle: 'base.couts.inconnu', fr: 'ce coût n\'existe pas' },
+  { base: 'ce coût est déjà retiré', cle: 'base.couts.deja_retire', fr: 'ce coût est déjà retiré' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

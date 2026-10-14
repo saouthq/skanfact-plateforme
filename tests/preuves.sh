@@ -10975,12 +10975,24 @@ prouver 'la déconnexion de la console qui ne ferme rien' base/migrations/0083_c
 prouver 'une route de la console hors de /console/' serveur/app.ts \
   '  if (deLaConsole !== sousConsole && !(r.geste === '"'"'public'"'"' && r.chemin.startsWith('"'"'/console/connexion'"'"'))) {' '  if (false) {' \
   "$CONSS5"
-prouver 'la technique qui lit les clients, au serveur et dans la base' 'serveur/console/gestes.ts|||base/migrations/0083_console.sql' \
-  '  { code: '"'"'console.clients.voir'"'"', roles: [D, S], ecrit: false },|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+# La liste lit aussi les remises des échéances (0106) et les entreprises venues par un cabinet (0107), gardées pour la
+# direction et le support : la preuve les ouvre aussi, sinon la technique reste refusée par elles et le test ne peut plus
+# tomber (vu le 14/10/2026, rouge de 1.17.0).
+prouver "la technique qui lit les clients, au serveur et dans la base" "serveur/console/gestes.ts|||base/migrations/0083_console.sql|||base/migrations/0106_remises.sql|||base/migrations/0107_venues_par_cabinet.sql" \
+  "  { code: 'console.clients.voir', roles: [D, S], ecrit: false },|||  perform plateforme.exiger_role_console(array['direction', 'support']);
   return (select coalesce(jsonb_agg(jsonb_build_object(
-      '"'"'id'"'"', e.id, '"'"'raisonSociale'"'"'' '  { code: '"'"'console.clients.voir'"'"', roles: [D, S, T], ecrit: false },|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']);
+      'id', e.id, 'raisonSociale'|||create function plateforme.console_remises_echeances() returns jsonb
+language plpgsql stable security definer set search_path = pg_catalog, socle, plateforme as \$\$
+declare v_role text := plateforme.exiger_role_console(array['direction', 'support']);|||create function plateforme.console_venues_par_cabinet() returns jsonb
+language plpgsql stable security definer set search_path = pg_catalog, socle, plateforme as \$\$
+declare v_role text := plateforme.exiger_role_console(array['direction', 'support']);" \
+  "  { code: 'console.clients.voir', roles: [D, S, T], ecrit: false },|||  perform plateforme.exiger_role_console(array['direction', 'support', 'technique']);
   return (select coalesce(jsonb_agg(jsonb_build_object(
-      '"'"'id'"'"', e.id, '"'"'raisonSociale'"'"'' \
+      'id', e.id, 'raisonSociale'|||create function plateforme.console_remises_echeances() returns jsonb
+language plpgsql stable security definer set search_path = pg_catalog, socle, plateforme as \$\$
+declare v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);|||create function plateforme.console_venues_par_cabinet() returns jsonb
+language plpgsql stable security definer set search_path = pg_catalog, socle, plateforme as \$\$
+declare v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);" \
   "$CONSS6"
 prouver 'les chiffres des clients montrés à la technique' serveur/console/routes.ts \
   'tableau: role === '"'"'technique'"'"' ? { service: t.service } : t,' 'tableau: t,' \
@@ -12186,21 +12198,28 @@ prouver "un geste des réglages sans libellé au journal" web/console/src/textes
 # Plusieurs gardes (la route, puis la base) : il faut toutes les retirer pour retrouver le défaut. La lecture en a cinq :
 # la route, la lecture des réglages, celle des entreprises (la grille compte les abonnés de chaque offre), celle des
 # formats officiels (0094) et celle de l'entreprise SkanFact (« Nos factures », 0097).
-prouver "la technique qui lit les réglages" "serveur/console/gestes.ts|||$R93|||base/migrations/0083_console.sql|||base/migrations/0094_formats.sql|||base/migrations/0097_nos_factures.sql" \
+# La route lit aussi les ajouts (0101), les prix préparés (0103), les règles de l'abonnement (0104), le contenu des
+# offres (0105) et les remises (0106), chacune gardée pour la direction et le support : la preuve les ouvre toutes, sinon la
+# technique reste refusée par une garde oubliée et le test ne peut plus tomber (vu le 14/10/2026, rouge de 1.17.0).
+prouver "la technique qui lit les réglages" "serveur/console/gestes.ts|||$R93|||base/migrations/0083_console.sql|||base/migrations/0094_formats.sql|||base/migrations/0097_nos_factures.sql|||base/migrations/0101_reglages_ajouts.sql|||base/migrations/0103_prix_prepares.sql|||base/migrations/0104_regles_abonnement.sql|||base/migrations/0105_contenu_offres.sql|||base/migrations/0106_remises.sql" \
   "{ code: 'console.reglages.voir', roles: [D, S], ecrit: false },|||v_role text := plateforme.exiger_role_console(array['direction', 'support']);|||  perform plateforme.exiger_role_console(array['direction', 'support']);
   return (select coalesce(jsonb_agg(jsonb_build_object(
       'id', e.id, 'raisonSociale'|||  perform plateforme.exiger_role_console(array['direction', 'support']);
   return jsonb_build_object(
     -- Soumises|||  perform plateforme.exiger_role_console(array['direction', 'support']);
   return jsonb_build_object(
-    'editeur'" \
+    'editeur'|||  v_role text := plateforme.exiger_role_console(array['direction', 'support']);|||declare v_role text := plateforme.exiger_role_console(array['direction', 'support']);|||declare v_role text := plateforme.exiger_role_console(array['direction', 'support']);|||declare v_role text := plateforme.exiger_role_console(array['direction', 'support']);|||create function plateforme.console_remises(p_jour date) returns jsonb
+language plpgsql stable security definer set search_path = pg_catalog, socle, plateforme as \$\$
+declare v_role text := plateforme.exiger_role_console(array['direction', 'support']);" \
   "{ code: 'console.reglages.voir', roles: [D, S, T], ecrit: false },|||v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);|||  perform plateforme.exiger_role_console(array['direction', 'support', 'technique']);
   return (select coalesce(jsonb_agg(jsonb_build_object(
       'id', e.id, 'raisonSociale'|||  perform plateforme.exiger_role_console(array['direction', 'support', 'technique']);
   return jsonb_build_object(
     -- Soumises|||  perform plateforme.exiger_role_console(array['direction', 'support', 'technique']);
   return jsonb_build_object(
-    'editeur'" \
+    'editeur'|||  v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);|||declare v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);|||declare v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);|||declare v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);|||create function plateforme.console_remises(p_jour date) returns jsonb
+language plpgsql stable security definer set search_path = pg_catalog, socle, plateforme as \$\$
+declare v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);" \
   "$RG3"
 prouver "le support qui écrit un message aux clients" "serveur/console/gestes.ts|||$R93" \
   "{ code: 'console.reglages.gerer', roles: [D], ecrit: true },|||v_role text := plateforme.exiger_role_console(array['direction']); v_id uuid; v_texte" \
