@@ -614,12 +614,27 @@ export interface BaseDeDonnees {
     periodicite: string;
     a_partir_du: string;
     montant_ht: bigint;
+    motif: string | null;
+    pose_par: string | null;
+    pose_le: Date | null;
   };
   'plateforme.prix_option': {
     option: string;
     periodicite: string;
     a_partir_du: string;
     montant_ht: bigint;
+    motif: string | null;
+    pose_par: string | null;
+    pose_le: Date | null;
+  };
+  'plateforme.regle_abonnement': {
+    id: Generated<string>;
+    code: string;
+    jours: number[];
+    a_partir_du: string;
+    motif: string;
+    qui: string | null;
+    le: Generated<Date>;
   };
   'plateforme.relance_abonnement': {
     entreprise: string;
