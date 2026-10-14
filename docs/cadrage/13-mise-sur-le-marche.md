@@ -173,7 +173,7 @@ abonnement, c'est d'avoir **vraiment utilisé** le produit pendant ces 30 jours.
 | Moment (`09`) | Qui | Ce qui se passe |
 |---|---|---|
 | **J3** | Les 3 cabinets pilotes et quelques-uns de leurs clients, avec leur accord | Travail réel en parallèle de la v10, deux mois au moins ; chaque écart est un défaut |
-| **Entre J3 et J5** | **Fondateurs** : 100 entreprises et 20 cabinets, sur invitation (pilotes, entretiens, confrères) | Prix garanti deux ans (`07`) ; un canal WhatsApp direct avec l'équipe ; leurs retours passent avant tout |
+| **Entre J3 et J5** | **Fondateurs** : 100 entreprises et 20 cabinets, sur invitation (pilotes, entretiens, confrères) | Le prix de tout le monde (pas de prix garanti : places de fondateur abandonnées le 14/10/2026, `07`) ; un canal WhatsApp direct avec l'équipe ; leurs retours passent avant tout |
 | **J5, lancement public** | Tout le monde | Site basculé (`11`), communiqué de presse, première campagne de contenu, revendeurs de caisse |
 | **Chaque échéance légale** | La cible concernée | Guide, démonstration, message aux cabinets partenaires |
 
@@ -242,3 +242,4 @@ changer s'il ne marche pas.
 | 28/09/2026 (par délégation) | Lancement en trois temps : pilotes (J3), 100 fondateurs sur invitation, public (J5) |
 | 28/09/2026 (par délégation) | Objectifs de première année écrits d'avance, lus dans la console |
 | 28/09/2026 (relecture) | Le lancement tombe fin 2028, après les obligations de 2026 à 2028 : les cibles se prennent sur le changement (reprise des données, ce que les autres ne font pas), plus sur l'urgence ; « moins cher » seulement avec une comparaison vérifiée ; objectifs de première année fondateurs compris (150 puis 300 entreprises, 40 cabinets) |
+| 14/10/2026 (Skander) | **Pas de prix garanti aux fondateurs** (« ça va nous rajouter du travail pour rien ») : la phase sur invitation reste, au prix de tout le monde (`07`) |

@@ -121,7 +121,7 @@ pas par le code. » Tout ce qui fait le prix et l'abonnement vit donc dans la ba
 dans la console (Réglages), avec son motif et sa ligne au journal ; le code ne garde que la façon de calculer :
 - les prix des offres et de chaque ajout (à l'année ; au mois, un dixième par défaut) ;
 - ce que chaque offre comprend (modules, caisses, établissements, salariés) ;
-- les remises (groupe, parrainage) et les places de fondateur ;
+- les remises (groupe, parrainage) ;
 - l'essai, la grâce, les rappels avant l'échéance ;
 - **le préavis d'un nouveau prix : 30 jours** (Skander, 14/10/2026), lui aussi réglable dans la console. Un prix
   préparé aujourd'hui ne peut commencer qu'au bout de ce délai, et l'application l'annonce aux clients.
@@ -131,13 +131,17 @@ se prend au prix de son premier jour) ; l'essai, la grâce et les rappels (1.13.
 création de l'entreprise, la grâce d'une échéance est celle de son lendemain : une règle changée ne touche jamais ce
 qui a commencé) ; ce que chaque offre comprend (1.14.0, 14/10/2026 ; un changement se prépare avec le préavis d'un
 prix, choix de Claude à confirmer par Skander, et une période garde ce qu'elle comprend, sur sa facture comme pour ses
-modules) ; les remises (1.15.0, 14/10/2026 ; leur taux, et pour le cabinet sa durée en mois, se préparent avec le
-préavis d'un prix ; la facture d'une période porte la remise de son premier jour). La suite : les places de fondateur.
+modules ; Skander a confirmé ce préavis le 14/10/2026) ; les remises (1.15.0, 14/10/2026 ; leur taux, et pour le cabinet sa durée en mois, se préparent avec le
+préavis d'un prix ; la facture d'une période porte la remise de son premier jour). Les places de fondateur, prévues
+ensuite, sont abandonnées (Skander, 14/10/2026, plus bas).
 
-## Les premiers clients (fondateurs)
+## Les premiers clients (fondateurs) — abandonné
 
-Les **100 premières entreprises** et les **20 premiers cabinets** gardent leur prix **deux ans**, quoi
-qu'il arrive à la grille. C'est ce qui décide un premier client à essayer un produit neuf.
+*Décidé au cadrage (27/09/2026) : les 100 premières entreprises et les 20 premiers cabinets gardaient leur prix deux
+ans, quoi qu'il arrive à la grille.* **Abandonné par Skander le 14/10/2026** (« ça va nous rajouter du travail pour
+rien ») : aucun prix n'est garanti à personne ; tout le monde paie la grille du premier jour de sa période, moins sa
+remise de groupe ou de cabinet s'il y a lieu. Rien ne se promet donc aux premiers clients sur le prix (ni dans
+l'application, ni sur le site, ni à l'oral).
 
 ## Ce qui n'est pas dans le prix
 

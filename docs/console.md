@@ -678,8 +678,9 @@ l'écran le dit en tête au support. Quatre onglets, l'adresse garde l'onglet (`
   message** : un message neuf reparaît. Le bandeau caché garde sa place jusqu'à la page suivante, avec sa phrase (« Message
   caché sur cet appareil ») : il ne fait pas remonter la page sous le curseur.
 - Ce que l'écran ne fait pas encore : la déclaration annuelle d'employeur au registre des formats, les nouveautés
-  allumées une à une, préparer un nouveau prix depuis l'écran (une offre ou un ajout), les remises et les offres de
-  fondateur, la colonne TTC (14b).
+  allumées une à une, préparer un nouveau prix depuis l'écran (une offre ou un ajout), les remises, la colonne TTC (14b).
+  Depuis : le nouveau prix se prépare dans Réglages (1.12.0), les remises aussi (1.15.0) ; les offres de fondateur sont
+  abandonnées (Skander, 14/10/2026).
 
 ## Quatrième partie : le support (Support S1, 13/10/2026)
 

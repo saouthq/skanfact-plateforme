@@ -455,7 +455,7 @@ comptabilité. On n'écrit pas un second système de facturation pour nous-même
 |---|---|
 | `equipe` | Membres de l'équipe SkanFact, rôle (direction, support, technique), double authentification obligatoire |
 | `offre`, `module`, `prix` | Offres, modules payants, **prix datés** (grille : `07-offres-et-prix.md`) ; un changement de prix ne touche jamais une période déjà payée |
-| `abonnement` | Entreprise (ou cabinet), offre, modules, options (utilisateurs, établissements, caisses, salariés en plus), **état** (essai, actif, en retard — les 7 jours de grâce —, lecture seule, résilié), début, fin, prochaine échéance, parrain (cabinet), remise (groupe, parrainage), **prix fondateur** garanti jusqu'au, **crédit repris d'une licence v10** |
+| `abonnement` | Entreprise (ou cabinet), offre, modules, options (utilisateurs, établissements, caisses, salariés en plus), **état** (essai, actif, en retard — les 7 jours de grâce —, lecture seule, résilié), début, fin, prochaine échéance, parrain (cabinet), remise (groupe, parrainage), ~~prix fondateur garanti jusqu'au~~ (abandonné le 14/10/2026, `07`), **crédit repris d'une licence v10** |
 | `evenement_abonnement` | Essai commencé, payé, relancé, passé en lecture seule, repris, résilié : qui, quand, pourquoi |
 | `commande` | Paiement en ligne (Konnect) : montant, référence, preuve reposée au prestataire (10.9.0), pièce de vente liée |
 | `ticket_support` | Client, canal, sujet, échanges, statut, qui s'en occupe |

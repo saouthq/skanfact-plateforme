@@ -330,8 +330,8 @@ Réglages › Offres et prix, avec son motif et sa ligne au journal (`reglages.p
   sa date (`plateforme.prix_a_venir`, sans le motif, qui est une note de SkanFact).
 
 Ce que 1.12.0 ne fait pas encore : l'e-mail qui annonce un nouveau prix aux abonnés concernés (et « le prix ne change
-pas » s'il est retiré après l'annonce) ; le contenu des offres, les remises et les places de fondateur réglables (`07`
-« Tout se règle depuis la console » : la suite).
+pas » s'il est retiré après l'annonce) ; le contenu des offres et les remises réglables (`07`
+« Tout se règle depuis la console » : la suite ; les places de fondateur sont abandonnées depuis, Skander, 14/10/2026).
 
 **C15. L'essai, la grâce et les relances se règlent dans la console** (1.13.0 ; `0104` ; `07` « Tout se règle depuis
 la console », Skander, 14/10/2026). Trente jours d'essai, sept de grâce et les relances à quinze jours, sept jours et la
@@ -421,7 +421,7 @@ mois ; journal `reglages.remise_preparee` / `remise_retiree`).
   « Ton abonnement », au-dessus des offres, sans le nom d'une autre société (`plateforme.ma_remise`), et sait que les
   prix des cartes sont ceux d'avant la remise.
 Ce que 1.15.0 ne fait pas : un e-mail qui annonce une remise (ou sa fin) au client ; la remise d'un dossier repris d'un
-cabinet ; les places de fondateur (96e).
+cabinet. Les places de fondateur, prévues ensuite, sont abandonnées (Skander, 14/10/2026 : `07`).
 
 **Ce que 14c ne fait pas** : passer à Complet ou acheter un module en libre-service (on écrit à contact@skanfact.tn,
 comme en 14a).

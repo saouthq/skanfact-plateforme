@@ -75,7 +75,7 @@ qu'il ouvre** (règle du projet : un compteur et la liste qu'il annonce viennent
 
 Une ligne par **organisation** (une entreprise seule, un groupe, un cabinet). La fiche d'un client :
 - ses **entreprises**, leur matricule, leurs établissements ;
-- son **abonnement** : offre, modules, options, état, échéance, prix fondateur, remise (`07`) ;
+- son **abonnement** : offre, modules, options, état, échéance, remise (`07` ; le prix de fondateur est abandonné, 14/10/2026) ;
 - ses **factures SkanFact** et ses **paiements** ;
 - son **cabinet** (mandat, parrainage) ; pour un cabinet, ses dossiers tenus et ses clients abonnés ;
 - ses **demandes de support** et nos échanges ;
