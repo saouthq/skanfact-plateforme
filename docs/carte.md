@@ -524,6 +524,15 @@ vaut pour tout le dépôt.*
     console, qui ne lit que ce que lit un membre « Lecture » (jamais la paie), n'écrit rien (ni au serveur, ni sur le
     poste) et **note chaque page** (son nom, l'instant), que l'entreprise relit. L'état d'un accès se déduit de l'heure :
     une fin passée n'a besoin de personne pour fermer la porte.
+  - **Nos factures** (abonnement 14b, première partie, 1.5.0 ; `docs/abonnement.md` B1–B4, `0097`,
+    `serveur/abonnement/factures.ts`) : SkanFact est une entreprise de sa propre plateforme. La direction la désigne
+    (Réglages › « Nos factures » ; seulement une entreprise dont elle est propriétaire ; offerte ; fixe une fois une
+    facture préparée). Depuis la fiche d'un client, « Préparer sa facture… » écrit **dans le dossier de l'entreprise
+    SkanFact**, par le même moteur que toutes les factures, la fiche du client et un brouillon (la période suit la même
+    règle que « Noter un paiement », le prix est celui du jour, l'aperçu dit ce que la facture dira) ; elle s'émet et
+    s'encaisse dans l'application de SkanFact, et **réglée en entier, elle paie l'abonnement** jusqu'à la fin de sa
+    période, une fois (jamais en partie, jamais annulée par son avoir). Pas encore : l'abonné qui voit et paie sa
+    facture en ligne (14b, seconde partie).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

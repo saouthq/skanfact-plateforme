@@ -13,6 +13,7 @@ import { Introuvable, Perimee } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { ESSAI_JOURS, etatAbonnement, GRACE_JOURS, lireFaits, RELANCES, type Etat, type Faits } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, type GesteAbonnement, type LigneAbonnement } from '../abonnement/gestes.ts';
+import { lireFacturesAbonnement, preparerFacture } from '../abonnement/factures.ts';
 import { motif, rendre, t, type Valeurs } from '../../textes/index.ts';
 import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_MIN, REGLES, SAUVEGARDE_TROP_VIEILLE_H } from '../../exploitation/veille.ts';
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
@@ -236,7 +237,10 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const support = lireSupport(await lireJson(transaction(tx), 'select plateforme.console_support($1, null) v', [id]));
       const attend = aDecider(liste, { etat: 'absente' }, jour, role, support.ouvertes, maintenant());
       const instant = maintenant();
-      return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true),
+      // Ses factures d'abonnement (docs/abonnement.md B2–B4), et l'entreprise SkanFact où elles naissent.
+      const nos = await lireJson<{ editeur: Record<string, unknown> | null }>(transaction(tx), 'select plateforme.console_editeur() v');
+      const factures = { lignes: lireFacturesAbonnement(await lireJson(transaction(tx), 'select plateforme.console_factures_abonnement($1) v', [id]), jour), editeur: nos?.editeur ?? null };
+      return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, factures, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true),
         support: { comptes: compter(support.ouvertes, instant), ouvertes: ranger(support.ouvertes, instant), closes: support.closes.map((l) => ({ ...l, etat: etatDe(l, instant) })) } } };
     },
   });
@@ -328,6 +332,32 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const geste = params.geste as GesteAbonnement;
       if (!GESTES_ABONNEMENT.includes(geste)) throw new Introuvable();
       return jouer(transaction(tx), params.id ?? '', geste, corps);
+    },
+  });
+
+  // ── Préparer la facture d'une période (docs/abonnement.md B2) : l'aperçu d'abord (ce que la facture dira), puis le geste.
+  // Au nom de la personne, dans le dossier de l'entreprise SkanFact (la base vérifie qu'elle en est propriétaire).
+  ajouter({
+    methode: 'POST', chemin: '/console/entreprises/:id/factures', geste: 'console.factures.preparer',
+    corps: z.object({ offre: z.enum(['essentiel', 'complet']), periodicite: z.enum(['annuel', 'mensuel']), motif: z.string().max(500), apercu: z.boolean().optional() }),
+    traiter: async ({ params, corps, qui }, tx) => {
+      const id = params.id ?? '';
+      if (!uuid.safeParse(id).success || !qui) throw new Introuvable();
+      const x = transaction(tx);
+      const fiche = await lireJson<Record<string, unknown> | null>(x, 'select plateforme.console_entreprise($1) v', [id]);
+      if (!fiche) throw new Introuvable();
+      const faits = lireFaits((fiche.faits ?? {}) as Record<string, unknown>);
+      if (faits.tenuParCabinet) return { statut: 409, corps: { motif: motif('abonnement.facture.tenu_par_cabinet') } };
+      if (!corps.apercu && corps.motif.trim().length < 3) return { statut: 400, corps: { motif: motif('console.motif_requis'), champ: 'motif', raison: t('console.motif_requis') } };
+      const jour = aujourdhuiATunis(maintenant());
+      const prix = lirePrix(await lireJson(x, 'select plateforme.prix_du_jour($1::date) v', [jour])).get(`${corps.offre}/${corps.periodicite}`) ?? null;
+      const membres = Array.isArray(fiche.membres) ? fiche.membres as { email?: unknown; roles?: unknown }[] : [];
+      const proprio = membres.find((m) => Array.isArray(m.roles) && m.roles.includes('proprietaire'));
+      const facture = await preparerFacture(x, qui.utilisateur, {
+        id, raisonSociale: String(fiche.raisonSociale ?? ''), matricule: typeof fiche.matricule === 'string' ? fiche.matricule : null,
+        email: typeof proprio?.email === 'string' ? proprio.email : null,
+      }, faits, { offre: corps.offre, periodicite: corps.periodicite }, prix, jour, { apercu: corps.apercu === true, motif: corps.motif.trim() });
+      return { statut: corps.apercu ? 200 : 201, corps: { apercu: corps.apercu === true, facture } };
     },
   });
 
@@ -871,8 +901,18 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           registre: registre(r.regles, jour),
           message: r.messages.find((m) => m.enCours) ?? null, passes: r.messages.filter((m) => !m.enCours).slice(0, 30),
           formats,
+          // Nos factures (docs/abonnement.md B1) : l'entreprise SkanFact désignée, et celles que je pourrais désigner.
+          factures: await lireJson(x, 'select plateforme.console_editeur() v'),
         },
       };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/factures/editeur', geste: 'console.reglages.gerer',
+    corps: z.object({ entreprise: z.string().uuid(), motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_poser_editeur($1, $2)', [corps.entreprise, corps.motif]);
+      return { corps: { ok: true } };
     },
   });
   ajouter({

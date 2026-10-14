@@ -33,4 +33,10 @@ declarerTextes({
   'abonnement.geste.deja_offert': 'l\'abonnement est déjà offert',
   'abonnement.geste.pas_offert': 'l\'abonnement n\'est pas offert',
   'abonnement.geste.inconnu': 'ce geste sur un abonnement n\'existe pas',
+  // Nos factures (docs/abonnement.md B1–B4).
+  'abonnement.facture.tenu_par_cabinet': 'ce dossier est tenu par un cabinet : c\'est le cabinet qui le paie, et sa facture viendra avec l\'abonnement des cabinets',
+  'abonnement.facture.editeur_lui_meme': 'l\'entreprise SkanFact ne se facture pas à elle-même',
+  'abonnement.facture.sans_prix': 'aucun prix du jour pour cette offre et cette périodicité : la grille se règle dans les Réglages de la console',
+  'abonnement.facture.deja_emise': 'la facture de cette période est déjà émise ({numero}) : elle ne se refait pas',
+  'abonnement.facture.deja_preparee': 'la facture de cette période est déjà préparée : elle attend son émission dans SkanFact (pour la refaire, supprime d\'abord son brouillon)',
 });

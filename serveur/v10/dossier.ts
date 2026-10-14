@@ -107,6 +107,10 @@ async function suivreReglements(tx: Transaction, entreprise: string, utilisateur
   if (!ticket) await annoncerReglements(tx, entreprise, piece.id, avant, nouveaux);
   // Les écritures de sa famille (brique 32) : ses encaissements, et ses avoirs qui en dépendent.
   await ecrireFamilleDeVente(tx, entreprise, piece.id);
+  // Une facture de l'abonnement d'une entreprise (docs/abonnement.md B4), dans le dossier de l'entreprise SkanFact : quand
+  // elle ne doit plus rien, elle paie cet abonnement jusqu'à la fin de sa période. La base le constate elle-même sur les
+  // pièces (rien de ce qu'on lui passe n'est cru), une fois par facture.
+  if (paiements.length && cle.startsWith('abonnement-')) await tx.query('select plateforme.abonnement_paye_par_facture($1, $2)', [entreprise, cle]);
 }
 
 // ── Lire le dossier ─────────────────────────────────────────────────────────────────────────────

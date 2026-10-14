@@ -43,7 +43,7 @@ const MDP = 'Un-bon-mot-de-passe';
 const net = (t: string) => t.replace(/[\s\u202f\u00a0]+/g, ' ').trim();
 const jourCourt = (iso: string) => iso.split('-').reverse().join('/');
 
-type Membre = { email: string; prenom: string; nom: string; secret: string };
+type Membre = { email: string; prenom: string; nom: string; secret: string; appli: string };
 
 describe('la console de l\'équipe, à la souris', () => {
   let navigateur: Browser;
@@ -72,7 +72,7 @@ describe('la console de l\'équipe, à la souris', () => {
     const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
     const secret = avecCode ? /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', jeton, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '' : '';
     await ajouterALEquipe(admin, email, role, 'essai de la console à la souris');
-    return { email, prenom, nom, secret };
+    return { email, prenom, nom, secret, appli: jeton };
   };
   const code = (m: Membre) => codeTotp(depuisBase32(m.secret), Date.now());
   // Le jeton de la console d'un membre, par l'API (l'entrée à la souris se vérifie une fois, plus bas).
@@ -167,7 +167,7 @@ describe('la console de l\'équipe, à la souris', () => {
   };
 
   let direction: Membre, support: Membre, technique: Membre, sansCode: Membre;
-  let essaiCalme = '', essaiSupport = '', enLecture = '', abonnee = '';
+  let essaiCalme = '', essaiSupport = '', enLecture = '', abonnee = '', aFacturer = '';
   let cabinet: Awaited<ReturnType<typeof cabinetAvecDossiers>>;
 
   beforeAll(async () => {
@@ -199,6 +199,8 @@ describe('la console de l\'équipe, à la souris', () => {
     essaiCalme = await entreprise('Quincaillerie de la Console', 2);
     essaiSupport = await entreprise('Boulangerie du Support', 2);
     enLecture = await entreprise('Pharmacie en Lecture Seule', -9);
+    // En grâce : son échéance est passée, et nos factures y répondent (14b).
+    aFacturer = await entreprise('Menuiserie à Facturer', -3);
     // Inscrite il y a plus d'une semaine : hors de la tuile « Inscriptions », pour que retirer son filtre se voie.
     const ancienne = await entreprise('Clinique Abonnée', -200, { payeDans: 160, offre: 'complet', emise: true });
     abonnee = ancienne;
@@ -349,6 +351,45 @@ describe('la console de l\'équipe, à la souris', () => {
     await expect.poll(() => ligne.innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain('Le client attend son comptable');
     expect(net(await ligne.innerText())).toContain('Essai prolongé');
     await p.screenshot({ path: path.join(PHOTOS, 'console-journal.png'), fullPage: true });
+    await fermer(p);
+  }, 90_000);
+
+  it('nos factures : la direction désigne l\'entreprise SkanFact ; une échéance passée répond par SA facture, préparée sur son aperçu, puis à émettre', async () => {
+    // Le timbre d'un dinar, que cette base peut laisser vide ; et l'entreprise SkanFact, que les autres fichiers peuvent
+    // avoir désignée : on part sans elle.
+    await admin.query(`insert into socle.regle_fiscale (code, valeur, debut, source)
+      select 'timbre.facture', '1000', '2000-01-01', 'Règle d''essai des tests' where not exists (select 1 from socle.regle_fiscale where code = 'timbre.facture')`);
+    await admin.query('delete from plateforme.facture_abonnement');
+    await admin.query('delete from plateforme.editeur');
+    const editeur = String((await api('POST', '/entreprises', direction.appli, { raisonSociale: 'SkanFact Éditions SARL' })).corps.id);
+    const p = await ouvrir(await jetonConsole(direction), '#/reglages');
+    const carte = p.locator('section[aria-labelledby="rg-factures"]');
+    await cliquer(carte.getByRole('button', { name: /^Désigner l.entreprise SkanFact/ }));
+    const fenetre = p.getByRole('dialog');
+    await expect.poll(() => fenetre.count()).toBe(1);
+    expect(await fenetre.locator('select').first().inputValue()).toBe(editeur);
+    await fenetre.getByLabel('Motif', { exact: true }).fill('Nos factures naissent ici');
+    await cliquer(fenetre.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => fenetre.count(), { timeout: 10_000 }).toBe(0);
+    await expect.poll(() => carte.innerText().then(net).catch(() => ''), { timeout: 10_000 }).toContain('SkanFact Éditions SARL');
+    // Une échéance passée : le vert de « Ce qui attend » est SA facture, plus « Noter un paiement reçu ».
+    await p.goto(`${serveur.adresse}/console/#/clients/${aFacturer}?onglet=abonnement`);
+    const vert = p.locator('.c-fiche-attend .c-btn-principal');
+    await expect.poll(() => vert.innerText().then(net).catch(() => ''), { timeout: 15_000 }).toMatch(/^Préparer sa facture/);
+    await cliquer(vert);
+    const f = p.getByRole('dialog');
+    // L'aperçu, calculé par le moteur de l'entreprise SkanFact : 690 HT, 19 % de TVA, le timbre — avant le geste.
+    await expect.poll(() => f.locator('.c-fa-net').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toContain('822,100 DT');
+    await f.getByLabel('Motif', { exact: true }).fill('Fin d\'essai : abonnement annuel');
+    await cliquer(f.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => f.count(), { timeout: 10_000 }).toBe(0);
+    // Préparée : le vert dit l'étape d'après, dans SkanFact, à côté de la console ; on n'en prépare pas une seconde.
+    await expect.poll(() => vert.innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe('Émettre sa facture dans SkanFact');
+    expect(await vert.getAttribute('target')).toBe('_blank');
+    const factures = p.locator('section[aria-labelledby="fiche-factures"]');
+    await expect.poll(() => factures.locator('tbody tr').first().innerText().then(net).catch(() => ''), { timeout: 10_000 }).toContain('À émettre');
+    expect(await factures.getByRole('button', { name: /Préparer la facture/ }).count()).toBe(0);
+    await p.screenshot({ path: path.join(PHOTOS, 'console-nos-factures.png'), fullPage: true });
     await fermer(p);
   }, 90_000);
 
@@ -658,6 +699,9 @@ describe('la console de l\'équipe, à la souris', () => {
       // Une fiche qui a émis : ses douze mois se dessinent, et se mesurent.
       { nom: 'fiche-emises', hash: `#/clients/${abonnee}` },
       { nom: 'fiche-cabinet-client', hash: `#/clients/${cabinet.client}` },
+      // Nos factures (14b) : une facture à émettre sur sa fiche, et la fenêtre qui en prépare une, avec son aperçu.
+      { nom: 'fiche-factures', hash: `#/clients/${aFacturer}?onglet=abonnement` },
+      { nom: 'facture-preparer', hash: `#/clients/${enLecture}?onglet=abonnement`, geste: async (p) => { await cliquer(p.locator('.c-fiche-attend .c-btn-principal')); await p.locator('.c-fa-net').waitFor(); } },
       { nom: 'abonnements', hash: '#/abonnements' },
       { nom: 'abonnements-essai', hash: '#/abonnements?vue=essai' },
       { nom: 'cabinets', hash: '#/cabinets' },

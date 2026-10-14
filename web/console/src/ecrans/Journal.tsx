@@ -53,8 +53,9 @@ function ChangeDesReglages({ r }: { r: NonNullable<Ligne['reglages']> }) {
   return t ? <span className="c-changes"><span className="c-change" data-donnee>{t}</span></span> : null;
 }
 
-// La famille d'un geste, lue dans son nom : l'abonnement d'un client, l'équipe, le service, les réglages, le support.
-const FAMILLES = ['abonnement', 'equipe', 'service', 'reglages', 'support'] as const;
+// La famille d'un geste, lue dans son nom : l'abonnement d'un client, l'équipe, le service, les réglages, le support, nos
+// factures.
+const FAMILLES = ['abonnement', 'equipe', 'service', 'reglages', 'support', 'factures'] as const;
 const familleDe = (geste: string) => FAMILLES.find((f) => geste.startsWith(`${f}.`)) ?? null;
 
 // Un jour comme on le dit : « Aujourd'hui · mardi 13 octobre », « Hier · lundi 12 octobre », « samedi 10 octobre » ; l'année

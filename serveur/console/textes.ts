@@ -21,6 +21,7 @@ declarerTextes({
   'geste.console.support.voir': 'lire les demandes de support',
   'geste.console.support.repondre': 'répondre à une demande de support (répondre, noter une demande reçue ailleurs, clore, rouvrir)',
   'geste.console.support.acces': 'demander l\'accès au dossier d\'un client et le lire pendant qu\'il court (en lecture seulement, chaque page tracée)',
+  'geste.console.factures.preparer': 'préparer la facture d\'un abonnement dans le dossier de l\'entreprise SkanFact',
   // Les rôles de l'équipe SkanFact (03 § 5).
   'role.direction': 'direction',
   'role.support': 'support',

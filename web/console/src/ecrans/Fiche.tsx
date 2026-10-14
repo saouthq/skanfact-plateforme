@@ -12,13 +12,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { dire, phrase, titre } from '../langue.ts';
 import { abonnementEnMots, expliquer, offreEtPeriode, puceDe, type Etat, type Faits, type Offre, type Periodicite } from '../abonnement.ts';
-import { panneDe, refusDe, useApi, useConsole, useLecture, type Role } from '../contexte.ts';
+import { panneDe, refusDe, useApi, useConsole, useLecture, useRelireQuandOnRegarde, type Role } from '../contexte.ts';
 import { dans, jourCourt, jourDe, quand } from '../temps.ts';
 import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
 import { organisationEnMots } from './Clients.tsx';
 import type { Place } from './Cabinets.tsx';
 import { depuisEnMots, etatEnMots, NoterDemande, refDemande, type LigneDemande } from './Support.tsx';
 import { AccesDossier } from './AccesDossier.tsx';
+import { montant } from '../argent.ts';
 
 type Geste = 'prolonger' | 'payer' | 'resilier' | 'annuler-resiliation' | 'suspendre' | 'reprendre' | 'offrir' | 'retirer-offert';
 type LigneAbo = { essai_jusqu_au: string; paye_jusqu_au: string | null; offre: Offre | null; periodicite: Periodicite | null; resilie_le: string | null; suspendu_le: string | null; offert: boolean };
@@ -32,6 +33,18 @@ type Donnees = {
   prolongeDejaUneFois: boolean; evenements: Evenement[]; cabinets: CabinetDe[]; attend: Attente[];
   // Ses demandes au support (0095), rangées par la fonction de l'écran Support (C3).
   support: { comptes: { ouvertes: number; aRepondre: number }; ouvertes: LigneDemande[]; closes: LigneDemande[] };
+  // Ses factures d'abonnement (docs/abonnement.md B2–B4), et l'entreprise SkanFact où elles naissent.
+  factures: { lignes: LigneFacture[]; editeur: { entreprise: string; raisonSociale: string; proprietaire: boolean } | null };
+};
+type EtatFacture = 'a_emettre' | 'supprimee' | 'payee' | 'annulee' | 'partielle' | 'en_retard' | 'a_payer';
+type LigneFacture = {
+  id: string; editeur: string; piece: string; offre: Offre; periodicite: Periodicite; debut: string; fin: string; montantHt: string;
+  prepareLe: string; preparePar: string | null; payeeLe: string | null; etat: EtatFacture; numero: string | null; echeance: string | null;
+  net: string | null; reste: string | null; devise: string | null; ecran: string;
+};
+// L'état d'une facture d'abonnement, comme une pastille : ce qui attend un geste se voit, ce qui est réglé se calme.
+const PUCE_FACTURE: Record<EtatFacture, TonPuce> = {
+  a_emettre: 'semaine', supprimee: 'hors', a_payer: 'essai', partielle: 'essai', en_retard: 'en_retard', payee: 'actif', annulee: 'hors',
 };
 // Les lignes d'« À décider » qui nomment ce client (serveur/console/decider.ts, aDecider) : celles d'un client seulement.
 type Attente =
@@ -45,8 +58,9 @@ export const ONGLETS_FICHE: readonly OngletFiche[] = ['apercu', 'abonnement', 'm
 const cleGeste = (g: Geste) => g.replace('-', '_');
 
 // Ce qu'un geste a changé, case par case (« essai jusqu'au : 12/10/2026 → 26/10/2026 ») : les cases d'une ligne
-// d'abonnement, et ce que le geste retient (les jours ajoutés, la période payée).
-const CASES = ['essai_jusqu_au', 'paye_jusqu_au', 'offre', 'periodicite', 'resilie_le', 'suspendu_le', 'offert', 'role', 'actif', 'jours', 'debut', 'fin'] as const;
+// d'abonnement, et ce que le geste retient (les jours ajoutés, la période payée, celle d'une facture préparée).
+const CASES = ['essai_jusqu_au', 'paye_jusqu_au', 'offre', 'periodicite', 'resilie_le', 'suspendu_le', 'offert', 'role', 'actif', 'jours', 'debut', 'fin',
+  'facture_du', 'facture_au', 'montant_ht'] as const;
 function valeurLisible(cle: string, v: unknown): string {
   if (v === null || v === undefined || v === '') return '—';
   if (typeof v === 'boolean') return dire(v ? 'console.ecran.fiche.oui' : 'console.ecran.fiche.non');
@@ -54,6 +68,7 @@ function valeurLisible(cle: string, v: unknown): string {
   if (cle === 'offre' && (v === 'essentiel' || v === 'complet')) return dire(`console.ecran.abo.offre.${v}`);
   if (cle === 'periodicite' && (v === 'annuel' || v === 'mensuel')) return dire(`console.ecran.abo.periodicite.${v}`);
   if (cle === 'role' && typeof v === 'string') return titre(`console.ecran.role.${v}`);
+  if (cle === 'montant_ht' && typeof v === 'string') return montant(v);
   return String(v);
 }
 // Les premiers événements (0082) écrivent leurs cases à la façon de l'API (« essaiJusquAu ») : on les lit comme celles
@@ -202,6 +217,146 @@ function FenetreGeste({ geste, fiche, role, fermer, fait }: { geste: Geste; fich
   );
 }
 
+// ── Préparer la facture d'une période (docs/abonnement.md B2) ───────────────────────────────────────────────────────
+// L'offre et la périodicité, puis ce que la facture dira (le serveur le calcule par le moteur de l'entreprise SkanFact,
+// sans rien écrire), puis le geste, avec son motif. Le brouillon naît dans le dossier de l'entreprise SkanFact ; il
+// s'émet dans son application.
+type FactureApercu = {
+  editeur: string; offre: Offre; periodicite: Periodicite; debut: string; fin: string; echeance: string; montantHt: string;
+  ceQueDira: { ht: string; tva: string; timbre: string; ttc: string; net: string };
+};
+function FenetreFacture({ fiche, fermer, fait }: { fiche: Donnees; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const [offre, setOffre] = useState<Offre>(fiche.faits.offre ?? 'complet');
+  const [periodicite, setPeriodicite] = useState<Periodicite>(fiche.faits.periodicite ?? 'annuel');
+  const [motif, setMotif] = useState('');
+  const [apercu, setApercu] = useState<FactureApercu | null>(null);
+  const [refus, setRefus] = useState<string | null>(null);
+  const [occupe, setOccupe] = useState(false);
+  const [faute, setFaute] = useState(0);
+  const chemin = `/console/entreprises/${fiche.id}/factures`;
+  const editeur = fiche.factures.editeur?.raisonSociale ?? '—';
+  const tour = useRef(0);
+  useEffect(() => {
+    const t = ++tour.current;
+    const minuteur = setTimeout(() => {
+      void (async () => {
+        try {
+          const r = await api<{ facture: FactureApercu }>('POST', chemin, { offre, periodicite, motif: '', apercu: true });
+          if (!r || t !== tour.current) return;
+          if (r.statut === 200) { setApercu(r.corps.facture); setRefus(null); } else { setApercu(null); setRefus(refusDe(r)); }
+        } catch (x) { if (t === tour.current) setRefus(panneDe(x)); }
+      })();
+    }, 250);
+    return () => clearTimeout(minuteur);
+  }, [offre, periodicite]);
+  const faire = () => {
+    if (motif.trim().length < 3) { setRefus(phrase('console.ecran.geste.motif_court')); setFaute((x) => x + 1); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const r = await api('POST', chemin, { offre, periodicite, motif: motif.trim() });
+        if (!r) return;
+        if (r.statut === 201) { toast(phrase('console.ecran.fiche.fa.fait', { editeur })); fait(); return; }
+        setRefus(refusDe(r));
+        if (r.corps.champ === 'motif') setFaute((x) => x + 1);
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  const c = apercu?.ceQueDira;
+  return (
+    <Dialogue titre={titre('console.ecran.fiche.fa.titre')} sous={phrase('console.ecran.fiche.fa.sous', { editeur })} fermer={fermer} occupe={occupe}
+      pied={<><Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} desactive={!apercu} onClick={faire}>{titre('console.ecran.fiche.fa.bouton')}</Bouton></>}>
+      <div className="c-champs-2">
+        <Choix libelle={titre('console.ecran.geste.offre')} valeur={offre} changer={(v) => setOffre(v as Offre)}
+          options={(['essentiel', 'complet'] as const).map((o) => ({ valeur: o, texte: dire(`console.ecran.abo.offre.${o}`) }))} />
+        <Choix libelle={titre('console.ecran.geste.periodicite')} valeur={periodicite} changer={(v) => setPeriodicite(v as Periodicite)}
+          options={(['annuel', 'mensuel'] as const).map((p) => ({ valeur: p, texte: titre(`console.ecran.abo.periodicite.${p}`) }))} />
+      </div>
+      <div className="c-champs">
+        <span className="c-champ-libelle">{titre('console.ecran.fiche.fa.dira')}</span>
+        {/* L'aperçu garde sa place quoi qu'il dise (le calcul, un refus) : le motif, dessous, ne bouge pas. */}
+        <div className="c-apercu-zone">
+          {apercu && c ? (
+            <div className="c-fa-apercu">
+              <p>{phrase('console.ecran.fiche.fa.periode', { debut: jourCourt(apercu.debut), fin: jourCourt(apercu.fin), avant: jourCourt(apercu.echeance) })}</p>
+              <dl className="c-fa-montants">
+                <div><dt>{titre('console.ecran.fiche.fa.ht')}</dt><dd data-donnee>{montant(c.ht)}</dd></div>
+                <div><dt>{titre('console.ecran.fiche.fa.tva')}</dt><dd data-donnee>{montant(c.tva)}</dd></div>
+                <div><dt>{titre('console.ecran.fiche.fa.timbre')}</dt><dd data-donnee>{montant(c.timbre)}</dd></div>
+                <div className="c-fa-net"><dt>{titre('console.ecran.fiche.fa.net')}</dt><dd data-donnee>{montant(c.net)}</dd></div>
+              </dl>
+            </div>
+          ) : refus && !apercu ? <p className="c-apercu-attente c-apercu-refus">{refus}</p>
+            : <p className="c-apercu-attente">{phrase('console.ecran.geste.apercu_calcul')}</p>}
+        </div>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.fiche.fa.motif_aide')} valeur={motif} changer={setMotif} faute={faute > 0} n={faute} />
+      {refus && apercu ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+// Ses factures SkanFact : chacune, son état, ce qu'elle doit encore, et l'endroit où elle s'émet et se règle.
+// La facture qui attend encore un geste (l'émettre, l'encaisser) : tant qu'elle existe, en préparer une autre serait
+// refusé (la même période), et l'étape suivante est la sienne.
+const factureOuverte = (lignes: Donnees['factures']['lignes']) =>
+  lignes.find((x) => x.etat === 'a_emettre' || x.etat === 'a_payer' || x.etat === 'partielle' || x.etat === 'en_retard');
+
+function SesFactures({ f, role, preparer }: { f: Donnees; role: Role; preparer: () => void }) {
+  const ed = f.factures.editeur;
+  const peut = role === 'direction' && !!ed?.proprietaire && !f.faits.tenuParCabinet && !factureOuverte(f.factures.lignes);
+  const note = f.faits.tenuParCabinet ? phrase('console.ecran.fiche.fa.cabinet')
+    : !ed ? phrase('console.ecran.fiche.fa.sans_editeur')
+      : role !== 'direction' ? phrase('console.ecran.fiche.fa.direction')
+        : !ed.proprietaire ? phrase('console.ecran.fiche.fa.pas_proprietaire', { editeur: ed.raisonSociale }) : null;
+  return (
+    <section className="c-carte c-liste-carte c-fiche-factures" aria-labelledby="fiche-factures">
+      <div className="c-carte-tete">
+        <div>
+          <h2 id="fiche-factures">{titre('console.ecran.fiche.fa.liste')}</h2>
+          <p className="c-carte-sous">{ed ? phrase('console.ecran.fiche.fa.liste_sous', { editeur: ed.raisonSociale }) : phrase('console.ecran.fiche.fa.liste_sous_sans')}</p>
+        </div>
+        {peut ? <Bouton petit icone="plus" onClick={preparer}>{titre('console.ecran.fiche.fa.preparer')}</Bouton> : null}
+      </div>
+      {note ? <p className="c-sous c-fa-note">{note}{!ed && role === 'direction' ? <> <a href="#/reglages">{titre('console.ecran.fiche.fa.vers_reglages')}</a></> : null}</p> : null}
+      {f.factures.lignes.length ? (
+        <div className="c-defile">
+          <table className="c-table c-fa-table">
+            <thead><tr>
+              <th scope="col">{titre('console.ecran.fiche.fa.col.facture')}</th>
+              <th scope="col">{titre('console.ecran.fiche.fa.col.periode')}</th>
+              <th scope="col" className="c-droite">{titre('console.ecran.fiche.fa.col.net')}</th>
+              <th scope="col" className="c-droite">{titre('console.ecran.fiche.fa.col.reste')}</th>
+              <th scope="col">{titre('console.ecran.fiche.fa.col.etat')}</th>
+              <th scope="col"><span className="c-cache">{titre('console.ecran.fiche.fa.col.ouvrir')}</span></th>
+            </tr></thead>
+            <tbody>
+              {f.factures.lignes.map((x) => (
+                <tr key={x.id}>
+                  <td>
+                    {x.numero ? <b className="c-mono" data-donnee>{x.numero}</b> : <b>{titre('console.ecran.fiche.fa.brouillon')}</b>}
+                    <span className="c-sous c-bloc">{offreEtPeriode(x.offre, x.periodicite)} · {dire('console.ecran.fiche.fa.ht_de', { montant: montant(x.montantHt) })}</span>
+                  </td>
+                  <td data-libelle={titre('console.ecran.fiche.fa.col.periode')}>{dire('console.ecran.fiche.fa.du_au', { debut: jourCourt(x.debut), fin: jourCourt(x.fin) })}
+                    {x.echeance && (x.etat === 'a_emettre' || x.etat === 'a_payer' || x.etat === 'partielle' || x.etat === 'en_retard') ? <span className="c-sous c-bloc">{dire('console.ecran.fiche.fa.avant_le', { jour: jourCourt(x.echeance) })}</span> : null}</td>
+                  <td className="c-droite" data-libelle={titre('console.ecran.fiche.fa.col.net')}>{x.net ? <span data-donnee>{montant(x.net)}</span> : '—'}</td>
+                  <td className="c-droite" data-libelle={titre('console.ecran.fiche.fa.col.reste')}>{x.reste ? <span data-donnee>{montant(x.reste)}</span> : '—'}</td>
+                  <td data-libelle={titre('console.ecran.fiche.fa.col.etat')}><Puce ton={PUCE_FACTURE[x.etat]}>{titre(`console.ecran.fiche.fa.etat.${x.etat}`)}</Puce>
+                    {x.payeeLe ? <span className="c-sous c-bloc">{dire('console.ecran.fiche.fa.payee_le', { quand: quand(x.payeeLe, f.aujourdhui) })}</span> : null}</td>
+                  <td className="c-droite">{x.etat !== 'supprimee' && ed?.proprietaire
+                    ? <Lien petit ailleurs href={x.ecran}>{titre(x.etat === 'a_emettre' ? 'console.ecran.fiche.fa.emettre' : 'console.ecran.fiche.fa.ouvrir')}</Lien> : null}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <Vide icone="info">{phrase('console.ecran.fiche.fa.aucune')}</Vide>}
+    </section>
+  );
+}
+
 // ── Le menu des gestes ──────────────────────────────────────────────────────────────────────────────────────────────
 function MenuGestes({ gestes, choisir, raison }: { gestes: Geste[]; choisir: (g: Geste) => void; raison: string | null }) {
   const [ouvert, setOuvert] = useState(false);
@@ -240,6 +395,10 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
   const [l, relire] = useLecture<Donnees>(`/console/entreprises/${encodeURIComponent(id)}`, id);
   const [geste, setGeste] = useState<Geste | null>(null);
   const [noter, setNoter] = useState(false);
+  const [facture, setFacture] = useState(false);
+  // La fiche envoie émettre sa facture dans l'application de SkanFact, dans un autre onglet : en revenant, elle dit ce
+  // qui a bougé (émise, réglée, l'abonnement qui suit). Jamais sous une fenêtre ouverte : on ne relit pas sous les doigts.
+  useRelireQuandOnRegarde(relire, { attendre: () => geste !== null || noter || facture });
   if (l.etat === 'lecture') return <p className="c-attente">{titre('console.ecran.lecture')}</p>;
   if (l.etat === 'panne') {
     return (
@@ -278,9 +437,15 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
   const onglets: { o: OngletFiche; n?: number }[] = [{ o: 'apercu' }, { o: 'abonnement' }, { o: 'membres', n: f.membres.length }, { o: 'support', n: f.support.comptes.ouvertes }, { o: 'journal', n: f.evenements.length }];
   // Le geste qui répond à une ligne de « Ce qui attend » : encaisser quand le rôle le permet, sinon prolonger ; écrire au
   // propriétaire d'un essai qui n'a pas servi. Le premier est vert : c'est l'étape suivante.
-  const reponse = (a: Attente): { texte: string; geste?: Geste; href?: string } | null => {
+  // Quand nos factures naissent dans l'entreprise SkanFact (14b), l'étape suivante d'une échéance passée est SA facture :
+  // l'émettre si elle attend, l'ouvrir si elle est due, la préparer sinon. Noter un paiement reste dans « Gestes ».
+  const facturer = moi.role === 'direction' && !!f.factures.editeur?.proprietaire && !f.faits.tenuParCabinet;
+  const ouverte = factureOuverte(f.factures.lignes);
+  const reponse = (a: Attente): { texte: string; geste?: Geste; href?: string; ailleurs?: boolean; faire?: () => void } | null => {
     if (a.sorte === 'support') return { texte: titre('console.ecran.decider.repondre'), href: `#/support?demande=${a.demande.id}` };
     if (a.sorte === 'essai_sans_usage') return a.proprietaire ? { texte: titre('console.ecran.fiche.attend.ecrire', { nom: a.proprietaire.nom }), href: ecrire(a.proprietaire) } : null;
+    if (facturer && ouverte) return { texte: titre(ouverte.etat === 'a_emettre' ? 'console.ecran.fiche.attend.emettre' : 'console.ecran.fiche.attend.sa_facture'), href: ouverte.ecran, ailleurs: true };
+    if (facturer) return { texte: titre('console.ecran.fiche.attend.preparer'), faire: () => setFacture(true) };
     const g = f.gestes.includes('payer') ? 'payer' : f.gestes.includes('prolonger') ? 'prolonger' : null;
     return g ? { texte: titre(`console.ecran.geste.${cleGeste(g)}`), geste: g } : null;
   };
@@ -315,8 +480,8 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
                 <li key={a.sorte === 'support' ? `support-${a.demande.id}` : a.sorte}>
                   <span className={`c-ligne-icone c-${v.urgence}`}><Icone nom={v.icone} /></span>
                   <span className="c-fiche-attend-texte"><b>{v.titre}</b><span>{v.desc}</span></span>
-                  {r?.geste ? <Bouton {...(i === 0 ? { ton: 'principal' as const } : {})} onClick={() => setGeste(r.geste ?? null)}>{r.texte}</Bouton>
-                    : r?.href ? <Lien href={r.href} {...(i === 0 ? { ton: 'principal' as const } : {})}>{r.texte}</Lien> : null}
+                  {r?.geste || r?.faire ? <Bouton {...(i === 0 ? { ton: 'principal' as const } : {})} onClick={() => (r.faire ? r.faire() : setGeste(r.geste ?? null))}>{r.texte}</Bouton>
+                    : r?.href ? <Lien href={r.href} {...(r.ailleurs ? { ailleurs: true } : {})} {...(i === 0 ? { ton: 'principal' as const } : {})}>{r.texte}</Lien> : null}
                 </li>
               );
             })}
@@ -436,6 +601,8 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
           ) : <Alerte ton="info">{phrase('console.ecran.fiche.aucune_ligne')}</Alerte>}
         </section>
       ) : null}
+      {onglet === 'abonnement' ? <SesFactures f={f} role={moi.role} preparer={() => setFacture(true)} /> : null}
+      {facture ? <FenetreFacture fiche={f} fermer={() => setFacture(false)} fait={() => { setFacture(false); relire(); }} /> : null}
 
       {onglet === 'membres' ? (
         <section className="c-carte" aria-labelledby="fiche-membres">
@@ -509,7 +676,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
                     <Changements avant={e.avant} apres={e.apres} />
                     {e.motif ? <span className="c-motif" data-donnee>{'« '}{e.motif}{' »'}</span> : null}
                     <span className="c-qui">
-                      {e.par === 'systeme' ? titre('console.ecran.fiche.par_systeme')
+                      {e.par === 'systeme' ? titre(e.nature === 'paye' ? 'console.ecran.fiche.par_facture' : 'console.ecran.fiche.par_systeme')
                         : e.qui ? <><span data-donnee>{e.qui.nom}</span> · {dire(`console.ecran.role.${e.qui.role}`)}</> : titre('console.ecran.fiche.par_outil')}
                     </span>
                   </div>

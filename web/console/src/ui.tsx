@@ -81,10 +81,11 @@ export function Bouton({ children, ton = 'secondaire', petit, large, occupe = fa
 }
 
 // Un lien qui a l'air d'un bouton (il ouvre un écran de la console).
-export function Lien({ href, children, ton = 'secondaire', petit, fleche, icone, etiquette }: { href: string; children: ReactNode; ton?: 'principal' | 'secondaire' | 'discret'; petit?: boolean; fleche?: boolean; icone?: NomIcone; etiquette?: string }) {
+// « ailleurs » : l'écran d'une autre application (la facture dans SkanFact), ouvert à côté de la console, jamais à sa place.
+export function Lien({ href, children, ton = 'secondaire', petit, fleche, icone, etiquette, ailleurs }: { href: string; children: ReactNode; ton?: 'principal' | 'secondaire' | 'discret'; petit?: boolean; fleche?: boolean; icone?: NomIcone; etiquette?: string; ailleurs?: boolean }) {
   const c = ['c-btn', ton === 'secondaire' ? '' : `c-btn-${ton}`, petit ? 'c-btn-petit' : ''].filter(Boolean).join(' ');
   return (
-    <a className={c} href={href} {...(etiquette ? { 'aria-label': etiquette } : {})}>
+    <a className={c} href={href} {...(etiquette ? { 'aria-label': etiquette } : {})} {...(ailleurs ? { target: '_blank', rel: 'noopener' } : {})}>
       {icone ? <Icone nom={icone} taille={17} /> : null}{children}{fleche ? <Icone nom="fleche" taille={17} /> : null}
     </a>
   );

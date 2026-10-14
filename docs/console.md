@@ -408,7 +408,11 @@ prolonge un essai une fois par entreprise ; « À décider » ne lui montre que 
 **C21. La fiche d'un client, recalée sur sa maquette** (13/10/2026). **« Ce qui attend, pour ce client »** en tête :
 les lignes d'« À décider » qui le nomment, calculées par la MÊME fonction (`aDecider`, sur la liste telle que l'accueil la
 lit — C3), dites sans son nom (c'est sa fiche) et avec le geste qui y répond : noter un paiement reçu (ou prolonger,
-selon le rôle) pour une échéance passée ou une lecture seule, écrire au propriétaire d'un essai qui n'a pas servi. **Le
+selon le rôle) pour une échéance passée ou une lecture seule, écrire au propriétaire d'un essai qui n'a pas servi.
+Depuis 14b (1.5.0), quand nos factures naissent dans l'entreprise SkanFact et qu'on en est la propriétaire, une échéance
+passée répond par **sa facture** : la préparer, l'émettre, l'ouvrir dans SkanFact (`docs/abonnement.md` B3) ; l'onglet
+« L'abonnement » porte « Ses factures SkanFact » (une par période, son état et son reste ; au téléphone, une par carte).
+La fiche se relit quand on revient dans son onglet. **Le
 premier est le seul vert de la fiche** : le menu des gestes ne l'est plus jamais, et « Écrire… » est à côté de lui. Puis
 **des onglets**, dans l'adresse (`?onglet=`) : l'aperçu (son entreprise — son offre, son matricule, l'échéance en
 couleur quand elle presse —, ses comptes, à qui parler, son cabinet avec « Ouvrir la fiche du cabinet »), l'abonnement,
@@ -602,7 +606,10 @@ l'écran le dit en tête au support. Quatre onglets, l'adresse garde l'onglet (`
   comptent par le **même état** que la liste des clients (une période payée qui court ; un retard n'en est pas), l'essai
   à part. La frise des échéances (les relances, l'échéance, la grâce, la lecture seule) vient du code qui les applique
   (`serveur/abonnement`), jamais d'un chiffre recopié. **Rien ne s'y modifie** : un prix neuf se pose en base, daté
-  (À DÉCIDER : le délai d'annonce aux clients).
+  (À DÉCIDER : le délai d'annonce aux clients). Sous la frise, **« Nos factures »** (14b, 1.5.0 ; `docs/abonnement.md`
+  B1) : l'entreprise SkanFact où nos factures naissent, désignée une fois par sa propriétaire de la direction (motif,
+  journal `factures.editeur`), avec qui l'a désignée et combien de factures y sont préparées ; elle se change tant
+  qu'aucune ne l'est.
 - **Règles fiscales** : le registre des règles communes (`socle.regle_fiscale`, posé depuis `base/regles-communes.json`),
   chacune avec sa valeur dans son unité quand on la connaît (le timbre : des millimes), son début, sa fin, sa source telle
   qu'elle est écrite. **La relecture par un comptable s'écrit à côté de la règle, jamais dans la règle** (une règle ne se
@@ -682,7 +689,7 @@ demande, l'alerte par e-mail sans contenu) sont dans `docs/support.md` ; ici, l'
 
 ## Ce que le lot ne fait pas
 
-La suite de la console : les paiements et nos factures (14b), la suite du service (la
+La suite de la console : le paiement en ligne par l'abonné (14b, seconde partie ; nos factures sont faites, `docs/abonnement.md`), la suite du service (la
 sécurité : l'accès d'urgence, bloquer une adresse, la chaîne du journal relue, la date des secrets ; le débit des travaux heure par heure, et les envois des e-mails, de la TEJ et de la CNSS, qui n'ont pas encore
 de trace), la mesure, la suite des réglages (les nouveautés allumées, préparer un prix ; C28), l'application de bureau (les licences de la v10), et le filtre du journal par geste et par période. Le service ne se voit encore que du serveur
 lui-même : aucune vérification de l'extérieur (06 § 7, depuis deux villes) ; l'écran le dit.

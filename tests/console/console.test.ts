@@ -247,7 +247,12 @@ describe('les clients', () => {
     const { ent, proprio } = await entreprise('Quincaillerie Fiche');
     const f = await fiche(jS, ent);
     expect(Object.keys(f).sort()).toEqual(['active', 'attend', 'aujourdhui', 'comptes', 'creeLe', 'devise', 'etat', 'evenements', 'faits', 'formeJuridique', 'gestes',
-      'id', 'ligne', 'matricule', 'membres', 'organisation', 'prolongeDejaUneFois', 'raisonSociale', 'tenuePar', 'cabinets', 'support'].sort());
+      'id', 'ligne', 'matricule', 'membres', 'organisation', 'prolongeDejaUneFois', 'raisonSociale', 'tenuePar', 'cabinets', 'support', 'factures'].sort());
+    // Nos factures (14b) : celles que SkanFact lui adresse, jamais une pièce de son dossier ; aucune pour un essai qui
+    // commence (le détail d'une ligne : tests/console/factures.test.ts).
+    const fa = f.factures as { lignes: unknown[]; editeur: unknown };
+    expect(Object.keys(fa).sort()).toEqual(['editeur', 'lignes']);
+    expect(fa.lignes).toEqual([]);
     // Aucun cabinet ne la suit : la liste est vide, pas absente. Un essai qui commence n'attend rien de la console.
     expect(f.cabinets).toEqual([]);
     // Ses demandes au support (Support S1) : les lignes de la liste, jamais le texte des messages ; aucune, des zéros mesurés.

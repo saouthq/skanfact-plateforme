@@ -136,6 +136,9 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
+/* La barre de défilement garde sa place : une page courte et une page longue ont la même largeur, et rien ne glisse de
+   quinze pixels sous le curseur quand un écran se relit et raccourcit (la fiche d'un client dont la facture est réglée). */
+html { scrollbar-gutter: stable; }
 body {
   background: var(--c-fond);
   color: var(--c-encre);
@@ -1605,6 +1608,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-jr-famille-service { background: var(--c-gris-doux); color: var(--c-gris); }
 .c-jr-famille-reglages { background: var(--c-orange-doux); color: var(--c-orange-texte); }
 .c-jr-famille-support { background: var(--c-bleu-doux); color: var(--c-bleu-texte); }
+.c-jr-famille-factures { background: var(--c-doux); color: var(--c-doux-texte); }
 .c-jr-sur a { color: var(--c-lien); font-weight: 600; text-decoration: none; }
 .c-jr-sur a:hover { text-decoration: underline; }
 .c-jr-motif { color: var(--c-encre); }
@@ -2303,7 +2307,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-sp-liens > a:not(.c-btn), .c-sp-personne > a { display: flex; align-items: center; min-height: 44px; }
 }
 /* L'onglet « Ses demandes » de la fiche d'un client : une ligne par demande, qui s'ouvre dans l'écran Support. */
-.c-fiche-support .c-carte-tete { padding: 24px 26px 0; }
+.c-fiche-support .c-carte-tete, .c-fiche-factures .c-carte-tete { padding: 24px 26px 0; }
 .c-fiche-demandes { list-style: none; margin: 0; padding: 0; }
 .c-fiche-demandes li + li { border-top: 1px solid var(--c-trait); }
 .c-fiche-demandes a { display: grid; gap: 4px; padding: 14px 26px; color: var(--c-encre); text-decoration: none; }
@@ -2311,3 +2315,34 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-fiche-demande-haut { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .c-fiche-demande-haut .c-mono { color: var(--c-gris); font-size: 12.5px; }
 .c-fiche-demande-haut b { overflow-wrap: anywhere; }
+
+/* ── Ses factures SkanFact (fiche d'un client ; docs/abonnement.md B2–B4) ─────────────────────────────────────────────── */
+.c-fa-note { margin: 0 26px 14px; }
+.c-fa-table td:last-child { white-space: nowrap; }
+.c-fa-table th:first-child, .c-fa-table td:first-child { padding-inline-start: 26px; }
+.c-fa-table td:nth-child(2) { white-space: nowrap; }
+.c-fa-table th:last-child, .c-fa-table td:last-child { padding-inline-end: 26px; }
+/* Au téléphone, une facture par carte : son numéro, puis chaque case nommée, et le bouton qui l'ouvre — jamais un tableau
+   qui défile de côté et cache l'état et le geste derrière le bord. */
+@media (max-width: 860px) {
+  .c-fiche-factures .c-defile { overflow: visible; }
+  .c-fa-table thead { display: none; }
+  .c-fa-table, .c-fa-table tbody, .c-fa-table td { display: block; }
+  .c-fa-table tr { display: grid; gap: 6px; padding: 14px 18px; border-bottom: 1px solid var(--c-trait); }
+  .c-fa-table tr:last-child { border-bottom: 0; }
+  .c-fa-table td, .c-fa-table th:first-child, .c-fa-table td:first-child, .c-fa-table td:last-child { padding: 0; border: 0; text-align: start; }
+  .c-fa-table td.c-droite { text-align: start; }
+  .c-fa-table td:nth-child(2) { white-space: normal; }
+  .c-fa-table td[data-libelle]::before { content: attr(data-libelle) ' : '; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); }
+  .c-fa-table td:last-child .c-btn { min-height: 44px; margin-top: 4px; }
+  .c-fiche-factures .c-carte-tete { padding: 18px 18px 0; }
+  .c-fiche-factures > .c-fa-note { margin-inline: 18px; }
+}
+.c-fa-apercu { display: grid; gap: 10px; }
+.c-fa-apercu p { margin: 0; }
+.c-fa-montants { display: grid; gap: 4px; margin: 0; max-width: 360px; }
+.c-fa-montants > div { display: flex; justify-content: space-between; gap: 16px; }
+.c-fa-montants dt { color: var(--c-gris); }
+.c-fa-montants dd { margin: 0; font-variant-numeric: tabular-nums; }
+.c-fa-net { border-top: 1px solid var(--c-trait); padding-top: 6px; font-weight: 700; }
+.c-fa-net dt { color: inherit; }

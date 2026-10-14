@@ -133,6 +133,76 @@ arrondies ; vérifié en clair et en sombre.
   facture.
 - La TVA et le timbre sur la facture de l'abonnement : 14b, avec le comptable.
 
+## 14b — Nos factures, et l'abonnement payé par sa facture (plan du 14/10/2026)
+
+*Décisions prises par délégation le 14/10/2026. Le cadrage fait foi : `10-console.md` § 2.5 (« nos factures sont celles
+de l'entreprise SkanFact, émises par le même moteur ; la console ne les refait pas ») et § 2.6 (Konnect, preuve reposée
+au prestataire), `01` § 18.*
+
+**B1. L'entreprise SkanFact.** SkanFact est une entreprise de sa propre plateforme. La direction la désigne une fois,
+dans la console (Réglages › « Nos factures »), et seulement une entreprise dont elle est **propriétaire** (le compte de
+la console est celui de l'application) : nos factures naissent dans SON dossier, avec son moteur, sa numérotation, sa
+TVA (son régime et son taux, jamais un taux écrit dans le code), sa facture électronique et sa comptabilité. Tant
+qu'elle n'est pas désignée, rien ne se facture, et la console le dit au lieu d'un bouton qui ne mène nulle part.
+Désignée, son propre abonnement passe « offert » (elle ne se facture pas à elle-même ; l'événement le dit). Une fois une
+facture préparée, l'entreprise SkanFact ne se change plus (ses factures y vivent).
+
+**B2. La facture d'une période.** Depuis la fiche d'un client de la console, « Préparer la facture… » (la direction) :
+l'offre et la périodicité, la période (la même règle que « Noter un paiement » : la suite de l'échéance, ou aujourd'hui
+si la lecture seule a commencé), le prix du jour (`plateforme.prix`), et ce que la facture dira **avant** le geste (HT,
+TVA, timbre, net à payer, calculés par le moteur de l'entreprise SkanFact). Le serveur écrit, au nom de la personne,
+dans le dossier de l'entreprise SkanFact : la fiche du client (la raison sociale, le matricule, l'e-mail du
+propriétaire de l'abonné ; une seule fiche par abonné, reprise ensuite, donc ce que SkanFact y complète — l'adresse —
+reste), puis la facture en **brouillon**. Une facture par abonné et par début de période (son identifiant le dit : deux
+clics n'en font jamais deux).
+
+**B3. L'émission reste dans l'application de SkanFact.** La console montre le brouillon « à émettre » et l'ouvre dans
+`app.skanfact.tn`, dans un autre onglet (on s'y connecte avec son propre compte, celui de la propriétaire) : Skander la
+relit, l'émet, la signe, l'envoie, comme n'importe quelle facture (C4 : la console ne refait pas l'émission). La console
+suit ensuite son état : à émettre, à payer (le reste), payée en partie, en retard, payée, annulée ; et la fiche se relit
+quand on revient dans son onglet (on vient d'émettre ou d'encaisser ailleurs). Une échéance passée a pour étape suivante
+**sa facture** : dans « Ce qui attend », le bouton vert devient « Préparer sa facture… », puis « Émettre sa facture dans
+SkanFact », puis « Ouvrir sa facture dans SkanFact » ; « Noter un paiement reçu » reste dans « Gestes ». Tant qu'une
+facture attend un geste, on n'en prépare pas une autre (la même période serait refusée) : le bouton disparaît.
+
+**B4. Payée, l'abonnement suit tout seul.** Quand le reste d'une facture d'abonnement tombe à zéro (un règlement noté
+dans l'application de SkanFact, ou un paiement en ligne prouvé), l'abonnement est payé jusqu'à la fin de **sa** période,
+à l'offre et à la périodicité de la facture : un événement « payé », par le système, qui nomme la facture (la fiche dit
+« SkanFact, quand sa facture a été réglée »). Une seule fois par facture. Une couverture qui va déjà au-delà ne bouge pas
+(rien n'est posé deux fois). Une facture que ses avoirs couvrent est **annulée** : réglée quand même (le client avait
+déjà viré), elle ne paie pas l'abonnement — c'est un remboursement à décider, pas une période payée. « Noter un paiement » de la
+console reste pour ce qui se paie sans facture de la plateforme.
+
+**B5. L'abonné voit et règle sa facture** (seconde partie) : dans « Ton abonnement », ses factures SkanFact (numéro,
+période, montant, reste, état), la pièce telle qu'elle s'imprime, et « Payer en ligne » par le Konnect de l'entreprise
+SkanFact (brique 78 : la preuve redemandée au prestataire, jamais une page de retour).
+
+**Ce que 14b ne fait pas**, et pourquoi : un règlement retiré après coup ne fait pas reculer l'abonnement tout seul (un
+fait posé ne se défait pas sans quelqu'un : la direction le voit et décide) ; l'avoir sur une facture d'abonnement, le
+prorata d'un changement d'offre (10 § 2.4) et la facture préparée toute seule à quinze jours de l'échéance viennent une
+fois les premières factures relues par le comptable ; « À décider » ne compte pas encore les brouillons préparés et pas
+émis (la fiche les montre ; la ligne viendra avec la facture préparée toute seule).
+
+**À VÉRIFIER** (avec le comptable, avant la première facture) : la TVA et le timbre de l'abonnement (aujourd'hui, la
+règle de l'entreprise SkanFact) ; la période qui figure sur la facture quand l'abonné paie après le début de la lecture
+seule (la période de la facture fait foi) ; les conditions de vente.
+
+## Revu à la souris (14/10/2026, 14b première partie)
+
+Sur l'essai de l'outil humain : l'entreprise SkanFact désignée dans les Réglages (motif, offerte), la facture de
+l'Atelier Mejri préparée depuis sa fiche (l'aperçu suit l'offre et la périodicité : 822,100 en Complet à l'année,
+465,100 en Essentiel à l'année, 47,410 au mois ; sans motif, le refus montre la case), émise dans l'application de
+SkanFact (FAC-2026-001), réglée en deux fois ; la Librairie Al Kitab en renouvellement (la période suit la couverture, à
+régler la veille) ; en clair et en sombre, à l'ordinateur et au téléphone. Corrigé pendant le parcours : la carte « Ses
+factures » sans ses marges ; le vert de « Ce qui attend » qui proposait encore « Noter un paiement reçu » ; « Préparer »
+offert sur une facture qui attendait déjà (refusé ensuite) ; la fiche restée sur « brouillon » après l'émission (elle se
+relit au retour) ; la page qui glissait de quinze pixels quand la barre de défilement disparaissait ; la période coupée
+sur deux lignes ; « à régler avant » sur une facture payée ; le journal qui disait « période payée » d'une facture
+seulement préparée, sans son montant ; « SkanFact, à la création » sous un paiement par facture ; au téléphone, un
+tableau qui défilait de côté et cachait l'état et le geste. Trouvé par la vérification avant l'envoi, et corrigé : le
+nouveau droit (« préparer la facture d'un abonnement ») sans ses deux textes dans l'écran Équipe, dont le tableau des
+droits ne s'affichait plus ; « désigner l'entreprise SkanFact » nommé sous le droit des réglages qui le porte.
+
 ## Revu à la souris (12/10/2026)
 
 Sur la boulangerie de l'outil humain, l'essai a été avancé jour après jour dans la base : l'essai (30 jours, puis les sept

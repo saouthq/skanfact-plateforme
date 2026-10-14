@@ -47,6 +47,9 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   // fini »), et lire le dossier pendant qu'il court — en lecture seulement, ce que lit un membre « Lecture », chaque page
   // tracée. C'est l'entreprise qui l'accorde ; la console ne fait que le demander.
   { code: 'console.support.acces', roles: [D, S], ecrit: true },
+  // Nos factures (docs/abonnement.md B2) : préparer la facture d'un abonnement dans le dossier de l'entreprise SkanFact. La
+  // direction seule, et au nom d'une personne propriétaire de cette entreprise (la base le revérifie).
+  { code: 'console.factures.preparer', roles: [D], ecrit: true },
 ];
 
 export const GESTES_CONSOLE: ReadonlyMap<string, GesteConsole> = (() => {

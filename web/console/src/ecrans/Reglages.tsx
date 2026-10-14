@@ -34,13 +34,20 @@ type Donnees = {
   aujourdhui: string; role: 'direction' | 'support' | 'technique';
   grille: LigneGrille[]; essai: { jours: number; enCours: number }; echeance: { relances: number[]; grace: number };
   registre: Regle[]; message: Message | null; passes: Message[]; formats: Format[];
+  factures: NosFactures;
+};
+// Nos factures (docs/abonnement.md B1) : l'entreprise de la plateforme où elles naissent, et celles que je pourrais désigner.
+type Possible = { entreprise: string; raisonSociale: string; matricule: string | null };
+type NosFactures = {
+  editeur: (Possible & { poseLe: string; posePar: string | null; proprietaire: boolean; factures: number }) | null;
+  possibles: Possible[];
 };
 type EtatFormat = 'en_place' | 'simule' | 'calcule' | 'pas_encore' | 'non_homologue';
 type Format = {
   code: 'teif' | 'signature' | 'ttn' | 'tej' | 'cnss' | 'liasse' | 'ecritures' | 'caisse'; etat: EtatFormat; aVerifier: boolean; version: string | null;
   chiffres: Record<string, number | string | null> | null; branche: boolean | null; alerte: boolean;
 };
-type Geste = { sorte: 'relire'; regle: Regle } | { sorte: 'ecrire' } | { sorte: 'retirer'; message: Message };
+type Geste = { sorte: 'relire'; regle: Regle } | { sorte: 'ecrire' } | { sorte: 'retirer'; message: Message } | { sorte: 'editeur' };
 
 // Un jour de calendrier lu par une personne : 19/11/2026 (le serveur rend « 2026-11-19 »).
 const jour = (j: string) => jourCourt(j);
@@ -54,7 +61,7 @@ const nomDeRegle = (r: Regle) => (r.valeurLue.connue ? titre(`${K}.r.nom.${r.cod
 const nomEtCode = (r: Regle) => (r.valeurLue.connue ? `${nomDeRegle(r)} · ${r.code}` : r.code);
 
 // ── Offres et prix ──────────────────────────────────────────────────────────────────────────────────────────────────
-function Prix({ d }: { d: Donnees }) {
+function Prix({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut: boolean }) {
   const r = d.echeance.relances.slice().sort((a, b) => b - a);
   const etapes = [
     ...r.map((n, i) => ({ quand: n === 1 ? dire(`${K}.p.f.veille`) : dire(`${K}.p.f.avant`, { n }),
@@ -132,7 +139,41 @@ function Prix({ d }: { d: Donnees }) {
           ))}
         </ol>
       </section>
+      <NosFacturesCarte f={d.factures} aujourdhui={d.aujourdhui} geste={geste} peut={peut} />
     </>
+  );
+}
+
+// Nos factures : où elles naissent. Désignée, l'entreprise se nomme, avec qui l'a désignée ; tant qu'aucune facture n'y est
+// préparée, elle se change encore. Sans elle, la carte dit ce qui ne se fait pas, et le geste qui le rend possible.
+function NosFacturesCarte({ f, aujourdhui, geste, peut }: { f: NosFactures; aujourdhui: string; geste: (g: Geste) => void; peut: boolean }) {
+  const e = f.editeur;
+  const autre = f.possibles.some((p) => p.entreprise !== e?.entreprise);
+  return (
+    <section className="c-carte c-rg" aria-labelledby="rg-factures">
+      <div className="c-al-section-tete">
+        <div>
+          <h2 id="rg-factures">{titre(`${K}.nf.titre`)}</h2>
+          <p className="c-carte-sous">{phrase(`${K}.nf.sous`)}</p>
+        </div>
+        {peut && !e && autre ? <Bouton ton="principal" onClick={() => geste({ sorte: 'editeur' })}>{titre(`${K}.nf.designer`)}</Bouton> : null}
+        {peut && e && e.factures === 0 && autre ? <Bouton petit onClick={() => geste({ sorte: 'editeur' })}>{titre(`${K}.nf.changer`)}</Bouton> : null}
+      </div>
+      {e ? (
+        <div className="c-rg-actuel">
+          <div className="c-rg-actuel-tete">
+            <div>
+              <b data-donnee>{e.raisonSociale}</b>{e.matricule ? <span className="c-sous" data-donnee> · {e.matricule}</span> : null}
+              <span className="c-sous c-bloc">{phrase(`${K}.nf.designee`, { nom: e.posePar ?? '—', quand: quand(e.poseLe, aujourdhui) })}</span>
+            </div>
+            <Puce ton="actif">{selon(e.factures, `${K}.nf.preparees`)}</Puce>
+          </div>
+          <p className="c-sous">{phrase(`${K}.nf.offert`)}</p>
+          {e.proprietaire ? null : <Alerte ton="info" icone="cadenas"><span>{phrase(`${K}.nf.pas_proprietaire`)}</span></Alerte>}
+          {e.factures ? <p className="c-sous">{phrase(`${K}.nf.fixe`)}</p> : null}
+        </div>
+      ) : <Vide icone="info">{phrase(autre ? `${K}.nf.aucune` : `${K}.nf.aucune_possible`)}</Vide>}
+    </section>
   );
 }
 
@@ -385,6 +426,8 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
   const [refus, setRefus] = useState<string | null>(null);
   const [faute, setFaute] = useState<{ champ: string; n: number } | null>(null);
   const [occupe, setOccupe] = useState(false);
+  const choisissables = d.factures.possibles.filter((p) => p.entreprise !== d.factures.editeur?.entreprise);
+  const [entreprise, setEntreprise] = useState(choisissables[0]?.entreprise ?? '');
   const refuser = (champ: string, cle: string) => { setRefus(phrase(cle)); setFaute((f) => ({ champ, n: (f?.n ?? 0) + 1 })); };
   const envoyer = () => {
     if (g.sorte === 'relire' && reluePar.trim().length < 3) { refuser('qui', `${K}.g.relire.qui_court`); return; }
@@ -402,7 +445,8 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
       try {
         const res = g.sorte === 'relire' ? await api('POST', `/console/reglages/regles/${g.regle.id}/relire`, { reluePar: reluePar.trim(), avis, dit: dit.trim() || null, motif: motif.trim() })
           : g.sorte === 'ecrire' ? await api('POST', '/console/reglages/messages', { sorte, texte: texte.trim(), du, au, motif: motif.trim() })
-            : await api('POST', `/console/reglages/messages/${g.message.id}/retirer`, { motif: motif.trim() });
+            : g.sorte === 'editeur' ? await api('POST', '/console/reglages/factures/editeur', { entreprise, motif: motif.trim() })
+              : await api('POST', `/console/reglages/messages/${g.message.id}/retirer`, { motif: motif.trim() });
         if (!res) return;
         if (res.statut === 200 || res.statut === 201) { toast(phrase(`${K}.g.${g.sorte}.fait`)); fait(); return; }
         setRefus(refusDe(res));
@@ -410,7 +454,9 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
     })();
   };
   const fauteDe = (champ: string) => ({ faute: faute?.champ === champ, n: faute?.champ === champ ? faute.n : 0 });
-  const valeurs = g.sorte === 'relire' ? { regle: nomDeRegle(g.regle) } : g.sorte === 'retirer' ? { du: jour(g.message.du), au: jour(g.message.au) } : {};
+  const choisie = choisissables.find((p) => p.entreprise === entreprise);
+  const valeurs = g.sorte === 'relire' ? { regle: nomDeRegle(g.regle) } : g.sorte === 'retirer' ? { du: jour(g.message.du), au: jour(g.message.au) }
+    : g.sorte === 'editeur' ? { nom: choisie?.raisonSociale ?? '—' } : {};
   const remplace = g.sorte === 'ecrire' && d.message;
   return (
     <Dialogue titre={titre(`${K}.g.${g.sorte}.titre`, valeurs)} sous={g.sorte === 'relire' ? nomEtCode(g.regle) : g.sorte === 'retirer' ? g.message.texte : undefined}
@@ -435,6 +481,10 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
             options={[{ valeur: 'juste', texte: titre(`${K}.g.relire.avis_juste`) }, { valeur: 'a_corriger', texte: titre(`${K}.g.relire.avis_corriger`) }]} />
           <Zone libelle={titre(`${K}.g.relire.dit`)} aide={phrase(`${K}.g.relire.dit_aide`)} valeur={dit} changer={setDit} max={1000} />
         </>
+      ) : null}
+      {g.sorte === 'editeur' ? (
+        <Choix libelle={titre(`${K}.g.editeur.laquelle`)} aide={phrase(`${K}.g.editeur.laquelle_aide`)} valeur={entreprise} changer={setEntreprise}
+          options={choisissables.map((p) => ({ valeur: p.entreprise, texte: p.matricule ? `${p.raisonSociale} · ${p.matricule}` : p.raisonSociale, donnee: true }))} />
       ) : null}
       {g.sorte === 'ecrire' ? (
         <>
@@ -492,7 +542,7 @@ export function Reglages({ onglet: demande }: { onglet: string | null }) {
       </nav>
       {l.etat === 'panne' ? <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}
-      {d && onglet === 'prix' ? <Prix d={d} /> : null}
+      {d && onglet === 'prix' ? <Prix d={d} geste={setGeste} peut={peut} /> : null}
       {d && onglet === 'regles' ? <Regles d={d} geste={setGeste} peut={peut} /> : null}
       {d && onglet === 'formats' ? <Formats d={d} /> : null}
       {d && onglet === 'messages' ? <Messages d={d} geste={setGeste} peut={peut} /> : null}

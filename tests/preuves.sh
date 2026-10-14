@@ -12736,6 +12736,46 @@ prouver 'le panneau sans les pages lues' web/public/plateforme/acces.js \
   '          ${lectures.length ? `<ol>${lectures.map((/** @type {any} */ l) => `<li><span>${esc(nom(l.page))}</span><span class="small muted">${esc(quand(l.le))}</span></li>`).join('"'"''"'"')}</ol>` : '"'"''"'"'}</details>` : '"'"''"'"'}' '          </details>` : '"'"''"'"'}' \
   "$SACW4"
 
+# Nos factures (abonnement 14b, première partie ; docs/abonnement.md B1–B4 ; base 0097) : l'entreprise SkanFact désignée
+# par sa propriétaire de la direction, offerte et fixe une fois une facture préparée ; la facture préparée dans son dossier,
+# au prix du jour, une fois par période, tracée « période facturée » ; réglée en entier, elle paie l'abonnement une fois —
+# jamais en partie, jamais annulée par son avoir.
+NF1='l'"'"'entreprise SkanFact se désigne une fois, par sa propriétaire de la direction ; son abonnement passe offert'
+NF2='préparer : l'"'"'aperçu dit ce que la facture dira ; le brouillon naît dans le dossier de SkanFact, une fois, au prix du jour'
+NF3='émise dans SkanFact puis réglée en entier, la facture paie l'"'"'abonnement jusqu'"'"'à la fin de sa période, une fois'
+NF4='une facture que son avoir annule ne paie pas l'"'"'abonnement, même réglée : la fiche la dit annulée'
+prouver 'une direction qui désigne une entreprise dont elle n'"'"'est pas propriétaire' 'base/migrations/0097_nos_factures.sql' \
+  '     and exists (select 1 from socle.membre m where m.entreprise = e.id and m.utilisateur = socle.moi() and m.actif and '"'"'proprietaire'"'"' = any(m.roles));' '     ;' \
+  "$NF1"
+prouver 'l'"'"'entreprise SkanFact qui se facture à elle-même' 'base/migrations/0097_nos_factures.sql' \
+  '  if found and not v_ligne.offert then' '  if false then' \
+  "$NF1"
+prouver 'l'"'"'entreprise SkanFact qui change après une facture préparée' 'base/migrations/0097_nos_factures.sql' \
+  '  if v_avant is not null and exists (select 1 from plateforme.facture_abonnement f where f.editeur = v_avant) then' '  if false then' \
+  "$NF2"
+prouver 'une facture préparée par qui n'"'"'est pas propriétaire de l'"'"'entreprise SkanFact' 'base/migrations/0097_nos_factures.sql' \
+  '  if not exists (select 1 from socle.membre m where m.entreprise = v and m.utilisateur = socle.moi() and m.actif and '"'"'proprietaire'"'"' = any(m.roles)) then' '  if false then' \
+  "$NF2"
+prouver 'la préparation d'"'"'une facture au journal en « période payée »' 'base/migrations/0097_nos_factures.sql' \
+  ''"'"'factureDu'"'"', p_debut, '"'"'factureAu'"'"', p_fin,' ''"'"'debut'"'"', p_debut, '"'"'fin'"'"', p_fin,' \
+  "$NF2"
+prouver 'une facture préparée deux fois pour la même période' 'serveur/abonnement/factures.ts' \
+  '  if (deja) {' '  if (false && deja) {' \
+  "$NF2"
+prouver 'une facture réglée en partie qui paie l'"'"'abonnement' 'base/migrations/0097_nos_factures.sql' \
+  '  if v_p.net_a_payer <= 0 or v_avoirs >= v_p.net_a_payer or v_p.net_a_payer - v_avoirs - v_reglements > 0 then return null; end if;' '  if v_p.net_a_payer <= 0 or v_avoirs >= v_p.net_a_payer then return null; end if;' \
+  "$NF3"
+prouver 'une facture que son avoir annule et qui paie l'"'"'abonnement' 'base/migrations/0097_nos_factures.sql' \
+  '  if v_p.net_a_payer <= 0 or v_avoirs >= v_p.net_a_payer or v_p.net_a_payer - v_avoirs - v_reglements > 0 then return null; end if;' '  if v_p.net_a_payer <= 0 or v_p.net_a_payer - v_avoirs - v_reglements > 0 then return null; end if;' \
+  "$NF4"
+prouver 'une facture d'"'"'abonnement réglée qui ne paie rien' 'serveur/v10/dossier.ts' \
+  '  if (paiements.length && cle.startsWith('"'"'abonnement-'"'"')) await tx.query('"'"'select plateforme.abonnement_paye_par_facture($1, $2)'"'"', [entreprise, cle]);
+' '' \
+  "$NF3"
+prouver 'une facture réglée qui paie l'"'"'abonnement deux fois' 'base/migrations/0097_nos_factures.sql|||base/migrations/0097_nos_factures.sql' \
+  '  if not found or v_f.payee_le is not null then return null; end if;|||  if not found or (v_ligne.paye_jusqu_au is not null and v_ligne.paye_jusqu_au >= v_f.fin) then return null; end if;' '  if not found then return null; end if;|||  if not found then return null; end if;' \
+  "$NF3"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
