@@ -108,6 +108,10 @@ dans la console (Réglages), avec son motif et sa ligne au journal ; le code ne 
 - **le préavis d'un nouveau prix : 30 jours** (Skander, 14/10/2026), lui aussi réglable dans la console. Un prix
   préparé aujourd'hui ne peut commencer qu'au bout de ce délai, et l'application l'annonce aux clients.
 
+Fait dans la plateforme : les prix des offres et des ajouts, et le préavis (1.12.0, 14/10/2026 ; la facture d'une période
+se prend au prix de son premier jour). La suite, dans cet ordre : l'essai, la grâce et les rappels ; le contenu des
+offres ; les remises ; les places de fondateur.
+
 ## Les premiers clients (fondateurs)
 
 Les **100 premières entreprises** et les **20 premiers cabinets** gardent leur prix **deux ans**, quoi

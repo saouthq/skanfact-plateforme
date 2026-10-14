@@ -45,6 +45,9 @@ declarerTextes({
   'console.versions.en_service_inconnue': 'le suiveur n\'a pas encore dit quelle version est en service : on ne peut pas revenir en arrière sans le savoir',
   'console.versions.retenir_en_service': 'cette version est en service : pour la quitter, reviens à une version d\'avant',
   'console.abonnement_change': 'cet abonnement a changé depuis que tu l\'as ouvert : relis-le avant de refaire le geste',
+  // Préparer un prix (docs/abonnement.md C14) : chaque refus nomme sa case.
+  'console.reglages.prix_illisible': 'le prix s\'écrit en dinars hors taxes, avec trois décimales au plus : « 420 » ou « 420,500 »',
+  'console.reglages.jour_illisible': 'ce jour n\'existe pas au calendrier : choisis-en un dans le calendrier',
   // Le support (docs/support.md) : chaque refus nomme sa case.
   'console.support.sujet_court': 'le sujet dit en quelques mots ce que la personne demande : trois caractères au moins',
   'console.support.sujet_long': 'le sujet tient sur une ligne : cent quarante caractères au plus',

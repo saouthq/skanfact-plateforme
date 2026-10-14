@@ -5,6 +5,7 @@
 // Recalé sur sa maquette : qui se choisit d'un clic (une pilule par membre), chaque geste porte sa famille, la valeur
 // d'avant se lit barrée au-dessus de la nouvelle, et un jour se nomme comme on le dit (« Aujourd'hui · mardi 13 octobre »).
 import { useCallback, useEffect, useState } from 'react';
+import { montant } from '../argent.ts';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture, type Role } from '../contexte.ts';
 import { heureDe, jourCourt, jourDe, jourLong, jourMois, joursEntre } from '../temps.ts';
@@ -17,8 +18,13 @@ type Ligne = {
   qui: { id: string; nom: string } | null; entreprise: { id: string; raisonSociale: string } | null; membre: { id: string; nom: string } | null;
   // Un geste du service (serveur/console/alertes.ts, `sujetDuService`) : la règle visée, l'alerte d'essai, la fin prévue.
   service?: { regle: string | null; essai: boolean; fin: string | null };
-  // Un geste des réglages (serveur/console/reglages.ts, `sujetDesReglages`) : la règle relue et l'avis, ou les deux jours du message.
-  reglages?: { regle: string | null; reluePar: string | null; avis: 'juste' | 'a_corriger' | null; du: string | null; au: string | null };
+  // Un geste des réglages (serveur/console/reglages.ts, `sujetDesReglages`) : la règle relue et l'avis, les deux jours du
+  // message, le prix préparé ou retiré, ou le préavis.
+  reglages?: {
+    regle: string | null; reluePar: string | null; avis: 'juste' | 'a_corriger' | null; du: string | null; au: string | null;
+    prix: { quoi: string; periodicite: 'annuel' | 'mensuel'; aPartirDu: string | null; avant: string | null; apres: string | null } | null;
+    preavis: { avant: number | null; apres: number | null } | null;
+  };
 };
 type Page = { lignes: Ligne[]; suite: string | null };
 type Membre = { utilisateur: string; nom: string; actif: boolean };
@@ -43,11 +49,30 @@ function LaDemande({ avant, apres }: { avant: Record<string, unknown> | null; ap
   if (!id || numero === null) return null;
   return <span className="c-changes"><a className="c-change" href={`#/support?demande=${id}`}>{titre('console.ecran.journal.sur_demande', { ref: refDemande(numero) })}</a></span>;
 }
+// Ce qui a un prix (0103) : une offre (« Essentiel »), ou ce qui s'ajoute (« une caisse de plus »).
+const nomDuPrix = (q: string) => (q === 'essentiel' || q === 'complet' ? dire(`console.ecran.reglages.p.offre.${q}`) : dire(`console.ecran.reglages.a.nom.${q}`));
 function SurLesReglages({ r }: { r: NonNullable<Ligne['reglages']> }) {
+  if (r.prix) return <a href="#/reglages">{titre('console.ecran.journal.sur_prix', { quoi: nomDuPrix(r.prix.quoi), periode: dire(`console.ecran.reglages.p.periode.${r.prix.periodicite}`) })}</a>;
+  if (r.preavis) return <a href="#/reglages">{titre('console.ecran.journal.sur_preavis')}</a>;
   return r.regle ? <a href="#/reglages?onglet=regles">{titre('console.ecran.journal.sur_regle_commune', { code: r.regle })}</a>
     : <a href="#/reglages?onglet=messages">{titre('console.ecran.journal.sur_message')}</a>;
 }
-function ChangeDesReglages({ r }: { r: NonNullable<Ligne['reglages']> }) {
+function ChangeDesReglages({ geste, r }: { geste: string; r: NonNullable<Ligne['reglages']> }) {
+  // Un prix préparé : celui d'avant barré, le nouveau à sa date. Retiré : le prix retiré (à sa date) barré, celui qui reste.
+  if (r.prix) {
+    const date = r.prix.aPartirDu ? ` ${dire('console.ecran.journal.a_partir_du', { jour: jourCourt(r.prix.aPartirDu) })}` : '';
+    const retire = geste === 'reglages.prix_retire';
+    return (
+      <span className="c-changes"><span className="c-change">
+        {r.prix.avant ? <><del data-donnee>{montant(r.prix.avant)}{retire ? date : ''}</del> → </> : null}
+        {r.prix.apres ? <ins data-donnee>{montant(r.prix.apres)}{retire ? '' : date}</ins> : '—'}
+      </span></span>
+    );
+  }
+  if (r.preavis) {
+    const jours = (n: number | null) => (n === null ? '—' : selon(n, 'console.ecran.journal.jours'));
+    return <span className="c-changes"><span className="c-change"><del data-donnee>{jours(r.preavis.avant)}</del> → <ins data-donnee>{jours(r.preavis.apres)}</ins></span></span>;
+  }
   const t = r.regle && r.reluePar ? dire(`console.ecran.journal.relue_${r.avis === 'a_corriger' ? 'corriger' : 'juste'}`, { qui: r.reluePar })
     : r.du && r.au ? dire('console.ecran.journal.du_au', { du: jourCourt(r.du), au: jourCourt(r.au) }) : null;
   return t ? <span className="c-changes"><span className="c-change" data-donnee>{t}</span></span> : null;
@@ -188,7 +213,7 @@ export function Journal({ entreprise, qui: quiDemande }: { entreprise: string | 
                                     : l.service ? <SurLeService s={l.service} /> : l.reglages ? <SurLesReglages r={l.reglages} /> : '—'}
                               </td>
                               <td><span className="c-jr-motif" data-donnee>{'«\u202f'}{l.motif}{'\u202f»'}</span></td>
-                              <td>{l.service ? <ChangeDuService geste={l.geste} s={l.service} /> : l.reglages ? <ChangeDesReglages r={l.reglages} />
+                              <td>{l.service ? <ChangeDuService geste={l.geste} s={l.service} /> : l.reglages ? <ChangeDesReglages geste={l.geste} r={l.reglages} />
                                 : famille === 'support' ? <LaDemande avant={l.avant} apres={l.apres} /> : <Changements avant={l.avant} apres={l.apres} empile />}</td>
                             </tr>
                           );

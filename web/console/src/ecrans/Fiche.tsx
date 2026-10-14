@@ -254,6 +254,8 @@ function FenetreFacture({ fiche, fermer, fait }: { fiche: Donnees; fermer: () =>
   const [periodicite, setPeriodicite] = useState<Periodicite>(fiche.faits.periodicite ?? 'annuel');
   const [motif, setMotif] = useState('');
   const [apercu, setApercu] = useState<FactureApercu | null>(null);
+  // Le prix d'aujourd'hui, quand la période commence après un nouveau prix (0103) : l'aperçu dit pourquoi le montant change.
+  const [aujourdhui, setAujourdhui] = useState<string | null>(null);
   const [refus, setRefus] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
   const [faute, setFaute] = useState(0);
@@ -265,9 +267,9 @@ function FenetreFacture({ fiche, fermer, fait }: { fiche: Donnees; fermer: () =>
     const minuteur = setTimeout(() => {
       void (async () => {
         try {
-          const r = await api<{ facture: FactureApercu }>('POST', chemin, { offre, periodicite, motif: '', apercu: true });
+          const r = await api<{ facture: FactureApercu; prixAujourdhuiHt: string | null }>('POST', chemin, { offre, periodicite, motif: '', apercu: true });
           if (!r || t !== tour.current) return;
-          if (r.statut === 200) { setApercu(r.corps.facture); setRefus(null); } else { setApercu(null); setRefus(refusDe(r)); }
+          if (r.statut === 200) { setApercu(r.corps.facture); setAujourdhui(r.corps.prixAujourdhuiHt); setRefus(null); } else { setApercu(null); setRefus(refusDe(r)); }
         } catch (x) { if (t === tour.current) setRefus(panneDe(x)); }
       })();
     }, 250);
@@ -304,6 +306,7 @@ function FenetreFacture({ fiche, fermer, fait }: { fiche: Donnees; fermer: () =>
           {apercu && c ? (
             <div className="c-fa-apercu">
               <p>{phrase('console.ecran.fiche.fa.periode', { debut: jourCourt(apercu.debut), fin: jourCourt(apercu.fin), avant: jourCourt(apercu.echeance) })}</p>
+              {aujourdhui ? <p className="c-sous">{phrase('console.ecran.fiche.fa.nouveau_prix', { jour: jourCourt(apercu.debut), prix: montant(aujourdhui) })}</p> : null}
               {/* Ses lignes, hors taxes : l'offre, puis ce qui s'ajoute (14c), chacune avec sa quantité et ce qui l'explique. */}
               <ul className="c-fa-lignes">
                 <li><span>{offreEtPeriode(apercu.offre, apercu.periodicite)}</span><span data-donnee>{montant(apercu.prixOffreHt)}</span></li>

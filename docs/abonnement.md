@@ -306,6 +306,33 @@ utilise, ce que l'offre comprend, les lignes de la facture), efface le prix de l
 réelle ne l'avait encore porté) et ferme l'option dans la table des prix. L'écran (« Ton abonnement », l'équipe), la
 console (la grille des ajouts, l'aperçu d'une facture) et la bulle d'aide suivent.
 
+**C14. Un nouveau prix se prépare dans la console** (1.12.0 ; `0103` ; `07` « Tout se règle depuis la console »,
+Skander, 14/10/2026). Jusqu'ici un prix neuf s'écrivait dans une migration ; la direction le prépare maintenant dans
+Réglages › Offres et prix, avec son motif et sa ligne au journal (`reglages.prix_prepare`) :
+- **ce qui a un prix** : les deux offres et chaque ajout (C7), à l'année ou au mois ;
+- **le préavis** : un prix commence au plus tôt trente jours après le jour où il est préparé (Skander, 14/10/2026). Le
+  préavis vit lui-même dans la base (`plateforme.regle_abonnement`, datée, intouchable) et se règle dans la console
+  (« Changer le préavis… », journal `reglages.preavis`) ; il vaut dès aujourd'hui pour les prix préparés ensuite, un
+  prix déjà préparé garde sa date ;
+- **un seul prix à venir par choix** ; jamais le prix déjà en vigueur ;
+- l'aperçu du serveur dit, avant le geste, le prix d'aujourd'hui, le nouveau, l'écart (« une hausse de 7,7 % », calculé
+  par le serveur, jamais par l'écran) et qui l'a aujourd'hui (les abonnés de l'offre à cette périodicité, ou ceux qui
+  ont acheté le module) ;
+- un prix à venir **se retire** avant sa date (« Le retirer avant sa date… », journal `reglages.prix_retire` avec le
+  prix retiré) ; un prix en vigueur ou passé **ne change ni ne disparaît jamais** : la base refuse de le réécrire ou de
+  l'effacer, quoi qu'on lui demande (`plateforme.prix_intouchable`) ;
+- **la facture d'une période se prend au prix en vigueur à son premier jour** : un nouveau prix vaut pour les périodes
+  qui commencent à sa date ou après, et ne touche jamais une période commencée. Ce qui dépasse l'offre se compte
+  toujours le jour où la facture se prépare (C7), au prix du premier jour de la période ; la base rejoue le total de la
+  même façon (`console_noter_facture`) ;
+- **le client le lit** dès qu'il est préparé : sous le prix d'aujourd'hui de l'offre ou de l'ajout, « À partir du
+  01/01/2027 : 420 DT HT par an. », et au-dessus des offres, qu'un nouveau prix vaut pour les périodes qui commencent à
+  sa date (`plateforme.prix_a_venir`, sans le motif, qui est une note de SkanFact).
+
+Ce que 1.12.0 ne fait pas encore : l'e-mail qui annonce un nouveau prix aux abonnés concernés (et « le prix ne change
+pas » s'il est retiré après l'annonce) ; l'essai, la grâce et les rappels réglables ; le contenu des offres, les
+remises et les places de fondateur réglables (`07` « Tout se règle depuis la console » : la suite).
+
 **Ce que 14c ne fait pas** : passer à Complet ou acheter un module en libre-service (on écrit à contact@skanfact.tn,
 comme en 14a).
 
@@ -329,6 +356,21 @@ pour ton abonnement » sous la paie ; « L'équipe » : deux invitations (un com
 puis, à la troisième, la fenêtre dit avant le bouton que l'offre comprend 3 utilisateurs, que l'équipe en compte 1 et
 que 2 invitations attendent, et ce que coûtera une personne de plus. Corrigé pendant le parcours : « 0 caisse sur 1
 compris » ; « tu en as déjà 1, et 2 invitations attendent », qui se lisait mal ; l'espace avant les deux-points.
+
+## Revu à la souris (14/10/2026, C14 : un nouveau prix)
+
+Sur l'essai de l'outil humain, dans la console (Amira, direction) : « Préparer un nouveau prix… », Essentiel à l'année,
+420 DT à partir du 13/11/2026 (le premier jour après le préavis), motif « Grille 2027 annoncée aux pilotes » ; l'aperçu
+(390 barré, 420, une hausse de 7,7 %, qui l'a aujourd'hui), la pastille « À venir » sous Essentiel et la carte du prix
+à venir sous la grille ; chez Walid, « Ton abonnement » à l'ordinateur et au téléphone : « À partir du 13/11/2026 :
+420 DT HT par an. » sous le prix d'Essentiel ; le prix retiré (« Grille 2027 repoussée après les pilotes »), la grille
+qui reste, et les deux gestes au journal, de quoi à quoi ; la fenêtre au téléphone. Corrigé pendant le parcours : l'aperçu qui arrivait en poussant le motif
+vers le bas (il a sa place dès l'ouverture, et un prix déjà préparé pour ce choix s'y dit, sans rien pousser) ; la
+liste de Complet qui commençait plus bas que celle d'Essentiel quand une seule offre annonçait un prix (les cartes
+partagent leurs lignes, et l'autre dit « Aucun nouveau prix annoncé. ») ; 450 DT tapés pour Complet au mois (69 DT
+aujourd'hui) passaient sans un mot : un écart de moitié ou plus dit maintenant, en couleur, « vérifie que c'est bien le
+prix au mois » ; la suggestion du navigateur qui cachait le prix d'aujourd'hui sous la case ; « le prix de Essentiel »
+au journal, devenu « le prix d'Essentiel ».
 
 ## Revu à la souris (14/10/2026, 14c deuxième partie)
 

@@ -492,6 +492,25 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'aucun prix n\'est posé pour cette ligne de la facture : %s', cle: 'base.factures.option_sans_prix', fr: 'aucun prix n\'est posé pour cette ligne de la facture : {option}', valeurs: ['option'] },
   // L'abonné lit et règle ses factures (0098, docs/abonnement.md B5).
   { base: 'les factures de l\'abonnement se lisent et se règlent par le propriétaire ou un administrateur de l\'entreprise', cle: 'base.factures.qui_lit', fr: 'les factures de l\'abonnement se lisent et se règlent par le propriétaire ou un administrateur de l\'entreprise' },
+  // Un nouveau prix se prépare dans la console, avec son préavis (0103, docs/abonnement.md C14).
+  { base: 'une règle de l\'abonnement ne se modifie pas et ne s\'efface pas : on en pose une nouvelle, datée', cle: 'base.prix.regle_intouchable', fr: 'une règle de l\'abonnement ne se modifie pas et ne s\'efface pas : on en pose une nouvelle, datée' },
+  { base: 'un prix posé ne se modifie pas : on en prépare un nouveau, daté', cle: 'base.prix.intouchable', fr: 'un prix posé ne se modifie pas : on en prépare un nouveau, daté' },
+  { base: 'un prix en vigueur ou passé ne s\'efface jamais', cle: 'base.prix.en_vigueur_garde', fr: 'un prix en vigueur ou passé ne s\'efface jamais' },
+  { base: 'préparer un prix demande son motif (trois caractères au moins)', cle: 'base.prix.motif', fr: 'préparer un prix demande son motif (trois caractères au moins)' },
+  { base: 'ce prix ne correspond à aucune offre ni à rien de ce qui s\'ajoute à l\'offre', cle: 'base.prix.quoi', fr: 'ce prix ne correspond à aucune offre ni à rien de ce qui s\'ajoute à l\'offre' },
+  { base: 'un prix vaut à l\'année ou au mois', cle: 'base.prix.periodicite', fr: 'un prix vaut à l\'année ou au mois' },
+  { base: 'un prix est un montant hors taxes plus grand que zéro', cle: 'base.prix.montant', fr: 'un prix est un montant hors taxes plus grand que zéro' },
+  { base: 'le préavis d\'un nouveau prix n\'est pas réglé : règle-le d\'abord', cle: 'base.prix.preavis_absent', fr: 'le préavis d\'un nouveau prix n\'est pas réglé : règle-le d\'abord' },
+  { base: 'un nouveau prix commence au plus tôt le %s : c\'est le préavis en vigueur', cle: 'base.prix.trop_tot', fr: 'un nouveau prix commence au plus tôt le {jour} : c\'est le préavis en vigueur', valeurs: ['jour'] },
+  { base: 'un prix est déjà préparé pour ce choix : retire-le avant d\'en préparer un autre', cle: 'base.prix.deja_prepare', fr: 'un prix est déjà préparé pour ce choix : retire-le avant d\'en préparer un autre' },
+  { base: 'c\'est déjà le prix en vigueur : rien ne changerait', cle: 'base.prix.meme_prix', fr: 'c\'est déjà le prix en vigueur : rien ne changerait' },
+  { base: 'retirer un prix demande son motif (trois caractères au moins)', cle: 'base.prix.retirer_motif', fr: 'retirer un prix demande son motif (trois caractères au moins)' },
+  { base: 'ce prix n\'existe pas, ou il a déjà été retiré : relis la grille', cle: 'base.prix.introuvable', fr: 'ce prix n\'existe pas, ou il a déjà été retiré : relis la grille' },
+  { base: 'ce prix est déjà en vigueur : il ne se retire plus ; prépare-en un nouveau', cle: 'base.prix.deja_en_vigueur', fr: 'ce prix est déjà en vigueur : il ne se retire plus ; prépare-en un nouveau' },
+  { base: 'régler le préavis demande son motif (trois caractères au moins)', cle: 'base.prix.preavis_motif', fr: 'régler le préavis demande son motif (trois caractères au moins)' },
+  { base: 'le préavis d\'un nouveau prix compte de 0 à 365 jours', cle: 'base.prix.preavis_bornes', fr: 'le préavis d\'un nouveau prix compte de 0 à 365 jours' },
+  { base: 'c\'est déjà le préavis en vigueur : rien ne changerait', cle: 'base.prix.meme_preavis', fr: 'c\'est déjà le préavis en vigueur : rien ne changerait' },
+  { base: 'le total n\'est pas celui de la grille au premier jour de la période : relis-le avant de préparer la facture', cle: 'base.factures.prix_premier_jour', fr: 'le total n\'est pas celui de la grille au premier jour de la période : relis-le avant de préparer la facture' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

@@ -325,7 +325,7 @@
 
   /** @param {HTMLElement} el @param {Outils} o */
   async function dessiner(el, o) {
-    /** @type {{ aujourdhui: string, etat: Etat, prix: { offre: string, periodicite: string, montantHt: string }[], options?: { option: string, periodicite: string, montantHt: string }[], compte?: { offre: string, comptes: Record<string, number>, inclus: Record<string, number | null> } | null, historique: { le: string, nature: string, apres: any }[], factures: FacturesAbo | null, enLigne?: boolean, modules?: string[] }} */
+    /** @type {{ aujourdhui: string, etat: Etat, prix: { offre: string, periodicite: string, montantHt: string }[], options?: { option: string, periodicite: string, montantHt: string }[], aVenir?: { quoi: string, periodicite: string, aPartirDu: string, montantHt: string }[], compte?: { offre: string, comptes: Record<string, number>, inclus: Record<string, number | null> } | null, historique: { le: string, nature: string, apres: any }[], factures: FacturesAbo | null, enLigne?: boolean, modules?: string[] }} */
     let a;
     try { a = await o.appel('GET', '/abonnement'); } catch (x) {
       el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p><button type="button" class="btn btn-sm" id="abo-relire">Réessayer</button>`;
@@ -335,18 +335,28 @@
     const c = etatEnClair(a.etat);
     /** @param {string} offre @param {string} periodicite */
     const prixDe = (offre, periodicite) => (a.prix.find((p) => p.offre === offre && p.periodicite === periodicite) || {}).montantHt;
+    // Les prix à venir (0103) : chacun se dit sous le prix d'aujourd'hui dès qu'il est préparé, à l'année puis au mois.
+    /** @param {string} quoi */
+    const annonces = (quoi) => ['annuel', 'mensuel'].flatMap((p) => (a.aVenir || []).filter((v) => v.quoi === quoi && v.periodicite === p)
+      .map((v) => `À partir du ${jour(v.aPartirDu)} : ${montant(v.montantHt)} HT ${p === 'annuel' ? 'par an' : 'par mois'}.`));
+    // Chaque carte a les mêmes lignes, dans le même ordre, même vides : la grille les aligne d'une carte à l'autre
+    // (abonnement.css). Quand une offre annonce un nouveau prix, l'autre dit à la même place que le sien ne change pas.
+    const avecAnnonces = ['essentiel', 'complet'].some((k) => annonces(k).length > 0);
     const offres = ['essentiel', 'complet'].map((k) => {
       const o = OFFRES[k];
       if (!o) return '';
       const an = prixDe(k, 'annuel'), mois = prixDe(k, 'mensuel');
       const courante = a.etat.etat === 'actif' && a.etat.offre === k;
+      const aVenir = annonces(k);
       return `<article class="abo-offre${courante ? ' courante' : ''}" data-offre="${k}">
         <header class="abo-offre-tete"><h4>${esc(o.nom)}</h4>${courante ? '<span class="abo-badge">Ton offre</span>' : ''}</header>
         <p class="abo-pour">${esc(o.pour)}</p>
-        ${an ? `<p class="abo-prix"><b>${esc(montant(an).replace(/\u00a0DT$/, ''))}</b><span>DT HT par an</span></p>` : ''}
-        ${mois ? `<p class="abo-mois">ou ${esc(montant(mois))} HT par mois</p>` : ''}
-        <ul class="abo-inclus">${o.inclus.map((i) => `<li>${ICONE_COCHE}<span>${esc(i)}</span></li>`).join('')}</ul>
-        ${courante && k === 'essentiel' ? `<p class="abo-pas">${esc(ceQuiResteDansComplet(a.modules))}</p>` : ''}
+        <p class="abo-prix">${an ? `<b>${esc(montant(an).replace(/\u00a0DT$/, ''))}</b><span>DT HT par an</span>` : ''}</p>
+        <p class="abo-mois">${mois ? `ou ${esc(montant(mois))} HT par mois` : ''}</p>
+        ${avecAnnonces ? `<div class="abo-avenir-bloc">${aVenir.length ? aVenir.map((t) => `<p class="abo-avenir">${esc(t)}</p>`).join('')
+          : '<p class="abo-avenir-rien">Aucun nouveau prix annoncé.</p>'}</div>` : ''}
+        <div class="abo-offre-corps"><ul class="abo-inclus">${o.inclus.map((i) => `<li>${ICONE_COCHE}<span>${esc(i)}</span></li>`).join('')}</ul>
+        ${courante && k === 'essentiel' ? `<p class="abo-pas">${esc(ceQuiResteDansComplet(a.modules))}</p>` : ''}</div>
       </article>`;
     }).join('');
     /** @param {string} option @param {string} periodicite */
@@ -369,7 +379,7 @@
       if (!an && !mois) return '';
       const auj = aujourdhui(l);
       return `<li data-option="${l.option}"><span class="abo-plus-quoi"><b>${esc(l.nom)}</b><span>${esc(l.compris)}</span>${auj.texte ? `<span class="abo-plus-auj${auj.plus ? ' en-plus' : ''}">${esc(auj.texte)}</span>` : ''}</span>
-        <span class="abo-plus-prix">${an ? `<b>${esc(montant(an))} HT par an</b>` : ''}${mois ? `<span>${an ? 'ou ' : ''}${esc(montant(mois))} HT par mois</span>` : ''}</span></li>`;
+        <span class="abo-plus-prix">${an ? `<b>${esc(montant(an))} HT par an</b>` : ''}${mois ? `<span>${an ? 'ou ' : ''}${esc(montant(mois))} HT par mois</span>` : ''}${annonces(l.option).map((t) => `<span class="abo-plus-avenir">${esc(t)}</span>`).join('')}</span></li>`;
     }).join('');
     const histoire = a.historique.map((v) => `<li><span class="abo-quand">${esc(jour(String(v.le).slice(0, 10)))}</span><span>${esc(NATURES[v.nature] || v.nature)}${apresEnClair(v) ? ` <span class="muted">(${esc(apresEnClair(v))})</span>` : ''}</span></li>`).join('');
     const sujet = encodeURIComponent(a.etat.etat === 'actif' ? 'Mon abonnement SkanFact' : 'M\'abonner à SkanFact');
@@ -394,8 +404,8 @@
       </section>
       ${aFaire ? factures : ''}
       ${a.etat.etat === 'hors' ? '' : `<div class="abo-section">
-        <div class="abo-section-tete"><h3>Les offres</h3><p>Un prix par entreprise, jamais par utilisateur. Hors taxes : la TVA s'ajoute.</p></div>
-        <div class="abo-offres">${offres}</div>
+        <div class="abo-section-tete"><h3>Les offres</h3><p>Un prix par entreprise, jamais par utilisateur. Hors taxes : la TVA s'ajoute.${(a.aVenir || []).length ? ' Un nouveau prix vaut pour les périodes qui commencent à sa date : celle qui court garde le sien.' : ''}</p></div>
+        <div class="abo-offres${avecAnnonces ? ' avec-avenir' : ''}">${offres}</div>
         ${enPlus ? `<div class="abo-plus" id="abo-plus">
           <div class="abo-plus-tete"><h4>Au-delà de ce que l'offre comprend</h4>
             <p>Compté le jour où ta facture se prépare, pour la période qu'elle paie. Un salarié compte tant qu'il n'est pas sorti ; ton équipe, elle, n'a pas de limite.</p></div>

@@ -4,7 +4,7 @@
 // des clients (base 0093). Pur (testé : tests/console/reglages.test.ts) : la route lit la base ; ces fonctions rangent.
 // Rien n'est inventé : un prix qui n'est pas posé n'a pas de case, une règle que personne n'a relue le dit.
 
-import { versTexte } from '../../moteur/argent.ts';
+import { diviserArrondi, versTexte } from '../../moteur/argent.ts';
 import type { Offre, Periodicite } from '../abonnement/etat.ts';
 import type { Entreprise } from './decider.ts';
 
@@ -62,7 +62,8 @@ export function lireReglages(brut: unknown): ReglagesLus {
 // dont une période payée court aujourd'hui, d'après l'état que la console déduit de leurs faits (le même que la liste des
 // clients). Hors taxes, en texte décimal : l'argent ne sort jamais en millimes bruts.
 export type Case = { ht: string; depuis: string } | null;
-export type AVenir = { periodicite: Periodicite; ht: string; aPartirDu: string };
+// Un prix à venir ; préparé dans la console (0103), il dit aussi qui l'a préparé, quand, et pourquoi (`preparesPar`).
+export type AVenir = { periodicite: Periodicite; ht: string; aPartirDu: string; motif?: string | null; par?: string | null; le?: string | null };
 export type LigneGrille = { offre: Offre; annuel: Case; mensuel: Case; aVenir: AVenir[]; abonnes: { annuel: number; mensuel: number } };
 export const OFFRES: readonly Offre[] = ['essentiel', 'complet'];
 
@@ -130,6 +131,48 @@ export function grilleAjouts(a: AjoutsLus, entreprises: Entreprise[], aujourdhui
   }));
 }
 
+// ── Les prix préparés dans la console (0103) ───────────────────────────────────────────────────────────────────────
+// Ce qui a un prix : les deux offres, et ce qui s'ajoute à l'offre. Le préavis en vigueur (le délai avant lequel un
+// nouveau prix ne peut pas commencer), et chaque prix à venir avec qui l'a préparé et pourquoi (rien pour un prix posé
+// par une migration).
+export type QuoiPrix = Offre | Ajout;
+export const QUOI_PRIX: readonly QuoiPrix[] = [...OFFRES, ...AJOUTS];
+export type Preavis = { jours: number; aPartirDu: string; motif: string; par: string | null; le: string };
+export type Prepare = { quoi: QuoiPrix; periodicite: Periodicite; aPartirDu: string; montantHt: bigint; motif: string | null; par: string | null; le: string | null };
+export function lirePrixPrepares(brut: unknown): { preavis: Preavis | null; aVenir: Prepare[] } {
+  const b = objet(brut);
+  const p = objet(b.preavis);
+  const jours = typeof p.jours === 'number' && Number.isInteger(p.jours) && p.jours >= 0 ? p.jours : null;
+  const aPartirDu = jour(p.aPartirDu), motif = texte(p.motif), le = date(p.le);
+  return {
+    preavis: jours !== null && aPartirDu && motif && le ? { jours, aPartirDu, motif, par: texte(p.par), le } : null,
+    aVenir: tableau(b.aVenir).flatMap((x): Prepare[] => {
+      const quoi = (QUOI_PRIX as readonly unknown[]).includes(x.quoi) ? x.quoi as QuoiPrix : null;
+      const periodicite = x.periodicite === 'annuel' || x.periodicite === 'mensuel' ? x.periodicite : null;
+      const debut = jour(x.aPartirDu), montantHt = millimes(x.montantHt);
+      return quoi && periodicite && debut && montantHt !== null
+        ? [{ quoi, periodicite, aPartirDu: debut, montantHt, motif: texte(x.motif), par: texte(x.par), le: date(x.le) }] : [];
+    }),
+  };
+}
+// Les lignes d'une grille (offres ou ajouts), leurs prix à venir dits avec qui les a préparés et pourquoi.
+export function preparesPar<L extends { aVenir: AVenir[] }>(lignes: L[], quoi: (l: L) => QuoiPrix, prepares: Prepare[]): L[] {
+  return lignes.map((l) => ({
+    ...l,
+    aVenir: l.aVenir.map((v) => {
+      const p = prepares.find((x) => x.quoi === quoi(l) && x.periodicite === v.periodicite && x.aPartirDu === v.aPartirDu);
+      return { ...v, motif: p?.motif ?? null, par: p?.par ?? null, le: p?.le ?? null };
+    }),
+  }));
+}
+// L'écart d'un nouveau prix sur celui d'aujourd'hui, en dixièmes de pour cent arrondis : la console le DIT (« + 7,7 % »),
+// elle ne le refait pas. Rien sans prix d'aujourd'hui.
+export function ecartDePrix(avant: bigint | null, apres: bigint): { sens: 'hausse' | 'baisse'; dixiemes: number } | null {
+  if (avant === null || avant <= 0n) return null;
+  const d = diviserArrondi((apres - avant) * 1000n, avant);
+  return { sens: d < 0n ? 'baisse' : 'hausse', dixiemes: Number(d < 0n ? -d : d) };
+}
+
 // Les essais en cours aujourd'hui, toutes entreprises (le même état que la liste des clients).
 export const essaisEnCours = (entreprises: Entreprise[]) => entreprises.filter((e) => e.etat.etat === 'essai').length;
 
@@ -162,15 +205,28 @@ export function registre(regles: RegleLue[], aujourdhui: string): LigneRegistre[
 }
 
 // ── Au journal ───────────────────────────────────────────────────────────────────────────────────────────────────────
-// Un geste des réglages dit sur quoi il porte : la règle relue (son code) et l'avis, ou le message écrit ou retiré (ses
-// deux jours). Lu dans ce que la base a gardé du geste (plateforme.geste_console : avant, après), jamais recalculé.
-export type SujetDesReglages = { regle: string | null; reluePar: string | null; avis: 'juste' | 'a_corriger' | null; du: string | null; au: string | null };
+// Un geste des réglages dit sur quoi il porte : la règle relue (son code) et l'avis, le message écrit ou retiré (ses
+// deux jours), le prix préparé ou retiré (le prix d'avant, le nouveau, sa date), ou le préavis (avant, après). Lu dans ce
+// que la base a gardé du geste (plateforme.geste_console : avant, après), jamais recalculé.
+export type SujetDesReglages = {
+  regle: string | null; reluePar: string | null; avis: 'juste' | 'a_corriger' | null; du: string | null; au: string | null;
+  prix: { quoi: QuoiPrix; periodicite: Periodicite; aPartirDu: string | null; avant: string | null; apres: string | null } | null;
+  preavis: { avant: number | null; apres: number | null } | null;
+};
+const dinars = (x: unknown) => (typeof x === 'string' && /^\d+\.\d{3}$/.test(x) ? x : null);
+const jours = (x: unknown) => (typeof x === 'number' && Number.isInteger(x) && x >= 0 ? x : null);
 export function sujetDesReglages(geste: string, avant: Record<string, unknown> | null, apres: Record<string, unknown> | null): SujetDesReglages | null {
   if (!geste.startsWith('reglages.')) return null;
   const s = geste === 'reglages.message_retire' ? avant : apres;
+  // Préparé : du prix d'avant au nouveau, à sa date. Retiré : du prix retiré (à sa date) à celui qui reste.
+  const p = geste === 'reglages.prix_prepare' || geste === 'reglages.prix_retire' ? (geste === 'reglages.prix_retire' ? avant : apres) : null;
+  const quoi = (QUOI_PRIX as readonly unknown[]).includes(p?.quoi) ? p?.quoi as QuoiPrix : null;
+  const periodicite = p?.periodicite === 'annuel' || p?.periodicite === 'mensuel' ? p.periodicite : null;
   return {
     regle: texte(apres?.regle), reluePar: texte(apres?.reluePar),
     avis: apres?.avis === 'juste' || apres?.avis === 'a_corriger' ? apres.avis : null,
     du: jour(s?.du), au: jour(s?.au),
+    prix: quoi && periodicite ? { quoi, periodicite, aPartirDu: jour(p?.aPartirDu), avant: dinars(avant?.montantHt), apres: dinars(apres?.montantHt) } : null,
+    preavis: geste === 'reglages.preavis' ? { avant: jours(avant?.jours), apres: jours(apres?.jours) } : null,
   };
 }

@@ -12165,7 +12165,7 @@ RGP4='les abonnés : seulement ceux dont une période payée court, par offre et
 RGP5='une règle connue se lit dans son unité ; une inconnue, par sa valeur brute, jamais avec une unité devinée'
 RGP6='en vigueur : commencée, et pas finie (la fin est le dernier jour où elle vaut)'
 RGP7='à relire : jamais relue, ou relue « à corriger » la dernière fois ; une règle finie ou à venir ne l'"'"'est pas'
-RGP8='la règle relue et l'"'"'avis ; le message écrit ou retiré par ses deux jours ; rien pour un autre geste'
+RGP8='la règle relue et l'"'"'avis ; le message écrit ou retiré par ses deux jours ; le prix préparé ou retiré, et le préavis ; rien pour un autre geste'
 RGP9='le texte, sa sorte et ses deux jours ; jamais qui l'"'"'a écrit ni son motif ; rien de lisible, rien'
 RGW1='les offres et prix : la grille du jour, en dinars hors taxes, et la frise des échéances'
 RGW2='la relecture d'"'"'une règle : la fenêtre nomme la règle, l'"'"'avis se choisit, et la carte dit qui l'"'"'a relue'
@@ -12784,7 +12784,7 @@ prouver 'l'"'"'entreprise SkanFact qui change après une facture préparée' 'ba
 prouver 'une facture préparée par qui n'"'"'est pas propriétaire de l'"'"'entreprise SkanFact' 'base/migrations/0097_nos_factures.sql' \
   '  if not exists (select 1 from socle.membre m where m.entreprise = v and m.utilisateur = socle.moi() and m.actif and '"'"'proprietaire'"'"' = any(m.roles)) then' '  if false then' \
   "$NF2"
-prouver 'la préparation d'"'"'une facture au journal en « période payée »' 'base/migrations/0099_offre_compte.sql' \
+prouver 'la préparation d'"'"'une facture au journal en « période payée »' 'base/migrations/0103_prix_prepares.sql' \
   ''"'"'factureDu'"'"', p_debut, '"'"'factureAu'"'"', p_fin,' ''"'"'debut'"'"', p_debut, '"'"'fin'"'"', p_fin,' \
   "$NF2"
 prouver 'une facture préparée deux fois pour la même période' 'serveur/abonnement/factures.ts' \
@@ -12928,7 +12928,7 @@ prouver 'l'"'"'aperçu d'"'"'un module qui ne dit pas les modules d'"'"'après' 
   'apres: etatApres, details, modules: apres.modules } };' 'apres: etatApres, details } };' \
   "$OC1"
 prouver 'les prix des ajouts cachés au client' serveur/abonnement/routes.ts \
-  'etat, prix, options, historique,' 'etat, prix, historique,' \
+  'etat, prix, options, aVenir, historique,' 'etat, prix, aVenir, historique,' \
   "$OC1"
 prouver 'le prix d'"'"'un utilisateur de plus resté en vigueur' base/migrations/0102_utilisateurs_illimites.sql \
   "delete from plateforme.prix_option where option = 'utilisateur';
@@ -12940,7 +12940,7 @@ prouver 'un salarié sorti compté sur la facture' base/migrations/0102_utilisat
   "and d.collection = 'employees'
                    and coalesce(nullif(d.contenu->>'endDate', ''), '9999-12-31') >= to_char(p_jour, 'YYYY-MM-DD'))::int," "and d.collection = 'employees')::int," \
   "$OC2"
-prouver 'un total que la base ne rejoue pas' base/migrations/0099_offre_compte.sql \
+prouver 'un total que la base ne rejoue pas' base/migrations/0103_prix_prepares.sql \
   "  if v_prix is null or v_prix + coalesce((select sum((l->>'quantite')::bigint * (l->>'prixHt')::bigint) from jsonb_array_elements(v_lignes) l), 0) <> p_montant_ht then" "  if v_prix is null or v_prix > p_montant_ht then" \
   "$OC2"
 prouver 'les ajouts absents de la pièce' serveur/abonnement/factures.ts \
@@ -12954,7 +12954,7 @@ prouver 'la carte Essentiel qui ignore la paie achetée' web/public/plateforme/a
   'esc(ceQuiResteDansComplet(a.modules))' 'esc(ceQuiResteDansComplet([]))' \
   "$OCW"
 prouver 'la promesse « jamais par utilisateur » oubliée' web/public/plateforme/abonnement.js \
-  "<p>Un prix par entreprise, jamais par utilisateur. Hors taxes : la TVA s'ajoute.</p>" "<p>Un prix par entreprise, hors taxes : la TVA s'ajoute.</p>" \
+  "<p>Un prix par entreprise, jamais par utilisateur. Hors taxes : la TVA s'ajoute.\${" "<p>Un prix par entreprise, hors taxes : la TVA s'ajoute.\${" \
   "$OCW"
 
 # Ce que l'offre compte, lu AVANT la facture (abonnement 14c, deuxième partie b ; 0100, 0102) : une seule fonction compte
@@ -13001,9 +13001,119 @@ prouver 'un module compté chez un abonné en retard ou passé à Complet' serve
   "  const abonnes = new Set(entreprises.map((e) => e.id));" \
   "$RGA2"
 prouver 'la grille des ajouts absente des Réglages' web/console/src/ecrans/Reglages.tsx \
-  '      <Ajouts d={d} />
+  '      <Ajouts d={d} geste={geste} peut={peut} />
 ' '' \
   'les offres et prix : la grille du jour, en dinars hors taxes, et la frise des échéances'
+
+# Un nouveau prix se prépare dans la console (0103 ; docs/abonnement.md C14) : au plus tôt après le préavis, un seul à
+# venir par choix, jamais le prix en vigueur ; il se retire avant sa date et la base garde intact un prix en vigueur ; le
+# préavis se lit dans la base et se règle au journal ; la facture d'une période se prend au prix de son premier jour ;
+# l'écran le prépare avec son aperçu, le client le lit à venir, le journal dit chaque geste.
+PX1='la direction le prépare au plus tôt après le préavis, le client le lit à venir ; il se retire avant sa date, et un prix en vigueur ne bouge jamais'
+PX2='le préavis se règle dans la console : il vaut dès aujourd'"'"'hui, au journal avec le préavis d'"'"'avant'
+PX3='la facture d'"'"'une période se prend au prix de son premier jour : un nouveau prix ne touche jamais une période commencée'
+PXU1='le préavis et les prix à venir, lus prudemment ; chaque prix à venir d'"'"'une grille dit qui l'"'"'a préparé et pourquoi'
+PXU2='l'"'"'écart d'"'"'un nouveau prix se dit en dixièmes de pour cent arrondis, en hausse ou en baisse ; rien sans prix d'"'"'aujourd'"'"'hui'
+PXW='un nouveau prix : préparé avec son aperçu, lu à venir par le client, retiré avant sa date ; le préavis se règle'
+prouver 'un prix préparé avant la fin du préavis' base/migrations/0103_prix_prepares.sql \
+  '  if p_a_partir_du is null or p_a_partir_du < p_jour + v_preavis then' '  if p_a_partir_du is null then' \
+  "$PX1"
+prouver 'deux prix à venir pour le même choix' base/migrations/0103_prix_prepares.sql \
+  "     or exists (select 1 from plateforme.prix_option x where not v_offre and x.option = p_quoi and x.periodicite = p_periodicite and x.a_partir_du > p_jour) then
+    perform socle.refus('un prix est déjà préparé pour ce choix : retire-le avant d''en préparer un autre');" '     or exists (select 1 from plateforme.prix_option x where not v_offre and x.option = p_quoi and x.periodicite = p_periodicite and x.a_partir_du > p_jour) then
+    null;' \
+  "$PX1"
+prouver 'le prix déjà en vigueur préparé une seconde fois' base/migrations/0103_prix_prepares.sql \
+  "  if v_avant = p_montant_ht then perform socle.refus('c''est déjà le prix en vigueur : rien ne changerait'); end if;
+" '' \
+  "$PX1"
+prouver 'un prix en vigueur retiré de la grille' base/migrations/0103_prix_prepares.sql \
+  "  if p_a_partir_du <= p_jour then perform socle.refus('ce prix est déjà en vigueur : il ne se retire plus ; prépare-en un nouveau'); end if;
+" '' \
+  "$PX1"
+prouver 'un prix en vigueur que la base laisse effacer' base/migrations/0103_prix_prepares.sql \
+  "  if old.a_partir_du <= (now() at time zone 'Africa/Tunis')::date then" '  if false then' \
+  "$PX1"
+prouver 'un prix posé que la base laisse réécrire' base/migrations/0103_prix_prepares.sql \
+  "  if tg_op = 'UPDATE' then
+    raise exception 'un prix posé ne se modifie pas : on en prépare un nouveau, daté' using errcode = '42501';
+  end if;
+" '' \
+  "$PX1"
+prouver 'une règle de l'"'"'abonnement que la base laisse réécrire' base/migrations/0103_prix_prepares.sql \
+  'create trigger regle_abonnement_intouchable before update or delete on plateforme.regle_abonnement' 'create trigger regle_abonnement_intouchable before delete on plateforme.regle_abonnement' \
+  "$PX2"
+prouver 'le préavis réglé sans laisser de trace' base/migrations/0103_prix_prepares.sql \
+  "    values (socle.moi(), v_role, 'reglages.preavis', btrim(p_motif), jsonb_build_object('jours', v_avant), jsonb_build_object('jours', p_jours));" "    select socle.moi(), v_role, 'reglages.preavis', btrim(p_motif), null::jsonb, null::jsonb where false;" \
+  "$PX2"
+prouver 'un préavis écrit en dur, que la console ne règle pas' base/migrations/0103_prix_prepares.sql \
+  "  v_preavis integer := (plateforme.regle_du_jour('preavis_prix', p_jour))[1];
+  v_offre boolean" '  v_preavis integer := 30;
+  v_offre boolean' \
+  "$PX2"
+prouver 'la plus ancienne règle de l'"'"'abonnement prise pour celle du jour' base/migrations/0103_prix_prepares.sql \
+  '  select r.jours from plateforme.regle_abonnement r where r.code = p_code and r.a_partir_du <= p_jour
+   order by r.a_partir_du desc, r.le desc, r.id desc limit 1' '  select r.jours from plateforme.regle_abonnement r where r.code = p_code and r.a_partir_du <= p_jour
+   order by r.a_partir_du, r.le, r.id limit 1' \
+  "$PX2"
+prouver 'les lignes en plus au prix du jour de la préparation' base/migrations/0103_prix_prepares.sql \
+  'p.periodicite = p_periodicite and p.a_partir_du <= p_prix_au order by' 'p.periodicite = p_periodicite and p.a_partir_du <= p_jour order by' \
+  "$PX3"
+prouver 'une facture rejouée au prix du jour de la préparation' base/migrations/0103_prix_prepares.sql \
+  '   where x.offre = p_offre and x.periodicite = p_periodicite and x.a_partir_du <= p_debut order by x.a_partir_du desc limit 1;
+  v_lignes := plateforme.lignes_en_plus(p_entreprise, p_offre, p_periodicite, p_jour, p_debut);' '   where x.offre = p_offre and x.periodicite = p_periodicite and x.a_partir_du <= p_jour order by x.a_partir_du desc limit 1;
+  v_lignes := plateforme.lignes_en_plus(p_entreprise, p_offre, p_periodicite, p_jour, p_jour);' \
+  "$PX3"
+prouver 'la facture au prix du jour de la préparation' serveur/console/routes.ts \
+  "      const prix = lirePrix(await lireJson(x, 'select plateforme.prix_du_jour(\$1::date) v', [debut])).get(" "      const prix = lirePrix(await lireJson(x, 'select plateforme.prix_du_jour(\$1::date) v', [jour])).get(" \
+  "$PX3"
+prouver 'une période au nouveau prix sans dire le prix d'"'"'aujourd'"'"'hui' serveur/console/routes.ts \
+  'prixAujourdhuiHt: aujourdhui !== null && prix !== null && aujourdhui !== prix ? versTexte(aujourdhui, 3) : null } };' 'prixAujourdhuiHt: null } };' \
+  "$PX3"
+prouver 'les prix à venir cachés au client' serveur/abonnement/routes.ts \
+  'etat, prix, options, aVenir, historique,' 'etat, prix, options, aVenir: [], historique,' \
+  "$PX1"
+prouver 'un prix à venir sans qui l'"'"'a préparé ni pourquoi' serveur/console/reglages.ts \
+  '      return { ...v, motif: p?.motif ?? null, par: p?.par ?? null, le: p?.le ?? null };' '      return { ...v, motif: null, par: null, le: p ? null : null };' \
+  "$PXU1"
+prouver 'l'"'"'écart d'"'"'un prix tronqué vers zéro' serveur/console/reglages.ts \
+  '  const d = diviserArrondi((apres - avant) * 1000n, avant);' '  const d = ((apres - avant) * 1000n) / avant;' \
+  "$PXU2"
+prouver 'le prix retiré lu dans ce qui reste' serveur/console/reglages.ts \
+  "(geste === 'reglages.prix_retire' ? avant : apres) : null;" 'apres : null;' \
+  "$RGP8"
+prouver 'le bouton qui prépare un prix absent des Réglages' web/console/src/ecrans/Reglages.tsx \
+  "          {peut ? <Bouton icone=\"plus\" onClick={() => geste({ sorte: 'prix' })}>{titre(\`\${K}.p.preparer\`)}</Bouton> : null}
+" '' \
+  "$PXW"
+prouver 'un jour trop tôt laissé à la base, sans montrer sa case' web/console/src/ecrans/Reglages.tsx \
+  "    if (!dateLisible || date < plusTot) { refuser('date', \`\${K}.g.prix.trop_tot\`, { jour: jour(plusTot) }); return; }
+" '' \
+  "$PXW"
+prouver 'le prix à venir absent de « Ton abonnement »' web/public/plateforme/abonnement.js \
+  "      const aVenir = annonces(k);" "      const aVenir = /** @type {string[]} */ ([]);" \
+  "$PXW"
+prouver "l'autre carte sans sa ligne quand une offre annonce un prix" web/public/plateforme/abonnement.js \
+  "          : '<p class=\"abo-avenir-rien\">Aucun nouveau prix annoncé.</p>'}</div>\` : ''}" "          : ''}</div>\` : ''}" \
+  "$PXW"
+prouver "l'aperçu d'un prix sans sa place avant d'arriver" web/console/src/ecrans/Reglages.tsx \
+  "            : <p className=\"c-apercu-attente\">{phrase(tape.trim() ? 'console.ecran.geste.apercu_calcul' : \`\${K}.g.prix.apercu_attente\`)}</p>}" "            : null}" \
+  "$PXW"
+prouver "l'aperçu d'un prix qui pousse le motif en arrivant" web/console/src/console.css \
+  '.c-rg-prix-zone { min-height: 124px; }' '.c-rg-prix-zone { min-height: 0; }' \
+  "$PXW"
+prouver 'les cartes des offres qui ne partagent plus leurs lignes' web/public/plateforme/abonnement.css \
+  '  display: grid; grid-row: span 5; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 20px;' '  display: flex; flex-direction: column; gap: 10px; padding: 22px 24px; border-radius: 20px;' \
+  "$PXW"
+prouver 'un écart de moitié ou plus dit comme un écart ordinaire' web/console/src/ecrans/Reglages.tsx \
+  '  const fort = (apercu?.ecart?.dixiemes ?? 0) >= 500;' '  const fort = false;' \
+  "$PXW"
+prouver "le prix d'Essentiel dit « de Essentiel » au journal" web/console/src/textes.ts \
+  "  'console.ecran.journal.sur_prix': 'le prix {de:quoi}, {periode}'," "  'console.ecran.journal.sur_prix': 'le prix de {quoi}, {periode}'," \
+  "$PXW"
+prouver 'un prix retiré dit au journal comme un prix préparé' web/console/src/ecrans/Journal.tsx \
+  "    const retire = geste === 'reglages.prix_retire';" "    const retire = geste === 'reglages.prix_prepare';" \
+  "$PXW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

@@ -6,14 +6,15 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
+import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { Introuvable, Perimee } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
-import { ESSAI_JOURS, etatAbonnement, GRACE_JOURS, lireFaits, lireModules, RELANCES, type Etat, type Faits } from '../abonnement/etat.ts';
+import { ESSAI_JOURS, etatAbonnement, GRACE_JOURS, lireFaits, lireModules, plusJours, RELANCES, type Etat, type Faits } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, type GesteAbonnement, type LigneAbonnement } from '../abonnement/gestes.ts';
-import { lireFacturesAbonnement, lireLignesEnPlus, preparerFacture } from '../abonnement/factures.ts';
+import { lireFacturesAbonnement, lireLignesEnPlus, periodeDeLaFacture, preparerFacture } from '../abonnement/factures.ts';
 import { motif, rendre, t, type Valeurs } from '../../textes/index.ts';
 import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_MIN, REGLES, SAUVEGARDE_TROP_VIEILLE_H } from '../../exploitation/veille.ts';
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
@@ -35,7 +36,9 @@ import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, R
 import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe, taches, titreDeTache, versionDAvant, type EtatSuiveur } from './versions.ts';
 import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
-import { essaisEnCours, grille, grilleAjouts, lireAjouts, lireReglages, registre, sujetDesReglages } from './reglages.ts';
+import {
+  ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, preparesPar, QUOI_PRIX, registre, sujetDesReglages, type QuoiPrix,
+} from './reglages.ts';
 import { lireFormats, registreDesFormats } from './formats.ts';
 import { articleConnu, articlesDeLAide, CANAUX_NOTES, compter, etatDe, lireSupport, ranger, SANS_REPONSE_HEURES, suggererPour } from './support.ts';
 import { lireAcces, HEURES_MAX, PAGE } from '../support/acces.ts';
@@ -355,16 +358,24 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       if (faits.tenuParCabinet) return { statut: 409, corps: { motif: motif('abonnement.facture.tenu_par_cabinet') } };
       if (!corps.apercu && corps.motif.trim().length < 3) return { statut: 400, corps: { motif: motif('console.motif_requis'), champ: 'motif', raison: t('console.motif_requis') } };
       const jour = aujourdhuiATunis(maintenant());
-      const prix = lirePrix(await lireJson(x, 'select plateforme.prix_du_jour($1::date) v', [jour])).get(`${corps.offre}/${corps.periodicite}`) ?? null;
-      // Ce qui s'ajoute à l'offre (14c) : la base le compte, au jour de la préparation, et le rejouera en notant la facture.
-      const enPlus = lireLignesEnPlus(await lireJson(x, 'select plateforme.console_lignes_facture($1, $2, $3, $4::date) v', [id, corps.offre, corps.periodicite, jour]));
+      // Le prix d'une période : celui en vigueur à son premier jour (0103) — un nouveau prix vaut pour les périodes qui
+      // commencent à sa date ou après, jamais pour une période commencée. La période : la même règle que la pièce.
+      const { debut } = periodeDeLaFacture(faits, corps.periodicite, jour);
+      const prix = lirePrix(await lireJson(x, 'select plateforme.prix_du_jour($1::date) v', [debut])).get(`${corps.offre}/${corps.periodicite}`) ?? null;
+      // Le prix d'aujourd'hui, quand il n'est pas celui de la période : l'aperçu dit pourquoi le montant change.
+      const aujourdhui = debut > jour ? lirePrix(await lireJson(x, 'select plateforme.prix_du_jour($1::date) v', [jour])).get(`${corps.offre}/${corps.periodicite}`) ?? null : prix;
+      // Ce qui s'ajoute à l'offre (14c) : la base le compte au jour de la préparation, au prix du premier jour de la
+      // période, et le rejouera en notant la facture.
+      const enPlus = lireLignesEnPlus(await lireJson(x, 'select plateforme.console_lignes_facture($1, $2, $3, $4::date, $5::date) v',
+        [id, corps.offre, corps.periodicite, jour, debut]));
       const membres = Array.isArray(fiche.membres) ? fiche.membres as { email?: unknown; roles?: unknown }[] : [];
       const proprio = membres.find((m) => Array.isArray(m.roles) && m.roles.includes('proprietaire'));
       const facture = await preparerFacture(x, qui.utilisateur, {
         id, raisonSociale: String(fiche.raisonSociale ?? ''), matricule: typeof fiche.matricule === 'string' ? fiche.matricule : null,
         email: typeof proprio?.email === 'string' ? proprio.email : null,
       }, faits, { offre: corps.offre, periodicite: corps.periodicite }, prix, jour, { apercu: corps.apercu === true, motif: corps.motif.trim() }, enPlus);
-      return { statut: corps.apercu ? 200 : 201, corps: { apercu: corps.apercu === true, facture } };
+      return { statut: corps.apercu ? 200 : 201, corps: { apercu: corps.apercu === true, facture,
+        prixAujourdhuiHt: aujourdhui !== null && prix !== null && aujourdhui !== prix ? versTexte(aujourdhui, 3) : null } };
     },
   });
 
@@ -896,6 +907,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const jour = aujourdhuiATunis(maintenant());
       const r = lireReglages(await lireJson(x, 'select plateforme.console_reglages($1::date) v', [jour]));
       const entreprises = lireEntreprises(await lireJson(x, 'select plateforme.console_entreprises() v'), jour);
+      // Les prix préparés dans la console (0103) : le préavis, et qui a préparé chaque prix à venir.
+      const prepares = lirePrixPrepares(await lireJson(x, 'select plateforme.console_prix_prepares($1::date) v', [jour]));
       // Les formats officiels : le registre du code, ce que la plateforme en a fait (0094), et si ce serveur a l'adresse
       // de la TTN et de DigiGo (sans elle, les pièces attendent).
       const formats = registreDesFormats(lireFormats(await lireJson(x, 'select plateforme.console_formats() v')), { teif: versionTeif() },
@@ -903,9 +916,12 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       return {
         corps: {
           aujourdhui: jour, role: roleDe(qui),
-          grille: grille(r.prix, entreprises, jour), essai: { jours: ESSAI_JOURS, enCours: essaisEnCours(entreprises) },
+          grille: preparesPar(grille(r.prix, entreprises, jour), (l) => l.offre, prepares.aVenir),
+          essai: { jours: ESSAI_JOURS, enCours: essaisEnCours(entreprises) },
           // Ce qui s'ajoute à l'offre (14c) : ses prix datés, et les modules achetés seuls par les abonnés d'aujourd'hui.
-          ajouts: grilleAjouts(lireAjouts(await lireJson(x, 'select plateforme.console_ajouts($1::date) v', [jour])), entreprises, jour),
+          ajouts: preparesPar(grilleAjouts(lireAjouts(await lireJson(x, 'select plateforme.console_ajouts($1::date) v', [jour])), entreprises, jour),
+            (l) => l.option, prepares.aVenir),
+          preavis: prepares.preavis,
           echeance: { relances: RELANCES, grace: GRACE_JOURS },
           registre: registre(r.regles, jour),
           message: r.messages.find((m) => m.enCours) ?? null, passes: r.messages.filter((m) => !m.enCours).slice(0, 30),
@@ -934,6 +950,75 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     },
   });
   const jourIso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+  // Un jour qui existe au calendrier (« 2027-02-30 » n'en est pas un).
+  const jourExiste = (j: string) => { const d = new Date(`${j}T00:00:00Z`); return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === j; };
+  // Un prix tapé en dinars (« 420 », « 420,500 », « 1 200 ») en millimes ; illisible : rien.
+  const prixTape = (valeur: string): bigint | null => {
+    const v = valeur.replace(/\s/g, '').replace(',', '.');
+    if (!/^\d+(\.\d+)?$/.test(v)) return null;
+    try { return depuisTexte(v, 3); } catch { return null; }
+  };
+  const refusDuChamp = (champ: string, cle: string) => ({ statut: 400, corps: { motif: motif(cle), champ, raison: t(cle) } });
+
+  // Préparer un prix (docs/abonnement.md C14 ; 0103) : l'aperçu d'abord — le prix d'aujourd'hui, l'écart, le premier jour
+  // possible (le préavis), les abonnés qui l'ont aujourd'hui —, puis le geste, que la base revérifie.
+  const QUOI = z.enum(QUOI_PRIX as unknown as [QuoiPrix, ...QuoiPrix[]]);
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/prix', geste: 'console.reglages.gerer',
+    corps: z.object({ quoi: QUOI, periodicite: z.enum(['annuel', 'mensuel']), montant: z.string().max(40), aPartirDu: jourIso, motif: z.string().max(500),
+      apercu: z.boolean().optional() }),
+    traiter: async ({ corps }, tx) => {
+      const x = transaction(tx);
+      const instant = maintenant();
+      const jour = aujourdhuiATunis(instant);
+      const montant = prixTape(corps.montant);
+      if (montant === null || montant <= 0n) return refusDuChamp('montant', 'console.reglages.prix_illisible');
+      if (!jourExiste(corps.aPartirDu)) return refusDuChamp('aPartirDu', 'console.reglages.jour_illisible');
+      if (corps.apercu) {
+        const r = lireReglages(await lireJson(x, 'select plateforme.console_reglages($1::date) v', [jour]));
+        const entreprises = lireEntreprises(await lireJson(x, 'select plateforme.console_entreprises() v'), jour);
+        const prepares = lirePrixPrepares(await lireJson(x, 'select plateforme.console_prix_prepares($1::date) v', [jour]));
+        const offre = corps.quoi === 'essentiel' || corps.quoi === 'complet' ? grille(r.prix, entreprises, jour).find((l) => l.offre === corps.quoi) : null;
+        const ajout = offre ? null : grilleAjouts(lireAjouts(await lireJson(x, 'select plateforme.console_ajouts($1::date) v', [jour])), entreprises, jour)
+          .find((l) => l.option === corps.quoi);
+        const ligne = offre ?? ajout;
+        const avant = ligne?.[corps.periodicite]?.ht ?? null;
+        return {
+          corps: {
+            apercu: true, avant, apres: versTexte(montant, 3), ecart: ecartDePrix(avant === null ? null : depuisTexte(avant, 3), montant),
+            plusTot: prepares.preavis ? plusJours(jour, prepares.preavis.jours) : null,
+            // Qui l'a aujourd'hui : les abonnés de l'offre à cette périodicité, ou ceux qui ont acheté le module (le même
+            // état que la liste des clients) ; rien pour ce qui se compte (une caisse, un salarié de plus).
+            abonnes: offre ? offre.abonnes[corps.periodicite] : ajout?.achetes ?? null,
+            dejaAVenir: prepares.aVenir.find((v) => v.quoi === corps.quoi && v.periodicite === corps.periodicite)?.aPartirDu ?? null,
+          },
+        };
+      }
+      if (corps.motif.trim().length < 3) return refusDuChamp('motif', 'console.motif_requis');
+      await x.query('select plateforme.console_preparer_prix($1, $2, $3::date, $4::bigint, $5, $6, $7::date)',
+        [corps.quoi, corps.periodicite, corps.aPartirDu, montant.toString(), corps.motif.trim(), instant, jour]);
+      return { statut: 201, corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/prix/retirer', geste: 'console.reglages.gerer',
+    corps: z.object({ quoi: QUOI, periodicite: z.enum(['annuel', 'mensuel']), aPartirDu: jourIso, motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const instant = maintenant();
+      await transaction(tx).query('select plateforme.console_retirer_prix($1, $2, $3::date, $4, $5, $6::date)',
+        [corps.quoi, corps.periodicite, corps.aPartirDu, corps.motif, instant, aujourdhuiATunis(instant)]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/preavis', geste: 'console.reglages.gerer',
+    corps: z.object({ jours: z.number().int().min(0).max(365), motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const instant = maintenant();
+      await transaction(tx).query('select plateforme.console_regler_preavis($1, $2, $3, $4::date)', [corps.jours, corps.motif, instant, aujourdhuiATunis(instant)]);
+      return { corps: { ok: true } };
+    },
+  });
   ajouter({
     methode: 'POST', chemin: '/console/reglages/messages', geste: 'console.reglages.gerer',
     corps: z.object({ sorte: z.enum(['nouveaute', 'maintenance']), texte: z.string().trim().min(10).max(240), du: jourIso, au: jourIso, motif: motifGeste }),

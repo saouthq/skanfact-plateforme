@@ -605,8 +605,11 @@ l'écran le dit en tête au support. Quatre onglets, l'adresse garde l'onglet (`
   dit « à venir » sous l'offre, jamais dans la case ; une case sans prix posé reste « — ». Les abonnés de chaque offre se
   comptent par le **même état** que la liste des clients (une période payée qui court ; un retard n'en est pas), l'essai
   à part. La frise des échéances (les relances, l'échéance, la grâce, la lecture seule) vient du code qui les applique
-  (`serveur/abonnement`), jamais d'un chiffre recopié. **Rien ne s'y modifie** : un prix neuf se pose en base, daté
-  (À DÉCIDER : le délai d'annonce aux clients). Sous la grille, **« Ce qui s'ajoute à l'offre »** (14c, 1.10.0 ; `0101`,
+  (`serveur/abonnement`), jamais d'un chiffre recopié. **Un nouveau prix s'y prépare** (1.12.0 ; `0103` ;
+  `docs/abonnement.md` C14) : « Préparer un nouveau prix… » (une offre ou un ajout, à l'année ou au mois, le montant, la
+  date), avec l'aperçu du serveur (le prix d'aujourd'hui barré, le nouveau, l'écart, qui l'a aujourd'hui), au plus tôt
+  après le préavis (30 jours, réglable : « Changer le préavis… ») ; sous la grille, chaque prix à venir dit qui l'a
+  préparé, quand et pourquoi, et se retire avant sa date. Un prix en vigueur ne change plus. Sous la grille, **« Ce qui s'ajoute à l'offre »** (14c, 1.10.0 ; `0101`,
   `plateforme.console_ajouts`) : chaque ajout que la facture compte (une caisse, un établissement, un salarié de plus,
   la paie ou la comptabilité complète achetée seule ; jamais un utilisateur, sans limite depuis 1.11.0), ce que chaque offre en comprend, ses prix datés
   (`plateforme.prix_option`) rangés comme ceux des offres, et pour un module, les abonnés Essentiel du jour qui l'ont
@@ -695,7 +698,11 @@ demande, l'alerte par e-mail sans contenu) sont dans `docs/support.md` ; ici, l'
 
 La suite de la console : le paiement en ligne par l'abonné (14b, seconde partie ; nos factures sont faites, `docs/abonnement.md`), la suite du service (la
 sécurité : l'accès d'urgence, bloquer une adresse, la chaîne du journal relue, la date des secrets ; le débit des travaux heure par heure, et les envois des e-mails, de la TEJ et de la CNSS, qui n'ont pas encore
-de trace), la mesure, la suite des réglages (les nouveautés allumées, préparer un prix ; C28), l'application de bureau (les licences de la v10), et le filtre du journal par geste et par période. Le service ne se voit encore que du serveur
+de trace), la mesure, la suite des réglages (les nouveautés allumées ; un prix se prépare depuis la 1.12.0, C28), et le filtre du journal par geste et par période. L'écran
+« Application de bureau » de la maquette (les licences, les postes, la fin de vie et le passage à la plateforme de la v10)
+ne se construit pas : **la v10 n'est installée chez personne** (Skander, 14/10/2026). Celui de la nouvelle application de
+bureau (la coque et son agent local : les postes qui l'ont, leur version, ce que l'agent voit, ses erreurs) se dessinera
+quand elle sera distribuée aux clients (`09` étape 4). Le service ne se voit encore que du serveur
 lui-même : aucune vérification de l'extérieur (06 § 7, depuis deux villes) ; l'écran le dit.
 
 ## À VÉRIFIER

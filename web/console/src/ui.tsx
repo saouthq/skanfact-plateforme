@@ -198,7 +198,9 @@ function useFaute<T extends HTMLElement>(faute: boolean, n: number | undefined) 
 
 type PropsChamp = Commun & {
   valeur: string; changer: (v: string) => void; type?: 'text' | 'email' | 'password' | 'number' | 'date' | 'datetime-local'; autoComplete?: string;
-  inputMode?: 'numeric' | 'text' | 'email'; placeholder?: string; premier?: boolean; revelable?: boolean; min?: number; max?: number; classe?: string; nom?: string;
+  // `min`, `max` : un nombre, ou un jour (« 2026-11-13 ») pour un champ de date.
+  inputMode?: 'numeric' | 'decimal' | 'text' | 'email'; placeholder?: string; premier?: boolean; revelable?: boolean; min?: number | string; max?: number | string;
+  classe?: string; nom?: string;
 };
 export function Champ({ libelle, aide, faute = false, n, valeur, changer, type = 'text', autoComplete, inputMode, placeholder, premier, revelable, min, max, classe, nom }: PropsChamp) {
   const f = useFaute<HTMLInputElement>(faute, n);

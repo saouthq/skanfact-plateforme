@@ -44,14 +44,19 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 .abo-section { display: flex; flex-direction: column; gap: 14px; }
 .abo-section-tete { display: flex; flex-direction: column; gap: 4px; }
 .abo-section-tete h3 { font-family: var(--abo-titre); font-weight: 600; font-size: 19px; letter-spacing: -0.01em; color: var(--text); }
-.abo-section-tete p { font-size: 13.5px; color: var(--muted); }
+.abo-section-tete p { font-size: 13.5px; color: var(--muted); text-wrap: pretty; }
 
 /* ── Les offres : la même place pour la même chose, d'une carte à l'autre ── */
+/* Chaque carte porte les mêmes lignes (le nom, pour qui, le prix à l'année, au mois, les prix annoncés, ce qu'elle
+   comprend) et les partage avec la grille : une ligne plus haute dans une carte l'est dans l'autre, et la liste de ce
+   qu'elle comprend commence à la même hauteur. Une colonne au téléphone : chaque carte garde ses lignes. */
 .abo-offres { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .abo-offre {
-  display: flex; flex-direction: column; gap: 10px; padding: 22px 24px; border-radius: 20px;
+  display: grid; grid-row: span 5; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 20px;
   background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow);
 }
+.abo-offres.avec-avenir .abo-offre { grid-row: span 6; }
+.abo-offre-corps { display: flex; flex-direction: column; gap: 10px; }
 .abo-offre.courante { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary), var(--shadow); }
 .abo-offre-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .abo-offre-tete h4 { font-family: var(--abo-titre); font-weight: 650; font-size: 20px; letter-spacing: -0.01em; color: var(--text); }
@@ -61,6 +66,12 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 .abo-prix b { font-family: var(--abo-titre); font-weight: 650; font-size: 38px; line-height: 1; letter-spacing: -0.03em; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .abo-prix span { font-size: 14px; font-weight: 600; color: var(--muted); }
 .abo-mois { font-size: 13.5px; color: var(--muted); }
+/* Un prix à venir (0103) : sous celui d'aujourd'hui, posé sur la couleur douce de la marque, pour qu'on le voie sans qu'il
+   crie. */
+.abo-avenir-bloc { display: flex; flex-direction: column; gap: 6px; }
+.abo-avenir, .abo-avenir-rien { margin: 2px 0 0; padding: 7px 11px; border-radius: 10px; font-size: 13px; line-height: 1.45; }
+.abo-avenir { background: var(--primary-soft); font-weight: 600; color: var(--text); }
+.abo-avenir-rien { border: 1px dashed var(--border); padding: 6px 10px; color: var(--muted); }
 .abo-inclus { margin: 6px 0 0; padding: 14px 0 0; list-style: none; display: flex; flex-direction: column; gap: 9px; border-top: 1px solid var(--border); }
 .abo-pas { margin: 4px 0 0; padding-top: 12px; border-top: 1px dashed var(--border); font-size: 13px; color: var(--muted); }
 .abo-inclus li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 14px; line-height: 1.4; color: var(--text); }
@@ -82,6 +93,7 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 .abo-plus-quoi .abo-plus-auj.en-plus { color: var(--warning); }
 .abo-plus-prix b { font-size: 14px; font-weight: 650; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .abo-plus-prix span { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.abo-plus-prix .abo-plus-avenir { margin-top: 2px; font-weight: 600; color: var(--text); white-space: normal; }
 
 /* ── T'abonner : la carte sarcelle, et l'adresse qui se clique ── */
 .abo-payer { display: flex; align-items: flex-start; gap: 16px; padding: 20px 24px; border-radius: 20px; background: var(--primary-soft); border: 1px solid transparent; }

@@ -6,6 +6,8 @@
 //     13/10/2026 à la souris : la phrase tombait sous le bas de la fenêtre, on ne voyait qu'un cadre rouge) ;
 //   - écrire, remplacer, retirer un message : le bandeau de l'application du client suit ; « Plus tard » le cache sans
 //     faire remonter la page sous le curseur, et un message neuf reparaît ;
+//   - un nouveau prix (0103) : l'aperçu du serveur, le jour trop tôt refusé sur sa case, le prix à venir sous la grille
+//     avec qui l'a préparé, lu par le client dans « Ton abonnement », retiré avant sa date ; le préavis se règle ;
 //   - le support lit sans aucun geste ; au téléphone, rien ne déborde.
 
 import fs from 'node:fs';
@@ -102,8 +104,11 @@ describe('les réglages de la plateforme, à la souris', () => {
     ent = String((await api('POST', '/entreprises', jClient, { raisonSociale: 'Studio Lina Réglages' })).corps.id);
   }, 180_000);
   afterAll(async () => {
-    // Aucun message ne reste affiché : les parcours suivants ouvrent l'application des clients sans lui.
+    // Aucun message ne reste affiché : les parcours suivants ouvrent l'application des clients sans lui. Aucun prix à venir
+    // ne reste non plus (la base laisse effacer un prix tant qu'il est à venir).
     await admin.query('delete from plateforme.message_clients');
+    await admin.query('delete from plateforme.prix where a_partir_du > (now() at time zone \'Africa/Tunis\')::date');
+    await admin.query('delete from plateforme.prix_option where a_partir_du > (now() at time zone \'Africa/Tunis\')::date');
     await navigateur?.close(); await serveur?.arreter(); await admin.end();
     fs.rmSync(dossier, { recursive: true, force: true }); fs.rmSync(path.dirname(veille), { recursive: true, force: true });
   });
@@ -127,6 +132,99 @@ describe('les réglages de la plateforme, à la souris', () => {
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);
+
+  it('un nouveau prix : préparé avec son aperçu, lu à venir par le client, retiré avant sa date ; le préavis se règle', async () => {
+    const p = await console_(jD);
+    const aujourdhui = aujourdhuiATunis();
+    const plusTot = plusJours(aujourdhui, 30);
+    const enFrancais = (j: string) => `${j.slice(8, 10)}/${j.slice(5, 7)}/${j.slice(0, 4)}`;
+    await cliquer(p.getByRole('button', { name: 'Préparer un nouveau prix…' }));
+    const f = p.locator('[role="dialog"]');
+    // L'aperçu a sa place dès l'ouverture : il dit ce qu'il dira, et le motif, dessous, ne bougera pas quand il arrivera.
+    expect(net(await f.locator('.c-rg-prix-zone').innerText())).toBe('Écris le nouveau prix : l\'aperçu dira l\'écart avec celui d\'aujourd\'hui et combien d\'entreprises l\'ont.');
+    const motifAvant = (await f.locator('textarea').boundingBox())?.y;
+    await f.locator('select').selectOption({ label: 'Complet, au mois' });
+    // Le prix à l'année tapé pour le mois : l'écart le dit, en couleur, avant le geste.
+    await f.getByLabel('Le nouveau prix, hors taxes, en dinars').fill('690');
+    await expect.poll(() => f.locator('.c-rg-prix-attention').innerText().then(net).catch(() => ''), { timeout: 10_000 })
+      .toBe('Une hausse de 900,0 % : vérifie que c\'est bien le prix au mois');
+    await f.getByLabel('Le nouveau prix, hors taxes, en dinars').fill('72');
+    // L'aperçu du serveur : l'ancien prix barré, le nouveau, l'écart, qui l'a aujourd'hui.
+    await expect.poll(() => f.locator('.c-rg-prix-zone').innerText().then(net).catch(() => ''), { timeout: 10_000 })
+      .toMatch(/^69,000 DT → 72,000 DT HT au mois Une hausse de 4,3 % (Aucun abonné ne l'a aujourd'hui|Une entreprise l'a aujourd'hui|\d+ entreprises l'ont aujourd'hui)$/);
+    expect(await f.locator('.c-rg-prix-apercu del').innerText()).toMatch(/^69,000/);
+    expect(await f.locator('.c-rg-prix-attention').count()).toBe(0);
+    expect(motifAvant).toBeDefined();
+    expect((await f.locator('textarea').boundingBox())?.y).toBe(motifAvant);
+    // Trop tôt : la case de la date se refuse, en disant le premier jour possible.
+    await f.getByLabel('À partir du').fill(plusJours(aujourdhui, 5));
+    await f.locator('textarea').fill('Nouvelle grille au mois');
+    await cliquer(f.getByRole('button', { name: 'Préparer ce prix', exact: true }));
+    await expect.poll(() => f.locator('.c-alerte').last().innerText().then(net).catch(() => '')).toBe(`Un nouveau prix commence au plus tôt le ${enFrancais(plusTot)} : c'est le préavis.`);
+    await expect.poll(() => f.getByLabel('À partir du').getAttribute('aria-invalid')).toBe('true');
+    await f.getByLabel('À partir du').fill(plusTot);
+    await cliquer(f.getByRole('button', { name: 'Préparer ce prix', exact: true }));
+    await expect.poll(() => f.count(), { timeout: 10_000 }).toBe(0);
+    // À venir, sous la grille : le prix, sa date, qui l'a préparé et pourquoi.
+    const venir = p.locator('.c-rg-venir[data-quoi="complet"][data-periodicite="mensuel"]');
+    await expect.poll(() => venir.innerText().then(net).catch(() => ''), { timeout: 10_000 })
+      .toMatch(new RegExp(`^À venir : Complet, au mois, 72,000 DT HT à partir du ${enFrancais(plusTot)} Préparé par Amira Réglages, aujourd'hui, \\d\\d:\\d\\d : « Nouvelle grille au mois » Le retirer avant sa date…$`));
+    fs.mkdirSync(path.join(RACINE, 'dist/photos'), { recursive: true });
+    await p.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-reglages-prix-a-venir.png') });
+    // Un deuxième prix annoncé pour Complet, à l'année (par l'API) : sa carte en dit deux, celle d'Essentiel aucun.
+    expect((await api('POST', '/console/reglages/prix', jD, { quoi: 'complet', periodicite: 'annuel', montant: '720', aPartirDu: plusTot, motif: 'Nouvelle grille à l\'année' })).statut).toBe(201);
+    // Le client les lit dans « Ton abonnement », sous le prix d'aujourd'hui, l'année d'abord.
+    const c = await client();
+    await c.evaluate(() => { location.hash = '#/parametres'; });
+    await cliquer(c.locator('#set-tabs [data-tab="abonnement"]'));
+    await expect.poll(() => c.locator('.abo-offre[data-offre="complet"] .abo-avenir').allInnerTexts().then((t) => t.map(net)).catch(() => []), { timeout: 15_000 })
+      .toEqual([`À partir du ${enFrancais(plusTot)} : 720 DT HT par an.`, `À partir du ${enFrancais(plusTot)} : 72 DT HT par mois.`]);
+    expect(net(await c.locator('.abo-section-tete p').first().innerText())).toContain('Un nouveau prix vaut pour les périodes qui commencent à sa date');
+    // L'autre offre le dit à la même place, et ce que chacune comprend commence à la même hauteur.
+    expect(net(await c.locator('.abo-offre[data-offre="essentiel"] .abo-avenir-rien').innerText())).toBe('Aucun nouveau prix annoncé.');
+    const haut = async (offre: string) => (await c.locator(`.abo-offre[data-offre="${offre}"] .abo-inclus`).boundingBox())?.y;
+    expect(await haut('essentiel')).toBeDefined();
+    expect(await haut('essentiel')).toBe(await haut('complet'));
+    // Retiré avant sa date : il quitte la grille et l'écran du client.
+    await cliquer(venir.getByRole('button', { name: 'Le retirer avant sa date…' }));
+    const r = p.locator('[role="dialog"]');
+    expect(net(await r.locator('.c-dialogue-sous').innerText())).toBe(`À venir : Complet, au mois, 72,000 DT HT à partir du ${enFrancais(plusTot)}`);
+    await r.locator('textarea').fill('Grille repoussée');
+    await cliquer(r.getByRole('button', { name: 'Retirer ce prix', exact: true }));
+    await expect.poll(() => r.count(), { timeout: 10_000 }).toBe(0);
+    await expect.poll(() => venir.count(), { timeout: 10_000 }).toBe(0);
+    expect((await api('POST', '/console/reglages/prix/retirer', jD, { quoi: 'complet', periodicite: 'annuel', aPartirDu: plusTot, motif: 'Grille à l\'année repoussée' })).statut).toBe(200);
+    await c.reload();
+    await cliquer(c.locator('#set-tabs [data-tab="abonnement"]'));
+    await c.locator('.abo-offre[data-offre="complet"]').waitFor({ timeout: 15_000 });
+    expect(await c.locator('.abo-avenir, .abo-avenir-rien').count()).toBe(0);
+    await fermer(c);
+    // Le préavis se règle ; la carte le dit aussitôt.
+    await cliquer(p.getByRole('button', { name: 'Changer le préavis…' }));
+    const pr = p.locator('[role="dialog"]');
+    await pr.getByLabel('Le préavis, en jours').fill('20');
+    await pr.locator('textarea').fill('Préavis plus court pour la rentrée');
+    await cliquer(pr.getByRole('button', { name: 'Régler le préavis', exact: true }));
+    await expect.poll(() => pr.count(), { timeout: 10_000 }).toBe(0);
+    await expect.poll(() => p.locator('.c-rg-preavis').innerText().then(net).catch(() => ''), { timeout: 10_000 })
+      .toMatch(/^Un nouveau prix se prépare ici et commence au plus tôt 20 jours plus tard : c'est le préavis\. Les clients le lisent dans leur application dès qu'il est préparé\. Réglé par Amira Réglages, aujourd'hui, \d\d:\d\d : « Préavis plus court pour la rentrée » Changer le préavis…$/);
+    // Un prix d'Essentiel, préparé puis retiré (par l'API) : le journal l'élide (« le prix d'Essentiel »).
+    expect((await api('POST', '/console/reglages/prix', jD, { quoi: 'essentiel', periodicite: 'annuel', montant: '420', aPartirDu: plusJours(aujourdhui, 20), motif: 'Grille Essentiel essayée' })).statut).toBe(201);
+    expect((await api('POST', '/console/reglages/prix/retirer', jD, { quoi: 'essentiel', periodicite: 'annuel', aPartirDu: plusJours(aujourdhui, 20), motif: 'Grille Essentiel repoussée' })).statut).toBe(200);
+    // Le journal dit chaque geste : sur quel prix, de quoi à quoi ; le préavis, d'avant à après.
+    await p.goto(`${serveur.adresse}/console/#/journal`);
+    const ligne = (geste: string, sur: string) => p.locator('tr').filter({ hasText: geste }).filter({ hasText: sur }).first().innerText().then(net).catch(() => '');
+    await expect.poll(() => ligne('Nouveau prix préparé', 'Complet, au mois'), { timeout: 15_000 })
+      .toContain(`Nouveau prix préparé Réglages Le prix de Complet, au mois « Nouvelle grille au mois » 69,000 DT → 72,000 DT à partir du ${enFrancais(plusTot)}`);
+    expect(await ligne('Prix à venir retiré', 'Complet, au mois'))
+      .toContain(`Prix à venir retiré Réglages Le prix de Complet, au mois « Grille repoussée » 72,000 DT à partir du ${enFrancais(plusTot)} → 69,000 DT`);
+    expect(await ligne('Prix à venir retiré', 'Grille Essentiel repoussée')).toContain('Prix à venir retiré Réglages Le prix d\'Essentiel, à l\'année « Grille Essentiel repoussée »');
+    expect(await ligne('Préavis d\'un nouveau prix réglé', 'Préavis plus court'))
+      .toContain('Préavis d\'un nouveau prix réglé Réglages Le préavis d\'un nouveau prix « Préavis plus court pour la rentrée » 30 jours → 20 jours');
+    expect((await api('POST', '/console/reglages/preavis', jD, { jours: 30, motif: 'retour aux trente jours' })).statut).toBe(200);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 120_000);
 
   it('la relecture d\'une règle : la fenêtre nomme la règle, l\'avis se choisit, et la carte dit qui l\'a relue', async () => {
     const p = await console_(jD, 'regles');

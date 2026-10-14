@@ -174,7 +174,7 @@ describe('ce que l\'offre compte', () => {
       await k.query('begin');
       await k.query("select set_config('app.utilisateur', $1, true), set_config('app.session_console', $2, true)", [session.utilisateur, session.id]);
       await expect(k.query('select plateforme.console_noter_facture($1, $2, $3, $4, $5, $6::date, $7::date, $8::bigint, $9, $10::date)',
-        [ent, fa.piece_v10, fa.client_v10, 'essentiel', 'annuel', fa.debut, fa.fin, '390000', 'sans les lignes en plus', jour])).rejects.toThrow(/pas celui du jour/);
+        [ent, fa.piece_v10, fa.client_v10, 'essentiel', 'annuel', fa.debut, fa.fin, '390000', 'sans les lignes en plus', jour])).rejects.toThrow(/pas celui de la grille au premier jour de la période/);
     } finally { await k.query('rollback'); k.release(); }
   });
 

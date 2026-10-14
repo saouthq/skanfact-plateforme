@@ -3,8 +3,9 @@
 // (la grille datée, les abonnés de chaque offre, ce qui se passe autour d'une échéance, tiré du code du serveur), les
 // règles fiscales communes (le registre, chaque règle avec sa source et qui l'a relue) et le message affiché en haut de
 // l'application des clients. La direction change ; le support lit, pour répondre à un client. Rien n'est inventé : ce que
-// la console ne sait pas encore faire (préparer un prix, allumer une nouveauté) se dit avec la façon dont il se fait.
-import { useState } from 'react';
+// la console ne sait pas encore faire (allumer une nouveauté) se dit avec la façon dont il se fait. Un nouveau prix se
+// prépare ici (0103), au plus tôt après le préavis, et se retire tant que sa date n'est pas venue.
+import { useEffect, useRef, useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { montant } from '../argent.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
@@ -20,10 +21,17 @@ export const ONGLETS_REGLAGES: readonly OngletReglages[] = ['prix', 'regles', 'f
 type Offre = 'essentiel' | 'complet';
 type Periodicite = 'annuel' | 'mensuel';
 type Case = { ht: string; depuis: string } | null;
-type LigneGrille = { offre: Offre; annuel: Case; mensuel: Case; aVenir: { periodicite: Periodicite; ht: string; aPartirDu: string }[]; abonnes: { annuel: number; mensuel: number } };
+// Un prix à venir ; préparé dans la console (0103), avec qui l'a préparé, quand et pourquoi.
+type AVenir = { periodicite: Periodicite; ht: string; aPartirDu: string; motif?: string | null; par?: string | null; le?: string | null };
+type LigneGrille = { offre: Offre; annuel: Case; mensuel: Case; aVenir: AVenir[]; abonnes: { annuel: number; mensuel: number } };
 // Ce qui s'ajoute à l'offre (14c) : ses prix datés, et pour un module, les abonnés d'aujourd'hui qui l'ont acheté.
 type Ajout = 'caisse' | 'etablissement' | 'salarie' | 'module_paie' | 'module_compta';
-type LigneAjout = { option: Ajout; annuel: Case; mensuel: Case; aVenir: { periodicite: Periodicite; ht: string; aPartirDu: string }[]; achetes: number | null };
+type LigneAjout = { option: Ajout; annuel: Case; mensuel: Case; aVenir: AVenir[]; achetes: number | null };
+// Ce qui a un prix : les offres et ce qui s'ajoute ; le préavis d'un nouveau prix (0103).
+type QuoiPrix = Offre | Ajout;
+const OFFRES_PRIX: readonly Offre[] = ['essentiel', 'complet'];
+const AJOUTS_PRIX: readonly Ajout[] = ['caisse', 'etablissement', 'salarie', 'module_paie', 'module_compta'];
+type Preavis = { jours: number; aPartirDu: string; motif: string; par: string | null; le: string };
 type Relecture = { reluePar: string; avis: 'juste' | 'a_corriger'; dit: string | null; motif: string; par: string; le: string };
 type Regle = {
   id: string; code: string; debut: string; fin: string | null; source: string; poseeLe: string; relectures: Relecture[];
@@ -35,7 +43,7 @@ type Message = {
 };
 type Donnees = {
   aujourdhui: string; role: 'direction' | 'support' | 'technique';
-  grille: LigneGrille[]; ajouts: LigneAjout[]; essai: { jours: number; enCours: number }; echeance: { relances: number[]; grace: number };
+  grille: LigneGrille[]; ajouts: LigneAjout[]; preavis: Preavis | null; essai: { jours: number; enCours: number }; echeance: { relances: number[]; grace: number };
   registre: Regle[]; message: Message | null; passes: Message[]; formats: Format[];
   factures: NosFactures;
 };
@@ -50,7 +58,8 @@ type Format = {
   code: 'teif' | 'signature' | 'ttn' | 'tej' | 'cnss' | 'liasse' | 'ecritures' | 'caisse'; etat: EtatFormat; aVerifier: boolean; version: string | null;
   chiffres: Record<string, number | string | null> | null; branche: boolean | null; alerte: boolean;
 };
-type Geste = { sorte: 'relire'; regle: Regle } | { sorte: 'ecrire' } | { sorte: 'retirer'; message: Message } | { sorte: 'editeur' };
+type Geste = { sorte: 'relire'; regle: Regle } | { sorte: 'ecrire' } | { sorte: 'retirer'; message: Message } | { sorte: 'editeur' }
+  | { sorte: 'prix' } | { sorte: 'retirer_prix'; quoi: QuoiPrix; v: AVenir } | { sorte: 'preavis' };
 
 // Un jour de calendrier lu par une personne : 19/11/2026 (le serveur rend « 2026-11-19 »).
 const jour = (j: string) => jourCourt(j);
@@ -62,6 +71,9 @@ const plusJours = (j: string, n: number) => {
 const nomDeRegle = (r: Regle) => (r.valeurLue.connue ? titre(`${K}.r.nom.${r.code.replace('.', '_')}`) : r.code);
 // Sous le titre d'une fenêtre : le nom de la règle ET son code (le code seul, pour une règle qu'on ne sait pas nommer).
 const nomEtCode = (r: Regle) => (r.valeurLue.connue ? `${nomDeRegle(r)} · ${r.code}` : r.code);
+
+// Ce qui change de prix, dans une phrase : « Essentiel », « une caisse de plus ».
+const nomDe = (q: QuoiPrix) => (q === 'essentiel' || q === 'complet' ? dire(`${K}.p.offre.${q}`) : dire(`${K}.a.nom.${q}`));
 
 // La case d'un prix dans une grille : le montant en dinars, ou « — » quand aucun n'est posé (jamais un prix deviné).
 function CasePrix({ c }: { c: Case }) {
@@ -81,10 +93,13 @@ function Prix({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut:
   return (
     <>
       <section className="c-carte c-rg" aria-labelledby="rg-grille">
-        <div className="c-al-section-tete"><div>
-          <h2 id="rg-grille">{titre(`${K}.p.titre`)}</h2>
-          <p className="c-carte-sous">{phrase(`${K}.p.sous`)}</p>
-        </div></div>
+        <div className="c-al-section-tete">
+          <div>
+            <h2 id="rg-grille">{titre(`${K}.p.titre`)}</h2>
+            <p className="c-carte-sous">{phrase(`${K}.p.sous`)}</p>
+          </div>
+          {peut ? <Bouton icone="plus" onClick={() => geste({ sorte: 'prix' })}>{titre(`${K}.p.preparer`)}</Bouton> : null}
+        </div>
         <div className="c-defile">
           <table className="c-table c-rg-grille">
             <thead><tr>
@@ -130,10 +145,11 @@ function Prix({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut:
             </tbody>
           </table>
         </div>
+        <PrixAVenir lignes={d.grille.flatMap((l) => l.aVenir.map((v) => ({ quoi: l.offre as QuoiPrix, v })))} aujourdhui={d.aujourdhui} geste={geste} peut={peut} />
         <p className="c-sous">{phrase(`${K}.p.note`)}</p>
-        <p className="c-sous">{phrase(`${K}.p.changer`)}</p>
+        <LePreavis d={d} geste={geste} peut={peut} />
       </section>
-      <Ajouts d={d} />
+      <Ajouts d={d} geste={geste} peut={peut} />
       <section className="c-carte c-rg" aria-labelledby="rg-echeance">
         <div className="c-al-section-tete"><div>
           <h2 id="rg-echeance">{titre(`${K}.p.f.titre`)}</h2>
@@ -155,7 +171,7 @@ function Prix({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut:
 
 // Ce qui s'ajoute à l'offre (14c ; docs/abonnement.md C7) : la grille que l'application montre sous les offres et que la
 // facture compte, datée comme celle des offres ; pour un module acheté seul, combien d'abonnés l'ont aujourd'hui.
-function Ajouts({ d }: { d: Donnees }) {
+function Ajouts({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut: boolean }) {
   return (
     <section className="c-carte c-rg c-rg-ajouts-carte" aria-labelledby="rg-ajouts">
       <div className="c-al-section-tete"><div>
@@ -195,8 +211,46 @@ function Ajouts({ d }: { d: Donnees }) {
           </tbody>
         </table>
       </div>
+      <PrixAVenir lignes={d.ajouts.flatMap((l) => l.aVenir.map((v) => ({ quoi: l.option as QuoiPrix, v })))} aujourdhui={d.aujourdhui} geste={geste} peut={peut} />
       <p className="c-sous">{phrase(`${K}.a.note`)}</p>
     </section>
+  );
+}
+
+// Les prix à venir d'une grille, chacun avec qui l'a préparé et pourquoi, et le geste qui le retire avant sa date.
+function PrixAVenir({ lignes, aujourdhui, geste, peut }: { lignes: { quoi: QuoiPrix; v: AVenir }[]; aujourdhui: string; geste: (g: Geste) => void; peut: boolean }) {
+  if (!lignes.length) return null;
+  return (
+    <ul className="c-rg-venir-liste">
+      {lignes.map(({ quoi, v }) => (
+        <li key={`${quoi}-${v.periodicite}-${v.aPartirDu}`} className="c-rg-venir" data-quoi={quoi} data-periodicite={v.periodicite}>
+          <div className="c-rg-venir-texte">
+            <b>{titre(`${K}.p.venir.titre`, { quoi: nomDe(quoi), periode: dire(`${K}.p.periode.${v.periodicite}`), prix: montant(v.ht), jour: jour(v.aPartirDu) })}</b>
+            <span className="c-sous c-bloc">
+              {v.par && v.le ? titre(`${K}.p.venir.par`, { nom: v.par, quand: quand(v.le, aujourdhui) }) : phrase(`${K}.p.venir.migration`)}
+              {v.motif ? <> <span data-donnee>« {v.motif} »</span></> : null}
+            </span>
+          </div>
+          {peut ? <Bouton petit onClick={() => geste({ sorte: 'retirer_prix', quoi, v })}>{titre(`${K}.p.venir.retirer`)}</Bouton> : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// Le préavis d'un nouveau prix (0103) : ce qu'il est, qui l'a posé, et le geste qui le change.
+function LePreavis({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut: boolean }) {
+  const p = d.preavis;
+  return (
+    <div className="c-rg-preavis">
+      <p className="c-sous">
+        {/* Une phrase entière : sa majuscule et son point, comme `phrase`. */}
+        {p ? `${maj(selon(p.jours, `${K}.p.preavis`))}.` : phrase(`${K}.p.preavis_aucun`)}
+        {p ? <span className="c-bloc">{p.par ? titre(`${K}.p.preavis_par`, { nom: p.par, quand: quand(p.le, d.aujourdhui) }) : titre(`${K}.p.preavis_depuis`, { jour: jour(p.aPartirDu) })}{' '}
+          <span data-donnee>« {p.motif} »</span></span> : null}
+      </p>
+      {peut ? <Bouton petit onClick={() => geste({ sorte: 'preavis' })}>{titre(`${K}.p.changer_preavis`)}</Bouton> : null}
+    </div>
   );
 }
 
@@ -468,7 +522,7 @@ function Messages({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; p
 }
 
 // ── Les gestes : chacun dit ce qui va se passer, demande son motif, et entre au journal ─────────────────────────────
-function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: () => void; fait: () => void }) {
+function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix' }>; d: Donnees; fermer: () => void; fait: () => void }) {
   const api = useApi();
   const { moi } = useConsole();
   const [motif, setMotif] = useState('');
@@ -479,6 +533,7 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
   const [texte, setTexte] = useState('');
   const [du, setDu] = useState(d.aujourdhui);
   const [au, setAu] = useState(plusJours(d.aujourdhui, 7));
+  const [jours, setJours] = useState(d.preavis ? String(d.preavis.jours) : '');
   const [refus, setRefus] = useState<string | null>(null);
   const [faute, setFaute] = useState<{ champ: string; n: number } | null>(null);
   const [occupe, setOccupe] = useState(false);
@@ -495,6 +550,7 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
       if (!/^\d{4}-\d{2}-\d{2}$/.test(au) || au < du) { refuser('au', `${K}.g.ecrire.au_avant`); return; }
       if (au > plusJours(du, 30)) { refuser('au', `${K}.g.ecrire.trente_jours`); return; }
     }
+    if (g.sorte === 'preavis' && (!/^\d{1,3}$/.test(jours.trim()) || Number(jours) > 365)) { refuser('jours', `${K}.g.preavis.jours_illisible`); return; }
     if (motif.trim().length < 3) { refuser('motif', 'console.ecran.geste.motif_court'); return; }
     void (async () => {
       setOccupe(true);
@@ -502,7 +558,9 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
         const res = g.sorte === 'relire' ? await api('POST', `/console/reglages/regles/${g.regle.id}/relire`, { reluePar: reluePar.trim(), avis, dit: dit.trim() || null, motif: motif.trim() })
           : g.sorte === 'ecrire' ? await api('POST', '/console/reglages/messages', { sorte, texte: texte.trim(), du, au, motif: motif.trim() })
             : g.sorte === 'editeur' ? await api('POST', '/console/reglages/factures/editeur', { entreprise, motif: motif.trim() })
-              : await api('POST', `/console/reglages/messages/${g.message.id}/retirer`, { motif: motif.trim() });
+              : g.sorte === 'retirer_prix' ? await api('POST', '/console/reglages/prix/retirer', { quoi: g.quoi, periodicite: g.v.periodicite, aPartirDu: g.v.aPartirDu, motif: motif.trim() })
+                : g.sorte === 'preavis' ? await api('POST', '/console/reglages/preavis', { jours: Number(jours.trim()), motif: motif.trim() })
+                  : await api('POST', `/console/reglages/messages/${g.message.id}/retirer`, { motif: motif.trim() });
         if (!res) return;
         if (res.statut === 200 || res.statut === 201) { toast(phrase(`${K}.g.${g.sorte}.fait`)); fait(); return; }
         setRefus(refusDe(res));
@@ -512,10 +570,14 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
   const fauteDe = (champ: string) => ({ faute: faute?.champ === champ, n: faute?.champ === champ ? faute.n : 0 });
   const choisie = choisissables.find((p) => p.entreprise === entreprise);
   const valeurs = g.sorte === 'relire' ? { regle: nomDeRegle(g.regle) } : g.sorte === 'retirer' ? { du: jour(g.message.du), au: jour(g.message.au) }
-    : g.sorte === 'editeur' ? { nom: choisie?.raisonSociale ?? '—' } : {};
+    : g.sorte === 'editeur' ? { nom: choisie?.raisonSociale ?? '—' } : g.sorte === 'retirer_prix' ? { jour: jour(g.v.aPartirDu) }
+      : g.sorte === 'preavis' ? { n: d.preavis?.jours ?? '—' } : {};
+  const sous = g.sorte === 'relire' ? nomEtCode(g.regle) : g.sorte === 'retirer' ? g.message.texte
+    : g.sorte === 'retirer_prix' ? titre(`${K}.p.venir.titre`, { quoi: nomDe(g.quoi), periode: dire(`${K}.p.periode.${g.v.periodicite}`), prix: montant(g.v.ht), jour: jour(g.v.aPartirDu) })
+      : undefined;
   const remplace = g.sorte === 'ecrire' && d.message;
   return (
-    <Dialogue titre={titre(`${K}.g.${g.sorte}.titre`, valeurs)} sous={g.sorte === 'relire' ? nomEtCode(g.regle) : g.sorte === 'retirer' ? g.message.texte : undefined}
+    <Dialogue titre={titre(`${K}.g.${g.sorte}.titre`, valeurs)} sous={sous}
       sousDonnee={g.sorte === 'retirer' || (g.sorte === 'relire' && !g.regle.valeurLue.connue)}
       fermer={fermer} occupe={occupe}
       pied={<>
@@ -538,6 +600,10 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
           <Zone libelle={titre(`${K}.g.relire.dit`)} aide={phrase(`${K}.g.relire.dit_aide`)} valeur={dit} changer={setDit} max={1000} />
         </>
       ) : null}
+      {g.sorte === 'preavis' ? (
+        <Champ libelle={titre(`${K}.g.preavis.jours`)} aide={phrase(`${K}.g.preavis.jours_aide`, valeurs)} type="number" inputMode="numeric" min={0} max={365}
+          valeur={jours} changer={setJours} premier {...fauteDe('jours')} />
+      ) : null}
       {g.sorte === 'editeur' ? (
         <Choix libelle={titre(`${K}.g.editeur.laquelle`)} aide={phrase(`${K}.g.editeur.laquelle_aide`)} valeur={entreprise} changer={setEntreprise}
           options={choisissables.map((p) => ({ valeur: p.entreprise, texte: p.matricule ? `${p.raisonSociale} · ${p.matricule}` : p.raisonSociale, donnee: true }))} />
@@ -558,6 +624,108 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: ()
       <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${K}.g.${g.sorte}.motif_aide`, valeurs)} valeur={motif} changer={setMotif} {...fauteDe('motif')} />
       <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
       {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+// ── Préparer un nouveau prix (0103) : ce qui change, le montant, la date ; l'aperçu du serveur dit le prix d'aujourd'hui,
+// l'écart et qui l'a aujourd'hui, avant le geste ─────────────────────────────────────────────────────────────────────
+type ApercuPrix = { avant: string | null; apres: string; ecart: { sens: 'hausse' | 'baisse'; dixiemes: number } | null; plusTot: string | null;
+  abonnes: number | null; dejaAVenir: string | null };
+const CHOIX_PRIX = [...OFFRES_PRIX, ...AJOUTS_PRIX].flatMap((q) => (['annuel', 'mensuel'] as const).map((p) => ({ quoi: q as QuoiPrix, periodicite: p })));
+function FenetrePrix({ d, fermer, fait }: { d: Donnees; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const plusTot = d.preavis ? plusJours(d.aujourdhui, d.preavis.jours) : d.aujourdhui;
+  const [choix, setChoix] = useState(0);
+  const [tape, setTape] = useState('');
+  const [date, setDate] = useState(plusTot);
+  const [motif, setMotif] = useState('');
+  const [apercu, setApercu] = useState<ApercuPrix | null>(null);
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState<{ champ: string; n: number } | null>(null);
+  const [occupe, setOccupe] = useState(false);
+  const tour = useRef(0);
+  const { quoi, periodicite } = CHOIX_PRIX[choix] ?? { quoi: 'essentiel' as QuoiPrix, periodicite: 'annuel' as Periodicite };
+  const ligne = quoi === 'essentiel' || quoi === 'complet' ? d.grille.find((l) => l.offre === quoi) : d.ajouts.find((l) => l.option === quoi);
+  const aujourdhui = ligne?.[periodicite]?.ht ?? null;
+  const dateLisible = /^\d{4}-\d{2}-\d{2}$/.test(date);
+  useEffect(() => {
+    const t = ++tour.current;
+    if (!tape.trim() || !dateLisible) { setApercu(null); return undefined; }
+    const minuteur = setTimeout(() => {
+      void (async () => {
+        try {
+          const r = await api<ApercuPrix>('POST', '/console/reglages/prix', { quoi, periodicite, montant: tape, aPartirDu: date, motif: '', apercu: true });
+          if (!r || t !== tour.current) return;
+          if (r.statut === 200) { setApercu(r.corps); setRefus(null); } else { setApercu(null); setRefus(refusDe(r)); }
+        } catch (x) { if (t === tour.current) setRefus(panneDe(x)); }
+      })();
+    }, 300);
+    return () => clearTimeout(minuteur);
+  }, [choix, tape, date]);
+  const refuser = (champ: string, cle: string, valeurs = {}) => { setRefus(phrase(cle, valeurs)); setFaute((f) => ({ champ, n: (f?.n ?? 0) + 1 })); };
+  const faire = () => {
+    if (!tape.trim() || !apercu) { refuser('montant', `${K}.g.prix.montant_illisible`); return; }
+    if (!dateLisible || date < plusTot) { refuser('date', `${K}.g.prix.trop_tot`, { jour: jour(plusTot) }); return; }
+    if (motif.trim().length < 3) { refuser('motif', 'console.ecran.geste.motif_court'); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const r = await api('POST', '/console/reglages/prix', { quoi, periodicite, montant: tape, aPartirDu: date, motif: motif.trim() });
+        if (!r) return;
+        if (r.statut === 201) { toast(phrase(`${K}.g.prix.fait`)); fait(); return; }
+        setRefus(refusDe(r));
+        if (typeof r.corps.champ === 'string') setFaute((f) => ({ champ: r.corps.champ as string, n: (f?.n ?? 0) + 1 }));
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  const fauteDe = (champ: string) => ({ faute: faute?.champ === champ, n: faute?.champ === champ ? faute.n : 0 });
+  const pourcent = (dixiemes: number) => `${Math.floor(dixiemes / 10)},${dixiemes % 10}`;
+  // Un écart de moitié ou plus, dans un sens ou dans l'autre, est presque toujours une faute de période (le prix à l'année
+  // tapé pour le mois) : il se dit avant le geste, en couleur, à la place de l'écart.
+  const fort = (apercu?.ecart?.dixiemes ?? 0) >= 500;
+  return (
+    <Dialogue titre={titre(`${K}.g.prix.titre`)} fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} desactive={!apercu || !!apercu.dejaAVenir} onClick={faire}>{titre(`${K}.g.prix.bouton`)}</Bouton>
+      </>}>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
+        <ul>{['p1', 'p2', 'p3'].map((p) => <li key={p}>{phrase(`${K}.g.prix.${p}`, { jour: dateLisible ? jour(date) : '…' })}</li>)}</ul>
+      </div>
+      <Choix libelle={titre(`${K}.g.prix.quoi`)} valeur={String(choix)} changer={(v) => setChoix(Number(v))}
+        options={CHOIX_PRIX.map((c, i) => ({ valeur: String(i), texte: `${maj(nomDe(c.quoi))}, ${dire(`${K}.p.periode.${c.periodicite}`)}` }))} />
+      <div className="c-rg-dates">
+        <Champ libelle={titre(`${K}.g.prix.montant`)} inputMode="decimal" autoComplete="off" valeur={tape} changer={setTape} premier {...fauteDe('montant')}
+          aide={aujourdhui ? phrase(`${K}.g.prix.montant_aide`, { prix: montant(aujourdhui) }) : phrase(`${K}.g.prix.montant_aide_sans`)} />
+        <Champ libelle={titre(`${K}.g.prix.date`)} type="date" min={plusTot} valeur={date} changer={setDate} {...fauteDe('date')}
+          aide={phrase(`${K}.g.prix.date_aide`, { jour: jour(plusTot) })} />
+      </div>
+      {/* L'aperçu garde sa place dès l'ouverture, comme dans la fenêtre de facture : le motif, dessous, ne bouge pas pendant
+          qu'on tape le prix. Un prix déjà préparé pour ce choix se dit à la place du nombre d'abonnés, sans rien pousser. */}
+      <div className="c-champs">
+        <span className="c-champ-libelle">{titre(`${K}.g.prix.apercu`)}</span>
+        <div className="c-apercu-zone c-rg-prix-zone">
+          {apercu ? (
+            <div className="c-rg-prix-apercu" role="status">
+              <p>
+                {apercu.avant ? <><del data-donnee>{montant(apercu.avant)}</del> → </> : null}<ins data-donnee>{montant(apercu.apres)}</ins>
+                {' '}{dire(`${K}.g.prix.ht`, { periode: dire(`${K}.p.periode.${periodicite}`) })}
+                {apercu.ecart ? <span className={`c-sous c-bloc${fort ? ' c-rg-prix-attention' : ''}`}>{maj(dire(`${K}.g.prix.${apercu.ecart.sens}${fort ? '_forte' : ''}`,
+                  { pourcent: pourcent(apercu.ecart.dixiemes), periode: dire(`${K}.p.periode.${periodicite}`) }))}</span> : null}
+              </p>
+              {apercu.dejaAVenir ? <p className="c-rg-prix-attention">{phrase(`${K}.g.prix.deja`, { jour: jour(apercu.dejaAVenir) })}</p>
+                : apercu.abonnes !== null ? <p className="c-sous">{maj(selon(apercu.abonnes, `${K}.g.prix.abonnes`))}</p> : null}
+            </div>
+          ) : refus ? <p className="c-apercu-attente c-apercu-refus">{refus}</p>
+            : <p className="c-apercu-attente">{phrase(tape.trim() ? 'console.ecran.geste.apercu_calcul' : `${K}.g.prix.apercu_attente`)}</p>}
+        </div>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${K}.g.prix.motif_aide`)} valeur={motif} changer={setMotif} {...fauteDe('motif')} />
+      <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus && apercu ? <Alerte ton="danger">{refus}</Alerte> : null}
     </Dialogue>
   );
 }
@@ -602,7 +770,8 @@ export function Reglages({ onglet: demande }: { onglet: string | null }) {
       {d && onglet === 'regles' ? <Regles d={d} geste={setGeste} peut={peut} /> : null}
       {d && onglet === 'formats' ? <Formats d={d} /> : null}
       {d && onglet === 'messages' ? <Messages d={d} geste={setGeste} peut={peut} /> : null}
-      {geste && d ? <FenetreGeste g={geste} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} /> : null}
+      {geste && d ? (geste.sorte === 'prix' ? <FenetrePrix d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
+        : <FenetreGeste g={geste} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />) : null}
     </>
   );
 }

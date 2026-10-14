@@ -6,7 +6,8 @@ import type { Etat } from '../../serveur/abonnement/etat.ts';
 import type { Entreprise } from '../../serveur/console/decider.ts';
 import { lireMessageClients } from '../../serveur/console/message-clients.ts';
 import {
-  essaisEnCours, grille, grilleAjouts, lireAjouts, lireReglages, registre, regleEnVigueur, sujetDesReglages, valeurDeRegle, type PrixLu, type RegleLue,
+  ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, preparesPar, registre, regleEnVigueur, sujetDesReglages,
+  valeurDeRegle, type PrixLu, type RegleLue,
 } from '../../serveur/console/reglages.ts';
 
 const entreprise = (etat: Etat, id = '') => ({ etat, id }) as unknown as Entreprise;
@@ -148,15 +149,28 @@ describe('le registre des règles communes', () => {
 });
 
 describe('au journal, un geste des réglages dit sur quoi il porte', () => {
-  it('la règle relue et l\'avis ; le message écrit ou retiré par ses deux jours ; rien pour un autre geste', () => {
+  it('la règle relue et l\'avis ; le message écrit ou retiré par ses deux jours ; le prix préparé ou retiré, et le préavis ; rien pour un autre geste', () => {
     expect(sujetDesReglages('reglages.relire', null, { regle: 'timbre.facture', debut: '2023-01-01', reluePar: 'Mehdi Gharbi', avis: 'a_corriger' }))
-      .toEqual({ regle: 'timbre.facture', reluePar: 'Mehdi Gharbi', avis: 'a_corriger', du: null, au: null });
+      .toEqual({ regle: 'timbre.facture', reluePar: 'Mehdi Gharbi', avis: 'a_corriger', du: null, au: null, prix: null, preavis: null });
     expect(sujetDesReglages('reglages.message_affiche', null, { message: 'm', sorte: 'nouveaute', du: '2026-10-13', au: '2026-10-20' }))
-      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-20' });
+      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-20', prix: null, preavis: null });
     // Retiré : les jours viennent de ce qu'il était (avant), pas du retrait.
     expect(sujetDesReglages('reglages.message_retire', { message: 'm', texte: 't', du: '2026-10-13', au: '2026-10-19' }, { retire: '2026-10-14T09:00:00Z' }))
-      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-19' });
+      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-19', prix: null, preavis: null });
     expect(sujetDesReglages('versions.geler', null, { jusquAu: '2026-10-20' })).toBeNull();
+    // Un prix préparé : de l'ancien au nouveau, à sa date (celle de l'après). Retiré : la date est celle du prix retiré.
+    expect(sujetDesReglages('reglages.prix_prepare', { quoi: 'essentiel', periodicite: 'annuel', montantHt: '390.000' },
+      { quoi: 'essentiel', periodicite: 'annuel', aPartirDu: '2027-01-01', montantHt: '420.000' })?.prix)
+      .toEqual({ quoi: 'essentiel', periodicite: 'annuel', aPartirDu: '2027-01-01', avant: '390.000', apres: '420.000' });
+    expect(sujetDesReglages('reglages.prix_retire', { quoi: 'caisse', periodicite: 'mensuel', aPartirDu: '2027-02-01', montantHt: '13.000', motif: 'm' },
+      { quoi: 'caisse', periodicite: 'mensuel', montantHt: '12.000' })?.prix)
+      .toEqual({ quoi: 'caisse', periodicite: 'mensuel', aPartirDu: '2027-02-01', avant: '13.000', apres: '12.000' });
+    // Ce qui n'a pas de prix, ou un montant illisible, ne se dit pas.
+    expect(sujetDesReglages('reglages.prix_prepare', null, { quoi: 'imprimante', periodicite: 'annuel', aPartirDu: '2027-01-01', montantHt: '1.000' })?.prix).toBeNull();
+    expect(sujetDesReglages('reglages.prix_prepare', { quoi: 'complet', periodicite: 'mensuel', montantHt: 69 },
+      { quoi: 'complet', periodicite: 'mensuel', aPartirDu: '2027-01-01', montantHt: '75.000' })?.prix).toMatchObject({ avant: null, apres: '75.000' });
+    expect(sujetDesReglages('reglages.preavis', { jours: 30 }, { jours: 10 })).toMatchObject({ preavis: { avant: 30, apres: 10 }, prix: null });
+    expect(sujetDesReglages('reglages.relire', null, { regle: 'timbre.facture', reluePar: 'X', avis: 'juste' })?.preavis).toBeNull();
   });
 });
 
@@ -167,5 +181,36 @@ describe('le message tel que l\'application des clients le lit', () => {
     expect(lireMessageClients({ id: 'm', sorte: 'incident', texte: 'x', du: '2026-10-13', au: '2026-10-19' })).toBeNull();
     expect(lireMessageClients({ id: 'm', sorte: 'nouveaute', texte: '  ', du: '2026-10-13', au: '2026-10-19' })).toBeNull();
     expect(lireMessageClients(null)).toBeNull();
+  });
+});
+
+describe('les prix préparés dans la console (0103)', () => {
+  it('le préavis et les prix à venir, lus prudemment ; chaque prix à venir d\'une grille dit qui l\'a préparé et pourquoi', () => {
+    const lu = lirePrixPrepares({
+      preavis: { jours: 30, aPartirDu: '2026-10-14', motif: 'Décidé par Skander', par: null, le: '2026-10-14T10:00:00Z' },
+      aVenir: [
+        { quoi: 'essentiel', periodicite: 'annuel', aPartirDu: '2027-01-01', montantHt: '420000', motif: 'hausse', par: 'Amira', le: '2026-10-14T11:00:00Z' },
+        { quoi: 'caisse', periodicite: 'mensuel', aPartirDu: '2026-12-01', montantHt: '13000', motif: null, par: null, le: null },
+        { quoi: 'imprimante', periodicite: 'annuel', aPartirDu: '2027-01-01', montantHt: '1000' },
+        { quoi: 'complet', periodicite: 'annuel', aPartirDu: '2027-01-01', montantHt: '690,5' },
+      ],
+    });
+    expect(lu.preavis).toEqual({ jours: 30, aPartirDu: '2026-10-14', motif: 'Décidé par Skander', par: null, le: '2026-10-14T10:00:00Z' });
+    expect(lu.aVenir.map((p) => p.quoi)).toEqual(['essentiel', 'caisse']);
+    expect(lirePrixPrepares({ preavis: { jours: -1, aPartirDu: '2026-10-14', motif: 'm', le: '2026-10-14T10:00:00Z' } }).preavis).toBeNull();
+    const lignes = preparesPar([{ offre: 'essentiel', aVenir: [{ periodicite: 'annuel' as const, ht: '420.000', aPartirDu: '2027-01-01' },
+      { periodicite: 'mensuel' as const, ht: '42.000', aPartirDu: '2027-01-01' }] }], (l) => l.offre as 'essentiel', lu.aVenir);
+    // Le même choix ET la même date : le prix mensuel, que personne n'a préparé ici, reste sans auteur.
+    expect(lignes[0]?.aVenir).toEqual([
+      { periodicite: 'annuel', ht: '420.000', aPartirDu: '2027-01-01', motif: 'hausse', par: 'Amira', le: '2026-10-14T11:00:00Z' },
+      { periodicite: 'mensuel', ht: '42.000', aPartirDu: '2027-01-01', motif: null, par: null, le: null }]);
+  });
+
+  it('l\'écart d\'un nouveau prix se dit en dixièmes de pour cent arrondis, en hausse ou en baisse ; rien sans prix d\'aujourd\'hui', () => {
+    expect(ecartDePrix(390_000n, 420_000n)).toEqual({ sens: 'hausse', dixiemes: 77 });
+    expect(ecartDePrix(390_000n, 375_000n)).toEqual({ sens: 'baisse', dixiemes: 38 });
+    expect(ecartDePrix(12_000n, 12_015n)).toEqual({ sens: 'hausse', dixiemes: 1 });
+    expect(ecartDePrix(null, 420_000n)).toBeNull();
+    expect(ecartDePrix(0n, 420_000n)).toBeNull();
   });
 });

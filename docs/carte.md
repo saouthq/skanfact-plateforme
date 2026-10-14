@@ -554,7 +554,9 @@ vaut pour tout le dépôt.*
     ce que l'offre comprend se comptent en une fonction que la facture et l'écran lisent toutes deux : « Ton abonnement »
     dit ce qui est pris. Depuis 1.10.0 (`0101`), la console lit cette grille dans Réglages › Offres et prix, avec les
     modules achetés. Depuis 1.11.0 (`0102`), plus aucune offre ne compte les utilisateurs (Skander, 14/10/2026) : ni la
-    facture, ni l'écran, ni l'équipe n'en parlent plus.
+    facture, ni l'écran, ni l'équipe n'en parlent plus. Depuis 1.12.0 (`0103`), la direction prépare un nouveau prix
+    dans la console, au plus tôt après le préavis (réglable), et le retire avant sa date ; un prix en vigueur ne change
+    plus ; la facture d'une période se prend au prix de son premier jour ; le client lit le prix à venir.
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

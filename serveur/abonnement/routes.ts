@@ -59,6 +59,9 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
       const prix = ((await tx.query('select plateforme.prix_du_jour($1::date) p', [jour])).rows[0].p as { offre: string; periodicite: string; montantHt: string }[])
         .map((p) => ({ ...p, montantHt: versTexte(BigInt(p.montantHt), 3) }));
       const options = await prixDesAjouts(tx, jour);
+      // Les prix à venir (0103), des offres et de ce qui s'ajoute : l'abonné les lit dès qu'ils sont préparés.
+      const aVenir = ((await tx.query('select plateforme.prix_a_venir($1::date) p', [jour])).rows[0].p as { quoi: string; periodicite: string; aPartirDu: string; montantHt: string }[])
+        .map((p) => ({ ...p, montantHt: versTexte(BigInt(p.montantHt), 3) }));
       const historique = (await tx.query('select plateforme.historique_abonnement($1) h', [ent])).rows[0].h as { le: string; nature: string; apres: unknown }[];
       // Ses factures : chaque pièce telle que son client la lit (les listes fermées de l'espace client), et la période
       // qu'elle paie. Sans facture émise, rien d'autre ne part (ni la fiche de l'entreprise SkanFact, ni la sienne).
@@ -70,7 +73,7 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
       // `enLigne` : une facture de SkanFact se règle-t-elle en ligne (ce que dit « T'abonner », avant toute facture).
       // `modules` : ceux achetés seuls sur Essentiel (14c), que la carte de l'offre dit.
       // `compte` : ce que l'entreprise utilise sur ce que son offre comprend (14c, 0100), comme la facture le comptera.
-      return { corps: { aujourdhui: jour, etat, prix, options, historique, factures, enLigne: lu.paiement === true, modules: f?.modules ?? [],
+      return { corps: { aujourdhui: jour, etat, prix, options, aVenir, historique, factures, enLigne: lu.paiement === true, modules: f?.modules ?? [],
         compte: await ceQueLOffreCompte(tx, ent, jour) } };
     },
   });
