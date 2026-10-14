@@ -22,7 +22,7 @@ type Periodicite = 'annuel' | 'mensuel';
 type Case = { ht: string; depuis: string } | null;
 type LigneGrille = { offre: Offre; annuel: Case; mensuel: Case; aVenir: { periodicite: Periodicite; ht: string; aPartirDu: string }[]; abonnes: { annuel: number; mensuel: number } };
 // Ce qui s'ajoute à l'offre (14c) : ses prix datés, et pour un module, les abonnés d'aujourd'hui qui l'ont acheté.
-type Ajout = 'utilisateur' | 'caisse' | 'etablissement' | 'salarie' | 'module_paie' | 'module_compta';
+type Ajout = 'caisse' | 'etablissement' | 'salarie' | 'module_paie' | 'module_compta';
 type LigneAjout = { option: Ajout; annuel: Case; mensuel: Case; aVenir: { periodicite: Periodicite; ht: string; aPartirDu: string }[]; achetes: number | null };
 type Relecture = { reluePar: string; avis: 'juste' | 'a_corriger'; dit: string | null; motif: string; par: string; le: string };
 type Regle = {

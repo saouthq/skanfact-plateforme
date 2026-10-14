@@ -93,7 +93,7 @@ export function grille(prix: PrixLu[], entreprises: Entreprise[], aujourdhui: st
 // Ses prix datés, rangés comme ceux des offres : en vigueur à chaque périodicité, et à venir. Pour un module acheté seul,
 // les abonnés d'aujourd'hui qui l'ont acheté — Essentiel, d'après le même état que la liste des clients (Complet le
 // contient : il ne s'y achète pas). Une option que la base ne connaît pas ne s'affiche pas.
-export const AJOUTS = ['utilisateur', 'caisse', 'etablissement', 'salarie', 'module_paie', 'module_compta'] as const;
+export const AJOUTS = ['caisse', 'etablissement', 'salarie', 'module_paie', 'module_compta'] as const;
 export type Ajout = typeof AJOUTS[number];
 export type OptionLue = { option: Ajout; periodicite: Periodicite; aPartirDu: string; montantHt: bigint };
 export type AjoutsLus = { options: OptionLue[]; modules: { entreprise: string; modules: string[] }[] };

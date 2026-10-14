@@ -1,15 +1,15 @@
 // Ce que l'offre compte, à la souris (14c, deuxième partie ; docs/abonnement.md, « 14c » ; 0099). Ce que le parcours
 // vérifie, écran ET serveur :
 //   - la console : « Ouvrir un module acheté seul » dit AVANT le geste les modules d'après ; fait, la fiche les écrit ;
-//   - « Préparer la facture… » d'une Essentiel au mois avec la paie achetée, quatre utilisateurs comptés (une caissière
-//     seule ne compte pas) et onze salariés présents (le sorti ne compte pas) : l'aperçu dit chaque ligne, son compte et
-//     le net à payer ; préparée, la base garde le total ;
+//   - « Préparer la facture… » d'une Essentiel au mois avec la paie achetée, une équipe de cinq (elle ne se compte pas :
+//     les utilisateurs sont sans limite, 0102) et onze salariés présents (le sorti ne compte pas) : l'aperçu dit chaque
+//     ligne, son compte et le net à payer ; préparée, la base garde le total ;
 //   - l'application du client : la paie s'ouvre (plus de cadenas), la comptabilité complète reste fermée ; la carte
 //     Essentiel dit ce qui est acheté ; sous les offres, ce qui s'ajoute et son prix du jour ; l'histoire dit le module ;
-//     nulle part « jamais par utilisateur » (ce n'est plus vrai) ;
-//   - « L'équipe » dit AVANT l'invitation ce que coûtera une personne de plus, quand ce que l'offre comprend est déjà pris
-//     (les membres et les invitations qui attendent ; jamais sinon), et avant de donner un autre rôle à qui n'a que la
-//     caisse ; « Ton abonnement » dit ce que l'entreprise utilise aujourd'hui sur ce que son offre comprend.
+//     « jamais par utilisateur » (vrai de nouveau depuis 0102) ;
+//   - « L'équipe » n'annonce aucun prix, quelle que soit sa taille : inviter ne coûte rien (Skander, 14/10/2026) ;
+//     « Ton abonnement » dit ce que l'entreprise utilise aujourd'hui sur ce que son offre comprend, sans ligne pour les
+//     utilisateurs.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -83,7 +83,7 @@ describe('ce que l\'offre compte, à la souris', () => {
     await admin.query('delete from plateforme.editeur');
     expect((await api('POST', '/console/reglages/factures/editeur', amira.console, { entreprise: editeur, motif: 'Nos factures naissent ici' })).statut).toBe(200);
     await api('GET', `/entreprises/${editeur}/dossier-v10`, amira.appli);
-    // Sonia, en Essentiel au mois, et son équipe : quatre utilisateurs comptés, la caissière seule ne compte pas.
+    // Sonia, en Essentiel au mois, et son équipe de cinq : personne ne s'en compte (0102).
     const sonia = await personne('sonia');
     const ent = String((await api('POST', '/entreprises', sonia.jeton, { raisonSociale: 'Atelier Mejri' })).corps.id);
     await faire(admin, ent, { geste: 'payer', offre: 'essentiel', periodicite: 'mensuel', motif: 'virement reçu' });
@@ -125,15 +125,14 @@ describe('ce que l\'offre compte, à la souris', () => {
     await expect.poll(() => f.locator('.c-fa-lignes li').allInnerTexts().then((t) => t.map(net)).catch(() => []), { timeout: 10_000 }).toEqual([
       'Essentiel, au mois 39,000 DT',
       'Module paie (acheté seul) 15,000 DT',
-      'Utilisateurs au-delà de l\'offre 4 comptés, 3 dans l\'offre : 1 × 3,000 DT. 3,000 DT',
       'Salariés au-delà de l\'offre 11 comptés, 10 dans l\'offre : 1 × 1,200 DT. 1,200 DT',
     ]);
-    expect(net(await f.locator('.c-fa-net').innerText())).toContain('70,258 DT');
+    expect(net(await f.locator('.c-fa-net').innerText())).toContain('66,688 DT');
     await c.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'offre-compte-1-facture.png') });
     await f.getByLabel('Motif', { exact: true }).fill('Échéance du mois, avec la paie et l\'équipe');
     await cliquer(f.locator('.c-dialogue-pied .c-btn-principal'));
     await expect.poll(() => f.count(), { timeout: 10_000 }).toBe(0);
-    expect((await admin.query('select montant_ht::text m from plateforme.facture_abonnement where entreprise = $1', [ent])).rows).toEqual([{ m: '58200' }]);
+    expect((await admin.query('select montant_ht::text m from plateforme.facture_abonnement where entreprise = $1', [ent])).rows).toEqual([{ m: '55200' }]);
     await cx.close();
 
     // ── L'application de Sonia : la paie ouverte, la comptabilité complète fermée, les prix de ce qui s'ajoute ─────────
@@ -152,74 +151,57 @@ describe('ce que l\'offre compte, à la souris', () => {
     await expect.poll(() => p.locator('.abo-offre.courante .abo-pas').innerText().then(net).catch(() => ''), { timeout: 15_000 })
       .toBe('La paie est achetée en plus d\'Essentiel. La comptabilité complète est dans Complet : ce qui existe se lit, mais rien de nouveau ne s\'y crée.');
     const plus = p.locator('#abo-plus li');
-    expect((await plus.evaluateAll((e) => e.map((x) => (x as HTMLElement).dataset.option)))).toEqual(['utilisateur', 'caisse', 'etablissement', 'salarie', 'module_paie', 'module_compta']);
-    expect(net(await plus.first().innerText())).toBe('Un utilisateur de plus Essentiel en comprend trois ; Complet, sans limite. Aujourd\'hui : 4 utilisateurs, 1 de plus que ton offre. 30 DT HT par an ou 3 DT HT par mois');
+    expect((await plus.evaluateAll((e) => e.map((x) => (x as HTMLElement).dataset.option)))).toEqual(['caisse', 'etablissement', 'salarie', 'module_paie', 'module_compta']);
+    expect(net(await p.locator('#abo-plus li[data-option="salarie"]').innerText())).toBe('Un salarié de plus La paie en comprend dix sur Essentiel, vingt sur Complet. Aujourd\'hui : 11 salariés, 1 de plus que ton offre. 12 DT HT par an ou 1,200 DT HT par mois');
     expect(net(await p.locator('.abo-histoire li').first().innerText())).toContain('Module acheté (la paie)');
-    expect(net(await p.locator('#abonnement-panel').innerText())).not.toContain('jamais par utilisateur');
+    expect(net(await p.locator('#abonnement-panel').innerText())).toContain('Un prix par entreprise, jamais par utilisateur.');
     await p.locator('#abo-plus').scrollIntoViewIfNeeded();
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'offre-compte-2-au-dela.png') });
     await ax.close();
     expect(erreurs).toEqual([]);
   }, 150_000);
 
-  it('l\'équipe dit ce que coûtera une personne de plus avant de l\'inviter ; « Ton abonnement » dit ce qui est pris', async () => {
+  it('l\'équipe n\'annonce aucun prix, même grande ; « Ton abonnement » dit ce qui est pris, sans ligne pour les utilisateurs', async () => {
     const walid = await personne('walid');
     const ent = String((await api('POST', '/entreprises', walid.jeton, { raisonSociale: 'Librairie Comptée' })).corps.id);
     await faire(admin, ent, { geste: 'payer', offre: 'essentiel', periodicite: 'annuel', motif: 'virement reçu' });
     // Un client : une entreprise qui travaille déjà (l'assistant de démarrage ne s'ouvre pas sur elle).
     await api('GET', `/entreprises/${ent}/dossier-v10`, walid.jeton);
     await api('POST', `/entreprises/${ent}/dossier-v10`, walid.jeton, { changements: [{ collection: 'clients', cle: 'cl-1', rang: 0, revision: null, contenu: { id: 'cl-1', name: 'École Ennour' } }] });
+    // Une équipe de six, au-delà des trois que comptait l'ancienne Essentiel, et deux invitations qui attendent.
+    for (const roles of [['commercial'], ['magasinier'], ['lecture'], ['commercial', 'lecture'], ['caissier']]) {
+      const m = await personne('membre');
+      const inv = await api('POST', `/entreprises/${ent}/invitations`, walid.jeton, { email: m.email, roles });
+      expect((await api('POST', '/invitations/accepter', m.jeton, { jeton: String(inv.corps.jeton) })).statut).toBe(200);
+    }
+    for (const [nom, roles] of [['karim', ['commercial']], ['hela', ['magasinier']]] as const) {
+      expect((await api('POST', `/entreprises/${ent}/invitations`, walid.jeton, { email: `${nom}-${Date.now()}@exemple.tn`, roles })).statut).toBe(201);
+    }
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
     await cx.addInitScript((x) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', x); }, walid.jeton);
     const p = await cx.newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
-    // La même adresse ne se recharge pas d'elle-même (seul le fragment change) : la seconde fois, on recharge.
-    const lEquipe = async () => {
-      if (p.url().includes('#/parametres')) await p.reload(); else await p.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
-      await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 20_000 }).not.toBe('');
-      await plusTard(p);
-      await cliquer(p.locator('#set-tabs [data-tab="equipe"]'));
-      await p.locator('#eqp-inviter').waitFor({ timeout: 15_000 });
-    };
-    // Walid seul : inviter ne coûte rien, l'écran ne dit rien du prix.
-    await lEquipe();
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
+    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 20_000 }).not.toBe('');
+    await plusTard(p);
+    await cliquer(p.locator('#set-tabs [data-tab="equipe"]'));
+    await p.locator('#eqp-inviter').waitFor({ timeout: 15_000 });
+    // Inviter une septième personne : la fenêtre ne parle ni de prix ni de facture.
     await cliquer(p.locator('#eqp-inviter'));
     await expect.poll(() => p.locator('#eqp-email').count()).toBe(1);
-    expect(await p.locator('#eqp-cout').count()).toBe(0);
-    await p.keyboard.press('Escape');
-    // Une caissière seule (elle ne compte pas) et deux invitations qui attendent : Walid et elles font les trois de l'offre.
-    const caissiere = await personne('caissiere');
-    const inv = await api('POST', `/entreprises/${ent}/invitations`, walid.jeton, { email: caissiere.email, roles: ['caissier'] });
-    expect((await api('POST', '/invitations/accepter', caissiere.jeton, { jeton: String(inv.corps.jeton) })).statut).toBe(200);
-    for (const [nom, roles] of [['karim', ['commercial']], ['hela', ['magasinier']]] as const) {
-      expect((await api('POST', `/entreprises/${ent}/invitations`, walid.jeton, { email: `${nom}-${Date.now()}@exemple.tn`, roles })).statut).toBe(201);
-    }
-    await lEquipe();
-    await cliquer(p.locator('#eqp-inviter'));
-    await expect.poll(() => p.locator('#eqp-cout').innerText().then(net).catch(() => ''), { timeout: 10_000 })
-      .toBe('Ton offre Essentiel comprend 3 utilisateurs : l\'équipe en compte 1, et 2 invitations attendent. Une personne de plus coûtera 30 DT HT par an (ou 3 DT HT par mois), sur ta prochaine facture. Qui ne travaille qu\'à la caisse ou en salle ne compte pas.');
-    // Lu AVANT le bouton : il est au-dessus de « Préparer l'invitation ».
-    const yCout = (await p.locator('#eqp-cout').boundingBox())?.y ?? Infinity;
-    expect(yCout).toBeLessThan((await p.locator('#eqp-ok').boundingBox())?.y ?? 0);
+    const fenetre = p.locator('#eqp-ok').locator('xpath=ancestor::*[.//h2][1]');
+    expect(net(await fenetre.innerText())).toMatch(/^Inviter quelqu'un/);
+    expect(net(await fenetre.innerText())).not.toMatch(/\bDT\b|coût|prochaine facture|ton offre|comprend/i);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'offre-compte-3-inviter.png') });
     await p.keyboard.press('Escape');
-    // Donner un autre rôle à la caissière la compterait : la fenêtre de ses rôles le dit.
-    const membres = (await api('GET', `/entreprises/${ent}/equipe`, walid.jeton)).corps.membres as { id: string; email: string }[];
-    const elle = membres.find((m) => m.email === caissiere.email)?.id ?? '';
-    await expect.poll(async () => {
-      if (!await p.getByRole('menuitem').filter({ hasText: 'Changer ses rôles' }).count()) await p.locator(`[data-rowmenu="M:${elle}"]`).first().click({ timeout: 2_000 }).catch(() => {});
-      return p.getByRole('menuitem').filter({ hasText: 'Changer ses rôles' }).count();
-    }, { timeout: 30_000 }).toBe(1);
-    await p.getByRole('menuitem').filter({ hasText: 'Changer ses rôles' }).click();
-    await expect.poll(() => p.locator('#eqp-cout').innerText().then(net).catch(() => ''), { timeout: 10_000 })
-      .toMatch(/^Lui donner un autre rôle que la caisse ou la salle le comptera comme utilisateur\. Ton offre Essentiel comprend 3 utilisateurs/);
-    await p.keyboard.press('Escape');
-    // « Ton abonnement » : ce qui est pris aujourd'hui (les invitations ne comptent qu'acceptées).
+    // « Ton abonnement » : ce qui est pris aujourd'hui, et rien sur les utilisateurs.
     await cliquer(p.locator('#set-tabs [data-tab="abonnement"]'));
     const auj = (option: string) => p.locator(`#abo-plus li[data-option="${option}"] .abo-plus-auj`).innerText().then(net).catch(() => '');
-    await expect.poll(() => auj('utilisateur'), { timeout: 15_000 }).toBe('Aujourd\'hui : 1 utilisateur sur 3 compris.');
-    expect(await auj('caisse')).toBe('Aujourd\'hui : 0 caisse sur 1 comprise.');
+    await expect.poll(() => auj('caisse'), { timeout: 15_000 }).toBe('Aujourd\'hui : 0 caisse sur 1 comprise.');
+    expect(await p.locator('#abo-plus li[data-option="utilisateur"]').count()).toBe(0);
     expect(await p.locator('#abo-plus li[data-option="salarie"] .abo-plus-auj').count()).toBe(0);
+    expect(net(await p.locator('#abo-plus .abo-plus-tete p').innerText())).toContain('ton équipe, elle, n\'a pas de limite');
+    expect(net(await p.locator('.abo-offre[data-offre="essentiel"]').innerText())).toContain('Des utilisateurs sans limite, un établissement');
     await cx.close();
     expect(erreurs).toEqual([]);
   }, 150_000);

@@ -61,7 +61,6 @@ declarerTextes({
   // Ce qui s'ajoute à l'offre sur la facture (14c ; 0099).
   'abonnement.facture.option.module_paie': 'Module Paie (acheté seul sur Essentiel)',
   'abonnement.facture.option.module_compta': 'Module Comptabilité complète (acheté seul sur Essentiel)',
-  'abonnement.facture.option.utilisateur': 'Utilisateur au-delà de l\'offre',
   'abonnement.facture.option.salarie': 'Salarié au-delà de l\'offre',
   'abonnement.facture.option.caisse': 'Caisse au-delà de l\'offre',
   'abonnement.facture.option.etablissement': 'Établissement au-delà de l\'offre',

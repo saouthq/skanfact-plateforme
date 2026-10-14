@@ -431,8 +431,11 @@ Chaque changement est tracé et prévient les deux côtés.
 
 ### 4.1 Qui compte comme « utilisateur » dans l'offre
 
-L'offre Essentiel compte **3 utilisateurs**, puis 30 DT par an pour chacun en plus (`07`). Voici qui
-compte :
+**Révisé le 14/10/2026 (Skander) : plus aucune offre ne compte les utilisateurs** (`07`). Ce qui suit dit qui est
+membre d'une entreprise ; il ne fixe plus aucun prix.
+
+~~L'offre Essentiel compte **3 utilisateurs**, puis 30 DT par an pour chacun en plus (`07`).~~ Voici qui
+comptait :
 - **compte** : chaque membre **actif** de l'entreprise, quel que soit son rôle, Lecture et Caissier
   compris. Une personne compte une fois par entreprise, même avec plusieurs rôles (D7) ;
 - **ne compte jamais** : les collaborateurs du cabinet (le cabinet est gratuit pour ses clients

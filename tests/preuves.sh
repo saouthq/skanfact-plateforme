@@ -12904,9 +12904,9 @@ prouver 'le bandeau d'"'"'un module fermé qui ne nomme pas Complet' web/public/
   "$OFW"
 
 # Ce que l'offre compte (abonnement 14c, deuxième partie ; docs/abonnement.md, « 14c » ; 0099) : un module acheté seul
-# s'ouvre chez le client, une fois, jamais sur Complet ; la facture compte ce qui dépasse (les utilisateurs sauf la caisse
-# seule, les salariés présents) et chaque module, la pièce l'écrit, la base rejoue le total ; le client lit les prix des
-# ajouts avant de les payer, et plus jamais « jamais par utilisateur ».
+# s'ouvre chez le client, une fois, jamais sur Complet ; la facture compte ce qui dépasse (les salariés présents ; plus
+# jamais les utilisateurs, 0102) et chaque module, la pièce l'écrit, la base rejoue le total ; le client lit les prix des
+# ajouts avant de les payer.
 OC1='un module acheté seul sur Essentiel : la direction l'"'"'ouvre avec son motif, il s'"'"'ouvre chez le client, et se retire ; Complet le contient déjà'
 OC2='la facture compte ce qui dépasse l'"'"'offre et les modules achetés, au prix du jour de chaque ligne ; l'"'"'aperçu le dit, la pièce l'"'"'écrit, la base le rejoue'
 OCW='la direction ouvre la paie seule, la facture compte ce qui dépasse ; le client voit sa paie ouverte et les prix de ce qui s'"'"'ajoute'
@@ -12930,11 +12930,13 @@ prouver 'l'"'"'aperçu d'"'"'un module qui ne dit pas les modules d'"'"'après' 
 prouver 'les prix des ajouts cachés au client' serveur/abonnement/routes.ts \
   'etat, prix, options, historique,' 'etat, prix, historique,' \
   "$OC1"
-prouver 'la caissière seule comptée comme utilisateur' base/migrations/0100_offre_comptee.sql \
-  "where m.entreprise = p_entreprise and m.actif
-                       and not (m.roles <@ array['caissier', 'serveur']::text[]))::int," "where m.entreprise = p_entreprise and m.actif)::int," \
-  "$OC2"
-prouver 'un salarié sorti compté sur la facture' base/migrations/0100_offre_comptee.sql \
+prouver 'le prix d'"'"'un utilisateur de plus resté en vigueur' base/migrations/0102_utilisateurs_illimites.sql \
+  "delete from plateforme.prix_option where option = 'utilisateur';
+alter table plateforme.prix_option drop constraint prix_option_option_check;
+alter table plateforme.prix_option add constraint prix_option_option_check
+  check (option in ('module_paie', 'module_compta', 'caisse', 'etablissement', 'salarie'));" '' \
+  "$OC1"
+prouver 'un salarié sorti compté sur la facture' base/migrations/0102_utilisateurs_illimites.sql \
   "and d.collection = 'employees'
                    and coalesce(nullif(d.contenu->>'endDate', ''), '9999-12-31') >= to_char(p_jour, 'YYYY-MM-DD'))::int," "and d.collection = 'employees')::int," \
   "$OC2"
@@ -12951,25 +12953,16 @@ prouver 'la console qui ne propose pas le module acheté seul' serveur/console/r
 prouver 'la carte Essentiel qui ignore la paie achetée' web/public/plateforme/abonnement.js \
   'esc(ceQuiResteDansComplet(a.modules))' 'esc(ceQuiResteDansComplet([]))' \
   "$OCW"
-prouver 'un prix « jamais par utilisateur » que la facture dément' web/public/plateforme/abonnement.js \
-  "<p>Un prix par entreprise, hors taxes : la TVA s'ajoute.</p>" "<p>Un prix par entreprise, jamais par utilisateur. Hors taxes : la TVA s'ajoute.</p>" \
+prouver 'la promesse « jamais par utilisateur » oubliée' web/public/plateforme/abonnement.js \
+  "<p>Un prix par entreprise, jamais par utilisateur. Hors taxes : la TVA s'ajoute.</p>" "<p>Un prix par entreprise, hors taxes : la TVA s'ajoute.</p>" \
   "$OCW"
 
-# Ce que l'offre compte, lu AVANT la facture (abonnement 14c, deuxième partie b ; 0100) : une seule fonction compte pour
-# l'écran et la facture ; les invitations qui attendent comptent pour prévenir (sauf la caisse seule) ; rien pendant
-# l'essai ni pour qui ne gère pas l'équipe ; l'équipe prévient avant l'invitation (et avant de sortir une caissière de la
-# caisse) ; « Ton abonnement » dit ce qui est pris.
-OD1='ce que l'"'"'offre compte se lit avant la facture, par qui gère l'"'"'équipe : les membres, les invitations qui attendent, ce que l'"'"'offre comprend ; le même chiffre que la facture'
-ODW='l'"'"'équipe dit ce que coûtera une personne de plus avant de l'"'"'inviter ; « Ton abonnement » dit ce qui est pris'
-prouver 'une invitation de la caisse seule comptée' base/migrations/0100_offre_comptee.sql \
-  "and i.expire_le > now() and not (i.roles <@ array['caissier', 'serveur']::text[]))::int," "and i.expire_le > now())::int," \
-  "$OD1"
-prouver 'une invitation acceptée comptée deux fois' base/migrations/0100_offre_comptee.sql \
-  "where i.entreprise = p_entreprise and i.acceptee_le is null
-" "where i.entreprise = p_entreprise
-" \
-  "$OD1"
-prouver 'ce que l'"'"'offre compte lu par qui ne gère pas l'"'"'équipe' base/migrations/0100_offre_comptee.sql \
+# Ce que l'offre compte, lu AVANT la facture (abonnement 14c, deuxième partie b ; 0100, 0102) : une seule fonction compte
+# pour l'écran et la facture ; rien pendant l'essai ni pour qui ne gère pas l'abonnement ; l'équipe ne se compte jamais
+# et n'annonce aucun prix (Skander, 14/10/2026) ; « Ton abonnement » dit ce qui est pris.
+OD1='ce que l'"'"'offre compte se lit avant la facture, par qui gère l'"'"'abonnement : ce que l'"'"'entreprise utilise, ce que l'"'"'offre comprend, le même chiffre que la facture ; l'"'"'équipe ne se compte jamais'
+ODW='l'"'"'équipe n'"'"'annonce aucun prix, même grande ; « Ton abonnement » dit ce qui est pris, sans ligne pour les utilisateurs'
+prouver 'ce que l'"'"'offre compte lu par qui ne gère pas l'"'"'abonnement' base/migrations/0100_offre_comptee.sql \
   "  if socle.moi() is null or socle.ma_cle() is not null or not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur']::text[]) then
     return null;
   end if;
@@ -12979,22 +12972,17 @@ prouver 'l'"'"'essai compté comme Essentiel' serveur/abonnement/offre.ts \
   '  const offre = offreQuiDecide(f, etatAbonnement(f, jour));
   if (!offre) return null;' "  const offre = offreQuiDecide(f, etatAbonnement(f, jour)) ?? 'essentiel';" \
   "$OD1"
-prouver 'Complet qui limite ses utilisateurs' base/migrations/0100_offre_comptee.sql \
-  "when 'complet' then jsonb_build_object('utilisateurs', null," "when 'complet' then jsonb_build_object('utilisateurs', 3," \
+prouver 'Complet qui ne comprend qu'"'"'une caisse' base/migrations/0102_utilisateurs_illimites.sql \
+  "when 'complet' then jsonb_build_object('caisses', 2," "when 'complet' then jsonb_build_object('caisses', 1," \
   "$OD1"
-prouver 'la paie achetée sans ses dix salariés compris' base/migrations/0100_offre_comptee.sql \
+prouver 'la paie achetée sans ses dix salariés compris' base/migrations/0102_utilisateurs_illimites.sql \
   "'salaries', case when 'paie' = any(coalesce(p_modules, '{}')) then 10 end)" "'salaries', null)" \
   "$OD1"
-prouver 'l'"'"'équipe qui oublie les invitations qui attendent' web/public/plateforme/equipe.js \
-  '    if (utilisateurs + invitations < inclus) return '"'"''"'"';' '    if (utilisateurs < inclus) return '"'"''"'"';' \
+prouver 'un prix annoncé à l'"'"'invitation' web/public/plateforme/equipe.js \
+  "    o.modal(\`<h2>Inviter quelqu'un</h2>" "    o.modal(\`<h2>Inviter quelqu'un</h2><p>Une personne de plus coûtera 30 DT HT par an, sur ta prochaine facture.</p>" \
   "$ODW"
-prouver 'le coût d'"'"'un de plus dit après le bouton' web/public/plateforme/equipe.js \
-  "        \${cout ? \`<p class=\"eqp-cout\" id=\"eqp-cout\">\${esc(cout)}</p>\` : ''}
-        <div class=\"modal-actions\"><button type=\"button\" class=\"btn\" data-close>Annuler</button><button type=\"submit\" class=\"btn btn-primary\" id=\"eqp-ok\">Préparer l'invitation</button></div>" "        <div class=\"modal-actions\"><button type=\"button\" class=\"btn\" data-close>Annuler</button><button type=\"submit\" class=\"btn btn-primary\" id=\"eqp-ok\">Préparer l'invitation</button></div>
-        \${cout ? \`<p class=\"eqp-cout\" id=\"eqp-cout\">\${esc(cout)}</p>\` : ''}" \
-  "$ODW"
-prouver 'la caissière sortie de la caisse sans le savoir' web/public/plateforme/equipe.js \
-  "changerRoles(o, m, eq.donnables, redessiner, caisseSeule(m.roles) ? cout : '')" "changerRoles(o, m, eq.donnables, redessiner, '')" \
+prouver 'Essentiel qui limite encore ses utilisateurs' web/public/plateforme/abonnement.js \
+  "'Ton comptable dans les mêmes données', 'Des utilisateurs sans limite, un établissement'" "'Ton comptable dans les mêmes données', 'Trois utilisateurs, un établissement'" \
   "$ODW"
 prouver 'ce qui est pris absent de « Ton abonnement »' serveur/abonnement/routes.ts \
   '        compte: await ceQueLOffreCompte(tx, ent, jour) } };' '        compte: null } };' \

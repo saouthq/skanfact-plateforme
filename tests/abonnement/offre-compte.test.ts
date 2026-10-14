@@ -1,11 +1,12 @@
 // Ce que l'offre compte (14c, deuxième partie ; docs/abonnement.md « 14c » ; 0099), par l'API. Ce que le serveur garantit :
 //   - un module acheté SEUL sur Essentiel (la paie, la comptabilité complète) est un geste de la direction, avec son motif
 //     et son histoire ; il s'ouvre aussitôt dans l'application du client, et se retire ; Complet le contient déjà ;
-//   - la facture d'une période compte, le jour où elle se prépare, ce qui dépasse l'offre (les utilisateurs au-delà de
-//     trois, sauf qui ne travaille que sur les caisses ; les salariés au-delà de dix avec la paie achetée) et chaque
-//     module acheté, au prix du jour de sa ligne ; l'aperçu le dit avant le geste, la pièce l'écrit, la base le rejoue ;
-//   - ce que l'offre compte se lit AVANT (0100) par qui gère l'abonnement ou l'équipe : les membres, les invitations qui
-//     attendent, ce que l'offre comprend, le prix d'un de plus — le même chiffre que la facture.
+//   - la facture d'une période compte, le jour où elle se prépare, ce qui dépasse l'offre (les salariés au-delà de dix
+//     avec la paie achetée, les caisses, les établissements) et chaque module acheté, au prix du jour de sa ligne ; jamais
+//     les utilisateurs, sans limite dans toutes les offres (Skander, 14/10/2026 ; 0102) ; l'aperçu le dit avant le geste,
+//     la pièce l'écrit, la base le rejoue ;
+//   - ce que l'offre compte se lit AVANT (0100, 0102) par qui gère l'abonnement : ce que l'entreprise utilise, ce que
+//     l'offre comprend — le même chiffre que la facture.
 
 import path from 'node:path';
 import os from 'node:os';
@@ -114,8 +115,9 @@ describe('ce que l\'offre compte', () => {
     expect(histoire.modules).toEqual(['paie']);
     // Ce qui s'ajoute à l'offre, au prix du jour, se lit AVANT d'arriver sur une facture.
     const options = histoire.options as { option: string; periodicite: string; montantHt: string }[];
-    expect(options).toHaveLength(12);
-    expect(options).toContainEqual({ option: 'utilisateur', periodicite: 'annuel', montantHt: '30.000' });
+    expect(options).toHaveLength(10);
+    expect(options).toContainEqual({ option: 'caisse', periodicite: 'annuel', montantHt: '120.000' });
+    expect(options.map((o) => o.option)).not.toContain('utilisateur');
     expect(options).toContainEqual({ option: 'salarie', periodicite: 'mensuel', montantHt: '1.200' });
     expect(JSON.stringify(histoire)).not.toContain('commande de la paie');
     // Retiré : la paie se referme à la création.
@@ -131,8 +133,8 @@ describe('ce que l\'offre compte', () => {
   it('la facture compte ce qui dépasse l\'offre et les modules achetés, au prix du jour de chaque ligne ; l\'aperçu le dit, la pièce l\'écrit, la base le rejoue', async () => {
     const p = await inscrire('karim');
     const ent = String((await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'Pressing Compté' })).corps.id);
-    // Cinq personnes : la propriétaire, trois qui comptent, et une caissière qui ne travaille que sur la caisse.
-    for (const roles of [['commercial'], ['magasinier'], ['caissier', 'lecture'], ['caissier']]) await membre(ent, p.jeton, roles);
+    // Six personnes dans l'équipe : aucune ne se paie, quel que soit son rôle (0102).
+    for (const roles of [['commercial'], ['magasinier'], ['lecture'], ['caissier', 'lecture'], ['caissier']]) await membre(ent, p.jeton, roles);
     // La paie achetée, et douze salariés : onze présents (l'un est sorti hier), dix compris dans la paie achetée.
     expect((await geste(ent, 'ouvrir-module', { motif: 'paie achetée seule', ligne: await ligneDe(ent), module: 'paie' })).statut).toBe(200);
     for (let i = 1; i <= 12; i++) {
@@ -146,24 +148,22 @@ describe('ce que l\'offre compte', () => {
     expect(f.prixOffreHt).toBe('390.000');
     expect(f.enPlus).toEqual([
       { option: 'module_paie', quantite: 1, compte: 1, inclus: 0, prixHt: '150.000', totalHt: '150.000' },
-      { option: 'utilisateur', quantite: 1, compte: 4, inclus: 3, prixHt: '30.000', totalHt: '30.000' },
       { option: 'salarie', quantite: 1, compte: 11, inclus: 10, prixHt: '12.000', totalHt: '12.000' },
     ]);
-    expect(f.montantHt).toBe('582.000');
-    expect(f.ceQueDira).toMatchObject({ ht: '582.000' });
+    expect(f.montantHt).toBe('552.000');
+    expect(f.ceQueDira).toMatchObject({ ht: '552.000' });
     // Au mois : le dixième de chaque prix.
     const mois = (await appeler('POST', chemin, amira.console, { offre: 'essentiel', periodicite: 'mensuel', motif: '', apercu: true })).corps.facture as { montantHt: string };
-    expect(mois.montantHt).toBe('58.200');
+    expect(mois.montantHt).toBe('55.200');
     // Préparée : la pièce écrit chaque ligne, la base garde le total et le journal ce qui s'ajoute.
     expect((await appeler('POST', chemin, amira.console, { offre: 'essentiel', periodicite: 'annuel', motif: 'Facture annuelle' })).statut).toBe(201);
     const lu = (await admin.query('select f.montant_ht::text m, d.contenu from plateforme.facture_abonnement f join socle.dossier_v10 d on d.entreprise = f.editeur and d.collection = \'documents\' and d.cle = f.piece_v10 where f.entreprise = $1', [ent])).rows[0] as { m: string; contenu: { lines: Corps[] } };
-    expect(lu.m).toBe('582000');
+    expect(lu.m).toBe('552000');
     expect(lu.contenu.lines.map((l) => [l.label, l.qty])).toEqual([
-      ['SkanFact Essentiel — abonnement annuel', 1], ['Module Paie (acheté seul sur Essentiel)', 1],
-      ['Utilisateur au-delà de l\'offre', 1], ['Salarié au-delà de l\'offre', 1]]);
-    expect(lu.contenu.lines[2]?.description).toMatch(/^4 au total, dont 3 dans l'offre ; du /);
+      ['SkanFact Essentiel — abonnement annuel', 1], ['Module Paie (acheté seul sur Essentiel)', 1], ['Salarié au-delà de l\'offre', 1]]);
+    expect(lu.contenu.lines[2]?.description).toMatch(/^11 au total, dont 10 dans l'offre ; du /);
     const g = (await admin.query("select apres from plateforme.geste_console where geste = 'factures.preparer' and entreprise = $1", [ent])).rows[0]?.apres as Corps;
-    expect(g.enPlus).toEqual([{ option: 'module_paie', quantite: 1 }, { option: 'utilisateur', quantite: 1 }, { option: 'salarie', quantite: 1 }]);
+    expect(g.enPlus).toEqual([{ option: 'module_paie', quantite: 1 }, { option: 'salarie', quantite: 1 }]);
     // La base rejoue le total : noter la même facture avec le seul prix de l'offre (les lignes en plus oubliées) est refusé.
     const fa = (await admin.query('select piece_v10, client_v10, debut::text, fin::text from plateforme.facture_abonnement where entreprise = $1', [ent])).rows[0] as
       { piece_v10: string; client_v10: string; debut: string; fin: string };
@@ -178,34 +178,47 @@ describe('ce que l\'offre compte', () => {
     } finally { await k.query('rollback'); k.release(); }
   });
 
-  it('ce que l\'offre compte se lit avant la facture, par qui gère l\'équipe : les membres, les invitations qui attendent, ce que l\'offre comprend ; le même chiffre que la facture', async () => {
+  it('ce que l\'offre compte se lit avant la facture, par qui gère l\'abonnement : ce que l\'entreprise utilise, ce que l\'offre comprend, le même chiffre que la facture ; l\'équipe ne se compte jamais', async () => {
     const p = await inscrire('leila');
     const ent = String((await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'Quincaillerie Comptée' })).corps.id);
-    const compte = async (jeton: string) => (await appeler('GET', `/entreprises/${ent}/abonnement/compte`, jeton)).corps;
+    type Lu = { offre: string; comptes: Corps; inclus: Corps } | null;
+    const compte = async () => (await appeler('GET', `/entreprises/${ent}/abonnement`, p.jeton)).corps.compte as Lu;
+    const facture = async () => ((await appeler('POST', `/console/entreprises/${ent}/factures`, amira.console, { offre: 'essentiel', periodicite: 'annuel', motif: '', apercu: true })).corps.facture as { enPlus: Corps[] }).enPlus;
     // Pendant l'essai, rien ne se compte : rien ne se facture.
-    expect(await compte(p.jeton)).toEqual({ compte: null, options: [] });
+    expect(await compte()).toBeNull();
     expect((await geste(ent, 'payer', { motif: 'virement reçu', ligne: await ligneDe(ent), offre: 'essentiel', periodicite: 'annuel' })).statut).toBe(200);
+    // Une équipe qui grandit et des invitations qui attendent : rien ne s'en compte, ni à l'écran ni sur la facture (0102).
     const vendeur = await membre(ent, p.jeton, ['commercial']);
-    await membre(ent, p.jeton, ['caissier']);
-    // Deux invitations qui attendent : la magasinière comptera, la caissière seule non.
-    for (const roles of [['magasinier'], ['caissier']]) expect((await appeler('POST', `/entreprises/${ent}/invitations`, p.jeton, { email: adresse('attend'), roles })).statut).toBe(201);
-    const lu = await compte(p.jeton);
-    expect(lu.compte).toMatchObject({ offre: 'essentiel', comptes: { utilisateurs: 2, invitations: 1, salaries: 0 }, inclus: { utilisateurs: 3, caisses: 1, etablissements: 1, salaries: null } });
-    expect(lu.options).toContainEqual({ option: 'utilisateur', periodicite: 'mensuel', montantHt: '3.000' });
-    // « Ton abonnement » lit le même compte ; qui ne gère ni l'abonnement ni l'équipe n'en lit rien.
-    expect((await appeler('GET', `/entreprises/${ent}/abonnement`, p.jeton)).corps.compte).toEqual(lu.compte);
-    expect(await compte(vendeur.jeton)).toEqual({ compte: null, options: [] });
-    // Le même chiffre que la facture : deux de plus, et l'aperçu compte les mêmes utilisateurs que l'écran.
-    await membre(ent, p.jeton, ['lecture']);
-    await membre(ent, p.jeton, ['caissier', 'commercial']);
-    const apres = (await compte(p.jeton)).compte as { comptes: { utilisateurs: number } };
-    expect(apres.comptes.utilisateurs).toBe(4);
-    const facture = (await appeler('POST', `/console/entreprises/${ent}/factures`, amira.console, { offre: 'essentiel', periodicite: 'annuel', motif: '', apercu: true })).corps.facture as { enPlus: Corps[] };
-    expect(facture.enPlus.find((l) => l.option === 'utilisateur')).toMatchObject({ compte: apres.comptes.utilisateurs, inclus: 3, quantite: 1 });
-    // La paie achetée : dix salariés compris ; Complet : des utilisateurs sans limite, vingt salariés.
+    for (const roles of [['magasinier'], ['lecture'], ['caissier']]) await membre(ent, p.jeton, roles);
+    for (const roles of [['magasinier'], ['lecture']]) expect((await appeler('POST', `/entreprises/${ent}/invitations`, p.jeton, { email: adresse('attend'), roles })).statut).toBe(201);
+    const lu = await compte();
+    expect(lu).toMatchObject({ offre: 'essentiel', comptes: { salaries: 0 }, inclus: { caisses: 1, etablissements: 1, salaries: null } });
+    expect(Object.keys(lu?.comptes ?? {}).sort()).toEqual(['caisses', 'etablissements', 'salaries']);
+    expect(Object.keys(lu?.inclus ?? {}).sort()).toEqual(['caisses', 'etablissements', 'salaries']);
+    expect(await facture()).toEqual([]);
+    // Qui ne gère pas l'abonnement n'en lit rien : ni par l'écran, ni par la base (la propriétaire, elle, la lit).
+    expect((await appeler('GET', `/entreprises/${ent}/abonnement`, vendeur.jeton)).statut).toBe(403);
+    const k = await pool.connect();
+    try {
+      for (const [jeton, rien] of [[vendeur.jeton, true], [p.jeton, false]] as const) {
+        await k.query('begin');
+        await k.query("select set_config('app.utilisateur', $1, true)", [(await quiEst(ctx, jeton))?.utilisateur]);
+        const v = (await k.query('select plateforme.ce_que_l_offre_compte($1, $2, $3::date) v', [ent, 'essentiel', jour])).rows[0].v as unknown;
+        expect(v === null).toBe(rien);
+        await k.query('rollback');
+      }
+    } finally { k.release(); }
+    // La paie achetée, onze salariés présents : dix compris ; l'écran et la facture disent le même onze.
     expect((await geste(ent, 'ouvrir-module', { motif: 'paie achetée seule', ligne: await ligneDe(ent), module: 'paie' })).statut).toBe(200);
-    expect(((await compte(p.jeton)).compte as { inclus: Corps }).inclus).toMatchObject({ salaries: 10 });
+    for (let i = 1; i <= 11; i++) {
+      await admin.query('insert into socle.dossier_v10 (entreprise, collection, cle, rang, contenu) values ($1, $2, $3, $4, $5)',
+        [ent, 'employees', `s${i}`, i, JSON.stringify({ id: `s${i}`, name: `Salarié ${i}`, endDate: '' })]);
+    }
+    const apres = await compte();
+    expect(apres).toMatchObject({ comptes: { salaries: 11 }, inclus: { salaries: 10 } });
+    expect((await facture()).find((l) => l.option === 'salarie')).toMatchObject({ compte: apres?.comptes.salaries, inclus: 10, quantite: 1 });
+    // Complet : deux caisses, deux établissements, vingt salariés.
     expect((await geste(ent, 'payer', { motif: 'passe à Complet', ligne: await ligneDe(ent), offre: 'complet', periodicite: 'annuel' })).statut).toBe(200);
-    expect(((await compte(p.jeton)).compte as { inclus: Corps }).inclus).toEqual({ utilisateurs: null, caisses: 2, etablissements: 2, salaries: 20 });
+    expect((await compte())?.inclus).toEqual({ caisses: 2, etablissements: 2, salaries: 20 });
   });
 });

@@ -231,7 +231,7 @@ immobilisation), jamais après la saisie. « Tous les modules » étiquette les 
 abonnement » dit ce qui reste dans Complet.
 
 **Ce que 14c-1 ne fait pas** (14c-2) : les quantités — les caisses (1 en Essentiel, 2 en Complet, + 120 DT), les
-utilisateurs (3, puis + 30 DT ; `03` § 4.1, avec l'avertissement AVANT la quatrième invitation), les établissements (1 /
+utilisateurs (3, puis + 30 DT ; retiré le 14/10/2026 : C13), les établissements (1 /
 2, + 120 DT), les salariés au-delà de 20 en Complet (+ 12 DT) ; les modules achetés seuls sur Essentiel (paie + 150 DT,
 comptabilité complète + 150 DT) et leurs lignes sur la facture de l'abonnement ; passer à Complet en libre-service (on
 écrit à contact@skanfact.tn, comme en 14a).
@@ -242,7 +242,7 @@ Le prix au mois d'un module acheté seul (`07` ne donne que l'année) : décidé
 
 *Le prix au mois de chaque ajout : un dixième de son prix à l'année, le rapport des offres (390/39) ; proposé le
 14/10/2026 (15 DT par mois pour un module), accepté d'un « go » de Skander le même jour. Le reste suit la grille de `07`
-(« Au-delà de l'offre ») et `03` § 4.1 (qui compte comme utilisateur).*
+(« Au-delà de l'offre »). Les utilisateurs ne se comptent plus depuis la 1.11.0 (C13).*
 
 **C6. Un module acheté seul sur Essentiel** (la paie, la comptabilité complète) est un geste de la direction dans la
 console (« Ouvrir un module acheté seul », « Retirer un module acheté seul »), avec son motif, son histoire et sa ligne
@@ -252,23 +252,22 @@ contient déjà : refusé, en le disant. L'aperçu du geste dit les modules d'ap
 s'achète en libre-service : on écrit à contact@skanfact.tn, comme en 14a.
 
 **C7. La facture compte**, le jour où elle se prépare et pour la période qu'elle paie (`plateforme.lignes_en_plus`,
-`0099`) :
-- les **utilisateurs** : les membres actifs, sauf qui n'a que la caisse ou le service en salle (`07`, `03` § 4.1 ; le
-  cabinet n'est pas membre, il ne compte jamais) ; Essentiel en comprend 3, Complet sans limite ;
+`0099`, refaite en `0100` puis `0102`) :
 - les **caisses** actives (1 en Essentiel, 2 en Complet) et les **établissements** actifs (1 / 2) ;
 - les **salariés** présents (sans date de sortie, ou sortis après le jour de la facture), quand la paie est là : 10 avec
   la paie achetée sur Essentiel, 20 en Complet ;
 - chaque **module acheté seul**.
 
+Jamais les **utilisateurs** : sans limite dans toutes les offres (C13).
+
 Chaque ligne est au prix du jour de sa ligne (`plateforme.prix_option`, daté comme `plateforme.prix`). Une ligne sans
 prix posé refuse la facture : rien n'est inventé. La base rejoue le total à l'enregistrement (`console_noter_facture`) :
 un total qui n'est pas celui du jour est refusé, et le journal garde les lignes en plus (leur nom, leur quantité). La
-pièce, dans le dossier de SkanFact, porte une ligne par ajout (« Utilisateur au-delà de l'offre — 4 au total, dont 3
+pièce, dans le dossier de SkanFact, porte une ligne par ajout (« Salarié au-delà de l'offre — 11 au total, dont 10
 dans l'offre ; du … au … »).
 
 | Ajout (HT) | À l'année | Au mois |
 |---|---|---|
-| Utilisateur au-delà de l'offre (Essentiel) | 30 DT | 3 DT |
 | Caisse au-delà de l'offre | 120 DT | 12 DT |
 | Établissement au-delà de l'offre | 120 DT | 12 DT |
 | Salarié au-delà de l'offre (avec la paie) | 12 DT | 1,200 DT |
@@ -277,34 +276,50 @@ dans l'offre ; du … au … »).
 
 **C8. Le client voit les prix AVANT** de les payer : sous les offres de « Ton abonnement », « Au-delà de ce que l'offre
 comprend » liste chaque ajout, ce que chaque offre en comprend, et son prix du jour (`plateforme.prix_options_du_jour`),
-avec qui compte comme utilisateur. « Un prix par entreprise, jamais par utilisateur » ne s'affiche plus (l'écran, la
-bulle d'aide, la console) : ce n'était plus vrai. Le principe de `07` reste (le prix est celui de l'entreprise, un
-utilisateur de plus coûte peu).
+et que l'équipe, elle, n'a pas de limite (C13). « Un prix par entreprise, jamais par utilisateur », retiré en 1.8.0
+quand l'utilisateur de plus se payait, s'affiche de nouveau au-dessus des offres depuis la 1.11.0 : c'est vrai.
 
-**C9. Un compteur, une fonction** (`0100`) : ce que l'entreprise utilise (`plateforme.comptes_de_l_entreprise`) et ce
+**C9. Un compteur, une fonction** (`0100`, `0102`) : ce que l'entreprise utilise (`plateforme.comptes_de_l_entreprise`) et ce
 que chaque offre comprend (`plateforme.inclus_de_l_offre`) vivent une fois dans la base ; la facture
 (`plateforme.lignes_en_plus`, refaite sur elles) et l'écran de l'entreprise (`plateforme.ce_que_l_offre_compte`, pour
 le propriétaire et un administrateur seulement) les lisent toutes deux. Rien ne se compte pendant l'essai ni pour un
 abonnement offert : rien ne s'y facture.
 
-**C10. Avant l'invitation qui coûtera** (`03` § 4.1) : quand l'offre compte ses utilisateurs (Essentiel) et que ce
-qu'elle en comprend est déjà pris — par les membres ET par les invitations qui attendent (sauf la caisse seule), qui
-compteront une fois acceptées —, la fenêtre « Inviter quelqu'un » dit, dès son ouverture et au-dessus du bouton, ce que
-coûtera une personne de plus (le prix du jour, à l'année et au mois) et qui ne compte pas. Elle ne refuse rien : on
-invite quand même. « Changer ses rôles » le dit aussi pour qui n'a que la caisse ou la salle (un autre rôle le
-compterait).
+**C10. Inviter ne coûte rien** (révisé en 1.11.0, C13) : « Inviter quelqu'un » et « Changer ses rôles » ne parlent
+d'aucun prix, quelle que soit la taille de l'équipe. L'avertissement d'avant la quatrième invitation (1.9.0) est parti
+avec le prix de l'utilisateur.
 
 **C11. Ce qui est pris** : dans « Au-delà de ce que l'offre comprend », sous chaque ajout, ce que l'entreprise en
-utilise aujourd'hui sur ce que son offre comprend (« Aujourd'hui : 4 utilisateurs, 1 de plus que ton offre. », en
-orange quand ça dépasse) ; un module acheté seul le dit. Les invitations n'y comptent pas : la facture ne les compte
-jamais.
+utilise aujourd'hui sur ce que son offre comprend (« Aujourd'hui : 11 salariés, 1 de plus que ton offre. », en orange
+quand ça dépasse) ; un module acheté seul le dit. Aucune ligne pour les utilisateurs.
 
 **C12. La console lit la grille des ajouts** (1.10.0 ; `0101`) : Réglages › Offres et prix, sous la grille des offres,
 chaque ajout, ce que chaque offre en comprend, ses prix datés (en vigueur, à venir) et, pour un module, les abonnés
 Essentiel du jour qui l'ont acheté. Rien ne s'y modifie : un prix neuf se pose en base, daté, comme celui d'une offre.
 
+**C13. Des utilisateurs sans limite dans toutes les offres** (Skander, 14/10/2026 ; 1.11.0, `0102` ; `07`, `03`
+§ 4.1 révisé). Une petite entreprise a une à trois personnes au bureau ; les caissiers et le comptable ne comptaient déjà
+pas. Le prix d'un utilisateur de plus ne rapportait presque rien, compliquait l'équipe (un avertissement, des rôles qui
+« comptent » ou non) et contredisait le premier principe de `07` : un prix par entreprise, jamais par personne. Essentiel
+a donc, comme Complet, des utilisateurs sans limite : `0102` refait les trois fonctions sans eux (ce que l'entreprise
+utilise, ce que l'offre comprend, les lignes de la facture), efface le prix de l'utilisateur de plus (aucune facture
+réelle ne l'avait encore porté) et ferme l'option dans la table des prix. L'écran (« Ton abonnement », l'équipe), la
+console (la grille des ajouts, l'aperçu d'une facture) et la bulle d'aide suivent.
+
 **Ce que 14c ne fait pas** : passer à Complet ou acheter un module en libre-service (on écrit à contact@skanfact.tn,
 comme en 14a).
+
+## Revu à la souris (14/10/2026, 1.11.0 : des utilisateurs sans limite)
+
+Sur l'essai de l'outil humain, la base passée en `0102` : chez Walid (Librairie Al Kitab, Essentiel, la paie achetée),
+« Les offres » dit de nouveau « Un prix par entreprise, jamais par utilisateur » ; la carte Essentiel, « Des
+utilisateurs sans limite, un établissement » ; « Au-delà de ce que l'offre comprend » commence par la caisse (plus de
+ligne pour les utilisateurs) et dit que l'équipe n'a pas de limite ; « L'équipe », avec deux invitations qui attendent,
+ouvre « Inviter quelqu'un » sans un mot de prix (avant, c'est là qu'il s'affichait). Dans la console, en direction :
+Réglages › Offres et prix (« jamais par utilisateur » sous la grille, cinq ajouts, « Les utilisateurs ne s'y comptent
+jamais ») ; l'aperçu d'une facture de la Clinique Dentaire Amri, l'offre seule. Le brouillon de l'Atelier Mejri, préparé
+le matin même avec l'ancienne règle (58,200 DT HT, dont 3 DT pour un utilisateur), reste tel quel : ce sont des données
+d'essai, et aucune facture réelle n'avait porté ce prix.
 
 ## Revu à la souris (14/10/2026, 14c deuxième partie, b)
 

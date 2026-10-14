@@ -62,7 +62,7 @@
     essentiel: { nom: 'Essentiel', pour: 'Tout ce qu\'il faut pour vendre, encaisser et déclarer.', inclus: [
       'Devis, factures, avoirs, clients et catalogue', 'Achats, fournisseurs et stock', 'Une caisse au comptoir', 'La banque et la trésorerie',
       'La facture électronique, la retenue à la source et la déclaration du mois', 'L\'espace client et le paiement en ligne',
-      'Ton comptable dans les mêmes données', 'Trois utilisateurs, un établissement'] },
+      'Ton comptable dans les mêmes données', 'Des utilisateurs sans limite, un établissement'] },
     complet: { nom: 'Complet', pour: 'Pour une entreprise qui paie des salariés et tient sa comptabilité.', inclus: [
       'Tout Essentiel', 'La paie, jusqu\'à vingt salariés', 'La comptabilité complète', 'Deux caisses', 'Des utilisateurs sans limite, deux établissements'] },
   });
@@ -71,7 +71,6 @@
   // prix ne s'affiche pas.
   // `compte` : ce que l'entreprise en utilise (0100, plateforme.comptes_de_l_entreprise), et comment le dire.
   const EN_PLUS = /** @type {{ option: string, nom: string, compris: string, compte?: string, mot?: [string, string], feminin?: boolean }[]} */ ([
-    { option: 'utilisateur', nom: 'Un utilisateur de plus', compris: 'Essentiel en comprend trois ; Complet, sans limite.', compte: 'utilisateurs', mot: ['utilisateur', 'utilisateurs'] },
     { option: 'caisse', nom: 'Une caisse de plus', compris: 'Essentiel en comprend une ; Complet, deux.', compte: 'caisses', mot: ['caisse', 'caisses'], feminin: true },
     { option: 'etablissement', nom: 'Un établissement de plus', compris: 'Essentiel en comprend un ; Complet, deux.', compte: 'etablissements', mot: ['établissement', 'établissements'] },
     { option: 'salarie', nom: 'Un salarié de plus', compris: 'La paie en comprend dix sur Essentiel, vingt sur Complet.', compte: 'salaries', mot: ['salarié', 'salariés'] },
@@ -361,7 +360,7 @@
       const c = a.compte;
       if (!c || !l.compte || !l.mot) return { texte: '', plus: false };
       const n = Number(c.comptes[l.compte] || 0), inclus = c.inclus[l.compte];
-      if (inclus === null || inclus === undefined) return { texte: l.compte === 'utilisateurs' ? `Aujourd'hui : ${pl(n, l.mot[0], l.mot[1])}, sans limite dans ton offre.` : '', plus: false };
+      if (inclus === null || inclus === undefined) return { texte: '', plus: false };
       return n > inclus ? { texte: `Aujourd'hui : ${pl(n, l.mot[0], l.mot[1])}, ${n - inclus} de plus que ton offre.`, plus: true }
         : { texte: `Aujourd'hui : ${pl(n, l.mot[0], l.mot[1])} sur ${inclus} compris${l.feminin ? (inclus > 1 ? 'es' : 'e') : ''}.`, plus: false };
     };
@@ -395,11 +394,11 @@
       </section>
       ${aFaire ? factures : ''}
       ${a.etat.etat === 'hors' ? '' : `<div class="abo-section">
-        <div class="abo-section-tete"><h3>Les offres</h3><p>Un prix par entreprise, hors taxes : la TVA s'ajoute.</p></div>
+        <div class="abo-section-tete"><h3>Les offres</h3><p>Un prix par entreprise, jamais par utilisateur. Hors taxes : la TVA s'ajoute.</p></div>
         <div class="abo-offres">${offres}</div>
         ${enPlus ? `<div class="abo-plus" id="abo-plus">
           <div class="abo-plus-tete"><h4>Au-delà de ce que l'offre comprend</h4>
-            <p>Compté le jour où ta facture se prépare, pour la période qu'elle paie. Un utilisateur, c'est un membre de ton équipe, sauf qui ne travaille qu'à la caisse ou en salle ; un salarié compte tant qu'il n'est pas sorti.</p></div>
+            <p>Compté le jour où ta facture se prépare, pour la période qu'elle paie. Un salarié compte tant qu'il n'est pas sorti ; ton équipe, elle, n'a pas de limite.</p></div>
           <ul class="abo-plus-liste">${enPlus}</ul>
         </div>` : ''}
       </div>

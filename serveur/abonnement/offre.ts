@@ -64,8 +64,9 @@ export async function refuserHorsOffre(tx: Transaction, entreprise: string, nouv
 // Ce que l'offre compte aujourd'hui (14c, deuxième partie ; 0100) : ce que l'entreprise utilise et ce que l'offre qui
 // décide comprend — les deux fonctions de la base que la facture lit aussi. `null` quand rien ne se compte (l'essai, un
 // abonnement offert : rien ne se facture) et pour qui ne gère ni l'abonnement ni l'équipe (la base ne rend rien).
-export type Comptes = { utilisateurs: number; invitations: number; salaries: number; caisses: number; etablissements: number };
-export type Inclus = { utilisateurs: number | null; caisses: number | null; etablissements: number | null; salaries: number | null };
+// Plus aucune offre ne compte les utilisateurs (Skander, 14/10/2026 ; 0102).
+export type Comptes = { salaries: number; caisses: number; etablissements: number };
+export type Inclus = { caisses: number | null; etablissements: number | null; salaries: number | null };
 export type OffreComptee = { offre: Offre; comptes: Comptes; inclus: Inclus };
 const nombre = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : 0);
 const plafond = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : null);
@@ -80,7 +81,7 @@ export async function ceQueLOffreCompte(tx: Transaction, entreprise: string, jou
   const c = v.comptes, i = v.inclus;
   return {
     offre,
-    comptes: { utilisateurs: nombre(c.utilisateurs), invitations: nombre(c.invitations), salaries: nombre(c.salaries), caisses: nombre(c.caisses), etablissements: nombre(c.etablissements) },
-    inclus: { utilisateurs: plafond(i.utilisateurs), caisses: plafond(i.caisses), etablissements: plafond(i.etablissements), salaries: plafond(i.salaries) },
+    comptes: { salaries: nombre(c.salaries), caisses: nombre(c.caisses), etablissements: nombre(c.etablissements) },
+    inclus: { caisses: plafond(i.caisses), etablissements: plafond(i.etablissements), salaries: plafond(i.salaries) },
   };
 }

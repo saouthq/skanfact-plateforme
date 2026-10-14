@@ -6,7 +6,8 @@ de `docs/etudes/ETUDE-MARCHE.md`). Rien ici ne concerne l'application actuelle (
 restent ceux de `docs/application-actuelle/TARIFS-REFERENCE.md` (dépôt `skanfact`, archivé). **Révisé le même jour** (par
 délégation, `14` § 6) pour s'aligner sur Hesabi : le stock et une caisse entrent dans Essentiel, les
 modules de métier entrent dans Complet, les caissiers et serveurs ne comptent pas comme
-utilisateurs.*
+utilisateurs. **Révisé le 14/10/2026 par Skander** : plus aucune offre ne compte les utilisateurs ; les deux remises de
+20 % (groupe, cabinet) ne s'additionnent pas ; **tout se règle depuis la console** (plus bas).*
 
 ## Les principes
 
@@ -33,7 +34,7 @@ Prix hors taxes. La TVA s'ajoute (**À VÉRIFIER** : taux applicable à un abonn
 | Offre | Par an | Par mois | Ce qu'elle contient |
 |---|---|---|---|
 | **Essai** | 0 | — | **30 jours**, sans carte, **tout ouvert**, avec l'exemple à découvrir |
-| **Essentiel** | **390 DT** | 39 DT | Devis, factures, avoirs, clients, catalogue ; commandes, livraisons ; achats, commandes fournisseurs, réceptions, dépenses, fournisseurs ; **stock** ; **une caisse** (au comptoir ; le mode restaurant s'y ajoute en vague 1) ; banque et trésorerie ; relances ; tableau de bord, statistiques, marges et balance âgée ; **facture électronique signée et envoyée à la TTN** ; **retenue à la source et certificats TEJ** ; **déclaration du mois prête** (TVA, retenues, taxes sur les salaires) ; **espace client et paiement en ligne** ; **lecture des factures en photo ou en PDF** ; **API** ; le comptable dans les mêmes données ; web, téléphone, installée, bureau, hors ligne ; **3 utilisateurs** ; 1 établissement |
+| **Essentiel** | **390 DT** | 39 DT | Devis, factures, avoirs, clients, catalogue ; commandes, livraisons ; achats, commandes fournisseurs, réceptions, dépenses, fournisseurs ; **stock** ; **une caisse** (au comptoir ; le mode restaurant s'y ajoute en vague 1) ; banque et trésorerie ; relances ; tableau de bord, statistiques, marges et balance âgée ; **facture électronique signée et envoyée à la TTN** ; **retenue à la source et certificats TEJ** ; **déclaration du mois prête** (TVA, retenues, taxes sur les salaires) ; **espace client et paiement en ligne** ; **lecture des factures en photo ou en PDF** ; **API** ; le comptable dans les mêmes données ; web, téléphone, installée, bureau, hors ligne ; **utilisateurs illimités** (depuis le 14/10/2026) ; 1 établissement |
 | **Complet** | **690 DT** | 69 DT | Tout Essentiel **+ tous les modules** : paie (jusqu'à 20 salariés), comptabilité complète, et les modules de métier à leur sortie (Réservations, Production, Projets : `02` § 2) ; **2 caisses** ; **utilisateurs illimités** ; 2 établissements |
 
 **Les modules, pour qui prend Essentiel** (par an, hors taxes) :
@@ -47,12 +48,13 @@ Prix hors taxes. La TVA s'ajoute (**À VÉRIFIER** : taux applicable à un abonn
 
 Paie et comptabilité complète prises ensemble coûtent 300 DT, soit **le prix de Complet** (390 + 300
 = 690 DT) : Complet est donc **toujours au moins aussi avantageux** dès qu'on en veut deux, avec en
-plus une caisse, des utilisateurs illimités et un établissement.
+plus une caisse et un établissement.
 
 **Au-delà de l'offre** :
-- Utilisateur supplémentaire (Essentiel) : **30 DT par an**. Qui compte comme utilisateur :
-  `03-droits.md` § 4.1 (jamais les collaborateurs du cabinet, ni les caissiers et serveurs qui ne
-  travaillent que sur les caisses : c'est la caisse qui se paie).
+- ~~Utilisateur supplémentaire (Essentiel) : 30 DT par an~~ — **retiré le 14/10/2026 par Skander** : une petite
+  entreprise a 1 à 3 personnes au bureau (les caissiers et le comptable ne comptaient déjà pas), ce prix ne rapportait
+  presque rien, compliquait l'équipe (compter, prévenir avant d'inviter) et contredisait le premier principe. Les
+  utilisateurs sont illimités dans toutes les offres.
 - Établissement supplémentaire : **120 DT par an** (avec sa série de tickets ; la caisse se paie à part).
 - Salarié au-delà de 20 (Complet) : **12 DT par an**.
 
@@ -63,7 +65,10 @@ chaque échéance est annoncée avant, et se paie en un clic (Konnect) ou par vi
 ## Les groupes
 
 Chaque société a son abonnement. **À partir de la deuxième société du même groupe : − 20 %** sur
-chacune des suivantes.
+chacune des suivantes (confirmé par Skander le 14/10/2026).
+
+**Les remises ne s'additionnent pas** (Skander, 14/10/2026) : une société qui aurait droit à deux remises (le groupe
+et le parrainage de son cabinet) a la plus forte, jamais leur somme.
 
 ## Les cabinets comptables
 
@@ -78,8 +83,9 @@ chacune des suivantes.
 **Un dossier tenu qui devient abonné devient gratuit** le jour même : le cabinet a intérêt à faire
 venir ses clients, et le client a intérêt à rejoindre son dossier.
 
-**Parrainage** : un client qui arrive par son cabinet a **− 20 % la première année**. **Jamais de
-commission versée au comptable** (déontologie, décision de la 7.33.0, **À VÉRIFIER** avec l'Ordre).
+**Parrainage** : un client qui arrive par son cabinet (avec le code du cabinet) a **− 20 % la première année**
+(confirmé par Skander le 14/10/2026, puis le prix normal). **Jamais de commission versée au comptable** (déontologie,
+décision de la 7.33.0, **À VÉRIFIER** avec l'Ordre).
 
 ## Après l'essai, et en cas d'impayé
 
@@ -89,6 +95,18 @@ commission versée au comptable** (déontologie, décision de la 7.33.0, **À V�
   avec un juriste), et l'export complet reste possible à tout moment.
 - Un rappel **15 jours**, **7 jours** et **la veille** de l'échéance, puis **7 jours de grâce** pendant
   lesquels tout marche encore, avant la lecture seule.
+
+## Tout se règle depuis la console (Skander, 14/10/2026)
+
+« Je dois avoir la main sur tout à partir de la console : si je veux changer quelque chose, on passe par la console et
+pas par le code. » Tout ce qui fait le prix et l'abonnement vit donc dans la base, **daté**, et la direction le change
+dans la console (Réglages), avec son motif et sa ligne au journal ; le code ne garde que la façon de calculer :
+- les prix des offres et de chaque ajout (à l'année ; au mois, un dixième par défaut) ;
+- ce que chaque offre comprend (modules, caisses, établissements, salariés) ;
+- les remises (groupe, parrainage) et les places de fondateur ;
+- l'essai, la grâce, les rappels avant l'échéance ;
+- **le préavis d'un nouveau prix : 30 jours** (Skander, 14/10/2026), lui aussi réglable dans la console. Un prix
+  préparé aujourd'hui ne peut commencer qu'au bout de ce délai, et l'application l'annonce aux clients.
 
 ## Les premiers clients (fondateurs)
 

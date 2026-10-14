@@ -607,8 +607,8 @@ l'écran le dit en tête au support. Quatre onglets, l'adresse garde l'onglet (`
   à part. La frise des échéances (les relances, l'échéance, la grâce, la lecture seule) vient du code qui les applique
   (`serveur/abonnement`), jamais d'un chiffre recopié. **Rien ne s'y modifie** : un prix neuf se pose en base, daté
   (À DÉCIDER : le délai d'annonce aux clients). Sous la grille, **« Ce qui s'ajoute à l'offre »** (14c, 1.10.0 ; `0101`,
-  `plateforme.console_ajouts`) : chaque ajout que la facture compte (un utilisateur, une caisse, un établissement, un
-  salarié de plus, la paie ou la comptabilité complète achetée seule), ce que chaque offre en comprend, ses prix datés
+  `plateforme.console_ajouts`) : chaque ajout que la facture compte (une caisse, un établissement, un salarié de plus,
+  la paie ou la comptabilité complète achetée seule ; jamais un utilisateur, sans limite depuis 1.11.0), ce que chaque offre en comprend, ses prix datés
   (`plateforme.prix_option`) rangés comme ceux des offres, et pour un module, les abonnés Essentiel du jour qui l'ont
   acheté (le même état que la liste des clients). Sous la frise, **« Nos factures »** (14b, 1.5.0 ; `docs/abonnement.md`
   B1) : l'entreprise SkanFact où nos factures naissent, désignée une fois par sa propriétaire de la direction (motif,

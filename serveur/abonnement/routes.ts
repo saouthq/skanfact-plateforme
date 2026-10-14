@@ -75,18 +75,6 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
     },
   });
 
-  // Ce que l'offre compte, pour l'écran de l'équipe (14c ; 03 § 4.1) : avant une invitation qui coûtera un utilisateur
-  // de plus, l'écran le dit, avec son prix du jour. Rien pour qui ne gère ni l'abonnement ni l'équipe (la base le tient).
-  ajouter({
-    methode: 'GET', chemin: '/entreprises/:entreprise/abonnement/compte', geste: 'socle.accueil.voir',
-    traiter: async ({ params }, tx) => {
-      if (!tx) throw new Error('transaction attendue');
-      const jour = aujourdhuiATunis();
-      const compte = await ceQueLOffreCompte(tx, params.entreprise ?? '', jour);
-      return { corps: { compte, options: compte ? await prixDesAjouts(tx, jour) : [] } };
-    },
-  });
-
   // Payer en ligne une facture de l'abonnement (14b, B5) : le reste, par le prestataire de l'entreprise SkanFact. Rend
   // l'adresse où l'on paie ; la page de retour de l'espace client dit ensuite ce que le prestataire a confirmé.
   ajouter({
