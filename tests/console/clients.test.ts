@@ -6,9 +6,9 @@
 
 import { describe, expect, it } from 'vitest';
 import { REGLES_DE_DEPART } from '../regles-de-depart.ts';
-import { comptesDesVues, dansLaVue, echeanceDe, ligneClient, parAn, parAnDeLaSelection, trier, VUES_CLIENTS } from '../../serveur/console/clients.ts';
+import { avecVenues, comptesDesVues, dansLaVue, echeanceDe, ligneClient, parAn, parAnDeLaSelection, trier, VUES_CLIENTS } from '../../serveur/console/clients.ts';
 import { lireEntreprises, rangerParUrgence } from '../../serveur/console/decider.ts';
-import { lirePrix } from '../../serveur/console/echeances.ts';
+import { annuel, lignesEcheances, lireExtras, lirePrix, lireRemisesEcheances } from '../../serveur/console/echeances.ts';
 
 const JOUR = '2026-10-13';
 let n = 0;
@@ -48,7 +48,11 @@ const BRUT = [
   brute('L · tenue par son cabinet', { tenuParCabinet: true }),
   brute('M · offerte', { offert: true }),
 ];
-const LISTE = lireEntreprises(BRUT, JOUR, REGLES_DE_DEPART);
+// Venues par un cabinet (plateforme.console_venues_par_cabinet) : H ; L, que son cabinet tient sans abonnement, n'en est
+// pas une (elle est « à convertir ») ; I, d'une ligne illisible, non plus.
+const LISTE = avecVenues(lireEntreprises(BRUT, JOUR, REGLES_DE_DEPART), {
+  [id(8)]: { cabinet: 'Cabinet Nour', depuis: '2026-01-05' }, [id(12)]: { cabinet: 'Cabinet Nour', depuis: '2026-02-01' }, [id(9)]: { cabinet: '', depuis: '2026-01-01' },
+});
 function nom(lettre: string) {
   const e = LISTE.find((x) => x.raisonSociale.startsWith(`${lettre} `));
   if (!e) throw new Error(`pas d'entreprise ${lettre}`);
@@ -67,8 +71,12 @@ describe('Clients : les vues du métier', () => {
     // Silencieux : en essai ou abonné, jamais ouvert (D) ou pas depuis dix jours de Tunis (H) — pas I, à neuf jours.
     expect(dans('silencieux')).toBe('DH');
     expect(dans('tenus')).toBe('L');
+    // Venus par un cabinet : un mandat avant leur premier paiement (0107), jamais un dossier tenu sans abonnement.
+    expect(dans('cabinet')).toBe('H');
+    expect(nom('H').venuePar).toEqual({ cabinet: 'Cabinet Nour', depuis: '2026-01-05' });
+    expect(nom('I').venuePar).toBeNull();
     expect(dans('tout')).toBe('ABCDEFGHIJKLM');
-    expect(comptesDesVues(LISTE, JOUR)).toEqual({ tout: 13, a_appeler: 3, argent: 2, silencieux: 2, tenus: 1 });
+    expect(comptesDesVues(LISTE, JOUR)).toEqual({ tout: 13, a_appeler: 3, argent: 2, silencieux: 2, tenus: 1, cabinet: 1 });
   });
 });
 
@@ -83,11 +91,11 @@ describe('Clients : l\'échéance et ce que rapporte chaque ligne', () => {
   });
 
   it('un montant par an au prix du jour, hors taxes ; ce qui n\'est pas payé est attendu ; rien ne s\'invente', () => {
-    expect(parAn(nom('H'), PRIX)).toEqual({ montantHt: '468.000', attendu: false }); // 39 DT × 12 mois
-    expect(parAn(nom('I'), PRIX)).toEqual({ montantHt: '690.000', attendu: false });
-    expect(parAn(nom('F'), PRIX)).toEqual({ montantHt: '390.000', attendu: true });
-    expect(parAn(nom('G'), PRIX)).toEqual({ montantHt: '390.000', attendu: true });
-    expect(parAn(nom('K'), PRIX)).toEqual({ montantHt: '828.000', attendu: true }); // 69 DT × 12 mois
+    expect(parAn(nom('H'), PRIX)).toEqual({ montantHt: '468.000', attendu: false, remise: null }); // 39 DT × 12 mois
+    expect(parAn(nom('I'), PRIX)).toEqual({ montantHt: '690.000', attendu: false, remise: null });
+    expect(parAn(nom('F'), PRIX)).toEqual({ montantHt: '390.000', attendu: true, remise: null });
+    expect(parAn(nom('G'), PRIX)).toEqual({ montantHt: '390.000', attendu: true, remise: null });
+    expect(parAn(nom('K'), PRIX)).toEqual({ montantHt: '828.000', attendu: true, remise: null }); // 69 DT × 12 mois
     // Un résilié ne se renouvelle pas ; un essai sans offre, un dossier tenu ne rapportent rien de dit.
     expect(parAn(nom('J'), PRIX)).toBeNull();
     expect(parAn(nom('A'), PRIX)).toBeNull();
@@ -101,6 +109,20 @@ describe('Clients : l\'échéance et ce que rapporte chaque ligne', () => {
     // H 468 + I 690 ; F, G, K sont attendus, J est résilié.
     expect(parAnDeLaSelection(LISTE, PRIX)).toEqual({ montantHt: '1158.000', abonnements: 2 });
     expect(parAnDeLaSelection(LISTE.filter((e) => dansLaVue(e, 'argent', JOUR)), PRIX)).toEqual({ montantHt: '0.000', abonnements: 0 });
+  });
+});
+
+describe('Clients : la remise de la prochaine période (0106)', () => {
+  it('« par an » la déduit de chaque période, comme « Ce qui revient chaque année » des échéances, et la dit', () => {
+    const remises = lireRemisesEcheances({ [id(8)]: { nature: 'groupe', taux: 17, groupe: 'Famille' }, [id(9)]: { nature: 'cabinet', taux: 20, cabinet: 'Cabinet Nour' } });
+    const liste = avecVenues(lireEntreprises(BRUT, JOUR, REGLES_DE_DEPART), {}, remises);
+    const de = (lettre: string) => liste.find((e) => e.raisonSociale.startsWith(`${lettre} `)) as (typeof liste)[number];
+    // H : (39,000 − 17 % = 32,370) × 12 = 388,440 ; I : 690,000 − 20 % = 552,000.
+    expect(parAn(de('H'), PRIX)).toEqual({ montantHt: '388.440', attendu: false, remise: { nature: 'groupe', taux: 17 } });
+    expect(parAn(de('I'), PRIX)).toEqual({ montantHt: '552.000', attendu: false, remise: { nature: 'cabinet', taux: 20 } });
+    expect(parAnDeLaSelection(liste, PRIX)).toEqual({ montantHt: '940.440', abonnements: 2 });
+    // Le même chiffre que les échéances, sur les mêmes entreprises et les mêmes remises.
+    expect(annuel(lignesEcheances(lireEntreprises(BRUT, JOUR, REGLES_DE_DEPART), lireExtras({}), PRIX, JOUR, remises), PRIX, remises).montantHt).toBe('940.440');
   });
 });
 

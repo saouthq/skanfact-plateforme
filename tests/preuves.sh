@@ -10999,8 +10999,8 @@ prouver 'les entreprises d'"'"'exemple dans la liste de la console' base/migrati
 prouver 'la fiche d'"'"'une entreprise d'"'"'exemple dans la console' base/migrations/0083_console.sql \
   'where e.id = p_entreprise and not e.essai;' 'where e.id = p_entreprise;' \
   "$CONSS8"
-prouver 'la liste des clients rangée par date, pas par urgence' serveur/console/routes.ts \
-  'const toutes = rangerParUrgence(await lesEntreprises(t, jour), jour);' 'const toutes = await lesEntreprises(t, jour);' \
+prouver 'la liste des clients rangée par date, pas par urgence' 'serveur/console/routes.ts|||serveur/console/routes.ts' \
+  'const toutes = rangerParUrgence(avecVenues(|||console_remises_echeances() v'"'"'))), jour);' 'const toutes = avecVenues(|||console_remises_echeances() v'"'"')));' \
   "$CONSS8"
 prouver 'la semaine des inscriptions qui compte huit jours' serveur/console/decider.ts \
   'e.creeLe >= plusJours(jour, -6);' 'e.creeLe >= plusJours(jour, -7);' \
@@ -13474,6 +13474,29 @@ prouver '« Ton abonnement » qui tait la remise' web/public/plateforme/abonneme
   '        ${a.remise ? remiseEnClair(a.remise) : '"'"''"'"'}
 ' '' \
   "$RMW"
+
+# La sixième vue de Clients, « venus par un cabinet » (0107), et « par an » après la remise (1.16.0).
+CL1='chaque vue garde exactement les entreprises de sa phrase, et sa carte compte la même liste (C3)'
+CL2='« par an » la déduit de chaque période, comme « Ce qui revient chaque année » des échéances, et la dit'
+prouver 'un dossier tenu sans abonnement compté venu par son cabinet' serveur/console/clients.ts \
+  '    case '"'"'cabinet'"'"': return !!e.venuePar && !(s.etat === '"'"'hors'"'"' && s.raison === '"'"'tenu_par_cabinet'"'"');' '    case '"'"'cabinet'"'"': return !!e.venuePar;' \
+  "$CL1"
+prouver 'un cabinet illisible qui fait une venue' serveur/console/clients.ts \
+  'typeof r.cabinet === '"'"'string'"'"' && r.cabinet && typeof r.depuis' 'typeof r.cabinet === '"'"'string'"'"' && typeof r.depuis' \
+  "$CL1"
+prouver 'un client venu par son cabinet après son premier paiement' base/migrations/0107_venues_par_cabinet.sql \
+  '
+             and (plateforme.premier_paiement(d.entreprise) is null or d.debut <= plateforme.premier_paiement(d.entreprise))' '' \
+  "$RM3"
+prouver 'un mandat seulement proposé qui fait une venue' base/migrations/0107_venues_par_cabinet.sql \
+  'd.statut in ('"'"'actif'"'"', '"'"'termine'"'"')' 'd.statut in ('"'"'actif'"'"', '"'"'termine'"'"', '"'"'propose'"'"')' \
+  "$RM3"
+prouver '« par an » sans la remise' serveur/console/clients.ts \
+  '    const p = e.remise ? brut - montantRemise(brut, e.remise.taux) : brut;' '    const p = brut;' \
+  "$CL2"
+prouver '« par an » remisé une fois sur douze au mois' serveur/console/clients.ts \
+  '    return periodicite === '"'"'mensuel'"'"' ? p * 12n : p;' '    return periodicite === '"'"'mensuel'"'"' ? brut * 12n - (brut - p) : p;' \
+  "$CL2"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

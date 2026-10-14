@@ -335,7 +335,7 @@ ouverte ne porte).
 - **La recherche d'un client** ne vit plus qu'en tête de l'accueil, comme la maquette (chaque liste a la sienne) ;
   **Ctrl K** (⌘ K sur un Mac) y mène de partout : sur l'accueil, dans ce champ ; ailleurs, dans celui de Clients.
 
-**C17. Clients, recalé sur sa maquette** (13/10/2026). Au-dessus de la liste, **cinq vues du métier**, chacune sa carte,
+**C17. Clients, recalé sur sa maquette** (13/10/2026). Au-dessus de la liste, **six vues du métier** (cinq, puis six en 1.16.0), chacune sa carte,
 son compte et sa phrase (`serveur/console/clients.ts`, `dansLaVue` — la même fonction compte la carte et filtre la liste
 qu'elle ouvre, C3) :
 - **tout le portefeuille** ;
@@ -343,7 +343,10 @@ qu'elle ouvre, C3) :
   choisie — quelqu'un qui n'a pas vu ce que l'application lui apporte : un appel, pas une relance ;
 - **l'argent attendu** : une offre choisie, l'échéance passée, rien de payé (jamais la lecture seule : elle a sa puce) ;
 - **les silencieux** : en essai ou abonnés, jamais ouverts ou pas depuis dix jours — comptés en **jours de Tunis** ;
-- **tenus à convertir** : les dossiers qu'un cabinet tient pour son client, sans abonnement.
+- **tenus à convertir** : les dossiers qu'un cabinet tient pour son client, sans abonnement ;
+- **venus par un cabinet** (1.16.0 ; `0107`) : un mandat accepté qui commence avant leur premier paiement, la règle de
+  la remise du cabinet (`0106`) ; la ligne dit par quel cabinet et la date du mandat. Un dossier que le cabinet tient
+  sans abonnement n'en est pas (il est « à convertir »).
 
 Une carte est un raccourci : elle ouvre toute sa liste (la puce d'état choisie avant s'efface), et les puces d'état
 comptent ensuite cette vue-là. La vue et l'ordre vivent dans l'adresse (`#/clients?vue=a_appeler&tri=echeance`).
@@ -353,7 +356,9 @@ comptent ensuite cette vue-là. La vue et l'ordre vivent dans l'adresse (`#/clie
   seule n'en a plus : la colonne État dit depuis quand, et **la date ne s'écrit qu'une fois** (la colonne État ne redit
   plus l'échéance ; la raison d'un « hors abonnement » est dans la colonne Abonnement). **Par an, HT** : ce qu'un
   abonnement rapporte au prix du jour (un mensuel compte douze mois) ; une offre choisie pas encore payée se lit en gris,
-  « quand ce sera payé » ; sans offre ou sans prix du jour, « — », jamais un montant deviné.
+  « quand ce sera payé » ; sans offre ou sans prix du jour, « — », jamais un montant deviné. Depuis 1.16.0, la remise de
+  sa prochaine période (`0106`) s'y déduit de chaque période et se dit dessous (« remise du cabinet déduite (−20 %) ») :
+  le même chiffre que « Ce qui revient chaque année » de l'écran Abonnements.
 - **La ligne de compte** au-dessus du tableau : combien d'entreprises la liste montre, et ce que rapportent par an les
   abonnements actifs de la sélection (ce qui est attendu n'y entre pas : il n'est pas encore payé). Le pied ne garde
   que de quoi tourner les pages.
@@ -361,10 +366,9 @@ comptent ensuite cette vue-là. La vue et l'ordre vivent dans l'adresse (`#/clie
   récemment ouvert. À égalité, l'urgence départage ; ce qui n'a pas de valeur (pas d'échéance, rien par an, jamais
   ouvert) reste en bas.
 - **Huit colonnes tiennent dans le cadre** à 1440 et à 1280 points : sur un portable, « Ouvrir » ne garde que sa flèche
-  (son nom reste lu), et les cinq cartes restent sur une rangée.
-- **Pas encore** : la sixième carte de la maquette (« venus par un cabinet », la remise de parrainage) attend que le
-  parrainage existe dans les faits de l'abonnement ; l'export de la sélection, le menu « … » d'une ligne et les filtres
-  par type, offre et cabinet ne sont pas écrits.
+  (son nom reste lu), et les six cartes restent sur une rangée.
+- **Pas encore** : l'export de la sélection, le menu « … » d'une ligne et les filtres par type, offre et cabinet ne sont
+  pas écrits (la sixième carte de la maquette, « venus par un cabinet », l'est depuis 1.16.0).
 
 **C18. Abonnements, recalé sur sa maquette** (13/10/2026). La liste et, à côté, ce qui l'explique :
 - **Une échéance sur deux rangées** : le jour, ce qui se passe et le montant ; dessous, les relances de son échéance et

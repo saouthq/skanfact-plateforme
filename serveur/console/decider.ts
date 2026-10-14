@@ -14,6 +14,11 @@ export type Entreprise = {
   organisation: { id: string; type: string; nom: string }; tenuePar: string | null;
   proprietaire: { nom: string; email: string } | null; membres: number; derniereActivite: string | null; pieces: number;
   faits: Faits; etat: Etat;
+  // Venue par un cabinet (0107 ; la sixième vue de Clients) : son cabinet et le jour où son mandat commence. Seule la
+  // liste des clients le lit ; ailleurs, absent.
+  venuePar?: { cabinet: string; depuis: string } | null;
+  // La remise de sa prochaine période (0106), que « par an » déduit comme les échéances (la liste des clients seulement).
+  remise?: { nature: 'groupe' | 'cabinet'; taux: number } | null;
 };
 
 // Ce que la base rend (plateforme.console_entreprises), lu prudemment : un champ illisible vaut « rien », jamais une

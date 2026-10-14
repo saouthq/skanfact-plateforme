@@ -223,6 +223,13 @@ describe('le cabinet : la remise de la première année, jamais additionnée à 
     await mandat(propose, '2026-01-01', 'propose');
     await paye(propose, '2026-03-01', '2026-02-20');
     expect(await remiseDe(propose, '2026-09-01')).toBeNull();
+    // La liste des clients les voit par la même règle : la vue « venus par un cabinet » (0107) garde le garage venu par
+    // son cabinet, jamais celui que le cabinet a rejoint après son premier paiement, ni celui d'un mandat seulement proposé.
+    const venus = (await appeler('GET', '/console/entreprises?vue=cabinet&limite=200', karim.console)).corps as { lignes: { id: string; venuePar: Corps | null }[]; vues: Corps };
+    expect(venus.lignes.find((l) => l.id === venue)?.venuePar).toEqual({ cabinet: 'Cabinet Remise', depuis: '2026-02-01' });
+    expect(venus.lignes.map((l) => l.id)).not.toContain(tard);
+    expect(venus.lignes.map((l) => l.id)).not.toContain(propose);
+    expect(venus.vues.cabinet).toBe(venus.lignes.length);
     // Dans un groupe aussi : jamais additionnées. À égalité, celle du groupe ; l'autre se dit.
     const tete = await nouvelle(p.jeton, 'Garage Tête du Groupe');
     await paye(tete, '2025-06-01', '2025-05-30');

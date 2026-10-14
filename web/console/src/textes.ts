@@ -215,6 +215,9 @@ declarerTextes({
   'console.ecran.clients.membre': 'un membre',
   'console.ecran.clients.membres': '{n} membres',
   'console.ecran.clients.tenue_par': 'tenue par {nom}',
+  'console.ecran.clients.venue_par': 'venue par {nom}, mandat du {jour}',
+  'console.ecran.clients.remise.groupe': 'remise de groupe déduite (−{taux} %)',
+  'console.ecran.clients.remise.cabinet': 'remise du cabinet déduite (−{taux} %)',
   // Les vues du métier au-dessus de la liste (serveur/console/clients.ts).
   'console.ecran.clients.vues': 'les vues du métier',
   'console.ecran.clients.vue.tout': 'tout le portefeuille',
@@ -227,6 +230,8 @@ declarerTextes({
   'console.ecran.clients.vue.silencieux_sous': 'en essai ou abonnés, pas ouverts depuis 10 jours',
   'console.ecran.clients.vue.tenus': 'tenus à convertir',
   'console.ecran.clients.vue.tenus_sous': 'dossiers qu\'un cabinet tient, sans abonnement',
+  'console.ecran.clients.vue.cabinet': 'venus par un cabinet',
+  'console.ecran.clients.vue.cabinet_sous': 'un mandat avant leur premier paiement : la remise de la première année',
   'console.ecran.clients.vue_vide.a_appeler': 'personne à appeler : aucun essai ne finit cette semaine sans avoir servi, aucune grâce n\'attend une offre',
   'console.ecran.clients.vue_vide.argent': 'aucun argent attendu : aucune offre choisie n\'attend son paiement',
   'console.ecran.clients.vue_vide.silencieux': 'aucun silencieux : chaque entreprise en essai ou abonnée a été ouverte ces 10 derniers jours',

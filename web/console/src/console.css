@@ -1544,6 +1544,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-point-v-argent { color: var(--c-sarcelle); }
 .c-point-v-silencieux { color: var(--c-rouge); }
 .c-point-v-tenus { color: var(--c-violet-texte); }
+.c-point-v-cabinet { color: var(--c-bleu-texte); }
 /* Le compte des lignes et ce qu'elles rapportent, juste au-dessus du tableau, avec l'ordre choisi à droite. */
 .c-liste-resume {
   display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap;

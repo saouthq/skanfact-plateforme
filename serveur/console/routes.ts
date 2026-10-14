@@ -22,7 +22,7 @@ import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_M
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
 import { aDecider, CATEGORIES, categorie, chercher, inscriteCetteSemaine, lireEntreprises, lireVeille, rangerParUrgence, tableau, type Veille } from './decider.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
-import { comptesDesVues, dansLaVue, ligneClient, parAnDeLaSelection, trier, TRIS_CLIENTS, VUES_CLIENTS, type TriClients, type VueClients } from './clients.ts';
+import { avecVenues, comptesDesVues, dansLaVue, ligneClient, parAnDeLaSelection, trier, TRIS_CLIENTS, VUES_CLIENTS, type TriClients, type VueClients } from './clients.ts';
 import { annuel, AVENIR_JOURS, cartes, lignesEcheances, lireExtras, lirePrix, lireRemisesEcheances, relancesRecentes, vue, VUES, type Vue } from './echeances.ts';
 import {
   alertesOuvertes, BUDGET_DU_GRAPHIQUE, bornes, briques, disponibilite, enLigne, ensemble, estPeriode, journal, joursDuService, lireVeilleDeLaBase,
@@ -212,7 +212,10 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     traiter: async ({ query }, tx) => {
       const jour = aujourdhuiATunis();
       const t = transaction(tx);
-      const toutes = rangerParUrgence(await lesEntreprises(t, jour), jour);
+      // Celles venues par un cabinet (0107), pour la sixième vue ;
+      // et la remise de la prochaine période de chacune (0106), que « par an » déduit comme les échéances.
+      const toutes = rangerParUrgence(avecVenues(await lesEntreprises(t, jour), await lireJson(t, 'select plateforme.console_venues_par_cabinet() v'),
+        lireRemisesEcheances(await lireJson(t, 'select plateforme.console_remises_echeances() v'))), jour);
       const prix = lirePrix(await lireJson(t, 'select plateforme.prix_du_jour($1::date) v', [jour]));
       const nouvelles = query.nouvelles === '1' ? toutes.filter((e) => inscriteCetteSemaine(e, jour)) : toutes;
       const cherchees = chercher(nouvelles, String(query.q ?? ''));

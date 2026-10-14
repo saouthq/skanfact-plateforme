@@ -18,11 +18,13 @@ export type Entreprise = {
   organisation: { id: string; type: string; nom: string }; tenuePar: string | null;
   proprietaire: { nom: string; email: string } | null; membres: number; derniereActivite: string | null; pieces: number;
   faits: Faits; etat: Etat;
+  // Venue par un cabinet (0107) : son cabinet et le jour où son mandat commence (la liste des clients seulement).
+  venuePar?: { cabinet: string; depuis: string } | null;
 };
 // Ce que la liste ajoute à chaque ligne : son échéance (le prochain jour où quelque chose change) et ce qu'elle rapporte
 // par an, hors taxes — `attendu` quand c'est une offre choisie qui n'est pas encore payée.
-type Ligne = Entreprise & { echeance: string | null; parAn: { montantHt: string; attendu: boolean } | null };
-export const VUES = ['tout', 'a_appeler', 'argent', 'silencieux', 'tenus'] as const;
+type Ligne = Entreprise & { echeance: string | null; parAn: { montantHt: string; attendu: boolean; remise: { nature: 'groupe' | 'cabinet'; taux: number } | null } | null };
+export const VUES = ['tout', 'a_appeler', 'argent', 'silencieux', 'tenus', 'cabinet'] as const;
 export type VueClients = typeof VUES[number];
 export const TRIS = ['urgence', 'echeance', 'par_an', 'nom', 'vu'] as const;
 type Tri = typeof TRIS[number];
@@ -100,7 +102,7 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
     <>
       <EnteteClients actif="entreprises" />
       {l.etat === 'panne' ? <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
-      <div className="c-vues c-vues-5" role="group" aria-label={titre('console.ecran.clients.vues')}>
+      <div className="c-vues" role="group" aria-label={titre('console.ecran.clients.vues')}>
         {VUES.map((v) => (
           <button key={v} type="button" className="c-vue" aria-pressed={vue === v} onClick={() => choisirVue(v)}>
             <span className="c-vue-titre"><span className={`c-pilule-point c-point-v-${v}`} aria-hidden="true" />{titre(`console.ecran.clients.vue.${v}`)}</span>
@@ -191,7 +193,8 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
                                 <span className="c-sous">
                                   {maj(organisationEnMots(e.organisation))}{e.matricule ? <> · <span className="c-mono" data-donnee>{e.matricule}</span></> : null}
                                 </span>
-                                {e.tenuePar ? <span className="c-sous">{titre('console.ecran.clients.tenue_par', { nom: e.tenuePar })}</span> : null}
+                                {e.tenuePar ? <span className="c-sous">{titre('console.ecran.clients.tenue_par', { nom: e.tenuePar })}</span>
+                                  : e.venuePar ? <span className="c-sous">{titre('console.ecran.clients.venue_par', { nom: e.venuePar.cabinet, jour: jourCourt(e.venuePar.depuis) })}</span> : null}
                               </div>
                             </div>
                           </td>
@@ -208,7 +211,8 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
                           </td>
                           <td className="c-droite c-cl-par-an">
                             {e.parAn ? <><b className={`c-mono ${e.parAn.attendu ? 'c-cl-attendu' : ''}`} data-donnee>{montant(e.parAn.montantHt)}</b>
-                              {e.parAn.attendu ? <span className="c-sous">{dire('console.ecran.clients.quand_paye')}</span> : null}</>
+                              {e.parAn.attendu ? <span className="c-sous">{dire('console.ecran.clients.quand_paye')}</span> : null}
+                              {e.parAn.remise ? <span className="c-sous">{dire(`console.ecran.clients.remise.${e.parAn.remise.nature}`, { taux: e.parAn.remise.taux })}</span> : null}</>
                               : <span className="c-cl-rien">—</span>}
                           </td>
                           <td className="c-cl-usage">

@@ -1,6 +1,6 @@
 // La liste des clients, recalée sur sa maquette (Clients ; docs/console.md C17), pur : les vues du métier au-dessus de la
 // liste — tout le portefeuille, ceux à appeler, l'argent attendu, les silencieux, les dossiers qu'un cabinet tient sans
-// abonnement —, l'échéance de chaque ligne et ce qu'elle rapporte par an. Deux règles :
+// abonnement, ceux venus par un cabinet —, l'échéance de chaque ligne et ce qu'elle rapporte par an. Deux règles :
 //   - C3 : chaque carte compte la liste qu'elle ouvre, par la même fonction (`dansLaVue`) ;
 //   - un montant qu'on ne sait pas dire ne s'invente pas : sans offre choisie ou sans prix du jour, rien (« — »).
 // Les montants sont hors taxes, au prix du jour, en texte exact ; un mensuel compte douze mois (comme « Ce qui revient
@@ -10,10 +10,11 @@ import { versTexte } from '../../moteur/argent.ts';
 import { joursEntre, type Offre, type Periodicite } from '../abonnement/etat.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import type { Entreprise } from './decider.ts';
-import { dateDe, type Prix } from './echeances.ts';
+import { dateDe, type Prix, type Remises } from './echeances.ts';
+import { montantRemise } from '../abonnement/remise.ts';
 
-export type VueClients = 'tout' | 'a_appeler' | 'argent' | 'silencieux' | 'tenus';
-export const VUES_CLIENTS: readonly VueClients[] = ['tout', 'a_appeler', 'argent', 'silencieux', 'tenus'];
+export type VueClients = 'tout' | 'a_appeler' | 'argent' | 'silencieux' | 'tenus' | 'cabinet';
+export const VUES_CLIENTS: readonly VueClients[] = ['tout', 'a_appeler', 'argent', 'silencieux', 'tenus', 'cabinet'];
 // Un essai « qui finit » : dans la semaine. Un client « silencieux » : personne ne l'a ouvert depuis dix jours.
 export const ESSAI_QUI_FINIT_JOURS = 7;
 export const SILENCE_JOURS = 10;
@@ -32,7 +33,25 @@ export function dansLaVue(e: Entreprise, v: VueClients, jour: string): boolean {
       && (e.derniereActivite === null || joursEntre(aujourdhuiATunis(new Date(e.derniereActivite)), jour) >= SILENCE_JOURS);
     // Un dossier qu'un cabinet tient pour son client, sans abonnement à lui : à convertir.
     case 'tenus': return s.etat === 'hors' && s.raison === 'tenu_par_cabinet';
+    // Venue par un cabinet (0107) : un mandat avant son premier paiement, la remise de sa première année (0106). Un
+    // dossier que le cabinet tient sans abonnement n'en est pas : il est « à convertir ».
+    case 'cabinet': return !!e.venuePar && !(s.etat === 'hors' && s.raison === 'tenu_par_cabinet');
   }
+}
+
+// Les entreprises venues par un cabinet (plateforme.console_venues_par_cabinet), et la remise de la prochaine période de
+// chacune (plateforme.console_remises_echeances, lue comme les échéances), posées sur la liste ; une ligne illisible
+// n'en fait pas une.
+export function avecVenues<E extends Entreprise>(liste: readonly E[], brut: unknown, remises: Remises = new Map()): E[] {
+  const b = brut && typeof brut === 'object' && !Array.isArray(brut) ? brut as Record<string, unknown> : {};
+  return liste.map((e) => {
+    const v = b[e.id];
+    const r = v && typeof v === 'object' ? v as Record<string, unknown> : null;
+    const venuePar = r && typeof r.cabinet === 'string' && r.cabinet && typeof r.depuis === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.depuis)
+      ? { cabinet: r.cabinet, depuis: r.depuis } : null;
+    const r2 = remises.get(e.id);
+    return { ...e, venuePar, remise: r2 ? { nature: r2.nature, taux: r2.taux } : null };
+  });
 }
 
 export function comptesDesVues(liste: readonly Entreprise[], jour: string): Record<VueClients, number> {
@@ -41,13 +60,17 @@ export function comptesDesVues(liste: readonly Entreprise[], jour: string): Reco
 
 // Ce qu'une ligne rapporte par an, hors taxes, au prix du jour : un abonnement qui se renouvelle ; ou, `attendu`, ce que
 // rapportera une offre choisie quand elle sera payée (la grâce, une période non renouvelée). Rien pour un essai sans offre,
-// une résiliation, une suspension ou ce qui n'a pas d'échéance.
-export type ParAn = { montantHt: string; attendu: boolean };
+// une résiliation, une suspension ou ce qui n'a pas d'échéance. La remise de sa prochaine période (0106) se déduit de
+// chaque période, comme dans « Ce qui revient chaque année » (serveur/console/echeances.ts) : les deux écrans disent le
+// même chiffre.
+export type ParAn = { montantHt: string; attendu: boolean; remise: { nature: 'groupe' | 'cabinet'; taux: number } | null };
 function enMillimes(e: Entreprise, prix: Prix): { m: bigint; attendu: boolean } | null {
   const s = e.etat;
   const surUnAn = (offre: Offre, periodicite: Periodicite) => {
-    const p = prix.get(`${offre}/${periodicite}`);
-    return p === undefined ? null : periodicite === 'mensuel' ? p * 12n : p;
+    const brut = prix.get(`${offre}/${periodicite}`);
+    if (brut === undefined) return null;
+    const p = e.remise ? brut - montantRemise(brut, e.remise.taux) : brut;
+    return periodicite === 'mensuel' ? p * 12n : p;
   };
   if (s.etat === 'actif') {
     const m = s.resilie ? null : surUnAn(s.offre, s.periodicite);
@@ -60,7 +83,7 @@ function enMillimes(e: Entreprise, prix: Prix): { m: bigint; attendu: boolean } 
 }
 export function parAn(e: Entreprise, prix: Prix): ParAn | null {
   const p = enMillimes(e, prix);
-  return p ? { montantHt: versTexte(p.m, 3), attendu: p.attendu } : null;
+  return p ? { montantHt: versTexte(p.m, 3), attendu: p.attendu, remise: e.remise ?? null } : null;
 }
 
 // L'échéance d'une ligne : le prochain jour où quelque chose change pour elle — la fin de l'essai, la fin de la période
