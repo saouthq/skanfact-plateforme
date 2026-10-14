@@ -357,7 +357,9 @@ describe('la console de l\'équipe, à la souris', () => {
     // Le support ne voit que ses écrans : « À décider », « Clients » et « Abonnements ».
     expect((await p.locator('.c-nav a').allInnerTexts()).map(net)).toEqual(expect.arrayContaining(['Clients', 'Abonnements']));
     expect((await p.locator('.c-nav a').allInnerTexts()).map(net).some((t) => /Équipe|Journal|Service/.test(t))).toBe(false);
-    const pastille = p.locator('.c-nav-compte');
+    // La pastille d'« À décider » : la barre en porte une seconde (le Support) dès qu'une demande attend — les tests d'avant
+    // en laissent dans la même base.
+    const pastille = p.locator('.c-nav a').filter({ hasText: 'À décider' }).locator('.c-nav-compte');
     await expect.poll(() => pastille.innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^\d+$/);
     const avant = Number(await pastille.innerText());
     // Ce qui attend pour ce client : la ligne d'« À décider » qui le nomme, sans son nom (c'est sa fiche), avec le geste
