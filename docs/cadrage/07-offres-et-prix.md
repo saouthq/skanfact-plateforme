@@ -109,8 +109,9 @@ dans la console (Réglages), avec son motif et sa ligne au journal ; le code ne 
   préparé aujourd'hui ne peut commencer qu'au bout de ce délai, et l'application l'annonce aux clients.
 
 Fait dans la plateforme : les prix des offres et des ajouts, et le préavis (1.12.0, 14/10/2026 ; la facture d'une période
-se prend au prix de son premier jour). La suite, dans cet ordre : l'essai, la grâce et les rappels ; le contenu des
-offres ; les remises ; les places de fondateur.
+se prend au prix de son premier jour) ; l'essai, la grâce et les rappels (1.13.0, 14/10/2026 ; l'essai se fixe à la
+création de l'entreprise, la grâce d'une échéance est celle de son lendemain : une règle changée ne touche jamais ce
+qui a commencé). La suite, dans cet ordre : le contenu des offres ; les remises ; les places de fondateur.
 
 ## Les premiers clients (fondateurs)
 

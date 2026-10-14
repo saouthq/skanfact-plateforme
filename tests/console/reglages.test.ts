@@ -151,12 +151,12 @@ describe('le registre des règles communes', () => {
 describe('au journal, un geste des réglages dit sur quoi il porte', () => {
   it('la règle relue et l\'avis ; le message écrit ou retiré par ses deux jours ; le prix préparé ou retiré, et le préavis ; rien pour un autre geste', () => {
     expect(sujetDesReglages('reglages.relire', null, { regle: 'timbre.facture', debut: '2023-01-01', reluePar: 'Mehdi Gharbi', avis: 'a_corriger' }))
-      .toEqual({ regle: 'timbre.facture', reluePar: 'Mehdi Gharbi', avis: 'a_corriger', du: null, au: null, prix: null, preavis: null });
+      .toEqual({ regle: 'timbre.facture', reluePar: 'Mehdi Gharbi', avis: 'a_corriger', du: null, au: null, prix: null, preavis: null, regleAbonnement: null });
     expect(sujetDesReglages('reglages.message_affiche', null, { message: 'm', sorte: 'nouveaute', du: '2026-10-13', au: '2026-10-20' }))
-      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-20', prix: null, preavis: null });
+      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-20', prix: null, preavis: null, regleAbonnement: null });
     // Retiré : les jours viennent de ce qu'il était (avant), pas du retrait.
     expect(sujetDesReglages('reglages.message_retire', { message: 'm', texte: 't', du: '2026-10-13', au: '2026-10-19' }, { retire: '2026-10-14T09:00:00Z' }))
-      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-19', prix: null, preavis: null });
+      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-19', prix: null, preavis: null, regleAbonnement: null });
     expect(sujetDesReglages('versions.geler', null, { jusquAu: '2026-10-20' })).toBeNull();
     // Un prix préparé : de l'ancien au nouveau, à sa date (celle de l'après). Retiré : la date est celle du prix retiré.
     expect(sujetDesReglages('reglages.prix_prepare', { quoi: 'essentiel', periodicite: 'annuel', montantHt: '390.000' },
@@ -171,6 +171,12 @@ describe('au journal, un geste des réglages dit sur quoi il porte', () => {
       { quoi: 'complet', periodicite: 'mensuel', aPartirDu: '2027-01-01', montantHt: '75.000' })?.prix).toMatchObject({ avant: null, apres: '75.000' });
     expect(sujetDesReglages('reglages.preavis', { jours: 30 }, { jours: 10 })).toMatchObject({ preavis: { avant: 30, apres: 10 }, prix: null });
     expect(sujetDesReglages('reglages.relire', null, { regle: 'timbre.facture', reluePar: 'X', avis: 'juste' })?.preavis).toBeNull();
+    // Une règle de l'abonnement (0104) : laquelle, ses jours d'avant et d'après ; un code inconnu ne se dit pas.
+    expect(sujetDesReglages('reglages.regle_abonnement', { code: 'relances', jours: [15, 7, 1] }, { code: 'relances', jours: [10, 3] }))
+      .toMatchObject({ regleAbonnement: { code: 'relances', avant: [15, 7, 1], apres: [10, 3] }, preavis: null, prix: null });
+    expect(sujetDesReglages('reglages.regle_abonnement', { code: 'grace', jours: null }, { code: 'grace', jours: [0] })?.regleAbonnement)
+      .toEqual({ code: 'grace', avant: null, apres: [0] });
+    expect(sujetDesReglages('reglages.regle_abonnement', null, { code: 'remise', jours: [20] })?.regleAbonnement).toBeNull();
   });
 });
 

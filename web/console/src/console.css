@@ -2132,8 +2132,12 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-rg-venir { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; padding: 12px 16px;
   border: 1px solid var(--c-trait); border-inline-start: 4px solid var(--c-orange); border-radius: var(--c-rayon-sm); }
 .c-rg-venir-texte { flex: 1 1 320px; min-width: 0; overflow-wrap: anywhere; }
-.c-rg-preavis { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; margin-top: 12px; }
-.c-rg-preavis .c-sous { max-width: 90ch; }
+.c-rg-preavis, .c-rg-regle-abo { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; margin-top: 12px; }
+.c-rg-preavis .c-sous, .c-rg-regle-abo .c-sous { max-width: 90ch; }
+/* Les trois règles de l'abonnement sous la frise (0104) : une ligne chacune, ce qu'elle dit et qui l'a posée à gauche,
+   son geste à droite, séparées d'un trait comme les lignes d'une liste. */
+.c-rg-regles { list-style: none; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--c-trait); }
+.c-rg-regles > .c-rg-regle-abo { margin: 0; padding: 12px 0; border-bottom: 1px solid var(--c-trait); }
 .c-rg-prix-apercu { display: grid; align-content: start; gap: 6px; padding: 12px 16px; border-radius: var(--c-rayon-sm); background: var(--c-papier-2); }
 .c-rg-prix-apercu p { margin: 0; }
 .c-rg-prix-apercu del { color: var(--c-gris); }

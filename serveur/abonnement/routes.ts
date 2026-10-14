@@ -17,7 +17,7 @@ import { aujourdhuiATunis } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { demanderPaiementAbonnement } from '../v10/paiement.ts';
 import { nettoyerClient, nettoyerSociete, vueDePiece, type PieceLue } from '../ventes/espace.ts';
-import { etatAbonnement, type Etat } from './etat.ts';
+import { echeanceDe, estJour, etatAbonnement, graceDe, joursEntre, relancesDu, type Etat, type Faits } from './etat.ts';
 import { faitsDe } from './condition.ts';
 import { ceQueLOffreCompte, modulesFermesPourMoi } from './offre.ts';
 import './textes.ts';
@@ -30,6 +30,21 @@ type MesFactures = { entreprise?: unknown; client?: unknown; paiement?: boolean;
 const prixDesAjouts = async (tx: Transaction, jour: string) =>
   ((await tx.query('select plateforme.prix_options_du_jour($1::date) p', [jour])).rows[0].p as { option: string; periodicite: string; montantHt: string }[])
     .map((p) => ({ ...p, montantHt: versTexte(BigInt(p.montantHt), 3) }));
+
+// Les règles de l'abonnement telles qu'elles valent pour CETTE entreprise (0104) : les relances du jour, la grâce de son
+// échéance, et la durée de son essai (du jour où il a commencé à celui où il finissait alors). Aucune : rien (l'écran ne
+// dit pas un nombre qu'il ne connaît pas).
+function reglesPourMoi(f: Faits | null, historique: { le: string; nature: string; apres: unknown }[], jour: string) {
+  const echeance = f ? echeanceDe(f) : null;
+  const debut = historique.filter((h) => h.nature === 'essai_commence').sort((a, b) => (a.le < b.le ? -1 : 1))[0];
+  const jusquAu = (debut?.apres as Record<string, unknown> | null)?.essaiJusquAu;
+  const commence = debut ? aujourdhuiATunis(new Date(debut.le)) : null;
+  return {
+    relances: f ? relancesDu(f, jour) : [],
+    grace: f && echeance ? graceDe(f, echeance) : null,
+    essai: commence && estJour(jusquAu) && jusquAu > commence ? joursEntre(commence, jusquAu) : null,
+  };
+}
 
 export function routesAbonnement(ctx: Contexte): Route<never>[] {
   const routes: Route<never>[] = [];
@@ -73,8 +88,9 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
       // `enLigne` : une facture de SkanFact se règle-t-elle en ligne (ce que dit « T'abonner », avant toute facture).
       // `modules` : ceux achetés seuls sur Essentiel (14c), que la carte de l'offre dit.
       // `compte` : ce que l'entreprise utilise sur ce que son offre comprend (14c, 0100), comme la facture le comptera.
+      // `regles` : les relances, la grâce et la durée de l'essai qui valent pour elle (0104), que l'onglet dit.
       return { corps: { aujourdhui: jour, etat, prix, options, aVenir, historique, factures, enLigne: lu.paiement === true, modules: f?.modules ?? [],
-        compte: await ceQueLOffreCompte(tx, ent, jour) } };
+        compte: await ceQueLOffreCompte(tx, ent, jour), regles: reglesPourMoi(f, historique, jour) } };
     },
   });
 

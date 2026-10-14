@@ -510,6 +510,14 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'régler le préavis demande son motif (trois caractères au moins)', cle: 'base.prix.preavis_motif', fr: 'régler le préavis demande son motif (trois caractères au moins)' },
   { base: 'le préavis d\'un nouveau prix compte de 0 à 365 jours', cle: 'base.prix.preavis_bornes', fr: 'le préavis d\'un nouveau prix compte de 0 à 365 jours' },
   { base: 'c\'est déjà le préavis en vigueur : rien ne changerait', cle: 'base.prix.meme_preavis', fr: 'c\'est déjà le préavis en vigueur : rien ne changerait' },
+  // L'essai, la grâce et les relances réglés dans la console (0104).
+  { base: 'cette règle de l\'abonnement ne se règle pas ici', cle: 'base.regles_abonnement.code', fr: 'cette règle de l\'abonnement ne se règle pas ici' },
+  { base: 'changer une règle de l\'abonnement demande son motif (trois caractères au moins)', cle: 'base.regles_abonnement.motif', fr: 'changer une règle de l\'abonnement demande son motif (trois caractères au moins)' },
+  { base: 'une règle de l\'abonnement se compte en jours', cle: 'base.regles_abonnement.jours', fr: 'une règle de l\'abonnement se compte en jours' },
+  { base: 'l\'essai dure de 7 à 90 jours', cle: 'base.regles_abonnement.essai_bornes', fr: 'l\'essai dure de 7 à 90 jours' },
+  { base: 'la grâce compte de 0 à 30 jours', cle: 'base.regles_abonnement.grace_bornes', fr: 'la grâce compte de 0 à 30 jours' },
+  { base: 'les relances partent de 1 à 60 jours avant l\'échéance : une à cinq, chacune un jour différent', cle: 'base.regles_abonnement.relances_bornes', fr: 'les relances partent de 1 à 60 jours avant l\'échéance : une à cinq, chacune un jour différent' },
+  { base: 'c\'est déjà la règle en vigueur : rien ne changerait', cle: 'base.regles_abonnement.meme_regle', fr: 'c\'est déjà la règle en vigueur : rien ne changerait' },
   { base: 'le total n\'est pas celui de la grille au premier jour de la période : relis-le avant de préparer la facture', cle: 'base.factures.prix_premier_jour', fr: 'le total n\'est pas celui de la grille au premier jour de la période : relis-le avant de préparer la facture' },
 ];
 

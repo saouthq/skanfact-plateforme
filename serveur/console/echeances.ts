@@ -9,7 +9,7 @@
 // remise n'existe encore (le prix gardé des fondateurs vient avec nos factures) : le prix du jour est celui qu'on paie.
 
 import { versTexte } from '../../moteur/argent.ts';
-import { echeanceDe, joursEntre, plusJours, type Etat, type Faits, type Offre, type Periodicite, type Rang } from '../abonnement/etat.ts';
+import { echeanceDe, joursDuRang, joursEntre, plusJours, relancesDu, type Etat, type Faits, type Offre, type Periodicite, type Rang } from '../abonnement/etat.ts';
 import { categorie, CATEGORIES, LECTURE_SEULE_DE_LA_SEMAINE, type Categorie, type Entreprise } from './decider.ts';
 
 // « Les échéances des 30 prochains jours » ; une semaine, pour les sous-titres des cartes (la lecture seule « de la
@@ -28,7 +28,8 @@ export type Extras = {
   offert: Map<string, Evenement>;
   suspension: Map<string, Evenement>;
 };
-const RANGS: readonly Rang[] = ['j15', 'j7', 'j1', 'lecture_seule'];
+// Un rang lu de la base : « lecture_seule », ou les jours avant l'échéance (« j15 », « j3 » : les règles en posent d'autres).
+const estRang = (r: string): r is Rang => r === 'lecture_seule' || joursDuRang(r) !== null;
 const NATURES = { essai_prolonge: 'prolongation', offert: 'offert', suspendu: 'suspension' } as const;
 
 export function lireExtras(brut: unknown): Extras {
@@ -38,7 +39,7 @@ export function lireExtras(brut: unknown): Extras {
     if (typeof r.entreprise !== 'string' || typeof r.echeance !== 'string') continue;
     const rangs: Partial<Record<Rang, string>> = {};
     const lus = (r.rangs ?? {}) as Record<string, unknown>;
-    for (const rang of RANGS) if (typeof lus[rang] === 'string') rangs[rang] = lus[rang];
+    for (const [rang, le] of Object.entries(lus)) if (estRang(rang) && typeof le === 'string') rangs[rang] = le;
     e.relances.set(r.entreprise, { echeance: r.echeance, rangs });
   }
   for (const v of Array.isArray(x.evenements) ? x.evenements as Record<string, unknown>[] : []) {
@@ -101,8 +102,9 @@ export function montantDe(e: Etat, f: Faits, prix: Prix): bigint | null {
   return null;
 }
 
-// Les relances qui concernent la ligne (serveur/abonnement/etat.ts, `relanceDue`) : quinze jours, sept jours et la veille
-// de l'échéance, puis le jour de la lecture seule. Ni pour une résiliation (elle l'a décidé), ni pour une suspension
+// Les relances qui concernent la ligne (serveur/abonnement/etat.ts, `relanceDue`) : celles de la règle du jour (0104 ;
+// à la mise en place, quinze jours, sept jours et la veille de l'échéance) et celles déjà parties pour cette échéance sous
+// une règle d'avant, puis le jour de la lecture seule. Ni pour une résiliation (elle l'a décidé), ni pour une suspension
 // (elle se dit par la console), ni pour ce qui n'a pas d'échéance. Une relance n'est « partie » que pour l'échéance
 // d'aujourd'hui : celles d'une échéance passée (avant une prolongation, un paiement) ne comptent plus.
 export function relancesDe(e: Etat, f: Faits, partie: Parties | undefined, jour: string, active = true): Relance[] {
@@ -113,7 +115,8 @@ export function relancesDe(e: Etat, f: Faits, partie: Parties | undefined, jour:
   const nonPartie = (etat: EtatRelance): EtatRelance => (active ? etat : 'manquee');
   // Avant l'échéance, de la moins pressante à la plus pressante : `relanceDue` n'envoie que la plus pressante dont le
   // jour est venu, et rien de moins pressant qu'une relance déjà partie.
-  const avant = ([['j15', 15], ['j7', 7], ['j1', 1]] as const).map(([rang, jours]) => ({ rang, prevueLe: plusJours(echeance, -jours), partieLe: rangs[rang] ?? null }));
+  const jours = [...new Set([...relancesDu(f, jour), ...Object.keys(rangs).map(joursDuRang).filter((n): n is number => n !== null)])].sort((a, b) => b - a);
+  const avant = jours.map((n) => ({ rang: `j${n}` as Rang, prevueLe: plusJours(echeance, -n), partieLe: rangs[`j${n}`] ?? null }));
   const avantEcheance = (): Relance[] => avant.map((r, i) => {
     const plusPressantes = avant.slice(i + 1);
     const etat: EtatRelance = r.partieLe ? 'partie'
@@ -123,7 +126,7 @@ export function relancesDe(e: Etat, f: Faits, partie: Parties | undefined, jour:
     return { ...r, etat };
   });
   // Celle de la lecture seule part le jour où la lecture seule tombe, et ce jour-là seulement : le lendemain, l'échéance
-  // sort de ce que le serveur examine (huit jours après elle, plateforme.relances_a_examiner).
+  // sort de ce que le serveur examine (la fin de sa grâce, plateforme.relances_a_examiner).
   const lectureSeule = (prevueLe: string): Relance => {
     const partieLe = rangs.lecture_seule ?? null;
     return { rang: 'lecture_seule', prevueLe, partieLe, etat: partieLe ? 'partie' : jour > prevueLe ? 'manquee' : nonPartie(prevueLe === jour ? 'a_partir' : 'prevue') };
@@ -234,8 +237,7 @@ export function relancesRecentes(liste: Entreprise[], extras: Extras, maintenant
   for (const [id, p] of extras.relances) {
     const nom = noms.get(id);
     if (!nom) continue;
-    for (const rang of RANGS) {
-      const le = p.rangs[rang];
+    for (const [rang, le] of Object.entries(p.rangs) as [Rang, string | undefined][]) {
       const t = le ? Date.parse(le) : NaN;
       if (le && t >= debut && t <= fin) parties.push({ entreprise: { id, nom }, rang, partieLe: le });
     }

@@ -91,6 +91,12 @@ describe('l\'abonnement, à la souris', () => {
     expect(await p.locator('#abonnement-panel .abo-offre h4').allInnerTexts()).toEqual(['Essentiel', 'Complet']);
     expect((await p.locator('#abonnement-panel .abo-prix b').allInnerTexts()).map(net)).toEqual(['390', '690']);
     expect(String(await p.locator('#abo-payer a').getAttribute('href'))).toMatch(/^mailto:contact@skanfact\.tn\?subject=/);
+    // Les règles telles qu'elles valent pour elle (0104), jamais écrites dans l'écran : la durée de SON essai (trente jours
+    // à sa création), les rappels du jour, la grâce de son échéance.
+    expect(net(await p.locator('#abonnement-panel .abo-jauge-txt').innerText())).toBe('5 jours sur 30');
+    const etapes = net(await p.locator('#abonnement-panel .abo-etapes').innerText());
+    expect(etapes).toContain('Les rappels Un e-mail 15 jours et 7 jours avant l\'échéance, puis la veille.');
+    expect(etapes).toContain('7 jours de grâce Après l\'échéance, tout marche encore.');
     await p.screenshot({ animations: 'disabled', fullPage: true, path: path.join(PHOTOS, 'abonnement-1-essai.png') });
 
     // ── L'essai fini il y a dix jours : sept jours de grâce, puis la lecture seule depuis avant-hier ────────────────────

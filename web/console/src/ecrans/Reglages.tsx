@@ -43,7 +43,8 @@ type Message = {
 };
 type Donnees = {
   aujourdhui: string; role: 'direction' | 'support' | 'technique';
-  grille: LigneGrille[]; ajouts: LigneAjout[]; preavis: Preavis | null; essai: { jours: number; enCours: number }; echeance: { relances: number[]; grace: number };
+  grille: LigneGrille[]; ajouts: LigneAjout[]; preavis: Preavis | null; essai: { jours: number | null; enCours: number };
+  echeance: { relances: number[]; grace: number | null; enGrace: number }; regles: Record<CodeRegle, RegleAbonnement | null>;
   registre: Regle[]; message: Message | null; passes: Message[]; formats: Format[];
   factures: NosFactures;
 };
@@ -59,7 +60,10 @@ type Format = {
   chiffres: Record<string, number | string | null> | null; branche: boolean | null; alerte: boolean;
 };
 type Geste = { sorte: 'relire'; regle: Regle } | { sorte: 'ecrire' } | { sorte: 'retirer'; message: Message } | { sorte: 'editeur' }
-  | { sorte: 'prix' } | { sorte: 'retirer_prix'; quoi: QuoiPrix; v: AVenir } | { sorte: 'preavis' };
+  | { sorte: 'prix' } | { sorte: 'retirer_prix'; quoi: QuoiPrix; v: AVenir } | { sorte: 'preavis' } | { sorte: 'regle'; code: CodeRegle };
+// Les règles de l'abonnement réglées ici (0104) : chacune telle qu'elle vaut aujourd'hui, qui l'a posée et pourquoi.
+type CodeRegle = 'essai' | 'grace' | 'relances';
+type RegleAbonnement = { jours: number[]; aPartirDu: string; motif: string; par: string | null; le: string };
 
 // Un jour de calendrier lu par une personne : 19/11/2026 (le serveur rend « 2026-11-19 »).
 const jour = (j: string) => jourCourt(j);
@@ -87,7 +91,7 @@ function Prix({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut:
     ...r.map((n, i) => ({ quand: n === 1 ? dire(`${K}.p.f.veille`) : dire(`${K}.p.f.avant`, { n }),
       quoi: phrase(i === 0 ? `${K}.p.f.annonce` : i === r.length - 1 ? `${K}.p.f.dernier` : `${K}.p.f.rappel`), ton: 'calme' })),
     { quand: dire(`${K}.p.f.echeance`), quoi: phrase(`${K}.p.f.echeance_quoi`), ton: 'jour' },
-    { quand: selon(d.echeance.grace, `${K}.p.f.grace`), quoi: phrase(`${K}.p.f.grace_quoi`), ton: 'grace' },
+    { quand: d.echeance.grace === null ? dire(`${K}.p.f.grace_inconnue`) : selon(d.echeance.grace, `${K}.p.f.grace`), quoi: phrase(`${K}.p.f.grace_quoi`), ton: 'grace' },
     { quand: dire(`${K}.p.f.lecture_seule`), quoi: phrase(`${K}.p.f.lecture_seule_quoi`), ton: 'fin' },
   ];
   return (
@@ -111,7 +115,8 @@ function Prix({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut:
             </tr></thead>
             <tbody>
               <tr>
-                <td><b>{titre(`${K}.p.essai`)}</b><span className="c-sous c-bloc">{phrase(`${K}.p.essai_sous`, { jours: d.essai.jours })}</span></td>
+                <td><b>{titre(`${K}.p.essai`)}</b><span className="c-sous c-bloc">
+                  {d.essai.jours === null ? phrase(`${K}.p.essai_sous_inconnu`) : phrase(`${K}.p.essai_sous`, { jours: d.essai.jours })}</span></td>
                 <td className="c-droite" data-libelle={titre(`${K}.p.col.an`)}>{titre(`${K}.p.gratuit`)}</td>
                 <td className="c-droite" data-libelle={titre(`${K}.p.col.mois`)}>—</td>
                 <td data-libelle={titre(`${K}.p.col.depuis`)}>—</td>
@@ -163,6 +168,9 @@ function Prix({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut:
             </li>
           ))}
         </ol>
+        <ul className="c-rg-regles">
+          {(['essai', 'relances', 'grace'] as const).map((code) => <UneRegle key={code} code={code} d={d} geste={geste} peut={peut} />)}
+        </ul>
       </section>
       <NosFacturesCarte f={d.factures} aujourdhui={d.aujourdhui} geste={geste} peut={peut} />
     </>
@@ -235,6 +243,32 @@ function PrixAVenir({ lignes, aujourdhui, geste, peut }: { lignes: { quoi: QuoiP
         </li>
       ))}
     </ul>
+  );
+}
+
+// Une règle de l'abonnement dite en mots : « l'essai dure 30 jours… », « une relance part 15 jours avant l'échéance, 7 jours
+// avant et la veille », « 7 jours de grâce… ». Aucune règle : elle le dit (jamais un nombre deviné).
+const listeDesRelances = (j: number[]) => {
+  const mots = j.map((n, i) => (n === 1 ? dire(`${K}.r.relance_veille${i === 0 ? '_premiere' : ''}`) : dire(`${K}.r.relance_${i === 0 ? 'premiere' : 'autre'}`, { n })));
+  return mots.length > 1 ? `${mots.slice(0, -1).join(', ')} ${dire('console.ecran.et')} ${mots.at(-1)}` : mots[0] ?? '';
+};
+function regleEnMots(code: CodeRegle, jours: number[] | null): string {
+  if (!jours?.length) return phrase(`${K}.r.inconnue`);
+  if (code === 'essai') return phrase(`${K}.r.essai`, { n: jours[0] ?? 0 });
+  if (code === 'grace') return `${maj(selon(jours[0] ?? 0, `${K}.r.grace`))}.`;
+  return phrase(`${K}.r.relances`, { liste: listeDesRelances([...jours].sort((a, b) => b - a)) });
+}
+function UneRegle({ code, d, geste, peut }: { code: CodeRegle; d: Donnees; geste: (g: Geste) => void; peut: boolean }) {
+  const r = d.regles[code];
+  return (
+    <li className="c-rg-regle-abo" data-code={code}>
+      <p className="c-sous">
+        {regleEnMots(code, r?.jours ?? null)}
+        {r ? <span className="c-bloc">{r.par ? titre(`${K}.r.par`, { nom: r.par, quand: quand(r.le, d.aujourdhui) }) : titre(`${K}.r.depart`)}{' '}
+          <span data-donnee>« {r.motif} »</span></span> : null}
+      </p>
+      {peut ? <Bouton petit onClick={() => geste({ sorte: 'regle', code })}>{titre(`${K}.r.changer.${code}`)}</Bouton> : null}
+    </li>
   );
 }
 
@@ -522,7 +556,7 @@ function Messages({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; p
 }
 
 // ── Les gestes : chacun dit ce qui va se passer, demande son motif, et entre au journal ─────────────────────────────
-function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix' }>; d: Donnees; fermer: () => void; fait: () => void }) {
+function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix' } | { sorte: 'regle' }>; d: Donnees; fermer: () => void; fait: () => void }) {
   const api = useApi();
   const { moi } = useConsole();
   const [motif, setMotif] = useState('');
@@ -730,6 +764,84 @@ function FenetrePrix({ d, fermer, fait }: { d: Donnees; fermer: () => void; fait
   );
 }
 
+// ── Changer une règle de l'abonnement (0104) : la nouvelle valeur, ce qu'elle change, son motif ─────────────────────────
+// L'aperçu se calcule ici, sur ce que l'écran a lu : la règle d'aujourd'hui et la nouvelle, en mots ; pour la grâce,
+// les entreprises qui y sont aujourd'hui (elles gardent la leur). La base vérifie les bornes à son tour.
+const BORNES: Record<CodeRegle, { min: number; max: number; plusieurs: boolean }> = {
+  essai: { min: 7, max: 90, plusieurs: false }, grace: { min: 0, max: 30, plusieurs: false }, relances: { min: 1, max: 60, plusieurs: true },
+};
+// Ce qu'on a tapé, lu : une liste de jours entiers dans les bornes, chacun une fois (les relances du plus loin au plus près),
+// ou rien si ce n'est pas lisible.
+function lireJours(code: CodeRegle, tape: string): number[] | null {
+  const b = BORNES[code];
+  const morceaux = tape.split(/[\s,;]+/).filter(Boolean);
+  if (!morceaux.length || (!b.plusieurs && morceaux.length > 1) || morceaux.length > 5 || !morceaux.every((m) => /^\d{1,3}$/.test(m))) return null;
+  const jours = morceaux.map(Number);
+  if (jours.some((n) => n < b.min || n > b.max) || new Set(jours).size !== jours.length) return null;
+  return jours.sort((a, b2) => b2 - a);
+}
+function FenetreRegle({ code, d, fermer, fait }: { code: CodeRegle; d: Donnees; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const avant = d.regles[code]?.jours ?? null;
+  const [tape, setTape] = useState(avant ? [...avant].sort((a, b) => b - a).join(', ') : '');
+  const [motif, setMotif] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState<{ champ: string; n: number } | null>(null);
+  const [occupe, setOccupe] = useState(false);
+  const jours = lireJours(code, tape);
+  const meme = jours !== null && avant !== null && jours.join(',') === [...avant].sort((a, b) => b - a).join(',');
+  const refuser = (champ: string, cle: string) => { setRefus(phrase(cle)); setFaute((f) => ({ champ, n: (f?.n ?? 0) + 1 })); };
+  const envoyer = () => {
+    if (jours === null) { refuser('jours', `${K}.g.regle.illisible.${code}`); return; }
+    if (meme) { refuser('jours', `${K}.g.regle.meme`); return; }
+    if (motif.trim().length < 3) { refuser('motif', 'console.ecran.geste.motif_court'); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const res = await api('POST', '/console/reglages/regle', { code, jours, motif: motif.trim() });
+        if (!res) return;
+        if (res.statut === 200) { toast(phrase(`${K}.g.regle.fait`)); fait(); return; }
+        setRefus(refusDe(res));
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  const fauteDe = (champ: string) => ({ faute: faute?.champ === champ, n: faute?.champ === champ ? faute.n : 0 });
+  const enMots = (j: number[] | null) => (code === 'relances' && j ? listeDesRelances(j) : code === 'grace' && j ? selon(j[0] ?? 0, `${K}.p.f.grace`) : j ? dire(`${K}.g.regle.n_jours`, { n: j[0] ?? 0 }) : '—');
+  return (
+    <Dialogue titre={titre(`${K}.g.regle.titre.${code}`)} fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} desactive={jours === null || meme} onClick={envoyer}>{titre(`${K}.g.regle.bouton`)}</Bouton>
+      </>}>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
+        <ul>{[`${code}.p1`, `${code}.p2`, 'p3'].map((p) => <li key={p}>{phrase(`${K}.g.regle.${p}`)}</li>)}</ul>
+      </div>
+      <Champ libelle={titre(`${K}.g.regle.jours.${code}`)} aide={phrase(`${K}.g.regle.aide.${code}`, { avant: enMots(avant) })}
+        inputMode={code === 'relances' ? 'text' : 'numeric'} autoComplete="off" valeur={tape} changer={setTape} premier {...fauteDe('jours')} />
+      {/* L'aperçu garde sa place dès l'ouverture : le motif, dessous, ne bouge pas pendant qu'on tape. */}
+      <div className="c-champs">
+        <span className="c-champ-libelle">{titre(`${K}.g.regle.apercu`)}</span>
+        <div className="c-apercu-zone c-rg-prix-zone">
+          {jours && !meme ? (
+            <div className="c-rg-prix-apercu" role="status">
+              <p>{avant ? <><del data-donnee>{maj(enMots(avant))}</del> → </> : null}<ins data-donnee>{maj(enMots(jours))}</ins></p>
+              {code !== 'relances' ? <p className="c-sous">{regleEnMots(code, jours)}</p> : null}
+              {code === 'grace' ? <p className="c-sous">{maj(selon(d.echeance.enGrace, `${K}.g.regle.en_grace`))}</p> : null}
+              {code === 'essai' ? <p className="c-sous">{maj(selon(d.essai.enCours, `${K}.p.essais`))}.</p> : null}
+            </div>
+          ) : <p className={`c-apercu-attente${tape.trim() && jours === null ? ' c-apercu-refus' : ''}`}>
+            {phrase(meme ? `${K}.g.regle.meme` : tape.trim() && jours === null ? `${K}.g.regle.illisible.${code}` : `${K}.g.regle.apercu_attente`)}</p>}
+        </div>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${K}.g.regle.motif_aide`)} valeur={motif} changer={setMotif} {...fauteDe('motif')} />
+      <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus && jours !== null && !meme ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
 // ── L'écran ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 export function Reglages({ onglet: demande }: { onglet: string | null }) {
   const [l, relire] = useLecture<Donnees>('/console/reglages', 'reglages');
@@ -771,7 +883,8 @@ export function Reglages({ onglet: demande }: { onglet: string | null }) {
       {d && onglet === 'formats' ? <Formats d={d} /> : null}
       {d && onglet === 'messages' ? <Messages d={d} geste={setGeste} peut={peut} /> : null}
       {geste && d ? (geste.sorte === 'prix' ? <FenetrePrix d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
-        : <FenetreGeste g={geste} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />) : null}
+        : geste.sorte === 'regle' ? <FenetreRegle code={geste.code} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
+          : <FenetreGeste g={geste} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />) : null}
     </>
   );
 }

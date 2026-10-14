@@ -155,6 +155,22 @@ export function lirePrixPrepares(brut: unknown): { preavis: Preavis | null; aVen
     }),
   };
 }
+// Les règles de l'abonnement que la direction règle (0104) : la durée de l'essai, la grâce, les relances. Chacune telle
+// qu'elle vaut aujourd'hui, avec qui l'a posée, quand et pourquoi (personne : la règle de départ, écrite dans le cadrage).
+export const CODES_REGLE = ['essai', 'grace', 'relances'] as const;
+export type CodeRegle = typeof CODES_REGLE[number];
+export type RegleAbonnement = { jours: number[]; aPartirDu: string; motif: string; par: string | null; le: string };
+export function lireReglesAbonnement(brut: unknown): Record<CodeRegle, RegleAbonnement | null> {
+  const b = objet(brut);
+  const une = (v: unknown): RegleAbonnement | null => {
+    const r = objet(v);
+    const j = Array.isArray(r.jours) && r.jours.length && r.jours.every((n) => Number.isInteger(n) && n >= 0) ? r.jours as number[] : null;
+    const aPartirDu = jour(r.aPartirDu), motif = texte(r.motif), le = date(r.le);
+    return j && aPartirDu && motif && le ? { jours: j, aPartirDu, motif, par: texte(r.par), le } : null;
+  };
+  return { essai: une(b.essai), grace: une(b.grace), relances: une(b.relances) };
+}
+
 // Les lignes d'une grille (offres ou ajouts), leurs prix à venir dits avec qui les a préparés et pourquoi.
 export function preparesPar<L extends { aVenir: AVenir[] }>(lignes: L[], quoi: (l: L) => QuoiPrix, prepares: Prepare[]): L[] {
   return lignes.map((l) => ({
@@ -206,15 +222,18 @@ export function registre(regles: RegleLue[], aujourdhui: string): LigneRegistre[
 
 // ── Au journal ───────────────────────────────────────────────────────────────────────────────────────────────────────
 // Un geste des réglages dit sur quoi il porte : la règle relue (son code) et l'avis, le message écrit ou retiré (ses
-// deux jours), le prix préparé ou retiré (le prix d'avant, le nouveau, sa date), ou le préavis (avant, après). Lu dans ce
+// deux jours), le prix préparé ou retiré (le prix d'avant, le nouveau, sa date), le préavis (avant, après), ou une règle
+// de l'abonnement (laquelle ; ses jours d'avant, d'après). Lu dans ce
 // que la base a gardé du geste (plateforme.geste_console : avant, après), jamais recalculé.
 export type SujetDesReglages = {
   regle: string | null; reluePar: string | null; avis: 'juste' | 'a_corriger' | null; du: string | null; au: string | null;
   prix: { quoi: QuoiPrix; periodicite: Periodicite; aPartirDu: string | null; avant: string | null; apres: string | null } | null;
   preavis: { avant: number | null; apres: number | null } | null;
+  regleAbonnement: { code: CodeRegle; avant: number[] | null; apres: number[] | null } | null;
 };
 const dinars = (x: unknown) => (typeof x === 'string' && /^\d+\.\d{3}$/.test(x) ? x : null);
 const jours = (x: unknown) => (typeof x === 'number' && Number.isInteger(x) && x >= 0 ? x : null);
+const listeDeJours = (x: unknown) => (Array.isArray(x) && x.length && x.every((n) => jours(n) !== null) ? x as number[] : null);
 export function sujetDesReglages(geste: string, avant: Record<string, unknown> | null, apres: Record<string, unknown> | null): SujetDesReglages | null {
   if (!geste.startsWith('reglages.')) return null;
   const s = geste === 'reglages.message_retire' ? avant : apres;
@@ -228,5 +247,7 @@ export function sujetDesReglages(geste: string, avant: Record<string, unknown> |
     du: jour(s?.du), au: jour(s?.au),
     prix: quoi && periodicite ? { quoi, periodicite, aPartirDu: jour(p?.aPartirDu), avant: dinars(avant?.montantHt), apres: dinars(apres?.montantHt) } : null,
     preavis: geste === 'reglages.preavis' ? { avant: jours(avant?.jours), apres: jours(apres?.jours) } : null,
+    regleAbonnement: geste === 'reglages.regle_abonnement' && (CODES_REGLE as readonly unknown[]).includes(apres?.code)
+      ? { code: apres?.code as CodeRegle, avant: listeDeJours(avant?.jours), apres: listeDeJours(apres?.jours) } : null,
   };
 }

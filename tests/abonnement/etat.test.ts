@@ -4,11 +4,12 @@
 // qu'un paiement couvre. Les dates des assertions sont comptées à la main sur le calendrier, jamais recopiées du code.
 
 import { describe, expect, it } from 'vitest';
-import { echeanceDe, estJour, etatAbonnement, jourEnFrancais, lireFaits, plusMois, prochainePeriode, relanceDue, type Faits } from '../../serveur/abonnement/etat.ts';
+import { echeanceDe, estJour, etatAbonnement, jourEnFrancais, lireFaits, lireRegles, plusMois, prochainePeriode, relanceDue, type Faits } from '../../serveur/abonnement/etat.ts';
+import { REGLES_DE_DEPART } from '../regles-de-depart.ts';
 
 // Une entreprise créée le 12/10/2026 : trente jours d'essai, jusqu'au 11/11/2026.
 const ESSAI: Faits = { connu: true, essaiJusquAu: '2026-11-11', payeJusquAu: null, offre: null, periodicite: null, resilieLe: null,
-  suspenduLe: null, offert: false, bacASable: false, tenuParCabinet: false };
+  suspenduLe: null, offert: false, bacASable: false, tenuParCabinet: false, regles: REGLES_DE_DEPART };
 const avec = (f: Partial<Faits>): Faits => ({ ...ESSAI, ...f });
 // Payée à l'année avant la fin de l'essai : du 12/11/2026 au 11/11/2027.
 const PAYEE = avec({ payeJusquAu: '2027-11-11', offre: 'essentiel', periodicite: 'annuel' });
@@ -139,5 +140,59 @@ describe('les jours', () => {
     expect(lireFaits({ connu: true, essaiJusquAu: '2026-02-30', offre: 'premium', periodicite: 'hebdo' }))
       .toMatchObject({ connu: true, essaiJusquAu: null, offre: null, periodicite: null });
     expect(jourEnFrancais('2026-11-19')).toBe('19/11/2026');
+  });
+});
+
+// Les règles réglées dans la console (0104) : la grâce d'une échéance est celle de son lendemain, les relances d'un jour
+// celles de ce jour-là ; une règle qu'on ne connaît pas ne ferme rien.
+describe('les règles de l\'abonnement, datées', () => {
+  // La grâce passe de sept à trois jours le 15/11/2026.
+  const TROIS = { ...REGLES_DE_DEPART, grace: [...REGLES_DE_DEPART.grace, { aPartirDu: '2026-11-15', jours: [3] }] };
+  const ZERO = { ...REGLES_DE_DEPART, grace: [{ aPartirDu: '2000-01-01', jours: [0] }] };
+  const parties = (...rangs: string[]) => rangs.map((rang) => ({ echeance: '2026-11-11', rang }));
+
+  it('une grâce commencée ne change plus ; une échéance d\'après a la nouvelle', () => {
+    // L'échéance du 11/11 : sa grâce commence le 12/11, sous l'ancienne règle (sept jours) ; la lecture seule le 19/11.
+    expect(etatAbonnement(avec({ regles: TROIS }), '2026-11-16'))
+      .toEqual({ etat: 'en_retard', echeance: '2026-11-11', lectureSeuleLe: '2026-11-19', jours: 3, apresEssai: true });
+    // L'échéance du 20/11 : sa grâce commence le 21/11, sous la nouvelle (trois jours) ; la lecture seule le 24/11.
+    expect(etatAbonnement(avec({ essaiJusquAu: '2026-11-20', regles: TROIS }), '2026-11-22'))
+      .toEqual({ etat: 'en_retard', echeance: '2026-11-20', lectureSeuleLe: '2026-11-24', jours: 2, apresEssai: true });
+    expect(etatAbonnement(avec({ essaiJusquAu: '2026-11-20', regles: TROIS }), '2026-11-24'))
+      .toEqual({ etat: 'lecture_seule', depuis: '2026-11-24', raison: 'essai_termine' });
+  });
+
+  it('une grâce de zéro jour : la lecture seule dès le lendemain de l\'échéance', () => {
+    expect(etatAbonnement(avec({ regles: ZERO }), '2026-11-11')).toMatchObject({ etat: 'essai', jours: 0 });
+    expect(etatAbonnement(avec({ regles: ZERO }), '2026-11-12')).toEqual({ etat: 'lecture_seule', depuis: '2026-11-12', raison: 'essai_termine' });
+  });
+
+  it('une grâce qu\'on ne connaît pas ne ferme rien ; l\'essai, lui, se dit', () => {
+    expect(etatAbonnement(avec({ regles: lireRegles(null) }), '2027-01-01')).toEqual({ etat: 'hors', raison: 'inconnu' });
+    expect(etatAbonnement(avec({ regles: lireRegles(null) }), '2026-11-01')).toMatchObject({ etat: 'essai', jours: 10 });
+    // Une ligne illisible ne compte pas : ni un jour faux, ni des jours qui n'en sont pas.
+    expect(lireRegles({ grace: [{ aPartirDu: '2026-02-30', jours: [7] }, { aPartirDu: '2026-01-01', jours: ['sept'] }, { aPartirDu: '2026-01-01', jours: [5] }] }))
+      .toEqual({ grace: [{ aPartirDu: '2026-01-01', jours: [5] }], relances: [] });
+  });
+
+  it('les relances : celles de la règle du jour ; une relance partie sous une autre règle compte encore', () => {
+    const f = avec({ regles: { ...REGLES_DE_DEPART, relances: [...REGLES_DE_DEPART.relances, { aPartirDu: '2026-10-28', jours: [10, 3] }] } });
+    // Le 27/10, la règle de départ : quinze jours avant le 11/11.
+    expect(relanceDue(f, '2026-10-27', [])).toEqual({ rang: 'j15', echeance: '2026-11-11', jours: 15 });
+    // Dès le 28/10, dix jours et trois jours : celle des quinze jours, partie, n'empêche pas celle des dix (moins pressante
+    // qu'elle n'est pas).
+    expect(relanceDue(f, '2026-11-01', parties('j15'))).toEqual({ rang: 'j10', echeance: '2026-11-11', jours: 10 });
+    expect(relanceDue(f, '2026-11-08', parties('j15', 'j10'))).toEqual({ rang: 'j3', echeance: '2026-11-11', jours: 3 });
+    // Plus de relance la veille : la règle du jour n'en a plus.
+    expect(relanceDue(f, '2026-11-10', parties('j15', 'j10', 'j3'))).toBeNull();
+    // Aucune règle : aucune relance (une règle qu'on ne connaît pas ne fait rien).
+    expect(relanceDue(avec({ regles: { ...REGLES_DE_DEPART, relances: [] } }), '2026-11-10', [])).toBeNull();
+  });
+
+  it('la période qu\'un paiement couvre suit la grâce de l\'échéance', () => {
+    // Payé le 14/11, dans la grâce de sept jours : la période prend la suite de l'échéance (le 12/11).
+    expect(prochainePeriode(avec({}), 'mensuel', '2026-11-14').debut).toBe('2026-11-12');
+    // Sans grâce : elle commence le jour du paiement, sans faire payer les jours d'avant.
+    expect(prochainePeriode(avec({ regles: ZERO }), 'mensuel', '2026-11-14').debut).toBe('2026-11-14');
   });
 });

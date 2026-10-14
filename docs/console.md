@@ -604,8 +604,11 @@ l'écran le dit en tête au support. Quatre onglets, l'adresse garde l'onglet (`
   clients les lit — chaque offre, à l'année et au mois, hors taxes, depuis quand ; ce qui est daté après aujourd'hui se
   dit « à venir » sous l'offre, jamais dans la case ; une case sans prix posé reste « — ». Les abonnés de chaque offre se
   comptent par le **même état** que la liste des clients (une période payée qui court ; un retard n'en est pas), l'essai
-  à part. La frise des échéances (les relances, l'échéance, la grâce, la lecture seule) vient du code qui les applique
-  (`serveur/abonnement`), jamais d'un chiffre recopié. **Un nouveau prix s'y prépare** (1.12.0 ; `0103` ;
+  à part. La frise des échéances (les relances, l'échéance, la grâce, la lecture seule) dit les règles du jour, que la
+  direction règle dessous (1.13.0 ; `0104` ; `docs/abonnement.md` C15) : la durée de l'essai, les relances, la grâce,
+  chacune avec qui l'a posée et pourquoi, et son geste (« Changer l'essai… », « … les relances… », « … la grâce… ») ; la
+  fenêtre dit ce que la règle touche et ne touche pas, et son aperçu, à sa place dès l'ouverture, la règle d'avant
+  barrée, la nouvelle en mots et, pour la grâce, les entreprises qui y sont aujourd'hui (elles gardent la leur). **Un nouveau prix s'y prépare** (1.12.0 ; `0103` ;
   `docs/abonnement.md` C14) : « Préparer un nouveau prix… » (une offre ou un ajout, à l'année ou au mois, le montant, la
   date), avec l'aperçu du serveur (le prix d'aujourd'hui barré, le nouveau, l'écart, qui l'a aujourd'hui), au plus tôt
   après le préavis (30 jours, réglable : « Changer le préavis… ») ; sous la grille, chaque prix à venir dit qui l'a

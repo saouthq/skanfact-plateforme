@@ -24,6 +24,7 @@ type Ligne = {
     regle: string | null; reluePar: string | null; avis: 'juste' | 'a_corriger' | null; du: string | null; au: string | null;
     prix: { quoi: string; periodicite: 'annuel' | 'mensuel'; aPartirDu: string | null; avant: string | null; apres: string | null } | null;
     preavis: { avant: number | null; apres: number | null } | null;
+    regleAbonnement?: { code: 'essai' | 'grace' | 'relances'; avant: number[] | null; apres: number[] | null } | null;
   };
 };
 type Page = { lignes: Ligne[]; suite: string | null };
@@ -54,6 +55,7 @@ const nomDuPrix = (q: string) => (q === 'essentiel' || q === 'complet' ? dire(`c
 function SurLesReglages({ r }: { r: NonNullable<Ligne['reglages']> }) {
   if (r.prix) return <a href="#/reglages">{titre('console.ecran.journal.sur_prix', { quoi: nomDuPrix(r.prix.quoi), periode: dire(`console.ecran.reglages.p.periode.${r.prix.periodicite}`) })}</a>;
   if (r.preavis) return <a href="#/reglages">{titre('console.ecran.journal.sur_preavis')}</a>;
+  if (r.regleAbonnement) return <a href="#/reglages">{titre(`console.ecran.journal.sur_regle_abo.${r.regleAbonnement.code}`)}</a>;
   return r.regle ? <a href="#/reglages?onglet=regles">{titre('console.ecran.journal.sur_regle_commune', { code: r.regle })}</a>
     : <a href="#/reglages?onglet=messages">{titre('console.ecran.journal.sur_message')}</a>;
 }
@@ -72,6 +74,11 @@ function ChangeDesReglages({ geste, r }: { geste: string; r: NonNullable<Ligne['
   if (r.preavis) {
     const jours = (n: number | null) => (n === null ? '—' : selon(n, 'console.ecran.journal.jours'));
     return <span className="c-changes"><span className="c-change"><del data-donnee>{jours(r.preavis.avant)}</del> → <ins data-donnee>{jours(r.preavis.apres)}</ins></span></span>;
+  }
+  // Une règle de l'abonnement (0104) : ses jours d'avant barrés, les nouveaux (« 15, 7, 1 j » → « 10, 3 j »).
+  if (r.regleAbonnement) {
+    const jours = (j: number[] | null) => (j === null ? '—' : j.length === 1 ? selon(j[0] ?? 0, 'console.ecran.journal.jours') : dire('console.ecran.journal.jours_liste', { liste: j.join(', ') }));
+    return <span className="c-changes"><span className="c-change"><del data-donnee>{jours(r.regleAbonnement.avant)}</del> → <ins data-donnee>{jours(r.regleAbonnement.apres)}</ins></span></span>;
   }
   const t = r.regle && r.reluePar ? dire(`console.ecran.journal.relue_${r.avis === 'a_corriger' ? 'corriger' : 'juste'}`, { qui: r.reluePar })
     : r.du && r.au ? dire('console.ecran.journal.du_au', { du: jourCourt(r.du), au: jourCourt(r.au) }) : null;

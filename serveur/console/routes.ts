@@ -12,7 +12,7 @@ import type { Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { Introuvable, Perimee } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
-import { ESSAI_JOURS, etatAbonnement, GRACE_JOURS, lireFaits, lireModules, plusJours, RELANCES, type Etat, type Faits } from '../abonnement/etat.ts';
+import { etatAbonnement, lireFaits, lireModules, lireRegles, plusJours, regleAu, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, type GesteAbonnement, type LigneAbonnement } from '../abonnement/gestes.ts';
 import { lireFacturesAbonnement, lireLignesEnPlus, periodeDeLaFacture, preparerFacture } from '../abonnement/factures.ts';
 import { motif, rendre, t, type Valeurs } from '../../textes/index.ts';
@@ -37,7 +37,7 @@ import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe
 import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
 import {
-  ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, preparesPar, QUOI_PRIX, registre, sujetDesReglages, type QuoiPrix,
+  ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, lireReglesAbonnement, CODES_REGLE, preparesPar, QUOI_PRIX, registre, sujetDesReglages, type QuoiPrix,
 } from './reglages.ts';
 import { lireFormats, registreDesFormats } from './formats.ts';
 import { articleConnu, articlesDeLAide, CANAUX_NOTES, compter, etatDe, lireSupport, ranger, SANS_REPONSE_HEURES, suggererPour } from './support.ts';
@@ -86,10 +86,23 @@ const memeLigne = (a: LigneAbonnement | null, b: LigneAbonnement | null) =>
   (a === null || b === null) ? a === b : (Object.keys(a) as (keyof LigneAbonnement)[]).every((k) => JSON.stringify(a[k]) === JSON.stringify(b[k]));
 
 // Les faits d'après un geste, pour dire l'état d'après AVANT de le faire.
-const faitsApres = (f: Faits, l: LigneAbonnement): Faits => lireFaits({
+const faitsApres = (f: Faits, l: LigneAbonnement): Faits => ({ ...lireFaits({
   connu: true, essaiJusquAu: l.essai_jusqu_au, payeJusquAu: l.paye_jusqu_au, offre: l.offre, periodicite: l.periodicite,
   resilieLe: l.resilie_le, suspenduLe: l.suspendu_le, offert: l.offert, bacASable: f.bacASable, tenuParCabinet: f.tenuParCabinet, modules: l.modules,
-});
+}), regles: f.regles });
+
+// Ce que l'écran des échéances dit des règles : les relances d'aujourd'hui, la grâce d'une échéance qui tomberait
+// aujourd'hui (aucune règle : « — », jamais un nombre deviné), l'horizon de « à venir ».
+const reglesDuJour = (r: Regles, jour: string) =>
+  ({ relances: [...(regleAu(r.relances, jour) ?? [])].sort((a, b) => b - a), grace: regleAu(r.grace, plusJours(jour, 1))?.[0] ?? null, avenir: AVENIR_JOURS });
+
+// Les règles de l'abonnement (0104 : la grâce, les relances, datées), lues une fois par requête : la console les ajoute
+// aux faits de chaque entreprise, comme la base le fait pour l'application (plateforme.faits_abonnement).
+const lireLesRegles = async (x: Transaction): Promise<Regles> => lireRegles(await lireJson(x, 'select plateforme.regles_abonnement_histoire() v'));
+const lesEntreprises = async (x: Transaction, jour: string) =>
+  lireEntreprises(await lireJson(x, 'select plateforme.console_entreprises() v'), jour, await lireLesRegles(x));
+const faitsDeLaFiche = async (x: Transaction, fiche: Record<string, unknown>): Promise<Faits> =>
+  ({ ...lireFaits((fiche.faits ?? {}) as Record<string, unknown>), regles: await lireLesRegles(x) });
 
 // Les gestes qu'un rôle peut faire sur cet abonnement, AUJOURD'HUI : l'écran ne propose que ceux-là (la base, elle,
 // refuse les autres). Le support prolonge un essai, une fois ; le reste est à la direction.
@@ -178,7 +191,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const jour = aujourdhuiATunis();
       const veille = await lireLaVeille(fichierVeille, instant);
       // La technique ne lit aucune donnée de client (03 § 5) : ni la liste, ni ses chiffres, ni les demandes au support.
-      const liste = role === 'technique' ? [] : lireEntreprises(await lireJson(transaction(tx), 'select plateforme.console_entreprises() v'), jour);
+      const liste = role === 'technique' ? [] : await lesEntreprises(transaction(tx), jour);
       const demandes = role === 'technique' ? [] : lireSupport(await lireJson(transaction(tx), 'select plateforme.console_support(null, null) v')).ouvertes;
       const t = tableau(liste, veille, jour, demandes, instant);
       // Les relances que le serveur a envoyées tout seul depuis hier (la même table que l'écran Abonnements).
@@ -197,7 +210,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     traiter: async ({ query }, tx) => {
       const jour = aujourdhuiATunis();
       const t = transaction(tx);
-      const toutes = rangerParUrgence(lireEntreprises(await lireJson(t, 'select plateforme.console_entreprises() v'), jour), jour);
+      const toutes = rangerParUrgence(await lesEntreprises(t, jour), jour);
       const prix = lirePrix(await lireJson(t, 'select plateforme.prix_du_jour($1::date) v', [jour]));
       const nouvelles = query.nouvelles === '1' ? toutes.filter((e) => inscriteCetteSemaine(e, jour)) : toutes;
       const cherchees = chercher(nouvelles, String(query.q ?? ''));
@@ -230,7 +243,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const fiche = await lireJson<Record<string, unknown> | null>(transaction(tx), 'select plateforme.console_entreprise($1) v', [id]);
       if (!fiche) throw new Introuvable();
       const jour = aujourdhuiATunis();
-      const faits = lireFaits((fiche.faits ?? {}) as Record<string, unknown>);
+      const faits = await faitsDeLaFiche(transaction(tx), fiche);
       const etat = etatAbonnement(faits, jour);
       const ligne = lireLigne(fiche.ligne);
       // Les cabinets qui la suivent : la même liste que leur fiche à eux (C3).
@@ -238,7 +251,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // Ce qui attend pour ce client : les lignes d'« À décider » qui le nomment, par la MÊME fonction (C3) — sur la liste
       // telle que l'accueil la lit, jamais une règle écrite une seconde fois pour la fiche.
       const role = roleDe(qui);
-      const liste = lireEntreprises(await lireJson(transaction(tx), 'select plateforme.console_entreprises() v'), jour).filter((e) => e.id === id);
+      const liste = (await lesEntreprises(transaction(tx), jour)).filter((e) => e.id === id);
       // Ses demandes au support, comptées par la même fonction que l'écran Support ; celles qui attendent depuis 24 h
       // entrent dans « ce qui attend », comme à l'accueil.
       const support = lireSupport(await lireJson(transaction(tx), 'select plateforme.console_support($1, null) v', [id]));
@@ -260,7 +273,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     traiter: async ({ query }, tx) => {
       const t = transaction(tx);
       const jour = aujourdhuiATunis();
-      const entreprises = lireEntreprises(await lireJson(t, 'select plateforme.console_entreprises() v'), jour);
+      const entreprises = await lesEntreprises(t, jour);
       const extras = lireExtras(await lireJson(t, 'select plateforme.console_echeances() v'));
       const prix = lirePrix(await lireJson(t, 'select plateforme.prix_du_jour($1::date) v', [jour]));
       const lignes = lignesEcheances(entreprises, extras, prix, jour);
@@ -272,7 +285,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // seconde fois dans les textes, elles divergeraient au premier réglage.
       return { corps: { aujourdhui: jour, vue: v, cartes: cartes(lignes, jour), annuel: annuel(lignes, prix), total: gardees.length,
         lignes: gardees.slice(debut, debut + n), suite: debut + n < gardees.length ? debut + n : null,
-        regles: { relances: RELANCES, grace: GRACE_JOURS, avenir: AVENIR_JOURS } } };
+        regles: reglesDuJour(await lireLesRegles(t), jour) } };
     },
   });
 
@@ -283,7 +296,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     traiter: async ({ query }, tx) => {
       const t = transaction(tx);
       const jour = aujourdhuiATunis();
-      const connues = new Set(lireEntreprises(await lireJson(t, 'select plateforme.console_entreprises() v'), jour).map((e) => e.id));
+      const connues = new Set((await lesEntreprises(t, jour)).map((e) => e.id));
       const tous = lireCabinets(await lireJson(t, 'select plateforme.console_cabinets() v')).map((c) => ligneCabinet(c, connues));
       const gardes = chercherCabinets(tous, String(query.q ?? ''));
       const debut = Math.max(Number(query.debut ?? 0) || 0, 0);
@@ -300,7 +313,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const cabinet = lireCabinets(await lireJson(t, 'select plateforme.console_cabinets() v')).find((c) => c.id === id);
       if (!cabinet) throw new Introuvable();
       const jour = aujourdhuiATunis();
-      const entreprises = lireEntreprises(await lireJson(t, 'select plateforme.console_entreprises() v'), jour);
+      const entreprises = await lesEntreprises(t, jour);
       return { corps: { aujourdhui: jour, ...ficheCabinet(cabinet, entreprises) } };
     },
   });
@@ -319,7 +332,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     const jour = aujourdhuiATunis();
     const ligne = lireLigne(fiche.ligne);
     if (!memeLigne(ligne, lireLigne(corps.ligne))) throw new Perimee('console.abonnement_change');
-    const faits = lireFaits((fiche.faits ?? {}) as Record<string, unknown>);
+    const faits = await faitsDeLaFiche(tx, fiche);
     const { apres, details } = calculerGeste(ligne, faits, { geste, motif: corps.motif, jours: corps.jours, offre: corps.offre, periodicite: corps.periodicite, module: corps.module }, jour);
     const etatApres = etatAbonnement(faitsApres(faits, apres), jour);
     // Un module ouvert ou retiré ne change pas l'état : l'aperçu dit aussi la liste des modules d'après.
@@ -354,7 +367,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const x = transaction(tx);
       const fiche = await lireJson<Record<string, unknown> | null>(x, 'select plateforme.console_entreprise($1) v', [id]);
       if (!fiche) throw new Introuvable();
-      const faits = lireFaits((fiche.faits ?? {}) as Record<string, unknown>);
+      const faits = await faitsDeLaFiche(x, fiche);
       if (faits.tenuParCabinet) return { statut: 409, corps: { motif: motif('abonnement.facture.tenu_par_cabinet') } };
       if (!corps.apercu && corps.motif.trim().length < 3) return { statut: 400, corps: { motif: motif('console.motif_requis'), champ: 'motif', raison: t('console.motif_requis') } };
       const jour = aujourdhuiATunis(maintenant());
@@ -898,7 +911,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
 
   // ── Les réglages de la plateforme (docs/console.md C28) ─────────────────────────────────────────────────────────────
   // La grille des prix (datée), les abonnés de chaque offre (le même état que la liste des clients), les règles qui font
-  // l'échéance (tirées du code : les relances, la grâce, l'essai), le registre des règles communes avec ses relectures,
+  // l'échéance (les relances, la grâce, l'essai : 0104), le registre des règles communes avec ses relectures,
   // et le message aux clients : celui en cours, puis les passés.
   ajouter({
     methode: 'GET', chemin: '/console/reglages', geste: 'console.reglages.voir',
@@ -906,9 +919,11 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const x = transaction(tx);
       const jour = aujourdhuiATunis(maintenant());
       const r = lireReglages(await lireJson(x, 'select plateforme.console_reglages($1::date) v', [jour]));
-      const entreprises = lireEntreprises(await lireJson(x, 'select plateforme.console_entreprises() v'), jour);
+      const entreprises = await lesEntreprises(x, jour);
       // Les prix préparés dans la console (0103) : le préavis, et qui a préparé chaque prix à venir.
       const prepares = lirePrixPrepares(await lireJson(x, 'select plateforme.console_prix_prepares($1::date) v', [jour]));
+      // L'essai, la grâce et les relances (0104) : chacune telle qu'elle vaut aujourd'hui, qui l'a posée et pourquoi.
+      const regles = lireReglesAbonnement(await lireJson(x, 'select plateforme.console_regles_abonnement($1::date) v', [jour]));
       // Les formats officiels : le registre du code, ce que la plateforme en a fait (0094), et si ce serveur a l'adresse
       // de la TTN et de DigiGo (sans elle, les pièces attendent).
       const formats = registreDesFormats(lireFormats(await lireJson(x, 'select plateforme.console_formats() v')), { teif: versionTeif() },
@@ -917,12 +932,15 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
         corps: {
           aujourdhui: jour, role: roleDe(qui),
           grille: preparesPar(grille(r.prix, entreprises, jour), (l) => l.offre, prepares.aVenir),
-          essai: { jours: ESSAI_JOURS, enCours: essaisEnCours(entreprises) },
+          essai: { jours: regles.essai?.jours[0] ?? null, enCours: essaisEnCours(entreprises) },
           // Ce qui s'ajoute à l'offre (14c) : ses prix datés, et les modules achetés seuls par les abonnés d'aujourd'hui.
           ajouts: preparesPar(grilleAjouts(lireAjouts(await lireJson(x, 'select plateforme.console_ajouts($1::date) v', [jour])), entreprises, jour),
             (l) => l.option, prepares.aVenir),
           preavis: prepares.preavis,
-          echeance: { relances: RELANCES, grace: GRACE_JOURS },
+          // Les entreprises en grâce aujourd'hui (le même état que la liste des clients) : une grâce changée ne les touche pas.
+          echeance: { relances: [...(regles.relances?.jours ?? [])].sort((a, b) => b - a), grace: regles.grace?.jours[0] ?? null,
+            enGrace: entreprises.filter((e) => e.etat.etat === 'en_retard').length },
+          regles,
           registre: registre(r.regles, jour),
           message: r.messages.find((m) => m.enCours) ?? null, passes: r.messages.filter((m) => !m.enCours).slice(0, 30),
           formats,
@@ -976,7 +994,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       if (!jourExiste(corps.aPartirDu)) return refusDuChamp('aPartirDu', 'console.reglages.jour_illisible');
       if (corps.apercu) {
         const r = lireReglages(await lireJson(x, 'select plateforme.console_reglages($1::date) v', [jour]));
-        const entreprises = lireEntreprises(await lireJson(x, 'select plateforme.console_entreprises() v'), jour);
+        const entreprises = await lesEntreprises(x, jour);
         const prepares = lirePrixPrepares(await lireJson(x, 'select plateforme.console_prix_prepares($1::date) v', [jour]));
         const offre = corps.quoi === 'essentiel' || corps.quoi === 'complet' ? grille(r.prix, entreprises, jour).find((l) => l.offre === corps.quoi) : null;
         const ajout = offre ? null : grilleAjouts(lireAjouts(await lireJson(x, 'select plateforme.console_ajouts($1::date) v', [jour])), entreprises, jour)
@@ -1019,6 +1037,17 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       return { corps: { ok: true } };
     },
   });
+  // L'essai, la grâce ou les relances (0104) : une règle nouvelle, qui vaut dès aujourd'hui. La base vérifie les bornes.
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/regle', geste: 'console.reglages.gerer',
+    corps: z.object({ code: z.enum(CODES_REGLE), jours: z.array(z.number().int().min(0).max(365)).min(1).max(5), motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const instant = maintenant();
+      await transaction(tx).query('select plateforme.console_regler_abonnement($1, $2::integer[], $3, $4, $5::date)',
+        [corps.code, corps.jours, corps.motif, instant, aujourdhuiATunis(instant)]);
+      return { corps: { ok: true } };
+    },
+  });
   ajouter({
     methode: 'POST', chemin: '/console/reglages/messages', geste: 'console.reglages.gerer',
     corps: z.object({ sorte: z.enum(['nouveaute', 'maintenance']), texte: z.string().trim().min(10).max(240), du: jourIso, au: jourIso, motif: motifGeste }),
@@ -1054,7 +1083,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const demande = uuid.safeParse(query.demande).success ? query.demande : null;
       const s = lireSupport(await lireJson(x, 'select plateforme.console_support($1, $2) v', [entreprise, demande]));
       const client = s.demande
-        ? lireEntreprises(await lireJson(x, 'select plateforme.console_entreprises() v'), jour).find((e) => e.id === s.demande?.ligne.entreprise.id) ?? null
+        ? (await lesEntreprises(x, jour)).find((e) => e.id === s.demande?.ligne.entreprise.id) ?? null
         : null;
       return {
         corps: {

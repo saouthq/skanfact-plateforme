@@ -5,6 +5,7 @@
 // montre, et une entreprise dit la même chose sur la fiche de son cabinet. Les dates sont comptées à la main.
 
 import { describe, expect, it } from 'vitest';
+import { REGLES_DE_DEPART } from '../regles-de-depart.ts';
 import { echeanceDe, etatAbonnement, plusJours, relanceDue } from '../../serveur/abonnement/etat.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from '../../serveur/console/cabinets.ts';
 import { lireEntreprises } from '../../serveur/console/decider.ts';
@@ -67,7 +68,7 @@ const EXTRAS = {
   ],
 };
 
-const liste = lireEntreprises(TOUTES, JOUR);
+const liste = lireEntreprises(TOUTES, JOUR, REGLES_DE_DEPART);
 const lignes = lignesEcheances(liste, lireExtras(EXTRAS), lirePrix(PRIX), JOUR);
 const nomsDe = (l: LigneEcheance[]) => l.map((x) => x.entreprise.nom);
 const de = (e: { id: string }) => lignes.find((l) => l.entreprise.id === e.id) as LigneEcheance;
@@ -152,7 +153,7 @@ describe('les échéances des abonnements', () => {
     // jours devant ou de huit jours derrière). Chaque entreprise du portefeuille, une désactivée en plus, depuis des
     // départs différents (une console ouverte au milieu d'une échéance), jusqu'à la fin de l'année.
     const desactivee = entreprise('P · désactivée', { essaiJusquAu: '2026-10-20' }, { active: false });
-    for (const [e] of [...TOUTES, desactivee].map((x) => lireEntreprises([x], JOUR))) {
+    for (const [e] of [...TOUTES, desactivee].map((x) => lireEntreprises([x], JOUR, REGLES_DE_DEPART))) {
       if (!e) throw new Error('entreprise illisible');
       for (let depart = '2026-09-01'; depart <= '2026-11-20'; depart = plusJours(depart, 3)) {
         const parties: { echeance: string; rang: string; le: string }[] = [];
@@ -187,12 +188,27 @@ describe('les échéances des abonnements', () => {
   });
 });
 
+describe('les relances prévues, selon la règle du jour (0104)', () => {
+  it('celles de la règle du jour ; une relance partie sous une autre règle reste dite', () => {
+    const regles = { ...REGLES_DE_DEPART, relances: [{ aPartirDu: '2000-01-01', jours: [10, 3] }] };
+    const [e] = lireEntreprises([entreprise('Z · essai qui finit dans 12 jours', { essaiJusquAu: '2026-10-25' })], JOUR, regles);
+    if (!e) throw new Error('entreprise attendue');
+    // Celle des quinze jours est partie le 10/10, sous la règle d'avant : elle reste dite ; dix et trois jours sont prévues.
+    const r = relancesDe(e.etat, e.faits, { echeance: '2026-10-25', rangs: { j15: '2026-10-10T08:00:00Z' } }, JOUR);
+    expect(r.map((x) => [x.rang, x.prevueLe, x.etat])).toEqual([['j15', '2026-10-10', 'partie'], ['j10', '2026-10-15', 'prevue'], ['j3', '2026-10-22', 'prevue']]);
+    // Aucune règle : aucune relance prévue (une règle qu'on ne connaît pas ne fait rien).
+    const [sans] = lireEntreprises([entreprise('Y · essai sans règle', { essaiJusquAu: '2026-10-25' })], JOUR, { ...REGLES_DE_DEPART, relances: [] });
+    if (!sans) throw new Error('entreprise attendue');
+    expect(relancesDe(sans.etat, sans.faits, undefined, JOUR)).toEqual([]);
+  });
+});
+
 describe('les cabinets', () => {
   const T1 = entreprise('Épicerie Ben Ali', { tenuParCabinet: true }, { tenuePar: 'Cabinet Nour' });
   const C1 = entreprise('Boulangerie Essalem', { essaiJusquAu: '2026-10-30' });
   const C2 = entreprise('Atelier Mejri', { payeJusquAu: '2027-01-10', offre: 'complet', periodicite: 'annuel' });
   const P1 = entreprise('Pharmacie Ennour', { essaiJusquAu: '2026-10-20' });
-  const entreprises = lireEntreprises([T1, C1, C2, P1], JOUR);
+  const entreprises = lireEntreprises([T1, C1, C2, P1], JOUR, REGLES_DE_DEPART);
   const BRUT = [{
     id: id(901), nom: 'Cabinet Nour', creeLe: '2026-09-20',
     collaborateurs: [
@@ -255,7 +271,7 @@ describe('les cabinets', () => {
 describe('les relances parties depuis hier (l\'accueil)', () => {
   it('celles des vingt-quatre dernières heures, nommées, la plus récente d\'abord ; ni avant, ni après l\'heure qu\'il est', () => {
     const maintenant = new Date('2026-10-13T08:00:00Z');
-    const liste = lireEntreprises([A, B, D, G], JOUR);
+    const liste = lireEntreprises([A, B, D, G], JOUR, REGLES_DE_DEPART);
     const extras = lireExtras({ relances: [
       // A : la veille de la fin de son essai, partie cette nuit ; sa relance des sept jours, partie il y a six jours.
       { entreprise: A.id, echeance: '2026-10-15', rangs: { j7: '2026-10-07T07:00:00Z', j1: '2026-10-13T03:00:00Z' } },

@@ -2,9 +2,9 @@
 // DÉDUIT des faits (base/migrations/0082_abonnement.sql) et du jour qu'il est à Tunis, à chaque lecture. Un état écrit
 // se périmerait à minuit. Pur : la porte, l'écran, les relances et l'outil de l'exploitation le lisent tous ici.
 //
-//   essai          l'essai court (30 jours après la création, tout ouvert, sans carte) ;
+//   essai          l'essai court (sa durée se fixe à la création de l'entreprise, tout ouvert, sans carte) ;
 //   actif          une période payée court ;
-//   en_retard      l'échéance est passée : SEPT jours de grâce, pendant lesquels tout marche encore (07) ;
+//   en_retard      l'échéance est passée : les jours de grâce, pendant lesquels tout marche encore (07) ;
 //   lecture_seule  ensuite : tout se lit, s'imprime et s'exporte, rien de nouveau ne se crée. Jamais de données en
 //                  otage (6.4.0) ;
 //   hors           pas d'échéance du tout : l'entreprise d'essai d'un développeur (le bac à sable), un dossier tenu par
@@ -13,11 +13,11 @@
 //
 // Une résiliation va au bout de ce qui est payé, puis la lecture seule, sans grâce. Une suspension (la console) met en
 // lecture seule tout de suite.
-
-export const ESSAI_JOURS = 30;
-export const GRACE_JOURS = 7;
-// Les relances, en jours avant l'échéance (07) : quinze jours, sept jours, la veille.
-export const RELANCES = [15, 7, 1] as const;
+//
+// La durée de l'essai, la grâce et les relances sont des règles datées que la direction pose dans la console (0104 ;
+// docs/abonnement.md C15) : jamais un nombre écrit ici. La base fixe l'essai à la création de l'entreprise ; les faits
+// portent l'histoire de la grâce et des relances, et l'état prend celle qui vaut : la grâce d'une échéance est celle de
+// son lendemain (une grâce commencée ne change plus), les relances d'un jour celles de ce jour-là.
 
 export type Offre = 'essentiel' | 'complet';
 export type Periodicite = 'annuel' | 'mensuel';
@@ -35,7 +35,23 @@ export type Faits = {
   bacASable: boolean;
   tenuParCabinet: boolean;
   modules?: readonly ModuleAchete[];
+  regles: Regles;
 };
+
+// Une règle datée : les jours qu'elle dit, à partir de son jour. L'histoire d'une règle va de la plus ancienne à la plus
+// récente ; celle d'un jour est la dernière qui vaut ce jour-là. Aucune : la règle est inconnue, et rien ne se ferme sur
+// ce qu'on ne connaît pas.
+export type RegleDatee = { aPartirDu: string; jours: number[] };
+export type Regles = { grace: RegleDatee[]; relances: RegleDatee[] };
+export function regleAu(histoire: readonly RegleDatee[], jour: string): number[] | null {
+  let r: number[] | null = null;
+  for (const x of histoire) if (x.aPartirDu <= jour) r = x.jours;
+  return r;
+}
+// La grâce d'une échéance : la règle de son lendemain, son premier jour.
+export const graceDe = (f: Faits, echeance: string): number | null => regleAu(f.regles.grace, plusJours(echeance, 1))?.[0] ?? null;
+// Les relances d'un jour, en jours avant l'échéance, de la plus lointaine à la plus proche.
+export const relancesDu = (f: Faits, jour: string): number[] => [...(regleAu(f.regles.relances, jour) ?? [])].sort((a, b) => b - a);
 
 export type Etat =
   | { etat: 'hors'; raison: 'bac_a_sable' | 'tenu_par_cabinet' | 'offert' | 'inconnu' }
@@ -44,7 +60,9 @@ export type Etat =
   | { etat: 'en_retard'; echeance: string; lectureSeuleLe: string; jours: number; apresEssai: boolean }
   | { etat: 'lecture_seule'; depuis: string; raison: 'essai_termine' | 'non_renouvele' | 'resilie' | 'suspendu' };
 
-export type Rang = 'j15' | 'j7' | 'j1' | 'lecture_seule';
+// Une relance se nomme par ses jours avant l'échéance (« j15 », « j1 ») ; la dernière, par la lecture seule.
+export type Rang = `j${number}` | 'lecture_seule';
+export const joursDuRang = (r: string): number | null => (/^j[1-9]\d?$/.test(r) ? Number(r.slice(1)) : null);
 
 // ── Les jours de calendrier, en UTC pur (une date est un jour, jamais un instant) ───────────────────────────────────────
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
@@ -73,8 +91,18 @@ export function lireFaits(f: Record<string, unknown>): Faits {
     periodicite: f.periodicite === 'annuel' || f.periodicite === 'mensuel' ? f.periodicite : null,
     resilieLe: jour(f.resilieLe), suspenduLe: jour(f.suspenduLe), offert: f.offert === true,
     bacASable: f.bacASable === true, tenuParCabinet: f.tenuParCabinet === true,
-    modules: lireModules(f.modules),
+    modules: lireModules(f.modules), regles: lireRegles(f.regles),
   };
+}
+
+// L'histoire des règles telle que la base la rend (0104), lue prudemment : une ligne illisible ne compte pas.
+export function lireRegles(v: unknown): Regles {
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+  const histoire = (h: unknown): RegleDatee[] => (Array.isArray(h) ? h : []).flatMap((x: Record<string, unknown>) => {
+    const jours = Array.isArray(x?.jours) ? x.jours.filter((n): n is number => Number.isInteger(n) && n >= 0) : [];
+    return estJour(x?.aPartirDu) && jours.length && jours.length === (x.jours as unknown[]).length ? [{ aPartirDu: x.aPartirDu, jours }] : [];
+  }).sort((a, b) => (a.aPartirDu < b.aPartirDu ? -1 : a.aPartirDu > b.aPartirDu ? 1 : 0));
+  return { grace: histoire(o.grace), relances: histoire(o.relances) };
 }
 
 // Les modules achetés, lus prudemment : la paie, la comptabilité complète, rien d'autre.
@@ -102,7 +130,10 @@ export function etatAbonnement(f: Faits, jour: string): Etat {
   }
   // Résilié : au bout de ce qui est payé, la lecture seule, sans grâce.
   if (f.resilieLe) return { etat: 'lecture_seule', depuis: plusJours(echeance, 1), raison: 'resilie' };
-  const lectureSeuleLe = plusJours(echeance, GRACE_JOURS + 1);
+  // Une grâce qu'on ne connaît pas ne ferme rien.
+  const grace = graceDe(f, echeance);
+  if (grace === null) return { etat: 'hors', raison: 'inconnu' };
+  const lectureSeuleLe = plusJours(echeance, grace + 1);
   const apresEssai = !f.payeJusquAu || f.payeJusquAu < (f.essaiJusquAu ?? echeance);
   if (jour < lectureSeuleLe) return { etat: 'en_retard', echeance, lectureSeuleLe, jours: joursEntre(jour, lectureSeuleLe), apresEssai };
   return { etat: 'lecture_seule', depuis: lectureSeuleLe, raison: apresEssai ? 'essai_termine' : 'non_renouvele' };
@@ -123,22 +154,23 @@ export function relanceDue(f: Faits, jour: string, parties: { echeance: string; 
   }
   const reste = joursEntre(jour, echeance);
   if (reste < 0) return null;
-  // De la plus pressante à la moins pressante : la veille, puis sept jours, puis quinze.
-  const rangs: [number, Rang][] = [[1, 'j1'], [7, 'j7'], [15, 'j15']];
-  for (const [seuil, rang] of rangs) {
+  // Les jours des relances déjà parties pour cette échéance, quelle que soit la règle qui les a fait partir.
+  const dejaJours = [...deja].map(joursDuRang).filter((n): n is number => n !== null);
+  // De la plus pressante à la moins pressante : la veille, puis les autres, de la plus proche à la plus lointaine.
+  for (const seuil of relancesDu(f, jour).reverse()) {
     if (reste > seuil) continue;
     // Une relance de ce rang, ou plus pressante, est déjà partie pour cette échéance : rien de plus.
-    const plusPressantes = rangs.filter(([s]) => s <= seuil).map(([, r]) => r);
-    if (plusPressantes.some((r) => deja.has(r))) return null;
-    return { rang, echeance, jours: reste };
+    if (dejaJours.some((n) => n <= seuil)) return null;
+    return { rang: `j${seuil}`, echeance, jours: reste };
   }
   return null;
 }
 
 // La période qu'un paiement couvre : elle commence le lendemain de l'échéance si on paie avant la fin de la grâce
 // (rien ne s'interrompt, et les jours de grâce font partie de la période), sinon le jour du paiement.
+// Une grâce inconnue n'en compte aucune : la période commence le jour du paiement, sans faire payer des jours passés.
 export function prochainePeriode(f: Faits, periodicite: Periodicite, jour: string): { debut: string; fin: string } {
   const echeance = echeanceDe(f) ?? plusJours(jour, -1);
-  const debut = jour <= plusJours(echeance, GRACE_JOURS) ? plusJours(echeance, 1) : jour;
+  const debut = jour <= plusJours(echeance, graceDe(f, echeance) ?? 0) ? plusJours(echeance, 1) : jour;
   return { debut, fin: plusJours(plusMois(debut, periodicite === 'annuel' ? 12 : 1), -1) };
 }

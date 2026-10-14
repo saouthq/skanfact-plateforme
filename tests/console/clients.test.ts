@@ -5,6 +5,7 @@
 // départager et mettent en bas ce qui n'a pas de valeur. Les dates et les montants sont comptés à la main.
 
 import { describe, expect, it } from 'vitest';
+import { REGLES_DE_DEPART } from '../regles-de-depart.ts';
 import { comptesDesVues, dansLaVue, echeanceDe, ligneClient, parAn, parAnDeLaSelection, trier, VUES_CLIENTS } from '../../serveur/console/clients.ts';
 import { lireEntreprises, rangerParUrgence } from '../../serveur/console/decider.ts';
 import { lirePrix } from '../../serveur/console/echeances.ts';
@@ -47,7 +48,7 @@ const BRUT = [
   brute('L · tenue par son cabinet', { tenuParCabinet: true }),
   brute('M · offerte', { offert: true }),
 ];
-const LISTE = lireEntreprises(BRUT, JOUR);
+const LISTE = lireEntreprises(BRUT, JOUR, REGLES_DE_DEPART);
 function nom(lettre: string) {
   const e = LISTE.find((x) => x.raisonSociale.startsWith(`${lettre} `));
   if (!e) throw new Error(`pas d'entreprise ${lettre}`);

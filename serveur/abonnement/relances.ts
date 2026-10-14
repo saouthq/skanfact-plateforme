@@ -1,5 +1,6 @@
 // Les relances de l'abonnement (docs/abonnement.md ; skanfact docs/cadrage/07-offres-et-prix.md, 10-console.md § 2.4) :
-// quinze jours, sept jours et la veille de l'échéance, puis le jour où l'entreprise passe en lecture seule. Chaque heure,
+// aux jours que la règle du jour dit (0104 ; à la mise en place, quinze jours, sept jours et la veille de l'échéance),
+// puis le jour où l'entreprise passe en lecture seule. Chaque heure,
 // le serveur regarde les échéances proches, et prévient qui gère l'abonnement (le propriétaire, les administrateurs).
 //
 // Une relance part une fois par échéance (plateforme.relance_abonnement) : une échéance qui change (un paiement, un
@@ -13,7 +14,7 @@ import { enTantQue } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { rendre, t } from '../../textes/index.ts';
-import { etatAbonnement, jourEnFrancais, lireFaits, relanceDue } from './etat.ts';
+import { etatAbonnement, graceDe, jourEnFrancais, lireFaits, relanceDue } from './etat.ts';
 import './textes.ts';
 
 type AExaminer = { entreprise: string; faits: Record<string, unknown>; parties: { echeance: string; rang: string }[]; adresses: string[] };
@@ -36,6 +37,10 @@ export async function relancerLesAbonnements(ctx: Contexte, maintenant: Date = c
     const date = e.etat === 'lecture_seule' ? e.depuis : due.echeance;
     const quand = due.jours <= 0 ? t('abonnement.relance.quand.aujourdhui') : due.jours === 1 ? t('abonnement.relance.quand.demain')
       : t('abonnement.relance.quand.jours', { jours: due.jours });
+    // Ce qui suit l'échéance : la grâce de cette échéance-là (une grâce qu'on ne connaît pas ne se promet pas : aucune).
+    const grace = graceDe(faits, due.echeance) ?? 0;
+    const apres = grace === 0 ? t('abonnement.relance.apres.sans_grace') : grace === 1 ? t('abonnement.relance.apres.grace_1')
+      : t('abonnement.relance.apres.grace_n', { jours: grace });
     // Le français : l'anglais viendra avec son catalogue (vague 4).
     const langue = 'fr';
     try {
@@ -43,7 +48,7 @@ export async function relancerLesAbonnements(ctx: Contexte, maintenant: Date = c
         await courriel.envoi.envoyer({
           a: adresse,
           objet: rendre(t(`abonnement.relance.objet.${nature}`, { quand }), langue),
-          texte: rendre(t(`abonnement.relance.texte.${nature}`, { date: jourEnFrancais(date), lien: `${courriel.adresse()}/` }), langue),
+          texte: rendre(t(`abonnement.relance.texte.${nature}`, { date: jourEnFrancais(date), apres, lien: `${courriel.adresse()}/` }), langue),
           bouton: rendre(t('abonnement.relance.bouton'), langue),
           langue,
         });

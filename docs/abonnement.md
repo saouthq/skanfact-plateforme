@@ -330,8 +330,31 @@ Réglages › Offres et prix, avec son motif et sa ligne au journal (`reglages.p
   sa date (`plateforme.prix_a_venir`, sans le motif, qui est une note de SkanFact).
 
 Ce que 1.12.0 ne fait pas encore : l'e-mail qui annonce un nouveau prix aux abonnés concernés (et « le prix ne change
-pas » s'il est retiré après l'annonce) ; l'essai, la grâce et les rappels réglables ; le contenu des offres, les
-remises et les places de fondateur réglables (`07` « Tout se règle depuis la console » : la suite).
+pas » s'il est retiré après l'annonce) ; le contenu des offres, les remises et les places de fondateur réglables (`07`
+« Tout se règle depuis la console » : la suite).
+
+**C15. L'essai, la grâce et les relances se règlent dans la console** (1.13.0 ; `0104` ; `07` « Tout se règle depuis
+la console », Skander, 14/10/2026). Trente jours d'essai, sept de grâce et les relances à quinze jours, sept jours et la
+veille ne s'écrivent plus dans le code : ce sont des règles datées (`plateforme.regle_abonnement`, comme le préavis),
+que la direction pose dans Réglages › Offres et prix, sous la frise des échéances (« Changer l'essai… », « Changer les
+relances… », « Changer la grâce… »), avec son motif et sa ligne au journal (`reglages.regle_abonnement`, la règle
+d'avant et la nouvelle). Une règle posée vaut dès aujourd'hui, ne se réécrit ni ne s'efface (la base le refuse) ; la
+dernière posée un même jour l'emporte. Les bornes, tenues par la base : l'essai de 7 à 90 jours ; la grâce de 0 à 30
+jours (0 : la lecture seule dès le lendemain de l'échéance) ; une à cinq relances, chacune de 1 à 60 jours avant
+l'échéance, à des jours différents. Ce que chaque règle touche, et ce qu'elle ne touche jamais :
+- **l'essai** d'une entreprise se fixe à sa création, par la règle de ce jour-là : un essai commencé garde sa date de
+  fin (une prolongation reste un geste de la fiche) ;
+- **la grâce** d'une échéance est celle de la règle en vigueur le **lendemain de l'échéance**, son premier jour : une
+  grâce commencée garde sa durée ; l'état (`serveur/abonnement/etat.ts`), l'application, la console et l'e-mail de
+  relance lisent la même, dans l'histoire des règles que la base joint aux faits (`plateforme.regles_abonnement_histoire`) ;
+  une grâce qu'on ne connaît pas ne ferme rien (l'état dit « hors », comme une entreprise sans ligne) ;
+- **les relances** qui partent un jour sont celles de la règle de ce jour-là ; une relance déjà partie pour une échéance
+  compte encore sous une règle nouvelle (rien de moins pressant ne repart). La base choisit les échéances à examiner
+  d'après la règle du jour et la grâce de chacune.
+L'application ne dit plus aucun de ces nombres d'elle-même : « Ton abonnement » dit la durée de SON essai (la jauge
+« 5 jours sur 30 »), le premier rappel, les rappels et la grâce de son échéance (« 10 jours de grâce », « Pas de grâce »),
+lus dans la réponse du serveur ; l'e-mail de relance dit la grâce de son échéance (« tout marche encore 3 jours », « dès
+le lendemain, l'entreprise passe en lecture seule »).
 
 **Ce que 14c ne fait pas** : passer à Complet ou acheter un module en libre-service (on écrit à contact@skanfact.tn,
 comme en 14a).
@@ -356,6 +379,20 @@ pour ton abonnement » sous la paie ; « L'équipe » : deux invitations (un com
 puis, à la troisième, la fenêtre dit avant le bouton que l'offre comprend 3 utilisateurs, que l'équipe en compte 1 et
 que 2 invitations attendent, et ce que coûtera une personne de plus. Corrigé pendant le parcours : « 0 caisse sur 1
 compris » ; « tu en as déjà 1, et 2 invitations attendent », qui se lisait mal ; l'espace avant les deux-points.
+
+## Revu à la souris (14/10/2026, C15 : l'essai, la grâce et les relances)
+
+Sur l'essai de l'outil humain, dans la console (Amira, direction) : Réglages › Offres et prix, sous la frise « Autour
+d'une échéance », les trois règles de départ et leur motif ; « Changer la grâce… » : la fenêtre ouvre sur la règle
+d'aujourd'hui (7), dit qu'elle ne changerait rien et garde « Poser cette règle » éteint ; 10 tapé : l'aperçu barre
+« 7 jours de grâce », dit « 10 jours de grâce » et qu'aucune entreprise n'est en grâce aujourd'hui, sans pousser le
+motif ; posée : la frise et la ligne disent 10 jours, réglée par Amira, et le journal « 7 jours → 10 jours ».
+« Changer les relances… » : « 10 3 3 » refusé à la place de l'aperçu, « 10 3 » accepté (« 15 jours avant l'échéance,
+7 jours avant et la veille → 10 jours avant l'échéance et 3 jours avant »), abandonné sans rien poser. Chez Walid
+(Essentiel au mois, payé jusqu'au 23/11/2026) : « Un rappel part par e-mail 15 jours avant l'échéance », et sous « À
+l'échéance », les rappels en mots et « 10 jours de grâce ». Corrigé pendant le parcours : « La règle de départ : « La
+règle de départ (07)… » », dit deux fois (le motif des règles de départ dit maintenant « Cadrage 07 (27/09/2026) ») ;
+l'aperçu des relances qui répétait sa première ligne.
 
 ## Revu à la souris (14/10/2026, C14 : un nouveau prix)
 

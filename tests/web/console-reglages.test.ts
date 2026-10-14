@@ -226,6 +226,53 @@ describe('les réglages de la plateforme, à la souris', () => {
     await fermer(p);
   }, 120_000);
 
+  it('une règle de l\'abonnement : la grâce se change à la souris, avec son aperçu ; le client et le journal la disent', async () => {
+    const p = await console_(jD);
+    const ligne = p.locator('.c-rg-regle-abo[data-code="grace"]');
+    expect(net(await ligne.innerText())).toBe('7 jours de grâce après l\'échéance, où tout marche encore. La règle de départ : « Cadrage 07 (27/09/2026) : sept jours de grâce après l\'échéance, où tout marche encore » Changer la grâce…');
+    expect(net(await p.locator('.c-rg-regle-abo[data-code="relances"] .c-sous').innerText())).toMatch(/^Une relance part 15 jours avant l'échéance, 7 jours avant et la veille\./);
+    await cliquer(ligne.getByRole('button', { name: 'Changer la grâce…' }));
+    const f = p.locator('[role="dialog"]');
+    // Ce qu'on lit en ouvrant : la règle d'aujourd'hui, qui ne changerait rien ; le bouton attend une autre valeur.
+    expect(await f.getByLabel('La grâce, en jours').inputValue()).toBe('7');
+    expect(net(await f.locator('.c-rg-prix-zone').innerText())).toBe('C\'est déjà la règle d\'aujourd\'hui : rien ne changerait.');
+    expect(await f.getByRole('button', { name: 'Poser cette règle', exact: true }).isDisabled()).toBe(true);
+    const motifAvant = (await f.locator('textarea').boundingBox())?.y;
+    // Hors des bornes : l'aperçu le dit à sa place, sans rien pousser.
+    await f.getByLabel('La grâce, en jours').fill('45');
+    expect(net(await f.locator('.c-rg-prix-zone').innerText())).toBe('La grâce compte de 0 à 30 jours : écris un nombre entier.');
+    await f.getByLabel('La grâce, en jours').fill('10');
+    expect(net(await f.locator('.c-rg-prix-zone').innerText()))
+      .toMatch(/^7 jours de grâce → 10 jours de grâce 10 jours de grâce après l'échéance, où tout marche encore\. (Aucune entreprise n'est en grâce aujourd'hui|Une entreprise est en grâce aujourd'hui : elle garde la sienne|\d+ entreprises sont en grâce aujourd'hui : elles gardent la leur)$/);
+    expect((await f.locator('textarea').boundingBox())?.y).toBe(motifAvant);
+    await f.locator('textarea').fill('Dix jours pour la rentrée');
+    await cliquer(f.getByRole('button', { name: 'Poser cette règle', exact: true }));
+    await expect.poll(() => f.count(), { timeout: 10_000 }).toBe(0);
+    await expect.poll(() => ligne.innerText().then(net).catch(() => ''), { timeout: 10_000 })
+      .toMatch(/^10 jours de grâce après l'échéance, où tout marche encore\. Réglée par Amira Réglages, aujourd'hui, \d\d:\d\d : « Dix jours pour la rentrée » Changer la grâce…$/);
+    // La frise la dit aussi.
+    expect(net(await p.locator('.c-rg-etape-grace').innerText())).toContain('10 jours de grâce');
+    // Les relances aussi (par l'API) : dix jours et trois jours.
+    expect((await api('POST', '/console/reglages/regle', jD, { code: 'relances', jours: [3, 10], motif: 'Dix jours puis trois' })).statut).toBe(200);
+    // Le client lit les deux dans « Ton abonnement » : son échéance tombe après la règle.
+    const c = await client();
+    await c.evaluate(() => { location.hash = '#/parametres'; });
+    await cliquer(c.locator('#set-tabs [data-tab="abonnement"]'));
+    await expect.poll(() => c.locator('#abonnement-panel .abo-etapes').innerText().then(net).catch(() => ''), { timeout: 15_000 })
+      .toContain('10 jours de grâce Après l\'échéance, tout marche encore.');
+    expect(net(await c.locator('#abonnement-panel .abo-etapes').innerText())).toContain('Les rappels Un e-mail 10 jours et 3 jours avant l\'échéance.');
+    await fermer(c);
+    // Le journal : quelle règle, de quoi à quoi.
+    await p.goto(`${serveur.adresse}/console/#/journal`);
+    await expect.poll(() => p.locator('tr').filter({ hasText: 'Dix jours pour la rentrée' }).first().innerText().then(net).catch(() => ''), { timeout: 15_000 })
+      .toContain('Règle de l\'abonnement changée Réglages La grâce après l\'échéance « Dix jours pour la rentrée » 7 jours → 10 jours');
+    // Retour à la règle de départ pour la suite.
+    expect((await api('POST', '/console/reglages/regle', jD, { code: 'grace', jours: [7], motif: 'retour aux sept jours' })).statut).toBe(200);
+    expect((await api('POST', '/console/reglages/regle', jD, { code: 'relances', jours: [15, 7, 1], motif: 'retour aux trois relances' })).statut).toBe(200);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 120_000);
+
   it('la relecture d\'une règle : la fenêtre nomme la règle, l\'avis se choisit, et la carte dit qui l\'a relue', async () => {
     const p = await console_(jD, 'regles');
     const carte = p.locator('.c-rg-regle').filter({ hasText: CODE });

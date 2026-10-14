@@ -5,7 +5,7 @@
 //   - une console où rien ne se passe affiche une liste vide, et le dit : elle n'invente pas de travail.
 
 import { confirme } from '../../exploitation/veille.ts';
-import { etatAbonnement, joursEntre, lireFaits, plusJours, type Etat, type Faits } from '../abonnement/etat.ts';
+import { etatAbonnement, joursEntre, lireFaits, plusJours, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
 import type { RoleConsole } from './gestes.ts';
 import { compter, etatDe, type LigneDemande } from './support.ts';
 
@@ -17,11 +17,12 @@ export type Entreprise = {
 };
 
 // Ce que la base rend (plateforme.console_entreprises), lu prudemment : un champ illisible vaut « rien », jamais une
-// valeur devinée ; l'état se déduit du jour de Tunis.
-export function lireEntreprises(brut: unknown, jour: string): Entreprise[] {
+// valeur devinée ; l'état se déduit du jour de Tunis, avec les règles de l'abonnement (la grâce, les relances : 0104),
+// lues une fois pour toute la liste.
+export function lireEntreprises(brut: unknown, jour: string, regles: Regles): Entreprise[] {
   if (!Array.isArray(brut)) return [];
   return brut.map((x: Record<string, unknown>) => {
-    const faits = lireFaits((x.faits ?? {}) as Record<string, unknown>);
+    const faits = { ...lireFaits((x.faits ?? {}) as Record<string, unknown>), regles };
     const o = (x.organisation ?? {}) as Record<string, unknown>;
     const p = x.proprietaire as Record<string, unknown> | null;
     return {

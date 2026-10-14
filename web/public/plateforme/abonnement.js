@@ -122,6 +122,19 @@
     const d = new Date(Date.UTC(Number(j.slice(0, 4)), Number(j.slice(5, 7)) - 1, Number(j.slice(8, 10)) + n));
     return d.toISOString().slice(0, 10);
   }
+  /** @param {string} de @param {string} a */
+  const joursEntre = (de, a) => Math.round((Date.UTC(Number(a.slice(0, 4)), Number(a.slice(5, 7)) - 1, Number(a.slice(8, 10)))
+    - Date.UTC(Number(de.slice(0, 4)), Number(de.slice(5, 7)) - 1, Number(de.slice(8, 10)))) / 86_400_000);
+  // Les relances dites en mots, de la plus lointaine à la plus proche : « 15 jours et 7 jours avant l'échéance, puis la
+  // veille », sans jamais un nombre écrit ici (0104 : ce sont des règles que SkanFact règle).
+  /** @param {string[]} m */
+  const enumerer = (m) => (m.length > 1 ? `${m.slice(0, -1).join(', ')} et ${m[m.length - 1]}` : (m[0] || ''));
+  /** @param {number[]} r */
+  const relancesEnMots = (r) => {
+    const avant = r.filter((n) => n !== 1).map((n) => pl(n, 'jour'));
+    const debut = avant.length ? `${enumerer(avant)} avant l'échéance` : '';
+    return r.includes(1) ? (debut ? `${debut}, puis la veille` : 'la veille de l\'échéance') : debut;
+  };
 
   // La pastille de la barre : rien quand il n'y a rien à dire (pas d'échéance, ou une échéance lointaine payée).
   /** @param {Etat | null} e @returns {{ show: boolean, ton: string, texte: string }} */
@@ -142,8 +155,9 @@
   }
 
   // L'état en tête de l'onglet : une pastille, un titre, ce qu'il veut dire, et la jauge des jours quand ils comptent.
-  /** @param {Etat} e @returns {{ ton: string, pastille: string, titre: string, texte: string, jauge: { texte: string, part: number } | null }} */
-  function etatEnClair(e) {
+  // `regles` : la durée de son essai et ses relances (0104), quand on les connaît.
+  /** @param {Etat} e @param {{ essai?: number | null, relances?: number[] }} [regles] @returns {{ ton: string, pastille: string, titre: string, texte: string, jauge: { texte: string, part: number } | null }} */
+  function etatEnClair(e, regles = {}) {
     if (e.etat === 'hors') {
       return { ton: 'calme', pastille: 'Sans échéance', titre: 'Rien ne s\'arrête ici', jauge: null, texte: ({ bac_a_sable: 'C\'est une entreprise d\'essai : elle ne s\'arrête jamais, et rien n\'y est facturé.',
         tenu_par_cabinet: 'Ton cabinet tient ce dossier : c\'est lui qui le paie.', offert: 'SkanFact t\'offre cet abonnement : il ne s\'arrête pas.',
@@ -153,21 +167,27 @@
       const j = Number(e.jours);
       return { ton: j <= 7 ? 'attire' : 'calme', pastille: 'Essai gratuit', titre: j <= 0 ? 'Dernier jour de ton essai' : `Encore ${pl(j, 'jour')} d'essai`,
         texte: `Jusqu'au ${jour(e.jusquAu)}, tout est ouvert, sans carte. Ce que tu crées pendant l'essai reste quand tu t'abonnes : rien à ressaisir.`,
-        // La part de l'essai qui reste : trente jours, ou plus s'il a été prolongé.
-        jauge: { texte: j <= 0 ? 'Dernier jour' : `${pl(j, 'jour')} sur ${Math.max(30, j)}`, part: Math.max(0, Math.min(1, j / Math.max(30, j))) } };
+        // La part de l'essai qui reste : sur sa durée (celle de sa création), ou plus s'il a été prolongé ; sans elle, la
+        // jauge ne dit que les jours qui restent.
+        jauge: (() => {
+          const sur = regles.essai ? Math.max(regles.essai, j) : null;
+          return { texte: j <= 0 ? 'Dernier jour' : sur ? `${pl(j, 'jour')} sur ${sur}` : pl(j, 'jour'), part: sur ? Math.max(0, Math.min(1, j / sur)) : 1 };
+        })() };
     }
     if (e.etat === 'actif') {
       const j = Number(e.jours);
       return { ton: j <= 15 ? 'attire' : 'calme', pastille: e.resilie ? 'Résilié' : `${nomOffre(e.offre)} · ${e.periodicite === 'mensuel' ? 'au mois' : 'à l\'année'}`,
         titre: `Payé jusqu'au ${jour(e.jusquAu)}`, jauge: null,
         texte: e.resilie ? 'Tu as résilié : l\'abonnement s\'arrête à cette date, puis l\'entreprise passe en lecture seule.'
-          : j <= 0 ? 'C\'est le dernier jour de la période payée.' : `Encore ${pl(j, 'jour')}. Un rappel part par e-mail quinze jours avant l'échéance.` };
+          : j <= 0 ? 'C\'est le dernier jour de la période payée.'
+            : `Encore ${pl(j, 'jour')}.${regles.relances && regles.relances.length ? ` Un rappel part par e-mail ${relancesEnMots(regles.relances.slice(0, 1))}.` : ''}` };
     }
     if (e.etat === 'en_retard') {
       const j = Number(e.jours);
       return { ton: 'alerte', pastille: 'À régler', titre: e.apresEssai ? `L'essai est terminé depuis le ${jour(plusJours(String(e.echeance), 1))}` : `L'abonnement est échu depuis le ${jour(plusJours(String(e.echeance), 1))}`,
         texte: `Tout marche encore jusqu'au ${jour(plusJours(String(e.lectureSeuleLe), -1))}. Le ${jour(e.lectureSeuleLe)}, l'entreprise passe en lecture seule : tout se lit, s'imprime et s'exporte, mais rien de nouveau ne se crée.`,
-        jauge: { texte: `${pl(j, 'jour')} de grâce`, part: Math.max(0, Math.min(1, j / 7)) } };
+        // La grâce de cette échéance : du lendemain de l'échéance à la veille de la lecture seule.
+        jauge: { texte: `${pl(j, 'jour')} de grâce`, part: Math.max(0, Math.min(1, j / Math.max(1, joursEntre(String(e.echeance), String(e.lectureSeuleLe)) - 1))) } };
     }
     return { ton: 'alerte', pastille: 'Lecture seule', titre: `En lecture seule depuis le ${jour(e.depuis)}`, jauge: null,
       texte: `${pourquoi(e)} Tout se lit, s'imprime et s'exporte ; tes données restent à toi. Pour créer de nouveau, abonne-toi : tout se rouvre aussitôt, tel que tu l'as laissé.` };
@@ -325,14 +345,15 @@
 
   /** @param {HTMLElement} el @param {Outils} o */
   async function dessiner(el, o) {
-    /** @type {{ aujourdhui: string, etat: Etat, prix: { offre: string, periodicite: string, montantHt: string }[], options?: { option: string, periodicite: string, montantHt: string }[], aVenir?: { quoi: string, periodicite: string, aPartirDu: string, montantHt: string }[], compte?: { offre: string, comptes: Record<string, number>, inclus: Record<string, number | null> } | null, historique: { le: string, nature: string, apres: any }[], factures: FacturesAbo | null, enLigne?: boolean, modules?: string[] }} */
+    /** @type {{ aujourdhui: string, etat: Etat, prix: { offre: string, periodicite: string, montantHt: string }[], options?: { option: string, periodicite: string, montantHt: string }[], aVenir?: { quoi: string, periodicite: string, aPartirDu: string, montantHt: string }[], compte?: { offre: string, comptes: Record<string, number>, inclus: Record<string, number | null> } | null, historique: { le: string, nature: string, apres: any }[], factures: FacturesAbo | null, enLigne?: boolean, modules?: string[], regles?: { essai?: number | null, grace?: number | null, relances?: number[] } }} */
     let a;
     try { a = await o.appel('GET', '/abonnement'); } catch (x) {
       el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p><button type="button" class="btn btn-sm" id="abo-relire">Réessayer</button>`;
       /** @type {HTMLElement} */ (el.querySelector('#abo-relire')).onclick = () => { void dessiner(el, o); };
       return;
     }
-    const c = etatEnClair(a.etat);
+    const regles = a.regles || {};
+    const c = etatEnClair(a.etat, regles);
     /** @param {string} offre @param {string} periodicite */
     const prixDe = (offre, periodicite) => (a.prix.find((p) => p.offre === offre && p.periodicite === periodicite) || {}).montantHt;
     // Les prix à venir (0103) : chacun se dit sous le prix d'aujourd'hui dès qu'il est préparé, à l'année puis au mois.
@@ -422,8 +443,10 @@
       <div class="abo-section">
         <div class="abo-section-tete"><h3>À l'échéance</h3><p>Tes données restent à toi : tu peux tout télécharger à tout moment (Données et sécurité).</p></div>
         <ol class="abo-etapes">
-          <li><b>Les rappels</b><span>Un e-mail quinze jours, sept jours et la veille de l'échéance.</span></li>
-          <li><b>Sept jours de grâce</b><span>Après l'échéance, tout marche encore.</span></li>
+          ${regles.relances && regles.relances.length ? `<li><b>Les rappels</b><span>Un e-mail ${esc(relancesEnMots(regles.relances))}.</span></li>` : ''}
+          ${typeof regles.grace === 'number' ? (regles.grace > 0
+            ? `<li><b>${esc(pl(regles.grace, 'jour'))} de grâce</b><span>Après l'échéance, tout marche encore.</span></li>`
+            : '<li><b>Pas de grâce</b><span>La lecture seule commence dès le lendemain de l\'échéance.</span></li>') : ''}
           <li><b>La lecture seule</b><span>Tout se lit, s'imprime et s'exporte ; rien de nouveau ne se crée.</span></li>
         </ol>
       </div>`}

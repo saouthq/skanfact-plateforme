@@ -10697,7 +10697,7 @@ prouver 'le dernier jour de l'"'"'essai déjà compté en retard' $AET \
   '  if (jour <= echeance) {' '  if (jour < echeance) {' \
   "$AE2"
 prouver 'six jours de grâce au lieu de sept' $AET \
-  '  const lectureSeuleLe = plusJours(echeance, GRACE_JOURS + 1);' '  const lectureSeuleLe = plusJours(echeance, GRACE_JOURS);' \
+  '  const lectureSeuleLe = plusJours(echeance, grace + 1);' '  const lectureSeuleLe = plusJours(echeance, grace);' \
   "$AE3"
 prouver 'une période payée échue qui se dit « essai terminé »' $AET \
   '  const apresEssai = !f.payeJusquAu || f.payeJusquAu < (f.essaiJusquAu ?? echeance);' '  const apresEssai = true;' \
@@ -10716,7 +10716,7 @@ prouver 'la relance des quinze jours qui part un jour trop tard' $AET \
   '    if (reste > seuil) continue;' '    if (reste >= seuil) continue;' \
   "$AR1"
 prouver 'une relance moins pressante qui repart après une plus pressante' $AET \
-  '    if (plusPressantes.some((r) => deja.has(r))) return null;' '    if (deja.has(rang)) return null;' \
+  '    if (dejaJours.some((n) => n <= seuil)) return null;' '    if (dejaJours.includes(seuil)) return null;' \
   "$AR2"
 prouver 'la relance de la lecture seule qui repart chaque jour' $AET \
   "    if (e.raison === 'suspendu' || deja.has('lecture_seule')) return null;" "    if (e.raison === 'suspendu') return null;" \
@@ -10731,10 +10731,10 @@ prouver 'une suspension relancée comme une échéance manquée' $AET \
   "    if (e.raison === 'suspendu' || deja.has('lecture_seule')) return null;" "    if (deja.has('lecture_seule')) return null;" \
   "$AR5"
 prouver 'un paiement fait pendant l'"'"'essai qui en perd les derniers jours' $AET \
-  '  const debut = jour <= plusJours(echeance, GRACE_JOURS) ? plusJours(echeance, 1) : jour;' '  const debut = jour;' \
+  '  const debut = jour <= plusJours(echeance, graceDe(f, echeance) ?? 0) ? plusJours(echeance, 1) : jour;' '  const debut = jour;' \
   "$AP1"
 prouver 'un paiement fait pendant la grâce qui laisse un trou' $AET \
-  '  const debut = jour <= plusJours(echeance, GRACE_JOURS) ? plusJours(echeance, 1) : jour;' '  const debut = jour <= echeance ? plusJours(echeance, 1) : jour;' \
+  '  const debut = jour <= plusJours(echeance, graceDe(f, echeance) ?? 0) ? plusJours(echeance, 1) : jour;' '  const debut = jour <= echeance ? plusJours(echeance, 1) : jour;' \
   "$AP2"
 prouver 'une période qui déborde d'"'"'un jour sur la suivante' $AET \
   "  return { debut, fin: plusJours(plusMois(debut, periodicite === 'annuel' ? 12 : 1), -1) };" "  return { debut, fin: plusMois(debut, periodicite === 'annuel' ? 12 : 1) };" \
@@ -10760,8 +10760,8 @@ prouver 'émettre une facture ouvert en lecture seule' $ACO \
   "  'ventes.facture.emettre': 'ferme'," "  'ventes.facture.emettre': 'ouvert'," \
   "$APO3"
 AMG=base/migrations/0082_abonnement.sql
-prouver 'un essai de vingt-neuf jours' $AMG \
-  '    values (new.id, (now() at time zone new.fuseau)::date + 30);' '    values (new.id, (now() at time zone new.fuseau)::date + 29);' \
+prouver 'un essai de vingt-neuf jours' base/migrations/0104_regles_abonnement.sql \
+  "  ('essai', '{30}', '2000-01-01'," "  ('essai', '{29}', '2000-01-01'," \
   "$AB1"
 prouver 'l'"'"'état de l'"'"'abonnement réservé à qui le gère' serveur/abonnement/routes.ts \
   "chemin: '/entreprises/:entreprise/abonnement/etat', geste: 'socle.accueil.voir'," "chemin: '/entreprises/:entreprise/abonnement/etat', geste: 'socle.abonnement.voir'," \
@@ -10773,7 +10773,7 @@ prouver 'le détail de l'"'"'abonnement ouvert à tous les rôles' "serveur/abon
 prouver 'le motif d'"'"'un geste de SkanFact montré à l'"'"'entreprise' $AMG \
   "jsonb_build_object('le', v.le, 'nature', v.nature, 'apres', v.apres)" "jsonb_build_object('le', v.le, 'nature', v.nature, 'apres', v.apres, 'motif', v.motif)" \
   "$AB3"
-prouver 'les faits d'"'"'un abonnement lus par une personne d'"'"'ailleurs' base/migrations/0099_offre_compte.sql \
+prouver 'les faits d'"'"'un abonnement lus par une personne d'"'"'ailleurs' base/migrations/0104_regles_abonnement.sql \
   '   where e.id = p_entreprise and e.id in (select socle.mes_entreprises())' '   where e.id = p_entreprise' \
   "$AB4"
 prouver 'la lecture seule jamais branchée à la porte' serveur/app.ts \
@@ -10793,7 +10793,7 @@ const memoire = new Map<string, Etat>();|||    const e = memoire.get(entreprise)
     if (e) memoire.set(entreprise, e);
     return e ? refusDeLectureSeule(e) : null;' \
   "$AB8"
-prouver 'une relance envoyée à toute l'"'"'équipe' $AMG \
+prouver 'une relance envoyée à toute l'"'"'équipe' base/migrations/0104_regles_abonnement.sql \
   "where m.entreprise = a.entreprise and m.actif and m.roles && array['proprietaire', 'administrateur']))), '[]'::jsonb)" "where m.entreprise = a.entreprise and m.actif))), '[]'::jsonb)" \
   "$ABR1"
 prouver 'une relance partie et jamais notée' serveur/abonnement/relances.ts \
@@ -11000,7 +11000,7 @@ prouver 'la fiche d'"'"'une entreprise d'"'"'exemple dans la console' base/migra
   'where e.id = p_entreprise and not e.essai;' 'where e.id = p_entreprise;' \
   "$CONSS8"
 prouver 'la liste des clients rangée par date, pas par urgence' serveur/console/routes.ts \
-  'const toutes = rangerParUrgence(lireEntreprises(await lireJson(t, '"'"'select plateforme.console_entreprises() v'"'"'), jour), jour);' 'const toutes = lireEntreprises(await lireJson(t, '"'"'select plateforme.console_entreprises() v'"'"'), jour);' \
+  'const toutes = rangerParUrgence(await lesEntreprises(t, jour), jour);' 'const toutes = await lesEntreprises(t, jour);' \
   "$CONSS8"
 prouver 'la semaine des inscriptions qui compte huit jours' serveur/console/decider.ts \
   'e.creeLe >= plusJours(jour, -6);' 'e.creeLe >= plusJours(jour, -7);' \
@@ -11196,7 +11196,7 @@ prouver 'une prolongation racontée après la fin de l'"'"'essai' serveur/consol
   'prolongation: e.etat.etat === '"'"'essai'"'"' ? extras.prolongation.get(e.id) ?? null : null,' 'prolongation: extras.prolongation.get(e.id) ?? null,' \
   "$CONS2E8"
 prouver 'une relance illisible lue quand même' serveur/console/echeances.ts \
-  'for (const rang of RANGS) if (typeof lus[rang] === '"'"'string'"'"') rangs[rang] = lus[rang];' 'for (const rang of RANGS) if (lus[rang] !== undefined) rangs[rang] = lus[rang] as string;' \
+  'for (const [rang, le] of Object.entries(lus)) if (estRang(rang) && typeof le === '"'"'string'"'"') rangs[rang] = le;' 'for (const [rang, le] of Object.entries(lus)) if (estRang(rang)) rangs[rang] = le as string;' \
   "$CONS2E9"
 prouver 'un dossier inconnu de la liste des clients compté pour son cabinet' serveur/console/cabinets.ts \
   'comptes: compter(c.dossiers.filter((d) => connues.has(d.entreprise))),' 'comptes: compter(c.dossiers),' \
@@ -11939,7 +11939,7 @@ prouver "une relance pas encore partie dite partie" serveur/console/echeances.ts
   "$AC1"
 prouver "une relance nommée d'après une entreprise inconnue" serveur/console/echeances.ts \
   '    if (!nom) continue;
-    for (const rang of RANGS) {' '    for (const rang of RANGS) {' \
+    for (const [rang, le] of Object.entries(p.rangs) as [Rang, string | undefined][]) {' '    for (const [rang, le] of Object.entries(p.rangs) as [Rang, string | undefined][]) {' \
   "$AC1"
 
 # Les incidents du service et la page d'état (docs/console.md C24, base 0089) : un numéro sans trou, une gravité qui
@@ -12985,7 +12985,7 @@ prouver 'Essentiel qui limite encore ses utilisateurs' web/public/plateforme/abo
   "'Ton comptable dans les mêmes données', 'Des utilisateurs sans limite, un établissement'" "'Ton comptable dans les mêmes données', 'Trois utilisateurs, un établissement'" \
   "$ODW"
 prouver 'ce qui est pris absent de « Ton abonnement »' serveur/abonnement/routes.ts \
-  '        compte: await ceQueLOffreCompte(tx, ent, jour) } };' '        compte: null } };' \
+  '        compte: await ceQueLOffreCompte(tx, ent, jour), regles: reglesPourMoi(f, historique, jour) } };' '        compte: null, regles: reglesPourMoi(f, historique, jour) } };' \
   "$ODW"
 prouver 'une caisse « compris »' web/public/plateforme/abonnement.js \
   "mot: ['caisse', 'caisses'], feminin: true }," "mot: ['caisse', 'caisses'] }," \
@@ -13114,6 +13114,105 @@ prouver "le prix d'Essentiel dit « de Essentiel » au journal" web/console/src/
 prouver 'un prix retiré dit au journal comme un prix préparé' web/console/src/ecrans/Journal.tsx \
   "    const retire = geste === 'reglages.prix_retire';" "    const retire = geste === 'reglages.prix_prepare';" \
   "$PXW"
+
+# L'essai, la grâce et les relances se règlent dans la console (0104 ; docs/abonnement.md C15).
+RG1="la direction pose une règle, avec son motif et sa ligne au journal ; le support ne le peut pas ; la base tient les bornes"
+RG2="la grâce d'une échéance est celle de son lendemain : une grâce commencée garde la sienne"
+RG3="les relances partent aux jours de la règle du jour ; l'e-mail dit la grâce de l'échéance"
+RG4="l'essai d'une entreprise se fixe à sa création : une règle changée ne touche pas un essai commencé"
+RGU1="une grâce commencée ne change plus ; une échéance d'après a la nouvelle"
+RGU3="une grâce qu'on ne connaît pas ne ferme rien ; l'essai, lui, se dit"
+RGU4='les relances : celles de la règle du jour ; une relance partie sous une autre règle compte encore'
+RGE1='celles de la règle du jour ; une relance partie sous une autre règle reste dite'
+RGE2="ce que la base rend d'illisible vaut « rien », jamais une valeur devinée"
+RGJ="la règle relue et l'avis ; le message écrit ou retiré par ses deux jours ; le prix préparé ou retiré, et le préavis ; rien pour un autre geste"
+RGW="une règle de l'abonnement : la grâce se change à la souris, avec son aperçu ; le client et le journal la disent"
+R104=base/migrations/0104_regles_abonnement.sql
+prouver "une règle de l'abonnement posée par le support" $R104 \
+  "  v_role text := plateforme.exiger_role_console(array['direction']);
+  v_jours integer[];" "  v_role text := plateforme.exiger_role_console(array['direction', 'support']);
+  v_jours integer[];" \
+  "$RG1"
+prouver 'un essai de cinq jours accepté' $R104 \
+  "  if p_code = 'essai' and (cardinality(p_jours) <> 1 or p_jours[1] < 7 or p_jours[1] > 90) then" "  if p_code = 'essai' and (cardinality(p_jours) <> 1 or p_jours[1] > 90) then" \
+  "$RG1"
+prouver 'une grâce de trente et un jours acceptée' $R104 \
+  "  if p_code = 'grace' and (cardinality(p_jours) <> 1 or p_jours[1] < 0 or p_jours[1] > 30) then" "  if p_code = 'grace' and (cardinality(p_jours) <> 1 or p_jours[1] < 0) then" \
+  "$RG1"
+prouver 'deux relances le même jour acceptées' $R104 \
+  "  if p_code = 'relances' and (cardinality(p_jours) not between 1 and 5 or cardinality(v_jours) <> cardinality(p_jours)" "  if p_code = 'relances' and (cardinality(p_jours) not between 1 and 5" \
+  "$RG1"
+prouver "une relance le jour même de l'échéance acceptée" $R104 \
+  '      or v_jours[cardinality(v_jours)] < 1 or v_jours[1] > 60) then' '      or v_jours[cardinality(v_jours)] < 0 or v_jours[1] > 60) then' \
+  "$RG1"
+prouver 'la même règle posée deux fois' $R104 \
+  "  if v_avant = v_jours then perform socle.refus('c''est déjà la règle en vigueur : rien ne changerait'); end if;" '' \
+  "$RG1"
+prouver "une règle de l'abonnement sans sa ligne au journal" $R104 \
+  "    values (socle.moi(), v_role, 'reglages.regle_abonnement', btrim(p_motif)," "    values (socle.moi(), v_role, 'reglages.regle', btrim(p_motif)," \
+  "$RG1"
+prouver "les relances rangées dans l'ordre tapé" $R104 \
+  '  select array_agg(distinct j order by j desc) into v_jours from unnest(p_jours) j;' '  select array_agg(distinct j order by j) into v_jours from unnest(p_jours) j;' \
+  "$RG1"
+prouver "un essai de trente jours écrit en dur à la création de l'entreprise" $R104 \
+  "  v_jusqu_au date := v_jour + (plateforme.regle_du_jour('essai', v_jour))[1];" '  v_jusqu_au date := v_jour + 30;' \
+  "$RG4"
+prouver 'les relances lointaines hors de ce que le serveur examine' $R104 \
+  '     and x.echeance <= p_jour + coalesce((select max(j) from unnest(plateforme.regle_du_jour('"'"'relances'"'"', p_jour)) j), 0)' '     and x.echeance <= p_jour + 7' \
+  "$RG3"
+prouver "la grâce d'une échéance prise au jour de l'échéance, pas à son lendemain" serveur/abonnement/etat.ts \
+  'regleAu(f.regles.grace, plusJours(echeance, 1))?.[0] ?? null;' 'regleAu(f.regles.grace, echeance)?.[0] ?? null;' \
+  "$RG2"
+prouver "une grâce qu'on ne connaît pas qui ferme quand même" serveur/abonnement/etat.ts \
+  "  if (grace === null) return { etat: 'hors', raison: 'inconnu' };" '' \
+  "$RGU3"
+prouver 'les relances de la mise en place écrites en dur' serveur/abonnement/etat.ts \
+  'export const relancesDu = (f: Faits, jour: string): number[] => [...(regleAu(f.regles.relances, jour) ?? [])].sort((a, b) => b - a);' \
+  'export const relancesDu = (_f: Faits, _jour: string): number[] => [15, 7, 1];' \
+  "$RGU4"
+prouver "la règle d'un jour prise à la plus ancienne" serveur/abonnement/etat.ts \
+  '  for (const x of histoire) if (x.aPartirDu <= jour) r = x.jours;' '  for (const x of histoire) if (x.aPartirDu <= jour && r === null) r = x.jours;' \
+  "$RGU1"
+prouver "l'e-mail de relance qui promet sept jours de grâce" serveur/abonnement/relances.ts \
+  '    const grace = graceDe(faits, due.echeance) ?? 0;' '    const grace = 7;' \
+  "$RG3"
+prouver "sans grâce, l'e-mail qui promet encore des jours" serveur/abonnement/relances.ts \
+  "    const apres = grace === 0 ? t('abonnement.relance.apres.sans_grace') : grace === 1" "    const apres = grace === 1" \
+  "$RG3"
+prouver "« Ton abonnement » qui dit la grâce d'aujourd'hui pour une échéance d'avant" serveur/abonnement/routes.ts \
+  '    grace: f && echeance ? graceDe(f, echeance) : null,' '    grace: f ? graceDe(f, jour) : null,' \
+  "$RG2"
+prouver "« Ton abonnement » qui dit l'essai de la règle d'aujourd'hui" serveur/abonnement/routes.ts \
+  '    essai: commence && estJour(jusquAu) && jusquAu > commence ? joursEntre(commence, jusquAu) : null,' '    essai: 30,' \
+  "$RG4"
+prouver 'la console qui lit les faits sans les règles' serveur/console/routes.ts \
+  '  ({ ...lireFaits((fiche.faits ?? {}) as Record<string, unknown>), regles: await lireLesRegles(x) });' '  lireFaits((fiche.faits ?? {}) as Record<string, unknown>);' \
+  "$RG2"
+prouver 'les relances prévues de la mise en place écrites en dur' serveur/console/echeances.ts \
+  '  const jours = [...new Set([...relancesDu(f, jour), ' '  const jours = [...new Set([15, 7, 1, ' \
+  "$RGE1"
+prouver 'un rang inconnu lu comme une relance' serveur/console/echeances.ts \
+  "    for (const [rang, le] of Object.entries(lus)) if (estRang(rang) && typeof le === 'string') rangs[rang] = le;" "    for (const [rang, le] of Object.entries(lus)) if (typeof le === 'string') rangs[rang as Rang] = le;" \
+  "$RGE2"
+prouver "une règle de l'abonnement que le journal ne nomme pas" serveur/console/reglages.ts \
+  "    regleAbonnement: geste === 'reglages.regle_abonnement' && (CODES_REGLE as readonly unknown[]).includes(apres?.code)" "    regleAbonnement: geste === 'reglages.regle_abonnement'" \
+  "$RGJ"
+prouver "une règle de l'abonnement identique qu'on peut poser" web/console/src/ecrans/Reglages.tsx \
+  '        <Bouton ton="principal" occupe={occupe} desactive={jours === null || meme} onClick={envoyer}>{titre(`${K}.g.regle.bouton`)}</Bouton>' \
+  '        <Bouton ton="principal" occupe={occupe} desactive={jours === null} onClick={envoyer}>{titre(`${K}.g.regle.bouton`)}</Bouton>' \
+  "$RGW"
+prouver "l'aperçu d'une règle sans sa place avant d'arriver" web/console/src/ecrans/Reglages.tsx \
+  '          ) : <p className={`c-apercu-attente${tape.trim() && jours === null ? '"'"' c-apercu-refus'"'"' : '"'"''"'"'}`}>' '          ) : null}{false && <p>' \
+  "$RGW"
+prouver "une règle de l'abonnement sans ce qu'elle change au journal" web/console/src/ecrans/Journal.tsx \
+  '  if (r.regleAbonnement) {' '  if (r.regleAbonnement && false) {' \
+  "$RGW"
+prouver "les rappels de la mise en place écrits en dur dans « Ton abonnement »" web/public/plateforme/abonnement.js \
+  '<span>Un e-mail ${esc(relancesEnMots(regles.relances))}.</span>' '<span>Un e-mail ${esc(relancesEnMots([15, 7, 1]))}.</span>' \
+  "$RGW"
+prouver "sept jours de grâce écrits en dur dans « Ton abonnement »" web/public/plateforme/abonnement.js \
+  "<li><b>\${esc(pl(regles.grace, 'jour'))} de grâce</b>" "<li><b>\${esc(pl(7, 'jour'))} de grâce</b>" \
+  "$RGW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

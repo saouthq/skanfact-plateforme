@@ -32,7 +32,7 @@ type Cartes = {
 type Annuel = { montantHt: string; abonnements: number; mensuels: number; resilies: number; sansPrix: number };
 type Donnees = {
   aujourdhui: string; vue: Vue; cartes: Cartes; annuel: Annuel; total: number; lignes: Ligne[]; suite: number | null;
-  regles: { relances: number[]; grace: number; avenir: number };
+  regles: { relances: number[]; grace: number | null; avenir: number };
 };
 const PAGE = 50;
 const K = 'console.ecran.abonnements';
@@ -250,7 +250,9 @@ export function Abonnements({ vue: vueDemandee }: { vue: string | null }) {
                 ))}
               </ul>
             </section>
-            <p className="c-note"><Icone nom="info" />{phrase(`${K}.regles`, { liste: liste(lu.regles.relances), grace: lu.regles.grace })}</p>
+            <p className="c-note"><Icone nom="info" />{phrase(`${K}.regles`, {
+              relances: lu.regles.relances.length ? dire(`${K}.regles_relances`, { liste: liste(lu.regles.relances) }) : dire(`${K}.regles_sans_relance`),
+              apres: lu.regles.grace === null ? dire(`${K}.regles_apres_inconnu`) : selon(lu.regles.grace, `${K}.regles_apres`) })}</p>
           </aside>
           </div>
         </>
