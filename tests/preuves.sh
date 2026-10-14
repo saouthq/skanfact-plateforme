@@ -12700,6 +12700,9 @@ prouver 'la demande d'"'"'accès qui n'"'"'apparaît pas en haut de l'"'"'applic
 prouver 'un accès accordé pour une autre durée que celle cliquée' web/public/plateforme/acces.js \
   'void repondre(String(b.dataset.accesAccorder), true, Number(b.dataset.heures), b);' 'void repondre(String(b.dataset.accesAccorder), true, 48, b);' \
   "$SACW2"
+prouver 'la bande d'"'"'un accès qui court sur deux rangées' web/console/src/console.css \
+  '.c-sp-acces-bande .c-sp-acces-gestes { flex: none; }' '.c-sp-acces-bande .c-sp-acces-gestes { flex: 1 1 100%; }' \
+  "$SACW2"
 prouver 'la lecture sans sa bande' web/public/v10/app.js \
   '    if (bridge.lecture) bridge.lecture.poser(view);
 ' '' \

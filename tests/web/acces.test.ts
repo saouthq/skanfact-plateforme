@@ -141,14 +141,17 @@ describe('l\'accès du support au dossier, à la souris, des deux côtés', () =
     // page ne défile pas (vu le 14/10/2026 : sur deux rangées, elle poussait la réponse sous le bord).
     const petit = await consoleSur(`#/support?demande=${demande}`, 1280, 800);
     await expect.poll(async () => net(await bande(petit).innerText()), { timeout: 15_000 }).toContain('Accès au dossier');
+    // Une rangée : la bande centre ses morceaux en hauteur, leurs milieux se confondent (leurs hauts, non : ils suivent la
+    // hauteur des polices, 12 px ici, 12,56 sur GitHub). Sur deux rangées, les gestes passent sous le texte.
     const g = await petit.evaluate(() => {
       const r = (s: string) => document.querySelector(s)?.getBoundingClientRect() ?? null;
+      const milieu = (s: string) => { const x = r(s); return x ? x.top + x.height / 2 : null; };
       return { haut: innerHeight, defile: document.documentElement.scrollHeight - innerHeight, envoyer: r('.c-sp-repondre button[type="submit"]')?.bottom ?? null,
-        bande: r('.c-sp-acces-bande')?.height ?? null, gestes: r('.c-sp-acces-bande .c-sp-acces-gestes')?.top ?? null, quoi: r('.c-sp-acces-bande .c-sp-acces-quoi')?.top ?? null };
+        bande: r('.c-sp-acces-bande')?.height ?? null, gestes: milieu('.c-sp-acces-bande .c-sp-acces-gestes'), quoi: milieu('.c-sp-acces-bande .c-sp-acces-quoi') };
     });
     expect(g.defile).toBeLessThanOrEqual(1);
     expect(g.envoyer ?? Infinity).toBeLessThanOrEqual(g.haut);
-    expect(Math.abs((g.gestes ?? 0) - (g.quoi ?? 999))).toBeLessThanOrEqual(12);
+    expect(Math.abs((g.gestes ?? 0) - (g.quoi ?? 999))).toBeLessThanOrEqual(2);
     await fermer(petit);
     await fermer(c);
     expect(erreurs).toEqual([]);

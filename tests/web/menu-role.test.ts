@@ -75,8 +75,11 @@ describe('le menu selon le rôle, à la souris', () => {
     await inviter(leila.email, leila.jeton, 'paie');
 
     const erreurs: string[] = [];
-    const ouvrir = async (jeton: string, hash: string) => {
+    // `jour` : l'heure du navigateur part de ce jour (et s'écoule) ; ce que l'écran calcule d'après la date ne dépend
+    // plus du jour où le test tourne.
+    const ouvrir = async (jeton: string, hash: string, jour?: string) => {
       const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+      if (jour) await cx.clock.install({ time: new Date(jour) });
       await cx.addInitScript((x) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', x); }, jeton);
       const p = await cx.newPage();
       p.on('pageerror', (e) => erreurs.push(e.message));
@@ -112,8 +115,9 @@ describe('le menu selon le rôle, à la souris', () => {
     expect(await k.locator('#accueil-role a[href="#/factures"]').count()).toBe(1);
     expect(await k.locator('#accueil-role a.btn-primary').count()).toBe(0);
 
-    // 2. Leila, la paie.
-    const l = await ouvrir(leila.jeton, '#/paie');
+    // 2. Leila, la paie. Son navigateur vit le 10/10/2026 : la CNSS du 15/10 tombe sous quinze jours, la TVA du 28/10
+    // non (le 14/10, il y en avait deux ; du 29 au 13, souvent aucune : le test changeait d'avis avec le calendrier).
+    const l = await ouvrir(leila.jeton, '#/paie', '2026-10-10T09:00:00');
     await l.locator('#view [data-tab=salaries]').click();
     await expect.poll(async () => net(await l.locator('#view').innerText().catch(() => '')), { timeout: 20_000 }).toContain('Trabelsi');
     const siensL = await menu(l);
@@ -130,7 +134,9 @@ describe('le menu selon le rôle, à la souris', () => {
     expect(net(await l.locator('#view').innerText())).not.toMatch(/Prends ta gestion en main|Tes premiers pas/);
     // « À faire » lui dit l'échéance de la CNSS ; mais pas de bouton vers le calendrier de la Comptabilité, page que
     // son rôle ne lui montre pas (brique 111).
-    expect(net(await l.locator('#todo-list').innerText())).toMatch(/échéance fiscale/);
+    const aFaire = net(await l.locator('#todo-list').innerText());
+    expect(aFaire).toContain('1 échéance fiscale sous 15 jours');
+    expect(aFaire).toContain('Déclaration CNSS trimestrielle le 15/10/2026');
     expect(await l.getByRole('button', { name: 'Voir le calendrier', exact: true }).count()).toBe(0);
     expect(await l.getByRole('button', { name: 'Voir les bulletins', exact: true }).count()).toBe(1);
     await l.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'menu-role-3-accueil-paie.png') });
