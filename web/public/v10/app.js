@@ -21938,6 +21938,7 @@
       if (demandee === 'exemple') { if (!C.estDemo(data)) loadDemo(); }
       else if (demandee) { const v = visiteParId(demandee); if (v) lancerVisite(v); }
     }
+    if (bridge.ouvertureDemandee && bridge.ouvertureDemandee() === 'abonnement') allerAbonnement();
     if (loaded && loaded.corruptFile) {
       modal(`<h2>Fichier de données illisible</h2>
         <p>Le fichier de données n'a pas pu être lu. Il n'a pas été effacé : il a été renommé en<br><code>${h(loaded.corruptFile.split(/[\\/]/).pop())}</code>.</p>

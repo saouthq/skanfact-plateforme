@@ -47,4 +47,6 @@ declarerTextes({
   'abonnement.facture.offre.complet': 'Complet',
   'abonnement.facture.periodicite.annuel': 'annuel',
   'abonnement.facture.periodicite.mensuel': 'mensuel',
+  // L'abonné règle sa facture (docs/abonnement.md B5).
+  'abonnement.facture.inconnue': 'cette facture n\'est pas une facture émise de ton abonnement',
 });

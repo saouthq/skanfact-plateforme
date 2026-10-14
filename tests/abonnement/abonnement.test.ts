@@ -75,7 +75,7 @@ beforeAll(async () => {
   declarerGestesVentes();
   declarerGestesCaisse();
   declarerGestesCompta();
-  app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesAbonnement()]);
+  app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesAbonnement(ctx)]);
   await app.ready();
 });
 afterAll(async () => { await app.close(); await admin.end(); await exploitant.end(); await pool.end(); });

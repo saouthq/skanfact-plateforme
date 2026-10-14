@@ -742,4 +742,6 @@ export const ADAPTATIONS = [
   ...lireFichier('support.txt'),
   // ── L'accès du support au dossier (13/10/2026 ; Support S2, docs/support.md) : accorder, retirer, lire en lecture ──
   ...lireFichier('acces-support.txt'),
+  // ── Les factures de l'abonnement (14/10/2026 ; 14b, docs/abonnement.md B5) : revenu d'un paiement, l'abonnement s'ouvre ──
+  ...lireFichier('abonnement-factures.txt'),
 ];

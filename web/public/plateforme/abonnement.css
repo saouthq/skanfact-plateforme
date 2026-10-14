@@ -94,6 +94,36 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 .abo-histoire li + li { border-top: 1px solid var(--border); }
 .abo-quand { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
+/* ── Tes factures (14b, docs/abonnement.md B5) : une ligne par pièce ; la même place pour la même chose, d'une ligne à
+   l'autre (la pièce et sa période, le montant et où il en est, l'état, les gestes) ── */
+.abo-factures { margin: 0; padding: 0; list-style: none; border-radius: 16px; border: 1px solid var(--border); background: var(--panel); }
+.abo-facture {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(9em, auto) 9.5em auto; align-items: center; gap: 8px 18px;
+  padding: 14px 18px;
+}
+.abo-facture + .abo-facture { border-top: 1px solid var(--border); }
+.abo-num { white-space: nowrap; }
+.abo-fa-quoi, .abo-fa-montant { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.abo-fa-quoi b { font-size: 14.5px; font-weight: 650; color: var(--text); }
+.abo-fa-quoi > span, .abo-fa-montant > span { font-size: 13px; color: var(--muted); }
+.abo-fa-montant { text-align: end; }
+.abo-fa-montant b { font-size: 15px; font-weight: 650; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.abo-fa-etat { justify-self: start; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 650; white-space: nowrap;
+  background: var(--primary-soft); color: var(--primary); }
+.abo-fa-etat.a_payer, .abo-fa-etat.partielle { background: var(--warning-soft); color: var(--warning); }
+.abo-fa-etat.en_retard { background: var(--danger-soft); color: var(--danger); }
+.abo-fa-etat.annulee, .abo-fa-etat.avoir { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--border); }
+.abo-fa-gestes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.abo-fa-aide { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--muted); }
+.abo-refus { margin: 0; color: var(--danger); }
+
+/* ── Une facture, telle qu'elle s'imprime, à la place de l'onglet ── */
+.abo-vue-piece { gap: 12px; scroll-margin-top: 16px; }
+.abo-piece-barre { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.abo-piece-reste { font-size: 14px; color: var(--text); font-variant-numeric: tabular-nums; }
+.abo-piece-gestes { display: flex; flex-wrap: wrap; gap: 8px; }
+iframe.abo-piece { width: 100%; height: 75vh; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+
 @media (max-width: 900px) {
   .abo-etapes { grid-template-columns: minmax(0, 1fr); }
 }
@@ -101,6 +131,16 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
   .abo-offres { grid-template-columns: minmax(0, 1fr); }
   .abo-tete { padding: 22px 20px; }
   .abo-tete h3 { font-size: 22px; }
+  /* Au téléphone, une facture est une carte : la pièce, puis le montant et l'état, puis les gestes, de toute la largeur. */
+  .abo-facture { grid-template-columns: minmax(0, 1fr) auto; padding: 14px 16px; }
+  .abo-fa-montant { text-align: start; }
+  .abo-fa-etat { grid-row: 1; grid-column: 2; justify-self: end; }
+  .abo-fa-gestes { grid-column: 1 / -1; justify-content: stretch; }
+  .abo-fa-gestes .btn { flex: 1 1 auto; min-height: 44px; }
+  .abo-piece-gestes, .abo-piece-gestes .btn { flex: 1 1 auto; }
+  .abo-piece-gestes .btn { min-height: 44px; }
+  /* La barre du haut du téléphone reste à l'écran : la facture s'ouvre sous elle, « ← Ton abonnement » en vue. */
+  .abo-vue-piece { scroll-margin-top: 76px; }
 }
 
 /* La caisse fermée, en lecture seule : la phrase qui le dit, avant qu'on tape le fond de caisse. */

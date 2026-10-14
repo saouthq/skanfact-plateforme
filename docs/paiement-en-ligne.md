@@ -58,6 +58,15 @@ croisent (l'avis et la page de retour, en même temps) : la demande est verrouil
 trouve le paiement enregistré et le dit (« Paiement reçu », jamais « en cours ») ; et un second règlement du
 même paiement, s'il était tenté, serait refusé par le dossier (il porte l'identifiant de la demande).
 
+**P7. L'abonné de SkanFact paie la facture de son abonnement par le même chemin** (14/10/2026, abonnement 14b ;
+`docs/abonnement.md` B5, base 0098). La facture vit chez l'entreprise SkanFact, qui a branché SON Konnect (P1) ; le
+propriétaire ou un administrateur de l'abonné la paie depuis « Ton abonnement », sans lien d'espace : la base vérifie
+qui demande (`plateforme.ma_facture_a_payer`), puis la demande se note par la MÊME fonction que celle de l'espace client
+(`ventes.paiement_noter` : les 25 minutes, le même montant, une demande refusée remplacée), et la suite est celle de P5
+et P6 (la preuve redemandée, le règlement au nom du propriétaire de l'entreprise SkanFact). Le retour se fait sur la
+page de l'espace client ; elle propose « Revenir à ton abonnement » : l'onglet garde l'entreprise de l'abonné, jamais
+l'adresse de retour.
+
 ## Ce qui part vers Konnect, compté et décidé
 
 Le portefeuille de l'entreprise, le montant (en millimes), la devise (TND), notre identifiant de demande,

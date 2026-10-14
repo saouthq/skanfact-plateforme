@@ -1,0 +1,13 @@
+Les factures de l'abonnement (14b, seconde partie ; docs/abonnement.md B5). « Ton abonnement » (web/public/plateforme/
+abonnement.js) montre les factures que l'entreprise SkanFact a émises pour l'abonnement, et règle en ligne celle qui doit
+encore, chez le prestataire de l'entreprise SkanFact ; la page de retour de l'espace client dit ce que le prestataire a
+confirmé, puis ramène ici. Revenu, l'abonné retrouve « Ton abonnement », qui montre la facture réglée et l'abonnement
+qui la suit : le point de contact dit ce qui est demandé (posé avant de partir chez le prestataire, lu une fois).
+
+== app.js | revenu d'un paiement en ligne de sa facture d'abonnement, « Ton abonnement » s'ouvre (le point de contact le dit, une fois)
+-- avant
+    if (loaded && loaded.corruptFile) {
+-- après
+    if (bridge.ouvertureDemandee && bridge.ouvertureDemandee() === 'abonnement') allerAbonnement();
+    if (loaded && loaded.corruptFile) {
+-- fin

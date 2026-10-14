@@ -173,19 +173,42 @@ dans l'application de SkanFact, ou un paiement en ligne prouvé), l'abonnement e
 déjà viré), elle ne paie pas l'abonnement — c'est un remboursement à décider, pas une période payée. « Noter un paiement » de la
 console reste pour ce qui se paie sans facture de la plateforme.
 
-**B5. L'abonné voit et règle sa facture** (seconde partie) : dans « Ton abonnement », ses factures SkanFact (numéro,
-période, montant, reste, état), la pièce telle qu'elle s'imprime, et « Payer en ligne » par le Konnect de l'entreprise
-SkanFact (brique 78 : la preuve redemandée au prestataire, jamais une page de retour).
+**B5. L'abonné voit et règle sa facture** (seconde partie, faite le 14/10/2026 ; base 0098). Dans « Ton abonnement », qui
+gère l'abonnement (le propriétaire, un administrateur ; un autre rôle n'y entre pas, et la base le refuse aussi) lit
+« Tes factures » : celles que l'entreprise SkanFact lui a **émises** (jamais un brouillon, jamais celles d'un autre
+abonné) et les avoirs émis qui les corrigent, la plus récente d'abord, avec le numéro, la période payée, le montant, le
+reste et l'état. Chacune est réduite à ce qu'elle imprime (les listes fermées de l'espace client : la fiche de SkanFact
+et celle du client ne partent jamais entières) ; « Voir » l'ouvre telle qu'elle s'imprime. Quand une facture doit encore,
+la section passe juste sous l'état (c'est ce qu'il y a à faire), avec un seul bouton vert, sur la plus ancienne qui doit.
+« Payer en ligne » demande le **reste** (avoirs et règlements déduits) au Konnect de l'entreprise SkanFact, par la règle
+de l'espace client (`ventes.paiement_noter` : deux clics, une seule demande ; brique 78 : la preuve redemandée au
+prestataire, jamais une page de retour), même en lecture seule — c'est elle qui rouvre ; le geste est tracé
+(`socle.abonnement.payer`, avec le numéro). La page de retour propose ensuite « Revenir à ton abonnement », qui rouvre
+l'onglet (payé jusqu'au…, la facture « payée ») ; l'entreprise de l'abonné n'est jamais dans l'adresse de retour (elle
+attend dans l'onglet). Ce qui part chez Konnect ne change pas : le montant, la devise et l'identifiant de notre demande.
+Sans prestataire branché chez SkanFact, rien ne s'offre en ligne, et « T'abonner » dit que la facture se règle par
+virement ou par chèque.
 
 **Ce que 14b ne fait pas**, et pourquoi : un règlement retiré après coup ne fait pas reculer l'abonnement tout seul (un
-fait posé ne se défait pas sans quelqu'un : la direction le voit et décide) ; l'avoir sur une facture d'abonnement, le
-prorata d'un changement d'offre (10 § 2.4) et la facture préparée toute seule à quinze jours de l'échéance viennent une
+fait posé ne se défait pas sans quelqu'un : la direction le voit et décide) ; l'avoir préparé depuis la console (SkanFact
+l'émet dans son application ; l'abonné le voit sous sa facture), le prorata d'un changement d'offre (10 § 2.4) et la facture préparée toute seule à quinze jours de l'échéance viennent une
 fois les premières factures relues par le comptable ; « À décider » ne compte pas encore les brouillons préparés et pas
 émis (la fiche les montre ; la ligne viendra avec la facture préparée toute seule).
 
 **À VÉRIFIER** (avec le comptable, avant la première facture) : la TVA et le timbre de l'abonnement (aujourd'hui, la
 règle de l'entreprise SkanFact) ; la période qui figure sur la facture quand l'abonné paie après le début de la lecture
 seule (la période de la facture fait foi) ; les conditions de vente.
+
+## Revu à la souris (14/10/2026, 14b seconde partie)
+
+Sur l'essai de l'outil humain, en Walid (propriétaire de la Librairie Al Kitab) : FAC-2026-002, émise par l'entreprise
+SkanFact, vue dans « Ton abonnement » (juste sous l'état, avec son bouton vert), ouverte telle qu'elle s'imprime, payée
+chez Konnect (simulé), puis « Revenir à ton abonnement » : payé jusqu'au 23/11/2026, la facture « payée », l'historique
+qui la nomme ; FAC-2026-003, la période suivante, corrigée par un avoir de dix jours (AVO-2026-001, émis dans
+l'application de SkanFact) : l'avoir se lit au-dessus, « corrige la facture FAC-2026-003 », et le bouton vert ne demande
+plus que 35,510 DT ; en clair et en sombre, à l'ordinateur et au téléphone. Corrigé pendant le parcours : « réglée »
+répété à côté de « Payée » ; l'historique qui disait « payé » sans nommer la facture ; au téléphone, la facture ouverte
+cachée sous la barre du haut, et les numéros coupés à leur tiret (« FAC-2026- » puis « 003 »).
 
 ## Revu à la souris (14/10/2026, 14b première partie)
 

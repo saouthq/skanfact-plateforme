@@ -4555,17 +4555,18 @@ PA3="payer le reste d'une facture : prouvé auprès de Konnect, enregistré une 
 PA4="un refus de Konnect se voit chez l'entreprise ; un « payé » d'un autre montant ne s'enregistre pas ; débranché, plus de paiement"
 PA5="le filet : un paiement dont l'avis s'est perdu, et dont le client n'est pas revenu, s'enregistre quand même ; déjà payé, on ne repaie pas"
 PW="Nadia branche Konnect ; son client paie sa facture en ligne ; le paiement arrive sur la facture"
-prouver "deux clics, deux paiements" base/migrations/0047_paiement_en_ligne.sql \
+# La règle de la demande redonnée vit, depuis 0098, dans ventes.paiement_noter : l'espace client et l'abonné la partagent.
+prouver "deux clics, deux paiements" base/migrations/0098_mes_factures.sql \
   "  if v_ouvert is not null then return jsonb_build_object('id', v_ouvert, 'adresse', v_adresse); end if;
 " "" \
   "$PA3"
-prouver "une demande échouée redonnée" base/migrations/0047_paiement_en_ligne.sql \
+prouver "une demande échouée redonnée" base/migrations/0098_mes_factures.sql \
   "where x.entreprise = v_entreprise and x.piece = v_piece and x.statut = 'initie' and x.montant = p_montant" "where x.entreprise = v_entreprise and x.piece = v_piece and x.montant = p_montant" \
   "$PA4"
-prouver "une demande redonnée pour un autre montant" base/migrations/0047_paiement_en_ligne.sql \
+prouver "une demande redonnée pour un autre montant" base/migrations/0098_mes_factures.sql \
   "and x.statut = 'initie' and x.montant = p_montant" "and x.statut = 'initie'" \
   "$PA4"
-prouver "une demande de plus de 25 minutes redonnée" base/migrations/0047_paiement_en_ligne.sql \
+prouver "une demande de plus de 25 minutes redonnée" base/migrations/0098_mes_factures.sql \
   "and x.adresse is not null and x.cree_le > p_maintenant - interval '25 minutes'" "and x.adresse is not null" \
   "$PA5"
 prouver "la demande ouverte chez Konnect jamais notée" base/migrations/0047_paiement_en_ligne.sql \
@@ -4621,7 +4622,7 @@ prouver "une demande déjà payée redonnée" serveur/v10/paiement.ts \
 " "" \
   "$PA5"
 prouver "une demande refusée redonnée telle quelle" serveur/v10/paiement.ts \
-  "    if (e?.etat === 'echoue') return demanderPaiement(ctx, jeton, numero);
+  "    if (e?.etat === 'echoue') return ouvrirPaiement(ctx, numero, source);
 " "" \
   "$PA4"
 prouver "le paiement déjà enregistré qu'une vérification croisée tente encore (sa page dit « en cours »)" serveur/v10/paiement.ts \
@@ -4687,7 +4688,7 @@ prouver "« Pour payer en ligne, ouvre la facture » jamais dit" web/public/espa
   "\${vue.pieces.some((/** @type {any} */ p) => p.payable) ? '<p class=\"aide\">" "\${false ? '<p class=\"aide\">" \
   "$PW"
 prouver "le lien de l'espace oublié au retour" web/public/espace/espace.js \
-  "    try { sessionStorage.setItem('skanfact.espace', jeton); } catch { /* la page de retour proposera de la fermer */ }
+  "    try { sessionStorage.setItem('skanfact.espace', jeton); sessionStorage.removeItem('skanfact.abonnement.retour'); } catch { /* la page de retour proposera de la fermer */ }
 " "" \
   "$PW"
 prouver "« Paiement reçu » jamais dit" web/public/espace/retour.js \
@@ -12792,6 +12793,63 @@ prouver 'une facture d'"'"'abonnement réglée qui ne paie rien' 'serveur/v10/do
 prouver 'une facture réglée qui paie l'"'"'abonnement deux fois' 'base/migrations/0097_nos_factures.sql|||base/migrations/0097_nos_factures.sql' \
   '  if not found or v_f.payee_le is not null then return null; end if;|||  if not found or (v_ligne.paye_jusqu_au is not null and v_ligne.paye_jusqu_au >= v_f.fin) then return null; end if;' '  if not found then return null; end if;|||  if not found then return null; end if;' \
   "$NF3"
+
+# Nos factures, seconde partie (abonnement 14b ; docs/abonnement.md B5 ; base 0098) : « Ton abonnement » montre à qui le
+# gère les factures émises de SON abonnement, réduites à ce qu'elles impriment, avec leurs avoirs ; « Payer en ligne »
+# demande le reste, sur le portefeuille de l'entreprise SkanFact, même en lecture seule, et se trace ; le retour de
+# Konnect ramène à l'abonnement, où une facture due passe juste sous l'état.
+MF1='« Ton abonnement » montre les factures émises de CET abonné, réduites à ce qu'"'"'elles impriment ; jamais un brouillon, jamais un autre rôle'
+MF2='en lecture seule, l'"'"'abonnée paie en ligne le reste de SA facture, sur le portefeuille de SkanFact ; prouvé, l'"'"'abonnement suit et rouvre'
+MF3='un avoir de SkanFact se lit avec la facture qu'"'"'il corrige, et « Payer en ligne » ne demande que ce qui reste'
+MFW='Walid voit la facture de son abonnement, la paie en ligne, et revient sur son abonnement payé'
+prouver 'les factures d'"'"'un autre abonné montrées' base/migrations/0098_mes_factures.sql \
+  '     where f.entreprise = p_entreprise
+    union all' '     where true
+    union all' \
+  "$MF1"
+prouver 'la fiche de SkanFact envoyée entière à l'"'"'abonné' serveur/abonnement/routes.ts \
+  'entreprise: nettoyerSociete(lu.entreprise),' 'entreprise: lu.entreprise,' \
+  "$MF1"
+prouver 'la fiche du client envoyée entière à l'"'"'abonné' serveur/abonnement/routes.ts \
+  'client: nettoyerClient(lu.client),' 'client: lu.client,' \
+  "$MF1"
+# Deux gardes : la porte (le geste), puis la base (0098) ; il faut les retirer toutes deux.
+prouver 'un commercial qui lit les factures de l'"'"'abonnement' 'serveur/porte/gestes.ts|||base/migrations/0098_mes_factures.sql' \
+  '  { code: '"'"'socle.abonnement.voir'"'"', module: '"'"'socle'"'"', horsCle: true, ecrit: false,
+    roles: { proprietaire: P, administrateur: P } },|||array['"'"'proprietaire'"'"', '"'"'administrateur'"'"']::text[]' \
+  '  { code: '"'"'socle.abonnement.voir'"'"', module: '"'"'socle'"'"', horsCle: true, ecrit: false,
+    roles: { proprietaire: P, administrateur: P, commercial: P } },|||array['"'"'proprietaire'"'"', '"'"'administrateur'"'"', '"'"'commercial'"'"']::text[]' \
+  "$MF1"
+prouver 'un commercial qui paie l'"'"'abonnement' 'serveur/porte/gestes.ts|||base/migrations/0098_mes_factures.sql' \
+  '  { code: '"'"'socle.abonnement.payer'"'"', module: '"'"'socle'"'"', horsCle: true, ecrit: true,
+    roles: { proprietaire: P, administrateur: P } },|||array['"'"'proprietaire'"'"', '"'"'administrateur'"'"']::text[]' \
+  '  { code: '"'"'socle.abonnement.payer'"'"', module: '"'"'socle'"'"', horsCle: true, ecrit: true,
+    roles: { proprietaire: P, administrateur: P, commercial: P } },|||array['"'"'proprietaire'"'"', '"'"'administrateur'"'"', '"'"'commercial'"'"']::text[]' \
+  "$MF1"
+prouver 'le paiement de l'"'"'abonné sans sa trace' serveur/abonnement/routes.ts \
+  '      await tracer(tx, ent, '"'"'socle.abonnement.payer'"'"', { type: '"'"'facture_abonnement'"'"', id: null }, null, { numero: corps.numero });
+' '' \
+  "$MF2"
+prouver 'la facture qui rouvre l'"'"'abonnement refusée en lecture seule' serveur/abonnement/condition.ts \
+  '  '"'"'socle.abonnement.payer'"'"': '"'"'ouvert'"'"',' '  '"'"'socle.abonnement.payer'"'"': '"'"'ferme'"'"',' \
+  "$MF2"
+prouver 'un avoir de l'"'"'abonnement que l'"'"'abonné ne voit pas' base/migrations/0098_mes_factures.sql \
+  'and a.type = '"'"'avoir'"'"' and a.statut = '"'"'emise'"'"'' 'and a.type = '"'"'avoir'"'"' and false' \
+  "$MF3"
+prouver 'les avoirs de SkanFact oubliés dans ce que doit l'"'"'abonné' base/migrations/0098_mes_factures.sql \
+  '        '"'"'avoirs'"'"', (select coalesce(jsonb_agg(a.net_a_payer::text), '"'"'[]'"'"') from ventes.piece a
+                    where a.entreprise = p.entreprise and a.corrige = p.id and a.statut = '"'"'emise'"'"'),' '        '"'"'avoirs'"'"', '"'"'[]'"'"'::jsonb,' \
+  "$MF3"
+prouver 'une facture due rangée sous les offres' web/public/plateforme/abonnement.js \
+  '    const aFaire = !!fa && fa.pieces.some((p) => !!p.statut && DOIT.includes(p.statut));' '    const aFaire = false;' \
+  "$MFW"
+prouver 'le retour qui ne ramène pas à l'"'"'abonnement' web/public/espace/retour.js \
+  '  const deLAbonnement = /^[0-9a-f-]{36}$/.test(abonnement);' '  const deLAbonnement = false;' \
+  "$MFW"
+prouver 'l'"'"'abonnement qui ne s'"'"'ouvre pas au retour d'"'"'un paiement' web/public/v10/app.js \
+  '    if (bridge.ouvertureDemandee && bridge.ouvertureDemandee() === '"'"'abonnement'"'"') allerAbonnement();
+' '' \
+  "$MFW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

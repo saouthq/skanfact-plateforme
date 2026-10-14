@@ -103,7 +103,8 @@
     }
     const lu = await r.json().catch(() => ({}));
     if (!r.ok || typeof lu.adresse !== 'string') { dire(typeof lu.motif === 'string' ? lu.motif : 'Le paiement en ligne ne répond pas : réessaie dans un instant.'); return; }
-    try { sessionStorage.setItem('skanfact.espace', jeton); } catch { /* la page de retour proposera de la fermer */ }
+    // Le retour ramène à CET espace, jamais à un abonnement payé avant dans l'onglet (14b).
+    try { sessionStorage.setItem('skanfact.espace', jeton); sessionStorage.removeItem('skanfact.abonnement.retour'); } catch { /* la page de retour proposera de la fermer */ }
     location.assign(lu.adresse);
   }
 

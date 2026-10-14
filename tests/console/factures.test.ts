@@ -84,7 +84,7 @@ beforeAll(async () => {
   await admin.query(`insert into socle.regle_fiscale (code, valeur, debut, source)
     select 'timbre.facture', '1000', '2000-01-01', 'Règle d''essai des tests' where not exists (select 1 from socle.regle_fiscale where code = 'timbre.facture')`);
   declarerGestesVentes();
-  app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesV10(ctx), ...routesConsole(ctx, { veille }), ...routesAbonnement()]);
+  app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesV10(ctx), ...routesConsole(ctx, { veille }), ...routesAbonnement(ctx)]);
   await app.ready();
   direction = await membre('Amira', 'direction');
   bilal = await membre('Bilal', 'direction');

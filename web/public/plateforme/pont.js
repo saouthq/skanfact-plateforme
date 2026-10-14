@@ -1275,6 +1275,11 @@
     assistantDemande: () => {
       try { const v = sessionStorage.getItem(ASSISTANT_APRES); sessionStorage.removeItem(ASSISTANT_APRES); return v === ent; } catch { return false; }
     },
+    // Revenu d'un paiement en ligne d'une facture de l'abonnement (14b ; docs/abonnement.md B5) : « Ton abonnement »
+    // s'ouvre. Posé par plateforme/abonnement.js avant de partir chez le prestataire, pour CETTE entreprise ; lu une fois.
+    ouvertureDemandee: () => {
+      try { const v = sessionStorage.getItem(ABONNEMENT_APRES); sessionStorage.removeItem(ABONNEMENT_APRES); return v === ent ? 'abonnement' : null; } catch { return null; }
+    },
     // L'adresse du compte, que l'assistant propose comme adresse de l'entreprise (« Utiliser … »).
     courrielDuCompte: async () => String((await lireMoi()).email || ''),
     // Ce que les premiers pas lisent sur le serveur (lot onboarding ; plateforme/premiers-pas.js) : l'adresse vérifiée et
@@ -2178,6 +2183,9 @@
   // L'entreprise qui ouvre l'assistant à sa prochaine ouverture (`assistantDemande`) : la clé que posent la porte et la
   // page « Ta vraie entreprise » (App.tsx).
   const ASSISTANT_APRES = 'skanfact.assistant';
+  // L'entreprise dont l'abonnement s'ouvre à la prochaine ouverture (`ouvertureDemandee`) : la clé que pose « Ton
+  // abonnement » avant un paiement en ligne (plateforme/abonnement.js), et que lit la page de retour (espace/retour.js).
+  const ABONNEMENT_APRES = 'skanfact.abonnement.retour';
   // Ouvrir une entreprise, et s'en souvenir pour la prochaine fois (la même clé que l'entrée).
   /** @param {string} id */
   function ouvrirEntreprise(id) {

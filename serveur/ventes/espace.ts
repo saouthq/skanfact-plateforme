@@ -52,7 +52,7 @@ export function nettoyerPiece(document: unknown): Objet {
   return d;
 }
 
-type PieceLue = {
+export type PieceLue = {
   id: string; type: 'facture' | 'avoir'; numero: string; date: string; echeance: string | null; devise: string; decimales: number;
   net: string; avoirs: string[]; reglements: string[]; document: unknown;
 };
@@ -74,27 +74,30 @@ export function payableEnLigne(type: string, devise: string, reste: bigint | nul
   return type === 'facture' && reste !== null && reste > 0n && devise === 'TND' && paiement;
 }
 
+// Une pièce telle que son client la lit : ce qu'elle doit encore (ses avoirs et ses règlements retranchés, la même
+// fonction que les ventes au serveur ; un avoir ne se paie pas, il se lit), son état, si elle se règle en ligne, et
+// la pièce réduite à ce qu'elle imprime. L'espace client et « Ton abonnement » (14b) la lisent ainsi.
+export function vueDePiece(p: PieceLue, paiement: boolean, aujourdhui: string) {
+  const net = BigInt(p.net);
+  const m = (v: bigint) => versTexte(v, p.decimales);
+  const solde = p.type === 'facture' ? soldeFacture(net, p.avoirs.map(BigInt), p.reglements.map(BigInt)) : null;
+  // Ce qu'il en a payé, et ce que ses avoirs en ont retiré : de quoi relire le reste (net − avoirs − payé).
+  return {
+    type: p.type, numero: p.numero, date: p.date, echeance: p.echeance, devise: p.devise, net: m(net),
+    paye: solde ? m(solde.paye) : null, credite: solde ? m(solde.credite) : null,
+    reste: solde ? m(solde.reste) : null, statut: solde ? statutFacture(net, solde, p.echeance ?? undefined, aujourdhui) : null,
+    payable: payableEnLigne(p.type, p.devise, solde ? solde.reste : null, paiement),
+    document: nettoyerPiece(p.document),
+  };
+}
+
 // Ce que le lien montre, ou null (lien inconnu ou révoqué). Chaque ouverture est notée (« vue le … »).
 export async function vueEspace(ctx: Contexte, jetonEmpreinte: string) {
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
   const lu = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select ventes.espace($1, $2) v', [jetonEmpreinte, maintenant])).rows[0].v as Lu | null);
   if (!lu) return null;
   const aujourdhui = aujourdhuiATunis(maintenant);
-  const pieces = lu.pieces.map((p) => {
-    const net = BigInt(p.net);
-    const m = (v: bigint) => versTexte(v, p.decimales);
-    // Ce qu'une facture doit encore : ses avoirs et ses règlements retranchés (la même fonction que les
-    // ventes au serveur). Un avoir ne se paie pas : il se lit.
-    const solde = p.type === 'facture' ? soldeFacture(net, p.avoirs.map(BigInt), p.reglements.map(BigInt)) : null;
-    // Ce qu'il en a payé, et ce que ses avoirs en ont retiré : de quoi relire le reste (net − avoirs − payé).
-    return {
-      type: p.type, numero: p.numero, date: p.date, echeance: p.echeance, devise: p.devise, net: m(net),
-      paye: solde ? m(solde.paye) : null, credite: solde ? m(solde.credite) : null,
-      reste: solde ? m(solde.reste) : null, statut: solde ? statutFacture(net, solde, p.echeance ?? undefined, aujourdhui) : null,
-      payable: payableEnLigne(p.type, p.devise, solde ? solde.reste : null, lu.paiement === true),
-      document: nettoyerPiece(p.document),
-    };
-  });
+  const pieces = lu.pieces.map((p) => vueDePiece(p, lu.paiement === true, aujourdhui));
   // Le total dû, par devise, en entiers (jamais additionné en nombre à virgule).
   const dus = new Map<string, { du: bigint; decimales: number }>();
   for (const p of lu.pieces) {

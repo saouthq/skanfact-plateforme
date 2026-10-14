@@ -114,7 +114,7 @@ let technique: Console;
 beforeAll(async () => {
   await admin.connect();
   declarerGestesSupport();
-  app = creerApp(ctx, [...routesSocle(ctx), ...routesCabinet(ctx), ...routesConsole(ctx, { veille }), ...routesSupport(ctx), ...routesAbonnement()]);
+  app = creerApp(ctx, [...routesSocle(ctx), ...routesCabinet(ctx), ...routesConsole(ctx, { veille }), ...routesSupport(ctx), ...routesAbonnement(ctx)]);
   await app.ready();
   direction = await membre('Amira', 'direction');
   support = await membre('Karim', 'support');

@@ -12,11 +12,20 @@
   // Un prestataire qui ajoute sa référence à l'adresse ne coupe rien : on lit chaque nom jusqu'à « & » ou « ? ».
   const lire = (/** @type {string} */ nom) => { const m = new RegExp(`(?:^|[&?])${nom}=([^&?]*)`).exec(fragment); return m ? decodeURIComponent(m[1] ?? '') : ''; };
   const paiement = lire('paiement'), secret = lire('s'), echec = lire('echec') === '1';
-  let jeton = '';
-  try { jeton = sessionStorage.getItem('skanfact.espace') || ''; } catch { /* sans lui, on propose de fermer la page */ }
-  const revenir = jeton
-    ? `<p><a class="bouton principal" href="/espace/#${encodeURIComponent(jeton)}">Revenir à ton espace</a></p>`
-    : '<p>Tu peux fermer cette page, et rouvrir le lien que l\'entreprise t\'a donné.</p>';
+  let jeton = '', abonnement = '';
+  try {
+    jeton = sessionStorage.getItem('skanfact.espace') || '';
+    abonnement = sessionStorage.getItem('skanfact.abonnement.retour') || '';
+  } catch { /* sans eux, on propose de fermer la page */ }
+  // L'abonné de SkanFact, parti de « Ton abonnement » (14b ; docs/abonnement.md B5) : il y revient, dans son entreprise
+  // (posée avant de partir ; l'application rouvre l'onglet en la lisant).
+  const deLAbonnement = /^[0-9a-f-]{36}$/.test(abonnement);
+  const ici = deLAbonnement ? 'ton abonnement' : 'ton espace';
+  const revenir = deLAbonnement
+    ? `<p><a class="bouton principal" href="/v10/?e=${encodeURIComponent(abonnement)}">Revenir à ton abonnement</a></p>`
+    : jeton
+      ? `<p><a class="bouton principal" href="/espace/#${encodeURIComponent(jeton)}">Revenir à ton espace</a></p>`
+      : '<p>Tu peux fermer cette page, et rouvrir le lien que l\'entreprise t\'a donné.</p>';
   /** @param {string} titre @param {string} texte @param {string} suite */
   const dire = (titre, texte, suite) => {
     racine.innerHTML = `<section class="carte retour"><h1>${esc(titre)}</h1><p>${esc(texte)}</p>${suite}</section>`;
@@ -33,11 +42,11 @@
       return;
     }
     const lu = await r.json().catch(() => ({}));
-    if (!r.ok) { dire('Ce paiement est inconnu.', typeof lu.motif === 'string' ? lu.motif : 'Reviens à ton espace par le lien que l\'entreprise t\'a donné.', revenir); return; }
+    if (!r.ok) { dire('Ce paiement est inconnu.', typeof lu.motif === 'string' ? lu.motif : deLAbonnement ? 'Reviens à ton abonnement, dans SkanFact.' : 'Reviens à ton espace par le lien que l\'entreprise t\'a donné.', revenir); return; }
     const somme = C.money(Number(lu.montant), devise(lu.devise));
     if (lu.etat === 'encaisse') { dire('Paiement reçu', `${somme} pour la facture ${lu.numero}. Merci !`, revenir); return; }
     if (lu.etat === 'echoue') { dire('Paiement non accepté', `Ce paiement de ${somme} n'est pas enregistré : écris à l'entreprise.`, revenir); return; }
-    if (echec) { dire('Paiement non abouti', `Le paiement de ${somme} n'a pas abouti : il n'est pas enregistré. Tu peux réessayer depuis ton espace.`, revenir); return; }
+    if (echec) { dire('Paiement non abouti', `Le paiement de ${somme} n'a pas abouti : il n'est pas enregistré. Tu peux réessayer depuis ${ici}.`, revenir); return; }
     // Le prestataire n'a pas encore confirmé : on redemande un moment, puis on dit ce qui se passera.
     if (essai < 10) {
       dire('Confirmation en cours…', `Le prestataire confirme ton paiement de ${somme} pour la facture ${lu.numero}.`, '');
@@ -47,6 +56,6 @@
     dire('Confirmation en attente', `Le prestataire n'a pas encore confirmé ton paiement de ${somme}. S'il est confirmé, il s'enregistrera tout seul sur la facture.`, revenir);
   }
 
-  if (!paiement || !secret) dire('Ce lien de retour est incomplet.', 'Reviens à ton espace par le lien que l\'entreprise t\'a donné.', revenir);
+  if (!paiement || !secret) dire('Ce lien de retour est incomplet.', deLAbonnement ? 'Reviens à ton abonnement, dans SkanFact.' : 'Reviens à ton espace par le lien que l\'entreprise t\'a donné.', revenir);
   else void verifier(0);
 })();

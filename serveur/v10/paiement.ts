@@ -1,7 +1,8 @@
 // Le paiement en ligne (brique 78 ; docs/paiement-en-ligne.md ; 14 § 2.2), du côté du dossier v10 :
 //   - le client, depuis son espace, demande à payer le RESTE d'une facture (le chiffre du serveur, la
 //     même fonction que partout) : la demande est notée, puis ouverte chez le prestataire avec la clé
-//     de l'entreprise (l'argent va sur SON portefeuille) ;
+//     de l'entreprise (l'argent va sur SON portefeuille) ; l'abonné de SkanFact fait de même, depuis
+//     « Ton abonnement », pour une facture que l'entreprise SkanFact lui a émise (14b) ;
 //   - la preuve se redemande au prestataire, avec cette clé, quand son avis arrive ET quand le client
 //     revient sur la page de retour (le même geste : un chemin de secours ne sert que s'il se
 //     déclenche tout seul) ; ni l'un ni l'autre ne décide ;
@@ -41,13 +42,38 @@ type Demande = { id: string; adresse?: string; entreprise?: string; portefeuille
 
 export type Demandee = { adresse: string } | { refus: Texte; statut: number };
 
-// « Payer en ligne » : l'adresse où le client paie, ou pourquoi il ne peut pas (null : lien ou pièce
-// inconnus).
-export async function demanderPaiement(ctx: Contexte, jeton: string, numero: string): Promise<Demandee | null> {
+// D'où vient la demande : ce qu'il faut pour calculer le reste, puis la demande notée (ou celle encore ouverte). Deux
+// sources : le client d'une entreprise par son lien (l'espace client), et l'abonné de SkanFact dans son application
+// (« Ton abonnement », 14b) ; la base vérifie qui demande, puis les deux passent par la même règle (ventes.paiement_noter).
+type Source = {
+  aPayer: () => Promise<APayer | null>;
+  noter: (reste: bigint, retourEmpreinte: string, maintenant: Date) => Promise<Demande | null>;
+};
+
+// « Payer en ligne » depuis l'espace client : l'adresse où le client paie, ou pourquoi il ne peut pas (null : lien ou
+// pièce inconnus).
+export function demanderPaiement(ctx: Contexte, jeton: string, numero: string): Promise<Demandee | null> {
+  const lien = empreinte(jeton);
+  return ouvrirPaiement(ctx, numero, {
+    aPayer: () => public_<APayer>(ctx, 'select ventes.espace_a_payer($1, $2) v', [lien, numero]),
+    noter: (reste, retour, maintenant) => public_<Demande>(ctx, 'select ventes.paiement_demander($1, $2, $3, $4, $5) v', [lien, numero, reste.toString(), retour, maintenant]),
+  });
+}
+
+// « Payer en ligne » depuis « Ton abonnement » (14b ; docs/abonnement.md B5) : la facture que l'entreprise SkanFact a
+// émise pour l'abonnement de `entreprise`, payée par une personne qui le gère (la base le vérifie, au nom de la personne).
+export function demanderPaiementAbonnement(ctx: Contexte, utilisateur: string, entreprise: string, numero: string): Promise<Demandee | null> {
+  const enSonNom = <T>(sql: string, valeurs: unknown[]) => enTantQue(ctx.pool, utilisateur, async (tx) => (await tx.query(sql, valeurs)).rows[0]?.v as T | null);
+  return ouvrirPaiement(ctx, numero, {
+    aPayer: () => enSonNom<APayer>('select plateforme.ma_facture_a_payer($1, $2) v', [entreprise, numero]),
+    noter: (reste, retour, maintenant) => enSonNom<Demande>('select plateforme.mon_paiement_demander($1, $2, $3, $4, $5) v', [entreprise, numero, reste.toString(), retour, maintenant]),
+  });
+}
+
+async function ouvrirPaiement(ctx: Contexte, numero: string, source: Source): Promise<Demandee | null> {
   const r = reglage(ctx);
   const maintenant = maintenantDe(ctx);
-  const lien = empreinte(jeton);
-  const a = await public_<APayer>(ctx, 'select ventes.espace_a_payer($1, $2) v', [lien, numero]);
+  const a = await source.aPayer();
   if (!a) return null;
   if (!a.prestataire) return { refus: motif('paiement.pas_en_ligne'), statut: 409 };
   // Le dinar seulement : les autres devises de Konnect, À VÉRIFIER (docs/paiement-en-ligne.md).
@@ -56,7 +82,7 @@ export async function demanderPaiement(ctx: Contexte, jeton: string, numero: str
   if (reste <= 0n) return { refus: motif('paiement.rien_a_payer'), statut: 409 };
 
   const secret = randomBytes(18).toString('base64url');
-  const d = await public_<Demande>(ctx, 'select ventes.paiement_demander($1, $2, $3, $4, $5) v', [lien, numero, reste.toString(), empreinte(secret), maintenant]);
+  const d = await source.noter(reste, empreinte(secret), maintenant);
   if (!d) return null;
   // Une demande déjà ouverte se redonne, sauf si elle est déjà payée (son avis perdu) : on le sait en le
   // demandant, et elle s'enregistre au passage ; rien ne se paie deux fois.
@@ -64,7 +90,7 @@ export async function demanderPaiement(ctx: Contexte, jeton: string, numero: str
     const e = await verifierPaiement(ctx, { id: d.id });
     if (e?.etat === 'encaisse') return { refus: motif('paiement.rien_a_payer'), statut: 409 };
     // Refusée entre-temps (un « payé » qui ne correspondait pas) : une nouvelle demande.
-    if (e?.etat === 'echoue') return demanderPaiement(ctx, jeton, numero);
+    if (e?.etat === 'echoue') return ouvrirPaiement(ctx, numero, source);
     return { adresse: d.adresse };
   }
   const base = r.adresse();

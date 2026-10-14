@@ -531,8 +531,14 @@ vaut pour tout le dépôt.*
     SkanFact**, par le même moteur que toutes les factures, la fiche du client et un brouillon (la période suit la même
     règle que « Noter un paiement », le prix est celui du jour, l'aperçu dit ce que la facture dira) ; elle s'émet et
     s'encaisse dans l'application de SkanFact, et **réglée en entier, elle paie l'abonnement** jusqu'à la fin de sa
-    période, une fois (jamais en partie, jamais annulée par son avoir). Pas encore : l'abonné qui voit et paie sa
-    facture en ligne (14b, seconde partie).
+    période, une fois (jamais en partie, jamais annulée par son avoir).
+  - **L'abonné et ses factures** (abonnement 14b, seconde partie, 1.6.0 ; `docs/abonnement.md` B5, `0098`,
+    `serveur/abonnement/routes.ts`, `web/public/plateforme/abonnement.js`, `web/v10/abonnement-factures.txt`) : dans
+    « Ton abonnement », le propriétaire et les administrateurs lisent les factures que l'entreprise SkanFact leur a
+    émises et leurs avoirs, réduits à ce qu'ils impriment (les listes fermées de l'espace client), et règlent le reste
+    en ligne, sur le Konnect de l'entreprise SkanFact, même en lecture seule : la même règle que l'espace client
+    (`ventes.paiement_noter`, `serveur/v10/paiement.ts`), puis B4 fait suivre l'abonnement. Le retour de Konnect
+    ramène à l'onglet « Ton abonnement ».
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se
