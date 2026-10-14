@@ -456,8 +456,8 @@ vaut pour tout le dépôt.*
     un refus pris à « Enregistrer » jette la saisie. Les relances (15 j, 7 j, la veille, la lecture seule ; une fois par
     échéance) ne disent pas le nom de l'entreprise. Les gestes de SkanFact (`exploitation/abonnement.sh`, et la console
     depuis Console 1, une seule règle : `serveur/abonnement/gestes.ts`) exigent un motif et laissent un événement qu'on
-    ne modifie ni n'efface ; l'entreprise ne voit jamais le motif. Pas encore : le paiement en ligne (14b), ce qui
-    distingue les offres (14c).
+    ne modifie ni n'efface ; l'entreprise ne voit jamais le motif. Le paiement en ligne est venu en 14b ; ce qui
+    distingue les offres en 14c (ci-dessous).
   - **La console de l'équipe SkanFact** (Console 1, 13/10/2026 ; `docs/console.md`, `0083`, `serveur/console/`,
     `web/console/`, servie sous `/console/`) : une connexion à part, réservée à l'équipe (`plateforme.equipe` : direction,
     support, technique ; le premier membre par `exploitation/equipe.sh`), le code du téléphone **à chaque connexion**,
@@ -539,6 +539,12 @@ vaut pour tout le dépôt.*
     en ligne, sur le Konnect de l'entreprise SkanFact, même en lecture seule : la même règle que l'espace client
     (`ventes.paiement_noter`, `serveur/v10/paiement.ts`), puis B4 fait suivre l'abonnement. Le retour de Konnect
     ramène à l'onglet « Ton abonnement ».
+  - **Ce que l'offre ouvre** (abonnement 14c, première partie, 1.7.0 ; `docs/abonnement.md` « 14c »,
+    `serveur/abonnement/offre.ts`, `web/v10/offre-complet.txt`) : en Essentiel, la paie et la comptabilité complète
+    sont fermées — tout ce qui existe se lit, s'imprime, s'exporte et se corrige, rien de NEUF ne s'y crée (02 § 6). Le
+    serveur refuse lui-même un salarié, un bulletin, une absence, une avance ou une immobilisation nouveaux ; l'écran
+    retient la création à l'ouverture du formulaire (les portes de la v10, 7.33.0, avec les mots de l'abonnement). Ce que
+    la loi demande n'est dans aucun module fermé ; le cabinet sous mandat a toujours la paie et la comptabilité (02 § 8).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

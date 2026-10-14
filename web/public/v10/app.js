@@ -421,13 +421,13 @@
   // `true` = c'est refusé. L'appelant ne dessine pas.
   function optionBlock(option, quoi) {
     if ((licence.options || []).includes(option)) return false;
-    modal(`<h2>Option ${h(C.OPTION_LABELS[option] || 'Comptabilité')}</h2>
-      <p>${h(quoi)} fait partie de l'option <strong>Comptabilité</strong>, qui n'est pas dans ta licence.</p>
+    modal(`<h2>La comptabilité complète</h2>
+      <p>${h(quoi)} fait partie de la comptabilité complète, dans l'offre <strong>Complet</strong> : elle n'est pas dans l'offre ${h(licence.offreLabel || 'Essentiel')}.</p>
       <ul class="small">
-        <li><strong>Tes écritures, ta TVA, tes clôtures et le paquet de ton comptable restent disponibles.</strong> Rien de ce que tu envoies à ton comptable ne dépend de cette option.</li>
-        <li>Ce sont des écrans de comptable : grand livre, balance, états financiers.</li>
+        <li><strong>Tes écritures, ta TVA, tes clôtures et le paquet de ton comptable restent disponibles.</strong> Rien de ce que tu envoies à ton comptable ne dépend de cette offre.</li>
+        <li>Ce sont des écrans de comptable : grand livre, balance, états financiers. Ton cabinet, lui, les a toujours.</li>
       </ul>
-      <div class="modal-actions"><button class="btn" data-close>Fermer</button><button class="btn btn-primary" id="go-opt">Voir ma licence</button></div>`,
+      <div class="modal-actions"><button class="btn" data-close>Fermer</button><button class="btn btn-primary" id="go-opt">Voir l'abonnement</button></div>`,
       (root, close) => { $('#go-opt', root).onclick = () => { close(); allerParametres('app', 'p-licence'); }; });
     return true;
   }
@@ -451,13 +451,13 @@
       return true;
     }
     if (!module || !(licence.reserves || []).includes(module)) return false;
-    modal(`<h2>Offre ${h(licence.offreLabel || 'Indépendant')}</h2>
-      <p>${h(what)} fait partie de l'offre <strong>Entreprise</strong> (module « ${h(libelleOffre(module))} »).</p>
+    modal(`<h2>Offre ${h(licence.offreLabel || 'Essentiel')}</h2>
+      <p>${h(what)} fait partie de l'offre <strong>Complet</strong> (module « ${h(libelleOffre(module))} »).</p>
       <ul class="small">
         <li><strong>Tout ce qui existe déjà ici reste à toi</strong> : lisible, imprimable, exportable, envoyé à ton comptable — comme avant.</li>
-        <li>Seule la création de nouvelles pièces dans ce module attend l'offre Entreprise.</li>
+        <li>Seule la création de nouvelles pièces dans ce module attend l'offre Complet.</li>
       </ul>
-      <div class="modal-actions"><button class="btn" data-close>Plus tard</button><button class="btn btn-primary" id="go-lic">Voir ma licence</button></div>`,
+      <div class="modal-actions"><button class="btn" data-close>Plus tard</button><button class="btn btn-primary" id="go-lic">Voir l'abonnement</button></div>`,
       (root, close) => { $('#go-lic', root).onclick = () => { close(); allerParametres('app', 'p-licence'); }; });
     return true;
   }
@@ -2294,7 +2294,7 @@
       // il porte un cadenas et l'infobulle le dit, avant même le premier clic.
       const ferme = pageReservee(p);
       const texte = p.quoi || (m && m.quoi) || '';
-      const bulle = (texte + (ferme ? ' — Offre Entreprise : tu peux lire, pas créer.' : '')).trim();
+      const bulle = (texte + (ferme ? ' — dans l\'offre Complet : ici, tu peux lire, pas créer.' : '')).trim();
       const quoi = bulle ? ` title="${h(bulle)}"` : '';
       return `<a href="#/${p.id}" data-route="${p.id}"${quoi}${p.famille ? '' : ' class="solo"'}>${icone(p.id)}${h(p.titre)}${ferme ? CADENAS : ''}`
         + (cid ? `<span class="nav-count${NAV_INFO.includes(p.id) ? ' info' : ''}" id="${cid}" hidden></span>` : '')
@@ -2442,8 +2442,8 @@
     if (!p || !pageReservee(p)) return;
     const el = document.createElement('div');
     el.className = 'banner info offre-banner';
-    el.innerHTML = `<span><b>Offre ${h(licence.offreLabel || 'Indépendant')}</b> — « ${h(libelleOffre(p.module))} » fait partie de l'offre Entreprise : tu peux tout lire ici, pas créer de nouvelles pièces.</span>
-      <button class="btn btn-sm" id="offre-voir">Voir ma licence</button>`;
+    el.innerHTML = `<span><b>Offre ${h(licence.offreLabel || 'Essentiel')}</b> — « ${h(libelleOffre(p.module))} » fait partie de l'offre Complet : tu peux tout lire ici, pas créer de nouvelles pièces.</span>
+      <button class="btn btn-sm" id="offre-voir">Voir l'abonnement</button>`;
     const view = $('#view');
     const head = $('.page-head', view);
     if (head && head.nextSibling) view.insertBefore(el, head.nextSibling); else view.appendChild(el);
@@ -11421,6 +11421,7 @@
   const MONTHS_LONG = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 
   function employeeForm(employee, done, opts) {
+    if (!employee && licenceBlock('Créer une fiche de salarié', 'paie')) return;
     const e = employee || { id: C.uid(), name: '', cin: '', cnss: '', position: '', contract: 'cdi',
       hireDate: C.today(), endDate: '', grossSalary: 0, headOfFamily: false, children: 0,
       method: 'virement', iban: '', notes: '' };
@@ -11488,6 +11489,7 @@
   // Établir ou modifier un bulletin. Le calcul est recalculé à chaque frappe et gardé dans le bulletin :
   // un barème changé l'an prochain ne doit pas réécrire un bulletin déjà remis.
   function payslipForm(slip, employee, year, month, done) {
+    if (!slip && licenceBlock('Établir un nouveau bulletin', 'paie')) return;
     const emp = employee || employeeById(slip.employeeId);
     const s = C.payrollSettings(data);
     const cur = company().currency;
@@ -11624,6 +11626,7 @@
   }
 
   function leaveForm(leave, employeeId, done) {
+    if (!leave && licenceBlock('Créer une absence', 'paie')) return;
     const emps = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr'));
     if (!emps.length) return toast('Crée d\'abord la fiche d\'un salarié.', true);
     const l = leave || { id: C.uid(), employeeId: employeeId || emps[0].id, kind: 'conges',
@@ -11682,6 +11685,7 @@
   }
 
   function advanceForm(advance, employeeId, done) {
+    if (!advance && licenceBlock('Créer une avance sur salaire', 'paie')) return;
     const emps = data.employees.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr'));
     if (!emps.length) return toast('Crée d\'abord la fiche d\'un salarié.', true);
     const a = advance || { id: C.uid(), employeeId: employeeId || emps[0].id, date: C.today(), amount: 0, monthly: 0, note: '' };
@@ -14741,6 +14745,7 @@
     .map(x => ({ v: x.id, label: x.name, sub: x.contact || '', text: `${x.name} ${x.contact || ''}` }));
 
   function assetForm(asset, done, preset) {
+    if (!asset && licenceBlock('Créer la fiche du bien', 'immos')) return;
     // 10.12.0 — la famille partait sur « Matériel informatique » (et 3 ans) avec « Ordinateur
     // portable du bureau » en invite : le métier de l'auteur, proposé à une menuiserie qui
     // enregistrait sa scie à format — et une durée de trois ans que personne n'avait décidée. La
@@ -18721,7 +18726,7 @@
             ? `<span class="mod-lock" title="${h(note)}">★</span>`
             : `<input type="checkbox" data-mod="${h(m.id)}" data-n="${n}" ${on ? 'checked' : ''}>`}</label>
           <div class="mod-txt">
-            <div class="mod-t">${h(m.label)}</div>
+            <div class="mod-t">${h(m.label)}${(licence.reserves || []).includes(m.id) ? ' <span class="badge">offre Complet : tu peux lire, pas créer</span>' : ''}</div>
             <div class="small muted">${h(m.quoi)}</div>
             <div class="small muted mt-s"><b>Pages :</b> ${h(pages)} · ${h(note)}</div>
           </div>
@@ -18737,9 +18742,9 @@
           return `<div class="mod-row mod-sub${smOn ? ' on' : ''}" id="sm-${h(sm.id.replace(/\./g, '-'))}">
             <label class="mod-check"><input type="checkbox" data-sousmod="${h(sm.id)}" ${smOn ? 'checked' : ''}></label>
             <div class="mod-txt">
-              <div class="mod-t">${h(sm.label)} <span class="badge">${aOption ? 'option incluse' : 'option payante'}</span></div>
+              <div class="mod-t">${h(sm.label)} <span class="badge">${aOption ? 'dans ton offre' : 'offre Complet'}</span></div>
               <div class="small muted">${h(sm.quoi)}</div>
-              ${aOption ? '' : '<div class="small muted mt-s">Cette option n\'est pas dans ta licence : les trois onglets s\'affichent avec un cadenas et disent quoi faire.</div>'}
+              ${aOption ? '' : `<div class="small muted mt-s">Ils ne sont pas dans ton offre ${h(licence.offreLabel || 'Essentiel')} : les trois onglets s'affichent avec un cadenas et disent quoi faire.</div>`}
             </div><div class="mod-go"></div>
           </div>`;
         }).join('')}`;

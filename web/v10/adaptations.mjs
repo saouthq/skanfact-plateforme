@@ -744,4 +744,6 @@ export const ADAPTATIONS = [
   ...lireFichier('acces-support.txt'),
   // ── Les factures de l'abonnement (14/10/2026 ; 14b, docs/abonnement.md B5) : revenu d'un paiement, l'abonnement s'ouvre ──
   ...lireFichier('abonnement-factures.txt'),
+  // ── Ce que l'offre ouvre (14/10/2026 ; 14c, docs/abonnement.md) : Essentiel ferme la paie et la comptabilité complète ──
+  ...lireFichier('offre-complet.txt'),
 ];

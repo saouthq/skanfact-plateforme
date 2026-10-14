@@ -8,6 +8,10 @@ declarerTextes({
   'abonnement.lecture_seule.non_renouvele': 'cette entreprise est en lecture seule depuis le {depuis} : son abonnement n\'a pas été renouvelé. Tout se lit, s\'imprime et s\'exporte, mais rien de nouveau ne se crée. Le propriétaire ou un administrateur la rouvre en renouvelant l\'abonnement (Paramètres, Ton abonnement)',
   'abonnement.lecture_seule.resilie': 'cette entreprise est en lecture seule depuis le {depuis} : son abonnement a été résilié. Tout se lit, s\'imprime et s\'exporte, mais rien de nouveau ne se crée. Le propriétaire ou un administrateur la rouvre en choisissant une offre (Paramètres, Ton abonnement)',
   'abonnement.lecture_seule.suspendu': 'cette entreprise est en lecture seule depuis le {depuis} : SkanFact a suspendu son abonnement. Tout se lit, s\'imprime et s\'exporte, mais rien de nouveau ne se crée. Écris-nous à contact@skanfact.tn pour la rouvrir',
+  // Un module que l'offre ne contient pas (14c ; serveur/abonnement/offre.ts) : ce qui est refusé, ce qui reste, et qui
+  // l'ouvre (règle du projet).
+  'abonnement.offre.paie': 'la paie n\'est pas dans l\'offre Essentiel : les salariés, les bulletins, les absences et les avances qui existent se lisent, s\'impriment et se corrigent, mais rien de nouveau ne s\'y crée. Le propriétaire ou un administrateur l\'ouvre en passant à Complet (Paramètres, Ton abonnement)',
+  'abonnement.offre.compta': 'la comptabilité complète n\'est pas dans l\'offre Essentiel : les immobilisations qui existent se lisent, s\'impriment et se corrigent, mais aucune nouvelle ne se crée. Ta TVA, tes déclarations, tes écritures et le paquet de ton comptable restent ouverts. Le propriétaire ou un administrateur l\'ouvre en passant à Complet (Paramètres, Ton abonnement)',
   // Les relances par e-mail. Ce qui part chez le relais, compté et décidé (règle du projet ; décidé le 12/10/2026, comme
   // l'alerte de la messagerie du 09/10/2026) : l'adresse de qui gère l'abonnement, un objet, la date d'échéance et
   // l'adresse de l'application. Ni le nom de l'entreprise, ni un identifiant, ni un montant.

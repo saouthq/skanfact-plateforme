@@ -12851,6 +12851,48 @@ prouver 'l'"'"'abonnement qui ne s'"'"'ouvre pas au retour d'"'"'un paiement' we
 ' '' \
   "$MFW"
 
+# Ce que l'offre ouvre (abonnement 14c ; docs/abonnement.md, « 14c » ; serveur/abonnement/offre.ts) : en Essentiel, la
+# paie et la comptabilité complète ne créent plus rien de NEUF, au serveur comme à l'écran (avant la saisie) ; ce qui
+# existe se corrige ; la grâce garde l'offre payée ; Complet ouvre tout ; le cabinet sous mandat a toujours la paie.
+OF1='en Essentiel, rien de NEUF ne se crée dans la paie ni les immobilisations ; ce qui existe se corrige et se supprime ; les déclarations restent'
+OF2='le cabinet qui a le mandat de la paie la fait toujours, quelle que soit l'"'"'offre du client ; le client, lui, ne crée plus'
+OFW='en Essentiel, la paie et la comptabilité complète se lisent sans se créer ; passée à Complet, tout s'"'"'ouvre'
+prouver 'un salarié nouveau accepté en Essentiel' serveur/v10/dossier.ts \
+  '  if (!options.serveur) await refuserHorsOffre(tx, entreprise, changements.filter((c) => c.contenu !== null && !actuels.has(`${c.collection}/${c.cle}`)));
+' '' \
+  "$OF1"
+prouver 'une fiche existante qu'"'"'on ne corrige plus en Essentiel' serveur/v10/dossier.ts \
+  'changements.filter((c) => c.contenu !== null && !actuels.has(`${c.collection}/${c.cle}`))' 'changements.filter((c) => c.contenu !== null)' \
+  "$OF1"
+prouver 'une immobilisation nouvelle acceptée en Essentiel' serveur/abonnement/offre.ts \
+  "  compta: ['assets']," "  compta: []," \
+  "$OF1"
+prouver 'la paie qui reste fermée en Complet' serveur/abonnement/offre.ts \
+  "=== 'essentiel' ? [...MODULES_DE_COMPLET] : [];" "!== null ? [...MODULES_DE_COMPLET] : [];" \
+  "$OF1"
+prouver 'la grâce qui rouvre la paie d'"'"'un abonné Essentiel' serveur/abonnement/offre.ts \
+  "  if (e.etat === 'en_retard' && !e.apresEssai) return f.offre;
+" '' \
+  "$OF1"
+prouver 'le cabinet sous mandat privé de la paie de son client' serveur/abonnement/offre.ts \
+  '  return perimetre ? [] : fermes;' '  return fermes;' \
+  "$OF2"
+prouver 'l'"'"'offre qui ne passe pas à l'"'"'écran' web/public/plateforme/abonnement.js \
+  "    const reserves = [...(fermes.includes('paie') ? ['paie'] : []), ...(fermes.includes('compta') ? ['immos'] : [])];" '    const reserves = [];' \
+  "$OFW"
+prouver 'le grand livre ouvert en Essentiel' web/public/plateforme/abonnement.js \
+  "options: fermes.includes('compta') ? [] : ['compta']," "options: ['compta']," \
+  "$OFW"
+prouver 'le formulaire du salarié ouvert avant la porte' web/public/v10/app.js \
+  "  function employeeForm(employee, done, opts) {
+    if (!employee && licenceBlock('Créer une fiche de salarié', 'paie')) return;
+" "  function employeeForm(employee, done, opts) {
+" \
+  "$OFW"
+prouver 'le bandeau d'"'"'un module fermé qui ne nomme pas Complet' web/public/v10/app.js \
+  "fait partie de l'offre Complet : tu peux tout lire ici" "fait partie de l'offre Entreprise : tu peux tout lire ici" \
+  "$OFW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

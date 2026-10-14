@@ -395,7 +395,7 @@
         option: 'compta',
         defaut: false,
         onglets: ['grandlivre', 'balance', 'etats'],
-        quoi: 'Grand livre, balance, livre-journal, états financiers. Option payante, incluse dans l\'essai. Tes écritures, ta TVA, tes clôtures et le paquet de ton comptable restent disponibles sans elle.'
+        quoi: 'Grand livre, balance, livre-journal, états financiers. Dans l\'offre Complet, et pendant l\'essai. Tes écritures, ta TVA, tes clôtures et le paquet de ton comptable restent disponibles sans eux.'
       }] }
   ];
 

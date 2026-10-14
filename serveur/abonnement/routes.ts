@@ -18,6 +18,7 @@ import { demanderPaiementAbonnement } from '../v10/paiement.ts';
 import { nettoyerClient, nettoyerSociete, vueDePiece, type PieceLue } from '../ventes/espace.ts';
 import { etatAbonnement, type Etat } from './etat.ts';
 import { faitsDe } from './condition.ts';
+import { modulesFermesPourMoi } from './offre.ts';
 import './textes.ts';
 
 // Ce que la base rend des factures de l'abonné (plateforme.mes_factures_abonnement) : les pièces, et, s'il y en a, les
@@ -35,7 +36,8 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
       const jour = aujourdhuiATunis();
       const f = await faitsDe(tx, params.entreprise ?? '');
       const etat: Etat = f ? etatAbonnement(f, jour) : { etat: 'hors', raison: 'inconnu' };
-      return { corps: { aujourdhui: jour, ...etat } };
+      // Les modules que l'offre ne contient pas, pour la personne qui lit (14c) : l'écran les retient AVANT le geste.
+      return { corps: { aujourdhui: jour, ...etat, fermes: await modulesFermesPourMoi(tx, params.entreprise ?? '', jour) } };
     },
   });
 

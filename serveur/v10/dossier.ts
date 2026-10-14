@@ -13,6 +13,7 @@ import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
 import { rendre, t } from '../../textes/index.ts';
 import { depuisTexte, versTexte } from '../../moteur/argent.ts';
+import { refuserHorsOffre } from '../abonnement/offre.ts';
 import { requetes, type Transaction } from '../base.ts';
 import { Perimee, Refus } from '../erreurs.ts';
 import { REGLEMENTS_VENTES, tenirReglements } from '../reglements.ts';
@@ -213,6 +214,9 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   if (conflits.length) throw new Conflit(conflits);
   // Supprimer un brouillon : les siens (brique 117 ; 03 § 1). Dit avec le nom de l'auteur, avant que la base ne le refuse.
   if (!options.serveur) await verifierAuteurs(tx, entreprise, utilisateur, changements, actuels);
+  // Un module que l'offre ne contient pas (14c ; serveur/abonnement/offre.ts) : rien de NEUF ne s'y crée, quoi que
+  // l'écran envoie ; ce qui existe se corrige et se supprime toujours.
+  if (!options.serveur) await refuserHorsOffre(tx, entreprise, changements.filter((c) => c.contenu !== null && !actuels.has(`${c.collection}/${c.cle}`)));
   // Une commande fournisseur qui part au-delà du seuil de l'entreprise : l'accord d'un responsable (brique 114).
   // Une réception validée sur une commande qui n'est pas partie : refusée (lot achats, 05/10/2026).
   if (!options.serveur) {

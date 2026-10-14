@@ -18,7 +18,7 @@
 
   /** @typedef {{ aujourdhui?: string, etat: 'essai' | 'actif' | 'en_retard' | 'lecture_seule' | 'hors', jusquAu?: string, jours?: number,
    *   offre?: string, periodicite?: string, resilie?: boolean, echeance?: string, lectureSeuleLe?: string, apresEssai?: boolean,
-   *   depuis?: string, raison?: string }} Etat */
+   *   depuis?: string, raison?: string, fermes?: string[] }} Etat */
 
   /** @param {unknown} v */
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' })[c] || c);
@@ -79,9 +79,13 @@
   // Ce que la v10 attend de sa licence (sa pastille, sa carte d'essai, sa porte de création), tiré de l'état.
   /** @param {Etat | null} e */
   function licence(e) {
-    // Rien n'est réservé à une offre pour l'instant (`reserves` vide, l'option de comptabilité incluse) : ce qui distingue
-    // Essentiel de Complet viendra avec ses refus au serveur. La lecture seule, seule, ferme la création.
-    const base = { state: 'libre', locked: false, label: '', detail: '', offre: 'entreprise', reserves: [], options: ['compta'], editeur: false };
+    // Ce que l'offre ne contient pas (14c ; serveur/abonnement/offre.ts, qui refuse lui-même) : la paie (le module « paie »
+    // de la v10) et la comptabilité complète (le module « immos », et l'option « compta » : le grand livre, la balance, les
+    // états financiers). Les portes de la v10 retiennent la création AVANT le geste, et disent ce qui reste ouvert.
+    const fermes = e && Array.isArray(e.fermes) ? e.fermes : [];
+    const reserves = [...(fermes.includes('paie') ? ['paie'] : []), ...(fermes.includes('compta') ? ['immos'] : [])];
+    const base = { state: 'libre', locked: false, label: '', detail: '', offre: 'entreprise', offreLabel: e && e.offre ? nomOffre(e.offre) : '',
+      reserves, options: fermes.includes('compta') ? [] : ['compta'], editeur: false };
     if (!e || e.etat === 'hors') return base;
     if (e.etat === 'essai') return { ...base, state: 'essai', daysLeft: e.jours, label: 'Essai gratuit', detail: `L'essai court jusqu'au ${jour(e.jusquAu)}, tout ouvert.` };
     if (e.etat === 'actif') return { ...base, state: 'active', daysLeft: e.jours, label: `${nomOffre(e.offre)} jusqu'au ${jour(e.jusquAu)}`, detail: e.resilie ? 'Résilié : il s\'arrête à cette date.' : '' };
@@ -316,6 +320,7 @@
         ${an ? `<p class="abo-prix"><b>${esc(montant(an).replace(/\u00a0DT$/, ''))}</b><span>DT HT par an</span></p>` : ''}
         ${mois ? `<p class="abo-mois">ou ${esc(montant(mois))} HT par mois</p>` : ''}
         <ul class="abo-inclus">${o.inclus.map((i) => `<li>${ICONE_COCHE}<span>${esc(i)}</span></li>`).join('')}</ul>
+        ${courante && k === 'essentiel' ? '<p class="abo-pas">La paie et la comptabilité complète sont dans Complet : ce qui existe se lit, mais rien de nouveau ne s\'y crée.</p>' : ''}
       </article>`;
     }).join('');
     const histoire = a.historique.map((v) => `<li><span class="abo-quand">${esc(jour(String(v.le).slice(0, 10)))}</span><span>${esc(NATURES[v.nature] || v.nature)}${apresEnClair(v) ? ` <span class="muted">(${esc(apresEnClair(v))})</span>` : ''}</span></li>`).join('');

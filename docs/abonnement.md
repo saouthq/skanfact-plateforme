@@ -103,7 +103,8 @@ ne touchera jamais une période déjà payée.
 - Les relances ne nomment pas l'entreprise ; le motif d'un geste de SkanFact ne se montre jamais à l'entreprise.
 - **14a : on s'abonne par e-mail** (contact@skanfact.tn, l'offre choisie) ; SkanFact envoie la facture, on la règle par
   virement ou par chèque, et l'exploitant note le paiement. Le paiement en ligne vient en 14b.
-- **Aucune fonction ne se ferme selon l'offre avant 14c** : Essentiel et Complet ouvrent aujourd'hui la même chose.
+- **Aucune fonction ne se ferme selon l'offre avant 14c** : Essentiel et Complet ouvraient alors la même chose (14c, plus
+  bas, ferme la paie et la comptabilité complète en Essentiel).
 
 L'écran suit la DA des maquettes validées (`docs/entree.md`, « Le dessin » ; la règle de Skander du 12/10/2026 : « il faut
 que ça soit toujours premium ») : le haut vert presque noir et quadrillé, Bricolage Grotesque pour les titres, les cartes
@@ -120,7 +121,7 @@ arrondies ; vérifié en clair et en sombre.
 
 - **14b** : payer en ligne (le Konnect de l'éditeur, `docs/paiement-en-ligne.md` pour celui des entreprises), et les
   factures de l'abonnement préparées en brouillon chez SkanFact.
-- **14c** : ce qui distingue Essentiel et Complet (la paie, la comptabilité complète, les caisses, les établissements, le
+- **14c** (sa première partie est faite, plus bas) : ce qui distingue Essentiel et Complet (la paie, la comptabilité complète, les caisses, les établissements, le
   nombre d'utilisateurs, que rien ne compte encore).
 - **La console** (10) : voir les abonnements et faire ces gestes depuis un écran, avec la liste « À décider ». Faite
   ensuite, en première partie (Console 1, `docs/console.md`).
@@ -198,6 +199,54 @@ fois les premières factures relues par le comptable ; « À décider » ne comp
 **À VÉRIFIER** (avec le comptable, avant la première facture) : la TVA et le timbre de l'abonnement (aujourd'hui, la
 règle de l'entreprise SkanFact) ; la période qui figure sur la facture quand l'abonné paie après le début de la lecture
 seule (la période de la facture fait foi) ; les conditions de vente.
+
+## 14c — Ce que l'offre ouvre (première partie, 14/10/2026)
+
+*Décisions prises par délégation le 14/10/2026, sur le cadrage : `07` (la grille), `02` § 1 (une offre ne masque jamais
+rien), § 6 (fermer = lecture seule dans le module) et § 8 (le cabinet et les modules).*
+
+**C1. Ce que l'offre ouvre** (`serveur/abonnement/offre.ts`, une seule règle pour le serveur et l'écran) : l'essai,
+Complet, un abonnement offert et ce qu'on ne connaît pas ouvrent tout. **Essentiel** ferme la **paie** et la
+**comptabilité complète** — pendant la période payée, et pendant la grâce qui la suit (l'offre payée décide encore). La
+lecture seule garde sa propre porte.
+
+**C2. Fermé ne cache rien** : tout ce qui existe dans ces modules se lit, s'imprime, s'exporte, se corrige et se
+supprime ; rien de NEUF ne s'y crée. Paie : un salarié, un bulletin, une absence, une avance, une déclaration sociale.
+Comptabilité complète : une immobilisation ; et, à l'écran seulement (ce sont des lectures calculées dans le
+navigateur), le grand livre, la balance et les états financiers. **Jamais fermés** : la TVA, les retenues, les
+déclarations, les clôtures, les écritures et le paquet du comptable (`07` : aucune obligation légale n'est vendue en
+option).
+
+**C3. Le serveur refuse lui-même** un objet nouveau dans ces parties du dossier, quoi que l'écran envoie (le dossier, et
+la route de la paie, qui passe par le même chemin), en disant ce qui est fermé, ce qui reste, et qui l'ouvre (« Voir
+l'abonnement »).
+
+**C4. Le cabinet** qui a le mandat d'un dossier y a toujours la paie et la comptabilité complète, quelle que soit l'offre
+du client (`02` § 8) ; le client, lui, suit son offre.
+
+**C5. L'écran** reprend les portes de la v10 (7.33.0 : le cadenas de la barre, le bandeau d'entrée, la fenêtre ; 9.1.0 :
+les trois onglets de la comptabilité), dans les mots de l'abonnement (« l'offre Complet », « Voir l'abonnement »). La
+porte se ferme à l'**ouverture** d'un formulaire nouveau (un salarié, un bulletin, une absence, une avance, une
+immobilisation), jamais après la saisie. « Tous les modules » étiquette les deux modules ; la carte Essentiel de « Ton
+abonnement » dit ce qui reste dans Complet.
+
+**Ce que 14c-1 ne fait pas** (14c-2) : les quantités — les caisses (1 en Essentiel, 2 en Complet, + 120 DT), les
+utilisateurs (3, puis + 30 DT ; `03` § 4.1, avec l'avertissement AVANT la quatrième invitation), les établissements (1 /
+2, + 120 DT), les salariés au-delà de 20 en Complet (+ 12 DT) ; les modules achetés seuls sur Essentiel (paie + 150 DT,
+comptabilité complète + 150 DT) et leurs lignes sur la facture de l'abonnement ; passer à Complet en libre-service (on
+écrit à contact@skanfact.tn, comme en 14a).
+
+**À DÉCIDER (Skander)** : le prix au mois d'un module acheté seul (`07` ne donne que l'année ; 15 DT par mois serait le
+rapport des offres, 390/39).
+
+## Revu à la souris (14/10/2026, 14c première partie)
+
+Sur l'essai de l'outil humain, en Walid (Librairie Al Kitab, Essentiel) : la Paie porte son cadenas ; sa page le dit à
+l'entrée ; « Créer mon premier salarié » ouvre la fenêtre de l'offre, et « Voir l'abonnement » mène à la carte Essentiel,
+qui dit ce qui reste dans Complet ; « Tous les modules » étiquette la paie et les immobilisations ; les trois onglets de
+la comptabilité complète, affichés, portent leur cadenas et disent ce qui reste ouvert. Corrigé pendant le parcours : le
+formulaire du salarié s'ouvrait en entier et ne refusait qu'à l'enregistrement (la porte se ferme maintenant à
+l'ouverture, pour les cinq formulaires) ; « option payante » et « pas dans ta licence » sur la page des modules.
 
 ## Revu à la souris (14/10/2026, 14b seconde partie)
 

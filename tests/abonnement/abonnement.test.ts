@@ -101,7 +101,7 @@ describe('qui lit quoi', () => {
   it('l\'état, pour tous ceux qui y travaillent', async () => {
     const r = await appeler('GET', `/entreprises/${E.ent}/abonnement/etat`, commercial.jeton);
     expect(r.statut).toBe(200);
-    expect(r.corps).toEqual({ aujourdhui, etat: 'essai', jusquAu: plusJours(aujourdhui, 30), jours: 30 });
+    expect(r.corps).toEqual({ aujourdhui, etat: 'essai', jusquAu: plusJours(aujourdhui, 30), jours: 30, fermes: [] });
   });
 
   it('le détail (les prix, l\'histoire), pour qui gère l\'abonnement ; jamais le motif d\'un geste de SkanFact', async () => {
@@ -143,7 +143,7 @@ describe('la lecture seule', () => {
 
   it('l\'état le dit, avec le jour', async () => {
     const r = await appeler('GET', `/entreprises/${E.ent}/abonnement/etat`, E.proprio.jeton);
-    expect(r.corps).toEqual({ aujourdhui, etat: 'lecture_seule', depuis: plusJours(aujourdhui, -2), raison: 'essai_termine' });
+    expect(r.corps).toEqual({ aujourdhui, etat: 'lecture_seule', depuis: plusJours(aujourdhui, -2), raison: 'essai_termine', fermes: [] });
   });
 
   it('émettre une facture est refusé : pourquoi, depuis quand, et le geste qui rouvre', async () => {
