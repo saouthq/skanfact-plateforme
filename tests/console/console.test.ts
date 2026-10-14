@@ -526,7 +526,10 @@ describe('le service', () => {
   });
 
   it('la veille : son relevé ; les alertes rapprochées de ce qu\'elle voit, ouvertes, devenues graves, réglées ; la dernière nouvelle d\'une nuit l\'emporte', async () => {
-    const t = (min: number) => new Date(Math.floor(Date.now() / 60_000) * 60_000 - min * 60_000).toISOString();
+    // Une seule heure, lue au début : relue à chaque appel, elle changeait de minute en route (vu le 14/10/2026 : la
+    // minute attendue, comptée après le relevé, avait une minute d'avance sur celle du relevé).
+    const maintenant = Date.now();
+    const t = (min: number) => new Date(Math.floor(maintenant / 60_000) * 60_000 - min * 60_000).toISOString();
     const releve = (min: number, repond = true) => ({ minute: t(min), repond, charge: 0.5, memoire: 40, processeurs: 2, disques: [{ point: '/', pourcent: 41 }], version: 'abcdef1', certificat: null, archiveLe: null });
     const disque = (grave: boolean) => ({ 'disque:/': { titre: 'le disque / est plein à 80 %', grave, faire: 'Libère de la place.', depuis: t(4) } });
     await noterVeille(releve(4), disque(false));
@@ -548,7 +551,10 @@ describe('le service', () => {
   });
 
   it('une nouvelle plus ancienne que la dernière garde son relevé sans rien régler ; une version qui revient est une seconde mise en ligne', async () => {
-    const t = (min: number) => new Date(Math.floor(Date.now() / 60_000) * 60_000 - min * 60_000).toISOString();
+    // Une seule heure, lue au début : relue à chaque appel, elle changeait de minute en route (vu le 14/10/2026 : la
+    // minute attendue, comptée après le relevé, avait une minute d'avance sur celle du relevé).
+    const maintenant = Date.now();
+    const t = (min: number) => new Date(Math.floor(maintenant / 60_000) * 60_000 - min * 60_000).toISOString();
     const releve = (min: number, version: string) => ({ minute: t(min), repond: true, charge: null, memoire: null, processeurs: null, disques: [], version, certificat: null, archiveLe: null });
     await noterVeille(releve(0, 'ccccccc'), { certificat: { titre: 'le certificat https expire dans 20 jours', grave: false, faire: 'Renouvelle-le.', depuis: t(0) } });
     // Une horloge revenue en arrière : trois relevés d'il y a deux heures, sans problème. Ils se gardent ; l'alerte du

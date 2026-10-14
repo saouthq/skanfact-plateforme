@@ -177,7 +177,9 @@ describe('la console de l\'équipe, à la souris', () => {
     // Les alertes du service, par la porte de la veille : une grave et une à regarder, leurs étapes, ce qui est parti, et
     // qui est prévenu (masqué). Les tables du service sont communes à la base de test : on part de tables vides.
     await admin.query('truncate plateforme.service_releve, plateforme.service_alerte, plateforme.service_envoi, plateforme.service_sourdine, plateforme.service_demande');
-    const il = (min: number) => new Date(Math.floor(Date.now() / 60_000) * 60_000 - min * 60_000).toISOString();
+    // Une seule heure, lue au début : relue à chaque appel, elle pourrait changer de minute en route.
+    const maintenant = Date.now();
+    const il = (min: number) => new Date(Math.floor(maintenant / 60_000) * 60_000 - min * 60_000).toISOString();
     await admin.query('select plateforme.noter_veille($1::jsonb, $2::jsonb, $3::jsonb, $4::jsonb)', [
       JSON.stringify({ minute: il(1), repond: true, charge: 0.4, memoire: 40, processeurs: 2, disques: [{ point: '/var', pourcent: 82 }], version: 'abcdef1', certificat: null, archiveLe: null,
         destinataires: { courriel: { a: 'e•••@•••.tn', pret: true }, sms: { a: '+216 •• ••• 456', pret: false } }, regles: { pannes: { etat: 'calme', part: 0, n: 40 }, temps: { etat: 'trop_peu', p95: null, lectures: 4 } } }),
