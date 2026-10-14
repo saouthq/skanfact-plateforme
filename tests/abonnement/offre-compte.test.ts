@@ -3,7 +3,9 @@
 //     et son histoire ; il s'ouvre aussitôt dans l'application du client, et se retire ; Complet le contient déjà ;
 //   - la facture d'une période compte, le jour où elle se prépare, ce qui dépasse l'offre (les utilisateurs au-delà de
 //     trois, sauf qui ne travaille que sur les caisses ; les salariés au-delà de dix avec la paie achetée) et chaque
-//     module acheté, au prix du jour de sa ligne ; l'aperçu le dit avant le geste, la pièce l'écrit, la base le rejoue.
+//     module acheté, au prix du jour de sa ligne ; l'aperçu le dit avant le geste, la pièce l'écrit, la base le rejoue ;
+//   - ce que l'offre compte se lit AVANT (0100) par qui gère l'abonnement ou l'équipe : les membres, les invitations qui
+//     attendent, ce que l'offre comprend, le prix d'un de plus — le même chiffre que la facture.
 
 import path from 'node:path';
 import os from 'node:os';
@@ -61,6 +63,7 @@ async function membre(ent: string, jetonProprio: string, roles: string[]) {
   const p = await inscrire('membre');
   const inv = String((await appeler('POST', `/entreprises/${ent}/invitations`, jetonProprio, { email: p.email, roles })).corps.jeton);
   expect((await appeler('POST', '/invitations/accepter', p.jeton, { jeton: inv })).statut).toBe(200);
+  return p;
 }
 let amira: Awaited<ReturnType<typeof direction>>;
 const ligneDe = async (ent: string) => (await appeler('GET', `/console/entreprises/${ent}`, amira.console)).corps.ligne;
@@ -173,5 +176,36 @@ describe('ce que l\'offre compte', () => {
       await expect(k.query('select plateforme.console_noter_facture($1, $2, $3, $4, $5, $6::date, $7::date, $8::bigint, $9, $10::date)',
         [ent, fa.piece_v10, fa.client_v10, 'essentiel', 'annuel', fa.debut, fa.fin, '390000', 'sans les lignes en plus', jour])).rejects.toThrow(/pas celui du jour/);
     } finally { await k.query('rollback'); k.release(); }
+  });
+
+  it('ce que l\'offre compte se lit avant la facture, par qui gère l\'équipe : les membres, les invitations qui attendent, ce que l\'offre comprend ; le même chiffre que la facture', async () => {
+    const p = await inscrire('leila');
+    const ent = String((await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'Quincaillerie Comptée' })).corps.id);
+    const compte = async (jeton: string) => (await appeler('GET', `/entreprises/${ent}/abonnement/compte`, jeton)).corps;
+    // Pendant l'essai, rien ne se compte : rien ne se facture.
+    expect(await compte(p.jeton)).toEqual({ compte: null, options: [] });
+    expect((await geste(ent, 'payer', { motif: 'virement reçu', ligne: await ligneDe(ent), offre: 'essentiel', periodicite: 'annuel' })).statut).toBe(200);
+    const vendeur = await membre(ent, p.jeton, ['commercial']);
+    await membre(ent, p.jeton, ['caissier']);
+    // Deux invitations qui attendent : la magasinière comptera, la caissière seule non.
+    for (const roles of [['magasinier'], ['caissier']]) expect((await appeler('POST', `/entreprises/${ent}/invitations`, p.jeton, { email: adresse('attend'), roles })).statut).toBe(201);
+    const lu = await compte(p.jeton);
+    expect(lu.compte).toMatchObject({ offre: 'essentiel', comptes: { utilisateurs: 2, invitations: 1, salaries: 0 }, inclus: { utilisateurs: 3, caisses: 1, etablissements: 1, salaries: null } });
+    expect(lu.options).toContainEqual({ option: 'utilisateur', periodicite: 'mensuel', montantHt: '3.000' });
+    // « Ton abonnement » lit le même compte ; qui ne gère ni l'abonnement ni l'équipe n'en lit rien.
+    expect((await appeler('GET', `/entreprises/${ent}/abonnement`, p.jeton)).corps.compte).toEqual(lu.compte);
+    expect(await compte(vendeur.jeton)).toEqual({ compte: null, options: [] });
+    // Le même chiffre que la facture : deux de plus, et l'aperçu compte les mêmes utilisateurs que l'écran.
+    await membre(ent, p.jeton, ['lecture']);
+    await membre(ent, p.jeton, ['caissier', 'commercial']);
+    const apres = (await compte(p.jeton)).compte as { comptes: { utilisateurs: number } };
+    expect(apres.comptes.utilisateurs).toBe(4);
+    const facture = (await appeler('POST', `/console/entreprises/${ent}/factures`, amira.console, { offre: 'essentiel', periodicite: 'annuel', motif: '', apercu: true })).corps.facture as { enPlus: Corps[] };
+    expect(facture.enPlus.find((l) => l.option === 'utilisateur')).toMatchObject({ compte: apres.comptes.utilisateurs, inclus: 3, quantite: 1 });
+    // La paie achetée : dix salariés compris ; Complet : des utilisateurs sans limite, vingt salariés.
+    expect((await geste(ent, 'ouvrir-module', { motif: 'paie achetée seule', ligne: await ligneDe(ent), module: 'paie' })).statut).toBe(200);
+    expect(((await compte(p.jeton)).compte as { inclus: Corps }).inclus).toMatchObject({ salaries: 10 });
+    expect((await geste(ent, 'payer', { motif: 'passe à Complet', ligne: await ligneDe(ent), offre: 'complet', periodicite: 'annuel' })).statut).toBe(200);
+    expect(((await compte(p.jeton)).compte as { inclus: Corps }).inclus).toEqual({ utilisateurs: null, caisses: 2, etablissements: 2, salaries: 20 });
   });
 });

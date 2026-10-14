@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { versTexte } from '../../moteur/argent.ts';
 import { motif } from '../../textes/index.ts';
 import type { Route } from '../app.ts';
+import type { Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { tracer } from '../trace.ts';
@@ -18,12 +19,17 @@ import { demanderPaiementAbonnement } from '../v10/paiement.ts';
 import { nettoyerClient, nettoyerSociete, vueDePiece, type PieceLue } from '../ventes/espace.ts';
 import { etatAbonnement, type Etat } from './etat.ts';
 import { faitsDe } from './condition.ts';
-import { modulesFermesPourMoi } from './offre.ts';
+import { ceQueLOffreCompte, modulesFermesPourMoi } from './offre.ts';
 import './textes.ts';
 
 // Ce que la base rend des factures de l'abonné (plateforme.mes_factures_abonnement) : les pièces, et, s'il y en a, les
 // deux fiches que la facture imprime et si l'entreprise SkanFact accepte le paiement en ligne.
 type MesFactures = { entreprise?: unknown; client?: unknown; paiement?: boolean; pieces: (PieceLue & { periode: unknown })[] };
+
+// Ce qui s'ajoute à l'offre (14c), au prix du jour, en texte décimal : lu AVANT d'arriver sur une facture.
+const prixDesAjouts = async (tx: Transaction, jour: string) =>
+  ((await tx.query('select plateforme.prix_options_du_jour($1::date) p', [jour])).rows[0].p as { option: string; periodicite: string; montantHt: string }[])
+    .map((p) => ({ ...p, montantHt: versTexte(BigInt(p.montantHt), 3) }));
 
 export function routesAbonnement(ctx: Contexte): Route<never>[] {
   const routes: Route<never>[] = [];
@@ -52,9 +58,7 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
       // Les prix hors taxes, en texte décimal (l'argent ne sort jamais en millimes bruts).
       const prix = ((await tx.query('select plateforme.prix_du_jour($1::date) p', [jour])).rows[0].p as { offre: string; periodicite: string; montantHt: string }[])
         .map((p) => ({ ...p, montantHt: versTexte(BigInt(p.montantHt), 3) }));
-      // Ce qui s'ajoute à l'offre (14c), au prix du jour : lu ici AVANT d'arriver sur une facture.
-      const options = ((await tx.query('select plateforme.prix_options_du_jour($1::date) p', [jour])).rows[0].p as { option: string; periodicite: string; montantHt: string }[])
-        .map((p) => ({ ...p, montantHt: versTexte(BigInt(p.montantHt), 3) }));
+      const options = await prixDesAjouts(tx, jour);
       const historique = (await tx.query('select plateforme.historique_abonnement($1) h', [ent])).rows[0].h as { le: string; nature: string; apres: unknown }[];
       // Ses factures : chaque pièce telle que son client la lit (les listes fermées de l'espace client), et la période
       // qu'elle paie. Sans facture émise, rien d'autre ne part (ni la fiche de l'entreprise SkanFact, ni la sienne).
@@ -65,7 +69,21 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
       };
       // `enLigne` : une facture de SkanFact se règle-t-elle en ligne (ce que dit « T'abonner », avant toute facture).
       // `modules` : ceux achetés seuls sur Essentiel (14c), que la carte de l'offre dit.
-      return { corps: { aujourdhui: jour, etat, prix, options, historique, factures, enLigne: lu.paiement === true, modules: f?.modules ?? [] } };
+      // `compte` : ce que l'entreprise utilise sur ce que son offre comprend (14c, 0100), comme la facture le comptera.
+      return { corps: { aujourdhui: jour, etat, prix, options, historique, factures, enLigne: lu.paiement === true, modules: f?.modules ?? [],
+        compte: await ceQueLOffreCompte(tx, ent, jour) } };
+    },
+  });
+
+  // Ce que l'offre compte, pour l'écran de l'équipe (14c ; 03 § 4.1) : avant une invitation qui coûtera un utilisateur
+  // de plus, l'écran le dit, avec son prix du jour. Rien pour qui ne gère ni l'abonnement ni l'équipe (la base le tient).
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/abonnement/compte', geste: 'socle.accueil.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const jour = aujourdhuiATunis();
+      const compte = await ceQueLOffreCompte(tx, params.entreprise ?? '', jour);
+      return { corps: { compte, options: compte ? await prixDesAjouts(tx, jour) : [] } };
     },
   });
 

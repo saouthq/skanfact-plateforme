@@ -60,3 +60,27 @@ export async function refuserHorsOffre(tx: Transaction, entreprise: string, nouv
   const ferme = touches.find((m) => fermes.includes(m));
   if (ferme) throw new Refus(`abonnement.offre.${ferme}`, { bouton: 'socle.abonnement.voir' });
 }
+
+// Ce que l'offre compte aujourd'hui (14c, deuxième partie ; 0100) : ce que l'entreprise utilise et ce que l'offre qui
+// décide comprend — les deux fonctions de la base que la facture lit aussi. `null` quand rien ne se compte (l'essai, un
+// abonnement offert : rien ne se facture) et pour qui ne gère ni l'abonnement ni l'équipe (la base ne rend rien).
+export type Comptes = { utilisateurs: number; invitations: number; salaries: number; caisses: number; etablissements: number };
+export type Inclus = { utilisateurs: number | null; caisses: number | null; etablissements: number | null; salaries: number | null };
+export type OffreComptee = { offre: Offre; comptes: Comptes; inclus: Inclus };
+const nombre = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : 0);
+const plafond = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : null);
+export async function ceQueLOffreCompte(tx: Transaction, entreprise: string, jour = aujourdhuiATunis()): Promise<OffreComptee | null> {
+  const f = await faitsDe(tx, entreprise);
+  if (!f || f.offert) return null;
+  const offre = offreQuiDecide(f, etatAbonnement(f, jour));
+  if (!offre) return null;
+  const v = (await tx.query('select plateforme.ce_que_l_offre_compte($1, $2, $3::date) v', [entreprise, offre, jour])).rows[0]?.v as
+    { comptes?: Record<string, unknown>; inclus?: Record<string, unknown> } | null | undefined;
+  if (!v?.comptes || !v.inclus) return null;
+  const c = v.comptes, i = v.inclus;
+  return {
+    offre,
+    comptes: { utilisateurs: nombre(c.utilisateurs), invitations: nombre(c.invitations), salaries: nombre(c.salaries), caisses: nombre(c.caisses), etablissements: nombre(c.etablissements) },
+    inclus: { utilisateurs: plafond(i.utilisateurs), caisses: plafond(i.caisses), etablissements: plafond(i.etablissements), salaries: plafond(i.salaries) },
+  };
+}

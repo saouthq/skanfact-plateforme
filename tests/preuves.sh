@@ -9730,7 +9730,7 @@ prouver "une adresse à vérifier quand rien ne sait envoyer le code" $PPJS \
   "$PP3"
 prouver "le code du téléphone compté fait sans être actif" $PPJS \
   "const code = !!(compte && (compte.codeActif || compte.courriel));" "const code = !!compte;" \
-  "$PP1"
+  "$PPW4"
 prouver "une fiche sans matricule comptée faite" $PPJS \
   "    if (!mf) manque.push('ton matricule fiscal');" "    if (!mf) void 0;" \
   "$PP4"
@@ -11512,7 +11512,9 @@ prouver 'des repères d'"'"'axe jamais éclaircis' 'web/console/src/graphes.tsx'
   '    const mesurer = () => eclaircir(Array.from(el.children) as HTMLElement[]);' \
   '    const mesurer = () => undefined;' \
   'sous chaque graphique, sur chaque période, à l'"'"'ordinateur et au téléphone : jamais un texte sur un autre, et des repères réguliers'
-prouver 'des repères éclaircis au plus pressé, irréguliers' 'web/console/src/graphes.tsx' \
+# Départagé sur des largeurs données (tests/console/axe.test.ts) : selon l'heure, les étiquettes du jour ont toutes la
+# même largeur, et l'axe glouton y paraît régulier par hasard (vu sur le passage de nuit du 14/10/2026).
+prouver 'des repères éclaircis au plus pressé, irréguliers' 'web/console/src/axe.ts' \
   '  let gardes: number[] = [];
   for (let k = 1; k <= n; k++) {
     gardes = [];
@@ -11521,7 +11523,7 @@ prouver 'des repères éclaircis au plus pressé, irréguliers' 'web/console/src
   }' \
   '  const gardes: number[] = [n - 1];
   for (let j = n - 2; j >= 0; j--) if (!touche(j, gardes[0] ?? j)) gardes.unshift(j);' \
-  'sous chaque graphique, sur chaque période, à l'"'"'ordinateur et au téléphone : jamais un texte sur un autre, et des repères réguliers'
+  'des étiquettes de largeurs inégales : un repère sur deux, régulier, en partant du plus récent ; jamais deux qui se touchent'
 prouver 'un pas mesuré seul dessiné en trait' 'web/console/src/graphes.tsx' \
   '  v.flatMap((val, i) => (val !== null && (v[i - 1] ?? null) === null && (v[i + 1] ?? null) === null ? [i] : []));' \
   '  v.flatMap((): number[] => []);' \
@@ -12928,13 +12930,13 @@ prouver 'l'"'"'aperçu d'"'"'un module qui ne dit pas les modules d'"'"'après' 
 prouver 'les prix des ajouts cachés au client' serveur/abonnement/routes.ts \
   'etat, prix, options, historique,' 'etat, prix, historique,' \
   "$OC1"
-prouver 'la caissière seule comptée comme utilisateur' base/migrations/0099_offre_compte.sql \
+prouver 'la caissière seule comptée comme utilisateur' base/migrations/0100_offre_comptee.sql \
   "where m.entreprise = p_entreprise and m.actif
-                and not (m.roles <@ array['caissier', 'serveur']::text[]))::int utilisateurs," "where m.entreprise = p_entreprise and m.actif)::int utilisateurs," \
+                       and not (m.roles <@ array['caissier', 'serveur']::text[]))::int," "where m.entreprise = p_entreprise and m.actif)::int," \
   "$OC2"
-prouver 'un salarié sorti compté sur la facture' base/migrations/0099_offre_compte.sql \
+prouver 'un salarié sorti compté sur la facture' base/migrations/0100_offre_comptee.sql \
   "and d.collection = 'employees'
-                and coalesce(nullif(d.contenu->>'endDate', ''), '9999-12-31') >= to_char(p_jour, 'YYYY-MM-DD'))::int salaries," "and d.collection = 'employees')::int salaries," \
+                   and coalesce(nullif(d.contenu->>'endDate', ''), '9999-12-31') >= to_char(p_jour, 'YYYY-MM-DD'))::int," "and d.collection = 'employees')::int," \
   "$OC2"
 prouver 'un total que la base ne rejoue pas' base/migrations/0099_offre_compte.sql \
   "  if v_prix is null or v_prix + coalesce((select sum((l->>'quantite')::bigint * (l->>'prixHt')::bigint) from jsonb_array_elements(v_lignes) l), 0) <> p_montant_ht then" "  if v_prix is null or v_prix > p_montant_ht then" \
@@ -12952,6 +12954,54 @@ prouver 'la carte Essentiel qui ignore la paie achetée' web/public/plateforme/a
 prouver 'un prix « jamais par utilisateur » que la facture dément' web/public/plateforme/abonnement.js \
   "<p>Un prix par entreprise, hors taxes : la TVA s'ajoute.</p>" "<p>Un prix par entreprise, jamais par utilisateur. Hors taxes : la TVA s'ajoute.</p>" \
   "$OCW"
+
+# Ce que l'offre compte, lu AVANT la facture (abonnement 14c, deuxième partie b ; 0100) : une seule fonction compte pour
+# l'écran et la facture ; les invitations qui attendent comptent pour prévenir (sauf la caisse seule) ; rien pendant
+# l'essai ni pour qui ne gère pas l'équipe ; l'équipe prévient avant l'invitation (et avant de sortir une caissière de la
+# caisse) ; « Ton abonnement » dit ce qui est pris.
+OD1='ce que l'"'"'offre compte se lit avant la facture, par qui gère l'"'"'équipe : les membres, les invitations qui attendent, ce que l'"'"'offre comprend ; le même chiffre que la facture'
+ODW='l'"'"'équipe dit ce que coûtera une personne de plus avant de l'"'"'inviter ; « Ton abonnement » dit ce qui est pris'
+prouver 'une invitation de la caisse seule comptée' base/migrations/0100_offre_comptee.sql \
+  "and i.expire_le > now() and not (i.roles <@ array['caissier', 'serveur']::text[]))::int," "and i.expire_le > now())::int," \
+  "$OD1"
+prouver 'une invitation acceptée comptée deux fois' base/migrations/0100_offre_comptee.sql \
+  "where i.entreprise = p_entreprise and i.acceptee_le is null
+" "where i.entreprise = p_entreprise
+" \
+  "$OD1"
+prouver 'ce que l'"'"'offre compte lu par qui ne gère pas l'"'"'équipe' base/migrations/0100_offre_comptee.sql \
+  "  if socle.moi() is null or socle.ma_cle() is not null or not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur']::text[]) then
+    return null;
+  end if;
+  return jsonb_build_object('comptes'," "  return jsonb_build_object('comptes'," \
+  "$OD1"
+prouver 'l'"'"'essai compté comme Essentiel' serveur/abonnement/offre.ts \
+  '  const offre = offreQuiDecide(f, etatAbonnement(f, jour));
+  if (!offre) return null;' "  const offre = offreQuiDecide(f, etatAbonnement(f, jour)) ?? 'essentiel';" \
+  "$OD1"
+prouver 'Complet qui limite ses utilisateurs' base/migrations/0100_offre_comptee.sql \
+  "when 'complet' then jsonb_build_object('utilisateurs', null," "when 'complet' then jsonb_build_object('utilisateurs', 3," \
+  "$OD1"
+prouver 'la paie achetée sans ses dix salariés compris' base/migrations/0100_offre_comptee.sql \
+  "'salaries', case when 'paie' = any(coalesce(p_modules, '{}')) then 10 end)" "'salaries', null)" \
+  "$OD1"
+prouver 'l'"'"'équipe qui oublie les invitations qui attendent' web/public/plateforme/equipe.js \
+  '    if (utilisateurs + invitations < inclus) return '"'"''"'"';' '    if (utilisateurs < inclus) return '"'"''"'"';' \
+  "$ODW"
+prouver 'le coût d'"'"'un de plus dit après le bouton' web/public/plateforme/equipe.js \
+  "        \${cout ? \`<p class=\"eqp-cout\" id=\"eqp-cout\">\${esc(cout)}</p>\` : ''}
+        <div class=\"modal-actions\"><button type=\"button\" class=\"btn\" data-close>Annuler</button><button type=\"submit\" class=\"btn btn-primary\" id=\"eqp-ok\">Préparer l'invitation</button></div>" "        <div class=\"modal-actions\"><button type=\"button\" class=\"btn\" data-close>Annuler</button><button type=\"submit\" class=\"btn btn-primary\" id=\"eqp-ok\">Préparer l'invitation</button></div>
+        \${cout ? \`<p class=\"eqp-cout\" id=\"eqp-cout\">\${esc(cout)}</p>\` : ''}" \
+  "$ODW"
+prouver 'la caissière sortie de la caisse sans le savoir' web/public/plateforme/equipe.js \
+  "changerRoles(o, m, eq.donnables, redessiner, caisseSeule(m.roles) ? cout : '')" "changerRoles(o, m, eq.donnables, redessiner, '')" \
+  "$ODW"
+prouver 'ce qui est pris absent de « Ton abonnement »' serveur/abonnement/routes.ts \
+  '        compte: await ceQueLOffreCompte(tx, ent, jour) } };' '        compte: null } };' \
+  "$ODW"
+prouver 'une caisse « compris »' web/public/plateforme/abonnement.js \
+  "mot: ['caisse', 'caisses'], feminin: true }," "mot: ['caisse', 'caisses'] }," \
+  "$ODW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

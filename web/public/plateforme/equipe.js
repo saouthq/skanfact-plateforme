@@ -52,6 +52,29 @@
    */
 
   const aides = () => w.SkanCompte.aides;
+  /** @param {string[]} roles */
+  const caisseSeule = (roles) => roles.length > 0 && roles.every((r) => r === 'caissier' || r === 'serveur');
+
+  // Ce que coûtera une personne de plus (14c ; 03 § 4.1), dit AVANT l'invitation : quand l'offre compte ses
+  // utilisateurs et que ce qu'elle en comprend est déjà pris, par les membres et par les invitations qui attendent. Le
+  // serveur compte (plateforme.comptes_de_l_entreprise, la fonction que la facture lit) ; rien ne se dit sans prix.
+  /** @param {any} c @returns {string} */
+  function coutDUnDePlus(c) {
+    const ab = w.SkanAbonnement;
+    if (!c || !c.compte || !ab || c.compte.inclus.utilisateurs === null) return '';
+    const { utilisateurs, invitations } = c.compte.comptes;
+    const inclus = c.compte.inclus.utilisateurs;
+    if (utilisateurs + invitations < inclus) return '';
+    /** @param {string} p */
+    const prix = (p) => ((c.options || []).find((/** @type {any} */ x) => x.option === 'utilisateur' && x.periodicite === p) || {}).montantHt;
+    const an = prix('annuel'), mois = prix('mensuel');
+    if (!an && !mois) return '';
+    const { pl } = aides();
+    const offre = (ab.OFFRES[c.compte.offre] || { nom: 'Ton offre' }).nom;
+    const deja = invitations ? ` : l'équipe en compte ${utilisateurs}, et ${pl(invitations, 'invitation')} ${invitations > 1 ? 'attendent' : 'attend'}` : `, et l'équipe en compte déjà ${utilisateurs}`;
+    const tarif = an && mois ? `${ab.montant(an)} HT par an (ou ${ab.montant(mois)} HT par mois)` : `${ab.montant(an || mois)} HT par ${an ? 'an' : 'mois'}`;
+    return `Ton offre ${offre} comprend ${inclus} utilisateurs${deja}. Une personne de plus coûtera ${tarif}, sur ta prochaine facture. Qui ne travaille qu'à la caisse ou en salle ne compte pas.`;
+  }
   /** @param {Membre} m */
   const nomDe = (m) => (m.nom && m.nom.trim()) || m.email;
   /** @param {string[]} roles */
@@ -62,7 +85,14 @@
     const { esc, jour, pl } = aides();
     /** @type {{ membres: Membre[], moi: string, donnables: string[], invitations: Invitation[] }} */
     let eq;
-    try { eq = await o.appel('GET', '/equipe'); } catch (x) {
+    // Ce que l'offre compte (14c) : sans lui, rien ne se dit du coût — l'équipe se gère quand même.
+    /** @type {string} */
+    let cout = '';
+    try {
+      const [lue, compte] = await Promise.all([o.appel('GET', '/equipe'), o.appel('GET', '/abonnement/compte').catch(() => null)]);
+      eq = lue;
+      cout = coutDUnDePlus(compte);
+    } catch (x) {
       el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p><button type="button" class="btn btn-sm" id="eqp-relire">Réessayer</button>`;
       /** @type {HTMLElement} */ (el.querySelector('#eqp-relire')).onclick = () => { void dessiner(el, o); };
       return;
@@ -106,14 +136,14 @@
       <ul class="eqp-liste" id="eqp-invitations">${eq.invitations.map(ligneInvitation).join('')}</ul>` : ''}
     </div>`;
 
-    /** @type {HTMLElement} */ (el.querySelector('#eqp-inviter')).onclick = () => inviter(o, eq.donnables, nomEntreprise, redessiner);
+    /** @type {HTMLElement} */ (el.querySelector('#eqp-inviter')).onclick = () => inviter(o, eq.donnables, nomEntreprise, redessiner, cout);
     w.RowMenu.brancherMenus(el, (/** @type {string} */ cle) => {
       const [genre, id] = [cle.slice(0, 1), cle.slice(2)];
       if (genre === 'M') {
         const m = eq.membres.find((x) => x.id === id);
         if (!m || !modifiable(m)) return [];
         return [
-          { icon: 'modifier', label: 'Changer ses rôles…', hint: 'Ce qu\'il voit et fait dans l\'entreprise', run: () => changerRoles(o, m, eq.donnables, redessiner) },
+          { icon: 'modifier', label: 'Changer ses rôles…', hint: 'Ce qu\'il voit et fait dans l\'entreprise', run: () => changerRoles(o, m, eq.donnables, redessiner, caisseSeule(m.roles) ? cout : '') },
           { sep: true },
           { icon: 'supprimer', label: 'Retirer de l\'équipe…', hint: 'Il n\'ouvre plus l\'entreprise ; ce qu\'il a fait garde son nom', danger: true, run: () => { void retirer(o, m, nomEntreprise, redessiner); } },
         ];
@@ -144,8 +174,8 @@
   const AU_MOINS_UN = () => Object.assign(new Error('Coche au moins un rôle : c\'est lui qui dit ce que cette personne pourra faire.'), { champ: 'roles' });
 
   // ── Inviter : l'adresse et les rôles, puis le lien ──────────────────────────────────────────────────────────────
-  /** @param {Outils} o @param {string[]} donnables @param {string} nomEntreprise @param {() => void} fini */
-  function inviter(o, donnables, nomEntreprise, fini) {
+  /** @param {Outils} o @param {string[]} donnables @param {string} nomEntreprise @param {() => void} fini @param {string} cout */
+  function inviter(o, donnables, nomEntreprise, fini, cout) {
     const { esc, refuser, effacerRefus, surClic } = aides();
     o.modal(`<h2>Inviter quelqu'un</h2>
       <p class="small muted">Tu prépares un lien. La personne l'ouvre, se connecte avec l'adresse que tu tapes ici — ou crée son compte avec elle — et rejoint ${esc(nomEntreprise)} avec les rôles que tu coches.</p>
@@ -153,6 +183,7 @@
         <label class="field">Son adresse e-mail<input type="email" id="eqp-email" autocomplete="off" inputmode="email" spellcheck="false"></label>
         ${casesRoles(donnables, [], 'Ce qu\'il pourra faire')}
         <p class="small muted">Commence par le plus étroit : tu pourras lui en donner plus ensuite, d'un clic.</p>
+        ${cout ? `<p class="eqp-cout" id="eqp-cout">${esc(cout)}</p>` : ''}
         <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="submit" class="btn btn-primary" id="eqp-ok">Préparer l'invitation</button></div>
         <p class="small cpt-alerte" role="alert"></p>
       </form>`, (racine, fermer) => {
@@ -210,13 +241,14 @@
   }
 
   // ── Changer les rôles de quelqu'un ───────────────────────────────────────────────────────────────────────────────
-  /** @param {Outils} o @param {Membre} m @param {string[]} donnables @param {() => void} fini */
-  function changerRoles(o, m, donnables, fini) {
+  /** @param {Outils} o @param {Membre} m @param {string[]} donnables @param {() => void} fini @param {string} cout */
+  function changerRoles(o, m, donnables, fini, cout) {
     const { esc, refuser, effacerRefus, surClic } = aides();
     o.modal(`<h2>Les rôles de ${esc(nomDe(m))}</h2>
       <p class="small muted">Ce qu'il voit et fait dans l'entreprise. Le serveur applique ses nouveaux rôles dès maintenant ; son écran les prend la prochaine fois qu'il ouvre SkanFact.</p>
       <form class="cpt-form" novalidate>
         ${casesRoles(donnables, m.roles, 'Ce qu\'il peut faire')}
+        ${cout ? `<p class="eqp-cout" id="eqp-cout">Lui donner un autre rôle que la caisse ou la salle le comptera comme utilisateur. ${esc(cout)}</p>` : ''}
         <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="submit" class="btn btn-primary" id="eqp-ok">Enregistrer ses rôles</button></div>
         <p class="small cpt-alerte" role="alert"></p>
       </form>`, (racine, fermer) => {

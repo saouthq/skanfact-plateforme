@@ -281,9 +281,36 @@ avec qui compte comme utilisateur. « Un prix par entreprise, jamais par utilisa
 bulle d'aide, la console) : ce n'était plus vrai. Le principe de `07` reste (le prix est celui de l'entreprise, un
 utilisateur de plus coûte peu).
 
-**Ce que 14c-2a ne fait pas** (14c-2b) : l'avertissement AVANT la quatrième invitation en Essentiel (`03` § 4.1 : ce
-qu'elle coûtera, « Inviter quand même ») ; « Ton abonnement » qui compte ce qui est pris (utilisateurs 4/3, caisses,
-établissements, salariés) ; la grille des ajouts dans les Réglages de la console ; passer à Complet en libre-service.
+**C9. Un compteur, une fonction** (`0100`) : ce que l'entreprise utilise (`plateforme.comptes_de_l_entreprise`) et ce
+que chaque offre comprend (`plateforme.inclus_de_l_offre`) vivent une fois dans la base ; la facture
+(`plateforme.lignes_en_plus`, refaite sur elles) et l'écran de l'entreprise (`plateforme.ce_que_l_offre_compte`, pour
+le propriétaire et un administrateur seulement) les lisent toutes deux. Rien ne se compte pendant l'essai ni pour un
+abonnement offert : rien ne s'y facture.
+
+**C10. Avant l'invitation qui coûtera** (`03` § 4.1) : quand l'offre compte ses utilisateurs (Essentiel) et que ce
+qu'elle en comprend est déjà pris — par les membres ET par les invitations qui attendent (sauf la caisse seule), qui
+compteront une fois acceptées —, la fenêtre « Inviter quelqu'un » dit, dès son ouverture et au-dessus du bouton, ce que
+coûtera une personne de plus (le prix du jour, à l'année et au mois) et qui ne compte pas. Elle ne refuse rien : on
+invite quand même. « Changer ses rôles » le dit aussi pour qui n'a que la caisse ou la salle (un autre rôle le
+compterait).
+
+**C11. Ce qui est pris** : dans « Au-delà de ce que l'offre comprend », sous chaque ajout, ce que l'entreprise en
+utilise aujourd'hui sur ce que son offre comprend (« Aujourd'hui : 4 utilisateurs, 1 de plus que ton offre. », en
+orange quand ça dépasse) ; un module acheté seul le dit. Les invitations n'y comptent pas : la facture ne les compte
+jamais.
+
+**Ce que 14c-2 ne fait pas** : la grille des ajouts dans les Réglages de la console (elle vit en base, datée, comme les
+prix des offres) ; passer à Complet ou acheter un module en libre-service (on écrit à contact@skanfact.tn, comme en
+14a).
+
+## Revu à la souris (14/10/2026, 14c deuxième partie, b)
+
+Sur l'essai de l'outil humain, en Walid (Librairie Al Kitab, Essentiel, la paie achetée) : « Ton abonnement » dit
+« Aujourd'hui : 1 utilisateur sur 3 compris », « 0 caisse sur 1 comprise », « 0 salarié sur 10 compris » et « Achetée
+pour ton abonnement » sous la paie ; « L'équipe » : deux invitations (un commercial, une magasinière) sans un mot du prix,
+puis, à la troisième, la fenêtre dit avant le bouton que l'offre comprend 3 utilisateurs, que l'équipe en compte 1 et
+que 2 invitations attendent, et ce que coûtera une personne de plus. Corrigé pendant le parcours : « 0 caisse sur 1
+compris » ; « tu en as déjà 1, et 2 invitations attendent », qui se lisait mal ; l'espace avant les deux-points.
 
 ## Revu à la souris (14/10/2026, 14c deuxième partie)
 

@@ -78,6 +78,8 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 .abo-plus-quoi b { font-size: 14px; font-weight: 600; color: var(--text); }
 .abo-plus-quoi span, .abo-plus-prix span { font-size: 12.5px; color: var(--muted); }
 .abo-plus-prix { text-align: end; flex: none; }
+.abo-plus-quoi .abo-plus-auj { margin-top: 2px; color: var(--text); font-weight: 600; }
+.abo-plus-quoi .abo-plus-auj.en-plus { color: var(--warning); }
 .abo-plus-prix b { font-size: 14px; font-weight: 650; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .abo-plus-prix span { white-space: nowrap; font-variant-numeric: tabular-nums; }
 

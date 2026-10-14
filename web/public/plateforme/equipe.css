@@ -38,3 +38,7 @@
   .eqp-roles { grid-column: 2 / -1; grid-row: 2; }
   .eqp-lien { flex-direction: column; }
 }
+
+/* Ce que coûtera une personne de plus (14c ; 03 § 4.1) : lu avant le bouton, à sa place dès l'ouverture (rien ne bouge
+   sous le curseur quand on coche un rôle). */
+.eqp-cout { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--warning-soft); color: var(--text); font-size: 13px; line-height: 1.5; }

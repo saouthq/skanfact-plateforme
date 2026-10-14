@@ -647,7 +647,7 @@ l'écran le dit en tête au support. Quatre onglets, l'adresse garde l'onglet (`
   caché sur cet appareil ») : il ne fait pas remonter la page sous le curseur.
 - Ce que l'écran ne fait pas encore : la déclaration annuelle d'employeur au registre des formats, les nouveautés
   allumées une à une, préparer un nouveau prix depuis l'écran, la grille des ajouts (posée en base depuis 14c-2 :
-  `plateforme.prix_option` ; l'écran vient en 14c-2b), les remises et les offres de fondateur, la colonne TTC (14b).
+  `plateforme.prix_option`, datée ; son écran n'est pas fait), les remises et les offres de fondateur, la colonne TTC (14b).
 
 ## Quatrième partie : le support (Support S1, 13/10/2026)
 

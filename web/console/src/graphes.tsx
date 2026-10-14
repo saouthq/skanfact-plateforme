@@ -5,6 +5,7 @@
 // pas mesuré est hachuré, pas seulement gris. Les graduations d'une courbe vivent dans une marge à sa gauche : un tracé ne
 // passe jamais sur un chiffre.
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { reperesGardes } from './axe.ts';
 
 // Un état, jamais seul : sa couleur, la bulle et la légende le nomment. « sansobjet » : rien n'était à faire (la copie hors
 // de la machine d'une nuit où la sauvegarde a échoué : il n'y avait rien à envoyer).
@@ -134,28 +135,14 @@ export function Bande({ cases, etiquette, sombre = false, petite = false }: { ca
 // En part de la période (de 0 à 1) : la même liste sert sous une courbe et sous des barres qui couvrent la même période.
 export type Abscisse = { x: number; texte: string };
 // Jamais un texte sur un autre : la place d'un repère dépend de la largeur du CADRE (une carte étroite, un téléphone), pas de
-// la période. On garde un repère sur k, en partant du plus récent, avec le plus petit k qui les sépare tous d'au moins ÉCART
-// pixels : l'axe reste RÉGULIER (« mer. 7, ven. 9, dim. 11 », jamais trois serrés puis un trou). Un repère calé sur un bord
-// (le premier, le dernier) ne compte pas dans ce choix : s'il touche son voisin gardé, lui seul se tait. Ceux qui se taisent
-// gardent leur place (`visibility`) : la mesure ne bouge pas la mise en page. Remesuré quand le cadre change de largeur et
-// quand les polices arrivent : un texte change de largeur avec elles.
+// la période. Le choix de ceux qu'on garde, régulier, vit dans axe.ts. Ceux qui se taisent gardent leur place
+// (`visibility`) : la mesure ne bouge pas la mise en page. Remesuré quand le cadre change de largeur et quand les polices
+// arrivent : un texte change de largeur avec elles.
 const ECART = 8;
 function eclaircir(reperes: readonly HTMLElement[]): void {
   reperes.forEach((r) => r.classList.remove('c-axe-tu'));
-  const n = reperes.length;
-  if (n < 2) return;
-  const boites = reperes.map((r) => r.getBoundingClientRect());
-  const bord = reperes.map((r) => r.classList.contains('c-axe-debut') || r.classList.contains('c-axe-fin'));
-  const touche = (a: number, b: number) => (boites[a]?.right ?? 0) + ECART > (boites[b]?.left ?? 0);
-  let gardes: number[] = [];
-  for (let k = 1; k <= n; k++) {
-    gardes = [];
-    for (let j = n - 1; j >= 0; j -= k) gardes.unshift(j);
-    if (gardes.every((j, m) => m === 0 || bord[j] || bord[gardes[m - 1] ?? j] || !touche(gardes[m - 1] ?? j, j))) break;
-  }
-  const premier = gardes[0], second = gardes[1], dernier = gardes.at(-1), avant = gardes.at(-2);
-  if (premier !== undefined && second !== undefined && bord[premier] && touche(premier, second)) gardes.shift();
-  if (dernier !== undefined && avant !== undefined && bord[dernier] && touche(avant, dernier)) gardes.pop();
+  const gardes = reperesGardes(reperes.map((r) => r.getBoundingClientRect()),
+    reperes.map((r) => r.classList.contains('c-axe-debut') || r.classList.contains('c-axe-fin')), ECART);
   reperes.forEach((r, j) => { if (!gardes.includes(j)) r.classList.add('c-axe-tu'); });
 }
 export function Abscisses({ abscisses }: { abscisses: readonly Abscisse[] }) {
