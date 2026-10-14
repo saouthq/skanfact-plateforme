@@ -15,37 +15,30 @@ jobs:
   # Quatorze groupes sur quatorze machines côte à côte (une preuve sur quatorze chacune).
   preuves:
     name: Toutes les preuves (groupe ${{ matrix.groupe }}/14)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         groupe: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
-    services:
-      postgres:
-        # L'image officielle de PostgreSQL, prise sur le miroir public d'AWS plutôt que sur Docker Hub : le 09/10/2026,
-        # Docker Hub refusait les téléchargements des machines de GitHub, et chaque vérification tombait avant le moindre test.
-        image: public.ecr.aws/docker/library/postgres:16
-        env:
-          POSTGRES_PASSWORD: postgres
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       PG_ADMIN: postgres://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v5
+      # PostgreSQL 16, celui de la machine (Ubuntu 24.04), démarré sur place : plus aucune image à télécharger avant
+      # les tests (le 14/10/2026, « Docker pull failed » faisait tomber une tâche sur quelques-unes, sans la retenter).
+      - name: PostgreSQL 16 (celui de la machine)
+        run: bash .github/postgres-de-la-machine.sh
       - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
       - run: npm ci
       - name: Le navigateur des tests des écrans
-        run: npx playwright-core install --with-deps chromium
+        run: bash .github/reessayer.sh npx playwright-core install --with-deps chromium
       - name: Electron (la coque de bureau)
         run: node node_modules/electron/install.js
       - name: xmllint, Tesseract, Poppler, Xvfb et age
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb age
+        run: bash .github/reessayer.sh sudo apt-get update -qq && bash .github/reessayer.sh sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb age
       - name: Preuves (chaque test tombe quand on remet son défaut)
         run: npm run preuves
         env:

@@ -15,35 +15,28 @@ jobs:
   # modification doit arriver sur le serveur sans attendre une heure) : tous les tests, en deux fois moins de temps.
   verifier:
     name: Tests (Node ${{ matrix.node }}, moitié ${{ matrix.moitie }}/2)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         node: [22, 24]
         moitie: [1, 2]
-    services:
-      postgres:
-        # L'image officielle de PostgreSQL, prise sur le miroir public d'AWS plutôt que sur Docker Hub : le 09/10/2026,
-        # Docker Hub refusait les téléchargements des machines de GitHub, et chaque vérification tombait avant le moindre test.
-        image: public.ecr.aws/docker/library/postgres:16
-        env:
-          POSTGRES_PASSWORD: postgres
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       # Une base jetable, qui n'existe que le temps de la vérification : ce n'est pas un secret.
       PG_ADMIN: postgres://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v5
+      # PostgreSQL 16, celui de la machine (Ubuntu 24.04), démarré sur place : plus aucune image à télécharger avant
+      # les tests (le 14/10/2026, « Docker pull failed » faisait tomber une tâche sur quelques-unes, sans la retenter).
+      - name: PostgreSQL 16 (celui de la machine)
+        run: bash .github/postgres-de-la-machine.sh
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
       - name: Le navigateur des tests des écrans
-        run: npx playwright-core install --with-deps chromium
+        run: bash .github/reessayer.sh npx playwright-core install --with-deps chromium
       # La coque de bureau (brique 137, tests/bureau/coque.test.ts) : le programme Electron, et un écran virtuel (Xvfb)
       # qu'elle démarre elle-même ; sans écran, Electron ne dessine pas le ticket.
       - name: Electron (la coque de bureau)
@@ -54,7 +47,7 @@ jobs:
       # chiffre les copies hors de la machine (tests/exploitation/archivage.test.ts, qui joue aussi l'archivage à la minute
       # sur le PostgreSQL 16 du poste).
       - name: xmllint, Tesseract, Poppler, Xvfb et age (la facture électronique, la lecture des factures d'achat, la coque de bureau, les copies hors machine)
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb age
+        run: bash .github/reessayer.sh sudo apt-get update -qq && bash .github/reessayer.sh sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb age
       - name: Types
         run: npm run types
       - name: Lint (0 erreur, 0 avertissement)
@@ -68,28 +61,21 @@ jobs:
   # sur six machines. TOUTES les preuves tournent chaque nuit et avant la production (preuves-completes.yml).
   preuves:
     name: Preuves du changement (${{ matrix.groupe }}/6)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         groupe: [1, 2, 3, 4, 5, 6]
-    services:
-      postgres:
-        # L'image officielle de PostgreSQL, prise sur le miroir public d'AWS plutôt que sur Docker Hub : le 09/10/2026,
-        # Docker Hub refusait les téléchargements des machines de GitHub, et chaque vérification tombait avant le moindre test.
-        image: public.ecr.aws/docker/library/postgres:16
-        env:
-          POSTGRES_PASSWORD: postgres
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       PG_ADMIN: postgres://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+      # PostgreSQL 16, celui de la machine (Ubuntu 24.04), démarré sur place : plus aucune image à télécharger avant
+      # les tests (le 14/10/2026, « Docker pull failed » faisait tomber une tâche sur quelques-unes, sans la retenter).
+      - name: PostgreSQL 16 (celui de la machine)
+        run: bash .github/postgres-de-la-machine.sh
       - name: Les preuves concernées
         env:
           AVANT: ${{ github.event.before || github.event.pull_request.base.sha }}
@@ -103,13 +89,13 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Le navigateur des tests des écrans
-        run: npx playwright-core install --with-deps chromium
+        run: bash .github/reessayer.sh npx playwright-core install --with-deps chromium
       - name: Electron (la coque de bureau)
         run: node node_modules/electron/install.js
       # Sans xmllint (ou sans Tesseract et Poppler), les tests de la facture électronique (ou de la lecture
       # des factures d'achat) tomberaient pour une autre raison que le défaut remis : la preuve ne prouverait rien.
       - name: xmllint, Tesseract, Poppler, Xvfb et age
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb age
+        run: bash .github/reessayer.sh sudo apt-get update -qq && bash .github/reessayer.sh sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb age
       - name: Preuves (chaque test tombe quand on remet son défaut)
         run: npm run preuves
         env:
