@@ -251,7 +251,14 @@
     document.body.appendChild(el);
     // Ce que la page montrait ne reste pas derrière la fenêtre : l'accès ne court plus, le dossier ne se lit plus.
     const v = document.getElementById('view');
-    if (v) { v.innerHTML = ''; v.setAttribute('inert', ''); }
+    if (v) {
+      const vider = () => { if (v.firstChild) v.replaceChildren(); };
+      vider();
+      v.setAttribute('inert', '');
+      // Le routeur de l'application peut encore dessiner une page après la fermeture (celle qu'on venait de demander, ou
+      // la suivante) : ce qui s'y dessine s'efface aussi. Vu sur GitHub, sur une machine lente (1.6.0).
+      new MutationObserver(vider).observe(v, { childList: true });
+    }
     const lien = el.querySelector('a');
     if (lien) /** @type {HTMLElement} */ (lien).focus();
   }

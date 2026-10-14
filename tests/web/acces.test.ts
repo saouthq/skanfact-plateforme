@@ -219,6 +219,10 @@ describe('l\'accès du support au dossier, à la souris, des deux côtés', () =
     const ferme = lecture.getByRole('alertdialog');
     await expect.poll(() => ferme.count(), { timeout: 15_000 }).toBe(1);
     expect(net(await ferme.innerText())).toContain('La lecture de ce dossier est fermée L\'entreprise a retiré cet accès. Rien n\'a été écrit chez le client.');
+    await expect.poll(() => lecture.evaluate(() => document.getElementById('view')?.innerHTML ?? null)).toBe('');
+    // Et ce que le routeur redessine ensuite (une autre page demandée derrière la fenêtre) ne revient pas.
+    await lecture.evaluate(() => { location.hash = '#/clients'; });
+    await lecture.waitForTimeout(500);
     expect(await lecture.evaluate(() => document.getElementById('view')?.innerHTML ?? null)).toBe('');
     // La console le dit, et propose de redemander.
     await p.reload();

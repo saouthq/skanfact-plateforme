@@ -12747,7 +12747,11 @@ prouver 'la lecture qui reste ouverte après le retrait' web/public/plateforme/p
 ' '' \
   "$SACW4"
 prouver 'le dossier qui reste lisible derrière la fermeture' web/public/plateforme/acces.js \
-  '    if (v) { v.innerHTML = '"'"''"'"'; v.setAttribute('"'"'inert'"'"', '"'"''"'"'); }
+  '      vider();
+' '' \
+  "$SACW4"
+prouver 'une page redessinée derrière la fermeture' web/public/plateforme/acces.js \
+  '      new MutationObserver(vider).observe(v, { childList: true });
 ' '' \
   "$SACW4"
 prouver 'le panneau sans les pages lues' web/public/plateforme/acces.js \
