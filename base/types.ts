@@ -505,6 +505,17 @@ export interface BaseDeDonnees {
     qui: string | null;
     le: Generated<Date>;
   };
+  'plateforme.cout_du_mois': {
+    id: Generated<string>;
+    mois: string;
+    libelle: string;
+    montant: bigint;
+    d_apres: string;
+    saisi_le: Generated<Date>;
+    saisi_par: string;
+    retire_le: Date | null;
+    retire_par: string | null;
+  };
   'plateforme.defi_console': {
     id: Generated<string>;
     utilisateur: string;

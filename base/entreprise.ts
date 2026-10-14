@@ -124,6 +124,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.contenu_offre': { classe: 'hors', raison: 'ce que chaque offre comprend (0105) : la grille de SkanFact, commune à toutes les entreprises' },
   'plateforme.regle_remise': { classe: 'hors', raison: 'les règles des remises (0106) : celles de SkanFact, communes à toutes les entreprises' },
   'plateforme.groupe': { classe: 'hors', raison: 'les groupes que SkanFact a déclarés pour ses remises (0106) : une note commerciale de SkanFact' },
+  'plateforme.cout_du_mois': { classe: 'hors', raison: 'les coûts du mois de SkanFact (0108), saisis par sa direction : ses comptes, ceux d\'aucune entreprise' },
   'plateforme.groupe_membre': { classe: 'hors', raison: 'qui est dans quel groupe, depuis quand, et pourquoi (0106) : une note commerciale de SkanFact' },
   // La console (0083, docs/console.md) : l'équipe SkanFact, sa connexion et son journal. Rien de cela n'est à l'entreprise.
   'plateforme.equipe': { classe: 'hors', raison: 'l\'équipe de SkanFact, commune à la plateforme' },
