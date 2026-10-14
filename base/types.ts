@@ -495,6 +495,16 @@ export interface BaseDeDonnees {
     retire_par: string | null;
     clos_le: Date | null;
   };
+  'plateforme.contenu_offre': {
+    id: Generated<string>;
+    offre: string;
+    quoi: string;
+    nombre: number;
+    a_partir_du: string;
+    motif: string;
+    qui: string | null;
+    le: Generated<Date>;
+  };
   'plateforme.defi_console': {
     id: Generated<string>;
     utilisateur: string;

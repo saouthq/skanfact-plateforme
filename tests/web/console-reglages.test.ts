@@ -112,6 +112,7 @@ describe('les réglages de la plateforme, à la souris', () => {
     await admin.query('delete from plateforme.message_clients');
     await admin.query('delete from plateforme.prix where a_partir_du > (now() at time zone \'Africa/Tunis\')::date');
     await admin.query('delete from plateforme.prix_option where a_partir_du > (now() at time zone \'Africa/Tunis\')::date');
+    await admin.query('delete from plateforme.contenu_offre where a_partir_du > (now() at time zone \'Africa/Tunis\')::date');
     await reposerLesReglesDeDepart(admin, aujourdhuiATunis());
     await navigateur?.close(); await serveur?.arreter(); await admin.end();
     fs.rmSync(dossier, { recursive: true, force: true }); fs.rmSync(path.dirname(veille), { recursive: true, force: true });
@@ -183,9 +184,9 @@ describe('les réglages de la plateforme, à la souris', () => {
     await cliquer(c.locator('#set-tabs [data-tab="abonnement"]'));
     await expect.poll(() => c.locator('.abo-offre[data-offre="complet"] .abo-avenir').allInnerTexts().then((t) => t.map(net)).catch(() => []), { timeout: 15_000 })
       .toEqual([`À partir du ${enFrancais(plusTot)} : 720 DT HT par an.`, `À partir du ${enFrancais(plusTot)} : 72 DT HT par mois.`]);
-    expect(net(await c.locator('.abo-section-tete p').first().innerText())).toContain('Un nouveau prix vaut pour les périodes qui commencent à sa date');
+    expect(net(await c.locator('.abo-section-tete p').first().innerText())).toContain('Un changement annoncé vaut pour les périodes qui commencent à sa date');
     // L'autre offre le dit à la même place, et ce que chacune comprend commence à la même hauteur.
-    expect(net(await c.locator('.abo-offre[data-offre="essentiel"] .abo-avenir-rien').innerText())).toBe('Aucun nouveau prix annoncé.');
+    expect(net(await c.locator('.abo-offre[data-offre="essentiel"] .abo-avenir-rien').innerText())).toBe('Aucun changement annoncé.');
     const haut = async (offre: string) => (await c.locator(`.abo-offre[data-offre="${offre}"] .abo-inclus`).boundingBox())?.y;
     expect(await haut('essentiel')).toBeDefined();
     expect(await haut('essentiel')).toBe(await haut('complet'));
@@ -226,6 +227,101 @@ describe('les réglages de la plateforme, à la souris', () => {
     expect(await ligne('Préavis d\'un nouveau prix réglé', 'Préavis plus court'))
       .toContain('Préavis d\'un nouveau prix réglé Réglages Le préavis d\'un nouveau prix « Préavis plus court pour la rentrée » 30 jours → 20 jours');
     expect((await api('POST', '/console/reglages/preavis', jD, { jours: 30, motif: 'retour aux trente jours' })).statut).toBe(200);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 120_000);
+
+  it('ce que chaque offre comprend : préparé avec son aperçu, lu à venir par le client, retiré avant sa date', async () => {
+    const p = await console_(jD);
+    const aujourdhui = aujourdhuiATunis();
+    const plusTot = plusJours(aujourdhui, 30);
+    const enFrancais = (j: string) => `${j.slice(8, 10)}/${j.slice(5, 7)}/${j.slice(0, 4)}`;
+    const section = p.locator('section[aria-labelledby="rg-contenu"]');
+    const ligne = async (quoi: string) => net(await section.locator(`tr[data-quoi="${quoi}"]`).innerText());
+    // La grille du jour : chaque ligne, ce qu'Essentiel et Complet en comprennent.
+    expect(await section.locator('tbody tr').evaluateAll((e) => e.map((x) => (x as HTMLElement).dataset.quoi)))
+      .toEqual(['caisses', 'etablissements', 'salaries', 'paie', 'compta']);
+    expect(await ligne('caisses')).toBe('Caisses comprises Au-delà, chaque caisse de plus se paie. 1 2');
+    expect(await ligne('salaries')).toMatch(/^Salariés dans la paie Les employés dont l'entreprise fait la fiche de paie, pas les personnes qui utilisent SkanFact \(sans limite\)\..* 10 20$/);
+    expect(await ligne('paie')).toMatch(/^La paie .* Achetée seule Comprise$/);
+    // Préparer : Complet comprendra trois caisses. L'aperçu a sa place dès l'ouverture, puis dit ce qui change.
+    await cliquer(section.getByRole('button', { name: 'Préparer un changement…' }));
+    const f = p.locator('[role="dialog"]');
+    expect(net(await f.locator('.c-rg-prix-zone').innerText())).toBe('Écris le nouveau nombre : l\'aperçu dira ce qui change et combien d\'entreprises ont cette offre.');
+    const motifAvant = (await f.locator('textarea').boundingBox())?.y;
+    await f.getByLabel('L\'offre', { exact: true }).selectOption('complet');
+    await f.getByLabel('Ce qui change', { exact: true }).selectOption('caisses');
+    await f.getByLabel('Combien l\'offre en comprendra').fill('3');
+    expect(net(await f.locator('.c-rg-prix-zone').innerText()))
+      .toMatch(/^Complet : 2 caisses comprises → 3 caisses comprises (Aucune entreprise n'a Complet aujourd'hui|Une entreprise a Complet aujourd'hui : à sa prochaine période, elle le lira sur sa facture|\d+ entreprises ont Complet aujourd'hui : à leur prochaine période, elles le liront sur leur facture)\.$/);
+    expect((await f.locator('textarea').boundingBox())?.y).toBe(motifAvant);
+    expect(await f.getByLabel('À partir du').inputValue()).toBe(plusTot);
+    await f.locator('textarea').fill('Trois caisses en Complet');
+    await cliquer(f.getByRole('button', { name: 'Préparer ce changement', exact: true }));
+    await expect.poll(() => f.count(), { timeout: 10_000 }).toBe(0);
+    // À venir : dans la case de Complet, et sous la grille avec qui l'a préparé et pourquoi.
+    await expect.poll(() => section.locator('tr[data-quoi="caisses"] td[data-offre="complet"]').innerText().then(net).catch(() => ''), { timeout: 10_000 })
+      .toBe(`2 → 3 le ${enFrancais(plusTot)}`);
+    const venir = section.locator('.c-rg-venir[data-offre="complet"][data-quoi="caisses"]');
+    expect(net(await venir.innerText()))
+      .toMatch(new RegExp(`^À venir : Complet, à partir du ${enFrancais(plusTot)} : 3 caisses comprises Préparé par Amira Réglages, aujourd'hui, \\d\\d:\\d\\d : « Trois caisses en Complet » Le retirer avant sa date…$`));
+    // Choisir n'est pas taper : la paie choisie (le nombre, vide, fait place à une liste), Échap referme sans question.
+    await cliquer(section.getByRole('button', { name: 'Préparer un changement…' }));
+    await f.getByLabel('Ce qui change', { exact: true }).selectOption('paie');
+    await p.keyboard.press('Escape');
+    await expect.poll(() => f.count()).toBe(0);
+    // Essentiel à quatre caisses ce jour-là : plus que Complet, qui dit « Tout Essentiel » ; l'aperçu le dit en couleur.
+    await cliquer(section.getByRole('button', { name: 'Préparer un changement…' }));
+    // La fenêtre rouverte part d'Essentiel et des caisses.
+    expect(await f.getByLabel('L\'offre', { exact: true }).inputValue()).toBe('essentiel');
+    expect(await f.getByLabel('Ce qui change', { exact: true }).inputValue()).toBe('caisses');
+    // Un module se propose dans l'autre état que le sien : la paie de Complet, comprise aujourd'hui, s'y propose achetée
+    // seule, et l'aperçu dit ce que les abonnés de Complet perdraient.
+    await f.getByLabel('L\'offre', { exact: true }).selectOption('complet');
+    await f.getByLabel('Ce qui change', { exact: true }).selectOption('paie');
+    expect(await f.getByLabel('La paie', { exact: true }).inputValue()).toBe('0');
+    expect(net(await f.locator('.c-champ').filter({ has: p.locator('label', { hasText: /^La paie$/ }) }).locator('.c-champ-aide').innerText())).toBe('Aujourd\'hui, la paie est comprise.');
+    expect(net(await f.locator('.c-rg-prix-zone').innerText()))
+      .toMatch(/^Complet : la paie comprise → la paie achetée seule (Aucune entreprise n'a Complet aujourd'hui|Une entreprise a Complet aujourd'hui : à sa prochaine période, ce module se fermera chez elle, sauf acheté seul depuis sa fiche|\d+ entreprises ont Complet aujourd'hui : à leur prochaine période, ce module se fermera chez elles, sauf acheté seul depuis leur fiche)\.$/);
+    await f.getByLabel('L\'offre', { exact: true }).selectOption('essentiel');
+    await f.getByLabel('Ce qui change', { exact: true }).selectOption('caisses');
+    await f.getByLabel('Combien l\'offre en comprendra').fill('4');
+    expect(net(await f.locator('.c-rg-prix-attention').innerText()))
+      .toBe(`Le ${enFrancais(plusTot)}, Complet : 3 caisses comprises. Essentiel comprendrait plus que Complet, dont la carte dit « Tout Essentiel » : change Complet d'abord.`);
+    // Une ligne déjà préparée : l'aperçu le dit, et le bouton attend.
+    await f.getByLabel('L\'offre', { exact: true }).selectOption('complet');
+    expect(net(await f.locator('.c-rg-prix-zone').innerText())).toBe(`Un changement est déjà préparé pour cette ligne, à partir du ${enFrancais(plusTot)} : retire-le avant d'en préparer un autre.`);
+    expect(await f.getByRole('button', { name: 'Préparer ce changement', exact: true }).isDisabled()).toBe(true);
+    await cliquer(f.getByRole('button', { name: 'Annuler', exact: true }));
+    await expect.poll(() => f.locator('.c-dialogue-question').count()).toBe(1);
+    await cliquer(f.getByRole('button', { name: 'Abandonner', exact: true }));
+    await expect.poll(() => f.count()).toBe(0);
+    // Le client le lit sur la carte de Complet ; Essentiel dit à la même place que rien ne change pour elle.
+    const c = await client();
+    await c.evaluate(() => { location.hash = '#/parametres'; });
+    await cliquer(c.locator('#set-tabs [data-tab="abonnement"]'));
+    await expect.poll(() => c.locator('.abo-offre[data-offre="complet"] .abo-avenir').allInnerTexts().then((t) => t.map(net)).catch(() => []), { timeout: 15_000 })
+      .toEqual([`À partir du ${enFrancais(plusTot)} : trois caisses comprises.`]);
+    expect(net(await c.locator('.abo-offre[data-offre="essentiel"] .abo-avenir-rien').innerText())).toBe('Aucun changement annoncé.');
+    // Ce que chaque carte dit aujourd'hui vient des mêmes nombres que la console.
+    expect(await c.locator('.abo-offre[data-offre="complet"] .abo-inclus li').allInnerTexts().then((t) => t.map(net)))
+      .toEqual(['Tout Essentiel', 'La paie, jusqu\'à vingt salariés', 'La comptabilité complète', 'Deux caisses au comptoir', 'Des utilisateurs sans limite, deux établissements']);
+    expect(net(await c.locator('#abo-plus li[data-option="caisse"] .abo-plus-quoi').innerText())).toBe('Une caisse de plus Essentiel en comprend une ; Complet, deux.');
+    await fermer(c);
+    // Retiré avant sa date : il quitte la grille ; le journal dit sur quoi, de quoi à quoi.
+    await cliquer(venir.getByRole('button', { name: 'Le retirer avant sa date…' }));
+    const r = p.locator('[role="dialog"]');
+    expect(net(await r.locator('.c-dialogue-sous').innerText())).toBe(`À venir : Complet, à partir du ${enFrancais(plusTot)} : 3 caisses comprises`);
+    await r.locator('textarea').fill('Caisses repoussées');
+    await cliquer(r.getByRole('button', { name: 'Retirer ce changement', exact: true }));
+    await expect.poll(() => r.count(), { timeout: 10_000 }).toBe(0);
+    await expect.poll(() => venir.count(), { timeout: 10_000 }).toBe(0);
+    await p.goto(`${serveur.adresse}/console/#/journal`);
+    const auJournal = (motif: string) => p.locator('tr').filter({ hasText: motif }).first().innerText().then(net).catch(() => '');
+    await expect.poll(() => auJournal('Trois caisses en Complet'), { timeout: 15_000 })
+      .toContain(`Changement de contenu préparé Réglages Complet : caisses comprises « Trois caisses en Complet » 2 caisses comprises → 3 caisses comprises à partir du ${enFrancais(plusTot)}`);
+    expect(await auJournal('Caisses repoussées'))
+      .toContain(`Changement de contenu retiré Réglages Complet : caisses comprises « Caisses repoussées » 3 caisses comprises à partir du ${enFrancais(plusTot)} → 2 caisses comprises`);
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 120_000);
@@ -449,6 +545,13 @@ describe('les réglages de la plateforme, à la souris', () => {
     for (const onglet of ['', 'regles', 'formats', 'messages']) {
       const p = await console_(jD, onglet, 390, 844);
       expect(await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), onglet || 'prix').toBeLessThanOrEqual(0);
+      if (!onglet) {
+        // Ce que chaque offre comprend : une fiche par ligne, où Complet se lit sans faire défiler le tableau.
+        const complet = p.locator('section[aria-labelledby="rg-contenu"] tr[data-quoi="caisses"] td[data-offre="complet"]');
+        const boite = await complet.boundingBox();
+        expect(boite && boite.x + boite.width).toBeLessThanOrEqual(390);
+        expect(net(await complet.innerText())).toMatch(/^2/);
+      }
       await fermer(p);
     }
     expect(erreurs).toEqual([]);

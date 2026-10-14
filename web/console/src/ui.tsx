@@ -266,9 +266,12 @@ export function Choix({ libelle, aide, valeur, changer, options }: Commun & { va
 // (un nombre de jours, un motif). Le curseur entre dans le premier champ, sinon sur « Fermer ».
 // Ce qu'on a tapé dans une fenêtre : ses champs de texte. Une liste, une case à cocher se CHOISISSENT : changer d'avis
 // n'y coûte qu'un clic, ils ne comptent pas (choisir n'est pas taper).
+// Chaque champ se reconnaît à son identifiant, et un champ vide ne compte pas : un champ vide qui disparaît (la fenêtre
+// d'un contenu d'offre remplace le nombre par une liste quand on choisit un module) n'est pas une saisie perdue (vu le
+// 14/10/2026 : « Ce que tu viens de taper sera perdu », sans rien avoir tapé).
 const CHAMPS_TAPES = 'input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=button]):not([type=submit]):not([type=range]), textarea';
 export const saisieDe = (cadre: ParentNode | null | undefined) =>
-  JSON.stringify([...(cadre?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(CHAMPS_TAPES) ?? [])].map((c) => c.value));
+  JSON.stringify([...(cadre?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(CHAMPS_TAPES) ?? [])].filter((c) => c.value !== '').map((c) => [c.id, c.value]));
 
 // Une fenêtre. Échap, la croix et son bouton « Annuler » (`ferme`) la referment ; si l'on y a TAPÉ quelque chose depuis
 // son ouverture, ils demandent d'abord « Abandonner cette saisie ? » — un motif d'une ligne ne se perd pas sur une touche.

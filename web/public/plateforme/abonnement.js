@@ -57,38 +57,109 @@
   const DOIT = ['a_payer', 'en_retard', 'partielle'];
 
   // Ce que chaque offre contient (skanfact docs/cadrage/07-offres-et-prix.md) : une phrase par ligne, comme on lit une
-  // offre — pas un paragraphe qu'on ne relit pas.
-  const OFFRES = /** @type {Record<string, { nom: string, pour: string, inclus: string[] }>} */ ({
-    essentiel: { nom: 'Essentiel', pour: 'Tout ce qu\'il faut pour vendre, encaisser et déclarer.', inclus: [
-      'Devis, factures, avoirs, clients et catalogue', 'Achats, fournisseurs et stock', 'Une caisse au comptoir', 'La banque et la trésorerie',
-      'La facture électronique, la retenue à la source et la déclaration du mois', 'L\'espace client et le paiement en ligne',
-      'Ton comptable dans les mêmes données', 'Des utilisateurs sans limite, un établissement'] },
-    complet: { nom: 'Complet', pour: 'Pour une entreprise qui paie des salariés et tient sa comptabilité.', inclus: [
-      'Tout Essentiel', 'La paie, jusqu\'à vingt salariés', 'La comptabilité complète', 'Deux caisses', 'Des utilisateurs sans limite, deux établissements'] },
+  // offre — pas un paragraphe qu'on ne relit pas. Les fonctions sont celles de l'application ; les nombres (caisses,
+  // établissements, salariés) et les modules (la paie, la comptabilité complète) viennent du serveur, que la direction
+  // règle dans la console (0105) : aucun nombre n'est écrit ici.
+  /** @typedef {{ caisses?: number | null, etablissements?: number | null, salaries?: number | null, paie?: number | null, compta?: number | null }} Contenu */
+  const OFFRES = /** @type {Record<string, { nom: string, pour: string, de: string }>} */ ({
+    essentiel: { nom: 'Essentiel', pour: 'Tout ce qu\'il faut pour vendre, encaisser et déclarer.', de: 'd\'Essentiel' },
+    complet: { nom: 'Complet', pour: 'Pour une entreprise qui paie des salariés et tient sa comptabilité.', de: 'de Complet' },
   });
+  const MOTS = ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze',
+    'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf', 'vingt'];
+  // Un nombre comme on l'écrit dans une phrase : en lettres jusqu'à vingt (« une caisse », « deux établissements »), en
+  // chiffres au-delà.
+  /** @param {number} n @param {boolean} [feminin] */
+  const enMots = (n, feminin) => (n === 1 && feminin ? 'une' : MOTS[n] || String(n));
+  /** @param {string} t */
+  const majuscule = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  /** @param {number} n @param {string} un @param {string} plusieurs @param {boolean} [feminin] */
+  const compte = (n, un, plusieurs, feminin) => `${enMots(n, feminin)} ${n > 1 ? plusieurs : un}`;
+  /** @param {unknown} v @returns {number | null} */
+  const nombreDe = (v) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : null);
+  const MODULES = /** @type {Record<string, string>} */ ({ paie: 'la paie', compta: 'la comptabilité complète' });
+  /** @param {string[]} ms */
+  const enListe = (ms) => ms.map((m) => MODULES[m] || m).join(' et ');
+
+  // Les lignes d'une carte : les fonctions de l'offre, puis ce qu'elle compte. Un nombre inconnu ne se dit pas.
+  /** @param {string} k @param {Contenu} c */
+  function inclusDe(k, c) {
+    const caisses = nombreDe(c.caisses), etab = nombreDe(c.etablissements), salaries = nombreDe(c.salaries);
+    const paie = c.paie === 1 ? `La paie${salaries !== null ? `, jusqu'à ${compte(salaries, 'salarié', 'salariés')}` : ''}` : '';
+    const compta = c.compta === 1 ? 'La comptabilité complète' : '';
+    const lesCaisses = caisses === null ? '' : caisses === 0 ? 'Pas de caisse au comptoir' : majuscule(`${compte(caisses, 'caisse', 'caisses', true)} au comptoir`);
+    const equipe = `Des utilisateurs sans limite${etab === null ? '' : `, ${etab === 0 ? 'sans établissement' : compte(etab, 'établissement', 'établissements')}`}`;
+    if (k === 'complet') return ['Tout Essentiel', paie, compta, lesCaisses, equipe].filter(Boolean);
+    return ['Devis, factures, avoirs, clients et catalogue', 'Achats, fournisseurs et stock', lesCaisses, 'La banque et la trésorerie',
+      'La facture électronique, la retenue à la source et la déclaration du mois', 'L\'espace client et le paiement en ligne',
+      'Ton comptable dans les mêmes données', paie, compta, equipe].filter(Boolean);
+  }
+
+  // Ce qui changera à une date (0105), comme on l'annonce sous le prix : « À partir du 01/12/2026 : trois caisses
+  // comprises. »
+  /** @param {{ quoi: string, nombre: number, aPartirDu: string }} v */
+  function changementEnClair(v) {
+    const n = v.nombre;
+    const quoi = v.quoi === 'caisses' ? (n === 0 ? 'plus aucune caisse comprise' : `${compte(n, 'caisse', 'caisses', true)} comprise${n > 1 ? 's' : ''}`)
+      : v.quoi === 'etablissements' ? (n === 0 ? 'plus aucun établissement compris' : `${compte(n, 'établissement', 'établissements')} compris`)
+        : v.quoi === 'salaries' ? `la paie compte jusqu'à ${compte(n, 'salarié', 'salariés')}`
+          : MODULES[v.quoi] ? (n === 1 ? `${MODULES[v.quoi]} comprise` : `${MODULES[v.quoi]} n'est plus comprise : elle s'achète seule`) : '';
+    return quoi ? `À partir du ${jour(v.aPartirDu)} : ${quoi}.` : '';
+  }
+
   // Ce qui s'ajoute à l'offre (14c ; skanfact docs/cadrage/07-offres-et-prix.md, « Au-delà de l'offre ») : ce que chaque
-  // ligne compte, et ce que chaque offre en comprend déjà. Les prix sont ceux du jour, lus au serveur ; une ligne sans
-  // prix ne s'affiche pas.
+  // ligne compte, et ce que chaque offre en comprend déjà (le contenu du jour). Les prix sont ceux du jour, lus au
+  // serveur ; une ligne sans prix ne s'affiche pas, ni un module que les deux offres contiennent.
   // `compte` : ce que l'entreprise en utilise (0100, plateforme.comptes_de_l_entreprise), et comment le dire.
-  const EN_PLUS = /** @type {{ option: string, nom: string, compris: string, compte?: string, mot?: [string, string], feminin?: boolean }[]} */ ([
-    { option: 'caisse', nom: 'Une caisse de plus', compris: 'Essentiel en comprend une ; Complet, deux.', compte: 'caisses', mot: ['caisse', 'caisses'], feminin: true },
-    { option: 'etablissement', nom: 'Un établissement de plus', compris: 'Essentiel en comprend un ; Complet, deux.', compte: 'etablissements', mot: ['établissement', 'établissements'] },
-    { option: 'salarie', nom: 'Un salarié de plus', compris: 'La paie en comprend dix sur Essentiel, vingt sur Complet.', compte: 'salaries', mot: ['salarié', 'salariés'] },
-    { option: 'module_paie', nom: 'La paie, seule', compris: 'Sur Essentiel ; Complet la contient.' },
-    { option: 'module_compta', nom: 'La comptabilité complète, seule', compris: 'Sur Essentiel ; Complet la contient.' },
+  /** @typedef {{ essentiel?: Contenu, complet?: Contenu }} Contenus */
+  const EN_PLUS = /** @type {{ option: string, nom: string, compris: (c: Contenus) => string, compte?: string, mot?: [string, string], feminin?: boolean }[]} */ ([
+    { option: 'caisse', nom: 'Une caisse de plus', compris: (c) => comprend(c, 'caisses', true), compte: 'caisses', mot: ['caisse', 'caisses'], feminin: true },
+    { option: 'etablissement', nom: 'Un établissement de plus', compris: (c) => comprend(c, 'etablissements'), compte: 'etablissements', mot: ['établissement', 'établissements'] },
+    { option: 'salarie', nom: 'Un salarié de plus dans la paie', compris: (c) => {
+      const e = nombreDe(c.essentiel?.salaries), x = nombreDe(c.complet?.salaries);
+      return e === null || x === null ? '' : `La paie en comprend ${enMots(e)} sur Essentiel, ${enMots(x)} sur Complet.`;
+    }, compte: 'salaries', mot: ['salarié', 'salariés'] },
+    { option: 'module_paie', nom: 'La paie, seule', compris: (c) => seule(c, 'paie') },
+    { option: 'module_compta', nom: 'La comptabilité complète, seule', compris: (c) => seule(c, 'compta') },
   ]);
+  /** @param {Contenus} c @param {'caisses' | 'etablissements'} quoi @param {boolean} [feminin] */
+  function comprend(c, quoi, feminin) {
+    const e = nombreDe(c.essentiel?.[quoi]), x = nombreDe(c.complet?.[quoi]);
+    if (e === null || x === null) return '';
+    const aucun = feminin ? 'aucune' : 'aucun';
+    return `Essentiel ${e === 0 ? `n'en comprend ${aucun}` : `en comprend ${enMots(e, feminin)}`} ; Complet, ${x === 0 ? aucun : enMots(x, feminin)}.`;
+  }
+  // Un module acheté seul : sur l'offre qui ne le contient pas. Vide quand les deux le contiennent (la ligne se tait).
+  /** @param {Contenus} c @param {'paie' | 'compta'} m */
+  function seule(c, m) {
+    const e = c.essentiel?.[m], x = c.complet?.[m];
+    if (e === 1 && x === 1) return '';
+    if (e === 0 && x === 1) return 'Sur Essentiel ; Complet la contient.';
+    if (e === 1 && x === 0) return 'Sur Complet ; Essentiel la contient.';
+    return e === 0 && x === 0 ? 'Sur Essentiel comme sur Complet : aucune offre ne la contient.' : '';
+  }
   /** @param {string | undefined} o */
   const nomOffre = (o) => (o && OFFRES[o] ? OFFRES[o].nom : 'Abonnement');
 
-  // Sur la carte Essentiel (14c) : ce qui reste dans Complet, sauf ce qui a été acheté seul.
-  /** @param {unknown} modules */
-  function ceQuiResteDansComplet(modules) {
-    const achetes = Array.isArray(modules) ? modules : [];
-    const paie = achetes.includes('paie'), compta = achetes.includes('compta');
-    if (paie && compta) return 'La paie et la comptabilité complète sont achetées en plus d\'Essentiel.';
-    if (paie) return 'La paie est achetée en plus d\'Essentiel. La comptabilité complète est dans Complet : ce qui existe se lit, mais rien de nouveau ne s\'y crée.';
-    if (compta) return 'La comptabilité complète est achetée en plus d\'Essentiel. La paie est dans Complet : ce qui existe se lit, mais rien de nouveau ne s\'y crée.';
-    return 'La paie et la comptabilité complète sont dans Complet : ce qui existe se lit, mais rien de nouveau ne s\'y crée.';
+  // Sur la carte de son offre (14c) : les modules achetés en plus, et ceux qu'elle ne contient pas (`fermes`, la même
+  // fonction que la porte du serveur) — ce qui existe s'y lit, rien de nouveau ne s'y crée.
+  /** @param {string} k @param {Contenus} contenus @param {unknown} modules @param {unknown} fermes */
+  function ceQuiNEstPasDansLOffre(k, contenus, modules, fermes) {
+    const o = OFFRES[k], autre = k === 'essentiel' ? 'complet' : 'essentiel';
+    if (!o) return '';
+    const ici = contenus[/** @type {'essentiel' | 'complet'} */ (k)] || {};
+    const achetes = (Array.isArray(modules) ? modules : []).filter((m) => MODULES[m] && ici[/** @type {'paie' | 'compta'} */ (m)] === 0);
+    const ferme = (Array.isArray(fermes) ? fermes : []).filter((m) => MODULES[m]);
+    const phrases = [];
+    if (achetes.length) phrases.push(`${majuscule(enListe(achetes))} ${achetes.length > 1 ? 'sont achetées' : 'est achetée'} en plus ${o.de}.`);
+    if (ferme.length) {
+      const la = contenus[/** @type {'essentiel' | 'complet'} */ (autre)] || {};
+      const ailleurs = ferme.every((m) => la[/** @type {'paie' | 'compta'} */ (m)] === 1);
+      const sujet = majuscule(enListe(ferme)), plus = ferme.length > 1;
+      phrases.push(ailleurs ? `${sujet} ${plus ? 'sont' : 'est'} dans ${nomOffre(autre)} : ce qui existe se lit, mais rien de nouveau ne s'y crée.`
+        : `${sujet} ${plus ? 'ne sont pas' : 'n\'est pas'} dans ${o.nom} : ce qui existe se lit, mais rien de nouveau ne s'y crée ; ${plus ? 'elles s\'achètent seules' : 'elle s\'achète seule'}.`);
+    }
+    return phrases.join(' ');
   }
 
   // Pourquoi l'entreprise est en lecture seule, en une phrase.
@@ -345,7 +416,7 @@
 
   /** @param {HTMLElement} el @param {Outils} o */
   async function dessiner(el, o) {
-    /** @type {{ aujourdhui: string, etat: Etat, prix: { offre: string, periodicite: string, montantHt: string }[], options?: { option: string, periodicite: string, montantHt: string }[], aVenir?: { quoi: string, periodicite: string, aPartirDu: string, montantHt: string }[], compte?: { offre: string, comptes: Record<string, number>, inclus: Record<string, number | null> } | null, historique: { le: string, nature: string, apres: any }[], factures: FacturesAbo | null, enLigne?: boolean, modules?: string[], regles?: { essai?: number | null, grace?: number | null, relances?: number[] } }} */
+    /** @type {{ aujourdhui: string, etat: Etat, prix: { offre: string, periodicite: string, montantHt: string }[], options?: { option: string, periodicite: string, montantHt: string }[], aVenir?: { quoi: string, periodicite: string, aPartirDu: string, montantHt: string }[], compte?: { offre: string, comptes: Record<string, number>, inclus: Record<string, number | null> } | null, historique: { le: string, nature: string, apres: any }[], factures: FacturesAbo | null, enLigne?: boolean, modules?: string[], regles?: { essai?: number | null, grace?: number | null, relances?: number[] }, contenu?: { duJour?: Contenus, aVenir?: { offre: string, quoi: string, nombre: number, aPartirDu: string }[] }, fermes?: string[] }} */
     let a;
     try { a = await o.appel('GET', '/abonnement'); } catch (x) {
       el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p><button type="button" class="btn btn-sm" id="abo-relire">Réessayer</button>`;
@@ -356,12 +427,17 @@
     const c = etatEnClair(a.etat, regles);
     /** @param {string} offre @param {string} periodicite */
     const prixDe = (offre, periodicite) => (a.prix.find((p) => p.offre === offre && p.periodicite === periodicite) || {}).montantHt;
-    // Les prix à venir (0103) : chacun se dit sous le prix d'aujourd'hui dès qu'il est préparé, à l'année puis au mois.
+    // Ce que chaque offre comprend aujourd'hui, et ce qui changera (0105).
+    const contenus = (a.contenu && a.contenu.duJour) || {};
+    const changements = (a.contenu && a.contenu.aVenir) || [];
+    // Les prix à venir (0103) : chacun se dit sous le prix d'aujourd'hui dès qu'il est préparé, à l'année puis au mois ;
+    // sur la carte d'une offre, ensuite, ce qu'elle comprendra (0105), par date.
     /** @param {string} quoi */
     const annonces = (quoi) => ['annuel', 'mensuel'].flatMap((p) => (a.aVenir || []).filter((v) => v.quoi === quoi && v.periodicite === p)
-      .map((v) => `À partir du ${jour(v.aPartirDu)} : ${montant(v.montantHt)} HT ${p === 'annuel' ? 'par an' : 'par mois'}.`));
+      .map((v) => `À partir du ${jour(v.aPartirDu)} : ${montant(v.montantHt)} HT ${p === 'annuel' ? 'par an' : 'par mois'}.`))
+      .concat(changements.filter((v) => v.offre === quoi).map(changementEnClair).filter(Boolean));
     // Chaque carte a les mêmes lignes, dans le même ordre, même vides : la grille les aligne d'une carte à l'autre
-    // (abonnement.css). Quand une offre annonce un nouveau prix, l'autre dit à la même place que le sien ne change pas.
+    // (abonnement.css). Quand une offre annonce un changement, l'autre dit à la même place que rien ne change pour elle.
     const avecAnnonces = ['essentiel', 'complet'].some((k) => annonces(k).length > 0);
     const offres = ['essentiel', 'complet'].map((k) => {
       const o = OFFRES[k];
@@ -369,15 +445,16 @@
       const an = prixDe(k, 'annuel'), mois = prixDe(k, 'mensuel');
       const courante = a.etat.etat === 'actif' && a.etat.offre === k;
       const aVenir = annonces(k);
+      const pas = courante ? ceQuiNEstPasDansLOffre(k, contenus, a.modules, a.fermes) : '';
       return `<article class="abo-offre${courante ? ' courante' : ''}" data-offre="${k}">
         <header class="abo-offre-tete"><h4>${esc(o.nom)}</h4>${courante ? '<span class="abo-badge">Ton offre</span>' : ''}</header>
         <p class="abo-pour">${esc(o.pour)}</p>
         <p class="abo-prix">${an ? `<b>${esc(montant(an).replace(/\u00a0DT$/, ''))}</b><span>DT HT par an</span>` : ''}</p>
         <p class="abo-mois">${mois ? `ou ${esc(montant(mois))} HT par mois` : ''}</p>
         ${avecAnnonces ? `<div class="abo-avenir-bloc">${aVenir.length ? aVenir.map((t) => `<p class="abo-avenir">${esc(t)}</p>`).join('')
-          : '<p class="abo-avenir-rien">Aucun nouveau prix annoncé.</p>'}</div>` : ''}
-        <div class="abo-offre-corps"><ul class="abo-inclus">${o.inclus.map((i) => `<li>${ICONE_COCHE}<span>${esc(i)}</span></li>`).join('')}</ul>
-        ${courante && k === 'essentiel' ? `<p class="abo-pas">${esc(ceQuiResteDansComplet(a.modules))}</p>` : ''}</div>
+          : '<p class="abo-avenir-rien">Aucun changement annoncé.</p>'}</div>` : ''}
+        <div class="abo-offre-corps"><ul class="abo-inclus">${inclusDe(k, contenus[/** @type {'essentiel' | 'complet'} */ (k)] || {}).map((i) => `<li>${ICONE_COCHE}<span>${esc(i)}</span></li>`).join('')}</ul>
+        ${pas ? `<p class="abo-pas">${esc(pas)}</p>` : ''}</div>
       </article>`;
     }).join('');
     /** @param {string} option @param {string} periodicite */
@@ -397,9 +474,11 @@
     };
     const enPlus = EN_PLUS.map((l) => {
       const an = prixOption(l.option, 'annuel'), mois = prixOption(l.option, 'mensuel');
-      if (!an && !mois) return '';
+      const compris = l.compris(contenus);
+      // Un module que les deux offres contiennent ne s'achète pas seul : sa ligne se tait.
+      if ((!an && !mois) || (!l.compte && !compris)) return '';
       const auj = aujourdhui(l);
-      return `<li data-option="${l.option}"><span class="abo-plus-quoi"><b>${esc(l.nom)}</b><span>${esc(l.compris)}</span>${auj.texte ? `<span class="abo-plus-auj${auj.plus ? ' en-plus' : ''}">${esc(auj.texte)}</span>` : ''}</span>
+      return `<li data-option="${l.option}"><span class="abo-plus-quoi"><b>${esc(l.nom)}</b>${compris ? `<span>${esc(compris)}</span>` : ''}${auj.texte ? `<span class="abo-plus-auj${auj.plus ? ' en-plus' : ''}">${esc(auj.texte)}</span>` : ''}</span>
         <span class="abo-plus-prix">${an ? `<b>${esc(montant(an))} HT par an</b>` : ''}${mois ? `<span>${an ? 'ou ' : ''}${esc(montant(mois))} HT par mois</span>` : ''}${annonces(l.option).map((t) => `<span class="abo-plus-avenir">${esc(t)}</span>`).join('')}</span></li>`;
     }).join('');
     const histoire = a.historique.map((v) => `<li><span class="abo-quand">${esc(jour(String(v.le).slice(0, 10)))}</span><span>${esc(NATURES[v.nature] || v.nature)}${apresEnClair(v) ? ` <span class="muted">(${esc(apresEnClair(v))})</span>` : ''}</span></li>`).join('');
@@ -425,7 +504,7 @@
       </section>
       ${aFaire ? factures : ''}
       ${a.etat.etat === 'hors' ? '' : `<div class="abo-section">
-        <div class="abo-section-tete"><h3>Les offres</h3><p>Un prix par entreprise, jamais par utilisateur. Hors taxes : la TVA s'ajoute.${(a.aVenir || []).length ? ' Un nouveau prix vaut pour les périodes qui commencent à sa date : celle qui court garde le sien.' : ''}</p></div>
+        <div class="abo-section-tete"><h3>Les offres</h3><p>Un prix par entreprise, jamais par utilisateur. Hors taxes : la TVA s'ajoute.${(a.aVenir || []).length || changements.length ? ' Un changement annoncé vaut pour les périodes qui commencent à sa date : celle qui court garde son prix et ce qu\'elle comprend.' : ''}</p></div>
         <div class="abo-offres${avecAnnonces ? ' avec-avenir' : ''}">${offres}</div>
         ${enPlus ? `<div class="abo-plus" id="abo-plus">
           <div class="abo-plus-tete"><h4>Au-delà de ce que l'offre comprend</h4>

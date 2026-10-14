@@ -115,11 +115,15 @@ export function lireAjouts(brut: unknown): AjoutsLus {
   };
 }
 export type LigneAjout = { option: Ajout; annuel: Case; mensuel: Case; aVenir: AVenir[]; achetes: number | null };
-export function grilleAjouts(a: AjoutsLus, entreprises: Entreprise[], aujourdhui: string): LigneAjout[] {
+// Un module acheté seul se compte chez les abonnés du jour dont l'offre ne le contient pas (le contenu du jour, 0105) ;
+// un contenu inconnu ne compte personne.
+export function grilleAjouts(a: AjoutsLus, entreprises: Entreprise[], aujourdhui: string, contenu: Record<Offre, ContenuDuJour> | null): LigneAjout[] {
   const enVigueur = (option: Ajout, periodicite: Periodicite) =>
     enVigueurParmi(a.options.filter((x) => x.option === option && x.periodicite === periodicite), aujourdhui);
-  const abonnes = new Set(entreprises.filter((e) => e.etat.etat === 'actif' && e.etat.offre === 'essentiel').map((e) => e.id));
-  const achetes = (module: string) => a.modules.filter((m) => abonnes.has(m.entreprise) && m.modules.includes(module)).length;
+  const achetes = (module: 'paie' | 'compta') => {
+    const sansLui = new Set(entreprises.filter((e) => e.etat.etat === 'actif' && contenu?.[e.etat.offre]?.[module] === 0).map((e) => e.id));
+    return a.modules.filter((m) => sansLui.has(m.entreprise) && m.modules.includes(module)).length;
+  };
   return AJOUTS.map((option) => ({
     option,
     annuel: enVigueur(option, 'annuel'),
@@ -169,6 +173,30 @@ export function lireReglesAbonnement(brut: unknown): Record<CodeRegle, RegleAbon
     return j && aPartirDu && motif && le ? { jours: j, aPartirDu, motif, par: texte(r.par), le } : null;
   };
   return { essai: une(b.essai), grace: une(b.grace), relances: une(b.relances) };
+}
+
+// Ce que chaque offre comprend (0105) : le contenu du jour (un nombre ; pour un module, 1 compris, 0 acheté seul ; rien
+// quand aucune ligne ne vaut encore) et chaque changement à venir, avec qui l'a préparé et pourquoi.
+export const QUOI_CONTENU = ['caisses', 'etablissements', 'salaries', 'paie', 'compta'] as const;
+export type QuoiContenu = typeof QUOI_CONTENU[number];
+export type ContenuDuJour = Record<QuoiContenu, number | null>;
+export type ContenuAVenir = { offre: Offre; quoi: QuoiContenu; nombre: number; aPartirDu: string; motif: string | null; par: string | null; le: string | null };
+const entierPositif = (x: unknown) => (typeof x === 'number' && Number.isInteger(x) && x >= 0 ? x : null);
+export function lireContenuOffres(brut: unknown): { duJour: Record<Offre, ContenuDuJour>; aVenir: ContenuAVenir[] } {
+  const b = objet(brut);
+  const jourDe = (o: Offre): ContenuDuJour => {
+    const c = objet(objet(b.duJour)[o]);
+    return Object.fromEntries(QUOI_CONTENU.map((q) => [q, entierPositif(c[q])])) as ContenuDuJour;
+  };
+  return {
+    duJour: { essentiel: jourDe('essentiel'), complet: jourDe('complet') },
+    aVenir: tableau(b.aVenir).flatMap((x): ContenuAVenir[] => {
+      const offre = (OFFRES as readonly unknown[]).includes(x.offre) ? x.offre as Offre : null;
+      const quoi = (QUOI_CONTENU as readonly unknown[]).includes(x.quoi) ? x.quoi as QuoiContenu : null;
+      const nombre = entierPositif(x.nombre), debut = jour(x.aPartirDu);
+      return offre && quoi && nombre !== null && debut ? [{ offre, quoi, nombre, aPartirDu: debut, motif: texte(x.motif), par: texte(x.par), le: date(x.le) }] : [];
+    }),
+  };
 }
 
 // Les lignes d'une grille (offres ou ajouts), leurs prix à venir dits avec qui les a préparés et pourquoi.
@@ -230,9 +258,20 @@ export type SujetDesReglages = {
   prix: { quoi: QuoiPrix; periodicite: Periodicite; aPartirDu: string | null; avant: string | null; apres: string | null } | null;
   preavis: { avant: number | null; apres: number | null } | null;
   regleAbonnement: { code: CodeRegle; avant: number[] | null; apres: number[] | null } | null;
+  contenu: { offre: Offre; quoi: QuoiContenu; aPartirDu: string | null; avant: number | null; apres: number | null } | null;
 };
 const dinars = (x: unknown) => (typeof x === 'string' && /^\d+\.\d{3}$/.test(x) ? x : null);
 const jours = (x: unknown) => (typeof x === 'number' && Number.isInteger(x) && x >= 0 ? x : null);
+// Un contenu préparé : de ce que l'offre comprenait au nouveau, à sa date. Retiré : celui qui est retiré (à sa date), et
+// ce qui reste.
+function contenuDuGeste(geste: string, avant: Record<string, unknown> | null, apres: Record<string, unknown> | null): SujetDesReglages['contenu'] {
+  if (geste !== 'reglages.contenu_prepare' && geste !== 'reglages.contenu_retire') return null;
+  const offre = (OFFRES as readonly unknown[]).includes(apres?.offre) ? apres?.offre as Offre : null;
+  const quoi = (QUOI_CONTENU as readonly unknown[]).includes(apres?.quoi) ? apres?.quoi as QuoiContenu : null;
+  if (!offre || !quoi) return null;
+  const date = geste === 'reglages.contenu_retire' ? avant?.aPartirDu : apres?.aPartirDu;
+  return { offre, quoi, aPartirDu: jour(date), avant: entierPositif(avant?.nombre), apres: entierPositif(apres?.nombre) };
+}
 const listeDeJours = (x: unknown) => (Array.isArray(x) && x.length && x.every((n) => jours(n) !== null) ? x as number[] : null);
 export function sujetDesReglages(geste: string, avant: Record<string, unknown> | null, apres: Record<string, unknown> | null): SujetDesReglages | null {
   if (!geste.startsWith('reglages.')) return null;
@@ -249,5 +288,6 @@ export function sujetDesReglages(geste: string, avant: Record<string, unknown> |
     preavis: geste === 'reglages.preavis' ? { avant: jours(avant?.jours), apres: jours(apres?.jours) } : null,
     regleAbonnement: geste === 'reglages.regle_abonnement' && (CODES_REGLE as readonly unknown[]).includes(apres?.code)
       ? { code: apres?.code as CodeRegle, avant: listeDeJours(avant?.jours), apres: listeDeJours(apres?.jours) } : null,
+    contenu: contenuDuGeste(geste, avant, apres),
   };
 }

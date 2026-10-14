@@ -101,18 +101,26 @@ describe('ce qui s\'ajoute à l\'offre (14c)', () => {
     entreprise({ etat: 'en_retard', echeance: '2026-10-01', lectureSeuleLe: '2026-10-15', jours: 2, apresEssai: false }, 'e3'),
     entreprise(actif('complet', 'annuel'), 'e4')];
 
+  // Le contenu de départ (0105) : Essentiel sans la paie ni la comptabilité complète, Complet avec.
+  const depart = { essentiel: { caisses: 1, etablissements: 1, salaries: 10, paie: 0, compta: 0 }, complet: { caisses: 2, etablissements: 2, salaries: 20, paie: 1, compta: 1 } };
+
   it('chaque ajout, dans l\'ordre de l\'application, avec son prix en vigueur et ce qui est à venir ; une case sans prix reste vide', () => {
-    const g = grilleAjouts(lireAjouts(brut), entreprises, '2026-10-13');
+    const g = grilleAjouts(lireAjouts(brut), entreprises, '2026-10-13', depart);
     expect(g.map((l) => l.option)).toEqual(['caisse', 'etablissement', 'salarie', 'module_paie', 'module_compta']);
     expect(g[0]).toMatchObject({ annuel: null, mensuel: null, aVenir: [{ periodicite: 'annuel', ht: '130.000', aPartirDu: '2027-01-01' }] });
     expect(g[1]).toMatchObject({ annuel: { ht: '120.000', depuis: '2026-09-28' }, mensuel: { ht: '12.000', depuis: '2026-09-28' }, achetes: null });
     expect(g[2]).toMatchObject({ annuel: null, mensuel: { ht: '1.200', depuis: '2026-09-28' } });
   });
 
-  it('un module acheté seul : les abonnés Essentiel du jour qui l\'ont, jamais un retard ni Complet', () => {
-    const g = grilleAjouts(lireAjouts(brut), entreprises, '2026-10-13');
+  it('un module acheté seul : les abonnés du jour dont l\'offre ne le contient pas et qui l\'ont, jamais un retard', () => {
+    const g = grilleAjouts(lireAjouts(brut), entreprises, '2026-10-13', depart);
     expect(g.find((l) => l.option === 'module_paie')?.achetes).toBe(2);
     expect(g.find((l) => l.option === 'module_compta')?.achetes).toBe(1);
+    // Complet ne contient plus la comptabilité complète (0105) : e4, qui l'a achetée seule, compte ; un contenu inconnu
+    // ne compte personne.
+    const sansCompta = { ...depart, complet: { ...depart.complet, compta: 0 } };
+    expect(grilleAjouts(lireAjouts(brut), entreprises, '2026-10-13', sansCompta).find((l) => l.option === 'module_compta')?.achetes).toBe(2);
+    expect(grilleAjouts(lireAjouts(brut), entreprises, '2026-10-13', null).find((l) => l.option === 'module_paie')?.achetes).toBe(0);
   });
 });
 
@@ -151,12 +159,12 @@ describe('le registre des règles communes', () => {
 describe('au journal, un geste des réglages dit sur quoi il porte', () => {
   it('la règle relue et l\'avis ; le message écrit ou retiré par ses deux jours ; le prix préparé ou retiré, et le préavis ; rien pour un autre geste', () => {
     expect(sujetDesReglages('reglages.relire', null, { regle: 'timbre.facture', debut: '2023-01-01', reluePar: 'Mehdi Gharbi', avis: 'a_corriger' }))
-      .toEqual({ regle: 'timbre.facture', reluePar: 'Mehdi Gharbi', avis: 'a_corriger', du: null, au: null, prix: null, preavis: null, regleAbonnement: null });
+      .toEqual({ regle: 'timbre.facture', reluePar: 'Mehdi Gharbi', avis: 'a_corriger', du: null, au: null, prix: null, preavis: null, regleAbonnement: null, contenu: null });
     expect(sujetDesReglages('reglages.message_affiche', null, { message: 'm', sorte: 'nouveaute', du: '2026-10-13', au: '2026-10-20' }))
-      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-20', prix: null, preavis: null, regleAbonnement: null });
+      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-20', prix: null, preavis: null, regleAbonnement: null, contenu: null });
     // Retiré : les jours viennent de ce qu'il était (avant), pas du retrait.
     expect(sujetDesReglages('reglages.message_retire', { message: 'm', texte: 't', du: '2026-10-13', au: '2026-10-19' }, { retire: '2026-10-14T09:00:00Z' }))
-      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-19', prix: null, preavis: null, regleAbonnement: null });
+      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-19', prix: null, preavis: null, regleAbonnement: null, contenu: null });
     expect(sujetDesReglages('versions.geler', null, { jusquAu: '2026-10-20' })).toBeNull();
     // Un prix préparé : de l'ancien au nouveau, à sa date (celle de l'après). Retiré : la date est celle du prix retiré.
     expect(sujetDesReglages('reglages.prix_prepare', { quoi: 'essentiel', periodicite: 'annuel', montantHt: '390.000' },
@@ -177,6 +185,16 @@ describe('au journal, un geste des réglages dit sur quoi il porte', () => {
     expect(sujetDesReglages('reglages.regle_abonnement', { code: 'grace', jours: null }, { code: 'grace', jours: [0] })?.regleAbonnement)
       .toEqual({ code: 'grace', avant: null, apres: [0] });
     expect(sujetDesReglages('reglages.regle_abonnement', null, { code: 'remise', jours: [20] })?.regleAbonnement).toBeNull();
+    // Ce qu'une offre comprend (0105) : préparé, de ce qu'elle comprenait au nouveau, à sa date ; retiré, le changement
+    // retiré à sa date, et ce qui reste ; une ligne inconnue ne se dit pas.
+    expect(sujetDesReglages('reglages.contenu_prepare', { offre: 'essentiel', quoi: 'caisses', nombre: 1 },
+      { offre: 'essentiel', quoi: 'caisses', nombre: 2, aPartirDu: '2026-11-13' })?.contenu)
+      .toEqual({ offre: 'essentiel', quoi: 'caisses', aPartirDu: '2026-11-13', avant: 1, apres: 2 });
+    expect(sujetDesReglages('reglages.contenu_retire', { offre: 'complet', quoi: 'paie', nombre: 0, aPartirDu: '2026-12-01' },
+      { offre: 'complet', quoi: 'paie', nombre: 1 })?.contenu)
+      .toEqual({ offre: 'complet', quoi: 'paie', aPartirDu: '2026-12-01', avant: 0, apres: 1 });
+    expect(sujetDesReglages('reglages.contenu_prepare', null, { offre: 'essentiel', quoi: 'utilisateurs', nombre: 3 })?.contenu).toBeNull();
+    expect(sujetDesReglages('reglages.preavis', { jours: 30 }, { jours: 10 })?.contenu).toBeNull();
   });
 });
 

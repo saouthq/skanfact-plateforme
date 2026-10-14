@@ -36,7 +36,11 @@ export type Faits = {
   tenuParCabinet: boolean;
   modules?: readonly ModuleAchete[];
   regles: Regles;
+  // Ce que chaque offre contient des modules qui s'achètent seuls (0105), daté : 1 compris, 0 non. Absent : inconnu,
+  // et rien ne se ferme sur ce qu'on ne connaît pas.
+  contenu?: ContenuDesOffres;
 };
+export type ContenuDesOffres = Partial<Record<Offre, Partial<Record<ModuleAchete, RegleDatee[]>>>>;
 
 // Une règle datée : les jours qu'elle dit, à partir de son jour. L'histoire d'une règle va de la plus ancienne à la plus
 // récente ; celle d'un jour est la dernière qui vaut ce jour-là. Aucune : la règle est inconnue, et rien ne se ferme sur
@@ -91,8 +95,28 @@ export function lireFaits(f: Record<string, unknown>): Faits {
     periodicite: f.periodicite === 'annuel' || f.periodicite === 'mensuel' ? f.periodicite : null,
     resilieLe: jour(f.resilieLe), suspenduLe: jour(f.suspenduLe), offert: f.offert === true,
     bacASable: f.bacASable === true, tenuParCabinet: f.tenuParCabinet === true,
-    modules: lireModules(f.modules), regles: lireRegles(f.regles),
+    modules: lireModules(f.modules), regles: lireRegles(f.regles), contenu: lireContenu(f.contenu),
   };
+}
+
+// L'histoire du contenu des offres telle que la base la rend (0105), lue comme celle des règles.
+export function lireContenu(v: unknown): ContenuDesOffres {
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, Record<string, unknown> | undefined>;
+  const c: ContenuDesOffres = {};
+  for (const offre of ['essentiel', 'complet'] as const) {
+    const m = o[offre];
+    if (m && typeof m === 'object') c[offre] = { paie: lireRegles({ grace: m.paie }).grace, compta: lireRegles({ grace: m.compta }).grace };
+  }
+  return c;
+}
+
+// Le premier jour de la période payée qui court (ou qui vient de finir) : le jour qui suit sa fin, moins sa durée. Une
+// fin de février peut venir de plusieurs débuts (une période du 28, du 29, du 30 ou du 31 janvier finit le 27 février) :
+// c'est le plus tôt qui est rendu ; seul un changement de contenu daté entre ces jours-là s'y lirait autrement, et la
+// facture, elle, compte au vrai premier jour de sa période.
+export function debutDeLaPeriode(f: Faits): string | null {
+  if (!f.payeJusquAu || !f.periodicite) return null;
+  return plusMois(plusJours(f.payeJusquAu, 1), f.periodicite === 'annuel' ? -12 : -1);
 }
 
 // L'histoire des règles telle que la base la rend (0104), lue prudemment : une ligne illisible ne compte pas.

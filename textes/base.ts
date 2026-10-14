@@ -518,6 +518,19 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'la grâce compte de 0 à 30 jours', cle: 'base.regles_abonnement.grace_bornes', fr: 'la grâce compte de 0 à 30 jours' },
   { base: 'les relances partent de 1 à 60 jours avant l\'échéance : une à cinq, chacune un jour différent', cle: 'base.regles_abonnement.relances_bornes', fr: 'les relances partent de 1 à 60 jours avant l\'échéance : une à cinq, chacune un jour différent' },
   { base: 'c\'est déjà la règle en vigueur : rien ne changerait', cle: 'base.regles_abonnement.meme_regle', fr: 'c\'est déjà la règle en vigueur : rien ne changerait' },
+  // Ce que chaque offre comprend, réglé dans la console (0105).
+  { base: 'un contenu d\'offre posé ne se modifie pas : on en prépare un nouveau, daté', cle: 'base.contenu_offre.intouchable', fr: 'un contenu d\'offre posé ne se modifie pas : on en prépare un nouveau, daté' },
+  { base: 'un contenu d\'offre en vigueur ou passé ne s\'efface jamais', cle: 'base.contenu_offre.en_vigueur_garde', fr: 'un contenu d\'offre en vigueur ou passé ne s\'efface jamais' },
+  { base: 'changer ce qu\'une offre comprend demande son motif (trois caractères au moins)', cle: 'base.contenu_offre.motif', fr: 'changer ce qu\'une offre comprend demande son motif (trois caractères au moins)' },
+  { base: 'une offre est « essentiel » ou « complet »', cle: 'base.contenu_offre.offre', fr: 'une offre est « Essentiel » ou « Complet »' },
+  { base: 'une offre comprend des caisses, des établissements, des salariés, la paie ou la comptabilité complète', cle: 'base.contenu_offre.quoi', fr: 'une offre comprend des caisses, des établissements, des salariés, la paie ou la comptabilité complète' },
+  { base: 'ce que l\'offre comprend est un nombre de 0 à 1000 ; un module, 1 (compris) ou 0 (acheté seul)', cle: 'base.contenu_offre.nombre', fr: 'ce que l\'offre comprend est un nombre de 0 à 1000 ; un module est compris ou acheté seul' },
+  { base: 'un nouveau contenu commence au plus tôt le %s : c\'est le préavis en vigueur', cle: 'base.contenu_offre.trop_tot', fr: 'un nouveau contenu commence au plus tôt le {jour} : c\'est le préavis en vigueur', valeurs: ['jour'] },
+  { base: 'un changement est déjà préparé pour cette ligne : retire-le avant d\'en préparer un autre', cle: 'base.contenu_offre.deja_prepare', fr: 'un changement est déjà préparé pour cette ligne : retire-le avant d\'en préparer un autre' },
+  { base: 'c\'est déjà ce que l\'offre comprend : rien ne changerait', cle: 'base.contenu_offre.meme_contenu', fr: 'c\'est déjà ce que l\'offre comprend : rien ne changerait' },
+  { base: 'retirer un changement de contenu demande son motif (trois caractères au moins)', cle: 'base.contenu_offre.retirer_motif', fr: 'retirer un changement de contenu demande son motif (trois caractères au moins)' },
+  { base: 'ce changement n\'existe pas, ou il a déjà été retiré : relis le contenu des offres', cle: 'base.contenu_offre.introuvable', fr: 'ce changement n\'existe pas, ou il a déjà été retiré : relis le contenu des offres' },
+  { base: 'ce contenu est déjà en vigueur : il ne se retire plus ; prépare-en un nouveau', cle: 'base.contenu_offre.deja_en_vigueur', fr: 'ce contenu est déjà en vigueur : il ne se retire plus ; prépare-en un nouveau' },
   { base: 'le total n\'est pas celui de la grille au premier jour de la période : relis-le avant de préparer la facture', cle: 'base.factures.prix_premier_jour', fr: 'le total n\'est pas celui de la grille au premier jour de la période : relis-le avant de préparer la facture' },
 ];
 

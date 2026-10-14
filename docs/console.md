@@ -525,8 +525,9 @@ fait depuis l'écran « Équipe ». La console s'ouvre à `https://<le serveur>/
   (13/10/2026) : Échap, la croix et son bouton « Annuler » passent par la même garde (`Dialogue`, `Bouton ferme`) et
   posent « Abandonner cette saisie ? » à la place des boutons, le curseur sur « Reprendre la saisie » (Entrée ne jette
   rien ; Échap, encore, reprend). Choisir dans une liste n'est pas taper : une fenêtre où l'on n'a fait que choisir se
-  ferme sans question. L'instantané se prend à l'ouverture, ce que la fenêtre préremplit ne compte pas ; un geste réussi
-  la referme sans rien demander. **Le refus d'un motif reste jusqu'au clic suivant** : effacé à la frappe, il ferait
+  ferme sans question, même quand ce choix remplace un champ vide par une liste (14/10/2026 : chaque champ se reconnaît à
+  son identifiant, un champ vide ne compte pas). L'instantané se prend à l'ouverture, ce que la fenêtre préremplit ne
+  compte pas ; un geste réussi la referme sans rien demander. **Le refus d'un motif reste jusqu'au clic suivant** : effacé à la frappe, il ferait
   remonter les boutons sous le curseur.
 - **La console n'est pas l'API des partenaires** : ses routes n'entrent pas dans la documentation de l'API.
 - **Les montants des échéances sont hors taxes, au prix du jour** : la TVA et le timbre de nos factures viennent avec
@@ -612,11 +613,19 @@ l'écran le dit en tête au support. Quatre onglets, l'adresse garde l'onglet (`
   `docs/abonnement.md` C14) : « Préparer un nouveau prix… » (une offre ou un ajout, à l'année ou au mois, le montant, la
   date), avec l'aperçu du serveur (le prix d'aujourd'hui barré, le nouveau, l'écart, qui l'a aujourd'hui), au plus tôt
   après le préavis (30 jours, réglable : « Changer le préavis… ») ; sous la grille, chaque prix à venir dit qui l'a
-  préparé, quand et pourquoi, et se retire avant sa date. Un prix en vigueur ne change plus. Sous la grille, **« Ce qui s'ajoute à l'offre »** (14c, 1.10.0 ; `0101`,
+  préparé, quand et pourquoi, et se retire avant sa date. Un prix en vigueur ne change plus. Sous la grille, **« Ce que
+  chaque offre comprend »** (1.14.0 ; `0105` ; `docs/abonnement.md` C16) : les caisses, les établissements, les salariés
+  avec la paie (des nombres), la paie et la comptabilité complète (comprise ou achetée seule, en pastille), pour
+  Essentiel et Complet ; les salariés sont ceux dont l'entreprise fait la fiche de paie, jamais les personnes qui
+  utilisent SkanFact (la ligne le dit). Un changement se prépare comme un prix (« Préparer un changement… » : l'offre,
+  puis ce qui change, deux listes courtes ; un module s'y propose dans l'autre état que le sien ; même préavis), se
+  dit dans sa case (« → 3 le 13/11/2026 ») et sous la grille avec qui l'a préparé et pourquoi, et se retire avant sa
+  date ; l'aperçu dit qui a l'offre aujourd'hui, et avertit avant le geste d'une offre Essentiel qui comprendrait plus que
+  Complet, ou d'un module retiré à des abonnés. Ensuite, **« Ce qui s'ajoute à l'offre »** (14c, 1.10.0 ; `0101`,
   `plateforme.console_ajouts`) : chaque ajout que la facture compte (une caisse, un établissement, un salarié de plus,
-  la paie ou la comptabilité complète achetée seule ; jamais un utilisateur, sans limite depuis 1.11.0), ce que chaque offre en comprend, ses prix datés
-  (`plateforme.prix_option`) rangés comme ceux des offres, et pour un module, les abonnés Essentiel du jour qui l'ont
-  acheté (le même état que la liste des clients). Sous la frise, **« Nos factures »** (14b, 1.5.0 ; `docs/abonnement.md`
+  la paie ou la comptabilité complète achetée seule ; jamais un utilisateur, sans limite depuis 1.11.0), ce que chaque offre en comprend (lu dans le contenu du jour),
+  ses prix datés (`plateforme.prix_option`) rangés comme ceux des offres, et pour un module, les abonnés du jour dont
+  l'offre ne le contient pas et qui l'ont acheté (le même état que la liste des clients). Sous la frise, **« Nos factures »** (14b, 1.5.0 ; `docs/abonnement.md`
   B1) : l'entreprise SkanFact où nos factures naissent, désignée une fois par sa propriétaire de la direction (motif,
   journal `factures.editeur`), avec qui l'a désignée et combien de factures y sont préparées ; elle se change tant
   qu'aucune ne l'est.

@@ -45,6 +45,7 @@ type Donnees = {
   aujourdhui: string; role: 'direction' | 'support' | 'technique';
   grille: LigneGrille[]; ajouts: LigneAjout[]; preavis: Preavis | null; essai: { jours: number | null; enCours: number };
   echeance: { relances: number[]; grace: number | null; enGrace: number }; regles: Record<CodeRegle, RegleAbonnement | null>;
+  contenu: Contenus;
   registre: Regle[]; message: Message | null; passes: Message[]; formats: Format[];
   factures: NosFactures;
 };
@@ -60,10 +61,19 @@ type Format = {
   chiffres: Record<string, number | string | null> | null; branche: boolean | null; alerte: boolean;
 };
 type Geste = { sorte: 'relire'; regle: Regle } | { sorte: 'ecrire' } | { sorte: 'retirer'; message: Message } | { sorte: 'editeur' }
-  | { sorte: 'prix' } | { sorte: 'retirer_prix'; quoi: QuoiPrix; v: AVenir } | { sorte: 'preavis' } | { sorte: 'regle'; code: CodeRegle };
+  | { sorte: 'prix' } | { sorte: 'retirer_prix'; quoi: QuoiPrix; v: AVenir } | { sorte: 'preavis' } | { sorte: 'regle'; code: CodeRegle }
+  | { sorte: 'contenu' } | { sorte: 'retirer_contenu'; v: ContenuAVenir };
 // Les règles de l'abonnement réglées ici (0104) : chacune telle qu'elle vaut aujourd'hui, qui l'a posée et pourquoi.
 type CodeRegle = 'essai' | 'grace' | 'relances';
 type RegleAbonnement = { jours: number[]; aPartirDu: string; motif: string; par: string | null; le: string };
+// Ce que chaque offre comprend (0105) : un nombre (caisses, établissements, salariés avec la paie) ; pour un module, 1
+// compris, 0 acheté seul ; rien quand aucune ligne ne vaut. Chaque changement préparé, avec qui et pourquoi.
+type QuoiContenu = 'caisses' | 'etablissements' | 'salaries' | 'paie' | 'compta';
+const QUOI_CONTENU: readonly QuoiContenu[] = ['caisses', 'etablissements', 'salaries', 'paie', 'compta'];
+type ContenuDuJour = Record<QuoiContenu, number | null>;
+type ContenuAVenir = { offre: Offre; quoi: QuoiContenu; nombre: number; aPartirDu: string; motif: string | null; par: string | null; le: string | null };
+type Contenus = { duJour: Record<Offre, ContenuDuJour>; aVenir: ContenuAVenir[] };
+const estModule = (q: QuoiContenu) => q === 'paie' || q === 'compta';
 
 // Un jour de calendrier lu par une personne : 19/11/2026 (le serveur rend « 2026-11-19 »).
 const jour = (j: string) => jourCourt(j);
@@ -154,6 +164,7 @@ function Prix({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut:
         <p className="c-sous">{phrase(`${K}.p.note`)}</p>
         <LePreavis d={d} geste={geste} peut={peut} />
       </section>
+      <CeQueComprend d={d} geste={geste} peut={peut} />
       <Ajouts d={d} geste={geste} peut={peut} />
       <section className="c-carte c-rg" aria-labelledby="rg-echeance">
         <div className="c-al-section-tete"><div>
@@ -202,7 +213,7 @@ function Ajouts({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peu
                 <tr key={l.option} data-option={l.option}>
                   <td>
                     <b>{titre(`${K}.a.nom.${l.option}`)}</b>
-                    <span className="c-sous c-bloc">{phrase(`${K}.a.compris.${l.option}`)}</span>
+                    <span className="c-sous c-bloc">{comprisDe(l.option, d.contenu.duJour)}</span>
                     {l.aVenir.map((v) => (
                       <span key={`${v.periodicite}${v.aPartirDu}`} className="c-rg-avenir">
                         {phrase(`${K}.p.a_venir`, { prix: montant(v.ht), periode: dire(`${K}.p.periode.${v.periodicite}`), jour: jour(v.aPartirDu) })}
@@ -221,6 +232,86 @@ function Ajouts({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peu
       </div>
       <PrixAVenir lignes={d.ajouts.flatMap((l) => l.aVenir.map((v) => ({ quoi: l.option as QuoiPrix, v })))} aujourdhui={d.aujourdhui} geste={geste} peut={peut} />
       <p className="c-sous">{phrase(`${K}.a.note`)}</p>
+    </section>
+  );
+}
+
+// Sous chaque ajout : ce que chaque offre en comprend aujourd'hui (0105), lu comme la carte de l'application le dit.
+function comprisDe(option: Ajout, c: Record<Offre, ContenuDuJour>): string {
+  const e = c.essentiel, x = c.complet;
+  if (option === 'caisse' || option === 'etablissement') {
+    const q = option === 'caisse' ? 'caisses' : 'etablissements';
+    return e[q] === null || x[q] === null ? phrase(`${K}.a.compris.inconnu`) : phrase(`${K}.a.compris.${option}`, { e: entier(e[q]), c: entier(x[q]) });
+  }
+  if (option === 'salarie') return e.salaries === null || x.salaries === null ? phrase(`${K}.a.compris.inconnu`)
+    : phrase(`${K}.a.compris.salarie`, { e: entier(e.salaries), c: entier(x.salaries) });
+  const m = option === 'module_paie' ? 'paie' : 'compta';
+  if (e[m] === null || x[m] === null) return phrase(`${K}.a.compris.inconnu`);
+  return phrase(`${K}.a.compris.module_e${e[m]}c${x[m]}`);
+}
+
+// Ce qu'une ligne comprend, en mots : « 2 caisses comprises », « la paie comprise », « la paie achetée seule ».
+const contenuEnMots = (q: QuoiContenu, n: number) => selon(n, `${K}.c.dit.${q}`);
+// La case d'un contenu : le nombre, ou pour un module « comprise » / « achetée seule », ou « — » quand rien ne vaut.
+const caseDeContenu = (q: QuoiContenu, n: number | null) => (n === null ? '—' : estModule(q) ? dire(`${K}.c.module_${n === 1 ? 'compris' : 'seul'}`) : entier(n));
+
+// ── Ce que chaque offre comprend (0105) : la grille datée que l'application dit sur ses cartes, que la facture compte
+// avant d'ajouter, et que la porte des modules lit ; un changement se prépare avec le préavis d'un prix ──────────────
+function CeQueComprend({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut: boolean }) {
+  const c = d.contenu;
+  return (
+    <section className="c-carte c-rg c-rg-contenu-carte" aria-labelledby="rg-contenu">
+      <div className="c-al-section-tete">
+        <div>
+          <h2 id="rg-contenu">{titre(`${K}.c.titre`)}</h2>
+          <p className="c-carte-sous">{phrase(`${K}.c.sous`)}</p>
+        </div>
+        {peut ? <Bouton icone="plus" onClick={() => geste({ sorte: 'contenu' })}>{titre(`${K}.c.preparer`)}</Bouton> : null}
+      </div>
+      <div className="c-defile">
+        <table className="c-table c-rg-grille c-rg-contenu">
+          <thead><tr>
+            <th scope="col">{titre(`${K}.c.col.quoi`)}</th>
+            {OFFRES_PRIX.map((o) => <th key={o} scope="col" className="c-droite">{titre(`${K}.p.offre.${o}`)}</th>)}
+          </tr></thead>
+          <tbody>
+            {QUOI_CONTENU.map((q) => (
+              <tr key={q} data-quoi={q}>
+                <td><b>{titre(`${K}.c.quoi.${q}`)}</b><span className="c-sous c-bloc">{phrase(`${K}.c.aide.${q}`)}</span></td>
+                {OFFRES_PRIX.map((o) => (
+                  <td key={o} className="c-droite" data-libelle={titre(`${K}.p.offre.${o}`)} data-offre={o}>
+                    {/* Un nombre, en chiffres ; un module, comprise ou achetée seule, en pastille. */}
+                    {estModule(q) && c.duJour[o][q] !== null ? <Puce ton={c.duJour[o][q] === 1 ? 'actif' : 'hors'}>{caseDeContenu(q, c.duJour[o][q])}</Puce>
+                      : <span className="c-rg-montant" data-donnee>{caseDeContenu(q, c.duJour[o][q])}</span>}
+                    {c.aVenir.filter((v) => v.offre === o && v.quoi === q).map((v) => (
+                      <span key={v.aPartirDu} className="c-rg-avenir c-rg-avenir-droite">
+                        {dire(`${K}.c.a_venir`, { valeur: caseDeContenu(q, v.nombre), jour: jour(v.aPartirDu) })}
+                      </span>
+                    ))}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {c.aVenir.length ? (
+        <ul className="c-rg-venir-liste">
+          {c.aVenir.map((v) => (
+            <li key={`${v.offre}-${v.quoi}-${v.aPartirDu}`} className="c-rg-venir" data-offre={v.offre} data-quoi={v.quoi}>
+              <div className="c-rg-venir-texte">
+                <b>{titre(`${K}.c.venir.titre`, { offre: dire(`${K}.p.offre.${v.offre}`), jour: jour(v.aPartirDu), dit: contenuEnMots(v.quoi, v.nombre) })}</b>
+                <span className="c-sous c-bloc">
+                  {v.par && v.le ? titre(`${K}.p.venir.par`, { nom: v.par, quand: quand(v.le, d.aujourdhui) }) : phrase(`${K}.p.venir.migration`)}
+                  {v.motif ? <> <span data-donnee>« {v.motif} »</span></> : null}
+                </span>
+              </div>
+              {peut ? <Bouton petit onClick={() => geste({ sorte: 'retirer_contenu', v })}>{titre(`${K}.p.venir.retirer`)}</Bouton> : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <p className="c-sous">{phrase(`${K}.c.note`)}</p>
     </section>
   );
 }
@@ -556,7 +647,7 @@ function Messages({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; p
 }
 
 // ── Les gestes : chacun dit ce qui va se passer, demande son motif, et entre au journal ─────────────────────────────
-function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix' } | { sorte: 'regle' }>; d: Donnees; fermer: () => void; fait: () => void }) {
+function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix' } | { sorte: 'regle' } | { sorte: 'contenu' }>; d: Donnees; fermer: () => void; fait: () => void }) {
   const api = useApi();
   const { moi } = useConsole();
   const [motif, setMotif] = useState('');
@@ -593,6 +684,7 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix
           : g.sorte === 'ecrire' ? await api('POST', '/console/reglages/messages', { sorte, texte: texte.trim(), du, au, motif: motif.trim() })
             : g.sorte === 'editeur' ? await api('POST', '/console/reglages/factures/editeur', { entreprise, motif: motif.trim() })
               : g.sorte === 'retirer_prix' ? await api('POST', '/console/reglages/prix/retirer', { quoi: g.quoi, periodicite: g.v.periodicite, aPartirDu: g.v.aPartirDu, motif: motif.trim() })
+                : g.sorte === 'retirer_contenu' ? await api('POST', '/console/reglages/contenu/retirer', { offre: g.v.offre, quoi: g.v.quoi, aPartirDu: g.v.aPartirDu, motif: motif.trim() })
                 : g.sorte === 'preavis' ? await api('POST', '/console/reglages/preavis', { jours: Number(jours.trim()), motif: motif.trim() })
                   : await api('POST', `/console/reglages/messages/${g.message.id}/retirer`, { motif: motif.trim() });
         if (!res) return;
@@ -604,11 +696,12 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix
   const fauteDe = (champ: string) => ({ faute: faute?.champ === champ, n: faute?.champ === champ ? faute.n : 0 });
   const choisie = choisissables.find((p) => p.entreprise === entreprise);
   const valeurs = g.sorte === 'relire' ? { regle: nomDeRegle(g.regle) } : g.sorte === 'retirer' ? { du: jour(g.message.du), au: jour(g.message.au) }
-    : g.sorte === 'editeur' ? { nom: choisie?.raisonSociale ?? '—' } : g.sorte === 'retirer_prix' ? { jour: jour(g.v.aPartirDu) }
+    : g.sorte === 'editeur' ? { nom: choisie?.raisonSociale ?? '—' } : g.sorte === 'retirer_prix' || g.sorte === 'retirer_contenu' ? { jour: jour(g.v.aPartirDu) }
       : g.sorte === 'preavis' ? { n: d.preavis?.jours ?? '—' } : {};
   const sous = g.sorte === 'relire' ? nomEtCode(g.regle) : g.sorte === 'retirer' ? g.message.texte
     : g.sorte === 'retirer_prix' ? titre(`${K}.p.venir.titre`, { quoi: nomDe(g.quoi), periode: dire(`${K}.p.periode.${g.v.periodicite}`), prix: montant(g.v.ht), jour: jour(g.v.aPartirDu) })
-      : undefined;
+      : g.sorte === 'retirer_contenu' ? titre(`${K}.c.venir.titre`, { offre: dire(`${K}.p.offre.${g.v.offre}`), jour: jour(g.v.aPartirDu), dit: contenuEnMots(g.v.quoi, g.v.nombre) })
+        : undefined;
   const remplace = g.sorte === 'ecrire' && d.message;
   return (
     <Dialogue titre={titre(`${K}.g.${g.sorte}.titre`, valeurs)} sous={sous}
@@ -842,6 +935,118 @@ function FenetreRegle({ code, d, fermer, fait }: { code: CodeRegle; d: Donnees; 
   );
 }
 
+// ── Changer ce qu'une offre comprend (0105) : la ligne, la nouvelle valeur, la date ; l'aperçu, calculé sur ce que
+// l'écran a lu, dit ce qui change, qui l'a aujourd'hui, et ce qui demande un regard (une offre qui comprendrait plus que
+// Complet, un module que des abonnés perdraient). La base vérifie le préavis et les bornes à son tour.
+// Ce que comprendra une offre un jour donné : le dernier changement préparé avant ce jour, sinon celui d'aujourd'hui.
+function contenuAu(c: Contenus, offre: Offre, quoi: QuoiContenu, jourVise: string): number | null {
+  const prepares = c.aVenir.filter((v) => v.offre === offre && v.quoi === quoi && v.aPartirDu <= jourVise).sort((a, b) => (a.aPartirDu < b.aPartirDu ? -1 : 1));
+  return prepares.at(-1)?.nombre ?? c.duJour[offre][quoi];
+}
+function FenetreContenu({ d, fermer, fait }: { d: Donnees; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const plusTot = d.preavis ? plusJours(d.aujourdhui, d.preavis.jours) : d.aujourdhui;
+  // L'offre, puis ce qui change : deux listes courtes plutôt qu'une longue. Le nombre tapé reste quand on change d'offre,
+  // pas quand on change de ligne (il ne compterait plus la même chose). Un module se propose d'emblée dans l'autre état
+  // que le sien aujourd'hui : c'est le seul changement possible.
+  const [offre, setOffre] = useState<Offre>('essentiel');
+  const [quoi, setQuoi] = useState<QuoiContenu>('caisses');
+  const [tape, setTape] = useState('');
+  const inverseDe = (o: Offre, q: QuoiContenu): '1' | '0' => (d.contenu.duJour[o][q] === 1 ? '0' : '1');
+  const [module, setModule] = useState<'1' | '0'>(inverseDe('essentiel', 'caisses'));
+  const [refus, setRefus] = useState<string | null>(null);
+  const choisir = (o: Offre, q: QuoiContenu) => {
+    if (q !== quoi) setTape('');
+    setOffre(o); setQuoi(q); setModule(inverseDe(o, q)); setRefus(null);
+  };
+  const [date, setDate] = useState(plusTot);
+  const [motif, setMotif] = useState('');
+  const [faute, setFaute] = useState<{ champ: string; n: number } | null>(null);
+  const [occupe, setOccupe] = useState(false);
+  const avant = d.contenu.duJour[offre][quoi];
+  const dateLisible = /^\d{4}-\d{2}-\d{2}$/.test(date);
+  const nombre = estModule(quoi) ? Number(module) : /^\d{1,4}$/.test(tape.trim()) && Number(tape) <= 1000 ? Number(tape) : null;
+  const deja = d.contenu.aVenir.find((v) => v.offre === offre && v.quoi === quoi) ?? null;
+  const meme = nombre !== null && nombre === avant;
+  // Ce jour-là, l'autre offre : Essentiel ne devrait jamais comprendre plus que Complet (la carte de Complet dit « Tout
+  // Essentiel »).
+  const autre: Offre = offre === 'essentiel' ? 'complet' : 'essentiel';
+  const chezLAutre = dateLisible ? contenuAu(d.contenu, autre, quoi, date) : null;
+  const inverse = nombre !== null && chezLAutre !== null && (offre === 'essentiel' ? nombre > chezLAutre : nombre < chezLAutre);
+  const ligne = d.grille.find((l) => l.offre === offre);
+  const abonnes = ligne ? ligne.abonnes.annuel + ligne.abonnes.mensuel : 0;
+  const refuser = (champ: string, cle: string, valeurs = {}) => { setRefus(phrase(cle, valeurs)); setFaute((f) => ({ champ, n: (f?.n ?? 0) + 1 })); };
+  const faire = () => {
+    if (nombre === null) { refuser('nombre', `${K}.g.contenu.illisible`); return; }
+    if (deja) { refuser('nombre', `${K}.g.contenu.deja`, { jour: jour(deja.aPartirDu) }); return; }
+    if (meme) { refuser('nombre', `${K}.g.contenu.meme`); return; }
+    if (!dateLisible || date < plusTot) { refuser('date', `${K}.g.contenu.trop_tot`, { jour: jour(plusTot) }); return; }
+    if (motif.trim().length < 3) { refuser('motif', 'console.ecran.geste.motif_court'); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const r = await api('POST', '/console/reglages/contenu', { offre, quoi, nombre, aPartirDu: date, motif: motif.trim() });
+        if (!r) return;
+        if (r.statut === 201) { toast(phrase(`${K}.g.contenu.fait`)); fait(); return; }
+        setRefus(refusDe(r));
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  const fauteDe = (champ: string) => ({ faute: faute?.champ === champ, n: faute?.champ === champ ? faute.n : 0 });
+  const valeurs = { offre: dire(`${K}.p.offre.${offre}`), autre: dire(`${K}.p.offre.${autre}`), jour: dateLisible ? jour(date) : '…' };
+  const pret = nombre !== null && !meme && !deja;
+  return (
+    <Dialogue titre={titre(`${K}.g.contenu.titre`)} fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} desactive={!pret} onClick={faire}>{titre(`${K}.g.contenu.bouton`)}</Bouton>
+      </>}>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
+        <ul>{['p1', 'p2', 'p3'].map((p) => <li key={p}>{phrase(`${K}.g.contenu.${p}`, valeurs)}</li>)}</ul>
+      </div>
+      <div className="c-rg-dates">
+        <Choix libelle={titre(`${K}.g.contenu.offre`)} valeur={offre} changer={(v) => choisir(v === 'complet' ? 'complet' : 'essentiel', quoi)}
+          options={OFFRES_PRIX.map((o) => ({ valeur: o, texte: titre(`${K}.p.offre.${o}`) }))} />
+        <Choix libelle={titre(`${K}.g.contenu.quoi`)} valeur={quoi} changer={(v) => choisir(offre, QUOI_CONTENU.find((q) => q === v) ?? 'caisses')}
+          options={QUOI_CONTENU.map((q) => ({ valeur: q, texte: titre(`${K}.c.quoi.${q}`) }))} />
+      </div>
+      <div className="c-rg-dates">
+        {estModule(quoi)
+          ? <Choix libelle={titre(`${K}.c.quoi.${quoi}`)} valeur={module} changer={(v) => setModule(v === '0' ? '0' : '1')}
+            aide={phrase(`${K}.g.contenu.module_aide`, { quoi: dire(`${K}.c.quoi.${quoi}`), etat: caseDeContenu(quoi, avant) })}
+            options={[{ valeur: '1', texte: titre(`${K}.g.contenu.module_compris`) }, { valeur: '0', texte: titre(`${K}.g.contenu.module_seul`) }]} />
+          : <Champ libelle={titre(`${K}.g.contenu.nombre`)} type="number" inputMode="numeric" min={0} max={1000} autoComplete="off" valeur={tape} changer={setTape}
+            premier {...fauteDe('nombre')} aide={phrase(`${K}.g.contenu.nombre_aide`, { avant: caseDeContenu(quoi, avant) })} />}
+        <Champ libelle={titre(`${K}.g.prix.date`)} type="date" min={plusTot} valeur={date} changer={setDate} {...fauteDe('date')}
+          aide={phrase(`${K}.g.contenu.date_aide`, { jour: jour(plusTot) })} />
+      </div>
+      {/* L'aperçu garde sa place dès l'ouverture : le motif, dessous, ne bouge pas pendant qu'on tape. */}
+      <div className="c-champs">
+        <span className="c-champ-libelle">{titre(`${K}.g.prix.apercu`)}</span>
+        <div className="c-apercu-zone c-rg-prix-zone">
+          {deja ? <p className="c-apercu-attente c-apercu-refus">{phrase(`${K}.g.contenu.deja`, { jour: jour(deja.aPartirDu) })}</p>
+            : nombre === null ? <p className={`c-apercu-attente${tape.trim() ? ' c-apercu-refus' : ''}`}>{phrase(tape.trim() ? `${K}.g.contenu.illisible` : `${K}.g.contenu.apercu_attente`)}</p>
+              : meme ? <p className="c-apercu-attente c-apercu-refus">{phrase(`${K}.g.contenu.meme`)}</p>
+                : (
+                  <div className="c-rg-prix-apercu" role="status">
+                    <p>{maj(dire(`${K}.p.offre.${offre}`))} : {avant !== null ? <><del data-donnee>{contenuEnMots(quoi, avant)}</del> → </> : null}
+                      <ins data-donnee>{contenuEnMots(quoi, nombre)}</ins></p>
+                    {inverse ? <p className="c-rg-prix-attention">{phrase(`${K}.g.contenu.inverse.${offre}`, { ...valeurs, chez: contenuEnMots(quoi, chezLAutre ?? 0) })}</p>
+                      : estModule(quoi) && nombre === 0 && abonnes > 0 ? <p className="c-rg-prix-attention">{maj(selon(abonnes, `${K}.g.contenu.perdent`, valeurs))}.</p>
+                        : <p className="c-sous">{maj(selon(abonnes, `${K}.g.contenu.abonnes`, valeurs))}.</p>}
+                  </div>
+                )}
+        </div>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${K}.g.contenu.motif_aide`)} valeur={motif} changer={setMotif} {...fauteDe('motif')} />
+      <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus && pret ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
 // ── L'écran ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 export function Reglages({ onglet: demande }: { onglet: string | null }) {
   const [l, relire] = useLecture<Donnees>('/console/reglages', 'reglages');
@@ -884,6 +1089,7 @@ export function Reglages({ onglet: demande }: { onglet: string | null }) {
       {d && onglet === 'messages' ? <Messages d={d} geste={setGeste} peut={peut} /> : null}
       {geste && d ? (geste.sorte === 'prix' ? <FenetrePrix d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
         : geste.sorte === 'regle' ? <FenetreRegle code={geste.code} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
+        : geste.sorte === 'contenu' ? <FenetreContenu d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
           : <FenetreGeste g={geste} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />) : null}
     </>
   );

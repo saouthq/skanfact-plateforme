@@ -19,12 +19,13 @@ type Ligne = {
   // Un geste du service (serveur/console/alertes.ts, `sujetDuService`) : la règle visée, l'alerte d'essai, la fin prévue.
   service?: { regle: string | null; essai: boolean; fin: string | null };
   // Un geste des réglages (serveur/console/reglages.ts, `sujetDesReglages`) : la règle relue et l'avis, les deux jours du
-  // message, le prix préparé ou retiré, ou le préavis.
+  // message, le prix préparé ou retiré, le préavis, une règle de l'abonnement, ou ce qu'une offre comprend.
   reglages?: {
     regle: string | null; reluePar: string | null; avis: 'juste' | 'a_corriger' | null; du: string | null; au: string | null;
     prix: { quoi: string; periodicite: 'annuel' | 'mensuel'; aPartirDu: string | null; avant: string | null; apres: string | null } | null;
     preavis: { avant: number | null; apres: number | null } | null;
     regleAbonnement?: { code: 'essai' | 'grace' | 'relances'; avant: number[] | null; apres: number[] | null } | null;
+    contenu?: { offre: 'essentiel' | 'complet'; quoi: 'caisses' | 'etablissements' | 'salaries' | 'paie' | 'compta'; aPartirDu: string | null; avant: number | null; apres: number | null } | null;
   };
 };
 type Page = { lignes: Ligne[]; suite: string | null };
@@ -56,6 +57,7 @@ function SurLesReglages({ r }: { r: NonNullable<Ligne['reglages']> }) {
   if (r.prix) return <a href="#/reglages">{titre('console.ecran.journal.sur_prix', { quoi: nomDuPrix(r.prix.quoi), periode: dire(`console.ecran.reglages.p.periode.${r.prix.periodicite}`) })}</a>;
   if (r.preavis) return <a href="#/reglages">{titre('console.ecran.journal.sur_preavis')}</a>;
   if (r.regleAbonnement) return <a href="#/reglages">{titre(`console.ecran.journal.sur_regle_abo.${r.regleAbonnement.code}`)}</a>;
+  if (r.contenu) return <a href="#/reglages">{titre('console.ecran.journal.sur_contenu', { offre: dire(`console.ecran.reglages.p.offre.${r.contenu.offre}`), quoi: dire(`console.ecran.reglages.c.quoi.${r.contenu.quoi}`) })}</a>;
   return r.regle ? <a href="#/reglages?onglet=regles">{titre('console.ecran.journal.sur_regle_commune', { code: r.regle })}</a>
     : <a href="#/reglages?onglet=messages">{titre('console.ecran.journal.sur_message')}</a>;
 }
@@ -79,6 +81,19 @@ function ChangeDesReglages({ geste, r }: { geste: string; r: NonNullable<Ligne['
   if (r.regleAbonnement) {
     const jours = (j: number[] | null) => (j === null ? '—' : j.length === 1 ? selon(j[0] ?? 0, 'console.ecran.journal.jours') : dire('console.ecran.journal.jours_liste', { liste: j.join(', ') }));
     return <span className="c-changes"><span className="c-change"><del data-donnee>{jours(r.regleAbonnement.avant)}</del> → <ins data-donnee>{jours(r.regleAbonnement.apres)}</ins></span></span>;
+  }
+  // Ce qu'une offre comprend (0105) : comme un prix, ce qu'elle comprenait barré, le nouveau à sa date ; retiré, le
+  // changement retiré (à sa date) barré, ce qui reste.
+  if (r.contenu) {
+    const c = r.contenu;
+    const date = c.aPartirDu ? ` ${dire('console.ecran.journal.a_partir_du', { jour: jourCourt(c.aPartirDu) })}` : '';
+    const retire = geste === 'reglages.contenu_retire';
+    const dit = (n: number | null) => (n === null ? '—' : selon(n, `console.ecran.reglages.c.dit.${c.quoi}`));
+    return (
+      <span className="c-changes"><span className="c-change">
+        <del data-donnee>{dit(c.avant)}{retire ? date : ''}</del> → <ins data-donnee>{dit(c.apres)}{retire ? '' : date}</ins>
+      </span></span>
+    );
   }
   const t = r.regle && r.reluePar ? dire(`console.ecran.journal.relue_${r.avis === 'a_corriger' ? 'corriger' : 'juste'}`, { qui: r.reluePar })
     : r.du && r.au ? dire('console.ecran.journal.du_au', { du: jourCourt(r.du), au: jourCourt(r.au) }) : null;

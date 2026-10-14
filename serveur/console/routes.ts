@@ -37,7 +37,7 @@ import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe
 import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
 import {
-  ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, lireReglesAbonnement, CODES_REGLE, preparesPar, QUOI_PRIX, registre, sujetDesReglages, type QuoiPrix,
+  ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, lireReglesAbonnement, CODES_REGLE, lireContenuOffres, QUOI_CONTENU, preparesPar, QUOI_PRIX, registre, sujetDesReglages, type QuoiPrix,
 } from './reglages.ts';
 import { lireFormats, registreDesFormats } from './formats.ts';
 import { articleConnu, articlesDeLAide, CANAUX_NOTES, compter, etatDe, lireSupport, ranger, SANS_REPONSE_HEURES, suggererPour } from './support.ts';
@@ -924,6 +924,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const prepares = lirePrixPrepares(await lireJson(x, 'select plateforme.console_prix_prepares($1::date) v', [jour]));
       // L'essai, la grâce et les relances (0104) : chacune telle qu'elle vaut aujourd'hui, qui l'a posée et pourquoi.
       const regles = lireReglesAbonnement(await lireJson(x, 'select plateforme.console_regles_abonnement($1::date) v', [jour]));
+      // Ce que chaque offre comprend (0105) : le contenu du jour et ce qui est préparé.
+      const contenu = lireContenuOffres(await lireJson(x, 'select plateforme.console_contenu_offres($1::date) v', [jour]));
       // Les formats officiels : le registre du code, ce que la plateforme en a fait (0094), et si ce serveur a l'adresse
       // de la TTN et de DigiGo (sans elle, les pièces attendent).
       const formats = registreDesFormats(lireFormats(await lireJson(x, 'select plateforme.console_formats() v')), { teif: versionTeif() },
@@ -934,13 +936,14 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           grille: preparesPar(grille(r.prix, entreprises, jour), (l) => l.offre, prepares.aVenir),
           essai: { jours: regles.essai?.jours[0] ?? null, enCours: essaisEnCours(entreprises) },
           // Ce qui s'ajoute à l'offre (14c) : ses prix datés, et les modules achetés seuls par les abonnés d'aujourd'hui.
-          ajouts: preparesPar(grilleAjouts(lireAjouts(await lireJson(x, 'select plateforme.console_ajouts($1::date) v', [jour])), entreprises, jour),
+          ajouts: preparesPar(grilleAjouts(lireAjouts(await lireJson(x, 'select plateforme.console_ajouts($1::date) v', [jour])), entreprises, jour, contenu.duJour),
             (l) => l.option, prepares.aVenir),
           preavis: prepares.preavis,
           // Les entreprises en grâce aujourd'hui (le même état que la liste des clients) : une grâce changée ne les touche pas.
           echeance: { relances: [...(regles.relances?.jours ?? [])].sort((a, b) => b - a), grace: regles.grace?.jours[0] ?? null,
             enGrace: entreprises.filter((e) => e.etat.etat === 'en_retard').length },
           regles,
+          contenu,
           registre: registre(r.regles, jour),
           message: r.messages.find((m) => m.enCours) ?? null, passes: r.messages.filter((m) => !m.enCours).slice(0, 30),
           formats,
@@ -997,7 +1000,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
         const entreprises = await lesEntreprises(x, jour);
         const prepares = lirePrixPrepares(await lireJson(x, 'select plateforme.console_prix_prepares($1::date) v', [jour]));
         const offre = corps.quoi === 'essentiel' || corps.quoi === 'complet' ? grille(r.prix, entreprises, jour).find((l) => l.offre === corps.quoi) : null;
-        const ajout = offre ? null : grilleAjouts(lireAjouts(await lireJson(x, 'select plateforme.console_ajouts($1::date) v', [jour])), entreprises, jour)
+        const contenu = offre ? null : lireContenuOffres(await lireJson(x, 'select plateforme.console_contenu_offres($1::date) v', [jour]));
+        const ajout = offre ? null : grilleAjouts(lireAjouts(await lireJson(x, 'select plateforme.console_ajouts($1::date) v', [jour])), entreprises, jour, contenu?.duJour ?? null)
           .find((l) => l.option === corps.quoi);
         const ligne = offre ?? ajout;
         const avant = ligne?.[corps.periodicite]?.ht ?? null;
@@ -1034,6 +1038,27 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     traiter: async ({ corps }, tx) => {
       const instant = maintenant();
       await transaction(tx).query('select plateforme.console_regler_preavis($1, $2, $3, $4::date)', [corps.jours, corps.motif, instant, aujourdhuiATunis(instant)]);
+      return { corps: { ok: true } };
+    },
+  });
+  // Ce qu'une offre comprend (0105) : un changement préparé avec le préavis d'un prix, puis retiré avant sa date si besoin.
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/contenu', geste: 'console.reglages.gerer',
+    corps: z.object({ offre: z.enum(['essentiel', 'complet']), quoi: z.enum(QUOI_CONTENU), nombre: z.number().int().min(0).max(1000), aPartirDu: jourIso, motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const instant = maintenant();
+      await transaction(tx).query('select plateforme.console_preparer_contenu($1, $2, $3, $4::date, $5, $6, $7::date)',
+        [corps.offre, corps.quoi, corps.nombre, corps.aPartirDu, corps.motif, instant, aujourdhuiATunis(instant)]);
+      return { statut: 201, corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/contenu/retirer', geste: 'console.reglages.gerer',
+    corps: z.object({ offre: z.enum(['essentiel', 'complet']), quoi: z.enum(QUOI_CONTENU), aPartirDu: jourIso, motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const instant = maintenant();
+      await transaction(tx).query('select plateforme.console_retirer_contenu($1, $2, $3::date, $4, $5, $6::date)',
+        [corps.offre, corps.quoi, corps.aPartirDu, corps.motif, instant, aujourdhuiATunis(instant)]);
       return { corps: { ok: true } };
     },
   });

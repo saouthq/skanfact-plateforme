@@ -356,8 +356,62 @@ L'application ne dit plus aucun de ces nombres d'elle-même : « Ton abonnement 
 lus dans la réponse du serveur ; l'e-mail de relance dit la grâce de son échéance (« tout marche encore 3 jours », « dès
 le lendemain, l'entreprise passe en lecture seule »).
 
+**C16. Ce que chaque offre comprend se règle dans la console** (1.14.0 ; `0105` ; `07` « Tout se règle depuis la
+console », Skander, 14/10/2026). Une caisse et un établissement en Essentiel, deux en Complet ; dix salariés avec la
+paie en Essentiel, vingt en Complet ; la paie et la comptabilité complète comprises en Complet, achetées seules en
+Essentiel : ce contenu ne s'écrit plus dans le code (`MODULES_DE_COMPLET`, `inclus_de_l_offre` à deux arguments, les
+textes des cartes) ni dans une migration. Il vit dans `plateforme.contenu_offre`, daté comme un prix (une ligne par offre
+et par élément : un nombre ; pour un module, 1 compris, 0 acheté seul), et la direction le change dans Réglages › Offres
+et prix, « Ce que chaque offre comprend » (« Préparer un changement… »), avec son motif et sa ligne au journal
+(`reglages.contenu_prepare`, de ce que l'offre comprenait au nouveau) :
+- **un changement se prépare comme un prix** : au plus tôt après le même préavis (choix de Claude le 14/10/2026, à
+  confirmer par Skander : un contenu qui diminue est un changement de prix déguisé) ; un seul à venir par ligne ; jamais
+  ce que l'offre comprend déjà ; il se retire avant sa date (`reglages.contenu_retire`) ; en vigueur, il ne change ni ne
+  disparaît (la base le refuse, `plateforme.contenu_intouchable`) ;
+- **une période garde ce qu'elle comprend** : la facture compte au contenu du premier jour de la période, comme son prix
+  (`lignes_en_plus`, `ce_que_l_offre_compte`), et la porte des modules (`modulesFermes`) lit le contenu du premier jour
+  de la période qui court : un changement n'ouvre ni ne ferme rien au milieu d'une période. Un contenu qu'on ne connaît
+  pas ne ferme rien ;
+- **l'aperçu dit avant le geste** ce qui change (« Complet : 2 caisses comprises → 3 caisses comprises »), combien
+  d'entreprises ont l'offre aujourd'hui, et ce qui demande un regard : une offre Essentiel qui comprendrait plus que
+  Complet (dont la carte dit « Tout Essentiel ») ; un module retiré d'une offre qui a des abonnés (à leur prochaine
+  période, il se ferme chez eux, sauf acheté seul depuis leur fiche) ;
+- **le client le lit** dès qu'il est préparé, sur la carte de l'offre (« À partir du 13/11/2026 : trois caisses
+  comprises. », sans le motif) ; les lignes de chaque carte (« Une caisse au comptoir », « La paie, jusqu'à vingt
+  salariés ») et de « Au-delà de ce que l'offre comprend » (« Essentiel en comprend une ; Complet, deux. ») viennent des
+  nombres du jour ; la carte de son offre dit ce qu'elle ne contient pas d'après la même fonction que la porte du
+  serveur ;
+- la grille des ajouts de la console dit, sous chaque ajout, ce que chaque offre en comprend aujourd'hui ; « acheté
+  aujourd'hui » compte les abonnés dont l'offre ne contient pas le module.
+Ce que 1.14.0 ne fait pas : l'e-mail qui annonce un changement aux abonnés concernés (comme pour un prix) ; le message
+de la porte qui dit « fait partie de l'offre Complet » suppose encore que Complet contient la paie et la comptabilité
+complète (vrai au départ ; à revoir si la direction les en retire).
+
 **Ce que 14c ne fait pas** : passer à Complet ou acheter un module en libre-service (on écrit à contact@skanfact.tn,
 comme en 14a).
+
+## Revu à la souris (14/10/2026, C16 : ce que chaque offre comprend)
+
+Sur l'essai de l'outil humain, la base passée en `0105`, dans la console (Amira, direction) : Réglages › Offres et prix,
+« Ce que chaque offre comprend » : 1 et 2 caisses, 1 et 2 établissements, 10 et 20 salariés, la paie et la comptabilité
+« Achetée seule » en Essentiel et « Comprise » en Complet. « Préparer un changement… », Complet · caisses comprises, 3
+tapé au clavier : « Complet : 2 caisses comprises → 3 caisses comprises », 2 entreprises ont Complet ; préparé avec son
+motif : la case de Complet dit « → 3 le 13/11/2026 », et dessous qui l'a préparé et pourquoi. Chez Walid (Librairie Al
+Kitab, Essentiel, la paie achetée), « Ton abonnement » : la carte Complet annonce « À partir du 13/11/2026 : trois
+caisses comprises. », Essentiel « Aucun changement annoncé. », et la sienne dit que la paie est achetée en plus
+d'Essentiel et que la comptabilité complète est dans Complet. Retiré avec son motif ; le journal dit « Changement de
+contenu préparé » puis « retiré », de quoi à quoi. Corrigé pendant le parcours : « achetée seule » et « comprise » écrits
+dans la police des chiffres (devenus des pastilles), l'annonce dans la case aussi (raccourcie en « → 3 le … »), les
+colonnes qui s'élargissaient quand un changement s'annonce (largeur fixe), le bouton rejeté sous le titre (« Préparer
+un changement… »), et dans la fenêtre, la case du nombre plus haute que celle de la date (les deux cases alignées en
+haut, pour la fenêtre d'un prix aussi). Repris après la remarque de Skander (« salarié », pas clair : est-ce un
+utilisateur ?) : la ligne s'appelle « Salariés dans la paie » et dit que ce sont les employés dont l'entreprise fait la
+fiche de paie, pas les personnes qui utilisent SkanFact (sans limite) ; l'ajout, « Un salarié de plus dans la paie », dans
+la console comme chez le client. La fenêtre choisit l'offre puis ce qui change (deux listes courtes au lieu de dix choix
+d'un coup) ; un module s'y propose d'emblée dans l'autre état que le sien (la paie de Complet, comprise, se propose
+« Achetée seule, en plus », avec ce que les abonnés de Complet perdraient, en rouge) ; une liste choisie sans rien taper
+ne demande plus « Ce que tu viens de taper sera perdu » ; au téléphone, chaque ligne devient une fiche (Essentiel : 1,
+Complet : 2) au lieu d'une colonne Complet cachée à droite.
 
 ## Revu à la souris (14/10/2026, 1.11.0 : des utilisateurs sans limite)
 

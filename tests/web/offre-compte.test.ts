@@ -152,7 +152,7 @@ describe('ce que l\'offre compte, à la souris', () => {
       .toBe('La paie est achetée en plus d\'Essentiel. La comptabilité complète est dans Complet : ce qui existe se lit, mais rien de nouveau ne s\'y crée.');
     const plus = p.locator('#abo-plus li');
     expect((await plus.evaluateAll((e) => e.map((x) => (x as HTMLElement).dataset.option)))).toEqual(['caisse', 'etablissement', 'salarie', 'module_paie', 'module_compta']);
-    expect(net(await p.locator('#abo-plus li[data-option="salarie"]').innerText())).toBe('Un salarié de plus La paie en comprend dix sur Essentiel, vingt sur Complet. Aujourd\'hui : 11 salariés, 1 de plus que ton offre. 12 DT HT par an ou 1,200 DT HT par mois');
+    expect(net(await p.locator('#abo-plus li[data-option="salarie"]').innerText())).toBe('Un salarié de plus dans la paie La paie en comprend dix sur Essentiel, vingt sur Complet. Aujourd\'hui : 11 salariés, 1 de plus que ton offre. 12 DT HT par an ou 1,200 DT HT par mois');
     expect(net(await p.locator('.abo-histoire li').first().innerText())).toContain('Module acheté (la paie)');
     expect(net(await p.locator('#abonnement-panel').innerText())).toContain('Un prix par entreprise, jamais par utilisateur.');
     await p.locator('#abo-plus').scrollIntoViewIfNeeded();

@@ -10773,7 +10773,7 @@ prouver 'le détail de l'"'"'abonnement ouvert à tous les rôles' "serveur/abon
 prouver 'le motif d'"'"'un geste de SkanFact montré à l'"'"'entreprise' $AMG \
   "jsonb_build_object('le', v.le, 'nature', v.nature, 'apres', v.apres)" "jsonb_build_object('le', v.le, 'nature', v.nature, 'apres', v.apres, 'motif', v.motif)" \
   "$AB3"
-prouver 'les faits d'"'"'un abonnement lus par une personne d'"'"'ailleurs' base/migrations/0104_regles_abonnement.sql \
+prouver 'les faits d'"'"'un abonnement lus par une personne d'"'"'ailleurs' base/migrations/0105_contenu_offres.sql \
   '   where e.id = p_entreprise and e.id in (select socle.mes_entreprises())' '   where e.id = p_entreprise' \
   "$AB4"
 prouver 'la lecture seule jamais branchée à la porte' serveur/app.ts \
@@ -12878,7 +12878,7 @@ prouver 'une immobilisation nouvelle acceptée en Essentiel' serveur/abonnement/
   "  compta: ['assets']," "  compta: []," \
   "$OF1"
 prouver 'la paie qui reste fermée en Complet' serveur/abonnement/offre.ts \
-  "=== 'essentiel' ? MODULES_DE_COMPLET.filter((m) => !(f.modules ?? []).includes(m)) : [];" "!== null ? MODULES_DE_COMPLET.filter((m) => !(f.modules ?? []).includes(m)) : [];" \
+  'regleAu(f.contenu?.[offre]?.[m] ?? [], au)?.[0] === 0 && ' 'regleAu(f.contenu?.essentiel?.[m] ?? [], au)?.[0] === 0 && ' \
   "$OF1"
 prouver 'la grâce qui rouvre la paie d'"'"'un abonné Essentiel' serveur/abonnement/offre.ts \
   "  if (e.etat === 'en_retard' && !e.apresEssai) return f.offre;
@@ -12911,7 +12911,7 @@ OC1='un module acheté seul sur Essentiel : la direction l'"'"'ouvre avec son mo
 OC2='la facture compte ce qui dépasse l'"'"'offre et les modules achetés, au prix du jour de chaque ligne ; l'"'"'aperçu le dit, la pièce l'"'"'écrit, la base le rejoue'
 OCW='la direction ouvre la paie seule, la facture compte ce qui dépasse ; le client voit sa paie ouverte et les prix de ce qui s'"'"'ajoute'
 prouver 'un module acheté qui reste fermé chez le client' serveur/abonnement/offre.ts \
-  "MODULES_DE_COMPLET.filter((m) => !(f.modules ?? []).includes(m))" "[...MODULES_DE_COMPLET]" \
+  '=== 0 && !(f.modules ?? []).includes(m));' '=== 0);' \
   "$OC1"
 prouver 'un module acheté deux fois' serveur/abonnement/gestes.ts \
   "      if (avant.modules.includes(d.module)) throw new Refus('abonnement.geste.module_deja', { valeurs: { module: t(\`abonnement.module.\${d.module}\`) } });
@@ -12951,7 +12951,7 @@ prouver 'la console qui ne propose pas le module acheté seul' serveur/console/r
 " '' \
   "$OCW"
 prouver 'la carte Essentiel qui ignore la paie achetée' web/public/plateforme/abonnement.js \
-  'esc(ceQuiResteDansComplet(a.modules))' 'esc(ceQuiResteDansComplet([]))' \
+  'ceQuiNEstPasDansLOffre(k, contenus, a.modules, a.fermes)' 'ceQuiNEstPasDansLOffre(k, contenus, [], a.fermes)' \
   "$OCW"
 prouver 'la promesse « jamais par utilisateur » oubliée' web/public/plateforme/abonnement.js \
   "<p>Un prix par entreprise, jamais par utilisateur. Hors taxes : la TVA s'ajoute.\${" "<p>Un prix par entreprise, hors taxes : la TVA s'ajoute.\${" \
@@ -12962,30 +12962,30 @@ prouver 'la promesse « jamais par utilisateur » oubliée' web/public/plateform
 # et n'annonce aucun prix (Skander, 14/10/2026) ; « Ton abonnement » dit ce qui est pris.
 OD1='ce que l'"'"'offre compte se lit avant la facture, par qui gère l'"'"'abonnement : ce que l'"'"'entreprise utilise, ce que l'"'"'offre comprend, le même chiffre que la facture ; l'"'"'équipe ne se compte jamais'
 ODW='l'"'"'équipe n'"'"'annonce aucun prix, même grande ; « Ton abonnement » dit ce qui est pris, sans ligne pour les utilisateurs'
-prouver 'ce que l'"'"'offre compte lu par qui ne gère pas l'"'"'abonnement' base/migrations/0100_offre_comptee.sql \
-  "  if socle.moi() is null or socle.ma_cle() is not null or not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur']::text[]) then
+prouver 'ce que l'"'"'offre compte lu par qui ne gère pas l'"'"'abonnement' base/migrations/0105_contenu_offres.sql \
+  '  if socle.moi() is null or socle.ma_cle() is not null or not (socle.mes_roles(p_entreprise) && array['"'"'proprietaire'"'"', '"'"'administrateur'"'"']::text[]) then
     return null;
   end if;
-  return jsonb_build_object('comptes'," "  return jsonb_build_object('comptes'," \
+  return jsonb_build_object('"'"'comptes'"'"',' '  return jsonb_build_object('"'"'comptes'"'"',' \
   "$OD1"
 prouver 'l'"'"'essai compté comme Essentiel' serveur/abonnement/offre.ts \
   '  const offre = offreQuiDecide(f, etatAbonnement(f, jour));
   if (!offre) return null;' "  const offre = offreQuiDecide(f, etatAbonnement(f, jour)) ?? 'essentiel';" \
   "$OD1"
-prouver 'Complet qui ne comprend qu'"'"'une caisse' base/migrations/0102_utilisateurs_illimites.sql \
-  "when 'complet' then jsonb_build_object('caisses', 2," "when 'complet' then jsonb_build_object('caisses', 1," \
+prouver 'Complet qui ne comprend qu'"'"'une caisse' base/migrations/0105_contenu_offres.sql \
+  '  ('"'"'complet'"'"', '"'"'caisses'"'"', 2, '"'"'2000-01-01'"'"', '"'"'Cadrage 07 (27/09/2026) : le contenu de départ'"'"'),' '  ('"'"'complet'"'"', '"'"'caisses'"'"', 1, '"'"'2000-01-01'"'"', '"'"'Cadrage 07 (27/09/2026) : le contenu de départ'"'"'),' \
   "$OD1"
-prouver 'la paie achetée sans ses dix salariés compris' base/migrations/0102_utilisateurs_illimites.sql \
-  "'salaries', case when 'paie' = any(coalesce(p_modules, '{}')) then 10 end)" "'salaries', null)" \
+prouver 'la paie achetée sans ses dix salariés compris' base/migrations/0105_contenu_offres.sql \
+  ''"'"'salaries'"'"', case when (c->>'"'"'paie'"'"')::int = 1 or '"'"'paie'"'"' = any(coalesce(p_modules, '"'"'{}'"'"')) then (c->>'"'"'salaries'"'"')::int end) end' ''"'"'salaries'"'"', case when (c->>'"'"'paie'"'"')::int = 1 then (c->>'"'"'salaries'"'"')::int end) end' \
   "$OD1"
 prouver 'un prix annoncé à l'"'"'invitation' web/public/plateforme/equipe.js \
   "    o.modal(\`<h2>Inviter quelqu'un</h2>" "    o.modal(\`<h2>Inviter quelqu'un</h2><p>Une personne de plus coûtera 30 DT HT par an, sur ta prochaine facture.</p>" \
   "$ODW"
 prouver 'Essentiel qui limite encore ses utilisateurs' web/public/plateforme/abonnement.js \
-  "'Ton comptable dans les mêmes données', 'Des utilisateurs sans limite, un établissement'" "'Ton comptable dans les mêmes données', 'Trois utilisateurs, un établissement'" \
+  '  const equipe = `Des utilisateurs sans limite${' '  const equipe = `Trois utilisateurs${' \
   "$ODW"
 prouver 'ce qui est pris absent de « Ton abonnement »' serveur/abonnement/routes.ts \
-  '        compte: await ceQueLOffreCompte(tx, ent, jour), regles: reglesPourMoi(f, historique, jour) } };' '        compte: null, regles: reglesPourMoi(f, historique, jour) } };' \
+  '        compte: await ceQueLOffreCompte(tx, ent, jour), regles:' '        compte: null, regles:' \
   "$ODW"
 prouver 'une caisse « compris »' web/public/plateforme/abonnement.js \
   "mot: ['caisse', 'caisses'], feminin: true }," "mot: ['caisse', 'caisses'] }," \
@@ -12995,10 +12995,9 @@ prouver 'une caisse « compris »' web/public/plateforme/abonnement.js \
 # chez les abonnés Essentiel du jour seulement ; la carte se voit. Le prix du jour d'un ajout passe par la fonction de la
 # grille des offres (enVigueurParmi), que ses preuves tiennent.
 RGA1='chaque ajout, dans l'"'"'ordre de l'"'"'application, avec son prix en vigueur et ce qui est à venir ; une case sans prix reste vide'
-RGA2='un module acheté seul : les abonnés Essentiel du jour qui l'"'"'ont, jamais un retard ni Complet'
+RGA2='un module acheté seul : les abonnés du jour dont l'"'"'offre ne le contient pas et qui l'"'"'ont, jamais un retard'
 prouver 'un module compté chez un abonné en retard ou passé à Complet' serveur/console/reglages.ts \
-  "  const abonnes = new Set(entreprises.filter((e) => e.etat.etat === 'actif' && e.etat.offre === 'essentiel').map((e) => e.id));" \
-  "  const abonnes = new Set(entreprises.map((e) => e.id));" \
+  '    const sansLui = new Set(entreprises.filter((e) => e.etat.etat === '"'"'actif'"'"' && contenu?.[e.etat.offre]?.[module] === 0).map((e) => e.id));' '    const sansLui = new Set(entreprises.map((e) => e.id));' \
   "$RGA2"
 prouver 'la grille des ajouts absente des Réglages' web/console/src/ecrans/Reglages.tsx \
   '      <Ajouts d={d} geste={geste} peut={peut} />
@@ -13056,7 +13055,7 @@ prouver 'la plus ancienne règle de l'"'"'abonnement prise pour celle du jour' b
    order by r.a_partir_du desc, r.le desc, r.id desc limit 1' '  select r.jours from plateforme.regle_abonnement r where r.code = p_code and r.a_partir_du <= p_jour
    order by r.a_partir_du, r.le, r.id limit 1' \
   "$PX2"
-prouver 'les lignes en plus au prix du jour de la préparation' base/migrations/0103_prix_prepares.sql \
+prouver 'les lignes en plus au prix du jour de la préparation' base/migrations/0105_contenu_offres.sql \
   'p.periodicite = p_periodicite and p.a_partir_du <= p_prix_au order by' 'p.periodicite = p_periodicite and p.a_partir_du <= p_jour order by' \
   "$PX3"
 prouver 'une facture rejouée au prix du jour de la préparation' base/migrations/0103_prix_prepares.sql \
@@ -13093,8 +13092,8 @@ prouver 'un jour trop tôt laissé à la base, sans montrer sa case' web/console
 prouver 'le prix à venir absent de « Ton abonnement »' web/public/plateforme/abonnement.js \
   "      const aVenir = annonces(k);" "      const aVenir = /** @type {string[]} */ ([]);" \
   "$PXW"
-prouver "l'autre carte sans sa ligne quand une offre annonce un prix" web/public/plateforme/abonnement.js \
-  "          : '<p class=\"abo-avenir-rien\">Aucun nouveau prix annoncé.</p>'}</div>\` : ''}" "          : ''}</div>\` : ''}" \
+prouver 'l'"'"'autre carte sans sa ligne quand une offre annonce un prix' web/public/plateforme/abonnement.js \
+  '          : '"'"'<p class="abo-avenir-rien">Aucun changement annoncé.</p>'"'"'}</div>` : '"'"''"'"'}' '          : '"'"''"'"'}</div>` : '"'"''"'"'}' \
   "$PXW"
 prouver "l'aperçu d'un prix sans sa place avant d'arriver" web/console/src/ecrans/Reglages.tsx \
   "            : <p className=\"c-apercu-attente\">{phrase(tape.trim() ? 'console.ecran.geste.apercu_calcul' : \`\${K}.g.prix.apercu_attente\`)}</p>}" "            : null}" \
@@ -13213,6 +13212,122 @@ prouver "les rappels de la mise en place écrits en dur dans « Ton abonnement �
 prouver "sept jours de grâce écrits en dur dans « Ton abonnement »" web/public/plateforme/abonnement.js \
   "<li><b>\${esc(pl(regles.grace, 'jour'))} de grâce</b>" "<li><b>\${esc(pl(7, 'jour'))} de grâce</b>" \
   "$RGW"
+
+# Ce que chaque offre comprend se règle dans la console (0105 ; docs/abonnement.md C16).
+CTC1='la direction prépare un changement au plus tôt après le préavis, le client le lit à venir ; il se retire avant sa date, et un contenu en vigueur ne bouge jamais'
+CTC2='la facture d'"'"'une période se compte au contenu de son premier jour : un changement ne touche jamais une période commencée'
+CTC3='la porte des modules lit le contenu du premier jour de la période qui court'
+CTCA='un module acheté seul : les abonnés du jour dont l'"'"'offre ne le contient pas et qui l'"'"'ont, jamais un retard'
+CTCJ='la règle relue et l'"'"'avis ; le message écrit ou retiré par ses deux jours ; le prix préparé ou retiré, et le préavis ; rien pour un autre geste'
+CTCW='ce que chaque offre comprend : préparé avec son aperçu, lu à venir par le client, retiré avant sa date'
+CTCW1='les offres et prix : la grille du jour, en dinars hors taxes, et la frise des échéances'
+CTCO='en Essentiel, la paie et la comptabilité complète se lisent sans se créer ; passée à Complet, tout s'"'"'ouvre'
+prouver 'un changement de contenu préparé par le support' base/migrations/0105_contenu_offres.sql \
+  '  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);
+  v_preavis integer' '  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+  v_preavis integer' \
+  "$CTC1"
+prouver 'un changement de contenu sans préavis' base/migrations/0105_contenu_offres.sql \
+  '  if p_a_partir_du is null or p_a_partir_du < p_jour + v_preavis then' '  if p_a_partir_du is null or p_a_partir_du < p_jour then' \
+  "$CTC1"
+prouver 'deux changements à venir sur la même ligne' base/migrations/0105_contenu_offres.sql \
+  '  if exists (select 1 from plateforme.contenu_offre c where c.offre = p_offre and c.quoi = p_quoi and c.a_partir_du > p_jour) then' '  if false then' \
+  "$CTC1"
+prouver 'un changement qui ne change rien' base/migrations/0105_contenu_offres.sql \
+  '  if v_avant = p_nombre then perform socle.refus('"'"'c'"'"''"'"'est déjà ce que l'"'"''"'"'offre comprend : rien ne changerait'"'"'); end if;' '' \
+  "$CTC1"
+prouver 'un module ni compris ni acheté seul' base/migrations/0105_contenu_offres.sql \
+  ' or (p_quoi in ('"'"'paie'"'"', '"'"'compta'"'"') and p_nombre not in (0, 1)) then' ' then' \
+  "$CTC1"
+prouver 'un changement de contenu sans sa ligne au journal' base/migrations/0105_contenu_offres.sql \
+  '    values (socle.moi(), v_role, '"'"'reglages.contenu_prepare'"'"', btrim(p_motif),' '    values (socle.moi(), v_role, '"'"'reglages.contenu'"'"', btrim(p_motif),' \
+  "$CTC1"
+prouver 'un contenu en vigueur qu'"'"'on retire' base/migrations/0105_contenu_offres.sql \
+  '  if p_a_partir_du <= p_jour then perform socle.refus('"'"'ce contenu est déjà en vigueur : il ne se retire plus ; prépare-en un nouveau'"'"'); end if;' '' \
+  "$CTC1"
+prouver 'un contenu en vigueur que la base laisse effacer' base/migrations/0105_contenu_offres.sql \
+  '  if old.a_partir_du <= (now() at time zone '"'"'Africa/Tunis'"'"')::date then' '  if false then' \
+  "$CTC1"
+prouver 'le motif d'"'"'un changement lu par le client' base/migrations/0105_contenu_offres.sql \
+  ''"'"'aPartirDu'"'"', c.a_partir_du)
+' ''"'"'aPartirDu'"'"', c.a_partir_du, '"'"'motif'"'"', c.motif)
+' \
+  "$CTC1"
+prouver '« Ton abonnement » sans ce que les offres comprennent' serveur/abonnement/routes.ts \
+  'regles: reglesPourMoi(f, historique, jour), contenu, fermes:' 'regles: reglesPourMoi(f, historique, jour), fermes:' \
+  "$CTC1"
+prouver 'la facture comptée au contenu d'"'"'aujourd'"'"'hui' base/migrations/0105_contenu_offres.sql \
+  '  v_contenu jsonb := plateforme.contenu_du_jour(p_offre, p_prix_au);
+  v_inclus jsonb := plateforme.inclus_de_l_offre(p_offre, v_modules, p_prix_au);' '  v_contenu jsonb := plateforme.contenu_du_jour(p_offre, p_jour);
+  v_inclus jsonb := plateforme.inclus_de_l_offre(p_offre, v_modules, p_jour);' \
+  "$CTC2"
+prouver 'la porte qui lit le contenu du jour au milieu d'"'"'une période' serveur/abonnement/offre.ts \
+  '  const au = debutDeLaPeriode(f) ?? jour;' '  const au = jour;' \
+  "$CTC3"
+prouver 'un contenu inconnu qui ferme quand même' serveur/abonnement/offre.ts \
+  'regleAu(f.contenu?.[offre]?.[m] ?? [], au)?.[0] === 0' '(regleAu(f.contenu?.[offre]?.[m] ?? [], au)?.[0] ?? 0) === 0' \
+  "$CTC3"
+prouver 'les faits de l'"'"'abonnement sans l'"'"'histoire du contenu' base/migrations/0105_contenu_offres.sql \
+  '    '"'"'regles'"'"', plateforme.regles_abonnement_histoire(), '"'"'contenu'"'"', plateforme.contenu_histoire())' '    '"'"'regles'"'"', plateforme.regles_abonnement_histoire())' \
+  "$CTC3"
+prouver 'un module acheté compté chez Essentiel seulement' serveur/console/reglages.ts \
+  'contenu?.[e.etat.offre]?.[module] === 0' 'e.etat.offre === '"'"'essentiel'"'"'' \
+  "$CTCA"
+prouver 'une ligne de contenu inconnue que le journal nomme' serveur/console/reglages.ts \
+  '  const quoi = (QUOI_CONTENU as readonly unknown[]).includes(apres?.quoi) ? apres?.quoi as QuoiContenu : null;
+  if (!offre || !quoi) return null;' '  const quoi = apres?.quoi as QuoiContenu;
+  if (!offre || !quoi) return null;' \
+  "$CTCJ"
+prouver 'un changement retiré daté au journal comme ce qui reste' serveur/console/reglages.ts \
+  '  const date = geste === '"'"'reglages.contenu_retire'"'"' ? avant?.aPartirDu : apres?.aPartirDu;' '  const date = apres?.aPartirDu;' \
+  "$CTCJ"
+prouver 'un changement de contenu absent de la carte du client' web/public/plateforme/abonnement.js \
+  '      .concat(changements.filter((v) => v.offre === quoi).map(changementEnClair).filter(Boolean));' '      .concat([]);' \
+  "$CTCW"
+prouver 'la carte d'"'"'une offre qui ne lit pas ses nombres' web/public/plateforme/abonnement.js \
+  'inclusDe(k, contenus[/** @type {'"'"'essentiel'"'"' | '"'"'complet'"'"'} */ (k)] || {})' 'inclusDe(k, {})' \
+  "$CTCW"
+prouver 'la carte de l'"'"'offre qui ne dit pas ce qu'"'"'elle ferme' serveur/abonnement/routes.ts \
+  'contenu, fermes: modulesFermes(f, jour) } };' 'contenu, fermes: [] } };' \
+  "$CTCO"
+prouver 'ce que les offres comprennent écrit en dur sous les ajouts de la console' web/console/src/ecrans/Reglages.tsx \
+  '{comprisDe(l.option, d.contenu.duJour)}' '{phrase(`${K}.a.compris.inconnu`)}' \
+  "$CTCW1"
+prouver 'Essentiel au-delà de Complet sans avertissement' web/console/src/ecrans/Reglages.tsx \
+  '  const inverse = nombre !== null && chezLAutre !== null && (offre === '"'"'essentiel'"'"' ? nombre > chezLAutre : nombre < chezLAutre);' '  const inverse = false;' \
+  "$CTCW"
+prouver 'l'"'"'autre offre lue sans ce qui y est préparé' web/console/src/ecrans/Reglages.tsx \
+  '  return prepares.at(-1)?.nombre ?? c.duJour[offre][quoi];' '  return c.duJour[offre][quoi];' \
+  "$CTCW"
+prouver 'une ligne déjà préparée que la fenêtre ne dit pas' web/console/src/ecrans/Reglages.tsx \
+  '  const deja = d.contenu.aVenir.find((v) => v.offre === offre && v.quoi === quoi) ?? null;' '  const deja = null as ContenuAVenir | null;' \
+  "$CTCW"
+prouver 'un changement retiré dit au journal comme un changement préparé' web/console/src/ecrans/Journal.tsx \
+  '    const retire = geste === '"'"'reglages.contenu_retire'"'"';' '    const retire = geste === '"'"'reglages.contenu_prepare'"'"';' \
+  "$CTCW"
+
+prouver 'une liste choisie comptée comme une saisie perdue' web/console/src/ui.tsx \
+  '].filter((c) => c.value !== '"'"''"'"').map((c) => [c.id, c.value]));' '].map((c) => c.value));' \
+  "$CTCW"
+prouver 'un module proposé dans l'"'"'état qu'"'"'il a déjà' web/console/src/ecrans/Reglages.tsx \
+  '    setOffre(o); setQuoi(q); setModule(inverseDe(o, q)); setRefus(null);' '    setOffre(o); setQuoi(q); setModule('"'"'1'"'"'); setRefus(null);' \
+  "$CTCW"
+
+CTTEL='au téléphone : aucun onglet ne déborde'
+prouver 'ce que chaque offre comprend en tableau au téléphone, Complet caché à droite' web/console/src/console.css \
+  '  /* Ce que chaque offre comprend (0105) : une fiche par ligne, puis ce qu'"'"'Essentiel et Complet en comprennent, chacun
+     avec son nom ; aucune colonne ne se cache à droite. */
+  .c-rg-contenu-carte .c-defile { overflow: visible; }
+  .c-rg-contenu { min-width: 0; }
+  .c-rg-contenu thead { display: none; }
+  .c-rg-contenu, .c-rg-contenu tbody, .c-rg-contenu tr, .c-rg-contenu td { display: block; }
+  .c-rg-contenu tr { padding: 14px 0; border-bottom: 1px solid var(--c-trait); display: grid; gap: 6px; }
+  .c-rg-contenu tr:last-child { border-bottom: 0; }
+  .c-rg-contenu td, .c-rg-contenu td.c-droite { padding: 0; border: 0; min-width: 0 !important; text-align: start; }
+  .c-rg-contenu td[data-libelle]::before { content: attr(data-libelle) '"'"' : '"'"'; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); }
+  .c-rg-contenu .c-rg-avenir-droite { margin-inline-start: 0; }
+' '' \
+  "$CTTEL"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

@@ -19,12 +19,20 @@ import { demanderPaiementAbonnement } from '../v10/paiement.ts';
 import { nettoyerClient, nettoyerSociete, vueDePiece, type PieceLue } from '../ventes/espace.ts';
 import { echeanceDe, estJour, etatAbonnement, graceDe, joursEntre, relancesDu, type Etat, type Faits } from './etat.ts';
 import { faitsDe } from './condition.ts';
-import { ceQueLOffreCompte, modulesFermesPourMoi } from './offre.ts';
+import { ceQueLOffreCompte, modulesFermes, modulesFermesPourMoi } from './offre.ts';
 import './textes.ts';
 
 // Ce que la base rend des factures de l'abonné (plateforme.mes_factures_abonnement) : les pièces, et, s'il y en a, les
 // deux fiches que la facture imprime et si l'entreprise SkanFact accepte le paiement en ligne.
 type MesFactures = { entreprise?: unknown; client?: unknown; paiement?: boolean; pieces: (PieceLue & { periode: unknown })[] };
+// Ce que chaque offre comprend (0105) : les nombres du jour, et chaque changement préparé avec sa date. Sans motif ni
+// auteur : ce sont des notes de SkanFact.
+// Un nombre manque (null) quand aucune ligne ne vaut encore : l'écran ne le dit pas.
+type ContenuDuJourLu = { caisses: number | null; etablissements: number | null; salaries: number | null; paie: number | null; compta: number | null };
+type ContenuPourAbonne = {
+  duJour: { essentiel: ContenuDuJourLu; complet: ContenuDuJourLu };
+  aVenir: { offre: string; quoi: string; nombre: number; aPartirDu: string }[];
+};
 
 // Ce qui s'ajoute à l'offre (14c), au prix du jour, en texte décimal : lu AVANT d'arriver sur une facture.
 const prixDesAjouts = async (tx: Transaction, jour: string) =>
@@ -89,8 +97,12 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
       // `modules` : ceux achetés seuls sur Essentiel (14c), que la carte de l'offre dit.
       // `compte` : ce que l'entreprise utilise sur ce que son offre comprend (14c, 0100), comme la facture le comptera.
       // `regles` : les relances, la grâce et la durée de l'essai qui valent pour elle (0104), que l'onglet dit.
+      // `contenu` : ce que chaque offre comprend aujourd'hui, et ce qui changera à une date (0105), que les cartes disent.
+      // `fermes` : les modules que son abonnement ne contient pas (la même fonction que la porte), que la carte de son
+      // offre dit.
+      const contenu = (await tx.query('select plateforme.contenu_offres_pour_abonne($1::date) c', [jour])).rows[0].c as ContenuPourAbonne;
       return { corps: { aujourdhui: jour, etat, prix, options, aVenir, historique, factures, enLigne: lu.paiement === true, modules: f?.modules ?? [],
-        compte: await ceQueLOffreCompte(tx, ent, jour), regles: reglesPourMoi(f, historique, jour) } };
+        compte: await ceQueLOffreCompte(tx, ent, jour), regles: reglesPourMoi(f, historique, jour), contenu, fermes: modulesFermes(f, jour) } };
     },
   });
 

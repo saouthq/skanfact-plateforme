@@ -1,8 +1,10 @@
 // Ce qu'une offre ouvre (14c ; docs/abonnement.md, « 14c » ; skanfact docs/cadrage/07-offres-et-prix.md, 02 § 1, § 6
 // et § 8).
 //
-// Essentiel ne contient ni la paie ni la comptabilité complète : ces deux modules y sont FERMÉS, sauf achetés seuls
-// (14c, deuxième partie : un geste de SkanFact, plateforme.abonnement.modules). Fermé ne cache rien
+// Un module que l'offre ne contient pas est FERMÉ, sauf acheté seul (14c, deuxième partie : un geste de SkanFact,
+// plateforme.abonnement.modules). Ce que chaque offre contient est un contenu daté que la direction règle (0105 ; au
+// départ, Essentiel sans la paie ni la comptabilité complète, Complet avec) ; celui qui décide est le contenu du premier
+// jour de la période payée : un changement ne ferme ni n'ouvre rien au milieu d'une période. Fermé ne cache rien
 // (02 § 1 : une offre ne masque jamais rien) : tout ce qui existe se lit, s'imprime, s'exporte et se corrige ; rien de
 // NEUF ne s'y crée (02 § 6 ; la v10, 7.33.0). Tout le reste ouvre tout : l'essai, Complet, un abonnement offert, ce
 // qu'on ne connaît pas (rien ne se ferme sur ce qu'on ignore). La lecture seule, elle, a sa propre porte (condition.ts).
@@ -14,11 +16,12 @@ import type { Transaction } from '../base.ts';
 import { Refus } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { faitsDe } from './condition.ts';
-import { etatAbonnement, type Etat, type Faits, type ModuleAchete, type Offre } from './etat.ts';
+import { debutDeLaPeriode, etatAbonnement, regleAu, type Etat, type Faits, type ModuleAchete, type Offre } from './etat.ts';
 import './textes.ts';
 
 export type ModuleDeLOffre = ModuleAchete;
-export const MODULES_DE_COMPLET: readonly ModuleDeLOffre[] = ['paie', 'compta'];
+// Les modules qu'une offre contient ou non (0105) ; les autres modules sont dans toutes les offres.
+export const MODULES_OPTIONNELS: readonly ModuleDeLOffre[] = ['paie', 'compta'];
 
 // Les parties du dossier où un module fermé ne crée plus rien. La comptabilité complète n'y ferme que les
 // immobilisations : ses autres écrans (le grand livre, la balance, les états financiers) se calculent à l'écran, qui
@@ -39,8 +42,12 @@ export function offreQuiDecide(f: Faits, e: Etat): Offre | null {
 
 export function modulesFermes(f: Faits | null, jour: string): ModuleDeLOffre[] {
   if (!f) return [];
-  // Un module acheté seul sur Essentiel (14c, deuxième partie) y est ouvert.
-  return offreQuiDecide(f, etatAbonnement(f, jour)) === 'essentiel' ? MODULES_DE_COMPLET.filter((m) => !(f.modules ?? []).includes(m)) : [];
+  const offre = offreQuiDecide(f, etatAbonnement(f, jour));
+  if (!offre) return [];
+  // Fermé : l'offre ne le contient pas au premier jour de la période (0 ; un contenu inconnu ne ferme rien), et il n'est
+  // pas acheté seul (14c, deuxième partie).
+  const au = debutDeLaPeriode(f) ?? jour;
+  return MODULES_OPTIONNELS.filter((m) => regleAu(f.contenu?.[offre]?.[m] ?? [], au)?.[0] === 0 && !(f.modules ?? []).includes(m));
 }
 
 // Pour la personne qui agit : qui n'agit ici que par son cabinet (le mandat) a tout.
@@ -54,7 +61,7 @@ export async function modulesFermesPourMoi(tx: Transaction, entreprise: string, 
 // Avant d'écrire dans le dossier : un objet NOUVEAU dans une partie d'un module fermé est refusé, quoi que l'écran
 // envoie ; le refus dit ce qui est fermé, ce qui reste, et mène à l'abonnement.
 export async function refuserHorsOffre(tx: Transaction, entreprise: string, nouveaux: readonly { collection: string }[]): Promise<void> {
-  const touches = MODULES_DE_COMPLET.filter((m) => nouveaux.some((c) => PARTIES_DU_MODULE[m].includes(c.collection)));
+  const touches = MODULES_OPTIONNELS.filter((m) => nouveaux.some((c) => PARTIES_DU_MODULE[m].includes(c.collection)));
   if (!touches.length) return;
   const fermes = await modulesFermesPourMoi(tx, entreprise);
   const ferme = touches.find((m) => fermes.includes(m));
@@ -75,7 +82,8 @@ export async function ceQueLOffreCompte(tx: Transaction, entreprise: string, jou
   if (!f || f.offert) return null;
   const offre = offreQuiDecide(f, etatAbonnement(f, jour));
   if (!offre) return null;
-  const v = (await tx.query('select plateforme.ce_que_l_offre_compte($1, $2, $3::date) v', [entreprise, offre, jour])).rows[0]?.v as
+  // Ce que l'offre comprend : le contenu de la période qui court (son premier jour), comme sa facture l'a compté.
+  const v = (await tx.query('select plateforme.ce_que_l_offre_compte($1, $2, $3::date, $4::date) v', [entreprise, offre, jour, debutDeLaPeriode(f) ?? jour])).rows[0]?.v as
     { comptes?: Record<string, unknown>; inclus?: Record<string, unknown> } | null | undefined;
   if (!v?.comptes || !v.inclus) return null;
   const c = v.comptes, i = v.inclus;

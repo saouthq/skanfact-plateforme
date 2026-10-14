@@ -2124,7 +2124,10 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-rg-apercu-sorte { font-weight: 600; font-size: 13px; }
 .c-rg-apercu-texte { flex: 1 1 280px; min-width: 0; overflow-wrap: anywhere; }
 .c-rg-apercu-fermer { font-size: 13px; text-decoration: underline; opacity: .8; }
-.c-rg-dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+/* Ce que chaque offre comprend (0105) : les deux colonnes des offres gardent leur largeur quand un changement s'annonce. */
+.c-rg-contenu th:not(:first-child) { width: 22%; }
+.c-rg-avenir-droite { margin-inline-start: auto; }
+.c-rg-dates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
 /* Un prix à venir (0103) : une carte sous la grille, au trait orange de ce qui va changer ; qui l'a préparé et pourquoi ;
    le geste qui le retire, à sa droite. Le préavis : une ligne, et son geste. L'aperçu d'un nouveau prix : l'ancien
    barré, le nouveau, l'écart. */
@@ -2187,6 +2190,17 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-rg-ajouts tr:last-child { border-bottom: 0; }
   .c-rg-ajouts td, .c-rg-ajouts td.c-droite { padding: 0; border: 0; min-width: 0 !important; text-align: start; }
   .c-rg-ajouts td[data-libelle]::before { content: attr(data-libelle) ' : '; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); }
+  /* Ce que chaque offre comprend (0105) : une fiche par ligne, puis ce qu'Essentiel et Complet en comprennent, chacun
+     avec son nom ; aucune colonne ne se cache à droite. */
+  .c-rg-contenu-carte .c-defile { overflow: visible; }
+  .c-rg-contenu { min-width: 0; }
+  .c-rg-contenu thead { display: none; }
+  .c-rg-contenu, .c-rg-contenu tbody, .c-rg-contenu tr, .c-rg-contenu td { display: block; }
+  .c-rg-contenu tr { padding: 14px 0; border-bottom: 1px solid var(--c-trait); display: grid; gap: 6px; }
+  .c-rg-contenu tr:last-child { border-bottom: 0; }
+  .c-rg-contenu td, .c-rg-contenu td.c-droite { padding: 0; border: 0; min-width: 0 !important; text-align: start; }
+  .c-rg-contenu td[data-libelle]::before { content: attr(data-libelle) ' : '; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); }
+  .c-rg-contenu .c-rg-avenir-droite { margin-inline-start: 0; }
 }
 
 /* ── Le support (docs/support.md ; sa maquette) : la liste, la conversation, la carte du client ─────────────────────────
