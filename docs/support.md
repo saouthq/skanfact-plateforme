@@ -41,6 +41,10 @@ administrateur l'accorde dans son application, quelques heures, en lecture ; cha
 - **Un message ne se modifie ni ne s'efface** (la base le refuse) : on en écrit un autre. Une réponse de l'équipe peut
   citer un **article de l'Aide** de l'application, par son identifiant seulement (le texte vit dans l'Aide, une seule
   source) ; un article que l'Aide n'a pas est refusé.
+- **Qui la suit, sa priorité, l'attente de la technique** (1.22.0 ; `docs/console.md` C38 ; 0115) : la première réponse
+  la donne à qui l'écrit ; on la prend ou on la confie (la direction ou le support) ; urgente, une réponse dans les deux
+  heures (À VÉRIFIER) ; en attente de la technique, elle quitte les demandes à répondre jusqu'à ce que le client
+  réécrive ou que la technique réponde. Chaque geste avec son motif, au journal.
 - **Close par la personne** (« C'est réglé ») ou **par l'équipe** (avec son motif) ; une demande close **se rouvre quand
   la personne réécrit**, avec tout ce qui s'est déjà dit. L'équipe ne répond pas à une demande close : elle la rouvre
   d'abord, avec son motif.
@@ -123,9 +127,10 @@ administrateur l'accorde dans son application, quelques heures, en lecture ; cha
 
 ## Ce que le support ne fait pas
 
-Les pièces jointes ; une réponse en anglais (l'alerte part en français) ; la répartition des demandes entre membres de
-l'équipe (le premier qui répond la suit) ; écrire dans le dossier d'un client, même avec son accord ; prévenir le client
-par e-mail d'une demande d'accès (elle l'attend en haut de chaque page de son application).
+Les pièces jointes ; une réponse en anglais (l'alerte part en français) ; une catégorie et un délai de résolution par
+demande (la priorité et le délai de première réponse existent depuis 1.22.0, C38) ; écrire dans le dossier d'un client,
+même avec son accord ; prévenir le client par e-mail d'une demande d'accès (elle l'attend en haut de chaque page de son
+application).
 
 ## À VÉRIFIER
 

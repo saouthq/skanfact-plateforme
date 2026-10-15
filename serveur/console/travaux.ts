@@ -1,8 +1,8 @@
 // Les travaux et les envois du service (Console 3e ; skanfact docs/cadrage/10-console.md § 2.8 ; docs/console.md C25) :
 // ce que le serveur fait seul (ses tours) et ce qu'il envoie aux partenaires (la TTN, la signature, les SMS, les paiements,
-// les relances d'abonnement), quatorze jours par partenaire, et ce qui reste à regarder. Pur (testé :
-// tests/console/travaux.test.ts) : la route lit la base ; ces fonctions rangent. Rien n'est inventé : un partenaire sans
-// trace (les e-mails, la TEJ, la CNSS) est dit « pas encore compté » ou « pas encore branché », jamais à zéro.
+// les relances d'abonnement, les e-mails depuis 0115), quatorze jours par partenaire, et ce qui reste à regarder. Pur
+// (testé : tests/console/travaux.test.ts) : la route lit la base ; ces fonctions rangent. Rien n'est inventé : un
+// partenaire sans trace (la TEJ, la CNSS) est dit « pas encore branché », jamais à zéro.
 
 // Les tours du serveur (serveur/principal.ts), dans l'ordre de la page, avec le rythme qu'on attend d'eux : un tour qui
 // n'est pas passé depuis trois de ses pas s'est arrêté.
@@ -15,14 +15,17 @@ export const TOURS = [
   { nom: 'contrats', pasMs: 3_600_000, branche: null },
   { nom: 'relances', pasMs: 3_600_000, branche: 'courriel' },
   { nom: 'mesureur', pasMs: 60_000, branche: null },
+  // La relecture des chaînes d'empreintes (0115) : chaque heure.
+  { nom: 'chaines', pasMs: 3_600_000, branche: null },
 ] as const;
 export type NomTour = typeof TOURS[number]['nom'];
 export const ARRETE_APRES_PAS = 3;
 
-export const PARTENAIRES = ['ttn', 'signature', 'sms', 'paiements', 'relances'] as const;
+export const PARTENAIRES = ['ttn', 'signature', 'sms', 'paiements', 'relances', 'courriel'] as const;
 export type Partenaire = typeof PARTENAIRES[number];
-// Branchés au produit, sans trace qu'on puisse compter : l'écran les nomme, sans carte vide.
-export const SANS_TRACE = ['courriel', 'tej', 'cnss'] as const;
+// Sans trace qu'on puisse compter : l'écran les nomme, sans carte vide. (Les e-mails en laissent une depuis 0115 : l'instant,
+// et s'ils sont partis.) La TEJ et la CNSS : le fichier se prépare dans l'application, rien ne part encore du serveur.
+export const SANS_TRACE = ['tej', 'cnss'] as const;
 
 export type TourLu = { nom: string; le: string; dureeMs: number; ok: boolean; compte: Record<string, number>; echecLe: string | null; echec: string | null };
 export type JourLu = { jour: string; n: number; bons: number; refus: number };
@@ -52,6 +55,7 @@ const CHAMPS: Record<Partenaire, { bons: string | null; refus: string | null }> 
   sms: { bons: null, refus: null },
   paiements: { bons: 'encaisses', refus: 'echoues' },
   relances: { bons: null, refus: null },
+  courriel: { bons: 'envoyes', refus: 'echoues' },
 };
 
 export function lireTravaux(brut: unknown): TravauxLus {

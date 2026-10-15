@@ -617,6 +617,14 @@ vaut pour tout le dépôt.*
     `console_oublier_appareil`) ; les demandes closes par pages (`CLOSES_PAR_PAGE`) ; un avoir sans timbre qui annule
     une facture, et le coût du mois provisoire (`annuleeParSesAvoirs`, `couts`) (`tests/console/chiffres-justes.test.ts`,
     `tests/console/journal.test.ts`, `tests/console/paiements.test.ts`, `tests/console/factures.test.ts`).
+  - **Le support et les travaux suivis** (1.22.0 ; `docs/console.md` C38, `0115`) : qui suit une demande, sa priorité,
+    l'attente de la technique (`plateforme.console_suivre_demande`, `console_priorite_demande`, `console_attente_technique` ;
+    `delaiDe`, `etatDe` dans `serveur/console/support.ts` ; la barre « Suivi » de `web/console/src/ecrans/Support.tsx`) ;
+    reprendre un envoi arrêté sur une panne (`plateforme.console_reessayer_envoi`, « Reprendre maintenant… » de
+    `Travaux.tsx`) ; la trace des e-mails (`plateforme.courriel_trace`, `avecTrace` dans `serveur/courriel.ts`) ; les
+    chaînes d'empreintes relues seules (`socle.verifier_chaine`, `plateforme.relire_chaines`, `console_chaines`,
+    `serveur/service/chaines.ts`, `serveur/console/chaines.ts`, la règle « chaine » et la brique « chaînes » de
+    `exploitation/veille.ts`, la carte de `Securite.tsx`) (`tests/console/suivi.test.ts`, `tests/support/rangement.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

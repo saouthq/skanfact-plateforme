@@ -44,7 +44,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { creerApp, type Route } from './app.ts';
-import { courrielSmtp, type EnvoiCourriel } from './courriel.ts';
+import { avecTrace, courrielSmtp, type EnvoiCourriel } from './courriel.ts';
 import { emettreLesContrats } from './v10/contrats.ts';
 import { envoyerHttps, livrerAvis, type Envoyeur } from './avis.ts';
 import { creerPool } from './base.ts';
@@ -53,7 +53,9 @@ import type { Contexte } from './connexion.ts';
 import { choisirEncodage, compressible, SEUIL_COMPRESSION } from './compression.ts';
 import { dejaGarde, fichiersDesEcrans, versionDuCode } from './ecrans.ts';
 import { noterPanne, Refus } from './erreurs.ts';
+import { relireLesChaines } from './service/chaines.ts';
 import { suivreTour } from './service/tours.ts';
+import { CHAINES_PAS_MS } from './console/chaines.ts';
 import { listeDepuisFichier } from './mot-de-passe.ts';
 import { smsWinsms, WINSMS_PAR_DEFAUT } from './sms.ts';
 import { routesSocle } from './routes/socle.ts';
@@ -254,7 +256,9 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
     ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}), ttn: { adresse: c.ttn, coffre: c.coffre },
     lecteur: await lecteurDuServeur({ simultanees: c.lectures }), partenaires: { liste: c.partenaires, cle: c.coffre } };
   // Le relais des e-mails (un essai en donne un autre, qui garde ce qu'il reçoit) ; sans lui, aucun e-mail ne part.
-  const envoiCourriel = dependances.courriel ?? (c.courriel ? courrielSmtp(c.courriel.smtp, c.courriel.de) : null);
+  // Chaque e-mail laisse sa trace (0115) : l'instant et s'il est parti, rien d'autre.
+  const relais = dependances.courriel ?? (c.courriel ? courrielSmtp(c.courriel.smtp, c.courriel.de) : null);
+  const envoiCourriel = relais ? avecTrace(pool, relais) : null;
   if (envoiCourriel) ctx.courriel = { envoi: envoiCourriel, adresse: () => publique };
   const collecte = new Collecte();
   const app = creerApp(ctx, routesDuServeur(ctx, { veille: c.veille }), { proxy: c.proxy, collecte });
@@ -327,6 +331,18 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   tourDesRelances();
   const relanceur = setInterval(tourDesRelances, c.relancesMs);
 
+  // La relecture des chaînes d'empreintes (0115 ; docs/console.md C38) : au démarrage, puis chaque heure, un lot des
+  // chaînes les moins récemment relues ; un seul tour à la fois.
+  let relecture: Promise<unknown> = Promise.resolve();
+  let enRelecture = false;
+  const tourDesChaines = () => {
+    if (enRelecture) return;
+    enRelecture = true;
+    relecture = suivreTour(pool, 'chaines', () => relireLesChaines(pool)).catch((e: unknown) => { noterPanne('tâche relireLesChaines', e); }).finally(() => { enRelecture = false; });
+  };
+  tourDesChaines();
+  const gardien = setInterval(tourDesChaines, CHAINES_PAS_MS);
+
   // Les mesures du service (docs/console.md, C12) : chaque minute, ce qui s'est ajouté part dans la base ; un envoi à la
   // fois (une base lente ne les empile pas), et le dernier part à l'arrêt (une installation ne perd pas sa minute).
   const exemplaire = nomExemplaire(os.hostname(), new URL(adresse).port);
@@ -348,12 +364,14 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
       clearInterval(postier);
       clearInterval(relanceur);
       clearInterval(mesureur);
+      clearInterval(gardien);
       await tour;
       await verification;
       await tournee;
       await echeancier;
       await alertes;
       await relances;
+      await relecture;
       await app.close();
       await mesures;
       await envoyerMesures(pool, exemplaire, collecte);

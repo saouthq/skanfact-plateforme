@@ -3,8 +3,8 @@
 // peut citer. Trois règles :
 //   - C3 : l'écran Support, la pastille de la barre, la tuile de l'accueil et la ligne d'« À décider » comptent par la
 //     MÊME fonction (`etatDe`) ;
-//   - une demande sans réponse depuis plus de vingt-quatre heures remonte en tête, la plus ancienne d'abord : c'est la
-//     promesse faite au client (« on te répond dans la journée ») ;
+//   - une demande sans réponse depuis plus de vingt-quatre heures (deux, si elle est urgente : 0115) remonte en tête, la
+//     plus ancienne d'abord : c'est la promesse faite au client (« on te répond dans la journée ») ;
 //   - une réponse type n'est pas un second texte à tenir : c'est un article de l'Aide de l'application, celui que le
 //     client a sous les yeux (web/public/v10/guide.js, lu tel que le navigateur le reçoit). On cite son identifiant.
 
@@ -13,6 +13,12 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 export const SANS_REPONSE_HEURES = 24;
+// Une demande urgente (une caisse arrêtée, une facture qui ne part pas) : deux heures (0115 ; l'audit F13). À VÉRIFIER avec
+// Skander avant de l'écrire sur le site.
+export const SANS_REPONSE_HEURES_URGENTE = 2;
+export const PRIORITES = ['normale', 'urgente'] as const;
+export type Priorite = (typeof PRIORITES)[number];
+export const delaiDe = (p: Priorite) => (p === 'urgente' ? SANS_REPONSE_HEURES_URGENTE : SANS_REPONSE_HEURES);
 export const CANAUX = ['application', 'email', 'whatsapp', 'telephone'] as const;
 export type Canal = (typeof CANAUX)[number];
 export const CANAUX_NOTES: readonly Canal[] = ['email', 'whatsapp', 'telephone'];
@@ -22,6 +28,8 @@ export type LigneDemande = {
   entreprise: { id: string; nom: string; essai: boolean };
   demandeur: { id: string; nom: string };
   noteePar: string | null; suiviePar: string | null;
+  // Qui la suit (0115) : son identifiant, pour « la prendre » ou la confier ; sa priorité ; l'attente de la technique.
+  suivieParId: string | null; priorite: Priorite; technique: { le: string; motif: string } | null;
   dernierClientLe: string | null; dernierEquipeLe: string | null; dernierCote: 'client' | 'equipe' | null; messages: number;
   close: { le: string; cote: 'client' | 'equipe'; par: string | null; motif: string | null } | null;
 };
@@ -45,11 +53,14 @@ export function lireLigne(x: unknown): LigneDemande | null {
   if (!id || !sujet || !ouverteLe || !canal || !texte(e.id) || !texte(p.id)) return null;
   const c = l.close ? objet(l.close) : null;
   const closeCote = c ? cote(c.cote) : null;
+  const tq = l.technique ? objet(l.technique) : null;
   return {
     id, numero: Number(l.numero) || 0, sujet, canal, ouverteLe,
     entreprise: { id: String(e.id), nom: String(e.nom ?? ''), essai: e.essai === true },
     demandeur: { id: String(p.id), nom: String(p.nom ?? '') },
-    noteePar: texte(l.noteePar), suiviePar: texte(l.suiviePar),
+    noteePar: texte(l.noteePar), suiviePar: texte(l.suiviePar), suivieParId: texte(l.suivieParId),
+    priorite: l.priorite === 'urgente' ? 'urgente' : 'normale',
+    technique: tq && texte(tq.le) ? { le: String(tq.le), motif: String(tq.motif ?? '') } : null,
     dernierClientLe: texte(l.dernierClientLe), dernierEquipeLe: texte(l.dernierEquipeLe), dernierCote: cote(l.dernierCote),
     messages: Number(l.messages) || 0,
     close: c && texte(c.le) && closeCote ? { le: String(c.le), cote: closeCote, par: texte(c.par), motif: texte(c.motif) } : null,
@@ -75,39 +86,51 @@ export function lireDemande(x: unknown): Demande | null {
 
 // Les closes se lisent par pages (0114) : `closes` est la page demandée, `nCloses` le compte de toutes.
 export const CLOSES_PAR_PAGE = 50;
-export function lireSupport(x: unknown): { ouvertes: LigneDemande[]; closes: LigneDemande[]; nCloses: number; demande: Demande | null } {
+export type MembreSupport = { id: string; nom: string; role: 'direction' | 'support' };
+export function lireSupport(x: unknown): { ouvertes: LigneDemande[]; closes: LigneDemande[]; nCloses: number; demande: Demande | null; equipe: MembreSupport[] } {
   const s = objet(x);
   const liste = (v: unknown) => (Array.isArray(v) ? v.map(lireLigne).filter((l): l is LigneDemande => l !== null) : []);
   const closes = liste(s.closes);
   const n = typeof s.nCloses === 'number' && Number.isInteger(s.nCloses) && s.nCloses >= 0 ? s.nCloses : closes.length;
-  return { ouvertes: liste(s.ouvertes), closes, nCloses: n, demande: s.demande ? lireDemande(s.demande) : null };
+  const equipe = (Array.isArray(s.equipe) ? s.equipe : []).flatMap((m): MembreSupport[] => {
+    const o = objet(m);
+    return texte(o.id) && (o.role === 'direction' || o.role === 'support') ? [{ id: String(o.id), nom: String(o.nom ?? ''), role: o.role }] : [];
+  });
+  return { ouvertes: liste(s.ouvertes), closes, nCloses: n, demande: s.demande ? lireDemande(s.demande) : null, equipe };
 }
 
 // ── L'état d'une demande ─────────────────────────────────────────────────────────────────────────────────────────────
 // `nouvelle` : personne de l'équipe n'y a encore répondu ; `a_repondre` : le client a réécrit après notre réponse ;
-// `attend_client` : la balle est dans son camp ; `close`. Une demande nouvelle ou à répondre attend depuis le dernier mot
-// du client ; au-delà de vingt-quatre heures, elle est « sans réponse » (la ligne d'« À décider », le rouge de la liste).
+// `attend_technique` : la technique doit répondre (0115) — sauf si le client a réécrit depuis, qui attend alors au moins un
+// mot de nous ; `attend_client` : la balle est dans son camp ; `close`. Une demande nouvelle ou à répondre attend depuis le
+// dernier mot du client ; au-delà de son délai (vingt-quatre heures, deux si elle est urgente), elle est « sans réponse »
+// (la ligne d'« À décider », le rouge de la liste).
 export type EtatDemande =
   | { etat: 'nouvelle' | 'a_repondre'; attendDepuis: string; heures: number; sansReponse: boolean }
   | { etat: 'attend_client'; depuis: string }
+  | { etat: 'attend_technique'; depuis: string }
   | { etat: 'close'; le: string; cote: 'client' | 'equipe' };
 
 export function etatDe(l: LigneDemande, maintenant: Date): EtatDemande {
   if (l.close) return { etat: 'close', le: l.close.le, cote: l.close.cote };
+  const reecrit = !!l.technique && l.dernierCote === 'client' && Date.parse(l.dernierClientLe ?? '') > Date.parse(l.technique.le);
+  if (l.technique && !reecrit) return { etat: 'attend_technique', depuis: l.technique.le };
   if (l.dernierCote === 'equipe') return { etat: 'attend_client', depuis: l.dernierEquipeLe ?? l.ouverteLe };
   const attendDepuis = l.dernierClientLe ?? l.ouverteLe;
   const heures = Math.max(0, Math.floor((maintenant.getTime() - new Date(attendDepuis).getTime()) / 3_600_000));
-  return { etat: l.dernierEquipeLe ? 'a_repondre' : 'nouvelle', attendDepuis, heures, sansReponse: heures >= SANS_REPONSE_HEURES };
+  return { etat: l.dernierEquipeLe ? 'a_repondre' : 'nouvelle', attendDepuis, heures, sansReponse: heures >= delaiDe(l.priorite) };
 }
 
-// Le rang : sans réponse depuis 24 h (la plus ancienne d'abord), puis celles qui attendent notre réponse (la plus ancienne
-// d'abord), puis celles qui attendent le client (la plus récente d'abord : on la relit si le client tarde).
+// Le rang : sans réponse au-delà de son délai (la plus ancienne d'abord), puis celles qui attendent notre réponse (les
+// urgentes d'abord, puis la plus ancienne), puis celles qui attendent la technique, puis le client (la plus récente
+// d'abord : on la relit si le client tarde).
 export function ranger<T extends LigneDemande>(lignes: T[], maintenant: Date): (T & { etat: EtatDemande })[] {
-  const rang = (e: EtatDemande) => (e.etat === 'close' ? 3 : e.etat === 'attend_client' ? 2 : e.sansReponse ? 0 : 1);
-  const quand = (e: EtatDemande) => (e.etat === 'close' ? e.le : e.etat === 'attend_client' ? e.depuis : e.attendDepuis);
+  const rang = (e: EtatDemande) => (e.etat === 'close' ? 4 : e.etat === 'attend_client' ? 3 : e.etat === 'attend_technique' ? 2 : e.sansReponse ? 0 : 1);
+  const quand = (e: EtatDemande) => (e.etat === 'close' ? e.le : e.etat === 'attend_client' || e.etat === 'attend_technique' ? e.depuis : e.attendDepuis);
   return lignes.map((l) => ({ ...l, etat: etatDe(l, maintenant) })).sort((a, b) => {
     const ra = rang(a.etat), rb = rang(b.etat);
     if (ra !== rb) return ra - rb;
+    if (ra === 1 && a.priorite !== b.priorite) return a.priorite === 'urgente' ? -1 : 1;
     const c = quand(a.etat).localeCompare(quand(b.etat));
     return (ra >= 2 ? -c : c) || a.numero - b.numero;
   });

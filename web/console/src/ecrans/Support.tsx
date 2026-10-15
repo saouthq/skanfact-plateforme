@@ -3,23 +3,28 @@
 // milieu, avec la réponse ; la carte du client et de la personne à droite. On répond d'ici : la personne lit la réponse
 // dans son application, un e-mail SANS le texte l'en prévient. Les réponses types sont les articles de l'Aide qu'elle
 // a sous les yeux, jamais un second texte. Le support ne voit pas son dossier : seulement ce qu'elle a écrit ici.
+// Chaque demande a quelqu'un qui la suit (on la prend, on la confie), une priorité (urgente : deux heures au lieu de
+// vingt-quatre) et peut attendre la technique (0115 ; l'audit F13) ; répondre à une demande qu'un autre suit se fait
+// en le sachant, l'avertissement au-dessus du champ.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { abonnementEnMots, expliquer, type Etat, type Faits } from '../abonnement.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture, useRelireQuandOnRegarde } from '../contexte.ts';
 import { quand } from '../temps.ts';
 import { AccesDossier } from './AccesDossier.tsx';
-import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
+import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, MenuLigne, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
 
 export type Canal = 'application' | 'email' | 'whatsapp' | 'telephone';
 export type EtatDemande =
   | { etat: 'nouvelle' | 'a_repondre'; attendDepuis: string; heures: number; sansReponse: boolean }
   | { etat: 'attend_client'; depuis: string }
+  | { etat: 'attend_technique'; depuis: string }
   | { etat: 'close'; le: string; cote: 'client' | 'equipe' };
 export type LigneDemande = {
   id: string; numero: number; sujet: string; canal: Canal; ouverteLe: string;
   entreprise: { id: string; nom: string; essai: boolean }; demandeur: { id: string; nom: string };
-  noteePar: string | null; suiviePar: string | null; dernierClientLe: string | null; dernierEquipeLe: string | null;
+  noteePar: string | null; suiviePar: string | null; suivieParId: string | null; priorite: 'normale' | 'urgente';
+  technique: { le: string; motif: string } | null; dernierClientLe: string | null; dernierEquipeLe: string | null;
   dernierCote: 'client' | 'equipe' | null; messages: number;
   close: { le: string; cote: 'client' | 'equipe'; par: string | null; motif: string | null } | null;
   etat: EtatDemande;
@@ -39,7 +44,10 @@ type Donnees = {
   ouvertes: LigneDemande[]; closes: LigneDemande[]; demande: Demande | null; client: Client | null; articles: Article[];
   // Les closes, par pages (0114) : la page lue commence à `debut`, sur `total`.
   pagesCloses?: { debut: number; total: number; parPage: number };
+  // À qui une demande se confie (0115) : la direction et le support.
+  equipe?: MembreSupport[];
 };
+type MembreSupport = { id: string; nom: string; role: 'direction' | 'support' };
 
 // Le numéro qu'on se dit au téléphone : « S-0214 ».
 export const refDemande = (n: number) => `S-${String(n).padStart(4, '0')}`;
@@ -48,13 +56,14 @@ export const refDemande = (n: number) => `S-${String(n).padStart(4, '0')}`;
 export function etatEnMots(e: EtatDemande): { ton: TonPuce; texte: string } {
   if (e.etat === 'close') return { ton: 'hors', texte: dire('console.ecran.support.etat.close') };
   if (e.etat === 'attend_client') return { ton: 'hors', texte: dire('console.ecran.support.etat.attend_client') };
+  if (e.etat === 'attend_technique') return { ton: 'a_regarder', texte: dire('console.ecran.support.etat.attend_technique') };
   if (e.sansReponse) return { ton: 'aujourdhui', texte: dire('console.ecran.support.etat.sans_reponse') };
   return { ton: 'semaine', texte: dire(`console.ecran.support.etat.${e.etat}`) };
 }
 // Depuis quand, pour une ligne de la liste : les heures d'attente d'une demande à nous, sinon le dernier mouvement.
 export function depuisEnMots(e: EtatDemande, aujourdhui: string): string {
   if (e.etat === 'close') return quand(e.le, aujourdhui);
-  if (e.etat === 'attend_client') return quand(e.depuis, aujourdhui);
+  if (e.etat === 'attend_client' || e.etat === 'attend_technique') return quand(e.depuis, aujourdhui);
   return e.heures === 0 ? dire('console.ecran.support.depuis_peu') : dire('console.ecran.support.depuis_h', { n: e.heures });
 }
 const ICONE_CANAL: Record<Canal, NomIcone> = { application: 'decider', email: 'courriel', whatsapp: 'echange', telephone: 'telephone' };
@@ -70,11 +79,14 @@ function Ticket({ l, choisie, choisir, aujourdhui }: { l: LigneDemande; choisie:
   const e = etatEnMots(l.etat);
   return (
     <button type="button" className="c-sp-ticket" aria-pressed={choisie} onClick={choisir}>
-      <span className="c-sp-ticket-haut"><b data-donnee>{l.entreprise.nom}</b><Puce ton={e.ton}>{e.texte}</Puce></span>
+      <span className="c-sp-ticket-haut"><b data-donnee>{l.entreprise.nom}</b>
+        <span className="c-sp-ticket-puces">{l.priorite === 'urgente' && !l.close ? <Puce ton="urgent">{dire('console.ecran.support.urgente')}</Puce> : null}<Puce ton={e.ton}>{e.texte}</Puce></span>
+      </span>
       <span className="c-sp-ticket-sujet" data-donnee>{l.sujet}</span>
       <span className="c-sp-ticket-meta">
         <Icone nom={ICONE_CANAL[l.canal]} taille={14} />
-        <span>{maj(dire(`console.ecran.support.canal_court.${l.canal}`))}{l.noteePar ? <>{', '}{dire('console.ecran.support.notee_par', { nom: prenomDe(l.noteePar) })}</> : null} · {depuisEnMots(l.etat, aujourdhui)}</span>
+        <span>{maj(dire(`console.ecran.support.canal_court.${l.canal}`))}{l.noteePar ? <>{', '}{dire('console.ecran.support.notee_par', { nom: prenomDe(l.noteePar) })}</> : null} · {depuisEnMots(l.etat, aujourdhui)}
+          {l.suiviePar && !l.close ? <>{' · '}{dire('console.ecran.support.suivie_par_court', { nom: prenomDe(l.suiviePar) })}</> : null}</span>
       </span>
     </button>
   );
@@ -116,6 +128,87 @@ function FenetreMotif({ sorte, demande, fermer, fait }: { sorte: 'clore' | 'rouv
       <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
       {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
     </Dialogue>
+  );
+}
+
+// ── Le suivi : la prendre, la confier, sa priorité, l'attente de la technique (0115) ──────────────────────────────────
+type SorteSuivi = 'prendre' | 'confier' | 'priorite' | 'technique';
+function FenetreSuivi({ sorte, demande, equipe, fermer, fait }: { sorte: SorteSuivi; demande: Demande; equipe: MembreSupport[]; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const l = demande.ligne;
+  const autres = equipe.filter((m) => m.id !== l.suivieParId);
+  const [a, setA] = useState(autres.find((m) => m.id !== moi.utilisateur)?.id ?? autres[0]?.id ?? '');
+  const [motif, setMotif] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState(0);
+  const [occupe, setOccupe] = useState(false);
+  // Ce que le geste devient : la priorité et l'attente basculent ; prendre, c'est confier à soi.
+  const vers = sorte === 'priorite' ? (l.priorite === 'urgente' ? 'normale' : 'urgente') : sorte === 'technique' ? (l.technique ? 'levee' : 'attend')
+    : sorte === 'prendre' && !l.suiviePar ? 'suivre' : sorte;
+  const k = `console.ecran.support.s.${vers}`;
+  const envoyer = () => {
+    if (motif.trim().length < 3) { setRefus(phrase('console.ecran.geste.motif_court')); setFaute((n) => n + 1); return; }
+    const corps = sorte === 'prendre' ? { motif: motif.trim() } : sorte === 'confier' ? { membre: a, motif: motif.trim() }
+      : sorte === 'priorite' ? { priorite: vers, motif: motif.trim() } : { attend: !l.technique, motif: motif.trim() };
+    const chemin = sorte === 'prendre' || sorte === 'confier' ? 'suivre' : sorte;
+    void (async () => {
+      setOccupe(true);
+      try {
+        const res = await api('POST', `/console/support/demandes/${l.id}/${chemin}`, corps);
+        if (!res) return;
+        if (res.statut !== 200) { setRefus(refusDe(res)); return; }
+        toast(phrase(`${k}.fait`, { nom: equipe.find((m) => m.id === a)?.nom ?? '' }));
+        fait();
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  return (
+    <Dialogue titre={titre(`${k}.fenetre`)} sous={`${refDemande(l.numero)} · ${l.sujet}`} sousDonnee fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre(`${k}.bouton`)}</Bouton>
+      </>}>
+      {sorte === 'confier' ? (
+        <Choix libelle={titre('console.ecran.support.s.confier.a')} valeur={a} changer={setA}
+          options={autres.map((m) => ({ valeur: m.id, texte: `${m.nom} (${dire(`console.ecran.role.${m.role}`)})`, donnee: true }))} />
+      ) : null}
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
+        <ul>{['p1', 'p2'].map((x) => <li key={x}>{phrase(`${k}.${x}`, { nom: l.suiviePar ?? '' })}</li>)}</ul>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${k}.motif_aide`)} valeur={motif} changer={setMotif} faute={faute > 0} n={faute} premier={sorte !== 'confier'} />
+      <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+// Qui la suit, sa priorité, l'attente de la technique : une ligne sous l'en-tête. Un geste direct (la prendre, quand on ne
+// la suit pas), les autres dans le menu.
+function Suivi({ d, equipe, choisir }: { d: Demande; equipe: MembreSupport[]; choisir: (s: SorteSuivi) => void }) {
+  const { moi } = useConsole();
+  const l = d.ligne;
+  const mienne = l.suivieParId === moi.utilisateur;
+  const K = 'console.ecran.support.s';
+  const actions = [
+    ...(equipe.some((m) => m.id !== l.suivieParId) ? [{ icone: 'personne' as const, titre: titre(`${K}.confier.titre`), sous: phrase(`${K}.confier.sous`), faire: () => choisir('confier') }] : []),
+    { icone: 'alerte' as const, titre: titre(l.priorite === 'urgente' ? `${K}.normale.titre` : `${K}.urgente.titre`), sous: phrase(l.priorite === 'urgente' ? `${K}.normale.sous` : `${K}.urgente.sous`), faire: () => choisir('priorite') },
+    { icone: 'serveur' as const, titre: titre(l.technique ? `${K}.levee.titre` : `${K}.attend.titre`), sous: phrase(l.technique ? `${K}.levee.sous` : `${K}.attend.sous`), faire: () => choisir('technique') },
+  ];
+  return (
+    <div className="c-sp-suivi">
+      <span className="c-sp-suivi-qui">
+        {l.suiviePar ? <Avatar nom={l.suiviePar} /> : null}
+        <span>{mienne ? phrase(`${K}.tu_suis`) : l.suiviePar ? dire(`${K}.suivie_par`, { nom: l.suiviePar }) : phrase(`${K}.personne`)}</span>
+        {l.priorite === 'urgente' ? <Puce ton="urgent">{dire('console.ecran.support.urgente')}</Puce> : null}
+      </span>
+      {l.technique ? <span className="c-sous c-sp-suivi-technique" data-donnee>{maj(dire(`${K}.attend_depuis`, { motif: l.technique.motif }))}</span> : null}
+      <span className="c-sp-suivi-gestes">
+        {!mienne ? <Bouton petit onClick={() => choisir('prendre')}>{titre(l.suiviePar ? `${K}.prendre.court` : `${K}.suivre.court`)}</Bouton> : null}
+        <MenuLigne etiquette={titre(`${K}.menu`)} actions={actions} />
+      </span>
+    </div>
   );
 }
 
@@ -185,6 +278,9 @@ export function NoterDemande({ client, fermer }: { client: { id: string; nom: st
 // et « Envoyer ». Ctrl + Entrée envoie, comme dans l'application du client.
 function Repondre({ d, articles, brouillons, envoye, relire }: { d: Demande; articles: Article[]; brouillons: Brouillons; envoye: () => void; relire: () => void }) {
   const api = useApi();
+  const { moi } = useConsole();
+  // Un autre la suit (0115) : on le lit AVANT d'écrire, jamais après avoir envoyé.
+  const unAutre = d.ligne.suiviePar && d.ligne.suivieParId !== moi.utilisateur ? d.ligne.suiviePar : null;
   const [texte, setTexte] = useState(() => brouillons.get(d.ligne.id)?.texte ?? '');
   const [article, setArticle] = useState(() => brouillons.get(d.ligne.id)?.article ?? '');
   useEffect(() => {
@@ -232,6 +328,7 @@ function Repondre({ d, articles, brouillons, envoye, relire }: { d: Demande; art
   const touche = (e: KeyboardEvent<HTMLTextAreaElement>) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void envoyer(); } };
   return (
     <form className="c-sp-repondre" onSubmit={(e) => void envoyer(e)} aria-label={titre('console.ecran.support.ta_reponse')}>
+      {unAutre ? <p className="c-sp-un-autre"><Icone nom="info" taille={16} />{phrase('console.ecran.support.s.un_autre', { nom: prenomDe(unAutre) })}</p> : null}
       {proposes.length ? (
         <div className="c-sp-types" role="group" aria-label={titre('console.ecran.support.types')}>
           <span className="c-sp-types-titre">{titre('console.ecran.support.types_court')}</span>
@@ -264,13 +361,15 @@ function Repondre({ d, articles, brouillons, envoye, relire }: { d: Demande; art
 // ── La demande ouverte à l'écran ────────────────────────────────────────────────────────────────────────────────────
 // En tête : ce qu'elle demande (ses mots), qui et d'où, puis où elle en est ; le seul geste de l'en-tête, clore ou
 // rouvrir, à droite. La conversation défile dans sa carte, la dernière réponse en bas, sous les yeux, avec le champ.
-function Fil({ d, articles, brouillons, aujourdhui, relire }: { d: Demande; articles: Article[]; brouillons: Brouillons; aujourdhui: string; relire: () => void }) {
+function Fil({ d, articles, brouillons, aujourdhui, relire, equipe }: { d: Demande; articles: Article[]; brouillons: Brouillons; aujourdhui: string; relire: () => void; equipe: MembreSupport[] }) {
   const { relireDecisions } = useConsole();
   const [fenetre, setFenetre] = useState<'clore' | 'rouvrir' | null>(null);
+  const [suivi, setSuivi] = useState<SorteSuivi | null>(null);
   const l = d.ligne;
   const e = d.etat;
   const badge = e.etat === 'close' ? dire(e.cote === 'client' ? 'console.ecran.support.badge.close_client' : 'console.ecran.support.badge.close_equipe', { quand: quand(e.le, aujourdhui) })
     : e.etat === 'attend_client' ? dire('console.ecran.support.badge.attend_client', { quand: quand(e.depuis, aujourdhui) })
+      : e.etat === 'attend_technique' ? dire('console.ecran.support.badge.attend_technique', { quand: quand(e.depuis, aujourdhui) })
       : e.sansReponse ? dire('console.ecran.support.badge.sans_reponse', { n: e.heures }) : dire('console.ecran.support.badge.attend', { depuis: depuisEnMots(e, aujourdhui) });
   const ton = etatEnMots(e).ton;
   const titreArticle = (id: string) => articles.find((a) => a.id === id)?.titre ?? id;
@@ -308,6 +407,7 @@ function Fil({ d, articles, brouillons, aujourdhui, relire }: { d: Demande; arti
         {e.etat === 'close' ? <Bouton petit onClick={() => setFenetre('rouvrir')}>{titre('console.ecran.support.rouvrir')}</Bouton>
           : <Bouton petit onClick={() => setFenetre('clore')}>{titre('console.ecran.support.clore')}</Bouton>}
       </div>
+      {e.etat === 'close' ? null : <Suivi d={d} equipe={equipe} choisir={setSuivi} />}
       {/* Son dossier (Support S2) : sous l'en-tête, à portée de la conversation qui le motive — demander l'accès, le temps
           qui reste, l'ouvrir en lecture. */}
       <AccesDossier forme="bande" client={{ id: l.entreprise.id, nom: l.entreprise.nom }} demande={{ id: l.id, numero: l.numero }} aujourdhui={aujourdhui} />
@@ -338,6 +438,7 @@ function Fil({ d, articles, brouillons, aujourdhui, relire }: { d: Demande; arti
         </div>
       ) : <Repondre key={l.id} d={d} articles={articles} brouillons={brouillons} envoye={relireTout} relire={relireTout} />}
       {fenetre ? <FenetreMotif sorte={fenetre} demande={d} fermer={() => setFenetre(null)} fait={apres} /> : null}
+      {suivi ? <FenetreSuivi sorte={suivi} demande={d} equipe={equipe} fermer={() => setSuivi(null)} fait={() => { setSuivi(null); relire(); relireDecisions(); }} /> : null}
     </section>
   );
 }
@@ -390,6 +491,9 @@ function sousLesDoigts(): boolean {
 export function Support({ demande: demandee, vue: vueDemandee }: { demande: string | null; vue: string | null }) {
   const [choisie, setChoisie] = useState<string | null>(demandee);
   const [vue, setVue] = useState<'ouvertes' | 'closes'>(vueDemandee === 'closes' ? 'closes' : 'ouvertes');
+  // Les ouvertes que je suis (0115) : un filtre de la liste, qui ne change pas l'adresse.
+  const [miennes, setMiennes] = useState(false);
+  const { moi } = useConsole();
   // Une demande nommée d'ailleurs (« Répondre », dans « À décider ») remplace celle-ci ; l'adresse suit le choix, sans
   // recharger la page ni la remonter en haut.
   useEffect(() => { if (demandee) setChoisie(demandee); }, [demandee]);
@@ -440,7 +544,8 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
     window.addEventListener('resize', poser);
     return () => window.removeEventListener('resize', poser);
   });
-  const liste = lu ? (vue === 'closes' ? lu.closes : lu.ouvertes) : [];
+  const nMiennes = lu ? lu.ouvertes.filter((x) => x.suivieParId === moi.utilisateur).length : 0;
+  const liste = lu ? (vue === 'closes' ? lu.closes : miennes ? lu.ouvertes.filter((x) => x.suivieParId === moi.utilisateur) : lu.ouvertes) : [];
   const d = lu?.demande && lu.demande.ligne.id === choisie ? lu.demande : null;
 
   return (
@@ -458,17 +563,21 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
           <div className="c-sp-gauche">
             <section className="c-carte c-liste-carte c-sp-liste" aria-label={titre('console.ecran.support.demandes')}>
               <div className="c-sp-liste-tete c-pilules" role="group" aria-label={titre('console.ecran.support.demandes')}>
-                <button type="button" className="c-pilule" aria-pressed={vue === 'ouvertes'} onClick={() => { setVue('ouvertes'); setDebutCloses(0); }}>
+                <button type="button" className="c-pilule" aria-pressed={vue === 'ouvertes' && !miennes} onClick={() => { setVue('ouvertes'); setMiennes(false); setDebutCloses(0); }}>
                   {titre('console.ecran.support.ouvertes')} <span className="c-pilule-n">{lu.ouvertes.length}</span>
                 </button>
-                <button type="button" className="c-pilule" aria-pressed={vue === 'closes'} onClick={() => setVue('closes')}>{titre('console.ecran.support.closes')}</button>
+                <button type="button" className="c-pilule" aria-pressed={vue === 'ouvertes' && miennes} onClick={() => { setVue('ouvertes'); setMiennes(true); setDebutCloses(0); }}>
+                  {titre('console.ecran.support.miennes')} <span className="c-pilule-n">{nMiennes}</span>
+                </button>
+                <button type="button" className="c-pilule" aria-pressed={vue === 'closes'} onClick={() => { setVue('closes'); setMiennes(false); }}>{titre('console.ecran.support.closes')}</button>
               </div>
               {vue === 'closes' && liste.length ? <p className="c-sp-liste-sous">{phrase('console.ecran.support.closes_sous')}</p> : null}
               {liste.length ? (
                 <div className="c-sp-tickets">
                   {liste.map((x) => <Ticket key={x.id} l={x} choisie={x.id === choisie} choisir={() => choisir(x.id)} aujourdhui={lu.aujourdhui} />)}
                 </div>
-              ) : vue === 'ouvertes' ? (
+              ) : vue === 'ouvertes' && miennes ? <Vide icone="courriel">{phrase('console.ecran.support.vide_miennes')}</Vide>
+                : vue === 'ouvertes' ? (
                 <Vide icone="courriel"><span>{phrase('console.ecran.support.vide_ouvertes')}</span> <Lien href="#/clients" petit>{titre('console.ecran.support.vers_clients')}</Lien></Vide>
               ) : <Vide icone="courriel">{phrase('console.ecran.support.vide_closes')}</Vide>}
               {vue === 'closes' && lu.pagesCloses && lu.pagesCloses.total > lu.pagesCloses.parPage ? (
@@ -484,7 +593,7 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
             {d ? <Cote d={d} client={lu.client} aujourdhui={lu.aujourdhui} /> : null}
           </div>
           {d ? (
-            <Fil key={d.ligne.id} d={d} articles={lu.articles} brouillons={brouillons.current} aujourdhui={lu.aujourdhui} relire={relire} />
+            <Fil key={d.ligne.id} d={d} articles={lu.articles} brouillons={brouillons.current} aujourdhui={lu.aujourdhui} relire={relire} equipe={lu.equipe ?? []} />
           ) : (
             <section className="c-carte c-sp-fil c-sp-fil-vide">
               {choisie && l.etat === 'lu' && !l.enCours ? <Vide icone="chercher">{phrase('console.ecran.support.introuvable')}</Vide>

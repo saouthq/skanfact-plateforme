@@ -143,6 +143,40 @@ describe('les travaux et les envois du service, à la souris', () => {
     await fermer(p);
   }, 60_000);
 
+  it('une panne se reprend maintenant, avec son motif ; un compte retenu ne se reprend pas : on prévient l\'entreprise', async () => {
+    const p = await ouvrir(jD);
+    await expect.poll(() => lignes(p).count()).toBe(4);
+    const panne = lignes(p).filter({ hasText: 'Prochain essai' });
+    const retenue = lignes(p).filter({ hasText: 'Retenue' });
+    // Une seule ligne se reprend ; la retenue offre de prévenir l'entreprise, jamais de réessayer.
+    expect(await lignes(p).getByRole('button', { name: 'Reprendre maintenant…' }).count()).toBe(1);
+    expect(await retenue.getByRole('button', { name: 'Reprendre maintenant…' }).count()).toBe(0);
+    await cliquer(retenue.getByRole('button', { name: 'Prévenir l\'entreprise…' }));
+    const e = p.locator('[role="dialog"]');
+    await expect.poll(() => e.count()).toBe(1);
+    expect(net(await e.innerText())).toMatch(/Menuiserie des Essais/i);
+    // Le brouillon nomme l'envoi par sa référence (l'objet et le message), jamais un « mot » sans sujet.
+    // Les personnes lues, le brouillon complété de son prénom : ce n'est pas une saisie, Échap ferme sans question.
+    await expect.poll(() => e.locator('textarea').inputValue()).toMatch(/^Bonjour [^\s,]/);
+    const cle = net(await retenue.locator('.c-mono').first().innerText());
+    expect(await e.locator('input[type="text"], input:not([type])').first().inputValue()).toContain(cle);
+    expect(await e.locator('textarea').inputValue()).toMatch(new RegExp(`une facture vers la TTN \\(référence ${cle}\\)`));
+    await p.keyboard.press('Escape');
+    await expect.poll(() => e.count()).toBe(0);
+    await cliquer(panne.getByRole('button', { name: 'Reprendre maintenant…' }));
+    const f = p.locator('[role="dialog"]');
+    expect(net(await f.innerText())).toMatch(/demande d.abord à la TTN si elle a déjà la pièce/);
+    await cliquer(f.getByRole('button', { name: 'Reprendre l\'envoi', exact: true }));
+    await expect.poll(() => f.locator('.c-alerte').count()).toBe(1);
+    await f.locator('textarea').fill('la TTN répond de nouveau');
+    await cliquer(f.getByRole('button', { name: 'Reprendre l\'envoi', exact: true }));
+    await expect.poll(() => f.count(), { timeout: 15_000 }).toBe(0);
+    // Elle repart au prochain tour : plus rien à reprendre.
+    await expect.poll(() => lignes(p).getByRole('button', { name: 'Reprendre maintenant…' }).count(), { timeout: 15_000 }).toBe(0);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
   it('les tâches : un tour en échec dit sa nature, jamais son message', async () => {
     const p = await ouvrir(jD);
     const contrats = net(await p.locator('.c-tr-tache').filter({ hasText: 'Les contrats récurrents' }).innerText());

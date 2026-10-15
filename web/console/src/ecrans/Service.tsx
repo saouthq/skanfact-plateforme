@@ -29,7 +29,7 @@ type Probleme = { cle: string; titre: string; grave: boolean; faire: string; dep
 export type Veille = { etat: 'absente' } | { etat: 'silencieuse'; derniere: string } | { etat: 'ok'; derniere: string; problemes: Probleme[] };
 type Point = { debut: string; n: number; pannes: number; parMinute: number; p50: number | null; p95: number | null; sousBudget: number | null; lectures: number };
 type Total = { n: number; pannes: number; partPannes: number | null; lectures: number; p50: number | null; p95: number | null; sousBudget: number | null };
-export type IdBrique = 'programme' | 'requetes' | 'mises-a-jour' | 'sauvegarde' | 'a-la-minute' | 'hors-machine' | 'restauration' | 'disques' | 'certificat';
+export type IdBrique = 'programme' | 'requetes' | 'mises-a-jour' | 'sauvegarde' | 'a-la-minute' | 'hors-machine' | 'restauration' | 'disques' | 'certificat' | 'chaines';
 export type EtatBrique = 'bon' | 'attention' | 'grave' | 'nonmesure';
 export type Brique = { id: IdBrique; etat: EtatBrique; jours: { jour: string; etat: EtatBrique; alertes: string[] }[]; ouvertes: { titre: string; grave: boolean; faire: string; debut: string }[] };
 export type Resultat = { le: string; ok: boolean };
@@ -103,7 +103,7 @@ const ICONE_ETAT: Record<EtatBrique, NomIcone> = { bon: 'ok', attention: 'alerte
 const TON_JOUR: Record<Donnees['jours'][number]['etat'], Ton> = { bon: 'bon', perturbe: 'attention', coupure: 'grave', nonmesure: 'nonmesure' };
 export const ICONE_BRIQUE: Record<IdBrique, NomIcone> = {
   programme: 'serveur', requetes: 'echange', 'mises-a-jour': 'version', sauvegarde: 'base', 'a-la-minute': 'journal', 'hors-machine': 'nuage',
-  restauration: 'retour', disques: 'disque', certificat: 'cadenas',
+  restauration: 'retour', disques: 'disque', certificat: 'cadenas', chaines: 'ok',
 };
 export function EtatPuce({ etat, texte }: { etat: EtatBrique; texte?: string }) {
   return <Puce ton={PUCE[etat]}>{texte ?? dire(`${K}.etat.${etat}`)}</Puce>;
@@ -497,7 +497,7 @@ export function faitDeRegle(regle: string, f: Faits): { texte: string; donnee?: 
 // La règle qui dit le fait de chaque brique (une brique en couvre parfois plusieurs : la première parle pour elle).
 const REGLE_DE_LA_BRIQUE: Partial<Record<IdBrique, string>> = {
   programme: 'service', requetes: 'requetes', sauvegarde: 'sauvegarde', 'a-la-minute': 'archivage', 'hors-machine': 'hors-machine',
-  restauration: 'restauration', disques: 'disques', certificat: 'certificat',
+  restauration: 'restauration', disques: 'disques', certificat: 'certificat', chaines: 'chaine',
 };
 const faitsDe = (d: Donnees): Faits => ({
   aujourdhui: d.aujourdhui, dernier: d.dernier, nuit: d.nuits[0] ?? null, exercice: d.exercice, machine: d.machine.at(-1) ?? null, jour: d.jours.at(-1) ?? null,

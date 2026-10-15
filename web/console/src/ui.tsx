@@ -352,8 +352,11 @@ export const saisieDe = (cadre: ParentNode | null | undefined) =>
 // nom d'un client) le dit (`titreDonnee`, `sousDonnee`) : il ne vient pas du catalogue des textes.
 // `pour` : le client que la fenêtre touche, dit au-dessus du titre (une donnée). Ouverte d'une liste ou d'un groupe, elle
 // ne laisse pas deviner sur quelle société le geste tombera.
-export function Dialogue({ titre: t, sous, pour, fermer, occupe = false, children, pied, titreDonnee = false, sousDonnee = false }: {
+// `pret` : une fenêtre dont le préremplissage attend une lecture (le prénom d'un brouillon) prend son instantané quand
+// la lecture est là — sinon le brouillon complété passerait pour une saisie (vu le 15/10/2026).
+export function Dialogue({ titre: t, sous, pour, fermer, occupe = false, children, pied, titreDonnee = false, sousDonnee = false, pret = true }: {
   titre: string; sous?: string | undefined; pour?: string | undefined; fermer: () => void; occupe?: boolean; children: ReactNode; pied: ReactNode; titreDonnee?: boolean; sousDonnee?: boolean;
+  pret?: boolean;
 }) {
   const id = useId();
   const cadre = useRef<HTMLDivElement>(null);
@@ -377,12 +380,12 @@ export function Dialogue({ titre: t, sous, pour, fermer, occupe = false, childre
     const avant = document.activeElement as HTMLElement | null;
     const premier = cadre.current?.querySelector<HTMLElement>('input, textarea, select');
     (premier ?? cadre.current?.querySelector<HTMLElement>('.c-fermer'))?.focus();
-    depart.current = saisieDe(corps.current);
     // Échap pendant la question, c'est « reprendre » : la touche qui ferme ne jette jamais ce qu'on a tapé.
     const echap = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); if (enQuestion.current) reprendre(); else demander.current(); } };
     document.addEventListener('keydown', echap);
     return () => { document.removeEventListener('keydown', echap); avant?.focus?.(); };
   }, [reprendre]);
+  useEffect(() => { if (pret && depart.current === null) depart.current = saisieDe(corps.current); }, [pret]);
   // La question pose le curseur sur « Reprendre la saisie » : Entrée ne jette rien par réflexe.
   useEffect(() => { if (question) cadre.current?.querySelector<HTMLElement>('.c-dialogue-question .c-btn-principal')?.focus(); }, [question]);
   // Un refus se lit sans le chercher : dans une longue fenêtre, il reste juste au-dessus du pied (console.css) au lieu de

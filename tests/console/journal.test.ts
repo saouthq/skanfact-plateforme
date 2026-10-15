@@ -61,6 +61,8 @@ describe('les gestes du journal de la console', () => {
   const { gestes, calcules } = gestesDesMigrations();
   // L'export (0114) se calcule (« clients.exporte », « journal.exporte ») : ses deux gestes se vérifient comme les autres.
   for (const g of ['clients.exporte', 'journal.exporte']) gestes.add(g);
+  // L'attente de la technique (0115) se pose ou se lève : « support.technique » ou « support.technique_levee ».
+  for (const g of ['support.technique', 'support.technique_levee']) gestes.add(g);
 
   it('la lecture des migrations trouve les gestes (un instrument qui ne lit rien ne prouve rien)', () => {
     expect(gestes.size).toBeGreaterThanOrEqual(20);
@@ -73,7 +75,9 @@ describe('les gestes du journal de la console', () => {
       expect.stringMatching(/^0111_gestes_abonnement\.sql : 'abonnement\.' \|\| p_geste$/),
       expect.stringMatching(/^0113_argent_juste\.sql : 'abonnement\.' \|\| p_geste$/),
       // Et l'export (0114) : « clients.exporte » ou « journal.exporte », selon ce qui s'exporte.
-      expect.stringMatching(/^0114_chiffres_justes\.sql : p_quoi \|\| '\.exporte'$/)]);
+      expect.stringMatching(/^0114_chiffres_justes\.sql : p_quoi \|\| '\.exporte'$/),
+      // Et l'attente de la technique (0115), posée ou levée.
+      expect.stringMatching(/^0115_suivi\.sql : case when p_attend then 'support\.technique' else 'support\.technique_levee' end$/)]);
   });
 
   it('chacun a la forme que la table exige (deux parties) : sinon le geste entier échoue', () => {

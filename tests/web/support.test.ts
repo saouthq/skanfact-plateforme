@@ -260,10 +260,44 @@ describe('le support, à la souris, des deux côtés', () => {
     await fermer(p);
   }, 60_000);
 
+  it('le suivi : urgente en tête de la liste, puis elle attend la technique avec son motif, puis revient ; chaque geste demande son motif', async () => {
+    const p = await consoleSur(`#/support?demande=${demande}`);
+    const suivi = p.locator('.c-sp-suivi');
+    // Karim a répondu le premier : il la suit, et ne se voit pas proposer de la prendre.
+    expect(net(await suivi.innerText())).toContain('Tu suis cette demande');
+    expect(await suivi.getByRole('button', { name: /prendre|suivre/i }).count()).toBe(0);
+    const geste = async (nom: RegExp, motif: string, bouton: string) => {
+      await cliquer(suivi.getByRole('button', { name: 'Les gestes de cette demande' }));
+      await cliquer(p.locator('.c-menu-liste button').filter({ hasText: nom }));
+      const f = p.locator('[role="dialog"]');
+      // Sans motif : refusé, la fenêtre reste.
+      await cliquer(f.getByRole('button', { name: bouton, exact: true }));
+      await expect.poll(() => f.locator('.c-alerte').count()).toBe(1);
+      await f.locator('textarea').fill(motif);
+      await cliquer(f.getByRole('button', { name: bouton, exact: true }));
+      await expect.poll(() => f.count(), { timeout: 15_000 }).toBe(0);
+    };
+    await geste(/Marquer urgente/, 'sa facture ne part pas', 'La marquer urgente');
+    await expect.poll(async () => net(await suivi.innerText())).toContain('Urgente');
+    expect(net(await p.locator('.c-sp-ticket[aria-pressed="true"]').innerText())).toContain('Urgente');
+    await geste(/Attendre la technique/, 'le timbre manque sur l\'export', 'Attendre la technique');
+    await expect.poll(async () => net(await suivi.innerText())).toContain('Attend la technique : « le timbre manque sur l\'export »');
+    expect(net(await p.locator('.c-sp-fil-etat').innerText())).toMatch(/^Attend la technique depuis/);
+    await geste(/La technique a répondu/, 'corrigé sur le serveur', 'Elle revient au support');
+    await expect.poll(async () => net(await suivi.innerText())).not.toContain('Attend la technique');
+    await geste(/Remettre en normale/, 'la facture est partie', 'La remettre en normale');
+    await expect.poll(async () => net(await suivi.innerText())).not.toContain('Urgente');
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 90_000);
+
   it('au téléphone : la liste d\'abord ; choisir une demande amène la conversation ; rien ne déborde, des deux côtés', async () => {
     const p = await consoleSur('#/support', 390, 844);
     // Aucune demande ne s'ouvre d'elle-même : la liste d'abord.
     expect(await p.locator('.c-sp-messages').count()).toBe(0);
+    // Une page plus courte que l'écran laisse le vide en bas, jamais dans la barre du haut (vu le 15/10/2026 : une bande
+    // sombre de cent pixels sous le logo).
+    expect(await p.locator('.c-cote').evaluate((c) => c.getBoundingClientRect().height)).toBeLessThan(90);
     await cliquer(p.locator('.c-sp-ticket').filter({ hasText: 'Studio Lina Support' }));
     await expect.poll(() => p.locator('.c-sp-messages').count(), { timeout: 15_000 }).toBe(1);
     await expect.poll(() => p.evaluate(() => Math.round(document.getElementById('sp-fil')?.getBoundingClientRect().top ?? -1)), { timeout: 5_000 }).toBeLessThan(120);

@@ -6,19 +6,23 @@
 //     sont nommés, jamais montrés à zéro ;
 //   - la liste de ce qui reste à regarder : une clé courte, jamais une pièce ni un montant ; l'entreprise pour la direction
 //     seule (la technique n'en reçoit ni le nom ni l'identifiant, 0114) ;
-//   - les tâches programmées : les tours du serveur, et la nuit (sauvegarde, copie hors de la machine, copie de base).
+//   - les tâches programmées : les tours du serveur, et la nuit (sauvegarde, copie hors de la machine, copie de base) ;
+//   - les gestes (0115 ; l'audit F18) : une panne se reprend tout de suite (« Reprendre maintenant… », avec son motif : le
+//     facteur redemande d'abord à la TTN si elle a la pièce) ; un refus ou un compte retenu se corrige chez l'entreprise,
+//     que la direction prévient d'ici (« Prévenir l'entreprise… », l'e-mail de la fiche). Jamais « réessayer » un refus.
 import { useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
-import { useLecture } from '../contexte.ts';
+import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
 import { entier, minutes } from '../nombres.ts';
 import { jourCourt, quand } from '../temps.ts';
-import { Alerte, Bouton, maj, Puce, Vide, type TonPuce } from '../ui.tsx';
+import { Alerte, Bouton, Dialogue, maj, Puce, toast, Vide, Zone, type TonPuce } from '../ui.tsx';
+import { EcrireAuContact } from './Echanges.tsx';
 import { EnteteService, EtatPuce, Tuile, useRelireTantQueRegarde, type AlertesEnCours, type Brique, type EtatBrique, type Nuit, type Resultat, type Veille } from './Service.tsx';
 
 const K = 'console.ecran.service';
 const T = `${K}.tr`;
 
-type Partenaire = 'ttn' | 'signature' | 'sms' | 'paiements' | 'relances';
+type Partenaire = 'ttn' | 'signature' | 'sms' | 'paiements' | 'relances' | 'courriel';
 type Jour = { jour: string; n: number; bons: number; refus: number };
 type EtatTour = 'bon' | 'echec' | 'arrete' | 'jamais';
 type Tour = { nom: string; pasMs: number; branche: 'ttn' | 'courriel' | null; etat: EtatTour;
@@ -103,7 +107,7 @@ function Partenaires({ d, filtrer }: { d: Donnees; filtrer: (p: Partenaire) => v
               <dl className="c-tr-stats">
                 <div><dt>{titre(`${T}.p.quatorze`)}</dt><dd>{entier(quatorze)}</dd></div>
                 {p.nom === 'ttn' ? <div><dt>{titre(`${T}.p.mediane`)}</dt><dd>{d.ttn.medianeS === null ? '—' : d.ttn.medianeS < 120 ? `${entier(d.ttn.medianeS)}\u00a0s` : minutes(Math.round(d.ttn.medianeS / 60))}</dd></div>
-                  : p.nom === 'sms' || p.nom === 'relances' ? null
+                  : p.nom === 'sms' || p.nom === 'relances' || (p.nom === 'courriel' && !somme(p.jours, 'refus')) ? null
                     : <div><dt>{titre(`${T}.p.${p.nom}.refus`)}</dt><dd>{entier(somme(p.jours, 'refus'))}</dd></div>}
               </dl>
               {aRegarder ? <Bouton petit onClick={() => filtrer(p.nom)}>{selon(aRegarder, `${T}.p.voir`)}</Bouton> : null}
@@ -121,8 +125,48 @@ type Filtre = 'tous' | 'seul' | 'entreprise';
 // Une facture pas encore déposée qui attend l'entreprise (son compte refusé, absent) est « retenue », pas « en attente ».
 const statutVu = (r: ARegarder) => (r.sorte === 'ttn' && r.statut === 'a_envoyer' && r.attente === 'entreprise' ? 'retenue' : r.statut);
 const PUCE_STATUT: Record<string, TonPuce> = { a_envoyer: 'a_regarder', deposee: 'a_regarder', refusee: 'urgent', echouee: 'urgent', echoue: 'urgent' };
-function Liste({ d, partenaire, retirer }: { d: Donnees; partenaire: Partenaire | null; retirer: () => void }) {
+// Le geste d'une ligne : reprendre une panne de la TTN (la direction et la technique), prévenir l'entreprise d'un refus ou
+// d'un compte retenu (la direction, qui seule sait de qui il s'agit).
+const reprenable = (r: ARegarder, maintenant: string) => r.sorte === 'ttn' && r.attente === 'seul' && !!r.prochain && Date.parse(r.prochain) > Date.parse(maintenant);
+function FenetreReprendre({ r, aujourdhui, fermer, fait }: { r: ARegarder; aujourdhui: string; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const [motif, setMotif] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState(0);
+  const [occupe, setOccupe] = useState(false);
+  const envoyer = () => {
+    if (motif.trim().length < 3) { setRefus(phrase('console.ecran.geste.motif_court')); setFaute((n) => n + 1); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const res = await api('POST', `/console/service/travaux/envois/${r.cle}/reprendre`, { motif: motif.trim() });
+        if (!res) return;
+        if (res.statut === 200) { toast(phrase(`${T}.g.fait`)); fait(); return; }
+        setRefus(refusDe(res));
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  return (
+    <Dialogue titre={titre(`${T}.g.titre`)} sous={`${titre(`${T}.l.sorte.${r.sorte}`)} · ${r.cle}`} fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre(`${T}.g.bouton`)}</Bouton>
+      </>}>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
+        <ul>{['p1', 'p2', 'p3'].map((x) => <li key={x}>{phrase(`${T}.g.${x}`, { quand: r.prochain ? quand(r.prochain, aujourdhui) : '' })}</li>)}</ul>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${T}.g.motif_aide`)} valeur={motif} changer={setMotif} faute={faute > 0} n={faute} premier />
+      <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+function Liste({ d, partenaire, retirer, relire }: { d: Donnees; partenaire: Partenaire | null; retirer: () => void; relire: () => void }) {
   const [filtre, setFiltre] = useState<Filtre>('tous');
+  const [reprendre, setReprendre] = useState<ARegarder | null>(null);
+  const [prevenir, setPrevenir] = useState<ARegarder | null>(null);
   const duPartenaire = d.aRegarder.filter((r) => !partenaire || DE_LA_SORTE[r.sorte] === partenaire);
   const vus = duPartenaire.filter((r) => filtre === 'tous' || r.attente === filtre);
   const n = (f: Filtre) => duPartenaire.filter((r) => f === 'tous' || r.attente === f).length;
@@ -149,6 +193,7 @@ function Liste({ d, partenaire, retirer }: { d: Donnees; partenaire: Partenaire 
                   <th scope="col">{titre(`${T}.l.col.envoi`)}</th><th scope="col">{titre(`${T}.l.col.entreprise`)}</th>
                   <th scope="col">{titre(`${T}.l.col.ou`)}</th><th scope="col" className="c-droite">{titre(`${T}.l.col.essais`)}</th>
                   <th scope="col">{titre(`${T}.l.col.suite`)}</th>
+                  <th scope="col"><span className="c-cache">{titre(`${T}.l.col.gestes`)}</span></th>
                 </tr></thead>
                 <tbody>
                   {vus.map((r, i) => (
@@ -164,6 +209,10 @@ function Liste({ d, partenaire, retirer }: { d: Donnees; partenaire: Partenaire 
                       <td className="c-droite c-mono" data-libelle={titre(`${T}.l.col.essais`)}>{r.essais === null ? '—' : entier(r.essais)}</td>
                       <td>{r.attente === 'seul' && r.prochain ? phrase(`${T}.l.prochain`, { quand: quand(r.prochain, d.aujourdhui) })
                         : phrase(`${T}.l.suite.${r.sorte === 'ttn' && r.statut !== 'refusee' ? 'ttn_retenue' : r.sorte}`)}</td>
+                      <td className="c-tr-geste">
+                        {reprenable(r, d.maintenant) ? <Bouton petit onClick={() => setReprendre(r)}>{titre(`${T}.g.reprendre`)}</Bouton>
+                          : r.attente === 'entreprise' && r.entreprise ? <Bouton petit onClick={() => setPrevenir(r)}>{titre(`${T}.g.prevenir`)}</Bouton> : null}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -173,6 +222,9 @@ function Liste({ d, partenaire, retirer }: { d: Donnees; partenaire: Partenaire 
         </>
       ) : <Vide>{phrase(`${T}.l.vide`)}</Vide>}
       <p className="c-liste-pied">{phrase(`${T}.l.pied`)}</p>
+      {reprendre ? <FenetreReprendre r={reprendre} aujourdhui={d.aujourdhui} fermer={() => setReprendre(null)} fait={() => { setReprendre(null); relire(); }} /> : null}
+      {prevenir?.entreprise ? <EcrireAuContact client={prevenir.entreprise} contexte="envoi" valeurs={{ quoi: dire(`${T}.g.quoi.${prevenir.sorte}`), cle: prevenir.cle }}
+        fermer={() => setPrevenir(null)} fait={() => setPrevenir(null)} /> : null}
     </section>
   );
 }
@@ -254,7 +306,7 @@ export function Travaux() {
         <>
           <Chiffres d={d} />
           <Partenaires d={d} filtrer={filtrer} />
-          <Liste d={d} partenaire={partenaire} retirer={() => setPartenaire(null)} />
+          <Liste d={d} partenaire={partenaire} retirer={() => setPartenaire(null)} relire={relire} />
           <Taches d={d} />
         </>
       ) : null}

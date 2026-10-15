@@ -3,7 +3,7 @@
 // articles de l'Aide proposés en réponse, lus dans l'Aide que le client a sous les yeux.
 import { describe, expect, it } from 'vitest';
 import {
-  articleConnu, articlesDeLAide, compter, etatDe, lireSupport, ranger, SANS_REPONSE_HEURES, suggestions, type LigneDemande,
+  articleConnu, articlesDeLAide, compter, delaiDe, etatDe, lireSupport, ranger, SANS_REPONSE_HEURES, SANS_REPONSE_HEURES_URGENTE, suggestions, type LigneDemande,
 } from '../../serveur/console/support.ts';
 
 const MAINTENANT = new Date('2026-10-13T12:00:00Z');
@@ -12,7 +12,8 @@ let n = 0;
 const ligne = (l: Partial<LigneDemande>): LigneDemande => ({
   id: `d${++n}`, numero: n, sujet: `Demande ${n}`, canal: 'application', ouverteLe: ilYa(100),
   entreprise: { id: 'e1', nom: 'Menuiserie', essai: false }, demandeur: { id: 'u1', nom: 'Nadia' },
-  noteePar: null, suiviePar: null, dernierClientLe: null, dernierEquipeLe: null, dernierCote: 'client', messages: 1, close: null, ...l,
+  noteePar: null, suiviePar: null, suivieParId: null, priorite: 'normale', technique: null,
+  dernierClientLe: null, dernierEquipeLe: null, dernierCote: 'client', messages: 1, close: null, ...l,
 });
 
 describe('l\'état d\'une demande', () => {
@@ -36,6 +37,36 @@ describe('l\'état d\'une demande', () => {
     // Close, même si le dernier mot était du client : close passe avant tout.
     expect(etatDe(ligne({ dernierClientLe: ilYa(1), close: { le: ilYa(0.5), cote: 'client', par: 'Nadia', motif: null } }), MAINTENANT))
       .toEqual({ etat: 'close', le: ilYa(0.5), cote: 'client' });
+  });
+});
+
+describe('la priorité et l\'attente de la technique (0115)', () => {
+  it('urgente : sans réponse à deux heures pile ; normale : à vingt-quatre', () => {
+    expect(delaiDe('urgente')).toBe(SANS_REPONSE_HEURES_URGENTE);
+    expect(delaiDe('normale')).toBe(SANS_REPONSE_HEURES);
+    const urgente = (h: number) => etatDe(ligne({ priorite: 'urgente', dernierClientLe: ilYa(h) }), MAINTENANT);
+    expect(urgente(SANS_REPONSE_HEURES_URGENTE - 1)).toMatchObject({ etat: 'nouvelle', sansReponse: false });
+    expect(urgente(SANS_REPONSE_HEURES_URGENTE)).toMatchObject({ etat: 'nouvelle', sansReponse: true });
+    expect(etatDe(ligne({ dernierClientLe: ilYa(SANS_REPONSE_HEURES_URGENTE) }), MAINTENANT)).toMatchObject({ sansReponse: false });
+  });
+  it('elle attend la technique depuis son geste ; le client réécrit après : elle attend notre réponse ; avant : elle attend toujours la technique', () => {
+    const technique = { le: ilYa(5), motif: 'export TEJ vide' };
+    expect(etatDe(ligne({ technique, dernierClientLe: ilYa(6) }), MAINTENANT)).toEqual({ etat: 'attend_technique', depuis: ilYa(5) });
+    expect(etatDe(ligne({ technique, dernierClientLe: ilYa(1), dernierEquipeLe: ilYa(7) }), MAINTENANT)).toMatchObject({ etat: 'a_repondre', heures: 1 });
+    // Notre dernier mot après elle (« on y travaille ») : elle attend toujours la technique, pas le client.
+    expect(etatDe(ligne({ technique, dernierClientLe: ilYa(6), dernierEquipeLe: ilYa(2), dernierCote: 'equipe' }), MAINTENANT)).toMatchObject({ etat: 'attend_technique' });
+    // Close : close, quoi qu'elle attende.
+    expect(etatDe(ligne({ technique, close: { le: ilYa(1), cote: 'equipe', par: 'Karim', motif: 'réglé' } }), MAINTENANT).etat).toBe('close');
+  });
+  it('le rang : sans réponse, puis à répondre (les urgentes d\'abord), puis la technique, puis le client', () => {
+    const a = ligne({ dernierClientLe: ilYa(30) });
+    const b = ligne({ dernierClientLe: ilYa(10) });
+    const c = ligne({ priorite: 'urgente', dernierClientLe: ilYa(1) });
+    const d = ligne({ technique: { le: ilYa(3), motif: 'à corriger' }, dernierClientLe: ilYa(4) });
+    const e = ligne({ dernierCote: 'equipe', dernierEquipeLe: ilYa(2), dernierClientLe: ilYa(3) });
+    expect(ranger([e, d, b, c, a], MAINTENANT).map((x) => x.id)).toEqual([a.id, c.id, b.id, d.id, e.id]);
+    // Une attente de la technique n'est pas une réponse due : l'accueil ne la compte pas.
+    expect(compter([d], MAINTENANT)).toMatchObject({ ouvertes: 1, aRepondre: 0 });
   });
 });
 
@@ -90,7 +121,7 @@ describe('ce que la base rend, lu prudemment', () => {
     expect(lu.demande?.version).toBeNull();
     expect(lu.demande?.personne.roles).toEqual(['proprietaire']);
     expect(lu.demande?.messages.map((m) => m.id)).toEqual(['m1']);
-    expect(lireSupport(null)).toEqual({ ouvertes: [], closes: [], nCloses: 0, demande: null });
+    expect(lireSupport(null)).toEqual({ ouvertes: [], closes: [], nCloses: 0, demande: null, equipe: [] });
   });
 });
 

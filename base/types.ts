@@ -512,6 +512,10 @@ export interface BaseDeDonnees {
     qui: string | null;
     le: Generated<Date>;
   };
+  'plateforme.courriel_trace': {
+    le: Date;
+    ok: boolean;
+  };
   'plateforme.cout_du_mois': {
     id: Generated<string>;
     mois: string;
@@ -554,6 +558,9 @@ export interface BaseDeDonnees {
     close_motif: string | null;
     lu_le: Date | null;
     alerte_le: Date | null;
+    priorite: Generated<string>;
+    technique_le: Date | null;
+    technique_motif: string | null;
   };
   'plateforme.editeur': {
     seul: Generated<boolean>;
@@ -726,6 +733,13 @@ export interface BaseDeDonnees {
     motif: string;
     qui: string;
     le: Date;
+  };
+  'plateforme.releve_chaines': {
+    le: Date;
+    chaines: number;
+    maillons: bigint;
+    cassees: number;
+    duree_ms: number;
   };
   'plateforme.reprise': {
     id: Generated<string>;
@@ -932,6 +946,11 @@ export interface BaseDeDonnees {
     arrete_le: Date | null;
     arrete_par: string | null;
   };
+  'socle.activite': {
+    entreprise: string;
+    utilisateur: string;
+    derniere: Date;
+  };
   'socle.appareil': {
     id: Generated<string>;
     utilisateur: string;
@@ -989,6 +1008,8 @@ export interface BaseDeDonnees {
     derniere: Generated<string>;
     controle_le: Date | null;
     controle_ok: boolean | null;
+    casse_rang: bigint | null;
+    casse_motif: string | null;
   };
   'socle.changement_adresse': {
     id: Generated<string>;

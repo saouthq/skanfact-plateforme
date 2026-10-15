@@ -998,6 +998,40 @@ délégation le 15/10/2026 — Skander : « faut faire tout ce qui manque »).
 - **La tuile « Inscriptions » compte les lignes de la liste qu'elle ouvre** (un groupe de deux sociétés nouvelles fait
   une ligne), par la fonction de la liste.
 
+**C38. Le support et les travaux suivis** (1.22.0 ; base 0115 ; l'audit du 14/10/2026, troisième partie : F13, F18, F19,
+F21 ; décidé par délégation le 15/10/2026 — Skander : « faut faire tout ce qui manque »).
+- **Une demande a quelqu'un qui la suit** (F13). La première réponse la donne à qui l'écrit (comme avant) ; on la
+  **prend** ou on la **confie** à un membre qui répond au support (la direction ou le support, jamais la technique, qui ne
+  lit aucun client), avec son motif, au journal (`support.confiee`). Répondre à une demande qu'un autre suit reste
+  possible : l'avertissement se lit au-dessus du champ, avant d'écrire. « À moi » filtre les ouvertes que je suis.
+- **Une priorité** : normale (une réponse dans les vingt-quatre heures) ou **urgente** (dans les **deux** heures ;
+  `SANS_REPONSE_HEURES_URGENTE`, **À VÉRIFIER** avec Skander avant de l'écrire sur le site). Une urgente passe en tête des
+  demandes à répondre ; sans réponse au-delà de son délai, elle remonte à l'accueil comme les autres
+  (`support.priorite`). Le client ne voit pas la priorité.
+- **L'attente de la technique**, avec son motif (ce que la technique doit faire) : la demande quitte les demandes à
+  répondre (l'accueil ne la compte plus) ; si le client réécrit, elle revient à nous ; « la technique a répondu » la
+  rend au support (`support.technique`, `support.technique_levee`). Le motif se garde sur la demande.
+- **Reprendre un envoi arrêté sur une panne** (F18 ; Travaux, « Reprendre maintenant… », la direction et la technique,
+  avec son motif) : il repart au prochain tour du facteur, ses essais restent comptés, et le facteur demande d'abord à
+  la TTN si elle a déjà la pièce (jamais deux dépôts). La base refuse un envoi fini (accepté, refusé : un refus se
+  corrige chez l'entreprise), retenu par son compte El Fatoora, pris par un tour en ce moment, ou qui repart déjà
+  (`service.envoi_repris`). Un refus ou un compte retenu : **« Prévenir l'entreprise… »** (la direction, l'e-mail de la
+  fiche). Jamais « réessayer » un refus.
+- **Les e-mails laissent une trace** (F19) : l'instant, et s'ils sont partis ou si le relais les a refusés — ni
+  l'adresse, ni l'objet, ni l'entreprise (`plateforme.courriel_trace`, trente jours). Travaux les montre comme les autres
+  partenaires, quatorze jours. La TEJ et la CNSS restent « pas encore branchées » : rien ne part du serveur.
+- **Les chaînes d'empreintes se relisent seules** (F21 ; 01 R9) : un tour du serveur, chaque heure, relit deux cents
+  chaînes, les moins récemment relues d'abord (`plateforme.relire_chaines`, `socle.verifier_chaine` — le même contrôle
+  que la porte d'une personne) : chaque maillon suit le précédent, chaque empreinte se recalcule, la fin de la chaîne
+  est là. Chaque chaîne garde son dernier contrôle **et son point de rupture** ; chaque relecture se compte
+  (`plateforme.releve_chaines`). Service › Sécurité le montre : l'état, les chaînes et les maillons, ce qui n'a jamais
+  été relu, trente jours en cases, chaque chaîne cassée (sa sorte, où elle casse ; l'entreprise pour la direction). **La
+  veille** en fait une règle branchée (la brique « chaînes ») : une chaîne cassée, alerte grave ; la relecture arrêtée
+  depuis vingt-six heures, alerte. **Pas encore mesuré** (l'écran le dit) : le contenu de chaque pièce recomparé à son
+  empreinte (`serveur/journal.ts`, `controler`, qui demande au module de relire sa pièce). La caisse hors ligne contrôle
+  chaque ticket à son arrivée ; le journal de la console ne se modifie pas (la base le refuse) mais n'est pas chaîné.
+  Combien de chaînes un lot peut relire en une heure : **À VÉRIFIER** à la mesure de charge.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
@@ -1008,8 +1042,10 @@ cellules des tableaux à 11 × 12, la page à 24 × 32 et jusqu'à 1 440 points 
 ## Ce que le lot ne fait pas
 
 La suite de la console : le relevé de la banque lu et pointé (aucune banque branchée ; les paiements, C30, montrent ce qui reste à encaisser), la retenue à la source sur nos factures (`05` § 4.2), la suite du service (la
-sécurité : l'accès d'urgence, bloquer une adresse, la chaîne du journal relue, la date des secrets ; le débit des travaux heure par heure, et les envois des e-mails, de la TEJ et de la CNSS, qui n'ont pas encore
-de trace), la mesure, la suite des réglages (les nouveautés allumées ; un prix se prépare depuis la 1.12.0, C28). L'écran
+sécurité : l'accès d'urgence, bloquer une adresse, la date des secrets ; la relecture du contenu des pièces contre leur
+empreinte, « relire une entreprise » et « tout relire maintenant » ; le débit des travaux heure par heure, la pause d'un
+partenaire, un nombre d'essais au plus, et les envois de la TEJ et de la CNSS, qui n'ont pas encore de trace ; un
+incident relié tout seul à une chaîne cassée), la mesure, la suite des réglages (les nouveautés allumées ; un prix se prépare depuis la 1.12.0, C28). L'écran
 « Application de bureau » de la maquette (les licences, les postes, la fin de vie et le passage à la plateforme de la v10)
 ne se construit pas : **la v10 n'est installée chez personne** (Skander, 14/10/2026). Celui de la nouvelle application de
 bureau (la coque et son agent local : les postes qui l'ont, leur version, ce que l'agent voit, ses erreurs) se dessinera
@@ -1191,3 +1227,29 @@ de designer :
 - « les 50 plus récents » sans majuscule en tête de liste ;
 - un paiement reconnu par le système n'a pas de montant dans le journal : la ligne dit la facture et le « payé
   jusqu'au ».
+
+## Revu à la souris et au clavier (15/10/2026, 1.22.0 : le support et les travaux suivis)
+
+Sur l'essai de l'outil humain, la base passée en `0115`, dans la console : Karim (support) et Amira (direction), en
+clair et en sombre, à 1440 et à 390. Le support : prendre une demande, la marquer urgente (refusée d'abord sans motif),
+la mettre en attente de la technique avec son motif, puis lever l'attente ; la puce « Urgente » et « suivie par Karim »
+dans la liste, le filtre « À moi ». Travaux : un envoi de la TTN en panne repris (« Reprendre maintenant… », son motif,
+puis « Prochain essai aujourd'hui » à l'instant, et plus de bouton) ; un compte El Fatoora retenu, qui n'offre
+que « Prévenir l'entreprise… » ; la carte « Les e-mails » parmi les partenaires ; la phrase des partenaires sans trace
+(la TEJ, la CNSS). Sécurité : la carte de la chaîne d'empreintes (« Relue », deux chaînes, six maillons, la dernière
+relecture d'aujourd'hui, trente cases dont la dernière verte, ce qui est relu et ce qui ne l'est pas encore). Corrigé
+pendant le parcours, avec un œil de designer :
+- « Prévenir l'entreprise… » ouvrait un message sans sujet (« Un mot de l'équipe SkanFact ») : le brouillon nomme
+  l'envoi (« une facture vers la TTN, référence 2EB5E87B ») dans l'objet et le message ;
+- la fenêtre « Écrire au contact » demandait « Abandonner cette saisie ? » à Échap sans qu'on ait rien tapé : le
+  prénom du brouillon, arrivé après l'ouverture, passait pour une saisie ; l'instantané se prend une fois les personnes
+  lues ;
+- la fenêtre de reprise promettait « une heure entre deux essais » et comptait « ses 1 essais » : le facteur reprend
+  son rythme là où il en était (1, 5, 15 minutes, puis une heure) ; la phrase le dit sans chiffre faux ;
+- au téléphone, les boutons des envois flottaient au milieu de la ligne : ils s'alignent à gauche, sous la suite ;
+- au téléphone, le Support avec une seule demande laissait une bande sombre de cent points sous le logo (la grille
+  donnait le vide à la barre du haut) : le vide reste en bas ;
+- le nom d'un client coupé en plein mot (« Studi o Lina ») par les deux puces : elles passent dessous ;
+- « Closes » seul sur sa ligne : les trois vues tiennent (« À moi ») ;
+- le titre d'une fenêtre se terminait par « … » (repris du menu) : il ne le porte plus ;
+- l'attente de la technique, en minuscule en tête de ligne : une majuscule.

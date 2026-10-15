@@ -395,13 +395,13 @@ prouver "la base et le serveur ne chaînent pas pareil" $Q \
 prouver "le contrôle ne relit pas les pièces" $J \
   "if (empreinteContenu(piece) !== m.contenu) return" "if (piece === 'jamais') return" \
   "une pièce modifiée après son scellé se voit"
-prouver "le contrôle ne refait pas les empreintes" $Q \
+prouver "le contrôle ne refait pas les empreintes" base/migrations/0115_suivi.sql \
   "    if m.empreinte <> socle.empreinte_maillon(m.precedente, m.contenu) then casse := m.rang; pourquoi := 'empreinte fausse'; exit; end if;" "" \
   "un maillon réécrit en base se voit"
-prouver "le contrôle ne voit pas un trou" $Q \
+prouver "le contrôle ne voit pas un trou" base/migrations/0115_suivi.sql \
   "    if m.rang <> attendu_rang then casse := attendu_rang; pourquoi := 'maillon manquant'; exit; end if;" "" \
   "un maillon retiré au milieu, ou à la fin, se voit"
-prouver "le contrôle ne voit pas la fin retirée" $Q \
+prouver "le contrôle ne voit pas la fin retirée" base/migrations/0115_suivi.sql \
   "  if casse is null and (coalesce(c.rang, 0) <> attendu_rang or coalesce(c.derniere, repeat('0', 64)) <> attendue) then" "  if false then" \
   "un maillon retiré au milieu, ou à la fin, se voit"
 prouver "le journal qu'on modifie" $Q \
@@ -11682,7 +11682,7 @@ prouver 'deux sourdines à la fois sur une règle' 'base/migrations/0086_service
   '  if exists (select 1 from plateforme.service_sourdine s where s.regle = p_regle and s.levee_le is null and s.fin > p_maintenant) then' \
   '  if false then' \
   'la sourdine : d'"'"'une règle qui prévient, un quart d'"'"'heure à un jour, quatre heures au plus sur une alerte grave, une à la fois ; la veille la lit'
-prouver 'une sourdine levée que la veille lit encore' 'base/migrations/0089_service_incidents.sql' \
+prouver 'une sourdine levée que la veille lit encore' 'base/migrations/0115_suivi.sql' \
   'from plateforme.service_sourdine s where s.levee_le is null and s.debut <= p_maintenant' \
   'from plateforme.service_sourdine s where s.debut <= p_maintenant' \
   'la sourdine : d'"'"'une règle qui prévient, un quart d'"'"'heure à un jour, quatre heures au plus sur une alerte grave, une à la fois ; la veille la lit'
@@ -12086,7 +12086,7 @@ IN8='clore demande le compte rendu ; clos, « Aucun incident ouvert » et l'"'"'
 prouver "un numéro d'incident qui saute" base/migrations/0089_service_incidents.sql \
   'select coalesce(max(numero), 0) + 1 into v_numero' 'select coalesce(max(numero), 0) + 2 into v_numero' \
   "$IN1"
-prouver "la page d'état qui annonce le moins grave" base/migrations/0089_service_incidents.sql \
+prouver "la page d'état qui annonce le moins grave" base/migrations/0115_suivi.sql \
   'order by plateforme.rang_gravite(i.gravite) desc, i.public_le desc limit 1' 'order by plateforme.rang_gravite(i.gravite), i.public_le desc limit 1' \
   "$IN1"
 prouver "une gravité qui redescend en silence" base/migrations/0092_service_versions.sql \
@@ -12095,7 +12095,7 @@ prouver "une gravité qui redescend en silence" base/migrations/0092_service_ver
 prouver "un message retiré deux fois sans le dire" base/migrations/0089_service_incidents.sql \
   "  if v_i.public is null then perform socle.refus('la page d''état ne dit rien de cet incident'); end if;" '' \
   "$IN2"
-prouver "une maintenance annoncée trois semaines avant" base/migrations/0089_service_incidents.sql \
+prouver "une maintenance annoncée trois semaines avant" base/migrations/0115_suivi.sql \
   "m.debut <= p_maintenant + interval '48 hours'" "m.debut <= p_maintenant + interval '480 hours'" \
   "$IN3"
 prouver "une suite en retard rangée après les autres" serveur/console/incidents.ts \
@@ -12131,13 +12131,13 @@ TR2='les tours se notent par le serveur, leur échec par sa nature seule ; une T
 TR3='une panne se réessaie seule ; un refus, un compte retenu ou un échec attendent l'"'"'entreprise'
 TR4='passé à son rythme, en échec, arrêté après trois pas sans passage ; jamais vu, il n'"'"'a pas encore de trace'
 TR5='ne garde que des nombres nommés, et la nature d'"'"'une erreur, jamais son message'
-prouver "deux envois de la même seconde sous la même clé" base/migrations/0114_chiffres_justes.sql \
+prouver "deux envois de la même seconde sous la même clé" base/migrations/0115_suivi.sql \
   "upper(right(replace(v.piece::text, '-', ''), 8))" "upper(left(replace(v.piece::text, '-', ''), 8))" \
   "$TR1"
-prouver "une entreprise d'essai à regarder" base/migrations/0114_chiffres_justes.sql \
+prouver "une entreprise d'essai à regarder" base/migrations/0115_suivi.sql \
   "where not e.essai and ((v.statut in ('a_envoyer', 'deposee')" "where ((v.statut in ('a_envoyer', 'deposee')" \
   "$TR1"
-prouver "le nom d'une entreprise montré à la technique" base/migrations/0114_chiffres_justes.sql \
+prouver "le nom d'une entreprise montré à la technique" base/migrations/0115_suivi.sql \
   "'entreprise', case when v_role = 'direction' then jsonb_build_object('id', v.entreprise, 'nom', e.raison_sociale) end," "'entreprise', jsonb_build_object('id', v.entreprise, 'nom', e.raison_sociale)," \
   "$TR1"
 prouver "le texte d'un motif montré à la technique" serveur/console/routes.ts \
@@ -12621,7 +12621,7 @@ end' \
 prouver 'une demande atteinte par une autre entreprise de la même personne' base/migrations/0095_support.sql \
   'where d.id = p_demande and d.demandeur = socle.moi() and d.entreprise = p_entreprise;' 'where d.id = p_demande and d.demandeur = socle.moi();' \
   "$SUP4"
-prouver 'la technique qui lit le support' 'serveur/console/gestes.ts|||base/migrations/0114_chiffres_justes.sql' \
+prouver 'la technique qui lit le support' 'serveur/console/gestes.ts|||base/migrations/0115_suivi.sql' \
   '  { code: '"'"'console.support.voir'"'"', roles: [D, S], ecrit: false },|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
   return jsonb_build_object(
     '"'"'ouvertes'"'"'' '  { code: '"'"'console.support.voir'"'"', roles: [D, S, T], ecrit: false },|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']);
@@ -12660,7 +12660,7 @@ prouver 'l'"'"'attente comptée depuis l'"'"'ouverture' serveur/console/support.
   '  const attendDepuis = l.dernierClientLe ?? l.ouverteLe;' '  const attendDepuis = l.ouverteLe;' \
   "$SUPP1"
 prouver '« sans réponse » une heure trop tard' serveur/console/support.ts \
-  'sansReponse: heures >= SANS_REPONSE_HEURES' 'sansReponse: heures > SANS_REPONSE_HEURES' \
+  'sansReponse: heures >= delaiDe(l.priorite)' 'sansReponse: heures > delaiDe(l.priorite)' \
   "$SUPP2"
 prouver 'une demande close prise pour une demande à répondre' serveur/console/support.ts \
   '  if (l.close) return { etat: '"'"'close'"'"', le: l.close.le, cote: l.close.cote };
@@ -13925,11 +13925,11 @@ prouver 'un appareil oublié qui reste reconnu' 'base/migrations/0114_chiffres_j
   '  update socle.appareil set reconnu_jusqu_au = null where id = p_appareil;
 ' \
   "$CJ6"
-prouver 'les closes coupées à cinquante sans suite' 'base/migrations/0114_chiffres_justes.sql' \
+prouver 'les closes coupées à cinquante sans suite' 'base/migrations/0115_suivi.sql' \
   'order by c.close_le desc, c.id desc offset greatest(coalesce(p_closes_debut, 0), 0) limit 50)),' \
   'order by c.close_le desc, c.id desc limit 50)),' \
   "$CJ7"
-prouver 'les closes comptées sur la page seule' 'base/migrations/0114_chiffres_justes.sql' \
+prouver 'les closes comptées sur la page seule' 'base/migrations/0115_suivi.sql' \
   '    '"'"'nCloses'"'"', (select count(*) from plateforme.demande_support c where c.close_le is not null and (p_entreprise is null or c.entreprise = p_entreprise)),' \
   '    '"'"'nCloses'"'"', 50,' \
   "$CJ7"
@@ -13996,7 +13996,7 @@ prouver 'un coût du mois d'"'"'avant compté absent malgré sa saisie' 'serveur
   '  const ici = new Set(gardes.map((c) => nomDuCout(c.libelle)));' \
   '  const ici = new Set(gardes.map((c) => c.libelle));' \
   "$CJ12"
-prouver 'l'"'"'identifiant d'"'"'un client donné à la technique' 'base/migrations/0114_chiffres_justes.sql' \
+prouver 'l'"'"'identifiant d'"'"'un client donné à la technique' 'base/migrations/0115_suivi.sql' \
   ''"'"'entreprise'"'"', case when v_role = '"'"'direction'"'"' then jsonb_build_object('"'"'id'"'"', v.entreprise, '"'"'nom'"'"', e.raison_sociale) end,' \
   ''"'"'entreprise'"'"', jsonb_build_object('"'"'id'"'"', v.entreprise, '"'"'nom'"'"', e.raison_sociale),' \
   "$CJ14"
@@ -14256,6 +14256,137 @@ prouver 'des pastilles que les flèches ne cochent pas' 'web/console/src/ui.tsx'
   '      <div className="c-ech-choix" onKeyDown={fleches}>' \
   '      <div className="c-ech-choix">' \
   "$CLW6"
+
+# 1.22.0 : le support et les travaux suivis (0115 ; l'audit F13, F18, F19, F21).
+prouver 'le délai d'"'"'une urgente pris pour celui d'"'"'une normale' 'serveur/console/support.ts' \
+  'export const SANS_REPONSE_HEURES_URGENTE = 2;' \
+  'export const SANS_REPONSE_HEURES_URGENTE = 24;' \
+  'urgente : sans réponse à deux heures pile ; normale : à vingt-quatre'
+prouver 'les urgentes qui ne passent pas devant' 'serveur/console/support.ts' \
+  '    if (ra === 1 && a.priorite !== b.priorite) return a.priorite === '"'"'urgente'"'"' ? -1 : 1;
+' \
+  '' \
+  'le rang : sans réponse, puis à répondre (les urgentes d'"'"'abord), puis la technique, puis le client'
+prouver 'le client qui réécrit et reste derrière la technique' 'serveur/console/support.ts' \
+  'const reecrit = !!l.technique && l.dernierCote === '"'"'client'"'"' && Date.parse(l.dernierClientLe ?? '"'"''"'"') > Date.parse(l.technique.le);' \
+  'const reecrit = false;' \
+  'elle attend la technique depuis son geste ; le client réécrit après : elle attend notre réponse ; avant : elle attend toujours la technique'
+prouver 'l'"'"'attente de la technique rangée avant les sans réponse' 'serveur/console/support.ts' \
+  'e.etat === '"'"'attend_technique'"'"' ? 2 :' \
+  'e.etat === '"'"'attend_technique'"'"' ? 0 :' \
+  'le rang : sans réponse, puis à répondre (les urgentes d'"'"'abord), puis la technique, puis le client'
+prouver 'une demande confiée à la technique' 'base/migrations/0115_suivi.sql' \
+  'e.actif and e.role in ('"'"'direction'"'"', '"'"'support'"'"')) then' \
+  'e.actif) then' \
+  'on la prend, on la confie à qui répond au support ; jamais à la technique ; chaque geste au journal'
+prouver 'une demande reprise par qui la suit déjà' 'base/migrations/0115_suivi.sql' \
+  '  if v.suivie_par is not distinct from v_qui then perform socle.refus('"'"'cette personne suit déjà cette demande'"'"'); end if;
+' \
+  '' \
+  'on la prend, on la confie à qui répond au support ; jamais à la technique ; chaque geste au journal'
+prouver 'la même priorité redonnée' 'base/migrations/0115_suivi.sql' \
+  '  if v.priorite = p_priorite then perform socle.refus('"'"'cette demande a déjà cette priorité'"'"'); end if;
+' \
+  '' \
+  'urgente : sans réponse après deux heures, et en tête ; normale : vingt-quatre'
+prouver 'l'"'"'attente de la technique posée deux fois' 'base/migrations/0115_suivi.sql' \
+  '  if p_attend and v.technique_le is not null then perform socle.refus('"'"'cette demande attend déjà la technique'"'"'); end if;
+' \
+  '' \
+  'elle attend la technique, avec son motif ; le client réécrit : elle revient à nous ; la technique répond : elle revient au support'
+prouver 'un envoi fini qui se reprend' 'base/migrations/0115_suivi.sql' \
+  '  if v.statut not in ('"'"'a_envoyer'"'"', '"'"'deposee'"'"') then' \
+  '  if false then' \
+  'une panne repart au prochain tour, avec son motif ; un refus, un compte retenu, un envoi qui repart déjà : non'
+prouver 'un envoi retenu par son compte qui se reprend' 'base/migrations/0115_suivi.sql' \
+  '  if (v.motif ->> '"'"'cle'"'"') in ('"'"'ttn.sans_compte'"'"', '"'"'ttn.compte_refuse'"'"', '"'"'ttn.compte_illisible'"'"') then' \
+  '  if false then' \
+  'une panne repart au prochain tour, avec son motif ; un refus, un compte retenu, un envoi qui repart déjà : non'
+prouver 'un envoi qui repart déjà, repris encore' 'base/migrations/0115_suivi.sql' \
+  '  if v.prochain_essai <= p_maintenant then perform socle.refus('"'"'cet envoi repart déjà au prochain tour du facteur'"'"'); end if;
+' \
+  '' \
+  'une panne repart au prochain tour, avec son motif ; un refus, un compte retenu, un envoi qui repart déjà : non'
+prouver 'une reprise qui n'"'"'avance pas le prochain essai' 'base/migrations/0115_suivi.sql' \
+  '  update ventes.envoi_ttn set prochain_essai = p_maintenant where piece = v.piece;' \
+  '  perform 1;' \
+  'une panne repart au prochain tour, avec son motif ; un refus, un compte retenu, un envoi qui repart déjà : non'
+prouver 'le support qui reprend un envoi' 'serveur/console/gestes.ts|||base/migrations/0115_suivi.sql' \
+  '  { code: '"'"'console.service.gerer'"'"', roles: [D, T], ecrit: true },|||exiger_role_console(array['"'"'direction'"'"', '"'"'technique'"'"']); v ventes.envoi_ttn' \
+  '  { code: '"'"'console.service.gerer'"'"', roles: [D, S, T], ecrit: true },|||exiger_role_console(array['"'"'direction'"'"', '"'"'technique'"'"', '"'"'support'"'"']); v ventes.envoi_ttn' \
+  'une panne repart au prochain tour, avec son motif ; un refus, un compte retenu, un envoi qui repart déjà : non'
+prouver 'un e-mail refusé sans trace' 'serveur/courriel.ts' \
+  '      try { await envoi.envoyer(c); } catch (e) { await noter(false); throw e; }' \
+  '      try { await envoi.envoyer(c); } catch (e) { throw e; }' \
+  'un e-mail parti, un e-mail refusé : l'"'"'instant et l'"'"'issue, rien d'"'"'autre ; Travaux les compte'
+prouver 'Travaux qui ne compte pas les e-mails refusés' 'serveur/console/travaux.ts' \
+  '  courriel: { bons: '"'"'envoyes'"'"', refus: '"'"'echoues'"'"' },' \
+  '  courriel: { bons: '"'"'envoyes'"'"', refus: '"'"'aucun'"'"' },' \
+  'un e-mail parti, un e-mail refusé : l'"'"'instant et l'"'"'issue, rien d'"'"'autre ; Travaux les compte'
+prouver 'les e-mails dits sans trace' 'serveur/console/travaux.ts' \
+  'export const SANS_TRACE = ['"'"'tej'"'"', '"'"'cnss'"'"'] as const;' \
+  'export const SANS_TRACE = ['"'"'courriel'"'"', '"'"'tej'"'"', '"'"'cnss'"'"'] as const;' \
+  'les tours se notent par le serveur, leur échec par sa nature seule ; une TTN sans adresse n'"'"'est pas branchée'
+prouver 'une chaîne cassée sans son point de rupture' 'base/migrations/0115_suivi.sql' \
+  'controle_ok = (casse is null), casse_rang = casse, casse_motif = pourquoi where' \
+  'controle_ok = (casse is null) where' \
+  'relues par le serveur, par lots ; une chaîne cassée garde son point de rupture ; la console et la veille la voient'
+prouver 'une personne qui relit toutes les chaînes' 'base/migrations/0115_suivi.sql' \
+  '  if socle.moi() is not null then perform socle.refus('"'"'seul le serveur relit les chaînes d'"'"''"'"'empreintes'"'"'); end if;
+' \
+  '' \
+  'relues par le serveur, par lots ; une chaîne cassée garde son point de rupture ; la console et la veille la voient'
+prouver 'l'"'"'entreprise d'"'"'une chaîne cassée montrée à la technique' 'base/migrations/0115_suivi.sql' \
+  ''"'"'le'"'"', ch.controle_le, '"'"'entreprise'"'"', case when v_role = '"'"'direction'"'"' then jsonb_build_object('"'"'id'"'"', e.id, '"'"'nom'"'"', e.raison_sociale) end)' \
+  ''"'"'le'"'"', ch.controle_le, '"'"'entreprise'"'"', jsonb_build_object('"'"'id'"'"', e.id, '"'"'nom'"'"', e.raison_sociale))' \
+  'relues par le serveur, par lots ; une chaîne cassée garde son point de rupture ; la console et la veille la voient'
+prouver 'la veille qui ne lit pas les chaînes cassées' 'base/migrations/0115_suivi.sql' \
+  'jsonb_build_object('"'"'cassees'"'"', (select count(*) from socle.chaine ch where ch.controle_ok = false),' \
+  'jsonb_build_object('"'"'cassees'"'"', 0,' \
+  'relues par le serveur, par lots ; une chaîne cassée garde son point de rupture ; la console et la veille la voient'
+prouver 'une chaîne cassée dite sans gravité' 'exploitation/veille.ts' \
+  'd'"'"'empreintes cassée${n > 1 ? '"'"'s'"'"' : '"'"''"'"'}`, true, [' \
+  'd'"'"'empreintes cassée${n > 1 ? '"'"'s'"'"' : '"'"''"'"'}`, false, [' \
+  'une chaîne cassée est grave ; une relecture arrêtée depuis vingt-six heures se dit ; jamais relue : rien'
+prouver 'la relecture arrêtée jamais dite' 'exploitation/veille.ts' \
+  'age > CHAINES_ARRETEES_H * 3_600_000' \
+  'age > 1000 * CHAINES_ARRETEES_H * 3_600_000' \
+  'une chaîne cassée est grave ; une relecture arrêtée depuis vingt-six heures se dit ; jamais relue : rien'
+prouver 'une relecture jamais faite qui passe avant une chaîne cassée' 'serveur/console/chaines.ts' \
+  '  if (c.nCassees > 0) return '"'"'casse'"'"';
+  if (!c.dernier) return '"'"'jamais'"'"';' \
+  '  if (!c.dernier) return '"'"'jamais'"'"';
+  if (c.nCassees > 0) return '"'"'casse'"'"';' \
+  'l'"'"'état de la relecture : cassée d'"'"'abord, puis arrêtée, puis jamais ; une lecture illisible vaut « rien »'
+prouver 'la console et la veille qui ne disent pas « arrêtée » au même seuil' 'serveur/console/chaines.ts' \
+  'export const RELECTURE_ARRETEE_H = 26;' \
+  'export const RELECTURE_ARRETEE_H = 30;' \
+  'une chaîne cassée est grave ; une relecture arrêtée depuis vingt-six heures se dit ; jamais relue : rien'
+prouver '« Reprendre maintenant » offert pour un compte retenu' 'web/console/src/ecrans/Travaux.tsx' \
+  'r.sorte === '"'"'ttn'"'"' && r.attente === '"'"'seul'"'"' && !!r.prochain' \
+  'r.sorte === '"'"'ttn'"'"' && !!r.prochain' \
+  'une panne se reprend maintenant, avec son motif ; un compte retenu ne se reprend pas : on prévient l'"'"'entreprise'
+prouver 'le brouillon d'"'"'un envoi qui ne nomme pas l'"'"'envoi' 'web/console/src/ecrans/Travaux.tsx' \
+  'contexte="envoi"' \
+  'contexte="autre"' \
+  'une panne se reprend maintenant, avec son motif ; un compte retenu ne se reprend pas : on prévient l'"'"'entreprise'
+prouver 'la fenêtre qui prend le brouillon complété pour une saisie' 'web/console/src/ecrans/Echanges.tsx' \
+  ' pret={personnes.etat !== '"'"'lecture'"'"'}' \
+  '' \
+  'une panne se reprend maintenant, avec son motif ; un compte retenu ne se reprend pas : on prévient l'"'"'entreprise'
+prouver 'la barre du haut qui grandit sur une page courte' 'web/console/src/console.css' \
+  '  .c-app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }' \
+  '  .c-app { grid-template-columns: minmax(0, 1fr); }' \
+  'au téléphone : la liste d'"'"'abord ; choisir une demande amène la conversation ; rien ne déborde, des deux côtés'
+prouver 'la puce Urgente absente de la liste' 'web/console/src/ecrans/Support.tsx' \
+  '{l.priorite === '"'"'urgente'"'"' && !l.close ? <Puce ton="urgent">' \
+  '{false ? <Puce ton="urgent">' \
+  'le suivi : urgente en tête de la liste, puis elle attend la technique avec son motif, puis revient ; chaque geste demande son motif'
+prouver 'la carte des chaînes qui tait ce qu'"'"'elle ne relit pas' 'web/console/src/ecrans/Securite.tsx' \
+  '        <li><EtatPuce etat="nonmesure" texte={titre(`${S}.ch.p.contenu`)} /> <span className="c-sous">{phrase(`${S}.ch.p.contenu_sous`)}</span></li>
+' \
+  '' \
+  'la chaîne d'"'"'empreintes : relue par le serveur au démarrage, trente jours en cases ; ce qui n'"'"'est pas encore relu le dit'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { abonnementEnMots, expliquer, offreEtPeriode, puceDe, type Etat, type Faits, type Offre, type Periodicite } from '../abonnement.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture, useRelireQuandOnRegarde, type Role } from '../contexte.ts';
-import { dans, jourCourt, jourDe, moisEnMots, quand } from '../temps.ts';
+import { dans, heureDe, jourCourt, jourDe, moisEnMots, quand } from '../temps.ts';
 import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, parcourirMenu, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
 import { organisationEnMots } from './Clients.tsx';
 import type { Place } from './Cabinets.tsx';
@@ -102,7 +102,9 @@ const cleGeste = (g: Geste) => g.replace('-', '_');
 const CASES = ['essai_jusqu_au', 'paye_jusqu_au', 'offre', 'periodicite', 'resilie_le', 'suspendu_le', 'offert', 'modules', 'role', 'actif', 'jours', 'debut', 'fin',
   'facture_du', 'facture_au', 'montant_ht', 'remise', 'delai_echeance', 'delai_jusqu_au', 'suivante_offre', 'suivante_periodicite', 'suivante_a_partir_du',
   // 0113 : le paiement reçu et sa preuve, le mois offert, les modules qui partent.
-  'facture', 'montant', 'moyen', 'le', 'mois_offert', 'mois_offerts', 'du', 'au', 'modules_a_retirer', 'au_renouvellement'] as const;
+  'facture', 'montant', 'moyen', 'le', 'mois_offert', 'mois_offerts', 'du', 'au', 'modules_a_retirer', 'au_renouvellement',
+  // 0115 : qui suit une demande, sa priorité, l'attente de la technique ; le prochain essai d'un envoi repris.
+  'suivie_par', 'priorite', 'technique', 'prochain'] as const;
 // Les modules achetés, en mots (« Paie, Comptabilité complète ») ; aucun : « — ».
 const nomsModules = (v: unknown) => (Array.isArray(v) ? v.filter((m): m is ModuleAchete => m === 'paie' || m === 'compta').map((m) => titre(`console.ecran.abo.module.${m}`)).join(', ') : '');
 function valeurLisible(cle: string, v: unknown): string {
@@ -118,6 +120,10 @@ function valeurLisible(cle: string, v: unknown): string {
   if (cle === 'montant' && typeof v === 'string' && /^\d+$/.test(v)) return montant(`${v.slice(0, -3) || '0'}.${v.slice(-3).padStart(3, '0')}`);
   if (cle === 'moyen' && (v === 'virement' || v === 'cheque' || v === 'especes')) return dire(`console.ecran.geste.recu.moyen.${v}`);
   if (cle === 'mois_offerts' && typeof v === 'number') return dire(v > 0 ? 'console.ecran.fiche.oui' : 'console.ecran.fiche.non');
+  if (cle === 'priorite' && (v === 'normale' || v === 'urgente')) return dire(`console.ecran.support.priorite.${v}`);
+  // L'attente de la technique se dit oui ou non (son instant est celui du geste) ; le prochain essai, son jour et son heure.
+  if (cle === 'technique') return dire('console.ecran.fiche.oui');
+  if (cle === 'prochain' && typeof v === 'string' && Number.isFinite(Date.parse(v))) return `${jourCourt(jourDe(v))} ${heureDe(v)}`;
   // La remise d'une facture préparée (0106) : laquelle, son taux, son montant.
   if (cle === 'remise' && v && typeof v === 'object') {
     const r = v as { nature?: unknown; taux?: unknown; montantHt?: unknown };

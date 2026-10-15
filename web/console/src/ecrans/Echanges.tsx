@@ -54,9 +54,9 @@ export function NoterAppel({ client, fermer, fait }: { client: { id: string; nom
 
 // L'objet et le début du message, selon où en est son abonnement (la maquette : « Ton essai se termine le … »). Un
 // brouillon : la personne de l'équipe le relit et l'écrit à sa façon.
-export type Contexte = 'essai' | 'en_retard' | 'lecture_seule' | 'autre';
+export type Contexte = 'essai' | 'en_retard' | 'lecture_seule' | 'envoi' | 'autre';
 type Personne = { id: string; nom: string; roles: string[] };
-export function EcrireAuContact({ client, contexte, fermer, fait }: { client: { id: string; nom: string }; contexte: Contexte; fermer: () => void; fait: () => void }) {
+export function EcrireAuContact({ client, contexte, valeurs = {}, fermer, fait }: { client: { id: string; nom: string }; contexte: Contexte; valeurs?: Record<string, string>; fermer: () => void; fait: () => void }) {
   const api = useApi();
   const { moi } = useConsole();
   const [personnes] = useLecture<{ personnes: Personne[] }>(`/console/support/personnes/${client.id}`);
@@ -66,10 +66,10 @@ export function EcrireAuContact({ client, contexte, fermer, fait }: { client: { 
   const [qui, setQui] = useState('');
   const choisi = qui || tries[0]?.id || '';
   const prenom = (tries.find((p) => p.id === choisi)?.nom ?? '').split(/\s+/)[0] ?? '';
-  const [sujet, setSujet] = useState(() => titre(`${K}.ecrire.objet.${contexte}`));
+  const [sujet, setSujet] = useState(() => titre(`${K}.ecrire.objet.${contexte}`, valeurs));
   const [texte, setTexte] = useState('');
   const [touche, setTouche] = useState(false);
-  const corps = touche ? texte : dire(`${K}.ecrire.debut.${contexte}`, { prenom, nom: moi.nom });
+  const corps = touche ? texte : dire(`${K}.ecrire.debut.${contexte}`, { ...valeurs, prenom, nom: moi.nom });
   const [refus, setRefus] = useState<string | null>(null);
   const [faute, setFaute] = useState<{ champ: string; n: number } | null>(null);
   const [occupe, setOccupe] = useState(false);
@@ -91,7 +91,7 @@ export function EcrireAuContact({ client, contexte, fermer, fait }: { client: { 
     })();
   };
   return (
-    <Dialogue titre={titre(`${K}.ecrire.titre`)} pour={client.nom} fermer={fermer} occupe={occupe}
+    <Dialogue titre={titre(`${K}.ecrire.titre`)} pour={client.nom} fermer={fermer} occupe={occupe} pret={personnes.etat !== 'lecture'}
       pied={<>
         <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
         <Bouton ton="principal" occupe={occupe} desactive={personnes.etat === 'lu' && !liste.length} onClick={envoyer}>{titre(`${K}.ecrire.bouton`)}</Bouton>

@@ -7,7 +7,9 @@
 //     geste qui répond à l'appel de la personne (lever son attente, avec son motif) ;
 //   - les connexions heure par heure, les règles qui freinent (leurs chiffres viennent du code), qui peut commander le
 //     serveur, et l'équipe avec ses appareils et ses sessions.
-// Rien n'est inventé : la chaîne d'empreintes n'est pas encore relue par la veille, et l'écran le dit.
+// Les chaînes d'empreintes, relues par le serveur chaque heure (0115) : la dernière relecture, ce qui n'a jamais été relu,
+// trente jours, et chaque chaîne cassée avec son point de rupture. Rien n'est inventé : le contenu des pièces, lui, n'est
+// pas encore recomparé à son empreinte, et l'écran le dit.
 import { useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
@@ -31,6 +33,14 @@ type Donnees = {
   maintenant: string; aujourdhui: string; role: 'direction' | 'technique'; veille: Veille; alertesEnCours: AlertesEnCours; briques: Brique[];
   heures: Heure[]; motsDePasseFaux: number; freines: number; aRegarder: ARegarder[]; equipe: Membre[]; regles: Regle[];
   cles: { id: string; retiree: boolean }[] | null; certificat: { expire: string; jours: number | null } | null;
+  chaines?: Chaines;
+};
+type Chaines = {
+  etat: 'casse' | 'arretee' | 'jamais' | 'bonne'; pasMs: number; parLot: number;
+  dernier: { le: string; chaines: number; maillons: number; cassees: number; dureeMs: number } | null;
+  total: number; maillons: number; jamais: number; plusAncien: string | null; nCassees: number;
+  cassees: { sorte: string; rang: number | null; motif: string | null; le: string | null; entreprise: { id: string; nom: string } | null }[];
+  jours: { jour: string; etat: 'bon' | 'casse' | 'rien' }[];
 };
 
 const somme = (h: readonly Heure[], k: 'reussies' | 'codesFaux') => h.reduce((s, x) => s + x[k], 0);
@@ -205,13 +215,60 @@ function Equipe({ d }: { d: Donnees }) {
   );
 }
 
-// ── Ce que la veille ne relit pas encore ────────────────────────────────────────────────────────────────────────────
-function Chaine() {
+// ── Les chaînes d'empreintes ────────────────────────────────────────────────────────────────────────────────────────
+const ETAT_CHAINES: Record<Chaines['etat'], EtatBrique> = { bonne: 'bon', arretee: 'attention', casse: 'grave', jamais: 'nonmesure' };
+const SORTES_CHAINE = new Set(['serie', 'livres', 'caisse']);
+const TON_JOUR: Record<Chaines['jours'][number]['etat'], 'bon' | 'grave' | 'nonmesure'> = { bon: 'bon', casse: 'grave', rien: 'nonmesure' };
+function Chaine({ c, aujourdhui }: { c: Chaines | undefined; aujourdhui: string }) {
+  const etat = c ? ETAT_CHAINES[c.etat] : 'nonmesure';
   return (
     <section className="c-carte c-se-chaine" aria-labelledby="se-chaine">
-      <h2 id="se-chaine">{titre(`${S}.ch.titre`)}</h2>
+      <div className="c-se-chaine-tete">
+        <h2 id="se-chaine">{titre(`${S}.ch.titre`)}</h2>
+        <EtatPuce etat={etat} texte={c ? maj(c.etat === 'casse' ? selon(c.nCassees, `${S}.ch.etat_casse`) : dire(`${S}.ch.etat_${c.etat}`)) : titre(`${S}.ch.etat_jamais`)} />
+      </div>
       <p className="c-carte-sous">{phrase(`${S}.ch.sous`)}</p>
-      <p className="c-se-chaine-etat"><EtatPuce etat="nonmesure" texte={titre(`${S}.ch.pas_relue`)} /> <span className="c-sous">{phrase(`${S}.ch.pourquoi`)}</span></p>
+      {c ? (
+        <>
+          <dl className="c-se-chaine-chiffres">
+            <div><dt>{titre(`${S}.ch.k.chaines`)}</dt><dd className="c-chiffre">{entier(c.total)}</dd></div>
+            <div><dt>{titre(`${S}.ch.k.maillons`)}</dt><dd className="c-chiffre">{entier(c.maillons)}</dd></div>
+            <div><dt>{titre(`${S}.ch.k.jamais`)}</dt><dd className="c-chiffre">{entier(c.jamais)}</dd></div>
+            <div><dt>{titre(`${S}.ch.k.derniere`)}</dt><dd>{c.dernier ? maj(quand(c.dernier.le, aujourdhui)) : titre(`${S}.ch.jamais_relue`)}</dd></div>
+          </dl>
+          <p className="c-sous">{c.dernier
+            ? phrase(`${S}.ch.rythme`, { lot: entier(c.parLot), chaines: selon(c.dernier.chaines, `${S}.ch.chaines`), maillons: selon(c.dernier.maillons, `${S}.ch.maillons`) })
+            : phrase(`${S}.ch.rythme_avant`, { lot: entier(c.parLot) })}</p>
+          <div className="c-se-frise" role="img" aria-label={phrase(`${S}.ch.frise_aria`)}>
+            {c.jours.map((j) => <span key={j.jour} className={`c-case c-se-jour c-ton-${TON_JOUR[j.etat]}`} title={`${jourCourt(j.jour)} · ${dire(`${S}.ch.jour.${j.etat}`)}`} />)}
+          </div>
+          <p className="c-sous c-se-frise-legende">{phrase(`${S}.ch.frise`)}</p>
+          {c.cassees.length ? (
+            <div className="c-defile">
+              <table className="c-table">
+                <thead><tr><th>{titre(`${S}.ch.c.sorte`)}</th><th>{titre(`${S}.ch.c.entreprise`)}</th><th>{titre(`${S}.ch.c.rupture`)}</th><th>{titre(`${S}.ch.c.vue`)}</th></tr></thead>
+                <tbody>
+                  {c.cassees.map((x, i) => (
+                    <tr key={`${x.sorte}-${x.le ?? ''}-${i}`}>
+                      <td>{titre(SORTES_CHAINE.has(x.sorte) ? `${S}.ch.sorte.${x.sorte}` : `${S}.ch.sorte.autre`)}</td>
+                      <td>{x.entreprise ? <a href={`#/clients/${x.entreprise.id}`} data-donnee>{x.entreprise.nom}</a> : <span className="c-attente">{dire(`${S}.ch.c.cachee`)}</span>}</td>
+                      <td>{x.rang !== null ? dire(`${S}.ch.c.au_rang`, { rang: entier(x.rang), motif: x.motif ?? '' }) : '—'}</td>
+                      <td>{x.le ? quand(x.le, aujourdhui) : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+      <ul className="c-se-chaine-perimetre">
+        <li><EtatPuce etat="bon" texte={titre(`${S}.ch.p.liens`)} /> <span className="c-sous">{phrase(`${S}.ch.p.liens_sous`)}</span></li>
+        <li><EtatPuce etat="nonmesure" texte={titre(`${S}.ch.p.contenu`)} /> <span className="c-sous">{phrase(`${S}.ch.p.contenu_sous`)}</span></li>
+        <li><EtatPuce etat="bon" texte={titre(`${S}.ch.p.caisse`)} /> <span className="c-sous">{phrase(`${S}.ch.p.caisse_sous`)}</span></li>
+        <li><EtatPuce etat="bon" texte={titre(`${S}.ch.p.journal`)} /> <span className="c-sous">{phrase(`${S}.ch.p.journal_sous`)}</span></li>
+      </ul>
+      <p className="c-sous">{phrase(`${S}.ch.jamais_reparer`)}</p>
     </section>
   );
 }
@@ -279,10 +336,8 @@ export function Securite() {
             <Regles d={d} />
           </div>
           <Equipe d={d} />
-          <div className="c-se-duo">
-            <Cles d={d} />
-            <Chaine />
-          </div>
+          <Cles d={d} />
+          <Chaine c={d.chaines} aujourdhui={d.aujourdhui} />
         </>
       ) : null}
       {lever ? <FenetreLever r={lever} fermer={() => setLever(null)} fait={() => { setLever(null); relire(); }} /> : null}

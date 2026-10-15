@@ -39,6 +39,7 @@ import {
 } from './sauvegardes.ts';
 import { attenteDe, etatTour, lireTravaux, PARTENAIRES, quatorzeJours, SANS_TRACE, TOURS } from './travaux.ts';
 import { depuisLa, plageDe, reserveALaDirection, sorteDe } from './journal.ts';
+import { CHAINES_PAR_LOT, CHAINES_PAS_MS, etatRelecture, joursDeRelecture, lireChaines } from './chaines.ts';
 import { argentADecider, couts, encaisse, encaisseDuMois, lirePaiements, moisAvantDe, moisDemande, MOYENS, ouvertes } from './paiements.ts';
 import { dansLeFiltre, etatTtn, FILTRES, ligne, lireNosFactures, resume as resumeDesFactures, type Filtre } from './nosfactures.ts';
 import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
@@ -49,7 +50,7 @@ import {
   ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, lireReglesAbonnement, CODES_REGLE, lireContenuOffres, lireRemises, CODES_REMISE, QUOI_CONTENU, preparesPar, QUOI_PRIX, registre, sujetDesReglages, type QuoiPrix,
 } from './reglages.ts';
 import { lireFormats, registreDesFormats } from './formats.ts';
-import { articleConnu, articlesDeLAide, CANAUX_NOTES, CLOSES_PAR_PAGE, compter, etatDe, lireSupport, ranger, SANS_REPONSE_HEURES, suggererPour } from './support.ts';
+import { articleConnu, articlesDeLAide, CANAUX_NOTES, CLOSES_PAR_PAGE, compter, etatDe, lireSupport, PRIORITES, ranger, SANS_REPONSE_HEURES, SANS_REPONSE_HEURES_URGENTE, suggererPour } from './support.ts';
 import { lireAcces, HEURES_MAX, PAGE } from '../support/acces.ts';
 import { filtrer } from '../v10/droits.ts';
 import { versionTeif } from '../v10/teif.ts';
@@ -1110,6 +1111,17 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       };
     },
   });
+  // Reprendre un envoi arrêté sur une panne (0115 ; l'audit F18), par sa clé : il repart au prochain tour du facteur, qui
+  // redemande d'abord à la TTN si elle a déjà la pièce. La base refuse un envoi fini, retenu par son compte, ou en cours.
+  ajouter({
+    methode: 'POST', chemin: '/console/service/travaux/envois/:cle/reprendre', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!/^[0-9A-F]{8}$/.test(params.cle ?? '')) throw new Introuvable();
+      await transaction(tx).query('select plateforme.console_reessayer_envoi($1, $2, $3)', [params.cle, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
   // La sécurité (C26) : les connexions de vingt-quatre heures, ce qui demande un regard, l'équipe, les règles qui
   // freinent (tirées du code), et qui peut commander le serveur — le fichier des clés relu à chaque demande, comme le
   // serveur d'accès le relit (une clé retirée dans le dépôt se voit ici à la mise en ligne suivante).
@@ -1122,6 +1134,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const x = transaction(tx);
       const v = lireVeilleDeLaBase(await lireJson(x, 'select plateforme.console_service_veille($1) v', [depuisTrenteJours(jour)]));
       const lu = lireSecurite(await lireJson(x, 'select plateforme.console_service_securite($1) v', [instant.toISOString()]));
+      const chaines = lireChaines(await lireJson(x, 'select plateforme.console_chaines($1) v', [instant.toISOString()]));
       const veille = await lireLaVeille(fichierVeille, instant);
       const cles = await fs.readFile(fichierCles, 'utf8').then((t) => lireClesDeCommande(JSON.parse(t))).catch(() => null);
       return {
@@ -1130,6 +1143,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           heures: lu.heures, motsDePasseFaux: lu.motsDePasseFaux, freines: lu.freines, aRegarder: rangerARegarder(lu.aRegarder), equipe: lu.equipe,
           regles: REGLES_DE_CONNEXION.map((r) => ({ ...r, compte: r.nom === 'mot_de_passe' ? lu.freines : null })),
           cles, certificat: v.dernier?.certificat ? { expire: v.dernier.certificat, jours: joursDuCertificat(v.dernier.certificat, jour) } : null,
+          // Les chaînes d'empreintes, relues seules (0115) : la dernière relecture, ce qui n'a jamais été relu, ce qui est cassé.
+          chaines: { ...chaines, jours: joursDeRelecture(chaines.jours, jour), etat: etatRelecture(chaines, instant), pasMs: CHAINES_PAS_MS, parLot: CHAINES_PAR_LOT },
         },
       };
     },
@@ -1632,7 +1647,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
             id: client.id, nom: client.raisonSociale, etat: client.etat, faits: client.faits,
             membres: client.membres, pieces: client.pieces, derniereActivite: client.derniereActivite, tenuePar: client.tenuePar,
           } : null,
-          articles: articlesDeLAide(), regles: { sansReponseHeures: SANS_REPONSE_HEURES },
+          articles: articlesDeLAide(), regles: { sansReponseHeures: SANS_REPONSE_HEURES, sansReponseHeuresUrgente: SANS_REPONSE_HEURES_URGENTE },
+          // À qui une demande se confie (0115) : la direction et le support.
+          equipe: s.equipe,
         },
       };
     },
@@ -1681,6 +1698,32 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     corps: z.object({ motif: motifGeste }),
     traiter: async ({ params, corps }, tx) => {
       await transaction(tx).query('select plateforme.console_rouvrir_demande($1, $2, $3)', [lireUuid(params.demande), corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  // Qui suit une demande, sa priorité, l'attente de la technique (0115 ; l'audit F13) : chacun avec son motif, au journal.
+  // `membre` absent : celui qui fait le geste la prend.
+  ajouter({
+    methode: 'POST', chemin: '/console/support/demandes/:demande/suivre', geste: 'console.support.repondre',
+    corps: z.object({ membre: uuid.nullable().optional(), motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_suivre_demande($1, $2, $3, $4)', [lireUuid(params.demande), corps.membre ?? null, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/support/demandes/:demande/priorite', geste: 'console.support.repondre',
+    corps: z.object({ priorite: z.enum(PRIORITES), motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_priorite_demande($1, $2, $3, $4)', [lireUuid(params.demande), corps.priorite, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/support/demandes/:demande/technique', geste: 'console.support.repondre',
+    corps: z.object({ attend: z.boolean(), motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_attente_technique($1, $2, $3, $4)', [lireUuid(params.demande), corps.attend, corps.motif, maintenant()]);
       return { corps: { ok: true } };
     },
   });

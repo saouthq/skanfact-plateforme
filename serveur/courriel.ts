@@ -10,12 +10,28 @@
 
 import fs from 'node:fs';
 import nodemailer from 'nodemailer';
+import type pg from 'pg';
 import { rendre, t, type Langue } from '../textes/index.ts';
+import { enTantQue } from './base.ts';
 
 // `bouton` nomme ce que fait le lien du message, quand il en porte un (« Choisir mon nouveau mot de passe ») : un
 // bouton dit ce que le clic fera, jamais « cliquez ici ». `langue` est celle du texte : la marque et le pied la suivent.
 export type Courriel = { a: string; objet: string; texte: string; bouton?: string; langue?: Langue };
 export type EnvoiCourriel = { envoyer: (c: Courriel) => Promise<void> };
+
+// La trace de chaque e-mail (0115 ; l'audit F19) : l'instant, et s'il est parti ou si le relais l'a refusé. Ni l'adresse,
+// ni l'objet, ni l'entreprise. Noter ne fait jamais échouer l'envoi : une base qui ne répond pas perd une trace.
+export function avecTrace(pool: pg.Pool, envoi: EnvoiCourriel): EnvoiCourriel {
+  const noter = async (ok: boolean) => {
+    try { await enTantQue(pool, null, (tx) => tx.query('select plateforme.noter_courriel($1, $2)', [ok, new Date()])); } catch { /* une trace perdue */ }
+  };
+  return {
+    envoyer: async (c) => {
+      try { await envoi.envoyer(c); } catch (e) { await noter(false); throw e; }
+      await noter(true);
+    },
+  };
+}
 
 // Les sections de courriel.html, lues une fois au chargement.
 export const MODELES: ReadonlyMap<string, string> = (() => {

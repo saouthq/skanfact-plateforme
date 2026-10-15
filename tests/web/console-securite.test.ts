@@ -134,6 +134,23 @@ describe('la sécurité du service, à la souris', () => {
     await fermer(p);
   }, 60_000);
 
+  it('la chaîne d\'empreintes : relue par le serveur au démarrage, trente jours en cases ; ce qui n\'est pas encore relu le dit', async () => {
+    const p = await ouvrir(jD);
+    const carte = p.locator('.c-se-chaine');
+    // Le serveur relit les chaînes à son démarrage : l'écran le dit (au besoin, après une relecture de la page).
+    await expect.poll(async () => { await p.reload(); await carte.waitFor(); return net(await carte.innerText()); }, { timeout: 30_000 }).not.toMatch(/Pas encore relue/);
+    const texte = net(await carte.innerText());
+    expect(texte).toMatch(/Dernière relecture/i);
+    expect(texte).toMatch(/le serveur relit 200 chaînes chaque heure/i);
+    // Ce qui est relu, et ce qui ne l'est pas encore : jamais « tout va bien » sur ce qu'on ne mesure pas.
+    expect(texte).toContain('Pas encore mesuré');
+    expect(texte).toMatch(/le contenu de chaque pièce, recomparé à son empreinte/i);
+    expect(await carte.locator('.c-se-jour').count()).toBe(30);
+    expect(await carte.locator('.c-se-jour.c-ton-nonmesure').count()).toBeLessThan(30);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
   it('au téléphone : rien ne déborde, l\'équipe se lit sans défilement de côté', async () => {
     const p = await ouvrir(jD, 390);
     expect(await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);

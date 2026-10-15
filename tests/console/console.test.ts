@@ -1075,7 +1075,7 @@ describe('les travaux et les envois du service (0090, docs/console.md C25)', () 
       const r = await autre.inject({ method: 'GET', url: `${VERSION}/console/service/travaux`, headers: { authorization: `Bearer ${jT}` } });
       expect((r.json() as Lu).branches.ttn).toBe(false);
     } finally { await autre.close(); }
-    expect(d.sansTrace).toEqual(['courriel', 'tej', 'cnss']);
+    expect(d.sansTrace).toEqual(['tej', 'cnss']);
   });
 
   it('seules la direction et la technique ; la base refuse hors d\'une session de la console ; le compte du serveur ne lit pas les tours', async () => {

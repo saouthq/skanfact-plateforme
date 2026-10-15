@@ -585,7 +585,8 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   /* Les quatre périodes du journal, deux par deux, plutôt que de sortir de la carte (ou « Tout » seul sur sa ligne). */
   .c-jr-outils .c-cl-filtres { min-width: 0; }
   .c-jr-outils .c-pilules.c-sv-periodes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); flex: 1 1 100%; }
-  .c-app { grid-template-columns: minmax(0, 1fr); }
+  /* La barre du haut garde sa hauteur : une page courte (le Support sans demande ouverte) laisse le vide au contenu, jamais à la barre. */
+  .c-app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
   .c-cote { position: sticky; top: 0; z-index: 30; height: auto; max-height: 100dvh; padding: 10px 14px; gap: 0; background-size: 100% 32px; }
   .c-cote-haut { display: flex; align-items: center; gap: 10px; }
   .c-marque { padding: 0; flex: 1; }
@@ -2053,6 +2054,8 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-tr-table td:nth-child(4) { grid-column: 2; grid-row: 1; }
   .c-tr-table td:nth-child(4)::before { content: attr(data-libelle) ' '; font-family: var(--c-texte); color: var(--c-gris); font-size: 12.5px; }
   .c-tr-table td:nth-child(5) { grid-column: 1 / -1; color: var(--c-gris); }
+  .c-tr-table td.c-tr-geste { grid-column: 1 / -1; text-align: start; }
+  .c-tr-table td.c-tr-geste:empty { display: none; }
   .c-tr-table td a { display: inline-flex; align-items: center; min-height: 44px; }
   .c-tr-tache { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; }
   .c-tr-tache > .c-puce { grid-column: 2; grid-row: 1; }
@@ -2301,7 +2304,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-sp-grille { display: grid; gap: 18px; align-items: start; grid-template-columns: 300px minmax(0, 1fr); }
 .c-sp-gauche { display: flex; flex-direction: column; gap: 18px; min-width: 0; min-height: 0; }
 .c-sp-liste { display: flex; flex-direction: column; min-width: 0; }
-.c-sp-liste-tete.c-pilules { padding: 16px 18px 12px; }
+.c-sp-liste-tete.c-pilules { padding: 16px 14px 12px; }
 .c-sp-liste-sous { margin: 0; padding: 0 18px 10px; font-size: 12.5px; color: var(--c-gris); }
 .c-sp-tickets { display: flex; flex-direction: column; }
 .c-sp-ticket {
@@ -2797,4 +2800,41 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 /* Au téléphone, le geste passe sous ce qu'il touche : le texte garde toute la largeur. */
 @media (max-width: 560px) {
   .c-eq-appareil-tete, .c-eq-sessions li { grid-template-columns: minmax(0, 1fr); justify-items: start; gap: 6px; }
+}
+/* Les chaînes d'empreintes (0115) : l'état en tête, quatre chiffres, trente jours en cases, ce qui est relu et ce qui ne
+   l'est pas encore. */
+.c-se-chaine { margin-top: 24px; }
+.c-se-chaine-tete { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.c-se-chaine-chiffres { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 4px 0 0; }
+.c-se-chaine-chiffres div { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--c-trait); border-radius: 12px; }
+.c-se-chaine-chiffres dt { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--c-gris); }
+.c-se-chaine-chiffres dd { margin: 0; font-size: 18px; font-weight: 600; }
+.c-se-frise { display: grid; grid-template-columns: repeat(30, minmax(0, 1fr)); gap: 3px; height: 22px; }
+.c-se-jour { border-radius: 4px; }
+.c-se-chaine-perimetre { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 8px; }
+.c-se-chaine-perimetre li { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+@media (max-width: 860px) {
+  .c-se-chaine-chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* Le suivi d'une demande (0115) : qui la suit, sa priorité, l'attente de la technique ; un geste direct, les autres dans
+   le menu. Sous l'en-tête, à la même marge. */
+.c-sp-suivi { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding: 10px 22px; border-bottom: 1px solid var(--c-trait); }
+.c-sp-suivi-qui { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; }
+.c-sp-suivi-qui .c-avatar { width: 24px; height: 24px; border-radius: 50%; font-size: 10px; }
+.c-sp-suivi-technique { flex: 1 1 100%; order: 3; }
+.c-sp-suivi-gestes { display: inline-flex; align-items: center; gap: 6px; margin-inline-start: auto; }
+.c-sp-ticket-puces { display: inline-flex; gap: 6px; flex: none; }
+/* Deux puces (urgente, son état) ne coupent jamais le nom du client en plein mot : elles passent dessous. */
+.c-sp-ticket-haut { flex-wrap: wrap; }
+.c-sp-ticket-haut b { flex: 1 1 8em; overflow-wrap: break-word; }
+/* Les trois vues de la liste (ouvertes, à moi, closes) tiennent sur une ligne à l'ordinateur. */
+.c-sp-liste-tete { gap: 6px; }
+.c-sp-liste-tete .c-pilule { padding-inline: 12px; white-space: nowrap; }
+/* Un autre suit la demande : dit au-dessus du champ, avant d'écrire. */
+.c-sp-un-autre { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 8px 12px; border-radius: 10px;
+  background: var(--c-orange-doux); color: var(--c-orange-texte); font-size: 13.5px; }
+.c-sp-un-autre .c-icone { flex: none; margin-top: 1px; }
+.c-tr-geste { white-space: nowrap; text-align: end; }
+@media (max-width: 860px) {
+  .c-sp-suivi { padding-inline: 18px; }
 }
