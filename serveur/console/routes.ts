@@ -47,6 +47,7 @@ import { depuisLa, plageDe, reserveALaDirection, sorteDe } from './journal.ts';
 import { CHAINES_PAR_LOT, CHAINES_PAS_MS, etatRelecture, joursDeRelecture, lireChaines } from './chaines.ts';
 import { lireMesure, mesurer, periodeMesure } from './mesure.ts';
 import { CANAUX_CONTESTATION, ISSUES, lireContestations } from './contestations.ts';
+import { lireSecrets, ranger as rangerSecrets, SECRET_BIENTOT_JOURS } from './secrets.ts';
 import { argentADecider, couts, encaisse, encaisseDuMois, lirePaiements, moisAvantDe, moisDemande, MOYENS, ouvertes } from './paiements.ts';
 import { dansLeFiltre, etatTtn, FILTRES, ligne, lireNosFactures, resume as resumeDesFactures, type Filtre } from './nosfactures.ts';
 import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
@@ -301,7 +302,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // Les relances que le serveur a envoyées tout seul depuis hier (la même table que l'écran Abonnements).
       const relances = role === 'technique' ? []
         : relancesRecentes(liste, lireExtras(await lireJson(transaction(tx), 'select plateforme.console_echeances() v')), instant);
-      return { corps: { aujourdhui: jour, role, tableau: role === 'technique' ? { service: t.service } : t, decider: aDecider(liste, veille, jour, role, demandes, instant, argent), relances } };
+      // Les secrets à renouveler (0130) : qui tient le service (la direction, la technique), jamais le support.
+      const secrets = role === 'support' ? [] : rangerSecrets(lireSecrets(await lireJson(transaction(tx), 'select plateforme.console_secrets() v')), jour);
+      return { corps: { aujourdhui: jour, role, tableau: role === 'technique' ? { service: t.service } : t, decider: aDecider(liste, veille, jour, role, demandes, instant, argent, secrets), relances } };
     },
   });
 
@@ -1333,8 +1336,42 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           cles, certificat: v.dernier?.certificat ? { expire: v.dernier.certificat, jours: joursDuCertificat(v.dernier.certificat, jour) } : null,
           // Les chaînes d'empreintes, relues seules (0115) : la dernière relecture, ce qui n'a jamais été relu, ce qui est cassé.
           chaines: { ...chaines, jours: joursDeRelecture(chaines.jours, jour), etat: etatRelecture(chaines, instant), pasMs: CHAINES_PAS_MS, parLot: CHAINES_PAR_LOT },
+          // Les secrets et leur échéance (0130) : jamais leur valeur ; le plus pressé d'abord.
+          secrets: rangerSecrets(lireSecrets(await lireJson(x, 'select plateforme.console_secrets() v')), jour), secretBientot: SECRET_BIENTOT_JOURS,
         },
       };
+    },
+  });
+  // ── Les secrets et leur échéance (0130 ; docs/console.md C53) ─────────────────────────────────────────────────────
+  // Noter un secret à suivre, son renouvellement, ou qu'on ne le suit plus ; chaque fois avec un motif. Jamais sa valeur :
+  // la base refuse une phrase qui ressemble à une clé.
+  const jourDuSecret = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'console.secret.jour')
+    .refine((j) => { const d = new Date(`${j}T00:00:00Z`); return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === j; }, 'console.secret.jour');
+  ajouter({
+    methode: 'POST', chemin: '/console/service/secrets', geste: 'console.service.gerer',
+    corps: z.object({ nom: z.string().trim().min(3, 'console.secret.nom').max(80, 'console.secret.nom'), role: z.string().trim().min(3, 'console.secret.role').max(200),
+      ou: z.string().trim().min(3, 'console.secret.ou').max(200), renouveleLe: jourDuSecret, expireLe: jourDuSecret.nullable(),
+      rotationJours: z.number().int().min(1, 'console.secret.rotation').max(3650, 'console.secret.rotation').nullable(), motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_noter_secret($1, $2, $3, $4::date, $5::date, $6, $7, $8) v',
+        [corps.nom, corps.role, corps.ou, corps.renouveleLe, corps.expireLe, corps.rotationJours, corps.motif, maintenant()]);
+      return { statut: 201, corps: { id } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/secrets/:secret/renouvele', geste: 'console.service.gerer',
+    corps: z.object({ le: jourDuSecret, expireLe: jourDuSecret.nullable(), motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_secret_renouvele($1, $2::date, $3::date, $4, $5)', [lireUuid(params.secret), corps.le, corps.expireLe, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/secrets/:secret/retirer', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_retirer_secret($1, $2, $3)', [lireUuid(params.secret), corps.motif, maintenant()]);
+      return { corps: { ok: true } };
     },
   });
   ajouter({

@@ -687,6 +687,9 @@ vaut pour tout le dépôt.*
     `plateforme.console_contester`, `plateforme.console_regulariser`, `plateforme.console_contestations` ;
     `serveur/console/contestations.ts`, la ligne `contestation` de `serveur/console/decider.ts` ;
     `web/console/src/ecrans/Contestations.tsx` (`tests/console/contestations.test.ts`, `tests/web/console-paiements.test.ts`).
+  - **Les secrets et leur échéance** (1.37.0 ; `docs/console.md` C53, `0130`) : `plateforme.secret_suivi` et ses gestes,
+    `serveur/console/secrets.ts`, la ligne `secret` de `serveur/console/decider.ts`, `web/console/src/ecrans/Secrets.tsx`
+    (`tests/console/secrets.test.ts`, `tests/web/console-securite.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

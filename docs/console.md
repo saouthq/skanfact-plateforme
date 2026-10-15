@@ -1283,6 +1283,20 @@ contestation en garde la trace et ne touche jamais la facture. La base réserve 
 la facture maintenue (de l'argent) ; le support note une contestation et la dit retirée. Chaque geste au journal, avec
 son motif. Les trop-perçus restent où ils étaient (C30) : la contestation ne les recalcule pas.
 
+**C53. Les secrets et leur échéance** (1.37.0 ; base 0130 ; la liste des fonctions qui manquent, 32 : « suivi des
+configurations et des secrets : état, rotation et renouvellement, sans exposition des secrets »). Dans Service › Sécurité,
+la carte « Les secrets et leur échéance » tient le registre des clés et mots de passe du service (le relais d'e-mails,
+les SMS, le stockage hors de la machine, le chiffrement des sauvegardes, le prestataire de paiement…) : le nom de chacun,
+à quoi il sert, où il vit (le serveur et sa variable, Cloudflare, le compte du prestataire), quand il a été renouvelé,
+quand il expire (si le prestataire le date) et tous les combien on le renouvelle (notre règle). **Jamais sa valeur** : la
+console ne l'a pas, et la base refuse une phrase qui ressemble à une clé (une longue suite de lettres et de chiffres sans
+espace). Son échéance est le premier des deux jours qu'il a ; aucun, il n'en a pas, et l'écran le dit. Le plus pressé
+d'abord : en retard (rouge), bientôt — trente jours avant (**À DÉCIDER**) — (orange), à jour, sans échéance ; toujours dit
+en mots. Bientôt dû ou en retard, il entre dans « À décider » de la direction et de la technique (jamais du support, qui
+ne lit pas cet écran). La direction et la technique notent un secret, son renouvellement (le jour, la nouvelle date
+d'expiration ; il ne vient jamais avant le précédent) ou qu'on ne le suit plus ; chaque geste au journal, avec son motif.
+Le certificat https reste lu par la veille (C26).
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

@@ -15225,6 +15225,54 @@ prouver 'la ligne de la fiche tait sa contestation' 'web/console/src/ecrans/Fich
   'return null;' \
   'une contestation (0129) : le support la note depuis la ligne de sa facture ; la direction la lit dans Paiements et la régularise par un avoir, avec sa référence'
 
+# 1.37.0 : les secrets et leur échéance (0130 ; la liste des fonctions qui manquent, 32).
+prouver 'une valeur écrite au registre' 'base/migrations/0130_secrets.sql' \
+  '  perform plateforme.secret_textes_sains(p_nom, p_role, p_ou);
+' \
+  '' \
+  'la technique note un secret, jamais sa valeur ; un nom suivi une fois ; le support ne lit ni n'"'"'écrit rien'
+prouver 'un nom suivi deux fois' 'base/migrations/0130_secrets.sql' \
+  '  if exists (select 1 from plateforme.secret_suivi s where lower(btrim(s.nom)) = lower(btrim(p_nom)) and s.retire_le is null) then' \
+  '  if false then' \
+  'la technique note un secret, jamais sa valeur ; un nom suivi une fois ; le support ne lit ni n'"'"'écrit rien'
+prouver 'un secret renouvelé demain' 'base/migrations/0130_secrets.sql' \
+  '  if p_renouvele_le is null or p_renouvele_le > (p_maintenant at time zone '"'"'Africa/Tunis'"'"')::date then' \
+  '  if p_renouvele_le is null then' \
+  'la technique note un secret, jamais sa valeur ; un nom suivi une fois ; le support ne lit ni n'"'"'écrit rien'
+prouver 'un renouvellement avant le précédent' 'base/migrations/0130_secrets.sql' \
+  '  if p_le < s.renouvele_le then perform socle.refus('"'"'un renouvellement vient après le précédent'"'"'); end if;' \
+  '  if false then perform socle.refus('"'"'un renouvellement vient après le précédent'"'"'); end if;' \
+  'bientôt dû : « À décider » le nomme pour qui tient le service ; renouvelé, il n'"'"'y est plus ; retiré, il quitte le registre'
+prouver 'un secret retiré qui se retire encore' 'base/migrations/0130_secrets.sql' \
+  'and retire_le is null for update;
+  if not found then perform socle.refus('"'"'ce secret n'"'"''"'"'est pas suivi'"'"'); end if;
+  update plateforme.secret_suivi set retire_le' \
+  'for update;
+  if not found then perform socle.refus('"'"'ce secret n'"'"''"'"'est pas suivi'"'"'); end if;
+  update plateforme.secret_suivi set retire_le' \
+  'bientôt dû : « À décider » le nomme pour qui tient le service ; renouvelé, il n'"'"'y est plus ; retiré, il quitte le registre'
+prouver 'l'"'"'échéance prise au plus tard' 'serveur/console/secrets.ts' \
+  'jours.reduce((a, b) => (a < b ? a : b))' \
+  'jours.reduce((a, b) => (a > b ? a : b))' \
+  'le premier de deux jours ; aucun, aucune ; bientôt à trente jours, pas à trente et un ; en retard le lendemain'
+prouver 'bientôt un jour trop tard' 'serveur/console/secrets.ts' \
+  'jours <= SECRET_BIENTOT_JOURS ?' \
+  'jours < SECRET_BIENTOT_JOURS ?' \
+  'le premier de deux jours ; aucun, aucune ; bientôt à trente jours, pas à trente et un ; en retard le lendemain'
+prouver '« À décider » tait le secret bientôt dû' 'serveur/console/decider.ts' \
+  'if ((s.etat === '"'"'en_retard'"'"' || s.etat === '"'"'bientot'"'"') && s.echeance && s.jours !== null) {' \
+  'if (s.etat === '"'"'en_retard'"'"' && s.echeance && s.jours !== null) {' \
+  'bientôt dû : « À décider » le nomme pour qui tient le service ; renouvelé, il n'"'"'y est plus ; retiré, il quitte le registre'
+prouver 'le support lit les secrets' 'serveur/console/routes.ts' \
+  'const secrets = role === '"'"'support'"'"' ? [] : rangerSecrets(' \
+  'const secrets = rangerSecrets(' \
+  'bientôt dû : « À décider » le nomme pour qui tient le service ; renouvelé, il n'"'"'y est plus ; retiré, il quitte le registre'
+prouver 'la sécurité tait ses secrets' 'web/console/src/ecrans/Securite.tsx' \
+  '          <Secrets secrets={d.secrets} bientot={d.secretBientot ?? 30} aujourdhui={d.aujourdhui} relire={relire} />
+' \
+  '' \
+  'les secrets (0130) : vide, le registre dit quoi y noter ; une valeur est refusée, le nom et les dates se notent ; renouvelé, l'"'"'échéance repart'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

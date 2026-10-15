@@ -1621,6 +1621,9 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-ct-dit { display: grid; gap: 4px; padding: 12px 14px; border-radius: 12px; background: var(--c-papier-2); }
 .c-ct-dit p { margin: 0; white-space: pre-line; }
 .c-ct-dit-ligne { font-style: italic; overflow-wrap: anywhere; }
+.c-se-secrets-table td { vertical-align: top; }
+/* Le texte de l'en-tête prend la place qui reste : « Noter un secret… » reste à droite tant que la largeur le permet. */
+.c-se-secrets .c-carte-tete > div { flex: 1 1 320px; }
 .c-cl-rien { color: var(--c-gris-2); }
 /* Ce qui rapportera quand ce sera payé se lit en retrait : ce n'est pas encore de l'argent. */
 .c-cl-attendu { color: var(--c-gris); }

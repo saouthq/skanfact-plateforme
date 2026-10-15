@@ -21,6 +21,8 @@ type Tableau = {
 type Qui = { id: string; nom: string };
 export type Ligne =
   | { sorte: 'service'; ouvre: 'service'; cle: string; titre: string; faire: string; depuis: string; grave: boolean }
+  // 0130 : un secret à renouveler bientôt, ou en retard (jamais sa valeur).
+  | { sorte: 'secret'; ouvre: 'service'; nom: string; echeance: string; jours: number }
   | { sorte: 'veille_silencieuse'; ouvre: 'service'; derniere: string }
   | { sorte: 'en_retard'; ouvre: 'fiche'; entreprise: Qui; echeance: string; lectureSeuleLe: string; jours: number; apresEssai: boolean }
   | { sorte: 'lecture_seule'; ouvre: 'fiche'; entreprise: Qui; depuis: string; raison: 'essai_termine' | 'non_renouvele' | 'resilie' | 'suspendu' }
@@ -126,6 +128,10 @@ function voir(l: Ligne, aujourdhui: string): Vue {
   switch (l.sorte) {
     case 'service':
       return { icone: 'serveur', titre: maj(l.titre), desc: l.faire, meta: titre('console.ecran.decider.service_depuis', { quand: l.depuis ? quand(l.depuis, aujourdhui) : '—' }), urgence: l.grave ? 'urgent' : 'a_regarder', href: '#/service/alertes', bouton: titre('console.ecran.decider.ouvrir_alerte') };
+    case 'secret':
+      return { icone: 'cadenas', titre: titre(l.jours < 0 ? 'console.ecran.decider.secret_retard_titre' : 'console.ecran.decider.secret_titre', { nom: l.nom }),
+        desc: phrase(l.jours < 0 ? 'console.ecran.decider.secret_retard' : 'console.ecran.decider.secret', { n: Math.abs(l.jours), le: jourCourt(l.echeance) }),
+        meta: null, urgence: l.jours < 0 ? 'urgent' : 'a_regarder', href: '#/service/securite', bouton: titre('console.ecran.decider.ouvrir_securite') };
     case 'veille_silencieuse':
       return { icone: 'alerte', titre: titre('console.ecran.decider.veille_titre'), desc: phrase('console.ecran.decider.veille', { quand: quand(l.derniere, aujourdhui) }), meta: null, urgence: 'urgent', href: '#/service', bouton: titre('console.ecran.decider.ouvrir_service') };
     case 'en_retard':
@@ -199,7 +205,7 @@ function ADecider({ lignes, role, aujourdhui }: { lignes: Ligne[]; role: Role; a
               const ton: TonPuce = v.urgence;
               const donnee = l.sorte === 'service' || l.sorte === 'support';
               return (
-                <li key={l.sorte === 'service' ? `service-${l.cle}` : l.sorte === 'veille_silencieuse' ? 'veille' : l.sorte === 'support' ? `support-${l.demande.id}`
+                <li key={l.sorte === 'service' ? `service-${l.cle}` : l.sorte === 'secret' ? `secret-${l.nom}` : l.sorte === 'veille_silencieuse' ? 'veille' : l.sorte === 'support' ? `support-${l.demande.id}`
                   : l.sorte === 'facture_defaite' || l.sorte === 'a_emettre' || l.sorte === 'trop_percu' ? `${l.sorte}-${l.ecran}` : l.sorte === 'contestation' ? `${l.sorte}-${l.entreprise.id}-${l.numero ?? l.ouverteLe}` : `${l.sorte}-${l.entreprise.id}`} className="c-ligne-decision">
                   <span className={`c-ligne-icone c-${v.urgence}`}><Icone nom={v.icone} /></span>
                   <div className="c-ligne-texte">

@@ -16,6 +16,7 @@ import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts
 import { entier } from '../nombres.ts';
 import { heureDe, jourCourt, quand } from '../temps.ts';
 import { Alerte, Bouton, Dialogue, Lien, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
+import { Secrets, type Secret } from './Secrets.tsx';
 import { EnteteService, EtatPuce, Tuile, useRelireTantQueRegarde, type AlertesEnCours, type Brique, type EtatBrique, type Veille } from './Service.tsx';
 
 const K = 'console.ecran.service';
@@ -34,6 +35,8 @@ type Donnees = {
   heures: Heure[]; motsDePasseFaux: number; freines: number; aRegarder: ARegarder[]; equipe: Membre[]; regles: Regle[];
   cles: { id: string; retiree: boolean }[] | null; certificat: { expire: string; jours: number | null } | null;
   chaines?: Chaines;
+  // Les secrets et leur échéance (0130), le plus pressé d'abord ; et le délai de « bientôt ».
+  secrets?: Secret[]; secretBientot?: number;
 };
 type Chaines = {
   etat: 'casse' | 'arretee' | 'jamais' | 'bonne'; pasMs: number; parLot: number;
@@ -337,6 +340,7 @@ export function Securite() {
           </div>
           <Equipe d={d} />
           <Cles d={d} />
+          <Secrets secrets={d.secrets} bientot={d.secretBientot ?? 30} aujourdhui={d.aujourdhui} relire={relire} />
           <Chaine c={d.chaines} aujourdhui={d.aujourdhui} />
         </>
       ) : null}

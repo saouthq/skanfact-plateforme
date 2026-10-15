@@ -818,6 +818,19 @@ export interface BaseDeDonnees {
     close_par: string | null;
     close_motif: string | null;
   };
+  'plateforme.secret_suivi': {
+    id: Generated<string>;
+    nom: string;
+    role: string;
+    ou: string;
+    renouvele_le: string;
+    expire_le: string | null;
+    rotation_jours: number | null;
+    note_le: Date;
+    note_par: string;
+    retire_le: Date | null;
+    retire_par: string | null;
+  };
   'plateforme.service_alerte': {
     id: Generated<string>;
     cle: string;

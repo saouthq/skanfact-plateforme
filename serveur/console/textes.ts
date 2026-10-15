@@ -68,6 +68,11 @@ declarerTextes({
   'console.recu.montant': 'le montant reçu s\'écrit en dinars, toutes taxes comprises, avec trois décimales au plus : « 2 380 » ou « 2 380,500 »',
   'console.recu.moyen': 'dis comment l\'argent est arrivé : un virement, un chèque ou des espèces',
   'console.recu.jour': 'le jour du paiement est aujourd\'hui ou un jour passé, qui existe au calendrier',
+  'console.secret.jour': 'un jour qui existe au calendrier, écrit comme 2026-10-15',
+  'console.secret.nom': 'le nom d\'un secret : de trois à quatre-vingts caractères',
+  'console.secret.role': 'à quoi sert ce secret, en quelques mots',
+  'console.secret.ou': 'où vit ce secret : le serveur, Cloudflare… jamais sa valeur',
+  'console.secret.rotation': 'un rythme de renouvellement : d\'un jour à dix ans',
   // Préparer un prix (docs/abonnement.md C14) : chaque refus nomme sa case.
   'console.reglages.prix_illisible': 'le prix s\'écrit en dinars hors taxes, avec trois décimales au plus : « 420 » ou « 420,500 »',
   'console.reglages.nouveaute_inconnue': 'la version en service ne porte pas cette nouveauté : elle n\'existe que dans une version à venir, ou elle est devenue la règle pour tous',

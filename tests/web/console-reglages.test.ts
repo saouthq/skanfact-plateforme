@@ -197,12 +197,14 @@ describe('les réglages de la plateforme, à la souris', () => {
     // L'autre offre le dit à la même place, et ce que chacune comprend commence à la même hauteur.
     expect(net(await c.locator('.abo-offre[data-offre="essentiel"] .abo-avenir-rien').innerText())).toBe('Aucun changement annoncé.');
     const haut = async (offre: string) => (await c.locator(`.abo-offre[data-offre="${offre}"] .abo-inclus`).boundingBox())?.y;
-    // À moins d'un demi-point près : les deux cartes partagent leurs lignes, mais le navigateur arrondit une position au
-    // soixante-quatrième de point, et pas toujours pareil d'une colonne à l'autre (0,096 point vu le 14/10/2026). Un vrai
-    // décalage, lui, fait la hauteur d'une ligne.
-    const [hE, hC] = [await haut('essentiel'), await haut('complet')];
-    expect(hE).toBeDefined();
-    expect(Math.abs((hE ?? 0) - (hC ?? Infinity))).toBeLessThan(0.5);
+    // À moins d'un quart de ligne près : un vrai décalage fait la hauteur d'une ligne (celle de « Aucun changement
+    // annoncé. », mesurée ici). Les deux cartes partagent leurs lignes, mais le navigateur arrondit les positions, et pas
+    // pareil d'une colonne à l'autre ni d'une machine à l'autre : 0,096 point vu le 14/10/2026, 1,09 puis 0,6 point le
+    // 15/10/2026 (ici, puis sur GitHub) sans qu'aucune ligne ne soit décalée. Mesuré jusqu'à ce que la page soit posée.
+    const uneLigne = (await c.locator('.abo-offre[data-offre="essentiel"] .abo-avenir-rien').boundingBox())?.height ?? 0;
+    expect(uneLigne).toBeGreaterThan(10);
+    expect(await haut('essentiel')).toBeDefined();
+    await expect.poll(async () => Math.abs((await haut('essentiel') ?? 0) - (await haut('complet') ?? Infinity)), { timeout: 5_000 }).toBeLessThan(uneLigne / 4);
     // Retiré avant sa date : il quitte la grille et l'écran du client.
     await cliquer(venir.getByRole('button', { name: 'Le retirer avant sa date…' }));
     const r = p.locator('[role="dialog"]');

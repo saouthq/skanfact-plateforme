@@ -11,6 +11,7 @@ import type { RoleConsole } from './gestes.ts';
 import type { AEmettre, Defaite, MesureEncaisse, Trop } from './paiements.ts';
 import { compter, etatDe, type LigneDemande } from './support.ts';
 import { CONTESTATION_JOURS, enCours, joursDAttente, type Contestation } from './contestations.ts';
+import type { SecretLu } from './secrets.ts';
 
 export type Entreprise = {
   id: string; raisonSociale: string; matricule: string | null; active: boolean; creeLe: string;
@@ -163,6 +164,8 @@ export function tableau(liste: Entreprise[], veille: Veille, jour: string, deman
 // Chaque ligne dit ce qui demande une décision, et l'écran qu'elle ouvre (la fiche d'un client, le service).
 export type Ligne =
   | { sorte: 'service'; ouvre: 'service'; cle: string; titre: string; faire: string; depuis: string; grave: boolean }
+  // 0130 : un secret à renouveler dans trente jours au plus, ou dont l'échéance est passée (jamais sa valeur).
+  | { sorte: 'secret'; ouvre: 'service'; nom: string; echeance: string; jours: number }
   | { sorte: 'veille_silencieuse'; ouvre: 'service'; derniere: string }
   | { sorte: 'en_retard'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; echeance: string; lectureSeuleLe: string; jours: number; apresEssai: boolean }
   | { sorte: 'lecture_seule'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; depuis: string; raison: string }
@@ -196,7 +199,7 @@ export const LECTURE_SEULE_DE_LA_SEMAINE = 7;
 // promesse (« dans la journée ») est déjà tenue en retard ; la plus ancienne d'abord.
 // L'argent (`argent`) : la direction seule, et pour les entreprises de la liste (la fiche passe la sienne).
 export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role: RoleConsole, demandes: LigneDemande[] = [], maintenant: Date = new Date(),
-  argent: Argent | null = null): Ligne[] {
+  argent: Argent | null = null, secrets: readonly SecretLu[] = []): Ligne[] {
   const lignes: [number, number, Ligne][] = [];
   const service = role !== 'support';
   const clients = role !== 'technique';
@@ -230,6 +233,14 @@ export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role
   if (service && veille.etat === 'silencieuse') lignes.push([0, 0, { sorte: 'veille_silencieuse', ouvre: 'service', derniere: veille.derniere }]);
   if (service && veille.etat === 'ok') {
     for (const p of veille.problemes) lignes.push([p.grave ? 0 : 2, 0, { sorte: 'service', ouvre: 'service', ...p }]);
+  }
+  // Les secrets (0130), pour qui tient le service : en retard juste après un service grave, bientôt après les autres.
+  if (service) {
+    for (const s of secrets) {
+      if ((s.etat === 'en_retard' || s.etat === 'bientot') && s.echeance && s.jours !== null) {
+        lignes.push([s.etat === 'en_retard' ? 0.8 : 2.8, s.jours, { sorte: 'secret', ouvre: 'service', nom: s.nom, echeance: s.echeance, jours: s.jours }]);
+      }
+    }
   }
   if (clients) {
     for (const d of demandes) {

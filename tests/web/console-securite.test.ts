@@ -134,6 +134,42 @@ describe('la sécurité du service, à la souris', () => {
     await fermer(p);
   }, 60_000);
 
+  it('les secrets (0130) : vide, le registre dit quoi y noter ; une valeur est refusée, le nom et les dates se notent ; renouvelé, l\'échéance repart', async () => {
+    await admin.query('delete from plateforme.secret_suivi');
+    const p = await ouvrir(jD);
+    const carte = p.locator('section[aria-labelledby="se-secrets"]');
+    await expect.poll(() => carte.innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain('Aucun secret au registre');
+    await cliquer(carte.getByRole('button', { name: 'Noter un secret…', exact: true }));
+    const f = p.getByRole('dialog');
+    expect(net(await f.locator('.c-alerte-attention').innerText())).toContain('N\'écris jamais la valeur d\'un secret');
+    await f.getByLabel('Son nom', { exact: true }).fill('Clé du relais d\'e-mails');
+    await f.getByLabel('À quoi il sert', { exact: true }).fill('les e-mails de connexion et des alertes');
+    // Collée par erreur, une valeur : la base la refuse, et la fenêtre le dit.
+    await f.getByLabel('Où il vit', { exact: true }).fill('re_8Kf2xQmZ9pLwT4vN7bY1cR6sH3jD0aE5');
+    await f.getByLabel('À renouveler tous les (jours)', { exact: true }).fill('365');
+    await f.getByLabel('Motif', { exact: true }).fill('mise en route du registre');
+    await cliquer(f.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => f.locator('.c-alerte-danger').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toContain('ressemble à la valeur d\'un secret');
+    expect((await admin.query('select count(*)::int n from plateforme.secret_suivi')).rows[0].n).toBe(0);
+    await f.getByLabel('Où il vit', { exact: true }).fill('le serveur, la variable SKANFACT_RESEND');
+    await cliquer(f.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => p.locator('#c-toast').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe('« Clé du relais d\'e-mails » est au registre.');
+    const ligne = carte.locator('tbody tr', { hasText: 'Clé du relais d\'e-mails' });
+    await expect.poll(() => ligne.innerText().then(net).catch(() => ''), { timeout: 10_000 }).toMatch(/À jour Dans 365 jours, le \d{2}\/\d{2}\/\d{4} À renouveler tous les 365 jours/);
+    // Vieilli de trois cent cinquante jours : bientôt ; renouvelé aujourd'hui, à jour.
+    await admin.query("update plateforme.secret_suivi set renouvele_le = renouvele_le - 350");
+    await p.reload();
+    await expect.poll(() => ligne.innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain('Bientôt Dans 15 jours');
+    await cliquer(ligne.getByRole('button', { name: 'Gestes sur Clé du relais d\'e-mails', exact: true }));
+    await cliquer(p.locator('.c-menu-liste button', { hasText: 'Noter son renouvellement' }));
+    const r = p.getByRole('dialog');
+    await r.getByLabel('Motif', { exact: true }).fill('nouvelle clé chez le prestataire');
+    await cliquer(r.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => ligne.innerText().then(net).catch(() => ''), { timeout: 10_000 }).toContain('À jour Dans 365 jours');
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 90_000);
+
   it('la chaîne d\'empreintes : relue par le serveur au démarrage, trente jours en cases ; ce qui n\'est pas encore relu le dit', async () => {
     const p = await ouvrir(jD);
     const carte = p.locator('.c-se-chaine');
