@@ -28,11 +28,93 @@ export const NUANCES: Record<string, Partial<Record<Role, string>>> = {
   'console.abonnement.offrir_mois': { support: 'console.ecran.equipe.droit.console.abonnement.offrir_mois.support' },
   'console.journal.voir': { support: 'console.ecran.equipe.droit.console.journal.voir.support' },
 };
-type Geste = { sorte: 'ajouter' } | { sorte: 'role'; m: Membre } | { sorte: 'retirer'; m: Membre };
+type Geste = { sorte: 'role'; m: Membre } | { sorte: 'retirer'; m: Membre };
+// Une invitation qui attend (0118, C41) : son lien vaut sept jours ; `expiree` : il ne vaut plus, à renvoyer.
+type Invitation = { id: string; email: string; role: Role; inviteeLe: string; expireLe: string; expiree: boolean; invitePar: string };
+type GesteInvitation = { sorte: 'inviter' } | { sorte: 'renvoyer'; i: Invitation } | { sorte: 'annuler'; i: Invitation };
+type Lien = { email: string; role: Role; jeton: string; expire: string };
+
+// Inviter, renvoyer, annuler : un motif, au journal. Le lien d'une invitation se montre UNE fois, ensuite (FenetreLien).
+function FenetreInvitation({ g, fermer, fait }: { g: GesteInvitation; fermer: () => void; fait: (lien: Lien | null) => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<Role>('support');
+  const [motif, setMotif] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState<{ champ: string; n: number } | null>(null);
+  const [occupe, setOccupe] = useState(false);
+  const refuser = (texte: string, champ: string | null) => { setRefus(texte); setFaute(champ ? { champ, n: (faute?.n ?? 0) + 1 } : null); };
+  const sur = (champ: string) => ({ faute: faute?.champ === champ, ...(faute?.champ === champ ? { n: faute.n } : {}) });
+  const K = 'console.ecran.equipe.inv';
+  const faire = () => {
+    if (g.sorte === 'inviter' && !email.trim()) { refuser(phrase(`${K}.email_vide`), 'email'); return; }
+    if (motif.trim().length < 3) { refuser(phrase('console.ecran.geste.motif_court'), 'motif'); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const r = g.sorte === 'inviter' ? await api<{ jeton: string; expire: string }>('POST', '/console/equipe/invitations', { email: email.trim(), role, motif: motif.trim() })
+          : g.sorte === 'renvoyer' ? await api<{ jeton: string; expire: string }>('POST', `/console/equipe/invitations/${g.i.id}/renvoyer`, { motif: motif.trim() })
+            : await api<{ jeton: string; expire: string }>('POST', `/console/equipe/invitations/${g.i.id}/annuler`, { motif: motif.trim() });
+        if (!r) return;
+        if (r.statut === 200 || r.statut === 201) {
+          if (g.sorte === 'annuler') { toast(phrase(`${K}.annulee`)); fait(null); return; }
+          fait({ email: g.sorte === 'inviter' ? email.trim().toLowerCase() : g.i.email, role: g.sorte === 'inviter' ? role : g.i.role, jeton: r.corps.jeton, expire: r.corps.expire });
+          return;
+        }
+        refuser(refusDe(r), r.corps.champ === 'email' || r.corps.champ === 'motif' ? r.corps.champ : null);
+      } catch (x) { refuser(panneDe(x), null); } finally { setOccupe(false); }
+    })();
+  };
+  const points = g.sorte === 'annuler' ? ['a1', 'a2', 'a3'] : g.sorte === 'renvoyer' ? ['r1', 'r2', 'r3'] : ['i1', 'i2', 'i3'];
+  return (
+    <Dialogue titre={titre(`${K}.${g.sorte}_titre`)} sous={g.sorte === 'inviter' ? phrase(`${K}.inviter_sous`) : dire(`${K}.pour`, { email: g.i.email, role: titre(`console.ecran.role.${g.i.role}`) })}
+      sousDonnee={g.sorte !== 'inviter'} fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton={g.sorte === 'annuler' ? 'danger' : 'principal'} occupe={occupe} onClick={faire}>{titre(`${K}.${g.sorte}_bouton`)}</Bouton>
+      </>}>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
+        <ul>{points.map((x) => <li key={x}>{phrase(`${K}.${x}`)}</li>)}</ul>
+      </div>
+      {g.sorte === 'inviter' ? <>
+        <Champ libelle={titre('console.ecran.equipe.email')} aide={phrase(`${K}.email_aide`)} type="email" inputMode="email" valeur={email} changer={setEmail} premier {...sur('email')} />
+        <Choix libelle={titre('console.ecran.equipe.role')} aide={phrase(`console.ecran.role_aide.${role}`)} valeur={role} changer={(v) => setRole(v as Role)}
+          options={ROLES.map((r) => ({ valeur: r, texte: titre(`console.ecran.role.${r}`) }))} />
+      </> : null}
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.equipe.motif_aide')} valeur={motif} changer={setMotif} {...(g.sorte === 'inviter' ? {} : { premier: true })} {...sur('motif')} />
+      <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+// Le lien, montré UNE fois (la base n'en garde que l'empreinte) : le copier, l'envoyer par WhatsApp ou par sa messagerie.
+// Le serveur n'envoie rien (docs/equipe.md E5).
+function FenetreLien({ lien, fermer }: { lien: Lien; fermer: () => void }) {
+  const K = 'console.ecran.equipe.inv';
+  const adresse = `${location.origin}${location.pathname}#/invitation/${lien.jeton}`;
+  const message = dire(`${K}.message`, { role: dire(`console.ecran.role.${lien.role}`), lien: adresse, le: jourCourt(jourDe(lien.expire)) });
+  const copier = () => { void navigator.clipboard?.writeText(adresse).then(() => toast(phrase(`${K}.copie`)), () => toast(phrase('console.ecran.compte.copie_impossible'), true)); };
+  return (
+    <Dialogue titre={titre(`${K}.lien_titre`)} sous={phrase(`${K}.lien_sous`, { email: lien.email, le: jourCourt(jourDe(lien.expire)) })} fermer={fermer}
+      pied={<Bouton ton="principal" onClick={fermer}>{titre(`${K}.lien_fait`)}</Bouton>}>
+      <div className="c-inv-lien">
+        <code className="c-inv-adresse" data-donnee>{adresse}</code>
+        <div className="c-inv-envois">
+          <Bouton icone="copier" onClick={copier}>{titre(`${K}.copier`)}</Bouton>
+          <Lien href={`https://wa.me/?text=${encodeURIComponent(message)}`} ailleurs icone="echange">{titre(`${K}.whatsapp`)}</Lien>
+          <Lien href={`mailto:${lien.email}?subject=${encodeURIComponent(maj(dire(`${K}.objet`)))}&body=${encodeURIComponent(message)}`} icone="courriel">{titre(`${K}.courriel`)}</Lien>
+        </div>
+      </div>
+      <p className="c-sous">{phrase(`${K}.lien_note`)}</p>
+    </Dialogue>
+  );
+}
 
 function FenetreEquipe({ g, fermer, fait }: { g: Geste; fermer: () => void; fait: () => void }) {
   const api = useApi();
-  const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>(g.sorte === 'role' ? (ROLES.find((r) => r !== g.m.role) ?? 'support') : 'support');
   const [motif, setMotif] = useState('');
   const [refus, setRefus] = useState<string | null>(null);
@@ -41,38 +123,34 @@ function FenetreEquipe({ g, fermer, fait }: { g: Geste; fermer: () => void; fait
   const refuser = (texte: string, champ: string | null) => { setRefus(texte); setFaute(champ ? { champ, n: (faute?.n ?? 0) + 1 } : null); };
 
   const faire = () => {
-    if (g.sorte === 'ajouter' && !email.trim()) { refuser(phrase('console.ecran.equipe.email_aide'), 'email'); return; }
     if (motif.trim().length < 3) { refuser(phrase('console.ecran.geste.motif_court'), 'motif'); return; }
     void (async () => {
       setOccupe(true);
       try {
-        const r = g.sorte === 'ajouter' ? await api('POST', '/console/equipe', { email: email.trim(), role, motif: motif.trim() })
-          : g.sorte === 'role' ? await api('PUT', `/console/equipe/${g.m.utilisateur}`, { role, motif: motif.trim() })
-            : await api('POST', `/console/equipe/${g.m.utilisateur}/retirer`, { motif: motif.trim() });
+        const r = g.sorte === 'role' ? await api('PUT', `/console/equipe/${g.m.utilisateur}`, { role, motif: motif.trim() })
+          : await api('POST', `/console/equipe/${g.m.utilisateur}/retirer`, { motif: motif.trim() });
         if (!r) return;
-        if (r.statut === 200 || r.statut === 201) {
-          toast(phrase(g.sorte === 'ajouter' ? 'console.ecran.equipe.ajoute' : g.sorte === 'role' ? 'console.ecran.equipe.role_change' : 'console.ecran.equipe.retire'));
+        if (r.statut === 200) {
+          toast(phrase(g.sorte === 'role' ? 'console.ecran.equipe.role_change' : 'console.ecran.equipe.retire'));
           fait();
           return;
         }
-        refuser(refusDe(r), r.corps.champ === 'email' || r.corps.champ === 'motif' ? r.corps.champ : null);
+        refuser(refusDe(r), r.corps.champ === 'motif' ? r.corps.champ : null);
       } catch (x) { refuser(panneDe(x), null); } finally { setOccupe(false); }
     })();
   };
 
-  const nom = g.sorte === 'ajouter' ? titre('console.ecran.equipe.ajouter')
-    : g.sorte === 'role' ? titre('console.ecran.equipe.changer_role_de', { nom: g.m.nom }) : titre('console.ecran.equipe.retirer_de', { nom: g.m.nom });
-  const sous = phrase(g.sorte === 'ajouter' ? 'console.ecran.equipe.ajouter_sous' : g.sorte === 'role' ? 'console.ecran.equipe.changer_sous' : 'console.ecran.equipe.retirer_sous');
+  const nom = g.sorte === 'role' ? titre('console.ecran.equipe.changer_role_de', { nom: g.m.nom }) : titre('console.ecran.equipe.retirer_de', { nom: g.m.nom });
+  const sous = phrase(g.sorte === 'role' ? 'console.ecran.equipe.changer_sous' : 'console.ecran.equipe.retirer_sous');
   const sur = (champ: string) => ({ faute: faute?.champ === champ, ...(faute?.champ === champ ? { n: faute.n } : {}) });
   return (
     <Dialogue titre={nom} sous={sous} fermer={fermer} occupe={occupe}
       pied={<>
         <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
         <Bouton ton={g.sorte === 'retirer' ? 'danger' : 'principal'} occupe={occupe} onClick={faire}>
-          {titre(g.sorte === 'ajouter' ? 'console.ecran.equipe.ajouter' : g.sorte === 'role' ? 'console.ecran.equipe.changer_role' : 'console.ecran.equipe.retirer')}
+          {titre(g.sorte === 'role' ? 'console.ecran.equipe.changer_role' : 'console.ecran.equipe.retirer')}
         </Bouton>
       </>}>
-      {g.sorte === 'ajouter' ? <Champ libelle={titre('console.ecran.equipe.email')} aide={phrase('console.ecran.equipe.email_aide')} type="email" inputMode="email" valeur={email} changer={setEmail} {...sur('email')} /> : null}
       {g.sorte !== 'retirer' ? (
         <Choix libelle={titre('console.ecran.equipe.role')} aide={phrase(`console.ecran.role_aide.${role}`)} valeur={role} changer={(v) => setRole(v as Role)}
           options={ROLES.filter((r) => g.sorte !== 'role' || r !== g.m.role).map((r) => ({ valeur: r, texte: titre(`console.ecran.role.${r}`) }))} />
@@ -220,8 +298,11 @@ export function Equipe({ vue = null }: { vue?: string | null }) {
 
 function LEquipe() {
   const { moi } = useConsole();
-  const [l, relire] = useLecture<{ membres: Membre[]; droits: Droit[] }>('/console/equipe');
+  const [l, relire] = useLecture<{ membres: Membre[]; droits: Droit[]; invitations: Invitation[] }>('/console/equipe');
   const [geste, setGeste] = useState<Geste | null>(null);
+  const [invit, setInvit] = useState<GesteInvitation | null>(null);
+  const [lien, setLien] = useState<Lien | null>(null);
+  const invitations = l.etat === 'lu' ? l.donnees.invitations : [];
   const [appareils, setAppareils] = useState<Membre | null>(null);
   const membres = l.etat === 'lu' ? l.donnees.membres : [];
   const actifs = membres.filter((m) => m.actif);
@@ -229,6 +310,11 @@ function LEquipe() {
   const par = (r: Role) => actifs.filter((m) => m.role === r).length;
   const enLigne = actifs.filter((m) => m.appareils.length > 0).length;
   const sansCode = actifs.filter((m) => !m.code);
+  // Arrivé depuis moins de sept jours, un membre sans code le pose à sa première connexion (0118) : jusqu'à quel jour.
+  const posable = (m: Membre) => {
+    const fin = new Date(Date.parse(m.ajouteLe) + 7 * 24 * 3600_000);
+    return fin.getTime() > Date.now() ? jourDe(fin.toISOString()) : null;
+  };
   // Les gestes d'une ligne : le journal de la personne ; et, sur un autre que soi, changer son rôle ou la retirer.
   const actions = (m: Membre): ActionLigne[] => [
     { icone: 'journal', titre: titre(m.moi ? 'console.ecran.equipe.mes_gestes' : 'console.ecran.equipe.ses_gestes'), sous: phrase('console.ecran.equipe.ses_gestes_sous'),
@@ -251,7 +337,7 @@ function LEquipe() {
         <div className="c-entete-actions">
           <Lien href="#/equipe?vue=moi" icone="personne">{titre('console.ecran.equipe.ton_compte')}</Lien>
           <Lien href="#/journal" icone="journal">{titre('console.ecran.equipe.journal')}</Lien>
-          <Bouton ton="principal" icone="plus" onClick={() => setGeste({ sorte: 'ajouter' })}>{titre('console.ecran.equipe.ajouter')}</Bouton>
+          <Bouton ton="principal" icone="plus" onClick={() => setInvit({ sorte: 'inviter' })}>{titre('console.ecran.equipe.inv.inviter_titre')}</Bouton>
         </div>
       </header>
       {l.etat === 'panne' ? <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
@@ -262,7 +348,8 @@ function LEquipe() {
             <div className="c-carte c-eq-carte">
               <span className="c-eq-carte-titre">{titre('console.ecran.equipe.membres')}</span>
               <p className="c-eq-carte-n"><b>{actifs.length}</b> <small>{selon(actifs.length, 'console.ecran.equipe.personnes')}</small></p>
-              <span className="c-eq-carte-sous">{phrase('console.ecran.equipe.membres_sous', { d: par('direction'), s: par('support'), t: par('technique') })}</span>
+              <span className="c-eq-carte-sous">{phrase('console.ecran.equipe.membres_sous', { d: par('direction'), s: par('support'), t: par('technique') })}
+                {invitations.length ? <> {phrase('console.ecran.equipe.inv.en_attente', { n: selon(invitations.length, 'console.ecran.equipe.inv.invitations') })}</> : null}</span>
             </div>
             <div className={`c-carte c-eq-carte${sansCode.length ? ' c-eq-carte-attention' : ''}`}>
               <span className="c-eq-carte-titre">
@@ -279,17 +366,28 @@ function LEquipe() {
               <span className="c-eq-carte-sous">{phrase('console.ecran.equipe.en_ligne_sous')}</span>
             </div>
           </div>
-          {sansCode.length ? (
+          {sansCode.length || invitations.length ? (
             <section className="c-carte c-eq-regler" aria-labelledby="eq-regler">
               <div className="c-carte-tete">
                 <h2 id="eq-regler">{titre('console.ecran.equipe.regler_titre')}</h2>
-                <span className="c-eq-etat c-eq-etat-attention">{selon(sansCode.length, 'console.ecran.equipe.a_regler')}</span>
+                <span className="c-eq-etat c-eq-etat-attention">{selon(sansCode.length + invitations.length, 'console.ecran.equipe.a_regler')}</span>
               </div>
               <ul className="c-eq-regler-liste">
+                {invitations.map((i) => (
+                  <li key={i.id}>
+                    <span className="c-eq-regler-icone" aria-hidden="true"><Icone nom="personne" /></span>
+                    <span className="c-eq-regler-texte">
+                      <b>{dire(i.expiree ? 'console.ecran.equipe.inv.regler_passee' : 'console.ecran.equipe.inv.regler', { email: i.email })}</b>
+                      <span>{phrase(i.expiree ? 'console.ecran.equipe.inv.regler_passee_sous' : 'console.ecran.equipe.inv.regler_sous',
+                        { role: dire(`console.ecran.role.${i.role}`), le: jourCourt(jourDe(i.inviteeLe)), qui: i.invitePar, fin: jourCourt(jourDe(i.expireLe)) })}</span>
+                    </span>
+                    <Bouton petit onClick={() => setInvit({ sorte: 'renvoyer', i })}>{titre('console.ecran.equipe.inv.renvoyer_menu')}</Bouton>
+                  </li>
+                ))}
                 {sansCode.map((m) => (
                   <li key={m.utilisateur}>
                     <span className="c-eq-regler-icone" aria-hidden="true"><Icone nom="telephone" /></span>
-                    <span className="c-eq-regler-texte"><b>{dire('console.ecran.equipe.regler_code', { nom: m.nom })}</b><span>{phrase('console.ecran.equipe.sans_code_sous')}</span></span>
+                    <span className="c-eq-regler-texte"><b>{dire('console.ecran.equipe.regler_code', { nom: m.nom })}</b><span>{posable(m) ? phrase('console.ecran.equipe.sans_code_premiere', { le: jourCourt(posable(m)) }) : phrase('console.ecran.equipe.sans_code_sous')}</span></span>
                     <Lien href={`mailto:${m.email}?subject=${encodeURIComponent(maj(dire('console.ecran.equipe.rappeler_objet')))}`} petit>{titre('console.ecran.equipe.rappeler')}</Lien>
                   </li>
                 ))}
@@ -343,6 +441,30 @@ function LEquipe() {
                         {m.gestes30 ? <a href={`#/journal?qui=${m.utilisateur}`} aria-label={titre('console.ecran.equipe.gestes_de', { nom: m.nom, n: m.gestes30 })}>{m.gestes30}</a> : '—'}
                       </td>
                       <td className="c-droite"><MenuLigne etiquette={titre('console.ecran.equipe.menu', { nom: m.nom })} actions={actions(m)} /></td>
+                    </tr>
+                  ))}
+                  {invitations.map((i) => (
+                    <tr key={i.id} className="c-eq-invitation">
+                      <td>
+                        <div className="c-cellule-nom">
+                          <span className="c-eq-invite-icone" aria-hidden="true"><Icone nom="courriel" taille={16} /></span>
+                          <div><b data-donnee>{i.email}</b><span className="c-sous">{dire('console.ecran.equipe.inv.ligne')}</span></div>
+                        </div>
+                      </td>
+                      <td><Puce ton={i.role}>{titre(`console.ecran.role.${i.role}`)}</Puce></td>
+                      <td><span className="c-sous">{titre('console.ecran.equipe.inv.pas_active')}</span></td>
+                      <td>—</td>
+                      <td>
+                        {titre('console.ecran.equipe.inv.invitee_le', { le: jourCourt(jourDe(i.inviteeLe)) })}
+                        <span className={`c-sous${i.expiree ? ' c-eq-secours-aucun' : ''}`}>{dire(i.expiree ? 'console.ecran.equipe.inv.ne_vaut_plus' : 'console.ecran.equipe.inv.vaut', { le: jourCourt(jourDe(i.expireLe)) })}</span>
+                      </td>
+                      <td className="c-droite c-mono">—</td>
+                      <td className="c-droite">
+                        <MenuLigne etiquette={titre('console.ecran.equipe.inv.menu', { email: i.email })} actions={[
+                          { icone: 'relire', titre: titre('console.ecran.equipe.inv.renvoyer_menu'), sous: phrase('console.ecran.equipe.inv.renvoyer_menu_sous'), faire: () => setInvit({ sorte: 'renvoyer', i }) },
+                          { icone: 'croix', titre: titre('console.ecran.equipe.inv.annuler_menu'), sous: phrase('console.ecran.equipe.inv.annuler_menu_sous'), faire: () => setInvit({ sorte: 'annuler', i }), danger: true },
+                        ]} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -401,6 +523,8 @@ function LEquipe() {
         </>
       ) : null}
       {geste ? <FenetreEquipe g={geste} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} /> : null}
+      {invit ? <FenetreInvitation g={invit} fermer={() => setInvit(null)} fait={(x) => { setInvit(null); setLien(x); relire(); }} /> : null}
+      {lien ? <FenetreLien lien={lien} fermer={() => setLien(null)} /> : null}
       {appareils ? <SesAppareils membre={appareils} fermer={() => { setAppareils(null); relire(); }} /> : null}
     </>
   );

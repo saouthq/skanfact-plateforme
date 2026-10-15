@@ -10950,14 +10950,13 @@ prouver 'la console ouverte à qui n'"'"'est pas de l'"'"'équipe' serveur/conso
 ' '' \
   "$CONSS1"
 prouver 'la console ouverte sans code du téléphone' serveur/console/connexion.ts \
-  '    if (u.code_methode !== '"'"'sms'"'"' && u.code_methode !== '"'"'application'"'"') return { etat: '"'"'refuse'"'"', motif: motif('"'"'console.code_obligatoire'"'"') };
-' '' \
+  '    if (sansCode && !(await tx.query('"'"'select plateforme.peut_poser_code_console($1, $2) p'"'"', [u.utilisateur, maintenant])).rows[0].p) {' '    if (false) {' \
   "$CONSS2"
 prouver 'le mot de passe dit faux à qui n'"'"'a pas de code' serveur/console/connexion.ts \
   'return { etat: '"'"'refuse'"'"', motif: motif('"'"'console.code_obligatoire'"'"') };' 'return { etat: '"'"'refuse'"'"', motif: motif('"'"'console.code_obligatoire'"'"'), champ: '"'"'motDePasse'"'"' };' \
   "$CONSS2"
 prouver 'un code d'"'"'application jamais vérifié' serveur/console/connexion.ts \
-  'verifierTotp(lu.code_secret ?? '"'"''"'"', saisi, maintenant.getTime());' 'true;' \
+  ': verifierTotp(lu.code_secret ?? '"'"''"'"', saisi, maintenant.getTime());' ': true;' \
   "$CONSS2"
 prouver 'un jeton de l'"'"'application qui ouvre la console' serveur/app.ts \
   'const qc = jeton ? await quiEstConsole(ctx, jeton, requete.headers['"'"'x-console-auto'"'"'] !== '"'"'1'"'"') : null;' 'const qc = jeton ? (await quiEstConsole(ctx, jeton)) ?? await (async () => { const q = await quiEst(ctx, jeton); return q ? { utilisateur: q.utilisateur, session: q.session, appareil: q.appareil, role: '"'"'direction'"'"' as const } : null; })() : null;' \
@@ -10973,7 +10972,7 @@ prouver 'la déconnexion de la console qui ne ferme rien' base/migrations/0083_c
    where id = nullif(' \
   "$CONSS4"
 prouver 'une route de la console hors de /console/' serveur/app.ts \
-  '  if (deLaConsole !== sousConsole && !(r.geste === '"'"'public'"'"' && r.chemin.startsWith('"'"'/console/connexion'"'"'))) {' '  if (false) {' \
+  '  if (deLaConsole !== sousConsole && !(r.geste === '"'"'public'"'"' && (r.chemin.startsWith('"'"'/console/connexion'"'"') || r.chemin.startsWith('"'"'/console/invitation/'"'"')))) {' '  if (false) {' \
   "$CONSS5"
 # La liste lit une dizaine de fonctions de la base, chacune gardée pour la direction et le support (0083 à 0113) : ouvrir
 # chaque garde à la main laissait la preuve en retard d'une fonction à chaque lot (rouges de 1.17.0 et de 1.19.0, la
@@ -14520,6 +14519,73 @@ prouver 'la direction sans chemin vers son compte' 'web/console/src/ecrans/Equip
   '<Lien href="#/equipe?vue=moi" icone="personne">' \
   '<Lien href="#/equipe" icone="personne">' \
   'la direction passe de l'"'"'équipe à son compte, et revient'
+
+# 1.25.0 : inviter quelqu'un (0118 ; docs/console.md C41).
+prouver 'le support invite (la route et la base)' 'base/migrations/0118_invitations_console.sql|||serveur/console/gestes.ts' \
+  'declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']); v_email text|||  { code: '"'"'console.equipe.gerer'"'"', roles: [D], ecrit: true },' \
+  'declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']); v_email text|||  { code: '"'"'console.equipe.gerer'"'"', roles: [D, S], ecrit: true },' \
+  'la direction seule invite ; le lien se rend une fois, la liste n'"'"'en garde rien ; une nouvelle invitation remplace l'"'"'ancienne'
+prouver 'l'"'"'ancien lien vaut encore après une nouvelle invitation' 'base/migrations/0118_invitations_console.sql' \
+  '  update plateforme.invitation_console set annulee_le = p_maintenant
+   where email = v_email and acceptee_le is null and annulee_le is null;
+' \
+  '' \
+  'la direction seule invite ; le lien se rend une fois, la liste n'"'"'en garde rien ; une nouvelle invitation remplace l'"'"'ancienne'
+prouver 'annuler laisse le lien valable' 'base/migrations/0118_invitations_console.sql' \
+  'set annulee_le = p_maintenant
+   where id = p_invitation and acceptee_le is null' \
+  'set expire_le = expire_le
+   where id = p_invitation and acceptee_le is null' \
+  'renvoyer donne un lien neuf (l'"'"'ancien ne vaut plus) ; annuler éteint le lien ; un lien passé ou inventé ne dit rien'
+prouver 'un lien passé dit encore qui invite' 'base/migrations/0118_invitations_console.sql' \
+  'where i.jeton_empreinte = p_jeton_empreinte and i.acceptee_le is null and i.annulee_le is null and i.expire_le > p_maintenant
+$$;' \
+  'where i.jeton_empreinte = p_jeton_empreinte and i.acceptee_le is null and i.annulee_le is null
+$$;' \
+  'renvoyer donne un lien neuf (l'"'"'ancien ne vaut plus) ; annuler éteint le lien ; un lien passé ou inventé ne dit rien'
+prouver 'le lien accepté resservirait' 'base/migrations/0118_invitations_console.sql' \
+  '  update plateforme.invitation_console set acceptee_le = p_maintenant, acceptee_par = socle.moi() where id = i.id;
+' \
+  '' \
+  'rejoindre en créant son compte : le nom et la règle des mots de passe ; le lien ne sert qu'"'"'une fois ; au journal'
+prouver 'un compte créé sans nom' 'serveur/console/invitations.ts' \
+  '    if (!nom) return { ok: false, statut: 400, motif: motif('"'"'console.invitation.nom_manque'"'"'), champ: '"'"'nom'"'"' };
+' \
+  '' \
+  'rejoindre en créant son compte : le nom et la règle des mots de passe ; le lien ne sert qu'"'"'une fois ; au journal'
+prouver 'rejoindre avec le compte d'"'"'un autre sans son mot de passe' 'serveur/console/invitations.ts' \
+  'const bon = u?.empreinte ? await correspond(u.empreinte, demande.motDePasse) : await verifierPourRien(demande.motDePasse);' \
+  'const bon = true;' \
+  'rejoindre avec son compte : son mot de passe le prouve (une erreur se compte), son code déjà en place ouvre la console'
+prouver 'poser son code trente jours après son arrivée' 'base/migrations/0118_invitations_console.sql' \
+  'e.ajoute_le > p_maintenant - interval '"'"'7 days'"'"'' \
+  'e.ajoute_le > p_maintenant - interval '"'"'30 days'"'"'' \
+  'le premier code, à la première connexion : préparé, il n'"'"'active rien ; le premier code juste l'"'"'active et ouvre la session ; passé sept jours, refusé'
+prouver 'le code posé jamais activé' 'serveur/console/connexion.ts' \
+  ''"'"'select socle.activer_code_en_attente($1) a'"'"'' \
+  ''"'"'select true a'"'"'' \
+  'le premier code, à la première connexion : préparé, il n'"'"'active rien ; le premier code juste l'"'"'active et ouvre la session ; passé sept jours, refusé'
+prouver 'le défi de pose vérifié sur l'"'"'ancien secret' 'base/migrations/0118_invitations_console.sql' \
+  'case when d.methode = '"'"'pose'"'"' then (case when u.code_attente_le > p_maintenant - interval '"'"'1 hour'"'"' then u.code_secret_attente end)
+              else u.code_secret end' \
+  'u.code_secret' \
+  'le premier code, à la première connexion : préparé, il n'"'"'active rien ; le premier code juste l'"'"'active et ouvre la session ; passé sept jours, refusé'
+prouver 'le lien d'"'"'une invitation jamais montré' 'web/console/src/ecrans/Equipe.tsx' \
+  'if (g.sorte === '"'"'annuler'"'"') { toast(phrase(`${K}.annulee`)); fait(null); return; }' \
+  '{ toast(phrase(`${K}.annulee`)); fait(null); return; }' \
+  'la direction invite : le lien une fois, puis l'"'"'invitation attend ; renvoyer donne un lien neuf, annuler l'"'"'éteint'
+prouver 'les invitations absentes de la liste' 'web/console/src/ecrans/Equipe.tsx' \
+  'const invitations = l.etat === '"'"'lu'"'"' ? l.donnees.invitations : [];' \
+  'const invitations: Invitation[] = [];' \
+  'la direction invite : le lien une fois, puis l'"'"'invitation attend ; renvoyer donne un lien neuf, annuler l'"'"'éteint'
+prouver 'entrer sans avoir mis de côté ses codes de secours' 'web/console/src/ecrans/Entree.tsx' \
+  'if (pose && !garde) { refuser(' \
+  'if (pose && false) { refuser(' \
+  'l'"'"'invité : qui l'"'"'invite et à quel rôle ; son compte créé ; puis il entre et pose son code, ses codes de secours mis de côté'
+prouver 'l'"'"'adresse de l'"'"'invité à retaper' 'web/console/src/ecrans/Entree.tsx' \
+  'useState(() => new URLSearchParams(location.hash.split('"'"'?'"'"')[1] ?? '"'"''"'"').get('"'"'adresse'"'"') ?? '"'"''"'"')' \
+  'useState('"'"''"'"')' \
+  'l'"'"'invité : qui l'"'"'invite et à quel rôle ; son compte créé ; puis il entre et pose son code, ses codes de secours mis de côté'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

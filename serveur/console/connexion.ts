@@ -5,16 +5,18 @@
 //   2. seulement pour un membre de l'équipe SkanFact ; à quelqu'un d'autre, la console répond comme à un mot de passe
 //      faux (elle ne dit pas qui est dans l'équipe) ;
 //   3. le code du téléphone (SMS ou application) à CHAQUE connexion, même sur un appareil reconnu ; un code de secours le
-//      remplace, une fois. Sans code du téléphone en place, la console le dit, et renvoie à « Ton compte » ;
+//      remplace, une fois. Sans code du téléphone en place, un membre arrivé depuis moins de sept jours le pose ici (une
+//      application d'authentification : le premier code juste l'active et ouvre la session, 0118) ; passé ce délai, la
+//      console le refuse et renvoie à « Ton compte » ;
 //   4. une session de la console : son jeton n'ouvre rien dans l'application, et celui de l'application n'ouvre pas la
 //      console. Jamais sur l'ordinateur d'un autre ; une heure sans geste, douze heures au plus.
 
 import { createHash, randomBytes, randomInt } from 'node:crypto';
 import { enTantQue } from '../base.ts';
-import { attenteLisible, envoyerSms, type Appareil, type Contexte } from '../connexion.ts';
+import { attenteLisible, empreinteDuSecours, envoyerSms, tirerCodesDeSecours, type Appareil, type Contexte } from '../connexion.ts';
 import { correspond, verifierPourRien } from '../mot-de-passe.ts';
 import { numeroMasque } from '../sms.ts';
-import { verifierTotp } from '../totp.ts';
+import { adresseTotp, nouveauSecret, verifierTotp } from '../totp.ts';
 import { motif, type Texte } from '../../textes/index.ts';
 import { estRoleConsole, type RoleConsole } from './gestes.ts';
 
@@ -23,6 +25,7 @@ export type ResultatConsole =
   | { etat: 'attendre'; jusqua: Date; motif: Texte }
   | { etat: 'code'; defi: string; methode: 'application'; appareil: string }
   | { etat: 'code'; defi: string; methode: 'sms'; appareil: string; telephone: string; envoi: 'parti' | 'rate' | 'limite' }
+  | { etat: 'pose'; defi: string; appareil: string; adresseApplication: string; cle: string; codesDeSecours: string[] }
   | { etat: 'connecte'; jeton: string; appareil: string };
 
 export type QuiConsole = { utilisateur: string; session: string; appareil: string; role: RoleConsole };
@@ -34,7 +37,7 @@ const maintenantDe = (ctx: Contexte) => (ctx.maintenant ?? (() => new Date()))()
 
 export async function connecterConsole(ctx: Contexte, demande: { email: string; motDePasse: string; appareil: Appareil; ip?: string | undefined }): Promise<ResultatConsole> {
   const maintenant = maintenantDe(ctx);
-  const r = await enTantQue(ctx.pool, null, async (tx): Promise<ResultatConsole & { aEnvoyer?: { telephone: string; code: string } | null }> => {
+  const r = await enTantQue(ctx.pool, null, async (tx): Promise<(ResultatConsole & { aEnvoyer?: { telephone: string; code: string } | null }) | { poser: { utilisateur: string; email: string; appareil: string } }> => {
     const attente = (await tx.query('select socle.attente_connexion($1, $2) a', [demande.email, maintenant])).rows[0].a as Date | null;
     if (attente) return { etat: 'attendre', jusqua: attente, motif: attenteLisible(attente, maintenant) };
 
@@ -47,13 +50,17 @@ export async function connecterConsole(ctx: Contexte, demande: { email: string; 
     // Hors de l'équipe : la même réponse qu'un mot de passe faux, champ compris. La console ne dit pas qui en fait partie.
     const role = (await tx.query('select plateforme.role_dans_l_equipe($1) r', [u.utilisateur])).rows[0].r as string | null;
     if (!estRoleConsole(role)) return { etat: 'refuse', motif: motif('connexion.refusee'), champ: 'motDePasse' };
-    if (u.code_methode !== 'sms' && u.code_methode !== 'application') return { etat: 'refuse', motif: motif('console.code_obligatoire') };
+    const sansCode = u.code_methode !== 'sms' && u.code_methode !== 'application';
+    if (sansCode && !(await tx.query('select plateforme.peut_poser_code_console($1, $2) p', [u.utilisateur, maintenant])).rows[0].p) {
+      return { etat: 'refuse', motif: motif('console.code_obligatoire') };
+    }
 
     // L'appareil : celui qu'on connaît déjà s'il est à cette personne et pas retiré, sinon un nouveau.
     let appareil = demande.appareil.id ?? null;
     const aLui = appareil ? (await tx.query('select socle.appareil_de($1, $2) r', [u.utilisateur, appareil])).rows[0].r as boolean : false;
     if (!aLui) appareil = (await tx.query('select socle.declarer_appareil($1, $2, $3, $4) id', [u.utilisateur, demande.appareil.nom, demande.appareil.type, maintenant])).rows[0].id as string;
 
+    if (sansCode) return { poser: { utilisateur: u.utilisateur as string, email: u.email as string, appareil: appareil as string } };
     if (u.code_methode === 'sms') {
       const code = codeSms();
       const defi = (await tx.query('select plateforme.ouvrir_defi_console($1, $2, $3, $4, $5, $6) id',
@@ -66,10 +73,25 @@ export async function connecterConsole(ctx: Contexte, demande: { email: string; 
       [u.utilisateur, appareil, 'application', null, maintenant, DUREE_DEFI])).rows[0].id as string;
     return { etat: 'code', defi, methode: 'application', appareil: appareil as string };
   });
+  if ('poser' in r) return poserCode(ctx, r.poser, maintenant);
   if (!('aEnvoyer' in r)) return r;
   const { aEnvoyer, ...reponse } = r;
   if (aEnvoyer && reponse.etat === 'code' && reponse.methode === 'sms' && !await envoyerSms(ctx, aEnvoyer.telephone, aEnvoyer.code)) reponse.envoi = 'rate';
   return reponse;
+}
+
+// Le premier code, à la première connexion (0118) : préparé au nom de la personne (le secret et les dix codes de secours
+// attendent une heure, comme dans l'application), puis un défi « pose ». Une page rechargée garde le même secret.
+async function poserCode(ctx: Contexte, p: { utilisateur: string; email: string; appareil: string }, maintenant: Date): Promise<ResultatConsole> {
+  const codes = tirerCodesDeSecours();
+  const secret = await enTantQue(ctx.pool, p.utilisateur, async (tx) => {
+    const s = ((await tx.query('select socle.mon_secret_en_attente($1) s', [maintenant])).rows[0]?.s as string | null) ?? nouveauSecret();
+    await tx.query('select socle.preparer_code($1, $2, $3)', [s, codes.map(empreinteDuSecours), maintenant]);
+    return s;
+  });
+  const defi = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select plateforme.ouvrir_defi_console($1, $2, $3, $4, $5, $6) id',
+    [p.utilisateur, p.appareil, 'pose', null, maintenant, DUREE_DEFI])).rows[0].id as string);
+  return { etat: 'pose', defi, appareil: p.appareil, adresseApplication: adresseTotp(secret, p.email), cle: secret, codesDeSecours: codes };
 }
 
 export async function validerCodeConsole(ctx: Contexte, demande: { defi: string; code: string; ip?: string | undefined }): Promise<ResultatConsole> {
@@ -80,7 +102,11 @@ export async function validerCodeConsole(ctx: Contexte, demande: { defi: string;
   const saisi = demande.code.replace(/\s/g, '');
   let bon: boolean;
   let secours: string | null = null;
-  if (/^[0-9]{6}$/.test(saisi)) {
+  if (lu.methode === 'pose') {
+    // Le code qu'on pose : seulement le premier code de l'application qu'on vient d'ajouter (un code de secours n'est
+    // pas encore en place).
+    bon = /^[0-9]{6}$/.test(saisi) && verifierTotp(lu.code_secret ?? '', saisi, maintenant.getTime());
+  } else if (/^[0-9]{6}$/.test(saisi)) {
     bon = lu.methode === 'sms' ? sha256(saisi) === lu.code_empreinte : verifierTotp(lu.code_secret ?? '', saisi, maintenant.getTime());
   } else {
     // Un code de secours (XXXX-XXXX) remplace le code, une seule fois.
@@ -97,6 +123,12 @@ export async function validerCodeConsole(ctx: Contexte, demande: { defi: string;
     return a ? { etat: 'attendre', jusqua: a, motif: attenteLisible(a, maintenant) } : { etat: 'refuse', motif: motif('connexion.code_faux') };
   }
 
+  // Le code posé devient celui du compte (au nom de la personne, comme dans l'application), et le journal le garde.
+  if (lu.methode === 'pose') {
+    const active = await enTantQue(ctx.pool, lu.utilisateur as string, async (tx) => (await tx.query('select socle.activer_code_en_attente($1) a', [maintenant])).rows[0].a as boolean);
+    if (!active) return { etat: 'refuse', motif: motif('compte.code_attente_perimee') };
+    await enTantQue(ctx.pool, null, (tx) => tx.query('select plateforme.code_pose_console($1)', [lu.utilisateur]));
+  }
   const jeton = randomBytes(32).toString('base64url');
   await enTantQue(ctx.pool, null, async (tx) => {
     if (secours && !(await tx.query('select socle.consommer_code_secours($1, $2) ok', [secours, maintenant])).rows[0].ok) {

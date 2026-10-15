@@ -406,8 +406,8 @@ n'y montrait que sa moitié ; il se ferme quand la page bouge. **Ce que chaque r
 liste des gestes du serveur (`serveur/console/gestes.ts`, rendue par `GET /console/equipe` dans `droits`) : écrit une
 seconde fois à l'écran, il dirait un jour autre chose que ce que le serveur laisse faire. Une nuance (le support
 prolonge un essai une fois par entreprise ; « À décider » ne lui montre que ses lignes) se dit à la place du « oui ».
-- **Pas encore** : les codes de secours, les appareils reconnus, les gestes des trente derniers jours (par membre et
-  en carte) et les invitations en attente — la base ne les compte pas encore pour la console.
+- ~~Pas encore~~ : les codes de secours, les appareils reconnus et les gestes des trente derniers jours sont venus avec
+  0114 (C37) ; les invitations en attente avec 0118 (C41).
 
 **C21. La fiche d'un client, recalée sur sa maquette** (13/10/2026). **« Ce qui attend, pour ce client »** en tête :
 les lignes d'« À décider » qui le nomment, calculées par la MÊME fonction (`aDecider`, sur la liste telle que l'accueil la
@@ -1088,6 +1088,32 @@ délégation le 15/10/2026, dans « faut faire tout ce qui manque »).
 - **Pas fait** : l'alerte de la maquette « 3 codes faux, depuis un appareil inconnu » (« Ce n'était pas moi / C'était
   moi ») — les refus de connexion se lisent dans Service · Sécurité ; les envoyer à la personne elle-même reste à faire.
 
+**C41. Inviter quelqu'un dans l'équipe** (1.25.0 ; base 0118 ; la maquette « Équipe » ; 10-console § 2.10 ; décidé par
+délégation le 15/10/2026). Jusqu'ici, la direction n'ajoutait qu'un compte SkanFact déjà créé dans l'application, et la
+console ne s'ouvrait pas tant que le code du téléphone n'y était pas posé — ce qui se faisait dans l'application, où un
+membre de l'équipe n'a pas toujours d'entreprise.
+- **La direction invite** une adresse, avec un rôle et un motif (« Inviter quelqu'un », à la place d'« Ajouter
+  quelqu'un »). Le lien vaut **sept jours** ; la base n'en garde que l'empreinte, et **il se montre une fois**, avec
+  « Copier le lien », « Envoyer par WhatsApp » et « Envoyer par e-mail » (la messagerie de la direction, préremplie).
+  **Le serveur n'envoie rien** — la règle de l'équipe d'une entreprise (`docs/equipe.md` E5) : ni l'adresse ni le lien
+  ne partent chez un service d'e-mails. La maquette disait « un e-mail part » : **À DÉCIDER par Skander** si l'on
+  préfère l'envoi par SkanFact (une donnée de plus vers le relais). Quelqu'un qui est déjà dans l'équipe ne s'invite pas
+  (son rôle se change dans la liste).
+- **L'invitation attend** dans la liste des membres (« invitation en attente », pas encore activé, jusqu'à quand vaut
+  le lien) et dans « À régler » ; **« Renvoyer »** donne un lien neuf, sept jours de plus (l'ancien ne vaut plus) ;
+  **« Annuler »** l'éteint. Une invitation à la même adresse remplace celle qui attendait.
+- **L'invité ouvre le lien sans session** : qui l'invite, son rôle, jusqu'à quand. Il rejoint **avec son compte** (son
+  mot de passe le prouve, compté avec les erreurs de connexion) ou **le crée** (son nom, un mot de passe selon la règle
+  de l'application). L'adresse est toujours celle de l'invitation. Un lien qui ne vaut plus (servi, annulé, remplacé,
+  passé, inventé) ne dit rien d'autre que cela, et mène à la connexion.
+- **Le premier code, à la première connexion** : un membre arrivé depuis **moins de sept jours** sans code du téléphone
+  le pose à l'entrée de la console — SkanFact à ajouter dans une application d'authentification (code QR et clé), ses
+  dix codes de secours à mettre de côté (« Je les ai mis de côté », sans quoi rien), puis le premier code juste active
+  le code et ouvre la session ; un code faux ou un code de secours n'activent rien. Passé sept jours sans code, la
+  console le refuse comme avant, et « À régler » dit jusqu'à quand il peut le poser.
+- Au journal : `equipe.inviter`, `equipe.invitation_renvoyee`, `equipe.invitation_annulee` (avec l'adresse et le
+  rôle), `equipe.invitation_acceptee`, `equipe.premier_code` (la méthode lue dans le compte), sans jeton ni secret.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
@@ -1337,4 +1363,18 @@ nouveau. Corrigé pendant le parcours :
 - « Ou tape à la main cette clé :. » : un point de trop ;
 - par défaut, la méthode qu'on a déjà (le cas courant : un nouveau téléphone), pas l'autre ;
 - huit appareils de l'essai poussaient « Tes gestes » sous l'écran : trois dans la page, les autres d'un clic.
+
+## Revu à la souris et au clavier (15/10/2026, 1.25.0 : inviter quelqu'un)
+
+Sur l'essai de l'outil humain, la base passée en `0118` : Amira (direction) invite une adresse inventée comme support ;
+le lien se montre, se copie ; l'invitation attend dans la liste et dans « À régler ». Dans un autre navigateur, l'invitée
+ouvre le lien, crée son compte, entre (l'adresse déjà remplie), pose son code (sans cocher « Je les ai mis de côté » :
+refusé, la case rougit) puis arrive sur « Bonjour Nesrine ». Corrigé pendant le parcours :
+- le serveur refusait de démarrer : une route publique sous `/console/` n'était permise qu'à la connexion — le lien
+  d'une invitation aussi, désormais ;
+- après « Entrer dans la console », l'adresse était à retaper : elle est remplie, le curseur va au mot de passe ;
+- « À régler » disait d'aller poser le code dans l'application à un membre qui le pose maintenant à sa première
+  connexion : il dit jusqu'à quel jour ;
+- les étapes de la pose du code, décalées à droite sans leurs numéros : alignées sur le titre ;
+- la page de l'invité plantait sur deux phrases du catalogue du serveur, que l'écran ne connaît pas : les siennes.
 

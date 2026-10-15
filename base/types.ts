@@ -637,6 +637,18 @@ export interface BaseDeDonnees {
     retire_motif: string | null;
     retire_par: string | null;
   };
+  'plateforme.invitation_console': {
+    id: Generated<string>;
+    email: string;
+    role: string;
+    jeton_empreinte: string;
+    invite_par: string;
+    invitee_le: Date;
+    expire_le: Date;
+    acceptee_le: Date | null;
+    acceptee_par: string | null;
+    annulee_le: Date | null;
+  };
   'plateforme.lecture_support': {
     id: Generated<string>;
     acces: string;

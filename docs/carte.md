@@ -633,6 +633,11 @@ vaut pour tout le dépôt.*
     codes de secours) par les fonctions de l'application (`serveur/compte.ts`), et leur trace (`plateforme.console_mon_compte`,
     `console_mon_compte_change` ; les routes `/console/moi/…` ; `web/console/src/ecrans/TonCompte.tsx`, `SesAppareils` en
     page) (`tests/console/compte.test.ts`, `tests/web/console-compte.test.ts`).
+  - **Inviter quelqu'un** (1.25.0 ; `docs/console.md` C41, `0118`) : l'invitation et son lien (`plateforme.invitation_console`,
+    `console_inviter`, `console_renvoyer_invitation`, `console_annuler_invitation`, `apercu_invitation_console`,
+    `accepter_invitation_console` ; `serveur/console/invitations.ts` ; `web/console/src/ecrans/Invitation.tsx`), le premier
+    code posé à la connexion (le défi « pose », `peut_poser_code_console`, `poserCode` dans `serveur/console/connexion.ts`,
+    l'étape de `Entree.tsx`) (`tests/console/invitations.test.ts`, `tests/web/console-invitation.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

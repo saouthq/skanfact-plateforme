@@ -1,18 +1,30 @@
 // L'entrée de la console (docs/console.md ; serveur/console/connexion.ts) : le compte SkanFact, puis le code du téléphone
 // à CHAQUE connexion (SMS ou application ; un code de secours le remplace, une fois). La vitrine sombre à gauche dit ce
 // qu'est la console et ce qu'elle ne voit pas ; le formulaire, à droite, dit l'étape. Un refus se dit sous le formulaire,
-// et montre son champ.
+// et montre son champ. Un membre arrivé depuis moins de sept jours sans code le pose ici, à sa première connexion (0118,
+// C41) : SkanFact à ajouter dans une application d'authentification, ses dix codes de secours mis de côté, puis le
+// premier code juste active le code et ouvre la session.
+import qrcode from 'qrcode-generator';
 import { useEffect, useState, type FormEvent } from 'react';
 import { dire, phrase, titre } from '../langue.ts';
 import { appeler, nomDeCetAppareil, session } from '../api.ts';
 import { panneDe, refusDe } from '../contexte.ts';
-import { Alerte, Bouton, Champ, Icone, toast } from '../ui.tsx';
+import { Alerte, Bouton, Champ, Icone, maj, toast } from '../ui.tsx';
 
 type Defi = { etat: 'code'; defi: string; appareil: string } & ({ methode: 'application' } | { methode: 'sms'; telephone: string; envoi: 'parti' | 'rate' | 'limite' });
+type Pose = { etat: 'pose'; defi: string; appareil: string; adresseApplication: string; cle: string; codesDeSecours: string[] };
 type Faute = { champ: string; n: number } | null;
+// Le code QR de l'adresse « otpauth:// », en <svg> (comme à l'entrée de l'application).
+function svgDuQr(adresse: string): string {
+  const q = qrcode(0, 'M');
+  q.addData(adresse);
+  q.make();
+  return q.createSvgTag({ cellSize: 4, margin: 4, scalable: true });
+}
+const parQuatre = (cle: string) => cle.replace(/(.{4})(?=.)/g, '$1 ');
 let n = 0;
 
-function Vitrine() {
+export function Vitrine() {
   const points = [
     { icone: 'personne', titre: 'console.ecran.entree.point_compte_titre', texte: 'console.ecran.entree.point_compte' },
     { icone: 'telephone', titre: 'console.ecran.entree.point_code_titre', texte: 'console.ecran.entree.point_code' },
@@ -39,9 +51,12 @@ function Vitrine() {
 }
 
 export function Entree({ message, entre }: { message: string | null; entre: () => void }) {
-  const [email, setEmail] = useState('');
+  // Venue d'une invitation acceptée (C41), l'adresse est déjà remplie : le curseur va au mot de passe.
+  const [email, setEmail] = useState(() => new URLSearchParams(location.hash.split('?')[1] ?? '').get('adresse') ?? '');
   const [motDePasse, setMotDePasse] = useState('');
   const [defi, setDefi] = useState<Defi | null>(null);
+  const [pose, setPose] = useState<Pose | null>(null);
+  const [garde, setGarde] = useState(false);
   const [code, setCode] = useState('');
   const [secours, setSecours] = useState(false);
   const [refus, setRefus] = useState<string | null>(message);
@@ -68,12 +83,14 @@ export function Entree({ message, entre }: { message: string | null; entre: () =
     if (!email.trim() || !motDePasse) { refuser(phrase('console.ecran.entree.manque'), email.trim() ? 'motDePasse' : 'email'); return; }
     void geste(async () => {
       const appareil = session.appareil();
-      const r = await appeler<Defi | { etat: 'connecte'; jeton: string; appareil: string }>('POST', '/console/connexion',
+      const r = await appeler<Defi | Pose | { etat: 'connecte'; jeton: string; appareil: string }>('POST', '/console/connexion',
         { email: email.trim(), motDePasse, appareil: { nom: nomDeCetAppareil(), type: 'navigateur', ...(appareil ? { id: appareil } : {}) } });
       // Le serveur nomme le champ quand c'est lui (le mot de passe) ; sans code du téléphone en place, aucun champ n'est faux.
       if (r.statut !== 200) { refuser(refusDe(r), r.corps.champ === 'motDePasse' ? 'motDePasse' : null); return; }
       session.retenirAppareil(r.corps.appareil);
       if (r.corps.etat === 'connecte') { session.ouvrir(r.corps.jeton); entre(); return; }
+      setCode('');
+      if (r.corps.etat === 'pose') { setPose(r.corps); setGarde(false); return; }
       setDefi(r.corps);
       setCode('');
       setSecours(false);
@@ -83,10 +100,13 @@ export function Entree({ message, entre }: { message: string | null; entre: () =
 
   const valider = (e: FormEvent) => {
     e.preventDefault();
-    if (!defi) return;
+    const ouvert = pose ?? defi;
+    if (!ouvert) return;
+    // Les codes de secours ne se montreront plus : on n'entre pas sans les avoir mis de côté.
+    if (pose && !garde) { refuser(phrase('console.ecran.pose.garde_avant'), 'garde'); return; }
     if (!code.trim()) { refuser(phrase('console.ecran.code.manque'), 'code'); return; }
     void geste(async () => {
-      const r = await appeler<{ etat: string; jeton: string; appareil: string }>('POST', '/console/connexion/code', { defi: defi.defi, code: code.replace(/\s+/g, '') });
+      const r = await appeler<{ etat: string; jeton: string; appareil: string }>('POST', '/console/connexion/code', { defi: ouvert.defi, code: code.replace(/\s+/g, '') });
       if (r.statut !== 200 || r.corps.etat !== 'connecte') { refuser(refusDe(r), 'code'); return; }
       session.retenirAppareil(r.corps.appareil);
       session.ouvrir(r.corps.jeton);
@@ -100,7 +120,10 @@ export function Entree({ message, entre }: { message: string | null; entre: () =
     if (r.statut === 202) { toast(phrase('console.ecran.code.renvoye')); setRenvoi(30); } else refuser(refusDe(r));
   });
 
-  const recommencer = () => { setDefi(null); setCode(''); setRefus(null); setFaute(null); setMotDePasse(''); };
+  const recommencer = () => { setDefi(null); setPose(null); setCode(''); setRefus(null); setFaute(null); setMotDePasse(''); };
+  const copier = (texte: string, fait: string) => {
+    void navigator.clipboard?.writeText(texte).then(() => toast(fait), () => toast(phrase('console.ecran.compte.copie_impossible'), true));
+  };
   const sur = (champ: string) => ({ faute: faute?.champ === champ, ...(faute?.champ === champ ? { n: faute.n } : {}) });
 
   return (
@@ -108,10 +131,45 @@ export function Entree({ message, entre }: { message: string | null; entre: () =
       <Vitrine />
       <section className="c-forme">
         <div className="c-forme-tete">
-          <span className="c-etape">{titre('console.ecran.entree.etape', { n: defi ? 2 : 1 })}</span>
+          <span className="c-etape">{titre('console.ecran.entree.etape', { n: defi || pose ? 2 : 1 })}</span>
           <span className="c-hote"><Icone nom="cadenas" taille={16} /><span data-donnee>{location.host}</span></span>
         </div>
-        {defi ? (
+        {pose ? (
+          <form className="c-forme-corps c-pose" onSubmit={valider} noValidate>
+            <h1>{titre('console.ecran.pose.titre')}</h1>
+            <p className="c-forme-sous">{phrase('console.ecran.pose.sous')}</p>
+            <ol className="c-pose-etapes">
+              <li>
+                <b>{titre('console.ecran.pose.ajouter')}</b>
+                <div className="c-cp-qr">
+                  <div className="c-cp-qr-image" data-donnee role="img" aria-label={phrase('console.ecran.compte.c.qr')} dangerouslySetInnerHTML={{ __html: svgDuQr(pose.adresseApplication) }} />
+                  <div className="c-cp-qr-texte">
+                    <p className="c-sous">{maj(dire('console.ecran.compte.c.scanner'))}</p>
+                    <code className="c-cp-cle" data-donnee>{parQuatre(pose.cle)}</code>
+                    <span><Bouton petit icone="copier" onClick={() => copier(pose.cle, phrase('console.ecran.compte.c.cle_copiee'))}>{titre('console.ecran.compte.c.copier_cle')}</Bouton></span>
+                  </div>
+                </div>
+              </li>
+              <li>
+                <b>{titre('console.ecran.pose.secours')}</b>
+                <span className="c-sous">{phrase('console.ecran.pose.secours_sous')}</span>
+                <ol className="c-cp-secours" data-donnee>{pose.codesDeSecours.map((c) => <li key={c}>{c}</li>)}</ol>
+                <span><Bouton petit icone="copier" onClick={() => copier(pose.codesDeSecours.join('\n'), phrase('console.ecran.compte.s.copies'))}>{titre('console.ecran.compte.s.copier')}</Bouton></span>
+                <label className={`c-pose-garde${faute?.champ === 'garde' && !garde ? ' c-pose-garde-faute' : ''}`}>
+                  <input type="checkbox" checked={garde} onChange={(e) => { setGarde(e.target.checked); if (e.target.checked) setRefus(null); }} />
+                  <span>{titre('console.ecran.pose.garde')}</span>
+                </label>
+              </li>
+              <li>
+                <Champ classe="c-code" libelle={titre('console.ecran.pose.essai')} aide={phrase('console.ecran.pose.essai_aide')} valeur={code} changer={setCode}
+                  autoComplete="one-time-code" inputMode="numeric" {...sur('code')} />
+              </li>
+            </ol>
+            {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+            <Bouton ton="principal" type="submit" large occupe={occupe} fleche>{titre('console.ecran.pose.valider')}</Bouton>
+            <div className="c-forme-liens"><Bouton ton="discret" petit onClick={recommencer}>{titre('console.ecran.code.recommencer')}</Bouton></div>
+          </form>
+        ) : defi ? (
           <form className="c-forme-corps" onSubmit={valider} noValidate>
             <h1>{titre(secours ? 'console.ecran.code.champ_secours' : 'console.ecran.code.titre')}</h1>
             <p className="c-forme-sous">
@@ -140,8 +198,8 @@ export function Entree({ message, entre }: { message: string | null; entre: () =
             <h1>{titre('console.ecran.entree.titre')}</h1>
             <p className="c-forme-sous">{phrase('console.ecran.entree.sous')}</p>
             <div className="c-champs">
-              <Champ libelle={titre('console.ecran.entree.email')} type="email" autoComplete="username" inputMode="email" valeur={email} changer={setEmail} premier {...sur('email')} />
-              <Champ libelle={titre('console.ecran.entree.mot_de_passe')} type="password" autoComplete="current-password" revelable valeur={motDePasse} changer={setMotDePasse} {...sur('motDePasse')} />
+              <Champ libelle={titre('console.ecran.entree.email')} type="email" autoComplete="username" inputMode="email" valeur={email} changer={setEmail} premier={!email} {...sur('email')} />
+              <Champ libelle={titre('console.ecran.entree.mot_de_passe')} type="password" autoComplete="current-password" revelable valeur={motDePasse} changer={setMotDePasse} premier={!!email} {...sur('motDePasse')} />
             </div>
             {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
             <Bouton ton="principal" type="submit" large occupe={occupe} fleche>{titre('console.ecran.entree.continuer')}</Bouton>

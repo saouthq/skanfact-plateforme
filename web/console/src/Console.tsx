@@ -18,6 +18,7 @@ import { Performances } from './ecrans/Performances.tsx';
 import { Cabinet } from './ecrans/Cabinet.tsx';
 import { Clients } from './ecrans/Clients.tsx';
 import { Entree } from './ecrans/Entree.tsx';
+import { Invitation } from './ecrans/Invitation.tsx';
 import { Equipe } from './ecrans/Equipe.tsx';
 import { FicheGroupe } from './ecrans/FicheGroupe.tsx';
 import { Fiche } from './ecrans/Fiche.tsx';
@@ -52,6 +53,7 @@ const OUVRE: Record<Page, readonly Role[]> = {
   // La mesure (docs/console.md C39) : les comptes de SkanFact (l'entonnoir, les départs), comme les paiements.
   mesure: ['direction'],
 };
+const INVITATION = /^#\/invitation\/([A-Za-z0-9_-]{10,100})$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function lireRoute(hash: string): Route {
@@ -275,6 +277,9 @@ export function Console() {
   const ctx = useMemo<Ctx | null>(() => (etat.etat === 'dedans' ? { moi: etat.moi, sortir, compterDecisions: setDecisions, compterSupport: setSupport, relireDecisions } : null), [etat, sortir, relireDecisions]);
   useToucheRecherche(etat.etat === 'dedans' ? etat.moi.role : null, route.page);
 
+  // Un lien d'invitation (C41) s'ouvre sans session : la page de l'invité, quoi qu'il y ait dans cet onglet.
+  const lien = INVITATION.exec(location.hash)?.[1] ?? null;
+  if (lien && route.page === 'inconnue') return <><Invitation jeton={lien} /><Toast /></>;
   if (etat.etat === 'lecture') return <div className="c-centre"><p className="c-attente">{titre('console.ecran.lecture')}</p></div>;
   if (etat.etat === 'panne') {
     return (

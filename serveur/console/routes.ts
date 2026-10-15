@@ -3,6 +3,7 @@
 // session de la console posée pour la base (app.session_console), et chaque fonction de la base revérifie le rôle.
 // L'entrée (se connecter, le code, le renvoyer) est publique, comme celle de l'application.
 
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
@@ -13,6 +14,7 @@ import type { Contexte } from '../connexion.ts';
 import { Introuvable, Perimee } from '../erreurs.ts';
 import { activerCode, activerSms, changerMotDePasse, envoyerPreuveSms, nouveauxCodesDeSecours, preparerCode, preparerSms, type Refuse } from '../compte.ts';
 import { numeroMasque } from '../sms.ts';
+import * as invitations from './invitations.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { etatAbonnement, lireDelai, lireFaits, lireModules, lireOffreSuivante, lireRegles, plusJours, regleAu, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, MOYENS_RECUS, type GesteAbonnement, type LigneAbonnement, type PaiementRecu } from '../abonnement/gestes.ts';
@@ -912,10 +914,66 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     // pas : écrit une seconde fois, il dirait un jour autre chose que ce que le serveur laisse faire.
     traiter: async (_r, tx) => ({ corps: {
       membres: await lireJson(transaction(tx), 'select plateforme.console_equipe($1) v', [maintenant()]),
+      invitations: await lireJson(transaction(tx), 'select plateforme.console_invitations($1) v', [maintenant()]),
       droits: LISTE_GESTES_CONSOLE.filter((g) => g.code !== 'console.session').map((g) => ({ code: g.code, roles: g.roles })),
     } }),
   });
   const role = z.enum(['direction', 'support', 'technique']);
+  // Inviter quelqu'un (0118, C41) : le lien n'est rendu qu'ici, une fois ; la base n'en garde que l'empreinte. Le serveur
+  // n'envoie rien (docs/equipe.md E5) : la direction le transmet par ses moyens.
+  const nouveauLien = () => {
+    const jeton = randomBytes(24).toString('base64url');
+    return { jeton, expire: new Date(maintenant().getTime() + invitations.JOURS_INVITATION * 24 * 3600_000) };
+  };
+  ajouter({
+    methode: 'POST', chemin: '/console/equipe/invitations', geste: 'console.equipe.gerer',
+    corps: z.object({ email: z.string().trim().min(3).max(200), role, motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const l = nouveauLien();
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_inviter($1, $2, $3, $4, $5, $6) v',
+        [corps.email, corps.role, corps.motif, invitations.sha256(l.jeton), maintenant(), l.expire]);
+      return { statut: 201, corps: { id, jeton: l.jeton, expire: l.expire.toISOString() } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/equipe/invitations/:invitation/renvoyer', geste: 'console.equipe.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!uuid.safeParse(params.invitation).success) throw new Introuvable();
+      const l = nouveauLien();
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_renvoyer_invitation($1, $2, $3, $4, $5) v',
+        [params.invitation, corps.motif, invitations.sha256(l.jeton), maintenant(), l.expire]);
+      return { corps: { id, jeton: l.jeton, expire: l.expire.toISOString() } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/equipe/invitations/:invitation/annuler', geste: 'console.equipe.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!uuid.safeParse(params.invitation).success) throw new Introuvable();
+      await transaction(tx).query('select plateforme.console_annuler_invitation($1, $2, $3)', [params.invitation, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  // Le lien, ouvert par l'invité, sans session : ce qu'il dit, puis rejoindre (avec son compte, ou en le créant).
+  ajouter({
+    methode: 'POST', chemin: '/console/invitation/apercu', geste: 'public',
+    corps: z.object({ jeton: z.string().min(10).max(100) }),
+    traiter: async ({ corps }) => {
+      const a = await invitations.apercuInvitation(ctx, corps.jeton, maintenant());
+      if (!a) return { corps: { valable: false } };
+      return { corps: { valable: true, email: a.email, role: a.role, invitePar: a.invitePar, expire: a.expire.toISOString(), compte: a.compte } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/invitation/accepter', geste: 'public',
+    corps: z.object({ jeton: z.string().min(10).max(100), motDePasse: z.string().max(200), nom: z.string().max(120).optional() }),
+    traiter: async ({ corps }) => {
+      const r = await invitations.accepterInvitation(ctx, corps, maintenant());
+      if (!r.ok) return { statut: r.statut, corps: { motif: r.motif, champ: r.champ ?? null } };
+      return { corps: { role: r.role, code: r.code } };
+    },
+  });
   ajouter({
     methode: 'POST', chemin: '/console/equipe', geste: 'console.equipe.gerer',
     corps: z.object({ email: z.string().trim().min(3).max(200), role, motif: motifGeste }),

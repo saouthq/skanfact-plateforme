@@ -62,9 +62,10 @@ function verifierDeclaration(r: Route<never>) {
   if (parEntreprise !== r.chemin.includes(':entreprise')) {
     throw new RouteSansGeste(`la route ${r.methode} ${r.chemin} : un geste d'entreprise porte :entreprise dans son chemin, et lui seul`);
   }
-  // La console vit sous /console/ (docs/console.md), et rien d'autre n'y vit, sinon son entrée (publique).
+  // La console vit sous /console/ (docs/console.md), et rien d'autre n'y vit, sinon son entrée et le lien d'une invitation
+  // dans l'équipe (publics, C41).
   const sousConsole = r.chemin.startsWith('/console/');
-  if (deLaConsole !== sousConsole && !(r.geste === 'public' && r.chemin.startsWith('/console/connexion'))) {
+  if (deLaConsole !== sousConsole && !(r.geste === 'public' && (r.chemin.startsWith('/console/connexion') || r.chemin.startsWith('/console/invitation/')))) {
     throw new RouteSansGeste(`la route ${r.methode} ${r.chemin} : un geste de la console vit sous /console/, et lui seul`);
   }
 }

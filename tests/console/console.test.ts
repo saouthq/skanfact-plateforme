@@ -109,9 +109,11 @@ describe('l\'entrée de la console', () => {
   });
 
   it('le code du téléphone à chaque connexion, même sur un appareil reconnu ; sans code en place, la console le dit', async () => {
-    // Un membre sans code du téléphone : le bon mot de passe ne suffit pas, et la console dit où le mettre en place.
+    // Un membre sans code du téléphone, arrivé depuis plus de sept jours (avant, il le pose à sa première connexion :
+    // 0118, tests/console/invitations.test.ts) : le bon mot de passe ne suffit pas, et la console dit où le mettre en place.
     const p = await personne('sanscode');
     await ajouterALEquipe(admin, p.email, 'support', 'essai sans code');
+    await admin.query(`update plateforme.equipe set ajoute_le = now() - interval '8 days' where utilisateur = (select id from socle.utilisateur where email = $1)`, [p.email]);
     const r = await appeler('POST', '/console/connexion', undefined, { email: p.email, motDePasse: MDP, appareil: { nom: 'Bureau', type: 'navigateur' } });
     expect(r.statut).toBe(401);
     expect(String(r.corps.motif)).toMatch(/code du téléphone.*Ton compte/);

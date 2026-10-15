@@ -2974,3 +2974,30 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-cp-droits > li { grid-template-columns: 22px minmax(0, 1fr); }
   .c-cp-qr { grid-template-columns: minmax(0, 1fr); justify-items: center; }
 }
+
+/* Inviter quelqu'un (C41) : le lien montré une fois, ses trois façons de le transmettre ; les invitations dans la liste,
+   en retrait d'un membre (pas encore de compte dans l'équipe). */
+.c-inv-lien { display: grid; gap: 12px; padding: 14px 16px; border-radius: 14px; background: var(--c-papier-2); border: 1px solid var(--c-trait); }
+.c-inv-adresse { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; user-select: all; }
+.c-inv-envois { display: flex; flex-wrap: wrap; gap: 8px; }
+.c-eq-invitation td { color: var(--c-gris); }
+.c-eq-invitation b { color: var(--c-encre); font-weight: 600; }
+.c-eq-invite-icone { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 50%; border: 1px dashed var(--c-trait-fort); color: var(--c-gris); }
+/* La page de l'invité, et le premier code posé à l'entrée. */
+.c-inv-faits { margin: 0; padding: 4px 14px; border-radius: 14px; background: var(--c-papier-2); border: 1px solid var(--c-trait); }
+.c-inv-faits > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px; padding: 8px 0; font-size: 14px; }
+.c-inv-faits > div + div { border-top: 1px solid var(--c-trait); }
+.c-inv-faits dt { color: var(--c-gris); }
+.c-inv-faits dd { margin: 0; overflow-wrap: anywhere; }
+.c-inv-fait { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--c-doux); color: var(--c-doux-texte); }
+.c-pose-etapes { margin: 0; padding: 0; list-style: none; display: grid; gap: 18px; }
+.c-pose-etapes > li { display: grid; gap: 8px; }
+.c-pose .c-cp-qr { grid-template-columns: 140px minmax(0, 1fr); }
+.c-pose .c-cp-qr-image { width: 140px; height: 140px; }
+.c-pose-garde { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; cursor: pointer; padding: 6px 10px; margin-inline-start: -10px; border-radius: 10px; }
+.c-pose-garde input { width: 18px; height: 18px; accent-color: var(--c-sarcelle); }
+.c-pose-garde-faute { background: var(--c-rouge-doux); color: var(--c-rouge-texte); }
+@media (max-width: 560px) {
+  .c-pose .c-cp-qr { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+  .c-inv-faits > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}

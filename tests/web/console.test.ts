@@ -198,6 +198,8 @@ describe('la console de l\'équipe, à la souris', () => {
     support = await membre('Karim', 'support');
     technique = await membre('Youssef', 'technique');
     sansCode = await membre('Salma', 'technique', false);
+    // Arrivée il y a plus de sept jours : elle ne pose plus son code à la connexion (0118), la console le refuse.
+    await admin.query(`update plateforme.equipe set ajoute_le = now() - interval '8 days' where utilisateur = (select id from socle.utilisateur where email = $1)`, [sansCode.email]);
     essaiCalme = await entreprise('Quincaillerie de la Console', 2);
     essaiSupport = await entreprise('Boulangerie du Support', 2);
     enLecture = await entreprise('Pharmacie en Lecture Seule', -9);
