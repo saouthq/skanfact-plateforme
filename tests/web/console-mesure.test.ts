@@ -43,7 +43,7 @@ describe('la mesure, à la souris', () => {
   };
   const membre = async (prenom: string, role: 'direction' | 'support') => {
     const email = `console-mesure-${prenom}-${Date.now()}@exemple.tn`;
-    await api('POST', '/inscription', undefined, { email, nom: `${prenom} Essai`, motDePasse: MDP });
+    await api('POST', '/inscription', undefined, { email, nom: `${prenom === 'amira' ? 'Dorra' : 'Sami'} Mesure`, motDePasse: MDP });
     const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
     const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', jeton, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '';
     await ajouterALEquipe(admin, email, role, 'essai de la mesure à la souris');

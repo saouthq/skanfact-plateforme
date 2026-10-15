@@ -1296,11 +1296,3 @@ délai ; la liste des événements, « proposée, à décider ». Corrigé penda
 - au téléphone, « 30 derniers jours » seul sous les deux autres périodes : les trois sur une ligne ; les quatre étapes
   deux par deux ;
 - les périodes de l'en-tête décalées de 24 points à droite (la marge des pilules d'une carte) : alignées.
-
-**Le jeu de démonstration du serveur d'essai** (Skander, 15/10/2026 : « c'est dur de juger une interface vide de
-données ») : `scripts/humain/demo-console.ts`, lancé une fois sur le serveur d'essai, pose quinze entreprises inventées
-dans chaque état d'abonnement, deux cabinets, un support et une technique inventés (que personne ne peut ouvrir : leur
-mot de passe tiré au hasard n'est écrit nulle part), des demandes de support (une urgente, une qui attend la technique,
-une close), des appels notés, et les gestes de la console qui vont avec. Il ne touche ni au service (ses mesures sont
-celles du vrai serveur), ni à l'entreprise SkanFact de « Nos factures » (une fois désignée, elle ne se change plus :
-**À DÉCIDER** par Skander), ni aux envois à la TTN. Il ne se pose qu'une fois. Les adresses sont en `example.com`.
