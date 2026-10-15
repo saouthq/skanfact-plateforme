@@ -14876,7 +14876,7 @@ prouver 'l'"'"'écran tait ce que l'"'"'e-mail d'"'"'une invitation est devenu' 
   '{dire(i.courriel ? `console.ecran.equipe.inv.courriel.${i.courriel}` : '"'"'console.ecran.equipe.inv.ligne'"'"')}' \
   '{dire('"'"'console.ecran.equipe.inv.ligne'"'"')}' \
   'la direction invite : le lien une fois, puis l'"'"'invitation attend ; renvoyer donne un lien neuf, annuler l'"'"'éteint'
-prouver 'une relance du client remet l'"'"'attente à zéro (la base)' 'base/migrations/0124_support_honnete.sql' \
+prouver 'une relance du client remet l'"'"'attente à zéro (la base)' 'base/migrations/0126_demandes_incidents.sql' \
   '        and m.ecrit_le > coalesce((select max(e.ecrit_le) from plateforme.message_support e where e.demande = d.id and e.cote = '"'"'equipe'"'"'), '"'"'-infinity'"'"')),
     '"'"'attendClientApresTechniqueLe'"'"'' \
   '),
@@ -14985,6 +14985,73 @@ prouver 'l'"'"'écran dit une remise faite sans dire ce qui la prouve' 'web/cons
   '    case '"'"'entreprise'"'"': return preuveRemise(p, d);' \
   '    case '"'"'entreprise'"'"': return x?.n ? selon(x.n, `${G}.p.entreprise.sans_duree`, { quand: quand(x.derniere ?? null, d.aujourdhui) }) : phrase(`${G}.p.entreprise.jamais`);' \
   'les sauvegardes (l'"'"'audit C10, C11) : un relevé de sept minutes ne dit plus l'"'"'archivage en marche ; la promesse d'"'"'une entreprise dit la remise qui la prouve'
+
+# 1.32.0 : une demande liée à son incident et à sa correction (0126 ; la liste des fonctions qui manquent, 19).
+prouver 'la demande tait son incident' 'base/migrations/0126_demandes_incidents.sql' \
+  '    '"'"'incident'"'"', (select jsonb_build_object('"'"'id'"'"', i.id, '"'"'ref'"'"', plateforme.ref_incident(i.id), '"'"'titre'"'"', i.titre, '"'"'gravite'"'"', i.gravite, '"'"'closLe'"'"', i.clos_le)
+                   from plateforme.service_incident i where i.id = d.incident),' \
+  '    '"'"'incident'"'"', null,' \
+  'le support la lie à un incident ouvert : la demande le dit, l'"'"'incident la compte sans la nommer ; délier la retire ; chaque geste au journal'
+prouver 'l'"'"'incident ne compte pas ses demandes' 'base/migrations/0126_demandes_incidents.sql' \
+  ''"'"'demandes'"'"', (select jsonb_build_object('"'"'n'"'"', count(*), '"'"'ouvertes'"'"',' \
+  ''"'"'demandes'"'"', (select jsonb_build_object('"'"'n'"'"', 0, '"'"'ouvertes'"'"',' \
+  'le support la lie à un incident ouvert : la demande le dit, l'"'"'incident la compte sans la nommer ; délier la retire ; chaque geste au journal'
+prouver 'une demande close comptée ouverte' 'base/migrations/0126_demandes_incidents.sql' \
+  ''"'"'ouvertes'"'"', count(*) filter (where d.close_le is null))' \
+  ''"'"'ouvertes'"'"', count(*))' \
+  'le support la lie à un incident ouvert : la demande le dit, l'"'"'incident la compte sans la nommer ; délier la retire ; chaque geste au journal'
+prouver 'un incident clos depuis longtemps se lie' 'base/migrations/0126_demandes_incidents.sql' \
+  'not exists (select 1 from plateforme.service_incident i where i.id = p_incident
+                                             and (i.clos_le is null or i.clos_le >= p_maintenant - interval '"'"'30 days'"'"'))' \
+  'not exists (select 1 from plateforme.service_incident i where i.id = p_incident)' \
+  'un incident clos depuis plus de trente jours, ou qui n'"'"'existe pas, ne se lie pas ; la technique ne lie rien'
+prouver 'la liste à lier garde les vieux incidents' 'base/migrations/0126_demandes_incidents.sql' \
+  'from plateforme.service_incident i where i.clos_le is null or i.clos_le >= p_maintenant - interval '"'"'30 days'"'"');' \
+  'from plateforme.service_incident i);' \
+  'un incident clos depuis plus de trente jours, ou qui n'"'"'existe pas, ne se lie pas ; la technique ne lie rien'
+prouver 'le même incident relié en silence' 'base/migrations/0126_demandes_incidents.sql' \
+  '  if v.incident is not distinct from p_incident then perform' \
+  '  if false then perform' \
+  'le support la lie à un incident ouvert : la demande le dit, l'"'"'incident la compte sans la nommer ; délier la retire ; chaque geste au journal'
+prouver 'le lien sans sa ligne au journal' 'base/migrations/0126_demandes_incidents.sql' \
+  'v_role, '"'"'support.incident'"'"', v.entreprise' \
+  'v_role, '"'"'support.suivre'"'"', v.entreprise' \
+  'le support la lie à un incident ouvert : la demande le dit, l'"'"'incident la compte sans la nommer ; délier la retire ; chaque geste au journal'
+prouver 'la même version renotée en silence' 'base/migrations/0126_demandes_incidents.sql' \
+  '  if v.correction is not distinct from p_version then perform' \
+  '  if false then perform' \
+  'notée « 1.32.0 » : attendue tant que la version en service est avant elle, corrigée quand elle l'"'"'atteint ; retirée, elle n'"'"'attend plus rien'
+prouver 'la correction jamais en service' 'serveur/console/routes.ts' \
+  'enService: versionAtteinte(l.correction.version, enService)' \
+  'enService: false' \
+  'notée « 1.32.0 » : attendue tant que la version en service est avant elle, corrigée quand elle l'"'"'atteint ; retirée, elle n'"'"'attend plus rien'
+prouver 'une préversion vaut la version' 'serveur/console/support.ts' \
+  '  return !pre;
+}' \
+  '  return true;
+}' \
+  'la version atteinte se compare nombre par nombre, jamais comme un texte'
+prouver 'les versions comparées comme du texte' 'serveur/console/support.ts' \
+  '  for (let k = 0; k < 3; k++) if ((e[k] as number) !== (a[k] as number)) return (e[k] as number) > (a[k] as number);
+  return !pre;' \
+  '  return (enService ?? '"'"''"'"') >= attendue && !pre;' \
+  'la version atteinte se compare nombre par nombre, jamais comme un texte'
+prouver 'l'"'"'écran tait l'"'"'incident et la correction d'"'"'une demande' 'web/console/src/ecrans/Support.tsx' \
+  '  if (!l.incident && !l.correction) return null;' \
+  '  return null;' \
+  'le lien d'"'"'une demande (0126) : liée à un incident, puis la version qui la corrige — attendue, puis en service : « à dire au client »'
+prouver 'l'"'"'écran dit « à dire au client » avant la version' 'web/console/src/ecrans/Support.tsx' \
+  '{l.correction.enService && !l.close ? <Puce ton="actif">{maj(dire(`${L}.a_dire`))}</Puce> : null}' \
+  '{!l.close ? <Puce ton="actif">{maj(dire(`${L}.a_dire`))}</Puce> : null}' \
+  'le lien d'"'"'une demande (0126) : liée à un incident, puis la version qui la corrige — attendue, puis en service : « à dire au client »'
+prouver 'l'"'"'écran des incidents tait les demandes liées' 'web/console/src/ecrans/Incidents.tsx' \
+  '{i.demandes.n ? `${maj(selon(i.demandes.n, `${I}.demandes.liees`))} · ${selon(i.demandes.ouvertes, `${I}.demandes.ouvertes`)}.` : phrase(`${I}.demandes.aucune`)}' \
+  '{phrase(`${I}.demandes.aucune`)}' \
+  'l'"'"'incident ouvert porte le seul bouton principal ; la page d'"'"'état montrée est celle de la veille, avec son message'
+prouver 'les demandes liées perdues en route' 'serveur/console/incidents.ts' \
+  'demandes: ((x) => ({ n: compte(x.n), ouvertes: compte(x.ouvertes) }))((i.demandes ?? {}) as Record<string, unknown>),' \
+  'demandes: { n: 0, ouvertes: 0 },' \
+  'l'"'"'incident ouvert porte le seul bouton principal ; la page d'"'"'état montrée est celle de la veille, avec son message'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

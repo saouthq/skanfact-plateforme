@@ -667,6 +667,11 @@ vaut pour tout le dépôt.*
     `--essai-secondes`) et la durée de l'essai dans `exploitation/remettre-entreprise.sh` ; `mesuree` de
     `plateforme.console_service_sauvegardes` (`tests/console/sauvegardes.test.ts`, `tests/console/console.test.ts`,
     `tests/socle/export-entreprise.test.ts`, `tests/web/console-service.test.ts`).
+  - **Une demande liée à son incident et à sa correction** (1.32.0 ; `docs/console.md` C48, `0126`) : `incident` et
+    `correction` de `plateforme.demande_support`, `plateforme.console_lier_incident`, `plateforme.console_noter_correction`,
+    `plateforme.console_incidents_a_lier`, les `demandes` de `plateforme.console_service_incidents` ; `versionAtteinte` de
+    `serveur/console/support.ts` (`tests/console/demandes-incidents.test.ts`, `tests/web/support.test.ts`,
+    `tests/web/console-incidents.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

@@ -79,6 +79,7 @@ declarerTextes({
   'console.paiements.mois_illisible': 'un coût se saisit pour le mois en cours ou un mois passé',
   // Le support (docs/support.md) : chaque refus nomme sa case.
   'console.support.sujet_court': 'le sujet dit en quelques mots ce que la personne demande : trois caractères au moins',
+  'console.support.version_illisible': 'une version s\'écrit comme « 1.32.0 » : trois nombres séparés par des points',
   'console.support.sujet_long': 'le sujet tient sur une ligne : cent quarante caractères au plus',
   'console.support.sans_balise': 'le sujet s\'écrit sans les signes < ni >',
   'console.support.acces_motif_court': 'demander l\'accès dit pourquoi, au client qui le lira : trois caractères au moins',

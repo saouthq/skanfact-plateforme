@@ -925,7 +925,10 @@ describe('les performances du service (0088, docs/console.md C15)', () => {
 describe('les incidents du service et la page d\'état (0089, docs/console.md C24)', () => {
   // Les incidents partent de tables vides : l'écran (tests/web/console-incidents.test.ts) y laisse les siens.
   beforeAll(async () => {
-    await admin.query('truncate plateforme.service_suite, plateforme.service_incident_point, plateforme.service_incident cascade');
+    // Les demandes du support peuvent désigner un incident (0126) : on les en délie d'abord ; un « truncate … cascade »
+    // viderait aussi les demandes des autres essais.
+    await admin.query('update plateforme.demande_support set incident = null where incident is not null');
+    await admin.query('delete from plateforme.service_suite; delete from plateforme.service_incident_point; delete from plateforme.service_incident');
     await admin.query('truncate plateforme.service_maintenance');
   });
   // Les gestes de CE fichier : l'écran (tests/web/console-incidents.test.ts) écrit les siens, en même temps.

@@ -37,7 +37,7 @@ describe('le support, à la souris, des deux côtés', () => {
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-support-'));
   const veille = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'web-support-veille-')), 'veille.json');
   const erreurs: string[] = [];
-  let jS = '', jClient = '', ent = '', demande = '';
+  let jS = '', jClient = '', ent = '', demande = '', emailS = '';
 
   const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
     const r = await fetch(`${serveur.adresse}/v1${chemin}`, {
@@ -99,6 +99,7 @@ describe('le support, à la souris, des deux côtés', () => {
     const j = String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
     const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', j, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '';
     await ajouterALEquipe(admin, email, 'support', 'essai du support à la souris');
+    emailS = email;
     const r = await api('POST', '/console/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Essai', type: 'navigateur' } });
     jS = String((await api('POST', '/console/connexion/code', undefined, { defi: r.corps.defi, code: codeTotp(depuisBase32(secret), Date.now()) })).corps.jeton);
     // Lina et son studio.
@@ -289,6 +290,64 @@ describe('le support, à la souris, des deux côtés', () => {
     await expect.poll(async () => net(await suivi.innerText())).not.toContain('Urgente');
     expect(erreurs).toEqual([]);
     await fermer(p);
+  }, 90_000);
+
+  it('le lien d\'une demande (0126) : liée à un incident, puis la version qui la corrige — attendue, puis en service : « à dire au client »', async () => {
+    // La version en service : ce que le suiveur écrit à côté de la veille.
+    const etat = (numero: string) => {
+      fs.mkdirSync(path.join(path.dirname(veille), 'public'), { recursive: true });
+      fs.writeFileSync(path.join(path.dirname(veille), 'public', 'etat.json'), JSON.stringify({ version: 'b'.repeat(40), numeros: { ['b'.repeat(40)]: numero } }));
+    };
+    etat('1.31.0');
+    const ref = String((await admin.query(`insert into plateforme.service_incident (annee, numero, titre, gravite, ouvert_le, ouvert_par)
+      values (2026, (select coalesce(max(numero), 0) + 1 from plateforme.service_incident where annee = 2026), 'Les factures ne partent plus', 'majeur', now(),
+              (select id from socle.utilisateur where email = $1)) returning format('INC-%s-%s', annee, lpad(numero::text, 3, '0')) r`, [emailS])).rows[0].r);
+    try {
+      const p = await consoleSur(`#/support?demande=${demande}`);
+      const suivi = p.locator('.c-sp-suivi');
+      const liens = p.locator('.c-sp-attaches');
+      expect(await liens.count()).toBe(0);
+      const geste = async (nom: RegExp, bouton: string, remplir: (f: ReturnType<Page['locator']>) => Promise<void>) => {
+        await cliquer(suivi.getByRole('button', { name: 'Les gestes de cette demande' }));
+        await cliquer(p.locator('.c-menu-liste button').filter({ hasText: nom }));
+        const f = p.locator('[role="dialog"]');
+        await expect.poll(() => f.count()).toBe(1);
+        // Sans motif : refusé, la fenêtre reste.
+        await cliquer(f.getByRole('button', { name: bouton, exact: true }));
+        await expect.poll(() => f.locator('.c-alerte').count()).toBe(1);
+        await remplir(f);
+        await cliquer(f.getByRole('button', { name: bouton, exact: true }));
+        await expect.poll(() => f.count(), { timeout: 15_000 }).toBe(0);
+      };
+      await geste(/Lier à un incident/, 'Lier', async (f) => {
+        expect(await f.locator('select option').allInnerTexts()).toContain(`${ref} · Les factures ne partent plus (en cours)`);
+        await f.locator('select').selectOption({ label: `${ref} · Les factures ne partent plus (en cours)` });
+        await f.locator('textarea').fill('les factures de Lina ne partent pas non plus');
+      });
+      await expect.poll(async () => net(await liens.innerText().catch(() => ''))).toContain(`${ref} · Les factures ne partent plus · en cours`);
+      await geste(/Noter la version qui la corrige/, 'Noter', async (f) => {
+        // Une version mal écrite : la case le dit.
+        await f.locator('input').fill('1.32');
+        await f.locator('textarea').fill('le timbre manque sur l\'export');
+        await cliquer(f.getByRole('button', { name: 'Noter', exact: true }));
+        await expect.poll(async () => net(await f.locator('.c-alerte').innerText())).toContain('trois nombres');
+        await f.locator('input').fill('1.32.0');
+      });
+      await expect.poll(async () => net(await liens.innerText())).toContain('Correction attendue en 1.32.0 (en service : 1.31.0)');
+      // Pas encore en service : rien à dire au client.
+      expect(net(await liens.innerText())).not.toContain('À dire au client');
+      expect(await p.locator('.c-sp-ticket[aria-pressed="true"]').getByText('Corrigée').count()).toBe(0);
+      // La version arrive en service : la demande le dit, et ce qu'il reste à faire.
+      etat('1.32.0');
+      await p.reload();
+      await expect.poll(async () => net(await liens.innerText().catch(() => '')), { timeout: 15_000 }).toContain('Corrigée en 1.32.0, en service');
+      expect(net(await liens.innerText())).toContain('À dire au client');
+      expect(await p.locator('.c-sp-ticket[aria-pressed="true"]').getByText('Corrigée').count()).toBe(1);
+      expect(erreurs).toEqual([]);
+      await fermer(p);
+    } finally {
+      await admin.query('update plateforme.demande_support set incident = null, correction = null, correction_le = null where id = $1', [demande]);
+    }
   }, 90_000);
 
   it('au téléphone : la liste d\'abord ; choisir une demande amène la conversation ; rien ne déborde, des deux côtés', async () => {

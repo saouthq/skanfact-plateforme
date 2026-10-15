@@ -27,8 +27,11 @@ export type LigneDemande = {
   technique: { le: string; motif: string } | null; dernierClientLe: string | null; dernierEquipeLe: string | null;
   dernierCote: 'client' | 'equipe' | null; messages: number;
   close: { le: string; cote: 'client' | 'equipe'; par: string | null; motif: string | null } | null;
+  // 0126 : l'incident qui la cause, et la version qui la corrige — en service ou pas encore.
+  incident: IncidentLie | null; correction: { version: string; le: string; enService: boolean } | null;
   etat: EtatDemande;
 };
+type IncidentLie = { id: string; ref: string; titre: string; gravite: 'mineur' | 'majeur' | 'critique'; closLe: string | null };
 type Message = { id: string; cote: 'client' | 'equipe'; texte: string; article: string | null; le: string; nom: string; notePar: string | null };
 type Demande = {
   ligne: Omit<LigneDemande, 'etat'>; version: string | null; page: string | null;
@@ -46,6 +49,8 @@ type Donnees = {
   pagesCloses?: { debut: number; total: number; parPage: number };
   // À qui une demande se confie (0115) : la direction et le support.
   equipe?: MembreSupport[];
+  // La version en service (0126), son numéro : une correction l'attend.
+  enService?: string | null;
 };
 type MembreSupport = { id: string; nom: string; role: 'direction' | 'support' };
 
@@ -80,7 +85,8 @@ function Ticket({ l, choisie, choisir, aujourdhui }: { l: LigneDemande; choisie:
   return (
     <button type="button" className="c-sp-ticket" aria-pressed={choisie} onClick={choisir}>
       <span className="c-sp-ticket-haut"><b data-donnee>{l.entreprise.nom}</b>
-        <span className="c-sp-ticket-puces">{l.priorite === 'urgente' && !l.close ? <Puce ton="urgent">{dire('console.ecran.support.urgente')}</Puce> : null}<Puce ton={e.ton}>{e.texte}</Puce></span>
+        <span className="c-sp-ticket-puces">{l.priorite === 'urgente' && !l.close ? <Puce ton="urgent">{dire('console.ecran.support.urgente')}</Puce> : null}
+          {l.correction?.enService && !l.close ? <Puce ton="actif">{maj(dire('console.ecran.support.l.corrigee_court'))}</Puce> : null}<Puce ton={e.ton}>{e.texte}</Puce></span>
       </span>
       <span className="c-sp-ticket-sujet" data-donnee>{l.sujet}</span>
       <span className="c-sp-ticket-meta">
@@ -132,7 +138,7 @@ function FenetreMotif({ sorte, demande, fermer, fait }: { sorte: 'clore' | 'rouv
 }
 
 // ── Le suivi : la prendre, la confier, sa priorité, l'attente de la technique (0115) ──────────────────────────────────
-type SorteSuivi = 'prendre' | 'confier' | 'priorite' | 'technique';
+type SorteSuivi = 'prendre' | 'confier' | 'priorite' | 'technique' | 'incident' | 'correction';
 function FenetreSuivi({ sorte, demande, equipe, fermer, fait }: { sorte: SorteSuivi; demande: Demande; equipe: MembreSupport[]; fermer: () => void; fait: () => void }) {
   const api = useApi();
   const { moi } = useConsole();
@@ -184,6 +190,107 @@ function FenetreSuivi({ sorte, demande, equipe, fermer, fait }: { sorte: SorteSu
   );
 }
 
+// ── L'incident et la correction d'une demande (0126 ; la liste des fonctions qui manquent, 19) ──────────────────────
+// Une ligne sous le suivi, même close : l'incident qui la cause (sa référence, son titre, clos ou en cours), et la
+// version qui la corrige — attendue, ou en service : il reste alors à l'écrire au client.
+function Liens({ d, enService }: { d: Demande; enService: string | null }) {
+  const l = d.ligne;
+  const L = 'console.ecran.support.l';
+  if (!l.incident && !l.correction) return null;
+  return (
+    <div className="c-sp-attaches">
+      {l.incident ? (
+        <span className="c-sp-attache">
+          <Icone nom="alerte" taille={14} />
+          <span><span className="c-mono">{l.incident.ref}</span>{' · '}<span data-donnee>{l.incident.titre}</span>
+            {' · '}{l.incident.closLe ? dire(`${L}.incident_clos`) : dire(`${L}.incident_en_cours`)}</span>
+        </span>
+      ) : null}
+      {l.correction ? (
+        <span className="c-sp-attache">
+          <Icone nom={l.correction.enService ? 'ok' : 'retour'} taille={14} />
+          <span>{maj(l.correction.enService ? dire(`${L}.corrigee`, { version: l.correction.version })
+            : dire(`${L}.attendue`, { version: l.correction.version, service: enService ?? dire(`${L}.service_inconnu`) }))}</span>
+          {l.correction.enService && !l.close ? <Puce ton="actif">{maj(dire(`${L}.a_dire`))}</Puce> : null}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+type IncidentALier = { id: string; ref: string; titre: string; gravite: string; ouvertLe: string; closLe: string | null };
+function FenetreLien({ sorte, demande, enService, fermer, fait }: { sorte: 'incident' | 'correction'; demande: Demande; enService: string | null; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const l = demande.ligne;
+  const L = 'console.ecran.support.l';
+  // Lier ou délier, noter ou retirer : le geste se lit sur ce que la demande porte déjà.
+  const k = sorte === 'incident' ? (l.incident ? `${L}.delier` : `${L}.lier`) : (l.correction ? `${L}.retirer` : `${L}.noter`);
+  const choisir = (sorte === 'incident' && !l.incident) || (sorte === 'correction' && !l.correction);
+  const [incidents, setIncidents] = useState<IncidentALier[] | null>(null);
+  const [incident, setIncident] = useState('');
+  const [version, setVersion] = useState('');
+  const [motif, setMotif] = useState('');
+  const [refus, setRefus] = useState<{ texte: string; champ: 'incident' | 'version' | 'motif' | null } | null>(null);
+  const [faute, setFaute] = useState(0);
+  const [occupe, setOccupe] = useState(false);
+  useEffect(() => {
+    if (sorte !== 'incident' || l.incident) return undefined;
+    let fini = false;
+    void (async () => {
+      const res = await api('GET', '/console/support/incidents').catch(() => null);
+      if (fini || !res) return;
+      const liste = res.statut === 200 ? (res.corps as { incidents: IncidentALier[] }).incidents : [];
+      setIncidents(liste);
+      setIncident(liste[0]?.id ?? '');
+    })();
+    return () => { fini = true; };
+  }, [api, sorte, l.incident]);
+  const envoyer = () => {
+    const faux = (texte: string, champ: 'incident' | 'version' | 'motif') => { setRefus({ texte, champ }); setFaute((n) => n + 1); };
+    if (sorte === 'incident' && choisir && !incident) { faux(phrase(`${L}.lier.aucun`), 'incident'); return; }
+    if (sorte === 'correction' && choisir && !/^\d{1,4}\.\d{1,4}\.\d{1,4}$/.test(version.trim())) { faux(phrase(`${L}.noter.illisible`), 'version'); return; }
+    if (motif.trim().length < 3) { faux(phrase('console.ecran.geste.motif_court'), 'motif'); return; }
+    const corps = sorte === 'incident' ? { incident: choisir ? incident : null, motif: motif.trim() } : { version: choisir ? version.trim() : null, motif: motif.trim() };
+    void (async () => {
+      setOccupe(true);
+      try {
+        const res = await api('POST', `/console/support/demandes/${l.id}/${sorte}`, corps);
+        if (!res) return;
+        if (res.statut !== 200) { setRefus({ texte: refusDe(res), champ: null }); return; }
+        toast(phrase(`${k}.fait`, { ref: l.incident?.ref ?? incidents?.find((i) => i.id === incident)?.ref ?? '', version: choisir ? version.trim() : l.correction?.version ?? '' }));
+        fait();
+      } catch (x) { setRefus({ texte: panneDe(x), champ: null }); } finally { setOccupe(false); }
+    })();
+  };
+  const sans = sorte === 'incident' && choisir && incidents !== null && incidents.length === 0;
+  return (
+    <Dialogue titre={titre(`${k}.fenetre`)} sous={`${refDemande(l.numero)} · ${l.sujet}`} sousDonnee fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} desactive={sans || (sorte === 'incident' && choisir && incidents === null)} onClick={envoyer}>{titre(`${k}.bouton`)}</Bouton>
+      </>}>
+      {sorte === 'incident' && choisir ? (
+        sans ? <Vide>{phrase(`${L}.lier.vide`)}</Vide>
+          : incidents === null ? <p className="c-sous">{phrase('console.ecran.lecture')}</p>
+            : <Choix libelle={titre(`${L}.lier.quel`)} aide={phrase(`${L}.lier.quel_aide`)} valeur={incident} changer={setIncident}
+                options={incidents.map((i) => ({ valeur: i.id, texte: `${i.ref} · ${i.titre} (${dire(i.closLe ? `${L}.incident_clos` : `${L}.incident_en_cours`)})`, donnee: true }))} />
+      ) : null}
+      {sorte === 'correction' && choisir ? (
+        <Champ libelle={titre(`${L}.noter.version`)} aide={phrase(`${L}.noter.version_aide`, { service: enService ?? dire(`${L}.service_inconnu`) })}
+          valeur={version} changer={setVersion} placeholder="1.32.0" inputMode="decimal" faute={refus?.champ === 'version'} n={faute} premier />
+      ) : null}
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
+        <ul>{['p1', 'p2'].map((x) => <li key={x}>{phrase(`${k}.${x}`, { ref: l.incident?.ref ?? '', version: l.correction?.version ?? '' })}</li>)}</ul>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${k}.motif_aide`)} valeur={motif} changer={setMotif} faute={refus?.champ === 'motif'} n={faute} premier={!choisir} />
+      <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus ? <Alerte ton="danger">{refus.texte}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
 // Qui la suit, sa priorité, l'attente de la technique : une ligne sous l'en-tête. Un geste direct (la prendre, quand on ne
 // la suit pas), les autres dans le menu.
 function Suivi({ d, equipe, choisir }: { d: Demande; equipe: MembreSupport[]; choisir: (s: SorteSuivi) => void }) {
@@ -191,10 +298,14 @@ function Suivi({ d, equipe, choisir }: { d: Demande; equipe: MembreSupport[]; ch
   const l = d.ligne;
   const mienne = l.suivieParId === moi.utilisateur;
   const K = 'console.ecran.support.s';
+  const L = 'console.ecran.support.l';
   const actions = [
     ...(equipe.some((m) => m.id !== l.suivieParId) ? [{ icone: 'personne' as const, titre: titre(`${K}.confier.titre`), sous: phrase(`${K}.confier.sous`), faire: () => choisir('confier') }] : []),
     { icone: 'alerte' as const, titre: titre(l.priorite === 'urgente' ? `${K}.normale.titre` : `${K}.urgente.titre`), sous: phrase(l.priorite === 'urgente' ? `${K}.normale.sous` : `${K}.urgente.sous`), faire: () => choisir('priorite') },
     { icone: 'serveur' as const, titre: titre(l.technique ? `${K}.levee.titre` : `${K}.attend.titre`), sous: phrase(l.technique ? `${K}.levee.sous` : `${K}.attend.sous`), faire: () => choisir('technique') },
+    // 0126 : l'incident qui la cause, la version qui la corrige.
+    { icone: 'alerte' as const, titre: titre(l.incident ? `${L}.delier.titre` : `${L}.lier.titre`), sous: phrase(l.incident ? `${L}.delier.sous` : `${L}.lier.sous`, { ref: l.incident?.ref ?? '' }), faire: () => choisir('incident') },
+    { icone: 'retour' as const, titre: titre(l.correction ? `${L}.retirer.titre` : `${L}.noter.titre`), sous: phrase(l.correction ? `${L}.retirer.sous` : `${L}.noter.sous`, { version: l.correction?.version ?? '' }), faire: () => choisir('correction') },
   ];
   return (
     <div className="c-sp-suivi">
@@ -365,7 +476,7 @@ function Repondre({ d, articles, brouillons, envoye, relire }: { d: Demande; art
 // ── La demande ouverte à l'écran ────────────────────────────────────────────────────────────────────────────────────
 // En tête : ce qu'elle demande (ses mots), qui et d'où, puis où elle en est ; le seul geste de l'en-tête, clore ou
 // rouvrir, à droite. La conversation défile dans sa carte, la dernière réponse en bas, sous les yeux, avec le champ.
-function Fil({ d, articles, brouillons, aujourdhui, relire, equipe }: { d: Demande; articles: Article[]; brouillons: Brouillons; aujourdhui: string; relire: () => void; equipe: MembreSupport[] }) {
+function Fil({ d, articles, brouillons, aujourdhui, relire, equipe, enService }: { d: Demande; articles: Article[]; brouillons: Brouillons; aujourdhui: string; relire: () => void; equipe: MembreSupport[]; enService: string | null }) {
   const { relireDecisions } = useConsole();
   const [fenetre, setFenetre] = useState<'clore' | 'rouvrir' | null>(null);
   const [suivi, setSuivi] = useState<SorteSuivi | null>(null);
@@ -412,6 +523,7 @@ function Fil({ d, articles, brouillons, aujourdhui, relire, equipe }: { d: Deman
           : <Bouton petit onClick={() => setFenetre('clore')}>{titre('console.ecran.support.clore')}</Bouton>}
       </div>
       {e.etat === 'close' ? null : <Suivi d={d} equipe={equipe} choisir={setSuivi} />}
+      <Liens d={d} enService={enService} />
       {/* Son dossier (Support S2) : sous l'en-tête, à portée de la conversation qui le motive — demander l'accès, le temps
           qui reste, l'ouvrir en lecture. */}
       <AccesDossier forme="bande" client={{ id: l.entreprise.id, nom: l.entreprise.nom }} demande={{ id: l.id, numero: l.numero }} aujourdhui={aujourdhui} />
@@ -442,7 +554,9 @@ function Fil({ d, articles, brouillons, aujourdhui, relire, equipe }: { d: Deman
         </div>
       ) : <Repondre key={l.id} d={d} articles={articles} brouillons={brouillons} envoye={relireTout} relire={relireTout} />}
       {fenetre ? <FenetreMotif sorte={fenetre} demande={d} fermer={() => setFenetre(null)} fait={apres} /> : null}
-      {suivi ? <FenetreSuivi sorte={suivi} demande={d} equipe={equipe} fermer={() => setSuivi(null)} fait={() => { setSuivi(null); relire(); relireDecisions(); }} /> : null}
+      {suivi === 'incident' || suivi === 'correction'
+        ? <FenetreLien sorte={suivi} demande={d} enService={enService} fermer={() => setSuivi(null)} fait={() => { setSuivi(null); relire(); relireDecisions(); }} />
+        : suivi ? <FenetreSuivi sorte={suivi} demande={d} equipe={equipe} fermer={() => setSuivi(null)} fait={() => { setSuivi(null); relire(); relireDecisions(); }} /> : null}
     </section>
   );
 }
@@ -597,7 +711,7 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
             {d ? <Cote d={d} client={lu.client} aujourdhui={lu.aujourdhui} /> : null}
           </div>
           {d ? (
-            <Fil key={d.ligne.id} d={d} articles={lu.articles} brouillons={brouillons.current} aujourdhui={lu.aujourdhui} relire={relire} equipe={lu.equipe ?? []} />
+            <Fil key={d.ligne.id} d={d} articles={lu.articles} brouillons={brouillons.current} aujourdhui={lu.aujourdhui} relire={relire} equipe={lu.equipe ?? []} enService={lu.enService ?? null} />
           ) : (
             <section className="c-carte c-sp-fil c-sp-fil-vide">
               {choisie && l.etat === 'lu' && !l.enCours ? <Vide icone="chercher">{phrase('console.ecran.support.introuvable')}</Vide>

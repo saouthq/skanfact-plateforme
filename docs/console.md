@@ -1225,6 +1225,18 @@ base 0124) :
   1.31.0), sans minute ou trop vieille : à prouver, et la colonne « ce qui le prouve » dit pourquoi. La liste des remises
   montre la durée de chacune.
 
+**C48. Une demande liée à son incident et à sa correction** (1.32.0 ; base 0126 ; la liste des fonctions qui manquent,
+19, choisie le 15/10/2026). Dans Support, le menu d'une demande ouverte offre deux gestes de plus, chacun avec son motif et
+sa ligne au journal (la direction et le support) :
+- **Lier à un incident** : ceux ouverts, et ceux clos depuis trente jours au plus (une demande arrive souvent après la
+  fin). La demande le dit sous son suivi (« INC-2026-002 · Les PDF sortent sans cachet · en cours ») ; l'incident compte
+  ses demandes liées et combien restent ouvertes — jamais lesquelles ni de qui : la technique lit cet écran. Délier la
+  retire.
+- **Noter la version qui la corrige** (« 1.32.0 ») : la demande dit « correction attendue en 1.32.0 (en service : …) » ;
+  quand la version en service (le numéro que le suiveur lit pour celle qui tourne) l'atteint — nombre par nombre, une
+  préversion ne compte pas encore —, elle dit « corrigée en 1.32.0, en service » avec « à dire au client », et sa ligne
+  de la liste porte « Corrigée ». Retirer la version la fait ne plus rien attendre.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

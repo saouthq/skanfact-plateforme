@@ -57,7 +57,10 @@ import {
 } from './reglages.ts';
 import { lireFormats, registreDesFormats } from './formats.ts';
 import { etatDesNouveautes, listeDesNouveautes, NOUVEAUTES } from '../nouveautes.ts';
-import { articleConnu, articlesDeLAide, CANAUX_NOTES, CLOSES_PAR_PAGE, compter, etatDe, lireSupport, PRIORITES, ranger, SANS_REPONSE_HEURES, SANS_REPONSE_HEURES_URGENTE, suggererPour } from './support.ts';
+import {
+  articleConnu, articlesDeLAide, CANAUX_NOTES, CLOSES_PAR_PAGE, compter, etatDe, type LigneDemande, lireSupport, PRIORITES, ranger, SANS_REPONSE_HEURES, SANS_REPONSE_HEURES_URGENTE,
+  suggererPour, VERSION, versionAtteinte,
+} from './support.ts';
 import { lireAcces, HEURES_MAX, PAGE } from '../support/acces.ts';
 import { filtrer } from '../v10/droits.ts';
 import { versionTeif } from '../v10/teif.ts';
@@ -1861,6 +1864,11 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const demande = uuid.safeParse(query.demande).success ? query.demande : null;
       const debutCloses = Math.max(Math.trunc(Number(query.closes ?? 0)) || 0, 0);
       const s = lireSupport(await lireJson(x, 'select plateforme.console_support($1, $2, $3) v', [entreprise, demande, debutCloses]));
+      // La version en service (le numéro que le suiveur lit pour celle qui tourne) : une correction notée « 1.32.0 » est en
+      // ligne quand elle l'atteint (0126).
+      const suiveur = await lireEtatDuSuiveur();
+      const enService = suiveur?.version ? suiveur.numeros[suiveur.version] ?? null : null;
+      const avecCorrection = <L extends LigneDemande>(l: L) => ({ ...l, correction: l.correction ? { ...l.correction, enService: versionAtteinte(l.correction.version, enService) } : null });
       const client = s.demande
         ? (await lesEntreprises(x, jour)).find((e) => e.id === s.demande?.ligne.entreprise.id) ?? null
         : null;
@@ -1868,9 +1876,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
         corps: {
           aujourdhui: jour, maintenant: t.toISOString(), entreprise,
           comptes: compter(s.ouvertes, t),
-          ouvertes: ranger(s.ouvertes, t), closes: s.closes.map((l) => ({ ...l, etat: etatDe(l, t) })),
+          ouvertes: ranger(s.ouvertes, t).map(avecCorrection), closes: s.closes.map((l) => avecCorrection({ ...l, etat: etatDe(l, t) })), enService,
           pagesCloses: { debut: debutCloses, total: s.nCloses, parPage: CLOSES_PAR_PAGE },
-          demande: s.demande ? { ...s.demande, etat: etatDe(s.demande.ligne, t), suggestions: suggererPour(s.demande) } : null,
+          demande: s.demande ? { ...s.demande, ligne: avecCorrection(s.demande.ligne), etat: etatDe(s.demande.ligne, t), suggestions: suggererPour(s.demande) } : null,
           client: client ? {
             id: client.id, nom: client.raisonSociale, etat: client.etat, faits: client.faits,
             membres: client.membres, pieces: client.pieces, derniereActivite: client.derniereActivite, tenuePar: client.tenuePar,
@@ -1947,6 +1955,28 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     corps: z.object({ priorite: z.enum(PRIORITES), motif: motifGeste }),
     traiter: async ({ params, corps }, tx) => {
       await transaction(tx).query('select plateforme.console_priorite_demande($1, $2, $3, $4)', [lireUuid(params.demande), corps.priorite, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  // Une demande liée à son incident, et la version qui la corrige (0126 ; la liste des fonctions qui manquent, 19) : les
+  // incidents qu'elle peut rejoindre (ouverts, ou clos depuis trente jours), puis les deux gestes, chacun avec son motif.
+  ajouter({
+    methode: 'GET', chemin: '/console/support/incidents', geste: 'console.support.voir',
+    traiter: async (_r, tx) => ({ corps: { incidents: await lireJson(transaction(tx), 'select plateforme.console_incidents_a_lier($1) v', [maintenant().toISOString()]) } }),
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/support/demandes/:demande/incident', geste: 'console.support.repondre',
+    corps: z.object({ incident: uuid.nullable(), motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_lier_incident($1, $2, $3, $4)', [lireUuid(params.demande), corps.incident, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/support/demandes/:demande/correction', geste: 'console.support.repondre',
+    corps: z.object({ version: z.string().trim().regex(VERSION, 'console.support.version_illisible').nullable(), motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_noter_correction($1, $2, $3, $4)', [lireUuid(params.demande), corps.version, corps.motif, maintenant()]);
       return { corps: { ok: true } };
     },
   });

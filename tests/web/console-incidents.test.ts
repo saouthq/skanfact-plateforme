@@ -39,7 +39,7 @@ describe('les incidents du service, à la souris', () => {
   const veille = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'web-console-incidents-veille-')), 'veille.json');
   const erreurs: string[] = [];
   let direction: Membre;
-  let jD = '';
+  let jD = '', garage = '';
 
   const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
     const r = await fetch(`${serveur.adresse}/v1${chemin}`, {
@@ -83,7 +83,10 @@ describe('les incidents du service, à la souris', () => {
 
   beforeAll(async () => {
     await admin.connect();
-    await admin.query('truncate plateforme.service_suite, plateforme.service_incident_point, plateforme.service_incident cascade');
+    // Les demandes du support peuvent désigner un incident (0126) : on les en délie d'abord ; un « truncate … cascade »
+    // viderait aussi les demandes des autres essais.
+    await admin.query('update plateforme.demande_support set incident = null where incident is not null');
+    await admin.query('delete from plateforme.service_suite; delete from plateforme.service_incident_point; delete from plateforme.service_incident');
     await admin.query('truncate plateforme.service_maintenance');
     fs.writeFileSync(veille, JSON.stringify({ problemes: {} }));
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
@@ -92,6 +95,8 @@ describe('les incidents du service, à la souris', () => {
     const email = `console-incidents-${Date.now()}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Amira Essai', motDePasse: MDP });
     const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    // Une entreprise, pour une demande au support liée à l'incident (0126).
+    garage = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Garage des Incidents' })).corps.id);
     const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', jeton, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '';
     await ajouterALEquipe(admin, email, 'direction', 'essai des incidents à la souris');
     const id = String((await admin.query('select id from socle.utilisateur where email = $1', [email])).rows[0]?.id);
@@ -131,6 +136,17 @@ describe('les incidents du service, à la souris', () => {
     // L'onglet est allumé, et la fiche suivie se lit.
     expect(net(await p.locator('.c-sv-onglets [aria-current="page"]').innerText())).toBe('Incidents');
     expect(net(await p.locator('.c-in-fiche-suivie b').innerText())).toBe('Un partenaire ne répond plus');
+    // Les demandes de clients liées par le support (0126) : comptées, jamais nommées.
+    expect(net(await p.locator('.c-in-ouvert .c-in-demandes').innerText())).toBe('Aucune demande de client liée par le support pour l\'instant.');
+    const incident = String((await admin.query('select id from plateforme.service_incident where clos_le is null')).rows[0]?.id);
+    await admin.query(`insert into plateforme.demande_support (entreprise, demandeur, canal, sujet, ouverte_le, incident) values ($1, $2, 'application', 'Mon code de connexion n''arrive pas', now(), $3),
+      ($1, $2, 'application', 'Toujours pas de code', now(), $3)`, [garage, direction.id, incident]);
+    try {
+      await p.reload();
+      await expect.poll(() => p.locator('.c-in-ouvert .c-in-demandes').innerText().then(net).catch(() => ''), { timeout: 20_000 })
+        .toBe('2 demandes de clients liées par le support · 2 encore ouvertes.');
+      expect(net(await p.locator('.c-in-ouvert').innerText())).not.toContain('Garage des Incidents');
+    } finally { await admin.query('update plateforme.demande_support set incident = null where entreprise = $1', [garage]); }
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);

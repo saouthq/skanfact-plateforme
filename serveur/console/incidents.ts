@@ -21,6 +21,8 @@ export type IncidentLu = {
   id: string; ref: string; titre: string; gravite: Gravite; fiche: Fiche | null; ouvertLe: string; ouvertPar: string;
   public: string | null; publicLe: string | null; fin: string | null; closLe: string | null; closPar: string | null;
   effet: string | null; cause: string | null; change: string | null; points: PointLu[]; suites: SuiteLue[];
+  // 0126 : les demandes de clients liées, comptées — jamais nommées (la technique lit cet écran).
+  demandes: { n: number; ouvertes: number };
 };
 export type MaintenanceLue = { id: string; titre: string; texte: string; debut: string; fin: string; par: string; annuleeLe: string | null };
 export type IncidentsLus = { incidents: IncidentLu[]; maintenances: MaintenanceLue[]; equipe: { id: string; nom: string }[] };
@@ -29,6 +31,7 @@ const texte = (x: unknown) => (typeof x === 'string' && x.length ? x : null);
 const date = (x: unknown) => (typeof x === 'string' && Number.isFinite(Date.parse(x)) ? x : null);
 const jour = (x: unknown) => (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x) ? x : null);
 const tableau = (x: unknown): Record<string, unknown>[] => (Array.isArray(x) ? x.filter((y) => y && typeof y === 'object') : []);
+const compte = (x: unknown) => (typeof x === 'number' && Number.isInteger(x) && x >= 0 ? x : 0);
 const gravite = (x: unknown): Gravite | null => (GRAVITES as readonly unknown[]).includes(x) ? x as Gravite : null;
 // Le numéro d'un incident se lit comme on le cite : INC-2026-006.
 export const refIncident = (annee: number, numero: number) => `INC-${annee}-${String(numero).padStart(3, '0')}`;
@@ -47,6 +50,7 @@ export function lireIncidents(brut: unknown): IncidentsLus {
           ? [{ le: String(p.le), par: String(p.par ?? ''), texte: p.texte, public: p.public === true, gravite: gravite(p.gravite) }] : [])),
         suites: tableau(i.suites).flatMap((s) => (jour(s.due) && typeof s.titre === 'string'
           ? [{ id: String(s.id), titre: s.titre, responsable: String(s.responsable ?? ''), due: String(s.due), faiteLe: date(s.faiteLe), repoussee: typeof s.repoussee === 'number' ? s.repoussee : 0 }] : [])),
+        demandes: ((x) => ({ n: compte(x.n), ouvertes: compte(x.ouvertes) }))((i.demandes ?? {}) as Record<string, unknown>),
       }];
     }),
     maintenances: tableau(b.maintenances).flatMap((m) => {
@@ -91,6 +95,7 @@ export function suites(lu: IncidentsLus, aujourdhui: string): { aTenir: SuiteATe
 export type Passe = {
   id: string; ref: string; titre: string; gravite: Gravite; ouvertLe: string; minutes: number; effet: string; cause: string; change: string;
   suites: { faites: number; total: number }; points: PointLu[]; fiche: Fiche | null; closPar: string | null;
+  demandes: { n: number; ouvertes: number };
 };
 export type Mesure = { mesurees: number; bas: number };
 export function passes(lu: IncidentsLus, depuis: string, mesure: Mesure) {
@@ -101,7 +106,7 @@ export function passes(lu: IncidentsLus, depuis: string, mesure: Mesure) {
       id: i.id, ref: i.ref, titre: i.titre, gravite: i.gravite, ouvertLe: i.ouvertLe,
       minutes: Math.max(0, Math.round((Date.parse(i.fin as string) - Date.parse(i.ouvertLe)) / 60_000)),
       effet: i.effet ?? '', cause: i.cause ?? '', change: i.change ?? '', points: i.points, fiche: i.fiche, closPar: i.closPar,
-      suites: { faites: i.suites.filter((s) => s.faiteLe).length, total: i.suites.length },
+      suites: { faites: i.suites.filter((s) => s.faiteLe).length, total: i.suites.length }, demandes: i.demandes,
     }));
   return {
     lignes,

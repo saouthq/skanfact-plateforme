@@ -23,6 +23,8 @@ type Suite = { id: string; titre: string; responsable: string; due: string; fait
 type Incident = {
   id: string; ref: string; titre: string; gravite: Gravite; fiche: string | null; ouvertLe: string; ouvertPar: string;
   public: string | null; publicLe: string | null; fin: string | null; points: Point[]; suites: Suite[];
+  // 0126 : les demandes de clients liées par le support, comptées (jamais nommées).
+  demandes: { n: number; ouvertes: number };
 };
 type SuiteATenir = Suite & { incident: { id: string; ref: string; titre: string }; retard: number };
 type Couleur = 'vert' | 'orange' | 'rouge' | 'gris';
@@ -36,6 +38,7 @@ type Maintenance =
 type Passe = {
   id: string; ref: string; titre: string; gravite: Gravite; ouvertLe: string; minutes: number; effet: string; cause: string; change: string;
   suites: { faites: number; total: number }; points: Point[]; fiche: string | null; closPar: string | null;
+  demandes: { n: number; ouvertes: number };
 };
 type Passes = { lignes: Passe[]; n: number; graves: number; arret: number | null; disponibilite: number | null };
 type Donnees = {
@@ -103,6 +106,8 @@ function IncidentOuvert({ i, d, faire, premier }: { i: Incident; d: Donnees; fai
           </div>
           <h2 id={`in-${i.id}`} data-donnee>{maj(i.titre)}</h2>
           <p className="c-carte-sous">{maj(dire(depuis < 1 ? `${I}.ouvert.depuis_instant` : `${I}.ouvert.depuis`, { quand: jourHeure(i.ouvertLe, d.aujourdhui), nom: i.ouvertPar, duree: minutes(depuis) }))}</p>
+          {/* Les clients qui l'ont dit au support (0126) : combien, et combien attendent encore une réponse. */}
+          <p className="c-in-demandes">{i.demandes.n ? `${maj(selon(i.demandes.n, `${I}.demandes.liees`))} · ${selon(i.demandes.ouvertes, `${I}.demandes.ouvertes`)}.` : phrase(`${I}.demandes.aucune`)}</p>
         </div>
         <div className="c-in-ouvert-gestes">
           <Bouton ton={premier ? 'principal' : 'secondaire'} icone="plus" onClick={() => faire({ sorte: 'point', i, public: false })}>{titre(`${I}.point.ajouter`)}</Bouton>
@@ -358,7 +363,7 @@ function Passes({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
                   <td className="c-al-nw">{maj(jourHeure(l.ouvertLe, d.aujourdhui))}</td>
                   <td className="c-droite c-al-nw c-num">{minutes(l.minutes)}</td>
                   <td><PuceGravite g={l.gravite} /></td>
-                  <td data-donnee>{l.effet}</td>
+                  <td><span data-donnee>{l.effet}</span>{l.demandes.n ? <span className="c-sous">{selon(l.demandes.n, `${I}.demandes.passe`)}</span> : null}</td>
                   <td className="c-al-nw">
                     <span className={`c-in-suites-etat c-in-suites-${l.suites.total === 0 ? 'aucune' : l.suites.faites === l.suites.total ? 'faites' : 'reste'}`}>
                       {l.suites.total === 0 ? dire(`${I}.passes.suites_aucune`) : l.suites.faites === l.suites.total ? maj(dire(`${I}.passes.suites_toutes`)) : dire(`${I}.passes.suites_sur`, { f: l.suites.faites, n: l.suites.total })}

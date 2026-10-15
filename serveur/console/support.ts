@@ -35,7 +35,10 @@ export type LigneDemande = {
   // l'attente de la technique, après le début de cette attente).
   attendClientLe: string | null; attendClientApresTechniqueLe: string | null;
   close: { le: string; cote: 'client' | 'equipe'; par: string | null; motif: string | null } | null;
+  // 0126 : l'incident qui la cause, et la version qui la corrige (« 1.32.0 »), notée à cet instant.
+  incident: IncidentLie | null; correction: { version: string; le: string } | null;
 };
+export type IncidentLie = { id: string; ref: string; titre: string; gravite: 'mineur' | 'majeur' | 'critique'; closLe: string | null };
 export type MessageDemande = { id: string; cote: 'client' | 'equipe'; texte: string; article: string | null; le: string; nom: string; notePar: string | null };
 export type Demande = {
   ligne: LigneDemande; version: string | null; page: string | null;
@@ -57,6 +60,7 @@ export function lireLigne(x: unknown): LigneDemande | null {
   const c = l.close ? objet(l.close) : null;
   const closeCote = c ? cote(c.cote) : null;
   const tq = l.technique ? objet(l.technique) : null;
+  const co = l.correction ? objet(l.correction) : null;
   return {
     id, numero: Number(l.numero) || 0, sujet, canal, ouverteLe,
     entreprise: { id: String(e.id), nom: String(e.nom ?? ''), essai: e.essai === true },
@@ -68,7 +72,29 @@ export function lireLigne(x: unknown): LigneDemande | null {
     attendClientLe: texte(l.attendClientLe), attendClientApresTechniqueLe: texte(l.attendClientApresTechniqueLe),
     messages: Number(l.messages) || 0,
     close: c && texte(c.le) && closeCote ? { le: String(c.le), cote: closeCote, par: texte(c.par), motif: texte(c.motif) } : null,
+    incident: lireIncidentLie(l.incident),
+    correction: co && texte(co.version) && VERSION.test(String(co.version)) && texte(co.le) ? { version: String(co.version), le: String(co.le) } : null,
   };
+}
+
+// ── L'incident et la correction d'une demande (0126) ─────────────────────────────────────────────────────────────────
+// Une version s'écrit « 1.32.0 » ; elle est en service quand le numéro de la version installée l'atteint (le suiveur dit
+// celui de la version qui tourne, serveur/console/versions.ts). Un numéro illisible, ou rien d'installé : pas encore.
+export const VERSION = /^\d{1,4}\.\d{1,4}\.\d{1,4}$/;
+const GRAVITES = ['mineur', 'majeur', 'critique'] as const;
+export function lireIncidentLie(x: unknown): IncidentLie | null {
+  const i = x ? objet(x) : null;
+  if (!i || !texte(i.id) || !texte(i.ref) || !texte(i.titre) || !GRAVITES.includes(i.gravite as IncidentLie['gravite'])) return null;
+  return { id: String(i.id), ref: String(i.ref), titre: String(i.titre), gravite: i.gravite as IncidentLie['gravite'], closLe: texte(i.closLe) };
+}
+const parties = (v: string) => /^(\d{1,4})\.(\d{1,4})\.(\d{1,4})/.exec(v)?.slice(1).map(Number) ?? null;
+export function versionAtteinte(attendue: string, enService: string | null): boolean {
+  const a = parties(attendue), e = enService ? parties(enService) : null;
+  if (!a || !e) return false;
+  // Une préversion (« 1.32.0-beta.1 ») n'est pas encore la version : elle n'atteint que la précédente.
+  const pre = /-/.test(enService ?? '');
+  for (let k = 0; k < 3; k++) if ((e[k] as number) !== (a[k] as number)) return (e[k] as number) > (a[k] as number);
+  return !pre;
 }
 
 export function lireDemande(x: unknown): Demande | null {

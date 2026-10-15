@@ -565,6 +565,9 @@ export interface BaseDeDonnees {
     priorite: Generated<string>;
     technique_le: Date | null;
     technique_motif: string | null;
+    incident: string | null;
+    correction: string | null;
+    correction_le: Date | null;
   };
   'plateforme.editeur': {
     seul: Generated<boolean>;
