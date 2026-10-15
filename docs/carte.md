@@ -675,6 +675,10 @@ vaut pour tout le dépôt.*
   - **Le guet extérieur** (1.33.0 ; `docs/console.md` C49, `docs/mise-en-ligne.md` I bis) : `exploitation/guetter.ts` et
     `.github/workflows/guet-exterieur.yml` ; `guetDuPassage`, `relireLeGuet` et les problèmes `guet` et `guet-reglage` de
     `exploitation/veille.ts`, la lecture de GitHub dans `exploitation/veiller.ts` (`tests/exploitation/guetter.test.ts`).
+  - **L'arrivée des nouveaux clients** (1.34.0 ; `docs/console.md` C50, `0127`) : `serveur/console/arrivee.ts`, la vue
+    `arrivees` de `serveur/console/clients.ts`, `premiereFactureLe` de `plateforme.console_clients_en_plus` ; la carte
+    « Son arrivée » de `web/console/src/ecrans/Fiche.tsx` (`tests/console/arrivee.test.ts`, `tests/console/console.test.ts`,
+    `tests/web/console.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

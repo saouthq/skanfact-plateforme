@@ -674,7 +674,7 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-entete-chiffre-valeur b { font-size: 24px; font-weight: 500; }
 .c-entete-chiffre-valeur small { font-size: 13px; font-weight: 600; color: var(--c-gris); }
 .c-entete-chiffre-sous { font-size: 13px; line-height: 1.4; color: var(--c-gris); }
-.c-vues { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.c-vues { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 12px; }
 /* Chaque carte prend trois rangées de la grille (son titre, son nombre, sa phrase) : un titre sur deux lignes descend
    les nombres de TOUTE la rangée de cartes, jamais d'une seule. */
 .c-vue {
@@ -742,14 +742,15 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 .c-relance-sautee { background: transparent; color: var(--c-gris-2); text-decoration: line-through; }
 .c-relance-manquee { background: var(--c-orange-doux); color: var(--c-orange-texte); }
 .c-legende { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--c-gris); }
-/* Six cartes tiennent sur une rangée jusqu'au portable : passées sur deux, elles repoussent la liste sous le bas de
-   l'écran. */
+/* Les sept cartes tiennent sur une rangée jusqu'au portable : passées sur deux, elles repoussent la liste sous le bas de
+   l'écran. Plus étroit, quatre puis deux par rangée, la première (tout) sur toute la largeur : jamais une carte seule. */
 @media (max-width: 1360px) {
   .c-vues { gap: 10px; }
   .c-vues .c-vue { padding: 14px 14px 12px; }
 }
 @media (max-width: 1180px) {
   .c-vues { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .c-vues > .c-vue:first-child:nth-last-child(7) { grid-column: 1 / -1; }
 }
 @media (max-width: 1100px) {
   .c-ab-corps { grid-template-columns: minmax(0, 1fr); }
@@ -1568,6 +1569,35 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-point-v-silencieux { color: var(--c-rouge); }
 .c-point-v-tenus { color: var(--c-violet-texte); }
 .c-point-v-cabinet { color: var(--c-bleu-texte); }
+.c-point-v-arrivees { color: var(--c-lien); }
+/* L'arrivée d'un nouveau client (C50) : cinq points (franchie : plein ; bloquée : orange cerclé ; à venir : creux), et
+   toujours la phrase à côté. */
+/* Dans la liste : les points, puis la phrase dessous, qui passe à la ligne (la colonne garde sa largeur). */
+.c-table-clients .c-cl-usage > .c-ar-ligne { display: grid; justify-items: start; gap: 5px; min-width: 150px; max-width: 210px; white-space: normal; }
+.c-ar-points { display: inline-flex; gap: 3px; flex: none; }
+.c-ar-point { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--c-trait-fort); }
+.c-ar-point.c-ar-faite { background: var(--c-sarcelle); box-shadow: none; }
+.c-ar-point.c-ar-bloquee { background: var(--c-orange-doux); box-shadow: inset 0 0 0 2px var(--c-orange); }
+.c-ar-resume { margin: 0 0 14px; font-weight: 600; }
+.c-ar-marches { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.c-ar-marches li { display: grid; justify-items: start; align-content: start; gap: 8px; min-width: 0; padding-top: 12px; border-top: 3px solid var(--c-trait); }
+.c-ar-marches li.c-ar-faite { border-top-color: var(--c-sarcelle); }
+.c-ar-marches li.c-ar-bloquee { border-top-color: var(--c-orange); }
+.c-ar-signe {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 13px; font-weight: 700;
+  box-shadow: inset 0 0 0 1.5px var(--c-trait-fort); color: var(--c-gris);
+}
+.c-ar-faite .c-ar-signe { background: var(--c-doux); color: var(--c-doux-texte); box-shadow: none; }
+.c-ar-bloquee .c-ar-signe { background: var(--c-orange-doux); color: var(--c-orange-texte); box-shadow: none; }
+.c-ar-texte { display: grid; gap: 2px; font-size: 13px; line-height: 1.35; color: var(--c-gris); overflow-wrap: anywhere; }
+.c-ar-texte b { font-size: 13.5px; font-weight: 600; color: var(--c-encre); }
+.c-ar-bloquee .c-ar-texte span { color: var(--c-orange-texte); }
+@media (max-width: 860px) {
+  .c-ar-marches { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .c-ar-marches li { grid-template-columns: auto minmax(0, 1fr); align-items: start; padding: 10px 0 10px 12px; border-top: 0; border-left: 3px solid var(--c-trait); }
+  .c-ar-marches li.c-ar-faite { border-left-color: var(--c-sarcelle); }
+  .c-ar-marches li.c-ar-bloquee { border-left-color: var(--c-orange); }
+}
 /* Le compte des lignes et ce qu'elles rapportent, juste au-dessus du tableau, avec l'ordre choisi à droite. */
 .c-liste-resume {
   display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap;

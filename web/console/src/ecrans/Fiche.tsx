@@ -15,7 +15,7 @@ import { abonnementEnMots, expliquer, offreEtPeriode, puceDe, type Etat, type Fa
 import { panneDe, refusDe, useApi, useConsole, useLecture, useRelireQuandOnRegarde, type Role } from '../contexte.ts';
 import { dans, heureDe, jourCourt, jourDe, moisEnMots, quand } from '../temps.ts';
 import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, parcourirMenu, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
-import { organisationEnMots } from './Clients.tsx';
+import { arriveeEnMots, organisationEnMots, type Arrivee } from './Clients.tsx';
 import type { Place } from './Cabinets.tsx';
 import { depuisEnMots, etatEnMots, NoterDemande, refDemande, type LigneDemande } from './Support.tsx';
 import { AccesDossier } from './AccesDossier.tsx';
@@ -64,6 +64,8 @@ type Donnees = {
   reprise: Reprise | null;
   // Ce que sa prochaine facture coûtera (0113), par la règle de la facture : le même chiffre que la liste et les échéances.
   prochaineFacture: { debut: string; montantHt: string } | null;
+  // Son arrivée, les trente jours après son inscription (serveur/console/arrivee.ts, la fonction de la liste).
+  arrivee?: Arrivee | null;
 };
 // La remise d'une période (serveur/abonnement/remise.ts) : la plus forte des deux ; `aussi`, l'autre, qui ne s'ajoute pas.
 type RemiseSeule = { nature: 'groupe' | 'cabinet'; taux: number; groupe: string | null; premiere: string | null; cabinet: string | null; jusquAu: string | null };
@@ -1010,6 +1012,8 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
               <p className="c-fiche-comptes-pied">{phrase('console.ecran.fiche.c.pied', { quand: derniereActivite ? quand(derniereActivite, f.aujourdhui) : dire('console.ecran.temps.jamais') })}</p>
             </section>
 
+            {f.arrivee ? <SonArrivee a={f.arrivee} /> : null}
+
             {/* Une procédure de reprise en cours : dans la colonne large, sous les comptes (la carte dit ce qui manque). */}
             {moi.role === 'direction' && !f.faits.tenuParCabinet && repriseEnCours(f.reprise) ? <CarteReprise id={f.id} nom={f.raisonSociale} reprise={f.reprise} aujourdhui={f.aujourdhui} relire={relire} /> : null}
           </div>
@@ -1247,6 +1251,37 @@ function attenteEnMots(a: Attente, aujourdhui: string): { icone: NomIcone; titre
 }
 
 // Les douze derniers mois, du plus ancien au mois en cours (« 2025-11 » … « 2026-10 »), en jours de calendrier.
+// L'arrivée d'un nouveau client (docs/console.md C50) : ses cinq marches dans l'ordre, chacune avec le jour où elle a
+// été franchie quand on le sait, sinon le jour avant lequel on l'attend ; celle qui a passé ce jour le dit, en orange
+// ET en mots. En tête, la phrase de la liste (la même fonction) : la ligne et la fiche disent la même chose.
+function SonArrivee({ a }: { a: Arrivee }) {
+  const enMots = arriveeEnMots(a);
+  return (
+    <section className="c-carte" aria-labelledby="fiche-arrivee">
+      <div className="c-carte-tete">
+        <h2 id="fiche-arrivee">{titre('console.ecran.fiche.ar.titre')}</h2>
+        <span className="c-carte-coin">{dire('console.ecran.clients.ar.jour', { n: a.jours + 1 })}</span>
+      </div>
+      <p className={`c-ar-resume${enMots.alerte ? ' c-cl-proche' : ''}`}>{maj(enMots.texte)}</p>
+      <ol className="c-ar-marches">
+        {a.marches.map((m) => {
+          const bloquee = a.bloquee?.marche === m.id;
+          return (
+            <li key={m.id} className={m.faite ? 'c-ar-faite' : bloquee ? 'c-ar-bloquee' : undefined}>
+              <span className="c-ar-signe" aria-hidden="true">{m.faite ? <Icone nom="ok" taille={14} /> : bloquee ? '!' : null}</span>
+              <span className="c-ar-texte">
+                <b>{maj(dire(`console.ecran.clients.ar.m.${m.id}`))}</b>
+                <span>{m.faite ? (m.le ? dire('console.ecran.fiche.ar.faite_le', { le: jourCourt(m.le) }) : dire('console.ecran.fiche.ar.faite'))
+                  : bloquee ? dire('console.ecran.fiche.ar.attendue_retard', { le: jourCourt(m.avant), n: a.bloquee?.depuis ?? 0 })
+                    : dire('console.ecran.fiche.ar.attendue', { le: jourCourt(m.avant) })}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
 function derniersMois(aujourdhui: string): string[] {
   const a = Number(aujourdhui.slice(0, 4)), m = Number(aujourdhui.slice(5, 7));
   return Array.from({ length: 12 }, (_, i) => {

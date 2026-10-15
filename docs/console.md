@@ -1244,6 +1244,21 @@ branchée — « le guet extérieur ne passe plus depuis … » (une heure), et,
 n'est pas guetté de l'extérieur ». La disponibilité et les performances disent toujours « vu de l'extérieur : non
 mesuré » : le guet prévient, il ne compte pas.
 
+**C50. L'arrivée des nouveaux clients** (1.34.0 ; base 0127 ; la liste des fonctions qui manquent, 6). Une carte de plus
+en tête de Clients, « arrivées » : les entreprises inscrites depuis trente jours (celui de l'inscription compris), jamais
+un dossier qu'un cabinet tient. Chacune franchit cinq marches, lues dans ce que la console sait déjà : **l'inscription** ;
+**le premier passage** (quelqu'un y a travaillé, 0114) ; **la première pièce** (brouillon compris) ; **la première facture
+émise** (une note d'honoraires compte ; son jour est celui de Tunis) — la première utilisation réelle ; **l'abonnement
+payé**. Chaque marche est attendue dans un délai compté depuis l'inscription (deux jours, cinq, quatorze, trente :
+**À DÉCIDER** avec Skander, écrits par délégation) ; la première marche manquante dont le délai est passé — le lendemain de
+son dernier jour — rend l'arrivée « bloquée », avec ses jours de retard : c'est un appel, pas une relance. Dans la vue, la
+colonne de l'usage devient « son arrivée » : cinq points (franchie, bloquée, à venir) et la phrase qui nomme la marche
+(« bloquée : première facture émise · 1 j de retard », « prochaine : première pièce, d'ici le 18/10 ») — la couleur
+n'est jamais seule. La fiche porte la carte « Son arrivée » (chaque marche, le jour où elle a été franchie quand on le
+sait, sinon le jour avant lequel on l'attend), par la même fonction que la ligne. **Décidé par délégation** : l'équipe
+invitée n'est pas une marche (un commerçant seul n'invite personne : ce ne serait jamais « bloqué » à juste titre) ; elle
+se lit dans les comptes de la fiche.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

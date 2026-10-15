@@ -57,6 +57,7 @@ import {
 } from './reglages.ts';
 import { lireFormats, registreDesFormats } from './formats.ts';
 import { etatDesNouveautes, listeDesNouveautes, NOUVEAUTES } from '../nouveautes.ts';
+import { arrivee, enArrivee } from './arrivee.ts';
 import {
   articleConnu, articlesDeLAide, CANAUX_NOTES, CLOSES_PAR_PAGE, compter, etatDe, type LigneDemande, lireSupport, PRIORITES, ranger, SANS_REPONSE_HEURES, SANS_REPONSE_HEURES_URGENTE,
   suggererPour, VERSION, versionAtteinte,
@@ -358,7 +359,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           parAnHt: p.actif ? versTexte(p.actif, 3) : null, attenduHt: p.attendu ? versTexte(p.attendu, 3) : null,
           usage: usageDeLaLigne(o), vu: vuDeLaLigne(o),
           societes: o.societes.map((e) => ({ ...ligneClient(e, s.renouvellements), numero: s.identites.get(e.id)?.numero ?? null, ville: s.identites.get(e.id)?.ville ?? null,
-            vues: VUES_CLIENTS.filter((v) => v !== 'tout' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e) })),
+            vues: VUES_CLIENTS.filter((v) => v !== 'tout' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e),
+            // Son arrivée (0127), tant qu'elle dure : les marches franchies, la suivante, si elle est bloquée.
+            arrivee: enArrivee(e, jour) ? arrivee(e, jour) : null })),
         };
       });
       return {
@@ -429,6 +432,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const r = (await renouvellementsDe(transaction(tx), liste, jour)).get(id) ?? null;
       return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, factures, groupe: { ...groupe, prochaine }, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true, enPlus?.moisOffertRecent ?? false),
         identite, notes, enPlus, offreSuivante: faits.offreSuivante ?? null, delai: faits.delai ?? null,
+        // Son arrivée (0127) : de l'inscription à la première facture émise, par la même fonction que la liste.
+        arrivee: liste[0] && enArrivee(liste[0], jour) ? arrivee({ ...liste[0], enPlus: enPlus ?? {} }, jour) : null,
         // La procédure de reprise en cours, ou la dernière (0112) : la direction seule la voit.
         reprise: role === 'direction' ? await lireJson(transaction(tx), 'select plateforme.console_reprise($1, $2::date) v', [id, jour]) : null,
         prochaineFacture: r ? { debut: r.debut, montantHt: versTexte(r.periodeHt, 3) } : null,
@@ -527,7 +532,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           usage: usageDeLaLigne(o), vu: vuDeLaLigne(o),
           societes: o.societes.map((e) => ({ ...ligneClient(e, s.renouvellements), numero: s.identites.get(e.id)?.numero ?? null, ville: s.identites.get(e.id)?.ville ?? null,
             telephone: s.identites.get(e.id)?.telephone ?? null, dernierAppel: s.identites.get(e.id)?.dernierAppel ?? null,
-            vues: VUES_CLIENTS.filter((v) => v !== 'tout' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e) })),
+            vues: VUES_CLIENTS.filter((v) => v !== 'tout' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e),
+            // Son arrivée (0127), tant qu'elle dure : les marches franchies, la suivante, si elle est bloquée.
+            arrivee: enArrivee(e, jour) ? arrivee(e, jour) : null })),
         },
       };
     },

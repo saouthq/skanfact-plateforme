@@ -284,7 +284,7 @@ describe('la console de l\'équipe, à la souris', () => {
     await expect.poll(() => totalClients(p).catch(() => Number.NaN), { timeout: 15_000 }).toBe(await nDe('tout'));
     // Les deux essais qui finissent dans deux jours sans une pièce sont à appeler ; la cordonnerie que tient le cabinet
     // est à convertir. Chaque carte, cliquée : sa liste, lue au serveur pour CETTE vue, compte ce qu'elle annonçait.
-    for (const v of ['a_appeler', 'tenus', 'tout']) {
+    for (const v of ['arrivees', 'a_appeler', 'tenus', 'tout']) {
       const n = await nDe(v);
       expect(n).toBeGreaterThan(v === 'a_appeler' ? 1 : 0);
       const lue = p.waitForResponse((r) => r.url().includes('/console/entreprises?') && (v === 'tout' ? !r.url().includes('vue=') : r.url().includes(`vue=${v}`)));
@@ -293,6 +293,14 @@ describe('la console de l\'équipe, à la souris', () => {
       await expect.poll(() => totalClients(p).catch(() => Number.NaN), { timeout: 15_000 }).toBe(n);
       expect(await carte(v).getAttribute('aria-pressed')).toBe('true');
       expect(await p.evaluate(() => location.hash)).toBe(v === 'tout' ? '#/clients' : `#/clients?vue=${v}`);
+      // Les arrivées (0127) : la colonne de l'usage devient celle de l'arrivée — ses cinq points, et la marche qui vient
+      // dite en mots (la couleur n'est jamais seule).
+      if (v === 'arrivees') {
+        expect((await p.locator('.c-table-clients thead').innerText()).toLocaleLowerCase('fr')).toContain('son arrivée');
+        const premiere = p.locator('.c-table-clients tbody tr').first();
+        expect(await premiere.locator('.c-ar-point').count()).toBe(5);
+        expect(net(await premiere.locator('.c-ar-ligne').innerText())).toMatch(/^(Prochaine : .+, d'ici le \d{2}\/\d{2}|Bloquée : .+ · \d+ j de retard|Arrivée complète)$/);
+      }
     }
     // La clinique abonnée : son renouvellement dans 160 jours, et 690 DT hors taxes par an au prix du jour. La pharmacie
     // en lecture seule n'a plus d'échéance : la colonne État dit depuis quand, et la date n'est écrite qu'une fois.
@@ -325,6 +333,13 @@ describe('la console de l\'équipe, à la souris', () => {
 
   it('la fiche : prolonger un essai, avec l\'aperçu du serveur et un motif ; la base, l\'histoire et le journal le disent', async () => {
     const p = await ouvrir(await jetonConsole(direction), `#/clients/${essaiCalme}`);
+    // Inscrite aujourd'hui : sa fiche dit son arrivée (0127) — le premier jour, cinq marches dans l'ordre, l'inscription
+    // franchie ce jour, la suivante attendue à sa date.
+    const arrivee = p.locator('section[aria-labelledby="fiche-arrivee"]');
+    await expect.poll(() => arrivee.locator('.c-carte-coin').innerText().then((t) => net(t).toLocaleLowerCase('fr')).catch(() => ''), { timeout: 15_000 }).toBe('jour 1 sur 30');
+    expect((await arrivee.locator('.c-ar-marches > li b').allInnerTexts()).map((t) => net(t).toLocaleLowerCase('fr')))
+      .toEqual(['inscription', 'premier passage', 'première pièce', 'première facture émise', 'abonnement payé']);
+    expect(net(await arrivee.locator('.c-ar-marches > li').first().innerText())).toContain(`franchie le ${jourCourt(aujourdhui)}`);
     const finAvant = plusJours(aujourdhui, 2);
     await cliquer(p.locator('.c-menu > button'));
     await cliquer(p.locator('.c-menu-liste button', { hasText: 'Prolonger l\'essai' }));

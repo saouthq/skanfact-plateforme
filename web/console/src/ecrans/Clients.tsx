@@ -37,6 +37,15 @@ export type Ligne = Entreprise & {
   enPlus: { piecesMois: number; essaiJours: number | null; prolonge: number; prolongeUneFois: boolean; attend: FactureQuiAttend | null };
   vues: VueClients[]; gestes: Geste[];
   numero: string | null; ville: string | null;
+  // Son arrivée, les trente jours après son inscription (serveur/console/arrivee.ts) ; vide passé ce temps.
+  arrivee?: Arrivee | null;
+};
+// L'arrivée d'un nouveau client (serveur/console/arrivee.ts) : cinq marches, de l'inscription à l'abonnement payé.
+export const MARCHES = ['inscrite', 'ouverte', 'premiere_piece', 'premiere_facture', 'abonnee'] as const;
+type Marche = typeof MARCHES[number];
+export type Arrivee = {
+  jours: number; marches: { id: Marche; faite: boolean; le: string | null; avant: string | null }[];
+  franchies: number; suivante: Marche | null; bloquee: { marche: Marche; depuis: number } | null;
 };
 // Une ligne de la liste : une organisation (0110 ; serveur/console/organisations.ts) — une entreprise seule, un groupe et
 // ses sociétés (la plus urgente d'abord), un dossier qu'un cabinet tient, un cabinet.
@@ -46,7 +55,7 @@ export type LigneOrg = {
   id: string; sorte: Sorte; numero: string | null; nom: string; ville: string | null; cabinet: CabinetDeLigne | null;
   parAnHt: string | null; attenduHt: string | null; usage: number; vu: string | null; societes: Ligne[];
 };
-export const VUES = ['tout', 'a_appeler', 'argent', 'silencieux', 'tenus', 'cabinet'] as const;
+export const VUES = ['tout', 'arrivees', 'a_appeler', 'argent', 'silencieux', 'tenus', 'cabinet'] as const;
 export type VueClients = typeof VUES[number];
 export const TRIS = ['urgence', 'echeance', 'par_an', 'usage', 'nom', 'vu'] as const;
 type Tri = typeof TRIS[number];
@@ -275,8 +284,25 @@ function sousNom(o: LigneOrg): string[] {
   const numeros = o.sorte === 'groupe' ? o.societes.map((e) => e.numero).filter((x): x is string => !!x) : [o.numero];
   return [maj(quoi), o.ville, ...numeros].filter((x): x is string => !!x);
 }
+// Les marches d'une arrivée en cinq points (franchie, bloquée, à venir), chacun dit aussi en mots pour qui ne voit pas
+// les couleurs : la couleur n'est jamais seule, le texte à côté nomme la marche qui manque.
+export function Marches({ a }: { a: Arrivee }) {
+  return (
+    <span className="c-ar-points" role="img" aria-label={dire('console.ecran.clients.ar.points', { n: a.franchies, total: a.marches.length })}>
+      {a.marches.map((m) => <span key={m.id} className={`c-ar-point${m.faite ? ' c-ar-faite' : a.bloquee?.marche === m.id ? ' c-ar-bloquee' : ''}`} />)}
+    </span>
+  );
+}
+// Où en est l'arrivée, en mots : « bloquée : première facture · 4 j de retard », « prochaine : première pièce, d'ici le
+// 20/10 » (trente jours au plus : l'année va de soi), « arrivée complète ».
+export function arriveeEnMots(a: Arrivee): { texte: string; alerte: boolean } {
+  if (a.bloquee) return { texte: dire('console.ecran.clients.ar.bloquee', { marche: dire(`console.ecran.clients.ar.m.${a.bloquee.marche}`), n: a.bloquee.depuis }), alerte: true };
+  const suivante = a.marches.find((m) => m.id === a.suivante);
+  if (!suivante) return { texte: dire('console.ecran.clients.ar.complete'), alerte: false };
+  return { texte: dire('console.ecran.clients.ar.prochaine', { marche: dire(`console.ecran.clients.ar.m.${suivante.id}`), le: jourMois(suivante.avant) }), alerte: false };
+}
 const SousNom = ({ morceaux }: { morceaux: string[] }) => <>{morceaux.map((x, i) => <span key={i}>{i ? '\u00a0· ' : null}<span className="c-insecable">{x}</span></span>)}</>;
-function LigneDeLaListe({ o, aujourdhui, role, reserve, faireDuMenu }: { o: LigneOrg; aujourdhui: string; role: string; reserve: string | null; faireDuMenu: (e: Ligne) => FaireDuMenu }) {
+function LigneDeLaListe({ o, aujourdhui, role, reserve, arrivees, faireDuMenu }: { o: LigneOrg; aujourdhui: string; role: string; reserve: string | null; arrivees: boolean; faireDuMenu: (e: Ligne) => FaireDuMenu }) {
   const e = o.societes[0] ?? null;
   const groupe = o.sorte === 'groupe', cabinet = o.sorte === 'cabinet', tenu = o.sorte === 'tenu';
   const m = e ? ligneEnMots(e, aujourdhui) : null;
@@ -289,6 +315,9 @@ function LigneDeLaListe({ o, aujourdhui, role, reserve, faireDuMenu }: { o: Lign
   const membres = cabinet ? (o.cabinet?.collaborateurs ?? 0) : o.societes.reduce((n, x) => n + x.membres, 0);
   const silencieux = o.societes.some((x) => x.vues.includes('silencieux'));
   const nom = o.nom;
+  // La vue des arrivées : la colonne de l'usage dit où en est l'arrivée de la société (la plus urgente d'un groupe).
+  const arrivee = arrivees ? o.societes.find((x) => x.arrivee)?.arrivee ?? null : null;
+  const ar = arrivee ? arriveeEnMots(arrivee) : null;
   return (
     <tr>
       <td>
@@ -326,11 +355,16 @@ function LigneDeLaListe({ o, aujourdhui, role, reserve, faireDuMenu }: { o: Lign
             : <><span className="c-cl-rien">—</span>{e && !groupe && e.etat.etat === 'actif' && e.etat.resilie ? <span className="c-sous">{dire('console.ecran.clients.ne_revient_pas')}</span> : null}</>}
       </td>
       <td className="c-cl-usage">
-        {cabinet ? <span>{maj(nombre((o.cabinet?.comptes.client ?? 0) + (o.cabinet?.comptes.tenu ?? 0), 'console.ecran.clients.cab.dossier', 'console.ecran.clients.cab.dossiers_n', 'console.ecran.clients.cab.aucun_dossier'))}</span>
-          : tenu ? <span>{maj(dire('console.ecran.clients.tenu_cabinet'))}</span>
-            : <span className={o.usage === 0 ? 'c-cl-proche' : undefined}>{maj(nombre(o.usage, 'console.ecran.clients.piece_emise', 'console.ecran.clients.pieces_emises', 'console.ecran.clients.aucune_piece'))}</span>}
-        <span className="c-sous">{maj(cabinet ? nombre(membres, 'console.ecran.clients.cab.collaborateur', 'console.ecran.clients.cab.collaborateurs')
-          : nombre(membres, 'console.ecran.clients.membre', 'console.ecran.clients.membres', tenu ? 'console.ecran.clients.aucun_membre_tenu' : 'console.ecran.clients.aucun_membre'))}</span>
+        {arrivee && ar ? <>
+          <span className="c-ar-ligne"><Marches a={arrivee} /><span className={ar.alerte ? 'c-cl-proche' : undefined}>{maj(ar.texte)}</span></span>
+          <span className="c-sous">{dire('console.ecran.clients.ar.jour', { n: arrivee.jours + 1 })}</span>
+        </> : <>
+          {cabinet ? <span>{maj(nombre((o.cabinet?.comptes.client ?? 0) + (o.cabinet?.comptes.tenu ?? 0), 'console.ecran.clients.cab.dossier', 'console.ecran.clients.cab.dossiers_n', 'console.ecran.clients.cab.aucun_dossier'))}</span>
+            : tenu ? <span>{maj(dire('console.ecran.clients.tenu_cabinet'))}</span>
+              : <span className={o.usage === 0 ? 'c-cl-proche' : undefined}>{maj(nombre(o.usage, 'console.ecran.clients.piece_emise', 'console.ecran.clients.pieces_emises', 'console.ecran.clients.aucune_piece'))}</span>}
+          <span className="c-sous">{maj(cabinet ? nombre(membres, 'console.ecran.clients.cab.collaborateur', 'console.ecran.clients.cab.collaborateurs')
+            : nombre(membres, 'console.ecran.clients.membre', 'console.ecran.clients.membres', tenu ? 'console.ecran.clients.aucun_membre_tenu' : 'console.ecran.clients.aucun_membre'))}</span>
+        </>}
       </td>
       <td className={`c-cl-vu${silencieux ? ' c-cl-proche' : ''}`}>{maj(vuEnMots(o.vu, aujourdhui))}</td>
       <td className="c-droite c-cl-ouvrir">
@@ -406,7 +440,7 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
   const pages = lu ? Math.max(1, Math.ceil(lu.total / taille)) : 1;
   const allerA = (n: number) => setDebut((Math.min(Math.max(n, 1), pages) - 1) * taille);
   // Une aide sous les cartes quand une vue demande un mot de plus (la maquette Clients) : ce qu'on y fait, et pourquoi.
-  const aide = vue === 'silencieux' || vue === 'tenus' ? phrase(`console.ecran.clients.aide.${vue}`) : null;
+  const aide = vue === 'silencieux' || vue === 'tenus' || vue === 'arrivees' ? phrase(`console.ecran.clients.aide.${vue}`) : null;
   // Ce que ce rôle ne fait pas depuis le menu, et qui le fait (le support prolonge un essai, une fois).
   const reserve = direction ? null : phrase('console.ecran.clients.m.reserve');
 
@@ -518,13 +552,13 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
                       <th scope="col">{titre('console.ecran.clients.colonne.etat')}</th>
                       <th scope="col">{titre('console.ecran.clients.colonne.echeance')}</th>
                       <th scope="col" className="c-droite">{titre('console.ecran.clients.colonne.par_an')}</th>
-                      <th scope="col">{titre('console.ecran.clients.colonne.usage_mois', { mois: deMois(aujourdhui.slice(0, 7), false) })}</th>
+                      <th scope="col">{vue === 'arrivees' ? titre('console.ecran.clients.colonne.arrivee') : titre('console.ecran.clients.colonne.usage_mois', { mois: deMois(aujourdhui.slice(0, 7), false) })}</th>
                       <th scope="col">{titre('console.ecran.clients.colonne.vu')}</th>
                       <th scope="col"><span className="c-cache">{titre('console.ecran.clients.ouvrir')}</span></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {lu.lignes.map((o) => <LigneDeLaListe key={o.id} o={o} aujourdhui={aujourdhui} role={moi.role} reserve={reserve}
+                    {lu.lignes.map((o) => <LigneDeLaListe key={o.id} o={o} aujourdhui={aujourdhui} role={moi.role} reserve={reserve} arrivees={vue === 'arrivees'}
                       faireDuMenu={(x) => ({ geste: (g) => setGeste({ id: x.id, geste: g }), acces: () => setAcces({ id: x.id, nom: x.raisonSociale }),
                         appel: () => setAppel({ id: x.id, nom: x.raisonSociale }), ecrire: () => setEcrire({ client: { id: x.id, nom: x.raisonSociale }, contexte: contexteDe(x.etat.etat, x.etat.etat === 'lecture_seule' ? x.etat.raison : undefined) }) })} />)}
                   </tbody>

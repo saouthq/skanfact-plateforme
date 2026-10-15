@@ -10,13 +10,14 @@
 import { versTexte } from '../../moteur/argent.ts';
 import { joursEntre } from '../abonnement/etat.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
+import { enArrivee } from './arrivee.ts';
 import { aServi, type EnPlus, type Entreprise, type FactureQuiAttend } from './decider.ts';
 import { dateDe, type Remises } from './echeances.ts';
 import { lireFacturesAbonnement } from '../abonnement/factures.ts';
 import type { Renouvellements } from './renouvellements.ts';
 
-export type VueClients = 'tout' | 'a_appeler' | 'argent' | 'silencieux' | 'tenus' | 'cabinet';
-export const VUES_CLIENTS: readonly VueClients[] = ['tout', 'a_appeler', 'argent', 'silencieux', 'tenus', 'cabinet'];
+export type VueClients = 'tout' | 'arrivees' | 'a_appeler' | 'argent' | 'silencieux' | 'tenus' | 'cabinet';
+export const VUES_CLIENTS: readonly VueClients[] = ['tout', 'arrivees', 'a_appeler', 'argent', 'silencieux', 'tenus', 'cabinet'];
 // Un essai « qui finit » : dans la semaine. Un client « silencieux » : personne ne l'a ouvert depuis dix jours.
 export const ESSAI_QUI_FINIT_JOURS = 7;
 export const SILENCE_JOURS = 10;
@@ -25,6 +26,9 @@ export function dansLaVue(e: Entreprise, v: VueClients, jour: string): boolean {
   const s = e.etat;
   switch (v) {
     case 'tout': return true;
+    // 0127 (la liste des fonctions qui manquent, 6) : inscrite depuis trente jours au plus — son arrivée, marche par
+    // marche, jusqu'à sa première facture émise (serveur/console/arrivee.ts). Un dossier qu'un cabinet tient n'arrive pas.
+    case 'arrivees': return enArrivee(e, jour) && !(s.etat === 'hors' && s.raison === 'tenu_par_cabinet');
     // Un essai qui finit dans la semaine sans une pièce émise, ou une grâce d'après l'essai sans offre choisie : quelqu'un
     // qui n'a pas encore vu ce que l'application lui apporte. C'est un appel, pas une relance.
     // Un essai qui a déjà choisi son offre (sa facture attend) n'est pas à appeler : il est dans « l'argent attendu ».
@@ -75,12 +79,13 @@ export function lireEnPlus(brut: unknown, jour: string): Map<string, EnPlus> {
       .sort((a, c) => (a.debut < c.debut ? -1 : a.debut > c.debut ? 1 : 0))[0];
     const attend: FactureQuiAttend | null = f ? { offre: f.offre, periodicite: f.periodicite, etat: f.etat, reste: f.reste, devise: f.devise, echeance: f.echeance } : null;
     m.set(id, { piecesMois: n(r.piecesMois), essaiJours: n(r.essaiJours) || null, prolonge: n(r.prolonge), prolongeUneFois: r.prolongeUneFois === true,
-      moisOffertRecent: r.moisOffertRecent === true, attend });
+      moisOffertRecent: r.moisOffertRecent === true, attend,
+      premiereFactureLe: typeof r.premiereFactureLe === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.premiereFactureLe) ? r.premiereFactureLe : null });
   }
   return m;
 }
 export const avecEnPlus = <E extends Entreprise>(liste: readonly E[], enPlus: Map<string, EnPlus>): E[] =>
-  liste.map((e) => ({ ...e, enPlus: enPlus.get(e.id) ?? { piecesMois: 0, essaiJours: null, prolonge: 0, prolongeUneFois: false, moisOffertRecent: false, attend: null } }));
+  liste.map((e) => ({ ...e, enPlus: enPlus.get(e.id) ?? { piecesMois: 0, essaiJours: null, prolonge: 0, prolongeUneFois: false, moisOffertRecent: false, attend: null, premiereFactureLe: null } }));
 
 export function comptesDesVues(liste: readonly Entreprise[], jour: string): Record<VueClients, number> {
   return Object.fromEntries(VUES_CLIENTS.map((v) => [v, liste.filter((e) => dansLaVue(e, v, jour)).length])) as Record<VueClients, number>;

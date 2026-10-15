@@ -13789,11 +13789,11 @@ prouver 'le journal d'"'"'un export qui perd ses filtres' 'base/migrations/0114_
   ''"'"'filtres'"'"', coalesce(p_filtres, '"'"'{}'"'"'::jsonb)' \
   ''"'"'filtres'"'"', '"'"'{}'"'"'::jsonb' \
   "$CL1"
-prouver 'un essai déjà prolongé que le menu du support propose encore de prolonger' 'base/migrations/0113_argent_juste.sql' \
+prouver 'un essai déjà prolongé que le menu du support propose encore de prolonger' 'base/migrations/0127_arrivee.sql' \
   ''"'"'prolongeUneFois'"'"', exists (' \
   ''"'"'prolongeUneFois'"'"', false and exists (' \
   "$CL1"
-prouver 'la durée d'"'"'un essai lue de sa fin d'"'"'aujourd'"'"'hui' 'base/migrations/0113_argent_juste.sql' \
+prouver 'la durée d'"'"'un essai lue de sa fin d'"'"'aujourd'"'"'hui' 'base/migrations/0127_arrivee.sql' \
   'select (v.apres ->> '"'"'essaiJusquAu'"'"')::date - (v.le at time zone e.fuseau)::date from' \
   'select (select a.essai_jusqu_au from plateforme.abonnement a where a.entreprise = e.id) - (v.le at time zone e.fuseau)::date from' \
   "$CL1"
@@ -15107,6 +15107,58 @@ prouver 'la règle vu de l'"'"'extérieur pas branchée' 'exploitation/veille.ts
   'cles: ['"'"'guet'"'"', '"'"'guet-reglage'"'"'], seuils: { minutes: GUET_MUET_MIN }, branchee: true },' \
   'cles: ['"'"'guet'"'"', '"'"'guet-reglage'"'"'], seuils: { minutes: GUET_MUET_MIN }, branchee: false },' \
   'chaque règle : grave, à regarder, trop peu lue, calme, ou pas branchée ; rien de calme sans relevé récent'
+
+# 1.34.0 : l'arrivée des nouveaux clients (0127 ; la liste des fonctions qui manquent, 6).
+prouver 'la marche bloquée le jour même de son délai' 'serveur/console/arrivee.ts' \
+  'jours > delai ?' \
+  'jours >= delai ?' \
+  'jamais ouverte : le jour de son délai, pas encore bloquée ; le lendemain, bloquée depuis un jour'
+prouver 'la dernière marche manquante tenue pour la suivante' 'serveur/console/arrivee.ts' \
+  'const suivante = marches.find((m) => !m.faite)?.id ?? null;' \
+  'const suivante = [...marches].reverse().find((m) => !m.faite)?.id ?? null;' \
+  'payée avant sa première pièce : la marche manquante reste la suivante, celle d'"'"'après comptée franchie'
+prouver 'l'"'"'arrivée qui dure un jour de trop' 'serveur/console/arrivee.ts' \
+  'return joursEntre(e.creeLe.slice(0, 10), jour) < ARRIVEE_JOURS;' \
+  'return joursEntre(e.creeLe.slice(0, 10), jour) <= ARRIVEE_JOURS;' \
+  'le trentième jour en est encore (jour 29), le trente et unième n'"'"'en est plus'
+prouver 'une note d'"'"'honoraires qui ne compte pas' 'base/migrations/0127_arrivee.sql' \
+  'p.type in ('"'"'facture'"'"', '"'"'note_honoraires'"'"')' \
+  'p.type = '"'"'facture'"'"'' \
+  'l'"'"'arrivée (0127) : la première facture émise se lit au jour de Tunis — une note d'"'"'honoraires compte — et la liste et la fiche disent la même'
+prouver 'la première facture lue au jour UTC' 'base/migrations/0127_arrivee.sql' \
+  '(select (min(p.emise_le) at time zone e.fuseau)::date from ventes.piece p' \
+  '(select (min(p.emise_le) at time zone '"'"'UTC'"'"')::date from ventes.piece p' \
+  'l'"'"'arrivée (0127) : la première facture émise se lit au jour de Tunis — une note d'"'"'honoraires compte — et la liste et la fiche disent la même'
+prouver 'un dossier tenu par son cabinet qui arrive' 'serveur/console/clients.ts' \
+  'case '"'"'arrivees'"'"': return enArrivee(e, jour) && !(s.etat === '"'"'hors'"'"' && s.raison === '"'"'tenu_par_cabinet'"'"');' \
+  'case '"'"'arrivees'"'"': return enArrivee(e, jour);' \
+  'la vue garde les inscrites des trente jours, jamais un dossier qu'"'"'un cabinet tient ; sa carte compte la même liste (C3)'
+prouver 'une première facture illisible devinée' 'serveur/console/clients.ts' \
+  'typeof r.premiereFactureLe === '"'"'string'"'"' && /^\d{4}-\d{2}-\d{2}$/.test(r.premiereFactureLe)' \
+  'typeof r.premiereFactureLe === '"'"'string'"'"'' \
+  'une première facture illisible vaut « rien », jamais une date devinée'
+prouver 'la ligne tait son arrivée' 'serveur/console/routes.ts' \
+  'ville: s.identites.get(e.id)?.ville ?? null,
+            vues: VUES_CLIENTS.filter((v) => v !== '"'"'tout'"'"' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e),
+            // Son arrivée (0127), tant qu'"'"'elle dure : les marches franchies, la suivante, si elle est bloquée.
+            arrivee: enArrivee(e, jour) ? arrivee(e, jour) : null })),' \
+  'ville: s.identites.get(e.id)?.ville ?? null,
+            vues: VUES_CLIENTS.filter((v) => v !== '"'"'tout'"'"' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e),
+            // Son arrivée (0127), tant qu'"'"'elle dure : les marches franchies, la suivante, si elle est bloquée.
+            arrivee: null })),' \
+  'l'"'"'arrivée (0127) : la première facture émise se lit au jour de Tunis — une note d'"'"'honoraires compte — et la liste et la fiche disent la même'
+prouver 'la fiche tait son arrivée' 'serveur/console/routes.ts' \
+  'arrivee: liste[0] && enArrivee(liste[0], jour) ? arrivee({ ...liste[0], enPlus: enPlus ?? {} }, jour) : null,' \
+  'arrivee: null,' \
+  'l'"'"'arrivée (0127) : la première facture émise se lit au jour de Tunis — une note d'"'"'honoraires compte — et la liste et la fiche disent la même'
+prouver 'l'"'"'écran des arrivées sans ses marches' 'web/console/src/ecrans/Clients.tsx' \
+  'const arrivee = arrivees ? o.societes.find((x) => x.arrivee)?.arrivee ?? null : null;' \
+  'const arrivee = false ? o.societes.find((x) => x.arrivee)?.arrivee ?? null : null;' \
+  'les clients : chaque vue du métier ouvre la liste qu'"'"'elle compte ; chaque ligne dit son échéance et ce qu'"'"'elle rapporte ; le tri suit l'"'"'adresse'
+prouver 'la fiche à l'"'"'écran sans son arrivée' 'web/console/src/ecrans/Fiche.tsx' \
+  '{f.arrivee ? <SonArrivee a={f.arrivee} /> : null}' \
+  '{null}' \
+  'la fiche : prolonger un essai, avec l'"'"'aperçu du serveur et un motif ; la base, l'"'"'histoire et le journal le disent'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

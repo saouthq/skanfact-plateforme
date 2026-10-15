@@ -266,8 +266,9 @@ describe('les clients', () => {
     const fin = String((f.faits as { essaiJusquAu: string }).essaiJusquAu);
     // Un essai qui commence aujourd'hui (0110) : sa durée telle qu'il a commencé, rien de prolongé, aucune pièce émise ce
     // mois, aucune facture qui attend ; il n'est dans aucune vue du métier.
-    expect((await ligneDe(jS))?.enPlus).toEqual({ piecesMois: 0, essaiJours: joursEntre(aujourdhui, fin), prolonge: 0, prolongeUneFois: false, moisOffertRecent: false, attend: null });
-    expect((await ligneDe(jS))?.vues).toEqual([]);
+    expect((await ligneDe(jS))?.enPlus).toEqual({ piecesMois: 0, essaiJours: joursEntre(aujourdhui, fin), prolonge: 0, prolongeUneFois: false, moisOffertRecent: false, attend: null, premiereFactureLe: null });
+    // Inscrite aujourd'hui : elle arrive (0127), et seulement cela.
+    expect((await ligneDe(jS))?.vues).toEqual(['arrivees']);
     // Le menu « … » : les gestes de sa fiche, par la même règle — le support prolonge (une fois) ; la direction prolonge
     // et passe en lecture seule. Payer, offrir, un module restent sur la fiche.
     expect((await ligneDe(jS))?.gestes).toEqual(['prolonger']);
@@ -295,6 +296,35 @@ describe('les clients', () => {
     expect(rows[0]).toEqual({ motif: 'liste pour la réunion', role: 'direction', apres: { lignes: lignes.length, filtres } });
   });
 
+  it('l\'arrivée (0127) : la première facture émise se lit au jour de Tunis — une note d\'honoraires compte — et la liste et la fiche disent la même', async () => {
+    const { ent, proprio } = await entreprise('Arrivée Comptée');
+    type S = { id: string; vues: string[]; arrivee: { jours: number; franchies: number; marches: { id: string; faite: boolean; le: string | null }[] } | null };
+    const ligne = async () => ((await appeler('GET', '/console/entreprises?vue=arrivees&q=arriv%C3%A9e%20compt%C3%A9e&limite=50', jS)).corps.lignes as { societes: S[] }[])
+      .flatMap((l) => l.societes).find((x) => x.id === ent);
+    const premiere = async () => (await ligne())?.arrivee?.marches.find((m) => m.id === 'premiere_facture');
+    expect(await premiere()).toMatchObject({ faite: false, le: null });
+    // Posées sans le parcours (déclencheurs suspendus) : un brouillon de facture il y a cinq jours, une facture émise
+    // avant-hier ; une note d'honoraires émise le jour d'avant à 23 h 30 en UTC — déjà le lendemain à Tunis.
+    const avantHier = plusJours(aujourdhui, -2);
+    const qui = (await admin.query('select id from socle.utilisateur where email = $1', [proprio.email])).rows[0].id as string;
+    await admin.query('begin');
+    await admin.query('set local session_replication_role = replica');
+    for (const [type, statut, emise, k] of [['facture', 'brouillon', null, 1], ['facture', 'emise', `${avantHier}T10:00:00Z`, 2], ['note_honoraires', 'emise', `${plusJours(aujourdhui, -4)}T23:30:00Z`, 3]] as const) {
+      const e = statut === 'emise';
+      await admin.query(`insert into ventes.piece (entreprise, type, statut, tiers, date_piece, emise_le, numero, numero_texte, copie, empreinte, net_a_payer, cree_par)
+        values ($1, $2, $3, gen_random_uuid(), $4::date, $5::timestamptz, case when $6 then $7::int end, case when $6 then 'P-' || $7 end, case when $6 then '{}'::jsonb end,
+                case when $6 then repeat('a', 64) end, case when $6 then 1000 end, $8)`,
+        [ent, type, statut, plusJours(aujourdhui, -5), emise, e, k, qui]);
+    }
+    await admin.query('commit');
+    // La première : la note d'honoraires, au jour de Tunis (il y a trois jours), pas au jour de son instant en UTC.
+    expect(await premiere()).toEqual({ id: 'premiere_facture', faite: true, le: plusJours(aujourdhui, -3), avant: plusJours(aujourdhui, 14) });
+    const l = await ligne();
+    expect(l?.vues).toContain('arrivees');
+    // La fiche dit la même arrivée que sa ligne, par la même fonction.
+    expect((await fiche(jS, ent)).arrivee).toEqual(l?.arrivee);
+  });
+
   it('la fiche dit la liste fermée : qui, l\'abonnement et son histoire, les membres, des comptes ; jamais le contenu d\'un dossier', async () => {
     const { ent, proprio } = await entreprise('Quincaillerie Fiche');
     const f = await fiche(jS, ent);
@@ -302,8 +332,8 @@ describe('les clients', () => {
       'id', 'ligne', 'matricule', 'membres', 'organisation', 'prolongeDejaUneFois', 'raisonSociale', 'tenuePar', 'cabinets', 'support', 'factures', 'groupe',
       // 0110–0112 : son numéro et sa ville, nos notes d'appel, ce que la liste dit en plus, l'offre suivante, le délai, la
       // procédure de reprise (la direction seule ; au support : rien). 0113 : ce que sa prochaine facture coûtera. 0114 : le
-      // dernier instant où quelqu'un y a travaillé (10 § 4).
-      'identite', 'notes', 'enPlus', 'offreSuivante', 'delai', 'reprise', 'prochaineFacture', 'derniereActivite'].sort());
+      // dernier instant où quelqu'un y a travaillé (10 § 4). 0127 : son arrivée — des marches et des jours, rien d'un dossier.
+      'identite', 'notes', 'enPlus', 'offreSuivante', 'delai', 'reprise', 'prochaineFacture', 'derniereActivite', 'arrivee'].sort());
     expect(f.reprise).toBeNull();
     // Son groupe et sa remise (0106) : aucun groupe, aucune société de la même propriétaire, aucune remise ; la règle du
     // groupe et le premier jour de sa prochaine période (le lendemain de son essai).

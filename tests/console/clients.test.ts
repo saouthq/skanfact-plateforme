@@ -83,7 +83,7 @@ describe('Clients : les vues du métier', () => {
     expect(nom('H').venuePar).toEqual({ cabinet: 'Cabinet Nour', depuis: '2026-01-05' });
     expect(nom('I').venuePar).toBeNull();
     expect(dans('tout')).toBe('ABCDEFGHIJKLM');
-    expect(comptesDesVues(LISTE, JOUR)).toEqual({ tout: 13, a_appeler: 3, argent: 2, silencieux: 2, tenus: 1, cabinet: 1 });
+    expect(comptesDesVues(LISTE, JOUR)).toEqual({ tout: 13, arrivees: 0, a_appeler: 3, argent: 2, silencieux: 2, tenus: 1, cabinet: 1 });
   });
 
   it('jamais ouverte, le silence se compte depuis l\'inscription : née il y a neuf jours, pas encore ; dix, oui (0114)', () => {
@@ -220,18 +220,18 @@ function facture(debut: string, net: string, o: { echeance?: string; reglements?
 
 describe('Clients : ce que chaque ligne dit en plus (0110)', () => {
   const enPlus = lireEnPlus({
-    [id(1)]: { piecesMois: 4, essaiJours: 30, prolonge: 0, prolongeUneFois: false, factures: [] },
+    [id(1)]: { piecesMois: 4, essaiJours: 30, prolonge: 0, prolongeUneFois: false, factures: [], premiereFactureLe: '2026-10-02' },
     // A : une facture payée (rien n'attend) et une facture qui attend, réglée en partie : il en reste 17,410.
     [id(2)]: { piecesMois: 0, essaiJours: 30, prolonge: 14, prolongeUneFois: true, factures: [facture('2026-09-01', '46410', { reglements: ['46410'], payeeLe: '2026-09-02T08:00:00Z' }), facture('2026-10-15', '47410', { reglements: ['30000'] })] },
     // B : deux factures qui attendent ; la plus ancienne d'abord. C : seulement une facture annulée par son avoir.
     [id(3)]: { piecesMois: 2, factures: [facture('2026-11-15', '47410'), facture('2026-10-15', '47410', { echeance: '2026-10-15' })] },
-    [id(4)]: { piecesMois: -3, essaiJours: 'trente', factures: [facture('2026-10-15', '47410', { avoirs: ['47410'] })] },
+    [id(4)]: { piecesMois: -3, essaiJours: 'trente', premiereFactureLe: '02/10/2026', factures: [facture('2026-10-15', '47410', { avoirs: ['47410'] })] },
     // D : préparée, pas encore émise : elle attend, sans reste ni échéance de pièce.
     [id(5)]: { factures: [facture('2026-10-15', '47410', { emise: false })] },
   }, JOUR);
   it('lit prudemment : un nombre illisible vaut zéro, une durée illisible n\'existe pas', () => {
-    expect(enPlus.get(id(1))).toEqual({ piecesMois: 4, essaiJours: 30, prolonge: 0, prolongeUneFois: false, moisOffertRecent: false, attend: null });
-    expect(enPlus.get(id(4))).toMatchObject({ piecesMois: 0, essaiJours: null, prolonge: 0, prolongeUneFois: false, attend: null });
+    expect(enPlus.get(id(1))).toEqual({ piecesMois: 4, essaiJours: 30, prolonge: 0, prolongeUneFois: false, moisOffertRecent: false, attend: null, premiereFactureLe: '2026-10-02' });
+    expect(enPlus.get(id(4))).toMatchObject({ piecesMois: 0, essaiJours: null, prolonge: 0, prolongeUneFois: false, attend: null, premiereFactureLe: null });
   });
   it('la facture qui attend : la plus ancienne pas encore réglée, avec ce qu\'il en reste — jamais une payée ni une annulée', () => {
     expect(enPlus.get(id(2))?.attend).toEqual({ offre: 'essentiel', periodicite: 'mensuel', etat: 'partielle', reste: '17.410', devise: 'TND', echeance: '2026-10-20' });
