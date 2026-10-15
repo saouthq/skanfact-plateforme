@@ -717,7 +717,7 @@ describe('les alertes du service (0086)', () => {
   });
 
   it('la sourdine : d\'une règle qui prévient, un quart d\'heure à un jour, quatre heures au plus sur une alerte grave, une à la fois ; la veille la lit', async () => {
-    expect((await appeler('POST', '/console/service/sourdines', jT, { regle: 'exterieur', minutes: 60, motif: 'pas branchée' })).statut).toBe(404);
+    expect((await appeler('POST', '/console/service/sourdines', jT, { regle: 'replique', minutes: 60, motif: 'pas branchée' })).statut).toBe(404);
     expect((await appeler('POST', '/console/service/sourdines', jT, { regle: 'disques', minutes: 10, motif: 'trop court' })).statut).toBe(400);
     expect((await appeler('POST', '/console/service/sourdines', jS, { regle: 'disques', minutes: 60, motif: 'le support' })).statut).toBe(403);
     // L'alerte devient grave : plus de quatre heures, refusé.

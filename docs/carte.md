@@ -672,6 +672,9 @@ vaut pour tout le dépôt.*
     `plateforme.console_incidents_a_lier`, les `demandes` de `plateforme.console_service_incidents` ; `versionAtteinte` de
     `serveur/console/support.ts` (`tests/console/demandes-incidents.test.ts`, `tests/web/support.test.ts`,
     `tests/web/console-incidents.test.ts`).
+  - **Le guet extérieur** (1.33.0 ; `docs/console.md` C49, `docs/mise-en-ligne.md` I bis) : `exploitation/guetter.ts` et
+    `.github/workflows/guet-exterieur.yml` ; `guetDuPassage`, `relireLeGuet` et les problèmes `guet` et `guet-reglage` de
+    `exploitation/veille.ts`, la lecture de GitHub dans `exploitation/veiller.ts` (`tests/exploitation/guetter.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

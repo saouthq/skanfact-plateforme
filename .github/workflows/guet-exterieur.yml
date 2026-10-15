@@ -1,0 +1,41 @@
+# Le guet extérieur (1.33.0 ; exploitation/guetter.ts ; docs/mise-en-ligne.md, I bis) : toutes les dix minutes, une
+# machine de GitHub ouvre la page d'état et le programme de chaque adresse de la variable SKANFACT_GUET du dépôt (Settings
+# › Secrets and variables › Actions › Variables : des adresses, aucun secret). Une panne qui dure ouvre un ticket « Le
+# guet extérieur : … ne répond pas » (GitHub le dit par e-mail) ; le retour le ferme. Le nom du passage dit ce qui est
+# guetté : la veille de chaque serveur le relit, et prévient si elle n'y est pas, ou si le guet ne passe plus.
+name: Le guet extérieur
+run-name: ${{ vars.SKANFACT_GUET && format('Guet de {0}', vars.SKANFACT_GUET) || 'Guet sans adresse' }}
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+# Lire le dépôt, et écrire ses tickets : rien d'autre.
+permissions:
+  contents: read
+  issues: write
+
+# Un passage à la fois : deux passages qui se chevauchent ouvriraient deux tickets.
+concurrency:
+  group: guet-exterieur
+  cancel-in-progress: false
+
+jobs:
+  guetter:
+    name: Guetter
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: exploitation/guetter.ts
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: La page d'état et le programme de chaque adresse
+        env:
+          SKANFACT_GUET: ${{ vars.SKANFACT_GUET }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node exploitation/guetter.ts

@@ -485,6 +485,33 @@ Code : `exploitation/veille.ts`, `exploitation/veiller.ts`, `exploitation/alerte
 `tests/exploitation/veiller.test.ts` (le veilleur lancé pour de vrai, avec un faux relais d'e-mails, un faux WinSMS et
 un faux programme), `tests/exploitation/alertes.test.ts` (le réglage des destinataires, la tâche, le frontal).
 
+## I bis. Le guet extérieur (1.33.0 ; la liste des fonctions qui manquent, 22, 15/10/2026)
+
+La veille vit **sur** le serveur : si la machine s'arrête, ou si l'hébergeur la coupe du réseau, elle se tait avec lui.
+Le guet regarde **d'ailleurs** : une machine de GitHub (`.github/workflows/guet-exterieur.yml`, `exploitation/guetter.ts`),
+toutes les dix minutes, ouvre pour chaque serveur sa page d'état (`/etat` : elle répond, et la veille l'a écrite il y a
+moins de dix minutes) et son programme (`/v1/documentation`). Ce qui ne va pas se réessaie deux fois, à vingt secondes
+d'écart. Une panne qui dure ouvre **un ticket** sur GitHub, « Le guet extérieur : … ne répond pas », qui dit quand, quoi,
+et quoi faire ; GitHub l'envoie par e-mail à qui suit le dépôt. Quand tout répond de nouveau, le ticket dit l'heure du
+retour et se ferme. Le guet ne lit que ce que tout le monde peut lire, et n'écrit que les tickets du dépôt : aucun
+secret (le jeton de la tâche elle-même), aucune donnée d'un client.
+
+**Le régler (une fois, sur GitHub, par Skander)** : le dépôt `saouthq/skanfact-plateforme`, *Settings › Secrets and
+variables › Actions › Variables › New repository variable* : nom `SKANFACT_GUET`, valeur les adresses à guetter,
+séparées par des espaces (`https://app.skanfact.tn https://…`). Ce n'est pas un secret : le nom de chaque passage les
+montre. Puis *Watch* sur le dépôt (au moins « Issues ») pour recevoir les tickets par e-mail. Sans adresse, le guet passe
+et ne regarde rien (« Guet sans adresse »).
+
+**Ce que la veille de chaque serveur en dit** : elle relit sur GitHub le dernier passage du guet (au plus toutes les dix
+minutes ; une lecture du dépôt public, rien ne part). Elle prévient si le guet **ne passe plus depuis une heure** (GitHub
+suspend une tâche planifiée après soixante jours sans envoi sur le dépôt : la réactiver dans l'onglet *Actions*), et, sur
+un serveur aux vraies données, si **ce serveur n'est pas guetté**. La règle « vu de l'extérieur » de la console (Service ›
+Alertes) est branchée.
+
+**Ce qu'il ne fait pas encore** : mesurer la disponibilité vue de l'extérieur, ni le temps de réponse d'une autre ville
+(06 § 7) ; GitHub ne garantit pas l'heure de ses tâches planifiées (un passage peut glisser d'une demi-heure). Un service
+de mesure, depuis deux villes, reste à décider.
+
 ## J. La console à sa propre adresse (demandé par Skander le 13/10/2026)
 
 La console de l'équipe (docs/console.md) vit sous `/console/` du serveur ; elle a aussi son adresse,

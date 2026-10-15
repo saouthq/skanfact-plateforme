@@ -15052,6 +15052,61 @@ prouver 'les demandes liées perdues en route' 'serveur/console/incidents.ts' \
   'demandes: ((x) => ({ n: compte(x.n), ouvertes: compte(x.ouvertes) }))((i.demandes ?? {}) as Record<string, unknown>),' \
   'demandes: { n: 0, ouvertes: 0 },' \
   'l'"'"'incident ouvert porte le seul bouton principal ; la page d'"'"'état montrée est celle de la veille, avec son message'
+# 1.33.0 : le guet extérieur (la liste des fonctions qui manquent, 22).
+prouver 'la veille muette dite bonne' 'exploitation/guetter.ts' \
+  '  if (age > VEILLE_MUETTE_MIN) return { adresse, etat: '"'"'veille'"'"', detail: `la veille n'"'"'a plus écrit la page d'"'"'état depuis ${age} minutes ; le programme répond`, le };
+' \
+  '' \
+  'la veille muette depuis plus de dix minutes : le programme répond, la page d'"'"'état est vieille'
+prouver 'le programme muet dit bon' 'exploitation/guetter.ts' \
+  '  if (programme.statut !== 200) return { adresse, etat: '"'"'programme'"'"',' \
+  '  if (false) return { adresse, etat: '"'"'programme'"'"',' \
+  'le frontal répond, pas le programme : programme ; plus rien ne répond : injoignable'
+prouver 'une panne sans second essai' 'exploitation/guetter.ts' \
+  'for (let i = 1; i < ESSAIS && r.etat !== '"'"'bon'"'"'; i++)' \
+  'for (let i = 1; i < 1 && r.etat !== '"'"'bon'"'"'; i++)' \
+  'ce qui ne va pas se réessaie, vingt secondes d'"'"'écart, trois fois en tout ; le premier « bon » l'"'"'emporte'
+prouver 'deux tickets pour la même panne' 'exploitation/guetter.ts' \
+  '    if (r.etat !== '"'"'bon'"'"' && !ticket) {' \
+  '    if (r.etat !== '"'"'bon'"'"') {' \
+  'une panne ouvre UN ticket par adresse, qui dit quand, quoi et quoi faire ; une panne déjà signalée n'"'"'en ouvre pas un second'
+prouver 'le ticket jamais fermé' 'exploitation/guetter.ts' \
+  '      await gh.fermer(ticket.numero);
+' \
+  '' \
+  'le retour dit l'"'"'heure et ferme le ticket ; une autre adresse n'"'"'est pas touchée'
+prouver 'la page d'"'"'état sans son heure' 'exploitation/veille.ts' \
+  '<p class="pied" data-verifie="${echapper(e.le)}">' \
+  '<p class="pied">' \
+  'la page d'"'"'état que la veille écrit porte l'"'"'heure que le guet lit (l'"'"'une ne change pas sans l'"'"'autre)'
+prouver 'le guet muet jamais dit' 'exploitation/veille.ts' \
+  '  if (!Number.isFinite(age) || age > GUET_MUET_MIN * 60_000) {' \
+  '  if (false) {' \
+  'le guet qui passe : rien ; plus d'"'"'une heure sans lui : il ne passe plus — quel que soit le serveur qu'"'"'il guette'
+prouver 'un serveur aux vraies données non guetté, tu' 'exploitation/veille.ts' \
+  '    return r.production ? [probleme('"'"'guet-reglage'"'"',' \
+  '    return false ? [probleme('"'"'guet-reglage'"'"',' \
+  'un serveur aux vraies données que le guet ne regarde pas, ou un guet sans adresse : dit ; un serveur d'"'"'essai : rien'
+prouver 'guetté sans son adresse' 'exploitation/veille.ts' \
+  'guette: adresses.includes(`https://${serveur.toLowerCase()}`)' \
+  'guette: adresses.length > 0' \
+  'le nom de chaque passage dit ce qui est guetté, comme la veille le relit'
+prouver 'GitHub relu à chaque minute' 'exploitation/veille.ts' \
+  'maintenant.getTime() - t >= RELIRE_GUET_MS' \
+  'maintenant.getTime() - t >= 0' \
+  'GitHub se relit au plus toutes les dix minutes'
+prouver 'le guet peut tout écrire' '.github/workflows/guet-exterieur.yml' \
+  'permissions:
+  contents: read
+  issues: write
+' \
+  'permissions: write-all
+' \
+  'toutes les dix minutes, un passage à la fois, le droit de lire le dépôt et d'"'"'écrire ses tickets, rien d'"'"'autre'
+prouver 'la règle vu de l'"'"'extérieur pas branchée' 'exploitation/veille.ts' \
+  'cles: ['"'"'guet'"'"', '"'"'guet-reglage'"'"'], seuils: { minutes: GUET_MUET_MIN }, branchee: true },' \
+  'cles: ['"'"'guet'"'"', '"'"'guet-reglage'"'"'], seuils: { minutes: GUET_MUET_MIN }, branchee: false },' \
+  'chaque règle : grave, à regarder, trop peu lue, calme, ou pas branchée ; rien de calme sans relevé récent'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

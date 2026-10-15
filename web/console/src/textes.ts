@@ -1550,7 +1550,7 @@ declarerTextes({
   'console.ecran.service.jour.bon_detail': '{n} minutes relevées, le service a toujours répondu',
   'console.ecran.service.jour.bas_detail': '{bas} sans réponse, sur {n} minutes relevées',
   'console.ecran.service.exterieur': 'vu de l\'extérieur : non mesuré.',
-  'console.ecran.service.exterieur_raison': 'aucun service ne regarde encore le site depuis une autre ville : ce chiffre est celui que le serveur voit de lui-même',
+  'console.ecran.service.exterieur_raison': 'le guet extérieur (une machine de GitHub, toutes les dix minutes) prévient d\'une panne, mais ne compte pas la disponibilité : ce chiffre est celui que le serveur voit de lui-même',
 
   // Les dernières 24 heures, en quatre tuiles.
   'console.ecran.service.tuile.titre': 'les dernières 24 heures',
@@ -2443,11 +2443,11 @@ declarerTextes({
   'console.ecran.service.pf.x.machine_lien': 'la machine, sur la vue d\'ensemble',
   'console.ecran.service.pf.e.titre': 'vu de l\'extérieur',
   'console.ecran.service.pf.e.sous': 'ce qu\'un client voit, réseau compris',
-  'console.ecran.service.pf.e.texte': 'tout ce qui précède est mesuré par le serveur lui-même : il ne voit ni une fibre coupée à Sfax, ni un nom de domaine mal réglé. Un service extérieur regarderait le site chaque minute, depuis deux villes, et dirait :',
+  'console.ecran.service.pf.e.texte': 'tout ce qui précède est mesuré par le serveur lui-même : il ne voit ni une fibre coupée à Sfax, ni un nom de domaine mal réglé. Le guet extérieur (une machine de GitHub, toutes les dix minutes) prévient déjà quand le site ne répond plus ; un service qui mesure, depuis deux villes, dirait en plus :',
   'console.ecran.service.pf.e.l1': 'si le site répond pour un client de Tunis comme pour un client de Sfax ;',
   'console.ecran.service.pf.e.l2': 'le temps de réponse tel qu\'un client le vit, réseau compris ;',
   'console.ecran.service.pf.e.l3': 'et la disponibilité vue de l\'extérieur, la seule qui compte pour un engagement.',
-  'console.ecran.service.pf.e.decider': 'à décider : le service et les deux villes',
+  'console.ecran.service.pf.e.decider': 'à décider : le service qui mesure, et ses deux villes',
   'console.ecran.service.sg.sous': 'ce qu\'on promet de pouvoir reprendre, et ce que la mesure en dit ; où sont les copies, nuit par nuit ; les exercices de restauration et les remises d\'une entreprise. La console ne touche jamais au serveur : un geste se fait dans sa console, avec la commande à copier',
   'console.ecran.service.sg.situation': 'la situation',
   // Les quatre chiffres.
@@ -3236,8 +3236,8 @@ declarerTextes({
   'console.ecran.service.regle.certificat.parle': 'moins de {jours} jours avant sa fin ; grave à {joursGrave}, ou illisible',
   'console.ecran.service.regle.certificat.enjeu': 'expiré, les navigateurs refusent d\'ouvrir SkanFact',
   'console.ecran.service.regle.exterieur.nom': 'la vérification de l\'extérieur',
-  'console.ecran.service.regle.exterieur.regarde': 'le site, vu depuis deux villes, comme un client le voit',
-  'console.ecran.service.regle.exterieur.parle': 'pas de réponse pendant {minutes} minutes',
+  'console.ecran.service.regle.exterieur.regarde': 'le site et son programme, ouverts toutes les dix minutes par le guet extérieur, une machine de GitHub',
+  'console.ecran.service.regle.exterieur.parle': 'trois essais sans réponse : un ticket sur GitHub, qui prévient par e-mail ; ici, quand le guet ne passe plus depuis {minutes} minutes, ou qu\'un serveur aux vraies données n\'est pas guetté',
   'console.ecran.service.regle.exterieur.manque': 'aucun service ne vérifie encore de l\'extérieur : une panne du réseau de l\'hébergeur ne se voit pas d\'ici',
   'console.ecran.service.regle.replique.nom': 'la réplique de la base',
   'console.ecran.service.regle.replique.regarde': 'le retard de la réplique sur le site de secours',

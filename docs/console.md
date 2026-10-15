@@ -1237,6 +1237,13 @@ sa ligne au journal (la direction et le support) :
   préversion ne compte pas encore —, elle dit « corrigée en 1.32.0, en service » avec « à dire au client », et sa ligne
   de la liste porte « Corrigée ». Retirer la version la fait ne plus rien attendre.
 
+**C49. Le guet extérieur** (1.33.0 ; la liste des fonctions qui manquent, 22 ; `docs/mise-en-ligne.md`, I bis). Une machine
+de GitHub regarde chaque serveur de l'extérieur toutes les dix minutes et ouvre un ticket quand il ne répond plus. La
+console le montre par la veille : la règle « vu de l'extérieur » (Service › Alertes, brique « le programme ») est
+branchée — « le guet extérieur ne passe plus depuis … » (une heure), et, sur un serveur aux vraies données, « ce serveur
+n'est pas guetté de l'extérieur ». La disponibilité et les performances disent toujours « vu de l'extérieur : non
+mesuré » : le guet prévient, il ne compte pas.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

@@ -167,7 +167,9 @@ describe('les alertes en cours, qui est prévenu, les règles, l\'histoire', () 
     expect(etat('disques')?.etat).toBe('attention');
     expect(etat('temps')).toMatchObject({ etat: 'trop_peu', lu: { etat: 'trop_peu', p95: null, lectures: 4 } });
     expect(etat('certificat')?.etat).toBe('calme');
-    expect(etat('exterieur')?.etat).toBe('pas_branchee');
+    expect(etat('replique')?.etat).toBe('pas_branchee');
+    // Le guet extérieur (1.33.0) : branché ; rien de lu contre lui, il est calme.
+    expect(etat('exterieur')?.etat).toBe('calme');
     // Sa dernière alerte : la plus récente de ce que la base garde.
     expect(etat('service')?.derniere).toEqual({ cle: 'service', debut: h('02:00'), fin: h('02:10'), grave: true });
     // La veille s'est tue depuis vingt minutes : rien n'est « calme », et ce qu'elle a lu ne vaut plus pour maintenant.
