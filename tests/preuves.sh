@@ -10891,7 +10891,7 @@ CONSW5='la technique : l'"'"'accueil et le service seulement ; les clients ne so
 CONSW6='en clair et en sombre, à l'"'"'ordinateur et au téléphone : l'"'"'instrument ne trouve rien ; en langue factice, tout vient du catalogue'
 CONSW7='le service des écrans de l'"'"'application ne garde jamais la console'
 prouver '« À décider » qui invente du travail : chaque essai à décider' serveur/console/decider.ts \
-  '      } else if (s.etat === '"'"'essai'"'"' && s.jours <= ESSAI_SANS_USAGE_JOURS && e.pieces === 0) {' '      } else if (s.etat === '"'"'essai'"'"') {' \
+  '      } else if (s.etat === '"'"'essai'"'"' && s.jours <= ESSAI_SANS_USAGE_JOURS && !aServi(e)) {' '      } else if (s.etat === '"'"'essai'"'"') {' \
   "$CONSD1"
 prouver '« À décider » rangé sans les jours qui restent' serveur/console/decider.ts \
   '  return lignes.sort((a, b) => a[0] - b[0] || a[1] - b[1]).map(([, , l]) => l);' '  return lignes.sort((a, b) => a[0] - b[0]).map(([, , l]) => l);' \
@@ -10903,7 +10903,7 @@ prouver 'une suspension qui revient à décider' serveur/console/decider.ts \
   'else if (s.etat === '"'"'lecture_seule'"'"' && s.raison !== '"'"'suspendu'"'"' && joursEntre' 'else if (s.etat === '"'"'lecture_seule'"'"' && joursEntre' \
   "$CONSD2"
 prouver 'un essai qui a servi pris pour un essai sans usage' serveur/console/decider.ts \
-  ' && s.jours <= ESSAI_SANS_USAGE_JOURS && e.pieces === 0) {' ' && s.jours <= ESSAI_SANS_USAGE_JOURS) {' \
+  ' && s.jours <= ESSAI_SANS_USAGE_JOURS && !aServi(e)) {' ' && s.jours <= ESSAI_SANS_USAGE_JOURS) {' \
   "$CONSD2"
 prouver 'l'"'"'essai sans usage annoncé dix jours avant' serveur/console/decider.ts \
   'export const ESSAI_SANS_USAGE_JOURS = 3;' 'export const ESSAI_SANS_USAGE_JOURS = 10;' \
@@ -10925,13 +10925,13 @@ prouver 'la technique qui lit les clients dans « À décider »' serveur/consol
   '  const clients = role !== '"'"'technique'"'"';' '  const clients = true;' \
   "$CONSD4"
 prouver 'des revenus à zéro qui passent pour une mesure' serveur/console/decider.ts \
-  '  revenus: Mesure = { mesure: false, raison: '"'"'editeur_absent'"'"' }): Tableau {' '  revenus: Mesure = { mesure: true, montant: '"'"'0.000'"'"', devise: '"'"'TND'"'"', reglements: 0 }): Tableau {' \
+  '  revenus: Mesure = { mesure: false, raison: '"'"'editeur_absent'"'"' }, inscriptions' '  revenus: Mesure = { mesure: true, montant: '"'"'0.000'"'"', devise: '"'"'TND'"'"', reglements: 0 }, inscriptions' \
   "$CONSD5"
 prouver 'un service vert sans veille' serveur/console/decider.ts \
   '    service: veille.etat === '"'"'absente'"'"' ? { etat: '"'"'non_mesure'"'"', raison: '"'"'pas_de_veille'"'"' }' '    service: veille.etat === '"'"'absente'"'"' ? { etat: '"'"'ok'"'"' }' \
   "$CONSD5"
 prouver 'la tuile des inscriptions qui compte tout le monde' serveur/console/decider.ts \
-  '    entreprisesDeLaSemaine: liste.filter((e) => inscriteCetteSemaine(e, jour)).length,' '    entreprisesDeLaSemaine: liste.length,' \
+  '    entreprisesDeLaSemaine: inscriptions ?? liste.filter((e) => inscriteCetteSemaine(e, jour)).length,' '    entreprisesDeLaSemaine: inscriptions ?? liste.length,' \
   "$CONSD6"
 prouver 'une recherche des clients qui tient aux accents' serveur/console/decider.ts \
   'const plier = (t: string) => t.normalize('"'"'NFD'"'"').replace(/\p{M}/gu, '"'"''"'"').toLowerCase();' 'const plier = (t: string) => t.toLowerCase();' \
@@ -10960,9 +10960,9 @@ prouver 'un code d'"'"'application jamais vérifié' serveur/console/connexion.t
   'verifierTotp(lu.code_secret ?? '"'"''"'"', saisi, maintenant.getTime());' 'true;' \
   "$CONSS2"
 prouver 'un jeton de l'"'"'application qui ouvre la console' serveur/app.ts \
-  'const qc = jeton ? await quiEstConsole(ctx, jeton) : null;' 'const qc = jeton ? (await quiEstConsole(ctx, jeton)) ?? await (async () => { const q = await quiEst(ctx, jeton); return q ? { utilisateur: q.utilisateur, session: q.session, appareil: q.appareil, role: '"'"'direction'"'"' as const } : null; })() : null;' \
+  'const qc = jeton ? await quiEstConsole(ctx, jeton, requete.headers['"'"'x-console-auto'"'"'] !== '"'"'1'"'"') : null;' 'const qc = jeton ? (await quiEstConsole(ctx, jeton)) ?? await (async () => { const q = await quiEst(ctx, jeton); return q ? { utilisateur: q.utilisateur, session: q.session, appareil: q.appareil, role: '"'"'direction'"'"' as const } : null; })() : null;' \
   "$CONSS3"
-prouver 'une session de la console sans fin d'"'"'inaction' base/migrations/0083_console.sql \
+prouver 'une session de la console sans fin d'"'"'inaction' base/migrations/0114_chiffres_justes.sql \
   '     and s.expire_le > p_maintenant and s.derniere_activite + interval '"'"'1 hour'"'"' > p_maintenant
 ' '     and s.expire_le > p_maintenant
 ' \
@@ -10994,10 +10994,10 @@ prouver 'une fonction de la console qui se passe de session' base/migrations/008
   '  if v is null then perform socle.refus('"'"'la console demande une session de la console : connecte-toi à la console'"'"'); end if;
 ' '' \
   "$CONSS7"
-prouver 'les entreprises d'"'"'exemple dans la liste de la console' base/migrations/0083_console.sql \
+prouver 'les entreprises d'"'"'exemple dans la liste de la console' base/migrations/0114_chiffres_justes.sql \
   '   where not e.essai);' '   where true);' \
   "$CONSS8"
-prouver 'la fiche d'"'"'une entreprise d'"'"'exemple dans la console' base/migrations/0083_console.sql \
+prouver 'la fiche d'"'"'une entreprise d'"'"'exemple dans la console' base/migrations/0114_chiffres_justes.sql \
   'where e.id = p_entreprise and not e.essai;' 'where e.id = p_entreprise;' \
   "$CONSS8"
 prouver 'la liste des clients rangée par date, pas par urgence' 'serveur/console/organisations.ts' \
@@ -11012,7 +11012,7 @@ prouver 'la liste des inscriptions qui montre tout le monde' serveur/console/rou
 prouver 'les puces des inscriptions comptées sur toutes les entreprises' serveur/console/routes.ts \
   '[c, dansVue.filter((o) => categorieOrg(o) === c).length]' '[c, toutes.filter((o) => categorieOrg(o) === c).length]' \
   "$CONSS9"
-prouver 'le téléphone d'"'"'un membre dans la fiche de la console' base/migrations/0083_console.sql \
+prouver 'le téléphone d'"'"'un membre dans la fiche de la console' base/migrations/0114_chiffres_justes.sql \
   'jsonb_build_object('"'"'nom'"'"', u.nom, '"'"'email'"'"', u.email, '"'"'roles'"'"', m.roles, '"'"'depuis'"'"', m.depuis,' 'jsonb_build_object('"'"'nom'"'"', u.nom, '"'"'email'"'"', u.email, '"'"'telephone'"'"', u.telephone, '"'"'roles'"'"', m.roles, '"'"'depuis'"'"', m.depuis,' \
   "$CONSS10"
 prouver 'un aperçu qui réclame le motif du geste' serveur/console/routes.ts \
@@ -11064,7 +11064,7 @@ prouver 'un membre retiré qui se connecte encore' base/migrations/0083_console.
 ' '  select e.role from plateforme.equipe e where e.utilisateur = p_utilisateur
 ' \
   "$CONSS17"
-prouver 'les sessions d'"'"'un membre retiré qui restent ouvertes' 'base/migrations/0083_console.sql|||base/migrations/0083_console.sql' \
+prouver 'les sessions d'"'"'un membre retiré qui restent ouvertes' 'base/migrations/0083_console.sql|||base/migrations/0114_chiffres_justes.sql' \
   '  update plateforme.session_console set fermee_le = p_maintenant where utilisateur = p_membre and fermee_le is null;
 |||   where e.utilisateur = s.utilisateur and e.actif
 ' '|||   where e.utilisateur = s.utilisateur
@@ -11814,12 +11814,12 @@ prouver 'Ctrl K sans effet hors de l'"'"'accueil' 'web/console/src/Console.tsx' 
   'l'"'"'en-tête du service : l'"'"'alerte la plus urgente une fois'
 
 prouver 'un essai qui a servi, à appeler quand même' 'serveur/console/clients.ts' \
-  "(s.etat === 'essai' && s.jours <= ESSAI_QUI_FINIT_JOURS && e.pieces === 0 && !e.enPlus?.attend)" \
+  "(s.etat === 'essai' && s.jours <= ESSAI_QUI_FINIT_JOURS && !aServi(e) && !e.enPlus?.attend)" \
   "(s.etat === 'essai' && s.jours <= ESSAI_QUI_FINIT_JOURS && !e.enPlus?.attend)" \
   'chaque vue garde exactement les entreprises de sa phrase'
 prouver 'un silence compté en jours UTC' 'serveur/console/clients.ts' \
-  'joursEntre(aujourdhuiATunis(new Date(e.derniereActivite)), jour) >= SILENCE_JOURS' \
-  'joursEntre(e.derniereActivite.slice(0, 10), jour) >= SILENCE_JOURS' \
+  ': aujourdhuiATunis(new Date(e.derniereActivite)), jour) >= SILENCE_JOURS' \
+  ': e.derniereActivite.slice(0, 10), jour) >= SILENCE_JOURS' \
   'chaque vue garde exactement les entreprises de sa phrase'
 prouver 'un mensuel compté pour un seul mois' 'serveur/console/renouvellements.ts' \
   'parAnHt: d.periodicite === '"'"'mensuel'"'"' ? unePeriode * 12n : unePeriode }];' \
@@ -11875,7 +11875,7 @@ prouver 'un paiement sans sa preuve écrit par la base' 'base/migrations/0113_ar
   '  if false then
     if length(btrim(' \
   "$AJ2"
-prouver 'un paiement reçu absent de Paiements' 'base/migrations/0113_argent_juste.sql' \
+prouver 'un paiement reçu absent de Paiements' 'base/migrations/0114_chiffres_justes.sql' \
   '                       where v.nature = '"'"'paye'"'"' and v.par = '"'"'exploitation'"'"' and v.apres->>'"'"'le'"'"'' \
   '                       where false and v.nature = '"'"'paye'"'"' and v.par = '"'"'exploitation'"'"' and v.apres->>'"'"'le'"'"'' \
   "$AJ2"
@@ -11900,7 +11900,7 @@ prouver 'l'"'"'échéance qui dit l'"'"'offre seule' 'serveur/console/renouvelle
   'periodeHt: htDeLaPeriode(prixHt, enPlus, remise),' \
   'periodeHt: htDeLaPeriode(prixHt, [], remise),' \
   "$AJ3"
-prouver 'une facture défaite absente de Paiements' 'base/migrations/0113_argent_juste.sql' \
+prouver 'une facture défaite absente de Paiements' 'base/migrations/0114_chiffres_justes.sql' \
   '                 where f.editeur = v_editeur and f.payee_le is not null
 ' \
   '                 where false and f.editeur = v_editeur and f.payee_le is not null
@@ -11938,8 +11938,8 @@ prouver 'une facture défaite qui tait ce qui est à rendre' 'serveur/console/de
   'cause: d.cause, trop: tropDe.get(d.piece) ?? null }]);' \
   'cause: d.cause, trop: null }]);' \
   "$AJ5"
-prouver 'une facture annulée par un avoir dite au règlement retiré' 'base/migrations/0113_argent_juste.sql' \
-  ''"'"'cause'"'"', case when s.avoirs >= p.net_a_payer then '"'"'avoir'"'"' else '"'"'reglement'"'"' end)' \
+prouver 'une facture annulée par un avoir dite au règlement retiré' 'base/migrations/0114_chiffres_justes.sql' \
+  ''"'"'cause'"'"', case when s.avoirs > 0 and s.avoirs >= p.net_a_payer - coalesce(p.timbre, 0) then '"'"'avoir'"'"' else '"'"'reglement'"'"' end)' \
   ''"'"'cause'"'"', '"'"'reglement'"'"')' \
   "$AJ4"
 prouver 'une grâce qui ne se renouvelle pas' 'serveur/console/renouvellements.ts' \
@@ -11997,8 +11997,8 @@ prouver 'le jour d'"'"'aujourd'"'"'hui écrit en date seule' 'web/console/src/ec
   '  const n = 99 + joursEntre(jour, aujourdhui);' \
   'le journal : qui se choisit d'"'"'un clic'
 prouver 'une pilule de membre qui ne filtre pas le journal' 'web/console/src/ecrans/Journal.tsx' \
-  'onClick={() => setQui(m.utilisateur)}' \
-  'onClick={() => setQui(qui)}' \
+  'onClick={() => setF((x) => ({ ...x, qui: m.utilisateur, systeme: false }))}' \
+  'onClick={() => setF((x) => ({ ...x, systeme: false }))}' \
   'le journal : qui se choisit d'"'"'un clic'
 
 # La fiche d'un client recalée sur sa maquette (docs/console.md C21) : ce qui attend pour ce client vient d'« À décider »,
@@ -12131,14 +12131,14 @@ TR2='les tours se notent par le serveur, leur échec par sa nature seule ; une T
 TR3='une panne se réessaie seule ; un refus, un compte retenu ou un échec attendent l'"'"'entreprise'
 TR4='passé à son rythme, en échec, arrêté après trois pas sans passage ; jamais vu, il n'"'"'a pas encore de trace'
 TR5='ne garde que des nombres nommés, et la nature d'"'"'une erreur, jamais son message'
-prouver "deux envois de la même seconde sous la même clé" base/migrations/0090_service_travaux.sql \
+prouver "deux envois de la même seconde sous la même clé" base/migrations/0114_chiffres_justes.sql \
   "upper(right(replace(v.piece::text, '-', ''), 8))" "upper(left(replace(v.piece::text, '-', ''), 8))" \
   "$TR1"
-prouver "une entreprise d'essai à regarder" base/migrations/0090_service_travaux.sql \
+prouver "une entreprise d'essai à regarder" base/migrations/0114_chiffres_justes.sql \
   "where not e.essai and ((v.statut in ('a_envoyer', 'deposee')" "where ((v.statut in ('a_envoyer', 'deposee')" \
   "$TR1"
-prouver "le nom d'une entreprise montré à la technique" base/migrations/0090_service_travaux.sql \
-  "jsonb_build_object('id', v.entreprise, 'nom', case when v_role = 'direction'" "jsonb_build_object('id', v.entreprise, 'nom', case when true" \
+prouver "le nom d'une entreprise montré à la technique" base/migrations/0114_chiffres_justes.sql \
+  "'entreprise', case when v_role = 'direction' then jsonb_build_object('id', v.entreprise, 'nom', e.raison_sociale) end," "'entreprise', jsonb_build_object('id', v.entreprise, 'nom', e.raison_sociale)," \
   "$TR1"
 prouver "le texte d'un motif montré à la technique" serveur/console/routes.ts \
   "m && roleDe(qui) === 'direction' ? texteDuMotif(m) : null" "m ? texteDuMotif(m) : null" \
@@ -12621,7 +12621,7 @@ end' \
 prouver 'une demande atteinte par une autre entreprise de la même personne' base/migrations/0095_support.sql \
   'where d.id = p_demande and d.demandeur = socle.moi() and d.entreprise = p_entreprise;' 'where d.id = p_demande and d.demandeur = socle.moi();' \
   "$SUP4"
-prouver 'la technique qui lit le support' 'serveur/console/gestes.ts|||base/migrations/0095_support.sql' \
+prouver 'la technique qui lit le support' 'serveur/console/gestes.ts|||base/migrations/0114_chiffres_justes.sql' \
   '  { code: '"'"'console.support.voir'"'"', roles: [D, S], ecrit: false },|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
   return jsonb_build_object(
     '"'"'ouvertes'"'"'' '  { code: '"'"'console.support.voir'"'"', roles: [D, S, T], ecrit: false },|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']);
@@ -13633,7 +13633,7 @@ PW1='la direction seule : le support n'"'"'a ni l'"'"'entrée « Paiements » ni
 PW2='la tuile de l'"'"'accueil et le bandeau disent le même encaissé ; la facture qui doit encore mène à sa pièce'
 PW3='un coût : la case refusée se montre ; saisi, ce qui reste du mois se dit ; retiré, il reste barré'
 PW4='d'"'"'un mois à l'"'"'autre, les boutons ne bougent pas sous la souris ; au téléphone, rien ne déborde'
-prouver 'le support qui lit les paiements (le droit du serveur et la base)' 'serveur/console/gestes.ts|||base/migrations/0113_argent_juste.sql' \
+prouver 'le support qui lit les paiements (le droit du serveur et la base)' 'serveur/console/gestes.ts|||base/migrations/0114_chiffres_justes.sql' \
   '  { code: '"'"'console.paiements.voir'"'"', roles: [D], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);
   v_editeur uuid;' '  { code: '"'"'console.paiements.voir'"'"', roles: [D, S], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
   v_editeur uuid;' \
@@ -13644,7 +13644,7 @@ prouver 'la tuile de l'"'"'encaissé montrée au support' serveur/console/routes
 prouver 'la tuile qui compte autre chose que l'"'"'écran' serveur/console/paiements.ts \
   '  return { mesure: true, montant: versTexte(e.total, e.decimales), devise: e.devise, reglements: e.reglements };' '  return { mesure: true, montant: versTexte(e.parMoyen.virement, e.decimales), devise: e.devise, reglements: e.reglements };' \
   "$PA3"
-prouver 'un paiement reçu compté dans l'"'"'encaissé d'"'"'une autre entreprise SkanFact' 'base/migrations/0113_argent_juste.sql' \
+prouver 'un paiement reçu compté dans l'"'"'encaissé d'"'"'une autre entreprise SkanFact' 'base/migrations/0114_chiffres_justes.sql' \
   'v_debut and v_fin
                          and v.apres->>'"'"'editeur'"'"' = v_editeur::text),' \
   'v_debut and v_fin),' \
@@ -13655,19 +13655,19 @@ prouver 'une autre devise additionnée au dinar' serveur/console/paiements.ts \
 prouver '« en ligne » cru Konnect sans la preuve' serveur/console/paiements.ts \
   '  if (mode === '"'"'en_ligne'"'"') return prouve ? '"'"'konnect'"'"' : '"'"'autre'"'"';' '  if (mode === '"'"'en_ligne'"'"') return '"'"'konnect'"'"';' \
   "$PA10"
-prouver 'la preuve d'"'"'un autre paiement en ligne qui vaut pour tous' base/migrations/0113_argent_juste.sql \
+prouver 'la preuve d'"'"'un autre paiement en ligne qui vaut pour tous' base/migrations/0114_chiffres_justes.sql \
   ' and l.reglement_v10 = r.ref_v10))' '))' \
   "$PA4"
-prouver 'les règlements de tous les mois dans celui-ci' base/migrations/0113_argent_juste.sql \
+prouver 'les règlements de tous les mois dans celui-ci' base/migrations/0114_chiffres_justes.sql \
   '               where f.editeur = v_editeur and r.date_reglement between v_debut and v_fin),' '               where f.editeur = v_editeur),' \
   "$PA4"
-prouver 'le trop payé jamais relu' base/migrations/0113_argent_juste.sql \
+prouver 'le trop payé jamais relu' base/migrations/0114_chiffres_justes.sql \
   '                         - (select coalesce(sum(r.montant), 0) from ventes.reglement r where r.entreprise = p.entreprise and r.piece = p.id) <> 0) x),' '                         - (select coalesce(sum(r.montant), 0) from ventes.reglement r where r.entreprise = p.entreprise and r.piece = p.id) > 0) x),' \
   "$PA5"
 prouver 'une facture annulée réglée dite simplement trop payée' serveur/console/paiements.ts \
-  '    if (enTrop > 0n) trop.push({ ...base, trop: versTexte(enTrop, o.decimales), annulee: o.net > 0n && solde.credite >= o.net });' '    if (enTrop > 0n) trop.push({ ...base, trop: versTexte(enTrop, o.decimales), annulee: false });' \
+  '    if (enTrop > 0n) trop.push({ ...base, trop: versTexte(enTrop, o.decimales), annulee: annuleeParSesAvoirs(o.net, solde.credite, o.timbre) });' '    if (enTrop > 0n) trop.push({ ...base, trop: versTexte(enTrop, o.decimales), annulee: false });' \
   "$PA11"
-prouver 'une facture émise dite à émettre' base/migrations/0113_argent_juste.sql \
+prouver 'une facture émise dite à émettre' base/migrations/0114_chiffres_justes.sql \
   '                   and not exists (select 1 from ventes.piece p where p.entreprise = f.editeur and p.ref_v10 = f.piece_v10' '                   and exists (select 1 from ventes.piece p where p.entreprise = f.editeur and p.ref_v10 = f.piece_v10' \
   "$PA6"
 prouver 'un nom de coût refusé sans nommer sa case' serveur/console/routes.ts \
@@ -13682,7 +13682,7 @@ prouver 'un coût retiré deux fois' base/migrations/0108_paiements.sql \
 ' '' \
   "$PA8"
 prouver 'ce qui reste dit sans aucun coût saisi' serveur/console/paiements.ts \
-  ' && gardes.length ? versTexte(e.total - total, 3) : null,' ' ? versTexte(e.total - total, 3) : null,' \
+  ' && gardes.length ? versTexte(e.total - total, 3) : null;' ' ? versTexte(e.total - total, 3) : null;' \
   "$PA12"
 prouver 'un mois à venir demandé' serveur/console/paiements.ts \
   '  return v > courant ? courant : v;' '  return v;' \
@@ -13777,13 +13777,13 @@ CLW1='les pages : la première, les numéros, la seconde, et la taille d'"'"'une
 CLW2='le menu d'"'"'une ligne : les gestes permis, ce qui détruit après un trait ; un geste s'"'"'ouvre sur la liste et la ligne le dit'
 CLW3='le support : prolonger et demander l'"'"'accès, la note de ce qui revient à la direction ; jamais l'"'"'export'
 CLW4='en clair et en sombre, à l'"'"'ordinateur et au téléphone : l'"'"'instrument ne trouve rien ; en langue factice, tout vient du catalogue'
-prouver 'le support qui exporte la liste des clients (le droit du serveur et la base)' 'serveur/console/gestes.ts|||base/migrations/0110_clients.sql' \
+prouver 'le support qui exporte la liste des clients (le droit du serveur et la base)' 'serveur/console/gestes.ts|||base/migrations/0114_chiffres_justes.sql' \
   '  { code: '"'"'console.clients.exporter'"'"', roles: [D], ecrit: true },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);
   v_id uuid;' \
   '  { code: '"'"'console.clients.exporter'"'"', roles: [D, S], ecrit: true },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
   v_id uuid;' \
   "$CL1"
-prouver 'le journal d'"'"'un export qui perd ses filtres' 'base/migrations/0110_clients.sql' \
+prouver 'le journal d'"'"'un export qui perd ses filtres' 'base/migrations/0114_chiffres_justes.sql' \
   ''"'"'filtres'"'"', coalesce(p_filtres, '"'"'{}'"'"'::jsonb)' \
   ''"'"'filtres'"'"', '"'"'{}'"'"'::jsonb' \
   "$CL1"
@@ -13808,8 +13808,8 @@ prouver 'une facture annulée par son avoir qui attend encore' 'serveur/console/
   'const ATTEND = new Set(['"'"'a_emettre'"'"', '"'"'a_payer'"'"', '"'"'en_retard'"'"', '"'"'partielle'"'"', '"'"'annulee'"'"']);' \
   "$CL0"
 prouver 'un essai dont la facture attend, encore « à appeler »' 'serveur/console/clients.ts' \
-  ' && e.pieces === 0 && !e.enPlus?.attend)' \
-  ' && e.pieces === 0)' \
+  ' && !aServi(e) && !e.enPlus?.attend)' \
+  ' && !aServi(e))' \
   "$CL3"
 prouver 'un essai dont la facture attend, absent de « l'"'"'argent attendu »' 'serveur/console/clients.ts' \
   ' || ((s.etat === '"'"'essai'"'"' || s.etat === '"'"'en_retard'"'"') && !!e.enPlus?.attend);' \
