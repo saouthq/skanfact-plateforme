@@ -679,6 +679,10 @@ vaut pour tout le dépôt.*
     `arrivees` de `serveur/console/clients.ts`, `premiereFactureLe` de `plateforme.console_clients_en_plus` ; la carte
     « Son arrivée » de `web/console/src/ecrans/Fiche.tsx` (`tests/console/arrivee.test.ts`, `tests/console/console.test.ts`,
     `tests/web/console.test.ts`).
+  - **Prévenir d'un coup les clients d'un incident** (1.35.0 ; `docs/console.md` C51, `0128`) :
+    `plateforme.console_repondre_incident`, la route `POST /console/support/incidents/:incident/repondre`, la fenêtre
+    « Prévenir les clients de cet incident » de `web/console/src/ecrans/Incidents.tsx` (`tests/console/demandes-incidents.test.ts`,
+    `tests/web/console-incidents.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

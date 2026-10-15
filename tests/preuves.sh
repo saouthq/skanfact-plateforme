@@ -15160,6 +15160,29 @@ prouver 'la fiche à l'"'"'écran sans son arrivée' 'web/console/src/ecrans/Fic
   '{null}' \
   'la fiche : prolonger un essai, avec l'"'"'aperçu du serveur et un motif ; la base, l'"'"'histoire et le journal le disent'
 
+# 1.35.0 : prévenir d'un coup les clients d'un incident (0128 ; la liste des fonctions qui manquent, 19).
+prouver 'une demande close prévenue' 'base/migrations/0128_prevenir_incident.sql' \
+  'where s.incident = p_incident and s.close_le is null order by s.id for update loop' \
+  'where s.incident = p_incident order by s.id for update loop' \
+  'chaque demande ouverte liée reçoit le même mot, une fois ; ni la close, ni celle d'"'"'à côté ; un renvoi n'"'"'écrit rien deux fois'
+prouver 'un renvoi qui double les réponses' 'base/migrations/0128_prevenir_incident.sql' \
+  'perform plateforme.console_repondre_demande(d.id, p_texte, null, p_maintenant, p_commande);' \
+  'perform plateforme.console_repondre_demande(d.id, p_texte, null, p_maintenant, null);' \
+  'chaque demande ouverte liée reçoit le même mot, une fois ; ni la close, ni celle d'"'"'à côté ; un renvoi n'"'"'écrit rien deux fois'
+prouver 'un renvoi qui double le journal' 'base/migrations/0128_prevenir_incident.sql' \
+  '  if v_nouvelles = 0 then return v_toutes; end if;
+' \
+  '' \
+  'chaque demande ouverte liée reçoit le même mot, une fois ; ni la close, ni celle d'"'"'à côté ; un renvoi n'"'"'écrit rien deux fois'
+prouver 'personne à prévenir, dit fait' 'base/migrations/0128_prevenir_incident.sql' \
+  '  if v_toutes = 0 then perform socle.refus' \
+  '  if false then perform socle.refus' \
+  'chaque demande ouverte liée reçoit le même mot, une fois ; ni la close, ni celle d'"'"'à côté ; un renvoi n'"'"'écrit rien deux fois'
+prouver 'l'"'"'écran tait le geste qui prévient' 'web/console/src/ecrans/Incidents.tsx' \
+  '  if (!cible.ouvertes || (moi.role !== '"'"'direction'"'"' && moi.role !== '"'"'support'"'"')) return null;' \
+  '  return null;' \
+  'l'"'"'incident ouvert porte le seul bouton principal ; la page d'"'"'état montrée est celle de la veille, avec son message'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

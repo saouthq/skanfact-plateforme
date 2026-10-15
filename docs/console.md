@@ -1259,6 +1259,16 @@ sait, sinon le jour avant lequel on l'attend), par la même fonction que la lign
 invitée n'est pas une marche (un commerçant seul n'invite personne : ce ne serait jamais « bloqué » à juste titre) ; elle
 se lit dans les comptes de la fiche.
 
+**C51. Prévenir d'un coup les clients d'un incident** (1.35.0 ; base 0128 ; la liste des fonctions qui manquent, 19 — la
+suite de C48). Quand des demandes sont liées à un incident, la direction et le support leur écrivent le même mot en une
+fois : « Répondre aux N demandes ouvertes… » sur l'incident ouvert, et dans le compte rendu d'un incident clos (« c'est
+réparé »). Chaque demande OUVERTE liée le reçoit comme une réponse ordinaire, avec sa ligne au journal, et son client en
+est prévenu comme pour toute réponse ; une demande close n'est pas rouverte, et personne d'autre ne reçoit rien. La
+fenêtre dit combien de demandes, rappelle que tous lisent le même mot (jamais le nom ni le détail d'un autre client) ;
+l'identifiant de commande tiré par l'écran fait qu'un renvoi après une coupure n'écrit rien deux fois. Le journal garde
+aussi le geste d'ensemble (« clients d'un incident prévenus d'un coup », l'incident et le nombre). La technique lit les
+incidents, pas les demandes : elle ne prévient personne.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

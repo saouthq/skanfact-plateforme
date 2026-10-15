@@ -477,6 +477,9 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'une version s\'écrit comme « 1.32.0 »', cle: 'base.support.version_illisible', fr: 'une version s\'écrit comme « 1.32.0 »' },
   { base: 'cette demande n\'attend aucune correction', cle: 'base.support.sans_correction', fr: 'cette demande n\'attend aucune correction' },
   { base: 'cette demande attend déjà cette version', cle: 'base.support.deja_correction', fr: 'cette demande attend déjà cette version' },
+  // Prévenir d'un coup les clients d'un incident (0128).
+  { base: 'une réponse à plusieurs demandes porte son identifiant de commande', cle: 'base.console.prevenir_commande', fr: 'une réponse à plusieurs demandes porte son identifiant de commande' },
+  { base: 'aucune demande ouverte n\'est liée à cet incident', cle: 'base.console.prevenir_aucune', fr: 'aucune demande ouverte n\'est liée à cet incident : il n\'y a personne à prévenir' },
   { base: 'cette demande n\'attend pas la technique', cle: 'base.support.pas_technique', fr: 'cette demande n\'attend pas la technique' },
   { base: 'cet envoi n\'existe pas', cle: 'base.travaux.envoi_inconnu', fr: 'cet envoi n\'existe pas' },
   { base: 'deux envois portent cette clé : ils se reprennent depuis le serveur, un par un', cle: 'base.travaux.cle_double', fr: 'deux envois portent cette clé : ils se reprennent depuis le serveur, un par un' },

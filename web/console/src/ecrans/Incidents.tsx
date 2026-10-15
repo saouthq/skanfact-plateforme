@@ -69,6 +69,8 @@ const TEMPS = ['contenir', 'dire', 'reparer', 'ecrire'] as const;
 // ── Les gestes ──────────────────────────────────────────────────────────────────────────────────────────────────────
 type Geste =
   | { sorte: 'ouvrir' }
+  // 0128 : la même réponse à chaque demande ouverte liée à un incident (ouvert, ou clos : « c'est réparé »).
+  | { sorte: 'prevenir'; cible: { id: string; ref: string; titre: string; ouvertes: number } }
   | { sorte: 'point'; i: Incident; public: boolean }
   | { sorte: 'retirer'; i: Incident }
   | { sorte: 'clore'; i: Incident }
@@ -108,6 +110,7 @@ function IncidentOuvert({ i, d, faire, premier }: { i: Incident; d: Donnees; fai
           <p className="c-carte-sous">{maj(dire(depuis < 1 ? `${I}.ouvert.depuis_instant` : `${I}.ouvert.depuis`, { quand: jourHeure(i.ouvertLe, d.aujourdhui), nom: i.ouvertPar, duree: minutes(depuis) }))}</p>
           {/* Les clients qui l'ont dit au support (0126) : combien, et combien attendent encore une réponse. */}
           <p className="c-in-demandes">{i.demandes.n ? `${maj(selon(i.demandes.n, `${I}.demandes.liees`))} · ${selon(i.demandes.ouvertes, `${I}.demandes.ouvertes`)}.` : phrase(`${I}.demandes.aucune`)}</p>
+          <Prevenir cible={{ id: i.id, ref: i.ref, titre: i.titre, ouvertes: i.demandes.ouvertes }} faire={faire} />
         </div>
         <div className="c-in-ouvert-gestes">
           <Bouton ton={premier ? 'principal' : 'secondaire'} icone="plus" onClick={() => faire({ sorte: 'point', i, public: false })}>{titre(`${I}.point.ajouter`)}</Bouton>
@@ -436,13 +439,13 @@ function useEnvoi(fait: () => void) {
   const [refus, setRefus] = useState<string | null>(null);
   const [champ, setChamp] = useState<{ nom: string; n: number } | null>(null);
   const [occupe, setOccupe] = useState(false);
-  const envoyer = (chemin: string, corps: unknown, dit: string) => {
+  const envoyer = (chemin: string, corps: unknown, dit: string | ((r: Record<string, unknown>) => string)) => {
     void (async () => {
       setOccupe(true);
       try {
         const r = await api('POST', chemin, corps);
         if (!r) return;
-        if (r.statut === 200 || r.statut === 201) { toast(dit); fait(); return; }
+        if (r.statut === 200 || r.statut === 201) { toast(typeof dit === 'string' ? dit : dit(r.corps)); fait(); return; }
         setRefus(refusDe(r));
         if (typeof r.corps.champ === 'string') setChamp((c) => ({ nom: r.corps.champ as string, n: (c?.n ?? 0) + 1 }));
       } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
@@ -541,6 +544,41 @@ function FenetrePoint({ i, publicDemande, fermer, fait }: { i: Incident; publicD
           <span className="c-champ-aide">{phrase(`${I}.point.monte_aide`)}</span>
         </div>
       ) : null}
+      <Qui />
+      {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+// Le geste qui prévient : à la direction et au support (la technique lit les incidents, pas les demandes), quand une
+// demande liée attend encore.
+function Prevenir({ cible, faire }: { cible: Extract<Geste, { sorte: 'prevenir' }>['cible']; faire: (g: Geste) => void }) {
+  const { moi } = useConsole();
+  if (!cible.ouvertes || (moi.role !== 'direction' && moi.role !== 'support')) return null;
+  return <Bouton petit icone="courriel" onClick={() => faire({ sorte: 'prevenir', cible })}>{maj(selon(cible.ouvertes, `${I}.prevenir.ouvrir`))}</Bouton>;
+}
+function FenetrePrevenir({ cible, fermer, fait }: { cible: Extract<Geste, { sorte: 'prevenir' }>['cible']; fermer: () => void; fait: () => void }) {
+  const e = useEnvoi(fait);
+  const [texte, setTexte] = useState('');
+  // Tirée une fois : un renvoi après une coupure garde la même, et la base n'écrit rien deux fois.
+  const commande = useRef(crypto.randomUUID());
+  const envoyer = () => {
+    if (texte.trim().length < 3) { e.refuser(phrase(`${I}.prevenir.court`), 'texte'); return; }
+    e.envoyer(`/console/support/incidents/${cible.id}/repondre`, { texte: texte.trim(), commande: commande.current },
+      (r) => { const n = Number(r.demandes ?? 0); return phrase(`${I}.prevenir.fait_${n === 1 ? '1' : 'n'}`, { n }); });
+  };
+  return (
+    <Dialogue titre={titre(`${I}.prevenir.titre`)} sous={`${cible.ref} · ${maj(cible.titre)}`} sousDonnee fermer={fermer} occupe={e.occupe}
+      pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={maj(selon(cible.ouvertes, `${I}.prevenir.bouton`))} />}>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre(`${K}.al.geste.ce_qui_va`)}</span>
+        <ul>
+          <li>{phrase(`${I}.prevenir.p1`, { n: selon(cible.ouvertes, `${I}.prevenir.demandes`) })}</li>
+          <li>{phrase(`${I}.prevenir.p2`)}</li>
+          <li>{phrase(`${I}.prevenir.p3`)}</li>
+        </ul>
+      </div>
+      <Zone libelle={titre(`${I}.prevenir.texte`)} aide={phrase(`${I}.prevenir.aide`)} valeur={texte} changer={setTexte} premier faute={e.faute('texte')} n={e.n} />
       <Qui />
       {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
     </Dialogue>
@@ -691,10 +729,18 @@ function FenetreAnnoncer({ d, fermer, fait }: { d: Donnees; fermer: () => void; 
   );
 }
 
-function FenetreLire({ p, d, fermer }: { p: Passe; d: Donnees; fermer: () => void }) {
+function FenetreLire({ p, d, fermer, faire }: { p: Passe; d: Donnees; fermer: () => void; faire: (g: Geste) => void }) {
   return (
     <Dialogue titre={`${p.ref} · ${maj(p.titre)}`} titreDonnee sous={maj(dire(`${I}.lire.sous`, { quand: jourHeure(p.ouvertLe, d.aujourdhui), duree: minutes(p.minutes), g: nomGravite(p.gravite) }))} fermer={fermer}
       pied={<Bouton onClick={fermer}>{titre('console.ecran.fermer')}</Bouton>}>
+      {/* Clos, il a encore des clients qui attendent : leur dire « c'est réparé », d'un coup (0128). */}
+      {p.demandes.n ? (
+        <div className="c-in-cr">
+          <span className="c-champ-libelle">{titre(`${I}.prevenir.clients`)}</span>
+          <p>{`${maj(selon(p.demandes.n, `${I}.demandes.liees`))} · ${selon(p.demandes.ouvertes, `${I}.demandes.ouvertes`)}.`}</p>
+          <Prevenir cible={{ id: p.id, ref: p.ref, titre: p.titre, ouvertes: p.demandes.ouvertes }} faire={faire} />
+        </div>
+      ) : null}
       {(['effet', 'cause', 'change'] as const).map((k) => (
         <div key={k} className="c-in-cr">
           <span className="c-champ-libelle">{titre(`${I}.clore.${k}`)}</span>
@@ -725,14 +771,15 @@ function FenetreFiche({ f, fermer }: { f: string; fermer: () => void }) {
   );
 }
 
-function Fenetre({ g, d, fermer, fait }: { g: Geste; d: Donnees; fermer: () => void; fait: () => void }) {
+function Fenetre({ g, d, fermer, fait, changer }: { g: Geste; d: Donnees; fermer: () => void; fait: () => void; changer: (g: Geste) => void }) {
   switch (g.sorte) {
     case 'ouvrir': return <FenetreOuvrir d={d} fermer={fermer} fait={fait} />;
     case 'point': return <FenetrePoint i={g.i} publicDemande={g.public} fermer={fermer} fait={fait} />;
     case 'clore': return <FenetreClore i={g.i} d={d} fermer={fermer} fait={fait} />;
     case 'repousser': return <FenetreRepousser s={g.s} d={d} fermer={fermer} fait={fait} />;
     case 'annoncer': return <FenetreAnnoncer d={d} fermer={fermer} fait={fait} />;
-    case 'lire': return <FenetreLire p={g.p} d={d} fermer={fermer} />;
+    case 'lire': return <FenetreLire p={g.p} d={d} fermer={fermer} faire={changer} />;
+    case 'prevenir': return <FenetrePrevenir cible={g.cible} fermer={fermer} fait={fait} />;
     case 'fiche': return <FenetreFiche f={g.f} fermer={fermer} />;
     case 'retirer':
       return <FenetreMotif titreF={titre(`${I}.retirer.titre`)} sous={`${g.i.ref} · ${maj(g.i.titre)}`} points={[phrase(`${I}.retirer.p1`), phrase(`${I}.retirer.p2`)]}
@@ -778,7 +825,7 @@ export function Incidents() {
           <Fiches d={d} faire={setGeste} />
         </>
       ) : null}
-      {geste && d ? <Fenetre g={geste} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} /> : null}
+      {geste && d ? <Fenetre g={geste} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} changer={setGeste} /> : null}
     </>
   );
 }

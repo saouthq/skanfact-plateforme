@@ -2000,6 +2000,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-in-temps { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; }
 .c-in-temps p { margin: 4px 0 0; }
 .c-in-cr { display: grid; gap: 4px; }
+.c-in-cr > .c-btn { justify-self: start; margin-top: 4px; }
 .c-in-cr p { margin: 0; white-space: pre-line; }
 .c-in-case { display: flex; align-items: flex-start; gap: 10px; font-size: 15px; cursor: pointer; }
 .c-in-case input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--c-btn); flex: none; }

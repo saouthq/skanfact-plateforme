@@ -202,3 +202,49 @@ describe('une demande et la version qui la corrige (0126)', () => {
     expect(versionAtteinte('1.32.0', null)).toBe(false);
   });
 });
+
+describe('prévenir d\'un coup les clients d\'un incident (0128)', () => {
+  const messages = async (demandeId: string) => (await admin.query(
+    "select texte from plateforme.message_support where demande = $1 and cote = 'equipe' order by ecrit_le", [demandeId])).rows.map((r) => r.texte as string);
+  const prevenir = (incident: string, jeton: string, texte: string, commande: string) =>
+    appeler('POST', `/console/support/incidents/${incident}/repondre`, jeton, { texte, commande });
+
+  it('chaque demande ouverte liée reçoit le même mot, une fois ; ni la close, ni celle d\'à côté ; un renvoi n\'écrit rien deux fois', async () => {
+    const a = await entreprise('Boulangerie Prévenue'), b = await entreprise('Librairie Prévenue'), c = await entreprise('Garage Prévenu');
+    const inc = await ouvrirIncident('Les PDF ne partent plus du tout');
+    const da = await demande(a.ent, a.proprio.id, 'Mon PDF ne part pas', 2);
+    const db = await demande(b.ent, b.proprio.id, 'Impossible d\'envoyer la facture', 1);
+    const close = await demande(c.ent, c.proprio.id, 'PDF bloqué', 3);
+    const aCote = await demande(c.ent, c.proprio.id, 'Une autre question', 1);
+    for (const d of [da, db, close]) {
+      expect((await appeler('POST', `/console/support/demandes/${d}/incident`, support.console, { incident: inc.id, motif: 'la même panne' })).statut).toBe(200);
+    }
+    await admin.query('update plateforme.demande_support set close_le = now(), close_cote = $2, close_par = $3 where id = $1', [close, 'client', c.proprio.id]);
+    expect(await demandesDe(inc.id)).toEqual({ n: 3, ouvertes: 2 });
+    const commande = crypto.randomUUID();
+    // La technique lit les incidents, pas les demandes : elle ne prévient personne. Un mot vide ne part pas.
+    expect((await prevenir(inc.id, technique.console, 'C\'est réparé.', commande)).statut).toBe(403);
+    expect((await prevenir(inc.id, support.console, '  ', commande)).statut).toBe(400);
+    const mot = 'Les PDF repartent depuis 10 h 20 : renvoyez ceux qui étaient restés bloqués.';
+    const r = await prevenir(inc.id, support.console, mot, commande);
+    expect(r.statut, JSON.stringify(r.corps)).toBe(201);
+    expect(r.corps.demandes).toBe(2);
+    expect(await messages(da)).toEqual([mot]);
+    expect(await messages(db)).toEqual([mot]);
+    expect(await messages(close)).toEqual([]);
+    expect(await messages(aCote)).toEqual([]);
+    // Renvoyé après une coupure (la même commande) : rien de plus, ni message ni ligne au journal.
+    const encore = await prevenir(inc.id, support.console, mot, commande);
+    expect(encore.statut).toBe(201);
+    expect(await messages(da)).toEqual([mot]);
+    const geste = await admin.query("select role, motif, apres from plateforme.geste_console where geste = 'support.prevenir' and apres ->> 'incident' = $1", [inc.ref]);
+    expect(geste.rows).toEqual([{ role: 'support', motif: inc.ref, apres: { incident: inc.ref, demandes: 2 } }]);
+    // Chaque réponse est aussi celle d'une demande, dans son propre journal.
+    expect((await journal('support.repondre', a.ent)).map((g) => g.motif)).toEqual(['Mon PDF ne part pas']);
+    // Plus aucune demande ouverte : il n'y a personne à prévenir, et le refus le dit.
+    await admin.query('update plateforme.demande_support set close_le = now(), close_cote = $2, close_par = $3 where id = any($1)', [[da, db], 'equipe', direction.id]);
+    const vide = await prevenir(inc.id, direction.console, 'C\'est réparé.', crypto.randomUUID());
+    expect(vide.statut).toBe(403);
+    expect(vide.corps.motif).toBe('Aucune demande ouverte n\'est liée à cet incident : il n\'y a personne à prévenir.');
+  });
+});

@@ -146,6 +146,19 @@ describe('les incidents du service, à la souris', () => {
       await expect.poll(() => p.locator('.c-in-ouvert .c-in-demandes').innerText().then(net).catch(() => ''), { timeout: 20_000 })
         .toBe('2 demandes de clients liées par le support · 2 encore ouvertes.');
       expect(net(await p.locator('.c-in-ouvert').innerText())).not.toContain('Garage des Incidents');
+      // Les prévenir d'un coup (0128) : le geste nomme combien attendent ; sans mot, refusé sur le champ ; écrit, chaque
+      // demande ouverte reçoit la même réponse.
+      await cliquer(p.getByRole('button', { name: 'Répondre aux 2 demandes ouvertes…', exact: true }));
+      const fenetre = p.getByRole('dialog');
+      await expect.poll(() => fenetre.locator('.c-dialogue-pied .c-btn-principal').innerText().then(net).catch(() => '')).toBe('Envoyer aux 2 demandes');
+      await cliquer(fenetre.locator('.c-dialogue-pied .c-btn-principal'));
+      await expect.poll(() => fenetre.locator('.c-alerte-danger').innerText().then(net).catch(() => '')).toContain('trois caractères au moins');
+      expect(await p.evaluate(() => document.activeElement?.tagName)).toBe('TEXTAREA');
+      await fenetre.getByLabel('Le mot aux clients', { exact: true }).fill('Les codes arrivent de nouveau : redemandez-en un.');
+      await cliquer(fenetre.locator('.c-dialogue-pied .c-btn-principal'));
+      await expect.poll(() => p.locator('#c-toast').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe('C\'est fait : 2 demandes ont reçu ce mot.');
+      const recus = await admin.query("select m.texte from plateforme.message_support m join plateforme.demande_support d on d.id = m.demande where d.entreprise = $1 and m.cote = 'equipe'", [garage]);
+      expect(recus.rows.map((r) => r.texte)).toEqual(['Les codes arrivent de nouveau : redemandez-en un.', 'Les codes arrivent de nouveau : redemandez-en un.']);
     } finally { await admin.query('update plateforme.demande_support set incident = null where entreprise = $1', [garage]); }
     expect(erreurs).toEqual([]);
     await fermer(p);

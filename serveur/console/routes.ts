@@ -1987,6 +1987,17 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       return { corps: { ok: true } };
     },
   });
+  // Prévenir d'un coup les clients d'un incident (0128) : la même réponse à chaque demande ouverte qui lui est liée ;
+  // l'identifiant de commande, tiré par l'écran, fait qu'un renvoi après une coupure n'écrit rien deux fois.
+  ajouter({
+    methode: 'POST', chemin: '/console/support/incidents/:incident/repondre', geste: 'console.support.repondre',
+    corps: z.object({ texte: z.string().trim().min(3, 'console.support.reponse_courte').max(4000), commande: z.string().uuid() }),
+    traiter: async ({ params, corps }, tx) => {
+      const n = await lireJson<number>(transaction(tx), 'select plateforme.console_repondre_incident($1, $2, $3, $4) v',
+        [lireUuid(params.incident), corps.texte, maintenant(), corps.commande]);
+      return { statut: 201, corps: { demandes: n } };
+    },
+  });
   ajouter({
     methode: 'POST', chemin: '/console/support/demandes/:demande/technique', geste: 'console.support.repondre',
     corps: z.object({ attend: z.boolean(), motif: motifGeste }),
