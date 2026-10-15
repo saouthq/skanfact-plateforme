@@ -169,7 +169,7 @@ describe('reprendre un envoi (0115, l\'audit F18)', () => {
     await poser('01b2e000-0000-7000-8000-0000000a1b01', ent, 'a_envoyer', { cle: 'ttn.injoignable', valeurs: {} }, 3_600_000, proprio.id);
     await poser('01b2e000-0000-7000-8000-0000000a1b02', ent, 'refusee', { cle: 'ttn.refusee', valeurs: { accuses: 'matricule' } }, 0, proprio.id);
     await poser('01b2e000-0000-7000-8000-0000000a1b03', ent, 'a_envoyer', { cle: 'ttn.compte_refuse', valeurs: { message: 'identifiant inconnu' } }, 3_600_000, proprio.id);
-    const motif = { motif: 'la TTN répond de nouveau' };
+    const motif = { motif: 'la TTN répond de nouveau depuis 9 h 40' };
     // Le support ne touche pas aux envois ; la technique, oui (elle ne voit que la clé).
     expect((await appeler('POST', '/console/service/travaux/envois/0A1B01/reprendre', technique.console, motif)).statut).toBe(404);
     expect((await appeler('POST', '/console/service/travaux/envois/00A1B01/reprendre', support.console, motif)).statut).toBe(403);
@@ -182,7 +182,7 @@ describe('reprendre un envoi (0115, l\'audit F18)', () => {
     expect(String(fini.corps.motif)).toMatch(/un refus se corrige chez l'entreprise/);
     const compte = await appeler('POST', '/console/service/travaux/envois/000A1B03/reprendre', direction.console, motif);
     expect(String(compte.corps.motif)).toMatch(/compte El Fatoora/);
-    const j = (await appeler('GET', `/console/journal?q=${encodeURIComponent('la TTN répond de nouveau')}`, direction.console)).corps.lignes as { geste: string; entreprise: { id: string } | null; apres: { cle: string } }[];
+    const j = (await appeler('GET', `/console/journal?q=${encodeURIComponent('la TTN répond de nouveau depuis 9 h 40')}`, direction.console)).corps.lignes as { geste: string; entreprise: { id: string } | null; apres: { cle: string } }[];
     expect(j).toEqual([expect.objectContaining({ geste: 'service.envoi_repris', entreprise: expect.objectContaining({ id: ent }), apres: expect.objectContaining({ cle: '000A1B01' }) })]);
   });
 });
